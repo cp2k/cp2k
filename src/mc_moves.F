@@ -192,21 +192,21 @@ CONTAINS
       CALL cp_subsys_get(subsys(1)%subsys, &
          particles=particles, error=error)
 
-! write them out in case something bad happens
-      WRITE(diff,*) nnstep
-      WRITE(diff,*) nunits_tot
-      DO iunit=1,nunits_tot,3
-         WRITE(diff,'(A,3X,3(F18.12,3X))') '  O  ',&
-            particles%els(iunit)%r(1:3)*angstrom
-         WRITE(diff,'(A,3X,3(F18.12,3X))') '  H  ',&
-            particles%els(iunit+1)%r(1:3)*angstrom
-         WRITE(diff,'(A,3X,3(F18.12,3X))') '  H  ',&
-            particles%els(iunit+2)%r(1:3)*angstrom
-      ENDDO
-
 ! accept or reject the move based on Metropolis or the Iftimie rule
       IF (ionode) THEN
          
+! write them out in case something bad happens
+         WRITE(diff,*) nnstep
+         WRITE(diff,*) nunits_tot
+         DO iunit=1,nunits_tot,3
+            WRITE(diff,'(A,3X,3(F18.12,3X))') '  O  ',&
+               particles%els(iunit)%r(1:3)*angstrom
+            WRITE(diff,'(A,3X,3(F18.12,3X))') '  H  ',&
+               particles%els(iunit+1)%r(1:3)*angstrom
+            WRITE(diff,'(A,3X,3(F18.12,3X))') '  H  ',&
+               particles%els(iunit+2)%r(1:3)*angstrom
+         ENDDO
+
          IF (lclassical) THEN
             CALL mc_classical_energy(force_env,&
                classical_energy_new,nchain,1,nchain,cutoff,ldum)

@@ -153,7 +153,7 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = "mc_ge_quickstep_move"
 
     INTEGER                                  :: handle, i, iparticle,&
-      source,group
+      source,group,iunit
     INTEGER,DIMENSION(1:2)                   :: nchain,nunits_tot,diff
     REAL(KIND=dp)                            :: rand, w,BETA,cutoff
     REAL(KIND=dp), DIMENSION(1:2)            :: classical_energy_new, &
@@ -219,6 +219,7 @@ CONTAINS
             error=error)
          CALL cp_subsys_get(subsys_1(1)%subsys, &
             particles=particles_1, error=error)
+
       ELSE
          new_energy(1)=old_energy(1)
          CALL force_env_get(force_env_1,subsys=subsys_1,&
@@ -255,6 +256,39 @@ CONTAINS
       ENDIF
 
       IF (ionode) THEN
+
+
+! write out the coords, just in case
+         IF(nunits_tot(1) == 0) THEN
+            WRITE(diff(1),*) nnstep
+            WRITE(diff(1),*) nunits_tot(1)
+         ELSE
+            WRITE(diff(1),*) nnstep
+            WRITE(diff(1),*) nunits_tot(1)
+            DO iunit=1,nunits_tot(1),3
+               WRITE(diff(1),'(A,3X,3)F18.12,3X))') '  O  ',&
+                  particles_1%els(iunit)%r(1:3)*angstrom
+               WRITE(diff(1),'(A,3X,3)F18.12,3X))') '  H  ',&
+                  particles_1%els(iunit+1)%r(1:3)*angstrom
+               WRITE(diff(1),'(A,3X,3)F18.12,3X))') '  H  ',&
+                  particles_1%els(iunit+2)%r(1:3)*angstrom
+            ENDDO
+         ENDIF
+         IF(nunits_tot(2) == 0) THEN
+            WRITE(diff(2),*) nnstep
+            WRITE(diff(2),*) nunits_tot(2)
+         ELSE
+            WRITE(diff(2),*) nnstep
+            WRITE(diff(2),*) nunits_tot(2)
+            DO iunit=1,nunits_tot(2),3
+               WRITE(diff(2),'(A,3X,3)F18.12,3X))') '  O  ',&
+                  particles_2%els(iunit)%r(1:3)*angstrom
+               WRITE(diff(2),'(A,3X,3)F18.12,3X))') '  H  ',&
+                  particles_2%els(iunit+1)%r(1:3)*angstrom
+               WRITE(diff(2),'(A,3X,3)F18.12,3X))') '  H  ',&
+                  particles_2%els(iunit+2)%r(1:3)*angstrom
+            ENDDO
+         ENDIF
 
 ! accept or reject the move based on Metropolis or the Iftimie rule
          IF (lclassical) THEN
