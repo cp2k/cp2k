@@ -20,35 +20,34 @@
 !******************************************************************************
 
 MODULE topology_util
-
-  USE atomic_kind_types,                ONLY : allocate_atomic_kind_set,&
-                                               atomic_kind_type,&
-                                               get_atomic_kind,&
-                                               init_atomic_kind_set,&
-                                               set_atomic_kind
-  USE convert_units,                    ONLY : convert_to_cp2k_units
-  USE external_potential_types,         ONLY : epc_potential_type,&
-                                               set_potential
-  USE global_types,                     ONLY : global_environment_type
-  USE input_types,                      ONLY : setup_parameters_type
-  USE kinds,                            ONLY : dbl
-  USE memory_utilities,                 ONLY : reallocate
-  USE message_passing,                  ONLY : mp_bcast
-  USE molecule_types,                   ONLY : init_molecule_type,&
-                                               molecule_type
-  USE nrutil,                           ONLY : swap
-  USE particle_types,                   ONLY : particle_type, &
-                                               allocate_particle_set
-  USE periodic_table,                   ONLY : ptable
-  USE simulation_cell,                  ONLY : cell_type, pbc
-  USE string_utilities,                 ONLY : xstring,&
-                                               integer_to_string, &
-                                               string_to_integer, &
-                                               str_search, &
-                                               uppercase
-  USE termination,                      ONLY : stop_program, &
-                                               stop_memory
-
+  USE atomic_kind_types,               ONLY: allocate_atomic_kind_set,&
+                                             atomic_kind_type,&
+                                             get_atomic_kind,&
+                                             init_atomic_kind_set,&
+                                             set_atomic_kind
+  USE convert_units,                   ONLY: convert_to_cp2k_units
+  USE external_potential_types,        ONLY: epc_potential_type,&
+                                             set_potential
+  USE global_types,                    ONLY: global_environment_type
+  USE input_types,                     ONLY: setup_parameters_type
+  USE kinds,                           ONLY: dbl
+  USE memory_utilities,                ONLY: reallocate
+  USE message_passing,                 ONLY: mp_bcast
+  USE molecule_types,                  ONLY: init_molecule_type,&
+                                             molecule_type
+  USE nrutil,                          ONLY: swap
+  USE particle_types,                  ONLY: allocate_particle_set,&
+                                             particle_type
+  USE periodic_table,                  ONLY: ptable
+  USE simulation_cell,                 ONLY: cell_type,&
+                                             pbc
+  USE string_utilities,                ONLY: integer_to_string,&
+                                             str_search,&
+                                             string_to_integer,&
+                                             uppercase,&
+                                             xstring
+  USE termination,                     ONLY: stop_memory,&
+                                             stop_program
   PRIVATE
   PUBLIC :: topology_generate_molecule,azero,find_boundary,topology_coord_pack,&
             topology_generate_bond,topology_generate_bend,&
@@ -65,6 +64,18 @@ CONTAINS
 !!
 !!   NAME
 !!     topology_generate_molecule
+!!
+!!   SYNOPSIS
+!!     Subroutine topology_generate_molecule(natom, atm_mol_name, nbond,&
+!!         bond_a, bond_b, map_mol_typ, map_mol_num)
+!!       Implicit None
+!!       Integer:: natom, nbond
+!!       Character(Len=20), Pointer:: atm_mol_name(:)
+!!       Integer, Pointer:: bond_a(:)
+!!       Integer, Pointer:: bond_b(:)
+!!       Integer, Pointer:: map_mol_typ(:)
+!!       Integer, Pointer:: map_mol_num(:)
+!!     End Subroutine topology_generate_molecule
 !!
 !!   FUNCTION
 !!     Use information from bond list to generate molecule. (ie clustering)
@@ -196,6 +207,13 @@ END SUBROUTINE topology_generate_molecule
 !!
 !!   NAME
 !!     find_boundary
+!!
+!!   SYNOPSIS
+!!     Subroutine find_boundary(num_array, ntot, first, last, search)
+!!       Implicit None
+!!       Integer, Pointer:: num_array(:)
+!!       Integer:: ntot, first, last, search
+!!     End Subroutine find_boundary
 !!
 !!   FUNCTION
 !!     find get the indices for the element that matches in the array
@@ -356,6 +374,13 @@ END SUBROUTINE find_boundary3
 !!   NAME
 !!     sort_bond
 !!
+!!   SYNOPSIS
+!!     Subroutine sort_bond(nbond, bond_a, bond_b)
+!!       Implicit None
+!!       Integer:: nbond
+!!       Integer, Pointer:: bond_a(:), bond_b(:)
+!!     End Subroutine sort_bond
+!!
 !!   FUNCTION
 !!     sort_the bonds lists
 !!
@@ -423,6 +448,13 @@ END SUBROUTINE sort_bond
 !!
 !!   NAME
 !!     sort_bend
+!!
+!!   SYNOPSIS
+!!     Subroutine sort_bend(ntheta, theta_a, theta_b, theta_c)
+!!       Implicit None
+!!       Integer:: ntheta
+!!       Integer, Pointer:: theta_a(:), theta_b(:), theta_c(:)
+!!     End Subroutine sort_bend
 !!
 !!   FUNCTION
 !!     sort_the bends lists
@@ -514,6 +546,13 @@ END SUBROUTINE sort_bend
 !!
 !!   NAME
 !!     sort_dihe
+!!
+!!   SYNOPSIS
+!!     Subroutine sort_dihe(nphi, phi_a, phi_b, phi_c, phi_d)
+!!       Implicit None
+!!       Integer:: nphi
+!!       Integer, Pointer:: phi_a(:), phi_b(:), phi_c(:), phi_d(:)
+!!     End Subroutine sort_dihe
 !!
 !!   FUNCTION
 !!     sort_the dihe lists
@@ -637,6 +676,13 @@ END SUBROUTINE sort_dihe
 !!   NAME
 !!     azero
 !!
+!!   SYNOPSIS
+!!     Subroutine azero(num_array, ntot)
+!!       Implicit None
+!!       Integer, Pointer:: num_array(:)
+!!       Integer:: ntot
+!!     End Subroutine azero
+!!
 !!   FUNCTION
 !!     zero the sucker
 !!
@@ -673,6 +719,18 @@ END SUBROUTINE azero
 !!
 !!   NAME
 !!     topology_generate_bond
+!!
+!!   SYNOPSIS
+!!     Subroutine topology_generate_bond(cell, r, label_atmname, bond_a,&
+!!         bond_b, atm_mass, atm_charge)
+!!       Implicit None
+!!       Type(cell_type), Pointer:: cell
+!!       Real(Kind=dbl), Dimension(:,:), Pointer:: r
+!!       Character(Len=20), Pointer:: label_atmname(:)
+!!       Integer, Pointer:: bond_a(:), bond_b(:)
+!!       Real(Kind=dbl), Pointer:: atm_charge(:)
+!!       Real(Kind=dbl), Pointer:: atm_mass(:)
+!!     End Subroutine topology_generate_bond
 !!
 !!   FUNCTION
 !!     Use info from periodic table and assumptions to generate bonds
@@ -862,6 +920,14 @@ END SUBROUTINE topology_generate_bond
 !!   NAME
 !!     topology_generate_bend
 !!
+!!   SYNOPSIS
+!!     Subroutine topology_generate_bend(bond_a, bond_b, theta_a, theta_b,&
+!!         theta_c)
+!!       Implicit None
+!!       Integer, Pointer:: bond_a(:), bond_b(:)
+!!       Integer, Pointer:: theta_a(:), theta_b(:), theta_c(:)
+!!     End Subroutine topology_generate_bend
+!!
 !!   FUNCTION
 !!     Using a list of bonds, generate a list of bends
 !!
@@ -995,6 +1061,14 @@ END SUBROUTINE topology_generate_bend
 !!   NAME
 !!     topology_generate_dihe
 !!
+!!   SYNOPSIS
+!!     Subroutine topology_generate_dihe(theta_a, theta_b, theta_c, phi_a,&
+!!         phi_b, phi_c, phi_d)
+!!       Implicit None
+!!       Integer, Pointer:: theta_a(:), theta_b(:), theta_c(:)
+!!       Integer, Pointer:: phi_a(:), phi_b(:), phi_c(:), phi_d(:)
+!!     End Subroutine topology_generate_dihe
+!!
 !!   FUNCTION
 !!     Using a list of dihe, generate a list of dihe
 !!
@@ -1061,6 +1135,19 @@ END SUBROUTINE topology_generate_dihe
 !!
 !!   NAME
 !!     topology_coord_pack
+!!
+!!   SYNOPSIS
+!!     Subroutine topology_coord_pack(r, label_atmname, particle_set,&
+!!         atomic_kind_set, mol_setup, setup, globenv)
+!!       Implicit None
+!!       Real(Kind=dbl), Dimension(:,:), Pointer:: r
+!!       Character(Len=20), Pointer:: label_atmname(:)
+!!       Type(global_environment_type), Intent (IN):: globenv
+!!       Type(atomic_kind_type), Dimension(:), Pointer:: atomic_kind_set
+!!       Type(particle_type), Dimension(:), Pointer:: particle_set
+!!       Type(molecule_type), Dimension(:), Intent (IN):: mol_setup
+!!       Type(setup_parameters_type):: setup
+!!     End Subroutine topology_coord_pack
 !!
 !!   FUNCTION
 !!     Take info readin from different file format and stuff it into
@@ -1302,6 +1389,26 @@ END SUBROUTINE topology_coord_pack
 !!   NAME
 !!     topology_pack
 !!
+!!   SYNOPSIS
+!!     Subroutine topology_pack(bond_a, bond_b, theta_a, theta_b, theta_c,&
+!!         phi_a, phi_b, phi_c, phi_d, label_atmname, label_resname,&
+!!         atm_mass, atm_charge, map_mol_typ, map_mol_num, mol_setup, setup,&
+!!         globenv)
+!!       Implicit None
+!!       Type(molecule_type), Dimension(:), Pointer:: mol_setup
+!!       Type(setup_parameters_type), Intent (IN):: setup
+!!       Type(global_environment_type), Intent (IN):: globenv
+!!       Character(Len=20), Pointer:: label_resname(:)
+!!       Character(Len=20), Pointer:: label_atmname(:)
+!!       Real(Kind=dbl), Pointer:: atm_charge(:)
+!!       Real(Kind=dbl), Pointer:: atm_mass(:)
+!!       Integer, Pointer:: map_mol_typ(:)
+!!       Integer, Pointer:: map_mol_num(:)
+!!       Integer, Pointer:: bond_a(:), bond_b(:)
+!!       Integer, Pointer:: theta_a(:), theta_b(:), theta_c(:)
+!!       Integer, Pointer:: phi_a(:), phi_b(:), phi_c(:), phi_d(:)
+!!     End Subroutine topology_pack
+!!
 !!   FUNCTION
 !!     topology pack
 !!
@@ -1389,7 +1496,7 @@ SUBROUTINE topology_pack(bond_a,bond_b,theta_a,theta_b,theta_c,&
     j = j / map_mol_num(last)
     mol_setup(i)%molpar%natom=j
     mol_setup(i)%molpar%natom_type=1
-    DO j=2,mol_setup(i)%molpar%natom
+    DO j=1,mol_setup(i)%molpar%natom-1
       IF(.NOT.(label_atmname(first+j-1)==label_atmname(first+j))) THEN
         mol_setup(i)%molpar%natom_type = mol_setup(i)%molpar%natom_type + 1
       END IF
