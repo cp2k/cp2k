@@ -218,11 +218,4 @@ else:
                     os.rename(outFilePath,outFilePath+".err")
                 except:
                     print "+++ error renaming",outFilePath
-            #for obj in sys.exc_info():
-            #    print str(obj)
-            #tb=sys.exc_info()[2]
-            #while 1:
-            #    if tb==None: break
-            #    print "at line "+str(tb.tb_lineno)+" in"
-            #    tb=tb.tb_next
     

@@ -67,7 +67,7 @@ def instantiateTemplate(infile,outfile,subs):
   infile.close()
 
 
-if len(sys.argv)!=4:
+if len(sys.argv)<2:
     print "usage:", sys.argv[0]," template1.instantiation [template2.instantiation ...]"
 else:
   for name in sys.argv[1:]:
