@@ -1294,9 +1294,11 @@ END SUBROUTINE clone_particle
     CHARACTER(LEN=*)                         :: FORMAT, content, title
 
     CHARACTER(LEN=2)                         :: element_symbol
+    CHARACTER(LEN=4)                         :: name
     INTEGER                                  :: iatom, natom
     REAL(KIND=dp), DIMENSION(3)              :: r
-
+    CHARACTER(LEN=default_string_length)     :: atm_name, my_format
+    
     natom = SIZE(particle_set)
 
     SELECT CASE (TRIM(FORMAT))
@@ -1304,27 +1306,36 @@ END SUBROUTINE clone_particle
       WRITE(iunit,"(I8)") natom
       WRITE(iunit,"(A)")  TRIM(title)
       DO iatom=1,natom
-        CALL get_atomic_kind(atomic_kind=particle_set(iatom)%atomic_kind,&
-                             element_symbol=element_symbol)
+         CALL get_atomic_kind(atomic_kind=particle_set(iatom)%atomic_kind,&
+              element_symbol=element_symbol)
+         IF (LEN_TRIM(element_symbol) == 0)  THEN
+            CALL get_atomic_kind(atomic_kind=particle_set(iatom)%atomic_kind,&
+                 name=atm_name)
+            my_format="(A4,"
+            name = TRIM(atm_name)
+         ELSE
+            my_format="(T2,A2,"
+            name = TRIM(element_symbol)
+         END IF
        SELECT CASE (TRIM(content))
          CASE ("POS")
           r(:) = particle_set(iatom)%r(:)*angstrom
-          WRITE (iunit,"(T2,A2,1X,3F20.10)") element_symbol,r(1:3)
+          WRITE (iunit,TRIM(my_format)//"1X,3F20.10)") TRIM(name),r(1:3)
         CASE ("VEL")
-          WRITE (iunit,"(T2,A2,1X,3F20.10)") element_symbol,&
+          WRITE (iunit,TRIM(my_format)//"1X,3F20.10)") TRIM(name),&
                                             particle_set(iatom)%v(1:3)
         CASE ("FORCE")
-          WRITE (iunit,"(T2,A2,1X,3F20.10)") element_symbol,&
+          WRITE (iunit,TRIM(my_format)//"1X,3F20.10)") TRIM(name),&
                                             particle_set(iatom)%f(1:3)
         CASE ("POS_VEL")
           r(:) = particle_set(iatom)%r(:)*angstrom
-          WRITE (iunit,"(T2,A2,1X,6F20.10)") element_symbol,r(1:3),&
+          WRITE (iunit,TRIM(my_format)//"1X,6F20.10)") TRIM(name),r(1:3),&
                                             particle_set(iatom)%v(1:3)
         CASE ("POS_VEL_FORCE")
           r(:) = particle_set(iatom)%r(:)*angstrom
-          WRITE (iunit,"(T2,A2,1X,9F20.10)") element_symbol,r(1:3),&
-                                            particle_set(iatom)%v(1:3),&
-                                            particle_set(iatom)%f(1:3)
+          WRITE (iunit,TRIM(my_format)//"1X,9F20.10)") TRIM(name),r(1:3),&
+                                                 particle_set(iatom)%v(1:3),&
+                                                 particle_set(iatom)%f(1:3)
         END SELECT
       END DO
     CASE ("ATOMIC")
