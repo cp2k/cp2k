@@ -37,18 +37,27 @@
 !!   SOURCE
 !*****************************************************************************
 MODULE cp_linked_list_int_ptr
-  USE cp_log_handling, ONLY: cp_fatal_level, cp_failure_level,&
-       cp_warning_level, cp_note_level, cp_to_string, cp_log,&
-       cp_logger_get_default_unit_nr, cp_logger_type
-  USE cp_error_handling, ONLY: cp_debug, cp_error_type, cp_error_init,&
-       cp_error_dealloc_ref, cp_error_message, cp_assert, cp_a_l,&
-       cp_assertion_failed, cp_internal_error, cp_unimplemented_error,&
-       cp_error_get_logger
-  USE cp_output_handling, ONLY: cp_finished_output, cp_would_output,&
-       cp_unitnr_for_output, cp_write_output
-  USE timings, ONLY: timeset, timestop
-  USE kinds, only: dp
-USE cp_array_i_utils, ONLY: cp_i_write
+  USE cp_array_i_utils,                ONLY: cp_i_write
+  USE cp_error_handling,               ONLY: cp_a_l,&
+                                             cp_assert,&
+                                             cp_assertion_failed,&
+                                             cp_debug,&
+                                             cp_error_get_logger,&
+                                             cp_error_message,&
+                                             cp_error_type
+  USE cp_log_handling,                 ONLY: cp_failure_level,&
+                                             cp_fatal_level,&
+                                             cp_logger_type,&
+                                             cp_note_level,&
+                                             cp_to_string,&
+                                             cp_warning_level
+  USE cp_output_handling,              ONLY: cp_finished_output,&
+                                             cp_unitnr_for_output,&
+                                             cp_would_output
+  USE kinds,                           ONLY: dp
+  USE timings,                         ONLY: timeset,&
+                                             timestop
+
   IMPLICIT NONE
   PRIVATE
 
@@ -205,7 +214,7 @@ USE cp_array_i_utils, ONLY: cp_i_write
 !***************************************************************************
   TYPE cp_sll_int_ptr_type
      LOGICAL :: initialized
-     integer, pointer :: first_el
+     INTEGER, POINTER :: first_el
      TYPE(cp_sll_int_ptr_type), POINTER :: rest
   END TYPE cp_sll_int_ptr_type
 !!***
@@ -242,15 +251,19 @@ CONTAINS
 !!
 !!*** **********************************************************************
   SUBROUTINE cp_sll_int_ptr_create(sll,first_el,rest,error)
-    TYPE(cp_sll_int_ptr_type), POINTER :: sll
-    integer, intent(in),target, OPTIONAL :: first_el
-    TYPE(cp_sll_int_ptr_type), POINTER, OPTIONAL :: rest
-    TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
+    TYPE(cp_sll_int_ptr_type), POINTER       :: sll
+    INTEGER, INTENT(in), OPTIONAL, TARGET    :: first_el
+    TYPE(cp_sll_int_ptr_type), OPTIONAL, &
+      POINTER                                :: rest
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
 
-    LOGICAL :: failure
-    CHARACTER(len=*), PARAMETER :: routineP='cp_linked_list_int_ptr:cp_sll_int_ptr_create'
-    INTEGER :: stat
-    TYPE(cp_sll_int_ptr_type), POINTER :: empty_list
+    CHARACTER(len=*), PARAMETER :: &
+      routineP = 'cp_linked_list_int_ptr:cp_sll_int_ptr_create'
+
+    INTEGER                                  :: stat
+    LOGICAL                                  :: failure
+
     failure=.FALSE.
 
     IF (.NOT.PRESENT(first_el)) THEN
@@ -296,10 +309,12 @@ CONTAINS
 !!
 !!*** **********************************************************************
   SUBROUTINE cp_sll_int_ptr_dealloc(sll,error)
-    TYPE(cp_sll_int_ptr_type), POINTER :: sll
-    TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
+    TYPE(cp_sll_int_ptr_type), POINTER       :: sll
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
 
-    CHARACTER(len=*), PARAMETER :: routineP='cp_linked_list_int_ptr/cp_sll_int_ptr_dealloc'
+    CHARACTER(len=*), PARAMETER :: &
+      routineP = 'cp_linked_list_int_ptr/cp_sll_int_ptr_dealloc'
 
     CALL cp_sll_int_ptr_rm_all_el(sll,error)
   END SUBROUTINE cp_sll_int_ptr_dealloc
@@ -331,16 +346,20 @@ CONTAINS
 !!
 !!*** **********************************************************************
   SUBROUTINE cp_sll_int_ptr_dealloc_node(sll,error)
-    TYPE(cp_sll_int_ptr_type), POINTER :: sll
-    TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
+    TYPE(cp_sll_int_ptr_type), POINTER       :: sll
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
 
-    LOGICAL :: failure
-    CHARACTER(len=*), PARAMETER :: routineP='cp_linked_list_int_ptr/cp_sll_int_ptr_dealloc_node'
-    INTEGER:: stat
+    CHARACTER(len=*), PARAMETER :: &
+      routineP = 'cp_linked_list_int_ptr/cp_sll_int_ptr_dealloc_node'
+
+    INTEGER                                  :: stat
+    LOGICAL                                  :: failure
+
     failure=.FALSE.
 
     CPPrecondition(sll%initialized,cp_failure_level,routineP,error,failure)
-    sll%initialized=.false.
+    sll%initialized=.FALSE.
     DEALLOCATE(sll, stat=stat)
     CPPostcondition(stat==0,cp_warning_level,routineP,error,failure)
   END SUBROUTINE cp_sll_int_ptr_dealloc_node
@@ -376,13 +395,18 @@ CONTAINS
 !!
 !!*** **********************************************************************
   SUBROUTINE cp_sll_int_ptr_set(sll,first_el,rest,error)
-    TYPE(cp_sll_int_ptr_type), POINTER :: sll
-    integer, intent(in),target, OPTIONAL :: first_el
-    TYPE(cp_sll_int_ptr_type), POINTER, OPTIONAL :: rest
-    TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
+    TYPE(cp_sll_int_ptr_type), POINTER       :: sll
+    INTEGER, INTENT(in), OPTIONAL, TARGET    :: first_el
+    TYPE(cp_sll_int_ptr_type), OPTIONAL, &
+      POINTER                                :: rest
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
 
-    LOGICAL :: failure
-    CHARACTER(len=*), PARAMETER :: routineP='cp_linked_list_int_ptr:cp_set_sll_int_ptr'
+    CHARACTER(len=*), PARAMETER :: &
+      routineP = 'cp_linked_list_int_ptr:cp_set_sll_int_ptr'
+
+    LOGICAL                                  :: failure
+
     failure=.FALSE.
 
     IF (.NOT.ASSOCIATED(sll)) THEN
@@ -428,15 +452,20 @@ CONTAINS
 !!
 !!*** **********************************************************************
   SUBROUTINE cp_sll_int_ptr_get(sll,first_el,rest,empty,length,error)
-    TYPE(cp_sll_int_ptr_type), POINTER :: sll
-    integer, pointer, OPTIONAL :: first_el
-    TYPE(cp_sll_int_ptr_type), OPTIONAL, POINTER :: rest
-    LOGICAL, OPTIONAL, INTENT(out) :: empty
-    INTEGER, INTENT(out), OPTIONAL :: length
-    TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
+    TYPE(cp_sll_int_ptr_type), POINTER       :: sll
+    INTEGER, OPTIONAL, POINTER               :: first_el
+    TYPE(cp_sll_int_ptr_type), OPTIONAL, &
+      POINTER                                :: rest
+    LOGICAL, INTENT(out), OPTIONAL           :: empty
+    INTEGER, INTENT(out), OPTIONAL           :: length
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
 
-    LOGICAL :: failure
-    CHARACTER(len=*), PARAMETER :: routineP='cp_linked_list_int_ptr:cp_sll_int_ptr_get'
+    CHARACTER(len=*), PARAMETER :: &
+      routineP = 'cp_linked_list_int_ptr:cp_sll_int_ptr_get'
+
+    LOGICAL                                  :: failure
+
     failure=.FALSE.
 
     IF (.NOT.ASSOCIATED(sll)) THEN
@@ -481,12 +510,16 @@ CONTAINS
 !!
 !!*** **********************************************************************
   FUNCTION cp_sll_int_ptr_get_first_el(sll,error) RESULT(res)
-    TYPE(cp_sll_int_ptr_type), POINTER :: sll
-    TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
-    integer, pointer :: res
+    TYPE(cp_sll_int_ptr_type), POINTER       :: sll
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
+    INTEGER, POINTER                         :: res
 
-    LOGICAL :: failure
-    CHARACTER(len=*), PARAMETER :: routineP='cp_linked_list_int_ptr:cp_sll_int_ptr_get_first'
+    CHARACTER(len=*), PARAMETER :: &
+      routineP = 'cp_linked_list_int_ptr:cp_sll_int_ptr_get_first'
+
+    LOGICAL                                  :: failure
+
     failure=.FALSE.
 
     IF (cp_debug) THEN
@@ -527,14 +560,18 @@ CONTAINS
 !!
 !!*** **********************************************************************
   FUNCTION cp_sll_int_ptr_get_rest(sll, iter, error) RESULT(res)
-    TYPE(cp_sll_int_ptr_type), POINTER :: sll
-    INTEGER, OPTIONAL :: iter
-    TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
-    TYPE(cp_sll_int_ptr_type), POINTER :: res
+    TYPE(cp_sll_int_ptr_type), POINTER       :: sll
+    INTEGER, OPTIONAL                        :: iter
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
+    TYPE(cp_sll_int_ptr_type), POINTER       :: res
 
-    LOGICAL :: failure
-    CHARACTER(len=*), PARAMETER :: routineP='cp_linked_list_int_ptr:cp_sll_int_ptr_get_first'
-    INTEGER :: i
+    CHARACTER(len=*), PARAMETER :: &
+      routineP = 'cp_linked_list_int_ptr:cp_sll_int_ptr_get_first'
+
+    INTEGER                                  :: i
+    LOGICAL                                  :: failure
+
     failure=.FALSE.
 
     IF (.NOT.ASSOCIATED(sll)) THEN
@@ -601,12 +638,16 @@ CPSourceFileRef,&
 !!
 !!*** **********************************************************************
   FUNCTION cp_sll_int_ptr_get_empty(sll,error) RESULT(res)
-    LOGICAL :: res
-    TYPE(cp_sll_int_ptr_type), POINTER :: sll
-    TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
+    TYPE(cp_sll_int_ptr_type), POINTER       :: sll
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
+    LOGICAL                                  :: res
 
-    LOGICAL :: failure
-    CHARACTER(len=*), PARAMETER :: routineP='cp_linked_list_int_ptr:cp_sll_int_ptr_get_empty'
+    CHARACTER(len=*), PARAMETER :: &
+      routineP = 'cp_linked_list_int_ptr:cp_sll_int_ptr_get_empty'
+
+    LOGICAL                                  :: failure
+
     failure=.FALSE.
 
     res = .NOT.ASSOCIATED(sll)
@@ -637,13 +678,18 @@ CPSourceFileRef,&
 !!
 !!*** **********************************************************************
   FUNCTION cp_sll_int_ptr_get_length(sll,error) RESULT(res)
-    TYPE(cp_sll_int_ptr_type), INTENT(in), TARGET :: sll
-    TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
-    INTEGER ::res
+    TYPE(cp_sll_int_ptr_type), INTENT(in), &
+      TARGET                                 :: sll
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
+    INTEGER                                  :: res
 
-    LOGICAL :: failure
-    CHARACTER(len=*), PARAMETER :: routineP='cp_linked_list_int_ptr/cp_sll_int_ptr_get_length'
-    TYPE(cp_sll_int_ptr_type), POINTER :: iterator
+    CHARACTER(len=*), PARAMETER :: &
+      routineP = 'cp_linked_list_int_ptr/cp_sll_int_ptr_get_length'
+
+    LOGICAL                                  :: failure
+    TYPE(cp_sll_int_ptr_type), POINTER       :: iterator
+
     failure=.FALSE.
 
     res=0
@@ -684,14 +730,18 @@ CPSourceFileRef,&
 !!
 !!*** **********************************************************************
   FUNCTION cp_sll_int_ptr_get_el_at(sll,index,error) RESULT(res)
-    integer, pointer :: res
-    TYPE(cp_sll_int_ptr_type), POINTER :: sll
-    INTEGER, INTENT(in) :: index
-    TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
+    TYPE(cp_sll_int_ptr_type), POINTER       :: sll
+    INTEGER, INTENT(in)                      :: index
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
+    INTEGER, POINTER                         :: res
 
-    LOGICAL :: failure
-    CHARACTER(len=*), PARAMETER :: routineP='cp_linked_list_int_ptr/cp_sll_int_ptr_get_el_at'
-    TYPE(cp_sll_int_ptr_type), POINTER :: pos
+    CHARACTER(len=*), PARAMETER :: &
+      routineP = 'cp_linked_list_int_ptr/cp_sll_int_ptr_get_el_at'
+
+    LOGICAL                                  :: failure
+    TYPE(cp_sll_int_ptr_type), POINTER       :: pos
+
     failure=.FALSE.
 
     IF (cp_debug) THEN
@@ -736,14 +786,18 @@ CPSourceFileRef,&
 !!
 !!*** **********************************************************************
   SUBROUTINE cp_sll_int_ptr_set_el_at(sll,index,value,error)
-    integer, intent(in),target :: value
-    TYPE(cp_sll_int_ptr_type), POINTER :: sll
-    INTEGER, INTENT(in) :: index
-    TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
+    TYPE(cp_sll_int_ptr_type), POINTER       :: sll
+    INTEGER, INTENT(in)                      :: index
+    INTEGER, INTENT(in), TARGET              :: value
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
 
-    LOGICAL :: failure
-    CHARACTER(len=*), PARAMETER :: routineP='cp_linked_list_int_ptr/cp_sll_int_ptr_set_el_at'
-    TYPE(cp_sll_int_ptr_type), POINTER :: pos
+    CHARACTER(len=*), PARAMETER :: &
+      routineP = 'cp_linked_list_int_ptr/cp_sll_int_ptr_set_el_at'
+
+    LOGICAL                                  :: failure
+    TYPE(cp_sll_int_ptr_type), POINTER       :: pos
+
     failure=.FALSE.
 
     IF (index==-1) THEN
@@ -786,13 +840,17 @@ CPSourceFileRef,&
 !!
 !!*** **********************************************************************
   FUNCTION cp_sll_int_ptr_next(iterator,el_att,error) RESULT(res)
-    TYPE(cp_sll_int_ptr_type), POINTER :: iterator
-    TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
-    integer, pointer, OPTIONAL :: el_att
-    LOGICAL :: res
+    TYPE(cp_sll_int_ptr_type), POINTER       :: iterator
+    INTEGER, OPTIONAL, POINTER               :: el_att
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
+    LOGICAL                                  :: res
 
-    LOGICAL :: failure
-    CHARACTER(len=*), PARAMETER :: routineP='cp_linked_list_int_ptr:cp_sll_int_ptr_next'
+    CHARACTER(len=*), PARAMETER :: &
+      routineP = 'cp_linked_list_int_ptr:cp_sll_int_ptr_next'
+
+    LOGICAL                                  :: failure
+
     failure=.FALSE.
 
     IF (ASSOCIATED(iterator)) THEN
@@ -800,7 +858,7 @@ CPSourceFileRef,&
           CPPrecondition(iterator%initialized,cp_failure_level,routineP,error,failure)
        END IF
        res=.NOT.failure
-       if (present(el_att)) el_att => iterator%first_el
+       IF (PRESENT(el_att)) el_att => iterator%first_el
        iterator => iterator%rest
     ELSE
        res=.FALSE.
@@ -836,14 +894,17 @@ CPSourceFileRef,&
 !!
 !!*** **********************************************************************
   SUBROUTINE cp_sll_int_ptr_insert_el(sll,el,error)
-    TYPE(cp_sll_int_ptr_type), POINTER :: sll
-    integer, intent(in),target:: el
-    TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
+    TYPE(cp_sll_int_ptr_type), POINTER       :: sll
+    INTEGER, INTENT(in), TARGET              :: el
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
 
-    LOGICAL :: failure
-    CHARACTER(len=*), PARAMETER :: routineP='cp_linked_list_int_ptr:cp_sll_int_ptr_add_el'
-    TYPE(cp_sll_int_ptr_type), POINTER :: newSlot
-    INTEGER :: stat
+    CHARACTER(len=*), PARAMETER :: &
+      routineP = 'cp_linked_list_int_ptr:cp_sll_int_ptr_add_el'
+
+    LOGICAL                                  :: failure
+    TYPE(cp_sll_int_ptr_type), POINTER       :: newSlot
+
     failure=.FALSE.
     NULLIFY(newSlot)
 
@@ -877,12 +938,16 @@ CPSourceFileRef,&
 !!
 !!*** **********************************************************************
   SUBROUTINE cp_sll_int_ptr_rm_first_el(sll,error)
-    TYPE(cp_sll_int_ptr_type), POINTER :: sll
-    TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
+    TYPE(cp_sll_int_ptr_type), POINTER       :: sll
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
 
-    LOGICAL :: failure
-    CHARACTER(len=*), PARAMETER :: routineP='cp_linked_list_int_ptr/cp_sll_int_ptr_rm_first_el'
-    TYPE(cp_sll_int_ptr_type), POINTER :: node_to_rm
+    CHARACTER(len=*), PARAMETER :: &
+      routineP = 'cp_linked_list_int_ptr/cp_sll_int_ptr_rm_first_el'
+
+    LOGICAL                                  :: failure
+    TYPE(cp_sll_int_ptr_type), POINTER       :: node_to_rm
+
     failure=.FALSE.
     node_to_rm => sll
 
@@ -925,14 +990,18 @@ CPSourceFileRef,&
 !!
 !!*** **********************************************************************
   SUBROUTINE cp_sll_int_ptr_insert_el_at(sll,el,index,error)
-    integer, intent(in),target :: el
-    INTEGER, INTENT(in) :: index
-    TYPE(cp_sll_int_ptr_type), POINTER :: sll
-    TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
+    TYPE(cp_sll_int_ptr_type), POINTER       :: sll
+    INTEGER, INTENT(in), TARGET              :: el
+    INTEGER, INTENT(in)                      :: index
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
 
-    LOGICAL :: failure
-    CHARACTER(len=*), PARAMETER :: routineP='cp_linked_list_int_ptr/cp_sll_int_ptr_insert_el_at'
-    TYPE(cp_sll_int_ptr_type), POINTER :: pos
+    CHARACTER(len=*), PARAMETER :: &
+      routineP = 'cp_linked_list_int_ptr/cp_sll_int_ptr_insert_el_at'
+
+    LOGICAL                                  :: failure
+    TYPE(cp_sll_int_ptr_type), POINTER       :: pos
+
     failure=.FALSE.
 
     IF (index==1) THEN
@@ -977,13 +1046,17 @@ CPSourceFileRef,&
 !!
 !!*** **********************************************************************
   SUBROUTINE cp_sll_int_ptr_rm_el_at(sll,index,error)
-    TYPE(cp_sll_int_ptr_type), POINTER :: sll
-    TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
-    INTEGER, INTENT(in)::index
+    TYPE(cp_sll_int_ptr_type), POINTER       :: sll
+    INTEGER, INTENT(in)                      :: index
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
 
-    LOGICAL :: failure
-    CHARACTER(len=*), PARAMETER :: routineP='cp_linked_list_int_ptr/cp_sll_int_ptr_remove_el_at'
-    TYPE(cp_sll_int_ptr_type), POINTER :: pos
+    CHARACTER(len=*), PARAMETER :: &
+      routineP = 'cp_linked_list_int_ptr/cp_sll_int_ptr_remove_el_at'
+
+    LOGICAL                                  :: failure
+    TYPE(cp_sll_int_ptr_type), POINTER       :: pos
+
     failure=.FALSE.
     
     IF (cp_debug) THEN
@@ -1029,13 +1102,16 @@ CPSourceFileRef,&
 !!
 !!*** **********************************************************************
   SUBROUTINE cp_sll_int_ptr_rm_all_el(sll,error)
-    TYPE(cp_sll_int_ptr_type), POINTER :: sll
-    TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
+    TYPE(cp_sll_int_ptr_type), POINTER       :: sll
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
 
-    LOGICAL :: failure
-    CHARACTER(len=*), PARAMETER :: routineP='cp_linked_list_int_ptr/cp_sll_int_ptr_rm_all_el'
-    TYPE(cp_sll_int_ptr_type), POINTER :: next_node, actual_node
-    INTEGER:: stat
+    CHARACTER(len=*), PARAMETER :: &
+      routineP = 'cp_linked_list_int_ptr/cp_sll_int_ptr_rm_all_el'
+
+    LOGICAL                                  :: failure
+    TYPE(cp_sll_int_ptr_type), POINTER       :: actual_node, next_node
+
     failure=.FALSE.
 
     actual_node => sll
@@ -1086,19 +1162,21 @@ CPSourceFileRef,&
 !!*** **********************************************************************
   SUBROUTINE cp_sll_int_ptr_output(logger, outputName,&
        fromWhere, iter, sll,comment,local, finish, error)
-    TYPE(cp_logger_type),POINTER ::logger
-    CHARACTER(len=*) , INTENT(in) :: outputName
-    CHARACTER(len=*), INTENT(in):: fromWhere
-    INTEGER, INTENT(in) :: iter
-    TYPE(cp_sll_int_ptr_type), POINTER :: sll
-    CHARACTER(len=*), INTENT(in),OPTIONAL :: comment
-    LOGICAL, INTENT(in), OPTIONAL :: local, finish
-    TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
+    TYPE(cp_logger_type), POINTER            :: logger
+    CHARACTER(len=*), INTENT(in)             :: outputName, fromWhere
+    INTEGER, INTENT(in)                      :: iter
+    TYPE(cp_sll_int_ptr_type), POINTER       :: sll
+    CHARACTER(len=*), INTENT(in), OPTIONAL   :: comment
+    LOGICAL, INTENT(in), OPTIONAL            :: local, finish
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
 
-    LOGICAL :: failure, loc, fin
-    INTEGER :: handle, unitNr, iostat
-    CHARACTER(len=*), PARAMETER :: routineN='cp_sll_int_ptr_output',&
-         routineP=moduleN//':'//routineN
+    CHARACTER(len=*), PARAMETER :: routineN = 'cp_sll_int_ptr_output', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: handle, iostat, unitNr
+    LOGICAL                                  :: failure, fin, loc
+
     failure=.FALSE.; loc=.FALSE.; fin=.TRUE.
   
     CALL timeset(routineN//','//moduleN,'I',"",handle)
@@ -1154,15 +1232,18 @@ CPSourceFileRef,&
 !!
 !!*** **********************************************************************
   SUBROUTINE cp_sll_int_ptr_write(sll,unit_nr,error)
-    TYPE(cp_sll_int_ptr_type), POINTER :: sll
-    INTEGER, INTENT(in) :: unit_nr
-    TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
+    TYPE(cp_sll_int_ptr_type), POINTER       :: sll
+    INTEGER, INTENT(in)                      :: unit_nr
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
 
-    LOGICAL :: failure
-    TYPE(cp_sll_int_ptr_type), POINTER :: iterator
-    CHARACTER(len=*), PARAMETER :: routineN='cp_sll_int_ptr_write',&
-         routineP=moduleN//':'//routineN
-    integer, pointer :: el
+    CHARACTER(len=*), PARAMETER :: routineN = 'cp_sll_int_ptr_write', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER, POINTER                         :: el
+    LOGICAL                                  :: failure
+    TYPE(cp_sll_int_ptr_type), POINTER       :: iterator
+
     failure=.FALSE.
     iterator => sll
   
@@ -1198,15 +1279,18 @@ CPSourceFileRef,&
 !!
 !!*** **********************************************************************
 FUNCTION cp_sll_int_ptr_to_array(sll,error) RESULT(res)
-  TYPE(cp_sll_int_ptr_type), POINTER :: sll
-  TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
-  integer, DIMENSION(:), POINTER :: res
-  
-  LOGICAL :: failure
-  CHARACTER(len=*), PARAMETER :: routineN='cp_sll_int_ptr_to_array',&
-        routineP=moduleN//':'//routineN
-  INTEGER :: len,stat,i
-  TYPE(cp_sll_int_ptr_type), POINTER :: iter
+    TYPE(cp_sll_int_ptr_type), POINTER       :: sll
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
+    INTEGER, DIMENSION(:), POINTER           :: res
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'cp_sll_int_ptr_to_array', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: i, len, stat
+    LOGICAL                                  :: failure
+    TYPE(cp_sll_int_ptr_type), POINTER       :: iter
+
   failure=.FALSE.
   
   len=cp_sll_int_ptr_get_length(sll,error)
@@ -1248,15 +1332,18 @@ END FUNCTION cp_sll_int_ptr_to_array
 !!
 !!*** **********************************************************************
 FUNCTION cp_sll_int_ptr_from_array(array,error) RESULT(res)
-  integer, DIMENSION(:), INTENT(in) :: array
-  TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
-  TYPE(cp_sll_int_ptr_type), POINTER :: res
-  
-  LOGICAL :: failure
-  CHARACTER(len=*), PARAMETER :: routineN='cp_sll_int_ptr_from_array',&
-        routineP=moduleN//':'//routineN
-  INTEGER :: i
-  TYPE(cp_sll_int_ptr_type), POINTER :: last_el
+    INTEGER, DIMENSION(:), INTENT(in)        :: array
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
+    TYPE(cp_sll_int_ptr_type), POINTER       :: res
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'cp_sll_int_ptr_from_array', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: i
+    LOGICAL                                  :: failure
+    TYPE(cp_sll_int_ptr_type), POINTER       :: last_el
+
   failure=.FALSE.
   
   NULLIFY(res,last_el)
@@ -1306,17 +1393,22 @@ END FUNCTION cp_sll_int_ptr_from_array
 !!*** **********************************************************************
 SUBROUTINE cp_sll_int_ptr_insert_ordered(sll,el,insert_equals,&
      did_insert,pos,error)
-  TYPE(cp_sll_int_ptr_type), POINTER :: sll
-  integer, intent(in),target :: el
-  LOGICAL, OPTIONAL, INTENT(in) :: insert_equals
-  LOGICAL, OPTIONAL, INTENT(out) :: did_insert
-  TYPE(cp_sll_int_ptr_type), POINTER, OPTIONAL :: pos
-  TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
-  
-  LOGICAL :: failure,i_eq
-  CHARACTER(len=*), PARAMETER :: routineN='cp_sll_int_ptr_insert_ordered',&
-        routineP=moduleN//':'//routineN
-  TYPE(cp_sll_int_ptr_type), POINTER :: iter
+    TYPE(cp_sll_int_ptr_type), POINTER       :: sll
+    INTEGER, INTENT(in), TARGET              :: el
+    LOGICAL, INTENT(in), OPTIONAL            :: insert_equals
+    LOGICAL, INTENT(out), OPTIONAL           :: did_insert
+    TYPE(cp_sll_int_ptr_type), OPTIONAL, &
+      POINTER                                :: pos
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
+
+    CHARACTER(len=*), PARAMETER :: &
+      routineN = 'cp_sll_int_ptr_insert_ordered', &
+      routineP = moduleN//':'//routineN
+
+    LOGICAL                                  :: failure, i_eq
+    TYPE(cp_sll_int_ptr_type), POINTER       :: iter
+
   failure=.FALSE.
   i_eq=.FALSE.
   
@@ -1392,26 +1484,31 @@ END SUBROUTINE cp_sll_int_ptr_insert_ordered
 !!*** **********************************************************************
 SUBROUTINE cp_sll_int_ptr_insert_ordered2(sll,el,compare_function,&
      insert_equals,did_insert,pos,error)
-  TYPE(cp_sll_int_ptr_type), POINTER :: sll
-  integer, intent(in),target :: el
+    TYPE(cp_sll_int_ptr_type), POINTER       :: sll
+    INTEGER, INTENT(in), TARGET              :: el
   INTERFACE
      FUNCTION compare_function(el1,el2)
-       USE kinds, only: dp
+       USE kinds, ONLY: dp
 USE cp_array_i_utils, ONLY: cp_i_write
        INTEGER :: compare_function
-       integer, intent(in),target :: el1,el2
+       INTEGER, INTENT(in),TARGET :: el1,el2
      END FUNCTION compare_function
   END INTERFACE
-  LOGICAL, OPTIONAL, INTENT(in) :: insert_equals
-  LOGICAL, OPTIONAL, INTENT(out) :: did_insert
-  TYPE(cp_sll_int_ptr_type), POINTER, OPTIONAL :: pos
-  TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
-  
-  LOGICAL :: failure,i_eq
-  CHARACTER(len=*), PARAMETER :: routineN='cp_sll_int_ptr_insert_ordered2',&
-        routineP=moduleN//':'//routineN
-  INTEGER :: comp
-  TYPE(cp_sll_int_ptr_type), POINTER :: iter
+    LOGICAL, INTENT(in), OPTIONAL            :: insert_equals
+    LOGICAL, INTENT(out), OPTIONAL           :: did_insert
+    TYPE(cp_sll_int_ptr_type), OPTIONAL, &
+      POINTER                                :: pos
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
+
+    CHARACTER(len=*), PARAMETER :: &
+      routineN = 'cp_sll_int_ptr_insert_ordered2', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: comp
+    LOGICAL                                  :: failure, i_eq
+    TYPE(cp_sll_int_ptr_type), POINTER       :: iter
+
   failure=.FALSE.
   i_eq=.FALSE.
   
@@ -1484,17 +1581,20 @@ END SUBROUTINE cp_sll_int_ptr_insert_ordered2
 !!
 !!*** **********************************************************************
 FUNCTION cp_sll_int_ptr_contains(sll,el,ordered,error) RESULT(res)
-  LOGICAL ::res
-  TYPE(cp_sll_int_ptr_type), POINTER :: sll
-  integer, intent(in),target :: el
-  LOGICAL, INTENT(in), OPTIONAL :: ordered
-  TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
-  
-  LOGICAL :: failure,ord
-  CHARACTER(len=*), PARAMETER :: routineN='cp_sll_int_ptr_contains',&
-        routineP=moduleN//':'//routineN
-  TYPE(cp_sll_int_ptr_type), POINTER :: iter
-  integer, pointer :: el_att
+    TYPE(cp_sll_int_ptr_type), POINTER       :: sll
+    INTEGER, INTENT(in), TARGET              :: el
+    LOGICAL, INTENT(in), OPTIONAL            :: ordered
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
+    LOGICAL                                  :: res
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'cp_sll_int_ptr_contains', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER, POINTER                         :: el_att
+    LOGICAL                                  :: failure, ord
+    TYPE(cp_sll_int_ptr_type), POINTER       :: iter
+
   failure=.FALSE.; ord=.FALSE.
   res=.FALSE.
   
@@ -1551,26 +1651,29 @@ END FUNCTION cp_sll_int_ptr_contains
 !!*** **********************************************************************
 FUNCTION cp_sll_int_ptr_contains2(sll,el,compare_function,ordered,error)&
      RESULT(res)
-  LOGICAL ::res
-  TYPE(cp_sll_int_ptr_type), POINTER :: sll
-  integer, intent(in),target :: el
+    TYPE(cp_sll_int_ptr_type), POINTER       :: sll
+    INTEGER, INTENT(in), TARGET              :: el
   INTERFACE
      FUNCTION compare_function(el1,el2)
-       USE kinds, only: dp
+       USE kinds, ONLY: dp
 USE cp_array_i_utils, ONLY: cp_i_write
        INTEGER :: compare_function
-       integer, intent(in),target :: el1,el2
+       INTEGER, INTENT(in),TARGET :: el1,el2
      END FUNCTION compare_function
   END INTERFACE
-  LOGICAL, INTENT(in), OPTIONAL :: ordered
-  TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
-  
-  LOGICAL :: failure
-  INTEGER :: comp
-  CHARACTER(len=*), PARAMETER :: routineN='cp_sll_int_ptr_contains2',&
-        routineP=moduleN//':'//routineN
-  TYPE(cp_sll_int_ptr_type), POINTER :: iter
-  integer, pointer :: el_att
+    LOGICAL, INTENT(in), OPTIONAL            :: ordered
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
+    LOGICAL                                  :: res
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'cp_sll_int_ptr_contains2', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: comp
+    INTEGER, POINTER                         :: el_att
+    LOGICAL                                  :: failure
+    TYPE(cp_sll_int_ptr_type), POINTER       :: iter
+
   failure=.FALSE.
   res=.FALSE.
   

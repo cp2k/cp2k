@@ -151,8 +151,8 @@ CONTAINS
 !!     Subroutine rs_pool_create(pool, el_struct, nsmax, error)
 !!       Type(cp_rs_pool_type), Pointer:: pool
 !!       Type(pw_grid_type), Pointer:: el_struct
-!!       Type(cp_error_type), Optional, Intent (INOUT):: error
 !!       Integer, Intent (IN):: nsmax
+!!       Type(cp_error_type), Intent (INOUT), Optional:: error
 !!     End Subroutine rs_pool_create
 !!
 !!   FUNCTION
@@ -361,7 +361,7 @@ CONTAINS
 !!     Subroutine rs_pool_create_rs(pool, element, error)
 !!       Type(cp_rs_pool_type), Pointer:: pool
 !!       Type(realspace_grid_type), Pointer:: element
-!!       Type(cp_error_type), Optional, Intent (INOUT):: error
+!!       Type(cp_error_type), Intent (INOUT), Optional:: error
 !!     End Subroutine rs_pool_create_rs
 !!
 !!   FUNCTION
@@ -426,7 +426,7 @@ CONTAINS
 !!       Type(cp_rs_pool_type), Pointer:: pool
 !!       Integer, Intent (IN):: n_elements
 !!       Type(realspace_grid_p_type), Dimension(:), Pointer:: elements
-!!       Type(cp_error_type), Optional, Intent (INOUT):: error
+!!       Type(cp_error_type), Intent (INOUT), Optional:: error
 !!     End Subroutine rs_pool_create_rs_vect
 !!
 !!   FUNCTION
@@ -492,7 +492,7 @@ CONTAINS
 !!     Subroutine rs_pool_give_back_rs(pool, element, error)
 !!       Type(cp_rs_pool_type), Pointer:: pool
 !!       Type(realspace_grid_type), Pointer:: element
-!!       Type(cp_error_type), Optional, Intent (INOUT):: error
+!!       Type(cp_error_type), Intent (INOUT), Optional:: error
 !!     End Subroutine rs_pool_give_back_rs
 !!
 !!   FUNCTION
@@ -563,7 +563,7 @@ CONTAINS
 !!     Subroutine rs_pool_give_back_rs_vect(pool, elements, error)
 !!       Type(cp_rs_pool_type), Pointer:: pool
 !!       Type(realspace_grid_p_type), Dimension(:), Pointer:: elements
-!!       Type(cp_error_type), Optional, Intent (INOUT):: error
+!!       Type(cp_error_type), Intent (INOUT), Optional:: error
 !!     End Subroutine rs_pool_give_back_rs_vect
 !!
 !!   FUNCTION
@@ -629,9 +629,9 @@ CONTAINS
 !!
 !!   SYNOPSIS
 !!     Function rs_pool_get_el_struct(pool, error) Result(res)
-!!       Type(pw_grid_type), Pointer:: res
 !!       Type(cp_rs_pool_type), Pointer:: pool
-!!       Type(cp_error_type), Optional, Intent (INOUT):: error
+!!       Type(cp_error_type), Intent (INOUT), Optional:: error
+!!       Type(pw_grid_type), Pointer:: res
 !!     End Function rs_pool_get_el_struct
 !!
 !!   FUNCTION
@@ -686,7 +686,7 @@ END FUNCTION rs_pool_get_el_struct
 !!     Subroutine rs_pools_copy(source_pools, target_pools, error)
 !!       Type(cp_rs_pool_p_type), Dimension(:), Pointer:: source_pools,&
 !!         target_pools
-!!       Type(cp_error_type), Optional, Intent (INOUT):: error
+!!       Type(cp_error_type), Intent (INOUT), Optional:: error
 !!     End Subroutine rs_pools_copy
 !!
 !!   FUNCTION
@@ -744,7 +744,7 @@ END SUBROUTINE rs_pools_copy
 !!   SYNOPSIS
 !!     Subroutine rs_pools_dealloc(pools, error)
 !!       Type(cp_rs_pool_p_type), Dimension(:), Pointer:: pools
-!!       Type(cp_error_type), Optional, Intent (INOUT):: error
+!!       Type(cp_error_type), Intent (INOUT), Optional:: error
 !!     End Subroutine rs_pools_dealloc
 !!
 !!   FUNCTION
@@ -797,7 +797,7 @@ END SUBROUTINE rs_pools_dealloc
 !!   SYNOPSIS
 !!     Subroutine rs_pools_flush_cache(pools, error)
 !!       Type(cp_rs_pool_p_type), Dimension(:), Pointer:: pools
-!!       Type(cp_error_type), Optional, Intent (INOUT):: error
+!!       Type(cp_error_type), Intent (INOUT), Optional:: error
 !!     End Subroutine rs_pools_flush_cache
 !!
 !!   FUNCTION
@@ -850,7 +850,7 @@ END SUBROUTINE rs_pools_flush_cache
 !!     Subroutine rs_pools_create_rs_vect(pools, elements, error)
 !!       Type(cp_rs_pool_p_type), Dimension(:), Pointer:: pools
 !!       Type(realspace_grid_p_type), Dimension(:), Pointer:: elements
-!!       Type(cp_error_type), Optional, Intent (INOUT):: error
+!!       Type(cp_error_type), Intent (INOUT), Optional:: error
 !!     End Subroutine rs_pools_create_rs_vect
 !!
 !!   FUNCTION
@@ -918,7 +918,7 @@ END SUBROUTINE rs_pools_create_rs_vect
 !!     Subroutine rs_pools_give_back_rs_vect(pools, elements, error)
 !!       Type(cp_rs_pool_p_type), Dimension(:), Pointer:: pools
 !!       Type(realspace_grid_p_type), Dimension(:), Pointer:: elements
-!!       Type(cp_error_type), Optional, Intent (INOUT):: error
+!!       Type(cp_error_type), Intent (INOUT), Optional:: error
 !!     End Subroutine rs_pools_give_back_rs_vect
 !!
 !!   FUNCTION

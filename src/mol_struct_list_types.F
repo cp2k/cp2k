@@ -131,12 +131,12 @@ CONTAINS
 !!   SYNOPSIS
 !!     Subroutine mol_struct_list_create(list, els_ptr, owns_els, n_els,&
 !!         error)
-!!       Type(mol_struct_list_type), Pointer, Optional:: list
-!!       Type(molecule_structure_type), Dimension(:), Pointer, Optional::&
+!!       Type(mol_struct_list_type), Optional, Pointer:: list
+!!       Type(molecule_structure_type), Dimension(:), Optional, Pointer::&
 !!         els_ptr
 !!       Logical, Intent (IN), Optional:: owns_els
 !!       Integer, Intent (IN), Optional:: n_els
-!!       Type(cp_error_type), Optional, Intent (INOUT):: error
+!!       Type(cp_error_type), Intent (INOUT), Optional:: error
 !!     End Subroutine mol_struct_list_create
 !!
 !!   FUNCTION
@@ -220,7 +220,7 @@ END SUBROUTINE mol_struct_list_create
 !!   SYNOPSIS
 !!     Subroutine mol_struct_list_retain(list, error)
 !!       Type(mol_struct_list_type), Pointer:: list
-!!       Type(cp_error_type), Optional, Intent (INOUT):: error
+!!       Type(cp_error_type), Intent (INOUT), Optional:: error
 !!     End Subroutine mol_struct_list_retain
 !!
 !!   FUNCTION
@@ -269,7 +269,7 @@ END SUBROUTINE mol_struct_list_retain
 !!   SYNOPSIS
 !!     Subroutine mol_struct_list_release(list, error)
 !!       Type(mol_struct_list_type), Pointer:: list
-!!       Type(cp_error_type), Optional, Intent (INOUT):: error
+!!       Type(cp_error_type), Intent (INOUT), Optional:: error
 !!     End Subroutine mol_struct_list_release
 !!
 !!   FUNCTION
