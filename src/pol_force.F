@@ -2,7 +2,7 @@
 !   CP2K: A general program to perform molecular dynamics simulations         !
 !   Copyright (C ) 2000  CP2K developers group                                !
 !-----------------------------------------------------------------------------!
-!!****** cp2k/fist_force [1.0] *
+!!****** cp2k/pol_force [1.0] *
 !!
 !!   NAME
 !!     pol_force
@@ -307,6 +307,16 @@ SUBROUTINE force_control ( molecule, pnode, part, box, box_ref, &
 ! deallocating all local variables
   IF ( ALLOCATED ( f_total )  ) DEALLOCATE ( f_total, STAT = isos )
   IF ( isos /= 0 ) CALL stop_memory ( 'force_control', 'f_total' )
+  IF ( ALLOCATED ( fe_part )  ) DEALLOCATE ( fe_part, STAT = isos )
+  IF ( isos /= 0 ) CALL stop_memory ( 'force_control', 'fe_part' )
+  IF ( ALLOCATED ( fo_part )  ) DEALLOCATE ( fo_part, STAT = isos )
+  IF ( isos /= 0 ) CALL stop_memory ( 'force_control', 'fo_part' )
+  IF ( ALLOCATED ( fe_coef )  ) DEALLOCATE ( fe_coef, STAT = isos )
+  IF ( isos /= 0 ) CALL stop_memory ( 'force_control', 'fe_coef' )
+  IF ( ALLOCATED ( fo_coef )  ) DEALLOCATE ( fo_coef, STAT = isos )
+  IF ( isos /= 0 ) CALL stop_memory ( 'force_control', 'fo_coef' )
+  IF ( ALLOCATED ( fthk )  ) DEALLOCATE ( fthk, STAT = isos )
+  IF ( isos /= 0 ) CALL stop_memory ( 'force_control', 'fthk' )
 
   CALL timestop ( zero, handle )
 
