@@ -1,8 +1,8 @@
 !******************************************************************************
-!!****f* cp2k/CALERF [1.0] *
+!!****f* cp2k/erf_fn [1.0] *
 !!
 !!   NAME
-!!     CALERF
+!!     erf_fn
 !!
 !!   FUNCTION
 !!     Calculates error function and complementary error function
@@ -12,6 +12,25 @@
 !!
 !!   SOURCE
 !******************************************************************************
+!
+    MODULE erf_fn
+!
+!------------------------------------------------------------------------------!
+
+      USE kinds, ONLY : dbl
+!
+      IMPLICIT NONE
+!
+      PRIVATE
+!
+      PUBLIC :: erf,erfc,erfcx                        
+
+!!*****
+!------------------------------------------------------------------------------!
+!
+    CONTAINS
+!
+!------------------------------------------------------------------------------!
 
 SUBROUTINE CALERF(ARG,RESULT,JINT)
 
@@ -132,7 +151,6 @@ SUBROUTINE CALERF(ARG,RESULT,JINT)
 !
 !------------------------------------------------------------------
 
-  USE KINDS, ONLY : dbl
   IMPLICIT NONE
   INTEGER I,JINT
   REAL ( dbl ) :: &
@@ -302,7 +320,6 @@ FUNCTION ERF(X)
 !   Author/date: W. J. Cody, January 8, 1985
 !
 !--------------------------------------------------------------------
-  USE kinds, ONLY : dbl
   IMPLICIT NONE
   REAL ( dbl ) :: ERF
   INTEGER JINT
@@ -315,7 +332,7 @@ FUNCTION ERF(X)
   ERF = RESULT
   RETURN
 !---------- Last card of DERF ----------
-END
+END FUNCTION erf
 
 FUNCTION ERFC(X)
 !--------------------------------------------------------------------
@@ -326,7 +343,6 @@ FUNCTION ERFC(X)
 !   Author/date: W. J. Cody, January 8, 1985
 !
 !--------------------------------------------------------------------
-  USE kinds, ONLY : dbl
   IMPLICIT NONE
   REAL ( dbl ) :: ERFC
   INTEGER JINT
@@ -337,7 +353,7 @@ FUNCTION ERFC(X)
   ERFC = RESULT
   RETURN
 !---------- Last card of DERFC ----------
-END
+END FUNCTION erfc
 
 FUNCTION ERFCX(X)
 !------------------------------------------------------------------
@@ -348,7 +364,6 @@ FUNCTION ERFCX(X)
 !   Author/date: W. J. Cody, March 30, 1987
 !
 !------------------------------------------------------------------
-  USE kinds, ONLY : dbl
   IMPLICIT NONE
   REAL ( dbl ) :: ERFCX
   INTEGER JINT
@@ -359,5 +374,6 @@ FUNCTION ERFCX(X)
   ERFCX = RESULT
   RETURN
 !---------- Last card of DERFCX ----------
-END
+END FUNCTION erfcx
 !!*****
+   END  MODULE erf_fn
