@@ -626,8 +626,11 @@ CONTAINS
 
         ab = ikind + nkind*(jkind - 1)
 
-        CALL get_neighbor_list_set(&
-             neighbor_list_set=sab_orb(ab)%neighbor_list_set,nlist=nlist)
+        IF (.NOT.ASSOCIATED(sab_orb(ab)%neighbor_list_set)) CYCLE
+
+        CALL get_neighbor_list_set(neighbor_list_set=&
+                                     sab_orb(ab)%neighbor_list_set,&
+                                   nlist=nlist)
 
         sab_orb_neighbor_list => first_list(sab_orb(ab)%neighbor_list_set)
 
