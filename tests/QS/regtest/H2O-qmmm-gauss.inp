@@ -19,7 +19,7 @@
 &FORCE_EVAL
         &QMMM
          ECOUPL GAUSS
-         ABC_QM  5.0 5.0 5.0
+         ABC_QM  7.0 7.0 7.0
          &QM_KIND H
           mm_index 2 3
           radius 0.44
@@ -86,7 +86,7 @@ H    -2.090603     1.352766     1.597519    H2O
 &END
 
 &QS
- CUTOFF       100
+ CUTOFF       150
  COMMENSURATE
 &END
 
