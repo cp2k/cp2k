@@ -1015,7 +1015,7 @@ CONTAINS
     INTEGER :: natom,iatom
     CHARACTER(LEN=2) :: element_symbol
 
-    REAL(KIND = dp), DIMENSION(3) :: r_pbc
+    REAL(KIND = dp), DIMENSION(3) :: r
  
     natom = SIZE(particle_set)
 
@@ -1028,8 +1028,8 @@ CONTAINS
                              element_symbol=element_symbol)
        SELECT CASE (TRIM(content))
          CASE ("POS")
-          r_pbc(:) = pbc(particle_set(iatom)%r(:),cell)*angstrom
-          WRITE (iunit,"(T2,A2,X,3F20.10)") element_symbol,r_pbc
+          r(:) = particle_set(iatom)%r(:)*angstrom
+          WRITE (iunit,"(T2,A2,X,3F20.10)") element_symbol,r(1:3)
         CASE ("VEL")
           WRITE (iunit,"(T2,A2,X,3F20.10)") element_symbol,&
                                             particle_set(iatom)%v(1:3)
@@ -1037,12 +1037,12 @@ CONTAINS
           WRITE (iunit,"(T2,A2,X,3F20.10)") element_symbol,&
                                             particle_set(iatom)%f(1:3)
         CASE ("POS_VEL")
-          r_pbc(:) = pbc(particle_set(iatom)%r(:),cell)*angstrom
-          WRITE (iunit,"(T2,A2,X,6F20.10)") element_symbol,r_pbc(1:3),&
+          r(:) = particle_set(iatom)%r(:)*angstrom
+          WRITE (iunit,"(T2,A2,X,6F20.10)") element_symbol,r(1:3),&
                                             particle_set(iatom)%v(1:3)
         CASE ("POS_VEL_FORCE")
-          r_pbc(:) = pbc(particle_set(iatom)%r(:),cell)*angstrom
-          WRITE (iunit,"(T2,A2,X,9F20.10)") element_symbol,r_pbc(1:3),&
+          r(:) = particle_set(iatom)%r(:)*angstrom
+          WRITE (iunit,"(T2,A2,X,9F20.10)") element_symbol,r(1:3),&
                                             particle_set(iatom)%v(1:3),&
                                             particle_set(iatom)%f(1:3)
         END SELECT
