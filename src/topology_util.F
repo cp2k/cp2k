@@ -2197,6 +2197,7 @@ IF(topology%ff) THEN
       END DO
     END IF
 
+    NULLIFY(elp_potential)
     CALL allocate_potential(elp_potential)
     CALL set_potential(potential=elp_potential,&
                        qeff=charge(i))
