@@ -367,7 +367,6 @@ SUBROUTINE fist_force_control ( fist_env, virial, globenv, box_change, debug )
       particle_set ( i ) % f ( 1 ) = f_total ( 1, i ) + fg_coulomb ( 1, i )
       particle_set ( i ) % f ( 2 ) = f_total ( 2, i ) + fg_coulomb ( 2, i )
       particle_set ( i ) % f ( 3 ) = f_total ( 3, i ) + fg_coulomb ( 3, i )
-     ! WRITE ( *, * ) "FORCE", i, SNGL ( particle_set ( i ) % f )
     END DO
   CASE ( "EWALD", "NONE" )
     DO i = 1, natoms

@@ -913,10 +913,10 @@ END SUBROUTINE set_integrator
         work(:,iparticle) = 0.0_dp
       END DO
 
-      IF (simpar%constraint) CALL shake_control(local_molecules, molecule_set,   &
+      IF (simpar%constraint) CALL shake_control(atomic_kind_set, local_particles, &
+                                                local_molecules, molecule_set,   &
                                                 molecule_kind_set, particle_set, &
-                                                simpar )
-
+                                                simpar, int_group )
 !     *** coefficients
     
       IF(ASSOCIATED(dyn_coeff_set)) THEN
@@ -964,22 +964,8 @@ END SUBROUTINE set_integrator
         nparticle_local = local_particles%n_el(iparticle_kind)
         DO iparticle_local=1,nparticle_local
           iparticle = local_particles%list(iparticle_kind)%array(iparticle_local)
-          particle_set (iparticle)%v(:) = particle_set(iparticle)%v(:) +&
+          work ( :, iparticle) = particle_set(iparticle)%v(:) +&
                               dm*particle_set(iparticle)%f(:)
-        END DO
-      END DO
-
-      IF (simpar%constraint) CALL rattle_control(local_molecules, molecule_set, &
-                                                 molecule_kind_set, particle_set, &
-                                                 simpar)
-! copy to work
-      DO iparticle_kind=1,nparticle_kind
-        atomic_kind => atomic_kind_set(iparticle_kind)
-        CALL get_atomic_kind(atomic_kind=atomic_kind,mass=mass)
-        nparticle_local = local_particles%n_el(iparticle_kind)
-        DO iparticle_local=1,nparticle_local
-          iparticle = local_particles%list(iparticle_kind)%array(iparticle_local)
-          work(:,iparticle) = particle_set(iparticle)%v(:)
         END DO
       END DO
 
@@ -990,6 +976,11 @@ END SUBROUTINE set_integrator
       DO iparticle=1,nparticle
         particle_set(iparticle)%v(:) = work(:,iparticle)
       END DO
+
+      IF (simpar%constraint) CALL rattle_control(atomic_kind_set, local_particles, &
+                                                 local_molecules, molecule_set, &
+                                                 molecule_kind_set, particle_set, &
+                                                 simpar, int_group)
 
       DEALLOCATE (work,STAT=istat)
       IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,"work")
@@ -1172,9 +1163,10 @@ END SUBROUTINE set_integrator
         work(:,iparticle) = 0.0_dp
       END DO
 
-      IF (simpar%constraint) CALL shake_control(local_molecules, molecule_set,   &
-                                                molecule_kind_set, particle_set, &
-                                                simpar )
+      IF (simpar%constraint) CALL shake_control( atomic_kind_set, local_particles, &
+                                                 local_molecules, molecule_set,   &
+                                                 molecule_kind_set, particle_set, &
+                                                 simpar, int_group )
 
 !     *** coefficients
 
@@ -1223,15 +1215,23 @@ END SUBROUTINE set_integrator
         nparticle_local = local_particles%n_el(iparticle_kind)
         DO iparticle_local=1,nparticle_local
           iparticle = local_particles%list(iparticle_kind)%array(iparticle_local)
-          particle_set ( iparticle ) % v ( : ) = particle_set(iparticle)%v(:) +&
-                                                 dm*particle_set(iparticle)%f(:)
+          work ( :, iparticle ) = particle_set(iparticle)%v(:) +&
+                                  dm*particle_set(iparticle)%f(:)
         END DO
       END DO
 
+!     *** Broadcast the new particle velocities ***
 
-      IF (simpar%constraint) CALL rattle_control(local_molecules, molecule_set, &
-                                                 molecule_kind_set, particle_set, &
-                                                 simpar)
+      CALL mp_sum(work,int_group)
+
+      DO iparticle=1,nparticle
+        particle_set(iparticle)%v(:) = work(:,iparticle)
+      END DO
+
+      IF (simpar%constraint) CALL rattle_control( atomic_kind_set, local_particles, &
+                                                  local_molecules, molecule_set, &
+                                                  molecule_kind_set, particle_set, &
+                                                  simpar, int_group)
 
 ! perform Nose'-Hoover chain dynamimcs
       CALL lnhc ( nhc ( isubsys ), atomic_kind_set, particle_set,  &
