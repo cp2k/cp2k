@@ -204,7 +204,7 @@ SUBROUTINE projectors ( dg_proj, ao, pw, part, box, grid_s,  &
     ENDDO
 ! do a little cleaning
     IF ( match ) THEN
-      CALL rs_grid_deallocate ( drpot1 ( 1 : 3 ) )
+      IF ( PRESENT ( fproj_part ) ) CALL rs_grid_deallocate ( drpot1 ( 1 : 3 ) )
       CALL coeff_deallocate ( drhob_r )
       CALL rs_grid_deallocate ( drho_rs )
       CALL coeff_deallocate ( rhos2 )

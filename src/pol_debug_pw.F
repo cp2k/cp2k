@@ -119,6 +119,9 @@ SUBROUTINE debug_control ( globenv, ewald_param, pnode, part, &
   ALLOCATE ( dbg % f_elec_coef ( ncoeff ), STAT = isos )
   ALLOCATE ( dbg % f_ovlp_part ( 3, natoms ), STAT = isos )
   ALLOCATE ( dbg % f_ovlp_coef ( ncoeff ), STAT = isos )
+  ALLOCATE ( dbg % f_thk_part ( 3, natoms ), STAT = isos )
+  ALLOCATE ( dbg % f_thk_coef ( ncoeff ), STAT = isos )
+
 
   IF (isos/=0) CALL stop_program ( 'debug', 'allocation failed' )
 
