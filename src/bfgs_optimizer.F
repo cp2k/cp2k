@@ -577,7 +577,7 @@ CONTAINS
 
     CHARACTER(LEN=3)                         :: test_result
     CHARACTER(LEN=60)                        :: keyword
-    INTEGER                                  :: i, itemp, ntemp
+    INTEGER                                  :: i, itemp, ntemp,ifirst,ilast
     LOGICAL                                  :: failure, section_found
 
   failure=.FALSE.
@@ -586,6 +586,8 @@ CONTAINS
        globenv=globenv,&
        start_section_label="ATMFIX",&
        section_found=section_found)
+!MK
+  nfree = natom
 
   IF (section_found) THEN
      DO
@@ -603,12 +605,17 @@ CONTAINS
            CALL read_object(keyword,lower_to_upper=.TRUE.,newline=.TRUE.)
            SELECT CASE (TRIM(keyword))
            CASE ('NFIXED')
-              CALL read_object(itemp)
-              nfree = natom - itemp 
-              DO i = 1, itemp
-                 CALL read_object(ntemp,newline=.TRUE.)
-                 to_move(ntemp) = .FALSE.
-              END DO 
+              CALL read_object(ifirst)
+              CALL read_object(ilast)
+              itemp = ilast - ifirst + 1
+              nfree = nfree - itemp
+              DO i=ifirst,ilast
+                to_move(i) = .FALSE.
+                IF (globenv%ionode) THEN
+                  WRITE (UNIT=globenv%scr,FMT="(T2,A,I8,A)")&
+                    "Atom ",i," will be fixed"
+                END IF
+              END DO
            CASE DEFAULT
               CALL stop_parser(routine=routineP,message="INVALID_KEYWORD")
            END SELECT
