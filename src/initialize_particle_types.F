@@ -108,6 +108,18 @@ SUBROUTINE initialize_particle_type ( atom_names, simpar, mol_setup, &
      END DO
   END DO
 
+! initialize polarization variables
+
+  part ( : ) % abase = 0
+  part ( : ) % kind = 0
+  part ( : ) % grid_id = 0
+  part ( : ) % first_cgf = 0
+  part ( : ) % last_cgf = 0
+
+ DO iat = 1, natoms
+   NULLIFY ( part ( iat ) % coef_list )
+ END DO
+
 END SUBROUTINE initialize_particle_type
 
 !!*****
