@@ -834,7 +834,7 @@ CONTAINS
 
               sac_ppnl_neighbor_node => first_node(sac_ppnl_neighbor_list)
 
-              DO kneighbor=1,nneighbor
+1              DO kneighbor=1,nneighbor
                 CALL get_neighbor_node(neighbor_node=sac_ppnl_neighbor_node,&
                                        cell=cell_c)
                 vppnl(kkind)%neighbor(cell_c(1),cell_c(2),cell_c(3))%n =&
@@ -1396,46 +1396,51 @@ CONTAINS
                 END IF
 
 !               *** Loop over the GTH pseudo potential atoms (non-local part) ***
-
+                
                 IF (ppnl_present.AND.new_atom_b) THEN
-
-                  DO kkind=1,nkind
-
-                    IF (.NOT.ASSOCIATED(vppnl(kkind)%neighbor)) CYCLE
-
-                    ibc = jkind + nkind*(kkind - 1)
-
-                    IF (.NOT.ASSOCIATED(sbc_ppnl(ibc)%neighbor_list_set)) CYCLE
-
-                    nppnl = vppnl(kkind)%nppnl
-                    rprjc(1) = vppnl(kkind)%ppnl_radius
-
-                    sbc_ppnl_neighbor_list =>&
-                      find_neighbor_list(neighbor_list_set=&
-                                         sbc_ppnl(ibc)%neighbor_list_set,&
-                                         atom=jatom)
-
-                    CALL get_neighbor_list(neighbor_list=sbc_ppnl_neighbor_list,&
-                                           nnode=nnode_c)
-
-                    sbc_ppnl_neighbor_node => first_node(sbc_ppnl_neighbor_list)
-
-                    DO knode=1,nnode_c
-
-                      CALL get_neighbor_node(neighbor_node=sbc_ppnl_neighbor_node,&
-                                             neighbor=katom,&
-                                             cell=cell_c,&
-                                             r=rbc)
-
-                      IF ((ANY(cell_c < LBOUND(vppnl(kkind)%neighbor))).OR.&
-                          (ANY(cell_c > UBOUND(vppnl(kkind)%neighbor)))) THEN
-                        sbc_ppnl_neighbor_node => next(sbc_ppnl_neighbor_node)
-                        CYCLE
-                      END IF
+                   
+                   DO kkind=1,nkind
+                      
+                      IF (.NOT.ASSOCIATED(vppnl(kkind)%neighbor)) CYCLE
+                      
+                      ibc = jkind + nkind*(kkind - 1)
+                      
+                      IF (.NOT.ASSOCIATED(sbc_ppnl(ibc)%neighbor_list_set)) CYCLE
+                      
+                      nppnl = vppnl(kkind)%nppnl
+                      rprjc(1) = vppnl(kkind)%ppnl_radius
+                      
+                      sbc_ppnl_neighbor_list =>&
+                           find_neighbor_list(neighbor_list_set=&
+                           sbc_ppnl(ibc)%neighbor_list_set,&
+                           atom=jatom)
+                      
+                      CALL get_neighbor_list(neighbor_list=sbc_ppnl_neighbor_list,&
+                           nnode=nnode_c)
+                      
+                      sbc_ppnl_neighbor_node => first_node(sbc_ppnl_neighbor_list)
+                      
+                      knodeloop: DO knode=1,nnode_c
+                         
+                         CALL get_neighbor_node(neighbor_node=sbc_ppnl_neighbor_node,&
+                              neighbor=katom,&
+                              cell=cell_c,&
+                              r=rbc)
+                         
+                         ! The < and > operators don't work correctly on arrays in
+                         ! the openmp version
+                         DO i=1, 3
+                            IF ( (cell_c(i) < LBOUND(vppnl(kkind)%neighbor,i)) .OR. &
+                                 (cell_c(i) > UBOUND(vppnl(kkind)%neighbor,i))) THEN
+                               sbc_ppnl_neighbor_node => next(sbc_ppnl_neighbor_node)
+                               CYCLE knodeloop
+                            END IF
+                         END DO
 
                       sac_ppnl_neighbor => vppnl(kkind)%neighbor(cell_c(1),&
                                                                  cell_c(2),&
                                                                  cell_c(3))
+                      
 
                       IF (sac_ppnl_neighbor%n == 0) THEN
                         sbc_ppnl_neighbor_node => next(sbc_ppnl_neighbor_node)
@@ -1443,7 +1448,6 @@ CONTAINS
                       END IF
 
 !                     *** Locate operator atom in the sac_ppnl neighbor list ***
-
                       kneighbor = locate(sac_ppnl_neighbor%list,katom)
 
                       IF (kneighbor == 0) THEN
@@ -1576,7 +1580,7 @@ CONTAINS
 
                       sbc_ppnl_neighbor_node => next(sbc_ppnl_neighbor_node)
 
-                    END DO ! knode
+                    END DO knodeloop
 
                   END DO ! kkind
 
