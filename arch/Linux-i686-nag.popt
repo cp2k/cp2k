@@ -13,6 +13,8 @@ LIBS     = /home/jv244/SCALAPACK/libscalapack.a /home/jv244/BLACS/LIB/blacsF77in
 
 OBJECTS_ARCHITECTURE = machine_nag.o
 # needed to resolve dependencies to these system modules
+f90_unix_proc.int:
+	touch -a f90_unix_proc.int
 f90_unix.int:
 	touch -a f90_unix.int
 f90_unix_dir.int:

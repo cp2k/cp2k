@@ -8,11 +8,13 @@ DFLAGS   = -D__NAG -D__FFTSG
 CPPFLAGS = -C $(DFLAGS) -traditional
 FCFLAGS  = -O0 -g -C=all -mismatch_all -f77 -nan
 LDFLAGS  = $(FCFLAGS)
-LIBS     = /home/jv244/LAPACK_T1/lapack_LINUX.a /home/jv244/LAPACK_T1/blas_LINUX.a -lg2c
+LIBS     = /System/Library/Frameworks/vecLib.framework/vecLib -lg2c
 
 
 OBJECTS_ARCHITECTURE = machine_nag.o
 # needed to resolve dependencies to these system modules
+f90_unix_proc.int:
+	touch -a f90_unix_proc.int
 f90_unix.int:
 	touch -a f90_unix.int
 f90_unix_dir.int:
