@@ -1,0 +1,46 @@
+&CP2K  
+  PROGRAM   FIST
+  PROJECT   res_h2po4
+  IOLEVEL   1
+  FFTLIB    FFTSG
+  RUN_TYPE   md
+&END
+
+&MD
+  ensemble:     nve                    ensemble type (nve,nvt,npt_i,npt_f)
+  steps:        10                     total number of steps
+  timestep:     1.0 fs                 time step [fs]
+  temperature:  300                    temperature [K]
+  restart:      init                   start type (init,pos,posvel)
+  constraints   on 
+  nose_parameter:   &
+    length:    3        &
+    Yoshida:   3        &
+    timecon:   1000 fs  &
+    mts:       2
+
+  print  files        2
+  print  screen       1
+&END
+
+&TOPOLOGY
+ coord_file     ../h2po4.pdb
+ coordinate     pdb
+ connectivity   PSF
+ CONN_FILE      ../h2po4.psf
+&END
+
+&EWALD
+ units angstrom
+ ewald_type spme
+ ewald_param .44 64 6
+&END
+
+&FORCE_FIELD
+ PARMFILE CHM ../h2po4.pot
+&END
+
+&CELL
+ UNIT         ANGSTROM
+ ABC          24.1317 24.1317 24.1317
+&END
