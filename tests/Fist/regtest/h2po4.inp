@@ -24,10 +24,10 @@
 &END
 
 &TOPOLOGY
- coord_file     ../h2po4.pdb
+ coord_file     h2po4.pdb
  coordinate     pdb
  connectivity   PSF
- CONN_FILE      ../h2po4.psf
+ CONN_FILE      h2po4.psf
 &END
 
 &EWALD
@@ -37,7 +37,7 @@
 &END
 
 &FORCE_FIELD
- PARMFILE CHM ../h2po4.pot
+ PARMFILE CHM h2po4.pot
 &END
 
 &CELL
