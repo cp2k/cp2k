@@ -63,6 +63,7 @@ MODULE kg_force
   USE kg_ppl,                          ONLY: calculate_rho0_ppl,&
                                              calculate_drho_ppl 
   USE kg_rho_types,                    ONLY: kg_rho_type
+  USE machine,                         ONLY: m_flush
   USE mathconstants,                   ONLY: pi,&
                                              zero
   USE message_passing,                 ONLY: mp_sum
@@ -183,11 +184,15 @@ SUBROUTINE kg_calculate_forces ( kg_env, globenv )
   INTEGER, DIMENSION(:), POINTER   :: atom_list
   INTEGER, DIMENSION(:), ALLOCATABLE, SAVE :: natom_of_kind
   CHARACTER(LEN=8) :: force_type
+  LOGICAL :: ionode
+  INTEGER :: output_unit
 
 !------------------------------------------------------------------------------
 
   CALL write_checkpoint_information("entering "//routine,globenv)
   CALL timeset ( 'FORCE','I',' ',handle )
+  ionode=globenv%ionode
+  output_unit=globenv%scr
   NULLIFY(force,energy,part,atomic_kind_set,atomic_kind,cell,dft_control,&
           kg_rho_v)
 
@@ -328,13 +333,33 @@ SUBROUTINE kg_calculate_forces ( kg_env, globenv )
   energy % total = energy % core_self + energy % core_overlap + energy % exc + &
                  energy % hartree + energy % pseudo 
      
+! print
+    IF (ionode) THEN
+       WRITE (UNIT=output_unit,FMT="(/,(T3,A,T40,F20.10))")&
+            "Total electronic density (r-space): ",&
+            total_rho0_rspace,  &
+            "Total core charge density (r-space):",&
+            kg_rho_v%total_rho_core_rspace
+       WRITE (UNIT=output_unit,FMT="(T3,A,T60,F20.10)")&
+            "Total charge density (r-space):     ",&
+            kg_rho_v%total_rho_rspace
+       WRITE (UNIT=output_unit,FMT="(/,(T3,A,T55,F25.14))")&
+            "Overlap energy of the core charge distribution:",energy%core_overlap,&
+            "Self energy of the core charge distribution:   ",energy%core_self,&
+            "Pseudopotential  energy:                       ",energy%pseudo,&
+            "Hartree energy:                                ",energy%hartree,&
+            "Exchange-correlation energy:                   ",energy%exc,&
+            "Total energy:                                  ",energy%total
+       CALL m_flush(output_unit)
+    END IF
+
 ! add up all the forces
 
   DO ikind = 1, nkind         
     CALL mp_sum(force(ikind)%f_rho,globenv%group)
-    CALL mp_sum(force(ikind)%f_rspace_core,globenv%group)
+!    CALL mp_sum(force(ikind)%f_rspace_core,globenv%group)
     CALL mp_sum(force(ikind)%f_hartree_core,globenv%group)
-    CALL mp_sum(force(ikind)%f_gth_ppl,globenv%group)
+!    CALL mp_sum(force(ikind)%f_gth_ppl,globenv%group)
     force(ikind)%f_total(:,:) = force(ikind)%f_rho(:,:) +&
                                 force(ikind)%f_rspace_core(:,:) +&
                                 force(ikind)%f_hartree_core(:,:) +&

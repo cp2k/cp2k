@@ -43,6 +43,7 @@ MODULE kg_density
   USE cube_utils,             ONLY: cube_info_type,&
                                     return_cube
   USE dft_types,              ONLY: dft_control_type
+  USE distribution_1d_types,  ONLY: distribution_1d_type
   USE gaussian_gridlevels,    ONLY: gaussian_gridlevel,&
                                     gridlevel_info_type
   USE global_types,           ONLY: global_environment_type
@@ -114,6 +115,7 @@ CONTAINS
 !   *** Local variables ***
 
     TYPE(atomic_kind_type), POINTER   :: atomic_kind
+    TYPE(distribution_1d_type), POINTER  :: local_particles
     TYPE(cell_type), POINTER          :: cell
     TYPE(dft_control_type), POINTER   :: dft_control
     TYPE(gto_basis_set_type), POINTER :: orb_basis_set
@@ -121,24 +123,23 @@ CONTAINS
     TYPE(atomic_kind_type), DIMENSION(:), POINTER         :: atomic_kind_set
     TYPE(particle_type), DIMENSION(:), POINTER            :: particle_set
 
-    REAL(dbl) :: dab,eps_rho_rspace,kind_radius_b,rab2,scale,zetp
-    INTEGER  :: ab,first_pgfb,first_setb,handle,i,iatom,ico,igrid_level,ikind,&
-                ipgf,iset,ishell,istat,j,jatom,jco,jkind,jpgf,jset,&
-                jshell,katom,maxco,maxsgf_set,na1,na2,nb1,nb2,ncoa,ncob,&
-                nkind,nseta,nsetb,sgfa,sgfb
+    REAL(dbl) :: dab,eps_rho_rspace,rab2,scale,zetp
+    INTEGER  :: handle,i,iatom,ico,igrid_level,ikind,&
+                ipgf,iset,istat,&
+                maxco,maxsgf_set,na1,na2,nb1,nb2,ncoa,ncob,&
+                nkind,nseta,sgfa
 
     REAL(dbl), DIMENSION(3) :: ra,rab,rb
 
     REAL(dbl), DIMENSION(:,:), POINTER :: pab,work
 
-    INTEGER, DIMENSION(:), POINTER    :: la_max,la_min,lb_max,lb_min,npgfa,&
-                                         npgfb,nsgfa,nsgfb
-    REAL(dbl), DIMENSION(:,:), POINTER :: p_block,rpgfa,rpgfb,&
-                                         sphi_a,sphi_b,zeta,zetb
-    INTEGER, DIMENSION(:,:), POINTER  :: first_sgfa,first_sgfb
+    INTEGER, DIMENSION(:), POINTER    :: la_max,la_min,nsgfa,npgfa
+    REAL(dbl), DIMENSION(:,:), POINTER :: p_block,rpgfa,&
+                                         sphi_a,zeta
+    INTEGER, DIMENSION(:,:), POINTER  :: first_sgfa
     INTEGER                           :: nsmax
     TYPE(REALSPACE_GRID_TYPE), DIMENSION(:), POINTER  :: rs_rho
-    INTEGER :: offset,natom
+    INTEGER :: nparticle_local, iparticle_local 
 
 !   ---------------------------------------------------------------------------
     CALL timeset("calculate_density","I","",handle)
@@ -167,14 +168,15 @@ CONTAINS
                     atomic_kind_set=atomic_kind_set,&
                     cell=cell,&
                     dft_control=dft_control,&
-                    particle_set=particle_set ) 
+                    particle_set=particle_set,&
+                    local_particles=local_particles ) 
 
+    nkind=size(atomic_kind_set)
     eps_rho_rspace = dft_control%kg_control%eps_rho_rspace
 
 !   *** Allocate work storage ***
     CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,&
                              maxco=maxco,&
-                             natom=natom,&
                              maxsgf_set=maxsgf_set)
 
     ALLOCATE (pab(maxco,1),STAT=istat)
@@ -182,11 +184,10 @@ CONTAINS
     ALLOCATE (work(maxco,1),STAT=istat)
     IF (istat /= 0) CALL stop_memory(routine,"work",maxco*1*dp_size)
 
-    offset=0
+    DO ikind=1,nkind
 
-    DO iatom=1,natom
-
-      CALL get_atomic_kind(atomic_kind=particle_set(iatom)%atomic_kind,&
+      atomic_kind=> atomic_kind_set(ikind)
+      CALL get_atomic_kind(atomic_kind=atomic_kind,&
                                orb_basis_set=orb_basis_set)
 
       IF (.NOT.ASSOCIATED(orb_basis_set)) CYCLE
@@ -200,50 +201,53 @@ CONTAINS
                              sphi=sphi_a,&
                              zet=zeta)
 
-      ra(:) = pbc(particle_set(iatom)%r,cell)
-      rb(:) = 0.0_dbl
-      rab(:) = 0.0_dbl
-      rab2  = 0.0_dbl
-      dab   = 0.0_dbl
+      nparticle_local = local_particles%n_el(ikind)
 
-      DO iset=1,nseta
+      DO iparticle_local=1,nparticle_local
+         iatom = local_particles%list(ikind)%array(iparticle_local)
+         ra(:) = pbc(particle_set(iatom)%r,cell)
+         rb(:) = 0.0_dbl
+         rab(:) = 0.0_dbl
+         rab2  = 0.0_dbl
+         dab   = 0.0_dbl
 
-         ncoa = npgfa(iset)*ncoset(la_max(iset))
-         sgfa = first_sgfa(1,iset)
+         DO iset=1,nseta
+
+            ncoa = npgfa(iset)*ncoset(la_max(iset))
+            sgfa = first_sgfa(1,iset)
 
 ! In KG simulation, density is frozen. The PDM effective charges are
 ! already included in sphi and are the ones read from the POTENTIAL file in
 ! the initialization. Thus all prefactors (defined in work(:,:)) are set to 1.0  
 
-         do i=1,nsgfa(iset)
-            work(i,1)=1.0_dbl 
-         enddo
+            do i=1,nsgfa(iset)
+               work(i,1)=1.0_dbl 
+            enddo
 
-         CALL dgemm("N","N",ncoa,1,nsgfa(iset),&
-                    1.0_dbl,sphi_a(1,sgfa),SIZE(sphi_a,1),&
-                    work(1,1),SIZE(work,1),&
-                    0.0_dbl,pab(1,1),SIZE(pab,1))
+            CALL dgemm("N","N",ncoa,1,nsgfa(iset),&
+                       1.0_dbl,sphi_a(1,sgfa),SIZE(sphi_a,1),&
+                       work(1,1),SIZE(work,1),&
+                       0.0_dbl,pab(1,1),SIZE(pab,1))
 
-         DO ipgf=1,npgfa(iset)
+            DO ipgf=1,npgfa(iset)
+
+               na1 = (ipgf - 1)*ncoset(la_max(iset)) + 1
+               na2 = ipgf*ncoset(la_max(iset))
 
 
-            na1 = (ipgf - 1)*ncoset(la_max(iset)) + 1
-            na2 = ipgf*ncoset(la_max(iset))
+               scale = -1.0_dbl
+               zetp = zeta(ipgf,iset)
+               igrid_level = gaussian_gridlevel(gridlevel_info,zetp)
 
+               CALL collocate_pgf_product_rspace(&
+                           la_max(iset),zeta(ipgf,iset),la_min(iset),&
+                           0,0.0_dbl,0,&
+                           ra,rab,rab2,scale,pab,na1-1,0,&
+                           rs_rho(igrid_level),cube_info(igrid_level),&
+                           l_info,eps_rho_rspace)
+            END DO
 
-            scale = -1.0_dbl
-            zetp = zeta(ipgf,iset)
-            igrid_level = gaussian_gridlevel(gridlevel_info,zetp)
-
-            CALL collocate_pgf_product_rspace(&
-                        la_max(iset),zeta(ipgf,iset),la_min(iset),&
-                        0,0.0_dbl,0,&
-                        ra,rab,rab2,scale,pab,na1-1,0,&
-                        rs_rho(igrid_level),cube_info(igrid_level),&
-                        l_info,eps_rho_rspace)
-         END DO
-
-         offset=offset+nsgfa(iset)
+         END DO                     
 
       END DO
 
@@ -535,16 +539,16 @@ CONTAINS
     TYPE(atomic_kind_type), POINTER :: atomic_kind
     TYPE(cell_type), POINTER        :: cell
     TYPE(dft_control_type), POINTER :: dft_control
+    TYPE(distribution_1d_type), POINTER  :: local_particles
 
     REAL(dbl) :: alpha,eps_rho_rspace,scale
-    INTEGER  :: atom_a,handle,iatom,ikind,natom
+    INTEGER  :: handle,iatom,ikind,natom,nparticle_local,iparticle_local
 
     REAL(dbl), DIMENSION(3)   :: ra
     REAL(dbl), DIMENSION(:,:), POINTER :: pab
 
     TYPE(atomic_kind_type), DIMENSION(:), POINTER :: atomic_kind_set
     TYPE(particle_type), DIMENSION(:), POINTER    :: particle_set
-    INTEGER, DIMENSION(:), POINTER                :: atom_list
     TYPE(realspace_grid_type)                     :: rs_rho
     INTEGER                                       :: nsmax
     TYPE(coeff_type)                              :: rhoc_r
@@ -559,6 +563,7 @@ CONTAINS
                     atomic_kind_set=atomic_kind_set,&
                     cell=cell,&
                     dft_control=dft_control,&
+                    local_particles=local_particles,&
                     particle_set=particle_set)
 
     ! hard coded for the time being
@@ -577,16 +582,14 @@ CONTAINS
       atomic_kind => atomic_kind_set(ikind)
 
       CALL get_atomic_kind(atomic_kind=atomic_kind,&
-                           natom=natom,&
-                           atom_list=atom_list,&
                            alpha_core_charge=alpha,&
                            ccore_charge=pab(1,1))
 
-      DO iatom=1,natom
+      nparticle_local = local_particles%n_el(ikind)
 
-        atom_a = atom_list(iatom)
-        ra(:) = pbc(particle_set(atom_a)%r,cell)
-        IF(rs_rho%group_head) &
+      DO iparticle_local=1,nparticle_local
+        iatom = local_particles%list(ikind)%array(iparticle_local)
+        ra(:) = pbc(particle_set(iatom)%r,cell)
         CALL collocate_pgf_product_rspace(0,alpha,0,0,0.0_dbl,0,ra,&
                                           (/0.0_dbl,0.0_dbl,0.0_dbl/),&
                                           0.0_dbl,scale,pab,0,0,rs_rho,&
@@ -929,11 +932,13 @@ CONTAINS
     TYPE(realspace_grid_type),POINTER:: rs_pot
     REAL(dbl)                  :: alpha_core_charge,ccore_charge,eps_rho_rspace
     INTEGER                   :: atom_a,handle,i,iatom,ikind,istat,&
-                                 natom_of_kind
+                                 natom_of_kind,natom,nkind,&
+                                 iparticle_local,nparticle_local
 
     TYPE(atomic_kind_type), DIMENSION(:), POINTER :: atomic_kind_set
     TYPE(particle_type), DIMENSION(:), POINTER    :: particle_set
-    INTEGER, DIMENSION(:), POINTER                :: atom_list
+    TYPE(distribution_1d_type), POINTER           :: local_particles
+    INTEGER, DIMENSION(:), ALLOCATABLE            :: atom_of_kind
 
     REAL(dbl), DIMENSION(3)     :: force_a,force_b,ra
     INTEGER                    :: nsmax
@@ -943,7 +948,8 @@ CONTAINS
 
     CALL timeset("calculate_epc_rspace_forces","I","",handle)
 
-    ALLOCATE(hab(1,1),pab(1,1))
+    ALLOCATE(hab(1,1),pab(1,1),STAT=istat)
+    IF (istat /= 0) CALL stop_memory(routine,"hab,pab",1*int_size)
 
     nsmax = -1
     CALL rs_grid_setup(rs_v,v_rspace%pw%pw_grid,nsmax)
@@ -954,26 +960,34 @@ CONTAINS
                     atomic_kind_set=atomic_kind_set,&
                     cell=cell,&
                     dft_control=dft_control,&
+                    local_particles=local_particles,&
                     particle_set=particle_set) 
+
+    nkind = SIZE(atomic_kind_set)
+    natom = SIZE(particle_set)
 
     eps_rho_rspace = dft_control%kg_control%eps_rho_rspace
 
-    DO ikind=1,SIZE(atomic_kind_set)
+    ALLOCATE (atom_of_kind(natom),STAT=istat)
+    IF (istat /= 0) CALL stop_memory(routine,"atom_of_kind",natom*int_size)
+    CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,&
+                               atom_of_kind=atom_of_kind)
+
+    DO ikind=1,nkind
 
       atomic_kind => atomic_kind_set(ikind)
 
       CALL get_atomic_kind(atomic_kind=atomic_kind,&
-                           natom=natom_of_kind,&
-                           atom_list=atom_list,&
                            alpha_core_charge=alpha_core_charge,&
                            ccore_charge=ccore_charge)
 
       pab(1,1) = ccore_charge
+      nparticle_local = local_particles%n_el(ikind)
 
-      DO iatom=1,natom_of_kind
+      DO iparticle_local=1,nparticle_local
 
-        atom_a = atom_list(iatom)
-        ra(:)  = pbc(particle_set(atom_a)%r,cell)
+        iatom=local_particles%list(ikind)%array(iparticle_local)
+        ra(:)  = pbc(particle_set(iatom)%r,cell)
 
         hab(1,1) = 0.0_dbl
         force_a(:) = 0.0_dbl
@@ -988,8 +1002,9 @@ CONTAINS
                                           eps_rho_rspace,&
                                           .TRUE.,force_a,force_b)
 
-        force(ikind)%f_hartree_core(:,iatom) =&
-          force(ikind)%f_hartree_core(:,iatom) + force_a(:)
+        atom_a=atom_of_kind(iatom)
+        force(ikind)%f_hartree_core(:,atom_a) =&
+          force(ikind)%f_hartree_core(:,atom_a) + force_a(:)
 
       END DO
 
@@ -997,7 +1012,8 @@ CONTAINS
 
     CALL rs_grid_deallocate(rs_v)
 
-    DEALLOCATE(pab,hab)
+    DEALLOCATE(pab,hab,atom_of_kind,STAT=istat)
+    IF (istat /= 0) CALL stop_memory(routine,"hab,pab,atom_of_kind")
 
     CALL timestop(0.0_dbl,handle)
 
@@ -1034,6 +1050,7 @@ CONTAINS
     TYPE(atomic_kind_type), POINTER   :: atomic_kind
     TYPE(cell_type), POINTER          :: cell
     TYPE(dft_control_type), POINTER   :: dft_control
+    TYPE(distribution_1d_type),POINTER  :: local_particles
     TYPE(gto_basis_set_type), POINTER :: orb_basis_set
 
     TYPE(atomic_kind_type), DIMENSION(:), POINTER         :: atomic_kind_set
@@ -1045,13 +1062,13 @@ CONTAINS
                 ipgf,iset,ishell,istat,i,&
                 maxco,maxsgf_set,na1,na2,natom,&
                 natom_of_kind,nb1,nb2,ncoa,nkind,&
-                nseta,sgfa
+                nseta,sgfa,iparticle_local,nparticle_local
 
     REAL(dbl), DIMENSION(3) :: force_a,force_b,ra,rab,rb
 
     REAL(dbl), DIMENSION(:,:), POINTER :: hab,pab,work
 
-    INTEGER, DIMENSION(:), POINTER                :: atom_list
+    INTEGER, DIMENSION(:), ALLOCATABLE           :: atom_of_kind
 
     INTEGER, DIMENSION(:), POINTER    :: la_max,la_min,npgfa,nsgfa
     REAL(dbl), DIMENSION(:,:), POINTER :: sphi_a,rpgfa,zeta
@@ -1108,6 +1125,7 @@ CONTAINS
                     atomic_kind_set=atomic_kind_set,&
                     cell=cell,&
                     dft_control=dft_control,&
+                    local_particles=local_particles,&
                     particle_set=particle_set )
 
     nkind = SIZE(atomic_kind_set)
@@ -1117,7 +1135,11 @@ CONTAINS
 
 !   *** Allocate work storage ***
 
+    ALLOCATE (atom_of_kind(natom),STAT=istat)
+    IF (istat /= 0) CALL stop_memory(routine,"atom_of_kind",natom*int_size)
+
     CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,&
+                             atom_of_kind=atom_of_kind,&
                              maxco=maxco,&
                              maxsgf_set=maxsgf_set)
 
@@ -1135,8 +1157,6 @@ CONTAINS
       atomic_kind => atomic_kind_set(ikind)
 
       CALL get_atomic_kind(atomic_kind=atomic_kind,&
-                           natom=natom_of_kind,&
-                           atom_list=atom_list,&
                            orb_basis_set=orb_basis_set)
 
       IF (.NOT.ASSOCIATED(orb_basis_set)) CYCLE
@@ -1152,10 +1172,12 @@ CONTAINS
                              sphi=sphi_a,&
                              zet=zeta)
 
-      DO iatom = 1, natom_of_kind
+      nparticle_local = local_particles%n_el(ikind)
 
-        atom_a = atom_list(iatom)
-        ra(:)  = pbc(particle_set(atom_a)%r,cell)
+      DO iparticle_local = 1, nparticle_local
+
+        iatom = local_particles%list(ikind)%array(iparticle_local)
+        ra(:)  = pbc(particle_set(iatom)%r,cell)
 
         force_a(:) = 0.0_dbl
         force_b(:) = 0.0_dbl
@@ -1206,15 +1228,16 @@ CONTAINS
 
 !   *** Update forces ***
 
+        atom_a=atom_of_kind(iatom)
         IF (PRESENT (force_type)) THEN
           IF (force_type=='hartree') THEN
-            force(ikind)%f_hartree(:,iatom) =  force_a(:)
+            force(ikind)%f_hartree(:,atom_a) =  force_a(:)
           ELSE IF (force_type=='xc') THEN
-            force(ikind)%f_xc(:,iatom) = force_a(:)
+            force(ikind)%f_xc(:,atom_a) = force_a(:)
           END IF
         ELSE
-          force(ikind)%f_rho(:,iatom) =&
-               force(ikind)%f_rho(:,iatom) + 1.0_dbl*force_a(:)
+          force(ikind)%f_rho(:,atom_a) =&
+               force(ikind)%f_rho(:,atom_a) + 1.0_dbl*force_a(:)
         END IF
       END DO
 
@@ -1234,6 +1257,9 @@ CONTAINS
 
     DEALLOCATE (work,STAT=istat)
     IF (istat /= 0) CALL stop_memory(routine,"work")
+
+    DEALLOCATE (atom_of_kind,STAT=istat)
+    IF (istat /= 0) CALL stop_memory(routine,"atom_of_kind")
 
     CALL timestop(0.0_dbl,handle)
 
