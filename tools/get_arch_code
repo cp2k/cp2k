@@ -34,7 +34,11 @@
     platform="${ostype}-${osversion}-${osrelease}-${machine}"
     case $platform in
       Darwin-*-*-Power\ Macintosh)
-        PLATFORM="Darwin-PowerMacintosh-absoft";;
+        if [[ -n $FORT_C_NAME ]]; then
+	  PLATFORM="Darwin-PowerMacintosh-$FORT_C_NAME"
+        else
+	  PLATFORM="Darwin-PowerMacintosh-absoft"
+	fi;;
       AIX-*-*-*)
         proc=`lsdev -C -S a | grep "proc" | tail -1 | cut -f1 -d" "`
         arch=`lsattr -E -O -l $proc | grep "enable" | cut -f2 -d":"`
