@@ -88,6 +88,7 @@ MODULE qs_ks_methods
   USE hartree_local_methods,           ONLY: Vh_1c_gg_integrals
   USE kg_environment_types,            ONLY: get_kg_env,&
                                              kg_environment_type
+  USE kg_gpw_correction,               ONLY: kg_gpw_ekin_mol
   USE kg_gpw_fm_mol_types,             ONLY: kg_fm_p_type
   USE kg_gpw_pw_env_types,             ONLY: kg_sub_pw_env_type
   USE kinds,                           ONLY: dp
@@ -279,7 +280,7 @@ CONTAINS
 !!
 !!*** *********************************************************************
   SUBROUTINE qs_ks_build_kohn_sham_matrix(ks_env,qs_env,ks_matrix,&
-       rho,energy,calculate_forces,just_energy,kg_fm_set,kg_sub_pw_env, error)
+       rho,energy,calculate_forces,just_energy,kg_gpw,kg_fm_set,kg_sub_pw_env, error)
 
     TYPE(qs_ks_env_type), POINTER            :: ks_env
     TYPE(qs_environment_type), POINTER       :: qs_env
@@ -289,6 +290,7 @@ CONTAINS
     TYPE(qs_energy_type), INTENT(inout), &
       TARGET                                 :: energy
     LOGICAL, INTENT(in)                      :: calculate_forces, just_energy
+    LOGICAL, INTENT(IN), OPTIONAL            :: kg_gpw
     TYPE(kg_fm_p_type), OPTIONAL, &
       POINTER                                :: kg_fm_set
     TYPE(kg_sub_pw_env_type), OPTIONAL,& 
@@ -301,7 +303,7 @@ CONTAINS
 
     INTEGER                                  :: handle, ispin, n_electrons, &
                                                 nspins, output_unit, stat
-    LOGICAL                                  :: failure, gapw, ionode
+    LOGICAL                                  :: failure, gapw, ionode, my_kg_gpw
     TYPE(cell_type), POINTER                 :: cell
     TYPE(coeff_type)                         :: rho_tot_gspace, &
                                                 v_hartree_gspace, v_sic_rspace
@@ -341,6 +343,10 @@ CONTAINS
     ionode = logger%para_env%mepos==logger%para_env%source
     IF (ionode) output_unit = cp_logger_get_default_unit_nr(logger)
 
+    ! Check for a KG_GPW calculation: KE for total rho and for molecular rho
+    my_kg_gpw = .FALSE.
+    IF(PRESENT(kg_gpw)) my_kg_gpw = kg_gpw
+
     CALL get_qs_env(qs_env=qs_env,&
          dft_control=dft_control,&
          matrix_h=matrix_h,&
@@ -358,7 +364,7 @@ CONTAINS
     CPPrecondition(rho%rho_r_valid,cp_failure_level,routineP,error,failure)
     CPPrecondition(rho%rho_g_valid,cp_failure_level,routineP,error,failure)
 
-    ! gapw method 
+    ! Check for GAPW method : additional terms for local densities
     gapw = dft_control%qs_control%gapw
 
     ! gets the tmp grids
@@ -570,6 +576,22 @@ CONTAINS
           ENDIF
        END IF  ! .NOT. just energy
 
+       IF(my_kg_gpw) THEN
+         CPPostcondition(kg_fm_set%ref_count>=1,cp_failure_level,routineP,error,failure)
+         CPPostcondition(kg_sub_pw_env%ref_count>=1,cp_failure_level,routineP,error,failure)
+       ! Calculate the KE for each molecule independently
+         energy%kg_gpw_ekin_mol = 0.0_dp
+         CALL kg_gpw_ekin_mol(qs_env,&
+                              kg_sub_pw_env%molbox_env_set,&
+                              kg_fm_set%kg_fm_mol_set,&
+                              ks_global=ks_matrix,&
+                              p_global=rho%rho_ao,ekin_mol=energy%kg_gpw_ekin_mol,&
+                              calculate_forces=calculate_forces,&
+                              just_energy=just_energy,error=error)
+       ! Change sign : it is the correction due to the double counting
+         energy%kg_gpw_ekin_mol = -energy%kg_gpw_ekin_mol 
+       END IF
+
        IF(gapw) THEN
 !      ***  Integrals of the Hartree potential with g0_soft ***
           CALL integrate_vhg0_rspace(qs_env,ks_env%v_hartree_rspace, &
@@ -660,13 +682,22 @@ CONTAINS
             energy%core + energy%hartree + &
             energy%hartree_1c + energy%hartree_2c + energy%hartree_3c +&
             energy%exc + energy%exc1 + &
-            energy%qmmm_el + energy%mulliken
+            energy%qmmm_el + energy%mulliken + &
+            energy%kg_gpw_ekin_mol
 
        IF (ionode.AND.logger%print_keys%scf_energies) THEN
-          WRITE (UNIT=output_unit,FMT="(/,(T3,A,T60,F20.10))")&
+          IF(my_kg_gpw) THEN
+            WRITE (UNIT=output_unit,FMT="(/,(T3,A,T60,F20.10))")&
+               "Core Hamiltonian energy of separated molecules:",energy%core,&
+               "Hartree energy of the total density:           ",energy%hartree,&
+               "XC and Kin. energy of the total density:       ",energy%exc,&
+               "Kin. enery of the molecular densities:         ",energy%kg_gpw_ekin_mol
+          ELSE
+            WRITE (UNIT=output_unit,FMT="(/,(T3,A,T60,F20.10))")&
                "Core Hamiltonian energy:                       ",energy%core,&
                "Hartree energy:                                ",energy%hartree,&
                "Exchange-correlation energy:                   ",energy%exc
+          END IF
           IF(gapw) THEN
              WRITE (UNIT=output_unit,FMT="(/,(T3,A,T60,F20.10))")&
                 "GAPW| Exc from hard and soft atomic rho1:      ",energy%exc1,&
@@ -682,6 +713,7 @@ CONTAINS
               WRITE (UNIT=output_unit,FMT="(T3,A,T40,2F20.10)")&
                 "Mulliken restraint (order_p,energy) : ",mulliken_order_p,energy%mulliken
           ENDIF
+
        END IF
 
     END IF
@@ -901,10 +933,12 @@ SUBROUTINE qs_ks_update_qs_env(ks_env,qs_env, kg_env, &
         ELSEIF (PRESENT(kg_env)) THEN
           CALL get_qs_env(qs_env=qs_env, kg_sub_pw_env=kg_sub_pw_env)
           CALL get_kg_env(kg_env=kg_env, kg_fm_set=kg_fm_set)
+          CPPostcondition(kg_fm_set%ref_count>=1,cp_failure_level,routineP,error,failure)
+          CPPostcondition(kg_sub_pw_env%ref_count>=1,cp_failure_level,routineP,error,failure)
           CALL qs_ks_build_kohn_sham_matrix(ks_env,qs_env=qs_env,&
                ks_matrix=matrix_ks, rho=rho, energy=energy,&
                calculate_forces=c_forces,just_energy=energy_only,&
-               kg_sub_pw_env=kg_sub_pw_env, kg_fm_set=kg_fm_set, &
+               kg_gpw = .TRUE.,kg_sub_pw_env=kg_sub_pw_env, kg_fm_set=kg_fm_set, &
                error=error)
         ELSE
           CALL qs_ks_build_kohn_sham_matrix(ks_env,qs_env=qs_env,&

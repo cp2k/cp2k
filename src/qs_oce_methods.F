@@ -1,17 +1,23 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000  CP2K developers group                                 !
+!   Copyright (C) 2004-2005  CP2K developers group                            !
 !-----------------------------------------------------------------------------!
-!!****** cp2k/qs_oce_methods
+!!****h* cp2k/qs_oce_methods
 !!
 !!   NAME
 !!     qs_oce_methods
 !!
 !!   FUNCTION
+!!     Routines for the construction of the coefficients
+!!     for the expansion  of the atomic
+!!     densities rho1_hard and rho1_soft in terms of primitive spherical gaussians.
 !!
 !!   AUTHOR
+!!     MI
+!!   
+!!   MODIFICATION HISTORY
+!!     05-2004 created
 !!
-!!   SOURCE
 !******************************************************************************
 
 MODULE qs_oce_methods
@@ -150,6 +156,7 @@ CONTAINS
     nsoatot = maxsoa*nseta
     maxnprja = SIZE(zetprja,1)
 
+    calculate_forces = .FALSE.
     IF(nder > 0) THEN
       calculate_forces = .TRUE.
     ENDIF
@@ -367,16 +374,44 @@ CONTAINS
   END SUBROUTINE build_oce_block
 
 ! *****************************************************************************
-
+!!****f*  qs_oce_methods/set_up_oce  [1.0] *
+!!
+!!   NAME
+!!     set_up_oce
+!!
+!!   FUNCTION
+!!     Set up the sparse matrix for the coefficients  of one center expansions
+!!     To this end, it uses the same pair lists employed for the construction
+!!     of the density matriax. Here for each pair iatom jatom, all the katom
+!!     which are close to them both are taken into account.
+!!
+!!   NOTES
+!!     - The OCE blocks are dimensioned:
+!!       number of primitives on katom times of contractions on iatom/jatom
+!!
+!!   INPUTS
+!!     - atomic_kind_set: all the information of the atomic kinds
+!!     - reduced_3c_oce: special 3 center lists that give the neighbors to iatom and jatom
+!!     - oce: sparse matrix of the one center coefficients
+!!     - ikind, iatom, jkind, jatom : indexes and kinds of the atoms of the pair
+!!     - oceh,oces : blocks of the oce matrix for the hard and soft densities
+!!     - nder: it is =/ 0 if the forces are required
+!!     - dist_list: tool used to know which triplets have been already taken into account
+!!                  (to avoid double counting in presence of PBC)
+!!     - error: variable to control error logging, stopping,... 
+!!       see module cp_error_handling 
+!!
+!!   AUTHOR
+!!     MI
+!!
+!!   MODIFICATION HISTORY
+!!     02.2004 created 
+!!
+!!*** **********************************************************************
   SUBROUTINE set_up_oce(atomic_kind_set,reduced_3c_oce,oce,&
                         ikind,iatom,jkind,jatom,rab,&
                         oceh,oces,nder,dist_list)
 
-!   Purpose: set up the sparse matrix for the coefficients  of one center expansions
-
-!   History: - Creation (5-02-04 MI)
-
-!   ***************************************************************************
 
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
@@ -401,7 +436,7 @@ CONTAINS
     REAL(KIND=dp), DIMENSION(3)              :: rac, rbc, rdist
     TYPE(atomic_kind_type), POINTER          :: at_a, at_b, atomic_kind
 
-!   ***************************************************************************
+!   ---------------------------------------------------------------------------
 
     CALL timeset(routine_name,"I"," ",handle)
 
