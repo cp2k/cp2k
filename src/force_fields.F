@@ -1722,7 +1722,6 @@ SUBROUTINE force_field_pack (particle_set,atomic_kind_set,&
 
   TYPE(input_info_type),POINTER     :: inp_info
   TYPE(charmm_info_type),POINTER    :: chm_info
-  TYPE(amber_info_type),POINTER     :: amb_info
 
   INTEGER                                  :: istat, iw, i, j, k
   LOGICAL                                  :: PM1, PM2, PM3, PM4
@@ -1806,7 +1805,6 @@ SUBROUTINE force_field_pack (particle_set,atomic_kind_set,&
 
   inp_info => ff_type%inp_info
   chm_info => ff_type%chm_info
-  amb_info => ff_type%amb_info
 
 
   !-----------------------------------------------------------------------------

@@ -716,12 +716,10 @@ CONTAINS
                                                 xs3
     REAL(KIND=dp), DIMENSION(3)              :: ra
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: pot0_2
-    TYPE(qmmm_gaussian_type), POINTER        :: pgf
     TYPE(qmmm_pot_type), POINTER             :: pot
 
 ! Statements
 
-    NULLIFY(pgf)
     CALL timeset(routineN,"I","",handle)
 
     n1  = grid%pw_grid%npts(1)
@@ -734,7 +732,6 @@ CONTAINS
     bo(2,:) = grid%pw_grid%bounds(2,:)
 
     Radius: DO IRadTyp = 1, SIZE(pgfs) 
-       pgf => pgfs(IRadTyp)%pgf
        pot => potentials(IRadTyp)%pot
        dx     =  Pot%dx 
        pot0_2 => Pot%pot0_2

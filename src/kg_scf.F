@@ -111,10 +111,7 @@ MODULE kg_scf
                                              write_sparse_matrix
   USE qs_ot,                           ONLY: qs_ot_new_preconditioner, &
                                              qs_ot_type
-  USE qs_ot_scf,                       ONLY: ot_scf_destroy,&
-                                             ot_scf_init,&
-                                             ot_scf_mini,&
-                                             ot_scf_read_input
+  USE qs_ot_scf,                       ONLY: ot_scf_destroy
   USE qs_rho_methods,                  ONLY: qs_rho_update_rho
   USE qs_rho_types,                    ONLY: qs_rho_type
   USE qs_scf,                          ONLY: scf_env_density_mixing

@@ -252,15 +252,14 @@ CONTAINS
     TYPE(pw_pool_type), POINTER              :: auxbas_pw_pool
     TYPE(tddfpt_control_type), POINTER       :: tddfpt_control
     TYPE(xc_control_type)                    :: xc_control
-    TYPE(xc_derivative_set_type), POINTER    :: deriv_set
     TYPE(xc_rho_cflags_type)                 :: needs
-    TYPE(xc_rho_set_type), POINTER           :: rho1_set, rho_set
+    TYPE(xc_rho_set_type), POINTER           :: rho1_set
 
     CALL timeset(routineN,"I","",handle)
     failure=.FALSE.
 
     NULLIFY(dft_control, auxbas_pw_pool, pw_pools, pw_env, v_rspace_new, &
-            rho1_r, rho1_g_pw, tau_pw, cell, v_xc, deriv_set, rho_set, rho1_set,&
+            rho1_r, rho1_g_pw, tau_pw, cell, v_xc, rho1_set,&
             tddfpt_control)
     logger => cp_error_get_logger(error)
     ionode = logger%para_env%mepos==logger%para_env%source
@@ -693,8 +692,6 @@ CONTAINS
     type(qs_rho_type), pointer               :: rho
     TYPE(real_matrix_p_type), DIMENSION(:), &
       POINTER                                :: matrix_s
-    TYPE(xc_derivative_set_type), POINTER    :: deriv_set
-
 ! ------------------------------------------------------------------
 
     failure=.FALSE.
@@ -742,7 +739,6 @@ CONTAINS
 
           call qs_rho_get(rho, rho_r=rho_r, error=error)
 
-          NULLIFY(deriv_set)
           allocate(my_rho_r(size(rho_r)),stat=stat)
           CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
           do ispin=1,size(rho_r)

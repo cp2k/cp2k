@@ -781,7 +781,6 @@ SUBROUTINE topology_set_atm_mass(topology,globenv)
       routineP = moduleN//':'//routineN
     INTEGER, PARAMETER                       :: nblock = 1000
   TYPE(atom_info_type),POINTER     :: atom_info
-  TYPE(connectivity_info_type),POINTER     :: conn_info
 
   CHARACTER(len=default_string_length)       :: label_atmname
   CHARACTER(LEN=2), POINTER                :: atm_symbol(:)
@@ -818,7 +817,6 @@ SUBROUTINE topology_set_atm_mass(topology,globenv)
   IF(PM1) WRITE(iw,*) "    Entering topology_set_atm_mass"
 
   atom_info => topology%atom_info
-  conn_info => topology%conn_info
 
   natom = topology%natoms
 
@@ -2634,7 +2632,6 @@ SUBROUTINE topology_coordinate_pack (particle_set,atomic_kind_set,&
       routineP = moduleN//':'//routineN
 
   TYPE(atom_info_type),POINTER             :: atom_info
-  TYPE(connectivity_info_type),POINTER     :: conn_info
 
     CHARACTER(LEN=default_string_length), &
       POINTER                                :: work(:)
@@ -2694,7 +2691,6 @@ SUBROUTINE topology_coordinate_pack (particle_set,atomic_kind_set,&
   IF (PRESENT(qmmm).AND.PRESENT(qmmm_env)) my_qmmm=qmmm
 
   atom_info => topology%atom_info
-  conn_info => topology%conn_info
 
 
   !-----------------------------------------------------------------------------

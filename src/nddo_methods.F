@@ -1502,8 +1502,6 @@ CONTAINS
     TYPE(cp_rs_pool_p_type), DIMENSION(:), &
       POINTER                                :: rs_pools
     TYPE(cp_rs_pool_type), POINTER           :: rs_pool
-    TYPE(pw_pool_p_type), DIMENSION(:), &
-      POINTER                                :: pw_pools
     TYPE(pw_pool_type), POINTER              :: pw_pool, pw_aux
     TYPE(cube_info_type),  DIMENSION(:), &
                          POINTER             :: cube_info
@@ -1555,9 +1553,9 @@ CONTAINS
                         zet0_s=zet0,igrid_zet0_s=igrid,&
                         norm_g0l_s=norm_l)
 
-    NULLIFY(rs_pools, pw_pools)
+    NULLIFY(rs_pools )
     CPPrecondition(ASSOCIATED(pw_env),cp_failure_level,routineN,error,failure)
-    CALL pw_env_get(pw_env, rs_pools=rs_pools, pw_pools=pw_pools, error=error)
+    CALL pw_env_get(pw_env, rs_pools=rs_pools, error=error)
 
     ! assign from pw_env
     auxbas_grid=pw_env%auxbas_grid
@@ -1565,9 +1563,8 @@ CONTAINS
     l_info=pw_env%l_info_rho0
 
     ! Get the potential on the right grid
-    NULLIFY(rs_pool,pw_pool)
+    NULLIFY(rs_pool)
     rs_pool => rs_pools(igrid)%pool
-    pw_pool => pw_pools(igrid)%pool
 
     CPPrecondition(igrid==auxbas_grid,cp_failure_level,routineN,error,failure)
 

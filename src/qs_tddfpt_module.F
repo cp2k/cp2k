@@ -55,7 +55,6 @@ MODULE qs_tddfpt_module
   USE qs_tddfpt_utils,                 ONLY: tddfpt_cleanup,&
                                              tddfpt_init,&
                                              tddfpt_write_banner
-  USE scf_control_types,               ONLY: scf_control_type
   USE termination,                     ONLY: stop_program
   USE timings,                         ONLY: timeset,&
                                              timestop
@@ -156,12 +155,10 @@ CONTAINS
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(qs_scf_env_type), POINTER           :: scf_env
     TYPE(dft_control_type), POINTER          :: dft_control
-    TYPE(scf_control_type), POINTER          :: scf_control
     TYPE(tddfpt_control_type), POINTER       :: tddfpt_control
     TYPE(xc_control_type), POINTER           :: xc_control
 
     ! variables to remember from the environments
-    INTEGER                                  :: scf_control_max_scf
     TYPE(xc_control_type)                    :: my_xc_control
 
     CHARACTER(LEN=*), PARAMETER              :: routineN = "orbital_eigenvalue_correction", &
@@ -171,7 +168,7 @@ CONTAINS
     
     failure = .FALSE.
     NULLIFY(logger, scf_env, &
-            dft_control, scf_control, xc_control, tddfpt_control)
+            dft_control, xc_control, tddfpt_control)
     logger => cp_error_get_logger(error)
     ionode = (logger%para_env%mepos==logger%para_env%source)
     output_unit = cp_logger_get_default_unit_nr(logger)

@@ -96,13 +96,10 @@ SUBROUTINE ewald_pw_grid_change ( ewald_pw, ewald_env )
     REAL(dp)                                 :: alpha
     TYPE(cell_type), POINTER                 :: cell
     TYPE(dg_type), POINTER                   :: dg
-    TYPE(pw_grid_type), POINTER              :: pw_big_grid, pw_small_grid
     TYPE(pw_pool_type), POINTER              :: pw_big_pool, pw_small_pool
 
   NULLIFY ( pw_big_pool )
   NULLIFY ( pw_small_pool )
-  NULLIFY ( pw_big_grid )
-  NULLIFY ( pw_small_grid )
   NULLIFY ( cell )
   NULLIFY ( dg )
 
