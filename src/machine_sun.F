@@ -39,21 +39,21 @@ CONTAINS
 !!  cpu time in seconds
 FUNCTION m_cputime() RESULT (ct)
   REAL (dbl) :: ct
-  REAL ( KIND = 4 ) :: etime, timearray ( 2 )
-  ct = REAL ( etime ( timearray ), dbl )
+! REAL ( KIND = 4 ) :: etime, timearray ( 2 )
+! ct = REAL ( etime ( timearray ), dbl )
+! ct = REAL ( timearray (1), dbl )
+  real :: cto
+  CALL cpu_time(cto)
+  ct = cto
 END FUNCTION m_cputime
 !******************************************************************************
 !!  wall clock time in seconds
 FUNCTION m_walltime() RESULT (wt)
-  REAL (dbl) :: wt
-  REAL (sgl) :: etime
-  TYPE tb_type
-     SEQUENCE
-     REAL (sgl) usrtime
-     REAL (sgl) systime
-  END TYPE tb_type
-  TYPE (tb_type) etime_struct
-  wt = etime(etime_struct)
+  REAL (dbl) :: wt,omp_get_wtime
+  ! wt = omp_get_wtime() ! omp call is fast and accurate
+  integer*8 count,count_rate
+  CALL system_clock(count=count,count_rate=count_rate)
+  wt=REAL(count,dbl)/REAL(count_rate,dbl)
 END FUNCTION m_walltime
 !******************************************************************************
 !!  time and date
