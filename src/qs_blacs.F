@@ -811,7 +811,10 @@ CONTAINS
 ! *****************************************************************************
 
   SUBROUTINE blacs_syevx(matrix,eigenvectors,eigenvalues,neig,work_syevx,&
-                         context,globenv,bmatrix)
+                         context,globenv)
+!  alternative , needs dsygvx
+!  SUBROUTINE blacs_syevx(matrix,eigenvectors,eigenvalues,neig,work_syevx,&
+!                         context,globenv,bmatrix)
 
 !   Purpose: Diagonalise the symmetric n by n matrix using the LAPACK library.
 !            if bmatrix present, use general solver, will overwrite bmatrix
@@ -823,7 +826,8 @@ CONTAINS
 !   ***************************************************************************
 
     TYPE(blacs_matrix_type), POINTER          :: eigenvectors,matrix
-    TYPE(blacs_matrix_type), POINTER, OPTIONAL:: bmatrix
+!    alternative needs dsygvx
+!    TYPE(blacs_matrix_type), POINTER, OPTIONAL:: bmatrix
     TYPE(global_environment_type), INTENT(IN) :: globenv
     REAL(wp), INTENT(IN)                      :: work_syevx
     INTEGER, INTENT(IN)                       :: context,neig
@@ -913,17 +917,17 @@ CONTAINS
     work(:) = 0.0_wp
 
 !   *** Diagonalise matrix ***
-    if (PRESENT(bmatrix)) then
-       itype=1
-       b => bmatrix%p(myprow,mypcol)%block
-       descb(:) = matrix%descriptor(:)
-       CALL pdsygvx(itype,"V","I","U",n,a,1,1,desca,b,1,1,descb,vl,vu,1,neig, &
-                 abstol,m,nz,w,orfac,&
-                 z,1,1,descz,work,lwork,iwork,liwork,ifail,iclustr,gap,info)
-    else
+!    if (PRESENT(bmatrix)) then
+!       itype=1
+!       b => bmatrix%p(myprow,mypcol)%block
+!       descb(:) = matrix%descriptor(:)
+!       CALL pdsygvx(itype,"V","I","U",n,a,1,1,desca,b,1,1,descb,vl,vu,1,neig, &
+!                 abstol,m,nz,w,orfac,&
+!                 z,1,1,descz,work,lwork,iwork,liwork,ifail,iclustr,gap,info)
+!    else
        CALL pdsyevx("V","I","U",n,a,1,1,desca,vl,vu,1,neig,abstol,m,nz,w,orfac,&
                  z,1,1,descz,work,lwork,iwork,liwork,ifail,iclustr,gap,info)
-    endif
+!    endif
 
 
 !   *** Error handling ***
@@ -984,16 +988,16 @@ CONTAINS
     work(:) = 0.0_wp
 
 !   *** Diagonalise matrix ***
-
-    if (PRESENT(bmatrix)) then
-       itype=1
-       b => bmatrix%p(source,source)%block
-       CALL dsygvx(itype,"V","I","U",n,a,n,b,n,vl,vu,1,neig,abstol,m,w,z,n, &
-                   work,lwork,iwork,ifail,info)
-    else
+!   dsygvx seems not to be in all lapack versions ...
+!    if (PRESENT(bmatrix)) then
+!       itype=1
+!       b => bmatrix%p(source,source)%block
+!       CALL dsygvx(itype,"V","I","U",n,a,n,b,n,vl,vu,1,neig,abstol,m,w,z,n, &
+!                   work,lwork,iwork,ifail,info)
+!    else
        CALL dsyevx("V","I","U",n,a,n,vl,vu,1,neig,abstol,m,w,z,n,work,lwork,&
                 iwork,ifail,info)
-    endif
+!    endif
 
 !   *** Error handling ***
 
