@@ -367,6 +367,7 @@ OBJECTS_GENERIC =\
  velocity_verlet_control.o\
  virial_types.o\
  wf_types.o\
+ whittaker.o\
  xc.o\
  xc_atom.o\
  xc_cs1.o\

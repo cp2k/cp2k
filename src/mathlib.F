@@ -26,7 +26,7 @@ MODULE mathlib
                                              dp,&
                                              dp_size,&
                                              int_size
-  USE mathconstants,                   ONLY: fac
+  USE mathconstants,                   ONLY: fac, euler
   USE output_utilities,                ONLY: print_message
   USE termination,                     ONLY: get_error_unit,&
                                              stop_memory,&
@@ -58,7 +58,8 @@ MODULE mathlib
             dihedral_angle,&
             gcd,&
             inv_3x3,&
-            lcm
+            lcm,&
+            ei
 
 ! *****************************************************************************
 
@@ -1244,6 +1245,69 @@ CONTAINS
 
      RETURN
   END FUNCTION lcm
+
+! *****************************************************************************
+!****f* mathlib/ei [1.0] *
+!!
+!!   NAME
+!!     ei
+!!
+!!   FUNCTION
+!!     computes the exponential integral
+!!     Ei(x) = Int(exp(-x*t)/t,t=1..infinity)  x>0
+!!
+!!   AUTHOR
+!!     JGH (adapted from Numerical recipies)
+!!
+!!   MODIFICATION HISTORY
+!!
+!!*** *********************************************************************
+  FUNCTION ei(x)
+    REAL ( dp )            :: ei
+    REAL ( dp )            :: x
+
+    INTEGER, PARAMETER     :: maxit=100
+    REAL ( dp ), PARAMETER :: eps=6.e-14_dp
+    REAL ( dp ), PARAMETER :: fpmin=1.e-100_dp
+
+    CHARACTER(LEN=*), PARAMETER :: routine_name = "ei"
+    INTEGER                :: k
+    REAL ( dp )            :: fact,prev,sum1,term
+
+    IF(x <= 0._dp) THEN
+      CALL stop_program(module_name,routine_name,__LINE__,"Invalid argument")
+    END IF
+
+    IF (x < fpmin) THEN
+      ei = log(x) + euler
+    ELSE IF (x <= -log(EPS)) THEN
+      sum1 = 0._dp
+      fact = 1._dp
+      DO k = 1,maxit
+        fact = fact*x/REAL(k,dp)
+        term = fact/REAL(k,dp)
+        sum1 = sum1+term
+        IF (term < eps*sum1) EXIT
+      END DO
+      ei = sum1+log(x)+euler
+    ELSE
+      sum1 = 0._dp
+      term = 1._dp
+      DO k = 1,maxit
+        prev = term
+        term = term*REAL(k,dp)/x
+        IF (term < eps) EXIT
+        IF (term < prev) THEN
+          sum1 = sum1+term
+        ELSE
+          sum1 = sum1-prev
+          EXIT
+        END IF
+      END DO
+      ei = exp(x)*(1._dp+sum1)/x
+    END IF
+
+    END FUNCTION ei
 
 ! *****************************************************************************
 

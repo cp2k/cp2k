@@ -1,6 +1,6 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000  CP2K developers group                                 !
+!   Copyright (C) 2000 - 2004 CP2K developers group                           !
 !-----------------------------------------------------------------------------!
 !!****** cp2k/mathconstants [1.0] *
 !!
@@ -16,6 +16,7 @@
 !!   MODIFICATION HISTORY
 !!     Adapted for use in CP2K (JGH)
 !!     JGH (16-06-2002) : Added Gamma functions
+!!     JGH (10-08-2004) : Added Euler constant (gamma)
 !!
 !!   SOURCE
 !******************************************************************************
@@ -29,7 +30,8 @@ MODULE mathconstants
   PRIVATE
   PUBLIC :: init_mathcon
   PUBLIC :: maxfac, pi, pio2, twopi, fourpi, root2, rootpi, oorootpi, &
-       zero, one, half, degree, radians, gaussi, fac, dfac, gamma0, gamma1
+       zero, one, half, degree, radians, gaussi, fac, dfac, gamma0, gamma1, &
+       euler
 
   INTEGER, PARAMETER :: maxfac = 30
 
@@ -40,6 +42,8 @@ MODULE mathconstants
   REAL ( dbl ), PARAMETER :: root2 = 1.41421356237309504880168872_dbl
   REAL ( dbl ), PARAMETER :: rootpi = 1.77245387556702677717522568_dbl
   REAL ( dbl ), PARAMETER :: oorootpi = 1._dbl/rootpi
+
+  REAL ( dbl ), PARAMETER :: euler=0.577215664901532860606512_dbl
 
   REAL ( dbl ), PARAMETER :: zero = 0._dbl, one = 1._dbl, half = 0.5_dbl
   REAL ( dbl ), PARAMETER :: degree = 180._dbl/pi, radians = one/degree
@@ -69,11 +73,10 @@ CONTAINS
 !!   MODIFICATION HISTORY
 !!     none
 !!
-!!   SOURCE
+!!*****
 !******************************************************************************
 
 SUBROUTINE init_mathcon
-
 
     INTEGER                                  :: i
 
@@ -111,7 +114,6 @@ SUBROUTINE init_mathcon
 
 END SUBROUTINE init_mathcon
 
-!!*****
 !******************************************************************************
 
 END MODULE mathconstants
