@@ -3203,13 +3203,13 @@ FUNCTION xc_exc_calc(rho_r,rho_g,tau,dft_control, cell,pw_pool,atoms,&
 
     INTEGER                                  :: handle
     LOGICAL                                  :: failure
-    REAL(dp), DIMENSION(:, :, :), POINTER    :: deriv_data, e_0
+    REAL(dp), DIMENSION(:, :, :), POINTER    :: e_0
     TYPE(xc_derivative_set_type), POINTER    :: deriv_set
     TYPE(xc_derivative_type), POINTER        :: deriv
     TYPE(xc_rho_set_type), POINTER           :: rho_set
 
   CALL timeset(routineN,"I","",handle)
-  NULLIFY(rho_set, deriv_set, deriv,e_0,deriv_data)
+  NULLIFY(rho_set, deriv_set, deriv,e_0)
   failure=.FALSE.
   exc=0.0_dp
   
@@ -3223,13 +3223,13 @@ FUNCTION xc_exc_calc(rho_r,rho_g,tau,dft_control, cell,pw_pool,atoms,&
   IF (ASSOCIATED(deriv)) THEN
      CALL xc_derivative_get(deriv, deriv_data=e_0, error=error)
      
-     CALL smooth_cutoff(pot=deriv_data,rho=rho_set%rho,&
+     CALL smooth_cutoff(pot=e_0,rho=rho_set%rho,&
           rhoa=rho_set%rhoa,rhob=rho_set%rhob,& 
           rho_cutoff=dft_control%xc_control%density_cut,& 
           rho_smooth_cutoff_range=dft_control%xc_control%density_smooth_cut_range,&
           error=error)
      
-     exc = SUM ( deriv_data )*rho_r(1)%pw%pw_grid%dvol
+     exc = SUM ( e_0 )*rho_r(1)%pw%pw_grid%dvol
      IF ( rho_r(1)%pw%pw_grid%para%mode == PW_MODE_DISTRIBUTED ) THEN
         CALL mp_sum ( exc, rho_r(1)%pw%pw_grid%para%group )
      END IF
