@@ -1045,6 +1045,7 @@ SUBROUTINE qs_vxc_create(vxc_rho,vxc_tau, exc, qs_env,&
     INTEGER                                  :: nelec_spin(2)
     TYPE(mo_set_p_type), DIMENSION(:), &
          POINTER                                :: mo_array
+    LOGICAL                                  :: sic_scaling_b_zero
 
 !   ---------------------------------------------------------------------------
 
@@ -1096,6 +1097,12 @@ SUBROUTINE qs_vxc_create(vxc_rho,vxc_tau, exc, qs_env,&
     ! this case has not yet been treated here
     CALL cp_assert(.FALSE., cp_failure_level,cp_assertion_failed,routineP,"NYI",error,failure)
   END SELECT
+
+  IF (dft_control % sic_scaling_b .EQ. 0.0_dp) THEN
+    sic_scaling_b_zero = .TRUE.
+  ELSE
+    sic_scaling_b_zero = .FALSE.
+  ENDIF
 
   IF ( .NOT. failure ) THEN
      CALL pw_env_get(pw_env,auxbas_pw_pool=auxbas_pw_pool,error=error)
@@ -1179,7 +1186,7 @@ SUBROUTINE qs_vxc_create(vxc_rho,vxc_tau, exc, qs_env,&
      END IF
 
      ! compute again the xc but now for Exc(m,o) and the opposite sign
-     IF (dft_control%sic_method_id .EQ. sic_mauri_spz) THEN
+     IF (dft_control%sic_method_id .EQ. sic_mauri_spz .AND. .NOT. sic_scaling_b_zero) THEN
         ALLOCATE(rho_m_rspace(2),rho_m_gspace(2))
         CALL pw_pool_init_coeff(auxbas_pw_pool, rho_m_gspace(1),&
                                    use_data = COMPLEXDATA1D,&
@@ -1241,7 +1248,7 @@ SUBROUTINE qs_vxc_create(vxc_rho,vxc_tau, exc, qs_env,&
      ENDIF
 
      ! now we have - sum_s N_s * Exc(rho_s/N_s,0)
-     IF ( dft_control % sic_method_id .EQ. sic_ad ) THEN
+     IF ( dft_control % sic_method_id .EQ. sic_ad  .AND. .NOT. sic_scaling_b_zero ) THEN
 
         ! find out how many elecs we have
         CALL get_qs_env(qs_env,mos=mo_array)
@@ -1314,7 +1321,7 @@ SUBROUTINE qs_vxc_create(vxc_rho,vxc_tau, exc, qs_env,&
      ENDIF
 
      ! compute again the xc but now for Exc(n_down,n_down) 
-     IF (dft_control%sic_method_id .EQ. sic_mauri_us) THEN
+     IF (dft_control%sic_method_id .EQ. sic_mauri_us .AND. .NOT. sic_scaling_b_zero ) THEN
         rho_r(1)%pw => rho_struct%rho_r(2)%pw
         rho_r(2)%pw => rho_struct%rho_r(2)%pw
         IF ( rho_struct%rho_g_valid ) THEN
