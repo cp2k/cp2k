@@ -247,9 +247,9 @@ do
      # Keep the output up-to-date
      case ${this_test} in
      "OK" | "NEW" )
-        cp ${output_file} ${output_last} ;;
+        cp ${output_file} ${output_last} 
         timing=`grep "CP2K   " ${output_file} | awk '{printf("%6.2f",$4)}'`
-        this_test="${this_test} (${timing} sec)"
+        this_test="${this_test} (${timing} sec)" ;;
      esac
   done
 done
