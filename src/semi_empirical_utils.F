@@ -446,7 +446,7 @@ CONTAINS
             WRITE (UNIT=output_unit,FMT="(T16,A,F12.4,T52,A,F12.4)") &
                "alp [A^-1]      :",alp/angstrom,&
                "eisol [eV]      :",eisol*evolt
-            WRITE (UNIT=output_unit,FMT="(T16,A,/,T16,5(A,F7.3)") &
+            WRITE (UNIT=output_unit,FMT="(T16,A,/,T16,5(A,F7.3))") &
                "One-centre-two-electron integrals","gss=",gss," gsp=",gsp,&
                " gpp=",gpp," gp2=",gp2," hsp=",hsp
           ELSE
@@ -476,7 +476,7 @@ CONTAINS
             WRITE (UNIT=output_unit,FMT="(T16,A,F12.4,T52,A,F12.4)") &
                "alp [A^-1]      :",alp/angstrom,&
                "eisol [eV]      :",eisol*evolt
-            WRITE (UNIT=output_unit,FMT="(T16,A,/,T16,5(A,F7.3)") &
+            WRITE (UNIT=output_unit,FMT="(T16,A,/,T16,5(A,F7.3))") &
                "One-centre-two-electron integrals","gss=",gss," gsp=",gsp,&
                " gpp=",gpp," gp2=",gp2," hsp=",hsp
           ELSE
@@ -505,7 +505,7 @@ CONTAINS
             WRITE (UNIT=output_unit,FMT="(T16,A,F12.4,T52,A,F12.4)") &
                "alp [A^-1]      :",alp/angstrom,&
                "eisol [eV]      :",eisol*evolt
-            WRITE (UNIT=output_unit,FMT="(T16,A,/,T16,5(A,F7.3)") &
+            WRITE (UNIT=output_unit,FMT="(T16,A,/,T16,5(A,F7.3))") &
                "One-centre-two-electron integrals","gss=",gss," gsp=",gsp,&
                " gpp=",gpp," gp2=",gp2," hsp=",hsp
           ELSE
