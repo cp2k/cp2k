@@ -1,0 +1,85 @@
+!-----------------------------------------------------------------------------!
+!   CP2K: A general program to perform molecular dynamics simulations         !
+!   Copyright (C) 1999  MPI fuer Festkoerperforschung, Stuttgart              !
+!-----------------------------------------------------------------------------!
+
+
+MODULE energy_output
+
+  USE global_types, ONLY : global_environment_type
+  USE energy_input, ONLY : min_info_type
+
+  IMPLICIT NONE
+
+  PRIVATE
+  PUBLIC :: print_energy_info, print_convergence                 
+
+CONTAINS
+
+!******************************************************************************
+!
+  SUBROUTINE print_energy_info ( iter, min_info, globenv )
+
+    IMPLICIT NONE
+    INTEGER,  INTENT (IN) :: iter
+    TYPE ( min_info_type ), INTENT(IN) :: min_info
+    TYPE ( global_environment_type ), INTENT (IN) :: globenv
+
+!   locals
+    integer :: iw
+
+    iw = globenv % scr
+    
+    WRITE (iw,*)
+    WRITE (iw,'(A,A)') ' **************************************', &
+      '*****************************************'
+    WRITE (iw,'(A,T71,I10)') ' ITERATION NUMBER        = ', iter
+    WRITE (iw,'(A,T66,E15.7)') ' MAX FORCE ON COEFFICENTS = ', min_info%tol
+    WRITE (iw,'(A,T66,E15.7)') ' odiis error              = ', min_info%err
+    WRITE (iw,'(A,T66,E15.7)') ' CLASSIC  ENERGY    = ', min_info%e_class
+    WRITE (iw,'(A,T66,E15.7)') ' POL OVERLAP ENERGY   = ', min_info%e_over
+    WRITE (iw,'(A,T66,E15.7)') ' ELECTROSTATIC ENERGY  = ', min_info%e_electro
+    WRITE (iw,'(A,T66,E15.7)') ' HK CONTRIBUTION     = ', min_info%e_thk
+    WRITE (iw,'(A,T66,E15.7)') '  TOTAL ENERGY       = ', min_info%e
+    WRITE (iw,'(A,T66,E15.7)') ' DELTA E           = ', min_info%de
+    WRITE (iw,'(A,A)') ' **************************************', &
+      '*****************************************'
+!
+  END SUBROUTINE print_energy_info
+!
+!******************************************************************************
+
+  SUBROUTINE print_convergence ( conv_flag, globenv )
+
+    IMPLICIT NONE
+    LOGICAL, INTENT (IN) :: conv_flag               
+    TYPE ( global_environment_type ), INTENT (IN) :: globenv
+
+!   locals
+    integer :: iw
+
+    iw = globenv % scr
+
+     IF (conv_flag) THEN
+       WRITE (iw,*)
+       WRITE (iw,'(T23,A)') '******************************'
+       WRITE (iw,'(T23,A)') '*    CONVERGENCE ACHIEVED    *'
+       WRITE (iw,'(T23,A)') '*    IN COEF MINIMIZATION    *'
+       WRITE (iw,'(T23,A)') '******************************'
+       WRITE (iw,*)
+     ELSE
+       WRITE (iw,*)
+       WRITE (iw,'(T23,A)') '******************************'
+       WRITE (iw,'(T23,A)') '*  WARNING: NO CONVERGENCE!  *'
+       WRITE (iw,'(T23,A)') '*  RESTART WITH LAST COEF    *'
+       WRITE (iw,'(T23,A)') '******************************'
+       WRITE (iw,*)
+     END IF
+
+  END SUBROUTINE print_convergence 
+
+!******************************************************************************
+
+END MODULE energy_output
+
+!******************************************************************************
