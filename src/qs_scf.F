@@ -940,9 +940,12 @@ CONTAINS
     IF ((qs_env%para_env%num_pe > 1).AND.gth_potential_present) THEN
        CALL sm_pool_give_back_matrix(qs_env%H_redundant_sm_pools(1)%pool,&
             qs_env%h(1)%matrix,error=error)
-       CALL sm_pool_create_matrix(qs_env%S_sm_pools(1)%pool,h(1)%matrix,&
-            name="qs_env"//TRIM(ADJUSTL(cp_to_string(qs_env%id_nr)))//"%h-1",&
-            error=error)
+!!$       CALL sm_pool_create_matrix(qs_env%S_sm_pools(1)%pool,h(1)%matrix,&
+!!$            name="qs_env"//TRIM(ADJUSTL(cp_to_string(qs_env%id_nr)))//"%h-1",&
+!!$            error=error)
+       CALL replicate_matrix_structure(s(1)%matrix,h(1)%matrix,&
+            "qs_env"//TRIM(ADJUSTL(cp_to_string(qs_env%id_nr)))//"%h-1")
+
        CALL copy_full_matrix_to_real_matrix(scf_work1(1)%matrix,&
             qs_env%h(1)%matrix)
     END IF
@@ -1201,20 +1204,32 @@ CONTAINS
 !   *** Allocate k and put it in the QS environment ***
 
     IF (.not.ASSOCIATED(k)) THEN
-       CALL sm_pools_create_matrix_vect(S_sm_pools,k,&
-            name="SCF"//TRIM(ADJUSTL(cp_to_string(scf_env%id_nr)))//&
-            "KOHN-SHAM_MATRIX-"//TRIM(ADJUSTL(cp_to_string(ispin))),&
-            error=error)
+!!$       CALL sm_pools_create_matrix_vect(S_sm_pools,k,&
+!!$            name="SCF"//TRIM(ADJUSTL(cp_to_string(scf_env%id_nr)))//&
+!!$            "KOHN-SHAM_MATRIX-"//TRIM(ADJUSTL(cp_to_string(ispin))),&
+!!$            error=error)
+       CALL allocate_matrix_set(k,dft_control%nspins)
+       DO ispin=1,dft_control%nspins
+          NULLIFY(k(ispin)%matrix)
+          CALL replicate_matrix_structure(s(1)%matrix,&
+               k(ispin)%matrix,"KOHN-SHAM_MATRIX-")
+       END DO
        CALL set_qs_env(qs_env=qs_env,&
             k=k)
     END IF
 
 !   *** allocate p_new ***
     IF (.not.ASSOCIATED(scf_env%p_new)) THEN
-       CALL sm_pools_create_matrix_vect(S_sm_pools,scf_env%p_new,&
-            name="SCF"//TRIM(ADJUSTL(cp_to_string(scf_env%id_nr)))//&
-            "DENSITY-"//TRIM(ADJUSTL(cp_to_string(ispin))),&
-            error=error)
+!!$       CALL sm_pools_create_matrix_vect(S_sm_pools,scf_env%p_new,&
+!!$            name="SCF"//TRIM(ADJUSTL(cp_to_string(scf_env%id_nr)))//&
+!!$            "DENSITY-"//TRIM(ADJUSTL(cp_to_string(ispin))),&
+!!$            error=error)
+       CALL allocate_matrix_set(scf_env%p_new,dft_control%nspins)
+       DO ispin=1,dft_control%nspins
+          NULLIFY(scf_env%p_new(ispin)%matrix)
+          CALL replicate_matrix_structure(s(1)%matrix,&
+               scf_env%p_new(ispin)%matrix,"Newdensity-")
+       END DO
     END IF
 
 !   *** allocate the ks env **

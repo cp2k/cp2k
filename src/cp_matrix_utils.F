@@ -610,16 +610,12 @@ CONTAINS
        IF (block_iterator%block_row > 0) THEN
           IF (ASSOCIATED(block_iterator%block_node)) THEN
              block_iterator%block_node => next_block_node(block_iterator%block_node)
-             IF (.not.ASSOCIATED(block_iterator%block_node)) THEN
-                block_iterator%block_row= block_iterator%block_row+1
-             END IF
           END IF
           IF (.not.ASSOCIATED(block_iterator%block_node)) THEN
              CALL get_matrix_info(block_iterator%matrix,nblock_row=nblock_row)
-             DO i=block_iterator%block_row,nblock_row
+             DO i=block_iterator%block_row+1,nblock_row
                 block_iterator%block_node => &
-                     first_block_node(block_iterator%matrix,&
-                     i)
+                     first_block_node(block_iterator%matrix,i)
                 IF (ASSOCIATED(block_iterator%block_node)) THEN
                    block_iterator%block_row=i
                    EXIT

@@ -40,11 +40,13 @@ MODULE cp_sm_struct
   USE cp_log_handling,                 ONLY: cp_failure_level,&
                                              cp_fatal_level,&
                                              cp_log,&
+                                             cp_logger_type,&
                                              cp_note_level,&
                                              cp_to_string,&
                                              cp_warning_level
   USE cp_para_env,                     ONLY: cp_para_env_release,&
-                                             cp_para_env_retain
+                                             cp_para_env_retain,&
+                                             cp_para_env_write
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE kinds,                           ONLY: wp=>dp
   USE timings,                         ONLY: timeset,&
@@ -59,7 +61,7 @@ MODULE cp_sm_struct
   PUBLIC :: cp_sm_node_type, cp_sm_struct_type, cp_sm_struct_p_type
   PUBLIC :: sm_struct_create, sm_struct_retain, sm_struct_release,&
        sm_struct_add_local_block, sm_struct_clear_local_blocks,&
-       sm_struct_get
+       sm_struct_get, sm_struct_write
 !!***
 !****************************************************************************
 
@@ -739,13 +741,25 @@ SUBROUTINE sm_struct_get(sm_struct, ref_count, id_nr, n_local_blocks,&
           block_begins_at_col => sm_struct%block_begins_at_col
      IF (PRESENT(block_begins_at_row)) &
           block_begins_at_row => sm_struct%block_begins_at_row
-     IF (PRESENT(first_col)) THEN !FM works? or should allocate it
-        first_col => sm_struct%block_begins_at_col(1:&
-             (SIZE(sm_struct%block_begins_at_col)-1))
+     IF (PRESENT(first_col)) THEN !FM avoid allocation? (use subset)
+        IF (.not.ASSOCIATED(sm_struct%first_col)) THEN
+           ALLOCATE(sm_struct%first_col(SIZE(sm_struct%block_begins_at_col)-1),&
+                stat=stat)
+           CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+           sm_struct%first_col = sm_struct%block_begins_at_col(1:&
+                SIZE(sm_struct%first_col))
+        END IF
+        first_col => sm_struct%first_col
      END IF
-     IF (PRESENT(first_row)) THEN !FM works? or should allocate it
-        first_row => sm_struct%block_begins_at_row(1:&
-             (SIZE(sm_struct%block_begins_at_row)-1))
+     IF (PRESENT(first_row)) THEN !FM avoid allocation? (use subset)
+        IF (.not.ASSOCIATED(sm_struct%first_row)) THEN
+           ALLOCATE(sm_struct%first_row(SIZE(sm_struct%block_begins_at_row)-1),&
+                stat=stat)
+           CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+           sm_struct%first_row = sm_struct%block_begins_at_row(1:&
+                SIZE(sm_struct%first_row))
+        END IF
+        first_row => sm_struct%first_row
      END IF
      IF (PRESENT(last_row)) THEN
         IF (.not.ASSOCIATED(last_row)) THEN
@@ -789,6 +803,15 @@ END SUBROUTINE sm_struct_get
 !!   NAME
 !!     sm_struct_write
 !!
+!!   SYNOPSIS
+!!     Subroutine sm_struct_write(sm_struct, unit_nr, local,&
+!!         short_description, error)
+!!       Type(cp_sm_struct_type), Pointer:: sm_struct
+!!       Integer, Intent (IN):: unit_nr
+!!       Logical, Intent (IN), Optional:: local, short_description
+!!       Type(cp_error_type), Optional, Intent (INOUT):: error
+!!     End Subroutine sm_struct_write
+!!
 !!   FUNCTION
 !!     writes out information about the given sm_struct
 !!
@@ -815,22 +838,208 @@ SUBROUTINE sm_struct_write(sm_struct, unit_nr, local, short_description, error)
   INTEGER, INTENT(in) :: unit_nr
   LOGICAL, INTENT(in), OPTIONAL :: local, short_description
   TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
-  
-  LOGICAL :: failure
+
+  LOGICAL :: failure, my_local, my_short_description, should_write
   CHARACTER(len=*), PARAMETER :: routineN='sm_struct_write',&
-        routineP=moduleN//':'//routineN
+       routineP=moduleN//':'//routineN
+  TYPE(cp_logger_type), POINTER :: logger
+  TYPE(cp_sm_node_type), POINTER :: pos_att,next_row
 
   failure=.FALSE.
-  
-  IF (.NOT. failure) THEN
-!FM     INTEGER :: ref_count, id_nr, n_local_blocks
-!FM     INTEGER, DIMENSION(:), POINTER :: block_begins_at_row, &
-!FM          block_begins_at_col, first_col, &
-!FM          first_row, last_col, last_row
-!FM     TYPE(cp_para_env_type), POINTER :: para_env
-!FM     character(len=40) :: symmetry
-!FM     type(cp_sm_node_type), pointer :: local_blocks
-    
+  NULLIFY(pos_att,next_row)
+  logger => cp_error_get_logger(error)
+  my_local=.FALSE.
+  IF (PRESENT(local)) my_local=local
+  my_short_description=.TRUE.
+  IF (PRESENT(short_description)) my_short_description=short_description
+  should_write=local.or. logger%para_env%mepos == logger%para_env%source
+
+  IF (should_write) THEN
+     IF (ASSOCIATED(sm_struct)) THEN
+        WRITE(unit=unit_nr,fmt="('<sm_struct>={ id_nr=',i6,', ref_count=',i6,"//&
+             "', n_local_blocks=',i6,',')")&
+             sm_struct%id_nr, sm_struct%ref_count, sm_struct%n_local_blocks
+        WRITE(unit=unit_nr,fmt="(' symmetry=',a,',')")&
+             sm_struct%symmetry
+        IF (my_short_description) THEN
+
+           IF (ASSOCIATED(sm_struct%block_begins_at_row)) THEN
+              WRITE(unit=unit_nr,&
+                   fmt="(' block_begins_at_row=(',i6,' elements),')")&
+                   SIZE(sm_struct%block_begins_at_row)
+           ELSE
+              WRITE(unit=unit_nr,fmt="(' block_begins_at_row=*null*,')")
+           END IF
+
+           IF (ASSOCIATED(sm_struct%block_begins_at_col)) THEN
+              WRITE(unit=unit_nr,&
+                   fmt="(' block_begins_at_col=(',i6,' elements),')")&
+                   SIZE(sm_struct%block_begins_at_col)
+           ELSE
+              WRITE(unit=unit_nr,fmt="(' block_begins_at_col=*null*,')")
+           END IF
+
+           IF (ASSOCIATED(sm_struct%first_col)) THEN
+              WRITE(unit=unit_nr,&
+                   fmt="(' first_col=(',i6,' elements),')")&
+                   SIZE(sm_struct%first_col)
+           ELSE
+              WRITE(unit=unit_nr,fmt="(' first_col=*null*,')")
+           END IF
+
+           IF (ASSOCIATED(sm_struct%first_row)) THEN
+              WRITE(unit=unit_nr,&
+                   fmt="(' first_row=(',i6,' elements),')")&
+                   SIZE(sm_struct%first_row)
+           ELSE
+              WRITE(unit=unit_nr,fmt="(' first_row=*null*,')")
+           END IF
+
+           IF (ASSOCIATED(sm_struct%last_col)) THEN
+              WRITE(unit=unit_nr,&
+                   fmt="(' last_col=(',i6,' elements),')")&
+                   SIZE(sm_struct%last_col)
+           ELSE
+              WRITE(unit=unit_nr,fmt="(' last_col=*null*,')")
+           END IF
+
+           IF (ASSOCIATED(sm_struct%last_row)) THEN
+              WRITE(unit=unit_nr,&
+                   fmt="(' last_row=(',i,' elements),')")&
+                   SIZE(sm_struct%last_row)
+           ELSE
+              WRITE(unit=unit_nr,fmt="(' last_row=*null*,')")
+           END IF
+
+           IF (ASSOCIATED(sm_struct%para_env)) THEN
+              WRITE(unit=unit_nr,&
+                   fmt="(' para_env=*associated*,')")&
+                   SIZE(sm_struct%last_row)
+           ELSE
+              WRITE(unit=unit_nr,fmt="(' para_env=*null*,')")
+           END IF
+
+           IF (ASSOCIATED(sm_struct%local_blocks)) THEN
+              WRITE(unit=unit_nr,&
+                   fmt="(' local_blocks=*associated*,')")
+           ELSE
+              WRITE(unit=unit_nr,fmt="(' local_blocks=*null*,')")
+           END IF
+
+        ELSE ! long description
+
+           IF (ASSOCIATED(sm_struct%block_begins_at_row)) THEN
+              WRITE(unit=unit_nr,&
+                   fmt="(' block_begins_at_row=(')", advance='no')
+              WRITE(unit=unit_nr, fmt="(i6,',')", advance='no')&
+                   sm_struct%block_begins_at_row
+              WRITE(unit=unit_nr,fmt="(' ),')")
+           ELSE
+              WRITE(unit=unit_nr,fmt="(' block_begins_at_row=*null*,')")
+           END IF
+
+           IF (ASSOCIATED(sm_struct%block_begins_at_col)) THEN
+              WRITE(unit=unit_nr,&
+                   fmt="(' block_begins_at_col=(')", advance='no')
+              WRITE(unit=unit_nr, fmt="(i6,',')", advance='no')&
+                   sm_struct%block_begins_at_col
+              WRITE(unit=unit_nr,fmt="(' ),')")
+           ELSE
+              WRITE(unit=unit_nr,fmt="(' block_begins_at_col=*null*,')")
+           END IF
+
+           IF (ASSOCIATED(sm_struct%first_col)) THEN
+              WRITE(unit=unit_nr,&
+                   fmt="(' first_col=(')", advance='no')
+              WRITE(unit=unit_nr, fmt="(i6,',')", advance='no')&
+                   sm_struct%first_col
+              WRITE(unit=unit_nr,fmt="(' ),')")
+           ELSE
+              WRITE(unit=unit_nr,fmt="(' first_col=*null*,')")
+           END IF
+
+           IF (ASSOCIATED(sm_struct%first_row)) THEN
+              WRITE(unit=unit_nr,&
+                   fmt="(' first_row=(')", advance='no')
+              WRITE(unit=unit_nr, fmt="(i6,',')", advance='no')&
+                   sm_struct%first_row
+              WRITE(unit=unit_nr,fmt="(' ),')")
+           ELSE
+              WRITE(unit=unit_nr,fmt="(' first_row=*null*,')")
+           END IF
+
+           IF (ASSOCIATED(sm_struct%last_col)) THEN
+              WRITE(unit=unit_nr,&
+                   fmt="(' last_col=(')", advance='no')
+              WRITE(unit=unit_nr, fmt="(i6,',')", advance='no')&
+                   sm_struct%last_col
+              WRITE(unit=unit_nr,fmt="(' ),')")
+           ELSE
+              WRITE(unit=unit_nr,fmt="(' last_col=*null*,')")
+           END IF
+
+           IF (ASSOCIATED(sm_struct%last_row)) THEN
+              WRITE(unit=unit_nr,&
+                   fmt="(' last_row=(')", advance='no')
+              WRITE(unit=unit_nr, fmt="(i6,',')", advance='no')&
+                   sm_struct%last_row
+              WRITE(unit=unit_nr,fmt="(' ),')")
+           ELSE
+              WRITE(unit=unit_nr,fmt="(' last_row=*null*,')")
+           END IF
+
+           IF (ASSOCIATED(sm_struct%para_env)) THEN
+              WRITE(unit=unit_nr,fmt="(' para_env=')", advance='no')
+              CALL cp_para_env_write(sm_struct%para_env,unit_nr=unit_nr,&
+                   error=error)
+           ELSE
+              WRITE(unit=unit_nr,fmt="(' para_env=*null*,')")
+           END IF
+
+           IF (ASSOCIATED(sm_struct%local_blocks)) THEN
+
+              WRITE(unit=unit_nr, fmt="(' local_blocks(rows{i,j,pos})=(',/,' ')",&
+                   advance='no')
+              pos_att => sm_struct%local_blocks
+              DO WHILE (ASSOCIATED(pos_att))
+                 next_row => pos_att%next_row
+                 DO WHILE (ASSOCIATED(pos_att))
+                    WRITE(unit=unit_nr,fmt="(' {',i6,',',i6,',',i6,'}')",&
+                         advance='no')&
+                         pos_att%row, pos_att%col, pos_att%pos
+                    pos_att => pos_att%next_col
+                 END DO
+                 WRITE (unit=unit_nr,fmt="(/,' ')")
+                 pos_att => next_row
+              END DO
+              WRITE (unit=unit_nr,fmt="(')')")
+
+              IF (debug_this_module) THEN
+                 WRITE(unit=unit_nr, fmt="(' local_blocks(cols{i,j,pos})=(',/,' ')",&
+                      advance='no')
+                 pos_att => sm_struct%local_blocks
+                 DO WHILE (ASSOCIATED(pos_att))
+                    next_row => pos_att%next_col
+                    DO WHILE (ASSOCIATED(pos_att))
+                       WRITE(unit=unit_nr,fmt="(' {',i6,',',i6,',',i6,'}')",&
+                            advance='no')&
+                            pos_att%row, pos_att%col, pos_att%pos
+                       pos_att => pos_att%next_row
+                    END DO
+                    WRITE (unit=unit_nr,fmt="(/,' ')")
+                    pos_att => next_row
+                 END DO
+                 WRITE (unit=unit_nr,fmt="(')')")
+              END IF
+           ELSE
+              WRITE(unit=unit_nr,fmt="(' local_blocks=*null*,')")
+           END IF
+
+        END IF
+        WRITE(unit=unit_nr,fmt="('}')")
+     ELSE
+        WRITE(unit=unit_nr,fmt="(' <cp_sm_struct>=*null*,')")
+     END IF
   END IF
 END SUBROUTINE sm_struct_write
 !***************************************************************************

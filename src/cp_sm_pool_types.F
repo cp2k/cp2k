@@ -37,14 +37,6 @@ MODULE cp_sm_pool_types
                                              cp_error_type,&
                                              cp_internal_error,&
                                              cp_unimplemented_error
-  USE cp_sm_struct,                    ONLY: sm_struct_release,&
-                                             sm_struct_retain,&
-                                             cp_sm_struct_type,&
-                                             cp_sm_node_type,&
-                                             sm_struct_get
-  use sparse_matrix_types, only: real_matrix_type, real_matrix_p_type,&
-       deallocate_matrix,allocate_matrix, deallocate_matrix_set,&
-       allocate_matrix_set, add_block_node, cp_sm_set
   USE cp_linked_list_sm,               ONLY: cp_sll_sm_dealloc,&
                                              cp_sll_sm_get_first_el,&
                                              cp_sll_sm_insert_el,&
@@ -58,7 +50,20 @@ MODULE cp_sm_pool_types
                                              cp_to_string,&
                                              cp_warning_level
   USE cp_para_types,                   ONLY: cp_para_env_type
+  USE cp_sm_struct,                    ONLY: cp_sm_node_type,&
+                                             cp_sm_struct_type,&
+                                             sm_struct_get,&
+                                             sm_struct_release,&
+                                             sm_struct_retain
   USE kinds,                           ONLY: wp=>dp
+  USE sparse_matrix_types,             ONLY: add_block_node,&
+                                             allocate_matrix,&
+                                             allocate_matrix_set,&
+                                             cp_sm_set,&
+                                             deallocate_matrix,&
+                                             deallocate_matrix_set,&
+                                             real_matrix_p_type,&
+                                             real_matrix_type
   USE timings,                         ONLY: timeset,&
                                              timestop
   IMPLICIT NONE
@@ -280,7 +285,7 @@ CONTAINS
        DO
           IF (.NOT.cp_sll_sm_next(iterator,el_att=m_att)) EXIT
 !FM          CALL cp_sm_release(m_att,error=error)
-          call deallocate_matrix(m_att)
+          CALL deallocate_matrix(m_att)
        END DO
        CALL cp_sll_sm_dealloc(pool%cache,error=error)
     END IF
@@ -345,7 +350,7 @@ CONTAINS
 !!   SYNOPSIS
 !!     Subroutine sm_pool_create_matrix(pool, matrix, name, error)
 !!       Type(cp_sm_pool_type), Pointer:: pool
-!!       Type(cp_full_matrix_type), Pointer:: matrix
+!!       Type(real_matrix_type), Pointer:: matrix
 !!       Character(Len=*), Optional, Intent (IN):: name
 !!       Type(cp_error_type), Optional, Intent (INOUT):: error
 !!     End Subroutine sm_pool_create_matrix
@@ -379,11 +384,11 @@ CONTAINS
     LOGICAL :: failure
     CHARACTER(len=*), PARAMETER :: routineN='sm_pool_create_matrix',&
          routineP=moduleN//':'//routineN
-    integer, save :: last_m_id=0
+    INTEGER, SAVE :: last_m_id=0
     INTEGER :: stat, n_rows, n_cols, n_blocks_row, n_blocks_col
-    integer, dimension(:), pointer :: first_row, first_col, last_row,&
+    INTEGER, DIMENSION(:), POINTER :: first_row, first_col, last_row,&
          last_col
-    character(len=40) :: symmetry
+    CHARACTER(len=40) :: symmetry
     TYPE(cp_sm_node_type), POINTER :: pos_att,next_row
 
     failure=.FALSE.
@@ -397,12 +402,12 @@ CONTAINS
           CALL cp_sll_sm_rm_first_el(pool%cache)
        ELSE
           NULLIFY(matrix)
-          call sm_struct_get(pool%matrix_struct,n_rows=n_rows,n_cols=n_cols,&
+          CALL sm_struct_get(pool%matrix_struct,n_rows=n_rows,n_cols=n_cols,&
                n_blocks_row=n_blocks_row, n_blocks_col=n_blocks_col,&
                first_row=first_row,last_row=last_row,&
                first_col=first_col, last_col=last_col, symmetry=symmetry,&
                error=error)
-          call allocate_matrix(matrix,nrow=n_rows,&
+          CALL allocate_matrix(matrix,nrow=n_rows,&
                ncol=n_cols,nblock_row=n_blocks_row,&
                nblock_col=n_blocks_col,&
                first_row=first_row,last_row=last_row,&
@@ -415,7 +420,7 @@ CONTAINS
              next_row => pos_att%next_row
              DO WHILE (ASSOCIATED(pos_att))
                 IF (pos_att%row>0 .AND. pos_att%col>0) THEN
-                   call add_block_node(matrix,block_row=pos_att%row,&
+                   CALL add_block_node(matrix,block_row=pos_att%row,&
                         block_col=pos_att%col)
                 END IF
                 pos_att => pos_att%next_col
@@ -425,11 +430,11 @@ CONTAINS
 
        END IF
        IF (PRESENT(name)) THEN
-          call cp_sm_set(matrix,name=name,error=error)
+          CALL cp_sm_set(matrix,name=name,error=error)
 !          matrix%print_count=0
        ELSE
           last_m_id=last_m_id+1
-          call cp_sm_set(matrix,&
+          CALL cp_sm_set(matrix,&
                name="tmp_matrix "//ADJUSTL(cp_to_string(last_m_id)),error=error)
        END IF
     END IF
@@ -448,7 +453,7 @@ CONTAINS
 !!         name, error)
 !!       Type(cp_sm_pool_type), Pointer:: pool
 !!       Integer, Intent (IN):: n_matrixes
-!!       Type(cp_full_matrix_p_type), Dimension(:), Pointer:: matrixes
+!!       Type(real_matrix_p_type), Dimension(:), Pointer:: matrixes
 !!       Character(Len=*), Intent (IN), Optional:: name
 !!       Type(cp_error_type), Optional, Intent (INOUT):: error
 !!     End Subroutine sm_pool_create_matrix_vect
@@ -515,7 +520,7 @@ CONTAINS
 !!   SYNOPSIS
 !!     Subroutine sm_pool_give_back_matrix(pool, matrix, error)
 !!       Type(cp_sm_pool_type), Pointer:: pool
-!!       Type(cp_full_matrix_type), Pointer:: matrix
+!!       Type(real_matrix_type), Pointer:: matrix
 !!       Type(cp_error_type), Optional, Intent (INOUT):: error
 !!     End Subroutine sm_pool_give_back_matrix
 !!
@@ -947,6 +952,7 @@ SUBROUTINE sm_pools_give_back_matrix_vect(pools,matrixes,error)
   
   CPPrecondition(ASSOCIATED(pools),cp_failure_level,routineP,error,failure)
   CPPrecondition(ASSOCIATED(matrixes),cp_failure_level,routineP,error,failure)
+  CPPrecondition(SIZE(matrixes)==SIZE(pools),cp_failure_level,routineP,error,failure)
   IF (.NOT. failure) THEN
      DO i=1,SIZE(pools)
         CALL sm_pool_give_back_matrix(pools(i)%pool,&

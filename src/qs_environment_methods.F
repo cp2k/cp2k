@@ -85,7 +85,8 @@ MODULE qs_environment_methods
                                              sm_struct_clear_local_blocks,&
                                              sm_struct_create,&
                                              sm_struct_release,&
-                                             sm_struct_retain
+                                             sm_struct_retain,&
+                                             sm_struct_write
   USE dft_types,                       ONLY: dft_control_type
   USE global_types,                    ONLY: global_environment_type
   USE kinds,                           ONLY: dbl,&
@@ -281,10 +282,12 @@ SUBROUTINE qs_env_update_s_mstruct(qs_env,error)
   TYPE(cp_para_env_type), POINTER :: para_env
   TYPE(cp_sm_struct_type), POINTER :: s_mstruct
   TYPE(dft_control_type), POINTER :: dft_control
+  TYPE(cp_logger_type), POINTER :: logger
 
   failure=.FALSE.
   NULLIFY(first_row, first_col, last_row, last_col, para_env,s_mstruct,&
        dft_control)
+  logger => cp_error_get_logger(error)
 
   CPPrecondition(ASSOCIATED(qs_env),cp_failure_level,routineP,error,failure)
 
@@ -343,6 +346,9 @@ SUBROUTINE qs_env_update_s_mstruct(qs_env,error)
        matrix=qs_env%s(1)%matrix,&
        error=error)
   
+!!$  CALL sm_struct_write(s_mstruct, &
+!!$       unit_nr=cp_logger_get_default_unit_nr(logger,local=.TRUE.),&
+!!$       local=.TRUE., short_description=.FALSE.,error=error)
   IF (.not.ASSOCIATED(qs_env%S_sm_pools)) THEN
      ALLOCATE(qs_env%S_sm_pools(dft_control%nspins),stat=stat)
      CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
