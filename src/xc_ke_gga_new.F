@@ -229,6 +229,12 @@ CONTAINS
 !      s = norm_drho/(rho^(4/3)*2*(pi*pi*3)^(1/3))
        CALL calc_wave_vector ( "p", rho, grho, s )
 
+       fact = flda
+!      Definition of s has changed
+       b = b_lda
+!       tact = t13
+       tact =  1.0_dp
+
        SELECT CASE (functional)
        CASE (ke_ol1)
           CALL efactor_ol1 ( s, fs, m )
@@ -248,11 +254,6 @@ CONTAINS
           CPAssert(.FALSE.,cp_failure_level,routineP,error,failure)
        END SELECT
 
-       fact = flda
-!      Definition of s has changed
-       b = b_lda
-!       tact = t13
-       tact =  1.0_dp
 
        IF ( order>=0 ) THEN
           deriv => xc_dset_get_derivative(deriv_set,"",&
