@@ -83,11 +83,11 @@ CONTAINS
 !!     qs_rho_rebuild
 !!
 !!   SYNOPSIS
-!!     Subroutine qs_rho_rebuild(rho, qs_env, rho_ao_with_h_mstruct,&
+!!     Subroutine qs_rho_rebuild(rho, qs_env, &
 !!         rebuild_ao, rebuild_grids, error)
 !!       Type(qs_rho_type), Pointer:: rho
 !!       Type(qs_environment_type), Intent (IN), Target:: qs_env
-!!       Logical, Intent (IN), Optional:: rho_ao_with_h_mstruct, rebuild_ao,&
+!!       Logical, Intent (IN), Optional::  rebuild_ao,&
 !!         rebuild_grids
 !!       Type(cp_error_type), Optional, Intent (INOUT):: error
 !!     End Subroutine qs_rho_rebuild
@@ -105,9 +105,6 @@ CONTAINS
 !!   INPUTS
 !!     - rho: the rho type to rebuild (defaults to qs_env%rho)
 !!     - qs_env: the environment to which rho belongs
-!!     - rho_ao_with_h_mstruct: if rho%rho_ao should have the 
-!!       redundant structure of h, or just that of s.
-!!       Defaults to false.
 !!     - rebuild_ao: if it is necessary to rebuild rho_ao. Defaults to true.
 !!     - rebuild_grids: if it in necessary to rebuild rho_r and rho_g.
 !!       Defaults to false.
@@ -121,13 +118,11 @@ CONTAINS
 !!     11.2002 created replacing qs_rho_create and qs_env_rebuild_rho[fawzi]
 !!
 !!*** **********************************************************************
-  SUBROUTINE qs_rho_rebuild(rho, qs_env, rho_ao_with_h_mstruct,&
-     rebuild_ao, rebuild_grids, error)
+  SUBROUTINE qs_rho_rebuild(rho, qs_env, rebuild_ao, rebuild_grids, error)
     TYPE(qs_rho_type), POINTER               :: rho
     TYPE(qs_environment_type), INTENT(in), &
       TARGET                                 :: qs_env
-    LOGICAL, INTENT(in), OPTIONAL            :: rho_ao_with_h_mstruct, &
-                                                rebuild_ao, rebuild_grids
+    LOGICAL, INTENT(in), OPTIONAL            :: rebuild_ao, rebuild_grids
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
@@ -136,8 +131,7 @@ CONTAINS
 
     INTEGER                                  :: handle, i, nspins, stat
     LOGICAL                                  :: failure, my_rebuild_ao, &
-                                                my_rebuild_grids, &
-                                                my_rho_ao_with_h_struct
+                                                my_rebuild_grids
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(pw_env_type), POINTER               :: pw_env
     TYPE(pw_pool_type), POINTER              :: auxbas_pw_pool
@@ -149,9 +143,6 @@ CONTAINS
   failure=.FALSE.
   my_rebuild_ao=.TRUE.
   my_rebuild_grids=.TRUE.
-  my_rho_ao_with_h_struct=.FALSE.
-  IF (PRESENT(rho_ao_with_h_mstruct)) &
-       my_rho_ao_with_h_struct=rho_ao_with_h_mstruct
   IF (PRESENT(rebuild_ao)) my_rebuild_ao=rebuild_ao
   IF (PRESENT(rebuild_grids)) my_rebuild_grids=rebuild_grids
 
@@ -191,15 +182,9 @@ CONTAINS
         CALL allocate_matrix_set(rho%rho_ao,nspins)
         DO i=1,nspins
            NULLIFY (rho%rho_ao(i)%matrix)
-           IF (my_rho_ao_with_h_struct) THEN
-              CALL replicate_matrix_structure(h(1)%matrix,&
-                   rho%rho_ao(i)%matrix,&
-                   "RHO%RHO_AO (REDUNDANT)-"//ADJUSTL(cp_to_string(i)))
-           ELSE
-              CALL replicate_matrix_structure(s(1)%matrix,&
-                   rho%rho_ao(i)%matrix,&
-                   "DENSITY_MATRIX_FOR_SPIN_"//TRIM(ADJUSTL(cp_to_string(i))))
-           END IF
+           CALL replicate_matrix_structure(s(1)%matrix,&
+                rho%rho_ao(i)%matrix,&
+                "DENSITY_MATRIX_FOR_SPIN_"//TRIM(ADJUSTL(cp_to_string(i))))
         END DO
      END IF
   END IF

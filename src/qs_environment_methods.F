@@ -387,10 +387,10 @@ END SUBROUTINE qs_env_rebuild_pw_env
 !!     qs_env_rebuild_rho
 !!
 !!   SYNOPSIS
-!!     Subroutine qs_env_rebuild_rho(qs_env, rho_ao_with_h_mstruct,&
+!!     Subroutine qs_env_rebuild_rho(qs_env, &
 !!         rebuild_ao, rebuild_grids, error)
 !!       Type(qs_environment_type), Intent (INOUT), Target:: qs_env
-!!       Logical, Intent (IN), Optional:: rho_ao_with_h_mstruct,&
+!!       Logical, Intent (IN), Optional:: &
 !!         rebuild_grids, rebuild_ao
 !!       Type(cp_error_type), Optional, Intent (INOUT):: error
 !!     End Subroutine qs_env_rebuild_rho
@@ -407,9 +407,6 @@ END SUBROUTINE qs_env_rebuild_pw_env
 !!
 !!   INPUTS
 !!     - qs_env: the environment in which rho should be rebuilt
-!!     - rho_ao_with_h_mstruct: if rho%rho_ao should have the
-!!       redundant structure of h, or just that of s.
-!!       Defaults to false.
 !!     - rebuild_ao: if it is necessary to rebuild rho_ao. Defaults to true.
 !!     - rebuild_grids: if it in necessary to rebuild rho_r and rho_g.
 !!       Defaults to false.
@@ -423,12 +420,10 @@ END SUBROUTINE qs_env_rebuild_pw_env
 !!     10.2002 created [fawzi]
 !!
 !!*** **********************************************************************
-SUBROUTINE qs_env_rebuild_rho(qs_env, rho_ao_with_h_mstruct,&
-     rebuild_ao, rebuild_grids, error)
+SUBROUTINE qs_env_rebuild_rho(qs_env, rebuild_ao, rebuild_grids, error)
     TYPE(qs_environment_type), &
       INTENT(inout), TARGET                  :: qs_env
-    LOGICAL, INTENT(in), OPTIONAL            :: rho_ao_with_h_mstruct, &
-                                                rebuild_ao, rebuild_grids
+    LOGICAL, INTENT(in), OPTIONAL            :: rebuild_ao, rebuild_grids
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
@@ -436,7 +431,6 @@ SUBROUTINE qs_env_rebuild_rho(qs_env, rho_ao_with_h_mstruct,&
       routineP = moduleN//':'//routineN
 
   CALL qs_rho_rebuild(qs_env%rho,qs_env=qs_env,&
-       rho_ao_with_h_mstruct=rho_ao_with_h_mstruct,&
        rebuild_ao=rebuild_ao, rebuild_grids=rebuild_grids, error=error)
 END SUBROUTINE qs_env_rebuild_rho
 !***************************************************************************
