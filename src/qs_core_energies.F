@@ -490,9 +490,9 @@ CONTAINS
             iatom = atom(ikind)%list_local_index(iatom_local)
             atom_a = atom(ikind)%list(iatom)
             s(:) = atom(ikind)%s_pbc(:,iatom) + 0.5_wp
-            i = INT(s(1)*REAL(nsubcell(1),wp) + 1.0_wp)
-            j = INT(s(2)*REAL(nsubcell(2),wp) + 1.0_wp)
-            k = INT(s(3)*REAL(nsubcell(3),wp) + 1.0_wp)
+            i = MIN(INT(s(1)*REAL(nsubcell(1),wp) + 1.0_wp),nsubcell(1))
+            j = MIN(INT(s(2)*REAL(nsubcell(2),wp) + 1.0_wp),nsubcell(1))
+            k = MIN(INT(s(3)*REAL(nsubcell(3),wp) + 1.0_wp),nsubcell(1))
             subcell(i,j,k)%natom =  subcell(i,j,k)%natom + 1
             subcell(i,j,k)%atom_list(subcell(i,j,k)%natom) = iatom_local
           END DO
