@@ -18,8 +18,6 @@
 &END
 
 &TOPOLOGY
- FOFI_FIL        charmm.pot
- FORCEFIELD      CHM
  COORDINATE      PDB
  COORD_FILE_NAME deca_ala.pdb
 &END
@@ -31,6 +29,7 @@
 &END
 
 &FORCE_FIELD
+ PARMFILE CHM charmm.pot
  charges
    CT3 0.0
    HA  0.0
