@@ -50,18 +50,16 @@ MODULE realspace_grid_types
                                              mp_comm_dup,&
                                              mp_comm_free,&
                                              mp_environ,&
+                                             mp_isendrecv,&
                                              mp_max,&
                                              mp_min,&
                                              mp_sendrecv,&
-                                             mp_isendrecv,&
-                                             mp_waitall,&
                                              mp_shift,&
-                                             mp_sum
-  USE pw_grid_types,                   ONLY: pw_grid_type, &
-                                             PW_MODE_LOCAL
-  USE pw_types,                        ONLY: COMPLEXDATA1D,&
-                                             COMPLEXDATA3D,&
-                                             REALDATA1D,&
+                                             mp_sum,&
+                                             mp_waitall
+  USE pw_grid_types,                   ONLY: PW_MODE_LOCAL,&
+                                             pw_grid_type
+  USE pw_types,                        ONLY: COMPLEXDATA3D,&
                                              REALDATA3D,&
                                              pw_type
   USE sparse_matrix_types,             ONLY: add_block_node,&
@@ -301,7 +299,7 @@ CONTAINS
     INTEGER                                  :: dir, i, ip, lb( 2 ), &
                                                 n_slices, ngmax, nmin, nn, &
                                                 pos( 2 )
-    REAL(KIND=dp)                                :: pp( 3 )
+    REAL(KIND=dp)                            :: pp( 3 )
 
 !-----------------------------------------------------------------------------!
 
@@ -494,13 +492,6 @@ CONTAINS
 !!   NAME
 !!     rs_pw_transfer
 !!
-!!   SYNOPSIS
-!!     Subroutine rs_pw_transfer(rs, pw, dir)
-!!       Type(realspace_grid_type), Intent (INOUT):: rs
-!!       Type(pw_type), Target, Intent (INOUT):: pw
-!!       Character(Len=*), Intent (IN):: dir
-!!     End Subroutine rs_pw_transfer
-!!
 !!   FUNCTION
 !!     Copy a function from/to a PW grid type to/from a real
 !!     space type 
@@ -521,7 +512,7 @@ CONTAINS
     TYPE(pw_type), INTENT(INOUT), TARGET     :: pw
     CHARACTER(LEN=*), INTENT(IN)             :: dir
 
-    INTEGER :: nn, handle, handle2
+    INTEGER                                  :: handle, handle2, nn
 
 !-----------------------------------------------------------------------------!
 
@@ -572,17 +563,16 @@ CONTAINS
     TYPE(pw_type), INTENT(INOUT), TARGET     :: pw
     CHARACTER(LEN=*), INTENT(IN)             :: dir
 
-    INTEGER                                  :: dest, group, handle, handle2, idir, &
-                                                ierr, ii, ip, ix, iy, iz, &
-                                                mepos, nma, nn, np, source, &
-                                                subgroup
+    INTEGER                                  :: dest, group, ierr, ii, ip, &
+                                                ix, iy, iz, mepos, nma, nn, &
+                                                np, req(2), s(3), source
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: rcount
-    INTEGER, DIMENSION(3)                    :: lb, lc, ub, uc
+    INTEGER, DIMENSION(3)                    :: lb, ub
     INTEGER, DIMENSION(:, :), POINTER        :: pbo
     INTEGER, DIMENSION(:, :, :), POINTER     :: bo
-    REAL(KIND=dp), POINTER, DIMENSION(:)         :: sendbuf,recvbuf,swapptr 
-    REAL(KIND=dp), DIMENSION(:,:,:), POINTER     :: grid
-    INTEGER                                  :: req(2),s(3)
+    REAL(KIND=dp), DIMENSION(:), POINTER     :: recvbuf, sendbuf, swapptr
+    REAL(KIND=dp), DIMENSION(:, :, :), &
+      POINTER                                :: grid
 
     np = pw % pw_grid % para % group_size
     bo => pw % pw_grid % para % bo (1:2,1:3,0:np-1,1)
@@ -693,21 +683,15 @@ CONTAINS
     TYPE(pw_type), INTENT(INOUT), TARGET     :: pw
     CHARACTER(LEN=*), INTENT(IN)             :: dir
 
-    INTEGER                                  :: dest, group, handle, handle2, idir, &
-                                                ierr, ii, ip, ix, iy, iz, &
-                                                mepos, nma, nn, np, source, &
-                                                subgroup
-    INTEGER, ALLOCATABLE, DIMENSION(:)       :: rcount
+    INTEGER                                  :: dest, group, idir, ierr, nn, &
+                                                source, subgroup
     INTEGER, DIMENSION(3)                    :: lb, lc, ub, uc
-    INTEGER, DIMENSION(:, :), POINTER        :: pbo
-    INTEGER, DIMENSION(:, :, :), POINTER     :: bo
     LOGICAL                                  :: subdim( 2 )
-    REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)     :: rlocal
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :, :)                     :: buffer
 
+!Both grids are distributed, we have to do some reshuffling of data
 
-    !Both grids are distributed, we have to do some reshuffling of data
     IF ( dir == "FORWARD" ) THEN
 
        ! The border data has to be send/received from the neighbors
@@ -955,11 +939,6 @@ END SUBROUTINE send_backward
 !!   NAME
 !!     rs_grid_zero
 !!
-!!   SYNOPSIS
-!!     Subroutine rs_grid_zero(rs)
-!!       Type(realspace_grid_type), Intent (INOUT):: rs
-!!     End Subroutine rs_grid_zero
-!!
 !!   FUNCTION
 !!     Initialize grid to zero
 !!
@@ -1034,7 +1013,7 @@ END SUBROUTINE rs_grid_to_cube
 
 !******************************************************************************
 SUBROUTINE rs_pw_to_cube ( pw, iunit, ionode, title )
-    TYPE(pw_type), INTENT(INOUT)             :: pw
+    TYPE(pw_type), INTENT(INOUT), TARGET     :: pw
     INTEGER, INTENT(IN)                      :: iunit
     LOGICAL, INTENT(IN)                      :: ionode
     CHARACTER(*), INTENT(IN), OPTIONAL       :: title
@@ -1062,13 +1041,6 @@ END SUBROUTINE rs_pw_to_cube
 !!
 !!   NAME
 !!     rs_grid_write
-!!
-!!   SYNOPSIS
-!!     Subroutine rs_grid_write(rs, unit_nr, error)
-!!       Type(realspace_grid_type), Pointer:: rs
-!!       Integer, Intent (IN):: unit_nr
-!!       Type(cp_error_type), Optional, Intent (INOUT):: error
-!!     End Subroutine rs_grid_write
 !!
 !!   FUNCTION
 !!     writes out information about the given rs grid
@@ -1113,14 +1085,6 @@ END SUBROUTINE rs_grid_write
 !!   NAME
 !!     rs_grid_create
 !!
-!!   SYNOPSIS
-!!     Subroutine rs_grid_create(rs_grid, pw_grid, nsmax, error)
-!!       Type(realspace_grid_type), Pointer:: rs_grid
-!!       Type(pw_grid_type), Pointer:: pw_grid
-!!       Integer, Optional, Intent (IN):: nsmax
-!!       Type(cp_error_type), Optional, Intent (INOUT):: error
-!!     End Subroutine rs_grid_create
-!!
 !!   FUNCTION
 !!     allocates and initialize an rs grid
 !!
@@ -1150,7 +1114,8 @@ SUBROUTINE rs_grid_create(rs_grid, pw_grid, nsmax, error)
     CHARACTER(len=*), PARAMETER :: routineN = 'rs_grid_create', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: iounit, my_nsmax, stat,output_unit
+    INTEGER                                  :: iounit, my_nsmax, &
+                                                output_unit, stat
     LOGICAL                                  :: failure, ionode
     TYPE(cp_logger_type), POINTER            :: logger
 
@@ -1182,12 +1147,6 @@ END SUBROUTINE rs_grid_create
 !!
 !!   NAME
 !!     rs_grid_retain
-!!
-!!   SYNOPSIS
-!!     Subroutine rs_grid_retain(rs_grid, error)
-!!       Type(realspace_grid_type), Pointer:: rs_grid
-!!       Type(cp_error_type), Optional, Intent (INOUT):: error
-!!     End Subroutine rs_grid_retain
 !!
 !!   FUNCTION
 !!     retains the given rs grid (see doc/ReferenceCounting.html)
@@ -1231,12 +1190,6 @@ END SUBROUTINE rs_grid_retain
 !!
 !!   NAME
 !!     rs_grid_release
-!!
-!!   SYNOPSIS
-!!     Subroutine rs_grid_release(rs_grid, error)
-!!       Type(realspace_grid_type), Pointer:: rs_grid
-!!       Type(cp_error_type), Optional, Intent (INOUT):: error
-!!     End Subroutine rs_grid_release
 !!
 !!   FUNCTION
 !!     releases the given rs grid (see doc/ReferenceCounting.html)
@@ -1289,17 +1242,6 @@ END SUBROUTINE rs_grid_release
 !!   NAME
 !!     rs_get_my_tasks
 !!
-!!   SYNOPSIS
-!!     Subroutine rs_get_my_tasks(rs, tasks, npme, ival, rval, pmat, pcor)
-!!       Type(realspace_grid_type), Intent (IN):: rs
-!!       Integer, Dimension(:,:), Pointer:: tasks
-!!       Integer, Intent (OUT):: npme
-!!       Integer, Dimension(:,:), Pointer, Optional:: ival
-!!       Real(KIND=dp), Dimension(:,:), Pointer, Optional:: rval
-!!       Type(real_matrix_type), Pointer, Optional:: pmat
-!!       Integer, Dimension(:,:), Pointer, Optional:: pcor
-!!     End Subroutine rs_get_my_tasks
-!!
 !!   FUNCTION
 !!     Assembles tasks to be performed on local grid
 !!
@@ -1327,8 +1269,8 @@ SUBROUTINE rs_get_my_tasks ( rs, tasks, npme, ival, rval, pmat, pcor )
     INTEGER, INTENT(OUT)                     :: npme
     INTEGER, DIMENSION(:, :), OPTIONAL, &
       POINTER                                :: ival
-    REAL(KIND=dp), DIMENSION(:, :), OPTIONAL, &
-      POINTER                                :: rval
+    REAL(KIND=dp), DIMENSION(:, :), &
+      OPTIONAL, POINTER                      :: rval
     TYPE(real_matrix_type), OPTIONAL, &
       POINTER                                :: pmat
     INTEGER, DIMENSION(:, :), OPTIONAL, &
@@ -1339,8 +1281,8 @@ SUBROUTINE rs_get_my_tasks ( rs, tasks, npme, ival, rval, pmat, pcor )
     INTEGER, DIMENSION(:, :), POINTER        :: ilist, plist, pls, tlist
     LOGICAL                                  :: matrix
     LOGICAL, DIMENSION(2)                    :: subdim
-    REAL(KIND=dp), DIMENSION(:), POINTER         :: ppack
-    REAL(KIND=dp), DIMENSION(:, :), POINTER      :: p_block, rlist
+    REAL(KIND=dp), DIMENSION(:), POINTER     :: ppack
+    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: p_block, rlist
 
   CALL timeset("rs_get_my_tasks",'I',' ',handle)
 
@@ -1591,12 +1533,12 @@ SUBROUTINE pack_matrix ( pmat, pls, ppack , plength, group )
     TYPE(real_matrix_type), OPTIONAL, &
       POINTER                                :: pmat
     INTEGER, DIMENSION(:, :), POINTER        :: pls
-    REAL(KIND=dp), DIMENSION(:), POINTER         :: ppack
+    REAL(KIND=dp), DIMENSION(:), POINTER     :: ppack
     INTEGER, INTENT(OUT)                     :: plength
     INTEGER, INTENT(IN)                      :: group
 
     INTEGER                                  :: acol, arow, i, j, k, n, nc, nr
-    REAL(KIND=dp), DIMENSION(:, :), POINTER      :: p_block
+    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: p_block
 
   plength = 0
   DO i = 1, SIZE ( pls, 2 )
@@ -1642,11 +1584,11 @@ SUBROUTINE unpack_matrix ( pmat, pcor, pls, ic, ppack )
       POINTER                                :: pmat
     INTEGER, DIMENSION(:, :), POINTER        :: pcor, pls
     INTEGER, INTENT(IN)                      :: ic
-    REAL(KIND=dp), DIMENSION(:), POINTER         :: ppack
+    REAL(KIND=dp), DIMENSION(:), POINTER     :: ppack
 
     INTEGER                                  :: acol, arow, i, j, k, nc, nr, &
                                                 pl
-    REAL(KIND=dp), DIMENSION(:, :), POINTER      :: p_block
+    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: p_block
 
   pl = 0
   DO i = 1, ic
