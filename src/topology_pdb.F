@@ -83,6 +83,8 @@ CONTAINS
 !!     IKUO   08.16.03
 !!
 !!   MODIFICATION HISTORY
+!!     TLAINO 05.2004 - Added the TER option to use different non-bonded molecules
+!!                         
 !!
 !!   OPTIONS
 !!
@@ -103,9 +105,9 @@ SUBROUTINE read_coordinate_pdb (topology,globenv)
       routineP = moduleN//':'//routineN
     INTEGER, PARAMETER                       :: nblock_atom = 1000
 
-    CHARACTER(LEN=default_string_length)     :: line, record
+    CHARACTER(LEN=default_string_length)     :: line, record, root_mol_name
     INTEGER                                  :: handle, istat,&
-                                                iw, natom
+                                                iw, natom,i, inum_mol
     INTEGER                                  :: file_unit
 
     LOGICAL                                  :: PM1, PM2, PM3, PM4
@@ -152,7 +154,12 @@ SUBROUTINE read_coordinate_pdb (topology,globenv)
                  file_action="READ",&
                  unit_number=file_unit)
 
-  natom =  0
+  natom         = 0
+  inum_mol      = 1
+  WRITE(root_mol_name,'(A3,I7)')"MOL",inum_mol
+  DO i =  1, 10
+     if (root_mol_name(i:i) == " ") root_mol_name(i:i) = "0" 
+  END DO
 
   DO
     line = ''
@@ -180,7 +187,7 @@ SUBROUTINE read_coordinate_pdb (topology,globenv)
 
     SELECT CASE (record)
     CASE ("ATOM") 
-      atom_info%label_molname(natom) = 'MOL'
+      atom_info%label_molname(natom) = TRIM(root_mol_name)
       READ(line(13:16),*) atom_info%label_atmname(natom)
       READ(line(18:20),*,IOSTAT=istat) atom_info%label_resname(natom)
       READ(line(31:38),*,IOSTAT=istat) atom_info%r(1,natom)
@@ -201,6 +208,12 @@ SUBROUTINE read_coordinate_pdb (topology,globenv)
       CALL convert_to_cp2k_units("ANGSTROM",length=atom_info%r(1,natom))
       CALL convert_to_cp2k_units("ANGSTROM",length=atom_info%r(2,natom))
       CALL convert_to_cp2k_units("ANGSTROM",length=atom_info%r(3,natom))
+    CASE ("TER")
+      inum_mol = inum_mol + 1
+      WRITE(root_mol_name,'(A3,I7)')"MOL",inum_mol
+      DO i =  1, 10
+         if (root_mol_name(i:i) == " ") root_mol_name(i:i) = "0" 
+      END DO
     CASE ("END")
       EXIT
     CASE DEFAULT

@@ -87,6 +87,13 @@ MODULE qmmm_init
   USE topology_util,                   ONLY: topology_connectivity_pack,&
                                              topology_constraint_pack,&
                                              topology_coordinate_pack
+  USE qs_parser,                       ONLY: finish_parser,&
+                                             open_file,&
+                                             read_object,&
+                                             search_object,&
+                                             start_parser,&
+                                             stop_parser,&
+                                             test_object
 
   IMPLICIT NONE
   PRIVATE
@@ -132,10 +139,13 @@ CONTAINS
 
     CHARACTER(len=default_string_length), &
       DIMENSION(:), POINTER                  :: qm_atom_type
-    INTEGER                                  :: handle, isubf, stat
+    CHARACTER(len=default_string_length)     :: keyword, qm_atom_kind
+    INTEGER                                  :: handle, isubf, stat,string_length
+    INTEGER                                  :: num_qm_atoms, i
+    INTEGER                                  :: qm_num_atom_kind, qm_num_atom_tot
     INTEGER, DIMENSION(:), POINTER           :: qm_atom_index, qm_subsys_index
-    LOGICAL                                  :: failure
-    TYPE(cell_type), POINTER                 :: qm_cell
+    LOGICAL                                  :: failure, section_found, keyword_found
+    TYPE(cell_type), POINTER                 :: qm_cell, qm_cell_small
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(cp_subsystem_p_type), &
       DIMENSION(:), POINTER                  :: subsys_mm
@@ -144,12 +154,13 @@ CONTAINS
       POINTER                                :: sub_force_env
     TYPE(qmmm_env_type), POINTER             :: qmmm_env
     TYPE(qs_environment_type), POINTER       :: qs_env
+    CHARACTER(len=3)                         :: test_result
 
     CALL timeset(routineN,"I","",handle)
     failure=.FALSE.
 
     NULLIFY(sub_force_env, qm_atom_index, qm_atom_type,qmmm_env, subsys_mm,&
-         subsys_qm, qm_cell, qs_env, para_env)
+         subsys_qm, qm_cell, qm_cell_small, qs_env, para_env)
     para_env => globenv%para_env
     IF (.NOT. failure) THEN
        ALLOCATE(sub_force_env(2),stat=stat)
@@ -162,22 +173,18 @@ CONTAINS
             globenv, error=error)
        globenv%program_name="QS"
 
-       ! leggere qm_atom_type, qm_atom_index
-       ALLOCATE(qm_atom_index(3), qm_atom_type(3),qm_subsys_index(3), stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-       qm_atom_index=(/ 1,2,3 /)
-       qm_atom_type=(/ "O","H","H"/)
-       qm_subsys_index=1
+       CALL qmmm_namelist_read
 
        CALL qmmm_env_create(qmmm_env,error=error)
        qmmm_env%qm_atom_index => qm_atom_index
        qmmm_env%qm_subsys_index => qm_subsys_index
 
-
        CALL force_env_get(sub_force_env(1)%force_env,subsys=subsys_mm,&
-            cell=qm_cell,error=error) ! the cell should be changed!
+            cell=qm_cell,error=error) 
        CPPrecondition(SIZE(subsys_mm)==1,cp_failure_level,routineP,error,failure)
-
+       
+       write(*,*)qm_cell%hmat(1,1), qm_cell%hmat(2,2), qm_cell%hmat(3,3)
+ 
        CALL create_small_subsystem(subsys_qm,&
             big_subsys=subsys_mm,small_para_env=para_env,&
             small_cell=qm_cell,sub_atom_index=qm_atom_index,&
@@ -206,6 +213,128 @@ CONTAINS
        CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
     END IF
     CALL timestop(0.0_dp,handle)
+    !!
+    CONTAINS
+      !!****f* qmmm_init/qmmm_create_force_env/qmmm_namelist_read [1.0] *
+      !!
+      !!   NAME
+      !!     qmmm_namelist_read
+      !!
+      !!   FUNCTION
+      !!     Read "QMMM" Namelist Arguments
+      !!     Arguments:
+      !!     &QMMM
+      !!        QM_ATOMS Number_of_QM_atoms
+      !!        Atom_LABEL Number_of_this_atomic_Kind
+      !!        Index1 Index2 ... IndexN
+      !!        Atom_LABEL Number_of_this_atomic_Kind
+      !!        Index1 Index2 ... IndexL
+      !!   
+      !!        ABC_QM x y z
+      !!     &END
+      !!   NOTES
+      !!     -
+      !!
+      !!   INPUTS
+      !!     - error: variable to control error logging, stopping,... 
+      !!       see module cp_error_handling 
+      !!
+      !!   AUTHOR
+      !!     Teodoro Laino
+      !!
+      !!   MODIFICATION HISTORY
+      !!     05.2004 created [tlaino]
+      !!
+      !!*************************************************************************
+      SUBROUTINE qmmm_namelist_read
+        Implicit None
+        CHARACTER(len=*), PARAMETER :: subroutineN = 'qmmm_namelist_read',&
+             subroutineP1 = moduleN//':'//routineN//":"//subroutineN
+
+        keyword_found   = .false.
+        !
+        ! Check for &QMMM Namelist
+        !
+        CALL start_parser(file_name=globenv%input_file_name,&
+             globenv=globenv,&
+             start_section_label="QMMM",&
+             section_found=section_found)
+       
+        If (section_found) then
+           !
+           ! Read Info from QMMM Namelist
+           !
+           DO
+              test_result = test_object(newline=.TRUE.)
+              IF (test_result == "EOS") THEN
+                 EXIT
+              ELSE IF (test_result == "EOF") THEN
+                 CALL stop_parser(subroutineP1,modulen,__LINE__,"EOF")
+              END IF
+              CALL read_object(keyword,lower_to_upper=.TRUE.,newline=.TRUE.)
+              SELECT CASE(TRIM(keyword))
+              CASE("QMATOMS","QM_ATOMS")
+                 qm_num_atom_tot = 0
+                 CALL read_object(num_qm_atoms)
+                 ALLOCATE(qm_atom_index(num_qm_atoms),& 
+                          qm_atom_type(num_qm_atoms),&
+                          qm_subsys_index(num_qm_atoms),&
+                          stat=stat)
+                 CPPostcondition(stat==0,cp_failure_level,subroutineP1,error,failure)
+                 ! Read the QM Atomic Infos..
+                 do while (qm_num_atom_tot /= num_qm_atoms)
+                    CALL read_object(qm_atom_kind,newline=.TRUE.)
+                    CALL read_object(qm_num_atom_kind)
+                    if (qm_num_atom_kind /= 0) then
+                       i = qm_num_atom_tot + 1
+                       CALL read_object(qm_atom_index(i),newline=.TRUE.)
+                       qm_atom_type(i) = qm_atom_kind
+                       do i = qm_num_atom_tot + 2, qm_num_atom_kind + qm_num_atom_tot
+                          CALL read_object(qm_atom_index(i))
+                          qm_atom_type(i) = qm_atom_kind
+                       End do
+                    End If
+                    qm_num_atom_tot = qm_num_atom_tot + qm_num_atom_kind
+                 End do
+                 qm_subsys_index=1
+                 keyword_found = .true.
+              CASE ("A_QM")
+                 CALL read_object(qm_cell%hmat(1,1))
+                 CALL read_object(qm_cell%hmat(2,1))
+                 CALL read_object(qm_cell%hmat(3,1))
+              CASE ("ABC_QM")
+                 CALL read_object(qm_cell%hmat(1,1))
+                 CALL read_object(qm_cell%hmat(2,2))
+                 CALL read_object(qm_cell%hmat(3,3))
+              CASE ("B_QM")
+                 CALL read_object(qm_cell%hmat(1,2))
+                 CALL read_object(qm_cell%hmat(2,2))
+                 CALL read_object(qm_cell%hmat(3,2))
+              CASE ("C_QM")
+                 CALL read_object(qm_cell%hmat(1,3))
+                 CALL read_object(qm_cell%hmat(2,3))
+                 CALL read_object(qm_cell%hmat(3,3))
+              CASE ("SUBCELLS_QM") 
+                 CALL read_object(qm_cell%subcells)
+              CASE("&END")
+                 EXIT
+              CASE DEFAULT
+                 CALL stop_parser(subroutineP1,"Invalid keyword found")
+              END SELECT
+           END DO
+           CPPostcondition(keyword_found,cp_failure_level,subroutineP1,error,failure)
+        else
+           !
+           ! I keep this part for the regtest...
+           ! 
+           ALLOCATE(qm_atom_index(3), qm_atom_type(3),qm_subsys_index(3), stat=stat)
+           CPPostcondition(stat==0,cp_failure_level,subroutineP1,error,failure)
+           qm_atom_index=(/ 1,2,3 /)
+           qm_atom_type=(/ "O","H","H"/)
+           qm_subsys_index=1
+        endif
+        CALL finish_parser()
+      END SUBROUTINE qmmm_namelist_read
   END SUBROUTINE qmmm_create_force_env
 !***************************************************************************
 
