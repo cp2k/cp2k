@@ -59,28 +59,29 @@ POTENTIAL ELP
  WRITE_RESTART_EACH 100
 &END
 
-&MD_NEW
- timestep 1.0
- ensemble  nvt
- temperature  300.0000
- restart      init
- steps 10
-&KG_COEFF
-  ENSEMBLE NVT
-  NHCOPT GLOBAL
-  storage global
-  temperature 2.0
-  mass 250.0
-  RESTART pos
-  &NOSE
-   length 1
-   Yoshida 3
-   timeconstant 100.
-   mts 2
-  &END
-&END
-&END
-
+&MOTION
+  &MD_NEW
+    timestep 1.0
+    ensemble  nvt
+    temperature  300.0000
+    restart      init
+    steps 10
+    &KG_COEFF
+      ENSEMBLE NVT
+      NHCOPT GLOBAL
+      storage global
+      temperature 2.0
+      mass 250.0
+      RESTART pos
+      &NOSE
+        length 1
+        Yoshida 3
+        timeconstant 100.
+        mts 2
+      &END NOSE
+    &END KG_COEFF
+  &END MD_NEW
+&END MOTION
 
 &MD
   output_format: atomic
