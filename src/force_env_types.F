@@ -433,7 +433,7 @@ RECURSIVE SUBROUTINE force_env_get(force_env, in_use, force_env_list, &
           IF (PRESENT(potential_energy)) THEN
                CALL force_env_get(force_env%sub_force_env(1)%force_env,&
                                            potential_energy=penergy_mm,&
-                                           cell=cell,error=error)
+                                           error=error)
                CALL force_env_get(force_env%sub_force_env(2)%force_env,&
                                  potential_energy=penergy_qm,error=error)
                potential_energy = penergy_qm+penergy_mm
