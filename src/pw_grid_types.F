@@ -25,7 +25,11 @@ MODULE pw_grid_types
   
   PRIVATE
   PUBLIC :: pw_grid_type, map_pn, pw_para_type
-  PUBLIC :: HALFSPACE, FULLSPACE
+  PUBLIC :: HALFSPACE, FULLSPACE,PW_MODE_DISTRIBUTED,PW_MODE_LOCAL
+
+  ! (only for reciprocal grid:) fill in half or full space
+  INTEGER, PARAMETER :: HALFSPACE = 211, FULLSPACE = 212
+  INTEGER, PARAMETER :: PW_MODE_LOCAL = 0, PW_MODE_DISTRIBUTED=1
   
   ! maps to positive and negative g-vectors
   TYPE map_pn
@@ -33,8 +37,9 @@ MODULE pw_grid_types
   END TYPE map_pn
   
 ! info on parallelisation
+  ! contains only significant information if mode == PW_MODE_DISTRIBUTED 
   TYPE pw_para_type
-     INTEGER :: mode                 ! 0 = local ; 1 = distributed
+     INTEGER :: mode                 ! 0 = local = PW_MODE_LOCAL ; 1 = distributed = PW_MODE_DISTRIBUTED
      LOGICAL :: ray_distribution     ! block or pencil distribution
      INTEGER :: group                ! MPI group id
      INTEGER :: my_pos               ! Position within group
@@ -82,8 +87,6 @@ MODULE pw_grid_types
      LOGICAL :: spherical                         ! spherical cutoff?
   END TYPE pw_grid_type
   
-  ! (only for reciprocal grid:) fill in half or full space
-  INTEGER, PARAMETER :: HALFSPACE = 211, FULLSPACE = 212
 !!***
   
 END MODULE pw_grid_types

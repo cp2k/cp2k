@@ -72,6 +72,8 @@ MODULE pw_grids
                                              mp_sum
   USE pw_grid_types,                   ONLY: FULLSPACE,&
                                              HALFSPACE,&
+                                             PW_MODE_LOCAL, &
+                                             PW_MODE_DISTRIBUTED, &
                                              map_pn,&
                                              pw_grid_type
   USE simulation_cell,                 ONLY: cell_type
@@ -129,7 +131,7 @@ SUBROUTINE pw_grid_construct ( pw_grid )
   pw_grid % bounds = 0
   pw_grid % cutoff = 0._dbl
   pw_grid % grid_span = FULLSPACE
-  pw_grid % para % mode = 0
+  pw_grid % para % mode = PW_MODE_LOCAL
   pw_grid % para % rs_dims = 0
   pw_grid % reference = 0
   pw_grid % ref_count = 1
@@ -234,7 +236,7 @@ SUBROUTINE pw_grid_destruct ( pw_grid, error )
     IF ( ierr /= 0 ) CALL stop_memory ( "pw_grid_destruct", &
        "pw_grid % mapn % neg" )
   END IF
-  IF ( pw_grid % para % mode == 1 ) THEN
+  IF ( pw_grid % para % mode == PW_MODE_DISTRIBUTED ) THEN
     IF ( ASSOCIATED ( pw_grid % para % yzp ) ) THEN
       DEALLOCATE ( pw_grid % para % yzp, STAT = ierr )
       IF ( ierr /= 0 ) CALL stop_memory ( "pw_grid_destruct", &
@@ -255,18 +257,17 @@ SUBROUTINE pw_grid_destruct ( pw_grid, error )
       IF ( ierr /= 0 ) CALL stop_memory ( "pw_grid_destruct", &
         "pw_grid % para % bo" )
     END IF
-    IF ( ASSOCIATED ( pw_grid % para % pos_of_x ) ) THEN
-      DEALLOCATE ( pw_grid % para % pos_of_x, STAT = ierr )
-      IF ( ierr /= 0 ) CALL stop_memory ( "pw_grid_destruct", &
-        "pw_grid % para % pos_of_x" )
-    END IF
 
     ! also release groups
     CALL mp_comm_free ( pw_grid % para % group )
     CALL mp_comm_free ( pw_grid % para % rs_group )
 
   END IF
-  
+  IF ( ASSOCIATED ( pw_grid % para % pos_of_x ) ) THEN
+    DEALLOCATE ( pw_grid % para % pos_of_x, STAT = ierr )
+    IF ( ierr /= 0 ) CALL stop_memory ( "pw_grid_destruct", &
+        "pw_grid % para % pos_of_x" )
+  END IF
 
 END SUBROUTINE pw_grid_destruct
 
@@ -422,12 +423,12 @@ SUBROUTINE pw_grid_setup ( cell, pw_grid, cutoff, pe_group, info, fft_usage, &
       pw_grid % para % group_head_id = 0
       pw_grid % para % group_head = &
                 ( pw_grid % para % group_head_id == pw_grid % para % my_pos )
-      pw_grid % para % mode = 1
+      pw_grid % para % mode = PW_MODE_DISTRIBUTED
     ELSE
-      pw_grid % para % mode = 0
+      pw_grid % para % mode = PW_MODE_LOCAL
     END IF
   ELSE
-    pw_grid % para % mode = 0
+    pw_grid % para % mode = PW_MODE_LOCAL
   END IF
 
   IF ( PRESENT ( cutoff ) ) THEN
@@ -508,7 +509,7 @@ SUBROUTINE pw_grid_setup ( cell, pw_grid, cutoff, pe_group, info, fft_usage, &
     IF ( pw_grid % para % mode /= ref_grid % para % mode ) THEN
       CALL stop_program ( "pw_grid_setup", "Incompatible parallelisation scheme" )
     END IF
-    IF ( pw_grid % para % mode == 1 ) THEN
+    IF ( pw_grid % para % mode == PW_MODE_DISTRIBUTED ) THEN
       CALL mp_comm_compare(pw_grid % para % group, ref_grid % para % group, ires )
       IF ( ires /= 0 ) &
         CALL stop_program ( "pw_grid_setup", "Incompatible MPI groups" )
@@ -553,7 +554,7 @@ SUBROUTINE pw_grid_setup ( cell, pw_grid, cutoff, pe_group, info, fft_usage, &
 !
 
   IF ( PRESENT ( info ) ) THEN
-    IF ( pw_grid % para % mode == 0  .AND. info >= 0 ) THEN
+    IF ( pw_grid % para % mode == PW_MODE_LOCAL  .AND. info >= 0 ) THEN
       WRITE ( info, '(/,A,T71,I10)' ) &
         " PW_GRID: Information for grid number ", pw_grid % identifier
       IF ( pw_grid % spherical ) THEN
@@ -681,7 +682,7 @@ SUBROUTINE pw_grid_distribute ( pw_grid, yz_mask, ref_grid, blocking )
 
   pw_grid % ngpts = PRODUCT ( pw_grid % npts )
 
-  IF ( pw_grid % para % mode == 0) THEN
+  IF ( pw_grid % para % mode == PW_MODE_LOCAL) THEN
 
     pw_grid % bounds_local = pw_grid % bounds
     pw_grid % npts_local = pw_grid % npts
@@ -915,10 +916,16 @@ SUBROUTINE pw_grid_distribute ( pw_grid, yz_mask, ref_grid, blocking )
 
   ! pos_of_x(i) tells on which cpu pw%cr3d(i,:,:) is located
   ! should be computable in principle, without the need for communication
-  ALLOCATE(pw_grid % para % pos_of_x( pw_grid % bounds(1,1): pw_grid % bounds(2,1) ))
-  pw_grid % para % pos_of_x = 0
-  pw_grid % para % pos_of_x(pw_grid % bounds_local(1,1) : pw_grid % bounds_local(2,1))=pw_grid % para % my_pos
-  CALL mp_sum( pw_grid % para % pos_of_x, pw_grid % para % group )
+  IF (pw_grid % para % mode .EQ. PW_MODE_DISTRIBUTED) THEN
+    ALLOCATE(pw_grid % para % pos_of_x( pw_grid % bounds(1,1): pw_grid % bounds(2,1) ))
+    pw_grid % para % pos_of_x = 0
+    pw_grid % para % pos_of_x(pw_grid % bounds_local(1,1) : pw_grid % bounds_local(2,1))=pw_grid % para % my_pos
+    CALL mp_sum( pw_grid % para % pos_of_x, pw_grid % para % group )
+  ELSE
+    ! this should not be needed
+    ALLOCATE(pw_grid % para % pos_of_x( pw_grid % bounds(1,1): pw_grid % bounds(2,1) ))
+    pw_grid % para % pos_of_x = 0
+  ENDIF
 
   CALL timestop(0.0_dbl,handle)
 
@@ -1091,10 +1098,10 @@ SUBROUTINE pw_grid_count ( h_inv, pw_grid, cutoff, yz_mask )
 ! finds valid g-points within grid
   gmat = MATMUL ( h_inv, TRANSPOSE ( h_inv ) )
   gpt = 0
-  IF ( pw_grid % para % mode == 0 ) THEN
+  IF ( pw_grid % para % mode == PW_MODE_LOCAL ) THEN
     nlim ( 1 ) = bounds ( 1, 3 )
     nlim ( 2 ) = n_upperlimit
-  ELSE IF ( pw_grid % para % mode == 1 ) THEN
+  ELSE IF ( pw_grid % para % mode == PW_MODE_DISTRIBUTED ) THEN
     n = n_upperlimit - bounds ( 1, 3 ) + 1
     nlim = get_limit ( n, pw_grid % para % group_size, pw_grid % para % my_pos )
     nlim = nlim + bounds ( 1, 3 ) - 1
@@ -1126,7 +1133,7 @@ SUBROUTINE pw_grid_count ( h_inv, pw_grid, cutoff, yz_mask )
   END DO
 
 ! number of g-vectors for grid
-  IF ( pw_grid % para % mode == 1 ) THEN
+  IF ( pw_grid % para % mode == PW_MODE_DISTRIBUTED ) THEN
     CALL mp_sum ( gpt, pw_grid % para % group )
     CALL mp_sum ( yz_mask, pw_grid % para % group )
   ENDIF
@@ -1184,7 +1191,7 @@ SUBROUTINE pw_grid_assign ( h_inv, pw_grid, cutoff )
   END IF
 
 ! finds valid g-points within grid
-  IF ( pw_grid % para % mode == 0 ) THEN
+  IF ( pw_grid % para % mode == PW_MODE_LOCAL ) THEN
     gpt = 0
     DO n = bounds ( 1, 3 ), n_upperlimit
        DO m = bounds ( 1, 2 ), bounds ( 2, 2 )
@@ -1332,7 +1339,7 @@ SUBROUTINE pw_grid_assign ( h_inv, pw_grid, cutoff )
   IF ( pw_grid % ngpts_cut_local /= gpt ) THEN
      CALL stop_program ( "pw_grid_assign", "error re-counting the vectors" )
   END IF
-  IF ( pw_grid % para % mode == 1 ) THEN
+  IF ( pw_grid % para % mode == PW_MODE_DISTRIBUTED ) THEN
      CALL mp_sum ( gpt, pw_grid % para % group )
      IF ( pw_grid % ngpts_cut /= gpt ) &
      CALL stop_program ( "pw_grid_assign", " sum on all processors"//&
@@ -1872,7 +1879,7 @@ SUBROUTINE pw_grid_remap ( pw_grid, yz )
 
 !------------------------------------------------------------------------------
 
-  IF ( pw_grid % para % mode == 0 ) RETURN
+  IF ( pw_grid % para % mode == PW_MODE_LOCAL ) RETURN
   IF ( .NOT. pw_grid % para % ray_distribution ) RETURN
 
   CALL timeset("pw_grid_remap","I","",handle)

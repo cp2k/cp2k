@@ -47,6 +47,8 @@ MODULE pw_types
   USE kinds,                           ONLY: dbl
   USE message_passing,                 ONLY: mp_sendrecv
   USE pw_grid_types,                   ONLY: HALFSPACE,&
+                                             PW_MODE_LOCAL,&
+                                             PW_MODE_DISTRIBUTED,&
                                              pw_grid_type
   USE termination,                     ONLY: stop_memory,&
                                              stop_program
@@ -1714,7 +1716,7 @@ SUBROUTINE pw_gather_p ( pw, c, scale )
      CALL stop_program ( "pw_gather_p", "Data field has to be COMPLEXDATA1D" )
   ENDIF
 
-  IF ( pw % pw_grid % para % mode /= 1 ) THEN
+  IF ( pw % pw_grid % para % mode /= PW_MODE_DISTRIBUTED ) THEN
      CALL stop_program ( "pw_gather_p", "This grid type is not distributed")
   ENDIF
 
@@ -1910,7 +1912,7 @@ SUBROUTINE pw_scatter_p ( pw, c, scale )
      CALL stop_program ( "pw_scatter_p", "Data has to be in RECIPROCALSPACE" )
   ENDIF
 
-  IF ( pw % pw_grid % para % mode /= 1 ) THEN
+  IF ( pw % pw_grid % para % mode /= PW_MODE_DISTRIBUTED ) THEN
      CALL stop_program ( "pw_scatter_p", "This grid type is not distributed")
   ENDIF
 
@@ -2040,7 +2042,7 @@ SUBROUTINE fft_wrap_pw1 ( pw1, debug )
   END IF
 
   IF ( pw1 % in_use == COMPLEXDATA3D .AND. &
-       pw1 % pw_grid % para % mode == 0 ) THEN
+       pw1 % pw_grid % para % mode == PW_MODE_LOCAL ) THEN
 !..what dirction will the transform be?
     IF ( pw1 % in_space == REALSPACE ) THEN
        dir = FWFFT
@@ -2132,7 +2134,7 @@ SUBROUTINE fft_wrap_pw1pw2 ( pw1, pw2, debug )
 
   mode = fftselect ( pw1 % in_use, pw2 % in_use, pw1 % in_space )
 
-  IF ( pw1 % pw_grid % para % mode == 0 ) THEN
+  IF ( pw1 % pw_grid % para % mode == PW_MODE_LOCAL ) THEN
 
 !
 !..replicated data, use local FFT

@@ -100,6 +100,7 @@ MODULE qs_collocate_density
   USE pw_pool_types,                   ONLY: pw_pool_give_back_coeff,&
                                              pw_pool_init_coeff,&
                                              pw_pool_type
+  USE pw_grid_types,                   ONLY: PW_MODE_LOCAL
   USE pw_types,                        ONLY: REALDATA3D,&
                                              REALSPACE
   USE qs_environment_types,            ONLY: get_qs_env,&
@@ -1170,7 +1171,7 @@ CONTAINS
     ELSE
       CALL stop_program(routine,"No density coefficients available")
     END IF
-    IF (rho%pw%pw_grid%para%mode.NE.0) THEN
+    IF (rho%pw%pw_grid%para%mode.NE.PW_MODE_LOCAL) THEN
        CALL mp_sum(total_rho,rho%pw%pw_grid%para%group)
     END IF
 
@@ -1194,7 +1195,7 @@ CONTAINS
     ELSE
       CALL stop_program(routine,"Need density coefficients in real space !")
     END IF
-    IF (rho%pw%pw_grid%para%mode.NE.0) THEN
+    IF (rho%pw%pw_grid%para%mode.NE.PW_MODE_LOCAL) THEN
        CALL mp_sum(total_abs_rho,rho%pw%pw_grid%para%group)
     END IF
 

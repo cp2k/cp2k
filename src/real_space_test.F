@@ -32,6 +32,7 @@ MODULE real_space_test
                                              mp_environ,&
                                              mp_sum
   USE pw_grid_types,                   ONLY: FULLSPACE,&
+                                             PW_MODE_LOCAL, &
                                              pw_grid_type
   USE pw_grids,                        ONLY: pw_grid_construct,&
                                              pw_grid_setup
@@ -406,7 +407,7 @@ SUBROUTINE rs_pw_get ( rs, pw )
    IF ( pw % in_use /= REALDATA3D ) &
        CALL stop_program ( "rs_pw_get", "rs grid has to be REALDATA3D" )
 
-   IF ( pw % pw_grid % para % mode == 0 ) THEN
+   IF ( pw % pw_grid % para % mode == PW_MODE_LOCAL ) THEN
 
      nn = SIZE ( rs%r )
      CALL dcopy ( nn, rs%r, 1, pw % cr3d, 1 )

@@ -26,6 +26,7 @@ MODULE kg_kxc
   USE message_passing,                 ONLY: mp_sum
   USE pw_pool_types,                   ONLY: pw_pool_type
   USE pw_types,                        ONLY: pw_type
+  USE pw_grid_types,                   ONLY: PW_MODE_DISTRIBUTED
   USE termination,                     ONLY: stop_memory,&
                                              stop_program
   USE timings,                         ONLY: timeset,&
@@ -100,7 +101,7 @@ CONTAINS
   CALL xc_calculate_derivatives (rho_r%pw,rhop_r%pw,v_r%pw,v1_r%pw, &
                              v2_r%pw, e1_xc, e2_xc, order, dft_control, pw_pool)
  
-  IF ( rho_r%pw%pw_grid%para%mode == 1 ) THEN
+  IF ( rho_r%pw%pw_grid%para%mode == PW_MODE_DISTRIBUTED ) THEN
     CALL mp_sum ( e1_xc, rho_r%pw%pw_grid%para%group )
     CALL mp_sum ( e2_xc, rho_r%pw%pw_grid%para%group )
   END IF

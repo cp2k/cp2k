@@ -55,7 +55,8 @@ MODULE realspace_grid_types
                                              mp_sendrecv,&
                                              mp_shift,&
                                              mp_sum
-  USE pw_grid_types,                   ONLY: pw_grid_type
+  USE pw_grid_types,                   ONLY: pw_grid_type, &
+                                             PW_MODE_LOCAL
   USE pw_types,                        ONLY: COMPLEXDATA1D,&
                                              COMPLEXDATA3D,&
                                              REALDATA1D,&
@@ -307,7 +308,7 @@ CONTAINS
     last_rs_id = last_rs_id+1
     rs % id_nr = last_rs_id
     rs % ref_count = 1
-    IF ( pw_grid % para % mode == 0 ) THEN
+    IF ( pw_grid % para % mode == PW_MODE_LOCAL ) THEN
        ! The corresponding group has dimension 1 
        ! All operations will be done localy
        rs % npts = pw_grid % npts

@@ -56,6 +56,7 @@ MODULE xc
   USE kinds,                           ONLY: dbl,&
                                              dp
   USE message_passing,                 ONLY: mp_sum
+  USE pw_grid_types,                   ONLY: PW_MODE_DISTRIBUTED
   USE pw_pool_types,                   ONLY: pw_pool_create_cr3d,&
                                              pw_pool_create_pw,&
                                              pw_pool_give_back_cr3d,&
@@ -751,7 +752,7 @@ CONTAINS
 
     IF (.NOT.failure) THEN
        exc = SUM ( derivative_set%data(:,0) )*rho_r(1)%pw%pw_grid%dvol
-       IF ( rho_r(1)%pw%pw_grid%para%mode == 1 ) THEN
+       IF ( rho_r(1)%pw%pw_grid%para%mode == PW_MODE_DISTRIBUTED ) THEN
           CALL mp_sum ( exc, rho_r(1)%pw%pw_grid%para%group )
        END IF
 
@@ -1119,7 +1120,7 @@ CONTAINS
        CALL xc_derivative_get(deriv_att,deriv_data=deriv_data,&
             error=error)
        exc = SUM ( deriv_data )*rho_r(1)%pw%pw_grid%dvol
-       IF ( rho_r(1)%pw%pw_grid%para%mode == 1 ) THEN
+       IF ( rho_r(1)%pw%pw_grid%para%mode == PW_MODE_DISTRIBUTED ) THEN
           CALL mp_sum ( exc, rho_r(1)%pw%pw_grid%para%group )
        END IF
        CALL pw_pool_give_back_cr3d(pw_pool,deriv_att%deriv_data,error=error)

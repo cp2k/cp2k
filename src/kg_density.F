@@ -52,6 +52,7 @@ MODULE kg_density
   USE message_passing,                 ONLY: mp_sum
   USE orbital_pointers,                ONLY: ncoset
   USE particle_types,                  ONLY: particle_type
+  USE pw_grid_types,                   ONLY: PW_MODE_LOCAL
   USE pw_types,                        ONLY: REALDATA3D,&
                                              REALSPACE
   USE qs_collocate_density,            ONLY: collocate_pgf_product_rspace
@@ -299,7 +300,7 @@ CONTAINS
     ELSE
       CALL stop_program(routine,"No density coefficients available")
     END IF
-    IF (rho%pw%pw_grid%para%mode.ne.0) THEN
+    IF (rho%pw%pw_grid%para%mode.ne.PW_MODE_LOCAL) THEN
        CALL mp_sum(total_rho,rho%pw%pw_grid%para%group)
     END IF
 

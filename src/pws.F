@@ -52,6 +52,8 @@ MODULE pws
   USE mathconstants,                   ONLY: fourpi
   USE message_passing,                 ONLY: mp_sum
   USE pw_grid_types,                   ONLY: HALFSPACE,&
+                                             PW_MODE_LOCAL,&
+                                             PW_MODE_DISTRIBUTED,&
                                              pw_grid_type
   USE pw_types,                        ONLY: COMPLEXDATA1D,&
                                              COMPLEXDATA3D,&
@@ -404,7 +406,7 @@ FUNCTION pw_integral_ab ( pw1, pw2, flag ) RESULT ( integral_value )
      END IF
   END IF
 
-  IF ( pw1 % pw_grid % para % mode == 1 ) &
+  IF ( pw1 % pw_grid % para % mode == PW_MODE_DISTRIBUTED ) &
      CALL mp_sum ( integral_value, pw1 % pw_grid % para % group )
 
 END FUNCTION pw_integral_ab
@@ -464,7 +466,7 @@ FUNCTION pw_integral_aa ( pw1, flag ) RESULT ( integral_value )
      integral_value = integral_value * pw1 % pw_grid % vol
   END IF
 
-  IF ( pw1 % pw_grid % para % mode == 1 ) &
+  IF ( pw1 % pw_grid % para % mode == PW_MODE_DISTRIBUTED ) &
      CALL mp_sum ( integral_value, pw1 % pw_grid % para % group )
 
 END FUNCTION pw_integral_aa
@@ -502,7 +504,7 @@ FUNCTION pw_integral_a2b ( pw1, pw2 ) RESULT ( integral_value )
      integral_value = integral_value * pw1 % pw_grid % vol
   END IF
 
-  IF ( pw1 % pw_grid % para % mode == 1 ) &
+  IF ( pw1 % pw_grid % para % mode == PW_MODE_DISTRIBUTED ) &
      CALL mp_sum ( integral_value, pw1 % pw_grid % para % group )
 
 END FUNCTION pw_integral_a2b
@@ -736,7 +738,7 @@ SUBROUTINE pw_collect ( pw, label, op )
     END IF
   END IF
 
-  IF ( pw % pw_grid % para % mode == 1 ) THEN
+  IF ( pw % pw_grid % para % mode == PW_MODE_DISTRIBUTED ) THEN
     CALL mp_sum ( xsum, pw % pw_grid % para % group )
     IF ( pw % pw_grid % para % group_head ) &
       WRITE ( *, '(A,A10,G20.8)' ) " COLLECT ",label,xsum
