@@ -45,7 +45,7 @@
  'type1out':'type(pw_type), pointer',
  'USE':'USE pw_types, ONLY: pw_type, pw_p_type, pw_write',
  'defines':
-"""! less not much meningful...
+"""! less not much meaningful...
 #define CP_SLL_PW_LESS_Q(el1,el2) ( el1 %id_nr < el2 %id_nr )
 #define CP_SLL_PW_EQUAL_Q(el1,el2) ( el1 %id_nr == el2 %id_nr )
 """,
@@ -65,7 +65,7 @@
  'type1out':'type(cp_full_matrix_type), pointer',
  'USE':
 """USE cp_full_matrix, ONLY: cp_full_matrix_type, cp_full_matrix_p_type,&
-        cp_fm_write,
+        cp_fm_write""",
  'defines':
 """! less not much meningful...
 #define CP_SLL_PW_LESS_Q(el1,el2) ( el1 %id_nr < el2 %id_nr )
