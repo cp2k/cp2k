@@ -84,7 +84,7 @@ CONTAINS
     REAL(KIND = dp), DIMENSION(:,:), POINTER             :: centers
     TYPE(cp_error_type), OPTIONAL, INTENT(INOUT)  :: error
 
-    TYPE(coeff_type)            :: rho_tot_rspace
+    TYPE(coeff_type)            :: rho_tot_rspace, rho_tot_gspace
     TYPE(pw_pool_type), POINTER :: auxbas_pw_pool
     INTEGER :: ispin, handle, power
     REAL(KIND = dp) :: origin(3),electronic_eshift,core_eshift
@@ -106,17 +106,26 @@ CONTAINS
     CALL pw_env_get(pw_env, auxbas_pw_pool=auxbas_pw_pool) 
     CALL pw_pool_init_coeff(auxbas_pw_pool,rho_tot_rspace,&
             use_data = REALDATA3D, in_space = REALSPACE, error=error )
+    CALL pw_pool_init_coeff(auxbas_pw_pool,rho_tot_gspace,&
+            use_data = COMPLEXDATA1D, in_space = RECIPROCALSPACE, error=error )
     CALL coeff_transform_space(rho_core,rho_tot_rspace)
     CALL coeff_sumup(rho%rho_r(1),rho_tot_rspace)
     DO ispin=2,SIZE(rho%rho_r)
        CALL coeff_sumup(rho%rho_r(ispin),rho_tot_rspace)
     END DO
-    ! start analysis
+    CALL coeff_transform_space(rho_tot_rspace,rho_tot_gspace)
+
+    ! start realspace analysis
     origin=0
     power=1
     CALL  realspace_approach(rho_tot_rspace,pw_env,cell,origin,power,.TRUE.)
+
+    ! start g-space analysis
+    CALL  gspace_approach(rho_tot_gspace,pw_env,cell)
+
     ! give back coeffs and pools
     CALL pw_pool_give_back_coeff(auxbas_pw_pool,rho_tot_rspace)
+    CALL pw_pool_give_back_coeff(auxbas_pw_pool,rho_tot_gspace)
 
     CALL timestop(0.0_dp,handle)
  
@@ -127,19 +136,6 @@ CONTAINS
     REAL(KIND = dp) ::electronic_eshift
 
     INTEGER :: i
-    electronic_eshift=0.0_dp
-    DO i=1,SIZE(centers,1)
-       electronic_eshift=electronic_eshift&
-                         -2.0_dp*SUM(centers(i,4:6)**2) ! NOT FOR LSD
-    ENDDO
-    write(6,*) "spread part ",electronic_eshift
-    electronic_eshift=0.0_dp
-    DO i=1,SIZE(centers,1)
-       electronic_eshift=electronic_eshift&
-                         -2.0_dp*SUM(centers(i,1:3)**2) ! NOT FOR LSD
-    ENDDO
-    write(6,*) "center ",(-2.0_dp*SUM(centers(:,i)),i=1,3)
-
     electronic_eshift=0.0_dp
     DO i=1,SIZE(centers,1)
        electronic_eshift=electronic_eshift&
@@ -180,11 +176,49 @@ CONTAINS
           center=center+Zeff*ra
       ENDDO
     ENDDO
-    write(6,*) "spread part ",spread_part
-    write(6,*) "pos part ",pos_part
-    write(6,*) "center ",center
+    !write(6,*) "spread part ",spread_part
+    !write(6,*) "pos part ",pos_part
+    !write(6,*) "center ",center
     core_eshift=pos_part+spread_part
   END SUBROUTINE core_part
+
+  FUNCTION get_value(rho_g,g) result(RES)
+    TYPE(coeff_type)                      :: rho_g
+    INTEGER :: g(3)
+    COMPLEX(dp) :: RES
+   
+    INTEGER :: i 
+    RES=(0.0_dp,0.0_dp)
+    DO i=1,rho_g%pw%pw_grid%ngpts_local
+       IF (ALL(rho_g%pw%pw_grid%g_hat(:,i).EQ.g)) THEN
+           RES=rho_g%pw%cc(i)
+           EXIT
+       ENDIF
+    ENDDO
+  END FUNCTION get_value
+ 
+  SUBROUTINE gspace_approach(rho_g,pw_env,cell)
+    TYPE(coeff_type)                      :: rho_g
+    TYPE(pw_env_type), POINTER            :: pw_env
+    TYPE(cell_type), POINTER              :: cell
+
+    INTEGER :: i
+    INTEGER :: g(3)
+    REAL(KIND=dp) :: resp,resm,rest
+    rest=(0.0_8,0.0_8)
+    DO i=1,3
+       g=0
+       g(i)=1
+       write(6,*) "g_",i,get_value(rho_g,g)
+       resp=ABS(get_value(rho_g,g))
+       g(i)=-1
+       write(6,*) "g_",i,get_value(rho_g,g)
+       resm=ABS(get_value(rho_g,g))
+       rest=rest+cell%deth*(resp+resm)/(twopi/cell%hmat(i,i))**2
+    ENDDO
+    write(6,*) "gspace number",rest
+    
+  END SUBROUTINE
 
   SUBROUTINE realspace_approach(rho_r,pw_env,cell,center,power,ionode)
     TYPE(coeff_type)                      :: rho_r
