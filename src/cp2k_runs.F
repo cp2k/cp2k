@@ -49,13 +49,15 @@ MODULE cp2k_runs
   USE geo_opt,                         ONLY: qs_geo_opt
   USE md_run,                          ONLY: qs_mol_dyn 
   USE machine,                         ONLY: print_memory,m_chdir,m_getcwd
-  USE print_key_types, only: print_keys_release
+  USE print_key_types,                 ONLY: print_keys_release
   USE message_passing,                 ONLY: mp_sync, &
                                              mp_environ, &
                                              mp_comm_split, &
                                              mp_comm_free
   USE qs_mc,                           ONLY: qs_mon_car
-  USE qs_parser,                       ONLY: open_file,close_file
+  USE qs_parser,                       ONLY: open_file, &
+                                             close_file, &
+                                             get_unit_number
   USE parser,                          ONLY: parser_init, &
                                              parser_end,&
                                              get_next, &
@@ -332,6 +334,7 @@ CONTAINS
     CHARACTER(LEN=default_string_length)     :: keyword, str
     character(len=5)                         :: label
     INTEGER                                  :: new_group,new_rank,new_size
+    INTEGER :: n_jobs_to_run, i_job_to_restart, ijob_start, ijob_end,ijob, iunit
 
     failure=.FALSE.
     CALL timeset(routineN,'I','',handle)
@@ -367,17 +370,50 @@ CONTAINS
         END DO
         write(globenv%scr,*)
     ENDIF
+
+    ! protect about too many jobs being run in single go. Not more jobs are allowed than the number in the input file
+
+    ! and determine the restart point
+    IF (farming_env%cycle) THEN
+       n_jobs_to_run=MIN(farming_env%njobs,farming_env%max_steps*ngroups)
+       i_job_to_restart=MODULO(farming_env%restart_n+n_jobs_to_run-1,farming_env%njobs)+1
+    ELSE
+       n_jobs_to_run=MIN(farming_env%njobs,farming_env%max_steps*ngroups)
+       n_jobs_to_run=MIN(n_jobs_to_run,farming_env%njobs-farming_env%restart_n+1)
+       i_job_to_restart=n_jobs_to_run+farming_env%restart_n
+    ENDIF
+
+    ! and write it now, that's the point where the next job starts, even if this one is running
     IF (globenv%ionode) THEN
+       iunit=get_unit_number()
+       OPEN(UNIT=iunit,FILE="RESTARTFARM") 
+       write(iunit,*) i_job_to_restart
+       CLOSE(UNIT=iunit)
+    ENDIF
+
+    ! this is the job range to be executed. Will be treated cycle
+    ijob_start=farming_env%restart_n
+    ijob_end=ijob_start+n_jobs_to_run-1
+
+    IF (globenv%ionode) THEN
+      IF (ijob_end-ijob_start<0) THEN
+        write(globenv%scr,FMT="(T2,A)") "FARMING| --- WARNING --- NO JOBS NEED EXECUTION ? "
+        write(globenv%scr,FMT="(T2,A)") "FARMING| is the cycle keyword required ?"
+        write(globenv%scr,FMT="(T2,A)") "FARMING| or is a stray RESTARTFARM present ?"
+      ELSE
         write(globenv%scr,FMT="(T2,A)") "FARMING| List of jobs : "
-        DO i=1,farming_env%njobs
+        DO ijob=ijob_start,ijob_end
+         i=MODULO(ijob-1,farming_env%njobs)+1
          write(globenv%scr,FMT=*) "Job: ",i," Dir: ",TRIM(farming_env%Job_cwd(i))," Input: ", &
            TRIM(farming_env%Job_input(i))," MPI group:", MODULO(i-1,ngroups)
         ENDDO
+      ENDIF
     ENDIF
 
-    DO i=1,farming_env%njobs
+    DO ijob=ijob_start,ijob_end
+       i=MODULO(ijob-1,farming_env%njobs)+1
        ! this farms out the jobs
-       IF (MODULO(i-1,ngroups)==group_distribution(globenv%mepos)) THEN
+       IF (MODULO(ijob-1,ngroups)==group_distribution(globenv%mepos)) THEN
           ! change to the new working directory
           CALL m_chdir(TRIM(farming_env%Job_cwd(i)),ierr)
 

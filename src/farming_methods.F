@@ -17,14 +17,13 @@ MODULE farming_methods
                                              cp_error_init, &
                                              cp_error_dealloc_ref, &
                                              cp_assertion_failed 
-  USE machine,                         ONLY: m_chdir,m_getcwd
+  USE message_passing,                 ONLY: mp_bcast
   USE qs_parser,                       ONLY: finish_parser,&
                                              read_object,&
                                              start_parser,&
                                              stop_parser,&
                                              test_object,&
-                                             open_file,&
-                                             close_file
+                                             get_unit_number
   IMPLICIT NONE
   PRIVATE
   PUBLIC  :: farming_parse_input
@@ -43,10 +42,11 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'farming_parse_input', &
       routineP = moduleN//':'//routineN
     CHARACTER(LEN=3)                         :: test_result
-    INTEGER :: stat,i 
+    INTEGER :: stat,i,iunit
     LOGICAL :: found,failure
     CHARACTER(LEN=default_string_length) :: dum
     CHARACTER(LEN=60)                        :: keyword
+    CHARACTER(LEN=3)                         :: text
     failure=.FALSE.
 
 !
@@ -96,6 +96,12 @@ CONTAINS
             DO I=0,farming_env%ngroup_wish-1
                CALL read_object(farming_env%group_partition(I)) 
             ENDDO
+          CASE ("RESTART")
+            farming_env%restart=.TRUE.
+          CASE ("MAX_STEP","MAX_STEPS")
+            CALL read_object(farming_env%max_steps)
+          CASE ("CYCLE")
+            farming_env%cycle=.TRUE.
           CASE DEFAULT
             CALL stop_parser(routine=routineN,message="INVALID_KEYWORD "&
                  //keyword)
@@ -156,6 +162,7 @@ CONTAINS
         CALL finish_parser()
     ENDIF
 
+
     IF (globenv%ionode .AND. .NOT. failure) THEN
         write(globenv%scr,FMT="(T2,A,T71,I10)") "FARMING| Number of jobs found",farming_env%njobs
         IF (farming_env%ngroup_wish_set) THEN
@@ -180,7 +187,40 @@ CONTAINS
            write(globenv%scr,FMT="(T2,A,T71,I10)") "FARMING| Group size wish:", &
                  farming_env%group_size_wish
         ENDIF
+        write(globenv%scr,FMT="(T2,A,T71,I10)") "FARMING| Max steps      :",farming_env%max_steps
+        IF (farming_env%cycle) THEN
+            text="YES"
+        ELSE
+            text=" NO"
+        ENDIF
+        write(globenv%scr,FMT="(T2,A,T78,A3)") "FARMING| Cyclic jobs execution:",text
+        IF (farming_env%restart) THEN
+            text="YES"
+        ELSE
+            text=" NO"
+        ENDIF
+        write(globenv%scr,FMT="(T2,A,T78,A3)") "FARMING| Restarting farm:",text
+        farming_env%restart_n = 1
+        IF (farming_env%restart) THEN
+           iunit=get_unit_number()
+           OPEN(UNIT=iunit,FILE="RESTARTFARM",IOSTAT=stat)
+           IF (stat==0) THEN
+             READ(UNIT=iunit,FMT=*,IOSTAT=stat) farming_env%restart_n
+             IF (stat/=0) THEN
+                write(globenv%scr,"(T2,A)") &
+                     "FARMING| ---- WARNING ---- failed to read from RESTARTFARM, starting at 1"
+             ELSE
+                write(globenv%scr,"(T2,A,T71,I10)") &
+                     "FARMING| restarting from RESTARTFARM, starting at ",farming_env%restart_n
+             ENDIF
+           ELSE
+             write(globenv%scr,"(T2,A)") &
+                     "FARMING| ---- WARNING ---- failed to open RESTARTFARM, starting at 1"
+           ENDIF
+           CLOSE(iunit,IOSTAT=stat)
+        ENDIF
     ENDIF
+    CALL mp_bcast(farming_env%restart_n,globenv%source,globenv%group)
 
   END SUBROUTINE
 

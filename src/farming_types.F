@@ -23,11 +23,16 @@ MODULE farming_types
      LOGICAL :: group_size_wish_set  
      INTEGER :: ngroup_wish          
      LOGICAL :: ngroup_wish_set      
+     LOGICAL :: restart
+     LOGICAL :: cycle
      INTEGER, DIMENSION(:), POINTER                              :: group_partition ! user preference for partitioning the cpus
-     CHARACTER(LEN=default_path_length)                        :: cwd        ! directory we started from
+     CHARACTER(LEN=default_path_length)                          :: cwd        ! directory we started from
      INTEGER                                                     :: Njobs      ! how many jobs to run
-     CHARACTER(LEN=default_path_length), DIMENSION(:), POINTER :: Job_cwd    ! list of directories to go to
-     CHARACTER(LEN=default_path_length), DIMENSION(:), POINTER :: Job_input  ! name of the input file to use
+     INTEGER                                                     :: restart_n  ! where to start
+     INTEGER                                                     :: max_steps  ! max number of steps, 
+                                                                               ! results in max_steps*Ngroup jobs being run
+     CHARACTER(LEN=default_path_length), DIMENSION(:), POINTER :: Job_cwd      ! list of directories to go to
+     CHARACTER(LEN=default_path_length), DIMENSION(:), POINTER :: Job_input    ! name of the input file to use
      INTEGER, DIMENSION(:), POINTER                              :: Job_group  ! number of the target group
   END TYPE farming_env_type
 
@@ -62,9 +67,14 @@ SUBROUTINE init_farming_env(farming_env)
        farming_env%group_size_wish_set = .FALSE.
        farming_env%ngroup_wish         = 0
        farming_env%ngroup_wish_set     = .FALSE.
+       farming_env%restart             = .FALSE.
+       farming_env%restart_n           = 1
+       farming_env%cycle               = .FALSE.
        NULLIFY(farming_env%group_partition)
        farming_env%cwd                 = "."
        farming_env%Njobs               = 0
+          ! so that maxsteps*ngroup is not overflowing
+       farming_env%max_steps           = HUGE(0)/32768 
        NULLIFY(farming_env%Job_cwd)
        NULLIFY(farming_env%Job_input)
        NULLIFY(farming_env%Job_group)
