@@ -38,7 +38,7 @@ MODULE initialize_extended_types
   IMPLICIT NONE
 
   PUBLIC :: initialize_nhc_part, initialize_nhc_baro, initialize_npt_type, &
-            initialize_nhc_forces, initialize_nhc_coef
+            initialize_nhc_forces, initialize_nhc_coef, initialize_nhc_part_new
   PRIVATE
 
 !!*****
@@ -163,7 +163,7 @@ END SUBROUTINE initialize_nhc_baro
 !******************************************************************************
 
 SUBROUTINE initialize_nhc_part ( box, simpar, molecule, mol_setup, &
-     globenv, nhc, molecule_kind_set )
+     globenv, nhc )
 
   IMPLICIT NONE
 
@@ -175,7 +175,6 @@ SUBROUTINE initialize_nhc_part ( box, simpar, molecule, mol_setup, &
   TYPE ( cell_type ), INTENT ( IN ) :: box
   TYPE ( global_environment_type ), INTENT ( INOUT ) :: globenv
   TYPE ( lnhc_parameters_type ),  INTENT ( INOUT ) :: nhc
-  TYPE(molecule_kind_type), DIMENSION(:), OPTIONAL, POINTER :: molecule_kind_set
 ! locals
   INTEGER :: isos
 
@@ -204,13 +203,68 @@ SUBROUTINE initialize_nhc_part ( box, simpar, molecule, mol_setup, &
 
 ! compute the total number of degrees of freedom for temperature
 
-  IF (PRESENT(molecule_kind_set)) THEN
-    CALL get_nfree ( simpar, molecule, globenv, molecule_kind_set )
-  ELSE
-    CALL get_nfree ( simpar, molecule, globenv )
-  END IF
+  CALL get_nfree ( simpar, molecule, globenv )
 
 END SUBROUTINE initialize_nhc_part
+
+  SUBROUTINE initialize_nhc_part_new(cell,simpar,molecule_kind_set,nhc,&
+                                     globenv)
+
+    TYPE(cell_type), INTENT(IN)                     :: cell
+    TYPE(simulation_parameters_type), INTENT(INOUT) :: simpar
+    TYPE(molecule_kind_type), DIMENSION(:), POINTER :: molecule_kind_set
+    TYPE(lnhc_parameters_type), INTENT(INOUT)       :: nhc
+    TYPE(global_environment_type), INTENT(INOUT)    :: globenv
+
+!   *** Local variables ***
+
+    INTEGER :: isos,iw,natom,nconstraint,nfree
+
+!   ---------------------------------------------------------------------------
+
+!   Initialize simpar%nfree to dim (because at this point no
+!   assumptions have been made about thermostatting options
+!   and COM is ALWAYS zeroed in this code.  If there are
+!   multiple thermostats etc...simpar % nfree will be set
+!   to zero in nhc_particle_setup.f)
+
+    simpar%nfree = 6 - SUM(cell%perd(1:3))
+
+! fire up the thermostats, if not NVE
+!MK  CALL nhc_particle_setup ( simpar, molecule, mol_setup, nhc, globenv )
+
+!MK  IF ( simpar % read_type /= 'ALL' ) THEN
+
+! Initializing thermostat forces and velocities for the Nose-Hoover
+! Chain variables
+!MK     IF ( nhc % nhc_len /= 0 ) &
+!MK       CALL initialize_nhc ( nhc, simpar % tau_nhc,  &
+!MK                        simpar % temp_ext, globenv )
+
+!MK  END IF
+
+!   compute the total number of degrees of freedom for temperature
+
+    CALL get_molecule_kind_set(molecule_kind_set=molecule_kind_set,&
+                               natom=natom,&
+                               nconstraint=nconstraint)
+
+    nfree = 3*natom - nconstraint - simpar%nfree
+
+    IF (globenv%ionode.AND.globenv%print_level > 2) THEN
+      iw = globenv % scr
+      WRITE ( iw, '( /, A )' ) ' Calculation of degrees of freedom'
+      WRITE ( iw, '( T48, A, T71, I10 )' ) '       Number of atoms:', natom
+      WRITE ( iw, '( T48, A, T71, I10 )' ) ' Number of constraints:', nconstraint
+      WRITE ( iw, '( T34, A, T71, I10 )' ) &
+           ' Invariants(translation + rotations):', simpar % nfree
+      WRITE ( iw, '( T48, A, T71, I10 )' ) '    Degrees of freedom:', nfree
+      WRITE ( iw, '()' )
+    END IF
+
+    simpar%nfree = nfree
+
+  END SUBROUTINE initialize_nhc_part_new
 
 !******************************************************************************
 !!****** initialize_extended_types/initialize_nhc_coef [1.0] *
@@ -342,11 +396,6 @@ SUBROUTINE get_nfree ( simpar, molecule, globenv, molecule_kind_set )
 
 !------------------------------------------------------------------------------
 
-  IF (PRESENT(molecule_kind_set)) THEN
-    CALL get_molecule_kind_set(molecule_kind_set=molecule_kind_set,&
-                               natom=natoms,&
-                               nconstraint=nconst)
-  ELSE
     natoms = 0
     nconst = 0
     DO imol = 1, SIZE ( molecule )
@@ -362,7 +411,6 @@ SUBROUTINE get_nfree ( simpar, molecule, globenv, molecule_kind_set )
   CALL mp_sum(nconst,globenv % group)
   CALL mp_sum(natoms,globenv % group)
 #endif
-  END IF
 
 ! definining simpar%nfree.  If multiple thermostats present
 ! it is initialized to 0.  It one thermostat or no thermostats

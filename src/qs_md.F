@@ -64,7 +64,7 @@ MODULE qs_md
   USE global_types,                    ONLY: global_environment_type
   USE initialize_extended_types,       ONLY: initialize_nhc_baro,&
                                              initialize_nhc_forces,&
-                                             initialize_nhc_part,&
+                                             initialize_nhc_part_new,&
                                              initialize_npt_type
   USE input_types,                     ONLY: setup_parameters_type
   USE integrator,                      ONLY: set_integrator
@@ -238,11 +238,8 @@ CONTAINS
             molecule_kinds=molecule_kinds,&
             molecule_kinds_new=molecule_kinds_new,&
             error=error)
-       CALL initialize_nhc_part(cell,simpar,&
-            local_molecules%els,&
-            molecule_kinds%els,globenv,&
-            extended_type%nhc_part(isubsys),&
-            molecule_kinds_new%els)
+       CALL initialize_nhc_part_new(cell,simpar,molecule_kinds_new%els,&
+                                    extended_type%nhc_part(isubsys),globenv)
        CALL initialize_nhc_baro(simpar,globenv,&
             extended_type%nhc_baro(isubsys))
     END DO
