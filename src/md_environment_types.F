@@ -315,7 +315,7 @@ SUBROUTINE md_env_release(md_env, error)
         NULLIFY ( md_env % nhc_baro )
         NULLIFY ( md_env % npt )
         NULLIFY ( md_env % virial )
-        NULLIFY ( md_env % force_env )
+        CALL force_env_release( md_env % force_env) 
         md_env%ref_count=0
         DEALLOCATE(md_env,stat=stat)
         CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
