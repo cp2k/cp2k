@@ -672,8 +672,25 @@ SUBROUTINE pw_grid_setup ( cell, pw_grid, cutoff, pe_group, info, fft_usage, &
         WRITE ( info, '(A,T72,A)' ) " PW_GRID: Grid span","FULLSPACE"
       END IF
       WRITE ( info, '(/)' )
-    ELSEIF ( info >= 0 ) THEN
-      IF ( pw_grid % para % group_head ) THEN
+    ELSE
+
+      n ( 1 ) = pw_grid % ngpts_cut_local
+      n ( 2 ) = pw_grid % ngpts_local
+      CALL mp_sum ( n(1:2), pw_grid % para % group )
+      n ( 3 ) = SUM ( pw_grid % para % nyzray )
+      rv ( :, 1 ) = REAL ( n, dbl ) / REAL ( group_size, dbl )
+      n ( 1 ) = pw_grid % ngpts_cut_local
+      n ( 2 ) = pw_grid % ngpts_local
+      CALL mp_max ( n(1:2), pw_grid % para % group )
+      n ( 3 ) = MAXVAL ( pw_grid % para % nyzray )
+      rv ( :, 2 ) = REAL ( n, dbl )
+      n ( 1 ) = pw_grid % ngpts_cut_local
+      n ( 2 ) = pw_grid % ngpts_local
+      CALL mp_min ( n(1:2), pw_grid % para % group )
+      n ( 3 ) = MINVAL ( pw_grid % para % nyzray )
+      rv ( :, 3 ) = REAL ( n, dbl )
+
+      IF ( pw_grid % para % group_head .AND. info>=0) THEN
         WRITE ( info, '(/,A,T71,I10)' ) &
           " PW_GRID: Information for grid number ", pw_grid % identifier
         WRITE ( info, '(A,T60,I10,A)' ) &
@@ -700,23 +717,6 @@ SUBROUTINE pw_grid_setup ( cell, pw_grid, cutoff, pe_group, info, fft_usage, &
         ELSE
           WRITE ( info, '(A,T72,A)' ) " PW_GRID: Grid span","FULLSPACE"
         END IF
-      END IF
-      n ( 1 ) = pw_grid % ngpts_cut_local
-      n ( 2 ) = pw_grid % ngpts_local
-      CALL mp_sum ( n(1:2), pw_grid % para % group )
-      n ( 3 ) = SUM ( pw_grid % para % nyzray )
-      rv ( :, 1 ) = REAL ( n, dbl ) / REAL ( group_size, dbl )
-      n ( 1 ) = pw_grid % ngpts_cut_local
-      n ( 2 ) = pw_grid % ngpts_local
-      CALL mp_max ( n(1:2), pw_grid % para % group )
-      n ( 3 ) = MAXVAL ( pw_grid % para % nyzray )
-      rv ( :, 2 ) = REAL ( n, dbl )
-      n ( 1 ) = pw_grid % ngpts_cut_local
-      n ( 2 ) = pw_grid % ngpts_local
-      CALL mp_min ( n(1:2), pw_grid % para % group )
-      n ( 3 ) = MINVAL ( pw_grid % para % nyzray )
-      rv ( :, 3 ) = REAL ( n, dbl )
-      IF ( pw_grid % para % group_head ) THEN
         WRITE ( info, '(A,T48,A)' ) " PW_GRID:   Distribution", &
              "  Average         Max         Min"
         WRITE ( info, '(A,T45,F12.1,2I12)' ) " PW_GRID:   G-Vectors", &
@@ -725,9 +725,9 @@ SUBROUTINE pw_grid_setup ( cell, pw_grid, cutoff, pe_group, info, fft_usage, &
              rv ( 3, 1 ), NINT ( rv ( 3, 2 ) ), NINT ( rv ( 3, 3 ) )
         WRITE ( info, '(A,T45,F12.1,2I12)' ) " PW_GRID:   Real Space Points", &
              rv ( 2, 1 ), NINT ( rv ( 2, 2 ) ), NINT ( rv ( 2, 3 ) )
-      END IF
-    END IF
-  END IF
+      END IF ! group head
+    END IF ! local
+  END IF ! present info
 
   CALL timestop(0.0_dbl,handle)
 
