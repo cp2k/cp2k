@@ -258,7 +258,6 @@ MOL:  DO ikind = 1, nkind
      END DO MOL
 
      CALL check_tol ( roll_tol, iroll, 'SHAKE', r_shake )
-     WRITE ( *, * ) "DONE WITH SHAKE"
 
      CALL timestop ( 0.0_dp, handle )
 
@@ -349,7 +348,6 @@ CONS: DO WHILE (abs(max_sigma)>=simpar%shake_tol)
 
  CALL check_tol ( roll_tol, iroll, 'RATTLE', veps = veps )
 
-     WRITE ( *, * ) "DONE WITH RATTLE" 
  CALL timestop ( 0.0_dp, handle )
 
 END SUBROUTINE rattle_roll_control
@@ -829,8 +827,8 @@ SUBROUTINE shake_4x6( molecule, particle_set, pos, vel, simpar, ishake )
         v4 ( : ) = vel ( :, index_d ) + imass4*dtby2*fc4 ( : )
         r12=r1-r2
         r13=r1-r3
-        r23=r2-r3
         r14=r1-r4
+        r23=r2-r3
         r24=r2-r4
         r34=r3-r4
 ! compute the tolerance:
@@ -1688,18 +1686,18 @@ SUBROUTINE rattle_roll_4x6( molecule, particle_set, vel, r_rattle, simpar, &
        lambda ( : ) = bvec ( :, 1 )
        lg4x6 ( iconst ) % del_lam ( : )= lambda - lg4x6 ( iconst ) % lambda
 
-       fc1=lg4x6 ( iconst ) % lambda ( 1 ) * f_roll1 + &
-           lg4x6 ( iconst ) % lambda ( 2 ) * f_roll2 + &
-           lg4x6 ( iconst ) % lambda ( 3 ) * f_roll3 
-       fc2=-lg4x6 ( iconst ) % lambda ( 1 ) * f_roll1 + &
-           lg4x6 ( iconst ) % lambda ( 4 ) * f_roll4 + &
-           lg4x6 ( iconst ) % lambda ( 5 ) * f_roll5 
-       fc3=-lg4x6 ( iconst ) % lambda ( 2 ) * f_roll2 - &
-           lg4x6 ( iconst ) % lambda ( 4 ) * f_roll4 + &
-           lg4x6 ( iconst ) % lambda ( 6 ) * f_roll6 
-       fc4=-lg4x6 ( iconst ) % lambda ( 3 ) * f_roll3 - &
-           lg4x6 ( iconst ) % lambda ( 5 ) * f_roll5 - &
-           lg4x6 ( iconst ) % lambda ( 6 ) * f_roll6 
+       fc1=lg4x6 ( iconst ) % del_lam ( 1 ) * f_roll1 + &
+           lg4x6 ( iconst ) % del_lam ( 2 ) * f_roll2 + &
+           lg4x6 ( iconst ) % del_lam ( 3 ) * f_roll3 
+       fc2=-lg4x6 ( iconst ) % del_lam ( 1 ) * f_roll1 + &
+           lg4x6 ( iconst ) % del_lam ( 4 ) * f_roll4 + &
+           lg4x6 ( iconst ) % del_lam ( 5 ) * f_roll5 
+       fc3=-lg4x6 ( iconst ) % del_lam ( 2 ) * f_roll2 - &
+           lg4x6 ( iconst ) % del_lam ( 4 ) * f_roll4 + &
+           lg4x6 ( iconst ) % del_lam ( 6 ) * f_roll6 
+       fc4=-lg4x6 ( iconst ) % del_lam ( 3 ) * f_roll3 - &
+           lg4x6 ( iconst ) % del_lam ( 5 ) * f_roll5 - &
+           lg4x6 ( iconst ) % del_lam ( 6 ) * f_roll6 
        vel ( :, index_a ) = vel ( :, index_a ) + imass1 * dtby2 * fc1 ( : )
        vel ( :, index_b ) = vel ( :, index_b ) + imass2 * dtby2 * fc2 ( : )
        vel ( :, index_c ) = vel ( :, index_c ) + imass3 * dtby2 * fc3 ( : )

@@ -259,7 +259,7 @@ SUBROUTINE nhc_particle_setup ( simpar, local_molecules, molecule_set, &
 
     CHARACTER(LEN=default_string_length)     :: nhcopt
     INTEGER :: atm_offset, i, icount, ii, ikind, imol, isos, iw, j, &
-      jj, kk, n3x3con, natom, natoms_local, ndcon, nkind, nmol_local, &
+      jj, kk, n3x3con, n4x6con, natom, natoms_local, ndcon, nkind, nmol_local, &
       nmol_per_kind, nmolecule, number, number_total, ll, imol_local, first_atom, &
       last_atom, ipart, atom_increment, start, finish
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: const_mol, deg_of_freedom, &
@@ -390,12 +390,13 @@ SUBROUTINE nhc_particle_setup ( simpar, local_molecules, molecule_set, &
          nmol_per_kind =  local_molecules % n_el ( ikind )
          molecule_kind => molecule_kind_set ( ikind )
          CALL get_molecule_kind ( molecule_kind, ndist = ndcon, &
-                                  ng3x3 = n3x3con, natom = natom )
+                                  ng3x3 = n3x3con, ng4x6 = n4x6con, &
+                                  natom = natom )
          DO imol = 1, nmol_per_kind
            icount = icount + 1
            point ( 1, icount ) = atm_offset + 1 
            point ( 2, icount ) = atm_offset + natom 
-           const_mol ( icount ) =  ndcon + 3 *  n3x3con
+           const_mol ( icount ) =  ndcon + 3 *  n3x3con + 6 * n4x6con
            tot_const ( icount ) = const_mol ( icount )
            atm_offset =  point ( 2, icount )
          END DO
@@ -414,8 +415,8 @@ SUBROUTINE nhc_particle_setup ( simpar, local_molecules, molecule_set, &
         nmol_per_kind =  local_molecules % n_el ( ikind )
         molecule_kind => molecule_kind_set ( ikind )
         CALL get_molecule_kind ( molecule_kind, natom=natom, ndist = ndcon, &
-                                 ng3x3 = n3x3con, nmolecule=nmolecule )
-        const_mol ( ikind ) =  ndcon + 3 * n3x3con
+                                 ng3x3 = n3x3con, ng4x6 = n4x6con, nmolecule=nmolecule )
+        const_mol ( ikind ) =  ndcon + 3 * n3x3con + 6 * n4x6con
         tot_const ( ikind ) = const_mol ( ikind ) * nmolecule
         point ( 1, ikind ) = atm_offset + 1 
         point ( 2, ikind ) = atm_offset + natom * nmol_per_kind
