@@ -1711,7 +1711,7 @@ CONTAINS
 
                 END IF ! ppnl
 
-                IF (all_potential_present .AND. new_atom_b) THEN
+                IF (all_potential_present ) THEN
 
                   IF(calculate_forces) THEN
 
