@@ -23,7 +23,10 @@ MODULE qs_gapw_densities
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                              get_atomic_kind
   USE cp_control_types,                ONLY: dft_control_type
-  USE cp_error_handling,               ONLY: cp_error_type
+  USE cp_error_handling,               ONLY: cp_error_get_logger,&
+                                             cp_error_type
+  USE cp_log_handling,                 ONLY: cp_logger_type, &
+                                             cp_logger_get_default_unit_nr 
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE kinds,                           ONLY: dp
   USE memory_utilities,                ONLY: reallocate
@@ -79,9 +82,9 @@ CONTAINS
     TYPE(cp_para_env_type),    POINTER       :: para_env
     TYPE(rho0_mpole_type),     POINTER       :: rho0_mpole
     INTEGER                                  :: handle,ispin, ikind, &
-                                                natom, nkind, nspins
+                                                natom, nkind, nspins, output_unit
     INTEGER, DIMENSION(:), POINTER           :: atom_list
-    LOGICAL                                  :: paw_atom, my_tddft
+    LOGICAL                                  :: paw_atom, my_tddft, ionode
     TYPE(harmonics_atom_type), POINTER       :: harmonics
     TYPE(rho_atom_type), DIMENSION(:), &
       POINTER                                :: rho_atom_set
@@ -90,6 +93,7 @@ CONTAINS
     REAL(dp)                                 :: rho0_h_tot, rho0_s_tot,&
                                                 tot_rs_int
     REAL(dp), DIMENSION(:), POINTER          :: rho1_h_tot,rho1_s_tot
+    TYPE(cp_logger_type), POINTER            :: logger
 !******************************************************************************
 
     CALL timeset("prepare_gapw_den","I"," ",handle)
@@ -105,6 +109,11 @@ CONTAINS
     NULLIFY(rho1_h_tot,rho1_s_tot)
     NULLIFY(rho_atom_set)
     NULLIFY(rho0_atom_set)
+    NULLIFY(logger)
+
+    logger => cp_error_get_logger(error)
+    ionode = (logger%para_env%mepos==logger%para_env%source)
+    output_unit = cp_logger_get_default_unit_nr(logger)
 
     my_tddft = .FALSE.
     IF (PRESENT(tddft)) my_tddft = tddft
@@ -163,13 +172,15 @@ CONTAINS
 
 
     IF(ABS(1.0_dp-ABS(tot_rs_int/rho0_s_tot)).GT.1.0E-6_dp) THEN
-        WRITE(6,'(/,72("*"))')
-        WRITE(6,'(T2,A,T66,1E20.8)') & 
-          "WARNING: rho0_soft calculated on the local grid is  :", -rho0_s_tot,&
-          "         rho0_soft calculated on the global grid is :", tot_rs_int
-        WRITE(6,'(T2,A)') &
-          "         bad integration"
-        WRITE(6,'(72("*"),/)')    
+       IF (ionode) THEN
+          WRITE(output_unit,'(/,72("*"))')
+          WRITE(output_unit,'(T2,A,T66,1E20.8)') & 
+               "WARNING: rho0_soft calculated on the local grid is  :", -rho0_s_tot,&
+               "         rho0_soft calculated on the global grid is :", tot_rs_int
+          WRITE(output_unit,'(T2,A)') &
+               "         bad integration"
+          WRITE(output_unit,'(72("*"),/)') 
+       END IF
    END IF
 
    qs_charges%total_rho0_soft_rspace = tot_rs_int
