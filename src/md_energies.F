@@ -401,7 +401,7 @@ END SUBROUTINE set_energies
           WRITE ( iw, '( A,A,T31,A,T39,2(1X,E20.12) )' ) ' TEMPERATURE', &
                adjustl(unit % temp_label), '= ', temp, averages%avetemp
           IF ( virial % pv_availability ) &
-          WRITE ( iw, '( A,A,T31,A,T39,2(1X,E10.12) )' ) ' PRESSURE', &
+          WRITE ( iw, '( A,A,T31,A,T39,2(1X,E20.12) )' ) ' PRESSURE', &
                adjustl(unit % pres_label), '= ', pv_scalar, averages%avepress
           IF (simpar%ensemble(1:3)=='NPT') THEN
              WRITE ( iw, '( A,A,T31,A,T39,2(1X,E20.12) )' ) ' VOLUME', &
