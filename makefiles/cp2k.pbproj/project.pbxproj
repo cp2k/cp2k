@@ -5,6 +5,11 @@
 	};
 	objectVersion = 34;
 	objects = {
+		F52AA5020276ABC001394429 = {
+			isa = PBXFileReference;
+			path = Makefile_cpp;
+			refType = 4;
+		};
 		F550D64A0269A02501A8001C = {
 			buildStyles = (
 				F550D64C0269A02601A8001C,
@@ -1689,6 +1694,7 @@
 		F550D77B0269DE1F01A8001C = {
 			children = (
 				F550D77C0269DE1F01A8001C,
+				F52AA5020276ABC001394429,
 			);
 			isa = PBXGroup;
 			name = makefiles;
@@ -2006,7 +2012,7 @@
 			refType = 4;
 		};
 		F550D7AD026A0B0401A8001C = {
-			buildArgumentsString = "-c \"/usr/bin/gnumake $ACTION\"";
+			buildArgumentsString = "-c \"/usr/bin/gnumake -f $SRCROOT/Makefile_cpp $ACTION\"";
 			buildPhases = (
 			);
 			buildSettings = {
