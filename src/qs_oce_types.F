@@ -436,6 +436,7 @@ CONTAINS
             find_neighbor_list(neighbor_list_set=&
                               sac_list(iac)%neighbor_list_set,&
                               atom=iatom)
+         IF (.NOT.ASSOCIATED(sac_list_neighbor_list)) CYCLE
          CALL get_neighbor_list(neighbor_list=sac_list_neighbor_list,&
                                      nnode=nneighbor)
 !        *** Find the proper cell index ranges ***
