@@ -20,6 +20,7 @@ OBJECTS_GENERIC =\
  bessel_lib.o\
  brillouin.o\
  cg_test.o\
+ checkpoint_handler.o\
  cntl_input.o\
  coefficient_lists.o\
  coefficient_types.o\
@@ -227,7 +228,6 @@ OBJECTS_GENERIC =\
  structure_factors.o\
  structure_types.o\
  termination.o\
- timesl.o\
  timings.o\
  topology.o\
  transformations.o\
