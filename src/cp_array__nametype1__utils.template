@@ -40,7 +40,7 @@ MODULE cp_array_[nametype1]_utils
        cp_error_init, cp_error_dealloc_ref
   USE global_types, ONLY: global_environment_type
   USE timings, ONLY: timeset, timestop
-  USE qs_parser, ONLY: open_file, close_file
+  USE cp_files, ONLY: open_file, close_file
   USE machine, ONLY: m_flush
   [USE]
   IMPLICIT NONE
@@ -315,15 +315,18 @@ SUBROUTINE cp_2d_[nametype1]_write(array, unit_nr, el_format, error)
   CHARACTER(len=*), PARAMETER :: routineN='cp_2d_[nametype1]_write',&
         routineP=moduleN//':'//routineN
   CHARACTER(len=*), PARAMETER :: defaultFormat=[defaultFormatType1]
+  CHARACTER(len=200) :: fmtstr
   CHARACTER(len=10) :: nRiga
   failure=.FALSE.
   
   nRiga=cp_to_string(SIZE(array,2))
   DO i=1,SIZE(array,1)
      IF (PRESENT(el_format)) THEN
-        WRITE(unit=unit_nr,fmt='(" ",'//nRiga//el_format//')',iostat=iostat) array(i,:)
+        fmtstr='(" ",'//nRiga//el_format//')'
+        WRITE(unit=unit_nr,fmt=fmtstr,iostat=iostat) array(i,:)
      ELSE
-        WRITE(unit=unit_nr,fmt='(" ",'//nRiga//defaultFormat//')',iostat=iostat) array(i,:)
+        fmtstr = '(" ",'//nRiga//defaultFormat//')'
+        WRITE(unit=unit_nr,fmt=fmtstr,iostat=iostat) array(i,:)
      END IF
      CPInvariant(iostat==0,cp_failure_level,routineP,error,failure)
      IF (failure) THEN
@@ -372,6 +375,7 @@ SUBROUTINE cp_3d_[nametype1]_write(array, unit_nr, el_format, error)
   CHARACTER(len=*), PARAMETER :: routineN='cp_3d_[nametype1]_write',&
         routineP=moduleN//':'//routineN
   CHARACTER(len=*), PARAMETER :: defaultFormat=[defaultFormatType1]
+  CHARACTER(len=200) :: fmtstr
   CHARACTER(len=10) :: nRiga
   failure=.FALSE.
   
@@ -383,11 +387,11 @@ SUBROUTINE cp_3d_[nametype1]_write(array, unit_nr, el_format, error)
   DO k=1,SIZE(array,3)
      DO j=1,SIZE(array,2)
         IF (PRESENT(el_format)) THEN
-           WRITE(unit=unit_nr,fmt='(" ",'//nRiga//el_format//')',&
-                iostat=iostat) array(:,j,k)
+           fmtstr = '(" ",'//nRiga//el_format//')'
+           WRITE(unit=unit_nr,fmt=fmtstr,iostat=iostat) array(:,j,k)
         ELSE
-           WRITE(unit=unit_nr,fmt='(" ",'//nRiga//defaultFormat//')',&
-                iostat=iostat) array(:,j,k)
+           fmtstr = '(" ",'//nRiga//defaultFormat//')'
+           WRITE(unit=unit_nr,fmt=fmtstr,iostat=iostat) array(:,j,k)
         END IF
         CPInvariant(iostat==0,cp_failure_level,routineP,error,failure)
         IF (failure) THEN

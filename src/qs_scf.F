@@ -268,7 +268,7 @@ CONTAINS
 
     ALLOCATE(scf_env, stat=stat)
     CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
-    IF (.NOT. failure) THEN
+    IF (.NOT.failure) THEN
        CALL get_qs_env(qs_env=qs_env,&
             scf_control=scf_control,&
             dft_control=dft_control)
@@ -359,9 +359,9 @@ CONTAINS
     failure=.FALSE.
     ! CPPrecondition(associated(qs_env),cp_failure_level,routineP,error,failure)
     NULLIFY(scf_env)
-    IF (.NOT. failure) THEN
+    IF (.NOT.failure) THEN
        CALL get_qs_env(qs_env,scf_env=scf_env,error=error)
-       IF (.not.ASSOCIATED(scf_env)) THEN
+       IF (.NOT.ASSOCIATED(scf_env)) THEN
           CALL scf_env_create(scf_env, qs_env=qs_env, error=error)
           CALL set_qs_env(qs_env,scf_env=scf_env,error=error)
           CALL scf_env_release(scf_env)
@@ -544,7 +544,7 @@ CONTAINS
             REPEAT("-",77)
     END IF
     
-    IF (.NOT. logger%print_keys%timecumul) t1 = m_walltime()
+    IF (.NOT.logger%print_keys%timecumul) t1 = m_walltime()
 
 !   *** SCF loop ***
 
@@ -759,7 +759,7 @@ CONTAINS
                id_nr=1)
        END IF
 
-       IF (.NOT. logger%print_keys%timecumul) t1 = m_walltime()
+       IF (.NOT.logger%print_keys%timecumul) t1 = m_walltime()
 
 !   *** mixing methods have the new density matrix in p_mix_new
        IF (scf_env%mixing_method.EQ.ao_mixing_nr) THEN
@@ -897,7 +897,8 @@ CONTAINS
     CALL qs_ks_did_change(ks_env,rho_changed=.TRUE.,error=error)
 
 ! *** print out info
-    IF (.NOT.should_stop .AND. .NOT.dft_control%qs_control%semi_empirical) THEN
+    IF ((.NOT.should_stop).AND.&
+        (.NOT.dft_control%qs_control%semi_empirical)) THEN
        CALL scf_post_calculation(scf_env=scf_env, qs_env=qs_env, &
             globenv=globenv, error=error)
     END IF
@@ -959,7 +960,7 @@ CONTAINS
 
     CPPrecondition(ASSOCIATED(qs_env),cp_failure_level,routineP,error,failure)
     CPPrecondition(qs_env%ref_count>0,cp_failure_level,routineP,error,failure)
-    IF (.NOT. failure) THEN
+    IF (.NOT.failure) THEN
        SELECT CASE (mixing_method)
        CASE(no_mixing_nr)
           CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,&
@@ -1069,7 +1070,7 @@ CONTAINS
     ortho => scf_env%ortho
 
 ! update ecore
-    IF ( .NOT. dft_control%qs_control%semi_empirical ) THEN
+    IF (.NOT.dft_control%qs_control%semi_empirical) THEN
       CALL calculate_ecore_self(qs_env)
       CALL calculate_ecore_overlap(qs_env,globenv,dft_control%forces)
       IF (ionode.AND.logger%print_keys%scf_energies) THEN
@@ -1141,7 +1142,7 @@ CONTAINS
        END IF
        CALL qs_diis_b_clear(scf_env%scf_diis_buffer,error=error)
     CASE (ot_method_nr)
-       IF (.NOT. ASSOCIATED(scf_env%ot_preconditioner)) THEN
+       IF (.NOT.ASSOCIATED(scf_env%ot_preconditioner)) THEN
           ALLOCATE(scf_env%ot_preconditioner, stat=stat)
           CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
           CALL init_preconditioner(scf_env%ot_preconditioner,&
@@ -1298,7 +1299,7 @@ CONTAINS
 !   *** get the mo_derivs OK if needed ***
     IF (qs_env%requires_mo_derivs) THEN
      CALL get_qs_env(qs_env,mo_derivs=mo_derivs)
-     IF (.NOT. ASSOCIATED(mo_derivs) ) THEN
+     IF (.NOT.ASSOCIATED(mo_derivs)) THEN
        IF (dft_control%restricted) THEN ! right now, there might be more mos than needed derivs
           allocate(mo_derivs(1))
           CALL get_mo_set(mos(1)%mo_set,mo_coeff=mo_coeff)
@@ -1319,9 +1320,9 @@ CONTAINS
 
 !   *** Allocate the distributed SCF matrices ***
 
-    IF (.not.ASSOCIATED(scf_env%scf_work1).OR. &
-         .not.ASSOCIATED(scf_env%scf_work2).OR.&
-         .not.ASSOCIATED(scf_env%ortho)) THEN
+    IF ((.NOT.ASSOCIATED(scf_env%scf_work1)).OR.&
+        (.NOT.ASSOCIATED(scf_env%scf_work2)).OR.&
+        (.NOT.ASSOCIATED(scf_env%ortho))) THEN
 
        ao_mo_fmstruct => fm_pool_get_el_struct(ao_mo_fm_pools(1)%pool,&
             error=error)
@@ -1334,7 +1335,7 @@ CONTAINS
             template_fmstruct=ao_mo_fmstruct, error=error)
 
 
-       IF (.not.ASSOCIATED(scf_env%scf_work1)) THEN
+       IF (.NOT.ASSOCIATED(scf_env%scf_work1)) THEN
           IF (scf_env%method/=ot_method_nr) THEN
              ALLOCATE(scf_env%scf_work1(dft_control%nspins), stat=stat)
              CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
@@ -1350,17 +1351,17 @@ CONTAINS
              ENDDO
           ENDIF
        END IF
-       IF (.NOT.ASSOCIATED(scf_env%ortho).AND. &
-             (scf_env%method/=ot_method_nr.AND.&
-              scf_env%method/=special_diag_method_nr) ) THEN
+       IF ((.NOT.ASSOCIATED(scf_env%ortho)).AND.&
+           ((scf_env%method /= ot_method_nr).AND.&
+            (scf_env%method /= special_diag_method_nr))) THEN
           CALL cp_fm_create(scf_env%ortho,&
                matrix_struct=ao_ao_fmstruct,&
                name="SCF"//TRIM(ADJUSTL(cp_to_string(scf_env%id_nr)))//&
                "ORTHO_MATRIX",&
                error=error)
        END IF
-       IF (.not.ASSOCIATED(scf_env%scf_work2).AND.&
-            scf_env%method/=ot_method_nr) THEN
+       IF ((.NOT.ASSOCIATED(scf_env%scf_work2)).AND.&
+           (scf_env%method /= ot_method_nr)) THEN
           CALL cp_fm_create(scf_env%scf_work2,&
                matrix_struct=ao_ao_fmstruct,&
                name="SCF"//TRIM(ADJUSTL(cp_to_string(scf_env%id_nr)))//&
@@ -1384,7 +1385,7 @@ CONTAINS
 
 !   *** allocate p_mix_new ***
     IF (scf_env%mixing_method.EQ.ao_mixing_nr) THEN
-       IF (.not.ASSOCIATED(scf_env%p_mix_new)) THEN
+       IF (.NOT.ASSOCIATED(scf_env%p_mix_new)) THEN
           CALL sm_pools_create_matrix_vect(S_sm_pools,scf_env%p_mix_new,&
                name="SCF"//TRIM(ADJUSTL(cp_to_string(scf_env%id_nr)))//&
                "DENSITY",&
@@ -1393,7 +1394,7 @@ CONTAINS
     END IF
 
 !   *** allocate the ks env **
-    IF (.not.ASSOCIATED(ks_env)) THEN
+    IF (.NOT.ASSOCIATED(ks_env)) THEN
        CALL qs_ks_create(ks_env,qs_env=qs_env)
        CALL set_qs_env(qs_env, ks_env=ks_env)
        CALL qs_ks_release(ks_env)
@@ -1802,14 +1803,14 @@ CONTAINS
           ortho_basis = .TRUE.
     END IF
 
-    IF (scf_control%use_ot .AND. .NOT.  &
-         (scf_control%density_guess == "RANDOM" .OR.  &
-          scf_control%density_guess == "ATOMIC" .OR.  &
-         (scf_control%density_guess == "RESTART" .AND. &
-         scf_control%level_shift == 0.0_dp))) THEN
+    IF (scf_control%use_ot.AND.&
+        (.NOT.((scf_control%density_guess == "RANDOM").OR.&
+               (scf_control%density_guess == "ATOMIC").OR.&
+               ((scf_control%density_guess == "RESTART").AND.&
+                (scf_control%level_shift == 0.0_dp))))) THEN
        CALL stop_program("calculate_first_density_matrix",&
             "OT needs GUESS ATOMIC / RESTART : other options NYI")
-    ENDIF
+    END IF
 
     IF (scf_control%density_guess == "RESTART") THEN
 
@@ -1881,7 +1882,7 @@ CONTAINS
        CALL copy_sm_to_fm(h_core_sparse(1)%matrix,work1(1)%matrix)
 
        IF (dft_control%nspins.eq.2) THEN
-          IF (.NOT. scf_control%use_ot) THEN
+          IF (.NOT.scf_control%use_ot) THEN
              CALL cp_fm_to_fm(work1(1)%matrix,&
                   work1(2)%matrix)
           ENDIF
@@ -2124,7 +2125,7 @@ CONTAINS
     CPPrecondition(scf_env%ref_count>0,cp_failure_level,routineP,error,failure)
     CPPrecondition(ASSOCIATED(qs_env),cp_failure_level,routineP,error,failure)
 
-    IF (.NOT. failure) THEN
+    IF (.NOT.failure) THEN
        extrapolation_method_nr=wfi_use_guess_method_nr
        IF (ASSOCIATED(qs_env%wf_history)) THEN
           CALL wfi_extrapolate(globenv,qs_env%wf_history, &
@@ -2132,8 +2133,9 @@ CONTAINS
                extrapolation_method_nr=extrapolation_method_nr,&
                orthogonal_wf=orthogonal_wf, gapw=gapw, error=error)
           ! wfi_use_guess_method_nr the wavefunctions are not yet initialized
-          IF (.NOT.orthogonal_wf.AND.scf_env%method==ot_method_nr.AND. &
-                                .NOT.extrapolation_method_nr==wfi_use_guess_method_nr) THEN
+          IF ((.NOT.orthogonal_wf).AND.&
+              (scf_env%method == ot_method_nr).AND.&
+              (.NOT.(extrapolation_method_nr == wfi_use_guess_method_nr))) THEN
              DO ispin=1,SIZE(qs_env%mos)
                 CALL get_mo_set(qs_env%mos(ispin)%mo_set, &
                      mo_coeff=mo_coeff, nmo=nmo)
@@ -2208,7 +2210,7 @@ CONTAINS
     CPPrecondition(ASSOCIATED(scf_env),cp_failure_level,routineP,error,failure)
     CPPrecondition(scf_env%ref_count>0,cp_failure_level,routineP,error,failure)
     CPPrecondition(ASSOCIATED(qs_env),cp_failure_level,routineP,error,failure)
-    IF (.NOT. failure) THEN
+    IF (.NOT.failure) THEN
        CALL mpools_get(qs_env%mpools,S_sm_pools=S_sm_pools,error=error)
 
 !   *** Release SCF work storage ***
@@ -2302,7 +2304,7 @@ SUBROUTINE scf_env_did_change(scf_env,error)
   
   CPPrecondition(ASSOCIATED(scf_env),cp_failure_level,routineP,error,failure)
   CPPrecondition(scf_env%ref_count>0,cp_failure_level,routineP,error,failure)
-  IF (.NOT. failure) THEN
+  IF (.NOT.failure) THEN
      IF (ASSOCIATED(scf_env%p_mix_new)) THEN
         CALL deallocate_matrix_set(scf_env%p_mix_new)
      END IF

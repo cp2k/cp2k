@@ -491,7 +491,7 @@ CONTAINS
     IF (PRESENT(close_global_unit_on_dealloc)) THEN
        logger%close_global_unit_on_dealloc=close_global_unit_on_dealloc
        IF (PRESENT(default_global_unit_nr).AND.PRESENT(global_filename).AND.&
-            .NOT.close_global_unit_on_dealloc) THEN
+           (.NOT.close_global_unit_on_dealloc)) THEN
          logger%default_global_unit_nr=default_global_unit_nr
        END IF
     END IF
@@ -506,7 +506,7 @@ CONTAINS
     IF (PRESENT(close_local_unit_on_dealloc)) THEN
        logger%close_local_unit_on_dealloc=close_local_unit_on_dealloc
        IF (PRESENT(default_local_unit_nr).AND.PRESENT(local_filename).AND.&
-            .NOT.close_local_unit_on_dealloc) THEN
+           (.NOT.close_local_unit_on_dealloc)) THEN
          logger%default_local_unit_nr=default_local_unit_nr
        END IF
     END IF

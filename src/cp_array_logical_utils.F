@@ -78,88 +78,88 @@ MODULE cp_array_logical_utils
 !***
 !****************************************************************************
   
-!!****s* cp_array_logical_utils/cp_1d_logical_p_type [1.0] *
-!!
-!!   NAME
-!!     cp_1d_logical_p_type
-!!
-!!   FUNCTION
-!!     represent a pointer to a 1d array
-!!
-!!   NOTES
-!!     -
-!!
-!!   ATTRIBUTES
-!!     -
-!!
-!!   AUTHOR
-!!     fawzi
-!!
-!!   MODIFICATION HISTORY
-!!     02.2003 created [fawzi]
-!!
-!!   SOURCE
+  !!****s* cp_array_logical_utils/cp_1d_logical_p_type [1.0] *
+  !!
+  !!   NAME
+  !!     cp_1d_logical_p_type
+  !!
+  !!   FUNCTION
+  !!     represent a pointer to a 1d array
+  !!
+  !!   NOTES
+  !!     -
+  !!
+  !!   ATTRIBUTES
+  !!     -
+  !!
+  !!   AUTHOR
+  !!     fawzi
+  !!
+  !!   MODIFICATION HISTORY
+  !!     02.2003 created [fawzi]
+  !!
+  !!   SOURCE
   !***************************************************************************
-  TYPE cp_1d_logical_p_type
-     LOGICAL, DIMENSION(:), POINTER :: array
-  END TYPE cp_1d_logical_p_type
-!!***
+  type cp_1d_logical_p_type
+     logical, dimension(:), pointer :: array
+  end type cp_1d_logical_p_type
+  !!***
   !****************************************************************************
 
-!!****s* cp_array_logical_utils/cp_2d_logical_p_type [1.0] *
-!!
-!!   NAME
-!!     cp_2d_logical_p_type
-!!
-!!   FUNCTION
-!!     represent a pointer to a 2d array
-!!
-!!   NOTES
-!!     -
-!!
-!!   ATTRIBUTES
-!!     -
-!!
-!!   AUTHOR
-!!     fawzi
-!!
-!!   MODIFICATION HISTORY
-!!     02.2003 created [fawzi]
-!!
-!!   SOURCE
+  !!****s* cp_array_logical_utils/cp_2d_logical_p_type [1.0] *
+  !!
+  !!   NAME
+  !!     cp_2d_logical_p_type
+  !!
+  !!   FUNCTION
+  !!     represent a pointer to a 2d array
+  !!
+  !!   NOTES
+  !!     -
+  !!
+  !!   ATTRIBUTES
+  !!     -
+  !!
+  !!   AUTHOR
+  !!     fawzi
+  !!
+  !!   MODIFICATION HISTORY
+  !!     02.2003 created [fawzi]
+  !!
+  !!   SOURCE
   !***************************************************************************
-  TYPE cp_2d_logical_p_type
-     LOGICAL, DIMENSION(:,:), POINTER :: array
-  END TYPE cp_2d_logical_p_type
-!!***
+  type cp_2d_logical_p_type
+     logical, dimension(:,:), pointer :: array
+  end type cp_2d_logical_p_type
+  !!***
   !****************************************************************************
 
-!!****s* cp_array_logical_utils/cp_3d_logical_p_type [1.0] *
-!!
-!!   NAME
-!!     cp_3d_logical_p_type
-!!
-!!   FUNCTION
-!!     represent a pointer to a 3d array
-!!
-!!   NOTES
-!!     -
-!!
-!!   ATTRIBUTES
-!!     -
-!!
-!!   AUTHOR
-!!     fawzi
-!!
-!!   MODIFICATION HISTORY
-!!     02.2003 created [fawzi]
-!!
-!!   SOURCE
+  !!****s* cp_array_logical_utils/cp_3d_logical_p_type [1.0] *
+  !!
+  !!   NAME
+  !!     cp_3d_logical_p_type
+  !!
+  !!   FUNCTION
+  !!     represent a pointer to a 3d array
+  !!
+  !!   NOTES
+  !!     -
+  !!
+  !!   ATTRIBUTES
+  !!     -
+  !!
+  !!   AUTHOR
+  !!     fawzi
+  !!
+  !!   MODIFICATION HISTORY
+  !!     02.2003 created [fawzi]
+  !!
+  !!   SOURCE
   !***************************************************************************
-  TYPE cp_3d_logical_p_type
-     LOGICAL, DIMENSION(:,:,:), POINTER :: array
-  END TYPE cp_3d_logical_p_type
-!!***
+  type cp_3d_logical_p_type
+     logical, dimension(:,:,:), pointer :: array
+  end type cp_3d_logical_p_type
+  !!***
   !****************************************************************************
 
 CONTAINS
@@ -190,7 +190,7 @@ CONTAINS
 !!
 !!*** **********************************************************************
 SUBROUTINE cp_logical_write(element, unit_nr, el_format, error)
-    LOGICAL, INTENT(in)                      :: element
+    logical, INTENT(in)                      :: element
     INTEGER, INTENT(in)                      :: unit_nr
     CHARACTER(len=*), INTENT(in), OPTIONAL   :: el_format
     TYPE(cp_error_type), INTENT(inout), &
@@ -240,7 +240,7 @@ END SUBROUTINE cp_logical_write
 !!
 !!*** **********************************************************************
 SUBROUTINE cp_1d_logical_write(array, unit_nr, el_format, error)
-    LOGICAL, DIMENSION(:), INTENT(in)        :: array
+    logical, DIMENSION(:), INTENT(in)        :: array
     INTEGER, INTENT(in)                      :: unit_nr
     CHARACTER(len=*), INTENT(in), OPTIONAL   :: el_format
     TYPE(cp_error_type), INTENT(inout), &
@@ -252,7 +252,7 @@ SUBROUTINE cp_1d_logical_write(array, unit_nr, el_format, error)
     INTEGER                                  :: i, iostat
     LOGICAL                                  :: failure
 
-  failure=.FALSE.
+  failure=.false.
   WRITE(unit=unit_nr,fmt="('( ')",advance="no", iostat=iostat)
   CPPrecondition(iostat==0,cp_failure_level,routineP,error,failure)  
   IF (.NOT.failure) THEN
@@ -281,7 +281,7 @@ SUBROUTINE cp_1d_logical_write(array, unit_nr, el_format, error)
      END IF
      WRITE(unit=unit_nr,fmt="(' )')")
   END IF
-  CALL m_flush(unit_nr)
+  call m_flush(unit_nr)
 
 END SUBROUTINE cp_1d_logical_write
 !***************************************************************************
@@ -312,7 +312,7 @@ END SUBROUTINE cp_1d_logical_write
 !!
 !!*** **********************************************************************
 SUBROUTINE cp_2d_logical_write(array, unit_nr, el_format, error)
-    LOGICAL, DIMENSION(:, :), INTENT(in)     :: array
+    logical, DIMENSION(:, :), INTENT(in)     :: array
     INTEGER, INTENT(in)                      :: unit_nr
     CHARACTER(len=*), INTENT(in), OPTIONAL   :: el_format
     TYPE(cp_error_type), INTENT(inout), &
@@ -322,6 +322,7 @@ SUBROUTINE cp_2d_logical_write(array, unit_nr, el_format, error)
       routineN = 'cp_2d_logical_write', routineP = moduleN//':'//routineN
 
     CHARACTER(len=10)                        :: nRiga
+    CHARACTER(len=200)                       :: fmtstr
     INTEGER                                  :: i, iostat
     LOGICAL                                  :: failure
 
@@ -330,16 +331,18 @@ SUBROUTINE cp_2d_logical_write(array, unit_nr, el_format, error)
   nRiga=cp_to_string(SIZE(array,2))
   DO i=1,SIZE(array,1)
      IF (PRESENT(el_format)) THEN
-        WRITE(unit=unit_nr,fmt='(" ",'//nRiga//el_format//')',iostat=iostat) array(i,:)
+        fmtstr='(" ",'//nRiga//el_format//')'
+        WRITE(unit=unit_nr,fmt=fmtstr,iostat=iostat) array(i,:)
      ELSE
-        WRITE(unit=unit_nr,fmt='(" ",'//nRiga//defaultFormat//')',iostat=iostat) array(i,:)
+        fmtstr = '(" ",'//nRiga//defaultFormat//')'
+        WRITE(unit=unit_nr,fmt=fmtstr,iostat=iostat) array(i,:)
      END IF
      CPInvariant(iostat==0,cp_failure_level,routineP,error,failure)
      IF (failure) THEN
         EXIT
      END IF
   END DO
-  CALL m_flush(unit_nr)
+  call m_flush(unit_nr)
 END SUBROUTINE cp_2d_logical_write
 !***************************************************************************
 
@@ -371,7 +374,7 @@ END SUBROUTINE cp_2d_logical_write
 !!
 !!*** **********************************************************************
 SUBROUTINE cp_3d_logical_write(array, unit_nr, el_format, error)
-    LOGICAL, DIMENSION(:, :, :), INTENT(in)  :: array
+    logical, DIMENSION(:, :, :), INTENT(in)  :: array
     INTEGER, INTENT(in)                      :: unit_nr
     CHARACTER(len=*), INTENT(in), OPTIONAL   :: el_format
     TYPE(cp_error_type), INTENT(inout), &
@@ -381,6 +384,7 @@ SUBROUTINE cp_3d_logical_write(array, unit_nr, el_format, error)
       routineN = 'cp_3d_logical_write', routineP = moduleN//':'//routineN
 
     CHARACTER(len=10)                        :: nRiga
+    CHARACTER(len=200)                       :: fmtstr
     INTEGER                                  :: iostat, j, k
     LOGICAL                                  :: failure
 
@@ -394,11 +398,11 @@ SUBROUTINE cp_3d_logical_write(array, unit_nr, el_format, error)
   DO k=1,SIZE(array,3)
      DO j=1,SIZE(array,2)
         IF (PRESENT(el_format)) THEN
-           WRITE(unit=unit_nr,fmt='(" ",'//nRiga//el_format//')',&
-                iostat=iostat) array(:,j,k)
+           fmtstr = '(" ",'//nRiga//el_format//')'
+           WRITE(unit=unit_nr,fmt=fmtstr,iostat=iostat) array(:,j,k)
         ELSE
-           WRITE(unit=unit_nr,fmt='(" ",'//nRiga//defaultFormat//')',&
-                iostat=iostat) array(:,j,k)
+           fmtstr = '(" ",'//nRiga//defaultFormat//')'
+           WRITE(unit=unit_nr,fmt=fmtstr,iostat=iostat) array(:,j,k)
         END IF
         CPInvariant(iostat==0,cp_failure_level,routineP,error,failure)
         IF (failure) THEN
@@ -444,9 +448,9 @@ END SUBROUTINE cp_3d_logical_write
 !!
 !!*** **********************************************************************
   SUBROUTINE cp_1d_logical_guarantee_size(array, n, init, error)
-    LOGICAL, DIMENSION(:), POINTER           :: array
+    logical, DIMENSION(:), POINTER           :: array
     INTEGER, INTENT(in)                      :: n
-    LOGICAL, INTENT(in), OPTIONAL            :: init
+    logical, INTENT(in), OPTIONAL            :: init
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
@@ -510,9 +514,9 @@ END SUBROUTINE cp_3d_logical_write
 !!*** **********************************************************************
   SUBROUTINE cp_2d_logical_guarantee_size(array, n_rows, n_cols ,&
        init, error)
-    LOGICAL, DIMENSION(:, :), POINTER        :: array
+    logical, DIMENSION(:, :), POINTER        :: array
     INTEGER, INTENT(in)                      :: n_rows, n_cols
-    LOGICAL, INTENT(in), OPTIONAL            :: init
+    logical, INTENT(in), OPTIONAL            :: init
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
@@ -574,26 +578,26 @@ END SUBROUTINE cp_3d_logical_write
 !!
 !!*** **********************************************************************
 FUNCTION cp_1d_logical_bsearch(array, el, l_index, u_index, error)&
-     RESULT(res)
-    LOGICAL, DIMENSION(:), INTENT(in)        :: array
-    LOGICAL, INTENT(in)                      :: el
+     result(res)
+    logical, DIMENSION(:), intent(in)        :: array
+    logical, intent(in)                      :: el
     INTEGER, INTENT(in), OPTIONAL            :: l_index, u_index
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
-    INTEGER                                  :: res
+    type(cp_error_type), intent(inout), &
+      optional                               :: error
+    integer                                  :: res
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'cp_1d_logical_bsearch', &
+    character(len=*), parameter :: routineN = 'cp_1d_logical_bsearch', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: aindex, lindex, uindex
-    LOGICAL                                  :: failure
+    integer                                  :: aindex, lindex, uindex
+    logical                                  :: failure
 
-  failure=.FALSE.
+  failure=.false.
   
   lindex=1
-  uindex=SIZE(array)
-  IF (PRESENT(l_index)) lindex=l_index
-  IF (PRESENT(u_index)) uindex=u_index
+  uindex=size(array)
+  if (present(l_index)) lindex=l_index
+  if (present(u_index)) uindex=u_index
   DO WHILE (lindex <= uindex)
      aindex=(lindex+uindex)/2
      IF (CP_L_LESS_Q(array(aindex),el)) THEN

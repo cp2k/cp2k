@@ -173,7 +173,7 @@ SUBROUTINE mpools_retain(mpools, error)
   failure=.FALSE.
   
   CPPrecondition(ASSOCIATED(mpools),cp_failure_level,routineP,error,failure)
-  IF (.NOT. failure) THEN
+  IF (.NOT.failure) THEN
      CPPreconditionNoFail(mpools%ref_count>0,cp_failure_level,routineP,error)
      mpools%ref_count=mpools%ref_count+1
   END IF
@@ -295,7 +295,7 @@ SUBROUTINE mpools_set(mpools,ao_mo_fm_pools,ao_ao_fm_pools,&
   
   CPPrecondition(ASSOCIATED(mpools),cp_failure_level,routineP,error,failure)
   CPPrecondition(mpools%ref_count>0,cp_failure_level,routineP,error,failure)
-  IF (.NOT. failure) THEN
+  IF (.NOT.failure) THEN
     IF (PRESENT(ao_mo_fm_pools)) THEN
       IF (ASSOCIATED(ao_mo_fm_pools)) THEN
         CALL fm_pools_copy(ao_mo_fm_pools,new_fm_pools,error=error)
@@ -383,7 +383,7 @@ SUBROUTINE mpools_get(mpools,ao_mo_fm_pools,ao_ao_fm_pools,&
 
   failure=.FALSE.
   
-  IF (.NOT. failure) THEN
+  IF (.NOT.failure) THEN
          IF (PRESENT(S_sm_pools)) S_sm_pools => mpools%S_sm_pools
     IF (PRESENT(ao_mo_fm_pools)) ao_mo_fm_pools => mpools%ao_mo_fm_pools
     IF (PRESENT(maxao_maxmo_fm_pool)) THEN
@@ -457,7 +457,7 @@ SUBROUTINE mpools_create(mpools,error)
   
   ALLOCATE(mpools, stat=stat)
   CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-  IF (.NOT. failure) THEN
+  IF (.NOT.failure) THEN
      NULLIFY(mpools%ao_ao_fm_pools, mpools%ao_mo_fm_pools, &
           mpools%mo_mo_fm_pools, mpools%S_sm_pools)
      mpools%ref_count=1
@@ -582,7 +582,7 @@ SUBROUTINE mpools_rebuild_fm_pools(mpools, mos, blacs_env, para_env,&
      END IF
   END IF
 
-  IF (.NOT. failure) THEN
+  IF (.NOT.failure) THEN
      CALL get_mo_set(mos(1)%mo_set,nao=nao,nmo=min_nmo)
      max_nmo=min_nmo
      DO ispin=2,SIZE(mos)
@@ -604,8 +604,7 @@ SUBROUTINE mpools_rebuild_fm_pools(mpools, mos, blacs_env, para_env,&
      should_rebuild=.FALSE.
      DO ispin=1,nspins
         p_att => mpools%ao_ao_fm_pools(ispin)%pool
-        should_rebuild=should_rebuild.or.&
-             .NOT.ASSOCIATED(p_att)
+        should_rebuild = (should_rebuild.OR.(.NOT.ASSOCIATED(p_att)))
         IF (.NOT.should_rebuild) THEN
            fmstruct => fm_pool_get_el_struct(mpools%ao_ao_fm_pools(ispin)%pool,&
                 error=error)
@@ -637,8 +636,7 @@ SUBROUTINE mpools_rebuild_fm_pools(mpools, mos, blacs_env, para_env,&
      should_rebuild=.FALSE.
      DO ispin=1,nspins
         p_att => mpools%ao_mo_fm_pools(ispin)%pool
-        should_rebuild=should_rebuild.or.&
-             .NOT.ASSOCIATED(p_att)
+        should_rebuild = (should_rebuild.OR.(.NOT.ASSOCIATED(p_att)))
         IF (.NOT.should_rebuild) THEN
            fmstruct => fm_pool_get_el_struct(mpools%ao_mo_fm_pools(ispin)&
                 %pool,error=error)
@@ -684,8 +682,7 @@ SUBROUTINE mpools_rebuild_fm_pools(mpools, mos, blacs_env, para_env,&
      should_rebuild=.FALSE.
      DO ispin=1,nspins
         p_att => mpools%mo_mo_fm_pools(ispin)%pool
-        should_rebuild=should_rebuild.OR.&
-             .NOT.ASSOCIATED(p_att)
+        should_rebuild = (should_rebuild.OR.(.NOT.ASSOCIATED(p_att)))
         IF (.NOT.should_rebuild) THEN
            fmstruct => fm_pool_get_el_struct(p_att,error=error)
            CALL cp_fm_struct_get(fmstruct, nrow_global=nrg,&
@@ -802,7 +799,7 @@ SUBROUTINE mpools_rebuild_s_sm_pools(mpools, s, nspins, particle_set, &
   IF (.NOT.ASSOCIATED(mpools)) THEN
      CALL mpools_create(mpools,error=error)
   END IF
-  IF (.NOT. failure) THEN
+  IF (.NOT.failure) THEN
      IF (.NOT.ASSOCIATED(mpools)) THEN
         CALL mpools_create(mpools,error=error)
      END IF

@@ -274,7 +274,7 @@ CONTAINS
                                          atomic_kind_set(ikind)%paw_atom) THEN
           CALL deallocate_gto_basis_set(atomic_kind_set(ikind)%soft_basis_set)
         ELSEIF(ASSOCIATED(atomic_kind_set(ikind)%soft_basis_set).AND.&
-                                    .NOT.  atomic_kind_set(ikind)%paw_atom) THEN
+                          (.NOT.atomic_kind_set(ikind)%paw_atom)) THEN
           NULLIFY (atomic_kind_set(ikind)%soft_basis_set)
         END IF
         IF (ASSOCIATED(atomic_kind_set(ikind)%orb_basis_set)) THEN
@@ -1479,23 +1479,23 @@ CONTAINS
         CALL stop_program(routine_name,module_name,__LINE__,&
                      "No valid element is assign to the atomic kind ",globenv)
       END IF
-      IF (.NOT. dft_control%qs_control%semi_empirical) THEN
-        IF ( .NOT. ASSOCIATED(gth_potential) .AND. &
-             .NOT. ASSOCIATED(all_potential) .AND. &
-             .NOT. ASSOCIATED(elp_potential) .AND. &
-             mass > 0._dp ) THEN
+      IF (.NOT.dft_control%qs_control%semi_empirical) THEN
+        IF ((.NOT.ASSOCIATED(gth_potential)).AND.&
+            (.NOT.ASSOCIATED(all_potential)).AND.&
+            (.NOT.ASSOCIATED(elp_potential)).AND.&
+            (mass > 0.0_dp)) THEN
           CALL stop_program(routine_name,module_name,__LINE__,&
                       "No potential type was defined for the "//&
                       "atomic kind <"//TRIM(atomic_kind%name),globenv)
         END IF
-        IF ( .NOT. ASSOCIATED(orb_basis_set) ) THEN
+        IF (.NOT.ASSOCIATED(orb_basis_set)) THEN
           CALL stop_program(routine_name,module_name,__LINE__,&
                       "No basis set type was defined for the "//&
                       "atomic kind <"//TRIM(atomic_kind%name),globenv)
         END IF
       ELSE
         CALL get_atomic_kind(atomic_kind,se_parameter=se_parameter)
-        IF ( .NOT. ASSOCIATED(se_parameter) ) THEN
+        IF (.NOT.ASSOCIATED(se_parameter)) THEN
           CALL allocate_se_param(atomic_kind%se_parameter)
           CALL get_atomic_kind(atomic_kind,se_parameter=se_parameter)
         END IF
