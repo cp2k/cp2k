@@ -1193,7 +1193,8 @@ CONTAINS
                             section_found=section_found)
        END IF
     END IF
-    IF (.NOT.section_found) THEN 
+    IF (.NOT.section_found) THEN
+       CALL finish_parser() 
        CALL start_parser(file_name=globenv%input_file_name,&
                          globenv=globenv,&
                          start_section_label="KIND",&
