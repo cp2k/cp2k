@@ -1707,7 +1707,8 @@ SUBROUTINE sort_shells ( gsq, g_hat, idx )
   INTEGER, DIMENSION ( : ), INTENT ( INOUT ) :: idx
 
 ! Locals
-  REAL ( dbl ), PARAMETER :: small = 1.e-12_dbl
+  ! Juergs temporary hack to get the grids sorted for large (4000Ry) cutoffs.
+  REAL ( dbl ), PARAMETER :: small = 5.e-16_dbl ! might need to call lapack for machine precision.
   REAL ( dbl ) :: s_begin
   INTEGER :: ng, ig, s1, s2
 
