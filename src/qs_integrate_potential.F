@@ -111,7 +111,7 @@ CONTAINS
     TYPE(qs_environment_type), INTENT(IN)       :: qs_env
     TYPE(real_matrix_p_type), INTENT(IN)        :: p
     TYPE(real_matrix_p_type), INTENT(INOUT)     :: h
-    LOGICAL                                     :: rebuild
+    LOGICAL, INTENT(IN)                         :: rebuild
 
 !   *** Local parameters ***
 
@@ -556,7 +556,6 @@ CONTAINS
     integer                                 :: i
 
     LOGICAL                           :: force
-    INTEGER, DIMENSION(3)             :: nsmax
 
 !   ---------------------------------------------------------------------------
 
