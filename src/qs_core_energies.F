@@ -475,13 +475,13 @@ CONTAINS
                     ELSE
                       IF (atom_a == atom_b) THEN
                         include_ab = .TRUE.
-                        f = 1.0_dp
+                        f = 0.5_dp
                       ELSE IF (atom_a > atom_b) THEN
                         include_ab = (MODULO(atom_a + atom_b,2) == 0)
-                        f = 2.0_dp
+                        f = 1.0_dp
                       ELSE
                         include_ab = (MODULO(atom_a + atom_b,2) /= 0)
-                        f = 2.0_dp
+                        f = 1.0_dp
                       END IF
                     END IF
                     IF (include_ab) THEN
@@ -597,13 +597,13 @@ CONTAINS
                           ELSE
                             IF (atom_a == atom_b) THEN
                               include_ab = .TRUE.
-                              f = 1.0_dp
+                              f = 0.5_dp
                             ELSE IF (atom_a > atom_b) THEN
                               include_ab = (MODULO(atom_a + atom_b,2) == 0)
-                              f = 2.0_dp
+                              f = 1.0_dp
                             ELSE
                               include_ab = (MODULO(atom_a + atom_b,2) /= 0)
-                              f = 2.0_dp
+                              f = 1.0_dp
                             END IF
                           END IF
                           IF (include_ab) THEN
