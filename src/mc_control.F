@@ -291,6 +291,11 @@ SUBROUTINE read_mc_restart ( mc_par, force_env ,iw )
       CALL set_mc_par(mc_par,nunits_tot=mc_nunits_tot,nunits=mc_nunits,&
          nstart=nstart,nchain=mc_nchain)
       
+! advance the random number sequence based on the restart step
+      DO i=1,nstart+1
+         CALL random_number(rand)
+      ENDDO
+
 ! end the timing
       CALL timestop(0.0d0,handle)
 
