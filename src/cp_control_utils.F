@@ -286,6 +286,8 @@ CONTAINS
                 dft_control % xc_deriv_method_id = xc_deriv_fd
              CASE ("NN10_SMOOTH")
                 dft_control % xc_deriv_method_id = xc_deriv_nn10_smooth
+             CASE ("NN50_SMOOTH")
+                dft_control % xc_deriv_method_id = xc_deriv_nn50_smooth
              CASE ("SPLINE2_SMOOTH","NN6_SMOOTH")
                 dft_control % xc_deriv_method_id = xc_deriv_spline2_smooth
              CASE ("SPLINE3_SMOOTH","NN4_SMOOTH")
