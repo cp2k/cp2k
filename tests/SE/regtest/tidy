@@ -1,0 +1,23 @@
+rm -f *.crd \
+ *.ener \
+ *.restart \
+ *.vel \
+ *.crd \
+ *.cube \
+ coeffs_dump \
+ RESTART \
+ HESSIAN \
+ bfgs.data\
+ COLVAR-H2O\
+ CONDUCTIVITY\
+ HESSIAN\
+ HILLS-H2O\
+ HOMO_CENTERS_1\
+ LUMO_CENTERS_1\
+ MOLECULAR_DIPOLES\
+ Molecular_DOS\
+ P_magnitude\
+ RESTARTFARM\
+ S_MAGNITUDE\
+ bfgs.data
+
