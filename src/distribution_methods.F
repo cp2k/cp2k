@@ -108,7 +108,7 @@ CONTAINS
     TYPE(molecule_type), DIMENSION(:), POINTER      :: molecule_set
     TYPE(distribution_1d_type), POINTER             :: local_molecules,&
                                                        local_particles
-    TYPE(cp_error_type), INTENT(INOUT)              :: error
+    TYPE(cp_error_type), OPTIONAL, INTENT(INOUT)    :: error
 
 !   *** Local parameters ***
 
@@ -482,7 +482,7 @@ CONTAINS
     TYPE(molecule_type), DIMENSION(:), POINTER      :: molecule_set
     TYPE(distribution_2d_type), POINTER             :: distribution_2d
     TYPE(cp_blacs_env_type), POINTER                :: blacs_env
-    TYPE(cp_error_type), INTENT(INOUT)              :: error
+    TYPE(cp_error_type), OPTIONAL, INTENT(INOUT)    :: error
 
 !   *** Local parameters ***
 
