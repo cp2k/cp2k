@@ -1291,27 +1291,30 @@ END SUBROUTINE scf
                         homo=homo, &
                         nelectron=nelectron_spin, &
                         nao=nao)
-        WRITE (UNIT=output_unit,fmt=*) " For spin ",ispin
+        WRITE (UNIT=output_unit,fmt="(/,A,I2)") " For spin ",ispin
         WRITE (UNIT=output_unit,FMT="(/,(T3,A,I10))")&
            "Number of electrons:                    ",nelectron_spin,&
-           "Number of occupied orbitals:            ",homo,&
-           "Number of orbital functions:            ",nao
-      ENDDO
+           "Number of occupied orbitals:            ",homo
+      END DO
+      WRITE (UNIT=output_unit,FMT="(/,(T3,A,I10))")&
+        "Number of orbital functions:            ",nao
     END IF
 
     ! calc ortho matrix
-    ndep=0
+    ndep = 0
     IF (.NOT. scf_control%use_ot) THEN
-     IF (scf_control%use_cholesky .OR. scf_control%use_arpack) THEN
-       CALL copy_real_matrix_to_full_matrix(s(1)%matrix,ortho)
-       CALL cp_fm_cholesky_decompose(ortho)
-     ELSE
-       CALL calculate_ortho_matrix(ortho,s(1)%matrix,scf_work2,ndep,globenv,&
-            scf_control%eps_eigval,scf_control%work_syevx)
-       WRITE (UNIT=output_unit,FMT="(T3,A,I10)")&
-             "Number of independent orbital functions:",nao - ndep
-     ENDIF
-    ENDIF
+      IF (scf_control%use_cholesky .OR. scf_control%use_arpack) THEN
+        CALL copy_real_matrix_to_full_matrix(s(1)%matrix,ortho)
+        CALL cp_fm_cholesky_decompose(ortho)
+      ELSE
+        CALL calculate_ortho_matrix(ortho,s(1)%matrix,scf_work2,ndep,globenv,&
+                                    scf_control%eps_eigval,scf_control%work_syevx)
+        IF (ionode.AND.logger%print_keys%scf) THEN
+          WRITE (UNIT=output_unit,FMT="(T3,A,I10)")&
+            "Number of independent orbital functions:",nao - ndep
+        END IF
+      END IF
+    END IF
     IF (logger%print_keys%ortho_matrix) THEN
       CALL write_blacs_matrix(ortho,4,6,qs_env,globenv)
     END IF
@@ -1633,14 +1636,18 @@ END SUBROUTINE scf
       CALL blacs_syevx(ks,work,mo_eigenvalues,nmo,work_syevx)
       CALL timestop(0.0_wp,handle1)
 
-      CALL cp_fm_gemm("N","N",nao,nao,nao,1.0_wp,ortho,work,0.0_wp,&
+      CALL cp_fm_gemm("N","N",nao,nmo,nao,1.0_wp,ortho,work,0.0_wp,&
                       mo_eigenvectors)
 
-      IF (do_level_shift) CALL correct_mo_eigenvalues(mo_set,level_shift)
+      IF (do_level_shift) THEN
 
-!     *** Use last MO set as orthogonalization matrix ***
+        CALL correct_mo_eigenvalues(mo_set,level_shift)
 
-      CALL copy_blacs_to_blacs_matrix(mo_eigenvectors,ortho)
+!       *** Use last MO set as orthogonalization matrix ***
+
+        CALL copy_blacs_to_blacs_matrix(mo_eigenvectors,ortho)
+
+      END IF
 
     END IF
 
@@ -1755,8 +1762,9 @@ END SUBROUTINE scf
     TYPE(particle_type), DIMENSION(:), POINTER    :: particle_set
 
     REAL(wp) :: paa,saa,sum
-    INTEGER  :: atom_a,first_sgfa,handle,iatom,ikind,iset,isgf,isgfa,ishell,&
-                istat,la,last_sgfa,maxl,natom,nelec,nset,restart_unit,nmo
+    INTEGER  :: atom_a,first_sgfa,handle,homo,iatom,ikind,iset,isgf,isgfa,&
+                ishell,istat,la,last_sgfa,maxl,natom,nelec,nmo,nset,&
+                restart_unit
 
     INTEGER, DIMENSION(:), ALLOCATABLE :: econf
 
@@ -1795,12 +1803,12 @@ END SUBROUTINE scf
          END IF
 
          CALL get_mo_set(mo_set=mo_array(ispin)%mo_set,&
-                           eigenvectors=mo_eigenvectors, nmo=nmo)
+                           eigenvectors=mo_eigenvectors,homo=homo)
          ! ortho so that one can restart for different positions (basis sets?)
          CALL replicate_blacs_matrix(mo_eigenvectors,sv,"SV")
-         CALL cp_sm_fm_multiply(s_sparse%matrix,mo_eigenvectors,sv,nmo,&
+         CALL cp_sm_fm_multiply(s_sparse%matrix,mo_eigenvectors,sv,homo,&
                                 para_env=globenv%para_env)
-         CALL blacs_make_basis(mo_eigenvectors,nmo, &
+         CALL blacs_make_basis(mo_eigenvectors,homo,&
                                     ortho=sv,otype="SV")
          CALL cp_fm_release(sv)
          CALL calculate_density_matrix(mo_array(ispin)%mo_set,p_rmpv(ispin)%matrix,globenv)

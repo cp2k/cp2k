@@ -1,6 +1,6 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000  CP2K developers group                                 !
+!   Copyright (C) 2000 - 2003 CP2K developers group                           !
 !-----------------------------------------------------------------------------!
 !!****** cp2k/output_utilities [1.0] *
 !!
@@ -22,6 +22,7 @@
 !******************************************************************************
 
 MODULE output_utilities
+
   IMPLICIT NONE
 
   PRIVATE
@@ -119,8 +120,7 @@ CONTAINS
 
 !   *** Calculate appropriate row length ***
 
-
- rowlen = MIN(msglen,rowlen)
+    rowlen = MIN(msglen,rowlen)
 
 !   *** Generate the blank lines before the message ***
 

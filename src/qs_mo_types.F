@@ -31,7 +31,7 @@
 !******************************************************************************
 
 MODULE qs_mo_types
-! *****************************************************************************
+
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                              get_atomic_kind,&
                                              get_atomic_kind_set
@@ -52,6 +52,7 @@ MODULE qs_mo_types
                                              cp_fm_pool_type,&
                                              fm_pool_create_matrix,&
                                              fm_pool_give_back_matrix
+  USE cp_fm_types,                     ONLY: cp_fm_set_all
   USE cp_log_handling,                 ONLY: cp_failure_level,&
                                              cp_fatal_level,&
                                              cp_log,&
@@ -61,11 +62,13 @@ MODULE qs_mo_types
                                              cp_warning_level
   USE cp_para_types,                   ONLY: cp_blacs_env_type,&
                                              cp_para_env_type
-  USE global_types,                    ONLY: global_environment_type
-  USE kinds,                           ONLY: wp => dp,&
+  USE global_types,                    ONLY: LOW,global_environment_type
+  USE kinds,                           ONLY: int_size,&
+                                             wp => dp,&
                                              wp_size => dp_size
-  USE message_passing,                 ONLY: mp_sum
+  USE message_passing,                 ONLY: mp_bcast,mp_sum
   USE orbital_pointers,                ONLY: nso
+  USE output_utilities,                ONLY: print_warning
   USE particle_types,                  ONLY: particle_type
   USE qs_blacs,                        ONLY: blacs_replicated_copy,&
                                              blacs_scale_matrix,&
@@ -102,11 +105,13 @@ MODULE qs_mo_types
 
   PRIVATE
 
+  CHARACTER(len=*), PARAMETER :: module_name = "qs_mo_types"
+
   TYPE mo_set_type
     PRIVATE
-    REAL(wp)                         :: maxocc
-    INTEGER                          :: homo,lfomo,nao,nelectron,nmo
-    REAL(wp), DIMENSION(:), POINTER  :: eigenvalues,occupation_numbers
+    REAL(wp)                           :: maxocc
+    INTEGER                            :: homo,lfomo,nao,nelectron,nmo
+    REAL(wp), DIMENSION(:), POINTER    :: eigenvalues,occupation_numbers
     TYPE(cp_full_matrix_type), POINTER :: eigenvectors
   END TYPE mo_set_type
 
@@ -114,8 +119,6 @@ MODULE qs_mo_types
     TYPE(mo_set_type), POINTER :: mo_set
   END TYPE mo_set_p_type
 
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN='qs_mo_types'
- 
 ! *** Public data types ***
 
   PUBLIC :: mo_set_p_type,&
@@ -134,26 +137,29 @@ MODULE qs_mo_types
             set_mo_occupation,&
             write_mo_set, &
             calculate_subspace_eigenvalues
-  INTERFACE calculate_subspace_eigenvalues
-    MODULE PROCEDURE  subspace_eigenvalues_ks, subspace_eigenvalues_vec
-  END INTERFACE
 
 ! *****************************************************************************
 
-  INTERFACE write_mo_set
-    MODULE PROCEDURE write_mo_set_to_output_unit,&
-                     write_mo_set_to_restart_new 
-  END INTERFACE
-  INTERFACE read_mo_set
-    MODULE PROCEDURE read_mo_set_from_restart_new
+  INTERFACE calculate_density_matrix
+    MODULE PROCEDURE calculate_density_matrix_sparse,&
+                     calculate_density_matrix_blacs
   END INTERFACE
 
-  INTERFACE calculate_density_matrix
-    MODULE PROCEDURE calculate_density_matrix_sparse, calculate_density_matrix_blacs
+  INTERFACE calculate_subspace_eigenvalues
+    MODULE PROCEDURE subspace_eigenvalues_ks,subspace_eigenvalues_vec
   END INTERFACE
 
   INTERFACE calculate_w_matrix
-    MODULE PROCEDURE calculate_w_matrix_sparse
+    MODULE PROCEDURE calculate_w_matrix_1,&
+                     calculate_w_matrix_2
+  END INTERFACE
+
+  INTERFACE read_mo_set
+    MODULE PROCEDURE read_mo_set_from_restart
+  END INTERFACE
+
+  INTERFACE write_mo_set
+    MODULE PROCEDURE write_mo_set_to_output_unit,write_mo_set_to_restart
   END INTERFACE
 
 !!***
@@ -189,8 +195,8 @@ CONTAINS
 !!     - nmo: number of molecular orbitals
 !!     - nelectrons: number of electrons
 !!     - maxocc: maximum occupation of an orbital (LDA: 2, LSD:1)
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
+!!     - error: variable to control error logging, stopping,...
+!!       see module cp_error_handling
 !!
 !!   AUTHOR
 !!     Matthias Krack
@@ -199,6 +205,7 @@ CONTAINS
 !!     11.2002 splitted initialization in two phases [fawzi]
 !!
 !!*** *********************************************************************
+
   SUBROUTINE allocate_mo_set(mo_set,nao,nmo,nelectron,maxocc, error)
 
 !   Purpose: Allocate a wavefunction data structure.
@@ -225,6 +232,7 @@ CONTAINS
 !   ---------------------------------------------------------------------------
 
     failure=.FALSE.
+
     ALLOCATE (mo_set,STAT=istat)
     IF (istat /= 0) CALL stop_memory(routine,"mo_set",0)
 
@@ -234,8 +242,10 @@ CONTAINS
     mo_set%nmo = nmo
     mo_set%homo = 0
     mo_set%lfomo = 0
-    NULLIFY(mo_set%eigenvalues, mo_set%occupation_numbers,&
-         mo_set%eigenvectors)
+
+    NULLIFY (mo_set%eigenvalues)
+    NULLIFY (mo_set%occupation_numbers)
+    NULLIFY (mo_set%eigenvectors)
 
   END SUBROUTINE allocate_mo_set
 
@@ -265,8 +275,8 @@ CONTAINS
 !!   INPUTS
 !!     - mo_set: the mo_set to initialize
 !!     - fm_pool: a pool out which you initialize the mo_set
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
+!!     - error: variable to control error logging, stopping,...
+!!       see module cp_error_handling
 !!
 !!   AUTHOR
 !!     Fawzi Mohamed
@@ -275,7 +285,9 @@ CONTAINS
 !!     11.2002 rewamped [fawzi]
 !!
 !!*** *********************************************************************
+
   SUBROUTINE init_mo_set(mo_set, fm_pool, name, error)
+
     TYPE(mo_set_type), POINTER                   :: mo_set
     TYPE(cp_fm_pool_type), POINTER               :: fm_pool
     CHARACTER(len=*), INTENT(in)                 :: name
@@ -284,7 +296,7 @@ CONTAINS
     LOGICAL :: failure
     INTEGER :: istat, nmo,nao
     CHARACTER(len=*), PARAMETER :: routineN='init_mo_set',&
-         routineP=moduleN//':'//routineN
+         routineP=module_name//':'//routineN
 
     failure=.FALSE.
     CPPrecondition(.NOT.ASSOCIATED(mo_set%eigenvectors),cp_failure_level,routineP,error,failure)
@@ -321,7 +333,7 @@ CONTAINS
 
 !   ***************************************************************************
 
-    TYPE(cp_full_matrix_type), POINTER          :: density_matrix
+    TYPE(cp_full_matrix_type), POINTER        :: density_matrix
     TYPE(global_environment_type), INTENT(IN) :: globenv
     TYPE(mo_set_type), POINTER                :: mo_set
 
@@ -333,8 +345,8 @@ CONTAINS
 
     CALL timeset("calculate_density_matrix","I","",handle)
 
-    CALL cp_fm_syrk("U","N",mo_set%lfomo-1,mo_set%maxocc,mo_set%eigenvectors,1,1,&
-                    0.0_wp,density_matrix)
+    CALL cp_fm_syrk("U","N",mo_set%lfomo-1,mo_set%maxocc,mo_set%eigenvectors,&
+                    1,1,0.0_wp,density_matrix)
 
 !   *** Add the density contribution from the fractional occupied MOs ***
 
@@ -351,11 +363,10 @@ CONTAINS
 
   SUBROUTINE calculate_density_matrix_sparse(mo_set,density_matrix,globenv)
 
-!   Purpose: Calculate the density matrix 
+!   Purpose: Calculate the density matrix
 
-!   as yet only for fully occupied orbitals !!!!
-
-!   History: - Creation (july 2002 Joost VandeVondele)
+!   History: - Creation (06.2002, Joost VandeVondele)
+!            - Fractional occupied orbitals (MK)
 
 !   ***************************************************************************
 
@@ -374,17 +385,17 @@ CONTAINS
     CALL set_matrix(density_matrix,0.0_wp)
 
     CALL cp_sm_plus_fm_fm_t(sparse_matrix=density_matrix,&
-                                  matrix_v=mo_set%eigenvectors,&
-                                  first_col=1,&
-                                  ncol=mo_set%lfomo-1,&
-                                  alpha=mo_set%maxocc)
+                            matrix_v=mo_set%eigenvectors,&
+                            first_col=1,&
+                            ncol=mo_set%lfomo-1,&
+                            alpha=mo_set%maxocc)
 
     DO imo=mo_set%lfomo,mo_set%homo
       CALL cp_sm_plus_fm_fm_t(sparse_matrix=density_matrix,&
-                                    matrix_v=mo_set%eigenvectors,&
-                                    first_col=imo,&
-                                    ncol=imo,&
-                                    alpha=mo_set%occupation_numbers(imo))
+                              matrix_v=mo_set%eigenvectors,&
+                              first_col=imo,&
+                              ncol=imo,&
+                              alpha=mo_set%occupation_numbers(imo))
     END DO
 
     CALL timestop(0.0_wp,handle)
@@ -393,84 +404,131 @@ CONTAINS
 
 ! *****************************************************************************
 
-  SUBROUTINE calculate_w_matrix_sparse(mo_set,ks_matrix,w_matrix,globenv)
+  SUBROUTINE calculate_w_matrix_1(mo_set,w_matrix,globenv)
 
 !   Purpose: Calculate the W matrix from the MO eigenvectors, MO eigenvalues,
 !            and the MO occupation numbers.
+
+!   History: - Creation (03.03.03,MK)
+
+!   ***************************************************************************
+
+    TYPE(real_matrix_type), POINTER           :: w_matrix
+    TYPE(global_environment_type), INTENT(IN) :: globenv
+    TYPE(mo_set_type), POINTER                :: mo_set
+
+!   *** Local variables ***
+
+    REAL(wp) :: eigocc
+    INTEGER  :: handle,imo
+
+!   ---------------------------------------------------------------------------
+
+    CALL timeset("calculate_w_matrix_1","I","",handle)
+
+    CALL set_matrix(w_matrix,0.0_wp)
+
+    DO imo=1,mo_set%homo
+      eigocc = mo_set%eigenvalues(imo)*mo_set%occupation_numbers(imo)
+      CALL cp_sm_plus_fm_fm_t(sparse_matrix=w_matrix,&
+                              matrix_v=mo_set%eigenvectors,&
+                              first_col=imo,&
+                              ncol=imo,&
+                              alpha=eigocc)
+    END DO
+
+    CALL timestop(0.0_wp,handle)
+
+  END SUBROUTINE calculate_w_matrix_1
+
+! *****************************************************************************
+
+  SUBROUTINE calculate_w_matrix_2(mo_set,ks_matrix,w_matrix,globenv)
+
+!   Purpose: Calculate the W matrix from the MO eigenvectors, MO eigenvalues,
+!            and the MO occupation numbers.
+
 !   History: - Creation (17.07.2002,MK)
+
 !   ***************************************************************************
 
     TYPE(real_matrix_type), POINTER           :: w_matrix,ks_matrix
     TYPE(global_environment_type), INTENT(IN) :: globenv
     TYPE(mo_set_type), POINTER                :: mo_set
-    TYPE(cp_full_matrix_type), POINTER          :: weighted_vectors,h_block
+    TYPE(cp_full_matrix_type), POINTER        :: weighted_vectors,h_block
 
 !   *** Local variables ***
 
-    INTEGER  :: handle,imo,ncol_global,nrow_global,nrow_block,ncol_block
+    INTEGER :: handle,imo,ncol_global,nrow_global,nrow_block,ncol_block
 
 !   ---------------------------------------------------------------------------
 
-    CALL timeset("calculate_w_matrix","I","",handle)
+    CALL timeset("calculate_w_matrix_2","I","",handle)
 
     NULLIFY(weighted_vectors,h_block)
-    CALL cp_fm_get_info(matrix=mo_set%eigenvectors, &
-                                 ncol_global=ncol_global, &
-                                 nrow_global=nrow_global, &
-                                 nrow_block=nrow_block, &
-                                 ncol_block=ncol_block)
+
+    CALL cp_fm_get_info(matrix=mo_set%eigenvectors,&
+                        ncol_global=ncol_global,&
+                        nrow_global=nrow_global,&
+                        nrow_block=nrow_block,&
+                        ncol_block=ncol_block)
 
     CALL cp_fm_create2(new_matrix=weighted_vectors,&
-                                 nrow_global=nrow_global, &
-                                 ncol_global=ncol_global, &
-                                 nrow_block=nrow_block, &
-                                 ncol_block=ncol_block, &
-                                 name="h block", & 
-                                 globenv=globenv)
+                       nrow_global=nrow_global,&
+                       ncol_global=ncol_global,&
+                       nrow_block=nrow_block,&
+                       ncol_block=ncol_block,&
+                       name="h block",&
+                       globenv=globenv)
 
     CALL cp_fm_create2(new_matrix=h_block,&
-                                 nrow_global=ncol_global, &
-                                 ncol_global=ncol_global, &
-                                 nrow_block=nrow_block, &
-                                 ncol_block=ncol_block, &
-                                 name="h block", &
-                                 globenv=globenv)
+                       nrow_global=ncol_global, &
+                       ncol_global=ncol_global, &
+                       nrow_block=nrow_block, &
+                       ncol_block=ncol_block, &
+                       name="h block", &
+                       globenv=globenv)
 
-    !CALL blacs_scale_matrix(weighted_vectors,mo_set%eigenvalues, &
-    !                                                    globenv,mo_set%homo)
+!   CALL blacs_scale_matrix(weighted_vectors,mo_set%eigenvalues,&
+!                           globenv,mo_set%homo)
 
-    IF (mo_set%homo .NE. ncol_global) CALL stop_program("calculate_w_matrix","NYI")
+    IF (mo_set%homo /= ncol_global) THEN
+      CALL stop_program("calculate_w_matrix_2","NYI")
+    END IF
 
     CALL cp_sm_fm_multiply(ks_matrix,mo_set%eigenvectors,weighted_vectors, &
-         mo_set%homo,globenv%para_env)
+                           mo_set%homo,globenv%para_env)
     CALL cp_fm_gemm('T','N',ncol_global,ncol_global,nrow_global,1.0_wp, &
-         mo_set%eigenvectors,weighted_vectors,0.0_wp,h_block)
+                    mo_set%eigenvectors,weighted_vectors,0.0_wp,h_block)
     CALL cp_fm_gemm('N','N',nrow_global,ncol_global,ncol_global,1.0_wp, &
                     mo_set%eigenvectors,h_block,0.0_wp,weighted_vectors)
 
     ! scale every column with the occupation
     CALL blacs_scale_matrix(weighted_vectors,mo_set%occupation_numbers, &
-                                                        mo_set%homo)
+                            mo_set%homo)
 
     CALL set_matrix(w_matrix,0.0_wp)
     CALL cp_sm_plus_fm_fm_t(sparse_matrix=w_matrix,&
-                                  matrix_v=mo_set%eigenvectors,&
-                                  matrix_g=weighted_vectors,&
-                                  first_col=1,&
-                                  ncol=mo_set%homo)
+                            matrix_v=mo_set%eigenvectors,&
+                            matrix_g=weighted_vectors,&
+                            first_col=1,&
+                            ncol=mo_set%homo)
 
     CALL cp_fm_release(weighted_vectors)
     CALL cp_fm_release(h_block)
     CALL timestop(0.0_wp,handle)
 
-  END SUBROUTINE calculate_w_matrix_sparse
+  END SUBROUTINE calculate_w_matrix_2
+
 ! *****************************************************************************
+
   SUBROUTINE subspace_eigenvalues_ks(orbitals,ks_matrix,evals_arg,para_env,ctxt,ionode,scr)
 
 !   Purpose: Calculates the eigenvalues (ritz values) for a set of orbitals
 !            and rotates them to make them eigenvectors
 !            if evals_arg is present its filled
 !            if not, the eigenvalues go to the screen
+
 !   ***************************************************************************
 
     TYPE(real_matrix_type), POINTER           :: ks_matrix
@@ -478,10 +536,11 @@ CONTAINS
     TYPE(cp_para_env_type),  POINTER   :: para_env
     TYPE(cp_blacs_env_type), POINTER   :: ctxt
     REAL(wp), DIMENSION(:),  POINTER, OPTIONAL :: evals_arg
-    LOGICAL, OPTIONAL :: ionode 
+    LOGICAL, OPTIONAL :: ionode
     INTEGER, OPTIONAL :: scr
 
 !   *** Local variables ***
+
     TYPE(cp_full_matrix_type), POINTER          :: weighted_vectors,h_block,e_vectors
     REAL(wp), DIMENSION(:), ALLOCATABLE       :: evals
     INTEGER  :: handle,imo,ncol_global,nrow_global,nrow_block,ncol_block,i,j
@@ -504,7 +563,7 @@ CONTAINS
                                  ncol_global=ncol_global, &
                                  nrow_block=nrow_block, &
                                  ncol_block=ncol_block, &
-                                 name="weighted_vectors", & 
+                                 name="weighted_vectors", &
                                  context=ctxt, para_env=para_env)
 
     CALL cp_fm_create2(new_matrix=h_block,&
@@ -572,15 +631,18 @@ CONTAINS
     CALL timestop(0.0_wp,handle)
 
   END SUBROUTINE subspace_eigenvalues_ks
+
 ! *****************************************************************************
-! *****************************************************************************
+
   SUBROUTINE subspace_eigenvalues_vec(orbitals_p,evals_arg,globenv)
+
 !   here orbitals is the array of orbitals 1,2 are V and HV respectively,
 !   all other orbitals are rotated as we
 !   Purpose: Calculates the eigenvalues (ritz values) for a set of orbitals
 !            and rotates them to make them eigenvectors
 !            if evals_arg is present its filled
 !            if not, the eigenvalues go to the screen
+
 !   ***************************************************************************
 
     TYPE(cp_full_matrix_p_type), DIMENSION(:), POINTER          :: orbitals_p
@@ -613,7 +675,7 @@ CONTAINS
                                  ncol_global=ncol_global, &
                                  nrow_block=nrow_block, &
                                  ncol_block=ncol_block, &
-                                 name="weighted_vectors", & 
+                                 name="weighted_vectors", &
                                  globenv=globenv)
 
     CALL cp_fm_create2(new_matrix=h_block,&
@@ -681,7 +743,6 @@ CONTAINS
     CALL timestop(0.0_wp,handle)
 
   END SUBROUTINE subspace_eigenvalues_vec
-! *****************************************************************************
 
 ! *****************************************************************************
 
@@ -698,8 +759,9 @@ CONTAINS
 
 !   *** Local parameters ***
 
+    CHARACTER(LEN=*), PARAMETER :: routine_name = "correct_mo_eigenvalues"
     CHARACTER(LEN=*), PARAMETER :: routine =&
-      "SUBROUTINE correct_mo_eigenvalues (MODULE qs_mo_types)"
+      "SUBROUTINE "//routine_name//" (MODULE "//module_name//")"
 
 !   *** Local variables ***
 
@@ -729,8 +791,9 @@ CONTAINS
 
 !   *** Local parameters ***
 
+    CHARACTER(LEN=*), PARAMETER :: routine_name = "deallocate_mo_set"
     CHARACTER(LEN=*), PARAMETER :: routine =&
-      "SUBROUTINE deallocate_mo (MODULE qs_mo_types)"
+      "SUBROUTINE "//routine_name//" (MODULE "//module_name//")"
 
 !   *** Local variables ***
 
@@ -743,14 +806,14 @@ CONTAINS
           DEALLOCATE (mo_set%eigenvalues,STAT=istat)
           IF (istat /= 0) CALL stop_memory(routine,"mo_set%eigenvalues")
        END IF
-       
+
        IF (ASSOCIATED(mo_set%occupation_numbers)) THEN
           DEALLOCATE (mo_set%occupation_numbers,STAT=istat)
           IF (istat /= 0) CALL stop_memory(routine,"mo_set%occupation_numbers")
        END IF
-       
+
        CALL cp_fm_release(mo_set%eigenvectors)
-       
+
        DEALLOCATE (mo_set,STAT=istat)
        IF (istat /= 0) CALL stop_memory(routine,"mo_set")
     END IF
@@ -768,11 +831,12 @@ CONTAINS
 
 !   ***************************************************************************
 
-    TYPE(mo_set_type), POINTER                 :: mo_set
-    REAL(wp), OPTIONAL, INTENT(OUT)            :: maxocc
-    INTEGER, OPTIONAL, INTENT(OUT)             :: homo,lfomo,nao,nelectron,nmo
-    REAL(wp), OPTIONAL, DIMENSION(:), POINTER  :: eigenvalues,&
-                                                  occupation_numbers
+    TYPE(mo_set_type), POINTER                   :: mo_set
+    REAL(wp), OPTIONAL, INTENT(OUT)              :: maxocc
+    INTEGER, OPTIONAL, INTENT(OUT)               :: homo,lfomo,nao,nelectron,&
+                                                    nmo
+    REAL(wp), OPTIONAL, DIMENSION(:), POINTER    :: eigenvalues,&
+                                                    occupation_numbers
     TYPE(cp_full_matrix_type), OPTIONAL, POINTER :: eigenvectors
 
 !   *** Local variables ***
@@ -810,8 +874,9 @@ CONTAINS
 
 !   *** Local parameters ***
 
+    CHARACTER(LEN=*), PARAMETER :: routine_name = "set_mo_occupation"
     CHARACTER(LEN=*), PARAMETER :: routine =&
-      "SUBROUTINE set_mo_occupation (MODULE qs_mo_types)"
+      "SUBROUTINE "//routine_name//" (MODULE "//module_name//")"
 
 !   *** Local variables ***
 
@@ -885,7 +950,8 @@ CONTAINS
 
 ! *****************************************************************************
 
-  SUBROUTINE write_mo_set_to_restart_new(mo_array,atomic_kind_set,particle_set,globenv, id_nr)
+  SUBROUTINE write_mo_set_to_restart(mo_array,atomic_kind_set,particle_set,&
+                                     globenv,id_nr)
 
     TYPE(atomic_kind_type), DIMENSION(:), POINTER :: atomic_kind_set
     TYPE(global_environment_type), INTENT(IN)     :: globenv
@@ -893,135 +959,158 @@ CONTAINS
     INTEGER, INTENT(in)                           :: id_nr
     TYPE(mo_set_p_type), DIMENSION(:), POINTER    :: mo_array
 
+!   *** Local paramters ***
+
+    CHARACTER(LEN=*), PARAMETER :: routine_name = "write_mo_set_to_restart"
+    CHARACTER(LEN=*), PARAMETER :: routine =&
+      "SUBROUTINE "//routine_name//" (MODULE "//module_name//")"
+
 !   *** Local variables ***
+
+    TYPE(gto_basis_set_type), POINTER :: orb_basis_set
+
     CHARACTER(LEN=6)   :: extension
     CHARACTER(LEN=200) :: file_name
     INTEGER            :: mype,npe,restart_unit
-    TYPE(gto_basis_set_type), POINTER :: orb_basis_set
-    INTEGER           :: iatom,icol,irow,iset,isgf,iso,ishell,istat,jcol,&
-                         left,lshell,natom,ncol,nset,nsgf,output_unit,right, &
-                         nao,nmo,i,nset_max,nshell_max,ispin,nspin
-                         
-    INTEGER, DIMENSION(:), POINTER          :: nshell
-    REAL(wp), DIMENSION(:,:), POINTER       :: matrix
-    INTEGER, DIMENSION(:,:), POINTER        :: l
+    INTEGER            :: i,iatom,icol,irow,iset,isgf,iso,ishell,ispin,istat,&
+                          jcol,left,lshell,nao,natom,ncol,nmo,nset,nset_max,&
+                          nshell_max,nsgf,nspin,output_unit,right
 
-    INTEGER, DIMENSION(:), POINTER :: nset_info
-    INTEGER, DIMENSION(:,:), POINTER :: nshell_info
+    INTEGER, DIMENSION(:), POINTER    :: nshell
+    REAL(wp), DIMENSION(:,:), POINTER :: matrix
+    INTEGER, DIMENSION(:,:), POINTER  :: l
+
+    INTEGER, DIMENSION(:), POINTER     :: nset_info
+    INTEGER, DIMENSION(:,:), POINTER   :: nshell_info
     INTEGER, DIMENSION(:,:,:), POINTER :: nso_info
 
     REAL(wp) , DIMENSION(:,:), POINTER :: vecbuffer
 
-    nspin=size(mo_array)
+!   ---------------------------------------------------------------------------
 
-    nao=mo_array(1)%mo_set%nao
+    nspin = SIZE(mo_array)
+
+    nao = mo_array(1)%mo_set%nao
 
     IF (globenv%ionode) THEN
 
       IF (id_nr==1) THEN
-         file_name=globenv%restart_file_name
+        file_name = globenv%restart_file_name
       ELSE
-         file_name = TRIM(globenv%restart_file_name)//"-"//&
-              ADJUSTL(cp_to_string(id_nr))
+        file_name = TRIM(globenv%restart_file_name)//"-"//&
+                    ADJUSTL(cp_to_string(id_nr))
       END IF
+
       CALL open_file(file_name=file_name,&
                      file_action="WRITE",&
                      file_form="UNFORMATTED",&
                      file_status="REPLACE",&
                      unit_number=restart_unit)
 
-
-      ! create some info about the basis set first
+!     *** create some info about the basis set first ***
 
       CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,&
                                natom=natom,&
                                nsgf=nsgf)
 
-
-      nset_max=0
-      nshell_max=0
-
-      DO iatom=1,natom
-         CALL get_atomic_kind(atomic_kind=particle_set(iatom)%atomic_kind,&
-                              orb_basis_set=orb_basis_set)
-         CALL get_gto_basis_set(gto_basis_set=orb_basis_set,&
-                                nset=nset,&
-                                nshell=nshell,&
-                                l=l)
-  
-         nset_max=MAX(nset_max,nset)
-         DO iset=1,nset
-           nshell_max=MAX(nshell_max,nshell(iset))
-         END DO
-      END DO
-
-
-      ALLOCATE(nso_info   (nshell_max,nset_max,natom))
-      ALLOCATE(nshell_info(nset_max,natom))
-      ALLOCATE(nset_info  (natom))
-
-      nset_info(:)=0
-      nshell_info(:,:)=0
-      nso_info(:,:,:)=0
+      nset_max = 0
+      nshell_max = 0
 
       DO iatom=1,natom
-         CALL get_atomic_kind(atomic_kind=particle_set(iatom)%atomic_kind,&
-                              orb_basis_set=orb_basis_set)
-         CALL get_gto_basis_set(gto_basis_set=orb_basis_set,&
-                                nset=nset,&
-                                nshell=nshell,&
-                                l=l)
-         nset_info(iatom)=nset
-         DO iset=1,nset
-           nshell_info(iset,iatom)=nshell(iset)
-           DO ishell=1,nshell(iset)
-             lshell = l(ishell,iset)
-             nso_info(ishell,iset,iatom)= nso(lshell)
-           ENDDO
-         END DO
+        CALL get_atomic_kind(atomic_kind=particle_set(iatom)%atomic_kind,&
+                             orb_basis_set=orb_basis_set)
+        CALL get_gto_basis_set(gto_basis_set=orb_basis_set,&
+                               nset=nset,&
+                               nshell=nshell,&
+                               l=l)
+        nset_max = MAX(nset_max,nset)
+        DO iset=1,nset
+          nshell_max = MAX(nshell_max,nshell(iset))
+        END DO
       END DO
 
-      ! write the bs information
+      ALLOCATE (nso_info(nshell_max,nset_max,natom),STAT=istat)
+      IF (istat /= 0) CALL stop_memory(routine,"nso_info",&
+                                       nshell_max*nset_max*natom*int_size)
+      nso_info(:,:,:) = 0
 
-      WRITE(restart_unit) natom,nspin,nao,nset_max,nshell_max
-      WRITE(restart_unit) nset_info
-      WRITE(restart_unit) nshell_info
-      WRITE(restart_unit) nso_info
+      ALLOCATE (nshell_info(nset_max,natom),STAT=istat)
+      IF (istat /= 0) CALL stop_memory(routine,"nshell_info",&
+                                       nset_max*natom*int_size)
+      nshell_info(:,:) = 0
 
-      DEALLOCATE(nset_info,nshell_info,nso_info)
+      ALLOCATE (nset_info(natom),STAT=istat)
+      IF (istat /= 0) CALL stop_memory(routine,"nset_info",natom*int_size)
+      nset_info(:) = 0
 
-    ENDIF
+      DO iatom=1,natom
+        CALL get_atomic_kind(atomic_kind=particle_set(iatom)%atomic_kind,&
+                             orb_basis_set=orb_basis_set)
+        CALL get_gto_basis_set(gto_basis_set=orb_basis_set,&
+                               nset=nset,&
+                               nshell=nshell,&
+                               l=l)
+        nset_info(iatom) = nset
+        DO iset=1,nset
+          nshell_info(iset,iatom)=nshell(iset)
+          DO ishell=1,nshell(iset)
+            lshell = l(ishell,iset)
+            nso_info(ishell,iset,iatom) = nso(lshell)
+          END DO
+        END DO
+      END DO
 
+      WRITE (restart_unit) natom,nspin,nao,nset_max,nshell_max
+      WRITE (restart_unit) nset_info
+      WRITE (restart_unit) nshell_info
+      WRITE (restart_unit) nso_info
 
-    ALLOCATE(vecbuffer(1,nao))
+      DEALLOCATE (nset_info,STAT=istat)
+      IF (istat /= 0) CALL stop_memory(routine,"nset_info")
+
+      DEALLOCATE (nshell_info,STAT=istat)
+      IF (istat /= 0) CALL stop_memory(routine,"nshell_info")
+
+      DEALLOCATE (nso_info,STAT=istat)
+      IF (istat /= 0) CALL stop_memory(routine,"nso_info")
+
+    END IF
+
+    ALLOCATE(vecbuffer(1,nao),STAT=istat)
+    IF (istat /= 0) CALL stop_memory(routine,"vecbuffer",nao*wp_size)
 
     DO ispin=1,nspin
+
       nmo=mo_array(ispin)%mo_set%nmo
+
       IF (globenv%ionode) THEN
         WRITE (restart_unit) nmo,&
                              mo_array(ispin)%mo_set%homo,&
                              mo_array(ispin)%mo_set%lfomo,&
-                             mo_array(ispin)%mo_set%nelectron,&
-                             mo_array(ispin)%mo_set%eigenvalues(1:nmo),&
+                             mo_array(ispin)%mo_set%nelectron
+        WRITE (restart_unit) mo_array(ispin)%mo_set%eigenvalues(1:nmo),&
                              mo_array(ispin)%mo_set%occupation_numbers(1:nmo)
       END IF
+
       DO i=1,nmo
         CALL blacs_replicated_copy(mo_array(ispin)%mo_set%eigenvectors,&
                                    vecbuffer,i,1,1,"B2R")
-        IF (globenv%ionode) WRITE(restart_unit) vecbuffer
+        IF (globenv%ionode) WRITE (restart_unit) vecbuffer
       END DO
+
     END DO
 
-    DEALLOCATE(vecbuffer)
+    DEALLOCATE (vecbuffer,STAT=istat)
+    IF (istat /= 0) CALL stop_memory(routine,"vecbuffer")
 
     IF (globenv%ionode) CALL close_file(unit_number=restart_unit)
 
-  END SUBROUTINE write_mo_set_to_restart_new
+  END SUBROUTINE write_mo_set_to_restart
 
 ! *****************************************************************************
 
-! *****************************************************************************
-  SUBROUTINE read_mo_set_from_restart_new(mo_array,atomic_kind_set,particle_set,globenv, id_nr)
+  SUBROUTINE read_mo_set_from_restart(mo_array,atomic_kind_set,particle_set,&
+                                      globenv,id_nr)
 
     TYPE(atomic_kind_type), DIMENSION(:), POINTER :: atomic_kind_set
     TYPE(global_environment_type), INTENT(IN)     :: globenv
@@ -1029,22 +1118,30 @@ CONTAINS
     INTEGER, INTENT(in)                           :: id_nr
     TYPE(mo_set_p_type), DIMENSION(:), POINTER    :: mo_array
 
+!   *** Local paramters ***
+
+    CHARACTER(LEN=*), PARAMETER :: routine_name = "read_mo_set_from_restart"
+    CHARACTER(LEN=*), PARAMETER :: routine =&
+      "SUBROUTINE "//routine_name//" (MODULE "//module_name//")"
+
 !   *** Local variables ***
+
+    TYPE(gto_basis_set_type), POINTER :: orb_basis_set
+
     CHARACTER(LEN=6)   :: extension
     CHARACTER(LEN=200) :: file_name
     INTEGER            :: mype,npe,restart_unit
-    TYPE(gto_basis_set_type), POINTER :: orb_basis_set
-    INTEGER           :: iatom,icol,irow,iset,isgf,iso,ishell,istat,jcol,&
-                         left,lshell,natom,ncol,nset,nsgf,output_unit,right, &
-                         nao,nmo,i,nset_max,nshell_max,natom_read,nao_read,nmo_read, &
-                         nspin_read,nspin,ispin
-                         
-    INTEGER, DIMENSION(:), POINTER          :: nshell
-    REAL(wp), DIMENSION(:,:), POINTER       :: matrix
-    INTEGER, DIMENSION(:,:), POINTER        :: l
+    INTEGER            :: iatom,icol,irow,iset,isgf,iso,ishell,istat,jcol,&
+                          left,lshell,natom,ncol,nset,nsgf,output_unit,right,&
+                          nao,nmo,i,nset_max,nshell_max,natom_read,nao_read,&
+                          nmo_read,nspin_read,nspin,ispin,group,source
 
-    INTEGER, DIMENSION(:), POINTER :: nset_info
-    INTEGER, DIMENSION(:,:), POINTER :: nshell_info
+    INTEGER, DIMENSION(:), POINTER    :: nshell
+    REAL(wp), DIMENSION(:,:), POINTER :: matrix
+    INTEGER, DIMENSION(:,:), POINTER  :: l
+
+    INTEGER, DIMENSION(:), POINTER     :: nset_info
+    INTEGER, DIMENSION(:,:), POINTER   :: nshell_info
     INTEGER, DIMENSION(:,:,:), POINTER :: nso_info,offset_info
 
     REAL(wp) , DIMENSION(:,:), POINTER :: vecbuffer,vecbuffer_read
@@ -1052,8 +1149,13 @@ CONTAINS
     INTEGER :: irow_read,nset_read,ishell_read,iset_read,offset_read
     LOGICAL :: use_this,did_change
 
-    nspin=size(mo_array)
-    nao=mo_array(1)%mo_set%nao
+!   ---------------------------------------------------------------------------
+
+    group = globenv%group
+    source = globenv%source
+
+    nspin = SIZE(mo_array)
+    nao = mo_array(1)%mo_set%nao
 
     IF (globenv%ionode) THEN
 
@@ -1061,137 +1163,205 @@ CONTAINS
                                natom=natom,&
                                nsgf=nsgf)
       IF (id_nr==1) THEN
-         file_name=globenv%restart_file_name
+        file_name=globenv%restart_file_name
       ELSE
-         file_name = TRIM(globenv%restart_file_name)//"-"//&
-              ADJUSTL(cp_to_string(id_nr))
+        file_name = TRIM(globenv%restart_file_name)//"-"//&
+                         ADJUSTL(cp_to_string(id_nr))
       END IF
+
       CALL open_file(file_name=file_name,&
                      file_action="READ",&
                      file_form="UNFORMATTED",&
                      file_status="OLD",&
                      unit_number=restart_unit)
 
-      READ(restart_unit) natom_read,nspin_read,nao_read,nset_max,nshell_max
+      READ (restart_unit) natom_read,nspin_read,nao_read,nset_max,nshell_max
 
       ! we should allow for restarting with different spin settings
-      IF (nspin_read.NE.nspin) &
-         CALL stop_program("read_mo_set_from_restart","nspin is not equal (program this !!)")
+      IF (nspin_read /= nspin) THEN
+        CALL stop_program(routine,"nspin is not equal (program this !!)")
+      END IF
 
-      IF (natom_read.NE.natom) &
-         CALL stop_program("read_mo_set_from_restart","incorrect natom")
+      IF (natom_read /= natom) THEN
+        CALL stop_program(routine,"incorrect natom")
+      END IF
 
-      ALLOCATE(nso_info   (nshell_max,nset_max,natom_read))
-      ALLOCATE(offset_info   (nshell_max,nset_max,natom_read))
-      ALLOCATE(nshell_info(nset_max,natom_read))
-      ALLOCATE(nset_info  (natom_read))
+      ALLOCATE (nso_info(nshell_max,nset_max,natom_read),STAT=istat)
+      IF (istat /= 0) CALL stop_memory(routine,"nso_info",&
+                                       nshell_max*nset_max*natom_read*int_size)
 
-      IF (nao_read.NE.nao) THEN
-         WRITE(globenv%scr,*) "READ RESTART : WARNING : DIFFERENT # AOs ",nao,nao_read
-         WRITE(globenv%scr,*) "writing out mapping"
-         did_change=.TRUE.
-      ENDIF
+      ALLOCATE (nshell_info(nset_max,natom_read),STAT=istat)
+      IF (istat /= 0) CALL stop_memory(routine,"nshell_info",&
+                                       nset_max*natom_read*int_size)
 
-      READ(restart_unit) nset_info
-      READ(restart_unit) nshell_info
-      READ(restart_unit) nso_info
+      ALLOCATE (nset_info(natom_read),STAT=istat)
+      IF (istat /= 0) CALL stop_memory(routine,"nset_info",natom_read*int_size)
+
+
+      ALLOCATE (offset_info(nshell_max,nset_max,natom_read),STAT=istat)
+      IF (istat /= 0) CALL stop_memory(routine,"nso_info",&
+                                       nshell_max*nset_max*natom_read*int_size)
+
+      IF (nao_read /= nao) THEN
+        WRITE(globenv%scr,*) "READ RESTART : WARNING : DIFFERENT # AOs ",nao,nao_read
+        WRITE(globenv%scr,*) "writing out mapping"
+        did_change=.TRUE.
+      END IF
+
+      READ (restart_unit) nset_info
+      READ (restart_unit) nshell_info
+      READ (restart_unit) nso_info
 
       i=1
       DO iatom=1,natom
-       DO iset=1,nset_info(iatom)
-        DO ishell=1,nshell_info(iset,iatom)
-           offset_info(ishell,iset,iatom)=i
-           i=i+nso_info(ishell,iset,iatom)
-        ENDDO
-       ENDDO
-      ENDDO
+        DO iset=1,nset_info(iatom)
+          DO ishell=1,nshell_info(iset,iatom)
+            offset_info(ishell,iset,iatom) = i
+            i=i+nso_info(ishell,iset,iatom)
+          END DO
+        END DO
+      END DO
 
-      ALLOCATE(vecbuffer_read(1,nao_read))
+      ALLOCATE(vecbuffer_read(1,nao_read),STAT=istat)
+      IF (istat /= 0) CALL stop_memory(routine,"vecbuffer_read",&
+                                       nao_read*wp_size)
 
-    ENDIF
+    END IF
 
-    ALLOCATE(vecbuffer(1,nao))
+    ALLOCATE (vecbuffer(1,nao),STAT=istat)
+    IF (istat /= 0) CALL stop_memory(routine,"vecbuffer",nao*wp_size)
 
     DO ispin=1,nspin
-        nmo=mo_array(ispin)%mo_set%nmo
-        IF (globenv%ionode) THEN
-          READ (restart_unit) nmo_read,&
-                              mo_array(ispin)%mo_set%homo,&
-                              mo_array(ispin)%mo_set%lfomo,&
-                              mo_array(ispin)%mo_set%nelectron,&
-                              mo_array(ispin)%mo_set%eigenvalues(1:nmo),&
-                              mo_array(ispin)%mo_set%occupation_numbers(1:nmo)
-          IF (nmo_read.NE.nmo) THEN
-            CALL stop_program("read_mo_set_from_restart","incorrect nmo")
-          END IF
-        ENDIF
-        DO i=1,nmo
-           IF (globenv%ionode) THEN 
-                READ(restart_unit) vecbuffer_read
-                ! now, try to assign the read to the real vector
-                ! in case the basis set changed this involves some guessing
-                irow=1
-                DO iatom=1,natom
-                   CALL get_atomic_kind(atomic_kind=particle_set(iatom)%atomic_kind,&
-                                        orb_basis_set=orb_basis_set)
-                   CALL get_gto_basis_set(gto_basis_set=orb_basis_set,&
-                                          nset=nset,&
-                                          nshell=nshell,&
-                                          l=l)
-    
-                   use_this=.TRUE.
-                   iset_read=1
-                   DO iset=1,nset
-                      ishell_read=1
-                      DO ishell=1,nshell(iset)
-                         lshell = l(ishell,iset)
-                         IF (iset_read.GT.nset_info(iatom)) use_this=.FALSE.
-                         IF (use_this .AND. nso(lshell).EQ.nso_info(ishell_read,iset_read,iatom)) THEN
-                             offset_read=offset_info(ishell_read,iset_read,iatom)
-                             ishell_read=ishell_read+1
-                             IF (ishell_read.GT.nshell_info(iset,iatom)) THEN
-                                ishell_read=1
-                                iset_read=iset_read+1
-                             ENDIF
-                         ELSE
-                             use_this=.FALSE.
-                         ENDIF
-                         DO iso=1,nso(lshell)
-                            IF (use_this) THEN
-                                IF (offset_read-1+iso.LT.1 .OR. offset_read-1+iso.GT.nao_read) THEN
-                                   ! this indicates a bug
-                                   IF (did_change) WRITE(globenv%scr,*) "-?-",irow,offset_read-1+iso
-                                   vecbuffer(1,irow)=0.0_wp
-                                ELSE
-                                   vecbuffer(1,irow)=vecbuffer_read(1,offset_read-1+iso)
-                                   IF (did_change) WRITE(globenv%scr,*) "   ",irow,offset_read-1+iso
-                                ENDIF
-                            ELSE
-                                vecbuffer(1,irow)=0.0_wp
-                            ENDIF
-                            irow=irow+1
-                         ENDDO
-                         use_this=.TRUE.
-                      ENDDO
-                   ENDDO
-                ENDDO
 
-           ELSE
-                vecbuffer(1,:)=0.0_wp
-           ENDIF
-           CALL mp_sum(vecbuffer,globenv%group)  ! the usual ugly way
-           CALL blacs_replicated_copy(mo_array(ispin)%mo_set%eigenvectors,vecbuffer,i,1,1,"R2B")
-           did_change=.FALSE.
-        ENDDO
-    ENDDO
-    DEALLOCATE(vecbuffer)
+      nmo=mo_array(ispin)%mo_set%nmo
+
+      mo_array(ispin)%mo_set%eigenvalues(:) = 0.0_wp
+      mo_array(ispin)%mo_set%occupation_numbers(:) = 0.0_wp
+      CALL cp_fm_set_all(mo_array(ispin)%mo_set%eigenvectors,0.0_wp)
+
+      IF (globenv%ionode) THEN
+        READ (restart_unit) nmo_read,&
+                            mo_array(ispin)%mo_set%homo,&
+                            mo_array(ispin)%mo_set%lfomo,&
+                            mo_array(ispin)%mo_set%nelectron
+        IF (mo_array(ispin)%mo_set%homo > nmo) THEN
+          CALL stop_program(routine,"The number of the occupied MOs on the "//&
+                                    "restart unit is greater than the "//&
+                                    "number of the allocated MOs.")
+        END IF
+        IF (nmo_read < nmo) THEN
+          nmo = nmo_read
+          CALL print_warning(routine,"The number of MOs on the restart "//&
+                                     "unit is smaller than the number of "//&
+                                     "the allocated MOs. The MO set will "//&
+                                     "be padded with zeros!")
+        ELSE IF (nmo_read > nmo) THEN
+          CALL print_warning(routine,"The number of MOs on the restart "//&
+                                     "unit is greater than the number of "//&
+                                     "the allocated MOs. The read MO set "//&
+                                     "will be truncated!")
+        END IF
+        READ (restart_unit) mo_array(ispin)%mo_set%eigenvalues(1:nmo),&
+                            mo_array(ispin)%mo_set%occupation_numbers(1:nmo)
+      END IF
+
+      CALL mp_bcast(nmo,source,group)
+      CALL mp_bcast(mo_array(ispin)%mo_set%homo,source,group)
+      CALL mp_bcast(mo_array(ispin)%mo_set%lfomo,source,group)
+      CALL mp_bcast(mo_array(ispin)%mo_set%nelectron,source,group)
+      CALL mp_bcast(mo_array(ispin)%mo_set%eigenvalues,source,group)
+      CALL mp_bcast(mo_array(ispin)%mo_set%occupation_numbers,source,group)
+
+      DO i=1,nmo
+        IF (globenv%ionode) THEN
+          READ (restart_unit) vecbuffer_read
+          ! now, try to assign the read to the real vector
+          ! in case the basis set changed this involves some guessing
+          irow=1
+          DO iatom=1,natom
+            CALL get_atomic_kind(atomic_kind=particle_set(iatom)%atomic_kind,&
+                                 orb_basis_set=orb_basis_set)
+            CALL get_gto_basis_set(gto_basis_set=orb_basis_set,&
+                                   nset=nset,&
+                                   nshell=nshell,&
+                                   l=l)
+
+            use_this = .TRUE.
+            iset_read = 1
+            DO iset=1,nset
+              ishell_read = 1
+              DO ishell=1,nshell(iset)
+                lshell = l(ishell,iset)
+                IF (iset_read > nset_info(iatom)) use_this = .FALSE.
+                IF (use_this.AND.&
+                    (nso(lshell) == nso_info(ishell_read,iset_read,iatom))) THEN
+                  offset_read=offset_info(ishell_read,iset_read,iatom)
+                  ishell_read=ishell_read+1
+                  IF (ishell_read > nshell_info(iset,iatom)) THEN
+                    ishell_read = 1
+                    iset_read = iset_read+1
+                  END IF
+                ELSE
+                  use_this = .FALSE.
+                END IF
+                DO iso=1,nso(lshell)
+                  IF (use_this) THEN
+                    IF (offset_read-1+iso.LT.1 .OR. offset_read-1+iso.GT.nao_read) THEN
+                      ! this indicates a bug
+                      IF (did_change) WRITE(globenv%scr,*) "-?-",irow,offset_read-1+iso
+                      vecbuffer(1,irow)=0.0_wp
+                    ELSE
+                      vecbuffer(1,irow)=vecbuffer_read(1,offset_read-1+iso)
+                      IF (did_change) WRITE(globenv%scr,*) "   ",irow,offset_read-1+iso
+                    END IF
+                  ELSE
+                    vecbuffer(1,irow) = 0.0_wp
+                  END IF
+                  irow = irow + 1
+                END DO
+                use_this = .TRUE.
+              END DO
+            END DO
+          END DO
+
+        ELSE
+
+          vecbuffer(1,:) = 0.0_wp
+
+        END IF
+
+        CALL mp_sum(vecbuffer,globenv%group)  ! the usual ugly way
+        CALL blacs_replicated_copy(mo_array(ispin)%mo_set%eigenvectors,&
+                                   vecbuffer,i,1,1,"R2B")
+        did_change=.FALSE.
+
+      END DO
+
+      IF (globenv%print%level > LOW) THEN
+        CALL write_mo_set(mo_array(ispin)%mo_set,atomic_kind_set,particle_set,&
+                          4,6,globenv)
+      END IF
+
+    END DO
+
+    DEALLOCATE(vecbuffer,STAT=istat)
+    IF (istat /= 0) CALL stop_memory(routine,"vecbuffer")
 
     IF (globenv%ionode) THEN
-       DEALLOCATE(nset_info,nshell_info,nso_info,vecbuffer_read,offset_info)
-       CALL close_file(unit_number=restart_unit)
-    ENDIF
+      DEALLOCATE(vecbuffer_read,STAT=istat)
+      IF (istat /= 0) CALL stop_memory(routine,"vecbuffer_read")
+      DEALLOCATE(offset_info,STAT=istat)
+      IF (istat /= 0) CALL stop_memory(routine,"offset_info")
+      DEALLOCATE(nso_info,STAT=istat)
+      IF (istat /= 0) CALL stop_memory(routine,"nso_info")
+      DEALLOCATE(nshell_info,STAT=istat)
+      IF (istat /= 0) CALL stop_memory(routine,"nshell_info")
+      DEALLOCATE(nset_info,STAT=istat)
+      IF (istat /= 0) CALL stop_memory(routine,"nset_info")
+      CALL close_file(unit_number=restart_unit)
+    END IF
 
-  END SUBROUTINE read_mo_set_from_restart_new
+  END SUBROUTINE read_mo_set_from_restart
 
 ! *****************************************************************************
 
