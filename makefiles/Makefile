@@ -34,8 +34,10 @@ SRCENTRY     = $(wildcard $(SRCDIR)/CVS/Entr*)
 ### Definition of the multiple targets ###
 
 VERSION_TARGETS = sopt sdbg popt pdbg ssmp psmp
-CLEAN_TARGETS   = sopt/clean sdbg/clean popt/clean pdbg/clean\
-                  sopt/realclean sdbg/realclean popt/realclean pdbg/realclean
+CLEAN_TARGETS   = sopt/clean sdbg/clean ssmp/clean\
+                  popt/clean pdbg/clean psmp/clean\
+                  sopt/realclean sdbg/realclean ssmp/realclean\
+                  popt/realclean pdbg/realclean psmp/realclean
 .PHONY : build clean realclean distclean $(CLEAN_TARGETS)
 ### Master rules ###
 
