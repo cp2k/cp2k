@@ -17,7 +17,7 @@
 !!     JGH (02-Jan-2001): New error handling
 !!                        Performance tools
 !!     JGH (14-Jan-2001): New routines mp_comm_compare, mp_cart_coords, 
-!!                                     mp_rank_compare, mp_transpose
+!!                                     mp_rank_compare, mp_alltoall
 !!     JGH (06-Feb-2001): New routines mp_comm_free
 !!     JGH (22-Mar-2001): New routines mp_comm_dup
 !!     JVdV   ( 05-2002): mp_allgather,mp_range
@@ -38,7 +38,7 @@ MODULE message_passing
   PUBLIC :: mp_start, mp_end, mp_world_setup, mp_group, mp_cart_create, &
        mp_bcast, mp_stop, mp_sum, mp_max, mp_min, mp_sync, mp_environ, &
        mp_gather, mp_comm_compare, mp_cart_coords, mp_rank_compare, &
-       mp_transpose, mp_dims_create, mp_cart_rank, mp_cart_sub, mp_comm_free, &
+       mp_alltoall, mp_dims_create, mp_cart_rank, mp_cart_sub, mp_comm_free, &
        mp_comm_dup, mp_cart_shift, mp_sendrecv, mp_range, mp_allgather, &
        mp_sum_scatter, mp_abort, mp_shift
 
@@ -83,8 +83,8 @@ MODULE message_passing
      MODULE PROCEDURE mp_environ_l, mp_environ_c
   END INTERFACE
 
-  INTERFACE mp_transpose
-     MODULE PROCEDURE mp_transpose_c22v, mp_transpose_i
+  INTERFACE mp_alltoall
+     MODULE PROCEDURE mp_alltoall_c22v, mp_alltoall_i, mp_alltoall_i11v, mp_alltoall_r11v
   END INTERFACE
 
   INTERFACE mp_sendrecv
@@ -102,7 +102,7 @@ MODULE message_passing
   TYPE ( mp_perf_type ), DIMENSION ( MAX_PERF ) :: mp_perf
   CHARACTER ( LEN = 20 ), PARAMETER :: sname ( MAX_PERF ) =  &
    (/"MP_Group            ", "MP_Bcast            ", "MP_Allreduce        ", &
-     "MP_Gather           ", "MP_Sync             ", "MP_Transpose        ", &
+     "MP_Gather           ", "MP_Sync             ", "MP_Alltoall         ", &
      "MP_SendRecv         "/)
   REAL ( dbl ) :: t_start, t_end
   INTEGER :: intlen, reallen, charlen, loglen
@@ -812,9 +812,67 @@ SUBROUTINE mp_cart_rank ( group, pos, rank )
 
 END SUBROUTINE mp_cart_rank
 !******************************************************************************
+!..mp_alltoall
 
-!..mp_transpose
-SUBROUTINE mp_transpose_c22v ( sb, scount, sdispl, rb, rcount, rdispl, group )
+SUBROUTINE mp_alltoall_i11v ( sb, scount, sdispl, rb, rcount, rdispl, group )
+
+  IMPLICIT NONE
+
+! Arguments
+  INTEGER, DIMENSION ( : ), INTENT ( IN ) :: sb
+  INTEGER, DIMENSION ( : ), INTENT ( OUT ) :: rb
+  INTEGER, DIMENSION ( : ), INTENT ( IN ) :: scount, sdispl,rcount, rdispl
+  INTEGER, INTENT ( IN ) :: group
+
+! Locals
+  INTEGER :: ierr, msglen
+
+  ierr = 0
+#if defined(__parallel)
+  t_start = m_cputime ( )
+  CALL mpi_alltoallv ( sb, scount, sdispl, MPI_INTEGER, &
+                       rb, rcount, rdispl, MPI_INTEGER, group, ierr )
+  IF ( ierr /= 0 ) CALL mp_stop( ierr, "mpi_alltoallv @ mp_alltoall_i11v" )
+  mp_perf ( 6 ) % count = mp_perf ( 6 ) % count + 1
+  msglen = SUM ( scount ) + SUM ( rcount )
+  mp_perf ( 6 ) % msg_size = mp_perf ( 6 ) % msg_size + msglen * intlen
+  t_end = m_cputime ( )
+  mp_perf ( 6 ) % time = mp_perf ( 6 ) % time + ( t_end - t_start )
+#endif
+
+END SUBROUTINE mp_alltoall_i11v
+
+SUBROUTINE mp_alltoall_r11v ( sb, scount, sdispl, rb, rcount, rdispl, group )
+
+  IMPLICIT NONE
+
+! Arguments
+  REAL(dbl), DIMENSION ( : ), INTENT ( IN ) :: sb
+  REAL(dbl), DIMENSION ( : ), INTENT ( OUT ) :: rb
+  INTEGER, DIMENSION ( : ), INTENT ( IN ) :: scount, sdispl,rcount, rdispl
+  INTEGER, INTENT ( IN ) :: group
+
+! Locals
+  INTEGER :: ierr, msglen
+
+  ierr = 0
+#if defined(__parallel)
+  t_start = m_cputime ( )
+  CALL mpi_alltoallv ( sb, scount, sdispl, MPI_DOUBLE_PRECISION, &
+                       rb, rcount, rdispl, MPI_DOUBLE_PRECISION, group, ierr )
+  IF ( ierr /= 0 ) CALL mp_stop( ierr, "mpi_alltoallv @ mp_alltoall_r11v" )
+  mp_perf ( 6 ) % count = mp_perf ( 6 ) % count + 1
+  msglen = SUM ( scount ) + SUM ( rcount )
+  mp_perf ( 6 ) % msg_size = mp_perf ( 6 ) % msg_size + msglen * reallen
+  t_end = m_cputime ( )
+  mp_perf ( 6 ) % time = mp_perf ( 6 ) % time + ( t_end - t_start )
+#endif
+
+END SUBROUTINE mp_alltoall_r11v
+
+
+!..mp_alltoall
+SUBROUTINE mp_alltoall_c22v ( sb, scount, sdispl, rb, rcount, rdispl, group )
 
   IMPLICIT NONE
 
@@ -832,7 +890,7 @@ SUBROUTINE mp_transpose_c22v ( sb, scount, sdispl, rb, rcount, rdispl, group )
   t_start = m_cputime ( )
   CALL mpi_alltoallv ( sb, scount, sdispl, MPI_DOUBLE_COMPLEX, &
                        rb, rcount, rdispl, MPI_DOUBLE_COMPLEX, group, ierr )
-  IF ( ierr /= 0 ) CALL mp_stop( ierr, "mpi_alltoallv @ mp_transpose_c22v" )
+  IF ( ierr /= 0 ) CALL mp_stop( ierr, "mpi_alltoallv @ mp_alltoall_c22v" )
   mp_perf ( 6 ) % count = mp_perf ( 6 ) % count + 1
   msglen = SUM ( scount ) + SUM ( rcount )
   mp_perf ( 6 ) % msg_size = mp_perf ( 6 ) % msg_size + msglen * 2 * reallen
@@ -840,9 +898,9 @@ SUBROUTINE mp_transpose_c22v ( sb, scount, sdispl, rb, rcount, rdispl, group )
   mp_perf ( 6 ) % time = mp_perf ( 6 ) % time + ( t_end - t_start )
 #endif
 
-END SUBROUTINE mp_transpose_c22v
+END SUBROUTINE mp_alltoall_c22v
 
-SUBROUTINE mp_transpose_i ( sb, rb, count, group )
+SUBROUTINE mp_alltoall_i ( sb, rb, count, group )
 
   IMPLICIT NONE
 
@@ -859,17 +917,17 @@ SUBROUTINE mp_transpose_i ( sb, rb, count, group )
   t_start = m_cputime ( )
   CALL mpi_alltoall ( sb, count, MPI_INTEGER, &
                       rb, count, MPI_INTEGER, group, ierr )
-  IF ( ierr /= 0 ) CALL mp_stop( ierr, "mpi_alltoall @ mp_transpose_i" )
+  IF ( ierr /= 0 ) CALL mp_stop( ierr, "mpi_alltoall @ mp_alltoall_i" )
   mp_perf ( 6 ) % count = mp_perf ( 6 ) % count + 1
   CALL mpi_comm_size ( group, np, ierr )
-  IF ( ierr /= 0 ) CALL mp_stop ( ierr, "mpi_comm_size @ mp_transpose_i" )
+  IF ( ierr /= 0 ) CALL mp_stop ( ierr, "mpi_comm_size @ mp_alltoall_i" )
   msglen = 2 * count * np
   mp_perf ( 6 ) % msg_size = mp_perf ( 6 ) % msg_size + msglen * intlen
   t_end = m_cputime ( )
   mp_perf ( 6 ) % time = mp_perf ( 6 ) % time + ( t_end - t_start )
 #endif
 
-END SUBROUTINE mp_transpose_i
+END SUBROUTINE mp_alltoall_i
 
 !******************************************************************************
 

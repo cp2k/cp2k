@@ -49,7 +49,7 @@ MODULE fft_tools
                          sgi_mltfft => mltfft, &
                          sgi_fft_get_lengths => fft_get_lengths
   USE message_passing, ONLY : mp_environ, mp_comm_compare, mp_rank_compare, &
-                              mp_transpose, mp_sum, mp_cart_coords, mp_cart_sub, &
+                              mp_alltoall, mp_sum, mp_cart_coords, mp_cart_sub, &
                               mp_cart_rank, mp_sync, mp_comm_free
   USE timings, ONLY: timeset, timestop
   
@@ -1566,7 +1566,7 @@ SUBROUTINE x_to_yz ( sb, group, my_pos, p2p, yzp, nray, bo, tb )
   END DO
   flop = REAL ( nm * nx * np, dbl )
 
-  CALL mp_transpose ( sb, scount, sdispl, rr, rcount, rdispl, group )
+  CALL mp_alltoall ( sb, scount, sdispl, rr, rcount, rdispl, group )
 
   nx = SIZE ( tb )
   CALL dcopy ( 2*nx, 0._dbl, 0, tb, 1 )
@@ -1677,7 +1677,7 @@ SUBROUTINE yz_to_x ( tb, group, my_pos, p2p, yzp, nray, bo, sb )
   END DO
   flop = REAL ( nm * nx * np, dbl )
 
-  CALL mp_transpose ( rr, scount, sdispl, sb, rcount, rdispl, group )
+  CALL mp_alltoall ( rr, scount, sdispl, sb, rcount, rdispl, group )
 
   DEALLOCATE ( rr, STAT = ierr )
   IF ( ierr /= 0 ) CALL stop_memory ( "yz_to_x", "rr" )
@@ -1796,8 +1796,8 @@ SUBROUTINE yz_to_xz ( sb, group, dims, my_pos, p2p, yzp, nray, bo, tb )
   END DO
   flop = REAL ( nmax * np, dbl )
 
-  CALL mp_transpose ( scount, rcount, 1, group )
-  CALL mp_transpose ( rs, scount, sdispl, rq, rcount, rdispl, group )
+  CALL mp_alltoall ( scount, rcount, 1, group )
+  CALL mp_alltoall ( rs, scount, sdispl, rq, rcount, rdispl, group )
 
   CALL mp_cart_coords ( group, rs_pos, cpos )
   myx = cpos ( 1 )
@@ -1937,7 +1937,7 @@ SUBROUTINE xz_to_yz ( sb, group, dims, my_pos, p2p, yzp, nray, bo, tb )
     END DO
   END DO
 
-  CALL mp_transpose ( rcount, scount, 1, group )
+  CALL mp_alltoall ( rcount, scount, 1, group )
 
   CALL mp_cart_coords ( group, p2p ( my_pos ), cpos )
   myx = cpos ( 1 )
@@ -1968,7 +1968,7 @@ SUBROUTINE xz_to_yz ( sb, group, dims, my_pos, p2p, yzp, nray, bo, tb )
   END DO
   flop = REAL ( nmax * np, dbl )
 
-  CALL mp_transpose ( rq, scount, sdispl, rs, rcount, rdispl, group )
+  CALL mp_alltoall ( rq, scount, sdispl, rs, rcount, rdispl, group )
 
   rcount = 0
   nx = MAXVAL ( bo ( 2, 1, : ) )
@@ -2084,7 +2084,7 @@ SUBROUTINE cube_transpose_1 ( sin, group, boin, boout, sout )
   IF ( ierr /= 0 ) CALL stop_memory ( "cube_transpose", "rbuf", mz*nx*ny*np )
   rbuf = 0._dbl
 
-  CALL mp_transpose ( sin, scount, sdispl, rbuf, rcount, rdispl, sub_group )
+  CALL mp_alltoall ( sin, scount, sdispl, rbuf, rcount, rdispl, sub_group )
 
   DO ixy = 1, nx * ny
     DO ip = 0, np - 1
@@ -2189,7 +2189,7 @@ SUBROUTINE cube_transpose_2 ( sin, group, boin, boout, sout )
   END DO
 
   sout = 0._dbl
-  CALL mp_transpose ( rbuf, scount, sdispl, sout, rcount, rdispl, sub_group )
+  CALL mp_alltoall ( rbuf, scount, sdispl, sout, rcount, rdispl, sub_group )
 
   DEALLOCATE ( rbuf, STAT = ierr )
   IF ( ierr /= 0 ) CALL stop_memory ( "cube_transpose", "rbuf" )
@@ -2269,7 +2269,7 @@ SUBROUTINE cube_transpose_3 ( sin, group, boin, boout, sout )
   IF ( ierr /= 0 ) CALL stop_memory ( "cube_transpose", "rbuf", nz*nx*my*np )
   rbuf = 0._dbl
 
-  CALL mp_transpose ( sin, scount, sdispl, rbuf, rcount, rdispl, sub_group )
+  CALL mp_alltoall ( sin, scount, sdispl, rbuf, rcount, rdispl, sub_group )
 
   DO ixz = 1, nx * nz
     DO ip = 0, np - 1
@@ -2373,7 +2373,7 @@ SUBROUTINE cube_transpose_4 ( sin, group, boin, boout, sout )
     rdispl ( ip ) = ny * nz * ( boin ( 1, 1, ipl ) - 1 )
   END DO
 
-  CALL mp_transpose ( rbuf, scount, sdispl, sout, rcount, rdispl, sub_group )
+  CALL mp_alltoall ( rbuf, scount, sdispl, sout, rcount, rdispl, sub_group )
 
   DEALLOCATE ( rbuf, STAT = ierr )
   IF ( ierr /= 0 ) CALL stop_memory ( "cube_transpose", "rbuf" )
@@ -2437,7 +2437,7 @@ SUBROUTINE cube_transpose_5 ( sin, group, boin, boout, sout )
   IF ( ierr /= 0 ) CALL stop_memory ( "cube_transpose", "rbuf", nz*nx*my*np )
   rbuf = 0._dbl
 
-  CALL mp_transpose ( sin, scount, sdispl, rbuf, rcount, rdispl, group )
+  CALL mp_alltoall ( sin, scount, sdispl, rbuf, rcount, rdispl, group )
 
   DO ixz = 1, nx * nz
     DO ip = 0, np - 1
@@ -2519,7 +2519,7 @@ SUBROUTINE cube_transpose_6 ( sin, group, boin, boout, sout )
     rdispl ( ip ) = ny * nz * ( boin ( 1, 1, ip ) - 1 )
   END DO
 
-  CALL mp_transpose ( rbuf, scount, sdispl, sout, rcount, rdispl, group )
+  CALL mp_alltoall ( rbuf, scount, sdispl, sout, rcount, rdispl, group )
 
   DEALLOCATE ( rbuf, STAT = ierr )
   IF ( ierr /= 0 ) CALL stop_memory ( "cube_transpose", "rbuf" )

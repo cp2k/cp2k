@@ -1533,7 +1533,7 @@ END SUBROUTINE cp_sm_scale_and_add
 
   SUBROUTINE get_real_block_node(block_node,block_col,block)
 
-!   Purpose: Get block node data set.
+!   Purpose: Get the the column and/or matrix-block for a given sparse matrix block node.
 
 !   History: - Creation (28.05.2000, MK)
 
@@ -1556,7 +1556,7 @@ END SUBROUTINE cp_sm_scale_and_add
                                    first_row,last_row,first_col,last_col,&
                                    block_node,block)
 
-!   Purpose: Get block node data set.
+!   Purpose: Get a specific (block_row,block_col)-block from the real matrix
 
 !   History: - Creation (28.05.2000, MK)
 
