@@ -73,8 +73,8 @@ MODULE xc_functionals
             ol1, ol2, llp, ke_pw86, ke_pw91, lc, t92, &
             lyp, pade, xalpha, thomas_fermi, tfw, vwn, perdew_wang, &
             perdew_zunger, perdew86, cs1
-  PUBLIC :: xc_get_functional, xc_print_info, xc_set, xc_lda, xc_lsd, &
-            xc_get_pot_size, xc_create_2nd_deriv_info, xc_calculate_lsd
+  PUBLIC :: xc_get_functional, xc_get_order, xc_print_info, xc_set, xc_lda, xc_lsd, &
+            xc_get_pot_size, xc_create_2nd_deriv_info, xc_calculate_lda, xc_calculate_lsd
 
   REAL ( dbl ), PARAMETER :: default_cutoff = 1.0E-12_dbl
   REAL ( dbl ), PARAMETER :: default_g_cutoff = 1.0E-10_dbl
