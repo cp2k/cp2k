@@ -54,7 +54,7 @@ MODULE qs_tddfpt_utils
                                              cp_sm_fm_multiply
   USE global_types,                    ONLY: global_environment_type
   USE hartree_local_methods,           ONLY: init_coulomb_local
-  USE kinds,                           ONLY: dbl
+  USE kinds,                           ONLY: dp
   USE qs_environment_types,            ONLY: qs_environment_type, &
                                              get_qs_env
   USE qs_kpp1_env_methods,             ONLY: kpp1_create
@@ -85,7 +85,7 @@ MODULE qs_tddfpt_utils
   TYPE simple_solution_sorter
      INTEGER                               :: orbit
      INTEGER                               :: lumo
-     REAL(KIND=DBL)                        :: value
+     REAL(KIND=DP)                        :: value
      TYPE(simple_solution_sorter), POINTER :: next
   END TYPE simple_solution_sorter
 
@@ -249,7 +249,7 @@ CONTAINS
     CHARACTER                                :: symmetric
     INTEGER                                  :: i, ioerr, j
     LOGICAL                                  :: local
-    REAL(DBL)                                :: element
+    REAL(DP)                                :: element
 
     symmetric = 'F'
     IF (PRESENT(sym)) symmetric=sym
@@ -261,11 +261,11 @@ CONTAINS
           IF ((symmetric == 'T') .AND. (i>j)) THEN
              CALL cp_fm_get_element(matrix, j, i, element, local)
              ! this is to get the old meaning of the call, unclear if this is really meant to be the case ! Joost
-             IF (.NOT. local) element = 0.0_dbl
+             IF (.NOT. local) element = 0.0_dp
           ELSE
              CALL cp_fm_get_element(matrix, i, j, element, local)
              ! this is to get the old meaning of the call, unclear if this is really meant to be the case ! Joost
-             IF (.NOT. local) element = 0.0_dbl
+             IF (.NOT. local) element = 0.0_dp
           END IF
           WRITE (8, '(1X,F20.10)') element
        END DO
@@ -284,7 +284,7 @@ CONTAINS
       POINTER                                :: matrices
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(qs_p_env_type), POINTER             :: p_env
-    REAL(kind=DBL), DIMENSION(:, 0:), &
+    REAL(kind=DP), DIMENSION(:, 0:), &
       INTENT(OUT)                            :: energies
 
     CHARACTER(len=*), PARAMETER :: routineN = "calc_initial_guess", &
@@ -292,26 +292,26 @@ CONTAINS
 
     INTEGER                                  :: i, j, n_cols, n_ev, n_lumos, &
                                                 n_orbits, n_rows, n_spins, &
-                                                spin, stat
-    REAL(KIND=DBL)                           :: scale_factor, evd
-    REAL(KIND=DBL), ALLOCATABLE, &
+                                                spin, stat, oo, vo
+    REAL(KIND=DP)                           :: scale_factor, evd
+    REAL(KIND=DP), ALLOCATABLE, &
       DIMENSION(:, :)                        :: lumos, tmp_guess
-    REAL(KIND=DBL), DIMENSION(:), POINTER    :: orbital_eigenvalues
+    REAL(KIND=DP), DIMENSION(:), POINTER    :: orbital_eigenvalues
     TYPE(simple_solution_sorter), POINTER    :: sorter_iterator, &
                                                 sorter_pointer, sorter_start
     TYPE(tddfpt_control_type), POINTER       :: tddfpt_control
 
     tddfpt_control => qs_env%dft_control%tddfpt_control
-    n_spins = qs_env%dft_control%nspins
-    n_ev    = tddfpt_control%n_ev
-    energies = 0.0_dbl
+    n_spins        = qs_env%dft_control%nspins
+    n_ev           = tddfpt_control%n_ev
+    energies       = 0.0_dp
 
     DO spin=1, n_spins
 
        n_cols = matrices(spin)%matrix%matrix_struct%ncol_global
        n_rows = matrices(spin)%matrix%matrix_struct%nrow_global
 
-       CALL cp_fm_set_all(matrices(spin)%matrix, 0.0_dbl)
+       CALL cp_fm_set_all(matrices(spin)%matrix, 0.0_dp)
 
        IF (ASSOCIATED(tddfpt_control%lumos)) THEN       
 
@@ -329,12 +329,12 @@ CONTAINS
           sorter_start%value=evd
           NULLIFY(sorter_start%next)
          
-          DO i=n_orbits, MAX(n_orbits-n_ev+1,1), -1
-             DO j=1, MIN(n_ev, n_lumos)
+          DO oo=n_orbits, MAX(n_orbits-n_ev+1,1), -1
+             DO vo=1, MIN(n_ev, n_lumos)
 
-                IF (i==n_orbits .AND. j==1) CYCLE ! already in list
+                IF (oo==n_orbits .AND. vo==1) CYCLE ! already in list
 
-                evd = tddfpt_control%lumos_eigenvalues(j,spin)-orbital_eigenvalues(i)
+                evd = tddfpt_control%lumos_eigenvalues(vo,spin)-orbital_eigenvalues(oo)
 
                 sorter_iterator => sorter_start
                 NULLIFY(sorter_pointer)
@@ -347,8 +347,8 @@ CONTAINS
                 END DO
 
                 ALLOCATE(sorter_iterator%next)
-                sorter_iterator%next%orbit = i
-                sorter_iterator%next%lumo  = j
+                sorter_iterator%next%orbit = oo
+                sorter_iterator%next%lumo  = vo
                 sorter_iterator%next%value = evd
                 sorter_iterator%next%next  => sorter_pointer
 
@@ -356,17 +356,15 @@ CONTAINS
           END DO
 
           ALLOCATE(lumos(n_rows, n_lumos), tmp_guess(n_rows, n_orbits), stat=stat)
+          CALL dcopy(n_rows*n_orbits, 0.0_dp, 0, tmp_guess, 1)          
 
           CALL cp_fm_get_submatrix(tddfpt_control%lumos(spin)%matrix, lumos, &
                                    start_col=1, n_cols=n_lumos)
 
-          
-          CALL dcopy(n_rows*n_orbits, 0.0_dbl, 0, tmp_guess, 1)          
           sorter_iterator=>sorter_start
 
-          scale_factor = 1/SQRT(REAL(n_ev,DBL))
           DO i=1, MIN(n_ev, n_lumos)
-             CALL daxpy(n_rows, scale_factor/REAL(i,dbl), &
+             CALL daxpy(n_rows, 1.0_dp, &
                         lumos(:,sorter_iterator%lumo), 1, &
                         tmp_guess(:,sorter_iterator%orbit),1)
              energies(i,0) = sorter_iterator%value
@@ -381,7 +379,7 @@ CONTAINS
 
           CALL cp_fm_init_random(matrices(spin)%matrix, n_ev, start_col=n_cols-n_Ev+1)
           DO i=1, n_ev
-             energies(i,0)=9.999E99_dbl
+             energies(i,0)=9.999E99_dp
           END DO
 
        END IF
@@ -401,7 +399,7 @@ CONTAINS
     INTEGER, INTENT(IN)                      :: n_v ! number of vectors to initialize
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(qs_p_env_type), POINTER             :: p_env
-    REAL(kind=DBL), DIMENSION(:, 0:), &
+    REAL(kind=DP), DIMENSION(:, 0:), &
       INTENT(OUT)                            :: energies
 
     CHARACTER(len=*), PARAMETER :: routineN = "davidson_initial_guess", &
@@ -410,17 +408,17 @@ CONTAINS
     INTEGER                                  :: i, j, n_cols, n_lumos, &
                                                 n_orbits, n_rows, n_spins, &
                                                 spin, stat, oo, vo
-    REAL(KIND=DBL)                           :: scale_factor, evd
-    REAL(KIND=DBL), ALLOCATABLE, &
+    REAL(KIND=DP)                           :: scale_factor, evd
+    REAL(KIND=DP), ALLOCATABLE, &
       DIMENSION(:, :)                        :: lumos, guess
-    REAL(KIND=DBL), DIMENSION(:), POINTER    :: orbital_eigenvalues
+    REAL(KIND=DP), DIMENSION(:), POINTER    :: orbital_eigenvalues
     TYPE(simple_solution_sorter), POINTER    :: sorter_iterator, &
                                                 sorter_pointer, sorter_start
     TYPE(tddfpt_control_type), POINTER       :: tddfpt_control
 
     tddfpt_control => qs_env%dft_control%tddfpt_control
     n_spins = qs_env%dft_control%nspins
-    energies = 0.0_dbl
+    energies = 0.0_dp
 
     DO spin=1, n_spins
 
@@ -428,7 +426,7 @@ CONTAINS
        n_rows = matrices(1,spin)%matrix%matrix_struct%nrow_global
        
        DO i=1, n_v
-          CALL cp_fm_set_all(matrices(i,spin)%matrix, 0.0_dbl)
+          CALL cp_fm_set_all(matrices(i,spin)%matrix, 0.0_dp)
        END DO
 
        IF (ASSOCIATED(tddfpt_control%lumos)) THEN       
@@ -485,7 +483,7 @@ CONTAINS
           !-------------------!
           sorter_iterator=>sorter_start
           DO i=1, MIN(n_v,n_orbits*n_lumos)
-             CALL dcopy(n_rows*n_orbits, 0.0_dbl, 0, guess, 1)
+             CALL dcopy(n_rows*n_orbits, 0.0_dp, 0, guess, 1)
              CALL dcopy(n_rows, lumos(:,sorter_iterator%lumo), 1, &
                                 guess(:,sorter_iterator%orbit),1)
              CALL cp_fm_set_submatrix(matrices(i,spin)%matrix, &
@@ -496,7 +494,7 @@ CONTAINS
           IF (n_v > n_orbits*n_lumos) THEN
              DO i=n_orbits*n_lumos+1, n_v
                 CALL cp_fm_init_random(matrices(i,spin)%matrix, n_orbits)
-                energies(i,0)=9.999E99_dbl
+                energies(i,0)=9.999E99_dp
              END DO
           END IF
 
@@ -516,7 +514,7 @@ CONTAINS
 
           DO i=1, n_v
              CALL cp_fm_init_random(matrices(i,spin)%matrix, n_orbits)
-             energies(i,0)=9.999E99_dbl
+             energies(i,0)=9.999E99_dp
           END DO
 
        END IF
@@ -536,25 +534,25 @@ CONTAINS
 
     ! LOCALS
     INTEGER                                  :: n_spins, spin
-    REAL(KIND=dbl)                           :: norm, tmp
+    REAL(KIND=dp)                           :: norm, tmp
 
 
     n_spins = SIZE(x)
-    norm = 0.0_dbl
+    norm = 0.0_dp
 
     DO spin=1, n_spins
-       tmp = 0.0_dbl
+       tmp = 0.0_dp
        CALL cp_sm_fm_multiply(metric(spin)%matrix, X(spin)%matrix, &
             tmp_vec(spin)%matrix, &
             X(spin)%matrix%matrix_struct%ncol_global, &
-            1.0_dbl, 0.0_dbl)
+            1.0_dp, 0.0_dp)
        CALL cp_fm_trace(X(spin)%matrix, tmp_vec(spin)%matrix, tmp)
        norm = norm + tmp
     END DO
 
     norm = SQRT(norm)
     DO spin=1, n_spins
-       CALL cp_fm_scale((1.0_dbl/norm), X(spin)%matrix)
+       CALL cp_fm_scale((1.0_dp/norm), X(spin)%matrix)
     END DO
 
   END SUBROUTINE normalize
@@ -571,7 +569,7 @@ CONTAINS
     TYPE(cp_fm_p_type), DIMENSION(:)         :: x, tmp_vec
     TYPE(real_matrix_p_type), DIMENSION(:), &
       POINTER                                :: metric
-    REAL(KIND=dbl), INTENT(OUT)              :: norm
+    REAL(KIND=dp), INTENT(OUT)              :: norm
 
     INTEGER :: spin
 
@@ -594,28 +592,32 @@ CONTAINS
                                    routineP = moduleN//"/"//routineN
 
     INTEGER                                  :: i, n_spins, spin, time_handle
-    REAL(DBL)                                :: dot_product, tmp
+    REAL(DP)                                 :: dot_product, tmp
 
     CALL timeset(routineN,"I","",time_handle)
 
-    n_spins = SIZE(X)
-    DO spin=1, n_spins
-       CALL cp_fm_to_fm(X(spin)%matrix, work(spin)%matrix)
-    END DO
+    IF (n>0) THEN
 
-    DO i=1, n
-       dot_product = 0.0_dbl
+       n_spins = SIZE(X)
        DO spin=1, n_spins
-          CALL cp_fm_trace(work(spin)%matrix, SV_set(i,spin)%matrix, tmp)
-          dot_product = dot_product + tmp
+          CALL cp_fm_to_fm(X(spin)%matrix, work(spin)%matrix)
        END DO
-       DO spin=1, n_spins
-          CALL cp_fm_scale_and_add(1.0_dbl, X(spin)%matrix, &
-                                   -1.0_dbl*dot_product, V_set(i,spin)%matrix)
+       
+       DO i=1, n
+          dot_product = 0.0_dp
+          DO spin=1, n_spins
+             CALL cp_fm_trace(work(spin)%matrix, SV_set(i,spin)%matrix, tmp)
+             dot_product = dot_product + tmp
+          END DO
+          DO spin=1, n_spins
+             CALL cp_fm_scale_and_add(1.0_dp, X(spin)%matrix, &
+                                      -1.0_dp*dot_product, V_set(i,spin)%matrix)
+          END DO
        END DO
-    END DO
+       
+    END IF
 
-    CALL timestop(0.0_dbl, time_handle)
+    CALL timestop(0.0_dp, time_handle)
 
   END SUBROUTINE reorthogonalize
 
@@ -623,7 +625,7 @@ CONTAINS
 
   SUBROUTINE dot_prod(res, X, Y, metric, tmp_vec)
 
-    REAL(KIND=dbl), INTENT(OUT)      :: res
+    REAL(KIND=dp), INTENT(OUT)      :: res
     TYPE(cp_fm_p_type), DIMENSION(:) :: X, Y, tmp_vec
     TYPE(real_matrix_p_type), DIMENSION(:), &
          POINTER                     :: metric
@@ -632,16 +634,16 @@ CONTAINS
                                    routineP = moduleN//"/"//routineN
 
     INTEGER                          :: spin, n_spins
-    REAL(KIND=dbl)                   :: tmp
+    REAL(KIND=dp)                   :: tmp
 
     n_spins = SIZE(X)
-    res = 0.0_dbl
+    res = 0.0_dp
     DO spin=1, n_spins
-       tmp = 0.0_dbl
+       tmp = 0.0_dp
        CALL cp_sm_fm_multiply(metric(spin)%matrix, Y(spin)%matrix, &
                               tmp_vec(spin)%matrix, &
                               Y(spin)%matrix%matrix_struct%ncol_global, &
-                              1.0_dbl, 0.0_dbl)
+                              1.0_dp, 0.0_dp)
        CALL cp_fm_trace(X(spin)%matrix, tmp_vec(spin)%matrix, tmp)
        res = res + tmp
     END DO
