@@ -715,7 +715,7 @@ contains
     character(len=*), parameter :: routineP='pao_glob_angles_methods:pao_g_ang_get'
     type(cp_error_type) :: iError
     type(pao_env_type), pointer :: pao_env
-    type(cp_b_matrix_struct_type), pointer :: full_bas_m_struct
+    type(cp_b_matrix_struct_type), pointer :: m_struct
     integer :: stat, n_atoms
     call cp_init(iError,template_error=error)
     failure=.false.
@@ -728,10 +728,10 @@ contains
        if (present(m_h_m_valid)) m_h_m_valid=glob_angles%m_h_m_valid
        if (present(unitary_t)) then
           call get_qs_env(qs_env, pao_env=pao_env)
-          call cp_get(pao_env, full_bas_diag_m_struct=full_bas_m_struct)
+          call cp_get(pao_env, full_bas_diag_m_struct=m_struct)
           if (.not.associated(glob_angles%unitary_t)) then
              call cp_create(glob_angles%unitary_t,global_env=global_env,&
-                  matrix_structure=full_bas_m_struct,&
+                  matrix_structure=m_struct,&
                   error=error)
           end if
           if (.not.associated(glob_angles%ut_calculated)) then
@@ -752,10 +752,10 @@ contains
        end if
        if (present(NUi_injection)) then
           call get_qs_env(qs_env, pao_env=pao_env)
-          call cp_get(pao_env, full_bas_diag_m_struct=full_bas_m_struct)
+          call cp_get(pao_env, full_min_bas_m_struct=m_struct)
           if (.not.associated(glob_angles%NUi_injection)) then
              call cp_create(glob_angles%NUi_injection,global_env=global_env,&
-                  matrix_structure=full_bas_m_struct,&
+                  matrix_structure=m_struct,&
                   error=error)
           end if
           if (.not.associated(glob_angles%NUi_injection_calculated)) then

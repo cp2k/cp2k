@@ -468,15 +468,18 @@ function pao_qs_env_get_atomic_ortho(qs_env,global_env,atom_nr,error)&
   CPPrecondition(associated(pao_env),cp_failure_level,routineP,error,failure)
   if (.not.failure) then
      if (.not.associated(pao_env%atomic_ortho_valid)) then
-        allocate(pao_env%atomic_ortho_valid(n_atoms))
-        pao_env%atomic_ortho_valid=.false.
+        allocate(pao_env%atomic_ortho_valid(n_atoms),stat=stat)
+        CPPostcondition(stat==0,cp_warning_level,routineP,error,failure)
+        if (.not.failure) then
+           pao_env%atomic_ortho_valid=.false.
+        end if
      end if
      if (.not.associated(pao_env%atomic_ortho)) then
         call cp_sp_create(pao_env%atomic_ortho,&
-             matrix_structure=pao_env%full_min_bas_m_struct,&
+             matrix_structure=pao_env%full_bas_diag_m_struct,&
              global_env=global_env,error=error)
-        atomic_ortho => pao_env%atomic_ortho
      end if
+     atomic_ortho => pao_env%atomic_ortho
   end if
   CPPrecondition(associated(atomic_ortho),cp_failure_level,routineP,error,failure)
   CPPrecondition(associated(pao_env%atomic_ortho_valid),cp_failure_level,routineP,error,failure)
@@ -493,7 +496,7 @@ function pao_qs_env_get_atomic_ortho(qs_env,global_env,atom_nr,error)&
              block_col=atom_nr)
         if (.not.associated(res)) then
            call add_block_node(cp_get_matrix(atomic_ortho),&
-                atom_nr,atom_nr,block=res)
+                block_row=atom_nr,block_col=atom_nr,block=res)
         end if
         CPPostcondition(associated(res),cp_failure_level,routineP,error,failure)
         if (.not.failure) then
@@ -512,7 +515,7 @@ function pao_qs_env_get_atomic_ortho(qs_env,global_env,atom_nr,error)&
               tmp_m=block_val
               eps_eigval= 10 * epsilon(0.0_wp) ! to do: use the scf value
               call power_matrix(tmp_m,res,-0.5_wp,threshold=eps_eigval)
-              !call symmetrize_matrix(res,"upper_to_lower") ! remove?
+              call symmetrize_matrix(res,"upper_to_lower")
               if (cp_debug.and.debug_this_module) then
                  iter=iter+1
                  call cp_2d_r_output(cp_error_get_logger(error),&
@@ -524,6 +527,7 @@ function pao_qs_env_get_atomic_ortho(qs_env,global_env,atom_nr,error)&
            end if
            deallocate(tmp_m,stat=stat) ! just to be sure...
            CPPostcondition(stat==0,cp_warning_level,routineP,error,failure)
+           pao_env%atomic_ortho_valid(atom_nr)=.true.
         end if
      end if
   end if

@@ -667,7 +667,12 @@ contains
                global_env=g_env,d_struct=gf_env%d_struct, error=error)
           if (cp_debug .and. debug_this_module) then
              call cp_sm_output(logger=cp_error_get_logger(error), &
-               outputName="obj_f_NHBPpi", &
+               outputName="obj_f_BPpi", &
+               fromWhere=routineP, iter=gf_env%n_eval, &
+               matrix=cp_get_matrix(gf_env%full_work_m),&
+               global_env=g_env,error=error)
+             call cp_sm_output(logger=cp_error_get_logger(error), &
+               outputName="obj_f_2HBPpi", &
                fromWhere=routineP, iter=gf_env%n_eval, matrix=diagMatrix,&
                global_env=g_env,error=error)
           end if
@@ -931,11 +936,18 @@ subroutine cp_l_multiply_atomic_ortho(matrix,qs_env,global_env,error)
                 cp_assertion_failed,routineP,"size mismach in "//&
                 CPSourceFileRef,&
                 error=error,failure=failure)
+           call cp_assert(size(t1_m,1)>=size(a_ortho,1).and.&
+                size(t1_m,2)>=size(block_val,2),cp_failure_level,&
+                cp_assertion_failed,routineP,"t1_m too small in "//&
+                CPSourceFileRef,&
+                error=error,failure=failure)           
         end if
-        call dgemm('N','N',size(a_ortho,1),size(block_val,2),size(a_ortho,2),&
-             1.0_wp,a_ortho,size(a_ortho,1),block_val,size(block_val,1),&
-             t1_m,size(t1_m,1))
-        block_val=t1_m(1:size(block_val,1),1:size(block_val,2))
+        if (.not.failure) then
+           call dgemm('N','N',size(a_ortho,1),size(block_val,2),size(a_ortho,2),&
+                1.0_wp,a_ortho,size(a_ortho,1),block_val,size(block_val,1),&
+                0.0_wp,t1_m,size(t1_m,1))
+           block_val=t1_m(1:size(block_val,1),1:size(block_val,2))
+        end if
      end do
      call cp_matrix_b_i_dealloc_ref(iterator,error=error)
      deallocate(t1_m,stat=stat)

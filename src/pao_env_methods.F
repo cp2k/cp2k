@@ -199,8 +199,8 @@ contains
              call cp_proj_get(bproj,size_min_bas=size_min_bas,&
                   size_full_bas=size_full_bas,error=error)
              do j=1,size(atom_list)
-                min_bas_sizes(atom_list(i))=size_min_bas
-                full_bas_sizes(atom_list(i))=size_full_bas
+                min_bas_sizes(atom_list(j))=size_min_bas
+                full_bas_sizes(atom_list(j))=size_full_bas
              end do
           end if
        end do
@@ -237,7 +237,7 @@ contains
                b_row_sizes=full_bas_sizes,&
                b_col_sizes=full_bas_sizes,&
                error=error)
-          pao_env%full_bas_diag_m_struct%sparsity(i,i)=.false.
+          pao_env%full_bas_diag_m_struct%sparsity=.false.
           do i=1,size(pao_env%full_bas_diag_m_struct%sparsity,1)
              pao_env%full_bas_diag_m_struct%sparsity(i,i)=.true.
           end do
@@ -464,7 +464,7 @@ contains
        test_pos=.true.
     end if
     CPPrecondition(pao_env%initialized,cp_failure_level,routineP,error,failure)
-    failure=pao_env_valid(pao_env,error=error)
+    failure=failure.and..not.pao_env_valid(pao_env,error=error)
     ! to do: more tests using qs_env
     res=.not.failure
   end function pao_env_validate

@@ -53,7 +53,7 @@ module pao_l_angles_methods
   private
 
   logical, private, parameter :: debug_this_module=.true.
-  character(len=*), private, parameter :: moduleN='pao_env_methods'
+  character(len=*), private, parameter :: moduleN='pao_l_angles_methods'
 ! types
   public :: pao_local_angles_type
 
@@ -1661,7 +1661,7 @@ function pao_l_ang_get_NUi_injection(local_angles, error) result(res)
   logical :: failure
   character(len=*), parameter :: routineN='pao_l_ang_get_NUi_injection',&
         routineP=moduleN//':'//routineN
-  integer :: stat, max_full_bas, i
+  integer :: stat, max_full_bas, i, max_min_bas
   integer, save :: iter=0
   integer, dimension(:), pointer :: proj_indexes
   type(cp_sparse_matrix_type), pointer :: NUi_injection
@@ -1674,7 +1674,10 @@ function pao_l_ang_get_NUi_injection(local_angles, error) result(res)
   if (.not. failure) then
      call pao_qs_env_get(local_angles%qs_env,&
           global_env=local_angles%global_env, pao_env=pao_env,&
-          pao_max_full_bas=max_full_bas,&
+          pao_max_full_bas=max_full_bas,pao_max_min_bas=max_min_bas,&
+          error=error)
+     call pao_g_ang_get(local_angles%glob_angles,qs_env=local_angles%qs_env,&
+          global_env=local_angles%global_env,NUi_injection=NUi_injection,&
           error=error)
      CPPrecondition(associated(NUi_injection),cp_failure_level,routineP,error,failure)
      CPPrecondition(associated(pao_env),cp_failure_level,routineP,error,failure)
@@ -1703,20 +1706,16 @@ function pao_l_ang_get_NUi_injection(local_angles, error) result(res)
         end if
         CPPostcondition(associated(res),cp_failure_level,routineP,error,failure)
         if (.not.failure) then
-           CPPrecondition(size(res,1)==size(res,2),cp_failure_level,routineP,error,failure)
-        end if
-        if (.not.failure) then
-           if (associated(local_angles%tmp_m)) then
-              call cp_assert(size(local_angles%tmp_m,1) >= size(res,1) .and.&
-                   size(local_angles%tmp_m,2) >= size(res,2),cp_failure_level,&
-                   cp_internal_error, routineP, &
-                   "local_angles%tmp_m not big enough, in"//&
-                   CPSourceFileRef,&
-                   error=error,failure=failure)
-           else
-              allocate(local_angles%tmp_m(max_full_bas,max_full_bas),stat=stat)
+           if (.not.associated(local_angles%tmp_m)) then
+              allocate(local_angles%tmp_m(max_full_bas,max_min_bas),stat=stat)
               CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
            end if
+           call cp_assert(size(local_angles%tmp_m,1) >= size(res,1) .and.&
+                size(local_angles%tmp_m,2) >= size(res,2),cp_failure_level,&
+                cp_internal_error, routineP, &
+                "local_angles%tmp_m not big enough, in"//&
+                CPSourceFileRef,&
+                error=error,failure=failure)
         end if
         u_m => pao_l_ang_get_unitary_t(local_angles, error=error)
         CPPrecondition(associated(u_m),cp_failure_level,routineP,error,failure)
@@ -1724,26 +1723,27 @@ function pao_l_ang_get_NUi_injection(local_angles, error) result(res)
         CPPrecondition(associated(n_m),cp_failure_level,routineP,error,failure)
         if (.not.failure) then
            CPPrecondition(size(u_m,1)==size(n_m,2),cp_failure_level,routineP,error,failure)
-        end if
-        if (.not.failure) then
-           call dgemm('N','N',size(n_m,1),size(u_m,2),size(u_m,2),1.0_wp,&
-                n_m,size(n_m,1),u_m,size(u_m,1),0.0_wp,&
-                local_angles%tmp_m,size(local_angles%tmp_m,1))
            call cp_proj_get(local_angles%projection,proj_indexes=proj_indexes,&
                 error=error)
            CPPrecondition(associated(proj_indexes),cp_failure_level,routineP,error,failure)
-           if (.not.failure) then
-              do i=1,size(proj_indexes)
-                 res(:,i)=local_angles%tmp_m(:,proj_indexes(i))
-              end do
-              if (cp_debug.and.debug_this_module) then
-                 iter=iter+1
-                 call cp_2d_r_output(cp_error_get_logger(error),&
-                      outputName="atomic_NUi",&
-                      fromWhere=routineP, iter=iter,array=res,&
-                      comment="atom_nr="//cp_to_string(local_angles%atom_nr),&
-                      error=error)
-              end if
+        end if
+        if (.not.failure) then
+           do i=1,size(proj_indexes)
+              local_angles%tmp_m(1:size(u_m,1),i)=u_m(:,proj_indexes(i))
+           end do
+           call dgemm('N','N',size(n_m,1),size(proj_indexes),&
+                size(u_m,1),1.0_wp,&
+                n_m,size(n_m,1),local_angles%tmp_m,size(local_angles%tmp_m,1),&
+                0.0_wp,res,size(res,1))
+           if (cp_debug.and.debug_this_module) then
+              iter=iter+1
+              call cp_2d_r_output(cp_error_get_logger(error),&
+                   outputName="atomic_NUi",&
+                   fromWhere=routineP, iter=iter,array=res,&
+                   comment="atom_nr="//cp_to_string(local_angles%atom_nr),&
+                   error=error)
+              local_angles%glob_angles%NUi_injection_calculated &
+                   (local_angles%atom_nr)=.true.
            end if
         end if
      end if
