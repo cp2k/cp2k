@@ -157,7 +157,7 @@ OBJECTS_GENERIC =\
  molecule_types.o\
  mulliken.o\
  nhc.o\
- nose.o\
+ extended_system_dynamics.o\
  nrutil.o\
  orbital_pointers.o\
  orbital_symbols.o\
