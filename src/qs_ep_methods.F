@@ -12,7 +12,7 @@
 !!
 !!   FUNCTION
 !!     in this module there are the routines for the calculation of 
-!!     psi and energy without scf, but perturbatively as in PRL 82,22;
+!!     psi and energy without scf, but perturbatively as in PRL 87(22);226401;
 !!     26 Nov 2001,"Accurate Total Energies without Self-Consistency",
 !!     David M. Benoit, Daniel Sebastiani, and Michele Parrinello 
 !!
