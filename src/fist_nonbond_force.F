@@ -28,7 +28,8 @@ MODULE fist_nonbond_force
   USE mathconstants, ONLY : pi
   USE molecule_types, ONLY : molecule_structure_type, particle_node_type, &
                              linklist_atoms, linklist_exclusion
-  USE pair_potential, ONLY : potential_s, potentialparm_type
+  USE pair_potential_types, ONLY : pair_potential_type
+  USE pair_potential, ONLY : potential_s
   USE particle_types, ONLY : particle_type
   USE qs_neighbor_list_types,   ONLY: first_list,&
                                       first_node,&
@@ -70,7 +71,7 @@ SUBROUTINE force_nonbond ( ewald_param, part, pnode, box, potparm, &
 
 ! Arguments
   TYPE (ewald_parameters_type ), INTENT ( IN ) :: ewald_param
-  TYPE (potentialparm_type ), INTENT ( IN ), DIMENSION ( :, : ) :: potparm
+  TYPE (pair_potential_type ), INTENT ( IN ), DIMENSION ( :, : ) :: potparm
   TYPE (particle_type ), INTENT ( IN ), DIMENSION ( : ) :: part
   TYPE (particle_node_type ), INTENT ( IN ), DIMENSION ( : ) :: pnode
   TYPE ( cell_type ), INTENT ( IN ), TARGET :: box

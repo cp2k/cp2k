@@ -32,7 +32,6 @@ MODULE fist_neighbor_lists
   USE global_types,                    ONLY: LOW,global_environment_type
   USE molecule_types,                  ONLY: particle_node_type,&
                                              linklist_exclusion
-  USE pair_potential,                  ONLY: potentialparm_type
   USE particle_types,                  ONLY: particle_type
   USE qs_neighbor_list_types,          ONLY: add_neighbor_list,&
                                              add_neighbor_node,&

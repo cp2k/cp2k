@@ -38,8 +38,8 @@ MODULE dft_structure_control
        initialize_velocities, thermodynamic_type
   USE molecule_types, ONLY : molecule_structure_type, particle_node_type, &
        molecule_type
-  USE pair_potential, ONLY : get_potrange, potentialparm_type, &
-       spline_nonbond_control
+  USE pair_potential_types, ONLY : pair_potential_type, &
+  USE pair_potential, ONLY : get_potrange, spline_nonbond_control
   USE particle_types, ONLY : particle_type
   USE potential_types, ONLY : potential_type, potential_allocate, &
        potential_init
@@ -76,7 +76,7 @@ SUBROUTINE dft_force_control ( molecule, pnode, part, box, thermo, &
   TYPE ( molecule_structure_type ), DIMENSION ( : ), INTENT ( IN ) :: molecule
   TYPE ( cell_type ), INTENT ( INOUT ) :: box
   TYPE ( thermodynamic_type ), INTENT ( INOUT ) :: thermo
-  TYPE ( potentialparm_type ), DIMENSION ( :,: ), INTENT ( IN ) :: potparm
+  TYPE ( pair_potential_type ), DIMENSION ( :,: ), INTENT ( IN ) :: potparm
   TYPE ( ewald_parameters_type ), INTENT ( INOUT ) :: ewald_param
   LOGICAL, INTENT ( IN ) :: box_change
   TYPE ( linklist_internal_data_type), INTENT (INOUT) :: lldata

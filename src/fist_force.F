@@ -37,7 +37,7 @@ MODULE fist_force
   USE mathconstants, ONLY : pi, zero
   USE molecule_types, ONLY : molecule_structure_type, particle_node_type
   USE message_passing, ONLY : mp_sum
-  USE pair_potential, ONLY : potentialparm_type
+  USE pair_potential_types, ONLY : pair_potential_type
   USE particle_types, ONLY : particle_type
   USE pme, ONLY: pme_evaluate
   USE pw_grid_types, ONLY : pw_grid_type
@@ -98,7 +98,7 @@ SUBROUTINE fist_force_control ( rep_env, ewald_param, potparm, thermo, &
 ! Arguments
   TYPE ( replica_environment_type ), INTENT ( INOUT ):: rep_env
   TYPE ( ewald_parameters_type ), INTENT ( INOUT ) :: ewald_param
-  TYPE ( potentialparm_type ), INTENT ( IN )  :: potparm ( :, : )
+  TYPE ( pair_potential_type ), INTENT ( IN )  :: potparm ( :, : )
   TYPE ( fist_thermodynamic_type ), INTENT ( INOUT ) :: thermo
   LOGICAL, INTENT ( IN ) :: box_change
   TYPE ( global_environment_type ), INTENT ( IN ) :: globenv

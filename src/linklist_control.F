@@ -35,7 +35,6 @@ MODULE linklist_control
 
   USE fist_neighbor_lists, ONLY: build_fist_neighbor_lists,&
                                  rebuild_fist_neighbor_lists
-  USE pair_potential,      ONLY: potentialparm_type
 
   IMPLICIT NONE
 

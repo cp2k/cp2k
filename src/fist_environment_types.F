@@ -30,7 +30,7 @@ MODULE fist_environment_types
   USE molecule_types,                  ONLY: molecule_structure_type,&
                                              particle_node_type
   USE molecule_types_new,              ONLY: molecule_type
-  USE pair_potential,                  ONLY: potentialparm_type
+  USE pair_potential_types,            ONLY: pair_potential_type
   USE particle_types,                  ONLY: particle_type
   USE simulation_cell,                 ONLY: cell_type
   PRIVATE
@@ -71,7 +71,7 @@ MODULE fist_environment_types
   TYPE fist_environment_type
     LOGICAL, POINTER :: pimd
     TYPE ( ewald_parameters_type ), POINTER :: ewald_param
-    TYPE ( potentialparm_type ), POINTER :: potparm ( :, : )
+    TYPE ( pair_potential_type ), POINTER :: potparm ( :, : )
     TYPE ( replica_environment_type ), POINTER :: rep_env ( : )
     TYPE ( fist_thermodynamic_type ), POINTER :: thermo
   END TYPE fist_environment_type
@@ -107,7 +107,7 @@ CONTAINS
     TYPE ( fist_environment_type ), INTENT(IN)              :: fist_env
     LOGICAL, OPTIONAL, POINTER                              :: pimd
     TYPE ( ewald_parameters_type ), OPTIONAL, POINTER       :: ewald_param
-    TYPE ( potentialparm_type ), OPTIONAL, POINTER          :: potparm ( :, : )
+    TYPE ( pair_potential_type ), OPTIONAL, POINTER          :: potparm ( :, : )
     TYPE ( fist_thermodynamic_type ), OPTIONAL, POINTER     :: thermo
     TYPE ( replica_environment_type ), OPTIONAL, POINTER    :: rep_env ( : )
 
@@ -151,7 +151,7 @@ CONTAINS
     TYPE ( fist_environment_type ), INTENT(out)             :: fist_env
     LOGICAL, OPTIONAL, POINTER                              :: pimd
     TYPE ( ewald_parameters_type ), OPTIONAL, POINTER       :: ewald_param
-    TYPE ( potentialparm_type ), OPTIONAL, POINTER          :: potparm ( :, : )
+    TYPE ( pair_potential_type ), OPTIONAL, POINTER          :: potparm ( :, : )
     TYPE ( fist_thermodynamic_type ), OPTIONAL, POINTER     :: thermo
     TYPE ( replica_environment_type ), OPTIONAL, POINTER    :: rep_env ( : )
   

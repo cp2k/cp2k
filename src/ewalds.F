@@ -449,7 +449,7 @@ SUBROUTINE ewald_initialize ( dg, part, pnode, pnode_grp, ewald_param, box, &
   TYPE ( pw_grid_type ), INTENT ( OUT ), OPTIONAL :: spme_grid
   
 ! Locals
-  INTEGER ::  natoms, iat, jat, gmax, npts_s ( 3 ), iw
+  INTEGER ::  iat, jat, gmax, npts_s ( 3 ), iw
   REAL ( dbl ) :: i, cutoff, ecut, alphasq, norm, cutoff_radius
   TYPE ( realspace_grid_type ) :: rs
 
@@ -460,43 +460,6 @@ SUBROUTINE ewald_initialize ( dg, part, pnode, pnode_grp, ewald_param, box, &
 ! This holds only for normal Ewald sums!
 ! For the grid based methods, G-Space/Real Space are distributed differently
   ewald_param % group = pnode_grp % group
-
-  natoms = SIZE ( part )
-
-  IF ( pnode_grp % ionode ) THEN
-    iw = pnode_grp % scr
-    IF ( ewald_param % ewald_type /= 'NONE' ) THEN
-
-       WRITE ( iw, '( A,T67,A14 )' ) ' Ewald| Summation is done by:', &
-            ADJUSTR(ewald_param % ewald_type)
-       WRITE ( iw, '( A,A8,T71,F10.4 )' ) ' Ewald| Alpha parameter [',ewald_param % unit_type,']', &
-            ewald_param % alpha
-
-       SELECT CASE ( ewald_param % ewald_type )
-       CASE DEFAULT
-          WRITE ( iw, '( A,T71,I10 )' ) &
-               ' Ewald| G-space max. Miller index', ewald_param % gmax
-       CASE ( 'PME')
-          WRITE ( iw, '( A,T71,I10 )' ) &
-               ' EWALD| Max small-grid points (input) ', ewald_param % ns_max
-          WRITE ( iw, '( A,T71,E10.4 )' ) &
-               ' EWALD| Gaussian tolerance (input) ', ewald_param % epsilon
-       CASE ( 'SPME' )
-          WRITE ( iw, '( A,T71,I10 )' ) &
-               ' Ewald| G-space max. Miller index', ewald_param % gmax
-          WRITE ( iw, '( A,T71,I10 )' ) &
-               ' Ewald| Spline interpolation order ', ewald_param % o_spline
-       END SELECT
-       CALL convert_to_cp2k_units ( ewald_param = ewald_param )
-
-    ELSE
-
-       WRITE ( iw, '( A, T73, A )' ) ' Ewald| ','not used'
-
-    END IF
-  ELSE
-    iw = -1
-  END IF
 
 ! fire up the reciprocal space and compute self interaction and
 ! term from the neutralizing background.

@@ -25,6 +25,7 @@ MODULE pair_potential
   USE ewald_parameters_types,   ONLY : ewald_parameters_type
   USE kinds,                    ONLY : dbl
   USE mathconstants,            ONLY : zero, pi
+  USE pair_potential_types,     ONLY : pair_potential_type
   USE splines,                  ONLY : init_spline,&
                                        init_splinexy,  &
                                        spline, &
@@ -39,37 +40,7 @@ MODULE pair_potential
 
   PRIVATE
   PUBLIC :: get_potrange, potential_f, potential_s
-  PUBLIC :: potentialparm_type, spline_nonbond_control
-  PUBLIC :: lj_pot_type, williams_pot_type, goodwin_pot_type
-
-  TYPE lj_pot_type
-    REAL ( dbl ) :: epsilon
-    REAL ( dbl ) :: sigma6
-    REAL ( dbl ) :: sigma12
-  END TYPE lj_pot_type
-
-  TYPE williams_pot_type
-    REAL ( dbl ) :: a
-    REAL ( dbl ) :: b
-    REAL ( dbl ) :: c
-  END TYPE williams_pot_type
-
-  TYPE goodwin_pot_type
-    REAL ( dbl ) :: vr0
-    REAL ( dbl ) :: m, mc
-    REAL ( dbl ) :: d, dc
-  END TYPE goodwin_pot_type
-
-  TYPE potentialparm_type
-    CHARACTER ( LEN = 40 ) :: type
-    TYPE (lj_pot_type ) :: lj
-    TYPE (williams_pot_type ) :: willis
-    TYPE (goodwin_pot_type ) :: goodwin
-    REAL ( dbl ) :: rcutsq
-    REAL ( dbl ) :: energy_cutoff
-    REAL ( dbl ) :: e_cutoff_coul
-    REAL ( dbl ) :: lrc
-  END TYPE potentialparm_type
+  PUBLIC :: spline_nonbond_control
 
 ! look-up table (i,j)->n
   INTEGER, DIMENSION ( :, : ), ALLOCATABLE, SAVE :: spltab
@@ -92,7 +63,7 @@ FUNCTION get_potrange ( potparm ) RESULT ( potrange )
   REAL ( dbl ) :: potrange
 
 ! Arguments
-  TYPE ( potentialparm_type ), DIMENSION ( :, : ), INTENT ( IN ) :: potparm
+  TYPE ( pair_potential_type ), DIMENSION ( :, : ), INTENT ( IN ) :: potparm
 
 !------------------------------------------------------------------------------
 
@@ -109,7 +80,7 @@ FUNCTION ener_pot ( pot, qi, qj, r )
 
 ! Arguments
   REAL ( dbl ), INTENT ( IN ) :: qi, qj, r
-  TYPE (potentialparm_type ), INTENT ( IN ) :: pot
+  TYPE (pair_potential_type ), INTENT ( IN ) :: pot
 
 ! Locals
   REAL ( dbl ) :: ener_pot, scale
@@ -141,7 +112,7 @@ FUNCTION ener_coul ( pot, qi, qj, r, ewald_param )
 
 ! Arguments
   REAL ( dbl ), INTENT ( IN ) :: qi, qj, r
-  TYPE (potentialparm_type ), INTENT ( IN ) :: pot
+  TYPE (pair_potential_type ), INTENT ( IN ) :: pot
   TYPE (ewald_parameters_type ), INTENT ( IN ) :: ewald_param
 
 ! Locals
@@ -172,7 +143,7 @@ SUBROUTINE spline_nonbond_control ( potparm, atomic_kind_set, npoints, ewald_par
 
 ! Arguments
   INTEGER, INTENT ( IN ) :: npoints
-  TYPE (potentialparm_type ), INTENT ( INOUT ), DIMENSION ( :, : ) :: potparm
+  TYPE (pair_potential_type ), INTENT ( INOUT ), DIMENSION ( :, : ) :: potparm
   TYPE(atomic_kind_type), DIMENSION(:), INTENT (IN), TARGET :: atomic_kind_set
   TYPE (ewald_parameters_type ), INTENT ( IN ) :: ewald_param
 
@@ -305,7 +276,7 @@ SUBROUTINE potential_f ( rijsq, potparm, qi, qj, iatom, jatom, energy, &
   REAL ( dbl ), INTENT ( IN ) :: rijsq
   REAL ( dbl ), INTENT ( OUT ) :: energy
   REAL ( dbl ), INTENT ( IN ) :: qi, qj
-  TYPE (potentialparm_type ), INTENT ( IN ), DIMENSION ( :, : ) :: potparm
+  TYPE (pair_potential_type ), INTENT ( IN ), DIMENSION ( :, : ) :: potparm
   TYPE (ewald_parameters_type ), INTENT ( IN ), OPTIONAL :: ewald_param
 
 ! Locals

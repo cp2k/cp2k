@@ -29,7 +29,8 @@ MODULE fist_force_numer
        linklist_bends, linklist_torsions, linklist_exclusion, particle_node_type
   USE mol_force, ONLY : force_bonds, force_bends, force_torsions
   USE particle_types, ONLY : particle_type
-  USE pair_potential, ONLY : potential_f, potentialparm_type
+  USE pair_potential_types, ONLY : pair_potential_type
+  USE pair_potential, ONLY : potential_f
   USE pme, ONLY : pme_evaluate
   USE pw_grid_types, ONLY : pw_grid_type
   USE pw_grids, ONLY : pw_find_cutoff, pw_grid_setup, &
@@ -482,7 +483,7 @@ SUBROUTINE force_nonbond_numer ( box, ewald_param, part, pnode, potparm,  &
  TYPE ( ewald_parameters_type ), INTENT ( IN ) :: ewald_param
  TYPE ( particle_node_type ), DIMENSION ( : ), INTENT ( IN ) :: pnode
  TYPE ( particle_type ), DIMENSION ( : ), INTENT ( IN ) :: part
- TYPE ( potentialparm_type ), DIMENSION ( :, : ), INTENT ( IN ) :: potparm
+ TYPE ( pair_potential_type ), DIMENSION ( :, : ), INTENT ( IN ) :: potparm
  REAL ( dbl ), INTENT ( OUT ), DIMENSION ( :, : ) :: f_numer
  REAL ( dbl ), INTENT ( OUT ) :: energy_numer
  REAL ( dbl ), INTENT ( IN ) :: numerical_shift
@@ -1055,7 +1056,7 @@ SUBROUTINE ptens_numer(box,ewald_param,part,pnode,potparm,pv_test,delta)
   TYPE ( particle_type ), DIMENSION ( : ), INTENT ( IN ) :: part
   TYPE ( ewald_parameters_type ), INTENT ( IN ) :: ewald_param
   REAL ( dbl ), INTENT ( IN ) :: delta
-  TYPE ( potentialparm_type ), DIMENSION ( :, : ), INTENT ( IN ) :: potparm
+  TYPE ( pair_potential_type ), DIMENSION ( :, : ), INTENT ( IN ) :: potparm
   REAL ( dbl ), DIMENSION ( 3, 3 ), INTENT ( OUT ) :: pv_test
 
 ! Locals
@@ -1761,7 +1762,7 @@ SUBROUTINE getv_ptens ( ewald_param, pnode, pbc_coord, box, periodic, potparm, v
   TYPE (particle_node_type ), INTENT ( IN ), DIMENSION ( : ) :: pnode
   TYPE ( pbc_coord_type ), INTENT ( IN ) :: pbc_coord
   TYPE ( cell_type ), POINTER :: box 
-  TYPE (potentialparm_type), INTENT ( IN ), DIMENSION ( :, : ) :: potparm
+  TYPE (pair_potential_type), INTENT ( IN ), DIMENSION ( :, : ) :: potparm
   INTEGER, INTENT ( IN ), DIMENSION ( : ) :: periodic
   REAL ( dbl ), INTENT ( OUT ) :: vnb
 

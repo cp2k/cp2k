@@ -18,7 +18,6 @@
 !******************************************************************************
 
 MODULE cntl_input
-  USE ewald_parameters_types,          ONLY: ewald_parameters_type
   USE global_types,                    ONLY: global_environment_type
   USE input_types,                     ONLY: setup_parameters_type
   USE kinds,                           ONLY: dbl
@@ -47,12 +46,10 @@ CONTAINS
 !!     read_cntl_section
 !!
 !!   SYNOPSIS
-!!     Subroutine read_cntl_section(setup, globenv, ewald_param)
+!!     Subroutine read_cntl_section(setup, globenv)
 !!       Implicit None
 !!       Type(setup_parameters_type), Intent (INOUT):: setup
 !!       Type(global_environment_type), Intent (INOUT):: globenv
-!!       Type(ewald_parameters_type), Intent (INOUT), Optional::&
-!!         ewald_param
 !!     End Subroutine read_cntl_section
 !!
 !!   FUNCTION
@@ -68,9 +65,6 @@ CONTAINS
 !!I                                                                           I
 !!I simulation       [md,debug,min,amoeba]                                    I
 !!I printlevel       globenv%print_level                                      I
-!!I units            [atomic, angstrom]                                       I
-!!I Ewald_type       [ewald,pme,spme]                                         I
-!!I Ewald_param      alpha[,gmax,ns_max,epsilon]                              I
 !!I set_file         "filename"                                               I
 !!I coord_file       "filename"                                               I 
 !!I COORDINATE       [PDB,CHM,...]                                            I
@@ -83,38 +77,28 @@ CONTAINS
 !!   SOURCE
 !******************************************************************************
 
-SUBROUTINE read_cntl_section ( setup, globenv, ewald_param )
+SUBROUTINE read_cntl_section ( setup, globenv )
 
   IMPLICIT NONE
 
 ! Arguments
   TYPE ( setup_parameters_type ), INTENT ( INOUT ) :: setup
   TYPE ( global_environment_type ), INTENT ( INOUT ) :: globenv
-  TYPE ( ewald_parameters_type ), INTENT ( INOUT ), OPTIONAL :: ewald_param
 
 ! Locals
   INTEGER :: ierror, ilen, ia, ie, i, j, n, iw, source, group
   CHARACTER ( LEN = 20 ) :: string, str2
   CHARACTER ( LEN = 5 ) :: label
-  LOGICAL :: ewald_set, found, setf, datf, topf
+  LOGICAL :: found, setf, datf, topf
 
 !------------------------------------------------------------------------------
 
-  ewald_set = PRESENT ( ewald_param )
 
 !..defaults
   setup % run_type = 'MD'
   setup % unit_type = 'KELVIN'
   setup % symmetry = .FALSE.
   setup % path_integrals = .FALSE.
-  IF ( ewald_set ) THEN
-    ewald_param % alpha = 0.4_dbl
-    ewald_param % gmax = 10
-    ewald_param % o_spline = 5
-    ewald_param % ns_max = 10
-    ewald_param % epsilon = 1.e-6_dbl
-    ewald_param % ewald_type = 'NONE'
-  END IF
   CALL xstring(globenv % project_name,ia,ie)
   setup % set_file_name = globenv % project_name(ia:ie) // '.set'
   setup % coord_file_name = globenv % project_name(ia:ie) // '.dat'
@@ -149,51 +133,6 @@ SUBROUTINE read_cntl_section ( setup, globenv, ewald_param )
            CALL uppercase(setup % run_type )
         CASE ( 'PRINTLEV')
            CALL get_next ( globenv % print_level )
-        CASE ( 'UNITS')
-           ilen = 20
-           IF (ewald_set) THEN
-              CALL get_next(ewald_param % unit_type,ILEN)
-              CALL uppercase(ewald_param % unit_type )
-           END IF
-        CASE ( 'EWALD_TY')
-           IF ( ewald_set ) THEN
-             ilen=20
-             CALL get_next(string,ILEN)
-             CALL uppercase ( string )
-             SELECT CASE(string)
-             CASE DEFAULT
-                CALL p_error()
-                CALL stop_parser( 'read_cntl_section', &
-                     'unknown option for Ewald type' )
-             CASE( 'EWALD')
-                ewald_param % ewald_type = 'ewald'
-                CALL uppercase(ewald_param % ewald_type )
-             CASE( 'PME')
-                ewald_param % ewald_type = 'pme'
-                CALL uppercase(ewald_param % ewald_type )
-             CASE( 'SPME')
-                ewald_param % ewald_type = 'spme'
-                CALL uppercase(ewald_param % ewald_type )
-             END SELECT
-           END IF
-
-! if no type specified, assume ewald
-        CASE ( 'EWALD_PA')
-           IF ( ewald_set ) THEN
-             CALL get_next ( ewald_param % alpha )
-             SELECT CASE (ewald_param % ewald_type )
-             CASE DEFAULT
-                CALL get_next ( ewald_param % gmax )
-             CASE ( 'PME')
-                CALL get_next ( ewald_param % ns_max )
-                IF ( test_next() == 'N' ) THEN
-                   CALL get_next ( ewald_param % epsilon )
-                END IF
-             CASE ( 'SPME')
-                CALL get_next ( ewald_param % gmax )
-                CALL get_next ( ewald_param % o_spline )
-             END SELECT
-           END IF
         CASE ('SYMMETRY')
            ilen = 3
            CALL get_next(str2,ilen)

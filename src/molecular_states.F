@@ -213,7 +213,7 @@ SUBROUTINE construct_molecular_states(molecule,mo_eigenvectors, &
   DO imol = 1, nmol
     ns = nstates_array( imol )
     ind => states_index ( imol, : )
-    WRITE ( *, * ) '*****',imol,ns,ind
+!    WRITE ( *, * ) '*****',imol,ns,ind
     ALLOCATE ( evals ( ns ), STAT = isos )
     IF ( isos /= 0 ) CALL stop_memory ( "construct_molecular_states", &
                                         "eval", ns )

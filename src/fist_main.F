@@ -31,7 +31,7 @@ MODULE fist_main
                                              distribution_1d_type
   USE distribution_methods,            ONLY: distribute_molecules
   USE dump,                            ONLY: dump_variables
-  USE ewald_parameters_types,          ONLY: ewald_parameters_type
+  USE ewald_parameters_types,          ONLY: ewald_parameters_type, read_ewald_section
   USE ewalds,                          ONLY: ewald_print
   USE extended_system_dynamics,        ONLY: lnhc_parameters_type,&
                                              npt_info_type
@@ -85,8 +85,8 @@ MODULE fist_main
   USE molecule_types,                  ONLY: intra_parameters_type,&
                                              molecule_type,&
                                              topology_type
-  USE pair_potential,                  ONLY: potentialparm_type,&
-                                             spline_nonbond_control
+  USE pair_potential_types,            ONLY: pair_potential_type
+  USE pair_potential,                  ONLY: spline_nonbond_control
   USE particle_types,                  ONLY: particle_type
   USE physcon,                         ONLY: boltzmann,&
                                              h_planck
@@ -180,7 +180,7 @@ SUBROUTINE fist ( globenv )
   TYPE ( mdio_parameters_type ) :: mdio
   TYPE ( molecule_type ), DIMENSION ( : ), POINTER :: mol_setup
   TYPE ( npt_info_type ), DIMENSION ( :, : ), POINTER :: npt_info
-  TYPE ( potentialparm_type ), DIMENSION ( :, : ), POINTER :: potparm
+  TYPE ( pair_potential_type ), DIMENSION ( :, : ), POINTER :: potparm
   TYPE ( replica_environment_type ), DIMENSION ( : ), POINTER :: rep_env
   TYPE ( simulation_parameters_type ), POINTER :: simpar
   TYPE ( setup_parameters_type ) :: setup
@@ -228,7 +228,9 @@ SUBROUTINE fist ( globenv )
   thermo % virial => virial
 
 ! read control section
-  CALL read_cntl_section ( setup, globenv, ewald_param )
+  CALL read_cntl_section ( setup, globenv )
+! read ewald_section
+  CALL read_ewald_section ( ewald_param, globenv )
 
   IF ( setup % path_integrals ) THEN
     pimd = .TRUE.
@@ -621,10 +623,11 @@ SUBROUTINE control_md_work ( globenv, fist_env, md_env, mdio )
   itimes => md_env % itimes 
   itimes = 0
   
+  
   CALL force_env_calculate_force ( md_env % force_env, box_change=box_change )
 
   IF ( globenv % ionode .AND. fist_env % ewald_param % ewald_type /= 'NONE' ) &
-       CALL ewald_print ( globenv % scr, md_env % cell,                 &
+       CALL ewald_print ( globenv % scr, md_env % cell,                &
                           fist_env % thermo % e_gspace,                &
                           fist_env % thermo % e_self,                  &
                           fist_env % thermo % e_neut,                  &

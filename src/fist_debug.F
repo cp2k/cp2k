@@ -38,7 +38,7 @@ MODULE fist_debug
        g3x3_constraints
   USE molecule_types, ONLY : molecule_structure_type, particle_node_type
   USE particle_types, ONLY : particle_type
-  USE pair_potential, ONLY : potentialparm_type
+  USE pair_potential_types, ONLY : pair_potential_type
   USE pw_grid_types, ONLY : pw_grid_type
   USE simulation_cell, ONLY : cell_type
   USE termination, ONLY : stop_memory, stop_program
@@ -81,7 +81,7 @@ SUBROUTINE  debug_control ( globenv, rep_env, ewald_param, potparm, thermo )
 ! Arguments
   TYPE ( replica_environment_type ), INTENT ( INOUT ) :: rep_env
   TYPE ( ewald_parameters_type ), INTENT ( INOUT ) :: ewald_param
-  TYPE ( potentialparm_type ), INTENT ( IN )  :: potparm ( :, : )
+  TYPE ( pair_potential_type ), INTENT ( IN )  :: potparm ( :, : )
   TYPE ( fist_thermodynamic_type ), INTENT ( INOUT ) :: thermo
   TYPE ( global_environment_type ), INTENT ( INOUT ) :: globenv
 

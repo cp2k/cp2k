@@ -20,10 +20,9 @@
 MODULE convert_units
 
   USE cp2k_units, ONLY : unit_convert_type, time_convert, get_cp2k_units
-  USE ewald_parameters_types, ONLY : ewald_parameters_type
   USE kinds, ONLY : dbl
   USE molecule_types, ONLY : intra_parameters_type
-  USE pair_potential, ONLY : potentialparm_type
+  USE pair_potential_types, ONLY : pair_potential_type
   USE particle_types, ONLY : particle_type
   USE physcon, ONLY : permittivity
   USE simulation_cell, ONLY : cell_type
@@ -56,8 +55,8 @@ CONTAINS
 !!   SOURCE
 !******************************************************************************
 SUBROUTINE convert_to_cp2k_units ( unit_char, time, temperature, pressure, length,  &
-                                   tau_nhc, mass, part, box, potparm, intra_param,  &
-                                   ewald_param )
+                                   tau_nhc, mass, eps0, l_power, part, box, potparm, &
+                                   intra_param )
 
   IMPLICIT NONE
 
@@ -69,20 +68,24 @@ SUBROUTINE convert_to_cp2k_units ( unit_char, time, temperature, pressure, lengt
   REAL ( dbl ), INTENT ( INOUT ), OPTIONAL :: length
   REAL ( dbl ), INTENT ( INOUT ), OPTIONAL :: tau_nhc
   REAL ( dbl ), INTENT ( INOUT ), OPTIONAL :: mass
+  REAL ( dbl ), INTENT ( INOUT ), OPTIONAL :: eps0
+  INTEGER, INTENT ( IN ), OPTIONAL :: l_power
   TYPE (particle_type ), INTENT ( INOUT ), OPTIONAL :: part ( : )
   TYPE (cell_type ), INTENT ( INOUT ), OPTIONAL :: box
   TYPE (intra_parameters_type ), INTENT ( INOUT ), OPTIONAL :: intra_param
-  TYPE (ewald_parameters_type ), INTENT ( INOUT ), OPTIONAL :: ewald_param
-  TYPE (potentialparm_type ), INTENT ( INOUT ), OPTIONAL :: potparm ( :, : )
+  TYPE (pair_potential_type ), INTENT ( INOUT ), OPTIONAL :: potparm ( :, : )
 
 ! Locals
   REAL ( dbl ) :: conv2k
-  INTEGER :: i
+  INTEGER :: i, ll
   TYPE ( unit_convert_type ), POINTER :: units
 
 !------------------------------------------------------------------------------
 
   CALL get_cp2k_units ( units )
+
+  ll = 1 
+  IF ( PRESENT ( l_power ) ) ll = l_power 
 
 ! convert hmat
   IF ( PRESENT ( box ) ) THEN
@@ -109,13 +112,17 @@ SUBROUTINE convert_to_cp2k_units ( unit_char, time, temperature, pressure, lengt
 
   IF ( PRESENT ( length ) ) THEN
      IF ( unit_char == 'ANGSTROM' ) &
-     length = length * units % angstrom
+     length = length * units % angstrom ** ll
   ENDIF
 
   IF ( PRESENT ( mass ) ) THEN
    mass = mass * units % mass
   ENDIF
-  
+
+  IF ( PRESENT ( eps0 ) ) THEN
+   eps0 = permittivity * units % eps0
+  ENDIF
+
   IF ( PRESENT ( tau_nhc ) ) THEN
      IF ( unit_char == '1/CM' ) &
      tau_nhc =  units % wavenum / tau_nhc
@@ -169,13 +176,6 @@ SUBROUTINE convert_to_cp2k_units ( unit_char, time, temperature, pressure, lengt
 ! convert Cutoff distances
      IF ( ( unit_char /= 'ATOMIC' ) .OR. ( unit_char /= 'AU' ) ) &
      potparm ( :, : ) % rcutsq = potparm ( :, : ) % rcutsq * ( units % angstrom ) ** 2
-  END IF
-
-! convert electrostatic parameters
-  IF ( PRESENT ( ewald_param ) ) THEN
-     ewald_param % eps0 = permittivity * units % eps0
-     IF ( ewald_param % unit_type == 'ANGSTROM' ) &
-     ewald_param % alpha = ewald_param % alpha / units % angstrom
   END IF
 
 ! converting bond, bends and torsion and constraint parameters

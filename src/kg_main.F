@@ -88,7 +88,7 @@ MODULE kg_main
                                              particle_node_type,&
                                              topology_type
   USE orbital_transformation_matrices, ONLY: init_spherical_harmonics
-  USE pair_potential,                  ONLY: potentialparm_type
+  USE pair_potential_types,            ONLY: pair_potential_type
   USE particle_types,                  ONLY: init_particle_set,&
                                              particle_type
   USE physcon,                         ONLY: boltzmann,&
@@ -187,7 +187,7 @@ SUBROUTINE kg ( globenv )
   TYPE ( npt_info_type ), DIMENSION ( :, : ), POINTER :: npt_info
   TYPE ( particle_type ), DIMENSION(:), POINTER    :: particle_set
   TYPE ( particle_node_type ), DIMENSION(:), POINTER    :: pnode
-  TYPE ( potentialparm_type ), DIMENSION ( :, : ), POINTER :: potparm
+  TYPE ( pair_potential_type ), DIMENSION ( :, : ), POINTER :: potparm
   TYPE ( simulation_parameters_type ), POINTER :: simpar
   TYPE ( setup_parameters_type ) :: setup
   TYPE ( kg_thermodynamic_type ), POINTER :: thermo

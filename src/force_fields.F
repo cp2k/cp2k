@@ -28,7 +28,7 @@ MODULE force_fields
   USE kinds, ONLY : dbl
   USE global_types, ONLY : global_environment_type
   USE input_types, ONLY : setup_parameters_type
-  USE pair_potential, ONLY : potentialparm_type
+  USE pair_potential_types, ONLY : pair_potential_type
   USE mathconstants, ONLY : pi
   USE molecule_types, ONLY : bond_parameters_type, bend_parameters_type, &
        torsion_parameters_type, intra_parameters_type
@@ -79,7 +79,7 @@ SUBROUTINE read_force_field_section ( setup, set_fn, intra_param, &
 ! Arguments
   CHARACTER ( LEN = * ), INTENT ( IN ) :: set_fn
   TYPE (intra_parameters_type ), INTENT ( OUT ) :: intra_param
-  TYPE (potentialparm_type ), DIMENSION ( :, : ), POINTER :: potparm
+  TYPE (pair_potential_type ), DIMENSION ( :, : ), POINTER :: potparm
   TYPE (setup_parameters_type ), INTENT ( INOUT ) :: setup
   TYPE ( global_environment_type ), INTENT ( IN ) :: globenv_input
 
@@ -200,7 +200,7 @@ SUBROUTINE input_nonbonded (energy_unit, potparm, atom_names, set_fn )
   IMPLICIT NONE
 
 ! Arguments
-  TYPE (potentialparm_type ), INTENT ( INOUT ) :: potparm ( :, : )
+  TYPE (pair_potential_type ), INTENT ( INOUT ) :: potparm ( :, : )
   CHARACTER ( LEN = * ), INTENT ( IN ) :: energy_unit
   CHARACTER ( LEN = * ), INTENT ( IN ) :: atom_names ( : )
   CHARACTER ( LEN = * ), INTENT ( IN ) :: set_fn

@@ -450,7 +450,7 @@ SUBROUTINE force_env_create(force_env,fist_env,qs_env,kg_env,para_env,&
         DO i=1,n_rep
            NULLIFY(force_env%subsys(i)%fragment)
            CALL fragment_create(force_env%subsys(i)%fragment,&
-                para_env=para_env, error=error)
+                para_env=globenv % para_env, error=error)
 
            rep_att => force_env%fist_env%rep_env(i)
 
