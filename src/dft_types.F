@@ -88,7 +88,8 @@ MODULE dft_types
      CHARACTER(LEN=40), DIMENSION(3) :: functional
      REAL(wp)                        :: density_cut,&
                                         gradient_cut
-     INTEGER                         :: nspins
+     INTEGER                         :: nspins,&
+                                        charge
      LOGICAL                         :: forces,&
                                         gradient_functional,&
                                         smooth_gradient
