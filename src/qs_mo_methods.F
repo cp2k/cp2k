@@ -334,7 +334,8 @@ CONTAINS
 
     CALL set_matrix(density_matrix,0.0_dp)
 
-    IF ( mo_set%lfomo .LE. mo_set%homo) THEN ! not all orbitals 1..homo are equally occupied
+!    IF ( mo_set%lfomo .LE. mo_set%homo) THEN ! not all orbitals 1..homo are equally occupied
+    IF ( .NOT. mo_set%uniform_occupation ) THEN ! not all orbitals 1..homo are equally occupied
        NULLIFY(fm_tmp)
        CALL cp_fm_create(fm_tmp,mo_set%mo_coeff%matrix_struct)
        CALL cp_fm_to_fm(mo_set%mo_coeff,fm_tmp)

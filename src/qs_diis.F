@@ -29,7 +29,8 @@ MODULE qs_diis
                                              cp_error_get_logger,&
                                              cp_error_message,&
                                              cp_error_type
-  USE cp_fm_basic_linalg,              ONLY: cp_fm_gemm,&
+  USE cp_fm_basic_linalg,              ONLY: cp_fm_column_scale,&
+                                             cp_fm_gemm,&
                                              cp_fm_scale_and_add,&
                                              cp_fm_symm,&
                                              cp_fm_trace
@@ -298,9 +299,10 @@ CONTAINS
     INTEGER                                  :: handle, ib, ispin, istat, jb, &
                                                 nao, nb, nb1, nmo, nspin, &
                                                 output_unit
-    LOGICAL                                  :: failure, ionode
-    REAL(KIND=dp)                            :: tmp
+    LOGICAL                                  :: failure, ionode, mo_uocc
+    REAL(KIND=dp)                            :: tmp, maxocc
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: ev
+    REAL(KIND=dp), DIMENSION(:), POINTER     :: occupation
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: a, b
     TYPE(cp_fm_struct_type), POINTER         :: matrix_struct
     TYPE(cp_fm_type), POINTER                :: c, new_errors, old_errors, &
@@ -313,7 +315,7 @@ CONTAINS
 
     nspin=SIZE(mo_array)
     failure=.FALSE.
-    NULLIFY(c,new_errors,old_errors,parameters,matrix_struct,a,b)
+    NULLIFY(c,new_errors,old_errors,parameters,matrix_struct,a,b,occupation)
     logger => cp_error_get_logger(error)
 
     diis_step = .FALSE.
@@ -346,12 +348,22 @@ CONTAINS
        CALL get_mo_set(mo_set=mo_array(ispin)%mo_set,&
             nao=nao,&
             homo=nmo,&
-            mo_coeff=c)
+            mo_coeff=c,&
+            occupation_numbers=occupation,& 
+            uniform_occupation= mo_uocc,&
+            maxocc = maxocc)
 
 
        parameters => diis_buffer%parameter(ib,ispin)%matrix
        CALL cp_fm_to_fm(kc(ispin)%matrix,parameters)
-       CALL cp_fm_symm("L","U",nao,nmo,2.0_dp,parameters,c,0.0_dp,kc(ispin)%matrix)
+       IF(.NOT. mo_uocc) THEN
+         CALL cp_fm_to_fm(c,sc)
+         CALL cp_fm_column_scale(sc,occupation(1:nmo))
+         CALL cp_fm_symm("L","U",nao,nmo,1.0_dp,parameters,sc,0.0_dp,kc(ispin)%matrix)
+       ELSE
+         CALL cp_fm_symm("L","U",nao,nmo,maxocc,parameters,c,0.0_dp,kc(ispin)%matrix)
+!         CALL cp_fm_symm("L","U",nao,nmo,2.0_dp,parameters,c,0.0_dp,kc(ispin)%matrix)
+       END IF
 
        IF (PRESENT(s_matrix)) THEN
          new_errors => diis_buffer%error(ib,ispin)%matrix

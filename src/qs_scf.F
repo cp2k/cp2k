@@ -1267,7 +1267,7 @@ CONTAINS
     failure=.FALSE.
     ! very first tests for xas
     transition_potential = .FALSE.
-    !transition_potential = .TRUE.
+!    transition_potential = .TRUE.
 
     CPPrecondition(ASSOCIATED(scf_env),cp_failure_level,routineP,error,failure)
     CPPrecondition(scf_env%ref_count>0,cp_failure_level,routineP,error,failure)

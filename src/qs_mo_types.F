@@ -411,7 +411,8 @@ CONTAINS
 ! *****************************************************************************
 
   SUBROUTINE get_mo_set(mo_set,maxocc,homo,lfomo,nao,nelectron,nmo,&
-                        eigenvalues,occupation_numbers,mo_coeff)
+                        eigenvalues,occupation_numbers,mo_coeff,&
+                        uniform_occupation)
 
 !   Purpose: Get the components of a MO set data structure.
 
@@ -423,6 +424,7 @@ CONTAINS
     REAL(KIND=dp), INTENT(OUT), OPTIONAL     :: maxocc
     INTEGER, INTENT(OUT), OPTIONAL           :: homo, lfomo, nao, nelectron, &
                                                 nmo
+    LOGICAL, INTENT(OUT), OPTIONAL           :: uniform_occupation
     REAL(KIND=dp), DIMENSION(:), OPTIONAL, &
       POINTER                                :: eigenvalues, &
                                                 occupation_numbers
@@ -441,6 +443,7 @@ CONTAINS
       occupation_numbers => mo_set%occupation_numbers
     END IF
     IF (PRESENT(mo_coeff)) mo_coeff => mo_set%mo_coeff
+    IF (PRESENT(uniform_occupation)) uniform_occupation = mo_set%uniform_occupation
 
   END SUBROUTINE get_mo_set
 
