@@ -55,7 +55,7 @@ MODULE qs_blacs
   USE timesl,              ONLY: cputime
 
   use cp_error_handling, only: cp_assert, cp_error_message, cp_error_type,&
-       cp_assertion_failed
+       cp_assertion_failed, cp_unimplemented_error
   use cp_log_handling, only: cp_to_string, cp_warning_level, cp_failure_level
   use cp_matrix_utils, only: cp_init, cp_dealloc_ref, cp_next, cp_get, &
        cp_matrix_block_iterator
@@ -136,7 +136,8 @@ MODULE qs_blacs
             blacs_set_local_block,  sparse_times_blacs, &
             sparse_plus_blacs_blacst, allocate_blacs_matrix_vect,&
             deallocate_blacs_matrix_vect, blacs_get_submatrix, &
-            blacs_set_submatrix, blacs_scale_and_d
+            blacs_set_submatrix, blacs_scale_and_d,&
+            blacs_triangular_multiply
 
 ! *****************************************************************************
 
@@ -2035,6 +2036,92 @@ end subroutine allocate_blacs_matrix_vect
     CALL timestop(0.0_wp,handle)
 
   END  SUBROUTINE blacs_cholesky_restore
+!!****f* qs_blacs/blacs_triangular_multiply [1.0] *
+!!
+!!   NAME
+!!     blacs_triangular_multiply
+!!
+!!   FUNCTION
+!!     multiplies in place by a triangular matrix:
+!!      b_matrix = alpha op(triangular_matrix) b_matrix
+!!     or (if side='R')
+!!      b_matrix = alpha b_matrix op(triangular_matrix)
+!!     op(triangular_matrix) is:
+!!      triangular_matrix (if transpose_tr=.false. and invert_tr=.false.)
+!!      triangular_matrix^T (if transpose_tr=.true. and invert_tr=.false.)
+!!      triangular_matrix^(-1) (if transpose_tr=.false. and invert_tr=.true.)
+!!      triangular_matrix^(-T) (if transpose_tr=.true. and invert_tr=.true.)
+!!
+!!   NOTES
+!!     needs an mpi env
+!!
+!!   INPUTS
+!!     - triangular_matrix: the triangular matrix that multiplies the other
+!!     - b_matrix: the matrix that gets multiplied and stores the result
+!!     - side: on which side of b_matrix stays op(triangular_matrix)
+!!       (defaults to 'L')
+!!     - transpose_tr: if the triangular matrix should be transposed
+!!       (defaults to false)
+!!     - invert_tr: if the triangular matrix should be inverted
+!!       (defaults to false)
+!!     - uplo_tr: if triangular_matrix is stored in the upper ('U') or
+!!       lower ('L') triangle (defaults to 'U')
+!!     - unit_diag_tr: if the diagonal elements of triangular_matrix should
+!!       be assumed to be 1 (defaults to false)
+!!     - n_rows: the number of rows of the result (defaults to 
+!!       size(matrix_b,1))
+!!     - n_cols: the number of columns of the result (defaults to
+!!       size(matrix_b,2))
+!!     - error: variable to control error logging, stopping,... 
+!!       see module cp_error_handling 
+!!
+!!   AUTHOR
+!!     Fawzi Mohamed
+!!
+!!   MODIFICATION HISTORY
+!!     08.2002 created [fawzi]
+!!
+!!*** **********************************************************************
+subroutine blacs_triangular_multiply(triangular_matrix,b_matrix,side,&
+     transpose_tr, invert_tr, uplo_tr,unit_diag_tr, n_rows, n_cols, &
+     alpha,error)
+  type(blacs_matrix_type), pointer :: triangular_matrix, b_matrix
+  character, intent(in), optional :: side, uplo_tr
+  logical, intent(in), optional :: transpose_tr, invert_tr, unit_diag_tr
+  integer, intent(in), optional :: n_rows, n_cols
+  real(kind=wp), intent(in), optional :: alpha
+  type(cp_error_type), optional, intent(inout) :: error
+  
+  logical :: failure, invert
+  character(len=*), parameter :: routineN='blacs_triangular_multiply',&
+        routineP=moduleN//':'//routineN
+  character :: side_char, unit_diag,uplo
+  integer :: handle, m,n
+  real(kind=wp) :: al
+  failure=.false.
+  
+  call timeset(routineN//','//moduleN,"I","",handle)
+  side_char='L'
+  unit_diag='N'
+  uplo='U'
+  invert=.false.
+  al=1.0_wp
+  if (present(side)) side_char=side
+  if (present(invert_tr)) invert=invert_tr
+  if (present(uplo_tr)) uplo=uplo_tr
+  if (present(unit_diag_tr)) then
+     if (unit_diag_tr) then
+        unit_diag='U'
+     else
+        unit_diag='N'
+     end if
+  end if
+  if (present(alpha)) al=alpha
+
+  call cp_unimplemented_error(routineP, message="to do", error=error)
+  call timestop(0.0_wp,handle)     
+  end subroutine blacs_triangular_multiply
+!***************************************************************************
 ! ****
   SUBROUTINE blacs_column_copy(msource,mtarget,ncol,globenv)
     TYPE(blacs_matrix_type), POINTER          :: msource,mtarget
