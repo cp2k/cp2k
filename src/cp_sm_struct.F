@@ -1009,7 +1009,7 @@ SUBROUTINE sm_struct_write(sm_struct, unit_nr, local, short_description, error)
                          pos_att%row, pos_att%col, pos_att%pos
                     pos_att => pos_att%next_col
                  END DO
-                 WRITE (unit=unit_nr,fmt="(/,' ')")
+                 WRITE (unit=unit_nr,fmt="(/,' ')",advance='no')
                  pos_att => next_row
               END DO
               WRITE (unit=unit_nr,fmt="(')')")
@@ -1026,7 +1026,7 @@ SUBROUTINE sm_struct_write(sm_struct, unit_nr, local, short_description, error)
                             pos_att%row, pos_att%col, pos_att%pos
                        pos_att => pos_att%next_row
                     END DO
-                    WRITE (unit=unit_nr,fmt="(/,' ')")
+                    WRITE (unit=unit_nr,fmt="(/,' ')", advance='no')
                     pos_att => next_row
                  END DO
                  WRITE (unit=unit_nr,fmt="(')')")

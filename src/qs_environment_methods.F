@@ -346,9 +346,6 @@ SUBROUTINE qs_env_update_s_mstruct(qs_env,error)
        matrix=qs_env%s(1)%matrix,&
        error=error)
   
-!!$  CALL sm_struct_write(s_mstruct, &
-!!$       unit_nr=cp_logger_get_default_unit_nr(logger,local=.TRUE.),&
-!!$       local=.TRUE., short_description=.FALSE.,error=error)
   IF (.not.ASSOCIATED(qs_env%S_sm_pools)) THEN
      ALLOCATE(qs_env%S_sm_pools(dft_control%nspins),stat=stat)
      CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
