@@ -1,0 +1,281 @@
+!-----------------------------------------------------------------------------!
+!   CP2K: A general program to perform molecular dynamics simulations         !
+!   Copyright (C) 2002  CP2K developers group                                 !
+!-----------------------------------------------------------------------------!
+
+#include "cp_prep_globals.h"
+
+!!****h* cp2k/pw_env_types [1.0] *
+!!
+!!   NAME
+!!     pw_env_types
+!!
+!!   FUNCTION
+!!     container for various plainwaves related things
+!!
+!!   NOTES
+!!     -
+!!
+!!   AUTHOR
+!!     Fawzi Mohamed
+!!
+!!   MODIFICATION HISTORY
+!!     10.2002 created [fawzi]
+!!
+!!   SOURCE
+!****************************************************************************
+MODULE pw_env_types
+  USE cp_error_handling,               ONLY: cp_assert,&
+                                             cp_assertion_failed,&
+                                             cp_debug,&
+                                             cp_error_dealloc_ref,&
+                                             cp_error_init,&
+                                             cp_error_message,&
+                                             cp_error_type,&
+                                             cp_internal_error
+  USE cp_log_handling,                 ONLY: cp_failure_level,&
+                                             cp_fatal_level,&
+                                             cp_note_level,&
+                                             cp_to_string,&
+                                             cp_warning_level
+  USE cube_utils,                      ONLY: cube_info_type,&
+                                             destroy_cube_info,&
+                                             init_cube_info
+  USE dft_types,                       ONLY: dft_control_type
+  USE gaussian_gridlevels,             ONLY: destroy_gaussian_gridlevel,&
+                                             gridlevel_info_type,&
+                                             init_gaussian_gridlevel
+  USE global_types,                    ONLY: global_environment_type
+  USE kinds,                           ONLY: wp=>dp
+  USE l_utils,                         ONLY: destroy_l_info,&
+                                             init_l_info,&
+                                             l_info_type
+  USE pw_grid_types,                   ONLY: HALFSPACE,&
+                                             pw_grid_type
+  USE pw_grids,                        ONLY: pw_find_cutoff,&
+                                             pw_grid_construct,&
+                                             pw_grid_setup
+  USE pw_pool_types,                   ONLY: pw_pool_create,&
+                                             pw_pool_init_coeff,&
+                                             pw_pool_p_type,&
+                                             pw_pool_release,&
+                                             pw_pool_retain,&
+                                             pw_pool_type,&
+                                             pw_pools_copy,&
+                                             pw_pools_dealloc
+  USE timings,                         ONLY: timeset,&
+                                             timestop
+  IMPLICIT NONE
+  PRIVATE
+
+  LOGICAL, PRIVATE, PARAMETER :: debug_this_module=.TRUE.
+  CHARACTER(len=*), PRIVATE, PARAMETER :: moduleN='pw_env_types'
+
+  PUBLIC :: pw_env_type
+  PUBLIC :: pw_env_retain, pw_env_release, pw_env_get
+!***
+!****************************************************************************
+
+  !!****s* m/pw_env_types [1.0] *
+  !!
+  !!   NAME
+  !!     pw_env_types
+  !!
+  !!   FUNCTION
+  !!     contained for different pw related things
+  !!
+  !!   NOTES
+  !!     -
+  !!
+  !!   ATTRIBUTES
+  !!     - pw_pools: pools for multigrids
+  !!     - gridlevel_info: gaussian gridlevel info
+  !!     - l_info: informations for l calc
+  !!     - cube_info: info on cube and max sphee size for multigrids
+  !!     - aux_bas: which multigrid is the auxiliar basis
+  !!
+  !!   AUTHOR
+  !!     Fawzi Mohamed
+  !!
+  !!   MODIFICATION HISTORY
+  !!     10.2002 created [fawzi]
+  !!
+  !!   SOURCE
+  !***************************************************************************
+  TYPE pw_env_type
+     INTEGER :: ref_count
+     TYPE(pw_pool_p_type), DIMENSION(:), POINTER :: pw_pools
+     TYPE(gridlevel_info_type), POINTER :: gridlevel_info
+     TYPE(l_info_type), POINTER :: l_info ! right place for it?
+     TYPE(cube_info_type), DIMENSION(:), POINTER :: cube_info
+     INTEGER :: auxbas_grid
+  END TYPE pw_env_type
+  !!***
+  !****************************************************************************
+
+CONTAINS
+
+!!****f* pw_env_types/pw_env_get [1.0] *
+!!
+!!   NAME
+!!     pw_env_get
+!!
+!!   FUNCTION
+!!     returns the various attributes of the pw env
+!!
+!!   NOTES
+!!     -
+!!
+!!   INPUTS
+!!     - pw_env: the einvironment you want info about
+!!     - auxbas_pw_pool: a pool that allocates grids in the auxiliary basis
+!!     - error: variable to control error logging, stopping,... 
+!!       see module cp_error_handling 
+!!     For the other see the attributes of pw_env_type
+!!
+!!   AUTHOR
+!!     Fawzi Mohamed
+!!
+!!   MODIFICATION HISTORY
+!!     10.2002 created [fawzi]
+!!
+!!*** **********************************************************************
+SUBROUTINE pw_env_get(pw_env, pw_pools,l_info, cube_info, gridlevel_info,&
+     auxbas_pw_pool,auxbas_cube_info,auxbas_grid, error)
+  TYPE(pw_env_type), POINTER :: pw_env
+  TYPE(pw_pool_p_type), DIMENSION(:), POINTER, OPTIONAL :: pw_pools
+  TYPE(l_info_type), POINTER, OPTIONAL :: l_info
+  TYPE(cube_info_type), DIMENSION(:), POINTER, OPTIONAL :: cube_info
+  TYPE(gridlevel_info_type), POINTER, OPTIONAL :: gridlevel_info
+  TYPE(pw_pool_type), POINTER, OPTIONAL :: auxbas_pw_pool
+  TYPE(cube_info_type), POINTER, OPTIONAL :: auxbas_cube_info
+  INTEGER, INTENT(out), OPTIONAL :: auxbas_grid
+  TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
+  
+  LOGICAL :: failure
+  CHARACTER(len=*), PARAMETER :: routineN='pw_env_get',&
+        routineP=moduleN//':'//routineN
+  failure=.FALSE.
+
+  CPPrecondition(ASSOCIATED(pw_env),cp_failure_level,routineP,error,failure)
+  CPPrecondition(pw_env%ref_count>0,cp_failure_level,routineP,error,failure)
+  IF (.NOT. failure) THEN
+     IF (PRESENT(pw_pools)) pw_pools => pw_env%pw_pools
+     IF (PRESENT(l_info)) l_info => pw_env%l_info
+     IF (PRESENT(cube_info)) cube_info => pw_env%cube_info
+     IF (PRESENT(gridlevel_info)) gridlevel_info => pw_env%gridlevel_info
+     IF (PRESENT(auxbas_pw_pool)) THEN
+        auxbas_pw_pool => pw_env%pw_pools(pw_env%auxbas_grid)%pool
+     END IF
+     IF (PRESENT(auxbas_cube_info)) THEN
+        auxbas_cube_info => pw_env%cube_info(pw_env%auxbas_grid)
+     END IF
+     IF (PRESENT(auxbas_grid)) auxbas_grid = pw_env%auxbas_grid
+  END IF
+END SUBROUTINE pw_env_get
+!***************************************************************************
+
+!!****f* pw_env_types/pw_env_retain [1.0] *
+!!
+!!   NAME
+!!     pw_env_retain
+!!
+!!   FUNCTION
+!!     retains the pw_env (see doc/ReferenceCounting.html)
+!!
+!!   NOTES
+!!     -
+!!
+!!   INPUTS
+!!     - pw_env: the pw_env to retain
+!!     - error: variable to control error logging, stopping,... 
+!!       see module cp_error_handling 
+!!
+!!   AUTHOR
+!!     Fawzi Mohamed
+!!
+!!   MODIFICATION HISTORY
+!!     10.2002 created [fawzi]
+!!
+!!*** **********************************************************************
+SUBROUTINE pw_env_retain(pw_env,error)
+  TYPE(pw_env_type), POINTER :: pw_env
+  TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
+  
+  LOGICAL :: failure
+  CHARACTER(len=*), PARAMETER :: routineN='pw_env_retain',&
+        routineP=moduleN//':'//routineN
+  failure=.FALSE.
+  
+  CPPrecondition(ASSOCIATED(pw_env),cp_failure_level,routineP,error,failure)
+  IF (.NOT. failure) THEN
+     CPPrecondition(pw_env%ref_count>0,cp_failure_level,routineP,error,failure)
+     pw_env%ref_count=pw_env%ref_count+1
+  END IF
+END SUBROUTINE pw_env_retain
+!***************************************************************************
+
+!!****f* pw_env_types/pw_env_release [1.0] *
+!!
+!!   NAME
+!!     pw_env_release
+!!
+!!   FUNCTION
+!!     releases the given pw_env (see doc/ReferenceCounting.html)
+!!
+!!   NOTES
+!!     -
+!!
+!!   INPUTS
+!!     - pw_env: the pw_env to release
+!!     - error: variable to control error logging, stopping,... 
+!!       see module cp_error_handling 
+!!
+!!   AUTHOR
+!!     Fawzi Mohamed
+!!
+!!   MODIFICATION HISTORY
+!!     10.2002 created [fawzi]
+!!
+!!*** **********************************************************************
+SUBROUTINE pw_env_release(pw_env, error)
+  TYPE(pw_env_type), POINTER :: pw_env
+  TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
+  
+  LOGICAL :: failure
+  CHARACTER(len=*), PARAMETER :: routineN='pw_env_release',&
+        routineP=moduleN//':'//routineN
+  INTEGER :: stat, igrid_level
+  failure=.FALSE.
+  
+  IF (ASSOCIATED(pw_env)) THEN
+     CPPrecondition(pw_env%ref_count>0,cp_failure_level,routineP,error,failure)
+     pw_env%ref_count=pw_env%ref_count-1
+     IF (pw_env%ref_count<1) THEN
+        CALL pw_pools_dealloc(pw_env%pw_pools,error=error)
+        IF (ASSOCIATED(pw_env%gridlevel_info)) THEN
+           CALL destroy_gaussian_gridlevel(pw_env%gridlevel_info,error=error)
+           DEALLOCATE(pw_env%gridlevel_info,stat=stat)
+           CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+        END IF
+        IF (ASSOCIATED(pw_env%l_info)) THEN
+           CALL destroy_l_info(pw_env%l_info)
+           DEALLOCATE(pw_env%l_info, stat=stat)
+           CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+        END IF
+        IF (ASSOCIATED(pw_env%cube_info)) THEN
+           DO igrid_level=1,SIZE(pw_env%cube_info)
+              CALL destroy_cube_info(pw_env%cube_info(igrid_level))
+           END DO
+           DEALLOCATE(pw_env%cube_info,stat=stat)
+           CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+        END IF
+        DEALLOCATE(pw_env, stat=stat)
+        CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+     END IF
+  END IF
+  NULLIFY(pw_env)
+END SUBROUTINE pw_env_release
+!***************************************************************************
+
+END MODULE 
