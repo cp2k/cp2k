@@ -216,7 +216,7 @@ CONTAINS
     END IF
     CALL xc_rho_set_update(rho_set, rho_r, rho_g, tau, needs, &
                            dft_control, cell, auxbas_pw_pool, subsys, error)
-    CALL add_lb_pot(vxc_LB, rho_set, lsd, error)
+ !!   CALL add_lb_pot(vxc_LB, rho_set, lsd, error)
 
     !---------------------------------------------!
     ! Construct 2 times PBE potential in vxc_GLLB !
@@ -243,14 +243,17 @@ CONTAINS
     CALL pw_pool_init_coeff(auxbas_pw_pool,orbital_g,&
                             use_data = COMPLEXDATA1D,&
                             in_space = RECIPROCALSPACE, error=error)
+
     DO ispin=1, nspins
-       CALL pw_zero(vxc_tmp(ispin)%pw)
        CALL get_mo_set(molecular_orbitals(ispin)%mo_set,&
                        mo_coeff=mo_coeff, &
                        eigenvalues=mo_eigenvalues,&
                        homo=homo,nmo=nmo)
+       CALL pw_zero(vxc_tmp(ispin)%pw)
        DO orb=1, homo-1
-          CALL calculate_wavefunction(mo_coeff,1, orbital, orbital_g, qs_env, error)
+          CALL pw_zero(orbital%pw)
+          CALL pw_zero(orbital_g%pw)
+          CALL calculate_wavefunction(mo_coeff,orb,orbital,orbital_g,qs_env,error)
           efac = K_rho*SQRT(mo_eigenvalues(homo)-mo_eigenvalues(orb))
           DO k=bo(1,3), bo(2,3)
              DO j=bo(1,2), bo(2,2)
@@ -296,41 +299,50 @@ CONTAINS
        CALL pw_zero(vxc_SAOP(ispin)%pw)
     END DO
     DO ispin=1, nspins
-       CALL pw_zero(vxc_tmp(ispin)%pw)
-       DO orb=1, homo
-          CALL pw_zero(vxc_tmp(ispin)%pw)
-          efac = EXP(-2.0_dp*(mo_eigenvalues(homo)-mo_eigenvalues(orb))**2)
-
-          CALL daxpy(n_gridpoints, 1.0_dp-efac, vxc_GLLB(ispin)%pw%cr3d, 1, &
-                                                vxc_tmp(ispin)%pw%cr3d, 1)
-          CALL daxpy(n_gridpoints, efac, vxc_LB(ispin)%pw%cr3d, 1, &
-                                         vxc_tmp(ispin)%pw%cr3d, 1)
-          
-          CALL calculate_wavefunction(mo_coeff,1, orbital, orbital_g, qs_env, error)
-          DO k=bo(1,3), bo(2,3)
-             DO j=bo(1,2), bo(2,2)
-                DO i=bo(1,1), bo(2,1)
-                   vxc_SAOP(ispin)%pw%cr3d(i,j,k) = vxc_SAOP(ispin)%pw%cr3d(i,j,k) + &
-                        orbital%pw%cr3d(i,j,k)*orbital%pw%cr3d(i,j,k)*&
-                        vxc_tmp(ispin)%pw%cr3d(i,j,k)
-                END DO
-             END DO
-          END DO
-       END DO
-       IF (.NOT.lsd) THEN
-          rho_to_divide => rho_set%rho
-       ELSE
-          IF (ispin==1) THEN
-             rho_to_divide => rho_set%rhoa
-          ELSE
-             rho_to_divide => rho_set%rhob
-          END IF
-       END IF
+!!       DO orb=1, homo
+!!          CALL pw_zero(vxc_tmp(ispin)%pw)
+!!          efac = EXP(-2.0_dp*(mo_eigenvalues(homo)-mo_eigenvalues(orb))**2)
+!!
+!!          CALL daxpy(n_gridpoints, 1.0_dp-efac, vxc_GLLB(ispin)%pw%cr3d, 1, &
+!!                                                vxc_tmp(ispin)%pw%cr3d, 1)
+!!          CALL daxpy(n_gridpoints, efac, vxc_LB(ispin)%pw%cr3d, 1, &
+!!                                         vxc_tmp(ispin)%pw%cr3d, 1)
+!!          
+!!          CALL pw_zero(orbital%pw)
+!!          CALL pw_zero(orbital_g%pw)
+!!          CALL calculate_wavefunction(mo_coeff,orb,orbital,orbital_g,qs_env,error)
+!!          DO k=bo(1,3), bo(2,3)
+!!             DO j=bo(1,2), bo(2,2)
+!!                DO i=bo(1,1), bo(2,1)
+!!                   vxc_SAOP(ispin)%pw%cr3d(i,j,k) = vxc_SAOP(ispin)%pw%cr3d(i,j,k) + &
+!!                        orbital%pw%cr3d(i,j,k)*orbital%pw%cr3d(i,j,k)*&
+!!                        vxc_tmp(ispin)%pw%cr3d(i,j,k)
+!!                END DO
+!!             END DO
+!!          END DO
+!!       END DO
+!!       IF (.NOT.lsd) THEN
+!!          rho_to_divide => rho_set%rho
+!!       ELSE
+!!          IF (ispin==1) THEN
+!!             rho_to_divide => rho_set%rhoa
+!!          ELSE
+!!             rho_to_divide => rho_set%rhob
+!!          END IF
+!!       END IF
+!!       DO k=bo(1,3), bo(2,3)
+!!          DO j=bo(1,2), bo(2,2)
+!!             DO i=bo(1,1), bo(2,1)
+!!                vxc_SAOP(ispin)%pw%cr3d(i,j,k) = vxc_SAOP(ispin)%pw%cr3d(i,j,k) / &
+!!                                                rho_to_divide(i,j,k)
+!!             END DO
+!!          END DO
+!!       END DO
+!!       NULLIFY(rho_to_divide)
        DO k=bo(1,3), bo(2,3)
           DO j=bo(1,2), bo(2,2)
              DO i=bo(1,1), bo(2,1)
-                vxc_SAOP(ispin)%pw%cr3d(i,j,k) = vxc_SAOP(ispin)%pw%cr3d(i,j,k) / &
-                                                rho_to_divide(i,j,k)
+                vxc_SAOP(ispin)%pw%cr3d(i,j,k) = vxc_LB(ispin)%pw%cr3d(i,j,k)
              END DO
           END DO
        END DO
@@ -388,7 +400,7 @@ CONTAINS
     TYPE(cp_error_type), &
          INTENT(INOUT), OPTIONAL             :: error
 
-    INTEGER                                  :: i,j,k, ispin
+    INTEGER                                  :: i,j,k
     INTEGER, DIMENSION(2,3)                  :: bo
     
     REAL(KIND=dp)                            :: n_13, x, x2
