@@ -401,8 +401,8 @@ MODULE  hartree_local_methods
 
         NULLIFY(Vh1_h,Vh1_s,rrad_0)
         CALL  get_ecoul_1c(ecoul_1c,iatom=iatom,Vh1_h=Vh1_h,Vh1_s=Vh1_s)
-         Vh1_h=0.0_dp
-         Vh1_s=0.0_dp
+        Vh1_h=0.0_dp
+        Vh1_s=0.0_dp
 
         rrad_0 => rho0_atom_set(iatom)%rho0_rad_h%r_coef
 
@@ -529,12 +529,12 @@ MODULE  hartree_local_methods
            ecoul_1_h  =  ecoul_1_h + &
                       trace_r_AxB(aVh1b_h,nsotot,&
                           cpc_h(ispin)%r_coef,nsotot,&
-                          nsotot,nsotot)!/2.0_dp
+                          nsotot,nsotot)
 
            ecoul_1_s  =  ecoul_1_s + &
                       trace_r_AxB(aVh1b_s,nsotot,&
                           cpc_s(ispin)%r_coef,nsotot,&
-                          nsotot,nsotot)!/2.0_dp
+                          nsotot,nsotot)
         END DO  ! ispin
 
         ecoul_1_h = 0.5_dp*ecoul_1_h
@@ -549,7 +549,6 @@ MODULE  hartree_local_methods
       END DO  ! iat
 
     END DO  ! ikind 
-!  stop 'avb'
     DEALLOCATE(gexp,gsph,g0_h_w,sqrtwr)
 
   END SUBROUTINE Vh_1c_gg_integrals

@@ -240,6 +240,9 @@ MODULE qs_rho0_methods
     DO iat = 1,natom
        iatom = a_list(iat)
        mpole_rho => rho0_mp%mp_rho(iatom)
+
+!     WRITE(*,*) 'size Qlm', SIZE(mpole_rho%Qlm_tot,1) 
+!     WRITE(*,*) 'Qlm ', mpole_rho%Qlm_tot
        DO lshell = 0,lmax0
          DO ic = 1,nco(lshell)
            ico = ic + ncoset(lshell-1)
@@ -253,16 +256,26 @@ MODULE qs_rho0_methods
              iso = is + nsoset(lshell-1)
 
              mpole_rho%Qlm_car_s(ico) = mpole_rho%Qlm_car_s(ico) + &
-                  orbtramat(lshell)%s2c(is,ic)*mpole_rho%Qlm_tot(iso)*&
+!                  orbtramat(lshell)%s2c(is,ic)*mpole_rho%Qlm_tot(iso)*&
+                  orbtramat(lshell)%c2s(is,ic)*mpole_rho%Qlm_tot(iso)*&
                   norm_g0l_s(lshell)&
-                *SQRT(dfac(2*lx-1)*dfac(2*ly-1)*dfac(2*lz-1)/fourpi)
+                 /SQRT(dfac(2*lx-1)*dfac(2*ly-1)*dfac(2*lz-1)*fourpi/dfac(2*lshell+1))
+
+!                 / SQRT((4.0_dp*pi)/dfac(2*l+1)*&
+!                  dfac(2*lx-1)*dfac(2*ly-1)*dfac(2*lz-1))
+!                *SQRT(dfac(2*lx-1)*dfac(2*ly-1)*dfac(2*lz-1)/fourpi)
 ! second possibility, don't know yet which one is correct
 !                 /SQRT(fourpi)
 
              mpole_rho%Qlm_car_h(ico) = mpole_rho%Qlm_car_h(ico) + &
-                  orbtramat(lshell)%s2c(is,ic)*mpole_rho%Qlm_tot(iso)*&
+!                  orbtramat(lshell)%s2c(is,ic)*mpole_rho%Qlm_tot(iso)*&
+                  orbtramat(lshell)%c2s(is,ic)*mpole_rho%Qlm_tot(iso)*&
                   norm_g0l_h(lshell)&
-                 *SQRT(dfac(2*lx-1)*dfac(2*ly-1)*dfac(2*lz-1)/fourpi)
+                 /SQRT(dfac(2*lx-1)*dfac(2*ly-1)*dfac(2*lz-1)*fourpi/dfac(2*lshell+1))
+
+!                 / SQRT((4.0_dp*pi)/dfac(2*l+1)*&
+!                  dfac(2*lx-1)*dfac(2*ly-1)*dfac(2*lz-1))
+!                 *SQRT(dfac(2*lx-1)*dfac(2*ly-1)*dfac(2*lz-1)/fourpi)
 !                  /SQRT(fourpi) 
 
            END DO 
@@ -445,19 +458,20 @@ MODULE qs_rho0_methods
     END DO   ! ikind
     qs_charges%total_rho_core_rspace = - qs_charges%total_rho_core_rspace
 
-!    rc_min = rc_min*0.8_dp
-
 !   Calculate the hard and soft exponents for the spherical gaussians
 !   used for the construction of the compensation charge densities (g0_lm_h,g0_lm_s)
+
     rho0_mpole%zet0_h =  0.1_dp
     DO
       radius=exp_radius(rho0_mpole%lmax_0,rho0_mpole%zet0_h,eps_fit,1.0_dp)
       IF (radius<=rc_min) EXIT
       rho0_mpole%zet0_h=rho0_mpole%zet0_h+0.1_dp 
     END DO
+
 !dbg
-    rho0_mpole%zet0_h =  10.0_dp
+    rho0_mpole%zet0_h = 10._dp
 !dbg
+
     rho0_mpole%zet0_s = 0.25_dp/rho0_mpole%zet0_h
     DO
       gcut=exp_radius(rho0_mpole%lmax_0,rho0_mpole%zet0_s,eps_fit,1.0_dp)
@@ -570,7 +584,7 @@ MODULE qs_rho0_methods
           V_s = grid_atom%oorad2l(ir,l+1)*I_up_s + &
               grid_atom%rad2l(ir,l)*I_down_s
 
-          IF(abs(V_h-V_s)<eps_orb .AND.grid_atom%rad(ir)>0.7_dp) THEN
+          IF(abs(V_h-V_s)<eps_orb .AND.grid_atom%rad(ir)>0.7_dp ) THEN
             r_hms = MAX(r_hms,grid_atom%rad(ir))
             exit
           END IF

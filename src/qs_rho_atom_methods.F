@@ -445,6 +445,7 @@ MODULE qs_rho_atom_methods
                                     BLOCK=p_block)
                   p_coeff(1:nsgfa,1:nsgfb,ispin) = p_block(1:nsgfa,1:nsgfb)
                ENDDO
+
             ELSE
                irow = jatom
                icol = iatom
@@ -456,7 +457,6 @@ MODULE qs_rho_atom_methods
                                     block_col=icol,&
                                     BLOCK=p_blockt)
 
-!                  p_coeff(1:nsgfa,1:nsgfb,ispin)=TRANSPOSE( p_blockt )
                   p_coeff(1:nsgfb,1:nsgfa,ispin)= p_blockt(1:nsgfb,1:nsgfa)
 
                ENDDO
@@ -474,7 +474,6 @@ MODULE qs_rho_atom_methods
                          find_neighbor_list(neighbor_list_set=&
                          sbc_oce(ibc)%neighbor_list_set,&
                          atom=jatom)
-
 
               IF (.NOT.ASSOCIATED(sbc_oce_neighbor_list)) CYCLE
 
@@ -583,6 +582,7 @@ MODULE qs_rho_atom_methods
                    C_coeff_s_b = 0.0_dp
                    C_coeff_s_b(1:nsoctot,1:nsgfb)=c_block(1:nsoctot,1:nsgfb)
 
+
                    DO ispin = 1,nspins
                       CALL dgemm('N','T',nsgfa,nsoctot,nsgfb,&
                                  1.0_dp,p_coeff(1,1,ispin),SIZE(p_coeff,1),&
@@ -610,9 +610,7 @@ MODULE qs_rho_atom_methods
                       CALL symmetric_add(rho_atom(katom)%cpc_s(ispin)%r_coef,nsoctot,&
                                        coef_aux_s(1,1,ispin),max_gau,nsoctot)
                    END DO
-!     do i = 1,nsoctot
-!     write(*,'(i3,32f8.3)') i,rho_atom(katom)%cpc_h(1)%r_coef(i,1:nsoctot)
-!     enddo
+
                 ELSEIF(iatom > jatom) THEN
                    NULLIFY(c_block)
                    CALL get_block_node(matrix=oce%hardo(1)%matrix,&
@@ -630,11 +628,13 @@ MODULE qs_rho_atom_methods
                    C_coeff_s_b = 0.0_dp
                    C_coeff_s_b(1:nsoctot,1:nsgfb)=c_block(1:nsoctot,1:nsgfb)
 
+
                    DO ispin = 1,nspins
                       CALL dgemm('N','T',nsgfb,nsoctot,nsgfa,&
                                  1.0_dp,p_coeff(1,1,ispin),SIZE(p_coeff,1),&
                                  C_coeff_h_a,SIZE(C_coeff_h_a,1),&
                                  0.0_dp,PC,max_nsgf)
+
 
                       CALL dgemm('N','N',nsoctot,nsoctot,nsgfb,&
                                  1.0_dp,C_coeff_h_b,max_gau,&
@@ -656,6 +656,7 @@ MODULE qs_rho_atom_methods
                       CALL symmetric_add(rho_atom(katom)%cpc_s(ispin)%r_coef,nsoctot,&
                                        coef_aux_s(1,1,ispin),max_gau,nsoctot)
                    END DO
+
                 ENDIF
                 sbc_oce_neighbor_node => next(sbc_oce_neighbor_node)
               ENDDO  knodeloop ! knode
@@ -854,7 +855,7 @@ MODULE qs_rho_atom_methods
 
         ALLOCATE (rho_atom_set(iatom)%rho_rad_h(nspins))
         ALLOCATE (rho_atom_set(iatom)%rho_rad_s(nspins))
-
+ 
         DO i = 1,nspins
           ALLOCATE(rho_atom_set(iatom)%rho_rad_h(i)%r_coef(&
                                       1:nr,1:max_iso_not0))

@@ -455,10 +455,11 @@ CONTAINS
       INTENT(INOUT)                          :: vabc
     REAL(KIND=dp), DIMENSION(:,:,:), &
       INTENT(OUT)                            :: int_abc
-    INTEGER, INTENT(IN)                      :: maxder
-    REAL(KIND=dp), DIMENSION(:,:)            :: vabc_plus
+    INTEGER, INTENT(IN)            :: maxder
+    REAL(KIND=dp), DIMENSION(:,:)  :: vabc_plus
 
     CHARACTER(LEN=*), PARAMETER   :: routine_name = "coulomb3"
+
 
     INTEGER                                  :: ax, ay, az, bx, by, bz, coc, &
                                                 cocx, cocy, cocz, cx, cy, cz, &
@@ -470,8 +471,8 @@ CONTAINS
                                                 f3, f4, f5, f6, f7, fcx, fcy, &
                                                 fcz, fx, fy, fz, t, zetp, &
                                                 zetq, zetw
-    REAL(KIND=dp), DIMENSION(:), &
-                            ALLOCATABLE      :: f
+    REAL(KIND=dp), &
+      DIMENSION(:), ALLOCATABLE              :: f
     REAL(KIND=dp), DIMENSION(3)              :: rap, rbp, rcp, rcw, rpw
     REAL(KIND=dp), DIMENSION(:, :, :, :), &
                   ALLOCATABLE                :: v
@@ -479,11 +480,14 @@ CONTAINS
 !   ---------------------------------------------------------------------------
 
     ALLOCATE(v(ncoset(la_max),ncoset(lb_max),ncoset(lc_max),la_max+lb_max+lc_max+1),STAT=istat)
+!    ALLOCATE(v(1000,1000,1000,1000),STAT=istat)
     ALLOCATE(f(0:la_max+lb_max+lc_max),STAT=istat)
     IF (istat /= 0) THEN
       CALL stop_memory(routine_name,"allocate v, f")
     END IF
+
     v = 0.0_dp
+
     maxder_local = 0
     IF(maxder>0)  maxder_local = maxder
 
@@ -1019,7 +1023,7 @@ CONTAINS
 
               cz = lc - 1
               v(1,1,coset(0,1,cz),n) = rcw(2)*v(1,1,coset(0,0,cz),n+1)
-
+ 
               DO cy=2,lc
                cz = lc - cy
                 v(1,1,coset(0,cy,cz),n) =&
@@ -1306,6 +1310,7 @@ CONTAINS
                         END DO
                       END DO
 
+
 !                     *** Vertical recurrence step ***
 
 !                     *** [ab||c]{n} = (Pi - Bi)*[a(b-1i)||c]{n} +          ***
@@ -1491,7 +1496,6 @@ CONTAINS
                       END DO
 
                     END DO
-
                   END IF
 
                 ELSE
