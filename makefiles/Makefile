@@ -32,7 +32,7 @@ LIB1_ARCHIVE = $(LIBDIR)/$(VERSION)/lib$(LIB1).a
 
 ### Definition of the multiple targets ###
 
-VERSION_TARGETS = sopt sdbg popt pdbg
+VERSION_TARGETS = sopt sdbg popt pdbg ssmp psmp
 CLEAN_TARGETS   = sopt/clean sdbg/clean popt/clean pdbg/clean\
                   sopt/realclean sdbg/realclean popt/realclean pdbg/realclean
 .PHONY : build clean realclean distclean $(CLEAN_TARGETS)
