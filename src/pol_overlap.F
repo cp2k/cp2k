@@ -749,19 +749,19 @@ CONTAINS
         jcoef = part (jpart) % coef_list (jc)
 
         fo_part (1,ipart) = fo_part (1,ipart) - 0.5_dbl *  (hpi + hpj) * ao % cr (jcoef) * &
-                          atom_block (ic,jc,2)
+                          ao % cr (icoef) * atom_block (ic,jc,2)
         fo_part (1,jpart) = fo_part (1,jpart) + 0.5_dbl * (hpi + hpj) * ao % cr (icoef) * &
-                          atom_block (ic,jc,2)
+                          ao % cr (jcoef) * atom_block (ic,jc,2)
 
         fo_part (2,ipart) = fo_part (2,ipart) - 0.5_dbl * (hpi + hpj) * ao % cr (jcoef) * &
-                          atom_block (ic,jc,3)
+                          ao % cr (icoef) * atom_block (ic,jc,3)
         fo_part (2,jpart) = fo_part (2,jpart) + 0.5_dbl * (hpi + hpj) * ao % cr (icoef) * &
-                          atom_block (ic,jc,3)
+                          ao % cr (jcoef) * atom_block (ic,jc,3)
 
         fo_part (3,ipart) = fo_part (3,ipart) - 0.5_dbl * (hpi + hpj) * ao % cr (jcoef) * &
-                          atom_block (ic,jc,4)
+                          ao % cr (icoef) * atom_block (ic,jc,4)
         fo_part (3,jpart) = fo_part (3,jpart) + 0.5_dbl * (hpi + hpj) * ao % cr (icoef) * &
-                          atom_block (ic,jc,4)
+                          ao % cr (jcoef) * atom_block (ic,jc,4)
 
      END DO
  
