@@ -190,7 +190,7 @@ END SUBROUTINE set_energies
       POINTER                                :: simpar
     TYPE ( virial_type ), POINTER            :: virial
     REAL ( dbl ) :: cell_length ( 3 ), cell_angle ( 3 )
-    REAL ( dbl ) :: econs, pv_scalar
+    REAL ( dbl ) :: pv_scalar
     INTEGER :: i
 
 !   ---------------------------------------------------------------------------
@@ -386,7 +386,7 @@ END SUBROUTINE set_energies
           WRITE ( iw, '( )' )
           WRITE ( iw, '( T52,A )' ) 'INSTANTANEOUS        AVERAGES'
           WRITE ( iw, '( A,T49,2(1X,E15.7) )' ) ' {E-E0}/E0                    = ', &
-               econs, econs_avg/REAL(itimes,dbl)
+               constant, econs_avg/REAL(itimes,dbl)
           WRITE ( iw, '( A,A,T31,A,T49,2(1X,E15.7) )' ) ' POTENTIAL ENERGY', &
                adjustl(unit % e_label), '= ', epot, averages%avepot
           WRITE ( iw, '( A,A,T31,A,T49,2(1X,E15.7) )' ) ' KINETIC ENERGY', &
