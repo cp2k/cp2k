@@ -745,9 +745,7 @@ CONTAINS
 
     n(:) = 4
     zz(:,:,:) = 0.0_wp
-    write(6,*) "q1"
     CALL fft3d(1,n,zz,status=stat)
-    write(6,*) "q2"
     IF (stat /= 0) THEN
       CALL stop_program(routine,"The default FFT library <"//&
                                 TRIM(globenv%default_fft_library)//&
