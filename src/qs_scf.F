@@ -145,7 +145,8 @@ MODULE qs_scf
                                              read_mo_set,&
                                              set_mo_occupation,&
                                              write_mo_set
-  USE qs_ot,                           ONLY: qs_ot_new_preconditioner
+  USE qs_ot,                           ONLY: qs_ot_new_preconditioner, &
+                                             qs_ot_type
   USE qs_ot_scf,                       ONLY: ot_scf_destroy,&
                                              ot_scf_init,&
                                              ot_scf_mini,&
