@@ -134,44 +134,19 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = "tddfpt_init", &
       routineP = moduleN//"/"//routineN
 
-    INTEGER                                  :: n_spins, spin, stat
-    TYPE(cp_fm_p_type), DIMENSION(:), &
-      POINTER                                :: psi0d
-    TYPE(gapw_control_type), POINTER         :: gapw_control
-    TYPE(qs_kpp1_env_type), POINTER          :: kpp1_env
-    TYPE(cell_type), POINTER                 :: cell
-
 ! --------------------------------------------------------------------
-
-    n_spins   = qs_env%dft_control%nspins
 
     !------------------!
     ! create the p_env !
     !------------------!
-    CALL kpp1_create(kpp1_env, qs_env=qs_env)
-!    ALLOCATE(psi0d(n_spins), stat=stat)
-!    IF (stat /= 0) CALL stop_memory(routineP, "psi0d", n_spins)
-!    DO spin=1, n_spins
-!       CALL get_mo_set(qs_env%mos(spin)%mo_set, mo_coeff=psi0d(spin)%matrix)
-!    END DO
-!    CALL p_env_create(p_env, qs_env, kpp1_env=kpp1_env, psi0d=psi0d, &
-!                      orthogonal_orbitals=.TRUE.)
-    CALL p_env_create(p_env, qs_env, kpp1_env=kpp1_env, &
-                      orthogonal_orbitals=.TRUE.)
+    CALL p_env_create(p_env, qs_env, orthogonal_orbitals=.TRUE.)
     CALL p_env_psi0_changed(p_env, qs_env) ! update the m_epsilon matrix
-
 
     !------------------!
     ! create the t_env !
     !------------------!
     CALL tddfpt_env_allocate(t_env, p_env, qs_env, glob_env)
     CALL tddfpt_env_init(t_env, p_env, qs_env, glob_env)
-
-!    !----------!
-!    ! clean up !
-!    !----------!
-!    DEALLOCATE(psi0d, stat=stat)
-!    IF (stat /= 0) CALL stop_memory(routineP, "psi0d")
 
   END SUBROUTINE tddfpt_init
 

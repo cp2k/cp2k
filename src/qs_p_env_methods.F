@@ -293,8 +293,6 @@ CONTAINS
        ! GAPW initializations !
        !----------------------!
        IF (qs_env%dft_control%qs_control%gapw) THEN
-          ALLOCATE(p_env%local_rho_set, stat=stat)
-          IF (stat/=0) CALL stop_memory(routineP, "p_env%local_rho_set", 1)
           CALL local_rho_set_create(p_env%local_rho_set)
           CALL allocate_rho_atom_internals(qs_env, p_env%local_rho_set%rho_atom_set)
           CALL init_rho0(qs_env, qs_env%dft_control%qs_control%gapw_control, &
