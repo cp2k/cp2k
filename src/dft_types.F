@@ -874,7 +874,7 @@ CONTAINS
                 CALL stop_parser(routine,"Invalid method <"//TRIM(string)//&
                                          "> specified for RS_GRID")
             END SELECT
-         CASE ( 'WF_INTERPOLATION' )
+         CASE ( 'WF_INTERPOLATION','INTERPOLATION','EXTRAPOLATION' )
             CALL read_object(string,lower_to_upper=.TRUE.)
             SELECT CASE ( string )
             CASE DEFAULT
