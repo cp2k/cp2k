@@ -1,6 +1,6 @@
 #! /usr/bin/env python
 
-import sys
+import sys, re
 from sys import argv
 
 def instantiateTemplate(infile,outfile,subs,logFile=sys.stdout):
@@ -62,14 +62,14 @@ def instantiateTemplate(infile,outfile,subs,logFile=sys.stdout):
                             (match.groups()[1],lineNr))
 	    outfile.write(line[:match.end()])
 	    line=line[match.end():]
-      outfile.close()
-      infile.close()
     except:
       logFile.write("error in '%s' at line %d\n"%(infile.name,lineNr))
       outfile.close()
       infile.close()
       os.rename(outfile.name,outfile.name+".err")
       raise
+  outfile.close()
+  infile.close()
 
 def evaluateInstantiationFile(instantiationFile,logFile=sys.stdout,outDir=None):
     import os
@@ -91,8 +91,8 @@ def evaluateInstantiationFile(instantiationFile,logFile=sys.stdout,outDir=None):
           raise
         outName=instantiationFile[:-len(extension)]
         for token in substitution.keys():
-          outName=outName.replace("_"+token+"_",
-                                  substitution[token])
+          outName=re.sub("(?<![a-zA-Z0-9])_"+token+"_(?![a-zA-Z0-9])",
+                         substitution[token],outName)
         outName=outName+".F"
         if outDir:
           outName=os.path.join(outDir,os.path.basename(outName))

@@ -34,12 +34,13 @@ def buildCp2k(cp2kRoot,buildType="sopt",logFilePath=None,clean=None):
 
 # read directives
 directives={"normalize-use":1,"upcase-keywords":1,"clean":1,
-            "replace":0,"synopsis":1,"prettify-cvs":1,"popt":0}
+            "replace":0,"synopsis":1,"prettify-cvs":1,"popt":0,"tests":1}
 directiveRe=re.compile(r"--(no-)?(normalize-use|upcase-keywords|"+
-                       r"replace|synopsis|prettify-cvs|clean|popt)$")
+                       r"replace|synopsis|prettify-cvs|clean|popt|tests)$")
 descStr=("usage:"+sys.argv[0]+"""
   [--[no-]normalize-use] [--[no-]upcase-keywords] [--[no-]replace]
   [--help] [--[no-]synopsis] [--[no-]prettify-cvs] [--[no-]clean]
+  [--[no-]tests]
 
   Prepares for checkin the source.
   defaults="""+str(directives)
@@ -62,6 +63,8 @@ logDirPath=join(cp2kRoot,"test-"+
                 "-"+time.strftime("%y%m%d-%H:%M"))
 os.mkdir(logDirPath)
 mainLog=open(join(logDirPath,"main.log"),'w')
+mainLog.write(" ******* prepare check in BEGAN *******\n")
+mainLog.flush()
 outDir= join(cp2kRoot,"src","outDir")
 
 print "logDirectory: "+logDirPath
@@ -112,7 +115,7 @@ for fileToPret in filesToPret2:
 	filesToPret.append(fileToPret)
 
 # if requested adds cvs modified files to files to prettify
-if "--prettify-cvs" in sys.argv[1:]:
+if directives["prettify-cvs"]:
     mainLog.write("+ adding cvs modified files to the files to prettify\n")
     mainLog.flush()
     os.chdir(os.path.join(cp2kRoot,"src"))
@@ -121,7 +124,7 @@ if "--prettify-cvs" in sys.argv[1:]:
     filesToPret2=[]
     conflicts=0
     conflictsDir=os.path.join(outDir,"conflicts")
-    fileCRe=re.compile(r"([ACRMUP]?) ([a-zA-Z_\.\-]+)$")
+    fileCRe=re.compile(r"([ACRMUP]?) ([a-zA-Z_\.\-]+\.F)$")
     
     for line in filesC.splitlines():
         m=fileCRe.match(line)
@@ -248,29 +251,32 @@ if directives["popt"]:
         mainLog.write("+++ build SUCESSFULL! +++\n")
 
 # do tests
-mainLog.write("====== H2O test ======\n")
-mainLog.flush()
-exePath= join(cp2kRoot,"exe",
-              commands.getoutput(join(cp2kRoot,"tools","get_arch_code")),
-              "cp2k.sopt")
-log1Path=join(logDirPath,"H2O.out")
-os.chdir(join(cp2kRoot,"tests","QS"))
-commands.getoutput("{ { "+exePath+" "+join(cp2kRoot,"tests","QS","H2O.inp")+
-                   " ; } 2>&1 ; } > "+log1Path)
-logFile=open(os.path.join(logDirPath,"H2O.diffs"),'w')
-file1=open(join(cp2kRoot,"tests","QS","H2O.out"),'r')
-file2=open(log1Path)
-diffVal=diffEpsilon.compareCp2kOutput(file1,file2,
-                                      0.0001,logFile)
-file1.close(); file2.close()
-logFile.write("totalDiff="+`diffVal`+"\n")
-if diffVal>0.0001:
-    mainLog.write("+++ ERROR, H2O test failed +++\n diff="+`diffVal`+
-                  " more info in H2O.diffs\n")
-else:
-    mainLog.write("+++ H2O test SUCESSFULL (diff="+`diffVal`+")! +++\n")
-logFile.close()
+if directives["tests"]:
+    mainLog.write("====== H2O test ======\n")
+    mainLog.flush()
+    exePath= join(cp2kRoot,"exe",
+                  commands.getoutput(join(cp2kRoot,"tools","get_arch_code")),
+                  "cp2k.sopt")
+    log1Path=join(logDirPath,"H2O.out")
+    os.chdir(join(cp2kRoot,"tests","QS"))
+    commands.getoutput("{ { "+exePath+" "+
+                       join(cp2kRoot,"tests","QS","H2O.inp")+
+                       " ; } 2>&1 ; } > "+log1Path)
+    logFile=open(os.path.join(logDirPath,"H2O.diffs"),'w')
+    file1=open(join(cp2kRoot,"tests","QS","H2O.out"),'r')
+    file2=open(log1Path)
+    diffVal=diffEpsilon.compareCp2kOutput(file1,file2,
+                                          0.0001,logFile)
+    file1.close(); file2.close()
+    logFile.write("totalDiff="+`diffVal`+"\n")
+    if diffVal>0.0001:
+        mainLog.write("+++ ERROR, H2O test failed +++\n diff="+`diffVal`+
+                      " more info in H2O.diffs\n")
+    else:
+        mainLog.write("+++ H2O test SUCESSFULL (diff="+`diffVal`+")! +++\n")
+    logFile.close()
 
+mainLog.write(" ******* prepare check in FINISHED *******\n")
 mainLog.close()
 
 
