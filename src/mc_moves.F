@@ -24,7 +24,6 @@
 MODULE mc_moves
   USE cp_error_handling,               ONLY: cp_error_type
   USE cp_subsystem_types,              ONLY: cp_subsys_get,&
-                                             cp_subsys_release,&
                                              cp_subsys_set,&
                                              cp_subsystem_p_type
   USE force_env_types,                 ONLY: force_env_get,&
@@ -177,7 +176,7 @@ CONTAINS
 
 ! calculate the new energy of the system
 !!!!!!!!!
-      CALL force_env_calculate_energy(force_env)
+!      CALL force_env_calculate_energy(force_env)
 
 ! now grab the coords and the energy
       CALL force_env_get(force_env,subsys=subsys,&
@@ -193,7 +192,7 @@ CONTAINS
                classical_energy_new,&
                nchain,1,nchain,6.211D0/angstrom)
 !!!!!!!!
-!            new_energy=classical_energy_new
+            new_energy=classical_energy_new
             classical_energy_old=moves%classical_energy
             w=dexp(-BETA*((new_energy-classical_energy_new)&
                    -(old_energy-classical_energy_old)))
@@ -1203,7 +1202,6 @@ CONTAINS
       ENDIF
 
 ! set the coordinates and the energy
-      CALL cp_subsys_release(testsys(1)%subsys)
       CALL force_env_release(test_env,error=error)
 
 ! figure out if we have overlap problems
@@ -1218,7 +1216,7 @@ CONTAINS
             "r_mol")
             
          IF(ionode) WRITE(globenv%scr,*) &
-            "Volume move rejected due to overlap."
+            "Volume move rejected due to overlap.",vol_dis
 !     end the timing
          CALL timestop(0.0d0,handle)
          RETURN
@@ -1228,11 +1226,11 @@ CONTAINS
       CALL quickstep_create_force_env(test_env, globenv, error=error)
 
 !!!!!!!!!!!!!!!!!!
-      CALL force_env_calculate_energy(test_env)
+!      CALL force_env_calculate_energy(test_env)
 
 ! now grab the coords and the energy
-      CALL force_env_get(test_env,&
-          potential_energy=new_energy,error=error)
+!      CALL force_env_get(test_env,&
+!          potential_energy=new_energy,error=error)
 
       IF (ionode) THEN
 ! accept or reject the move
@@ -1311,7 +1309,6 @@ CONTAINS
          ENDIF
 
 ! switch the force env to the new env
-         CALL cp_subsys_release(oldsys(1)%subsys)
          CALL force_env_release(force_env,error=error)
          force_env => test_env
 

@@ -28,7 +28,6 @@ MODULE mc_ensembles
                                              cp_logger_type,&
                                              cp_to_string
   USE cp_subsystem_types,              ONLY: cp_subsys_get,&
-                                             cp_subsys_release,&
                                              cp_subsystem_p_type
   USE force_env_methods,               ONLY: force_env_calculate_energy
   USE force_env_types,                 ONLY: force_env_get,&
@@ -226,7 +225,7 @@ CONTAINS
 
 ! find the energy of the initial configuration
 !!!!!!!!!!
-      CALL force_env_calculate_energy(force_env)
+!      CALL force_env_calculate_energy(force_env)
 
       CALL force_env_get(force_env,subsys=oldsys,cell=cell,&
          potential_energy=old_energy,error=error)
@@ -240,7 +239,7 @@ CONTAINS
          CALL mc_classical_energy(force_env,moves%classical_energy,&
                                nchain,1,nchain,6.211D0/angstrom)
 !!!!!!!!!!!
-!         old_energy=moves%classical_energy
+         old_energy=moves%classical_energy
          classical_energy=moves%classical_energy
 
 ! open the files for writing coordinates, average structural data, and
@@ -396,8 +395,8 @@ CONTAINS
 !            WRITE(ene,*) nnstep,old_energy/3.16682968D-6,energy_check
             WRITE(ene,*) nnstep,old_energy,energy_check
 !!!!!!!!!!
-            CALL write_particle_coordinates(particles_old%els,cell,&
-                        crd,'XMOL','POS','POSITIONS')
+!            CALL write_particle_coordinates(particles_old%els,cell,&
+!                        crd,'XMOL','POS','POSITIONS')
 
 ! compute some averages
             averages%molecules=averages%molecules*&
@@ -459,7 +458,7 @@ CONTAINS
 
 ! calculate the final energy
 !!!!!!!!
-      CALL force_env_calculate_energy(force_env)
+!      CALL force_env_calculate_energy(force_env)
 
 ! get the energy
       CALL force_env_get(force_env,potential_energy=final_energy,&
@@ -472,8 +471,8 @@ CONTAINS
                         crd,'XMOL','POS','FINAL')
                         
 !!!!!!!!!!!
-!         CALL mc_classical_energy(force_env,final_energy,&
-!                              nchain,1,nchain,6.211D0/angstrom)
+         CALL mc_classical_energy(force_env,final_energy,&
+                              nchain,1,nchain,6.211D0/angstrom)
 
          WRITE(ene,*) 'Final Energy:                        ',&
                   final_energy,energy_check
@@ -499,7 +498,6 @@ CONTAINS
       CALL set_mc_env ( mc_env, mc_par = mc_par,force_env=force_env)
 
 ! deallocate some stuff
-      CALL cp_subsys_release(oldsys(1)%subsys)
       CALL mc_moves_release(move_updates)
       CALL mc_moves_release(moves)
       CALL mc_averages_release(averages)
@@ -1168,9 +1166,7 @@ CONTAINS
          force_env=force_env(1)%force_env)
       CALL set_mc_env ( mc_env_2, mc_par = mc_par(2)%mc_par,&
          force_env=force_env(2)%force_env)
-      CALL cp_subsys_release(oldsys_1(1)%subsys)
       NULLIFY(particles_old_1)
-      CALL cp_subsys_release(oldsys_2(1)%subsys)
       NULLIFY(particles_old_2)
 
       DEALLOCATE(particle_positions,STAT=istat)

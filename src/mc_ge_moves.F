@@ -23,7 +23,6 @@
 MODULE mc_ge_moves
   USE cp_error_handling,               ONLY: cp_error_type
   USE cp_subsystem_types,              ONLY: cp_subsys_get,&
-                                             cp_subsys_release,&
                                              cp_subsys_set,&
                                              cp_subsystem_p_type,&
                                              cp_subsystem_pp_type
@@ -819,10 +818,6 @@ CONTAINS
          w=prefactor*DEXP(-BETA*(del_quickstep_energy-&
             del_classical_energy))*wratio
 
-         WRITE(6,*) 'kdjfs',weight_new,weight_old
-         WRITE(6,*) del_quickstep_energy,del_classical_energy
-         WRITE(6,*) (abc_insert(1)*angstrom)**3,(abc_remove(1)*angstrom)**3
-         
 ! check if the move is accepted
          IF(w .GE. 1.0D0) THEN
             rand=0.0D0
@@ -880,12 +875,10 @@ CONTAINS
 ! update coordinates
 ! insertion box
          CALL force_env_release(force_env(insert_box)%force_env)
-         CALL cp_subsys_release(oldsys(insert_box)%subsys(1)%subsys)
          force_env(insert_box)%force_env => insert_env
 
 ! removal box
          CALL force_env_release(force_env(remove_box)%force_env)
-         CALL cp_subsys_release(oldsys(remove_box)%subsys(1)%subsys)
          force_env(remove_box)%force_env => remove_env
 
       ELSE
@@ -1321,7 +1314,6 @@ CONTAINS
 ! remake the force environment and calculate the energy
 
             CALL force_env_release(test_env(i)%force_env,error=error)
-            CALL cp_subsys_release(testsys(i)%subsys(1)%subsys)
             
             globenv%input_file_name=dat_file(i)
             CALL quickstep_create_force_env(test_env(i)%force_env, &
@@ -1424,7 +1416,6 @@ CONTAINS
 ! switch the force env to the new env
          DO i=1,2
             CALL force_env_release(force_env(i)%force_env,error=error)
-            CALL cp_subsys_release(oldsys(i)%subsys(1)%subsys)
             force_env(i)%force_env => test_env(i)%force_env
          ENDDO
       ELSE

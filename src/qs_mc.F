@@ -129,7 +129,7 @@ CONTAINS
 
 !------------------------------------------------------------------------------
 
-  NULLIFY(mc_env)
+  NULLIFY(mc_env,mc_env_2,mc_par,mc_par_2,force_env_2)
 
   CALL init_cp2k_units ()
   iw = globenv % scr
