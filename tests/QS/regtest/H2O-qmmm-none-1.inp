@@ -1,0 +1,84 @@
+&CP2K
+ PROGRAM      QMMM
+ PROJECT      2H2O
+ IOLEVEL      10
+ FFTLIB       FFTSG
+ RUN_TYPE     GEO_OPT
+&END
+
+&PRINT MEDIUM
+&END
+
+&GEOOPT
+ OPTIMIZER BFGS
+ MAX_ITER  3
+&END
+
+&FORCE_EVAL
+        &QMMM
+         ECOUPL NONE
+         ABC_QM  7.0 7.0 7.0
+         #
+         # QM_KINDS
+         #
+         &QM_KIND H
+          mm_index 5 6
+         &END QM_KIND
+         &QM_KIND O
+          mm_index 4
+         &END QM_KIND
+        &END QMMM
+&END FORCE_EVAL
+
+
+&TOPOLOGY
+ coord_file     2H2O.pdb
+ coordinate     pdb
+ connectivity   PSF
+ CONN_FILE      2H2O.psf
+&END
+
+&EWALD
+ units angstrom
+ ewald_type spme
+ ewald_param .44 64 6
+&END
+
+&FORCE_FIELD
+ PARMFILE CHM 2H2O.pot
+&END
+
+&CELL
+ UNIT         ANGSTROM
+ ABC          20.00 20.00 20.00 
+&END
+
+&IO
+ BASIS_SET_FILE BASIS_SET
+ POTENTIAL_FILE POTENTIAL
+ MM_POTENTIAL_FILE MM_POTENTIAL
+&END
+ 
+&DFT
+ FUNCTIONAL   pade
+&END
+ 
+&QS
+ CUTOFF       50
+ COMMENSURATE
+&END
+ 
+&SCF
+ GUESS        atomic
+&END
+ 
+&KIND H
+ BASIS_SET    DZVP-GTH-BLYP
+ POTENTIAL    GTH-BLYP-q1
+&END
+ 
+&KIND O
+ BASIS_SET    DZVP-GTH-BLYP
+ POTENTIAL    GTH-BLYP-q6
+&END
+
