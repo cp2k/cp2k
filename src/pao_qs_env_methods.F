@@ -39,7 +39,7 @@ module pao_qs_env_methods
        get_atomic_kind_set
   use pao_glob_angles_methods, only: pao_g_ang_did_change
   use cp_block_matrix, only: cp_block_matrix_p_type, cp_block_matrix_type,&
-       cp_sp_dealloc, cp_sp_create, cp_sp_release, cp_get_matrix, &
+       cp_sp_create, cp_sp_release, cp_get_matrix, &
        cp_sp_block_handle_type, cp_sp_block_handle_init, cp_sp_block_handle_release
   use cp_b_matrix_structure, only: cp_b_matrix_struct_type, cp_bmstruct_get,&
        cp_bmstruct_create, cp_bmstruct_release, cp_b_dims_type
@@ -409,7 +409,7 @@ subroutine pao_qs_env_did_change(qs_env,global_env,&
         if (associated(pao_env%atomic_ortho_valid)) &
              pao_env%atomic_ortho_valid=.false.
         ! in general the atom distribution changes
-        call cp_sp_dealloc(pao_env%atomic_ortho,error=error)
+        call cp_sp_release(pao_env%atomic_ortho,error=error)
         call pao_qs_env_preinit_atom_ortho(qs_env, global_env, error=error)
      end if
      call pao_g_ang_did_change(pao_env%angles_att,qs_env=qs_env,&
@@ -612,24 +612,24 @@ subroutine pao_qs_env_preinit_atom_ortho(qs_env,global_env,error)
   CPPrecondition(associated(pao_env%atomic_ortho_valid),cp_failure_level,routineP,error,failure)
   if (.not.failure) then
 #ifdef __parallel
-     ! stupid parallelization, every processor has everything
-     do i=1,n_atoms
-        if (atomic_ortho%matrix_structure%distribution%block_owner(i,i) ==&
-             atomic_ortho%global_env%mepos) then
-           call pao_qs_env_get_atomic_ortho(qs_env,&
-                global_env=atomic_ortho%global_env,&
-                atom_nr=i,error=error)
-        end if
-     end do
-     call cp_sp_block_handle_init(block_handle,error=error)
-     do i=1,nblock_rows
-        call cp_sp_get_local_block(matrix=atomic_ortho,&
-             block_row=i, block_col=i,&
-             block_handle=block_handle,alloc_block=.true.,error=error,&
-             owner=owner)
-        call mp_bcast(block_handle%block_val,owner,atomic_ortho%global_env%group)
-        call cp_sp_block_handle_release(block_handle,error=error)
-     end do
+!!FM     ! stupid parallelization, every processor has everything
+!!FM     do i=1,n_atoms
+!!FM        if (atomic_ortho%matrix_structure%distribution%block_owner(i,i) ==&
+!!FM             atomic_ortho%global_env%mepos) then
+!!FM           call pao_qs_env_get_atomic_ortho(qs_env,&
+!!FM                global_env=atomic_ortho%global_env,&
+!!FM                atom_nr=i,error=error)
+!!FM        end if
+!!FM     end do
+!!FM     call cp_sp_block_handle_init(block_handle,error=error)
+!!FM     do i=1,nblock_rows
+!!FM        call cp_sp_get_local_block(matrix=atomic_ortho,&
+!!FM             block_row=i, block_col=i,&
+!!FM             block_handle=block_handle,alloc_block=.true.,error=error,&
+!!FM             owner=owner)
+!!FM        call mp_bcast(block_handle%block_val,owner,atomic_ortho%global_env%group)
+!!FM        call cp_sp_block_handle_release(block_handle,error=error)
+!!FM     end do
 #endif
   end if
 end subroutine pao_qs_env_preinit_atom_ortho
