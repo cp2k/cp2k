@@ -311,7 +311,7 @@ CONTAINS
                              pao_bas_proj,ldaCoreRadius,soft_basis_set,&
                              hard_basis_set,paw_proj_set,&
                              paw_atom,hard_radius,hard0_radius,&
-                             harmonics, max_s_harm,&
+                             harmonics, max_iso_not0, max_s_harm,&
                              grid_atom, ngrid_ang, ngrid_rad)
 
 !   Purpose: Get informations about an atomic kind.
@@ -356,7 +356,8 @@ CONTAINS
     REAL(dp), OPTIONAL, INTENT(OUT)          :: hard0_radius
     TYPE(harmonics_atom_type), OPTIONAL, &
                                  POINTER     :: harmonics
-    INTEGER, INTENT(OUT), OPTIONAL           :: max_s_harm
+    INTEGER, INTENT(OUT), OPTIONAL           :: max_iso_not0, &
+                                                max_s_harm
     TYPE(grid_atom_type), OPTIONAL, &
                             POINTER          :: grid_atom
 
@@ -477,6 +478,13 @@ CONTAINS
             max_s_harm = 0
          END IF
       END IF
+      IF (PRESENT(max_iso_not0)) THEN 
+         IF(ASSOCIATED(atomic_kind%harmonics)) THEN 
+            max_iso_not0 = atomic_kind%harmonics%max_iso_not0
+         ELSE
+            max_iso_not0 = 0
+         END IF
+      END IF
       IF (PRESENT(grid_atom))  grid_atom => atomic_kind%grid_atom
       IF (PRESENT(ngrid_ang))  ngrid_ang = atomic_kind%ngrid_ang
       IF (PRESENT(ngrid_rad))  ngrid_rad = atomic_kind%ngrid_rad
@@ -503,7 +511,8 @@ CONTAINS
                                  all_potential_present,gth_potential_present,&
                                  elp_potential_present,paw_atom_present,&
                                  atom_of_kind,kind_of,natom_of_kind,maxder,&
-                                 max_ldaCoreRadius,max_ngrid_rad,max_sph_harm)
+                                 max_ldaCoreRadius,max_ngrid_rad,&
+                                 max_sph_harm,maxg_iso_not0)
 
 !   Purpose: Get informations about an atomic kind set.
 
@@ -519,7 +528,7 @@ CONTAINS
       pao_max_excl_bas, pao_tot_min_bas,pao_tot_full_bas, pao_tot_excl_bas, &
       pao_max_l_angles, natom, nelectron, &
       ncgf, ncgf_aux, npgf, nset, nsgf, nshell, &
-      max_ngrid_rad, max_sph_harm
+      max_ngrid_rad, max_sph_harm, maxg_iso_not0
     LOGICAL, INTENT(OUT), OPTIONAL           :: all_potential_present, &
                                                 gth_potential_present, &
                                                 elp_potential_present, &
@@ -533,8 +542,9 @@ CONTAINS
 
     CHARACTER(LEN=*), PARAMETER :: routine_name = "get_atomic_kind_set"
 
-    INTEGER :: atom_a, iatom, ikind, imax, max_s_harm, n, ngrid_rad, nkind, &
-      p_excl_bas, p_excl_bas_max, p_full_bas, p_full_bas_max, p_full_bas_tot, &
+    INTEGER :: atom_a, iatom, ikind, imax, max_iso_not0, &
+      max_s_harm, n, ngrid_rad, nkind, p_excl_bas, &
+      p_excl_bas_max, p_full_bas, p_full_bas_max, p_full_bas_tot, &
       p_l_angles_max, p_min_bas, p_min_bas_max, p_min_bas_tot, zeff
     INTEGER, DIMENSION(:), POINTER           :: n_ppl
     LOGICAL                                  :: pao, paw_atom
@@ -616,6 +626,7 @@ CONTAINS
                              ldaCoreRadius=ldaCoreRadius,&
                              ngrid_rad=ngrid_rad,&
                              max_s_harm=max_s_harm, &
+                             max_iso_not0=max_iso_not0,&
                              paw_atom=paw_atom)
         IF (PRESENT(max_ldaCoreRadius)) THEN
            max_ldaCoreRadius=MAX(max_ldaCoreRadius,ldaCoreRadius)
@@ -848,6 +859,9 @@ CONTAINS
         IF(PRESENT(max_sph_harm)) THEN
           max_sph_harm = MAX(max_sph_harm,max_s_harm)
         ENDIF
+         IF(PRESENT(maxg_iso_not0)) THEN
+           maxg_iso_not0 = MAX(maxg_iso_not0,max_iso_not0)
+         END IF
       END DO
       IF (PRESENT(pao_max_excl_bas)) pao_max_excl_bas=p_excl_bas_max
       IF (PRESENT(pao_max_full_bas)) pao_max_full_bas=p_full_bas_max

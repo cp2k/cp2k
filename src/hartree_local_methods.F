@@ -30,7 +30,7 @@ MODULE  hartree_local_methods
   USE kinds,                           ONLY: default_string_length,&
                                              dp,&
                                              int_size
-  USE mathconstants,                   ONLY: fourpi,pi,rootpi
+  USE mathconstants,                   ONLY: fourpi,pi
   USE memory_utilities,                ONLY: reallocate
   USE orbital_pointers,                ONLY: indso,&
                                              nsoset
@@ -80,22 +80,20 @@ MODULE  hartree_local_methods
                                    POINTER   :: atomic_kind_set
     TYPE(atomic_kind_type), POINTER          :: atom_kind
     TYPE(gto_basis_set_type), POINTER        :: orb_basis
-    TYPE(harmonics_atom_type), POINTER       :: harmonics
-    TYPE(grid_atom_type), POINTER            :: grid_atom
     TYPE(ecoul_1center_type), DIMENSION(:),&
                                 POINTER      :: ecoul_1c
     INTEGER, DIMENSION(:), POINTER           :: atom_list
     LOGICAL                                  :: paw_atom
 
-    INTEGER  :: iat, iatom, ikind, max_s_harm, maxso, nat, natom, nkind, nr, nset, nsotot 
+    INTEGER                                  :: iat, iatom, ikind,&
+                                                max_iso_not0, maxso, nat,&
+                                                natom, nkind, nr, nset, nsotot 
 
 !   ---------------------------------------------------------------------------
 
     NULLIFY(atomic_kind_set)
     NULLIFY(atom_kind)
     NULLIFY(orb_basis)
-    NULLIFY(harmonics)
-    NULLIFY(grid_atom)
     NULLIFY(atom_list)
     NULLIFY(ecoul_1c)
 
@@ -112,9 +110,8 @@ MODULE  hartree_local_methods
 
       atom_kind => atomic_kind_set(ikind)
       CALL get_atomic_kind(atomic_kind=atom_kind, atom_list=atom_list,&
-                           max_s_harm=max_s_harm, ngrid_rad=nr, natom=nat,&
+                           max_iso_not0=max_iso_not0, ngrid_rad=nr, natom=nat,&
                            orb_basis_set=orb_basis, paw_atom=paw_atom)
- 
  
       CALL get_gto_basis_set(gto_basis_set=orb_basis,&
                              maxso=maxso,nset=nset)
@@ -123,8 +120,8 @@ MODULE  hartree_local_methods
       DO iat = 1,nat
         iatom = atom_list(iat)
 
-        CALL reallocate(ecoul_1c(iatom)%Vh1_h%r_coef,1,nr,1,max_s_harm)
-        CALL reallocate(ecoul_1c(iatom)%Vh1_s%r_coef,1,nr,1,max_s_harm)
+        CALL reallocate(ecoul_1c(iatom)%Vh1_h%r_coef,1,nr,1,max_iso_not0)
+        CALL reallocate(ecoul_1c(iatom)%Vh1_s%r_coef,1,nr,1,max_iso_not0)
         IF(.NOT. paw_atom) CYCLE
         CALL reallocate(ecoul_1c(iatom)%aVh1b_h%r_coef,1,nsotot,1,nsotot)
         CALL reallocate(ecoul_1c(iatom)%aVh1b_s%r_coef,1,nsotot,1,nsotot)
@@ -150,7 +147,7 @@ MODULE  hartree_local_methods
 
     REAL(dp)                                   :: I1_up, I1_down,&
                                                   I2_up, I2_down, &
-                                                  prefactor
+                                                  prefactor, sum
     REAL(dp), ALLOCATABLE, DIMENSION(:, :)     :: rho_1, rho_2
     REAL(dp), DIMENSION(:), POINTER             :: wr
     REAL(dp), DIMENSION(:,:), POINTER          :: r2l, oor2l
@@ -186,7 +183,15 @@ MODULE  hartree_local_methods
          rho_1(:,iso) = rho_1(:,iso) + rrad_h(ispin)%r_coef(:,iso)
          rho_2(:,iso) = rho_2(:,iso) + rrad_s(ispin)%r_coef(:,iso)
        END DO
+
        l_ang = indso(1,iso)
+!  sum = 0.0_dp
+!  DO ir = 1,nr
+!   sum = sum + (rho_1(ir,iso) - rho_2(ir,iso))*r2l(ir,l_ang)*wr(ir)
+!   WRITE(*,'(2i4,2E15.4)') iso,ir,rho_1(ir,iso),rho_2(ir,iso)
+!  enddo
+!    WRITE(*,*) 'multipole ', iso, sum
+
        prefactor = fourpi/(2._dp*l_ang+1._dp)
 
        rho_1(:,iso) = rho_1(:,iso)*wr(:)
@@ -203,6 +208,7 @@ MODULE  hartree_local_methods
        DO ir = nr-1,1,-1
          I1_down = I1_down + oor2l(ir,l_ang+1)*rho_1(ir,iso)
          I2_down = I2_down + oor2l(ir,l_ang+1)*rho_2(ir,iso)
+!    WRITE(*,'(2I4,3E15.4)') iso, ir,  oor2l(ir,l_ang+1), rho_1(ir,iso),wr(ir) 
        END DO
 
        vrad_h(nr,iso) = prefactor*&
@@ -210,6 +216,7 @@ MODULE  hartree_local_methods
        vrad_s(nr,iso) = prefactor*&
                        (oor2l(nr,l_ang+1)*I2_up + r2l(nr,l_ang)*I2_down)
 
+!       WRITE(*,*) nr,iso,vrad_h(nr,iso),vrad_s(nr,iso)
        DO ir = nr-1,1,-1
 
          vrad_h(ir,iso) = prefactor*&
@@ -221,21 +228,21 @@ MODULE  hartree_local_methods
          I1_down = I1_down -oor2l(ir,l_ang+1)*rho_1(ir,iso)
          I2_up = I2_up + r2l(ir,l_ang)*rho_2(ir,iso)
          I2_down = I2_down -oor2l(ir,l_ang+1)*rho_2(ir,iso)
-
+!       WRITE(*,'(2I4,3(E15.3))') ir,iso,vrad_h(ir,iso),rho_1(ir,iso)
        END DO
 
     END DO
-
+!  stop 'rho'
     DEALLOCATE(rho_1,rho_2)
 
   END SUBROUTINE calculate_Vh_1center
 
 !******************************************************************************
 
-  SUBROUTINE Vh_1c_gg_integrals(qs_env, error)
+  SUBROUTINE Vh_1c_gg_integrals(qs_env       )
 
     TYPE(qs_environment_type), INTENT(INOUT)   :: qs_env
-    TYPE(cp_error_type), INTENT(inout)         :: error
+!   TYPE(cp_error_type), INTENT(inout)         :: error
 
     CHARACTER(LEN=*), PARAMETER         :: routine_name = "Vh_1c_gg_integrals",&
                 routineP = module_name//':'//routine_name
@@ -276,7 +283,7 @@ MODULE  hartree_local_methods
                                                   ipgf1, ipgf2, ir, iset1, iset2, &
                                                   is1, is2, iso, iso1, iso2, &
                                                   l_ang, lmax_0, lmax0, m1, m2, max_nr, &
-                                                  max_iso, max_s_harm, maxso, n1,&
+                                                  max_iso, max_iso_not0, maxso, n1,&
                                                   n2, nat, nchan_0, nkind, nr, nset, nsotot
     INTEGER, DIMENSION(:),        POINTER      :: atom_list, lmin, lmax, npgf
     LOGICAL                                    :: paw_atom
@@ -294,8 +301,10 @@ MODULE  hartree_local_methods
                     rho0_mpole=rho0_mpole,&
                     rhoz_set=rhoz_set,ecoul_1c=ecoul_1c)
 
+    nkind = SIZE(atomic_kind_set,1)
+
     CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,&
-                             max_ngrid_rad=max_nr,max_sph_harm=max_iso)
+                             max_ngrid_rad=max_nr,maxg_iso_not0=max_iso)
     CALL get_rho0_mpole(rho0_mpole=rho0_mpole,lmax_0=lmax_0)
     
 
@@ -308,7 +317,7 @@ MODULE  hartree_local_methods
                            orb_basis_set=orb_basis,&
                            natom=nat,grid_atom=grid_atom,&
                            harmonics=harmonics,ngrid_rad=nr,&
-                           max_s_harm=max_s_harm,paw_atom=paw_atom)
+                           max_iso_not0=max_iso_not0,paw_atom=paw_atom)
 
       CALL get_gto_basis_set(gto_basis_set=orb_basis,lmax=lmax,lmin=lmin,&
                              maxso=maxso,npgf=npgf,&
@@ -321,7 +330,7 @@ MODULE  hartree_local_methods
                            Qlm_gg=Qlm_gg, g0_h=g0_h)
 
       nchan_0 = nsoset(lmax0)
-      IF(nchan_0 > max_s_harm) CALL stop_program(routine_name,module_name,__LINE__,&
+      IF(nchan_0 > max_iso_not0) CALL stop_program(routine_name,module_name,__LINE__,&
                         "channels for rho0 > # max of spherical harmonics")
 
       NULLIFY(rrad_z,my_CG)
@@ -351,7 +360,6 @@ MODULE  hartree_local_methods
         END DO  ! ipgf1
         m1 = m1 + maxso
       END DO  ! iset1
-
 
       DO iat = 1,nat
         iatom = atom_list(iat)
@@ -406,7 +414,7 @@ MODULE  hartree_local_methods
           n1 = nsoset(lmax(iset1))
           DO ipgf1  = 1,npgf(iset1)
             m2 = 0
-            DO iset2 = 1,nset
+            DO iset2 = iset1,nset
               n2 = nsoset(lmax(iset2))
               DO ipgf2  = 1,npgf(iset2)
 !               with contributions to  V1_s*rho0
@@ -427,13 +435,14 @@ MODULE  hartree_local_methods
                                        Vh1_s(ir,iso)
                        gVg_0 = gVg_s + Vh1_s(ir,iso)*g0_h_w(ir,l_ang)
                     END DO  ! ir
+    WRITE(*,*)  iso, iso1, iso2
                     aVh1b_h(iso1,iso2) = aVh1b_h(iso1,iso2) + gVg_h*my_CG(is1,is2,iso)
                     aVh1b_s(iso1,iso2) = aVh1b_s(iso1,iso2) + gVg_s*my_CG(is1,is2,iso)
                     aVh1b_0(iso1,iso2) = aVh1b_0(iso1,iso2) + Qlm_gg(iso1,iso2,iso)*gVg_0
                   END DO  !icg
                 END DO  ! iso
 !               without contributions to  V1_s*rho0
-                DO iso = nchan_0+1,max_s_harm
+                DO iso = nchan_0+1,max_iso_not0
                   DO icg = 1,harmonics%ncg(iso,iset1,iset2)
                     is1 = harmonics%ind_cg_a(icg,iso,iset1,iset2)
                     is2 = harmonics%ind_cg_b(icg,iso,iset1,iset2)
@@ -449,6 +458,7 @@ MODULE  hartree_local_methods
                     END DO  ! ir
                     aVh1b_h(iso1,iso2) = aVh1b_h(iso1,iso2) + gVg_h*my_CG(is1,is2,iso)
                     aVh1b_s(iso1,iso2) = aVh1b_s(iso1,iso2) + gVg_s*my_CG(is1,is2,iso)
+
                   END DO  !icg
                 END DO  ! iso 
               END DO  ! ipgf2
@@ -459,13 +469,24 @@ MODULE  hartree_local_methods
         END DO  !iset1
 
 !       Symmetry
-!        DO iso1 = 1,nsotot
-!          DO iso2 = iso1+1,nsotot
-!             aVh1b_h(iso2,iso1) = aVh1b_h(iso1,iso2)
-!             aVh1b_s(iso2,iso1) = aVh1b_s(iso1,iso2)
-!             aVh1b_0(iso2,iso1) = aVh1b_0(iso1,iso2)
-!          END DO
-!        END DO
+        DO iset1 = 1,nset
+          DO is1 = 1,maxso
+           iso1 = is1 + (iset1 - 1)*maxso
+            DO iset2 = iset1+1,nset
+              DO is2 = 1,maxso
+                iso2 = is2 + (iset2 - 1)*maxso
+                aVh1b_h(iso2,iso1) = aVh1b_h(iso1,iso2)
+                aVh1b_s(iso2,iso1) = aVh1b_s(iso1,iso2)
+                aVh1b_0(iso2,iso1) = aVh1b_0(iso1,iso2)
+              END DO
+            END DO
+          END DO
+        END DO  
+
+    DO iso1 = 1,nsotot
+     WRITE(*,'(i3,16E12.3)') iso1,aVh1b_h(iso1,1:16)
+    enddo
+  stop 'avb'
    
       END DO  ! iat
 

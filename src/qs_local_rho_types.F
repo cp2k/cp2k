@@ -31,7 +31,7 @@ MODULE qs_local_rho_types
   USE kinds,                           ONLY: default_string_length,&
                                              dp,&
                                              int_size
-  USE mathconstants,                   ONLY: pi
+  USE mathconstants,                   ONLY: fourpi,pi
   USE memory_utilities,                ONLY: reallocate
   USE qs_grid_atom,                    ONLY: grid_atom_type
   USE qs_rho_atom_types,               ONLY: deallocate_rho_atom_set, &
@@ -124,8 +124,8 @@ MODULE qs_local_rho_types
     nr = grid_atom%nr
     CALL reallocate(rhoz%r_coef,1,nr)   
     c1 = alpha/pi
-    c2 = c1*c1*c1 
-    prefactor = zeff*sqrt(c1)
+    c2 = c1*c1*c1*fourpi
+    prefactor = zeff*sqrt(c2)
 
     DO ir = 1,nr
       c1 = -alpha*grid_atom%rad2(ir)

@@ -219,7 +219,7 @@ CONTAINS
 !        calculate rho and drho on the points of the sphere
          IF(gradient_f) THEN
            DO ispin = 1,nspins
-             DO iso = 1,harmonics%max_s_harm
+             DO iso = 1,harmonics%max_iso_not0
                 DO ia = 1,na
                   usin_ia = 1.0_dp/grid_atom%sin_teta(ia) 
                   rho_h(ia,ispin) = rho_h(ia,ispin) + & 
@@ -272,7 +272,7 @@ CONTAINS
            END DO
          ELSE         
            DO ispin = 1,nspins
-             DO iso = 1,harmonics%max_s_harm
+             DO iso = 1,harmonics%max_iso_not0
                 DO ia = 1,na
                   rho_h(ia,ispin) = rho_h(ia,ispin) + & 
                        r_h(ispin)%r_coef(ir,iso)*&
@@ -505,7 +505,7 @@ CONTAINS
 
               matso_h = 0.0_dp
               matso_s = 0.0_dp
-              DO iso = 1,harmonics%max_s_harm
+              DO iso = 1,harmonics%max_iso_not0
                 DO icg = 1,harmonics%ncg(iso,iset1,iset2)
                   iso1 = harmonics%ind_cg_a(icg,iso,iset1,iset2)
                   iso2 = harmonics%ind_cg_b(icg,iso,iset1,iset2)
@@ -647,7 +647,7 @@ CONTAINS
     drho_h = 0.0_dp
     drho_s = 0.0_dp
 !   calculate rho and drho on the points of the sphere
-    DO iso = 1,harmonics%max_s_harm
+    DO iso = 1,harmonics%max_iso_not0
        DO ia = 1,na
          usin_ia = 1.0_dp/grid_atom%sin_teta(ia) 
          DO ir = 1,nr
@@ -756,7 +756,7 @@ CONTAINS
 
               matso_h = 0.0_dp
               matso_s = 0.0_dp
-              DO iso = 1,harmonics%max_s_harm
+              DO iso = 1,harmonics%max_iso_not0
                 DO icg = 1,harmonics%ncg(iso,iset1,iset2)
                   iso1 = harmonics%ind_cg_a(icg,iso,iset1,iset2)
                   iso2 = harmonics%ind_cg_b(icg,iso,iset1,iset2)

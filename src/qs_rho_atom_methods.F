@@ -97,7 +97,7 @@ MODULE qs_rho_atom_methods
     INTEGER :: i, i1, i2, iat, iatom, icg, &
       ipgf1, ipgf2, iset1, iset2, iso, iso1, &
       iso1_first, iso1_last, iso2, iso2_first, iso2_last, istat, l, lmax12, &
-      lmin12, m1s, m2s, max_s_harm, maxcg, maxco, maxl, maxso, &
+      lmin12, m1s, m2s, max_iso_not0, maxcg, maxco, maxl, maxso, &
       n1s, n2s, nr, nset, nspins, size1, size2
     INTEGER, DIMENSION(:), POINTER           :: lmax, lmin, npgf
     REAL(dp), ALLOCATABLE, DIMENSION(:)      :: g1, g2
@@ -118,7 +118,7 @@ MODULE qs_rho_atom_methods
 !    INTEGER, DIMENSION(:,:), POINTER     :: first_sgf
 !    REAL(dp), DIMENSION(:,:,:), ALLOCATABLE :: ai_work
     REAL(dp)                              :: rtot1, rtot2
-    INTEGER                               :: ia
+    INTEGER                               :: ia,ir
 !    REAL(dp), DIMENSION(:,:), POINTER     :: rpgf
 ! dbg
 ! *****************************************************************************
@@ -153,7 +153,7 @@ MODULE qs_rho_atom_methods
                            maxco=maxco,maxl=maxl,npgf=npgf,nset=nset,zet=zet,&
                           maxso=maxso)
 
-    max_s_harm = harmonics%max_s_harm
+    max_iso_not0 = harmonics%max_iso_not0
     maxcg = harmonics%maxcg
     nr = grid_atom%nr
 
@@ -264,20 +264,9 @@ MODULE qs_rho_atom_methods
 !!             endif
 !          enddo
 !        enddo
-   DO iso1 = 1,9
-   DO iso2 = 1,9
-     rtot1 = 0.0_dp
-     DO ia = 1,grid_atom%ng_sphere
-       rtot1 = rtot1 + harmonics%slm(ia,iso1)*&
-                       harmonics%slm(ia,iso2)*&
-                       grid_atom%wa(ia)
-     ENDDO
-     WRITE(*,*) iso1,iso2,rtot1
-   ENDDO
-   ENDDO
-   stop 'harmo'
+
 !***********************************************************************************
-                DO iso = 1,max_s_harm
+                DO iso = 1,max_iso_not0
                   DO icg = 1,harmonics%ncg(iso,iset1,iset2)
                     iso1 = harmonics%ind_cg_a(icg,iso,iset1,iset2)
                     iso2 = harmonics%ind_cg_b(icg,iso,iset1,iset2)
@@ -320,8 +309,8 @@ MODULE qs_rho_atom_methods
 !    rtot2 = 0.0_dp
 !dbg
 !********************************************************************************
-!           DO iso = 1,max_s_harm
-!             do is2 = 1,nr
+!           DO iso = 1,max_iso_not0
+!             do ir = 1,nr
 !               do is1 = 1,grid_atom%ng_sphere
 !                  rtot1 = rtot1 + rho_atom_set(3)%rho_rad_h(1)%r_coef(is2,iso)*&
 !                         harmonics%slm(is1,iso)*&
@@ -330,8 +319,11 @@ MODULE qs_rho_atom_methods
 !                         harmonics%slm(is1,iso)*&
 !                         grid_atom%wr(is2)*grid_atom%wa(is1)
 !               enddo
+!            WRITE(*,*) iso,ir, rho_atom_set(1)%rho_rad_h(1)%r_coef(ir,iso),&
+!                      rho_atom_set(1)%rho_rad_s(1)%r_coef(ir,iso)
 !             enddo
 !          ENDDO   
+!   stop 'rhorad'
 !    write(*,*) 'rho 1 2 B', rtot1,rtot2
 !********************************************************************************
 
@@ -732,8 +724,9 @@ MODULE qs_rho_atom_methods
     CHARACTER(LEN=*), PARAMETER              :: routine_name = "init_rho_atom"
 
     INTEGER :: i, ia, iat, iatom, ikind, il, iso, iso1, iso2, l1, l1l2, l2, &
-      lc1, lc2, ll, llmax, lmax_sphere, lp, m1, m2, max_s_harm, max_s_set, &
-      maxco, maxlgto, maxso, mm, mp, na, nat, natom, ncotot, nkind, nr, nset, &
+      lc1, lc2, ll, llmax, lmax_sphere, lp, m1, m2, max_iso_not0, &
+      max_s_harm, max_s_set,maxco, maxlgto, maxso, mm, mp, &
+      na, nat, natom, ncotot, nkind, nr, nset, &
       nsotot, nspins, quadrature
     INTEGER, DIMENSION(:), POINTER           :: atom_list
     LOGICAL                                  :: paw_atom
@@ -865,12 +858,11 @@ MODULE qs_rho_atom_methods
       CALL create_harmonics_atom(harmonics,orb_basis_set,&
                    my_CG,na,llmax,max_s_harm,ll,globenv)
 
-
-
       CALL get_gto_basis_set(gto_basis_set=orb_basis_set, &
                              maxco=maxco,maxso=maxso,nset=nset)
       nsotot = maxso * nset 
       ncotot = maxco * nset
+      max_iso_not0 = harmonics%max_iso_not0
       DO iat = 1,nat
         iatom = atom_list(iat) 
 !       *** allocate the radial density for each LM,for each atom ***
@@ -880,10 +872,10 @@ MODULE qs_rho_atom_methods
 
         DO i = 1,nspins
           ALLOCATE(rho_atom_set(iatom)%rho_rad_h(i)%r_coef(&
-                                      1:nr,1:max_s_harm))
+                                      1:nr,1:max_iso_not0))
           rho_atom_set(iatom)%rho_rad_h(i)%r_coef=0.0_dp
           ALLOCATE(rho_atom_set(iatom)%rho_rad_s(i)%r_coef(& 
-                                      1:nr,1:max_s_harm))
+                                      1:nr,1:max_iso_not0))
           rho_atom_set(iatom)%rho_rad_h(i)%r_coef=0.0_dp
         END DO
 
@@ -896,22 +888,20 @@ MODULE qs_rho_atom_methods
 
         IF(.NOT. paw_atom) CYCLE
         DO i = 1,nspins
-          CALL reallocate(rho_atom_set(iatom)%cpc_h(i)%r_coef,&
-                                      1,nsotot,1,nsotot)
-          CALL reallocate(rho_atom_set(iatom)%cpc_s(i)%r_coef,&
-                                      1,nsotot,1,nsotot)
+
+          ALLOCATE(rho_atom_set(iatom)%cpc_h(i)%r_coef(1:nsotot,1:nsotot))
+          ALLOCATE(rho_atom_set(iatom)%cpc_s(i)%r_coef(1:nsotot,1:nsotot))
 
           CALL reallocate(rho_atom_set(iatom)%drho_rad_h(i)%r_coef,&
-                                      1,nr,1,max_s_harm)
+                                      1,nr,1,max_iso_not0)
           CALL reallocate(rho_atom_set(iatom)%drho_rad_s(i)%r_coef,& 
-                                      1,nr,1,max_s_harm)
+                                      1,nr,1,max_iso_not0)
 
           CALL reallocate(rho_atom_set(iatom)%ga_Vxc_gb_h(i)%r_coef,&
                                       1,nsotot,1,nsotot)
           CALL reallocate(rho_atom_set(iatom)%ga_Vxc_gb_s(i)%r_coef,&
                                       1,nsotot,1,nsotot)
         END DO
-
       END DO ! iat
     END DO
 

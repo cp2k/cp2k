@@ -502,8 +502,8 @@ CONTAINS
             "- Global max l :",rho0_mpole%lmax_0
       WRITE (UNIT=output_unit,FMT="(T2,A,T25,A4,T35,I2,T40,I5)")&
             "- l max per kind :","kind", 1,rho0_mpole%lmax0_kind(1)
-      nkind = SIZE(rho0_mpole%lmax0_kind)
-      DO ikind = 1,nkind
+      nkind = SIZE(rho0_mpole%lmax0_kind,1)
+      DO ikind = 2,nkind
         WRITE (UNIT=output_unit,FMT="(T25,A4,T35,I2,T40,I5)")&
                       "kind",ikind,rho0_mpole%lmax0_kind(ikind)  
       END DO

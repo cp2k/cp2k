@@ -2,10 +2,10 @@
 !   CP2K: A general program to perform molecular dynamics simulations         !
 !   Copyright (C) 2000-2004  CP2K developers group                                 !
 !-----------------------------------------------------------------------------!
-!!****** cp2k/qs_rho0_types
+!!****** cp2k/qs_rho0_methods
 !!
 !!   NAME
-!!     qs_multipole_types
+!!     qs_rho0_methods
 !!
 !!   FUNCTION
 !!
@@ -154,8 +154,6 @@ MODULE qs_rho0_methods
     CHARACTER(len=*), PARAMETER :: routine_name = 'calculate_rho0_atom', &
       routineP = module_name//':'//routine_name
 
-!    REAL(dp)                                 :: z_h, z_s
-!    REAL(dp), ALLOCATABLE, DIMENSION(:)      :: gh_tmp,gs_tmp
     REAL(dp), DIMENSION(:,:), POINTER        :: g0_h, g0_s
     TYPE(mpole_rho_atom),  POINTER           :: mpole_rho
     TYPE(mpole_gau_overlap), POINTER         :: mpole_gau
@@ -165,7 +163,7 @@ MODULE qs_rho0_methods
     TYPE(rho_atom_type), DIMENSION(:), &
                            POINTER           :: rho_atom_set
 
-    INTEGER :: iat, iatom, iso, istat, l, lmax0, nchannels, nr,i
+    INTEGER :: iat, iatom, iso, istat, l, lmax0, nchannels, nr,ir
 !   ---------------------------------------------------------------------------
 
     NULLIFY(mpole_gau)
@@ -181,10 +179,6 @@ MODULE qs_rho0_methods
                         l0_ikind=lmax0,mp_gau_ikind=mpole_gau,&
                         g0_h=g0_h,g0_s=g0_s)
 
-!    mpole_gau => rho0_mp%mp_gau(ikind)
-!    lmax0 = rho0_mp%lmax0_kind(ikind)
-!    z_h = rho0_mp%zet0_h
-!    z_s = rho0_mp%zet0_s
     nchannels = nsoset(lmax0) 
     nr = g_atom%nr
 
@@ -197,27 +191,6 @@ MODULE qs_rho0_methods
       rho0_mp%mp_rho(iatom)%Qlm_tot(1) = rho0_mp%mp_rho(iatom)%Qlm_z
     ENDDO
 
-!    ALLOCATE(g0_h(nr,0:lmax0),g0_s(nr,0:lmax0),STAT=istat)
-!    IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
-!                                     "g0_h,g0_s")
-!    ALLOCATE(gh_tmp(nr),gs_tmp(nr),STAT=istat)
-!    IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
-!                                     "gh_tmp,gs_tmp")
-!    gh_tmp = 0.0_dp
-!    gs_tmp = 0.0_dp
-!    gh_tmp(1:nr) = EXP(-z_h*g_atom%rad2(1:nr))
-!    g0_h(1:nr,0) = gh_tmp(1:nr)*rho0_mp%norm_g0l_h(0)
-!    gs_tmp(1:nr) = EXP(-z_s*g_atom%rad2(1:nr))
-!    g0_s(1:nr,0) = gs_tmp(1:nr)*rho0_mp%norm_g0l_s(0)
-
-
-!    DO l = 1,lmax0
-!      gh_tmp(1:nr) = gh_tmp(1:nr)*g_atom%rad(1:nr)
-!      g0_h(1:nr,l) = gh_tmp(1:nr)*rho0_mp%norm_g0l_h(l)
-!      gs_tmp(1:nr) = gs_tmp(1:nr)*g_atom%rad(1:nr)
-!      g0_s(1:nr,l) = gs_tmp(1:nr)*rho0_mp%norm_g0l_s(l)
-!    END DO  ! l
-
     DO iso = 1, nsoset(lmax0)
       l = indso(1,iso)
       DO iat = 1,natom
@@ -227,19 +200,17 @@ MODULE qs_rho0_methods
          IF(paw_atom) CALL calculate_Qlm_atom(mpole_gau,mpole_rho,rho_atom,iso)
          rho0_atom_set(iatom)%rho0_rad_h%r_coef(1:nr,iso) = &
               g0_h(1:nr,l) * mpole_rho%Qlm_tot(iso)  
-!   WRITE(*,'(3i3,3f10.5)') l, iso, iat,  mpole_rho%Qlm_h(iso), mpole_rho%Qlm_s(iso),&
+!   WRITE(*,'(3i3,3f10.5)') l, iso, iatom,  mpole_rho%Qlm_h(iso), mpole_rho%Qlm_s(iso),&
 !            mpole_rho%Qlm_tot(iso)
+!  DO ir = 1,nr 
+!   WRITE(*,'(2i4,2E15.4,f10.5)') iso,ir,rho0_atom_set(iatom)%rho0_rad_h%r_coef(ir,iso),&
+!                                 g0_h(ir,l),mpole_rho%Qlm_tot(iso)
+!  enddo
+
       END DO  ! iat
     END DO  ! iso
-!    stop 'qlm'
-!    DEALLOCATE(g0_h,g0_s,gh_tmp,gs_tmp,STAT=istat)
-!    IF (istat /= 0) THEN
-!       CALL stop_memory(routine_name,module_name,__LINE__,&
-!                         "g0_h,g0_s,gh_tmp,gs_tmp")
-!    ENDIF
-
+!  stop 'rho0'
   END SUBROUTINE calculate_rho0_atom
-
 
 ! *****************************************************************************
 
@@ -376,7 +347,6 @@ MODULE qs_rho0_methods
       nchannels = nsoset(rho0_mpole%lmax0_kind(ikind))
       nsotot = maxso * nset
 
-
       DO iat = 1,nat
          iatom = atom_list(iat)
 
@@ -398,7 +368,6 @@ MODULE qs_rho0_methods
 !                  exp(-alpha_c**2 r**2)Z(alpha_c**2/pi)**(3/2)
 !     on the logarithmic radial grid
       CALL calculate_rhoz(rhoz_set(ikind),grid_atom,alpha_core,zeff)
-
 
     END DO   ! ikind
 
@@ -435,7 +404,6 @@ MODULE qs_rho0_methods
       rho0_mpole%norm_g0l_s(l) = (2._dp*l+1._dp)/&
                                  ( fourpi*gaussint_sph(rho0_mpole%zet0_s,2*l))
     END DO
-
 
 !   Allocate and Initialize the g0 gaussians used to build the compensation density
     DO ikind = 1,nkind

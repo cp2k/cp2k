@@ -44,7 +44,9 @@ MODULE qs_harmonics_atom
 
   TYPE harmonics_atom_type
 
-     INTEGER                         :: max_s_harm, maxcg, ngrid
+     INTEGER                         :: max_s_harm, &
+                                        max_iso_not0, &
+                                        maxcg, ngrid
      INTEGER, DIMENSION(:,:,:), &
                            POINTER   :: ncg
      INTEGER, DIMENSION(:,:,:,:), &
@@ -193,7 +195,7 @@ MODULE qs_harmonics_atom
     INTEGER, DIMENSION(:), ALLOCATABLE :: ind_cg_a,ind_cg_b
 
     INTEGER   :: i, incg, is1, is2, iso, iso1, iso2, l, l1, l2, &
-                 m, mm, maxcg, maxl, maxs, nset
+                 m, mm, maxcg, maxl, maxs, nset,max_iso_not0
 
 ! *****************************************************************************
 
@@ -256,6 +258,7 @@ MODULE qs_harmonics_atom
             CALL reallocate(harmonics%ind_cg_b,&
                         1,mm,1,max_s_harm,1,nset,1,nset)
       maxcg = 0
+      max_iso_not0 = 0
       DO is1 = 1,nset
         DO is2 = 1,nset
           DO iso = 1,max_s_harm
@@ -271,6 +274,7 @@ MODULE qs_harmonics_atom
                     incg = incg + 1
                     ind_cg_a(incg) = iso1
                     ind_cg_b(incg) = iso2
+                    max_iso_not0 = MAX(max_iso_not0,iso)
                   END DO
                 END DO
               END DO
@@ -286,6 +290,7 @@ MODULE qs_harmonics_atom
         END DO ! is2
       END DO ! is1
       harmonics%maxcg =  maxcg
+      harmonics%max_iso_not0 = max_iso_not0
       DEALLOCATE(ind_cg_a)
       DEALLOCATE(ind_cg_b)
 

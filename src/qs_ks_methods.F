@@ -456,7 +456,7 @@ CONTAINS
 ! ***  Single atom contributions ***
        IF(dft_control%qs_control%gapw) THEN
          CALL calculate_vxc_atom(qs_env,error)
-         CALL Vh_1c_gg_integrals(qs_env,error)
+         CALL Vh_1c_gg_integrals(qs_env)
        ENDIF
 
        energy%total = energy%core_overlap + energy%core_self + &
