@@ -32,6 +32,8 @@ MODULE qs_ep_methods
                                              get_atomic_kind,&
                                              get_atomic_kind_set,&
                                              set_atomic_kind
+  USE coefficient_types,               ONLY: coeff_deallocate,&
+                                             coeff_type
   USE cp_error_handling,               ONLY: cp_assert,&
                                              cp_assertion_failed,&
                                              cp_debug,&
@@ -61,12 +63,21 @@ MODULE qs_ep_methods
   USE dft_types,                       ONLY: dft_control_type
   USE global_types,                    ONLY: DEBUG,&
                                              global_environment_type
+  USE greens_fn,                       ONLY: pw_green_fn_init
   USE kinds,                           ONLY: wp=>dp
   USE particle_types,                  ONLY: particle_type
   USE pw_env_types,                    ONLY: pw_env_get,&
                                              pw_env_release,&
                                              pw_env_retain,&
                                              pw_env_type
+  USE pw_pool_types,                   ONLY: pw_pool_init_coeff,&
+                                             pw_pool_type
+  USE pw_types,                        ONLY: COMPLEXDATA1D,&
+                                             COMPLEXDATA3D,&
+                                             REALDATA3D,&
+                                             REALSPACE,&
+                                             RECIPROCALSPACE,&
+                                             pw_type
   USE qs_build_KS_matrix,              ONLY: qs_ks_create,&
                                              qs_ks_did_change,&
                                              qs_ks_update_qs_env
@@ -82,7 +93,8 @@ MODULE qs_ep_methods
                                              calculate_ecore_self
   USE qs_core_hamiltonian,             ONLY: build_core_hamiltonian_matrix
   USE qs_energy,                       ONLY: qs_energies
-  USE qs_energy_types,                 ONLY: qs_energy_type
+  USE qs_energy_types,                 ONLY: allocate_qs_energy,&
+                                             qs_energy_type
   USE qs_environment_methods,          ONLY: qs_env_rebuild_aomo_pools,&
                                              qs_env_rebuild_rho,&
                                              qs_env_update_s_mstruct
@@ -116,6 +128,7 @@ MODULE qs_ep_methods
   USE scf_control_types,               ONLY: scf_c_release,&
                                              scf_c_retain,&
                                              scf_control_type
+  USE simulation_cell,                 ONLY: cell_type
   USE sparse_matrix_types,             ONLY: allocate_matrix_set,&
                                              real_block_node_type,&
                                              real_matrix_p_type,&
@@ -190,11 +203,15 @@ CONTAINS
     TYPE(qs_p_projection_p_type), DIMENSION(:), POINTER :: sub_proj
     TYPE(particle_type), DIMENSION(:), POINTER :: particle_set
     TYPE(qs_ks_env_type), POINTER :: ks_env
+    TYPE(coeff_type), POINTER   :: rho_core
+    TYPE(pw_pool_type), POINTER :: auxbas_pw_pool
+    TYPE(pw_env_type), POINTER :: pw_env
+    TYPE(cell_type), POINTER :: cell
 
     failure=.FALSE.
     NULLIFY(atom_list, atom_list1, atom_list2,dft_control,scf_control,&
          para_env,c,k,p,h,s,logger,eigenvectors,atomic_kind_set,qs_charges,&
-         sub_proj, particle_set)
+         sub_proj, particle_set, ks_env, rho_core, auxbas_pw_pool, pw_env)
     logger => cp_error_get_logger(error)
 
     CALL timeset(routineN,"I","",handle)
@@ -293,8 +310,10 @@ CONTAINS
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
 
     DO isub_qs=1,2
-!       sub_qs_env(isub_qs)%atomic_kind_set = qs_env%atomic_kind_set
-       sub_qs_env(isub_qs)%cell => qs_env%cell
+       sub_qs_env(isub_qs)%atomic_kind_set = qs_env%atomic_kind_set
+       ALLOCATE(sub_qs_env(isub_qs)%cell, stat=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       sub_qs_env(isub_qs)%cell = qs_env%cell
        sub_qs_env(isub_qs)%dft_control => qs_env%dft_control
        sub_qs_env(isub_qs)%scf_control => qs_env%scf_control
        CALL scf_c_retain(qs_env%scf_control, error=error)
@@ -314,7 +333,8 @@ CONTAINS
           IF (atom_list(iatom) <= natoms/2) natoms_kind=natoms_kind+1
        END DO
 
-       ALLOCATE(atom_list1(natoms_kind),atom_list2(natoms-natoms_kind),&
+       ALLOCATE(atom_list1(natoms_kind),&
+            atom_list2(SIZE(atom_list)-natoms_kind),&
             stat=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
 
@@ -389,13 +409,36 @@ CONTAINS
        END IF
        CALL set_qs_env(sub_qs_env(isub_qs), c=c, error=error)
 
+       !   *** Allocate the data structure for Quickstep energies ***
+       CALL allocate_qs_energy(sub_qs_env(isub_qs)%energy)
        ! allocate qs_charges
        CALL qs_charges_create(qs_charges,nspins=dft_control%nspins,error=error)
        CALL set_qs_env(sub_qs_env(isub_qs), qs_charges=qs_charges,error=error)
        CALL qs_charges_release(qs_charges, error=error)
        ! rebuilds ao_mo_fm_pools
        CALL qs_env_rebuild_aomo_pools(sub_qs_env(isub_qs), error=error)
-
+       ! init green's function
+       CALL get_qs_env(sub_qs_env(isub_qs), cell=cell, pw_env=pw_env,&
+            rho_core=rho_core, error=error)
+       CALL pw_green_fn_init(cell%green,&
+            pw_env%pw_pools(pw_env%auxbas_grid)%pool%pw_grid)
+       ! reallocate rho_core
+       IF (ASSOCIATED(rho_core)) THEN
+          CALL coeff_deallocate(rho_core)
+          DEALLOCATE(rho_core,stat=stat)
+          CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+       ELSE
+          ALLOCATE(rho_core,stat=stat)
+          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       END IF
+       IF (.NOT.failure) THEN
+          CALL pw_env_get(pw_env, auxbas_pw_pool=auxbas_pw_pool,error=error)
+          CALL pw_pool_init_coeff(pool=auxbas_pw_pool, coeff=rho_core, &
+               use_data=COMPLEXDATA1D, error=error)
+          rho_core%pw%in_space=RECIPROCALSPACE
+          CALL set_qs_env(sub_qs_env(isub_qs), rho_core=rho_core,error=error)
+       END IF
+       
     END DO
 
     ! energy in subsystem with diag
@@ -409,7 +452,7 @@ CONTAINS
     CALL cp_log(logger,cp_note_level,routineP,&
          "Starting perturbation")
 
-    ALLOCATE(atom_list1(natoms/2),atom_list2((natoms+1)/2),stat=stat)
+!    ALLOCATE(atom_list1(natoms/2),atom_list2((natoms+1)/2),stat=stat)
 !FM    call p_proj_create(sub_proj(isub_qs)%projection, &
 !FM         atoms=, proj_indexes, particle_set, error)
 
