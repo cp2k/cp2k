@@ -1,0 +1,33 @@
+ PSF
+
+   1 !NTITLE
+     Topology file for  3  water molecules
+
+    9   !NATOM
+       1 H2O     1 H2O  O    O       0.000000        15.9994            0
+       2 H2O     1 H2O  H    H       0.000000         1.0080            0
+       3 H2O     1 H2O  H    H       0.000000         1.0080            0
+       4 H2O     2 H2O  O    O       0.000000        15.9994            0
+       5 H2O     2 H2O  H    H       0.000000         1.0080            0
+       6 H2O     2 H2O  H    H       0.000000         1.0080            0
+       7 H2O     3 H2O  O    O       0.000000        15.9994            0
+       8 H2O     3 H2O  H    H       0.000000         1.0080            0
+       9 H2O     3 H2O  H    H       0.000000         1.0080            0
+
+    6   !NBOND
+       1       2       1       3       4       5       4       6
+       7       8       7       9
+
+    3   !NTHETA
+       2       1       3       5       4       6       8       7       9
+
+    0   !NPHI
+
+    0   !NIMPHI
+
+    0   !NDON
+
+    0   !NACC
+
+    0   !NNB
+
