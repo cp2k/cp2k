@@ -8,7 +8,7 @@
 !!   NAME
 !!     qs_arpack_diag_n
 !!
-!!   SYNOPSIS
+!!   FUNCTION
 !!     A module to compute the eigenvalues and eigenvectors of a
 !!     general (non-symmetric) operator. The operator can be arbitrary
 !!     as long as the action of the operator on a vector is specified
@@ -35,6 +35,8 @@ MODULE qs_arpack_diag_n
   USE qs_arpack_tddfpt, ONLY : arpack_op_tddfpt, op_tddfpt_type
 
   IMPLICIT NONE
+  
+  LOGICAL, PARAMETER :: DEBUG_THIS_MODULE = .TRUE.
 
   CHARACTER(len=*), PARAMETER :: moduleN = "qs_arpack_diag_n"
 
@@ -54,6 +56,16 @@ CONTAINS
 !!     Given action of an general (non-symmetric) operator A on a vector v,
 !!     computes the eigenvalues and eigenvectors of A.
 !!
+!!   SYNOPSIS
+!!     Subroutine arpack_diag_n(n_ev, eval, evec, glob_env, op_tddfpt)
+!!       Implicit None
+!!       Integer, Intent (IN):: n_ev
+!!       Real(Kind=dbl), Dimension(:,:), Pointer:: eval
+!!       Type(cp_full_matrix_type), Pointer:: evec
+!!       Type(global_environment_type), Intent (IN):: glob_env
+!!       Type(op_tddfpt_type), Intent (INOUT), Optional:: op_tddfpt
+!!     End Subroutine arpack_diag_n
+!!
 !!   ARGUMENTS
 !!     - n_ev      : number of eigenvalues and eigenvectors to calculate
 !!     - eval      : array of eigenvalues
@@ -66,10 +78,7 @@ CONTAINS
 !!     - Since the problem at hand is not symmetric (hermitian), there
 !!       can be complex eigenvalues. Therefore the array eval must
 !!       be two-dimensional (one column for real part and one for the
-!!       imaginary part). In the same line: evec must be of size
-!!       n * (2*n_ev) because they will be complex (in general)
-!!     - The array v can probably be omitted and v be replaced with
-!!       evec.
+!!       imaginary part).
 !!
 !!   MODIFICATION HISTORY
 !!     09-2002, TCH, created
@@ -94,6 +103,9 @@ CONTAINS
     INTEGER   :: op_present        ! how many optional operators are present
     CHARACTER(len=*), PARAMETER :: routineN = "arpack_diag_n", &
                                    routineP = moduleN//"/"//routineN
+    
+    ! debugging
+    integer   :: arpack_counter
     
     ! arpack specific
     CHARACTER :: bmat*1, which*2
@@ -122,7 +134,6 @@ CONTAINS
        CALL stop_program(routineP, "exactly 1 operator must be specified", glob_env)
     END IF
 
-    ! get n_local (which is <= n_ao)
     CALL blacs_find_vector_distribution(evec, n_local)
 
     CALL check_input(n_ev, n_local, eval, evec, glob_env)
@@ -132,7 +143,7 @@ CONTAINS
     which = 'SR'                    ! eigenvalues with the smallest real part
     tol   = 1.0e-15_dbl             ! hardcoded ?
 
-    n_kv  = 2*n_ev
+    n_kv  = 2*n_ev                  ! number of krylov space vectors (must be bigger than n_ev)
     n_kv  = MIN(n_kv, n_local)
     IF (n_kv - n_ev < 2) n_kv = 2 + n_ev
 
@@ -140,7 +151,7 @@ CONTAINS
     param = 0
     param(1) = 1    ! exact shift mode
     param(3) = 1500 ! maximum number of iterations
-    param(7) = 1    ! simple mode
+    param(7) = 1    ! simple mode (A*x=lambda*x , B=I)
     pntr     = 0
     lworkl   = 3*(n_kv**2) + 6*(n_kv) ! do larger numbers give better performance?
     info     = 0    ! no starting vector as of now
@@ -157,8 +168,15 @@ CONTAINS
     IF (stat /= 0) &
          CALL stop_program(routineP, "allocation of temporary variables failed", glob_env)
 
+    IF (DEBUG_THIS_MODULE) THEN
+       WRITE (*,*) "n_local : ", n_local
+       WRITE (*,*) "n_ev    : ", n_ev
+       WRITE (*,*) "ldv     : ", ldv
+       WRITE (*,*) "n_kv    : ", n_kv
+    END IF
 
 #if defined(__ARPACK)
+    arpack_counter = 0
     reverse_comm: DO 
 
        CALL dnaupd(ido, bmat, n_local, which, n_ev, tol, resid, &
@@ -169,16 +187,18 @@ CONTAINS
        END IF
 
        IF (ido==-1.OR.ido==1) THEN
-          vin  => workd(pntr(1):) ! is this going to work?
-          vout => workd(pntr(2):) ! is this going to work?
-          ! should have some kind of z here (see arpack manual on p 126)
+          vin  => workd(pntr(1):)
+          vout => workd(pntr(2):)
+
+          IF (DEBUG_THIS_MODULE) THEN
+             arpack_counter = arpack_counter + 1
+          END IF
+
+          ! call the correct operator
           IF (PRESENT(op_tddfpt)) THEN
              CALL arpack_op_tddfpt(op_tddfpt, vin, vout, glob_env)
-             IF (glob_env%ionode) THEN
-                WRITE (glob_env%scr, '(A)') routineP//": Mock operation exiting loop"
-             END IF
-             EXIT reverse_comm
           END IF
+
        ELSE IF (ido == 99) THEN
           EXIT reverse_comm
        ELSE

@@ -73,7 +73,7 @@ MODULE qs_p_utils
   CHARACTER(len=*), PRIVATE, PARAMETER :: moduleN='qs_p_utils'
 
   PRIVATE
-  PUBLIC :: p_op_l1, p_op_l2, p_preortho, p_postortho
+  PUBLIC :: p_op_l1, p_op_l1_spin, p_op_l2, p_preortho, p_postortho
 
 CONTAINS
 
@@ -101,10 +101,9 @@ CONTAINS
 !!     Thomas Chassaing
 !!
 !!   MODIFICATION HISTORY
-!!     02.09.2002 adapted to new qs_p_env_type (TC)
+!!     10.2002, TCH, extracted single spin calculation
 !!
 !!****
-
   SUBROUTINE p_op_l1(p_env, v, res, glob_env, error)
  
     IMPLICIT NONE
@@ -133,26 +132,80 @@ CONTAINS
     n_spins = p_env%qs_env%dft_control%nspins
     DO spin=1, n_spins
 
-       CALL replicate_blacs_matrix(p_env%psi0d(1)%matrix, tmp, &
-                                   routineP//": temporary matrix")
-
-       k_p => p_env%qs_env%k(spin)%matrix
-       CALL get_matrix_info(k_p, ncol=ncol)
-       CALL cp_sm_fm_multiply(k_p, v(spin)%matrix, &
-                               res(spin)%matrix, ncol, glob_env%para_env)
-       CALL cp_fm_symm('R', 'U', p_env%n_ao(spin), p_env%n_mo(spin), 1._dbl, &
-                       p_env%m_epsilon(spin)%matrix, &
-                       v(spin)%matrix, 0._dbl, tmp)
-       CALL cp_sm_fm_multiply(p_env%qs_env%s(spin)%matrix, tmp, &
-                               res(spin)%matrix, p_env%n_mo(spin),&
-                               para_env=glob_env%para_env, &
-                               alpha=1.0_dbl,beta=1.0_dbl)
-
-       CALL cp_fm_release(tmp); NULLIFY(tmp)
+       CALL p_op_l1_spin(p_env, spin, v(spin)%matrix, res(spin)%matrix, glob_env, error)
       
     END DO
 
   END SUBROUTINE p_op_l1
+
+! *****************************************************************************
+
+!!****f* cp2k/qs_p_utils/p_op_l1 *
+!!
+!!   NAME
+!!     p_op_l1_spin
+!!
+!!   FUNCTION
+!!     Evaluates Fv - Sv(epsilon) and stores it in res for a given spin
+!!
+!!   NOTES
+!!     Same as p_op_l1 but takes a spin as additional argument.
+!!     
+!!   ARGUMENTS
+!!     - p_env : perturbation calculation environment
+!!     - spin  : the spin to calculate (1 or 2 normally)
+!!     - v     : the matrix to operate on
+!!     - res   : the result
+!!     - glob_env : should eventually vanish
+!      - error : error handling object (optional)
+!!
+!!   AUTHOR
+!!     Thomas Chassaing
+!!
+!!   MODIFICATION HISTORY
+!!     10.2002, TCH, created
+!!
+!!****
+  SUBROUTINE p_op_l1_spin(p_env, spin, v, res, glob_env, error)
+ 
+    IMPLICIT NONE
+   
+    ! argument
+    TYPE(qs_p_env_type), INTENT(in)              :: p_env
+    INTEGER, INTENT(IN)                          :: spin
+    TYPE(cp_full_matrix_type), POINTER           :: v
+    TYPE(cp_full_matrix_type), POINTER           :: res
+    TYPE(global_environment_type), INTENT(in)    :: glob_env
+    TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
+                                                           
+    ! locals                                               
+    LOGICAL                          :: failure
+    INTEGER                          :: ncol
+    TYPE(real_matrix_type), POINTER  :: k_p
+    TYPE(cp_full_matrix_type), POINTER :: tmp
+    CHARACTER(len=*), PARAMETER      :: routineN = 'p_op_l1',&
+                                        routineP = moduleN//':'//routineN
+
+    ! code
+    NULLIFY(tmp);
+    failure = .FALSE.
+    
+    CPPrecondition(p_env%initialized, cp_failure_level, routineP, error, failure)
+    CPPrecondition(0<spin.AND.spin<=p_env%qs_env%dft_control%nspins, cp_failure_level, routineP, error, failure)
+
+    CALL replicate_blacs_matrix(p_env%psi0d(spin)%matrix, tmp, &
+         routineP//": temporary matrix")
+    
+    k_p => p_env%qs_env%k(spin)%matrix
+    CALL get_matrix_info(k_p, ncol=ncol)
+    CALL cp_sm_fm_multiply(k_p, v, res, ncol, glob_env%para_env)
+    CALL cp_fm_symm('R', 'U', p_env%n_ao(spin), p_env%n_mo(spin), 1._dbl, &
+         p_env%m_epsilon(spin)%matrix, v, 0._dbl, tmp)
+    CALL cp_sm_fm_multiply(p_env%qs_env%s(spin)%matrix, tmp, &
+         res, p_env%n_mo(spin), para_env=glob_env%para_env, alpha=1.0_dbl,beta=1.0_dbl)    
+    CALL cp_fm_release(tmp); NULLIFY(tmp)
+
+  END SUBROUTINE p_op_l1_spin
 
 ! *****************************************************************************
 
@@ -262,7 +315,7 @@ CONTAINS
 
     ! arguments
     TYPE(qs_p_env_type), INTENT(in)                        :: p_env
-    TYPE(cp_full_matrix_p_type), DIMENSION(:), INTENT(inout) :: v
+    TYPE(cp_full_matrix_p_type), DIMENSION(:), POINTER     :: v
     TYPE(global_environment_type), INTENT(in), TARGET      :: glob_env
     INTEGER, INTENT(in), OPTIONAL                          :: n_cols
     TYPE(cp_error_type), OPTIONAL, INTENT(inout)           :: error

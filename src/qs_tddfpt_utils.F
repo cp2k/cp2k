@@ -30,24 +30,28 @@ MODULE qs_tddfpt_utils
   USE global_types,          ONLY : global_environment_type
   USE kinds,                 ONLY : dbl
   USE qs_blacs,              ONLY : cp_full_matrix_type, &
-       cp_full_matrix_p_type, replicate_blacs_matrix
+                                    cp_full_matrix_p_type, &
+                                    replicate_blacs_matrix
   USE qs_build_ks_matrix,    ONLY : qs_ks_env_type
-  USE qs_environment_types,  ONLY : qs_environment_type, get_qs_env
+  USE qs_environment_types,  ONLY : qs_environment_type, &
+                                    get_qs_env
   USE qs_mo_types,           ONLY : get_mo_set
   USE qs_p_build_kernel,     ONLY : kpp1_init
   USE qs_p_types,            ONLY : p_env_init,&
                                     qs_p_env_type, &
                                     qs_K_P_P1_env_type
   USE qs_p_utils,            ONLY : p_op_l1
-  USE qs_tddfpt_types,       ONLY : tddfpt_env_type, tddfpt_env_init
+  USE qs_tddfpt_types,       ONLY : tddfpt_env_type, &
+                                    tddfpt_env_allocate, &
+                                    tddfpt_env_init
 
   IMPLICIT NONE
 
   CHARACTER(len=*), PARAMETER :: moduleN="qs_tddfpt_utils"
+  LOGICAL, PARAMETER          :: DEBUG_THIS_MODULE = .TRUE.
 
   PRIVATE
-  PUBLIC :: tddfpt_testing, &
-            tddfpt_init, &
+  PUBLIC :: tddfpt_init, &
             tddfpt_write_banner, &
             update_p_env
 
@@ -55,7 +59,31 @@ CONTAINS
 
 ! *****************************************************************************
 
-  SUBROUTINE tddfpt_init(p_env, t_env, qs_env, ks_env, glob_env)
+!!****f* cp2k/qs_tddfpt_utils/tddfpt_init *
+!!
+!!   NAME
+!!     tddfpt_init
+!!
+!!   FUNCTION
+!!     Initialize some necessary structures for a tddfpt calculation.
+!!
+!!   ARGUMENTS
+!!     - p_env    : perturbation environment to be initialized
+!!     - t_env    : tddfpt environment to be initialized
+!!     - qs_env   : Quickstep environment with the results of a
+!!                  ground state calcualtion
+!!     - ks_env   : Kohn-Sham environment already initialized
+!!     - n_ev     : number of eigenvalues to calculate
+!!     - glob_env : global environment
+!!
+!!   NOTES
+!!     -
+!!
+!!   MODIFICATION HISTORY
+!!     10-2002, TCH, created
+!!
+!!****
+  SUBROUTINE tddfpt_init(p_env, t_env, qs_env, ks_env, n_ev, glob_env)
 
     IMPLICIT NONE
 
@@ -64,6 +92,7 @@ CONTAINS
     TYPE(tddfpt_env_type), INTENT(out)        :: t_env 
     TYPE(qs_environment_type), INTENT(in)     :: qs_env
     TYPE(qs_ks_env_type), INTENT(in)          :: ks_env
+    INTEGER                                   :: n_ev
     TYPE(global_environment_type), INTENT(in) :: glob_env
 
     ! locals
@@ -75,6 +104,8 @@ CONTAINS
                                                  routineP = moduleN//"/"//routineN
     
     ! do intializations
+    IF (DEBUG_THIS_MODULE) WRITE(*,*) routineP//": entered"
+
     CALL kpp1_init(kpp1_env, qs_env, ks_env, glob_env)
 
     n_spins = SIZE(qs_env%k)
@@ -88,11 +119,10 @@ CONTAINS
     CALL p_env_init(p_env, qs_env, ks_env, kpp1_env, glob_env, &
                     psi0d, .TRUE.)
 
-    CALL tddfpt_env_init(t_env, p_env, glob_env)
+    CALL tddfpt_env_allocate(t_env, p_env, n_ev, glob_env)
+    CALL tddfpt_env_init(t_env, p_env, n_ev, glob_env)
 
-    IF (glob_env%ionode) THEN 
-       WRITE(glob_env%scr, '(A)') routineP//": Finished initialization"
-    END IF
+    IF (DEBUG_THIS_MODULE) WRITE(*,*) routineP//": finished"
 
   END SUBROUTINE tddfpt_init
 
@@ -119,39 +149,6 @@ CONTAINS
 
 ! *****************************************************************************
 
-  SUBROUTINE tddfpt_testing(p_env, t_env, glob_env)
-
-    IMPLICIT NONE
-
-    ! arguments
-    TYPE(qs_p_env_type), INTENT(in)           :: p_env
-    TYPE(tddfpt_env_type), INTENT(inout)      :: t_env
-    TYPE(global_environment_type), INTENT(in) :: glob_env
-
-    ! locals
-    TYPE(cp_full_matrix_p_type), DIMENSION(:), POINTER :: tmp
-    TYPE(cp_error_type)          :: error
-    INTEGER                      :: n_spins, spin, stat
-    CHARACTER(len=*), PARAMETER  :: routineN = "tddfpt_testing", &
-                                    routineP = moduleN//"/"//routineN
-
-    n_spins = p_env%qs_env%dft_control%nspins
-
-    ! create the temporary matrizes
-    ALLOCATE(tmp(n_spins), stat=stat)
-    
-    DO spin=1, n_spins
-       CALL replicate_blacs_matrix(p_env%psi0d(spin)%matrix, &
-                                   tmp(spin)%matrix, &
-                                   routineP//" tmp matrix")
-    END DO
-
-    CALL p_op_l1(p_env, t_env%x, tmp, glob_env, error=error)
-    
-  END SUBROUTINE tddfpt_testing
-
-! *****************************************************************************
-
   SUBROUTINE update_p_env(p_env, t_env, glob_env)
     IMPLICIT NONE
     ! arguments
@@ -164,9 +161,7 @@ CONTAINS
                                     routineP = moduleN//"/"//routineN
 
     ! code
-    IF (glob_env%ionode) THEN
-       WRITE (glob_env%scr, '(A)') routineP//": Not yet implemented"
-    END IF
+    IF (glob_env%ionode) WRITE (glob_env%scr, '(1X,A)') routineP//": Not yet implemented"
 
   END SUBROUTINE update_p_env
 

@@ -119,5 +119,9 @@ call cp_assert(.false.,level,-300,routineP,'ASSERT')
 
 #endif
 
+#define CPAAssert(condition) \
+call cp_simple_assert(condition, routineP, __LINE__)
+
+#define CPTest WRITE(*,*) "#LINE"
 
 #endif

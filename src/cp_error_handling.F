@@ -59,7 +59,7 @@ MODULE cp_error_handling
        cp_precondition_failed, cp_internal_error, cp_postcondition_failed,&
        cp_invariant_failed, cp_assertion_failed, cp_unimplemented_error_nr
   ! public routines
-  PUBLIC :: cp_assert, cp_unimplemented_error
+  PUBLIC :: cp_assert, cp_simple_assert, cp_unimplemented_error
 
   PUBLIC :: cp_error_init, cp_error_dealloc_ref, cp_error_set,&
        cp_error_get, cp_error_reset, cp_error_get_level,&
@@ -974,5 +974,48 @@ SUBROUTINE cp_unimplemented_error(fromWhere, message, error, error_level)
   END IF
 END SUBROUTINE cp_unimplemented_error
 !***************************************************************************
+
+!!****f* cp2k/m/s *
+!!
+!!   NAME
+!!     s
+!!
+!!   FUNCTION
+!!     -
+!!
+!!   ARGUMENTS
+!!     -
+!!
+!!   NOTES
+!!     -
+!!
+!!   MODIFICATION HISTORY
+!!     , TCH, created
+!!
+!!   SEE ALSO
+!!     
+!!
+!!****
+  subroutine cp_simple_assert(condition, routineP, line)
+  
+    implicit none
+
+  	! arguments
+    logical, intent(in)          :: condition
+    character(len=*), intent(in) :: routineP
+    integer, intent(in)          :: line
+  
+  	! locals
+  
+  	! code
+    IF (.NOT.condition) then
+       WRITE (*,*) "======== ASSERTION FAILED ========"
+       WRITE (*,*) routineP, ": ", cp_to_string(line)
+       STOP 1
+    END IF
+  
+  end subroutine cp_simple_assert
+
+! *****************************************************************************
 
 END MODULE cp_error_handling

@@ -3,6 +3,8 @@
 !   Copyright (C) 2000  CP2K developers group                                 !
 !-----------------------------------------------------------------------------!
 
+#include "cp_prep_globals.h"
+
 !!****m* cp2k/qs_tddfpt_types *
 !!
 !!   NAME
@@ -23,14 +25,17 @@
 !!****
 MODULE qs_tddfpt_types
 
-  USE global_types,   ONLY : global_environment_type
-  USE kinds,          ONLY : dbl
-  USE qs_blacs,       ONLY : cp_full_matrix_p_type, &
-                             cp_fm_vect_dealloc, &
-                             replicate_blacs_matrix
-  USE qs_p_utils,     ONLY : p_preortho
-  USE qs_p_types,     ONLY : qs_p_env_type
-  USE termination,    ONLY : stop_memory
+  USE cp_error_handling, ONLY : cp_simple_assert
+  USE cp_full_matrix,    ONLY : cp_fm_set_all, cp_fm_release
+  USE cp_log_handling,   ONLY : cp_to_string
+  USE global_types,      ONLY : global_environment_type
+  USE kinds,             ONLY : dbl, dp_size
+  USE qs_blacs,          ONLY : cp_full_matrix_p_type, &
+                                cp_fm_vect_dealloc, &
+                                replicate_blacs_matrix
+  USE qs_p_utils,        ONLY : p_preortho
+  USE qs_p_types,        ONLY : qs_p_env_type
+  USE termination,       ONLY : stop_memory
 
   IMPLICIT NONE
 
@@ -38,17 +43,43 @@ MODULE qs_tddfpt_types
      REAL(dbl), DIMENSION(:,:), POINTER :: values
   END TYPE real_2d_array_p_type
 
+  TYPE fm_p_spins_p_type
+     TYPE(cp_full_matrix_p_type), dimension(:), pointer :: spins
+  END TYPE fm_p_spins_p_type
+
+!!****s* qs_tddfpt_types
+!!
+!! NAME
+!!   tddfpt_env_type
+!!
+!! FUNCTION
+!!   A type to hold data necessary for a tddfpt calculation
+!!
+!! ATTRIBUTES
+!!   - n_ev   : number of eigenvalues 
+!!   - x      : right eigenvector     
+!!   - y      : left eigenvector      
+!!   - eval_x : the eigenvalues       
+!!   - eval_y : the eigenvalues       
+!!
+!! NOTES
+!!
+!!****
   TYPE tddfpt_env_type
-     TYPE(cp_full_matrix_p_type), DIMENSION(:), POINTER :: x    ! right eigenvector
-     TYPE(cp_full_matrix_p_type), DIMENSION(:), POINTER :: y    ! left eigenvector
-     TYPE(real_2d_array_p_type), DIMENSION(:), POINTER  :: eval_x ! the eigenvalues
-     TYPE(real_2d_array_p_type), DIMENSION(:), POINTER  :: eval_y ! the eigenvalues
+     INTEGER                                           :: n_ev   ! number of eigenvalues 
+     TYPE(fm_p_spins_p_type), DIMENSION(:), POINTER    :: x      ! right eigenvector     
+     TYPE(fm_p_spins_p_type), DIMENSION(:), POINTER    :: y      ! left eigenvector
+     TYPE(real_2d_array_p_type), DIMENSION(:), POINTER :: eval_x ! the eigenvalues       
+     TYPE(real_2d_array_p_type), DIMENSION(:), POINTER :: eval_y ! the eigenvalues       
   END TYPE tddfpt_env_type
     
   CHARACTER(len=*), PARAMETER :: moduleN = "qs_tddfpt_types"
-
+  LOGICAL, PARAMETER          :: DEBUG_THIS_MODULE = .TRUE.
+  
   PRIVATE
-  PUBLIC :: tddfpt_env_type, tddfpt_env_init, tddfpt_env_deallocate, real_2d_array_p_type
+  PUBLIC :: real_2d_array_p_type, fm_p_spins_p_type
+  PUBLIC :: tddfpt_env_allocate, tddfpt_env_deallocate, &
+            tddfpt_env_type, tddfpt_env_init
   
 CONTAINS
 
@@ -76,33 +107,40 @@ CONTAINS
 !!     08-2002, TCH, created
 !!
 !!****
-  SUBROUTINE tddfpt_env_init(t_env, p_env, glob_env)
+  SUBROUTINE tddfpt_env_init(t_env, p_env, n_ev, glob_env)
 
     IMPLICIT NONE
   
   	! arguments
     TYPE(tddfpt_env_type), INTENT(out)        :: t_env
     TYPE(qs_p_env_type), INTENT(in)           :: p_env
+    INTEGER, INTENT(IN)                       :: n_ev
     TYPE(global_environment_type), INTENT(in) :: glob_env
   
   	! locals
     INTEGER                            :: stat
-    INTEGER                            :: n_spins, spin
+    INTEGER                            :: ev, n_spins, spin
     CHARACTER(len=*), PARAMETER        :: routineN = 'tddfpt_env_init', &
                                           routineP = moduleN//'/'//routineN
 
 
   	! code
-    CALL tddfpt_env_allocate(t_env, p_env, glob_env)
+    IF (DEBUG_THIS_MODULE) WRITE (*,*) routineP,": entered"
+
+    t_env%n_ev = n_ev
 
     ! fill the c_plus and c_minus (x and y) with something meaningfull
     IF (glob_env%ionode) THEN
-       WRITE (glob_env%scr, '(A)') routineP//": Initialization of x and y not yet implemented"
+       WRITE (glob_env%scr, '(1X,A)') routineP//": Initialization of x and y not yet implemented"
     END IF
 
     ! finally make them orthogonal to the p_env%psi0d
-    CALL p_preortho(p_env, t_env%x, glob_env)
-    CALL p_preortho(p_env, t_env%y, glob_env)
+    DO ev=1, n_ev
+       CALL p_preortho(p_env, t_env%x(ev)%spins, glob_env)
+       CALL p_preortho(p_env, t_env%y(ev)%spins, glob_env)
+    END DO
+
+    IF (DEBUG_THIS_MODULE) WRITE (*,*) routineP,": finished"
 
   END SUBROUTINE tddfpt_env_init
 
@@ -129,50 +167,62 @@ CONTAINS
 !!     10-2002, TCH, created
 !!
 !!****
-  SUBROUTINE tddfpt_env_allocate(t_env, p_env, glob_env)
+  SUBROUTINE tddfpt_env_allocate(t_env, p_env, n_ev, glob_env)
   
     IMPLICIT NONE
 
   	! arguments
     TYPE(tddfpt_env_type), INTENT(out)        :: t_env
     TYPE(qs_p_env_type), INTENT(in)           :: p_env
+    INTEGER, INTENT(IN)                       :: n_ev
     TYPE(global_environment_type), INTENT(in) :: glob_env
   
   	! locals
     INTEGER                            :: stat
-    INTEGER                            :: n_spins, spin
+    INTEGER                            :: ev, n_spins, spin
     CHARACTER(len=*), PARAMETER        :: routineN = 'tddfpt_env_allocate', &
                                           routineP = moduleN//'/'//routineN
   
   
   	! code
+    IF (DEBUG_THIS_MODULE) WRITE (*,*) routineP,": entered"
+
     n_spins = p_env%qs_env%dft_control%nspins
 
-    ALLOCATE(t_env%x(n_spins), t_env%y(n_spins), &
-             t_env%eval_x(n_spins), t_env%eval_y(n_spins), &
-             stat=stat)
-    IF (stat /= 0) THEN
-       CALL stop_memory(routineP, "t_env%x / t_env%y / t_env%eval_x / t_env%eal_y", n_spins)
-    END IF
+    ALLOCATE(t_env%x(n_ev), t_env%y(n_ev), stat=stat)
+    if (stat/=0) call stop_memory(routineP, "t_env%x, t_env%y", n_ev)
+
+    ALLOCATE(t_env%eval_x(n_spins), t_env%eval_y(n_spins), stat=stat)
+    IF (stat /= 0) CALL stop_memory(routineP, "t_env%eval_x, t_env%eval_y", n_spins)
+
+    DO ev=1, n_ev
+       ALLOCATE(t_env%x(ev)%spins(n_spins), t_env%y(ev)%spins(n_spins), stat=stat)
+       if (stat/=0) call stop_memory(routineP, "t_env%x%spins, t_env%y%spins", n_spins)
+    END DO
     
     DO spin=1, n_spins
-       
-       ALLOCATE(t_env%eval_x(spin)%values(p_env%n_mo(spin), 2), &
-                t_env%eval_y(spin)%values(p_env%n_mo(spin), 2), stat=stat)
-       IF (stat /= 0) THEN
-          CALL stop_memory(routineP, "t_env%eval(spin)%values", 2*p_env%n_mo(spin))
-       END IF
+
+       ALLOCATE(t_env%eval_x(spin)%values(n_ev, 2), &
+                t_env%eval_y(spin)%values(n_ev, 2), stat=stat)
+       IF (stat /= 0) CALL stop_memory(routineP, "t_env%eval_x%values, t_env%eval_y%values", &
+                                       2*n_ev*dp_size)
        t_env%eval_x(spin)%values = 0.0_dbl
        t_env%eval_y(spin)%values = 0.0_dbl
 
-       CALL replicate_blacs_matrix(p_env%psi0d(spin)%matrix, &
-                                   t_env%x(spin)%matrix, &
-                                   name = "X_matrix")
-       CALL replicate_blacs_matrix(p_env%psi0d(spin)%matrix, &
-                                   t_env%y(spin)%matrix, &
-                                   name = "Y_matrix")
+       DO ev=1, n_ev
+          CALL replicate_blacs_matrix(p_env%psi0d(spin)%matrix, &
+               t_env%x(ev)%spins(spin)%matrix, &
+               name = "X ev = "//cp_to_string(ev)//" spin = "//cp_to_string(spin))
+          CALL cp_fm_set_all(t_env%x(ev)%spins(spin)%matrix, 0.0_dbl) ! fill with zeros
+          CALL replicate_blacs_matrix(p_env%psi0d(spin)%matrix, &
+               t_env%y(ev)%spins(spin)%matrix, &
+               name = "Y ev = "//cp_to_string(ev)//" spin = "//cp_to_string(spin))
+          CALL cp_fm_set_all(t_env%y(ev)%spins(spin)%matrix, 0.0_dbl) ! fill with zeros
+       END DO
     END DO
   
+    IF (DEBUG_THIS_MODULE) WRITE (*,*) routineP,": finished"
+
   END SUBROUTINE tddfpt_env_allocate
 
 ! *****************************************************************************
@@ -207,30 +257,53 @@ CONTAINS
     TYPE(global_environment_type), INTENT(in) :: glob_env
 
   	! locals
-    INTEGER                                   :: n_spins, spin, stat
+    INTEGER                                   :: ev, n_spins, spin, stat
     CHARACTER(len=*), PARAMETER               :: routineN = 'tddfpt_env_deallocate', &
                                                  routineP = moduleN//'/'//routineN
   
   	! code
-    CALL cp_fm_vect_dealloc(t_env%x)
-    CALL cp_fm_vect_dealloc(t_env%y)
-    
-    DO spin=1, SIZE(t_env%eval_x)
+    IF (DEBUG_THIS_MODULE) WRITE (*,*) routineP,": entered"
+
+    n_spins = SIZE(t_env%x(1)%spins)
+
+    CPAAssert(t_env%n_ev==SIZE(t_env%x))
+    CPAAssert(SIZE(t_env%y(1)%spins)==n_spins)
+    CPAAssert(SIZE(t_env%eval_x)==SIZE(t_env%x(1)%spins))
+    CPAAssert(SIZE(t_env%eval_y)==SIZE(t_env%y(1)%spins))
+
+    DO spin=1, n_spins
        DEALLOCATE(t_env%eval_x(spin)%values, t_env%eval_y(spin)%values, stat=stat)
-       IF (stat /= 0) THEN
-          IF (glob_env%ionode) WRITE (glob_env%scr, '(A)') &
-               routineP//": deallocation of t_env%eval_x%values / t_env%eval_y%values failed"
-       END IF
+       IF (stat /= 0) &
+            CALL stop_memory(routineP, "t_env%eval_x%values, t_env%eval_y%values")
        NULLIFY(t_env%eval_x(spin)%values)
        NULLIFY(t_env%eval_y(spin)%values)       
     END DO
     DEALLOCATE(t_env%eval_x, t_env%eval_y, stat=stat)
-    IF (stat /= 0) THEN
-       IF (glob_env%ionode) WRITE (glob_env%scr, '(A)') &
-            routineP//": deallocation of t_env%eval_x / t_env%eval_y failed"
-    END IF
-    NULLIFY(t_env%eval_x)
-    NULLIFY(t_env%eval_y)
+    IF (stat /= 0) &
+         CALL stop_memory(routineP, "t_env%eval_x, t_env%eval_y")
+    NULLIFY(t_env%eval_x); NULLIFY(t_env%eval_y)
+    NULLIFY(t_env%x); NULLIFY(t_env%y)
+
+    DO ev=1, t_env%n_ev
+       DO spin=1, n_spins
+          CALL cp_fm_release(t_env%x(ev)%spins(spin)%matrix)
+          NULLIFY(t_env%x(ev)%spins(spin)%matrix)
+          CALL cp_fm_release(t_env%y(ev)%spins(spin)%matrix)
+          NULLIFY(t_env%y(ev)%spins(spin)%matrix)
+       END DO
+       DEALLOCATE(t_env%x(ev)%spins, t_env%y(ev)%spins, stat=stat)
+       IF (stat /= 0) &
+            CALL stop_memory(routineP, "t_env%x%spins, t_env%y%spins")
+       NULLIFY(t_env%x(ev)%spins)
+       NULLIFY(t_env%y(ev)%spins)
+    END DO
+    DEALLOCATE(t_env%x, t_env%y, stat=stat)
+    IF (stat /= 0) &
+         CALL stop_memory(routineP, "t_env%x, t_env%y")
+    NULLIFY(t_env%x)
+    NULLIFY(t_env%y)
+
+    IF (DEBUG_THIS_MODULE) WRITE (*,*) routineP,": finished"
 
   END SUBROUTINE tddfpt_env_deallocate
 
