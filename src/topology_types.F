@@ -45,6 +45,7 @@ MODULE topology_types
     CHARACTER (LEN=default_string_length)     :: coord_file_name
     CHARACTER (LEN=default_string_length)     :: conn_type
     CHARACTER (LEN=default_string_length)     :: conn_file_name
+    CHARACTER (LEN=default_string_length), POINTER :: label_molname(:)
     CHARACTER (LEN=default_string_length), POINTER :: label_resname(:)
     CHARACTER (LEN=default_string_length), POINTER :: label_atmname(:)
     CHARACTER (LEN=default_string_length), POINTER :: atom_names(:)
@@ -104,6 +105,7 @@ SUBROUTINE init_topology (topology)
   topology%coord_file_name=''
   topology%conn_type='OFF'
   topology%conn_file_name='OFF'
+  NULLIFY(topology%label_molname)
   NULLIFY(topology%label_resname)
   NULLIFY(topology%label_atmname)
   NULLIFY(topology%atom_names)
@@ -156,6 +158,11 @@ SUBROUTINE deallocate_topology (topology)
   IF(ASSOCIATED(topology%cell)) THEN
     DEALLOCATE(topology%cell,STAT=istat)
     IF (istat /= 0) CALL stop_memory('deallocate_topology','cell_type')
+  END IF
+
+  IF(ASSOCIATED(topology%label_molname)) THEN
+    DEALLOCATE(topology%label_molname,STAT=istat)
+    IF (istat /= 0) CALL stop_memory('deallocate_topology','label_molname')
   END IF
 
   IF(ASSOCIATED(topology%label_resname)) THEN

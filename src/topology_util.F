@@ -105,7 +105,7 @@ SUBROUTINE topology_reorder_atoms(topology,globenv)
     TYPE(global_environment_type), &
       INTENT(IN), OPTIONAL                   :: globenv
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'topology_generate_molecule', &
+    CHARACTER(len=*), PARAMETER :: routineN = 'topology_reorder_atoms', &
       routineP = moduleN//':'//routineN
 
     LOGICAL                                  :: PM1, PM2, PM3, PM4
@@ -306,8 +306,6 @@ SUBROUTINE topology_generate_molecule(topology,globenv)
     INTEGER, POINTER                         :: checkme(:)
     LOGICAL                                  :: PM1, PM2, PM3, PM4
 
-!# of molecular types
-!# of molecules of each type
 !------------------------------------------------------------------------------
 
   PM1 = .FALSE.
@@ -349,7 +347,7 @@ SUBROUTINE topology_generate_molecule(topology,globenv)
   ntype = 1
   topology%map_mol_typ(1)=1
   DO iatom=2,natom
-    IF(topology%label_resname(iatom-1)==topology%label_resname(iatom)) THEN
+    IF(topology%label_molname(iatom-1)==topology%label_molname(iatom)) THEN
       topology%map_mol_typ(iatom)=ntype
     ELSE
       ntype=ntype+1
@@ -992,7 +990,7 @@ SUBROUTINE topology_generate_bond(topology,globenv)
 
         !Check to make sure no bonds are allowed between two different types
         !of molecules specified in the input file
-        IF(topology%label_resname(iatom) /= topology%label_resname(jatom)) THEN
+        IF(topology%label_molname(iatom) /= topology%label_molname(jatom)) THEN
           CALL stop_program ("topology_generate_bond",&
                              "bonds between different molecule types??? ")
         END IF
@@ -1463,7 +1461,7 @@ SUBROUTINE topology_connectivity_pack(molecule_kind_set,molecule_set,&
     CALL find_boundary(topology%map_mol_typ,natom,first,last,i)
     CALL set_molecule_kind(molecule_kind=molecule_kind,&
                            kind_number=i,&
-                           name=topology%label_resname(first),&
+                           name=topology%label_molname(first),&
                            nhcopt=nhcopt)
   END DO
 

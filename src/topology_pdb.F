@@ -101,7 +101,7 @@ SUBROUTINE read_coordinate_pdb (topology,globenv)
       routineP = moduleN//':'//routineN
     INTEGER, PARAMETER                       :: nblock_atom = 1000
 
-    CHARACTER(LEN=default_string_length)     :: line, record
+    CHARACTER(LEN=default_string_length)     :: line, record, symbol
     INTEGER                                  :: handle, istat,&
                                                 iw, natom
     INTEGER                                  :: file_unit
@@ -131,12 +131,14 @@ SUBROUTINE read_coordinate_pdb (topology,globenv)
 !------------------------------------------------------------------------------
 !------------------------------------------------------------------------------
 
+  NULLIFY(topology%label_molname)
   NULLIFY(topology%label_resname)
   NULLIFY(topology%label_atmname)
   NULLIFY(topology%r)
   NULLIFY(topology%atm_mass)
   NULLIFY(topology%atm_charge)
 
+  CALL reallocate(topology%label_molname,1,nblock_atom)
   CALL reallocate(topology%label_resname,1,nblock_atom)
   CALL reallocate(topology%label_atmname,1,nblock_atom)
   CALL reallocate(topology%r,1,3,1,nblock_atom)
@@ -154,6 +156,7 @@ SUBROUTINE read_coordinate_pdb (topology,globenv)
   natom =  0
 
   DO
+    line = ''
     READ(file_unit,'(A80)',IOSTAT=istat) line 
     IF(istat /= 0) EXIT
 
@@ -163,7 +166,8 @@ SUBROUTINE read_coordinate_pdb (topology,globenv)
     IF(record == "ATOM") THEN
       natom = natom + 1
       topology%natoms = natom
-      IF(natom > SIZE(topology%label_resname)) THEN
+      IF(natom > SIZE(topology%label_atmname)) THEN
+        CALL reallocate(topology%label_molname,1,natom+nblock_atom)
         CALL reallocate(topology%label_resname,1,natom+nblock_atom)
         CALL reallocate(topology%label_atmname,1,natom+nblock_atom)
         CALL reallocate(topology%r,1,3,1,natom+nblock_atom)
@@ -174,7 +178,13 @@ SUBROUTINE read_coordinate_pdb (topology,globenv)
 
     SELECT CASE (record)
     CASE ("ATOM") 
-      READ(line(13:16),*) topology%label_atmname(natom)
+      topology%label_molname(natom) = 'MOL'
+      symbol = line(77:78)
+      IF(symbol == '') THEN
+        READ(line(13:16),*) topology%label_atmname(natom)
+      ELSE
+        topology%label_atmname(natom) = symbol
+      END IF
       READ(line(18:20),*) topology%label_resname(natom)
       READ(line(31:38),*) topology%r(1,natom)
       READ(line(39:46),*) topology%r(2,natom)
@@ -197,6 +207,7 @@ SUBROUTINE read_coordinate_pdb (topology,globenv)
   END DO
   CALL close_file(unit_number=file_unit)
 
+  CALL reallocate(topology%label_molname,1,natom)
   CALL reallocate(topology%label_resname,1,natom)
   CALL reallocate(topology%label_atmname,1,natom)
   CALL reallocate(topology%r,1,3,1,natom)

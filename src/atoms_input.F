@@ -82,7 +82,7 @@ SUBROUTINE read_atoms_input ( topology, globenv )
 
     TYPE(topology_parameters_type)           :: topology
     TYPE(global_environment_type), &
-      INTENT(IN)                             :: globenv
+      INTENT(IN), OPTIONAL                   :: globenv
 
     INTEGER, PARAMETER                       :: nblock_atom = 4000
 
@@ -93,46 +93,70 @@ SUBROUTINE read_atoms_input ( topology, globenv )
                                                 ilen, iw, natom
     LOGICAL                                  :: scaled_coordinates
 
+    LOGICAL                                  :: PM1, PM2, PM3, PM4
+
 !   ---------------------------------------------------------------------------
 
-  natom = 0
+  PM1 = .FALSE.
+  PM2 = .FALSE.
+  PM3 = .FALSE.
+  PM4 = .FALSE.
+  IF(PRESENT(globenv)) THEN
+    iw = globenv%scr
+    IF((globenv%ionode).AND.(globenv%print%level>0)) PM1= .TRUE.
+    IF((globenv%ionode).AND.(globenv%print%level>1)) PM2= .TRUE.
+    IF((globenv%ionode).AND.(globenv%print%level>2)) PM3= .TRUE.
+    IF((globenv%ionode).AND.(globenv%print%level>3)) PM4= .TRUE.
+  END IF
 
-  iw = globenv % scr
+  IF(PM1) WRITE(iw,*) "  Entering read_atoms_input"
 
+  !-----------------------------------------------------------------------------
+  !-----------------------------------------------------------------------------
+  ! 1. NULLIFY and ALLOCATE all that is necessary in topology
+  !-----------------------------------------------------------------------------
+  NULLIFY(topology%label_molname)
   NULLIFY(topology%label_resname)
   NULLIFY(topology%label_atmname)
   NULLIFY(topology%r)
   NULLIFY(topology%atm_mass)
   NULLIFY(topology%atm_charge)
-!..defaults
-
+  CALL reallocate(topology%label_molname,1,nblock_atom)
   CALL reallocate(topology%label_resname,1,nblock_atom)
   CALL reallocate(topology%label_atmname,1,nblock_atom)
   CALL reallocate(topology%r,1,3,1,nblock_atom)
   CALL reallocate(topology%atm_mass,1,nblock_atom)
   CALL reallocate(topology%atm_charge,1,nblock_atom)
 
+
+  !-----------------------------------------------------------------------------
+  !-----------------------------------------------------------------------------
+  ! 2. get the cell info
+  !-----------------------------------------------------------------------------
   cell => topology%cell
   CALL get_cell(cell=cell,&
                 scaled_coordinates=scaled_coordinates,&
                 unit_of_length=unit_of_length)
 
-!..parse the input section
+
+  !-----------------------------------------------------------------------------
+  !-----------------------------------------------------------------------------
+  ! 3. Read in the coordinates from &COORD section in the input file
+  !-----------------------------------------------------------------------------
+  natom = 0
   label = '&COORD'
   CALL parser_init ( globenv % input_file_name, globenv )
   CALL search_label ( label, ierror, ignore_case=.TRUE. )
   IF ( ierror /= 0 ) THEN
      CALL stop_program ( 'read_atoms_input','No &COORD section found')
   ELSE
-!   ******************************************************************
-!   **** Reads coordinates from &COORD section ***  
-!   ******************************************************************
      CALL read_line
      DO WHILE (test_next()/='X')
 
        natom = natom + 1
 
-       IF (natom > SIZE(topology%label_resname)) THEN
+       IF (natom > SIZE(topology%label_atmname)) THEN
+        CALL reallocate(topology%label_molname,1,natom+nblock_atom)
         CALL reallocate(topology%label_resname,1,natom+nblock_atom)
         CALL reallocate(topology%label_atmname,1,natom+nblock_atom)
         CALL reallocate(topology%r,1,3,1,natom+nblock_atom)
@@ -141,21 +165,24 @@ SUBROUTINE read_atoms_input ( topology, globenv )
        END IF
 
        ilen = default_string_length
+       topology%label_molname(natom) = ""
        topology%label_resname(natom) = ""
        topology%label_atmname(natom) = ""
 
-       ! For default, set atom name to molecule name
+       ! For default, set atom name to residue name to molecule name
        CALL get_next(topology%label_atmname(natom),ilen)
+       topology%label_molname(natom) = topology%label_atmname(natom)
        topology%label_resname(natom) = topology%label_atmname(natom)
 
-!     *** Read the atomic coordinates ***
+       ! *** Read the atomic coordinates ***
        CALL get_next(topology%r(1,natom))
        CALL get_next(topology%r(2,natom))
        CALL get_next(topology%r(3,natom))
 
        !Future user optional inputs
        IF (test_next()=='C') THEN
-         CALL get_next(topology%label_resname(natom),ilen)
+         CALL get_next(topology%label_molname(natom),ilen)
+         topology%label_resname(natom) = topology%label_molname(natom)
        END IF
        topology%atm_mass(natom) = 0.0_dbl 
        topology%atm_charge(natom) = 0.0_dbl 
@@ -165,23 +192,26 @@ SUBROUTINE read_atoms_input ( topology, globenv )
 
     CALL parser_end
   END IF
-!..end of parsing the input section
 
+
+  !-----------------------------------------------------------------------------
+  !-----------------------------------------------------------------------------
+  ! 4. Get rid of unnecessary spaces
+  !-----------------------------------------------------------------------------
   topology%natoms = natom
+  CALL reallocate(topology%label_molname,1,natom)
   CALL reallocate(topology%label_resname,1,natom)
   CALL reallocate(topology%label_atmname,1,natom)
   CALL reallocate(topology%r,1,3,1,natom)
   CALL reallocate(topology%atm_mass,1,natom)
   CALL reallocate(topology%atm_charge,1,natom)
 
+
+  !-----------------------------------------------------------------------------
+  !-----------------------------------------------------------------------------
+  ! 5. Convert coordinates into internal cp2k coordinates
+  !-----------------------------------------------------------------------------
   DO iatom=1,natom
-!MK allow for scaled coordinates
-!    CALL convert_to_cp2k_units(topology%cell%unit_of_length_name,&
-!                               length=topology%r(1,iatom))
-!    CALL convert_to_cp2k_units(topology%cell%unit_of_length_name,&
-!                               length=topology%r(2,iatom))
-!    CALL convert_to_cp2k_units(topology%cell%unit_of_length_name,&
-!                               length=topology%r(3,iatom))
     IF (scaled_coordinates) THEN
       topology%r(:,iatom) = scaled_to_real(topology%r(:,iatom),cell)*unit_of_length
     ELSE
@@ -189,17 +219,24 @@ SUBROUTINE read_atoms_input ( topology, globenv )
     END IF
   END DO
 
+
+  !-----------------------------------------------------------------------------
+  !-----------------------------------------------------------------------------
+  ! 6. Post processing for special molecule name at the end of xyz
+  !-----------------------------------------------------------------------------
   atm_equal_mol = 0
   DO iatom=1,natom
-    IF(topology%label_resname(iatom)==topology%label_atmname(iatom))THEN
+    IF(topology%label_molname(iatom)==topology%label_atmname(iatom))THEN
       atm_equal_mol = atm_equal_mol + 1
       topology%bondparm_factor=0.0_dbl
     END IF
   END DO
-
   IF ((atm_equal_mol /= 0) .AND. (atm_equal_mol /= natom)) THEN
     CALL stop_program ('read_atoms_input','check coord optional molname')
   END IF
+
+
+  IF(PM1) WRITE(iw,*) "  Exiting read_atoms_input"
 
 END SUBROUTINE read_atoms_input
 
