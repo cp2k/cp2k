@@ -106,8 +106,7 @@ MODULE input_cp2k
                                 do_tddfpt_triplet=1,&
                                 do_tddfpt_davidson=0,&
                                 do_tddfpt_lanczos=1,&
-                                oe_none=0,&
-                                oe_saop=1
+                                oe_none=0, oe_saop=1, oe_sic=2
   integer, parameter, public :: use_unit_angstrom=0,&
        use_unit_bohr=1,&
        use_unit_scaled_angstrom=2,&
@@ -1137,8 +1136,9 @@ SUBROUTINE create_tddfpt_section(section,error)
           usage="OE_CORR NONE|SAOP",&
           enum_c_vals=(/&
           "NONE       ",&
-          "SAOP       "/),&
-          enum_i_vals=(/ oe_none, oe_saop /),&
+          "SAOP       ",&
+          "SIC        "/),&
+          enum_i_vals=(/ oe_none, oe_saop, oe_sic /),&
           default_i_val=oe_none, error=error)
      CALL section_add_keyword(section,keyword,error=error)
      CALL keyword_release(keyword,error=error)      
