@@ -572,7 +572,7 @@ contains
     justEntred=.true.
 
     call timeset(routineN//','//moduleN,'I',"",handle)
-    converged = optimizer%status==4
+    if (present(converged)) converged = optimizer%status==4
     CPPrecondition(optimizer%initialized,cp_failure_level,routineP,error,failure)
     CPPrecondition(optimizer%status<4,cp_warning_level,routineP,error,failure)
     if (.not. failure) then
@@ -652,7 +652,7 @@ contains
              exit
           case (4)
              !op=4 (convergence - normal exit)     
-             converged=.true.
+             if (present(converged)) converged=.true.
              exit
           case (5)
              ! op=5 abnormal exit (error)
