@@ -93,7 +93,7 @@ PROGRAM leap2fist
   CHARACTER (LEN=default_string_length), POINTER, DIMENSION(:) :: command_line 
   CHARACTER (LEN=default_string_length) :: input_filename, output_filename, psf_filename
   INTEGER :: unit_o, unit_i, unit_p
-  LOGICAL :: verbose, dlpoly, fist
+  LOGICAL :: verbose, dlpoly, fist, psf_xplor
   LOGICAL, POINTER, DIMENSION(:) :: io_units
 
   NULLIFY( command_line, IGRAPH, ISYMBL, LABRES, IAC, ICO, IPRES,IBH,JBH,ICBH,&
@@ -197,6 +197,8 @@ CONTAINS
     WRITE(*,'(2X,A,T20,A)')"    ","Default is the top file's root name"
     WRITE(*,'(2X,A,T20,A)')"-psf","Optional. Specify the file name of the psf file"
     WRITE(*,'(2X,A,T20,A)')"    ","Default is the top file's root name"
+    WRITE(*,'(2X,A,T20,A)')"-xplor","Optional. PSF will be dumped out according the X-PLOR format"
+    WRITE(*,'(2X,A,T20,A)')"    ","This format is also readable by VMD and can be used within NAMD."
     WRITE(*,'(2X,A,T20,A)')"-verbose","Print verbose information during executions" 
     WRITE(*,'(2X,A,T20,A)')"-dlpoly","Converts parameter file into dlpoly format." 
     WRITE(*,'(2X,A,T20,A)')"    ","    "
@@ -217,6 +219,7 @@ CONTAINS
     verbose         = .FALSE.
     dlpoly          = .FALSE.
     fist            = .TRUE.
+    psf_xplor       = .FALSE.
     narg = iargc()
     IF (narg.LT.2) THEN
        CALL print_help_banner
@@ -235,6 +238,8 @@ CONTAINS
           psf_filename  = TRIM(command_line(i+1))
        CASE ("-verbose")
           verbose = .TRUE.
+       CASE ("-xplor")
+          psf_xplor = .TRUE.
        CASE ("-dlpoly")
           dlpoly = .TRUE.
           fist   = .FALSE.
@@ -514,14 +519,16 @@ CONTAINS
     INTEGER :: my_sec, my_res, my_bonds, local, my_phi, my_theta, my_atom
     INTEGER :: i, ind, ifirst, ilast
     INTEGER, DIMENSION(:), POINTER :: my_i, my_j, my_k, my_l
+    CHARACTER (LEN=2) :: int_format
 
     NULLIFY( my_i, my_j, my_k, my_l)
-    IF(verbose) WRITE(*,'(A)') "    Writing out PSF file "//TRIM(psf_filename)
-
+    IF(verbose) WRITE(*,'(A)') "    Writing out PSF file "//TRIM(psf_filename)    
     !
     ! Section Title
     !
     my_sec = 1
+    int_format="I7"
+    if (psf_xplor) int_format="I8"
     WRITE(unit,'(A)') "PSF"
     WRITE(unit,'(A)') " "
     WRITE(unit,'(I7,A)') my_sec, " !NTITLE"
@@ -531,7 +538,7 @@ CONTAINS
     !
     ! Section Atom
     !
-    WRITE(unit,'(I7,A)')NATOM," !NATOM"
+    WRITE(unit,'('//int_format//',A)')NATOM," !NATOM"
     DO my_res = 1, NRES
        ifirst = IPRES(my_res)
        IF (my_res == NRES) THEN 
@@ -561,7 +568,7 @@ CONTAINS
     my_i(1:NBONH) = IBH/3+1; my_i(NBONH+1:my_bonds) = IB/3+1
     my_j(1:NBONH) = JBH/3+1; my_j(NBONH+1:my_bonds) = JB/3+1
     WRITE(unit,*) " ",my_bonds," !NBOND"
-    WRITE(unit,'(8I7)')(my_i(local),my_j(local), local=1,my_bonds)
+    WRITE(unit,'(8'//int_format//')')(my_i(local),my_j(local), local=1,my_bonds)
     DEALLOCATE(my_i, my_j)
     WRITE(unit,*) ""
     !
@@ -573,7 +580,7 @@ CONTAINS
     my_j(1:NTHETH) = JTH/3+1; my_j(NTHETH+1:my_theta) = JT/3+1
     my_k(1:NTHETH) = KTH/3+1; my_k(NTHETH+1:my_theta) = KT/3+1
     WRITE(unit,*) " ",my_theta," !NTHETA"
-    WRITE(unit,'(9I7)') (my_i(local),my_j(local),my_k(local), local=1,my_theta)
+    WRITE(unit,'(9'//int_format//')') (my_i(local),my_j(local),my_k(local), local=1,my_theta)
     WRITE(unit,*) ""
     DEALLOCATE(my_i, my_j, my_k)
     !
@@ -602,7 +609,7 @@ CONTAINS
     END DO
     IF (ind .ne. my_phi) call stop_converter("Error in write_psf :: evaluation of proper torsion.")
     WRITE(unit,*) " ",my_phi," !NPHI"
-    WRITE(unit,'(8I7)') (my_i(local),my_j(local),my_k(local),my_l(local), local=1,my_phi)
+    WRITE(unit,'(8'//int_format//')') (my_i(local),my_j(local),my_k(local),my_l(local), local=1,my_phi)
     WRITE(unit,*) ""
     DEALLOCATE(my_i, my_j, my_k, my_l)
     !
@@ -631,7 +638,7 @@ CONTAINS
     END DO
     IF (ind .ne. my_phi) call stop_converter("Error in write_psf :: evaluation of improper torsion.")
     WRITE(unit,*) " ",my_phi," !NIMPHI"
-    WRITE(unit,'(8I7)') (my_i(local),my_j(local),my_k(local),my_l(local), local=1,my_phi)
+    WRITE(unit,'(8'//int_format//')') (my_i(local),my_j(local),my_k(local),my_l(local), local=1,my_phi)
     WRITE(unit,*) ""
     DEALLOCATE(my_i, my_j, my_k, my_l)
     !
