@@ -63,7 +63,7 @@ logDirPath=join(cp2kRoot,"test-"+
                 "-"+time.strftime("%y%m%d-%H:%M"))
 os.mkdir(logDirPath)
 mainLog=open(join(logDirPath,"main.log"),'w')
-mainLog.write(" ******* prepare check in BEGAN *******\n")
+mainLog.write(" ******* prepare check-in BEGAN *******\n")
 mainLog.flush()
 outDir= join(cp2kRoot,"src","outDir")
 
@@ -276,7 +276,7 @@ if directives["tests"]:
         mainLog.write("+++ H2O test SUCESSFULL (diff="+`diffVal`+")! +++\n")
     logFile.close()
 
-mainLog.write(" ******* prepare check in FINISHED *******\n")
+mainLog.write(" ******* prepare check-in FINISHED *******\n")
 mainLog.close()
 
 
