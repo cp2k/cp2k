@@ -37,6 +37,7 @@ MODULE kinds
   PUBLIC :: sp, dp, qp, dbl, sgl, print_kind_info, dp_size, sp_size, int_size
   PUBLIC :: default_string_length
   PUBLIC :: YES, NO
+  PUBLIC :: return_nan
   
   INTEGER, PARAMETER :: dbl = SELECTED_REAL_KIND ( 14, 200 )
   INTEGER, PARAMETER :: sgl = SELECTED_REAL_KIND ( 6, 30 )
@@ -56,6 +57,13 @@ MODULE kinds
 !******************************************************************************
   
 CONTAINS
+
+FUNCTION return_nan() RESULT(mynan)
+  INTEGER, DIMENSION(2) :: number1=(/ 2146959360, -524288 /)
+  REAL(KIND=dp)         :: number2,mynan
+  EQUIVALENCE(number1,number2)
+  mynan=number2
+END FUNCTION
 
 !******************************************************************************
 !!****** kinds/print_kind_info [1.0] *
