@@ -33,15 +33,22 @@ MODULE message_passing
 
   PRIVATE
 
+#ifdef __parallel
+  logical, parameter :: cp2k_is_parallel=.true.
+#else
+  logical, parameter :: cp2k_is_parallel=.false.
+#endif
+
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN="message_passing"
   ! init and error
-  PUBLIC :: mp_world_init, mp_world_finalize, mp_start, mp_end
+  PUBLIC :: mp_world_init, mp_world_finalize, mp_perf_start, mp_perf_end
   PUBLIC :: mp_stop, mp_abort
 
   ! informational / generation of sub comms
   PUBLIC :: mp_environ, mp_comm_compare, mp_cart_coords, mp_rank_compare
   PUBLIC :: mp_cart_create, mp_dims_create, mp_cart_rank, mp_cart_sub, mp_comm_free
   PUBLIC :: mp_comm_dup
+  PUBLIC :: cp2k_is_parallel
 
   ! message passing
 
@@ -118,6 +125,7 @@ MODULE message_passing
      MODULE PROCEDURE mp_isendrecv_rm2
   END INTERFACE
 
+  ! type internally used to store message passing performance indicators
   TYPE mp_perf_type
     CHARACTER ( LEN = 20 ) :: name
     INTEGER :: count
@@ -125,8 +133,12 @@ MODULE message_passing
     REAL ( dbl ) :: time
   END TYPE mp_perf_type
 
+  ! introduce a stack of mp_perfs, first index is the stack pointer, for convience is replacing
+  INTEGER, PARAMETER :: max_stack_size = 10
   INTEGER, PARAMETER :: MAX_PERF = 10
-  TYPE ( mp_perf_type ), DIMENSION ( MAX_PERF ) :: mp_perf
+  INTEGER            :: stack_pointer = 0
+  TYPE ( mp_perf_type ), DIMENSION (max_stack_size, MAX_PERF ) :: mp_perf
+
   CHARACTER ( LEN = 20 ), PARAMETER :: sname ( MAX_PERF ) =  &
    (/"MP_Group            ", "MP_Bcast            ", "MP_Allreduce        ", &
      "MP_Gather           ", "MP_Sync             ", "MP_Alltoall         ", &
@@ -207,16 +219,19 @@ END SUBROUTINE
 ! all the following routines should work for a given communicator, not MPI_WORLD
 !******************************************************************************
 
-!!****f* message_passing/mp_start/mp_stop *
+!!****f* message_passing/mp_perf_start/mp_perf_stop *
 !!
 !!   NAME
-!!     mp_start  / mp_stop
+!!     mp_perf_start  / mp_perf_stop
 !!
 !!   FUNCTION
 !!     start and stop the performance indicators
+!!     for every call to start there has to be (exactly) one call to stop
 !!
 !!   NOTES
-!!     should work for a given communicator or so, not changing a global var
+!!     can be used to measure performance of a sub-part of a program. 
+!!     timings measured here will not show up in the outer start/stops
+!!     Doesn't need a fresh communicator
 !!
 !!   INPUTS
 !!     - mp_comm : the mpi communicator
@@ -227,21 +242,25 @@ END SUBROUTINE
 !!
 !!   SOURCE
 !!*** **********************************************************************
-SUBROUTINE mp_start()
+SUBROUTINE mp_perf_start()
     INTEGER                                  :: i, ierr
+  stack_pointer = stack_pointer + 1
+  IF (stack_pointer > max_stack_size) THEN
+     CALL mp_stop ( stack_pointer, "stack_pointer too large : message_passing @ mp_start" )   
+  ENDIF
 #if defined(__parallel)
   DO i = 1, MAX_PERF
-    mp_perf (i) % name = sname ( i )
-    mp_perf (i) % count = 0
-    mp_perf (i) % msg_size = 0._dbl
-    mp_perf (i) % time = 0._dbl
+    mp_perf (stack_pointer,i) % name = sname ( i )
+    mp_perf (stack_pointer,i) % count = 0
+    mp_perf (stack_pointer,i) % msg_size = 0._dbl
+    mp_perf (stack_pointer,i) % time = 0._dbl
   END DO
 #endif
 
-END SUBROUTINE mp_start
+END SUBROUTINE mp_perf_start
 
 !.. reports the performance counters for the MPI run
-SUBROUTINE mp_end ( mp_comm, scr )
+SUBROUTINE mp_perf_end ( mp_comm, scr )
   INTEGER, INTENT(IN)                      :: mp_comm
   INTEGER, INTENT(IN)                      :: scr
 
@@ -250,9 +269,12 @@ SUBROUTINE mp_end ( mp_comm, scr )
   REAL(dbl)                                :: per, vol
 
   ierr = 0
+  IF (stack_pointer < 1) THEN
+     CALL mp_stop ( stack_pointer, "stack_pointer too small : message_passing @ mp_start" )   
+  ENDIF
 #if defined(__parallel)
   CALL mp_environ ( numtask, taskid, mp_comm )
-  IF ( ierr /= 0 ) CALL mp_stop ( ierr, "mpi_finalize @ mp_end" )
+  IF ( ierr /= 0 ) CALL mp_stop ( ierr, "message_passing @ mp_end" )
   iw = scr
   IF ( taskid == 0 ) THEN
     WRITE ( iw, '( /, 1X, 79("-") )' )
@@ -264,21 +286,21 @@ SUBROUTINE mp_end ( mp_comm, scr )
             ' TOT TIME [s]  AVE VOLUME [Bytes]  PERFORMANCE [MB/s]'
     DO i = 1, MAX_PERF
 
-      IF ( mp_perf ( i ) % count > 0 ) THEN
-        vol = mp_perf ( i ) % msg_size / REAL ( mp_perf ( i ) % count, dbl )
-        IF ( mp_perf ( i ) % time > 0._dbl ) THEN
-          per = mp_perf ( i ) % msg_size / mp_perf (i) % time * 1.e-6_dbl
+      IF ( mp_perf (stack_pointer, i ) % count > 0 ) THEN
+        vol = mp_perf (stack_pointer, i ) % msg_size / REAL ( mp_perf (stack_pointer, i ) % count, dbl )
+        IF ( mp_perf (stack_pointer, i ) % time > 0._dbl ) THEN
+          per = mp_perf (stack_pointer, i ) % msg_size / mp_perf (stack_pointer,i) % time * 1.e-6_dbl
         ELSE
           per = 0._dbl
         ENDIF
         IF ( vol < 1._dbl ) THEN
           WRITE ( iw, '(1X,A15,T17,I10,T27,F14.3)' ) &
-            ADJUSTL ( mp_perf ( i ) % name ), mp_perf ( i ) % count, &
-            mp_perf ( i ) % time
+            ADJUSTL ( mp_perf (stack_pointer, i ) % name ), mp_perf (stack_pointer, i ) % count, &
+            mp_perf (stack_pointer, i ) % time
         ELSE
           WRITE ( iw, '(1X,A15,T17,I10,T27,F14.3,T50,F11.0,T69,F12.2)' ) &
-            ADJUSTL ( mp_perf ( i ) % name ), mp_perf ( i ) % count, &
-            mp_perf ( i ) % time, vol, per
+            ADJUSTL ( mp_perf (stack_pointer, i ) % name ), mp_perf (stack_pointer, i ) % count, &
+            mp_perf (stack_pointer, i ) % time, vol, per
         END IF
       ENDIF
 
@@ -286,7 +308,8 @@ SUBROUTINE mp_end ( mp_comm, scr )
     WRITE ( iw, '( 1X, 79("-"), / )' )
   END IF
 #endif
-END SUBROUTINE mp_end
+  stack_pointer = stack_pointer - 1
+END SUBROUTINE mp_perf_end
 
 !!****f* message_passing/mp_stop / mp_abort *
 !!
@@ -391,9 +414,9 @@ SUBROUTINE mp_sync ( group )
   t_start = m_cputime ( )
   CALL mpi_barrier ( group, ierr )
   IF ( ierr /= 0 ) CALL mp_stop ( ierr, "mpi_barrier @ mp_sync" )
-  mp_perf ( 5 ) % count = mp_perf ( 5 ) % count + 1
+  mp_perf (stack_pointer, 5 ) % count = mp_perf (stack_pointer, 5 ) % count + 1
   t_end = m_cputime ( )
-  mp_perf ( 5 ) % time = mp_perf ( 5 ) % time + ( t_end - t_start )
+  mp_perf (stack_pointer, 5 ) % time = mp_perf (stack_pointer, 5 ) % time + ( t_end - t_start )
 #endif
 
 END SUBROUTINE mp_sync
@@ -493,9 +516,9 @@ SUBROUTINE mp_cart_create ( comm_old, ndims, dims, pos, comm_cart )
 
   CALL mpi_cart_get ( comm_cart, ndims, dims, period, pos, ierr )
   IF ( ierr /= 0 ) CALL mp_stop ( ierr, "mpi_cart_get @ mp_cart_create" )
-  mp_perf ( 2 ) % count = mp_perf ( 2 ) % count + 1
+  mp_perf (stack_pointer, 2 ) % count = mp_perf (stack_pointer, 2 ) % count + 1
   t_end = m_cputime ( )
-  mp_perf ( 1 ) % time = mp_perf ( 1 ) % time + ( t_end - t_start )
+  mp_perf (stack_pointer, 1 ) % time = mp_perf (stack_pointer, 1 ) % time + ( t_end - t_start )
 #else
   dims = 1
   comm_cart = 0
@@ -735,9 +758,9 @@ SUBROUTINE mp_shift_im( msg, group, displ_in)
      WRITE (*,*) msglen,status
      CALL mp_stop ( ierror, "mpi_sendrecv_replace @ mp_shift_im" )
   END IF
-  mp_perf ( 7 ) % count = mp_perf ( 7 ) % count + 1
-  mp_perf ( 7 ) % msg_size = mp_perf ( 7 ) % msg_size + msglen
-  mp_perf ( 7 ) % time = mp_perf ( 7 ) % time + ( t_end - t_start )
+  mp_perf (stack_pointer, 7 ) % count = mp_perf (stack_pointer, 7 ) % count + 1
+  mp_perf (stack_pointer, 7 ) % msg_size = mp_perf (stack_pointer, 7 ) % msg_size + msglen
+  mp_perf (stack_pointer, 7 ) % time = mp_perf (stack_pointer, 7 ) % time + ( t_end - t_start )
   DEALLOCATE(status)
 #endif
 
@@ -779,9 +802,9 @@ SUBROUTINE mp_shift_rm( msg, group, displ_in)
 !    WRITE (*,*) estring(1:elen)
      CALL mp_stop ( ierror, "mpi_sendrecv_replace @ mp_shift_rm" )
   END IF
-  mp_perf ( 7 ) % count = mp_perf ( 7 ) % count + 1
-  mp_perf ( 7 ) % msg_size = mp_perf ( 7 ) % msg_size + msglen * reallen
-  mp_perf ( 7 ) % time = mp_perf ( 7 ) % time + ( t_end - t_start )
+  mp_perf (stack_pointer, 7 ) % count = mp_perf (stack_pointer, 7 ) % count + 1
+  mp_perf (stack_pointer, 7 ) % msg_size = mp_perf (stack_pointer, 7 ) % msg_size + msglen * reallen
+  mp_perf (stack_pointer, 7 ) % time = mp_perf (stack_pointer, 7 ) % time + ( t_end - t_start )
   DEALLOCATE(status)
 #endif
 
@@ -823,9 +846,9 @@ SUBROUTINE mp_shift_r1( msg, group, displ_in)
 !    WRITE (*,*) estring(1:elen)
      CALL mp_stop ( ierror, "mpi_sendrecv_replace @ mp_shift_r1" )
   END IF
-  mp_perf ( 7 ) % count = mp_perf ( 7 ) % count + 1
-  mp_perf ( 7 ) % msg_size = mp_perf ( 7 ) % msg_size + msglen * reallen
-  mp_perf ( 7 ) % time = mp_perf ( 7 ) % time + ( t_end - t_start )
+  mp_perf (stack_pointer, 7 ) % count = mp_perf (stack_pointer, 7 ) % count + 1
+  mp_perf (stack_pointer, 7 ) % msg_size = mp_perf (stack_pointer, 7 ) % msg_size + msglen * reallen
+  mp_perf (stack_pointer, 7 ) % time = mp_perf (stack_pointer, 7 ) % time + ( t_end - t_start )
   DEALLOCATE(status)
 #endif
 
@@ -873,11 +896,11 @@ SUBROUTINE mp_alltoall_i11v ( sb, scount, sdispl, rb, rcount, rdispl, group )
   CALL mpi_alltoallv ( sb, scount, sdispl, MPI_INTEGER, &
                        rb, rcount, rdispl, MPI_INTEGER, group, ierr )
   IF ( ierr /= 0 ) CALL mp_stop( ierr, "mpi_alltoallv @ mp_alltoall_i11v" )
-  mp_perf ( 6 ) % count = mp_perf ( 6 ) % count + 1
+  mp_perf (stack_pointer, 6 ) % count = mp_perf (stack_pointer, 6 ) % count + 1
   msglen = SUM ( scount ) + SUM ( rcount )
-  mp_perf ( 6 ) % msg_size = mp_perf ( 6 ) % msg_size + msglen * intlen
+  mp_perf (stack_pointer, 6 ) % msg_size = mp_perf (stack_pointer, 6 ) % msg_size + msglen * intlen
   t_end = m_cputime ( )
-  mp_perf ( 6 ) % time = mp_perf ( 6 ) % time + ( t_end - t_start )
+  mp_perf (stack_pointer, 6 ) % time = mp_perf (stack_pointer, 6 ) % time + ( t_end - t_start )
 #else
   rb(rdispl(1)+1:rdispl(1)+rcount(1))=sb(sdispl(1)+1:sdispl(1)+scount(1))
 #endif
@@ -901,11 +924,11 @@ SUBROUTINE mp_alltoall_r11v ( sb, scount, sdispl, rb, rcount, rdispl, group )
   CALL mpi_alltoallv ( sb, scount, sdispl, MPI_DOUBLE_PRECISION, &
                        rb, rcount, rdispl, MPI_DOUBLE_PRECISION, group, ierr )
   IF ( ierr /= 0 ) CALL mp_stop( ierr, "mpi_alltoallv @ mp_alltoall_r11v" )
-  mp_perf ( 6 ) % count = mp_perf ( 6 ) % count + 1
+  mp_perf (stack_pointer, 6 ) % count = mp_perf (stack_pointer, 6 ) % count + 1
   msglen = SUM ( scount ) + SUM ( rcount )
-  mp_perf ( 6 ) % msg_size = mp_perf ( 6 ) % msg_size + msglen * reallen
+  mp_perf (stack_pointer, 6 ) % msg_size = mp_perf (stack_pointer, 6 ) % msg_size + msglen * reallen
   t_end = m_cputime ( )
-  mp_perf ( 6 ) % time = mp_perf ( 6 ) % time + ( t_end - t_start )
+  mp_perf (stack_pointer, 6 ) % time = mp_perf (stack_pointer, 6 ) % time + ( t_end - t_start )
 #else
   rb(rdispl(1)+1:rdispl(1)+rcount(1))=sb(sdispl(1)+1:sdispl(1)+scount(1))
 #endif
@@ -933,11 +956,11 @@ SUBROUTINE mp_alltoall_c22v ( sb, scount, sdispl, rb, rcount, rdispl, group )
   CALL mpi_alltoallv ( sb, scount, sdispl, MPI_DOUBLE_COMPLEX, &
                        rb, rcount, rdispl, MPI_DOUBLE_COMPLEX, group, ierr )
   IF ( ierr /= 0 ) CALL mp_stop( ierr, "mpi_alltoallv @ mp_alltoall_c22v" )
-  mp_perf ( 6 ) % count = mp_perf ( 6 ) % count + 1
+  mp_perf (stack_pointer, 6 ) % count = mp_perf (stack_pointer, 6 ) % count + 1
   msglen = SUM ( scount ) + SUM ( rcount )
-  mp_perf ( 6 ) % msg_size = mp_perf ( 6 ) % msg_size + msglen * 2 * reallen
+  mp_perf (stack_pointer, 6 ) % msg_size = mp_perf (stack_pointer, 6 ) % msg_size + msglen * 2 * reallen
   t_end = m_cputime ( )
-  mp_perf ( 6 ) % time = mp_perf ( 6 ) % time + ( t_end - t_start )
+  mp_perf (stack_pointer, 6 ) % time = mp_perf (stack_pointer, 6 ) % time + ( t_end - t_start )
 #else
   rb=sb
 #endif
@@ -959,13 +982,13 @@ SUBROUTINE mp_alltoall_i ( sb, rb, count, group )
   CALL mpi_alltoall ( sb, count, MPI_INTEGER, &
                       rb, count, MPI_INTEGER, group, ierr )
   IF ( ierr /= 0 ) CALL mp_stop( ierr, "mpi_alltoall @ mp_alltoall_i" )
-  mp_perf ( 6 ) % count = mp_perf ( 6 ) % count + 1
+  mp_perf (stack_pointer, 6 ) % count = mp_perf (stack_pointer, 6 ) % count + 1
   CALL mpi_comm_size ( group, np, ierr )
   IF ( ierr /= 0 ) CALL mp_stop ( ierr, "mpi_comm_size @ mp_alltoall_i" )
   msglen = 2 * count * np
-  mp_perf ( 6 ) % msg_size = mp_perf ( 6 ) % msg_size + msglen * intlen
+  mp_perf (stack_pointer, 6 ) % msg_size = mp_perf (stack_pointer, 6 ) % msg_size + msglen * intlen
   t_end = m_cputime ( )
-  mp_perf ( 6 ) % time = mp_perf ( 6 ) % time + ( t_end - t_start )
+  mp_perf (stack_pointer, 6 ) % time = mp_perf (stack_pointer, 6 ) % time + ( t_end - t_start )
 #else
   rb=sb
 #endif
@@ -986,10 +1009,10 @@ SUBROUTINE mp_bcast_i1(msg,source,gid)
   t_start = m_cputime ( )
   CALL mpi_bcast(msg,msglen,MPI_INTEGER,source,gid,ierr)
   IF ( ierr /= 0 ) CALL mp_stop( ierr, "mpi_bcast @ mp_bcast_i1" )
-  mp_perf ( 2 ) % count = mp_perf ( 2 ) % count + 1
-  mp_perf ( 2 ) % msg_size = mp_perf ( 2 ) % msg_size + msglen * intlen
+  mp_perf (stack_pointer, 2 ) % count = mp_perf (stack_pointer, 2 ) % count + 1
+  mp_perf (stack_pointer, 2 ) % msg_size = mp_perf (stack_pointer, 2 ) % msg_size + msglen * intlen
   t_end = m_cputime ( )
-  mp_perf ( 2 ) % time = mp_perf ( 2 ) % time + ( t_end - t_start )
+  mp_perf (stack_pointer, 2 ) % time = mp_perf (stack_pointer, 2 ) % time + ( t_end - t_start )
 #endif
 END SUBROUTINE mp_bcast_i1
 SUBROUTINE mp_bcast_iv(msg,source,gid)
@@ -1003,10 +1026,10 @@ SUBROUTINE mp_bcast_iv(msg,source,gid)
   t_start = m_cputime ( )
   CALL mpi_bcast(msg,msglen,MPI_INTEGER,source,gid,ierr)
   IF ( ierr /= 0 ) CALL mp_stop( ierr, "mpi_bcast @ mp_bcast_iv" )
-  mp_perf ( 2 ) % count = mp_perf ( 2 ) % count + 1
-  mp_perf ( 2 ) % msg_size = mp_perf ( 2 ) % msg_size + msglen * intlen
+  mp_perf (stack_pointer, 2 ) % count = mp_perf (stack_pointer, 2 ) % count + 1
+  mp_perf (stack_pointer, 2 ) % msg_size = mp_perf (stack_pointer, 2 ) % msg_size + msglen * intlen
   t_end = m_cputime ( )
-  mp_perf ( 2 ) % time = mp_perf ( 2 ) % time + ( t_end - t_start )
+  mp_perf (stack_pointer, 2 ) % time = mp_perf (stack_pointer, 2 ) % time + ( t_end - t_start )
 #endif
 END SUBROUTINE mp_bcast_iv
 SUBROUTINE mp_bcast_im(msg,source,gid)
@@ -1020,10 +1043,10 @@ SUBROUTINE mp_bcast_im(msg,source,gid)
   t_start = m_cputime ( )
   CALL mpi_bcast(msg,msglen,MPI_INTEGER,source,gid,ierr)
   IF ( ierr /= 0 ) CALL mp_stop( ierr, "mpi_bcast @ mp_bcast_im" )
-  mp_perf ( 2 ) % count = mp_perf ( 2 ) % count + 1
-  mp_perf ( 2 ) % msg_size = mp_perf ( 2 ) % msg_size + msglen * intlen
+  mp_perf (stack_pointer, 2 ) % count = mp_perf (stack_pointer, 2 ) % count + 1
+  mp_perf (stack_pointer, 2 ) % msg_size = mp_perf (stack_pointer, 2 ) % msg_size + msglen * intlen
   t_end = m_cputime ( )
-  mp_perf ( 2 ) % time = mp_perf ( 2 ) % time + ( t_end - t_start )
+  mp_perf (stack_pointer, 2 ) % time = mp_perf (stack_pointer, 2 ) % time + ( t_end - t_start )
 #endif
 END SUBROUTINE mp_bcast_im
 SUBROUTINE mp_bcast_r1(msg,source,gid)
@@ -1038,10 +1061,10 @@ SUBROUTINE mp_bcast_r1(msg,source,gid)
   t_start = m_cputime ( )
   CALL mpi_bcast(msg,msglen,MPI_DOUBLE_PRECISION,source,gid,ierr)
   IF ( ierr /= 0 ) CALL mp_stop( ierr, "mpi_bcast @ mp_bcast_r1" )
-  mp_perf ( 2 ) % count = mp_perf ( 2 ) % count + 1
-  mp_perf ( 2 ) % msg_size = mp_perf ( 2 ) % msg_size + msglen * reallen
+  mp_perf (stack_pointer, 2 ) % count = mp_perf (stack_pointer, 2 ) % count + 1
+  mp_perf (stack_pointer, 2 ) % msg_size = mp_perf (stack_pointer, 2 ) % msg_size + msglen * reallen
   t_end = m_cputime ( )
-  mp_perf ( 2 ) % time = mp_perf ( 2 ) % time + ( t_end - t_start )
+  mp_perf (stack_pointer, 2 ) % time = mp_perf (stack_pointer, 2 ) % time + ( t_end - t_start )
 #endif
 END SUBROUTINE mp_bcast_r1
 SUBROUTINE mp_bcast_rv(msg,source,gid)
@@ -1056,10 +1079,10 @@ SUBROUTINE mp_bcast_rv(msg,source,gid)
   t_start = m_cputime ( )
   CALL mpi_bcast(msg,msglen,MPI_DOUBLE_PRECISION,source,gid,ierr)
   IF ( ierr /= 0 ) CALL mp_stop( ierr, "mpi_bcast @ mp_bcast_rv" )
-  mp_perf ( 2 ) % count = mp_perf ( 2 ) % count + 1
-  mp_perf ( 2 ) % msg_size = mp_perf ( 2 ) % msg_size + msglen * reallen
+  mp_perf (stack_pointer, 2 ) % count = mp_perf (stack_pointer, 2 ) % count + 1
+  mp_perf (stack_pointer, 2 ) % msg_size = mp_perf (stack_pointer, 2 ) % msg_size + msglen * reallen
   t_end = m_cputime ( )
-  mp_perf ( 2 ) % time = mp_perf ( 2 ) % time + ( t_end - t_start )
+  mp_perf (stack_pointer, 2 ) % time = mp_perf (stack_pointer, 2 ) % time + ( t_end - t_start )
 #endif
 END SUBROUTINE mp_bcast_rv
 SUBROUTINE mp_bcast_rm(msg,source,gid)
@@ -1074,10 +1097,10 @@ SUBROUTINE mp_bcast_rm(msg,source,gid)
   t_start = m_cputime ( )
   CALL mpi_bcast(msg,msglen,MPI_DOUBLE_PRECISION,source,gid,ierr)
   IF ( ierr /= 0 ) CALL mp_stop( ierr, "mpi_bcast @ mp_bcast_rm" )
-  mp_perf ( 2 ) % count = mp_perf ( 2 ) % count + 1
-  mp_perf ( 2 ) % msg_size = mp_perf ( 2 ) % msg_size + msglen * reallen
+  mp_perf (stack_pointer, 2 ) % count = mp_perf (stack_pointer, 2 ) % count + 1
+  mp_perf (stack_pointer, 2 ) % msg_size = mp_perf (stack_pointer, 2 ) % msg_size + msglen * reallen
   t_end = m_cputime ( )
-  mp_perf ( 2 ) % time = mp_perf ( 2 ) % time + ( t_end - t_start )
+  mp_perf (stack_pointer, 2 ) % time = mp_perf (stack_pointer, 2 ) % time + ( t_end - t_start )
 #endif
 END SUBROUTINE mp_bcast_rm
 SUBROUTINE mp_bcast_rm3(msg,source,gid)
@@ -1092,10 +1115,10 @@ SUBROUTINE mp_bcast_rm3(msg,source,gid)
   t_start = m_cputime ( )
   CALL mpi_bcast(msg,msglen,MPI_DOUBLE_PRECISION,source,gid,ierr)
   IF ( ierr /= 0 ) CALL mp_stop( ierr, "mpi_bcast @ mp_bcast_rm" )
-  mp_perf ( 2 ) % count = mp_perf ( 2 ) % count + 1
-  mp_perf ( 2 ) % msg_size = mp_perf ( 2 ) % msg_size + msglen * reallen
+  mp_perf (stack_pointer, 2 ) % count = mp_perf (stack_pointer, 2 ) % count + 1
+  mp_perf (stack_pointer, 2 ) % msg_size = mp_perf (stack_pointer, 2 ) % msg_size + msglen * reallen
   t_end = m_cputime ( )
-  mp_perf ( 2 ) % time = mp_perf ( 2 ) % time + ( t_end - t_start )
+  mp_perf (stack_pointer, 2 ) % time = mp_perf (stack_pointer, 2 ) % time + ( t_end - t_start )
 #endif
 END SUBROUTINE mp_bcast_rm3
 SUBROUTINE mp_bcast_c1(msg,source,gid)
@@ -1110,10 +1133,10 @@ SUBROUTINE mp_bcast_c1(msg,source,gid)
   t_start = m_cputime ( )
   CALL mpi_bcast(msg,msglen,MPI_DOUBLE_COMPLEX,source,gid,ierr)
   IF ( ierr /= 0 ) CALL mp_stop( ierr, "mpi_bcast @ mp_bcast_c1" )
-  mp_perf ( 2 ) % count = mp_perf ( 2 ) % count + 1
-  mp_perf ( 2 ) % msg_size = mp_perf ( 2 ) % msg_size + msglen * reallen*2
+  mp_perf (stack_pointer, 2 ) % count = mp_perf (stack_pointer, 2 ) % count + 1
+  mp_perf (stack_pointer, 2 ) % msg_size = mp_perf (stack_pointer, 2 ) % msg_size + msglen * reallen*2
   t_end = m_cputime ( )
-  mp_perf ( 2 ) % time = mp_perf ( 2 ) % time + ( t_end - t_start )
+  mp_perf (stack_pointer, 2 ) % time = mp_perf (stack_pointer, 2 ) % time + ( t_end - t_start )
 #endif
 END SUBROUTINE mp_bcast_c1
 SUBROUTINE mp_bcast_cv(msg,source,gid)
@@ -1128,10 +1151,10 @@ SUBROUTINE mp_bcast_cv(msg,source,gid)
   t_start = m_cputime ( )
   CALL mpi_bcast(msg,msglen,MPI_DOUBLE_COMPLEX,source,gid,ierr)
   IF ( ierr /= 0 ) CALL mp_stop( ierr, "mpi_bcast @ mp_bcast_cv" )
-  mp_perf ( 2 ) % count = mp_perf ( 2 ) % count + 1
-  mp_perf ( 2 ) % msg_size = mp_perf ( 2 ) % msg_size + msglen * reallen*2
+  mp_perf (stack_pointer, 2 ) % count = mp_perf (stack_pointer, 2 ) % count + 1
+  mp_perf (stack_pointer, 2 ) % msg_size = mp_perf (stack_pointer, 2 ) % msg_size + msglen * reallen*2
   t_end = m_cputime ( )
-  mp_perf ( 2 ) % time = mp_perf ( 2 ) % time + ( t_end - t_start )
+  mp_perf (stack_pointer, 2 ) % time = mp_perf (stack_pointer, 2 ) % time + ( t_end - t_start )
 #endif
 END SUBROUTINE mp_bcast_cv
 SUBROUTINE mp_bcast_cm(msg,source,gid)
@@ -1146,10 +1169,10 @@ SUBROUTINE mp_bcast_cm(msg,source,gid)
   t_start = m_cputime ( )
   CALL mpi_bcast(msg,msglen,MPI_DOUBLE_COMPLEX,source,gid,ierr)
   IF ( ierr /= 0 ) CALL mp_stop( ierr, "mpi_bcast @ mp_bcast_cm")
-  mp_perf ( 2 ) % count = mp_perf ( 2 ) % count + 1
-  mp_perf ( 2 ) % msg_size = mp_perf ( 2 ) % msg_size + msglen * reallen*2
+  mp_perf (stack_pointer, 2 ) % count = mp_perf (stack_pointer, 2 ) % count + 1
+  mp_perf (stack_pointer, 2 ) % msg_size = mp_perf (stack_pointer, 2 ) % msg_size + msglen * reallen*2
   t_end = m_cputime ( )
-  mp_perf ( 2 ) % time = mp_perf ( 2 ) % time + ( t_end - t_start )
+  mp_perf (stack_pointer, 2 ) % time = mp_perf (stack_pointer, 2 ) % time + ( t_end - t_start )
 #endif
 END SUBROUTINE mp_bcast_cm
 SUBROUTINE mp_bcast_l(msg,source,gid)
@@ -1164,10 +1187,10 @@ SUBROUTINE mp_bcast_l(msg,source,gid)
   t_start = m_cputime ( )
   CALL mpi_bcast(msg,msglen,MPI_LOGICAL,source,gid,ierr)
   IF ( ierr /= 0 ) CALL mp_stop( ierr, "mpi_bcast @ mp_bcast_l" )
-  mp_perf ( 2 ) % count = mp_perf ( 2 ) % count + 1
-  mp_perf ( 2 ) % msg_size = mp_perf ( 2 ) % msg_size + msglen * loglen
+  mp_perf (stack_pointer, 2 ) % count = mp_perf (stack_pointer, 2 ) % count + 1
+  mp_perf (stack_pointer, 2 ) % msg_size = mp_perf (stack_pointer, 2 ) % msg_size + msglen * loglen
   t_end = m_cputime ( )
-  mp_perf ( 2 ) % time = mp_perf ( 2 ) % time + ( t_end - t_start )
+  mp_perf (stack_pointer, 2 ) % time = mp_perf (stack_pointer, 2 ) % time + ( t_end - t_start )
 #endif
 END SUBROUTINE mp_bcast_l
 SUBROUTINE mp_bcast_z(msg,source,gid)
@@ -1196,10 +1219,10 @@ SUBROUTINE mp_bcast_z(msg,source,gid)
   END DO
   DEALLOCATE (imsg)
   IF ( ierr /= 0 ) CALL mp_stop( ierr, "mpi_bcast @ mp_bcast_z" )
-  mp_perf ( 2 ) % count = mp_perf ( 2 ) % count + 1
-  mp_perf ( 2 ) % msg_size = mp_perf ( 2 ) % msg_size + msglen * charlen
+  mp_perf (stack_pointer, 2 ) % count = mp_perf (stack_pointer, 2 ) % count + 1
+  mp_perf (stack_pointer, 2 ) % msg_size = mp_perf (stack_pointer, 2 ) % msg_size + msglen * charlen
   t_end = m_cputime ( )
-  mp_perf ( 2 ) % time = mp_perf ( 2 ) % time + ( t_end - t_start )
+  mp_perf (stack_pointer, 2 ) % time = mp_perf (stack_pointer, 2 ) % time + ( t_end - t_start )
 #endif
 END SUBROUTINE mp_bcast_z
 
@@ -1218,10 +1241,10 @@ SUBROUTINE mp_sum_i1(msg,gid)
   CALL mpi_allreduce(msg,res,msglen,MPI_INTEGER,MPI_SUM,gid,ierr)
   msg = res
   IF ( ierr /= 0 ) CALL mp_stop( ierr, "mpi_allreduce @ mp_sum_i1" )
-  mp_perf ( 3 ) % count = mp_perf ( 3 ) % count + 1
-  mp_perf ( 3 ) % msg_size = mp_perf ( 3 ) % msg_size + msglen * intlen
+  mp_perf (stack_pointer, 3 ) % count = mp_perf (stack_pointer, 3 ) % count + 1
+  mp_perf (stack_pointer, 3 ) % msg_size = mp_perf (stack_pointer, 3 ) % msg_size + msglen * intlen
   t_end = m_cputime ( )
-  mp_perf ( 3 ) % time = mp_perf ( 3 ) % time + ( t_end - t_start )
+  mp_perf (stack_pointer, 3 ) % time = mp_perf (stack_pointer, 3 ) % time + ( t_end - t_start )
 #endif
 END SUBROUTINE mp_sum_i1
 SUBROUTINE mp_sum_iv(msg,gid)
@@ -1239,10 +1262,10 @@ SUBROUTINE mp_sum_iv(msg,gid)
   msg = res
   DEALLOCATE (res)
   IF ( ierr /= 0 ) CALL mp_stop( ierr, "mpi_allreduce @ mp_sum_iv" )
-  mp_perf ( 3 ) % count = mp_perf ( 3 ) % count + 1
-  mp_perf ( 3 ) % msg_size = mp_perf ( 3 ) % msg_size + msglen * intlen
+  mp_perf (stack_pointer, 3 ) % count = mp_perf (stack_pointer, 3 ) % count + 1
+  mp_perf (stack_pointer, 3 ) % msg_size = mp_perf (stack_pointer, 3 ) % msg_size + msglen * intlen
   t_end = m_cputime ( )
-  mp_perf ( 3 ) % time = mp_perf ( 3 ) % time + ( t_end - t_start )
+  mp_perf (stack_pointer, 3 ) % time = mp_perf (stack_pointer, 3 ) % time + ( t_end - t_start )
 #endif
 END SUBROUTINE mp_sum_iv
 SUBROUTINE mp_sum_im(msg,gid)
@@ -1262,10 +1285,10 @@ SUBROUTINE mp_sum_im(msg,gid)
   msg = res
   DEALLOCATE (res)
   IF ( ierr /= 0 ) CALL mp_stop( ierr, "mpi_allreduce @ mp_sum_im" )
-  mp_perf ( 3 ) % count = mp_perf ( 3 ) % count + 1
-  mp_perf ( 3 ) % msg_size = mp_perf ( 3 ) % msg_size + msglen * intlen
+  mp_perf (stack_pointer, 3 ) % count = mp_perf (stack_pointer, 3 ) % count + 1
+  mp_perf (stack_pointer, 3 ) % msg_size = mp_perf (stack_pointer, 3 ) % msg_size + msglen * intlen
   t_end = m_cputime ( )
-  mp_perf ( 3 ) % time = mp_perf ( 3 ) % time + ( t_end - t_start )
+  mp_perf (stack_pointer, 3 ) % time = mp_perf (stack_pointer, 3 ) % time + ( t_end - t_start )
 #endif
 END SUBROUTINE mp_sum_im
 SUBROUTINE mp_sum_im3(msg,gid)
@@ -1286,10 +1309,10 @@ SUBROUTINE mp_sum_im3(msg,gid)
   msg = res
   DEALLOCATE (res)
   IF ( ierr /= 0 ) CALL mp_stop( ierr, "mpi_allreduce @ mp_sum_im3" )
-  mp_perf ( 3 ) % count = mp_perf ( 3 ) % count + 1
-  mp_perf ( 3 ) % msg_size = mp_perf ( 3 ) % msg_size + msglen * intlen
+  mp_perf (stack_pointer, 3 ) % count = mp_perf (stack_pointer, 3 ) % count + 1
+  mp_perf (stack_pointer, 3 ) % msg_size = mp_perf (stack_pointer, 3 ) % msg_size + msglen * intlen
   t_end = m_cputime ( )
-  mp_perf ( 3 ) % time = mp_perf ( 3 ) % time + ( t_end - t_start )
+  mp_perf (stack_pointer, 3 ) % time = mp_perf (stack_pointer, 3 ) % time + ( t_end - t_start )
 #endif
 END SUBROUTINE mp_sum_im3
 SUBROUTINE mp_sum_r1(msg,gid)
@@ -1306,10 +1329,10 @@ SUBROUTINE mp_sum_r1(msg,gid)
        ierr)
   msg = res
   IF ( ierr /= 0 ) CALL mp_stop( ierr, "mpi_allreduce @ mp_sum_r1" )
-  mp_perf ( 3 ) % count = mp_perf ( 3 ) % count + 1
-  mp_perf ( 3 ) % msg_size = mp_perf ( 3 ) % msg_size + msglen * reallen
+  mp_perf (stack_pointer, 3 ) % count = mp_perf (stack_pointer, 3 ) % count + 1
+  mp_perf (stack_pointer, 3 ) % msg_size = mp_perf (stack_pointer, 3 ) % msg_size + msglen * reallen
   t_end = m_cputime ( )
-  mp_perf ( 3 ) % time = mp_perf ( 3 ) % time + ( t_end - t_start )
+  mp_perf (stack_pointer, 3 ) % time = mp_perf (stack_pointer, 3 ) % time + ( t_end - t_start )
 #endif
 END SUBROUTINE mp_sum_r1
 SUBROUTINE mp_sum_rv(msg,gid)
@@ -1328,10 +1351,10 @@ SUBROUTINE mp_sum_rv(msg,gid)
   msg = res
   DEALLOCATE (res)
   IF ( ierr /= 0 ) CALL mp_stop( ierr, "mpi_allreduce @ mp_sum_rv" )
-  mp_perf ( 3 ) % count = mp_perf ( 3 ) % count + 1
-  mp_perf ( 3 ) % msg_size = mp_perf ( 3 ) % msg_size + msglen * reallen
+  mp_perf (stack_pointer, 3 ) % count = mp_perf (stack_pointer, 3 ) % count + 1
+  mp_perf (stack_pointer, 3 ) % msg_size = mp_perf (stack_pointer, 3 ) % msg_size + msglen * reallen
   t_end = m_cputime ( )
-  mp_perf ( 3 ) % time = mp_perf ( 3 ) % time + ( t_end - t_start )
+  mp_perf (stack_pointer, 3 ) % time = mp_perf (stack_pointer, 3 ) % time + ( t_end - t_start )
 #endif
 END SUBROUTINE mp_sum_rv
 SUBROUTINE mp_sum_root_rv(msg,root,gid)
@@ -1355,10 +1378,10 @@ SUBROUTINE mp_sum_root_rv(msg,root,gid)
   END IF
   DEALLOCATE (res)
   IF ( ierr /= 0 ) CALL mp_stop( ierr, "mpi_reduce @ mp_sum_root_rv" )
-  mp_perf ( 3 ) % count = mp_perf ( 3 ) % count + 1
-  mp_perf ( 3 ) % msg_size = mp_perf ( 3 ) % msg_size + msglen * reallen
+  mp_perf (stack_pointer, 3 ) % count = mp_perf (stack_pointer, 3 ) % count + 1
+  mp_perf (stack_pointer, 3 ) % msg_size = mp_perf (stack_pointer, 3 ) % msg_size + msglen * reallen
   t_end = m_cputime ( )
-  mp_perf ( 3 ) % time = mp_perf ( 3 ) % time + ( t_end - t_start )
+  mp_perf (stack_pointer, 3 ) % time = mp_perf (stack_pointer, 3 ) % time + ( t_end - t_start )
 #endif
 END SUBROUTINE mp_sum_root_rv
 SUBROUTINE mp_sum_rm(msg,gid)
@@ -1379,10 +1402,10 @@ SUBROUTINE mp_sum_rm(msg,gid)
   msg = res
   DEALLOCATE (res)
   IF ( ierr /= 0 ) CALL mp_stop( ierr, "mpi_allreduce @ mp_sum_rm" )
-  mp_perf ( 3 ) % count = mp_perf ( 3 ) % count + 1
-  mp_perf ( 3 ) % msg_size = mp_perf ( 3 ) % msg_size + msglen * reallen
+  mp_perf (stack_pointer, 3 ) % count = mp_perf (stack_pointer, 3 ) % count + 1
+  mp_perf (stack_pointer, 3 ) % msg_size = mp_perf (stack_pointer, 3 ) % msg_size + msglen * reallen
   t_end = m_cputime ( )
-  mp_perf ( 3 ) % time = mp_perf ( 3 ) % time + ( t_end - t_start )
+  mp_perf (stack_pointer, 3 ) % time = mp_perf (stack_pointer, 3 ) % time + ( t_end - t_start )
 #endif
 END SUBROUTINE mp_sum_rm
 SUBROUTINE mp_sum_root_rm(msg,root,gid)
@@ -1407,10 +1430,10 @@ SUBROUTINE mp_sum_root_rm(msg,root,gid)
   END IF
   DEALLOCATE (res)
   IF ( ierr /= 0 ) CALL mp_stop( ierr, "mpi_reduce @ mp_sum_root_rm" )
-  mp_perf ( 3 ) % count = mp_perf ( 3 ) % count + 1
-  mp_perf ( 3 ) % msg_size = mp_perf ( 3 ) % msg_size + msglen * reallen
+  mp_perf (stack_pointer, 3 ) % count = mp_perf (stack_pointer, 3 ) % count + 1
+  mp_perf (stack_pointer, 3 ) % msg_size = mp_perf (stack_pointer, 3 ) % msg_size + msglen * reallen
   t_end = m_cputime ( )
-  mp_perf ( 3 ) % time = mp_perf ( 3 ) % time + ( t_end - t_start )
+  mp_perf (stack_pointer, 3 ) % time = mp_perf (stack_pointer, 3 ) % time + ( t_end - t_start )
 #endif
 END SUBROUTINE mp_sum_root_rm
 SUBROUTINE mp_sum_rm3(msg,gid)
@@ -1432,10 +1455,10 @@ SUBROUTINE mp_sum_rm3(msg,gid)
   msg = res
   DEALLOCATE (res)
   IF ( ierr /= 0 ) CALL mp_stop( ierr, "mpi_allreduce @ mp_sum_rm3" )
-  mp_perf ( 3 ) % count = mp_perf ( 3 ) % count + 1
-  mp_perf ( 3 ) % msg_size = mp_perf ( 3 ) % msg_size + msglen * reallen
+  mp_perf (stack_pointer, 3 ) % count = mp_perf (stack_pointer, 3 ) % count + 1
+  mp_perf (stack_pointer, 3 ) % msg_size = mp_perf (stack_pointer, 3 ) % msg_size + msglen * reallen
   t_end = m_cputime ( )
-  mp_perf ( 3 ) % time = mp_perf ( 3 ) % time + ( t_end - t_start )
+  mp_perf (stack_pointer, 3 ) % time = mp_perf (stack_pointer, 3 ) % time + ( t_end - t_start )
 #endif
 END SUBROUTINE mp_sum_rm3
 SUBROUTINE mp_sum_root_rm3(msg,root,gid)
@@ -1461,10 +1484,10 @@ SUBROUTINE mp_sum_root_rm3(msg,root,gid)
   END IF
   DEALLOCATE (res)
   IF ( ierr /= 0 ) CALL mp_stop( ierr, "mpi_reduce @ mp_sum_root_rm3" )
-  mp_perf ( 3 ) % count = mp_perf ( 3 ) % count + 1
-  mp_perf ( 3 ) % msg_size = mp_perf ( 3 ) % msg_size + msglen * reallen
+  mp_perf (stack_pointer, 3 ) % count = mp_perf (stack_pointer, 3 ) % count + 1
+  mp_perf (stack_pointer, 3 ) % msg_size = mp_perf (stack_pointer, 3 ) % msg_size + msglen * reallen
   t_end = m_cputime ( )
-  mp_perf ( 3 ) % time = mp_perf ( 3 ) % time + ( t_end - t_start )
+  mp_perf (stack_pointer, 3 ) % time = mp_perf (stack_pointer, 3 ) % time + ( t_end - t_start )
 #endif
 END SUBROUTINE mp_sum_root_rm3
 SUBROUTINE mp_sum_c1(msg,gid)
@@ -1481,10 +1504,10 @@ SUBROUTINE mp_sum_c1(msg,gid)
        ierr)
   msg = res
   IF ( ierr /= 0 ) CALL mp_stop( ierr, "mpi_allreduce @ mp_sum_c1" )
-  mp_perf ( 3 ) % count = mp_perf ( 3 ) % count + 1
-  mp_perf ( 3 ) % msg_size = mp_perf ( 3 ) % msg_size + msglen * reallen*2
+  mp_perf (stack_pointer, 3 ) % count = mp_perf (stack_pointer, 3 ) % count + 1
+  mp_perf (stack_pointer, 3 ) % msg_size = mp_perf (stack_pointer, 3 ) % msg_size + msglen * reallen*2
   t_end = m_cputime ( )
-  mp_perf ( 3 ) % time = mp_perf ( 3 ) % time + ( t_end - t_start )
+  mp_perf (stack_pointer, 3 ) % time = mp_perf (stack_pointer, 3 ) % time + ( t_end - t_start )
 #endif
 END SUBROUTINE mp_sum_c1
 SUBROUTINE mp_sum_cv(msg,gid)
@@ -1503,10 +1526,10 @@ SUBROUTINE mp_sum_cv(msg,gid)
   msg = res
   DEALLOCATE (res)
   IF ( ierr /= 0 ) CALL mp_stop( ierr, "mpi_allreduce @ mp_sum_cv" )
-  mp_perf ( 3 ) % count = mp_perf ( 3 ) % count + 1
-  mp_perf ( 3 ) % msg_size = mp_perf ( 3 ) % msg_size + msglen * reallen*2
+  mp_perf (stack_pointer, 3 ) % count = mp_perf (stack_pointer, 3 ) % count + 1
+  mp_perf (stack_pointer, 3 ) % msg_size = mp_perf (stack_pointer, 3 ) % msg_size + msglen * reallen*2
   t_end = m_cputime ( )
-  mp_perf ( 3 ) % time = mp_perf ( 3 ) % time + ( t_end - t_start )
+  mp_perf (stack_pointer, 3 ) % time = mp_perf (stack_pointer, 3 ) % time + ( t_end - t_start )
 #endif
 END SUBROUTINE mp_sum_cv
 SUBROUTINE mp_sum_cm(msg,gid)
@@ -1527,10 +1550,10 @@ SUBROUTINE mp_sum_cm(msg,gid)
   msg = res
   DEALLOCATE (res)
   IF ( ierr /= 0 ) CALL mp_stop( ierr, "mpi_allreduce @ mp_sum_cm" )
-  mp_perf ( 3 ) % count = mp_perf ( 3 ) % count + 1
-  mp_perf ( 3 ) % msg_size = mp_perf ( 3 ) % msg_size + msglen * reallen*2
+  mp_perf (stack_pointer, 3 ) % count = mp_perf (stack_pointer, 3 ) % count + 1
+  mp_perf (stack_pointer, 3 ) % msg_size = mp_perf (stack_pointer, 3 ) % msg_size + msglen * reallen*2
   t_end = m_cputime ( )
-  mp_perf ( 3 ) % time = mp_perf ( 3 ) % time + ( t_end - t_start )
+  mp_perf (stack_pointer, 3 ) % time = mp_perf (stack_pointer, 3 ) % time + ( t_end - t_start )
 #endif
 END SUBROUTINE mp_sum_cm
 SUBROUTINE mp_sum_cm3(msg,gid)
@@ -1552,10 +1575,10 @@ SUBROUTINE mp_sum_cm3(msg,gid)
   msg = res
   DEALLOCATE (res)
   IF ( ierr /= 0 ) CALL mp_stop( ierr, "mpi_allreduce @ mp_sum_cm3" )
-  mp_perf ( 3 ) % count = mp_perf ( 3 ) % count + 1
-  mp_perf ( 3 ) % msg_size = mp_perf ( 3 ) % msg_size + msglen * reallen*2
+  mp_perf (stack_pointer, 3 ) % count = mp_perf (stack_pointer, 3 ) % count + 1
+  mp_perf (stack_pointer, 3 ) % msg_size = mp_perf (stack_pointer, 3 ) % msg_size + msglen * reallen*2
   t_end = m_cputime ( )
-  mp_perf ( 3 ) % time = mp_perf ( 3 ) % time + ( t_end - t_start )
+  mp_perf (stack_pointer, 3 ) % time = mp_perf (stack_pointer, 3 ) % time + ( t_end - t_start )
 #endif
 END SUBROUTINE mp_sum_cm3
 
@@ -1573,10 +1596,10 @@ SUBROUTINE mp_max_i(msg,gid)
   CALL mpi_allreduce(msg,res,msglen,MPI_INTEGER,MPI_MAX,gid,ierr)
   IF ( ierr /= 0 ) CALL mp_stop( ierr, "mpi_allreduce @ mp_max_i" )
   msg = res
-  mp_perf ( 3 ) % count = mp_perf ( 3 ) % count + 1
-  mp_perf ( 3 ) % msg_size = mp_perf ( 3 ) % msg_size + msglen * intlen
+  mp_perf (stack_pointer, 3 ) % count = mp_perf (stack_pointer, 3 ) % count + 1
+  mp_perf (stack_pointer, 3 ) % msg_size = mp_perf (stack_pointer, 3 ) % msg_size + msglen * intlen
   t_end = m_cputime ( )
-  mp_perf ( 3 ) % time = mp_perf ( 3 ) % time + ( t_end - t_start )
+  mp_perf (stack_pointer, 3 ) % time = mp_perf (stack_pointer, 3 ) % time + ( t_end - t_start )
 #endif
 END SUBROUTINE mp_max_i
 SUBROUTINE mp_max_iv(msg,gid)
@@ -1594,10 +1617,10 @@ SUBROUTINE mp_max_iv(msg,gid)
   msg = res
   DEALLOCATE (res)
   IF ( ierr /= 0 ) CALL mp_stop( ierr, "mpi_allreduce @ mp_max_iv" )
-  mp_perf ( 3 ) % count = mp_perf ( 3 ) % count + 1
-  mp_perf ( 3 ) % msg_size = mp_perf ( 3 ) % msg_size + msglen * intlen
+  mp_perf (stack_pointer, 3 ) % count = mp_perf (stack_pointer, 3 ) % count + 1
+  mp_perf (stack_pointer, 3 ) % msg_size = mp_perf (stack_pointer, 3 ) % msg_size + msglen * intlen
   t_end = m_cputime ( )
-  mp_perf ( 3 ) % time = mp_perf ( 3 ) % time + ( t_end - t_start )
+  mp_perf (stack_pointer, 3 ) % time = mp_perf (stack_pointer, 3 ) % time + ( t_end - t_start )
 #endif
 END SUBROUTINE mp_max_iv
 SUBROUTINE mp_max_r(msg,gid)
@@ -1613,10 +1636,10 @@ SUBROUTINE mp_max_r(msg,gid)
        ierr)
   IF ( ierr /= 0 ) CALL mp_stop( ierr, "mpi_allreduce @ mp_max_r" )
   msg = res
-  mp_perf ( 3 ) % count = mp_perf ( 3 ) % count + 1
-  mp_perf ( 3 ) % msg_size = mp_perf ( 3 ) % msg_size + msglen * reallen
+  mp_perf (stack_pointer, 3 ) % count = mp_perf (stack_pointer, 3 ) % count + 1
+  mp_perf (stack_pointer, 3 ) % msg_size = mp_perf (stack_pointer, 3 ) % msg_size + msglen * reallen
   t_end = m_cputime ( )
-  mp_perf ( 3 ) % time = mp_perf ( 3 ) % time + ( t_end - t_start )
+  mp_perf (stack_pointer, 3 ) % time = mp_perf (stack_pointer, 3 ) % time + ( t_end - t_start )
 #endif
 END SUBROUTINE mp_max_r
 
@@ -1636,10 +1659,10 @@ SUBROUTINE mp_maxloc_i(msg,gid)
   msg = res
   DEALLOCATE (res,STAT=ierr)
   IF ( ierr /= 0 ) CALL mp_stop( ierr, "mpi_allreduce @ mp_maxloc_i" )
-  mp_perf ( 3 ) % count = mp_perf ( 3 ) % count + 1
-  mp_perf ( 3 ) % msg_size = mp_perf ( 3 ) % msg_size + msglen * reallen
+  mp_perf (stack_pointer, 3 ) % count = mp_perf (stack_pointer, 3 ) % count + 1
+  mp_perf (stack_pointer, 3 ) % msg_size = mp_perf (stack_pointer, 3 ) % msg_size + msglen * reallen
   t_end = m_cputime ( )
-  mp_perf ( 3 ) % time = mp_perf ( 3 ) % time + ( t_end - t_start )
+  mp_perf (stack_pointer, 3 ) % time = mp_perf (stack_pointer, 3 ) % time + ( t_end - t_start )
 #endif
 END SUBROUTINE mp_maxloc_i
 
@@ -1659,10 +1682,10 @@ SUBROUTINE mp_minloc_rv(msg,gid)
   msg = res
   DEALLOCATE (res)
   IF ( ierr /= 0 ) CALL mp_stop( ierr, "mpi_allreduce @ mp_min_rv" )
-  mp_perf ( 3 ) % count = mp_perf ( 3 ) % count + 1
-  mp_perf ( 3 ) % msg_size = mp_perf ( 3 ) % msg_size + msglen * reallen
+  mp_perf (stack_pointer, 3 ) % count = mp_perf (stack_pointer, 3 ) % count + 1
+  mp_perf (stack_pointer, 3 ) % msg_size = mp_perf (stack_pointer, 3 ) % msg_size + msglen * reallen
   t_end = m_cputime ( )
-  mp_perf ( 3 ) % time = mp_perf ( 3 ) % time + ( t_end - t_start )
+  mp_perf (stack_pointer, 3 ) % time = mp_perf (stack_pointer, 3 ) % time + ( t_end - t_start )
 #endif
 END SUBROUTINE mp_minloc_rv
 
@@ -1682,10 +1705,10 @@ SUBROUTINE mp_max_rv(msg,gid)
   msg = res
   DEALLOCATE (res)
   IF ( ierr /= 0 ) CALL mp_stop( ierr, "mpi_allreduce @ mp_max_rv" )
-  mp_perf ( 3 ) % count = mp_perf ( 3 ) % count + 1
-  mp_perf ( 3 ) % msg_size = mp_perf ( 3 ) % msg_size + msglen * reallen
+  mp_perf (stack_pointer, 3 ) % count = mp_perf (stack_pointer, 3 ) % count + 1
+  mp_perf (stack_pointer, 3 ) % msg_size = mp_perf (stack_pointer, 3 ) % msg_size + msglen * reallen
   t_end = m_cputime ( )
-  mp_perf ( 3 ) % time = mp_perf ( 3 ) % time + ( t_end - t_start )
+  mp_perf (stack_pointer, 3 ) % time = mp_perf (stack_pointer, 3 ) % time + ( t_end - t_start )
 #endif
 END SUBROUTINE mp_max_rv
 
@@ -1703,10 +1726,10 @@ SUBROUTINE mp_min_i(msg,gid)
   CALL mpi_allreduce(msg,res,msglen,MPI_INTEGER,MPI_MIN,gid,ierr)
   IF ( ierr /= 0 ) CALL mp_stop( ierr, "mpi_allreduce @ mp_min_i" )
   msg = res
-  mp_perf ( 3 ) % count = mp_perf ( 3 ) % count + 1
-  mp_perf ( 3 ) % msg_size = mp_perf ( 3 ) % msg_size + msglen * intlen
+  mp_perf (stack_pointer, 3 ) % count = mp_perf (stack_pointer, 3 ) % count + 1
+  mp_perf (stack_pointer, 3 ) % msg_size = mp_perf (stack_pointer, 3 ) % msg_size + msglen * intlen
   t_end = m_cputime ( )
-  mp_perf ( 3 ) % time = mp_perf ( 3 ) % time + ( t_end - t_start )
+  mp_perf (stack_pointer, 3 ) % time = mp_perf (stack_pointer, 3 ) % time + ( t_end - t_start )
 #endif
 END SUBROUTINE mp_min_i
 SUBROUTINE mp_min_iv(msg,gid)
@@ -1724,10 +1747,10 @@ SUBROUTINE mp_min_iv(msg,gid)
   msg = res
   DEALLOCATE (res)
   IF ( ierr /= 0 ) CALL mp_stop( ierr, "mpi_allreduce @ mp_min_iv" )
-  mp_perf ( 3 ) % count = mp_perf ( 3 ) % count + 1
-  mp_perf ( 3 ) % msg_size = mp_perf ( 3 ) % msg_size + msglen * intlen
+  mp_perf (stack_pointer, 3 ) % count = mp_perf (stack_pointer, 3 ) % count + 1
+  mp_perf (stack_pointer, 3 ) % msg_size = mp_perf (stack_pointer, 3 ) % msg_size + msglen * intlen
   t_end = m_cputime ( )
-  mp_perf ( 3 ) % time = mp_perf ( 3 ) % time + ( t_end - t_start )
+  mp_perf (stack_pointer, 3 ) % time = mp_perf (stack_pointer, 3 ) % time + ( t_end - t_start )
 #endif
 END SUBROUTINE mp_min_iv
 SUBROUTINE mp_min_r(msg,gid)
@@ -1743,10 +1766,10 @@ SUBROUTINE mp_min_r(msg,gid)
        ierr)
   IF ( ierr /= 0 ) CALL mp_stop( ierr, "mpi_allreduce @ mp_min_r" )
   msg = res
-  mp_perf ( 3 ) % count = mp_perf ( 3 ) % count + 1
-  mp_perf ( 3 ) % msg_size = mp_perf ( 3 ) % msg_size + msglen * reallen
+  mp_perf (stack_pointer, 3 ) % count = mp_perf (stack_pointer, 3 ) % count + 1
+  mp_perf (stack_pointer, 3 ) % msg_size = mp_perf (stack_pointer, 3 ) % msg_size + msglen * reallen
   t_end = m_cputime ( )
-  mp_perf ( 3 ) % time = mp_perf ( 3 ) % time + ( t_end - t_start )
+  mp_perf (stack_pointer, 3 ) % time = mp_perf (stack_pointer, 3 ) % time + ( t_end - t_start )
 #endif
 END SUBROUTINE mp_min_r
 SUBROUTINE mp_min_rv(msg,gid)
@@ -1765,10 +1788,10 @@ SUBROUTINE mp_min_rv(msg,gid)
   msg = res
   DEALLOCATE (res)
   IF ( ierr /= 0 ) CALL mp_stop( ierr, "mpi_allreduce @ mp_min_rv" )
-  mp_perf ( 3 ) % count = mp_perf ( 3 ) % count + 1
-  mp_perf ( 3 ) % msg_size = mp_perf ( 3 ) % msg_size + msglen * reallen
+  mp_perf (stack_pointer, 3 ) % count = mp_perf (stack_pointer, 3 ) % count + 1
+  mp_perf (stack_pointer, 3 ) % msg_size = mp_perf (stack_pointer, 3 ) % msg_size + msglen * reallen
   t_end = m_cputime ( )
-  mp_perf ( 3 ) % time = mp_perf ( 3 ) % time + ( t_end - t_start )
+  mp_perf (stack_pointer, 3 ) % time = mp_perf (stack_pointer, 3 ) % time + ( t_end - t_start )
 #endif
 END SUBROUTINE mp_min_rv
 
@@ -1787,10 +1810,10 @@ SUBROUTINE mp_gather_i(msg,msg_gather,root,gid)
   CALL mpi_gather(msg,msglen,MPI_INTEGER,msg_gather,&
                   msglen,MPI_INTEGER,root,gid,ierr)
   IF ( ierr /= 0 ) CALL mp_stop( ierr, "mpi_gather @ mp_gather_i" )
-  mp_perf ( 4 ) % count = mp_perf ( 4 ) % count + 1
-  mp_perf ( 4 ) % msg_size = mp_perf ( 4 ) % msg_size + msglen * intlen
+  mp_perf (stack_pointer, 4 ) % count = mp_perf (stack_pointer, 4 ) % count + 1
+  mp_perf (stack_pointer, 4 ) % msg_size = mp_perf (stack_pointer, 4 ) % msg_size + msglen * intlen
   t_end = m_cputime ( )
-  mp_perf ( 4 ) % time = mp_perf ( 4 ) % time + ( t_end - t_start )
+  mp_perf (stack_pointer, 4 ) % time = mp_perf (stack_pointer, 4 ) % time + ( t_end - t_start )
 #else
   msg_gather = msg
 #endif
@@ -1809,10 +1832,10 @@ SUBROUTINE mp_gather_iv(msg,msg_gather,root,gid)
   CALL mpi_gather(msg,msglen,MPI_INTEGER,msg_gather,&
                   msglen,MPI_INTEGER,root,gid,ierr)
   IF ( ierr /= 0 ) CALL mp_stop( ierr, "mpi_gather @ mp_gather_iv" )
-  mp_perf ( 4 ) % count = mp_perf ( 4 ) % count + 1
-  mp_perf ( 4 ) % msg_size = mp_perf ( 4 ) % msg_size + msglen * intlen
+  mp_perf (stack_pointer, 4 ) % count = mp_perf (stack_pointer, 4 ) % count + 1
+  mp_perf (stack_pointer, 4 ) % msg_size = mp_perf (stack_pointer, 4 ) % msg_size + msglen * intlen
   t_end = m_cputime ( )
-  mp_perf ( 4 ) % time = mp_perf ( 4 ) % time + ( t_end - t_start )
+  mp_perf (stack_pointer, 4 ) % time = mp_perf (stack_pointer, 4 ) % time + ( t_end - t_start )
 #else
   msg_gather = msg
 #endif
@@ -1831,10 +1854,10 @@ SUBROUTINE mp_gather_r(msg,msg_gather,root,gid)
   CALL mpi_gather(msg,msglen,MPI_DOUBLE_PRECISION,msg_gather,&
                   msglen,MPI_DOUBLE_PRECISION,root,gid,ierr)
   IF ( ierr /= 0 ) CALL mp_stop( ierr, "mpi_gather @ mp_gather_r" )
-  mp_perf ( 4 ) % count = mp_perf ( 4 ) % count + 1
-  mp_perf ( 4 ) % msg_size = mp_perf ( 4 ) % msg_size + msglen * reallen
+  mp_perf (stack_pointer, 4 ) % count = mp_perf (stack_pointer, 4 ) % count + 1
+  mp_perf (stack_pointer, 4 ) % msg_size = mp_perf (stack_pointer, 4 ) % msg_size + msglen * reallen
   t_end = m_cputime ( )
-  mp_perf ( 4 ) % time = mp_perf ( 4 ) % time + ( t_end - t_start )
+  mp_perf (stack_pointer, 4 ) % time = mp_perf (stack_pointer, 4 ) % time + ( t_end - t_start )
 #else
   msg_gather = msg
 #endif
@@ -1853,10 +1876,10 @@ SUBROUTINE mp_gather_rv(msg,msg_gather,root,gid)
   CALL mpi_gather(msg,msglen,MPI_DOUBLE_PRECISION,msg_gather,&
                   msglen,MPI_DOUBLE_PRECISION,root,gid,ierr)
   IF ( ierr /= 0 ) CALL mp_stop( ierr, "mpi_gather @ mp_gather_rv" )
-  mp_perf ( 4 ) % count = mp_perf ( 4 ) % count + 1
-  mp_perf ( 4 ) % msg_size = mp_perf ( 4 ) % msg_size + msglen * reallen
+  mp_perf (stack_pointer, 4 ) % count = mp_perf (stack_pointer, 4 ) % count + 1
+  mp_perf (stack_pointer, 4 ) % msg_size = mp_perf (stack_pointer, 4 ) % msg_size + msglen * reallen
   t_end = m_cputime ( )
-  mp_perf ( 4 ) % time = mp_perf ( 4 ) % time + ( t_end - t_start )
+  mp_perf (stack_pointer, 4 ) % time = mp_perf (stack_pointer, 4 ) % time + ( t_end - t_start )
 #else
   msg_gather = msg
 #endif
@@ -1924,10 +1947,10 @@ SUBROUTINE mp_sum_scatter_rv(msgout,msgin,rcount,gid)
                           gid, ierr )
   IF ( ierr /= 0 ) CALL mp_stop( ierr, "mpi_reduce_scatter @ mp_sum_scatter_rv" )
 
-  mp_perf ( 3 ) % count = mp_perf ( 3 ) % count + 1
-  mp_perf ( 3 ) % msg_size = mp_perf ( 3 ) % msg_size + rcount(1) * reallen*2
+  mp_perf (stack_pointer, 3 ) % count = mp_perf (stack_pointer, 3 ) % count + 1
+  mp_perf (stack_pointer, 3 ) % msg_size = mp_perf (stack_pointer, 3 ) % msg_size + rcount(1) * reallen*2
   t_end = m_cputime ( )
-  mp_perf ( 3 ) % time = mp_perf ( 3 ) % time + ( t_end - t_start )
+  mp_perf (stack_pointer, 3 ) % time = mp_perf (stack_pointer, 3 ) % time + ( t_end - t_start )
 #else
   msgin = msgout
   ierr = 0
@@ -1953,10 +1976,10 @@ SUBROUTINE mp_sendrecv_rm3(msgin,dest,msgout,source,comm)
        msglen,MPI_DOUBLE_PRECISION,source,recv_tag,comm,status(1),ierr)
   ! we do not check the status
   IF ( ierr /= 0 ) CALL mp_stop( ierr, "mpi_sendrecv @ mp_send_recv_rm3" )
-  mp_perf ( 7 ) % count = mp_perf ( 7 ) % count + 1
-  mp_perf ( 7 ) % msg_size = mp_perf ( 7 ) % msg_size + msglen * reallen
+  mp_perf (stack_pointer, 7 ) % count = mp_perf (stack_pointer, 7 ) % count + 1
+  mp_perf (stack_pointer, 7 ) % msg_size = mp_perf (stack_pointer, 7 ) % msg_size + msglen * reallen
   t_end = m_cputime ( )
-  mp_perf ( 7 ) % time = mp_perf ( 7 ) % time + ( t_end - t_start )
+  mp_perf (stack_pointer, 7 ) % time = mp_perf (stack_pointer, 7 ) % time + ( t_end - t_start )
   DEALLOCATE(status)
 #else
   msgout = msgin
@@ -1982,10 +2005,10 @@ SUBROUTINE mp_sendrecv_rm2(msgin,dest,msgout,source,comm)
        msglen,MPI_DOUBLE_PRECISION,source,recv_tag,comm,status(1),ierr)
   ! we do not check the status
   IF ( ierr /= 0 ) CALL mp_stop( ierr, "mpi_sendrecv @ mp_send_recv_rm2" )
-  mp_perf ( 7 ) % count = mp_perf ( 7 ) % count + 1
-  mp_perf ( 7 ) % msg_size = mp_perf ( 7 ) % msg_size + msglen * reallen
+  mp_perf (stack_pointer, 7 ) % count = mp_perf (stack_pointer, 7 ) % count + 1
+  mp_perf (stack_pointer, 7 ) % msg_size = mp_perf (stack_pointer, 7 ) % msg_size + msglen * reallen
   t_end = m_cputime ( )
-  mp_perf ( 7 ) % time = mp_perf ( 7 ) % time + ( t_end - t_start )
+  mp_perf (stack_pointer, 7 ) % time = mp_perf (stack_pointer, 7 ) % time + ( t_end - t_start )
   DEALLOCATE(status)
 #else
   msgout = msgin
@@ -2011,10 +2034,10 @@ SUBROUTINE mp_sendrecv_rv(msgin,dest,msgout,source,comm)
        msglen_out,MPI_DOUBLE_PRECISION,source,recv_tag,comm,status(1),ierr)
   ! we do not check the status
   IF ( ierr /= 0 ) CALL mp_stop( ierr, "mpi_sendrecv @ mp_send_recv_rv" )
-  mp_perf ( 7 ) % count = mp_perf ( 7 ) % count + 1
-  mp_perf ( 7 ) % msg_size = mp_perf ( 7 ) % msg_size + (msglen_in+msglen_out) * reallen * 0.5_dbl
+  mp_perf (stack_pointer, 7 ) % count = mp_perf (stack_pointer, 7 ) % count + 1
+  mp_perf (stack_pointer, 7 ) % msg_size = mp_perf (stack_pointer, 7 ) % msg_size + (msglen_in+msglen_out) * reallen * 0.5_dbl
   t_end = m_cputime ( )
-  mp_perf ( 7 ) % time = mp_perf ( 7 ) % time + ( t_end - t_start )
+  mp_perf (stack_pointer, 7 ) % time = mp_perf (stack_pointer, 7 ) % time + ( t_end - t_start )
   DEALLOCATE(status)
 #else
   msgout = msgin
@@ -2083,10 +2106,10 @@ SUBROUTINE mp_isendrecv_rm2(msgin,dest,msgout,source,comm,send_request,&
 
   msglen = (msglen+SIZE(msgout,1)*SIZE(msgout,2))/2
 
-  mp_perf ( 8 ) % count = mp_perf ( 8 ) % count + 1
-  mp_perf ( 8 ) % msg_size = mp_perf ( 8 ) % msg_size + msglen * reallen
+  mp_perf (stack_pointer, 8 ) % count = mp_perf (stack_pointer, 8 ) % count + 1
+  mp_perf (stack_pointer, 8 ) % msg_size = mp_perf (stack_pointer, 8 ) % msg_size + msglen * reallen
   t_end = m_cputime ( )
-  mp_perf ( 8 ) % time = mp_perf ( 8 ) % time + ( t_end - t_start )
+  mp_perf (stack_pointer, 8 ) % time = mp_perf (stack_pointer, 8 ) % time + ( t_end - t_start )
 #else
   send_request=0
   recv_request=0 
@@ -2132,9 +2155,9 @@ SUBROUTINE mp_wait(request)
   ! we do not check the status
   IF ( ierr /= 0 ) CALL mp_stop( ierr, "mpi_wait @ mp_wait" )
 
-  mp_perf ( 9 ) % count = mp_perf ( 9 ) % count + 1
+  mp_perf (stack_pointer, 9 ) % count = mp_perf (stack_pointer, 9 ) % count + 1
   t_end = m_cputime ( )
-  mp_perf ( 9 ) % time = mp_perf ( 9 ) % time + ( t_end - t_start )
+  mp_perf (stack_pointer, 9 ) % time = mp_perf (stack_pointer, 9 ) % time + ( t_end - t_start )
   DEALLOCATE(status)
 #endif
 END SUBROUTINE mp_wait
@@ -2178,9 +2201,9 @@ SUBROUTINE mp_waitall(requests)
   ! we do not check the status
   IF ( ierr /= 0 ) CALL mp_stop( ierr, "mpi_waitall @ mp_waitall" )
 
-  mp_perf ( 9 ) % count = mp_perf ( 9 ) % count + 1
+  mp_perf (stack_pointer, 9 ) % count = mp_perf (stack_pointer, 9 ) % count + 1
   t_end = m_cputime ( )
-  mp_perf ( 9 ) % time = mp_perf ( 9 ) % time + ( t_end - t_start )
+  mp_perf (stack_pointer, 9 ) % time = mp_perf (stack_pointer, 9 ) % time + ( t_end - t_start )
   DEALLOCATE(status)
 #endif
 END SUBROUTINE mp_waitall
@@ -2307,9 +2330,9 @@ SUBROUTINE mp_split(comm,sub_comm, subgroup_min_size, same_size,n_subgroups)
   CALL mpi_comm_split(comm,color,0,sub_comm,ierr)
   IF (ierr/=mpi_success) CALL mp_stop(ierr,"in "//routineP//" split")
      
-  mp_perf ( 10 ) % count = mp_perf ( 10 ) % count + 1
+  mp_perf (stack_pointer, 10 ) % count = mp_perf (stack_pointer, 10 ) % count + 1
   t_end = m_cputime ( )
-  mp_perf ( 10 ) % time = mp_perf ( 10 ) % time + ( t_end - t_start )
+  mp_perf (stack_pointer, 10 ) % time = mp_perf (stack_pointer, 10 ) % time + ( t_end - t_start )
 #else
   IF (PRESENT(subgroup_min_size)) THEN
      IF (subgroup_min_size/=1) CALL mp_stop(0,"not enough procs3 in "//routineP)
@@ -2347,9 +2370,9 @@ SUBROUTINE mp_group(group_list,group_size,base_group,groupid)
 
   CALL mpi_comm_create ( base_group, newgroup, groupid, ierr )
   IF ( ierr /= 0 ) CALL mp_stop ( ierr, "mpi_comm_create @ mp_group" )
-  mp_perf ( 2 ) % count = mp_perf ( 2 ) % count + 1
+  mp_perf (stack_pointer, 2 ) % count = mp_perf (stack_pointer, 2 ) % count + 1
   t_end = m_cputime ( )
-  mp_perf ( 1 ) % time = mp_perf ( 1 ) % time + ( t_end - t_start )
+  mp_perf (stack_pointer, 1 ) % time = mp_perf (stack_pointer, 1 ) % time + ( t_end - t_start )
 #endif
 
 END SUBROUTINE mp_group

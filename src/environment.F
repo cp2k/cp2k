@@ -26,6 +26,8 @@ MODULE environment
   USE cp2k_units,                      ONLY: init_cp2k_units
   USE cp_log_handling,                 ONLY: cp_init_default_logger, &
                                              cp_destroy_default_logger
+  USE cp_para_env,                     ONLY: cp_para_env_release, & 
+                                             cp_para_env_create
   USE fft_tools,                       ONLY: fft3d,&
                                              init_fft
   USE global_types,                    ONLY: BLACS_GRID_COL,&
@@ -52,9 +54,10 @@ MODULE environment
                                              m_hostnm,&
                                              m_iargc
   USE mathconstants,                   ONLY: init_mathcon
-  USE message_passing,                 ONLY: mp_bcast
-  USE parallel,                        ONLY: end_parallel,&
-                                             start_parallel
+  USE message_passing,                 ONLY: mp_bcast, &
+                                             mp_perf_end, &
+                                             mp_perf_start, &
+                                             mp_environ
   USE physcon,                         ONLY: init_physcon,&
                                              write_physcon
   USE qs_parser,                       ONLY: finish_parser,&
@@ -153,9 +156,16 @@ CONTAINS
     WRITE (UNIT=globenv%scr,FMT="(T2,A,T71,I10)")&
       TRIM(user_name)//"@"//TRIM(host_name)//" has created process number",pid
 
-!   *** Initialize message passing environment ***
+    ! set up the necessary varialbes in globenv
+    CALL mp_environ ( globenv % num_pe, globenv % mepos, globenv % group )
+    globenv % source = 0
+    globenv % ionode = (globenv % mepos==globenv % source)
+    nullify(globenv%para_env)
+    call cp_para_env_create (globenv%para_env, group=globenv%group,&
+        owns_group=.false.,source=globenv%source)
 
-    CALL start_parallel(globenv)
+    ! message passing performance
+    CALL mp_perf_start( )
 
 !   *** Set the default logical output and error unit number ***
 
@@ -952,7 +962,7 @@ CONTAINS
     CHARACTER(LEN=60) :: cwd
     CHARACTER(LEN=30) :: host_name,user_name
     CHARACTER(LEN=26) :: datx
-    INTEGER           :: l,output_unit,pid,dum
+    INTEGER           :: l,output_unit,pid
 #if defined(__HPM)
 #include "f_hpm.h"
 #endif
@@ -962,12 +972,12 @@ CONTAINS
     CALL cp_destroy_default_logger()
 
 !   *** Release message passing environment ***
-    dum = globenv%para_env%mepos
-    CALL end_parallel(globenv)
+    CALL cp_para_env_release(globenv%para_env)
+    CALL mp_perf_end ( globenv%group,globenv%scr )
 
 #if defined(__HPM)
     IF (globenv%print%HPM) THEN
-        CALL f_hpmterminate(dum) 
+        CALL f_hpmterminate(globenv%group) 
         use_HPM=.FALSE.
     ENDIF
 #endif

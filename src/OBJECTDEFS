@@ -213,7 +213,6 @@ OBJECTS_GENERIC =\
  pao_types_tests.o\
  pao_unitary_t.o\
  pao_utils.o\
- parallel.o\
  parallel_include.o\
  parser.o\
  particle_list_types.o\

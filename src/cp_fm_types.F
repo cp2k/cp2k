@@ -53,8 +53,8 @@ MODULE cp_fm_types
   USE kinds,                           ONLY: dp
   USE message_passing,                 ONLY: mp_bcast,&
                                              mp_max,&
-                                             mp_sum
-  USE parallel,                        ONLY: cp2k_is_parallel
+                                             mp_sum, &
+                                             cp2k_is_parallel
   USE qs_parser,                       ONLY: close_file,&
                                              open_file
   USE string_utilities,                ONLY: compress

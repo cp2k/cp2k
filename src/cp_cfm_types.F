@@ -46,9 +46,9 @@ MODULE cp_cfm_types
   USE cp_para_types,                   ONLY: cp_blacs_env_type,&
                                              cp_para_env_type
   USE kinds,                           ONLY: dp
-  USE parallel,                        ONLY: cp2k_is_parallel
   USE timings,                         ONLY: timeset,&
                                              timestop
+  USE message_passing,                 ONLY: cp2k_is_parallel
 
   IMPLICIT NONE
   PRIVATE
