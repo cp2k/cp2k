@@ -10,7 +10,6 @@ PERL     = perl
 CC       = cc
 CPP      = cpp
 FC       = mpif90 -FR
-FC_fixed = mpif90 -FI
 LD       = mpif90
 AR       = ar -r
 DFLAGS   = -D__INTEL -D__FFTSG\
