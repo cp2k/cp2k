@@ -128,7 +128,7 @@ SUBROUTINE read_setup_section ( setup, globenv )
 !..parse the input section
   label = '&SETUP'
 ! try to find the input section on the main input file
-  WRITE(iw,*) "PARSING ",setup%set_file_name
+  IF (globenv%ionode) WRITE(iw,*) "PARSING ",setup%set_file_name
   CALL parser_init ( setup % set_file_name, globenv )
   CALL search_label ( label, ierror, ignore_case=.TRUE. )
   IF ( ierror /= 0 ) THEN
