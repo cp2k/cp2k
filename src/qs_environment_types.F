@@ -90,6 +90,7 @@ CONTAINS
       DIMENSION(:), OPTIONAL, POINTER           :: sab_orb,sac_erfc,sac_ppl,&
                                                    sca_ppnl,scb_ppnl
     TYPE(pao_env_type), OPTIONAL, POINTER       :: pao_env
+    INTEGER, INTENT(OUT), OPTIONAL              :: natoms
 
 !   ---------------------------------------------------------------------------
 
