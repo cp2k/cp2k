@@ -73,7 +73,7 @@ CONTAINS
 ! *****************************************************************************
 
   SUBROUTINE force_overlap(ao, kind_info, part, pnode, box, thermo, empparm, &
-                           fo_coef, fo_part, globenv)
+                           fo_coef, fo_part, energy, globenv)
 
 !   ***************************************************************************
 
@@ -86,6 +86,7 @@ CONTAINS
   TYPE ( empirical_parameter_type ), DIMENSION ( : ), INTENT ( IN ) :: empparm
   REAL ( dbl ), DIMENSION (:), INTENT(INOUT) :: fo_coef
   REAL ( dbl ), DIMENSION (:,:), INTENT(INOUT), OPTIONAL :: fo_part
+  REAL ( dbl ), INTENT(OUT) :: energy
   TYPE(global_environment_type), INTENT(IN) :: globenv
 
 ! locals
@@ -103,7 +104,6 @@ CONTAINS
                 ncgf,natom,nat,npart,nkind
   REAL (dbl), DIMENSION (:,:), POINTER :: s_block
   REAL (dbl), DIMENSION (:), POINTER :: zeta, zetb, rpgfa, rpgfb
-  REAL (dbl) :: energy
   TYPE (real_matrix_set_type) :: smat
   REAL ( dbl ), DIMENSION (3) :: ri, rij, s, perd, &
        vec, quotient, cell_lengths
@@ -114,6 +114,7 @@ CONTAINS
   INTEGER, DIMENSION(:,:,:), ALLOCATABLE, SAVE :: n_images
   LOGICAL :: first_time                                             
   LOGICAL :: forces                                             
+  LOGICAL :: deriv                                             
 
 !   ---------------------------------------------------------------------------
 
@@ -127,6 +128,8 @@ CONTAINS
   hmat = box % hmat 
   h_inv = box % h_inv
   perd = box % perd      
+  energy = 0._dbl
+  deriv = .FALSE.
 
   DO ikind = 1, nkind
      nat = nat + size (kind_info(ikind) % atom_list)
@@ -279,6 +282,7 @@ CONTAINS
       rij = current_neighbor % p % r - ri 
       jkind = current_neighbor % p % kind                    
       nsetb = kind_info(jkind)%orb_basis_set%nset
+      IF (forces.AND.(iatom/=jatom)) deriv = .TRUE.
 
       DO iset=1,nseta
 
@@ -295,35 +299,27 @@ CONTAINS
         ncgfa = last_cgfa - first_cgfa + 1
         ncoa = npgfa*ncoset(la_max)
 
-        IF (iatom == jatom) THEN
-          is = iset
-        ELSE
-          is = 1
-        END IF
-
         radius_a = kind_info(ikind)%orb_basis_set%set_radius(iset)
 
-        DO jset=is,nsetb
+        DO jset=1,nsetb
 
           radius_b = kind_info(jkind)%orb_basis_set%set_radius(jset)
 
           s(1) = h_inv(1,1)*rij(1) + h_inv(1,2)*rij(2) + h_inv(1,3)*rij(3)
           s(2) = h_inv(2,1)*rij(1) + h_inv(2,2)*rij(2) + h_inv(2,3)*rij(3)
           s(3) = h_inv(3,1)*rij(1) + h_inv(3,2)*rij(2) + h_inv(3,3)*rij(3)
-          IF ( MAXVAL ( n_images ( ikind, jkind, : ) ) == 0 ) THEN
-            IF ( ABS ( s ( 1 ) ) > 0.5_dbl ) THEN
-                s(1) = s(1) - perd(1) * INT(s(1)+SIGN(0.5_dbl,s(1)))
-             END IF
-             IF ( ABS ( s ( 2 ) ) > 0.5_dbl ) THEN
-                s(2) = s(2) - perd(2) * INT(s(2)+SIGN(0.5_dbl,s(2)))
-             END IF
-             IF ( ABS ( s ( 3 ) ) > 0.5_dbl ) THEN
-                s(3) = s(3) - perd(3) * INT(s(3)+SIGN(0.5_dbl,s(3)))
-             END IF
-             rij(1) = hmat(1,1)*s(1) + hmat(1,2)*s(2) + hmat(1,3)*s(3)
-             rij(2) = hmat(2,1)*s(1) + hmat(2,2)*s(2) + hmat(2,3)*s(3)
-             rij(3) = hmat(3,1)*s(1) + hmat(3,2)*s(2) + hmat(3,3)*s(3)
+          IF ( ABS ( s ( 1 ) ) > 0.5_dbl ) THEN
+              s(1) = s(1) - perd(1) * INT(s(1)+SIGN(0.5_dbl,s(1)))
+           END IF
+          IF ( ABS ( s ( 2 ) ) > 0.5_dbl ) THEN
+             s(2) = s(2) - perd(2) * INT(s(2)+SIGN(0.5_dbl,s(2)))
           END IF
+          IF ( ABS ( s ( 3 ) ) > 0.5_dbl ) THEN
+             s(3) = s(3) - perd(3) * INT(s(3)+SIGN(0.5_dbl,s(3)))
+          END IF
+          rij(1) = hmat(1,1)*s(1) + hmat(1,2)*s(2) + hmat(1,3)*s(3)
+          rij(2) = hmat(2,1)*s(1) + hmat(2,2)*s(2) + hmat(2,3)*s(3)
+          rij(3) = hmat(3,1)*s(1) + hmat(3,2)*s(2) + hmat(3,3)*s(3)
  
           rijsq = rij ( 1 ) ** 2 + rij ( 2 ) ** 2 + rij ( 3 ) ** 2  
           r2max = (radius_a + radius_b)**2
@@ -359,7 +355,7 @@ CONTAINS
                         sabdz,work,s_block(first_cgfa:last_cgfa,first_cgfb:last_cgfb), &
                         kind_info(ikind)%orb_basis_set%cphi(1:ncoa,first_cgfa:last_cgfa), &
                         kind_info(jkind)%orb_basis_set%cphi(1:ncob,first_cgfb:last_cgfb), &
-                        atom_block(first_cgfa:last_cgfa,first_cgfb:last_cgfb,1:maxdim), forces)
+                        atom_block(first_cgfa:last_cgfa,first_cgfb:last_cgfb,1:maxdim),deriv)
 
 ! summing over lattice translations of neighbors
 
@@ -370,15 +366,15 @@ CONTAINS
 
                CALL find_image ( s, perd, current_image % vec, hmat, rijsq, rij )
 
-               IF ( rijsq <= r2max ) THEN
-
-                  CALL get_overlap (la_max,zeta,rpgfa,la_min,lb_max,zetb,rpgfb,lb_min, &
-                          rij,rijsq,ncoa,ncob,ncgfa,ncgfb,sab,sabdx,sabdy, &
-                          sabdz,work,s_block(first_cgfa:last_cgfa,first_cgfb:last_cgfb), &
-                          kind_info(ikind)%orb_basis_set%cphi(1:ncoa,first_cgfa:last_cgfa), &
-                          kind_info(jkind)%orb_basis_set%cphi(1:ncob,first_cgfb:last_cgfb), &
-                          atom_block(first_cgfa:last_cgfa,first_cgfb:last_cgfb,1:maxdim), forces)
-               END IF 
+                IF ( rijsq <= r2max ) THEN
+ 
+                   CALL get_overlap (la_max,zeta,rpgfa,la_min,lb_max,zetb,rpgfb,lb_min, &
+                           rij,rijsq,ncoa,ncob,ncgfa,ncgfb,sab,sabdx,sabdy, &
+                           sabdz,work,s_block(first_cgfa:last_cgfa,first_cgfb:last_cgfb), &
+                           kind_info(ikind)%orb_basis_set%cphi(1:ncoa,first_cgfa:last_cgfa), &
+                           kind_info(jkind)%orb_basis_set%cphi(1:ncob,first_cgfb:last_cgfb), &
+                           atom_block(first_cgfa:last_cgfa,first_cgfb:last_cgfb,1:maxdim),deriv)
+                END IF 
 
                current_image => current_image % next
 
@@ -389,21 +385,15 @@ CONTAINS
 !         here the contribution to the forces  on atoms and coeffs given
 !         from each atom_block is calculated
 
-        CALL get_forces_on_coefs(ao,fo_coef,energy,empparm,atom_block, &
+        CALL get_forces_on_coefs(ao,kind_info,fo_coef,energy,empparm,atom_block, &
                                   part,ipart,jpart,iset,jset)
 
-        IF (forces.AND.(iatom/=jatom))  CALL get_forces_on_atoms (ao, fo_part, &
+        IF (forces.AND.(iatom/=jatom))  CALL get_forces_on_atoms (ao,kind_info, fo_part, &
                                empparm, atom_block, part, ipart, jpart, iset, jset)                        
            
       END DO
 
     END DO
-
-!       Symmetrize the diagonal blocks ***
-
-    IF (iatom == jatom) THEN
-      CALL symmetrize_matrix(s_block,"upper_to_lower")
-    END IF
 
     current_neighbor => current_neighbor % next          
 
@@ -481,7 +471,7 @@ CONTAINS
   REAL(dbl), DIMENSION (:,:), intent(inout) :: s_block                           
   REAL(dbl), DIMENSION (:,:), intent(inout) :: work                           
   REAL(dbl), DIMENSION (:,:,:), intent (inout) :: atom_block                           
-  INTEGER :: lda, ldb, ldc, ldd
+  INTEGER :: lda, ldb, ldc
   LOGICAL, INTENT (IN) :: forces
 
 ! locals
@@ -490,6 +480,7 @@ CONTAINS
 !   ---------------------------------------------------------------------------
 
    dab = sqrt(rijsq)
+   sab = 0._dbl
 
 !  calculate the primitive overlap integral 
 
@@ -503,7 +494,7 @@ CONTAINS
    ldb = size(cphib,1)
    ldc = size(work,1)
 
-   CALL dgemm("N","N",ncoa,ldd,ncob,1.0_dbl,sab(1,1),lda,&
+   CALL dgemm("N","N",ncoa,ncgfb,ncob,1.0_dbl,sab(1,1),lda,&
                        cphib(1,1), &
                        ldb,0.0_dbl,&
                        work(1,1),ldc)
@@ -514,7 +505,7 @@ CONTAINS
    CALL dgemm("T","N",ncgfa,ncgfb,ncoa,1.0_dbl,&
                        cphia,&
                        lda,&
-                       work,ldb,1.0_dbl,&
+                       work,ldb,0.0_dbl,&
                        s_block,ldc)
 
 ! get the total overlap integral          
@@ -524,7 +515,19 @@ CONTAINS
 ! if requested, calculate the derivatives
 
   if (forces) then 
-    
+
+   sab = 0._dbl
+
+!  calculate the primitive overlap integral
+
+   CALL overlap(la_max+1,zeta,rpgfa,la_min,&
+                        lb_max,zetb,rpgfb,lb_min,&
+                         rij,rijsq,sab)
+
+   sabdx = 0._dbl
+   sabdy = 0._dbl
+   sabdz = 0._dbl
+
    CALL dabdr(la_max,zeta,rpgfa,la_min,&
                    lb_max,zetb,rpgfb,lb_min,&
                    dab,sab,sabdx,sabdy,sabdz)
@@ -535,7 +538,7 @@ CONTAINS
                 cphib, SIZE(cphib,1),0.0_dbl,work(1,1),SIZE(work,1))
 
     CALL dgemm("T","N",ncgfa,ncgfb,ncoa,1.0_dbl,cphia,SIZE(cphia,1),&
-                work(1,1),SIZE(work,1),1.0_dbl,s_block,SIZE(s_block,1))
+                work(1,1),SIZE(work,1),0.0_dbl,s_block,SIZE(s_block,1))
 
 ! get the total x derivative
 
@@ -547,7 +550,7 @@ CONTAINS
                 cphib, SIZE(cphib,1),0.0_dbl,work(1,1),SIZE(work,1))
 
     CALL dgemm("T","N",ncgfa,ncgfb,ncoa,1.0_dbl,cphia,SIZE(cphia,1),&
-                work(1,1),SIZE(work,1),1.0_dbl,s_block,SIZE(s_block,1))
+                work(1,1),SIZE(work,1),0.0_dbl,s_block,SIZE(s_block,1))
 
 ! get the total y derivative
 
@@ -559,7 +562,7 @@ CONTAINS
                 cphib, SIZE(cphib,1),0.0_dbl,work(1,1),SIZE(work,1))
 
     CALL dgemm("T","N",ncgfa,ncgfb,ncoa,1.0_dbl,cphia,SIZE(cphia,1),&
-                work(1,1),SIZE(work,1),1.0_dbl,s_block,SIZE(s_block,1))
+                work(1,1),SIZE(work,1),0.0_dbl,s_block,SIZE(s_block,1))
 
 ! get the total z derivative
 
@@ -623,21 +626,22 @@ CONTAINS
 
       CALL add_block_node ( matrix=smat%matrix, block_row=iatom, block_col=jatom ) 
         
-    END DO  
+      current_neighbor => current_neighbor % next          
 
-    current_neighbor => current_neighbor % next          
+    END DO  
 
   END DO
 
   END SUBROUTINE  build_block_overlap_matrix                    
 
 !--------------------------------------------------------------------------------------
-  SUBROUTINE get_forces_on_coefs(ao,fo_coef,energy,empparm,atom_block, &
+  SUBROUTINE get_forces_on_coefs(ao,kind_info,fo_coef,energy,empparm,atom_block, &
                                    part,ipart,jpart,iset,jset)
 !--------------------------------------------------------------------------------------
 
   IMPLICIT NONE
   TYPE (ao_type), intent (inout) :: ao
+  TYPE ( kind_info_type ),  INTENT (IN), DIMENSION (:) :: kind_info
   REAL (dbl), DIMENSION (:), INTENT(INOUT) :: fo_coef
   REAL (dbl), INTENT (INOUT) :: energy
   TYPE ( empirical_parameter_type ), DIMENSION ( : ), INTENT ( IN ) :: empparm
@@ -655,13 +659,13 @@ CONTAINS
   ikind = part (ipart) %  kind          
   jkind = part (jpart) %  kind             
   
-  first_cgfa = ao % kind_info (ikind) % orb_basis_set % first_cgf (1,iset)
-  nshella = ao % kind_info (ikind) % orb_basis_set % nshell (iset)
-  last_cgfa = ao % kind_info (ikind) % orb_basis_set % last_cgf (nshella,iset)
+  first_cgfa = kind_info (ikind) % orb_basis_set % first_cgf (1,iset)
+  nshella =  kind_info (ikind) % orb_basis_set % nshell (iset)
+  last_cgfa = kind_info (ikind) % orb_basis_set % last_cgf (nshella,iset)
   
-  first_cgfb = ao % kind_info (jkind) % orb_basis_set % first_cgf (1,jset)
-  nshellb = ao % kind_info (jkind) % orb_basis_set % nshell (jset)
-  last_cgfb = ao % kind_info (jkind) % orb_basis_set % last_cgf (nshellb,jset)
+  first_cgfb =  kind_info (jkind) % orb_basis_set % first_cgf (1,jset)
+  nshellb =  kind_info (jkind) % orb_basis_set % nshell (jset)
+  last_cgfb =  kind_info (jkind) % orb_basis_set % last_cgf (nshellb,jset)
 
   hpi = empparm (ikind) % hardness_param (iset) 
   hpj = empparm (jkind) % hardness_param (jset) 
@@ -673,26 +677,32 @@ CONTAINS
      DO jc = first_cgfb, last_cgfb
 
         jcoef = part (jpart) % coef_list (jc)
-        fo_coef (icoef) = fo_coef (icoef) +  (hpi + hpj) * ao % cr (jcoef) * &
-                          atom_block (ic,jc,1)
-        fo_coef (jcoef) = fo_coef (jcoef) +  (hpi + hpj) * ao % cr (icoef) * &
+
+        fo_coef (icoef) = fo_coef (icoef) - 0.5_dbl * (hpi + hpj) * ao % cr (jcoef) * &
                           atom_block (ic,jc,1)
 
-        energy = energy + 0.5 * (hpi + hpj) * ao % cr (icoef) * &
+        energy = energy + 0.25_dbl * (hpi + hpj) * ao % cr (icoef) * &
                           ao % cr (jcoef) * atom_block (ic, jc, 1)
-       
+
+        IF (ipart/=jpart) THEN 
+          fo_coef (jcoef) = fo_coef (jcoef) - 0.5_dbl * (hpi + hpj) * ao % cr (icoef) * &
+                            atom_block (ic,jc,1)
+          energy = energy + 0.25_dbl * (hpi + hpj) * ao % cr (icoef) * &
+                            ao % cr (jcoef) * atom_block (ic, jc, 1)
+        END IF
      END DO
   END DO
        
  END SUBROUTINE get_forces_on_coefs
 
 !--------------------------------------------------------------------------------------
-  SUBROUTINE get_forces_on_atoms(ao,fo_part,empparm,atom_block, &
+  SUBROUTINE get_forces_on_atoms(ao,kind_info,fo_part,empparm,atom_block, &
                                    part,ipart,jpart,iset,jset)
 !--------------------------------------------------------------------------------------
 
   IMPLICIT NONE
   TYPE (ao_type), intent (inout) :: ao
+  TYPE ( kind_info_type ),  INTENT (IN), DIMENSION (:) :: kind_info
   REAL (dbl), DIMENSION (:,:), INTENT(INOUT) :: fo_part
   TYPE ( empirical_parameter_type ), DIMENSION ( : ), INTENT ( IN ) :: empparm
   REAL (dbl), INTENT (IN) , DIMENSION (:,:,:) :: atom_block
@@ -709,13 +719,13 @@ CONTAINS
   ikind = part (ipart) %  kind               
   jkind = part (jpart) %  kind                 
  
-  first_cgfa = ao % kind_info (ikind) % orb_basis_set % first_cgf (1,iset)
-  nshella = ao % kind_info (ikind) % orb_basis_set % nshell (iset)
-  last_cgfa = ao % kind_info (ikind) % orb_basis_set % last_cgf (nshella,iset)
+  first_cgfa =  kind_info (ikind) % orb_basis_set % first_cgf (1,iset)
+  nshella =  kind_info (ikind) % orb_basis_set % nshell (iset)
+  last_cgfa =  kind_info (ikind) % orb_basis_set % last_cgf (nshella,iset)
  
-  first_cgfb = ao % kind_info (jkind) % orb_basis_set % first_cgf (1,jset)
-  nshellb = ao % kind_info (jkind) % orb_basis_set % nshell (jset)
-  last_cgfb = ao % kind_info (jkind) % orb_basis_set % last_cgf (nshellb,jset)
+  first_cgfb =  kind_info (jkind) % orb_basis_set % first_cgf (1,jset)
+  nshellb =  kind_info (jkind) % orb_basis_set % nshell (jset)
+  last_cgfb = kind_info (jkind) % orb_basis_set % last_cgf (nshellb,jset)
 
   hpi = empparm (ikind) % hardness_param (iset)
   hpj = empparm (jkind) % hardness_param (jset)
@@ -728,19 +738,19 @@ CONTAINS
 
         jcoef = part (jpart) % coef_list (jc)
 
-        fo_part (1,ipart) = fo_part (1,ipart) +  (hpi + hpj) * ao % cr (jcoef) * &
+        fo_part (1,ipart) = fo_part (1,ipart) - 0.5_dbl *  (hpi + hpj) * ao % cr (jcoef) * &
                           atom_block (ic,jc,2)
-        fo_part (1,jpart) = fo_part (1,jpart) -  (hpi + hpj) * ao % cr (icoef) * &
+        fo_part (1,jpart) = fo_part (1,jpart) + 0.5_dbl * (hpi + hpj) * ao % cr (icoef) * &
                           atom_block (ic,jc,2)
 
-        fo_part (2,ipart) = fo_part (2,ipart) +  (hpi + hpj) * ao % cr (jcoef) * &
+        fo_part (2,ipart) = fo_part (2,ipart) - 0.5_dbl * (hpi + hpj) * ao % cr (jcoef) * &
                           atom_block (ic,jc,3)
-        fo_part (2,jpart) = fo_part (2,jpart) -  (hpi + hpj) * ao % cr (icoef) * &
+        fo_part (2,jpart) = fo_part (2,jpart) + 0.5_dbl * (hpi + hpj) * ao % cr (icoef) * &
                           atom_block (ic,jc,3)
 
-        fo_part (3,ipart) = fo_part (3,ipart) +  (hpi + hpj) * ao % cr (jcoef) * &
+        fo_part (3,ipart) = fo_part (3,ipart) - 0.5_dbl * (hpi + hpj) * ao % cr (jcoef) * &
                           atom_block (ic,jc,4)
-        fo_part (3,jpart) = fo_part (3,jpart) -  (hpi + hpj) * ao % cr (icoef) * &
+        fo_part (3,jpart) = fo_part (3,jpart) + 0.5_dbl * (hpi + hpj) * ao % cr (icoef) * &
                           atom_block (ic,jc,4)
 
      END DO
