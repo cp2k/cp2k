@@ -19,6 +19,10 @@
 &END
   verlet_skin   1 angstroms
 
+&TOPOLOGY
+ FORCEFIELD ON
+&END
+
 &EWALD
  units angstrom
  ewald_type none
