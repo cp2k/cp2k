@@ -72,14 +72,14 @@ MODULE qs_tddfpt_utils
                                              tddfpt_env_type
   USE simulation_cell,                 ONLY: cell_type
   USE sparse_matrix_types,             ONLY: real_matrix_p_type
-  USE termination,                     ONLY: stop_memory
+  USE termination,                     ONLY: stop_memory,&
+                                             stop_program
   USE timings,                         ONLY: timeset,&
                                              timestop
 
   IMPLICIT NONE
 
   CHARACTER(LEN=*), PARAMETER :: moduleN="qs_tddfpt_utils"
-  INTEGER, PARAMETER          :: TOKEN_LENGTH=8
   LOGICAL, PARAMETER          :: DEBUG_THIS_MODULE = .TRUE.
 
   TYPE simple_solution_sorter
@@ -95,11 +95,9 @@ MODULE qs_tddfpt_utils
   PUBLIC :: tddfpt_cleanup, &
             tddfpt_init, &
             tddfpt_write_banner, &
-            print_fm_matrix, &
             tddfpt_env_init, &
-            calc_initial_guess, &
+            co_initial_guess, &
             calc_norm, &
-            davidson_initial_guess, &
             normalize, &
             reorthogonalize, &
             dot_prod
@@ -238,168 +236,7 @@ CONTAINS
 
 ! *****************************************************************************
 
-  SUBROUTINE print_fm_matrix(matrix, imax, jmax, name, sym)
-
-
-    TYPE(cp_fm_type), POINTER                :: matrix
-    INTEGER, INTENT(IN)                      :: imax, jmax
-    CHARACTER(*), INTENT(IN)                 :: name
-    CHARACTER, INTENT(IN), OPTIONAL          :: sym
-
-    CHARACTER                                :: symmetric
-    INTEGER                                  :: i, ioerr, j
-    LOGICAL                                  :: local
-    REAL(DP)                                :: element
-
-    symmetric = 'F'
-    IF (PRESENT(sym)) symmetric=sym
-
-    OPEN(UNIT=8, FILE=name, STATUS='REPLACE', ACTION='WRITE', IOSTAT=ioerr)
-
-    DO i=1, imax
-       DO j=1, jmax
-          IF ((symmetric == 'T') .AND. (i>j)) THEN
-             CALL cp_fm_get_element(matrix, j, i, element, local)
-             ! this is to get the old meaning of the call, unclear if this is really meant to be the case ! Joost
-             IF (.NOT. local) element = 0.0_dp
-          ELSE
-             CALL cp_fm_get_element(matrix, i, j, element, local)
-             ! this is to get the old meaning of the call, unclear if this is really meant to be the case ! Joost
-             IF (.NOT. local) element = 0.0_dp
-          END IF
-          WRITE (8, '(1X,F20.10)') element
-       END DO
-    END DO
-
-    CLOSE(8)
-
-  END SUBROUTINE print_fm_matrix
-
-! *****************************************************************************
-
-  SUBROUTINE calc_initial_guess(matrices, qs_env, p_env, energies)
-
-
-    TYPE(cp_fm_p_type), DIMENSION(:), &
-      POINTER                                :: matrices
-    TYPE(qs_environment_type), POINTER       :: qs_env
-    TYPE(qs_p_env_type), POINTER             :: p_env
-    REAL(kind=DP), DIMENSION(:, 0:), &
-      INTENT(OUT)                            :: energies
-
-    CHARACTER(len=*), PARAMETER :: routineN = "calc_initial_guess", &
-      routineP = moduleN//"/"//routineN
-
-    INTEGER                                  :: i, j, n_cols, n_ev, n_lumos, &
-                                                n_orbits, n_rows, n_spins, &
-                                                spin, stat, oo, vo
-    REAL(KIND=DP)                           :: scale_factor, evd
-    REAL(KIND=DP), ALLOCATABLE, &
-      DIMENSION(:, :)                        :: lumos, tmp_guess
-    REAL(KIND=DP), DIMENSION(:), POINTER    :: orbital_eigenvalues
-    TYPE(simple_solution_sorter), POINTER    :: sorter_iterator, &
-                                                sorter_pointer, sorter_start
-    TYPE(tddfpt_control_type), POINTER       :: tddfpt_control
-
-    tddfpt_control => qs_env%dft_control%tddfpt_control
-    n_spins        = qs_env%dft_control%nspins
-    n_ev           = tddfpt_control%n_ev
-    energies       = 0.0_dp
-
-    DO spin=1, n_spins
-
-       n_cols = matrices(spin)%matrix%matrix_struct%ncol_global
-       n_rows = matrices(spin)%matrix%matrix_struct%nrow_global
-
-       CALL cp_fm_set_all(matrices(spin)%matrix, 0.0_dp)
-
-       IF (ASSOCIATED(tddfpt_control%lumos)) THEN       
-
-          CALL get_mo_set(qs_env%mos(spin)%mo_set, eigenvalues=orbital_eigenvalues)
-
-          n_lumos = tddfpt_control%lumos(spin)%matrix%matrix_struct%ncol_global
-
-          n_orbits = SIZE(orbital_eigenvalues)
-
-          ! first element
-          evd = tddfpt_control%lumos_eigenvalues(1,spin)-orbital_eigenvalues(n_orbits)
-          ALLOCATE(sorter_start)
-          sorter_start%orbit=n_orbits
-          sorter_start%lumo=1
-          sorter_start%value=evd
-          NULLIFY(sorter_start%next)
-         
-          DO oo=n_orbits, MAX(n_orbits-n_ev+1,1), -1
-             DO vo=1, MIN(n_ev, n_lumos)
-
-                IF (oo==n_orbits .AND. vo==1) CYCLE ! already in list
-
-                evd = tddfpt_control%lumos_eigenvalues(vo,spin)-orbital_eigenvalues(oo)
-
-                sorter_iterator => sorter_start
-                NULLIFY(sorter_pointer)
-                DO WHILE (ASSOCIATED(sorter_iterator%next))
-                   IF (sorter_iterator%next%value > evd) THEN
-                      sorter_pointer => sorter_iterator%next
-                      EXIT
-                   END IF
-                   sorter_iterator => sorter_iterator%next
-                END DO
-
-                ALLOCATE(sorter_iterator%next)
-                sorter_iterator%next%orbit = oo
-                sorter_iterator%next%lumo  = vo
-                sorter_iterator%next%value = evd
-                sorter_iterator%next%next  => sorter_pointer
-
-             END DO
-          END DO
-
-          ALLOCATE(lumos(n_rows, n_lumos), tmp_guess(n_rows, n_orbits), stat=stat)
-          CALL dcopy(n_rows*n_orbits, 0.0_dp, 0, tmp_guess, 1)          
-
-          CALL cp_fm_get_submatrix(tddfpt_control%lumos(spin)%matrix, lumos, &
-                                   start_col=1, n_cols=n_lumos)
-
-          sorter_iterator=>sorter_start
-
-          DO i=1, MIN(n_ev, n_lumos)
-             CALL daxpy(n_rows, 1.0_dp, &
-                        lumos(:,sorter_iterator%lumo), 1, &
-                        tmp_guess(:,sorter_iterator%orbit),1)
-             energies(i,0:n_ev-1) = sorter_iterator%value
-             sorter_iterator=>sorter_iterator%next
-          END DO
-          CALL cp_fm_set_submatrix(matrices(spin)%matrix, &
-                                   tmp_guess(:,1:n_orbits))
-
-          sorter_iterator=>sorter_start
-          DO WHILE(ASSOCIATED(sorter_iterator))
-             sorter_pointer=>sorter_iterator
-             sorter_iterator=>sorter_iterator%next
-             DEALLOCATE(sorter_pointer)
-          END DO
-
-          DEALLOCATE(lumos, tmp_guess)
-
-       ELSE
-
-          CALL cp_fm_init_random(matrices(spin)%matrix, n_ev, start_col=n_cols-n_Ev+1)
-          DO i=1, n_ev
-             energies(i,0)=1.000E38_dp
-          END DO
-
-       END IF
-
-    END DO
-    CALL p_preortho(p_env, qs_env, matrices)
-    ! normalization not necessary since it is done in the krylov routine
-
-  END SUBROUTINE calc_initial_guess
-
-! *****************************************************************************
-
-  SUBROUTINE davidson_initial_guess(matrices, n_v, qs_env, p_env, energies)
+  SUBROUTINE co_initial_guess(matrices, n_v, qs_env, p_env, energies)
 
 
     TYPE(cp_fm_p_type), DIMENSION(:,:),pointer :: matrices
@@ -409,126 +246,122 @@ CONTAINS
     REAL(kind=DP), DIMENSION(:, 0:), &
       INTENT(OUT)                            :: energies
 
-    CHARACTER(len=*), PARAMETER :: routineN = "davidson_initial_guess", &
-      routineP = moduleN//"/"//routineN
-
     INTEGER                                  :: i, j, n_cols, n_lumos, &
                                                 n_orbits, n_rows, n_spins, &
                                                 spin, stat, oo, vo
-    REAL(KIND=DP)                           :: scale_factor, evd
+    REAL(KIND=DP)                            :: scale_factor, evd
     REAL(KIND=DP), ALLOCATABLE, &
       DIMENSION(:, :)                        :: lumos, guess
-    REAL(KIND=DP), DIMENSION(:), POINTER    :: orbital_eigenvalues
+    REAL(KIND=DP), DIMENSION(:), POINTER     :: orbital_eigenvalues
     TYPE(simple_solution_sorter), POINTER    :: sorter_iterator, &
                                                 sorter_pointer, sorter_start
     TYPE(tddfpt_control_type), POINTER       :: tddfpt_control
+
+    CHARACTER(len=*), PARAMETER :: routineN = "co_initial_guess", &
+                                   routineP = moduleN//"/"//routineN
+
+    ! *************************
 
     tddfpt_control => qs_env%dft_control%tddfpt_control
     n_spins = qs_env%dft_control%nspins
     energies = 0.0_dp
 
+    IF (.NOT.ASSOCIATED(tddfpt_control%lumos)) THEN
+       CALL stop_program(routineP,"LUMOS missing")
+    END IF
+
     DO spin=1, n_spins
 
        n_cols = matrices(1,spin)%matrix%matrix_struct%ncol_global
        n_rows = matrices(1,spin)%matrix%matrix_struct%nrow_global
-       
+    
        DO i=1, n_v
           CALL cp_fm_set_all(matrices(i,spin)%matrix, 0.0_dp)
        END DO
 
-       IF (ASSOCIATED(tddfpt_control%lumos)) THEN       
+       CALL get_mo_set(qs_env%mos(spin)%mo_set, eigenvalues=orbital_eigenvalues)
+    
+       n_lumos = tddfpt_control%lumos(spin)%matrix%matrix_struct%ncol_global
 
-          CALL get_mo_set(qs_env%mos(spin)%mo_set, eigenvalues=orbital_eigenvalues)
+       n_orbits = SIZE(orbital_eigenvalues)
 
-          n_lumos = tddfpt_control%lumos(spin)%matrix%matrix_struct%ncol_global
+       !-----------------------------------------!
+       ! create a SORTED list of initial guesses !
+       !-----------------------------------------!
+       ! first element
+       evd = tddfpt_control%lumos_eigenvalues(1,spin)-orbital_eigenvalues(n_orbits)
+       ALLOCATE(sorter_start)
+       sorter_start%orbit=n_orbits
+       sorter_start%lumo=1
+       sorter_start%value=evd
+       NULLIFY(sorter_start%next)
+       ! rest of the elements
+       DO oo=n_orbits, 1, -1
+          DO vo=1, n_lumos
 
-          n_orbits = SIZE(orbital_eigenvalues)
+             IF (oo==n_orbits .AND. vo==1) CYCLE ! already in list
 
-          !-----------------------------------------!
-          ! create a SORTED list of initial guesses !
-          !-----------------------------------------!
-          ! first element
-          evd = tddfpt_control%lumos_eigenvalues(1,spin)-orbital_eigenvalues(n_orbits)
-          ALLOCATE(sorter_start)
-          sorter_start%orbit=n_orbits
-          sorter_start%lumo=1
-          sorter_start%value=evd
-          NULLIFY(sorter_start%next)
-          ! rest of the elements
-          DO oo=n_orbits, 1, -1
-             DO vo=1, n_lumos
+             evd = tddfpt_control%lumos_eigenvalues(vo,spin)-orbital_eigenvalues(oo)
 
-                IF (oo==n_orbits .AND. vo==1) CYCLE ! already in list
-
-                evd = tddfpt_control%lumos_eigenvalues(vo,spin)-orbital_eigenvalues(oo)
-
-                sorter_iterator => sorter_start
-                NULLIFY(sorter_pointer)
-                DO WHILE (ASSOCIATED(sorter_iterator%next))
-                   IF (sorter_iterator%next%value > evd) THEN
-                      sorter_pointer => sorter_iterator%next
-                      EXIT
-                   END IF
-                   sorter_iterator => sorter_iterator%next
-                END DO
-
-                ALLOCATE(sorter_iterator%next)
-                sorter_iterator%next%orbit = oo
-                sorter_iterator%next%lumo  = vo
-                sorter_iterator%next%value = evd
-                sorter_iterator%next%next  => sorter_pointer
-
+             sorter_iterator => sorter_start
+             NULLIFY(sorter_pointer)
+             DO WHILE (ASSOCIATED(sorter_iterator%next))
+                IF (sorter_iterator%next%value > evd) THEN
+                   sorter_pointer => sorter_iterator%next
+                   EXIT
+                END IF
+                sorter_iterator => sorter_iterator%next
              END DO
+
+             ALLOCATE(sorter_iterator%next)
+             sorter_iterator%next%orbit = oo
+             sorter_iterator%next%lumo  = vo
+             sorter_iterator%next%value = evd
+             sorter_iterator%next%next  => sorter_pointer
+
           END DO
+       END DO
 
-          ALLOCATE(lumos(n_rows, n_lumos), guess(n_rows, n_orbits), stat=stat)
-          CALL cp_fm_get_submatrix(tddfpt_control%lumos(spin)%matrix, lumos, &
-                                   start_col=1, n_cols=n_lumos)
+       ALLOCATE(lumos(n_rows, n_lumos), guess(n_rows, n_orbits), stat=stat)
+       CALL cp_fm_get_submatrix(tddfpt_control%lumos(spin)%matrix, lumos, &
+                                start_col=1, n_cols=n_lumos)
 
-          !-------------------!
-          ! fill the matrices !
-          !-------------------!
-          sorter_iterator=>sorter_start
-          DO i=1, MIN(n_v,n_orbits*n_lumos)
-             CALL dcopy(n_rows*n_orbits, 0.0_dp, 0, guess, 1)
-             CALL dcopy(n_rows, lumos(:,sorter_iterator%lumo), 1, &
-                                guess(:,sorter_iterator%orbit),1)
-             CALL cp_fm_set_submatrix(matrices(i,spin)%matrix, &
-                                      guess(:,1:n_orbits))
-             energies(i,0) = sorter_iterator%value
-             sorter_iterator=>sorter_iterator%next
-          END DO
-          IF (n_v > n_orbits*n_lumos) THEN
-             DO i=n_orbits*n_lumos+1, n_v
-                CALL cp_fm_init_random(matrices(i,spin)%matrix, n_orbits)
-                energies(i,0)=1.0E38_dp
-             END DO
-          END IF
-
-
-          !--------------!
-          ! some cleanup !
-          !--------------!
-          DEALLOCATE(lumos, guess)
-          sorter_iterator=>sorter_start
-          DO WHILE(ASSOCIATED(sorter_iterator))
-             sorter_pointer=>sorter_iterator
-             sorter_iterator=>sorter_iterator%next
-             DEALLOCATE(sorter_pointer)
-          END DO
-          
-       ELSE
-
-          DO i=1, n_v
+       !-------------------!
+       ! fill the matrices !
+       !-------------------!
+       sorter_iterator=>sorter_start
+       DO i=1, MIN(n_v,n_orbits*n_lumos)
+          CALL dcopy(n_rows*n_orbits, 0.0_dp, 0, guess, 1)
+          CALL dcopy(n_rows, lumos(:,sorter_iterator%lumo), 1, &
+                             guess(:,sorter_iterator%orbit),1)
+          CALL cp_fm_set_submatrix(matrices(i,spin)%matrix, &
+                                   guess(:,1:n_orbits))
+          energies(i,0) = sorter_iterator%value
+          sorter_iterator=>sorter_iterator%next
+       END DO
+       IF (n_v > n_orbits*n_lumos) THEN
+          DO i=n_orbits*n_lumos+1, n_v
              CALL cp_fm_init_random(matrices(i,spin)%matrix, n_orbits)
              energies(i,0)=1.0E38_dp
           END DO
-
        END IF
+
+
+       !--------------!
+       ! some cleanup !
+       !--------------!
+       DEALLOCATE(lumos, guess)
+       sorter_iterator=>sorter_start
+       DO WHILE(ASSOCIATED(sorter_iterator))
+          sorter_pointer=>sorter_iterator
+          sorter_iterator=>sorter_iterator%next
+          DEALLOCATE(sorter_pointer)
+       END DO
+          
 
     END DO
 
-  END SUBROUTINE davidson_initial_guess
+  END SUBROUTINE co_initial_guess
 
 ! *****************************************************************************
   

@@ -68,9 +68,8 @@ module qs_tddfpt_eigensolver
                                              p_preortho
   use qs_p_env_types,                  only: qs_p_env_type
   use qs_tddfpt_types
-  use qs_tddfpt_utils,                 only: calc_initial_guess,&
+  use qs_tddfpt_utils,                 only: co_initial_guess,&
                                              calc_norm,&
-                                             davidson_initial_guess, &
                                              normalize, &
                                              reorthogonalize, &
                                              dot_prod
@@ -108,7 +107,7 @@ contains
     integer                                  :: ispin, nspins, handle
     integer                                  :: n_ev, i, restarts, out_unit
     logical                                  :: do_kernel_save, converged, ionode
-    real(KIND=dp), dimension(:)              :: evals
+    real(KIND=dp), dimension(:), allocatable :: evals
     type(cp_fm_p_type), dimension(:,:), &
       pointer                                :: evecs, iguess
     type(cp_fm_pool_p_type), dimension(:), &
@@ -182,7 +181,7 @@ contains
     integer                                  :: ispin, nspins, handle
     integer                                  :: n_ev, i, restarts
     logical                                  :: do_kernel_save, converged
-    real(KIND=dp), dimension(:)              :: evals
+    real(KIND=dp), dimension(:), allocatable :: evals
     type(cp_fm_p_type), dimension(:,:), &
       pointer                                :: evecs, iguess
     type(cp_fm_pool_p_type), dimension(:), &
