@@ -3,17 +3,17 @@ This is the CP2K software & test suite
 
  * COPYRIGHT: Where you can send money :*)
  * INSTALL: How to set up the program (mainly how to compile it)
- * Makefile: A security copy (is the same as in ./src)
  * README: This file
  * arch: Definitions for different architectures/compilers
  * doc: Documentation
  * exe: where the executables will be located
  * lib: library built during compilation
+ * makefile: Makefile's for different architectures
  * obj: Where the object and other compilation-time files
  * src: The source code; please see also the file 'INSTALL'
  * tests: Test inputs and reference outputs
  * tools: Some small programs/scripts needed to compile the program
 
 --
-cp2k@prr.mpi-stuttgart.mpg.de
-20. III AD 2001
+cp2k@cscs.ch
+10/02/2002
