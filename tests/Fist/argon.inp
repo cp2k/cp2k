@@ -13,7 +13,6 @@
   temperature:  85.0                   temperature [K]
   restart:      init                   start type (init,pos,posvel)
   constraints   off
-  subcells: 10
   print  files        100
   print  screen       1
 &END
