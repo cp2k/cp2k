@@ -330,9 +330,7 @@ MODULE  hartree_local_3centers
               new_atom_b = .TRUE.
               last_jatom = jatom
             ELSE
-!              new_atom_b = .FALSE.
-!              sab_orb_neighbor_node => next(sab_orb_neighbor_node)
-!              CYCLE
+
             END IF
 
             rab2  = rab(1)*rab(1) + rab(2)*rab(2) + rab(3)*rab(3)
@@ -378,6 +376,7 @@ MODULE  hartree_local_3centers
                   nco2 = npgfb(iset2)*ncoset(lb_max(iset2))
                   ns2  = nsgfb_set(iset2)
 
+!                 hab = 0.0_dp
                   CALL dgemm("N","N",nco1,ns2,ns1,&
                               1.0_dp,sphi_a(1,ifs1),maxcoa,&
                               p_block(ifs1,ifs2),nsgfa,&
@@ -522,9 +521,10 @@ MODULE  hartree_local_3centers
                       cell=cell_c,&
                       r=rbc)
 
+
                  rbc2= rbc(1)*rbc(1) + rbc(2)*rbc(2) + rbc(3)*rbc(3) 
                  rc(:) = pbc(particle_set(katom)%r,cell)
-
+                 
                  tmp_neighbor => VH_3c_list(kkind,iatom)%neighbor
                  DO i=1, 3
                     IF ( (cell_c(i) < LBOUND(tmp_neighbor,i)) .OR. &
@@ -540,9 +540,9 @@ MODULE  hartree_local_3centers
                    sbc_3c_neighbor_node => next(sbc_3c_neighbor_node)
                    CYCLE knodeloop
                 END IF
-
+                
                 kneighbor = locate(sac_3c_neighbor%list,katom)
-
+                
                 IF (kneighbor == 0) THEN
                    sbc_3c_neighbor_node => next(sbc_3c_neighbor_node)
                    CYCLE knodeloop
@@ -556,7 +556,7 @@ MODULE  hartree_local_3centers
                    sbc_3c_neighbor_node => next(sbc_3c_neighbor_node)
                    CYCLE knodeloop
                 END IF
-
+                
                 Int_abc = 0.0_dp
                 NULLIFY(QN_s,QN_h,Qlm)
                 CALL  get_rho0_mpole(rho0_mpole=rho0_mpole, iat=katom,&
@@ -614,6 +614,7 @@ MODULE  hartree_local_3centers
                       energy_hartree_3c = energy_hartree_3c + ieqj*trace 
 
                       IF(calculate_forces) THEN
+
                         i_atom = atom_of_kind(iatom)
                         j_atom = atom_of_kind(jatom)
                         k_atom = atom_of_kind(katom)
@@ -624,6 +625,7 @@ MODULE  hartree_local_3centers
                                   force(ikind)%hartree_3c(idir,i_atom) - ieqj*trace
                           force(kkind)%hartree_3c(idir,k_atom) = &
                                   force(kkind)%hartree_3c(idir,k_atom) + ieqj*trace
+
                           trace = trace_r_AxB(hab,maxcoa,&
                                   Int_adb_sum(:,:,idir),maxcoa,nco1,nco2)
                           force(jkind)%hartree_3c(idir,j_atom) = &
@@ -631,6 +633,7 @@ MODULE  hartree_local_3centers
                           force(kkind)%hartree_3c(idir,k_atom) = &
                                   force(kkind)%hartree_3c(idir,k_atom) + ieqj*trace
                         END DO 
+
                       END IF
 
                       m2 = m2 + maxcob
@@ -684,6 +687,7 @@ MODULE  hartree_local_3centers
                       energy_hartree_3c = energy_hartree_3c + 2.0_dp*trace 
 
                       IF(calculate_forces) THEN
+
                         i_atom = atom_of_kind(iatom)
                         j_atom = atom_of_kind(jatom)
                         k_atom = atom_of_kind(katom)
@@ -694,12 +698,14 @@ MODULE  hartree_local_3centers
                                   force(ikind)%hartree_3c(idir,i_atom) - 2._dp*trace
                           force(kkind)%hartree_3c(idir,k_atom) = &
                                   force(kkind)%hartree_3c(idir,k_atom) + 2._dp*trace
+
                           trace = trace_r_AxB(hab,maxcob,&
                                   Int_adb_sum(:,:,idir),maxcob,nco1,nco2)
                           force(jkind)%hartree_3c(idir,j_atom) = &
                                   force(jkind)%hartree_3c(idir,j_atom) - 2._dp*trace
                           force(kkind)%hartree_3c(idir,k_atom) = &
                                   force(kkind)%hartree_3c(idir,k_atom) + 2._dp*trace
+
                         END DO 
                       END IF
                       m2 = m2 + maxcoa
@@ -720,6 +726,7 @@ MODULE  hartree_local_3centers
                 sbc_3c_neighbor_node => next(sbc_3c_neighbor_node)
               END DO knodeloop  ! knode
             END DO  !kkind
+
             sab_orb_neighbor_node => next(sab_orb_neighbor_node)
           END DO  ! inode
           sab_orb_neighbor_list => next(sab_orb_neighbor_list)
@@ -729,10 +736,9 @@ MODULE  hartree_local_3centers
     END DO  ! ikind
 
 !   IF PARALLEL sum up the contributions to sum_ab_car coming from
-!   all the ab pairs, which are handled by different processors
+!   ab pairs handled by different processors
     CALL mp_sum(energy_hartree_3c,para_env%group)
     CALL mp_sum(sum_ab_car,para_env%group)
-
 
     IF(just_energy) GOTO 100
 !   One center contributions from the 3-centers term
@@ -795,14 +801,26 @@ MODULE  hartree_local_3centers
 
 100 CONTINUE
 
-    DEALLOCATE(Int_ab_sum,Int_abc,STAT=istat)
+    IF(ASSOCIATED(Int_ab_sum)) THEN
+       DEALLOCATE(Int_ab_sum,Int_abc,STAT=istat)
        IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
             "Int_ab_sum,Int_abc")
+
+       IF(calculate_forces) THEN
+          DEALLOCATE(Int_dab_sum,Int_adb_sum,STAT=istat)
+          IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+               "Int_dab_sum,Int_adb_sum")
+       END IF
+    END IF
     IF(calculate_forces) THEN
-       DEALLOCATE(Int_dab_sum,Int_adb_sum,STAT=istat)
        DEALLOCATE (atom_of_kind,STAT=istat)
        IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
-            "Int_dab_sum,Int_adb_sum,atom_of_kind")
+            "atom_of_kind")
+    END IF
+    IF(ASSOCIATED(CPC_ab)) THEN
+      DEALLOCATE(CPC_ab, hab, STAT=istat)
+      IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+          "CPC_ab,hab") 
     END IF
 
     DEALLOCATE(work,sum_ab_car,sum_ab_sph,STAT=istat)
