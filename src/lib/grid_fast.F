@@ -872,3 +872,56 @@
 
 
   END SUBROUTINE
+
+
+  SUBROUTINE collocate_gf_npbc(grid,xdat,ydat,zdat,gridbounds,zlb,zub,ylb,yub,xlb,xub)
+    IMPLICIT NONE
+    ! Arguments
+    INTEGER, PARAMETER      :: wp = SELECTED_REAL_KIND ( 14, 200 )
+    INTEGER, INTENT(IN)     :: gridbounds(2,3)
+    INTEGER, INTENT(IN)     :: zlb,zub,ylb,yub,xlb,xub
+    REAL(wp), INTENT(INOUT) :: grid(gridbounds(1,1):gridbounds(2,1),&
+                                    gridbounds(1,2):gridbounds(2,2),&
+                                    gridbounds(1,3):gridbounds(2,3))
+    REAL(wp), INTENT(IN)    :: xdat(*), ydat(*), zdat(*)
+    ! Local Variables
+    INTEGER :: iz, iy, ix
+    REAL(wp):: tmp1
+
+    DO iz=zlb,zub
+       DO iy=ylb,yub
+          tmp1 = zdat(iz) * ydat(iy)
+          DO ix=xlb,xub
+             grid(ix,iy,iz) = grid(ix,iy,iz) + xdat(ix) * tmp1
+          END DO ! Loop on x
+       END DO ! Loop on y
+    END DO ! Loop on z
+
+  END SUBROUTINE
+
+  SUBROUTINE integrate_gf_npbc(grid,xdat,ydat,zdat,gridbounds,zlb,zub,ylb,yub,xlb,xub,force)
+    IMPLICIT NONE
+    ! Arguments
+    INTEGER, PARAMETER      :: wp = SELECTED_REAL_KIND ( 14, 200 )
+    INTEGER, INTENT(IN)     :: gridbounds(2,3)
+    INTEGER, INTENT(IN)     :: zlb,zub,ylb,yub,xlb,xub
+    REAL(wp), INTENT(INOUT) :: grid(gridbounds(1,1):gridbounds(2,1),&
+                                    gridbounds(1,2):gridbounds(2,2),&
+                                    gridbounds(1,3):gridbounds(2,3))
+    REAL(wp), INTENT(IN)    :: xdat(*), ydat(*), zdat(*)
+    REAL(wp), INTENT(OUT)   :: force
+    ! Local Variables
+    INTEGER :: iz, iy, ix
+    REAL(wp):: tmp1
+
+    force = 0.0_wp
+    DO iz=zlb,zub
+       DO iy=ylb,yub
+          tmp1 = zdat(iz) * ydat(iy)
+          DO ix=xlb,xub
+             force = force + grid(ix,iy,iz) * xdat(ix) * tmp1
+          END DO ! Loop on x
+       END DO ! Loop on y
+    END DO ! Loop on z
+
+  END SUBROUTINE
