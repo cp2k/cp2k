@@ -89,13 +89,13 @@ SUBROUTINE destroy_gaussian_gridlevel(gridlevel_info,globenv,error)
   CALL mp_sum(gridlevel_info%total_count,group)
   CALL mp_sum(gridlevel_info%count,group)
   IF (ionode.AND.pw_grid_information) THEN
-    WRITE(scr,'(/,T3,A)')           "-------------------------------------"
-    WRITE(scr,'(T3,A)')           "--          MULTIGRID INFO         --"
-    WRITE(scr,'(T3,A)')           "-------------------------------------"
-    WRITE(scr,'(T3,A,I12)')        "total gridlevel count  : ",&
+    WRITE(scr,'(/,T3,A)')         "---------------------------------------"
+    WRITE(scr,'(T3,A)')           "--           MULTIGRID INFO          --"
+    WRITE(scr,'(T3,A)')           "---------------------------------------"
+    WRITE(scr,'(T3,A,I14)')        "total gridlevel count  : ",&
       gridlevel_info%total_count
     DO i=1,gridlevel_info%ngrid_levels
-      WRITE(scr,'(T3,A,I4,A,I12)') "count for grid     ",i,": ",&
+      WRITE(scr,'(T3,A,I4,A,I14)') "count for grid     ",i,": ",&
        gridlevel_info%count(i)
     END DO
   END IF
