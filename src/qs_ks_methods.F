@@ -344,7 +344,7 @@ CONTAINS
        CALL pw_pool_give_back_coeff(auxbas_pw_pool,v_hartree_gspace,&
             error=error)
 
-       IF(gapw) CALL Vh_1c_gg_integrals(qs_env,energy)
+       IF(gapw) CALL Vh_1c_gg_integrals(qs_env,energy%hartree_1c)
 
        ! *** Add the QM/MM potential ***
        If (qs_env%qmmm) Then

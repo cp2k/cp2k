@@ -69,6 +69,7 @@ MODULE qs_p_env_methods
                                              cp_sm_plus_fm_fm_t
   USE cp_sm_pool_types,                ONLY: cp_sm_pool_p_type
   USE global_types,                    ONLY: global_environment_type
+  USE hartree_local_methods,           ONLY: init_coulomb_local
   USE hartree_local_types,             ONLY: hartree_local_create
   USE kinds,                           ONLY: dbl,&
                                              dp
@@ -93,6 +94,7 @@ MODULE qs_p_env_methods
                                              qs_rho_update_rho
   USE qs_rho_types,                    ONLY: qs_rho_release,&
                                              qs_rho_type
+  USE qs_rho0_methods,                 ONLY: init_rho0
   USE sparse_matrix_types,             ONLY: cp_sm_scale_and_add,&
                                              deallocate_matrix_set,&
                                              real_matrix_p_type,&
@@ -295,9 +297,13 @@ CONTAINS
           IF (stat/=0) CALL stop_memory(routineP, "p_env%local_rho_set", 1)
           CALL local_rho_set_create(p_env%local_rho_set)
           CALL allocate_rho_atom_internals(qs_env, p_env%local_rho_set%rho_atom_set)
+          CALL init_rho0(qs_env, qs_env%dft_control%qs_control%gapw_control, &
+                         qs_env%cell, .TRUE., p_env%local_rho_set, error)
           ALLOCATE(p_env%hartree_local, stat=stat)
           IF (stat/=0) CALL stop_memory(routineP, "p_env%hartree_local", 1)
           CALL hartree_local_create(p_env%hartree_local)
+          CALL init_coulomb_local(qs_env,qs_env%dft_control%qs_control%gapw_control, &
+                                  .TRUE., p_env)
        END IF
 
 
@@ -975,7 +981,8 @@ END SUBROUTINE p_env_did_change
        CALL qs_rho_update_rho(rho_struct=p_env%rho1, &
             qs_env=qs_env, gapw=gapw, error=error)
        IF(gapw) THEN
-         CALL calculate_rho_atom_coeff(qs_env,p_env%rho1%rho_ao)
+         CALL calculate_rho_atom_coeff(qs_env,p_env%rho1%rho_ao,.TRUE.,&
+                                       p_env%local_rho_set%rho_atom_set)
        ENDIF
 
        IF (fdiff) THEN

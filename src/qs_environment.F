@@ -583,7 +583,7 @@ CONTAINS
 !     *** Allocate and initialize the compensation density rho0 ***
       CALL init_rho0(qs_env,gapw_control,cell,error=error)
 !     *** Allocate and Initialize the local coulomb terms (1,2 and 3 centers) ***
-      CALL init_coulomb_local(qs_env,gapw_control,globenv)
+      CALL init_coulomb_local(qs_env,gapw_control)
     ENDIF
 
     IF (ionode) CALL m_flush(output_unit)

@@ -153,11 +153,15 @@ MODULE qs_rho0_methods
 
 ! *****************************************************************************
 
-  SUBROUTINE calculate_rho0_atom(qs_env,rho0_mp,a_list,g_atom,&
+  SUBROUTINE calculate_rho0_atom(rho_atom_set, rho0_atom_set, &
+                                 rho0_mp,a_list,g_atom,&
                                  paw_atom,natom,ikind,harmonics,&
                                  rho0_h_tot,rho0_s_tot)
 
-    TYPE(qs_environment_type), POINTER       :: qs_env
+    TYPE(rho_atom_type), DIMENSION(:), &
+                           POINTER           :: rho_atom_set
+    TYPE(rho0_atom_type), DIMENSION(:),&
+                           POINTER           :: rho0_atom_set
     INTEGER, DIMENSION(:), INTENT(IN)        :: a_list
     TYPE(grid_atom_type), INTENT(IN)         :: g_atom
     TYPE(rho0_mpole_type), POINTER           :: rho0_mp
@@ -172,16 +176,12 @@ MODULE qs_rho0_methods
     REAL(dp), DIMENSION(:,:), POINTER        :: g0_h, g0_s,vg0_h
     TYPE(mpole_rho_atom),  POINTER           :: mpole_rho
     TYPE(mpole_gau_overlap), POINTER         :: mpole_gau
-    TYPE(rho0_atom_type), DIMENSION(:),&
-                           POINTER           :: rho0_atom_set
     TYPE(rho_atom_type), POINTER             :: rho_atom
-    TYPE(rho_atom_type), DIMENSION(:), &
-                           POINTER           :: rho_atom_set
     REAL(dp), DIMENSION(:), POINTER          :: norm_g0l_h, norm_g0l_s
 
     INTEGER                                  :: handle, iat, iatom, ic, ico, ir, is, iso,&
                                                 istat, l, lshell, lx, ly, lz,&
-                                                lmax0, nr
+                                                lmax0, nr,i,j
     REAL(dp) :: sum1, sum2
 !   ---------------------------------------------------------------------------
 
@@ -189,12 +189,7 @@ MODULE qs_rho0_methods
 
     NULLIFY(mpole_gau)
     NULLIFY(mpole_rho)
-    NULLIFY(rho0_atom_set)
-    NULLIFY(rho_atom_set)
     NULLIFY(g0_h, g0_s, vg0_h)
-
-    CALL get_qs_env(qs_env=qs_env,rho_atom_set=rho_atom_set,&
-                    rho0_atom_set=rho0_atom_set)
 
     CALL get_rho0_mpole(rho0_mpole=rho0_mp,ikind=ikind, &
                         l0_ikind=lmax0,mp_gau_ikind=mpole_gau,&
@@ -246,7 +241,17 @@ MODULE qs_rho0_methods
     DO iat = 1,natom
        iatom = a_list(iat)
        mpole_rho => rho0_mp%mp_rho(iatom)
+!dbg
+!    WRITE(*,*) 'iat ', iatom
+! dbg
+!    do i = 1,size(rho_atom_set(iatom)%cpc_h(1)%r_coef,1)
+!      write(*,'(I4,72f13.8)') i, (rho_atom_set(iatom)%cpc_h(1)%r_coef(i,j),&
+!                       j=1,size(rho_atom_set(iatom)%cpc_h(1)%r_coef,2))
+!    END DO
+!dbg
 
+!    WRITE(*,*) 'size qlm ', size(mpole_rho%Qlm_tot,1)
+!    WRITE(*,'(A,20f20.10)') 'qlm' , mpole_rho%Qlm_tot
        DO lshell = 0,lmax0
          DO ic = 1,nco(lshell)
            ico = ic + ncoset(lshell-1)
@@ -313,6 +318,7 @@ MODULE qs_rho0_methods
     END DO  ! ispin
 
 
+
     mpole_rho%Qlm_tot(iso) = mpole_rho%Qlm_tot(iso) + &
                              mpole_rho%Qlm_h(iso)-mpole_rho%Qlm_s(iso)
 
@@ -320,7 +326,7 @@ MODULE qs_rho0_methods
 
 ! *****************************************************************************
 
-  SUBROUTINE init_rho0(qs_env, gapw_control, cell,  &
+  SUBROUTINE init_rho0(qs_env, gapw_control, cell, &
                        tddft, tddft_local_rho_set, error)
 
     ! ARGUMENTS
@@ -482,7 +488,13 @@ MODULE qs_rho0_methods
       rho0_mpole%zet0_s=rho0_mpole%zet0_s*1.1_dp 
     END DO
     rho0_mpole%zet0_s=0.25_dp/rho0_mpole%zet0_s
-
+!dbg
+    IF(rho0_mpole%zet0_s < 3.5_dp) rho0_mpole%zet0_s = 3.5_dp
+!    rho0_mpole%zet0_s = 3.855_dp
+!    rho0_mpole%zet0_s =  5.31_dp
+    rho0_mpole%zet0_s =  2.394_dp
+!   WRITE(*,*) rho0_mpole%zet0_s
+! stop
 !   Allocate and calculate the normalization factors for g0_lm_h and g0_lm_s
     CALL reallocate(rho0_mpole%norm_g0l_h,0,rho0_mpole%lmax_0)
     CALL reallocate(rho0_mpole%norm_g0l_s,0,rho0_mpole%lmax_0)
@@ -492,6 +504,7 @@ MODULE qs_rho0_methods
       rho0_mpole%norm_g0l_s(l) = (2._dp*l+1._dp)/&
                                  ( fourpi*gaussint_sph(rho0_mpole%zet0_s,2*l))
     END DO
+
 
 !   Allocate and Initialize the g0 gaussians used to build the compensation density
     DO ikind = 1,nkind
@@ -613,12 +626,13 @@ MODULE qs_rho0_methods
         END DO  ! ir
 
       END DO  ! l
+!      rho0_mpole%mp_gau(ik)%r_V0hmV0s = 2.9121780864_dp !r_hms
       rho0_mpole%mp_gau(ik)%r_V0hmV0s = r_hms
 
     ELSE
       rho0_mpole%mp_gau(ik)%r_V0hmV0s = r_s
     END IF
-
+ 
   END SUBROUTINE  interaction_radii_g0
 
 !******************************************************************************

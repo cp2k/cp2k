@@ -89,10 +89,11 @@ MODULE qs_rho_atom_methods
  CONTAINS
 
 ! *****************************************************************************
-  SUBROUTINE calculate_rho_atom(qs_env,atom_kind,atom_list,grid_atom,natom,&
+  SUBROUTINE calculate_rho_atom(rho_atom_set,atom_kind,atom_list,grid_atom,natom,&
                                 nspins,tot_rho1_h,tot_rho1_s)
 
-    TYPE(qs_environment_type), POINTER       :: qs_env
+    TYPE(rho_atom_type), DIMENSION(:), &
+      POINTER                                :: rho_atom_set
     TYPE(atomic_kind_type), POINTER          :: atom_kind
     INTEGER, DIMENSION(:), INTENT(IN)        :: atom_list
     TYPE(grid_atom_type),  INTENT(IN)        :: grid_atom
@@ -123,21 +124,16 @@ MODULE qs_rho_atom_methods
     LOGICAL, DIMENSION(:,:), ALLOCATABLE     :: done_vgg
     TYPE(gto_basis_set_type), POINTER        :: orb_basis
     TYPE(harmonics_atom_type), POINTER       :: harmonics
-    TYPE(rho_atom_type), DIMENSION(:), &
-      POINTER                                :: rho_atom_set
 
 
 ! *****************************************************************************
 
     CALL timeset("calculate_rho_atom","I"," ",handle)
 
-    NULLIFY(rho_atom_set)
     NULLIFY(orb_basis)
     NULLIFY(harmonics)
 
     NULLIFY(lmin,lmax,npgf,zet,my_CG,my_CG_dxyz,coeff,CPCH_sphere,CPCS_sphere)
-
-    CALL get_qs_env(qs_env=qs_env,rho_atom_set=rho_atom_set)
 
     CALL get_atomic_kind(atomic_kind=atom_kind, orb_basis_set=orb_basis,&
                          harmonics=harmonics)
@@ -371,6 +367,7 @@ MODULE qs_rho_atom_methods
           tot_rho1_h(i) = tot_rho1_h(i) + rho_h*harmonics%slm_int(iso)
           tot_rho1_s(i) = tot_rho1_s(i) + rho_s*harmonics%slm_int(iso)
         END DO  ! iso
+        WRITE(*,'(A,2I4,2f20.10)') 'rho1 tot' , i, iatom, rho1h_iat, rho1s_iat
       END DO  ! iat
     END DO  ! ispin
 
@@ -1005,6 +1002,7 @@ MODULE qs_rho_atom_methods
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
     TYPE(gto_basis_set_type), POINTER        :: orb_basis_set
     TYPE(harmonics_atom_type), POINTER       :: harmonics
+
     
     NULLIFY(atomic_kind_set)
     NULLIFY(rho_atom_set)
@@ -1084,6 +1082,7 @@ MODULE qs_rho_atom_methods
 
                 NULLIFY(rho_atom_set(iatom)%cpc_s(ispin)%r_coef)
                 ALLOCATE(rho_atom_set(iatom)%cpc_s(ispin)%r_coef(1:nsotot,1:nsotot))
+
                 rho_atom_set(iatom)%cpc_h(ispin)%r_coef = 0.0_dp
                 rho_atom_set(iatom)%cpc_s(ispin)%r_coef = 0.0_dp
 

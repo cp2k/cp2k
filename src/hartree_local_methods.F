@@ -43,6 +43,7 @@ MODULE  hartree_local_methods
   USE qs_grid_atom,                    ONLY: grid_atom_type
   USE qs_harmonics_atom,               ONLY: harmonics_atom_type
   USE qs_oce_types,                    ONLY: vtriple_type
+  USE qs_p_env_types,                  ONLY: qs_p_env_type
   USE qs_rho_atom_types,               ONLY: get_rho_atom,&
                                              rho_atom_coeff,&
                                              rho_atom_type
@@ -75,11 +76,12 @@ MODULE  hartree_local_methods
  
 !******************************************************************************
  
-  SUBROUTINE init_coulomb_local(qs_env,gapw_control,globenv)  
+  SUBROUTINE init_coulomb_local(qs_env,gapw_control,tddft,p_env)  
  
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(gapw_control_type), POINTER         :: gapw_control
-    TYPE(global_environment_type)            :: globenv    
+    LOGICAL, INTENT(IN), OPTIONAL            :: tddft
+    TYPE(qs_p_env_type), POINTER, OPTIONAL   :: p_env
 
     CHARACTER(LEN=*), PARAMETER              :: routine_name = "init_rho0"
 
@@ -92,7 +94,7 @@ MODULE  hartree_local_methods
     TYPE(vtriple_type), DIMENSION(:,:),&
                                 POINTER      :: vtriple
     INTEGER, DIMENSION(:), POINTER           :: atom_list
-    LOGICAL                                  :: paw_atom
+    LOGICAL                                  :: paw_atom, my_tddft
 
     INTEGER                                  :: iat, iatom, ikind, istat,&
                                                 max_iso_not0, maxso, nat,&
@@ -106,6 +108,9 @@ MODULE  hartree_local_methods
     NULLIFY(atom_list)
     NULLIFY(ecoul_1c)
     NULLIFY(vtriple)
+
+    my_tddft = .FALSE.
+    IF (PRESENT(tddft)) my_tddft = tddft
 
     CALL get_qs_env(qs_env=qs_env, atomic_kind_set=atomic_kind_set)
     nkind = SIZE(atomic_kind_set,1)
@@ -151,7 +156,12 @@ MODULE  hartree_local_methods
       ENDDO
     ENDDO
 
-    CALL set_qs_env(qs_env=qs_env,ecoul_1c=ecoul_1c,VH_3c_list=vtriple)
+    IF (.NOT.my_tddft) THEN
+       CALL set_qs_env(qs_env=qs_env,ecoul_1c=ecoul_1c,VH_3c_list=vtriple)
+    ELSE
+       p_env%hartree_local%ecoul_1c => ecoul_1c
+       p_env%hartree_local%vtriple => vtriple
+    END IF
 
   END SUBROUTINE init_coulomb_local
 
@@ -192,7 +202,7 @@ MODULE  hartree_local_methods
 
 !   Case lm = 0
 !    rho_1(:,1) = rrad_z(:)
-!    rho_2(:,1) = rrad_0(:,1)
+    rho_2(:,1) = rrad_0(:,1)
 
     DO iso = 2,nchannels
       rho_2(:,iso) = rrad_0(:,iso)      
@@ -243,17 +253,18 @@ MODULE  hartree_local_methods
 
     END DO
 
-
     DEALLOCATE(rho_1,rho_2)
 
   END SUBROUTINE calculate_Vh_1center
 
 !******************************************************************************
 
-  SUBROUTINE Vh_1c_gg_integrals(qs_env,energy)
+  SUBROUTINE Vh_1c_gg_integrals(qs_env,energy_hartree_1c,tddft,p_env)
 
     TYPE(qs_environment_type), POINTER         :: qs_env
-    TYPE(qs_energy_type), INTENT(INOUT)        :: energy
+    REAL(kind=dp), INTENT(out)                 :: energy_hartree_1c
+    LOGICAL, INTENT(IN), OPTIONAL              :: tddft
+    TYPE(qs_p_env_type), POINTER, OPTIONAL     :: p_env
 
     CHARACTER(LEN=*), PARAMETER         :: routine_name = "Vh_1c_gg_integrals",&
                 routineP = module_name//':'//routine_name
@@ -281,7 +292,8 @@ MODULE  hartree_local_methods
                                  POINTER       :: vr_h,vr_s
     TYPE(rho_atom_coeff), DIMENSION(:),&
                                       POINTER  :: cpc_h, cpc_s
-    REAL(dp)                                   :: ec_tmp,&
+    REAL(dp)                                   :: ec_tmp,es_tmp,&
+                                                  e_1_h,e_1_s,&
                                                   gVg_h, gVg_s,&
                                                   gVg_0,&
                                                   ecoul_1_0,&
@@ -301,7 +313,7 @@ MODULE  hartree_local_methods
     REAL(dp), DIMENSION(:,:,:),  POINTER       :: Qlm_gg
     REAL(dp), DIMENSION(:,:,:), POINTER        :: my_CG
 
-    INTEGER                                    :: handle, iat, iatom, icg, ikind, &
+    INTEGER                                    :: handle,iat, iatom, icg, ikind, &
                                                   ipgf1, ipgf2, ir, iset1, iset2, &
                                                   is1, is2, iso, iso1, iso2, ispin,  &
                                                   l_ang, lmax_0, lmax0, m1, m2, max_nr, &
@@ -309,7 +321,7 @@ MODULE  hartree_local_methods
                                                   n2, nat, nchan_0, nkind, nr, nset, &
                                                   nsotot, nspins
     INTEGER, DIMENSION(:),        POINTER      :: atom_list, lmin, lmax, npgf
-    LOGICAL                                    :: paw_atom
+    LOGICAL                                    :: my_tddft, paw_atom
 
 !   -----------------------------------------------------------------------------
 
@@ -320,14 +332,28 @@ MODULE  hartree_local_methods
     NULLIFY(atom_kind,atom_list,grid_atom,harmonics)
     NULLIFY(orb_basis,lmin,lmax,npgf,zet)
 
+    my_tddft = .FALSE.
+    IF (PRESENT(tddft)) my_tddft = tddft
+
     CALL get_qs_env(qs_env=qs_env,&
                     dft_control=dft_control,&
-                    atomic_kind_set=atomic_kind_set,&
-                    rho_atom_set= rho_atom_set,&
-                    rho0_atom_set=rho0_atom_set, &
-                    rho0_mpole=rho0_mpole,&
-                    rhoz_set=rhoz_set,&
-                    ecoul_1c=ecoul_1c)
+                    atomic_kind_set=atomic_kind_set)
+
+
+    IF (my_tddft) THEN
+       rho_atom_set => p_env%local_rho_set%rho_atom_set
+       rho0_atom_set=> p_env%local_rho_set%rho0_atom_set
+       rho0_mpole   => p_env%local_rho_set%rho0_mpole
+       ecoul_1c     => p_env%hartree_local%ecoul_1c
+    ELSE
+       CALL get_qs_env(qs_env=qs_env, &
+                       rho_atom_set= rho_atom_set,&
+                       rho0_atom_set=rho0_atom_set, &
+                       rho0_mpole=rho0_mpole,&
+                       rhoz_set=rhoz_set,&
+                       ecoul_1c=ecoul_1c)
+    END IF
+
 
     nkind = SIZE(atomic_kind_set,1)
     nspins = dft_control%nspins
@@ -340,7 +366,7 @@ MODULE  hartree_local_methods
     ALLOCATE(sqrtwr(max_nr),g0_h_w(max_nr,0:lmax_0))
 
 !   Put to 0 the local hartree energy contribution from 1 center integrals
-    energy%hartree_1c = 0.0_dp
+    energy_hartree_1c = 0.0_dp
 
 !   Here starts the loop over all the atoms
     DO ikind = 1,nkind
@@ -372,8 +398,6 @@ MODULE  hartree_local_methods
                         "channels for rho0 > # max of spherical harmonics")
 
       NULLIFY(rrad_z,my_CG)
-      rrad_z => rhoz_set(ikind)%r_coef
-      vrrad_z => rhoz_set(ikind)%vr_coef
       my_CG  => harmonics%my_CG
 
 !     set to zero temporary arrays
@@ -419,7 +443,11 @@ MODULE  hartree_local_methods
         rrad_0 => rho0_atom_set(iatom)%rho0_rad_h%r_coef
         vrrad_0 => rho0_atom_set(iatom)%vrho0_rad_h%r_coef
 
-        Vh1_h(:,1) = vrrad_z(:) 
+        IF (.NOT.my_tddft) THEN
+             rrad_z  => rhoz_set(ikind)%r_coef
+             vrrad_z => rhoz_set(ikind)%vr_coef
+             Vh1_h(:,1) = vrrad_z(:) 
+        END IF
 
         DO iso = 1,nchan_0
           Vh1_s(:,iso) = vrrad_0(:,iso)
@@ -432,13 +460,17 @@ MODULE  hartree_local_methods
           END DO
         END DO
 
+!        CALL calculate_Vh_1center(Vh1_h,Vh1_s,r_h,r_s,rrad_0,rrad_z,grid_atom)
+
 !       Calculate the contributions to Ecoul coming from Vh1_h*rhoz 
 
         ecoul_1_z = 0.0_dp
-        DO ir = 1,nr
-           ecoul_1_z = ecoul_1_z + Vh1_h(ir,1)*rrad_z(ir)*grid_atom%wr(ir)
-        END DO
-        ecoul_1_z = 0.5_dp*ecoul_1_z
+        IF(.NOT. my_tddft) THEN
+           DO ir = 1,nr
+              ecoul_1_z = ecoul_1_z + Vh1_h(ir,1)*rrad_z(ir)*grid_atom%wr(ir)
+           END DO
+           ecoul_1_z = 0.5_dp*ecoul_1_z
+        END IF
 
 !       Calculate the contributions to Ecoul coming from  Vh1_s*rho0
         ecoul_1_0 = 0.0_dp
@@ -454,7 +486,7 @@ MODULE  hartree_local_methods
 
         CALL set_ecoul_1c(ecoul_1c,iatom,ecoul_1_z=ecoul_1_z,ecoul_1_0=ecoul_1_0)
 
-        energy%hartree_1c = energy%hartree_1c +  ecoul_1_z -  ecoul_1_0
+        energy_hartree_1c = energy_hartree_1c +  ecoul_1_z -  ecoul_1_0
 
         IF(.NOT. paw_atom) CYCLE
 
@@ -471,7 +503,7 @@ MODULE  hartree_local_methods
           n1 = nsoset(lmax(iset1))
           DO ipgf1  = 1,npgf(iset1)
             m2 = 0
-            DO iset2 = 1,nset 
+            DO iset2 = 1,nset !iset1,nset 
               n2 = nsoset(lmax(iset2))
               DO ipgf2  = 1,npgf(iset2)
 !               with contributions to  V1_s*rho0
@@ -500,6 +532,7 @@ MODULE  hartree_local_methods
                                          gVg_s*my_CG(is1,is2,iso)
                     aVh1b_0(iso1,iso2) = aVh1b_0(iso1,iso2) + &
                                          Qlm_gg(iso1,iso2,iso)*gVg_0
+
                   END DO  !icg
                 END DO  ! iso
 !               without contributions to  V1_s*rho0 
@@ -511,12 +544,14 @@ MODULE  hartree_local_methods
                     iso2 = is2 + n2*(ipgf2-1) + m2 
                     gVg_h = 0.0_dp
                     gVg_s = 0.0_dp
+
                     DO ir = 1,nr
                        gVg_h = gVg_h + gsph(ir,iso1)*gsph(ir,iso2)* &
                                        Vh1_h(ir,iso)
                        gVg_s = gVg_s + gsph(ir,iso1)*gsph(ir,iso2)* &
                                        Vh1_s(ir,iso)
                     END DO  ! ir
+
                     aVh1b_h(iso1,iso2) = aVh1b_h(iso1,iso2) + &
                                          gVg_h*my_CG(is1,is2,iso)
                     aVh1b_s(iso1,iso2) = aVh1b_s(iso1,iso2) + &
@@ -530,6 +565,21 @@ MODULE  hartree_local_methods
           END DO  ! ipgf1
           m1 = m1 + maxso
         END DO  !iset1
+
+!       Symmetry
+!        DO iset1 = 1,nset
+!          DO is1 = 1,maxso
+!           iso1 = is1 + (iset1 - 1)*maxso
+!            DO iset2 = iset1+1,nset
+!              DO is2 = 1,maxso
+!                iso2 = is2 + (iset2 - 1)*maxso
+!                aVh1b_h(iso2,iso1) = aVh1b_h(iso1,iso2)
+!                aVh1b_s(iso2,iso1) = aVh1b_s(iso1,iso2)
+!                aVh1b_0(iso2,iso1) = aVh1b_0(iso1,iso2)
+!              END DO
+!            END DO
+!          END DO
+!        END DO  
 
 !       Calculate the contributions to Ecoul coming from Vh1_h*rho1_h and Vh1_s*rho1_s
 
@@ -546,6 +596,7 @@ MODULE  hartree_local_methods
                           cpc_s(ispin)%r_coef,nsotot,&
                           nsotot,nsotot) 
         END DO  ! ispin
+
         ecoul_1_h = 0.5_dp*ecoul_1_h
         ecoul_1_s = 0.5_dp*ecoul_1_s
 
@@ -553,12 +604,11 @@ MODULE  hartree_local_methods
         CALL set_ecoul_1c(ecoul_1c=ecoul_1c,iatom=iatom,&
                           ecoul_1_h=ecoul_1_h,ecoul_1_s=ecoul_1_s)
 
-        energy%hartree_1c = energy%hartree_1c + ecoul_1_h - ecoul_1_s 
+        energy_hartree_1c = energy_hartree_1c + ecoul_1_h - ecoul_1_s 
 
       END DO  ! iat
 
     END DO  ! ikind 
-
 
     DEALLOCATE(gexp,gsph,g0_h_w,sqrtwr)
 

@@ -221,15 +221,15 @@ CONTAINS
      qs_keywords(qs_key_EPSFIT)=keyword_type("EPSFIT", &
                                        "EPSFIT real",&
                                        "GAPW : precision to determine the gaussian radius",&
-                                       "EPS_FIT","","")
+                                       "","","")
      qs_keywords(qs_key_EPSISO)=keyword_type("EPSISO", &
                                        "EPSISO real",&
                                        "GAPW : precision to determine an isolated projector",&
-                                       "EPS_ISO","","")
+                                       "","","")
      qs_keywords(qs_key_EPSRHO0)=keyword_type("EPSRHO0", &
                                        "EPSRHO0 real",&
                                        "GAPW : precision to determine the range of V(rho0-rho0soft)",&
-                                       "EPSVRHO0","EPS_VRHO0","")
+                                       "EPSVRHO0","","")
      qs_keywords(qs_key_QUADRATURE)=keyword_type("QUADRATURE", &
                                        "QUADRATURE {GC_SIMPLE|GC_TRANSFORMED|GC_LOG}",&
                                        "GAPW: algorithm to construct the atomic radial grids",&
@@ -251,7 +251,7 @@ CONTAINS
                                        "What kind of PW_GRID should be employed",&
                                        "","","")
      qs_keywords(qs_key_RS_GRID)=keyword_type("RS_GRID", &
-                                       "RS_GRID {DISTRIBUTED|REPLICATED}",&
+                                       "RS_GRID {DISTRIGBUTED|REPLICATED}",&
                                        "Parallellisation strategy of the realspace grids",&
                                        "","","")
      qs_keywords(qs_key_EXTRAPOLATION)=keyword_type("EXTRAPOLATION", &
@@ -652,7 +652,7 @@ CONTAINS
 
     qs_control%gapw_control%eps_fit =  1.0E-4_dp
     qs_control%gapw_control%eps_iso =  1.0E-12_dp
-    qs_control%gapw_control%eps_Vrho0  = 5.0E-7_dp
+    qs_control%gapw_control%eps_Vrho0  = 1.0E-8_dp
     qs_control%gapw_control%ladd_rho0 = 99
     qs_control%gapw_control%lmax_rho0 = 2
     qs_control%gapw_control%lmax_sphere = 8 

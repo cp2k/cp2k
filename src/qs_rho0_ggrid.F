@@ -161,9 +161,7 @@ MODULE qs_rho0_ggrid
     CALL get_qs_env(qs_env=qs_env,dft_control=dft_control,&
                     particle_set=particle_set,&
                     para_env=para_env,&
-                    pw_env=pw_env,cell=cell,& 
-                    rho0_s_gs=rho0_s_gs, &
-                    rho0_s_rs=rho0_s_rs)
+                    pw_env=pw_env,cell=cell)
     eps_rho_rspace = dft_control%qs_control%eps_rho_rspace
 
     NULLIFY(pools,pw_pools)
@@ -172,8 +170,12 @@ MODULE qs_rho0_ggrid
     l_info=pw_env%l_info
     auxbas_grid=pw_env%auxbas_grid
 
+    NULLIFY(rho0_s_gs,rho0_s_rs)
     CALL get_rho0_mpole(rho0_mpole=rho0,lmax_0=lmax0,&
-                        zet0_s=zet0_s,igrid_zet0_s=igrid)
+                        zet0_s=zet0_s,igrid_zet0_s=igrid,&
+                        rho0_s_gs=rho0_s_gs, &
+                        rho0_s_rs=rho0_s_rs)
+    
 
     ! *** set up the rs grid at level igrid
     NULLIFY(rs_grid,pool,pw_pool,coeff_rspace,coeff_gspace)

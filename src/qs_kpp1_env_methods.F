@@ -47,6 +47,7 @@ MODULE qs_kpp1_env_methods
                                              cp_unitnr_for_output
   USE cp_subsystem_types,              ONLY: cp_subsystem_p_type
   USE hartree,                         ONLY: calculate_hartree
+  USE hartree_local_methods,           ONLY: Vh_1c_gg_integrals
   USE kinds,                           ONLY: dp
   USE pw_env_types,                    ONLY: pw_env_get,&
                                              pw_env_type
@@ -70,6 +71,7 @@ MODULE qs_kpp1_env_methods
                                              qs_energy_type
   USE qs_environment_types,            ONLY: get_qs_env,&
                                              qs_environment_type
+  USE qs_gapw_densities,               ONLY: prepare_gapw_den
   USE qs_integrate_potential,          ONLY: integrate_v_rspace
   USE qs_kpp1_env_types,               ONLY: qs_kpp1_env_type
   USE qs_ks_methods,                   ONLY: qs_ks_build_kohn_sham_matrix
@@ -217,9 +219,12 @@ CONTAINS
     INTEGER                                  :: handle, i, ispin, nspins, &
                                                 ntot, output_unit, stat
     INTEGER, DIMENSION(2, 3)                 :: bo
-    LOGICAL                                  :: failure, lsd, ionode
+    LOGICAL                                  :: failure, lsd, ionode, gapw
     REAL(KIND=dp)                            :: energy_hartree, &
-                                                total_rho_gspace
+                                                total_rho_gspace, &
+                                                energy_hartree_1c,&
+                                                energy_hartree_2c,&
+                                                energy_hartree_3c
     TYPE(cell_type), POINTER                 :: cell
     TYPE(coeff_type)                         :: rho1_tot_gspace, &
                                                 v_hartree_gspace, &
@@ -248,6 +253,8 @@ CONTAINS
             rho1_r, rho1_g_pw, tau_pw, cell, v_xc, deriv_set, rho_set, rho1_set)
     logger => cp_error_get_logger(error)
     ionode = logger%para_env%mepos==logger%para_env%source
+
+    gapw = qs_env%dft_control%qs_control%gapw
 
     CPPrecondition(ASSOCIATED(kpp1_env),cp_failure_level,routineP,error,failure)
     CPPrecondition(ASSOCIATED(k_p_p1),cp_failure_level,routineP,error,failure)
@@ -294,6 +301,10 @@ CONTAINS
             in_space = REALSPACE, error=error)
     END IF
 
+    IF (gapw) &
+       CALL prepare_gapw_den(qs_env, .TRUE., p_env, error)
+
+
 ! *** calculate the hartree potential on the total density ***
     IF (.NOT. failure) THEN
 
@@ -305,8 +316,8 @@ CONTAINS
        DO ispin=2,nspins
           CALL coeff_sumup(rho1%rho_g(ispin), rho1_tot_gspace)
        END DO
-!       IF (qs_env%dft_control%qs_control%gapw) &
-!            CALL coeff_sumup(p_env%local_rho_set%rho0_mpole%rho0_s_gs, rho1_tot_gspace)
+       IF (qs_env%dft_control%qs_control%gapw) &
+            CALL coeff_sumup(p_env%local_rho_set%rho0_mpole%rho0_s_gs, rho1_tot_gspace)
 
        CALL print_densities(kpp1_env, rho1, rho1_tot_gspace, error=error)
 
@@ -402,7 +413,15 @@ CONTAINS
        DEALLOCATE(rho1_r_pw, atoms,stat=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
 
+       IF(gapw) THEN
+          CALL Vh_1c_gg_integrals(qs_env,energy_hartree_1c, .TRUE., p_env)
+       END IF
        
+       ntot = SIZE(v_hartree_rspace%pw%cr3d,1) * &
+              SIZE(v_hartree_rspace%pw%cr3d,2) * &
+              SIZE(v_hartree_rspace%pw%cr3d,3)
+       CALL dscal(ntot, v_hartree_rspace%pw%pw_grid%dvol, &
+                        v_hartree_rspace%pw%cr3d,1)
        !-------------------------------!
        ! Add both hartree and xc terms !
        !-------------------------------!
@@ -418,13 +437,13 @@ CONTAINS
           IF (dft_control%do_tddfpt_calculation .AND. nspins==1) THEN
              IF (dft_control%tddfpt_control%res_etype == "SINGLET") THEN
                 ! add 2 times the hartree term in the singlet case
-                CALL daxpy(ntot, 2.0_dp*v_hartree_rspace%pw%pw_grid%dvol, &
+                CALL daxpy(ntot, 2.0_dp, &
                      v_hartree_rspace%pw%cr3d, 1, v_rspace_new(ispin)%pw%cr3d, 1)
              END IF
              ! do not add the hartree term for triplets
           ELSE
              ! just add it if not tddfpt
-             CALL daxpy(ntot, v_hartree_rspace%pw%pw_grid%dvol, &
+             CALL daxpy(ntot, 1.0_dp, &
                   v_hartree_rspace%pw%cr3d, 1, v_rspace_new(ispin)%pw%cr3d, 1)
           END IF
 

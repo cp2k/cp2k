@@ -510,7 +510,7 @@ CONTAINS
   SUBROUTINE get_rho0_mpole(rho0_mpole, g0_h, g0_s, vg0_h, iat, ikind, lmax_0, l0_ikind,&
                             lmax0_kind, mp_gau_ikind, mp_rho, norm_g0l_h, norm_g0l_s,&
                             Qlm_gg, Qlm_car_h,Qlm_car_s,Qlm_tot, zet0_h, zet0_s, &
-                            igrid_zet0_s, rpgf0_h,rpgf0_s,r_V0hmV0s)
+                            igrid_zet0_s, rpgf0_h,rpgf0_s,r_V0hmV0s,rho0_s_rs,rho0_s_gs)
 
     TYPE(rho0_mpole_type),  POINTER              :: rho0_mpole
 
@@ -531,7 +531,8 @@ CONTAINS
     INTEGER ,INTENT(OUT), OPTIONAL               :: lmax_0, l0_ikind
     INTEGER ,INTENT(OUT), OPTIONAL               :: igrid_zet0_s
     INTEGER, INTENT(IN), OPTIONAL                :: iat, ikind
-
+    TYPE(coeff_type), OPTIONAL, POINTER          :: rho0_s_rs,&
+                                                    rho0_s_gs
     CHARACTER(LEN=*), PARAMETER :: routine_name = "get_rho0_mpole"
 
 !   ---------------------------------------------------------------------------
@@ -545,6 +546,8 @@ CONTAINS
       IF(PRESENT(zet0_h)) zet0_h = rho0_mpole%zet0_h
       IF(PRESENT(zet0_s)) zet0_s = rho0_mpole%zet0_s
       IF(PRESENT(igrid_zet0_s)) igrid_zet0_s = rho0_mpole%igrid_zet0_s
+      IF(PRESENT(rho0_s_rs))    rho0_s_rs => rho0_mpole%rho0_s_rs
+      IF(PRESENT(rho0_s_gs))    rho0_s_gs => rho0_mpole%rho0_s_gs
 
       IF(PRESENT(ikind)) THEN
         IF(PRESENT(l0_ikind))     l0_ikind = rho0_mpole%lmax0_kind(ikind)
@@ -680,7 +683,8 @@ CONTAINS
 
     ELSE
 
-      WRITE(UNIT=output_unit,FMT="(T2,A)") 'WARNING: I cannot print rho0, it is not associated'
+      WRITE(UNIT=output_unit,FMT="(/,T5,A,/)") &
+           ' WARNING: I cannot print rho0, it is not associated'
 
     END IF
 
