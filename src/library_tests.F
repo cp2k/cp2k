@@ -647,7 +647,7 @@ SUBROUTINE pw_fft_test ( globenv )
 !..set fft lib
   CALL init_fft ( globenv % default_fft_library )
 
-  ntim = MIN ( globenv % num_pe, 25 )
+  ntim = 4
   tim = 1._dbl
   perf = 100.e6_dbl
   r = ( tim * perf / 150._dbl )  ** 0.33333_dbl
@@ -658,7 +658,8 @@ SUBROUTINE pw_fft_test ( globenv )
 !..Test 1
   call pw_grid_construct ( grid )
   grid % grid_span = FULLSPACE
-  grid % para % rs_dims = 1
+  grid % para % rs_dims ( 1 ) = globenv % num_pe
+  grid % para % rs_dims ( 2 ) = 1
   grid % bounds ( 1, : ) = -np / 2
   grid % bounds ( 2, : ) = ( np - 1 ) / 2
 
@@ -719,6 +720,8 @@ SUBROUTINE pw_fft_test ( globenv )
 !..Test 2
   call pw_grid_construct ( grid )
   grid % grid_span = HALFSPACE
+  grid % para % rs_dims ( 1 ) = globenv % num_pe
+  grid % para % rs_dims ( 2 ) = 1
   grid % bounds ( 1, : ) = -np / 2
   grid % bounds ( 2, : ) = ( np - 1 ) / 2
 
@@ -779,8 +782,8 @@ SUBROUTINE pw_fft_test ( globenv )
 !..Test 3
   call pw_grid_construct ( grid )
   grid % grid_span = FULLSPACE
-!this should be HALFSPACE but does not work at the moment?
-! grid % grid_span = HALFSPACE
+  grid % para % rs_dims ( 1 ) = globenv % num_pe
+  grid % para % rs_dims ( 2 ) = 1
 
   CALL pw_find_cutoff ( np, box, cutoff )
   cutoff = 0.5_dbl * cutoff * cutoff
@@ -841,8 +844,9 @@ SUBROUTINE pw_fft_test ( globenv )
 
 !..Test 4
   call pw_grid_construct ( grid )
-  grid % grid_span = FULLSPACE
-  grid % para % rs_dims = 1
+  grid % grid_span = HALFSPACE
+  grid % para % rs_dims ( 1 ) = globenv % num_pe
+  grid % para % rs_dims ( 2 ) = 1
   CALL pw_find_cutoff ( np, box, cutoff )
   cutoff = cutoff * cutoff
 

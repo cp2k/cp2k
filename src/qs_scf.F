@@ -210,7 +210,7 @@ MODULE qs_scf
                        total_rho_gspace,total_rho_rspace,work_syevx
   INTEGER           :: charge,max_scf,nelectron,nrebuild,nrow_block,&
                        ncol_block,nprow,npcol,maxl,ngrid_level,nkind
-  LOGICAL           :: gradient_functional,gth_potential_present,orthorhombic,&
+  LOGICAL           :: gradient_functional,gth_potential_present,&
                        rebuild,use_cholesky
 
   TYPE(coeff_type), DIMENSION(3) :: nabla_rho_rspace
@@ -302,7 +302,7 @@ CONTAINS
 
     nelectron = nelectron - charge
 
-    CALL get_cell(cell=cell,orthorhombic=orthorhombic)
+    CALL get_cell(cell=cell)
 
     gradient_functional = dft_control%gradient_functional
     rel_cutoff = dft_control%qs_control%relative_cutoff
@@ -695,21 +695,17 @@ CONTAINS
       IF (igrid_level == 1) THEN
         IF (ionode.AND.globenv%print%pw_grid_information) THEN
           CALL pw_grid_setup(cell,pw_grid(1),cutoff(1),&
-                             info=output_unit,&
-                             orthorhombic=orthorhombic)
+                             info=output_unit)
          ELSE
-           CALL pw_grid_setup(cell,pw_grid(1),cutoff(1),&
-                              orthorhombic=orthorhombic)
+           CALL pw_grid_setup(cell,pw_grid(1),cutoff(1))
          END IF
       ELSE
          IF (ionode.AND.globenv%print%pw_grid_information) THEN
            CALL pw_grid_setup(cell,pw_grid(igrid_level),cutoff(igrid_level),&
                               info=output_unit,&
-                              orthorhombic=orthorhombic,&
                               ref_grid=pw_grid(1))
          ELSE
            CALL pw_grid_setup(cell,pw_grid(igrid_level),cutoff(igrid_level),&
-                              orthorhombic=orthorhombic,&
                               ref_grid=pw_grid(1))
            END IF
        END IF

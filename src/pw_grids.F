@@ -55,6 +55,7 @@ MODULE pw_grids
   USE util, ONLY : matvec_3x3, dotprod_3d, sort, get_limit
   USE fft_tools, ONLY : fft_radix_operations, FFT_RADIX_NEXT, &
                         FFT_RADIX_NEXT_ODD
+  USE timings, ONLY: timeset, timestop
   
   IMPLICIT NONE
 
@@ -262,12 +263,13 @@ END function pw_grid_compare
 !!     JGH (21-Mar-2001) : Reference grid code
 !!     JGH (21-Mar-2001) : New optional argument symm_usage
 !!     JGH (22-Mar-2001) : Simplify group assignment (mp_comm_dup)
+!!     JGH (21-May-2002) : Remove orthorhombic keyword (code is fast enough)
 !!
 !!   SOURCE
 !******************************************************************************
 
 SUBROUTINE pw_grid_setup ( cell, pw_grid, cutoff, pe_group, info, fft_usage, &
-                           symm_usage, ref_grid, orthorhombic )
+                           symm_usage, ref_grid )
 
   IMPLICIT NONE
 
@@ -281,7 +283,6 @@ SUBROUTINE pw_grid_setup ( cell, pw_grid, cutoff, pe_group, info, fft_usage, &
                                                  ! compatible with the FFT
   LOGICAL, OPTIONAL, INTENT ( IN ) :: symm_usage ! has the grid size to be 
                                                  ! symmetric (g <-> -g)    
-  LOGICAL, OPTIONAL, INTENT ( IN ) :: orthorhombic
   TYPE ( pw_grid_type ), OPTIONAL, INTENT ( IN ) :: ref_grid
 
 ! Locals
@@ -289,10 +290,13 @@ SUBROUTINE pw_grid_setup ( cell, pw_grid, cutoff, pe_group, info, fft_usage, &
   INTEGER, DIMENSION ( :, : ), ALLOCATABLE :: yz_mask
   INTEGER :: allocstat, group_size, my_pos, i, n(3), ntest(3)
   REAL ( dbl ) :: rv(3,3)
-  INTEGER :: aver, amax, amin
+  INTEGER :: aver, amax, amin, handle
   LOGICAL :: fft, symmetry
 
 !------------------------------------------------------------------------------
+
+  CALL timeset("pw_grid_setup","I","",handle)
+
   ! default is to use only fft compatible grids
   IF ( PRESENT ( fft_usage ) ) THEN
     fft = fft_usage
@@ -332,8 +336,7 @@ SUBROUTINE pw_grid_setup ( cell, pw_grid, cutoff, pe_group, info, fft_usage, &
   IF ( PRESENT ( cutoff ) ) THEN
      ecut = cutoff
      IF ( SUM ( ABS ( pw_grid % bounds ( :, : ) ) ) == 0 ) &
-               CALL pw_grid_find_bounds &
-               ( pw_grid % bounds, cell % h_inv, ecut, fft, orthorhombic )
+          CALL pw_grid_find_bounds ( pw_grid % bounds, cell % h_inv, ecut, fft )
      pw_grid % spherical = .TRUE.
      pw_grid % cutoff = ABS ( ecut )
   ELSE
@@ -522,6 +525,8 @@ SUBROUTINE pw_grid_setup ( cell, pw_grid, cutoff, pe_group, info, fft_usage, &
     END IF
   END IF
 
+  CALL timestop(0.0_dbl,handle)
+
 END SUBROUTINE pw_grid_setup
 
 !!*****
@@ -553,11 +558,13 @@ SUBROUTINE pw_grid_distribute ( pw_grid, yz_mask, ref_grid )
   TYPE ( pw_grid_type ), OPTIONAL, INTENT ( IN ) :: ref_grid
 
 ! Locals
-  INTEGER :: gmin, gmax, nx, ny, nz, np, ns, i, j, k, l, m, n
+  INTEGER :: gmin, gmax, nx, ny, nz, np, ns, i, j, k, l, m, n, handle
   INTEGER :: lo ( 2 ), ip, ierr, gneg, lby, lbz, coor ( 2 ), rsd ( 2 ), ipl
   REAL ( dbl ) :: tfun, tt
 
 !------------------------------------------------------------------------------
+
+  CALL timeset("pw_grid_distribute","I","",handle)
 
   lby = pw_grid % bounds ( 1, 2 )
   lbz = pw_grid % bounds ( 1, 3 )
@@ -791,6 +798,8 @@ SUBROUTINE pw_grid_distribute ( pw_grid, yz_mask, ref_grid )
 
   END IF
 
+  CALL timestop(0.0_dbl,handle)
+
 END SUBROUTINE pw_grid_distribute
 
 !******************************************************************************
@@ -965,12 +974,14 @@ SUBROUTINE pw_grid_assign ( h_inv, pw_grid, cutoff )
   REAL ( dbl ), INTENT ( IN ) :: cutoff
 
 ! Locals
-  INTEGER :: gpt, i, l, m, n, n_upperlimit, ip, lby, lbz, nn, mm, ll
+  INTEGER :: gpt, i, l, m, n, n_upperlimit, ip, lby, lbz, nn, mm, ll, handle
   REAL ( dbl ) :: length_x, length_y, length_z, length
   INTEGER, DIMENSION ( 2, 3 ) :: bounds, bol
   
 !------------------------------------------------------------------------------
   
+  CALL timeset("pw_grid_assign","I","",handle)
+
   bounds = pw_grid % bounds
   lby = pw_grid % bounds ( 1, 2 )
   lbz = pw_grid % bounds ( 1, 3 )
@@ -1152,6 +1163,8 @@ SUBROUTINE pw_grid_assign ( h_inv, pw_grid, cutoff )
   CALL pw_grid_set_maps ( pw_grid % grid_span, pw_grid % g_hat, &
        pw_grid % mapl, pw_grid % mapm, pw_grid % mapn, pw_grid % npts )
 
+  CALL timestop(0.0_dbl,handle)
+
 END SUBROUTINE pw_grid_assign
 
 !!*****
@@ -1263,11 +1276,12 @@ END SUBROUTINE pw_grid_set_maps
 !!                        Should the pw_grid_type have a reference to the FFT
 !!                        library ?
 !!     JGH (28-02-2001) : Only do conditional check for FFT
+!!     JGH (21-05-2002) : Optimise code, remove orthorhombic special case
 !!
 !!   SOURCE
 !******************************************************************************
 
-SUBROUTINE pw_grid_find_bounds ( bounds, h_inv, cutoff, fft, orthorhombic )
+SUBROUTINE pw_grid_find_bounds ( bounds, h_inv, cutoff, fft )
 
   IMPLICIT NONE
 
@@ -1276,58 +1290,26 @@ SUBROUTINE pw_grid_find_bounds ( bounds, h_inv, cutoff, fft, orthorhombic )
   REAL ( dbl ), INTENT ( IN ) :: cutoff
   REAL ( dbl ), DIMENSION ( 3, 3 ), INTENT ( IN ) :: h_inv
   LOGICAL, INTENT ( IN ) :: fft
-  LOGICAL, OPTIONAL, INTENT ( IN ) :: orthorhombic
 
 ! Locals
-  INTEGER :: l, m, n, test_max, rin(3), rout(3)
+  INTEGER :: l, m, n, rin(3), rout(3), handle, info
   REAL ( dbl ) :: length
-  REAL ( dbl ) :: gmat ( 3, 3 ), gi ( 3 )
+  REAL ( dbl ) :: gmat ( 3, 3 ), eig ( 3 )
+  INTEGER, PARAMETER :: lwork = 20
+  REAL ( dbl ) :: work ( lwork )
 
 !------------------------------------------------------------------------------
 
+  CALL timeset("pw_grid_find_bounds","I","",handle)
+
   bounds ( :, : ) = 0
 
-  IF (PRESENT(orthorhombic)) THEN
+  gmat = MATMUL ( h_inv, TRANSPOSE ( h_inv ) )
+  CALL dsyev("V","U",3,gmat,3,eig,work,lwork,info)
+  IF ( info /= 0 ) CALL stop_program ( "pw_grid_find_bounds", "dsyev:info" )
 
-    bounds(2,1) = FLOOR(SQRT(2.0_dbl*cutoff)/(twopi*h_inv(1,1)))
-    bounds(2,2) = FLOOR(SQRT(2.0_dbl*cutoff)/(twopi*h_inv(2,2)))
-    bounds(2,3) = FLOOR(SQRT(2.0_dbl*cutoff)/(twopi*h_inv(3,3)))
-
-  ELSE
-
-    gmat = MATMUL ( h_inv, TRANSPOSE ( h_inv ) )
-    gi = 1._dbl
-    length = twopi * SQRT ( dotprod_3d ( matvec_3x3 ( gmat, gi ), gi ) )
-    test_max = 2 * NINT ( cutoff / length )
-
-! finds valid g-points within grid
-    DO n = 0, test_max
-       gi ( 3 ) = REAL ( n, dbl )
-       DO m = 0, test_max
-          gi ( 2 ) = REAL ( m, dbl )
-          DO l = 0, test_max
-             gi ( 1 ) = REAL ( l, dbl )
-             length = 0.5_dbl * twopi * twopi * &
-                      dotprod_3d ( matvec_3x3 ( gmat, gi ), gi )
-           
-             IF ( length <= cutoff ) THEN
-                bounds ( 2, 1 ) = MAX ( bounds ( 2, 1 ), l )
-                bounds ( 2, 2 ) = MAX ( bounds ( 2, 2 ), m )
-                bounds ( 2, 3 ) = MAX ( bounds ( 2, 3 ), n )
-             END IF
-
-          END DO
-       END DO
-    END DO
-
-    IF ( bounds ( 2, 1 ) == test_max .OR. &
-         bounds ( 2, 2 ) == test_max .OR. &
-         bounds ( 2, 3 ) == test_max ) THEN
-         CALL print_warning ( "pw_grid_find_bounds", &
-                              "initial bounds maybe too small:" )
-    END IF
-
-  END IF
+  eig = SQRT ( 2._dbl * cutoff / eig ) / twopi
+  bounds ( 2, : ) = FLOOR ( matvec_3x3 ( gmat, eig ) )
 
   IF ( fft ) THEN
     rin(1) = 2 * bounds ( 2, 1 ) + 1
@@ -1341,9 +1323,12 @@ SUBROUTINE pw_grid_find_bounds ( bounds, h_inv, cutoff, fft, orthorhombic )
     bounds ( 1, 3 ) = -rout(3)/2
   ELSE
     rout = rin
+    bounds ( 1, : ) = -rout(:)/2
   END IF
 
   bounds ( 2, : ) = bounds ( 1, : ) + rout - 1
+
+  CALL timestop(0.0_dbl,handle)
 
 END SUBROUTINE pw_grid_find_bounds
 
@@ -1454,11 +1439,13 @@ SUBROUTINE pw_grid_sort ( pw_grid, ref_grid )
   TYPE ( pw_grid_type ), OPTIONAL, INTENT ( IN ) :: ref_grid
 
 ! Locals
-  INTEGER :: ig, allocstat, ng, ngr
+  INTEGER :: ig, allocstat, ng, ngr, handle
   INTEGER, ALLOCATABLE, DIMENSION ( : ) :: idx, int_tmp
   REAL ( dbl ), ALLOCATABLE, DIMENSION ( : ) :: real_tmp
 
 !------------------------------------------------------------------------------
+
+  CALL timeset("pw_grid_sort","I","",handle)
 
   IF ( pw_grid % spherical ) THEN
 
@@ -1523,6 +1510,8 @@ SUBROUTINE pw_grid_sort ( pw_grid, ref_grid )
       CALL stop_program ( "pw_grid_sort", "G space sorting not compatible" )
     END IF
   END IF
+
+  CALL timestop(0.0_dbl,handle)
 
 END SUBROUTINE pw_grid_sort
 
@@ -1626,13 +1615,15 @@ SUBROUTINE pw_grid_remap ( pw_grid, yz )
   INTEGER, DIMENSION ( :, : ), INTENT ( OUT ) :: yz
 
 ! Locals
-  INTEGER :: i, j, is, ip, m, n, gpt, ny, nz
+  INTEGER :: i, j, is, ip, m, n, gpt, ny, nz, handle
   INTEGER, DIMENSION ( : ), POINTER :: mapl, mapm, mapn
 
 !------------------------------------------------------------------------------
 
   IF ( pw_grid % para % mode == 0 ) RETURN
   IF ( .NOT. pw_grid % para % ray_distribution ) RETURN
+
+  CALL timeset("pw_grid_remap","I","",handle)
 
   ny = pw_grid % npts ( 2 )
   nz = pw_grid % npts ( 3 )
@@ -1677,6 +1668,8 @@ SUBROUTINE pw_grid_remap ( pw_grid, yz )
     CALL stop_program ( "pw_grid_remap", "recount of yz ray failed" )
   END IF
   CALL mp_sum ( pw_grid % para % yzp, pw_grid % para % group )
+
+  CALL timestop(0.0_dbl,handle)
 
 END SUBROUTINE pw_grid_remap
 

@@ -252,7 +252,7 @@ SUBROUTINE pw_zero ( pw )
 
 !------------------------------------------------------------------------------
 
-  CALL timeset ( 'PW_ZERO', 'I', 'Mzero', handle )
+  CALL timeset ( 'pw_zero', 'I', 'Mzero', handle )
 
   IF ( pw % in_use == REALDATA1D ) THEN
      ns = SIZE ( pw % cr ( : ) )
@@ -313,7 +313,7 @@ SUBROUTINE pw_copy ( pw1, pw2 )
   
 !------------------------------------------------------------------------------
   
-  CALL timeset ( 'PW_COPY', 'I', 'Mcopy', handle )
+  CALL timeset ( 'pw_copy', 'I', 'Mcopy', handle )
 
   IF ( pw1 % pw_grid % identifier /= pw2 % pw_grid % identifier ) THEN
 
@@ -398,7 +398,7 @@ SUBROUTINE pw_derive_a ( pw, n )
 
 !------------------------------------------------------------------------------
 
-  CALL timeset ( 'PW_DERIVE', 'I', 'Mflops', handle )
+  CALL timeset ( 'pw_derive', 'I', 'Mflops', handle )
 
   IF ( pw % in_space == RECIPROCALSPACE .AND. &
        pw % in_use == COMPLEXDATA1D ) THEN
@@ -473,7 +473,7 @@ SUBROUTINE pw_derive_ab ( pw, dpw, n )
 
 !------------------------------------------------------------------------------
 
-  CALL timeset ( 'PW_DERIVE', 'I', 'Mflops', handle )
+  CALL timeset ( 'pw_derive', 'I', 'Mflops', handle )
 
   IF ( pw % in_space == RECIPROCALSPACE .AND. &
        pw % in_use == COMPLEXDATA1D .AND. &
@@ -632,7 +632,8 @@ SUBROUTINE pw_add ( pw1, pw2, pw3 )
   
 !------------------------------------------------------------------------------
   
-  CALL timeset ( 'PW_ADD', 'I', 'Mflops', handle )
+  CALL timeset ( 'pw_add', 'I', 'Mflops', handle )
+
   IF ( pw3 % pw_grid % identifier /= pw2 % pw_grid % identifier .OR. &
        pw3 % pw_grid % identifier /= pw1 % pw_grid % identifier  ) THEN
 
@@ -680,6 +681,7 @@ SUBROUTINE pw_add ( pw1, pw2, pw3 )
        CALL stop_program ( "pw_add", "no suitable data field" )
     END IF
   END IF
+
   flop = flop * 1.e-6_dbl
   CALL timestop ( flop, handle )
   
@@ -718,7 +720,7 @@ SUBROUTINE pw_sumup_square ( pw1, pw2 )
   
 !------------------------------------------------------------------------------
 
-  CALL timeset ( 'PW_SUMUP_SQUARE', 'I', 'Mflops', handle )
+  CALL timeset ( 'pw_sumup_square', 'I', 'Mflops', handle )
   
   IF ( pw1 % in_use == REALDATA1D ) THEN
      IF ( pw2 % in_use == REALDATA1D ) THEN
@@ -798,7 +800,7 @@ SUBROUTINE pw_sumup ( pw1, pw2 )
  
 !------------------------------------------------------------------------------
  
-  CALL timeset ( 'PW_SUMUP', 'I', 'Mflops', handle )
+  CALL timeset ( 'pw_sumup', 'I', 'Mflops', handle )
 
   IF ( pw1 % in_use == REALDATA1D .AND. pw2 % in_use == REALDATA1D ) THEN
      pw2 % cr = pw2 % cr + pw1 % cr
@@ -860,7 +862,7 @@ SUBROUTINE pw_subtract ( pw1, pw2, pw3 )
   
 !------------------------------------------------------------------------------
   
-  CALL timeset ( 'PW_SUBTRACT', 'I', 'Mflops', handle )
+  CALL timeset ( 'pw_subtract', 'I', 'Mflops', handle )
 
   IF ( pw1 % in_use == REALDATA1D .AND. pw2 % in_use == REALDATA1D .AND. &
        pw3 % in_use == REALDATA1D ) THEN
@@ -924,7 +926,7 @@ SUBROUTINE pw_reduce ( pw1, pw2 )
   
 !------------------------------------------------------------------------------
   
-  CALL timeset ( 'PW_REDUCE', 'I', 'Mflops', handle )
+  CALL timeset ( 'pw_reduce', 'I', 'Mflops', handle )
 
   IF ( pw1 % in_use == REALDATA1D .AND. pw2 % in_use == REALDATA1D ) THEN
      pw2 % cr = pw2 % cr - pw1 % cr
@@ -985,7 +987,7 @@ SUBROUTINE pw_gather_s ( pw, c, scale )
 
 !------------------------------------------------------------------------------
 
-  CALL timeset ( 'PW_GATHER', 'I', 'Mcopy', handle )
+  CALL timeset ( 'pw_gather', 'I', 'Mcopy', handle )
 
   IF ( pw % in_use /= COMPLEXDATA1D ) THEN
      CALL stop_program ( "pw_gather_s", "Data field has to be COMPLEXDATA1D" )
@@ -1051,7 +1053,7 @@ SUBROUTINE pw_gather_p ( pw, c, scale )
 
 !------------------------------------------------------------------------------
 
-  CALL timeset ( 'PW_GATHER', 'I', 'Mcopy', handle )
+  CALL timeset ( 'pw_gather', 'I', 'Mcopy', handle )
 
   IF ( pw % in_use /= COMPLEXDATA1D ) THEN
      CALL stop_program ( "pw_gather_p", "Data field has to be COMPLEXDATA1D" )
@@ -1140,7 +1142,7 @@ SUBROUTINE pw_scatter_s ( pw, c, scale )
 
 !------------------------------------------------------------------------------
 
-  CALL timeset ( 'PW_SCATTER', 'I', 'Mcopy', handle )
+  CALL timeset ( 'pw_scatter', 'I', 'Mcopy', handle )
 
   IF ( pw % in_use /= COMPLEXDATA1D ) THEN
      CALL stop_program ( "pw_scatter_s", "Data field has to be COMPLEXDATA1D" )
@@ -1241,7 +1243,7 @@ SUBROUTINE pw_scatter_p ( pw, c, scale )
 
 !------------------------------------------------------------------------------
 
-  CALL timeset ( 'PW_SCATTER', 'I', 'Mcopy', handle )
+  CALL timeset ( 'pw_scatter', 'I', 'Mcopy', handle )
 
   IF ( pw % in_use /= COMPLEXDATA1D ) THEN
      CALL stop_program ( "pw_scatter_p", "Data field has to be COMPLEXDATA1D" )
@@ -1369,6 +1371,7 @@ SUBROUTINE fft_wrap_pw1 ( pw1, debug )
   REAL ( dbl ) :: norm
   LOGICAL :: test
 !------------------------------------------------------------------------------
+
   CALL timeset("fft_wrap_pw1","I","",handle)
 
   IF ( PRESENT ( debug ) ) THEN
@@ -1429,6 +1432,7 @@ SUBROUTINE fft_wrap_pw1pw2 ( pw1, pw2, debug )
   LOGICAL :: test
   
 !------------------------------------------------------------------------------
+
   CALL timeset("fft_wrap_pw1pw2","I","",handle)
 
   NULLIFY ( c_in )

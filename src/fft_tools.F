@@ -51,6 +51,7 @@ MODULE fft_tools
   USE message_passing, ONLY : mp_environ, mp_comm_compare, mp_rank_compare, &
                               mp_transpose, mp_sum, mp_cart_coords, mp_cart_sub, &
                               mp_cart_rank, mp_sync, mp_comm_free
+  USE timings, ONLY: timeset, timestop
   
   IMPLICIT NONE 
   
@@ -327,9 +328,11 @@ SUBROUTINE fft1dm ( fsign, tin, tout, n, m, zin, zout, scale )
   REAL ( dbl ), INTENT ( IN ) :: scale
 
 ! Local
-  INTEGER :: sign
+  INTEGER :: sign, handle
 
 !------------------------------------------------------------------------------
+
+  CALL timeset("fft1dm","I","",handle)
 
   sign = fsign
 
@@ -345,6 +348,8 @@ SUBROUTINE fft1dm ( fsign, tin, tout, n, m, zin, zout, scale )
   CASE DEFAULT
     CALL stop_program ("fft1dm","Unknown FFT library")
   END SELECT
+
+  CALL timestop(0._dbl,handle)
 
 END SUBROUTINE fft1dm
 
@@ -380,9 +385,11 @@ SUBROUTINE fft2dm ( fsign, tin, tout, na, nb, m, zin, zout, scale )
   REAL ( dbl ), INTENT ( IN ) :: scale
 
 ! Local
-  INTEGER :: sign
+  INTEGER :: sign, handle
 
 !------------------------------------------------------------------------------
+
+  CALL timeset("fft2dm","I","",handle)
 
   sign = fsign
 
@@ -399,6 +406,7 @@ SUBROUTINE fft2dm ( fsign, tin, tout, na, nb, m, zin, zout, scale )
     CALL stop_program ("fft2dm","Unknown FFT library")
   END SELECT
 
+  CALL timestop(0._dbl,handle)
 
 END SUBROUTINE fft2dm
 
@@ -436,9 +444,11 @@ SUBROUTINE fft3d_s ( fsign, n, zin, zout, scale, status, debug )
 
   LOGICAL :: test
   REAL ( dbl ) :: norm, in_sum, out_sum
-  INTEGER :: sign, ld(3), lo(3)
+  INTEGER :: sign, ld(3), lo(3), handle
 
 !------------------------------------------------------------------------------
+
+  CALL timeset("fft3d_s","I","",handle)
 
   IF ( PRESENT ( scale ) ) THEN
     norm = scale
@@ -464,32 +474,12 @@ SUBROUTINE fft3d_s ( fsign, n, zin, zout, scale, status, debug )
   SELECT CASE ( fft_type )
   CASE ( 1 )
     CALL sg_fft3d ( sign, norm, n, zin, zout )
-!   IF ( PRESENT ( zout ) ) THEN
-!     CALL sg_fft3d ( sign, norm, n, zin, zout )
-!   ELSE
-!     CALL sg_fft3d ( sign, norm, n, zin )
-!   END IF
   CASE ( 2 )
     CALL w_fft3d ( sign, norm, n, zin, zout )
-!   IF ( PRESENT ( zout ) ) THEN
-!     CALL w_fft3d ( sign, norm, n, zin, zout )
-!   ELSE
-!     CALL w_fft3d ( sign, norm, n, zin )
-!   END IF
   CASE ( 3 )
     CALL i_fft3d ( sign, norm, n, zin, zout )
-!   IF ( PRESENT ( zout ) ) THEN
-!     CALL i_fft3d ( sign, norm, n, zin, zout )
-!   ELSE
-!     CALL i_fft3d ( sign, norm, n, zin )
-!   END IF
   CASE ( 4 )
     CALL sgi_fft3d ( sign, norm, n, zin, zout )
-!   IF ( PRESENT ( zout ) ) THEN
-!     CALL sgi_fft3d ( sign, norm, n, zin, zout )
-!   ELSE
-!     CALL sgi_fft3d ( sign, norm, n, zin )
-!   END IF
   CASE DEFAULT
     CALL stop_program ("fft3d", "Unknown FFT library")
   END SELECT
@@ -524,6 +514,8 @@ SUBROUTINE fft3d_s ( fsign, n, zin, zout, scale, status, debug )
     END IF
   END IF
 
+  CALL timestop(0.0_dbl,handle)
+
 END SUBROUTINE fft3d_s
 
 !******************************************************************************
@@ -548,7 +540,7 @@ SUBROUTINE fft3d_ps ( fsign, n, cin, gin, gs_group, rs_group, yzp, nyzray, &
 
 ! Locals
   INTEGER :: numtask, numtask_g, numtask_r, g_pos, r_pos(2), r_dim(2), iout
-  INTEGER :: sign, ierr, lg, mg, ng, nx, ny, nz, lmax, rp
+  INTEGER :: sign, ierr, lg, mg, ng, nx, ny, nz, lmax, rp, handle
   INTEGER :: mx1, my1, mx2, mz2
   COMPLEX ( dbl ), DIMENSION ( :, : ), ALLOCATABLE :: sbuf
   COMPLEX ( dbl ), DIMENSION ( :, :, : ), ALLOCATABLE :: tbuf
@@ -560,6 +552,8 @@ SUBROUTINE fft3d_ps ( fsign, n, cin, gin, gs_group, rs_group, yzp, nyzray, &
   LOGICAL :: test
 
 !------------------------------------------------------------------------------
+
+  CALL timeset("fft3d_ps","I","",handle)
 
   IF ( PRESENT ( debug ) ) THEN
     test = debug
@@ -960,6 +954,8 @@ SUBROUTINE fft3d_ps ( fsign, n, cin, gin, gs_group, rs_group, yzp, nyzray, &
     END IF
   END IF
 
+  CALL timestop(0.0_dbl,handle)
+
 END SUBROUTINE fft3d_ps
 
 !******************************************************************************
@@ -980,7 +976,7 @@ SUBROUTINE fft3d_pb ( fsign, n, zin, gin, group, bo, scale, status, debug )
   LOGICAL, INTENT ( IN ), OPTIONAL :: debug
 
 ! Local
-  INTEGER :: np, sign, ierr, mx, my, mz, my_pos, lg(2), lz(3)
+  INTEGER :: np, sign, ierr, mx, my, mz, my_pos, lg(2), lz(3), handle
   INTEGER, DIMENSION ( 2 ) :: pos, dim
   REAL ( dbl ) :: norm, sum_data
   COMPLEX ( dbl ) , DIMENSION ( :, : ), ALLOCATABLE :: abuf, bbuf
@@ -1005,6 +1001,8 @@ SUBROUTINE fft3d_pb ( fsign, n, zin, gin, group, bo, scale, status, debug )
 ! The more general case with two communicators for the initial and final
 ! distribution is not covered.
 !------------------------------------------------------------------------------
+
+  CALL timeset("fft3d_pb","I","",handle)
 
   CALL mp_environ ( np, dim, pos, group )
   CALL mp_cart_rank ( group, pos, my_pos )
@@ -1474,6 +1472,8 @@ SUBROUTINE fft3d_pb ( fsign, n, zin, gin, group, bo, scale, status, debug )
     END IF
   END IF
 
+  CALL timestop(0.0_dbl,handle)
+
 END SUBROUTINE fft3d_pb
 
 !!*****
@@ -1512,9 +1512,11 @@ SUBROUTINE x_to_yz ( sb, group, my_pos, p2p, yzp, nray, bo, tb )
 ! Local
   COMPLEX ( dbl ), DIMENSION ( :, : ), ALLOCATABLE :: rr
   INTEGER, DIMENSION ( : ), ALLOCATABLE :: scount, sdispl, rcount, rdispl
-  INTEGER :: nr, np, nx, nm, ierr, ip, ir, ix, iy, iz, ixx, mpr
+  INTEGER :: nr, np, nx, nm, ierr, ip, ir, ix, iy, iz, ixx, mpr, handle
 
 !------------------------------------------------------------------------------
+
+  CALL timeset("x_to_yz","I","",handle)
 
   np = SIZE ( p2p )
   ALLOCATE ( scount ( 0 : np - 1 ), sdispl ( 0 : np - 1 ), &
@@ -1563,6 +1565,8 @@ SUBROUTINE x_to_yz ( sb, group, my_pos, p2p, yzp, nray, bo, tb )
   DEALLOCATE ( scount, sdispl, rcount, rdispl, STAT = ierr )
   IF ( ierr /= 0 ) CALL stop_memory ( "x_to_yz", "scount" )
 
+  CALL timestop(0.0_dbl,handle)
+
 END SUBROUTINE x_to_yz
 
 !!*****
@@ -1601,9 +1605,11 @@ SUBROUTINE yz_to_x ( tb, group, my_pos, p2p, yzp, nray, bo, sb )
 ! Local
   COMPLEX ( dbl ), DIMENSION ( :, : ), ALLOCATABLE :: rr
   INTEGER, DIMENSION ( : ), ALLOCATABLE :: scount, sdispl, rcount, rdispl
-  INTEGER :: nr, np, nx, nm, ierr, ip, ir, ix, iy, iz, ixx, mpr
+  INTEGER :: nr, np, nx, nm, ierr, ip, ir, ix, iy, iz, ixx, mpr, handle
 
 !------------------------------------------------------------------------------
+
+  CALL timeset("yz_to_x","I","",handle)
 
   np = SIZE ( p2p )
   mpr = p2p ( my_pos )
@@ -1651,6 +1657,8 @@ SUBROUTINE yz_to_x ( tb, group, my_pos, p2p, yzp, nray, bo, sb )
   DEALLOCATE ( scount, sdispl, rcount, rdispl, STAT = ierr )
   IF ( ierr /= 0 ) CALL stop_memory ( "yz_to_x", "scount" )
 
+  CALL timestop(0.0_dbl,handle)
+
 END SUBROUTINE yz_to_x
 
 !!*****
@@ -1694,9 +1702,11 @@ SUBROUTINE yz_to_xz ( sb, group, dims, my_pos, p2p, yzp, nray, bo, tb )
   INTEGER, DIMENSION ( : ), ALLOCATABLE :: xcor, zcor
   INTEGER, DIMENSION ( : ), ALLOCATABLE :: scount, sdispl, rcount, rdispl
   INTEGER :: ir, ix, iz, cpos ( 2 ), nx, nz, nmax, jx, jy, jz, npx, npz
-  INTEGER :: myx, myz, jj, ixx, np, ierr, ip, rs_pos, ipr
+  INTEGER :: myx, myz, jj, ixx, np, ierr, ip, rs_pos, ipr, handle
 
 !------------------------------------------------------------------------------
+
+  CALL timeset("yz_to_xz","I","",handle)
 
   np = SIZE ( p2p )
   nx = MAXVAL ( bo ( 2, 1, : ) - bo ( 1, 1, : ) + 1 )
@@ -1793,6 +1803,8 @@ SUBROUTINE yz_to_xz ( sb, group, dims, my_pos, p2p, yzp, nray, bo, tb )
   DEALLOCATE ( scount, sdispl, rcount, rdispl, STAT = ierr )
   IF ( ierr /= 0 ) CALL stop_memory ( "yz_to_xz", "scount" )
 
+  CALL timestop(0.0_dbl,handle)
+
 END SUBROUTINE yz_to_xz
 
 !!*****
@@ -1835,10 +1847,12 @@ SUBROUTINE xz_to_yz ( sb, group, dims, my_pos, p2p, yzp, nray, bo, tb )
   INTEGER, DIMENSION ( :, : ), ALLOCATABLE :: pgrid
   INTEGER, DIMENSION ( : ), ALLOCATABLE :: xcor, zcor
   INTEGER, DIMENSION ( : ), ALLOCATABLE :: scount, sdispl, rcount, rdispl
-  INTEGER :: ir, np, nx, ny, nz, ixz, iy, ip, ierr, ipl, mp
+  INTEGER :: ir, np, nx, ny, nz, ixz, iy, ip, ierr, ipl, mp, handle
   INTEGER :: ix, iz, jx, jy, jz, npz, npx, nmax, cpos ( 2 ), ixx, jj, myx, myz
 
 !------------------------------------------------------------------------------
+
+  CALL timeset("xz_to_yz","I","",handle)
 
   np = SIZE ( p2p )
   ny = MAXVAL ( bo ( 2, 2, : ) - bo ( 1, 2, : ) + 1 )
@@ -1948,6 +1962,8 @@ SUBROUTINE xz_to_yz ( sb, group, dims, my_pos, p2p, yzp, nray, bo, tb )
   DEALLOCATE ( scount, sdispl, rcount, rdispl, STAT = ierr )
   IF ( ierr /= 0 ) CALL stop_memory ( "yz_to_xz", "scount" )
 
+  CALL timestop(0.0_dbl,handle)
+
 END SUBROUTINE xz_to_yz
 
 !!*****
@@ -1985,11 +2001,13 @@ SUBROUTINE cube_transpose_1 ( sin, group, boin, boout, sout )
   INTEGER, DIMENSION ( : ), ALLOCATABLE :: pgrid
   COMPLEX ( dbl ), DIMENSION ( :, : ), ALLOCATABLE :: rbuf
   INTEGER :: sub_group, ip, nx, ny, nz, mz, ierr, is, ir, n, iz, ixy, &
-             np, mip, ipl
+             np, mip, ipl, handle
   INTEGER, DIMENSION ( 2 ) :: dim, pos, pp
   LOGICAL, DIMENSION ( 2 ) :: rdim
 
 !------------------------------------------------------------------------------
+
+  CALL timeset("cube_transpose_1","I","",handle)
 
   rdim ( 1 ) = .FALSE.
   rdim ( 2 ) = .TRUE.
@@ -2055,6 +2073,8 @@ SUBROUTINE cube_transpose_1 ( sin, group, boin, boout, sout )
 
   CALL mp_comm_free ( sub_group )
 
+  CALL timestop(0.0_dbl,handle)
+
 END SUBROUTINE cube_transpose_1
 
 !******************************************************************************
@@ -2074,11 +2094,13 @@ SUBROUTINE cube_transpose_2 ( sin, group, boin, boout, sout )
   INTEGER, DIMENSION ( : ), ALLOCATABLE :: pgrid
   COMPLEX ( dbl ), DIMENSION ( :, : ), ALLOCATABLE :: rbuf
   INTEGER :: sub_group, ip, nx, ny, nz, mz, ierr, is, ir, n, iz, ixy, &
-             np, mip, ipl
+             np, mip, ipl, handle
   INTEGER, DIMENSION ( 2 ) :: dim, pos, pp
   LOGICAL, DIMENSION ( 2 ) :: rdim
 
 !------------------------------------------------------------------------------
+
+  CALL timeset("cube_transpose_2","I","",handle)
 
   rdim ( 1 ) = .FALSE.
   rdim ( 2 ) = .TRUE.
@@ -2144,6 +2166,8 @@ SUBROUTINE cube_transpose_2 ( sin, group, boin, boout, sout )
 
   CALL mp_comm_free ( sub_group )
 
+  CALL timestop(0.0_dbl,handle)
+
 END SUBROUTINE cube_transpose_2
 
 !******************************************************************************
@@ -2163,11 +2187,13 @@ SUBROUTINE cube_transpose_3 ( sin, group, boin, boout, sout )
   INTEGER, DIMENSION ( : ), ALLOCATABLE :: pgrid
   COMPLEX ( dbl ), DIMENSION ( :, : ), ALLOCATABLE :: rbuf
   INTEGER :: sub_group, ip, nx, ny, nz, my, ierr, is, ir, n, iy, ixz, &
-             np, mip, ipl
+             np, mip, ipl, handle
   INTEGER, DIMENSION ( 2 ) :: dim, pos, pp
   LOGICAL, DIMENSION ( 2 ) :: rdim
 
 !------------------------------------------------------------------------------
+
+  CALL timeset("cube_transpose_3","I","",handle)
 
   rdim ( 1 ) = .TRUE. 
   rdim ( 2 ) = .FALSE.
@@ -2232,6 +2258,8 @@ SUBROUTINE cube_transpose_3 ( sin, group, boin, boout, sout )
 
   CALL mp_comm_free ( sub_group )
 
+  CALL timestop(0.0_dbl,handle)
+
 END SUBROUTINE cube_transpose_3
 
 !******************************************************************************
@@ -2251,11 +2279,13 @@ SUBROUTINE cube_transpose_4 ( sin, group, boin, boout, sout )
   INTEGER, DIMENSION ( : ), ALLOCATABLE :: pgrid
   COMPLEX ( dbl ), DIMENSION ( :, : ), ALLOCATABLE :: rbuf
   INTEGER :: sub_group, ip, nx, ny, nz, my, ierr, is, ir, n, iy, izx, &
-             np, mip, ipl
+             np, mip, ipl, handle
   INTEGER, DIMENSION ( 2 ) :: dim, pos, pp
   LOGICAL, DIMENSION ( 2 ) :: rdim
 
 !------------------------------------------------------------------------------
+
+  CALL timeset("cube_transpose_4","I","",handle)
 
   rdim ( 1 ) = .TRUE.
   rdim ( 2 ) = .FALSE.
@@ -2320,6 +2350,8 @@ SUBROUTINE cube_transpose_4 ( sin, group, boin, boout, sout )
 
   CALL mp_comm_free ( sub_group )
 
+  CALL timestop(0.0_dbl,handle)
+
 END SUBROUTINE cube_transpose_4
 
 !******************************************************************************
@@ -2338,10 +2370,12 @@ SUBROUTINE cube_transpose_5 ( sin, group, boin, boout, sout )
   INTEGER, DIMENSION ( : ), ALLOCATABLE :: scount, sdispl, rcount, rdispl
   COMPLEX ( dbl ), DIMENSION ( :, : ), ALLOCATABLE :: rbuf
   INTEGER :: sub_group, ip, nx, ny, nz, my, ierr, is, ir, iy, ixz, &
-             np, mip, ipl
+             np, mip, ipl, handle
   INTEGER, DIMENSION ( 2 ) :: dim, pos, pp
 
 !------------------------------------------------------------------------------
+
+  CALL timeset("cube_transpose_5","I","",handle)
 
   CALL mp_environ ( np, dim, pos, group )
   CALL mp_cart_rank ( group, pos, mip )
@@ -2387,6 +2421,8 @@ SUBROUTINE cube_transpose_5 ( sin, group, boin, boout, sout )
   DEALLOCATE ( scount, sdispl, rcount, rdispl, STAT = ierr )
   IF ( ierr /= 0 ) CALL stop_memory ( "cube_transpose", "scount" )
 
+  CALL timestop(0.0_dbl,handle)
+
 END SUBROUTINE cube_transpose_5
 
 !******************************************************************************
@@ -2405,10 +2441,12 @@ SUBROUTINE cube_transpose_6 ( sin, group, boin, boout, sout )
   INTEGER, DIMENSION ( : ), ALLOCATABLE :: scount, sdispl, rcount, rdispl
   COMPLEX ( dbl ), DIMENSION ( :, : ), ALLOCATABLE :: rbuf
   INTEGER :: ip, nx, ny, nz, my, ierr, is, ir, iy, izx, &
-             np, mip
+             np, mip, handle
   INTEGER, DIMENSION ( 2 ) :: dim, pos, pp
 
 !------------------------------------------------------------------------------
+
+  CALL timeset("cube_transpose_6","I","",handle)
 
   CALL mp_environ ( np, dim, pos, group )
   CALL mp_cart_rank ( group, pos, mip )
@@ -2453,6 +2491,8 @@ SUBROUTINE cube_transpose_6 ( sin, group, boin, boout, sout )
   IF ( ierr /= 0 ) CALL stop_memory ( "cube_transpose", "rbuf" )
   DEALLOCATE ( scount, sdispl, rcount, rdispl, STAT = ierr )
   IF ( ierr /= 0 ) CALL stop_memory ( "cube_transpose", "scount" )
+
+  CALL timestop(0.0_dbl,handle)
 
 END SUBROUTINE cube_transpose_6
 
