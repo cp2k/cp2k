@@ -505,6 +505,8 @@ MODULE qs_rho0_methods
 !     that is collocated on the grid
       IF(rho0_mpole%zet0_s < zetsoft_max) rho0_mpole%zet0_s = zetsoft_max
 
+      IF(rho0_mpole%zet0_s > 0.9_dp*rho0_mpole%zet0_h) &
+           rho0_mpole%zet0_s=0.9_dp*rho0_mpole%zet0_h
     END IF
 
 !   Allocate and calculate the normalization factors for g0_lm_h and g0_lm_s
