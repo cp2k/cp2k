@@ -904,12 +904,14 @@ CONTAINS
     TYPE(cp_error_type), INTENT(INOUT), &
       OPTIONAL                               :: error
 
-    CHARACTER(LEN=*), PARAMETER              :: routineN = "mc_volume_move"
+    CHARACTER(LEN=*), PARAMETER              :: &
+      routineN = "mc_volume_move"
     REAL(KIND=dp), DIMENSION(1:3), PARAMETER :: &
       mass = (/ 15.994d0,1.008d0,1.008d0 /)
     REAL(KIND=dp), PARAMETER                 :: mass_tot = 18.01d0
 
-    INTEGER                                  :: handle, i, imol, ivolmove
+    INTEGER                                  :: handle, i, iatom, &
+                                                ivolmove
     REAL(KIND=dp) :: classical_energy_diff, classical_energy_new, &
       classical_energy_original, classical_energy_test, new_cell_length, &
       new_energy, old_cell_length, rand, test_cell_length, vol_dis, w
@@ -922,7 +924,7 @@ CONTAINS
     REAL(KIND=dp), &
       DIMENSION(1:3, 1:mc_par%nunits_tot)    :: r
     REAL(KIND=dp), &
-      DIMENSION(1:3, 1:mc_par%nunits)        :: r_mol
+      DIMENSION(1:3, 1:mc_par%nunits_tot)    :: r_mol
     TYPE(particle_list_type), POINTER        :: particles_old, particles_test
 
 !   ---------------------------------------------------------------------------
@@ -931,7 +933,8 @@ CONTAINS
       CALL timeset(routineN,'I','',handle)
 
 ! nullify some pointers
-      NULLIFY(test_env,particles_old,particles_test,oldsys,testsys)
+      NULLIFY(particles_old,particles_test,cell_old,oldsys,&
+         testsys,test_env)
 
       IF (mc_par%ionode) THEN
 ! record the attempt
@@ -948,7 +951,6 @@ CONTAINS
 ! find the old cell length
       old_cell_length=cell_old%hmat(1,1)
       test_cell_length=cell_old%hmat(1,1)
-
       IF (mc_par%ionode) THEN
 
 ! find the old classical energy
@@ -959,12 +961,12 @@ CONTAINS
          classical_energy_test=classical_energy_original
 
 ! save the old coordiantes
-         DO imol=1,mc_par%nunits_tot
-            r(1:3,imol)=particles_old%els(imol)%r(1:3)
+         DO iatom=1,mc_par%nunits_tot
+            r(1:3,iatom)=particles_old%els(iatom)%r(1:3)
          ENDDO
 
 ! fold the coordinates into the central box
-         CALL mc_coordinate_fold(r(:,:),mc_par%nunits,&
+         CALL mc_coordinate_fold(r(:,:),mc_par%nunits_tot,&
              test_cell_length)
 
 ! make the new dat file
@@ -993,50 +995,44 @@ CONTAINS
             vol_dis=mc_par%rmvolume*(rand-0.5d0)*2.0d0
             new_cell_length=(vol_dis+&
                test_cell_length**3)**(1.0d0/3.0d0)
-
-            DO imol=1,mc_par%nunits_tot
-               r(1:3,imol)=particles_test%els(imol)%r(1:3)
+            DO iatom=1,mc_par%nunits_tot
+               r(1:3,iatom)=particles_test%els(iatom)%r(1:3)
             ENDDO
 
 ! now we need to scale the coordinates of all the molecules by the
 ! center of mass, using the minimum image (not all molecules are in
 ! the central box)
 
+! save the particle coords
+            DO i=1,mc_par%nunits_tot
+               r_mol(1:3,i)=particles_test%els(i)%r(1:3)
+            ENDDO
+
 ! now we need to scale the coordinates of all the molecules by the
 ! center of mass
-            DO imol=1,mc_par%nchain*mc_par%nunits,3
-
-! save the particle coords
-               DO i=1,mc_par%nunits
-                  r_mol(1:3,i)=particles_test%els(i)%r(1:3)
-               ENDDO
+            DO iatom=1,mc_par%nchain*mc_par%nunits,mc_par%nunits
 
 ! now find the center of mass
-               CALL get_center_of_mass(r_mol(:,:),mc_par%nunits,&
+               CALL get_center_of_mass(r_mol(:,iatom:iatom+2),mc_par%nunits,&
                   center_of_mass(:),mass(:))
-               
+
 ! scale the center of mass and determine the vector that points from the
 !    old COM to the new one
                center_of_mass_new(1:3)=center_of_mass(1:3)*&
                   new_cell_length/test_cell_length
                DO i=1,3
                   diff(i)=center_of_mass_new(i)-center_of_mass(i)
+! now change the particle positions
+                  particles_test%els(iatom)%r(i)=&
+                     particles_test%els(iatom)%r(i)+diff(i)
+                  particles_test%els(iatom+1)%r(i)=&
+                     particles_test%els(iatom+1)%r(i)+diff(i)
+                  particles_test%els(iatom+2)%r(i)=&
+                     particles_test%els(iatom+2)%r(i)+diff(i)
                ENDDO
          
-! now change the particle positions
-               DO i=1,3
-                  particles_test%els(imol)%r(i)=&
-                     particles_test%els(imol)%r(i)+diff(i)
-                  particles_test%els(imol+1)%r(i)=&
-                     particles_test%els(imol+1)%r(i)+diff(i)
-                  particles_test%els(imol+2)%r(i)=&
-                     particles_test%els(imol+2)%r(i)+diff(i)
-               ENDDO
             ENDDO
         
-            CALL cp_subsys_set(testsys(1)%subsys,&
-               particles=particles_test)
-
 ! find and store the classical energy
             CALL mc_classical_energy(test_env,&
                classical_energy_new,mc_par,1,mc_par%nchain,&
@@ -1049,8 +1045,7 @@ CONTAINS
                   classical_energy_test-REAL(mc_par%nchain,dbl)/&
                   mc_par%BETA*3.0d0*&
                   DLOG(new_cell_length/test_cell_length) + &
-                  mc_par%pressure*(new_cell_length**3-&
-                  test_cell_length**3)))
+                  mc_par%pressure*vol_dis))
                
                IF ( w .GE. 1.0d0 ) THEN
                   w=1.0d0
@@ -1082,11 +1077,10 @@ CONTAINS
                      moves%classical_volume%attempts+1
 
 ! revert back to old coords                      
-                  DO imol=1,mc_par%nunits_tot
-                     particles_test%els(imol)%r(1:3)=r(1:3,imol)
+                  DO iatom=1,mc_par%nunits_tot
+                     particles_test%els(iatom)%r(1:3)=r(1:3,iatom)
                   ENDDO
-                  CALL cp_subsys_set(testsys(1)%subsys,&
-                     particles=particles_test)
+
                ENDIF
             
             ELSE
@@ -1107,8 +1101,8 @@ CONTAINS
          new_energy=classical_energy_test
 
 ! make the new dat file
-         DO imol=1,mc_par%nunits_tot
-            r(1:3,imol)=particles_test%els(imol)%r(1:3)
+         DO iatom=1,mc_par%nunits_tot
+            r(1:3,iatom)=particles_test%els(iatom)%r(1:3)
          ENDDO
 
          CALL mc_make_dat_file(r(:,:),mc_par%nunits_tot,&
@@ -1140,11 +1134,14 @@ CONTAINS
             w=dexp(-mc_par%BETA*((new_energy-old_energy)-&
                REAL(mc_par%nchain,dbl)/mc_par%BETA*3.0d0*&
                DLOG(test_cell_length/old_cell_length) &
-               + mc_par%pressure*(test_cell_length**3-&
-               old_cell_length**3)))
+               + mc_par%pressure*vol_dis))
             
          ENDIF
 
+!!!!!!!!!!!
+!         w=1.0D0
+!         w=0.0D0
+!!!!!!!!!!!
          IF ( w .GE. 1.0d0 ) THEN
             w=1.0d0
             rand=0.0D0
@@ -1154,6 +1151,7 @@ CONTAINS
 
       ENDIF
 
+
       CALL mp_bcast(rand,mc_par%source,mc_par%group)
       CALL mp_bcast(w,mc_par%source,mc_par%group)
 
@@ -1161,13 +1159,15 @@ CONTAINS
 
 ! write cell length, volume, density, and trial displacement to a file
          IF(mc_par%ionode) THEN
+!!!!!!!!!!!!
+!            WRITE(mc_par%cl,*) nnstep,(test_cell_length*angstrom)**3
             WRITE(mc_par%cl,*) nnstep,test_cell_length*angstrom,&
-               (new_energy-old_energy),classical_energy_diff,&
+               (new_energy-old_energy)/3.16682968d-6,classical_energy_diff/3.16682968d-6,&
                -REAL(mc_par%nchain,dbl)/&
                mc_par%BETA*3.0d0*DLOG(test_cell_length/&
-               old_cell_length), &
-               mc_par%pressure*(test_cell_length**3-old_cell_length**3),&
-               vol_dis*(angstrom)**3,rand
+               old_cell_length)/3.16682968d-6, &
+               mc_par%pressure*(test_cell_length**3-old_cell_length**3)/3.16682968d-6,&
+               vol_dis*(angstrom)**3,rand,new_energy/3.16682968d-6,old_energy/3.16682968d-6,w
                
 ! accept the move
             moves%volume%successes=moves%volume%successes+1
@@ -1186,8 +1186,8 @@ CONTAINS
             CALL cp_subsys_get(testsys(1)%subsys, &
                particles=particles_test, error=error)
 
-            DO imol=1,mc_par%nchain
-               r_old(1:3,imol)=particles_test%els(imol)%r(1:3)
+            DO iatom=1,mc_par%nunits_tot
+               r_old(1:3,iatom)=particles_test%els(iatom)%r(1:3)
             ENDDO
 
          ENDIF

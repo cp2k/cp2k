@@ -759,10 +759,10 @@ SUBROUTINE mc_classical_energy ( force_env, classical_energy_new,&
       ENDDO
 
 ! sum up the total energy
-      classical_energy_new=bend_energy+&
-                stretch_energy+LJ_energy+charge_energy
-!      classical_energy_new=LJ_energy+charge_energy
- 
+!      classical_energy_new=bend_energy+&
+!                stretch_energy+LJ_energy+charge_energy
+    classical_energy_new=LJ_energy+charge_energy
+!!!!!!!!!!!!!! 
 !      if(mc_par%ionode) WRITE(6,*) 'enegies =',classical_energy_new/3.16682968D-6,LJ_energy/3.16682968D-6,&
 !                 charge_energy/3.16682968D-6,bend_energy/3.16682968D-6,&
 !                 stretch_energy/3.16682968D-6
@@ -1019,10 +1019,6 @@ SUBROUTINE mc_make_dat_file(coordinates,natoms,box_length,filename)
       WRITE(unit,*) ' XC_DERIV      SPLINE2_smooth'
       WRITE(unit,*) "&END"
       WRITE(unit,*) 
-!      WRITE(unit,*) "&TOPOLOGY"
-!      WRITE(unit,*) ' BONDPARM COVALENT   1.6'
-!      WRITE(unit,*) "&END"
-!      WRITE(unit,*) 
       WRITE(unit,*) "&QS"
       WRITE(unit,*) ' CUTOFF       280'
       WRITE(unit,*) "&END"
@@ -1046,6 +1042,12 @@ SUBROUTINE mc_make_dat_file(coordinates,natoms,box_length,filename)
       WRITE(unit,'(A,3(F12.8,2X))') ' ABC          ',&
          box_length,box_length,box_length
       WRITE(unit,*) "&END"
+!      WRITE(unit,*) 
+!      WRITE(unit,*) "&CELL_REF"
+!      WRITE(unit,*) ' UNIT         ANGSTROM'
+!      WRITE(unit,'(A,A)') ' ABC          ',&
+!    '12.422  12.422  12.422  '
+!      WRITE(unit,*) "&END"
       WRITE(unit,*) 
       WRITE(unit,*) "&COORD"
       DO iatom=1,natoms,3

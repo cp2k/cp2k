@@ -119,16 +119,17 @@ CONTAINS
 
     CHARACTER(LEN=*), PARAMETER :: routineN = "mc_traditional_ensemble"
 
-    INTEGER                                  :: crd, DATA, ene, handle, i, &
-                                                iparticle, istat, iw, mol, &
-                                                move_unit, nnstep
-    LOGICAL                                  :: ionode, PM0, PM1, PM2, PM3, &
-                                                PM4, should_retain, &
-                                                should_stop
-    REAL(KIND=dp)                            :: classical_energy, &
-                                                energy_check, final_energy, &
-                                                initial_energy, old_energy, &
-                                                rand
+    INTEGER                                  :: crd, ene, handle, i, &
+                                                iparticle, iw, nnstep,&
+                                                mol,data,istat,j,&
+                                                move_unit,cell_unit
+    LOGICAL                               :: PM0, PM1, PM2, PM3, PM4, &
+                                              should_stop,ionode,exists,&
+                                              should_retain
+    REAL(KIND=dp)                    :: energy_check, initial_energy, &
+                                         old_energy, rand,final_energy,&
+                                         classical_energy,&
+                                         classical_energy_new
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :)                        :: particle_positions
     TYPE(mc_averages_type), POINTER          :: averages
@@ -232,11 +233,14 @@ CONTAINS
                  unit_number=mc_par%rm,&
                  file_action='WRITE',file_status='REPLACE')
          IF(mc_par%pmvolume .GT. 0.0d0 ) THEN
+            CALL open_file(file_name='cell_length',&
+                 unit_number=cell_unit,&
+                 file_action='WRITE',file_status='REPLACE')
+            WRITE(cell_unit,*) 'Initial Cell Length:       ',&
+               cell%hmat(1,1)*angstrom
             CALL open_file(file_name=mc_par%cell_file,&
                  unit_number=mc_par%cl,&
                  file_action='WRITE',file_status='REPLACE')
-            WRITE(mc_par%cl,*) 'Initial Cell Length:       ',&
-               cell%hmat(1,1)*angstrom
          ENDIF
          CALL open_file(file_name='energy_differences',&
                  unit_number=mc_par%diff,&
@@ -347,26 +351,28 @@ CONTAINS
 
 
          IF(ionode) THEN
+!            WRITE(ene,*) nnstep,old_energy/3.16682968D-6,energy_check
             WRITE(ene,*) nnstep,old_energy,energy_check
             CALL force_env_get(force_env,subsys=oldsys,cell=cell,&
                error=error)
             CALL cp_subsys_get(oldsys(1)%subsys, &
                particles=particles_old, error=error)
+!!!!!!!!!!
 !            CALL write_particle_coordinates(particles_old%els,cell,&
 !                        crd,'XMOL','POS','POSITIONS')
 
 ! compute some averages
             averages%ave_energy=averages%ave_energy*&
-                     REAL(nnstep-1,dbl)&
-                     /REAL(nnstep,dbl)+old_energy/&
-                     REAL(nnstep,dbl)
+                     REAL(nnstep-mc_par%nstart-1,dbl)&
+                     /REAL(nnstep-mc_par%nstart,dbl)+old_energy/&
+                     REAL(nnstep-mc_par%nstart,dbl)
 
             averages%ave_cell_length=averages%ave_cell_length*&
-                     REAL(nnstep-1,dbl)&
-                     /REAL(nnstep,dbl)+cell%hmat(1,1)/&
-                     REAL(nnstep,dbl)
+                     REAL(nnstep-mc_par%nstart-1,dbl)&
+                     /REAL(nnstep-mc_par%nstart,dbl)+cell%hmat(1,1)/&
+                     REAL(nnstep-mc_par%nstart,dbl)
 
-            WRITE(mc_par%cl,*) nnstep,averages%ave_cell_length*angstrom
+            WRITE(cell_unit,*) nnstep,cell%hmat(1,1)*angstrom
 
 ! find bond lengths and angle for current water config
             CALL get_water_data(force_env,averages,&
@@ -388,6 +394,7 @@ CONTAINS
                CALL m_flush(mc_par%cl)
             ENDIF
             CALL m_flush(mc_par%rm)
+            CALL m_flush(cell_unit)
 
 ! check to see if EXIT file exists...if so, end the calculation
             CALL external_control(force_env,should_stop,error=error)
@@ -439,6 +446,7 @@ CONTAINS
          CALL close_file(unit_number=DATA)
          CALL close_file(unit_number=move_unit)
          CALL close_file(unit_number=ene)
+         CALL close_file(unit_number=cell_unit)
          IF(mc_par%pmvolume .GT. 0.0d0) THEN
             CALL close_file(unit_number=mc_par%cl)
          ENDIF
@@ -678,7 +686,7 @@ CONTAINS
          ENDDO
             
          IF(mc_par(1)%mc_par%pmvolume .GT. 0.0d0 ) &
-            WRITE(mc_par(i)%mc_par%cl,*) 'Initial Cell Length Box 1: ',&
+            WRITE(mc_par(1)%mc_par%cl,*) 'Initial Cell Length Box 1: ',&
                cell_1%hmat(1,1)*angstrom
          CALL open_file(file_name='energy_differences_box1',&
                  unit_number=mc_par(1)%mc_par%diff,&
@@ -1156,7 +1164,7 @@ CONTAINS
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
-    CHARACTER(LEN=*), PARAMETER :: exit_file_name = "EXIT", &
+    CHARACTER(LEN=*), PARAMETER :: exit_file_name = "EXIT_MC", &
       routine_name = "external_control", &
       routineP = module_name//':'//routine_name
 
