@@ -27,7 +27,8 @@ MODULE timings
   USE machine,          ONLY: m_cputime,&
                               m_flush,&
                               m_getpid,&
-                              m_walltime
+                              m_walltime,&
+                              print_memory
   USE mathconstants,    ONLY: zero
   USE message_passing,  ONLY: mp_sync,&
                               mp_world_setup
@@ -62,7 +63,7 @@ MODULE timings
   CHARACTER ( LEN = 10 ) :: perf_unit ( max_timer )
   INTEGER :: num_timer = 0
 
-  INTEGER :: iod = 0
+  INTEGER :: iod = 6
   LOGICAL :: trace = .false.
   CHARACTER ( LEN = 15 ) :: astring, bstring
 
@@ -102,6 +103,7 @@ SUBROUTINE timeset ( name, ct, pu, handle )
 ! Locals
   INTEGER :: i
   CHARACTER ( LEN = 40 )  :: sformat
+  CHARACTER ( LEN = 400 ) :: mystring
 
 !------------------------------------------------------------------------------
 
@@ -111,8 +113,9 @@ SUBROUTINE timeset ( name, ct, pu, handle )
 
 !..if debug mode echo the subroutine name
   write(sformat,*) "(A,",MAX(1,3*stack_size-9),"X,I4,1X,A,A)"
-  IF ( trace ) write ( iod, sformat) &
-     astring,stack_size,TRIM( routine_stack ( stack_size ))," start"
+  IF ( trace ) write ( mystring, sformat) &
+     astring,stack_size,TRIM( routine_stack ( stack_size )),"       start"
+  IF ( trace ) CALL print_memory(TRIM(mystring))
 
 !..is this a new timer or has this routine been called before
   handle = 0
@@ -178,6 +181,7 @@ SUBROUTINE timestop ( perf, handle )
   REAL ( dbl ) :: cpt, wt
   INTEGER :: i
   CHARACTER ( LEN = 40 )  :: sformat
+  CHARACTER ( LEN = 400 )  :: mystring
 
 !------------------------------------------------------------------------------
 
@@ -200,8 +204,9 @@ SUBROUTINE timestop ( perf, handle )
 
 !..if debug mode echo the subroutine name
   write(sformat,*) "(A,",MAX(1,3*stack_size-9),"X,I4,1X,A,F12.3)"
-  IF ( trace ) write ( iod, sformat) &
+  IF ( trace ) write ( mystring, sformat) &
      bstring,stack_size,TRIM(routine_stack(stack_size)),cpt
+  IF ( trace ) CALL print_memory(TRIM(mystring ))
 
 !..remove name from subroutine stack
      stack_size = stack_size - 1

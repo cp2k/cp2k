@@ -100,14 +100,31 @@ END SUBROUTINE m_datum
     INTEGER            :: pid
 
 !   ---------------------------------------------------------------------------
-
-    CALL m_getpid(pid)
-
-    WRITE(UNIT=cmdstr,FMT="(A,I8,A,I8,A)")&
-      "echo ""\\n Memory size of process""",pid,""" <"//TRIM(checkpoint)//&
-      ">:"" `ps -o vsz -p",pid," | tail -1` KBytes""\\c"""
-
-    CALL system(cmdstr)
+! here there is definitely a problem with integer sizes. 
+! they should be the C integer size, which is not really know
+! and depends on the 32 (INTEGER*4) or 64 (INTEGER*8) compilation flag
+! this should present a hack
+! we use the fact that the default LOC kind (on IBM) is 4 or 8 in 32 or 64 bit mode
+    TYPE memorytype4
+       SEQUENCE
+       INTEGER*4 arena,ordblks,smblks,hblks,hblkhd,usmblks,fsmblks,uordblks,fordblks,keepcost
+    END TYPE memorytype4
+    TYPE memorytype8
+       SEQUENCE
+       INTEGER*8 arena,ordblks,smblks,hblks,hblkhd,usmblks,fsmblks,uordblks,fordblks,keepcost
+    END TYPE memorytype8
+    TYPE(memorytype4) res4
+    TYPE(memorytype8) res8,mallinfo
+    EQUIVALENCE(res8,res4)
+    
+    res8=mallinfo()
+    ! arena is the size of heap
+    ! the sum is the actually allocated memory
+    IF (KIND(LOC(res4%arena)).eq.4) THEN
+        write(6,*) checkpoint,res4%usmblks+res4%uordblks,"/",res4%arena
+    ELSE
+        write(6,*) checkpoint,res8%usmblks+res8%uordblks,"/",res8%arena
+    ENDIF
 
   END SUBROUTINE print_memory
 
