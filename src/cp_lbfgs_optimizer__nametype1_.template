@@ -20,7 +20,10 @@
 !!     In the future tha arguments themselves could be distributed.
 !!
 !!   NOTES
-!!     -
+!!     This is a template
+!!
+!!     **** DO NOT MODIFY THE .F FILES ****
+!!     modify the .template and .instantition files
 !!
 !!   AUTHOR
 !!     @author Fawzi Mohamed

@@ -18,8 +18,10 @@
 !!     An empty list is represented by an unassociated pointer.
 !!
 !!   NOTES
-!!     template with one parameter. nametype1 should have less than 10 chars.
-!!     DO NOT modify the .F files, modify the .template file
+!!     This is a template
+!!
+!!     **** DO NOT MODIFY THE .F FILES ****
+!!     modify the .template and .instantition files
 !!
 !!   AUTHOR
 !!     @author Fawzi Mohamed

@@ -15,6 +15,11 @@
 !!     output, allocation,...
 !!
 !!   NOTES
+!!     This is a template
+!!
+!!     **** DO NOT MODIFY THE .F FILES ****
+!!     modify the .template and .instantition files
+!!
 !!     maybe it is not a good idea mixing output and memeory utils...
 !!
 !!   AUTHOR
