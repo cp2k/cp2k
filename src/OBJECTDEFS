@@ -100,6 +100,8 @@ OBJECTS_GENERIC =\
  input_types.o\
  integrator.o\
  k290.o\
+ kg_main.o\
+ kg_environment_type.o\
  kinds.o\
  kinetic.o\
  kpoint_initialization.o\
