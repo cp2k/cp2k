@@ -24,6 +24,8 @@
 !!       spin density
 !!     - drhoa_drhob: scalar product between the gradient of rhoa and the
 !!       grandient of rhob
+!!     - kinetic: the local kinetic part
+!!     - kinetica, kineticb: the kinetic part of the different spins
 !!
 !!   AUTHOR
 !!     thomas & fawzi
