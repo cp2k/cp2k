@@ -126,7 +126,7 @@ CONTAINS
          DO jg=jgmin,0
           jg2=jg*jg
           igmin=do_and_hide_it_1(dxi,i,drmin,dz2,dy2,kg2,jg2)
-          check_1=MODULO((kgmin*97+jgmin*37+igmin*113)*check_1,9343)
+          check_1=MODULO((kgmin*97+jgmin*37+igmin*113)*check_1+1277,9343)
           k=k+1
          ENDDO
       ENDDO
@@ -155,7 +155,7 @@ CONTAINS
          DO jg=jgmin,0
           jg2=jg*jg
           igmin=do_and_hide_it_1(dxi,i,drmin,dz2,dy2,kg2,jg2)
-          check_2=MODULO((kgmin*97+jgmin*37+igmin*113)*check_2,9343)
+          check_2=MODULO((kgmin*97+jgmin*37+igmin*113)*check_2+1277,9343)
           info%lb_cube(1,i)=MIN(jgmin,info%lb_cube(1,i))
           info%sphere_bounds(i)%p(k)=igmin
           k=k+1
