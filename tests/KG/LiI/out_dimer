@@ -1,0 +1,360 @@
+ gloria@baal has created process number                                    38890
+
+  **** **** ******  **  PROGRAM STARTED AT              Fri Feb 27 16:02:48 2004
+ ***** ** ***  *** **   PROGRAM STARTED ON                                  baal
+ **    ****   ******    PROGRAM STARTED BY                                gloria
+ ***** **    ** ** **   PROGRAM PROCESS ID                                 38890
+  **** **  *******  **  PROGRAM STARTED IN   /home/chem/gloria/cp2k/tests/KG/LiI
+
+ CP2K| Program compiled at                       Fri Feb 27 14:12:04 TZ=CET 2004
+ CP2K| Program compiled on                                                  baal
+ CP2K| Program compiled for                                   AIX-PowerPC_POWER3
+ CP2K| Last CVS entry                 xc_xbecke88.F/1.8/Fri Feb 27 13:10:05 2004
+
+ IO| Input file name                                                 input_dimer
+ IO| Output file name                                                   (stdout)
+ IO| Error file name                                                    (stdout)
+ IO| Library path                                                             ./
+ IO| Basis set file name                                               BASIS_SET
+ IO| Potential file name                                               POTENTIAL
+ IO| Restart file name                                                   RESTART
+ IO| Coordinate file name                                            input_dimer
+ CP2K| Program name                                                           KG
+ CP2K| Project name                                                          lii
+ CP2K| Default FFT library                                                 FFTSG
+ CP2K| Run type                                               MOLECULAR DYNAMICS
+ CP2K| Global print level                                                      4
+ CP2K| Total number of message passing processes                               1
+ CP2K| Number of threads for this process                                      1
+ CP2K| This output is from process                                             0
+
+
+ DFT| Force calculation                                                      YES
+ DFT| Cutoffs: density                                               0.10000E-09
+ DFT|          gradient                                              0.10000E-09
+ DFT| XC density smoothing                                                  NONE
+ DFT| XC derivatives                                                          PW
+ DFT| XC mesh (PW density)                                               default
+ FUNCTIONAL| Exchange Functional                                            NONE
+ FUNCTIONAL| Correlation Functional                                         PADE
+              S. Goedecker, M. Teter and J. Hutter, Phys. Rev. B 54, 1703 (1996)
+ FUNCTIONAL| Kinetic Energy Functional                                        TF
+                       Thomas-Fermi kinetic energy functional: see Parr and Yang
+                           *** WARNING : THIS FUNCTIONAL IS NOT FULLY TESTED ***
+
+ KG| Method:                                                            KG_NOPOL
+ KG| Number of grid levels:                                                    1
+ QS| Density plane wave grid type                        NON-SPHERICAL FULLSPACE
+ KG| Density cutoff [a.u.]:                                                 80.0
+ KG| Grid level progression factor:                                          2.0
+ KG| Relative density cutoff [a.u.]:                                        25.0
+ KG| Interaction thresholds: eps_pgf_orb:                                1.0E-16
+ KG|                         eps_core_charge:                            1.0E-96
+ KG|                         eps_rho_gspace:                             1.0E-16
+ KG|                         eps_rho_rspace:                             1.0E-16
+ KG|                         eps_gvg_rspace:                             1.0E-16
+
+ CELL| Volume [ANGSTROM**3]:                                            3375.000
+ CELL| Vector a [ANGSTROM]:      15.000     0.000     0.000    |a| =      15.000
+ CELL| Vector b [ANGSTROM]:       0.000    15.000     0.000    |b| =      15.000
+ CELL| Vector c [ANGSTROM]:       0.000     0.000    15.000    |c| =      15.000
+ CELL| Angle (b,c) [degree]:                                              90.000
+ CELL| Angle (a,c) [degree]:                                              90.000
+ CELL| Angle (a,b) [degree]:                                              90.000
+ CELL| Grid size for subcell generation                                    0.000
+ Entering topology_control
+   Entering read_topology_section
+   Exiting  read_topology_section
+   Entering coordinate_control
+   Exiting  coordinate_control
+   Entering connectivity_control
+     Entering topology_generate_bond
+     Exiting  topology_generate_bond
+     Entering topology_generate_bend
+     Exiting  topology_generate_bend
+     Entering topology_generate_dihe
+     Exiting  topology_generate_dihe
+     Entering topology_generate_molecule
+     Exiting  topology_generate_molecule
+   Exiting  connectivity_control
+   Entering topology_connectivity_pack
+   Exiting  topology_connectivity_pack
+   Entering topology_coordinate_pack
+   Exiting  topology_coordinate_pack
+ Exiting  topology_control
+
+
+ BASIS SET INFORMATION (Unnormalised Gaussian-type functions)
+
+  1. Atomic kind: I
+
+   - GTO basis set information
+
+     GTO basis set name: KG-PDM-CPMD
+
+     Set   Shell     n   l            Exponent    Coefficient
+
+       1       1     1   0            2.027989    5597.940456
+                                      2.041582  -12618.437522
+                                      2.052073    7022.788700
+                                      0.257284      -4.706773
+                                      0.478202      -3.925071
+                                      0.105057      -1.659789
+
+   - GTO basis set information
+
+     GTO basis set name: I_DRHO
+
+     Set   Shell     n   l            Exponent    Coefficient
+
+       1       1     1   0            1.000000       0.211820
+                                      0.800000      -0.553363
+                                      0.600000       0.663648
+                                      0.400000      -0.366273
+                                      0.200000       0.052003
+
+       2       1     2   1            1.040730       0.117482
+                                      0.368462       0.023436
+
+  2. Atomic kind: Li
+
+   - GTO basis set information
+
+     GTO basis set name: KG-PDM-CPMD
+
+     Set   Shell     n   l            Exponent    Coefficient
+
+       1       1     1   0            5.987054      -1.510463
+                                      3.617267       0.394717
+                                      1.750467      -0.884255
+
+
+ RADII OF THE ORBITAL BASIS IN ANGSTROM
+
+  Kind   Label       Radius
+
+     1   I          9.271723
+     2   Li         2.394500
+
+
+ RADII OF THE SHELL SETS OF THE ORBITAL BASIS IN ANGSTROM
+
+  Kind   Label   Set       Radius
+
+     1   I         1      9.271723
+
+     2   Li        1      2.394500
+
+
+ RADII OF THE PRIMITIVE GAUSSIAN FUNCTIONS OF THE ORBITAL BASIS IN ANGSTROM
+
+  Kind   Label   Set       Radius
+
+     1   I         1      2.487597
+                          2.501957
+                          2.479692
+                          6.139937
+                          4.552032
+                          9.271723
+
+     2   Li        1      1.337045
+                          1.672262
+                          2.394500
+
+
+ RADII OF THE CORE CHARGE DISTRIBUTIONS IN ANGSTROM
+
+  Kind   Label       Radius
+
+     1   I          7.116566
+     2   Li         4.461577
+
+
+ RADII OF THE LOCAL PART OF THE GTH PSEUDOPOTENTIAL IN ANGSTROM
+
+  Kind   Label       Radius
+
+     1   I          7.207831
+     2   Li         4.608985
+
+ PW_GRID: Information for grid number                                          1
+ PW_GRID:   Bounds   1            -60      59                Points:         120
+ PW_GRID:   Bounds   2            -60      59                Points:         120
+ PW_GRID:   Bounds   3            -60      59                Points:         120
+ PW_GRID: Volume element (a.u.^3)  0.1318E-01     Volume (a.u.^3)     22775.6293
+ PW_GRID: Grid span                                                    FULLSPACE
+
+
+
+  ---------------------------------
+  --        MULTIGRID INFO       --
+  ---------------------------------
+  total gridlevel count  :        0
+  count for grid       1:        0
+
+ PW_GRID: Information for grid number                                          2
+ PW_GRID:   Bounds   1            -60      59                Points:         120
+ PW_GRID:   Bounds   2            -60      59                Points:         120
+ PW_GRID:   Bounds   3            -60      59                Points:         120
+ PW_GRID: Volume element (a.u.^3)  0.1318E-01     Volume (a.u.^3)     22775.6293
+ PW_GRID: Grid span                                                    FULLSPACE
+
+
+ MD| Molecular Dynamics Protocol 
+ MD| Output Format                                                          XMOL
+ MD| Ensemble Type                                                           NVE
+ MD| Restart Type                                                           INIT
+ MD| Number of Time Steps                                                      5
+ MD| Time Step [FS]                                                         0.40
+ MD| Temperature [K]                                                      300.00
+ MD| Temperature tolerance [K]                                              0.00
+ MD| Verlet buffer skin [ANGSTROM]                                          1.00
+ MD| Print MD information every                                        1 step(s)
+ MD| File type     Print frequency[steps]                             File names
+ MD| Coordinates            1                                            lii.crd
+ MD| Velocities             1                                            lii.vel
+ MD| Energies               1                                           lii.ener
+ MD| Potential Energies     1                                            lii.pot
+ MD| Temperature            1                                           lii.temp
+ MD| Pressure Tensor        1                                          lii.ptens
+ MD| Dump                   1                                        lii.restart
+ 
+
+ Calculation of degrees of freedom
+                                                      Number of atoms:         2
+                                                Number of constraints:         0
+                                  Invariants(translation + rotations):         3
+                                                   Degrees of freedom:         3
+
+ ********************** begin of velocity initialization ***********************
+ Initial Temperature                                                    300.00 K
+ Centre of mass velocity in direction x:                          0.000000000000
+ Centre of mass velocity in direction y:                          0.000000000000
+ Centre of mass velocity in direction z:                          0.000000000000
+ *********************** end of velocity initialization ************************
+
+
+  Total electronic density (r-space):         10.0000000000
+  Total core charge density (r-space):       -10.0000000000
+  Total charge density (r-space):                                 -0.0000000000
+
+  Overlap energy of the core charge distribution:              0.00000000013753
+  Self energy of the core charge distribution:               -27.98446015784598
+  Pseudopotential  energy:                                    -3.28176622041287
+  Hartree energy:                                              8.17441033560707
+  Exchange-correlation energy:                                 4.57568067451399
+  Total energy:                                              -18.51613536800026
+
+  Total electronic density (r-space):         10.0000000000
+  Total core charge density (r-space):       -10.0000000000
+  Total charge density (r-space):                                 -0.0000000000
+
+  Overlap energy of the core charge distribution:              0.00000000014050
+  Self energy of the core charge distribution:               -27.98446015784598
+  Pseudopotential  energy:                                    -3.28177551635719
+  Hartree energy:                                              8.17434853384493
+  Exchange-correlation energy:                                 4.57571031300071
+  Total energy:                                              -18.51617682721703
+
+   -MD-       1       0.400         0.001466523       308.727112217       -18.516176827       -18.514710305      0.000000000000           35.710000
+
+
+  Total electronic density (r-space):         10.0000000000
+  Total core charge density (r-space):       -10.0000000000
+  Total charge density (r-space):                                 -0.0000000000
+
+  Overlap energy of the core charge distribution:              0.00000000014405
+  Self energy of the core charge distribution:               -27.98446015784598
+  Pseudopotential  energy:                                    -3.28178643174916
+  Hartree energy:                                              8.17427623985116
+  Exchange-correlation energy:                                 4.57574511500610
+  Total energy:                                              -18.51622523459383
+
+   -MD-       2       0.800         0.001514926       318.916793454       -18.516225235       -18.514710309     -0.000000004121           17.430000
+
+
+  Total electronic density (r-space):         10.0000000000
+  Total core charge density (r-space):       -10.0000000000
+  Total charge density (r-space):                                 -0.0000000000
+
+  Overlap energy of the core charge distribution:              0.00000000014822
+  Self energy of the core charge distribution:               -27.98446015784598
+  Pseudopotential  energy:                                    -3.28179898172500
+  Hartree energy:                                              8.17419348392276
+  Exchange-correlation energy:                                 4.57578513135403
+  Total energy:                                              -18.51628052414597
+
+   -MD-       3       1.200         0.001570211       330.555145699       -18.516280524       -18.514710314     -0.000000008906           17.440000
+
+
+  Total electronic density (r-space):         10.0000000000
+  Total core charge density (r-space):       -10.0000000000
+  Total charge density (r-space):                                 -0.0000000000
+
+  Overlap energy of the core charge distribution:              0.00000000015306
+  Self energy of the core charge distribution:               -27.98446015784598
+  Pseudopotential  energy:                                    -3.28181318364296
+  Hartree energy:                                              8.17410030130368
+  Exchange-correlation energy:                                 4.57583042059337
+  Total energy:                                              -18.51634261943882
+
+   -MD-       4       1.600         0.001632300       343.626075524       -18.516342619       -18.514710319     -0.000000014370           17.480000
+
+
+  Total electronic density (r-space):         10.0000000000
+  Total core charge density (r-space):       -10.0000000000
+  Total charge density (r-space):                                 -0.0000000000
+
+  Overlap energy of the core charge distribution:              0.00000000015863
+  Self energy of the core charge distribution:               -27.98446015784598
+  Pseudopotential  energy:                                    -3.28182905714470
+  Hartree energy:                                              8.17399673237498
+  Exchange-correlation energy:                                 4.57588104904787
+  Total energy:                                              -18.51641143340919
+
+   -MD-       5       2.000         0.001701108       358.111248852       -18.516411433       -18.514710325     -0.000000020540           17.430000
+
+
+  ---------------------------------
+  --        MULTIGRID INFO       --
+  ---------------------------------
+  total gridlevel count  :      108
+  count for grid       1:      108
+
+ -------------------------------------------------------------------------------
+ -                                                                             -
+ -                                T I M I N G                                  -
+ -                                                                             -
+ -------------------------------------------------------------------------------
+ SUBROUTINE                    CALLS  ASD CPU TIME T  PERFORMANCE   ELAPSED TIME
+ CP2K                              1  1.0   124.97 I       ---            125.01
+ qs_mol_dyn                        1  2.0   105.46 I   0.0                105.54
+ FORCE                             6  3.8   105.43 I   0.0                105.33
+ velocity_verlet                   5  3.0    87.12 I   0.0                 87.06
+ fft_wrap_pw1pw2_2                36  6.7    78.93 I   0.0                 78.82
+ fft_wrap_pw1pw2_all              36  5.7    78.93 I   0.0                 78.82
+ fft3d_s                          37  7.5    55.60 I  80.4 Mflops          55.57
+ calculate_density                 6  4.8    28.14 I   0.0                 28.07
+ calculate_v_rspace_forces         6  4.8    26.59 I   0.0                 26.60
+ kg_create_force_env               1  2.0    19.49 I   0.0                 19.46
+ kg_init                           1  3.0    19.49 I   0.0                 19.46
+ kg_rho_setup                      2  4.0    19.43 I   0.0                 19.40
+ xc_calculate_pw_old               6  4.8    16.18 I   0.0                 16.20
+ xc_calc_derivatives               6  5.8    15.33 I   0.0                 15.33
+ calculate_epc_density             6  4.8    14.95 I   0.0                 14.89
+ init_grid                         2  5.0    14.53 I   0.0                 14.49
+ pw_grid_setup                     2  6.0    14.53 I   0.0                 14.49
+ pw_grid_sort                      2  7.0    10.80 I   0.0                 10.75
+ pw_gather                        18  7.8    10.22 I   3.1 Mcopy           10.18
+ pw_scatter                       18  7.5     9.76 I   3.2 Mcopy            9.76
+ pw_zero                          30  5.7     3.51 I  21.5 Mzero            3.53
+ SUBROUTINE allocate_kg_densi      2O 5.0     2.72yIe  0.0                  2.73
+ pw_grid_assign                    2  7.0     2.62 I   0.0                  2.63
+ -------------------------------------------------------------------------------
+
+  **** **** ******  **  PROGRAM ENDED AT                Fri Feb 27 16:04:53 2004
+ ***** ** ***  *** **   PROGRAM RAN ON                                      baal
+ **    ****   ******    PROGRAM RAN BY                                    gloria
+ ***** **    ** ** **   PROGRAM PROCESS ID                                 38890
+  **** **  *******  **  PROGRAM STARTED IN   /home/chem/gloria/cp2k/tests/KG/LiI
+
