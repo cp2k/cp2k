@@ -26,6 +26,12 @@ MODULE qs_ot
                                              wp_size => dp_size
   USE preconditioner,                  ONLY: apply_preconditioner,&
                                              preconditioner_type
+  USE cp_fm_struct,                    ONLY: cp_fm_struct_type, &
+                                             cp_fm_struct_create, &
+                                             cp_fm_struct_release
+  USE cp_fm_types,                     ONLY: cp_fm_create
+  USE cp_para_types,                   ONLY: cp_para_env_type, &
+                                             cp_blacs_env_type
   USE qs_blacs,                        ONLY: blacs_make_basis,&
                                              blacs_scale_matrix,&
                                              blacs_set_local_block,&
@@ -38,7 +44,6 @@ MODULE qs_ot
                                              cp_fm_cholesky_invert,&
                                              cp_fm_cholesky_reduce,&
                                              cp_fm_cholesky_restore,&
-                                             cp_fm_create2,&
                                              cp_fm_gemm,&
                                              cp_fm_get_info,&
                                              cp_fm_maxval,&
@@ -198,25 +203,31 @@ END SUBROUTINE
 !*******************************************************************************
 ! allocates data
 !*******************************************************************************
-SUBROUTINE qs_ot_allocate(qs_ot_env,globenv)
+SUBROUTINE qs_ot_allocate(qs_ot_env,para_env,context)
    TYPE(qs_ot_type)                          :: qs_ot_env 
-   TYPE(global_environment_type), INTENT(IN) :: globenv
+   TYPE(cp_para_env_type), POINTER           :: para_env
+   TYPE(cp_blacs_env_type), POINTER          :: context
 
    INTEGER i,n,k,m_diis,nrow_block,ncol_block,ortho_k
-   n      =qs_ot_env%settings%n
-   k      =qs_ot_env%settings%k
-   ortho_k=qs_ot_env%settings%ortho_k
-   m_diis =qs_ot_env%settings%diis_m
-   nrow_block=qs_ot_env%settings%nrow_block
-   ncol_block=qs_ot_env%settings%ncol_block
 
-   qs_ot_env%use_gx_old=.FALSE. 
-   qs_ot_env%use_dx=.FALSE.
+   TYPE(cp_fm_struct_type), POINTER :: fm_struct_o_o, fm_struct_o_k, fm_struct_k_k, &
+                                       fm_struct_n_k, fm_struct_n_o
 
+   NULLIFY(fm_struct_o_o, fm_struct_o_k, fm_struct_k_k,fm_struct_n_k, fm_struct_n_o)
    NULLIFY(qs_ot_env%preconditioner)
    NULLIFY(qs_ot_env%matrix_psc0)
    NULLIFY(qs_ot_env%row_indices)
    NULLIFY(qs_ot_env%col_indices)
+
+   n      =qs_ot_env%settings%n
+   k      =qs_ot_env%settings%k
+   ortho_k=qs_ot_env%settings%ortho_k
+   m_diis =qs_ot_env%settings%diis_m
+
+   nrow_block=qs_ot_env%settings%nrow_block
+   ncol_block=qs_ot_env%settings%ncol_block
+   qs_ot_env%use_gx_old=.FALSE. 
+   qs_ot_env%use_dx=.FALSE.
 
    SELECT CASE (qs_ot_env%settings%ot_method)
    CASE ("SD")
@@ -242,203 +253,65 @@ SUBROUTINE qs_ot_allocate(qs_ot_env,globenv)
    ALLOCATE(qs_ot_env%evals(k))
    ALLOCATE(qs_ot_env%dum(k))
 
-   CALL cp_fm_create2(new_matrix=qs_ot_env%matrix_os,&
-                              nrow_global=ortho_k,&
-                              ncol_global=ortho_k,&
-                              nrow_block=nrow_block,&
-                              ncol_block=ncol_block,&
-                              name="matrix_os",&
-                              globenv=globenv)
+   CALL cp_fm_struct_create(fm_struct_o_o,para_env=para_env,context=context,nrow_global=ortho_k,ncol_global=ortho_k)
+   CALL cp_fm_struct_create(fm_struct_o_k,para_env=para_env,context=context,nrow_global=ortho_k,ncol_global=k)
+   CALL cp_fm_struct_create(fm_struct_k_k,para_env=para_env,context=context,nrow_global=k,ncol_global=k)
+   CALL cp_fm_struct_create(fm_struct_n_k,para_env=para_env,context=context,nrow_global=n,ncol_global=k)
+   CALL cp_fm_struct_create(fm_struct_n_o,para_env=para_env,context=context,nrow_global=n,ncol_global=ortho_k)
 
-   CALL cp_fm_create2(new_matrix=qs_ot_env%matrix_buf1_ortho,&
-                              nrow_global=ortho_k,&
-                              ncol_global=k,&
-                              nrow_block=nrow_block,&
-                              ncol_block=ncol_block,&
-                              name="matrix_buf1_ortho",&
-                              globenv=globenv)
+   CALL cp_fm_create(qs_ot_env%matrix_os,fm_struct_o_o,name="matrix_os")
+   CALL cp_fm_create(qs_ot_env%matrix_buf1_ortho,fm_struct_o_k,name="matrix_buf1_ortho")
+   CALL cp_fm_create(qs_ot_env%matrix_buf2_ortho,fm_struct_o_k,name="matrix_buf2_ortho")
+   CALL cp_fm_create(qs_ot_env%matrix_p,fm_struct_k_k,name="matrix_p")
+   CALL cp_fm_create(qs_ot_env%matrix_r,fm_struct_k_k,name="matrix_r")
+   CALL cp_fm_create(qs_ot_env%matrix_sinp,fm_struct_k_k,name="matrix_sinp")
+   CALL cp_fm_create(qs_ot_env%matrix_cosp,fm_struct_k_k,name="matrix_cosp")
+   CALL cp_fm_create(qs_ot_env%matrix_sinp_b,fm_struct_k_k,name="matrix_sinp_b")
+   CALL cp_fm_create(qs_ot_env%matrix_cosp_b,fm_struct_k_k,name="matrix_cosp_b")
+   CALL cp_fm_create(qs_ot_env%matrix_buf1,fm_struct_k_k,name="matrix_buf1")
+   CALL cp_fm_create(qs_ot_env%matrix_buf2,fm_struct_k_k,name="matrix_buf2")
+   CALL cp_fm_create(qs_ot_env%matrix_buf3,fm_struct_k_k,name="matrix_buf3")
+   CALL cp_fm_create(qs_ot_env%matrix_c0,fm_struct_n_k,name="matrix_c0")
+   CALL cp_fm_create(qs_ot_env%matrix_sc0,fm_struct_n_o,name="matrix_sc0")
+   CALL cp_fm_create(qs_ot_env%matrix_hc,fm_struct_n_k,name="matrix_hc")
+   CALL cp_fm_create(qs_ot_env%matrix_x,fm_struct_n_k,name="matrix_x")
+   CALL cp_fm_create(qs_ot_env%matrix_sx,fm_struct_n_k,name="matrix_sx")
+   CALL cp_fm_create(qs_ot_env%matrix_gx,fm_struct_n_k,name="matrix_gx")
 
-   CALL cp_fm_create2(new_matrix=qs_ot_env%matrix_buf2_ortho,&
-                              nrow_global=ortho_k,&
-                              ncol_global=k,&
-                              nrow_block=nrow_block,&
-                              ncol_block=ncol_block,&
-                              name="matrix_buf2_ortho",&
-                              globenv=globenv)
+   IF (qs_ot_env%use_gx_old) &
+      CALL cp_fm_create(qs_ot_env%matrix_gx_old,fm_struct_n_k,name="matrix_gx_old")
 
-   CALL cp_fm_create2(new_matrix=qs_ot_env%matrix_p,&
-                              nrow_global=k,&
-                              ncol_global=k,&
-                              nrow_block=nrow_block,&
-                              ncol_block=ncol_block,&
-                              name="matrix_p",&
-                              globenv=globenv)
+   IF (qs_ot_env%use_dx) &
+      CALL cp_fm_create(qs_ot_env%matrix_dx,fm_struct_n_k,name="matrix_dx")
 
-  CALL cp_fm_create2(new_matrix=qs_ot_env%matrix_r,&
-                             nrow_global=k,&
-                             ncol_global=k,&
-                             nrow_block=nrow_block,&
-                             ncol_block=ncol_block,&
-                             name="matrix_r",&
-                             globenv=globenv)
+   IF (qs_ot_env%settings%ot_method.eq."DIIS") THEN
+      DO i=1,m_diis
+        CALL cp_fm_create(qs_ot_env%matrix_h_x(i)%matrix,fm_struct_n_k,name="matrix_h_x")
+        CALL cp_fm_create(qs_ot_env%matrix_h_e(i)%matrix,fm_struct_n_k,name="matrix_h_e")
+      ENDDO
+   ENDIF
 
-  CALL cp_fm_create2(new_matrix=qs_ot_env%matrix_sinp,&
-                             nrow_global=k,&
-                             ncol_global=k,&
-                             nrow_block=nrow_block,&
-                             ncol_block=ncol_block,&
-                             name="matrix_sinp",&
-                             globenv=globenv)
-
-  CALL cp_fm_create2(new_matrix=qs_ot_env%matrix_cosp,&
-                             nrow_global=k,&
-                             ncol_global=k,&
-                             nrow_block=nrow_block,&
-                             ncol_block=ncol_block,&
-                             name="matrix_cosp",&
-                             globenv=globenv)
-
-  CALL cp_fm_create2(new_matrix=qs_ot_env%matrix_sinp_b,&
-                             nrow_global=k,&
-                             ncol_global=k,&
-                             nrow_block=nrow_block,&
-                             ncol_block=ncol_block,&
-                             name="matrix_sinp_b",&
-                             globenv=globenv)
-
-  CALL cp_fm_create2(new_matrix=qs_ot_env%matrix_cosp_b,&
-                             nrow_global=k,&
-                             ncol_global=k,&
-                             nrow_block=nrow_block,&
-                             ncol_block=ncol_block,&
-                             name="matrix_cosp_b",&
-                             globenv=globenv)
-
-  CALL cp_fm_create2(new_matrix=qs_ot_env%matrix_buf1,&
-                             nrow_global=k,&
-                             ncol_global=k,&
-                             nrow_block=nrow_block,&
-                             ncol_block=ncol_block,&
-                             name="matrix_buf1",&
-                             globenv=globenv)
-
-  CALL cp_fm_create2(new_matrix=qs_ot_env%matrix_buf2,&
-                             nrow_global=k,&
-                             ncol_global=k,&
-                             nrow_block=nrow_block,&
-                             ncol_block=ncol_block,&
-                             name="matrix_buf2",&
-                             globenv=globenv)
-
-  CALL cp_fm_create2(new_matrix=qs_ot_env%matrix_buf3,&
-                             nrow_global=k,&
-                             ncol_global=k,&
-                             nrow_block=nrow_block,&
-                             ncol_block=ncol_block,&
-                             name="matrix_buf3",&
-                             globenv=globenv)
-
-  CALL cp_fm_create2(new_matrix=qs_ot_env%matrix_c0,&
-                             nrow_global=n,&
-                             ncol_global=k,&
-                             nrow_block=nrow_block,&
-                             ncol_block=ncol_block,&
-                             name="matrix_c0",&
-                             globenv=globenv)
-
-  CALL cp_fm_create2(new_matrix=qs_ot_env%matrix_sc0,&
-                             nrow_global=n,&
-                             ncol_global=ortho_k,&
-                             nrow_block=nrow_block,&
-                             ncol_block=ncol_block,&
-                             name="matrix_sc0",&
-                             globenv=globenv)
-
-  CALL cp_fm_create2(new_matrix=qs_ot_env%matrix_hc,&
-                             nrow_global=n,&
-                             ncol_global=k,&
-                             nrow_block=nrow_block,&
-                             ncol_block=ncol_block,&
-                             name="matrix_hc",&
-                             globenv=globenv)
-
-  CALL cp_fm_create2(new_matrix=qs_ot_env%matrix_x,&
-                             nrow_global=n,&
-                             ncol_global=k,&
-                             nrow_block=nrow_block,&
-                             ncol_block=ncol_block,&
-                             name="matrix_x",&
-                             globenv=globenv)
-
-  CALL cp_fm_create2(new_matrix=qs_ot_env%matrix_sx,&
-                             nrow_global=n,&
-                             ncol_global=k,&
-                             nrow_block=nrow_block,&
-                             ncol_block=ncol_block,&
-                             name="matrix_sx",&
-                             globenv=globenv)
-
-  CALL cp_fm_create2(new_matrix=qs_ot_env%matrix_gx,&
-                             nrow_global=n,&
-                             ncol_global=k,&
-                             nrow_block=nrow_block,&
-                             ncol_block=ncol_block,&
-                             name="matrix_gx",&
-                             globenv=globenv)
-
-  IF (qs_ot_env%use_gx_old) &
-  CALL cp_fm_create2(new_matrix=qs_ot_env%matrix_gx_old,&
-                             nrow_global=n,&
-                             ncol_global=k,&
-                             nrow_block=nrow_block,&
-                             ncol_block=ncol_block,&
-                             name="matrix_gx_old",&
-                             globenv=globenv)
-
-  IF (qs_ot_env%use_dx) &
-  CALL cp_fm_create2(new_matrix=qs_ot_env%matrix_dx,&
-                             nrow_global=n,&
-                             ncol_global=k,&
-                             nrow_block=nrow_block,&
-                             ncol_block=ncol_block,&
-                             name="matrix_dx",&
-                             globenv=globenv)
-
-  IF (qs_ot_env%settings%ot_method.eq."DIIS") THEN
-     DO i=1,m_diis
-       CALL cp_fm_create2(new_matrix=qs_ot_env%matrix_h_x(i)%matrix,&
-                             nrow_global=n,&
-                             ncol_global=k,&
-                             nrow_block=nrow_block,&
-                             ncol_block=ncol_block,&
-                             name="matrix_h_x",&
-                             globenv=globenv)
-       CALL cp_fm_create2(new_matrix=qs_ot_env%matrix_h_e(i)%matrix,&
-                             nrow_global=n,&
-                             ncol_global=k,&
-                             nrow_block=nrow_block,&
-                             ncol_block=ncol_block,&
-                             name="matrix_h_e",&
-                             globenv=globenv)
-     ENDDO
-  ENDIF
-
-  CALL cp_fm_get_info(qs_ot_env%matrix_cosp_b, &
+   CALL cp_fm_get_info(qs_ot_env%matrix_cosp_b, &
                              nrow_local=qs_ot_env%nrow_local, &
                              ncol_local=qs_ot_env%ncol_local, &
                              row_indices=qs_ot_env%row_indices, &
                              col_indices=qs_ot_env%col_indices)
 
-  ALLOCATE(qs_ot_env%local_block(SIZE(qs_ot_env%matrix_cosp_b%local_data,1),SIZE(qs_ot_env%matrix_cosp_b%local_data,2)))
+   ALLOCATE(qs_ot_env%local_block(SIZE(qs_ot_env%matrix_cosp_b%local_data,1),SIZE(qs_ot_env%matrix_cosp_b%local_data,2)))
+
+   CALL cp_fm_struct_release(fm_struct_o_o)
+   CALL cp_fm_struct_release(fm_struct_o_k)
+   CALL cp_fm_struct_release(fm_struct_k_k)
+   CALL cp_fm_struct_release(fm_struct_n_k)
+   CALL cp_fm_struct_release(fm_struct_n_o)
 
 END SUBROUTINE qs_ot_allocate
 
 !******************************************************************************
 ! init matrices, needs c0 and sc0 so that c0*sc0=1
 !******************************************************************************
-SUBROUTINE qs_ot_init(qs_ot_env,globenv)
+SUBROUTINE qs_ot_init(qs_ot_env)
    TYPE(qs_ot_type)                          :: qs_ot_env 
-   TYPE(global_environment_type), INTENT(IN) :: globenv
    REAL(wp), PARAMETER :: rone=1.0_wp, rzero=0.0_wp
    INTEGER :: n, ortho_k
 
@@ -522,9 +395,8 @@ END SUBROUTINE qs_ot_destroy
 !*******************************************************************************
 ! computes p=x*S*x
 !*******************************************************************************
-SUBROUTINE qs_ot_get_p(matrix_x,matrix_sx,qs_ot_env,globenv)
+SUBROUTINE qs_ot_get_p(matrix_x,matrix_sx,qs_ot_env)
 
-  TYPE(global_environment_type), INTENT(IN) :: globenv
   TYPE(cp_full_matrix_type), POINTER          :: matrix_sx,matrix_x
   TYPE(qs_ot_type)                          :: qs_ot_env
 
@@ -543,7 +415,7 @@ SUBROUTINE qs_ot_get_p(matrix_x,matrix_sx,qs_ot_env,globenv)
   CALL cp_fm_gemm('T','N',k,k,n,rone,matrix_x,matrix_sx,rzero,& 
                            qs_ot_env%matrix_p)
 
-  CALL qs_ot_p2m(qs_ot_env,globenv)
+  CALL qs_ot_p2m(qs_ot_env)
 
   CALL timestop(0.0_wp,handle)
 
@@ -554,9 +426,8 @@ END SUBROUTINE qs_ot_get_p
 ! this assumes that x is already ortho to S*C0, and that p is x*p*x
 !*******************************************************************************
 
-SUBROUTINE qs_ot_get_orbitals(matrix_c, matrix_x, qs_ot_env,globenv)
+SUBROUTINE qs_ot_get_orbitals(matrix_c, matrix_x, qs_ot_env)
 
-  TYPE(global_environment_type), INTENT(IN) :: globenv
   TYPE(qs_ot_type)                          :: qs_ot_env
   TYPE(cp_full_matrix_type), POINTER          :: matrix_c,matrix_x
 
@@ -586,9 +457,8 @@ END SUBROUTINE qs_ot_get_orbitals
 ! is changed so that P*dE/dx is the right derivative (i.e. in the allowed subspace)
 !*******************************************************************************
 SUBROUTINE qs_ot_get_derivative(matrix_hc,matrix_x,matrix_sx,matrix_gx, &
-                                               qs_ot_env,globenv)
+                                               qs_ot_env)
 
-  TYPE(global_environment_type), INTENT(IN) :: globenv
   TYPE(cp_full_matrix_type), POINTER          :: matrix_hc,matrix_x
   TYPE(cp_full_matrix_type), POINTER          :: matrix_sx,matrix_gx
   TYPE(qs_ot_type)                          :: qs_ot_env
@@ -698,9 +568,8 @@ END SUBROUTINE qs_ot_get_derivative
 !                    cosp_b_ij=(1/(2pii) * int(cos(z^1/2)/((z-eval(i))*(z-eval(j))))
 !                    sinp_b_ij=(1/(2pii) * int(z^(-1/2)*sin(z^1/2)/((z-eval(i))*(z-eval(j))))
 !*******************************************************************************
-SUBROUTINE qs_ot_p2m(qs_ot_env,globenv)
+SUBROUTINE qs_ot_p2m(qs_ot_env)
 
-  TYPE(global_environment_type), INTENT(IN)  :: globenv
   TYPE(qs_ot_type)                           :: qs_ot_env
   ! locals
   INTEGER  :: k,i,j
@@ -711,8 +580,6 @@ SUBROUTINE qs_ot_p2m(qs_ot_env,globenv)
   k=qs_ot_env%settings%k 
   CALL copy_blacs_to_blacs_matrix(qs_ot_env%matrix_p,qs_ot_env%matrix_buf1)
   CALL blacs_syevd(qs_ot_env%matrix_buf1,qs_ot_env%matrix_r,qs_ot_env%evals)
-  !CALL blacs_syevx(qs_ot_env%matrix_buf1,qs_ot_env%matrix_r,qs_ot_env%evals, &
-  !                                                   k,1.0_wp,globenv)
   DO i=1,k
         qs_ot_env%evals(i)=MAX(0.0_wp,qs_ot_env%evals(i))
   ENDDO
@@ -734,6 +601,7 @@ SUBROUTINE qs_ot_p2m(qs_ot_env,globenv)
   CALL blacs_scale_matrix(qs_ot_env%matrix_buf1,qs_ot_env%dum)
   CALL cp_fm_gemm('N','T',k,k,k,rone,qs_ot_env%matrix_r,qs_ot_env%matrix_buf1, &
                                      rzero,qs_ot_env%matrix_sinp)
+
 !$OMP PARALLEL DO PRIVATE(i,j,a,b)
   DO j=1,qs_ot_env%ncol_local
     DO i=1,qs_ot_env%nrow_local

@@ -159,9 +159,10 @@ SUBROUTINE ot_scf_read_input(qs_ot_env,globenv)
     CALL finish_parser()
     IF (globenv%ionode) THEN
     WRITE(6,*) ""
-    WRITE(6,*) " ------------------------------------- OT ----------------------------------------"
+    WRITE(6,*) " ----------------------------------- OT --------------------------------------"
     WRITE(6,*) ""
-    WRITE(6,*) " An efficient orbital transformation method for electronic structure calculations "
+    WRITE(6,*) " An efficient orbital transformation method "
+    WRITE(6,*) " for electronic structure calculations "
     WRITE(6,*) " Joost VandeVondele and Juerg Hutter"
     WRITE(6,*) " J. Chem. Phys. 118, 4365, 2003"
     WRITE(6,*) ""
@@ -264,7 +265,7 @@ SUBROUTINE ot_scf_mini(mo_array,matrix_ks,matrix_s,energy, &
 
     ! notice we use (1) for driving all output and the minimization
     qs_ot_env(1)%etotal=energy
-    CALL ot_mini(qs_ot_env,globenv)
+    CALL ot_mini(qs_ot_env)
     delta           =qs_ot_env(1)%delta
     energy_only     =qs_ot_env(1)%energy_only
 
@@ -273,9 +274,9 @@ SUBROUTINE ot_scf_mini(mo_array,matrix_ks,matrix_s,energy, &
                                       qs_ot_env(ispin)%matrix_sx, &
                                       qs_ot_env(ispin)%settings%k,&
                                       para_env=globenv%para_env)
-       CALL qs_ot_get_p(qs_ot_env(ispin)%matrix_x,qs_ot_env(ispin)%matrix_sx,qs_ot_env(ispin),globenv)
+       CALL qs_ot_get_p(qs_ot_env(ispin)%matrix_x,qs_ot_env(ispin)%matrix_sx,qs_ot_env(ispin))
        CALL get_mo_set(mo_set=mo_array(ispin)%mo_set,eigenvectors=mo_eigenvectors)
-       CALL qs_ot_get_orbitals(mo_eigenvectors,qs_ot_env(ispin)%matrix_x,qs_ot_env(ispin),globenv)
+       CALL qs_ot_get_orbitals(mo_eigenvectors,qs_ot_env(ispin)%matrix_x,qs_ot_env(ispin))
     ENDDO
 
     CALL timestop(0.0_wp,handle)
@@ -315,7 +316,7 @@ SUBROUTINE ot_scf_init(mo_array,matrix_s,qs_ot_env,globenv)
        qs_ot_env(ispin)%settings%ncol_block=ncol_block
 
        ! allocate
-       CALL qs_ot_allocate(qs_ot_env(ispin),globenv)
+       CALL qs_ot_allocate(qs_ot_env(ispin),globenv%para_env,globenv%blacs_env)
    
        ! set c0,sc0
        CALL copy_blacs_to_blacs_matrix(mo_eigenvectors,qs_ot_env(ispin)%matrix_c0)
@@ -324,14 +325,14 @@ SUBROUTINE ot_scf_init(mo_array,matrix_s,qs_ot_env,globenv)
                                                 para_env=globenv%para_env)
 
        ! init
-       CALL qs_ot_init(qs_ot_env(ispin),globenv)
+       CALL qs_ot_init(qs_ot_env(ispin))
    
        ! set x
        CALL cp_fm_set_all(qs_ot_env(ispin)%matrix_x,0.0_wp)
        CALL cp_fm_set_all(qs_ot_env(ispin)%matrix_sx,0.0_wp)
    
        ! get c
-       CALL qs_ot_get_p(qs_ot_env(ispin)%matrix_x,qs_ot_env(ispin)%matrix_sx,qs_ot_env(ispin),globenv)
+       CALL qs_ot_get_p(qs_ot_env(ispin)%matrix_x,qs_ot_env(ispin)%matrix_sx,qs_ot_env(ispin))
 
     END DO
     CALL timestop(0.0_wp,handle)

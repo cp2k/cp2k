@@ -44,9 +44,8 @@ CONTAINS
 ! all the information needed and  collected can be stored in the fist qs_ot_env only 
 ! (indicating that the data type for the gradient/position and minization should be separated)
 !
-SUBROUTINE ot_mini(qs_ot_env,globenv)
+SUBROUTINE ot_mini(qs_ot_env)
    TYPE(qs_ot_type), POINTER, DIMENSION(:)   :: qs_ot_env
-   TYPE(global_environment_type), INTENT(IN) :: globenv
    INTEGER :: handle
    INTEGER :: nspin,ispin
    REAL(wp) :: tmp
@@ -64,7 +63,7 @@ SUBROUTINE ot_mini(qs_ot_env,globenv)
       DO ispin=1,nspin
          CALL qs_ot_get_derivative(qs_ot_env(ispin)%matrix_hc,qs_ot_env(ispin)%matrix_x, &
                                      qs_ot_env(ispin)%matrix_sx, &
-                                     qs_ot_env(ispin)%matrix_gx,qs_ot_env(ispin),globenv)
+                                     qs_ot_env(ispin)%matrix_gx,qs_ot_env(ispin))
         ! and also the gradient along the direction
         if (qs_ot_env(1)%use_dx) then
            CALL cp_fm_trace(qs_ot_env(ispin)%matrix_gx,qs_ot_env(ispin)%matrix_dx,tmp)
@@ -78,26 +77,26 @@ SUBROUTINE ot_mini(qs_ot_env,globenv)
 
    SELECT CASE(qs_ot_env(1)%settings%OT_METHOD)
    CASE ("CG")
-        IF (current_point_is_fine(qs_ot_env,globenv)) THEN
+        IF (current_point_is_fine(qs_ot_env)) THEN
            qs_ot_env(1)%OT_METHOD_FULL="OT CG"
-           CALL ot_new_cg_direction(qs_ot_env,globenv)      
+           CALL ot_new_cg_direction(qs_ot_env)      
            qs_ot_env(1)%line_search_count=0
         ELSE
            qs_ot_env(1)%OT_METHOD_FULL="OT LS"
         ENDIF
-        CALL do_line_search(qs_ot_env,globenv)
+        CALL do_line_search(qs_ot_env)
    CASE ("SD")
-        IF (current_point_is_fine(qs_ot_env,globenv)) THEN
+        IF (current_point_is_fine(qs_ot_env)) THEN
            qs_ot_env(1)%OT_METHOD_FULL="OT SD"
-           CALL ot_new_sd_direction(qs_ot_env,globenv)      
+           CALL ot_new_sd_direction(qs_ot_env)      
            qs_ot_env(1)%line_search_count=0
         ELSE
            qs_ot_env(1)%OT_METHOD_FULL="OT LS"
         ENDIF
-        CALL do_line_search(qs_ot_env,globenv)
+        CALL do_line_search(qs_ot_env)
    CASE ("DIIS")
            qs_ot_env(1)%OT_METHOD_FULL="OT DIIS"
-           CALL ot_diis_step(qs_ot_env,globenv)
+           CALL ot_diis_step(qs_ot_env)
    CASE DEFAULT
            CALL stop_program("ot_mini","OT_METHOD NYI")
    END SELECT
@@ -110,10 +109,9 @@ END SUBROUTINE ot_mini
 ! checks if the current point is a good point for finding a new direction 
 ! or if we should improve the line_search, if it is used
 !
-FUNCTION current_point_is_fine(qs_ot_env,globenv) RESULT(res)
+FUNCTION current_point_is_fine(qs_ot_env) RESULT(res)
    LOGICAL                                                          :: res
    TYPE(qs_ot_type), POINTER, DIMENSION(:)                          :: qs_ot_env
-   TYPE(global_environment_type), INTENT(IN)                        :: globenv
 
    res=.false.
    
@@ -139,28 +137,26 @@ END FUNCTION current_point_is_fine
 ! 
 ! performs various kinds of line searches
 !
-SUBROUTINE do_line_search(qs_ot_env,globenv)
+SUBROUTINE do_line_search(qs_ot_env)
    TYPE(qs_ot_type), POINTER, DIMENSION(:)   :: qs_ot_env
-   TYPE(global_environment_type), INTENT(IN) :: globenv
    SELECT CASE(qs_ot_env(1)%settings%line_search_method)
    CASE("GOLD")
-       CALL do_line_search_gold(qs_ot_env,globenv)
+       CALL do_line_search_gold(qs_ot_env)
    CASE("3PNT")
-       CALL do_line_search_3pnt(qs_ot_env,globenv)
+       CALL do_line_search_3pnt(qs_ot_env)
    CASE("2PNT")
-       CALL do_line_search_2pnt(qs_ot_env,globenv)
+       CALL do_line_search_2pnt(qs_ot_env)
    CASE("NONE")
-       CALL do_line_search_none(qs_ot_env,globenv)
+       CALL do_line_search_none(qs_ot_env)
    CASE DEFAULT
        CALL stop_program("do_line_search","NYI")
    END SELECT 
 END SUBROUTINE do_line_search
 
 ! implements a golden ratio search as a robust way of minimizing 
-SUBROUTINE do_line_search_gold(qs_ot_env,globenv)
+SUBROUTINE do_line_search_gold(qs_ot_env)
 
    TYPE(qs_ot_type), POINTER, DIMENSION(:)   :: qs_ot_env
-   TYPE(global_environment_type), INTENT(IN) :: globenv
 
    INTEGER                                   :: count
    REAL(wp), PARAMETER                       :: gold_sec=0.3819_wp ! approx (3-sqrt(5))/2
@@ -177,12 +173,6 @@ SUBROUTINE do_line_search_gold(qs_ot_env,globenv)
    IF (count+1 .gt. size(qs_ot_env(1)%OT_pos)) THEN
       ! should not happen, we pass with a warning first
       ! you can increase the size of OT_pos and the like in qs_ot_env
-      IF (globenv%ionode) THEN
-         write(globenv%scr,*) " Line Search History : "
-         DO count=1,size(qs_ot_env(1)%OT_pos)
-            write(globenv%scr,*) qs_ot_env(1)%ot_pos(count),qs_ot_env(1)%ot_energy(count)
-         ENDDO
-      END IF
       CALL stop_program("OT LS","MAX ITER EXCEEDED : FATAL")
    ENDIF
 
@@ -251,11 +241,6 @@ SUBROUTINE do_line_search_gold(qs_ot_env,globenv)
              qs_ot_env(1)%energy_only=.false.
              qs_ot_env(1)%line_search_might_be_done=.true.
           ENDIF
-          IF (count+1 .eq. size(qs_ot_env(1)%OT_pos)) THEN
-             if (globenv%ionode) write(globenv%scr,*) "WARNING : LS : MAX ITER REACHED"
-             qs_ot_env(1)%energy_only=.false.
-             qs_ot_env(1)%line_search_might_be_done=.true.
-          ENDIF
        ENDIF
    ENDIF
    ds=qs_ot_env(1)%OT_pos(count+1)-qs_ot_env(1)%OT_pos(count)
@@ -275,10 +260,9 @@ SUBROUTINE do_line_search_gold(qs_ot_env,globenv)
 
 END SUBROUTINE do_line_search_gold
 
-SUBROUTINE do_line_search_3pnt(qs_ot_env,globenv)
+SUBROUTINE do_line_search_3pnt(qs_ot_env)
 
    TYPE(qs_ot_type), POINTER, DIMENSION(:)                          :: qs_ot_env
-   TYPE(global_environment_type), INTENT(IN) :: globenv
 
    INTEGER count,ispin,nspin
 
@@ -349,10 +333,9 @@ SUBROUTINE do_line_search_3pnt(qs_ot_env,globenv)
 
 END SUBROUTINE do_line_search_3pnt
 
-SUBROUTINE do_line_search_2pnt(qs_ot_env,globenv)
+SUBROUTINE do_line_search_2pnt(qs_ot_env)
 
    TYPE(qs_ot_type), POINTER, DIMENSION(:)   :: qs_ot_env
-   TYPE(global_environment_type), INTENT(IN) :: globenv
 
    INTEGER count,ispin,nspin
 
@@ -411,9 +394,8 @@ SUBROUTINE do_line_search_2pnt(qs_ot_env,globenv)
 
 END SUBROUTINE do_line_search_2pnt
 
-SUBROUTINE do_line_search_none(qs_ot_env,globenv)
+SUBROUTINE do_line_search_none(qs_ot_env)
    TYPE(qs_ot_type), POINTER, DIMENSION(:)   :: qs_ot_env
-   TYPE(global_environment_type), INTENT(IN) :: globenv
 
    INTEGER ispin,nspin
    nspin=size(qs_ot_env)
@@ -438,9 +420,8 @@ END SUBROUTINE do_line_search_none
 ! also updates the gradient for line search
 !
 
-SUBROUTINE ot_new_sd_direction(qs_ot_env,globenv)
+SUBROUTINE ot_new_sd_direction(qs_ot_env)
    TYPE(qs_ot_type), POINTER, DIMENSION(:)   :: qs_ot_env
-   TYPE(global_environment_type), INTENT(IN) :: globenv
 
    real(kind=wp) :: gnorm_cross,beta_pr,test_down,tmp
    integer n,k,ispin,nspin
@@ -457,8 +438,10 @@ SUBROUTINE ot_new_sd_direction(qs_ot_env,globenv)
           qs_ot_env(1)%gnorm=qs_ot_env(1)%gnorm+tmp
        ENDDO
        IF (qs_ot_env(1)%gnorm .lt. 0.0_wp) THEN
-           IF (globenv%ionode) &    ! fatal error, should use a different preconditioner
-             write(globenv%scr,*) "WARNING Preconditioner not positive definite !"
+           ! XXXX needs logger feature
+           ! XXXX IF (globenv%ionode) &    ! fatal error, should use a different preconditioner
+           ! XXXX  write(globenv%scr,*) "WARNING Preconditioner not positive definite !"
+           write(6,*) "WARNING Preconditioner not positive definite !"
        ENDIF
        DO ispin=1,nspin
           CALL cp_fm_scale_and_add(0.0_wp,qs_ot_env(ispin)%matrix_dx,-1.0_wp,qs_ot_env(ispin)%matrix_dx)  
@@ -485,9 +468,8 @@ END SUBROUTINE ot_new_sd_direction
 ! using the preconditioner if associated
 ! also updates the gradient for line search
 !
-SUBROUTINE ot_new_cg_direction(qs_ot_env,globenv)
+SUBROUTINE ot_new_cg_direction(qs_ot_env)
    TYPE(qs_ot_type), POINTER, DIMENSION(:)    :: qs_ot_env
-   TYPE(global_environment_type), INTENT(IN) :: globenv
 
    real(kind=wp) :: gnorm_cross,beta_pr,test_down,tmp
    integer n,k
@@ -512,8 +494,10 @@ SUBROUTINE ot_new_cg_direction(qs_ot_env,globenv)
           qs_ot_env(1)%gnorm=qs_ot_env(1)%gnorm+tmp
        ENDDO
        IF (qs_ot_env(1)%gnorm .lt. 0.0_wp) THEN
-           IF (globenv%ionode) &    ! fatal error, should use a different preconditioner
-             write(globenv%scr,*) "WARNING Preconditioner not positive definite !"
+          ! XXXX needs logger feature
+          ! XXX IF (globenv%ionode) &    ! fatal error, should use a different preconditioner
+          ! XXX   write(globenv%scr,*) "WARNING Preconditioner not positive definite !"
+          write(6,*) "WARNING Preconditioner not positive definite !"
        ENDIF
        DO ispin=1,nspin
           CALL copy_blacs_to_blacs_matrix(qs_ot_env(ispin)%matrix_gx_old,qs_ot_env(ispin)%matrix_gx)
@@ -556,9 +540,8 @@ SUBROUTINE ot_new_cg_direction(qs_ot_env,globenv)
 
 END SUBROUTINE ot_new_cg_direction
 
-SUBROUTINE ot_diis_step(qs_ot_env,globenv)
+SUBROUTINE ot_diis_step(qs_ot_env)
    TYPE(qs_ot_type), POINTER, DIMENSION(:)   :: qs_ot_env
-   TYPE(global_environment_type), INTENT(IN) :: globenv
 
    INTEGER :: diis_m,i,j,diis_bound,info,n,k
    INTEGER :: nspin,ispin
@@ -593,8 +576,10 @@ SUBROUTINE ot_diis_step(qs_ot_env,globenv)
            qs_ot_env(1)%gnorm=qs_ot_env(1)%gnorm+tmp
        ENDDO
        IF (qs_ot_env(1)%gnorm .lt. 0.0_wp) THEN
-           IF (globenv%ionode) &    ! fatal error, should use a different preconditioner
-             write(globenv%scr,*) "WARNING Preconditioner not positive definite !"
+           ! XXX needs logger feature
+           ! XXX IF (globenv%ionode) &    ! fatal error, should use a different preconditioner
+           ! XXX  write(globenv%scr,*) "WARNING Preconditioner not positive definite !"
+           write(6,*) "WARNING Preconditioner not positive definite !"
        ENDIF
        DO ispin=1,nspin
            CALL cp_fm_scale_and_add(0.0_wp,qs_ot_env(ispin)%matrix_h_e(j)%matrix, &

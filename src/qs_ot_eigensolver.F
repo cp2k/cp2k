@@ -133,7 +133,7 @@ CONTAINS
     qs_ot_env(1)%settings%ncol_block=ncol_block
 
     ! allocate
-    CALL qs_ot_allocate(qs_ot_env(1),globenv)
+    CALL qs_ot_allocate(qs_ot_env(1),globenv%para_env,globenv%blacs_env)
 
     IF (ortho) THEN
         ! construct an initial guess that is orthogonal to matrix_orthogonal_space
@@ -213,7 +213,7 @@ CONTAINS
                              ortho=qs_ot_env(1)%matrix_sc0,otype="SV")
     ENDIF
     ! init
-    CALL qs_ot_init(qs_ot_env(1),globenv)
+    CALL qs_ot_init(qs_ot_env(1))
     energy_only=qs_ot_env(1)%energy_only
 
     ! set x
@@ -221,8 +221,8 @@ CONTAINS
     CALL cp_fm_set_all(qs_ot_env(1)%matrix_sx,0.0_wp)
 
     ! get c
-    CALL qs_ot_get_p(qs_ot_env(1)%matrix_x,qs_ot_env(1)%matrix_sx,qs_ot_env(1),globenv)
-    CALL qs_ot_get_orbitals(matrix_c,qs_ot_env(1)%matrix_x,qs_ot_env(1),globenv)
+    CALL qs_ot_get_p(qs_ot_env(1)%matrix_x,qs_ot_env(1)%matrix_sx,qs_ot_env(1))
+    CALL qs_ot_get_orbitals(matrix_c,qs_ot_env(1)%matrix_x,qs_ot_env(1))
 
     ! if present preconditioner, use it
 
@@ -253,7 +253,7 @@ CONTAINS
       ENDIF
  
       qs_ot_env(1)%etotal=energy
-      CALL ot_mini(qs_ot_env,globenv)
+      CALL ot_mini(qs_ot_env)
       delta           =qs_ot_env(1)%delta
       energy_only     =qs_ot_env(1)%energy_only
 
@@ -262,8 +262,8 @@ CONTAINS
                                          qs_ot_env(1)%settings%k,&
                                      para_env=globenv%para_env)
 
-      CALL qs_ot_get_p(qs_ot_env(1)%matrix_x,qs_ot_env(1)%matrix_sx,qs_ot_env(1),globenv)
-      CALL qs_ot_get_orbitals(matrix_c,qs_ot_env(1)%matrix_x,qs_ot_env(1),globenv)
+      CALL qs_ot_get_p(qs_ot_env(1)%matrix_x,qs_ot_env(1)%matrix_sx,qs_ot_env(1))
+      CALL qs_ot_get_orbitals(matrix_c,qs_ot_env(1)%matrix_x,qs_ot_env(1))
 
       IF (delta < eps_gradient) THEN
           IF (globenv%ionode) THEN
