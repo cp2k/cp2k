@@ -330,6 +330,52 @@ CONTAINS
 
 ! *****************************************************************************
 
+  SUBROUTINE deallocate_neighbor_list_set(neighbor_list_set)
+
+!   Purpose: Deallocate a neighbor list set.
+
+!   History: - Creation (03.11.2000, Matthias Krack)
+
+!   ***************************************************************************
+
+    TYPE(neighbor_list_set_type), POINTER :: neighbor_list_set
+
+!   *** Local parameters ***
+
+    CHARACTER(LEN=*), PARAMETER :: routine =&
+      "SUBROUTINE deallocate_neighbor_list_set (MODULE qs_neighbor_list_types)"
+
+!   *** Local variables ***
+
+    TYPE(neighbor_list_type), POINTER :: neighbor_list,next_neighbor_list
+    TYPE(neighbor_node_type), POINTER :: neighbor_node,next_neighbor_node
+    INTEGER                           :: istat
+
+!   ---------------------------------------------------------------------------
+
+    neighbor_list => neighbor_list_set%first_neighbor_list
+
+    DO WHILE (ASSOCIATED(neighbor_list))
+      next_neighbor_list => neighbor_list%next_neighbor_list
+      neighbor_node => neighbor_list%first_neighbor_node
+      DO WHILE (ASSOCIATED(neighbor_node))
+        next_neighbor_node => neighbor_node%next_neighbor_node
+        DEALLOCATE (neighbor_node,STAT=istat)
+        IF (istat /= 0) CALL stop_memory(routine,"neighbor_node")
+        neighbor_node => next_neighbor_node
+      END DO
+      DEALLOCATE (neighbor_list,STAT=istat)
+      IF (istat /= 0) CALL stop_memory(routine,"neighbor_list")
+      neighbor_list => next_neighbor_list
+    END DO
+
+    DEALLOCATE (neighbor_list_set,STAT=istat)
+    IF (istat /= 0) CALL stop_memory(routine,"neighbor_list_set")
+
+  END SUBROUTINE deallocate_neighbor_list_set
+
+! *****************************************************************************
+
   SUBROUTINE deallocate_neighbor_nodes(neighbor_list,neighbor_node)
 
 !   Purpose: Deallocate all neighbor nodes of a neighbor list starting from
@@ -363,47 +409,6 @@ CONTAINS
     END DO
 
   END SUBROUTINE deallocate_neighbor_nodes
-
-! *****************************************************************************
-
-  SUBROUTINE deallocate_neighbor_list_set(neighbor_list_set)
-
-!   Purpose: Deallocate a neighbor list set.
-
-!   History: - Creation (03.11.2000, Matthias Krack)
-
-!   ***************************************************************************
-
-    TYPE(neighbor_list_set_type), POINTER :: neighbor_list_set
-
-!   *** Local parameters ***
-
-    CHARACTER(LEN=*), PARAMETER :: routine =&
-      "SUBROUTINE deallocate_neighbor_list_set (MODULE qs_neighbor_list_types)"
-
-!   *** Local variables ***
-
-    TYPE(neighbor_list_type), POINTER :: neighbor_list,next_neighbor_list
-    TYPE(neighbor_node_type), POINTER :: neighbor_node
-    INTEGER                           :: istat
-
-!   ---------------------------------------------------------------------------
-
-    neighbor_list => neighbor_list_set%first_neighbor_list
-
-    DO WHILE (ASSOCIATED(neighbor_list))
-      next_neighbor_list => neighbor_list%next_neighbor_list
-      neighbor_node => neighbor_list%first_neighbor_node
-      CALL deallocate_neighbor_nodes(neighbor_list,neighbor_node)
-      DEALLOCATE (neighbor_list,STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routine,"neighbor_list")
-      neighbor_list => next_neighbor_list
-    END DO
-
-    DEALLOCATE (neighbor_list_set,STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routine,"neighbor_list_set")
-
-  END SUBROUTINE deallocate_neighbor_list_set
 
 ! *****************************************************************************
 

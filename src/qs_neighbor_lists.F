@@ -41,6 +41,7 @@ MODULE qs_neighbor_lists
   USE qs_neighbor_list_types,   ONLY: add_neighbor_list,&
                                       add_neighbor_node,&
                                       allocate_neighbor_list_set,&
+                                      deallocate_neighbor_list_set,&
                                       deallocate_neighbor_nodes,&
                                       find_neighbor_list,&
                                       first_list,&
@@ -304,7 +305,11 @@ CONTAINS
 
 !   *** Build the orbital-orbital overlap neighbor lists ***
 
-    CALL build_sab_orb_neighbor_lists(qs_env)
+    CALL build_sab_orb_neighbor_lists(sab_orb)
+
+!   *** Put the generated neighbor lists into the QS environment ***
+
+    CALL set_qs_env(qs_env=qs_env,sab_orb=sab_orb)
 
     IF (ionode.AND.globenv%print%sab_orb_neighbor_lists) THEN
       CALL write_neighbor_lists(sab_orb,"SAB_ORB NEIGHBOR LISTS")
@@ -428,16 +433,16 @@ CONTAINS
 
 ! *****************************************************************************
 
-  SUBROUTINE build_sab_orb_neighbor_lists(qs_env)
+  SUBROUTINE build_sab_orb_neighbor_lists(sab_orb)
 
 !   Purpose: Build the neighbor lists for calculation of the orbital-orbital
 !            overlap matrix.
 
-!   History: - Creation (20.03.2002, MK)
+!   History: - Creation (20.03.2002,MK)
 
 !   ***************************************************************************
 
-    TYPE(qs_environment_type), INTENT(INOUT) :: qs_env
+    TYPE(neighbor_list_set_p_type), DIMENSION(:), POINTER :: sab_orb
 
 !   *** Local parameters ***
 
@@ -446,16 +451,22 @@ CONTAINS
 
 !   *** Local variables ***
 
-    INTEGER :: ab,handle,natom_a
+    INTEGER :: ab,handle,handle1,natom_a
     LOGICAL :: equal_kinds
 
 !   ---------------------------------------------------------------------------
 
-    CALL timeset("build_sab_orb_neighbor_lists","I","",handle)
-
     IF (ASSOCIATED(sab_orb)) THEN
-      CALL stop_program(routine,"sab_orb is already associated")
-!MK   CALL deallocate_neighbor_lists(sab_orb)
+      CALL timeset("rebuild_sab_orb_neighbor_lists","I","",handle)
+      CALL timeset("remove_sab_orb_neighbor_lists","I","",handle1)
+      DO ab=1,SIZE(sab_orb)
+        CALL deallocate_neighbor_list_set(sab_orb(ab)%neighbor_list_set)
+      END DO
+      DEALLOCATE (sab_orb,STAT=istat)
+      IF (istat /= 0) CALL stop_memory(routine,"sab_orb")
+      CALL timestop(0.0_wp,handle1)
+    ELSE
+      CALL timeset("build_sab_orb_neighbor_lists","I","",handle)
     END IF
 
     ALLOCATE (sab_orb(nkind*(nkind + 1)/2),STAT=istat)
@@ -703,10 +714,6 @@ CONTAINS
 
       END DO
     END DO
-
-!   *** Put the generated neighbor lists into the QS environment ***
-
-    CALL set_qs_env(qs_env=qs_env,sab_orb=sab_orb)
 
     CALL timestop(0.0_wp,handle)
 
