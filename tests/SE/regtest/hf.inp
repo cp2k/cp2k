@@ -1,0 +1,27 @@
+&CP2K
+ PROGRAM      Quickstep
+ PROJECT      H2O
+ RUN_TYPE     GEO_OPT
+&END
+
+&GEOOPT
+  MAX_ITER  20
+&END
+
+&QS
+ METHOD       AM1
+&END
+
+&SCF
+ GUESS        ATOMIC
+&END
+
+&CELL
+ UNIT         ANGSTROM
+ ABC          20.0  20.0  20.0
+&END
+
+&COORD
+     F                   .00000000     .00000000     .00000000
+     H                   .40673664    -.11133319    -.90673603
+&END

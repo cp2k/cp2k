@@ -1,0 +1,24 @@
+&CP2K
+ PROGRAM      Quickstep
+ PROJECT      HCN
+&END
+
+&QS
+ METHOD       MNDO
+&END
+
+&SCF
+ GUESS        ATOMIC
+ MAX_SCF      20
+&END
+
+&CELL
+ UNIT         ANGSTROM
+ ABC          20.0  20.0  20.0
+&END
+
+&COORD
+      C                 -1.14407800     .00000000     .00000000
+      N                   .08275600     .00000000     .00000000
+      H                  1.06132200     .00000000     .00000000
+&END

@@ -1,0 +1,31 @@
+&CP2K
+ PROGRAM      Quickstep
+ PROJECT      nh4
+ RUN_TYPE     GEO_OPT
+&END
+
+&QS
+ METHOD       MNDO
+&END
+
+&DFT
+  CHARGE   1
+&END
+
+&SCF
+ GUESS        ATOMIC
+ MAX_SCF      20
+&END
+
+&CELL
+ UNIT         ANGSTROM
+ ABC          20.0  20.0  20.0
+&END
+
+&COORD
+       H                 -1.01578458     .00000000     .00000000
+       N                   .00000000     .00000000     .00000000
+       H                   .33859487     .95769088     .00000000
+       H                   .33859487    -.47884544    -.82938463
+       H                   .33859487    -.47884544     .82938463
+&END

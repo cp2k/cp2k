@@ -1,0 +1,26 @@
+&CP2K
+ PROGRAM      Quickstep
+ PROJECT      ch4
+&END
+
+&QS
+ METHOD       PM3
+&END
+
+&SCF
+ GUESS        ATOMIC
+ MAX_SCF      20
+&END
+
+&CELL
+ UNIT         ANGSTROM
+ ABC          20.0  20.0  20.0
+&END
+
+&COORD
+       C                   .00000000     .00000000     .00000000
+       H                  1.01578458     .00000000     .00000000
+       H                  -.33859486     .95769088     .00000000
+       H                  -.33859486    -.47884544     .82938463
+       H                  -.33859486    -.47884544    -.82938463
+&END
