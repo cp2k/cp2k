@@ -41,7 +41,9 @@ MODULE atoms_input
                                              search_label,&
                                              test_next
   USE particle_types,                  ONLY: particle_type
-  USE simulation_cell,                 ONLY: cell_type
+  USE simulation_cell,                 ONLY: cell_type,&
+                                             get_cell,&
+                                             scaled_to_real
   USE string_utilities,                ONLY: xstring
   USE termination,                     ONLY: stop_program
   USE topology_types,                  ONLY: topology_parameters_type
@@ -82,11 +84,14 @@ SUBROUTINE read_atoms_input ( topology, globenv )
     TYPE(global_environment_type), &
       INTENT(IN)                             :: globenv
 
-    INTEGER, PARAMETER                       :: nblock_atom = 1000
+    INTEGER, PARAMETER                       :: nblock_atom = 4000
 
+    TYPE(cell_type), POINTER                 :: cell
     CHARACTER(LEN=6)                         :: label
+    REAL(KIND=dbl)                           :: unit_of_length
     INTEGER                                  :: atm_equal_mol, iatom, ierror, &
                                                 ilen, iw, natom
+    LOGICAL                                  :: scaled_coordinates
 
 !   ---------------------------------------------------------------------------
 
@@ -106,6 +111,11 @@ SUBROUTINE read_atoms_input ( topology, globenv )
   CALL reallocate(topology%r,1,3,1,nblock_atom)
   CALL reallocate(topology%atm_mass,1,nblock_atom)
   CALL reallocate(topology%atm_charge,1,nblock_atom)
+
+  cell => topology%cell
+  CALL get_cell(cell=cell,&
+                scaled_coordinates=scaled_coordinates,&
+                unit_of_length=unit_of_length)
 
 !..parse the input section
   label = '&COORD'
@@ -165,12 +175,18 @@ SUBROUTINE read_atoms_input ( topology, globenv )
   CALL reallocate(topology%atm_charge,1,natom)
 
   DO iatom=1,natom
-    CALL convert_to_cp2k_units(topology%cell%unit_of_length_name,&
-                               length=topology%r(1,iatom))
-    CALL convert_to_cp2k_units(topology%cell%unit_of_length_name,&
-                               length=topology%r(2,iatom))
-    CALL convert_to_cp2k_units(topology%cell%unit_of_length_name,&
-                               length=topology%r(3,iatom))
+!MK allow for scaled coordinates
+!    CALL convert_to_cp2k_units(topology%cell%unit_of_length_name,&
+!                               length=topology%r(1,iatom))
+!    CALL convert_to_cp2k_units(topology%cell%unit_of_length_name,&
+!                               length=topology%r(2,iatom))
+!    CALL convert_to_cp2k_units(topology%cell%unit_of_length_name,&
+!                               length=topology%r(3,iatom))
+    IF (scaled_coordinates) THEN
+      topology%r(:,iatom) = scaled_to_real(topology%r(:,iatom),cell)*unit_of_length
+    ELSE
+      topology%r(:,iatom) = topology%r(:,iatom)*unit_of_length
+    END IF
   END DO
 
   atm_equal_mol = 0
