@@ -235,9 +235,8 @@ SUBROUTINE electrostatics ( dg_part, pw, part, box, grid_s,  &
 
   IF ( PRESENT ( f_coef ) )  THEN 
 
-    dvols = rho_tot % pw % pw_grid % dvol * inv_fourpi_eps0
-    f_coef = CMPLX ( 2._dbl * dvols * REAL ( phi1_r % pw % cc, dbl ), &
-                    -2._dbl * dvols * AIMAG ( phi1_r % pw % cc ), dbl )
+    f_coef = CMPLX ( 2._dbl * REAL ( phi1_r % pw % cc, dbl ), &
+                    -2._dbl * AIMAG ( phi1_r % pw % cc ), dbl )
   ENDIF 
 
   CALL coeff_deallocate ( phi1_r )

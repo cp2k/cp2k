@@ -86,7 +86,6 @@ CONTAINS
   TYPE ( coeff_type ) :: rhos1, rhos2
   TYPE ( coeff_type ) :: rhob_r, rhob_g
   TYPE ( coeff_type ) :: coeff_dummy, rho_tot
-  TYPE ( coeff_type ) :: rho_3d, rho_tot_rs
   LOGICAL :: match, first_time
 
 ! allocating the structure factor vector to the number of grid_types
@@ -200,17 +199,11 @@ CONTAINS
   
   IF ( PRESENT ( f_coef ) ) THEN
    
-! DO FFT 
-    CALL coeff_allocate ( rho_3d, rho_tot, use_basis = PW_COMPLEXDATA3D )
-    rho_3d % pw % in_space = PW_RECIPROCALSPACE
-    CALL coeff_transform_space ( rho_3d )
-    CALL coeff_allocate ( rho_tot_rs, rho_3d, use_basis = PW_COMPLEXDATA1D )
-    f_coef = CMPLX ( REAL ( rho_tot_rs  % pw % cc, dbl ), &
-                     AIMAG ( rho_tot_rs % pw % cc ), dbl )
+    rho_tot % pw % cc = CONJG ( rho_tot % pw % cc, dbl )
+    f_coef = CMPLX ( 2._dbl * REAL ( rho_tot % pw % cc, dbl ), &
+                    -2._dbl * AIMAG ( rho_tot % pw % cc ), dbl )
   ENDIF
   CALL coeff_deallocate ( rho_tot )
-  CALL coeff_deallocate ( rho_tot_rs )
-  CALL coeff_deallocate ( rho_3d )
  END SUBROUTINE force_thk
 
 !******************************************************************************
@@ -250,12 +243,14 @@ SUBROUTINE rho_evaluate ( dg, rden, part, box, exp_igr, grid_s, &
 ! Locals
   INTEGER :: handle, p1, p2, c1, c2, ip1, ip2
   TYPE ( coef_list_type ), POINTER :: clist
-  REAL ( dbl ) :: r1 ( 3 ), r2 ( 3 ), q1, q2
+  REAL ( dbl ) :: r1 ( 3 ), r2 ( 3 ), q1, q2, dvol
 
 !------------------------------------------------------------------------------
 
 
   CALL timeset ( 'FORCE_EVALUATE', 'I', ' ', handle )
+
+  dvols = rhos1 % pw % pw_grid % dvol * inv_fourpi_eps0
 
 ! Initialize the index of p1 and p2. This is to ensure the
 ! correct mapping between the particle and its array location

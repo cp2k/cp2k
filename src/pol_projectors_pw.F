@@ -255,12 +255,14 @@ SUBROUTINE proj_evaluate ( dg, rden, part, ao, box, exp_igr, grid_s,  &
   INTEGER :: handle, p1, p2, c1, c2, ip1, ip2, allocstat
   TYPE ( coef_list_type ), POINTER :: clist
   REAL ( dbl ) :: r1 ( 3 ), r2 ( 3 ), q1, q2, sum
-  REAL ( dbl ), DIMENSION ( 3 ) :: fat 
+  REAL ( dbl ), DIMENSION ( 3 ) :: fat, dvols
 
 !------------------------------------------------------------------------------
 
 
   CALL timeset ( 'PROJECTOR_EVALUATE', 'I', ' ', handle )
+
+  dvols = rhos1 % pw % pw_grid % dvol * inv_fourpi_eps0
 
 ! Initialize the index of p1 and p2. This is to ensure the
 ! correct mapping between the particle and its array location
@@ -296,15 +298,15 @@ SUBROUTINE proj_evaluate ( dg, rden, part, ao, box, exp_igr, grid_s,  &
      ! sum boxes on real space grids (big box) due to drpot1
        CALL dg_sum_patch_force_3d ( drpot1, rhos1, exp_igr % centre ( :, ip1 ), fat )
        fproj_part ( c1 ) % ipart = p1
-       fproj_part ( c1 ) % force ( 1 ) = -fat ( 1 )
-       fproj_part ( c1 ) % force ( 2 ) = -fat ( 2 )
-       fproj_part ( c1 ) % force ( 3 ) = -fat ( 3 )
+       fproj_part ( c1 ) % force ( 1 ) = -fat ( 1 ) * dvols
+       fproj_part ( c1 ) % force ( 2 ) = -fat ( 2 ) * dvols
+       fproj_part ( c1 ) % force ( 3 ) = -fat ( 3 ) * dvols
        IF ( p2 /= 0 ) THEN
           CALL dg_sum_patch_force_3d ( drpot1, rhos2, exp_igr % centre ( :, ip2 ), fat )
           fproj_part ( c2 ) % ipart = p2
-          fproj_part ( c2 ) % force ( 1 ) =  -fat ( 1 )
-          fproj_part ( c2 ) % force ( 2 ) =  -fat ( 2 )
-          fproj_part ( c2 ) % force ( 3 ) =  -fat ( 3 )
+          fproj_part ( c2 ) % force ( 1 ) =  -fat ( 1 ) * dvols
+          fproj_part ( c2 ) % force ( 2 ) =  -fat ( 2 ) * dvols
+          fproj_part ( c2 ) % force ( 3 ) =  -fat ( 3 ) * dvols
        END IF
      ENDIF
      ip1 = ip2
