@@ -418,9 +418,6 @@ CONTAINS
 
 !   *** Initialize working density matrix ***
 
-!ifk
-    NULLIFY(dp)
-
     CALL replicate_matrix ( p, dp, "DeltaP", allocate_blocks=.FALSE. )
 
     DO ikind=1,nkind
