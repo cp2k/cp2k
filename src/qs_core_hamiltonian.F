@@ -1407,6 +1407,7 @@ CONTAINS
                       
                       IF (.NOT.ASSOCIATED(sbc_ppnl(ibc)%neighbor_list_set)) CYCLE
                       
+                      lppnl = vppnl(kkind)%lppnl
                       nppnl = vppnl(kkind)%nppnl
                       rprjc(1) = vppnl(kkind)%ppnl_radius
                       
