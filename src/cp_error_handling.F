@@ -735,13 +735,16 @@ contains
     character(len=*),intent(in) :: fromWhere,message
 
     integer :: mepos
+    type(cp_logger_type), pointer :: logger
+
 
     if (debug_this_module) print *, "entred in cp_error_handle_error"
     call cp_error_message(error%level, fromWhere, &
          'err='//adjustl(cp_to_string(error%error_nr))//message, error)
 
     if (error%level >= error%stop_level) then
-       mepos=cp_error_get_logger(error)%para_env%mepos
+       logger => cp_error_get_logger(error) 
+       mepos=logger%para_env%mepos
        call cp_error_common_stop(fromWhere//' processor '//&
             cp_to_string(mepos)//' ',message)
     end if
