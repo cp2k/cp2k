@@ -26,7 +26,7 @@
 
       USE global_types, ONLY : global_environment_type
       USE parser, ONLY : parser_init, parser_end, read_line, test_next, &
-        cfield, p_error, get_real, get_int, stop_parser
+        p_error, get_next, stop_parser
       USE string_utilities, ONLY : uppercase
       USE termination, ONLY : stop_memory, stop_program
 !
@@ -90,6 +90,7 @@
         CHARACTER (len=20) :: string, str2
         CHARACTER (len=6) :: label
         INTEGER :: iw, ierror, ilen, isos, i, source, group
+!------------------------------------------------------------------------------!
 
 !..defaults
         kp%scheme = 'NULL'
@@ -99,18 +100,19 @@
         kp%nk = 0
         kp%shift = 0._dbl
         iw = inpar%scr
+
 !..parse the input section
         label = '&KPOINT'
         CALL parser_init(inpar%input_file_name,label,ierror,inpar)
         IF (ierror/=0) THEN
-          IF (inpar%ionode) &
+          IF (inpar%ionode .AND. inpar%print_level >= 2) &
             WRITE (iw,'(a,a)') ' No input section &KPOINT found on file ', &
-              adjustl(inpar%input_file_name)
+              TRIM(inpar%input_file_name)
         ELSE
           CALL read_line
           DO WHILE (test_next()/='X')
             ilen = 8
-            CALL cfield(string,ilen)
+            CALL get_next(string,ilen)
             CALL uppercase(string)
             SELECT CASE (string)
             CASE DEFAULT
@@ -118,7 +120,7 @@
               CALL stop_parser('kpoint_input','unknown option')
             CASE ('SCHEME')
               ilen = 20
-              CALL cfield(str2,ilen)
+              CALL get_next(str2,ilen)
               CALL uppercase(str2)
               SELECT CASE (str2)
               CASE DEFAULT
@@ -128,20 +130,20 @@
                 kp%scheme = str2
               CASE ('MONKHORST-PACK')
                 kp%scheme = str2
-                kp%nk(1) = get_int()
-                kp%nk(2) = get_int()
-                kp%nk(3) = get_int()
+                CALL get_next ( kp%nk(1) )
+                CALL get_next ( kp%nk(2) )
+                CALL get_next ( kp%nk(3) )
               CASE ('MACDONALD')
                 kp%scheme = str2
-                kp%nk(1) = get_int()
-                kp%nk(2) = get_int()
-                kp%nk(3) = get_int()
-                kp%shift(1) = get_real()
-                kp%shift(2) = get_real()
-                kp%shift(3) = get_real()
+                CALL get_next ( kp%nk(1) )
+                CALL get_next ( kp%nk(2) )
+                CALL get_next ( kp%nk(3) )
+                CALL get_next ( kp%shift(1) )
+                CALL get_next ( kp%shift(2) )
+                CALL get_next ( kp%shift(3) )
               CASE ('GENERAL')
                 kp%scheme = str2
-                kp%nkpt = get_int()
+                CALL get_next ( kp%nkpt )
                 ALLOCATE (kp%xk(3,kp%nkpt),STAT=isos)
                 IF (isos/=0) CALL stop_memory('kpoint_input', &
                   'kp%xk',3*kp%nkpt)
@@ -149,21 +151,21 @@
                 IF (isos/=0) CALL stop_memory('kpoint_input', &
                   'kp%weight',kp%nkpt)
                 DO i = 1, kp%nkpt
-                  kp%xk(1,i) = get_real()
-                  kp%xk(2,i) = get_real()
-                  kp%xk(3,i) = get_real()
-                  kp%weight(i) = get_real()
+                  CALL get_next ( kp%xk(1,i) )
+                  CALL get_next ( kp%xk(2,i) )
+                  CALL get_next ( kp%xk(3,i) )
+                  CALL get_next ( kp%weight(i) )
                 END DO
               END SELECT
             CASE ('SYMMETRY')
               ilen = 3
-              CALL cfield(str2,ilen)
+              CALL get_next(str2,ilen)
               CALL uppercase(str2)
               IF (str2=='OFF') kp%symmetry = .FALSE.
               IF (str2=='ON') kp%symmetry = .TRUE.
             CASE ('WAVEFUNC')
               ilen = 4
-              CALL cfield(str2,ilen)
+              CALL get_next(str2,ilen)
               CALL uppercase(str2)
               SELECT CASE (str2)
               CASE DEFAULT
@@ -179,6 +181,7 @@
           END DO
         END IF
         CALL parser_end
+
 !..update defaults
         IF (kp%scheme=='NULL' .OR. kp%scheme=='GAMMA') THEN
           kp%nkpt = 1
@@ -190,6 +193,7 @@
           kp%weight(1) = 1._dbl
           kp%scheme = 'GAMMA'
         END IF
+
       END SUBROUTINE kpoint_input
 !!*****
 !------------------------------------------------------------------------------!
@@ -204,51 +208,66 @@
 !!     JGH
 !!
 !!   MODIFICATION HISTORY
-!!     none
+!!     JGH (27.11.2001) import environment variable
 !!
 !!   SOURCE
 !******************************************************************************
-      SUBROUTINE brillouin_info(kp,punit)
+      SUBROUTINE brillouin_info(kp,inpar)
         IMPLICIT NONE
         TYPE (kpoint_type), INTENT (IN) :: kp
-        INTEGER, INTENT (IN) :: punit
+        TYPE (global_environment_type), INTENT (IN) :: inpar
+        INTEGER :: punit
         INTEGER :: i
 
-        IF (kp%scheme=='GAMMA') THEN
-          WRITE (punit,*)
-          WRITE (punit,'(A,T57,A)') ' BRILLOUIN|', ' Gamma-point calculation'
-          WRITE (punit,'(A,T76,A)') ' BRILLOUIN| Wavefunction type', ' REAL'
-        ELSE
-          WRITE (punit,*)
-          WRITE (punit,'(A,T61,A)') ' BRILLOUIN| K-point scheme ', &
-            adjustr(kp%scheme)
-          IF (kp%scheme=='MONKHORST-PACK') THEN
-            WRITE (punit,'(A,T66,3I5)') ' BRILLOUIN| K-Point grid', kp%nk
-          ELSE IF (kp%scheme=='MACDONALD') THEN
-            WRITE (punit,'(A,T66,3I5)') ' BRILLOUIN| K-Point grid', kp%nk
-            WRITE (punit,'(A,T51,3F10.4)') ' BRILLOUIN| K-Point shift', &
-              kp%shift
-          END IF
-          IF (kp%symmetry) THEN
-            WRITE (punit,'(A,T76,A)') ' BRILLOUIN| K-Point symmetry', '   ON'
-          ELSE
-            WRITE (punit,'(A,T76,A)') ' BRILLOUIN| K-Point symmetry', '  OFF'
-          END IF
-          IF (kp%wfn_type==0) THEN
-            WRITE (punit,'(A,T76,A)') ' BRILLOUIN| Wavefunction type', ' REAL'
-          ELSE
-            WRITE (punit,'(A,T73,A)') ' BRILLOUIN| Wavefunction type', &
-              ' COMPLEX'
-          END IF
-          WRITE (punit,'(A,T71,I10)') ' BRILLOUIN| Number of K-points ', &
-            kp%nkpt
-          WRITE (punit,'(A,T30,A,T48,A,T63,A,T78,A)') ' BRILLOUIN| Number ', &
-            'Weight', 'X', 'Y', 'Z'
-          DO i = 1, kp%nkpt
-            WRITE (punit,'(A,I5,3X,4F15.5)') ' BRILLOUIN| ', i, kp%weight(i), &
-              kp%xk(1,i), kp%xk(2,i), kp%xk(3,i)
-          END DO
+        IF ( inpar%ionode ) THEN
+           punit = inpar%scr
+           IF ( inpar%print_level >= 0 ) THEN
+              IF (kp%scheme=='GAMMA') THEN
+                WRITE (punit,*)
+                WRITE (punit,'(A,T57,A)') &
+                      ' BRILLOUIN|', ' Gamma-point calculation'
+                WRITE (punit,'(A,T76,A)') &
+                      ' BRILLOUIN| Wavefunction type', ' REAL'
+              ELSE
+                WRITE (punit,*)
+                WRITE (punit,'(A,T61,A)') ' BRILLOUIN| K-point scheme ', &
+                  adjustr(kp%scheme)
+                IF (kp%scheme=='MONKHORST-PACK') THEN
+                  WRITE (punit,'(A,T66,3I5)') &
+                      ' BRILLOUIN| K-Point grid', kp%nk
+                ELSE IF (kp%scheme=='MACDONALD') THEN
+                  WRITE (punit,'(A,T66,3I5)') &
+                      ' BRILLOUIN| K-Point grid', kp%nk
+                  WRITE (punit,'(A,T51,3F10.4)') &
+                      ' BRILLOUIN| K-Point shift', kp%shift
+                END IF
+                IF (kp%symmetry) THEN
+                  WRITE (punit,'(A,T76,A)') &
+                      ' BRILLOUIN| K-Point symmetry', '   ON'
+                ELSE
+                  WRITE (punit,'(A,T76,A)') &
+                      ' BRILLOUIN| K-Point symmetry', '  OFF'
+                END IF
+                IF (kp%wfn_type==0) THEN
+                  WRITE (punit,'(A,T76,A)') &
+                      ' BRILLOUIN| Wavefunction type', ' REAL'
+                ELSE
+                  WRITE (punit,'(A,T73,A)') &
+                      ' BRILLOUIN| Wavefunction type', ' COMPLEX'
+                END IF
+                WRITE (punit,'(A,T71,I10)') &
+                    ' BRILLOUIN| Number of K-points ', kp%nkpt
+                WRITE (punit,'(A,T30,A,T48,A,T63,A,T78,A)') &
+                    ' BRILLOUIN| Number ', 'Weight', 'X', 'Y', 'Z'
+                DO i = 1, kp%nkpt
+                  WRITE (punit,'(A,I5,3X,4F15.5)') &
+                      ' BRILLOUIN| ', i, kp%weight(i), &
+                      kp%xk(1,i), kp%xk(2,i), kp%xk(3,i)
+                END DO
+              END IF
+           END IF
         END IF
+
       END SUBROUTINE brillouin_info
 
 !!*****

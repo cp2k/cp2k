@@ -11,7 +11,7 @@
 !!     operations with the occupation numbers
 !!
 !!   AUTHOR
-!!     ??? (12-Feb-2001)
+!!     APS (12-Feb-2001)
 !!
 !!   MODIFICATION HISTORY
 !!     none
@@ -379,5 +379,202 @@ SUBROUTINE occupations_fsm_set ( psi, efermi, dft_control )
 END SUBROUTINE occupations_fsm_set
 
 !******************************************************************************
+!******************************************************************************
+!******************************************************************************
+
+!------------------------------------------------------------------------------!
+      SUBROUTINE adjust_mu(bs)
+!
+! adjust the chemical potential with the bisection method
+! eigenvalues do not have to be sorted
+! routine adapted from CPMD
+!
+        IMPLICIT NONE
+        TYPE (band_structure_type), INTENT (INOUT) :: bs
+        REAL (dbl) :: amu, amu1, amu2, damu, sdeg
+        REAL (dbl) :: rhint, rhint1, rhint2, precision
+        INTEGER, PARAMETER :: it_max = 200
+        INTEGER :: nk, it
+
+!
+        precision = precpar*log(float(bs%fd%nel+1))
+!..min and max eigenvalue
+        amu1 = minval(bs%ev)
+        amu2 = maxval(bs%ev)
+!
+        DO
+          rhint1 = rhoint(bs,amu1)
+          IF (rhint1<0._dbl) EXIT
+          amu1 = -2._dbl*abs(amu1)
+        END DO
+        rhint2 = rhoint(bs,amu2)
+        IF (rhint2<0._dbl) CALL stop_program("ADJUST_MU", &
+          "failed to find chem. potential: number of states is too small")
+        damu = amu2 - amu1
+        amu = amu1
+!
+        DO it = 1, it_max
+          amu = amu1 + 0.5_dbl*damu
+          rhint = rhoint(bs,amu)
+          IF (damu<delta) THEN
+            IF (abs(rhint)<precision) THEN
+              EXIT
+            ELSE IF (abs(rhint1)<precision) THEN
+              amu = amu1
+              EXIT
+            ELSE IF (abs(rhint1)<precision) THEN
+              amu = amu2
+              EXIT
+            END IF
+          END IF
+          IF (rhint<0._dbl) THEN
+            amu1 = amu
+            rhint1 = rhint
+          ELSE
+            amu2 = amu
+            rhint2 = rhint
+          END IF
+          damu = amu2 - amu1
+        END DO
+        IF (damu>delta) THEN
+          CALL stop_program("ADJUST_MU","failed to find chem. potential")
+        END IF
+        bs%fd%mu = amu
+!
+      END SUBROUTINE adjust_mu
+!------------------------------------------------------------------------------!
+      FUNCTION rhoint(bs,mu)
+        IMPLICIT NONE
+        TYPE (band_structure_type), INTENT (IN) :: bs
+        REAL (dbl), INTENT (IN) :: mu
+        REAL (dbl) :: rhoint, xlm, arg, argmin, argmax, sdeg, remain
+        REAL (dbl) :: dramu, drwe, wbigwe
+        INTEGER :: is, ik, i, n
+
+        argmin = log(toll)
+        argmax = -argmin
+        IF (bs%fd%spin_polarization==0) THEN
+          sdeg = 2._dbl
+        ELSE
+          sdeg = 1._dbl
+        END IF
+        dramu = dround(mu,delta)
+        rhoint = 0._dbl
+        wbigwe = 0._dbl
+        DO is = 1, size(bs%ev(1,1,:))
+          DO ik = 1, size(bs%ev(1,:,1))
+            IF (is==1) n = bs%fd%na
+            IF (is==2) n = bs%fd%nb
+            DO i = 1, n
+              arg = -bs%fd%betael*(bs%ev(i,ik,is)-mu)
+              IF (arg>argmax) THEN
+                xlm = 1._dbl
+              ELSE IF (arg<argmin) THEN
+                xlm = 0._dbl
+              ELSE
+                xlm = exp(arg)/(exp(arg)+1._dbl)
+              END IF
+              drwe = dround(bs%ev(i,ik,is),delta)
+              IF (abs(drwe-dramu)<delta) THEN
+                wbigwe = wbigwe + bs%kpt%weight(ik)
+              ELSE
+                rhoint = rhoint + bs%kpt%weight(ik)*xlm
+              END IF
+            END DO
+          END DO
+        END DO
+        remain = float(bs%fd%nel) - rhoint
+        IF (remain<0._dbl) remain = sdeg
+        IF (wbigwe>0._dbl) THEN
+          remain = remain/wbigwe
+          remain = min(remain,sdeg)
+          DO is = 1, size(bs%ev(1,1,:))
+            DO ik = 1, size(bs%ev(1,:,1))
+              IF (is==1) n = bs%fd%na
+              IF (is==2) n = bs%fd%nb
+              DO i = 1, n
+                drwe = dround(bs%ev(i,ik,is),delta)
+                IF (abs(drwe-dramu)<delta) rhoint = rhoint + &
+                  bs%kpt%weight(ik)*remain
+              END DO
+            END DO
+          END DO
+        END IF
+        rhoint = sdeg*rhoint - float(bs%fd%nel)
+      END FUNCTION rhoint
+!------------------------------------------------------------------------------!
+      SUBROUTINE occupation(bs)
+        IMPLICIT NONE
+        TYPE (band_structure_type), INTENT (INOUT) :: bs
+        REAL (dbl) :: xlm, arg, argmin, argmax, sdeg
+        REAL (dbl) :: dramu, drwe, wbigwe, remain, rhotot
+        INTEGER :: is, ik, i, n
+
+        argmin = log(toll)
+        argmax = -argmin
+        IF (bs%fd%spin_polarization==0) THEN
+          sdeg = 2._dbl
+        ELSE
+          sdeg = 1._dbl
+        END IF
+        dramu = dround(bs%fd%mu,delta)
+        wbigwe = 0._dbl
+        rhotot = 0._dbl
+        DO is = 1, size(bs%oc(1,1,:))
+          DO ik = 1, size(bs%oc(1,:,1))
+            IF (is==1) n = bs%fd%na
+            IF (is==2) n = bs%fd%nb
+            DO i = 1, n
+              arg = -bs%fd%betael*(bs%ev(i,ik,is)-bs%fd%mu)
+              IF (arg>argmax) THEN
+                xlm = 1._dbl
+              ELSE IF (arg<argmin) THEN
+                xlm = 0._dbl
+              ELSE
+                xlm = exp(arg)/(exp(arg)+1._dbl)
+              END IF
+              drwe = dround(bs%ev(i,ik,is),delta)
+              IF (abs(drwe-dramu)<delta) THEN
+                wbigwe = wbigwe + bs%kpt%weight(ik)
+              ELSE
+                rhotot = rhotot + bs%kpt%weight(ik)*xlm
+                bs%oc(i,ik,is) = xlm*sdeg
+              END IF
+            END DO
+          END DO
+        END DO
+        remain = float(bs%fd%nel) - rhotot
+        IF (remain<0._dbl) remain = sdeg
+        IF (wbigwe>0._dbl) THEN
+          remain = remain/wbigwe
+          remain = min(remain,sdeg)
+          DO is = 1, size(bs%ev(1,1,:))
+            DO ik = 1, size(bs%ev(1,:,1))
+              IF (is==1) n = bs%fd%na
+              IF (is==2) n = bs%fd%nb
+              DO i = 1, n
+                drwe = dround(bs%ev(i,ik,is),delta)
+                IF (abs(drwe-dramu)<delta) bs%oc(i,ik,is) = remain
+              END DO
+            END DO
+          END DO
+        END IF
+      END SUBROUTINE occupation
+!------------------------------------------------------------------------------!
+      FUNCTION dround(a,delta)
+        IMPLICIT NONE
+        REAL (dbl), INTENT (IN) :: a, delta
+        REAL (dbl) :: dround
+
+        dround = a - mod(a,delta)
+      END FUNCTION dround
+!------------------------------------------------------------------------------!
+!******************************************************************************
+!******************************************************************************
+!******************************************************************************
+!******************************************************************************
+!******************************************************************************
 
 END MODULE occupations
+
+!******************************************************************************

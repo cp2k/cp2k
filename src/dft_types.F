@@ -10,7 +10,7 @@
 !!   FUNCTION
 !!
 !!   AUTHOR
-!!     CJM & JGH
+!!     JGH
 !!
 !!   MODIFICATION HISTORY
 !!     none
@@ -20,45 +20,34 @@
 
 MODULE dft_types
   
+  USE band, ONLY : band_structure_type
   USE kinds, ONLY : dbl
   
   IMPLICIT NONE
   
   PRIVATE
-  PUBLIC :: dft_control_type, wave_control_type
+  PUBLIC :: dft_control_type, wave_control_type, qs_control_type
   
-  !! dft_control_type = general DFT
-  !! wave_control_type = options/control of the DFT/PW/PP part
-  
+  TYPE qs_control_type
+     CHARACTER ( LEN = 10 ) :: qs_method
+  END TYPE qs_control_type
+
   TYPE wave_control_type
-     REAL ( dbl ) :: e_cutoff_wf, e_cutoff_dual
-     INTEGER :: xc_mesh ( 3 )
-     
-     INTEGER :: niter_elc
-     INTEGER :: wf_print_frequency
-     CHARACTER ( LEN = 80 ) :: wf_optimisation_method
-     REAL ( dbl ) :: wf_timestep
-     REAL ( dbl ) :: wf_emass
-     LOGICAL :: wf_subspacerotation_tperform
-     INTEGER :: wf_subspacerotation_frequency
-     INTEGER :: wf_subspacerotation_first
+     REAL ( dbl ) :: e_cutoff_wf
+     REAL ( dbl ) :: e_cutoff_dual
   END TYPE wave_control_type
   
-  !! niter_elc = maximum number of electronic iterations before ionic move
   TYPE dft_control_type
      CHARACTER ( LEN = 40 ) :: functional
      REAL ( dbl ) :: density_cut
      REAL ( dbl ) :: gradient_cut
-     REAL ( dbl ) :: nelectrons
-     REAL ( dbl ) :: fixedspinmoment_amount
-     LOGICAL :: broadening_tperform, fixedspinmoment
-     CHARACTER ( LEN = 40 ) :: broadening_method
-     REAL ( dbl ) :: broadening_width
-     
-     INTEGER :: nstates, nspins
-     REAL ( dbl ) :: charge
+     INTEGER :: xc_mesh ( 3 )
+     INTEGER :: nspins
      
      TYPE ( wave_control_type ) :: wave_control
+     TYPE ( qs_control_type ) :: qs_control
+
+     TYPE ( band_structure_type ) :: band
   END TYPE dft_control_type
   
 END MODULE dft_types

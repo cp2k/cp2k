@@ -8,13 +8,15 @@
 !!     dft_input
 !!
 !!   FUNCTION
-!!     Read in the DFT/WAVE specific input
+!!     Read in the DFT specific input
+!!     Read additional input for the DFT programs
 !!
 !!   AUTHOR
-!!     JGH?
+!!     JGH
 !!
 !!   MODIFICATION HISTORY
-!!     none
+!!     JGH (21.11.2001) : add Quickstep routine
+!!                        clean up and embrace method section from QS
 !!
 !!   SOURCE
 !!
@@ -28,14 +30,14 @@ MODULE dft_input
   USE kinds, ONLY : dbl, YES, NO
   USE message_passing, ONLY : mp_bcast
   USE parser, ONLY : parser_init, parser_end, read_line, test_next, &
-       cfield, p_error, get_real, get_int
+       p_error, get_next
   USE termination, ONLY : stop_program
   USE string_utilities, ONLY : uppercase, str_comp, xstring
   
   IMPLICIT NONE
   
   PRIVATE
-  PUBLIC :: read_dft_section, read_wave_section
+  PUBLIC :: read_dft_section, read_wave_section, read_qs_section
   
 !!*****
 
@@ -49,7 +51,7 @@ CONTAINS
 !!   FUNCTION
 !!
 !!   AUTHOR
-!!     JGH?
+!!     JGH
 !!
 !!   MODIFICATION HISTORY
 !!     none
@@ -60,7 +62,6 @@ CONTAINS
 !!>----------------------------------------------------------------------------
 !!  SECTION: &dft ... &end                                                    !
 !!                                                                            !
-!!  printlevel       globenv%print_level                                      !
 !!  functional       [ ... ]                                                  !
 !!  density_cutoff   den_cut                                                  !
 !!  gradient_cutoff  grad_cut                                                 !
@@ -86,14 +87,8 @@ SUBROUTINE read_dft_section ( dft_control, dftpar )
   dft_control % functional = "PZ"
   dft_control % density_cut = 1.0E-10_dbl
   dft_control % gradient_cut = 1.0E-8_dbl
-  dft_control % fixedspinmoment_amount = 0.0_dbl
-  dft_control % broadening_tperform = NO
-  dft_control % broadening_method = "NONE"
-  dft_control % broadening_width = 0.0_dbl
-  dft_control % nstates = -1
   dft_control % nspins = 1
-  dft_control % charge = 0.0_dbl
-  dft_control % nelectrons = 0
+  dft_control % xc_mesh ( : ) = -1
   
   iw = dftpar % scr
   
@@ -110,7 +105,7 @@ SUBROUTINE read_dft_section ( dft_control, dftpar )
      DO WHILE ( test_next() /= "X" )
         
         ilen = 40
-        CALL cfield ( string, ilen )
+        CALL get_next ( string, ilen )
         CALL uppercase ( string )
         
         SELECT CASE ( string )
@@ -118,12 +113,9 @@ SUBROUTINE read_dft_section ( dft_control, dftpar )
            CALL p_error()
            CALL stop_program ( "read_dft_section", "unknown option" // string )
            
-        CASE ( "PRINTLEVEL" )
-           dftpar % print_level = get_int()
-           
         CASE ( "FUNCTIONAL" )
            ilen = 8
-           CALL cfield ( string2, ilen )
+           CALL get_next ( string2, ilen )
            CALL uppercase ( string2 )
            
            SELECT CASE ( string2 )
@@ -142,35 +134,21 @@ SUBROUTINE read_dft_section ( dft_control, dftpar )
            END SELECT
            
         CASE ( "DENSITY_CUTOFF" )
-           dft_control % density_cut = get_real()
+           CALL get_next ( dft_control % density_cut )
 
         CASE ( "GRADIENT_CUTOFF" )
-           dft_control % gradient_cut = get_real()
+           CALL get_next ( dft_control % gradient_cut )
            
-        CASE ( "STATES", "NSTATES" )
-           dft_control % nstates = get_int()
+        CASE ( "MESH" )
+           CALL get_next ( dft_control % xc_mesh ( 1 ) )
+           CALL get_next ( dft_control % xc_mesh ( 2 ) )
+           CALL get_next ( dft_control % xc_mesh ( 3 ) )
            
         CASE ( "SPIN", "SPINS", "NSPINS" )
-           dft_control % nspins = get_int()
+           CALL get_next ( dft_control % nspins )
            
         CASE ( "LSD", "SPIN POLARISATION", "SPIN POLARIZATION" )
            dft_control % nspins = 2
-           
-        CASE ( "SPINMOMENT", "FIXEDSPINMOMENT" )
-           dft_control % fixedspinmoment_amount = get_real()
-           
-        CASE ( "CHARGE" )
-           dft_control % charge = get_real()
-           
-        CASE ( "BROADENING" )
-           dft_control % broadening_tperform = YES
-           
-           ilen = 40
-           CALL cfield ( string2, ilen )
-           CALL uppercase ( string2 )
-           
-           dft_control % broadening_method = string2
-           dft_control % broadening_width = get_real()
            
         END SELECT
         
@@ -181,26 +159,34 @@ SUBROUTINE read_dft_section ( dft_control, dftpar )
   CALL parser_end()
 ! end of parsing the input section
   
+  IF ( dft_control % nspins < 0 ) THEN
+     CALL stop_program ( "read_dft_section", &
+          "please supply a valid value for nspins" )
+  END IF
+
 ! write some information to output
   IF ( dftpar % ionode .AND. dftpar % print_level >= 0 ) THEN
-     WRITE ( iw, '()' )
      WRITE ( iw, '( A, T41, A )' ) &
           " DFT| Functional", ADJUSTR ( dft_control % functional )
-     
+     IF ( dft_control % nspins == 1 ) then
+        !do nothing
+     ELSEIF ( dft_control % nspins == 2 ) then
+        WRITE ( iw, '( A, T60, A )' ) " DFT| ","spin polarized system"
+     ELSE
+        WRITE ( iw, '( A, T60, A, T77, I4 )' ) " DFT| ","sets of spin states:",&
+           dft_control % nspins
+     END IF
      WRITE ( iw, '( A, T68, E13.5 )' ) &
           " DFT| Cutoffs : density ", dft_control % density_cut
      WRITE ( iw, '( A, T68, E13.5 )' ) &
           " DFT|           gradient", dft_control % gradient_cut
-  END IF
-     
-  IF ( dft_control % nstates < 0 ) THEN
-     CALL stop_program ( "read_dft_section", &
-          "please supply a value for nstates" )
-  END IF
-
-  IF ( dft_control % nspins < 0 ) THEN
-     CALL stop_program ( "read_dft_section", &
-          "please supply a valid value for nspins" )
+     IF ( dft_control % xc_mesh ( 1 ) == -1 ) then
+        WRITE ( iw, '( A, T74, A )' ) " DFT| XC mesh (PW density)", "default"
+     ELSE
+        WRITE ( iw, '( A, T51, 3I10 )' ) &
+             " DFT| XC mesh (PW density)", dft_control % xc_mesh
+     END IF
+     WRITE ( iw, '()' )
   END IF
   
 END SUBROUTINE read_dft_section
@@ -227,7 +213,6 @@ END SUBROUTINE read_dft_section
 !!>----------------------------------------------------------------------------
 !!  SECTION: &wave ... &end                                                    !
 !!                                                                            !
-!!  printlevel       globenv%print_level                                      !
 !!  ecut             e_cutoff_wf                                              !
 !!  dual             e_cutoff_dual                                            !
 !!                                                                            !
@@ -249,8 +234,6 @@ SUBROUTINE read_wave_section ( wave_control, wavepar )
 !------------------------------------------------------------------------------
   
 ! defaults
-  wave_control % xc_mesh ( : ) = -1
-  wave_control % wf_optimisation_method = "SD"
   wave_control % e_cutoff_wf = -1.0_dbl
   wave_control % e_cutoff_dual = 4.0_dbl
   
@@ -265,7 +248,7 @@ SUBROUTINE read_wave_section ( wave_control, wavepar )
      CALL read_line
      DO WHILE ( test_next() /= "X" )
         ilen = 40
-        CALL cfield ( string, ilen )
+        CALL get_next ( string, ilen )
         CALL uppercase ( string )
         
         SELECT CASE ( string )
@@ -273,42 +256,11 @@ SUBROUTINE read_wave_section ( wave_control, wavepar )
            CALL p_error()
            CALL stop_program ( "read_wave_section", "unknown option" // string )
            
-        CASE ( "PRINTLEVEL" )
-           wavepar % print_level = get_int()
-           
-        CASE ( "MESH" )
-           wave_control % xc_mesh ( 1 ) = get_int()
-           wave_control % xc_mesh ( 2 ) = get_int()
-           wave_control % xc_mesh ( 3 ) = get_int()
-           
         CASE ( "ECUT", "ECUTOFF", "CUTOFF" )
-           wave_control % e_cutoff_wf = get_real()
+           CALL get_next ( wave_control % e_cutoff_wf )
            
         CASE ( "DUAL" )
-           wave_control % e_cutoff_dual = get_real()
-           
-        CASE ( "PCG" )
-           wave_control % wf_optimisation_method = "PCG"
-           
-        CASE ( "DIIS" )
-           wave_control % wf_optimisation_method = "DIIS"
-           
-        CASE ( "ELECTRONIC ITERATIONS", "ITERATIONS ELECTRONS" )
-           wave_control % niter_elc = get_int()
-           
-        CASE ( "PRINT FREQUENCY" )
-           wave_control % wf_print_frequency = get_int()
-           
-        CASE ( "TIMESTEP" )
-           wave_control % wf_timestep = get_real()
-           
-        CASE ( "EMASS" )
-           wave_control % wf_emass = get_real()
-           
-        CASE ( "SUBSPACE ROTATION" )
-           wave_control % wf_subspacerotation_tperform = YES
-           wave_control % wf_subspacerotation_frequency = get_int()
-           wave_control % wf_subspacerotation_first = get_int()
+           CALL get_next ( wave_control % e_cutoff_dual )
            
         END SELECT
         
@@ -321,14 +273,6 @@ SUBROUTINE read_wave_section ( wave_control, wavepar )
   
 ! write some information to output
   IF ( wavepar % ionode .AND. wavepar % print_level >= 0 ) THEN
-     WRITE ( iw, '()' )
-     
-     IF ( wave_control % xc_mesh ( 1 ) == -1 ) then
-        WRITE ( iw, '( A, T74, A )' ) " WAVE| XC mesh ", "default"
-     ELSE
-        WRITE ( iw, '( A, T51, 3I10 )' ) &
-             " WAVE| XC mesh ", wave_control % xc_mesh
-     END IF
 
      WRITE ( iw, '( A, T71, F10.3 )' ) " WAVE| Plane wave cutoff [a.u.]", &
            wave_control % e_cutoff_wf
@@ -346,9 +290,94 @@ SUBROUTINE read_wave_section ( wave_control, wavepar )
   
 END SUBROUTINE read_wave_section
 
+!!*****
+!******************************************************************************
+!!****** dft_input/read_qs_section [1.0] *
+!!
+!!   NAME
+!!     read_qs_section
+!!
+!!   FUNCTION
+!!     Reads the section QS from the input file
+!!
+!!   AUTHOR
+!!     JGH (21.11.2001)
+!!
+!!   MODIFICATION HISTORY
+!!     none
+!!
+!!   SOURCE
+!!
+!******************************************************************************
+!!>----------------------------------------------------------------------------
+!!  SECTION: &qs ... &end                                                     !
+!!                                                                            !
+!!  method           qs_method                                                !
+!!                                                                            !
+!!<----------------------------------------------------------------------------
+
+SUBROUTINE read_qs_section ( qs_control, qspar )
+  
+  IMPLICIT NONE
+  
+! Arguments
+  TYPE ( global_environment_type ), INTENT ( INOUT ) :: qspar
+  TYPE ( wave_control_type ), INTENT ( OUT ) :: qs_control
+  
+! Locals
+  CHARACTER ( LEN = 20 ) :: string, string2
+  CHARACTER ( LEN = 6 ) :: label
+  INTEGER :: iw, ierror, ilen, ios, i, n, source, group, ia, ie
+  
+!------------------------------------------------------------------------------
+  
+! defaults
+! qs_control % method = -1
+  
+  iw = qspar % scr
+  
+! parse the input section
+  label = "&QS"
+  CALL parser_init ( qspar % input_file_name, label, ierror, qspar )
+  IF ( ierror /= 0 ) THEN
+     WRITE ( iw, '( A )' ) " No input section &QS found"
+  ELSE
+     CALL read_line
+     DO WHILE ( test_next() /= "X" )
+        ilen = 40
+        CALL get_next ( string, ilen )
+        CALL uppercase ( string )
+        
+        SELECT CASE ( string )
+        CASE DEFAULT
+           CALL p_error()
+           CALL stop_program ( "read_qs_section", "unknown option" // string )
+           
+        CASE ( "MESH" )
+           
+        END SELECT
+        
+        CALL read_line
+     END DO
+     
+  END IF
+  CALL parser_end()
+! end of parsing the input section
+  
+! write some information to output
+  IF ( qspar % ionode .AND. qspar % print_level >= 0 ) THEN
+     
+!    WRITE ( iw, '( A, T71, F10.3 )' ) " WAVE| Plane wave cutoff [a.u.]", &
+!          wave_control % e_cutoff_wf
+           
+     WRITE ( iw, '()' )
+  END IF
+  
+END SUBROUTINE read_qs_section
+
+!!*****
 !******************************************************************************
 
 END MODULE dft_input
 
 !******************************************************************************
-!!*****
