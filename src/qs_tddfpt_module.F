@@ -126,7 +126,6 @@ CONTAINS
        
        CALL update_p_env(p_env, t_env, glob_env)
 
-       ! solve eigenequation
        DO spin=1, n_spins
 
           op%spin = spin
@@ -134,14 +133,18 @@ CONTAINS
           val_x => t_env%eval_x(spin)%values
           val_y => t_env%eval_y(spin)%values
 
-          ! right eigenvectors
+          !--------------------!
+          ! right eigenvectors !
+          !--------------------!
           op%mode = 'x'; op%spin = spin
           CALL arpack_diag_n(n_ev, val_x, v(spin)%matrix, glob_env, op)
           DO ev=1, n_ev
              CALL copy_fm_col_to_fm(v(spin)%matrix, ev, t_env%x(ev)%spins(spin)%matrix)
           END DO
 
-          ! left eigenvectors
+          !-------------------!
+          ! left eigenvectors !
+          !-------------------!
           op%mode = 'y'; op%spin = spin
           CALL arpack_diag_n(n_ev, val_y, v(spin)%matrix, glob_env, op)
           DO ev=1, n_ev
@@ -169,7 +172,9 @@ CONTAINS
           END IF ! DEBUG_THIS_MODULE
        END DO
 
-       ! test for convergen
+       !---------------------------!
+       ! test for self-consistency !
+       !---------------------------!
        IF (.TRUE.) THEN
           IF (glob_env%ionode) WRITE (glob_env%scr, '(1X,A)') &
                routineP//": Convergence criteria not yet implemented"
@@ -177,6 +182,11 @@ CONTAINS
        END IF
 
     END DO self_consistency
+
+    !-------------------!
+    ! report the values !
+    !-------------------!
+    call report_tddfpt_results(t_env, glob_env)
 
     DO spin=1, n_spins
        CALL cp_fm_release(v(spin)%matrix)

@@ -40,7 +40,7 @@ MODULE qs_arpack_diag_n
 
   IMPLICIT NONE
   
-  LOGICAL, PARAMETER :: DEBUG_THIS_MODULE = .TRUE.
+  LOGICAL, PARAMETER :: DEBUG_THIS_MODULE = .false.
 
   CHARACTER(len=*), PARAMETER :: moduleN = "qs_arpack_diag_n"
 
@@ -200,7 +200,9 @@ CONTAINS
           vout => workd(pntr(2):pntr(2)+nrows-1)
           CPAAssert(SIZE(vout)==nrows)
 
-          ! call the correct operator
+          !----------------------------!
+          ! call the provided operator !
+          !----------------------------!
           IF (PRESENT(op_tddfpt)) THEN
              CALL arpack_op_tddfpt(op_tddfpt, vin, vout, glob_env)
           END IF
@@ -213,9 +215,7 @@ CONTAINS
        END IF
 
     END DO reverse_comm
-#endif
-    
-#if defined(__ARPACK)
+
     rvec = .TRUE.          ! we want the eigenvectors
     ev_select = .TRUE.     ! just to be sure
     sigmar = 0.0_dbl; sigmai = 0.0_dbl

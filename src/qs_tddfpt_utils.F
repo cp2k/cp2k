@@ -51,7 +51,8 @@ MODULE qs_tddfpt_utils
   PRIVATE
   PUBLIC :: tddfpt_init, &
             tddfpt_write_banner, &
-            update_p_env
+            update_p_env, &
+            report_tddfpt_results
 
 CONTAINS
 
@@ -173,5 +174,49 @@ CONTAINS
   END SUBROUTINE update_p_env
 
 ! *****************************************************************************
+
+  SUBROUTINE report_tddfpt_results(t_env, glob_env)
+    
+    IMPLICIT NONE
+
+    ! arguments
+    TYPE(tddfpt_env_type), INTENT(in)         :: t_env
+    TYPE(global_environment_type), INTENT(in) :: glob_env
+
+    ! locals
+    INTEGER :: ev, spin
+
+    IF (.NOT.glob_env%ionode) RETURN ! only the io node may report
+
+    WRITE (glob_env%scr, '(T2,A79)'), &
+         "", &
+         "-------------------------------------------------------------------------------", &
+         "-                                 Results                                     -", &
+         "-------------------------------------------------------------------------------", &
+         ""
+
+    DO spin=1, SIZE(t_env%eval_x)
+       WRITE (glob_env%scr, '(1X,A5,I3)') "SPIN ", spin
+       WRITE (glob_env%scr, '(1X,A5,2X,A5)') "ev-nr", "value"
+       DO ev=1, t_env%n_ev
+          WRITE (glob_env%scr, '(1X,I5,2X,ES12.4)') ev, t_env%eval_x(spin)%values(ev,1)
+       END DO
+       WRITE (glob_env%scr, *)
+    END DO
+  
+  END SUBROUTINE report_tddfpt_results
+
+! *****************************************************************************
+
+  SUBROUTINE read_tddfpt_control(glob_env, tddfpt_control)
+
+    IMPLICIT NONE
+
+    TYPE(global_environment_type), intent(in) :: glob_env
+    INTEGER, INTENT(IN)                       :: tddfpt_control
+!    TYPE()
+    
+
+  END SUBROUTINE read_tddfpt_control
 
 END MODULE qs_tddfpt_utils
