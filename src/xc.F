@@ -144,7 +144,7 @@ SUBROUTINE xc_calculate_pw_lda ( rho_r, rho_g, vxc, exc, dft_control, error )
   ! check if the correct density is provided
   condition=(rho_r%in_use==REALDATA3D .AND. rho_r%in_space==REALSPACE)
   CPPrecondition(condition,cp_failure_level,routineP,error,failure)
-  CPPrecondition(dft_control%nspins==1,cp_failure_level,routineP,error,failure)
+  ! CPPrecondition(dft_control%nspins==1,cp_failure_level,routineP,error,failure)
   IF ( dft_control%gradient_functional ) THEN
     condition=(rho_g%in_use==COMPLEXDATA1D .AND. rho_g%in_space==RECIPROCALSPACE)
     CPPrecondition(condition,cp_failure_level,routineP,error,failure)

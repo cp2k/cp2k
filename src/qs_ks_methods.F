@@ -40,7 +40,8 @@ MODULE qs_ks_methods
                                              coeff_sumup,&
                                              coeff_transform_space,&
                                              coeff_type,&
-                                             coeff_zero
+                                             coeff_zero, &
+                                             coeff_reduce
   USE cp_error_handling,               ONLY: cp_a_l,&
                                              cp_assert,&
                                              cp_assertion_failed,&
@@ -95,9 +96,7 @@ MODULE qs_ks_methods
   USE pws,                             ONLY: cleanup_pw_poisson_solver,&
                                              init_pw_poisson_solver
   USE qs_charges_types,                ONLY: qs_charges_type
-  USE qs_collocate_density,            ONLY: calculate_rho_core,&
-                                             calculate_rho_elec,&
-                                             calculate_total_rho
+  USE qs_collocate_density,            ONLY: calculate_total_rho
   USE qs_core_energies,                ONLY: calculate_ecore,&
                                              calculate_ecore_overlap,&
                                              calculate_ecore_self
@@ -793,14 +792,21 @@ END SUBROUTINE qs_ks_did_change
          energy%exc = rho_struct%rho_r(1)%pw%pw_grid%dvol*energy%exc
       ELSEIF ( qs_env%dft_control%nspins == 2) THEN
          energy%exc=0.0_wp
-         DO ispin=1,dft_control%nspins
-            CALL xc_calculate (rho_struct%rho_r(ispin)%pw,&
-                 rho_struct%rho_g(ispin)%pw,&
-                 v_rspace_new(ispin)%pw,&
+!XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+!
+! temporary hack trying to get the same number as LDA with LSD
+!
+!XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+          CALL coeff_sumup(rho_struct%rho_r(2),rho_struct%rho_r(1))
+          CALL coeff_sumup(rho_struct%rho_g(2),rho_struct%rho_g(1))
+          CALL xc_calculate (rho_struct%rho_r(1)%pw,&
+                 rho_struct%rho_g(1)%pw,&
+                 v_rspace_new(1)%pw,&
                  energy%exc,qs_env%dft_control)
-            energy%exc = energy%exc+&
-                 rho_struct%rho_r(1)%pw%pw_grid%dvol*energy%exc
-         END DO
+          energy%exc = rho_struct%rho_r(1)%pw%pw_grid%dvol*energy%exc
+          CALL coeff_copy(v_rspace_new(1),v_rspace_new(2))
+          CALL coeff_reduce(rho_struct%rho_r(2),rho_struct%rho_r(1))
+          CALL coeff_reduce(rho_struct%rho_g(2),rho_struct%rho_g(1))
       ELSE
          CALL stop_program(routineP,"nspins > 2")
       END IF

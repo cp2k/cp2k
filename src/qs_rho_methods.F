@@ -253,7 +253,7 @@ CONTAINS
      END IF
      IF (.NOT.failure) THEN
         DO i=1,nspins
-           CALL pw_pool_init_coeff(auxbas_pw_pool,rho%rho_g(nspins),&
+           CALL pw_pool_init_coeff(auxbas_pw_pool,rho%rho_g(i),&
                 use_data=COMPLEXDATA1D,in_space=RECIPROCALSPACE,error=error)
         END DO
      END IF
@@ -366,7 +366,7 @@ SUBROUTINE qs_rho_update_rho(rho_struct, rho_ao_new,qs_env,&
           use_data=REALDATA3D, in_space=REALSPACE, error=error)
      CALL pw_pools_init_coeffs(pw_pools, mgrid_gspace,&
           use_data=COMPLEXDATA1D, in_space=RECIPROCALSPACE, error=error)
-     
+    
      DO ispin=1,nspins
         CALL calculate_rho_elec(p=rho_ao_new(ispin)%matrix,&
              p_old=rho_struct%rho_ao(ispin)%matrix,&

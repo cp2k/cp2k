@@ -39,7 +39,8 @@ MODULE qs_main
   USE qs_tddfpt_module,                ONLY: tddfpt_calculation
   USE termination,                     ONLY: stop_program
   USE timings,                         ONLY: timeset,&
-                                             timestop
+                                             timestop,&
+                                             trace_debug
   IMPLICIT NONE
 
   PRIVATE
@@ -82,6 +83,8 @@ CONTAINS
     INTEGER              :: handle
 
 !   ---------------------------------------------------------------------------
+
+    ! CALL trace_debug("START",handle)
 
     CALL write_checkpoint_information("entering "//routine_name,globenv)
 

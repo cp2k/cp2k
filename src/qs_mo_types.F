@@ -25,6 +25,7 @@
 !!     - PRIVATE attribute set for TYPE mo_set_type (23.04.02,MK)
 !!     - calculate_w_matrix added for the calculation of the Pulay forces
 !!       (23.05.02,MK)
+!!     - started conversion to LSD (1.2003, Joost VandeVondele)
 !!
 !!   SOURCE
 !******************************************************************************
@@ -149,8 +150,7 @@ MODULE qs_mo_types
   END INTERFACE
 
   INTERFACE calculate_density_matrix
-    MODULE PROCEDURE calculate_density_matrix_blacs,&
-                     calculate_density_matrix_sparse
+    MODULE PROCEDURE calculate_density_matrix_sparse, calculate_density_matrix_blacs
   END INTERFACE
 
   INTERFACE calculate_w_matrix
@@ -229,24 +229,12 @@ CONTAINS
     ALLOCATE (mo_set,STAT=istat)
     IF (istat /= 0) CALL stop_memory(routine,"mo_set",0)
 
-    IF (maxocc == 2.0_wp) THEN
-      mo_set%maxocc = maxocc
-    ELSE
-      CALL stop_program(routine,"LSD not implemented yet")
-    END IF
-
-    IF (MODULO(nelectron,2) == 0) THEN
-      mo_set%nelectron = nelectron
-    ELSE
-      CALL stop_program(routine,"Odd number of electrons")
-    END IF
-
+    mo_set%maxocc = maxocc
+    mo_set%nelectron = nelectron
     mo_set%nao = nao
     mo_set%nmo = nmo
-
     mo_set%homo = 0
     mo_set%lfomo = 0
-
     NULLIFY(mo_set%eigenvalues, mo_set%occupation_numbers,&
          mo_set%eigenvectors)
 
@@ -346,7 +334,7 @@ CONTAINS
 
     CALL timeset("calculate_density_matrix","I","",handle)
 
-    CALL cp_fm_syrk("U","N",mo_set%lfomo-1,2.0_wp,mo_set%eigenvectors,1,1,&
+    CALL cp_fm_syrk("U","N",mo_set%lfomo-1,mo_set%maxocc,mo_set%eigenvectors,1,1,&
                     0.0_wp,density_matrix)
 
 !   *** Add the density contribution from the fractional occupied MOs ***
@@ -390,7 +378,7 @@ CONTAINS
                                   matrix_v=mo_set%eigenvectors,&
                                   first_col=1,&
                                   ncol=mo_set%lfomo-1,&
-                                  alpha=2.0_wp)
+                                  alpha=mo_set%maxocc)
 
     DO imo=mo_set%lfomo,mo_set%homo
       CALL cp_sm_plus_fm_fm_t(sparse_matrix=density_matrix,&
@@ -880,7 +868,7 @@ CONTAINS
 
 !   ---------------------------------------------------------------------------
 
-    nomo = mo_set%nelectron/2
+    nomo = NINT(mo_set%nelectron/mo_set%maxocc)
 
     mo_set%occupation_numbers(:) = 0.0_wp
     mo_set%occupation_numbers(1:nomo) = mo_set%maxocc

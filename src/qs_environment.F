@@ -19,6 +19,7 @@
 !!     - Merged with the Quickstep MODULE method_specification (17.01.2002,MK)
 !!     - USE statements cleaned, write_checkpoint_information added
 !!       (25.09.2002,MK)
+!!     - Added more LSD structure (01.2003,Joost VandeVondele)
 !!
 !!   SOURCE
 !******************************************************************************
@@ -105,7 +106,7 @@ MODULE qs_environment
   USE simulation_cell,                 ONLY: cell_type,&
                                              read_cell,&
                                              write_cell
-  USE termination,                     ONLY: stop_memory
+  USE termination,                     ONLY: stop_memory,stop_program
   USE timings,                         ONLY: timeset,&
                                              timestop
   IMPLICIT NONE
@@ -163,8 +164,9 @@ CONTAINS
     TYPE(mo_set_p_type), DIMENSION(:), POINTER    :: c
 
     INTEGER :: handle,ikind,istat,lmax,maxl,maxlppl,maxlppnl,nkind,&
-         output_unit, n_mo, n_ao, nelectron, ispin
+         output_unit, n_mo(2), n_ao, nelectron, ispin, nelectron_spin(2)
     LOGICAL :: ionode, failure
+    REAL(KIND=wp) :: maxocc
 
     INTEGER, DIMENSION(:), ALLOCATABLE :: natom_of_kind
 
@@ -329,31 +331,61 @@ CONTAINS
      CALL get_qs_env(qs_env, atomic_kind_set=atomic_kind_set, &
           dft_control=dft_control, scf_control=scf_control)
      CALL get_atomic_kind_set(atomic_kind_set, nsgf=n_ao, nelectron=nelectron)
-     nelectron = nelectron-dft_control%charge
-      IF (globenv%print%mo_eigenvalues.OR.&
+
+     nelectron = nelectron-dft_control%charge ! is the total number of electrons 
+
+     IF (.not.(dft_control%nspins.eq.1 .or. dft_control%nspins.eq.2)) THEN
+        CALL stop_program(routine,"nspins should be 1 or 2 for the time being...")
+     ENDIF
+
+     IF (MOD(nelectron,2).ne.0 .and. dft_control%nspins.eq.1) THEN
+        CALL stop_program(routine,"use the LSD option for an odd number of electrons")
+     ENDIF
+
+     ! assigning the number of states per spin
+     ! initial version, not yet very general. Should work for an even number of electrons and a single additional
+     ! electron
+     ! this set of options that requires full matrices, however, makes things a bit ugly right now....
+
+     ! we try to make a distinction between the number of electrons per spin and the number of MOs per spin
+     ! this should allow the use of fractional occupations later on
+
+     IF (dft_control%nspins.eq.1) THEN
+        maxocc=2.0_wp
+        nelectron_spin(1)=nelectron
+        nelectron_spin(2)=0
+        n_mo(1) = nelectron / 2
+        n_mo(2) = 0
+     ELSE
+        maxocc=1.0_wp
+        ! the simplist spin distribution is written here. Special cases will need additional user input
+        nelectron_spin(1)=nelectron-nelectron/2
+        nelectron_spin(2)=nelectron/2
+        n_mo(1) = nelectron_spin(1)
+        n_mo(2) = nelectron_spin(2)
+     ENDIF
+    
+     ! some options require that all MOs are computed ... 
+
+     IF (globenv%print%mo_eigenvalues.OR.&
           (scf_control%level_shift /= 0.0_wp).OR.&
           (scf_control%smear /= 0.0_wp).OR.&
           (scf_control%eps_jacobi /= 0.0_wp)) THEN
-        n_mo = n_ao
-      ELSE
-         n_mo = nelectron/2
-      END IF
-      ALLOCATE(c(dft_control%nspins),stat=istat)
-      CPPostcondition(istat==0,cp_failure_level,routine,error,failure)
-      IF (.NOT.failure) THEN
+        n_mo(1) = n_ao
+        if (n_mo(2).ne.0) n_mo(2) = n_ao
+     END IF
+
+     ALLOCATE(c(dft_control%nspins),stat=istat)
+     CPPostcondition(istat==0,cp_failure_level,routine,error,failure)
+     IF (.NOT.failure) THEN
          DO ispin=1,dft_control%nspins
             NULLIFY(c(ispin)%mo_set)
-            IF (dft_control%nspins==1) THEN
-               CALL allocate_mo_set(c(ispin)%mo_set,&
-                    nao=n_ao,nmo=n_mo,nelectron=nelectron,maxocc=2.0_wp,&
-                    error=error)
-            ELSE
-               CALL allocate_mo_set(c(ispin)%mo_set,&
-                    nao=n_ao,nmo=n_mo,nelectron=nelectron,maxocc=1.0_wp,&
-                    error=error)
-            END IF
+            CALL allocate_mo_set(c(ispin)%mo_set,&
+                 nao=n_ao,nmo=n_mo(ispin),nelectron=nelectron_spin(ispin),maxocc=maxocc,&
+                 error=error)
          END DO
       END IF
+
       CALL set_qs_env(qs_env, c=c,error=error)
 
 !   *** Sets up pw_env, qs_charges, ao_mo_fm_pools... ***

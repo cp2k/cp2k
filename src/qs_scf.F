@@ -40,6 +40,7 @@
 !!     - 05.2002 added pao method [fawzi]
 !!     - parallel FFT (JGH 22.05.2002)
 !!     - 06.2002 moved KS matrix construction to qs_build_KS_matrix.F [fawzi]
+!!     - started to include more LSD (01.2003,Joost VandeVondele)
 !!
 !!   SOURCE
 !******************************************************************************
@@ -175,7 +176,6 @@ MODULE qs_scf
                                              w_blacs_matrix => write_blacs_matrix
   USE qs_charges_types,                ONLY: qs_charges_type
   USE qs_collocate_density,            ONLY: calculate_rho_core,&
-                                             calculate_rho_elec,&
                                              calculate_total_rho,&
                                              calculate_wavefunction
   USE qs_core_energies,                ONLY: calculate_ecore,&
@@ -265,7 +265,7 @@ MODULE qs_scf
   TYPE(mo_set_p_type), DIMENSION(:), POINTER    :: c
   TYPE(particle_type), DIMENSION(:), POINTER    :: particle_set
 
-  INTEGER :: nelectron
+  INTEGER :: nelectron,ispin
   LOGICAL, PARAMETER, PRIVATE :: debug_this_module=.FALSE.
 
 ! *** Public variables ***
@@ -314,10 +314,9 @@ CONTAINS
     TYPE(cp_full_matrix_type), POINTER :: min_mo,full_mo
     REAL(kind=wp)  ::pao_f,pao_last_f,pao_actual_grad
     
-    TYPE(real_matrix_p_type), POINTER :: ks, p
-    TYPE(real_matrix_p_type) :: p_new
-    TYPE(real_matrix_p_type), DIMENSION(:), POINTER :: ks_rmpv, p_rmpv,&
-         kinetic
+    TYPE(real_matrix_p_type), DIMENSION(:), POINTER :: ks_rmpv, p_rmpv, kinetic, p_new
+    TYPE(real_matrix_p_type), POINTER :: ks,p
+
     TYPE(qs_rho_type), POINTER :: rho
     TYPE(real_matrix_type), POINTER :: pfull
     TYPE(qs_energy_type), POINTER :: energy
@@ -381,7 +380,7 @@ CONTAINS
                              gth_potential_present=gth_potential_present,&
                              nelectron=nelectron)
 
-    nelectron = nelectron - dft_control%charge
+    nelectron = nelectron - dft_control%charge ! total number of electrons
 
     CALL get_cell(cell=cell)
 
@@ -391,8 +390,7 @@ CONTAINS
     END IF
 
 
-    CALL init_scf_run(mo_set=mo_set,&
-                      qs_env=qs_env,&
+    CALL init_scf_run(qs_env=qs_env,&
                       globenv=globenv,&
                       error=error)
 
@@ -401,11 +399,13 @@ CONTAINS
     CALL pao_opt_create(pao_optimizer,pao_obj_f,qs_env,globenv,error)
 
     CALL get_qs_env(qs_env,p=p_rmpv, k=ks_rmpv,rho=rho)
-    ks => ks_rmpv(1)
-    p => p_rmpv(1)
 
-    NULLIFY (p_new%matrix)
-    CALL replicate_matrix(p%matrix, p_new%matrix,"NEW DENSITY MATRIX")
+    NULLIFY(p_new)
+    ALLOCATE(p_new(dft_control%nspins))
+    DO ispin=1,dft_control%nspins
+       NULLIFY (p_new(ispin)%matrix)
+       CALL replicate_matrix(p_rmpv(ispin)%matrix, p_new(ispin)%matrix,"NEW DENSITY MATRIX")
+    ENDDO
 
     iscf = 0
     diis_step = .FALSE.
@@ -452,8 +452,15 @@ CONTAINS
       IF (pao)    type_switch=0
       IF (scf_control%use_ot) type_switch=2
 
+      ispin=1
+      ks => ks_rmpv(ispin)
+      p => p_rmpv(ispin)
+      mo_set => c(ispin)%mo_set
+
       SELECT CASE (type_switch)
       CASE (0) ! pao
+
+        IF (dft_control%nspins.ne.1) CALL stop_program(routine,"NYI")
 
         CALL copy_sparse_to_blacs_matrix(ks%matrix,scf_work1)
         IF (iscf > 1) THEN
@@ -534,40 +541,47 @@ CONTAINS
 
       CASE(1) ! diagonalisation (default)
 
-        IF (globenv%print%kohn_sham_matrix.AND.globenv%print%each_scf_step) THEN
-          CALL write_sparse_matrix(ks%matrix,4,6,qs_env,globenv)
-        END IF
+        DO ispin=1,dft_control%nspins 
+          ks     => ks_rmpv(ispin)
+          p      => p_rmpv(ispin)
+          mo_set => c(ispin)%mo_set
 
-        CALL copy_sparse_to_blacs_matrix(ks%matrix,scf_work1)
+          IF (globenv%print%kohn_sham_matrix.AND.globenv%print%each_scf_step) THEN
+            CALL write_sparse_matrix(ks%matrix,4,6,qs_env,globenv)
+          END IF
 
-        IF (iscf > 1) THEN
-          CALL scf_diis(mo_set,scf_work1,scf_work2,delta,diis_error,diis_step,&
-                        qs_env,globenv)
-        END IF
+          CALL copy_sparse_to_blacs_matrix(ks%matrix,scf_work1)
 
-        do_level_shift = ((scf_control%level_shift /= 0.0_wp).AND.&
-             ((scf_control%density_guess == "CORE").OR.(iscf > 1)))
-        use_jacobi = ((iscf > 1).AND.(delta < scf_control%eps_jacobi))
-        CALL eigensolver(scf_work1,mo_set,ortho,scf_work2,&
-                         do_level_shift,scf_control%level_shift,globenv,&
-                         use_arpack=scf_control%use_arpack,&
-                         use_cholesky=scf_control%use_cholesky,&
-                         work_syevx=scf_control%work_syevx,&
-                         use_jacobi=use_jacobi,&
-                         eps_jacobi=scf_control%eps_jacobi,&
-                         jacobi_threshold=scf_control%jacobi_threshold)
+          IF (iscf > 1) THEN
+            CALL scf_diis(mo_set,scf_work1,scf_work2,delta,diis_error,diis_step,&
+                          qs_env,globenv)
+          END IF
+
+          do_level_shift = ((scf_control%level_shift /= 0.0_wp).AND.&
+                           ((scf_control%density_guess == "CORE").OR.(iscf > 1)))
+          use_jacobi = ((iscf > 1).AND.(delta < scf_control%eps_jacobi))
+          CALL eigensolver(scf_work1,mo_set,ortho,scf_work2,&
+                           do_level_shift,scf_control%level_shift,globenv,&
+                           use_arpack=scf_control%use_arpack,&
+                           use_cholesky=scf_control%use_cholesky,&
+                           work_syevx=scf_control%work_syevx,&
+                           use_jacobi=use_jacobi,&
+                           eps_jacobi=scf_control%eps_jacobi,&
+                           jacobi_threshold=scf_control%jacobi_threshold)
       
 !       *** Update the MO occupation numbers, if smearing is used ***
 
-        IF (scf_control%smear /= 0.0_wp) THEN
-           CALL set_mo_occupation(mo_set,scf_control%smear)
-        END IF
+          IF (scf_control%smear /= 0.0_wp) THEN
+             CALL set_mo_occupation(mo_set,scf_control%smear)
+          END IF
 
-        IF (globenv%print%each_scf_step) THEN
-          CALL write_mo_set(mo_set,atomic_kind_set,particle_set,4,6,globenv)
-        END IF
+          IF (globenv%print%each_scf_step) THEN
+            CALL write_mo_set(mo_set,atomic_kind_set,particle_set,4,6,globenv)
+          END IF
 
-        CALL calculate_density_matrix(mo_set,p_new%matrix,globenv)
+          CALL calculate_density_matrix(mo_set,p_new(ispin)%matrix,globenv)
+
+        ENDDO
       
         t2 = m_cputime()
 
@@ -589,7 +603,9 @@ CONTAINS
           END IF
         END IF
 
-        CALL density_mixing(p_new,p,pmix,delta,globenv)
+        DO ispin=1,dft_control%nspins
+           CALL density_mixing(p_new(ispin),p_rmpv(ispin),pmix,delta,globenv)
+        ENDDO
 
         IF (ionode.AND.globenv%print%scf) THEN
           WRITE (UNIT=output_unit,&
@@ -598,6 +614,8 @@ CONTAINS
         END IF
 
       CASE(2) ! orbital transforms
+
+        IF (dft_control%nspins.ne.1) CALL stop_program(routine,"NYI")
 
         CALL get_mo_set(mo_set=mo_set,eigenvectors=mo_eigenvectors)
 
@@ -677,14 +695,16 @@ CONTAINS
     END IF
 
 !   *** Undo mixing of the density matrix (restore original density) ***
-  
-    SELECT CASE (type_switch)
-    CASE (0) ! pao
-      IF (.NOT.diis_step) CALL transfer_matrix(p_new%matrix,p%matrix)
-    CASE (1) ! diagonalisation
-      IF (.NOT.diis_step) CALL transfer_matrix(p_new%matrix,p%matrix)
-    CASE (2)
-    END SELECT
+ 
+    DO ispin=1,dft_control%nspins 
+     SELECT CASE (type_switch)
+     CASE (0) ! pao
+       IF (.NOT.diis_step) CALL transfer_matrix(p_new(ispin)%matrix,p_rmpv(ispin)%matrix)
+     CASE (1) ! diagonalisation
+       IF (.NOT.diis_step) CALL transfer_matrix(p_new(ispin)%matrix,p_rmpv(ispin)%matrix)
+     CASE (2)
+     END SELECT
+    ENDDO
 
 !   *** Save last density matrix in redundant form for the force calculation ***
     CALL calculate_density_matrix(mo_set,rho%rho_ao(1)%matrix,globenv)
@@ -862,7 +882,11 @@ CONTAINS
     IF (ASSOCIATED(scf_work1)) CALL cp_fm_release(scf_work1)
     IF (ASSOCIATED(scf_work2)) CALL cp_fm_release(scf_work2)
     IF (ASSOCIATED(ortho)) CALL cp_fm_release(ortho)
-    CALL deallocate_matrix(p_new%matrix)
+
+    DO ispin=1,dft_control%nspins
+      CALL deallocate_matrix(p_new(ispin)%matrix)
+    ENDDO
+    DEALLOCATE(p_new)
 
 !   *** Write restart file ***
 
@@ -880,7 +904,7 @@ CONTAINS
 
 ! *****************************************************************************
 
-  SUBROUTINE init_scf_run(mo_set,qs_env,globenv,error)
+  SUBROUTINE init_scf_run(qs_env,globenv,error)
 
 !   Purpose: Initialise a SCF run.
 
@@ -889,7 +913,6 @@ CONTAINS
 !   ***************************************************************************
 
     TYPE(global_environment_type), INTENT(IN) :: globenv
-    TYPE(mo_set_type), POINTER                :: mo_set
     TYPE(qs_environment_type), INTENT(INOUT)  :: qs_env
     TYPE(cp_error_type), INTENT(inout), OPTIONAL :: error
  
@@ -902,6 +925,7 @@ CONTAINS
 !   *** Local variables ***
 
     TYPE(cp_full_matrix_type), POINTER :: mo_eigenvectors
+    TYPE(mo_set_type), POINTER         :: mo_set
 
     INTEGER :: handle,homo,ikind,istat,nao,ndep,nmo,npcol,nprow,&
                output_unit, nrow_block, ncol_block,i
@@ -909,6 +933,7 @@ CONTAINS
     REAL(kind=wp):: ecore_self, ecore_overlap
 
     INTEGER, DIMENSION(0:globenv%num_pe-1) :: nblock_pe,nelement_pe
+    INTEGER :: ispin,nelectron_spin
     TYPE(real_matrix_p_type), DIMENSION(:), POINTER :: k_rmpv, p_rmpv
     TYPE(scf_control_type), POINTER :: scf_control
     TYPE(atomic_kind_type), DIMENSION(:), POINTER :: atomic_kind_set
@@ -916,6 +941,7 @@ CONTAINS
     TYPE(real_matrix_p_type), DIMENSION(:), POINTER :: h,s
     TYPE(cp_fm_struct_type), POINTER :: ao_mo_mstruct
     TYPE(cp_full_matrix_type), POINTER :: eigenvectors
+    TYPE(dft_control_type), POINTER   :: dft_control
 
 !   ---------------------------------------------------------------------------
 
@@ -926,6 +952,7 @@ CONTAINS
     failure=.FALSE.
     CALL get_qs_env(qs_env=qs_env,&
                     scf_control=scf_control,&
+                    dft_control=dft_control,&
                     atomic_kind_set=atomic_kind_set,&
                     c=c,&
                     k=k_rmpv,&
@@ -959,17 +986,13 @@ CONTAINS
        END DO
     END IF
 
-!   *** Get the HOMO and the MO eigenvectors ***
-
-    mo_set => c(1)%mo_set
-
-    CALL get_mo_set(mo_set=mo_set,&
-                    homo=homo,&
-                    eigenvectors=mo_eigenvectors,&
-                    nmo=nmo,nao=nao)
-
 !   *** Get BLACS block size of the MO eigenvector matrix      ***
 !   *** which has to fit to the other distributed SCF matrices ***
+
+    mo_set => c(1)%mo_set
+    CALL get_mo_set(mo_set=mo_set,&
+                    eigenvectors=mo_eigenvectors,&
+                    nao=nao)
 
     CALL cp_fm_get_info(matrix=mo_eigenvectors,&
                                nrow_block=nrow_block,&
@@ -1004,23 +1027,26 @@ CONTAINS
 
 !   *** Allocate k and p and put them in the QS environment ***
 
-    CALL allocate_matrix_set(k_rmpv,1)
-    CALL allocate_matrix_set(p_rmpv,1)
+    CALL allocate_matrix_set(k_rmpv,dft_control%nspins)
+    CALL allocate_matrix_set(p_rmpv,dft_control%nspins)
     CALL set_qs_env(qs_env=qs_env,&
                     k=k_rmpv,&
                     p=p_rmpv)
 
-    NULLIFY (k_rmpv(1)%matrix)
-    CALL replicate_matrix_structure(s(1)%matrix,k_rmpv(1)%matrix,&
-                                    "KOHN-SHAM MATRIX")
-    NULLIFY (p_rmpv(1)%matrix)
-    CALL replicate_matrix_structure(s(1)%matrix,p_rmpv(1)%matrix,&
-                                    "DENSITY MATRIX")
+    DO ispin=1,dft_control%nspins
+       NULLIFY (k_rmpv(ispin)%matrix)
+       CALL replicate_matrix_structure(s(1)%matrix,k_rmpv(ispin)%matrix,&
+                                       "KOHN-SHAM MATRIX")
+       NULLIFY (p_rmpv(ispin)%matrix)
+       CALL replicate_matrix_structure(s(1)%matrix,p_rmpv(ispin)%matrix,&
+                                       "DENSITY MATRIX")
+    ENDDO
 
-    CALL copy_sparse_to_blacs_matrix(h(1)%matrix,scf_work1)
 
 !   *** Redistribute the core Hamiltonian matrix in ***
 !   *** order to eliminate redundant atomic blocks  ***
+
+    CALL copy_sparse_to_blacs_matrix(h(1)%matrix,scf_work1)
 
     IF ((globenv%num_pe > 1).AND.gth_potential_present) THEN
       CALL deallocate_matrix(h(1)%matrix)
@@ -1056,20 +1082,36 @@ CONTAINS
     ENDIF
 
     IF (ionode.AND.globenv%print%scf) THEN
-      WRITE (UNIT=output_unit,FMT="(/,(T3,A,I10))")&
-        "Number of electrons:                    ",nelectron,&
-        "Number of occupied orbitals:            ",homo,&
-        "Number of orbital functions:            ",nao,&
-        "Number of independent orbital functions:",nao - ndep
+      DO ispin=1,dft_control%nspins
+        mo_set => c(ispin)%mo_set
+        CALL get_mo_set(mo_set=mo_set,&
+                        homo=homo, &
+                        nelectron=nelectron_spin, &
+                        nao=nao)
+        WRITE (UNIT=output_unit,*) " For spin ",ispin
+        WRITE (UNIT=output_unit,FMT="(/,(T3,A,I10))")&
+           "Number of electrons:                    ",nelectron_spin,&
+           "Number of occupied orbitals:            ",homo,&
+           "Number of orbital functions:            ",nao,&
+           "Number of independent orbital functions:",nao - ndep
+      ENDDO
     END IF
 
     IF (globenv%print%ortho_matrix) THEN
       CALL write_blacs_matrix(ortho,4,6,qs_env,globenv)
     END IF
 
-    CALL calculate_first_density_matrix(ortho,mo_set,p_rmpv(1),s(1), &
-         scf_work1,scf_work2,globenv,&
-         scf_control=scf_control, id_nr=qs_env%id_nr)
+    ! XXXXXXXXXX
+    IF (dft_control%nspins.ne.1) THEN
+    write(6,*) "calculate first dm not yet ok CORE and RANDOM might work"
+    ENDIF
+    ! XXXXXXXXXX
+    DO ispin=1,dft_control%nspins
+       mo_set => c(ispin)%mo_set
+       CALL calculate_first_density_matrix(ortho,mo_set,p_rmpv(ispin),s(1), &
+            scf_work1,scf_work2,globenv,&
+             scf_control=scf_control, id_nr=qs_env%id_nr)
+    ENDDO
 
     CALL timestop(0.0_wp,handle)
 
