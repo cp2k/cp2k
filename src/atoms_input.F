@@ -254,12 +254,9 @@ SUBROUTINE read_atoms_input ( unit_type, particle_set, atomic_kind_set, &
     DO iatom=1,natom
       ikind = kind_of(iatom)
       particle_set(iatom) % abase = 0
-      particle_set(iatom) % kind = ikind
       particle_set(iatom) % grid_id = 0
       particle_set(iatom)%atomic_kind => atomic_kind_set(ikind)
       particle_set(iatom)%iatom = iatom
-      particle_set(iatom)%first_cgf = 0
-      particle_set(iatom)%first_sgf = 0
       particle_set(iatom)%f(:) = 0.0_dbl
       particle_set(iatom)%r(:) = r(:,iatom)
       particle_set(iatom)%v(:) = 0.0_dbl
@@ -283,7 +280,8 @@ SUBROUTINE read_atoms_input ( unit_type, particle_set, atomic_kind_set, &
           charge(n)= mol_setup(i) % molpar % acharge(j)
 ! Convert mass from amu -> atomic units with massunit
           mass(n)= mol_setup(i) % molpar % aweight(j)
-          ikind = particle_set ( iat) % kind        
+          CALL get_atomic_kind(particle_set(iat)%atomic_kind,&
+                               kind_number=ikind)
           IF (ikind/=n) CALL stop_program ( 'read_atoms_input', &
              'kind label ordering in &COORD and &MOL dont match ')
           CALL integer_to_string(kind_label(:,ikind),string)

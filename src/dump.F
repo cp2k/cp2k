@@ -460,7 +460,7 @@ END SUBROUTINE dump_kg_variables
 
     CALL timeset(routineN,"I","",handle)
 
-    NULLIFY(nhc_part,para_env,new_logger)
+    NULLIFY (nhc_part,para_env,new_logger)
 
     CALL force_env_get(force_env,para_env=para_env)
 
@@ -482,36 +482,36 @@ END SUBROUTINE dump_kg_variables
 
 !     *** Particle thermostat positions, velocities, masses ***
 
-      nhc_part => md_env%nhc_part
-
-      IF (ASSOCIATED(nhc_part(1)%nvt)) THEN
-
-        size1 = SIZE(nhc_part(1)%nvt,1)
-        size2 = SIZE(nhc_part(1)%nvt,2)
-
-        WRITE (UNIT=dump_unit,FMT=*) size1,size2
-
-        DO i=1,size1
-          DO j=1,size2
-            WRITE (UNIT=dump_unit,FMT=*) nhc_part(1)%nvt(i,j)%eta
-          END DO
-        END DO
-
-        DO i=1,size1
-          DO j=1,size2
-            WRITE (UNIT=dump_unit,FMT=*) nhc_part(1)%nvt(i,j)%v
-          END DO
-        END DO
-
-        DO i=1,size1
-          DO j=1,size2
-            WRITE (UNIT=dump_unit,FMT=*) nhc_part(1)%nvt(i,j)%mass
-          END DO
-        END DO
-
-      END IF
-
-!     *** Close dump unit and keep it ***
+!MK      nhc_part => md_env%nhc_part
+!MK
+!MK      IF (ASSOCIATED(nhc_part)) THEN
+!MK
+!MK        size1 = SIZE(nhc_part(1)%nvt,1)
+!MK        size2 = SIZE(nhc_part(1)%nvt,2)
+!MK
+!MK        WRITE (UNIT=dump_unit,FMT=*) size1,size2
+!MK
+!MK        DO i=1,size1
+!MK          DO j=1,size2
+!MK            WRITE (UNIT=dump_unit,FMT=*) nhc_part(1)%nvt(i,j)%eta
+!MK          END DO
+!MK        END DO
+!MK
+!MK        DO i=1,size1
+!MK          DO j=1,size2
+!MK            WRITE (UNIT=dump_unit,FMT=*) nhc_part(1)%nvt(i,j)%v
+!MK          END DO
+!MK        END DO
+!MK
+!MK        DO i=1,size1
+!MK          DO j=1,size2
+!MK            WRITE (UNIT=dump_unit,FMT=*) nhc_part(1)%nvt(i,j)%mass
+!MK          END DO
+!MK        END DO
+!MK
+!MK      END IF
+!MK
+!MK!     *** Close dump unit and keep it ***
 
       CALL close_file (unit_number=dump_unit)
 

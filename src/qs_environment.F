@@ -63,8 +63,7 @@ MODULE qs_environment
   USE orbital_transformation_matrices, ONLY: init_spherical_harmonics
   USE pao_read_section,                ONLY: pao_env_init_from_file
   USE pao_types,                       ONLY: pao_env_type
-  USE particle_types,                  ONLY: init_particle_set,&
-                                             particle_type,&
+  USE particle_types,                  ONLY: particle_type,&
                                              read_particle_set,&
                                              write_particle_distances,&
                                              write_qs_particle_coordinates
@@ -275,10 +274,6 @@ CONTAINS
 !   *** Print the molecule kind set ***
 
     CALL write_molecule_kind_set(molecule_kind_set,globenv)
-
-!   *** Initialize the atomic data sets completely ***
-
-    CALL init_particle_set(particle_set)
 
 !   *** Print the total number of kinds, atoms, basis functions etc. ***
 

@@ -46,7 +46,7 @@
 !******************************************************************************
 
 MODULE qs_scf
-! *****************************************************************************
+
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                              get_atomic_kind,&
                                              get_atomic_kind_set
@@ -169,7 +169,8 @@ MODULE qs_scf
   USE pao_types,                       ONLY: pao_env_get,&
                                              pao_env_type,&
                                              pao_glob_angles_type
-  USE particle_types,                  ONLY: particle_type 
+  USE particle_types,                  ONLY: get_particle_set,&
+                                             particle_type 
   USE physcon,                         ONLY: angstrom
   USE preconditioner,                  ONLY: destroy_preconditioner,&
                                              init_preconditioner,&
@@ -1555,14 +1556,14 @@ CONTAINS
     TYPE(dft_control_type), POINTER :: dft_control
 
     REAL(wp) :: paa,saa,sum
-    INTEGER  :: atom_a,first_sgfa,handle,homo,iatom,ikind,iset,isgf,isgfa,&
-         ishell,istat,la,last_sgfa,maxl,natom,nelec,nmo,nset,&
-         qs_env_id,restart_unit
+    INTEGER  :: atom_a,handle,homo,iatom,ikind,iset,isgf,isgfa,&
+                ishell,istat,la,maxl,natom,nelec,nmo,nset,&
+                qs_env_id,restart_unit
 
-    INTEGER, DIMENSION(:), ALLOCATABLE :: econf
+    INTEGER, DIMENSION(:), ALLOCATABLE :: econf,first_sgf
 
     INTEGER, DIMENSION(:), POINTER   :: atom_list,elec_conf,nshell
-    INTEGER, DIMENSION(:,:), POINTER :: first_sgf,l,last_sgf
+    INTEGER, DIMENSION(:,:), POINTER :: first_sgfa,l,last_sgfa
     INTEGER :: nspin,ispin,nelectron
     LOGICAL :: local
 
@@ -1678,6 +1679,13 @@ CONTAINS
 
           CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,maxlgto=maxl)
 
+          natom = SIZE(particle_set)
+
+          ALLOCATE (first_sgf(natom),STAT=istat)
+          IF (istat /= 0) CALL stop_memory(routineP,"first_sgf",natom*int_size)
+
+          CALL get_particle_set(particle_set=particle_set,first_sgf=first_sgf)
+ 
           ALLOCATE (econf(0:maxl),STAT=istat)
           IF (istat /= 0) CALL stop_memory(routineP,"econf",(maxl + 1)*int_size)
 
@@ -1715,11 +1723,11 @@ CONTAINS
              econf(0:maxl) = elec_conf(0:maxl)
 
              CALL get_gto_basis_set(gto_basis_set=orb_basis_set,&
-                  nset=nset,&
-                  nshell=nshell,&
-                  l=l,&
-                  first_sgf=first_sgf,&
-                  last_sgf=last_sgf)
+                                    nset=nset,&
+                                    nshell=nshell,&
+                                    l=l,&
+                                    first_sgf=first_sgfa,&
+                                    last_sgf=last_sgfa)
 
              DO iset=1,nset
                 DO ishell=1,nshell(iset)
@@ -1733,16 +1741,14 @@ CONTAINS
                          paa = REAL(2*econf(la),wp)/REAL(nelec,wp)
                          econf(la) = 0
                       END IF
-                      first_sgfa = first_sgf(ishell,iset)
-                      last_sgfa = last_sgf(ishell,iset)
-                      DO isgfa=first_sgfa,last_sgfa
+                      DO isgfa=first_sgfa(ishell,iset),last_sgfa(ishell,iset)
                          DO iatom=1,natom
                             atom_a = atom_list(iatom)
-                            isgf = particle_set(atom_a)%first_sgf + isgfa - 1
+                            isgf = first_sgf(atom_a) + isgfa - 1
                             CALL cp_fm_set_element(work1(ispin)%matrix,isgf,isgf,paa)
                             ! not so efficient anymore, but then, this should move to sparse matrices at a give point
                             CALL cp_fm_get_element(work2,isgf,isgf,saa,local)
-                            IF (.NOT. local) saa = 0.0_wp
+                            IF (.NOT.local) saa = 0.0_wp
                             sum = sum + paa*saa
                          END DO
                       END DO
@@ -1772,19 +1778,17 @@ CONTAINS
                   nset=nset,&
                   nshell=nshell,&
                   l=l,&
-                  first_sgf=first_sgf,&
-                  last_sgf=last_sgf)
+                  first_sgf=first_sgfa,&
+                  last_sgf=last_sgfa)
 
              DO iset=1,nset
                 DO ishell=1,nshell(iset)
-                   first_sgfa = first_sgf(ishell,iset)
-                   last_sgfa = last_sgf(ishell,iset)
-                   DO isgfa=first_sgfa,last_sgfa
+                   DO isgfa=first_sgfa(ishell,iset),last_sgfa(ishell,iset)
                       DO iatom=1,natom
                          atom_a = atom_list(iatom)
-                         isgf = particle_set(atom_a)%first_sgf + isgfa - 1
+                         isgf = first_sgf(atom_a) + isgfa - 1
                          CALL cp_fm_get_element(work1(ispin)%matrix,isgf,isgf,paa,local)
-                         IF (.NOT. local) paa=0.0_wp
+                         IF (.NOT.local) paa = 0.0_wp
                          paa = paa*saa
                          CALL cp_fm_set_element(work1(ispin)%matrix,isgf,isgf,paa)
                       END DO
@@ -1795,7 +1799,10 @@ CONTAINS
 
           CALL copy_fm_to_sm(work1(ispin)%matrix,p_rmpv(ispin)%matrix)
 
-       ENDDO
+          DEALLOCATE (first_sgf,STAT=istat)
+          IF (istat /= 0) CALL stop_memory(routineP,"first_sgf")
+
+       END DO
 
     ELSE
 

@@ -249,7 +249,8 @@ CONTAINS
                              gth_potential,aux_basis_set,orb_basis_set,&
                              element_symbol,name,mass,kind_number,natom,&
                              atom_list,alpha_core_charge,ccore_charge,&
-                             core_charge_radius,nsgf,z,zeff,qeff,pao_bas_proj)
+                             core_charge_radius,ncgf,nsgf,z,zeff,qeff,&
+                             pao_bas_proj)
 
 !   Purpose: Get informations about an atomic kind.
 
@@ -271,7 +272,7 @@ CONTAINS
                                                         core_charge_radius,&
                                                         mass,qeff
     INTEGER, OPTIONAL, INTENT(OUT)                   :: kind_number,natom,&
-                                                        nsgf,z,zeff
+                                                        ncgf,nsgf,z,zeff
     INTEGER, DIMENSION(:), OPTIONAL, POINTER         :: atom_list
     TYPE(pao_bas_projection_type), OPTIONAL, POINTER :: pao_bas_proj
 
@@ -334,6 +335,14 @@ CONTAINS
                              core_charge_radius=core_charge_radius)
         ELSE
           core_charge_radius = 0.0_wp
+        END IF
+      END IF
+      IF (PRESENT(ncgf)) THEN
+        IF (ASSOCIATED(atomic_kind%orb_basis_set)) THEN
+          CALL get_gto_basis_set(gto_basis_set=atomic_kind%orb_basis_set,&
+                                 ncgf=ncgf)
+        ELSE
+          ncgf = 0
         END IF
       END IF
       IF (PRESENT(nsgf)) THEN

@@ -21,7 +21,7 @@
 !******************************************************************************
 
 MODULE qs_overlap
-! *****************************************************************************
+
   USE ai_overlap_new,                  ONLY: overlap
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                              get_atomic_kind,&
@@ -45,7 +45,8 @@ MODULE qs_overlap
                                              ncoset,&
                                              nso
   USE orbital_symbols,                 ONLY: cgf_symbol
-  USE particle_types,                  ONLY: particle_type
+  USE particle_types,                  ONLY: get_particle_set,&
+                                             particle_type
   USE qs_environment_types,            ONLY: get_qs_env,&
                                              qs_environment_type,&
                                              set_qs_env
@@ -119,8 +120,6 @@ CONTAINS
 !   *** Local parameters ***
 
     CHARACTER(LEN=*), PARAMETER :: routine_name = "build_overlap_matrix"
-    CHARACTER(LEN=*), PARAMETER :: routine =&
-      "SUBROUTINE "//routine_name//" (MODULE "//module_name//")"
 
 !   *** Local variables ***
 
@@ -147,6 +146,8 @@ CONTAINS
 
     REAL(wp), DIMENSION(3)                :: rab
     REAL(wp), DIMENSION(:,:), ALLOCATABLE :: sab,work
+
+    INTEGER, DIMENSION(:), ALLOCATABLE :: first_sgf,last_sgf
 
     REAL(wp), DIMENSION(:), POINTER   :: set_radius_a,set_radius_b
     INTEGER, DIMENSION(:), POINTER    :: la_max,la_min,lb_max,lb_min,npgfa,&
@@ -190,17 +191,35 @@ CONTAINS
 
     CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,nsgf=nsgf)
 
+    ALLOCATE (first_sgf(natom),STAT=istat)
+    IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+                                     "first_sgf",natom*int_size)
+    ALLOCATE (last_sgf(natom),STAT=istat)
+    IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+                                     "last_sgf",natom*int_size)
+
+    CALL get_particle_set(particle_set=particle_set,&
+                          first_sgf=first_sgf,&
+                          last_sgf=last_sgf)
+
     CALL allocate_matrix(matrix=s(1)%matrix,&
                          nblock_row=natom,&
                          nblock_col=natom,&
                          nrow=nsgf,&
                          ncol=nsgf,&
-                         first_row=particle_set(:)%first_sgf,&
-                         last_row=particle_set(:)%last_sgf,&
-                         first_col=particle_set(:)%first_sgf,&
-                         last_col=particle_set(:)%last_sgf,&
+                         first_row=first_sgf,&
+                         last_row=last_sgf,&
+                         first_col=first_sgf,&
+                         last_col=last_sgf,&
                          matrix_name="OVERLAP MATRIX",&
                          matrix_symmetry="symmetric")
+
+    DEALLOCATE (first_sgf,STAT=istat)
+    IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+                                     "first_sgf")
+    DEALLOCATE (last_sgf,STAT=istat)
+    IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+                                     "last_sgf")
 
     DO i=2,maxder
       cgfsym = cgf_symbol(1,indco(1:3,i))
@@ -224,15 +243,18 @@ CONTAINS
     CALL init_orbital_pointers(maxlgto+nder)
 
     ALLOCATE (sab(maxco,maxco*maxder),STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routine,"sab",maxco*maxco*maxder*wp_size)
+    IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+                                     "sab",maxco*maxco*maxder*wp_size)
     sab(:,:) = 0.0_wp
 
     ALLOCATE (work(maxco,maxsgf),STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routine,"work",maxco*maxsgf*wp_size)
+    IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+                                     "work",maxco*maxsgf*wp_size)
     work(:,:) = 0.0_wp
 
     ALLOCATE (sint(maxder),STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routine,"sint",maxder*int_size)
+    IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+                                     "sint",maxder*int_size)
     DO i=1,maxder
       NULLIFY (sint(i)%block)
     END DO
@@ -409,16 +431,19 @@ CONTAINS
 !   *** Release work storage ***
 
     DEALLOCATE (sab,STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routine,"sab")
+    IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+                                     "sab")
 
     DEALLOCATE (work,STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routine,"work")
+    IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+                                     "work")
 
     DO i=1,maxder
       NULLIFY (sint(i)%block)
     END DO
     DEALLOCATE (sint,STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routine,"sint")
+    IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+                                     "sint")
 
     CALL timestop(0.0_wp,handle)
 
@@ -444,7 +469,7 @@ CONTAINS
 ! *****************************************************************************
 
   SUBROUTINE write_fm_with_basis_info(blacs_matrix,before,after,qs_env,globenv,&
-                                first_row,last_row,first_col,last_col)
+                                      first_row,last_row,first_col,last_col)
 
 !   Purpose: Print a spherical matrix of blacs type.
 
@@ -523,7 +548,8 @@ CONTAINS
 
     IF (ASSOCIATED(matrix)) THEN
       DEALLOCATE (matrix,STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routine,"matrix")
+      IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+                                       "matrix")
     END IF
 
   END SUBROUTINE write_fm_with_basis_info
@@ -706,11 +732,13 @@ CONTAINS
 !   *** Allocate work storage ***
 
     ALLOCATE (nblock(npe),STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routine,"nblock",npe*int_size)
+    IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+                                     "nblock",npe*int_size)
     nblock(:) = 0
 
     ALLOCATE (nelement(npe),STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routine,"nelement",npe*int_size)
+    IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+                                     "nelement",npe*int_size)
     nelement(:) = 0
 
     matrix_symmetry = ""
@@ -752,10 +780,12 @@ CONTAINS
 !   *** Release work storage ***
 
     DEALLOCATE (nblock,STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routine,"nblock")
+    IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+                                     "nblock")
 
     DEALLOCATE (nelement,STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routine,"nelement")
+    IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+                                     "nelement")
 
   END SUBROUTINE write_matrix_distribution
 
@@ -812,7 +842,8 @@ CONTAINS
     ELSE IF (matrix_symmetry == "antisymmetric") THEN
       CALL symmetrize_matrix(matrix,"anti_upper_to_lower")
     ELSE IF (matrix_symmetry /= "none") THEN
-      CALL stop_program(routine,"Invalid matrix structure")
+      CALL stop_program(routine_name,module_name,__LINE__,&
+                        "Invalid matrix structure",globenv)
     END IF
 
     CALL mp_sum(matrix,group)
@@ -851,7 +882,8 @@ CONTAINS
 
     IF (ASSOCIATED(matrix)) THEN
       DEALLOCATE (matrix,STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routine,"matrix")
+      IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+                                       "matrix")
     END IF
 
   END SUBROUTINE write_sparse_matrix

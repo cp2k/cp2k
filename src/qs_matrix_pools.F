@@ -77,7 +77,8 @@ MODULE qs_matrix_pools
                                              sm_struct_write
   USE kinds,                           ONLY: wp=>dp
   USE message_passing,                 ONLY: mp_sum
-  USE particle_types,                  ONLY: particle_type
+  USE particle_types,                  ONLY: get_particle_set,&
+                                             particle_type
   USE qs_mo_types,                     ONLY: get_mo_set,&
                                              mo_set_p_type
   USE sparse_matrix_types,             ONLY: get_matrix_info,&
@@ -805,11 +806,10 @@ SUBROUTINE mpools_rebuild_s_sm_pools(mpools, s, nspins, particle_set, &
      END IF
      CALL sm_pools_dealloc(mpools%S_sm_pools,error=error) ! update instead?
 
-     n_atoms=SIZE(particle_set)
-     ALLOCATE(block_begins_at(SIZE(particle_set)+1), stat=stat)
+     n_atoms = SIZE(particle_set)
+     ALLOCATE (block_begins_at(n_atoms+1),STAT=stat)
      CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-     block_begins_at(1:n_atoms)=particle_set(1:n_atoms)%first_sgf
-     block_begins_at(n_atoms+1)=particle_set(n_atoms)%last_sgf+1
+     CALL get_particle_set(particle_set=particle_set,first_sgf=block_begins_at)
 
      CALL sm_struct_create(s_mstruct,&
           block_begins_at_row=block_begins_at,&

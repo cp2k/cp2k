@@ -76,6 +76,7 @@
 !******************************************************************************
 
 MODULE qs_core_hamiltonian
+
   USE ai_kinetic,                      ONLY: kinetic
   USE ai_overlap_new,                  ONLY: overlap
   USE ai_overlap_ppl,                  ONLY: overlap_ppl
@@ -98,7 +99,8 @@ MODULE qs_core_hamiltonian
                                              nco,&
                                              ncoset
   USE orbital_symbols,                 ONLY: cgf_symbol
-  USE particle_types,                  ONLY: particle_type
+  USE particle_types,                  ONLY: get_particle_set,&
+                                             particle_type
   USE qs_environment_types,            ONLY: get_qs_env,&
                                              qs_environment_type,&
                                              set_qs_env
@@ -184,7 +186,7 @@ CONTAINS
 !   *** Local types ***
 
     TYPE block_p_type
-      REAL(wp), DIMENSION(:,:), POINTER :: BLOCK
+      REAL(wp), DIMENSION(:,:), POINTER :: block
     END TYPE block_p_type
 
     TYPE vppl_type
@@ -207,8 +209,6 @@ CONTAINS
 !   *** Local parameters ***
 
     CHARACTER(LEN=*), PARAMETER :: routine_name = "core_hamiltonian"
-    CHARACTER(LEN=*), PARAMETER :: routine =&
-      "SUBROUTINE "//routine_name//" (MODULE "//module_name//")"
 
 !   *** Local variables ***
 
@@ -256,8 +256,12 @@ CONTAINS
 
     REAL(wp), DIMENSION(:,:), ALLOCATABLE   :: hab,pab,sab,vdab,vadb,work
     REAL(wp), DIMENSION(:,:,:), ALLOCATABLE :: sdab
-    INTEGER, DIMENSION(:), ALLOCATABLE      :: atom_of_kind,first_prj,&
-                                               last_prj,kind_of
+    INTEGER, DIMENSION(:), ALLOCATABLE      :: atom_of_kind,&
+                                               first_prj,&
+                                               first_sgf,&
+                                               last_prj,&
+                                               last_sgf,&
+                                               kind_of
 
     TYPE(atomic_kind_type), DIMENSION(:), POINTER         :: atomic_kind_set
     TYPE(neighbor_list_set_p_type), DIMENSION(:), POINTER :: sab_orb,sac_ppl,&
@@ -317,7 +321,8 @@ CONTAINS
       nder = 1
 
       ALLOCATE (atom_of_kind(natom),STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routine,"atom_of_kind",natom*int_size)
+      IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+                                       "atom_of_kind",natom*int_size)
 
       CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,&
                                atom_of_kind=atom_of_kind)
@@ -365,6 +370,17 @@ CONTAINS
 
     CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,nsgf=nsgf)
 
+    ALLOCATE (first_sgf(natom),STAT=istat)
+    IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+                                     "first_sgf",natom*int_size)
+    ALLOCATE (last_sgf(natom),STAT=istat)
+    IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+                                     "last_sgf",natom*int_size)
+
+    CALL get_particle_set(particle_set=particle_set,&
+                          first_sgf=first_sgf,&
+                          last_sgf=last_sgf)
+
     ! assert here that the S-matrix is of the type distribution_2d if this one is non-null
 
     CALL allocate_matrix(matrix=s(1)%matrix,&
@@ -372,12 +388,20 @@ CONTAINS
                          nblock_col=natom,&
                          nrow=nsgf,&
                          ncol=nsgf,&
-                         first_row=particle_set(:)%first_sgf,&
-                         last_row=particle_set(:)%last_sgf,&
-                         first_col=particle_set(:)%first_sgf,&
-                         last_col=particle_set(:)%last_sgf,&
+                         first_row=first_sgf,&
+                         last_row=last_sgf,&
+                         first_col=first_sgf,&
+                         last_col=last_sgf,&
                          matrix_name="OVERLAP MATRIX",&
-                         matrix_symmetry="symmetric", distribution_2d=distribution_2d)
+                         matrix_symmetry="symmetric",&
+                         distribution_2d=distribution_2d)
+
+    DEALLOCATE (first_sgf,STAT=istat)
+    IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+                                     "first_sgf")
+    DEALLOCATE (last_sgf,STAT=istat)
+    IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+                                     "last_sgf")
 
     DO i=2,maxder
       cgfsym = cgf_symbol(1,indco(1:3,i))
@@ -456,39 +480,45 @@ CONTAINS
 
     ALLOCATE (hab(ldsab,ldsab*maxder),STAT=istat)
     IF (istat /= 0) THEN
-      CALL stop_memory(routine,"hab",ldsab*ldsab*maxder*wp_size)
+      CALL stop_memory(routine_name,module_name,__LINE__,&
+                       "hab",ldsab*ldsab*maxder*wp_size)
     END IF
     hab(:,:) = 0.0_wp
 
     ALLOCATE (sab(ldsab,ldsab*maxblock),STAT=istat)
     IF (istat /= 0) THEN
-      CALL stop_memory(routine,"sab",ldsab*ldsab*maxblock*wp_size)
+      CALL stop_memory(routine_name,module_name,__LINE__,&
+                       "sab",ldsab*ldsab*maxblock*wp_size)
     END IF
     sab(:,:) = 0.0_wp
 
     ALLOCATE (sdab(maxdco,maxco,4),STAT=istat)
     IF (istat /= 0) THEN
-      CALL stop_memory(routine,"sdab",maxdco*maxco*4*wp_size)
+      CALL stop_memory(routine_name,module_name,__LINE__,&
+                       "sdab",maxdco*maxco*4*wp_size)
     END IF
     sdab(:,:,:) = 0.0_wp
 
     ALLOCATE (work(ldsab,ldsab*maxder),STAT=istat)
     IF (istat /= 0) THEN
-      CALL stop_memory(routine,"work",ldsab*ldsab*maxder*wp_size)
+      CALL stop_memory(routine_name,module_name,__LINE__,&
+                       "work",ldsab*ldsab*maxder*wp_size)
     END IF
     work(:,:) = 0.0_wp
 
     IF (calculate_forces) THEN
       ALLOCATE (pab(maxco,maxco),STAT=istat)
       IF (istat /= 0) THEN
-        CALL stop_memory(routine,"pab",maxco*maxco*wp_size)
+        CALL stop_memory(routine_name,module_name,__LINE__,&
+                         "pab",maxco*maxco*wp_size)
       END IF
       pab(:,:) = 0.0_wp
     END IF
 
     ALLOCATE (sint(SIZE(s)),STAT=istat)
     IF (istat /= 0) THEN
-      CALL stop_memory(routine,"sint",SIZE(s)*int_size)
+      CALL stop_memory(routine_name,module_name,__LINE__,&
+                       "sint",SIZE(s)*int_size)
     END IF
     DO i=1,SIZE(sint)
       NULLIFY (sint(i)%block)
@@ -496,7 +526,8 @@ CONTAINS
 
     IF (build_kinetic_energy_matrix) THEN
       ALLOCATE (tint(SIZE(t)),STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routine,"tint",SIZE(t)*int_size)
+      IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+                                       "tint",SIZE(t)*int_size)
       DO i=1,SIZE(tint)
         NULLIFY (tint(i)%block)
       END DO
@@ -509,7 +540,8 @@ CONTAINS
     IF (ppl_present) THEN
 
       ALLOCATE (vppl(nkind),STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routine,"vppl",nkind*int_size)
+      IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+                                       "vppl",nkind*int_size)
 
       DO kkind=1,nkind
 
@@ -542,7 +574,8 @@ CONTAINS
     IF (ppnl_present) THEN
 
       ALLOCATE (vppnl(nkind),STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routine,"vppnl",nkind*int_size)
+      IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+                                       "vppnl",nkind*int_size)
 
       DO kkind=1,nkind
 
@@ -571,7 +604,8 @@ CONTAINS
 
         ALLOCATE (vppnl(kkind)%sac(maxder),STAT=istat)
         IF (istat /= 0) THEN
-          CALL stop_memory(routine,"vppnl(kkind)%sac",maxder*int_size)
+          CALL stop_memory(routine_name,module_name,__LINE__,&
+                           "vppnl(kkind)%sac",maxder*int_size)
         END IF
 
         DO i=1,maxder
@@ -663,17 +697,20 @@ CONTAINS
 
               ALLOCATE (vppl(kkind)%r2(nneighbor),STAT=istat)
               IF (istat /= 0) THEN
-                CALL stop_memory(routine,"vppl(kkind)%r2",nneighbor*wp_size)
+                CALL stop_memory(routine_name,module_name,__LINE__,&
+                                 "vppl(kkind)%r2",nneighbor*wp_size)
               END IF
 
               ALLOCATE (vppl(kkind)%neighbor(nneighbor),STAT=istat)
               IF (istat /= 0) THEN
-                CALL stop_memory(routine,"vppl(kkind)%neighbor",nneighbor*int_size)
+                CALL stop_memory(routine_name,module_name,__LINE__,&
+                                 "vppl(kkind)%neighbor",nneighbor*int_size)
               END IF
 
               ALLOCATE (vppl(kkind)%r(3,nneighbor),STAT=istat)
               IF (istat /= 0) THEN
-                CALL stop_memory(routine,"vppl(kkind)%r",3*nneighbor*wp_size)
+                CALL stop_memory(routine_name,module_name,__LINE__,&
+                                 "vppl(kkind)%r",3*nneighbor*wp_size)
               END IF
 
               sac_ppl_neighbor_node => first_node(sac_ppl_neighbor_list)
@@ -715,17 +752,20 @@ CONTAINS
 
               ALLOCATE (vppnl(kkind)%r2(nneighbor),STAT=istat)
               IF (istat /= 0) THEN
-                CALL stop_memory(routine,"vppnl(kkind)%r2",nneighbor*wp_size)
+                CALL stop_memory(routine_name,module_name,__LINE__,&
+                                 "vppnl(kkind)%r2",nneighbor*wp_size)
               END IF
 
               ALLOCATE (vppnl(kkind)%neighbor(4,nneighbor),STAT=istat)
               IF (istat /= 0) THEN
-                CALL stop_memory(routine,"vppnl(kkind)%neighbor",4*nneighbor*int_size)
+                CALL stop_memory(routine_name,module_name,__LINE__,&
+                                 "vppnl(kkind)%neighbor",4*nneighbor*int_size)
               END IF
 
               ALLOCATE (vppnl(kkind)%r(3,nneighbor),STAT=istat)
               IF (istat /= 0) THEN
-                CALL stop_memory(routine,"vppnl(kkind)%r",3*nneighbor*wp_size)
+                CALL stop_memory(routine_name,module_name,__LINE__,&
+                                 "vppnl(kkind)%r",3*nneighbor*wp_size)
               END IF
 
               ncol = nneighbor*vppnl(kkind)%nppnl
@@ -733,7 +773,8 @@ CONTAINS
               DO i=1,SIZE(vppnl(kkind)%sac)
                 ALLOCATE (vppnl(kkind)%sac(i)%block(ncoa_sum,ncol),STAT=istat)
                 IF (istat /= 0) THEN
-                  CALL stop_memory(routine,"vppnl(kkind)%sac(i)%block",&
+                  CALL stop_memory(routine_name,module_name,__LINE__,&
+                                   "vppnl(kkind)%sac(i)%block",&
                                    ncoa_sum*ncol*wp_size)
                 END IF
               END DO
@@ -864,7 +905,7 @@ CONTAINS
                 CALL add_block_node(matrix=s(i)%matrix,&
                                     block_row=irow,&
                                     block_col=icol,&
-                                    BLOCK=sint(i)%block)
+                                    block=sint(i)%block)
               END DO
               IF (build_kinetic_energy_matrix) THEN
                 DO i=1,SIZE(t)
@@ -872,30 +913,30 @@ CONTAINS
                   CALL add_block_node(matrix=t(i)%matrix,&
                                       block_row=irow,&
                                       block_col=icol,&
-                                      BLOCK=tint(i)%block)
+                                      block=tint(i)%block)
                 END DO
               END IF
               NULLIFY (h_block)
               CALL add_block_node(matrix=h(1)%matrix,&
                                   block_row=irow,&
                                   block_col=icol,&
-                                  BLOCK=h_block)
+                                  block=h_block)
               IF (calculate_forces) THEN
                 CALL get_block_node(matrix=p(1)%matrix,&
                                     block_row=irow,&
                                     block_col=icol,&
-                                    BLOCK=p_block)
+                                    block=p_block)
                 IF (.NOT.ASSOCIATED(p_block)) THEN
-                  CALL stop_program(routine,&
+                  CALL stop_program(routine_name,module_name,__LINE__,&
                                     "A density matrix block is missing",&
                                     globenv)
                 END IF
                 CALL get_block_node(matrix=w(1)%matrix,&
                                     block_row=irow,&
                                     block_col=icol,&
-                                    BLOCK=w_block)
+                                    block=w_block)
                 IF (.NOT.ASSOCIATED(w_block)) THEN
-                  CALL stop_program(routine,&
+                  CALL stop_program(routine_name,module_name,__LINE__,&
                                     "A weighted density matrix block is missing",&
                                     globenv)
                 END IF
@@ -1379,11 +1420,20 @@ CONTAINS
             DO kkind=1,nkind
               IF (ASSOCIATED(vppl(kkind)%r2)) THEN
                 DEALLOCATE (vppl(kkind)%r2,STAT=istat)
-                IF (istat /= 0) CALL stop_memory(routine,"vppl(kkind)%r2")
+                IF (istat /= 0) THEN
+                  CALL stop_memory(routine_name,module_name,__LINE__,&
+                                   "vppl(kkind)%r2")
+                END IF
                 DEALLOCATE (vppl(kkind)%neighbor,STAT=istat)
-                IF (istat /= 0) CALL stop_memory(routine,"vppl(kkind)%neighbor")
+                IF (istat /= 0) THEN
+                  CALL stop_memory(routine_name,module_name,__LINE__,&
+                                   "vppl(kkind)%neighbor")
+                END IF
                 DEALLOCATE (vppl(kkind)%r,STAT=istat)
-                IF (istat /= 0) CALL stop_memory(routine,"vppl(kkind)%r")
+                IF (istat /= 0) THEN
+                  CALL stop_memory(routine_name,module_name,__LINE__,&
+                                   "vppl(kkind)%r")
+                END IF
               END IF
             END DO
           END IF
@@ -1392,15 +1442,25 @@ CONTAINS
             DO kkind=1,nkind
               IF (ASSOCIATED(vppnl(kkind)%r2)) THEN
                 DEALLOCATE (vppnl(kkind)%r2,STAT=istat)
-                IF (istat /= 0) CALL stop_memory(routine,"vppnl(kkind)%r2")
+                IF (istat /= 0) THEN
+                  CALL stop_memory(routine_name,module_name,__LINE__,&
+                                   "vppnl(kkind)%r2")
+                END IF
                 DEALLOCATE (vppnl(kkind)%neighbor,STAT=istat)
-                IF (istat /= 0) CALL stop_memory(routine,"vppnl(kkind)%neighbor")
+                IF (istat /= 0) THEN
+                  CALL stop_memory(routine_name,module_name,__LINE__,&
+                                   "vppnl(kkind)%neighbor")
+                END IF
                 DEALLOCATE (vppnl(kkind)%r,STAT=istat)
-                IF (istat /= 0) CALL stop_memory(routine,"vppnl(kkind)%r")
+                IF (istat /= 0) THEN
+                  CALL stop_memory(routine_name,module_name,__LINE__,&
+                                   "vppnl(kkind)%r")
+                END IF
                 DO i=1,SIZE(vppnl(kkind)%sac)
                   DEALLOCATE (vppnl(kkind)%sac(i)%block,STAT=istat)
                   IF (istat /= 0) THEN
-                    CALL stop_memory(routine,"vppnl(kkind)%sac(i)%block")
+                    CALL stop_memory(routine_name,module_name,__LINE__,&
+                                     "vppnl(kkind)%sac(i)%block")
                   END IF
                 END DO
               END IF
@@ -1429,7 +1489,8 @@ CONTAINS
         NULLIFY (vppl(kkind)%cexp_ppl)
       END DO
       DEALLOCATE (vppl,STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routine,"vppl")
+      IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+                                       "vppl")
     END IF
 
     IF (ALLOCATED(vppnl)) THEN
@@ -1439,31 +1500,39 @@ CONTAINS
         NULLIFY (vppnl(kkind)%nprj_ppnl)
         NULLIFY (vppnl(kkind)%vprj_ppnl)
         DEALLOCATE (vppnl(kkind)%sac,STAT=istat)
-        IF (istat /= 0) CALL stop_memory(routine,"vppnl(kkind)%sac")
+        IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+                                         "vppnl(kkind)%sac")
       END DO
       DEALLOCATE (vppnl,STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routine,"vppnl")
+      IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+                                       "vppnl")
     END IF
 
     DEALLOCATE (hab,STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routine,"hab")
+    IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+                                     "hab")
 
     DEALLOCATE (sab,STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routine,"sab")
+    IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+                                     "sab")
 
     DEALLOCATE (sdab,STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routine,"sdab")
+    IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+                                     "sdab")
 
     DEALLOCATE (work,STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routine,"work")
+    IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+                                     "work")
 
     IF (calculate_forces) THEN
 
       DEALLOCATE (atom_of_kind,STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routine,"atom_of_kind")
+      IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+                                       "atom_of_kind")
 
       DEALLOCATE (pab,STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routine,"pab")
+      IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+                                       "pab")
 
 !     *** If LSD, then recover alpha density and beta density     ***
 !     *** from the total density (1) and the spin density (2)     ***
@@ -1481,14 +1550,16 @@ CONTAINS
       NULLIFY (sint(i)%block)
     END DO
     DEALLOCATE (sint,STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routine,"sint")
+    IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+                                     "sint")
 
     IF (build_kinetic_energy_matrix) THEN
       DO i=1,SIZE(tint)
         NULLIFY (tint(i)%block)
       END DO
       DEALLOCATE (tint,STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routine,"tint")
+      IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+                                       "tint")
     END IF
 
     CALL timestop(0.0_wp,handle)

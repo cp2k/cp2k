@@ -15,6 +15,7 @@
 !******************************************************************************
 
 MODULE kg_main 
+
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                              get_atomic_kind_set,&
                                              init_atomic_kind_set,&
@@ -89,8 +90,7 @@ MODULE kg_main
                                              topology_type
   USE orbital_transformation_matrices, ONLY: init_spherical_harmonics
   USE pair_potential_types,            ONLY: pair_potential_type
-  USE particle_types,                  ONLY: init_particle_set,&
-                                             particle_type
+  USE particle_types,                  ONLY: particle_type
   USE physcon,                         ONLY: boltzmann,&
                                              h_planck
   USE qs_interactions,                 ONLY: init_interaction_radii

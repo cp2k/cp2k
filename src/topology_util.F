@@ -1289,12 +1289,9 @@ SUBROUTINE topology_coord_pack (r,label_atmname,particle_set, &
   DO iatom=1,natom
     ikind = kind_of(iatom)
     particle_set(iatom) % abase = 0
-    particle_set(iatom) % kind = ikind
     particle_set(iatom) % grid_id = 0
     particle_set(iatom)%atomic_kind => atomic_kind_set(ikind)
     particle_set(iatom)%iatom = iatom
-    particle_set(iatom)%first_cgf = 0
-    particle_set(iatom)%first_sgf = 0
     particle_set(iatom)%f(:) = 0.0_dbl
     particle_set(iatom)%r(:) = r(:,iatom)
     particle_set(iatom)%v(:) = 0.0_dbl
@@ -1326,7 +1323,8 @@ SUBROUTINE topology_coord_pack (r,label_atmname,particle_set, &
 ! kelvin
         mass(n)= mol_setup(i) % molpar % aweight(j)
 ! gt
-        ikind = particle_set ( iat) % kind        
+        CALL get_atomic_kind(particle_set(iat)%atomic_kind,&
+                             kind_number=ikind)
         IF (ikind/=n) CALL stop_program ( 'topology_coord_pack', &
              'kind label ordering in coord and mol dont match ')
         CALL integer_to_string(kind_label(1:20,ikind),string)

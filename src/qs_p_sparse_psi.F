@@ -51,7 +51,8 @@ MODULE qs_p_sparse_psi
                                              cp_warning_level
   USE global_types,                    ONLY: global_environment_type
   USE kinds,                           ONLY: wp=>dp
-  USE particle_types,                  ONLY: particle_type
+  USE particle_types,                  ONLY: get_particle_set,&
+                                             particle_type
   USE timings,                         ONLY: timeset,&
                                              timestop
   IMPLICIT NONE
@@ -174,14 +175,14 @@ SUBROUTINE p_proj_create(p_proj, atoms, proj_indexes, particle_set, error)
   TYPE(qs_p_projection_type), POINTER :: p_proj
   INTEGER, DIMENSION(:), INTENT(in) :: atoms
   INTEGER, DIMENSION(:), INTENT(in), OPTIONAL :: proj_indexes
-  TYPE(particle_type), DIMENSION(:), INTENT(in), OPTIONAL :: particle_set
+  TYPE(particle_type), DIMENSION(:), POINTER, OPTIONAL :: particle_set
   TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
   
   LOGICAL :: failure
-  INTEGER :: stat, size_proj, i, j, pos
+  INTEGER :: stat, size_proj, i, j, pos, nparticle
   CHARACTER(len=*), PARAMETER :: routineN='p_proj_create',&
         routineP=moduleN//':'//routineN
-
+  INTEGER, DIMENSION(:), ALLOCATABLE :: first_sgf,last_sgf
   failure=.FALSE.
   ALLOCATE(p_proj, stat=stat)
   CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
@@ -197,24 +198,37 @@ SUBROUTINE p_proj_create(p_proj, atoms, proj_indexes, particle_set, error)
         CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
      ELSE
         CPPrecondition(PRESENT(particle_set),cp_failure_level,routineP,error,failure)
-        IF (.not.failure) THEN
-           size_proj=0
-           DO i=1,SIZE(p_proj%atoms)
-              size_proj=size_proj+particle_set(p_proj%atoms(i))%last_sgf &
-                   - particle_set(p_proj%atoms(i))%first_sgf + 1
-           END DO
-           ALLOCATE(p_proj%proj_indexes(size_proj),stat=stat)
-           CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-        END IF
-        IF (.not.failure) THEN
-           pos=1
-           DO i=1,SIZE(p_proj%atoms)
-              DO j=particle_set(p_proj%atoms(i))%first_sgf,&
-                   particle_set(p_proj%atoms(i))%last_sgf
-                 p_proj%proj_indexes(pos)=j
-                 pos=pos+1
+        IF (.NOT.failure) THEN
+          nparticle = SIZE(particle_set)
+          ALLOCATE (first_sgf(nparticle),STAT=stat)
+          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+          ALLOCATE (last_sgf(nparticle),STAT=stat)
+          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+          IF (.NOT.failure) THEN
+            CALL get_particle_set(particle_set=particle_set,&
+                                  first_sgf=first_sgf,&
+                                  last_sgf=last_sgf)
+            size_proj = 0
+            DO i=1,SIZE(p_proj%atoms)
+              size_proj = size_proj + last_sgf(p_proj%atoms(i)) -&
+                          first_sgf(p_proj%atoms(i)) + 1
+            END DO
+            ALLOCATE(p_proj%proj_indexes(size_proj),stat=stat)
+            CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+          END IF
+          IF (.NOT.failure) THEN
+            pos = 1
+            DO i=1,SIZE(p_proj%atoms)
+              DO j=first_sgf(p_proj%atoms(i)),last_sgf(p_proj%atoms(i))
+                p_proj%proj_indexes(pos) = j
+                pos = pos + 1
               END DO
-           END DO
+            END DO
+          END IF
+          DEALLOCATE (first_sgf,STAT=stat)
+          CPPostcondition(stat==0,cp_warning_level,routineP,error,failure)
+          DEALLOCATE (last_sgf,STAT=stat)
+          CPPostcondition(stat==0,cp_warning_level,routineP,error,failure)
         END IF
      END IF
   END IF

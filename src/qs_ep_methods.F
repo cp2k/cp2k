@@ -595,20 +595,22 @@ END SUBROUTINE qs_ep_calculation
              CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
           END DO
 
-          next_cgf=1
-          next_sgf=1
-          DO iatom=1,SIZE(p_set)
-             p_set(iatom)%last_cgf=next_cgf+p_set(iatom)%last_cgf-&
-                  p_set(iatom)%first_cgf
-             p_set(iatom)%first_cgf=next_cgf
-             next_cgf=p_set(iatom)%last_cgf+1
-             p_set(iatom)%last_sgf=next_sgf+p_set(iatom)%last_sgf-&
-                  p_set(iatom)%first_sgf
-             p_set(iatom)%first_sgf=next_sgf
-             next_sgf=p_set(iatom)%last_sgf+1
+!MK this components are obsolete, since they are now available
+!MK should be retrieved on the fly by calling get_particle_set
+!MK          next_cgf=1
+!MK          next_sgf=1
+!MK          DO iatom=1,SIZE(p_set)
+!MK             p_set(iatom)%last_cgf=next_cgf+p_set(iatom)%last_cgf-&
+!MK                  p_set(iatom)%first_cgf
+!MK             p_set(iatom)%first_cgf=next_cgf
+!MK             next_cgf=p_set(iatom)%last_cgf+1
+!MK             p_set(iatom)%last_sgf=next_sgf+p_set(iatom)%last_sgf-&
+!MK                  p_set(iatom)%first_sgf
+!MK             p_set(iatom)%first_sgf=next_sgf
+!MK             next_sgf=p_set(iatom)%last_sgf+1
 !FM cgf_aux not initialized! (at the moment unused)
-             p_set(iatom)%iatom=iatom
-          END DO
+!MK             p_set(iatom)%iatom=iatom
+!MK          END DO
 
           !   *** allocate mo_types ***
 !          CALL get_atomic_kind_set(sub_qs%atomic_kind_set,&

@@ -23,6 +23,7 @@
 !******************************************************************************
 
 MODULE particle_types
+
   USE atomic_kind_types,               ONLY: allocate_atomic_kind_set,&
                                              atomic_kind_type,&
                                              get_atomic_kind,&
@@ -91,12 +92,14 @@ MODULE particle_types
   TYPE particle_type
      TYPE(atomic_kind_type), POINTER       :: atomic_kind ! atomic kind information
      TYPE(local_particle_type), POINTER    :: lpi ! local particle information
-     INTEGER                               :: abase,first_cgf,first_cgf_aux,&
-                                              first_sgf,first_sgf_aux,grid_id,&
-                                              iatom,kind,last_cgf,last_sgf
      REAL(wp), DIMENSION(3)                :: f,& ! force
                                               r,& ! position
                                               v   ! velocity
+!MK this components should become obsolete and they are only present
+!MK for compatability reasons
+     INTEGER                               :: abase,first_cgf,first_cgf_aux,&
+                                              first_sgf,first_sgf_aux,grid_id,&
+                                              iatom,kind,last_cgf,last_sgf
      INTEGER, DIMENSION(:), POINTER        :: coef_list
   END TYPE particle_type
 
@@ -111,7 +114,6 @@ MODULE particle_types
   PUBLIC :: allocate_particle_set,&
             deallocate_particle_set,&
             get_particle_set,&
-            init_particle_set,&
             read_particle_set,&
             write_qs_particle_coordinates,&
             write_particle_distances, &
@@ -207,15 +209,23 @@ CONTAINS
 
 ! *****************************************************************************
 
-  SUBROUTINE get_particle_set(particle_set,r)
+  SUBROUTINE get_particle_set(particle_set,first_cgf,first_sgf,last_cgf,&
+                              last_sgf,ncgf,nsgf,r)
 
 !   Purpose: Get the components of a particle set.
 
 !   History: - Creation (14.01.2002,MK)
+!            - particle type cleaned (13.10.2003,MK)
 
 !   ***************************************************************************
 
     TYPE(particle_type), DIMENSION(:), POINTER      :: particle_set
+    INTEGER, DIMENSION(:), OPTIONAL, INTENT(OUT)    :: first_cgf,&
+                                                       first_sgf,&
+                                                       last_cgf,&
+                                                       last_sgf,&
+                                                       ncgf,&
+                                                       nsgf
     REAL(wp), DIMENSION(:,:), OPTIONAL, INTENT(OUT) :: r
 
 !   *** Local parameters ***
@@ -224,15 +234,90 @@ CONTAINS
 
 !   *** Local variables ***
 
-    INTEGER :: iatom
+    INTEGER :: icgf,iparticle,isgf,nc,nparticle,ns
 
 !   ---------------------------------------------------------------------------
 
     IF (ASSOCIATED(particle_set)) THEN
 
+      nparticle = SIZE(particle_set)
+
+      IF (PRESENT(first_cgf)) THEN
+        IF (SIZE(first_cgf) < nparticle) THEN
+          CALL stop_program(routine_name,module_name,__LINE__,&
+                            "An array of insufficient size was supplied "//&
+                            "for argument <first_cgf>")
+        END IF
+      END IF
+
+      IF (PRESENT(first_sgf)) THEN
+        IF (SIZE(first_sgf) < nparticle) THEN
+          CALL stop_program(routine_name,module_name,__LINE__,&
+                            "An array of insufficient size was supplied "//&
+                            "for argument <first_sgf>")
+        END IF
+      END IF
+
+      IF (PRESENT(last_cgf)) THEN
+        IF (SIZE(last_cgf) < nparticle) THEN
+          CALL stop_program(routine_name,module_name,__LINE__,&
+                            "An array of insufficient size was supplied "//&
+                            "for argument <last_cgf>")
+        END IF
+      END IF
+
+      IF (PRESENT(last_sgf)) THEN
+        IF (SIZE(last_sgf) < nparticle) THEN
+          CALL stop_program(routine_name,module_name,__LINE__,&
+                            "An array of insufficient size was supplied "//&
+                            "for argument <last_sgf>")
+        END IF
+      END IF
+
+      IF (PRESENT(ncgf)) THEN
+        IF (SIZE(ncgf) < nparticle) THEN
+          CALL stop_program(routine_name,module_name,__LINE__,&
+                            "An array of insufficient size was supplied "//&
+                            "for argument <ncgf>")
+        END IF
+      END IF
+
+      IF (PRESENT(nsgf)) THEN
+        IF (SIZE(nsgf) < nparticle) THEN
+          CALL stop_program(routine_name,module_name,__LINE__,&
+                            "An array of insufficient size was supplied "//&
+                            "for argument <nsgf>")
+        END IF
+      END IF
+
+      IF (PRESENT(first_cgf).OR.&
+          PRESENT(last_cgf).OR.&
+          PRESENT(first_sgf).OR.&
+          PRESENT(last_sgf).OR.&
+          PRESENT(ncgf).OR.&
+          PRESENT(nsgf)) THEN
+        icgf = 0
+        isgf = 0
+        DO iparticle=1,nparticle
+          CALL get_atomic_kind(atomic_kind=particle_set(iparticle)%atomic_kind,&
+                               ncgf=nc,&
+                               nsgf=ns)
+          IF (PRESENT(ncgf)) ncgf(iparticle) = nc
+          IF (PRESENT(first_cgf)) first_cgf(iparticle) = icgf + 1
+          icgf = icgf + nc
+          IF (PRESENT(last_cgf)) last_cgf(iparticle) = icgf
+          IF (PRESENT(nsgf)) nsgf(iparticle) = ns
+          IF (PRESENT(first_sgf)) first_sgf(iparticle) = isgf + 1
+          isgf = isgf + ns
+          IF (PRESENT(last_sgf)) last_sgf(iparticle) = isgf
+        END DO
+        IF (SIZE(first_cgf) > nparticle) first_cgf(nparticle+1) = icgf + 1
+        IF (SIZE(first_sgf) > nparticle) first_sgf(nparticle+1) = isgf + 1
+      END IF
+
       IF (PRESENT(r)) THEN
-        DO iatom=1,SIZE(particle_set)
-          r(:,iatom) = particle_set(iatom)%r(:)
+        DO iparticle=1,nparticle
+          r(:,iparticle) = particle_set(iparticle)%r(:)
         END DO
       END IF
 
@@ -244,61 +329,6 @@ CONTAINS
     END IF
 
   END SUBROUTINE get_particle_set
-
-! *****************************************************************************
-
-  SUBROUTINE init_particle_set(particle_set)
-
-!   Purpose: Initialise a particle set.
-
-!   History: - Creation (14.01.2002,MK)
-
-!   ***************************************************************************
-
-    TYPE(particle_type), DIMENSION(:), POINTER :: particle_set
-
-!   *** Local parameters ***
-
-    CHARACTER(LEN=*), PARAMETER :: routine_name = "init_particle_set"
-
-!   *** Local variables ***
-
-    TYPE(gto_basis_set_type), POINTER :: orb_basis_set
-
-    REAL(wp) :: mass
-    INTEGER  :: iatom,icgf,isgf,istat,kind_number,natom,ncgf,nsgf
-
-!   ---------------------------------------------------------------------------
-
-    IF (ASSOCIATED(particle_set)) THEN
-
-      natom = SIZE(particle_set)
-
-      icgf = 0
-      isgf = 0
-
-      DO iatom=1,natom
-        CALL get_atomic_kind(atomic_kind=particle_set(iatom)%atomic_kind,&
-                             orb_basis_set=orb_basis_set,&
-                             kind_number=kind_number,&
-                             mass=mass)
-        CALL get_gto_basis_set(gto_basis_set=orb_basis_set,ncgf=ncgf,nsgf=nsgf)
-        particle_set(iatom)%first_cgf = icgf + 1
-        icgf = icgf + ncgf
-        particle_set(iatom)%last_cgf = icgf
-        particle_set(iatom)%first_sgf = isgf + 1
-        isgf = isgf + nsgf
-        particle_set(iatom)%last_sgf = isgf
-      END DO
-
-    ELSE
-
-      CALL stop_program(routine_name,module_name,__LINE__,&
-                        "The pointer particle_set is not associated")
-
-    END IF
-
-  END SUBROUTINE init_particle_set
 
 ! *****************************************************************************
 
@@ -797,8 +827,6 @@ CONTAINS
       iparticle_kind = particle_kind_of(iparticle)
       particle_set(iparticle)%atomic_kind => atomic_kind_set(iparticle_kind)
       particle_set(iparticle)%iatom = iparticle
-      particle_set(iparticle)%first_cgf = 0
-      particle_set(iparticle)%first_sgf = 0
       particle_set(iparticle)%f(:) = 0.0_wp
       IF (scaled_coordinates) THEN
         particle_set(iparticle)%r(:) =&
