@@ -41,9 +41,15 @@ MODULE qs_p_env_types
                                              cp_warning_level
   USE cp_matrix_utils,                 ONLY: cp_sm_output
   USE cp_para_types,                   ONLY: cp_para_env_type
+  USE hartree_local_types,             ONLY: hartree_local_release,&
+                                             hartree_local_type
   USE kinds,                           ONLY: dp
   USE qs_kpp1_env_types,               ONLY: kpp1_release,&
                                              qs_kpp1_env_type
+  USE qs_local_rho_types,              ONLY: local_rho_set_release,&
+                                             local_rho_type
+  USE qs_oce_types,                    ONLY: deallocate_oce_set,&
+                                             oce_matrix_type
   USE qs_rho_types,                    ONLY: qs_rho_type
   USE sparse_matrix_types,             ONLY: deallocate_matrix_set,&
                                              real_matrix_p_type
@@ -90,13 +96,6 @@ MODULE qs_p_env_types
 !!     - n_mo: cached number of mo: n_mo(i)=qs_env%c(i)%nmo
 !!     - n_ao: cached number of ao: n_ao(i)=qs_env%c(i)%nao
 !!
-!!   AUTHOR
-!!     Fawzi Mohamed
-!!
-!!   MODIFICATION HISTORY
-!!     07.2002 created [fawzi]
-!!     27.2003 added Smo_inv and doc [fawzi]
-!!
 !!   SOURCE
 !***************************************************************************
 
@@ -110,6 +109,10 @@ MODULE qs_p_env_types
      TYPE(qs_rho_type), POINTER :: rho1
      INTEGER, DIMENSION(2) :: n_mo, & ! no of molecular orbitals
                               n_ao    ! no of basis functions
+     ! GAPW stuff
+     TYPE(oce_matrix_type), POINTER                     :: oce
+     TYPE(hartree_local_type),  POINTER                 :: hartree_local
+     TYPE(local_rho_type), POINTER                      :: local_rho_set
   END TYPE qs_p_env_type
 
 !!***
@@ -232,6 +235,7 @@ END SUBROUTINE p_env_retain
     CHARACTER(len=*), PARAMETER :: routineN = 'p_env_release', &
       routineP = moduleN//':'//routineN
 
+    INTEGER                                  :: stat
     LOGICAL                                  :: failure
 
     failure=.FALSE.
@@ -247,7 +251,14 @@ END SUBROUTINE p_env_retain
           CALL cp_fm_vect_dealloc(p_env%Smo_inv, error=error)
           IF (ASSOCIATED(p_env%kpp1)) CALL deallocate_matrix_set(p_env%kpp1)
           IF (ASSOCIATED(p_env%p1)) CALL deallocate_matrix_set(p_env%p1)
+          IF (ASSOCIATED(p_env%oce)) CALL deallocate_oce_set(p_env%oce)
+          IF (ASSOCIATED(p_env%local_rho_set)) &
+               CALL local_rho_set_release(p_env%local_rho_set)
+          IF (ASSOCIATED(p_env%hartree_local)) &
+               CALL hartree_local_release(p_env%hartree_local)
        END IF
+       DEALLOCATE(p_env,stat=stat)
+       CPPostcondition((stat==0),cp_failure_level,routineP,error,failure)
     END IF
     NULLIFY(p_env)
   END SUBROUTINE p_env_release

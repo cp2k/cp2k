@@ -33,16 +33,11 @@ MODULE qs_tddfpt_types
                                              cp_fm_set_all
   USE cp_log_handling,                 ONLY: cp_to_string
   USE global_types,                    ONLY: global_environment_type
+  USE kinds,                           ONLY: dbl
+  USE qs_environment_types,            ONLY: qs_environment_type
   USE hartree_local_types,             ONLY: hartree_local_create,&
                                              hartree_local_release,&
                                              hartree_local_type
-  USE kinds,                           ONLY: dbl
-  USE qs_environment_types,            ONLY: qs_environment_type
-  USE qs_local_rho_types,              ONLY: local_rho_set_create,&
-                                             local_rho_set_release,&
-                                             local_rho_type
-  USE qs_oce_types,                    ONLY: deallocate_oce_set,&
-                                             oce_matrix_type
   USE qs_p_env_types,                  ONLY: qs_p_env_type
   USE termination,                     ONLY: stop_memory
 
@@ -65,10 +60,6 @@ MODULE qs_tddfpt_types
      TYPE(fm_p_spins_p_type), DIMENSION(:), POINTER     :: Y      ! left eigenvector
      REAL(DBL), DIMENSION(:), POINTER                   :: eigenvalues
      TYPE(cp_fm_p_type), DIMENSION(:), POINTER          :: invS   ! the inverse of the metric
-     ! GAPW stuff
-     TYPE(oce_matrix_type), POINTER                     :: oce
-     TYPE(local_rho_type), POINTER                      :: local_rho_set
-     TYPE(hartree_local_type),  POINTER                 :: hartree_local
   END TYPE tddfpt_env_type
     
   TYPE fm_p_spins_p_type
@@ -155,19 +146,6 @@ CONTAINS
        CALL cp_fm_create(t_env%invS(spin)%matrix, fm_struct, routineP//"invS")
     END DO
 
-    !----------------------!
-    ! GAPW initializations !
-    !----------------------!
-    NULLIFY(t_env%oce,t_env%local_rho_set,t_env%hartree_local)
-    IF (qs_env%dft_control%qs_control%gapw) THEN
-       ALLOCATE(t_env%local_rho_set, stat=stat)
-       IF (stat/=0) CALL stop_memory(routineP, "t_env%local_rho_set", 1)
-       CALL local_rho_set_create(t_env%local_rho_set)
-       ALLOCATE(t_env%hartree_local, stat=stat)
-       IF (stat/=0) CALL stop_memory(routineP, "t_env%hartree_local", 1)
-       CALL hartree_local_create(t_env%hartree_local)
-    END IF
-
   END SUBROUTINE tddfpt_env_allocate
 
 ! *****************************************************************************
@@ -219,15 +197,8 @@ CONTAINS
     DEALLOCATE (t_env%invS, stat=stat)
     IF (stat /= 0) CALL stop_memory(routineP, "t_env%invS")
 
-    IF (ASSOCIATED(t_env%oce)) CALL deallocate_oce_set(t_env%oce)
-    IF (ASSOCIATED(t_env%local_rho_set)) &
-         CALL local_rho_set_release(t_env%local_rho_set)
-    IF (ASSOCIATED(t_env%hartree_local)) &
-         CALL hartree_local_release(t_env%hartree_local)
-
-    NULLIFY(t_env%x, t_env%y, t_env%invS, t_env%oce, t_env%local_rho_set, t_env%hartree_local)
-    
- 
+    NULLIFY(t_env%x, t_env%y, t_env%invS)
+  
   END SUBROUTINE tddfpt_env_deallocate
 
 ! *****************************************************************************

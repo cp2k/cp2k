@@ -68,6 +68,7 @@ MODULE qs_p_env_methods
   USE cp_sm_fm_interactions,           ONLY: cp_sm_fm_multiply,&
                                              cp_sm_plus_fm_fm_t
   USE cp_sm_pool_types,                ONLY: cp_sm_pool_p_type
+  USE hartree_local_types,             ONLY: hartree_local_create
   USE kinds,                           ONLY: dbl,&
                                              dp
   USE qs_environment_types,            ONLY: get_qs_env,&
@@ -80,6 +81,7 @@ MODULE qs_p_env_methods
   USE qs_ks_methods,                   ONLY: qs_ks_did_change,&
                                              qs_ks_update_qs_env
   USE qs_ks_types,                     ONLY: qs_ks_env_type
+  USE qs_local_rho_types,              ONLY: local_rho_set_create
   USE qs_matrix_pools,                 ONLY: mpools_get
   USE qs_mo_types,                     ONLY: get_mo_set,&
                                              mo_set_p_type
@@ -96,6 +98,7 @@ MODULE qs_p_env_methods
                                              set_matrix,&
                                              transfer_matrix
   USE string_utilities,                ONLY: compress
+  USE termination,                     ONLY: stop_memory
   USE timings,                         ONLY: timeset,&
                                              timestop
 
@@ -200,7 +203,8 @@ CONTAINS
             p_env%S_psi0, &
             p_env%kpp1_env,&
             p_env%rho1,&
-            p_env%Smo_inv)
+            p_env%Smo_inv,&
+            p_env%oce, p_env%local_rho_set, p_env%hartree_local)
 
        p_env%ref_count=1
        last_p_env_id=last_p_env_id+1
@@ -280,6 +284,19 @@ CONTAINS
                error=error)
        END IF
        
+       !----------------------!
+       ! GAPW initializations !
+       !----------------------!
+       IF (qs_env%dft_control%qs_control%gapw) THEN
+          ALLOCATE(p_env%local_rho_set, stat=stat)
+          IF (stat/=0) CALL stop_memory(routineP, "p_env%local_rho_set", 1)
+          CALL local_rho_set_create(p_env%local_rho_set)
+          ALLOCATE(p_env%hartree_local, stat=stat)
+          IF (stat/=0) CALL stop_memory(routineP, "p_env%hartree_local", 1)
+          CALL hartree_local_create(p_env%hartree_local)
+       END IF
+
+
     END IF
 
     CALL timestop(0.0_dp,handle)
