@@ -23,6 +23,7 @@ MODULE topology_pdb
                                        get_atomic_kind,&
                                        init_atomic_kind_set,&
                                        set_atomic_kind
+  USE convert_units,            ONLY : convert_to_cp2k_units
   USE external_potential_types, ONLY : epc_potential_type,&
                                        set_potential
   USE global_types,             ONLY : global_environment_type
@@ -160,10 +161,13 @@ SUBROUTINE read_coordinate_pdb (r,label_resname,label_atmname,setup,globenv)
         !WRITE (iw,*) num_resid(natom)
         CALL get_next(pos1(natom))
         !WRITE (iw,*) pos1(natom)
+        !CALL convert_to_cp2k_units ( "ANGSTROM", length = pos1(natom) ) 
         CALL get_next(pos2(natom))
         !WRITE (iw,*) pos2(natom)
+        !CALL convert_to_cp2k_units ( "ANGSTROM", length = pos2(natom) ) 
         CALL get_next(pos3(natom))
         !WRITE (iw,*) pos3(natom)
+        !CALL convert_to_cp2k_units ( "ANGSTROM", length = pos3(natom) ) 
         !WRITE(iw,*) num_atmid(natom),tmp_resname(natom),&
         !           tmp_atmname(natom),num_resid(natom),&
         !           pos1(natom),pos2(natom),pos3(natom)
@@ -191,6 +195,9 @@ SUBROUTINE read_coordinate_pdb (r,label_resname,label_atmname,setup,globenv)
     r(1,iatom) = pos1(iatom)
     r(2,iatom) = pos2(iatom)
     r(3,iatom) = pos3(iatom)
+    CALL convert_to_cp2k_units("ANGSTROM",length=r(1,iatom))
+    CALL convert_to_cp2k_units("ANGSTROM",length=r(2,iatom))
+    CALL convert_to_cp2k_units("ANGSTROM",length=r(3,iatom))
     label_resname(iatom)=tmp_resname(iatom)
     label_atmname(iatom)=tmp_atmname(iatom)
   END DO

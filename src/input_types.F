@@ -24,6 +24,7 @@
 MODULE input_types
 
   USE kinds, ONLY : dbl
+  USE simulation_cell,                 ONLY: cell_type
 
   IMPLICIT NONE
 
@@ -58,6 +59,7 @@ MODULE input_types
      CHARACTER ( LEN = ATOMNAMESLENGTH ), DIMENSION ( : ), POINTER :: atom_names
      TYPE ( cell_setup_type ) :: simulation_cell
      TYPE ( cell_setup_type ) :: reference_cell
+     TYPE ( cell_type ), POINTER :: cell
   END TYPE setup_parameters_type
 
   PRIVATE

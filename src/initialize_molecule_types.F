@@ -92,18 +92,17 @@ CONTAINS
 !!   SOURCE
 !******************************************************************************
 
-SUBROUTINE initialize_molecule_type ( mol_setup, intra_param, &
-                                      pnode, part, molecule,&
-                                      globenv )
+SUBROUTINE initialize_molecule_type ( mol_setup, pnode, part, molecule,&
+                                      globenv, intra_param )
 
   IMPLICIT NONE
   TYPE ( molecule_type ), DIMENSION ( : ), INTENT ( IN ) :: mol_setup
-  TYPE ( intra_parameters_type ), INTENT ( IN ) :: intra_param
   TYPE ( particle_node_type ), DIMENSION ( : ), INTENT ( INOUT ) :: pnode
   TYPE ( particle_type ), DIMENSION ( : ), INTENT ( INOUT ), TARGET :: part
   TYPE ( molecule_structure_type ), DIMENSION ( : ), INTENT ( INOUT ) :: &
        molecule
   TYPE ( global_environment_type ), INTENT ( IN ) :: globenv
+  TYPE ( intra_parameters_type ), INTENT ( IN ), OPTIONAL :: intra_param
 
 ! Locals
   INTEGER :: imol, i, j, k, atombase, iat, nlim ( 2 ), iw, nmol_type
@@ -129,6 +128,8 @@ SUBROUTINE initialize_molecule_type ( mol_setup, intra_param, &
            molecule(imol) % ntorsions_mol = mol_setup(i) % molpar % ntorsions
            molecule(imol) % ndistconst_mol = mol_setup(i) % molpar % ndcon
            molecule(imol) % ng3x3const_mol = mol_setup(i) % molpar % n3x3con
+           molecule(imol) % nstates = 0
+           NULLIFY ( molecule ( imol ) % states )
            IF (globenv%ionode .AND. globenv%print_level>9) WRITE (iw, &
                 '(A,I10,T40,A,I5,A,T61,A20 )' ) ' Molecule:', imol, &
                 ' Type:', i, '     Name:', &
@@ -162,6 +163,8 @@ SUBROUTINE initialize_molecule_type ( mol_setup, intra_param, &
            molecule(imol) % ntorsions_mol = mol_setup(i) % molpar%ntorsions
            molecule(imol) % ndistconst_mol = mol_setup(i) % molpar%ndcon
            molecule(imol) % ng3x3const_mol = mol_setup(i) % molpar%n3x3con
+           molecule(imol) % nstates = 0
+           NULLIFY ( molecule ( imol ) % states )
            IF (globenv%ionode .AND. globenv%print_level>9) WRITE (iw, &
                 '(A,I10,T40,A,I5,A,T61,A20 )' ) ' Molecule:', imol, &
                 ' Type:', i, '     Name:', ADJUSTR ( mol_setup(i) % molpar%name)
@@ -183,25 +186,27 @@ SUBROUTINE initialize_molecule_type ( mol_setup, intra_param, &
 !..atom link list
   CALL atom_link_list(molecule,pnode)
 
+  IF ( PRESENT ( intra_param ) ) THEN
 !..initialize bonds
-  CALL bond_link_list(pnode,molecule,mol_setup,intra_param % bond_param)
+    CALL bond_link_list(pnode,molecule,mol_setup,intra_param % bond_param)
 
 !..initialize bends
-  CALL bend_link_list(pnode,molecule,mol_setup,intra_param % bend_param)
+    CALL bend_link_list(pnode,molecule,mol_setup,intra_param % bend_param)
 
 !..initialize torsions
-  CALL torsion_link_list(pnode,molecule,mol_setup,intra_param % torsion_param)
+    CALL torsion_link_list(pnode,molecule,mol_setup,intra_param % torsion_param)
 
 !..initialize distance constraints
-  CALL distconst_link_list(pnode,molecule,mol_setup, &
+    CALL distconst_link_list(pnode,molecule,mol_setup, &
        intra_param % constraint_distance)
 
 !..initialize g3x3 constraints
-  CALL g3x3_link_list(pnode,molecule,mol_setup, &
-       intra_param % constraint_distance)
+   CALL g3x3_link_list(pnode,molecule,mol_setup, &
+        intra_param % constraint_distance)
 
 !..create exclusion list
-  CALL exclusion(molecule,pnode)
+   CALL exclusion(molecule,pnode)
+  ENDIF
 
 END SUBROUTINE initialize_molecule_type
 

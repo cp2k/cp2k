@@ -18,6 +18,7 @@
 
 MODULE md_qs_energies
 
+  USE cp2k_units,                      ONLY: unit_convert_type, get_cp2k_units
   USE global_types,                    ONLY: global_environment_type
   USE integrator,                      ONLY : pressure
   USE kinds,                           ONLY : dbl
@@ -47,18 +48,16 @@ MODULE md_qs_energies
   IMPLICIT NONE
 
   PRIVATE
-  PUBLIC :: set_qs_energies, set_qs_energies_param, md_energy_qs
+  PUBLIC :: set_qs_energies, md_energy_qs
 
-  CHARACTER ( LEN = 10 ) :: pres_label, e_label, temp_label
-  CHARACTER ( LEN = 10 ) :: l_label, vol_label, angl_label
   REAL ( dbl ) :: econs_avg
-  REAL ( dbl ) :: p_conv, temp_conv
 
   LOGICAL :: ionode
   CHARACTER (LEN=50) :: crd_file_name, vel_file_name, ptens_file_name, &
                         ener_file_name, temp_file_name, dump_file_name
   INTEGER :: crd, vel, ptn, ene, tem, scr, coe, pol
   INTEGER :: icrd, ivel, iptens, iener, itemp, idump, iscreen
+  TYPE ( unit_convert_type ), POINTER :: units
 
 
 !!***
@@ -92,6 +91,7 @@ SUBROUTINE set_qs_energies ( globenv, mdio )
   TYPE ( global_environment_type ), INTENT ( IN ) :: globenv
 
 !------------------------------------------------------------------------------
+  CALL get_cp2k_units ( units )
 
   ionode = globenv % ionode
   scr = globenv % scr
@@ -112,45 +112,6 @@ SUBROUTINE set_qs_energies ( globenv, mdio )
   iscreen = mdio % iscreen
 
 END SUBROUTINE set_qs_energies
-
-!******************************************************************************
-!!****** md_qs_energies/set_qs_energies_params [1.0] *
-!!
-!!   NAME
-!!     set_qs_energies_param
-!!
-!!   FUNCTION
-!!     provides a label for the units, and a conversion factor ... rather ugly
-!!
-!!   AUTHOR
-!!     CJM
-!!
-!!   MODIFICATION HISTORY
-!!     none
-!!
-!!*** *************************************************************************
-
-SUBROUTINE set_qs_energies_param ( pconv, tempconv, l, vol, e, pres, temp, angl )
-
-  IMPLICIT NONE
-
-! Arguments
-  REAL ( dbl ), INTENT ( IN ), OPTIONAL :: pconv, tempconv
-  CHARACTER ( LEN = 10 ), INTENT ( IN ), OPTIONAL :: l, vol, e
-  CHARACTER ( LEN = 10 ), INTENT ( IN ), OPTIONAL :: pres, temp, angl
-
-!------------------------------------------------------------------------------
-
-  IF ( PRESENT ( pconv ) ) p_conv = pconv
-  IF ( PRESENT ( tempconv ) ) temp_conv = tempconv
-  IF ( PRESENT ( l ) ) l_label = l
-  IF ( PRESENT ( vol ) ) vol_label = vol
-  IF ( PRESENT ( e ) ) e_label = e
-  IF ( PRESENT ( pres ) ) pres_label = pres
-  IF ( PRESENT ( temp ) ) temp_label = temp
-  IF ( PRESENT ( angl ) ) angl_label = angl
-
-END SUBROUTINE set_qs_energies_param
 
 !******************************************************************************
 !!****** md_qs_energies/md_energy_qs [1.0] *
@@ -226,9 +187,7 @@ SUBROUTINE md_energy_qs ( md_env )
                                    ekin=ekin, &
                                    temp=temp)
 
-! GT : to be changed?
-  temp=temp/temp_conv
-! GT : to be changed?
+  temp=temp / units % kelvin
 
   write(title,'(A4,I8,A4,F12.3,X,A6,F20.9,X,A6,F9.3,X,A1)') " i= ",itimes," t= ",t,"fs E= ", &
                           md_env % force_env % qs_env % energy % total,"au T= ",temp,"K"

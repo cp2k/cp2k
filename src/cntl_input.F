@@ -54,7 +54,7 @@ CONTAINS
 !!I                                                                           I
 !!I simulation       [md,debug,min,amoeba]                                    I
 !!I printlevel       globenv%print_level                                      I
-!!I units            [kelvin,atomic]                                          I
+!!I units            [atomic, angstrom]                                       I
 !!I Ewald_type       [ewald,pme,spme]                                         I
 !!I Ewald_param      alpha[,gmax,ns_max,epsilon]                              I
 !!I set_file         "filename"                                               I
@@ -137,8 +137,8 @@ SUBROUTINE read_cntl_section ( setup, globenv, ewald_param )
            CALL get_next ( globenv % print_level )
         CASE ( 'UNITS')
            ilen = 20
-           CALL get_next(setup % unit_type,ilen)
-           CALL uppercase(setup % unit_type )
+           CALL get_next(ewald_param % unit_type,ilen)
+           CALL uppercase(ewald_param % unit_type )
         CASE ( 'EWALD_TY')
            IF ( ewald_set ) THEN
              ilen=20

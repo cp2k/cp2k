@@ -32,13 +32,13 @@ MODULE atoms_input
                                        get_atomic_kind,&
                                        init_atomic_kind_set,&
                                        set_atomic_kind
+  USE convert_units,            ONLY : convert_to_cp2k_units
   USE external_potential_types, ONLY : epc_potential_type,&
                                        set_potential
   USE global_types,             ONLY : global_environment_type
   USE input_types,              ONLY : setup_parameters_type
   USE kinds,                    ONLY : dbl
   USE memory_utilities,         ONLY : reallocate
-  USE message_passing,          ONLY : mp_bcast
   USE molecule_types,           ONLY : molecule_type
   USE extended_system_dynamics, ONLY : lnhc_parameters_type, &
                                        npt_info_type
@@ -52,7 +52,6 @@ MODULE atoms_input
                                        get_next, &
                                        search_label
   USE periodic_table,           ONLY : ptable
-  USE physcon,                  ONLY : massunit
   USE simulation_cell,          ONLY : cell_type
   USE string_utilities,         ONLY : xstring,&
                                        integer_to_string, &
@@ -91,18 +90,17 @@ CONTAINS
 !!  INPUTS
 !!*** *************************************************************************
 
-SUBROUTINE read_atoms_input ( particle_set, atomic_kind_set, &
-                              mol_setup, atom_names, setup, globenv )
+SUBROUTINE read_atoms_input ( unit_type, particle_set, atomic_kind_set, &
+                              mol_setup, setup, globenv )
 
   IMPLICIT NONE
 
 ! Arguments
-  TYPE ( global_environment_type ), INTENT ( IN ) :: globenv
-  TYPE(atomic_kind_type), DIMENSION(:), POINTER :: atomic_kind_set
+  CHARACTER ( LEN = * ), INTENT ( IN ) :: unit_type
   TYPE(particle_type), DIMENSION(:), POINTER    :: particle_set
-! TYPE ( molecule_type ), DIMENSION ( : ), INTENT ( IN ) :: mol_setup
+  TYPE(atomic_kind_type), DIMENSION(:), POINTER :: atomic_kind_set
   TYPE ( molecule_type ),DIMENSION(:), INTENT(IN) :: mol_setup
-  CHARACTER ( len = * ), DIMENSION ( : ), INTENT ( IN ) :: atom_names
+  TYPE ( global_environment_type ), INTENT ( IN ) :: globenv
   TYPE ( setup_parameters_type ) :: setup
 
 
@@ -128,6 +126,7 @@ SUBROUTINE read_atoms_input ( particle_set, atomic_kind_set, &
   INTEGER, DIMENSION(:,:), POINTER  :: atom_list,kind_label
   REAL(dbl), DIMENSION (:), POINTER :: charge, mass
   REAL(dbl), DIMENSION(:,:), POINTER :: r
+  CHARACTER ( len = 20 ), DIMENSION ( : ), POINTER :: atom_names
 
 !   ---------------------------------------------------------------------------
 
@@ -137,6 +136,7 @@ SUBROUTINE read_atoms_input ( particle_set, atomic_kind_set, &
 
   iw = globenv % scr
 
+  atom_names => setup % atom_names
 !..defaults
   NULLIFY (atom_list,kind_label,kind_of,natom_of_kind,charge,mass,r)
 
@@ -224,7 +224,6 @@ SUBROUTINE read_atoms_input ( particle_set, atomic_kind_set, &
 !..end of parsing the input section
 
   IF (.NOT. setup%coordinate) THEN
-
     CALL reallocate(atom_list,1,nkind,1,natom)
     CALL reallocate(kind_label,1,max_name_length,1,nkind)
     CALL reallocate(kind_of,1,natom)
@@ -273,58 +272,57 @@ SUBROUTINE read_atoms_input ( particle_set, atomic_kind_set, &
     ALLOCATE (natom_of_kind_check(nkind), STAT=istat) 
     natom_of_kind_check = 0
     nmol_type = SIZE (mol_setup) 
-    natom_types = SIZE(atom_names)
+    natom_types = SIZE ( atom_names )
     iat = 0
     DO i = 1, nmol_type
       DO k = 1, mol_setup(i) % num_mol
         DO j = 1, mol_setup(i) % molpar % natom
           iat = iat + 1
           n = str_search ( atom_names, natom_types, &
-               mol_setup ( i ) % molpar % aname ( j ) )
+             mol_setup ( i ) % molpar % aname ( j ) )
           charge(n)= mol_setup(i) % molpar % acharge(j)
-!dbg this should be done using general unit conversion routine
-!AU
-!            mass(n)= massunit* mol_setup(i) % molpar % aweight(j)
-! kelvin
-            mass(n)= mol_setup(i) % molpar % aweight(j)
-! gt
+! Convert mass from amu -> atomic units with massunit
+          mass(n)= mol_setup(i) % molpar % aweight(j)
           ikind = particle_set ( iat) % kind        
           IF (ikind/=n) CALL stop_program ( 'read_atoms_input', &
-               'kind label ordering in &COORD and &MOL dont match ')
+             'kind label ordering in &COORD and &MOL dont match ')
           CALL integer_to_string(kind_label(:,ikind),string)
           IF (string/=mol_setup(i)%molpar%aname(j)) CALL stop_program ( 'read_atoms_input', &
-                'inconsistent kind labels in &COORD and &MOL - check input')
+              'inconsistent kind labels in &COORD and &MOL - check input')
           natom_of_kind_check(ikind) = natom_of_kind_check(ikind) + 1
           iatom =  atom_list(ikind,natom_of_kind_check(ikind)) 
           IF (iatom/=iat) CALL stop_program ( 'read_atoms_input', &
-               'atom lists in &COORD and &MOL dont match ')
-       END DO
-     END DO
-   END DO
-   DO ikind=1,nkind
-      atomic_kind => atomic_kind_set(ikind)
-      CALL set_atomic_kind(atomic_kind=atomic_kind,&
-                           mass=mass(ikind)) 
-   END DO
-   IF (globenv%program_name == "FIST") THEN
-      CALL  init_atomic_kind_set(atomic_kind_set,globenv)
-       DO ikind=1,nkind
-        atomic_kind => atomic_kind_set(ikind)
-        CALL get_atomic_kind(atomic_kind=atomic_kind,&
-                          epc_potential=epc_potential) 
-        CALL set_potential(potential=epc_potential,&
-                          qeff=charge(ikind))
+             'atom lists in &COORD and &MOL dont match ')
+        END DO
       END DO
-   END IF
+    END DO
+    DO ikind=1,nkind
+       atomic_kind => atomic_kind_set(ikind)
+       CALL set_atomic_kind(atomic_kind=atomic_kind,&
+                            mass = mass ( ikind ) ) 
+    END DO
+ 
+    IF ( globenv%program_name == 'FIST' )  THEN
+       CALL  init_atomic_kind_set(atomic_kind_set,globenv)
+       DO ikind=1,nkind
+          atomic_kind => atomic_kind_set(ikind)
+          CALL get_atomic_kind(atomic_kind=atomic_kind,&
+                          epc_potential=epc_potential) 
+          CALL set_potential(potential=epc_potential,&
+                          qeff=charge(ikind))
+       END DO
+     END IF
   
+     CALL convert_to_cp2k_units ( unit_type, part = particle_set )
+
 !   *** Release work storage ***
 
-   DEALLOCATE (atom_list,kind_label,kind_of,natom_of_kind,natom_of_kind_check,r,STAT=istat)
-   DEALLOCATE (charge,mass,STAT=istat)
-   IF (istat /= 0) THEN
-     CALL stop_memory('read_atoms_input',&
-                "atom_list,charge,kind_label,kind_of,mass,natom_of_kind_check,natom_of_kind,r")
-   END IF
+     DEALLOCATE (atom_list,kind_label,kind_of,natom_of_kind,natom_of_kind_check,r,STAT=istat)
+     DEALLOCATE (charge,mass,STAT=istat)
+     IF (istat /= 0) THEN
+       CALL stop_memory('read_atoms_input',&
+       "atom_list,charge,kind_label,kind_of,mass,natom_of_kind_check,natom_of_kind,r")
+     END IF
   END IF
 END SUBROUTINE read_atoms_input
 
@@ -551,7 +549,7 @@ SUBROUTINE read_pimd_atoms_input ( rtype, globenv, particle_set, cell,  &
   CALL xstring ( globenv % project_name, ia, ie )
   filen = globenv % project_name ( ia:ie ) // '.dat'
   ia = MIN ( LEN ( filen ), 20 )
-  WRITE ( iw, '( A, T61, A )' ) ' ATOM| Read pos/vel/eta from file ', &
+  WRITE ( iw, '( A, T61, A )' ) ' READ_PIMD| Read pos/vel/eta from file ', &
            ADJUSTR ( filen ( 1:ia ) )
 
   INQUIRE ( FILE = filen, EXIST = exists )

@@ -14,6 +14,7 @@
 !!   AUTHORS
 !!     Joost VandeVondele with some help of Leonardo Bernasconi (01.2003)
 !!     CJM (04.2003)
+!!     CJM & IKUO (08.2003)
 !!
 !!   MODIFICATION HISTORY
 !!
@@ -22,6 +23,7 @@
 
 MODULE qs_localization
 ! *****************************************************************************
+  USE atomic_kind_types,               ONLY: get_atomic_kind
   USE coefficient_types,               ONLY: coeff_type,&
                                              coeff_zero
   USE cp_fm_basic_linalg,              ONLY: cp_fm_gemm,&
@@ -46,7 +48,10 @@ MODULE qs_localization
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE kinds,                           ONLY: wp => dp
   USE mathconstants,                   ONLY: twopi
-  USE message_passing,                 ONLY: mp_sum
+  USE memory_utilities,                ONLY: reallocate
+  USE message_passing,                 ONLY: mp_max,mp_minloc
+  USE molecule_types,                  ONLY: molecule_structure_type, linklist_atoms
+  USE particle_types,                  ONLY: particle_type
   USE physcon,                         ONLY: angstrom
   USE pw_env_types,                    ONLY: pw_env_get,&
                                              pw_env_type
@@ -59,7 +64,7 @@ MODULE qs_localization
                                              qs_environment_type
   USE qs_integrate_potential,          ONLY: integrate_v_rspace
   USE qs_localization_methods,         ONLY: jacobi_rotations, initialize_weights
-  USE simulation_cell,                 ONLY: cell_type
+  USE simulation_cell,                 ONLY: cell_type, pbc
   USE sparse_matrix_types,             ONLY: deallocate_matrix,&
                                              real_matrix_p_type,&
                                              real_matrix_type,&
@@ -69,6 +74,9 @@ MODULE qs_localization
                                              stop_program
   USE timings,                         ONLY: timeset,&
                                              timestop
+  USE topology_util,                   ONLY: find_boundary, &
+                                             topology_generate_bond, &
+                                             topology_generate_molecule
   IMPLICIT NONE
 
 ! *** Public ***
@@ -82,9 +90,10 @@ MODULE qs_localization
        INTEGER :: operator_type
        LOGICAL :: localization
        INTEGER :: is_initialized
-       TYPE(real_matrix_p_type),POINTER :: operator(:,:)
-       TYPE(cp_para_env_type), POINTER :: para_env
+       TYPE ( real_matrix_p_type ),POINTER :: operator(:,:)
+       TYPE ( cp_para_env_type ), POINTER :: para_env
        TYPE ( cell_type ), POINTER :: cell
+       TYPE ( particle_type ), POINTER :: particle_set ( : )
        REAL ( wp ) :: weights ( 3 )
   END TYPE qs_loc_env_type
   
@@ -118,7 +127,9 @@ SUBROUTINE qs_loc_init(qs_loc_env,qs_env)
   ! notice that the operator should have the same structure as S
   ! borrow para env from S
   !
-  CALL get_qs_env(qs_env=qs_env,s=s,cell=qs_loc_env%cell,para_env=qs_loc_env%para_env)
+  CALL get_qs_env(qs_env=qs_env,s=s,cell=qs_loc_env%cell, &
+                   particle_set = qs_loc_env % particle_set, &
+                   para_env=qs_loc_env%para_env)
   CALL cp_para_env_retain(qs_loc_env%para_env) 
 
 ! dbg
@@ -244,9 +255,10 @@ END SUBROUTINE get_pipek_menzy_operator
 ! applies the operators to obtain the necessary data
 !
 !******************************************************************************
-SUBROUTINE qs_loc_compute_properties(qs_loc_env,vectors,ionode,iunit)
+SUBROUTINE qs_loc_compute_properties(qs_loc_env, molecule, vectors, ionode, iunit)
 
   TYPE(qs_loc_env_type), POINTER :: qs_loc_env
+  TYPE ( molecule_structure_type ), POINTER :: molecule ( : )
   TYPE(cp_fm_type), POINTER :: vectors
   LOGICAL :: ionode
   INTEGER :: iunit
@@ -254,6 +266,7 @@ SUBROUTINE qs_loc_compute_properties(qs_loc_env,vectors,ionode,iunit)
   TYPE(cp_fm_type), POINTER :: opvec
   TYPE(cp_fm_p_type), ALLOCATABLE :: ZIJ ( :, : )
   TYPE(cp_fm_struct_type), POINTER :: tmp_fm_struct
+  REAL ( KIND = wp ), DIMENSION(:,:), POINTER :: center
 
   INTEGER :: n,k,natoms
   INTEGER :: i,j,l,isos
@@ -270,6 +283,9 @@ SUBROUTINE qs_loc_compute_properties(qs_loc_env,vectors,ionode,iunit)
   CALL cp_fm_struct_create(tmp_fm_struct,nrow_global=k, &
             ncol_global=k,para_env=vectors%matrix_struct%para_env, &
             context=vectors%matrix_struct%context)
+
+  ALLOCATE(center(k,6),STAT=isos)
+  IF(isos/=0) CALL stop_memory('centers_and_spreads','center')
 
 ! Allocating ZIJ
   IF ( qs_loc_env % operator_type == POSITION_OPERATOR ) THEN
@@ -306,8 +322,10 @@ SUBROUTINE qs_loc_compute_properties(qs_loc_env,vectors,ionode,iunit)
        IF (ionode) write(6,'(A,I6,A)') " Localize orbitals converged in ",sweeps," sweeps"
   ENDIF
 
-  IF ( qs_loc_env % operator_type == POSITION_OPERATOR )  & 
-  CALL centers_and_spreads ( ionode, iunit, qs_loc_env, zij ) 
+  IF ( qs_loc_env % operator_type == POSITION_OPERATOR )  THEN
+    CALL centers_and_spreads ( ionode, iunit, qs_loc_env, zij, center ) 
+    CALL wfc_to_molecule ( qs_loc_env, center, molecule )
+  ENDIF 
 
 
 ! release results
@@ -318,7 +336,10 @@ SUBROUTINE qs_loc_compute_properties(qs_loc_env,vectors,ionode,iunit)
     ENDDO
   ENDDO
  
-  DEALLOCATE(zij)
+  DEALLOCATE(zij, STAT = isos)
+  IF(isos/=0) CALL stop_memory('qs_loc_compute_properties','zij')
+  DEALLOCATE(center,STAT=isos)
+  IF(isos/=0) CALL stop_memory('qs_loc_compute_properties','center')
   CALL cp_fm_release(opvec)
 
   CALL timestop(0.0_wp,handle) 
@@ -331,10 +352,11 @@ END SUBROUTINE qs_loc_compute_properties
 !
 !******************************************************************************
 
-SUBROUTINE centers_and_spreads ( ionode, iunit, qs_loc_env, zij )
+SUBROUTINE centers_and_spreads ( ionode, iunit, qs_loc_env, zij, center )
 ! globals
   INTEGER, INTENT ( IN ) :: iunit
   LOGICAL, INTENT ( IN ) :: ionode
+  REAL ( KIND=wp ), INTENT ( OUT ) :: center ( :, : )
   TYPE ( cp_fm_p_type ), INTENT ( INOUT ) :: zij ( :, : )
   TYPE(qs_loc_env_type), POINTER :: qs_loc_env
 
@@ -343,7 +365,7 @@ SUBROUTINE centers_and_spreads ( ionode, iunit, qs_loc_env, zij )
   TYPE(cp_cfm_type), POINTER :: complexresult
   COMPLEX ( KIND = wp ) :: almost_determinant
   COMPLEX ( KIND = wp ) :: z
-  REAL ( KIND = wp ) :: realpart, imagpart, center ( 3 ), spread ( 3 )
+  REAL ( KIND = wp ) :: realpart, imagpart
   INTEGER :: l, i, nstates
 
 ! get nstates
@@ -353,20 +375,19 @@ SUBROUTINE centers_and_spreads ( ionode, iunit, qs_loc_env, zij )
   NULLIFY ( complexresult )
   CALL cp_cfm_create ( complexresult, zij ( 1, 1 ) % matrix % matrix_struct )
 !
-! OK print out the center of these friends
+  
+! OK print out the centers ( center ( 1:3) )  and spreads ( center ( 4:6 ) ) of these friends
   cell => qs_loc_env % cell
   DO l=1,nstates
     DO i=1,3
        CALL cp_fm_get_element(zij(1,i)%matrix,l,l,realpart)
        CALL cp_fm_get_element(zij(2,i)%matrix,l,l,imagpart)
        z=CMPLX(realpart,imagpart)
-       center ( i )=( cell % hmat ( i, i ) / twopi ) * AIMAG ( LOG ( z ) )
-       spread ( i )=SQRT( -qs_loc_env % weights ( i ) * 2.0_wp * LOG ( ABS ( Z ) ) ) / twopi
+       center (l ,i )=( cell % hmat ( i, i ) / twopi ) * AIMAG ( LOG ( z ) )
+       center (l, i+3 )=SQRT( -qs_loc_env % weights ( i ) * 2.0_wp * LOG ( ABS ( Z ) ) ) / twopi
     ENDDO
-    IF (ionode) WRITE(iunit,'(A,6F12.8)') "He", angstrom*center( 1 : 3 ),  &
-                                                angstrom*spread( 1 : 3 )
+    IF (ionode) WRITE(iunit,'(A,6F12.8)') "He", angstrom*center(l, 1 : 6 )
   ENDDO
-!
   
   ! now, find the spread of the orbitals
   DO i=1,3
@@ -401,6 +422,242 @@ SUBROUTINE qs_loc_destroy ( qs_loc_env )
   CALL cp_para_env_release(qs_loc_env%para_env) 
 
 END SUBROUTINE qs_loc_destroy
+
+!******************************************************************************
+!
+! maps wfc's to molecules 
+!
+!******************************************************************************
+SUBROUTINE wfc_to_molecule ( qs_loc_env, center, molecule ) 
+  IMPLICIT NONE
+! arguments
+  TYPE ( qs_loc_env_type ), INTENT ( IN ) :: qs_loc_env
+  TYPE ( molecule_structure_type ), POINTER :: molecule ( : )
+  REAL ( KIND=wp ), INTENT ( IN ) :: center ( :, : )
+
+! locals
+  TYPE ( particle_type ), POINTER :: particle_set ( : )
+  TYPE ( cell_type ), POINTER :: cell
+  TYPE ( cp_para_env_type ), POINTER :: para_env
+  TYPE ( linklist_atoms ), POINTER :: ll_atoms
+  INTEGER :: i, j , k, isos, iatom, istate, imoltyp, imolnum
+  INTEGER :: counter, imol, natom, nbond, nmol, nstate, first, last, imol_now
+  INTEGER :: oldtyp,oldnum
+  INTEGER, POINTER :: bond_a ( : ), bond_b ( : )
+  REAL ( KIND = wp ) :: r_pbc ( 3 ), dr (3)
+  REAL ( KIND = wp ), POINTER :: distance ( : ), atm_mass ( : ), atm_charge ( : )
+  REAL ( KIND = wp ), POINTER :: r ( :, : )
+  CHARACTER ( LEN = 20 ), POINTER :: label_atmname ( : ), atm_mol_name ( : )
+  INTEGER, POINTER :: map_mol_typ ( : ), map_mol_num ( : ) ,  &
+                      wfc_to_atom_map ( : ), ll_counter ( : , :),  &
+                      ll_list ( : , : , : )
+
+  INTEGER :: local_location
+  INTEGER :: natom_max
+  REAL ( KIND = wp ) :: mydist(2)
+
+!  *r(natom)              !atom position
+!  *center(nstate)        !wfc position
+!  *label_atmname(natom)  !name of atom that will match the ptable%symbol
+!  *atm_mol_name(natom)   !name of the molecule that the atom belong in
+!  distance(natom)        !distance of a WFC to each atom
+!  map_mol_typ(natom)     !mol type of atom
+!  map_mol_num(natom)     !mol number of atom
+!  atm_mass(natom)        !mass of atom
+!  atm_charge(natom)      !charge of atom
+
+!---------------------------------------------------------------------------
+!---------------------------------------------------------------------------
+  cell => qs_loc_env % cell
+  particle_set => qs_loc_env % particle_set
+  para_env => qs_loc_env % para_env
+  nstate = SIZE ( center, 1 )
+
+  ALLOCATE(wfc_to_atom_map(nstate),STAT=isos)
+  IF(isos/=0) CALL stop_memory('centers_and_spreads','8a')
+!---------------------------------------------------------------------------
+!---------------------------------------------------------------------------
+  nmol = SIZE ( molecule )
+  natom = 0
+  DO imol=1,nmol
+    natom = natom + molecule(imol)%natoms_mol
+  END DO
+
+  !Determine the max number of atoms across all the procs
+  natom_max = natom
+
+  CALL mp_max(natom_max,para_env%group)
+
+  !WRITE(*,*) "natom_loc  = ",natom
+  !WRITE(*,*) "natom_max  = ",natom_max
+  !WRITE(*,*) "nmol   = ",nmol
+  !WRITE(*,*) "nstate = ",nstate
+
+  ALLOCATE(r(3,natom_max),STAT=isos)
+  IF(isos/=0) CALL stop_memory('centers_and_spreads','1')
+  ALLOCATE(label_atmname(natom_max),STAT=isos)
+  IF(isos/=0) CALL stop_memory('centers_and_spreads','2')
+  ALLOCATE(atm_mol_name(natom_max),STAT=isos)
+  IF(isos/=0) CALL stop_memory('centers_and_spreads','3')
+  ALLOCATE(distance(natom_max),STAT=isos)
+  IF(isos/=0) CALL stop_memory('centers_and_spreads','4')
+  ALLOCATE(atm_mass(natom_max),STAT=isos)
+  IF(isos/=0) CALL stop_memory('centers_and_spreads','7')
+  ALLOCATE(atm_charge(natom_max),STAT=isos)
+  IF(isos/=0) CALL stop_memory('centers_and_spreads','8')
+
+  !Zero all the stuff
+  DO iatom=1,natom_max
+    r(:,iatom) = 0.0_wp
+    label_atmname(iatom) = ''
+    atm_mol_name(iatom) = ''
+    atm_mass(iatom) = 0.0_wp
+    atm_charge(iatom) = 0.0_wp
+    distance(:) = 1.E10_wp
+  END DO
+
+!---------------------------------------------------------------------------
+!---------------------------------------------------------------------------
+  counter = 0
+  DO imol=1,nmol
+    ll_atoms => molecule ( imol ) % ll_atoms
+    DO iatom=1,molecule(imol)%natoms_mol
+      counter = counter + 1
+      r ( :, counter ) = ll_atoms % part % p % r ( : )
+      CALL get_atomic_kind (ll_atoms % part % p % atomic_kind, &
+                            element_symbol = label_atmname ( counter ) ) 
+      atm_mol_name ( counter ) = molecule ( imol ) % mol_name
+      ll_atoms => ll_atoms % next
+    END DO
+  END DO
+!---------------------------------------------------------------------------
+!---------------------------------------------------------------------------
+  DO istate=1,nstate
+    distance(:) = 1.E10_wp
+    DO iatom=1,natom
+      !WRITE(*,*) "I'm here"
+      dr(1) = r(1,iatom) - center(istate,1)
+      dr(2) = r(2,iatom) - center(istate,2)
+      dr(3) = r(3,iatom) - center(istate,3)
+      r_pbc = pbc ( dr, cell )
+      distance(iatom) = SQRT ( DOT_PRODUCT ( r_pbc, r_pbc ) )
+    END DO
+
+    !XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+    !combine distance() from all procs
+
+    local_location = MINLOC(distance,DIM=1)
+    
+    mydist(1) = distance(local_location)
+    mydist(2) = para_env%mepos
+
+    CALL mp_minloc(mydist,para_env%group)
+    
+    !WRITE(*,*) "mydist1 = ",mydist(1),distance(local_location)
+    !WRITE(*,*) "mydist2 = ",mydist(2)
+
+    IF(mydist(2)==para_env%mepos) THEN
+      wfc_to_atom_map(istate)  =  local_location
+    ELSE
+      wfc_to_atom_map(istate)  =  0
+    END IF
+    !XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+  END DO
+!---------------------------------------------------------------------------
+!---------------------------------------------------------------------------
+  !If info is stored initially, then this is redundant
+  IF (natom /= 0) THEN
+    ALLOCATE(map_mol_typ(natom),STAT=isos)
+    IF(isos/=0) CALL stop_memory('centers_and_spreads','5')
+    ALLOCATE(map_mol_num(natom),STAT=isos)
+    IF(isos/=0) CALL stop_memory('centers_and_spreads','6')
+  
+    CALL topology_generate_bond(cell,r,label_atmname,bond_a,bond_b,&
+                                    atm_mass,atm_charge)
+  
+    nbond = SIZE(bond_a)
+  
+    CALL topology_generate_molecule(natom,atm_mol_name,nbond,bond_a,bond_b,&
+                                        map_mol_typ,map_mol_num)
+  END IF
+!---------------------------------------------------------------------------
+!---------------------------------------------------------------------------
+  IF(natom/=0) THEN
+    DO istate = 1,nstate
+      iatom = wfc_to_atom_map(istate)
+      IF(iatom/=0) THEN
+        imoltyp = map_mol_typ(iatom)
+        imolnum = map_mol_num(iatom)
+     
+        imol_now = 0
+        oldtyp = 0
+        oldnum = 0
+        DO i=1,iatom
+          IF(.NOT.((map_mol_typ(i)==oldtyp).AND.(map_mol_num(i)==oldnum))) THEN
+            imol_now = imol_now + 1
+            oldtyp = map_mol_typ(i)
+            oldnum = map_mol_num(i)
+          END IF
+        END DO
+        
+        i = molecule(imol_now)%nstates
+        i = i + 1
+        molecule(imol_now)%nstates = i
+  
+        CALL reallocate(molecule(imol_now)%states,1,i)
+        molecule(imol_now)%states(i) = istate
+      END IF
+    END DO
+  END IF
+
+  !DO imol=1,nmol
+  !  WRITE(*,*)"imol= ",imol,molecule(imol)%states
+  !END DO
+!---------------------------------------------------------------------------
+!---------------------------------------------------------------------------
+  DEALLOCATE(r,STAT=isos)
+  IF(isos/=0) CALL stop_memory('centers_and_spreads','11')
+  DEALLOCATE(label_atmname,STAT=isos)
+  IF(isos/=0) CALL stop_memory('centers_and_spreads','12')
+  DEALLOCATE(atm_mol_name,STAT=isos)
+  IF(isos/=0) CALL stop_memory('centers_and_spreads','13')
+  DEALLOCATE(distance,STAT=isos)
+  IF(isos/=0) CALL stop_memory('centers_and_spreads','14')
+
+  IF(natom/=0) THEN
+    DEALLOCATE(map_mol_typ,STAT=isos)
+    IF(isos/=0) CALL stop_memory('centers_and_spreads','15')
+    DEALLOCATE(map_mol_num,STAT=isos)
+    IF(isos/=0) CALL stop_memory('centers_and_spreads','16')
+    DEALLOCATE(atm_mass,STAT=isos)
+    IF(isos/=0) CALL stop_memory('centers_and_spreads','18')
+    DEALLOCATE(bond_b,STAT=isos)
+    IF(isos/=0) CALL stop_memory('centers_and_spreads','21')
+    DEALLOCATE(bond_a,STAT=isos)
+    IF(isos/=0) CALL stop_memory('centers_and_spreads','20')
+  ENDIF
+
+  DEALLOCATE(atm_charge,STAT=isos)
+  IF(isos/=0) CALL stop_memory('centers_and_spreads','19')
+  DEALLOCATE(wfc_to_atom_map,STAT=isos)
+  IF(isos/=0) CALL stop_memory('centers_and_spreads','22')
+!---------------------------------------------------------------------------
+!---------------------------------------------------------------------------
+  
+  !XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+  !XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+  !XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+  !XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+  !Synchronize the procs if some procs doesn't have molecules
+  !Barrier
+  !XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+  !XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+  !XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+  !XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+
+
+END SUBROUTINE wfc_to_molecule
+!------------------------------------------------------------------------------
 
 END MODULE qs_localization
 

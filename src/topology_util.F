@@ -26,6 +26,7 @@ MODULE topology_util
                                                get_atomic_kind,&
                                                init_atomic_kind_set,&
                                                set_atomic_kind
+  USE convert_units,                    ONLY : convert_to_cp2k_units
   USE external_potential_types,         ONLY : epc_potential_type,&
                                                set_potential
   USE global_types,                     ONLY : global_environment_type
@@ -39,6 +40,7 @@ MODULE topology_util
   USE particle_types,                   ONLY : particle_type, &
                                                allocate_particle_set
   USE periodic_table,                   ONLY : ptable
+  USE simulation_cell,                  ONLY : cell_type, pbc
   USE string_utilities,                 ONLY : xstring,&
                                                integer_to_string, &
                                                string_to_integer, &
@@ -678,10 +680,11 @@ END SUBROUTINE azero
 !!     none
 !!
 !!   SOURCE
-SUBROUTINE topology_generate_bond(r,label_atmname,bond_a,bond_b,&
+SUBROUTINE topology_generate_bond(cell,r,label_atmname,bond_a,bond_b,&
                                   atm_mass,atm_charge)
   IMPLICIT NONE
 !Arguments
+  TYPE ( cell_type ), POINTER :: cell
   REAL(dbl), DIMENSION(:,:), POINTER :: r
   CHARACTER (LEN=20), POINTER :: label_atmname(:)
   INTEGER, POINTER :: bond_a(:),bond_b(:)
@@ -696,9 +699,9 @@ SUBROUTINE topology_generate_bond(r,label_atmname,bond_a,bond_b,&
   INTEGER :: first,last,search
   INTEGER :: ielem,nelem
   INTEGER, POINTER :: tbond_a(:),tbond_b(:)
-  REAL :: dx,dy,dz,r2,rbond,rbond2
-  REAL, POINTER :: pos_x(:),pos_y(:),pos_z(:)
-  REAL, POINTER :: covalent_radius(:)
+  REAL(dbl) :: dr(3),rr(3),r2,rbond,rbond2
+  REAL(dbl), POINTER :: pos_x(:),pos_y(:),pos_z(:)
+  REAL(dbl), POINTER :: covalent_radius(:)
   CHARACTER (LEN = 2),POINTER :: atm_symbol(:)
 !------------------------------------------------------------------------------
 !------------------------------------------------------------------------------
@@ -738,6 +741,7 @@ SUBROUTINE topology_generate_bond(r,label_atmname,bond_a,bond_b,&
       IF(ptable(ielem)%symbol==atm_symbol(iatom)) THEN
         !WRITE(*,*) "PTABLE = ",ielem
         covalent_radius(iatom) = ptable(ielem)%covalent_radius
+        CALL convert_to_cp2k_units("ANGSTROM",length=covalent_radius(iatom))
         atm_mass(iatom) = ptable(ielem)% amass
         !Need to figure out the correct charge!!!
         atm_charge(iatom) = 0.0
@@ -751,21 +755,28 @@ SUBROUTINE topology_generate_bond(r,label_atmname,bond_a,bond_b,&
   nbond = 0
   DO iatom=1,natom
     DO jatom=iatom+1,natom
-      !Calculate distance between the two atoms
-      !Put in PBC XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
-      !Put in PBC XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
-      !Put in PBC XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
-      !MUST PASS IN CELL INFO
-      dx = pos_x(iatom) - pos_x(jatom)
-      dy = pos_y(iatom) - pos_y(jatom)
-      dz = pos_z(iatom) - pos_z(jatom)
-      r2 = dx*dx + dy*dy + dz*dz
+      dr(1) = pos_x(iatom) - pos_x(jatom)
+      dr(2) = pos_y(iatom) - pos_y(jatom)
+      dr(3) = pos_z(iatom) - pos_z(jatom)
+      rr = pbc ( dr, cell )
+      r2 = DOT_PRODUCT(rr,rr)
       rbond = covalent_radius(iatom)+covalent_radius(jatom)
       rbond2 = rbond*rbond
-      !WRITE(*,*) dx,dy,dz
-      !WRITE(*,*) iatom,jatom,SQRT(r2),SQRT(rbond2)
+      !XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+      !XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+      !XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+      !XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+      !XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+      !Look for the right factor to use...
+      rbond2 = rbond2*1.1
+      !XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+      !XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+      !XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+      !XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+      !XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
       !Test the distance to the sum of the covalent radius
       IF(r2 < rbond2) THEN
+        WRITE(*,*) iatom,jatom,SQRT(r2),SQRT(rbond2)
         nbond=nbond+1
         tbond_a(nbond)=iatom
         tbond_b(nbond)=jatom
@@ -1431,7 +1442,7 @@ SUBROUTINE topology_pack(bond_a,bond_b,theta_a,theta_b,theta_c,&
         !Check and make sure
         mol_setup(i)%molpar%bonds(1,k) = bond_a(j)
         mol_setup(i)%molpar%bonds(2,k) = bond_b(j)
-        mol_setup(i)%molpar%bonds(3,k) = 0
+        mol_setup(i)%molpar%bonds(3,k) = j
         !-------------------------------------------------------------------
       END IF
     END DO
@@ -1472,7 +1483,7 @@ SUBROUTINE topology_pack(bond_a,bond_b,theta_a,theta_b,theta_c,&
         mol_setup(i)%molpar%bends(1,k) = theta_a(j)
         mol_setup(i)%molpar%bends(2,k) = theta_b(j)
         mol_setup(i)%molpar%bends(3,k) = theta_c(j)
-        mol_setup(i)%molpar%bends(4,k) = 0
+        mol_setup(i)%molpar%bends(4,k) = j
         !-------------------------------------------------------------------
       END IF
     END DO
@@ -1512,7 +1523,7 @@ SUBROUTINE topology_pack(bond_a,bond_b,theta_a,theta_b,theta_c,&
         mol_setup(i)%molpar%torsions(2,k) = phi_b(j)
         mol_setup(i)%molpar%torsions(3,k) = phi_c(j)
         mol_setup(i)%molpar%torsions(4,k) = phi_d(j)
-        mol_setup(i)%molpar%torsions(5,k) = 0
+        mol_setup(i)%molpar%torsions(5,k) = j
         !-------------------------------------------------------------------
       END IF
     END DO

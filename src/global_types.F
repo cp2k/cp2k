@@ -102,7 +102,8 @@ MODULE global_types
                homos, &
                cubes, &
                mulliken_analysis, &
-               mo_orthonormality
+               mo_orthonormality, &
+               molecular_states
     LOGICAL :: ep_matrixes, ep_rho1_cube, ep_operator
      LOGICAL :: timecumul
      INTEGER    nlumos,nhomos

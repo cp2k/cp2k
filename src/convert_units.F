@@ -19,176 +19,213 @@
 
 MODULE convert_units
 
+  USE cp2k_units, ONLY : unit_convert_type, time_convert, get_cp2k_units
   USE ewald_parameters_types, ONLY : ewald_parameters_type
   USE kinds, ONLY : dbl
-  USE md, ONLY : simulation_parameters_type
   USE molecule_types, ONLY : intra_parameters_type
   USE pair_potential, ONLY : potentialparm_type
   USE particle_types, ONLY : particle_type
-  USE physcon, ONLY : joule, evolt, boltzmann
+  USE physcon, ONLY : permittivity
   USE simulation_cell, ONLY : cell_type
-  USE unit, ONLY : unit_convert_type
 
   IMPLICIT NONE
 
   PRIVATE
-  PUBLIC :: convert
+  PUBLIC :: convert_to_cp2k_units
 
 !!*****
 !-----------------------------------------------------------------------------!
 
 CONTAINS
 
-!-----------------------------------------------------------------------------!
-!
-! routine to convert input variables from external units to internal units
-SUBROUTINE convert ( units, simpar, part, box, potparm, &
-     intra_param, ewald_param )
+!******************************************************************************
+!!****** convert_units/convert_to_cp2k_units [1.0] *
+!!
+!!   NAME
+!!     convert_to_cp2k_units
+!!
+!!   FUNCTION
+!!     Converts user defined input into AU
+!!
+!!   AUTHOR
+!!     CJM
+!!
+!!   MODIFICATION HISTORY
+!!     none
+!!
+!!   SOURCE
+!******************************************************************************
+SUBROUTINE convert_to_cp2k_units ( unit_char, time, temperature, pressure, length,  &
+                                   tau_nhc, mass, part, box, potparm, intra_param,  &
+                                   ewald_param )
 
   IMPLICIT NONE
 
 ! Arguments
-  TYPE (unit_convert_type ), INTENT ( IN ) :: units
-  TYPE (simulation_parameters_type ), INTENT ( INOUT ), OPTIONAL :: simpar
+  CHARACTER ( len = * ), INTENT ( IN ), OPTIONAL :: unit_char
+  REAL ( dbl ), INTENT ( INOUT ), OPTIONAL :: time
+  REAL ( dbl ), INTENT ( INOUT ), OPTIONAL :: temperature
+  REAL ( dbl ), INTENT ( INOUT ), OPTIONAL :: pressure
+  REAL ( dbl ), INTENT ( INOUT ), OPTIONAL :: length
+  REAL ( dbl ), INTENT ( INOUT ), OPTIONAL :: tau_nhc
+  REAL ( dbl ), INTENT ( INOUT ), OPTIONAL :: mass
   TYPE (particle_type ), INTENT ( INOUT ), OPTIONAL :: part ( : )
   TYPE (cell_type ), INTENT ( INOUT ), OPTIONAL :: box
   TYPE (intra_parameters_type ), INTENT ( INOUT ), OPTIONAL :: intra_param
   TYPE (ewald_parameters_type ), INTENT ( INOUT ), OPTIONAL :: ewald_param
   TYPE (potentialparm_type ), INTENT ( INOUT ), OPTIONAL :: potparm ( :, : )
-!  TYPE (particle_prop_type ), INTENT ( INOUT ), OPTIONAL :: pstat ( : )
 
 ! Locals
-  REAL ( dbl ), PARAMETER :: permittivity = 8.854187817E-12_dbl
   REAL ( dbl ) :: conv2k
   INTEGER :: i
+  TYPE ( unit_convert_type ), POINTER :: units
 
 !------------------------------------------------------------------------------
 
+  CALL get_cp2k_units ( units )
+
 ! convert hmat
-  IF ( PRESENT ( box)) box%hmat = box%hmat*units%lconv
+  IF ( PRESENT ( box ) ) THEN
+   IF ( box % unit_of_length_name == 'ANGSTROMS' ) &
+   box % hmat = box % hmat * units % angstrom
+  ENDIF
 
-  IF ( PRESENT ( simpar)) THEN
+  IF ( PRESENT ( time ) ) THEN
 ! convert time
-     simpar%dt = simpar%dt*units%tconv
+     IF ( unit_char == 'FS' ) &
+     time = time * units % fs
+     CALL time_convert ( time )
+  ENDIF
+
+  IF ( PRESENT ( temperature ) ) THEN
 ! convert temperature
-     simpar%temp_ext = simpar%temp_ext*units%econv
-! convert temperature of coefficents
-     simpar%temp_coef = simpar%temp_coef*units%econv
+     temperature = temperature * units % kelvin
+  ENDIF
+
+  IF ( PRESENT ( pressure ) ) THEN
 ! convert pressure
-     simpar%p_ext = simpar%p_ext/units%pconv
-! convert verlet skin
-     simpar%verlet_skin = simpar%verlet_skin*units%lconv
+     pressure =  pressure / units % bar
+  ENDIF 
 
+  IF ( PRESENT ( length ) ) THEN
+     IF ( unit_char == 'ANGSTROM' ) &
+     length = length * units % angstrom
+  ENDIF
+
+  IF ( PRESENT ( mass ) ) THEN
+   mass = mass * units % mass
+  ENDIF
+  
+  IF ( PRESENT ( tau_nhc ) ) THEN
+     IF ( unit_char == '1/CM' ) &
+     tau_nhc =  tau_nhc * units % wavenum
+     IF ( unit_char == 'FS' ) &
+     tau_nhc = tau_nhc * units % fs
+     CALL time_convert ( tau_nhc )
+  ENDIF 
+
+!!!!
 ! convert omega_p (wp) of PIMD
-     simpar%pimd_params%wp = simpar%pimd_params%wp * units%econv / units%tconv
+!     simpar%pimd_params%wp = simpar%pimd_params%wp * units%econv / units % tconv
+!!!!
      
-! converting extended system time constants
-     SELECT CASE (simpar%ensemble)
-     CASE ( 'NVT')
-        simpar%tau_nhc = simpar%tau_nhc*units%tconv
-     CASE ( 'NPT_I')
-        simpar%tau_cell = simpar%tau_cell*units%tconv
-        simpar%tau_nhc = simpar%tau_nhc*units%tconv
-     CASE ( 'NPT_F')
-        simpar%tau_cell = simpar%tau_cell*units%tconv
-        simpar%tau_nhc = simpar%tau_nhc*units%tconv
-     END SELECT
-     IF (simpar % ensemble_coef =='NVT') THEN
-        simpar%tau_nhc_coef = simpar%tau_nhc_coef*units%tconv
-     END IF
-  END IF
-
-!! gt units to be fixed !!
-!!  IF ( PRESENT ( pstat)) THEN
-! convert mass
-!!     DO i = 1, size(pstat)
-!!        pstat(i) %mass = pstat(i) %mass*units%mconv
-!!     END DO
-!!  END IF
-
-  IF ( PRESENT ( part)) THEN
+  IF ( PRESENT ( part ) ) THEN
 ! convert position
-     DO i = 1, size(part)
-        part(i) %r(1) = part(i) %r(1)*units%lconv
-        part(i) %r(2) = part(i) %r(2)*units%lconv
-        part(i) %r(3) = part(i) %r(3)*units%lconv
-     END DO
+     IF ( unit_char == "ANGSTROM" ) THEN
+       DO i = 1, SIZE ( part )
+          part(i) %r(1) = part(i) %r(1) * units % angstrom
+          part(i) %r(2) = part(i) %r(2) * units % angstrom
+          part(i) %r(3) = part(i) %r(3) * units % angstrom
+       END DO
+     ENDIF
   END IF
 
-  IF ( PRESENT ( potparm)) THEN
+  IF ( PRESENT ( potparm ) ) THEN
 ! convert LJ parameters
-     potparm ( :, : ) %lj%epsilon = potparm ( :, : ) %lj%epsilon*units%econv
-     potparm ( :, : ) %lj%sigma6 = potparm ( :, : ) %lj%sigma6*(units%lconv)**6
-     potparm ( :, : ) %lj%sigma12 = potparm ( :, : ) %lj%sigma12*(units%lconv)**12
+
+     IF ( unit_char == 'KCAL' ) THEN
+        potparm ( :, : ) % lj % epsilon = potparm ( :, : ) % lj % epsilon * units % kcal
+        potparm ( :, : ) % lj % sigma6 = potparm ( :, : ) % lj % sigma6 * ( units % angstrom ) ** 6
+        potparm ( :, : ) % lj % sigma12 = potparm ( :, : ) % lj % sigma12 * ( units % angstrom ) ** 12
+     ELSEIF ( unit_char == 'KELVIN' ) THEN
+        potparm ( :, : ) % lj % epsilon = potparm ( :, : ) % lj % epsilon * units % kelvin
+        potparm ( :, : ) % lj % sigma6 = potparm ( :, : ) % lj % sigma6 * ( units % angstrom ) ** 6
+        potparm ( :, : ) % lj % sigma12 = potparm ( :, : ) % lj % sigma12 * ( units % angstrom ) ** 12
+     ENDIF 
+
 ! convert Williams parameters
-     potparm ( :, : ) %willis%a = potparm ( :, : ) %willis%a*units%econv
-     potparm ( :, : ) %willis%b = potparm ( :, : ) %willis%b/units%lconv
-     potparm ( :, : ) %willis%c = potparm ( :, : ) %willis%c*units%econv* &
-          units%lconv**6
-! convert Goodwin parameters ( ev -> K has to be included )
-     conv2k = joule/(evolt*boltzmann)
-     potparm(:,:) %goodwin%vr0 = potparm(:,:) %goodwin%vr0*units%econv* &
-          conv2k
-     potparm(:,:) %goodwin%d = potparm(:,:) %goodwin%d*units%lconv
-     potparm(:,:) %goodwin%dc = potparm(:,:) %goodwin%dc*units%lconv
+     IF ( unit_char == 'KCAL' ) THEN
+       potparm ( :, : ) %willis%a = potparm ( :, : ) %willis%a*units%kcal
+       potparm ( :, : ) %willis%b = potparm ( :, : ) %willis%b/units%angstrom
+       potparm ( :, : ) %willis%c = potparm ( :, : ) %willis%c*units%kcal* &
+                                                      units%angstrom**6
+     ELSEIF ( unit_char == 'KELVIN' ) THEN
+       potparm ( :, : ) %willis%a = potparm ( :, : ) %willis%a*units%kelvin
+       potparm ( :, : ) %willis%b = potparm ( :, : ) %willis%b/units%angstrom
+       potparm ( :, : ) %willis%c = potparm ( :, : ) %willis%c*units%kelvin* &
+                                                      units%angstrom**6
+     ENDIF
+
 ! convert Cutoff distances
-     potparm ( :, : ) %rcutsq = potparm ( :, : ) %rcutsq*(units%lconv)**2
+     IF ( ( unit_char /= 'ATOMIC' ) .OR. ( unit_char /= 'AU' ) ) &
+     potparm ( :, : ) % rcutsq = potparm ( :, : ) % rcutsq * ( units % angstrom ) ** 2
   END IF
-! convert hopping matrix elements
-! orbital energies
-!       DO i = 1, size(tbatom)
-!         tbatom(i) %orbital_energy(:,:) = tbatom(i) %orbital_energy(:,:)* &
-!           units%econv*conv_2k
-!       END DO
-! convert Goodwin parameters
-!       tbhop(:,:) %rcutsq = tbhop(:,:) %rcutsq*(units%lconv)**2
-!       DO i = 1, size(tbhop,1)
-!         DO j = 1, size(tbhop,2)
-!           tbhop(i,j) %gsp(:) %er0 = tbhop(i,j) %gsp(:) %er0*units%econv* &
-!             conv_2k
-!           tbhop(i,j) %gsp(:) %r0 = tbhop(i,j) %gsp(:) %r0*units%lconv
-!           tbhop(i,j) %gsp(:) %rt = tbhop(i,j) %gsp(:) %rt*units%lconv
-!         END DO
-!       END DO
-!
-! note: e_cutoff_coul and energy_cutoff do not need to be converted
-! because ewald_correction and the initialization of the energy_cutoff
-! are called later and the cut-off will be computed in the appropriate units
-!
+
 ! convert electrostatic parameters
-  IF ( PRESENT ( ewald_param)) THEN
-     ewald_param % eps0 = permittivity*units%eps0
-     ewald_param % alpha = ewald_param % alpha/units % lconv
+  IF ( PRESENT ( ewald_param ) ) THEN
+     ewald_param % eps0 = permittivity * units % eps0
+     IF ( ewald_param % unit_type == 'ANGSTROM' ) &
+     ewald_param % alpha = ewald_param % alpha / units % angstrom
   END IF
 
 ! converting bond, bends and torsion and constraint parameters
   IF ( PRESENT ( intra_param ) ) THEN
     IF ( ASSOCIATED ( intra_param % bond_param )) THEN
-       intra_param % bond_param ( : ) % r0 = intra_param % bond_param ( : ) % r0 &
-            *units%lconv
-       intra_param % bond_param ( : ) % k = intra_param % bond_param ( : ) % k &
-            * units%econv/units%lconv/units%lconv
+       IF ( unit_char == 'KCAL' ) THEN
+         intra_param % bond_param ( : ) % r0 = intra_param % bond_param ( : ) % r0 &
+                                               *units%angstrom
+         intra_param % bond_param ( : ) % k = intra_param % bond_param ( : ) % k &
+                                               *units%kcal/units%angstrom/units%angstrom
+       ELSEIF ( unit_char == 'KELVIN' ) THEN
+         intra_param % bond_param ( : ) % r0 = intra_param % bond_param ( : ) % r0 &
+                                               *units%angstrom
+         intra_param % bond_param ( : ) % k = intra_param % bond_param ( : ) % k &
+                                               *units%kelvin/units%angstrom/units%angstrom
+       ENDIF
     END IF
 
     IF ( ASSOCIATED ( intra_param % bend_param )) THEN
-       intra_param % bend_param( : ) % k &
-            = intra_param % bend_param( : ) % k * units%econv
+       IF ( unit_char == 'KCAL' ) THEN
+         intra_param % bend_param( : ) % k &
+         = intra_param % bend_param( : ) % k * units%kcal
+       ELSEIF ( unit_char == 'KCAL' ) THEN
+         intra_param % bend_param( : ) % k &
+         = intra_param % bend_param( : ) % k * units%kelvin
+       ENDIF
     END IF
 
-    IF ( ASSOCIATED ( intra_param % torsion_param )) THEN
-       DO i = 0, SIZE ( intra_param % torsion_param(1) % a ) - 1
-          intra_param % torsion_param( : ) % a(i) =  &
-               intra_param % torsion_param( : ) % a(i)*units%econv
-       END DO
+    IF ( ASSOCIATED ( intra_param % torsion_param ) ) THEN
+       IF ( unit_char == 'KCAL' ) THEN
+         DO i = 0, SIZE ( intra_param % torsion_param(1) % a ) - 1
+            intra_param % torsion_param( : ) % a(i) =  &
+            intra_param % torsion_param( : ) % a(i)*units%kcal
+         END DO
+       ELSEIF ( unit_char == 'KELVIN' ) THEN
+         DO i = 0, SIZE ( intra_param % torsion_param(1) % a ) - 1
+            intra_param % torsion_param( : ) % a(i) =  &
+            intra_param % torsion_param( : ) % a(i)*units%kelvin
+         END DO
+       ENDIF
     END IF
 
-    IF ( ASSOCIATED ( intra_param % constraint_distance )) THEN
-       intra_param % constraint_distance ( : ) &
-            = intra_param % constraint_distance ( : ) * units%lconv
+    IF ( ASSOCIATED ( intra_param % constraint_distance ) ) THEN
+       IF ( ( unit_char == 'KELVIN' ) .OR. ( unit_char == 'KCAL' ) ) &
+       intra_param % constraint_distance ( : ) =  &
+       intra_param % constraint_distance ( : ) * units%angstrom
     END IF
   ENDIF
 
-END SUBROUTINE convert
+END SUBROUTINE convert_to_cp2k_units
 
 !******************************************************************************
 

@@ -24,7 +24,7 @@ MODULE fist_main
                                              read_md_restart,&
                                              read_pimd_atoms_input
   USE cntl_input,                      ONLY: read_cntl_section
-  USE convert_units,                   ONLY: convert
+  USE cp2k_units,                      ONLY: init_cp2k_units
   USE cp_local_lists_types,            ONLY: cp_ll_build_global_dist,&
                                              cp_ll_destroy_global_dist,&
                                              cp_local_lists_p_type,&
@@ -75,8 +75,7 @@ MODULE fist_main
                                              set_md_env,&
                                              zero_virial
   USE md_fist_energies,                ONLY: md_energy_fist,&
-                                             set_fist_energies,&
-                                             set_fist_energies_param
+                                             set_fist_energies
   USE molecule_input,                  ONLY: read_molecule_section,&
                                              read_setup_section,&
                                              read_topology_section
@@ -106,8 +105,6 @@ MODULE fist_main
   USE transformations,                 ONLY: fr2fu,&
                                              ud2v,&
                                              v2ud
-  USE unit,                            ONLY: set_units,&
-                                             unit_convert_type
   USE util,                            ONLY: close_unit,&
                                              get_share
   USE velocity_verlet_control,         ONLY: velocity_verlet
@@ -186,7 +183,6 @@ SUBROUTINE fist ( globenv )
   TYPE ( setup_parameters_type ) :: setup
   TYPE ( fist_thermodynamic_type ), POINTER :: thermo
   TYPE ( topology_type ) :: topo
-  TYPE ( unit_convert_type ) :: units
   TYPE ( virial_type ), POINTER :: virial
   
 !------------------------------------------------------------------------------
@@ -195,6 +191,7 @@ SUBROUTINE fist ( globenv )
 
   CALL timeset ( 'FIST_INIT', 'I', ' ', handle2 )
   
+  CALL init_cp2k_units ()
 ! initialize fist_env
   ALLOCATE(fist_env,stat=isos)
   IF ( isos /= 0 ) CALL stop_memory ( 'allocstruc', 'fist_env', 0 )
@@ -270,6 +267,15 @@ SUBROUTINE fist ( globenv )
     CALL fist_header ( globenv % scr )
   END IF
   
+!*** Read the input section with the cell parameters ***
+
+  CALL read_cell ( cell, globenv )
+
+!*** Print the cell parameters ***
+
+  CALL write_cell ( cell, globenv )
+
+  setup % cell => cell
 
 ! read from the &SETUP and &MOLECULE section of *.set
 
@@ -288,16 +294,8 @@ SUBROUTINE fist ( globenv )
 
 !*** Read &COORD section ***
  
-  CALL read_atoms_input ( particle_set, atomic_kind_set, &
-                          mol_setup, setup % atom_names, setup, globenv )
-
-!*** Read the input section with the cell parameters ***
-
-  CALL read_cell ( cell, globenv )
-
-!*** Print the cell parameters ***
-
-  CALL write_cell ( cell, globenv )
+  CALL read_atoms_input ( cell % unit_of_length_name, particle_set, &
+                          atomic_kind_set, mol_setup, setup, globenv )
 
 ! read the input of the molecular dynamics section
 
@@ -308,18 +306,12 @@ SUBROUTINE fist ( globenv )
   CALL xstring ( setup % coord_file_name, ia, ib )
   project_name = setup % coord_file_name ( ia : ib )
 
-! initialize working units
-  CALL set_units ( setup % unit_type, units )
-
+!!!!!! Needs to be integrated into cp2k_units.F
 !..1.0e-15 because convert_unit expects time in [fs]^-1 not [s]^-1
-  simpar % pimd_params % wp = 1.0e-15_dbl * SQRT ( 1.0_dbl * beads ) * twopi * &
-                              simpar % temp_ext * boltzmann / h_planck
-  simpar % pimd_params % beta = 1.0_dbl / simpar % temp_ext
-
-  CALL convert ( units = units, simpar = simpar, &
-                 potparm = potparm,  &
-                 intra_param = intra_param,  &
-                 ewald_param = ewald_param )
+!  simpar % pimd_params % wp = 1.0e-15_dbl * SQRT ( 1.0_dbl * beads ) * twopi * &
+!                              simpar % temp_ext * boltzmann / h_planck
+!  simpar % pimd_params % beta = 1.0_dbl / simpar % temp_ext
+!!!!!! Needs to be integrated into cp2k_units.F
 
 ! Filling up the replica environment one bead at a time
   DO ibead = 1, beads
@@ -340,14 +332,6 @@ SUBROUTINE fist ( globenv )
     rep_env ( ibead ) % box => cell
     rep_env ( ibead ) % box_ref => cell_ref
 
-! dbg TEMPORARY FIX
-    rep_env ( ibead ) % box_ref % hmat = setup % reference_cell % hmat
-    rep_env ( ibead ) % box % unit_of_length_name = "ANGSTROM"
-    rep_env ( ibead ) % box % unit_of_length = 1.0_dbl
-    rep_env ( ibead ) % box % scaled_coordinates = .FALSE.
-    rep_env ( ibead ) % box % subcells = simpar % subcells
-! dbg TEMPORARY FIX
-
 ! If run is a debug.  Make box_ref = box to work under
 ! all ensembles and restart options
     IF ( setup % run_type == 'DEBUG' ) THEN
@@ -358,11 +342,6 @@ SUBROUTINE fist ( globenv )
 
     CALL allocmem ( mol_setup, rep_env ( ibead ), globenv )
 
-!..convert the units ( includes part and box ONLY when read_type is 'INIT' )
-    IF ( simpar % read_type == 'INIT' ) &
-    CALL convert ( units = units, part = rep_env ( ibead ) % part, &
-                   box = rep_env ( ibead ) % box )
-
 !..calculate the inverse box matrix now after the unit conversion,
 !  so it also has the right units and assign the reference box
     CALL get_hinv ( rep_env ( ibead ) % box )
@@ -372,11 +351,10 @@ SUBROUTINE fist ( globenv )
     CALL get_hinv ( rep_env ( ibead ) % box_ref )
 
 !..initialize molecule_type
-    CALL initialize_molecule_type ( mol_setup, intra_param, &
-                                    rep_env ( ibead ) % pnode, &
+    CALL initialize_molecule_type ( mol_setup, rep_env ( ibead ) % pnode, &
                                     rep_env ( ibead ) % part, &
                                     rep_env ( ibead ) % molecule, &
-                                    globenv )
+                                    globenv, intra_param )
 
 !..initialize local_particles
     CALL mol_local_particles_create ( &
@@ -443,10 +421,6 @@ SUBROUTINE fist ( globenv )
     CALL initialize_nhc_forces ( nhc_part, nhc_baro )
   END DO
 
-  CALL set_fist_energies_param ( units % pconv, units % econv, units % l_label, &
-       units % vol_label, units % e_label, units % pres_label, &
-       units % temp_label, units % angl_label )
-
 !...initialize splines
 
   potparm ( :, : ) % energy_cutoff = 0.0_dbl
@@ -478,7 +452,7 @@ SUBROUTINE fist ( globenv )
   CALL set_fist_env ( fist_env, pimd, rep_env, ewald_param, potparm, thermo )
 
 ! begin the MD process
-  CALL control_work ( globenv, units, simpar, fist_env, md_env, extended_type, &
+  CALL control_work ( globenv, simpar, fist_env, md_env, extended_type, &
                       setup, mdio )
 
 ! deallocate memory for atoms and molecules
@@ -493,14 +467,13 @@ END SUBROUTINE fist
 ! FIST FIST FIST FIST FIST FIST FIST FIST FIST FIST FIST FIST FIST FIST FIST  !
 !-----------------------------------------------------------------------------!
 
-SUBROUTINE control_work ( globenv, units, simpar, fist_env, md_env, &
+SUBROUTINE control_work ( globenv, simpar, fist_env, md_env, &
                           extended_type, setup, mdio )
   
   IMPLICIT NONE
   
 ! Arguments
   TYPE ( global_environment_type ), INTENT ( INOUT ) :: globenv
-  TYPE ( unit_convert_type ) :: units
   TYPE ( simulation_parameters_type ), POINTER :: simpar
   TYPE ( fist_environment_type ), POINTER :: fist_env 
   TYPE ( md_environment_type ), INTENT(inout) :: md_env
@@ -560,7 +533,7 @@ SUBROUTINE control_work ( globenv, units, simpar, fist_env, md_env, &
      
   CASE ( "MD" )
      
-     CALL control_md_work ( globenv, fist_env, md_env, units, mdio )
+     CALL control_md_work ( globenv, fist_env, md_env, mdio )
      
   END SELECT
 
@@ -598,7 +571,7 @@ END SUBROUTINE control_debug_work
 
 !******************************************************************************
 
-SUBROUTINE control_md_work ( globenv, fist_env, md_env, units, mdio )
+SUBROUTINE control_md_work ( globenv, fist_env, md_env, mdio )
   
   IMPLICIT NONE
   
@@ -606,7 +579,6 @@ SUBROUTINE control_md_work ( globenv, fist_env, md_env, units, mdio )
   TYPE ( global_environment_type ), INTENT ( INOUT ) :: globenv
   TYPE ( fist_environment_type ), POINTER :: fist_env
   TYPE ( md_environment_type ), INTENT ( INOUT ) :: md_env
-  TYPE ( unit_convert_type ) :: units
   TYPE ( mdio_parameters_type ) :: mdio
   
 ! Locals
@@ -639,8 +611,7 @@ SUBROUTINE control_md_work ( globenv, fist_env, md_env, units, mdio )
                           fist_env % thermo % e_gspace,                &
                           fist_env % thermo % e_self,                  &
                           fist_env % thermo % e_neut,                  &
-                          fist_env % thermo % e_bonded,                &
-                          units % e_label )
+                          fist_env % thermo % e_bonded )
   
   IF ( fist_env % pimd ) CALL fr2fu ( md_env % struc, md_env % simpar )
 

@@ -22,6 +22,8 @@ MODULE ewalds
 
   USE atomic_kind_types, ONLY : atomic_kind_type, get_atomic_kind
   USE coefficient_types, ONLY : coeff_type
+  USE convert_units, ONLY : convert_to_cp2k_units
+  USE cp2k_units, ONLY : unit_convert_type, get_cp2k_units
   USE dgs, ONLY : dg_pme_grid_setup
   USE dg_types, ONLY : dg_type
   USE dg_rho0s, ONLY : dg_rho0_setup
@@ -378,27 +380,30 @@ END FUNCTION ewald_correction
 !!   SOURCE
 !******************************************************************************
 
-SUBROUTINE ewald_print ( iw, box, e_gspace, e_self, e_neut, e_bonded, e_label )
+SUBROUTINE ewald_print ( iw, box, e_gspace, e_self, e_neut, e_bonded )
 
   IMPLICIT NONE
 
 ! Arguments
   INTEGER, INTENT ( IN ) :: iw
   TYPE ( cell_type ), INTENT ( IN ) :: box
-  CHARACTER ( LEN = * ), INTENT ( IN ) :: e_label
   REAL ( dbl ), INTENT ( IN ) :: e_gspace, e_self, e_neut, e_bonded
 
+! locals
+  TYPE ( unit_convert_type ), POINTER :: units
+
 !------------------------------------------------------------------------------
+  CALL get_cp2k_units ( units )
 
   WRITE ( iw, '( A, A )' ) ' *********************************', &
        '**********************************************'
   WRITE ( iw, '( A, A, T35, A, T66, E15.7 )' ) ' INITIAL GSPACE ENERGY', &
-       e_label, '= ', e_gspace
+       units % e_label, '= ', e_gspace
   WRITE ( iw, '( A, A, T35, A, T66, E15.7 )' ) ' SELF ENERGY CORRECTION', &
-       e_label, '= ', e_self
-  WRITE ( iw, '( A, A, T35, A, T66, E15.7 )' ) ' NEUT. BACKGROUND', e_label, &
+       units % e_label, '= ', e_self
+  WRITE ( iw, '( A, A, T35, A, T66, E15.7 )' ) ' NEUT. BACKGROUND', units % e_label, &
        '= ', e_neut / box % deth
-  WRITE ( iw, '( A, A, T35, A, T66, E15.7 )' ) ' BONDED CORRECTION', e_label, &
+  WRITE ( iw, '( A, A, T35, A, T66, E15.7 )' ) ' BONDED CORRECTION', units % e_label, &
        '= ', e_bonded
   WRITE ( iw, '( A, A )' ) ' *********************************', &
        '**********************************************'
@@ -464,7 +469,7 @@ SUBROUTINE ewald_initialize ( dg, part, pnode, pnode_grp, ewald_param, box, &
 
        WRITE ( iw, '( A,T67,A14 )' ) ' Ewald| Summation is done by:', &
             ADJUSTR(ewald_param % ewald_type)
-       WRITE ( iw, '( A,T71,F10.4 )' ) ' Ewald| Alpha parameter [A]', &
+       WRITE ( iw, '( A,A8,T71,F10.4 )' ) ' Ewald| Alpha parameter [',ewald_param % unit_type,']', &
             ewald_param % alpha
 
        SELECT CASE ( ewald_param % ewald_type )
@@ -482,6 +487,7 @@ SUBROUTINE ewald_initialize ( dg, part, pnode, pnode_grp, ewald_param, box, &
           WRITE ( iw, '( A,T71,I10 )' ) &
                ' Ewald| Spline interpolation order ', ewald_param % o_spline
        END SELECT
+       CALL convert_to_cp2k_units ( ewald_param = ewald_param )
 
     ELSE
 

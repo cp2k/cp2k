@@ -36,11 +36,15 @@ MODULE message_passing
   PRIVATE
 
   PUBLIC :: mp_start, mp_end, mp_world_setup, mp_group, mp_cart_create, &
-       mp_bcast, mp_stop, mp_sum, mp_max, mp_min, mp_sync, mp_environ, &
+       mp_bcast, mp_stop, mp_sum, mp_max, mp_minloc,mp_min, mp_sync, mp_environ, &
        mp_gather, mp_comm_compare, mp_cart_coords, mp_rank_compare, &
        mp_alltoall, mp_dims_create, mp_cart_rank, mp_cart_sub, mp_comm_free, &
        mp_comm_dup, mp_cart_shift, mp_sendrecv, mp_range, mp_allgather, &
        mp_sum_scatter, mp_abort, mp_shift
+
+  INTERFACE mp_minloc
+     MODULE PROCEDURE mp_minloc_rv
+  END INTERFACE
 
   INTERFACE mp_shift
      MODULE PROCEDURE mp_shift_im, mp_shift_r1, mp_shift_rm
@@ -1579,6 +1583,30 @@ SUBROUTINE mp_max_r(msg,gid)
   mp_perf ( 3 ) % time = mp_perf ( 3 ) % time + ( t_end - t_start )
 #endif
 END SUBROUTINE mp_max_r
+
+SUBROUTINE mp_minloc_rv(msg,gid)
+  IMPLICIT NONE
+  REAL ( dbl ), INTENT ( INOUT ) :: msg ( : )
+  INTEGER, INTENT ( IN ) :: gid
+  INTEGER :: msglen, ierr
+  REAL ( dbl ), ALLOCATABLE :: res ( : )
+#if defined(__parallel)
+  t_start = m_cputime ( )
+  msglen = size(msg)
+  ALLOCATE (res(1:msglen),STAT=ierr)
+  IF ( ierr /= 0 ) CALL mp_stop( 0, "allocate @ mp_max_rv" )
+  CALL mpi_allreduce(msg,res,1,MPI_2DOUBLE_PRECISION,MPI_MINLOC,gid, &
+       ierr)
+  msg = res
+  DEALLOCATE (res)
+  IF ( ierr /= 0 ) CALL mp_stop( ierr, "mpi_allreduce @ mp_max_rv" )
+  mp_perf ( 3 ) % count = mp_perf ( 3 ) % count + 1
+  mp_perf ( 3 ) % msg_size = mp_perf ( 3 ) % msg_size + msglen * reallen
+  t_end = m_cputime ( )
+  mp_perf ( 3 ) % time = mp_perf ( 3 ) % time + ( t_end - t_start )
+#endif
+END SUBROUTINE mp_minloc_rv
+
 SUBROUTINE mp_max_rv(msg,gid)
   IMPLICIT NONE
   REAL ( dbl ), INTENT ( INOUT ) :: msg ( : )

@@ -24,6 +24,7 @@
 
 MODULE force_fields
 
+  USE convert_units, ONLY : convert_to_cp2k_units
   USE kinds, ONLY : dbl
   USE global_types, ONLY : global_environment_type
   USE input_types, ONLY : setup_parameters_type
@@ -36,7 +37,7 @@ MODULE force_fields
        p_error, get_next, stop_parser, search_label
   USE string_utilities, ONLY : uppercase, xstring, str_search,  &
        str_comp, make_tuple
-  USE termination, ONLY : stop_memory, stop_program
+  USE termination, ONLY : stop_memory
 
   IMPLICIT NONE
 
@@ -84,6 +85,11 @@ SUBROUTINE read_force_field_section ( setup, set_fn, intra_param, &
 
 ! Locals
   INTEGER :: ios, iw, natom_type
+  INTEGER :: ierror, ilen
+  LOGICAL :: units_set = .FALSE.
+  CHARACTER ( LEN = 20 ) :: string
+  CHARACTER ( LEN = 12 ) :: label
+  CHARACTER ( LEN = 9 ) :: units
 
 !------------------------------------------------------------------------------
 
@@ -96,30 +102,66 @@ SUBROUTINE read_force_field_section ( setup, set_fn, intra_param, &
 !..start the parser
   CALL parser_init(set_fn,globenv_input)
 
+!..parse the input section for units
+  label = '&FORCE_FIELD'
+  CALL search_label ( label, ierror, ignore_case=.TRUE. )
+  IF (ierror /= 0 ) THEN
+     IF (globenv%ionode .AND. globenv%print_level >= 2) THEN
+        WRITE ( iw, '( A )' ) ' No input section &FORCE_FIELD found on file '
+        WRITE ( iw, '( T2, A )' ) set_fn
+     END IF
+  ELSE
+     CALL read_line
+     DO WHILE ( test_next() /= 'X' )
+        ilen = 20
+        CALL get_next ( string, ilen )
+        CALL uppercase ( string )
+        SELECT CASE ( string )
+        CASE ( 'UNITS' )
+           ilen = 20
+           CALL get_next ( units, ilen )
+           CALL uppercase ( units )
+           units_set = .TRUE.
+           EXIT
+        END SELECT
+        CALL read_line
+     END DO
+  END IF
+  CALL parser_end ()
+
+  IF ( units_set ) THEN 
+    CALL parser_init(set_fn,globenv_input)
+
 !..read in non-bonded interaction information
-  ALLOCATE (potparm(natom_type,natom_type),STAT=ios)
-  IF ( ios /= 0 ) CALL stop_memory ( 'fist_input', &
+    ALLOCATE (potparm(natom_type,natom_type),STAT=ios)
+    IF ( ios /= 0 ) CALL stop_memory ( 'fist_input', &
        'potparm', natom_type ** 2 )
-  CALL input_nonbonded(potparm,setup % atom_names,set_fn)
+    CALL input_nonbonded(units,potparm,setup % atom_names,set_fn)
 
 !..read the bond parameters
-  NULLIFY (intra_param % bond_param)
-  CALL input_bonds(intra_param % bond_param,set_fn)
+    NULLIFY (intra_param % bond_param)
+    CALL input_bonds(units,intra_param % bond_param,set_fn)
 
 !..read the bend parameters
-  NULLIFY (intra_param % bend_param)
-  CALL input_bends(intra_param % bend_param,set_fn)
+    NULLIFY (intra_param % bend_param)
+    CALL input_bends(units,intra_param % bend_param,set_fn)
 
 !..read the torsion parameters
-  NULLIFY (intra_param % torsion_param)
-  CALL input_torsions(intra_param % torsion_param,set_fn)
+    NULLIFY (intra_param % torsion_param)
+    CALL input_torsions(units,intra_param % torsion_param,set_fn)
 
 !..read the distance constraint parameters
-  NULLIFY (intra_param % constraint_distance)
-  CALL input_distance_constraints ( intra_param % constraint_distance, set_fn )
+    NULLIFY (intra_param % constraint_distance)
+    CALL input_distance_constraints (units, intra_param % constraint_distance, set_fn )
 
 !..end the parser session
-  CALL parser_end()
+    CALL parser_end()
+! 
+    CALL convert_to_cp2k_units ( unit_char = units, potparm = potparm, intra_param = intra_param )
+  ELSE
+    CALL p_error()
+    CALL stop_parser( 'read_force_field_section','UNITS not specified')
+  ENDIF
 
 END SUBROUTINE read_force_field_section
 
@@ -153,12 +195,13 @@ END SUBROUTINE read_force_field_section
 !!   SOURCE
 !******************************************************************************
 
-SUBROUTINE input_nonbonded ( potparm, atom_names, set_fn )
+SUBROUTINE input_nonbonded (energy_unit, potparm, atom_names, set_fn )
 
   IMPLICIT NONE
 
 ! Arguments
   TYPE (potentialparm_type ), INTENT ( INOUT ) :: potparm ( :, : )
+  CHARACTER ( LEN = * ), INTENT ( IN ) :: energy_unit
   CHARACTER ( LEN = * ), INTENT ( IN ) :: atom_names ( : )
   CHARACTER ( LEN = * ), INTENT ( IN ) :: set_fn
 
@@ -171,8 +214,14 @@ SUBROUTINE input_nonbonded ( potparm, atom_names, set_fn )
   CHARACTER ( LEN = 12 ) :: label
   REAL ( dbl ) :: epsilon, sigma, rcut, a, b, c, c0, c1, c2, d
   REAL ( dbl ) :: vr0, dc, m, mc
+  CHARACTER ( LEN = 8 ) :: length_unit
 
 !------------------------------------------------------------------------------
+
+  IF ( energy_unit == 'KCAL' ) length_unit = 'ANGSTROM'
+  IF ( energy_unit == 'HARTREE' ) length_unit = 'BOHR'
+  IF ( energy_unit == 'AU' ) length_unit = 'BOHR'
+  IF ( energy_unit == 'ATOMIC' ) length_unit = 'BOHR'
 
   natom_types = SIZE ( atom_names )
   np = 0
@@ -303,41 +352,41 @@ SUBROUTINE input_nonbonded ( potparm, atom_names, set_fn )
 !..write some information to output
   IF (globenv%ionode) THEN
      IF (globenv % print_level>=0 .AND. np>0) THEN
-        WRITE ( iw, '( A )' ) ' FORCE FIELD| Non-bonded interaction parameters'
+        WRITE ( iw, '( A,A )' ) ' FORCE FIELD| Non-bonded interaction parameters in ', energy_unit
         DO i1 = 1, natom_types
            DO i2 = i1, natom_types
               IF (potparm(i1,i2)%type=='LENNARD-JONES') THEN
                  WRITE ( iw, '( A,A,T30,A,T37,A,T58,A,T71,F10.4 )' ) &
                       ' FORCE FIELD| ', 'LJ (12-6)', &
                       adjustl(atom_names(i1)), adjustl(atom_names(i2)), &
-                      ' epsilon [K]', potparm(i1,i2) %lj%epsilon
+                      ' epsilon ', potparm(i1,i2) %lj%epsilon
                  WRITE ( iw, '( A,T58,A,T71,F10.4 )' ) ' FORCE FIELD| ', &
-                      '   sigma [A]', (potparm(i1,i2)%lj%sigma6)**(1./6.)
+                      '   sigma ', (potparm(i1,i2)%lj%sigma6)**(1./6.)
                  WRITE ( iw, '( A,T58,A,T71,F10.4 )' ) ' FORCE FIELD| ', &
-                      '    rcut [A]', sqrt(potparm(i1,i2)%rcutsq)
+                      '    rcut ', sqrt(potparm(i1,i2)%rcutsq)
               ELSE IF (potparm(i1,i2)%type=='WILLIAMS') THEN
                  WRITE ( iw, '( A,A,T30,A,T37,A,T55,A,T68,E13.4 )' ) &
                       ' FORCE FIELD| ', 'Williams', adjustl(atom_names(i1)), &
-                      adjustl(atom_names(i2)), 'A[K]', potparm(i1,i2) %willis%a
+                      adjustl(atom_names(i2)), 'A', potparm(i1,i2) %willis%a
                  WRITE ( iw, '( A,T47,A,T71,F10.4 )' ) ' FORCE FIELD| ', &
-                      '    B [A^-1]', potparm(i1,i2) %willis%b
+                      '    B', potparm(i1,i2) %willis%b
                  WRITE ( iw, '( A,T47,A,T68,E13.4 )' ) ' FORCE FIELD| ', &
-                      '   C [K A^6]', potparm(i1,i2) %willis%c
+                      '   C', potparm(i1,i2) %willis%c
                  WRITE ( iw, '( A,T47,A,T71,F10.4 )' ) ' FORCE FIELD| ', &
-                      '    rcut [A]', sqrt(potparm(i1,i2)%rcutsq)
+                      '    rcut ', sqrt(potparm(i1,i2)%rcutsq)
               ELSE IF (potparm(i1,i2)%type=='GOODWIN') THEN
                  WRITE ( iw, '( A,A,T30,A,T37,A,T55,A,T68,E13.4 )' ) &
                       ' FORCE FIELD| ', 'Goodwin', adjustl(atom_names(i1)), &
-                      adjustl(atom_names(i2)), 'Ve0[eV]', &
+                      adjustl(atom_names(i2)), 'Ve0', &
                       potparm(i1,i2) %goodwin%vr0
                  WRITE ( iw, '( A,T44,A,T61,2F10.4 )' ) ' FORCE FIELD| ', &
-                      '  d,dc [A]', potparm(i1,i2) %goodwin%d, &
+                      '  d,dc ', potparm(i1,i2) %goodwin%d, &
                       potparm(i1,i2) %goodwin%dc
                  WRITE ( iw, '( A,T44,A,T61,2F10.4 )' ) ' FORCE FIELD| ', &
                       '  m,mc   ', potparm(i1,i2) %goodwin%m, &
                       potparm(i1,i2) %goodwin%mc
                  WRITE ( iw, '( A,T44,A,T71,F10.4 )' ) ' FORCE FIELD| ', &
-                      '  rcut [A]', sqrt(potparm(i1,i2)%rcutsq)
+                      '  rcut', sqrt(potparm(i1,i2)%rcutsq)
               END IF
            END DO
         END DO
@@ -381,11 +430,12 @@ END SUBROUTINE input_nonbonded
 !!   SOURCE
 !******************************************************************************
 
-SUBROUTINE input_bonds(bond_parm,set_fn)
+SUBROUTINE input_bonds(energy_unit,bond_parm,set_fn)
   IMPLICIT NONE
 
 ! Arguments
   TYPE (bond_parameters_type ), POINTER :: bond_parm ( : )
+  CHARACTER ( LEN = * ), INTENT ( IN ) :: energy_unit
   CHARACTER ( LEN = * ), INTENT ( IN ) :: set_fn
 
 ! Locals
@@ -449,14 +499,14 @@ SUBROUTINE input_bonds(bond_parm,set_fn)
 !..write some information to output
   IF ( globenv % ionode ) THEN
      IF (globenv % print_level>=0 .AND. nb>0) THEN
-        WRITE ( iw, '( A )' ) ' FORCE FIELD| Bond interaction parameters'
+        WRITE ( iw, '( A,A )' ) ' FORCE FIELD| Bond interaction parameters in ', energy_unit
         DO i = 1, nb
           IF (index(bond_parm(i)%type,'HARMONIC') /= 0 ) THEN
                  WRITE ( iw, '( A, T30, A, I5, T58, A, T71, F10.2 )' ) &
                       ' FORCE FIELD| harmonic', ' bond nr. ',i,&
-                      '      r0 [A]', bond_parm ( i ) % r0
+                      '      r0 ', bond_parm ( i ) % r0
                  WRITE ( iw, '( A, T58, A, T71, F10.2 )' ) ' FORCE FIELD| ', &
-                      ' k [K*A^-2)]', bond_parm ( i ) % k
+                      ' k ', bond_parm ( i ) % k
           END IF
         END DO
         WRITE ( iw, '( )' )
@@ -499,12 +549,13 @@ END SUBROUTINE input_bonds
 !!   SOURCE
 !******************************************************************************
 
-SUBROUTINE input_bends ( bend_parm, set_fn )
+SUBROUTINE input_bends ( energy_unit, bend_parm, set_fn )
 
   IMPLICIT NONE
 
 ! Arguments
   TYPE (bend_parameters_type ), POINTER  :: bend_parm(:)
+  CHARACTER ( LEN = * ), INTENT ( IN ) :: energy_unit
   CHARACTER ( LEN = * ), INTENT ( IN ) :: set_fn
 
 ! Locals
@@ -569,14 +620,14 @@ SUBROUTINE input_bends ( bend_parm, set_fn )
 !..write some information to output
   IF ( globenv % ionode ) THEN
      IF (globenv % print_level>=0 .AND. nb>0) THEN
-        WRITE ( iw, '( A )' ) ' FORCE FIELD| Bend interaction parameters'
+        WRITE ( iw, '( A, A )' ) ' FORCE FIELD| Bend interaction parameters in ', energy_unit
         DO i = 1, nb
            IF (index(bend_parm(i)%type,'HARMONIC') /= 0 ) THEN
               WRITE ( iw, '( A,T30,A,I5,T58,A,T71,F10.2 )' ) &
                    ' FORCE FIELD| harmonic', ' bend nr ',i, &
-                   'theta0 [deg]', bend_parm(i) %theta0*todeg
+                   'theta0 ', bend_parm(i) %theta0*todeg
               WRITE ( iw, '( A,T58,A,T71,F10.2 )' ) ' FORCE FIELD| ', &
-                   '       k [K]', bend_parm(i) %k
+                   '       k ', bend_parm(i) %k
            END IF
         END DO
         WRITE ( iw, '( )' )
@@ -620,12 +671,13 @@ END SUBROUTINE input_bends
 !!   SOURCE
 !******************************************************************************
 
-SUBROUTINE input_torsions ( torsion_parm, set_fn )
+SUBROUTINE input_torsions ( energy_unit,  torsion_parm, set_fn )
 
   IMPLICIT NONE
 
 ! Arguments
   TYPE ( torsion_parameters_type ), POINTER :: torsion_parm ( : )
+  CHARACTER ( LEN = * ), INTENT ( IN ) :: energy_unit
   CHARACTER ( LEN = * ), INTENT ( IN ) :: set_fn
 
 ! Locals
@@ -688,19 +740,19 @@ SUBROUTINE input_torsions ( torsion_parm, set_fn )
 !..write some information to output
   IF ( globenv % ionode ) THEN
      IF ( globenv % print_level >= 0 .AND. nb > 0 ) THEN
-        WRITE ( iw, '( A )' ) &
-             ' FORCE FIELD| Torsion interaction parameters'
+        WRITE ( iw, '( A, A )' ) &
+             ' FORCE FIELD| Torsion interaction parameters in ', energy_unit
         DO i = 1, nb
            IF ( index ( torsion_parm(i) % type, 'JORGENSEN' ) /= 0 ) THEN
               WRITE ( iw, '( A, T30, A, i5, T58, A, T71, F10.2 )' ) &
                 ' FORCE FIELD| Jorgensen', ' torsion nr ',i, &
-                            '      a0 [K]', torsion_parm ( i ) % a(0)
+                            '      a0 ', torsion_parm ( i ) % a(0)
                        WRITE ( iw, '( A, T58, A, T71, F10.2 )' ) ' FORCE FIELD| ', &
-                            '      a1 [K]', torsion_parm ( i ) % a(1)
+                            '      a1 ', torsion_parm ( i ) % a(1)
                        WRITE ( iw, '( A, T58, A, T71, F10.2 )' ) ' FORCE FIELD| ', &
-                            '      a2 [K]', torsion_parm ( i ) % a(2)
+                            '      a2 ', torsion_parm ( i ) % a(2)
                        WRITE ( iw, '( A, T58, A, T71, F10.2 )' ) ' FORCE FIELD| ', &
-                            '      a3 [K]', torsion_parm ( i ) % a(3)
+                            '      a3 ', torsion_parm ( i ) % a(3)
            END IF
         END DO
         WRITE ( iw, '( )' )
@@ -740,12 +792,13 @@ END SUBROUTINE input_torsions
 !!   SOURCE
 !******************************************************************************
 
-SUBROUTINE input_distance_constraints ( constraint_distance, set_fn )
+SUBROUTINE input_distance_constraints ( energy_unit, constraint_distance, set_fn )
 
   IMPLICIT NONE
 
 ! Arguments
   REAL ( dbl ), POINTER :: constraint_distance ( : )
+  CHARACTER ( LEN = * ), INTENT ( IN ) :: energy_unit
   CHARACTER ( LEN = * ), INTENT ( IN ) :: set_fn
 
 ! Locals
@@ -787,7 +840,7 @@ SUBROUTINE input_distance_constraints ( constraint_distance, set_fn )
 !..write some information to output
   IF ( globenv % ionode ) THEN
      IF ( globenv % print_level >= 0 .AND. nb > 0 ) THEN
-        WRITE ( iw, '( A )' ) ' FORCE FIELD| Distance constraints '
+        WRITE ( iw, '( A, A )' ) ' FORCE FIELD| Distance constraints in ', energy_unit
         DO i = 1, nb
           IF ( constraint_distance ( i ) /= 0.0_dbl ) THEN
             WRITE ( iw, '( A, T30, A, T37, I6, T71, F10.4 )' ) &

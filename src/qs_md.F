@@ -22,7 +22,6 @@
 MODULE qs_md
   USE atoms_input,                     ONLY: read_md_restart
   USE checkpoint_handler,              ONLY: write_checkpoint_information
-  USE convert_units,                   ONLY: convert
   USE cp_error_handling,               ONLY: cp_a_l,&
                                              cp_assert,&
                                              cp_assertion_failed,&
@@ -53,7 +52,7 @@ MODULE qs_md
                                              initialize_nhc_part,&
                                              initialize_npt_type,&
                                              initialize_nhc_forces
-  USE initialize_molecule_types,       ONLY: initialize_molecule_type
+!  USE initialize_molecule_types,       ONLY: initialize_molecule_type
   USE input_types,                     ONLY: setup_parameters_type
   USE integrator,                      ONLY: set_integrator
   USE kinds,                           ONLY: int_size,&
@@ -71,13 +70,11 @@ MODULE qs_md
                                              destroy_md_env, &
                                              zero_virial
   USE md_qs_energies,                  ONLY: md_energy_qs,&
-                                             set_qs_energies,&
-                                             set_qs_energies_param
+                                             set_qs_energies
   USE molecule_types,                  ONLY: intra_parameters_type,&
                                              molecule_structure_type,&
                                              molecule_type,&
-                                             particle_node_type,&
-                                             topology_type
+                                             particle_node_type
   USE particle_types,                  ONLY: particle_type
   USE qs_energy,                       ONLY: qs_energies
   USE qs_energy_types,                 ONLY: qs_energy_type
@@ -96,9 +93,7 @@ MODULE qs_md
                                              stop_program
   USE timings,                         ONLY: timeset,&
                                              timestop
-  USE unit,                            ONLY: set_units,&
-                                             unit_convert_type
-  USE util,                            ONLY: get_share
+! cjm   USE util,                            ONLY: get_share
 
   USE velocity_verlet_control,         ONLY: velocity_verlet
   IMPLICIT NONE
@@ -146,8 +141,6 @@ CONTAINS
     TYPE(md_environment_type)   :: md_env
     TYPE(mdio_parameters_type)  :: mdio
     TYPE(setup_parameters_type) :: setup
-    TYPE(topology_type)         :: topo
-    TYPE(unit_convert_type)     :: units
 
     TYPE(cell_type), POINTER                  :: cell
     TYPE(cell_type), POINTER                  :: cell_ref
@@ -192,20 +185,14 @@ CONTAINS
     CALL read_md_section(simpar,globenv,mdio)
     simpar%program = globenv%program_name
 
-! dbg
-    setup % unit_type = "ATOMIC"
-! dbg
-    CALL set_units(setup%unit_type,units)
-    CALL convert(units, simpar=simpar)
-
     ! activate the interpolation
     CALL wfi_create(wf_history, &
          interpolation_method_nr=simpar%qs_md_param%wf_interpolation_method_nr,&
          error=error)
     CALL set_qs_env (qs_env, wf_history=wf_history, error=error)
 
-    CALL get_qs_env(qs_env=qs_env,&
-                    cell=cell,&
+    CALL get_qs_env(qs_env=qs_env, cell=cell,  &
+                    pnode = pnode, molecule = molecule, &
                     particle_set=particle_set,energy=energy)
 
 ! Define a reference cell for compatibility with MD restarts
@@ -214,25 +201,25 @@ CONTAINS
 !================ THIS NEEDS TO BE MOVED TO QS_ENV===================
     ! just to get a working parallel version.
     ! clearly a full clean-up of fist/qs/kg is needed 
-    natom = SIZE ( particle_set )
-    nmoltype = SIZE ( mol_setup )
-    nmol = 0
-    nnodes = 0
-    DO i = 1, nmoltype
-       nsh = get_share ( mol_setup ( i ) % num_mol, &
-            globenv % num_pe, globenv % mepos )
-       nmol = nmol + nsh
-       nnodes = nnodes + nsh * mol_setup ( i ) % molpar % natom
-    END DO
-    ALLOCATE (pnode(nnodes),STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routine,"pnode",int_size*natom)
-    ALLOCATE (molecule(nmol),STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routine,"molecule",int_size*nmolecule)
-
-
-    CALL initialize_molecule_type( mol_setup,intra_param,pnode,&
-                                   particle_set,molecule,globenv )
-    CALL set_qs_env ( qs_env, molecule = molecule, error = error )
+!    natom = SIZE ( particle_set )
+!    nmoltype = SIZE ( mol_setup )
+!    nmol = 0
+!    nnodes = 0
+!    DO i = 1, nmoltype
+!       nsh = get_share ( mol_setup ( i ) % num_mol, &
+!            globenv % num_pe, globenv % mepos )
+!       nmol = nmol + nsh
+!       nnodes = nnodes + nsh * mol_setup ( i ) % molpar % natom
+!    END DO
+!    ALLOCATE (pnode(nnodes),STAT=istat)
+!    IF (istat /= 0) CALL stop_memory(routine,"pnode",int_size*natom)
+!    ALLOCATE (molecule(nmol),STAT=istat)
+!    IF (istat /= 0) CALL stop_memory(routine,"molecule",int_size*nmolecule)
+!
+!
+!    CALL initialize_molecule_type( mol_setup,intra_param,pnode,&
+!                                   particle_set,molecule,globenv )
+!    CALL set_qs_env ( qs_env, molecule = molecule, error = error )
 !================ THIS NEEDS TO BE MOVED TO QS_ENV===================
 
     ALLOCATE (extended_type%nhc_part(1),STAT=istat)
@@ -302,10 +289,6 @@ CONTAINS
     itimes = 0
 
     CALL set_qs_energies ( globenv, mdio )
-
-    CALL set_qs_energies_param ( units % pconv, units % econv, units % l_label, &
-       units % vol_label, units % e_label, units % pres_label, &
-       units % temp_label, units % angl_label )
 
     ! the verlet integrator needs to be started with the correct forces alreay initialized
     CALL force_env_calculate_force ( md_env%force_env, globenv, box_change = .FALSE. )

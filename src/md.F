@@ -21,6 +21,9 @@
 MODULE md
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                              get_atomic_kind
+  USE convert_units,                   ONLY: convert_to_cp2k_units
+  USE cp2k_units,                      ONLY: unit_convert_type,      &
+                                             get_cp2k_units
   USE global_types,                    ONLY: global_environment_type
   USE kinds,                           ONLY: dbl
   USE message_passing,                 ONLY: mp_bcast
@@ -49,7 +52,7 @@ MODULE md
   PRIVATE
   PUBLIC :: read_md_section, simulation_parameters_type, &
             initialize_velocities, mdio_parameters_type, &
-            virial_type, qs_md_parameters_type
+            virial_type, qs_md_parameters_type, simpar_units_type
 
   TYPE virial_type
      REAL ( dbl ), DIMENSION ( 3, 3 ) :: pv_total, pv_kinetic, pv_virial, pv_constraint
@@ -87,6 +90,11 @@ MODULE md
 !!***
 !****************************************************************************
 
+  TYPE simpar_units_type 
+      CHARACTER ( LEN = 8 ) :: time, tau,            &
+                               verlet_skin, tau_cell,&
+                               tau_coef, press
+  END TYPE 
 
   TYPE simulation_parameters_type
      INTEGER :: nsteps
@@ -121,6 +129,7 @@ MODULE md
      REAL ( dbl ) :: verlet_skin
      TYPE ( pimd_parameters_type ) :: pimd_params
      TYPE ( qs_md_parameters_type ) :: qs_md_param
+     TYPE ( simpar_units_type ) :: units
   END TYPE simulation_parameters_type
 
   TYPE mdio_parameters_type
@@ -205,7 +214,7 @@ CONTAINS
 !!I   pressure    "filename.ptens"  &                                         I
 !!I   energies    "filename.ener"   &                                         I
 !!I   temperature "filename.temp"   &                                         I
-!!I   dump        "filename.dum"                                              I
+!!I   dump        "filename.restart"                                          I
 !!I PRINT                           &                                         I
 !!I   screen       iscreen          &                                         I
 !!I   files        ifiles           &                                         I
@@ -238,6 +247,12 @@ SUBROUTINE read_md_section ( simpar, mdpar, mdio )
 !------------------------------------------------------------------------------
 
 !..defaults
+  simpar % units % time = 'FS'
+  simpar % units % press = 'BAR'
+  simpar % units % tau = 'FS'
+  simpar % units % tau_coef = 'FS'
+  simpar % units % tau_cell = 'FS'
+  simpar % units % verlet_skin = 'ANGSTROMS'
   simpar % ensemble = 'NVE'
   simpar % ensemble_coef = 'NVE'
   simpar % type_of_coef = 'AO'
@@ -276,7 +291,7 @@ SUBROUTINE read_md_section ( simpar, mdpar, mdio )
   mdio % ener_file_name = mdpar % project_name(ia:ie) // '.ener'
   mdio % pot_file_name = mdpar % project_name(ia:ie) // '.pot'
   mdio % temp_file_name = mdpar % project_name(ia:ie) // '.temp'
-  mdio % dump_file_name = mdpar % project_name(ia:ie) // '.dump'
+  mdio % dump_file_name = mdpar % project_name(ia:ie) // '.restart'
   mdio % coef_file_name = mdpar % project_name(ia:ie) // '.coef'
 
 !..print frequency
@@ -332,12 +347,26 @@ SUBROUTINE read_md_section ( simpar, mdpar, mdio )
 
         CASE ( 'VERLET' )
            CALL get_next ( simpar % verlet_skin )
+           IF ( test_next () == 'C' ) THEN
+             CALL get_next ( simpar % units % verlet_skin, ilen )
+           ELSE
+              simpar % units % verlet_skin = 'AU'
+           ENDIF
+           CALL uppercase ( simpar % units % verlet_skin )
+           IF ( simpar % units % verlet_skin == 'ANGSTR' ) &
+           simpar % units % verlet_skin = 'ANGSTROM'
 
         CASE ( 'SUBCEL' )
            CALL get_next ( simpar % subcells )
 
         CASE ( 'TIMEST' )
            CALL get_next ( simpar % dt )
+           IF ( test_next () == 'C' ) THEN
+             CALL get_next ( simpar % units % time, ilen )
+           ELSE
+              simpar % units % time = 'FS'
+           ENDIF
+           CALL uppercase ( simpar % units % time )
 
         CASE ( 'TEMPER' )
            CALL get_next ( simpar % temp_ext )
@@ -388,6 +417,12 @@ SUBROUTINE read_md_section ( simpar, mdpar, mdio )
                  CALL get_next ( simpar % nyosh )
               CASE ( 'TIMECO' )
                  CALL get_next ( simpar % tau_nhc )
+                 IF ( test_next () == 'C' ) THEN
+                   CALL get_next ( simpar % units % tau, ilen )
+                 ELSE
+                    simpar % units % tau = '1/CM'
+                 ENDIF
+                 CALL uppercase ( simpar % units % tau )
               CASE ( 'MTS' )
                  CALL get_next ( simpar % nc )
               END SELECT
@@ -416,6 +451,12 @@ SUBROUTINE read_md_section ( simpar, mdpar, mdio )
                  CALL get_next ( simpar % nyosh_coef )
               CASE ( 'TIMECO' )
                  CALL get_next ( simpar % tau_nhc_coef )
+                 IF ( test_next () == 'C' ) THEN
+                   CALL get_next ( simpar % units % tau_coef, ilen )
+                 ELSE
+                    simpar % units % tau_coef = '1/CM'
+                 ENDIF
+                 CALL uppercase ( simpar % units % tau_coef )
               CASE ( 'MTS' )
                  CALL get_next ( simpar % nc_coef )
               END SELECT
@@ -436,8 +477,20 @@ SUBROUTINE read_md_section ( simpar, mdpar, mdio )
                       'unknown suboption' )
               CASE ( 'TIMECO' )
                  CALL get_next ( simpar % tau_cell )
+                 IF ( test_next () == 'C' ) THEN
+                   CALL get_next ( simpar % units % tau_cell, ilen )
+                 ELSE
+                    simpar % units % tau_cell = '1/CM'
+                 ENDIF
+                 CALL uppercase ( simpar % units % tau_cell )
               CASE ( 'PRESSU' )
                  CALL get_next ( simpar % p_ext )
+                 IF ( test_next () == 'C' ) THEN
+                   CALL get_next ( simpar % units % press, ilen )
+                 ELSE
+                    simpar % units % press = 'BAR'
+                 ENDIF
+                 CALL uppercase ( simpar % units % press )
               END SELECT
            END DO
 
@@ -462,7 +515,7 @@ SUBROUTINE read_md_section ( simpar, mdpar, mdio )
                  mdio % ener_file_name = string(1:ilen) // '.ener'
                  mdio % pot_file_name = string(1:ilen) // '.pot'
                  mdio % temp_file_name = string(1:ilen) // '.temp'
-                 mdio % dump_file_name = string(1:ilen) // '.dump'
+                 mdio % dump_file_name = string(1:ilen) // '.restart'
                  mdio % coef_file_name = string(1:ilen) // '.coef'
               CASE ( 'COORDI' )
                  ilen = 0
@@ -619,28 +672,28 @@ SUBROUTINE read_md_section ( simpar, mdpar, mdio )
           ADJUSTR ( simpar % read_type )
      WRITE ( iw, '( A,T71,I10 )' ) ' MD| Number of Time Steps ', &
           simpar % nsteps
-     WRITE ( iw, '( A,T71,F10.2 )' ) ' MD| Time Step [fs] ', simpar % dt
+     WRITE ( iw, '( A,A2,A,T71,F10.2 )' ) ' MD| Time Step [',simpar % units % time,'] ', simpar % dt
      WRITE ( iw, '( A,T71,F10.2 )' ) ' MD| Temperature [K] ', &
           simpar % temp_ext
-     WRITE ( iw, '( A,T71,F10.2 )' ) &
-          ' MD| Verlet buffer skin [Angstrom] ', simpar % verlet_skin
+     WRITE ( iw, '( A,A8,A,T71,F10.2 )' ) &
+          ' MD| Verlet buffer skin [',simpar % units % verlet_skin,'] ', simpar % verlet_skin
      IF ( ( simpar % ensemble ( 1:3 ) == 'NVT' ) &
           .OR. (simpar % ensemble ( 1:3 ) == 'NPT' ) ) THEN
         WRITE ( iw, '( A )' ) ' MD| Nose-Hoover-Chain parameters '
         WRITE ( iw, '( A,T77,I4 )' ) ' MD| Nose-Hoover-Chain length ', &
              simpar % nhclen
-        WRITE ( iw, '( A,T71,F10.4 )' ) &
-             ' MD| Nose-Hoover-Chain time constant [fs] ', simpar % tau_nhc
+        WRITE ( iw, '( A,A4,A,T71,F10.4 )' ) &
+             ' MD| Nose-Hoover-Chain time constant [',simpar % units % tau,'] ', simpar % tau_nhc
         WRITE ( iw, '( A,T77,I4 )' ) ' MD| Order of Yoshida integrator ', &
              simpar % nyosh
         WRITE ( iw, '( A,T77,I4 )' ) ' MD| Number of multiple time steps', &
              simpar % nc
      END IF
      IF ( simpar % ensemble ( 1:3 ) == 'NPT' ) THEN
-        WRITE ( iw, '( A, T71, F10.2 )' ) &
-             ' MD| Pressure [bar] ', simpar % p_ext
-        WRITE ( iw, '( A, T71, F10.4 )' ) &
-             ' MD| Barostat time constant [fs] ', simpar % tau_cell
+        WRITE ( iw, '( A,A3,A, T71, F10.2 )' ) &
+             ' MD| Pressure [',simpar % units % press,'] ', simpar % p_ext
+        WRITE ( iw, '( A,A4,A, T71, F10.4 )' ) &
+             ' MD| Barostat time constant [',simpar % units % tau_cell,'] ', simpar % tau_cell
      END IF
      IF ( simpar % constraint ) THEN
         WRITE ( iw, '( A )' ) ' MD| Constraints activated '
@@ -659,8 +712,8 @@ SUBROUTINE read_md_section ( simpar, mdpar, mdio )
        WRITE ( iw, '( A )' ) ' MD| Coef Nose-Hoover-Chain parameters '
        WRITE ( iw, '( A,T77,I4 )' ) ' MD| Coef Nose-Hoover-Chain length ', &
             simpar %nhclen_coef
-       WRITE ( iw, '( A,T71,F10.4 )' ) &
-            ' MD| Coef Nose-Hoover-Chain time constant [fs] ', simpar % tau_nhc_coef
+       WRITE ( iw, '( A,A4,A,T71,F10.4 )' ) &
+            ' MD| Coef Nose-Hoover-Chain time constant [',simpar % units % tau_coef,'] ', simpar % tau_nhc_coef
        WRITE ( iw, '( A,T77,I4 )' ) ' MD| Coef Order of Yoshida integrator ', &
             simpar % nyosh_coef
        WRITE ( iw, '( A,T77,I4 )' ) ' MD| Coef Number of multiple time steps', &
@@ -687,6 +740,15 @@ SUBROUTINE read_md_section ( simpar, mdpar, mdio )
           ADJUSTR ( mdio % dump_file_name ( 1:50 ) )
      WRITE (iw,*)
   END IF
+
+  CALL convert_to_cp2k_units ( simpar % units % time, time = simpar % dt ) 
+  CALL convert_to_cp2k_units ( temperature = simpar % temp_ext ) 
+  CALL convert_to_cp2k_units ( temperature = simpar % temp_coef ) 
+  CALL convert_to_cp2k_units ( simpar % units % tau, tau_nhc = simpar % tau_nhc ) 
+  CALL convert_to_cp2k_units ( simpar % units % tau_coef, tau_nhc = simpar % tau_nhc_coef ) 
+  CALL convert_to_cp2k_units ( simpar % units % tau_cell, tau_nhc = simpar % tau_cell ) 
+  CALL convert_to_cp2k_units ( simpar % units % press, pressure = simpar % p_ext ) 
+  CALL convert_to_cp2k_units ( simpar % units % verlet_skin, length = simpar % verlet_skin ) 
 
 END SUBROUTINE read_md_section
 
@@ -732,6 +794,7 @@ SUBROUTINE initialize_velocities ( simpar, part, mdpar )
   REAL ( dbl ) :: akin, temp
   LOGICAL :: domdec
   TYPE (atomic_kind_type), POINTER :: atomic_kind
+  TYPE ( unit_convert_type ), POINTER :: unit
 
 !------------------------------------------------------------------------------
 
@@ -747,6 +810,8 @@ SUBROUTINE initialize_velocities ( simpar, part, mdpar )
   denom = 0.0_dbl
   natoms = SIZE ( part )
 
+  CALL get_cp2k_units ( unit ) 
+
 ! initializing velocities
   IF (mdpar % ionode) THEN
      DO i = 1, natoms
@@ -757,7 +822,7 @@ SUBROUTINE initialize_velocities ( simpar, part, mdpar )
      akin = 0.0_dbl
      DO i = 1, natoms
         atomic_kind => part (i) % atomic_kind
-        CALL get_atomic_kind (atomic_kind=atomic_kind, mass=mass)
+        CALL get_atomic_kind ( atomic_kind = atomic_kind, mass = mass )
         akin = akin + 0.5_dbl *  &
          ( mass * part ( i ) % v ( 1 ) * part ( i ) % v ( 1 ) )
         akin = akin + 0.5_dbl *  &
@@ -770,11 +835,22 @@ SUBROUTINE initialize_velocities ( simpar, part, mdpar )
 
 ! scale velocities to get the correct initial temperature
      sc = SQRT ( simpar % temp_ext / temp )
+     akin = 0.0_dbl
      DO i = 1, natoms
-        part(i) % v(1) = sc*part(i) % v(1)
-        part(i) % v(2) = sc*part(i) % v(2)
-        part(i) % v(3) = sc*part(i) % v(3)
+        part ( i ) % v (1) = sc*part(i) % v(1)
+        part ( i ) % v (2) = sc*part(i) % v(2)
+        part ( i ) % v (3) = sc*part(i) % v(3)
+        atomic_kind => part (i) % atomic_kind
+        CALL get_atomic_kind (atomic_kind=atomic_kind, mass=mass)
+        akin = akin + 0.5_dbl *  &
+         ( mass * part ( i ) % v ( 1 ) * part ( i ) % v ( 1 ) )
+        akin = akin + 0.5_dbl *  &
+         ( mass * part ( i ) % v ( 2 ) * part ( i ) % v ( 2 ) )
+        akin = akin + 0.5_dbl *  &
+         ( mass * part ( i ) % v ( 3 ) * part ( i ) % v ( 3 ) )
      END DO
+
+     temp = 2.0_dbl * akin / REAL ( simpar % nfree, dbl )
 
 ! Computing the COM velocities
      DO i = 1, natoms
@@ -792,7 +868,7 @@ SUBROUTINE initialize_velocities ( simpar, part, mdpar )
         atomic_kind => part (i) % atomic_kind
         CALL get_atomic_kind (atomic_kind=atomic_kind, mass=mass)
         part(i) % v ( : ) = part(i) % v ( : ) - vcom ( : )
-        SUM ( : ) = SUM ( : ) + mass*part(i) % v ( : )
+        SUM ( : ) = SUM ( : ) + mass * part(i) % v ( : )
      END DO
   END IF
 
@@ -803,6 +879,8 @@ SUBROUTINE initialize_velocities ( simpar, part, mdpar )
 #endif
 
   IF ( mdpar % ionode .AND. mdpar % print_level > 1 ) THEN
+     WRITE ( iw, '( A, T69, E12.6 )' ) &
+          ' Initial Temperature ', temp / unit % kelvin 
      WRITE ( iw, '( A, T69, E12.6 )' ) &
           ' Centre of mass velocity in direction x:', SUM ( 1 )
      WRITE ( iw, '( A, T69, E12.6 )' ) &

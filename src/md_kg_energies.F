@@ -22,6 +22,8 @@
 
 MODULE md_kg_energies
   
+  USE cp2k_units,                        ONLY : unit_convert_type, &
+                                                get_cp2k_units
   USE coefficient_types,                 ONLY : coeff_type
   USE extended_system_dynamics,          ONLY : lnhc_parameters_type
   USE global_types,                      ONLY : global_environment_type
@@ -47,18 +49,15 @@ MODULE md_kg_energies
   IMPLICIT NONE
 
   PRIVATE
-  PUBLIC :: set_kg_energies, set_kg_energies_param, md_energy_kg
+  PUBLIC :: set_kg_energies, md_energy_kg
 
   TYPE average_quantities_type
      REAL ( dbl ) :: avetemp, avepot, avekin, avecore, avexc, avehartree, avebc
      REAL ( dbl ) :: avepress, avekinc, avetempc
   END TYPE average_quantities_type
 
-  CHARACTER ( LEN = 10 ) :: pres_label, e_label, temp_label
-  CHARACTER ( LEN = 10 ) :: l_label, vol_label, angl_label
   REAL ( dbl ) :: econs_avg
   REAL ( dbl ) :: ecore_avg, ehartree_avg, exc_avg
-  REAL ( dbl ) :: p_conv, temp_conv
   TYPE (average_quantities_type ) :: averages
 
   LOGICAL :: ionode
@@ -70,6 +69,7 @@ MODULE md_kg_energies
   INTEGER :: icrd, ivel, ipot, iener, itemp, idump, icoef, iscreen
 
   TYPE ( global_environment_type ) :: glob_env
+  TYPE ( unit_convert_type ), POINTER :: unit
 
 !******************************************************************************
 
@@ -131,46 +131,9 @@ SUBROUTINE set_kg_energies ( globenv, mdio )
   idump = mdio % idump
   iscreen = mdio % iscreen
 
+  CALL get_cp2k_units ( unit )
+
 END SUBROUTINE set_kg_energies
-
-!******************************************************************************
-!!****** md_kg_energies/set_kg_energies_params [1.0] *
-!!
-!!   NAME
-!!     set_kg_energies_param
-!!
-!!   FUNCTION
-!!
-!!   AUTHOR
-!!     CJM
-!!
-!!   MODIFICATION HISTORY
-!!     none
-!!
-!!   SOURCE
-!******************************************************************************
-
-SUBROUTINE set_kg_energies_param ( pconv, tempconv, l, vol, e, pres, temp, angl )
-
-  IMPLICIT NONE
-
-! Arguments
-  REAL ( dbl ), INTENT ( IN ), OPTIONAL :: pconv, tempconv
-  CHARACTER ( LEN = 10 ), INTENT ( IN ), OPTIONAL :: l, vol, e
-  CHARACTER ( LEN = 10 ), INTENT ( IN ), OPTIONAL :: pres, temp, angl
-
-!------------------------------------------------------------------------------
-
-  IF ( PRESENT ( pconv ) ) p_conv = pconv
-  IF ( PRESENT ( tempconv ) ) temp_conv = tempconv
-  IF ( PRESENT ( l ) ) l_label = l
-  IF ( PRESENT ( vol ) ) vol_label = vol
-  IF ( PRESENT ( e ) ) e_label = e
-  IF ( PRESENT ( pres ) ) pres_label = pres
-  IF ( PRESENT ( temp ) ) temp_label = temp
-  IF ( PRESENT ( angl ) ) angl_label = angl
-
-END SUBROUTINE set_kg_energies_param
 
 !******************************************************************************
 !!****** md_kg_energies/md_energy_kg [1.0] *
@@ -265,9 +228,7 @@ SUBROUTINE md_energy_kg ( md_env, thermo )
                                       ekin=thermo%kin, temp=temp )                          
   END IF
 
-!GT to be changed?
-  temp=temp/temp_conv
-!GT to be changed?
+  temp=temp / unit % kelvin
 
   IF (ionode .AND. mod(itimes,itemp)==0) THEN
      WRITE (tem, *) itimes, temp
@@ -286,9 +247,7 @@ SUBROUTINE md_energy_kg ( md_env, thermo )
   END IF
 
   IF ( ASSOCIATED ( struc % coef_vel  ) ) THEN
-!GT to be changed?
-    temp_coefs=temp_coefs/temp_conv
-!GT to be changed?
+    temp_coefs = temp_coefs / unit % kelvin
     IF (ionode .AND. mod(itimes,icoef)==0) THEN
       SELECT CASE ( struc % coef_pos ( 1 ) % in_use )
       CASE ( 402 )
@@ -367,33 +326,33 @@ SUBROUTINE md_energy_kg ( md_env, thermo )
      WRITE ( iw, '( A,A )' ) ' ******************************** ', &
           'GO CP2K GO! **********************************'
      WRITE ( iw, '( A,A,T40,A,T65,1(1X,E15.7) )' ) ' INITIAL TOTAL POT ENERGY', &
-          adjustl(e_label), '= ', thermo%pot
+          adjustl(unit % e_label), '= ', thermo%pot
      WRITE ( iw, '( A,A,T40,A,T65,1(1X,E15.7) )' ) ' INITIAL BOND CORRECT ENERGY', &
-          adjustl(e_label), '= ', thermo%e_bond_corr
+          adjustl(unit % e_label), '= ', thermo%e_bond_corr
      WRITE ( iw, '( A,A,T40,A,T65,1(1X,E15.7) )' ) ' INITIAL K+XC ENERGY', &
-          adjustl(e_label), '= ', thermo%e_xc
+          adjustl(unit % e_label), '= ', thermo%e_xc
      WRITE ( iw, '( A,A,T40,A,T65,1(1X,E15.7) )' ) ' INITIAL HARTREE ENERGY', &
-          adjustl(e_label), '= ', thermo%e_hartree
+          adjustl(unit % e_label), '= ', thermo%e_hartree
      WRITE ( iw, '( A,A,T40,A,T65,1(1X,E15.7) )' ) ' INITIAL CORE OVLP ENERGY', &
-          adjustl(e_label), '= ', thermo%e_rspace_core
+          adjustl(unit % e_label), '= ', thermo%e_rspace_core
      WRITE ( iw, '( A,A,T40,A,T65,1(1X,E15.7) )' ) ' SELF-ENERGY', &
-          adjustl(e_label), '= ', thermo%e_self
+          adjustl(unit % e_label), '= ', thermo%e_self
      WRITE ( iw, '( A,A,T40,A,T65,1(1X,E15.7) )' ) ' INITIAL KINETIC ENERGY', &
-          adjustl(e_label), '= ', thermo%kin
+          adjustl(unit % e_label), '= ', thermo%kin
      WRITE ( iw, '( A,A,T40,A,T65,1(1X,E15.7) )' ) ' INITIAL TEMPERATURE', &
-          adjustl(temp_label), '= ', temp
+          adjustl(unit % temp_label), '= ', temp
      IF  ( ASSOCIATED ( struc % coef_vel  ) ) THEN 
        WRITE ( iw, '( A,A,T40,A,T65,1(1X,E15.7) )' ) ' INITIAL COEF KINETIC ENERGY', &
-            adjustl(e_label), '= ', ekin_coefs
+            adjustl(unit % e_label), '= ', ekin_coefs
        WRITE ( iw, '( A,A,T40,A,T65,1(1X,E15.7) )' ) ' INITIAL COEF TEMPERATURE', &
-            adjustl(temp_label), '= ', temp_coefs
+            adjustl(unit % temp_label), '= ', temp_coefs
      END IF 
      WRITE ( iw, '( A,A,T40,A,T65,1(1X,E15.7) )' ) ' INITIAL VOLUME', &
-          adjustl(vol_label), '= ', box%deth
+          adjustl(unit % vol_label), '= ', box%deth
      WRITE ( iw, '( A,A,T29,A,T33,3(1X,E15.7) )' ) ' INITIAL CELL LNTHS', &
-          adjustl(l_label), '= ', cell(1), cell(2), cell(3)
+          adjustl(unit % l_label), '= ', cell(1), cell(2), cell(3)
      WRITE ( iw, '( A,A,T29,A,T33,3(1X,E15.7) )' ) ' INITIAL CELL ANGLS', &
-          adjustl(angl_label), '= ', ang(3), ang(2), ang(1)
+          adjustl(unit % angl_label), '= ', ang(3), ang(2), ang(1)
      WRITE ( iw, '( A,A )' ) ' ******************************** ', &
           'GO CP2K GO! **********************************'
   END IF
@@ -414,24 +373,24 @@ SUBROUTINE md_energy_kg ( md_env, thermo )
      WRITE ( iw, '( A,T49,2(1X,E15.7) )' ) ' {E-E0}/E0                    = ', &
           econs, econs_avg/real(itimes)
      WRITE ( iw, '( A,A,T31,A,T49,2(1X,E15.7) )' ) ' TOTAL POT ENERGY', &
-          adjustl(e_label), '= ', thermo%pot, averages%avepot
+          adjustl(unit % e_label), '= ', thermo%pot, averages%avepot
      WRITE ( iw, '( A,A,T31,A,T49,2(1X,E15.7) )' ) ' BOND CORRECT ENERGY', &
-          adjustl(e_label), '= ', thermo%e_bond_corr, averages%avebc
+          adjustl(unit % e_label), '= ', thermo%e_bond_corr, averages%avebc
      WRITE ( iw, '( A,A,T31,A,T49,2(1X,E15.7) )' ) ' K+XC ENERGY', &
-          adjustl(e_label), '= ', thermo%e_xc, averages%avexc
+          adjustl(unit % e_label), '= ', thermo%e_xc, averages%avexc
      WRITE ( iw, '( A,A,T31,A,T49,2(1X,E15.7) )' ) ' CORE OVLP ENERGY', &
-          adjustl(e_label), '= ', thermo%e_rspace_core, averages%avecore
+          adjustl(unit % e_label), '= ', thermo%e_rspace_core, averages%avecore
      WRITE ( iw, '( A,A,T31,A,T49,2(1X,E15.7) )' ) ' HARTREE   ENERGY', &
-          adjustl(e_label), '= ', thermo%e_hartree, averages%avehartree
+          adjustl(unit % e_label), '= ', thermo%e_hartree, averages%avehartree
      WRITE ( iw, '( A,A,T31,A,T49,2(1X,E15.7) )' ) ' KINETIC ENERGY', &
-          adjustl(e_label), '= ', thermo%kin, averages%avekin
+          adjustl(unit % e_label), '= ', thermo%kin, averages%avekin
      WRITE ( iw, '( A,A,T31,A,T49,2(1X,E15.7) )' ) ' TEMPERATURE', &
-          adjustl(temp_label), '= ', temp, averages%avetemp
+          adjustl(unit % temp_label), '= ', temp, averages%avetemp
      IF  ( ASSOCIATED ( struc % coef_vel ) ) THEN 
        WRITE ( iw, '( A,A,T31,A,T49,2(1X,E15.7) )' ) ' COEF KINETIC ENERGY', &
-            adjustl(e_label), '= ', ekin_coefs,  averages%avekinc
+            adjustl(unit % e_label), '= ', ekin_coefs,  averages%avekinc
        WRITE ( iw, '( A,A,T31,A,T49,2(1X,E15.7) )' ) ' COEF TEMPERATURE', &
-            adjustl(temp_label), '= ', temp_coefs, averages%avetempc
+            adjustl(unit % temp_label), '= ', temp_coefs, averages%avetempc
      END IF
      WRITE ( iw, '( A,A )' ) ' **************************************', &
           '*****************************************'

@@ -124,33 +124,45 @@ SUBROUTINE read_topology_control (mol_setup,setup,globenv)
       !-----------------------------------------------------------------------
       !Read in the coordinates first PDB
       IF(setup%coordinate) THEN
-        CALL read_coordinate_pdb (r,label_resname,label_atmname,&
-                                  setup,globenv)
-        CALL topology_generate_bond(r,label_atmname,bond_a,bond_b,&
-                                    atm_mass,atm_charge)
-        CALL topology_generate_bend(bond_a,bond_b,theta_a,theta_b,theta_c)
-        CALL topology_generate_dihe(theta_a,theta_b,theta_c,&
-                                    phi_a,phi_b,phi_c,phi_d)
-        natom = SIZE(r(1,:))
-        nbond = SIZE(bond_a)
-        ALLOCATE (map_mol_typ(natom),STAT=ierr)
-          IF(ierr/=0) CALL stop_memory &
-            ('read_topology_psf','map_mol_typ',natom)
-        ALLOCATE (map_mol_num(natom),STAT=ierr)
-          IF(ierr/=0) CALL stop_memory &
-            ('read_topology_psf','map_mol_num',natom)
-        CALL topology_generate_molecule(natom,label_resname,nbond,&
-                                        bond_a,bond_b,&
-                                        map_mol_typ,map_mol_num)
-        CALL topology_pack(bond_a,bond_b,theta_a,theta_b,theta_c,&
-                           phi_a,phi_b,phi_c,phi_d,&
-                           label_atmname,label_resname,atm_mass,atm_charge,&
-                           map_mol_typ,map_mol_num,&
-                           mol_setup,setup,globenv)
+        SELECT CASE (setup%coordinate_type)
+        CASE ("PDB")
+          CALL read_coordinate_pdb (r,label_resname,label_atmname,&
+                                    setup,globenv)
+        CASE ("CHM")
+          !CALL read_coordinate_chm (r,label_resname,label_atmname,&
+          !                          setup,globenv)
+          CALL stop_program (" read_topology_control ",&
+                             "chm coordinate readin not implemented yet")
+        CASE DEFAULT
+          CALL stop_program (" read_topology_control ",&
+                             "Unknown type of coordinate file")
+        END SELECT
       ELSE
         CALL stop_program ("read_topology_control",&
                            "setup%coordinate is .FALSE.")
       END IF
+
+      CALL topology_generate_bond(setup%cell,r,label_atmname,bond_a,bond_b,&
+                                  atm_mass,atm_charge)
+      CALL topology_generate_bend(bond_a,bond_b,theta_a,theta_b,theta_c)
+      CALL topology_generate_dihe(theta_a,theta_b,theta_c,&
+                                  phi_a,phi_b,phi_c,phi_d)
+      natom = SIZE(r(1,:))
+      nbond = SIZE(bond_a)
+      ALLOCATE (map_mol_typ(natom),STAT=ierr)
+        IF(ierr/=0) CALL stop_memory &
+          ('read_topology_psf','map_mol_typ',natom)
+      ALLOCATE (map_mol_num(natom),STAT=ierr)
+        IF(ierr/=0) CALL stop_memory &
+          ('read_topology_psf','map_mol_num',natom)
+      CALL topology_generate_molecule(natom,label_resname,nbond,&
+                                      bond_a,bond_b,&
+                                      map_mol_typ,map_mol_num)
+      CALL topology_pack(bond_a,bond_b,theta_a,theta_b,theta_c,&
+                         phi_a,phi_b,phi_c,phi_d,&
+                         label_atmname,label_resname,atm_mass,atm_charge,&
+                         map_mol_typ,map_mol_num,&
+                         mol_setup,setup,globenv)
       !CALL stop_program ("read_topology_control ","checkpointfile")
       !-----------------------------------------------------------------------
     CASE DEFAULT
@@ -199,6 +211,7 @@ SUBROUTINE read_coordinate_control (particle_set,atomic_kind_set,mol_setup,&
   CHARACTER (LEN=20), POINTER :: label_resname(:),label_atmname(:)
   REAL(dbl), DIMENSION(:,:), POINTER :: r
   INTEGER :: iw, ierr
+  INTEGER :: i, natom
 
   iw = globenv%scr
 
@@ -225,8 +238,10 @@ SUBROUTINE read_coordinate_control (particle_set,atomic_kind_set,mol_setup,&
       !                          setup,globenv)
       !CALL topology_coord_pack (r,label_atmname,particle_set,&
       !                          atomic_kind_set,mol_setup,setup,globenv)
+      CALL stop_program (" read_coordinate_control ",&
+                         "Not implemented yet...")
     CASE DEFAULT
-      CALL stop_program (" read_coordinate_file ",&
+      CALL stop_program (" read_coordinate_control ",&
                          "Unknown type of coordinate file")
     END SELECT
   END IF

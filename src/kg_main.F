@@ -25,7 +25,7 @@ MODULE kg_main
                                              read_md_restart
   USE cntl_input,                      ONLY: read_cntl_section
   USE coefficient_types,               ONLY: coeff_type
-  USE convert_units,                   ONLY: convert
+  USE cp2k_units,                      ONLY: init_cp2k_units
   USE dft_types,                       ONLY: dft_control_type,&
                                              read_dft_control,&
                                              read_kg_control,&
@@ -78,8 +78,7 @@ MODULE kg_main
                                              set_md_env,&
                                              zero_virial
   USE md_kg_energies,                  ONLY: md_energy_kg,&
-                                             set_kg_energies,&
-                                             set_kg_energies_param
+                                             set_kg_energies
   USE molecule_input,                  ONLY: read_molecule_section,&
                                              read_setup_section,&
                                              read_topology_section
@@ -110,8 +109,6 @@ MODULE kg_main
   USE timings,                         ONLY: timeset,&
                                              timestop,&
                                              trace_debug
-  USE unit,                            ONLY: set_units,&
-                                             unit_convert_type
   USE util,                            ONLY: close_unit,&
                                              get_share
   USE velocity_verlet_control,         ONLY: velocity_verlet
@@ -195,7 +192,6 @@ SUBROUTINE kg ( globenv )
   TYPE ( setup_parameters_type ) :: setup
   TYPE ( kg_thermodynamic_type ), POINTER :: thermo
   TYPE ( topology_type ) :: topo
-  TYPE ( unit_convert_type ) :: units
   TYPE ( virial_type ), POINTER :: virial
 
 !------------------------------------------------------------------------------
@@ -203,6 +199,8 @@ SUBROUTINE kg ( globenv )
 ! IF( globenv % ionode ) CALL trace_debug ( "START" )
 
   CALL timeset ( 'KG_INIT', 'I', ' ', handle2 )
+  
+  CALL init_cp2k_units ()
 
   NULLIFY ( kg_env )
   ALLOCATE ( kg_env, STAT = isos )
@@ -282,19 +280,9 @@ SUBROUTINE kg ( globenv )
   CALL read_md_section ( simpar, globenv, mdio )
   simpar % program = globenv % program_name
 
-! initialize working units
-  CALL set_units ( setup % unit_type, units )
-
-  CALL convert ( units = units, simpar = simpar, &
-                 intra_param = intra_param ) 
-
   CALL xstring ( setup % coord_file_name, ia, ib )
 
   project_name = setup % coord_file_name ( ia : ib )
-
-!*** Read &COORD section ***
-  CALL read_atoms_input ( particle_set, atomic_kind_set, &
-                          mol_setup, setup % atom_names, setup, globenv )
 
 !*** Read the input section with the cell parameters ***
 
@@ -303,6 +291,11 @@ SUBROUTINE kg ( globenv )
 !*** Print the cell parameters ***
 
   CALL write_cell ( box, globenv )
+
+!*** Read &COORD section ***
+  CALL read_atoms_input ( box % unit_of_length_name, particle_set, &
+                          atomic_kind_set, mol_setup, setup, globenv )
+
 
 ! Read the atomic kind set
   CALL read_atomic_kind_set(atomic_kind_set,globenv)
@@ -381,12 +374,6 @@ SUBROUTINE kg ( globenv )
   END IF
 !  CALL stop_program ( "kg_main", "not yet implemented " )
 
-!..convert the units ( includes part and box ONLY when read_type is 'INIT' )
-  IF ( simpar % read_type == 'INIT' ) &
-  CALL convert ( units = units, part = particle_set, &
-                   box = box )
-!..calculate the inverse box matrix now after the unit conversion,
-!  so it also has the right units and assign the reference box
   CALL get_hinv ( box )
   IF ( simpar % read_type == 'INIT' ) THEN
      box_ref = box
@@ -394,8 +381,8 @@ SUBROUTINE kg ( globenv )
   CALL get_hinv ( box_ref )
 
 !..initialize molecule_type
-  CALL initialize_molecule_type ( mol_setup, intra_param, pnode, &
-                                  particle_set, molecule, globenv) 
+  CALL initialize_molecule_type ( mol_setup, pnode,  particle_set,  &
+                                  molecule, globenv, intra_param) 
 
 !..allocate lnhc_parameters_type for particles and get
 !  number of degrees of freedom and initialize if necessary
@@ -427,10 +414,6 @@ SUBROUTINE kg ( globenv )
 
   CALL initialize_nhc_forces ( nhc_part, nhc_baro )
 
-  CALL set_kg_energies_param ( units % pconv, units % econv, units % l_label, &
-       units % vol_label, units % e_label, units % pres_label, &
-       units % temp_label, units % angl_label )
-
   CALL timestop ( zero, handle2 )
 
 ! set the fist_env
@@ -448,7 +431,7 @@ SUBROUTINE kg ( globenv )
   END IF
     
 ! begin the MD process
-  CALL control_work ( globenv, units, simpar, kg_env, md_env, extended_type, &
+  CALL control_work ( globenv, simpar, kg_env, md_env, extended_type, &
                       setup, mdio, energy_min, kgpol )
 
 ! deallocate memory for atoms and molecules
@@ -463,14 +446,13 @@ END SUBROUTINE kg
 !-----------------------------------------------------------------------------!
 !******************************************************************************
 
-SUBROUTINE control_work ( globenv, units, simpar, kg_env, md_env, &
+SUBROUTINE control_work ( globenv, simpar, kg_env, md_env, &
                           extended_type, setup, mdio, energy_min, kgpol )
 
   IMPLICIT NONE
 
 ! Arguments
   TYPE ( global_environment_type ), INTENT ( INOUT ) :: globenv
-  TYPE ( unit_convert_type ) :: units
   TYPE ( simulation_parameters_type ), POINTER :: simpar
   TYPE ( kg_environment_type ), POINTER :: kg_env
   TYPE ( md_environment_type ), INTENT ( INOUT ) :: md_env
@@ -541,11 +523,11 @@ SUBROUTINE control_work ( globenv, units, simpar, kg_env, md_env, &
 
   CASE ( "ENERGY" )
 
-     CALL control_energy_work ( globenv, kg_env, md_env, energy_min, units, mdio )
+     CALL control_energy_work ( globenv, kg_env, md_env, energy_min, mdio )
 
   CASE ( "MD" )
 
-     CALL control_md_work ( globenv, kg_env, md_env, units, mdio )
+     CALL control_md_work ( globenv, kg_env, md_env, mdio )
 
   END SELECT
 
@@ -582,7 +564,7 @@ END SUBROUTINE control_work
 !******************************************************************************
 
  SUBROUTINE control_energy_work ( globenv, kg_env, md_env, &
-                                  energy_min, units, mdio )
+                                  energy_min, mdio )
 
   IMPLICIT NONE
 
@@ -591,7 +573,6 @@ END SUBROUTINE control_work
   TYPE ( kg_environment_type ), INTENT ( INOUT ) :: kg_env
   TYPE ( md_environment_type ), INTENT ( INOUT ) :: md_env
   TYPE ( energy_min_type ), INTENT ( INOUT ) :: energy_min
-  TYPE ( unit_convert_type ) :: units
   TYPE ( mdio_parameters_type ) :: mdio
 
 ! Locals
@@ -648,7 +629,7 @@ END SUBROUTINE control_work
 
 !******************************************************************************
 
- SUBROUTINE control_md_work ( globenv, kg_env, md_env, units, mdio )
+ SUBROUTINE control_md_work ( globenv, kg_env, md_env, mdio )
 
   IMPLICIT NONE
 
@@ -656,7 +637,6 @@ END SUBROUTINE control_work
   TYPE ( global_environment_type ), INTENT ( INOUT ) :: globenv
   TYPE ( kg_environment_type ), INTENT ( INOUT ) :: kg_env
   TYPE ( md_environment_type ), INTENT ( INOUT ) :: md_env
-  TYPE ( unit_convert_type ) :: units
   TYPE ( mdio_parameters_type ) :: mdio
 
 ! Locals

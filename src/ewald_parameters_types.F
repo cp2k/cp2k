@@ -25,6 +25,7 @@ MODULE ewald_parameters_types
 
   TYPE ewald_parameters_type
     CHARACTER( LEN = 12 ) :: ewald_type  ! type of ewald
+    CHARACTER( LEN = 12 ) :: unit_type   !  unit_type
     REAL ( dbl ) :: alpha               ! ewald alpha
     REAL ( dbl ) :: eps0                ! permittivity constant
     REAL ( dbl ) :: epsilon             ! tolerance for small grid (PME)

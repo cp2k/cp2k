@@ -167,6 +167,8 @@ MODULE molecule_types
 
   TYPE molecule_structure_type
      CHARACTER ( LEN = 30 ) :: mol_name ! name of molecule
+     INTEGER :: nstates ! number of electronic states 
+     INTEGER, POINTER :: states ( : ) ! indicies of Kohn-Sham state for molecule
      INTEGER :: moltype ! pointer to molecular type
      INTEGER :: imol ! position counter
      INTEGER :: atombase ! position counter of first atom in molecule

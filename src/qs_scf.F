@@ -151,6 +151,8 @@ MODULE qs_scf
                                              mp_range,&
                                              mp_sum,&
                                              mp_sync
+  USE molecule_types,                  ONLY: molecule_structure_type
+  USE molecular_states,                ONLY: construct_molecular_states
   USE mulliken,                        ONLY: mulliken_charges
   USE pao_glob_angles_methods,         ONLY: pao_g_ang_get,&
                                              pao_g_ang_set
@@ -603,7 +605,6 @@ CONTAINS
 !   *** SCF loop ***
 
     scf_loop: DO
-
        CALL timeset("scf_iter","I","",handle2)
 
        IF (ionode) CALL m_flush(output_unit)
@@ -768,7 +769,6 @@ CONTAINS
        CALL qs_ks_did_change(ks_env,qs_env,rho_changed=.TRUE.,error=error)      
 
        CALL timestop(0.0_wp,handle2)
-
     END DO scf_loop
 
 !   *** Write restart file ***
@@ -1930,6 +1930,7 @@ CONTAINS
     TYPE(scf_control_type), POINTER :: scf_control
     TYPE(cp_fm_p_type), POINTER, DIMENSION(:) :: unoccupied_orbs
     TYPE(cp_fm_struct_type), POINTER :: fm_struct_tmp
+    TYPE ( molecule_structure_type ), POINTER :: molecule ( : ) 
     TYPE evals_p_type
          REAL(wp), DIMENSION(:), POINTER :: evals
     END TYPE
@@ -1955,7 +1956,7 @@ CONTAINS
     CPPrecondition(scf_env%ref_count>0,cp_failure_level,routineP,error,failure)
     CPPrecondition(ASSOCIATED(qs_env),cp_failure_level,routineP,error,failure)
     IF (.NOT. failure) THEN
-       CALL get_qs_env(qs_env,dft_control=dft_control,&
+       CALL get_qs_env(qs_env,dft_control=dft_control,molecule=molecule, &
             c=c,atomic_kind_set=atomic_kind_set,particle_set=particle_set,&
             rho=rho,k=ks_rmpv,scf_control=scf_control,s=s,cell=cell,error=error)
 
@@ -2026,7 +2027,7 @@ CONTAINS
        ENDIF
 
        IF ((globenv%print%homos .OR. globenv%print%lumos .OR. globenv%print%localization) &
-                   .AND. globenv%print%cubes) THEN
+                   .AND. globenv%print%cubes ) THEN
 ! gets the tmp grids
           CALL get_qs_env(qs_env=qs_env,pw_env=pw_env)
           CALL pw_env_get(pw_env, auxbas_pw_pool=auxbas_pw_pool,&
@@ -2081,7 +2082,7 @@ CONTAINS
        ENDIF
 
 !   *** Get localization info *** ! notice, computes this for whatever is in mo_eigenvectors
-!   in particular, will do it for the eigenstates if you switch on the HOMOS keyword
+!       in particular, will do it for the eigenstates if you switch on the HOMOS keyword
        IF (globenv%print%localization)THEN
           NULLIFY(qs_loc_env)
           ALLOCATE(qs_loc_env)
@@ -2106,11 +2107,18 @@ CONTAINS
              IF (globenv%ionode) WRITE(globenv%scr,*) ""
              IF (globenv%ionode) WRITE(globenv%scr,*) "Computing localization properties"
              IF (globenv%ionode) OPEN(UNIT=21,FILE=filename)
-             CALL qs_loc_compute_properties(qs_loc_env,mo_eigenvectors,globenv%ionode,21)
+             CALL qs_loc_compute_properties(qs_loc_env,molecule,mo_eigenvectors,globenv%ionode,21)
              IF (globenv%ionode) CLOSE(21)
              IF (globenv%ionode) WRITE(globenv%scr,*) "Results in ",filename
+! compute the molecular states
+             IF ( globenv % print % molecular_states ) &
+             CALL construct_molecular_states ( molecule, mo_eigenvectors, &
+                                            ks_rmpv ( ispin ) % matrix, &
+                                            globenv, pw_env, qs_env,    &
+                                            wf_r, wf_g, mgrid_rspace,   &
+                                            mgrid_gspace )
 ! write the wannier functions to cubes
-             IF (globenv%print%cubes) THEN
+             IF (globenv%print%cubes.AND. .NOT. globenv % print % molecular_states ) THEN
                 ! obviously we need a smarter scheme to select them. 
                 ! i.e. a center - molecule distance would be cool
                 DO ivector=1,1   
@@ -2169,7 +2177,7 @@ CONTAINS
                 IF (globenv%ionode) WRITE(globenv%scr,*) "Computing localization properties"
                 WRITE(filename,'(a13,I1.1)') "LUMO_CENTERS_",ispin
                 IF (globenv%ionode) OPEN(UNIT=21,FILE=filename)
-                CALL qs_loc_compute_properties(qs_loc_env,unoccupied_orbs(ispin)%matrix,globenv%ionode,21)
+                CALL qs_loc_compute_properties(qs_loc_env,molecule,unoccupied_orbs(ispin)%matrix,globenv%ionode,21)
                 IF (globenv%ionode) CLOSE(21)
                 IF (globenv%ionode) WRITE(globenv%scr,*) "Results in ",filename
              ENDIF
@@ -2449,6 +2457,8 @@ SUBROUTINE scf_env_did_change(scf_env,qs_env,s_mstruct_changed,error)
      END IF
   END IF
 END SUBROUTINE scf_env_did_change
+
+
 !***************************************************************************
 
 END MODULE qs_scf

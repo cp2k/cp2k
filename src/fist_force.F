@@ -200,6 +200,7 @@ SUBROUTINE fist_force_control ( rep_env, ewald_param, potparm, thermo, &
 ! first check with list_control to update neighbor lists
 !
   CALL list_control ( rep_env )
+
 !
 ! initial force, energy and pressure tensor arrays
 !

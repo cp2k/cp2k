@@ -32,9 +32,9 @@ MODULE qs_environment
                                              write_atomic_kind_set,&
                                              write_gto_basis_sets
   USE atoms_input,                     ONLY: read_atoms_input
+  USE cp2k_units,                      ONLY: init_cp2k_units
   USE checkpoint_handler,              ONLY: write_checkpoint_information
   USE cntl_input,                      ONLY: read_cntl_section
-  USE convert_units,                   ONLY: convert
   USE cp_error_handling,               ONLY: cp_a_l,&
                                              cp_assert,&
                                              cp_assertion_failed,&
@@ -73,6 +73,7 @@ MODULE qs_environment
   USE gamma,                           ONLY: init_md_ftable
   USE global_types,                    ONLY: global_environment_type
   USE input_types,                     ONLY: setup_parameters_type
+  USE initialize_molecule_types,       ONLY: initialize_molecule_type
   USE kinds,                           ONLY: int_size,&
                                              wp => dp
   USE machine,                         ONLY: m_flush
@@ -80,6 +81,8 @@ MODULE qs_environment
                                              read_setup_section,&
                                              read_topology_section
   USE molecule_types,                  ONLY: molecule_type, &
+                                             molecule_structure_type, &
+                                             particle_node_type, &
                                              topology_type
   USE orbital_pointers,                ONLY: init_orbital_pointers
   USE orbital_transformation_matrices, ONLY: init_spherical_harmonics
@@ -117,8 +120,7 @@ MODULE qs_environment
                                              stop_program
   USE timings,                         ONLY: timeset,&
                                              timestop
-  USE unit,                            ONLY: set_units,&
-                                             unit_convert_type
+  USE util,                            ONLY: get_share
   IMPLICIT NONE
 
   PRIVATE
@@ -162,6 +164,8 @@ CONTAINS
 !   *** Local variables ***
 
     TYPE(atomic_kind_type), DIMENSION(:), POINTER :: atomic_kind_set
+    TYPE ( particle_node_type ), DIMENSION ( : ), POINTER :: pnode
+    TYPE ( molecule_structure_type ), DIMENSION ( : ), POINTER :: molecule
     TYPE(cell_type), POINTER                      :: cell
     TYPE(dft_control_type), POINTER               :: dft_control
     TYPE(pao_env_type), POINTER                   :: pao_env
@@ -175,10 +179,10 @@ CONTAINS
     TYPE(cp_blacs_env_type), POINTER              :: blacs_env
     TYPE(cp_fm_struct_type), POINTER              :: fmstruct
     TYPE(mo_set_p_type), DIMENSION(:), POINTER    :: c
-    TYPE(unit_convert_type)                       :: units
     INTEGER :: handle,ikind,istat,maxl,maxlgto,maxlppl,maxlppnl,&
                nkind,multiplicity,output_unit,&
-               n_mo(2), n_ao, nelectron, ispin, nelectron_spin(2)
+               n_mo(2), n_ao, nelectron, ispin, nelectron_spin(2), &
+               natom, nmoltype, nnodes, nsh, nmol, i
     LOGICAL :: ionode, failure
     REAL(KIND=wp) :: maxocc
 
@@ -189,6 +193,8 @@ CONTAINS
     CALL write_checkpoint_information("entering "//routine_name,globenv)
 
     CALL timeset(routine_name,"I","",handle)
+   
+    CALL init_cp2k_units ()
 
     failure=.FALSE.
     ionode = globenv%ionode
@@ -234,11 +240,11 @@ CONTAINS
 
     CALL write_cell(cell,globenv)
 
+    setup%cell => cell
+
 ! read from the &CONTROL &SETUP and &MOLECULE section of *.set
 
     CALL read_cntl_section ( setup, globenv )
-
-    CALL set_units( setup % unit_type, units )
 
     CALL read_setup_section ( mol_setup, setup, globenv )
 
@@ -246,13 +252,8 @@ CONTAINS
 
     CALL read_topology_section ( topo, setup, globenv )
 
-!..read atomic coordinates 
-
-    CALL read_atoms_input ( particle_set, atomic_kind_set, &
-                            mol_setup, setup % atom_names, &
-                            setup, globenv )
-
-    CALL convert ( units, part = particle_set )
+    CALL read_atoms_input ( cell % unit_of_length_name, particle_set,  &
+                            atomic_kind_set, mol_setup, setup, globenv )
 
 !   *** Read the atomic kind information ***
 
@@ -312,6 +313,30 @@ CONTAINS
 
     CALL init_interaction_radii(dft_control%qs_control,cell,atomic_kind_set,&
                                 globenv)
+
+!================ THIS NEEDS TO BE FAWZI/JOOST-ifide===================
+    ! just to get a working parallel version.
+    ! clearly a full clean-up of fist/qs/kg is needed 
+    natom = SIZE ( particle_set )
+    nmoltype = SIZE ( mol_setup )
+    nmol = 0
+    nnodes = 0
+    DO i = 1, nmoltype
+       nsh = get_share ( mol_setup ( i ) % num_mol, &
+            globenv % num_pe, globenv % mepos )
+       nmol = nmol + nsh
+       nnodes = nnodes + nsh * mol_setup ( i ) % molpar % natom
+    END DO
+    ALLOCATE (pnode(nnodes),STAT=istat)
+    IF (istat /= 0) CALL stop_memory(routine,"pnode",int_size*natom)
+    ALLOCATE (molecule(nmol),STAT=istat)
+    IF (istat /= 0) CALL stop_memory(routine,"molecule",int_size*nmol)
+
+
+    CALL initialize_molecule_type ( mol_setup, pnode, particle_set, molecule, globenv )
+    CALL set_qs_env ( qs_env, pnode = pnode, molecule = molecule, error = error )
+!================ THIS NEEDS TO BE FAWZI/JOOST-ifide===================
+
 
 !   *** SCF parameters ***
 

@@ -36,7 +36,9 @@ MODULE qs_localization_methods
                                              cp_fm_maxval,&
                                              cp_fm_p_type,&
                                              cp_fm_write, &
-                                             cp_fm_type
+                                             cp_fm_type, &
+                                             cp_fm_to_fm
+         
   USE kinds,                           ONLY: wp => dp
   USE mathconstants,                   ONLY: pi
   USE qs_environment_types,            ONLY: get_qs_env, qs_environment_type
@@ -252,6 +254,7 @@ CONTAINS
     CALL cp_fm_create ( wf, vectors % matrix_struct, error = error  )
     CALL cp_fm_get_info ( vectors, nrow_global = n, ncol_global=k )
     CALL cp_fm_gemm("N", "N", n, k, k, 1.0_wp, vectors, rmat, 0.0_wp, wf )
+    CALL cp_fm_to_fm ( wf, vectors )
     CALL cp_fm_release ( wf )
   END SUBROUTINE rotate_orbitals 
 ! *****************************************************************************

@@ -23,6 +23,7 @@
 !!      esu       : Conversion factors [Hartree] -> [esu].
 !!      evolt     : Conversion factor [Hartree] -> [eV].
 !!      h_planck  : Planck constant [J*s].
+!!      h_bar     : Planck constant [J*s].
 !!      hz        : Conversion factor [Hartree] -> [Hz].
 !!      kcalmol   : Conversion factor [Hartree] -> [kcal/mol].
 !!      kjmol     : Conversion factor [Hartree] -> [kJ/mol].
@@ -31,6 +32,7 @@
 !!      mu_perm   : Permeability of vacuum [N/A**2].
 !!      boltzmann : Boltzman constant [J/Kelvin].
 !!      n_avogadro: Avogrado constant [1/mol].
+!!      permittivity: [C^2/J/m]
 !!      rydberg   : Rydberg constant [1/m].
 !!      vibfac    : Conversion factor [Hartree/Bohr**2] -> [1/cm].
 !!      wavenum   : Conversion factor [Hartree] -> [1/cm] (wave numbers).
@@ -53,15 +55,15 @@ MODULE physcon
 
   PRIVATE
   PUBLIC :: a_bohr, a_fine, angstrom, bohr, c_light, e_charge, e_mass, &
-       evolt, h_planck, hz, joule, kcalmol, kjmol, mhz, mu_perm, n_avogadro, &
-       rydberg, vibfac, wavenum, massunit, init_physcon, a_mass, boltzmann, &
+       evolt, h_bar, h_planck, hz, joule, kcalmol, kjmol, mhz, mu_perm, permittivity, &
+       n_avogadro, rydberg, vibfac, wavenum, massunit, init_physcon, a_mass, boltzmann, &
        write_physcon
 
   INTEGER, PARAMETER :: maxmom = 3
 
   REAL ( dbl ) :: a_bohr, a_fine, angstrom, bohr, c_light, e_charge, e_mass, &
-       evolt, h_planck, hz, joule, kcalmol, kjmol, mhz, mu_perm, n_avogadro, &
-       rydberg, vibfac, wavenum, massunit, a_mass, boltzmann
+       evolt, h_planck, h_bar, hz, joule, kcalmol, kjmol, mhz, mu_perm, n_avogadro, &
+       rydberg, permittivity, vibfac, wavenum, massunit, a_mass, boltzmann
 
   REAL ( dbl ), DIMENSION (maxmom) :: esu
 
@@ -106,6 +108,8 @@ SUBROUTINE init_physcon()
   INTEGER :: i
 
 !-----------------------------------------------------------------------------!
+!   *** permittivity [C^2/J/m] ***
+  permittivity =  8.854187817E-12_dbl
 
 !   *** Speed of light in vacuum [m/s] ***
   c_light = 2.99792458E+8_dbl
@@ -115,6 +119,9 @@ SUBROUTINE init_physcon()
 
 !   *** Planck constant [J*s] ***
   h_planck = 6.6260755E-34_dbl
+
+!   *** Planck constant [J*s] ***
+  h_bar = 6.6260755E-34_dbl / 2._dbl / pi
 
 !   *** Elementary charge [C] ***
   e_charge = 1.60217733E-19_dbl

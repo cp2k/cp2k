@@ -497,6 +497,8 @@ CONTAINS
             IF (globenv%print%nhomos <= 0) globenv%print%nhomos = 4
           CASE ("LOCALIZATION")
             globenv%print%localization = print_request
+          CASE ("MOLECULAR_STATES")
+            globenv%print%molecular_states = print_request
           CASE ("TIMECUMUL")
             globenv%print%timecumul = print_request
 !MK

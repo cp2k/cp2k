@@ -21,6 +21,7 @@
 
 MODULE molecule_input
 
+  USE convert_units,                    ONLY : convert_to_cp2k_units
   USE global_types,                     ONLY : global_environment_type
   USE input_types,                      ONLY : setup_parameters_type
   USE kinds,                            ONLY : dbl
@@ -909,6 +910,12 @@ SUBROUTINE read_molecule_section ( mol_setup, setup, globenv )
         END DO
      END IF
   END IF
+! convert amu -> au
+  DO imol = 1, nmol_type
+    DO i = 1, SIZE ( mol_setup ( imol ) % molpar % aweight )
+       CALL convert_to_cp2k_units ( mass = mol_setup ( imol ) % molpar % aweight ( i ) )
+    END DO
+  END DO 
 
 END SUBROUTINE read_molecule_section
 

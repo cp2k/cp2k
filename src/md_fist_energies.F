@@ -22,6 +22,8 @@
 
 MODULE md_fist_energies
   
+  USE cp2k_units,                      ONLY : unit_convert_type, &
+                                              get_cp2k_units
   USE fist_environment_types,          ONLY : fist_thermodynamic_type
   USE global_types,                    ONLY: global_environment_type
   USE integrator,                      ONLY : pressure
@@ -48,17 +50,14 @@ MODULE md_fist_energies
   IMPLICIT NONE
 
   PRIVATE
-  PUBLIC :: set_fist_energies, set_fist_energies_param, md_energy_fist
+  PUBLIC :: set_fist_energies, md_energy_fist
 
   TYPE average_quantities_type
      REAL ( dbl ) :: avetemp, avepot, avekin, avevol, aveca, avecb, avecc
      REAL ( dbl ) :: aveal, avebe, avega, avepress, avekinc, avetempc
   END TYPE average_quantities_type
 
-  CHARACTER ( LEN = 10 ) :: pres_label, e_label, temp_label
-  CHARACTER ( LEN = 10 ) :: l_label, vol_label, angl_label
   REAL ( dbl ) :: econs_avg
-  REAL ( dbl ) :: p_conv, temp_conv
   TYPE (average_quantities_type ) :: averages
 
   LOGICAL :: ionode
@@ -69,6 +68,7 @@ MODULE md_fist_energies
   INTEGER :: icrd, ivel, iptens, iener, itemp, idump, iscreen
 
   TYPE ( global_environment_type ) :: glob_env
+  TYPE ( unit_convert_type ), POINTER :: unit
 
 !!***
 !******************************************************************************
@@ -128,45 +128,9 @@ SUBROUTINE set_fist_energies ( globenv, mdio )
   idump = mdio % idump
   iscreen = mdio % iscreen
 
+  CALL get_cp2k_units ( unit )
+
 END SUBROUTINE set_fist_energies
-
-!******************************************************************************
-!!****** md_fist_energies/set_fist_energies_params [1.0] *
-!!
-!!   NAME
-!!     set_fist_energies_param
-!!
-!!   FUNCTION
-!!
-!!   AUTHOR
-!!     CJM
-!!
-!!   MODIFICATION HISTORY
-!!     none
-!!
-!!*** *************************************************************************
-
-SUBROUTINE set_fist_energies_param ( pconv, tempconv, l, vol, e, pres, temp, angl )
-
-  IMPLICIT NONE
-
-! Arguments
-  REAL ( dbl ), INTENT ( IN ), OPTIONAL :: pconv, tempconv
-  CHARACTER ( LEN = 10 ), INTENT ( IN ), OPTIONAL :: l, vol, e
-  CHARACTER ( LEN = 10 ), INTENT ( IN ), OPTIONAL :: pres, temp, angl
-
-!------------------------------------------------------------------------------
-
-  IF ( PRESENT ( pconv ) ) p_conv = pconv
-  IF ( PRESENT ( tempconv ) ) temp_conv = tempconv
-  IF ( PRESENT ( l ) ) l_label = l
-  IF ( PRESENT ( vol ) ) vol_label = vol
-  IF ( PRESENT ( e ) ) e_label = e
-  IF ( PRESENT ( pres ) ) pres_label = pres
-  IF ( PRESENT ( temp ) ) temp_label = temp
-  IF ( PRESENT ( angl ) ) angl_label = angl
-
-END SUBROUTINE set_fist_energies_param
 
 !******************************************************************************
 !!****** md_fist_energies/md_energy_fist [1.0] *
@@ -244,14 +208,12 @@ SUBROUTINE md_energy_fist ( md_env, box, ll_data, thermo, pimd )
                                    econs, thermo%kin, temp)
   ELSE
      CALL compute_conserved_quantity (md_env, thermo%pot, cons,&
-                                   cons_rel=econs, &
-                                   ekin=thermo%kin, &
-                                   temp=temp)
+                                      cons_rel=econs, &
+                                      ekin=thermo%kin, &
+                                      temp=temp)
   END IF
 
-! GT : to be changed?
-  temp=temp/temp_conv
-! GT : to be changed?
+  temp = temp / unit % kelvin
 
   IF (ionode .AND. mod(itimes,itemp)==0) THEN
      WRITE (tem, *) itimes, temp
@@ -294,7 +256,7 @@ SUBROUTINE md_energy_fist ( md_env, box, ll_data, thermo, pimd )
      pv_scalar = pv_scalar + thermo%virial%pv_total(i,i)
   END DO
   pv_scalar = pv_scalar/3._dbl/box%deth
-  pv_scalar = pv_scalar*p_conv
+  pv_scalar = pv_scalar * unit % bar
 
 ! average quantities:
   SELECT CASE (itimes)
@@ -349,19 +311,19 @@ SUBROUTINE md_energy_fist ( md_env, box, ll_data, thermo, pimd )
      WRITE ( iw, '( A,A )' ) ' ******************************** ', &
           'GO CP2K GO! **********************************'
      WRITE ( iw, '( A,A,T40,A,T65,1(1X,E15.7) )' ) ' INITIAL POTENTIAL ENERGY', &
-          adjustl(e_label), '= ', thermo%pot
+          adjustl( unit % e_label), '= ', thermo%pot
      WRITE ( iw, '( A,A,T40,A,T65,1(1X,E15.7) )' ) ' INITIAL KINETIC ENERGY', &
-          adjustl(e_label), '= ', thermo%kin
+          adjustl( unit % e_label), '= ', thermo%kin
      WRITE ( iw, '( A,A,T40,A,T65,1(1X,E15.7) )' ) ' INITIAL TEMPERATURE', &
-          adjustl(temp_label), '= ', temp
+          adjustl( unit % temp_label ), '= ', temp
      WRITE ( iw, '( A,A,T40,A,T65,1(1X,E15.7) )' ) ' INITIAL PRESSURE', &
-          adjustl(pres_label), '= ', pv_scalar
+          adjustl( unit % pres_label), '= ', pv_scalar
      WRITE ( iw, '( A,A,T40,A,T65,1(1X,E15.7) )' ) ' INITIAL VOLUME', &
-          adjustl(vol_label), '= ', box%deth
+          adjustl( unit % vol_label), '= ', box%deth
      WRITE ( iw, '( A,A,T29,A,T33,3(1X,E15.7) )' ) ' INITIAL CELL LNTHS', &
-          adjustl(l_label), '= ', cell(1), cell(2), cell(3)
+          adjustl(unit % l_label), '= ', cell(1), cell(2), cell(3)
      WRITE ( iw, '( A,A,T29,A,T33,3(1X,E15.7) )' ) ' INITIAL CELL ANGLS', &
-          adjustl(angl_label), '= ', ang(3), ang(2), ang(1)
+          adjustl(unit % angl_label), '= ', ang(3), ang(2), ang(1)
      WRITE ( iw, '( A,A )' ) ' ******************************** ', &
           'GO CP2K GO! **********************************'
   END IF
@@ -382,28 +344,28 @@ SUBROUTINE md_energy_fist ( md_env, box, ll_data, thermo, pimd )
      WRITE ( iw, '( A,T49,2(1X,E15.7) )' ) ' {E-E0}/E0                    = ', &
           econs, econs_avg/real(itimes)
      WRITE ( iw, '( A,A,T31,A,T49,2(1X,E15.7) )' ) ' POTENTIAL ENERGY', &
-          adjustl(e_label), '= ', thermo%pot, averages%avepot
+          adjustl(unit % e_label), '= ', thermo%pot, averages%avepot
      WRITE ( iw, '( A,A,T31,A,T49,2(1X,E15.7) )' ) ' KINETIC ENERGY', &
-          adjustl(e_label), '= ', thermo%kin, averages%avekin
+          adjustl(unit % e_label), '= ', thermo%kin, averages%avekin
      WRITE ( iw, '( A,A,T31,A,T49,2(1X,E15.7) )' ) ' TEMPERATURE', &
-          adjustl(temp_label), '= ', temp, averages%avetemp
+          adjustl(unit % temp_label), '= ', temp, averages%avetemp
      WRITE ( iw, '( A,A,T31,A,T49,2(1X,E15.7) )' ) ' PRESSURE', &
-          adjustl(pres_label), '= ', pv_scalar, averages%avepress
+          adjustl(unit % pres_label), '= ', pv_scalar, averages%avepress
      CALL get_linklist_internal_data ( ll_data, lup, aup )
      IF (simpar%ensemble(1:3)=='NPT') THEN
         WRITE ( iw, '( A,A,T31,A,T49,2(1X,E15.7) )' ) ' VOLUME', &
-             adjustl(vol_label), '= ', box%deth, averages%avevol
+             adjustl(unit % vol_label), '= ', box%deth, averages%avevol
         WRITE ( iw, '( A,A,T31,A,T33,3(1X,E15.7) )' ) ' CELL LNTHS', &
-             adjustl(l_label), '= ', cell(1), cell(2), cell(3)
+             adjustl(unit % l_label), '= ', cell(1), cell(2), cell(3)
         WRITE ( iw, '( A,A,T31,A,T33,3(1X,E15.7) )' ) ' AVE. CELL LNTHS', &
-             adjustl(l_label), '= ', averages%aveca, averages%avecb, &
+             adjustl(unit % l_label), '= ', averages%aveca, averages%avecb, &
              averages%avecc
      END IF
      IF (simpar%ensemble=='NPT_F') THEN
         WRITE ( iw, '( A,A,T31,A,T33,3(1X,E15.7) )' ) ' CELL ANGLS', &
-             adjustl(angl_label), '= ', ang(3), ang(2), ang(1)
+             adjustl(unit % angl_label), '= ', ang(3), ang(2), ang(1)
         WRITE ( iw, '( A,A,T31,A,T33,3(1X,E15.7) )' ) ' AVE. CELL ANGLS', &
-             adjustl(angl_label), '= ', averages%aveal, averages%avebe, &
+             adjustl(unit % angl_label), '= ', averages%aveal, averages%avebe, &
              averages%avega
      END IF
      WRITE ( iw, '( A,A,T31,A,T49,2(1X,F15.2) )' ) &
