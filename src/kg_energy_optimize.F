@@ -45,7 +45,7 @@
 
   IMPLICIT NONE
 ! Arguments
-  TYPE ( kg_environment_type ), INTENT ( INOUT ) :: kg_env
+  TYPE ( kg_environment_type ), POINTER          :: kg_env
   TYPE ( global_environment_type), INTENT ( IN ) :: globenv
   TYPE ( energy_min_type ), INTENT (INOUT) :: energy_min
   INTEGER, intent(IN) :: iter      
@@ -127,7 +127,7 @@
 
   IMPLICIT NONE
 ! Arguments
-  TYPE ( kg_environment_type ), INTENT ( INOUT ) :: kg_env
+  TYPE ( kg_environment_type ), POINTER          :: kg_env
   TYPE ( global_environment_type), INTENT ( IN ) :: globenv
   TYPE ( energy_min_type ), INTENT (INOUT) :: energy_min
   INTEGER, intent (in) :: iter
@@ -212,6 +212,8 @@
   min_info %e = thermo % pot
   min_info %e_xc = thermo % e_xc
   min_info %e_hartree = thermo % e_hartree
+  min_info %e_ppl = thermo % e_ppl
+  min_info %e_ppl2 = thermo % e_ppl2
   min_info %de = thermo % pot - eold
   min_info %tol = tol
   min_info %err = fconv

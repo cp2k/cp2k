@@ -348,7 +348,14 @@ SUBROUTINE read_md_section ( simpar, mdpar, mdio )
         CASE ( 'VERLET' )
            CALL get_next ( simpar % verlet_skin )
            IF ( test_next () == 'C' ) THEN
-             CALL get_next ( simpar % units % verlet_skin, ilen )
+             CALL get_next ( string, ilen )
+             CALL uppercase ( string )
+             SELECT CASE ( string )
+             CASE DEFAULT
+               simpar % units % time = 'AU'  
+             CASE ('ANGSTR','AU')
+               simpar % units % verlet_skin = string
+             END SELECT
            ELSE
               simpar % units % verlet_skin = 'AU'
            ENDIF
@@ -362,7 +369,14 @@ SUBROUTINE read_md_section ( simpar, mdpar, mdio )
         CASE ( 'TIMEST' )
            CALL get_next ( simpar % dt )
            IF ( test_next () == 'C' ) THEN
-             CALL get_next ( simpar % units % time, ilen )
+             CALL get_next ( string, ilen )
+             CALL uppercase ( string )
+             SELECT CASE ( string )
+             CASE DEFAULT
+               simpar % units % time = 'FS'  
+             CASE ('FS','AU')
+               simpar % units % time = string
+             END SELECT
            ELSE
               simpar % units % time = 'FS'
            ENDIF
@@ -418,7 +432,14 @@ SUBROUTINE read_md_section ( simpar, mdpar, mdio )
               CASE ( 'TIMECO' )
                  CALL get_next ( simpar % tau_nhc )
                  IF ( test_next () == 'C' ) THEN
-                   CALL get_next ( simpar % units % tau, ilen )
+                   CALL get_next ( string, ilen )
+                   CALL uppercase ( string )
+                   SELECT CASE ( string )
+                   CASE DEFAULT
+                    simpar % units % tau = '1/CM'
+                   CASE ('FS','AU')
+                     simpar % units % tau = string
+                   END SELECT
                  ELSE
                     simpar % units % tau = '1/CM'
                  ENDIF
@@ -452,7 +473,14 @@ SUBROUTINE read_md_section ( simpar, mdpar, mdio )
               CASE ( 'TIMECO' )
                  CALL get_next ( simpar % tau_nhc_coef )
                  IF ( test_next () == 'C' ) THEN
-                   CALL get_next ( simpar % units % tau_coef, ilen )
+                   CALL get_next ( string, ilen )
+                   CALL uppercase ( string )
+                   SELECT CASE ( string )
+                   CASE DEFAULT
+                    simpar % units % tau_coef = '1/CM'
+                   CASE ('FS','AU')
+                     simpar % units % tau_coef = string
+                   END SELECT
                  ELSE
                     simpar % units % tau_coef = '1/CM'
                  ENDIF
@@ -478,7 +506,14 @@ SUBROUTINE read_md_section ( simpar, mdpar, mdio )
               CASE ( 'TIMECO' )
                  CALL get_next ( simpar % tau_cell )
                  IF ( test_next () == 'C' ) THEN
-                   CALL get_next ( simpar % units % tau_cell, ilen )
+                   CALL get_next ( string, ilen )
+                   CALL uppercase ( string )
+                   SELECT CASE ( string )
+                   CASE DEFAULT
+                    simpar % units % tau_cell = '1/CM'
+                   CASE ('FS','AU')
+                     simpar % units % tau_cell = string
+                   END SELECT
                  ELSE
                     simpar % units % tau_cell = '1/CM'
                  ENDIF

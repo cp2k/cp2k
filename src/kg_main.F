@@ -320,18 +320,15 @@ SUBROUTINE kg ( globenv )
 ! Print the atomic kind set
   CALL write_atomic_kind_set(atomic_kind_set,globenv)
 
-! Initialize the atomic data sets completely ***
-  CALL init_particle_set(particle_set)
-
 !..initialize cell parameters
     box_ref => box
-    box_ref % hmat = setup % reference_cell % hmat
+!!!    box_ref % hmat = setup % reference_cell % hmat
 
 ! If run is a debug.  Make box_ref = box to work under
 ! all ensembles and restart options
-  IF ( setup % run_type == 'DEBUG' ) THEN
-    box_ref % hmat = setup % simulation_cell % hmat
-  ENDIF
+!  IF ( setup % run_type == 'DEBUG' ) THEN
+!     box_ref % hmat = setup % simulation_cell % hmat
+!  ENDIF
 
   CALL init_interaction_radii ( dft_control%kg_control, box, &
                                 atomic_kind_set, globenv)
@@ -374,11 +371,11 @@ SUBROUTINE kg ( globenv )
   END IF
 !  CALL stop_program ( "kg_main", "not yet implemented " )
 
-  CALL get_hinv ( box )
-  IF ( simpar % read_type == 'INIT' ) THEN
-     box_ref = box
-  ENDIF
-  CALL get_hinv ( box_ref )
+!   CALL get_hinv ( box )
+!   IF ( simpar % read_type == 'INIT' ) THEN
+!      box_ref = box
+!   ENDIF
+!   CALL get_hinv ( box_ref )
 
 !..initialize molecule_type
   CALL initialize_molecule_type ( mol_setup, pnode,  particle_set,  &
@@ -411,6 +408,8 @@ SUBROUTINE kg ( globenv )
       CALL read_md_restart ( simpar % read_type, globenv, particle_set,    &
                              box, box_ref, nhc_part, nhc_baro, npt_info )
   END SELECT
+!   CALL get_hinv ( box )
+!   CALL get_hinv ( box_ref )
 
   CALL initialize_nhc_forces ( nhc_part, nhc_baro )
 
@@ -548,7 +547,7 @@ END SUBROUTINE control_work
 
 ! Arguments
   TYPE ( global_environment_type ), INTENT ( INOUT ) :: globenv
-  TYPE ( kg_environment_type ), INTENT ( INOUT ) :: kg_env
+  TYPE ( kg_environment_type ), POINTER :: kg_env
   TYPE ( mdio_parameters_type ) :: mdio
 
 !------------------------------------------------------------------------------
@@ -570,7 +569,7 @@ END SUBROUTINE control_work
 
 ! Arguments
   TYPE ( global_environment_type ), INTENT ( INOUT ) :: globenv
-  TYPE ( kg_environment_type ), INTENT ( INOUT ) :: kg_env
+  TYPE ( kg_environment_type ), POINTER :: kg_env
   TYPE ( md_environment_type ), INTENT ( INOUT ) :: md_env
   TYPE ( energy_min_type ), INTENT ( INOUT ) :: energy_min
   TYPE ( mdio_parameters_type ) :: mdio
@@ -595,6 +594,9 @@ END SUBROUTINE control_work
   energy_min % min_info % e = kg_env % thermo%pot
   energy_min % min_info % e_hartree = kg_env % thermo % e_hartree
   energy_min % min_info % e_xc = kg_env %  thermo % e_xc
+  energy_min % min_info % e_ppl = kg_env %  thermo % e_ppl
+  energy_min % min_info % e_ppl2 = kg_env %  thermo % e_ppl2
+
 
   CALL print_energy_info ( itimes, energy_min % min_info,  &
                            energy_min % mintype, globenv )
@@ -635,7 +637,7 @@ END SUBROUTINE control_work
 
 ! Arguments
   TYPE ( global_environment_type ), INTENT ( INOUT ) :: globenv
-  TYPE ( kg_environment_type ), INTENT ( INOUT ) :: kg_env
+  TYPE ( kg_environment_type ), POINTER :: kg_env
   TYPE ( md_environment_type ), INTENT ( INOUT ) :: md_env
   TYPE ( mdio_parameters_type ) :: mdio
 

@@ -35,6 +35,8 @@
   USE kg_environment_types, ONLY : kg_environment_type
   USE kg_intra, ONLY : calculate_ebond_corr
   USE kg_kxc, ONLY : calculate_kxc_potential
+  USE kg_neighbor_lists, ONLY : rebuild_neighbor_lists
+  USE kg_ppl, ONLY : calculate_rho0_ppl, calculate_drho_ppl
   USE kinds, ONLY : dbl
   USE molecule_types, ONLY : particle_node_type
   USE particle_types, ONLY : particle_type
@@ -47,8 +49,9 @@
 
   PRIVATE
   PUBLIC :: fpart_gspace_numer, fpart_bc_numer, fpart_xc_numer, &
-            fpart_core_rspace_numer, fpart_p_xc_numer, &
-            fpart_p_gspace_numer, fcoef_p_xc_numer, fcoef_p_gspace_numer
+            fpart_core_rspace_numer, fpart_ppl_numer, fpart_p_xc_numer, &
+            fpart_p_gspace_numer, fcoef_p_xc_numer, fcoef_p_gspace_numer,&
+            fpart_p_ppl_numer, fcoef_p_ppl_numer
 !!***
 !------------------------------------------------------------------------------!
 !
@@ -66,7 +69,7 @@
    TYPE ( cube_info_type ), DIMENSION(:), POINTER :: cube_info
    TYPE ( global_environment_type ), INTENT ( INOUT ) :: globenv
    TYPE ( gridlevel_info_type ), INTENT(IN)       :: gridlevel_info
-   TYPE ( kg_environment_type ), INTENT ( INOUT ) :: kg_env
+   TYPE ( kg_environment_type ), POINTER :: kg_env
    TYPE ( l_info_type ), INTENT(IN)               :: l_info
    TYPE ( pw_grid_type ), INTENT ( IN ), DIMENSION ( : ) :: pw_grid
    INTEGER, INTENT ( IN ) :: iref
@@ -427,6 +430,149 @@ END SUBROUTINE  fpart_xc_numer
 
 END SUBROUTINE  fpart_core_rspace_numer
 
+
+!------------------------------------------------------------------------------!
+
+ SUBROUTINE  fpart_ppl_numer  ( delta, kg_env,  &
+                                   f_part, energy_numer, globenv )
+   IMPLICIT NONE
+!
+! begin passed variable declaration:
+!
+   TYPE ( global_environment_type ), INTENT ( INOUT ) :: globenv
+   TYPE ( kg_environment_type ), POINTER          :: kg_env
+   REAL ( dbl ), INTENT ( IN ) :: delta
+   REAL ( dbl ), INTENT ( OUT ) :: energy_numer
+   REAL ( dbl ), INTENT ( OUT ), DIMENSION ( :, : ) :: f_part
+
+! begin local variable declaration:
+!
+   CHARACTER(LEN=*), PARAMETER :: routine =&
+     "SUBROUTINE fpart_ppl_numer (MODULE kg_force_numer)"
+   INTEGER :: i, j
+   INTEGER :: id,  natoms, istat
+   REAL (dbl) :: energy
+   REAL (dbl) :: energy_plus, energy_minus
+   LOGICAL :: calculate_forces
+
+   energy_numer = 0.0_dbl
+   energy_plus = 0.0_dbl
+   energy_minus = 0.0_dbl
+   f_part = 0.0_dbl
+   calculate_forces = .FALSE.
+!
+! starting the force loop
+!
+   natoms = SIZE ( kg_env % part )
+
+   DO i = 1, natoms
+
+     DO id = 1,3
+
+       kg_env % part ( i ) % r ( id ) = kg_env % part ( i ) % r ( id ) + delta
+       CALL rebuild_neighbor_lists(kg_env,globenv)
+       CALL calculate_rho0_ppl(kg_env,globenv,energy_plus,calculate_forces)
+
+       kg_env % part ( i ) % r ( id ) = kg_env % part ( i ) % r ( id ) - 2._dbl * delta
+       CALL rebuild_neighbor_lists(kg_env,globenv)
+       CALL calculate_rho0_ppl(kg_env,globenv,energy_minus,calculate_forces)
+
+       f_part ( id, i ) = energy_minus - energy_plus
+
+       kg_env % part ( i ) % r ( id ) = kg_env% part ( i ) % r ( id ) + delta
+
+     END DO
+
+  END DO
+
+  f_part = f_part / 2._dbl / delta
+  CALL rebuild_neighbor_lists(kg_env,globenv)
+  CALL calculate_rho0_ppl(kg_env,globenv,energy_numer,calculate_forces)
+
+  RETURN
+
+END SUBROUTINE  fpart_ppl_numer
+
+!------------------------------------------------------------------------------!
+
+ SUBROUTINE  fpart_p_ppl_numer  ( delta, kg_env,  &
+                                   f_part, energy_numer, globenv )
+   IMPLICIT NONE
+!
+! begin passed variable declaration:
+!
+   TYPE ( global_environment_type ), INTENT ( INOUT ) :: globenv
+   TYPE ( kg_environment_type ), POINTER          :: kg_env
+   REAL ( dbl ), INTENT ( IN ) :: delta
+   REAL ( dbl ), INTENT ( OUT ) :: energy_numer
+   REAL ( dbl ), INTENT ( OUT ), DIMENSION ( :, : ) :: f_part
+
+! begin local variable declaration:
+!
+   CHARACTER(LEN=*), PARAMETER :: routine =&
+     "SUBROUTINE fpart_ppl_numer (MODULE kg_force_numer)"
+   INTEGER :: i, j
+   INTEGER :: id,  natoms, istat
+   REAL (dbl) :: energy,energy2
+   REAL (dbl) :: energy_plus, energy_minus
+   LOGICAL :: calculate_forces
+   TYPE ( coeff_type ), POINTER :: coef_pos
+   TYPE ( coeff_type ), POINTER :: coef_vel
+   TYPE ( coeff_type ), POINTER :: coef_force
+
+   coef_pos => kg_env % coef_pos (1)
+   coef_vel => kg_env % coef_vel (1)
+   coef_force => kg_env % coef_force (1)
+
+   energy_numer = 0.0_dbl
+   energy_plus = 0.0_dbl
+   energy_minus = 0.0_dbl
+   f_part = 0.0_dbl
+   calculate_forces = .FALSE.
+!
+! starting the force loop
+!
+   natoms = SIZE ( kg_env % part )
+
+   DO i = 1, natoms
+
+     DO id = 1,3
+
+       kg_env % part ( i ) % r ( id ) = kg_env % part ( i ) % r ( id ) + delta
+       CALL rebuild_neighbor_lists(kg_env,globenv)
+       CALL calculate_rho0_ppl(kg_env,globenv,energy,calculate_forces)
+       CALL calculate_drho_ppl(coef_pos%ao%cr,coef_force%ao%cr,&
+            kg_env,globenv,energy2,calculate_forces)
+       energy_plus=energy+energy2
+       
+
+       kg_env % part ( i ) % r ( id ) = kg_env % part ( i ) % r ( id ) - 2._dbl * delta
+       CALL rebuild_neighbor_lists(kg_env,globenv)
+       CALL calculate_rho0_ppl(kg_env,globenv,energy,calculate_forces)
+       CALL calculate_drho_ppl(coef_pos%ao%cr,coef_force%ao%cr,&
+                                kg_env,globenv,energy2,calculate_forces)
+       energy_minus=energy+energy2
+
+       f_part ( id, i ) = energy_minus - energy_plus
+
+       kg_env % part ( i ) % r ( id ) = kg_env% part ( i ) % r ( id ) + delta
+
+     END DO
+
+  END DO
+
+  f_part = f_part / 2._dbl / delta
+  CALL rebuild_neighbor_lists(kg_env,globenv)
+  CALL calculate_rho0_ppl(kg_env,globenv,energy,calculate_forces)
+  CALL calculate_drho_ppl(coef_pos%ao%cr,coef_force%ao%cr,&
+                        kg_env,globenv,energy2,calculate_forces)
+  energy_numer=energy+energy2
+
+  RETURN
+
+END SUBROUTINE  fpart_p_ppl_numer
+
+
 !------------------------------------------------------------------------------!
 
  SUBROUTINE  fpart_bc_numer  ( delta, kg_env,  &
@@ -449,6 +595,7 @@ END SUBROUTINE  fpart_core_rspace_numer
    INTEGER :: id,  natoms, istat
    REAL (dbl) :: energy
    REAL (dbl) :: energy_plus, energy_minus
+
 
    energy_numer = 0.0_dbl
    energy_plus = 0.0_dbl
@@ -808,7 +955,8 @@ END SUBROUTINE  fpart_p_xc_numer
             l_info, total_rhop_rspace, kg_env, globenv )
 ! get the total gspace density
         CALL coeff_sumup(rho_core,rho_gspace)
-      rho_p_gspace%pw%cc(:)=-1.0_dbl*rho_p_gspace%pw%cc(:)
+!dbg gt
+!      rho_p_gspace%pw%cc(:)=-1.0_dbl*rho_p_gspace%pw%cc(:)
         CALL coeff_sumup(rho_p_gspace,rho_gspace)
         CALL calculate_hartree(rho_gspace,energy_plus,v_gspace)
 
@@ -840,7 +988,7 @@ END SUBROUTINE  fpart_p_xc_numer
             l_info, total_rhop_rspace, kg_env, globenv )
 ! get the total gspace density
         CALL coeff_sumup(rho_core,rho_gspace)
-      rho_p_gspace%pw%cc(:)=-1.0_dbl*rho_p_gspace%pw%cc(:)
+!      rho_p_gspace%pw%cc(:)=-1.0_dbl*rho_p_gspace%pw%cc(:)
         CALL coeff_sumup(rho_p_gspace,rho_gspace)
         CALL calculate_hartree(rho_gspace,energy_minus,v_gspace)
 
@@ -881,7 +1029,7 @@ END SUBROUTINE  fpart_p_xc_numer
     l_info, total_rhop_rspace, kg_env, globenv )
 ! get the total gspace density
   CALL coeff_sumup(rho_core,rho_gspace)
-      rho_p_gspace%pw%cc(:)=-1.0_dbl*rho_p_gspace%pw%cc(:)
+!      rho_p_gspace%pw%cc(:)=-1.0_dbl*rho_p_gspace%pw%cc(:)
   CALL coeff_sumup(rho_p_gspace,rho_gspace)
   CALL calculate_hartree(rho_gspace,energy_numer,v_gspace)
 
@@ -1198,7 +1346,7 @@ END SUBROUTINE  fcoef_p_xc_numer
 
    DO i = 1, ncoef 
 
-      coef_pos % ao % cr ( i )  = coef_pos % ao % cr (i )                     
+      coef_pos % ao % cr ( i )  = coef_pos % ao % cr (i )  + delta            
       CALL coeff_zero(rho_core)
       CALL coeff_zero(rho_elec_rspace)
       CALL coeff_zero(rho_gspace)
@@ -1226,7 +1374,7 @@ END SUBROUTINE  fcoef_p_xc_numer
           l_info, total_rhop_rspace, kg_env, globenv )
 ! get the total gspace density
       CALL coeff_sumup(rho_core,rho_gspace)
-      rho_p_gspace%pw%cc(:)=-1.0_dbl*rho_p_gspace%pw%cc(:)
+!     rho_p_gspace%pw%cc(:)=-1.0_dbl*rho_p_gspace%pw%cc(:)
       CALL coeff_sumup(rho_p_gspace,rho_gspace)
       CALL calculate_hartree(rho_gspace,energy_plus,v_gspace)
 
@@ -1259,7 +1407,7 @@ END SUBROUTINE  fcoef_p_xc_numer
 ! get the total gspace density
 
       CALL coeff_sumup(rho_core,rho_gspace)
-      rho_p_gspace%pw%cc(:)=-1.0_dbl*rho_p_gspace%pw%cc(:)
+!      rho_p_gspace%pw%cc(:)=-1.0_dbl*rho_p_gspace%pw%cc(:)
       CALL coeff_sumup(rho_p_gspace,rho_gspace)
       CALL calculate_hartree(rho_gspace,energy_minus,v_gspace)
 
@@ -1298,7 +1446,7 @@ END SUBROUTINE  fcoef_p_xc_numer
     l_info, total_rhop_rspace, kg_env, globenv )
 ! get the total gspace density
   CALL coeff_sumup(rho_core,rho_gspace)
-      rho_p_gspace%pw%cc(:)=-1.0_dbl*rho_p_gspace%pw%cc(:)
+!      rho_p_gspace%pw%cc(:)=-1.0_dbl*rho_p_gspace%pw%cc(:)
   CALL coeff_sumup(rho_p_gspace,rho_gspace)
   CALL calculate_hartree(rho_gspace,energy_numer,v_gspace)
 
@@ -1323,6 +1471,77 @@ END SUBROUTINE  fcoef_p_xc_numer
   RETURN
  
 END SUBROUTINE  fcoef_p_gspace_numer 
+!------------------------------------------------------------------------------!
+
+ SUBROUTINE  fcoef_p_ppl_numer  ( delta, kg_env,  &
+                                   f_coef, energy_numer, globenv )
+   IMPLICIT NONE
+!
+! begin passed variable declaration:
+!
+   TYPE ( global_environment_type ), INTENT ( INOUT ) :: globenv
+   TYPE ( kg_environment_type ), POINTER          :: kg_env
+   REAL ( dbl ), INTENT ( IN ) :: delta
+   REAL ( dbl ), INTENT ( OUT ) :: energy_numer
+   REAL ( dbl ), INTENT ( OUT ), DIMENSION ( : ) :: f_coef
+
+! begin local variable declaration:
+!
+   CHARACTER(LEN=*), PARAMETER :: routine =&
+     "SUBROUTINE fcoef_ppl_numer (MODULE kg_force_numer)"
+   INTEGER :: i, j
+   INTEGER :: id,  ncoef, istat
+   REAL (dbl) :: energy,energy2
+   REAL (dbl) :: energy_plus, energy_minus
+   LOGICAL :: calculate_forces
+   TYPE ( coeff_type ), POINTER :: coef_pos
+   TYPE ( coeff_type ), POINTER :: coef_vel
+   TYPE ( coeff_type ), POINTER :: coef_force
+
+   coef_pos => kg_env % coef_pos (1)
+   coef_vel => kg_env % coef_vel (1)
+   coef_force => kg_env % coef_force (1)
+
+   energy_numer = 0.0_dbl
+   energy_plus = 0.0_dbl
+   energy_minus = 0.0_dbl
+   f_coef = 0.0_dbl
+   calculate_forces = .FALSE.
+!
+! starting the force loop
+!
+   ncoef = SIZE ( coef_pos%ao%cr )
+
+   DO i = 1, ncoef
+
+      coef_pos % ao % cr ( i ) = coef_pos % ao % cr ( i ) + delta
+
+      CALL rebuild_neighbor_lists(kg_env,globenv)
+      CALL calculate_drho_ppl(coef_pos%ao%cr,coef_force%ao%cr,kg_env, &
+                globenv,energy_plus,calculate_forces)
+       
+      coef_pos % ao % cr ( i ) = coef_pos % ao % cr ( i ) - 2._dbl*delta
+
+      CALL rebuild_neighbor_lists(kg_env,globenv)
+      CALL calculate_drho_ppl(coef_pos%ao%cr,coef_force%ao%cr,kg_env,&
+                 globenv,energy_minus,calculate_forces)
+
+      f_coef ( i ) = energy_minus - energy_plus
+
+      coef_pos % ao % cr ( i ) = coef_pos % ao % cr ( i ) + delta
+
+   END DO
+
+   f_coef = f_coef / 2._dbl / delta
+   CALL rebuild_neighbor_lists(kg_env,globenv)
+   CALL calculate_drho_ppl(coef_pos%ao%cr,coef_force%ao%cr,&
+         kg_env,globenv,energy_numer,calculate_forces)
+
+  RETURN
+
+END SUBROUTINE  fcoef_p_ppl_numer
+
+
 !------------------------------------------------------------------------------!
 END MODULE kg_force_numer
 !------------------------------------------------------------------------------!

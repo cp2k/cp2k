@@ -20,9 +20,12 @@
 !******************************************************************************
 
 MODULE kg_force
+  USE ai_overlap_ppl,                  ONLY: overlap_ppl
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                              get_atomic_kind,&
                                              get_atomic_kind_set
+  USE basis_set_types,                 ONLY: get_gto_basis_set,&
+                                             gto_basis_set_type
   USE coefficient_types,               ONLY: coeff_allocate,&
                                              coeff_copy,&
                                              coeff_deallocate,&
@@ -35,6 +38,7 @@ MODULE kg_force
                                              init_cube_info
   USE dft_types,                       ONLY: dft_control_type
   USE external_potential_types,        ONLY: epc_potential_type,&
+                                             gth_potential_type,&
                                              get_potential
   USE gaussian_gridlevels,             ONLY: destroy_gaussian_gridlevel,&
                                              gridlevel_info_type,&
@@ -50,7 +54,10 @@ MODULE kg_force
                                              calculate_p_density,&
                                              calculate_total_density,&
                                              calculate_v_rspace_forces,&
-                                             calculate_vp_rspace_forces
+                                             calculate_vp_rspace_forces,&
+                                             calculate_epc_density_single,&
+                                             calculate_density_single,&
+                                             calculate_vp_rspace_forces_s
   USE kg_environment_types,            ONLY: get_kg_env,&
                                              kg_environment_type,&
                                              kg_thermodynamic_type
@@ -60,7 +67,11 @@ MODULE kg_force
                                              kg_force_type
   USE kg_intra,                        ONLY: calculate_ebond_corr
   USE kg_kxc,                          ONLY: calculate_kxc_potential
-  USE kinds,                           ONLY: dbl
+  USE kinds,                           ONLY: dbl,wp_size => dp_size
+  USE kg_neighbor_lists,               ONLY: build_neighbor_lists,&
+                                             rebuild_neighbor_lists
+  USE kg_ppl,                          ONLY: calculate_rho0_ppl,&
+                                             calculate_drho_ppl 
   USE l_utils,                         ONLY: destroy_l_info,&
                                              init_l_info,&
                                              l_info_type
@@ -77,6 +88,10 @@ MODULE kg_force
                                              linklist_torsions,&
                                              molecule_structure_type,&
                                              particle_node_type
+  USE orbital_pointers,                ONLY: indco,&
+                                             init_orbital_pointers,&
+                                             nco,&
+                                             ncoset
   USE particle_types,                  ONLY: particle_type
   USE pw_grid_types,                   ONLY: FULLSPACE,&
                                              HALFSPACE,&
@@ -111,10 +126,12 @@ MODULE kg_force
 
 ! debug variables
   TYPE debug_variables_type
-     REAL ( dbl ) :: pot_bond_corr, pot_hartree, pot_xc, pot_rspace_core
+     REAL ( dbl ) :: pot_bond_corr, pot_hartree, pot_xc, &
+                     pot_rspace_core, pot_ppl, pot_ppl2
      REAL ( dbl ), DIMENSION ( :, : ), POINTER :: f_hartree, &
-           f_rspace_core, f_bc, f_xc
-     REAL ( dbl ), DIMENSION ( : ), POINTER :: fc_hartree, fc_xc
+           f_rspace_core, f_bc, f_xc, f_ppl
+     REAL ( dbl ), DIMENSION ( : ), POINTER :: fc_hartree,&
+                                               fc_ppl, fc_xc
   END TYPE debug_variables_type
 
 ! definition of all variables (densities, potentials, grids....)
@@ -187,7 +204,7 @@ SUBROUTINE kg_force_control ( kg_env, globenv, debug )
   IMPLICIT NONE
 
 ! Arguments
-  TYPE ( kg_environment_type ), INTENT ( INOUT ):: kg_env
+  TYPE ( kg_environment_type ), POINTER         :: kg_env
   TYPE ( global_environment_type ), INTENT ( IN ) :: globenv
   TYPE ( debug_variables_type ), INTENT ( OUT ), OPTIONAL :: debug
 ! locals
@@ -230,7 +247,7 @@ SUBROUTINE kg_calculate_forces ( kg_env, globenv, debug )
   IMPLICIT NONE
 
 ! Arguments
-  TYPE ( kg_environment_type ), INTENT ( INOUT ):: kg_env
+  TYPE ( kg_environment_type ), POINTER :: kg_env
   TYPE ( global_environment_type ), INTENT ( IN ) :: globenv
   TYPE ( debug_variables_type ), INTENT ( OUT ), OPTIONAL :: debug
 
@@ -258,7 +275,7 @@ SUBROUTINE kg_calculate_forces ( kg_env, globenv, debug )
   REAL ( dbl ), DIMENSION ( :,: ), ALLOCATABLE :: f_total
   REAL ( dbl ), DIMENSION ( 3,3 ) :: pv_g, ident
   REAL ( dbl ), DIMENSION ( 3,3 ) :: pv_bc
-  LOGICAL :: first_time
+  LOGICAL :: first_time, calculate_forces
   INTEGER, DIMENSION(:), POINTER   :: atom_list
   INTEGER, DIMENSION(:), ALLOCATABLE, SAVE :: natom_of_kind
   CHARACTER(LEN=8) :: force_type
@@ -278,6 +295,7 @@ SUBROUTINE kg_calculate_forces ( kg_env, globenv, debug )
                     dft_control=dft_control, thermo=thermo )
 
   first_time=.FALSE. 
+  calculate_forces=.TRUE. 
   nnodes = SIZE ( pnode )
   natoms = SIZE ( part )
   nkind = SIZE( atomic_kind_set )
@@ -291,6 +309,13 @@ SUBROUTINE kg_calculate_forces ( kg_env, globenv, debug )
                               natom_of_kind=natom_of_kind)
      first_time = .TRUE.
   END IF
+
+  IF (.not.ASSOCIATED(kg_env%sac_ppl)) THEN
+     CALL build_neighbor_lists(kg_env,globenv)
+  ELSE
+     CALL rebuild_neighbor_lists(kg_env,globenv)
+  END IF
+
 
 ! initialization       
 
@@ -330,6 +355,7 @@ SUBROUTINE kg_calculate_forces ( kg_env, globenv, debug )
   thermo % e_rspace_core = 0.0_dbl
   thermo % e_bond_corr = 0.0_dbl
   thermo % e_xc = 0.0_dbl
+  thermo % e_ppl = 0.0_dbl
   thermo % virial % pv_virial = 0.0_dbl
 
 ! Calculate the rspace energy of the core charge distribution
@@ -341,7 +367,12 @@ SUBROUTINE kg_calculate_forces ( kg_env, globenv, debug )
 
   CALL calculate_ebond_corr(kg_env,globenv,thermo%e_bond_corr,kg_forces)
 
-! Calculate the density generated by the effective point core charges qeff
+! Calculate the local pseudopotential energy         
+
+  CALL calculate_rho0_ppl(kg_env,globenv,thermo%e_ppl, &
+                         calculate_forces,kg_forces)
+
+! Calculate the density generated by the core charges
 
   CALL calculate_epc_density(kg_rho_v%rho_core, kg_rho_v%cube_info(1),&
                          kg_rho_v%l_info,&
@@ -420,7 +451,7 @@ SUBROUTINE kg_calculate_forces ( kg_env, globenv, debug )
 ! add up all the potential energies
 
   thermo % pot = thermo % e_self + thermo % e_rspace_core + thermo % e_xc + &
-                 thermo % e_hartree + thermo % e_bond_corr 
+                 thermo % e_hartree + thermo % e_bond_corr + thermo % e_ppl 
      
 ! add up all the forces
 
@@ -428,7 +459,8 @@ SUBROUTINE kg_calculate_forces ( kg_env, globenv, debug )
     kg_forces(ikind)%f_total(:,:) = kg_forces(ikind)%f_rho(:,:) +&
                                 kg_forces(ikind)%f_rspace_core(:,:) +&
                                 kg_forces(ikind)%f_hartree_core(:,:) +&
-                                kg_forces(ikind)%f_bc(:,:) 
+                                kg_forces(ikind)%f_bc(:,:)+&
+                                kg_forces(ikind)%f_gth_ppl(:,:) 
   END DO
 
 
@@ -449,6 +481,7 @@ SUBROUTINE kg_calculate_forces ( kg_env, globenv, debug )
         debug % f_rspace_core (:,i) = kg_forces(ikind)%f_rspace_core(:,iatom)
         debug % f_bc (:,i) = kg_forces(ikind)%f_bc(:,iatom)
         debug % f_xc (:,i) = kg_forces(ikind)%f_xc(:,iatom)
+        debug % f_ppl (:,i) = kg_forces(ikind)%f_gth_ppl(:,iatom)
       END IF
     END DO
   END DO
@@ -463,6 +496,7 @@ SUBROUTINE kg_calculate_forces ( kg_env, globenv, debug )
     debug % pot_rspace_core = thermo % e_rspace_core
     debug % pot_bond_corr = thermo % e_bond_corr
     debug % pot_xc = thermo % e_xc
+    debug % pot_ppl = thermo % e_ppl
   END IF
 
 #if defined ( __parallel )
@@ -504,7 +538,7 @@ SUBROUTINE kgpol_calculate_forces ( kg_env, globenv, debug )
   IMPLICIT NONE
 
 ! Arguments
-  TYPE ( kg_environment_type ), INTENT ( INOUT ):: kg_env
+  TYPE ( kg_environment_type ), POINTER         :: kg_env
   TYPE ( global_environment_type ), INTENT ( IN ) :: globenv
   TYPE ( debug_variables_type ), INTENT ( OUT ), OPTIONAL :: debug
 
@@ -528,16 +562,17 @@ SUBROUTINE kgpol_calculate_forces ( kg_env, globenv, debug )
   INTEGER :: id, i, ii, natoms, nnodes, handle, isos, n, nkind
   INTEGER :: iatom, ikind 
   REAL ( dbl ) :: pot_nonbond, pot_bond, pot_bend, pot_torsion, vg_coulomb
-  REAL ( dbl ) :: ehartree, exc, e1_xc, e2_xc
+  REAL ( dbl ) :: ehartree, exc, e1_xc, e2_xc,eself_first
   REAL ( dbl ) :: total_rho0_rspace, total_rhop_rspace
   REAL ( dbl ), DIMENSION ( 3,3 ) :: pv_nonbond, pv_bond, pv_bend, pv_torsion
   REAL ( dbl ), DIMENSION ( :,: ), ALLOCATABLE :: fg_coulomb
   REAL ( dbl ), DIMENSION ( :,: ), ALLOCATABLE :: f_total
   REAL ( dbl ), DIMENSION ( 3,3 ) :: pv_g, ident
   REAL ( dbl ), DIMENSION ( 3,3 ) :: pv_bc
-  LOGICAL :: first_time,kgpol
+  LOGICAL :: first_time,kgpol,calculate_forces
   INTEGER, DIMENSION(:), POINTER   :: atom_list
   INTEGER, DIMENSION(:), ALLOCATABLE, SAVE :: natom_of_kind
+  REAL(dbl), DIMENSION(:,:), ALLOCATABLE, SAVE :: fcoef_self
   CHARACTER(LEN=8) :: force_type
 
 ! associcating local pointers
@@ -559,6 +594,7 @@ SUBROUTINE kgpol_calculate_forces ( kg_env, globenv, debug )
 
   first_time=.FALSE. 
   kgpol=.TRUE. 
+  calculate_forces=.TRUE. 
   nnodes = SIZE ( pnode )
   natoms = SIZE ( part )
   nkind = SIZE( atomic_kind_set )
@@ -571,6 +607,15 @@ SUBROUTINE kgpol_calculate_forces ( kg_env, globenv, debug )
      CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,&
                               natom_of_kind=natom_of_kind)
      first_time = .TRUE.
+  END IF
+  IF ( .NOT. ALLOCATED ( fcoef_self ) ) THEN
+     ALLOCATE (fcoef_self(nkind,nkind),STAT=isos)
+     IF (isos /= 0) CALL stop_memory(routine,"fcoef_self",nkind)
+  END IF
+  IF (.not.ASSOCIATED(kg_env%sac_ppl)) THEN
+     CALL build_neighbor_lists(kg_env,globenv)
+  ELSE
+     CALL rebuild_neighbor_lists(kg_env,globenv)
   END IF
 
 ! initialization       
@@ -585,6 +630,11 @@ SUBROUTINE kgpol_calculate_forces ( kg_env, globenv, debug )
      CALL get_hinv ( box )
  
      CALL calculate_eself ( kg_env, thermo % e_self )
+!!    CALL allocate_kg_densities (kg_rho_v, globenv, kgpol )
+!!
+!!!!   CALL calculate_eself_atomic(kg_rho_v, kg_env, fcoef_self, &
+!!                  globenv)
+!!    CALL deallocate_kg_densities (kg_rho_v, globenv, kgpol )
 
   END IF
 
@@ -606,8 +656,13 @@ SUBROUTINE kgpol_calculate_forces ( kg_env, globenv, debug )
      part ( i ) % f ( 2 ) = 0.0_dbl
      part ( i ) % f ( 3 ) = 0.0_dbl
   END DO
+  DO i=1,SIZE (coef_pos % ao % cr)
+      coef_force % ao % cr (i)= 0.0_dbl                     
+  END DO
   thermo % pot = 0.0_dbl
   thermo % e_hartree = 0.0_dbl
+  thermo % e_ppl = 0.0_dbl
+  thermo % e_ppl2 = 0.0_dbl
   thermo % e_rspace_core = 0.0_dbl
   thermo % e_bond_corr = 0.0_dbl
   thermo % e_xc = 0.0_dbl
@@ -621,6 +676,20 @@ SUBROUTINE kgpol_calculate_forces ( kg_env, globenv, debug )
 ! calculate intramolecular bonded_correction energy  
 
   CALL calculate_ebond_corr(kg_env,globenv,thermo%e_bond_corr,kg_forces)
+ 
+! Calculate the local pseudopotential energy
+
+  CALL calculate_rho0_ppl(kg_env,globenv,thermo%e_ppl, &
+                         calculate_forces,kg_forces)
+
+  CALL calculate_drho_ppl(coef_pos%ao%cr, coef_force%ao%cr, kg_env,globenv, &
+                         thermo%e_ppl2, calculate_forces,kg_forces)
+  IF(PRESENT(debug)) THEN 
+     DO i=1,SIZE (coef_pos % ao % cr)
+       debug % fc_ppl (i)= coef_force % ao % cr (i)
+       coef_force % ao % cr (i)=0.0_dbl
+    END DO
+  END IF
 
 ! Calculate the density generated by the effective point core charges qeff
 
@@ -667,7 +736,7 @@ SUBROUTINE kgpol_calculate_forces ( kg_env, globenv, debug )
 
 ! add the polarization density to get the total density
 
-  kg_rho_v%rho_p_gspace%pw%cc(:)=-1.0_dbl*kg_rho_v%rho_p_gspace%pw%cc(:)
+!  kg_rho_v%rho_p_gspace%pw%cc(:)=-1.0_dbl*kg_rho_v%rho_p_gspace%pw%cc(:)
   CALL coeff_sumup(kg_rho_v%rho_p_gspace,kg_rho_v%rho_gspace)
 
 ! calculate electrostatic potential
@@ -698,6 +767,8 @@ SUBROUTINE kgpol_calculate_forces ( kg_env, globenv, debug )
                kg_rho_v%gridlevel_info,&
                kg_rho_v%cube_info, kg_rho_v%l_info,&
                kg_env, kg_forces, globenv, force_type)
+  kg_rho_v%v_hartree_rspace%pw%cr3d(:,:,:) =-1._dbl*&
+             kg_rho_v%v_hartree_rspace%pw%cr3d(:,:,:)
     CALL calculate_vp_rspace_forces(coef_pos%ao%cr, coef_force%ao%cr,&
               kg_rho_v%v_hartree_rspace,kg_rho_v%mgrid_rspace,&
               kg_rho_v%mgrid_gspace, kg_rho_v%auxbas_grid,&
@@ -706,6 +777,7 @@ SUBROUTINE kgpol_calculate_forces ( kg_env, globenv, debug )
               kg_env, kg_forces, globenv, force_type)
     DO i=1,SIZE (coef_pos % ao % cr)
        debug % fc_hartree (i)= coef_force % ao % cr (i)
+      coef_force % ao % cr (i) = 0.0_dbl
     END DO
 
     force_type = 'xc'
@@ -745,8 +817,8 @@ SUBROUTINE kgpol_calculate_forces ( kg_env, globenv, debug )
  
       kg_rho_v%vp_rspace%pw%cr3d(:,:,:) =-1.0_dbl* &
                (kg_rho_v%v_xc_rspace%pw%cr3d(:,:,:) +&
-                kg_rho_v%v1_xc_rspace%pw%cr3d(:,:,:))+&
-                kg_rho_v%v_hartree_rspace%pw%cr3d(:,:,:)
+                kg_rho_v%v1_xc_rspace%pw%cr3d(:,:,:)+&
+                kg_rho_v%v_hartree_rspace%pw%cr3d(:,:,:))
  
      CALL calculate_vp_rspace_forces(coef_pos%ao%cr, coef_force%ao%cr,&
                 kg_rho_v%vp_rspace,kg_rho_v%mgrid_rspace,&
@@ -756,10 +828,14 @@ SUBROUTINE kgpol_calculate_forces ( kg_env, globenv, debug )
                 kg_env, kg_forces, globenv)
   END IF
 
+!  CALL calculate_eself_first(coef_pos%ao%cr, coef_force%ao%cr, &
+!                eself_first, fcoef_self, kg_env)
+
 ! add up all the potential energies
 
   thermo % pot = thermo % e_self + thermo % e_rspace_core + thermo % e_xc + &
-                 thermo % e_hartree + thermo % e_bond_corr 
+                 thermo % e_hartree + thermo % e_bond_corr + thermo % e_ppl + &
+                 thermo % e_ppl2
      
 ! add up all the forces
 
@@ -767,6 +843,7 @@ SUBROUTINE kgpol_calculate_forces ( kg_env, globenv, debug )
     kg_forces(ikind)%f_total(:,:) = kg_forces(ikind)%f_rho(:,:) +&
                                 kg_forces(ikind)%f_rspace_core(:,:) +&
                                 kg_forces(ikind)%f_hartree_core(:,:) +&
+                                kg_forces(ikind)%f_gth_ppl(:,:) +&
                                 kg_forces(ikind)%f_bc(:,:) 
   END DO
 
@@ -788,6 +865,7 @@ SUBROUTINE kgpol_calculate_forces ( kg_env, globenv, debug )
         debug % f_rspace_core (:,i) = kg_forces(ikind)%f_rspace_core(:,iatom)
         debug % f_bc (:,i) = kg_forces(ikind)%f_bc(:,iatom)
         debug % f_xc (:,i) = kg_forces(ikind)%f_xc(:,iatom)
+        debug % f_ppl (:,i) = kg_forces(ikind)%f_gth_ppl(:,iatom)
       END IF
     END DO
   END DO
@@ -802,6 +880,8 @@ SUBROUTINE kgpol_calculate_forces ( kg_env, globenv, debug )
     debug % pot_rspace_core = thermo % e_rspace_core
     debug % pot_bond_corr = thermo % e_bond_corr
     debug % pot_xc = thermo % e_xc
+    debug % pot_ppl = thermo % e_ppl
+    debug % pot_ppl2 = thermo % e_ppl2
   END IF
 
 #if defined ( __parallel )
@@ -821,9 +901,264 @@ SUBROUTINE kgpol_calculate_forces ( kg_env, globenv, debug )
   CALL timestop ( zero, handle )
 
 END SUBROUTINE kgpol_calculate_forces
+! *************************************************************************
+  SUBROUTINE calculate_eself_atomic(kg_rho_v, kg_env, &
+             fcoef_self, globenv )
+
+!  porupose: calculates self-interaction due to polarization charge.
+!  it has to be subtracted from the total interaction energy
+!  here it is calculated only for one atom of a given kind (basis
+!  functions are the same).
+
+! Arguments
+    TYPE(kg_rho_v_type), POINTER :: kg_rho_v
+    TYPE ( kg_environment_type ), INTENT(INOUT) :: kg_env
+    TYPE ( global_environment_type ), INTENT ( IN ) :: globenv
+    REAL(dbl), intent (out), dimension(:,:) :: fcoef_self
+
+! Locals
+    CHARACTER(LEN=*), PARAMETER :: routine =&
+      "SUBROUTINE calculate_pol_self_interaction (MODULE kg_force)"
+    TYPE(atomic_kind_type), POINTER, DIMENSION (:) :: atomic_kind_set
+    TYPE(atomic_kind_type), POINTER :: atomic_kind
+    TYPE(dft_control_type), POINTER :: dft_control
+    TYPE(gth_potential_type), POINTER :: gth_potential
+    TYPE(gto_basis_set_type), POINTER :: aux_basis_set
+
+    REAL(dbl), DIMENSION(1) :: zetb,rpgfb
+    REAL(dbl), DIMENSION(:,:), ALLOCATABLE :: hab,work
+    REAL(dbl), DIMENSION(:), POINTER:: cexp_ppl
+    REAL(dbl), DIMENSION(:), POINTER   :: set_radius_a
+    REAL(dbl), DIMENSION(:,:), POINTER :: rpgfa,sphi_a,zeta
+
+    REAL(dbl), DIMENSION(3)                  :: rab,rac,rbc
+
+    INTEGER, DIMENSION(:), POINTER    :: la_max,la_min,npgfa,nsgfa
+    INTEGER, DIMENSION(:,:), POINTER  :: first_sgfa
+
+    INTEGER  :: isos, handle,&
+                i,ikind,ipgf,iset,ishell,istat,isgf ,&
+                l,ldsab,maxsgf,maxco,maxl,&
+                maxlgto,maxlppl,ncoa,&
+                nseta,sgfa
+
+
+    real (dbl) :: ener
+    real (dbl):: alpha_ppl, ppl_radius                         
+
+    rab(:)=0._dbl
+    rac(:)=0._dbl
+    rbc(:)=0._dbl
+    zetb(:)=0._dbl
+    rpgfb(:)=0._dbl
+    fcoef_self(:,:)=0.0_dbl
+
+
+    CALL get_kg_env( kg_env=kg_env, atomic_kind_set=atomic_kind_set,&
+                     dft_control=dft_control)
+    CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,&
+                             maxco=maxco,&
+                             maxlgto=maxlgto,&
+                             maxlppl=maxlppl,&
+                             maxsgf=maxsgf)
+    maxl = MAX(maxlgto,maxlppl)
+
+    CALL init_orbital_pointers(maxl+1)
+
+    ldsab = MAX(maxco,maxsgf)
+
+    ALLOCATE (hab(ldsab,1),STAT=istat)
+    IF (istat /= 0) THEN
+      CALL stop_memory(routine,"hab",ldsab*wp_size)
+    END IF
+    hab(:,:) = 0.0_dbl
+
+    ALLOCATE (work(ldsab,1),STAT=istat)
+    IF (istat /= 0) THEN
+      CALL stop_memory(routine,"work",ldsab*wp_size)
+    END IF
+    work(:,:) = 0.0_dbl
+
+
+    DO ikind=1,size(atomic_kind_set)
+
+      CALL coeff_zero(kg_rho_v%v_rspace)
+      CALL coeff_zero(kg_rho_v%v_xc_rspace)
+      CALL coeff_zero(kg_rho_v%rho_elec_rspace)
+      CALL coeff_zero(kg_rho_v%rho_core)
+      CALL coeff_zero(kg_rho_v%rho_gspace)
+
+      atomic_kind => atomic_kind_set(ikind)
+
+      CALL get_atomic_kind(atomic_kind=atomic_kind,&
+                               gth_potential=gth_potential,&
+                               aux_basis_set=aux_basis_set)
+
+      IF (ASSOCIATED(aux_basis_set)) THEN
+        
+        CALL get_gto_basis_set(gto_basis_set=aux_basis_set,&
+                             first_sgf=first_sgfa,&
+                             lmax=la_max,&
+                             lmin=la_min,&
+                             npgf=npgfa,&
+                             nsgf_set=nsgfa,&
+                             pgf_radius=rpgfa,&
+                             set_radius=set_radius_a,&
+                             sphi=sphi_a,&
+                             zet=zeta)
+
+        IF (ASSOCIATED(gth_potential)) THEN
+          CALL get_potential(potential=gth_potential,&
+                             alpha_ppl=alpha_ppl,&
+                             cexp_ppl=cexp_ppl,&
+                             ppl_radius=ppl_radius)
+
+
+          iset=1
+  
+          ncoa = npgfa(iset)*ncoset(la_max(iset))
+          sgfa = first_sgfa(1,iset)
+
+          CALL overlap_ppl(&
+                    la_max(iset),zeta(1:npgfa(iset),iset),&
+                    rpgfa(1:npgfa(iset),iset),la_min(iset),&
+                    0,zetb,rpgfb,0,&
+                    cexp_ppl,alpha_ppl,&
+                    ppl_radius,&
+                    rab,0._dbl,0._dbl,&
+                    rac,0._dbl,0._dbl,&
+                    rbc,0._dbl,0._dbl,&
+                    hab,0,0,.FALSE.)
+
+          CALL dgemm("T","N",nsgfa(iset),1,ncoa,&
+                     1.0_dbl,sphi_a(1,sgfa),SIZE(sphi_a,1),&
+                     hab(1,1),SIZE(hab,1),&
+                     0.0_dbl,work(1,1),SIZE(work,1))
+
+          DO isgf=1,nsgfa(iset)
+              fcoef_self(ikind,isgf) = work(isgf,1)
+          END DO
+
+
+        END IF
+
+! calculate the frozen electronic pseudo density
+
+        CALL calculate_density_single ( kg_rho_v%rho_elec_rspace, kg_rho_v%rho_gspace, &
+             kg_rho_v%mgrid_rspace, kg_rho_v%mgrid_gspace,&
+             kg_rho_v%gridlevel_info, kg_rho_v%cube_info,&
+             kg_rho_v%l_info, kg_env, ikind, globenv )
+
+        CALL calculate_kxc_potential (kg_rho_v% pw_pool, &
+                                kg_rho_v % rho_elec_rspace, kg_rho_v % rho_gspace, &
+                                kg_rho_v%v_xc_rspace, ener, dft_control)
+
+        CALL calculate_epc_density_single(kg_rho_v%rho_core, kg_rho_v%cube_info(1),&
+                         kg_rho_v%l_info,&
+                         ikind, kg_env, globenv)
+
+        CALL coeff_sumup(kg_rho_v%rho_core,kg_rho_v%rho_gspace)
+
+! calculate electrostatic potential
+        CALL calculate_hartree(kg_rho_v%rho_gspace, ener,&
+           kg_rho_v%v_gspace)
+
+!  calclation of the forces on the ions
+
+        CALL coeff_transform_space(kg_rho_v%v_gspace,kg_rho_v%v_hartree_rspace)
+
+        kg_rho_v%v_hartree_rspace%pw%cr3d(:,:,:) =&
+             kg_rho_v%v_hartree_rspace%pw%pw_grid%dvol*&
+             kg_rho_v%v_hartree_rspace%pw%cr3d(:,:,:)
+
+        kg_rho_v%vp_rspace%pw%cr3d(:,:,:) = &
+               (kg_rho_v%v_xc_rspace%pw%cr3d(:,:,:) - 1.0_dbl*&
+                kg_rho_v%v_hartree_rspace%pw%cr3d(:,:,:))
+
+        CALL calculate_vp_rspace_forces_s(fcoef_self,&
+                kg_rho_v%vp_rspace,kg_rho_v%mgrid_rspace,&
+                kg_rho_v%mgrid_gspace, kg_rho_v%auxbas_grid,&
+                kg_rho_v%gridlevel_info,&
+                kg_rho_v%cube_info, kg_rho_v%l_info,&
+                kg_env, ikind, globenv)
+
+     END IF
+
+   END DO
+   DEALLOCATE (hab,STAT=istat)
+    IF (istat /= 0) CALL stop_memory(routine,"hab")
+
+  DEALLOCATE (work,STAT=istat)
+    IF (istat /= 0) CALL stop_memory(routine,"work")
+
+
+  END SUBROUTINE calculate_eself_atomic
+
+! *************************************************************************
+
+ SUBROUTINE calculate_eself_first(coefs, forces, eself_first,    &
+             fcoef_self, kg_env )
+
+!  porupose: calculates self-interaction due to polarization charge.
+!  it has to be subtracted from the total interaction energy
+!  here it is calculated only for one atom of a given kind (basis
+!  functions are the same).
+
+! Arguments
+    TYPE ( kg_environment_type ), INTENT(INOUT) :: kg_env
+    REAL(dbl), intent (in), dimension(:,:) :: fcoef_self
+    REAL(dbl), intent (in), dimension(:) :: coefs
+    REAL(dbl), intent (inout), dimension(:) :: forces
+    REAL(dbl), intent (out) :: eself_first
+
+! Locals
+    CHARACTER(LEN=*), PARAMETER :: routine =&
+      "SUBROUTINE calculate_eself_first (MODULE kg_force)"
+    TYPE(atomic_kind_type), POINTER, DIMENSION (:) :: atomic_kind_set
+    TYPE(atomic_kind_type), POINTER :: atomic_kind
+    TYPE(gto_basis_set_type), POINTER :: aux_basis_set
+
+    INTEGER, DIMENSION(:), POINTER    :: nsgfa
+
+    INTEGER  :: isos, handle,natom_of_kind,&
+                i,ikind,ipgf,iset,istat,isgf ,&
+                ncgf, iatom, offset, nset
+
+
+    offset=0
+    eself_first=0._dbl
+    CALL get_kg_env( kg_env=kg_env, atomic_kind_set=atomic_kind_set)
+
+    DO ikind=1,size(atomic_kind_set)
+      atomic_kind => atomic_kind_set(ikind)
+      CALL get_atomic_kind(atomic_kind=atomic_kind,&
+                               natom=natom_of_kind,&
+                               aux_basis_set=aux_basis_set)
+
+      IF (ASSOCIATED(aux_basis_set)) THEN
+        CALL get_gto_basis_set(gto_basis_set=aux_basis_set,&
+                             nset=nset,&
+                             nsgf_set=nsgfa,&
+                             ncgf=ncgf)
+        DO iatom=1,natom_of_kind
+          DO iset=1,nset
+            IF(ISET==1) THEN
+              DO i=1,nsgfa(iset)
+                forces(i+offset) = forces(i+offset) + fcoef_self(ikind,i)
+                eself_first = eself_first + fcoef_self(ikind,i)*coefs(i+offset)
+              END DO
+            END IF
+          END DO
+          offset=offset+ncgf
+        END DO
+     END IF
+    END DO
+
+  END SUBROUTINE calculate_eself_first
 
 
 ! *************************************************************************
+
   SUBROUTINE allocate_kg_densities(kg_rho_v, globenv, kgpol ) 
 
 ! Arguments

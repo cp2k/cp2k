@@ -88,14 +88,15 @@ CONTAINS
 
     TYPE(atomic_kind_type), POINTER   :: atomic_kind
     TYPE(epc_potential_type), POINTER :: epc_potential
+    TYPE(gth_potential_type), POINTER :: gth_potential
     TYPE(gto_basis_set_type), POINTER :: orb_basis_set
     TYPE(gto_basis_set_type), POINTER :: aux_basis_set
 
-    REAL(wp) :: alpha_core_charge,ccore_charge,&
-                core_charge_radius,gcca,kind_radius,zeta
-    INTEGER  :: ikind,ipgf,iset,ishell,l,nkind,nset
+    REAL(wp) :: alpha_core_charge,alpha_ppl,ccore_charge,cerf_ppl,&
+                core_charge_radius,gcca,kind_radius,ppl_radius,zeta
+    INTEGER  :: iexp_ppl,ikind,ipgf,iset,ishell,l,lppl,nexp_ppl,nkind,nset
 
-    REAL(wp), DIMENSION(:), POINTER     :: set_radius
+    REAL(wp), DIMENSION(:), POINTER     :: set_radius,cexp_ppl
     INTEGER, DIMENSION(:), POINTER      :: npgf,nshell
     REAL(wp), DIMENSION(:,:), POINTER   :: pgf_radius,zet
     INTEGER, DIMENSION(:,:), POINTER    :: lshell
@@ -105,12 +106,15 @@ CONTAINS
 
     nkind = SIZE(atomic_kind_set)
 
+    nexp_ppl = 0
+
     DO ikind=1,nkind
 
       atomic_kind => atomic_kind_set(ikind)
 
       CALL get_atomic_kind(atomic_kind=atomic_kind,&
                            epc_potential=epc_potential,&
+                           gth_potential=gth_potential,&
                            aux_basis_set=aux_basis_set,&
                            orb_basis_set=orb_basis_set)
 
@@ -129,7 +133,43 @@ CONTAINS
         CALL set_potential(potential=epc_potential,&
                            core_charge_radius=core_charge_radius)
 
+
+      ELSE IF (ASSOCIATED(gth_potential)) THEN
+
+        CALL get_potential(potential=gth_potential,&
+                           alpha_core_charge=alpha_core_charge,&
+                           ccore_charge=ccore_charge,&
+                           alpha_ppl=alpha_ppl,&
+                           cerf_ppl=cerf_ppl,&
+                           nexp_ppl=nexp_ppl,&
+                           cexp_ppl=cexp_ppl) 
+
+!       *** Calculate the radius of the core charge distribution ***
+
+        core_charge_radius = exp_radius(0,alpha_core_charge,&
+                                        kg_control%eps_core_charge,&
+                                        ccore_charge)
+
+!       *** Calculate the radii of the local part  ***
+!       *** of the Goedecker pseudopotential (GTH) ***
+
+        ppl_radius = exp_radius(0,alpha_ppl,kg_control%eps_core_charge,cerf_ppl)
+
+        DO iexp_ppl=1,nexp_ppl
+          lppl = 2*(iexp_ppl - 1)
+          ppl_radius = MAX(ppl_radius,&
+                           exp_radius(lppl,alpha_ppl,&
+                                      kg_control%eps_core_charge,&
+                                      cexp_ppl(iexp_ppl)))
+        END DO
+
+
+        CALL set_potential(potential=gth_potential,&
+                           core_charge_radius=core_charge_radius,&
+                           ppl_radius=ppl_radius) 
+
       END IF
+
 
 !     *** Calculate the orbital basis function radii (frozen density)***
 
@@ -217,8 +257,11 @@ CONTAINS
 
     END DO
 
-    CALL write_pgf_orb_radii(cell,atomic_kind_set,globenv)
+    IF (ASSOCIATED(orb_basis_set)) THEN
+      CALL write_pgf_orb_radii(cell,atomic_kind_set,globenv)
+    END IF
     CALL write_core_charge_radii(cell,atomic_kind_set,globenv)
+    IF (nexp_ppl > 0) CALL write_ppl_radii(cell,atomic_kind_set,globenv)
 
   END SUBROUTINE init_interaction_radii_kg
 
@@ -712,7 +755,7 @@ CONTAINS
       "FUNCTION exp_radius (MODULE mathlib)"
 
     REAL(wp) :: epsiter 
-    INTEGER, PARAMETER  :: maxiter = 500
+    INTEGER, PARAMETER  :: maxiter = 5000
 
 !   *** Local variables ***
 

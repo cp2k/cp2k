@@ -33,7 +33,7 @@ MODULE kg_core
                                              wp_size => dp_size
   USE linklist_utilities,              ONLY: get_match
   USE mathconstants,                   ONLY: oorootpi,&
-                                             twopi
+                                             twopi, pi
   USE message_passing,                 ONLY: mp_sum
   USE molecule_types,                  ONLY: linklist_exclusion,&
                                              particle_node_type
@@ -120,7 +120,7 @@ CONTAINS
     TYPE (linklist_exclusion), POINTER :: ll_exclude
     TYPE(pbc_coord_type), DIMENSION(:), ALLOCATABLE :: pbc_coord
     TYPE(alist_type), DIMENSION(:), ALLOCATABLE :: alist
-    REAL(dbl), DIMENSION(:), ALLOCATABLE             :: alpha,radius,qeff
+    REAL(dbl), DIMENSION(:), ALLOCATABLE             :: alpha,radius,ccore_charge
     INTEGER, DIMENSION(:), ALLOCATABLE              :: natom
     INTEGER, DIMENSION(:), ALLOCATABLE              :: elist
     INTEGER, DIMENSION(:), ALLOCATABLE              :: ind
@@ -163,9 +163,9 @@ CONTAINS
     IF (istat /= 0) CALL stop_memory(routine,"radius",nkind*wp_size)
     radius(:) = 0.0_dbl
 
-    ALLOCATE (qeff(nkind),STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routine,"qeff",nkind*int_size)
-    qeff(:) = 0
+    ALLOCATE (ccore_charge(nkind),STAT=istat)
+    IF (istat /= 0) CALL stop_memory(routine,"ccore_charge",nkind*int_size)
+    ccore_charge(:) = 0
 
     ALLOCATE (natom(nkind),STAT=istat)
     IF (istat /= 0) CALL stop_memory(routine,"natom",nkind*int_size)
@@ -196,7 +196,7 @@ CONTAINS
                            atom_list=atom_list,&
                            alpha_core_charge=alpha(ikind),&
                            core_charge_radius=radius(ikind),&
-                           qeff=qeff(ikind))
+                           ccore_charge=ccore_charge(ikind))
 
       IF (alpha(ikind) == 0.0_dbl) THEN
 
@@ -251,7 +251,8 @@ CONTAINS
 
         equal_kinds = (ikind == jkind)
 
-        zab = REAL(qeff(ikind)*qeff(jkind),dbl)
+        zab = (ccore_charge(ikind)/SQRT((alpha(ikind)/pi)**3))*  &
+              (ccore_charge(jkind)/SQRT((alpha(jkind)/pi)**3))
         aab = alpha(ikind)*alpha(jkind)/(alpha(ikind) + alpha(jkind))
         rootaab = SQRT(aab)
         f0 = 2.0_dbl*oorootpi*zab*rootaab
@@ -352,8 +353,8 @@ CONTAINS
     DEALLOCATE (radius,STAT=istat)
     IF (istat /= 0) CALL stop_memory(routine,"radius")
 
-    DEALLOCATE (qeff,STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routine,"qeff")
+    DEALLOCATE (ccore_charge,STAT=istat)
+    IF (istat /= 0) CALL stop_memory(routine,"ccore_charge")
 
     DEALLOCATE (natom,STAT=istat)
     IF (istat /= 0) CALL stop_memory(routine,"natom")
@@ -406,7 +407,7 @@ CONTAINS
 !   *** Local variables ***
 
     TYPE(atomic_kind_type), POINTER :: atomic_kind
-    REAL(dbl)                        :: alpha_core_charge,qeff
+    REAL(dbl)                        :: alpha_core_charge,qeff,ccore_charge
     INTEGER                         :: ikind,natom
 
     TYPE(atomic_kind_type), DIMENSION(:), POINTER :: atomic_kind_set
@@ -424,9 +425,10 @@ CONTAINS
 
       CALL get_atomic_kind(atomic_kind=atomic_kind,&
                            natom=natom,&
-                           qeff=qeff,&
+                           ccore_charge=ccore_charge,&
                            alpha_core_charge=alpha_core_charge)
 
+      qeff=ccore_charge/SQRT(alpha_core_charge/pi)**3
       ecore_self = ecore_self - REAL(natom*qeff**2,dbl)*SQRT(alpha_core_charge)
 
     END DO

@@ -53,7 +53,7 @@ MODULE md_kg_energies
 
   TYPE average_quantities_type
      REAL ( dbl ) :: avetemp, avepot, avekin, avecore, avexc, avehartree, avebc
-     REAL ( dbl ) :: avepress, avekinc, avetempc
+     REAL ( dbl ) :: avepress, avekinc, avetempc, aveppl, aveppl2
   END TYPE average_quantities_type
 
   REAL ( dbl ) :: econs_avg
@@ -280,6 +280,8 @@ SUBROUTINE md_energy_kg ( md_env, thermo )
      averages%avehartree = thermo%e_hartree
      averages%avebc = thermo%e_bond_corr
      averages%avexc = thermo%e_xc
+     averages%aveppl = thermo%e_ppl
+     averages%aveppl2 = thermo%e_ppl2
      averages%avepot = thermo%pot
      averages%avekin = thermo%kin
      IF  ( ASSOCIATED ( struc % coef_vel ) ) THEN 
@@ -298,6 +300,8 @@ SUBROUTINE md_energy_kg ( md_env, thermo )
           real(itimes)
      averages%avexc = (averages%avexc*real(itimes-1)+thermo%e_xc)/ &
           real(itimes)
+     averages%aveppl = (averages%aveppl*real(itimes-1)+thermo%e_ppl)/ &
+          real(itimes)
      averages%avepot = (averages%avepot*real(itimes-1)+thermo%pot)/ &
           real(itimes)
      averages%avekin = (averages%avekin*real(itimes-1)+thermo%kin)/ &
@@ -307,6 +311,8 @@ SUBROUTINE md_energy_kg ( md_env, thermo )
             real(itimes)
        averages%avetempc = (averages%avetempc*real(itimes-1)+temp_coefs)/ &
             real(itimes)
+       averages%aveppl2 = (averages%aveppl2*real(itimes-1)+thermo%e_ppl2)/ &
+            real(itimes)
      END IF
      econs_avg = econs_avg + abs((cons-constant)/constant)
   END SELECT
@@ -315,9 +321,9 @@ SUBROUTINE md_energy_kg ( md_env, thermo )
      WRITE (ene, *) itimes, econs, econs_avg/real(itimes)
   END IF
 
- IF (ionode .AND. (mod(itimes,ipot)==0) .AND. (itimes /= 0 )) THEN
-     WRITE (pot, *) itimes, thermo%e_bond_corr, thermo%e_xc, &
-     thermo%e_hartree, thermo%e_rspace_core, thermo%pot
+  IF (ionode .AND. (mod(itimes,ipot)==0) .AND. (itimes /= 0 )) THEN
+    WRITE (pot, *) itimes, thermo%pot, thermo%e_xc, thermo%e_hartree, &
+    thermo%e_rspace_core, thermo%e_ppl, thermo%e_bond_corr
   END IF
 
 
@@ -335,6 +341,8 @@ SUBROUTINE md_energy_kg ( md_env, thermo )
           adjustl(unit % e_label), '= ', thermo%e_hartree
      WRITE ( iw, '( A,A,T40,A,T65,1(1X,E15.7) )' ) ' INITIAL CORE OVLP ENERGY', &
           adjustl(unit % e_label), '= ', thermo%e_rspace_core
+     WRITE ( iw, '( A,A,T40,A,T65,1(1X,E15.7) )' ) ' INITIAL PPL ENERGY', &
+           adjustl(unit % e_label), '= ', thermo%e_ppl
      WRITE ( iw, '( A,A,T40,A,T65,1(1X,E15.7) )' ) ' SELF-ENERGY', &
           adjustl(unit % e_label), '= ', thermo%e_self
      WRITE ( iw, '( A,A,T40,A,T65,1(1X,E15.7) )' ) ' INITIAL KINETIC ENERGY', &
@@ -346,6 +354,8 @@ SUBROUTINE md_energy_kg ( md_env, thermo )
             adjustl(unit % e_label), '= ', ekin_coefs
        WRITE ( iw, '( A,A,T40,A,T65,1(1X,E15.7) )' ) ' INITIAL COEF TEMPERATURE', &
             adjustl(unit % temp_label), '= ', temp_coefs
+       WRITE ( iw, '( A,A,T40,A,T65,1(1X,E15.7) )' ) ' INITIAL POL PPL ENERGY  ', &
+            adjustl(unit % temp_label), '= ', thermo%e_ppl2
      END IF 
      WRITE ( iw, '( A,A,T40,A,T65,1(1X,E15.7) )' ) ' INITIAL VOLUME', &
           adjustl(unit % vol_label), '= ', box%deth
@@ -366,7 +376,7 @@ SUBROUTINE md_energy_kg ( md_env, thermo )
      WRITE ( iw, '( A,T61,A )' ) ' ENSEMBLE TYPE                = ', &
           ADJUSTR ( simpar%ensemble)
      WRITE ( iw, '( A,T71,I10 )' ) ' STEP NUMBER                  = ', itimes
-     WRITE ( iw, '( A,T65,1(1X,E15.7) )' ) ' CONSERVED QNTY               = ', &
+     WRITE ( iw, '( A,T64,1(1X,E16.8) )' ) ' CONSERVED QNTY               = ', &
           cons
      WRITE ( iw, '( )' )
      WRITE ( iw, '( T52,A )' ) 'INSTANTANEOUS        AVERAGES'
@@ -382,6 +392,8 @@ SUBROUTINE md_energy_kg ( md_env, thermo )
           adjustl(unit % e_label), '= ', thermo%e_rspace_core, averages%avecore
      WRITE ( iw, '( A,A,T31,A,T49,2(1X,E15.7) )' ) ' HARTREE   ENERGY', &
           adjustl(unit % e_label), '= ', thermo%e_hartree, averages%avehartree
+     WRITE ( iw, '( A,A,T31,A,T49,2(1X,E15.7) )' ) ' LOCAL PP  ENERGY', &
+          adjustl(unit % e_label), '= ', thermo%e_ppl, averages%aveppl
      WRITE ( iw, '( A,A,T31,A,T49,2(1X,E15.7) )' ) ' KINETIC ENERGY', &
           adjustl(unit % e_label), '= ', thermo%kin, averages%avekin
      WRITE ( iw, '( A,A,T31,A,T49,2(1X,E15.7) )' ) ' TEMPERATURE', &
@@ -391,6 +403,8 @@ SUBROUTINE md_energy_kg ( md_env, thermo )
             adjustl(unit % e_label), '= ', ekin_coefs,  averages%avekinc
        WRITE ( iw, '( A,A,T31,A,T49,2(1X,E15.7) )' ) ' COEF TEMPERATURE', &
             adjustl(unit % temp_label), '= ', temp_coefs, averages%avetempc
+       WRITE ( iw, '( A,A,T31,A,T49,2(1X,E15.7) )' ) ' POL PPL ENERGY  ', &
+            adjustl(unit%e_label), '= ', thermo%e_ppl2, averages%aveppl2
      END IF
      WRITE ( iw, '( A,A )' ) ' **************************************', &
           '*****************************************'

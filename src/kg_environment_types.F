@@ -26,6 +26,7 @@ MODULE kg_environment_types
   USE md, ONLY : virial_type
   USE molecule_types, ONLY : molecule_structure_type, particle_node_type
   USE particle_types, ONLY : particle_type
+  USE qs_neighbor_list_types, ONLY : neighbor_list_set_p_type
   USE simulation_cell, ONLY : cell_type
 
   PRIVATE
@@ -35,7 +36,7 @@ MODULE kg_environment_types
   TYPE kg_thermodynamic_type
      TYPE ( virial_type ), POINTER ::  virial
      REAL ( dbl ) :: kin, pot, e_rspace_core, e_self, e_neut, e_xc, e_hartree,&
-                     e_bond_corr
+                     e_bond_corr, e_ppl, e_ppl2
   END TYPE kg_thermodynamic_type
 
   TYPE kg_environment_type
@@ -49,6 +50,8 @@ MODULE kg_environment_types
     TYPE ( molecule_structure_type ), POINTER :: molecule ( : )
     TYPE ( particle_type ), POINTER :: part ( : )
     TYPE ( particle_node_type ), POINTER :: pnode ( : )
+    TYPE(neighbor_list_set_p_type), DIMENSION(:), POINTER :: sac_ppl 
+    TYPE(neighbor_list_set_p_type), DIMENSION(:), POINTER :: sac_ppl_aux 
     TYPE ( kg_thermodynamic_type ), POINTER :: thermo
   END TYPE kg_environment_type
 
@@ -72,7 +75,7 @@ CONTAINS
 
   SUBROUTINE get_kg_env( kg_env, atomic_kind_set, box, box_ref, coef_pos, &
                          coef_vel, coef_force, dft_control, &
-                         molecule, part, pnode, thermo )
+                         molecule, part, pnode, sac_ppl, sac_ppl_aux, thermo )
     IMPLICIT NONE
 
 !   Purpose: Get the KG environment.
@@ -90,6 +93,8 @@ CONTAINS
     TYPE ( molecule_structure_type ), OPTIONAL, POINTER :: molecule ( : )
     TYPE ( particle_type ), OPTIONAL, POINTER :: part ( : )
     TYPE ( particle_node_type ), OPTIONAL, POINTER :: pnode ( : )
+    TYPE(neighbor_list_set_p_type),&
+      DIMENSION(:), OPTIONAL, POINTER           :: sac_ppl,sac_ppl_aux
     TYPE ( kg_thermodynamic_type ), OPTIONAL, POINTER       :: thermo
 
 !   ---------------------------------------------------------------------------
@@ -104,6 +109,8 @@ CONTAINS
     IF ( PRESENT ( molecule ) ) molecule => kg_env % molecule
     IF ( PRESENT ( part ) ) part => kg_env % part
     IF ( PRESENT ( pnode ) ) pnode => kg_env % pnode
+    IF ( PRESENT(sac_ppl)) sac_ppl => kg_env%sac_ppl
+    IF  (PRESENT(sac_ppl_aux)) sac_ppl_aux => kg_env%sac_ppl_aux
     IF ( PRESENT ( thermo ) ) thermo => kg_env % thermo
 
   END SUBROUTINE get_kg_env
@@ -129,6 +136,8 @@ CONTAINS
     NULLIFY (kg_env%molecule)
     NULLIFY (kg_env%part)
     NULLIFY (kg_env%pnode)
+    NULLIFY (kg_env%sac_ppl)
+    NULLIFY (kg_env%sac_ppl_aux)
     NULLIFY (kg_env%thermo)
 
   END SUBROUTINE init_kg_env
@@ -137,14 +146,14 @@ CONTAINS
 
   SUBROUTINE set_kg_env( kg_env, atomic_kind_set, box, box_ref, coef_pos, &
                          coef_vel, coef_force, dft_control, &
-                         molecule, part, pnode, thermo )
+                         molecule, part, pnode, sac_ppl, sac_ppl_aux, thermo )
     IMPLICIT NONE
 
 !   Purpose: set the KG environment.
 
 !   ***************************************************************************
 
-    TYPE ( kg_environment_type ),  POINTER  :: kg_env
+    TYPE ( kg_environment_type ),  intent (out)  :: kg_env
     TYPE ( atomic_kind_type ), OPTIONAL, TARGET :: atomic_kind_set ( : )
     TYPE ( cell_type ), OPTIONAL, TARGET :: box
     TYPE ( cell_type ), OPTIONAL, TARGET :: box_ref
@@ -155,6 +164,8 @@ CONTAINS
     TYPE ( molecule_structure_type ), OPTIONAL, TARGET :: molecule ( : )
     TYPE ( particle_type ), OPTIONAL, TARGET :: part ( : )
     TYPE ( particle_node_type ), OPTIONAL, TARGET :: pnode ( : )
+    TYPE ( neighbor_list_set_p_type ), DIMENSION (:), OPTIONAL, POINTER  :: sac_ppl 
+    TYPE ( neighbor_list_set_p_type ), DIMENSION (:), OPTIONAL, POINTER  :: sac_ppl_aux
     TYPE ( kg_thermodynamic_type ), OPTIONAL, TARGET  :: thermo
 
 !   ---------------------------------------------------------------------------
@@ -169,6 +180,8 @@ CONTAINS
     IF ( PRESENT ( molecule ) ) kg_env % molecule => molecule
     IF ( PRESENT ( part ) ) kg_env % part => part
     IF ( PRESENT ( pnode ) ) kg_env % pnode => pnode
+    IF ( PRESENT ( sac_ppl ) ) kg_env % sac_ppl => sac_ppl
+    IF ( PRESENT ( sac_ppl_aux ) ) kg_env % sac_ppl_aux => sac_ppl_aux
     IF ( PRESENT ( thermo ) ) kg_env % thermo => thermo
 
 !***************************************************************************

@@ -36,6 +36,7 @@ MODULE kg_force_types
                                          f_xc,&
                                          f_bc,&
                                          f_hartree,&
+                                         f_gth_ppl,&
                                          f_total
   END TYPE kg_force_type
 
@@ -121,6 +122,11 @@ CONTAINS
         CALL stop_memory(routine,"kg_forces(ikind)%f_bc",3*n)
       END IF
 
+      ALLOCATE (kg_forces(ikind)%f_gth_ppl(3,n),STAT=istat)
+      IF (istat /= 0) THEN
+        CALL stop_memory(routine,"kg_forces(ikind)%f_gth_ppl",3*n)
+      END IF
+
       ALLOCATE (kg_forces(ikind)%f_total(3,n),STAT=istat)
       IF (istat /= 0) THEN
         CALL stop_memory(routine,"kg_forces(ikind)%f_total",3*n)
@@ -181,6 +187,13 @@ CONTAINS
         DEALLOCATE (kg_forces(ikind)%f_rho,STAT=istat)
         IF (istat /= 0) THEN
           CALL stop_memory(routine,"kg_forces%f_rho")
+        END IF
+      END IF
+
+      IF (ASSOCIATED(kg_forces(ikind)%f_gth_ppl)) THEN
+        DEALLOCATE (kg_forces(ikind)%f_gth_ppl,STAT=istat)
+        IF (istat /= 0) THEN
+          CALL stop_memory(routine,"kg_forces%f_gth_ppl")
         END IF
       END IF
 
@@ -252,6 +265,7 @@ CONTAINS
     DO ikind=1,SIZE(kg_forces)
       kg_forces(ikind)%f_rspace_core(:,:) = 0.0_dbl
       kg_forces(ikind)%f_hartree_core(:,:) = 0.0_dbl
+      kg_forces(ikind)%f_gth_ppl(:,:) = 0.0_dbl
       kg_forces(ikind)%f_rho(:,:) = 0.0_dbl
       kg_forces(ikind)%f_hartree(:,:) = 0.0_dbl
       kg_forces(ikind)%f_xc(:,:) = 0.0_dbl

@@ -129,7 +129,9 @@ OBJECTS_GENERIC =\
  kg_intra.o\
  kg_kxc.o\
  kg_main.o\
+ kg_neighbor_lists.o\
  kg_pol_coefs.o\
+ kg_ppl.o\
  kinds.o\
  kinetic.o\
  kpoint_initialization.o\

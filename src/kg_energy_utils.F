@@ -22,7 +22,7 @@ MODULE kg_energy_utils
   PUBLIC :: print_convergence, print_energy_info, diis                 
 
   TYPE min_info_type
-    REAL ( dbl ) :: e, de, tol, e_hartree, e_xc, e_pol, err
+    REAL ( dbl ) :: e, de, tol, e_hartree, e_xc, e_pol, err, e_ppl, e_ppl2
   END TYPE min_info_type
 
   TYPE energy_min_type
@@ -79,6 +79,8 @@ SUBROUTINE read_energy_section ( energy_min, globenv )
   energy_min % min_info % tol = 1.0E+6_dbl
   energy_min % min_info % e_xc = 0._dbl
   energy_min % min_info % e_hartree = 0._dbl
+  energy_min % min_info % e_ppl = 0._dbl
+  energy_min % min_info % e_ppl2 = 0._dbl
 
 !..parse the input section
 
@@ -180,6 +182,8 @@ END SUBROUTINE read_energy_section
     WRITE (iw,'(A,T66,E15.7)') ' ODIIS ERROR              = ', min_info%err
     WRITE (iw,'(A,T66,E15.7)') ' TOTAL HARTREE ENERGY  = ', min_info%e_hartree 
     WRITE (iw,'(A,T66,E15.7)') ' KINETIC+XC ENERGY  = ', min_info%e_xc
+    WRITE (iw,'(A,T66,E15.7)') ' PPL        ENERGY  = ', min_info%e_ppl
+    WRITE (iw,'(A,T66,E15.7)') ' PPL  LR    ENERGY  = ', min_info%e_ppl2
     WRITE (iw,'(A,T66,E15.7)') ' TOTAL ENERGY       = ', min_info%e
     WRITE (iw,'(A,T66,E15.7)') ' DELTA E           = ', min_info%de
     WRITE (iw,'(A,A)') ' **************************************', &

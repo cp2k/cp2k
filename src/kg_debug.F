@@ -26,7 +26,9 @@ MODULE kg_debug
   USE kg_force_numer, ONLY : fpart_gspace_numer, fpart_bc_numer,&
                              fpart_xc_numer, fpart_core_rspace_numer,&
                              fpart_p_XC_numer, fpart_p_gspace_numer,&
-                             fcoef_p_XC_numer, fcoef_p_gspace_numer
+                             fcoef_p_XC_numer, fcoef_p_gspace_numer,&
+                             fpart_ppl_numer, fpart_p_ppl_numer, &
+                             fcoef_p_ppl_numer
   USE kg_force, ONLY : kg_force_control, debug_variables_type, get_grids
   USE global_types, ONLY : global_environment_type
   USE kinds, ONLY : dbl
@@ -71,7 +73,7 @@ SUBROUTINE  kg_debug_control ( globenv, kg_env )
   IMPLICIT NONE
 
 ! Arguments
-  TYPE ( kg_environment_type ), INTENT ( INOUT ) :: kg_env
+  TYPE ( kg_environment_type ), POINTER   :: kg_env
   TYPE ( global_environment_type ), INTENT ( INOUT ) :: globenv
 
 ! Locals
@@ -137,6 +139,8 @@ SUBROUTINE  kg_debug_control ( globenv, kg_env )
        CALL stop_memory ( "kg_debug_control", "f_hartree", 3 * natoms )
   ALLOCATE ( dbg % f_bc ( 3, natoms ), STAT = isos )
   IF ( isos /= 0 ) CALL stop_memory ( "kg_debug_control", "f_bc", 3 * natoms )
+  ALLOCATE ( dbg % f_ppl ( 3, natoms ), STAT = isos )
+  IF ( isos /= 0 ) CALL stop_memory ( "kg_debug_control", "f_ppl", 3 * natoms )
   ALLOCATE ( dbg % f_xc ( 3, natoms ), STAT = isos )
   IF ( isos /= 0 ) CALL stop_memory ( "kg_debug_control", "f_xc", 3 * natoms )
   ALLOCATE ( dbg % f_rspace_core ( 3, natoms ), STAT = isos )
@@ -158,6 +162,8 @@ SUBROUTINE  kg_debug_control ( globenv, kg_env )
         CALL stop_memory ( "kg_debug_control", "fc_hartree", ncoef )
     ALLOCATE ( dbg % fc_xc ( ncoef ), STAT = isos )
     IF ( isos /= 0 ) CALL stop_memory ( "kg_debug_control", "fc_xc", ncoef )
+    ALLOCATE ( dbg % fc_ppl ( ncoef ), STAT = isos )
+    IF ( isos /= 0 ) CALL stop_memory ( "kg_debug_control", "fc_ppl", ncoef )
   END IF
 
 ! Call to analytical force routine:
@@ -370,8 +376,6 @@ SUBROUTINE  kg_debug_control ( globenv, kg_env )
     END IF
 
 ! compute the absolute value of the differences in the forces
-
-! compute the absolute value of the differences in the forces
     diff = ABS ( ABS (dbg % f_xc) - ABS (f_numer) )
     IF ( .NOT. ANY ( dbg % f_xc == 0._dbl ) ) rel = diff / ABS (dbg % f_xc)
 
@@ -477,6 +481,90 @@ SUBROUTINE  kg_debug_control ( globenv, kg_env )
          f_numer(:,dum(2))
     END IF
   END IF
+
+  WRITE ( iw, '( A )' ) &
+       ' DO YOU WANT TO DEBUG LOCAL PP INTERACTIONS (1=yes)?'
+  READ ( ir, * ) iflag
+  IF ( iflag == 1 ) THEN
+! get numerical force for the total contribution on the particles
+    WRITE ( iw, '(A)' ) ' ENTER A DELTA LESS THAN 1'
+    READ ( ir, * ) delta
+    IF ( delta >= 1 .OR. delta <= 0 ) THEN
+      delta = 1.E-5
+      WRITE ( iw, '(A,T71,F10.6)' ) &
+        ' DELTA ( changed to default ) = ', delta
+    ELSE
+      WRITE ( iw, '(A,T71,F10.6)' ) ' DELTA = ', delta
+    END IF
+
+    IF(kgpol) THEN
+      CALL fpart_p_ppl_numer ( delta, kg_env, f_numer, &
+                                   energy_numer, globenv )
+      WRITE ( iw, '( A, T61, G20.12 )' ) 'PPL ANA ENERGY = ', &
+               dbg % pot_ppl + dbg % pot_ppl2
+
+    ELSE
+      CALL fpart_ppl_numer ( delta, kg_env, f_numer, &
+                                   energy_numer, globenv )
+      WRITE ( iw, '( A, T61, G20.12 )' ) 'PPL ANA ENERGY = ', &
+               dbg % pot_ppl
+    END IF
+
+    WRITE ( iw, '( A, T61, G20.12 )' ) 'PPL DBG ENERGY = ', &
+               energy_numer
+
+! write out all particle numbers and forces
+    WRITE ( iw, '( /,A )' ) &
+     ' DO YOU WANT TO GET THE FORCES ON ALL PARTICLES (FILE=part_ppl, 1=yes)?'
+    READ ( ir, * ) iflag
+    IF ( iflag == 1 ) THEN
+       OPEN (UNIT = iwf, FILE = 'part_ppl', STATUS = 'REPLACE', ACTION = 'WRITE')
+       DO iatom = 1, natoms
+         WRITE ( iwf, '( A,T71,I10 )' ) ' ATOM NUMBER ', iatom
+         WRITE ( iwf, '( A,T21,3G20.12 )' ) &
+            ' F ANA PPL =', dbg % f_ppl(:,iatom)
+         WRITE ( iwf, '( A,T21,3G20.12,/ )' ) &
+         ' F NUM PPL =', f_numer(:,iatom)
+       END DO
+       CLOSE (iwf)
+    END IF
+
+! compute the absolute value of the differences in the forces
+
+! compute the absolute value of the differences in the forces
+    diff = ABS ( ABS (dbg % f_ppl) - ABS (f_numer) )
+    IF ( .NOT. ANY ( dbg % f_ppl == 0._dbl ) ) rel = diff / ABS (dbg % f_ppl)
+
+! find the maximum difference and the relative and absolute errors
+    WRITE ( iw, '( A,T61,G20.12 )' ) 'MAXIMUM ABSOLUTE ERROR = ', &
+         MAXVAL (diff)
+    IF ( .NOT. ANY ( dbg % f_ppl == 0._dbl ) ) THEN 
+      WRITE ( iw, '( A,T61,G20.12 )' ) 'MAXIMUM RELATIVE ERROR = ', &
+         MAXVAL (rel)
+    ENDIF
+
+! write out the particle number and forces of the max absolute
+! and relative error
+    dum = MAXLOC ( diff )
+    WRITE ( iw, '( A,T71,I10 )' ) &
+         ' PARTICLE WITH MAX ABSOLUTE ERROR IS ', dum(2)
+    WRITE ( iw, '( A,T21,3G20.12 )' ) ' F ANA PPL =', &
+         dbg % f_ppl(:,dum(2))
+    WRITE ( iw, '( A,T21,3G20.12 )' ) ' F NUM PPL =', &
+         f_numer(:,dum(2))
+
+    IF ( .NOT. ANY ( dbg % f_ppl == 0._dbl ) ) THEN 
+      dum = MAXLOC ( rel )
+      WRITE ( iw, '( A,T71,I10 )' ) &
+         'PARTICLE WITH MAX RELATIVE ERROR IS ', dum(2)
+      WRITE ( iw, '( A,T21,3G20.12 )' ) ' F ANA PPL =', &
+         dbg % f_ppl(:,dum(2))
+      WRITE ( iw, '( A,T21,3G20.12 )' ) ' F NUM PPL =', &
+         f_numer(:,dum(2))
+    END IF
+  END IF
+
+
   IF (kgpol) THEN
    WRITE ( iw, '( A )' ) &
          ' DO YOU WANT TO DEBUG YOUR G-SPACE INTERACTIONS on COEFS (1=yes)?'
@@ -632,6 +720,80 @@ SUBROUTINE  kg_debug_control ( globenv, kg_env )
     END IF
 
    END IF
+
+
+   WRITE ( iw, '( A )' ) &
+       ' DO YOU WANT TO DEBUG YOUR PPL INTERACTIONS ON COEF (1=yes)?'
+   READ ( ir, * ) iflag
+   IF ( iflag == 1 ) THEN
+! get numerical force for the total ppl contribution on the COEFS
+    WRITE ( iw, '(A)' ) ' ENTER A DELTA LESS THAN 1'
+    READ ( ir, * ) delta
+    IF ( delta >= 1 .OR. delta <= 0 ) THEN
+      delta = 1.E-5
+      WRITE ( iw, '(A,T71,F10.6)' ) &
+        ' DELTA ( changed to default ) = ', delta
+    ELSE
+      WRITE ( iw, '(A,T71,F10.6)' ) ' DELTA = ', delta
+    END IF
+
+    CALL fcoef_p_ppl_numer ( delta, kg_env, &
+                                 fc_numer, energy_numer, globenv )
+
+    WRITE ( iw, '( A, T61, G20.12 )' ) ' PPL ANA ENERGY = ', &
+               dbg % pot_ppl2
+    WRITE ( iw, '( A, T61, G20.12 )' ) ' PPL DBG ENERGY = ', &
+               energy_numer
+
+! write out all particle numbers and forces
+    WRITE ( iw, '( /,A )' ) &
+     ' DO YOU WANT TO GET THE FORCES ON ALL COEfS (FILE=coef_ppl, 1=yes)?'
+    READ ( ir, * ) iflag
+    IF ( iflag == 1 ) THEN
+       OPEN (UNIT = iwf, FILE = 'coef_ppl', STATUS = 'REPLACE', ACTION = 'WRITE')
+       DO icoef = 1, ncoef 
+         WRITE ( iwf, '( A,T71,I10 )' ) ' coef NUMBER ', icoef
+         WRITE ( iwf, '( A,T21,3G20.12 )' ) &
+            ' F ANA ppl =', dbg % fc_ppl(icoef)
+         WRITE ( iwf, '( A,T21,3G20.12,/ )' ) &
+         ' F NUM ppl =', fc_numer(icoef)
+       END DO
+       CLOSE (iwf)
+    END IF
+! compute the absolute value of the differences in the forces
+    diff_c = ABS ( ABS (dbg % fc_ppl) - ABS (fc_numer) )
+    IF ( .NOT. ANY ( dbg % fc_ppl == 0._dbl ) ) rel_c = diff_c / ABS (dbg % fc_ppl)
+
+! find the maximum difference and the relative and absolute errors
+    WRITE ( iw, '( A,T61,G20.12 )' ) 'MAXIMUM ABSOLUTE ERROR = ', &
+        MAXVAL (diff_c)
+    IF ( .NOT. ANY ( dbg % fc_ppl == 0._dbl ) ) THEN
+      WRITE ( iw, '( A,T61,G20.12 )' ) 'MAXIMUM RELATIVE ERROR = ', &
+        MAXVAL (rel_c)
+    ENDIF
+
+! write out the particle number and forces of the max absolute
+! and relative error
+    dum_c = MAXLOC ( diff_c )
+    WRITE ( iw, '( A,T71,I10 )' ) &
+        ' PARTICLE WITH MAX ABSOLUTE ERROR IS ', dum_c
+    WRITE ( iw, '( A,T21,3G20.12 )' ) ' F ANA PPL =', &
+        dbg % fc_ppl(dum_c)
+    WRITE ( iw, '( A,T21,3G20.12 )' ) ' F NUM PPL =', &
+        fc_numer(dum_c)
+
+    IF ( .NOT. ANY ( dbg % fc_ppl == 0._dbl ) ) THEN
+      dum_c = MAXLOC ( rel_c )
+      WRITE ( iw, '( A,T71,I10 )' ) &
+        'PARTICLE WITH MAX RELATIVE ERROR IS ', dum_c
+      WRITE ( iw, '( A,T21,3G20.12 )' ) ' F ANA PPL =', &
+        dbg % fc_ppl(dum_c)
+      WRITE ( iw, '( A,T21,3G20.12 )' ) ' F NUM PPL =', &
+        fc_numer(dum_c)
+    END IF
+
+   END IF
+
 
   END IF
 

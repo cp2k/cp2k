@@ -449,7 +449,9 @@ CONTAINS
              my_rho_r_local=.FALSE.
              my_rho_g_local=.FALSE.
              my_rho_r => rho_r(ispin)%pw
-             my_rho_g => rho_g(ispin)%pw
+             IF (gradient_f) THEN
+               my_rho_g => rho_g(ispin)%pw
+             END IF
           ELSE
              my_rho_r_local=.TRUE.
              my_rho_g_local=.TRUE.
