@@ -1390,6 +1390,7 @@ SUBROUTINE read_force_field_charmm ( ff_type , globenv )
   ! 4. Read in all the Improper info from the param file here
   !      Vimpr = Kpsi(psi-psi0)^2
   !      UNITS for Kpsi: [(kcal/mol)/(rad^2)] to [Eh/(rad^2)]
+  !      FACTOR of "2" rolled into Kpsi
   !-----------------------------------------------------------------------------
   nimpr = 0
   label = 'IMPROPER'
@@ -1427,6 +1428,7 @@ SUBROUTINE read_force_field_charmm ( ff_type , globenv )
        ! Do some units conversion into internal atomic units
        CALL convert_to_cp2k_units("DEGREE",angle=chm_info%impr_phi0(nimpr))
        CALL convert_to_cp2k_units("KCAL",energy=chm_info%impr_k(nimpr))
+       chm_info%impr_k(nimpr) = 2.0_dp * chm_info%impr_k(nimpr)
        CALL read_line
      END DO
   END IF
@@ -2689,7 +2691,6 @@ SUBROUTINE force_field_pack (particle_set,atomic_kind_set,&
         END DO
 
         IF(ii/=0 .AND. jj/=0) THEN
-
           rmin = chm_info%nonbond_rmin2_14(ii)+chm_info%nonbond_rmin2_14(jj)
           epsilon = sqrt(chm_info%nonbond_eps_14(ii)*&
                          chm_info%nonbond_eps_14(jj))
@@ -2702,7 +2703,8 @@ SUBROUTINE force_field_pack (particle_set,atomic_kind_set,&
           IF(ff_type%rcut_nb>0.0_dp) THEN
             potparm_bond(i,j)%rcutsq     = ff_type%rcut_nb*ff_type%rcut_nb
           ELSE
-            potparm_bond(i,j)%rcutsq     = 100.0_dp
+            !Corresponds to an cutoff of 10A
+            potparm_nonbond(i,j)%rcutsq     = 357.106767_dp
           END IF
 
           IF(found .AND. PM1) &
@@ -2963,7 +2965,6 @@ SUBROUTINE force_field_pack (particle_set,atomic_kind_set,&
         END DO
 
         IF(ii/=0 .AND. jj/=0) THEN
-
           rmin = chm_info%nonbond_rmin2(ii)+chm_info%nonbond_rmin2(jj)
           epsilon = sqrt(chm_info%nonbond_eps(ii)*&
                          chm_info%nonbond_eps(jj))
@@ -2976,9 +2977,11 @@ SUBROUTINE force_field_pack (particle_set,atomic_kind_set,&
           IF(ff_type%rcut_nb>0.0_dp) THEN
             potparm_nonbond(i,j)%rcutsq     = ff_type%rcut_nb*ff_type%rcut_nb
           ELSE
-            potparm_nonbond(i,j)%rcutsq     = 100.0_dp
+            !Corresponds to an cutoff of 10A
+            potparm_nonbond(i,j)%rcutsq     = 357.106767_dp
           END IF
 
+          WRITE(*,*) potparm_nonbond(i,j)%lj%epsilon,rmin
           IF(found .AND. PM1) &
              WRITE(iw,*) "    Multiple LJ-POT declarations: overwriting"
           found = .TRUE.
