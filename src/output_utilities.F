@@ -127,9 +127,13 @@ CONTAINS
     maxrowlen = 0
 
     DO
-
       IF (ipos2 < msglen) THEN
-        ibreak = ipos1 + INDEX(message(ipos1:ipos2)," ",BACK=.TRUE.) - 2
+         i=INDEX(message(ipos1:ipos2)," ",BACK=.TRUE.)
+         IF (i == 0) THEN
+            ibreak = ipos2
+         ELSE
+            ibreak = ipos1 + i - 2
+         END IF
       ELSE
         ibreak = ipos2
       END IF
@@ -163,7 +167,12 @@ CONTAINS
     DO
 
       IF (ipos2 < msglen) THEN
-        ibreak = ipos1 + INDEX(message(ipos1:ipos2)," ",BACK=.TRUE.) - 2
+         i=INDEX(message(ipos1:ipos2)," ",BACK=.TRUE.)
+         IF (i == 0) THEN
+            ibreak = ipos2
+         ELSE
+            ibreak = ipos1 + i - 2
+         END IF
       ELSE
         ibreak = ipos2
       END IF
