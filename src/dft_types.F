@@ -111,6 +111,7 @@ MODULE dft_types
     REAL(wp)                        :: cutoff
     REAL(wp), DIMENSION(:), POINTER :: e_cutoff
     TYPE ( pw_grid_option )         :: pw_grid_opt
+    LOGICAL                         :: rs_distributed
   END TYPE qs_control_type
 
 ! *** Control parameters for a WAVE calculation ***
@@ -699,6 +700,7 @@ CONTAINS
     qs_control%pao = .FALSE.
     qs_control%pw_grid_opt%spherical = .FALSE.
     qs_control%pw_grid_opt%fullspace = .TRUE.
+    qs_control%rs_distributed = .FALSE.
 !
     cutoff_set = .FALSE.
     multgrid_set = .FALSE.
@@ -828,6 +830,17 @@ CONTAINS
             CASE DEFAULT
               CALL stop_parser(routine,"Invalid method <"//TRIM(keyword)//&
                                        "> specified for PW_GRID")
+            END SELECT
+          CASE ("RS_GRID")
+            CALL read_object(string,lower_to_upper=.TRUE.)
+            SELECT CASE (string)
+            CASE ("DISTRIBUTED")
+                 qs_control%rs_distributed = .true.
+            CASE ("REPLICATED")
+                 qs_control%rs_distributed = .false.
+            CASE DEFAULT
+                CALL stop_parser(routine,"Invalid method <"//TRIM(string)//&
+                                         "> specified for RS_GRID")
             END SELECT
           CASE DEFAULT
             CALL stop_parser(routine=routine,message="INVALID_KEYWORD")

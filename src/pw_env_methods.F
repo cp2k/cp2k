@@ -339,10 +339,13 @@ SUBROUTINE pw_env_rebuild(pw_env, qs_env, error)
 
         ! init rs_pools
         drmin = MINVAL ( pw_grid%dr )
-        nsmax = 2*MAX(1,CEILING((radius(igrid_level))/drmin))+1
-!temp fix
-        nsmax = -1
-!
+
+        IF ( dft_control % qs_control % rs_distributed ) THEN
+           nsmax = 2*MAX(1,CEILING((radius(igrid_level))/drmin))+1
+        ELSE
+           nsmax = -1
+        ENDIF
+
         NULLIFY(rs_pools(igrid_level)%pool)
         CALL rs_pool_create(rs_pools(igrid_level)%pool,&
              el_struct=pw_grid,nsmax=nsmax,error=error)
