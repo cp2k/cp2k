@@ -1066,7 +1066,7 @@ CONTAINS
     nq0 = MAX(numroc(nn,nb,0,0,npcol),nb)
 
     lwork = 5*n + MAX(5*nn,np0*nq0) + iceil(neig,npe)*nn + 2*nb*nb +&
-            INT(work_syevx*REAL((neig - 1)*n,wp))
+            INT(work_syevx*REAL((neig - 1)*n,wp)) !!!! allocates a full matrix on every CPU !!!!!
     liwork = MAX(3*n + npe + 1,4*n,14) + 2*n
 
     ALLOCATE (gap(npe),STAT=istat)
