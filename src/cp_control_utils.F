@@ -1077,6 +1077,7 @@ CONTAINS
       ELSE
         WRITE (UNIT=output_unit,FMT="(T2,A,T71,F10.1)")&
           "QS| Density cutoff [a.u.]:",qs_control%cutoff
+        IF (qs_control%commensurate_mgrids) &
         WRITE (UNIT=output_unit,FMT="(T2,A)") "QS| Using commensurate multigrids"
         WRITE (UNIT=output_unit,FMT="(T2,A,T71,F10.1)")&
              "QS| Multi grid cutoff [a.u.]: 1) grid level",qs_control%e_cutoff(1)
