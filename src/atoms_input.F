@@ -24,7 +24,7 @@ MODULE atoms_input
   USE kinds, ONLY : dbl
   USE message_passing, ONLY : mp_bcast
   USE parser, ONLY : parser_init, parser_end, read_line, test_next, &
-       cfield, p_error, get_real, get_int
+       p_error, get_next
   USE string_utilities, ONLY : xstring, uppercase
   USE termination, ONLY : stop_memory, stop_program
   USE util, ONLY : get_unit

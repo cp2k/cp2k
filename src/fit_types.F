@@ -22,8 +22,6 @@
   USE md, ONLY : simulation_parameters_type, thermodynamic_type
   USE ewald_parameters_types, ONLY : ewald_parameters_type  
   USE pair_potential, ONLY : potentialparm_type, spline_nonbond_control
-  USE parser, ONLY : parser_init, parser_end, read_line, test_next, &
-       cfield, p_error, get_real, get_int
   USE particle_types, ONLY : particle_prop_type     
   USE structure_types, ONLY : structure_type
   USE termination, ONLY : stop_program, stop_memory

@@ -27,7 +27,7 @@ MODULE cp2k_input
   USE global_types, ONLY : global_environment_type
   USE message_passing, ONLY : mp_bcast
   USE parser, ONLY : parser_init, parser_end, read_line, test_next, &
-       cfield, p_error, get_real, get_int
+       p_error, get_next
   USE string_utilities, ONLY : uppercase, xstring
   USE termination, ONLY : stop_program
 
@@ -102,7 +102,7 @@ SUBROUTINE read_cp2k_section ( globenv )
       CALL read_line()
       DO WHILE ( test_next() /= 'X' )
          ilen = 6
-         CALL cfield ( string, ilen )
+         CALL get_next ( string, ilen )
          CALL uppercase ( string )
 
          SELECT CASE (string)
@@ -112,19 +112,19 @@ SUBROUTINE read_cp2k_section ( globenv )
 
          CASE ( 'PROGRA' )
             ilen = 0
-            CALL cfield ( globenv % program_name, ilen )
+            CALL get_next ( globenv % program_name, ilen )
             CALL uppercase ( globenv % program_name )
 
          CASE ( 'PROJEC' )
             ilen = 0
-            CALL cfield ( globenv % project_name, ilen )
+            CALL get_next ( globenv % project_name, ilen )
 
          CASE ( 'IOLEVE' )
-            globenv%print_level = get_int()
+            CALL get_next ( globenv%print_level )
 
          CASE ( 'FFTLIB' )
             ilen = 0
-            CALL cfield ( globenv % default_fft_library, ilen )
+            CALL get_next ( globenv % default_fft_library, ilen )
             CALL uppercase ( globenv % default_fft_library )
 
          END SELECT

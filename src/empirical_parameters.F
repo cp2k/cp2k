@@ -27,7 +27,7 @@ MODULE empirical_parameters
   USE kinds, ONLY : dbl
   USE message_passing, ONLY : mp_bcast
   USE parser, ONLY : parser_init, parser_end, read_line, test_next, &
-       cfield, p_error, get_real, get_int, stop_parser
+       p_error, get_next, stop_parser
   USE string_utilities, ONLY : uppercase, xstring, str_search
   USE termination, ONLY : stop_memory, stop_program                               
 
@@ -99,14 +99,14 @@ CONTAINS
      CALL read_line
      DO WHILE (test_next()/='X')
         ilen = 8
-        CALL cfield(string,ilen)
+        CALL get_next(string,ilen)
         iat = str_search(atom_names,natom_types,string)
         nkind = nkind + 1
 
         DO
            CALL read_line
            ilen = 8
-           CALL cfield(string2,ilen)
+           CALL get_next(string2,ilen)
            CALL uppercase ( string2 )
 
            SELECT CASE (string2)
@@ -115,7 +115,7 @@ CONTAINS
               CALL stop_parser ( 'read_empirical_parameter','unknown option')
 
            CASE ( 'NSET')
-              nset = get_int()
+              CALL get_next ( nset )
               read_ep (iat) % nset =  nset     
 
               IF ( read_ep (iat) % nset  > 0) THEN
@@ -128,14 +128,14 @@ CONTAINS
               END IF                                              
 
            CASE ( 'EMPAR')
-               i =  get_int ()
-               read_ep(iat) % l (i) = get_int()
-               read_ep(iat) % hk_param (i) =  get_real()
-               read_ep(iat) % hardness_param (i) =  get_real()
+               CALL get_next ( i )
+               CALL get_next ( read_ep(iat) % l (i) )
+               CALL get_next ( read_ep(iat) % hk_param (i) )
+               CALL get_next ( read_ep(iat) % hardness_param (i) )
       
            CASE ( 'END')
                  ilen = 0
-                 CALL cfield(string2,ilen)
+                 CALL get_next(string2,ilen)
                  EXIT
            END SELECT
 

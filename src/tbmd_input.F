@@ -24,7 +24,7 @@
       USE global_types, ONLY : global_environment_type
       USE input_types, ONLY : setup_parameters_type
       USE parser, ONLY : parser_init, parser_end, read_line, test_next, &
-        cfield, p_error, get_real, get_int, stop_parser
+        p_error, get_next, stop_parser
       USE string_utilities, ONLY : uppercase, xstring, &
         str_search, str_comp, make_tuple
       USE tbmd_types, ONLY : tbatom_param_type, tb_hopping_type
@@ -90,7 +90,7 @@ SUBROUTINE read_tb_hamiltonian ( setup, atom_names, tbatom, tbmdpar )
     CALL read_line
     DO WHILE (test_next()/='X')
       ilen = 6
-      CALL cfield(string,ilen)
+      CALL get_next(string,ilen)
       CALL uppercase ( string )
       SELECT CASE (string)
       CASE ('TBATOM')
@@ -99,18 +99,18 @@ SUBROUTINE read_tb_hamiltonian ( setup, atom_names, tbatom, tbmdpar )
           CALL stop_parser('read_tb_hamiltonian','Too many atoms')
         END IF
         ilen = 20
-        CALL cfield(at,ilen)
+        CALL get_next(at,ilen)
         i1 = str_search(atom_names,nt,at)
         IF (i1==0) CALL stop_parser('read_tb_hamiltonian','atom not found')
         tbatom(i1) %atom_name = at
-        tbatom(i1) %atomic_number = get_int()
-        tbatom(i1) %valence_charge = get_real()
+        CALL get_next ( tbatom(i1) %atomic_number )
+        CALL get_next ( tbatom(i1) %valence_charge )
         ilen = 10
-        CALL cfield(basis,ilen)
+        CALL get_next(basis,ilen)
         CALL set_basis(basis,tbatom(i1)%bsf)
         DO i = 0, 3
           DO j = 1, tbatom(iat) %bsf(i)
-            tbatom(iat) %orbital_energy(i,j) = get_real()
+            CALL get_next ( tbatom(iat) %orbital_energy(i,j) )
           END DO
         END DO
       END SELECT
@@ -260,16 +260,16 @@ SUBROUTINE read_tb_hopping_elements ( setup, atom_names, tbatom, tbhop, tbmdpar 
     CALL read_line
     DO WHILE (test_next()/='X')
       ilen = 5
-      CALL cfield(string,ilen)
+      CALL get_next(string,ilen)
       CALL uppercase ( string )
       SELECT CASE (string)
       CASE ('TBHAM')
         ilen = 10
-        CALL cfield(itype,ilen)
+        CALL get_next(itype,ilen)
         CALL uppercase ( itype )
         IF (itype=='GOODWIN') THEN
-          CALL cfield(at1,ilen)
-          CALL cfield(at2,ilen)
+          CALL get_next(at1,ilen)
+          CALL get_next(at2,ilen)
           i = str_search(atom_names,iat,at1)
           j = str_search(atom_names,iat,at2)
           IF (i==0 .OR. j==0) CALL stop_parser('read_tb_hopping_elements', &
@@ -280,20 +280,20 @@ SUBROUTINE read_tb_hopping_elements ( setup, atom_names, tbatom, tbhop, tbmdpar 
                     'allocation of array tbhop%gsp failed')
           DO k = 1, tbhop(i,j) %nint
             CALL read_line
-            CALL cfield(itype,ilen)
+            CALL get_next(itype,ilen)
             CALL set_int(itype,tbhop(i,j)%lls(1:3,k))
-            tbhop(i,j) %gsp(k) %er0 = get_real()
-            tbhop(i,j) %gsp(k) %r0 = get_real()
-            tbhop(i,j) %gsp(k) %rt = get_real()
-            tbhop(i,j) %gsp(k) %na = get_real()
-            tbhop(i,j) %gsp(k) %nb = get_real()
+            CALL get_next ( tbhop(i,j) %gsp(k) %er0 )
+            CALL get_next ( tbhop(i,j) %gsp(k) %r0 )
+            CALL get_next ( tbhop(i,j) %gsp(k) %rt )
+            CALL get_next ( tbhop(i,j) %gsp(k) %na )
+            CALL get_next ( tbhop(i,j) %gsp(k) %nb )
             tbhop(j,i) %gsp(k) = tbhop(i,j) %gsp(k)
           END DO
         ELSE IF (itype=='CUTOFF') THEN
           ilen = 10
-          CALL cfield(at1,ilen)
-          CALL cfield(at2,ilen)
-          rc = get_real()
+          CALL get_next(at1,ilen)
+          CALL get_next(at2,ilen)
+          CALL get_next ( rc )
           i = str_search(atom_names,iat,at1)
           j = str_search(atom_names,iat,at2)
           IF (i==0 .OR. j==0) CALL stop_parser('read_tb_hopping_elements', &

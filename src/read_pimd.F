@@ -24,7 +24,7 @@ MODULE read_pimd
   USE kinds, ONLY : dbl
   USE message_passing, ONLY : mp_bcast
   USE parser, ONLY : parser_init, parser_end, read_line, test_next, &
-       cfield, p_error, get_real, get_int, stop_parser
+       p_error, get_next, stop_parser
   USE particle_types, ONLY : particle_type
   USE string_utilities, ONLY : uppercase, xstring
   USE util, ONLY : gasdev
@@ -114,7 +114,7 @@ SUBROUTINE read_pimd_section ( pimdpar, mdpar )
      CALL read_line
      DO WHILE ( test_next() /= 'X' )
         ilen = 6
-        CALL cfield ( string, ilen )
+        CALL get_next ( string, ilen )
         CALL uppercase ( string )
         
         SELECT CASE ( string )
@@ -123,14 +123,14 @@ SUBROUTINE read_pimd_section ( pimdpar, mdpar )
            CALL stop_parser ( 'read_pimd_section', 'unknown option' )
            
         CASE ( 'BEADS' )
-           pimdpar % beads = get_int()
+           CALL get_next ( pimdpar % beads )
 
         CASE ( 'NDELTA' )
-           pimdpar % ndelta = get_int()
+           CALL get_next ( pimdpar % ndelta )
            
         CASE ( 'TRANSF' )
            ilen = 0
-           CALL cfield ( string, ilen )
+           CALL get_next ( string, ilen )
            CALL uppercase ( string )
            pimdpar % transformation = string ( 1:ilen )
            

@@ -92,7 +92,7 @@ MODULE atom_type
        CALL read_line()
        DO WHILE (test_next()/='X')
 
-          len = 8; CALL cfield(string, len)
+          len = 8; CALL get_next(string, len)
           CALL uppercase(string)
 
           SELECT CASE (string)
@@ -101,7 +101,7 @@ MODULE atom_type
              CALL stop_parser("atom_type/atom_init", "unkown option")
           CASE ('Z')
              IF (test_next() == 'N') THEN 
-                this%z = get_int(); z_set = .true.
+                CALL get_next ( this%z ); z_set = .true.
                 IF (pflag) WRITE (6,'(1X,A,T47,I3)') "Option Z read with value ", this%z
              ELSE 
                 CALL stop_parser("atom_type/atom_init", &
@@ -112,7 +112,7 @@ MODULE atom_type
              l = 0
              DO
                 IF (test_next() /= 'N') EXIT
-                this%nel(l) = get_int(); nel_set = .true.
+                CALL get_next ( this%nel(l) ); nel_set = .true.
                 IF (pflag) &
                      WRITE (6,'(1X,(A),I1,(A),T47,I3)') &
                      "Option NOELEC read with value (l=", l, ") ", this%nel(l)
@@ -123,7 +123,7 @@ MODULE atom_type
 
           CASE ('METHOD')
              IF (test_next() == 'C') THEN
-                len = 8; CALL cfield(string, len)
+                len = 8; CALL get_next(string, len)
                 CALL uppercase(string)
                 this%method = string
                 IF (pflag) WRITE (6,'(1X,(A),T42,A8)') "Option MEHTOD read with value ", TRIM(this%method)
@@ -134,7 +134,7 @@ MODULE atom_type
 
           CASE ('PRECI')
              IF (test_next() == 'N') THEN
-                this%precision =  DBLE(get_real())
+                CALL get_next ( this%precision )
                 IF (pflag) WRITE (6,'(1X,(A),T40,ES10.3)') "Option PRECI read with value ", this%precision
              ELSE
                 CALL stop_parser("atom_type/atom_init", &
@@ -143,7 +143,7 @@ MODULE atom_type
              
           CASE ('MAXITER')
              IF (test_next() == 'N') THEN 
-                this%maxiter = get_int()
+                CALL get_next ( this%maxiter )
                 IF (pflag) WRITE (6,'(1X,(A),T47,I3)') "Option MAXITER read with value ", this%maxiter
              ELSE 
                 CALL stop_parser("atom_type/atom_init", &
@@ -152,7 +152,7 @@ MODULE atom_type
 
           CASE ('GRIDTYPE')
              IF (test_next() == 'C') THEN
-                len = 8; CALL cfield(rgtype, len)
+                len = 8; CALL get_next(rgtype, len)
                 CALL uppercase(rgtype)
                 IF (pflag) WRITE (6,'(1X,(A),T40,A10)') "Option GRIDTYPE read with value ", TRIM(rgtype)
              ELSE
@@ -162,7 +162,7 @@ MODULE atom_type
              
           CASE ('GRIDN')
              IF (test_next() == 'N') THEN 
-                n = get_int()
+                CALL get_next ( n )
                 IF (pflag) WRITE (6,'(1X,(A),T46,I4)') "Option GRIDN read with value ", n
              ELSE 
                 CALL stop_parser("atom_type/atom_init", &
@@ -171,7 +171,7 @@ MODULE atom_type
 
           CASE ('GRIDRMAX')
              IF (test_next() == 'N') THEN 
-                rmax = get_real()
+                CALL get_next ( rmax )
                 IF (pflag) WRITE (6,'(1X,(A),T40,ES10.3)') "Option GRIDRMAX read with value ", rmax
              ELSE 
                 CALL stop_parser("atom_type/atom_init", &
@@ -180,7 +180,7 @@ MODULE atom_type
 
           CASE ('GRIDB0')
              IF (test_next() == 'N') THEN 
-                b(0) = get_real(); b_set(0) = .TRUE.
+               CALL get_next ( b(0) ); b_set(0) = .TRUE.
                 IF (pflag) WRITE (6,'(1X,(A),T40,ES10.3)') "Option GRIDB0 read with value ", b(0)
              ELSE 
                 CALL stop_parser("atom_type/atom_init", &
@@ -189,7 +189,7 @@ MODULE atom_type
 
           CASE ('GRIDB1')
              IF (test_next() == 'N') THEN 
-                b(1) = get_real(); b_set(1) = .TRUE.
+                CALL get_next ( b(1) ); b_set(1) = .TRUE.
                 IF (pflag) WRITE (6,'(1X,(A),T40,ES10.3)') "Option GRIDB1 read with value ", b(1)
              ELSE 
                 CALL stop_parser("atom_type/atom_init", &
@@ -198,7 +198,7 @@ MODULE atom_type
 
           CASE ('GRIDB2')
              IF (test_next() == 'N') THEN 
-                b(2) = get_real(); b_set(2) = .TRUE.
+                CALL get_next ( b(2) ); b_set(2) = .TRUE.
                 IF (pflag) WRITE (6,'(1X,(A),T40,ES10.3)') "Option GRIDB2 read with value ", b(2)
              ELSE 
                 CALL stop_parser("atom_type/atom_init", &
@@ -207,7 +207,7 @@ MODULE atom_type
 
           CASE ('GRIDB3')
              IF (test_next() == 'N') THEN 
-                b(3) = get_real(); b_set(3) = .TRUE.
+                CALL get_next ( b(3) ); b_set(3) = .TRUE.
                 IF (pflag) WRITE (6,'(1X,(A),T40,ES10.3)') "Option GRIDB3 read with value ", b(3)
              ELSE 
                 CALL stop_parser("atom_type/atom_init", &
@@ -216,7 +216,7 @@ MODULE atom_type
 
           CASE ('GRIDB4')
              IF (test_next() == 'N') THEN 
-                b(4) = get_real(); b_set(4) = .TRUE.
+                CALL get_next ( b(4) ); b_set(4) = .TRUE.
                 IF (pflag) WRITE (6,'(1X,(A),T40,ES10.3)') "Option GRIDB4 read with value ", b(4)
              ELSE 
                 CALL stop_parser("atom_type/atom_init", &
@@ -225,7 +225,7 @@ MODULE atom_type
 
           CASE ('GRIDB5')
              IF (test_next() == 'N') THEN 
-                b(5) = get_real(); b_set(5) = .TRUE.
+                CALL get_next ( b(5) ); b_set(5) = .TRUE.
                 IF (pflag) WRITE (6,'(1X,(A),T40,ES10.3)') "Option GRIDB5 read with value ", b(5)
              ELSE 
                 CALL stop_parser("atom_type/atom_init", &

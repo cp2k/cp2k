@@ -29,17 +29,18 @@
 !!                           are : E (blank); C (text); N (number);
 !!                                 K (bracket); S (! comment); X (&END);
 !!                                 O all other
+!! Subroutine  GET_NEXT(...) : overloaded function of CFIELD, GET_INT, GET_REAL
+!!
 !! Subroutine  CFIELD(string,length) : extracts the next field from the
 !!                                     input line, at most length charcters
 !!                                     are returned in string, if length is 0
 !!                                     the full field is returned, possible
 !!                                     field seperators are: blank, comma,
 !!                                     colon, semicolon, bracket, equal sign
+!! Subroutine  GET_INT(int) : read an integer from the input line
+!! Subroutine  GET_REAL(real) : read an real value from the input line
 !! Subroutine  P_ERROR : writes out current input line and current position
 !!                       within the line, does not stop code
-!! Function    GET_INT() : read an integer from the input line
-!! Function    GET_REAL() : read an real value from the input line
-!! Function    GET_ARRAY(I,J) : read an array field [I:J] or [I]
 !!----------------------------------------------------------------------------
 !!
 !!   SOURCE
@@ -57,8 +58,8 @@ MODULE parser
   USE message_passing, ONLY : mp_bcast, mp_sync
 
   PRIVATE
-  PUBLIC :: parser_init, parser_end, read_line, test_next, cfield, &
-       p_error, get_int, get_real, stop_parser
+  PUBLIC :: parser_init, parser_end, read_line, test_next, get_next, &
+       p_error, stop_parser
 
   INTEGER, PARAMETER :: max_line = 20
   CHARACTER ( LEN = 132 ) :: inp_line(max_line)
@@ -70,6 +71,11 @@ MODULE parser
 
   TYPE(global_environment_type) :: parenv
   LOGICAL :: parallel_io, ionode
+
+  INTERFACE get_next
+    MODULE PROCEDURE get_real, get_int, cfield
+  END INTERFACE
+
 
 !******************************************************************************
 
@@ -402,36 +408,36 @@ END SUBROUTINE p_error
 
 !******************************************************************************
 
-FUNCTION get_int() RESULT (int)
+SUBROUTINE get_int(int)
   IMPLICIT NONE
 
 ! Return value
-  INTEGER :: int
+  INTEGER, INTENT(OUT) :: int
 
 ! Localse
   REAL ( dbl ) :: rival
 
 !------------------------------------------------------------------------------
 
-  rival = get_real()
+  CALL get_real(rival)
   int = NINT ( rival )
   IF ( ABS ( int - rival ) > EPSILON ( rival ) ) THEN
      CALL p_error()
      CALL stop_parser ( 'get_int','not an integer field')
   END IF
 
-END FUNCTION get_int
+END SUBROUTINE get_int
 
 !******************************************************************************
 
-FUNCTION get_real() RESULT ( reval )
+SUBROUTINE get_real(reval)
 
   IMPLICIT NONE
 
 !..most general format :  I((sign)_._E(sign)_/(sign)_._E(sign)_)
 
 ! Return value
-  REAL ( dbl ) :: reval
+  REAL ( dbl ), INTENT ( OUT ) :: reval
 
 ! Locals
   REAL ( dbl ) :: xx, v1, v2
@@ -604,7 +610,7 @@ FUNCTION get_real() RESULT ( reval )
   END IF
   reval = value
 
-END FUNCTION get_real
+END SUBROUTINE get_real
 
 !******************************************************************************
 
@@ -686,53 +692,6 @@ SUBROUTINE get_num ( string, result, rlen )
   result = sign * result
 
 END SUBROUTINE get_num
-
-!******************************************************************************
-
-SUBROUTINE get_array ( ia, ie )
-
-  IMPLICIT NONE
-
-! Arguments
-  INTEGER, INTENT ( OUT ) :: ia, ie
-
-! Locals
-  CHARACTER ( LEN = 256 ) :: string
-  INTEGER :: llen, i
-  REAL ( dbl ) :: rval
-
-!------------------------------------------------------------------------------
-
-  IF ( test_next() /= 'K' ) THEN
-     CALL p_error()
-     CALL stop_parser ( 'get_array','not an array field')
-  END IF
-
-  CALL afield ( string )
-
-  llen = len_trim ( string )
-  string(1:1) = blank
-  IF ( string ( llen:llen ) /= ']' ) THEN
-     CALL p_error()
-     CALL stop_parser ( 'get_array','not an array field')
-  END IF
-
-  string ( llen:llen ) = blank
-  string = ADJUSTL ( string )
-  rval = zero
-  CALL get_num ( string ( 1: ), rval, llen )
-  ia = NINT ( rval )
-
-  i = SCAN ( string, ':' )
-  IF ( i ==0 ) THEN
-     ie = ia
-  ELSE
-     i = i + 1
-     CALL get_num ( string ( i: ), rval, llen )
-     ie = NINT ( rval )
-  END IF
-
-END SUBROUTINE get_array
 
 !******************************************************************************
 

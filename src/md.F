@@ -24,7 +24,7 @@ MODULE md
   USE kinds, ONLY : dbl
   USE message_passing, ONLY : mp_bcast
   USE parser, ONLY : parser_init, parser_end, read_line, test_next, &
-       cfield, p_error, get_real, get_int, stop_parser
+       p_error, get_next, stop_parser
   USE particle_types, ONLY : particle_type
   USE read_pimd, ONLY : pimd_parameters_type
   USE string_utilities, ONLY : uppercase, xstring
@@ -228,7 +228,7 @@ SUBROUTINE read_md_section ( simpar, mdpar, mdio )
      CALL read_line
      DO WHILE ( test_next() /= 'X' )
         ilen = 6
-        CALL cfield ( string, ilen )
+        CALL get_next ( string, ilen )
         CALL uppercase ( string )
 
         SELECT CASE ( string )
@@ -238,66 +238,66 @@ SUBROUTINE read_md_section ( simpar, mdpar, mdio )
 
         CASE ( 'ENSEMB' )
            ilen = 0
-           CALL cfield ( string, ilen )
+           CALL get_next ( string, ilen )
            CALL uppercase ( string )
            simpar % ensemble = string ( 1:ilen )
 
         CASE ( 'POL_EN' )
            ilen = 0
-           CALL cfield ( string, ilen )
+           CALL get_next ( string, ilen )
            CALL uppercase ( string )
            simpar % pol_ensemble = string ( 1:ilen )
 
         CASE ( 'STEPS' )
-           simpar % nsteps = get_int()
+           CALL get_next ( simpar % nsteps )
 
         CASE ( 'VERLET' )
-           simpar % verlet_skin = get_real()
+           CALL get_next ( simpar % verlet_skin )
 
         CASE ( 'CELL' )
-           simpar % n_cell(1) = get_int()
-           simpar % n_cell(2) = get_int()
-           simpar % n_cell(3) = get_int()
+           CALL get_next ( simpar % n_cell(1) )
+           CALL get_next ( simpar % n_cell(2) )
+           CALL get_next ( simpar % n_cell(3) )
 
         CASE ( 'TIMEST' )
-           simpar % dt = get_real()
+           CALL get_next ( simpar % dt )
 
         CASE ( 'TEMPER' )
-           simpar % temp_ext = get_real()
+           CALL get_next ( simpar % temp_ext )
 
         CASE ( 'COEF_T' )
-           simpar % pol_temp = get_real()
+           CALL get_next ( simpar % pol_temp )
 
         CASE ( 'COEF_M' )
-           simpar % pol_mass = get_real()
+           CALL get_next ( simpar % pol_mass )
 
         CASE ( 'RESTAR' )
            ilen = 0
-           CALL cfield ( string, ilen )
+           CALL get_next ( string, ilen )
            CALL uppercase ( string )
            simpar % read_type = string ( 1:ilen )
 
         CASE ( 'POLRES' )
            ilen = 0
-           CALL cfield ( string, ilen )
+           CALL get_next ( string, ilen )
            CALL uppercase ( string )
            simpar % pol_read_type = string ( 1:ilen )
 
         CASE ( 'CONSTR' )
            ilen = 0
-           CALL cfield ( string, ilen )
+           CALL get_next ( string, ilen )
            CALL uppercase ( string )
            IF ( string(1:2)=='ON' ) simpar % constraint = .TRUE.
            IF ( string(1:3)=='OFF' ) simpar % constraint = .FALSE.
 
         CASE ( 'SHAKE' )
-           simpar % shake_tol = get_real()
+           CALL get_next ( simpar % shake_tol )
 
         CASE ( 'POL_NO' )
            DO WHILE ( test_next() == 'C' )
 
               ilen = 6
-              CALL cfield ( string, ilen )
+              CALL get_next ( string, ilen )
               CALL uppercase ( string )
 
               SELECT CASE ( string )
@@ -307,17 +307,17 @@ SUBROUTINE read_md_section ( simpar, mdpar, mdio )
                       'unknown suboption' )
               CASE ( 'OPTION' )
                  ilen = 0
-                 CALL cfield ( string, ilen )
+                 CALL get_next ( string, ilen )
                  CALL uppercase ( string )
                  simpar % pol_option = string ( 1:ilen )
               CASE ( 'LENGTH' )
-                 simpar % pol_nhclen = get_int()
+                 CALL get_next ( simpar % pol_nhclen )
               CASE ( 'YOSHID' )
-                 simpar % pol_nyosh = get_int()
+                 CALL get_next ( simpar % pol_nyosh )
               CASE ( 'TIMECO' )
-                 simpar % pol_tau_nhc = get_real()
+                 CALL get_next ( simpar % pol_tau_nhc )
               CASE ( 'MTS' )
-                 simpar % pol_nc = get_int()
+                 CALL get_next ( simpar % pol_nc )
               END SELECT
            END DO
 
@@ -325,7 +325,7 @@ SUBROUTINE read_md_section ( simpar, mdpar, mdio )
            DO WHILE ( test_next() == 'C' )
 
               ilen = 6
-              CALL cfield ( string, ilen )
+              CALL get_next ( string, ilen )
               CALL uppercase ( string )
 
               SELECT CASE ( string )
@@ -334,13 +334,13 @@ SUBROUTINE read_md_section ( simpar, mdpar, mdio )
                  CALL stop_parser ( 'read_md_section%nose', &
                       'unknown suboption' )
               CASE ( 'LENGTH' )
-                 simpar % nhclen = get_int()
+                 CALL get_next ( simpar % nhclen )
               CASE ( 'YOSHID' )
-                 simpar % nyosh = get_int()
+                 CALL get_next ( simpar % nyosh )
               CASE ( 'TIMECO' )
-                 simpar % tau_nhc = get_real()
+                 CALL get_next ( simpar % tau_nhc )
               CASE ( 'MTS' )
-                 simpar % nc = get_int()
+                 CALL get_next ( simpar % nc )
               END SELECT
            END DO
 
@@ -348,7 +348,7 @@ SUBROUTINE read_md_section ( simpar, mdpar, mdio )
            DO WHILE ( test_next() == 'C' )
 
               ilen = 6
-              CALL cfield ( string, ilen )
+              CALL get_next ( string, ilen )
               CALL uppercase ( string )
 
               SELECT CASE ( string )
@@ -357,9 +357,9 @@ SUBROUTINE read_md_section ( simpar, mdpar, mdio )
                  CALL stop_parser ( 'read_md_section%barost', &
                       'unknown suboption' )
               CASE ( 'TIMECO' )
-                 simpar % tau_cell = get_real()
+                 CALL get_next ( simpar % tau_cell )
               CASE ( 'PRESSU' )
-                 simpar % p_ext = get_real()
+                 CALL get_next ( simpar % p_ext )
               END SELECT
            END DO
 
@@ -367,7 +367,7 @@ SUBROUTINE read_md_section ( simpar, mdpar, mdio )
            DO WHILE ( test_next() == 'C' )
 
               ilen = 6
-              CALL cfield ( string, ilen )
+              CALL get_next ( string, ilen )
               CALL uppercase ( string )
 
               SELECT CASE ( string )
@@ -377,7 +377,7 @@ SUBROUTINE read_md_section ( simpar, mdpar, mdio )
                       'unknown suboption' )
               CASE ( 'FILEBO' )
                  ilen = 0
-                 CALL cfield ( string, ilen )
+                 CALL get_next ( string, ilen )
                  mdio % crd_file_name = string(1:ilen) // '.crd'
                  mdio % vel_file_name = string(1:ilen) // '.vel'
                  mdio % ptens_file_name = string(1:ilen) // '.ptens'
@@ -388,28 +388,28 @@ SUBROUTINE read_md_section ( simpar, mdpar, mdio )
                  mdio % epol_file_name = string(1:ilen) // '.epol'
               CASE ( 'COORDI' )
                  ilen = 0
-                 CALL cfield ( mdio % crd_file_name, ilen )
+                 CALL get_next ( mdio % crd_file_name, ilen )
               CASE ( 'ENERGI' )
                  ilen = 0
-                 CALL cfield ( mdio % ener_file_name, ilen )
+                 CALL get_next ( mdio % ener_file_name, ilen )
               CASE ( 'PRESSU' )
                  ilen = 0
-                 CALL cfield ( mdio % ptens_file_name, ilen )
+                 CALL get_next ( mdio % ptens_file_name, ilen )
               CASE ( 'VELOCI' )
                  ilen = 0
-                 CALL cfield ( mdio % vel_file_name, ilen )
+                 CALL get_next ( mdio % vel_file_name, ilen )
               CASE ( 'TEMPER' )
                  ilen = 0
-                 CALL cfield ( mdio % temp_file_name, ilen )
+                 CALL get_next ( mdio % temp_file_name, ilen )
               CASE ( 'DUMP' )
                  ilen = 0
-                 CALL cfield ( mdio % dump_file_name, ilen )
+                 CALL get_next ( mdio % dump_file_name, ilen )
               CASE ( 'COEF' )
                  ilen = 0
-                 CALL cfield ( mdio % coef_file_name, ilen )
+                 CALL get_next ( mdio % coef_file_name, ilen )
               CASE ( 'EPOL' )
                  ilen = 0
-                 CALL cfield ( mdio % epol_file_name, ilen )
+                 CALL get_next ( mdio % epol_file_name, ilen )
               END SELECT
            END DO
 
@@ -417,7 +417,7 @@ SUBROUTINE read_md_section ( simpar, mdpar, mdio )
            DO WHILE ( test_next() == 'C' )
 
               ilen = 6
-              CALL cfield ( string, ilen )
+              CALL get_next ( string, ilen )
               CALL uppercase ( string )
 
               SELECT CASE ( string )
@@ -427,10 +427,10 @@ SUBROUTINE read_md_section ( simpar, mdpar, mdio )
                       'unknown suboption' )
 
               CASE ( 'SCREEN' )
-                 mdio % iscreen = get_int()
+                 CALL get_next ( mdio % iscreen )
 
               CASE ( 'FILES' )
-                 ia = get_int()
+                 CALL get_next ( ia )
                  mdio % icrd = ia
                  mdio % ivel = ia
                  mdio % iener = ia
@@ -440,21 +440,21 @@ SUBROUTINE read_md_section ( simpar, mdpar, mdio )
                  mdio % iepol = ia
                  mdio % idump = ia
               CASE ( 'COORDI' )
-                 mdio % icrd = get_int()
+                 CALL get_next ( mdio % icrd )
               CASE ( 'ENERGI' )
-                 mdio % iener = get_int()
+                 CALL get_next ( mdio % iener )
               CASE ( 'PRESSU' )
-                 mdio % iptens = get_int()
+                 CALL get_next ( mdio % iptens )
               CASE ( 'VELOCI' )
-                 mdio % ivel = get_int()
+                 CALL get_next ( mdio % ivel )
               CASE ( 'TEMPER' )
-                 mdio % itemp = get_int()
+                 CALL get_next ( mdio % itemp )
               CASE ( 'EPOL' )
-                 mdio % iepol = get_int()
+                 CALL get_next ( mdio % iepol )
               CASE ( 'COEF' )
-                 mdio % icoef = get_int()
+                 CALL get_next ( mdio % icoef )
               CASE ( 'DUMP' )
-                 mdio % idump = get_int()
+                 CALL get_next ( mdio % idump )
               END SELECT
            END DO
         END SELECT

@@ -32,7 +32,7 @@ MODULE library_tests
   USE machine, ONLY : m_cputime
   USE message_passing, ONLY : mp_sum, mp_max
   USE parser, ONLY : parser_init, parser_end, read_line, test_next, &
-       cfield, p_error, get_real, get_int, stop_parser
+       p_error, get_next, stop_parser
   USE pw_grid_types, ONLY : pw_grid_type, HALFSPACE, FULLSPACE
   USE pw_grids, ONLY : pw_grid_setup, pw_grid_construct, pw_grid_destruct, &
        pw_find_cutoff
@@ -151,7 +151,7 @@ SUBROUTINE test_input ( globenv )
      CALL read_line
      DO WHILE ( test_next() /= 'X' )
         ilen = 6
-        CALL cfield ( string, ilen )
+        CALL get_next ( string, ilen )
         CALL uppercase ( string )
 
         SELECT CASE ( string )
@@ -159,15 +159,15 @@ SUBROUTINE test_input ( globenv )
            CALL p_error()
            CALL stop_parser ( 'test_input', 'unknown option' )
         CASE ( 'MEMORY' )
-           max_memory = get_real ()
+           CALL get_next ( max_memory )
         CASE ( 'COPY' )
-           runtest ( 1 ) = get_int ()
+           CALL get_next ( runtest ( 1 ) )
         CASE ( 'MATMUL' )
-           runtest ( 2 ) = get_int ()
+           CALL get_next ( runtest ( 2 ) )
         CASE ( 'FFT' )
-           runtest ( 3 ) = get_int ()
+           CALL get_next ( runtest ( 3 ) )
         CASE ( 'PW_FFT' )
-           runtest ( 4 ) = get_int ()
+           CALL get_next ( runtest ( 4 ) )
         END SELECT
         CALL read_line
      END DO

@@ -32,7 +32,7 @@ MODULE force_fields
        molecule_type
   USE message_passing, ONLY : mp_bcast
   USE parser, ONLY : parser_init, parser_end, read_line, test_next, &
-       cfield, p_error, get_real, get_int, stop_parser
+       p_error, get_next, stop_parser
   USE string_utilities, ONLY : uppercase, xstring, str_search,  &
        str_comp, make_tuple
   USE termination, ONLY : stop_memory, stop_program
@@ -251,13 +251,13 @@ SUBROUTINE input_nonbonded ( potparm, atom_names, set_fn )
      CALL read_line
      DO WHILE (test_next()/='X')
         ilen = 9
-        CALL cfield(string,ilen)
+        CALL get_next(string,ilen)
         CALL uppercase(string)
         IF (index(string,'NONBONDED') /= 0 ) THEN
            DO
               CALL read_line
               ilen = 0
-              CALL cfield(string2,ilen)
+              CALL get_next(string2,ilen)
               CALL uppercase(string2)
               SELECT CASE (string2)
               CASE DEFAULT
@@ -266,12 +266,12 @@ SUBROUTINE input_nonbonded ( potparm, atom_names, set_fn )
               CASE ( 'LENNARD-JONES')
                  np = np + 1
                  ilen = 0
-                 CALL cfield(at1,ilen)
+                 CALL get_next(at1,ilen)
                  ilen = 0
-                 CALL cfield(at2,ilen)
-                 epsilon = get_real()
-                 sigma = get_real()
-                 rcut = get_real()
+                 CALL get_next(at2,ilen)
+                 CALL get_next ( epsilon )
+                 CALL get_next ( sigma )
+                 CALL get_next ( rcut )
                  i1 = str_search(atom_names,natom_types,at1)
                  IF (i1==0) CALL stop_parser( 'input_nonbonded', &
                       'atom not found')
@@ -287,13 +287,13 @@ SUBROUTINE input_nonbonded ( potparm, atom_names, set_fn )
               CASE ( 'WILLIAMS')
                  np = np + 1
                  ilen = 0
-                 CALL cfield(at1,ilen)
+                 CALL get_next(at1,ilen)
                  ilen = 0
-                 CALL cfield(at2,ilen)
-                 a = get_real()
-                 b = get_real()
-                 c = get_real()
-                 rcut = get_real()
+                 CALL get_next(at2,ilen)
+                 CALL get_next ( a )
+                 CALL get_next ( b )
+                 CALL get_next ( c )
+                 CALL get_next ( rcut )
                  i1 = str_search(atom_names,natom_types,at1)
                  IF (i1==0) CALL stop_parser( 'input_nonbonded', &
                       'atom not found')
@@ -309,15 +309,15 @@ SUBROUTINE input_nonbonded ( potparm, atom_names, set_fn )
               CASE ( 'GOODWIN')
                  np = np + 1
                  ilen = 0
-                 CALL cfield(at1,ilen)
+                 CALL get_next(at1,ilen)
                  ilen = 0
-                 CALL cfield(at2,ilen)
-                 vr0 = get_real()
-                 d = get_real()
-                 dc = get_real()
-                 m = get_real()
-                 mc = get_real()
-                 rcut = get_real()
+                 CALL get_next(at2,ilen)
+                 CALL get_next ( vr0 )
+                 CALL get_next ( d )
+                 CALL get_next ( dc )
+                 CALL get_next ( m )
+                 CALL get_next ( mc )
+                 CALL get_next ( rcut )
                  i1 = str_search(atom_names,natom_types,at1)
                  IF (i1==0) CALL stop_parser( 'input_nonbonded', &
                       'atom not found')
@@ -334,7 +334,7 @@ SUBROUTINE input_nonbonded ( potparm, atom_names, set_fn )
                  potparm(i2,i1) = potparm(i1,i2)
               CASE ( 'END')
                  ilen = 0
-                 CALL cfield(string2,ilen)
+                 CALL get_next(string2,ilen)
                  EXIT
               END SELECT
            END DO
@@ -467,13 +467,13 @@ SUBROUTINE input_bonds(bond_parm,atom_names,set_fn)
      CALL read_line
      DO WHILE (test_next()/='X')
         ilen = 5
-        CALL cfield(string,ilen)
+        CALL get_next(string,ilen)
         CALL uppercase ( string )
         IF (index(string,'BONDS') /= 0 ) THEN
            DO
               CALL read_line
               ilen = 0
-              CALL cfield(string2,ilen)
+              CALL get_next(string2,ilen)
               CALL uppercase(string2)
               SELECT CASE (string2)
               CASE DEFAULT
@@ -482,11 +482,11 @@ SUBROUTINE input_bonds(bond_parm,atom_names,set_fn)
               CASE ( 'HARMONIC')
                  nb = nb + 1
                  ilen = 0
-                 CALL cfield(at1,ilen)
+                 CALL get_next(at1,ilen)
                  ilen = 0
-                 CALL cfield(at2,ilen)
-                 bp1 = get_real()
-                 bp2 = get_real()
+                 CALL get_next(at2,ilen)
+                 CALL get_next ( bp1 )
+                 CALL get_next ( bp2 )
                  i1 = str_search(atom_names,natom_types,at1)
                  IF (i1==0) CALL stop_parser( 'input_bonds','atom not found')
                  i2 = str_search(atom_names,natom_types,at2)
@@ -497,7 +497,7 @@ SUBROUTINE input_bonds(bond_parm,atom_names,set_fn)
                  bond_parm(i2,i1) = bond_parm(i1,i2)
               CASE ( 'END')
                  ilen = 0
-                 CALL cfield(string2,ilen)
+                 CALL get_next(string2,ilen)
                  EXIT
               END SELECT
            END DO
@@ -607,13 +607,13 @@ SUBROUTINE input_bends ( bend_parm, atom_names, set_fn )
      CALL read_line
      DO WHILE (test_next()/='X')
         ilen = 5
-        CALL cfield(string,ilen)
+        CALL get_next(string,ilen)
         CALL uppercase ( string )
         IF (index(string,'BENDS') /= 0 ) THEN
            DO
               CALL read_line
               ilen = 0
-              CALL cfield(string2,ilen)
+              CALL get_next(string2,ilen)
               CALL uppercase(string2)
               SELECT CASE (string2)
               CASE DEFAULT
@@ -622,13 +622,13 @@ SUBROUTINE input_bends ( bend_parm, atom_names, set_fn )
               CASE ( 'HARMONIC')
                  nb = nb + 1
                  ilen = 0
-                 CALL cfield(at1,ilen)
+                 CALL get_next(at1,ilen)
                  ilen = 0
-                 CALL cfield(at2,ilen)
+                 CALL get_next(at2,ilen)
                  ilen = 0
-                 CALL cfield(at3,ilen)
-                 bp1 = get_real()
-                 bp2 = get_real()
+                 CALL get_next(at3,ilen)
+                 CALL get_next ( bp1 )
+                 CALL get_next ( bp2 )
                  i1 = str_search(atom_names,natom_types,at1)
                  IF (i1==0) CALL stop_parser( 'input_bends','atom not found')
                  i2 = str_search(atom_names,natom_types,at2)
@@ -641,7 +641,7 @@ SUBROUTINE input_bends ( bend_parm, atom_names, set_fn )
                  bend_parm(i3,i2,i1) = bend_parm(i1,i2,i3)
               CASE ( 'END')
                  ilen = 0
-                 CALL cfield(string2,ilen)
+                 CALL get_next(string2,ilen)
                  EXIT
               END SELECT
            END DO
@@ -758,13 +758,13 @@ SUBROUTINE input_torsions ( torsion_parm, atom_names, set_fn )
      CALL read_line
      DO WHILE (test_next()/='X')
         ilen = 8
-        CALL cfield(string,ilen)
+        CALL get_next(string,ilen)
         CALL uppercase ( string )
         IF (index(string,'TORSIONS') /= 0 ) THEN
            DO
               CALL read_line
               ilen = 0
-              CALL cfield(string2,ilen)
+              CALL get_next(string2,ilen)
               CALL uppercase(string2)
               SELECT CASE (string2)
               CASE DEFAULT
@@ -773,15 +773,15 @@ SUBROUTINE input_torsions ( torsion_parm, atom_names, set_fn )
               CASE ( 'JORGENSEN')
                  nb = nb + 1
                  ilen = 0
-                 CALL cfield(at1,ilen)
+                 CALL get_next(at1,ilen)
                  ilen = 0
-                 CALL cfield(at2,ilen)
+                 CALL get_next(at2,ilen)
                  ilen = 0
-                 CALL cfield(at3,ilen)
+                 CALL get_next(at3,ilen)
                  ilen = 0
-                 CALL cfield(at4,ilen)
+                 CALL get_next(at4,ilen)
                  DO i = 0, SIZE(tp) - 1
-                    tp(i) = get_real()
+                    CALL get_next ( tp(i) )
                  END DO
                  i1 = str_search(atom_names,natom_types,at1)
                  IF (i1==0) CALL stop_parser( 'input_torsions', &
@@ -802,7 +802,7 @@ SUBROUTINE input_torsions ( torsion_parm, atom_names, set_fn )
                  torsion_parm(i4,i3,i2,i1) = torsion_parm(i1,i2,i3,i4)
               CASE ( 'END')
                  ilen = 0
-                 CALL cfield(string2,ilen)
+                 CALL get_next(string2,ilen)
                  EXIT
               END SELECT
            END DO
@@ -920,7 +920,7 @@ SUBROUTINE input_distance_constraints ( constraint_distance, atom_names, &
      CALL read_line
      DO WHILE ( test_next() /= 'X' )
         ilen = 7
-        CALL cfield ( string, ilen )
+        CALL get_next ( string, ilen )
         CALL uppercase ( string )
 
         IF ( INDEX ( string, 'DISTCON' ) /= 0 ) THEN
@@ -928,7 +928,7 @@ SUBROUTINE input_distance_constraints ( constraint_distance, atom_names, &
               CALL read_line()
 
               ilen = 0
-              CALL cfield ( string2, ilen )
+              CALL get_next ( string2, ilen )
               string2_tmp = string2
               CALL uppercase ( string2_tmp )
               IF ( INDEX ( string2_tmp, 'END' ) /= 0 ) EXIT
@@ -936,14 +936,14 @@ SUBROUTINE input_distance_constraints ( constraint_distance, atom_names, &
               at1 = string2
               nb = nb + 1
               ilen = 0
-              CALL cfield ( at2, ilen )
+              CALL get_next ( at2, ilen )
               i1 = str_search ( atom_names, natom_types, at1 )
               IF ( i1 == 0 ) CALL stop_parser ( 'input_distance_constraints', &
                    'atom not found' )
               i2 = str_search ( atom_names, natom_types, at2 )
               IF ( i2 == 0 ) CALL stop_parser ( 'input_distance_constraints', &
                    'atom not found' )
-              dp = get_real()
+              CALL get_next ( dp )
               constraint_distance ( i1, i2 ) = dp
               constraint_distance ( i2, i1 ) = dp
            END DO

@@ -24,7 +24,7 @@ MODULE cntl_input
   USE input_types, ONLY : setup_parameters_type
   USE kinds, ONLY : dbl
   USE parser, ONLY : parser_init, parser_end, read_line, test_next, &
-       cfield, p_error, get_real, get_int, stop_parser
+       p_error, get_next, stop_parser
   USE string_utilities, ONLY : uppercase, xstring
 
   PRIVATE
@@ -59,7 +59,7 @@ CONTAINS
 !!I Ewald_type       [ewald,pme,spme]                                         I
 !!I Ewald_param      alpha[,gmax,ns_max,epsilon]                              I
 !!I set_file         "filename"                                               I
-!!I input_file       "filename"                                               I
+!!I coord_file       "filename"                                               I
 !!I symmetry         [on,off]                                                 I
 !!I path_integrals   [on,off]                                                 I
 !!I                                                                           I
@@ -67,22 +67,25 @@ CONTAINS
 !!   SOURCE
 !******************************************************************************
 
-SUBROUTINE read_cntl_section ( setup, ewald_param, globenv )
+SUBROUTINE read_cntl_section ( setup, globenv, ewald_param )
 
   IMPLICIT NONE
 
 ! Arguments
   TYPE ( setup_parameters_type ), INTENT ( INOUT ) :: setup
-  TYPE ( ewald_parameters_type ), INTENT ( INOUT ) :: ewald_param
   TYPE ( global_environment_type ), INTENT ( INOUT ) :: globenv
+  TYPE ( ewald_parameters_type ), INTENT ( INOUT ), OPTIONAL :: ewald_param
 
 ! Locals
   INTEGER :: ierror, ilen, ia, ie, i, j, n, iw, source, group
   CHARACTER ( LEN = 20 ) :: string, str2
   CHARACTER ( LEN = 5 ) :: label
   CHARACTER ( LEN = 3 ), PARAMETER :: yn ( 0:1 ) = (/ ' NO', 'YES' /)
+  LOGICAL :: ewald_set
 
 !------------------------------------------------------------------------------
+
+  ewald_set = PRESENT ( ewald_param )
 
 !..defaults
   setup % run_type = 'MD'
@@ -90,15 +93,17 @@ SUBROUTINE read_cntl_section ( setup, ewald_param, globenv )
   setup % perd = 1
   setup % symmetry = .false.
   setup % path_integrals = .false.
-  ewald_param % alpha = 0.4_dbl
-  ewald_param % gmax = 10
-  ewald_param % o_spline = 5
-  ewald_param % ns_max = 10
-  ewald_param % epsilon = 1.e-6_dbl
-  ewald_param % ewald_type = 'NONE'
+  IF ( ewald_set ) THEN
+    ewald_param % alpha = 0.4_dbl
+    ewald_param % gmax = 10
+    ewald_param % o_spline = 5
+    ewald_param % ns_max = 10
+    ewald_param % epsilon = 1.e-6_dbl
+    ewald_param % ewald_type = 'NONE'
+  END IF
   CALL xstring(globenv % project_name,ia,ie)
   setup % set_file_name = globenv % project_name(ia:ie) // '.set'
-  setup % input_file_name = globenv % project_name(ia:ie) // '.dat'
+  setup % coord_file_name = globenv % project_name(ia:ie) // '.dat'
 
   iw = globenv % scr
 
@@ -112,7 +117,7 @@ SUBROUTINE read_cntl_section ( setup, ewald_param, globenv )
      CALL read_line
      DO WHILE (test_next()/='X')
         ilen = 8
-        CALL cfield ( string, ilen )
+        CALL get_next ( string, ilen )
         CALL uppercase ( string )
         SELECT CASE ( string )
         CASE DEFAULT
@@ -120,71 +125,75 @@ SUBROUTINE read_cntl_section ( setup, ewald_param, globenv )
            CALL stop_parser( 'read_cntl_section','unknown option')
         CASE ( 'SIMULATI')
            ilen = 20
-           CALL cfield(setup % run_type,ilen)
+           CALL get_next(setup % run_type,ilen)
            CALL uppercase(setup % run_type )
         CASE ( 'PRINTLEV')
-           globenv % print_level = get_int()
+           CALL get_next ( globenv % print_level )
         CASE ( 'UNITS')
            ilen = 20
-           CALL cfield(setup % unit_type,ilen)
+           CALL get_next(setup % unit_type,ilen)
            CALL uppercase(setup % unit_type )
         CASE ( 'PERIODIC')
-           setup % perd(1) = get_int()
-           setup % perd(2) = get_int()
-           setup % perd(3) = get_int()
+           CALL get_next ( setup % perd(1) )
+           CALL get_next ( setup % perd(2) )
+           CALL get_next ( setup % perd(3) )
         CASE ( 'EWALD_TY')
-           ilen=20
-           CALL cfield(string,ILEN)
-           CALL uppercase ( string )
-           SELECT CASE(string)
-           CASE DEFAULT
-              CALL p_error()
-              CALL stop_parser( 'read_cntl_section', &
-                   'unknown option for Ewald type' )
-           CASE( 'EWALD')
-              ewald_param % ewald_type = 'ewald'
-              CALL uppercase(ewald_param % ewald_type )
-           CASE( 'PME')
-              ewald_param % ewald_type = 'pme'
-              CALL uppercase(ewald_param % ewald_type )
-           CASE( 'SPME')
-              ewald_param % ewald_type = 'spme'
-              CALL uppercase(ewald_param % ewald_type )
-           END SELECT
+           IF ( ewald_set ) THEN
+             ilen=20
+             CALL get_next(string,ILEN)
+             CALL uppercase ( string )
+             SELECT CASE(string)
+             CASE DEFAULT
+                CALL p_error()
+                CALL stop_parser( 'read_cntl_section', &
+                     'unknown option for Ewald type' )
+             CASE( 'EWALD')
+                ewald_param % ewald_type = 'ewald'
+                CALL uppercase(ewald_param % ewald_type )
+             CASE( 'PME')
+                ewald_param % ewald_type = 'pme'
+                CALL uppercase(ewald_param % ewald_type )
+             CASE( 'SPME')
+                ewald_param % ewald_type = 'spme'
+                CALL uppercase(ewald_param % ewald_type )
+             END SELECT
+           END IF
 
 ! if no type specified, assume ewald
         CASE ( 'EWALD_PA')
-           ewald_param % alpha = get_real()
-           SELECT CASE (ewald_param % ewald_type )
-           CASE DEFAULT
-              ewald_param % gmax = get_int()
-           CASE ( 'PME')
-              ewald_param % ns_max = get_int()
-              IF ( test_next() == 'N' ) THEN
-                 ewald_param % epsilon = get_real()
-              END IF
-           CASE ( 'SPME')
-              ewald_param % gmax = get_int()
-              ewald_param % o_spline = get_int()
-           END SELECT
+           IF ( ewald_set ) THEN
+             CALL get_next ( ewald_param % alpha )
+             SELECT CASE (ewald_param % ewald_type )
+             CASE DEFAULT
+                CALL get_next ( ewald_param % gmax )
+             CASE ( 'PME')
+                CALL get_next ( ewald_param % ns_max )
+                IF ( test_next() == 'N' ) THEN
+                   CALL get_next ( ewald_param % epsilon )
+                END IF
+             CASE ( 'SPME')
+                CALL get_next ( ewald_param % gmax )
+                CALL get_next ( ewald_param % o_spline )
+             END SELECT
+           END IF
         CASE ('SYMMETRY')
            ilen = 3
-           CALL cfield(str2,ilen)
+           CALL get_next(str2,ilen)
            CALL uppercase(str2)
            IF ( str2(1:2) == "ON" ) setup%symmetry=.true.
            IF ( str2(1:3) == "OFF" ) setup%symmetry=.false.
         CASE ('PATH_INTEGRALS')
            ilen = 3
-           CALL cfield(str2,ilen)
+           CALL get_next(str2,ilen)
            CALL uppercase(str2)
            IF ( str2(1:2) == "ON" ) setup%path_integrals=.true.
            IF ( str2(1:3) == "OFF" ) setup%path_integrals=.false.
         CASE ( 'SET_FILE')
            ilen = 40
-           CALL cfield(setup % set_file_name,ilen)
+           CALL get_next(setup % set_file_name,ilen)
         CASE ( 'INPUT_FI')
            ilen = 40
-           CALL cfield(setup % input_file_name,ilen)
+           CALL get_next(setup % coord_file_name,ilen)
         END SELECT
 
 ! check for trailing rubbish
@@ -218,10 +227,10 @@ SUBROUTINE read_cntl_section ( setup, ewald_param, globenv )
         ELSE
            WRITE (iw,'(A,T78,A)') ' CONTROL| Path Integrals ',' No'
         END IF
-        WRITE ( iw, '( A, T41, A )' ) ' CONTROL| Set file name', &
+        WRITE ( iw, '( A, T41, A )' ) ' CONTROL| Set file name (if any)', &
              ADJUSTR ( setup % set_file_name )
-        WRITE ( iw, '( A, T41, A )' ) ' CONTROL| Input file name', &
-             ADJUSTR ( setup % input_file_name )
+        WRITE ( iw, '( A, T41, A )' ) ' CONTROL| Data file name (if any)', &
+             ADJUSTR ( setup % coord_file_name )
         WRITE ( iw, '( A, T76, I5 )' ) &
              ' CONTROL| Print level ', globenv % print_level
         WRITE ( iw, '( )' )
