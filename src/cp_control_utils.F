@@ -521,6 +521,9 @@ CONTAINS
             CASE ("KG_NOPOL")
               qs_control%method = "KG_NOPOL"
               qs_control%polarization = .FALSE.
+            CASE ("KG_GPW")
+              qs_control%method = "KG_GPW"
+              qs_control%polarization = .FALSE.
             CASE DEFAULT
               CALL stop_parser(routine,"Invalid method <"//TRIM(keyword)//&
                                        "> specified for METHOD")

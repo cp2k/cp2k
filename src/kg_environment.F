@@ -40,6 +40,7 @@ MODULE kg_environment
   USE dynamical_coeff_types,           ONLY: dyn_coeff_set_create,&
                                              dyn_coeff_set_release,&
                                              dyn_coeff_set_type
+  USE gamma,                           ONLY: init_md_ftable
   USE global_types,                    ONLY: global_environment_type
   USE kg_energy_types,                 ONLY: allocate_kg_energy,&
                                              kg_energy_type
@@ -61,7 +62,8 @@ MODULE kg_environment
   USE orbital_pointers,                ONLY: init_orbital_pointers
   USE orbital_transformation_matrices, ONLY: init_spherical_harmonics
   USE particle_types,                  ONLY: particle_type,&
-                                             write_particle_distances
+                                             write_particle_distances,&
+                                             write_qs_particle_coordinates
   USE qs_interactions,                 ONLY: init_interaction_radii
   USE scf_control_types,               ONLY: scf_c_create,&
                                              scf_c_read_parameters,&
@@ -106,7 +108,7 @@ CONTAINS
 !!****
 !!*****************************************************************************
 
-SUBROUTINE kg_init (kg_env,globenv,error)
+  SUBROUTINE kg_init (kg_env,globenv,error)
 
     TYPE(kg_environment_type), POINTER       :: kg_env
     TYPE(global_environment_type), &
@@ -120,7 +122,7 @@ SUBROUTINE kg_init (kg_env,globenv,error)
                                                 maxlppl, maxlppnl, nkind, &
                                                 output_unit
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: natom_of_kind
-    LOGICAL                                  :: ionode, kgpol
+    LOGICAL                                  :: ionode
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
     TYPE(cell_type), POINTER                 :: cell
@@ -139,92 +141,87 @@ SUBROUTINE kg_init (kg_env,globenv,error)
       POINTER                                :: particle_set
     TYPE(scf_control_type), POINTER          :: scf_control
 
-!  CHARACTER ( LEN = 40 ) :: set_fn, project_name
-!  CHARACTER ( LEN = 5 ) :: tag
 !------------------------------------------------------------------------------
 
-  CALL write_checkpoint_information("entering "//routine_name,globenv)
+    CALL write_checkpoint_information("entering "//routine_name,globenv)
 
-  CALL timeset(routine_name,"I",'',handle)
+    CALL timeset(routine_name,"I",'',handle)
 
-  ionode = globenv%ionode
-  output_unit = globenv%scr
+    ionode = globenv%ionode
+    output_unit = globenv%scr
 
-! nullifying  pointers
-  NULLIFY ( atomic_kind_set )
-  NULLIFY ( cell )
-  NULLIFY ( dft_control )
-  NULLIFY ( dyn_coeff_set )
-  NULLIFY ( energy )
-  NULLIFY ( force )
-  NULLIFY ( local_molecules )
-  NULLIFY ( local_particles )
-  NULLIFY ( molecule_set )
-  NULLIFY ( particle_set )
-  NULLIFY ( scf_control )
+    ! nullifying  pointers
+    NULLIFY ( atomic_kind_set )
+    NULLIFY ( cell )
+    NULLIFY ( dft_control )
+    NULLIFY ( dyn_coeff_set )
+    NULLIFY ( energy )
+    NULLIFY ( force )
+    NULLIFY ( local_molecules )
+    NULLIFY ( local_particles )
+    NULLIFY ( molecule_set )
+    NULLIFY ( particle_set )
+    NULLIFY ( scf_control )
 
-  kgpol = .FALSE.
+    ! Read the input section with the dft control parameters *
+    CALL read_dft_control ( dft_control, globenv, error )
+    CALL write_dft_control ( dft_control, globenv )
 
-! Read the input section with the dft control parameters *
-  CALL read_dft_control ( dft_control, globenv, error )
-  CALL write_dft_control ( dft_control, globenv )
+    ! Read the input section with the KG control parameters 
+    CALL read_qs_control ( dft_control % qs_control, globenv )
+    CALL write_qs_control ( dft_control % qs_control, globenv )
 
-! Read the input section with the KG control parameters 
-  CALL read_qs_control ( dft_control % qs_control, globenv )
-  CALL write_qs_control ( dft_control % qs_control, globenv )
+    ! Read/write the input section with the cell parameters
+    CALL read_cell ( cell, globenv )
+    CALL write_cell ( cell, globenv )
 
-  kgpol = dft_control % qs_control % polarization
+    ! topology
+    CALL topology_control (atomic_kind_set,particle_set,&
+                           molecule_kind_set,molecule_set,&
+                           globenv)
 
-! Read/write the input section with the cell parameters
-  CALL read_cell ( cell, globenv )
-  CALL write_cell ( cell, globenv )
+    ! Read/write the atomic kind set
+    CALL read_atomic_kind_set(atomic_kind_set,globenv)
+    CALL write_gto_basis_sets(atomic_kind_set,globenv)
 
-! topology
-  CALL topology_control (atomic_kind_set,particle_set,&
-                         molecule_kind_set,molecule_set,&
-                         globenv)
+    ! Initialize the spherical harmonics
+    ! the orbital transformation matrices
+    CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,&
+                             maxlgto=maxlgto,&
+                             maxlppl=maxlppl,&
+                             maxlppnl=maxlppnl)
 
-! Read/write the atomic kind set
-  CALL read_atomic_kind_set(atomic_kind_set,globenv)
-  CALL write_gto_basis_sets(atomic_kind_set,globenv)
+    maxl = MAX(maxlgto,maxlppl,maxlppnl)
+    IF (dft_control%forces) maxl = maxl + 1
 
-! Initialize the spherical harmonics
-! the orbital transformation matrices
-  CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,&
-                           maxlgto=maxlgto,&
-                           maxlppl=maxlppl,&
-                           maxlppnl=maxlppnl)
+    CALL init_orbital_pointers(maxl)
+    CALL init_spherical_harmonics(maxl,globenv)
 
-  maxl = MAX(maxlgto,maxlppl,maxlppnl)
+    ! Initialize the pretabulation for the calculation of the
+    ! incomplete Gamma function F_n(t) after McMurchie-Davidson
+    maxl = 3*maxlgto + 1
+    CALL init_md_ftable(maxl)
 
-  IF (dft_control%forces) maxl = maxl + 1
+    ! Initialise/print the atomic/molecular kind set
+    CALL init_atomic_kind_set(atomic_kind_set,globenv)
+    CALL write_atomic_kind_set(atomic_kind_set,globenv)
+    CALL write_molecule_kind_set(molecule_kind_set,globenv)
+    CALL write_total_numbers(atomic_kind_set,particle_set,globenv)
 
-  CALL init_orbital_pointers(maxl)
-  CALL init_spherical_harmonics(maxl,globenv)
+    ! Print the atomic coordinates 
+    IF (globenv%print%atomic_coordinates) THEN
+      CALL write_qs_particle_coordinates(particle_set,cell,globenv)
+    END IF
 
-! Initialise/print the atomic/molecular kind set
-  CALL init_atomic_kind_set(atomic_kind_set,globenv)
-  CALL write_atomic_kind_set(atomic_kind_set,globenv)
-  CALL write_molecule_kind_set(molecule_kind_set,globenv)
-! CALL write_total_numbers(atomic_kind_set,particle_set,globenv)
+    ! Print the interatomic distances ***
+    CALL write_particle_distances(particle_set,cell,globenv)
 
-! Print the atomic coordinates 
-!   IF (globenv%print%atomic_coordinates) THEN
-!     CALL write_qs_particle_coordinates(particle_set,cell,globenv)
-!   END IF
+    ! Initialize the atomic interaction radii 
+    CALL init_interaction_radii ( dft_control%qs_control, cell, &
+                                  atomic_kind_set, globenv)
 
-! Print the interatomic distances ***
-
-  CALL write_particle_distances(particle_set,cell,globenv)
-
-
-! Initialize the atomic interaction radii 
-  CALL init_interaction_radii ( dft_control%qs_control, cell, &
-                                atomic_kind_set, globenv)
-
-! Distribute molecules and atoms using the new data structures ***
-
-  CALL distribute_molecules_1d(particle_kind_set=atomic_kind_set,&
+    ! Distribute molecules and atoms using the new data structures
+    CALL distribute_molecules_1d(particle_kind_set=atomic_kind_set,&
                                  particle_set=particle_set,&
                                  local_particles=local_particles,&
                                  molecule_kind_set=molecule_kind_set,&
@@ -232,81 +229,74 @@ SUBROUTINE kg_init (kg_env,globenv,error)
                                  local_molecules=local_molecules,&
                                  error=error)
 
-! If polarization is also present, allocate and initialize coefs pointer  
+    ! If polarization is also present, allocate and initialize coefs pointer  
+    IF ( dft_control % qs_control % polarization ) THEN
 
-  IF ( kgpol ) THEN
+       CALL dyn_coeff_set_create(dyn_coeff_set=dyn_coeff_set,&
+                                 atomic_kind_set=atomic_kind_set,&
+                                 distribution=local_particles,&
+                                 error=error)
+       CALL set_kg_env (kg_env=kg_env, dyn_coeff_set=dyn_coeff_set) 
+       CALL dyn_coeff_set_release(dyn_coeff_set, error=error)
 
-    CALL dyn_coeff_set_create(dyn_coeff_set=dyn_coeff_set,&
-                              atomic_kind_set=atomic_kind_set,&
-                              distribution=local_particles,&
-                              error=error)
-    CALL set_kg_env (kg_env=kg_env, dyn_coeff_set=dyn_coeff_set) 
-    CALL dyn_coeff_set_release(dyn_coeff_set, error=error)
-
-!   *** SCF parameters ***
-    IF ((globenv%run_type=='ENERGY CALCULATION').OR.(globenv%run_type==&
-         'WAVEFUNCTION OPTIMIZATION')) THEN
-
-       CALL scf_c_create(scf_control)
-       CALL scf_c_read_parameters(scf_control,globenv)
-       CALL scf_c_write_parameters(scf_control,globenv)
-       CALL set_kg_env(kg_env=kg_env,scf_control=scf_control)
-       CALL scf_c_release(scf_control,error=error)  
     END IF
 
-  END IF
+    ! SCF parameters
+    CALL scf_c_create(scf_control)
+    CALL scf_c_read_parameters(scf_control,globenv)
+    CALL scf_c_write_parameters(scf_control,globenv)
+    CALL set_kg_env(kg_env=kg_env,scf_control=scf_control)
+    CALL scf_c_release(scf_control,error=error)  
 
-! Allocate the data structure for energies ***
-  CALL allocate_kg_energy(energy)
+    ! Allocate the data structure for energies ***
+    CALL allocate_kg_energy(energy)
 
-!   *** Allocate the force data structure ***
-
-  IF (dft_control%forces) THEN
-    nkind = SIZE(atomic_kind_set)
-    ALLOCATE (natom_of_kind(nkind),STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routine_name,moduleN,__LINE__,&
-                                     "natom_of_kind",nkind*int_size)
-    CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,&
+    ! Allocate the force data structure
+    IF (dft_control%forces) THEN
+      nkind = SIZE(atomic_kind_set)
+      ALLOCATE (natom_of_kind(nkind),STAT=istat)
+      IF (istat /= 0) CALL stop_memory(routine_name,moduleN,__LINE__,&
+                                       "natom_of_kind",nkind*int_size)
+      CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,&
                              natom_of_kind=natom_of_kind)
-    CALL allocate_kg_force(force,natom_of_kind)
-    DEALLOCATE (natom_of_kind,STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routine_name,moduleN,__LINE__,&
-                                     "natom_of_kind")
-  END IF
+      CALL allocate_kg_force(force,natom_of_kind)
+      DEALLOCATE (natom_of_kind,STAT=istat)
+      IF (istat /= 0) CALL stop_memory(routine_name,moduleN,__LINE__,&
+                                       "natom_of_kind")
+    END IF
 
-! set the kg_env
-  CALL set_kg_env ( kg_env=kg_env,&
-                    atomic_kind_set=atomic_kind_set,&
-                    cell=cell, &
-                    dft_control=dft_control, &
-                    energy=energy,&
-                    force=force,&
-                    local_molecules=local_molecules,&
-                    local_particles=local_particles,&
-                    molecule_kind_set=molecule_kind_set,&
-                    molecule_set=molecule_set,&
-                    particle_set=particle_set)  
+    ! set the kg_env
+    CALL set_kg_env ( kg_env=kg_env,&
+                      atomic_kind_set=atomic_kind_set,&
+                      cell=cell, &
+                      dft_control=dft_control, &
+                      energy=energy,&
+                      force=force,&
+                      local_molecules=local_molecules,&
+                      local_particles=local_particles,&
+                      molecule_kind_set=molecule_kind_set,&
+                      molecule_set=molecule_set,&
+                      particle_set=particle_set)  
     
-  CALL cell_release(cell,error=error)
-  CALL distribution_1d_release(local_particles,error=error)
-  CALL distribution_1d_release(local_molecules,error=error)
-  CALL dft_control_release(dft_control, error=error)
+    CALL cell_release(cell,error=error)
+    CALL distribution_1d_release(local_particles,error=error)
+    CALL distribution_1d_release(local_molecules,error=error)
+    CALL dft_control_release(dft_control, error=error)
 
-!Sets up pw, grids, densities              
+    !Sets up pw, grids, densities              
+    CALL kg_env_setup(kg_env,error)
 
-  CALL kg_env_setup(kg_env,error)
+    IF (ionode) CALL m_flush(output_unit)
 
-  IF (ionode) CALL m_flush(output_unit)
+     CALL timestop(0.0_dp,handle)
 
-  CALL timestop(0.0_dp,handle)
+     CALL write_checkpoint_information("leaving "//routine_name,globenv)
 
-  CALL write_checkpoint_information("leaving "//routine_name,globenv)
-
- END SUBROUTINE kg_init
+  END SUBROUTINE kg_init
 
 !***************************************************************************
 
-SUBROUTINE kg_env_setup(kg_env,error)
+  SUBROUTINE kg_env_setup(kg_env,error)
 
     TYPE(kg_environment_type), INTENT(inout) :: kg_env
     TYPE(cp_error_type), INTENT(inout), &
@@ -318,19 +308,95 @@ SUBROUTINE kg_env_setup(kg_env,error)
     LOGICAL                                  :: failure
     TYPE(kg_rho_type), POINTER               :: rho
 
-  failure=.FALSE.
-  NULLIFY(rho)
+    failure=.FALSE.
 
-  CALL get_kg_env(kg_env=kg_env,&
-                  rho=rho)
+    NULLIFY(rho)
 
-  CALL kg_rho_create(kg_rho=rho,kg_env=kg_env,error=error)
-  CALL kg_rho_setup(kg_rho=rho,kg_env=kg_env,error=error)
-  CALL set_kg_env(kg_env,rho=rho)
-  CALL kg_rho_release(kg_rho=rho,error=error)
+    CALL get_kg_env(kg_env=kg_env,rho=rho)
 
-END SUBROUTINE kg_env_setup
+    CALL kg_rho_create(kg_rho=rho,kg_env=kg_env,error=error)
+    CALL set_kg_env(kg_env,rho=rho)
+    CALL kg_rho_release(kg_rho=rho,error=error)
 
+  END SUBROUTINE kg_env_setup
+
+!******************************************************************************
+
+  SUBROUTINE write_total_numbers(atomic_kind_set,particle_set,globenv)
+
+!   Purpose: Write the total number of kinds, atoms, etc. to the logical unit
+!            number lunit.
+
+!   History: - Creation (06.10.2000, Matthias Krack)
+
+!   ***************************************************************************
+
+    TYPE(atomic_kind_type), DIMENSION(:), &
+      POINTER                                :: atomic_kind_set
+    TYPE(particle_type), DIMENSION(:), &
+      POINTER                                :: particle_set
+    TYPE(global_environment_type), &
+      INTENT(IN)                             :: globenv
+
+    INTEGER                                  :: maxlgto, maxlppl, maxlppnl, &
+                                                natom, ncgf, nkind, npgf, &
+                                                nset, nsgf, nshell, &
+                                                output_unit
+
+!   ---------------------------------------------------------------------------
+
+    IF (.NOT.globenv%ionode) RETURN
+
+    IF (globenv%print%total_numbers) THEN
+
+      output_unit = globenv%scr
+
+      natom = SIZE(particle_set)
+      nkind = SIZE(atomic_kind_set)
+
+      CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,&
+                               maxlgto=maxlgto,&
+                               maxlppl=maxlppl,&
+                               maxlppnl=maxlppnl,&
+                               ncgf=ncgf,&
+                               npgf=npgf,&
+                               nset=nset,&
+                               nsgf=nsgf,&
+                               nshell=nshell)
+
+      WRITE (UNIT=output_unit,FMT="(/,/,T2,A)")&
+        "TOTAL NUMBERS AND MAXIMUM NUMBERS"
+
+      WRITE (UNIT=output_unit,FMT="(/,T3,A,/,/,(T15,A,T75,I6))")&
+        "Total number of",&
+        "- Atomic kinds:                  ",nkind,&
+        "- Atoms:                         ",natom,&
+        "- Shell sets:                    ",nset,&
+        "- Shells:                        ",nshell,&
+        "- Primitive Cartesian functions: ",npgf,&
+        "- Cartesian basis functions:     ",ncgf,&
+        "- Spherical basis functions:     ",nsgf
+
+      IF ( maxlppnl > -1 ) THEN
+        WRITE (UNIT=output_unit,FMT="(/,T3,A,/,/,(T15,A,T75,I6))")&
+          "Maximum angular momentum quantum number of the",&
+          "- Orbital basis functions:                   ",maxlgto,&
+          "- Local part of the GTH pseudopotential:     ",maxlppl,&
+          "- Non-local part of the GTH pseudopotential: ",maxlppnl
+      ELSE IF ( maxlppl > -1 ) THEN
+        WRITE (UNIT=output_unit,FMT="(/,T3,A,/,/,(T15,A,T75,I6))")&
+          "Maximum angular momentum quantum number of the",&
+          "- Orbital basis functions:                   ",maxlgto,&
+          "- Local part of the GTH pseudopotential:     ",maxlppl
+      ELSE
+        WRITE (UNIT=output_unit,FMT="(/,T3,A,/,/,(T15,A,T75,I6))")&
+          "Maximum angular momentum quantum number of the",&
+          "- Orbital basis functions: ",maxlgto
+      END IF
+
+    END IF
+
+  END SUBROUTINE write_total_numbers
 !******************************************************************************
 
 END MODULE kg_environment
