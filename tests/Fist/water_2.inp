@@ -36,13 +36,12 @@
 &END
 
 &FORCE_FIELD
- PARMFILE CHM charmm.pot
+ PARMFILE CHM sample_pot/water.pot
  CHARGES
    OT -0.8476
    HT  0.4238
  END CHARGE
 &END
-FIXME CHECK CHARGE
 
 &CELL
  UNIT         ANGSTROM
