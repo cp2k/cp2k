@@ -29,6 +29,7 @@ MODULE dft_structure_control
   USE dft_input, ONLY : read_dft_section
   USE ewald_parameters_types, ONLY : ewald_parameters_type
   USE global_types, ONLY : global_environment_type
+  USE greens_fn, ONLY : pw_green_fn_init
   USE input_types, ONLY : setup_parameters_type
   USE kinds, ONLY : dbl, YES, NO
   USE linklist_control, ONLY : set_ll_parm
@@ -46,6 +47,7 @@ MODULE dft_structure_control
   USE potentials, ONLY : potential_update
   USE pw_grids, ONLY : pw_grid_setup, pw_grid_construct
   USE pw_grid_types, ONLY : pw_grid_type, HALFSPACE, FULLSPACE
+  USE pws, ONLY : init_pw_poisson_solver
   USE pw_types, ONLY : PW_REALDATA3D => REALDATA3D
   USE simulation_cell, ONLY : cell_type, get_hinv
   USE termination, ONLY : stop_memory
@@ -97,6 +99,8 @@ SUBROUTINE dft_force_control ( molecule, pnode, part, box, thermo, &
   
   ALLOCATE ( tau ( 3, 1 ), fion ( 3, 1 ) ) !TMPTMPTMP
   
+  CALL init_pw_poisson_solver ( box % green )
+
   DO
      CALL dft_scf_loop ( psi, n, vloc, tau, fion, dft_control, kp, &
           dftpar, wavepar )
@@ -229,6 +233,11 @@ SUBROUTINE dft_initialise ( cell, psi, n, vloc, dft_control, kp, wavepar )
      CALL wf_randomise ( psi_n, wavepar )
      
   END DO
+
+! the Greens function
+! choose the set that is used to solve the Poisson equation in G space
+  densityset = 1
+  CALL pw_green_fn_init ( cell % green, pw_grid ( densityset ) )
   
 END SUBROUTINE dft_initialise
 
@@ -239,6 +248,8 @@ SUBROUTINE dft_finalise ( dft_control )
   
   TYPE ( dft_control_type ) :: dft_control
   
+!!!!! if the pw_grid is deallocated -> do not forget to get rid of the Greens function
+
 END SUBROUTINE dft_finalise
 
 !******************************************************************************
@@ -342,3 +353,5 @@ END SUBROUTINE dft_scf_loop
 !******************************************************************************
 
 END MODULE dft_structure_control
+
+!******************************************************************************

@@ -246,12 +246,12 @@ SUBROUTINE timeprint(iw,global_print_level)
         mintime = maxtime*0.02_dbl
      END IF
 
-     WRITE (UNIT=iw,FMT="(/,T2,A)") REPEAT("-",78)
-     WRITE (UNIT=iw,FMT="(T2,A,T79,A)") "-","-"
-     WRITE (UNIT=iw,FMT="(T2,A,T35,A,T79,A)") "-","T I M I N G","-"
-     WRITE (UNIT=iw,FMT="(T2,A,T79,A)") "-","-"
-     WRITE (UNIT=iw,FMT="(T2,A)") REPEAT("-",78)
-     WRITE (UNIT=iw,FMT="(T2,A,T36,A,T43,A,T55,A,T68,A)")&
+     WRITE (UNIT=iw,FMT="(/,T2,A)") REPEAT("-",79)
+     WRITE (UNIT=iw,FMT="(T2,A,T80,A)") "-","-"
+     WRITE (UNIT=iw,FMT="(T2,A,T35,A,T80,A)") "-","T I M I N G","-"
+     WRITE (UNIT=iw,FMT="(T2,A,T80,A)") "-","-"
+     WRITE (UNIT=iw,FMT="(T2,A)") REPEAT("-",79)
+     WRITE (UNIT=iw,FMT="(T2,A,T36,A,T43,A,T55,A,T69,A)")&
        "SUBROUTINE","CALLS","CPU TIME T","PERFORMANCE","ELAPSED TIME"
 
      DO i=num_timer,1,-1
@@ -281,7 +281,7 @@ SUBROUTINE timeprint(iw,global_print_level)
 
      END DO
 
-     WRITE (UNIT=iw,FMT="(T2,A,/)") REPEAT("-",78)
+     WRITE (UNIT=iw,FMT="(T2,A,/)") REPEAT("-",79)
 
   END IF
 
