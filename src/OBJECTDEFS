@@ -184,9 +184,9 @@ OBJECTS_GENERIC =\
  pol_thk_pw.o\
  potential_types.o\
  potentials.o\
- pw_grid_pool.o\
  pw_grid_types.o\
  pw_grids.o\
+ pw_pool.o\
  pw_types.o\
  pw_xc.o\
  pws.o\
