@@ -73,6 +73,7 @@ MODULE qs_tddfpt_eigensolver
                                              replicate_matrix_structure,&
                                              set_matrix
   USE termination,                     ONLY: stop_program
+  USE timings,                         ONLY: timeset, timestop
 
   IMPLICIT NONE
 
@@ -115,7 +116,7 @@ CONTAINS
                  row, col, &
                  i, j, index, &
                  stat, n_kv_fac, &
-                 iteration
+                 iteration, handle
     REAL(dbl) :: tol, &
                  beta, &
                  tmp, &
@@ -132,6 +133,8 @@ CONTAINS
 
     CHARACTER(len=*), PARAMETER :: routineN = "tddfpt_es_lanczos", &
                                    routineP = moduleN//"/"//routineN
+
+    CALL timeset(routineN,"I","",handle)
 
     NULLIFY(ao_mo_fm_pools, X, R, kv)
     n_ev      = qs_env%dft_control%tddfpt_control%n_ev
@@ -360,7 +363,7 @@ CONTAINS
     IF (glob_env%ionode) THEN
        WRITE (glob_env%scr, *)
        WRITE (glob_env%scr, *)
-       WRITE (glob_env%scr, '(1X,A,T19,A,T7,A)') &
+       WRITE (glob_env%scr, '(1X,A,T19,A,T45,A)') &
             "Nr.", "Eigenvalue (hartree)", "Eigenvalue (eV)"
        DO i=1, MIN(n_ev+1,n_kv_max)
           WRITE (glob_env%scr, '(1X,I3,T20,F19.10,2X,F19.10)') &
@@ -386,6 +389,8 @@ CONTAINS
     DEALLOCATE(kv, opkv, eigenvals)
     NULLIFY(X, R, kv, opkv)
     
+    CALL timestop(0.0_dbl, handle)
+
   END SUBROUTINE tddfpt_es_lanczos
 
 ! *****************************************************************************
@@ -412,6 +417,7 @@ CONTAINS
     TYPE(global_environment_type), INTENT(IN)          :: glob_env
 
     ! LOCALS
+    INTEGER                                            :: handle
     INTEGER                                            :: spin, n_spins
     TYPE(cp_fm_struct_type), POINTER                   :: v_struct
     INTEGER                                            :: v_rows, v_cols
@@ -427,6 +433,8 @@ CONTAINS
 
     CHARACTER(LEN=*), PARAMETER :: routineN = "apply_op", &
                                    routineP = moduleN//"/"//routineN
+
+    CALL timeset(routineN,"I","",handle)
 
     counter = counter + 1
     
@@ -456,7 +464,7 @@ CONTAINS
                                   alpha=0.5_dbl) 
        END DO
        CALL p_op_l2(p_env, qs_env, p_env%p1, R, &
-                    alpha=2.0_dbl, beta=1.0_dbl) ! R = beta*R + alpha*K(P1)*C
+                    alpha=1.0_dbl, beta=1.0_dbl) ! R = beta*R + alpha*K(P1)*C
     END IF
 
     !----------------------!
@@ -486,6 +494,8 @@ CONTAINS
     END DO
 #endif
 
+    CALL timestop(0.0_dbl, handle)
+
   END SUBROUTINE apply_op
 
 ! *****************************************************************************
@@ -508,25 +518,34 @@ CONTAINS
     INTEGER, INTENT(IN) :: j, n_spins
     TYPE(global_environment_type), INTENT(in) :: glob_env
 
-    INTEGER :: i, index, spin
+    INTEGER :: i, index, spin, time_handle
     REAL(DBL) :: tmp, dot_product
 
-    IF (j<=1) RETURN
-    DO i=1, j
-       dot_product = 0.0_dbl
-       DO spin=1, n_spins
-          CALL cp_sm_fm_multiply(S(spin)%matrix, X(spin)%matrix, &
-                                 tmp_mat(spin)%matrix, &
-                                 X(spin)%matrix%matrix_struct%ncol_global, &
-                                 glob_env%para_env, 1.0_dbl, 0.0_dbl)
-          CALL cp_fm_trace(tmp_mat(spin)%matrix, kv(i,spin)%matrix, tmp)
-          dot_product = dot_product + tmp
+    CHARACTER(LEN=*), PARAMETER :: routineN = "reorthogonalize", &
+                                   routineP = moduleN//"/"//routineN
+
+    CALL timeset(routineN,"I","",time_handle)
+
+    IF (j > 1) THEN
+       DO i=1, j
+          dot_product = 0.0_dbl
+          DO spin=1, n_spins
+             CALL cp_sm_fm_multiply(S(spin)%matrix, X(spin)%matrix, &
+                                    tmp_mat(spin)%matrix, &
+                                    X(spin)%matrix%matrix_struct%ncol_global, &
+                                    glob_env%para_env, 1.0_dbl, 0.0_dbl)
+             CALL cp_fm_trace(tmp_mat(spin)%matrix, kv(i,spin)%matrix, tmp)
+             dot_product = dot_product + tmp
+          END DO
+          DO spin=1, n_spins
+             CALL cp_fm_scale_and_add(1.0_dbl, X(spin)%matrix, &
+                                      -1.0_dbl*dot_product, kv(i,spin)%matrix)
+          END DO
        END DO
-       DO spin=1, n_spins
-          CALL cp_fm_scale_and_add(1.0_dbl, X(spin)%matrix, &
-                                   -1.0_dbl*dot_product, kv(i,spin)%matrix)
-       END DO
-    END DO
+    END IF
+
+    CALL timestop(0.0_dbl, time_handle)
+
   END SUBROUTINE reorthogonalize
 
 ! *****************************************************************************

@@ -40,15 +40,14 @@ MODULE qs_tddfpt_module
   USE qs_tddfpt_utils
   USE termination,                     ONLY: stop_memory,&
                                              stop_program
-  IMPLICIT NONE
+  USE timings,                         ONLY: timeset, timestop
 
-  INTEGER, PARAMETER :: DEFAULT_N_EV = 1 ! default number of eigenvalues to calculate
-  LOGICAL, PARAMETER :: DEBUG_THIS_MODULE = .TRUE.
+  IMPLICIT NONE
 
   PRIVATE
   PUBLIC :: tddfpt_calculation
 
-  CHARACTER(len=*), PARAMETER :: moduleN='qs_tddfpt_module'
+  CHARACTER(LEN=*), PARAMETER :: moduleN='qs_tddfpt_module'
 
 CONTAINS
 
@@ -88,7 +87,7 @@ CONTAINS
     TYPE(op_tddfpt_type)                   :: op            ! operator for tddfpt calculation
     TYPE(cp_full_matrix_p_type), DIMENSION(:), POINTER :: v ! temporary storage
 
-    INTEGER                                :: stat
+    INTEGER                                :: stat, handle
     INTEGER                                :: n_ev, n_spins ! cache values
     INTEGER                                :: ev, spin      ! loop indices
     LOGICAL                                :: evstat        ! status of the eigenvalues
@@ -99,6 +98,8 @@ CONTAINS
 
     ! abort if this calculation is not wanted
     IF (.NOT.qs_env%dft_control%do_tddfpt_calculation) RETURN
+
+    CALL timeset(routineN,"I","",handle)
 
     CALL read_tddfpt_control(qs_env%dft_control%tddfpt_control, glob_env)
 
@@ -111,6 +112,8 @@ CONTAINS
     CALL tddfpt_es(t_env, p_env, qs_env, glob_env)
 
     CALL tddfpt_cleanup(t_env, p_env, glob_env)
+
+    CALL timestop(0.0_dbl, handle)
 
   END SUBROUTINE tddfpt_calculation
   

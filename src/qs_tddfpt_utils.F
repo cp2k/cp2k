@@ -42,7 +42,8 @@ MODULE qs_tddfpt_utils
   USE cp_fm_types,                     ONLY: cp_full_matrix_p_type, &
                                              cp_full_matrix_type, &
                                              cp_fm_get_element, &
-                                             cp_fm_init_random
+                                             cp_fm_init_random, &
+                                             cp_fm_set_all
   USE qs_blacs,                        ONLY: replicate_blacs_matrix, &
                                              copy_full_matrix_to_real_matrix, &
                                              copy_real_matrix_to_full_matrix

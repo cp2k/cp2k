@@ -141,7 +141,6 @@ MODULE dft_types
 !!***
   TYPE tddfpt_control_type
      INTEGER :: n_ev
-     INTEGER :: n_kv_fac 
      INTEGER :: n_reortho
      LOGICAL :: do_kernel
      CHARACTER(LEN=7) :: restricted_excitations_type
@@ -867,7 +866,6 @@ CONTAINS
     ! -------------------------------------------------------------------
 
     t_control%n_ev      = 1
-    t_control%n_kv_fac  = 20
     t_control%n_reortho = 2
     t_control%do_kernel = .TRUE.
     t_control%restricted_excitations_type = "SINGLET"
@@ -890,11 +888,6 @@ CONTAINS
           IF (t_control%n_ev < 1) &
                CALL stop_parser(routineP, "number of eignvalues must be >= 1")
 
-       CASE ("NKVFAC", "NKV", "N_KV_FAC")
-          CALL read_object(t_control%n_kv_fac)
-          IF (t_control%n_kv_fac < 1) &
-               CALL stop_parser(routineP, "krylov vectors factor must be >= 1")
-          
        CASE ("NREORTHO", "REORTHO", "N_REORTHO", &
              "REORTHOGONALIZATIONS")
           CALL read_object(t_control%n_reortho)
@@ -916,9 +909,9 @@ CONTAINS
              "RESTRICTED_EXCITATIONS_TYPE")
           CALL read_object(field, lower_to_upper=.TRUE.)
           SELECT CASE (TRIM(field))
-          CASE ("SINGLET", "S")
+          CASE ("SINGLET", "SINGLETS", "S")
              t_control%restricted_excitations_type = "SINGLET"
-          CASE ("TRIPLET", "T")
+          CASE ("TRIPLET", "TRIPLETS", "T")
              t_control%restricted_excitations_type = "TRIPLET"
           CASE DEFAULT
              t_control%restricted_excitations_type = "SINGLET"
