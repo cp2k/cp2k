@@ -64,11 +64,7 @@ MODULE cp_sm_fm_interactions
   USE cp_matrix_utils,                 ONLY: cp_sm_write
   USE cp_para_types,                   ONLY: cp_blacs_env_type,&
                                              cp_para_env_type
-  USE distribution_2d_types,           ONLY: distribution_2d_create,&
-                                             distribution_2d_get,&
-                                             distribution_2d_release,&
-                                             distribution_2d_type,&
-                                             distribution_2d_write
+  USE distribution_2d_types,           ONLY: distribution_2d_get
   USE kinds,                           ONLY: dp,&
                                              dp_size,&
                                              int_size
