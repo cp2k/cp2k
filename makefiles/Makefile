@@ -124,10 +124,10 @@ parallel_include.dep:
 parallel_include.int: parallel_include.o
 
 clean:
-	cd $(OBJDIR)/$(VERSION) ; rm -f *.o *.mod
+	rm -f $(OBJDIR)/$(VERSION)/*.o $(OBJDIR)/$(VERSION)/*.mod
 
 realclean: clean
-	cd $(OBJDIR)/$(VERSION) ; rm -f $(PROG) *
+	rm -f $(OBJDIR)/$(VERSION)/* ; rm -f $(PROG) ; rm -f $(LIB1_ARCHIVE)
 
 distclean:
 	rm -rf $(MAINEXEDIR) $(MAINLIBDIR) $(MAINOBJDIR)
