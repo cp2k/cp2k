@@ -649,7 +649,7 @@ contains
           diagMatrix => cp_get_matrix(gf_env%diag_matrix) ! for xlf...
           ! ** gf_env%diag_matrix = df/du_{i,j}
                     
-          ! 2 N H B P i^*
+          ! 2 H B P i^*
           call copy_sparse_to_blacs_matrix(full_h_rmpv(1)%matrix,&
                gf_env%scf_work1,g_env)
           call cp_m2f_with_B_M_pi(min_density_m,cp_get_matrix(gf_env%full_work_m),&
@@ -670,7 +670,7 @@ contains
                fromWhere=routineP, iter=gf_env%n_eval, matrix=diagMatrix,&
                global_env=g_env,error=error)
           end if
-          ! 2 N S B P minH P i^*
+          ! 2 S B P minH P i^*
           call copy_sparse_to_blacs_matrix(min_density_m,&
                gf_env%min_blacs_2, g_env)
           call copy_sparse_to_blacs_matrix(h_matrix%matrix,&
@@ -699,7 +699,9 @@ contains
           call add_blacs_to_block_diag_sm(gf_env%scf_work3,&
                diagMatrix,&
                global_env=g_env,d_struct=gf_env%d_struct, error=error)
-
+          ! diag_matrix = N diag_matrix = 2 N H B P i^* - 2 N S B P minH P i^*
+          ! to do
+          
           if (cp_debug .and. debug_this_module) then
              call cp_sm_output(logger=cp_error_get_logger(error), &
                   outputName="obj_f_df_du", &

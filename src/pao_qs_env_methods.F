@@ -212,12 +212,14 @@ subroutine pao_qs_env_get(qs_env, global_env, pao_env, pao_max_min_bas,&
   CPPrecondition(associated(atomic_kind_set),cp_failure_level,routineP,error,failure)
   CPPrecondition(associated(p_env),cp_failure_level,routineP,error,failure)
   CPPrecondition(p_env%initialized,cp_failure_level,routineP,error,failure)
-  call get_atomic_kind_set(atomic_kind_set,pao_max_min_bas=pao_max_min_bas,&
-       pao_max_full_bas=pao_max_full_bas,&
-       pao_max_excl_bas=pao_max_excl_bas, pao_tot_min_bas=pao_tot_min_bas,&
-       pao_tot_full_bas=pao_tot_full_bas, pao_tot_excl_bas=pao_tot_excl_bas,&
-       pao_max_l_angles=pao_max_l_angles)
   if (.not.failure) then
+     if (present(pao_max_min_bas)) pao_max_min_bas=p_env%max_min_bas
+     if (present(pao_max_full_bas)) pao_max_full_bas=p_env%max_full_bas
+     if (present(pao_max_excl_bas)) pao_max_excl_bas=p_env%max_excl_bas
+     if (present(pao_tot_min_bas)) pao_tot_min_bas=p_env%tot_min_bas
+     if (present(pao_tot_full_bas)) pao_tot_full_bas=p_env%tot_full_bas
+     if (present(pao_tot_excl_bas)) pao_tot_excl_bas=p_env%tot_excl_bas
+     if (present(pao_max_l_angles)) pao_max_l_angles=p_env%max_l_angles
      call pao_env_get(p_env,&
           wanted_subspace_pos_precision=pao_w_subspace_pos_precision,&
           wanted_in_subspace_precision=pao_w_in_subspace_precision,&
@@ -383,9 +385,8 @@ subroutine pao_qs_env_did_change(qs_env,global_env,&
         ! invalidate atomic orthogonalisation
         if (associated(pao_env%atomic_ortho_valid)) &
              pao_env%atomic_ortho_valid=.false.
-        if (full_reset) then
-           call cp_sp_dealloc(pao_env%atomic_ortho,error=error)
-        end if
+        ! in general the atom distribution changes
+        call cp_sp_dealloc(pao_env%atomic_ortho,error=error)
      end if
      call pao_g_ang_did_change(pao_env%angles_att,qs_env=qs_env,&
           global_env=global_env, h_changed=h_changed,&

@@ -106,6 +106,13 @@ module pao_types
 !!       valid only if m_h_m_valid is true
 !!     - m_s_m_valid: true if the overlap matrix is valid
 !!     - m_h_m_valid: true if the hamiltonian matrix is valid
+!!     - NUi_injection_calculated: which blocks of the NUi_injection
+!!       are valid
+!!     - NUi_injection: the projection that goes from the minimal
+!!       basis to the full basis. N is an atomic orthogonalisation term
+!!       U is the unitary transformation, and "i" is the basis injection.
+!!       Only the blocks that have true in NUi_injection_calculated are
+!!       valid.
 !!
 !!   AUTHOR
 !!     Fawzi Mohamed
@@ -179,6 +186,8 @@ module pao_types
      real(kind=wp) :: wanted_subspace_pos_precision
      real(kind=wp) :: wanted_in_subspace_precision
      integer, dimension(:), pointer :: angles_begin_at ! private
+     integer :: max_min_bas,max_full_bas,max_excl_bas,tot_min_bas,&
+          tot_full_bas, tot_excl_bas, max_l_angles
      type(pao_glob_angles_type), pointer :: angles_att
      type(cp_sparse_matrix_p_type), dimension(:), pointer :: min_density_m
      type(cp_b_matrix_struct_type), pointer :: min_bas_m_struct, &
@@ -218,7 +227,9 @@ contains
 !!     End Subroutine pao_env_get
 !!
 !!   FUNCTION
-!!     extracting values from the the pao environement
+!!     extracting values from the the pao environement, see pao_qs_env_get
+!!     in pao_qs_env_methods for an higher leve get that can access more
+!!     values.
 !!
 !!   NOTES
 !!     all the pointers returned are guaranteed to remain valid until

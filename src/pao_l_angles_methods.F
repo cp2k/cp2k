@@ -30,14 +30,14 @@ module pao_l_angles_methods
   use cp_log_handling, only: cp_to_string, cp_failure_level, cp_warning_level
   use cp_error_handling, only: cp_error_type, cp_assert, cp_error_message,&
        cp_assertion_failed, cp_debug, cp_precondition_failed, cp_error_init,&
-       cp_dealloc_ref
+       cp_dealloc_ref, cp_internal_error, cp_error_get_logger
   use kinds, only: wp=>dp
   use global_types, only: global_environment_type
   use timings, only: timeset, timestop
   use pao_types, only: pao_env_type, pao_glob_angles_type, pao_env_get
   use pao_glob_angles_methods, only: pao_g_ang_get, cp_validate
   use sparse_matrix_types, only: real_matrix_type, replicate_matrix, &
-       copy_matrix,&
+       copy_matrix, real_matrix_p_type,&
        allocate_matrix, deallocate_matrix, get_matrix_info, get_block_node,&
        add_block_node, put_block_node
   use cp_sparse_matrix, only: cp_sparse_matrix_type, cp_sparse_matrix_p_type,&
@@ -47,6 +47,9 @@ module pao_l_angles_methods
   use qs_environment_types, only: qs_environment_type, get_qs_env
   use atomic_kind_types, only:atomic_kind_type, get_atomic_kind
   use particle_types, only: particle_type
+  use pao_qs_env_methods, only: pao_qs_env_get
+  use mathlib, only: symmetrize_matrix, power_matrix
+  use cp_array_utils, only: cp_2d_r_output
   implicit none
   private
 
@@ -221,6 +224,7 @@ end interface
 !!          this type has been initialized
 !!     atom_nr : the atom this object focalizes on
 !!     glob_arg: a pointer to the global angles
+!!     tmp_m: tmeporary array, used for internal calculations
 !!      
 !!     readonly (virtual) attributes:
 !!
@@ -241,6 +245,7 @@ end interface
      private
      logical :: initialized
      integer :: atom_nr, begins_at, size_min_bas
+     real(kind=wp), dimension(:,:), pointer :: tmp_m
      type(qs_environment_type), pointer :: qs_env
      type(global_environment_type), pointer :: global_env
      type(pao_bas_projection_type), pointer :: projection
@@ -308,7 +313,7 @@ contains
     local_angles%global_env => global_env
     local_angles%qs_env => qs_env
     local_angles%glob_angles => glob_angles
-    nullify(local_angles%projection)
+    nullify(local_angles%projection, local_angles%tmp_m)
     call pao_l_ang_set(local_angles, atom_nr, error=error)
   end subroutine pao_l_ang_init
 !***************************************************************************
@@ -350,13 +355,18 @@ contains
     type(cp_error_type), optional, intent(inout) :: error
 
     logical :: failure
+    integer :: stat
     character(len=*), parameter :: routineP='pao_l_angles_methods:pao_l_ang_dealloc_ref'
     failure=.false.
 
     CPPrecondition(local_angles%initialized,cp_failure_level,routineP,error,failure)
     failureIf: if (.not. failure) then
+       if (associated(local_angles%tmp_m)) then
+          deallocate(local_angles%tmp_m,stat=stat)
+          CPPostcondition(stat==0,cp_warning_level,routineP,error,failure)
+       end if
        nullify(local_angles%glob_angles, local_angles%projection, &
-            local_angles%qs_env, local_angles%global_env)
+            local_angles%qs_env, local_angles%global_env, local_angles%tmp_m)
        local_angles%initialized=.false.
     end if failureIf
   end subroutine pao_l_ang_dealloc_ref
@@ -534,7 +544,8 @@ contains
 !!   SYNOPSIS
 !!     Subroutine pao_l_ang_get(local_angles, atom_nr, pao_env, unitary_t,&
 !!         cache_valid, size_min_bas, size_full_bas, size_excl_bas,&
-!!         proj_indexes, non_proj_indexes, projection, angles, error)
+!!         proj_indexes, non_proj_indexes, projection, angles,&
+!!         nui_injection, atomic_ortho, error)
 !!       Type(pao_local_angles_type), Intent (INOUT):: local_angles
 !!       Integer, Optional, Intent (OUT):: atom_nr
 !!       Integer, Optional, Intent (OUT):: size_excl_bas, size_full_bas,&
@@ -543,7 +554,8 @@ contains
 !!         non_proj_indexes
 !!       Type(pao_env_type), Optional, Pointer:: pao_env
 !!       Type(cp_error_type), Optional, Intent (INOUT):: error
-!!       Real(Kind=wp), Dimension(:,:), Pointer, Optional:: unitary_t
+!!       Real(Kind=wp), Dimension(:,:), Pointer, Optional:: unitary_t,&
+!!         atomic_ortho, nui_injection
 !!       Logical, Intent (OUT), Optional:: cache_valid
 !!       Type(pao_bas_projection_type), Pointer, Optional:: projection
 !!       Real(Kind=wp), Dimension(:), Pointer, Optional:: angles
@@ -580,7 +592,7 @@ contains
        pao_env, unitary_t,cache_valid,&
        size_min_bas, size_full_bas, &
        size_excl_bas, proj_indexes, non_proj_indexes,&
-       projection, angles, error)
+       projection, angles, NUi_injection, atomic_ortho, error)
     type(pao_local_angles_type), intent(inout) :: local_angles
     integer, optional, intent(out) :: atom_nr
     integer, optional, intent(out) :: size_excl_bas,size_full_bas,&
@@ -589,7 +601,8 @@ contains
          non_proj_indexes
     type(pao_env_type), optional, pointer :: pao_env
     type(cp_error_type), optional, intent(inout) :: error
-    real(kind=wp), dimension(:,:), pointer, optional :: unitary_t
+    real(kind=wp), dimension(:,:), pointer, optional :: unitary_t,&
+         atomic_ortho, NUi_injection
     logical, intent(out), optional :: cache_valid
     type(pao_bas_projection_type), pointer, optional :: projection
     real(kind=wp), dimension(:), pointer, optional :: angles
@@ -629,10 +642,18 @@ contains
           end if
        end if
        if (present(angles)) then
-          nullify(angles) ! to do
+          nullify(angles)
+          ! seems to give problems on some platforms
+          CPAssert(.false.,cp_warning_level,routineP,error,failure)
           call get_qs_env(local_angles%qs_env, pao_env=my_pao_env)
           angles => local_angles%glob_angles%angles(local_angles%begins_at:&
                (my_pao_env%angles_begin_at(local_angles%atom_nr+1)-1))
+       end if
+       if (present(NUi_injection)) then
+          NUi_injection => pao_l_ang_get_NUi_injection(local_angles,error=error)
+       end if
+       if (present(atomic_ortho)) then
+          atomic_ortho => pao_l_ang_get_atomic_ortho(local_angles,error=error)
        end if
     end if
   end subroutine pao_l_ang_get
@@ -1269,6 +1290,10 @@ contains
        if (associated(local_angles%glob_angles%ut_calculated)) then
           local_angles%glob_angles%ut_calculated(local_angles%atom_nr)=.false.
        end if
+       if (associated(local_angles%glob_angles%NUi_injection_calculated)) then
+          local_angles%glob_angles%NUi_injection_calculated&
+               (local_angles%atom_nr)=.false.
+       end if
     end if
   end subroutine pao_l_ang_did_change
 !***************************************************************************
@@ -1451,7 +1476,9 @@ contains
     failure=.false.
     nullify(res)
 
-    CPPrecondition(cp_valid(local_angles),cp_failure_level,routineP,error,failure)
+    if (cp_debug .and. debug_this_module) then
+       CPPrecondition(cp_valid(local_angles),cp_failure_level,routineP,error,failure)
+    end if
     if (.not. failure) then
        call pao_g_ang_get(local_angles%glob_angles,qs_env=local_angles%qs_env,&
             global_env=local_angles%global_env, unitary_t=unitary_t,&
@@ -1553,5 +1580,238 @@ function pao_l_ang_get_g_index(local_angles, min_bas, excl_bas, error)&
   end if
 end function pao_l_ang_get_g_index
 !***************************************************************************
+
+!!****f* pao_l_angles_methods [1.0] *
+!!
+!!   NAME
+!!     pao_l_ang_get_atomic_ortho
+!!
+!!   FUNCTION
+!!     returns the atomic orthogonalization matrix, calculating it
+!!     if necessary.
+!!
+!!   NOTES
+!!     cache tmp_m (but submatrix indexing on most compilers is not optimized)
+!!
+!!   INPUTS
+!!     - local_angles: the local_angles object that defines the actual atom
+!!     - error: variable to control error logging, stopping,... 
+!!       see module cp_error_handling 
+!!
+!!   AUTHOR
+!!     Fawzi Mohamed
+!!
+!!   MODIFICATION HISTORY
+!!     6.2002 created [fawzi]
+!!
+!!*** **********************************************************************
+function pao_l_ang_get_atomic_ortho(local_angles,error) result(res)
+  type(pao_local_angles_type), intent(inout) :: local_angles
+  type(cp_error_type), optional, intent(inout) :: error
+  real(kind=wp), dimension(:,:), pointer :: res
+
+  logical :: failure
+  character(len=*), parameter :: routineN='pao_l_ang_get_atomic_ortho',&
+       routineP=moduleN//':'//routineN
+  integer :: stat
+  integer, save :: iter=0
+  type(cp_sparse_matrix_type), pointer :: atomic_ortho
+  type(pao_env_type), pointer :: pao_env
+  type(real_matrix_p_type), dimension(:), pointer :: s
+  real(kind=wp), dimension(:,:), pointer :: block_val, tmp_m
+  real(kind=wp) :: eps_eigval
+  failure=.false.
+  nullify(res, atomic_ortho, block_val, tmp_m, pao_env, s)
+
+  CPPrecondition(cp_valid(local_angles),cp_failure_level,routineP,error,failure)
+  if (.not. failure) then
+     call pao_qs_env_get(local_angles%qs_env,&
+          global_env=local_angles%global_env, pao_env=pao_env,&
+          pao_atomic_ortho=atomic_ortho,error=error)
+     CPPrecondition(associated(atomic_ortho),cp_failure_level,routineP,error,failure)
+     CPPrecondition(associated(pao_env),cp_failure_level,routineP,error,failure)
+     if (.not.failure) then
+        call cp_assert(associated(pao_env%atomic_ortho_valid),&
+             cp_failure_level,cp_assertion_failed,routineP,&
+             "atomic_ortho_valid not associated in "//&
+             CPSourceFileRef,&
+             error,failure)
+     end if
+  end if
+  if (.not.failure) then
+     if (pao_env%atomic_ortho_valid(local_angles%atom_nr)) then
+        call get_block_node(cp_get_matrix(atomic_ortho),&
+             block=res,block_row=local_angles%atom_nr,&
+             block_col=local_angles%atom_nr)
+        CPPostcondition(associated(res),cp_failure_level,routineP,error,failure)
+     else
+        call get_qs_env(local_angles%qs_env,s=s)
+        call get_block_node(cp_get_matrix(atomic_ortho),&
+             block=res,block_row=local_angles%atom_nr,&
+             block_col=local_angles%atom_nr)
+        if (.not.associated(res)) then
+           call add_block_node(cp_get_matrix(atomic_ortho),&
+                local_angles%atom_nr,local_angles%atom_nr,block=res)
+        end if
+        CPPostcondition(associated(res),cp_failure_level,routineP,error,failure)
+        if (.not.failure) then
+           CPPrecondition(size(res,1)==size(res,2),cp_failure_level,routineP,error,failure)
+        end if
+        if (.not.failure) then
+           allocate(tmp_m(size(res,1),size(res,2)),stat=stat)
+           CPPostcondition(stat==0,cp_warning_level,routineP,error,failure)
+        end if
+        if (.not.failure) then
+           call get_block_node(s(1)%matrix,block_row=local_angles%atom_nr,&
+                block_col=local_angles%atom_nr,block=block_val)
+           CPPrecondition(size(block_val,1)==size(res,1),cp_failure_level,routineP,error,failure)
+           CPPrecondition(size(block_val,2)==size(res,2),cp_failure_level,routineP,error,failure)
+           if (.not.failure) then
+              tmp_m=block_val
+              eps_eigval= 10 * epsilon(0.0_wp) ! to do: use the scf value
+              call power_matrix(tmp_m,res,-0.5_wp,threshold=eps_eigval)
+              call symmetrize_matrix(res,"upper_to_lower") ! remove?
+              if (cp_debug.and.debug_this_module) then
+                 iter=iter+1
+                 call cp_2d_r_output(cp_error_get_logger(error),&
+                      outputName="atomic_ortho",&
+                      fromWhere=routineP, iter=iter,array=res,&
+                      comment="atom_nr="//cp_to_string(local_angles%atom_nr),&
+                      error=error)
+              end if
+           end if
+           deallocate(tmp_m,stat=stat)
+           CPPostcondition(stat==0,cp_warning_level,routineP,error,failure)
+        end if
+     end if
+  end if
+  if (failure) nullify(res)
+end function pao_l_ang_get_atomic_ortho
+!***************************************************************************
+
+!!****f* pao_l_angles_methods/pao_l_ang_get_NUi_injection [1.0] *
+!!
+!!   NAME
+!!     pao_l_ang_get_NUi_injection
+!!
+!!   FUNCTION
+!!     returns the injection from the small basis to the full basis,
+!!     calculating it if necessary (N ortho, U unitary, i basis injection)
+!!
+!!   NOTES
+!!     -
+!!
+!!   INPUTS
+!!     - local_angles: the actual local angles object that defines
+!!       the actual atom 
+!!     - error: variable to control error logging, stopping,... 
+!!       see module cp_error_handling 
+!!
+!!   AUTHOR
+!!     Fawzi Mohamed
+!!
+!!   MODIFICATION HISTORY
+!!     4.2002 created [fawzi]
+!!
+!!*** **********************************************************************
+function pao_l_ang_get_NUi_injection(local_angles, error) result(res)
+  real(kind=wp), dimension(:,:), pointer ::res
+  type(pao_local_angles_type), intent(inout) :: local_angles
+  type(cp_error_type), optional, intent(inout) :: error
+  
+  logical :: failure
+  character(len=*), parameter :: routineN='pao_l_ang_get_NUi_injection',&
+        routineP=moduleN//':'//routineN
+  integer :: stat, max_full_bas, i
+  integer, save :: iter=0
+  integer, dimension(:), pointer :: proj_indexes
+  type(cp_sparse_matrix_type), pointer :: NUi_injection
+  type(pao_env_type), pointer :: pao_env
+  real(kind=wp), dimension(:,:), pointer :: n_m,u_m
+  failure=.false.
+  nullify(res, NUi_injection, n_m, u_m, pao_env)
+
+  CPPrecondition(cp_valid(local_angles),cp_failure_level,routineP,error,failure)
+  if (.not. failure) then
+     call pao_qs_env_get(local_angles%qs_env,&
+          global_env=local_angles%global_env, pao_env=pao_env,&
+          pao_max_full_bas=max_full_bas,&
+          error=error)
+     CPPrecondition(associated(NUi_injection),cp_failure_level,routineP,error,failure)
+     CPPrecondition(associated(pao_env),cp_failure_level,routineP,error,failure)
+     if (.not.failure) then
+        call cp_assert(associated(local_angles%glob_angles%NUi_injection_calculated),&
+             cp_failure_level,cp_assertion_failed,routineP,&
+             "NUi_injection_calculated not associated in "//&
+             CPSourceFileRef,&
+             error,failure)
+     end if
+  end if
+  if (.not.failure) then
+     if (local_angles%glob_angles%NUi_injection_calculated&
+          (local_angles%atom_nr)) then
+        call get_block_node(cp_get_matrix(NUi_injection),&
+             block=res,block_row=local_angles%atom_nr,&
+             block_col=local_angles%atom_nr)
+        CPPostcondition(associated(res),cp_failure_level,routineP,error,failure)
+     else
+        call get_block_node(cp_get_matrix(NUi_injection),&
+             block=res,block_row=local_angles%atom_nr,&
+             block_col=local_angles%atom_nr)
+        if (.not.associated(res)) then
+           call add_block_node(cp_get_matrix(NUi_injection),&
+                local_angles%atom_nr,local_angles%atom_nr,block=res)
+        end if
+        CPPostcondition(associated(res),cp_failure_level,routineP,error,failure)
+        if (.not.failure) then
+           CPPrecondition(size(res,1)==size(res,2),cp_failure_level,routineP,error,failure)
+        end if
+        if (.not.failure) then
+           if (associated(local_angles%tmp_m)) then
+              call cp_assert(size(local_angles%tmp_m,1) >= size(res,1) .and.&
+                   size(local_angles%tmp_m,2) >= size(res,2),cp_failure_level,&
+                   cp_internal_error, routineP, &
+                   "local_angles%tmp_m not big enough, in"//&
+                   CPSourceFileRef,&
+                   error=error,failure=failure)
+           else
+              allocate(local_angles%tmp_m(max_full_bas,max_full_bas),stat=stat)
+              CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+           end if
+        end if
+        u_m => pao_l_ang_get_unitary_t(local_angles, error=error)
+        CPPrecondition(associated(u_m),cp_failure_level,routineP,error,failure)
+        n_m => pao_l_ang_get_atomic_ortho(local_angles, error=error)
+        CPPrecondition(associated(n_m),cp_failure_level,routineP,error,failure)
+        if (.not.failure) then
+           CPPrecondition(size(u_m,1)==size(n_m,2),cp_failure_level,routineP,error,failure)
+        end if
+        if (.not.failure) then
+           call dgemm('N','N',size(n_m,1),size(u_m,2),size(u_m,2),1.0_wp,&
+                n_m,size(n_m,1),u_m,size(u_m,1),0.0_wp,&
+                local_angles%tmp_m,size(local_angles%tmp_m,1))
+           call cp_proj_get(local_angles%projection,proj_indexes=proj_indexes,&
+                error=error)
+           CPPrecondition(associated(proj_indexes),cp_failure_level,routineP,error,failure)
+           if (.not.failure) then
+              do i=1,size(proj_indexes)
+                 res(:,i)=local_angles%tmp_m(:,proj_indexes(i))
+              end do
+              if (cp_debug.and.debug_this_module) then
+                 iter=iter+1
+                 call cp_2d_r_output(cp_error_get_logger(error),&
+                      outputName="atomic_NUi",&
+                      fromWhere=routineP, iter=iter,array=res,&
+                      comment="atom_nr="//cp_to_string(local_angles%atom_nr),&
+                      error=error)
+              end if
+           end if
+        end if
+     end if
+  end if
+  if (failure) nullify(res)
+end function pao_l_ang_get_NUi_injection
+!***************************************************************************
+
 
 end module pao_l_angles_methods

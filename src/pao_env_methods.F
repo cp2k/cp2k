@@ -38,12 +38,13 @@ module pao_env_methods
   use pao_types, only: pao_glob_angles_type, pao_env_type, cp_get, pao_env_valid
   use qs_environment_types, only: qs_environment_type, get_qs_env
   use cp_sparse_matrix, only: cp_sparse_matrix_type, cp_sparse_matrix_p_type,&
-       cp_sp_create, cp_sp_dealloc, cp_get_matrix, cp_retain, cp_release
+       cp_sp_create, cp_get_matrix, cp_retain, cp_release
   use pao_glob_angles_methods, only: pao_g_ang_init, cp_dealloc, cp_set
   use sparse_matrix_types, only: real_matrix_p_type, real_matrix_type
   use pao_bas_projection_types, only: pao_bas_projection_type,cp_proj_get
   use pao_qs_env_methods, only: cp_get_b_projection
-  use atomic_kind_types, only: atomic_kind_type, get_atomic_kind
+  use atomic_kind_types, only: atomic_kind_type, get_atomic_kind, &
+       get_atomic_kind_set
   use cp_b_matrix_structure, only: cp_b_matrix_struct_type, &
        cp_bmstruct_create, cp_bmstruct_release
   implicit none
@@ -257,6 +258,16 @@ contains
        CPPostcondition(stat==0,cp_warning_level,routineP,error,failure)
     end if
 
+    ! cache_max vals
+    call get_atomic_kind_set(atomic_kind_set,&
+         pao_max_min_bas=pao_env%max_min_bas,&
+         pao_max_full_bas=pao_env%max_full_bas,&
+         pao_max_excl_bas=pao_env%max_excl_bas,&
+         pao_tot_min_bas=pao_env%tot_min_bas,&
+         pao_tot_full_bas=pao_env%tot_full_bas,&
+         pao_tot_excl_bas=pao_env%tot_excl_bas,&
+         pao_max_l_angles=pao_env%max_l_angles)
+        
     ! others
     call get_qs_env(qs_env, natoms=n_atoms) ! p might be uninitialized
     allocate(pao_env%min_density_m(1),stat=stat)
@@ -379,7 +390,7 @@ contains
           nullify(pao_env%full_bas_diag_m_struct)
        end if
        if (associated(pao_env%atomic_ortho)) then
-          call cp_sp_dealloc(pao_env%atomic_ortho,error=error)
+          call cp_release(pao_env%atomic_ortho,error=error)
        end if
        if (associated(pao_env%atomic_ortho_valid)) then
           deallocate(pao_env%atomic_ortho_valid, stat=stat)

@@ -138,16 +138,12 @@ contains
 !!
 !!   SYNOPSIS
 !!     Subroutine pao_g_ang_init(glob_angles, qs_env, global_env, angles,&
-!!         source, ut_calculated, unitary_t, min_overlap_m,&
-!!         min_hamiltonian_m, error)
+!!         source, min_overlap_m, min_hamiltonian_m, error)
 !!       Type(pao_glob_angles_type), Intent (OUT):: glob_angles
 !!       Type(qs_environment_type), Intent (IN), Target:: qs_env
 !!       Type(global_environment_type), Intent (IN), Target:: global_env
 !!       Real(Kind=wp), Optional, Dimension(:), Intent (IN):: angles
 !!       Type(pao_glob_angles_type), Intent (IN), Optional:: source
-!!       Logical, Dimension(:), Intent (IN), Optional:: ut_calculated
-!!       Type(cp_sparse_matrix_type), Intent (IN), Optional, Target::&
-!!         unitary_t
 !!       Type(cp_sparse_matrix_p_type), Intent (IN), Optional,&
 !!         Dimension(:):: min_overlap_m, min_hamiltonian_m
 !!       Type(cp_error_type), Optional, Intent (INOUT):: error
@@ -173,14 +169,12 @@ contains
 !!
 !!*** **********************************************************************
   subroutine pao_g_ang_init(glob_angles, qs_env, global_env, angles, source,&
-       ut_calculated, unitary_t, min_overlap_m, min_hamiltonian_m, error)
+       min_overlap_m, min_hamiltonian_m, error)
     type(pao_glob_angles_type), intent(out) :: glob_angles
     type(qs_environment_type), intent(in), target :: qs_env
     type(global_environment_type), intent(in), target :: global_env
     real(kind=wp), optional, dimension(:), intent(in) :: angles
     type(pao_glob_angles_type), intent(in), optional :: source
-    logical, dimension(:), intent(in), optional :: ut_calculated
-    type(cp_sparse_matrix_type), intent(in), optional, target :: unitary_t
     type(cp_sparse_matrix_p_type), intent(in), optional, &
          dimension(:) :: min_overlap_m, min_hamiltonian_m
     type(cp_error_type), optional, intent(inout) :: error
@@ -191,15 +185,15 @@ contains
 
     nullify(glob_angles%angles, glob_angles%unitary_t,&
          glob_angles%ut_calculated, glob_angles%min_overlap_m, &
-         glob_angles%min_hamiltonian_m)
+         glob_angles%min_hamiltonian_m, glob_angles%NUi_injection_calculated,&
+         glob_angles%NUi_injection)
     glob_angles%m_s_m_valid=.false.
     glob_angles%m_h_m_valid=.false.
     glob_angles%initialized = .true.
     if (.not.failure) then
        call pao_g_ang_set(glob_angles,qs_env=qs_env, global_env=global_env,&
             angles=angles,&
-            source=source, ut_calculated=ut_calculated,&
-            unitary_t=unitary_t,min_hamiltonian_m=min_hamiltonian_m,&
+            source=source, min_hamiltonian_m=min_hamiltonian_m,&
             min_overlap_m=min_overlap_m, error=error)
     end if
   end subroutine pao_g_ang_init
@@ -257,7 +251,12 @@ contains
           deallocate(glob_angles%ut_calculated,stat=stat)
           CPPostcondition(stat==0,cp_warning_level,routineP,error,failure)
        end if
-       call cp_dealloc(glob_angles%unitary_t,error=error)
+       if (associated(glob_angles%NUi_injection_calculated)) then
+          deallocate(glob_angles%NUi_injection_calculated)
+          CPPostcondition(stat==0,cp_warning_level,routineP,error,failure)
+       end if
+       call cp_release(glob_angles%NUi_injection,error=error)
+       call cp_release(glob_angles%unitary_t,error=error)
        call cp_dealloc(glob_angles%min_hamiltonian_m,error=error)
        call cp_dealloc(glob_angles%min_overlap_m,error=error)
     end if failureIf
@@ -324,15 +323,12 @@ contains
 !!
 !!   SYNOPSIS
 !!     Subroutine pao_g_ang_create(glob_angles, qs_env, global_env, angles,&
-!!         source, ut_calculated, unitary_t, min_overlap_m,&
-!!         min_hamiltonian_m, error)
+!!         source, min_overlap_m, min_hamiltonian_m, error)
 !!       Type(pao_glob_angles_type), Pointer:: glob_angles
 !!       Type(qs_environment_type), Intent (IN), Target:: qs_env
 !!       Type(global_environment_type), Intent (IN), Target:: global_env
 !!       Real(Kind=wp), Optional, Dimension(:), Intent (IN):: angles
 !!       Type(pao_glob_angles_type), Intent (IN), Optional:: source
-!!       Logical, Dimension(:), Intent (IN):: ut_calculated
-!!       Type(cp_sparse_matrix_type), Intent (IN), Target:: unitary_t
 !!       Type(cp_sparse_matrix_p_type), Intent (IN), Dimension(:),&
 !!         Optional:: min_hamiltonian_m, min_overlap_m
 !!       Type(cp_error_type), Optional, Intent (INOUT):: error
@@ -360,14 +356,12 @@ contains
 !!
 !!*** **********************************************************************
   subroutine pao_g_ang_create(glob_angles, qs_env, global_env, angles, source,&
-       ut_calculated, unitary_t, min_overlap_m, min_hamiltonian_m, error)
+       min_overlap_m, min_hamiltonian_m, error)
     type(pao_glob_angles_type), pointer :: glob_angles
     type(qs_environment_type), intent(in), target :: qs_env
     type(global_environment_type), intent(in), target :: global_env
     real(kind=wp), optional, dimension(:), intent(in) :: angles
     type(pao_glob_angles_type), intent(in), optional :: source
-    logical, dimension(:), intent(in) :: ut_calculated
-    type(cp_sparse_matrix_type), intent(in), target :: unitary_t
 
     type(cp_sparse_matrix_p_type), intent(in), dimension(:), optional ::&
          min_hamiltonian_m, min_overlap_m
@@ -381,8 +375,10 @@ contains
     allocate(glob_angles, stat=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     if (.not. failure) then
-       call pao_g_ang_init(glob_angles, qs_env, global_env, angles, source,&
-            ut_calculated, unitary_t, min_overlap_m, min_hamiltonian_m, error)
+       call pao_g_ang_init(glob_angles, qs_env=qs_env, global_env=global_env,&
+            angles=angles, source=source,&
+            min_overlap_m=min_overlap_m, min_hamiltonian_m=min_hamiltonian_m,&
+            error=error)
     end if
   end subroutine pao_g_ang_create
 !***************************************************************************
@@ -496,8 +492,8 @@ contains
 !!
 !!   SYNOPSIS
 !!     Subroutine pao_g_ang_set(glob_angles, qs_env, global_env, angles,&
-!!         source, ut_calculated, unitary_t, min_overlap_m,&
-!!         min_hamiltonian_m, m_s_m_valid, m_h_m_valid, angles_val, error)
+!!         source, min_overlap_m, min_hamiltonian_m, m_s_m_valid,&
+!!         m_h_m_valid, angles_val, error)
 !!       Type(pao_glob_angles_type), Intent (INOUT):: glob_angles
 !!       Type(qs_environment_type), Intent (IN), Target:: qs_env
 !!       Type(global_environment_type), Intent (IN), Target:: global_env
@@ -505,11 +501,8 @@ contains
 !!       Type(pao_glob_angles_type), Optional, Intent (IN):: source
 !!       Type(cp_sparse_matrix_p_type), Optional, Intent (IN),&
 !!         Dimension(:):: min_overlap_m
-!!       Type(cp_sparse_matrix_type), Optional, Intent (IN), Target::&
-!!         unitary_t
 !!       Type(cp_sparse_matrix_p_type), Dimension(:), Intent (IN),&
 !!         Optional:: min_hamiltonian_m
-!!       Logical, Dimension(:), Optional, Intent (IN):: ut_calculated
 !!       Logical, Intent (IN), Optional:: m_h_m_valid, m_s_m_valid
 !!       Real(Kind=wp), Intent (IN), Optional:: angles_val
 !!       Type(cp_error_type), Optional, Intent (INOUT):: error
@@ -545,7 +538,7 @@ contains
 !!
 !!*** **********************************************************************
   subroutine pao_g_ang_set(glob_angles, qs_env, global_env, angles,source,&
-       ut_calculated, unitary_t,min_overlap_m, min_hamiltonian_m,&
+       min_overlap_m, min_hamiltonian_m,&
        m_s_m_valid, m_h_m_valid, angles_val, error)
     type(pao_glob_angles_type), intent(inout) :: glob_angles
     type(qs_environment_type), intent(in), target :: qs_env
@@ -554,10 +547,8 @@ contains
     type(pao_glob_angles_type), optional, intent(in) :: source
     type(cp_sparse_matrix_p_type), optional, intent(in), dimension(:) :: &
          min_overlap_m
-    type(cp_sparse_matrix_type), optional, intent(in), target :: unitary_t
     type(cp_sparse_matrix_p_type), dimension(:), intent(in),&
          optional :: min_hamiltonian_m
-    logical, dimension(:), optional, intent(in) :: ut_calculated
     logical, intent(in), optional :: m_h_m_valid, m_s_m_valid
     real(kind=wp), intent(in), optional :: angles_val
     type(cp_error_type), optional, intent(inout) :: error
@@ -633,10 +624,6 @@ contains
                error=error,failure_level=cp_failure_level,failure=failure)
           glob_angles%angles(:)=angles_val
        end if
-       call pao_g_angles_set_unitary_t(glob_angles,&
-            ut_calculated=ut_calculated,&
-            new_value=unitary_t,&
-            error=error)
        if (present(min_overlap_m)) then
           call pao_g_angles_set_min_s_m(glob_angles,&
                new_value=min_overlap_m,&
@@ -664,14 +651,17 @@ contains
 !!
 !!   SYNOPSIS
 !!     Subroutine pao_g_ang_get(glob_angles, qs_env, global_env, angles,&
-!!         m_s_m_valid, m_h_m_valid, ut_calculated, unitary_t, error)
+!!         m_s_m_valid, m_h_m_valid, ut_calculated, unitary_t,&
+!!         nui_injection_calculated, nui_injection, error)
 !!       Type(pao_glob_angles_type), Intent (INOUT):: glob_angles
 !!       Type(qs_environment_type), Intent (IN), Target:: qs_env
 !!       Type(global_environment_type), Intent (IN), Target:: global_env
 !!       Real(Kind=wp), Optional, Dimension(:), Pointer:: angles
 !!       Logical, Intent (OUT), Optional:: m_h_m_valid, m_s_m_valid
-!!       Logical, Dimension(:), Pointer, Optional:: ut_calculated
-!!       Type(cp_sparse_matrix_type), Pointer, Optional:: unitary_t
+!!       Logical, Dimension(:), Pointer, Optional:: ut_calculated,&
+!!         nui_injection_calculated
+!!       Type(cp_sparse_matrix_type), Pointer, Optional:: unitary_t,&
+!!         nui_injection
 !!       Type(cp_error_type), Optional, Intent (INOUT):: error
 !!     End Subroutine pao_g_ang_get
 !!
@@ -682,16 +672,22 @@ contains
 !!     try not to use the angles attribute
 !!
 !!   INPUTS
-!!     glob_angles: the object you get the info from
-!!     pao_env: the pao environement this object lives in SHARED
-!!     angles: a big 1D array with all the angles that define the unitary
-!!            transformation (try not to use this)
-!!     error: variable to control error logging, stopping,... 
-!!            see module cp_error_handling
-!!     ut_calculated: which block diagonal blocks of the unitary trasformation
-!!            are valid (allocated if necessary)
-!!     unitary_t: unitary trasformation. Be careful, only the blocks flagged
-!!            in ut_calculated are valid (allocated if necessary)
+!!     - glob_angles: the object you get the info from
+!!     - ut_calculated: which blocks of unitary_t are valid . Allocated
+!!       if necessary.
+!!     - unitary_t: the unitary transformation (be careful, only the
+!!       blocks flagged in ut_calculated are valid). Allocated if 
+!!       necessary.
+!!     - NUi_injection_calculated: which blocks of the NUi_injection
+!!       are valid. Allocated if necessary.
+!!     - NUi_injection: the projection that goes from the minimal
+!!       basis to the full basis. N is an atomic orthogonalisation term
+!!       U is the unitary transformation, and "i" is the basis injection.
+!!       Only the blocks that have true in NUi_injection_calculated are
+!!       valid.. Allocated if necessary.
+!!
+!!     for the other variables see the pao_glob_angles_type in the
+!!     pao_types module
 !!
 !!   AUTHOR
 !!     @author Fawzi Mohamed
@@ -703,14 +699,16 @@ contains
 !!*** **********************************************************************
   subroutine pao_g_ang_get(glob_angles, qs_env, global_env, angles,&
        m_s_m_valid, m_h_m_valid, ut_calculated, unitary_t, &
-       error)
+       NUi_injection_calculated, NUi_injection, error)
     type(pao_glob_angles_type), intent(inout) :: glob_angles
     type(qs_environment_type), intent(in), target :: qs_env
     type(global_environment_type), intent(in), target :: global_env
     real(kind=wp), optional, dimension(:), pointer :: angles
     logical, intent(out), optional :: m_h_m_valid, m_s_m_valid
-    logical, dimension(:), pointer, optional :: ut_calculated
-    type(cp_sparse_matrix_type), pointer, optional :: unitary_t
+    logical, dimension(:), pointer, optional :: ut_calculated, &
+         NUi_injection_calculated
+    type(cp_sparse_matrix_type), pointer, optional :: unitary_t,&
+         NUi_injection
     type(cp_error_type), optional, intent(inout) :: error
 
     logical :: failure
@@ -751,6 +749,30 @@ contains
           CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
           if (stat==0) glob_angles%ut_calculated=.false.
           ut_calculated => glob_angles%ut_calculated
+       end if
+       if (present(NUi_injection)) then
+          call get_qs_env(qs_env, pao_env=pao_env)
+          call cp_get(pao_env, full_bas_diag_m_struct=full_bas_m_struct)
+          if (.not.associated(glob_angles%NUi_injection)) then
+             call cp_create(glob_angles%NUi_injection,global_env=global_env,&
+                  matrix_structure=full_bas_m_struct,&
+                  error=error)
+          end if
+          if (.not.associated(glob_angles%NUi_injection_calculated)) then
+             allocate(glob_angles%NUi_injection_calculated(n_atoms),&
+                  stat=stat)
+             CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+             if (stat==0) glob_angles%NUi_injection_calculated=.false.
+          end if
+          NUi_injection => glob_angles%NUi_injection
+       end if
+       if (present(NUi_injection_calculated).and.&
+            .not.associated(glob_angles%NUi_injection_calculated)) then
+          allocate(glob_angles%NUi_injection_calculated(n_atoms),&
+               stat=stat)
+          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+          if (stat==0) glob_angles%NUi_injection_calculated=.false.
+          NUi_injection_calculated => glob_angles%NUi_injection_calculated
        end if
     end if failureIf
   end subroutine pao_g_ang_get
@@ -814,6 +836,9 @@ contains
           CPAssert(associated(glob_angles%angles),cp_warning_level,routineP,error,failure)
           if (associated(glob_angles%unitary_t)) then
              CPAssert(associated(glob_angles%ut_calculated),cp_warning_level,routineP,error,failure)
+          end if
+          if (associated(glob_angles%NUi_injection_calculated)) then
+             CPAssert(associated(glob_angles%NUi_injection),cp_warning_level,routineP,error,failure)
           end if
           if (glob_angles%m_s_m_valid) then
              CPAssert(associated(glob_angles%min_overlap_m),cp_warning_level,routineP,error,failure)
@@ -1081,26 +1106,32 @@ contains
             .not.(h_c.or.s_c.or.a_c.or.full_r)
        glob_angles%m_s_m_valid=glob_angles%m_s_m_valid.and.&
             .not.(s_c.or.a_c.or.full_r)
-       if (associated(glob_angles%ut_calculated).and.&
-            (a_c.or.full_r)) then
+       if (associated(glob_angles%ut_calculated).and.a_c) then
           glob_angles%ut_calculated=.false.
+       end if
+       if (associated(glob_angles%NUi_injection_calculated).and.a_c) then
+          glob_angles%NUi_injection_calculated=.false.
        end if
        if (full_r.or.s_c) then
           call cp_release(glob_angles%unitary_t,error=error)
-          if (associated(glob_angles%min_hamiltonian_m)) then
-             call cp_release(glob_angles%min_hamiltonian_m,error=error)
-             deallocate(glob_angles%min_hamiltonian_m,stat=stat)
-             CPPostcondition(stat==0,cp_warning_level,routineP,error,failure)
-          end if
-          if (associated(glob_angles%min_overlap_m)) then
-             call cp_release(glob_angles%min_overlap_m)
-             deallocate(glob_angles%min_overlap_m,stat=stat)
-             CPPostcondition(stat==0,cp_warning_level,routineP,error,failure)
-          end if
+          call cp_release(glob_angles%NUi_injection,error=error)
+          call cp_dealloc(glob_angles%min_hamiltonian_m,error=error)
+          call cp_dealloc(glob_angles%min_overlap_m)
           if (associated(glob_angles%ut_calculated)) then
-             ! do not dealloc??
-             deallocate(glob_angles%ut_calculated, stat=stat)
-             CPPostcondition(stat==0,cp_warning_level,routineP,error,failure)
+             if (full_r) then
+                deallocate(glob_angles%ut_calculated, stat=stat)
+                CPPostcondition(stat==0,cp_warning_level,routineP,error,failure)
+             else
+                glob_angles%ut_calculated=.false.
+             end if
+          end if
+          if (associated(glob_angles%NUi_injection_calculated)) then
+             if (full_r) then
+                deallocate(glob_angles%NUi_injection_calculated,stat=stat)
+                CPPostcondition(stat==0,cp_warning_level,routineP,error,failure)
+             else
+                glob_angles%NUi_injection_calculated=.false.
+             end if
           end if
        end if
     end if

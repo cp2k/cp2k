@@ -22,7 +22,8 @@
 !!
 !!   MODIFICATION HISTORY
 !!     2.2002 created [fawzi]
-!!     4.2002 uses projection object and qs_env [fawzi] 
+!!     4.2002 uses projection object and qs_env [fawzi]
+!!     6.2002 added atomic orthogonalization
 !!
 !!   SOURCE
 !*****************************************************************************
@@ -101,8 +102,8 @@ contains
 !!     End Subroutine pao_m_m2f_with_b_m_pi
 !!
 !!   FUNCTION
-!!     Transform the given matrix to the full basis with B=i U and pi=i^*
-!!     Puts U i source_m pi  into the target_m
+!!     Transform the given matrix to the full basis with B= N U i and pi=i^*
+!!     Puts N U i source_m pi  into the target_m
 !!
 !!   NOTES
 !!     -
@@ -134,24 +135,17 @@ contains
     character(len=*), parameter :: routineP='pao_types:pao_m_m2f_with_b_m_pi'
     type(cp_matrix_block_iterator) :: iterator
     integer :: brow,bcol, stat, max_bsize,i,j
-    integer, dimension(:), pointer :: l_index,r_index
+    integer, dimension(:), pointer :: l_index
     real(kind=wp), dimension(:,:), pointer :: block_val, u_row
     real(kind=wp),allocatable, dimension(:,:) :: t1_m
     type(pao_local_angles_type) :: l_angles_col, l_angles_row
     type(cp_error_type) :: iError
     type(pao_env_type), pointer :: pao_env
     call cp_error_init(iError,template_error=error)
-    nullify(block_val,l_index,r_index,u_row,pao_env)
+    nullify(block_val,l_index,u_row,pao_env)
     failure=.false.
 
     CPPrecondition(glob_angles%initialized,cp_failure_level,routineP,error,failure)
-    
-    if (.not.failure) then
-!!FM       CPPrecondition(source_m%min_bas_cols,cp_failure_level,routineP,error,failure)
-!!FM       CPPrecondition(source_m%min_bas_rows,cp_failure_level,routineP,error,failure)
-!!FM       CPPrecondition(.not.target_m%min_bas_cols,cp_failure_level,routineP,error,failure)
-!!FM       CPPrecondition(.not.target_m%min_bas_rows,cp_failure_level,routineP,error,failure)
-    end if
     if (.not. failure) then
        call cp_init(l_angles_col,atom_nr=1, &
             glob_angles=glob_angles, qs_env=qs_env, global_env=global_env,&
@@ -176,34 +170,30 @@ contains
              call cp_set(l_angles_col, atom_nr=bcol,error=error)
              call cp_get(l_angles_col, proj_indexes=l_index)
              call cp_set(l_angles_row, atom_nr=brow,error=error)
-             call cp_get(l_angles_row,unitary_t=u_row, proj_indexes=r_index)
+             call cp_get(l_angles_row,NUi_injection=u_row)
 
-             ! t1_m = i block_val pi
+             ! t1_m = block_val pi
              t1_m=0.0_wp
              CPPrecondition(associated(l_index),cp_failure_level,routineP,error,failure)
-             CPPrecondition(associated(r_index),cp_failure_level,routineP,error,failure)
              if (.not.failure) then
                 call cp_assert(size(l_index)==size(block_val,1),&
                      cp_failure_level,cp_precondition_failed,routineP,&
                      "size mishmash in "//&
                      CPSourceFileRef,&
                      error,failure)
-                call cp_assert(size(r_index)==size(block_val,2),&
+                call cp_assert(size(block_val,2)==size(u_row,1),&
                      cp_failure_level,cp_precondition_failed,routineP,&
                      "size mishmash in "//&
                      CPSourceFileRef,&
                      error,failure)
              end if
-             if (.not.failure) then ! t1_m = i block_val pi
-                do i=1,size(block_val,1)
-                   do j=1,size(block_val,2)
-                      t1_m(l_index(i),r_index(j))=block_val(i,j)
+             if (.not.failure) then ! t1_m = block_val pi
+                do j=1,size(block_val,2)
+                   do i=1,size(block_val,1)
+                      t1_m(l_index(i),j)=block_val(i,j)
                    end do
                 end do
              end if
-
-
-! size(u_row,1)==size(u_row,2)==size(target_m,1)
 
 ! get full basis block
              call get_block_node(target_m, block_col=bcol,&
@@ -213,7 +203,14 @@ contains
                      block_row=bcol, block=block_val)
                 CPPostcondition(associated(block_val),cp_failure_level,routineP,error,failure)
              end if
-! block_val = u t1_m
+             if (.not.failure) then
+                call cp_assert(size(block_val,1)==size(u_row,1),&
+                     cp_failure_level,cp_precondition_failed,routineP,&
+                     "size mishmash in "//&
+                     CPSourceFileRef,&
+                     error,failure)
+             end if
+! block_val = NUi t1_m
              if (.not.failure) then
                 call dgemm('N','N',size(u_row,1),size(block_val,2),&
                      size(u_row,2),1.0_wp,&
@@ -253,7 +250,7 @@ contains
 !!
 !!   FUNCTION
 !!     Transform the given matrix to the full basis.
-!!     Puts U i source_m pi U^*  into the target_m
+!!     Puts N U i source_m pi U^* N^*  into the target_m
 !!
 !!   NOTES
 !!     -
@@ -286,14 +283,13 @@ contains
          routineP=moduleN//':'//routineN
     type(cp_matrix_block_iterator) :: iterator
     integer :: brow,bcol, stat, max_bsize,i,j
-    integer, dimension(:), pointer :: l_index,r_index
     real(kind=wp), dimension(:,:), pointer :: block_val, u_col, u_row
-    real(kind=wp),allocatable, dimension(:,:) :: t1_m,t2_m
+    real(kind=wp),allocatable, dimension(:,:) :: t1_m
     type(pao_local_angles_type) :: l_angles_col, l_angles_row
     type(cp_error_type) :: iError
     type(pao_env_type), pointer :: pao_env
     call cp_error_init(iError,template_error=error)
-    nullify(block_val,l_index,r_index,u_col, u_row,pao_env)
+    nullify(block_val,u_col, u_row,pao_env)
     failure=.false.
 
     CPPrecondition(glob_angles%initialized,cp_failure_level,routineP,error,failure)
@@ -306,7 +302,7 @@ contains
             error=error)
        call pao_qs_env_get(qs_env,global_env=global_env,&
             pao_max_full_bas=max_bsize)
-       allocate(t1_m(max_bsize,max_bsize), t2_m(max_bsize,max_bsize), stat=stat)
+       allocate(t1_m(max_bsize,max_bsize), stat=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
        call cp_init(iterator,source_m,error=iError)
        call cp_error_propagate_error(iError,routineP,&
@@ -319,53 +315,55 @@ contains
                   block_val=block_val)
 ! get u
              call cp_set(l_angles_col, atom_nr=bcol,error=error)
-             call cp_get(l_angles_col,unitary_t=u_col, proj_indexes=l_index)
+             call cp_get(l_angles_col,NUi_injection=u_col)
              call cp_set(l_angles_row, atom_nr=brow,error=error)
-             call cp_get(l_angles_row,unitary_t=u_row, proj_indexes=r_index)
-             CPPrecondition(associated(l_index),cp_failure_level,routineP,error,failure)
-             CPPrecondition(associated(r_index),cp_failure_level,routineP,error,failure)
+             call cp_get(l_angles_row,NUi_injection=u_row)
 
-             ! t2_m = i block_val pi
-             t2_m=0.0_wp
              if (.not.failure) then
-                call cp_assert(size(l_index)==size(block_val,1),&
+                call cp_assert(size(u_col,2)==size(block_val,2),&
                      cp_failure_level,cp_precondition_failed,routineP,&
                      "size mishmash in "//&
                      CPSourceFileRef,&
                      error,failure)
-                call cp_assert(size(r_index)==size(block_val,2),&
+                call cp_assert(size(u_row,2)==size(block_val,1),&
                      cp_failure_level,cp_precondition_failed,routineP,&
                      "size mishmash in "//&
                      CPSourceFileRef,&
                      error,failure)
              end if
-             if (.not.failure) then ! put result in the small basis block
-                do i=1,size(block_val,1)
-                   do j=1,size(block_val,2)
-                      t2_m(l_index(i),r_index(j))=block_val(i,j)
-                   end do
-                end do
-             end if
 
+! t1_m = block_val (N U i)^*
+             if (.not.failure) then
+                call dgemm('N','T',size(block_val,1),size(u_col,1),&
+                     size(u_col,2),1.0_wp,&
+                     block_val,size(block_val,1),&
+                     u_col,size(u_col,1),&
+                     0.0_wp,t1_m,size(t1_m,1))
 
-! size(u_row,1)==size(u_row,2)==size(target_m,1)
-! size(u_col,1)==size(u_col,2)==size(target_m,2)
-
-! t1_m = t2_m u^*
-             call dgemm('N','T',size(u_row,2),size(u_col,2),&
-                  size(u_col,1),1.0_wp,&
-                  t2_m,size(t2_m,1),&
-                  u_col,size(u_col,1),&
-                  0.0_wp,t1_m,size(t1_m,1))
-! get full basis block
-             call get_block_node(target_m, block_col=bcol,&
-                  block_row=bcol, block=block_val)
-             if (.not.associated(block_val)) then
-                call add_block_node(target_m, block_col=bcol,&
+                ! get full basis block
+                call get_block_node(target_m, block_col=bcol,&
                      block_row=bcol, block=block_val)
-                CPPostcondition(associated(block_val),cp_failure_level,routineP,error,failure)
+                if (.not.associated(block_val)) then
+                   call add_block_node(target_m, block_col=bcol,&
+                        block_row=bcol, block=block_val)
+                   CPPostcondition(associated(block_val),cp_failure_level,routineP,error,failure)
+                end if
              end if
-! block_val = u t1_m
+
+             if (.not.failure) then
+                call cp_assert(size(u_col,1)==size(block_val,2),&
+                     cp_failure_level,cp_precondition_failed,routineP,&
+                     "size mishmash in "//&
+                     CPSourceFileRef,&
+                     error,failure)
+                call cp_assert(size(u_row,1)==size(block_val,1),&
+                     cp_failure_level,cp_precondition_failed,routineP,&
+                     "size mishmash in "//&
+                     CPSourceFileRef,&
+                     error,failure)
+             end if
+
+! block_val = NUi t1_m
              if (.not.failure) then
                 call dgemm('N','N',size(u_row,1),size(u_col,2),&
                      size(u_row,2),1.0_wp,&
@@ -379,7 +377,7 @@ contains
        call cp_dealloc_ref(iterator,error=error)
        call cp_dealloc_ref(l_angles_col,error=error)
        call cp_dealloc_ref(l_angles_row,error=error)
-       deallocate(t1_m,t2_m,stat=stat) ! just to be sure...
+       deallocate(t1_m,stat=stat) ! just to be sure...
        CPPostcondition(stat==0,cp_warning_level,routineP,error,failure)
     end if
     call cp_dealloc_ref(iError,error=error)
@@ -437,23 +435,16 @@ contains
          routineP=moduleN//':'//routineN
     type(cp_matrix_block_iterator) :: iterator
     integer :: brow,bcol, stat, max_bsize,i,j
-    integer, dimension(:), pointer :: l_index,r_index
     real(kind=wp), dimension(:,:), pointer :: block_val, u_col, u_row
-    real(kind=wp),allocatable, dimension(:,:) :: t1_m,t2_m
+    real(kind=wp),allocatable, dimension(:,:) :: t1_m
     type(pao_local_angles_type) :: l_angles_col, l_angles_row
     type(cp_error_type) :: iError
     type(pao_env_type), pointer :: pao_env
     call cp_error_init(iError,template_error=error)
-    nullify(block_val,l_index,r_index,block_val, u_col, u_row,pao_env)
+    nullify(block_val,block_val, u_col, u_row,pao_env)
     failure=.false.
 
     CPPrecondition(glob_angles%initialized,cp_failure_level,routineP,error,failure)
-!!FM    if (.not.failure) then
-!!FM       CPPrecondition(.not.source_m%min_bas_cols,cp_failure_level,routineP,error,failure)
-!!FM       CPPrecondition(.not.source_m%min_bas_rows,cp_failure_level,routineP,error,failure)
-!!FM       CPPrecondition(target_m%min_bas_cols,cp_failure_level,routineP,error,failure)
-!!FM       CPPrecondition(target_m%min_bas_rows,cp_failure_level,routineP,error,failure)
-!!FM    end if
     if (.not.failure) then
        call cp_init(l_angles_col,atom_nr=1, &
             glob_angles=glob_angles, qs_env=qs_env, global_env=global_env,&
@@ -463,7 +454,7 @@ contains
             error=error)
        call pao_qs_env_get(qs_env,global_env=global_env,&
             pao_max_full_bas=max_bsize)
-       allocate(t1_m(max_bsize,max_bsize), t2_m(max_bsize,max_bsize), stat=stat)
+       allocate(t1_m(max_bsize,max_bsize), stat=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
        call cp_init(iterator,source_m,error=iError)
        call cp_error_propagate_error(iError,routineP,&
@@ -476,28 +467,29 @@ contains
                   block_val=block_val)
 ! get u
              call cp_set(l_angles_col, atom_nr=bcol,error=error)
-             call cp_get(l_angles_col,unitary_t=u_col, proj_indexes=l_index)
+             call cp_get(l_angles_col,NUi_injection=u_col,error=error)
              call cp_set(l_angles_row, atom_nr=brow,error=error)
-             call cp_get(l_angles_row,unitary_t=u_row, proj_indexes=r_index)
-             CPPrecondition(associated(l_index),cp_failure_level,routineP,error,failure)
-             CPPrecondition(associated(r_index),cp_failure_level,routineP,error,failure)
+             call cp_get(l_angles_row,NUi_injection=u_row,error=error)
 
-! in the following the sizes are put to make sense, i.e. not using
-! size(u_row,1)==size(u_row,2)==size(source_m,1)
-! size(u_col,1)==size(u_col,2)==size(source_m,2)
+             if (.not.failure) then
+                call cp_assert(size(u_row,1)==size(block_val,1),&
+                     cp_failure_level,cp_precondition_failed,routineP,&
+                     "size mishmash in "//&
+                     CPSourceFileRef,&
+                     error,failure)
+                call cp_assert(size(u_col,1)==size(block_val,2),&
+                     cp_failure_level,cp_precondition_failed,routineP,&
+                     "size mishmash in "//&
+                     CPSourceFileRef,&
+                     error,failure)
+             end if
 
-! t1_m = source u
-             call dgemm('N','N',size(block_val,1),size(block_val,2),&
-                  size(u_col,2),1.0_wp,&
+! t1_m = source NUi
+             call dgemm('N','N',size(block_val,1),size(u_col,2),&
+                  size(u_col,1),1.0_wp,&
                   block_val,size(block_val,1),&
                   u_col,size(u_col,1),&
                   0.0_wp,t1_m,size(t1_m,1))
-! t2_m = u^* t1_m
-             call dgemm('T','N',size(u_row,1),size(u_row,2),&
-                  size(u_col,2),1.0_wp,&
-                  u_row,size(u_row,1),&
-                  t1_m,size(t1_m,1),&
-                  0.0_wp,t2_m,size(t2_m,1))
 ! get small basis block
              call get_block_node(target_m, block_col=bcol,&
                   block_row=bcol, block=block_val)
@@ -508,23 +500,24 @@ contains
              end if
 
              if (.not.failure) then
-                call cp_assert(size(l_index)==size(block_val,1),&
+                call cp_assert(size(u_row,2)==size(block_val,1),&
                      cp_failure_level,cp_precondition_failed,routineP,&
                      "size mishmash in "//&
                      CPSourceFileRef,&
                      error,failure)
-                call cp_assert(size(r_index)==size(block_val,2),&
+                call cp_assert(size(u_col,2)==size(block_val,2),&
                      cp_failure_level,cp_precondition_failed,routineP,&
                      "size mishmash in "//&
                      CPSourceFileRef,&
                      error,failure)
              end if
-             if (.not.failure) then ! put result in the small basis block
-                do j=1,size(block_val,2)
-                   do i=1,size(block_val,1)
-                      block_val(i,j)=t2_m(l_index(i),r_index(j))
-                   end do
-                end do
+             ! target_m = (NUi)^* t1_m
+             if (.not.failure) then 
+                call dgemm('T','N',size(u_row,2),size(u_col,2),&
+                     size(block_val,1),1.0_wp,&
+                     u_row,size(u_row,1),&
+                     t1_m,size(t1_m,1),&
+                     0.0_wp,block_val,size(block_val,1))
              end if
 
           end do blocksDo
@@ -532,7 +525,7 @@ contains
        call cp_dealloc_ref(iterator,error=error)
        call cp_dealloc_ref(l_angles_col,error=error)
        call cp_dealloc_ref(l_angles_row,error=error)
-       deallocate(t1_m,t2_m,stat=stat) ! just to be sure...
+       deallocate(t1_m,stat=stat) ! just to be sure...
        CPPostcondition(stat==0,cp_warning_level,routineP,error,failure)
     end if
     call cp_dealloc_ref(iError,error=error)
