@@ -40,8 +40,8 @@ MODULE qs_core_energies
                                              qs_environment_type
   USE qs_force_types,                  ONLY: qs_force_type
   USE qs_neighbor_lists,               ONLY: allocate_subcell,&
-                                             neighbor_atom_type,&
                                              deallocate_subcell,&
+                                             local_atoms_type,&
                                              subcell_type
   USE simulation_cell,                 ONLY: cell_type,&
                                              get_cell,&
@@ -198,7 +198,7 @@ CONTAINS
     TYPE(qs_energy_type), POINTER      :: energy
 
     CHARACTER(LEN=8) :: unit_of_length_name
-    REAL(KIND = dp)         :: a_max,a_min,aab,b_max,b_min,c_max,c_min,dab,eab,&
+    REAL(KIND = dp)  :: a_max,a_min,aab,b_max,b_min,c_max,c_min,dab,eab,&
                         ecore_overlap,f,fab,r_skin,rab_max,rab2,rab2_max,&
                         rootaab,subcells,unit_of_length,zab
     INTEGER          :: atom_a,atom_b,group,handle,i,iatom,iatom_local,&
@@ -209,17 +209,17 @@ CONTAINS
     LOGICAL          :: cell000,include_ab,ionode
 
     REAL(KIND = dp), DIMENSION(3) :: deab,r,r_pbc,rab,rb,s,sab,sab_max,sb,&
-                              sb_max,sb_min,sb_pbc
-    INTEGER, DIMENSION(3)  :: cell_b,ncell,nsubcell,periodic
+                                     sb_max,sb_min,sb_pbc
+    INTEGER, DIMENSION(3)         :: cell_b,ncell,nsubcell,periodic
 
     TYPE(atomic_kind_type), DIMENSION(:), POINTER :: atomic_kind_set
     TYPE(particle_type), DIMENSION(:), POINTER    :: particle_set
     TYPE(qs_force_type), DIMENSION(:), POINTER    :: force
     TYPE(subcell_type), DIMENSION(:,:,:), POINTER :: subcell
 
-    TYPE(neighbor_atom_type), ALLOCATABLE :: atom(:)
+    TYPE(local_atoms_type), DIMENSION(:), ALLOCATABLE :: atom
     REAL(KIND = dp), DIMENSION(:), ALLOCATABLE        :: alpha,radius
-    INTEGER, DIMENSION(:), ALLOCATABLE         :: zeff
+    INTEGER, DIMENSION(:), ALLOCATABLE                :: zeff
 
     REAL(KIND = dp), EXTERNAL :: erfc
 

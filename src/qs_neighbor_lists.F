@@ -82,20 +82,20 @@ MODULE qs_neighbor_lists
 
   PRIVATE
 
-! *** Type definitions (only used in this module) ***
+! *** Type definitions ***
 
-  TYPE neighbor_atom_type
+  TYPE local_atoms_type
     TYPE(exclusion_list_type), DIMENSION(:), POINTER :: exclusion
     INTEGER, DIMENSION(:), POINTER                   :: list,&
                                                         list_local_a_index,&
                                                         list_local_b_index
-    REAL(KIND = dp), DIMENSION(:,:), POINTER                :: r_pbc,&
+    REAL(dp), DIMENSION(:,:), POINTER                :: r_pbc,&
                                                         s_pbc
-  END TYPE neighbor_atom_type
+  END TYPE local_atoms_type
 
   TYPE subcell_type
     INTEGER                        :: natom
-    REAL(KIND = dp), DIMENSION(3)         :: s_max,s_min
+    REAL(dp), DIMENSION(3)         :: s_max,s_min
     INTEGER, DIMENSION(:), POINTER :: atom_list
   END TYPE subcell_type
 
@@ -105,14 +105,16 @@ MODULE qs_neighbor_lists
 
 ! *** Public data types ***
 
-  PUBLIC :: neighbor_atom_type,&
+  PUBLIC :: local_atoms_type,&
             subcell_type
 
 ! *** Public subroutines ***
 
   PUBLIC :: allocate_subcell,&
             build_qs_neighbor_lists,&
-            deallocate_subcell
+            deallocate_subcell,&
+            write_distribution,&
+            write_neighbor_lists
 
 ! *****************************************************************************
 
@@ -145,14 +147,14 @@ CONTAINS
     TYPE(gto_basis_set_type), POINTER  :: orb_basis_set
 
     CHARACTER(LEN=40) :: string
-    REAL(KIND = dp)          :: r_skin
+    REAL(dp)          :: r_skin
     INTEGER           :: atom_a,handle,iatom,iatom_local,ikind,ipe,istat,&
                          jatom,jkind,maxatom,maxatom_local,&
                          natom_a,natom_local_a,natom_local_b,nkind,&
                          output_unit
     LOGICAL           :: gth_potential_present,print_subcell_grid
 
-    REAL(KIND = dp), DIMENSION(3) :: r_pbc
+    REAL(dp), DIMENSION(3) :: r_pbc
     INTEGER, DIMENSION(3)  :: periodic
 
     TYPE(atomic_kind_type), DIMENSION(:), POINTER         :: atomic_kind_set
@@ -162,13 +164,14 @@ CONTAINS
                                                              sbc_ppnl
     TYPE(particle_type), DIMENSION(:), POINTER            :: particle_set
 
-    TYPE(neighbor_atom_type), DIMENSION(:), ALLOCATABLE :: atom
-    REAL(KIND = dp), DIMENSION(:), ALLOCATABLE        :: orb_radius,&
-                                                  ppl_radius,&
-                                                  ppnl_radius
-    LOGICAL, DIMENSION(:), ALLOCATABLE         :: orb_present,&
-                                                  ppl_present,&
-                                                  ppnl_present
+    TYPE(local_atoms_type), DIMENSION(:), ALLOCATABLE :: atom
+
+    REAL(dp), DIMENSION(:), ALLOCATABLE :: orb_radius,&
+                                           ppl_radius,&
+                                           ppnl_radius
+    LOGICAL, DIMENSION(:), ALLOCATABLE  :: orb_present,&
+                                           ppl_present,&
+                                           ppnl_present
 
 !   ---------------------------------------------------------------------------
 
@@ -509,14 +512,14 @@ CONTAINS
 
 !   ***************************************************************************
 
-    TYPE(neighbor_atom_type), DIMENSION(:), INTENT(IN)             :: atom
+    TYPE(local_atoms_type), DIMENSION(:), INTENT(IN)      :: atom
     TYPE(neighbor_list_set_p_type), DIMENSION(:), POINTER :: ab
-    REAL(KIND = dp), DIMENSION(:), INTENT(IN)                    :: radius_a,&
+    REAL(dp), DIMENSION(:), INTENT(IN)                    :: radius_a,&
                                                              radius_b
     LOGICAL, DIMENSION(:), INTENT(IN)                     :: present_a,&
                                                              present_b
     TYPE(cell_type), POINTER                              :: cell
-    REAL(KIND = dp), INTENT(IN)                                  :: r_skin
+    REAL(dp), INTENT(IN)                                  :: r_skin
     INTEGER, INTENT(IN)                                   :: maxatom_local,&
                                                              output_unit
     LOGICAL, INTENT(IN)                                   :: print_subcell_grid
@@ -530,14 +533,14 @@ CONTAINS
     TYPE(neighbor_list_set_type), POINTER :: neighbor_list_set
 
     CHARACTER(LEN=8) :: unit_of_length_name
-    REAL(KIND = dp)         :: rab_max,rab2,rab2_max,subcells,unit_of_length
+    REAL(dp)         :: rab_max,rab2,rab2_max,subcells,unit_of_length
     INTEGER          :: atom_a,atom_b,handle,i,iab,iatom,iatom_local,icell,&
                         iatom_subcell,ikind,istat,isubcell,&
                         j,jatom,jatom_local,jcell,jkind,jsubcell,&
                         k,ksubcell,kcell,natom_local_a,natom_local_b,nkind
     LOGICAL          :: include_ab
 
-    REAL(KIND = dp), DIMENSION(3) :: r,rab,rb,s,sab_max,sb,sb_max,sb_min,sb_pbc
+    REAL(dp), DIMENSION(3) :: r,rab,rb,s,sab_max,sb,sb_max,sb_min,sb_pbc
     INTEGER, DIMENSION(3)  :: cell_a,cell_b,ncell,nsubcell,periodic
 
     TYPE(neighbor_list_p_type), DIMENSION(maxatom_local) :: kind_a
@@ -843,14 +846,14 @@ CONTAINS
 
 !   ***************************************************************************
 
-    TYPE(neighbor_atom_type), DIMENSION(:), INTENT(IN)             :: atom
+    TYPE(local_atoms_type), DIMENSION(:), INTENT(IN)      :: atom
     TYPE(neighbor_list_set_p_type), DIMENSION(:), POINTER :: ac
-    REAL(KIND = dp), DIMENSION(:), INTENT(IN)                    :: radius_a,&
+    REAL(dp), DIMENSION(:), INTENT(IN)                    :: radius_a,&
                                                              radius_c
     LOGICAL, DIMENSION(:), INTENT(IN)                     :: present_a,&
                                                              present_c
     TYPE(cell_type), POINTER                              :: cell
-    REAL(KIND = dp), INTENT(IN)                                  :: r_skin
+    REAL(dp), INTENT(IN)                                  :: r_skin
     INTEGER, INTENT(IN)                                   :: maxatom_local,&
                                                              output_unit
     LOGICAL, INTENT(IN)                                   :: print_subcell_grid
@@ -864,13 +867,13 @@ CONTAINS
     TYPE(neighbor_list_set_type), POINTER :: neighbor_list_set
 
     CHARACTER(LEN=8) :: unit_of_length_name
-    REAL(KIND = dp)         :: rac_max,rac2,rac2_max,subcells,unit_of_length
+    REAL(dp)         :: rac_max,rac2,rac2_max,subcells,unit_of_length
     INTEGER          :: atom_a,atom_c,handle,i,iac,iatom,iatom_local,&
                         iatom_subcell,icell,ikind,istat,isubcell,&
                         j,jcell,jsubcell,k,katom,kkind,ksubcell,kcell,&
                         natom_c,natom_local_a,nkind
 
-    REAL(KIND = dp), DIMENSION(3) :: r,rac,rc,s,sac_max,sc,sc_max,sc_min,sc_pbc
+    REAL(dp), DIMENSION(3) :: r,rac,rc,s,sac_max,sc,sc_max,sc_min,sc_pbc
     INTEGER, DIMENSION(3)  :: cell_a,cell_c,ncell,nsubcell,periodic
 
     TYPE(neighbor_list_p_type), DIMENSION(maxatom_local) :: kind_a
@@ -1157,14 +1160,14 @@ CONTAINS
 
 !   ***************************************************************************
 
-    TYPE(neighbor_atom_type), DIMENSION(:), INTENT(IN)             :: atom
+    TYPE(local_atoms_type), DIMENSION(:), INTENT(IN)      :: atom
     TYPE(neighbor_list_set_p_type), DIMENSION(:), POINTER :: ac,bc
-    REAL(KIND = dp), DIMENSION(:), INTENT(IN)                    :: radius_a,&
+    REAL(dp), DIMENSION(:), INTENT(IN)                    :: radius_a,&
                                                              radius_c
     LOGICAL, DIMENSION(:), INTENT(IN)                     :: present_a,&
                                                              present_c
     TYPE(cell_type), POINTER                              :: cell
-    REAL(KIND = dp), INTENT(IN)                                  :: r_skin
+    REAL(dp), INTENT(IN)                                  :: r_skin
     INTEGER, INTENT(IN)                                   :: maxatom,&
                                                              maxatom_local,&
                                                              output_unit
@@ -1180,14 +1183,14 @@ CONTAINS
                                              bc_neighbor_list_set
 
     CHARACTER(LEN=8) :: unit_of_length_name
-    REAL(KIND = dp)         :: rac_max,rac2,rac2_max,subcells,unit_of_length
+    REAL(dp)         :: rac_max,rac2,rac2_max,subcells,unit_of_length
     INTEGER          :: atom_a,atom_c,handle,i,iac,iatom,iatom_local,&
                         iatom_subcell,icell,icell_b,ikind,istat,isubcell,&
                         j,jcell,jcell_b,jkind,jsubcell,&
                         k,katom,kcell_b,kcell,kkind,ksubcell,&
                         natom_c,natom_local_a,natom_local_b,nkind
 
-    REAL(KIND = dp), DIMENSION(3) :: r,rac,rb,rc,s,s_max,s_min,sac_max,sc,sc_max,&
+    REAL(dp), DIMENSION(3) :: r,rac,rb,rc,s,s_max,s_min,sac_max,sc,sc_max,&
                               sc_min,sc_pbc
     INTEGER, DIMENSION(3)  :: cell_a,cell_c,ncell,nsubcell,periodic
 
@@ -1627,7 +1630,7 @@ CONTAINS
 
 !   *** Local variables ***
 
-    REAL(KIND = dp) :: a_max,a_min,b_max,b_min,c_max,c_min,delta_a,delta_b,delta_c
+    REAL(dp) :: a_max,a_min,b_max,b_min,c_max,c_min,delta_a,delta_b,delta_c
     INTEGER  :: i,istat,j,k,na,nb,nc
 
 !   ---------------------------------------------------------------------------
@@ -1887,11 +1890,11 @@ CONTAINS
 
     CHARACTER(LEN=120) :: headline
     CHARACTER(LEN=8)   :: unit_of_length_name
-    REAL(KIND = dp)           :: dab,unit_of_length
+    REAL(dp)           :: dab,unit_of_length
     INTEGER            :: atom_a,atom_b,group,i,iab,ilist,inode,ipe,mype,&
                           nlist,nnode,npe,output_unit
 
-    REAL(KIND = dp), DIMENSION(3) :: ra,rab,rb
+    REAL(dp), DIMENSION(3) :: ra,rab,rb
     INTEGER, DIMENSION(3)  :: cell_a,cell_b
 
 !   ---------------------------------------------------------------------------

@@ -21,12 +21,9 @@
 
 MODULE qs_neighbor_list_types
 
-  USE kinds, ONLY: int_size,&
-                   dp,&
-                   dp_size
-
-  USE termination, ONLY: stop_memory,&
-                         stop_program
+  USE kinds,                           ONLY: dp,dp_size,int_size
+  USE termination,                     ONLY: stop_memory,&
+                                             stop_program
 
   IMPLICIT NONE
 
@@ -42,7 +39,7 @@ MODULE qs_neighbor_list_types
     PRIVATE
     TYPE(neighbor_node_type), POINTER :: next_neighbor_node
     INTEGER                           :: neighbor
-    REAL(KIND = dp), DIMENSION(3)            :: r
+    REAL(dp), DIMENSION(3)            :: r,s
     INTEGER, DIMENSION(3)             :: cell
   END TYPE neighbor_node_type
 
@@ -59,7 +56,7 @@ MODULE qs_neighbor_list_types
     PRIVATE
     TYPE(neighbor_list_type), POINTER :: first_neighbor_list,&
                                          last_neighbor_list
-    REAL(KIND = dp)                          :: r_max
+    REAL(dp)                          :: r_max
     INTEGER                           :: nlist
   END TYPE neighbor_list_set_type
 
@@ -229,7 +226,7 @@ CONTAINS
 
 ! *****************************************************************************
 
-  SUBROUTINE add_neighbor_node(neighbor_list,neighbor,r,cell,exclusion_list)
+  SUBROUTINE add_neighbor_node(neighbor_list,neighbor,r,s,cell,exclusion_list)
 
 !   Purpose: Add a new neighbor list node to a neighbor list.
 
@@ -238,11 +235,12 @@ CONTAINS
 
 !   ***************************************************************************
 
-    TYPE(neighbor_list_type), POINTER           :: neighbor_list
-    INTEGER, INTENT(IN)                         :: neighbor
-    REAL(KIND = dp), DIMENSION(3), INTENT(IN)          :: r
-    INTEGER, DIMENSION(3), INTENT(IN)           :: cell
-    INTEGER, DIMENSION(:), OPTIONAL, INTENT(IN) :: exclusion_list
+    TYPE(neighbor_list_type), POINTER            :: neighbor_list
+    INTEGER, INTENT(IN)                          :: neighbor
+    REAL(dp), DIMENSION(3), INTENT(IN)           :: r
+    REAL(dp), DIMENSION(3), OPTIONAL, INTENT(IN) :: s
+    INTEGER, DIMENSION(3), INTENT(IN)            :: cell
+    INTEGER, DIMENSION(:), OPTIONAL, INTENT(IN)  :: exclusion_list
 
 !   *** Local parameters ***
 
@@ -317,6 +315,7 @@ CONTAINS
 
       new_neighbor_node%neighbor = neighbor
       new_neighbor_node%r(:) = r(:)
+      new_neighbor_node%s(:) = s(:)
       new_neighbor_node%cell(:) = cell(:)
 
 !     *** Update the pointer to the last neighbor node of the neighbor list ***
@@ -347,7 +346,7 @@ CONTAINS
 !   ***************************************************************************
 
     TYPE(neighbor_list_set_type), POINTER :: neighbor_list_set
-    REAL(KIND = dp)                              :: r_max
+    REAL(dp)                              :: r_max
 
 !   *** Local parameters ***
 
@@ -564,7 +563,7 @@ CONTAINS
 
     TYPE(neighbor_list_type), POINTER     :: neighbor_list
     INTEGER, DIMENSION(:), INTENT(OUT)    :: neighbors
-    REAL(KIND = dp), DIMENSION(:,:), INTENT(OUT) :: r
+    REAL(dp), DIMENSION(:,:), INTENT(OUT) :: r
 
 !   *** Local parameters ***
 
@@ -810,7 +809,7 @@ CONTAINS
 !   ***************************************************************************
 
     TYPE(neighbor_list_set_type), POINTER :: neighbor_list_set
-    REAL(KIND = dp), OPTIONAL, INTENT(OUT)       :: r_max
+    REAL(dp), OPTIONAL, INTENT(OUT)       :: r_max
     INTEGER, OPTIONAL, INTENT(OUT)        :: nlist
 
 !   *** Local parameters ***
@@ -835,7 +834,7 @@ CONTAINS
 
 ! *****************************************************************************
 
-  SUBROUTINE get_neighbor_node(neighbor_node,neighbor,r,cell)
+  SUBROUTINE get_neighbor_node(neighbor_node,neighbor,r,s,cell)
 
 !   Purpose: Return the reqested data of a neighbor node.
 
@@ -845,7 +844,7 @@ CONTAINS
 
     TYPE(neighbor_node_type), POINTER             :: neighbor_node
     INTEGER, OPTIONAL, INTENT(OUT)                :: neighbor
-    REAL(KIND = dp), DIMENSION(3), OPTIONAL, INTENT(OUT) :: r
+    REAL(dp), DIMENSION(3), OPTIONAL, INTENT(OUT) :: r,s
     INTEGER, DIMENSION(3), OPTIONAL, INTENT(OUT)  :: cell
 
 !   *** Local parameters ***
@@ -858,6 +857,7 @@ CONTAINS
 
       IF (PRESENT(neighbor)) neighbor = neighbor_node%neighbor
       IF (PRESENT(r)) r(:) = neighbor_node%r(:)
+      IF (PRESENT(s)) s(:) = neighbor_node%s(:)
       IF (PRESENT(cell)) cell(:) = neighbor_node%cell(:)
 
     ELSE
@@ -921,7 +921,7 @@ CONTAINS
 !   ***************************************************************************
 
     TYPE(neighbor_list_set_type), POINTER :: neighbor_list_set
-    REAL(KIND = dp), OPTIONAL, INTENT(IN)        :: r_max
+    REAL(dp), OPTIONAL, INTENT(IN)        :: r_max
 
 !   *** Local parameters ***
 
@@ -1038,7 +1038,7 @@ CONTAINS
 !   ***************************************************************************
 
     TYPE(neighbor_list_set_type), POINTER :: neighbor_list_set
-    REAL(KIND = dp), OPTIONAL, INTENT(IN)        :: r_max
+    REAL(dp), OPTIONAL, INTENT(IN)        :: r_max
 
 !   *** Local parameters ***
 
@@ -1061,7 +1061,7 @@ CONTAINS
 
 ! *****************************************************************************
 
-  SUBROUTINE set_neighbor_node(neighbor_node,neighbor,r,cell)
+  SUBROUTINE set_neighbor_node(neighbor_node,neighbor,r,s,cell)
 
 !   Purpose: Set the reqested data of a neighbor node.
 
@@ -1071,7 +1071,7 @@ CONTAINS
 
     TYPE(neighbor_node_type), POINTER            :: neighbor_node
     INTEGER, OPTIONAL, INTENT(IN)                :: neighbor
-    REAL(KIND = dp), DIMENSION(3), OPTIONAL, INTENT(IN) :: r
+    REAL(dp), DIMENSION(3), OPTIONAL, INTENT(IN) :: r,s
     INTEGER, DIMENSION(3), OPTIONAL, INTENT(IN)  :: cell
 
 !   *** Local parameters ***
@@ -1084,6 +1084,7 @@ CONTAINS
 
       IF (PRESENT(neighbor)) neighbor_node%neighbor = neighbor
       IF (PRESENT(r)) neighbor_node%r(:) = r(:)
+      IF (PRESENT(s)) neighbor_node%s(:) = s(:)
       IF (PRESENT(cell)) neighbor_node%cell(:) = cell(:)
 
     ELSE

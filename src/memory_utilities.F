@@ -21,17 +21,14 @@
 
 MODULE memory_utilities
 
-! *****************************************************************************
-
-  USE kinds,  ONLY: int_size, &
-                    default_string_length,&
-                    dp,&
-                    dp_size
-
-  USE global_types,    ONLY: global_environment_type
-  USE machine,         ONLY: print_memory
-  USE message_passing, ONLY: mp_sync
-  USE termination,     ONLY: stop_memory
+  USE global_types,                    ONLY: global_environment_type
+  USE kinds,                           ONLY: default_string_length,&
+                                             dp,&
+                                             dp_size,&
+                                             int_size
+  USE machine,                         ONLY: print_memory
+  USE message_passing,                 ONLY: mp_sync
+  USE termination,                     ONLY: stop_memory
 
   IMPLICIT NONE
 
@@ -49,7 +46,7 @@ MODULE memory_utilities
   INTERFACE reallocate
     MODULE PROCEDURE reallocate_i1,reallocate_i2,reallocate_i3,reallocate_i4,&
                      reallocate_r1,reallocate_r2,reallocate_r3,reallocate_r4,&
-                     reallocate_str1
+                     reallocate_s1
   END INTERFACE
 
 !!***
@@ -59,29 +56,28 @@ CONTAINS
 
 ! *****************************************************************************
 
-  SUBROUTINE reallocate_str1(p,lb1_new,ub1_new)
+  SUBROUTINE reallocate_s1(p,lb1_new,ub1_new)
 
-!   Purpose: (Re)Allocate a string varible
+!   Purpose: (Re)Allocate a vector of string variables of default string
+!            length.
 
 !TC This routine doesnt work on SUN/Solaris!!! It should probably not be used.
 
 !   ***************************************************************************
 
     CHARACTER(LEN=default_string_length), DIMENSION(:), POINTER :: p
-    INTEGER, INTENT(IN)              :: lb1_new, &
-                                        ub1_new 
+    INTEGER, INTENT(IN)                                         :: lb1_new,&
+                                                                   ub1_new 
 
 !   *** Local parameters ***
 
-    CHARACTER(LEN=*), PARAMETER :: routine_name = "reallocate_str1"
-    CHARACTER(LEN=*), PARAMETER :: routine =&
-      "SUBROUTINE "//routine_name//" (MODULE "//module_name//")"
+    CHARACTER(LEN=*), PARAMETER :: routine_name = "reallocate_s1"
 
 !   *** Local variables ***
 
     INTEGER :: istat,lb1,lb1_old,new_size,old_size,ub1,ub1_old
 
-    CHARACTER(LEN=256), DIMENSION(:), ALLOCATABLE :: work
+    CHARACTER(LEN=default_string_length), DIMENSION(:), ALLOCATABLE :: work
 
 !   ---------------------------------------------------------------------------
 
@@ -91,29 +87,31 @@ CONTAINS
       ALLOCATE (work(lb1_old:ub1_old),STAT=istat)
       IF (istat /= 0) THEN
         old_size = (ub1_old - lb1_old + 1)*1
-        CALL stop_memory(routine,"work",old_size)
+        CALL stop_memory(routine_name,module_name,__LINE__,"work",old_size)
       END IF
       work(:) = p(:)
       DEALLOCATE (p,STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routine,"p")
+      IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,"p")
     END IF
 
     ALLOCATE (p(lb1_new:ub1_new),STAT=istat)
     IF (istat /= 0) THEN
       new_size = (ub1_new - lb1_new + 1)*1
-      CALL stop_memory(routine,"p",new_size)
+      CALL stop_memory(routine_name,module_name,__LINE__,"p",new_size)
     END IF
-    p(:) = ''
+    p(:) = ""
 
     IF (ALLOCATED(work)) THEN
       lb1 = MAX(lb1_new,lb1_old)
       ub1 = MIN(ub1_new,ub1_old)
       p(lb1:ub1) = work(lb1:ub1)
       DEALLOCATE (work,STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routine,"work")
+      IF (istat /= 0) THEN
+        CALL stop_memory(routine_name,module_name,__LINE__,"work")
+      END IF
     END IF
 
-  END SUBROUTINE reallocate_str1
+  END SUBROUTINE reallocate_s1
 
 ! *****************************************************************************
 
@@ -131,8 +129,6 @@ CONTAINS
 !   *** Local parameters ***
 
     CHARACTER(LEN=*), PARAMETER :: routine_name = "reallocate_i1"
-    CHARACTER(LEN=*), PARAMETER :: routine =&
-      "SUBROUTINE "//routine_name//" (MODULE "//module_name//")"
 
 !   *** Local variables ***
 
@@ -148,17 +144,17 @@ CONTAINS
       ALLOCATE (work(lb1_old:ub1_old),STAT=istat)
       IF (istat /= 0) THEN
         old_size = (ub1_old - lb1_old + 1)*int_size
-        CALL stop_memory(routine,"work",old_size)
+        CALL stop_memory(routine_name,module_name,__LINE__,"work",old_size)
       END IF
       work(:) = p(:)
       DEALLOCATE (p,STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routine,"p")
+      IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,"p")
     END IF
 
     ALLOCATE (p(lb1_new:ub1_new),STAT=istat)
     IF (istat /= 0) THEN
       new_size = (ub1_new - lb1_new + 1)*int_size
-      CALL stop_memory(routine,"p",new_size)
+      CALL stop_memory(routine_name,module_name,__LINE__,"p",new_size)
     END IF
     p(:) = 0
 
@@ -167,7 +163,9 @@ CONTAINS
       ub1 = MIN(ub1_new,ub1_old)
       p(lb1:ub1) = work(lb1:ub1)
       DEALLOCATE (work,STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routine,"work")
+      IF (istat /= 0) THEN
+        CALL stop_memory(routine_name,module_name,__LINE__,"work")
+      END IF
     END IF
 
   END SUBROUTINE reallocate_i1
@@ -188,8 +186,6 @@ CONTAINS
 !   *** Local parameters ***
 
     CHARACTER(LEN=*), PARAMETER :: routine_name = "reallocate_i2"
-    CHARACTER(LEN=*), PARAMETER :: routine =&
-      "SUBROUTINE "//routine_name//" (MODULE "//module_name//")"
 
 !   *** Local variables ***
 
@@ -208,17 +204,17 @@ CONTAINS
       ALLOCATE (work(lb1_old:ub1_old,lb2_old:ub2_old),STAT=istat)
       IF (istat /= 0) THEN
         old_size = (ub1_old - lb1_old + 1)*(ub2_old - lb2_old + 1)*int_size
-        CALL stop_memory(routine,"work",old_size)
+        CALL stop_memory(routine_name,module_name,__LINE__,"work",old_size)
       END IF
       work(:,:) = p(:,:)
       DEALLOCATE (p,STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routine,"p")
+      IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,"p")
     END IF
 
     ALLOCATE (p(lb1_new:ub1_new,lb2_new:ub2_new),STAT=istat)
     IF (istat /= 0) THEN
       new_size = (ub1_new - lb1_new + 1)*(ub2_new - lb2_new + 1)*int_size
-      CALL stop_memory(routine,"p",new_size)
+      CALL stop_memory(routine_name,module_name,__LINE__,"p",new_size)
     END IF
     p(:,:) = 0
 
@@ -229,7 +225,9 @@ CONTAINS
       ub2 = MIN(ub2_new,ub2_old)
       p(lb1:ub1,lb2:ub2) = work(lb1:ub1,lb2:ub2)
       DEALLOCATE (work,STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routine,"work")
+      IF (istat /= 0) THEN
+        CALL stop_memory(routine_name,module_name,__LINE__,"work")
+      END IF
     END IF
 
   END SUBROUTINE reallocate_i2
@@ -251,8 +249,6 @@ CONTAINS
 !   *** Local parameters ***
 
     CHARACTER(LEN=*), PARAMETER :: routine_name = "reallocate_i3"
-    CHARACTER(LEN=*), PARAMETER :: routine =&
-      "SUBROUTINE "//routine_name//" (MODULE "//module_name//")"
 
 !   *** Local variables ***
 
@@ -277,11 +273,11 @@ CONTAINS
         old_size = (ub1_old - lb1_old + 1)*&
                    (ub2_old - lb2_old + 1)*&
                    (ub3_old - lb3_old + 1)*int_size
-        CALL stop_memory(routine,"work",old_size)
+        CALL stop_memory(routine_name,module_name,__LINE__,"work",old_size)
       END IF
       work(:,:,:) = p(:,:,:)
       DEALLOCATE (p,STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routine,"p")
+      IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,"p")
     END IF
 
     ALLOCATE (p(lb1_new:ub1_new,lb2_new:ub2_new,lb3_new:ub3_new),STAT=istat)
@@ -289,7 +285,7 @@ CONTAINS
       new_size = (ub1_new - lb1_new + 1)*&
                  (ub2_new - lb2_new + 1)*&
                  (ub3_new - lb3_new + 1)*int_size
-      CALL stop_memory(routine,"p",new_size)
+      CALL stop_memory(routine_name,module_name,__LINE__,"p",new_size)
     END IF
     p(:,:,:) = 0
 
@@ -302,7 +298,9 @@ CONTAINS
       ub3 = MIN(ub3_new,ub3_old)
       p(lb1:ub1,lb2:ub2,lb3:ub3) = work(lb1:ub1,lb2:ub2,lb3:ub3)
       DEALLOCATE (work,STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routine,"work")
+      IF (istat /= 0) THEN
+        CALL stop_memory(routine_name,module_name,__LINE__,"work")
+      END IF
     END IF
 
   END SUBROUTINE reallocate_i3
@@ -325,8 +323,6 @@ CONTAINS
 !   *** Local parameters ***
 
     CHARACTER(LEN=*), PARAMETER :: routine_name = "reallocate_i4"
-    CHARACTER(LEN=*), PARAMETER :: routine =&
-      "SUBROUTINE "//routine_name//" (MODULE "//module_name//")"
 
 !   *** Local variables ***
 
@@ -355,11 +351,11 @@ CONTAINS
                    (ub2_old - lb2_old + 1)*&
                    (ub3_old - lb3_old + 1)*&
                    (ub4_old - lb4_old + 1)*int_size
-        CALL stop_memory(routine,"work",old_size)
+        CALL stop_memory(routine_name,module_name,__LINE__,"work",old_size)
       END IF
       work(:,:,:,:) = p(:,:,:,:)
       DEALLOCATE (p,STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routine,"p")
+      IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,"p")
     END IF
 
     ALLOCATE (p(lb1_new:ub1_new,lb2_new:ub2_new,lb3_new:ub3_new,&
@@ -369,7 +365,7 @@ CONTAINS
                  (ub2_new - lb2_new + 1)*&
                  (ub3_new - lb3_new + 1)*&
                  (ub4_new - lb4_new + 1)*int_size
-      CALL stop_memory(routine,"p",new_size)
+      CALL stop_memory(routine_name,module_name,__LINE__,"p",new_size)
     END IF
     p(:,:,:,:) = 0
 
@@ -384,7 +380,9 @@ CONTAINS
       ub4 = MIN(ub4_new,ub4_old)
       p(lb1:ub1,lb2:ub2,lb3:ub3,lb4:ub4) = work(lb1:ub1,lb2:ub2,lb3:ub3,lb4:ub4)
       DEALLOCATE (work,STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routine,"work")
+      IF (istat /= 0) THEN
+        CALL stop_memory(routine_name,module_name,__LINE__,"work")
+      END IF
     END IF
 
   END SUBROUTINE reallocate_i4
@@ -400,13 +398,11 @@ CONTAINS
 !   ***************************************************************************
 
     REAL(KIND = dp), DIMENSION(:), POINTER :: p
-    INTEGER, INTENT(IN)             :: lb1_new,ub1_new
+    INTEGER, INTENT(IN)                    :: lb1_new,ub1_new
 
 !   *** Local parameters ***
 
     CHARACTER(LEN=*), PARAMETER :: routine_name = "reallocate_r1"
-    CHARACTER(LEN=*), PARAMETER :: routine =&
-      "SUBROUTINE "//routine_name//" (MODULE "//module_name//")"
 
 !   *** Local variables ***
 
@@ -422,17 +418,17 @@ CONTAINS
       ALLOCATE (work(lb1_old:ub1_old),STAT=istat)
       IF (istat /= 0) THEN
         old_size = (ub1_old - lb1_old + 1)*dp_size
-        CALL stop_memory(routine,"work",old_size)
+        CALL stop_memory(routine_name,module_name,__LINE__,"work",old_size)
       END IF
       work(:) = p(:)
       DEALLOCATE (p,STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routine,"p")
+      IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,"p")
     END IF
 
     ALLOCATE (p(lb1_new:ub1_new),STAT=istat)
     IF (istat /= 0) THEN
       new_size = (ub1_new - lb1_new + 1)*dp_size
-      CALL stop_memory(routine,"p",new_size)
+      CALL stop_memory(routine_name,module_name,__LINE__,"p",new_size)
     END IF
     p(:) = 0.0_dp
 
@@ -441,7 +437,9 @@ CONTAINS
       ub1 = MIN(ub1_new,ub1_old)
       p(lb1:ub1) = work(lb1:ub1)
       DEALLOCATE (work,STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routine,"work")
+      IF (istat /= 0) THEN
+        CALL stop_memory(routine_name,module_name,__LINE__,"work")
+      END IF
     END IF
 
   END SUBROUTINE reallocate_r1
@@ -457,13 +455,11 @@ CONTAINS
 !   ***************************************************************************
 
     REAL(KIND = dp), DIMENSION(:,:), POINTER :: p
-    INTEGER, INTENT(IN)               :: lb1_new,lb2_new,ub1_new,ub2_new
+    INTEGER, INTENT(IN)                      :: lb1_new,lb2_new,ub1_new,ub2_new
 
 !   *** Local parameters ***
 
     CHARACTER(LEN=*), PARAMETER :: routine_name = "reallocate_r2"
-    CHARACTER(LEN=*), PARAMETER :: routine =&
-      "SUBROUTINE "//routine_name//" (MODULE "//module_name//")"
 
 !   *** Local variables ***
 
@@ -482,17 +478,17 @@ CONTAINS
       ALLOCATE (work(lb1_old:ub1_old,lb2_old:ub2_old),STAT=istat)
       IF (istat /= 0) THEN
         old_size = (ub1_old - lb1_old + 1)*(ub2_old - lb2_old + 1)*dp_size
-        CALL stop_memory(routine,"work",old_size)
+        CALL stop_memory(routine_name,module_name,__LINE__,"work",old_size)
       END IF
       work(:,:) = p(:,:)
       DEALLOCATE (p,STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routine,"p")
+      IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,"p")
     END IF
 
     ALLOCATE (p(lb1_new:ub1_new,lb2_new:ub2_new),STAT=istat)
     IF (istat /= 0) THEN
       new_size = (ub1_new - lb1_new + 1)*(ub2_new - lb2_new + 1)*dp_size
-      CALL stop_memory(routine,"p",new_size)
+      CALL stop_memory(routine_name,module_name,__LINE__,"p",new_size)
     END IF
     p(:,:) = 0.0_dp
 
@@ -503,7 +499,9 @@ CONTAINS
       ub2 = MIN(ub2_new,ub2_old)
       p(lb1:ub1,lb2:ub2) = work(lb1:ub1,lb2:ub2)
       DEALLOCATE (work,STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routine,"work")
+      IF (istat /= 0) THEN
+        CALL stop_memory(routine_name,module_name,__LINE__,"work")
+      END IF
     END IF
 
   END SUBROUTINE reallocate_r2
@@ -519,14 +517,12 @@ CONTAINS
 !   ***************************************************************************
 
     REAL(KIND = dp), DIMENSION(:,:,:), POINTER :: p
-    INTEGER, INTENT(IN)                 :: lb1_new,lb2_new,lb3_new,&
-                                           ub1_new,ub2_new,ub3_new
+    INTEGER, INTENT(IN)                        :: lb1_new,lb2_new,lb3_new,&
+                                                  ub1_new,ub2_new,ub3_new
 
 !   *** Local parameters ***
 
     CHARACTER(LEN=*), PARAMETER :: routine_name = "reallocate_r3"
-    CHARACTER(LEN=*), PARAMETER :: routine =&
-      "SUBROUTINE "//routine_name//" (MODULE "//module_name//")"
 
 !   *** Local variables ***
 
@@ -551,11 +547,11 @@ CONTAINS
         old_size = (ub1_old - lb1_old + 1)*&
                    (ub2_old - lb2_old + 1)*&
                    (ub3_old - lb3_old + 1)*dp_size
-        CALL stop_memory(routine,"work",old_size)
+        CALL stop_memory(routine_name,module_name,__LINE__,"work",old_size)
       END IF
       work(:,:,:) = p(:,:,:)
       DEALLOCATE (p,STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routine,"p")
+      IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,"p")
     END IF
 
     ALLOCATE (p(lb1_new:ub1_new,lb2_new:ub2_new,lb3_new:ub3_new),STAT=istat)
@@ -563,7 +559,7 @@ CONTAINS
       new_size = (ub1_new - lb1_new + 1)*&
                  (ub2_new - lb2_new + 1)*&
                  (ub3_new - lb3_new + 1)*dp_size
-      CALL stop_memory(routine,"p",new_size)
+      CALL stop_memory(routine_name,module_name,__LINE__,"p",new_size)
     END IF
     p(:,:,:) = 0.0_dp
 
@@ -576,7 +572,9 @@ CONTAINS
       ub3 = MIN(ub3_new,ub3_old)
       p(lb1:ub1,lb2:ub2,lb3:ub3) = work(lb1:ub1,lb2:ub2,lb3:ub3)
       DEALLOCATE (work,STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routine,"work")
+      IF (istat /= 0) THEN
+        CALL stop_memory(routine_name,module_name,__LINE__,"work")
+      END IF
     END IF
 
   END SUBROUTINE reallocate_r3
@@ -593,14 +591,14 @@ CONTAINS
 !   ***************************************************************************
 
     REAL(KIND = dp), DIMENSION(:,:,:,:), POINTER :: p
-    INTEGER, INTENT(IN)                   :: lb1_new,lb2_new,lb3_new,lb4_new,&
-                                             ub1_new,ub2_new,ub3_new,ub4_new
+    INTEGER, INTENT(IN)                          :: lb1_new,lb2_new,lb3_new,&
+                                                    lb4_new,&
+                                                    ub1_new,ub2_new,ub3_new,&
+                                                    ub4_new
 
 !   *** Local parameters ***
 
     CHARACTER(LEN=*), PARAMETER :: routine_name = "reallocate_r4"
-    CHARACTER(LEN=*), PARAMETER :: routine =&
-      "SUBROUTINE "//routine_name//" (MODULE "//module_name//")"
 
 !   *** Local variables ***
 
@@ -629,11 +627,11 @@ CONTAINS
                    (ub2_old - lb2_old + 1)*&
                    (ub3_old - lb3_old + 1)*&
                    (ub4_old - lb4_old + 1)*dp_size
-        CALL stop_memory(routine,"work",old_size)
+        CALL stop_memory(routine_name,module_name,__LINE__,"work",old_size)
       END IF
       work(:,:,:,:) = p(:,:,:,:)
       DEALLOCATE (p,STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routine,"p")
+      IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,"p")
     END IF
 
     ALLOCATE (p(lb1_new:ub1_new,lb2_new:ub2_new,lb3_new:ub3_new,&
@@ -643,7 +641,7 @@ CONTAINS
                  (ub2_new - lb2_new + 1)*&
                  (ub3_new - lb3_new + 1)*&
                  (ub4_new - lb4_new + 1)*dp_size
-      CALL stop_memory(routine,"p",new_size)
+      CALL stop_memory(routine_name,module_name,__LINE__,"p",new_size)
     END IF
     p(:,:,:,:) = 0.0_dp
 
@@ -658,7 +656,9 @@ CONTAINS
       ub4 = MIN(ub4_new,ub4_old)
       p(lb1:ub1,lb2:ub2,lb3:ub3,lb4:ub4) = work(lb1:ub1,lb2:ub2,lb3:ub3,lb4:ub4)
       DEALLOCATE (work,STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routine,"work")
+      IF (istat /= 0) THEN
+        CALL stop_memory(routine_name,module_name,__LINE__,"work")
+      END IF
     END IF
 
   END SUBROUTINE reallocate_r4
