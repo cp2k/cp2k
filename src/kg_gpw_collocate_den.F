@@ -106,6 +106,7 @@ MODULE kg_gpw_collocate_den
                                              stop_program
   USE timings,                         ONLY: timeset,&
                                              timestop
+  IMPLICIT NONE
   CHARACTER(len=*), PARAMETER, PRIVATE :: module_name='kg_gpw_collocate_den'
 
 ! *** Public functions ***
@@ -142,7 +143,7 @@ CONTAINS
                iatom, igrid_level, ikind, ikind_old, ipgf, itask, ithread, iset, &
                j, jat, jatom, jkind, jkind_old, jpgf, jset, k, maxco, maxsgf, &
                maxsgf_set, n, na1, na2, nat_mol, nb1, nb2, ncoa, ncob, nthread,&
-               nseta, nsetb, num_tasks, sgfa, sgfb, stat
+               nseta, nsetb, num_tasks, sgfa, sgfb, stat, istat, igridlevel
     INTEGER, DIMENSION(:), POINTER           :: la_max, la_min, lb, lb_max, &
                                                 lb_min, npgfa, npgfb, nsgfa, &
                                                 nsgfb, ntasks, ub
