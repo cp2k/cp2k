@@ -128,7 +128,7 @@ CONTAINS
     LOGICAL                              :: cp2k_run_OK
 
     CHARACTER(LEN=*), INTENT(IN) :: input_file_name
-    INTEGER         , INTENT(IN) :: output_unit, mpi_comm
+    INTEGER         , INTENT(IN) :: output_unit, mpi_comm, i
 
     CHARACTER(LEN=*), PARAMETER :: routineN = "cp2k_run",&
          routineP=moduleN//':'//routineN  
@@ -159,6 +159,15 @@ CONTAINS
     ! generate all dependent info in globenv
     CALL cp2k_init ( globenv )
     CALL cp_error_init(error)
+#if defined(__HMD)
+    DO i=0,para_env%num_pe-1
+       IF (para_env%mepos==i) THEN
+          PRINT *, "***** proc ",i
+          CALL _dump_allocated(%VAL(0))
+       END IF
+       CALL mp_sync(para_env%group)
+    END DO
+#endif
 
     ! parse the input
     nullify(input_structure)
@@ -262,9 +271,6 @@ CONTAINS
                 CALL fist_debug_control ( force_env, globenv )
              END SELECT
              CALL force_env_release(force_env, error=error)
-#if defined(__HMD)
-             IF (globenv%ionode) CALL _dump_allocated(%VAL(0))
-#endif
           ELSE IF(globenv%program_name=="KG") THEN
              SELECT CASE (globenv%run_type)
              CASE ("MOLECULAR DYNAMICS")
@@ -286,10 +292,16 @@ CONTAINS
     CALL cp2k_finalize(globenv)
     CPPostconditionNoFail(globenv%ref_count==1,cp_failure_level,routineP,error)
     CALL globenv_release(globenv)
-    CALL cp_para_env_release(para_env)
 #if defined(__HMD)
-    IF (I_was_ionode) CALL _dump_allocated(%VAL(0))
+    DO i=0,para_env%num_pe-1
+       IF (para_env%mepos==i) THEN
+          PRINT *, "***** proc ",i
+          CALL _dump_allocated_delta(%VAL(0))
+       END IF
+       CALL mp_sync(para_env%group)
+    END DO
 #endif
+    CALL cp_para_env_release(para_env)
     cp2k_run_OK = .NOT. failure
   
   END FUNCTION cp2k_run

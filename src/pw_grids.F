@@ -651,29 +651,31 @@ SUBROUTINE pw_grid_setup ( cell, pw_grid, cutoff, pe_group, info, fft_usage, &
 !
 
   IF ( PRESENT ( info ) ) THEN
-    IF ( pw_grid % para % mode == PW_MODE_LOCAL  .AND. info >= 0 ) THEN
-      WRITE ( info, '(/,A,T71,I10)' ) &
-        " PW_GRID: Information for grid number ", pw_grid % identifier
-      IF ( pw_grid % spherical ) THEN
-        WRITE ( info, '(A,T35,A,T66,F10.1,T77,A)' ) " PW_GRID: ", &
-          "spherical cutoff", pw_grid % cutoff, "a.u."
-        WRITE ( info, '(A,T71,I10)' ) " PW_GRID: Grid points within cutoff", &
-          pw_grid % ngpts_cut
-      END IF
-      DO i = 1, 3
-        WRITE ( info, '(A,I3,T30,2I8,T62,A,T71,I10)' ) " PW_GRID:   Bounds ", &
-         i, pw_grid % bounds ( 1, I ), pw_grid % bounds ( 2, I ), &
-         "Points:",pw_grid % npts ( I )
-      END DO
-      WRITE ( info, '(A,G12.4,T50,A,T67,F14.4)' ) &
-         " PW_GRID: Volume element (a.u.^3)", &
-         pw_grid % dvol," Volume (a.u.^3) :",pw_grid % vol
-      IF ( pw_grid % grid_span == HALFSPACE ) THEN
-        WRITE ( info, '(A,T72,A)' ) " PW_GRID: Grid span","HALFSPACE"
-      ELSE
-        WRITE ( info, '(A,T72,A)' ) " PW_GRID: Grid span","FULLSPACE"
-      END IF
-      WRITE ( info, '(/)' )
+    IF ( pw_grid % para % mode == PW_MODE_LOCAL) then
+       IF (info >= 0 ) THEN
+          WRITE ( info, '(/,A,T71,I10)' ) &
+               " PW_GRID: Information for grid number ", pw_grid % identifier
+          IF ( pw_grid % spherical ) THEN
+             WRITE ( info, '(A,T35,A,T66,F10.1,T77,A)' ) " PW_GRID: ", &
+                  "spherical cutoff", pw_grid % cutoff, "a.u."
+             WRITE ( info, '(A,T71,I10)' ) " PW_GRID: Grid points within cutoff", &
+                  pw_grid % ngpts_cut
+          END IF
+          DO i = 1, 3
+             WRITE ( info, '(A,I3,T30,2I8,T62,A,T71,I10)' ) " PW_GRID:   Bounds ", &
+                  i, pw_grid % bounds ( 1, I ), pw_grid % bounds ( 2, I ), &
+                  "Points:",pw_grid % npts ( I )
+          END DO
+          WRITE ( info, '(A,G12.4,T50,A,T67,F14.4)' ) &
+               " PW_GRID: Volume element (a.u.^3)", &
+               pw_grid % dvol," Volume (a.u.^3) :",pw_grid % vol
+          IF ( pw_grid % grid_span == HALFSPACE ) THEN
+             WRITE ( info, '(A,T72,A)' ) " PW_GRID: Grid span","HALFSPACE"
+          ELSE
+             WRITE ( info, '(A,T72,A)' ) " PW_GRID: Grid span","FULLSPACE"
+          END IF
+          WRITE ( info, '(/)' )
+       END IF
     ELSE
 
       n ( 1 ) = pw_grid % ngpts_cut_local
