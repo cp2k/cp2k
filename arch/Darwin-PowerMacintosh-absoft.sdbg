@@ -1,0 +1,14 @@
+PERL     = perl
+CC       = cc
+CPP      = cpp -traditional
+FC       = f90 -ffree
+FC_fixed = f90 -ffixed
+LD       = f90
+AR       = ar -r
+RANLIB   = ranlib
+CPPFLAGS = -C -D__ABSOFT -D__FFTSG -DFD_DEBUG -DFD_SHORT_EXPANSIONS -P
+FCFLAGS  = -g -en -N11
+LDFLAGS  = $(FCFLAGS) -L/Applications/Absoft/lib
+LIBS     = -llapack -lblas -lU77
+
+OBJECTS_ARCHITECTURE = machine_absoft.o

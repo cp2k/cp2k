@@ -17,8 +17,10 @@
     machine=$(uname -m)
 
     platform="${ostype}-${osversion}-${osrelease}-${machine}"
-
+    
     case $platform in
+      (Darwin-*-*-Power\ Macintosh)
+        PLATFORM="Darwin-PowerMacintosh-absoft";;
       (AIX-*-*-*)
         arch=$(lsattr -E -O -l proc0 | grep "enable" | cut -f2 -d":")
         if [[ -n $arch ]]; then
