@@ -56,7 +56,7 @@ MODULE pol_coefs
 !   allocate cpos 
     
    c_pos % in_use = ATOMICORBITALS
-   mass_flag = .TRUE.
+   mass_flag = .FALSE.
    grid_flag = .TRUE.
    CALL ao_allocate ( c_pos % ao, ncoef, mass_flag, grid_flag )  
    CALL ao_zero ( c_pos % ao)
@@ -64,7 +64,7 @@ MODULE pol_coefs
 !   allocate cvel 
     
    c_vel % in_use = ATOMICORBITALS
-   mass_flag = .FALSE.
+   mass_flag = .TRUE.
    grid_flag = .FALSE.
    CALL ao_allocate ( c_vel % ao, ncoef, mass_flag, grid_flag )  
    CALL ao_zero ( c_vel % ao)
