@@ -539,6 +539,7 @@ CONTAINS
 !   *** Local variables ***
 
     INTEGER :: group,handle,mypcol,myprow,npcol,nprow,source
+    REAL(kind=wp), dimension(:,:), pointer    :: my_block
 
 !   ---------------------------------------------------------------------------
 
@@ -556,8 +557,9 @@ CONTAINS
     mypcol = source
 
 #endif
-    a_max = MAXVAL(ABS(matrix%p(myprow,mypcol)%block))
-
+    my_block => matrix%p(myprow,mypcol)%block
+    a_max = MAXVAL(ABS(my_block))
+    
     CALL mp_max(a_max,group)
 
     CALL timestop(0.0_wp,handle)
@@ -2648,6 +2650,7 @@ CONTAINS
     real(kind=wp) :: al, be
     character(len=*), parameter :: routineN='blacs_diag_mult',&
          routineP=moduleN//':'//routineN
+    real(wp), dimension(:,:), pointer :: block_b, block_c
 #if defined(__parallel)
     INTEGER, EXTERNAL :: indxg2l
     call blacs_gridinfo(b%context,n_p_rows,n_p_cols,my_p_row,my_p_col)
@@ -2669,6 +2672,8 @@ CONTAINS
        if (present(alpha)) al=alpha
        if (present(beta)) be=beta
        size_diag=size(diagonal)
+       block_b => b%p(my_p_row,my_p_col)%block
+       block_c => c%p(my_p_row,my_p_col)%block
        if (alpha==1.0_wp .and. beta==0.0_wp) then ! make common case fast....
 #if (__parallel)
 !MK! might be faster to do column by column (more contiguous)
@@ -2683,18 +2688,18 @@ CONTAINS
 !MK                  diagonal(global_row)*b%p(my_p_row,my_p_col)%block(i,:)
 !MK          end do
 #else
-          forall (j=1:size(b%p(my_p_row,my_p_col)%block,2))
-             forall (i=1:min(size_diag,size(b%p(my_p_row,my_p_col)%block,1)))
-                c%p(my_p_row,my_p_col)%block(i,j)=diagonal(i)*&
-                     b%p(my_p_row,my_p_col)%block(i,j)
-             end forall
-          end forall
-          if (size(b%p(my_p_row,my_p_col)%block)>size(diagonal)) then
-             c%p(my_p_row,my_p_col)%block((size_diag+1):,:)= 0.0_wp
+          do j=1,size(block_b,2)
+             do i=1,min(size_diag,size(block_b,1))
+                block_c(i,j)=diagonal(i)*&
+                     block_b(i,j)
+             end do
+          end do
+          if (size(block_b)>size(diagonal)) then
+             block_c((size_diag+1):,:)= 0.0_wp
           end if
 #endif
        else
-! might be faster to do column by column (more contiguous)
+          ! might be faster to do column by column (more contiguous)
           do i=1,size_diag
 #if (__parallel)
 !MK             global_row=indxl2g(i,descriptor(5),descriptor(my_p_row),&
@@ -2703,13 +2708,14 @@ CONTAINS
              global_row=i
 #endif
              if (global_row>size_diag) then
-                c%p(my_p_row,my_p_col)%block(i:,:)= &
-                     be*c%p(my_p_row,my_p_col)%block(i:,:)
+                block_c(i,:)=&
+                     al*diagonal(global_row)*block_b(i,:)+&
+                     be*block_c(i,:)
                 exit
              end if
-             c%p(my_p_row,my_p_col)%block(i,:)=&
-                  al*diagonal(global_row)*b%p(my_p_row,my_p_col)%block(i,:)+&
-                  be*c%p(my_p_row,my_p_col)%block(i,:)
+             block_c(i,:)=&
+                  al*diagonal(global_row)*block_b(i,:)+&
+                  be*block_c(i,:)
           end do
        end if
     end if
