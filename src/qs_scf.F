@@ -104,7 +104,9 @@ MODULE qs_scf
                                       blacs_cholesky_decompose, &
                                       blacs_cholesky_reduce, &
                                       blacs_cholesky_restore, &
-                                      deallocate_blacs_matrix
+                                      deallocate_blacs_matrix, &
+                                      blacs_init_random, &
+                                      sparse_times_blacs
   USE qs_core_hamiltonian,      ONLY: build_core_hamiltonian_matrix
   USE qs_diis,                  ONLY: eps_diis,max_diis,scf_diis
   USE qs_environment_types,     ONLY: get_qs_env,&
@@ -276,6 +278,7 @@ CONTAINS
     ionode = globenv%ionode
     output_unit = globenv%scr
     energy_only = .false.
+
     
     CALL get_qs_env(qs_env=qs_env,&
                     atomic_kind_set=atomic_kind_set,&
@@ -304,9 +307,12 @@ CONTAINS
         "SCF WAVEFUNCTION OPTIMIZATION"
     END IF
 
+
     CALL init_scf_run(mo_set=mo_set,&
                       qs_env=qs_env,&
                       globenv=globenv)
+
+
 
     call qs_ks_init(ks_env,qs_env=qs_env,global_env=globenv, error=error)
     call qs_ks_did_change(ks_env,qs_env,globenv,p_changed=.true.,error=error)
@@ -334,6 +340,7 @@ CONTAINS
     diis_step = .FALSE.
     rebuild = .TRUE.
 
+
     IF (use_ot) THEN
 
        CALL get_mo_set(mo_set=mo_set, eigenvectors=mo_eigenvectors)
@@ -344,7 +351,7 @@ CONTAINS
                                                   ncol_global=k)
 
        ! decide settings
-       qs_ot_env%settings%ot_method="QN"
+       qs_ot_env%settings%ot_method="CG"
        qs_ot_env%settings%ot_linesearch=.true.
        qs_ot_env%settings%ot_diis=.false.
        qs_ot_env%settings%ds_min=0.10_wp
@@ -370,7 +377,8 @@ CONTAINS
        ! set c0,sc0
        CALL copy_blacs_to_blacs_matrix(mo_eigenvectors,qs_ot_env%matrix_c0)
        CALL sparse_times_blacs(s(1)%matrix,qs_ot_env%matrix_c0, &
-                                           qs_ot_env%matrix_sc0,globenv)
+                                           qs_ot_env%matrix_sc0,qs_ot_env%settings%k,globenv)
+
        CALL blacs_make_basis(qs_ot_env%matrix_c0,k,globenv, &
                              ortho=qs_ot_env%matrix_sc0,otype="SV")
 
@@ -386,6 +394,11 @@ CONTAINS
        CALL qs_ot_get_p(qs_ot_env%matrix_x,qs_ot_env%matrix_sx,qs_ot_env,globenv)
        CALL qs_ot_get_orbitals(qs_ot_env%matrix_c,qs_ot_env%matrix_x,qs_ot_env,globenv)
        CALL copy_blacs_to_blacs_matrix(qs_ot_env%matrix_c,mo_eigenvectors)
+
+       ! and the corresponding density matrix
+       CALL calculate_density_matrix(mo_set,scf_work1,globenv)
+       CALL copy_blacs_to_sparse_matrix(scf_work1,p%matrix,globenv)
+       CALL symmetrise_diagonal_blocks(p%matrix)
 
     ENDIF
 
@@ -536,7 +549,8 @@ CONTAINS
 
         IF ( .not. energy_only) THEN
           CALL sparse_times_blacs(ks%matrix,qs_ot_env%matrix_c, &
-                                          qs_ot_env%matrix_hc,globenv)
+                                          qs_ot_env%matrix_hc,  &
+                                    qs_ot_env%settings%k,globenv)
           CALL blacs_add(4.0_wp,qs_ot_env%matrix_hc,0.0_wp,qs_ot_env%matrix_hc,globenv)
         ENDIF
  
@@ -546,7 +560,8 @@ CONTAINS
         energy_only     =qs_ot_env%energy_only
 
         CALL sparse_times_blacs(s(1)%matrix,qs_ot_env%matrix_x, &
-                                     qs_ot_env%matrix_sx,globenv)
+                                     qs_ot_env%matrix_sx, &
+                                     qs_ot_env%settings%k,globenv)
         CALL qs_ot_get_p(qs_ot_env%matrix_x,qs_ot_env%matrix_sx,qs_ot_env,globenv)
         CALL qs_ot_get_orbitals(qs_ot_env%matrix_c,qs_ot_env%matrix_x,qs_ot_env,globenv)
         CALL copy_blacs_to_blacs_matrix(qs_ot_env%matrix_c,mo_eigenvectors)
@@ -638,7 +653,7 @@ CONTAINS
   END SUBROUTINE scf
 
 ! *****************************************************************************
-  SUBROUTINE sparse_times_blacs(m_a,m_b,m_c,globenv)
+  SUBROUTINE sparse_times_blacs_old(m_a,m_b,m_c,globenv)
 
     TYPE(real_matrix_type), POINTER :: m_a
     TYPE(blacs_matrix_type), POINTER :: m_b,m_c
@@ -664,7 +679,7 @@ CONTAINS
 
     CALL timestop(0.0_wp,handle)
 
-  END SUBROUTINE sparse_times_blacs
+  END SUBROUTINE sparse_times_blacs_old
 
 ! *****************************************************************************
 
@@ -702,11 +717,13 @@ CONTAINS
 
     CALL timeset("init_scf_run","I","",handle)
 
+
     ionode = globenv%ionode
     output_unit = globenv%scr
     context = globenv%context
     nprow = globenv%nprow
     npcol = globenv%npcol
+
 
 !   *** Get the dimension of the full SCF matrices, ***
 !   *** i.e. the total number of atomic orbitals    ***
@@ -753,7 +770,17 @@ CONTAINS
 
 !   *** Allocate the distributed SCF matrices ***
 
-    CALL allocate_blacs_matrix(new_matrix=ortho,&
+    CALL allocate_blacs_matrix(new_matrix=scf_work1,&
+                               nrow_global=nao,&
+                               ncol_global=nao,&
+                               nrow_block=nrow_block,&
+                               ncol_block=ncol_block,&
+                               name="SCF WORK MATRIX 1", &
+                               globenv=globenv)
+
+    IF (.not. use_ot) THEN
+
+       CALL allocate_blacs_matrix(new_matrix=ortho,&
                                nrow_global=nao,&
                                ncol_global=nao,&
                                nrow_block=nrow_block,&
@@ -761,13 +788,15 @@ CONTAINS
                                name="ORTHOGONALIZATION MATRIX",&
                                globenv=globenv)
 
-    CALL replicate_blacs_matrix(prototype_matrix=ortho,&
-                                new_matrix=scf_work1,&
-                                name="SCF WORK MATRIX 1")
+       CALL allocate_blacs_matrix(new_matrix=scf_work2,&
+                               nrow_global=nao,&
+                               ncol_global=nao,&
+                               nrow_block=nrow_block,&
+                               ncol_block=ncol_block,&
+                               name="SCF WORK MATRIX 2", &
+                               globenv=globenv)
+    ENDIF
 
-    CALL replicate_blacs_matrix(prototype_matrix=ortho,&
-                                new_matrix=scf_work2,&
-                                name="SCF WORK MATRIX 2")
 
     CALL copy_sparse_to_blacs_matrix(h(1)%matrix,scf_work1,globenv)
 
@@ -781,6 +810,7 @@ CONTAINS
       CALL copy_blacs_to_sparse_matrix(scf_work1,h(1)%matrix,globenv)
       call set_qs_env(qs_env,h=h)
     END IF
+
 
     ! allocate k and p  and puth them in the qs_environment
     allocate(k_rmpv(1), p_rmpv(1), p_old_rmpv(1))
@@ -807,12 +837,14 @@ CONTAINS
         "Self energy of the core charge distribution:   ",ecore_self
     END IF
 
-    if (use_cholesky .or. use_arpack) then
+    if (.not. use_ot) then
+     if (use_cholesky .or. use_arpack) then
        ndep=0
        CALL copy_sparse_to_blacs_matrix(s(1)%matrix,ortho,globenv)
        CALL blacs_cholesky_decompose(ortho,globenv)
-    else
+     else
        CALL calculate_ortho_matrix(ortho,scf_work2,ndep,globenv)
+     endif
     endif
 
     IF (ionode.AND.globenv%print%scf) THEN
@@ -1051,7 +1083,7 @@ CONTAINS
 
     REAL(wp) :: paa,saa,sum
     INTEGER  :: atom_a,first_sgfa,handle,iatom,ikind,iset,isgf,isgfa,ishell,&
-                istat,la,last_sgfa,maxl,natom,nelec,nset,restart_unit
+                istat,la,last_sgfa,maxl,natom,nelec,nset,restart_unit,nmo
 
     INTEGER, DIMENSION(:), ALLOCATABLE :: econf
 
@@ -1074,6 +1106,12 @@ CONTAINS
       CALL calculate_density_matrix(mo_set,work1,globenv)
       CALL copy_blacs_to_sparse_matrix(work1,p%matrix,globenv)
       CALL symmetrise_diagonal_blocks(p%matrix)
+
+     ELSE IF (density_guess == "RANDOM") THEN
+
+      CALL get_mo_set(mo_set=mo_set,&
+                        eigenvectors=mo_eigenvectors, nmo=nmo)
+      CALL blacs_init_random(mo_eigenvectors,nmo,globenv)
 
      ELSE IF (density_guess == "CORE") THEN
 

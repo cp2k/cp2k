@@ -80,6 +80,8 @@ CONTAINS
 
 !   *** Initialise BLACS ***
 
+
+
     CALL start_blacs(globenv)
 
 !   *** Read the input and the database files and perform further  ***

@@ -40,7 +40,8 @@ MODULE qs_blacs
                                  get_matrix_info,&
                                  next_block_node,&
                                  real_block_node_type,&
-                                 real_matrix_type
+                                 real_matrix_type, &
+                                 sparse_times_replicated
   USE message_passing,     ONLY: mp_bcast,&
                                  mp_max,&
                                  mp_sum,&
@@ -119,6 +120,7 @@ MODULE qs_blacs
             copy_blacs_to_full_matrix,&
             copy_blacs_to_sparse_matrix,&
             copy_sparse_to_blacs_matrix,&
+            blacs_replicated_copy, &
             deallocate_blacs_matrix,&
             finish_blacs,&
             get_blacs_info,&
@@ -142,7 +144,8 @@ MODULE qs_blacs
             blacs_schur_product, &
             blacs_transpose, &
             blacs_scale_matrix, &
-            blacs_set_local_block
+            blacs_set_local_block, &
+            sparse_times_blacs
 
 ! *****************************************************************************
 
@@ -511,6 +514,45 @@ CONTAINS
 
 #endif
   END SUBROUTINE blacs_add_to_element
+! *****************************************************************************
+
+! *****************************************************************************
+  SUBROUTINE sparse_times_blacs(sparse_matrix,v_in,v_out,ncol,globenv)
+    TYPE(real_matrix_type), POINTER   :: sparse_matrix
+    TYPE(blacs_matrix_type) , POINTER :: v_in
+    TYPE(blacs_matrix_type) , POINTER :: v_out
+    INTEGER, INTENT(IN)               :: ncol
+    TYPE(global_environment_type), INTENT(IN)      :: globenv
+
+!   *** Local parameters ***
+    INTEGER, PARAMETER          :: blocksize = 50
+    CHARACTER(LEN=*), PARAMETER :: routine =&
+      "SUBROUTINE sparse_times_blacs (MODULE qs_blacs)"
+
+!   *** Local variables ***
+    REAL(wp), DIMENSION(:,:), POINTER :: rep_v_in,rep_v_out
+    integer i,nrow,ncol_block,handle
+!   ---------------------------------------------------------------------------
+    CALL timeset("sparse_times_blacs","I","",handle)
+    nrow=v_in%nrow_global
+    allocate(rep_v_in(blocksize,nrow))
+    allocate(rep_v_out(blocksize,nrow))
+
+    DO i=1,ncol,blocksize
+       ncol_block=MIN(ncol-i+1,blocksize)
+       call blacs_replicated_copy(v_in,rep_v_in,i,ncol_block,blocksize,"B2R",globenv)
+       call sparse_times_replicated(sparse_matrix,rep_v_in,rep_v_out,ncol_block, &
+                                    blocksize,globenv)
+       call blacs_replicated_copy(v_out,rep_v_out,i,ncol_block,blocksize,"R2B",globenv)
+    ENDDO
+
+    deallocate(rep_v_in,rep_v_out)
+
+    CALL timestop(0.0_wp,handle)
+
+  END SUBROUTINE
+! *****************************************************************************
+
 
 ! *****************************************************************************
 
@@ -1256,6 +1298,82 @@ CONTAINS
 #endif
   END SUBROUTINE blacs_set_element
 
+!
+! copies ncol vectors out of matrix_v starting at firstcol to the
+! replicated vector rep_v (or the other way around), it is assumed that
+! all PEs have all replicated data, firstcol is a blacs_block boundary
+! (i.e. ncol_block*k+1)
+
+!
+! attention ! rep_v(block_size,nrows) for increased locality in matrix multiply
+! (i.e. vectors are stored as rows of this matrix)
+
+!
+! direction="B2R" .or. "R2B"  Blacs -> Replicated and ...
+!
+  SUBROUTINE blacs_replicated_copy(matrix_v,rep_v,firstcol,ncol,nblock,direction,globenv)
+    TYPE(blacs_matrix_type) , POINTER              :: matrix_v
+    REAL(wp), DIMENSION(:,:), POINTER              :: rep_v
+    INTEGER, INTENT(IN)                            :: firstcol,ncol,nblock
+    TYPE(global_environment_type), INTENT(IN)      :: globenv
+    CHARACTER(LEN=3)                               :: direction
+    !----
+    REAL(wp), DIMENSION(:,:), POINTER :: blacs_block
+    INTEGER                           :: i,j,nrow_global,ncol_global,ncol_block,ncol
+    INTEGER                           :: source,myprow,mypcol,nprow,npcol,context
+    INTEGER                           :: this_col,nrow_local,ncol_local,nrow_block,handle
+    INTEGER, DIMENSION(:), POINTER                 :: row_indices,col_indices
+
+    CALL timeset("blacs_replicated_copy","I","",handle)
+
+    source =globenv%source 
+    context=globenv%context
+
+#if defined(__parallel)
+    CALL blacs_gridinfo(context,nprow,npcol,myprow,mypcol)
+    blacs_block=>matrix_v%p(myprow,mypcol)%block
+#else
+    blacs_block=>matrix_v%p(source,source)%block
+#endif
+
+    CALL get_blacs_matrix_info(matrix=matrix_v, &
+                          nrow_global=nrow_global,ncol_global=ncol_global, &
+                          nrow_block =nrow_block ,ncol_block =ncol_block , &
+                          nrow_local =nrow_local ,ncol_local =ncol_local , &
+                          row_indices=row_indices,col_indices=col_indices,globenv=globenv)
+  
+#if defined(__parallel) 
+    if (direction.eq."B2R") then
+       CALL dcopy(nblock*nrow_global,0.0_wp,0,rep_v,1)
+    endif
+#endif
+    DO i=1,ncol_local
+       this_col=col_indices(i)-firstcol+1
+       if (this_col.ge.1 .and. this_col.le.ncol) then
+          if (direction.eq."B2R") then
+             do j=1,nrow_local
+               rep_v(this_col,row_indices(j))=blacs_block(j,i) 
+             enddo
+          else
+             do j=1,nrow_local
+               blacs_block(j,i)=rep_v(this_col,row_indices(j))
+             enddo
+          endif
+       endif
+    ENDDO
+
+#if defined(__parallel) 
+    if (direction.eq."B2R") then
+       call mp_sum(rep_v,globenv%group)  
+    endif
+#endif
+
+    deallocate(row_indices,col_indices)
+
+    CALL timestop(0.0_wp,handle)
+
+  END SUBROUTINE blacs_replicated_copy
+
 !******************************************************************
 ! used to replace the cholesky decomposition by the inverse
 !******************************************************************
@@ -1687,6 +1805,7 @@ CONTAINS
     ALLOCATE (work(lwork),STAT=istat)
     IF (istat /= 0) CALL stop_memory(routine,"work",lwork*wp_size)
     work(:) = 0.0_wp
+    write(6,*) "done allocate"
 
 !   *** Diagonalise matrix ***
 !    if (PRESENT(bmatrix)) then
@@ -1700,6 +1819,7 @@ CONTAINS
        CALL pdsyevx("V","I","U",n,a,1,1,desca,vl,vu,1,neig,abstol,m,nz,w,orfac,&
                  z,1,1,descz,work,lwork,iwork,liwork,ifail,iclustr,gap,info)
 !    endif
+    write(6,*) "done pdsyevx"
 
 
 !   *** Error handling ***

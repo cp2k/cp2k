@@ -32,6 +32,8 @@ MODULE sparse_matrix_types
                          stop_program
   USE timings,     ONLY: timeset,&
                          timestop
+  USE global_types,        ONLY: global_environment_type
+  USE message_passing,     ONLY: mp_sum
 
   IMPLICIT NONE
 
@@ -95,7 +97,8 @@ MODULE sparse_matrix_types
             replicate_matrix_structure,&
             set_matrix,&
             symmetrise_diagonal_blocks,&
-            transfer_matrix,&
+            transfer_matrix, &
+            sparse_times_replicated, &
             remove_block_node
 
 ! *** Public functions ***
@@ -651,6 +654,107 @@ CONTAINS
     END DO
 
   END SUBROUTINE copy_sparse_to_full_matrix
+
+! *****************************************************************************
+! multiplies a sparse matrix times ncol replicated vectors
+! (that are stored as rows ! in v_in leading dimension nblock )
+! if the sparse_matrix is symmetric, off diagonal blocks will be used twice
+! it is still assumed that the diagonal blocks are symmetric (and hence full)
+! Joost VandeVondele july 2002
+! *****************************************************************************
+  SUBROUTINE sparse_times_replicated(sparse_matrix,rep_v_in,rep_v_out,ncol,nblock,globenv)
+    TYPE(real_matrix_type), POINTER   :: sparse_matrix
+    REAL(wp), DIMENSION(:,:), POINTER :: rep_v_in,rep_v_out
+    INTEGER, INTENT(IN)               :: ncol,nblock
+    TYPE(global_environment_type), INTENT(IN)      :: globenv
+
+!   *** Local parameters ***
+    CHARACTER(LEN=*), PARAMETER :: routine =&
+      "SUBROUTINE sparse_times_replicated (MODULE sparse_matrix_types)"
+
+!   *** Local variables ***
+
+    TYPE(real_block_node_type), POINTER :: block_node
+
+    INTEGER :: iblock_col,iblock_row,icol,icol_block,irow,irow_block,istat,&
+               ncol,nrow,sbncol,sbnrow,  handle
+    REAL(wp) :: flops
+
+    REAL(wp), DIMENSION(:,:), POINTER :: sparse_block
+
+!   ---------------------------------------------------------------------------
+
+!   *** Check the association status of the input matrix ***
+
+    IF (.NOT.ASSOCIATED(sparse_matrix)) THEN
+      CALL stop_program(routine,"The input matrix pointer is not associated")
+    END IF
+
+    if (sparse_matrix%symmetry .ne. "symmetric") then
+      CALL stop_program(routine,"not tested "//sparse_matrix%symmetry)
+    endif
+
+    if (sparse_matrix%nrow .ne. sparse_matrix%ncol) then
+      CALL stop_program(routine,"not implemented")
+    endif
+    if (sparse_matrix%ncol .ne. size(rep_v_in,2)) then
+      CALL stop_program(routine,"n x n * n x k ?")
+    endif
+
+    CALL dcopy(sparse_matrix%ncol*nblock,0.0_wp,0,rep_v_out,1)
+
+    CALL timeset("sparse_times_replicated_local","I","Mflops",handle)
+    flops=0.0_wp
+
+!   *** Traverse all block nodes of the sparse matrix ***
+
+    DO iblock_row=1,sparse_matrix%nblock_row
+
+      block_node => first_block_node(sparse_matrix,iblock_row)
+
+      DO WHILE (ASSOCIATED(block_node))
+
+        CALL get_block_node(block_node=block_node,&
+                            block_col=iblock_col,&
+                            block=sparse_block)
+
+        ! write(17+globenv%mepos,*) maxval(abs(sparse_block))
+
+        sbnrow=sparse_matrix%last_row(iblock_row)-sparse_matrix%first_row(iblock_row)+1
+        sbncol=sparse_matrix%last_col(iblock_col)-sparse_matrix%first_col(iblock_col)+1
+
+        flops=flops+2.0_wp*sbnrow*sbncol*ncol
+        CALL DGEMM('N','T',ncol,sbnrow,sbncol,1.0_wp, &
+                           rep_v_in (1,sparse_matrix%first_col(iblock_col)), &
+                           nblock, &
+                           sparse_block(1,1),sbnrow, &
+                    1.0_wp,rep_v_out(1,sparse_matrix%first_row(iblock_row)), &
+                           nblock)
+
+        if (iblock_col .ne. iblock_row .and. sparse_matrix%symmetry.eq."symmetric") then
+
+           flops=flops+2.0_wp*sbnrow*sbncol*ncol
+           CALL DGEMM('N','N',ncol,sbncol,sbnrow,1.0_wp, &
+                           rep_v_in (1,sparse_matrix%first_row(iblock_row)), &
+                           nblock, &
+                           sparse_block(1,1),sbnrow, &
+                    1.0_wp,rep_v_out(1,sparse_matrix%first_col(iblock_col)), &
+                           nblock)
+        endif
+
+        block_node => next_block_node(block_node)
+
+      END DO
+
+    END DO
+    flops=flops*1E-6_wp
+    CALL timestop(flops,handle)
+
+#if defined(__parallel)
+    CALL mp_sum(rep_v_out,globenv%group)
+#endif
+
+  END SUBROUTINE sparse_times_replicated
 
 ! *****************************************************************************
 
