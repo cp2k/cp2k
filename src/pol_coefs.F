@@ -32,7 +32,7 @@ MODULE pol_coefs
 
   IMPLICIT NONE
 
-  PUBLIC :: allocate_pol_coefs, initialize_pol_coefs
+  PUBLIC :: allocate_pol_coefs, initialize_pol_coefs, dump_pol_coefs
 
   PRIVATE
 
@@ -79,6 +79,31 @@ MODULE pol_coefs
 
   END SUBROUTINE allocate_pol_coefs
 
+!***************************************************************************
+!
+  SUBROUTINE dump_pol_coefs( c_pos, c_vel, c_force )
+
+    IMPLICIT NONE
+    TYPE (coeff_type), INTENT(IN) :: c_pos
+    TYPE (coeff_type), INTENT(IN) :: c_vel
+    TYPE (coeff_type), INTENT(IN) :: c_force
+
+! locals
+    INTEGER :: icoef, ncoef
+
+    ncoef = size (c_pos%ao%cr(:))
+
+! write to the restart file
+    OPEN (unit=666,file='coefficent.rst',status='unknown')
+
+    DO icoef = 1, ncoef
+       WRITE(666,*) c_pos % ao % cr (icoef), c_vel % ao % cr (icoef), &
+                    c_force % ao % cr (icoef)
+     END DO
+    CLOSE (666)
+
+  END SUBROUTINE dump_pol_coefs
+!
 !***************************************************************************
 
  SUBROUTINE initialize_pol_coefs ( rtype , ki, part, c_pos, c_vel, c_force)
