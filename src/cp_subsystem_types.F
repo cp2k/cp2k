@@ -28,19 +28,18 @@ MODULE cp_subsystem_types
   USE atomic_kind_list_types,          ONLY: atomic_kind_list_release,&
                                              atomic_kind_list_retain,&
                                              atomic_kind_list_type
-  USE cp_error_handling,               ONLY: cp_a_l, &
-                                             cp_error_type,&
-                                             cp_assert
+  USE cp_error_handling,               ONLY: cp_a_l,&
+                                             cp_assert,&
+                                             cp_error_type
   USE cp_log_handling,                 ONLY: cp_failure_level,&
-                                             cp_warning_level,&
-                                             cp_to_string
+                                             cp_to_string,&
+                                             cp_warning_level
   USE cp_para_env,                     ONLY: cp_para_env_release,&
                                              cp_para_env_retain
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE distribution_1d_types,           ONLY: distribution_1d_release,&
                                              distribution_1d_retain,&
                                              distribution_1d_type
-  USE global_types,                    ONLY: global_environment_type
   USE kinds,                           ONLY: dp
   USE mol_kind_new_list_types,         ONLY: mol_kind_new_list_release,&
                                              mol_kind_new_list_retain,&
@@ -53,6 +52,7 @@ MODULE cp_subsystem_types
                                              particle_list_type
   USE timings,                         ONLY: timeset,&
                                              timestop
+
   IMPLICIT NONE
   PRIVATE
 
@@ -174,14 +174,16 @@ CONTAINS
 !!
 !!*** **********************************************************************
 SUBROUTINE cp_subsys_create(subsys, para_env, error)
-  TYPE(cp_subsystem_type), POINTER :: subsys
-  TYPE(cp_para_env_type), POINTER :: para_env
-  TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
-  
-  LOGICAL :: failure
-  CHARACTER(len=*), PARAMETER :: routineN='cp_subsys_create',&
-        routineP=moduleN//':'//routineN
-  INTEGER :: stat
+    TYPE(cp_subsystem_type), POINTER         :: subsys
+    TYPE(cp_para_env_type), POINTER          :: para_env
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'cp_subsys_create', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: stat
+    LOGICAL                                  :: failure
 
   failure=.FALSE.
   
@@ -230,12 +232,14 @@ END SUBROUTINE cp_subsys_create
 !!
 !!*** **********************************************************************
 SUBROUTINE cp_subsys_retain(subsys, error)
-  TYPE(cp_subsystem_type), POINTER :: subsys
-  TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
-  
-  LOGICAL :: failure
-  CHARACTER(len=*), PARAMETER :: routineN='cp_subsys_retain',&
-        routineP=moduleN//':'//routineN
+    TYPE(cp_subsystem_type), POINTER         :: subsys
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'cp_subsys_retain', &
+      routineP = moduleN//':'//routineN
+
+    LOGICAL                                  :: failure
 
   failure=.FALSE.
   
@@ -277,13 +281,15 @@ END SUBROUTINE cp_subsys_retain
 !!
 !!*** **********************************************************************
 SUBROUTINE cp_subsys_release(subsys, error)
-  TYPE(cp_subsystem_type), POINTER :: subsys
-  TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
-  
-  LOGICAL :: failure
-  CHARACTER(len=*), PARAMETER :: routineN='cp_subsys_release',&
-        routineP=moduleN//':'//routineN
-  INTEGER :: stat
+    TYPE(cp_subsystem_type), POINTER         :: subsys
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'cp_subsys_release', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: stat
+    LOGICAL                                  :: failure
 
   failure=.FALSE.
   
@@ -351,19 +357,29 @@ END SUBROUTINE cp_subsys_release
 SUBROUTINE cp_subsys_set(subsys, atomic_kinds, particles, local_particles,&
                          molecules_new, molecule_kinds_new, local_molecules_new, &
                          para_env, error)
-  TYPE (cp_subsystem_type), POINTER :: subsys
-  TYPE (atomic_kind_list_type), POINTER, OPTIONAL :: atomic_kinds
-  TYPE (particle_list_type), POINTER, OPTIONAL :: particles
-  TYPE (distribution_1d_type), POINTER, OPTIONAL :: local_particles
-  TYPE (cp_para_env_type), POINTER, OPTIONAL :: para_env
-  TYPE (mol_new_list_type), POINTER, OPTIONAL :: molecules_new
-  TYPE (mol_kind_new_list_type), POINTER, OPTIONAL :: molecule_kinds_new
-  TYPE (distribution_1d_type), POINTER, OPTIONAL :: local_molecules_new
-  TYPE (cp_error_type), OPTIONAL, INTENT(inout) :: error
-  
-  LOGICAL :: failure
-  CHARACTER(len=*), PARAMETER :: routineN='cp_subsys_set',&
-        routineP=moduleN//':'//routineN
+    TYPE(cp_subsystem_type), POINTER         :: subsys
+    TYPE(atomic_kind_list_type), OPTIONAL, &
+      POINTER                                :: atomic_kinds
+    TYPE(particle_list_type), OPTIONAL, &
+      POINTER                                :: particles
+    TYPE(distribution_1d_type), OPTIONAL, &
+      POINTER                                :: local_particles
+    TYPE(mol_new_list_type), OPTIONAL, &
+      POINTER                                :: molecules_new
+    TYPE(mol_kind_new_list_type), OPTIONAL, &
+      POINTER                                :: molecule_kinds_new
+    TYPE(distribution_1d_type), OPTIONAL, &
+      POINTER                                :: local_molecules_new
+    TYPE(cp_para_env_type), OPTIONAL, &
+      POINTER                                :: para_env
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'cp_subsys_set', &
+      routineP = moduleN//':'//routineN
+
+    LOGICAL                                  :: failure
+
   failure=.FALSE.
   
   CPPrecondition(ASSOCIATED(subsys),cp_failure_level,routineP,error,failure)
@@ -455,20 +471,30 @@ END SUBROUTINE cp_subsys_set
 SUBROUTINE cp_subsys_get(subsys, id_nr, ref_count, atomic_kinds, particles,&
      local_particles, molecules_new, molecule_kinds_new, local_molecules_new, &
      para_env, error)
-  TYPE (cp_subsystem_type), POINTER :: subsys
-  INTEGER, INTENT(out), OPTIONAL :: id_nr, ref_count
-  TYPE (atomic_kind_list_type), POINTER, OPTIONAL :: atomic_kinds
-  TYPE (particle_list_type), POINTER, OPTIONAL :: particles
-  TYPE (distribution_1d_type), POINTER, OPTIONAL :: local_particles
-  TYPE (mol_new_list_type), POINTER, OPTIONAL :: molecules_new
-  TYPE (mol_kind_new_list_type), POINTER, OPTIONAL :: molecule_kinds_new
-  TYPE (distribution_1d_type), POINTER, OPTIONAL :: local_molecules_new
-  TYPE (cp_para_env_type), POINTER, OPTIONAL :: para_env
-  TYPE (cp_error_type), OPTIONAL, INTENT(inout) :: error
-  
-  LOGICAL :: failure
-  CHARACTER(len=*), PARAMETER :: routineN='cp_subsys_get',&
-        routineP=moduleN//':'//routineN
+    TYPE(cp_subsystem_type), POINTER         :: subsys
+    INTEGER, INTENT(out), OPTIONAL           :: id_nr, ref_count
+    TYPE(atomic_kind_list_type), OPTIONAL, &
+      POINTER                                :: atomic_kinds
+    TYPE(particle_list_type), OPTIONAL, &
+      POINTER                                :: particles
+    TYPE(distribution_1d_type), OPTIONAL, &
+      POINTER                                :: local_particles
+    TYPE(mol_new_list_type), OPTIONAL, &
+      POINTER                                :: molecules_new
+    TYPE(mol_kind_new_list_type), OPTIONAL, &
+      POINTER                                :: molecule_kinds_new
+    TYPE(distribution_1d_type), OPTIONAL, &
+      POINTER                                :: local_molecules_new
+    TYPE(cp_para_env_type), OPTIONAL, &
+      POINTER                                :: para_env
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'cp_subsys_get', &
+      routineP = moduleN//':'//routineN
+
+    LOGICAL                                  :: failure
+
   failure=.FALSE.
   
   CPPrecondition(ASSOCIATED(subsys),cp_failure_level,routineP,error,failure)

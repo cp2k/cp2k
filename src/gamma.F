@@ -35,9 +35,12 @@ MODULE gamma
 
 ! *****************************************************************************
 
-  USE kinds,                           ONLY: dp,dp_size
-  USE mathconstants,                   ONLY: fac,pi
-  USE termination,                     ONLY: stop_memory,stop_program
+  USE kinds,                           ONLY: dp,&
+                                             dp_size
+  USE mathconstants,                   ONLY: fac,&
+                                             pi
+  USE termination,                     ONLY: stop_memory,&
+                                             stop_program
 
   IMPLICIT NONE
 
@@ -92,20 +95,15 @@ CONTAINS
 
 !   ***************************************************************************
 
-    REAL(KIND = dp), INTENT(IN) :: tdelta,tmax,tmin
-    INTEGER, INTENT(IN)         :: nmax
+    INTEGER, INTENT(IN)                      :: nmax
+    REAL(KIND=dp), INTENT(IN)                :: tmin, tmax, tdelta
 
-!   *** Local parameters ***
+    CHARACTER(LEN=*), PARAMETER              :: routine_name = "build_ftable"
 
-    CHARACTER(LEN=*), PARAMETER :: routine_name = "build_ftable"
-
-!   *** Local variables ***
-
-    REAL(KIND = dp) :: t
-    INTEGER         :: istat,itab,itabmax,itabmin
+    INTEGER                                  :: istat, itab, itabmax, itabmin
+    REAL(KIND=dp)                            :: t
 
 !   ---------------------------------------------------------------------------
-
 !   *** Check arguments ***
 
     IF ((tmax < 0.0_dp).OR.&
@@ -173,17 +171,15 @@ CONTAINS
 
 !   ***************************************************************************
 
-    REAL(KIND = dp), INTENT(IN)                     :: t
-    INTEGER, INTENT(IN)                             :: nmax
-    REAL(KIND = dp), DIMENSION(0:nmax), INTENT(OUT) :: f
+    INTEGER, INTENT(IN)                      :: nmax
+    REAL(KIND=dp), INTENT(IN)                :: t
+    REAL(KIND=dp), DIMENSION(0:nmax), &
+      INTENT(OUT)                            :: f
 
-!   *** Local variables ***
-
-    REAL(KIND = dp) :: expt,g,tdelta,ttab
-    INTEGER         :: itab,k,n
+    INTEGER                                  :: itab, k, n
+    REAL(KIND=dp)                            :: expt, g, tdelta, ttab
 
 !   ---------------------------------------------------------------------------
-
 !   *** Calculate F(t) ***
 
     IF (t < teps) THEN
@@ -301,14 +297,14 @@ CONTAINS
 
 !   ***************************************************************************
 
-    INTEGER, INTENT(IN)                                       :: nmax
-    REAL(KIND = dp), DIMENSION(:), INTENT(IN)                 :: t
-    REAL(KIND = dp), DIMENSION(SIZE(t,1),0:nmax), INTENT(OUT) :: f
+    INTEGER, INTENT(IN)                      :: nmax
+    REAL(KIND=dp), DIMENSION(:), INTENT(IN)  :: t
+    REAL(KIND=dp), &
+      DIMENSION(SIZE(t, 1), 0:nmax), &
+      INTENT(OUT)                            :: f
 
-!   *** Local variables ***
-
-    REAL(KIND = dp) :: expt,g,tdelta,ttab
-    INTEGER         :: i,itab,k,n
+    INTEGER                                  :: i, itab, k, n
+    REAL(KIND=dp)                            :: expt, g, tdelta, ttab
 
 !   ---------------------------------------------------------------------------
 
@@ -449,25 +445,20 @@ CONTAINS
 
 !   ***************************************************************************
 
-    REAL(KIND = dp), INTENT(IN)        :: t
-    INTEGER, INTENT(IN)                :: nmax
-    REAL(KIND = dp), DIMENSION(0:nmax) :: f
+    INTEGER, INTENT(IN)                      :: nmax
+    REAL(KIND=dp), INTENT(IN)                :: t
+    REAL(KIND=dp), DIMENSION(0:nmax)         :: f
 
-!   *** Local parameters ***
+    CHARACTER(LEN=*), PARAMETER              :: routine_name = "fgamma_ref"
+    INTEGER, PARAMETER                       :: kmax = 50
+    REAL(KIND=dp), PARAMETER                 :: eps = EPSILON(0.0_dp)
 
-    CHARACTER(LEN=*), PARAMETER :: routine_name = "fgamma_ref"
-    REAL(KIND = dp), PARAMETER  :: eps = EPSILON(0.0_dp)
-    INTEGER, PARAMETER          :: kmax = 50
-
-!   *** Local variables ***
-
-    REAL(KIND = dp) :: expt,factor,p,sumterm,sumtot,term
-    INTEGER         :: j,k,n
-
-    REAL(KIND = dp), DIMENSION(kmax+10) :: r
+    INTEGER                                  :: j, k, n
+    REAL(KIND=dp)                            :: expt, factor, p, sumterm, &
+                                                sumtot, term
+    REAL(KIND=dp), DIMENSION(kmax+10)        :: r
 
 !   ------------------------------------------------------------------
-
 !   *** Initialization ***
 
     f(:) = 0.0_dp
@@ -573,10 +564,10 @@ CONTAINS
 
 !   ***************************************************************************
 
-    INTEGER, INTENT(IN) :: nmax ! Maximum n value of F_n(t).
+    INTEGER, INTENT(IN)                      :: nmax
 
+! Maximum n value of F_n(t).
 !   ---------------------------------------------------------------------------
-
 !   *** Quick return, if the current initialization is sufficient ***
 
     IF (nmax <= current_nmax) RETURN

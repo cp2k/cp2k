@@ -20,11 +20,10 @@
 
 MODULE coefficient_lists
 
-  USE kinds, ONLY : dbl
-
-  USE particle_types, ONLY : particle_type
-  use ao_types, ONLY : ao_type 
-  USE termination, ONLY : stop_memory
+  USE ao_types,                        ONLY: ao_type
+  USE kinds,                           ONLY: dbl
+  USE particle_types,                  ONLY: particle_type
+  USE termination,                     ONLY: stop_memory
 
   IMPLICIT NONE
 
@@ -50,19 +49,16 @@ CONTAINS
 
 SUBROUTINE coef_list_grid ( ao, clist, part, ncoef, grid_type_tag, &
                              grid_tag)
-  IMPLICIT NONE
 
-! Arguments
-  TYPE ( ao_type ), INTENT ( IN ) :: ao
-  TYPE ( coef_list_type ), POINTER :: clist
-  TYPE ( particle_type ), intent (IN), DIMENSION (:), TARGET :: PART
-  INTEGER , INTENT ( OUT )  :: ncoef
-  INTEGER , INTENT ( IN )  :: grid_type_tag
-  INTEGER , INTENT ( IN )  :: grid_tag
+    TYPE(ao_type), INTENT(IN)                :: ao
+    TYPE(coef_list_type), POINTER            :: clist
+    TYPE(particle_type), DIMENSION(:), &
+      intent(IN), TARGET                     :: PART
+    INTEGER, INTENT(OUT)                     :: ncoef
+    INTEGER, INTENT(IN)                      :: grid_type_tag, grid_tag
 
-! Locals
-  INTEGER :: ic, nc, isos, ipart
-  TYPE ( coef_list_type ), POINTER :: clist_loc
+    INTEGER                                  :: ic, ipart, isos, nc
+    TYPE(coef_list_type), POINTER            :: clist_loc
 
 !------------------------------------------------------------------------------
 

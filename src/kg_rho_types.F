@@ -28,47 +28,32 @@ MODULE kg_rho_types
                                              coeff_zero
   USE cp_error_handling,               ONLY: cp_a_l,&
                                              cp_assert,&
-                                             cp_assertion_failed,&
-                                             cp_debug,&
-                                             cp_error_dealloc_ref,&
                                              cp_error_get_logger,&
-                                             cp_error_init,&
                                              cp_error_message,&
-                                             cp_error_type,&
-                                             cp_internal_error
+                                             cp_error_type
   USE cp_log_handling,                 ONLY: cp_failure_level,&
                                              cp_fatal_level,&
                                              cp_note_level,&
                                              cp_to_string,&
                                              cp_warning_level
-  USE cp_para_types,                   ONLY: cp_para_env_type
   USE cube_utils,                      ONLY: cube_info_type,&
                                              destroy_cube_info
-  USE cp_control_types,                       ONLY: dft_control_type
   USE gaussian_gridlevels,             ONLY: destroy_gaussian_gridlevel,&
-                                             gridlevel_info_type  
-  USE kinds,                           ONLY: dbl,dp_size
+                                             gridlevel_info_type
+  USE kinds,                           ONLY: dbl
   USE l_utils,                         ONLY: destroy_l_info,&
                                              l_info_type
-  USE mathconstants,                   ONLY: zero 
-  USE message_passing,                 ONLY: mp_allgather,&
-                                             mp_max,&
-                                             mp_range,&
-                                             mp_sum,&
-                                             mp_sync
-  USE pw_grid_types,                   ONLY: pw_grid_type  
+  USE pw_grid_types,                   ONLY: pw_grid_type
   USE pw_pool_types,                   ONLY: pw_pool_release,&
                                              pw_pool_type
   USE pw_types,                        ONLY: COMPLEXDATA1D,&
-                                             COMPLEXDATA3D,&
                                              REALDATA3D,&
                                              REALSPACE,&
-                                             RECIPROCALSPACE,&
-                                             pw_type
-  USE termination,                     ONLY: stop_memory,&
-                                             stop_program
+                                             RECIPROCALSPACE
+  USE termination,                     ONLY: stop_memory
   USE timings,                         ONLY: timeset,&
                                              timestop
+
   IMPLICIT NONE
 
   PRIVATE
@@ -121,15 +106,15 @@ CONTAINS
 
   SUBROUTINE allocate_kg_densities(kg_rho) 
 
-! Arguments
-    TYPE(kg_rho_type), POINTER  :: kg_rho
+    TYPE(kg_rho_type), POINTER               :: kg_rho
 
-! Locals
-    CHARACTER(LEN=*), PARAMETER :: routine =&
-      "SUBROUTINE allocate_kg_densities (MODULE kg_rho_types)"
-    TYPE(pw_grid_type), POINTER, DIMENSION (:) :: pw_grid 
-    INTEGER :: auxbas, igrid_level, istat, ngrid_level
-    INTEGER :: handle
+    CHARACTER(LEN=*), PARAMETER :: &
+      routine = "SUBROUTINE allocate_kg_densities (MODULE kg_rho_types)"
+
+    INTEGER                                  :: auxbas, handle, igrid_level, &
+                                                istat, ngrid_level
+    TYPE(pw_grid_type), DIMENSION(:), &
+      POINTER                                :: pw_grid
 
 !---------------------------------------------------------------------------
 
@@ -220,15 +205,15 @@ END SUBROUTINE allocate_kg_densities
 ! *************************************************************************
   SUBROUTINE deallocate_kg_densities(kg_rho)
 
-! Arguments
-    TYPE(kg_rho_type), POINTER     :: kg_rho
+    TYPE(kg_rho_type), POINTER               :: kg_rho
 
-! Locals
-    CHARACTER(LEN=*), PARAMETER :: routine =&
-      "SUBROUTINE deallocate_kg_densities (MODULE kg_rho)"
-    TYPE(pw_grid_type), POINTER, DIMENSION (:) :: pw_grid 
-    INTEGER :: auxbas, igrid_level, istat, ngrid_level
-    INTEGER :: handle
+    CHARACTER(LEN=*), PARAMETER :: &
+      routine = "SUBROUTINE deallocate_kg_densities (MODULE kg_rho)"
+
+    INTEGER                                  :: auxbas, handle, igrid_level, &
+                                                istat, ngrid_level
+    TYPE(pw_grid_type), DIMENSION(:), &
+      POINTER                                :: pw_grid
 
 !---------------------------------------------------------------------------
 
@@ -286,12 +271,15 @@ END SUBROUTINE allocate_kg_densities
 END SUBROUTINE deallocate_kg_densities
 !!*** **********************************************************************
 SUBROUTINE kg_rho_retain(kg_rho,error)
-  TYPE(kg_rho_type), POINTER :: kg_rho
-  TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
- 
-  LOGICAL :: failure
-  CHARACTER(len=*), PARAMETER :: routineN='kg_rho_retain',&
-        routineP=moduleN//':'//routineN
+    TYPE(kg_rho_type), POINTER               :: kg_rho
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'kg_rho_retain', &
+      routineP = moduleN//':'//routineN
+
+    LOGICAL                                  :: failure
+
   failure=.FALSE.
  
   CPPrecondition(ASSOCIATED(kg_rho),cp_failure_level,routineP,error,failure)
@@ -315,21 +303,19 @@ END SUBROUTINE kg_rho_retain
 !!*** **********************************************************************
   SUBROUTINE kg_rho_release(kg_rho,error)               
 
-  IMPLICIT NONE
 
-!arguments
-    TYPE(kg_rho_type), POINTER       :: kg_rho
-    TYPE(cp_error_type), OPTIONAL, INTENT(inout)            :: error
+    TYPE(kg_rho_type), POINTER               :: kg_rho
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
 
-!Locals
-    CHARACTER(len=*), PARAMETER :: routineN='kg_rho_release',&
-       routineP=moduleN//':'//routineN
+    CHARACTER(len=*), PARAMETER :: routineN = 'kg_rho_release', &
+      routineP = moduleN//':'//routineN
 
-    LOGICAL :: failure
-    INTEGER :: igrid_level,stat,handle
+    INTEGER                                  :: handle, igrid_level, stat
+    LOGICAL                                  :: failure
 
 !   ---------------------------------------------------------------------------
- 
+
    CALL timeset(routineN,"I","",handle)
    failure=.FALSE.  
    IF (ASSOCIATED(kg_rho)) THEN

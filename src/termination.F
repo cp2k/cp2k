@@ -81,7 +81,7 @@ CONTAINS
 
   SUBROUTINE get_error_unit(lunit)
 
-    INTEGER, INTENT(OUT) :: lunit
+    INTEGER, INTENT(OUT)                     :: lunit
 
 !   ---------------------------------------------------------------------------
 
@@ -110,7 +110,7 @@ CONTAINS
 
   SUBROUTINE set_error_unit(lunit)
 
-    INTEGER, INTENT(IN) :: lunit
+    INTEGER, INTENT(IN)                      :: lunit
 
 !   ---------------------------------------------------------------------------
 
@@ -145,12 +145,10 @@ CONTAINS
 
   SUBROUTINE stop_allocate(routine,array,memory)
 
-    CHARACTER(LEN=*), INTENT(IN) :: array,routine
-    INTEGER, INTENT(IN)          :: memory
+    CHARACTER(LEN=*), INTENT(IN)             :: routine, array
+    INTEGER, INTENT(IN)                      :: memory
 
-!   *** Local variables ***
-
-    CHARACTER(LEN=240) :: message
+    CHARACTER(LEN=240)                       :: message
 
 !   ---------------------------------------------------------------------------
 
@@ -174,12 +172,12 @@ CONTAINS
   SUBROUTINE stop_allocate_new(routine_name,module_name,line_number,object,&
                                memory)
 
-    CHARACTER(LEN=*), INTENT(IN)  :: module_name,object,routine_name
-    INTEGER, INTENT(IN)           :: line_number,memory
+    CHARACTER(LEN=*), INTENT(IN)             :: routine_name, module_name
+    INTEGER, INTENT(IN)                      :: line_number
+    CHARACTER(LEN=*), INTENT(IN)             :: object
+    INTEGER, INTENT(IN)                      :: memory
 
-!   *** Local variables ***
-
-    CHARACTER(LEN=240) :: message
+    CHARACTER(LEN=240)                       :: message
 
 !   ---------------------------------------------------------------------------
 
@@ -223,11 +221,9 @@ CONTAINS
 
   SUBROUTINE stop_deallocate(routine,array)
 
-    CHARACTER(LEN=*), INTENT(IN) :: array,routine
+    CHARACTER(LEN=*), INTENT(IN)             :: routine, array
 
-!   *** Local variables ***
-
-    CHARACTER(LEN=240) :: message
+    CHARACTER(LEN=240)                       :: message
 
 !   ---------------------------------------------------------------------------
 
@@ -242,12 +238,11 @@ CONTAINS
 
   SUBROUTINE stop_deallocate_new(routine_name,module_name,line_number,object)
 
-    CHARACTER(LEN=*), INTENT(IN)  :: module_name,object,routine_name
-    INTEGER, INTENT(IN)           :: line_number
+    CHARACTER(LEN=*), INTENT(IN)             :: routine_name, module_name
+    INTEGER, INTENT(IN)                      :: line_number
+    CHARACTER(LEN=*), INTENT(IN)             :: object
 
-!   *** Local variables ***
-
-    CHARACTER(LEN=240) :: message
+    CHARACTER(LEN=240)                       :: message
 
 !   ---------------------------------------------------------------------------
 
@@ -282,13 +277,11 @@ CONTAINS
 
   SUBROUTINE stop_program_old(routine,error_message,globenv)
 
-    CHARACTER(LEN=*), INTENT(IN) :: error_message,routine
+    CHARACTER(LEN=*), INTENT(IN)             :: routine, error_message
+    TYPE(global_environment_type), &
+      INTENT(IN), OPTIONAL                   :: globenv
 
-    TYPE(global_environment_type), OPTIONAL, INTENT(IN) :: globenv
-
-!   *** Local variables ***
-
-    LOGICAL :: ionode
+    LOGICAL                                  :: ionode
 
 !   ---------------------------------------------------------------------------
 
@@ -314,16 +307,14 @@ CONTAINS
   SUBROUTINE stop_program_new(routine_name,module_name,line_number,&
                               error_message,globenv)
 
-    CHARACTER(LEN=*), INTENT(IN)                        :: error_message,&
-                                                           module_name,&
-                                                           routine_name
-    INTEGER, INTENT(IN)                                 :: line_number
-    TYPE(global_environment_type), OPTIONAL, INTENT(IN) :: globenv
+    CHARACTER(LEN=*), INTENT(IN)             :: routine_name, module_name
+    INTEGER, INTENT(IN)                      :: line_number
+    CHARACTER(LEN=*), INTENT(IN)             :: error_message
+    TYPE(global_environment_type), &
+      INTENT(IN), OPTIONAL                   :: globenv
 
-!   *** Local variables ***
-
-    CHARACTER(LEN=80) :: message
-    LOGICAL           :: ionode
+    CHARACTER(LEN=80)                        :: message
+    LOGICAL                                  :: ionode
 
 !   ---------------------------------------------------------------------------
 

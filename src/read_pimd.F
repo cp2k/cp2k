@@ -20,16 +20,19 @@
 
 MODULE read_pimd
   
-  USE global_types, ONLY : global_environment_type
-  USE kinds, ONLY : dbl
-  USE message_passing, ONLY : mp_bcast
-  USE parser, ONLY : parser_init, parser_end, read_line, test_next, &
-       p_error, get_next, stop_parser, search_label
-  USE particle_types, ONLY : particle_type
-  USE string_utilities, ONLY : uppercase, xstring
-  USE util, ONLY : gasdev
-  USE termination, ONLY : stop_program
-  
+  USE global_types,                    ONLY: global_environment_type
+  USE kinds,                           ONLY: dbl
+  USE parser,                          ONLY: get_next,&
+                                             p_error,&
+                                             parser_end,&
+                                             parser_init,&
+                                             read_line,&
+                                             search_label,&
+                                             stop_parser,&
+                                             test_next
+  USE string_utilities,                ONLY: uppercase
+  USE termination,                     ONLY: stop_program
+
   IMPLICIT NONE
   
   PRIVATE
@@ -79,20 +82,18 @@ CONTAINS
 
 SUBROUTINE read_pimd_section ( pimdpar, mdpar )
   
-  IMPLICIT NONE
   
-! Arguments
-  TYPE ( pimd_parameters_type ), INTENT ( OUT ) :: pimdpar
-  TYPE ( global_environment_type ), INTENT( IN ) :: mdpar
-  
-! Locals
-  INTEGER :: ierror, ilen, iw
-  CHARACTER ( LEN = 20 ) :: string
-  CHARACTER ( LEN = 5 ) :: label
-  
+    TYPE(pimd_parameters_type), INTENT(OUT)  :: pimdpar
+    TYPE(global_environment_type), &
+      INTENT(IN)                             :: mdpar
+
+    CHARACTER(LEN=20)                        :: string
+    CHARACTER(LEN=5)                         :: label
+    INTEGER                                  :: ierror, ilen, iw
+
 !------------------------------------------------------------------------------
-  
 !..defaults
+
   pimdpar % beads = 1
   pimdpar % ndelta = 2
   pimdpar % transformation = 'NONE'

@@ -22,27 +22,24 @@
 
 MODULE md_kg_energies
   
-  USE cp2k_units,                        ONLY : unit_convert_type, &
-                                                get_cp2k_units
-  USE coefficient_types,                 ONLY : coeff_type
-  USE extended_system_types,          ONLY : lnhc_parameters_type
-  USE global_types,                      ONLY : global_environment_type
+  USE cp2k_units,                      ONLY: get_cp2k_units,&
+                                             unit_convert_type
+  USE global_types,                    ONLY: global_environment_type
 !  USE kg_environment_types,              ONLY : kg_thermodynamic_type
-  USE kinds,                             ONLY : dbl
-  USE mathconstants,                     ONLY : zero
-  USE md,                                ONLY : simulation_parameters_type,&
-                                                mdio_parameters_type
-  USE md_conserved_quantities,           ONLY : compute_conserved_quantity
-  USE md_environment_types,              ONLY : md_environment_type, &
-                                                get_md_env
-  USE message_passing,                   ONLY : mp_sum,&
-                                                mp_comm_dup
-  USE simulation_cell,                   ONLY : get_cell_param, &
-                                                cell_type
-  USE termination,                       ONLY : stop_memory, &
-                                                stop_program
-  USE timings,                           ONLY : timeset,&
-                                                timestop
+
+  USE kinds,                           ONLY: dbl
+  USE mathconstants,                   ONLY: zero
+  USE md,                              ONLY: mdio_parameters_type,&
+                                             simulation_parameters_type
+  USE md_conserved_quantities,         ONLY: compute_conserved_quantity
+  USE md_environment_types,            ONLY: get_md_env,&
+                                             md_environment_type
+  USE message_passing,                 ONLY: mp_comm_dup
+  USE simulation_cell,                 ONLY: cell_type,&
+                                             get_cell_param
+  USE timings,                         ONLY: timeset,&
+                                             timestop
+
   PRIVATE
   PUBLIC :: set_kg_energies, md_energy_kg
 
@@ -94,11 +91,11 @@ CONTAINS
 !
 SUBROUTINE set_kg_energies ( globenv, mdio )
 
-  IMPLICIT NONE
 
-! Arguments
-  TYPE ( mdio_parameters_type ), INTENT ( IN ) :: mdio
-  TYPE ( global_environment_type ), INTENT ( IN ) :: globenv
+    TYPE(global_environment_type), &
+      INTENT(IN)                             :: globenv
+    TYPE(mdio_parameters_type), INTENT(IN)   :: mdio
+
 !
 !!------------------------------------------------------------------------------
 !
@@ -128,6 +125,7 @@ SUBROUTINE set_kg_energies ( globenv, mdio )
 !
 !  CALL get_cp2k_units ( unit )
 !
+
 END SUBROUTINE set_kg_energies
 !
 !******************************************************************************
@@ -152,13 +150,11 @@ END SUBROUTINE set_kg_energies
 !
 SUBROUTINE md_energy_kg ( md_env )
 !
-  IMPLICIT NONE
 
-! Arguments
-  TYPE ( md_environment_type ), INTENT ( INOUT ) :: md_env
+    TYPE(md_environment_type), INTENT(INOUT) :: md_env
+
 !  TYPE (kg_thermodynamic_type ), INTENT ( INOUT ) :: thermo
 !
-! Locals
 !  
 !  INTEGER, POINTER :: itimes
 !  REAL (dbl), POINTER :: constant
@@ -408,6 +404,7 @@ SUBROUTINE md_energy_kg ( md_env )
 !
 !  CALL timestop ( zero, handle )
 !
+
 END SUBROUTINE md_energy_kg
 !
 !******************************************************************************

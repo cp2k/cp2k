@@ -20,12 +20,10 @@
 
 MODULE qs_energy_types
 
-  USE kinds, ONLY: dp,&
-                   dp_size
-
-  USE global_types, ONLY: global_environment_type
-  USE termination,  ONLY: stop_memory,&
-                          stop_program
+  USE kinds,                           ONLY: dp,&
+                                             dp_size
+  USE termination,                     ONLY: stop_memory,&
+                                             stop_program
 
   IMPLICIT NONE
 
@@ -66,16 +64,12 @@ CONTAINS
 
 !   ***************************************************************************
 
-    TYPE(qs_energy_type), POINTER :: qs_energy
+    TYPE(qs_energy_type), POINTER            :: qs_energy
 
-!   *** Local parameters ***
+    CHARACTER(LEN=*), PARAMETER :: &
+      routine = "SUBROUTINE allocate_qs_energy (MODULE qs_energy_types)"
 
-    CHARACTER(LEN=*), PARAMETER :: routine =&
-      "SUBROUTINE allocate_qs_energy (MODULE qs_energy_types)"
-
-!   *** Local variables ***
-
-    INTEGER :: istat
+    INTEGER                                  :: istat
 
 !   ---------------------------------------------------------------------------
 
@@ -98,16 +92,12 @@ CONTAINS
 
 !   ***************************************************************************
 
-    TYPE(qs_energy_type), POINTER :: qs_energy
+    TYPE(qs_energy_type), POINTER            :: qs_energy
 
-!   *** Local parameters ***
+    CHARACTER(LEN=*), PARAMETER :: &
+      routine = "SUBROUTINE deallocate_qs_energy (MODULE qs_energy_types)"
 
-    CHARACTER(LEN=*), PARAMETER :: routine =&
-      "SUBROUTINE deallocate_qs_energy (MODULE qs_energy_types)"
-
-!   *** Local variables ***
-
-    INTEGER :: istat
+    INTEGER                                  :: istat
 
 !   ---------------------------------------------------------------------------
 
@@ -131,16 +121,10 @@ CONTAINS
 
 !   ***************************************************************************
 
-    TYPE(qs_energy_type), POINTER :: qs_energy
+    TYPE(qs_energy_type), POINTER            :: qs_energy
 
-!   *** Local parameters ***
-
-    CHARACTER(LEN=*), PARAMETER :: routine =&
-      "SUBROUTINE init_qs_energy (MODULE qs_energy_types)"
-
-!   *** Local variables ***
-
-    INTEGER :: istat
+    CHARACTER(LEN=*), PARAMETER :: &
+      routine = "SUBROUTINE init_qs_energy (MODULE qs_energy_types)"
 
 !   ---------------------------------------------------------------------------
 

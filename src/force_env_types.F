@@ -23,62 +23,38 @@
 !******************************************************************************
 
 MODULE force_env_types
-  USE atomic_kind_list_types,          ONLY: atomic_kind_list_create,&
-                                             atomic_kind_list_release,&
-                                             atomic_kind_list_type
-  USE atomic_kind_types,               ONLY: atomic_kind_type
+!  USE fist_environment_types,          ONLY: fist_environment_type,&
+!                                             replica_environment_type
+!  USE fist_force,                      ONLY: fist_force_control
+  USE atomic_kind_list_types,          ONLY: atomic_kind_list_type
   USE cp_error_handling,               ONLY: cp_a_l,&
                                              cp_assert,&
                                              cp_assertion_failed,&
-                                             cp_debug,&
-                                             cp_error_check,&
-                                             cp_error_dealloc_ref,&
                                              cp_error_get_logger,&
-                                             cp_error_init,&
                                              cp_error_message,&
-                                             cp_error_type,&
-                                             cp_internal_error,&
-                                             cp_unimplemented_error
-  USE cp_subsystem_types,               ONLY: cp_subsystem_p_type,&
-                                             cp_subsystem_type,&
-                                             cp_subsys_create,&
-                                             cp_subsys_get,&
-                                             cp_subsys_release,&
-                                             cp_subsys_retain,&
-                                             cp_subsys_set
+                                             cp_error_type
   USE cp_log_handling,                 ONLY: cp_failure_level,&
                                              cp_fatal_level,&
-                                             cp_log,&
                                              cp_logger_type,&
                                              cp_note_level,&
                                              cp_to_string,&
                                              cp_warning_level
   USE cp_para_env,                     ONLY: cp_para_env_release,&
                                              cp_para_env_retain
-  USE cp_para_types,                   ONLY: cp_para_env_p_type,&
-                                             cp_para_env_type
-  USE distribution_1d_types,           ONLY: distribution_1d_create,&
-                                             distribution_1d_p_type,&
-                                             distribution_1d_release,&
-                                             distribution_1d_retain,&
-                                             distribution_1d_type
-!  USE fist_environment_types,          ONLY: fist_environment_type,&
-!                                             replica_environment_type
-!  USE fist_force,                      ONLY: fist_force_control
+  USE cp_para_types,                   ONLY: cp_para_env_type
+  USE cp_subsystem_types,              ONLY: cp_subsys_get,&
+                                             cp_subsys_release,&
+                                             cp_subsys_retain,&
+                                             cp_subsystem_p_type
   USE global_types,                    ONLY: global_environment_type
   USE kg_energy_types,                 ONLY: kg_energy_type
   USE kg_environment_types,            ONLY: get_kg_env,&
                                              kg_env_release,&
                                              kg_env_retain,&
-                                             kg_environment_type,&
-                                             set_kg_env
+                                             kg_environment_type
   USE kg_force,                        ONLY: kg_force_control
   USE kinds,                           ONLY: dbl
-  USE linklist_types,                  ONLY: linklist_internal_data_type
-  USE particle_list_types,             ONLY: particle_list_create,&
-                                             particle_list_release,&
-                                             particle_list_type
-  USE particle_types,                  ONLY: particle_type
+  USE particle_list_types,             ONLY: particle_list_type
   USE qs_energy,                       ONLY: qs_energies
   USE qs_energy_types,                 ONLY: qs_energy_type
   USE qs_environment_methods,          ONLY: qs_env_rebuild_pw_env
@@ -88,11 +64,8 @@ MODULE force_env_types
                                              qs_environment_type,&
                                              set_qs_env
   USE qs_force,                        ONLY: qs_forces
-  USE qs_neighbor_list_types,          ONLY: neighbor_list_set_p_type
-  USE simulation_cell,                 ONLY: cell_release,&
-                                             cell_retain,&
-                                             cell_type
-  USE termination,                     ONLY: stop_program
+  USE simulation_cell,                 ONLY: cell_type
+
   IMPLICIT NONE
 
   PRIVATE
@@ -196,23 +169,20 @@ CONTAINS
 
 SUBROUTINE force_env_calculate_force ( force_env, box_change, error )
   
-  IMPLICIT NONE
 
-! Arguments
-  TYPE(force_env_type), POINTER :: force_env
-  LOGICAL, INTENT ( IN ), OPTIONAL :: box_change
-  TYPE(cp_error_type), INTENT(inout), OPTIONAL :: error
+    TYPE(force_env_type), POINTER            :: force_env
+    LOGICAL, INTENT(IN), OPTIONAL            :: box_change
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
 
-! local
-  CHARACTER(len=*), PARAMETER :: routineN='force_env_calculate_force',&
-       routineP=moduleN//':'//routineN
-  REAL ( dbl ) :: e_pot
-  INTEGER :: beads, i
-  LOGICAL :: failure, my_box_change
- ! dbg TYPE(fist_environment_type), POINTER :: fist_env
-  
+    CHARACTER(len=*), PARAMETER :: routineN = 'force_env_calculate_force', &
+      routineP = moduleN//':'//routineN
+
+    LOGICAL                                  :: failure, my_box_change
+
+! dbg TYPE(fist_environment_type), POINTER :: fist_env
 !------------------------------------------------------------------------------
-  
+
   failure=.FALSE.
   my_box_change=.FALSE.
   IF (PRESENT(box_change)) my_box_change=box_change
@@ -287,19 +257,19 @@ END SUBROUTINE force_env_calculate_force
 !!
 !!*** **********************************************************************
 SUBROUTINE force_env_calculate_energy(force_env, box_change, error)
-  TYPE(force_env_type), POINTER :: force_env
-  LOGICAL, OPTIONAL :: box_change
-  TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
-  
-  CHARACTER(len=*), PARAMETER :: routineN='force_env_calculate_energy',&
-        routineP=moduleN//':'//routineN
-  REAL ( dbl ) :: e_pot
-  INTEGER :: beads, i
-  LOGICAL :: failure, my_box_change
+    TYPE(force_env_type), POINTER            :: force_env
+    LOGICAL, OPTIONAL                        :: box_change
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'force_env_calculate_energy', &
+      routineP = moduleN//':'//routineN
+
+    LOGICAL                                  :: failure, my_box_change
+
 !dbg  TYPE(fist_environment_type), POINTER :: fist_env
-  
 !------------------------------------------------------------------------------
-  
+
   failure=.FALSE.
   my_box_change=.FALSE.
   IF (PRESENT(box_change)) my_box_change=box_change
@@ -384,23 +354,30 @@ END SUBROUTINE force_env_calculate_energy
 !SUBROUTINE force_env_create(force_env,fist_env,qs_env,kg_env,para_env,&
 SUBROUTINE force_env_create(force_env,qs_env,kg_env,para_env,&
      globenv,error)
-  TYPE(force_env_type), POINTER :: force_env
+    TYPE(force_env_type), POINTER            :: force_env
+    TYPE(qs_environment_type), OPTIONAL, &
+      POINTER                                :: qs_env
+    TYPE(kg_environment_type), OPTIONAL, &
+      POINTER                                :: kg_env
+    TYPE(cp_para_env_type), OPTIONAL, &
+      POINTER                                :: para_env
+    TYPE(global_environment_type), &
+      INTENT(inout), OPTIONAL, TARGET        :: globenv
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'force_env_type', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: stat
+    LOGICAL                                  :: failure
+    TYPE(atomic_kind_list_type), POINTER     :: atomic_kinds
+    TYPE(particle_list_type), POINTER        :: particles
+
 !  TYPE(fist_environment_type), POINTER, OPTIONAL :: fist_env
-  TYPE(qs_environment_type), POINTER, OPTIONAL :: qs_env
-  TYPE(kg_environment_type), POINTER, OPTIONAL :: kg_env
-  TYPE(cp_para_env_type), POINTER, OPTIONAL :: para_env
-  TYPE(global_environment_type), INTENT(inout),TARGET, OPTIONAL :: globenv
-  TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
-
-  LOGICAL :: failure
-  CHARACTER(len=*), PARAMETER :: routineN='force_env_type',&
-        routineP=moduleN//':'//routineN
-  INTEGER :: stat,i,n_rep
 !  TYPE(replica_environment_type), POINTER :: rep_att
-  TYPE (atomic_kind_list_type), POINTER :: atomic_kinds
-  TYPE (particle_list_type), POINTER :: particles
-
 !  NULLIFY(rep_att,atomic_kinds, particles, local_molecules)
+
   NULLIFY(atomic_kinds, particles)
   failure=.FALSE.
 
@@ -538,12 +515,14 @@ END SUBROUTINE force_env_create
 !!
 !!*** **********************************************************************
 SUBROUTINE force_env_retain(force_env, error)
-  TYPE(force_env_type), POINTER :: force_env
-  TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
-  
-  LOGICAL :: failure
-  CHARACTER(len=*), PARAMETER :: routineN='force_env_retain',&
-        routineP=moduleN//':'//routineN
+    TYPE(force_env_type), POINTER            :: force_env
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'force_env_retain', &
+      routineP = moduleN//':'//routineN
+
+    LOGICAL                                  :: failure
 
   failure=.FALSE.
   
@@ -585,13 +564,15 @@ END SUBROUTINE force_env_retain
 !!
 !!*** **********************************************************************
 SUBROUTINE force_env_release(force_env, error)
-  TYPE(force_env_type), POINTER :: force_env
-  TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
-  
-  LOGICAL :: failure
-  CHARACTER(len=*), PARAMETER :: routineN='force_env_release',&
-        routineP=moduleN//':'//routineN
-  INTEGER :: stat,i
+    TYPE(force_env_type), POINTER            :: force_env
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'force_env_release', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: i, stat
+    LOGICAL                                  :: failure
 
   failure=.FALSE.
   
@@ -672,24 +653,31 @@ END SUBROUTINE force_env_release
 !     subsys, para_env, potential_energy, kinetic_energy,cell, error)
 SUBROUTINE force_env_get(force_env, in_use, qs_env, kg_env, &
      subsys, para_env, potential_energy, kinetic_energy,cell, error)
-  TYPE(force_env_type), POINTER :: force_env
-  INTEGER, INTENT(out), OPTIONAL :: in_use
+    TYPE(force_env_type), POINTER            :: force_env
+    INTEGER, INTENT(out), OPTIONAL           :: in_use
+    TYPE(qs_environment_type), OPTIONAL, &
+      POINTER                                :: qs_env
+    TYPE(kg_environment_type), OPTIONAL, &
+      POINTER                                :: kg_env
+    TYPE(cp_subsystem_p_type), &
+      DIMENSION(:), OPTIONAL, POINTER        :: subsys
+    TYPE(cp_para_env_type), OPTIONAL, &
+      POINTER                                :: para_env
+    REAL(kind=dbl), INTENT(out), OPTIONAL    :: potential_energy, &
+                                                kinetic_energy
+    TYPE(cell_type), OPTIONAL, POINTER       :: cell
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'force_env_get', &
+      routineP = moduleN//':'//routineN
+
+    LOGICAL                                  :: failure
+    TYPE(kg_energy_type), POINTER            :: kg_energy
+    TYPE(qs_energy_type), POINTER            :: qs_energy
+
 !  TYPE ( fist_environment_type ), POINTER, OPTIONAL :: fist_env 
-  TYPE ( kg_environment_type ), POINTER, OPTIONAL :: kg_env
-  TYPE ( qs_environment_type ), POINTER, OPTIONAL :: qs_env
-  TYPE ( cp_subsystem_p_type ), POINTER, DIMENSION(:), OPTIONAL :: subsys
-  TYPE ( cell_type ), POINTER, OPTIONAL :: cell
-  TYPE(cp_para_env_type), POINTER, OPTIONAL :: para_env
-  REAL(kind=dbl), INTENT(out), OPTIONAL :: potential_energy, kinetic_energy
-  TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
-  
-  LOGICAL :: failure
-  CHARACTER(len=*), PARAMETER :: routineN='force_env_get',&
-        routineP=moduleN//':'//routineN
-  INTEGER :: i
 !  TYPE(replica_environment_type), POINTER :: rep_att
-  TYPE(qs_energy_type), POINTER :: qs_energy
-  TYPE(kg_energy_type), POINTER :: kg_energy
 
   failure=.FALSE.
 !  NULLIFY(rep_att)
@@ -794,13 +782,15 @@ END SUBROUTINE force_env_get
 !!
 !!*** **********************************************************************
 SUBROUTINE force_env_set_cell(force_env, cell, error)
-  TYPE(force_env_type), POINTER :: force_env
-  TYPE(cell_type), POINTER :: cell
-  TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
-  
-  LOGICAL :: failure
-  CHARACTER(len=*), PARAMETER :: routineN='force_env_set_cell',&
-        routineP=moduleN//':'//routineN
+    TYPE(force_env_type), POINTER            :: force_env
+    TYPE(cell_type), POINTER                 :: cell
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'force_env_set_cell', &
+      routineP = moduleN//':'//routineN
+
+    LOGICAL                                  :: failure
 
   failure=.FALSE.
   CPPrecondition(ASSOCIATED(force_env),cp_failure_level,routineP,error,failure)
@@ -866,19 +856,23 @@ END SUBROUTINE force_env_set_cell
 !!
 !!*** **********************************************************************
 SUBROUTINE force_env_write_variables(force_env, unit_nr, local, error)
-  TYPE(force_env_type), POINTER :: force_env
-  INTEGER, INTENT(in) :: unit_nr
-  LOGICAL, INTENT(in), OPTIONAL :: local
-  TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
+    TYPE(force_env_type), POINTER            :: force_env
+    INTEGER, INTENT(in)                      :: unit_nr
+    LOGICAL, INTENT(in), OPTIONAL            :: local
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
 
-  LOGICAL :: failure, my_local, should_write
-  CHARACTER(len=*), PARAMETER :: routineN='force_env_write_variables',&
-       routineP=moduleN//':'//routineN
-  TYPE(cp_logger_type), POINTER :: logger
-  TYPE(cp_subsystem_p_type), DIMENSION(:), POINTER :: subsys
-  TYPE(cell_type), POINTER :: cell
-  TYPE(particle_list_type), POINTER :: particles
-  INTEGER :: isubsys, i
+    CHARACTER(len=*), PARAMETER :: routineN = 'force_env_write_variables', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: i, isubsys
+    LOGICAL                                  :: failure, my_local, &
+                                                should_write
+    TYPE(cell_type), POINTER                 :: cell
+    TYPE(cp_logger_type), POINTER            :: logger
+    TYPE(cp_subsystem_p_type), &
+      DIMENSION(:), POINTER                  :: subsys
+    TYPE(particle_list_type), POINTER        :: particles
 
   failure=.FALSE.
   NULLIFY(subsys,cell, particles)
@@ -1001,19 +995,22 @@ END SUBROUTINE force_env_write_variables
 !!
 !!*** **********************************************************************
 SUBROUTINE force_env_read_variables(force_env, unit_nr, local, error)
-  TYPE(force_env_type), POINTER :: force_env
-  INTEGER, INTENT(in) :: unit_nr
-  LOGICAL, INTENT(in), OPTIONAL :: local
-  TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
-  
-  LOGICAL :: failure, my_local, should_read
-  CHARACTER(len=*), PARAMETER :: routineN='force_env_read_variables',&
-        routineP=moduleN//':'//routineN
-  TYPE(cp_logger_type), POINTER :: logger
-  TYPE(cp_subsystem_p_type), DIMENSION(:), POINTER :: subsys
-  TYPE(cell_type), POINTER :: cell
-  TYPE(particle_list_type), POINTER :: particles
-  INTEGER :: isubsys, i
+    TYPE(force_env_type), POINTER            :: force_env
+    INTEGER, INTENT(in)                      :: unit_nr
+    LOGICAL, INTENT(in), OPTIONAL            :: local
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'force_env_read_variables', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: i, isubsys
+    LOGICAL                                  :: failure, my_local, should_read
+    TYPE(cell_type), POINTER                 :: cell
+    TYPE(cp_logger_type), POINTER            :: logger
+    TYPE(cp_subsystem_p_type), &
+      DIMENSION(:), POINTER                  :: subsys
+    TYPE(particle_list_type), POINTER        :: particles
 
   failure=.FALSE.
   NULLIFY(subsys,cell, particles)

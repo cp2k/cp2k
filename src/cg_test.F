@@ -23,14 +23,17 @@ MODULE cg_test
 
 ! *****************************************************************************
 
-  USE kinds, ONLY: dbl
-  USE global_types, ONLY : global_environment_type
-  USE lebedev, ONLY : lebedev_grid, init_lebedev_grids, &
-                      get_number_of_lebedev_grid
-  USE machine, ONLY: m_cputime
-  USE mathconstants, ONLY: pi
-  USE spherical_harmonics, ONLY : clebsch_gordon_init, clebsch_gordon, y_lm
-  USE termination, ONLY : stop_memory, stop_program
+  USE global_types,                    ONLY: global_environment_type
+  USE kinds,                           ONLY: dbl
+  USE lebedev,                         ONLY: get_number_of_lebedev_grid,&
+                                             init_lebedev_grids,&
+                                             lebedev_grid
+  USE machine,                         ONLY: m_cputime
+  USE mathconstants,                   ONLY: pi
+  USE spherical_harmonics,             ONLY: clebsch_gordon,&
+                                             clebsch_gordon_init,&
+                                             y_lm
+  USE termination,                     ONLY: stop_memory
 
   IMPLICIT NONE
 
@@ -45,14 +48,17 @@ CONTAINS
 !******************************************************************************
 SUBROUTINE clebsch_gordon_test ( globenv )
 
-  TYPE ( global_environment_type ), INTENT ( IN ) :: globenv
-  INTEGER, PARAMETER :: l=7
-  INTEGER :: iw, ll, na, ierr
-  INTEGER :: l1, m1, l2, m2, lp, mp, mm, il, lmin, mt
-  REAL(dbl) :: cga(10), rga(10,21), ca, cn, tstart, tend
-  COMPLEX(dbl), DIMENSION(:), ALLOCATABLE :: a1, a2, a3
-  REAL(dbl), DIMENSION(:), ALLOCATABLE :: b1, b2, b3
-  REAL(dbl), DIMENSION(:), ALLOCATABLE :: wa
+    TYPE(global_environment_type), &
+      INTENT(IN)                             :: globenv
+
+    INTEGER, PARAMETER                       :: l = 7
+
+    COMPLEX(dbl), ALLOCATABLE, DIMENSION(:)  :: a1, a2, a3
+    INTEGER                                  :: ierr, il, iw, l1, l2, ll, lp, &
+                                                m1, m2, mm, mp, na
+    REAL(dbl)                                :: ca, cga(10), cn, rga(10,21), &
+                                                tend, tstart
+    REAL(dbl), ALLOCATABLE, DIMENSION(:)     :: b1, b2, b3, wa
 
   iw =globenv % scr
 

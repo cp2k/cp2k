@@ -28,18 +28,11 @@ MODULE pws
                                              coeff_type
   USE cp_error_handling,               ONLY: cp_a_l,&
                                              cp_assert,&
-                                             cp_assertion_failed,&
-                                             cp_debug,&
-                                             cp_error_dealloc_ref,&
                                              cp_error_get_logger,&
-                                             cp_error_init,&
                                              cp_error_message,&
-                                             cp_error_type,&
-                                             cp_internal_error,&
-                                             cp_unimplemented_error
+                                             cp_error_type
   USE cp_log_handling,                 ONLY: cp_failure_level,&
                                              cp_fatal_level,&
-                                             cp_log,&
                                              cp_note_level,&
                                              cp_to_string,&
                                              cp_warning_level
@@ -58,28 +51,22 @@ MODULE pws
   USE kinds,                           ONLY: dbl
   USE mathconstants,                   ONLY: fourpi
   USE message_passing,                 ONLY: mp_sum
-  USE pw_grid_types,                   ONLY: FULLSPACE,&
-                                             HALFSPACE,&
+  USE pw_grid_types,                   ONLY: HALFSPACE,&
                                              pw_grid_type
   USE pw_types,                        ONLY: COMPLEXDATA1D,&
                                              COMPLEXDATA3D,&
-                                             NOSPACE,&
                                              REALDATA1D,&
                                              REALDATA3D,&
-                                             REALSPACE,&
                                              RECIPROCALSPACE,&
                                              pw_allocate,&
                                              pw_copy,&
                                              pw_deallocate,&
                                              pw_derive,&
                                              pw_fft_wrap,&
-                                             pw_gather,&
-                                             pw_scatter,&
                                              pw_transfer,&
                                              pw_type
-  USE termination,                     ONLY: stop_memory,&
-                                             stop_program
-  USE util,                            ONLY: dotprod_3d
+  USE termination,                     ONLY: stop_program
+
   IMPLICIT NONE
 
   PRIVATE
@@ -126,17 +113,17 @@ CONTAINS
 !!*** *************************************************************************
 SUBROUTINE init_pw_poisson_solver ( gftype, error )
 
-  IMPLICIT NONE
 
-! Arguments
-  TYPE ( greens_function_type ), INTENT ( IN ), TARGET :: gftype
-  TYPE(cp_error_type), INTENT(inout), OPTIONAL :: error
+    TYPE(greens_function_type), INTENT(IN), &
+      TARGET                                 :: gftype
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
 
-! Locals
-  LOGICAL, SAVE :: first_time=.TRUE.
-  LOGICAL :: failure
-  CHARACTER(len=*), PARAMETER :: routineN='init_pw_poisson_solver',&
-       routineP=moduleN//':'//routineN
+    CHARACTER(len=*), PARAMETER :: routineN = 'init_pw_poisson_solver', &
+      routineP = moduleN//':'//routineN
+
+    LOGICAL                                  :: failure
+    LOGICAL, SAVE                            :: first_time = .TRUE.
 
 !------------------------------------------------------------------------------
 
@@ -177,16 +164,16 @@ END SUBROUTINE init_pw_poisson_solver
 !!*** *************************************************************************
 SUBROUTINE cleanup_pw_poisson_solver ( gftype, error)
 
-  IMPLICIT NONE
 
-! Arguments
-  TYPE ( greens_function_type ), INTENT ( IN ), TARGET, OPTIONAL :: gftype
-  TYPE(cp_error_type), INTENT(inout), OPTIONAL :: error
+    TYPE(greens_function_type), INTENT(IN), &
+      OPTIONAL, TARGET                       :: gftype
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
 
-! Locals
-  LOGICAL :: failure
-  CHARACTER(len=*), PARAMETER :: routineN='cleanup_pw_poisson_solver',&
-       routineP=moduleN//':'//routineN
+    CHARACTER(len=*), PARAMETER :: routineN = 'cleanup_pw_poisson_solver', &
+      routineP = moduleN//':'//routineN
+
+    LOGICAL                                  :: failure
 
 !------------------------------------------------------------------------------
 
@@ -234,21 +221,21 @@ END SUBROUTINE cleanup_pw_poisson_solver
 
 SUBROUTINE pw_poisson_solver ( density, ehartree, vhartree, dvhartree, h_stress )
 
-  IMPLICIT NONE
 
-! Arguments
-  TYPE ( coeff_type ), INTENT ( IN ) :: density
-  REAL ( dbl ) , INTENT ( OUT ), OPTIONAL :: ehartree
-  TYPE ( coeff_type ), INTENT ( INOUT ), TARGET, OPTIONAL :: vhartree
-  TYPE ( coeff_type ), DIMENSION ( 3 ), INTENT ( OUT ), OPTIONAL :: dvhartree
-  REAL ( dbl ), DIMENSION ( 3, 3 ), INTENT ( OUT ), OPTIONAL :: h_stress
+    TYPE(coeff_type), INTENT(IN)             :: density
+    REAL(dbl), INTENT(OUT), OPTIONAL         :: ehartree
+    TYPE(coeff_type), INTENT(INOUT), &
+      OPTIONAL, TARGET                       :: vhartree
+    TYPE(coeff_type), DIMENSION(3), &
+      INTENT(OUT), OPTIONAL                  :: dvhartree
+    REAL(dbl), DIMENSION(3, 3), &
+      INTENT(OUT), OPTIONAL                  :: h_stress
 
-! Locals
-  TYPE ( pw_grid_type ), POINTER :: pw_grid
-  TYPE ( pw_type ) :: rhog, dvg ( 3 )
-  REAL ( dbl ) :: ffa
-  INTEGER, DIMENSION ( 3 ) :: n
-  INTEGER :: i, gpt, alpha, beta, ng
+    INTEGER                                  :: alpha, beta, i, ng
+    INTEGER, DIMENSION(3)                    :: n
+    REAL(dbl)                                :: ffa
+    TYPE(pw_grid_type), POINTER              :: pw_grid
+    TYPE(pw_type)                            :: dvg( 3 ), rhog
 
 !------------------------------------------------------------------------------
 
@@ -362,10 +349,9 @@ END SUBROUTINE pw_poisson_solver
 
 FUNCTION pw_integral_ab ( pw1, pw2, flag ) RESULT ( integral_value )
 
-  TYPE ( pw_type ), INTENT ( IN ) :: pw1, pw2
-  INTEGER, INTENT ( IN ), OPTIONAL :: flag
-
-  REAL ( dbl ) :: integral_value
+    TYPE(pw_type), INTENT(IN)                :: pw1, pw2
+    INTEGER, INTENT(IN), OPTIONAL            :: flag
+    REAL(dbl)                                :: integral_value
 
 !------------------------------------------------------------------------------
 
@@ -427,10 +413,9 @@ END FUNCTION pw_integral_ab
 
 FUNCTION pw_integral_aa ( pw1, flag ) RESULT ( integral_value )
 
-  TYPE ( pw_type ), INTENT ( IN ) :: pw1
-  INTEGER, INTENT ( IN ), OPTIONAL :: flag
-
-  REAL ( dbl ) :: integral_value
+    TYPE(pw_type), INTENT(IN)                :: pw1
+    INTEGER, INTENT(IN), OPTIONAL            :: flag
+    REAL(dbl)                                :: integral_value
 
 !------------------------------------------------------------------------------
 
@@ -488,10 +473,8 @@ END FUNCTION pw_integral_aa
 
 FUNCTION pw_integral_a2b ( pw1, pw2 ) RESULT ( integral_value )
 
-  TYPE ( pw_type ), INTENT ( IN ) :: pw1
-  TYPE ( pw_type ), INTENT ( IN ) :: pw2
-
-  REAL ( dbl ) :: integral_value
+    TYPE(pw_type), INTENT(IN)                :: pw1, pw2
+    REAL(dbl)                                :: integral_value
 
 !------------------------------------------------------------------------------
 
@@ -558,21 +541,18 @@ END FUNCTION pw_integral_a2b
 SUBROUTINE pw_kinetic_evaluate ( psi, xkpt, e_kinetic, kinetic_oper_psi, &
      stress_kinetic )
   
-  IMPLICIT NONE
 
-! Arguments
-  TYPE ( coeff_type ), INTENT ( IN ) :: psi
-  REAL ( dbl ), INTENT ( IN ) :: xkpt ( 3 )
-  
-  REAL ( dbl ), INTENT ( OUT ), OPTIONAL :: e_kinetic
-  TYPE ( coeff_type ), INTENT ( INOUT ), OPTIONAL :: kinetic_oper_psi
-  REAL ( dbl ), INTENT ( INOUT ), OPTIONAL :: stress_kinetic ( 3, 3 )
-  
-! Local
-  INTEGER :: gpt
+    TYPE(coeff_type), INTENT(IN)             :: psi
+    REAL(dbl), INTENT(IN)                    :: xkpt( 3 )
+    REAL(dbl), INTENT(OUT), OPTIONAL         :: e_kinetic
+    TYPE(coeff_type), INTENT(INOUT), &
+      OPTIONAL                               :: kinetic_oper_psi
+    REAL(dbl), INTENT(INOUT), OPTIONAL       :: stress_kinetic( 3, 3 )
+
+    INTEGER                                  :: gpt
 
 !------------------------------------------------------------------------------
-  
+
   IF ( .NOT. PRESENT ( kinetic_oper_psi ) ) THEN
      CALL stop_program ( "pw_kinetic_evaluate", &
           "currently kinetic_oper_psi must be present" )
@@ -631,22 +611,20 @@ END SUBROUTINE pw_kinetic_evaluate
 
 SUBROUTINE pw_h_psi ( psi_iks, xkpt, vloc, h_psi, psi_iks_r )
 
-  IMPLICIT NONE
 
-! Arguments
-  TYPE ( coeff_type ), INTENT ( IN ) :: psi_iks
-  TYPE ( coeff_type ), INTENT ( IN ), OPTIONAL :: psi_iks_r
-  TYPE ( coeff_type ), INTENT ( IN ) :: vloc
-  REAL ( dbl ), INTENT ( IN ) :: xkpt ( 3 )
+    TYPE(coeff_type), INTENT(IN)             :: psi_iks
+    REAL(dbl), INTENT(IN)                    :: xkpt( 3 )
+    TYPE(coeff_type), INTENT(IN)             :: vloc
+    TYPE(coeff_type), INTENT(INOUT)          :: h_psi
+    TYPE(coeff_type), INTENT(IN), OPTIONAL   :: psi_iks_r
 
-  TYPE ( coeff_type ), INTENT ( INOUT ) :: h_psi
+    INTEGER                                  :: gpt, gpt2, i1, i2, i3, nhits
+    REAL(dbl)                                :: ekinetic
+    TYPE(pw_type)                            :: cfft
 
-! Locals
-  INTEGER :: gpt, gpt2, i1, i2, i3, nhits !TMPTMPTMP
-  REAL ( dbl ) :: ekinetic !TMPTMPTMP
+!TMPTMPTMP
+!TMPTMPTMP
 !  COMPLEX ( dbl ) :: foo !TMPTMPTMP
-  TYPE ( pw_type ) :: cfft
-
 !------------------------------------------------------------------------------
 
   CALL pw_allocate ( cfft, psi_iks % pw % pw_grid, &
@@ -692,20 +670,17 @@ END SUBROUTINE pw_h_psi
 
 SUBROUTINE pw_stateset_density ( psi_iks, n_s )
   
-  IMPLICIT NONE
   
-! Arguments
-  TYPE ( coeff_type ), DIMENSION ( : ), INTENT ( IN ) :: psi_iks
-  
-  TYPE ( coeff_type ), INTENT ( INOUT ) :: n_s
-  
-! Locals
-  INTEGER :: state, nstates
-  REAL ( dbl ) :: wkptf
-  TYPE ( pw_type ) :: cfft
-  
+    TYPE(coeff_type), DIMENSION(:), &
+      INTENT(IN)                             :: psi_iks
+    TYPE(coeff_type), INTENT(INOUT)          :: n_s
+
+    INTEGER                                  :: nstates, state
+    REAL(dbl)                                :: wkptf
+    TYPE(pw_type)                            :: cfft
+
 !------------------------------------------------------------------------------
-  
+
   CALL pw_allocate ( cfft, psi_iks ( 1 ) % pw % pw_grid, &
        use_data = COMPLEXDATA3D )
   
@@ -730,15 +705,12 @@ END SUBROUTINE pw_stateset_density
 
 SUBROUTINE pw_collect ( pw, label, op )
 
-  IMPLICIT NONE
 
-! Arguments
-  TYPE ( pw_type ), INTENT ( IN ) :: pw
-  CHARACTER ( LEN = * ) :: label
-  CHARACTER ( LEN = * ), OPTIONAL :: op
+    TYPE(pw_type), INTENT(IN)                :: pw
+    CHARACTER(LEN=*)                         :: label
+    CHARACTER(LEN=*), OPTIONAL               :: op
 
-! Local
-  REAL ( dbl ) :: xsum
+    REAL(dbl)                                :: xsum
 
 !------------------------------------------------------------------------------
 

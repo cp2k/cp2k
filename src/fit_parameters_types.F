@@ -5,7 +5,7 @@
 
 MODULE fit_parameters_types
 
-  USE kinds, ONLY : dbl
+  USE kinds,                           ONLY: dbl
 
   IMPLICIT NONE
 

@@ -13,7 +13,8 @@
 !!   SOURCE
 !******************************************************************************
     MODULE nrutil
-      USE kinds, ONLY : dbl
+  USE kinds,                           ONLY: dbl
+
       IMPLICIT NONE
       INTEGER, PARAMETER :: i4b = kind(0)
       INTEGER, PARAMETER :: sp = kind(1._dbl)
@@ -91,9 +92,9 @@
     CONTAINS
 !BL
       SUBROUTINE array_copy_r(src,dest,n_copied,n_not_copied)
-        REAL (sp), DIMENSION (:), INTENT (IN) :: src
-        REAL (sp), DIMENSION (:), INTENT (OUT) :: dest
-        INTEGER (i4b), INTENT (OUT) :: n_copied, n_not_copied
+    REAL(sp), DIMENSION(:), INTENT(IN)       :: src
+    REAL(sp), DIMENSION(:), INTENT(OUT)      :: dest
+    INTEGER(i4b), INTENT(OUT)                :: n_copied, n_not_copied
 
         n_copied = min(size(src),size(dest))
         n_not_copied = size(src) - n_copied
@@ -101,9 +102,9 @@
       END SUBROUTINE array_copy_r
 !BL
       SUBROUTINE array_copy_i(src,dest,n_copied,n_not_copied)
-        INTEGER (i4b), DIMENSION (:), INTENT (IN) :: src
-        INTEGER (i4b), DIMENSION (:), INTENT (OUT) :: dest
-        INTEGER (i4b), INTENT (OUT) :: n_copied, n_not_copied
+    INTEGER(i4b), DIMENSION(:), INTENT(IN)   :: src
+    INTEGER(i4b), DIMENSION(:), INTENT(OUT)  :: dest
+    INTEGER(i4b), INTENT(OUT)                :: n_copied, n_not_copied
 
         n_copied = min(size(src),size(dest))
         n_not_copied = size(src) - n_copied
@@ -112,8 +113,9 @@
 !BL
 !BL
       SUBROUTINE swap_i(a,b)
-        INTEGER (i4b), INTENT (INOUT) :: a, b
-        INTEGER (i4b) :: dum
+    INTEGER(i4b), INTENT(INOUT)              :: a, b
+
+    INTEGER(i4b)                             :: dum
 
         dum = a
         a = b
@@ -121,8 +123,9 @@
       END SUBROUTINE swap_i
 !BL
       SUBROUTINE swap_r(a,b)
-        REAL (sp), INTENT (INOUT) :: a, b
-        REAL (sp) :: dum
+    REAL(sp), INTENT(INOUT)                  :: a, b
+
+    REAL(sp)                                 :: dum
 
         dum = a
         a = b
@@ -130,8 +133,9 @@
       END SUBROUTINE swap_r
 !BL
       SUBROUTINE swap_rv(a,b)
-        REAL (sp), DIMENSION (:), INTENT (INOUT) :: a, b
-        REAL (sp), DIMENSION (size(a)) :: dum
+    REAL(sp), DIMENSION(:), INTENT(INOUT)    :: a, b
+
+    REAL(sp), DIMENSION(size(a))             :: dum
 
         dum = a
         a = b
@@ -139,8 +143,9 @@
       END SUBROUTINE swap_rv
 !BL
       SUBROUTINE swap_c(a,b)
-        COMPLEX (spc), INTENT (INOUT) :: a, b
-        COMPLEX (spc) :: dum
+    COMPLEX(spc), INTENT(INOUT)              :: a, b
+
+    COMPLEX(spc)                             :: dum
 
         dum = a
         a = b
@@ -148,8 +153,10 @@
       END SUBROUTINE swap_c
 !BL
       SUBROUTINE swap_cv(a,b)
-        COMPLEX (spc), DIMENSION (:), INTENT (INOUT) :: a, b
-        COMPLEX (spc), DIMENSION (size(a)) :: dum
+    COMPLEX(spc), DIMENSION(:), &
+      INTENT(INOUT)                          :: a, b
+
+    COMPLEX(spc), DIMENSION(size(a))         :: dum
 
         dum = a
         a = b
@@ -157,8 +164,11 @@
       END SUBROUTINE swap_cv
 !BL
       SUBROUTINE swap_cm(a,b)
-        COMPLEX (spc), DIMENSION (:,:), INTENT (INOUT) :: a, b
-        COMPLEX (spc), DIMENSION (size(a,1),size(a,2)) :: dum
+    COMPLEX(spc), DIMENSION(:, :), &
+      INTENT(INOUT)                          :: a, b
+
+    COMPLEX(spc), &
+      DIMENSION(size(a, 1), size(a, 2))      :: dum
 
         dum = a
         a = b
@@ -166,9 +176,10 @@
       END SUBROUTINE swap_cm
 !BL
       SUBROUTINE masked_swap_rs(a,b,mask)
-        REAL (sp), INTENT (INOUT) :: a, b
-        LOGICAL (lgt), INTENT (IN) :: mask
-        REAL (sp) :: swp
+    REAL(sp), INTENT(INOUT)                  :: a, b
+    LOGICAL(lgt), INTENT(IN)                 :: mask
+
+    REAL(sp)                                 :: swp
 
         IF (mask) THEN
           swp = a
@@ -178,9 +189,10 @@
       END SUBROUTINE masked_swap_rs
 !BL
       SUBROUTINE masked_swap_rv(a,b,mask)
-        REAL (sp), DIMENSION (:), INTENT (INOUT) :: a, b
-        LOGICAL (lgt), DIMENSION (:), INTENT (IN) :: mask
-        REAL (sp), DIMENSION (size(a)) :: swp
+    REAL(sp), DIMENSION(:), INTENT(INOUT)    :: a, b
+    LOGICAL(lgt), DIMENSION(:), INTENT(IN)   :: mask
+
+    REAL(sp), DIMENSION(size(a))             :: swp
 
         WHERE (mask)
           swp = a
@@ -190,9 +202,12 @@
       END SUBROUTINE masked_swap_rv
 !BL
       SUBROUTINE masked_swap_rm(a,b,mask)
-        REAL (sp), DIMENSION (:,:), INTENT (INOUT) :: a, b
-        LOGICAL (lgt), DIMENSION (:,:), INTENT (IN) :: mask
-        REAL (sp), DIMENSION (size(a,1),size(a,2)) :: swp
+    REAL(sp), DIMENSION(:, :), INTENT(INOUT) :: a, b
+    LOGICAL(lgt), DIMENSION(:, :), &
+      INTENT(IN)                             :: mask
+
+    REAL(sp), &
+      DIMENSION(size(a, 1), size(a, 2))      :: swp
 
         WHERE (mask)
           swp = a
@@ -203,9 +218,11 @@
 !BL
 !BL
       FUNCTION reallocate_rv(p,n)
-        REAL (sp), DIMENSION (:), POINTER :: p, reallocate_rv
-        INTEGER (i4b), INTENT (IN) :: n
-        INTEGER (i4b) :: nold, ierr
+    REAL(sp), DIMENSION(:), POINTER          :: p
+    INTEGER(i4b), INTENT(IN)                 :: n
+    REAL(sp), DIMENSION(:), POINTER          :: reallocate_rv
+
+    INTEGER(i4b)                             :: ierr, nold
 
         ALLOCATE (reallocate_rv(n),STAT=ierr)
         IF (ierr/=0) CALL nrerror( &
@@ -219,9 +236,11 @@
       END FUNCTION reallocate_rv
 !BL
       FUNCTION reallocate_iv(p,n)
-        INTEGER (i4b), DIMENSION (:), POINTER :: p, reallocate_iv
-        INTEGER (i4b), INTENT (IN) :: n
-        INTEGER (i4b) :: nold, ierr
+    INTEGER(i4b), DIMENSION(:), POINTER      :: p
+    INTEGER(i4b), INTENT(IN)                 :: n
+    INTEGER(i4b), DIMENSION(:), POINTER      :: reallocate_iv
+
+    INTEGER(i4b)                             :: ierr, nold
 
         ALLOCATE (reallocate_iv(n),STAT=ierr)
         IF (ierr/=0) CALL nrerror( &
@@ -235,9 +254,11 @@
       END FUNCTION reallocate_iv
 !BL
       FUNCTION reallocate_hv(p,n)
-        CHARACTER (1), DIMENSION (:), POINTER :: p, reallocate_hv
-        INTEGER (i4b), INTENT (IN) :: n
-        INTEGER (i4b) :: nold, ierr
+    CHARACTER(1), DIMENSION(:), POINTER      :: p
+    INTEGER(i4b), INTENT(IN)                 :: n
+    CHARACTER(1), DIMENSION(:), POINTER      :: reallocate_hv
+
+    INTEGER(i4b)                             :: ierr, nold
 
         ALLOCATE (reallocate_hv(n),STAT=ierr)
         IF (ierr/=0) CALL nrerror( &
@@ -251,9 +272,11 @@
       END FUNCTION reallocate_hv
 !BL
       FUNCTION reallocate_rm(p,n,m)
-        REAL (sp), DIMENSION (:,:), POINTER :: p, reallocate_rm
-        INTEGER (i4b), INTENT (IN) :: n, m
-        INTEGER (i4b) :: nold, mold, ierr
+    REAL(sp), DIMENSION(:, :), POINTER       :: p
+    INTEGER(i4b), INTENT(IN)                 :: n, m
+    REAL(sp), DIMENSION(:, :), POINTER       :: reallocate_rm
+
+    INTEGER(i4b)                             :: ierr, mold, nold
 
         ALLOCATE (reallocate_rm(n,m),STAT=ierr)
         IF (ierr/=0) CALL nrerror( &
@@ -269,9 +292,11 @@
       END FUNCTION reallocate_rm
 !BL
       FUNCTION reallocate_im(p,n,m)
-        INTEGER (i4b), DIMENSION (:,:), POINTER :: p, reallocate_im
-        INTEGER (i4b), INTENT (IN) :: n, m
-        INTEGER (i4b) :: nold, mold, ierr
+    INTEGER(i4b), DIMENSION(:, :), POINTER   :: p
+    INTEGER(i4b), INTENT(IN)                 :: n, m
+    INTEGER(i4b), DIMENSION(:, :), POINTER   :: reallocate_im
+
+    INTEGER(i4b)                             :: ierr, mold, nold
 
         ALLOCATE (reallocate_im(n,m),STAT=ierr)
         IF (ierr/=0) CALL nrerror( &
@@ -287,9 +312,10 @@
       END FUNCTION reallocate_im
 !BL
       FUNCTION ifirstloc(mask)
-        LOGICAL (lgt), DIMENSION (:), INTENT (IN) :: mask
-        INTEGER (i4b) :: ifirstloc
-        INTEGER (i4b), DIMENSION (1) :: loc
+    LOGICAL(lgt), DIMENSION(:), INTENT(IN)   :: mask
+    INTEGER(i4b)                             :: ifirstloc
+
+    INTEGER(i4b), DIMENSION(1)               :: loc
 
         loc = maxloc(merge(1,0,mask))
         ifirstloc = loc(1)
@@ -297,35 +323,38 @@
       END FUNCTION ifirstloc
 !BL
       FUNCTION imaxloc_r(arr)
-        REAL (sp), DIMENSION (:), INTENT (IN) :: arr
-        INTEGER (i4b) :: imaxloc_r
-        INTEGER (i4b), DIMENSION (1) :: imax
+    REAL(sp), DIMENSION(:), INTENT(IN)       :: arr
+    INTEGER(i4b)                             :: imaxloc_r
+
+    INTEGER(i4b), DIMENSION(1)               :: imax
 
         imax = maxloc(arr(:))
         imaxloc_r = imax(1)
       END FUNCTION imaxloc_r
 !BL
       FUNCTION imaxloc_i(iarr)
-        INTEGER (i4b), DIMENSION (:), INTENT (IN) :: iarr
-        INTEGER (i4b), DIMENSION (1) :: imax
-        INTEGER (i4b) :: imaxloc_i
+    INTEGER(i4b), DIMENSION(:), INTENT(IN)   :: iarr
+    INTEGER(i4b)                             :: imaxloc_i
+
+    INTEGER(i4b), DIMENSION(1)               :: imax
 
         imax = maxloc(iarr(:))
         imaxloc_i = imax(1)
       END FUNCTION imaxloc_i
 !BL
       FUNCTION iminloc(arr)
-        REAL (sp), DIMENSION (:), INTENT (IN) :: arr
-        INTEGER (i4b), DIMENSION (1) :: imin
-        INTEGER (i4b) :: iminloc
+    REAL(sp), DIMENSION(:), INTENT(IN)       :: arr
+    INTEGER(i4b)                             :: iminloc
+
+    INTEGER(i4b), DIMENSION(1)               :: imin
 
         imin = minloc(arr(:))
         iminloc = imin(1)
       END FUNCTION iminloc
 !BL
       SUBROUTINE assert1(n1,string)
-        CHARACTER (len=*), INTENT (IN) :: string
-        LOGICAL, INTENT (IN) :: n1
+    LOGICAL, INTENT(IN)                      :: n1
+    CHARACTER(len=*), INTENT(IN)             :: string
 
         IF ( .NOT. n1) THEN
           WRITE (*,*) 'nrerror: an assertion failed with this tag:', string
@@ -334,8 +363,8 @@
       END SUBROUTINE assert1
 !BL
       SUBROUTINE assert2(n1,n2,string)
-        CHARACTER (len=*), INTENT (IN) :: string
-        LOGICAL, INTENT (IN) :: n1, n2
+    LOGICAL, INTENT(IN)                      :: n1, n2
+    CHARACTER(len=*), INTENT(IN)             :: string
 
         IF ( .NOT. (n1 .AND. n2)) THEN
           WRITE (*,*) 'nrerror: an assertion failed with this tag:', string
@@ -344,8 +373,8 @@
       END SUBROUTINE assert2
 !BL
       SUBROUTINE assert3(n1,n2,n3,string)
-        CHARACTER (len=*), INTENT (IN) :: string
-        LOGICAL, INTENT (IN) :: n1, n2, n3
+    LOGICAL, INTENT(IN)                      :: n1, n2, n3
+    CHARACTER(len=*), INTENT(IN)             :: string
 
         IF ( .NOT. (n1 .AND. n2 .AND. n3)) THEN
           WRITE (*,*) 'nrerror: an assertion failed with this tag:', string
@@ -354,8 +383,8 @@
       END SUBROUTINE assert3
 !BL
       SUBROUTINE assert4(n1,n2,n3,n4,string)
-        CHARACTER (len=*), INTENT (IN) :: string
-        LOGICAL, INTENT (IN) :: n1, n2, n3, n4
+    LOGICAL, INTENT(IN)                      :: n1, n2, n3, n4
+    CHARACTER(len=*), INTENT(IN)             :: string
 
         IF ( .NOT. (n1 .AND. n2 .AND. n3 .AND. n4)) THEN
           WRITE (*,*) 'nrerror: an assertion failed with this tag:', string
@@ -364,8 +393,8 @@
       END SUBROUTINE assert4
 !BL
       SUBROUTINE assert_v(n,string)
-        CHARACTER (len=*), INTENT (IN) :: string
-        LOGICAL, DIMENSION (:), INTENT (IN) :: n
+    LOGICAL, DIMENSION(:), INTENT(IN)        :: n
+    CHARACTER(len=*), INTENT(IN)             :: string
 
         IF ( .NOT. all(n)) THEN
           WRITE (*,*) 'nrerror: an assertion failed with this tag:', string
@@ -374,9 +403,9 @@
       END SUBROUTINE assert_v
 !BL
       FUNCTION assert_eq2(n1,n2,string)
-        CHARACTER (len=*), INTENT (IN) :: string
-        INTEGER, INTENT (IN) :: n1, n2
-        INTEGER :: assert_eq2
+    INTEGER, INTENT(IN)                      :: n1, n2
+    CHARACTER(len=*), INTENT(IN)             :: string
+    INTEGER                                  :: assert_eq2
 
         IF (n1==n2) THEN
           assert_eq2 = n1
@@ -387,9 +416,9 @@
       END FUNCTION assert_eq2
 !BL
       FUNCTION assert_eq3(n1,n2,n3,string)
-        CHARACTER (len=*), INTENT (IN) :: string
-        INTEGER, INTENT (IN) :: n1, n2, n3
-        INTEGER :: assert_eq3
+    INTEGER, INTENT(IN)                      :: n1, n2, n3
+    CHARACTER(len=*), INTENT(IN)             :: string
+    INTEGER                                  :: assert_eq3
 
         IF (n1==n2 .AND. n2==n3) THEN
           assert_eq3 = n1
@@ -400,9 +429,9 @@
       END FUNCTION assert_eq3
 !BL
       FUNCTION assert_eq4(n1,n2,n3,n4,string)
-        CHARACTER (len=*), INTENT (IN) :: string
-        INTEGER, INTENT (IN) :: n1, n2, n3, n4
-        INTEGER :: assert_eq4
+    INTEGER, INTENT(IN)                      :: n1, n2, n3, n4
+    CHARACTER(len=*), INTENT(IN)             :: string
+    INTEGER                                  :: assert_eq4
 
         IF (n1==n2 .AND. n2==n3 .AND. n3==n4) THEN
           assert_eq4 = n1
@@ -413,9 +442,9 @@
       END FUNCTION assert_eq4
 !BL
       FUNCTION assert_eqn(nn,string)
-        CHARACTER (len=*), INTENT (IN) :: string
-        INTEGER, DIMENSION (:), INTENT (IN) :: nn
-        INTEGER :: assert_eqn
+    INTEGER, DIMENSION(:), INTENT(IN)        :: nn
+    CHARACTER(len=*), INTENT(IN)             :: string
+    INTEGER                                  :: assert_eqn
 
         IF (all(nn(2:)==nn(1))) THEN
           assert_eqn = nn(1)
@@ -426,18 +455,19 @@
       END FUNCTION assert_eqn
 !BL
       SUBROUTINE nrerror(string)
-        CHARACTER (len=*), INTENT (IN) :: string
+    CHARACTER(len=*), INTENT(IN)             :: string
 
         WRITE (*,*) 'nrerror: ', string
         STOP 'program terminated by nrerror'
       END SUBROUTINE nrerror
 !BL
       FUNCTION arth_r(first,increment,n)
-        REAL (sp), INTENT (IN) :: first, increment
-        INTEGER (i4b), INTENT (IN) :: n
-        REAL (sp), DIMENSION (n) :: arth_r
-        INTEGER (i4b) :: k, k2
-        REAL (sp) :: temp
+    REAL(sp), INTENT(IN)                     :: first, increment
+    INTEGER(i4b), INTENT(IN)                 :: n
+    REAL(sp), DIMENSION(n)                   :: arth_r
+
+    INTEGER(i4b)                             :: k, k2
+    REAL(sp)                                 :: temp
 
         IF (n>0) arth_r(1) = first
         IF (n<=npar_arth) THEN
@@ -461,9 +491,10 @@
       END FUNCTION arth_r
 !BL
       FUNCTION arth_i(first,increment,n)
-        INTEGER (i4b), INTENT (IN) :: first, increment, n
-        INTEGER (i4b), DIMENSION (n) :: arth_i
-        INTEGER (i4b) :: k, k2, temp
+    INTEGER(i4b), INTENT(IN)                 :: first, increment, n
+    INTEGER(i4b), DIMENSION(n)               :: arth_i
+
+    INTEGER(i4b)                             :: k, k2, temp
 
         IF (n>0) arth_i(1) = first
         IF (n<=npar_arth) THEN
@@ -488,11 +519,12 @@
 !BL
 !BL
       FUNCTION geop_r(first,factor,n)
-        REAL (sp), INTENT (IN) :: first, factor
-        INTEGER (i4b), INTENT (IN) :: n
-        REAL (sp), DIMENSION (n) :: geop_r
-        INTEGER (i4b) :: k, k2
-        REAL (sp) :: temp
+    REAL(sp), INTENT(IN)                     :: first, factor
+    INTEGER(i4b), INTENT(IN)                 :: n
+    REAL(sp), DIMENSION(n)                   :: geop_r
+
+    INTEGER(i4b)                             :: k, k2
+    REAL(sp)                                 :: temp
 
         IF (n>0) geop_r(1) = first
         IF (n<=npar_geop) THEN
@@ -516,9 +548,10 @@
       END FUNCTION geop_r
 !BL
       FUNCTION geop_i(first,factor,n)
-        INTEGER (i4b), INTENT (IN) :: first, factor, n
-        INTEGER (i4b), DIMENSION (n) :: geop_i
-        INTEGER (i4b) :: k, k2, temp
+    INTEGER(i4b), INTENT(IN)                 :: first, factor, n
+    INTEGER(i4b), DIMENSION(n)               :: geop_i
+
+    INTEGER(i4b)                             :: k, k2, temp
 
         IF (n>0) geop_i(1) = first
         IF (n<=npar_geop) THEN
@@ -542,11 +575,12 @@
       END FUNCTION geop_i
 !BL
       FUNCTION geop_c(first,factor,n)
-        COMPLEX (sp), INTENT (IN) :: first, factor
-        INTEGER (i4b), INTENT (IN) :: n
-        COMPLEX (sp), DIMENSION (n) :: geop_c
-        INTEGER (i4b) :: k, k2
-        COMPLEX (sp) :: temp
+    COMPLEX(sp), INTENT(IN)                  :: first, factor
+    INTEGER(i4b), INTENT(IN)                 :: n
+    COMPLEX(sp), DIMENSION(n)                :: geop_c
+
+    COMPLEX(sp)                              :: temp
+    INTEGER(i4b)                             :: k, k2
 
         IF (n>0) geop_c(1) = first
         IF (n<=npar_geop) THEN
@@ -571,11 +605,12 @@
 !BL
 !BL
       RECURSIVE FUNCTION cumsum_r(arr,seed) RESULT (ans)
-        REAL (sp), DIMENSION (:), INTENT (IN) :: arr
-        REAL (sp), OPTIONAL, INTENT (IN) :: seed
-        REAL (sp), DIMENSION (size(arr)) :: ans
-        INTEGER (i4b) :: n, j
-        REAL (sp) :: sd
+    REAL(sp), DIMENSION(:), INTENT(IN)       :: arr
+    REAL(sp), INTENT(IN), OPTIONAL           :: seed
+    REAL(sp), DIMENSION(size(arr))           :: ans
+
+    INTEGER(i4b)                             :: j, n
+    REAL(sp)                                 :: sd
 
         n = size(arr)
         IF (n==0_i4b) RETURN
@@ -593,10 +628,11 @@
       END FUNCTION cumsum_r
 !BL
       RECURSIVE FUNCTION cumsum_i(arr,seed) RESULT (ans)
-        INTEGER (i4b), DIMENSION (:), INTENT (IN) :: arr
-        INTEGER (i4b), OPTIONAL, INTENT (IN) :: seed
-        INTEGER (i4b), DIMENSION (size(arr)) :: ans
-        INTEGER (i4b) :: n, j, sd
+    INTEGER(i4b), DIMENSION(:), INTENT(IN)   :: arr
+    INTEGER(i4b), INTENT(IN), OPTIONAL       :: seed
+    INTEGER(i4b), DIMENSION(size(arr))       :: ans
+
+    INTEGER(i4b)                             :: j, n, sd
 
         n = size(arr)
         IF (n==0_i4b) RETURN
@@ -615,11 +651,12 @@
 !BL
 !BL
       RECURSIVE FUNCTION cumprod(arr,seed) RESULT (ans)
-        REAL (sp), DIMENSION (:), INTENT (IN) :: arr
-        REAL (sp), OPTIONAL, INTENT (IN) :: seed
-        REAL (sp), DIMENSION (size(arr)) :: ans
-        INTEGER (i4b) :: n, j
-        REAL (sp) :: sd
+    REAL(sp), DIMENSION(:), INTENT(IN)       :: arr
+    REAL(sp), INTENT(IN), OPTIONAL           :: seed
+    REAL(sp), DIMENSION(size(arr))           :: ans
+
+    INTEGER(i4b)                             :: j, n
+    REAL(sp)                                 :: sd
 
         n = size(arr)
         IF (n==0_i4b) RETURN
@@ -638,12 +675,13 @@
 !BL
 !BL
       FUNCTION poly_rr(x,coeffs)
-        REAL (sp), INTENT (IN) :: x
-        REAL (sp), DIMENSION (:), INTENT (IN) :: coeffs
-        REAL (sp) :: poly_rr
-        REAL (sp) :: pow
-        REAL (sp), DIMENSION (:), ALLOCATABLE :: vec
-        INTEGER (i4b) :: i, n, nn, ierr
+    REAL(sp), INTENT(IN)                     :: x
+    REAL(sp), DIMENSION(:), INTENT(IN)       :: coeffs
+    REAL(sp)                                 :: poly_rr
+
+    INTEGER(i4b)                             :: i, ierr, n, nn
+    REAL(sp)                                 :: pow
+    REAL(sp), ALLOCATABLE, DIMENSION(:)      :: vec
 
         n = size(coeffs)
         IF (n<=0) THEN
@@ -675,12 +713,13 @@
       END FUNCTION poly_rr
 !BL
       FUNCTION poly_rc(x,coeffs)
-        COMPLEX (spc), INTENT (IN) :: x
-        REAL (sp), DIMENSION (:), INTENT (IN) :: coeffs
-        COMPLEX (spc) :: poly_rc
-        COMPLEX (spc) :: pow
-        COMPLEX (spc), DIMENSION (:), ALLOCATABLE :: vec
-        INTEGER (i4b) :: i, n, nn, ierr
+    COMPLEX(spc), INTENT(IN)                 :: x
+    REAL(sp), DIMENSION(:), INTENT(IN)       :: coeffs
+    COMPLEX(spc)                             :: poly_rc
+
+    COMPLEX(spc)                             :: pow
+    COMPLEX(spc), ALLOCATABLE, DIMENSION(:)  :: vec
+    INTEGER(i4b)                             :: i, ierr, n, nn
 
         n = size(coeffs)
         IF (n<=0) THEN
@@ -712,12 +751,13 @@
       END FUNCTION poly_rc
 !BL
       FUNCTION poly_cc(x,coeffs)
-        COMPLEX (spc), INTENT (IN) :: x
-        COMPLEX (spc), DIMENSION (:), INTENT (IN) :: coeffs
-        COMPLEX (spc) :: poly_cc
-        COMPLEX (spc) :: pow
-        COMPLEX (spc), DIMENSION (:), ALLOCATABLE :: vec
-        INTEGER (i4b) :: i, n, nn, ierr
+    COMPLEX(spc), INTENT(IN)                 :: x
+    COMPLEX(spc), DIMENSION(:), INTENT(IN)   :: coeffs
+    COMPLEX(spc)                             :: poly_cc
+
+    COMPLEX(spc)                             :: pow
+    COMPLEX(spc), ALLOCATABLE, DIMENSION(:)  :: vec
+    INTEGER(i4b)                             :: i, ierr, n, nn
 
         n = size(coeffs)
         IF (n<=0) THEN
@@ -749,9 +789,10 @@
       END FUNCTION poly_cc
 !BL
       FUNCTION poly_rrv(x,coeffs)
-        REAL (sp), DIMENSION (:), INTENT (IN) :: coeffs, x
-        REAL (sp), DIMENSION (size(x)) :: poly_rrv
-        INTEGER (i4b) :: i, n, m
+    REAL(sp), DIMENSION(:), INTENT(IN)       :: x, coeffs
+    REAL(sp), DIMENSION(size(x))             :: poly_rrv
+
+    INTEGER(i4b)                             :: i, m, n
 
         m = size(coeffs)
         n = size(x)
@@ -770,19 +811,20 @@
       END FUNCTION poly_rrv
 !BL
       FUNCTION poly_msk_rrv(x,coeffs,mask)
-        REAL (sp), DIMENSION (:), INTENT (IN) :: coeffs, x
-        LOGICAL (lgt), DIMENSION (:), INTENT (IN) :: mask
-        REAL (sp), DIMENSION (size(x)) :: poly_msk_rrv
+    REAL(sp), DIMENSION(:), INTENT(IN)       :: x, coeffs
+    LOGICAL(lgt), DIMENSION(:), INTENT(IN)   :: mask
+    REAL(sp), DIMENSION(size(x))             :: poly_msk_rrv
 
         poly_msk_rrv = unpack(poly_rrv(pack(x,mask),coeffs),mask,0.0_sp)
       END FUNCTION poly_msk_rrv
 !BL
 !BL
       RECURSIVE FUNCTION poly_term_rr(a,b) RESULT (u)
-        REAL (sp), DIMENSION (:), INTENT (IN) :: a
-        REAL (sp), INTENT (IN) :: b
-        REAL (sp), DIMENSION (size(a)) :: u
-        INTEGER (i4b) :: n, j
+    REAL(sp), DIMENSION(:), INTENT(IN)       :: a
+    REAL(sp), INTENT(IN)                     :: b
+    REAL(sp), DIMENSION(size(a))             :: u
+
+    INTEGER(i4b)                             :: j, n
 
         n = size(a)
         IF (n<=0) RETURN
@@ -798,10 +840,11 @@
       END FUNCTION poly_term_rr
 !BL
       RECURSIVE FUNCTION poly_term_cc(a,b) RESULT (u)
-        COMPLEX (spc), DIMENSION (:), INTENT (IN) :: a
-        COMPLEX (spc), INTENT (IN) :: b
-        COMPLEX (spc), DIMENSION (size(a)) :: u
-        INTEGER (i4b) :: n, j
+    COMPLEX(spc), DIMENSION(:), INTENT(IN)   :: a
+    COMPLEX(spc), INTENT(IN)                 :: b
+    COMPLEX(spc), DIMENSION(size(a))         :: u
+
+    INTEGER(i4b)                             :: j, n
 
         n = size(a)
         IF (n<=0) RETURN
@@ -818,10 +861,11 @@
 !BL
 !BL
       FUNCTION zroots_unity(n,nn)
-        INTEGER (i4b), INTENT (IN) :: n, nn
-        COMPLEX (spc), DIMENSION (nn) :: zroots_unity
-        INTEGER (i4b) :: k
-        REAL (sp) :: theta
+    INTEGER(i4b), INTENT(IN)                 :: n, nn
+    COMPLEX(spc), DIMENSION(nn)              :: zroots_unity
+
+    INTEGER(i4b)                             :: k
+    REAL(sp)                                 :: theta
 
         zroots_unity(1) = 1.0
         theta = twopi/n
@@ -836,58 +880,61 @@
       END FUNCTION zroots_unity
 !BL
       FUNCTION outerprod_r(a,b)
-        REAL (sp), DIMENSION (:), INTENT (IN) :: a, b
-        REAL (sp), DIMENSION (size(a),size(b)) :: outerprod_r
+    REAL(sp), DIMENSION(:), INTENT(IN)       :: a, b
+    REAL(sp), DIMENSION(size(a), size(b))    :: outerprod_r
 
         outerprod_r = spread(a,dim=2,ncopies=size(b))* &
           spread(b,dim=1,ncopies=size(a))
       END FUNCTION outerprod_r
 !BL
       FUNCTION outerdiv(a,b)
-        REAL (sp), DIMENSION (:), INTENT (IN) :: a, b
-        REAL (sp), DIMENSION (size(a),size(b)) :: outerdiv
+    REAL(sp), DIMENSION(:), INTENT(IN)       :: a, b
+    REAL(sp), DIMENSION(size(a), size(b))    :: outerdiv
 
         outerdiv = spread(a,dim=2,ncopies=size(b))/spread(b,dim=1,ncopies=size &
           (a))
       END FUNCTION outerdiv
 !BL
       FUNCTION outersum(a,b)
-        REAL (sp), DIMENSION (:), INTENT (IN) :: a, b
-        REAL (sp), DIMENSION (size(a),size(b)) :: outersum
+    REAL(sp), DIMENSION(:), INTENT(IN)       :: a, b
+    REAL(sp), DIMENSION(size(a), size(b))    :: outersum
 
         outersum = spread(a,dim=2,ncopies=size(b)) + &
           spread(b,dim=1,ncopies=size(a))
       END FUNCTION outersum
 !BL
       FUNCTION outerdiff_r(a,b)
-        REAL (sp), DIMENSION (:), INTENT (IN) :: a, b
-        REAL (sp), DIMENSION (size(a),size(b)) :: outerdiff_r
+    REAL(sp), DIMENSION(:), INTENT(IN)       :: a, b
+    REAL(sp), DIMENSION(size(a), size(b))    :: outerdiff_r
 
         outerdiff_r = spread(a,dim=2,ncopies=size(b)) - &
           spread(b,dim=1,ncopies=size(a))
       END FUNCTION outerdiff_r
 !BL
       FUNCTION outerdiff_i(a,b)
-        INTEGER (i4b), DIMENSION (:), INTENT (IN) :: a, b
-        INTEGER (i4b), DIMENSION (size(a),size(b)) :: outerdiff_i
+    INTEGER(i4b), DIMENSION(:), INTENT(IN)   :: a, b
+    INTEGER(i4b), &
+      DIMENSION(size(a), size(b))            :: outerdiff_i
 
         outerdiff_i = spread(a,dim=2,ncopies=size(b)) - &
           spread(b,dim=1,ncopies=size(a))
       END FUNCTION outerdiff_i
 !BL
       FUNCTION outerand(a,b)
-        LOGICAL (lgt), DIMENSION (:), INTENT (IN) :: a, b
-        LOGICAL (lgt), DIMENSION (size(a),size(b)) :: outerand
+    LOGICAL(lgt), DIMENSION(:), INTENT(IN)   :: a, b
+    LOGICAL(lgt), &
+      DIMENSION(size(a), size(b))            :: outerand
 
         outerand = spread(a,dim=2,ncopies=size(b)) .AND. &
           spread(b,dim=1,ncopies=size(a))
       END FUNCTION outerand
 !BL
       SUBROUTINE scatter_add_r(dest,source,dest_index)
-        REAL (sp), DIMENSION (:), INTENT (OUT) :: dest
-        REAL (sp), DIMENSION (:), INTENT (IN) :: source
-        INTEGER (i4b), DIMENSION (:), INTENT (IN) :: dest_index
-        INTEGER (i4b) :: m, n, j, i
+    REAL(sp), DIMENSION(:), INTENT(OUT)      :: dest
+    REAL(sp), DIMENSION(:), INTENT(IN)       :: source
+    INTEGER(i4b), DIMENSION(:), INTENT(IN)   :: dest_index
+
+    INTEGER(i4b)                             :: i, j, m, n
 
         n = assert_eq2(size(source),size(dest_index),'scatter_add_r')
         m = size(dest)
@@ -897,10 +944,11 @@
         END DO
       END SUBROUTINE scatter_add_r
       SUBROUTINE scatter_max_r(dest,source,dest_index)
-        REAL (sp), DIMENSION (:), INTENT (OUT) :: dest
-        REAL (sp), DIMENSION (:), INTENT (IN) :: source
-        INTEGER (i4b), DIMENSION (:), INTENT (IN) :: dest_index
-        INTEGER (i4b) :: m, n, j, i
+    REAL(sp), DIMENSION(:), INTENT(OUT)      :: dest
+    REAL(sp), DIMENSION(:), INTENT(IN)       :: source
+    INTEGER(i4b), DIMENSION(:), INTENT(IN)   :: dest_index
+
+    INTEGER(i4b)                             :: i, j, m, n
 
         n = assert_eq2(size(source),size(dest_index),'scatter_max_r')
         m = size(dest)
@@ -911,9 +959,10 @@
       END SUBROUTINE scatter_max_r
 !BL
       SUBROUTINE diagadd_rv(mat,diag)
-        REAL (sp), DIMENSION (:,:), INTENT (INOUT) :: mat
-        REAL (sp), DIMENSION (:), INTENT (IN) :: diag
-        INTEGER (i4b) :: j, n
+    REAL(sp), DIMENSION(:, :), INTENT(INOUT) :: mat
+    REAL(sp), DIMENSION(:), INTENT(IN)       :: diag
+
+    INTEGER(i4b)                             :: j, n
 
         n = assert_eq2(size(diag),min(size(mat,1),size(mat,2)),'diagadd_rv')
         DO j = 1, n
@@ -922,9 +971,10 @@
       END SUBROUTINE diagadd_rv
 !BL
       SUBROUTINE diagadd_r(mat,diag)
-        REAL (sp), DIMENSION (:,:), INTENT (INOUT) :: mat
-        REAL (sp), INTENT (IN) :: diag
-        INTEGER (i4b) :: j, n
+    REAL(sp), DIMENSION(:, :), INTENT(INOUT) :: mat
+    REAL(sp), INTENT(IN)                     :: diag
+
+    INTEGER(i4b)                             :: j, n
 
         n = min(size(mat,1),size(mat,2))
         DO j = 1, n
@@ -933,9 +983,10 @@
       END SUBROUTINE diagadd_r
 !BL
       SUBROUTINE diagmult_rv(mat,diag)
-        REAL (sp), DIMENSION (:,:), INTENT (INOUT) :: mat
-        REAL (sp), DIMENSION (:), INTENT (IN) :: diag
-        INTEGER (i4b) :: j, n
+    REAL(sp), DIMENSION(:, :), INTENT(INOUT) :: mat
+    REAL(sp), DIMENSION(:), INTENT(IN)       :: diag
+
+    INTEGER(i4b)                             :: j, n
 
         n = assert_eq2(size(diag),min(size(mat,1),size(mat,2)),'diagmult_rv')
         DO j = 1, n
@@ -944,9 +995,10 @@
       END SUBROUTINE diagmult_rv
 !BL
       SUBROUTINE diagmult_r(mat,diag)
-        REAL (sp), DIMENSION (:,:), INTENT (INOUT) :: mat
-        REAL (sp), INTENT (IN) :: diag
-        INTEGER (i4b) :: j, n
+    REAL(sp), DIMENSION(:, :), INTENT(INOUT) :: mat
+    REAL(sp), INTENT(IN)                     :: diag
+
+    INTEGER(i4b)                             :: j, n
 
         n = min(size(mat,1),size(mat,2))
         DO j = 1, n
@@ -955,9 +1007,10 @@
       END SUBROUTINE diagmult_r
 !BL
       FUNCTION get_diag_rv(mat)
-        REAL (sp), DIMENSION (:,:), INTENT (IN) :: mat
-        REAL (sp), DIMENSION (size(mat,1)) :: get_diag_rv
-        INTEGER (i4b) :: j
+    REAL(sp), DIMENSION(:, :), INTENT(IN)    :: mat
+    REAL(sp), DIMENSION(size(mat, 1))        :: get_diag_rv
+
+    INTEGER(i4b)                             :: j
 
         j = assert_eq2(size(mat,1),size(mat,2),'get_diag_rv')
         DO j = 1, size(mat,1)
@@ -966,9 +1019,10 @@
       END FUNCTION get_diag_rv
 !BL
       SUBROUTINE put_diag_rv(diagv,mat)
-        REAL (sp), DIMENSION (:), INTENT (IN) :: diagv
-        REAL (sp), DIMENSION (:,:), INTENT (INOUT) :: mat
-        INTEGER (i4b) :: j, n
+    REAL(sp), DIMENSION(:), INTENT(IN)       :: diagv
+    REAL(sp), DIMENSION(:, :), INTENT(INOUT) :: mat
+
+    INTEGER(i4b)                             :: j, n
 
         n = assert_eq2(size(diagv),min(size(mat,1),size(mat,2)),'put_diag_rv')
         DO j = 1, n
@@ -977,9 +1031,10 @@
       END SUBROUTINE put_diag_rv
 !BL
       SUBROUTINE put_diag_r(scal,mat)
-        REAL (sp), INTENT (IN) :: scal
-        REAL (sp), DIMENSION (:,:), INTENT (INOUT) :: mat
-        INTEGER (i4b) :: j, n
+    REAL(sp), INTENT(IN)                     :: scal
+    REAL(sp), DIMENSION(:, :), INTENT(INOUT) :: mat
+
+    INTEGER(i4b)                             :: j, n
 
         n = min(size(mat,1),size(mat,2))
         DO j = 1, n
@@ -988,8 +1043,9 @@
       END SUBROUTINE put_diag_r
 !BL
       SUBROUTINE unit_matrix(mat)
-        REAL (sp), DIMENSION (:,:), INTENT (OUT) :: mat
-        INTEGER (i4b) :: i, n
+    REAL(sp), DIMENSION(:, :), INTENT(OUT)   :: mat
+
+    INTEGER(i4b)                             :: i, n
 
         n = min(size(mat,1),size(mat,2))
         mat(:,:) = 0.0_sp
@@ -999,10 +1055,11 @@
       END SUBROUTINE unit_matrix
 !BL
       FUNCTION upper_triangle(j,k,extra)
-        INTEGER (i4b), INTENT (IN) :: j, k
-        INTEGER (i4b), OPTIONAL, INTENT (IN) :: extra
-        LOGICAL (lgt), DIMENSION (j,k) :: upper_triangle
-        INTEGER (i4b) :: n
+    INTEGER(i4b), INTENT(IN)                 :: j, k
+    INTEGER(i4b), INTENT(IN), OPTIONAL       :: extra
+    LOGICAL(lgt), DIMENSION(j, k)            :: upper_triangle
+
+    INTEGER(i4b)                             :: n
 
         n = 0
         IF (present(extra)) n = extra
@@ -1010,10 +1067,11 @@
       END FUNCTION upper_triangle
 !BL
       FUNCTION lower_triangle(j,k,extra)
-        INTEGER (i4b), INTENT (IN) :: j, k
-        INTEGER (i4b), OPTIONAL, INTENT (IN) :: extra
-        LOGICAL (lgt), DIMENSION (j,k) :: lower_triangle
-        INTEGER (i4b) :: n
+    INTEGER(i4b), INTENT(IN)                 :: j, k
+    INTEGER(i4b), INTENT(IN), OPTIONAL       :: extra
+    LOGICAL(lgt), DIMENSION(j, k)            :: lower_triangle
+
+    INTEGER(i4b)                             :: n
 
         n = 0
         IF (present(extra)) n = extra
@@ -1021,8 +1079,8 @@
       END FUNCTION lower_triangle
 !BL
       FUNCTION vabs(v)
-        REAL (sp), DIMENSION (:), INTENT (IN) :: v
-        REAL (sp) :: vabs
+    REAL(sp), DIMENSION(:), INTENT(IN)       :: v
+    REAL(sp)                                 :: vabs
 
         vabs = sqrt(dot_product(v,v))
       END FUNCTION vabs

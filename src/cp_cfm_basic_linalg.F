@@ -25,52 +25,25 @@
 !!   SOURCE
 !****************************************************************************
 MODULE cp_cfm_basic_linalg
+  USE cp_cfm_types,                    ONLY: cp_cfm_get_element,&
+                                             cp_cfm_type
   USE cp_error_handling,               ONLY: cp_a_l,&
                                              cp_assert,&
                                              cp_assertion_failed,&
-                                             cp_debug,&
-                                             cp_error_dealloc_ref,&
                                              cp_error_get_logger,&
-                                             cp_error_init,&
                                              cp_error_message,&
                                              cp_error_type,&
-                                             cp_internal_error,&
                                              cp_unimplemented_error
-  USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
-                                             cp_fm_struct_equivalent,&
-                                             cp_fm_struct_release,&
-                                             cp_fm_struct_retain,&
-                                             cp_fm_struct_type
-  USE cp_cfm_types,                     ONLY: cp_cfm_create,&
-                                             cp_cfm_get_info,&
-                                             cp_cfm_init_random,&
-                                             cp_cfm_release,&
-                                             cp_cfm_retain,&
-                                             cp_cfm_set_all,&
-                                             cp_cfm_set_element,&
-                                             cp_cfm_get_element,&
-                                             cp_cfm_p_type,&
-                                             cp_cfm_type
+  USE cp_fm_struct,                    ONLY: cp_fm_struct_equivalent
   USE cp_log_handling,                 ONLY: cp_failure_level,&
                                              cp_fatal_level,&
-                                             cp_log,&
                                              cp_note_level,&
                                              cp_to_string,&
                                              cp_warning_level
-  USE cp_para_env,                     ONLY: cp_para_env_from_globenv,&
-                                             cp_para_env_release,&
-                                             cp_para_env_retain
-  USE global_types,                    ONLY: global_environment_type
   USE kinds,                           ONLY: dp
-  USE message_passing,                 ONLY: mp_bcast,&
-                                             mp_max,&
-                                             mp_sum,&
-                                             mp_sync
-  USE parallel,                        ONLY: cp2k_is_parallel
-  USE string_utilities,                ONLY: compress
   USE timings,                         ONLY: timeset,&
                                              timestop
-  USE util,                            ONLY: sort
+
   IMPLICIT NONE
   PRIVATE
 
@@ -84,15 +57,15 @@ CONTAINS
 
   SUBROUTINE cp_cfm_schur_product(matrix_a,matrix_b,matrix_c,error)
 
-    TYPE(cp_cfm_type), POINTER          :: matrix_a,matrix_b,matrix_c
-    TYPE(cp_error_type), INTENT(inout), OPTIONAL :: error
+    TYPE(cp_cfm_type), POINTER               :: matrix_a, matrix_b, matrix_c
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
 
-!   *** Local variables ***
-
-    INTEGER :: handle,icol_local,irow_local,mypcol,myprow,&
-         ncol_local,nrow_local
-
-    COMPLEX(KIND = dp), DIMENSION(:,:), POINTER :: a,b,c
+    COMPLEX(KIND=dp), DIMENSION(:, :), &
+      POINTER                                :: a, b, c
+    INTEGER                                  :: handle, icol_local, &
+                                                irow_local, mypcol, myprow, &
+                                                ncol_local, nrow_local
 
 !   ---------------------------------------------------------------------------
 
@@ -127,23 +100,23 @@ CONTAINS
 
     !   ***************************************************************************
 
-    TYPE(cp_cfm_type), POINTER           :: matrix_a
-    COMPLEX(KIND = dp), INTENT(IN)                         :: alpha
-    COMPLEX(KIND = dp), INTENT(in), OPTIONAL               :: beta
-    TYPE(cp_cfm_type), POINTER, OPTIONAL :: matrix_b
-    TYPE(cp_error_type), INTENT(inout), OPTIONAL :: error
+    COMPLEX(KIND=dp), INTENT(IN)             :: alpha
+    TYPE(cp_cfm_type), POINTER               :: matrix_a
+    COMPLEX(KIND=dp), INTENT(in), OPTIONAL   :: beta
+    TYPE(cp_cfm_type), OPTIONAL, POINTER     :: matrix_b
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
 
-    !   *** Local variables ***
+    CHARACTER(len=*), PARAMETER :: routineN = 'cp_cfm_add', &
+      routineP = moduleN//':'//routineN
 
-    INTEGER :: handle,mypcol,myprow,npcol,nprow,source
+    COMPLEX(KIND=dp)                         :: my_beta
+    COMPLEX(KIND=dp), DIMENSION(:, :), &
+      POINTER                                :: a, b
+    INTEGER                                  :: handle, mypcol, myprow
+    LOGICAL                                  :: failure
 
-    COMPLEX(KIND = dp), DIMENSION(:,:), POINTER :: a,b
-    CHARACTER(len=*), PARAMETER :: routineN='cp_cfm_add',&
-         routineP=moduleN//':'//routineN
-    LOGICAL :: failure
-    COMPLEX(KIND = dp) :: my_beta
-
-    !   ---------------------------------------------------------------------------
+!   ---------------------------------------------------------------------------
 
     CALL timeset(routineN,"I","",handle)
 
@@ -224,18 +197,20 @@ CONTAINS
 ! one should be able to find out if ipivot is an even or an odd permutation...
 ! *****************************************************************************
   SUBROUTINE cp_cfm_lu_decompose(matrix_a,almost_determinant)
-    TYPE(cp_cfm_type), POINTER :: matrix_a
-    COMPLEX(KIND = dp), INTENT(OUT)              :: almost_determinant
+    TYPE(cp_cfm_type), POINTER               :: matrix_a
+    COMPLEX(KIND=dp), INTENT(OUT)            :: almost_determinant
+
+    CHARACTER(LEN=*), PARAMETER :: routine = "SUBROUTINE cp_cfm_lu_decompose"
+
+    COMPLEX(KIND=dp)                         :: determinant
+    COMPLEX(KIND=dp), DIMENSION(:), POINTER  :: diag
+    COMPLEX(KIND=dp), DIMENSION(:, :), &
+      POINTER                                :: a
+    INTEGER                                  :: handle, i, info, lda, n
+    INTEGER, ALLOCATABLE, DIMENSION(:)       :: ipivot
+    INTEGER, DIMENSION(9)                    :: desca
 
 ! *** locals ***
-    INTEGER :: handle,lda,i,n,istat,info,npe
-    INTEGER, DIMENSION(9) :: desca
-    COMPLEX(KIND = dp), DIMENSION(:,:), POINTER :: a
-    INTEGER, ALLOCATABLE, DIMENSION(:) :: ipivot
-    CHARACTER(LEN=*), PARAMETER :: routine =&
-         "SUBROUTINE cp_cfm_lu_decompose"
-    COMPLEX(KIND = dp), DIMENSION(:), POINTER :: diag
-    COMPLEX(KIND = dp) :: determinant
 
     CALL timeset("cp_cfm_lu_decompose","I","",handle)
 
@@ -283,21 +258,21 @@ CONTAINS
 
 !   ***************************************************************************
 
-    TYPE(cp_cfm_type), POINTER:: matrix_a,matrix_b,matrix_c
-    CHARACTER(LEN=1), INTENT(IN)              :: transa,transb
-    COMPLEX(KIND = dp), INTENT(IN)                      :: alpha,beta
-    INTEGER, INTENT(IN)                       :: k,m,n
-    INTEGER, OPTIONAL, INTENT(IN)             :: b_first_col
-    TYPE(cp_error_type), INTENT(inout), OPTIONAL :: error
+    CHARACTER(LEN=1), INTENT(IN)             :: transa, transb
+    INTEGER, INTENT(IN)                      :: m, n, k
+    COMPLEX(KIND=dp), INTENT(IN)             :: alpha
+    TYPE(cp_cfm_type), POINTER               :: matrix_a, matrix_b
+    COMPLEX(KIND=dp), INTENT(IN)             :: beta
+    TYPE(cp_cfm_type), POINTER               :: matrix_c
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
+    INTEGER, INTENT(IN), OPTIONAL            :: b_first_col
 
-!   *** Local variables ***
-
-    INTEGER :: handle,j,lda,ldb,ldc
-
-    INTEGER, DIMENSION(9) :: desca,descb,descc
-
-    COMPLEX(KIND = dp), DIMENSION(:,:), POINTER :: a,b,c
-    REAL(KIND = dp) :: flops
+    COMPLEX(KIND=dp), DIMENSION(:, :), &
+      POINTER                                :: a, b, c
+    INTEGER                                  :: handle, j, lda, ldb, ldc
+    INTEGER, DIMENSION(9)                    :: desca, descb, descc
+    REAL(KIND=dp)                            :: flops
 
 !   ---------------------------------------------------------------------------
 
@@ -363,15 +338,16 @@ CONTAINS
 !!
 !!*** *********************************************************************
   SUBROUTINE cp_cfm_column_scale(matrixa,scaling)
-    TYPE(cp_cfm_type), POINTER          :: matrixa
-    COMPLEX(KIND = dp), DIMENSION(:), INTENT(in) :: scaling
+    TYPE(cp_cfm_type), POINTER               :: matrixa
+    COMPLEX(KIND=dp), DIMENSION(:), &
+      INTENT(in)                             :: scaling
 
-!   *** Local variables ***
-
-    INTEGER :: icol_global,icol_local,ipcol,iprow,irow_local,mypcol,&
-               myprow,npcol,nprow,source,i,k,n
-
-    COMPLEX(KIND = dp), DIMENSION(:,:), POINTER :: a
+    COMPLEX(KIND=dp), DIMENSION(:, :), &
+      POINTER                                :: a
+    INTEGER                                  :: i, icol_global, icol_local, &
+                                                ipcol, iprow, irow_local, k, &
+                                                mypcol, myprow, n, npcol, &
+                                                nprow
 
 !   ---------------------------------------------------------------------------
 

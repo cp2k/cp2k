@@ -27,37 +27,25 @@
 
 MODULE atoms_input
 
-  USE atomic_kind_types,        ONLY : allocate_atomic_kind_set,&
-                                       atomic_kind_type,&
-                                       get_atomic_kind,&
-                                       init_atomic_kind_set,&
-                                       set_atomic_kind
-  USE convert_units,            ONLY : convert_to_cp2k_units
-  USE global_types,             ONLY : global_environment_type
-  USE input_types,              ONLY : setup_parameters_type
-  USE kinds,                    ONLY : dbl,&
-                                       default_string_length
-  USE memory_utilities,         ONLY : reallocate
-  USE molecule_types,           ONLY : molecule_type
-  USE extended_system_types,   ONLY : lnhc_parameters_type, &
-                                       npt_info_type
-  USE particle_types,           ONLY : particle_type, &
-                                       allocate_particle_set
-  USE parser,                   ONLY : parser_init, &
-                                       parser_end, &
-                                       read_line, &
-                                       test_next, &
-                                       p_error, &
-                                       get_next, &
-                                       search_label
-  USE periodic_table,           ONLY : ptable
-  USE simulation_cell,          ONLY : cell_type
-  USE string_utilities,         ONLY : xstring,&
-                                       str_search
-  USE termination,              ONLY : stop_memory, &
-                                       stop_program
-  USE topology_types,           ONLY : topology_parameters_type
-  USE util,                     ONLY : get_unit
+  USE convert_units,                   ONLY: convert_to_cp2k_units
+  USE extended_system_types,           ONLY: lnhc_parameters_type,&
+                                             npt_info_type
+  USE global_types,                    ONLY: global_environment_type
+  USE kinds,                           ONLY: dbl,&
+                                             default_string_length
+  USE memory_utilities,                ONLY: reallocate
+  USE parser,                          ONLY: get_next,&
+                                             parser_end,&
+                                             parser_init,&
+                                             read_line,&
+                                             search_label,&
+                                             test_next
+  USE particle_types,                  ONLY: particle_type
+  USE simulation_cell,                 ONLY: cell_type
+  USE string_utilities,                ONLY: xstring
+  USE termination,                     ONLY: stop_program
+  USE topology_types,                  ONLY: topology_parameters_type
+  USE util,                            ONLY: get_unit
 
   IMPLICIT NONE
 
@@ -89,20 +77,16 @@ CONTAINS
 
 SUBROUTINE read_atoms_input ( topology, globenv )
 
-  IMPLICIT NONE
 
-! Arguments
-  TYPE ( topology_parameters_type ) :: topology
-  TYPE ( global_environment_type ), INTENT ( IN ) :: globenv
+    TYPE(topology_parameters_type)           :: topology
+    TYPE(global_environment_type), &
+      INTENT(IN)                             :: globenv
 
-! Locals
-  INTEGER :: ierror, ilen, iw
-  INTEGER, PARAMETER :: nblock_atom = 1000
+    INTEGER, PARAMETER                       :: nblock_atom = 1000
 
-  CHARACTER(LEN=6)  :: label
-  INTEGER                         :: iatom,istat,natom
-
-  INTEGER :: atm_equal_mol
+    CHARACTER(LEN=6)                         :: label
+    INTEGER                                  :: atm_equal_mol, iatom, ierror, &
+                                                ilen, iw, natom
 
 !   ---------------------------------------------------------------------------
 
@@ -217,18 +201,19 @@ END SUBROUTINE read_atoms_input
 !!*** *************************************************************************
 SUBROUTINE read_md_restart ( rtype, globenv, particle_set, cell, cell_ref,  &
                              nhc_part, nhc_baro, npt_info ) 
-   IMPLICIT NONE
-! Arguments
-  CHARACTER ( len = * ), INTENT ( IN ) :: rtype
-  TYPE ( global_environment_type ), INTENT ( IN ) :: globenv
-  TYPE ( particle_type ), DIMENSION ( : ), POINTER    :: particle_set
-  TYPE ( cell_type ), POINTER :: cell, cell_ref
-  TYPE ( lnhc_parameters_type ), POINTER :: nhc_part, nhc_baro
-  TYPE ( npt_info_type ), POINTER :: npt_info ( :, : )
-! locals
-  INTEGER :: ierror, ilen, iw,  ia, ie, i, j, size1, size2, iunit
-  LOGICAL :: exists
-  CHARACTER ( len = 20 ) :: filen
+    CHARACTER(len=*), INTENT(IN)             :: rtype
+    TYPE(global_environment_type), &
+      INTENT(IN)                             :: globenv
+    TYPE(particle_type), DIMENSION(:), &
+      POINTER                                :: particle_set
+    TYPE(cell_type), POINTER                 :: cell, cell_ref
+    TYPE(lnhc_parameters_type), POINTER      :: nhc_part, nhc_baro
+    TYPE(npt_info_type), POINTER             :: npt_info( :, : )
+
+    CHARACTER(len=20)                        :: filen
+    INTEGER                                  :: i, ia, ie, iunit, iw, j, &
+                                                size1, size2
+    LOGICAL                                  :: exists
 
   iw = globenv % scr
 
@@ -407,19 +392,20 @@ END SUBROUTINE read_md_restart
 !!*** *************************************************************************
 SUBROUTINE read_pimd_atoms_input ( rtype, globenv, particle_set, cell,  &
                                   cell_ref, nhc_part, nhc_baro, npt_info ) 
-   IMPLICIT NONE
 
-! Arguments
-  CHARACTER ( len = * ), INTENT ( IN ) :: rtype
-  TYPE ( global_environment_type ), INTENT ( IN ) :: globenv
-  TYPE ( particle_type ), DIMENSION ( : ), POINTER    :: particle_set
-  TYPE ( cell_type ), POINTER :: cell, cell_ref
-  TYPE ( lnhc_parameters_type ), POINTER :: nhc_part, nhc_baro
-  TYPE ( npt_info_type ), POINTER :: npt_info ( :, : )
-! locals
-  INTEGER :: ierror, ilen, iw,  ia, ie, i, j, size1, size2, iunit
-  LOGICAL :: exists
-  CHARACTER ( len = 20 ) :: filen
+    CHARACTER(len=*), INTENT(IN)             :: rtype
+    TYPE(global_environment_type), &
+      INTENT(IN)                             :: globenv
+    TYPE(particle_type), DIMENSION(:), &
+      POINTER                                :: particle_set
+    TYPE(cell_type), POINTER                 :: cell, cell_ref
+    TYPE(lnhc_parameters_type), POINTER      :: nhc_part, nhc_baro
+    TYPE(npt_info_type), POINTER             :: npt_info( :, : )
+
+    CHARACTER(len=20)                        :: filen
+    INTEGER                                  :: i, ia, ie, iunit, iw, j, &
+                                                size1, size2
+    LOGICAL                                  :: exists
 
   iw = globenv % scr
 
@@ -587,14 +573,11 @@ END SUBROUTINE read_pimd_atoms_input
 
 SUBROUTINE print_c ( iw, particle_set )
 
-  IMPLICIT NONE
 
-! Arguments
-  TYPE ( particle_type ), INTENT ( IN ) :: particle_set ( : )
-  INTEGER, INTENT ( IN ) :: iw
+    INTEGER, INTENT(IN)                      :: iw
+    TYPE(particle_type), INTENT(IN)          :: particle_set( : )
 
-! Locals
-  INTEGER :: i, n
+    INTEGER                                  :: i, n
 
 !------------------------------------------------------------------------------
 
@@ -610,14 +593,11 @@ END SUBROUTINE print_c
 
 SUBROUTINE print_cv ( iw, particle_set )
 
-  IMPLICIT NONE
 
-! Arguments
-  TYPE ( particle_type ), INTENT ( IN ) :: particle_set ( : )
-  INTEGER, INTENT ( IN ) :: iw
+    INTEGER, INTENT(IN)                      :: iw
+    TYPE(particle_type), INTENT(IN)          :: particle_set( : )
 
-! Locals
-  INTEGER :: i, n
+    INTEGER                                  :: i, n
 
 !------------------------------------------------------------------------------
 

@@ -20,7 +20,7 @@
 
 MODULE mol_force
 
-  USE kinds, ONLY : dbl
+  USE kinds,                           ONLY: dbl
 
   PRIVATE
   PUBLIC :: force_bonds, force_bends, force_torsions
@@ -51,15 +51,12 @@ CONTAINS
 
 SUBROUTINE force_bonds ( rij, r0, k, energy, fscalar )
 
-  IMPLICIT NONE
 
-! Arguments
-  REAL ( dbl ), INTENT ( IN ), DIMENSION ( : ) :: rij
-  REAL ( dbl ), INTENT ( IN ) :: r0, k
-  REAL ( dbl ), INTENT ( OUT ) :: energy, fscalar
+    REAL(dbl), DIMENSION(:), INTENT(IN)      :: rij
+    REAL(dbl), INTENT(IN)                    :: r0, k
+    REAL(dbl), INTENT(OUT)                   :: energy, fscalar
 
-! Locals
-  REAL ( dbl ) :: dij
+    REAL(dbl)                                :: dij
 
 !------------------------------------------------------------------------------
 
@@ -91,21 +88,18 @@ END SUBROUTINE force_bonds
 SUBROUTINE force_bends ( b12, b32, d12, d32, id12, id32, dist, &
      theta, theta0, k, g1, g2, g3, energy, fscalar )
 
-  IMPLICIT NONE
 
-! Arguments
-  REAL ( dbl ), INTENT ( IN ), DIMENSION ( : ) :: b12, b32
-  REAL ( dbl ), INTENT ( OUT ), DIMENSION ( : ) :: g1, g2, g3
-  REAL ( dbl ), INTENT ( IN ) :: d12, d32, id12, id32, dist, theta
-  REAL ( dbl ), INTENT ( IN ) :: theta0, k
-  REAL ( dbl ), INTENT ( OUT ) :: fscalar, energy
+    REAL(dbl), DIMENSION(:), INTENT(IN)      :: b12, b32
+    REAL(dbl), INTENT(IN)                    :: d12, d32, id12, id32, dist, &
+                                                theta, theta0, k
+    REAL(dbl), DIMENSION(:), INTENT(OUT)     :: g1, g2, g3
+    REAL(dbl), INTENT(OUT)                   :: energy, fscalar
 
-! Locals
-  REAL ( dbl ) :: denom
+    REAL(dbl)                                :: denom
 
 !------------------------------------------------------------------------------
-
 ! define denom
+
   denom = id12*id12*id32*id32
 
 ! compute energy
@@ -143,21 +137,19 @@ END SUBROUTINE force_bends
 SUBROUTINE force_torsions ( is32, dist1, dist2, u1, u2, iw1, iw2, &
            a, gt1, gt2, gt3, gt4, energy, fscalar )
 
-  IMPLICIT NONE
 
-! Arguments
-  REAL ( dbl ), INTENT ( IN ), DIMENSION ( : ) :: u1, u2
-  REAL ( dbl ), INTENT ( OUT ), DIMENSION ( : ) :: gt1, gt2, gt3, gt4
-  REAL ( dbl ), INTENT ( IN ) :: is32, dist1, dist2, iw1, iw2
-  REAL ( dbl ), INTENT ( IN ), DIMENSION (0:3) :: a
-  REAL ( dbl ), INTENT ( OUT ) :: fscalar, energy
+    REAL(dbl), INTENT(IN)                    :: is32, dist1, dist2
+    REAL(dbl), DIMENSION(:), INTENT(IN)      :: u1, u2
+    REAL(dbl), INTENT(IN)                    :: iw1, iw2
+    REAL(dbl), DIMENSION(0:3), INTENT(IN)    :: a
+    REAL(dbl), DIMENSION(:), INTENT(OUT)     :: gt1, gt2, gt3, gt4
+    REAL(dbl), INTENT(OUT)                   :: energy, fscalar
 
-! Locals
-  REAL ( dbl ) :: cosphi
+    REAL(dbl)                                :: cosphi
 
 !------------------------------------------------------------------------------
-
 ! define cosphi
+
   cosphi = DOT_PRODUCT ( u1, u2 ) * iw1 * iw2
 
 ! compute energy
@@ -196,13 +188,13 @@ END SUBROUTINE force_torsions
 !******************************************************************************
 
 SUBROUTINE get_pv_bond(f1,f2,r1,r2,pv_bond)
-  IMPLICIT NONE
-  REAL ( dbl ), DIMENSION (3), INTENT ( IN ) :: f1, f2, r1, r2
-  REAL ( dbl ), DIMENSION ( :, : ), INTENT ( INOUT ) :: pv_bond
+    REAL(dbl), DIMENSION(3), INTENT(IN)      :: f1, f2, r1, r2
+    REAL(dbl), DIMENSION(:, :), &
+      INTENT(INOUT)                          :: pv_bond
 
 !------------------------------------------------------------------------------
-
 ! p(1,1)
+
   pv_bond(1,1) = pv_bond(1,1) + f1(1)*r1(1)
   pv_bond(1,1) = pv_bond(1,1) + f2(1)*r2(1)
 ! p(1,2)
@@ -253,15 +245,14 @@ END SUBROUTINE get_pv_bond
 
 SUBROUTINE get_pv_bend(f1,f2,f3,r1,r2,r3,pv_bend)
 
-  IMPLICIT NONE
 
-! Arguments
-  REAL ( dbl ), DIMENSION (3), INTENT ( IN ) :: f1, f2, f3, r1, r2, r3
-  REAL ( dbl ), DIMENSION ( :, : ), INTENT ( INOUT ) :: pv_bend
+    REAL(dbl), DIMENSION(3), INTENT(IN)      :: f1, f2, f3, r1, r2, r3
+    REAL(dbl), DIMENSION(:, :), &
+      INTENT(INOUT)                          :: pv_bend
 
 !------------------------------------------------------------------------------
-
 !p(1,1)
+
   pv_bend(1,1) = pv_bend(1,1) + f1(1)*r1(1)
   pv_bend(1,1) = pv_bend(1,1) + f2(1)*r2(1)
   pv_bend(1,1) = pv_bend(1,1) + f3(1)*r3(1)
@@ -321,15 +312,14 @@ END SUBROUTINE get_pv_bend
 
 SUBROUTINE get_pv_torsion(f1,f2,f3,f4,r1,r2,r3,r4,pv_torsion)
 
-  IMPLICIT NONE
 
-! Arguments
-  REAL ( dbl ), DIMENSION (3), INTENT ( IN ) :: f1, f2, f3, f4, r1, r2, r3, r4
-  REAL ( dbl ), DIMENSION ( :, : ), INTENT ( INOUT ) :: pv_torsion
+    REAL(dbl), DIMENSION(3), INTENT(IN)      :: f1, f2, f3, f4, r1, r2, r3, r4
+    REAL(dbl), DIMENSION(:, :), &
+      INTENT(INOUT)                          :: pv_torsion
 
 !------------------------------------------------------------------------------
-
 !p(1,1)
+
   pv_torsion(1,1) = pv_torsion(1,1) + f1(1)*r1(1)
   pv_torsion(1,1) = pv_torsion(1,1) + f2(1)*r2(1)
   pv_torsion(1,1) = pv_torsion(1,1) + f3(1)*r3(1)

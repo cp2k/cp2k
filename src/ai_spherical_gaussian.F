@@ -26,9 +26,14 @@
 
 MODULE ai_spherical_gaussian
 
-  USE kinds, ONLY : dbl
-  USE mathconstants, ONLY : pi, twopi, fac, dfac, gamma0, gamma1
-  USE termination, ONLY : stop_memory, stop_program
+  USE kinds,                           ONLY: dbl
+  USE mathconstants,                   ONLY: dfac,&
+                                             fac,&
+                                             gamma1,&
+                                             pi,&
+                                             twopi
+  USE termination,                     ONLY: stop_memory,&
+                                             stop_program
 
   IMPLICIT NONE
 
@@ -49,15 +54,12 @@ CONTAINS
 !------------------------------------------------------------------------------
 SUBROUTINE sg_norm ( pnorm, l, p )
 
-  IMPLICIT NONE
 
-! Arguments
-  REAL ( dbl ), DIMENSION (:), INTENT ( OUT ) :: pnorm
-  INTEGER, INTENT ( IN ) :: l
-  REAL ( dbl ), DIMENSION (:), INTENT ( IN ) :: p
+    REAL(dbl), DIMENSION(:), INTENT(OUT)     :: pnorm
+    INTEGER, INTENT(IN)                      :: l
+    REAL(dbl), DIMENSION(:), INTENT(IN)      :: p
 
-! Locals
-  REAL ( dbl ) :: pf, pe
+    REAL(dbl)                                :: pe, pf
 
 !------------------------------------------------------------------------------
 
@@ -77,18 +79,17 @@ END SUBROUTINE sg_norm
 !------------------------------------------------------------------------------
 SUBROUTINE sg_overlap ( smat, l, pa, pb )
 
-  IMPLICIT NONE
 
-! Arguments
-  REAL ( dbl ), DIMENSION (:,:), INTENT ( OUT ) :: smat
-  INTEGER, INTENT ( IN ) :: l
-  REAL ( dbl ), DIMENSION (:), TARGET, INTENT ( IN ) :: pa
-  REAL ( dbl ), DIMENSION (:), TARGET, OPTIONAL, INTENT ( IN ) :: pb
+    REAL(dbl), DIMENSION(:, :), INTENT(OUT)  :: smat
+    INTEGER, INTENT(IN)                      :: l
+    REAL(dbl), DIMENSION(:), INTENT(IN), &
+      TARGET                                 :: pa
+    REAL(dbl), DIMENSION(:), INTENT(IN), &
+      OPTIONAL, TARGET                       :: pb
 
-! Locals
-  REAL ( dbl ), DIMENSION (:), POINTER :: p, q
-  LOGICAL :: symmetric
-  INTEGER :: ip, iq, n, m, up
+    INTEGER                                  :: ip, iq, m, n, up
+    LOGICAL                                  :: symmetric
+    REAL(dbl), DIMENSION(:), POINTER         :: p, q
 
 !------------------------------------------------------------------------------
 
@@ -133,20 +134,20 @@ END SUBROUTINE sg_overlap
 !------------------------------------------------------------------------------
 SUBROUTINE sg_kinetic ( kmat, l, pa, pb, smat )
 
-  IMPLICIT NONE
 
-! Arguments
-  REAL ( dbl ), DIMENSION (:,:), INTENT ( OUT ) :: kmat
-  INTEGER, INTENT ( IN ) :: l
-  REAL ( dbl ), DIMENSION (:), TARGET, INTENT ( IN ) :: pa
-  REAL ( dbl ), DIMENSION (:), TARGET, OPTIONAL, INTENT ( IN ) :: pb
-  REAL ( dbl ), DIMENSION (:,:), OPTIONAL, INTENT ( IN ) :: smat
+    REAL(dbl), DIMENSION(:, :), INTENT(OUT)  :: kmat
+    INTEGER, INTENT(IN)                      :: l
+    REAL(dbl), DIMENSION(:), INTENT(IN), &
+      TARGET                                 :: pa
+    REAL(dbl), DIMENSION(:), INTENT(IN), &
+      OPTIONAL, TARGET                       :: pb
+    REAL(dbl), DIMENSION(:, :), INTENT(IN), &
+      OPTIONAL                               :: smat
 
-! Locals
-  REAL ( dbl ), DIMENSION (:), POINTER :: p, q
-  LOGICAL :: symmetric
-  INTEGER :: n, m, ip, iq, up
-  REAL ( dbl ) :: tld
+    INTEGER                                  :: ip, iq, m, n, up
+    LOGICAL                                  :: symmetric
+    REAL(dbl)                                :: tld
+    REAL(dbl), DIMENSION(:), POINTER         :: p, q
 
 !------------------------------------------------------------------------------
 
@@ -197,20 +198,20 @@ END SUBROUTINE sg_kinetic
 !------------------------------------------------------------------------------
 SUBROUTINE sg_nuclear ( umat, l, pa, pb, smat )
 
-  IMPLICIT NONE
 
-! Arguments
-  REAL ( dbl ), DIMENSION (:,:), INTENT ( OUT ) :: umat
-  INTEGER, INTENT ( IN ) :: l
-  REAL ( dbl ), DIMENSION (:), TARGET, INTENT ( IN ) :: pa
-  REAL ( dbl ), DIMENSION (:), TARGET, OPTIONAL, INTENT ( IN ) :: pb
-  REAL ( dbl ), DIMENSION (:,:), OPTIONAL, INTENT ( IN ) :: smat
+    REAL(dbl), DIMENSION(:, :), INTENT(OUT)  :: umat
+    INTEGER, INTENT(IN)                      :: l
+    REAL(dbl), DIMENSION(:), INTENT(IN), &
+      TARGET                                 :: pa
+    REAL(dbl), DIMENSION(:), INTENT(IN), &
+      OPTIONAL, TARGET                       :: pb
+    REAL(dbl), DIMENSION(:, :), INTENT(IN), &
+      OPTIONAL                               :: smat
 
-! Locals
-  REAL ( dbl ), DIMENSION (:), POINTER :: p, q
-  LOGICAL :: symmetric
-  INTEGER :: n, m, ip, iq, up
-  REAL ( dbl ) :: tld
+    INTEGER                                  :: ip, iq, m, n, up
+    LOGICAL                                  :: symmetric
+    REAL(dbl)                                :: tld
+    REAL(dbl), DIMENSION(:), POINTER         :: p, q
 
 !------------------------------------------------------------------------------
 
@@ -271,21 +272,21 @@ END SUBROUTINE sg_nuclear
 !------------------------------------------------------------------------------
 SUBROUTINE sg_erf ( upmat, l, a, pa, pb, smat )
 
-  IMPLICIT NONE
 
-! Arguments
-  REAL ( dbl ), DIMENSION (:,:), INTENT ( OUT ) :: upmat
-  INTEGER, INTENT ( IN ) :: l
-  REAL ( dbl ), INTENT ( IN ) :: a
-  REAL ( dbl ), DIMENSION (:), TARGET, INTENT ( IN ) :: pa
-  REAL ( dbl ), DIMENSION (:), TARGET, OPTIONAL, INTENT ( IN ) :: pb
-  REAL ( dbl ), DIMENSION (:,:), OPTIONAL, INTENT ( IN ) :: smat
+    REAL(dbl), DIMENSION(:, :), INTENT(OUT)  :: upmat
+    INTEGER, INTENT(IN)                      :: l
+    REAL(dbl), INTENT(IN)                    :: a
+    REAL(dbl), DIMENSION(:), INTENT(IN), &
+      TARGET                                 :: pa
+    REAL(dbl), DIMENSION(:), INTENT(IN), &
+      OPTIONAL, TARGET                       :: pb
+    REAL(dbl), DIMENSION(:, :), INTENT(IN), &
+      OPTIONAL                               :: smat
 
-! Locals
-  REAL ( dbl ), DIMENSION (:), POINTER :: p, q
-  LOGICAL :: symmetric
-  INTEGER :: n, m, ip, iq, up
-  REAL ( dbl ) :: tld, a2, pq, fpol
+    INTEGER                                  :: ip, iq, m, n, up
+    LOGICAL                                  :: symmetric
+    REAL(dbl)                                :: a2, fpol, pq, tld
+    REAL(dbl), DIMENSION(:), POINTER         :: p, q
 
 !------------------------------------------------------------------------------
 
@@ -387,19 +388,15 @@ END SUBROUTINE sg_erf
 !------------------------------------------------------------------------------
 SUBROUTINE sg_proj_ol ( spmat, l, p, norm, k, rc )
 
-  IMPLICIT NONE
 
-! Arguments
-  REAL ( dbl ), DIMENSION (:), INTENT ( OUT ) :: spmat
-  INTEGER, INTENT ( IN ) :: l
-  REAL ( dbl ), DIMENSION (:), INTENT ( IN ) :: p
-  REAL ( dbl ), DIMENSION (:), INTENT ( IN ) :: norm
-  INTEGER, INTENT ( IN ) :: k
-  REAL ( dbl ), INTENT ( IN ) :: rc
+    REAL(dbl), DIMENSION(:), INTENT(OUT)     :: spmat
+    INTEGER, INTENT(IN)                      :: l
+    REAL(dbl), DIMENSION(:), INTENT(IN)      :: p, norm
+    INTEGER, INTENT(IN)                      :: k
+    REAL(dbl), INTENT(IN)                    :: rc
 
-! Locals
-  REAL ( dbl ) :: pe, pf, orc
-  INTEGER :: pn
+    INTEGER                                  :: pn
+    REAL(dbl)                                :: orc, pe, pf
 
 !------------------------------------------------------------------------------
 
@@ -427,22 +424,21 @@ END SUBROUTINE sg_proj_ol
 !------------------------------------------------------------------------------
 SUBROUTINE sg_gpot ( vpmat, k, rc, l, pa, pb )
 
-  IMPLICIT NONE
 
-! Arguments
-  REAL ( dbl ), DIMENSION (:,:), INTENT ( OUT ) :: vpmat
-  INTEGER, INTENT ( IN ) :: k
-  REAL ( dbl ), INTENT ( IN ) :: rc
-  INTEGER, INTENT ( IN ) :: l
-  REAL ( dbl ), DIMENSION (:), TARGET, INTENT ( IN ) :: pa
-  REAL ( dbl ), DIMENSION (:), TARGET, OPTIONAL, INTENT ( IN ) :: pb
+    REAL(dbl), DIMENSION(:, :), INTENT(OUT)  :: vpmat
+    INTEGER, INTENT(IN)                      :: k
+    REAL(dbl), INTENT(IN)                    :: rc
+    INTEGER, INTENT(IN)                      :: l
+    REAL(dbl), DIMENSION(:), INTENT(IN), &
+      TARGET                                 :: pa
+    REAL(dbl), DIMENSION(:), INTENT(IN), &
+      OPTIONAL, TARGET                       :: pb
 
-! Locals
-  REAL ( dbl ), DIMENSION (:), POINTER :: p, q
-  REAL ( dbl ), DIMENSION (:), ALLOCATABLE :: np, nq
-  LOGICAL :: symmetric
-  INTEGER :: n, m, ip, iq, up, ierr
-  REAL ( dbl ) :: tld, orc
+    INTEGER                                  :: ierr, ip, iq, m, n, up
+    LOGICAL                                  :: symmetric
+    REAL(dbl)                                :: orc, tld
+    REAL(dbl), ALLOCATABLE, DIMENSION(:)     :: np, nq
+    REAL(dbl), DIMENSION(:), POINTER         :: p, q
 
 !------------------------------------------------------------------------------
 

@@ -21,9 +21,9 @@
 
 MODULE fftw_lib
 
-  USE kinds, ONLY: dbl
-  USE termination, ONLY : stop_memory
-  USE util, ONLY:  sort
+  USE kinds,                           ONLY: dbl
+  USE termination,                     ONLY: stop_memory
+  USE util,                            ONLY: sort
 
   IMPLICIT NONE
 
@@ -99,21 +99,15 @@ CONTAINS
 
 SUBROUTINE fft_get_lengths ( data, max_length )
 
-  IMPLICIT NONE
 
-! Arguments
-  INTEGER, INTENT ( IN ) :: max_length
-  INTEGER, DIMENSION ( : ), POINTER :: data
+    INTEGER, DIMENSION(:), POINTER           :: data
+    INTEGER, INTENT(IN)                      :: max_length
 
-! Locals
-  INTEGER :: iloc
-  INTEGER, DIMENSION ( : ), ALLOCATABLE :: idx
-  INTEGER :: h, i, j, k, m, number, ndata, nmax, allocstat, maxn
-  INTEGER :: maxn_twos, maxn_threes, maxn_fives
-  INTEGER :: maxn_sevens, maxn_elevens, maxn_thirteens
+    INTEGER :: allocstat, h, i, j, k, m, maxn, maxn_elevens, maxn_fives, &
+      maxn_sevens, maxn_thirteens, maxn_threes, maxn_twos, ndata, nmax, number
+    INTEGER, ALLOCATABLE, DIMENSION(:)       :: idx
 
 !------------------------------------------------------------------------------
-
 ! compute ndata
 !! FFTW can do arbitrary(?) lenghts, maybe you want to limit them to some
 !!    powers of small prime numbers though...
@@ -206,33 +200,32 @@ END SUBROUTINE fft_get_lengths
 
 SUBROUTINE fft3d ( fsign, scale, n, zg, zg_out )
 
-  IMPLICIT NONE
 
-! Arguments
-  INTEGER, INTENT ( INOUT ) :: fsign
-  REAL ( dbl ), INTENT ( IN ) :: scale
-  INTEGER, DIMENSION ( : ), INTENT ( IN ) :: n
-  COMPLEX ( dbl ), DIMENSION(:,:,:), INTENT ( INOUT ) :: zg
-  COMPLEX ( dbl ), DIMENSION(:,:,:), INTENT ( INOUT ), OPTIONAL, TARGET :: zg_out
+    INTEGER, INTENT(INOUT)                   :: fsign
+    REAL(dbl), INTENT(IN)                    :: scale
+    INTEGER, DIMENSION(:), INTENT(IN)        :: n
+    COMPLEX(dbl), DIMENSION(:, :, :), &
+      INTENT(INOUT)                          :: zg
+    COMPLEX(dbl), DIMENSION(:, :, :), &
+      INTENT(INOUT), OPTIONAL, TARGET        :: zg_out
 
-! Locals
-  INTEGER, SAVE :: n1a_save = -1, n2a_save = -1, n3a_save = -1
-  INTEGER, SAVE :: n1b_save = -1, n2b_save = -1, n3b_save = -1
-  INTEGER, SAVE :: n1c_save = -1, n2c_save = -1, n3c_save = -1
-  LOGICAL, SAVE :: ffta_in_place = .TRUE., fftb_in_place = .TRUE.
-  LOGICAL, SAVE :: fftc_in_place = .TRUE.
-  LOGICAL :: fft_in_place
-  INTEGER :: sign_fft, n1, n2, n3
+    COMPLEX(dbl), DIMENSION(1, 1, 1), TARGET :: zgout_tmp
+    COMPLEX(dbl), DIMENSION(:, :, :), &
+      POINTER                                :: zgout
+    INTEGER                                  :: n1, n2, n3, sign_fft
+    INTEGER(KIND=integer_pointer_kind), SAVE :: plan_a_bw = 0, plan_a_fw = 0, &
+      plan_b_bw = 0, plan_b_fw = 0, plan_c_bw = 0, plan_c_fw = 0
+    INTEGER, SAVE :: n1a_save = -1, n1b_save = -1, n1c_save = -1, &
+      n2a_save = -1, n2b_save = -1, n2c_save = -1, n3a_save = -1, &
+      n3b_save = -1, n3c_save = -1
+    LOGICAL                                  :: fft_in_place
+    LOGICAL, SAVE                            :: ffta_in_place = .TRUE., &
+                                                fftb_in_place = .TRUE., &
+                                                fftc_in_place = .TRUE.
+    REAL(dbl)                                :: norm
+
 !
-  INTEGER ( KIND = integer_pointer_kind ), SAVE :: plan_a_fw=0, plan_a_bw=0
-  INTEGER ( KIND = integer_pointer_kind ), SAVE :: plan_b_fw=0, plan_b_bw=0
-  INTEGER ( KIND = integer_pointer_kind ), SAVE :: plan_c_fw=0, plan_c_bw=0
-  REAL ( dbl ) :: norm
-
-  ! Just due to DEC... apsi
-  COMPLEX ( dbl ), DIMENSION(:,:,:), POINTER :: zgout
-  COMPLEX ( dbl ), DIMENSION(1,1,1), TARGET :: zgout_tmp
-
+! Just due to DEC... apsi
 !------------------------------------------------------------------------------
 
   norm = scale
@@ -506,22 +499,21 @@ END SUBROUTINE mfft2d
 
 SUBROUTINE mltfft ( tin, tout, fsign, scale, n, m, zin, zout )
   
-  IMPLICIT NONE
 
-! Arguments
-  CHARACTER ( LEN = * ), INTENT ( IN ) :: tin, tout
-  INTEGER, INTENT ( INOUT ) :: fsign
-  REAL ( dbl ), INTENT ( IN ) :: scale
-  INTEGER, INTENT ( IN ) :: n, m
-  COMPLEX ( dbl ), DIMENSION(:,:), INTENT ( IN ) :: zin
-  COMPLEX ( dbl ), DIMENSION(:,:), INTENT ( OUT ) :: zout
+    CHARACTER(LEN=*), INTENT(IN)             :: tin, tout
+    INTEGER, INTENT(INOUT)                   :: fsign
+    REAL(dbl), INTENT(IN)                    :: scale
+    INTEGER, INTENT(IN)                      :: n, m
+    COMPLEX(dbl), DIMENSION(:, :), &
+      INTENT(IN)                             :: zin
+    COMPLEX(dbl), DIMENSION(:, :), &
+      INTENT(OUT)                            :: zout
 
-! Locals
-  INTEGER :: ldi, ldo, ii, io, di, do
-  INTEGER (KIND=integer_pointer_kind) :: plan
-  
+    INTEGER                                  :: di, do, ii, io, ldi, ldo
+    INTEGER(KIND=integer_pointer_kind)       :: plan
+
 !------------------------------------------------------------------------------
-  
+
   ldi = SIZE ( zin, 1 )
   ldo = SIZE ( zout, 1 )
   

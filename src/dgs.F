@@ -20,22 +20,28 @@
 
 MODULE dgs
 
-  USE coefficient_types, ONLY : coeff_type, PW_REALDATA1D,  &
-        PW_COMPLEXDATA1D, PW_REALDATA3D, PW_COMPLEXDATA3D
-  USE fft_tools, ONLY : fft_radix_operations, fft3d, FWFFT, BWFFT, &
-       FFT_RADIX_ALLOWED, FFT_RADIX_DISALLOWED, FFT_RADIX_NEXT, &
-       FFT_RADIX_CLOSEST
-  USE global_types, ONLY : global_environment_type
-  USE kinds, ONLY : dbl, sgl
-  USE mathconstants, ONLY : twopi, pi
-  USE pw_grid_types, ONLY : pw_grid_type, HALFSPACE
-  USE pw_grids, ONLY : pw_grid_setup, pw_find_cutoff, pw_grid_change
-  USE pw_types, ONLY : pw_fft_wrap, COMPLEXDATA3D
-  USE realspace_grid_types, ONLY : realspace_grid_type
-  USE simulation_cell, ONLY : cell_type, get_hinv, get_cell_param
-  USE structure_factors, ONLY : structure_factor_evaluate
-  USE termination, ONLY : stop_program, stop_memory
-  USE util, ONLY : dotprod_3d
+  USE coefficient_types,               ONLY: PW_COMPLEXDATA3D,&
+                                             PW_REALDATA3D,&
+                                             coeff_type
+  USE fft_tools,                       ONLY: BWFFT,&
+                                             FFT_RADIX_CLOSEST,&
+                                             FFT_RADIX_NEXT,&
+                                             fft3d,&
+                                             fft_radix_operations
+  USE global_types,                    ONLY: global_environment_type
+  USE kinds,                           ONLY: dbl
+  USE pw_grid_types,                   ONLY: HALFSPACE,&
+                                             pw_grid_type
+  USE pw_grids,                        ONLY: pw_find_cutoff,&
+                                             pw_grid_change,&
+                                             pw_grid_setup
+  USE realspace_grid_types,            ONLY: realspace_grid_type
+  USE simulation_cell,                 ONLY: cell_type,&
+                                             get_cell_param,&
+                                             get_hinv
+  USE structure_factors,               ONLY: structure_factor_evaluate
+  USE termination,                     ONLY: stop_memory,&
+                                             stop_program
 
   IMPLICIT NONE
 
@@ -82,23 +88,20 @@ CONTAINS
 SUBROUTINE dg_pme_grid_setup ( box_b, npts_s, cutoff_radius, grid_s, grid_b, &
                                dg_glopar, grid_ref )
 
-  IMPLICIT NONE
 
-! Arguments
-  INTEGER, DIMENSION ( : ), INTENT ( IN ) :: npts_s
-  TYPE ( cell_type ), INTENT ( IN ) :: box_b
-  TYPE ( global_environment_type ), INTENT ( IN ) :: dg_glopar
-  TYPE ( pw_grid_type ), INTENT ( INOUT ) :: grid_s, grid_b
-  REAL ( dbl ), INTENT ( IN ) :: cutoff_radius
-  TYPE ( pw_grid_type ), INTENT ( IN ), OPTIONAL :: grid_ref
+    TYPE(cell_type), INTENT(IN)              :: box_b
+    INTEGER, DIMENSION(:), INTENT(IN)        :: npts_s
+    REAL(dbl), INTENT(IN)                    :: cutoff_radius
+    TYPE(pw_grid_type), INTENT(INOUT)        :: grid_s, grid_b
+    TYPE(global_environment_type), &
+      INTENT(IN)                             :: dg_glopar
+    TYPE(pw_grid_type), INTENT(IN), OPTIONAL :: grid_ref
 
-! Locals
-  INTEGER :: nout ( 3 )
-  REAL ( dbl ) :: dr ( 3 ), cutoff, ecut
-  REAL ( dbl ) :: cell_lengths ( 3 )
-  TYPE ( cell_type ) :: unit_box, box_s
+    REAL(dbl)                                :: cutoff, ecut
+    TYPE(cell_type)                          :: box_s, unit_box
 
 !------------------------------------------------------------------------------
+
   CALL dg_find_cutoff ( box_b, npts_s, cutoff_radius, grid_s, grid_b, cutoff )
 
   ecut = 0.5_dbl * cutoff * cutoff
@@ -125,21 +128,20 @@ END SUBROUTINE dg_pme_grid_setup
 SUBROUTINE dg_pol_grid_setup ( box_b, npts_s, cutoff_radius, &
                  grid_s, grid_b, dg_glopar, grid_ref )
 
-  IMPLICIT NONE
 
-! Arguments
-  INTEGER, DIMENSION ( : ), INTENT ( IN ) :: npts_s
-  TYPE ( cell_type ), INTENT ( IN ) :: box_b
-  REAL ( dbl )      , INTENT ( INOUT ) :: cutoff_radius
-  TYPE ( global_environment_type ), INTENT ( IN ) :: dg_glopar
-  TYPE ( pw_grid_type ), INTENT ( INOUT ) :: grid_s, grid_b
-  TYPE ( pw_grid_type ), INTENT ( IN ), OPTIONAL :: grid_ref
+    TYPE(cell_type), INTENT(IN)              :: box_b
+    INTEGER, DIMENSION(:), INTENT(IN)        :: npts_s
+    REAL(dbl), INTENT(INOUT)                 :: cutoff_radius
+    TYPE(pw_grid_type), INTENT(INOUT)        :: grid_s, grid_b
+    TYPE(global_environment_type), &
+      INTENT(IN)                             :: dg_glopar
+    TYPE(pw_grid_type), INTENT(IN), OPTIONAL :: grid_ref
 
-! Locals
-  REAL ( dbl ) :: cutoff, ecut
-  TYPE ( cell_type ) :: unit_box, box_s
+    REAL(dbl)                                :: cutoff, ecut
+    TYPE(cell_type)                          :: box_s, unit_box
 
 !------------------------------------------------------------------------------
+
   CALL dg_find_cutoff ( box_b, npts_s, cutoff_radius, grid_s, grid_b, cutoff )
 
 ! If necessary set up grid with respect to the reference grid
@@ -164,20 +166,15 @@ END SUBROUTINE dg_pol_grid_setup
 !******************************************************************************
 SUBROUTINE dg_find_cutoff ( box_b, npts_s, cutoff_radius, grid_s,  &
                             grid_b, cutoff )
-  IMPLICIT NONE
 
-! Arguments
-  INTEGER, DIMENSION ( : ), INTENT ( IN ) :: npts_s
-  TYPE ( cell_type ), INTENT ( IN ) :: box_b
-  TYPE ( pw_grid_type ), INTENT ( INOUT ) :: grid_s, grid_b
-  REAL ( dbl )      , INTENT ( IN ) :: cutoff_radius
-  REAL ( dbl )      , INTENT ( OUT ) :: cutoff
+    TYPE(cell_type), INTENT(IN)              :: box_b
+    INTEGER, DIMENSION(:), INTENT(IN)        :: npts_s
+    REAL(dbl), INTENT(IN)                    :: cutoff_radius
+    TYPE(pw_grid_type), INTENT(INOUT)        :: grid_s, grid_b
+    REAL(dbl), INTENT(OUT)                   :: cutoff
 
-! Locals
-  INTEGER :: nout ( 3 )
-  REAL ( dbl ) :: dr ( 3 )
-  REAL ( dbl ) :: cell_lengths ( 3 )
-
+    INTEGER                                  :: nout( 3 )
+    REAL(dbl)                                :: cell_lengths( 3 ), dr( 3 )
 
   CALL fft_radix_operations ( npts_s ( 1 ), nout ( 1 ), &
        operation = FFT_RADIX_NEXT )
@@ -219,16 +216,10 @@ END SUBROUTINE  dg_find_cutoff
 
 SUBROUTINE dg_get_spacing ( npts, cutoff_radius, dr )
 
-  IMPLICIT NONE
 
-! Arguments
-  REAL ( dbl ), INTENT ( IN ) :: cutoff_radius
-  INTEGER, DIMENSION ( : ), INTENT ( IN ) :: npts
-
-  REAL ( dbl ), DIMENSION ( : ), INTENT ( OUT ) :: dr
-
-! Locals
-  REAL ( dbl ) :: alphasq, norm
+    INTEGER, DIMENSION(:), INTENT(IN)        :: npts
+    REAL(dbl), INTENT(IN)                    :: cutoff_radius
+    REAL(dbl), DIMENSION(:), INTENT(OUT)     :: dr
 
 !------------------------------------------------------------------------------
 
@@ -241,15 +232,12 @@ SUBROUTINE dg_get_spacing ( npts, cutoff_radius, dr )
 
 SUBROUTINE dg_grid_change ( box_b, grid_b, grid_s )
 
-  IMPLICIT NONE
 
-! Arguments
-  TYPE ( cell_type ), INTENT ( IN ) :: box_b
-  TYPE ( pw_grid_type ), INTENT ( IN ) :: grid_b
-  TYPE ( pw_grid_type ), INTENT ( INOUT ) :: grid_s
+    TYPE(cell_type), INTENT(IN)              :: box_b
+    TYPE(pw_grid_type), INTENT(IN)           :: grid_b
+    TYPE(pw_grid_type), INTENT(INOUT)        :: grid_s
 
-! Locals
-  TYPE ( cell_type ) :: unit_box, box_s
+    TYPE(cell_type)                          :: box_s, unit_box
 
 !------------------------------------------------------------------------------
 
@@ -265,15 +253,12 @@ END SUBROUTINE dg_grid_change
 
 SUBROUTINE dg_find_radix ( dr, cell_lengths, npts )
 
-  IMPLICIT NONE
 
-! Arguments
-  REAL ( dbl ), INTENT ( INOUT ) :: dr ( 3 )
-  REAL ( dbl ), INTENT ( IN ) :: cell_lengths ( 3 )
-  INTEGER, DIMENSION ( : ), INTENT ( OUT ) :: npts
+    REAL(dbl), INTENT(INOUT)                 :: dr( 3 )
+    REAL(dbl), INTENT(IN)                    :: cell_lengths( 3 )
+    INTEGER, DIMENSION(:), INTENT(OUT)       :: npts
 
-! Locals
-  INTEGER, DIMENSION ( 3 ) :: nin
+    INTEGER, DIMENSION(3)                    :: nin
 
 !------------------------------------------------------------------------------
 
@@ -291,15 +276,13 @@ END SUBROUTINE dg_find_radix
 !******************************************************************************
 
 SUBROUTINE dg_find_basis( npts, box, unit_box )
-  IMPLICIT NONE
 
-! Arguments
-  INTEGER, DIMENSION ( : ), INTENT ( IN ) :: npts
-  TYPE ( cell_type ), INTENT ( IN ) :: box
-  TYPE ( cell_type ), INTENT ( OUT )  :: unit_box
+    INTEGER, DIMENSION(:), INTENT(IN)        :: npts
+    TYPE(cell_type), INTENT(IN)              :: box
+    TYPE(cell_type), INTENT(OUT)             :: unit_box
 
-! Locals
-  INTEGER :: i
+    INTEGER                                  :: i
+
 !------------------------------------------------------------------------------
 
   DO i = 1, 3
@@ -316,16 +299,13 @@ END SUBROUTINE dg_find_basis
 
 SUBROUTINE dg_set_cell (npts, unit_box, box )
 
-  IMPLICIT NONE
 
-! Arguments
-  INTEGER, DIMENSION ( : ), INTENT ( IN ) :: npts
-  TYPE ( cell_type ), INTENT ( OUT ) :: box
-  TYPE ( cell_type ), INTENT ( IN ) :: unit_box
+    INTEGER, DIMENSION(:), INTENT(IN)        :: npts
+    TYPE(cell_type), INTENT(IN)              :: unit_box
+    TYPE(cell_type), INTENT(OUT)             :: box
 
 !------------------------------------------------------------------------------
 ! computing the unit vector along a, b, c and scaling it to length dr:
-
 
   box % hmat ( :, 1 ) = unit_box % hmat ( :, 1 ) * npts ( 1 )
   box % hmat ( :, 2 ) = unit_box % hmat ( :, 2 ) * npts ( 2 )
@@ -339,11 +319,10 @@ END SUBROUTINE dg_set_cell
 
 SUBROUTINE dg_find_max_cutoff ( npts, grid_b )
 
-  IMPLICIT NONE
 
-! Arguments
-  INTEGER, DIMENSION ( : ), INTENT ( IN ) :: npts
-  TYPE ( pw_grid_type ), DIMENSION ( : ), INTENT ( IN ) :: grid_b
+    INTEGER, DIMENSION(:), INTENT(IN)        :: npts
+    TYPE(pw_grid_type), DIMENSION(:), &
+      INTENT(IN)                             :: grid_b
 
 !------------------------------------------------------------------------------
 
@@ -354,21 +333,20 @@ END SUBROUTINE dg_find_max_cutoff
 !******************************************************************************
 
 SUBROUTINE dg_get_strucfac ( box, r, npts_s, npts_b, centre, lb, ex, ey, ez )
-  IMPLICIT NONE
 
-! Arguments
-  TYPE ( cell_type ), INTENT ( IN ) :: box
-  REAL ( dbl ), DIMENSION ( : ), INTENT ( IN ) :: r
-  INTEGER, DIMENSION ( : ), INTENT ( IN ) :: npts_s, npts_b
-  INTEGER, INTENT ( IN ) :: lb ( 3 )
+    TYPE(cell_type), INTENT(IN)              :: box
+    REAL(dbl), DIMENSION(:), INTENT(IN)      :: r
+    INTEGER, DIMENSION(:), INTENT(IN)        :: npts_s, npts_b
+    INTEGER, INTENT(OUT)                     :: centre( 3 )
+    INTEGER, INTENT(IN)                      :: lb( 3 )
+    COMPLEX(dbl), DIMENSION(lb(1):), &
+      INTENT(OUT)                            :: ex
+    COMPLEX(dbl), DIMENSION(lb(2):), &
+      INTENT(OUT)                            :: ey
+    COMPLEX(dbl), DIMENSION(lb(3):), &
+      INTENT(OUT)                            :: ez
 
-  INTEGER, INTENT ( OUT ) :: centre ( 3 )
-  COMPLEX ( dbl ), DIMENSION ( lb ( 1 ): ), INTENT ( OUT ) :: ex
-  COMPLEX ( dbl ), DIMENSION ( lb ( 2 ): ), INTENT ( OUT ) :: ey
-  COMPLEX ( dbl ), DIMENSION ( lb ( 3 ): ), INTENT ( OUT ) :: ez
-
-! Locals
-  REAL ( dbl ) :: delta ( 3 )
+    REAL(dbl)                                :: delta( 3 )
 
 !------------------------------------------------------------------------------
 
@@ -381,23 +359,19 @@ END SUBROUTINE dg_get_strucfac
 !******************************************************************************
 
 SUBROUTINE dg_get_delta ( box, r, npts_s, npts_b, centre, delta )
-  IMPLICIT NONE
 
-! Arguments
-  TYPE ( cell_type ), INTENT ( IN ) :: box
-  REAL ( dbl ), DIMENSION ( : ), INTENT ( IN ) :: r
-  INTEGER, DIMENSION ( : ), INTENT ( IN ) :: npts_s, npts_b
+    TYPE(cell_type), INTENT(IN)              :: box
+    REAL(dbl), DIMENSION(:), INTENT(IN)      :: r
+    INTEGER, DIMENSION(:), INTENT(IN)        :: npts_s, npts_b
+    INTEGER, DIMENSION(:), INTENT(OUT)       :: centre
+    REAL(dbl), DIMENSION(:), INTENT(OUT)     :: delta
 
-  INTEGER, DIMENSION ( : ), INTENT ( OUT ) :: centre
-  REAL ( dbl ), DIMENSION ( : ), INTENT ( OUT ) :: delta
-
-! Locals
-  REAL ( dbl ), DIMENSION ( 3 ) :: s, grid_i
-  INTEGER, DIMENSION ( 3 ) :: npts
+    INTEGER, DIMENSION(3)                    :: npts
+    REAL(dbl), DIMENSION(3)                  :: grid_i, s
 
 !------------------------------------------------------------------------------
-
 ! compute the scaled coordinate of atomi
+
   s = MATMUL ( box % h_inv, r )
   s = s - NINT ( s )
 
@@ -419,22 +393,20 @@ END SUBROUTINE dg_get_delta
 
 SUBROUTINE dg_sum_patch_coef ( rs, rhos, center )
 
-  IMPLICIT NONE
 
-! Arguments
-  TYPE ( realspace_grid_type ), TARGET, INTENT ( INOUT ) :: rs
-  TYPE ( coeff_type ), TARGET, INTENT ( IN ) :: rhos
-  INTEGER, DIMENSION ( 3 ), INTENT ( IN ) :: center
+    TYPE(realspace_grid_type), &
+      INTENT(INOUT), TARGET                  :: rs
+    TYPE(coeff_type), INTENT(IN), TARGET     :: rhos
+    INTEGER, DIMENSION(3), INTENT(IN)        :: center
 
-! Locals
-  INTEGER, DIMENSION ( :, : ), POINTER :: bs
-  INTEGER, DIMENSION ( : ), POINTER :: nb
-  INTEGER, DIMENSION ( : ), POINTER :: ns
-  INTEGER, DIMENSION ( 3 ) :: nc
-  INTEGER :: i, j, k, ii, ia
-  LOGICAL :: folded
+    INTEGER                                  :: i, ia, ii
+    INTEGER, DIMENSION(3)                    :: nc
+    INTEGER, DIMENSION(:), POINTER           :: nb, ns
+    INTEGER, DIMENSION(:, :), POINTER        :: bs
+    LOGICAL                                  :: folded
 
 !------------------------------------------------------------------------------
+
   bs => rhos % pw % pw_grid % bounds
   nb => rs % npts_local
   ns => rhos % pw % pw_grid % npts
@@ -494,21 +466,20 @@ END SUBROUTINE dg_sum_patch_coef
 
 SUBROUTINE dg_sum_patch_arr ( rs, rhos, center )
 
-  IMPLICIT NONE
 
-! Arguments
-  TYPE ( realspace_grid_type ), TARGET, INTENT ( INOUT ) :: rs
-  REAL ( dbl ), DIMENSION ( :,:,: ), INTENT ( IN ) :: rhos
-  INTEGER, DIMENSION ( 3 ), INTENT ( IN ) :: center
+    TYPE(realspace_grid_type), &
+      INTENT(INOUT), TARGET                  :: rs
+    REAL(dbl), DIMENSION(:, :, :), &
+      INTENT(IN)                             :: rhos
+    INTEGER, DIMENSION(3), INTENT(IN)        :: center
 
-! Locals
-  INTEGER, DIMENSION ( : ), POINTER :: nb
-  INTEGER, DIMENSION ( 3 ) :: ns, lb, ub
-  INTEGER, DIMENSION ( 3 ) :: nc
-  INTEGER :: i, ii, ia
-  LOGICAL :: folded
+    INTEGER                                  :: i, ia, ii
+    INTEGER, DIMENSION(3)                    :: lb, nc, ns, ub
+    INTEGER, DIMENSION(:), POINTER           :: nb
+    LOGICAL                                  :: folded
 
 !------------------------------------------------------------------------------
+
   nb => rs % npts
   ns ( 1 ) = SIZE ( rhos, 1 )
   ns ( 2 ) = SIZE ( rhos, 2 )
@@ -572,21 +543,18 @@ END SUBROUTINE dg_sum_patch_arr
 
 SUBROUTINE dg_sum_patch_force_arr_3d ( drpot, rhos, center, force )
 
-  IMPLICIT NONE
 
-! Arguments
-  TYPE ( realspace_grid_type ), DIMENSION ( 3 ), TARGET, &
-                                INTENT ( INOUT ) :: drpot
-  REAL ( dbl ), DIMENSION ( :,:,: ), INTENT ( IN ) :: rhos
-  INTEGER, DIMENSION ( 3 ), INTENT ( IN ) :: center
-  REAL ( dbl ), DIMENSION ( 3 ), INTENT ( OUT ) :: force
+    TYPE(realspace_grid_type), &
+      DIMENSION(3), INTENT(INOUT), TARGET    :: drpot
+    REAL(dbl), DIMENSION(:, :, :), &
+      INTENT(IN)                             :: rhos
+    INTEGER, DIMENSION(3), INTENT(IN)        :: center
+    REAL(dbl), DIMENSION(3), INTENT(OUT)     :: force
 
-! Locals
-  INTEGER, DIMENSION ( : ), POINTER :: nb
-  INTEGER, DIMENSION ( 3 ) :: ns, lb, ub
-  INTEGER, DIMENSION ( 3 ) :: nc
-  INTEGER :: i, ii, ia
-  LOGICAL :: folded
+    INTEGER                                  :: i, ia, ii
+    INTEGER, DIMENSION(3)                    :: lb, nc, ns, ub
+    INTEGER, DIMENSION(:), POINTER           :: nb
+    LOGICAL                                  :: folded
 
 !------------------------------------------------------------------------------
 
@@ -656,21 +624,18 @@ END SUBROUTINE dg_sum_patch_force_arr_3d
 
 SUBROUTINE dg_sum_patch_force_arr_1d ( drpot, rhos, center, force )
 
-  IMPLICIT NONE
 
-! Arguments
-  TYPE ( realspace_grid_type ), TARGET, &
-                                INTENT ( INOUT ) :: drpot
-  REAL ( dbl ), DIMENSION ( :,:,: ), INTENT ( IN ) :: rhos
-  INTEGER, DIMENSION ( 3 ), INTENT ( IN ) :: center
-  REAL ( dbl ), INTENT ( OUT ) :: force
+    TYPE(realspace_grid_type), &
+      INTENT(INOUT), TARGET                  :: drpot
+    REAL(dbl), DIMENSION(:, :, :), &
+      INTENT(IN)                             :: rhos
+    INTEGER, DIMENSION(3), INTENT(IN)        :: center
+    REAL(dbl), INTENT(OUT)                   :: force
 
-! Locals
-  INTEGER, DIMENSION ( : ), POINTER :: nb
-  INTEGER, DIMENSION ( 3 ) :: ns, lb, ub
-  INTEGER, DIMENSION ( 3 ) :: nc
-  INTEGER :: i, ii, ia
-  LOGICAL :: folded
+    INTEGER                                  :: i, ia, ii
+    INTEGER, DIMENSION(3)                    :: lb, nc, ns, ub
+    INTEGER, DIMENSION(:), POINTER           :: nb
+    LOGICAL                                  :: folded
 
 !------------------------------------------------------------------------------
 
@@ -738,23 +703,21 @@ END SUBROUTINE dg_sum_patch_force_arr_1d
 
 SUBROUTINE dg_sum_patch_force_coef_3d ( drpot, rhos, center, force )
 
-  IMPLICIT NONE
 
-! Arguments
-  TYPE ( realspace_grid_type ), DIMENSION ( 3 ), TARGET, INTENT ( INOUT ) :: drpot
-  TYPE ( coeff_type ), TARGET, INTENT ( IN ) :: rhos
-  INTEGER, DIMENSION ( 3 ), INTENT ( IN ) :: center
-  REAL ( dbl ), DIMENSION ( 3 ), INTENT ( OUT ) :: force
+    TYPE(realspace_grid_type), &
+      DIMENSION(3), INTENT(INOUT), TARGET    :: drpot
+    TYPE(coeff_type), INTENT(IN), TARGET     :: rhos
+    INTEGER, DIMENSION(3), INTENT(IN)        :: center
+    REAL(dbl), DIMENSION(3), INTENT(OUT)     :: force
 
-! Locals
-  INTEGER, DIMENSION ( :, : ), POINTER :: bs
-  INTEGER, DIMENSION ( : ), POINTER :: nb
-  INTEGER, DIMENSION ( : ), POINTER :: ns
-  INTEGER, DIMENSION ( 3 ) :: nc
-  INTEGER :: i, j, k, ii, ia
-  LOGICAL :: folded
+    INTEGER                                  :: i, ia, ii
+    INTEGER, DIMENSION(3)                    :: nc
+    INTEGER, DIMENSION(:), POINTER           :: nb, ns
+    INTEGER, DIMENSION(:, :), POINTER        :: bs
+    LOGICAL                                  :: folded
 
 !------------------------------------------------------------------------------
+
   bs => rhos % pw % pw_grid % bounds
   nb => drpot ( 1 ) % npts
   ns => rhos % pw % pw_grid % npts
@@ -818,23 +781,21 @@ END SUBROUTINE dg_sum_patch_force_coef_3d
 
 SUBROUTINE dg_sum_patch_force_coef_1d ( drpot, rhos, center, force )
 
-  IMPLICIT NONE
 
-! Arguments
-  TYPE ( realspace_grid_type ), TARGET, INTENT ( INOUT ) :: drpot
-  TYPE ( coeff_type ), TARGET, INTENT ( IN ) :: rhos
-  INTEGER, DIMENSION ( 3 ), INTENT ( IN ) :: center
-  REAL ( dbl ), INTENT ( OUT ) :: force
+    TYPE(realspace_grid_type), &
+      INTENT(INOUT), TARGET                  :: drpot
+    TYPE(coeff_type), INTENT(IN), TARGET     :: rhos
+    INTEGER, DIMENSION(3), INTENT(IN)        :: center
+    REAL(dbl), INTENT(OUT)                   :: force
 
-! Locals
-  INTEGER, DIMENSION ( :, : ), POINTER :: bs
-  INTEGER, DIMENSION ( : ), POINTER :: nb
-  INTEGER, DIMENSION ( : ), POINTER :: ns
-  INTEGER, DIMENSION ( 3 ) :: nc
-  INTEGER :: i, j, k, ii, ia
-  LOGICAL :: folded
+    INTEGER                                  :: i, ia, ii
+    INTEGER, DIMENSION(3)                    :: nc
+    INTEGER, DIMENSION(:), POINTER           :: nb, ns
+    INTEGER, DIMENSION(:, :), POINTER        :: bs
+    LOGICAL                                  :: folded
 
 !------------------------------------------------------------------------------
+
   bs => rhos % pw % pw_grid % bounds
   nb => drpot % npts
   ns => rhos % pw % pw_grid % npts
@@ -896,21 +857,18 @@ END SUBROUTINE dg_sum_patch_force_coef_1d
 
 SUBROUTINE dg_get_patch_1 ( rho0, rhos1, charge1, ex1, ey1, ez1 )
 
-  IMPLICIT NONE
 
-! Arguments
-  TYPE ( coeff_type ), INTENT ( IN ), TARGET :: rho0
-  TYPE ( coeff_type ), INTENT ( INOUT ), TARGET :: rhos1
-  REAL ( dbl ), INTENT ( IN ) :: charge1
-  COMPLEX ( dbl ), DIMENSION ( : ), INTENT ( IN ) :: ex1
-  COMPLEX ( dbl ), DIMENSION ( : ), INTENT ( IN ) :: ey1
-  COMPLEX ( dbl ), DIMENSION ( : ), INTENT ( IN ) :: ez1
+    TYPE(coeff_type), INTENT(IN), TARGET     :: rho0
+    TYPE(coeff_type), INTENT(INOUT), TARGET  :: rhos1
+    REAL(dbl), INTENT(IN)                    :: charge1
+    COMPLEX(dbl), DIMENSION(:), INTENT(IN)   :: ex1, ey1, ez1
 
-! Locals
-  INTEGER :: n, nd ( 3 ), ierr, n1, n2, n3
-  COMPLEX ( dbl ) :: za, zb
-  COMPLEX ( dbl ), DIMENSION ( : ), ALLOCATABLE, SAVE :: zs
-  COMPLEX ( dbl ), DIMENSION ( :,:,: ), ALLOCATABLE, SAVE :: cd
+    COMPLEX(dbl)                             :: za, zb
+    COMPLEX(dbl), ALLOCATABLE, &
+      DIMENSION(:), SAVE                     :: zs
+    COMPLEX(dbl), ALLOCATABLE, &
+      DIMENSION(:, :, :), SAVE               :: cd
+    INTEGER                                  :: ierr, n, n1, n2, n3, nd( 3 )
 
 !------------------------------------------------------------------------------
 
@@ -954,21 +912,18 @@ END SUBROUTINE dg_get_patch_1
 SUBROUTINE dg_get_patch_2 ( rho0, rhos1, rhos2, charge1, charge2, &
            ex1, ey1, ez1, ex2, ey2, ez2 )
 
-  IMPLICIT NONE
 
-! Arguments
-  TYPE ( coeff_type ), INTENT ( IN ), TARGET :: rho0
-  TYPE ( coeff_type ), INTENT ( INOUT ), TARGET :: rhos1, rhos2
-  REAL ( dbl ), INTENT ( IN ) :: charge1, charge2
-  COMPLEX ( dbl ), DIMENSION ( : ), INTENT ( IN ) :: ex1, ex2
-  COMPLEX ( dbl ), DIMENSION ( : ), INTENT ( IN ) :: ey1, ey2
-  COMPLEX ( dbl ), DIMENSION ( : ), INTENT ( IN ) :: ez1, ez2
+    TYPE(coeff_type), INTENT(IN), TARGET     :: rho0
+    TYPE(coeff_type), INTENT(INOUT), TARGET  :: rhos1, rhos2
+    REAL(dbl), INTENT(IN)                    :: charge1, charge2
+    COMPLEX(dbl), DIMENSION(:), INTENT(IN)   :: ex1, ey1, ez1, ex2, ey2, ez2
 
-! Locals
-  INTEGER :: n, nd ( 3 ), ierr, n1, n2, n3
-  COMPLEX ( dbl ) :: za, zb 
-  COMPLEX ( dbl ), DIMENSION ( : ), ALLOCATABLE, SAVE :: zs
-  COMPLEX ( dbl ), DIMENSION ( :,:,: ), ALLOCATABLE, SAVE :: cd 
+    COMPLEX(dbl)                             :: za, zb
+    COMPLEX(dbl), ALLOCATABLE, &
+      DIMENSION(:), SAVE                     :: zs
+    COMPLEX(dbl), ALLOCATABLE, &
+      DIMENSION(:, :, :), SAVE               :: cd
+    INTEGER                                  :: ierr, n, n1, n2, n3, nd( 3 )
 
 !------------------------------------------------------------------------------
 
@@ -1014,15 +969,12 @@ END SUBROUTINE dg_get_patch_2
 
 SUBROUTINE dg_add_patch_simple ( rb, rs, ns, nc )
 
-  IMPLICIT NONE
 
-! Arguments
-  REAL ( dbl ), INTENT ( INOUT ) :: rb ( :, :, : )
-  REAL ( dbl ), INTENT ( IN ) :: rs ( :, :, : )
-  INTEGER, INTENT ( IN ) :: ns ( 3 ), nc ( 3 )
+    REAL(dbl), INTENT(INOUT)                 :: rb( :, :, : )
+    REAL(dbl), INTENT(IN)                    :: rs( :, :, : )
+    INTEGER, INTENT(IN)                      :: ns( 3 ), nc( 3 )
 
-! LOCAL
-  INTEGER :: i, j, k, ii, jj, kk
+    INTEGER                                  :: i, ii, j, jj, k, kk
 
 !------------------------------------------------------------------------------
 
@@ -1043,16 +995,13 @@ END SUBROUTINE dg_add_patch_simple
 
 SUBROUTINE dg_add_patch_folded ( rb, rs, ns, px, py, pz )
 
-  IMPLICIT NONE
 
-! Arguments
-  REAL ( dbl ), INTENT ( INOUT ) :: rb ( :, :, : )
-  REAL ( dbl ), INTENT ( IN ) :: rs ( :, :, : )
-  INTEGER, INTENT ( IN ) :: ns ( : )
-  INTEGER, DIMENSION ( : ), INTENT ( IN ) :: px, py, pz
+    REAL(dbl), INTENT(INOUT)                 :: rb( :, :, : )
+    REAL(dbl), INTENT(IN)                    :: rs( :, :, : )
+    INTEGER, INTENT(IN)                      :: ns( : )
+    INTEGER, DIMENSION(:), INTENT(IN)        :: px, py, pz
 
-! LOCAL
-  INTEGER :: i, j, k, ii, jj, kk
+    INTEGER                                  :: i, ii, j, jj, k, kk
 
 !------------------------------------------------------------------------------
 
@@ -1073,16 +1022,14 @@ END SUBROUTINE dg_add_patch_folded
 
 SUBROUTINE dg_int_patch_simple_3d ( rbx, rby, rbz, rs, f, ns, nc )
 
-  IMPLICIT NONE
 
-! Arguments
-  REAL ( dbl ), DIMENSION (:,:,:), INTENT ( IN ) :: rbx, rby, rbz, rs
-  REAL ( dbl ), DIMENSION ( 3 ), INTENT ( OUT ) :: f
-  INTEGER, INTENT ( IN ) :: ns ( 3 ), nc ( 3 )
+    REAL(dbl), DIMENSION(:, :, :), &
+      INTENT(IN)                             :: rbx, rby, rbz, rs
+    REAL(dbl), DIMENSION(3), INTENT(OUT)     :: f
+    INTEGER, INTENT(IN)                      :: ns( 3 ), nc( 3 )
 
-! LOCAL
-  INTEGER :: i, j, k, ii, jj, kk
-  REAL ( dbl ) :: s
+    INTEGER                                  :: i, ii, j, jj, k, kk
+    REAL(dbl)                                :: s
 
 !------------------------------------------------------------------------------
 
@@ -1107,17 +1054,14 @@ END SUBROUTINE dg_int_patch_simple_3d
 
 SUBROUTINE dg_int_patch_simple_1d ( rb, rs, f, ns, nc )
 
-  IMPLICIT NONE
 
-! Arguments
-  REAL ( dbl ), DIMENSION (:,:,:), INTENT ( IN ) :: rb
-  REAL ( dbl ), DIMENSION (:,:,:), INTENT ( IN ) :: rs
-  REAL ( dbl ), INTENT ( OUT ) :: f
-  INTEGER, INTENT ( IN ) :: ns ( 3 ), nc ( 3 )
+    REAL(dbl), DIMENSION(:, :, :), &
+      INTENT(IN)                             :: rb, rs
+    REAL(dbl), INTENT(OUT)                   :: f
+    INTEGER, INTENT(IN)                      :: ns( 3 ), nc( 3 )
 
-! LOCAL
-  INTEGER :: i, j, k, ii, jj, kk
-  REAL ( dbl ) :: s
+    INTEGER                                  :: i, ii, j, jj, k, kk
+    REAL(dbl)                                :: s
 
 !------------------------------------------------------------------------------
 
@@ -1140,17 +1084,15 @@ END SUBROUTINE dg_int_patch_simple_1d
 
 SUBROUTINE dg_int_patch_folded_3d ( rbx, rby, rbz, rs, f, ns, px, py, pz )
 
-  IMPLICIT NONE
 
-! Arguments
-  REAL ( dbl ), DIMENSION (:,:,:), INTENT ( IN ) :: rbx, rby, rbz, rs
-  REAL ( dbl ), DIMENSION ( 3 ), INTENT ( INOUT ) :: f
-  INTEGER, INTENT ( IN ) :: ns ( 3 )
-  INTEGER, DIMENSION ( : ), INTENT ( IN ) :: px, py, pz
+    REAL(dbl), DIMENSION(:, :, :), &
+      INTENT(IN)                             :: rbx, rby, rbz, rs
+    REAL(dbl), DIMENSION(3), INTENT(INOUT)   :: f
+    INTEGER, INTENT(IN)                      :: ns( 3 )
+    INTEGER, DIMENSION(:), INTENT(IN)        :: px, py, pz
 
-! LOCAL
-  INTEGER :: i, j, k, ii, jj, kk
-  REAL ( dbl ) :: s
+    INTEGER                                  :: i, ii, j, jj, k, kk
+    REAL(dbl)                                :: s
 
 !------------------------------------------------------------------------------
 
@@ -1175,18 +1117,15 @@ END SUBROUTINE dg_int_patch_folded_3d
 
 SUBROUTINE dg_int_patch_folded_1d ( rb, rs, f, ns, px, py, pz )
 
-  IMPLICIT NONE
 
-! Arguments
-  REAL ( dbl ), DIMENSION (:,:,:), INTENT ( IN ) :: rb
-  REAL ( dbl ), DIMENSION (:,:,:), INTENT ( IN ) :: rs
-  REAL ( dbl ), INTENT ( INOUT ) :: f
-  INTEGER, INTENT ( IN ) :: ns ( 3 )
-  INTEGER, DIMENSION ( : ), INTENT ( IN ) :: px, py, pz
+    REAL(dbl), DIMENSION(:, :, :), &
+      INTENT(IN)                             :: rb, rs
+    REAL(dbl), INTENT(INOUT)                 :: f
+    INTEGER, INTENT(IN)                      :: ns( 3 )
+    INTEGER, DIMENSION(:), INTENT(IN)        :: px, py, pz
 
-! LOCAL
-  INTEGER :: i, j, k, ii, jj, kk
-  REAL ( dbl ) :: s
+    INTEGER                                  :: i, ii, j, jj, k, kk
+    REAL(dbl)                                :: s
 
 !------------------------------------------------------------------------------
 

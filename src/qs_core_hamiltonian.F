@@ -92,9 +92,9 @@ MODULE qs_core_hamiltonian
   USE external_potential_types,        ONLY: get_potential,&
                                              gth_potential_type
   USE global_types,                    ONLY: global_environment_type
-  USE kinds,                           ONLY: int_size,&
-                                             dp,&
-                                             dp_size
+  USE kinds,                           ONLY: dp,&
+                                             dp_size,&
+                                             int_size
   USE memory_utilities,                ONLY: reallocate
   USE orbital_pointers,                ONLY: indco,&
                                              init_orbital_pointers,&
@@ -129,7 +129,6 @@ MODULE qs_core_hamiltonian
                                              allocate_matrix_set,&
                                              cp_sm_scale_and_add,&
                                              deallocate_matrix_set,&
-                                             first_block_node,&
                                              get_block_node,&
                                              real_matrix_p_type,&
                                              replicate_matrix_structure,&
@@ -174,9 +173,10 @@ CONTAINS
 
 !   ***************************************************************************
 
-    TYPE(global_environment_type), INTENT(IN) :: globenv
-    TYPE(qs_environment_type), POINTER        :: qs_env
-    LOGICAL, INTENT(IN)                       :: calculate_forces
+    TYPE(qs_environment_type), POINTER       :: qs_env
+    TYPE(global_environment_type), &
+      INTENT(IN)                             :: globenv
+    LOGICAL, INTENT(IN)                      :: calculate_forces
 
 !   *** Local types ***
 

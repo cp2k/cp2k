@@ -33,16 +33,15 @@ MODULE pao_bas_projection_types
                                              cp_error_type
   USE cp_linked_list_int,              ONLY: cp_create,&
                                              cp_dealloc,&
-                                             cp_insert,&
                                              cp_next,&
                                              cp_sll_int_type
   USE cp_log_handling,                 ONLY: cp_failure_level,&
                                              cp_to_string,&
                                              cp_warning_level
-  USE global_types,                    ONLY: global_environment_type
   USE kinds,                           ONLY: dp
   USE timings,                         ONLY: timeset,&
                                              timestop
+
   IMPLICIT NONE
   PRIVATE
 
@@ -158,15 +157,18 @@ CONTAINS
 !!*** **********************************************************************
 SUBROUTINE cp_proj_create(proj, proj_indexes, size_full_bas, &
      error)
-  TYPE(pao_bas_projection_type), POINTER :: proj
-  INTEGER, DIMENSION(:), INTENT(in) ::proj_indexes
-  INTEGER, INTENT(in) :: size_full_bas
-  TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
-  
-  LOGICAL :: failure
-  INTEGER :: stat
-  CHARACTER(len=*), PARAMETER :: routineN='cp_proj_create',&
-        routineP=moduleN//':'//routineN
+    TYPE(pao_bas_projection_type), POINTER   :: proj
+    INTEGER, DIMENSION(:), INTENT(in)        :: proj_indexes
+    INTEGER, INTENT(in)                      :: size_full_bas
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'cp_proj_create', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: stat
+    LOGICAL                                  :: failure
+
   failure=.FALSE.
   
   ALLOCATE(proj,stat=stat)
@@ -208,15 +210,18 @@ END SUBROUTINE cp_proj_create
 !!*** **********************************************************************
 SUBROUTINE cp_proj_create2(proj, proj_indexes, size_full_bas, &
      error)
-  TYPE(pao_bas_projection_type), POINTER :: proj
-  TYPE(cp_sll_int_type), POINTER ::proj_indexes
-  INTEGER, INTENT(in) :: size_full_bas
-  TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
-  
-  LOGICAL :: failure
-  INTEGER :: stat
-  CHARACTER(len=*), PARAMETER :: routineN='cp_proj_create2',&
-        routineP=moduleN//':'//routineN
+    TYPE(pao_bas_projection_type), POINTER   :: proj
+    TYPE(cp_sll_int_type), POINTER           :: proj_indexes
+    INTEGER, INTENT(in)                      :: size_full_bas
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'cp_proj_create2', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: stat
+    LOGICAL                                  :: failure
+
   failure=.FALSE.
   
   ALLOCATE(proj,stat=stat)
@@ -257,13 +262,16 @@ END SUBROUTINE cp_proj_create2
 !!
 !!*** **********************************************************************
 SUBROUTINE cp_proj_dealloc(proj,error)
-  TYPE(pao_bas_projection_type), POINTER :: proj
-  TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
-  
-  LOGICAL :: failure
-  INTEGER :: stat
-  CHARACTER(len=*), PARAMETER :: routineN='cp_proj_dealloc',&
-        routineP=moduleN//':'//routineN
+    TYPE(pao_bas_projection_type), POINTER   :: proj
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'cp_proj_dealloc', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: stat
+    LOGICAL                                  :: failure
+
   failure=.FALSE.
   
   IF (ASSOCIATED(proj)) THEN
@@ -311,15 +319,19 @@ END SUBROUTINE cp_proj_dealloc
 !!*** **********************************************************************
   SUBROUTINE cp_proj_init(proj, proj_indexes, size_full_bas, &
        error)
-    TYPE(pao_bas_projection_type), INTENT(out) :: proj
-    INTEGER, DIMENSION(:), INTENT(in) ::proj_indexes
-    INTEGER, INTENT(in) :: size_full_bas
-    TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
+    TYPE(pao_bas_projection_type), &
+      INTENT(out)                            :: proj
+    INTEGER, DIMENSION(:), INTENT(in)        :: proj_indexes
+    INTEGER, INTENT(in)                      :: size_full_bas
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
 
-    LOGICAL :: failure,found
-    INTEGER :: stat, i, j, exc_pos
-    CHARACTER(len=*), PARAMETER :: routineN='cp_proj_init',&
-         routineP=moduleN//':'//routineN
+    CHARACTER(len=*), PARAMETER :: routineN = 'cp_proj_init', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: exc_pos, i, j, stat
+    LOGICAL                                  :: failure, found
+
     failure=.FALSE.
 
     CPPrecondition(ALL(proj_indexes>0),cp_failure_level,routineP,error,failure)
@@ -391,16 +403,21 @@ END SUBROUTINE cp_proj_dealloc
 !!*** **********************************************************************
   SUBROUTINE cp_proj_init2(proj, proj_indexes, size_full_bas, &
        error)
-    TYPE(pao_bas_projection_type), INTENT(out) :: proj
-    TYPE(cp_sll_int_type), POINTER ::proj_indexes
-    INTEGER, INTENT(in) :: size_full_bas
-    TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
+    TYPE(pao_bas_projection_type), &
+      INTENT(out)                            :: proj
+    TYPE(cp_sll_int_type), POINTER           :: proj_indexes
+    INTEGER, INTENT(in)                      :: size_full_bas
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
 
-    LOGICAL :: failure,found
-    INTEGER :: stat, size_min_bas, i, j, exc_pos, el_att
-    CHARACTER(len=*), PARAMETER :: routineN='cp_proj_init2',&
-         routineP=moduleN//':'//routineN
-    TYPE(cp_sll_int_type), POINTER :: iterator
+    CHARACTER(len=*), PARAMETER :: routineN = 'cp_proj_init2', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: el_att, exc_pos, i, j, &
+                                                size_min_bas, stat
+    LOGICAL                                  :: failure, found
+    TYPE(cp_sll_int_type), POINTER           :: iterator
+
     failure=.FALSE.
 
     iterator => proj_indexes
@@ -474,13 +491,17 @@ END SUBROUTINE cp_proj_dealloc
 !!
 !!*** **********************************************************************
   SUBROUTINE cp_proj_dealloc_ref(proj, error)
-    TYPE(pao_bas_projection_type), INTENT(inout) :: proj
-    TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
+    TYPE(pao_bas_projection_type), &
+      INTENT(inout)                          :: proj
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
 
-    LOGICAL :: failure
-    INTEGER :: handle, stat
-    CHARACTER(len=*), PARAMETER :: routineN='cp_proj_dealloc_ref',&
-         routineP=moduleN//':'//routineN
+    CHARACTER(len=*), PARAMETER :: routineN = 'cp_proj_dealloc_ref', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: handle, stat
+    LOGICAL                                  :: failure
+
     failure=.FALSE.
 
     !call timeset(routineN//','//moduleN,'I',"",handle)
@@ -526,13 +547,17 @@ END SUBROUTINE cp_proj_dealloc
 !!
 !!*** **********************************************************************
   FUNCTION cp_proj_valid(proj,error) RESULT(res)
-    TYPE(pao_bas_projection_type), INTENT(in) :: proj
-    LOGICAL ::res
-    TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
+    TYPE(pao_bas_projection_type), &
+      INTENT(in)                             :: proj
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
+    LOGICAL                                  :: res
 
-    LOGICAL :: failure
-    CHARACTER(len=*), PARAMETER :: routineN='cp_proj_valid',&
-         routineP=moduleN//':'//routineN
+    CHARACTER(len=*), PARAMETER :: routineN = 'cp_proj_valid', &
+      routineP = moduleN//':'//routineN
+
+    LOGICAL                                  :: failure
+
     failure=.FALSE.
 
     CPPrecondition(proj%initialized,cp_failure_level,routineP,error,failure)
@@ -586,16 +611,19 @@ END SUBROUTINE cp_proj_dealloc
 !!*** **********************************************************************
   SUBROUTINE cp_proj_get(proj, size_min_bas, size_full_bas, &
        size_excl_bas, proj_indexes, non_proj_indexes, error)
-    TYPE(pao_bas_projection_type), INTENT(in) :: proj
-    INTEGER, OPTIONAL, INTENT(out) :: size_excl_bas,size_full_bas,&
-         size_min_bas
-    INTEGER, OPTIONAL, DIMENSION(:), POINTER :: proj_indexes,&
-         non_proj_indexes
-    TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
+    TYPE(pao_bas_projection_type), &
+      INTENT(in)                             :: proj
+    INTEGER, INTENT(out), OPTIONAL           :: size_min_bas, size_full_bas, &
+                                                size_excl_bas
+    INTEGER, DIMENSION(:), OPTIONAL, POINTER :: proj_indexes, non_proj_indexes
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
 
-    LOGICAL :: failure
-    CHARACTER(len=*), PARAMETER :: routineN='',&
-         routineP=moduleN//':'//routineN
+    CHARACTER(len=*), PARAMETER :: routineN = '', &
+      routineP = moduleN//':'//routineN
+
+    LOGICAL                                  :: failure
+
     failure=.FALSE.
 
     CPPrecondition(proj%initialized,cp_failure_level,routineP,error,failure)
@@ -642,13 +670,17 @@ END SUBROUTINE cp_proj_dealloc
 !!
 !!*** **********************************************************************
   FUNCTION cp_proj_get_proj_indexes(proj, error) RESULT(res)
-    TYPE(pao_bas_projection_type), INTENT(in) :: proj
-    INTEGER, DIMENSION(:), POINTER :: res
-    TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
+    TYPE(pao_bas_projection_type), &
+      INTENT(in)                             :: proj
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
+    INTEGER, DIMENSION(:), POINTER           :: res
 
-    LOGICAL :: failure
-    CHARACTER(len=*), PARAMETER :: routineN='cp_proj_get_proj_indexes',&
-         routineP=moduleN//':'//routineN
+    CHARACTER(len=*), PARAMETER :: routineN = 'cp_proj_get_proj_indexes', &
+      routineP = moduleN//':'//routineN
+
+    LOGICAL                                  :: failure
+
     failure=.FALSE.
 
     IF (cp_debug.and.debug_this_module) THEN
@@ -694,13 +726,17 @@ END SUBROUTINE cp_proj_dealloc
 !!
 !!*** **********************************************************************
   FUNCTION cp_proj_get_non_proj_indexes(proj, error) RESULT(res)
-    TYPE(pao_bas_projection_type), INTENT(in) :: proj
-    INTEGER, DIMENSION(:), POINTER :: res
-    TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
+    TYPE(pao_bas_projection_type), &
+      INTENT(in)                             :: proj
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
+    INTEGER, DIMENSION(:), POINTER           :: res
 
-    LOGICAL :: failure
-    CHARACTER(len=*), PARAMETER :: routineN='cp_proj_get_non_proj_indexes',&
-         routineP=moduleN//':'//routineN
+    CHARACTER(len=*), PARAMETER :: routineN = 'cp_proj_get_non_proj_indexes', &
+      routineP = moduleN//':'//routineN
+
+    LOGICAL                                  :: failure
+
     failure=.FALSE.
 
     IF (cp_debug.and.debug_this_module) THEN
@@ -746,13 +782,17 @@ END SUBROUTINE cp_proj_dealloc
 !!
 !!*** **********************************************************************
 SUBROUTINE cp_proj_write(proj,unit_nr,error)
-  TYPE(pao_bas_projection_type), INTENT(in), TARGET :: proj
-  INTEGER, INTENT(in) :: unit_nr
-  TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
-  
-  LOGICAL :: failure
-  CHARACTER(len=*), PARAMETER :: routineN='cp_proj_write',&
-        routineP=moduleN//':'//routineN
+    TYPE(pao_bas_projection_type), &
+      INTENT(in), TARGET                     :: proj
+    INTEGER, INTENT(in)                      :: unit_nr
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'cp_proj_write', &
+      routineP = moduleN//':'//routineN
+
+    LOGICAL                                  :: failure
+
   failure=.FALSE.
   
   CPPrecondition(proj%initialized,cp_failure_level,routineP,error,failure)

@@ -30,36 +30,28 @@ MODULE pao_env_methods
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                              get_atomic_kind,&
                                              get_atomic_kind_set
-  USE cp_b_matrix_structure,           ONLY: cp_b_matrix_struct_type,&
-                                             cp_bmstruct_create,&
+  USE cp_b_matrix_structure,           ONLY: cp_bmstruct_create,&
                                              cp_bmstruct_release
   USE cp_block_matrix,                 ONLY: cp_block_matrix_p_type,&
-                                             cp_block_matrix_type,&
-                                             cp_get_matrix,&
                                              cp_release,&
-                                             cp_retain,&
                                              cp_sp_create
   USE cp_error_handling,               ONLY: cp_a_l,&
                                              cp_assert,&
                                              cp_assertion_failed,&
                                              cp_debug,&
                                              cp_error_dealloc_ref,&
-                                             cp_error_get_level,&
                                              cp_error_get_logger,&
-                                             cp_error_get_print_level,&
-                                             cp_error_get_stop_level,&
                                              cp_error_init,&
                                              cp_error_message,&
                                              cp_error_type,&
                                              cp_internal_error
-  USE cp_subsystem_types,               ONLY: cp_subsystem_type,&
-                                             cp_subsys_get
   USE cp_log_handling,                 ONLY: cp_failure_level,&
                                              cp_logger_type,&
                                              cp_note_level,&
                                              cp_to_string,&
                                              cp_warning_level
-  USE cp_para_types,                   ONLY: cp_para_env_type
+  USE cp_subsystem_types,              ONLY: cp_subsys_get,&
+                                             cp_subsystem_type
   USE global_types,                    ONLY: global_environment_type
   USE kinds,                           ONLY: default_string_length,&
                                              dp
@@ -68,18 +60,15 @@ MODULE pao_env_methods
   USE pao_glob_angles_methods,         ONLY: cp_dealloc,&
                                              cp_set,&
                                              pao_g_ang_init
-  USE pao_qs_env_methods,              ONLY: cp_get_b_projection
-  USE pao_types,                       ONLY: cp_get,&
-                                             pao_env_type,&
+  USE pao_types,                       ONLY: pao_env_type,&
                                              pao_env_valid,&
                                              pao_glob_angles_type
   USE particle_list_types,             ONLY: particle_list_type
   USE qs_environment_types,            ONLY: get_qs_env,&
                                              qs_environment_type
-  USE sparse_matrix_types,             ONLY: real_matrix_p_type,&
-                                             real_matrix_type
   USE timings,                         ONLY: timeset,&
                                              timestop
+
   IMPLICIT NONE
   PRIVATE
 
@@ -182,26 +171,30 @@ CONTAINS
        wanted_subspace_pos_precision,&
        wanted_in_subspace_precision,&
        error)
-    TYPE(pao_env_type), INTENT(out) :: pao_env
-    TYPE(global_environment_type), INTENT(in), TARGET :: global_env
-    TYPE(qs_environment_type), INTENT(inout), TARGET :: qs_env
-    REAL(KIND = dp), OPTIONAL, INTENT(in) :: wanted_in_subspace_precision, &
-         wanted_subspace_pos_precision
-    TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
+    TYPE(pao_env_type), INTENT(out)          :: pao_env
+    TYPE(qs_environment_type), &
+      INTENT(inout), TARGET                  :: qs_env
+    TYPE(global_environment_type), &
+      INTENT(in), TARGET                     :: global_env
+    REAL(KIND=dp), INTENT(in), OPTIONAL      :: wanted_subspace_pos_precision,&
+                                                wanted_in_subspace_precision
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
 
-    LOGICAL :: failure
-    CHARACTER(len=*), PARAMETER :: routineP='pao_env_methods:pao_env_init'
-    TYPE(cp_error_type) :: iError
-    INTEGER :: stat, i, n_atoms, size_excl_bas, size_min_bas, size_full_bas,j
-    TYPE(pao_bas_projection_type), POINTER :: bproj
-    INTEGER, DIMENSION(:), ALLOCATABLE :: min_bas_sizes, full_bas_sizes
-    TYPE(atomic_kind_type), DIMENSION(:), POINTER :: atomic_kind_set
-    INTEGER, DIMENSION(:), POINTER :: atom_list
-    CHARACTER(len=default_string_length) :: name
-    TYPE(atomic_kind_type), POINTER :: atomic_kind
-    TYPE(cp_subsystem_type), POINTER :: subsys
-    TYPE(particle_list_type), POINTER :: particles
-    TYPE(atomic_kind_list_type), POINTER :: atomic_kinds
+    CHARACTER(len=*), PARAMETER :: routineP = 'pao_env_methods:pao_env_init'
+
+    CHARACTER(len=default_string_length)     :: name
+    INTEGER                                  :: i, j, n_atoms, size_full_bas, &
+                                                size_min_bas, stat
+    INTEGER, ALLOCATABLE, DIMENSION(:)       :: full_bas_sizes, min_bas_sizes
+    INTEGER, DIMENSION(:), POINTER           :: atom_list
+    LOGICAL                                  :: failure
+    TYPE(atomic_kind_list_type), POINTER     :: atomic_kinds
+    TYPE(atomic_kind_type), POINTER          :: atomic_kind
+    TYPE(cp_error_type)                      :: iError
+    TYPE(cp_subsystem_type), POINTER         :: subsys
+    TYPE(pao_bas_projection_type), POINTER   :: bproj
+    TYPE(particle_list_type), POINTER        :: particles
 
     NULLIFY(atom_list, subsys, particles, atomic_kinds)
     failure=.FALSE.
@@ -393,14 +386,20 @@ CONTAINS
 !!
 !!*** **********************************************************************
   SUBROUTINE pao_env_dealloc_ref(pao_env,qs_env,global_env, error)
-    TYPE(pao_env_type), INTENT(inout) :: pao_env
-    TYPE(global_environment_type), INTENT(in), TARGET :: global_env
-    TYPE(qs_environment_type), INTENT(inout), TARGET :: qs_env    
-    TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
+    TYPE(pao_env_type), INTENT(inout)        :: pao_env
+    TYPE(qs_environment_type), &
+      INTENT(inout), TARGET                  :: qs_env
+    TYPE(global_environment_type), &
+      INTENT(in), TARGET                     :: global_env
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
 
-    LOGICAL :: failure
-    CHARACTER(len=*), PARAMETER :: routineP='pao_env_methods:pao_env_dealloc_ref'
-    INTEGER :: stat,i
+    CHARACTER(len=*), PARAMETER :: &
+      routineP = 'pao_env_methods:pao_env_dealloc_ref'
+
+    INTEGER                                  :: stat
+    LOGICAL                                  :: failure
+
     failure=.FALSE.
 
     CPPrecondition(pao_env%initialized,cp_failure_level,routineP,error,failure)
@@ -488,17 +487,22 @@ CONTAINS
 !!*** **********************************************************************
   FUNCTION pao_env_validate(pao_env,qs_env,global_env, test_pos_att, error)&
        RESULT(res)
-    LOGICAL ::res
-    TYPE(pao_env_type), INTENT(in), TARGET :: pao_env
-    TYPE(qs_environment_type), INTENT(in),TARGET :: qs_env
-    TYPE(global_environment_type), INTENT(in), TARGET :: global_env
-    LOGICAL ,OPTIONAL ::test_pos_att
-    TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
+    TYPE(pao_env_type), INTENT(in), TARGET   :: pao_env
+    TYPE(qs_environment_type), INTENT(in), &
+      TARGET                                 :: qs_env
+    TYPE(global_environment_type), &
+      INTENT(in), TARGET                     :: global_env
+    LOGICAL, OPTIONAL                        :: test_pos_att
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
+    LOGICAL                                  :: res
 
-    LOGICAL :: failure, test_pos
-    CHARACTER(len=*), PARAMETER :: routineP='pao_env_methods:pao_env_validate'
-    TYPE(cp_logger_type), POINTER :: logger
-    INTEGER :: i,m_bas_att,f_bas_att,j
+    CHARACTER(len=*), PARAMETER :: &
+      routineP = 'pao_env_methods:pao_env_validate'
+
+    LOGICAL                                  :: failure, test_pos
+    TYPE(cp_logger_type), POINTER            :: logger
+
     failure=.FALSE.
     logger => cp_error_get_logger(error)
     IF (PRESENT(test_pos_att)) THEN
@@ -563,21 +567,28 @@ CONTAINS
        wanted_subspace_pos_precision,&
        wanted_in_subspace_precision, angles_att, &
        min_density_m, min_d_valid,error)
-    TYPE(pao_env_type), TARGET, INTENT(inout) :: pao_env
-    TYPE(global_environment_type), INTENT(in), TARGET :: global_env
-    TYPE(qs_environment_type), INTENT(in), TARGET :: qs_env
-    REAL(KIND = dp), OPTIONAL, INTENT(in) :: wanted_in_subspace_precision, &
-         wanted_subspace_pos_precision
-    TYPE(pao_glob_angles_type),OPTIONAL, INTENT(in) :: angles_att
-    TYPE(cp_block_matrix_p_type),OPTIONAL, INTENT(in), DIMENSION(:),&
-         TARGET :: min_density_m
-    LOGICAL, OPTIONAL :: min_d_valid
-    TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
+    TYPE(pao_env_type), INTENT(inout), &
+      TARGET                                 :: pao_env
+    TYPE(qs_environment_type), INTENT(in), &
+      TARGET                                 :: qs_env
+    TYPE(global_environment_type), &
+      INTENT(in), TARGET                     :: global_env
+    REAL(KIND=dp), INTENT(in), OPTIONAL      :: wanted_subspace_pos_precision,&
+                                                wanted_in_subspace_precision
+    TYPE(pao_glob_angles_type), INTENT(in), &
+      OPTIONAL                               :: angles_att
+    TYPE(cp_block_matrix_p_type), &
+      DIMENSION(:), INTENT(in), OPTIONAL, &
+      TARGET                                 :: min_density_m
+    LOGICAL, OPTIONAL                        :: min_d_valid
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
 
-    LOGICAL :: failure
-    CHARACTER(len=*), PARAMETER :: routineP='pao_env_methods:pao_env_set'
-    INTEGER :: stat
-    TYPE(cp_error_type) :: iError
+    CHARACTER(len=*), PARAMETER :: routineP = 'pao_env_methods:pao_env_set'
+
+    LOGICAL                                  :: failure
+    TYPE(cp_error_type)                      :: iError
+
     failure=.FALSE.
     CALL cp_error_init(iError,template_error=error)
 

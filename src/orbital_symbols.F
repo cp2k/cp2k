@@ -20,17 +20,17 @@
 !******************************************************************************
 
 MODULE orbital_symbols
-  USE termination, ONLY: stop_program
-
-
+  USE termination,                     ONLY: stop_program
 ! *****************************************************************************
 
 ! Index:
 
 ! FUNCTION cgf_symbol(n,lxyz) RESULT(symbol)
+
 ! FUNCTION sgf_symbol(n,l,m) RESULT(symbol)
 
 ! *****************************************************************************
+
 
   IMPLICIT NONE
 
@@ -60,19 +60,14 @@ CONTAINS
 
 !   ***************************************************************************
 
-    INTEGER, INTENT(IN) :: n
+    INTEGER, INTENT(IN)                      :: n
+    INTEGER, DIMENSION(3), INTENT(IN)        :: lxyz
+    CHARACTER(LEN=12)                        :: symbol
 
-    INTEGER, DIMENSION(3), INTENT(IN) :: lxyz
+    CHARACTER(LEN=1), DIMENSION(3), &
+      PARAMETER                              :: xyz = (/"x","y","z"/)
 
-    CHARACTER(LEN=12) :: symbol
-
-!   *** Local parameters ***
-
-    CHARACTER(LEN=1), PARAMETER, DIMENSION(3) :: xyz = (/"x","y","z"/)
-
-!   *** Local variables ***
-
-    INTEGER :: i,ipos,l
+    INTEGER                                  :: i, ipos, l
 
 !   ---------------------------------------------------------------------------
 
@@ -133,13 +128,11 @@ CONTAINS
 
 !   ***************************************************************************
 
-    INTEGER, INTENT(IN) :: l,m,n
+    INTEGER, INTENT(IN)                      :: n, l, m
+    CHARACTER(LEN=6)                         :: symbol
 
-    CHARACTER(LEN=6) :: symbol
-
-!   *** Local parameters ***
-
-    CHARACTER(LEN=1), PARAMETER, DIMENSION(-1:1) :: yzx = (/"y","z","x"/)
+    CHARACTER(LEN=1), DIMENSION(-1:1), &
+      PARAMETER                              :: yzx = (/"y","z","x"/)
 
 !   ---------------------------------------------------------------------------
 

@@ -27,13 +27,8 @@
 MODULE pw_env_types
   USE cp_error_handling,               ONLY: cp_a_l,&
                                              cp_assert,&
-                                             cp_assertion_failed,&
-                                             cp_debug,&
-                                             cp_error_dealloc_ref,&
-                                             cp_error_init,&
                                              cp_error_message,&
-                                             cp_error_type,&
-                                             cp_internal_error
+                                             cp_error_type
   USE cp_log_handling,                 ONLY: cp_failure_level,&
                                              cp_fatal_level,&
                                              cp_note_level,&
@@ -41,34 +36,22 @@ MODULE pw_env_types
                                              cp_warning_level
   USE cp_rs_pool_types,                ONLY: cp_rs_pool_p_type,&
                                              cp_rs_pool_type,&
-                                             rs_pool_release,&
-                                             rs_pool_retain,&
-                                             rs_pools_copy,&
                                              rs_pools_dealloc,&
                                              rs_pools_flush_cache
   USE cube_utils,                      ONLY: cube_info_type,&
-                                             destroy_cube_info,&
-                                             init_cube_info
-  USE cp_control_types,                       ONLY: dft_control_type
+                                             destroy_cube_info
   USE gaussian_gridlevels,             ONLY: destroy_gaussian_gridlevel,&
-                                             gridlevel_info_type,&
-                                             init_gaussian_gridlevel
-  USE global_types,                    ONLY: global_environment_type
+                                             gridlevel_info_type
   USE kinds,                           ONLY: dp
   USE l_utils,                         ONLY: destroy_l_info,&
-                                             init_l_info,&
                                              l_info_type
-  USE pw_pool_types,                   ONLY: pw_pool_create,&
-                                             pw_pool_init_coeff,&
-                                             pw_pool_p_type,&
-                                             pw_pool_release,&
-                                             pw_pool_retain,&
+  USE pw_pool_types,                   ONLY: pw_pool_p_type,&
                                              pw_pool_type,&
-                                             pw_pools_copy,&
                                              pw_pools_dealloc,&
                                              pw_pools_flush_cache
   USE timings,                         ONLY: timeset,&
                                              timestop
+
   IMPLICIT NONE
   PRIVATE
 
@@ -173,21 +156,28 @@ CONTAINS
 SUBROUTINE pw_env_get(pw_env, pw_pools,l_info, cube_info, gridlevel_info,&
      auxbas_pw_pool,auxbas_cube_info,auxbas_grid,rs_pools,auxbas_rs_pool,&
      error)
-  TYPE(pw_env_type), POINTER :: pw_env
-  TYPE(pw_pool_p_type), DIMENSION(:), POINTER, OPTIONAL :: pw_pools
-  TYPE(l_info_type), POINTER, OPTIONAL :: l_info
-  TYPE(cube_info_type), DIMENSION(:), POINTER, OPTIONAL :: cube_info
-  TYPE(gridlevel_info_type), POINTER, OPTIONAL :: gridlevel_info
-  TYPE(pw_pool_type), POINTER, OPTIONAL :: auxbas_pw_pool
-  TYPE(cube_info_type), POINTER, OPTIONAL :: auxbas_cube_info
-  INTEGER, INTENT(out), OPTIONAL :: auxbas_grid
-  TYPE(cp_rs_pool_p_type), DIMENSION(:), POINTER, OPTIONAL :: rs_pools
-  TYPE(cp_rs_pool_type), POINTER, OPTIONAL :: auxbas_rs_pool
-  TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
-  
-  LOGICAL :: failure
-  CHARACTER(len=*), PARAMETER :: routineN='pw_env_get',&
-        routineP=moduleN//':'//routineN
+    TYPE(pw_env_type), POINTER               :: pw_env
+    TYPE(pw_pool_p_type), DIMENSION(:), &
+      OPTIONAL, POINTER                      :: pw_pools
+    TYPE(l_info_type), OPTIONAL, POINTER     :: l_info
+    TYPE(cube_info_type), DIMENSION(:), &
+      OPTIONAL, POINTER                      :: cube_info
+    TYPE(gridlevel_info_type), OPTIONAL, &
+      POINTER                                :: gridlevel_info
+    TYPE(pw_pool_type), OPTIONAL, POINTER    :: auxbas_pw_pool
+    TYPE(cube_info_type), OPTIONAL, POINTER  :: auxbas_cube_info
+    INTEGER, INTENT(out), OPTIONAL           :: auxbas_grid
+    TYPE(cp_rs_pool_p_type), DIMENSION(:), &
+      OPTIONAL, POINTER                      :: rs_pools
+    TYPE(cp_rs_pool_type), OPTIONAL, POINTER :: auxbas_rs_pool
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'pw_env_get', &
+      routineP = moduleN//':'//routineN
+
+    LOGICAL                                  :: failure
+
   failure=.FALSE.
 
   CPPrecondition(ASSOCIATED(pw_env),cp_failure_level,routineP,error,failure)
@@ -242,12 +232,15 @@ END SUBROUTINE pw_env_get
 !!
 !!*** **********************************************************************
 SUBROUTINE pw_env_retain(pw_env,error)
-  TYPE(pw_env_type), POINTER :: pw_env
-  TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
-  
-  LOGICAL :: failure
-  CHARACTER(len=*), PARAMETER :: routineN='pw_env_retain',&
-        routineP=moduleN//':'//routineN
+    TYPE(pw_env_type), POINTER               :: pw_env
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'pw_env_retain', &
+      routineP = moduleN//':'//routineN
+
+    LOGICAL                                  :: failure
+
   failure=.FALSE.
   
   CPPrecondition(ASSOCIATED(pw_env),cp_failure_level,routineP,error,failure)
@@ -288,13 +281,16 @@ END SUBROUTINE pw_env_retain
 !!
 !!*** **********************************************************************
 SUBROUTINE pw_env_release(pw_env, error)
-  TYPE(pw_env_type), POINTER :: pw_env
-  TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
-  
-  LOGICAL :: failure
-  CHARACTER(len=*), PARAMETER :: routineN='pw_env_release',&
-        routineP=moduleN//':'//routineN
-  INTEGER :: stat, igrid_level
+    TYPE(pw_env_type), POINTER               :: pw_env
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'pw_env_release', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: igrid_level, stat
+    LOGICAL                                  :: failure
+
   failure=.FALSE.
   
   IF (ASSOCIATED(pw_env)) THEN
@@ -358,12 +354,15 @@ END SUBROUTINE pw_env_release
 !!
 !!*** **********************************************************************
 SUBROUTINE pw_env_flush_cache(pw_env,error)
-  TYPE(pw_env_type), POINTER :: pw_env
-  TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
-  
-  LOGICAL :: failure
-  CHARACTER(len=*), PARAMETER :: routineN='pw_env_flush_cache',&
-       routineP=moduleN//':'//routineN
+    TYPE(pw_env_type), POINTER               :: pw_env
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'pw_env_flush_cache', &
+      routineP = moduleN//':'//routineN
+
+    LOGICAL                                  :: failure
+
   failure=.FALSE.
   
   CPPrecondition(ASSOCIATED(pw_env),cp_failure_level,routineP,error,failure)

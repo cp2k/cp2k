@@ -20,61 +20,86 @@
 
 MODULE tbmd_module
 
-  USE atoms_input, ONLY : read_coord_vel, system_type
-  USE band, ONLY : band_structure_type, init_band_structure
-  USE brillouin, ONLY : kpoint_type, brillouin_info, kpoint_input
-  USE cntl_input, ONLY : read_cntl_section
-  USE convert_units, ONLY : convert
-  USE cp_control_types, ONLY : dft_control_type
-  USE dump, ONLY : dump_variables
-  USE empirical_parameters, ONLY : read_empirical_parameters
-  USE energy_input, ONLY : read_energy_section, energy_min_type, min_info_type
-  USE energy_optimize, ONLY : optimize_ao
-  USE energy_output, ONLY : print_energy_info, print_convergence                
-  USE ewalds, ONLY : ewald_print, ewald_correction
-  USE ewald_parameters_types, ONLY : ewald_parameters_type
-  USE extended_system_types, ONLY : extended_system_type
-  USE fermi, ONLY : fermi_distribution_type, init_fermi_dist, fermi_info
-  USE fist_debug, ONLY : fist_debug_control => debug_control
-  USE force_env_types, ONLY : force
-  USE fit_parameters_types, ONLY : fit_parameter_type
-  USE fit_input, ONLY : read_fit_section
-  USE force_fields, ONLY : read_force_field_section
-  USE global_types, ONLY : global_environment_type
-  USE header, ONLY : fist_header, tbmd_header, wave_header
-  USE initialize_extended_types, ONLY : initialize_nhc_part, initialize_nhc_baro,&
-                                        initialize_npt_type, initialize_nhc_pol, &
-                                        assign_extended_parameters
-  USE initialize_molecule_types, ONLY : initialize_molecule_type
-  USE initialize_particle_types, ONLY : initialize_particle_type
-  USE initialize_pimd_types, ONLY : initialize_pimd
-  USE input_types, ONLY : setup_parameters_type
-  USE integrator, ONLY : velocity_verlet, set_energy_parm, energy, &
-       set_integrator
-  USE kinds, ONLY : dbl
-  USE kpoint_initialization, ONLY : initialize_kpoints
-  USE linklist_control, ONLY : set_ll_parm
-  USE mathconstants, ONLY : zero, twopi
-  USE md, ONLY : read_md_section, simulation_parameters_type, &
-       initialize_velocities, thermodynamic_type, mdio_parameters_type
-  USE method_specifications, ONLY : get_maxder
-  USE molecule_input, ONLY : read_molecule_section, read_setup_section
-  USE molecule_types, ONLY : molecule_type, intra_parameters_type
-  USE pair_potential, ONLY : spline_nonbond_control
-  USE particle_types, ONLY : particle_prop_type, particle_type
-  USE physcon, ONLY : boltzmann, h_planck
-  USE read_pimd, ONLY : read_pimd_section
-  USE simulation_cell, ONLY : cell_type, get_hinv, init_cell
-  USE string_utilities, ONLY : xstring, integer_to_string
-  USE structure_types, ONLY : structure_type, interaction_type
-  USE termination, ONLY : stop_program, stop_memory
-  USE tbmd_debug, ONLY : tbmd_debug_control => debug_control
-  USE tbmd_initialize, ONLY : tbmd_init, tb_get_numel
-  USE tbmd_input, ONLY : read_tb_hamiltonian, read_tb_hopping_elements
-  USE transformations, ONLY : fr2fu, v2ud, ud2v
-  USE timings, ONLY : timeset, timestop, trace_debug
-  USE unit, ONLY : unit_convert_type, set_units
-  USE util, ONLY : close_unit, get_share
+  USE atoms_input,                     ONLY: read_coord_vel,&
+                                             system_type
+  USE band,                            ONLY: band_structure_type,&
+                                             init_band_structure
+  USE brillouin,                       ONLY: brillouin_info,&
+                                             kpoint_input,&
+                                             kpoint_type
+  USE cntl_input,                      ONLY: read_cntl_section
+  USE convert_units,                   ONLY: convert
+  USE cp_control_types,                ONLY: dft_control_type
+  USE dump,                            ONLY: dump_variables
+  USE energy_input,                    ONLY: energy_min_type,&
+                                             read_energy_section
+  USE energy_optimize,                 ONLY: optimize_ao
+  USE energy_output,                   ONLY: print_convergence,&
+                                             print_energy_info
+  USE ewald_parameters_types,          ONLY: ewald_parameters_type
+  USE ewalds,                          ONLY: ewald_print
+  USE extended_system_types,           ONLY: extended_system_type
+  USE fermi,                           ONLY: fermi_distribution_type,&
+                                             fermi_info,&
+                                             init_fermi_dist
+  USE force_env_types,                 ONLY: force
+  USE force_fields,                    ONLY: read_force_field_section
+  USE global_types,                    ONLY: global_environment_type
+  USE header,                          ONLY: tbmd_header
+  USE initialize_extended_types,       ONLY: assign_extended_parameters,&
+                                             initialize_nhc_baro,&
+                                             initialize_nhc_part,&
+                                             initialize_npt_type
+  USE initialize_molecule_types,       ONLY: initialize_molecule_type
+  USE initialize_particle_types,       ONLY: initialize_particle_type
+  USE initialize_pimd_types,           ONLY: initialize_pimd
+  USE input_types,                     ONLY: setup_parameters_type
+  USE integrator,                      ONLY: energy,&
+                                             set_energy_parm,&
+                                             set_integrator,&
+                                             velocity_verlet
+  USE kinds,                           ONLY: dbl
+  USE kpoint_initialization,           ONLY: initialize_kpoints
+  USE linklist_control,                ONLY: set_ll_parm
+  USE mathconstants,                   ONLY: twopi,&
+                                             zero
+  USE md,                              ONLY: initialize_velocities,&
+                                             mdio_parameters_type,&
+                                             read_md_section,&
+                                             simulation_parameters_type,&
+                                             thermodynamic_type
+  USE molecule_input,                  ONLY: read_molecule_section,&
+                                             read_setup_section
+  USE molecule_types,                  ONLY: intra_parameters_type,&
+                                             molecule_type
+  USE pair_potential,                  ONLY: spline_nonbond_control
+  USE particle_types,                  ONLY: particle_prop_type
+  USE physcon,                         ONLY: boltzmann,&
+                                             h_planck
+  USE read_pimd,                       ONLY: read_pimd_section
+  USE simulation_cell,                 ONLY: get_hinv,&
+                                             init_cell
+  USE string_utilities,                ONLY: integer_to_string,&
+                                             xstring
+  USE structure_types,                 ONLY: interaction_type,&
+                                             structure_type
+  USE tbmd_debug,                      ONLY: tbmd_debug_control => debug_control
+  USE tbmd_initialize,                 ONLY: tb_get_numel,&
+                                             tbmd_init
+  USE tbmd_input,                      ONLY: read_tb_hamiltonian,&
+                                             read_tb_hopping_elements
+  USE termination,                     ONLY: stop_memory,&
+                                             stop_program
+  USE timings,                         ONLY: timeset,&
+                                             timestop,&
+                                             trace_debug
+  USE transformations,                 ONLY: fr2fu,&
+                                             ud2v,&
+                                             v2ud
+  USE unit,                            ONLY: set_units,&
+                                             unit_convert_type
+  USE util,                            ONLY: close_unit,&
+                                             get_share
 
   IMPLICIT NONE
 
@@ -108,44 +133,39 @@ CONTAINS
 
 SUBROUTINE tbmd ( globenv )
 
-  IMPLICIT NONE
 
 ! Argument
-  TYPE ( global_environment_type ), INTENT ( INOUT ) :: globenv
+    TYPE(global_environment_type), &
+      INTENT(INOUT)                          :: globenv
 
-! Locals
-  REAL ( dbl ), DIMENSION ( :, : ), ALLOCATABLE :: rcut
-  REAL ( dbl ), DIMENSION ( :, : ), ALLOCATABLE :: rcut_cgf
-  INTEGER :: handle1, handle2, isos
-  INTEGER :: nel, ibead, beads, ia, ib
-  INTEGER :: ncoef, nll, nbasis_types, i
-  INTEGER :: maxder
+    CHARACTER(LEN=40)                        :: project_name, set_fn
+    CHARACTER(LEN=5)                         :: tag
+    INTEGER                                  :: beads, handle1, handle2, i, &
+                                                ia, ib, ibead, isos, nel, nll
+    LOGICAL                                  :: pimd
+    REAL(dbl), ALLOCATABLE, DIMENSION(:, :)  :: rcut
+    TYPE(band_structure_type)                :: bs
+    TYPE(dft_control_type), POINTER          :: dft_control
+    TYPE(energy_min_type)                    :: energy_min
+    TYPE(ewald_parameters_type)              :: ewald_param
+    TYPE(extended_system_type)               :: extended_type
+    TYPE(fermi_distribution_type)            :: fd
+    TYPE(interaction_type)                   :: inter
+    TYPE(intra_parameters_type)              :: intra_param
+    TYPE(kpoint_type)                        :: kp
+    TYPE(mdio_parameters_type)               :: mdio
+    TYPE(molecule_type), DIMENSION(:), &
+      POINTER                                :: mol_setup
+    TYPE(particle_prop_type), DIMENSION(:), &
+      POINTER                                :: pstat
+    TYPE(setup_parameters_type)              :: setup
+    TYPE(simulation_parameters_type)         :: simpar
+    TYPE(structure_type), ALLOCATABLE, &
+      DIMENSION(:)                           :: struc
+    TYPE(system_type)                        :: ainp
+    TYPE(unit_convert_type)                  :: units
 
-  CHARACTER ( LEN = 40 ) :: set_fn, project_name
-  CHARACTER ( LEN = 5 ) :: tag
-  LOGICAL :: pimd
-  
-  TYPE ( particle_prop_type ), DIMENSION ( : ), POINTER :: pstat
-  TYPE ( molecule_type ), DIMENSION ( : ), POINTER :: mol_setup
-  TYPE ( unit_convert_type ) :: units
-  TYPE ( simulation_parameters_type ) :: simpar
-  TYPE ( structure_type ), ALLOCATABLE, DIMENSION ( : ) :: struc
-  TYPE ( interaction_type ) :: inter
-  TYPE ( extended_system_type ) :: extended_type
-  TYPE ( system_type ) :: ainp
-  TYPE ( ewald_parameters_type ) :: ewald_param
-  TYPE ( setup_parameters_type ) :: setup
-  TYPE ( intra_parameters_type ) :: intra_param
-  TYPE ( kpoint_type ) :: kp
-  TYPE ( fermi_distribution_type ) :: fd
-  TYPE ( band_structure_type ) :: bs
-  TYPE ( dft_control_type ), POINTER :: dft_control
-  TYPE ( mdio_parameters_type ) :: mdio
-  TYPE ( fit_parameter_type ) :: fit_param
-  TYPE ( energy_min_type ) :: energy_min
-  
 !------------------------------------------------------------------------------
-
 ! IF( globenv % ionode ) CALL trace_debug ( "START" )
 
   CALL timeset ( 'CONTROL', 'I', ' ', handle1 )
@@ -411,11 +431,9 @@ END SUBROUTINE tbmd
 
 !******************************************************************************
 SUBROUTINE release_mem ( ainp )
-  IMPLICIT NONE
-! Arguments
-  TYPE ( system_type ) :: ainp
-! Local
-  INTEGER :: isos
+    TYPE(system_type)                        :: ainp
+
+    INTEGER                                  :: isos
 
 !..deallocate arrays needed for atom input
 
@@ -475,28 +493,26 @@ SUBROUTINE control_work ( globenv, units, simpar, struc, inter, &
      extended_type, ewald_param, dft_control, setup, mdio, tbmd, fist, &
      pol, kp, energy_min )
   
-  IMPLICIT NONE
   
-! Arguments
-  TYPE ( global_environment_type ), INTENT ( INOUT ) :: globenv
-  TYPE ( unit_convert_type ) :: units
-  TYPE ( simulation_parameters_type ) :: simpar
-  TYPE ( structure_type ), DIMENSION ( : ) :: struc
-  TYPE ( interaction_type ) :: inter
-  TYPE ( extended_system_type ) :: extended_type
-  TYPE ( ewald_parameters_type ) :: ewald_param
-  TYPE ( setup_parameters_type ) :: setup
-  TYPE ( mdio_parameters_type ) :: mdio
-  TYPE ( dft_control_type ) :: dft_control
-  LOGICAL, INTENT ( IN ) :: tbmd, fist, pol
-  TYPE ( kpoint_type ), INTENT ( IN ) :: kp
-  TYPE ( energy_min_type ), INTENT ( INOUT ) :: energy_min
-  
-! Locals
-  INTEGER :: handle
-  
+    TYPE(global_environment_type), &
+      INTENT(INOUT)                          :: globenv
+    TYPE(unit_convert_type)                  :: units
+    TYPE(simulation_parameters_type)         :: simpar
+    TYPE(structure_type), DIMENSION(:)       :: struc
+    TYPE(interaction_type)                   :: inter
+    TYPE(extended_system_type)               :: extended_type
+    TYPE(ewald_parameters_type)              :: ewald_param
+    TYPE(dft_control_type)                   :: dft_control
+    TYPE(setup_parameters_type)              :: setup
+    TYPE(mdio_parameters_type)               :: mdio
+    LOGICAL, INTENT(IN)                      :: tbmd, fist, pol
+    TYPE(kpoint_type), INTENT(IN)            :: kp
+    TYPE(energy_min_type), INTENT(INOUT)     :: energy_min
+
+    INTEGER                                  :: handle
+
 !------------------------------------------------------------------------------
-  
+
   CALL timeset ( 'CNTL_WORK', 'I', ' ', handle )
   
   SELECT CASE ( setup % run_type )
@@ -531,23 +547,21 @@ END SUBROUTINE control_work
 SUBROUTINE control_debug_work ( globenv, simpar, struc, inter, ewald_param, &
      mdio, tbmd, fist, pol )
   
-  IMPLICIT NONE
   
-! Arguments
-  TYPE ( global_environment_type ), INTENT ( INOUT ) :: globenv
-  TYPE ( simulation_parameters_type ) :: simpar
-  TYPE ( structure_type ) :: struc
-  TYPE ( interaction_type ) :: inter
-  TYPE ( ewald_parameters_type ) :: ewald_param
-  TYPE ( mdio_parameters_type ) :: mdio
-  LOGICAL :: tbmd, fist, pol
-  
-! Locals
-  TYPE ( thermodynamic_type ) :: thermo
-  
+    TYPE(global_environment_type), &
+      INTENT(INOUT)                          :: globenv
+    TYPE(simulation_parameters_type)         :: simpar
+    TYPE(structure_type)                     :: struc
+    TYPE(interaction_type)                   :: inter
+    TYPE(ewald_parameters_type)              :: ewald_param
+    TYPE(mdio_parameters_type)               :: mdio
+    LOGICAL                                  :: tbmd, fist, pol
+
+    TYPE(thermodynamic_type)                 :: thermo
+
 !------------------------------------------------------------------------------
-  
 ! initialize integrator
+
   CALL set_integrator ( globenv, mdio )
   
   CALL tbmd_debug_control ( globenv, ewald_param, struc%part, &
@@ -561,31 +575,29 @@ END SUBROUTINE control_debug_work
 SUBROUTINE control_energy_work ( globenv, units, simpar, struc, inter, &
      extended_type, ewald_param, mdio, pol, dft_control, kp, energy_min )
   
-  IMPLICIT NONE
   
-! Arguments
-  TYPE ( global_environment_type ), INTENT ( INOUT ) :: globenv
-  TYPE ( unit_convert_type ) :: units
-  TYPE ( simulation_parameters_type ) :: simpar
-  TYPE ( structure_type ) :: struc
-  TYPE ( interaction_type ) :: inter
-  TYPE ( extended_system_type ) :: extended_type
-  TYPE ( ewald_parameters_type ) :: ewald_param
-  TYPE ( mdio_parameters_type ) :: mdio
-  LOGICAL, INTENT (IN) :: pol
-  TYPE ( dft_control_type ) :: dft_control
-  TYPE ( kpoint_type ), INTENT ( IN ) :: kp
-  TYPE ( energy_min_type ), INTENT ( INOUT ) :: energy_min
-  
-! Locals
-  INTEGER :: itimes
-  LOGICAL, PARAMETER :: box_change = .FALSE.
-  LOGICAL :: coef_flag 
-  LOGICAL :: conv_flag 
-  
-  TYPE ( thermodynamic_type ) :: thermo
-  
+    TYPE(global_environment_type), &
+      INTENT(INOUT)                          :: globenv
+    TYPE(unit_convert_type)                  :: units
+    TYPE(simulation_parameters_type)         :: simpar
+    TYPE(structure_type)                     :: struc
+    TYPE(interaction_type)                   :: inter
+    TYPE(extended_system_type)               :: extended_type
+    TYPE(ewald_parameters_type)              :: ewald_param
+    TYPE(mdio_parameters_type)               :: mdio
+    LOGICAL, INTENT(IN)                      :: pol
+    TYPE(dft_control_type)                   :: dft_control
+    TYPE(kpoint_type), INTENT(IN)            :: kp
+    TYPE(energy_min_type), INTENT(INOUT)     :: energy_min
+
+    LOGICAL, PARAMETER                       :: box_change = .FALSE.
+
+    INTEGER                                  :: itimes
+    LOGICAL                                  :: coef_flag, conv_flag
+    TYPE(thermodynamic_type)                 :: thermo
+
 !------------------------------------------------------------------------------
+
   coef_flag = .FALSE.
   conv_flag = .FALSE.
 
@@ -630,31 +642,29 @@ END SUBROUTINE control_energy_work
 SUBROUTINE control_md_work ( globenv, units, simpar, struc, inter, &
                  extended_type, ewald_param, mdio, dft_control, kp )
   
-  IMPLICIT NONE
   
-! Arguments
-  TYPE ( global_environment_type ), INTENT ( INOUT ) :: globenv
-  TYPE ( unit_convert_type ) :: units
-  TYPE ( simulation_parameters_type ) :: simpar
-  TYPE ( structure_type ), DIMENSION ( : ) :: struc
-  TYPE ( interaction_type ) :: inter
-  TYPE ( extended_system_type ) :: extended_type
-  TYPE ( ewald_parameters_type ) :: ewald_param
-  TYPE ( mdio_parameters_type ) :: mdio
-  TYPE ( dft_control_type ) :: dft_control
-  TYPE ( kpoint_type ), INTENT ( IN ) :: kp
-  
-! Locals
-  REAL ( dbl ) :: cons
-  INTEGER :: itimes
-  LOGICAL, PARAMETER :: box_change = .FALSE.
-  
-  TYPE ( thermodynamic_type ) :: thermo
-  LOGICAL :: coef_flag, pimd
-  
+    TYPE(global_environment_type), &
+      INTENT(INOUT)                          :: globenv
+    TYPE(unit_convert_type)                  :: units
+    TYPE(simulation_parameters_type)         :: simpar
+    TYPE(structure_type), DIMENSION(:)       :: struc
+    TYPE(interaction_type)                   :: inter
+    TYPE(extended_system_type)               :: extended_type
+    TYPE(ewald_parameters_type)              :: ewald_param
+    TYPE(mdio_parameters_type)               :: mdio
+    TYPE(dft_control_type)                   :: dft_control
+    TYPE(kpoint_type), INTENT(IN)            :: kp
+
+    LOGICAL, PARAMETER                       :: box_change = .FALSE.
+
+    INTEGER                                  :: itimes
+    LOGICAL                                  :: coef_flag, pimd
+    REAL(dbl)                                :: cons
+    TYPE(thermodynamic_type)                 :: thermo
+
 !------------------------------------------------------------------------------
-  
 ! Path integrals?
+
   pimd = simpar % pimd_params % beads /= 0
 
   coef_flag = ( ASSOCIATED ( struc ( 1 ) % coef_pos ) .AND.  &
@@ -730,16 +740,16 @@ END SUBROUTINE control_md_work
 
 SUBROUTINE allocmem ( ainp, mol_setup, struc, globenv )
 
-  IMPLICIT NONE
 
-! Arguments
-  TYPE ( molecule_type ), DIMENSION ( : ), INTENT ( IN ) :: mol_setup
-  TYPE ( structure_type ), INTENT ( INOUT ) :: struc
-  TYPE ( system_type ), INTENT ( IN ) :: ainp
-  TYPE ( global_environment_type ), INTENT ( IN ) :: globenv
+    TYPE(system_type), INTENT(IN)            :: ainp
+    TYPE(molecule_type), DIMENSION(:), &
+      INTENT(IN)                             :: mol_setup
+    TYPE(structure_type), INTENT(INOUT)      :: struc
+    TYPE(global_environment_type), &
+      INTENT(IN)                             :: globenv
 
-! Locals
-  INTEGER :: iw, natoms, nnodes, nmol, nmoltype, ios, iat, i, nsh
+    INTEGER                                  :: i, ios, iw, natoms, nmol, &
+                                                nmoltype, nnodes, nsh
 
 !------------------------------------------------------------------------------
 
@@ -809,13 +819,10 @@ END SUBROUTINE allocmem
 !******************************************************************************
 
 SUBROUTINE deallocmem ( struc )
-  IMPLICIT NONE
 
-! Arguments
-  TYPE ( structure_type ), INTENT ( INOUT ) :: struc
+    TYPE(structure_type), INTENT(INOUT)      :: struc
 
-! Locals
-  INTEGER :: ios
+    INTEGER                                  :: ios
 
 !------------------------------------------------------------------------------
 

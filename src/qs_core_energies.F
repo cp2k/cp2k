@@ -22,16 +22,15 @@
 MODULE qs_core_energies
 
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
-                                             get_atomic_kind,&
-                                             get_atomic_kind_set
+                                             get_atomic_kind
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE distribution_2d_types,           ONLY: distribution_2d_type
   USE erf_fn,                          ONLY: erfc
   USE global_types,                    ONLY: LOW,&
                                              global_environment_type
-  USE kinds,                           ONLY: int_size,&
-                                             dp,&
-                                             dp_size
+  USE kinds,                           ONLY: dp,&
+                                             dp_size,&
+                                             int_size
   USE mathconstants,                   ONLY: oorootpi,&
                                              twopi
   USE message_passing,                 ONLY: mp_sum
@@ -93,24 +92,19 @@ CONTAINS
 
 !   ***************************************************************************
 
-    TYPE(cp_para_env_type), POINTER :: para_env
-    TYPE(real_matrix_type), POINTER :: h,p
-    REAL(KIND = dp), INTENT(OUT)           :: ecore
+    TYPE(real_matrix_type), POINTER          :: h, p
+    REAL(KIND=dp), INTENT(OUT)               :: ecore
+    TYPE(cp_para_env_type), POINTER          :: para_env
 
-!   *** Local parameters ***
+    CHARACTER(LEN=*), PARAMETER :: routine_name = "calculate_ecore", &
+      routine = "SUBROUTINE "//routine_name//" (MODULE "//module_name//")"
 
-    CHARACTER(LEN=*), PARAMETER :: routine_name = "calculate_ecore"
-    CHARACTER(LEN=*), PARAMETER :: routine =&
-      "SUBROUTINE "//routine_name//" (MODULE "//module_name//")"
-
-!   *** Local variables ***
-
-    TYPE(real_block_node_type), POINTER :: h_block_node,p_block_node
-
-    REAL(KIND = dp) :: ecore_block
-    INTEGER  :: handle,i,iblock_col,iblock_row,j,jblock_col,nblock_row
-
-    REAL(KIND = dp), DIMENSION(:,:), POINTER :: h_block,p_block
+    INTEGER                                  :: handle, i, iblock_col, &
+                                                iblock_row, j, jblock_col, &
+                                                nblock_row
+    REAL(KIND=dp)                            :: ecore_block
+    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: h_block, p_block
+    TYPE(real_block_node_type), POINTER      :: h_block_node, p_block_node
 
 !   ---------------------------------------------------------------------------
 
@@ -181,46 +175,43 @@ CONTAINS
 
 !   ***************************************************************************
 
-    TYPE(global_environment_type), INTENT(IN) :: globenv
-    TYPE(qs_environment_type), INTENT(INOUT)  :: qs_env
-    LOGICAL, INTENT(IN)                       :: calculate_forces
+    TYPE(qs_environment_type), INTENT(INOUT) :: qs_env
+    TYPE(global_environment_type), &
+      INTENT(IN)                             :: globenv
+    LOGICAL, INTENT(IN)                      :: calculate_forces
 
-!   *** Local parameters ***
+    CHARACTER(LEN=*), PARAMETER :: routine_name = "calculate_ecore_overlap", &
+      routine = "SUBROUTINE "//routine_name//" (MODULE "//module_name//")"
 
-    CHARACTER(LEN=*), PARAMETER :: routine_name = "calculate_ecore_overlap"
-    CHARACTER(LEN=*), PARAMETER :: routine =&
-      "SUBROUTINE "//routine_name//" (MODULE "//module_name//")"
-
-!   *** Local variables ***
-
-    TYPE(atomic_kind_type), POINTER    :: atomic_kind
-    TYPE(cell_type), POINTER           :: cell
-    TYPE(distribution_2d_type), POINTER :: distribution_2d
-    TYPE(qs_energy_type), POINTER      :: energy
-
-    CHARACTER(LEN=8) :: unit_of_length_name
-    REAL(KIND = dp)  :: a_max,a_min,aab,b_max,b_min,c_max,c_min,dab,eab,&
-                        ecore_overlap,f,fab,r_skin,rab_max,rab2,rab2_max,&
-                        rootaab,subcells,unit_of_length,zab
-    INTEGER          :: atom_a,atom_b,group,handle,i,iatom,iatom_local,&
-                        iatom_subcell,icell,ikind,istat,j,jatom,&
-                        jatom_local,jcell,jkind,k,kcell,&
-                        maxatom_local,natom,natom_b,&
-                        natom_local_a,natom_local_b,nkind,output_unit
-    LOGICAL          :: cell000,include_ab,ionode
-
-    REAL(KIND = dp), DIMENSION(3) :: deab,r,r_pbc,rab,rb,s,sab,sab_max,sb,&
-                                     sb_max,sb_min,sb_pbc
-    INTEGER, DIMENSION(3)         :: cell_b,ncell,nsubcell,periodic
-
-    TYPE(atomic_kind_type), DIMENSION(:), POINTER :: atomic_kind_set
-    TYPE(particle_type), DIMENSION(:), POINTER    :: particle_set
-    TYPE(qs_force_type), DIMENSION(:), POINTER    :: force
-    TYPE(subcell_type), DIMENSION(:,:,:), POINTER :: subcell
-
-    TYPE(local_atoms_type), DIMENSION(:), ALLOCATABLE :: atom
-    REAL(KIND = dp), DIMENSION(:), ALLOCATABLE        :: alpha,radius
-    INTEGER, DIMENSION(:), ALLOCATABLE                :: zeff
+    CHARACTER(LEN=8)                         :: unit_of_length_name
+    INTEGER :: atom_a, atom_b, group, handle, i, iatom, iatom_local, &
+      iatom_subcell, icell, ikind, istat, j, jatom, jatom_local, jcell, &
+      jkind, k, kcell, maxatom_local, natom, natom_local_a, natom_local_b, &
+      nkind, output_unit
+    INTEGER, ALLOCATABLE, DIMENSION(:)       :: zeff
+    INTEGER, DIMENSION(3)                    :: cell_b, ncell, nsubcell, &
+                                                periodic
+    LOGICAL                                  :: cell000, include_ab, ionode
+    REAL(KIND=dp) :: aab, dab, eab, ecore_overlap, f, fab, r_skin, rab2, &
+      rab2_max, rab_max, rootaab, subcells, unit_of_length, zab
+    REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: alpha, radius
+    REAL(KIND=dp), DIMENSION(3)              :: deab, r, r_pbc, rab, rb, s, &
+                                                sab_max, sb, sb_max, sb_min, &
+                                                sb_pbc
+    TYPE(atomic_kind_type), DIMENSION(:), &
+      POINTER                                :: atomic_kind_set
+    TYPE(atomic_kind_type), POINTER          :: atomic_kind
+    TYPE(cell_type), POINTER                 :: cell
+    TYPE(distribution_2d_type), POINTER      :: distribution_2d
+    TYPE(local_atoms_type), ALLOCATABLE, &
+      DIMENSION(:)                           :: atom
+    TYPE(particle_type), DIMENSION(:), &
+      POINTER                                :: particle_set
+    TYPE(qs_energy_type), POINTER            :: energy
+    TYPE(qs_force_type), DIMENSION(:), &
+      POINTER                                :: force
+    TYPE(subcell_type), DIMENSION(:, :, :), &
+      POINTER                                :: subcell
 
 !   ---------------------------------------------------------------------------
 
@@ -690,22 +681,17 @@ CONTAINS
 
 !   ***************************************************************************
 
-    TYPE(qs_environment_type), INTENT(IN) :: qs_env
+    TYPE(qs_environment_type), INTENT(IN)    :: qs_env
 
-!   *** Local parameters ***
+    CHARACTER(LEN=*), PARAMETER :: routine_name = "calculate_ecore_self", &
+      routine = "SUBROUTINE "//routine_name//" (MODULE "//module_name//")"
 
-    CHARACTER(LEN=*), PARAMETER :: routine_name = "calculate_ecore_self"
-    CHARACTER(LEN=*), PARAMETER :: routine =&
-      "SUBROUTINE "//routine_name//" (MODULE "//module_name//")"
-
-!   *** Local variables ***
-
-    TYPE(atomic_kind_type), POINTER :: atomic_kind
-    TYPE(qs_energy_type), POINTER   :: energy
-    REAL(KIND = dp)                        :: alpha_core_charge,ecore_self
-    INTEGER                         :: handle,ikind,natom,zeff
-
-    TYPE(atomic_kind_type), DIMENSION(:), POINTER :: atomic_kind_set
+    INTEGER                                  :: handle, ikind, natom, zeff
+    REAL(KIND=dp)                            :: alpha_core_charge, ecore_self
+    TYPE(atomic_kind_type), DIMENSION(:), &
+      POINTER                                :: atomic_kind_set
+    TYPE(atomic_kind_type), POINTER          :: atomic_kind
+    TYPE(qs_energy_type), POINTER            :: energy
 
 !   ---------------------------------------------------------------------------
 

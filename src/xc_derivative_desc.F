@@ -46,6 +46,7 @@ MODULE xc_derivative_desc
   USE kinds,                           ONLY: dp
   USE timings,                         ONLY: timeset,&
                                              timestop
+
   IMPLICIT NONE
 
   PRIVATE
@@ -90,18 +91,20 @@ CONTAINS
 !!
 !!****
  FUNCTION standardize_dervitative_desc(deriv_desc, error) RESULT(res)
-    CHARACTER(len=*), INTENT(in) :: deriv_desc
-    TYPE(cp_error_type), INTENT(inout), OPTIONAL :: error
-    CHARACTER(len=MAX_DERIVATIVE_DESC_LENGTH) :: res
+    CHARACTER(len=*), INTENT(in)             :: deriv_desc
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
+    CHARACTER&
+      (len=MAX_DERIVATIVE_DESC_LENGTH)       :: res
 
-    LOGICAL :: failure
-    CHARACTER(len=*), PARAMETER :: routineN='standardize_dervitative_desc',&
-         routineP=moduleN//':'//routineN
-    CHARACTER(len=MAX_LABEL_LENGTH), DIMENSION(:), POINTER :: deriv_array
+    CHARACTER(len=*), PARAMETER :: routineN = 'standardize_dervitative_desc', &
+      routineP = moduleN//':'//routineN
 
-    INTEGER :: i, pos, l_label, stat
-    LOGICAL :: ordered
-    CHARACTER(len=MAX_LABEL_LENGTH) :: tmp
+    CHARACTER(len=MAX_LABEL_LENGTH)          :: tmp
+    CHARACTER(len=MAX_LABEL_LENGTH), &
+      DIMENSION(:), POINTER                  :: deriv_array
+    INTEGER                                  :: i, l_label, pos, stat
+    LOGICAL                                  :: ordered
 
     deriv_array => create_split_derivative_desc(deriv_desc, error=error)
 
@@ -154,15 +157,17 @@ CONTAINS
 !!
 !!*** *********************************************************************
   FUNCTION create_split_derivative_desc(deriv_desc, error) RESULT(res)
-    IMPLICIT NONE
-    CHARACTER(len=*), INTENT(in) :: deriv_desc
-    TYPE(cp_error_type), INTENT(inout), OPTIONAL :: error
-    CHARACTER(len=MAX_LABEL_LENGTH), DIMENSION(:), POINTER :: res
+    CHARACTER(len=*), INTENT(in)             :: deriv_desc
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
+    CHARACTER(len=MAX_LABEL_LENGTH), &
+      DIMENSION(:), POINTER                  :: res
 
-    LOGICAL :: failure
-    CHARACTER(len=*), PARAMETER :: routineN='create_split_derivative_desc',&
-         routineP=moduleN//':'//routineN
-    INTEGER :: nderiv, i, j, stat
+    CHARACTER(len=*), PARAMETER :: routineN = 'create_split_derivative_desc', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: i, j, nderiv, stat
+    LOGICAL                                  :: failure
 
     nderiv=0
     DO i=1,LEN(deriv_desc)

@@ -22,12 +22,9 @@
 MODULE simulation_cell
   USE cp_error_handling,               ONLY: cp_a_l,&
                                              cp_assert,&
-                                             cp_assertion_failed,&
-                                             cp_debug,&
                                              cp_error_type
   USE cp_log_handling,                 ONLY: cp_failure_level,&
                                              cp_fatal_level,&
-                                             cp_log,&
                                              cp_note_level,&
                                              cp_to_string,&
                                              cp_warning_level
@@ -42,11 +39,10 @@ MODULE simulation_cell
                                              MT1D,&
                                              MT2D,&
                                              PERIODIC3D,&
-                                             greens_function_type, &
+                                             greens_function_type,&
                                              pw_green_fn_destroy
   USE kinds,                           ONLY: dp
-  USE mathconstants,                   ONLY: degree,&
-                                             pi
+  USE mathconstants,                   ONLY: degree
   USE physcon,                         ONLY: bohr
   USE qs_parser,                       ONLY: finish_parser,&
                                              read_object,&
@@ -55,6 +51,7 @@ MODULE simulation_cell
                                              test_object
   USE termination,                     ONLY: stop_memory,&
                                              stop_program
+
   IMPLICIT NONE
 
   PRIVATE
@@ -118,20 +115,21 @@ CONTAINS
 
 !   ***************************************************************************
 
-    TYPE(cell_type), POINTER                        :: cell
-    CHARACTER(LEN=8), OPTIONAL, INTENT(OUT)         :: unit_of_length_name
-    REAL(KIND = dp), OPTIONAL, INTENT(OUT)                 :: alpha,beta,deth,gamma,&
-                                                       subcells,unit_of_length
-    LOGICAL, OPTIONAL, INTENT(OUT)                  :: orthorhombic,&
-                                                       scaled_coordinates
-    REAL(KIND = dp), DIMENSION(3), OPTIONAL, INTENT(OUT)   :: abc
-    INTEGER, DIMENSION(3), OPTIONAL, INTENT(OUT)    :: periodic
-    REAL(KIND = dp), DIMENSION(3,3), OPTIONAL, INTENT(OUT) :: h,h_inv
-    INTEGER, INTENT(out), OPTIONAL                  :: id_nr
+    TYPE(cell_type), POINTER                 :: cell
+    CHARACTER(LEN=8), INTENT(OUT), OPTIONAL  :: unit_of_length_name
+    REAL(KIND=dp), INTENT(OUT), OPTIONAL     :: alpha, beta, deth, gamma, &
+                                                subcells, unit_of_length
+    LOGICAL, INTENT(OUT), OPTIONAL           :: orthorhombic, &
+                                                scaled_coordinates
+    REAL(KIND=dp), DIMENSION(3), &
+      INTENT(OUT), OPTIONAL                  :: abc
+    INTEGER, DIMENSION(3), INTENT(OUT), &
+      OPTIONAL                               :: periodic
+    REAL(KIND=dp), DIMENSION(3, 3), &
+      INTENT(OUT), OPTIONAL                  :: h, h_inv
+    INTEGER, INTENT(out), OPTIONAL           :: id_nr
 
-!   *** Local variables ***
-
-    REAL(KIND = dp) :: a,b,c
+    REAL(KIND=dp)                            :: a, b, c
 
 !   ---------------------------------------------------------------------------
 
@@ -203,14 +201,13 @@ CONTAINS
 
 !   ***************************************************************************
 
-    TYPE(cell_type), INTENT(IN), TARGET           :: box
-    REAL(KIND = dp), DIMENSION(3), INTENT(OUT)           :: cell_length
-    REAL(KIND = dp), DIMENSION(3), OPTIONAL, INTENT(OUT) :: cell_angle
+    TYPE(cell_type), INTENT(IN), TARGET      :: box
+    REAL(KIND=dp), DIMENSION(3), INTENT(OUT) :: cell_length
+    REAL(KIND=dp), DIMENSION(3), &
+      INTENT(OUT), OPTIONAL                  :: cell_angle
 
-!   *** Local variables ***
-
-    TYPE(cell_type), POINTER :: cell
-    REAL(KIND = dp)                 :: alpha,beta,gamm
+    REAL(KIND=dp)                            :: alpha, beta, gamm
+    TYPE(cell_type), POINTER                 :: cell
 
 !   ---------------------------------------------------------------------------
 
@@ -235,18 +232,13 @@ CONTAINS
 
 !   ***************************************************************************
 
-    TYPE(cell_type), INTENT(INOUT) :: box
+    TYPE(cell_type), INTENT(INOUT)           :: box
 
-!   *** Local parameters ***
+    CHARACTER(LEN=*), PARAMETER :: &
+      routine = "SUBROUTINE get_hinv (MODULE simulation_cell)"
 
-    CHARACTER(LEN=*), PARAMETER :: routine =&
-      "SUBROUTINE get_hinv (MODULE simulation_cell)"
-
-!   *** Local variables ***
-
-    REAL(KIND = dp) :: dethinv
-
-    REAL(KIND = dp), DIMENSION(3,3) :: h
+    REAL(KIND=dp)                            :: dethinv
+    REAL(KIND=dp), DIMENSION(3, 3)           :: h
 
 !   ---------------------------------------------------------------------------
 
@@ -288,14 +280,13 @@ CONTAINS
 
 !   ***************************************************************************
 
-    TYPE(cell_type), INTENT(OUT), TARGET   :: box
-    REAL(KIND = dp), DIMENSION(3,3), INTENT(IN)   :: hmat
-    INTEGER, DIMENSION(3), INTENT(IN)      :: periodic
-    CHARACTER(LEN=*), OPTIONAL, INTENT(IN) :: poisson_solver
+    TYPE(cell_type), INTENT(OUT), TARGET     :: box
+    REAL(KIND=dp), DIMENSION(3, 3), &
+      INTENT(IN)                             :: hmat
+    INTEGER, DIMENSION(3), INTENT(IN)        :: periodic
+    CHARACTER(LEN=*), INTENT(IN), OPTIONAL   :: poisson_solver
 
-!   *** Local variables ***
-
-    TYPE(cell_type), POINTER :: cell
+    TYPE(cell_type), POINTER                 :: cell
 
 !   ---------------------------------------------------------------------------
 
@@ -324,23 +315,20 @@ CONTAINS
 
 !   ***************************************************************************
 
-    TYPE(cell_type), POINTER                       :: cell
-    REAL(KIND = dp), DIMENSION(3,3), OPTIONAL, INTENT(IN) :: hmat
-    INTEGER, DIMENSION(3), OPTIONAL, INTENT(IN)    :: periodic
-    CHARACTER(LEN=*), OPTIONAL, INTENT(IN)         :: poisson_solver
+    TYPE(cell_type), POINTER                 :: cell
+    REAL(KIND=dp), DIMENSION(3, 3), &
+      INTENT(IN), OPTIONAL                   :: hmat
+    INTEGER, DIMENSION(3), INTENT(IN), &
+      OPTIONAL                               :: periodic
+    CHARACTER(LEN=*), INTENT(IN), OPTIONAL   :: poisson_solver
 
-!   *** Local parameters ***
+    CHARACTER(LEN=*), PARAMETER :: &
+      routine = "SUBROUTINE init_cell_new (MODULE simulation_cell)"
 
-    CHARACTER(LEN=*), PARAMETER :: routine =&
-      "SUBROUTINE init_cell_new (MODULE simulation_cell)"
-
-!   *** Local variables ***
-
-    REAL(KIND = dp) :: dethinv
-    INTEGER  :: dim,i
-
-    REAL(KIND = dp), DIMENSION(3)   :: abc
-    REAL(KIND = dp), DIMENSION(3,3) :: h
+    INTEGER                                  :: dim, i
+    REAL(KIND=dp)                            :: dethinv
+    REAL(KIND=dp), DIMENSION(3)              :: abc
+    REAL(KIND=dp), DIMENSION(3, 3)           :: h
 
 !   ---------------------------------------------------------------------------
 
@@ -501,14 +489,11 @@ CONTAINS
 
 !   ***************************************************************************
 
-    TYPE(cell_type), POINTER           :: cell
-    REAL(KIND = dp), DIMENSION(3), INTENT(IN) :: r
+    REAL(KIND=dp), DIMENSION(3), INTENT(IN)  :: r
+    TYPE(cell_type), POINTER                 :: cell
+    REAL(KIND=dp), DIMENSION(3)              :: r_pbc
 
-    REAL(KIND = dp), DIMENSION(3) :: r_pbc
-
-!   *** Local variables ***
-
-    REAL(KIND = dp), DIMENSION(3) :: s
+    REAL(KIND=dp), DIMENSION(3)              :: s
 
 !   ---------------------------------------------------------------------------
 
@@ -541,15 +526,12 @@ CONTAINS
 
 !   ***************************************************************************
 
-    TYPE(cell_type), POINTER           :: cell
-    REAL(KIND = dp), DIMENSION(3), INTENT(IN) :: r
-    INTEGER, DIMENSION(3), INTENT(IN)  :: nl
+    REAL(KIND=dp), DIMENSION(3), INTENT(IN)  :: r
+    TYPE(cell_type), POINTER                 :: cell
+    INTEGER, DIMENSION(3), INTENT(IN)        :: nl
+    REAL(KIND=dp), DIMENSION(3)              :: r_pbc
 
-    REAL(KIND = dp), DIMENSION(3) :: r_pbc
-
-!   *** Local variables ***
-
-    REAL(KIND = dp), DIMENSION(3) :: s
+    REAL(KIND=dp), DIMENSION(3)              :: s
 
 !   ---------------------------------------------------------------------------
 
@@ -584,20 +566,18 @@ CONTAINS
 
 !   ***************************************************************************
 
-    TYPE(cell_type), POINTER                  :: cell
-    TYPE(global_environment_type), INTENT(IN) :: globenv
-    REAL(dp),DIMENSION(1:3,1:3),OPTIONAL,INTENT(IN) :: new_h_matrix
+    TYPE(cell_type), POINTER                 :: cell
+    TYPE(global_environment_type), &
+      INTENT(IN)                             :: globenv
+    REAL(dp), DIMENSION(1:3, 1:3), &
+      INTENT(IN), OPTIONAL                   :: new_h_matrix
 
-!   *** Local parameters ***
+    CHARACTER(LEN=*), PARAMETER :: &
+      routine = "SUBROUTINE read_cell (MODULE simulation_cell)"
 
-    CHARACTER(LEN=*), PARAMETER :: routine =&
-      "SUBROUTINE read_cell (MODULE simulation_cell)"
-
-!   *** Local variables ***
-
-    CHARACTER(LEN=40) :: keyword,string
-    INTEGER           :: istat
-    LOGICAL           :: section_found
+    CHARACTER(LEN=40)                        :: keyword, string
+    INTEGER                                  :: istat
+    LOGICAL                                  :: section_found
 
 !   ---------------------------------------------------------------------------
 
@@ -699,10 +679,9 @@ CONTAINS
 
 !   ***************************************************************************
 
-    TYPE(cell_type), POINTER           :: cell
-    REAL(KIND = dp), DIMENSION(3), INTENT(IN) :: r
-
-    REAL(KIND = dp), DIMENSION(3) :: s
+    REAL(KIND=dp), DIMENSION(3), INTENT(IN)  :: r
+    TYPE(cell_type), POINTER                 :: cell
+    REAL(KIND=dp), DIMENSION(3)              :: s
 
 !   ---------------------------------------------------------------------------
 
@@ -728,10 +707,9 @@ CONTAINS
 
 !   ***************************************************************************
 
-    TYPE(cell_type), POINTER           :: cell
-    REAL(KIND = dp), DIMENSION(3), INTENT(IN) :: s
-
-    REAL(KIND = dp), DIMENSION(3) :: r
+    REAL(KIND=dp), DIMENSION(3), INTENT(IN)  :: s
+    TYPE(cell_type), POINTER                 :: cell
+    REAL(KIND=dp), DIMENSION(3)              :: r
 
 !   ---------------------------------------------------------------------------
 
@@ -757,15 +735,13 @@ CONTAINS
 
 !   ***************************************************************************
 
-    TYPE(cell_type), POINTER                  :: cell
-    TYPE(global_environment_type), INTENT(IN) :: globenv
+    TYPE(cell_type), POINTER                 :: cell
+    TYPE(global_environment_type), &
+      INTENT(IN)                             :: globenv
 
-!   *** Local variables ***
-
-    REAL(KIND = dp) :: alpha,beta,gamm
-    INTEGER  :: output_unit
-
-    REAL(KIND = dp), DIMENSION(3) :: abc
+    INTEGER                                  :: output_unit
+    REAL(KIND=dp)                            :: alpha, beta, gamm
+    REAL(KIND=dp), DIMENSION(3)              :: abc
 
 !   ---------------------------------------------------------------------------
 
@@ -839,16 +815,20 @@ CONTAINS
 !!
 !!*** **********************************************************************
   SUBROUTINE cell_create(cell,hmat,periodic,poisson_solver, error)
-    TYPE(cell_type), POINTER                       :: cell
-    REAL(KIND = dp), DIMENSION(3,3), OPTIONAL, INTENT(IN) :: hmat
-    INTEGER, DIMENSION(3), OPTIONAL, INTENT(IN)    :: periodic
-    CHARACTER(LEN=*), OPTIONAL, INTENT(IN)         :: poisson_solver
-    TYPE(cp_error_type), OPTIONAL, INTENT(inout)   :: error
-  
-    LOGICAL :: failure
-    CHARACTER(len=*), PARAMETER :: routineN='cell_create',&
-        routineP=moduleN//':'//routineN
-    INTEGER :: stat
+    TYPE(cell_type), POINTER                 :: cell
+    REAL(KIND=dp), DIMENSION(3, 3), &
+      INTENT(IN), OPTIONAL                   :: hmat
+    INTEGER, DIMENSION(3), INTENT(IN), &
+      OPTIONAL                               :: periodic
+    CHARACTER(LEN=*), INTENT(IN), OPTIONAL   :: poisson_solver
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'cell_create', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: stat
+    LOGICAL                                  :: failure
 
     failure=.FALSE.
     
@@ -891,12 +871,14 @@ CONTAINS
 !!
 !!*** **********************************************************************
 SUBROUTINE cell_retain(cell,error)
-  TYPE(cell_type), POINTER :: cell
-  TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
-  
-  LOGICAL :: failure
-  CHARACTER(len=*), PARAMETER :: routineN='cell_retain',&
-        routineP=moduleN//':'//routineN
+    TYPE(cell_type), POINTER                 :: cell
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'cell_retain', &
+      routineP = moduleN//':'//routineN
+
+    LOGICAL                                  :: failure
 
   failure=.FALSE.
   
@@ -938,13 +920,15 @@ END SUBROUTINE cell_retain
 !!
 !!*** **********************************************************************
 SUBROUTINE cell_release(cell,error)
-  TYPE(cell_type), POINTER :: cell
-  TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
-  
-  LOGICAL :: failure
-  CHARACTER(len=*), PARAMETER :: routineN='cell_release',&
-        routineP=moduleN//':'//routineN
-  INTEGER :: stat
+    TYPE(cell_type), POINTER                 :: cell
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'cell_release', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: stat
+    LOGICAL                                  :: failure
 
   failure=.FALSE.
   

@@ -24,17 +24,10 @@ MODULE kg_force
                                              get_atomic_kind,&
                                              get_atomic_kind_set
   USE checkpoint_handler,              ONLY: write_checkpoint_information
-  USE coefficient_types,               ONLY: coeff_allocate,&
-                                             coeff_copy,&
-                                             coeff_deallocate,&
-                                             coeff_sumup,&
+  USE coefficient_types,               ONLY: coeff_sumup,&
                                              coeff_transform_space,&
-                                             coeff_type,&
                                              coeff_zero
-  USE cp_control_types,                       ONLY: dft_control_type
-  USE external_potential_types,        ONLY: elp_potential_type,&
-                                             gth_potential_type,&
-                                             get_potential
+  USE cp_control_types,                ONLY: dft_control_type
   USE global_types,                    ONLY: global_environment_type
   USE hartree,                         ONLY: calculate_hartree
   USE kg_core,                         ONLY: calculate_ecore_rspace,&
@@ -42,43 +35,32 @@ MODULE kg_force
   USE kg_density,                      ONLY: calculate_density,&
                                              calculate_epc_density,&
                                              calculate_epc_rspace_forces,&
-                                             calculate_p_density,&
                                              calculate_total_density,&
-                                             calculate_v_rspace_forces,&
-                                             calculate_vp_rspace_forces,&
-                                             calculate_epc_density_single,&
-                                             calculate_density_single,&
-                                             calculate_vp_rspace_forces_s
-  USE kg_environment_types,            ONLY: get_kg_env,&
-                                             kg_environment_type
+                                             calculate_v_rspace_forces
   USE kg_energy_types,                 ONLY: init_kg_energy,&
                                              kg_energy_type
-  USE kg_force_types,                  ONLY: kg_force_type, &     
-                                             init_kg_force
+  USE kg_environment_types,            ONLY: get_kg_env,&
+                                             kg_environment_type
+  USE kg_force_types,                  ONLY: init_kg_force,&
+                                             kg_force_type
 !  USE kg_intra,                        ONLY: calculate_ebond_corr
+
   USE kg_kxc,                          ONLY: calculate_kxc_potential
-  USE kinds,                           ONLY: dbl,dp_size
   USE kg_neighbor_lists,               ONLY: build_kg_neighbor_lists
-  USE kg_ppl,                          ONLY: calculate_rho0_ppl,&
-                                             calculate_drho_ppl 
+  USE kg_ppl,                          ONLY: calculate_rho0_ppl
   USE kg_rho_types,                    ONLY: kg_rho_type
+  USE kinds,                           ONLY: dbl
   USE machine,                         ONLY: m_flush
-  USE mathconstants,                   ONLY: pi,&
-                                             zero
+  USE mathconstants,                   ONLY: zero
   USE message_passing,                 ONLY: mp_sum
-  USE orbital_pointers,                ONLY: indco,&
-                                             init_orbital_pointers,&
-                                             nco,&
-                                             ncoset
   USE particle_types,                  ONLY: particle_type
   USE pws,                             ONLY: cleanup_pw_poisson_solver,&
                                              init_pw_poisson_solver
-  USE simulation_cell,                 ONLY: cell_type,&
-                                             get_cell
-  USE termination,                     ONLY: stop_memory,&
-                                             stop_program
+  USE simulation_cell,                 ONLY: cell_type
+  USE termination,                     ONLY: stop_memory
   USE timings,                         ONLY: timeset,&
                                              timestop
+
   IMPLICIT NONE
 
   PRIVATE
@@ -114,16 +96,15 @@ CONTAINS
 
 SUBROUTINE kg_force_control ( kg_env, globenv )
 
-  IMPLICIT NONE
 
-! Arguments
-  TYPE ( kg_environment_type ), POINTER         :: kg_env
-  TYPE ( global_environment_type ), INTENT ( IN ) :: globenv
+    TYPE(kg_environment_type), POINTER       :: kg_env
+    TYPE(global_environment_type), &
+      INTENT(IN)                             :: globenv
+
+    LOGICAL                                  :: kgpol
+    TYPE(dft_control_type), POINTER          :: dft_control
+
 !  TYPE ( debug_variables_type ), INTENT ( OUT ), OPTIONAL :: debug
-! locals
-  TYPE ( dft_control_type ), POINTER :: dft_control
-  LOGICAL :: kgpol
-
 !------------------------------------------------------------------------------
 
   kgpol = .FALSE.
@@ -156,36 +137,33 @@ SUBROUTINE kg_force_control ( kg_env, globenv )
 
 SUBROUTINE kg_calculate_forces ( kg_env, globenv )
 
-  IMPLICIT NONE
 
-! Arguments
-  TYPE ( kg_environment_type ), POINTER :: kg_env
-  TYPE ( global_environment_type ), INTENT ( IN ) :: globenv
+    TYPE(kg_environment_type), POINTER       :: kg_env
+    TYPE(global_environment_type), &
+      INTENT(IN)                             :: globenv
+
+    CHARACTER(LEN=*), PARAMETER :: &
+      routine = "SUBROUTINE kg_calculate_forces (MODULE kg_force)"
+
+    INTEGER                                  :: handle, i, iatom, ikind, &
+                                                isos, natoms, nkind, &
+                                                output_unit
+    INTEGER, ALLOCATABLE, DIMENSION(:), SAVE :: natom_of_kind
+    INTEGER, DIMENSION(:), POINTER           :: atom_list
+    LOGICAL                                  :: calculate_forces, ionode
+    REAL(dbl)                                :: exc, total_rho0_rspace
+    TYPE(atomic_kind_type), DIMENSION(:), &
+      POINTER                                :: atomic_kind_set
+    TYPE(atomic_kind_type), POINTER          :: atomic_kind
+    TYPE(cell_type), POINTER                 :: cell
+    TYPE(dft_control_type), POINTER          :: dft_control
+    TYPE(kg_energy_type), POINTER            :: energy
+    TYPE(kg_force_type), DIMENSION(:), &
+      POINTER                                :: force
+    TYPE(kg_rho_type), POINTER               :: kg_rho_v
+    TYPE(particle_type), POINTER             :: part( : )
+
 !  TYPE ( debug_variables_type ), INTENT ( OUT ), OPTIONAL :: debug
-
-! Local parameters
-    CHARACTER(LEN=*), PARAMETER :: routine =&
-      "SUBROUTINE kg_calculate_forces (MODULE kg_force)"
-! Locals
-  TYPE ( atomic_kind_type ), DIMENSION(:), POINTER:: atomic_kind_set
-  TYPE ( atomic_kind_type ), POINTER   :: atomic_kind
-  TYPE ( cell_type ), POINTER :: cell
-  TYPE ( dft_control_type ), POINTER :: dft_control
-  TYPE ( particle_type ), POINTER :: part ( : )
-  TYPE ( kg_force_type ), DIMENSION(:), POINTER ::force
-  TYPE ( kg_energy_type ), POINTER ::energy
-  TYPE ( kg_rho_type ), POINTER :: kg_rho_v
-  INTEGER :: id, i, ii, natoms, nnodes, handle, isos, n, nkind
-  INTEGER :: iatom, ikind 
-  REAL ( dbl ) :: ehartree, exc
-  REAL ( dbl ) :: total_rho0_rspace
-  LOGICAL :: first_time, calculate_forces
-  INTEGER, DIMENSION(:), POINTER   :: atom_list
-  INTEGER, DIMENSION(:), ALLOCATABLE, SAVE :: natom_of_kind
-  CHARACTER(LEN=8) :: force_type
-  LOGICAL :: ionode
-  INTEGER :: output_unit
-
 !------------------------------------------------------------------------------
 
   CALL write_checkpoint_information("entering "//routine,globenv)

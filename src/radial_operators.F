@@ -20,11 +20,12 @@
 
 MODULE radial_operators
 
-  USE kinds, ONLY : dbl
-
-  USE radial_grids, ONLY : radial_grid_type
-  USE radial_util, ONLY : radial_diff, radial_integrate
-  USE termination, ONLY : stop_memory, stop_program
+  USE kinds,                           ONLY: dbl
+  USE radial_grids,                    ONLY: radial_grid_type
+  USE radial_util,                     ONLY: radial_diff,&
+                                             radial_integrate
+  USE termination,                     ONLY: stop_memory,&
+                                             stop_program
 
   IMPLICIT NONE
 
@@ -56,16 +57,14 @@ CONTAINS
   SUBROUTINE rad_kinetic ( p1, p2, l, rg, result )
 
 ! Kinetic energy integral < f1 T f2 > where p1 = r*f1(r) and p2 = r*f2(r)
-!Arguments
-    REAL ( dbl ), DIMENSION ( 0: ), INTENT ( IN ) :: p1, p2
-    INTEGER, INTENT ( IN ) :: l
-    TYPE ( radial_grid_type ), INTENT ( IN ) :: rg
-    REAL ( dbl ), INTENT ( OUT ) :: result
+    REAL(dbl), DIMENSION(0:), INTENT(IN)     :: p1, p2
+    INTEGER, INTENT(IN)                      :: l
+    TYPE(radial_grid_type), INTENT(IN)       :: rg
+    REAL(dbl), INTENT(OUT)                   :: result
 
-!Locals
-    INTEGER :: i, n, ierr
-    REAL ( dbl ), DIMENSION ( : ), ALLOCATABLE :: dp1, dp2, f
-    REAL ( dbl ) :: int
+    INTEGER                                  :: i, ierr, n
+    REAL(dbl)                                :: int
+    REAL(dbl), ALLOCATABLE, DIMENSION(:)     :: dp1, dp2, f
 
 !------------------------------------------------------------------------------
 
@@ -128,15 +127,13 @@ CONTAINS
 ! Calculates the integral < f1 V f2 >
 ! It is assumed that the s=0 term has been included correctly into V(s=0)
 ! This is only a problem if V(s->0) = s^2 or worse
-!Arguments
-    REAL ( dbl ), DIMENSION ( 0: ), INTENT ( IN ) :: p1, p2, v
-    TYPE ( radial_grid_type ), INTENT ( IN ) :: rg
-    REAL ( dbl ), INTENT ( OUT ) :: result
+    REAL(dbl), DIMENSION(0:), INTENT(IN)     :: p1, p2, v
+    TYPE(radial_grid_type), INTENT(IN)       :: rg
+    REAL(dbl), INTENT(OUT)                   :: result
 
-!Locals
-    INTEGER :: i, n, ierr
-    REAL ( dbl ), DIMENSION ( : ), ALLOCATABLE :: f
-    REAL ( dbl ) :: int
+    INTEGER                                  :: ierr, n
+    REAL(dbl)                                :: int
+    REAL(dbl), ALLOCATABLE, DIMENSION(:)     :: f
 
 !------------------------------------------------------------------------------
 

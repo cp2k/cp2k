@@ -40,6 +40,7 @@ MODULE md
   USE string_utilities,                ONLY: uppercase,&
                                              xstring
   USE util,                            ONLY: gasdev
+
   IMPLICIT NONE
 
   PRIVATE
@@ -223,21 +224,20 @@ CONTAINS
 
 SUBROUTINE read_md_section ( simpar, mdpar, mdio )
 
-  IMPLICIT NONE
 
-! Arguments
-  TYPE ( simulation_parameters_type ), INTENT ( OUT ) :: simpar
-  TYPE ( global_environment_type ), INTENT ( IN ) :: mdpar
-  TYPE ( mdio_parameters_type ), INTENT ( OUT ) :: mdio
+    TYPE(simulation_parameters_type), &
+      INTENT(OUT)                            :: simpar
+    TYPE(global_environment_type), &
+      INTENT(IN)                             :: mdpar
+    TYPE(mdio_parameters_type), INTENT(OUT)  :: mdio
 
-! Locals
-  INTEGER :: ierror, ilen, msglen, ia, ie, iw, allgrp, source
-  CHARACTER ( LEN = 20 ) :: string
-  CHARACTER ( LEN = 5 ) :: label
+    CHARACTER(LEN=20)                        :: string
+    CHARACTER(LEN=5)                         :: label
+    INTEGER                                  :: ia, ie, ierror, ilen, iw
 
 !------------------------------------------------------------------------------
-
 !..defaults
+
   simpar % units % time = 'FS'
   simpar % units % press = 'BAR'
   simpar % units % tau = 'FS'
@@ -778,21 +778,19 @@ END SUBROUTINE read_md_section
 
 SUBROUTINE initialize_velocities ( simpar, part, mdpar )
 
-  IMPLICIT NONE
 
-! Arguments
-  TYPE ( simulation_parameters_type ), INTENT ( IN ) :: simpar
-  TYPE ( particle_type ), INTENT ( INOUT ), DIMENSION ( : ) :: part
-  TYPE ( global_environment_type ), INTENT ( INOUT ) :: mdpar
+    TYPE(simulation_parameters_type), &
+      INTENT(IN)                             :: simpar
+    TYPE(particle_type), DIMENSION(:), &
+      INTENT(INOUT)                          :: part
+    TYPE(global_environment_type), &
+      INTENT(INOUT)                          :: mdpar
 
-! Locals
-  INTEGER :: i, id, natoms, iw
-  REAL ( dbl ), DIMENSION ( 3 ) :: vcom,vcom_new
-  REAL ( dbl ) :: denom, sc, mass
-  REAL ( dbl ) :: akin, temp
-  LOGICAL :: domdec
-  TYPE (atomic_kind_type), POINTER :: atomic_kind
-  TYPE ( unit_convert_type ), POINTER :: unit
+    INTEGER                                  :: i, iw, natoms
+    REAL(dbl)                                :: akin, denom, mass, sc, temp
+    REAL(dbl), DIMENSION(3)                  :: vcom, vcom_new
+    TYPE(atomic_kind_type), POINTER          :: atomic_kind
+    TYPE(unit_convert_type), POINTER         :: unit
 
 !------------------------------------------------------------------------------
 

@@ -20,7 +20,6 @@
 MODULE cntl_input
   USE global_types,                    ONLY: global_environment_type
   USE input_types,                     ONLY: setup_parameters_type
-  USE kinds,                           ONLY: dbl
   USE parser,                          ONLY: get_next,&
                                              p_error,&
                                              parser_end,&
@@ -31,6 +30,7 @@ MODULE cntl_input
                                              test_next
   USE string_utilities,                ONLY: uppercase,&
                                              xstring
+
   PRIVATE
   PUBLIC :: read_cntl_section
 
@@ -74,22 +74,20 @@ CONTAINS
 
 SUBROUTINE read_cntl_section ( setup, globenv )
 
-  IMPLICIT NONE
 
-! Arguments
-  TYPE ( setup_parameters_type ), INTENT ( INOUT ) :: setup
-  TYPE ( global_environment_type ), INTENT ( INOUT ) :: globenv
+    TYPE(setup_parameters_type), &
+      INTENT(INOUT)                          :: setup
+    TYPE(global_environment_type), &
+      INTENT(INOUT)                          :: globenv
 
-! Locals
-  INTEGER :: ierror, ilen, ia, ie, i, j, n, iw, source, group
-  CHARACTER ( LEN = 20 ) :: string, str2
-  CHARACTER ( LEN = 5 ) :: label
-  LOGICAL :: found, setf
+    CHARACTER(LEN=20)                        :: str2, string
+    CHARACTER(LEN=5)                         :: label
+    INTEGER                                  :: ia, ie, ierror, ilen, iw
+    LOGICAL                                  :: found, setf
 
 !------------------------------------------------------------------------------
-
-
 !..defaults
+
   setup % unit_type = 'KELVIN'
   setup % symmetry = .FALSE.
   setup % path_integrals = .FALSE.

@@ -20,13 +20,11 @@
 
 MODULE qs_force_types
 
-  USE kinds, ONLY: int_size,&
-                   dp,&
-                   dp_size
-
-  USE global_types, ONLY: global_environment_type
-  USE termination,  ONLY: stop_memory,&
-                          stop_program
+  USE kinds,                           ONLY: dp,&
+                                             dp_size,&
+                                             int_size
+  USE termination,                     ONLY: stop_memory,&
+                                             stop_program
 
   IMPLICIT NONE
 
@@ -68,17 +66,14 @@ CONTAINS
 
 !   ***************************************************************************
 
-    TYPE(qs_force_type), DIMENSION(:), POINTER :: qs_force
-    INTEGER, DIMENSION(:), INTENT(IN)          :: natom_of_kind
+    TYPE(qs_force_type), DIMENSION(:), &
+      POINTER                                :: qs_force
+    INTEGER, DIMENSION(:), INTENT(IN)        :: natom_of_kind
 
-!   *** Local parameters ***
+    CHARACTER(LEN=*), PARAMETER :: &
+      routine = "SUBROUTINE allocate_qs_force (MODULE qs_force_types)"
 
-    CHARACTER(LEN=*), PARAMETER :: routine =&
-      "SUBROUTINE allocate_qs_force (MODULE qs_force_types)"
-
-!   *** Local variables ***
-
-    INTEGER :: ikind,istat,n,nkind
+    INTEGER                                  :: ikind, istat, n, nkind
 
 !   ---------------------------------------------------------------------------
 
@@ -139,16 +134,13 @@ CONTAINS
 
 !   ***************************************************************************
 
-    TYPE(qs_force_type), DIMENSION(:), POINTER :: qs_force
+    TYPE(qs_force_type), DIMENSION(:), &
+      POINTER                                :: qs_force
 
-!   *** Local parameters ***
+    CHARACTER(LEN=*), PARAMETER :: &
+      routine = "SUBROUTINE deallocate_qs_force (MODULE qs_force_types)"
 
-    CHARACTER(LEN=*), PARAMETER :: routine =&
-      "SUBROUTINE deallocate_qs_force (MODULE qs_force_types)"
-
-!   *** Local variables ***
-
-    INTEGER :: ikind,istat,nkind
+    INTEGER                                  :: ikind, istat, nkind
 
 !   ---------------------------------------------------------------------------
 
@@ -234,16 +226,13 @@ CONTAINS
 
 !   ***************************************************************************
 
-    TYPE(qs_force_type), DIMENSION(:), POINTER :: qs_force
+    TYPE(qs_force_type), DIMENSION(:), &
+      POINTER                                :: qs_force
 
-!   *** Local parameters ***
+    CHARACTER(LEN=*), PARAMETER :: &
+      routine = "SUBROUTINE init_qs_force (MODULE qs_force_types)"
 
-    CHARACTER(LEN=*), PARAMETER :: routine =&
-      "SUBROUTINE init_qs_force (MODULE qs_force_types)"
-
-!   *** Local variables ***
-
-    INTEGER :: ikind,istat
+    INTEGER                                  :: ikind
 
 !   ---------------------------------------------------------------------------
 

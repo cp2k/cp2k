@@ -22,10 +22,10 @@
 
 MODULE radial_grids
 
-  USE kinds, ONLY : dbl
-
-  USE string_utilities, ONLY : uppercase
-  USE termination, ONLY : stop_memory, stop_program
+  USE kinds,                           ONLY: dbl
+  USE string_utilities,                ONLY: uppercase
+  USE termination,                     ONLY: stop_memory,&
+                                             stop_program
 
   IMPLICIT NONE
 
@@ -69,17 +69,17 @@ CONTAINS
 
   SUBROUTINE init_radial_grid ( rg, type, n, z, b, rmax )
 
-!Arguments
-  TYPE ( radial_grid_type ), INTENT ( OUT ) :: rg
-  CHARACTER ( LEN = * ), INTENT ( IN ) :: type
-  INTEGER, INTENT ( IN ) :: n
-  REAL ( dbl ), INTENT ( IN ) :: z
-  REAL ( dbl ), DIMENSION ( : ), INTENT ( IN ), OPTIONAL :: b
-  REAL ( dbl ), INTENT ( IN ), OPTIONAL :: rmax
+    TYPE(radial_grid_type), INTENT(OUT)      :: rg
+    CHARACTER(LEN=*), INTENT(IN)             :: type
+    INTEGER, INTENT(IN)                      :: n
+    REAL(dbl), INTENT(IN)                    :: z
+    REAL(dbl), DIMENSION(:), INTENT(IN), &
+      OPTIONAL                               :: b
+    REAL(dbl), INTENT(IN), OPTIONAL          :: rmax
 
-!Locals
-  REAL ( dbl ) :: ab, t, tm, t0, s, p, abt, ts2, tt
-  INTEGER :: ierr, m, i
+    INTEGER                                  :: i, ierr, m
+    REAL(dbl)                                :: ab, abt, p, s, t, t0, tm, &
+                                                ts2, tt
 
 !------------------------------------------------------------------------------
 

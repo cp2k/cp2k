@@ -24,18 +24,17 @@
 MODULE mc_ensembles
   USE checkpoint_handler,              ONLY: write_checkpoint_information
   USE cp_error_handling,               ONLY: cp_a_l,&
+                                             cp_assert,&
                                              cp_error_get_logger,&
-                                             cp_error_type, &
-                                             cp_assert
+                                             cp_error_type
   USE cp_log_handling,                 ONLY: cp_failure_level,&
                                              cp_logger_get_default_unit_nr,&
                                              cp_logger_type,&
                                              cp_to_string
-  USE cp_subsystem_types,              ONLY: cp_subsystem_p_type,&
-                                             cp_subsys_get,&
-                                             cp_subsys_set,&
-                                             cp_subsys_release
   USE cp_para_types,                   ONLY: cp_blacs_env_type
+  USE cp_subsystem_types,              ONLY: cp_subsys_get,&
+                                             cp_subsys_release,&
+                                             cp_subsystem_p_type
   USE force_env_types,                 ONLY: force_env_calculate_energy,&
                                              force_env_get,&
                                              force_env_release,&
@@ -45,33 +44,32 @@ MODULE mc_ensembles
   USE mc_control,                      ONLY: mc_simulation_parameters_type,&
                                              read_mc_section,&
                                              write_mc_restart
-  USE mc_environment_types,            ONLY: mc_environment_type,&
-                                             get_mc_env
-  USE mc_misc,                         ONLY: get_water_data,&
-                                             final_mc_write,&
-                                             mc_classical_energy,&
+  USE mc_environment_types,            ONLY: get_mc_env,&
+                                             mc_environment_type
+  USE mc_misc,                         ONLY: final_mc_write,&
+                                             get_water_data,&
+                                             init_mc_averages,&
                                              mc_averages_type,&
-                                             init_mc_averages
-  USE mc_move_control,                 ONLY: mc_moves_type,&
-                                             init_mc_moves,&
-                                             mc_energy_restart
-  USE mc_moves,                        ONLY: mc_atom_translation,&
-                                             mc_molecule_translation,&
+                                             mc_classical_energy
+  USE mc_move_control,                 ONLY: init_mc_moves,&
+                                             mc_energy_restart,&
+                                             mc_moves_type
+  USE mc_moves,                        ONLY: mc_Quickstep_move,&
+                                             mc_atom_translation,&
                                              mc_molecule_rotation,&
-                                             mc_volume_move,&
-                                             mc_Quickstep_move
+                                             mc_molecule_translation,&
+                                             mc_volume_move
   USE message_passing,                 ONLY: mp_bcast
-  USE particle_types,                  ONLY: particle_type,&
-                                             write_particle_coordinates
   USE particle_list_types,             ONLY: particle_list_type
+  USE particle_types,                  ONLY: write_particle_coordinates
   USE qs_main,                         ONLY: quickstep_create_force_env
   USE qs_parser,                       ONLY: close_file,&
                                              open_file
-  USE scf_control_types,               ONLY: scf_control_type
   USE simulation_cell,                 ONLY: cell_type
   USE termination,                     ONLY: stop_memory
   USE timings,                         ONLY: timeset,&
                                              timestop
+
   IMPLICIT NONE
 
   PRIVATE
@@ -96,34 +94,36 @@ CONTAINS
 
 !   ***************************************************************************
 
-    TYPE(global_environment_type), POINTER :: globenv
-    TYPE(mc_environment_type), POINTER :: mc_env
-    TYPE(cp_error_type), INTENT(inout), OPTIONAL :: error
-
-!   *** Local parameters ***
+    TYPE(mc_environment_type), POINTER       :: mc_env
+    TYPE(global_environment_type), POINTER   :: globenv
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = "mc_traditional_ensemble"
 
-!   *** Local variables ***
-    TYPE(scf_control_type),POINTER :: scf_control
-    TYPE(force_env_type), POINTER :: force_env
-    TYPE(cp_blacs_env_type), POINTER :: blacs_env
-    TYPE(mc_moves_type),POINTER  :: moves,move_updates
-    TYPE(mc_averages_type),POINTER  :: averages
-    TYPE(cell_type),POINTER  :: cell,testcell
-    TYPE(mc_simulation_parameters_type), POINTER :: mc_par
-    TYPE(cp_subsystem_p_type), DIMENSION(:), POINTER :: oldsys,testsys
-    TYPE(particle_list_type), POINTER :: particles_old,particles_test
-    REAL(KIND = dp)                             :: rand,old_energy,&
-                             ave_energy,bond1,bond2,angle,ave_density,&
-                             energy_check,initial_energy,test_energy,&
-                             ave_energy_squared,classical_energy_old
-    INTEGER :: nnstep,iparticle,crd,handle,iw,ene,istep,i,test_crd
-    LOGICAL :: PM0,PM1,PM2,PM3,PM4,should_stop
-    REAL(KIND = dp),DIMENSION(1:3,1:mc_env%mc_par%nunits_tot) :: r_old
-!   ---------------------------------------------------------------------------
+    INTEGER                                  :: crd, ene, handle, i, &
+                                                iparticle, iw, nnstep
+    LOGICAL                                  :: PM0, PM1, PM2, PM3, PM4, &
+                                                should_stop
+    REAL(KIND=dp)                            :: classical_energy_old, &
+                                                energy_check, initial_energy, &
+                                                old_energy, rand
+    TYPE(mc_averages_type), POINTER          :: averages
+    TYPE(force_env_type), POINTER            :: force_env
+    TYPE(cp_subsystem_p_type), &
+      DIMENSION(:), POINTER                  :: oldsys
+    TYPE(cp_blacs_env_type), POINTER         :: blacs_env
+    TYPE(cell_type), POINTER                 :: cell
+    REAL(KIND=dp), DIMENSION(1:3, 1:mc_env%&
+      mc_par%nunits_tot)                     :: r_old
+    TYPE(mc_moves_type), POINTER             :: move_updates, moves
+    TYPE(mc_simulation_parameters_type), &
+      POINTER                                :: mc_par
+    TYPE(particle_list_type), POINTER        :: particles_old
 
+!   ---------------------------------------------------------------------------
 ! begin the timing of the subroutine
+
   CALL timeset(routineN,'I','',handle)
 
   NULLIFY(moves,move_updates,oldsys)
@@ -328,35 +328,37 @@ CONTAINS
 
 !   ***************************************************************************
 
-    TYPE(global_environment_type), POINTER :: globenv
-    TYPE(mc_environment_type), POINTER :: mc_env
-    TYPE(cp_error_type), INTENT(inout), OPTIONAL :: error
+    TYPE(mc_environment_type), POINTER       :: mc_env
+    TYPE(global_environment_type), POINTER   :: globenv
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
 
-!   *** Local parameters ***
+    CHARACTER(LEN=*), PARAMETER              :: routineN = "gemc_nvt"
 
-    CHARACTER(LEN=*), PARAMETER :: routineN = "gemc_nvt"
-
-!   *** Local variables ***
-
-    TYPE(cp_blacs_env_type), POINTER :: blacs_env
-    TYPE(force_env_type), POINTER :: force_env_1,force_env_2
-    TYPE(mc_moves_type),POINTER  :: moves_1,move_updates_1
-    TYPE(mc_moves_type),POINTER  :: moves_2,move_updates_2
-    TYPE(cell_type),POINTER  :: cell_1,cell_2
-    TYPE(mc_simulation_parameters_type), POINTER :: mc_par_1,mc_par_2
-    TYPE(cp_subsystem_p_type), DIMENSION(:), POINTER :: oldsys_1,&
-                                                        oldsys_2
-    TYPE(particle_list_type), POINTER :: particles_old_1,particles_old_2
-    REAL(KIND = dp)                             :: rand,energy_check
-    REAL(KIND = dp),DIMENSION(1:2)                :: old_energy,&
-                               ave_energy,bond1,bond2,angle,ave_density
-    INTEGER,DIMENSION(1:2) ::             istep
-    INTEGER :: nnstep,iparticle,crd=75,stat,isos,box_flag,handle
-    CHARACTER(LEN=200),DIMENSION(1:2) ::       input_file_names
+    CHARACTER(LEN=200), DIMENSION(1:2)       :: input_file_names
+    INTEGER                                  :: box_flag, crd = 75, handle, &
+                                                isos, nnstep, stat
+    INTEGER, DIMENSION(1:2)                  :: istep
+    REAL(KIND=dp)                            :: rand
+    REAL(KIND=dp), DIMENSION(1:2)            :: angle, ave_density, &
+                                                ave_energy, bond1, bond2, &
+                                                old_energy
+    TYPE(cell_type), POINTER                 :: cell_1, cell_2
+    TYPE(cp_blacs_env_type), POINTER         :: blacs_env
+    TYPE(cp_subsystem_p_type), &
+      DIMENSION(:), POINTER                  :: oldsys_1, oldsys_2
+    TYPE(force_env_type), POINTER            :: force_env_1, force_env_2
+    TYPE(mc_moves_type), POINTER             :: move_updates_1, &
+                                                move_updates_2, moves_1, &
+                                                moves_2
+    TYPE(mc_simulation_parameters_type), &
+      POINTER                                :: mc_par_1, mc_par_2
+    TYPE(particle_list_type), POINTER        :: particles_old_1, &
+                                                particles_old_2
 
 !   ---------------------------------------------------------------------------
-
 ! begin the timing of the subroutine
+
   CALL timeset(routineN,'I','',handle)
 
 ! make it so we don't have to type mc_env for every structure    
@@ -596,21 +598,18 @@ CONTAINS
 
 !   ***************************************************************************
 
-    TYPE(force_env_type), POINTER :: force_env
-    LOGICAL, INTENT(OUT)                         :: should_stop
-    TYPE(cp_error_type), INTENT(inout), OPTIONAL :: error
+    TYPE(force_env_type), POINTER            :: force_env
+    LOGICAL, INTENT(OUT)                     :: should_stop
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
 
-!   *** Local parameters ***
+    CHARACTER(LEN=*), PARAMETER :: exit_file_name = "EXIT_MC", &
+      routine_name = "external_control", &
+      routineP = module_name//':'//routine_name
 
-    CHARACTER(LEN=*), PARAMETER :: routine_name = "external_control",&
-                                   exit_file_name = "EXIT_MC",&
-                                   routineP=module_name//':'//routine_name
-
-!   *** Local variables ***
-
-    INTEGER :: handle,unit_number
-    LOGICAL :: file_exists, failure
-    TYPE(cp_logger_type), POINTER :: logger
+    INTEGER                                  :: handle, unit_number
+    LOGICAL                                  :: failure
+    TYPE(cp_logger_type), POINTER            :: logger
 
 !   ---------------------------------------------------------------------------
 

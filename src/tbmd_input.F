@@ -19,16 +19,23 @@
 !******************************************************************************
     MODULE tbmd_input
 
-      USE kinds, ONLY : dbl
-
-      USE global_types, ONLY : global_environment_type
-      USE input_types, ONLY : setup_parameters_type
-      USE parser, ONLY : parser_init, parser_end, read_line, test_next, &
-        p_error, get_next, stop_parser, search_label
-      USE string_utilities, ONLY : uppercase, xstring, &
-        str_search, str_comp, make_tuple
-      USE tbmd_types, ONLY : tbatom_param_type, tb_hopping_type
-      USE termination, ONLY : stop_memory, stop_program
+  USE global_types,                    ONLY: global_environment_type
+  USE input_types,                     ONLY: setup_parameters_type
+  USE kinds,                           ONLY: dbl
+  USE parser,                          ONLY: get_next,&
+                                             parser_end,&
+                                             parser_init,&
+                                             read_line,&
+                                             search_label,&
+                                             stop_parser,&
+                                             test_next
+  USE string_utilities,                ONLY: str_search,&
+                                             uppercase,&
+                                             xstring
+  USE tbmd_types,                      ONLY: tb_hopping_type,&
+                                             tbatom_param_type
+  USE termination,                     ONLY: stop_memory,&
+                                             stop_program
 
       IMPLICIT NONE
 !
@@ -59,21 +66,22 @@
 
 SUBROUTINE read_tb_hamiltonian ( setup, atom_names, tbatom, tbmdpar )
 
-  IMPLICIT NONE
 
-! Arguments
-  TYPE(setup_parameters_type), INTENT(INOUT) :: setup
-  TYPE(global_environment_type), INTENT(IN) :: tbmdpar
-  CHARACTER ( LEN = * ), INTENT(IN) :: atom_names ( : )
-  TYPE (tbatom_param_type), DIMENSION (:), POINTER :: tbatom
+    TYPE(setup_parameters_type), &
+      INTENT(INOUT)                          :: setup
+    CHARACTER(LEN=*), INTENT(IN)             :: atom_names( : )
+    TYPE(tbatom_param_type), DIMENSION(:), &
+      POINTER                                :: tbatom
+    TYPE(global_environment_type), &
+      INTENT(IN)                             :: tbmdpar
 
+    CHARACTER(len=1), PARAMETER :: lq(0:3) = (/ 'S', 'P', 'D', 'F'/)
 
-! Locals
-  INTEGER :: ierror, ilen, i, j, k, n, iw, source, group, iat, nt, ios, i1
-  CHARACTER (len=20) :: string, at
-  CHARACTER (len=10) :: basis, atyp, ttyp
-  CHARACTER (len=5) :: label
-  CHARACTER (len=1), PARAMETER :: lq(0:3) = (/ 'S', 'P', 'D', 'F'/)
+    CHARACTER(len=10)                        :: basis
+    CHARACTER(len=20)                        :: at, string
+    CHARACTER(len=5)                         :: label
+    INTEGER                                  :: i, i1, iat, ierror, ilen, &
+                                                ios, iw, j, k, nt
 
   iat = 0
   nt = setup%natom_type
@@ -152,10 +160,10 @@ END SUBROUTINE read_tb_hamiltonian
 !------------------------------------------------------------------------------!
 
 SUBROUTINE set_basis(basis,bsf)
-  IMPLICIT NONE
-  CHARACTER (len=*), INTENT (INOUT) :: basis
-  INTEGER, INTENT (OUT) :: bsf(0:3)
-  INTEGER :: ia, ie, i, lmax, lnew
+    CHARACTER(len=*), INTENT(INOUT)          :: basis
+    INTEGER, INTENT(OUT)                     :: bsf(0:3)
+
+    INTEGER                                  :: i, ia, ie, lmax, lnew
 
   lmax = -1
   bsf = 0
@@ -206,21 +214,23 @@ END SUBROUTINE set_basis
 
 SUBROUTINE read_tb_hopping_elements ( setup, atom_names, tbatom, tbhop, tbmdpar )
 
-  IMPLICIT NONE
 
-! Arguments
-  TYPE(setup_parameters_type), INTENT(INOUT) :: setup
-  TYPE(global_environment_type), INTENT(INOUT) :: tbmdpar
-  CHARACTER ( LEN = * ), INTENT(IN) :: atom_names ( : )
-  TYPE (tbatom_param_type), DIMENSION (:) :: tbatom
-  TYPE (tb_hopping_type), DIMENSION (:,:), POINTER :: tbhop
+    TYPE(setup_parameters_type), &
+      INTENT(INOUT)                          :: setup
+    CHARACTER(LEN=*), INTENT(IN)             :: atom_names( : )
+    TYPE(tbatom_param_type), DIMENSION(:)    :: tbatom
+    TYPE(tb_hopping_type), DIMENSION(:, :), &
+      POINTER                                :: tbhop
+    TYPE(global_environment_type), &
+      INTENT(INOUT)                          :: tbmdpar
 
-  INTEGER :: ierror, ilen, i, j, k, l, n, iw, source, group, iat, ios
-  INTEGER :: l1, l2, k1, k2, kk, nk, lu, ku
-  CHARACTER (len=20) :: string
-  CHARACTER (len=10) :: itype, at1, at2
-  CHARACTER (len=5) :: label
-  REAL (dbl) :: rc
+    CHARACTER(len=10)                        :: at1, at2, itype
+    CHARACTER(len=20)                        :: string
+    CHARACTER(len=5)                         :: label
+    INTEGER                                  :: i, iat, ierror, ilen, ios, &
+                                                iw, j, k, k1, k2, kk, ku, l, &
+                                                l1, l2, lu, n, nk
+    REAL(dbl)                                :: rc
 
   iat = setup%natom_type
   ALLOCATE (tbhop(iat,iat),STAT=ios)
@@ -381,10 +391,10 @@ END SUBROUTINE read_tb_hopping_elements
 !------------------------------------------------------------------------------!
 
 SUBROUTINE set_int(itype,int)
-  IMPLICIT NONE
-  CHARACTER (len=*), INTENT (IN) :: itype
-  INTEGER, INTENT (OUT) :: int(1:3)
-  INTEGER :: ia, ie, i, j
+    CHARACTER(len=*), INTENT(IN)             :: itype
+    INTEGER, INTENT(OUT)                     :: int(1:3)
+
+    INTEGER                                  :: i, ia, ie, j
 
   int = 0
   CALL xstring(itype,ia,ie)

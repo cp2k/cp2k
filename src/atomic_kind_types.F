@@ -33,15 +33,11 @@ MODULE atomic_kind_types
                                              write_orb_basis_set
   USE cp_error_handling,               ONLY: cp_a_l,&
                                              cp_assert,&
-                                             cp_assertion_failed,&
-                                             cp_debug,&
                                              cp_error_dealloc_ref,&
                                              cp_error_get_logger,&
                                              cp_error_init,&
                                              cp_error_message,&
-                                             cp_error_type,&
-                                             cp_internal_error,&
-                                             cp_unimplemented_error
+                                             cp_error_type
   USE cp_linked_list_int,              ONLY: cp_sll_int_create,&
                                              cp_sll_int_dealloc,&
                                              cp_sll_int_get_empty,&
@@ -49,8 +45,6 @@ MODULE atomic_kind_types
                                              cp_sll_int_type
   USE cp_log_handling,                 ONLY: cp_failure_level,&
                                              cp_fatal_level,&
-                                             cp_log,&
-                                             cp_logger_get_default_unit_nr,&
                                              cp_logger_type,&
                                              cp_note_level,&
                                              cp_to_string,&
@@ -71,8 +65,8 @@ MODULE atomic_kind_types
                                              int_size
   USE orbital_pointers,                ONLY: init_orbital_pointers,&
                                              ncoset
-  USE pao_bas_projection_types,        ONLY: cp_proj_dealloc,&
-                                             cp_proj_create2,&
+  USE pao_bas_projection_types,        ONLY: cp_proj_create2,&
+                                             cp_proj_dealloc,&
                                              cp_proj_get,&
                                              cp_proj_write,&
                                              pao_bas_projection_type
@@ -83,8 +77,7 @@ MODULE atomic_kind_types
                                              start_parser,&
                                              stop_parser,&
                                              test_object
-  USE string_utilities,                ONLY: integer_to_string,&
-                                             uppercase
+  USE string_utilities,                ONLY: uppercase
   USE termination,                     ONLY: stop_memory,&
                                              stop_program
 
@@ -147,16 +140,13 @@ CONTAINS
 
 !   ***************************************************************************
 
-    TYPE(atomic_kind_type), DIMENSION(:), POINTER :: atomic_kind_set
-    INTEGER, INTENT(IN)                           :: nkind
-
-!   *** Local parameters ***
+    TYPE(atomic_kind_type), DIMENSION(:), &
+      POINTER                                :: atomic_kind_set
+    INTEGER, INTENT(IN)                      :: nkind
 
     CHARACTER(LEN=*), PARAMETER :: routine_name = "allocate_atomic_kind_set"
 
-!   *** Local variables ***
-
-    INTEGER :: ikind,istat
+    INTEGER                                  :: ikind, istat
 
 !   ---------------------------------------------------------------------------
 
@@ -196,15 +186,12 @@ CONTAINS
 
 !   ***************************************************************************
 
-    TYPE(atomic_kind_type), DIMENSION(:), POINTER :: atomic_kind_set
-
-!   *** Local parameters ***
+    TYPE(atomic_kind_type), DIMENSION(:), &
+      POINTER                                :: atomic_kind_set
 
     CHARACTER(LEN=*), PARAMETER :: routine_name = "deallocate_atomic_kind_set"
 
-!   *** Local variables ***
-
-    INTEGER :: ikind,istat,nkind
+    INTEGER                                  :: ikind, istat, nkind
 
 !   ---------------------------------------------------------------------------
 
@@ -265,25 +252,28 @@ CONTAINS
 
 !   ***************************************************************************
 
-    TYPE(atomic_kind_type), POINTER                  :: atomic_kind
-    TYPE(all_potential_type), OPTIONAL, POINTER      :: all_potential
-    TYPE(elp_potential_type), OPTIONAL, POINTER      :: elp_potential
-    TYPE(gth_potential_type), OPTIONAL, POINTER      :: gth_potential
-    TYPE(gto_basis_set_type), OPTIONAL, POINTER      :: aux_basis_set,&
-                                                        orb_basis_set
-    CHARACTER(LEN=2), OPTIONAL, INTENT(OUT)          :: element_symbol
-    CHARACTER(LEN=default_string_length), OPTIONAL,&
-      INTENT(OUT)                                    :: name
-    REAL(KIND = dp), OPTIONAL, INTENT(OUT)           :: alpha_core_charge,&
-                                                        ccore_charge,&
-                                                        core_charge_radius,&
-                                                        mass,qeff
-    INTEGER, OPTIONAL, INTENT(OUT)                   :: kind_number,natom,&
-                                                        ncgf,nsgf,z,zeff
-    INTEGER, DIMENSION(:), OPTIONAL, POINTER         :: atom_list
-    TYPE(pao_bas_projection_type), OPTIONAL, POINTER :: pao_bas_proj
-
-!   *** Local parameters ***
+    TYPE(atomic_kind_type), POINTER          :: atomic_kind
+    TYPE(all_potential_type), OPTIONAL, &
+      POINTER                                :: all_potential
+    TYPE(elp_potential_type), OPTIONAL, &
+      POINTER                                :: elp_potential
+    TYPE(gth_potential_type), OPTIONAL, &
+      POINTER                                :: gth_potential
+    TYPE(gto_basis_set_type), OPTIONAL, &
+      POINTER                                :: aux_basis_set, orb_basis_set
+    CHARACTER(LEN=2), INTENT(OUT), OPTIONAL  :: element_symbol
+    CHARACTER(LEN=default_string_length), &
+      INTENT(OUT), OPTIONAL                  :: name
+    REAL(KIND=dp), INTENT(OUT), OPTIONAL     :: mass
+    INTEGER, INTENT(OUT), OPTIONAL           :: kind_number, natom
+    INTEGER, DIMENSION(:), OPTIONAL, POINTER :: atom_list
+    REAL(KIND=dp), INTENT(OUT), OPTIONAL     :: alpha_core_charge, &
+                                                ccore_charge, &
+                                                core_charge_radius
+    INTEGER, INTENT(OUT), OPTIONAL           :: ncgf, nsgf, z, zeff
+    REAL(KIND=dp), INTENT(OUT), OPTIONAL     :: qeff
+    TYPE(pao_bas_projection_type), &
+      OPTIONAL, POINTER                      :: pao_bas_proj
 
     CHARACTER(LEN=*), PARAMETER :: routine_name = "get_atomic_kind"
 
@@ -416,47 +406,32 @@ CONTAINS
 
 !   ***************************************************************************
 
-    TYPE(atomic_kind_type), DIMENSION(:), POINTER :: atomic_kind_set
-    INTEGER, OPTIONAL, INTENT(OUT)                :: maxatom,maxcgf,maxco,&
-                                                     maxlgto,maxlppl,maxlppnl,&
-                                                     maxpgf,maxppnl,maxsgf,&
-                                                     maxsgf_set,maxshell,&
-                                                     pao_max_min_bas,&
-                                                     pao_max_full_bas,&
-                                                     pao_max_excl_bas,&
-                                                     pao_tot_min_bas,&
-                                                     pao_tot_full_bas,&
-                                                     pao_tot_excl_bas,&
-                                                     pao_max_l_angles,&
-                                                     natom,ncgf,ncgf_aux,&
-                                                     nelectron,&
-                                                     npgf,nset,nsgf,nshell
-    LOGICAL, OPTIONAL, INTENT(OUT)                :: all_potential_present,&
-                                                     elp_potential_present,&
-                                                     gth_potential_present
-    INTEGER, DIMENSION(:), OPTIONAL, INTENT(OUT)  :: atom_of_kind,kind_of,&
-                                                     natom_of_kind
-    INTEGER, OPTIONAL, INTENT(IN)                 :: maxder
-
-!   *** Local parameters ***
+    TYPE(atomic_kind_type), DIMENSION(:), &
+      POINTER                                :: atomic_kind_set
+    INTEGER, INTENT(OUT), OPTIONAL :: maxatom, maxcgf, maxco, maxlgto, &
+      maxlppl, maxlppnl, maxpgf, maxppnl, maxsgf, maxsgf_set, maxshell, &
+      pao_max_min_bas, pao_max_full_bas, pao_max_excl_bas, pao_tot_min_bas, &
+      pao_tot_full_bas, pao_tot_excl_bas, pao_max_l_angles, natom, nelectron, &
+      ncgf, ncgf_aux, npgf, nset, nsgf, nshell
+    LOGICAL, INTENT(OUT), OPTIONAL           :: all_potential_present, &
+                                                gth_potential_present, &
+                                                elp_potential_present
+    INTEGER, DIMENSION(:), INTENT(OUT), &
+      OPTIONAL                               :: atom_of_kind, kind_of, &
+                                                natom_of_kind
+    INTEGER, INTENT(IN), OPTIONAL            :: maxder
 
     CHARACTER(LEN=*), PARAMETER :: routine_name = "get_atomic_kind_set"
 
-!   *** Local variables ***
-
-    TYPE(atomic_kind_type), POINTER   :: atomic_kind
-    TYPE(all_potential_type), POINTER :: all_potential
-    TYPE(elp_potential_type), POINTER :: elp_potential
-    TYPE(gth_potential_type), POINTER :: gth_potential
-    TYPE(gto_basis_set_type), POINTER :: aux_basis_set,orb_basis_set
-    INTEGER                           :: atom_a,iatom,ikind,imax,n,nkind,zeff,&
-                                         p_min_bas,p_min_bas_max,p_excl_bas,&
-                                         p_excl_bas_max,p_full_bas,&
-                                         p_full_bas_max,p_min_bas_tot,&
-                                         p_full_bas_tot,p_l_angles_max
-    LOGICAL                           :: pao
-
-    REAL(KIND = dp), DIMENSION(:,:), POINTER :: zet
+    INTEGER :: atom_a, iatom, ikind, imax, n, nkind, p_excl_bas, &
+      p_excl_bas_max, p_full_bas, p_full_bas_max, p_full_bas_tot, &
+      p_l_angles_max, p_min_bas, p_min_bas_max, p_min_bas_tot, zeff
+    LOGICAL                                  :: pao
+    TYPE(all_potential_type), POINTER        :: all_potential
+    TYPE(atomic_kind_type), POINTER          :: atomic_kind
+    TYPE(elp_potential_type), POINTER        :: elp_potential
+    TYPE(gth_potential_type), POINTER        :: gth_potential
+    TYPE(gto_basis_set_type), POINTER        :: aux_basis_set, orb_basis_set
 
 !   ---------------------------------------------------------------------------
 
@@ -737,10 +712,9 @@ CONTAINS
 
 !   ***************************************************************************
 
-    TYPE(atomic_kind_type), POINTER :: atomic_kind
-    TYPE(global_environment_type), INTENT(IN) :: globenv
-
-!   *** Local parameters ***
+    TYPE(atomic_kind_type), POINTER          :: atomic_kind
+    TYPE(global_environment_type), &
+      INTENT(IN)                             :: globenv
 
     CHARACTER(LEN=*), PARAMETER :: routine_name = "init_atomic_kind"
 
@@ -783,17 +757,15 @@ CONTAINS
 
 !   ***************************************************************************
 
-    TYPE(atomic_kind_type), DIMENSION(:), POINTER :: atomic_kind_set
-    TYPE(global_environment_type), INTENT(IN)     :: globenv
-
-!   *** Local parameters ***
+    TYPE(atomic_kind_type), DIMENSION(:), &
+      POINTER                                :: atomic_kind_set
+    TYPE(global_environment_type), &
+      INTENT(IN)                             :: globenv
 
     CHARACTER(LEN=*), PARAMETER :: routine_name = "init_atomic_kind_set"
 
-!   *** Local variables ***
-
-    TYPE(atomic_kind_type), POINTER :: atomic_kind
-    INTEGER                         :: ikind,nkind
+    INTEGER                                  :: ikind, nkind
+    TYPE(atomic_kind_type), POINTER          :: atomic_kind
 
 !   ---------------------------------------------------------------------------
 
@@ -827,25 +799,21 @@ CONTAINS
 
 !   ***************************************************************************
 
-    TYPE(atomic_kind_type), POINTER           :: atomic_kind
-    TYPE(global_environment_type), INTENT(IN) :: globenv
-
-!   *** Local parameters ***
+    TYPE(atomic_kind_type), POINTER          :: atomic_kind
+    TYPE(global_environment_type), &
+      INTENT(IN)                             :: globenv
 
     CHARACTER(LEN=*), PARAMETER :: routine_name = "read_atomic_kind"
 
-!   *** Local variables ***
-
-    TYPE(cp_error_type)            :: error
-    TYPE(cp_sll_int_type), POINTER :: min_bas_sll
-
-    CHARACTER(LEN=default_string_length) :: aux_basis_set_name,keyword,&
-                                            orb_basis_set_name,&
-                                            potential_name,potential_type
-    CHARACTER(LEN=3)                     :: test_result
-    CHARACTER(LEN=2)                     :: current_symbol,element_symbol
-    INTEGER                              :: i,ikind,ipos,istat,min_b_index,z
-    LOGICAL                              :: failure,found,section_found
+    CHARACTER(LEN=2)                         :: current_symbol, element_symbol
+    CHARACTER(LEN=3)                         :: test_result
+    CHARACTER(LEN=default_string_length)     :: aux_basis_set_name, keyword, &
+                                                orb_basis_set_name, &
+                                                potential_name, potential_type
+    INTEGER                                  :: i, ipos, min_b_index, z
+    LOGICAL                                  :: failure, section_found
+    TYPE(cp_error_type)                      :: error
+    TYPE(cp_sll_int_type), POINTER           :: min_bas_sll
 
 !   ---------------------------------------------------------------------------
 
@@ -1063,17 +1031,15 @@ CONTAINS
 
 !   ***************************************************************************
 
-    TYPE(atomic_kind_type), DIMENSION(:), POINTER :: atomic_kind_set
-    TYPE(global_environment_type), INTENT(IN)     :: globenv
-
-!   *** Local parameters ***
+    TYPE(atomic_kind_type), DIMENSION(:), &
+      POINTER                                :: atomic_kind_set
+    TYPE(global_environment_type), &
+      INTENT(IN)                             :: globenv
 
     CHARACTER(LEN=*), PARAMETER :: routine_name = "read_atomic_kind_set"
 
-!   *** Local variables ***
-
-    TYPE(atomic_kind_type), POINTER :: atomic_kind
-    INTEGER                         :: ikind,nkind
+    INTEGER                                  :: ikind, nkind
+    TYPE(atomic_kind_type), POINTER          :: atomic_kind
 
 !   ---------------------------------------------------------------------------
 
@@ -1107,23 +1073,18 @@ CONTAINS
 
 !   ***************************************************************************
 
-    TYPE(atomic_kind_type), POINTER             :: atomic_kind
-    CHARACTER(LEN=*), OPTIONAL, INTENT(IN)      :: element_symbol
-    CHARACTER(LEN=*), OPTIONAL, INTENT(IN)      :: name
-    REAL(KIND = dp), OPTIONAL, INTENT(IN)              :: mass
-    INTEGER, OPTIONAL, INTENT(IN)               :: kind_number
-    INTEGER, OPTIONAL, INTENT(IN)               :: natom
-    INTEGER, DIMENSION(:), OPTIONAL, INTENT(IN) :: atom_list
-    TYPE(pao_bas_projection_type), OPTIONAL,&
-      INTENT(IN), TARGET                        :: pao_bas_proj
-
-!   *** Local parameters ***
+    TYPE(atomic_kind_type), POINTER          :: atomic_kind
+    CHARACTER(LEN=*), INTENT(IN), OPTIONAL   :: element_symbol, name
+    REAL(KIND=dp), INTENT(IN), OPTIONAL      :: mass
+    INTEGER, INTENT(IN), OPTIONAL            :: kind_number, natom
+    INTEGER, DIMENSION(:), INTENT(IN), &
+      OPTIONAL                               :: atom_list
+    TYPE(pao_bas_projection_type), &
+      INTENT(IN), OPTIONAL, TARGET           :: pao_bas_proj
 
     CHARACTER(LEN=*), PARAMETER :: routine_name = "set_atomic_kind"
 
-!   *** Local variables ***
-
-    INTEGER :: istat,n
+    INTEGER                                  :: istat, n
 
 !   ---------------------------------------------------------------------------
 
@@ -1177,16 +1138,13 @@ CONTAINS
 
 !   ***************************************************************************
 
-    TYPE(atomic_kind_type), POINTER           :: atomic_kind
-    TYPE(global_environment_type), INTENT(IN) :: globenv
-
-!   *** Local parameters ***
+    TYPE(atomic_kind_type), POINTER          :: atomic_kind
+    TYPE(global_environment_type), &
+      INTENT(IN)                             :: globenv
 
     CHARACTER(LEN=*), PARAMETER :: routine_name = "write_atomic_kind"
 
-!   *** Local variables ***
-
-    INTEGER :: output_unit
+    INTEGER                                  :: output_unit
 
 !   ---------------------------------------------------------------------------
 
@@ -1228,17 +1186,15 @@ CONTAINS
 
 !   ***************************************************************************
 
-    TYPE(atomic_kind_type), DIMENSION(:), POINTER :: atomic_kind_set
-    TYPE(global_environment_type), INTENT(IN)     :: globenv
-
-!   *** Local parameters ***
+    TYPE(atomic_kind_type), DIMENSION(:), &
+      POINTER                                :: atomic_kind_set
+    TYPE(global_environment_type), &
+      INTENT(IN)                             :: globenv
 
     CHARACTER(LEN=*), PARAMETER :: routine_name = "write_atomic_kind_set"
 
-!   *** Local variables ***
-
-    TYPE(atomic_kind_type), POINTER :: atomic_kind
-    INTEGER                         :: ikind,nkind,output_unit
+    INTEGER                                  :: ikind, nkind, output_unit
+    TYPE(atomic_kind_type), POINTER          :: atomic_kind
 
 !   ---------------------------------------------------------------------------
 
@@ -1283,17 +1239,15 @@ CONTAINS
 
 !   ***************************************************************************
 
-    TYPE(atomic_kind_type), DIMENSION(:), POINTER :: atomic_kind_set
-    TYPE(global_environment_type), INTENT(IN)     :: globenv
-
-!   *** Local parameters ***
+    TYPE(atomic_kind_type), DIMENSION(:), &
+      POINTER                                :: atomic_kind_set
+    TYPE(global_environment_type), &
+      INTENT(IN)                             :: globenv
 
     CHARACTER(LEN=*), PARAMETER :: routine_name = "write_gto_basis_sets"
 
-!   *** Local variables ***
-
-    TYPE(atomic_kind_type), POINTER :: atomic_kind
-    INTEGER                         :: ikind,nkind,output_unit
+    INTEGER                                  :: ikind, nkind, output_unit
+    TYPE(atomic_kind_type), POINTER          :: atomic_kind
 
 !   ---------------------------------------------------------------------------
 

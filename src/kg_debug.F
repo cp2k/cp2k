@@ -19,29 +19,34 @@
 
 MODULE kg_debug
 
-  USE coefficient_types, ONLY : coeff_type
-  USE cube_utils, ONLY : cube_info_type
-  Use cp_control_types, ONLY : dft_control_type
-  USE gaussian_gridlevels, ONLY: gridlevel_info_type
-  USE kg_environment_types, ONLY : get_kg_env,kg_environment_type
-  USE kg_force_numer, ONLY : fpart_gspace_numer, fpart_bc_numer,&
-                             fpart_xc_numer, fpart_core_rspace_numer,&
-                             fpart_p_XC_numer, fpart_p_gspace_numer,&
-                             fcoef_p_XC_numer, fcoef_p_gspace_numer,&
-                             fpart_ppl_numer, fpart_p_ppl_numer, &
-                             fcoef_p_ppl_numer
-  USE kg_force, ONLY : kg_force_control !!!, debug_variables_type, get_grids
-  USE global_types, ONLY : global_environment_type
-  USE kinds, ONLY : dbl
-  USE l_utils, ONLY : l_info_type
-  USE linklists, ONLY : bonds, bends, torsions, dist_constraints, &
-       g3x3_constraints
-  USE molecule_types, ONLY : molecule_structure_type, particle_node_type
-  USE particle_types, ONLY : particle_type
-  USE pw_grid_types, ONLY : pw_grid_type
-  USE pw_pool_types, ONLY : pw_pool_type 
-  USE simulation_cell, ONLY : cell_type
-  USE termination, ONLY : stop_memory, stop_program
+  USE coefficient_types,               ONLY: coeff_type
+  USE cp_control_types,                ONLY: dft_control_type
+  USE cube_utils,                      ONLY: cube_info_type
+  USE gaussian_gridlevels,             ONLY: gridlevel_info_type
+  USE global_types,                    ONLY: global_environment_type
+  USE kg_environment_types,            ONLY: get_kg_env,&
+                                             kg_environment_type
+  USE kg_force,                        ONLY: kg_force_control
+!!!, debug_variables_type, get_grids
+
+  USE kg_force_numer,                  ONLY: fcoef_p_XC_numer,&
+                                             fcoef_p_gspace_numer,&
+                                             fcoef_p_ppl_numer,&
+                                             fpart_bc_numer,&
+                                             fpart_core_rspace_numer,&
+                                             fpart_gspace_numer,&
+                                             fpart_p_XC_numer,&
+                                             fpart_p_gspace_numer,&
+                                             fpart_p_ppl_numer,&
+                                             fpart_ppl_numer,&
+                                             fpart_xc_numer
+  USE kinds,                           ONLY: dbl
+  USE l_utils,                         ONLY: l_info_type
+  USE particle_types,                  ONLY: particle_type
+  USE pw_grid_types,                   ONLY: pw_grid_type
+  USE pw_pool_types,                   ONLY: pw_pool_type
+  USE simulation_cell,                 ONLY: cell_type
+  USE termination,                     ONLY: stop_memory
 
   IMPLICIT NONE
 
@@ -82,44 +87,37 @@ CONTAINS
 
 SUBROUTINE  kg_debug_control ( globenv, kg_env )
 
-  IMPLICIT NONE
 
-! Arguments
-  TYPE ( kg_environment_type ), POINTER   :: kg_env
-  TYPE ( global_environment_type ), INTENT ( INOUT ) :: globenv
+    TYPE(global_environment_type), &
+      INTENT(INOUT)                          :: globenv
+    TYPE(kg_environment_type), POINTER       :: kg_env
 
-! Locals
+    INTEGER                                  :: iatom, icoef, iflag, ir, &
+                                                isos, iw, iwf, natoms, NCOEF, &
+                                                ref_grid
+    INTEGER, DIMENSION(1)                    :: dum_c
+    INTEGER, DIMENSION(2)                    :: dum
+    LOGICAL                                  :: kgpol
+    REAL(dbl)                                :: delta, energy_numer
+    REAL(dbl), ALLOCATABLE, DIMENSION(:)     :: diff_c, fc_numer, rel_c
+    REAL(dbl), ALLOCATABLE, DIMENSION(:, :)  :: diff, f_bc, f_numer, rel
+    TYPE(cell_type), POINTER                 :: cell
+    TYPE(coeff_type), POINTER                :: coef_pos
+    TYPE(cube_info_type), POINTER            :: cube_info( : )
+    TYPE(debug_variables_type)               :: dbg
+    TYPE(dft_control_type), POINTER          :: dft_control
+    TYPE(gridlevel_info_type), POINTER       :: gridlevel_info
+    TYPE(l_info_type), POINTER               :: l_info
+    TYPE(particle_type), POINTER             :: particle_set( : )
+    TYPE(pw_grid_type), DIMENSION(:), &
+      POINTER                                :: pw_grid
+    TYPE(pw_pool_type), POINTER              :: pw_pool
 
-  TYPE ( cell_type ), POINTER :: cell
-  TYPE ( coeff_type ), POINTER :: coef_pos
-  TYPE ( coeff_type ), POINTER :: coef_vel
-  TYPE ( coeff_type ), POINTER :: coef_force
-  TYPE ( dft_control_type), POINTER:: dft_control  
-  TYPE ( cube_info_type ), POINTER :: cube_info ( : ) 
 !dbg gt to be changed
-   TYPE ( debug_variables_type ) :: dbg
 !dbg gt to be done
-  TYPE ( gridlevel_info_type ), POINTER :: gridlevel_info
-  TYPE ( l_info_type ), POINTER    :: l_info
-  TYPE ( particle_type ), POINTER  :: particle_set ( : )
-  TYPE ( pw_grid_type ), POINTER, DIMENSION ( : ) :: pw_grid
-  TYPE ( pw_pool_type ), POINTER :: pw_pool
-  INTEGER :: iflag, i, natoms, isos, iatom, iw, iwf, ir, ref_grid, gmax
-  INTEGER :: NCOEF, icoef
-  INTEGER, DIMENSION ( 2 ) :: dum
-  INTEGER, DIMENSION ( 1 ) :: dum_c
-  REAL ( dbl ) :: delta, energy_numer
-  REAL ( dbl ) :: err1, numer, denom1, vec ( 3 ), e_bc, e_real, energy_tot
-  REAL ( dbl ) :: denom2, err2
-  REAL ( dbl ), DIMENSION ( :, : ), ALLOCATABLE :: f_bc, f_real
-  REAL ( dbl ), DIMENSION ( :, : ), ALLOCATABLE :: f_numer
-  REAL ( dbl ), DIMENSION ( :, : ), ALLOCATABLE :: rel, diff
-  REAL ( dbl ), DIMENSION (:), ALLOCATABLE :: fc_numer, rel_c, diff_c
-  LOGICAL :: kgpol 
-
 !------------------------------------------------------------------------------
-
 ! Assigning local pointers
+
   NULLIFY (dft_control, cell, particle_set)
   CALL get_kg_env (kg_env=kg_env, particle_set=particle_set, cell=cell,&
                    dft_control=dft_control)

@@ -28,55 +28,25 @@ MODULE cp_fm_basic_linalg
   USE cp_error_handling,               ONLY: cp_a_l,&
                                              cp_assert,&
                                              cp_assertion_failed,&
-                                             cp_debug,&
-                                             cp_error_dealloc_ref,&
                                              cp_error_get_logger,&
-                                             cp_error_init,&
                                              cp_error_message,&
                                              cp_error_type,&
-                                             cp_internal_error,&
                                              cp_unimplemented_error
-  USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
-                                             cp_fm_struct_equivalent,&
-                                             cp_fm_struct_release,&
-                                             cp_fm_struct_retain,&
-                                             cp_fm_struct_type
-  USE cp_fm_types,                     ONLY: cp_fm_create,&
-                                             cp_fm_get_element,&
+  USE cp_fm_struct,                    ONLY: cp_fm_struct_equivalent
+  USE cp_fm_types,                     ONLY: cp_fm_get_element,&
                                              cp_fm_get_info,&
-                                             cp_fm_init_random,&
-                                             cp_fm_p_type,&
-                                             cp_fm_release,&
-                                             cp_fm_retain,&
-                                             cp_fm_set_all,&
-                                             cp_fm_set_element,&
                                              cp_fm_type
   USE cp_log_handling,                 ONLY: cp_failure_level,&
                                              cp_fatal_level,&
-                                             cp_log,&
                                              cp_note_level,&
                                              cp_to_string,&
                                              cp_warning_level
-  USE cp_matrix_utils,                 ONLY: cp_dealloc_ref,&
-                                             cp_get,&
-                                             cp_init,&
-                                             cp_matrix_block_iterator,&
-                                             cp_next
-  USE cp_para_types,                   ONLY: cp_blacs_env_type,&
-                                             cp_para_env_type
-  USE global_types,                    ONLY: global_environment_type
+  USE cp_para_types,                   ONLY: cp_blacs_env_type
   USE kinds,                           ONLY: dp
-  USE mathlib,                         ONLY: symmetrize_matrix
-  USE message_passing,                 ONLY: mp_bcast,&
-                                             mp_max,&
-                                             mp_shift,&
-                                             mp_sum,&
-                                             mp_sync
-  USE parallel,                        ONLY: cp2k_is_parallel
-  USE string_utilities,                ONLY: compress
+  USE message_passing,                 ONLY: mp_sum
   USE timings,                         ONLY: timeset,&
                                              timestop
-  USE util,                            ONLY: sort
+
   IMPLICIT NONE
   PRIVATE
 
@@ -130,25 +100,23 @@ CONTAINS
 !!****
   SUBROUTINE cp_fm_scale_and_add(alpha,matrix_a,beta,matrix_b,error)
 
-    IMPLICIT NONE
 
-    TYPE(cp_fm_type), POINTER           :: matrix_a
-    REAL(KIND = dp), INTENT(IN)                         :: alpha
-    REAL(KIND = dp), INTENT(in), OPTIONAL               :: beta
-    TYPE(cp_fm_type), POINTER, OPTIONAL :: matrix_b
-    TYPE(cp_error_type), INTENT(inout), OPTIONAL :: error
+    REAL(KIND=dp), INTENT(IN)                :: alpha
+    TYPE(cp_fm_type), POINTER                :: matrix_a
+    REAL(KIND=dp), INTENT(in), OPTIONAL      :: beta
+    TYPE(cp_fm_type), OPTIONAL, POINTER      :: matrix_b
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
 
-    !   *** Local variables ***
+    CHARACTER(len=*), PARAMETER :: routineN = 'cp_fm_scale_and_add', &
+      routineP = moduleN//':'//routineN
 
-    INTEGER :: handle, mypcol, myprow, npcol, nprow, source, size_a
+    INTEGER                                  :: handle, size_a
+    LOGICAL                                  :: failure
+    REAL(KIND=dp)                            :: my_beta
+    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: a, b
 
-    REAL(KIND = dp), DIMENSION(:,:), POINTER :: a,b
-    CHARACTER(len=*), PARAMETER :: routineN='cp_fm_scale_and_add',&
-         routineP=moduleN//':'//routineN
-    LOGICAL :: failure
-    REAL(KIND = dp) :: my_beta
-
-    !   ---------------------------------------------------------------------------
+!   ---------------------------------------------------------------------------
 
     CALL timeset(routineN,"I","",handle)
 
@@ -247,18 +215,19 @@ CONTAINS
 !!
 !!*** *********************************************************************
   SUBROUTINE cp_fm_lu_decompose(matrix_a,almost_determinant)
-    TYPE(cp_fm_type), POINTER :: matrix_a
-    REAL(KIND = dp), INTENT(OUT)              :: almost_determinant
+    TYPE(cp_fm_type), POINTER                :: matrix_a
+    REAL(KIND=dp), INTENT(OUT)               :: almost_determinant
+
+    CHARACTER(LEN=*), PARAMETER :: routine = "SUBROUTINE cp_fm_lu_decompose"
+
+    INTEGER                                  :: handle, i, info, lda, n
+    INTEGER, ALLOCATABLE, DIMENSION(:)       :: ipivot
+    INTEGER, DIMENSION(9)                    :: desca
+    REAL(KIND=dp)                            :: determinant
+    REAL(KIND=dp), DIMENSION(:), POINTER     :: diag
+    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: a
 
 ! *** locals ***
-    INTEGER :: handle,lda,i,n,istat,info,npe
-    INTEGER, DIMENSION(9) :: desca
-    REAL(KIND = dp), DIMENSION(:,:), POINTER :: a
-    INTEGER, ALLOCATABLE, DIMENSION(:) :: ipivot
-    CHARACTER(LEN=*), PARAMETER :: routine =&
-         "SUBROUTINE cp_fm_lu_decompose"
-    REAL(KIND = dp), DIMENSION(:), POINTER :: diag
-    REAL(KIND = dp) :: determinant
 
     CALL timeset("cp_fm_lu_decompose","I","",handle)
 
@@ -334,21 +303,20 @@ CONTAINS
   SUBROUTINE cp_fm_gemm(transa,transb,m,n,k,alpha,matrix_a,matrix_b,beta,&
        matrix_c,error,b_first_col)
 
-    TYPE(cp_fm_type), POINTER          :: matrix_a,matrix_b,matrix_c
-    CHARACTER(LEN=1), INTENT(IN)              :: transa,transb
-    REAL(KIND = dp), INTENT(IN)                      :: alpha,beta
-    INTEGER, INTENT(IN)                       :: k,m,n
-    INTEGER, OPTIONAL, INTENT(IN)             :: b_first_col
-    TYPE(cp_error_type), INTENT(inout), OPTIONAL :: error
+    CHARACTER(LEN=1), INTENT(IN)             :: transa, transb
+    INTEGER, INTENT(IN)                      :: m, n, k
+    REAL(KIND=dp), INTENT(IN)                :: alpha
+    TYPE(cp_fm_type), POINTER                :: matrix_a, matrix_b
+    REAL(KIND=dp), INTENT(IN)                :: beta
+    TYPE(cp_fm_type), POINTER                :: matrix_c
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
+    INTEGER, INTENT(IN), OPTIONAL            :: b_first_col
 
-!   *** Local variables ***
-
-    INTEGER :: handle,j,lda,ldb,ldc
-
-    INTEGER, DIMENSION(9) :: desca,descb,descc
-
-    REAL(KIND = dp), DIMENSION(:,:), POINTER :: a,b,c
-    REAL(KIND = dp) :: flops
+    INTEGER                                  :: handle, j, lda, ldb, ldc
+    INTEGER, DIMENSION(9)                    :: desca, descb, descc
+    REAL(KIND=dp)                            :: flops
+    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: a, b, c
 
 !   ---------------------------------------------------------------------------
 
@@ -431,21 +399,21 @@ CONTAINS
   SUBROUTINE cp_fm_symm(side,uplo,m,n,alpha,matrix_a,matrix_b,beta,matrix_c,&
        error)
 
-    TYPE(cp_fm_type), POINTER          :: matrix_a,matrix_b,matrix_c
-    CHARACTER(LEN=1), INTENT(IN)              :: side,uplo
-    REAL(KIND = dp), INTENT(IN)                      :: alpha,beta
-    INTEGER, INTENT(IN)                       :: m,n
-    TYPE(cp_error_type), INTENT(inout), OPTIONAL :: error
+    CHARACTER(LEN=1), INTENT(IN)             :: side, uplo
+    INTEGER, INTENT(IN)                      :: m, n
+    REAL(KIND=dp), INTENT(IN)                :: alpha
+    TYPE(cp_fm_type), POINTER                :: matrix_a, matrix_b
+    REAL(KIND=dp), INTENT(IN)                :: beta
+    TYPE(cp_fm_type), POINTER                :: matrix_c
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
 
-!   *** Local variables ***
-
-    INTEGER :: handle,lda,ldb,ldc,mypcol,myprow,npcol,nprow
-    REAL(KIND = dp) :: flops
-
-    INTEGER, DIMENSION(9) :: desca,descb,descc
-
-    REAL(KIND = dp), DIMENSION(:,:), POINTER :: a,b,c
-    TYPE(cp_blacs_env_type), POINTER    :: context
+    INTEGER                                  :: handle, lda, ldb, ldc, &
+                                                mypcol, myprow, npcol, nprow
+    INTEGER, DIMENSION(9)                    :: desca, descb, descc
+    REAL(KIND=dp)                            :: flops
+    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: a, b, c
+    TYPE(cp_blacs_env_type), POINTER         :: context
 
 !   ---------------------------------------------------------------------------
 
@@ -520,20 +488,21 @@ CONTAINS
 !!*** *********************************************************************
 
   SUBROUTINE cp_fm_syrk(uplo,trans,k,alpha,matrix_a,ia,ja,beta,matrix_c,error)
-    TYPE(cp_fm_type), POINTER          :: matrix_a,matrix_c
-    CHARACTER(LEN=1), INTENT(IN)              :: trans,uplo
-    REAL(KIND = dp), INTENT(IN)                      :: alpha,beta
-    INTEGER, INTENT(IN)                       :: ia,ja,k
-    TYPE(cp_error_type), INTENT(inout), OPTIONAL :: error
+    CHARACTER(LEN=1), INTENT(IN)             :: uplo, trans
+    INTEGER, INTENT(IN)                      :: k
+    REAL(KIND=dp), INTENT(IN)                :: alpha
+    TYPE(cp_fm_type), POINTER                :: matrix_a
+    INTEGER, INTENT(IN)                      :: ia, ja
+    REAL(KIND=dp), INTENT(IN)                :: beta
+    TYPE(cp_fm_type), POINTER                :: matrix_c
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
 
-!   *** Local variables ***
-
-    INTEGER :: handle,lda,ldc,mypcol,myprow,n,npcol,nprow
-
-    INTEGER, DIMENSION(9) :: desca,descc
-
-    REAL(KIND = dp), DIMENSION(:,:), POINTER :: a,c
-    TYPE(cp_blacs_env_type), POINTER    :: context
+    INTEGER                                  :: handle, lda, ldc, mypcol, &
+                                                myprow, n, npcol, nprow
+    INTEGER, DIMENSION(9)                    :: desca, descc
+    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: a, c
+    TYPE(cp_blacs_env_type), POINTER         :: context
 
 !   ---------------------------------------------------------------------------
 
@@ -596,16 +565,16 @@ CONTAINS
 !!*** *********************************************************************
   SUBROUTINE cp_fm_schur_product(matrix_a,matrix_b,matrix_c,error)
 
-    TYPE(cp_fm_type), POINTER          :: matrix_a,matrix_b,matrix_c
-    TYPE(cp_error_type), INTENT(inout), OPTIONAL :: error
+    TYPE(cp_fm_type), POINTER                :: matrix_a, matrix_b, matrix_c
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
 
-!   *** Local variables ***
-
-    INTEGER :: handle,icol_local,irow_local,mypcol,myprow,&
-         ncol_local,npcol,nprow,nrow_local
-
-    REAL(KIND = dp), DIMENSION(:,:), POINTER :: a,b,c
-    TYPE(cp_blacs_env_type), POINTER    :: context
+    INTEGER                                  :: handle, icol_local, &
+                                                irow_local, mypcol, myprow, &
+                                                ncol_local, npcol, nprow, &
+                                                nrow_local
+    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: a, b, c
+    TYPE(cp_blacs_env_type), POINTER         :: context
 
 !   ---------------------------------------------------------------------------
 
@@ -670,17 +639,17 @@ CONTAINS
 !!*** *********************************************************************
   SUBROUTINE cp_fm_trace(matrix_a,matrix_b,trace,error)
 
-    TYPE(cp_fm_type), POINTER           :: matrix_a,matrix_b
-    REAL(KIND = dp), INTENT(OUT)                        :: trace
-    TYPE(cp_error_type), INTENT(inout), OPTIONAL :: error
+    TYPE(cp_fm_type), POINTER                :: matrix_a, matrix_b
+    REAL(KIND=dp), INTENT(OUT)               :: trace
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
 
-!   *** Local variables ***
-
-    INTEGER :: group,handle,icol_local,irow_local,mypcol,myprow,&
-         ncol_local,npcol,nprow,nrow_local
-
-    REAL(KIND = dp), DIMENSION(:,:), POINTER :: a,b
-    TYPE(cp_blacs_env_type), POINTER    :: context
+    INTEGER                                  :: group, handle, icol_local, &
+                                                irow_local, mypcol, myprow, &
+                                                ncol_local, npcol, nprow, &
+                                                nrow_local
+    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: a, b
+    TYPE(cp_blacs_env_type), POINTER         :: context
 
 !   ---------------------------------------------------------------------------
 
@@ -779,19 +748,25 @@ CONTAINS
 SUBROUTINE cp_fm_triangular_multiply(triangular_matrix,matrix_b,side,&
      transpose_tr, invert_tr, uplo_tr,unit_diag_tr, n_rows, n_cols, &
      alpha,error)
-  TYPE(cp_fm_type), POINTER :: triangular_matrix, matrix_b
-  CHARACTER, INTENT(in), OPTIONAL :: side, uplo_tr
-  LOGICAL, INTENT(in), OPTIONAL :: transpose_tr, invert_tr, unit_diag_tr
-  INTEGER, INTENT(in), OPTIONAL :: n_rows, n_cols
-  REAL(KIND = dp), INTENT(in), OPTIONAL :: alpha
-  TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
-  
-  LOGICAL :: failure, invert
-  CHARACTER(len=*), PARAMETER :: routineN='cp_fm_triangular_multiply',&
-        routineP=moduleN//':'//routineN
-  CHARACTER :: side_char, unit_diag,uplo, transa
-  INTEGER :: handle, m,n
-  REAL(KIND = dp) :: al
+    TYPE(cp_fm_type), POINTER                :: triangular_matrix, matrix_b
+    CHARACTER, INTENT(in), OPTIONAL          :: side
+    LOGICAL, INTENT(in), OPTIONAL            :: transpose_tr, invert_tr
+    CHARACTER, INTENT(in), OPTIONAL          :: uplo_tr
+    LOGICAL, INTENT(in), OPTIONAL            :: unit_diag_tr
+    INTEGER, INTENT(in), OPTIONAL            :: n_rows, n_cols
+    REAL(KIND=dp), INTENT(in), OPTIONAL      :: alpha
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'cp_fm_triangular_multiply', &
+      routineP = moduleN//':'//routineN
+
+    CHARACTER                                :: side_char, transa, unit_diag, &
+                                                uplo
+    INTEGER                                  :: handle, m, n
+    LOGICAL                                  :: failure, invert
+    REAL(KIND=dp)                            :: al
+
   failure=.FALSE.
   
   CALL timeset(routineN//','//moduleN,"I","",handle)
@@ -887,20 +862,19 @@ SUBROUTINE cp_fm_triangular_multiply(triangular_matrix,matrix_b,side,&
 !!*** *********************************************************************
 
   SUBROUTINE cp_fm_scale(alpha, matrix_a, error)
-    TYPE(cp_fm_type), POINTER           :: matrix_a
-    REAL(KIND = dp), INTENT(IN)                         :: alpha
-    TYPE(cp_error_type), INTENT(inout), OPTIONAL :: error
+    REAL(KIND=dp), INTENT(IN)                :: alpha
+    TYPE(cp_fm_type), POINTER                :: matrix_a
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
 
-    !   *** Local variables ***
+    CHARACTER(len=*), PARAMETER :: routineN = 'cp_fm_scale', &
+      routineP = moduleN//':'//routineN
 
-    INTEGER                           :: size_a, handle
-    REAL(KIND = dp), DIMENSION(:,:), POINTER :: a
+    INTEGER                                  :: handle, size_a
+    LOGICAL                                  :: failure
+    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: a
 
-    CHARACTER(len=*), PARAMETER :: routineN='cp_fm_scale',&
-                                   routineP=moduleN//':'//routineN
-    LOGICAL :: failure
-
-    !   ---------------------------------------------------------------------------
+!   ---------------------------------------------------------------------------
 
     CALL timeset(routineN,"I","",handle)
 
@@ -947,25 +921,23 @@ SUBROUTINE cp_fm_triangular_multiply(triangular_matrix,matrix_b,side,&
 !!*** *********************************************************************
 
   SUBROUTINE cp_fm_transpose(matrix,matrixt,error)
-    TYPE(cp_fm_type), POINTER          :: matrix,matrixt
-    TYPE(cp_error_type), INTENT(inout), OPTIONAL :: error
+    TYPE(cp_fm_type), POINTER                :: matrix, matrixt
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
 
-!   *** Local variables ***
+    CHARACTER(len=*), PARAMETER :: routineN = 'cp_fm_transpose', &
+      routineP = moduleN//':'//routineN
 
-    INTEGER :: handle,icol_global,icol_local,ipcol,iprow,irow_global,&
-               irow_local,mypcol,myprow,ncol_block,ncol_global,ncol_local,&
-               npcol,nprow,nrow_block,nrow_global,nrow_local
-
-    INTEGER, DIMENSION(9) :: desca,descc
-
-    REAL(KIND = dp), DIMENSION(:,:), POINTER :: a,c
-    INTEGER :: i,j
-    TYPE(cp_blacs_env_type), POINTER :: context
-    LOGICAL :: failure
-    CHARACTER(len=*), PARAMETER :: routineN='cp_fm_transpose',&
-         routineP=moduleN//':'//routineN
+    INTEGER                                  :: handle, i, j, mypcol, myprow, &
+                                                ncol_global, npcol, nprow, &
+                                                nrow_global
+    INTEGER, DIMENSION(9)                    :: desca, descc
+    LOGICAL                                  :: failure
+    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: a, c
+    TYPE(cp_blacs_env_type), POINTER         :: context
 
 !   ---------------------------------------------------------------------------
+
     failure = .FALSE.
     CPPrecondition(ASSOCIATED(matrix),cp_failure_level,routineP,error,failure)
     CPPrecondition(ASSOCIATED(matrixt),cp_failure_level,routineP,error,failure)
@@ -1150,15 +1122,14 @@ SUBROUTINE cp_fm_triangular_multiply(triangular_matrix,matrix_b,side,&
 !!
 !!*** *********************************************************************
   SUBROUTINE cp_fm_column_scale(matrixa,scaling)
-    TYPE(cp_fm_type), POINTER          :: matrixa
-    REAL(KIND = dp), DIMENSION(:), INTENT(in) :: scaling
+    TYPE(cp_fm_type), POINTER                :: matrixa
+    REAL(KIND=dp), DIMENSION(:), INTENT(in)  :: scaling
 
-!   *** Local variables ***
-
-    INTEGER :: icol_global,icol_local,ipcol,iprow,irow_local,mypcol,&
-               myprow,npcol,nprow,source,i,k,n
-
-    REAL(KIND = dp), DIMENSION(:,:), POINTER :: a
+    INTEGER                                  :: i, icol_global, icol_local, &
+                                                ipcol, iprow, irow_local, k, &
+                                                mypcol, myprow, n, npcol, &
+                                                nprow
+    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: a
 
 !   ---------------------------------------------------------------------------
 

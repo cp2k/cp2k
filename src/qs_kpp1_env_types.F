@@ -25,70 +25,39 @@
 !!   SOURCE
 ! ****************************************************************************
 MODULE qs_kpp1_env_types
-  USE atomic_kind_types,               ONLY: atomic_kind_type,&
-                                             get_atomic_kind_set
   USE coefficient_types,               ONLY: coeff_deallocate,&
                                              coeff_type
-  USE cp_b_matrix_structure,           ONLY: cp_b_matrix_struct_type
-  USE cp_block_matrix,                 ONLY: cp_block_matrix_p_type,&
-                                             cp_block_matrix_type,&
-                                             cp_sp_array_create,&
-                                             cp_sp_array_dealloc,&
-                                             cp_sp_create,&
-                                             cp_sp_multiplies_blacs,&
-                                             cp_sp_set_to
+  USE cp_array_i_utils,                ONLY: cp_2d_i_write
+  USE cp_array_logical_utils,          ONLY: cp_1d_logical_write,&
+                                             cp_2d_logical_write
+  USE cp_array_r_utils,                ONLY: cp_2d_r_output
   USE cp_error_handling,               ONLY: cp_a_l,&
                                              cp_assert,&
-                                             cp_assertion_failed,&
-                                             cp_debug,&
-                                             cp_error_dealloc_ref,&
                                              cp_error_get_logger,&
-                                             cp_error_init,&
                                              cp_error_message,&
-                                             cp_error_type,&
-                                             cp_internal_error,&
-                                             cp_unimplemented_error
-  USE cp_fm_struct,                    ONLY: cp_fm_struct_get,&
-                                             cp_fm_struct_type
+                                             cp_error_type
   USE cp_log_handling,                 ONLY: cp_failure_level,&
                                              cp_fatal_level,&
-                                             cp_log,&
-                                             cp_logger_get_default_unit_nr,&
+                                             cp_logger_generate_filename,&
                                              cp_logger_type,&
                                              cp_note_level,&
                                              cp_to_string,&
-                                             cp_warning_level,&
-                                             cp_logger_generate_filename
+                                             cp_warning_level
   USE cp_matrix_utils,                 ONLY: cp_sm_output
   USE cp_para_types,                   ONLY: cp_para_env_type
-  USE cp_control_types,                       ONLY: dft_control_type
-  USE global_types,                    ONLY: global_environment_type
-  USE kinds,                           ONLY: dbl,&
-                                             dp
-  USE qs_mo_types,                     ONLY: get_mo_set,&
-                                             mo_set_p_type,&
-                                             mo_set_type
-  USE qs_rho_types,                    ONLY: qs_rho_type
-  use qs_parser, only: open_file, close_file
+  USE kinds,                           ONLY: dp
+  USE pw_types,                        ONLY: pw_p_type
+  USE qs_parser,                       ONLY: close_file,&
+                                             open_file
   USE realspace_grid_types,            ONLY: rs_pw_to_cube
-  use cp_array_i_utils, only: cp_2d_i_output, cp_2d_i_write
-  use cp_array_r_utils, only: cp_2d_r_output, cp_2d_r_write
-  use cp_array_logical_utils, only: cp_2d_logical_output,&
-       cp_1d_logical_output, cp_2d_logical_write, cp_1d_logical_write
-  use string_utilities, only: compress
   USE sparse_matrix_types,             ONLY: deallocate_matrix,&
-                                             deallocate_matrix_set,&
-                                             get_matrix_info,&
-                                             real_matrix_p_type,&
-                                             real_matrix_type
-  USE pw_types,                        ONLY: pw_p_type,&
-                                             pw_type
+                                             real_matrix_p_type
+  USE string_utilities,                ONLY: compress
   USE timings,                         ONLY: timeset,&
                                              timestop
-  USE xc_derivative_set_types,             ONLY: xc_derivative_set_type, &
-                                             xc_dset_create, &
+  USE xc_derivative_set_types,         ONLY: xc_derivative_set_type,&
                                              xc_dset_release
-  
+
   IMPLICIT NONE
   PRIVATE
   PUBLIC :: qs_kpp1_env_type, qs_kpp1_env_p_type
@@ -216,13 +185,16 @@ CONTAINS
 !!
 !!*** **********************************************************************
   SUBROUTINE kpp1_release(kpp1_env,error)
-    TYPE(qs_kpp1_env_type), POINTER :: kpp1_env
-    TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
+    TYPE(qs_kpp1_env_type), POINTER          :: kpp1_env
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
 
-    LOGICAL :: failure
-    CHARACTER(len=*), PARAMETER :: routineN='kpp1_release',&
-         routineP=moduleN//':'//routineN
-    INTEGER :: ispin, stat
+    CHARACTER(len=*), PARAMETER :: routineN = 'kpp1_release', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: ispin, stat
+    LOGICAL                                  :: failure
+
     failure=.FALSE.
 
     IF (ASSOCIATED(kpp1_env)) THEN
@@ -300,12 +272,15 @@ CONTAINS
 !!
 !!*** **********************************************************************
   SUBROUTINE kpp1_retain(kpp1_env,error)
-    TYPE(qs_kpp1_env_type), POINTER :: kpp1_env
-    TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
+    TYPE(qs_kpp1_env_type), POINTER          :: kpp1_env
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
 
-    LOGICAL :: failure
-    CHARACTER(len=*), PARAMETER :: routineN='kpp1_retain',&
-         routineP=moduleN//':'//routineN
+    CHARACTER(len=*), PARAMETER :: routineN = 'kpp1_retain', &
+      routineP = moduleN//':'//routineN
+
+    LOGICAL                                  :: failure
+
     failure=.FALSE.
 
     CPPrecondition(ASSOCIATED(kpp1_env),cp_failure_level,routineP,error,failure)
@@ -346,19 +321,23 @@ CONTAINS
 !!*** **********************************************************************
   SUBROUTINE kpp1_write(kpp1_env, unit_nr, long_description, local,&
        error)
-    TYPE(qs_kpp1_env_type), POINTER :: kpp1_env
-    INTEGER, INTENT(in) :: unit_nr
-    LOGICAL, OPTIONAL, INTENT(in) :: long_description, local
-    TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
+    TYPE(qs_kpp1_env_type), POINTER          :: kpp1_env
+    INTEGER, INTENT(in)                      :: unit_nr
+    LOGICAL, INTENT(in), OPTIONAL            :: long_description, local
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
 
-    LOGICAL :: failure, my_local, my_long_description, should_w
-    CHARACTER(len=*), PARAMETER :: routineN='kpp1_write',&
-         routineP=moduleN//':'//routineN
-    TYPE(cp_logger_type), POINTER :: logger
-    TYPE(cp_para_env_type), POINTER :: para_env
-    character(len=30) :: base_filename
-    character(len=60) :: filename
-    integer :: ispin, idir, file_unit,my_unit_nr
+    CHARACTER(len=*), PARAMETER :: routineN = 'kpp1_write', &
+      routineP = moduleN//':'//routineN
+
+    character(len=30)                        :: base_filename
+    character(len=60)                        :: filename
+    integer                                  :: file_unit, idir, ispin, &
+                                                my_unit_nr
+    LOGICAL                                  :: failure, my_local, &
+                                                my_long_description, should_w
+    TYPE(cp_logger_type), POINTER            :: logger
+    TYPE(cp_para_env_type), POINTER          :: para_env
 
     failure=.FALSE.; my_local=.FALSE.; my_long_description=.FALSE.
 

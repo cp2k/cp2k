@@ -24,10 +24,10 @@ MODULE mc_move_control
   USE force_env_types,                 ONLY: force_env_calculate_energy,&
                                              force_env_get,&
                                              force_env_type
-  USE kinds,                           ONLY: dbl,dp
+  USE kinds,                           ONLY: dbl,&
+                                             dp
   USE mc_control,                      ONLY: mc_simulation_parameters_type
-  USE qs_environment_types,            ONLY: qs_environment_type,&
-                                             get_qs_env
+  USE qs_environment_types,            ONLY: get_qs_env
   USE string_utilities,                ONLY: integer_to_string
   USE termination,                     ONLY: stop_memory,&
                                              stop_program
@@ -77,26 +77,16 @@ CONTAINS
 
 !   ***************************************************************************
 
-    TYPE(mc_moves_type), POINTER :: moves
-    TYPE ( accattempt ),POINTER :: transion
-    TYPE ( accattempt ),POINTER :: trans
-    TYPE ( accattempt ),POINTER :: rot
-    TYPE ( accattempt ),POINTER :: volume
-    TYPE ( accattempt ),POINTER :: Quickstep
+    TYPE(mc_moves_type), POINTER             :: moves
 
-!   *** Local parameters ***
+    CHARACTER(LEN=*), PARAMETER              :: routineN = "init_mc_moves"
 
-    CHARACTER(LEN=*), PARAMETER :: routineN = "init_mc_moves"
-
-!   *** Local variables ***
-
+    INTEGER                                  :: handle, stat
 
 !   *** Local Counters ***
-      INTEGER :: stat,handle
-
 !   ---------------------------------------------------------------------------
-
 ! begin the timing of the subroutine
+
     CALL timeset(routineN,'I','',handle)
 
 ! allocate all the structures...not sure why, but it won't work otherwise
@@ -150,21 +140,16 @@ SUBROUTINE move_q_reinit ( moves )
 
 !   ***************************************************************************
 
-    TYPE(mc_moves_type), POINTER :: moves
+    TYPE(mc_moves_type), POINTER             :: moves
 
-!   *** Local parameters ***
+    CHARACTER(LEN=*), PARAMETER              :: routineN = "init_mc_moves"
 
-    CHARACTER(LEN=*), PARAMETER :: routineN = "init_mc_moves"
-
-!   *** Local variables ***
-
+    INTEGER                                  :: handle
 
 !   *** Local Counters ***
-      INTEGER :: stat,handle
-
 !   ---------------------------------------------------------------------------
-
 ! begin the timing of the subroutine
+
     CALL timeset(routineN,'I','',handle)
 
 ! set all the counters equal to zero
@@ -186,22 +171,16 @@ SUBROUTINE q_move_accept(moves,move_updates)
 
 !   ***************************************************************************
 
-    TYPE(mc_moves_type), POINTER :: moves
-    TYPE(mc_moves_type), POINTER :: move_updates
+    TYPE(mc_moves_type), POINTER             :: moves, move_updates
 
-!   *** Local parameters ***
+    CHARACTER(LEN=*), PARAMETER              :: routineN = "init_mc_moves"
 
-    CHARACTER(LEN=*), PARAMETER :: routineN = "init_mc_moves"
-
-!   *** Local variables ***
-
+    INTEGER                                  :: handle
 
 !   *** Local Counters ***
-      INTEGER :: stat,handle
-
 !   ---------------------------------------------------------------------------
-
 ! begin the timing of the subroutine
+
     CALL timeset(routineN,'I','',handle)
 
 ! change the number of successful moves for the total move counter
@@ -239,23 +218,19 @@ SUBROUTINE q_move_accept(moves,move_updates)
 
 !   ***************************************************************************
 
-    TYPE(mc_moves_type), POINTER :: move_updates
-    TYPE ( mc_simulation_parameters_type ),POINTER  :: mc_par
-    CHARACTER(LEN=*), INTENT(IN) :: flag
+    TYPE(mc_simulation_parameters_type), &
+      POINTER                                :: mc_par
+    TYPE(mc_moves_type), POINTER             :: move_updates
+    CHARACTER(LEN=*), INTENT(IN)             :: flag
 
-!   *** Local parameters ***
+    CHARACTER(LEN=*), PARAMETER              :: routineN = "mc_move_update"
 
-    CHARACTER(LEN=*), PARAMETER :: routineN = "mc_move_update"
-
-!   *** Local variables ***
-
+    INTEGER                                  :: handle
 
 !   *** Local Counters ***
-    INTEGER :: handle
-
 !   ---------------------------------------------------------------------------
-
 ! begin the timing of the subroutine
+
       CALL timeset(routineN,'I','',handle)
 
       SELECT CASE (flag)
@@ -374,16 +349,10 @@ SUBROUTINE q_move_accept(moves,move_updates)
  SUBROUTINE mc_energy_restart(force_env,energy)
 ! the system call might cause problems on various platforms, so
 ! we do it here
-      REAL(KIND=dp),INTENT(OUT) :: energy
-      TYPE (force_env_type),POINTER :: force_env
-      TYPE (qs_environment_type),POINTER :: qs_env
-      TYPE (cp_error_type),POINTER :: error
-      CHARACTER(LEN=1) :: a
-      INTEGER :: id_nr,IO_stat
-      CHARACTER(LEN=20) :: one,file_name
-      CHARACTER(LEN=19) :: blah='cp RESTART RESTART-'
-      CHARACTER(LEN=15) :: blah2='rm -f RESTART-*'
+    TYPE(force_env_type), POINTER            :: force_env
+    REAL(KIND=dp), INTENT(OUT)               :: energy
 
+    TYPE(cp_error_type), POINTER             :: error
 
 !      CALL force_env_get(force_env,&
 !          qs_env=qs_env,error=error)
@@ -391,9 +360,7 @@ SUBROUTINE q_move_accept(moves,move_updates)
 !      write(6,*) 'id_nr=',id_nr
 !      IF (id_nr .GT. 1) THEN
 !         CALL system(blah2)
-
 !         CALL integer_to_string(id_nr,one)
-
 !         CALL system(blah//one)
 ! copy the necessary file
 !       OPEN(15,FILE='RESTART',FORM='UNFORMATTED',ACCESS='DIRECT',RECL=1)

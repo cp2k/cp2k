@@ -27,23 +27,11 @@ MODULE integrator
   USE atomic_kind_list_types,          ONLY: atomic_kind_list_type
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                              get_atomic_kind
-  USE coefficient_types,               ONLY: ATOMICORBITALS,&
-                                             PLANEWAVES,&
-                                             coeff_type
-  USE constraint,                      ONLY: getold,&
-                                             pv_constraint,&
-                                             rattle_control,&
-                                             rattle_roll_control,&
-                                             shake_control,&
-                                             shake_roll_control
-  USE cp_subsystem_types,              ONLY: cp_subsystem_p_type,&
-                                             cp_subsys_get
+  USE cp_subsystem_types,              ONLY: cp_subsys_get,&
+                                             cp_subsystem_p_type
   USE distribution_1d_types,           ONLY: distribution_1d_type
-  USE eigenvalueproblems,              ONLY: diagonalise
   USE extended_system_dynamics,        ONLY: lnhc
-  USE extended_system_initialize,      ONLY: set_yoshida_coef
-  USE extended_system_types,           ONLY: lnhc_parameters_type,&
-                                             npt_info_type
+  USE extended_system_types,           ONLY: lnhc_parameters_type
   USE force_env_types,                 ONLY: force_env_calculate_force,&
                                              force_env_get,&
                                              force_env_type
@@ -51,29 +39,21 @@ MODULE integrator
   USE kinds,                           ONLY: dbl,&
                                              dp,&
                                              dp_size
-  USE mathconstants,                   ONLY: pi,&
-                                             zero
-  USE md,                              ONLY: mdio_parameters_type,&
-                                             simulation_parameters_type,&
+  USE md,                              ONLY: simulation_parameters_type,&
                                              virial_type
   USE md_environment_types,            ONLY: get_md_env,&
                                              md_environment_type
   USE message_passing,                 ONLY: mp_comm_dup,&
-                                             mp_sum,&
-                                             mp_sync
+                                             mp_sum
   USE particle_list_types,             ONLY: particle_list_type
   USE particle_types,                  ONLY: particle_type
-  USE simulation_cell,                 ONLY: cell_type
-  USE termination,                     ONLY: stop_memory,&
-                                             stop_program
+  USE termination,                     ONLY: stop_memory
   USE timings,                         ONLY: timeset,&
                                              timestop
 !  USE transformations,                 ONLY: fr2fu,&
+
 !                                             u2r
-  USE util,                            ONLY: get_unit,&
-                                             matmul_3x3,&
-                                             matvec_3x3,&
-                                             transpose_3d
+
 
   IMPLICIT NONE
 
@@ -133,10 +113,9 @@ CONTAINS
 
 SUBROUTINE set_integrator ( globenv )
 
-  IMPLICIT NONE
 
-! Arguments
-  TYPE ( global_environment_type ), INTENT (IN) :: globenv
+    TYPE(global_environment_type), &
+      INTENT(IN)                             :: globenv
 
 !------------------------------------------------------------------------------
 
@@ -827,36 +806,32 @@ END SUBROUTINE set_integrator
 
   SUBROUTINE nve ( md_env )
 
-    TYPE(md_environment_type), POINTER :: md_env
+    TYPE(md_environment_type), POINTER       :: md_env
 
-!   *** Local parameters ***
+    CHARACTER(LEN=*), PARAMETER              :: routine_name = "nve_new"
 
-    CHARACTER(LEN=*), PARAMETER :: routine_name = "nve_new"
+    INTEGER :: iparticle, iparticle_kind, iparticle_local, istat, isubsys, &
+      nparticle, nparticle_kind, nparticle_local
+    REAL(KIND=dp)                            :: dm, dt, mass
+    REAL(KIND=dp), ALLOCATABLE, &
+      DIMENSION(:, :)                        :: work
+    TYPE(atomic_kind_list_type), POINTER     :: atomic_kinds
+    TYPE(atomic_kind_type), DIMENSION(:), &
+      POINTER                                :: atomic_kind_set
+    TYPE(atomic_kind_type), POINTER          :: atomic_kind
+    TYPE(cp_subsystem_p_type), &
+      DIMENSION(:), POINTER                  :: subsys
+    TYPE(distribution_1d_type), POINTER      :: local_particles
+    TYPE(force_env_type), POINTER            :: force_env
+    TYPE(particle_list_type), POINTER        :: particles
+    TYPE(particle_type), DIMENSION(:), &
+      POINTER                                :: particle_set
+    TYPE(simulation_parameters_type), &
+      POINTER                                :: simpar
 
-!   *** Local variables ***
-
-    TYPE(atomic_kind_list_type), POINTER :: atomic_kinds
-    TYPE(atomic_kind_type), POINTER      :: atomic_kind
-    TYPE(distribution_1d_type), POINTER  :: local_particles
-    TYPE(force_env_type), POINTER        :: force_env
-    TYPE(particle_list_type), POINTER    :: particles
-    TYPE(simulation_parameters_type),POINTER :: simpar
 !MK TYPE(virial_type), POINTER           :: thermo
-
-    REAL(KIND = dp) :: dm,dt,mass
-    INTEGER  :: iparticle,iparticle_kind,iparticle_local,istat,isubsys,&
-                nparticle,nparticle_kind,nparticle_local
-
-    TYPE(cp_subsystem_p_type), POINTER, DIMENSION(:) :: subsys
-    TYPE(atomic_kind_type), DIMENSION(:), POINTER   :: atomic_kind_set
-    TYPE(particle_type), DIMENSION(:), POINTER      :: particle_set
-
-    REAL(KIND = dp), DIMENSION(:,:), ALLOCATABLE :: work
-
 !   ---------------------------------------------------------------------------
-
 !MK thermo => md_env%virial
-
 
     CALL get_md_env(md_env=md_env,simpar=simpar,force_env=force_env)
     dt = simpar%dt
@@ -978,38 +953,33 @@ END SUBROUTINE set_integrator
 
   SUBROUTINE nvt ( md_env )
 
-    TYPE(md_environment_type), POINTER :: md_env
+    TYPE(md_environment_type), POINTER       :: md_env
 
-!   *** Local parameters ***
+    CHARACTER(LEN=*), PARAMETER              :: routine_name = "nve_new"
 
-    CHARACTER(LEN=*), PARAMETER :: routine_name = "nve_new"
+    INTEGER :: iparticle, iparticle_kind, iparticle_local, istat, isubsys, &
+      nparticle, nparticle_kind, nparticle_local
+    REAL(KIND=dp)                            :: dm, dt, mass
+    REAL(KIND=dp), ALLOCATABLE, &
+      DIMENSION(:, :)                        :: work
+    TYPE(atomic_kind_list_type), POINTER     :: atomic_kinds
+    TYPE(atomic_kind_type), DIMENSION(:), &
+      POINTER                                :: atomic_kind_set
+    TYPE(atomic_kind_type), POINTER          :: atomic_kind
+    TYPE(cp_subsystem_p_type), &
+      DIMENSION(:), POINTER                  :: subsys
+    TYPE(distribution_1d_type), POINTER      :: local_particles
+    TYPE(force_env_type), POINTER            :: force_env
+    TYPE(lnhc_parameters_type), POINTER      :: nhc( : )
+    TYPE(particle_list_type), POINTER        :: particles
+    TYPE(particle_type), DIMENSION(:), &
+      POINTER                                :: particle_set
+    TYPE(simulation_parameters_type), &
+      POINTER                                :: simpar
 
-!   *** Local variables ***
-
-    TYPE(atomic_kind_list_type), POINTER :: atomic_kinds
-    TYPE(atomic_kind_type), POINTER      :: atomic_kind
-    TYPE(distribution_1d_type), POINTER  :: local_particles
-    TYPE(force_env_type), POINTER        :: force_env
-    TYPE(particle_list_type), POINTER    :: particles
-    TYPE ( lnhc_parameters_type ), POINTER :: nhc ( : )
-    TYPE ( simulation_parameters_type ), POINTER :: simpar
 !MK TYPE(virial_type), POINTER           :: thermo
-
-    REAL(KIND = dp) :: dm,dt,mass
-    INTEGER  :: iparticle,iparticle_kind,iparticle_local,istat,isubsys,&
-                nparticle,nparticle_kind,nparticle_local
-
-    TYPE(cp_subsystem_p_type), POINTER, DIMENSION(:) :: subsys
-    TYPE(atomic_kind_type), DIMENSION(:), POINTER   :: atomic_kind_set
-    TYPE(particle_type), DIMENSION(:), POINTER      :: particle_set
-
-    REAL(KIND = dp), DIMENSION(:,:), ALLOCATABLE :: work
-
 !   ---------------------------------------------------------------------------
-
 !MK thermo => md_env%virial
- 
-
 
     CALL get_md_env(md_env=md_env,simpar=simpar,force_env=force_env,nhc_part=nhc)
     dt = simpar%dt

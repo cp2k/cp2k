@@ -23,6 +23,7 @@ MODULE linklist_types
   USE kinds,                           ONLY: dbl
   USE qs_neighbor_list_types,          ONLY: neighbor_list_set_p_type
   USE termination,                     ONLY: stop_memory
+
   IMPLICIT NONE
 
   PRIVATE
@@ -64,21 +65,17 @@ SUBROUTINE set_linklist_internal_data ( internal_data, globenv, vskin, &
                                         natype, rcut, subcells, count, &
                                         printlevel )
 
-  IMPLICIT NONE
 
-! Arguments
-  TYPE ( linklist_internal_data_type ), INTENT ( INOUT ) :: internal_data
-  TYPE ( global_environment_type ), INTENT ( IN ) :: globenv
-  REAL ( dbl ), INTENT ( IN ), OPTIONAL :: subcells, vskin
-  REAL ( dbl ), INTENT ( IN ), OPTIONAL :: rcut ( :, : )
-  INTEGER, INTENT ( IN ), OPTIONAL :: natype
-  INTEGER, INTENT ( IN ), OPTIONAL :: count
-  INTEGER, INTENT ( IN ), OPTIONAL :: printlevel
+    TYPE(linklist_internal_data_type), &
+      INTENT(INOUT)                          :: internal_data
+    TYPE(global_environment_type), &
+      INTENT(IN)                             :: globenv
+    REAL(dbl), INTENT(IN), OPTIONAL          :: vskin
+    INTEGER, INTENT(IN), OPTIONAL            :: natype
+    REAL(dbl), INTENT(IN), OPTIONAL          :: rcut( :, : ), subcells
+    INTEGER, INTENT(IN), OPTIONAL            :: count, printlevel
 
-! Locals
-  REAL ( dbl ) :: cut_off
-  INTEGER :: iat, jat
-  INTEGER :: isos
+    INTEGER                                  :: iat, isos, jat
 
 !------------------------------------------------------------------------------
 
@@ -130,10 +127,10 @@ END SUBROUTINE set_linklist_internal_data
 
 SUBROUTINE get_linklist_internal_data ( internal_data, last_up, av_up )
 
-  IMPLICIT NONE
 
-  TYPE ( linklist_internal_data_type ), INTENT ( IN ) :: internal_data
-  REAL ( dbl ), INTENT ( OUT ) :: last_up, av_up
+    TYPE(linklist_internal_data_type), &
+      INTENT(IN)                             :: internal_data
+    REAL(dbl), INTENT(OUT)                   :: last_up, av_up
 
   last_up = internal_data % lup
   av_up = internal_data % aup
@@ -143,8 +140,8 @@ END SUBROUTINE get_linklist_internal_data
 !******************************************************************************
 
 SUBROUTINE initialize_linklist_data ( internal_data )
-    IMPLICIT NONE
-    TYPE ( linklist_internal_data_type ), POINTER :: internal_data
+    TYPE(linklist_internal_data_type), &
+      POINTER                                :: internal_data
 
     internal_data % natom_types = 0
     internal_data % counter = 0

@@ -32,20 +32,18 @@ MODULE dump
                                              cp_logger_type,&
                                              cp_to_string
   USE cp_para_types,                   ONLY: cp_para_env_type
-  USE extended_system_types,           ONLY: lnhc_parameters_type,&
-                                             npt_info_type
-  USE force_env_types,                   ONLY: force_env_get,&
+  USE extended_system_types,           ONLY: lnhc_parameters_type
+  USE force_env_types,                 ONLY: force_env_get,&
                                              force_env_type,&
                                              force_env_write_variables
-  USE global_types,                    ONLY: global_environment_type
   USE kinds,                           ONLY: dbl
-  USE md_environment_types,            ONLY: md_environment_type, &
-                                             get_md_env
+  USE md_environment_types,            ONLY: get_md_env,&
+                                             md_environment_type
   USE qs_parser,                       ONLY: close_file,&
                                              open_file
   USE timings,                         ONLY: timeset,&
                                              timestop
-  USE util,                            ONLY: get_unit
+
   IMPLICIT NONE
 
   PRIVATE
@@ -87,21 +85,21 @@ CONTAINS
 
   SUBROUTINE dump_variables(md_env,dump_file_name,error)
 
-    TYPE(md_environment_type), POINTER        :: md_env
-    CHARACTER(LEN=*), INTENT(IN)                 :: dump_file_name
-    TYPE(cp_error_type), INTENT(INOUT), OPTIONAL :: error
+    TYPE(md_environment_type), POINTER       :: md_env
+    CHARACTER(LEN=*), INTENT(IN)             :: dump_file_name
+    TYPE(cp_error_type), INTENT(INOUT), &
+      OPTIONAL                               :: error
 
-    CHARACTER(LEN=*), PARAMETER :: routineN="dump_force_env_variables",&
-                                   routineP=moduleN//":"//routineN
+    CHARACTER(LEN=*), PARAMETER :: routineN = "dump_force_env_variables", &
+      routineP = moduleN//":"//routineN
 
-    TYPE(cp_para_env_type), POINTER :: para_env
-    TYPE(cp_logger_type), POINTER   :: logger,new_logger
-
-    TYPE(cp_error_type) :: new_error
-    INTEGER             :: dump_unit,handle,i,j,natom,size1,size2
-
-    TYPE(lnhc_parameters_type), DIMENSION(:), POINTER :: nhc_part
-    TYPE(force_env_type), POINTER :: force_env
+    INTEGER                                  :: dump_unit, handle, i
+    TYPE(cp_error_type)                      :: new_error
+    TYPE(cp_logger_type), POINTER            :: logger, new_logger
+    TYPE(cp_para_env_type), POINTER          :: para_env
+    TYPE(force_env_type), POINTER            :: force_env
+    TYPE(lnhc_parameters_type), &
+      DIMENSION(:), POINTER                  :: nhc_part
 
 !   ---------------------------------------------------------------------------
 

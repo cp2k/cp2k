@@ -30,12 +30,9 @@
 MODULE pao_proj_methods
   USE cp_b_matrix_structure,           ONLY: cp_b_matrix_struct_type
   USE cp_block_matrix,                 ONLY: cp_block_matrix_p_type,&
-                                             cp_block_matrix_type,&
                                              cp_sp_create
   USE cp_error_handling,               ONLY: cp_a_l,&
                                              cp_assert,&
-                                             cp_assertion_failed,&
-                                             cp_debug,&
                                              cp_error_dealloc_ref,&
                                              cp_error_init,&
                                              cp_error_message,&
@@ -50,10 +47,8 @@ MODULE pao_proj_methods
                                              cp_init,&
                                              cp_matrix_block_iterator,&
                                              cp_next
-  USE cp_para_types,                   ONLY: cp_para_env_type
   USE global_types,                    ONLY: global_environment_type
   USE kinds,                           ONLY: dp
-  USE message_passing,                 ONLY: mp_sum
   USE pao_l_angles_methods,            ONLY: cp_dealloc_ref,&
                                              cp_get,&
                                              cp_init,&
@@ -71,6 +66,7 @@ MODULE pao_proj_methods
                                              real_matrix_type
   USE timings,                         ONLY: timeset,&
                                              timestop
+
   IMPLICIT NONE
   PRIVATE
 
@@ -149,23 +145,33 @@ CONTAINS
 !!*** **********************************************************************
   SUBROUTINE pao_m_m2f_with_b_m_pi(source_m, target_m, glob_angles,&
        qs_env, global_env, error)
-    TYPE(real_matrix_type), POINTER :: source_m ! make target?
-    TYPE(real_matrix_type), POINTER :: target_m ! make target?
-    TYPE(pao_glob_angles_type), INTENT(in) :: glob_angles
-    TYPE(qs_environment_type), INTENT(in), TARGET :: qs_env
-    TYPE(global_environment_type), INTENT(in), TARGET :: global_env
-    TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
+    TYPE(real_matrix_type), POINTER          :: source_m, target_m
+    TYPE(pao_glob_angles_type), INTENT(in)   :: glob_angles
+    TYPE(qs_environment_type), INTENT(in), &
+      TARGET                                 :: qs_env
+    TYPE(global_environment_type), &
+      INTENT(in), TARGET                     :: global_env
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
 
-    LOGICAL :: failure
-    CHARACTER(len=*), PARAMETER :: routineP='pao_types:pao_m_m2f_with_b_m_pi'
-    TYPE(cp_matrix_block_iterator) :: iterator
-    INTEGER :: brow,bcol, stat, max_bsize,i,j
-    INTEGER, DIMENSION(:), POINTER :: l_index
-    REAL(KIND = dp), DIMENSION(:,:), POINTER :: block_val, u_row
-    REAL(KIND = dp),ALLOCATABLE, DIMENSION(:,:) :: t1_m
-    TYPE(pao_local_angles_type) :: l_angles_col, l_angles_row
-    TYPE(cp_error_type) :: iError
-    TYPE(pao_env_type), POINTER :: pao_env
+    CHARACTER(len=*), PARAMETER :: &
+      routineP = 'pao_types:pao_m_m2f_with_b_m_pi'
+
+    INTEGER                                  :: bcol, brow, i, j, max_bsize, &
+                                                stat
+    INTEGER, DIMENSION(:), POINTER           :: l_index
+    LOGICAL                                  :: failure
+    REAL(KIND=dp), ALLOCATABLE, &
+      DIMENSION(:, :)                        :: t1_m
+    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: block_val, u_row
+    TYPE(cp_error_type)                      :: iError
+    TYPE(cp_matrix_block_iterator)           :: iterator
+    TYPE(pao_env_type), POINTER              :: pao_env
+    TYPE(pao_local_angles_type)              :: l_angles_col, l_angles_row
+
+! make target?
+! make target?
+
     CALL cp_error_init(iError,template_error=error)
     NULLIFY(block_val,l_index,u_row,pao_env)
     failure=.FALSE.
@@ -353,23 +359,31 @@ CONTAINS
 !!*** **********************************************************************
   SUBROUTINE sm_matrix_transf_to_f(source_m, target_m, glob_angles,&
        qs_env, global_env, error)
-    TYPE(real_matrix_type), POINTER :: source_m ! make target?
-    TYPE(real_matrix_type), POINTER :: target_m ! make target ?
-    TYPE(pao_glob_angles_type), INTENT(in) :: glob_angles
-    TYPE(qs_environment_type), INTENT(in), TARGET :: qs_env
-    TYPE(global_environment_type), INTENT(in), TARGET :: global_env
-    TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
+    TYPE(real_matrix_type), POINTER          :: source_m, target_m
+    TYPE(pao_glob_angles_type), INTENT(in)   :: glob_angles
+    TYPE(qs_environment_type), INTENT(in), &
+      TARGET                                 :: qs_env
+    TYPE(global_environment_type), &
+      INTENT(in), TARGET                     :: global_env
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
 
-    LOGICAL :: failure
-    CHARACTER(len=*), PARAMETER :: routineN='sm_matrix_transf_to_f',&
-         routineP=moduleN//':'//routineN
-    TYPE(cp_matrix_block_iterator) :: iterator
-    INTEGER :: brow,bcol, stat, max_bsize,i,j
-    REAL(KIND = dp), DIMENSION(:,:), POINTER :: block_val, u_col, u_row
-    REAL(KIND = dp),ALLOCATABLE, DIMENSION(:,:) :: t1_m
-    TYPE(pao_local_angles_type) :: l_angles_col, l_angles_row
-    TYPE(cp_error_type) :: iError
-    TYPE(pao_env_type), POINTER :: pao_env
+    CHARACTER(len=*), PARAMETER :: routineN = 'sm_matrix_transf_to_f', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: bcol, brow, max_bsize, stat
+    LOGICAL                                  :: failure
+    REAL(KIND=dp), ALLOCATABLE, &
+      DIMENSION(:, :)                        :: t1_m
+    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: block_val, u_col, u_row
+    TYPE(cp_error_type)                      :: iError
+    TYPE(cp_matrix_block_iterator)           :: iterator
+    TYPE(pao_env_type), POINTER              :: pao_env
+    TYPE(pao_local_angles_type)              :: l_angles_col, l_angles_row
+
+! make target?
+! make target ?
+
     CALL cp_error_init(iError,template_error=error)
     NULLIFY(block_val,u_col, u_row,pao_env)
     failure=.FALSE.
@@ -505,23 +519,31 @@ CONTAINS
 !!*** **********************************************************************
   SUBROUTINE sm_matrix_transf_to_m(source_m, target_m, glob_angles,&
        qs_env, global_env, error)
-    TYPE(real_matrix_type), POINTER :: source_m ! make target?
-    TYPE(real_matrix_type), POINTER :: target_m ! make target?
-    TYPE(pao_glob_angles_type), INTENT(in) :: glob_angles
-    TYPE(qs_environment_type), INTENT(in), TARGET :: qs_env
-    TYPE(global_environment_type), INTENT(in), TARGET :: global_env
-    TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
+    TYPE(real_matrix_type), POINTER          :: source_m, target_m
+    TYPE(pao_glob_angles_type), INTENT(in)   :: glob_angles
+    TYPE(qs_environment_type), INTENT(in), &
+      TARGET                                 :: qs_env
+    TYPE(global_environment_type), &
+      INTENT(in), TARGET                     :: global_env
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
 
-    LOGICAL :: failure
-    CHARACTER(len=*), PARAMETER :: routineN='sm_matrix_transf_to_m',&
-         routineP=moduleN//':'//routineN
-    TYPE(cp_matrix_block_iterator) :: iterator
-    INTEGER :: brow,bcol, stat, max_bsize,i,j
-    REAL(KIND = dp), DIMENSION(:,:), POINTER :: block_val, u_col, u_row
-    REAL(KIND = dp),ALLOCATABLE, DIMENSION(:,:) :: t1_m
-    TYPE(pao_local_angles_type) :: l_angles_col, l_angles_row
-    TYPE(cp_error_type) :: iError
-    TYPE(pao_env_type), POINTER :: pao_env
+    CHARACTER(len=*), PARAMETER :: routineN = 'sm_matrix_transf_to_m', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: bcol, brow, max_bsize, stat
+    LOGICAL                                  :: failure
+    REAL(KIND=dp), ALLOCATABLE, &
+      DIMENSION(:, :)                        :: t1_m
+    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: block_val, u_col, u_row
+    TYPE(cp_error_type)                      :: iError
+    TYPE(cp_matrix_block_iterator)           :: iterator
+    TYPE(pao_env_type), POINTER              :: pao_env
+    TYPE(pao_local_angles_type)              :: l_angles_col, l_angles_row
+
+! make target?
+! make target?
+
     CALL cp_error_init(iError,template_error=error)
     NULLIFY(block_val,block_val, u_col, u_row,pao_env)
     failure=.FALSE.
@@ -653,25 +675,34 @@ CONTAINS
 !!*** **********************************************************************
   SUBROUTINE sm_matrix_transf_p_to_m(source_m, target_m, glob_angles,&
        qs_env, global_env, error)
-    TYPE(real_matrix_type), POINTER :: source_m ! make target?
-    TYPE(real_matrix_type), POINTER :: target_m ! make target?
-    TYPE(pao_glob_angles_type), INTENT(in) :: glob_angles
-    TYPE(qs_environment_type), INTENT(in), TARGET :: qs_env
-    TYPE(global_environment_type), INTENT(in), TARGET :: global_env
-    TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
+    TYPE(real_matrix_type), POINTER          :: source_m, target_m
+    TYPE(pao_glob_angles_type), INTENT(in)   :: glob_angles
+    TYPE(qs_environment_type), INTENT(in), &
+      TARGET                                 :: qs_env
+    TYPE(global_environment_type), &
+      INTENT(in), TARGET                     :: global_env
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
 
-    LOGICAL :: failure
-    CHARACTER(len=*), PARAMETER :: routineN='sm_matrix_transf_p_to_m',&
-         routineP=moduleN//':'//routineN
-    TYPE(cp_matrix_block_iterator) :: iterator
-    INTEGER :: brow,bcol, stat, max_bsize,i,j
-    REAL(KIND = dp), DIMENSION(:,:), POINTER :: block_val, u_col, u_row,&
-         s_col,s_row
-    REAL(KIND = dp),ALLOCATABLE, DIMENSION(:,:) :: t1_m,t2_m
-    TYPE(pao_local_angles_type) :: l_angles_col, l_angles_row
-    TYPE(real_matrix_p_type), DIMENSION(:), POINTER :: s
-    TYPE(cp_error_type) :: iError
-    TYPE(pao_env_type), POINTER :: pao_env
+    CHARACTER(len=*), PARAMETER :: routineN = 'sm_matrix_transf_p_to_m', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: bcol, brow, max_bsize, stat
+    LOGICAL                                  :: failure
+    REAL(KIND=dp), ALLOCATABLE, &
+      DIMENSION(:, :)                        :: t1_m, t2_m
+    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: block_val, s_col, s_row, &
+                                                u_col, u_row
+    TYPE(cp_error_type)                      :: iError
+    TYPE(cp_matrix_block_iterator)           :: iterator
+    TYPE(pao_env_type), POINTER              :: pao_env
+    TYPE(pao_local_angles_type)              :: l_angles_col, l_angles_row
+    TYPE(real_matrix_p_type), DIMENSION(:), &
+      POINTER                                :: s
+
+! make target?
+! make target?
+
     CALL cp_error_init(iError,template_error=error)
     NULLIFY(block_val,block_val, u_col, u_row,pao_env)
     failure=.FALSE.
@@ -844,23 +875,31 @@ CONTAINS
 !!*** **********************************************************************
   SUBROUTINE pao_g_ang_get_min_m(glob_angles,qs_env,global_env,&
        min_overlap_m,  min_hamiltonian_m, error)
-    TYPE(pao_glob_angles_type), INTENT(inout) :: glob_angles
-    TYPE(qs_environment_type), INTENT(in), TARGET :: qs_env
-    TYPE(global_environment_type), INTENT(in), TARGET :: global_env
-    TYPE(cp_block_matrix_p_type), DIMENSION(:), POINTER, OPTIONAL :: &
-         min_hamiltonian_m
-    TYPE(cp_block_matrix_p_type), DIMENSION(:), POINTER ::  min_overlap_m
-    TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
+    TYPE(pao_glob_angles_type), &
+      INTENT(inout)                          :: glob_angles
+    TYPE(qs_environment_type), INTENT(in), &
+      TARGET                                 :: qs_env
+    TYPE(global_environment_type), &
+      INTENT(in), TARGET                     :: global_env
+    TYPE(cp_block_matrix_p_type), &
+      DIMENSION(:), POINTER                  :: min_overlap_m
+    TYPE(cp_block_matrix_p_type), &
+      DIMENSION(:), OPTIONAL, POINTER        :: min_hamiltonian_m
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
 
-    LOGICAL :: failure
-    INTEGER :: handle, stat
-    CHARACTER(len=*), PARAMETER :: routineN='pao_g_ang_get_min_m',&
-         routineP=moduleN//':'//routineN
-    TYPE(cp_error_type) :: iError
-    TYPE(real_matrix_p_type), DIMENSION(:), POINTER :: full_h, full_s
-    TYPE(cp_b_matrix_struct_type), POINTER :: min_bas_m_struct, &
-         full_bas_m_struct
-    TYPE(pao_env_type), POINTER :: pao_env
+    CHARACTER(len=*), PARAMETER :: routineN = 'pao_g_ang_get_min_m', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: stat
+    LOGICAL                                  :: failure
+    TYPE(cp_b_matrix_struct_type), POINTER   :: full_bas_m_struct, &
+                                                min_bas_m_struct
+    TYPE(cp_error_type)                      :: iError
+    TYPE(pao_env_type), POINTER              :: pao_env
+    TYPE(real_matrix_p_type), DIMENSION(:), &
+      POINTER                                :: full_h, full_s
+
     CALL cp_error_init(iError, template_error=error)
     failure=.FALSE.
     NULLIFY(full_h, full_s, pao_env)

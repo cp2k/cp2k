@@ -21,7 +21,7 @@
 
 MODULE qs_neighbor_list_types
 
-  USE kinds,                           ONLY: dp,dp_size,int_size
+  USE kinds,                           ONLY: dp
   USE termination,                     ONLY: stop_memory,&
                                              stop_program
 
@@ -127,20 +127,15 @@ CONTAINS
 
 !   ***************************************************************************
 
-    TYPE(neighbor_list_set_type), POINTER :: neighbor_list_set
-    TYPE(neighbor_list_type), POINTER     :: neighbor_list
-    INTEGER, INTENT(IN)                   :: atom
-    INTEGER, DIMENSION(3), INTENT(IN)     :: cell
-
-!   *** Local parameters ***
+    TYPE(neighbor_list_set_type), POINTER    :: neighbor_list_set
+    INTEGER, INTENT(IN)                      :: atom
+    INTEGER, DIMENSION(3), INTENT(IN)        :: cell
+    TYPE(neighbor_list_type), POINTER        :: neighbor_list
 
     CHARACTER(LEN=*), PARAMETER :: routine_name = "add_neighbor_list"
 
-!   *** Local variables ***
-
-    TYPE(neighbor_list_type), POINTER :: new_neighbor_list
-
-    INTEGER :: istat
+    INTEGER                                  :: istat
+    TYPE(neighbor_list_type), POINTER        :: new_neighbor_list
 
 !   ---------------------------------------------------------------------------
 
@@ -235,22 +230,19 @@ CONTAINS
 
 !   ***************************************************************************
 
-    TYPE(neighbor_list_type), POINTER            :: neighbor_list
-    INTEGER, INTENT(IN)                          :: neighbor
-    INTEGER, DIMENSION(3), INTENT(IN)            :: cell
-    REAL(dp), DIMENSION(3), INTENT(IN)           :: r
-    REAL(dp), DIMENSION(3), OPTIONAL, INTENT(IN) :: s
-    INTEGER, DIMENSION(:), OPTIONAL, INTENT(IN)  :: exclusion_list
-
-!   *** Local parameters ***
+    TYPE(neighbor_list_type), POINTER        :: neighbor_list
+    INTEGER, INTENT(IN)                      :: neighbor
+    INTEGER, DIMENSION(3), INTENT(IN)        :: cell
+    REAL(dp), DIMENSION(3), INTENT(IN)       :: r
+    REAL(dp), DIMENSION(3), INTENT(IN), &
+      OPTIONAL                               :: s
+    INTEGER, DIMENSION(:), INTENT(IN), &
+      OPTIONAL                               :: exclusion_list
 
     CHARACTER(LEN=*), PARAMETER :: routine_name = "add_neighbor_node"
 
-!   *** Local variables ***
-
-    TYPE(neighbor_node_type), POINTER :: new_neighbor_node
-
-    INTEGER :: iatom,istat
+    INTEGER                                  :: iatom, istat
+    TYPE(neighbor_node_type), POINTER        :: new_neighbor_node
 
 !   ---------------------------------------------------------------------------
 
@@ -345,19 +337,14 @@ CONTAINS
 
 !   ***************************************************************************
 
-    TYPE(neighbor_list_set_type), POINTER :: neighbor_list_set
-    REAL(dp)                              :: r_max
-
-!   *** Local parameters ***
+    TYPE(neighbor_list_set_type), POINTER    :: neighbor_list_set
+    REAL(dp)                                 :: r_max
 
     CHARACTER(LEN=*), PARAMETER :: routine_name = "allocate_neighbor_list_set"
 
-!   *** Local variables ***
-
-    INTEGER :: istat
+    INTEGER                                  :: istat
 
 !   ---------------------------------------------------------------------------
-
 !   *** Deallocate the old neighbor list set ***
 
     IF (ASSOCIATED(neighbor_list_set)) THEN
@@ -391,18 +378,15 @@ CONTAINS
 
 !   ***************************************************************************
 
-    TYPE(neighbor_list_set_type), POINTER :: neighbor_list_set
-
-!   *** Local parameters ***
+    TYPE(neighbor_list_set_type), POINTER    :: neighbor_list_set
 
     CHARACTER(LEN=*), PARAMETER :: routine_name = "clean_neighbor_list_set"
 
-!   *** Local variables ***
-
-    TYPE(neighbor_list_type), POINTER :: neighbor_list,next_neighbor_list
-    TYPE(neighbor_node_type), POINTER :: neighbor_node,next_neighbor_node
-
-    INTEGER :: istat
+    INTEGER                                  :: istat
+    TYPE(neighbor_list_type), POINTER        :: neighbor_list, &
+                                                next_neighbor_list
+    TYPE(neighbor_node_type), POINTER        :: neighbor_node, &
+                                                next_neighbor_node
 
 !   ---------------------------------------------------------------------------
 
@@ -472,17 +456,13 @@ CONTAINS
 
 !   ***************************************************************************
 
-    TYPE(neighbor_list_type), POINTER :: neighbor_list
-
-!   *** Local parameters ***
+    TYPE(neighbor_list_type), POINTER        :: neighbor_list
 
     CHARACTER(LEN=*), PARAMETER :: routine_name = "deallocate_neighbor_list"
 
-!   *** Local variables ***
-
-    TYPE(neighbor_node_type), POINTER :: neighbor_node,next_neighbor_node
-
-    INTEGER :: istat
+    INTEGER                                  :: istat
+    TYPE(neighbor_node_type), POINTER        :: neighbor_node, &
+                                                next_neighbor_node
 
 !   ---------------------------------------------------------------------------
 
@@ -518,17 +498,14 @@ CONTAINS
 
 !   ***************************************************************************
 
-    TYPE(neighbor_list_set_type), POINTER :: neighbor_list_set
+    TYPE(neighbor_list_set_type), POINTER    :: neighbor_list_set
 
-!   *** Local parameters ***
+    CHARACTER(LEN=*), PARAMETER :: &
+      routine_name = "deallocate_neighbor_list_set"
 
-    CHARACTER(LEN=*), PARAMETER :: routine_name = "deallocate_neighbor_list_set"
-
-!   *** Local variables ***
-
-    TYPE(neighbor_list_type), POINTER :: neighbor_list,next_neighbor_list
-
-    INTEGER :: istat
+    INTEGER                                  :: istat
+    TYPE(neighbor_list_type), POINTER        :: neighbor_list, &
+                                                next_neighbor_list
 
 !   ---------------------------------------------------------------------------
 
@@ -561,19 +538,14 @@ CONTAINS
 
 !   ***************************************************************************
 
-    TYPE(neighbor_list_type), POINTER     :: neighbor_list
-    INTEGER, DIMENSION(:), INTENT(OUT)    :: neighbors
-    REAL(dp), DIMENSION(:,:), INTENT(OUT) :: r
-
-!   *** Local parameters ***
+    TYPE(neighbor_list_type), POINTER        :: neighbor_list
+    INTEGER, DIMENSION(:), INTENT(OUT)       :: neighbors
+    REAL(dp), DIMENSION(:, :), INTENT(OUT)   :: r
 
     CHARACTER(LEN=*), PARAMETER :: routine_name = "extract_neighbor_list"
 
-!   *** Local variables ***
-
-    TYPE(neighbor_node_type), POINTER :: neighbor_node
-
-    INTEGER :: inode,istat,nnode
+    INTEGER                                  :: inode, nnode
+    TYPE(neighbor_node_type), POINTER        :: neighbor_node
 
 !   ---------------------------------------------------------------------------
 
@@ -624,19 +596,14 @@ CONTAINS
 
 !   ***************************************************************************
 
-    TYPE(neighbor_list_set_type), POINTER :: neighbor_list_set
-    INTEGER, INTENT(IN)                   :: atom
-
-    TYPE(neighbor_list_type), POINTER :: neighbor_list
-
-!   *** Local parameters ***
+    TYPE(neighbor_list_set_type), POINTER    :: neighbor_list_set
+    INTEGER, INTENT(IN)                      :: atom
+    TYPE(neighbor_list_type), POINTER        :: neighbor_list
 
     CHARACTER(LEN=*), PARAMETER :: routine_name = "find_neighbor_list_1"
 
-!   *** Local variables ***
-
-    TYPE(neighbor_list_type), POINTER :: current_neighbor_list
-    INTEGER                           :: ilist
+    INTEGER                                  :: ilist
+    TYPE(neighbor_list_type), POINTER        :: current_neighbor_list
 
 !   ---------------------------------------------------------------------------
 
@@ -675,21 +642,15 @@ CONTAINS
 
 !   ***************************************************************************
 
-    TYPE(neighbor_list_set_type), POINTER :: neighbor_list_set
-    INTEGER, INTENT(IN)                   :: atom
-    INTEGER, DIMENSION(3), INTENT(IN)     :: cell
-
-    TYPE(neighbor_list_type), POINTER :: neighbor_list
-
-!   *** Local parameters ***
+    TYPE(neighbor_list_set_type), POINTER    :: neighbor_list_set
+    INTEGER, INTENT(IN)                      :: atom
+    INTEGER, DIMENSION(3), INTENT(IN)        :: cell
+    TYPE(neighbor_list_type), POINTER        :: neighbor_list
 
     CHARACTER(LEN=*), PARAMETER :: routine_name = "find_neighbor_list_2"
 
-!   *** Local variables ***
-
-    TYPE(neighbor_list_type), POINTER :: current_neighbor_list
-
-    INTEGER :: ilist
+    INTEGER                                  :: ilist
+    TYPE(neighbor_list_type), POINTER        :: current_neighbor_list
 
 !   ---------------------------------------------------------------------------
 
@@ -732,9 +693,8 @@ CONTAINS
 
 !   ***************************************************************************
 
-    TYPE(neighbor_list_set_type), POINTER :: neighbor_list_set
-
-    TYPE(neighbor_list_type), POINTER :: first_neighbor_list
+    TYPE(neighbor_list_set_type), POINTER    :: neighbor_list_set
+    TYPE(neighbor_list_type), POINTER        :: first_neighbor_list
 
 !   ---------------------------------------------------------------------------
 
@@ -753,9 +713,8 @@ CONTAINS
 
 !   ***************************************************************************
 
-    TYPE(neighbor_list_type), POINTER :: neighbor_list
-
-    TYPE(neighbor_node_type), POINTER :: first_neighbor_node
+    TYPE(neighbor_list_type), POINTER        :: neighbor_list
+    TYPE(neighbor_node_type), POINTER        :: first_neighbor_node
 
 !   ---------------------------------------------------------------------------
 
@@ -773,11 +732,11 @@ CONTAINS
 
 !   ***************************************************************************
 
-    TYPE(neighbor_list_type), POINTER            :: neighbor_list
-    INTEGER, OPTIONAL, INTENT(OUT)               :: atom,nnode
-    INTEGER, DIMENSION(3), OPTIONAL, INTENT(OUT) :: cell
-
-!   *** Local parameters ***
+    TYPE(neighbor_list_type), POINTER        :: neighbor_list
+    INTEGER, INTENT(OUT), OPTIONAL           :: atom
+    INTEGER, DIMENSION(3), INTENT(OUT), &
+      OPTIONAL                               :: cell
+    INTEGER, INTENT(OUT), OPTIONAL           :: nnode
 
     CHARACTER(LEN=*), PARAMETER :: routine_name = "get_neighbor_list"
 
@@ -808,11 +767,9 @@ CONTAINS
 
 !   ***************************************************************************
 
-    TYPE(neighbor_list_set_type), POINTER :: neighbor_list_set
-    REAL(dp), OPTIONAL, INTENT(OUT)       :: r_max
-    INTEGER, OPTIONAL, INTENT(OUT)        :: nlist
-
-!   *** Local parameters ***
+    TYPE(neighbor_list_set_type), POINTER    :: neighbor_list_set
+    REAL(dp), INTENT(OUT), OPTIONAL          :: r_max
+    INTEGER, INTENT(OUT), OPTIONAL           :: nlist
 
     CHARACTER(LEN=*), PARAMETER :: routine_name = "get_neighbor_list_set"
 
@@ -842,12 +799,12 @@ CONTAINS
 
 !   ***************************************************************************
 
-    TYPE(neighbor_node_type), POINTER             :: neighbor_node
-    INTEGER, OPTIONAL, INTENT(OUT)                :: neighbor
-    INTEGER, DIMENSION(3), OPTIONAL, INTENT(OUT)  :: cell
-    REAL(dp), DIMENSION(3), OPTIONAL, INTENT(OUT) :: r,s
-
-!   *** Local parameters ***
+    TYPE(neighbor_node_type), POINTER        :: neighbor_node
+    INTEGER, INTENT(OUT), OPTIONAL           :: neighbor
+    INTEGER, DIMENSION(3), INTENT(OUT), &
+      OPTIONAL                               :: cell
+    REAL(dp), DIMENSION(3), INTENT(OUT), &
+      OPTIONAL                               :: r, s
 
     CHARACTER(LEN=*), PARAMETER :: routine_name = "get_neighbor_node"
 
@@ -881,9 +838,7 @@ CONTAINS
 
 !   ***************************************************************************
 
-    TYPE(neighbor_list_type), POINTER :: neighbor_list
-
-!   *** Local parameters ***
+    TYPE(neighbor_list_type), POINTER        :: neighbor_list
 
     CHARACTER(LEN=*), PARAMETER :: routine_name = "init_neighbor_list"
 
@@ -920,10 +875,8 @@ CONTAINS
 
 !   ***************************************************************************
 
-    TYPE(neighbor_list_set_type), POINTER :: neighbor_list_set
-    REAL(dp), OPTIONAL, INTENT(IN)        :: r_max
-
-!   *** Local parameters ***
+    TYPE(neighbor_list_set_type), POINTER    :: neighbor_list_set
+    REAL(dp), INTENT(IN), OPTIONAL           :: r_max
 
     CHARACTER(LEN=*), PARAMETER :: routine_name = "init_neighbor_list_set"
 
@@ -963,9 +916,7 @@ CONTAINS
 
 !   ***************************************************************************
 
-    TYPE(neighbor_list_type), POINTER :: neighbor_list
-
-    TYPE(neighbor_list_type), POINTER :: next_list
+    TYPE(neighbor_list_type), POINTER        :: neighbor_list, next_list
 
 !   ---------------------------------------------------------------------------
 
@@ -983,9 +934,7 @@ CONTAINS
 
 !   ***************************************************************************
 
-    TYPE(neighbor_node_type), POINTER :: neighbor_node
-
-    TYPE(neighbor_node_type), POINTER :: next_node
+    TYPE(neighbor_node_type), POINTER        :: neighbor_node, next_node
 
 !   ---------------------------------------------------------------------------
 
@@ -1003,11 +952,10 @@ CONTAINS
 
 !   ***************************************************************************
 
-    TYPE(neighbor_list_type), POINTER           :: neighbor_list
-    INTEGER, OPTIONAL, INTENT(IN)               :: atom
-    INTEGER, DIMENSION(3), OPTIONAL, INTENT(IN) :: cell
-
-!   *** Local parameters ***
+    TYPE(neighbor_list_type), POINTER        :: neighbor_list
+    INTEGER, INTENT(IN), OPTIONAL            :: atom
+    INTEGER, DIMENSION(3), INTENT(IN), &
+      OPTIONAL                               :: cell
 
     CHARACTER(LEN=*), PARAMETER :: routine_name = "set_neighbor_list"
 
@@ -1037,10 +985,8 @@ CONTAINS
 
 !   ***************************************************************************
 
-    TYPE(neighbor_list_set_type), POINTER :: neighbor_list_set
-    REAL(dp), OPTIONAL, INTENT(IN)        :: r_max
-
-!   *** Local parameters ***
+    TYPE(neighbor_list_set_type), POINTER    :: neighbor_list_set
+    REAL(dp), INTENT(IN), OPTIONAL           :: r_max
 
     CHARACTER(LEN=*), PARAMETER :: routine_name = "set_neighbor_list_set"
 
@@ -1069,12 +1015,12 @@ CONTAINS
 
 !   ***************************************************************************
 
-    TYPE(neighbor_node_type), POINTER            :: neighbor_node
-    INTEGER, OPTIONAL, INTENT(IN)                :: neighbor
-    INTEGER, DIMENSION(3), OPTIONAL, INTENT(IN)  :: cell
-    REAL(dp), DIMENSION(3), OPTIONAL, INTENT(IN) :: r,s
-
-!   *** Local parameters ***
+    TYPE(neighbor_node_type), POINTER        :: neighbor_node
+    INTEGER, INTENT(IN), OPTIONAL            :: neighbor
+    INTEGER, DIMENSION(3), INTENT(IN), &
+      OPTIONAL                               :: cell
+    REAL(dp), DIMENSION(3), INTENT(IN), &
+      OPTIONAL                               :: r, s
 
     CHARACTER(LEN=*), PARAMETER :: routine_name = "set_neighbor_node"
 

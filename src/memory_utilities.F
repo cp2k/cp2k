@@ -65,19 +65,17 @@ CONTAINS
 
 !   ***************************************************************************
 
-    CHARACTER(LEN=default_string_length), DIMENSION(:), POINTER :: p
-    INTEGER, INTENT(IN)                                         :: lb1_new,&
-                                                                   ub1_new 
+    CHARACTER(LEN=default_string_length), &
+      DIMENSION(:), POINTER                  :: p
+    INTEGER, INTENT(IN)                      :: lb1_new, ub1_new
 
-!   *** Local parameters ***
+    CHARACTER(LEN=*), PARAMETER              :: routine_name = "reallocate_s1"
 
-    CHARACTER(LEN=*), PARAMETER :: routine_name = "reallocate_s1"
-
-!   *** Local variables ***
-
-    INTEGER :: istat,lb1,lb1_old,new_size,old_size,ub1,ub1_old
-
-    CHARACTER(LEN=default_string_length), DIMENSION(:), ALLOCATABLE :: work
+    CHARACTER(LEN=default_string_length), &
+      ALLOCATABLE, DIMENSION(:)              :: work
+    INTEGER                                  :: istat, lb1, lb1_old, &
+                                                new_size, old_size, ub1, &
+                                                ub1_old
 
 !   ---------------------------------------------------------------------------
 
@@ -123,18 +121,15 @@ CONTAINS
 
 !   ***************************************************************************
 
-    INTEGER, DIMENSION(:), POINTER :: p
-    INTEGER, INTENT(IN)            :: lb1_new,ub1_new
+    INTEGER, DIMENSION(:), POINTER           :: p
+    INTEGER, INTENT(IN)                      :: lb1_new, ub1_new
 
-!   *** Local parameters ***
+    CHARACTER(LEN=*), PARAMETER              :: routine_name = "reallocate_i1"
 
-    CHARACTER(LEN=*), PARAMETER :: routine_name = "reallocate_i1"
-
-!   *** Local variables ***
-
-    INTEGER :: istat,lb1,lb1_old,new_size,old_size,ub1,ub1_old
-
-    INTEGER, DIMENSION(:), ALLOCATABLE :: work
+    INTEGER                                  :: istat, lb1, lb1_old, &
+                                                new_size, old_size, ub1, &
+                                                ub1_old
+    INTEGER, ALLOCATABLE, DIMENSION(:)       :: work
 
 !   ---------------------------------------------------------------------------
 
@@ -180,19 +175,16 @@ CONTAINS
 
 !   ***************************************************************************
 
-    INTEGER, DIMENSION(:,:), POINTER :: p
-    INTEGER, INTENT(IN)              :: lb1_new,lb2_new,ub1_new,ub2_new
+    INTEGER, DIMENSION(:, :), POINTER        :: p
+    INTEGER, INTENT(IN)                      :: lb1_new, ub1_new, lb2_new, &
+                                                ub2_new
 
-!   *** Local parameters ***
+    CHARACTER(LEN=*), PARAMETER              :: routine_name = "reallocate_i2"
 
-    CHARACTER(LEN=*), PARAMETER :: routine_name = "reallocate_i2"
-
-!   *** Local variables ***
-
-    INTEGER :: istat,lb1,lb1_old,lb2,lb2_old,new_size,old_size,ub1,ub1_old,&
-               ub2,ub2_old
-
-    INTEGER, DIMENSION(:,:), ALLOCATABLE :: work
+    INTEGER                                  :: istat, lb1, lb1_old, lb2, &
+                                                lb2_old, new_size, old_size, &
+                                                ub1, ub1_old, ub2, ub2_old
+    INTEGER, ALLOCATABLE, DIMENSION(:, :)    :: work
 
 !   ---------------------------------------------------------------------------
 
@@ -242,20 +234,15 @@ CONTAINS
 
 !   ***************************************************************************
 
-    INTEGER, DIMENSION(:,:,:), POINTER :: p
-    INTEGER, INTENT(IN)                :: lb1_new,lb2_new,lb3_new,&
-                                          ub1_new,ub2_new,ub3_new
+    INTEGER, DIMENSION(:, :, :), POINTER     :: p
+    INTEGER, INTENT(IN)                      :: lb1_new, ub1_new, lb2_new, &
+                                                ub2_new, lb3_new, ub3_new
 
-!   *** Local parameters ***
+    CHARACTER(LEN=*), PARAMETER              :: routine_name = "reallocate_i3"
 
-    CHARACTER(LEN=*), PARAMETER :: routine_name = "reallocate_i3"
-
-!   *** Local variables ***
-
-    INTEGER :: istat,lb1,lb1_old,lb2,lb2_old,lb3,lb3_old,new_size,old_size,&
-               ub1,ub1_old,ub2,ub2_old,ub3,ub3_old
-
-    INTEGER, DIMENSION(:,:,:), ALLOCATABLE :: work
+    INTEGER :: istat, lb1, lb1_old, lb2, lb2_old, lb3, lb3_old, new_size, &
+      old_size, ub1, ub1_old, ub2, ub2_old, ub3, ub3_old
+    INTEGER, ALLOCATABLE, DIMENSION(:, :, :) :: work
 
 !   ---------------------------------------------------------------------------
 
@@ -316,20 +303,18 @@ CONTAINS
 
 !   ***************************************************************************
 
-    INTEGER, DIMENSION(:,:,:,:), POINTER :: p
-    INTEGER, INTENT(IN)                  :: lb1_new,lb2_new,lb3_new,lb4_new,&
-                                            ub1_new,ub2_new,ub3_new,ub4_new
+    INTEGER, DIMENSION(:, :, :, :), POINTER  :: p
+    INTEGER, INTENT(IN)                      :: lb1_new, ub1_new, lb2_new, &
+                                                ub2_new, lb3_new, ub3_new, &
+                                                lb4_new, ub4_new
 
-!   *** Local parameters ***
+    CHARACTER(LEN=*), PARAMETER              :: routine_name = "reallocate_i4"
 
-    CHARACTER(LEN=*), PARAMETER :: routine_name = "reallocate_i4"
-
-!   *** Local variables ***
-
-    INTEGER :: istat,lb1,lb1_old,lb2,lb2_old,lb3,lb3_old,lb4,lb4_old,new_size,&
-               old_size,ub1,ub1_old,ub2,ub2_old,ub3,ub3_old,ub4,ub4_old
-
-    INTEGER, DIMENSION(:,:,:,:), ALLOCATABLE :: work
+    INTEGER :: istat, lb1, lb1_old, lb2, lb2_old, lb3, lb3_old, lb4, lb4_old, &
+      new_size, old_size, ub1, ub1_old, ub2, ub2_old, ub3, ub3_old, ub4, &
+      ub4_old
+    INTEGER, ALLOCATABLE, &
+      DIMENSION(:, :, :, :)                  :: work
 
 !   ---------------------------------------------------------------------------
 
@@ -397,18 +382,15 @@ CONTAINS
 
 !   ***************************************************************************
 
-    REAL(KIND = dp), DIMENSION(:), POINTER :: p
-    INTEGER, INTENT(IN)                    :: lb1_new,ub1_new
+    REAL(KIND=dp), DIMENSION(:), POINTER     :: p
+    INTEGER, INTENT(IN)                      :: lb1_new, ub1_new
 
-!   *** Local parameters ***
+    CHARACTER(LEN=*), PARAMETER              :: routine_name = "reallocate_r1"
 
-    CHARACTER(LEN=*), PARAMETER :: routine_name = "reallocate_r1"
-
-!   *** Local variables ***
-
-    INTEGER :: istat,lb1,lb1_old,new_size,old_size,ub1,ub1_old
-
-    REAL(KIND = dp), DIMENSION(:), ALLOCATABLE :: work
+    INTEGER                                  :: istat, lb1, lb1_old, &
+                                                new_size, old_size, ub1, &
+                                                ub1_old
+    REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: work
 
 !   ---------------------------------------------------------------------------
 
@@ -456,19 +438,17 @@ CONTAINS
 
 !   ***************************************************************************
 
-    REAL(KIND = dp), DIMENSION(:,:), POINTER :: p
-    INTEGER, INTENT(IN)                      :: lb1_new,lb2_new,ub1_new,ub2_new
+    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: p
+    INTEGER, INTENT(IN)                      :: lb1_new, ub1_new, lb2_new, &
+                                                ub2_new
 
-!   *** Local parameters ***
+    CHARACTER(LEN=*), PARAMETER              :: routine_name = "reallocate_r2"
 
-    CHARACTER(LEN=*), PARAMETER :: routine_name = "reallocate_r2"
-
-!   *** Local variables ***
-
-    INTEGER :: istat,lb1,lb1_old,lb2,lb2_old,new_size,old_size,ub1,ub1_old,&
-               ub2,ub2_old
-
-    REAL(KIND = dp), DIMENSION(:,:), ALLOCATABLE :: work
+    INTEGER                                  :: istat, lb1, lb1_old, lb2, &
+                                                lb2_old, new_size, old_size, &
+                                                ub1, ub1_old, ub2, ub2_old
+    REAL(KIND=dp), ALLOCATABLE, &
+      DIMENSION(:, :)                        :: work
 
 !   ---------------------------------------------------------------------------
 
@@ -518,20 +498,17 @@ CONTAINS
 
 !   ***************************************************************************
 
-    REAL(KIND = dp), DIMENSION(:,:,:), POINTER :: p
-    INTEGER, INTENT(IN)                        :: lb1_new,lb2_new,lb3_new,&
-                                                  ub1_new,ub2_new,ub3_new
+    REAL(KIND=dp), DIMENSION(:, :, :), &
+      POINTER                                :: p
+    INTEGER, INTENT(IN)                      :: lb1_new, ub1_new, lb2_new, &
+                                                ub2_new, lb3_new, ub3_new
 
-!   *** Local parameters ***
+    CHARACTER(LEN=*), PARAMETER              :: routine_name = "reallocate_r3"
 
-    CHARACTER(LEN=*), PARAMETER :: routine_name = "reallocate_r3"
-
-!   *** Local variables ***
-
-    INTEGER :: istat,lb1,lb1_old,lb2,lb2_old,lb3,lb3_old,new_size,old_size,&
-               ub1,ub1_old,ub2,ub2_old,ub3,ub3_old
-
-    REAL(KIND = dp), DIMENSION(:,:,:), ALLOCATABLE :: work
+    INTEGER :: istat, lb1, lb1_old, lb2, lb2_old, lb3, lb3_old, new_size, &
+      old_size, ub1, ub1_old, ub2, ub2_old, ub3, ub3_old
+    REAL(KIND=dp), ALLOCATABLE, &
+      DIMENSION(:, :, :)                     :: work
 
 !   ---------------------------------------------------------------------------
 
@@ -592,22 +569,19 @@ CONTAINS
 
 !   ***************************************************************************
 
-    REAL(KIND = dp), DIMENSION(:,:,:,:), POINTER :: p
-    INTEGER, INTENT(IN)                          :: lb1_new,lb2_new,lb3_new,&
-                                                    lb4_new,&
-                                                    ub1_new,ub2_new,ub3_new,&
-                                                    ub4_new
+    REAL(KIND=dp), DIMENSION(:, :, :, :), &
+      POINTER                                :: p
+    INTEGER, INTENT(IN)                      :: lb1_new, ub1_new, lb2_new, &
+                                                ub2_new, lb3_new, ub3_new, &
+                                                lb4_new, ub4_new
 
-!   *** Local parameters ***
+    CHARACTER(LEN=*), PARAMETER              :: routine_name = "reallocate_r4"
 
-    CHARACTER(LEN=*), PARAMETER :: routine_name = "reallocate_r4"
-
-!   *** Local variables ***
-
-    INTEGER :: istat,lb1,lb1_old,lb2,lb2_old,lb3,lb3_old,lb4,lb4_old,new_size,&
-               old_size,ub1,ub1_old,ub2,ub2_old,ub3,ub3_old,ub4,ub4_old
-
-    REAL(KIND = dp), DIMENSION(:,:,:,:), ALLOCATABLE :: work
+    INTEGER :: istat, lb1, lb1_old, lb2, lb2_old, lb3, lb3_old, lb4, lb4_old, &
+      new_size, old_size, ub1, ub1_old, ub2, ub2_old, ub3, ub3_old, ub4, &
+      ub4_old
+    REAL(KIND=dp), ALLOCATABLE, &
+      DIMENSION(:, :, :, :)                  :: work
 
 !   ---------------------------------------------------------------------------
 
@@ -676,23 +650,20 @@ CONTAINS
 
 !   ***************************************************************************
 
-    REAL(KIND = dp), DIMENSION(:,:,:,:,:), POINTER :: p
-    INTEGER, INTENT(IN)                            :: lb1_new,lb2_new,lb3_new,&
-                                                      lb4_new,lb5_new,&
-                                                      ub1_new,ub2_new,ub3_new,&
-                                                      ub4_new,ub5_new
+    REAL(KIND=dp), &
+      DIMENSION(:, :, :, :, :), POINTER      :: p
+    INTEGER, INTENT(IN)                      :: lb1_new, ub1_new, lb2_new, &
+                                                ub2_new, lb3_new, ub3_new, &
+                                                lb4_new, ub4_new, lb5_new, &
+                                                ub5_new
 
-!   *** Local parameters ***
+    CHARACTER(LEN=*), PARAMETER              :: routine_name = "reallocate_r5"
 
-    CHARACTER(LEN=*), PARAMETER :: routine_name = "reallocate_r5"
-
-!   *** Local variables ***
-
-    INTEGER :: istat,lb1,lb1_old,lb2,lb2_old,lb3,lb3_old,lb4,lb4_old,lb5,&
-               lb5_old,new_size,old_size,ub1,ub1_old,ub2,ub2_old,ub3,ub3_old,&
-               ub4,ub4_old,ub5,ub5_old
-
-    REAL(KIND = dp), DIMENSION(:,:,:,:,:), ALLOCATABLE :: work
+    INTEGER :: istat, lb1, lb1_old, lb2, lb2_old, lb3, lb3_old, lb4, lb4_old, &
+      lb5, lb5_old, new_size, old_size, ub1, ub1_old, ub2, ub2_old, ub3, &
+      ub3_old, ub4, ub4_old, ub5, ub5_old
+    REAL(KIND=dp), ALLOCATABLE, &
+      DIMENSION(:, :, :, :, :)               :: work
 
 !   ---------------------------------------------------------------------------
 
@@ -768,13 +739,12 @@ CONTAINS
 
 !   ***************************************************************************
 
-    TYPE(global_environment_type), INTENT(IN) :: globenv
-    CHARACTER(LEN=*), INTENT(IN)              :: checkpoint
+    CHARACTER(LEN=*), INTENT(IN)             :: checkpoint
+    TYPE(global_environment_type), &
+      INTENT(IN)                             :: globenv
 
-!   *** Local variables ***
-
-    CHARACTER(LEN=LEN_TRIM(checkpoint)+7) :: string
-    INTEGER                               :: group,ipe,mype,npe
+    CHARACTER(LEN=LEN_TRIM(checkpoint)+7)    :: string
+    INTEGER                                  :: group, ipe, mype, npe
 
 !   ---------------------------------------------------------------------------
 

@@ -29,15 +29,10 @@
 MODULE cp_sm_pool_types
   USE cp_error_handling,               ONLY: cp_a_l,&
                                              cp_assert,&
-                                             cp_assertion_failed,&
                                              cp_debug,&
-                                             cp_error_dealloc_ref,&
                                              cp_error_get_logger,&
-                                             cp_error_init,&
                                              cp_error_message,&
-                                             cp_error_type,&
-                                             cp_internal_error,&
-                                             cp_unimplemented_error
+                                             cp_error_type
   USE cp_linked_list_sm,               ONLY: cp_sll_sm_dealloc,&
                                              cp_sll_sm_get_first_el,&
                                              cp_sll_sm_insert_el,&
@@ -47,11 +42,9 @@ MODULE cp_sm_pool_types
                                              cp_sll_sm_type
   USE cp_log_handling,                 ONLY: cp_failure_level,&
                                              cp_fatal_level,&
-                                             cp_log,&
                                              cp_note_level,&
                                              cp_to_string,&
                                              cp_warning_level
-  USE cp_para_types,                   ONLY: cp_para_env_type
   USE cp_sm_struct,                    ONLY: cp_sm_node_type,&
                                              cp_sm_struct_type,&
                                              sm_struct_get,&
@@ -61,14 +54,13 @@ MODULE cp_sm_pool_types
   USE kinds,                           ONLY: dp
   USE sparse_matrix_types,             ONLY: add_block_node,&
                                              allocate_matrix,&
-                                             allocate_matrix_set,&
                                              cp_sm_set,&
                                              deallocate_matrix,&
-                                             deallocate_matrix_set,&
                                              real_matrix_p_type,&
                                              real_matrix_type
   USE timings,                         ONLY: timeset,&
                                              timestop
+
   IMPLICIT NONE
   PRIVATE
 
@@ -183,14 +175,17 @@ CONTAINS
 !!
 !!*** **********************************************************************
   SUBROUTINE sm_pool_create(pool, matrix_struct, error)
-    TYPE(cp_sm_pool_type), POINTER :: pool
-    TYPE(cp_sm_struct_type), POINTER :: matrix_struct
-    TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
+    TYPE(cp_sm_pool_type), POINTER           :: pool
+    TYPE(cp_sm_struct_type), POINTER         :: matrix_struct
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
 
-    LOGICAL :: failure
-    CHARACTER(len=*), PARAMETER :: routineN='sm_pool_create',&
-         routineP=moduleN//':'//routineN
-    INTEGER :: stat
+    CHARACTER(len=*), PARAMETER :: routineN = 'sm_pool_create', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: stat
+    LOGICAL                                  :: failure
+
     failure=.FALSE.
 
     ALLOCATE(pool, stat=stat)
@@ -230,12 +225,15 @@ CONTAINS
 !!
 !!*** **********************************************************************
   SUBROUTINE sm_pool_retain(pool,error)
-    TYPE(cp_sm_pool_type), POINTER :: pool
-    TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
+    TYPE(cp_sm_pool_type), POINTER           :: pool
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
 
-    LOGICAL :: failure
-    CHARACTER(len=*), PARAMETER :: routineN='sm_pool_retain',&
-         routineP=moduleN//':'//routineN
+    CHARACTER(len=*), PARAMETER :: routineN = 'sm_pool_retain', &
+      routineP = moduleN//':'//routineN
+
+    LOGICAL                                  :: failure
+
     failure=.FALSE.
 
     CPPrecondition(ASSOCIATED(pool),cp_failure_level,routineP,error,failure)
@@ -271,14 +269,17 @@ CONTAINS
 !!
 !!*** **********************************************************************
   SUBROUTINE sm_pool_flush_cache(pool,error)
-    TYPE(cp_sm_pool_type), POINTER :: pool
-    TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
+    TYPE(cp_sm_pool_type), POINTER           :: pool
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
 
-    LOGICAL :: failure
-    CHARACTER(len=*), PARAMETER :: routineN='sm_pool_flush_cache',&
-         routineP=moduleN//':'//routineN
-    TYPE(cp_sll_sm_type), POINTER :: iterator
-    TYPE(real_matrix_type), POINTER :: m_att
+    CHARACTER(len=*), PARAMETER :: routineN = 'sm_pool_flush_cache', &
+      routineP = moduleN//':'//routineN
+
+    LOGICAL                                  :: failure
+    TYPE(cp_sll_sm_type), POINTER            :: iterator
+    TYPE(real_matrix_type), POINTER          :: m_att
+
     failure=.FALSE.
 
     CPPrecondition(ASSOCIATED(pool),cp_failure_level,routineP,error,failure)
@@ -319,15 +320,16 @@ CONTAINS
 !!
 !!*** **********************************************************************
   SUBROUTINE sm_pool_release(pool,error)
-    TYPE(cp_sm_pool_type), POINTER :: pool
-    TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
+    TYPE(cp_sm_pool_type), POINTER           :: pool
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
 
-    LOGICAL :: failure
-    CHARACTER(len=*), PARAMETER :: routineN='cp_sm_pool_release',&
-         routineP=moduleN//':'//routineN
-    TYPE(cp_sll_sm_type), POINTER :: iterator
-    TYPE(real_matrix_type), POINTER :: matrix_att
-    INTEGER :: stat
+    CHARACTER(len=*), PARAMETER :: routineN = 'cp_sm_pool_release', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: stat
+    LOGICAL                                  :: failure
+
     failure=.FALSE.
 
     IF (ASSOCIATED(pool)) THEN
@@ -382,21 +384,24 @@ CONTAINS
 !!
 !!*** **********************************************************************
   SUBROUTINE sm_pool_create_matrix(pool, matrix,name,error)
-    TYPE(cp_sm_pool_type), POINTER :: pool
-    TYPE(real_matrix_type), POINTER :: matrix
-    CHARACTER(len=*), OPTIONAL, INTENT(in) :: name
-    TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
+    TYPE(cp_sm_pool_type), POINTER           :: pool
+    TYPE(real_matrix_type), POINTER          :: matrix
+    CHARACTER(len=*), INTENT(in), OPTIONAL   :: name
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
 
-    LOGICAL :: failure
-    CHARACTER(len=*), PARAMETER :: routineN='sm_pool_create_matrix',&
-         routineP=moduleN//':'//routineN
-    INTEGER, SAVE :: last_m_id=0
-    INTEGER :: stat, n_rows, n_cols, n_blocks_row, n_blocks_col
-    INTEGER, DIMENSION(:), POINTER :: first_row, first_col, last_row,&
-         last_col
-    CHARACTER(len=40) :: symmetry
-    TYPE(cp_sm_node_type), POINTER :: pos_att,next_row
-    TYPE(distribution_2d_type), POINTER :: distribution_2d
+    CHARACTER(len=*), PARAMETER :: routineN = 'sm_pool_create_matrix', &
+      routineP = moduleN//':'//routineN
+
+    CHARACTER(len=40)                        :: symmetry
+    INTEGER                                  :: n_blocks_col, n_blocks_row, &
+                                                n_cols, n_rows
+    INTEGER, DIMENSION(:), POINTER           :: first_col, first_row, &
+                                                last_col, last_row
+    INTEGER, SAVE                            :: last_m_id = 0
+    LOGICAL                                  :: failure
+    TYPE(cp_sm_node_type), POINTER           :: next_row, pos_att
+    TYPE(distribution_2d_type), POINTER      :: distribution_2d
 
     failure=.FALSE.
     NULLIFY(first_row, first_col, last_row, last_col, next_row, pos_att,&
@@ -490,16 +495,20 @@ CONTAINS
 !!*** **********************************************************************
   SUBROUTINE sm_pool_create_matrix_vect(pool, n_matrixes, matrixes, name,&
        error)
-    TYPE(cp_sm_pool_type), POINTER :: pool
-    INTEGER, INTENT(in) :: n_matrixes
-    TYPE(real_matrix_p_type), DIMENSION(:), POINTER :: matrixes
-    CHARACTER(len=*), INTENT(in), OPTIONAL :: name
-    TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
+    TYPE(cp_sm_pool_type), POINTER           :: pool
+    INTEGER, INTENT(in)                      :: n_matrixes
+    TYPE(real_matrix_p_type), DIMENSION(:), &
+      POINTER                                :: matrixes
+    CHARACTER(len=*), INTENT(in), OPTIONAL   :: name
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
 
-    LOGICAL :: failure
-    CHARACTER(len=*), PARAMETER :: routineN='sm_pool_create_matrix_vect',&
-         routineP=moduleN//':'//routineN
-    INTEGER :: stat,i
+    CHARACTER(len=*), PARAMETER :: routineN = 'sm_pool_create_matrix_vect', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: i, stat
+    LOGICAL                                  :: failure
+
     failure=.FALSE.
 
     CPPrecondition(ASSOCIATED(pool),cp_failure_level,routineP,error,failure)
@@ -555,14 +564,16 @@ CONTAINS
 !!
 !!*** **********************************************************************
   SUBROUTINE sm_pool_give_back_matrix(pool, matrix, error)
-    TYPE(cp_sm_pool_type), POINTER :: pool
-    TYPE(real_matrix_type), POINTER :: matrix
-    TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
+    TYPE(cp_sm_pool_type), POINTER           :: pool
+    TYPE(real_matrix_type), POINTER          :: matrix
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
 
-    LOGICAL :: failure, did_insert
-    CHARACTER(len=*), PARAMETER :: routineN='sm_pool_give_back_matrix',&
-         routineP=moduleN//':'//routineN
-    INTEGER :: stat
+    CHARACTER(len=*), PARAMETER :: routineN = 'sm_pool_give_back_matrix', &
+      routineP = moduleN//':'//routineN
+
+    LOGICAL                                  :: did_insert, failure
+
     failure=.FALSE.
 
     CPPrecondition(ASSOCIATED(pool),cp_failure_level,routineP,error,failure)
@@ -625,14 +636,19 @@ CONTAINS
 !!
 !!*** **********************************************************************
   SUBROUTINE sm_pool_give_back_matrix_vect(pool, matrixes, error)
-    TYPE(cp_sm_pool_type), POINTER :: pool
-    TYPE(real_matrix_p_type), DIMENSION(:), POINTER :: matrixes
-    TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
+    TYPE(cp_sm_pool_type), POINTER           :: pool
+    TYPE(real_matrix_p_type), DIMENSION(:), &
+      POINTER                                :: matrixes
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
 
-    LOGICAL :: failure
-    CHARACTER(len=*), PARAMETER :: routineN='sm_pool_give_back_matrix_vect',&
-         routineP=moduleN//':'//routineN
-    INTEGER :: stat,i
+    CHARACTER(len=*), PARAMETER :: &
+      routineN = 'sm_pool_give_back_matrix_vect', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: i, stat
+    LOGICAL                                  :: failure
+
     failure=.FALSE.
 
     CPPrecondition(ASSOCIATED(pool),cp_failure_level,routineP,error,failure)
@@ -683,13 +699,16 @@ CONTAINS
 !!
 !!*** **********************************************************************
 FUNCTION sm_pool_get_mstruct(pool,error) RESULT(res)
-  TYPE(cp_sm_struct_type), POINTER       :: res
-  TYPE(cp_sm_pool_type), POINTER               :: pool
-  TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
-  
-  LOGICAL :: failure
-  CHARACTER(len=*), PARAMETER :: routineN='sm_pool_get_mstruct',&
-        routineP=moduleN//':'//routineN
+    TYPE(cp_sm_pool_type), POINTER           :: pool
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
+    TYPE(cp_sm_struct_type), POINTER         :: res
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'sm_pool_get_mstruct', &
+      routineP = moduleN//':'//routineN
+
+    LOGICAL                                  :: failure
+
   failure=.FALSE.
   
   CPPrecondition(ASSOCIATED(pool),cp_failure_level,routineP,error,failure)
@@ -736,14 +755,17 @@ END FUNCTION sm_pool_get_mstruct
 !!
 !!*** **********************************************************************
 SUBROUTINE sm_pools_copy(source_pools, target_pools, error)
-  TYPE(cp_sm_pool_p_type), DIMENSION(:), POINTER :: source_pools,&
-       target_pools
-  TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
-  
-  LOGICAL :: failure
-  INTEGER :: stat, i
-  CHARACTER(len=*), PARAMETER :: routineN='sm_pools_copy',&
-        routineP=moduleN//':'//routineN
+    TYPE(cp_sm_pool_p_type), DIMENSION(:), &
+      POINTER                                :: source_pools, target_pools
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'sm_pools_copy', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: i, stat
+    LOGICAL                                  :: failure
+
   failure=.FALSE.
   
   CPPrecondition(ASSOCIATED(source_pools),cp_failure_level,routineP,error,failure)
@@ -790,13 +812,17 @@ END SUBROUTINE sm_pools_copy
 !!
 !!*** **********************************************************************
 SUBROUTINE sm_pools_dealloc(pools, error)
-  TYPE(cp_sm_pool_p_type), DIMENSION(:), POINTER :: pools
-  TYPE(cp_error_type), OPTIONAL, INTENT(inout)   :: error
-  
-  LOGICAL :: failure
-  INTEGER :: stat, i
-  CHARACTER(len=*), PARAMETER :: routineN='sm_pools_dealloc',&
-        routineP=moduleN//':'//routineN
+    TYPE(cp_sm_pool_p_type), DIMENSION(:), &
+      POINTER                                :: pools
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'sm_pools_dealloc', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: i, stat
+    LOGICAL                                  :: failure
+
   failure=.FALSE.
   
   IF (ASSOCIATED(pools)) THEN
@@ -839,13 +865,17 @@ END SUBROUTINE sm_pools_dealloc
 !!
 !!*** **********************************************************************
 SUBROUTINE sm_pools_flush_cache(pools, error)
-  TYPE(cp_sm_pool_p_type), DIMENSION(:), POINTER :: pools
-  TYPE(cp_error_type), OPTIONAL, INTENT(inout)   :: error
-  
-  LOGICAL :: failure
-  INTEGER :: stat,i
-  CHARACTER(len=*), PARAMETER :: routineN='sm_pools_flush_cache',&
-        routineP=moduleN//':'//routineN
+    TYPE(cp_sm_pool_p_type), DIMENSION(:), &
+      POINTER                                :: pools
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'sm_pools_flush_cache', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: i
+    LOGICAL                                  :: failure
+
   failure=.FALSE.
   
   CPPrecondition(ASSOCIATED(pools),cp_failure_level,routineP,error,failure)
@@ -891,15 +921,20 @@ END SUBROUTINE sm_pools_flush_cache
 !!
 !!*** **********************************************************************
 SUBROUTINE sm_pools_create_matrix_vect(pools,matrixes,name,error)
-  TYPE(cp_sm_pool_p_type), DIMENSION(:), POINTER :: pools
-  TYPE(real_matrix_p_type), DIMENSION(:), POINTER :: matrixes
-  CHARACTER(len=*), OPTIONAL, INTENT(in) :: name
-  TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
-  
-  LOGICAL :: failure
-  INTEGER :: stat,i
-  CHARACTER(len=*), PARAMETER :: routineN='sm_pools_create_matrix_vect',&
-        routineP=moduleN//':'//routineN
+    TYPE(cp_sm_pool_p_type), DIMENSION(:), &
+      POINTER                                :: pools
+    TYPE(real_matrix_p_type), DIMENSION(:), &
+      POINTER                                :: matrixes
+    CHARACTER(len=*), INTENT(in), OPTIONAL   :: name
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'sm_pools_create_matrix_vect', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: i, stat
+    LOGICAL                                  :: failure
+
   failure=.FALSE.
   
   CPPrecondition(ASSOCIATED(pools),cp_failure_level,routineP,error,failure)
@@ -955,14 +990,20 @@ END SUBROUTINE sm_pools_create_matrix_vect
 !!
 !!*** **********************************************************************
 SUBROUTINE sm_pools_give_back_matrix_vect(pools,matrixes,error)
-  TYPE(cp_sm_pool_p_type), DIMENSION(:), POINTER :: pools
-  TYPE(real_matrix_p_type), DIMENSION(:), POINTER :: matrixes
-  TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
-  
-  LOGICAL :: failure
-  INTEGER :: i, stat
-  CHARACTER(len=*), PARAMETER :: routineN='sm_pools_give_back_matrix_vect',&
-        routineP=moduleN//':'//routineN
+    TYPE(cp_sm_pool_p_type), DIMENSION(:), &
+      POINTER                                :: pools
+    TYPE(real_matrix_p_type), DIMENSION(:), &
+      POINTER                                :: matrixes
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
+
+    CHARACTER(len=*), PARAMETER :: &
+      routineN = 'sm_pools_give_back_matrix_vect', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: i, stat
+    LOGICAL                                  :: failure
+
   failure=.FALSE.
   
   CPPrecondition(ASSOCIATED(pools),cp_failure_level,routineP,error,failure)

@@ -17,15 +17,20 @@
 !*****************************************************************
 !------------------------------------------------------------------------------!
 !
-  USE global_types, ONLY : global_environment_type
-  USE kinds, ONLY : dbl
-  USE md, ONLY : simulation_parameters_type
-  USE pair_potential, ONLY : potentialparm_type
-  USE structure_types, ONLY : structure_type
-  USE termination, ONLY : stop_program, stop_memory
-  USE fit_parameters_types, ONLY : fit_parameter_type, fit_averages_type, &
-      linklist_parameters_type, fit_info_type, linklist_real_type
-  USE simulation_cell, ONLY : get_hinv, cell_type
+  USE fit_parameters_types,            ONLY: fit_averages_type,&
+                                             fit_info_type,&
+                                             fit_parameter_type,&
+                                             linklist_parameters_type,&
+                                             linklist_real_type
+  USE global_types,                    ONLY: global_environment_type
+  USE kinds,                           ONLY: dbl
+  USE md,                              ONLY: simulation_parameters_type
+  USE pair_potential,                  ONLY: potentialparm_type
+  USE simulation_cell,                 ONLY: cell_type,&
+                                             get_hinv
+  USE structure_types,                 ONLY: structure_type
+  USE termination,                     ONLY: stop_memory,&
+                                             stop_program
 
   IMPLICIT NONE
 !
@@ -39,20 +44,23 @@
 !------------------------------------------------------------------------------!
 !
   SUBROUTINE force_ref(struc,potparm,simpar,fit_param,finfo, box_ref)
-    IMPLICIT NONE
-    TYPE (structure_type), INTENT (INOUT) :: struc
-    TYPE (potentialparm_type), DIMENSION (:,:), INTENT (INOUT) :: potparm
-    TYPE (simulation_parameters_type), INTENT (IN) :: simpar
-    TYPE ( fit_parameter_type ), INTENT ( INOUT ) :: fit_param
-    TYPE ( fit_info_type ), DIMENSION( :, : ), POINTER :: finfo
-    TYPE (cell_type) , POINTER, DIMENSION (:) :: box_ref
+    TYPE(structure_type), INTENT(INOUT)      :: struc
+    TYPE(potentialparm_type), &
+      DIMENSION(:, :), INTENT(INOUT)         :: potparm
+    TYPE(simulation_parameters_type), &
+      INTENT(IN)                             :: simpar
+    TYPE(fit_parameter_type), INTENT(INOUT)  :: fit_param
+    TYPE(fit_info_type), DIMENSION(:, :), &
+      POINTER                                :: finfo
+    TYPE(cell_type), DIMENSION(:), POINTER   :: box_ref
 
-! locals
-    INTEGER :: npart, ipart, itime, ii, it, isos, jj, kk
-    REAL (dbl), ALLOCATABLE, DIMENSION (:,:,:) :: r, v
-    REAL (dbl), DIMENSION (3) :: fref
-    REAL (dbl), DIMENSION(3,3) :: hmat
-    LOGICAL :: copy
+    INTEGER                                  :: ii, ipart, isos, it, itime, &
+                                                jj, kk, npart
+    LOGICAL                                  :: copy
+    REAL(dbl), ALLOCATABLE, &
+      DIMENSION(:, :, :)                     :: r, v
+    REAL(dbl), DIMENSION(3)                  :: fref
+    REAL(dbl), DIMENSION(3, 3)               :: hmat
 
 ! From the first principles trajectory file obtain the total force
 ! on the particle by inverting the velcocity Verlet equations
@@ -165,19 +173,19 @@
 !
   SUBROUTINE fit_print_info(tol,potparm,fit_param,y,atom_names,&
                             fit_ave,globenv,iter)
-    IMPLICIT NONE
-    REAL (dbl), INTENT (IN) :: tol
-    TYPE (potentialparm_type), DIMENSION (:,:), INTENT (IN) :: potparm
-    TYPE ( fit_parameter_type ), INTENT ( IN ) :: fit_param                
-    REAL ( dbl ), DIMENSION ( : ), INTENT ( IN ) :: y
-    CHARACTER ( LEN = * ), DIMENSION ( : ), POINTER :: atom_names 
-    TYPE (fit_averages_type) :: fit_ave
-    TYPE ( global_environment_type ), INTENT ( IN ) :: globenv
-    INTEGER :: iter
+    REAL(dbl), INTENT(IN)                    :: tol
+    TYPE(potentialparm_type), &
+      DIMENSION(:, :), INTENT(IN)            :: potparm
+    TYPE(fit_parameter_type), INTENT(IN)     :: fit_param
+    REAL(dbl), DIMENSION(:), INTENT(IN)      :: y
+    CHARACTER(LEN=*), DIMENSION(:), POINTER  :: atom_names
+    TYPE(fit_averages_type)                  :: fit_ave
+    TYPE(global_environment_type), &
+      INTENT(IN)                             :: globenv
+    INTEGER                                  :: iter
 
-! local variables
-    INTEGER :: iatom, jatom, iw
-    
+    INTEGER                                  :: iatom, iw, jatom
+
     iw = globenv % scr 
 
     WRITE (iw,*)
@@ -222,17 +230,15 @@
 !------------------------------------------------------------------------------!
 !
   SUBROUTINE get_lj_params(potparm, y, param, ave_sig, ave_eps)
-    IMPLICIT NONE
-    TYPE (potentialparm_type), DIMENSION (:,:), INTENT (IN) :: potparm
-    REAL ( dbl ), DIMENSION ( : ), INTENT ( IN ) :: y
-    TYPE ( linklist_parameters_type ), INTENT(IN), DIMENSION ( :, : ) :: param
-    REAL ( dbl ), POINTER, DIMENSION (:,:) :: ave_sig
-    REAL ( dbl ), POINTER, DIMENSION (:,:) :: ave_eps
+    TYPE(potentialparm_type), &
+      DIMENSION(:, :), INTENT(IN)            :: potparm
+    REAL(dbl), DIMENSION(:), INTENT(IN)      :: y
+    TYPE(linklist_parameters_type), &
+      DIMENSION(:, :), INTENT(IN)            :: param
+    REAL(dbl), DIMENSION(:, :), POINTER      :: ave_sig, ave_eps
 
-! locals    
-    INTEGER :: iatom, jatom, i
-    TYPE (linklist_real_type), POINTER :: lleps
-    TYPE (linklist_real_type), POINTER :: llsig
+    INTEGER                                  :: i, iatom, jatom
+    TYPE(linklist_real_type), POINTER        :: lleps, llsig
 
     ave_sig =  0_dbl
     ave_eps =  0_dbl
@@ -258,18 +264,15 @@
 !------------------------------------------------------------------------------!
 !
   SUBROUTINE get_will_params(potparm, y, param, ave_a, ave_b, ave_c)
-    IMPLICIT NONE
-    TYPE (potentialparm_type), DIMENSION (:,:), INTENT (IN) :: potparm
-    REAL ( dbl ), DIMENSION ( : ), INTENT ( IN ) :: y
-    TYPE ( linklist_parameters_type ), INTENT(IN), DIMENSION ( :, : ) :: param
-    REAL ( dbl ),  POINTER  , DIMENSION (:,:) :: ave_a
-    REAL ( dbl ),  POINTER  , DIMENSION (:,:) :: ave_b
-    REAL ( dbl ),  POINTER  , DIMENSION (:,:) :: ave_c
-! locals    
-    INTEGER :: iatom, jatom, i
-    TYPE (linklist_real_type), POINTER :: lla
-    TYPE (linklist_real_type), POINTER :: llb
-    TYPE (linklist_real_type), POINTER :: llc
+    TYPE(potentialparm_type), &
+      DIMENSION(:, :), INTENT(IN)            :: potparm
+    REAL(dbl), DIMENSION(:), INTENT(IN)      :: y
+    TYPE(linklist_parameters_type), &
+      DIMENSION(:, :), INTENT(IN)            :: param
+    REAL(dbl), DIMENSION(:, :), POINTER      :: ave_a, ave_b, ave_c
+
+    INTEGER                                  :: i, iatom, jatom
+    TYPE(linklist_real_type), POINTER        :: lla, llb, llc
 
     ave_a =  0_dbl
     ave_b =  0_dbl
@@ -297,18 +300,15 @@
 
 SUBROUTINE fit_write_restart ( y, p )
 
-  IMPLICIT NONE
 
-! Arguments
-  REAL ( dbl ), DIMENSION ( : ), INTENT ( IN ) :: y
-  REAL ( dbl ), DIMENSION ( :, : ), INTENT ( IN ) :: p
+    REAL(dbl), DIMENSION(:), INTENT(IN)      :: y
+    REAL(dbl), DIMENSION(:, :), INTENT(IN)   :: p
 
-! Locals
-  INTEGER :: i, j, iochannel = 99
+    INTEGER                                  :: i, iochannel = 99, j
 
 !------------------------------------------------------------------------------
-
 ! write to the restart file
+
   OPEN ( UNIT = iochannel, FILE = 'amoeba.rst', STATUS = 'UNKNOWN' )
 
   DO i = 1, SIZE ( y )
@@ -327,18 +327,15 @@ END SUBROUTINE fit_write_restart
 
 SUBROUTINE fit_read_restart ( y, p )
 
-  IMPLICIT NONE
 
-! Arguments
-  REAL ( dbl ), DIMENSION ( : ), INTENT ( OUT ) :: y
-  REAL ( dbl ), DIMENSION ( :, : ), INTENT ( OUT ) :: p
+    REAL(dbl), DIMENSION(:), INTENT(OUT)     :: y
+    REAL(dbl), DIMENSION(:, :), INTENT(OUT)  :: p
 
-! Locals
-  INTEGER :: i, j, iochannel = 99
+    INTEGER                                  :: i, iochannel = 99, j
 
 !------------------------------------------------------------------------------
-
 ! read from the restart file
+
   OPEN ( UNIT = iochannel, FILE = 'amoeba.rst', STATUS = 'UNKNOWN' )
 
   DO i = 1, SIZE ( y )

@@ -31,42 +31,31 @@ MODULE topology_util
   USE external_potential_types,        ONLY: elp_potential_type,&
                                              set_potential
   USE global_types,                    ONLY: global_environment_type
-  USE input_types,                     ONLY: setup_parameters_type
-  USE kinds,                           ONLY: dbl,default_string_length
+  USE kinds,                           ONLY: dbl,&
+                                             default_string_length
   USE memory_utilities,                ONLY: reallocate
-  USE message_passing,                 ONLY: mp_bcast
+  USE molecule_kind_types,             ONLY: allocate_molecule_kind_set,&
+                                             atom_type,&
+                                             bend_type,&
+                                             bond_type,&
+                                             get_molecule_kind,&
+                                             molecule_kind_type,&
+                                             set_molecule_kind,&
+                                             torsion_type
   USE molecule_types_new,              ONLY: allocate_molecule_set,&
-                                             get_molecule,&
                                              local_molecule_type,&
                                              molecule_type,&
                                              set_molecule,&
                                              set_molecule_set
-  USE molecule_kind_types,             ONLY: allocate_molecule_kind_set,&
-                                             atom_type,&
-                                             bond_type,&
-                                             bend_type,&
-                                             get_molecule_kind,&
-                                             molecule_kind_type,&
-                                             read_molecule_kind_set,&
-                                             set_molecule_kind,&
-                                             torsion_type
   USE nrutil,                          ONLY: swap
   USE particle_types,                  ONLY: allocate_particle_set,&
-                                             particle_type,&
-                                             write_particle_coordinates
+                                             particle_type
   USE periodic_table,                  ONLY: ptable
-  USE simulation_cell,                 ONLY: cell_type,&
-                                             write_cell,&
-                                             pbc
-  USE string_utilities,                ONLY: make_tuple,&
-                                             str_search,&
-                                             uppercase,&
-                                             xstring
+  USE simulation_cell,                 ONLY: pbc
+  USE string_utilities,                ONLY: str_search
   USE termination,                     ONLY: stop_memory,&
                                              stop_program
   USE topology_types,                  ONLY: topology_parameters_type
-
-
 
   CHARACTER(LEN=*), PARAMETER, PRIVATE :: moduleN = "topology_util"
 
@@ -110,27 +99,25 @@ CONTAINS
 !******************************************************************************
 SUBROUTINE topology_generate_molecule(topology,globenv)
 
-  IMPLICIT NONE
 
-! Arguments
-  TYPE ( topology_parameters_type ), INTENT (INOUT)   :: topology
-  TYPE ( global_environment_type ), OPTIONAL,INTENT ( IN )  :: globenv
+    TYPE(topology_parameters_type), &
+      INTENT(INOUT)                          :: topology
+    TYPE(global_environment_type), &
+      INTENT(IN), OPTIONAL                   :: globenv
 
-! Locals
-  LOGICAL :: PM1,PM2,PM3,PM4
-  INTEGER :: natom,nbond
-  INTEGER :: iatom,iiatom,ibond
-  INTEGER :: first,last
-  INTEGER :: itype,ntype       !# of molecular types
-  INTEGER :: inum,nnum         !# of molecules of each type
-  INTEGER, POINTER :: checkme(:)
-  INTEGER :: a,b,iii
-  INTEGER :: istat
-  INTEGER :: iw,handle
-  CHARACTER(len=*), PARAMETER :: routineN='topology_generate_molecule',&
-       routineP=moduleN//':'//routineN
+    CHARACTER(len=*), PARAMETER :: routineN = 'topology_generate_molecule', &
+      routineP = moduleN//':'//routineN
 
+    INTEGER                                  :: first, iatom, iiatom, iii, &
+                                                inum, istat, itype, iw, last, &
+                                                natom, nbond, nnum, ntype
+    INTEGER, POINTER                         :: checkme(:)
+    LOGICAL                                  :: PM1, PM2, PM3, PM4
+
+!# of molecular types
+!# of molecules of each type
 !------------------------------------------------------------------------------
+
   PM1 = .FALSE.
   PM2 = .FALSE.
   PM3 = .FALSE.
@@ -268,15 +255,13 @@ END SUBROUTINE topology_generate_molecule
 !******************************************************************************
 SUBROUTINE find_boundary(num_array,ntot,first,last,search)
 
-  IMPLICIT NONE
 
-! Arguments
-  INTEGER, POINTER :: num_array(:)
-  INTEGER :: ntot,first,last,search
+    INTEGER, POINTER                         :: num_array(:)
+    INTEGER                                  :: ntot, first, last, search
 
-! Locals
-  LOGICAL :: found
-  INTEGER :: i
+    INTEGER                                  :: i
+    LOGICAL                                  :: found
+
 !------------------------------------------------------------------------------
 
   found=.FALSE.
@@ -319,16 +304,14 @@ END SUBROUTINE find_boundary
 !******************************************************************************
 SUBROUTINE find_boundary2(num_array1,num_array2,ntot,first,last,search1,search2)
 
-  IMPLICIT NONE
 
-! Arguments
-  INTEGER, POINTER :: num_array1(:),num_array2(:)
-  INTEGER :: ntot,first,last,search1,search2
-  INTEGER :: tfirst,tlast
+    INTEGER, POINTER                         :: num_array1(:), num_array2(:)
+    INTEGER                                  :: ntot, first, last, search1, &
+                                                search2
 
-! Locals
-  LOGICAL :: found
-  INTEGER :: i
+    INTEGER                                  :: i, tfirst, tlast
+    LOGICAL                                  :: found
+
 !------------------------------------------------------------------------------
 
   found=.FALSE.
@@ -374,17 +357,17 @@ END SUBROUTINE find_boundary2
 SUBROUTINE find_boundary3(num_array1,num_array2,num_array3,ntot,first,last,&
                           search1,search2,search3)
 
-  IMPLICIT NONE
 
-! Arguments
-  INTEGER, POINTER :: num_array1(:),num_array2(:),num_array3(:)
-  INTEGER :: ntot,first,last,search1,search2,search3
-  INTEGER :: tfirst,tlast
+    INTEGER, POINTER                         :: num_array1(:), num_array2(:), &
+                                                num_array3(:)
+    INTEGER                                  :: ntot, first, last, search1, &
+                                                search2, search3
 
-! Locals
-  LOGICAL :: found
-  INTEGER :: i
+    INTEGER                                  :: i, tfirst, tlast
+    LOGICAL                                  :: found
+
 !------------------------------------------------------------------------------
+
   found=.FALSE.
   first=0
   last=ntot
@@ -429,17 +412,14 @@ END SUBROUTINE find_boundary3
 !******************************************************************************
 SUBROUTINE sort_bond(nbond,bond_a,bond_b)
 
-  IMPLICIT NONE
 
-! Arguments
-  INTEGER :: nbond
-  INTEGER, POINTER :: bond_a(:),bond_b(:)
+    INTEGER                                  :: nbond
+    INTEGER, POINTER                         :: bond_a(:), bond_b(:)
 
-! Locals
-  INTEGER :: i,j,k
-  INTEGER :: first,last,search
+    INTEGER                                  :: first, i, j, k, last, search
 
 !------------------------------------------------------------------------------
+
   DO i=1,nbond
     IF(bond_a(i)>bond_b(i)) THEN
       CALL swap(bond_a(i),bond_b(i))
@@ -495,17 +475,16 @@ END SUBROUTINE sort_bond
 !******************************************************************************
 SUBROUTINE sort_bend(ntheta,theta_a,theta_b,theta_c)
 
-  IMPLICIT NONE
 
-! Arguments
-  INTEGER :: ntheta
-  INTEGER, POINTER :: theta_a(:),theta_b(:),theta_c(:)
+    INTEGER                                  :: ntheta
+    INTEGER, POINTER                         :: theta_a(:), theta_b(:), &
+                                                theta_c(:)
 
-! Locals
-  INTEGER :: i,j,k
-  INTEGER :: first,last,search1,search2
+    INTEGER                                  :: first, i, j, k, last, &
+                                                search1, search2
 
 !------------------------------------------------------------------------------
+
   DO i=1,ntheta
     IF(theta_a(i)>theta_c(i)) THEN
       CALL swap(theta_a(i),theta_c(i))
@@ -581,18 +560,17 @@ END SUBROUTINE sort_bend
 !******************************************************************************
 SUBROUTINE sort_dihe(nphi,phi_a,phi_b,phi_c,phi_d)
 
-  IMPLICIT NONE
 
-! Arguments
-  INTEGER :: nphi
-  INTEGER, POINTER :: phi_a(:),phi_b(:),phi_c(:),phi_d(:)
+    INTEGER                                  :: nphi
+    INTEGER, POINTER                         :: phi_a(:), phi_b(:), phi_c(:), &
+                                                phi_d(:)
 
-! Locals
-  INTEGER :: i,j,k
-  INTEGER :: first,last,search1,search2,search3
+    INTEGER                                  :: first, i, j, k, last, &
+                                                search1, search2, search3
 
 !------------------------------------------------------------------------------
-  !Internal ordering in each dihedral
+!Internal ordering in each dihedral
+
   DO i=1,nphi
     IF(phi_a(i)>phi_d(i)) THEN
       CALL swap(phi_a(i),phi_d(i))
@@ -698,30 +676,30 @@ END SUBROUTINE sort_dihe
 !!
 !!   SOURCE
 SUBROUTINE topology_generate_bond(topology,globenv)
-  IMPLICIT NONE
-!Arguments
-  TYPE ( topology_parameters_type ), INTENT (INOUT)   :: topology
-  TYPE ( global_environment_type ), OPTIONAL,INTENT ( IN )  :: globenv
+    TYPE(topology_parameters_type), &
+      INTENT(INOUT)                          :: topology
+    TYPE(global_environment_type), &
+      INTENT(IN), OPTIONAL                   :: globenv
 
-!Locals
-  LOGICAL :: PM1,PM2,PM3,PM4
-  INTEGER :: i,j,k
-  INTEGER :: natom
-  INTEGER :: nbond
-  INTEGER :: iatom,jatom,ibond
-  INTEGER :: first,last,search
-  INTEGER :: ielem,nelem
-  INTEGER :: iw,istat,handle
-  INTEGER, PARAMETER :: nblock = 1000
-  INTEGER, POINTER :: tbond_a(:),tbond_b(:)
-  REAL(dbl) :: dr(3),rr(3),r2,rbond,rbond2
-  REAL(dbl), POINTER :: covalent_radius(:)
-  REAL(dbl), POINTER :: vdw_radius(:)
-  CHARACTER (LEN = 2),POINTER :: atm_symbol(:)
-  CHARACTER(len=*), PARAMETER :: routineN='topology_generate_bond',&
-       routineP=moduleN//':'//routineN
+    CHARACTER(len=*), PARAMETER :: routineN = 'topology_generate_bond', &
+      routineP = moduleN//':'//routineN
+    INTEGER, PARAMETER                       :: nblock = 1000
+
+    CHARACTER(LEN=2), POINTER                :: atm_symbol(:)
+    INTEGER                                  :: first, i, iatom, ibond, &
+                                                ielem, istat, iw, j, jatom, &
+                                                k, last, natom, nbond, nelem, &
+                                                search
+    INTEGER, POINTER                         :: tbond_a(:), tbond_b(:)
+    LOGICAL                                  :: PM1, PM2, PM3, PM4
+    REAL(dbl)                                :: dr(3), r2, rbond, rbond2, &
+                                                rr(3)
+    REAL(dbl), POINTER                       :: covalent_radius(:), &
+                                                vdw_radius(:)
+
 !------------------------------------------------------------------------------
 !------------------------------------------------------------------------------
+
   PM1 = .FALSE.
   PM2 = .FALSE.
   PM3 = .FALSE.
@@ -915,25 +893,25 @@ END SUBROUTINE topology_generate_bond
 !!   SOURCE
 !******************************************************************************
 SUBROUTINE topology_generate_bend(topology,globenv)
-  IMPLICIT NONE
 
-!Arguments
-  TYPE ( topology_parameters_type ), INTENT (INOUT)   :: topology
-  TYPE ( global_environment_type ), OPTIONAL,INTENT ( IN )  :: globenv
+    TYPE(topology_parameters_type), &
+      INTENT(INOUT)                          :: topology
+    TYPE(global_environment_type), &
+      INTENT(IN), OPTIONAL                   :: globenv
 
-!Locals
-  LOGICAL :: PM1,PM2,PM3,PM4
-  INTEGER :: ntheta
-  INTEGER :: first,last,search,countme
-  INTEGER :: nbond
-  INTEGER :: ibond,iibond,itheta
-  INTEGER :: iw,istat,handle
-  INTEGER, PARAMETER :: nblock = 1000
-  INTEGER, POINTER :: tmp_a(:),tmp_b(:),tmp_c(:)
-  CHARACTER(len=*), PARAMETER :: routineN='topology_generate_bend',&
-       routineP=moduleN//':'//routineN
+    CHARACTER(len=*), PARAMETER :: routineN = 'topology_generate_bend', &
+      routineP = moduleN//':'//routineN
+    INTEGER, PARAMETER                       :: nblock = 1000
+
+    INTEGER                                  :: countme, first, ibond, &
+                                                iibond, istat, itheta, iw, &
+                                                last, nbond, ntheta, search
+    INTEGER, POINTER                         :: tmp_a(:), tmp_b(:), tmp_c(:)
+    LOGICAL                                  :: PM1, PM2, PM3, PM4
+
 !------------------------------------------------------------------------------
 !------------------------------------------------------------------------------
+
   PM1 = .FALSE.
   PM2 = .FALSE.
   PM3 = .FALSE.
@@ -1088,25 +1066,23 @@ END SUBROUTINE topology_generate_bend
 !******************************************************************************
 !Use information from bond list to generate a list of dihedral angles
 SUBROUTINE topology_generate_dihe(topology,globenv)
-  IMPLICIT NONE
 
-!Arguments
-  TYPE ( topology_parameters_type ), INTENT (INOUT)   :: topology
-  TYPE ( global_environment_type ), OPTIONAL,INTENT ( IN )  :: globenv
+    TYPE(topology_parameters_type), &
+      INTENT(INOUT)                          :: topology
+    TYPE(global_environment_type), &
+      INTENT(IN), OPTIONAL                   :: globenv
 
-!Locals
-  LOGICAL :: PM1,PM2,PM3,PM4
-  INTEGER :: nphi
-  INTEGER :: first,last,search
-  INTEGER :: firstb,lastb,searchb
-  INTEGER :: ntheta
-  INTEGER :: itheta,iitheta,iiitheta,iphi
-  INTEGER :: iw,handle
-  INTEGER, POINTER :: tmp_a(:),tmp_b(:),tmp_c(:),tmp_d(:)
-  CHARACTER(len=*), PARAMETER :: routineN='topology_generate_dihe',&
-       routineP=moduleN//':'//routineN
+    CHARACTER(len=*), PARAMETER :: routineN = 'topology_generate_dihe', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: iphi, iw, nphi, ntheta
+    INTEGER, POINTER                         :: tmp_a(:), tmp_b(:), tmp_c(:), &
+                                                tmp_d(:)
+    LOGICAL                                  :: PM1, PM2, PM3, PM4
+
 !------------------------------------------------------------------------------
 !------------------------------------------------------------------------------
+
   PM1 = .FALSE.
   PM2 = .FALSE.
   PM3 = .FALSE.
@@ -1184,36 +1160,39 @@ END SUBROUTINE topology_generate_dihe
 SUBROUTINE topology_connectivity_pack(molecule_kind_set,molecule_set,&
                                       topology,globenv)
 
-  IMPLICIT NONE
 
-! Arguments
-  TYPE ( molecule_type ), DIMENSION (:), POINTER           :: molecule_set
-  TYPE ( molecule_kind_type), DIMENSION(:), POINTER        :: molecule_kind_set
-  TYPE ( topology_parameters_type ), INTENT (INOUT)        :: topology
-  TYPE ( global_environment_type ), OPTIONAL,INTENT ( IN ) :: globenv
+    TYPE(molecule_kind_type), DIMENSION(:), &
+      POINTER                                :: molecule_kind_set
+    TYPE(molecule_type), DIMENSION(:), &
+      POINTER                                :: molecule_set
+    TYPE(topology_parameters_type), &
+      INTENT(INOUT)                          :: topology
+    TYPE(global_environment_type), &
+      INTENT(IN), OPTIONAL                   :: globenv
 
-! Locals
-  LOGICAL :: PM1,PM2,PM3,PM4
-  TYPE (molecule_kind_type), POINTER                 :: molecule_kind
-  TYPE (molecule_type), POINTER                      :: molecule
-  TYPE (local_molecule_type), POINTER                :: lmi
-  TYPE (atom_type), DIMENSION(:), POINTER            :: atom_list
-  TYPE (bond_type), DIMENSION(:), POINTER            :: bond_list
-  TYPE (bend_type), DIMENSION(:), POINTER            :: bend_list
-  TYPE (torsion_type), DIMENSION(:), POINTER         :: torsion_list
-  INTEGER, DIMENSION(:), POINTER                     :: molecule_list
-  INTEGER, POINTER                                   :: first_list(:)
-  CHARACTER ( LEN=default_string_length )            :: nhcopt
-  INTEGER :: nmol,natom,nbond,ntheta,nphi
-  INTEGER :: atm_a,atm_b,atm_c,atm_d
-  INTEGER :: counter,i,j,k,first,last
-  INTEGER :: istat,iw,handle
-  INTEGER, POINTER :: checkme(:)
-  CHARACTER(len=*), PARAMETER :: routineN='topology_connectivity_pack',&
-       routineP=moduleN//':'//routineN
+    CHARACTER(len=*), PARAMETER :: routineN = 'topology_connectivity_pack', &
+      routineP = moduleN//':'//routineN
+
+    CHARACTER(LEN=default_string_length)     :: nhcopt
+    INTEGER                                  :: atm_a, atm_b, atm_c, atm_d, &
+                                                counter, first, i, istat, iw, &
+                                                j, last, natom, nbond, nmol, &
+                                                nphi, ntheta
+    INTEGER, DIMENSION(:), POINTER           :: molecule_list
+    INTEGER, POINTER                         :: checkme(:), first_list(:)
+    LOGICAL                                  :: PM1, PM2, PM3, PM4
+    TYPE(atom_type), DIMENSION(:), POINTER   :: atom_list
+    TYPE(bend_type), DIMENSION(:), POINTER   :: bend_list
+    TYPE(bond_type), DIMENSION(:), POINTER   :: bond_list
+    TYPE(local_molecule_type), POINTER       :: lmi
+    TYPE(molecule_kind_type), POINTER        :: molecule_kind
+    TYPE(molecule_type), POINTER             :: molecule
+    TYPE(torsion_type), DIMENSION(:), &
+      POINTER                                :: torsion_list
 
 !------------------------------------------------------------------------------
 !------------------------------------------------------------------------------
+
   PM1 = .FALSE.
   PM2 = .FALSE.
   PM3 = .FALSE.
@@ -1640,41 +1619,39 @@ SUBROUTINE topology_coordinate_pack (particle_set,atomic_kind_set,&
                               molecule_kind_set,molecule_set,&
                               topology,globenv)
 
-  IMPLICIT NONE
 
-! Arguments
-  TYPE ( global_environment_type ), OPTIONAL,INTENT ( IN )  :: globenv
-  TYPE ( atomic_kind_type), DIMENSION(:), POINTER           :: atomic_kind_set
-  TYPE ( particle_type), DIMENSION(:), POINTER              :: particle_set
-  TYPE ( molecule_type ), DIMENSION (:), POINTER            :: molecule_set
-  TYPE ( molecule_kind_type), DIMENSION (:),POINTER         :: molecule_kind_set
-  TYPE ( topology_parameters_type ), INTENT (INOUT)         :: topology
+    TYPE(particle_type), DIMENSION(:), &
+      POINTER                                :: particle_set
+    TYPE(atomic_kind_type), DIMENSION(:), &
+      POINTER                                :: atomic_kind_set
+    TYPE(molecule_kind_type), DIMENSION(:), &
+      POINTER                                :: molecule_kind_set
+    TYPE(molecule_type), DIMENSION(:), &
+      POINTER                                :: molecule_set
+    TYPE(topology_parameters_type), &
+      INTENT(INOUT)                          :: topology
+    TYPE(global_environment_type), &
+      INTENT(IN), OPTIONAL                   :: globenv
 
-! Locals
-  LOGICAL :: PM1,PM2,PM3,PM4
-  INTEGER :: counter,i,j,k,first,last
-  INTEGER :: istat,iw,handle
-  INTEGER :: ikind,natom
+    CHARACTER(len=*), PARAMETER :: routineN = 'topology_coordinate_pack', &
+      routineP = moduleN//':'//routineN
 
-  INTEGER, DIMENSION(:), POINTER      :: kind_of,natom_of_kind
-  INTEGER, DIMENSION(:), POINTER      :: atomlist
-
-  REAL(dbl), DIMENSION (:), POINTER   :: charge, mass
-
-  CHARACTER(LEN=default_string_length),POINTER       :: work(:)
-
-  TYPE(atomic_kind_type), POINTER                    :: atomic_kind
-  TYPE(elp_potential_type), POINTER                  :: elp_potential
-  TYPE(molecule_kind_type), POINTER                  ::molecule_kind
-  TYPE(molecule_type), POINTER                       :: molecule
-  TYPE(atom_type), DIMENSION(:), POINTER             :: atom_list
-
-  CHARACTER(len=*), PARAMETER :: routineN='topology_coordinate_pack',&
-       routineP=moduleN//':'//routineN
-
+    CHARACTER(LEN=default_string_length), &
+      POINTER                                :: work(:)
+    INTEGER                                  :: counter, first, i, ikind, &
+                                                istat, iw, j, k, last, natom
+    INTEGER, DIMENSION(:), POINTER           :: atomlist, kind_of, &
+                                                natom_of_kind
+    LOGICAL                                  :: PM1, PM2, PM3, PM4
+    REAL(dbl), DIMENSION(:), POINTER         :: charge, mass
+    TYPE(atom_type), DIMENSION(:), POINTER   :: atom_list
+    TYPE(atomic_kind_type), POINTER          :: atomic_kind
+    TYPE(elp_potential_type), POINTER        :: elp_potential
+    TYPE(molecule_kind_type), POINTER        :: molecule_kind
 
 !------------------------------------------------------------------------------
 !------------------------------------------------------------------------------
+
   PM1 = .FALSE.
   PM2 = .FALSE.
   PM3 = .FALSE.

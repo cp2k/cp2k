@@ -23,43 +23,35 @@ MODULE qs_tddfpt_eigensolver
                                              cp_fm_trace
   USE cp_fm_diag,                      ONLY: cp_fm_syevd
   USE cp_fm_pool_types,                ONLY: cp_fm_pool_p_type,&
-                                             cp_fm_pool_type,&
-                                             fm_pool_create_fm_vect,&
                                              fm_pools_create_fm_vect,&
                                              fm_pools_give_back_fm_vect
   USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
                                              cp_fm_struct_type
   USE cp_fm_types,                     ONLY: cp_fm_create,&
-                                             cp_fm_get_element,&
-                                             cp_fm_init_random,&
                                              cp_fm_p_type,&
                                              cp_fm_release,&
-                                             cp_fm_set_all,&
                                              cp_fm_set_element,&
-                                             cp_fm_to_fm,&
-                                             cp_fm_type
+                                             cp_fm_to_fm
   USE cp_log_handling,                 ONLY: cp_to_string
   USE cp_sm_fm_interactions,           ONLY: cp_sm_fm_multiply,&
                                              cp_sm_plus_fm_fm_t
   USE global_types,                    ONLY: global_environment_type
   USE kinds,                           ONLY: dbl
-  USE qs_environment_types,            ONLY: get_qs_env,&
-                                             qs_environment_type
-  USE qs_matrix_pools,                 ONLY: mpools_get,&
-                                             qs_matrix_pools_type
+  USE qs_environment_types,            ONLY: qs_environment_type
+  USE qs_matrix_pools,                 ONLY: mpools_get
   USE qs_p_env_methods,                ONLY: p_op_l1,&
                                              p_op_l2,&
-                                             p_postortho,&
-                                             p_preortho
+                                             p_postortho
   USE qs_p_env_types,                  ONLY: qs_p_env_type
   USE qs_tddfpt_types
-  USE qs_tddfpt_utils,                 ONLY: calc_initial_guess, &
-                                             calc_norm, &
+  USE qs_tddfpt_utils,                 ONLY: calc_initial_guess,&
+                                             calc_norm,&
                                              reorthogonalize
   USE sparse_matrix_types,             ONLY: set_matrix
   USE termination,                     ONLY: stop_program
   USE timings,                         ONLY: timeset,&
                                              timestop
+
   IMPLICIT NONE
 
   TYPE cp_fm_struct_p_type
@@ -80,45 +72,33 @@ CONTAINS
 
   SUBROUTINE tddfpt_es(t_env, p_env, qs_env, glob_env)
     
-    IMPLICIT NONE
 
-    ! ARGUMENTS
-    TYPE(tddfpt_env_type), INTENT(INOUT)      :: t_env
-    TYPE(qs_p_env_type), POINTER              :: p_env
-    TYPE(qs_environment_type), INTENT(IN)     :: qs_env
-    TYPE(global_environment_type), INTENT(in) :: glob_env
-
-    ! LOCALS
-    INTEGER                                              :: spin, n_spins, &
-                                                            n_ev, max_krylovspace_dim, &
-                                                            n_kv, max_krylovvec, &
-                                                            max_iter, &
-                                                            n_reortho, &
-                                                            row, col, &
-                                                            i, j, index, &
-                                                            stat, &
-                                                            iteration, handle, &
-                                                            start_col, n
-    REAL(dbl)                                            :: tol, &
-                                                            beta, &
-                                                            tmp, &
-                                                            dot_product, &
-                                                            scale_factor, difference
-    REAL(kind=dbl), DIMENSION(:,:), ALLOCATABLE          :: tddfpt_eigenvalues, &
-                                                            temp_orbitals
-    REAL(kind=dbl), DIMENSION(:,:), ALLOCATABLE          :: sum_temp
-    TYPE(cp_fm_pool_p_type), DIMENSION(:), POINTER       :: ao_mo_fm_pools
-    TYPE(cp_fm_p_type)                                   :: T, Tev           
-    TYPE(cp_fm_p_type), DIMENSION(:), POINTER            :: X, R
-    TYPE(cp_fm_p_type), DIMENSION(:,:), POINTER          :: kv, opkv
-    TYPE(cp_fm_p_type), DIMENSION(:,:), POINTER          :: residues
-    TYPE(cp_fm_struct_p_type), DIMENSION(:), POINTER     :: kv_fm_struct
-    TYPE(cp_fm_struct_type), POINTER                     :: T_fm_struct, &
-                                                            Tev_fm_struct
-
+    TYPE(tddfpt_env_type), INTENT(INOUT)     :: t_env
+    TYPE(qs_p_env_type), POINTER             :: p_env
+    TYPE(qs_environment_type), INTENT(IN)    :: qs_env
+    TYPE(global_environment_type), &
+      INTENT(in)                             :: glob_env
 
     CHARACTER(len=*), PARAMETER :: routineN = "tddfpt_es_lanczos", &
-                                   routineP = moduleN//"/"//routineN
+      routineP = moduleN//"/"//routineN
+
+    INTEGER :: col, handle, i, index, iteration, j, max_iter, &
+      max_krylovspace_dim, max_krylovvec, n_ev, n_kv, n_reortho, n_spins, &
+      row, spin, stat
+    REAL(dbl)                                :: beta, difference, &
+                                                dot_product, tmp, tol
+    REAL(kind=dbl), ALLOCATABLE, &
+      DIMENSION(:, :)                        :: tddfpt_eigenvalues
+    TYPE(cp_fm_p_type)                       :: T, Tev
+    TYPE(cp_fm_p_type), DIMENSION(:), &
+      POINTER                                :: R, X
+    TYPE(cp_fm_p_type), DIMENSION(:, :), &
+      POINTER                                :: kv, opkv, residues
+    TYPE(cp_fm_pool_p_type), DIMENSION(:), &
+      POINTER                                :: ao_mo_fm_pools
+    TYPE(cp_fm_struct_p_type), &
+      DIMENSION(:), POINTER                  :: kv_fm_struct
+    TYPE(cp_fm_struct_type), POINTER         :: T_fm_struct, Tev_fm_struct
 
     CALL timeset(routineN,"I","",handle)
 
@@ -410,31 +390,18 @@ CONTAINS
 
   SUBROUTINE apply_op(X, R, t_env, p_env, qs_env)
 
-    IMPLICIT NONE
 
-    ! ARGUMENTS
-    TYPE(cp_fm_p_type), DIMENSION(:), POINTER :: X 
-    TYPE(cp_fm_p_type), DIMENSION(:), POINTER :: R 
-    TYPE(tddfpt_env_type), INTENT(INOUT)               :: t_env
-    TYPE(qs_p_env_type), POINTER                       :: p_env
-    TYPE(qs_environment_type)                          :: qs_env
-
-    ! LOCALS
-    INTEGER                                            :: handle
-    INTEGER                                            :: spin, n_spins
-    TYPE(cp_fm_struct_type), POINTER                   :: v_struct
-    INTEGER                                            :: v_rows, v_cols
-    INTEGER, SAVE                                      :: counter = 0
-    REAL(DBL)                                          :: trace
-    INTEGER                                            :: nrows, ncols, &
-                                                          nblock_rows, nblock_cols
-    INTEGER, DIMENSION(:), POINTER                     :: first_row, last_row, &
-                                                          first_col, last_col
-
-
+    TYPE(cp_fm_p_type), DIMENSION(:), &
+      POINTER                                :: X, R
+    TYPE(tddfpt_env_type), INTENT(INOUT)     :: t_env
+    TYPE(qs_p_env_type), POINTER             :: p_env
+    TYPE(qs_environment_type)                :: qs_env
 
     CHARACTER(LEN=*), PARAMETER :: routineN = "apply_op", &
-                                   routineP = moduleN//"/"//routineN
+      routineP = moduleN//"/"//routineN
+
+    INTEGER                                  :: handle, n_spins, spin
+    INTEGER, SAVE                            :: counter = 0
 
     CALL timeset(routineN,"I","",handle)
 
@@ -505,21 +472,19 @@ CONTAINS
   SUBROUTINE allocate_krylov_vectors(vectors, vectors_name, &
                                      iteration, n_ev, n_spins, fm_struct)
 
-    IMPLICIT NONE
 
-    ! arguments
-    TYPE(cp_fm_p_type), DIMENSION(:,:), POINTER :: vectors
-    CHARACTER(LEN=*), INTENT(IN)                         :: vectors_name
-    INTEGER, INTENT(IN)                                  :: iteration, &
-                                                            n_ev, &
-                                                            n_spins
-    TYPE(cp_fm_struct_p_type), DIMENSION(:), POINTER     :: fm_struct
+    TYPE(cp_fm_p_type), DIMENSION(:, :), &
+      POINTER                                :: vectors
+    CHARACTER(LEN=*), INTENT(IN)             :: vectors_name
+    INTEGER, INTENT(IN)                      :: iteration, n_ev, n_spins
+    TYPE(cp_fm_struct_p_type), &
+      DIMENSION(:), POINTER                  :: fm_struct
 
-    ! locals
-    INTEGER                     :: spin, i, index
-    CHARACTER(LEN=80)           :: mat_name
     CHARACTER(LEN=*), PARAMETER :: routineN = "allocate_krylov_vectors", &
-                                   routineP = moduleN//"/"//routineN
+      routineP = moduleN//"/"//routineN
+
+    CHARACTER(LEN=80)                        :: mat_name
+    INTEGER                                  :: i, index, spin
 
     DO spin=1, n_spins
        DO i=1, n_ev

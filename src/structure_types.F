@@ -22,16 +22,14 @@
 
 MODULE structure_types
 
-  USE coefficient_types, ONLY : coeff_type
-  USE fist_environment_types, ONLY : replica_environment_type, &
-                                     pimd_environment_type
-  USE kinds, ONLY : dbl
-  USE kg_environment_types, ONLY : kg_environment_type
-  USE linklist_types, ONLY : linklist_internal_data_type
-  USE molecule_types, ONLY : molecule_structure_type, particle_node_type
-  USE particle_types, ONLY : particle_type
-  USE qs_environment_types, ONLY : qs_environment_type
-  USE simulation_cell, ONLY : cell_type
+  USE coefficient_types,               ONLY: coeff_type
+  USE fist_environment_types,          ONLY: pimd_environment_type,&
+                                             replica_environment_type
+  USE kg_environment_types,            ONLY: kg_environment_type
+  USE molecule_types,                  ONLY: molecule_structure_type,&
+                                             particle_node_type
+  USE particle_types,                  ONLY: particle_type
+  USE qs_environment_types,            ONLY: qs_environment_type
 
   IMPLICIT NONE
 
@@ -61,19 +59,21 @@ CONTAINS
   SUBROUTINE get_structure_type( struc, part, pnode, molecule, &
                                 pimd_env, coef_pos, coef_vel, coef_force )
 
-    IMPLICIT NONE
 !   Purpose: Get the structure type
 
 !   ***************************************************************************
 
-    TYPE ( structure_type ), INTENT ( IN ) :: struc
-    TYPE ( particle_type ), POINTER, OPTIONAL :: part ( : )
-    TYPE ( particle_node_type ), POINTER, OPTIONAL :: pnode ( : )
-    TYPE ( molecule_structure_type ), POINTER, OPTIONAL :: molecule ( : )
-    TYPE ( pimd_environment_type ), POINTER, OPTIONAL :: pimd_env
-    TYPE ( coeff_type ), POINTER, OPTIONAL  :: coef_pos ( : )        
-    TYPE ( coeff_type ), POINTER, OPTIONAL  :: coef_vel ( : )        
-    TYPE ( coeff_type ), POINTER, OPTIONAL  :: coef_force ( : )      
+    TYPE(structure_type), INTENT(IN)         :: struc
+    TYPE(particle_type), OPTIONAL, POINTER   :: part( : )
+    TYPE(particle_node_type), OPTIONAL, &
+      POINTER                                :: pnode( : )
+    TYPE(molecule_structure_type), &
+      OPTIONAL, POINTER                      :: molecule( : )
+    TYPE(pimd_environment_type), OPTIONAL, &
+      POINTER                                :: pimd_env
+    TYPE(coeff_type), OPTIONAL, POINTER      :: coef_pos( : ), coef_vel( : ), &
+                                                coef_force( : )
+
 !   ---------------------------------------------------------------------------
 
     IF ( PRESENT ( pnode ) ) pnode => struc % pnode
@@ -94,7 +94,7 @@ CONTAINS
 
 !   ***************************************************************************
 
-    TYPE(structure_type), INTENT(OUT) :: struc
+    TYPE(structure_type), INTENT(OUT)        :: struc
 
 !   ---------------------------------------------------------------------------
 
@@ -116,10 +116,13 @@ CONTAINS
 
 
 !   ***************************************************************************
-    TYPE ( structure_type ), INTENT ( OUT ) :: struc 
-    TYPE ( kg_environment_type ), INTENT ( IN ), OPTIONAL    :: kg_env
-    TYPE ( qs_environment_type ), INTENT ( IN ), OPTIONAL    :: qs_env
-    TYPE ( replica_environment_type ), INTENT ( IN ), OPTIONAL  :: rep_env 
+    TYPE(structure_type), INTENT(OUT)        :: struc
+    TYPE(kg_environment_type), INTENT(IN), &
+      OPTIONAL                               :: kg_env
+    TYPE(replica_environment_type), &
+      INTENT(IN), OPTIONAL                   :: rep_env
+    TYPE(qs_environment_type), INTENT(IN), &
+      OPTIONAL                               :: qs_env
 
     IF ( PRESENT ( rep_env ) ) THEN 
       struc % pnode => rep_env % pnode

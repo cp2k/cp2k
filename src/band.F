@@ -36,6 +36,7 @@
   USE kinds,                           ONLY: dbl
   USE termination,                     ONLY: stop_memory,&
                                              stop_program
+
       IMPLICIT NONE
 !
       PRIVATE
@@ -82,9 +83,9 @@
 !!   SOURCE
 !******************************************************************************
       SUBROUTINE band_structure_preinit(bs, error)
-        IMPLICIT NONE
-        TYPE (band_structure_type), INTENT (OUT) :: bs
-        TYPE(cp_error_type), INTENT(inout), OPTIONAL :: error
+    TYPE(band_structure_type), INTENT(OUT)   :: bs
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
 
         NULLIFY(bs%fd, bs%kpt, bs%ev, bs%oc)
       END SUBROUTINE band_structure_preinit
@@ -114,13 +115,14 @@
 !!   SOURCE
 !******************************************************************************
       SUBROUTINE band_structure_dealloc_ref(bs, error)
-        IMPLICIT NONE
-        TYPE (band_structure_type), INTENT (INOUT) :: bs
-        TYPE(cp_error_type), INTENT(inout), OPTIONAL :: error
+    TYPE(band_structure_type), INTENT(INOUT) :: bs
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
 
-        INTEGER :: stat
-        CHARACTER(len=*), PARAMETER :: routineN="band_structure_dealloc_ref",&
-             routineP=moduleN//":"//routineN
+    CHARACTER(len=*), PARAMETER :: routineN = "band_structure_dealloc_ref", &
+      routineP = moduleN//":"//routineN
+
+    INTEGER                                  :: stat
 
         CALL dealloc_fermi_dist(bs%fd)
         CALL kpoint_dealloc(bs%kpt)
@@ -160,12 +162,12 @@
 !******************************************************************************
 
       SUBROUTINE init_band_structure(bs,fd,kp)
-        IMPLICIT NONE
-        TYPE (band_structure_type), INTENT (INOUT) :: bs
-        TYPE (fermi_distribution_type), INTENT (IN), TARGET :: fd
-        TYPE (kpoint_type), INTENT (IN), TARGET :: kp
+    TYPE(band_structure_type), INTENT(INOUT) :: bs
+    TYPE(fermi_distribution_type), &
+      INTENT(IN), TARGET                     :: fd
+    TYPE(kpoint_type), INTENT(IN), TARGET    :: kp
 
-        INTEGER :: nspin, ns, nk, isos
+    INTEGER                                  :: isos, nk, ns, nspin
 
         bs%fd => fd
         bs%kpt => kp
@@ -215,11 +217,11 @@
 !!   SOURCE
 !******************************************************************************
       SUBROUTINE band_structure_info(bs,punit)
-        IMPLICIT NONE
-        TYPE (band_structure_type), INTENT (IN) :: bs
-        INTEGER, INTENT (IN) :: punit
-        INTEGER :: i, ik, left, nm, nk
-        LOGICAL :: nokp
+    TYPE(band_structure_type), INTENT(IN)    :: bs
+    INTEGER, INTENT(IN)                      :: punit
+
+    INTEGER                                  :: i, ik, left, nk, nm
+    LOGICAL                                  :: nokp
 
         WRITE (punit,'(/,1x,79("-"))')
         WRITE (punit,'(" -",77x,"-")')

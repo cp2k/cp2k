@@ -67,8 +67,8 @@ MODULE lebedev
 
 ! *****************************************************************************
 
-  USE kinds,       ONLY: dp
-  USE termination, ONLY: stop_program
+  USE kinds,                           ONLY: dp
+  USE termination,                     ONLY: stop_program
 
   IMPLICIT NONE
 
@@ -124,13 +124,10 @@ CONTAINS
 
 !   ***************************************************************************
 
-    INTEGER, OPTIONAL, INTENT(IN) :: l,n
+    INTEGER, INTENT(IN), OPTIONAL            :: l, n
+    INTEGER                                  :: number_of_lebedev_grid
 
-    INTEGER :: number_of_lebedev_grid
-
-!   *** Local variables ***
-
-    INTEGER, DIMENSION(1) :: lgnum
+    INTEGER, DIMENSION(1)                    :: lgnum
 
 !   ---------------------------------------------------------------------------
 
@@ -170,16 +167,13 @@ CONTAINS
 
 !   ***************************************************************************
 
-    CHARACTER(*), INTENT(IN) :: subsystem
-    INTEGER, INTENT(IN)      :: lgnum,np
+    CHARACTER(*), INTENT(IN)                 :: subsystem
+    INTEGER, INTENT(IN)                      :: lgnum, np
 
-!   *** Local variables ***
-
-    REAL(KIND = dp)      :: x,y,z
-    INTEGER       :: i,j
+    INTEGER                                  :: i, j
+    REAL(KIND=dp)                            :: x, y, z
 
 !   ---------------------------------------------------------------------------
-
 !   *** Check argument values ***
 
     IF ((lgnum < 1).OR.(lgnum > nlg)) THEN
@@ -346,10 +340,9 @@ CONTAINS
 
 !   ***************************************************************************
 
-    INTEGER  :: ilg
+    INTEGER                                  :: ilg
 
 !   ---------------------------------------------------------------------------
-
 !   *** Initialize constants ***
 
     one = 1.0_dp

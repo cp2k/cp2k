@@ -83,6 +83,7 @@ MODULE pw_grids
                                              get_limit,&
                                              matvec_3x3,&
                                              sort
+
   IMPLICIT NONE
 
   PRIVATE
@@ -122,10 +123,8 @@ CONTAINS
 
 SUBROUTINE pw_grid_construct ( pw_grid )
 
-  IMPLICIT NONE
 
-! Arguments
-  TYPE ( pw_grid_type ), INTENT ( INOUT ) :: pw_grid
+    TYPE(pw_grid_type), INTENT(INOUT)        :: pw_grid
 
   pw_grid % bounds = 0
   pw_grid % cutoff = 0._dbl
@@ -178,16 +177,15 @@ END SUBROUTINE pw_grid_construct
 
 SUBROUTINE pw_grid_destruct ( pw_grid, error )
 
-  IMPLICIT NONE
 
-! Arguments
-  TYPE ( pw_grid_type ), INTENT ( INOUT ) :: pw_grid
-  TYPE ( cp_error_type ), INTENT(inout), OPTIONAL :: error
+    TYPE(pw_grid_type), INTENT(INOUT)        :: pw_grid
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
 
-! Local
-  INTEGER :: ierr
-  CHARACTER(len=*),PARAMETER :: routineN="pw_grid_destruct",&
-       routineP=moduleN//":"//routineN
+    CHARACTER(len=*), PARAMETER :: routineN = "pw_grid_destruct", &
+      routineP = moduleN//":"//routineN
+
+    INTEGER                                  :: ierr
 
   CPPreconditionNoFail(pw_grid%ref_count==1,cp_failure_level,routineP,error)
   IF ( ASSOCIATED ( pw_grid % gidx ) ) THEN
@@ -299,12 +297,9 @@ END SUBROUTINE pw_grid_destruct
 
 FUNCTION pw_grid_compare ( grida, gridb ) RESULT ( equal )
 
-  IMPLICIT NONE
 
-! Arguments
-  TYPE ( pw_grid_type ), INTENT ( IN ) :: grida
-  TYPE ( pw_grid_type ), INTENT ( IN ) :: gridb
-  LOGICAL :: equal
+    TYPE(pw_grid_type), INTENT(IN)           :: grida, gridb
+    LOGICAL                                  :: equal
 
 !------------------------------------------------------------------------------
 
@@ -360,29 +355,29 @@ END FUNCTION pw_grid_compare
 SUBROUTINE pw_grid_setup ( cell, pw_grid, cutoff, pe_group, info, fft_usage, &
                            symm_usage, blocked, ref_grid )
 
-  IMPLICIT NONE
 
-! Arguments
-  TYPE ( cell_type ), INTENT ( IN ) :: cell
-  TYPE ( pw_grid_type ), INTENT ( INOUT ) :: pw_grid
-  REAL ( dbl ), INTENT ( IN ), OPTIONAL :: cutoff ! in atomic units
-  INTEGER, OPTIONAL, INTENT ( IN ) :: pe_group ! parent group for this grid
-  INTEGER, OPTIONAL, INTENT ( IN ) :: info  ! output unit for information on grid
-  LOGICAL, OPTIONAL, INTENT ( IN ) :: fft_usage  ! has the grid size to be 
-                                                 ! compatible with the FFT
-  LOGICAL, OPTIONAL, INTENT ( IN ) :: symm_usage ! has the grid size to be 
-                                                 ! symmetric (g <-> -g)    
-  LOGICAL, OPTIONAL, INTENT ( IN ) :: blocked    ! block or ray-distribution
-  TYPE ( pw_grid_type ), OPTIONAL, INTENT ( IN ) :: ref_grid
+    TYPE(cell_type), INTENT(IN)              :: cell
+    TYPE(pw_grid_type), INTENT(INOUT)        :: pw_grid
+    REAL(dbl), INTENT(IN), OPTIONAL          :: cutoff
+    INTEGER, INTENT(IN), OPTIONAL            :: pe_group, info
+    LOGICAL, INTENT(IN), OPTIONAL            :: fft_usage, symm_usage, blocked
+    TYPE(pw_grid_type), INTENT(IN), OPTIONAL :: ref_grid
 
-! Locals
-  REAL ( dbl ) :: ecut
-  INTEGER, DIMENSION ( :, : ), ALLOCATABLE :: yz_mask
-  INTEGER :: allocstat, group_size, my_pos, i, n(3), ntest(3), ires
-  REAL ( dbl ) :: rv(3,3)
-  INTEGER :: aver, amax, amin, handle
-  LOGICAL :: fft, symmetry, blocking
+    INTEGER                                  :: allocstat, group_size, &
+                                                handle, i, ires, my_pos, &
+                                                n(3), ntest(3)
+    INTEGER, ALLOCATABLE, DIMENSION(:, :)    :: yz_mask
+    LOGICAL                                  :: blocking, fft, symmetry
+    REAL(dbl)                                :: ecut, rv(3,3)
 
+! in atomic units
+! parent group for this grid
+! output unit for information on grid
+! has the grid size to be 
+! compatible with the FFT
+! has the grid size to be 
+! symmetric (g <-> -g)    
+! block or ray-distribution
 !------------------------------------------------------------------------------
 
   CALL timeset("pw_grid_setup","I","",handle)
@@ -663,20 +658,19 @@ END SUBROUTINE pw_grid_setup
 
 SUBROUTINE pw_grid_distribute ( pw_grid, yz_mask, ref_grid, blocking )
 
-  IMPLICIT NONE
 
-! Arguments
-  TYPE ( pw_grid_type ), INTENT ( INOUT ), TARGET :: pw_grid
-  INTEGER, DIMENSION ( :, : ), INTENT ( INOUT ) :: yz_mask
-  TYPE ( pw_grid_type ), OPTIONAL, INTENT ( IN ) :: ref_grid
-  LOGICAL, INTENT ( IN ) :: blocking
+    TYPE(pw_grid_type), INTENT(INOUT), &
+      TARGET                                 :: pw_grid
+    INTEGER, DIMENSION(:, :), INTENT(INOUT)  :: yz_mask
+    TYPE(pw_grid_type), INTENT(IN), OPTIONAL :: ref_grid
+    LOGICAL, INTENT(IN)                      :: blocking
 
-! Locals
-  INTEGER :: gmin, gmax, nx, ny, nz, np, ns, i, j, k, l, m, n, handle
-  INTEGER :: lo ( 2 ), ip, ierr, gneg, lby, lbz, coor ( 2 ), rsd ( 2 ), ipl
-  INTEGER :: i1, i2
-  REAL ( dbl ) :: tfun, tt
-  INTEGER, ALLOCATABLE, DIMENSION ( :, : ) :: yz_index
+    INTEGER                                  :: coor( 2 ), gmax, handle, i, &
+                                                i1, i2, ierr, ip, ipl, j, k, &
+                                                l, lby, lbz, lo( 2 ), m, n, &
+                                                np, ns, nx, ny, nz, rsd( 2 )
+    INTEGER, ALLOCATABLE, DIMENSION(:, :)    :: yz_index
+    REAL(dbl)                                :: tfun, tt
 
 !------------------------------------------------------------------------------
 
@@ -934,15 +928,15 @@ END SUBROUTINE pw_grid_distribute
 
 SUBROUTINE pre_tag ( pw_grid, yz_mask, ref_grid )
 
-  IMPLICIT NONE
 
-! Arguments
-  TYPE ( pw_grid_type ), INTENT ( INOUT ), TARGET :: pw_grid
-  INTEGER, DIMENSION ( :, : ), INTENT ( INOUT ) :: yz_mask
-  TYPE ( pw_grid_type ), INTENT ( IN ) :: ref_grid
+    TYPE(pw_grid_type), INTENT(INOUT), &
+      TARGET                                 :: pw_grid
+    INTEGER, DIMENSION(:, :), INTENT(INOUT)  :: yz_mask
+    TYPE(pw_grid_type), INTENT(IN)           :: ref_grid
 
-! Locals
-  INTEGER :: ip, ig, y, z, ny, nz, lby, lbz, uby, ubz, gmax, yp, zp, my, mz
+    INTEGER                                  :: gmax, ig, ip, lby, lbz, my, &
+                                                mz, ny, nz, uby, ubz, y, yp, &
+                                                z, zp
 
 !------------------------------------------------------------------------------
 
@@ -1000,15 +994,14 @@ END SUBROUTINE pre_tag
 
 SUBROUTINE order_mask ( yz_mask, yz_index )
 
-  IMPLICIT NONE
 
-! Arguments
-  INTEGER, DIMENSION ( :, : ), INTENT ( IN ) :: yz_mask
-  INTEGER, DIMENSION ( :, : ), INTENT ( OUT ) :: yz_index
+    INTEGER, DIMENSION(:, :), INTENT(IN)     :: yz_mask
+    INTEGER, DIMENSION(:, :), INTENT(OUT)    :: yz_index
 
-! Locals
-  INTEGER, ALLOCATABLE, DIMENSION ( : ) :: irow, rindex, icol, cindex
-  INTEGER :: i, i1, i2, j, j1, j2, isum, icount, ierr
+    INTEGER                                  :: i, i1, i2, icount, ierr, j, &
+                                                j1, j2
+    INTEGER, ALLOCATABLE, DIMENSION(:)       :: cindex, icol, irow, rindex
+
 !------------------------------------------------------------------------------
 
   i1 = SIZE ( yz_mask, 1 )
@@ -1071,19 +1064,17 @@ END SUBROUTINE order_mask
 
 SUBROUTINE pw_grid_count ( h_inv, pw_grid, cutoff, yz_mask )
 
-  IMPLICIT NONE
 
-! Arguments
-  REAL ( dbl ), DIMENSION ( 3, 3 ) :: h_inv
-  TYPE ( pw_grid_type ), INTENT ( INOUT ), TARGET :: pw_grid
-  REAL ( dbl ), INTENT ( IN ) :: cutoff
-  INTEGER, DIMENSION ( :, : ), INTENT ( OUT ) :: yz_mask
+    REAL(dbl), DIMENSION(3, 3)               :: h_inv
+    TYPE(pw_grid_type), INTENT(INOUT), &
+      TARGET                                 :: pw_grid
+    REAL(dbl), INTENT(IN)                    :: cutoff
+    INTEGER, DIMENSION(:, :), INTENT(OUT)    :: yz_mask
 
-! Locals
-  INTEGER :: gpt, l, m, n, n_upperlimit, nlim ( 2 ), mm, nn
-  REAL ( dbl ) :: gmat ( 3, 3 ), gi ( 3 )
-  REAL ( dbl ) :: length
-  INTEGER, DIMENSION ( :, : ), POINTER :: bounds
+    INTEGER                                  :: gpt, l, m, mm, n, &
+                                                n_upperlimit, nlim( 2 ), nn
+    INTEGER, DIMENSION(:, :), POINTER        :: bounds
+    REAL(dbl)                                :: gi( 3 ), gmat( 3, 3 ), length
 
 !------------------------------------------------------------------------------
 
@@ -1163,20 +1154,21 @@ END SUBROUTINE pw_grid_count
 
 SUBROUTINE pw_grid_assign ( h_inv, pw_grid, cutoff )
 
-  IMPLICIT NONE
 
-! Arguments
-  REAL ( dbl ), DIMENSION ( 3, 3 ) :: h_inv
-  TYPE ( pw_grid_type ), INTENT ( INOUT ), TARGET :: pw_grid
-  REAL ( dbl ), INTENT ( IN ) :: cutoff
+    REAL(dbl), DIMENSION(3, 3)               :: h_inv
+    TYPE(pw_grid_type), INTENT(INOUT), &
+      TARGET                                 :: pw_grid
+    REAL(dbl), INTENT(IN)                    :: cutoff
 
-! Locals
-  INTEGER :: gpt, i, l, m, n, n_upperlimit, ip, lby, lbz, nn, mm, ll, handle
-  REAL ( dbl ) :: length_x, length_y, length_z, length
-  INTEGER, DIMENSION ( 2, 3 ) :: bounds, bol
-  
+    INTEGER                                  :: gpt, handle, i, ip, l, lby, &
+                                                lbz, ll, m, mm, n, &
+                                                n_upperlimit, nn
+    INTEGER, DIMENSION(2, 3)                 :: bol, bounds
+    REAL(dbl)                                :: length, length_x, length_y, &
+                                                length_z
+
 !------------------------------------------------------------------------------
-  
+
   CALL timeset("pw_grid_assign","I","",handle)
 
   bounds = pw_grid % bounds
@@ -1387,18 +1379,13 @@ END SUBROUTINE pw_grid_assign
 
 SUBROUTINE pw_grid_set_maps ( grid_span, g_hat, mapl, mapm, mapn, npts )
 
-  IMPLICIT NONE
 
-! Arguments
-  INTEGER, INTENT ( IN ) :: grid_span
-  INTEGER, DIMENSION ( :, : ), INTENT ( IN ) :: g_hat
-  INTEGER, DIMENSION ( : ), INTENT ( IN ) :: npts
-  TYPE ( map_pn ), INTENT ( INOUT ) :: mapl
-  TYPE ( map_pn ), INTENT ( INOUT ) :: mapm
-  TYPE ( map_pn ), INTENT ( INOUT ) :: mapn
+    INTEGER, INTENT(IN)                      :: grid_span
+    INTEGER, DIMENSION(:, :), INTENT(IN)     :: g_hat
+    TYPE(map_pn), INTENT(INOUT)              :: mapl, mapm, mapn
+    INTEGER, DIMENSION(:), INTENT(IN)        :: npts
 
-! Locals
-  INTEGER :: l, m, n, gpt, ng
+    INTEGER                                  :: gpt, l, m, n, ng
 
 !------------------------------------------------------------------------------
 
@@ -1476,20 +1463,17 @@ END SUBROUTINE pw_grid_set_maps
 
 SUBROUTINE pw_grid_find_bounds ( bounds, h_inv, cutoff, fft )
 
-  IMPLICIT NONE
 
-! Arguments
-  INTEGER, DIMENSION ( 2, 3 ), INTENT ( OUT ) :: bounds
-  REAL ( dbl ), INTENT ( IN ) :: cutoff
-  REAL ( dbl ), DIMENSION ( 3, 3 ), INTENT ( IN ) :: h_inv
-  LOGICAL, INTENT ( IN ) :: fft
+    INTEGER, DIMENSION(2, 3), INTENT(OUT)    :: bounds
+    REAL(dbl), DIMENSION(3, 3), INTENT(IN)   :: h_inv
+    REAL(dbl), INTENT(IN)                    :: cutoff
+    LOGICAL, INTENT(IN)                      :: fft
 
-! Locals
-  INTEGER :: l, m, n, rin(3), rout(3), handle, info
-  REAL ( dbl ) :: length
-  REAL ( dbl ) :: gmat ( 3, 3 ), eig ( 3 )
-  INTEGER, PARAMETER :: lwork = 20
-  REAL ( dbl ) :: work ( lwork )
+    INTEGER, PARAMETER                       :: lwork = 20
+
+    INTEGER                                  :: handle, info, rin(3), rout(3)
+    REAL(dbl)                                :: eig( 3 ), gmat( 3, 3 ), &
+                                                work( lwork )
 
 !------------------------------------------------------------------------------
 
@@ -1546,15 +1530,13 @@ END SUBROUTINE pw_grid_find_bounds
 !!*** *************************************************************************
 
 SUBROUTINE pw_grid_allocate ( pw_grid, ng, bounds )
-  IMPLICIT NONE
 
 ! Argument
-  TYPE ( pw_grid_type ), INTENT ( INOUT ) :: pw_grid
-  INTEGER, INTENT ( IN ) :: ng
-  INTEGER, DIMENSION ( :, : ), INTENT ( IN ) :: bounds
+    TYPE(pw_grid_type), INTENT(INOUT)        :: pw_grid
+    INTEGER, INTENT(IN)                      :: ng
+    INTEGER, DIMENSION(:, :), INTENT(IN)     :: bounds
 
-! LOCALS
-  INTEGER :: allocstat
+    INTEGER                                  :: allocstat
 
 !------------------------------------------------------------------------------
 
@@ -1624,17 +1606,15 @@ END SUBROUTINE pw_grid_allocate
 
 SUBROUTINE pw_grid_sort ( pw_grid, ref_grid )
 
-  IMPLICIT NONE
 
 ! Argument
-  TYPE ( pw_grid_type ), INTENT ( INOUT ) :: pw_grid
-  TYPE ( pw_grid_type ), OPTIONAL, INTENT ( IN ) :: ref_grid
+    TYPE(pw_grid_type), INTENT(INOUT)        :: pw_grid
+    TYPE(pw_grid_type), INTENT(IN), OPTIONAL :: ref_grid
 
-! Locals
-  INTEGER :: ig, ih, is, ip, it, allocstat, ng, ngr, handle
-  INTEGER, ALLOCATABLE, DIMENSION ( : ) :: idx, int_tmp
-  REAL ( dbl ) :: rt(3)
-  REAL ( dbl ), ALLOCATABLE, DIMENSION ( : ) :: real_tmp
+    INTEGER                                  :: allocstat, handle, ig, ih, &
+                                                ip, is, it, ng, ngr
+    INTEGER, ALLOCATABLE, DIMENSION(:)       :: idx, int_tmp
+    REAL(dbl), ALLOCATABLE, DIMENSION(:)     :: real_tmp
 
 !------------------------------------------------------------------------------
 
@@ -1788,18 +1768,19 @@ END SUBROUTINE pw_grid_sort
 
 SUBROUTINE sort_shells ( gsq, g_hat, idx )
 
-  IMPLICIT NONE
 
 ! Argument
-  REAL ( dbl ), DIMENSION ( : ), INTENT ( IN ) :: gsq
-  INTEGER, DIMENSION ( :, : ), INTENT ( IN ) :: g_hat
-  INTEGER, DIMENSION ( : ), INTENT ( INOUT ) :: idx
+    REAL(dbl), DIMENSION(:), INTENT(IN)      :: gsq
+    INTEGER, DIMENSION(:, :), INTENT(IN)     :: g_hat
+    INTEGER, DIMENSION(:), INTENT(INOUT)     :: idx
 
-! Locals
-  ! Juergs temporary hack to get the grids sorted for large (4000Ry) cutoffs.
-  REAL ( dbl ), PARAMETER :: small = 5.e-16_dbl ! might need to call lapack for machine precision.
-  REAL ( dbl ) :: s_begin
-  INTEGER :: ng, ig, s1, s2
+    REAL(dbl), PARAMETER                     :: small = 5.e-16_dbl 
+
+    INTEGER                                  :: ig, ng, s1, s2
+    REAL(dbl)                                :: s_begin
+
+! Juergs temporary hack to get the grids sorted for large (4000Ry) cutoffs.
+! might need to call lapack for machine precision.
 
   ng = SIZE ( gsq )
   s_begin = -1._dbl
@@ -1822,18 +1803,15 @@ END SUBROUTINE sort_shells
 
 SUBROUTINE redist ( g_hat, idx, s1, s2 )
 
-  IMPLICIT NONE
 
 ! Argument
-  INTEGER, DIMENSION ( :, : ), INTENT ( IN ) :: g_hat
-  INTEGER, DIMENSION ( : ), INTENT ( INOUT ) :: idx
-  INTEGER, INTENT ( IN ) :: s1, s2
+    INTEGER, DIMENSION(:, :), INTENT(IN)     :: g_hat
+    INTEGER, DIMENSION(:), INTENT(INOUT)     :: idx
+    INTEGER, INTENT(IN)                      :: s1, s2
 
-! Locals
-  INTEGER :: ns, info, i, ii
-  INTEGER, DIMENSION ( : ), ALLOCATABLE :: indl
-  INTEGER :: n1, n2, n3
-  REAL ( dbl ), DIMENSION ( : ), ALLOCATABLE :: slen
+    INTEGER                                  :: i, ii, info, n1, n2, n3, ns
+    INTEGER, ALLOCATABLE, DIMENSION(:)       :: indl
+    REAL(dbl), ALLOCATABLE, DIMENSION(:)     :: slen
 
   IF ( s2 <= s1 ) RETURN
   ns = s2 - s1 + 1
@@ -1882,15 +1860,15 @@ END SUBROUTINE redist
 !!*** *************************************************************************
 
 SUBROUTINE pw_grid_remap ( pw_grid, yz )
-  IMPLICIT NONE
 
 ! Argument
-  TYPE ( pw_grid_type ), INTENT ( INOUT ), TARGET :: pw_grid
-  INTEGER, DIMENSION ( :, : ), INTENT ( OUT ) :: yz
+    TYPE(pw_grid_type), INTENT(INOUT), &
+      TARGET                                 :: pw_grid
+    INTEGER, DIMENSION(:, :), INTENT(OUT)    :: yz
 
-! Locals
-  INTEGER :: i, j, is, ip, m, n, gpt, ny, nz, handle
-  INTEGER, DIMENSION ( : ), POINTER :: mapl, mapm, mapn
+    INTEGER                                  :: gpt, handle, i, ip, is, j, m, &
+                                                n, ny, nz
+    INTEGER, DIMENSION(:), POINTER           :: mapl, mapm, mapn
 
 !------------------------------------------------------------------------------
 
@@ -1978,17 +1956,15 @@ END SUBROUTINE pw_grid_remap
 !!*** *************************************************************************
 
 SUBROUTINE pw_grid_change ( cell, pw_grid )
-  IMPLICIT NONE
 
 ! Argument
-  TYPE ( cell_type ), INTENT ( IN ), TARGET :: cell
-  TYPE ( pw_grid_type ), INTENT ( INOUT ), TARGET :: pw_grid
+    TYPE(cell_type), INTENT(IN), TARGET      :: cell
+    TYPE(pw_grid_type), INTENT(INOUT), &
+      TARGET                                 :: pw_grid
 
-! Locals
-  INTEGER :: gpt
-  REAL ( dbl ) :: l, m, n
-  REAL ( dbl ), DIMENSION ( :, : ), POINTER :: h_inv
-  REAL ( dbl ), DIMENSION ( :, : ), POINTER :: g
+    INTEGER                                  :: gpt
+    REAL(dbl)                                :: l, m, n
+    REAL(dbl), DIMENSION(:, :), POINTER      :: g, h_inv
 
 !------------------------------------------------------------------------------
 
@@ -2056,20 +2032,16 @@ END SUBROUTINE pw_grid_change
 
 SUBROUTINE pw_find_cutoff ( npts, box, cutoff )
 
-  IMPLICIT NONE
 
-! Arguments
-  INTEGER, DIMENSION ( : ), INTENT ( IN ) :: npts
-  TYPE ( cell_type ), INTENT ( IN ) :: box
-  REAL ( dbl ), INTENT ( OUT ) :: cutoff
+    INTEGER, DIMENSION(:), INTENT(IN)        :: npts
+    TYPE(cell_type), INTENT(IN)              :: box
+    REAL(dbl), INTENT(OUT)                   :: cutoff
 
-! Locals
-  INTEGER :: i
-  REAL ( dbl ) :: gdum ( 3 ), length, gcut
+    REAL(dbl)                                :: gcut, gdum( 3 ), length
 
 !------------------------------------------------------------------------------
-
 ! compute 2*pi*h_inv^t*g  where g = (npts[1],0,0)
+
   gdum ( : ) = twopi * box % h_inv ( 1, : ) &
        * REAL ( ( npts ( 1 ) - 1 ) / 2, dbl )
   length = SQRT ( dotprod_3d ( gdum, gdum ) )
@@ -2123,12 +2095,14 @@ END SUBROUTINE pw_find_cutoff
 !!
 !!*** **********************************************************************
 SUBROUTINE pw_grid_retain(pw_grid, error)
-  TYPE(pw_grid_type), POINTER :: pw_grid
-  TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
-  
-  LOGICAL :: failure
-  CHARACTER(len=*), PARAMETER :: routineN='pw_grid_retain',&
-        routineP=moduleN//':'//routineN
+    TYPE(pw_grid_type), POINTER              :: pw_grid
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'pw_grid_retain', &
+      routineP = moduleN//':'//routineN
+
+    LOGICAL                                  :: failure
 
   failure=.FALSE.
   
@@ -2170,13 +2144,15 @@ END SUBROUTINE pw_grid_retain
 !!
 !!*** **********************************************************************
 SUBROUTINE pw_grid_release(pw_grid, error)
-  TYPE(pw_grid_type), POINTER :: pw_grid
-  TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
-  
-  LOGICAL :: failure
-  CHARACTER(len=*), PARAMETER :: routineN='pw_grid_release',&
-        routineP=moduleN//':'//routineN
-  INTEGER :: stat
+    TYPE(pw_grid_type), POINTER              :: pw_grid
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'pw_grid_release', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: stat
+    LOGICAL                                  :: failure
 
   failure=.FALSE.
   

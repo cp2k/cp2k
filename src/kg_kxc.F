@@ -20,10 +20,9 @@
 
 MODULE kg_kxc
   USE coefficient_types,               ONLY: coeff_type
-  USE cp_control_types,                       ONLY: dft_control_type
+  USE cp_control_types,                ONLY: dft_control_type
   USE functionals
   USE kinds,                           ONLY: dbl
-  USE mathconstants,                   ONLY: pi
   USE pw_pool_types,                   ONLY: pw_pool_type
   USE pw_types,                        ONLY: pw_type
   USE termination,                     ONLY: stop_memory,&
@@ -35,6 +34,7 @@ MODULE kg_kxc
                                              xc_dset_create,&
                                              xc_dset_release
   USE xc_derivatives,                  ONLY: xc_calc_derivatives
+
   IMPLICIT NONE
 
   PRIVATE
@@ -68,23 +68,20 @@ CONTAINS
 
  SUBROUTINE calc_kxc_pot_kg (pw_pool, rho_r, rho_g, v_r, e_xc, dft_control )
 
-  IMPLICIT NONE
 
-! Arguments
-  TYPE ( pw_pool_type ), POINTER :: pw_pool
-  TYPE ( coeff_type ), INTENT (in) :: rho_r
-  TYPE ( coeff_type ), INTENT (in) :: rho_g
-  TYPE ( coeff_type ), INTENT (inout) :: v_r
-  REAL ( dbl ), INTENT (out) :: e_xc
-  TYPE ( dft_control_type ), INTENT ( IN ), TARGET :: dft_control
+    TYPE(pw_pool_type), POINTER              :: pw_pool
+    TYPE(coeff_type), INTENT(in)             :: rho_r, rho_g
+    TYPE(coeff_type), INTENT(inout)          :: v_r
+    REAL(dbl), INTENT(out)                   :: e_xc
+    TYPE(dft_control_type), INTENT(IN), &
+      TARGET                                 :: dft_control
 
-! Local parameters
-    CHARACTER(LEN=*), PARAMETER :: routine =&
-      "SUBROUTINE calc_kxc_pot_kg (MODULE kg_kxc)"
-! Locals
-  REAL (dbl), DIMENSION(:,:,:), POINTER :: rho
-  REAL (dbl), DIMENSION(:,:,:), POINTER :: vxc
-  COMPLEX (dbl), DIMENSION(:), POINTER :: rhog
+    CHARACTER(LEN=*), PARAMETER :: &
+      routine = "SUBROUTINE calc_kxc_pot_kg (MODULE kg_kxc)"
+
+    COMPLEX(dbl), DIMENSION(:), POINTER      :: rhog
+    REAL(dbl), DIMENSION(:, :, :), POINTER   :: rho, vxc
+
 !--------------------------------------------------------
 
   e_xc = 0.0_dbl
@@ -124,30 +121,19 @@ CONTAINS
  SUBROUTINE calc_kxc_pot_kgpol ( pw_pool,rho_r, rho_g, rhop_r, v_r, v1_r, &
                            v2_r, e_xc, e1_xc, e2_xc, dft_control )
 
-  IMPLICIT NONE
 
-! Arguments
-  TYPE (pw_pool_type), POINTER :: pw_pool
-  TYPE ( coeff_type ), INTENT (in) :: rho_r
-  TYPE ( coeff_type ), INTENT (in) :: rho_g
-  TYPE ( coeff_type ), INTENT (in) :: rhop_r
-  TYPE ( coeff_type ), INTENT (inout) :: v_r
-  TYPE ( coeff_type ), INTENT (inout) :: v1_r
-  TYPE ( coeff_type ), INTENT (inout) :: v2_r
-  REAL ( dbl ), INTENT (out) :: e_xc
-  REAL ( dbl ), INTENT (out) :: e1_xc
-  REAL ( dbl ), INTENT (out) :: e2_xc
-  TYPE ( dft_control_type ), INTENT ( IN ), TARGET :: dft_control
+    TYPE(pw_pool_type), POINTER              :: pw_pool
+    TYPE(coeff_type), INTENT(in)             :: rho_r, rho_g, rhop_r
+    TYPE(coeff_type), INTENT(inout)          :: v_r, v1_r, v2_r
+    REAL(dbl), INTENT(out)                   :: e_xc, e1_xc, e2_xc
+    TYPE(dft_control_type), INTENT(IN), &
+      TARGET                                 :: dft_control
 
-! Local parameters
-    CHARACTER(LEN=*), PARAMETER :: routine =&
-      "SUBROUTINE calc_kxc_pot_kgpol (MODULE kg_kxc)"
-! Locals
-  REAL (dbl), DIMENSION(:,:,:), POINTER :: rho
-  REAL (dbl), DIMENSION(:,:,:), POINTER :: vxc
-  REAL (dbl), DIMENSION(:,:,:), POINTER :: v1xc
-  REAL (dbl), DIMENSION(:,:,:), POINTER :: v2xc
-  COMPLEX (dbl), DIMENSION(:), POINTER :: rhog
+    CHARACTER(LEN=*), PARAMETER :: &
+      routine = "SUBROUTINE calc_kxc_pot_kgpol (MODULE kg_kxc)"
+
+    REAL(dbl), DIMENSION(:, :, :), POINTER   :: v1xc, v2xc, vxc
+
 !--------------------------------------------------------
 
   e_xc = 0.0_dbl
@@ -181,31 +167,26 @@ CONTAINS
 !******************************************************************************
 SUBROUTINE xc_calculate_derivatives ( rho_r,rhop_r,v,v1,v2,e1,e2,dft_control, pw_pool )
 
-  IMPLICIT NONE
 
-! Arguments
-  TYPE(pw_type), INTENT(IN) :: rho_r
-  TYPE(pw_type), INTENT(IN) :: rhop_r
-  TYPE(pw_type), INTENT(IN) :: v
-  TYPE(pw_type), INTENT(INOUT) :: v1
-  TYPE(pw_type), INTENT(INOUT) :: v2
-  REAL (dbl), INTENT (out) :: e1
-  REAL (dbl), INTENT (out) :: e2
-  TYPE(dft_control_type), INTENT(IN) :: dft_control
-  TYPE(pw_pool_type), POINTER :: pw_pool
+    TYPE(pw_type), INTENT(IN)                :: rho_r, rhop_r, v
+    TYPE(pw_type), INTENT(INOUT)             :: v1, v2
+    REAL(dbl), INTENT(out)                   :: e1, e2
+    TYPE(dft_control_type), INTENT(IN)       :: dft_control
+    TYPE(pw_pool_type), POINTER              :: pw_pool
 
-! Local
-  REAL ( dbl ) , DIMENSION (:), ALLOCATABLE :: rgrid
-  LOGICAL, DIMENSION  (3) :: gradient_functionals, crossterms
-  INTEGER :: stat, ntot, n(3), i, j, k, ii, order, ik, npot
-  INTEGER, DIMENSION (3,3) :: nd
-  INTEGER, DIMENSION (2,3) :: bo
-  LOGICAL :: failure, spezgrid, do_lsd
-  TYPE(xc_derivative_set_type), POINTER :: derivative_set
+    CHARACTER(len=*), PARAMETER :: routineN = 'xc_calculate_derivatives', &
+      routineP = moduleN//':'//routineN
 
-! Parameters
-  CHARACTER(len=*), PARAMETER :: routineN='xc_calculate_derivatives',&
-                                 routineP=moduleN//':'//routineN
+    INTEGER                                  :: i, ii, j, k, n(3), ntot, &
+                                                order, stat
+    INTEGER, DIMENSION(2, 3)                 :: bo
+    INTEGER, DIMENSION(3, 3)                 :: nd
+    LOGICAL                                  :: do_lsd, failure, spezgrid
+    LOGICAL, DIMENSION(3)                    :: crossterms, &
+                                                gradient_functionals
+    REAL(dbl), ALLOCATABLE, DIMENSION(:)     :: rgrid
+    TYPE(xc_derivative_set_type), POINTER    :: derivative_set
+
 !------------------------------------------------------------------------------
 
   failure=.FALSE.

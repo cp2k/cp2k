@@ -23,33 +23,33 @@ MODULE qs_tddfpt_utils
 
   USE cp_fm_basic_linalg,              ONLY: cp_fm_scale_and_add,&
                                              cp_fm_trace
-  USE cp_sm_fm_interactions,           ONLY: cp_sm_fm_multiply, &
-                                             copy_sm_to_fm
-  USE cp_fm_cholesky,                  ONLY: cp_fm_cholesky_decompose, &
+  USE cp_fm_cholesky,                  ONLY: cp_fm_cholesky_decompose,&
                                              cp_fm_cholesky_invert
-  USE cp_fm_types,                     ONLY: cp_fm_p_type, &
-                                             cp_fm_type, &
-                                             cp_fm_get_element, &
-                                             cp_fm_get_submatrix, &
-                                             cp_fm_init_random, &
-                                             cp_fm_set_all, &
-                                             cp_fm_set_submatrix
+  USE cp_fm_types,                     ONLY: cp_fm_get_element,&
+                                             cp_fm_get_submatrix,&
+                                             cp_fm_init_random,&
+                                             cp_fm_p_type,&
+                                             cp_fm_set_all,&
+                                             cp_fm_set_submatrix,&
+                                             cp_fm_type
+  USE cp_sm_fm_interactions,           ONLY: copy_sm_to_fm,&
+                                             cp_sm_fm_multiply
   USE global_types,                    ONLY: global_environment_type
   USE kinds,                           ONLY: dbl
-  USE qs_environment_types,            ONLY: get_qs_env,&
-                                             qs_environment_type
+  USE qs_environment_types,            ONLY: qs_environment_type
   USE qs_kpp1_env_methods,             ONLY: kpp1_create
   USE qs_kpp1_env_types,               ONLY: qs_kpp1_env_type
   USE qs_mo_types,                     ONLY: get_mo_set
-  USE qs_p_env_methods,                ONLY: p_env_create, &
-                                             p_preortho, &
-                                             p_env_psi0_changed
-  USE qs_p_env_types,                  ONLY: qs_p_env_type, &
-                                             p_env_release
+  USE qs_p_env_methods,                ONLY: p_env_create,&
+                                             p_env_psi0_changed,&
+                                             p_preortho
+  USE qs_p_env_types,                  ONLY: p_env_release,&
+                                             qs_p_env_type
   USE qs_tddfpt_types
   USE sparse_matrix_types,             ONLY: real_matrix_p_type
-  USE termination,                     ONLY: stop_memory, stop_program
-  USE timings,                         ONLY: timeset, timestop
+  USE termination,                     ONLY: stop_memory
+  USE timings,                         ONLY: timeset,&
+                                             timestop
 
   IMPLICIT NONE
 
@@ -110,23 +110,24 @@ CONTAINS
 !!****
   SUBROUTINE tddfpt_init(p_env, t_env, qs_env, glob_env)
 
-    IMPLICIT NONE
 
-    ! ARGUMENTS
-    TYPE(qs_p_env_type), POINTER              :: p_env
-    TYPE(tddfpt_env_type), INTENT(out)        :: t_env 
-    TYPE(qs_environment_type), INTENT(inout), TARGET :: qs_env
-    TYPE(global_environment_type), INTENT(in) :: glob_env
+    TYPE(qs_p_env_type), POINTER             :: p_env
+    TYPE(tddfpt_env_type), INTENT(out)       :: t_env
+    TYPE(qs_environment_type), &
+      INTENT(inout), TARGET                  :: qs_env
+    TYPE(global_environment_type), &
+      INTENT(in)                             :: glob_env
 
-    ! LOCALS
-    TYPE(qs_kpp1_env_type), POINTER           :: kpp1_env
-    TYPE(cp_fm_p_type), DIMENSION(:), POINTER :: psi0d
-    TYPE(cp_fm_type), POINTER        :: eigenvectors
-    INTEGER                                   :: spin, n_spins, stat
-    CHARACTER(LEN=*), PARAMETER               :: routineN = "tddfpt_init", &
-                                                 routineP = moduleN//"/"//routineN
-    
-    ! --------------------------------------------------------------------
+    CHARACTER(LEN=*), PARAMETER :: routineN = "tddfpt_init", &
+      routineP = moduleN//"/"//routineN
+
+    INTEGER                                  :: n_spins, spin, stat
+    TYPE(cp_fm_p_type), DIMENSION(:), &
+      POINTER                                :: psi0d
+    TYPE(cp_fm_type), POINTER                :: eigenvectors
+    TYPE(qs_kpp1_env_type), POINTER          :: kpp1_env
+
+! --------------------------------------------------------------------
 
     n_spins   = qs_env%dft_control%nspins
 
@@ -169,24 +170,20 @@ CONTAINS
 !!***
   SUBROUTINE tddfpt_env_init(t_env, p_env, qs_env, glob_env)
 
-    IMPLICIT NONE
   
-  ! ARGUMENTS
-    TYPE(tddfpt_env_type), INTENT(inout)        :: t_env
-    TYPE(qs_p_env_type),POINTER               :: p_env
-    TYPE(qs_environment_type), INTENT(inout), TARGET :: qs_env
-    TYPE(global_environment_type), INTENT(in) :: glob_env
-  
-  ! LOCALS
-    INTEGER                            :: stat
-    INTEGER                            :: ev, spin, n_spins
-    TYPE(cp_fm_type), POINTER :: fm
-    
+    TYPE(tddfpt_env_type), INTENT(inout)     :: t_env
+    TYPE(qs_p_env_type), POINTER             :: p_env
+    TYPE(qs_environment_type), &
+      INTENT(inout), TARGET                  :: qs_env
+    TYPE(global_environment_type), &
+      INTENT(in)                             :: glob_env
 
-    CHARACTER(len=*), PARAMETER        :: routineN = 'tddfpt_env_init', &
-                                          routineP = moduleN//'/'//routineN
+    CHARACTER(len=*), PARAMETER :: routineN = 'tddfpt_env_init', &
+      routineP = moduleN//'/'//routineN
 
-    ! -------------------------------------------------------------------
+    INTEGER                                  :: n_spins, spin
+
+! -------------------------------------------------------------------
 
     n_spins = qs_env%dft_control%nspins
 
@@ -205,11 +202,10 @@ CONTAINS
 
   SUBROUTINE tddfpt_write_banner(globenv)
 
-    IMPLICIT NONE
     
-    ! arguments
-    TYPE(global_environment_type), INTENT(in) :: globenv
-    
+    TYPE(global_environment_type), &
+      INTENT(in)                             :: globenv
+
     IF (.NOT.globenv%ionode) RETURN
     IF (globenv%print%program_banner) THEN
        
@@ -228,18 +224,16 @@ CONTAINS
 
   SUBROUTINE tddfpt_cleanup(t_env, p_env, glob_env)
 
-    IMPLICIT NONE
 
-    ! arguments
-    TYPE(qs_p_env_type), POINTER              :: p_env
-    TYPE(tddfpt_env_type), INTENT(inout)      :: t_env
-    TYPE(global_environment_type), INTENT(IN) :: glob_env
+    TYPE(tddfpt_env_type), INTENT(inout)     :: t_env
+    TYPE(qs_p_env_type), POINTER             :: p_env
+    TYPE(global_environment_type), &
+      INTENT(IN)                             :: glob_env
 
-    ! locals
     CHARACTER(LEN=*), PARAMETER :: routineN = "cleanup", &
-                                   routineP = moduleN//'/'//routineN
+      routineP = moduleN//'/'//routineN
 
-    ! -------------------------------------------------------------------
+! -------------------------------------------------------------------
 
     CALL tddfpt_env_deallocate(t_env, glob_env)
     CALL p_env_release(p_env)
@@ -250,17 +244,16 @@ CONTAINS
 
   SUBROUTINE print_fm_matrix(matrix, imax, jmax, name, sym)
 
-    IMPLICIT NONE
 
-    TYPE(cp_fm_type), POINTER :: matrix
-    INTEGER, INTENT(IN)                :: imax, jmax
-    CHARACTER(*), INTENT(IN)           :: name
-    CHARACTER, OPTIONAL, INTENT(IN)    :: sym
+    TYPE(cp_fm_type), POINTER                :: matrix
+    INTEGER, INTENT(IN)                      :: imax, jmax
+    CHARACTER(*), INTENT(IN)                 :: name
+    CHARACTER, INTENT(IN), OPTIONAL          :: sym
 
-    INTEGER   :: i, j, ioerr
-    REAL(DBL) :: element
-    CHARACTER :: symmetric
-    LOGICAL   :: local
+    CHARACTER                                :: symmetric
+    INTEGER                                  :: i, ioerr, j
+    LOGICAL                                  :: local
+    REAL(DBL)                                :: element
 
     symmetric = 'F'
     IF (PRESENT(sym)) symmetric=sym
@@ -290,31 +283,32 @@ CONTAINS
 
   SUBROUTINE calc_initial_guess(matrices, qs_env, p_env, energies)
 
-    IMPLICIT NONE
 
-    ! arguments
-    TYPE(cp_fm_p_type), DIMENSION(:), POINTER  :: matrices
-    TYPE(qs_environment_type), INTENT(IN),TARGET        :: qs_env
-    TYPE(qs_p_env_type), POINTER                        :: p_env
-    REAL(kind=DBL), DIMENSION(:,0:), INTENT(OUT)         :: energies
+    TYPE(cp_fm_p_type), DIMENSION(:), &
+      POINTER                                :: matrices
+    TYPE(qs_environment_type), INTENT(IN), &
+      TARGET                                 :: qs_env
+    TYPE(qs_p_env_type), POINTER             :: p_env
+    REAL(kind=DBL), DIMENSION(:, 0:), &
+      INTENT(OUT)                            :: energies
 
-    ! locals
-    TYPE(tddfpt_control_type), POINTER          :: tddfpt_control
-    TYPE(simple_solution_sorter), POINTER       :: sorter_start, &
-                                                   sorter_pointer, &
-                                                   sorter_iterator
-    REAL(KIND=DBL), DIMENSION(:,:), ALLOCATABLE :: lumos, tmp_guess
-    REAL(KIND=DBL), DIMENSION(:), POINTER       :: orbital_eigenvalues
-    REAL(KIND=DBL)                              :: scale_factor, sorter_sum
-    INTEGER                                     :: spin, n_spins
-    INTEGER                                     :: n_rows, n_cols ! of the matrices
-    INTEGER                                     :: n_ev, n_lumos, n_orbits
-    INTEGER                                     :: stat           ! error flags and such
-    INTEGER                                     :: i, j           ! loop indices
+    CHARACTER(len=*), PARAMETER :: routineN = "calc_initial_guess", &
+      routineP = moduleN//"/"//routineN
 
-    CHARACTER(len=*), PARAMETER :: routineN="calc_initial_guess", &
-                                   routineP=moduleN//"/"//routineN
+    INTEGER                                  :: i, j, n_cols, n_ev, n_lumos, &
+                                                n_orbits, n_rows, n_spins, &
+                                                spin, stat
+    REAL(KIND=DBL)                           :: scale_factor, sorter_sum
+    REAL(KIND=DBL), ALLOCATABLE, &
+      DIMENSION(:, :)                        :: lumos, tmp_guess
+    REAL(KIND=DBL), DIMENSION(:), POINTER    :: orbital_eigenvalues
+    TYPE(simple_solution_sorter), POINTER    :: sorter_iterator, &
+                                                sorter_pointer, sorter_start
+    TYPE(tddfpt_control_type), POINTER       :: tddfpt_control
 
+! of the matrices
+! error flags and such
+! loop indices
 
     tddfpt_control => qs_env%dft_control%tddfpt_control
     n_spins = qs_env%dft_control%nspins
@@ -412,15 +406,15 @@ CONTAINS
   !---------------------------------------!
   SUBROUTINE calc_norm(norm, x, tmp_vec, qs_env, glob_env)
 
-    IMPLICIT NONE
 
-    REAL(KIND=dbl), INTENT(OUT)                        :: norm
-    TYPE(cp_fm_p_type), DIMENSION(:), POINTER :: x, tmp_vec
-    TYPE(qs_environment_type)                          :: qs_env
-    TYPE(global_environment_type)                      :: glob_env
+    REAL(KIND=dbl), INTENT(OUT)              :: norm
+    TYPE(cp_fm_p_type), DIMENSION(:), &
+      POINTER                                :: x, tmp_vec
+    TYPE(qs_environment_type)                :: qs_env
+    TYPE(global_environment_type)            :: glob_env
 
-    INTEGER        :: spin, n_spins
-    REAL(KIND=dbl) :: spin_norm
+    INTEGER                                  :: n_spins, spin
+    REAL(KIND=dbl)                           :: spin_norm
 
     n_spins = SIZE(x)
 
@@ -450,22 +444,24 @@ CONTAINS
 
   SUBROUTINE reorthogonalize(X, kv, S, tmp_mat, j, glob_env)
 
-    IMPLICIT NONE
 
-    ! arguments
-    TYPE(cp_fm_p_type), DIMENSION(:), POINTER   :: X, tmp_mat
-    TYPE(cp_fm_p_type), DIMENSION(:,:), POINTER :: kv
-    TYPE(real_matrix_p_type), DIMENSION(:), POINTER      :: S
-    INTEGER, INTENT(IN)                                  :: j
-    TYPE(global_environment_type), INTENT(in)            :: glob_env
+    TYPE(cp_fm_p_type), DIMENSION(:), &
+      POINTER                                :: X
+    TYPE(cp_fm_p_type), DIMENSION(:, :), &
+      POINTER                                :: kv
+    TYPE(real_matrix_p_type), DIMENSION(:), &
+      POINTER                                :: S
+    TYPE(cp_fm_p_type), DIMENSION(:), &
+      POINTER                                :: tmp_mat
+    INTEGER, INTENT(IN)                      :: j
+    TYPE(global_environment_type), &
+      INTENT(in)                             :: glob_env
 
-    ! locals
-    INTEGER :: i, index, spin, time_handle, n_spins
-    REAL(DBL) :: tmp, dot_product
-
-    ! parameters
     CHARACTER(LEN=*), PARAMETER :: routineN = "reorthogonalize", &
-                                   routineP = moduleN//"/"//routineN
+      routineP = moduleN//"/"//routineN
+
+    INTEGER                                  :: i, n_spins, spin, time_handle
+    REAL(DBL)                                :: dot_product, tmp
 
     CALL timeset(routineN,"I","",time_handle)
 

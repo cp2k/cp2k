@@ -6,18 +6,11 @@
   MODULE gaussian_gridlevels
   USE cp_error_handling,               ONLY: cp_a_l,&
                                              cp_assert,&
-                                             cp_assertion_failed,&
-                                             cp_debug,&
-                                             cp_error_dealloc_ref,&
                                              cp_error_get_logger,&
-                                             cp_error_init,&
                                              cp_error_message,&
-                                             cp_error_type,&
-                                             cp_internal_error,&
-                                             cp_unimplemented_error
+                                             cp_error_type
   USE cp_log_handling,                 ONLY: cp_failure_level,&
                                              cp_fatal_level,&
-                                             cp_log,&
                                              cp_logger_type,&
                                              cp_note_level,&
                                              cp_to_string,&
@@ -25,8 +18,8 @@
   USE global_types,                    ONLY: global_environment_type
   USE kinds,                           ONLY: dp
   USE message_passing,                 ONLY: mp_sum
-  USE termination,                     ONLY: stop_memory,&
-                                             stop_program
+  USE termination,                     ONLY: stop_memory
+
   IMPLICIT NONE
 
   TYPE gridlevel_info_type
@@ -45,10 +38,13 @@
 CONTAINS
 
   SUBROUTINE init_gaussian_gridlevel(gridlevel_info,ngrid_levels,cutoff,rel_cutoff)
-       INTEGER                :: ngrid_levels,i
-       REAL(KIND = dp), DIMENSION(:), POINTER :: cutoff
-       REAL(KIND = dp)               :: rel_cutoff
-       TYPE(gridlevel_info_type) :: gridlevel_info
+    TYPE(gridlevel_info_type)                :: gridlevel_info
+    INTEGER                                  :: ngrid_levels
+    REAL(KIND=dp), DIMENSION(:), POINTER     :: cutoff
+    REAL(KIND=dp)                            :: rel_cutoff
+
+    INTEGER                                  :: i
+
        ALLOCATE(gridlevel_info%cutoff(ngrid_levels))
        ALLOCATE(gridlevel_info%count(ngrid_levels))
        gridlevel_info%ngrid_levels=ngrid_levels
@@ -61,14 +57,18 @@ CONTAINS
   END SUBROUTINE
  
 SUBROUTINE destroy_gaussian_gridlevel(gridlevel_info,globenv,error)
-  TYPE(gridlevel_info_type) :: gridlevel_info
-  TYPE(global_environment_type), INTENT(in), TARGET, OPTIONAL :: globenv
-  TYPE(cp_error_type), INTENT(inout), OPTIONAL :: error
-  CHARACTER(LEN=*), PARAMETER :: routine =&
-       "SUBROUTINE destroy_gaussian_gridlevel (MODULE gaussian_gridlevels)"
-  INTEGER :: i,istat, group
-  LOGICAL :: pw_grid_information, ionode
-  TYPE(cp_logger_type), POINTER :: logger
+    TYPE(gridlevel_info_type)                :: gridlevel_info
+    TYPE(global_environment_type), &
+      INTENT(in), OPTIONAL, TARGET           :: globenv
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
+
+    CHARACTER(LEN=*), PARAMETER :: routine = &
+      "SUBROUTINE destroy_gaussian_gridlevel (MODULE gaussian_gridlevels)"
+
+    INTEGER                                  :: group, i, istat
+    LOGICAL                                  :: ionode, pw_grid_information
+    TYPE(cp_logger_type), POINTER            :: logger
 
   NULLIFY(logger)
   IF (PRESENT(globenv)) THEN
@@ -103,10 +103,12 @@ SUBROUTINE destroy_gaussian_gridlevel(gridlevel_info,globenv,error)
 
 ! ***************************************************************
   FUNCTION gaussian_gridlevel(gridlevel_info,exponent) RESULT(gridlevel)
-  REAL(KIND = dp) :: exponent
-  INTEGER  :: gridlevel,i
-  TYPE(gridlevel_info_type) :: gridlevel_info
-  REAL(KIND = dp) :: needed_cutoff
+    TYPE(gridlevel_info_type)                :: gridlevel_info
+    REAL(KIND=dp)                            :: exponent
+    INTEGER                                  :: gridlevel
+
+    INTEGER                                  :: i
+    REAL(KIND=dp)                            :: needed_cutoff
 
   gridlevel=1 
   needed_cutoff=ABS(exponent)*gridlevel_info%rel_cutoff

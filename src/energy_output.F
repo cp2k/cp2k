@@ -6,8 +6,8 @@
 
 MODULE energy_output
 
-  USE global_types, ONLY : global_environment_type
-  USE energy_input, ONLY : min_info_type
+  USE energy_input,                    ONLY: min_info_type
+  USE global_types,                    ONLY: global_environment_type
 
   IMPLICIT NONE
 
@@ -20,14 +20,13 @@ CONTAINS
 !
   SUBROUTINE print_energy_info ( iter, min_info, min_type, globenv )
 
-    IMPLICIT NONE
-    INTEGER,  INTENT (IN) :: iter
-    TYPE ( min_info_type ), INTENT(IN) :: min_info
-    CHARACTER ( len = * ), INTENT ( IN ) :: min_type
-    TYPE ( global_environment_type ), INTENT (IN) :: globenv
+    INTEGER, INTENT(IN)                      :: iter
+    TYPE(min_info_type), INTENT(IN)          :: min_info
+    CHARACTER(len=*), INTENT(IN)             :: min_type
+    TYPE(global_environment_type), &
+      INTENT(IN)                             :: globenv
 
-!   locals
-    integer :: iw
+    integer                                  :: iw
 
     iw = globenv % scr
     
@@ -59,12 +58,11 @@ CONTAINS
 
   SUBROUTINE print_convergence ( conv_flag, globenv )
 
-    IMPLICIT NONE
-    LOGICAL, INTENT (IN) :: conv_flag               
-    TYPE ( global_environment_type ), INTENT (IN) :: globenv
+    LOGICAL, INTENT(IN)                      :: conv_flag
+    TYPE(global_environment_type), &
+      INTENT(IN)                             :: globenv
 
-!   locals
-    integer :: iw
+    integer                                  :: iw
 
     iw = globenv % scr
 

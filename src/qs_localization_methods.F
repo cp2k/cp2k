@@ -43,26 +43,20 @@ MODULE qs_localization_methods
   USE cp_fm_types,                     ONLY: cp_fm_create,&
                                              cp_fm_get_element,&
                                              cp_fm_get_info,&
-                                             cp_fm_init_random,&
                                              cp_fm_maxabsval,&
                                              cp_fm_p_type,&
                                              cp_fm_release,&
                                              cp_fm_set_all,&
-                                             cp_fm_set_element,&
                                              cp_fm_to_fm,&
-                                             cp_fm_type,&
-                                             cp_fm_write
+                                             cp_fm_type
   USE kinds,                           ONLY: dp
   USE machine,                         ONLY: m_flush
   USE mathconstants,                   ONLY: pi
   USE message_passing,                 ONLY: mp_max
-  USE qs_environment_types,            ONLY: get_qs_env,&
-                                             qs_environment_type
   USE simulation_cell,                 ONLY: cell_type
-  USE termination,                     ONLY: stop_memory,&
-                                             stop_program
   USE timings,                         ONLY: timeset,&
                                              timestop
+
   IMPLICIT NONE
   PUBLIC :: jacobi_rotations, initialize_weights, crazy_rotations, direct_mini
   PRIVATE
@@ -71,11 +65,11 @@ MODULE qs_localization_methods
 CONTAINS
 ! *****************************************************************************
   SUBROUTINE initialize_weights ( cell, weights )
-    IMPLICIT NONE
-    TYPE ( cell_type ), INTENT ( IN ) :: cell
-    REAL (KIND = dp), DIMENSION ( : ) :: weights
-! locals
-    INTEGER :: idim
+    TYPE(cell_type), INTENT(IN)              :: cell
+    REAL(KIND=dp), DIMENSION(:)              :: weights
+
+    INTEGER                                  :: idim
+
     DO idim = 1, 3
       weights ( idim ) = cell % hmat ( idim, idim ) * cell % hmat ( idim, idim )
     ENDDO
@@ -83,23 +77,20 @@ CONTAINS
 
 ! *****************************************************************************
   SUBROUTINE jacobi_rotations ( weights, zij, vectors, sweeps )
-    IMPLICIT NONE
-    REAL (KIND = dp), INTENT ( IN ) :: weights ( : )
-    TYPE ( cp_fm_p_type ), INTENT ( INOUT ) :: ZIJ ( :, : )
-    TYPE ( cp_fm_type ), POINTER :: vectors
-    INTEGER :: sweeps
-! Locals
-    TYPE ( cp_fm_type ), POINTER :: rmat
-    TYPE ( cp_cfm_type ), POINTER :: c_rmat
-    TYPE ( cp_cfm_p_type ), POINTER, DIMENSION(:) :: c_zij
+    REAL(KIND=dp), INTENT(IN)                :: weights( : )
+    TYPE(cp_fm_p_type), INTENT(INOUT)        :: ZIJ( :, : )
+    TYPE(cp_fm_type), POINTER                :: vectors
+    INTEGER                                  :: sweeps
 
-    REAL ( KIND = dp ) :: tolerance, st, ct 
-    COMPLEX (KIND = dp ) :: mii ( 3 ), mjj ( 3 ), mij ( 3 )
-    REAL ( KIND = dp ) :: theta
-    INTEGER :: istate, jstate, idim, nstate, isos, handle
-    TYPE ( cp_error_type ) :: error
-    TYPE ( cp_fm_type ), POINTER :: matrix_r, matrix_i
-    COMPLEX( KIND = dp ) :: dum
+    COMPLEX(KIND=dp)                         :: mii( 3 ), mij( 3 ), mjj( 3 )
+    INTEGER                                  :: handle, idim, istate, jstate, &
+                                                nstate
+    REAL(KIND=dp)                            :: ct, st, theta, tolerance
+    TYPE(cp_cfm_p_type), DIMENSION(:), &
+      POINTER                                :: c_zij
+    TYPE(cp_cfm_type), POINTER               :: c_rmat
+    TYPE(cp_error_type)                      :: error
+    TYPE(cp_fm_type), POINTER                :: rmat
 
     CALL timeset("wannier_jacobi","I","",handle)
 
@@ -214,14 +205,14 @@ CONTAINS
   END SUBROUTINE rotate_rmat
 ! *****************************************************************************
   SUBROUTINE get_angle ( mii, mjj, mij,  weights, theta )
-    IMPLICIT NONE
-    COMPLEX ( KIND = dp ), INTENT ( IN ) :: mii ( : ), mjj ( : ), mij ( : )
-    REAL ( KIND = dp ), INTENT ( IN ) :: weights ( : )
-    REAL ( KIND = dp ), INTENT ( OUT ) :: theta
-! Locals
-    COMPLEX ( KIND = dp ) :: z11, z12, z22
-    REAL ( KIND = dp ) :: a12, b12, ratio, d2
-    INTEGER :: idim
+    COMPLEX(KIND=dp), INTENT(IN)             :: mii( : ), mjj( : ), mij( : )
+    REAL(KIND=dp), INTENT(IN)                :: weights( : )
+    REAL(KIND=dp), INTENT(OUT)               :: theta
+
+    COMPLEX(KIND=dp)                         :: z11, z12, z22
+    INTEGER                                  :: idim
+    REAL(KIND=dp)                            :: a12, b12, d2, ratio
+
     a12 = 0.0_dp
     b12 = 0.0_dp
     DO idim = 1, 3
@@ -253,14 +244,15 @@ CONTAINS
   END SUBROUTINE get_angle 
 ! *****************************************************************************
   SUBROUTINE check_tolerance ( zij, weights, tolerance )
-    IMPLICIT NONE
-    TYPE ( cp_cfm_p_type ) :: zij ( : ) 
-    REAL (KIND = dp), INTENT ( OUT ) :: tolerance
-    REAL (KIND = dp), INTENT ( IN ) :: weights ( : )
-! locals
-    TYPE ( cp_error_type ) :: error
-    TYPE ( cp_fm_type ), POINTER :: force
+    TYPE(cp_cfm_p_type)                      :: zij( : )
+    REAL(KIND=dp), INTENT(IN)                :: weights( : )
+    REAL(KIND=dp), INTENT(OUT)               :: tolerance
+
+    TYPE(cp_error_type)                      :: error
+    TYPE(cp_fm_type), POINTER                :: force
+
 ! compute gradient at t=0
+
     NULLIFY ( force )
     CALL cp_fm_create ( force, zij( 1 ) % matrix % matrix_struct, error = error  )
     CALL cp_fm_set_all ( force, 0._dp, error=error )
@@ -270,13 +262,12 @@ CONTAINS
   END SUBROUTINE check_tolerance
 ! *****************************************************************************
   SUBROUTINE rotate_orbitals ( rmat, vectors ) 
-    IMPLICIT NONE
-    TYPE ( cp_fm_type ), POINTER :: rmat
-    TYPE ( cp_fm_type ), POINTER :: vectors
-!locals
-    TYPE ( cp_error_type ) :: error
-    TYPE ( cp_fm_type ), POINTER :: wf
-    INTEGER :: n, k
+    TYPE(cp_fm_type), POINTER                :: rmat, vectors
+
+    INTEGER                                  :: k, n
+    TYPE(cp_error_type)                      :: error
+    TYPE(cp_fm_type), POINTER                :: wf
+
     NULLIFY ( wf )
     CALL cp_fm_create ( wf, vectors % matrix_struct, error = error  )
     CALL cp_fm_get_info ( vectors, nrow_global = n, ncol_global=k )
@@ -286,16 +277,18 @@ CONTAINS
   END SUBROUTINE rotate_orbitals 
 ! *****************************************************************************
   SUBROUTINE gradsq_at_0 ( diag, weights, matrix )
-    IMPLICIT NONE
-    TYPE ( cp_fm_type ), POINTER :: matrix
-    REAL ( KIND = dp ), INTENT ( IN ) :: weights ( : )
-! Locals
-    TYPE ( cp_error_type ) :: error
-    COMPLEX ( KIND = dp ) :: zii, zjj
-    COMPLEX ( KIND = dp ), DIMENSION(:,:), POINTER  :: diag
-    REAL ( KIND = dp ) ::  gradsq_ij
-    INTEGER :: nrow_local, ncol_local, istate, jstate, idim, nrow_global
-    INTEGER, POINTER, DIMENSION(:) :: row_indices,col_indices
+    COMPLEX(KIND=dp), DIMENSION(:, :), &
+      POINTER                                :: diag
+    REAL(KIND=dp), INTENT(IN)                :: weights( : )
+    TYPE(cp_fm_type), POINTER                :: matrix
+
+    COMPLEX(KIND=dp)                         :: zii, zjj
+    INTEGER                                  :: idim, istate, jstate, &
+                                                ncol_local, nrow_global, &
+                                                nrow_local
+    INTEGER, DIMENSION(:), POINTER           :: col_indices, row_indices
+    REAL(KIND=dp)                            :: gradsq_ij
+    TYPE(cp_error_type)                      :: error
 
     CALL cp_fm_get_info ( matrix, nrow_local = nrow_local,  &
                    ncol_local = ncol_local, nrow_global = nrow_global, &
@@ -317,17 +310,19 @@ CONTAINS
   END SUBROUTINE gradsq_at_0
 ! *****************************************************************************
   SUBROUTINE grad_at_0 ( matrix_p, weights, matrix )
-    IMPLICIT NONE
-    TYPE ( cp_cfm_p_type ) :: matrix_p ( : )
-    TYPE ( cp_fm_type ), POINTER :: matrix
-    REAL ( KIND = dp ), INTENT ( IN ) :: weights ( : )
-! Locals
-    TYPE ( cp_error_type ) :: error
-    COMPLEX ( KIND = dp ) :: zii, zjj, zij 
-    COMPLEX ( KIND = dp ), DIMENSION(:,:), POINTER  :: diag
-    REAL ( KIND = dp ) :: grad_ij
-    INTEGER :: nrow_local, ncol_local, istate, jstate, idim, nrow_global
-    INTEGER, POINTER, DIMENSION(:) :: row_indices,col_indices
+    TYPE(cp_cfm_p_type)                      :: matrix_p( : )
+    REAL(KIND=dp), INTENT(IN)                :: weights( : )
+    TYPE(cp_fm_type), POINTER                :: matrix
+
+    COMPLEX(KIND=dp)                         :: zii, zij, zjj
+    COMPLEX(KIND=dp), DIMENSION(:, :), &
+      POINTER                                :: diag
+    INTEGER                                  :: idim, istate, jstate, &
+                                                ncol_local, nrow_global, &
+                                                nrow_local
+    INTEGER, DIMENSION(:), POINTER           :: col_indices, row_indices
+    REAL(KIND=dp)                            :: grad_ij
+    TYPE(cp_error_type)                      :: error
 
     NULLIFY(diag)
     CALL cp_fm_get_info ( matrix, nrow_local = nrow_local,  &
@@ -362,16 +357,18 @@ CONTAINS
 ! return energy and maximum gradient in the current point
 ! *****************************************************************************
   SUBROUTINE check_tolerance_new( weights, zij, tolerance, value)
-    IMPLICIT NONE
-    REAL (KIND = dp), INTENT ( IN ) :: weights ( : )
-    TYPE ( cp_fm_p_type ), INTENT ( INOUT ) :: ZIJ ( :, : )
-    REAL(KIND = dp) :: tolerance,value
+    REAL(KIND=dp), INTENT(IN)                :: weights( : )
+    TYPE(cp_fm_p_type), INTENT(INOUT)        :: ZIJ( :, : )
+    REAL(KIND=dp)                            :: tolerance, value
 
-    COMPLEX(KIND = dp), DIMENSION(:,:), POINTER :: diag
-    COMPLEX(KIND = dp) :: kij,kii,kjj
-    REAL(KIND = dp) :: ra,rb,grad_ij
-    INTEGER :: nrow_local, ncol_local, istate, jstate, idim, nrow_global
-    INTEGER, POINTER, DIMENSION(:) :: row_indices,col_indices
+    COMPLEX(KIND=dp)                         :: kii, kij, kjj
+    COMPLEX(KIND=dp), DIMENSION(:, :), &
+      POINTER                                :: diag
+    INTEGER                                  :: idim, istate, jstate, &
+                                                ncol_local, nrow_global, &
+                                                nrow_local
+    INTEGER, DIMENSION(:), POINTER           :: col_indices, row_indices
+    REAL(KIND=dp)                            :: grad_ij, ra, rb
 
     NULLIFY(diag)
     CALL cp_fm_get_info ( zij(1,1)%matrix, nrow_local = nrow_local,  &
@@ -413,25 +410,27 @@ CONTAINS
 ! and rotates them all at the same time (hoping for the best of course)
 ! *****************************************************************************
   SUBROUTINE crazy_rotations( weights, zij, vectors, iterations )
-    IMPLICIT NONE
-    REAL (KIND = dp), INTENT ( IN ) :: weights ( : )
-    TYPE ( cp_fm_p_type ), INTENT ( INOUT ) :: ZIJ ( :, : )
-    TYPE ( cp_fm_type ), POINTER :: vectors
-    INTEGER :: iterations
+    REAL(KIND=dp), INTENT(IN)                :: weights( : )
+    TYPE(cp_fm_p_type), INTENT(INOUT)        :: ZIJ( :, : )
+    TYPE(cp_fm_type), POINTER                :: vectors
+    INTEGER                                  :: iterations
 
-    COMPLEX(KIND = dp), DIMENSION(:,:), POINTER :: diag_z
-    INTEGER :: nrow_global,ncol_global,nrow_local,ncol_local
-    INTEGER, DIMENSION(:), POINTER :: row_indices, col_indices
-    INTEGER :: i,idim,irow,icol,handle
-    COMPLEX(KIND = dp), DIMENSION(:), POINTER :: evals_exp
-    REAL(KIND = dp), DIMENSION(:), POINTER :: evals
-    REAL(KIND = dp)                        :: rance,theta,maxeval,value,tolerance
-    REAL(KIND = dp)                        :: ra,rb
+    COMPLEX(KIND=dp), PARAMETER              :: cone = (1.0_dp,0.0_dp), &
+                                                czero = (0.0_dp,0.0_dp)
 
-    TYPE( cp_cfm_type), POINTER :: cmat_A,cmat_R,cmat_t1
-    TYPE( cp_fm_type), POINTER :: mat_U,mat_t,mat_R
-    COMPLEX (KIND = dp ) :: mii ( 3 ), mjj ( 3 ), mij ( 3 )
-    COMPLEX(KIND = dp), PARAMETER :: czero=(0.0_dp,0.0_dp), cone=(1.0_dp,0.0_dp)
+    COMPLEX(KIND=dp)                         :: mii( 3 ), mij( 3 ), mjj( 3 )
+    COMPLEX(KIND=dp), DIMENSION(:), POINTER  :: evals_exp
+    COMPLEX(KIND=dp), DIMENSION(:, :), &
+      POINTER                                :: diag_z
+    INTEGER                                  :: handle, i, icol, idim, irow, &
+                                                ncol_global, ncol_local, &
+                                                nrow_global, nrow_local
+    INTEGER, DIMENSION(:), POINTER           :: col_indices, row_indices
+    REAL(KIND=dp)                            :: maxeval, ra, rb, theta, &
+                                                tolerance, value
+    REAL(KIND=dp), DIMENSION(:), POINTER     :: evals
+    TYPE(cp_cfm_type), POINTER               :: cmat_A, cmat_R, cmat_t1
+    TYPE(cp_fm_type), POINTER                :: mat_R, mat_t, mat_U
 
     CALL timeset("crazy_rotations","I","",handle)
     NULLIFY(row_indices,col_indices)
@@ -558,32 +557,37 @@ CONTAINS
 !
 ! *****************************************************************************
   SUBROUTINE direct_mini( weights, zij, vectors, iterations )
-    IMPLICIT NONE
-    REAL (KIND = dp), INTENT ( IN ) :: weights ( : )
-    TYPE ( cp_fm_p_type ), INTENT ( INOUT ) :: ZIJ ( :, : )
-    TYPE ( cp_fm_type ), POINTER :: vectors
-    INTEGER :: iterations,handle,line_searches
+    REAL(KIND=dp), INTENT(IN)                :: weights( : )
+    TYPE(cp_fm_p_type), INTENT(INOUT)        :: ZIJ( :, : )
+    TYPE(cp_fm_type), POINTER                :: vectors
+    INTEGER                                  :: iterations
 
-    TYPE ( cp_fm_type ), POINTER :: matrix_A,matrix_G,matrix_T,matrix_G_search,matrix_G_old,matrix_H,matrix_R
-    TYPE ( cp_cfm_p_type ), POINTER, DIMENSION(:) :: c_zij
-    TYPE ( cp_cfm_type ), POINTER :: cmat_A,cmat_R,cmat_t1,cmat_t2,cmat_U, cmat_B, cmat_M
-    COMPLEX(KIND = dp), DIMENSION(:), POINTER :: evals_exp
-    COMPLEX(KIND = dp), DIMENSION(:,:), POINTER :: diag_z
-    REAL(KIND = dp), DIMENSION(:), POINTER :: evals,fval,fvald
-    INTEGER :: n,idim
-    COMPLEX(KIND = dp), PARAMETER :: czero=(0.0_dp,0.0_dp), cone=(1.0_dp,0.0_dp)
-    TYPE ( cp_error_type ) :: error
-    REAL(KIND = dp) :: omega,tol
-    INTEGER :: irow, icol, nrow_local, ncol_local, i
-    INTEGER, DIMENSION(:), POINTER :: row_indices, col_indices
-    COMPLEX(KIND = dp) :: ll,lk,tmp
+    COMPLEX(KIND=dp), PARAMETER              :: cone = (1.0_dp,0.0_dp), &
+                                                czero = (0.0_dp,0.0_dp)
+    REAL(KIND=dp), PARAMETER                 :: gold_sec = 0.3819_dp
 
-    REAL(KIND = dp) :: normg,normg_cross,normg_old,beta_pr,ds_min,ds
-    REAL(KIND = dp) :: a,b,c,x0,x1,val,npos,xa,xb,xc,fa,fb,fc,nom,denom
-    REAL(KIND = dp), DIMENSION(150) :: energy,pos,grad
-    INTEGER :: line_search_count,lsl,lsr,lsm
-    LOGICAL  :: new_direction
-    REAL(KIND = dp), PARAMETER                       :: gold_sec=0.3819_dp
+    COMPLEX(KIND=dp)                         :: lk, ll, tmp
+    COMPLEX(KIND=dp), DIMENSION(:), POINTER  :: evals_exp
+    COMPLEX(KIND=dp), DIMENSION(:, :), &
+      POINTER                                :: diag_z
+    INTEGER :: handle, i, icol, idim, irow, line_search_count, line_searches, &
+      lsl, lsm, lsr, n, ncol_local, nrow_local
+    INTEGER, DIMENSION(:), POINTER           :: col_indices, row_indices
+    LOGICAL                                  :: new_direction
+    REAL(KIND=dp) :: a, b, beta_pr, c, denom, ds, ds_min, fa, fb, fc, nom, &
+      normg, normg_cross, normg_old, npos, omega, tol, val, x0, x1, xa, xb, xc
+    REAL(KIND=dp), DIMENSION(150)            :: energy, grad, pos
+    REAL(KIND=dp), DIMENSION(:), POINTER     :: evals, fval, fvald
+    TYPE(cp_cfm_p_type), DIMENSION(:), &
+      POINTER                                :: c_zij
+    TYPE(cp_cfm_type), POINTER               :: cmat_A, cmat_B, cmat_M, &
+                                                cmat_R, cmat_t1, cmat_t2, &
+                                                cmat_U
+    TYPE(cp_error_type)                      :: error
+    TYPE(cp_fm_type), POINTER                :: matrix_A, matrix_G, &
+                                                matrix_G_old, &
+                                                matrix_G_search, matrix_H, &
+                                                matrix_R, matrix_T
 
     NULLIFY(evals,evals_exp,diag_z,fval,fvald,c_zij) 
     NULLIFY(matrix_A,matrix_G,matrix_T,matrix_G_search,matrix_G_old)

@@ -23,18 +23,19 @@
 MODULE nhc
 
 !  USE coefficient_types, ONLY : coeff_type, PLANEWAVES, ATOMICORBITALS
-  USE distribution_1d_types, ONLY : distribution_1d_type
-  USE extended_system_initialize, ONLY : set_yoshida_coef
-  USE extended_system_types, ONLY : npt_info_type,&
-                                    lnhc_parameters_type
-  USE global_types, ONLY : global_environment_type
-  USE kinds,                           ONLY: dbl, &
+  USE distribution_1d_types,           ONLY: distribution_1d_type
+  USE extended_system_initialize,      ONLY: set_yoshida_coef
+  USE extended_system_types,           ONLY: lnhc_parameters_type
+  USE global_types,                    ONLY: global_environment_type
+  USE kinds,                           ONLY: dbl,&
                                              default_string_length
-  USE md, ONLY : simulation_parameters_type
-  USE molecule_types_new, ONLY : molecule_type
-  USE molecule_kind_types, ONLY : molecule_kind_type, get_molecule_kind
-  USE message_passing, ONLY : mp_sum
-  USE termination, ONLY : stop_memory, stop_program
+  USE md,                              ONLY: simulation_parameters_type
+  USE message_passing,                 ONLY: mp_sum
+  USE molecule_kind_types,             ONLY: get_molecule_kind,&
+                                             molecule_kind_type
+  USE molecule_types_new,              ONLY: molecule_type
+  USE termination,                     ONLY: stop_memory,&
+                                             stop_program
 
   IMPLICIT NONE
 
@@ -64,15 +65,18 @@ CONTAINS
 
 SUBROUTINE nhc_barostat_setup ( simpar, nhc, globenv )
 ! creates the thermostatting maps use global_mod
-  IMPLICIT NONE
 ! begin global declaratation
-  TYPE ( simulation_parameters_type ), INTENT ( INOUT ) :: simpar
-  TYPE ( lnhc_parameters_type ), INTENT ( OUT ) :: nhc
-  TYPE ( global_environment_type ), INTENT ( IN ) :: globenv
+    TYPE(simulation_parameters_type), &
+      INTENT(INOUT)                          :: simpar
+    TYPE(lnhc_parameters_type), INTENT(OUT)  :: nhc
+    TYPE(global_environment_type), &
+      INTENT(IN)                             :: globenv
+
+    INTEGER                                  :: i, isos, iw, number
+
 ! begin local definitions
-  INTEGER :: i, iw
-  INTEGER :: isos, number
 !
+
   iw = globenv % scr
 !
   nhc % dis_type = 'NONE'
@@ -178,28 +182,27 @@ END SUBROUTINE nhc_barostat_setup
 SUBROUTINE nhc_particle_setup ( simpar, local_molecules, molecule, &
                                 molecule_kind_set, nhc, globenv )
 
-  IMPLICIT NONE
 
-! Arguments
-  TYPE ( simulation_parameters_type ), INTENT ( INOUT ) :: simpar
-  TYPE ( distribution_1d_type ), POINTER :: local_molecules
-  TYPE ( molecule_type ),  POINTER ::  molecule ( : )
-  TYPE ( molecule_kind_type ), POINTER :: molecule_kind_set ( : )
-  TYPE ( lnhc_parameters_type ), INTENT ( OUT ) :: nhc
-  TYPE ( global_environment_type ), INTENT ( IN ) :: globenv
+    TYPE(simulation_parameters_type), &
+      INTENT(INOUT)                          :: simpar
+    TYPE(distribution_1d_type), POINTER      :: local_molecules
+    TYPE(molecule_type), POINTER             :: molecule( : )
+    TYPE(molecule_kind_type), POINTER        :: molecule_kind_set( : )
+    TYPE(lnhc_parameters_type), INTENT(OUT)  :: nhc
+    TYPE(global_environment_type), &
+      INTENT(IN)                             :: globenv
 
-! Locals
-  TYPE ( molecule_kind_type ), POINTER :: molecule_kind
-  CHARACTER ( LEN = default_string_length ) :: nhcopt
-  INTEGER :: i, j, k, nkind, number, iw, natoms_local
-  INTEGER :: nmol_local, nmol, nmol_per_kind
-  INTEGER :: ii, jj, kk, isos, start, finish, natom, imol, atm_offset, icount
-  INTEGER :: ndcon, n3x3con, nmolecule, ikind 
-  INTEGER, DIMENSION ( : ), ALLOCATABLE :: deg_of_freedom, natom_mol
-  INTEGER, DIMENSION ( : ), ALLOCATABLE :: const_mol, tot_const, nmol_local_of_kind 
-  INTEGER, DIMENSION ( :, : ), ALLOCATABLE :: point
-  REAL ( dbl ), SAVE, TARGET :: scale
-  LOGICAL :: noneflag, nointer, have_global
+    CHARACTER(LEN=default_string_length)     :: nhcopt
+    INTEGER :: atm_offset, finish, i, icount, ii, ikind, imol, isos, iw, j, &
+      jj, kk, n3x3con, natom, natoms_local, ndcon, nkind, nmol_local, &
+      nmol_per_kind, nmolecule, number, start
+    INTEGER, ALLOCATABLE, DIMENSION(:)       :: const_mol, deg_of_freedom, &
+                                                natom_mol, &
+                                                nmol_local_of_kind, tot_const
+    INTEGER, ALLOCATABLE, DIMENSION(:, :)    :: point
+    LOGICAL                                  :: have_global, nointer, noneflag
+    REAL(dbl), SAVE, TARGET                  :: scale
+    TYPE(molecule_kind_type), POINTER        :: molecule_kind
 
 !------------------------------------------------------------------------------
 

@@ -18,17 +18,17 @@
     MODULE kg_energy_optimize
 !------------------------------------------------------------------------------!
 !
-  USE coefficient_types,               ONLY : coeff_type
-  USE global_types,                    ONLY : global_environment_type
-  USE kg_energy_utils,                 ONLY : energy_min_type,&
-                                              min_info_type,&
-                                              diis
-  USE kg_environment_types,            ONLY : kg_environment_type,&
-                                              kg_thermodynamic_type
-  USE kg_force,                        ONLY : kg_force_control
-  USE kinds,                           ONLY : dbl
-  USE termination,                     ONLY : stop_program,&
-                                              stop_memory
+  USE coefficient_types,               ONLY: coeff_type
+  USE global_types,                    ONLY: global_environment_type
+  USE kg_energy_utils,                 ONLY: diis,&
+                                             energy_min_type,&
+                                             min_info_type
+  USE kg_environment_types,            ONLY: kg_environment_type,&
+                                             kg_thermodynamic_type
+  USE kg_force,                        ONLY: kg_force_control
+  USE kinds,                           ONLY: dbl
+  USE termination,                     ONLY: stop_memory
+
   IMPLICIT NONE
 !
   PUBLIC :: optimize_ao                                                       
@@ -43,26 +43,26 @@
 !
  SUBROUTINE optimize_ao( kg_env, globenv, energy_min, iter )
 
-  IMPLICIT NONE
-! Arguments
-  TYPE ( kg_environment_type ), POINTER          :: kg_env
-  TYPE ( global_environment_type), INTENT ( IN ) :: globenv
-  TYPE ( energy_min_type ), INTENT (INOUT) :: energy_min
-  INTEGER, intent(IN) :: iter      
+    TYPE(kg_environment_type), POINTER       :: kg_env
+    TYPE(global_environment_type), &
+      INTENT(IN)                             :: globenv
+    TYPE(energy_min_type), INTENT(INOUT)     :: energy_min
+    INTEGER, intent(IN)                      :: iter
 
-! locals
-  INTEGER :: i, itimes, ncoef, isos, nhist
-  INTEGER, SAVE :: ihist=0
-  REAL(dbl) :: cons,fconv,tol, deltae
-  REAL (dbl), SAVE :: step=0.0_dbl
-  REAL(dbl), DIMENSION(:), ALLOCATABLE :: cgrad              
-  REAL(dbl), DIMENSION(:), ALLOCATABLE, SAVE ::  hess
-  REAL(dbl), DIMENSION(:,:), ALLOCATABLE, SAVE :: c_hist,e_hist
-  TYPE ( kg_thermodynamic_type ), POINTER :: thermo
-  TYPE ( coeff_type ), POINTER :: coef_pos
-  TYPE ( coeff_type ), POINTER :: coef_vel
-  TYPE ( coeff_type ), POINTER :: coef_force
+    INTEGER                                  :: i, isos, ncoef, nhist
+    INTEGER, SAVE                            :: ihist = 0
+    REAL(dbl)                                :: fconv, tol
+    REAL(dbl), ALLOCATABLE, DIMENSION(:)     :: cgrad
+    REAL(dbl), ALLOCATABLE, DIMENSION(:), &
+      SAVE                                   :: hess
+    REAL(dbl), ALLOCATABLE, &
+      DIMENSION(:, :), SAVE                  :: c_hist, e_hist
+    REAL(dbl), SAVE                          :: step = 0.0_dbl
+    TYPE(coeff_type), POINTER                :: coef_force, coef_pos, coef_vel
+    TYPE(kg_thermodynamic_type), POINTER     :: thermo
+
 !
+
   thermo => kg_env % thermo
   coef_pos => kg_env % coef_pos (1)
   coef_vel => kg_env % coef_vel (1)
@@ -125,23 +125,22 @@
 !
   SUBROUTINE sd_ao ( kg_env, globenv, energy_min, iter, step)
 
-  IMPLICIT NONE
-! Arguments
-  TYPE ( kg_environment_type ), POINTER          :: kg_env
-  TYPE ( global_environment_type), INTENT ( IN ) :: globenv
-  TYPE ( energy_min_type ), INTENT (INOUT) :: energy_min
-  INTEGER, intent (in) :: iter
-  REAL ( dbl ), intent (inout) :: step
+    TYPE(kg_environment_type), POINTER       :: kg_env
+    TYPE(global_environment_type), &
+      INTENT(IN)                             :: globenv
+    TYPE(energy_min_type), INTENT(INOUT)     :: energy_min
+    INTEGER, intent(in)                      :: iter
+    REAL(dbl), intent(inout)                 :: step
 
-! locals
-  TYPE ( kg_thermodynamic_type ), POINTER :: thermo
-  REAL( dbl ), DIMENSION(:), ALLOCATABLE, SAVE ::  c_old, f_old
-  INteger :: ios, ncoef, iw, i
-  REAL ( dbl ) :: ezero, deltae
-  TYPE ( coeff_type ), POINTER :: coef_pos
-  TYPE ( coeff_type ), POINTER :: coef_vel
-  TYPE ( coeff_type ), POINTER :: coef_force
+    INteger                                  :: i, ios, iw, ncoef
+    REAL(dbl)                                :: deltae, ezero
+    REAL(dbl), ALLOCATABLE, DIMENSION(:), &
+      SAVE                                   :: c_old, f_old
+    TYPE(coeff_type), POINTER                :: coef_force, coef_pos, coef_vel
+    TYPE(kg_thermodynamic_type), POINTER     :: thermo
+
 !
+
   thermo => kg_env % thermo
   coef_pos => kg_env % coef_pos (1)
   coef_vel => kg_env % coef_vel (1)
@@ -198,15 +197,13 @@
 !      
 !------------------------------------------------------------------------------!
   SUBROUTINE copy_energy_info ( min_info, thermo, tol, fconv )
-  IMPLICIT NONE
-! Arguments
-  TYPE ( min_info_type ), INTENT ( INOUT ) :: min_info
-  TYPE ( kg_thermodynamic_type ), INTENT ( IN ) :: thermo
-  REAL ( dbl ), intent (in) :: tol
-  REAL ( dbl ), intent (in) :: fconv
+    TYPE(min_info_type), INTENT(INOUT)       :: min_info
+    TYPE(kg_thermodynamic_type), INTENT(IN)  :: thermo
+    REAL(dbl), intent(in)                    :: tol, fconv
+
+    REAL(dbl)                                :: eold
+
 !
-!Locals
-  REAL ( dbl ) :: eold
 
   eold = min_info %e
   min_info %e = thermo % pot

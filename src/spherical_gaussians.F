@@ -26,11 +26,15 @@
 
 MODULE spherical_gaussians
 
-  USE kinds, ONLY : dbl
-  USE termination, ONLY : stop_memory, stop_program
-  USE external_potential_types, ONLY : all_potential_type, gth_potential_type, &
-         get_potential          
-  USE ai_spherical_gaussian, ONLY : sg_overlap, sg_kinetic, sg_nuclear
+  USE ai_spherical_gaussian,           ONLY: sg_kinetic,&
+                                             sg_nuclear,&
+                                             sg_overlap
+  USE external_potential_types,        ONLY: all_potential_type,&
+                                             get_potential,&
+                                             gth_potential_type
+  USE kinds,                           ONLY: dbl
+  USE termination,                     ONLY: stop_memory,&
+                                             stop_program
 
   IMPLICIT NONE
 
@@ -66,12 +70,11 @@ CONTAINS
 !******************************************************************************
 
 SUBROUTINE sg_construct_operator ( op, basis, spherical )
-   IMPLICIT NONE
-   TYPE(sg_operator_type), INTENT(out) :: op
-   TYPE(sg_basis_type), TARGET, INTENT(in) :: basis
-   LOGICAL, INTENT(in) :: spherical
+    TYPE(sg_operator_type), INTENT(out)      :: op
+    TYPE(sg_basis_type), INTENT(in), TARGET  :: basis
+    LOGICAL, INTENT(in)                      :: spherical
 
-   INTEGER :: ierr, lmax, n, l, k, m, lm
+    INTEGER                                  :: ierr, k, l, lm, lmax, m, n
 
    op%nametag = ""
    op%basis => basis
@@ -99,10 +102,9 @@ SUBROUTINE sg_construct_operator ( op, basis, spherical )
 END SUBROUTINE sg_construct_operator
 
 SUBROUTINE sg_deconstruct_operator ( op )
-   IMPLICIT NONE
-   TYPE(sg_operator_type), INTENT(inout) :: op
+    TYPE(sg_operator_type), INTENT(inout)    :: op
 
-   INTEGER :: ierr, n, m, l, k
+    INTEGER                                  :: ierr, k, l, m, n
 
    n = SIZE ( op%opmat, 1 )
    m = SIZE ( op%opmat, 2 )
@@ -124,13 +126,12 @@ END SUBROUTINE sg_deconstruct_operator
 !******************************************************************************
 
 SUBROUTINE sg_calculate_operator ( optype, op )
-   IMPLICIT NONE
-   CHARACTER ( LEN=* ), INTENT(in) :: optype
-   TYPE(sg_operator_type), INTENT(inout) :: op
+    CHARACTER(LEN=*), INTENT(in)             :: optype
+    TYPE(sg_operator_type), INTENT(inout)    :: op
 
-   TYPE(sg_basis_type), POINTER :: basis
-   INTEGER :: lmax, lm, l, k, n, ierr, zval
-   REAL ( dbl ), DIMENSION (:,:), ALLOCATABLE :: ops, opx
+    INTEGER                                  :: ierr, k, l, lm, lmax, n, zval
+    REAL(dbl), ALLOCATABLE, DIMENSION(:, :)  :: ops, opx
+    TYPE(sg_basis_type), POINTER             :: basis
 
    basis => op%basis
    lmax = basis%lmax

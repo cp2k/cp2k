@@ -6,14 +6,18 @@
 
 MODULE fit_input
 
-  USE global_types, ONLY : global_environment_type
-  USE kinds, ONLY : dbl
-  USE fit_parameters_types, ONLY : fit_parameter_type
-  USE parser, ONLY : parser_init, parser_end, read_line, test_next, &
-       p_error, get_next, stop_parser, search_label
-  USE string_utilities, ONLY : uppercase
-  USE termination, ONLY : stop_program 
-
+  USE fit_parameters_types,            ONLY: fit_parameter_type
+  USE global_types,                    ONLY: global_environment_type
+  USE kinds,                           ONLY: dbl
+  USE parser,                          ONLY: get_next,&
+                                             p_error,&
+                                             parser_end,&
+                                             parser_init,&
+                                             read_line,&
+                                             search_label,&
+                                             test_next
+  USE string_utilities,                ONLY: uppercase
+  USE termination,                     ONLY: stop_program
 
   IMPLICIT NONE
 
@@ -44,18 +48,17 @@ CONTAINS
 
 SUBROUTINE read_fit_section ( fit_param, globenv )
 
-  IMPLICIT NONE
 
-! Arguments
-  TYPE ( fit_parameter_type ), INTENT ( OUT ) :: fit_param
-  TYPE ( global_environment_type ), INTENT ( IN ) :: globenv     
+    TYPE(fit_parameter_type), INTENT(OUT)    :: fit_param
+    TYPE(global_environment_type), &
+      INTENT(IN)                             :: globenv
 
-! Locals
-  INTEGER :: ierror, ilen, iw
-  CHARACTER ( len = 20 ) :: string
-  CHARACTER ( len = 5 ) :: label
+    CHARACTER(len=20)                        :: string
+    CHARACTER(len=5)                         :: label
+    INTEGER                                  :: ierror, ilen, iw
 
 !------------------------------------------------------------------------------
+
   iw = globenv % scr
 
 !..defaults

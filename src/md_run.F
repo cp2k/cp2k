@@ -28,31 +28,22 @@ MODULE md_run
   USE checkpoint_handler,              ONLY: write_checkpoint_information
   USE cp_error_handling,               ONLY: cp_a_l,&
                                              cp_assert,&
-                                             cp_assertion_failed,&
-                                             cp_debug,&
-                                             cp_error_check,&
-                                             cp_error_dealloc_ref,&
                                              cp_error_get_logger,&
-                                             cp_error_init,&
                                              cp_error_message,&
-                                             cp_error_type,&
-                                             cp_internal_error
+                                             cp_error_type
   USE cp_log_handling,                 ONLY: cp_failure_level,&
-                                             cp_log,&
                                              cp_logger_get_default_unit_nr,&
                                              cp_logger_type,&
                                              cp_note_level,&
                                              cp_to_string,&
                                              cp_warning_level
-  USE cp_subsystem_types,              ONLY: cp_subsystem_p_type,&
-                                             cp_subsystem_type,&
-                                             cp_subsys_get
   USE cp_para_types,                   ONLY: cp_para_env_type
+  USE cp_subsystem_types,              ONLY: cp_subsys_get,&
+                                             cp_subsystem_p_type
   USE distribution_1d_types,           ONLY: distribution_1d_type
   USE dump,                            ONLY: dump_variables
-  USE extended_system_types,           ONLY: lnhc_parameters_type,&
-                                             npt_info_type,  &
-                                             extended_system_type
+  USE extended_system_types,           ONLY: extended_system_type,&
+                                             lnhc_parameters_type
   USE force_env_types,                 ONLY: force_env_calculate_force,&
                                              force_env_get,&
                                              force_env_type
@@ -61,46 +52,32 @@ MODULE md_run
                                              initialize_nhc_forces,&
                                              initialize_nhc_part,&
                                              initialize_npt_type
-  USE input_types,                     ONLY: setup_parameters_type
   USE integrator,                      ONLY: set_integrator
-  USE kinds,                           ONLY: int_size,&
-                                             dp,&
-                                             dp_size
+  USE kinds,                           ONLY: dp
   USE machine,                         ONLY: m_walltime
   USE md,                              ONLY: initialize_velocities,&
                                              mdio_parameters_type,&
-                                             qs_md_parameters_type,&
                                              read_md_section,&
                                              simulation_parameters_type,&
                                              virial_type
-  USE md_environment_types,            ONLY: md_env_release,&
-                                             md_env_create, & 
+  USE md_energies,                     ONLY: md_energy_qs,&
+                                             set_qs_energies
+  USE md_environment_types,            ONLY: get_md_env,&
+                                             md_env_create,&
+                                             md_env_release,&
                                              md_environment_type,&
                                              set_md_env,&
-                                             get_md_env,&
                                              zero_virial
-  USE md_energies,                  ONLY: md_energy_qs,&
-                                             set_qs_energies
   USE message_passing,                 ONLY: mp_bcast,&
                                              mp_sum
   USE mol_kind_new_list_types,         ONLY: mol_kind_new_list_type
-  USE mol_struct_list_types,           ONLY: mol_struct_list_type
   USE mol_new_list_types,              ONLY: mol_new_list_type
-  USE output_utilities,                ONLY: print_warning
   USE particle_list_types,             ONLY: particle_list_type
-  USE particle_types,                  ONLY: particle_type
   USE physcon,                         ONLY: kelvin
-  USE qs_energy,                       ONLY: qs_energies
-  USE qs_energy_types,                 ONLY: qs_energy_type
-  USE qs_environment_types,            ONLY: get_qs_env,&
-                                             qs_environment_type,&
-                                             set_qs_env
-  USE qs_force,                        ONLY: qs_forces
   USE qs_parser,                       ONLY: close_file,&
                                              open_file
   USE simulation_cell,                 ONLY: cell_type
-  USE termination,                     ONLY: stop_memory,&
-                                             stop_program
+  USE termination,                     ONLY: stop_memory
   USE timings,                         ONLY: timeset,&
                                              timestop
   USE velocity_verlet_control,         ONLY: velocity_verlet
@@ -130,44 +107,35 @@ CONTAINS
 
 !   ***************************************************************************
 
-    TYPE(global_environment_type), POINTER :: globenv
-    TYPE(force_env_type), POINTER :: force_env
-    TYPE(cp_error_type), INTENT(inout), OPTIONAL :: error
+    TYPE(force_env_type), POINTER            :: force_env
+    TYPE(global_environment_type), POINTER   :: globenv
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
 
-!   *** Local parameters ***
+    CHARACTER(LEN=*), PARAMETER :: routine_name = "qs_mol_dyn", &
+      routineP = module_name//':'//routine_name
 
-    CHARACTER(LEN=*), PARAMETER :: routine_name = "qs_mol_dyn",&
-         routineP=module_name//':'//routine_name
-
-!   *** Local variables ***
-
-    TYPE(extended_system_type)            :: extended_type
-    TYPE(md_environment_type),POINTER     :: md_env
-    TYPE(mdio_parameters_type)            :: mdio
-    TYPE(setup_parameters_type)           :: setup
-    TYPE(mol_kind_new_list_type), POINTER :: molecule_kinds_new
-    TYPE(mol_new_list_type), POINTER      :: molecules_new
-    TYPE(particle_list_type), POINTER     :: particles
-    TYPE(distribution_1d_type), POINTER   :: local_molecules
-
-    TYPE(cell_type), POINTER                  :: cell
-    TYPE(cell_type), POINTER                  :: cell_ref
-    TYPE(simulation_parameters_type), POINTER :: simpar
-
-    TYPE(virial_type), POINTER                           :: virial
-    REAL(KIND = dp), POINTER                             :: used_time
-    INTEGER, POINTER                                     :: itimes
-    REAL(KIND = dp)                                             :: ekin
-    REAL(KIND = dp)                                             :: econs 
-    INTEGER                                              :: i
-    TYPE(cp_subsystem_p_type), DIMENSION(:), POINTER      :: subsys
-    TYPE ( lnhc_parameters_type ), POINTER :: nhc_part, nhc_baro
-
-    INTEGER :: handle,istat,istep,natom,nmolecule
-    INTEGER :: nmoltype, nmol, nnodes, nsh, isubsys
-    LOGICAL :: should_stop, failure
-
-    REAL( KIND = dp ) :: time_iter_start, time_iter_stop 
+    INTEGER                                  :: handle, i, istat, istep, &
+                                                isubsys
+    INTEGER, POINTER                         :: itimes
+    LOGICAL                                  :: failure, should_stop
+    REAL(KIND=dp)                            :: time_iter_start, &
+                                                time_iter_stop
+    REAL(KIND=dp), POINTER                   :: used_time
+    TYPE(cell_type), POINTER                 :: cell, cell_ref
+    TYPE(cp_subsystem_p_type), &
+      DIMENSION(:), POINTER                  :: subsys
+    TYPE(distribution_1d_type), POINTER      :: local_molecules
+    TYPE(extended_system_type)               :: extended_type
+    TYPE(lnhc_parameters_type), POINTER      :: nhc_baro, nhc_part
+    TYPE(md_environment_type), POINTER       :: md_env
+    TYPE(mdio_parameters_type)               :: mdio
+    TYPE(mol_kind_new_list_type), POINTER    :: molecule_kinds_new
+    TYPE(mol_new_list_type), POINTER         :: molecules_new
+    TYPE(particle_list_type), POINTER        :: particles
+    TYPE(simulation_parameters_type), &
+      POINTER                                :: simpar
+    TYPE(virial_type), POINTER               :: virial
 
 !   ---------------------------------------------------------------------------
 
@@ -331,32 +299,31 @@ CONTAINS
 
     !   ***************************************************************************
 
-    TYPE(simulation_parameters_type), POINTER :: simpar
-    TYPE(force_env_type), POINTER :: force_env
-    TYPE(cp_error_type), INTENT(inout), OPTIONAL :: error
+    TYPE(simulation_parameters_type), &
+      POINTER                                :: simpar
+    TYPE(force_env_type), POINTER            :: force_env
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
 
-    !   *** Local parameters ***
+    CHARACTER(LEN=*), PARAMETER :: routine_name = "temperature_control", &
+      routineP = module_name//':'//routine_name
 
-    CHARACTER(LEN=*), PARAMETER :: routine_name = "temperature_control",&
-         routineP=module_name//':'//routine_name
+    INTEGER                                  :: atom, handle, iatom, ikind, &
+                                                isubsys, natom
+    INTEGER, DIMENSION(:), POINTER           :: atom_list
+    LOGICAL                                  :: failure
+    REAL(KIND=dp)                            :: e_kinetic, mass, scale, &
+                                                temperature, v2
+    TYPE(atomic_kind_list_type), POINTER     :: atomic_kinds
+    TYPE(atomic_kind_type), POINTER          :: atomic_kind
+    TYPE(cp_logger_type), POINTER            :: logger
+    TYPE(cp_para_env_type), POINTER          :: para_env
+    TYPE(cp_subsystem_p_type), &
+      DIMENSION(:), POINTER                  :: subsys
+    TYPE(distribution_1d_type), POINTER      :: local_particles
+    TYPE(particle_list_type), POINTER        :: particles
 
-    !   *** Local variables ***
-
-    TYPE(atomic_kind_type), POINTER :: atomic_kind
-    TYPE(atomic_kind_list_type), POINTER :: atomic_kinds
-    TYPE(particle_list_type), POINTER :: particles
-    TYPE(distribution_1d_type), POINTER :: local_particles
-    INTEGER, DIMENSION(:), POINTER :: atom_list
-
-    REAL(KIND = dp) :: e_kinetic,mass,temperature,scale,v2
-    INTEGER  :: atom,handle,iatom,ikind,istat,natom,nkind, isubsys
-    LOGICAL  :: failure
-
-    TYPE(cp_subsystem_p_type), DIMENSION(:), POINTER :: subsys
-    TYPE(cp_logger_type), POINTER :: logger
-    TYPE(cp_para_env_type), POINTER :: para_env
-
-    !   ---------------------------------------------------------------------------
+!   ---------------------------------------------------------------------------
 
     CALL timeset(routine_name,"I","",handle)
     NULLIFY(atomic_kind, atomic_kinds, particles, local_particles, atom_list,&
@@ -452,21 +419,18 @@ CONTAINS
 
 !   ***************************************************************************
 
-    TYPE(force_env_type), POINTER :: force_env
-    LOGICAL, INTENT(OUT)                         :: should_stop
-    TYPE(cp_error_type), INTENT(inout), OPTIONAL :: error
+    TYPE(force_env_type), POINTER            :: force_env
+    LOGICAL, INTENT(OUT)                     :: should_stop
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
 
-!   *** Local parameters ***
+    CHARACTER(LEN=*), PARAMETER :: exit_file_name = "EXIT_MD", &
+      routine_name = "external_control", &
+      routineP = module_name//':'//routine_name
 
-    CHARACTER(LEN=*), PARAMETER :: routine_name = "external_control",&
-                                   exit_file_name = "EXIT_MD",&
-                                   routineP=module_name//':'//routine_name
-
-!   *** Local variables ***
-
-    INTEGER :: handle,unit_number
-    LOGICAL :: file_exists, failure
-    TYPE(cp_logger_type), POINTER :: logger
+    INTEGER                                  :: handle, unit_number
+    LOGICAL                                  :: failure
+    TYPE(cp_logger_type), POINTER            :: logger
 
 !   ---------------------------------------------------------------------------
 

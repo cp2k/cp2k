@@ -31,42 +31,21 @@ MODULE qs_rho_types
   USE cp_error_handling,               ONLY: cp_a_l,&
                                              cp_assert,&
                                              cp_assertion_failed,&
-                                             cp_debug,&
-                                             cp_error_dealloc_ref,&
                                              cp_error_get_logger,&
-                                             cp_error_init,&
                                              cp_error_message,&
                                              cp_error_type,&
-                                             cp_internal_error,&
                                              cp_unimplemented_error
   USE cp_log_handling,                 ONLY: cp_failure_level,&
                                              cp_fatal_level,&
-                                             cp_log,&
                                              cp_note_level,&
                                              cp_to_string,&
                                              cp_warning_level
-  USE cp_para_types,                   ONLY: cp_para_env_type
-  USE cube_utils,                      ONLY: cube_info_type
-  USE gaussian_gridlevels,             ONLY: gridlevel_info_type
-  USE global_types,                    ONLY: DEBUG,&
-                                             global_environment_type
   USE kinds,                           ONLY: dp
-  USE l_utils,                         ONLY: l_info_type
-  USE sparse_matrix_types,             ONLY: add_matrices,&
-                                             deallocate_matrix_set,&
-                                             first_block_node,&
-                                             get_block_node,&
-                                             get_matrix_info,&
-                                             next_block_node,&
-                                             real_block_node_type,&
-                                             real_matrix_p_type,&
-                                             real_matrix_type,&
-                                             replicate_matrix_structure,&
-                                             set_matrix,&
-                                             symmetrise_diagonal_blocks,&
-                                             transfer_matrix
+  USE sparse_matrix_types,             ONLY: deallocate_matrix_set,&
+                                             real_matrix_p_type
   USE timings,                         ONLY: timeset,&
                                              timestop
+
   IMPLICIT NONE
   PRIVATE
 
@@ -169,12 +148,15 @@ CONTAINS
 !!
 !!*** **********************************************************************
   SUBROUTINE qs_rho_retain(rho_struct,error)
-    TYPE(qs_rho_type), POINTER :: rho_struct
-    TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
+    TYPE(qs_rho_type), POINTER               :: rho_struct
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
 
-    LOGICAL :: failure
-    CHARACTER(len=*), PARAMETER :: routineN='qs_rho_retain',&
-         routineP=moduleN//':'//routineN
+    CHARACTER(len=*), PARAMETER :: routineN = 'qs_rho_retain', &
+      routineP = moduleN//':'//routineN
+
+    LOGICAL                                  :: failure
+
     failure=.FALSE.
 
     CPPrecondition(ASSOCIATED(rho_struct),cp_failure_level,routineP,error,failure)
@@ -217,13 +199,16 @@ CONTAINS
 !!
 !!*** **********************************************************************
   SUBROUTINE qs_rho_release(rho_struct,error)
-    TYPE(qs_rho_type), POINTER :: rho_struct
-    TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
+    TYPE(qs_rho_type), POINTER               :: rho_struct
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
 
-    LOGICAL :: failure
-    CHARACTER(len=*), PARAMETER :: routineN='qs_rho_release',&
-         routineP=moduleN//':'//routineN
-    INTEGER :: stat, i, j
+    CHARACTER(len=*), PARAMETER :: routineN = 'qs_rho_release', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: i, stat
+    LOGICAL                                  :: failure
+
     failure=.FALSE.
 
     IF (ASSOCIATED(rho_struct)) THEN
@@ -314,13 +299,18 @@ CONTAINS
 !!*** **********************************************************************
   SUBROUTINE qs_rho_did_change(rho_struct,rho_ao_valid,rho_r_valid, &
        rho_g_valid, tau_r_valid, tau_g_valid, error)
-    TYPE(qs_rho_type), POINTER :: rho_struct
-    LOGICAL, INTENT(in), OPTIONAL :: rho_ao_valid, rho_r_valid, rho_g_valid, tau_r_valid, tau_g_valid
-    TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
+    TYPE(qs_rho_type), POINTER               :: rho_struct
+    LOGICAL, INTENT(in), OPTIONAL            :: rho_ao_valid, rho_r_valid, &
+                                                rho_g_valid, tau_r_valid, &
+                                                tau_g_valid
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
 
-    LOGICAL :: failure
-    CHARACTER(len=*), PARAMETER :: routineN='qs_rho_did_change',&
-         routineP=moduleN//':'//routineN
+    CHARACTER(len=*), PARAMETER :: routineN = 'qs_rho_did_change', &
+      routineP = moduleN//':'//routineN
+
+    LOGICAL                                  :: failure
+
     failure=.FALSE.
 
     CPPrecondition(ASSOCIATED(rho_struct),cp_failure_level,routineP,error,failure)
@@ -380,18 +370,25 @@ CONTAINS
 !!*** **********************************************************************
   SUBROUTINE qs_rho_get(rho_struct, rho_ao, rho_r, rho_g, tau_r, tau_g, rho_ao_valid,&
        rho_r_valid, rho_g_valid, tau_r_valid, tau_g_valid, rebuild_each, tot_rho_r, error) 
-    TYPE(qs_rho_type), POINTER :: rho_struct
-    TYPE(real_matrix_p_type), DIMENSION(:), POINTER,OPTIONAL :: rho_ao
-    TYPE(coeff_type), DIMENSION(:), POINTER,OPTIONAL :: rho_g, rho_r, tau_r, tau_g
-    LOGICAL, INTENT(out), OPTIONAL :: rho_ao_valid, rho_g_valid, rho_r_valid, &
-                                      tau_r_valid, tau_g_valid
-    INTEGER, INTENT(out), OPTIONAL :: rebuild_each
-    REAL(KIND = dp), DIMENSION(:), POINTER, OPTIONAL :: tot_rho_r
-    TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
+    TYPE(qs_rho_type), POINTER               :: rho_struct
+    TYPE(real_matrix_p_type), DIMENSION(:), &
+      OPTIONAL, POINTER                      :: rho_ao
+    TYPE(coeff_type), DIMENSION(:), &
+      OPTIONAL, POINTER                      :: rho_r, rho_g, tau_r, tau_g
+    LOGICAL, INTENT(out), OPTIONAL           :: rho_ao_valid, rho_r_valid, &
+                                                rho_g_valid, tau_r_valid, &
+                                                tau_g_valid
+    INTEGER, INTENT(out), OPTIONAL           :: rebuild_each
+    REAL(KIND=dp), DIMENSION(:), OPTIONAL, &
+      POINTER                                :: tot_rho_r
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
 
-    LOGICAL :: failure
-    CHARACTER(len=*), PARAMETER :: routineN='qs_rho_get',&
-         routineP=moduleN//':'//routineN
+    CHARACTER(len=*), PARAMETER :: routineN = 'qs_rho_get', &
+      routineP = moduleN//':'//routineN
+
+    LOGICAL                                  :: failure
+
     failure=.FALSE.
 
     CPPrecondition(ASSOCIATED(rho_struct),cp_failure_level,routineP,error,failure)

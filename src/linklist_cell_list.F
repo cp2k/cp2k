@@ -20,15 +20,19 @@
 
 MODULE linklist_cell_list
 
-  USE global_types, ONLY : global_environment_type
-  USE kinds, ONLY : dbl
-  USE linklist_cell_types, ONLY : cell_neighborlist_type,  &
-       cell_atoms_linklist_type, neighbor_cells_type
-  USE molecule_types, ONLY : particle_node_type
-  USE particle_types, ONLY : particle_type
-  USE simulation_cell, ONLY : cell_type, get_cell_param
-  USE termination, ONLY : stop_memory, stop_program
-  USE timings, ONLY : timeset, timestop
+  USE global_types,                    ONLY: global_environment_type
+  USE kinds,                           ONLY: dbl
+  USE linklist_cell_types,             ONLY: cell_atoms_linklist_type,&
+                                             cell_neighborlist_type,&
+                                             neighbor_cells_type
+  USE molecule_types,                  ONLY: particle_node_type
+  USE particle_types,                  ONLY: particle_type
+  USE simulation_cell,                 ONLY: cell_type,&
+                                             get_cell_param
+  USE termination,                     ONLY: stop_memory,&
+                                             stop_program
+  USE timings,                         ONLY: timeset,&
+                                             timestop
 
   IMPLICIT NONE
 
@@ -48,35 +52,43 @@ CONTAINS
 SUBROUTINE cell_list ( natom_types, n_cell, rcut, tag, pnode, part, &
      box, cell_ll, start_list, neighbor, globenv, list_type )
 
-  IMPLICIT NONE
 
-! Arguments
-  TYPE ( particle_node_type ), INTENT ( INOUT ), DIMENSION ( : ) :: pnode
-  TYPE ( particle_type ), INTENT ( INOUT ), DIMENSION ( : ) :: part
-  TYPE ( cell_type ), INTENT ( IN ) :: box
-  TYPE ( cell_neighborlist_type ), DIMENSION (:,:,:), POINTER :: cell_ll
-  TYPE ( cell_atoms_linklist_type ), DIMENSION (:,:,:,:), POINTER :: start_list
-  TYPE ( neighbor_cells_type ), DIMENSION ( :, : ), POINTER  :: neighbor
-  TYPE ( global_environment_type ), INTENT ( IN ) :: globenv
-  REAL ( dbl ), INTENT ( IN ), DIMENSION ( :, : ) :: rcut
-  INTEGER, INTENT ( IN ), DIMENSION ( : ) :: n_cell
-  INTEGER, INTENT ( IN ) :: natom_types
-  CHARACTER ( LEN = * ), INTENT ( IN ) :: tag
-  INTEGER, INTENT(IN) :: list_type
+    INTEGER, INTENT(IN)                      :: natom_types
+    INTEGER, DIMENSION(:), INTENT(IN)        :: n_cell
+    REAL(dbl), DIMENSION(:, :), INTENT(IN)   :: rcut
+    CHARACTER(LEN=*), INTENT(IN)             :: tag
+    TYPE(particle_node_type), DIMENSION(:), &
+      INTENT(INOUT)                          :: pnode
+    TYPE(particle_type), DIMENSION(:), &
+      INTENT(INOUT)                          :: part
+    TYPE(cell_type), INTENT(IN)              :: box
+    TYPE(cell_neighborlist_type), &
+      DIMENSION(:, :, :), POINTER            :: cell_ll
+    TYPE(cell_atoms_linklist_type), &
+      DIMENSION(:, :, :, :), POINTER         :: start_list
+    TYPE(neighbor_cells_type), &
+      DIMENSION(:, :), POINTER               :: neighbor
+    TYPE(global_environment_type), &
+      INTENT(IN)                             :: globenv
+    INTEGER, INTENT(IN)                      :: list_type
 
-! Locals
-  TYPE ( cell_atoms_linklist_type ), POINTER :: loc_ll
-  INTEGER, POINTER :: index_ij ( :, : ), index_ji ( :, : )
-  INTEGER :: j, k, ii, jj, kk, ineighbor, i, natoms, nnodes
-  INTEGER :: ncell_tot, isos, ncells, itype, jtype, handle, iw
-  INTEGER, DIMENSION (3) :: bin, cell_i, next_cell,irange
-  REAL ( dbl ) :: delta, kint, pl
-  REAL ( dbl ), DIMENSION (3) :: list_cell, cell_lengths, cell_ang
-  REAL ( dbl ), DIMENSION (3) :: s, s_list_cell, perd, r
-  REAL ( dbl ), DIMENSION (3,3) :: h_inv
-  LOGICAL :: first_time
+    INTEGER                                  :: handle, i, ii, ineighbor, &
+                                                isos, itype, iw, jj, jtype, &
+                                                kk, natoms, ncell_tot, &
+                                                ncells, nnodes
+    INTEGER, DIMENSION(3)                    :: bin, cell_i, irange, next_cell
+    INTEGER, POINTER                         :: index_ij( :, : ), &
+                                                index_ji( :, : )
+    LOGICAL                                  :: first_time
+    REAL(dbl)                                :: delta, kint, pl
+    REAL(dbl), DIMENSION(3)                  :: cell_ang, cell_lengths, &
+                                                list_cell, perd, r, s, &
+                                                s_list_cell
+    REAL(dbl), DIMENSION(3, 3)               :: h_inv
+    TYPE(cell_atoms_linklist_type), POINTER  :: loc_ll
 
 !------------------------------------------------------------------------------
+
   CALL timeset( 'CELL_INDEX', 'I', 'KIs', handle )
 !
 ! print banner if this is the first call to the routine
@@ -368,18 +380,15 @@ END SUBROUTINE cell_list
 
 SUBROUTINE get_neighbor_cells ( n_max, neighbor )
 
-  IMPLICIT NONE
 
-! Arguments
-  TYPE ( neighbor_cells_type ), INTENT ( OUT ) :: neighbor
-  INTEGER, DIMENSION ( : ), INTENT ( IN ) :: n_max
+    INTEGER, DIMENSION(:), INTENT(IN)        :: n_max
+    TYPE(neighbor_cells_type), INTENT(OUT)   :: neighbor
 
-! Locals
-  INTEGER :: n, i, j, k
+    INTEGER                                  :: i, j, k, n
 
 !------------------------------------------------------------------------------
-
 ! along nz=0, ny=0, nx=1, nx_max
+
   n = 0
   DO i = 1, n_max(1)
      n = n + 1
@@ -418,14 +427,11 @@ END SUBROUTINE get_neighbor_cells
 
 SUBROUTINE get_neighbor_cells_est ( n_max, n )
 
-  IMPLICIT NONE
 
-! Arguments
-  INTEGER, INTENT ( OUT ) :: n
-  INTEGER, DIMENSION ( : ), INTENT ( IN ) :: n_max
+    INTEGER, DIMENSION(:), INTENT(IN)        :: n_max
+    INTEGER, INTENT(OUT)                     :: n
 
-! Locals
-  INTEGER :: i, j, k
+    INTEGER                                  :: i, j, k
 
 !------------------------------------------------------------------------------
 

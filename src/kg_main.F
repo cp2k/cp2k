@@ -20,10 +20,9 @@
 !!   SOURCE
 !!
 MODULE kg_main
-  USE checkpoint_handler,              ONLY: write_checkpoint_information
+! USE qs_energy,                       ONLY: qs_energies
   USE cp_error_handling,               ONLY: cp_a_l,&
                                              cp_assert,&
-                                             cp_assertion_failed,&
                                              cp_error_get_logger,&
                                              cp_error_type
   USE cp_log_handling,                 ONLY: cp_failure_level,&
@@ -32,19 +31,17 @@ MODULE kg_main
                                              cp_note_level,&
                                              cp_to_string,&
                                              cp_warning_level
-  USE force_env_types,                   ONLY: force_env_create,&
+  USE force_env_types,                 ONLY: force_env_create,&
                                              force_env_type
   USE global_types,                    ONLY: global_environment_type
-  USE kinds,                           ONLY: dp
-  USE molecule_types,                  ONLY: molecule_type
-! USE qs_energy,                       ONLY: qs_energies
   USE kg_environment,                  ONLY: kg_init
   USE kg_environment_types,            ONLY: kg_env_create,&
                                              kg_env_release,&
                                              kg_environment_type
-  USE termination,                     ONLY: stop_program
+  USE kinds,                           ONLY: dp
   USE timings,                         ONLY: timeset,&
                                              timestop
+
     IMPLICIT NONE
 
   PRIVATE
@@ -81,18 +78,15 @@ CONTAINS
 
   SUBROUTINE kg_create_force_env(force_env,globenv,error)
 
-    TYPE(force_env_type), POINTER :: force_env
-    TYPE(global_environment_type), POINTER :: globenv
-    TYPE(cp_error_type), INTENT(inout), OPTIONAL :: error
-!   *** Local parameters ***
+    TYPE(force_env_type), POINTER            :: force_env
+    TYPE(global_environment_type), POINTER   :: globenv
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
 
-    CHARACTER(LEN=*), PARAMETER :: routineN = "kg_create_force_env",&
-         routineP=moduleN//":"//routineN
+    CHARACTER(LEN=*), PARAMETER :: routineN = "kg_create_force_env", &
+      routineP = moduleN//":"//routineN
 
-!   *** Local variables ***
-
-    LOGICAL :: failure
-    INTEGER              :: handle
+    INTEGER                                  :: handle
 
 !   ---------------------------------------------------------------------------
 

@@ -32,29 +32,18 @@ MODULE pao_types
   USE cp_b_matrix_structure,           ONLY: cp_b_matrix_struct_type,&
                                              cp_get
   USE cp_block_matrix,                 ONLY: cp_block_matrix_p_type,&
-                                             cp_block_matrix_type,&
-                                             cp_sp_create
+                                             cp_block_matrix_type
   USE cp_error_handling,               ONLY: cp_a_l,&
                                              cp_assert,&
-                                             cp_debug,&
                                              cp_error_message,&
                                              cp_error_type
   USE cp_log_handling,                 ONLY: cp_failure_level,&
                                              cp_note_level,&
                                              cp_to_string,&
                                              cp_warning_level
-  USE global_types,                    ONLY: global_environment_type
   USE kinds,                           ONLY: dp
-  USE pao_bas_projection_types,        ONLY: cp_get,&
-                                             pao_bas_projection_type
-  USE sparse_matrix_types,             ONLY: add_block_node,&
-                                             copy_matrix,&
-                                             deallocate_matrix,&
-                                             get_block_node,&
-                                             get_matrix_info,&
-                                             put_block_node,&
-                                             real_matrix_type,&
-                                             replicate_matrix
+  USE pao_bas_projection_types,        ONLY: cp_get
+
   IMPLICIT NONE
   PRIVATE
 
@@ -270,20 +259,24 @@ CONTAINS
        wanted_in_subspace_precision, angles_att,min_density_m, &
        min_bas_m_struct, full_bas_m_struct, full_min_bas_m_struct, &
        min_full_bas_m_struct, full_bas_diag_m_struct,error)
-    TYPE(pao_env_type), TARGET, INTENT(in) :: pao_env
-    REAL(KIND = dp), OPTIONAL, INTENT(out) :: wanted_subspace_pos_precision
-    REAL(KIND = dp), OPTIONAL, INTENT(out) :: wanted_in_subspace_precision
-    TYPE(pao_glob_angles_type), OPTIONAL, POINTER :: angles_att
-    TYPE(cp_block_matrix_p_type), DIMENSION(:), OPTIONAL, POINTER ::&
-         min_density_m
-    TYPE(cp_b_matrix_struct_type), POINTER, OPTIONAL :: min_bas_m_struct, &
-         full_bas_m_struct, full_min_bas_m_struct, min_full_bas_m_struct,&
-         full_bas_diag_m_struct
-    TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
+    TYPE(pao_env_type), INTENT(in), TARGET   :: pao_env
+    REAL(KIND=dp), INTENT(out), OPTIONAL     :: wanted_subspace_pos_precision,&
+                                                wanted_in_subspace_precision
+    TYPE(pao_glob_angles_type), OPTIONAL, &
+      POINTER                                :: angles_att
+    TYPE(cp_block_matrix_p_type), &
+      DIMENSION(:), OPTIONAL, POINTER        :: min_density_m
+    TYPE(cp_b_matrix_struct_type), OPTIONAL, POINTER :: min_bas_m_struct, &
+      full_bas_m_struct, full_min_bas_m_struct, min_full_bas_m_struct, &
+      full_bas_diag_m_struct
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
 
-    LOGICAL :: failure
-    CHARACTER(len=*), PARAMETER :: routineN='pao_env_get',&
-        routineP=moduleN//':'//routineN
+    CHARACTER(len=*), PARAMETER :: routineN = 'pao_env_get', &
+      routineP = moduleN//':'//routineN
+
+    LOGICAL                                  :: failure
+
     failure=.FALSE.
 
     CPPrecondition(pao_env%initialized, cp_failure_level,routineP,error,failure)
@@ -340,13 +333,16 @@ CONTAINS
 !!
 !!*** **********************************************************************
   FUNCTION pao_env_valid(pao_env,error) RESULT(res)
-    LOGICAL ::res
-    TYPE(pao_env_type), INTENT(in) :: pao_env
-    TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
+    TYPE(pao_env_type), INTENT(in)           :: pao_env
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
+    LOGICAL                                  :: res
 
-    LOGICAL :: failure
-    CHARACTER(len=*), PARAMETER :: routineN='pao_env_valid',&
-        routineP=moduleN//':'//routineN
+    CHARACTER(len=*), PARAMETER :: routineN = 'pao_env_valid', &
+      routineP = moduleN//':'//routineN
+
+    LOGICAL                                  :: failure
+
     failure=.FALSE.
 
     CPPrecondition(pao_env%initialized,cp_failure_level,routineP,error,failure)

@@ -26,6 +26,17 @@ MODULE xc
   USE coefficient_types,               ONLY: PLANEWAVES,&
                                              coeff_type
   USE cp_array_r_utils,                ONLY: cp_3d_r_p_type
+  USE cp_control_types,                ONLY: dft_control_type,&
+                                             xc_control_type,&
+                                             xc_deriv_pw,&
+                                             xc_deriv_spline2,&
+                                             xc_deriv_spline2_smooth,&
+                                             xc_deriv_spline3,&
+                                             xc_deriv_spline3_smooth,&
+                                             xc_rho_nn10,&
+                                             xc_rho_no_smooth,&
+                                             xc_rho_spline2_smooth,&
+                                             xc_rho_spline3_smooth
   USE cp_error_handling,               ONLY: cp_a_l,&
                                              cp_assert,&
                                              cp_assertion_failed,&
@@ -38,22 +49,10 @@ MODULE xc
                                              cp_sll_xc_deriv_type
   USE cp_log_handling,                 ONLY: cp_failure_level,&
                                              cp_fatal_level,&
-                                             cp_log,&
                                              cp_logger_type,&
                                              cp_note_level,&
                                              cp_to_string,&
                                              cp_warning_level
-  USE cp_control_types,                ONLY: dft_control_type,&
-                                             xc_control_type,&
-                                             xc_deriv_pw,&
-                                             xc_deriv_spline2,&
-                                             xc_deriv_spline2_smooth,&
-                                             xc_deriv_spline3,&
-                                             xc_deriv_spline3_smooth,&
-                                             xc_rho_nn10,&
-                                             xc_rho_no_smooth,&
-                                             xc_rho_spline2_smooth,&
-                                             xc_rho_spline3_smooth
   USE kinds,                           ONLY: dbl,&
                                              dp
   USE message_passing,                 ONLY: mp_sum
@@ -86,8 +85,7 @@ MODULE xc
   USE simulation_cell,                 ONLY: cell_type
   USE timings,                         ONLY: timeset,&
                                              timestop
-  USE xc_derivative_desc,              ONLY: MAX_DERIVATIVE_DESC_LENGTH,&
-                                             MAX_LABEL_LENGTH
+  USE xc_derivative_desc,              ONLY: MAX_DERIVATIVE_DESC_LENGTH
   USE xc_derivative_set_types,         ONLY: xc_derivative_set_type,&
                                              xc_dset_create,&
                                              xc_dset_get_derivative,&
@@ -105,6 +103,7 @@ MODULE xc
                                              xc_rho_set_release,&
                                              xc_rho_set_type,&
                                              xc_rho_set_update
+
   IMPLICIT NONE
   PRIVATE
   PUBLIC :: xc_calculate_pw_new, xc_calculate_pw1, xc_calculate_pw2, &
@@ -166,22 +165,22 @@ CONTAINS
 !!*** **********************************************************************
   SUBROUTINE xc_calculate_pw1(rho_r,rho_g,vxc,exc,dft_control,&
        pw_pool,error)
-    TYPE(pw_type), POINTER                       :: rho_r
-    TYPE(pw_type), POINTER                       :: rho_g
-    TYPE(pw_type), POINTER                       :: vxc
-    REAL(KIND = dp), INTENT(out)                   :: exc
-    TYPE(dft_control_type), INTENT(in),TARGET    :: dft_control
-    TYPE(pw_pool_type), POINTER                  :: pw_pool
-    TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
+    TYPE(pw_type), POINTER                   :: rho_r, rho_g, vxc
+    REAL(KIND=dp), INTENT(out)               :: exc
+    TYPE(dft_control_type), INTENT(in), &
+      TARGET                                 :: dft_control
+    TYPE(pw_pool_type), POINTER              :: pw_pool
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
 
-    LOGICAL :: failure
-    CHARACTER(len=*), PARAMETER :: routineN='xc_calculate_pw1',&
-         routineP=moduleN//':'//routineN
-    INTEGER :: stat
-    TYPE(pw_p_type), DIMENSION(:),POINTER :: my_rho_r, my_vxc
-    TYPE(pw_p_type), DIMENSION(:), POINTER :: my_rho_g
-    TYPE(dft_control_type),POINTER :: my_dft_control
-    TYPE(cell_type), POINTER :: cell
+    CHARACTER(len=*), PARAMETER :: routineN = 'xc_calculate_pw1', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: stat
+    LOGICAL                                  :: failure
+    TYPE(cell_type), POINTER                 :: cell
+    TYPE(dft_control_type), POINTER          :: my_dft_control
+    TYPE(pw_p_type), DIMENSION(:), POINTER   :: my_rho_g, my_rho_r, my_vxc
 
     failure=.FALSE.
     NULLIFY(my_rho_g, cell, my_rho_r, my_vxc)
@@ -257,22 +256,24 @@ CONTAINS
 !!*** **********************************************************************
   SUBROUTINE xc_calculate_pw2(rho_r,rho_g,vxc,exc,dft_control,&
        cell,pw_pool,error)
-    TYPE(coeff_type),DIMENSION(:), INTENT(in)    :: rho_r
-    TYPE(coeff_type),DIMENSION(:), POINTER       :: rho_g
-    TYPE(coeff_type),DIMENSION(:), INTENT(INout) :: vxc
-    REAL(KIND = dp), INTENT(out)                 :: exc
-    TYPE(dft_control_type), POINTER              :: dft_control
-    TYPE(cell_type), POINTER                     :: cell
-    TYPE(pw_pool_type), POINTER                  :: pw_pool
-    TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
+    TYPE(coeff_type), DIMENSION(:), &
+      INTENT(in)                             :: rho_r
+    TYPE(coeff_type), DIMENSION(:), POINTER  :: rho_g
+    TYPE(coeff_type), DIMENSION(:), &
+      INTENT(INout)                          :: vxc
+    REAL(KIND=dp), INTENT(out)               :: exc
+    TYPE(dft_control_type), POINTER          :: dft_control
+    TYPE(cell_type), POINTER                 :: cell
+    TYPE(pw_pool_type), POINTER              :: pw_pool
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
 
-    LOGICAL :: failure
-    CHARACTER(len=*), PARAMETER :: routineN='xc_calculate_pw2',&
-         routineP=moduleN//':'//routineN
-    TYPE(pw_p_type), DIMENSION(:), POINTER :: my_rho_r, my_rho_g, my_vxc, vxc2
-    INTEGER :: stat, ispin ,i,j,k
-    INTEGER, DIMENSION(2,3) :: bo
-    REAL(kind=dp) :: diff, maxdiff, exc2
+    CHARACTER(len=*), PARAMETER :: routineN = 'xc_calculate_pw2', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: ispin, stat
+    LOGICAL                                  :: failure
+    TYPE(pw_p_type), DIMENSION(:), POINTER   :: my_rho_g, my_rho_r, my_vxc
 
     failure=.FALSE.
     NULLIFY(my_rho_r, my_rho_g, my_vxc)
@@ -407,31 +408,41 @@ CONTAINS
 !!*** **********************************************************************
   SUBROUTINE xc_calculate_pw_old(rho_r,rho_g,vxc,exc,dft_control,&
        cell,pw_pool,error)
-    TYPE(pw_p_type),DIMENSION(:), INTENT(inout), TARGET :: rho_r
-    TYPE(pw_p_type),DIMENSION(:), POINTER        :: rho_g
-    TYPE(pw_p_type),DIMENSION(:), INTENT(inout)    :: vxc
-    REAL(KIND = dp), INTENT(out)                   :: exc
-    TYPE(dft_control_type), POINTER              :: dft_control
-    TYPE(cell_type), POINTER                     :: cell
-    TYPE(pw_pool_type), POINTER                  :: pw_pool
-    TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
+    TYPE(pw_p_type), DIMENSION(:), &
+      INTENT(inout), TARGET                  :: rho_r
+    TYPE(pw_p_type), DIMENSION(:), POINTER   :: rho_g
+    TYPE(pw_p_type), DIMENSION(:), &
+      INTENT(inout)                          :: vxc
+    REAL(KIND=dp), INTENT(out)               :: exc
+    TYPE(dft_control_type), POINTER          :: dft_control
+    TYPE(cell_type), POINTER                 :: cell
+    TYPE(pw_pool_type), POINTER              :: pw_pool
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
 
-    LOGICAL, PARAMETER :: tot_grad=.FALSE.
-    LOGICAL :: failure, gradient_f, crossterms, my_rho_r_local,my_rho_g_local
-    INTEGER :: nspins, ii, i, j, k, ntot, ngrad_spins, handle, stat, ispin,&
-         ipot, idir, npot, ifun
-    CHARACTER(len=*), PARAMETER :: routineN='xc_calculate_pw_old',&
-         routineP=moduleN//':'//routineN
-    INTEGER, DIMENSION(3) :: n
-    INTEGER, DIMENSION (3,3) :: nd 
-    INTEGER, DIMENSION (2,3) :: bo
-    TYPE(cp_logger_type), POINTER :: logger
-    TYPE(pw_type), POINTER :: tmp_g, tmp_r, vxc_g, my_rho_g, my_rho_r
-    TYPE(pw_p_type), DIMENSION(3) :: drho_r_att
-    TYPE(pw_p_type), DIMENSION(:,:), POINTER :: drho_r
-    TYPE(xc_derivative_set_type), POINTER :: derivative_set
-    REAL ( KIND = dp ) , DIMENSION (:,:), ALLOCATABLE :: rgrid, drgrid
-    REAL ( KIND = dp ) :: eps_rho,alpha
+    CHARACTER(len=*), PARAMETER :: routineN = 'xc_calculate_pw_old', &
+      routineP = moduleN//':'//routineN
+    LOGICAL, PARAMETER                       :: tot_grad = .FALSE.
+
+    INTEGER                                  :: handle, i, idir, ii, ipot, &
+                                                ispin, j, k, ngrad_spins, &
+                                                nspins, ntot, stat
+    INTEGER, DIMENSION(2, 3)                 :: bo
+    INTEGER, DIMENSION(3)                    :: n
+    INTEGER, DIMENSION(3, 3)                 :: nd
+    LOGICAL                                  :: crossterms, failure, &
+                                                gradient_f, my_rho_g_local, &
+                                                my_rho_r_local
+    REAL(KIND=dp)                            :: alpha, eps_rho
+    REAL(KIND=dp), ALLOCATABLE, &
+      DIMENSION(:, :)                        :: drgrid, rgrid
+    TYPE(cp_logger_type), POINTER            :: logger
+    TYPE(pw_p_type), DIMENSION(3)            :: drho_r_att
+    TYPE(pw_p_type), DIMENSION(:, :), &
+      POINTER                                :: drho_r
+    TYPE(pw_type), POINTER                   :: my_rho_g, my_rho_r, tmp_g, &
+                                                tmp_r, vxc_g
+    TYPE(xc_derivative_set_type), POINTER    :: derivative_set
 
     CALL timeset(routineN,"I","",handle)
     failure=.FALSE.
@@ -938,41 +949,49 @@ CONTAINS
 !!*** **********************************************************************
   SUBROUTINE xc_calculate_pw_new(rho_r,rho_g,vxc,exc,dft_control,&
        cell,pw_pool,error)
-    TYPE(pw_p_type),DIMENSION(:), INTENT(inout), TARGET :: rho_r
-    TYPE(pw_p_type),DIMENSION(:), POINTER        :: rho_g
-    TYPE(pw_p_type),DIMENSION(:), INTENT(inout)    :: vxc
-    REAL(KIND = dp), INTENT(out)                   :: exc
-    TYPE(dft_control_type), POINTER              :: dft_control
-    TYPE(cell_type), POINTER                     :: cell
-    TYPE(pw_pool_type), POINTER                  :: pw_pool
-    TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
+    TYPE(pw_p_type), DIMENSION(:), &
+      INTENT(inout), TARGET                  :: rho_r
+    TYPE(pw_p_type), DIMENSION(:), POINTER   :: rho_g
+    TYPE(pw_p_type), DIMENSION(:), &
+      INTENT(inout)                          :: vxc
+    REAL(KIND=dp), INTENT(out)               :: exc
+    TYPE(dft_control_type), POINTER          :: dft_control
+    TYPE(cell_type), POINTER                 :: cell
+    TYPE(pw_pool_type), POINTER              :: pw_pool
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
 
-    CHARACTER(len=30), DIMENSION(2), PARAMETER :: norm_drho_spin_name=&
-         (/ "(norm_drhoa)", "(norm_drhob)" /)
-    LOGICAL :: failure, gradient_f, crossterms, my_rho_r_local,my_rho_g_local, lsd,&
-         zero_result
-    INTEGER :: nspins, ii, i, j, k, ntot, ngrad_spins, handle, stat, ispin,&
-         ipot, idir, npot, ifun, order
-    CHARACTER(len=*), PARAMETER :: routineN='xc_calculate_pw_new',&
-         routineP=moduleN//':'//routineN
-    INTEGER, DIMENSION (3,3) :: nd 
-    INTEGER, DIMENSION (2,3) :: bo
-    TYPE(cp_logger_type), POINTER :: logger
-    TYPE(pw_type), POINTER :: tmp_g, tmp_r, vxc_g
-    TYPE(pw_p_type), DIMENSION(3) :: pw_to_deriv
-    TYPE(pw_p_type), DIMENSION(2) :: vxc_to_deriv
-    REAL (kind = dp), DIMENSION(:,:,:), POINTER :: norm_drho_spin, norm_drho
-    TYPE(cp_3d_r_p_type), DIMENSION(:), POINTER :: drho_spin, drhoa, drhob, drho
-    TYPE(cp_sll_xc_deriv_type), POINTER :: pos
-    TYPE(xc_derivative_set_type), POINTER :: deriv_set
-    TYPE(xc_derivative_type), POINTER :: deriv_att
-    REAL(kind=dp), DIMENSION(:,:,:), POINTER :: deriv_data
-    TYPE(xc_rho_set_type), POINTER :: rho_set
-    TYPE(xc_rho_cflags_type) :: needs
-    TYPE(xc_control_type), POINTER :: xc_control
-    REAL ( KIND = dp ) :: ndr,tmp,drho_cutoff, rho_cutoff
-    CHARACTER(len=MAX_DERIVATIVE_DESC_LENGTH), POINTER :: desc
-    CHARACTER(len=MAX_LABEL_LENGTH+2) :: my_desc
+    CHARACTER(len=*), PARAMETER :: routineN = 'xc_calculate_pw_new', &
+      routineP = moduleN//':'//routineN
+    CHARACTER(len=30), DIMENSION(2), PARAMETER :: &
+      norm_drho_spin_name = (/ "(norm_drhoa)", "(norm_drhob)" /)
+
+    CHARACTER&
+      (len=MAX_DERIVATIVE_DESC_LENGTH), &
+      POINTER                                :: desc
+    INTEGER                                  :: handle, i, idir, ispin, j, k, &
+                                                nspins, order
+    INTEGER, DIMENSION(2, 3)                 :: bo
+    INTEGER, DIMENSION(3, 3)                 :: nd
+    LOGICAL                                  :: failure, gradient_f, lsd, &
+                                                zero_result
+    REAL(KIND=dp)                            :: drho_cutoff, ndr, rho_cutoff, &
+                                                tmp
+    REAL(kind=dp), DIMENSION(:, :, :), &
+      POINTER                                :: deriv_data, norm_drho, &
+                                                norm_drho_spin
+    TYPE(cp_3d_r_p_type), DIMENSION(:), &
+      POINTER                                :: drho, drho_spin, drhoa, drhob
+    TYPE(cp_logger_type), POINTER            :: logger
+    TYPE(cp_sll_xc_deriv_type), POINTER      :: pos
+    TYPE(pw_p_type), DIMENSION(2)            :: vxc_to_deriv
+    TYPE(pw_p_type), DIMENSION(3)            :: pw_to_deriv
+    TYPE(pw_type), POINTER                   :: tmp_g, tmp_r, vxc_g
+    TYPE(xc_control_type), POINTER           :: xc_control
+    TYPE(xc_derivative_set_type), POINTER    :: deriv_set
+    TYPE(xc_derivative_type), POINTER        :: deriv_att
+    TYPE(xc_rho_cflags_type)                 :: needs
+    TYPE(xc_rho_set_type), POINTER           :: rho_set
 
     CALL timeset(routineN,"I","",handle)
     failure=.FALSE.
@@ -1464,25 +1483,24 @@ CONTAINS
   SUBROUTINE xc_prep_2nd_deriv1(derivative_set,rho_r,rho_g,dft_control,pw_pool,&
        drho_r,spin_pot,grad_pot,ndiag_term,error)
 
-    ! arguments
-    TYPE(xc_derivative_set_type), POINTER :: derivative_set
-    TYPE(coeff_type), DIMENSION(:), POINTER :: rho_r, rho_g
-    TYPE(dft_control_type), POINTER :: dft_control
-    TYPE(pw_p_type), DIMENSION(:,:),POINTER :: drho_r
-    INTEGER, DIMENSION(:,:), POINTER :: spin_pot
-    LOGICAL, DIMENSION(:,:), POINTER :: grad_pot
-    LOGICAL, DIMENSION(:), POINTER :: ndiag_term
-    TYPE(pw_pool_type), POINTER :: pw_pool
-    TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
+    TYPE(xc_derivative_set_type), POINTER    :: derivative_set
+    TYPE(coeff_type), DIMENSION(:), POINTER  :: rho_r, rho_g
+    TYPE(dft_control_type), POINTER          :: dft_control
+    TYPE(pw_pool_type), POINTER              :: pw_pool
+    TYPE(pw_p_type), DIMENSION(:, :), &
+      POINTER                                :: drho_r
+    INTEGER, DIMENSION(:, :), POINTER        :: spin_pot
+    LOGICAL, DIMENSION(:, :), POINTER        :: grad_pot
+    LOGICAL, DIMENSION(:), POINTER           :: ndiag_term
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
 
-    ! locals
-    LOGICAL :: failure
-    TYPE(pw_p_type), DIMENSION(:), POINTER :: my_rho_r, my_rho_g
-    INTEGER :: stat, ispin
+    CHARACTER(len=*), PARAMETER :: routineN = 'xc_prep_2nd_deriv1', &
+      routineP = moduleN//':'//routineN
 
-    ! parameters
-    CHARACTER(len=*), PARAMETER :: routineN='xc_prep_2nd_deriv1',&
-         routineP=moduleN//':'//routineN
+    INTEGER                                  :: ispin, stat
+    LOGICAL                                  :: failure
+    TYPE(pw_p_type), DIMENSION(:), POINTER   :: my_rho_g, my_rho_r
 
     failure=.FALSE.
     NULLIFY(my_rho_r, my_rho_g)
@@ -1564,36 +1582,36 @@ CONTAINS
                                drho_r, spin_pot, grad_pot, ndiag_term, &
                                error)
 
-    IMPLICIT NONE
 
-    ! arguments
-    TYPE(xc_derivative_set_type), POINTER :: derivative_set
-    TYPE(pw_p_type), DIMENSION(:), POINTER :: rho_r, rho_g
-    TYPE(dft_control_type), POINTER :: dft_control
-    TYPE(pw_p_type), DIMENSION(:,:),POINTER :: drho_r
-    INTEGER, DIMENSION(:,:), POINTER :: spin_pot
-    LOGICAL, DIMENSION(:,:), POINTER :: grad_pot
-    LOGICAL, DIMENSION(:), POINTER :: ndiag_term
-    TYPE(pw_pool_type), POINTER :: pw_pool
-    TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
+    TYPE(xc_derivative_set_type), POINTER    :: derivative_set
+    TYPE(pw_p_type), DIMENSION(:), POINTER   :: rho_r, rho_g
+    TYPE(dft_control_type), POINTER          :: dft_control
+    TYPE(pw_pool_type), POINTER              :: pw_pool
+    TYPE(pw_p_type), DIMENSION(:, :), &
+      POINTER                                :: drho_r
+    INTEGER, DIMENSION(:, :), POINTER        :: spin_pot
+    LOGICAL, DIMENSION(:, :), POINTER        :: grad_pot
+    LOGICAL, DIMENSION(:), POINTER           :: ndiag_term
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
 
-    ! locals
-    LOGICAL :: failure, use_crossterms, do_lsd, do_restricted_tddfpt
-    INTEGER :: handle, nspins, spin, ii, i,j,k, n(3), n_tot, idir, ipot,ntot,&
-         stat, order,npot
-    INTEGER, DIMENSION (3,3) :: nd 
-    INTEGER, DIMENSION (2,3) :: bo
-    REAL(KIND = dp), DIMENSION(:,:), ALLOCATABLE :: rgrid, drgrid
-    REAL(KIND = dp) :: rgrid_sum
-    TYPE(pw_type), POINTER :: tmp_g
-    TYPE(cp_logger_type), POINTER :: logger
-    TYPE(xc_control_type) :: xc_control
+    CHARACTER(len=*), PARAMETER :: routineN = 'xc_prep_2nd_deriv', &
+      routineP = moduleN//':'//routineN
 
-    ! parameters
-    CHARACTER(len=*), PARAMETER :: routineN = 'xc_prep_2nd_deriv',&
-         routineP = moduleN//':'//routineN
+    INTEGER                                  :: handle, i, idir, ii, ipot, j, &
+                                                k, n(3), nspins, ntot, spin, &
+                                                stat
+    INTEGER, DIMENSION(2, 3)                 :: bo
+    INTEGER, DIMENSION(3, 3)                 :: nd
+    LOGICAL                                  :: do_lsd, do_restricted_tddfpt, &
+                                                failure, use_crossterms
+    REAL(KIND=dp), ALLOCATABLE, &
+      DIMENSION(:, :)                        :: drgrid, rgrid
+    TYPE(cp_logger_type), POINTER            :: logger
+    TYPE(pw_type), POINTER                   :: tmp_g
+    TYPE(xc_control_type)                    :: xc_control
 
-    ! ------------------------------------------------------------------------
+! ------------------------------------------------------------------------
 
     CALL timeset(routineN,"I","",handle)
 
@@ -1918,27 +1936,26 @@ CONTAINS
        spin_pot,grad_pot,ndiag_term,dft_control,&
        v_rspace_new,pw_pool,error)
 
-    ! arguments
-    TYPE(xc_derivative_set_type), POINTER :: derivative_set
-    TYPE(coeff_type), DIMENSION(:), POINTER :: rho_r, rho1_r, rho1_g
-    TYPE(pw_p_type), DIMENSION(:,:),POINTER :: drho_r
-    INTEGER, DIMENSION(:,:), POINTER :: spin_pot
-    LOGICAL, DIMENSION(:,:), POINTER :: grad_pot
-    LOGICAL, DIMENSION(:), POINTER :: ndiag_term
-    TYPE(dft_control_type), POINTER :: dft_control
-    TYPE(coeff_type), DIMENSION(:), POINTER :: v_rspace_new
-    TYPE(pw_pool_type), POINTER :: pw_pool
-    TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
+    TYPE(xc_derivative_set_type), POINTER    :: derivative_set
+    TYPE(coeff_type), DIMENSION(:), POINTER  :: rho_r
+    TYPE(pw_p_type), DIMENSION(:, :), &
+      POINTER                                :: drho_r
+    TYPE(coeff_type), DIMENSION(:), POINTER  :: rho1_r, rho1_g
+    INTEGER, DIMENSION(:, :), POINTER        :: spin_pot
+    LOGICAL, DIMENSION(:, :), POINTER        :: grad_pot
+    LOGICAL, DIMENSION(:), POINTER           :: ndiag_term
+    TYPE(dft_control_type), POINTER          :: dft_control
+    TYPE(coeff_type), DIMENSION(:), POINTER  :: v_rspace_new
+    TYPE(pw_pool_type), POINTER              :: pw_pool
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
 
-    ! locals
-    LOGICAL :: failure
-    TYPE(pw_p_type), DIMENSION(:), POINTER :: my_rho_r, my_rho1_r,&
-                                              my_rho1_g
-    INTEGER :: stat,ispin
+    CHARACTER(len=*), PARAMETER :: routineN = 'xc_calc_2nd_deriv1', &
+      routineP = moduleN//':'//routineN
 
-    ! parameters
-    CHARACTER(len=*), PARAMETER :: routineN = 'xc_calc_2nd_deriv1',&
-                                   routineP = moduleN//':'//routineN
+    INTEGER                                  :: ispin, stat
+    LOGICAL                                  :: failure
+    TYPE(pw_p_type), DIMENSION(:), POINTER   :: my_rho1_g, my_rho1_r, my_rho_r
 
     failure=.FALSE.
     NULLIFY(my_rho_r, drho_r, my_rho1_r, my_rho1_g)
@@ -2045,40 +2062,37 @@ CONTAINS
        spin_pot, grad_pot, ndiag_term, dft_control, &
        v_rspace_new, pw_pool, error)
 
-    IMPLICIT NONE
 
-    ! arguments
-    TYPE(xc_derivative_set_type), POINTER        :: derivative_set
-    TYPE(pw_p_type), DIMENSION(:), POINTER       :: rho_r, rho1_r, rho1_g
-    TYPE(pw_p_type), DIMENSION(:,:),POINTER      :: drho_r
-    INTEGER, DIMENSION(:,:), POINTER             :: spin_pot
-    LOGICAL, DIMENSION(:,:), POINTER             :: grad_pot
-    LOGICAL, DIMENSION(:), POINTER               :: ndiag_term
-    TYPE(dft_control_type), POINTER              :: dft_control
-    TYPE(coeff_type), DIMENSION(:), POINTER      :: v_rspace_new
-    TYPE(pw_pool_type), POINTER                  :: pw_pool
-    TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
+    TYPE(xc_derivative_set_type), POINTER    :: derivative_set
+    TYPE(pw_p_type), DIMENSION(:), POINTER   :: rho_r
+    TYPE(pw_p_type), DIMENSION(:, :), &
+      POINTER                                :: drho_r
+    TYPE(pw_p_type), DIMENSION(:), POINTER   :: rho1_r, rho1_g
+    INTEGER, DIMENSION(:, :), POINTER        :: spin_pot
+    LOGICAL, DIMENSION(:, :), POINTER        :: grad_pot
+    LOGICAL, DIMENSION(:), POINTER           :: ndiag_term
+    TYPE(dft_control_type), POINTER          :: dft_control
+    TYPE(coeff_type), DIMENSION(:), POINTER  :: v_rspace_new
+    TYPE(pw_pool_type), POINTER              :: pw_pool
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
 
-    ! locals
-    LOGICAL                                      :: failure, &
-         do_restricted_tddfpt, do_lsd
-    REAL(KIND = dp)                                :: diag_factor
-    INTEGER                                      :: handle, &
-         nspins, spin, &
-         ii, i,j,k, &
-         n(3), n_tot, ntot, npot, &
-         idir, ipot, &
-         stat
-    INTEGER, DIMENSION (3,3)                     :: nd 
-    INTEGER, DIMENSION (2,3)                     :: bounds
-    TYPE(pw_type), POINTER                       :: tmp_g, tmp_r, v_deriv_g
-    TYPE(pw_p_type), DIMENSION(:), ALLOCATABLE   :: v_r_to_deriv, drho1_r
-    TYPE(xc_control_type)                        :: xc_control
-    TYPE(cp_logger_type), POINTER                :: logger
+    CHARACTER(len=*), PARAMETER :: routineN = 'xc_calc_2nd_deriv', &
+      routineP = moduleN//':'//routineN
 
-    ! parameters
-    CHARACTER(len=*), PARAMETER :: routineN='xc_calc_2nd_deriv',&
-         routineP=moduleN//':'//routineN
+    INTEGER                                  :: handle, i, idir, ii, ipot, j, &
+                                                k, n(3), npot, nspins, ntot, &
+                                                spin, stat
+    INTEGER, DIMENSION(2, 3)                 :: bounds
+    INTEGER, DIMENSION(3, 3)                 :: nd
+    LOGICAL                                  :: do_lsd, do_restricted_tddfpt, &
+                                                failure
+    REAL(KIND=dp)                            :: diag_factor
+    TYPE(cp_logger_type), POINTER            :: logger
+    TYPE(pw_p_type), ALLOCATABLE, &
+      DIMENSION(:)                           :: drho1_r, v_r_to_deriv
+    TYPE(pw_type), POINTER                   :: tmp_g, tmp_r, v_deriv_g
+    TYPE(xc_control_type)                    :: xc_control
 
     CALL timeset(routineN,"I","",handle)
 
@@ -2508,11 +2522,15 @@ CONTAINS
   !***************************************************************************
 
   SUBROUTINE pw_smooth(pw_in,pw_out)
-    TYPE(pw_type), POINTER :: pw_in
-    TYPE(pw_type), POINTER :: pw_out
-    REAL(KIND = dp) :: alpha,beta,sum,dr(3),radius,sigma,dist
-    INTEGER  :: n(3),nc(3),bo(2,3),i,j,k,ir,il,jl,jr,kr,kl,p,q,r,method
-    REAL(KIND = dp), DIMENSION(:,:,:), ALLOCATABLE :: Kernel
+    TYPE(pw_type), POINTER                   :: pw_in, pw_out
+
+    INTEGER                                  :: bo(2,3), i, il, ir, j, jl, &
+                                                jr, k, kl, kr, method, n(3), &
+                                                nc(3), p, q, r
+    REAL(KIND=dp)                            :: alpha, beta, dist, dr(3), &
+                                                radius, sigma, sum
+    REAL(KIND=dp), ALLOCATABLE, &
+      DIMENSION(:, :, :)                     :: Kernel
 
     n(1:3) = pw_in%pw_grid%npts_local (1:3)
     dr(:) = pw_in%pw_grid%dr(:)

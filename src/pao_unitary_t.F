@@ -26,20 +26,14 @@
 !!   SOURCE
 !*****************************************************************************
 MODULE pao_unitary_t
-  USE cp_array_utils,                  ONLY: cp_1d_r_output,&
-                                             cp_2d_r_output
+  USE cp_array_utils,                  ONLY: cp_2d_r_output
   USE cp_error_handling,               ONLY: cp_a_l,&
                                              cp_assert,&
-                                             cp_assertion_failed,&
                                              cp_debug,&
-                                             cp_error_dealloc_ref,&
                                              cp_error_get_logger,&
-                                             cp_error_init,&
                                              cp_error_message,&
-                                             cp_error_type,&
-                                             cp_precondition_failed
+                                             cp_error_type
   USE cp_log_handling,                 ONLY: cp_failure_level,&
-                                             cp_log,&
                                              cp_logger_type,&
                                              cp_note_level,&
                                              cp_to_string,&
@@ -50,18 +44,14 @@ MODULE pao_unitary_t
                                              cp_get_non_p_index,&
                                              cp_get_p_index,&
                                              cp_get_size_excl_bas,&
-                                             cp_get_size_full_bas,&
                                              cp_get_size_min_bas,&
                                              cp_init,&
-                                             pao_l_ang_dealloc_ref,&
                                              pao_l_ang_get,&
                                              pao_local_angles_type
   USE pao_plain_rot,                   ONLY: cp_left_compose_p_rot,&
-                                             cp_left_compose_p_rot_deriv,&
                                              cp_right_compose_p_rot,&
                                              cp_right_compose_p_rot_deriv
-  USE pao_types,                       ONLY: pao_env_type,&
-                                             pao_glob_angles_type
+
   IMPLICIT NONE
   PRIVATE
 
@@ -203,16 +193,24 @@ CONTAINS
 !***************************************************************************
   SUBROUTINE pao_calc_u_du_init(c_env,local_angles, min_bas, excl_bas,&
        u, error) !to do (correct full to excl)
-    TYPE(pao_calc_u_du_type), INTENT(out) :: c_env
-    TYPE(pao_local_angles_type), INTENT(inout), TARGET :: local_angles
-    INTEGER, OPTIONAL, INTENT(in) :: min_bas,excl_bas
-    REAL(KIND = dp), DIMENSION(:,:), OPTIONAL, INTENT(in):: u
-    TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
+    TYPE(pao_calc_u_du_type), INTENT(out)    :: c_env
+    TYPE(pao_local_angles_type), &
+      INTENT(inout), TARGET                  :: local_angles
+    INTEGER, INTENT(in), OPTIONAL            :: min_bas, excl_bas
+    REAL(KIND=dp), DIMENSION(:, :), &
+      INTENT(in), OPTIONAL                   :: u
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
 
-    LOGICAL :: failure
-    CHARACTER(len=*), PARAMETER :: routineP='pao_plain_rot:pao_calc_u_du_init'
-    INTEGER :: n_excl_bas,n_min_bas, stat, i_excl_bas, i_min_bas, i, n_full_bas
-    INTEGER, DIMENSION(:), POINTER :: proj_indexes, non_proj_indexes
+    CHARACTER(len=*), PARAMETER :: &
+      routineP = 'pao_plain_rot:pao_calc_u_du_init'
+
+    INTEGER                                  :: i, i_excl_bas, i_min_bas, &
+                                                n_excl_bas, n_full_bas, &
+                                                n_min_bas, stat
+    INTEGER, DIMENSION(:), POINTER           :: non_proj_indexes, proj_indexes
+    LOGICAL                                  :: failure
+
     failure=.FALSE.
     c_env%initialized=.TRUE.
     c_env%status=0
@@ -346,14 +344,18 @@ CONTAINS
 !!   SOURCE
 !***************************************************************************
   FUNCTION pao_calc_u_du_next(c_env,error) RESULT(res)
-    LOGICAL :: res
-    TYPE(pao_calc_u_du_type), INTENT(inout) :: c_env
-    TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
+    TYPE(pao_calc_u_du_type), INTENT(inout)  :: c_env
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
+    LOGICAL                                  :: res
 
-    LOGICAL :: failure
-    CHARACTER(len=*), PARAMETER :: routineP='pao_plain_rot:pao_calc_u_du_next'
-    REAL(KIND = dp) :: err
-    INTEGER :: old_min_bas,old_excl_bas, i
+    CHARACTER(len=*), PARAMETER :: &
+      routineP = 'pao_plain_rot:pao_calc_u_du_next'
+
+    INTEGER                                  :: i, old_excl_bas, old_min_bas
+    LOGICAL                                  :: failure
+    REAL(KIND=dp)                            :: err
+
     failure=.FALSE.
 
     CPPrecondition(c_env%initialized,cp_failure_level,routineP,error,failure)
@@ -477,20 +479,25 @@ CONTAINS
 !***************************************************************************
   SUBROUTINE pao_calc_u_du_get(c_env,u,du,min_bas,excl_bas,local_angles,&
        finished,error)
-    TYPE(pao_calc_u_du_type), INTENT(inout) :: c_env
-    TYPE(pao_local_angles_type), OPTIONAL, POINTER :: local_angles
-    INTEGER, OPTIONAL, INTENT(out) :: min_bas,excl_bas
-    LOGICAL,OPTIONAL, INTENT(out) :: finished
-    REAL(KIND = dp), OPTIONAL, INTENT(out), DIMENSION(:,:) :: u,du
-    TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
+    TYPE(pao_calc_u_du_type), INTENT(inout)  :: c_env
+    REAL(KIND=dp), DIMENSION(:, :), &
+      INTENT(out), OPTIONAL                  :: u, du
+    INTEGER, INTENT(out), OPTIONAL           :: min_bas, excl_bas
+    TYPE(pao_local_angles_type), OPTIONAL, &
+      POINTER                                :: local_angles
+    LOGICAL, INTENT(out), OPTIONAL           :: finished
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
 
-    LOGICAL :: failure
-    CHARACTER(len=*), PARAMETER :: routineP='pao_plain_rot:pao_calc_u_du_get'
-    INTEGER :: n_excl_bas, n_full_bas
-    REAL(KIND = dp) :: angle
-    INTEGER, SAVE :: iter=0
-    REAL(KIND = dp), DIMENSION(:), POINTER :: ang
-    TYPE(cp_logger_type), POINTER :: logger
+    CHARACTER(len=*), PARAMETER :: &
+      routineP = 'pao_plain_rot:pao_calc_u_du_get'
+
+    INTEGER                                  :: n_excl_bas, n_full_bas
+    INTEGER, SAVE                            :: iter = 0
+    LOGICAL                                  :: failure
+    REAL(KIND=dp)                            :: angle
+    TYPE(cp_logger_type), POINTER            :: logger
+
     failure=.FALSE.
     logger => cp_error_get_logger(error)
     iter = iter+1
@@ -606,12 +613,16 @@ CONTAINS
 !!   SOURCE
 !***************************************************************************
   SUBROUTINE pao_calc_u_du_dealloc_ref(c_env, error)
-    TYPE(pao_calc_u_du_type), INTENT(inout) :: c_env
-    TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
+    TYPE(pao_calc_u_du_type), INTENT(inout)  :: c_env
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
 
-    LOGICAL :: failure
-    CHARACTER(len=*), PARAMETER :: routineP='pao_plain_rot:pao_calc_u_du_dealloc_ref'
-    INTEGER :: stat
+    CHARACTER(len=*), PARAMETER :: &
+      routineP = 'pao_plain_rot:pao_calc_u_du_dealloc_ref'
+
+    INTEGER                                  :: stat
+    LOGICAL                                  :: failure
+
     failure=.FALSE.
     CPAssert(c_env%initialized,cp_failure_level,routineP,error,failure)
     IF (.NOT. failure) THEN

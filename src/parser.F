@@ -49,14 +49,16 @@
 
 MODULE parser
 
-  USE kinds, ONLY : dbl
-
-  USE global_types, ONLY : global_environment_type
-  USE mathconstants, ONLY : zero, one
-  USE string_utilities, ONLY : uppercase, compress
-  USE termination, ONLY : stop_program
-  USE util, ONLY : get_unit
-  USE message_passing, ONLY : mp_bcast, mp_sync
+  USE global_types,                    ONLY: global_environment_type
+  USE kinds,                           ONLY: dbl
+  USE mathconstants,                   ONLY: one,&
+                                             zero
+  USE message_passing,                 ONLY: mp_bcast,&
+                                             mp_sync
+  USE string_utilities,                ONLY: compress,&
+                                             uppercase
+  USE termination,                     ONLY: stop_program
+  USE util,                            ONLY: get_unit
 
   PRIVATE
   PUBLIC :: parser_init, parser_end, read_line, test_next, get_next, &
@@ -93,18 +95,18 @@ CONTAINS
 !******************************************************************************
 
 SUBROUTINE parser_init ( file_name, globenv, section_end, comment )
-  IMPLICIT NONE
-  CHARACTER ( LEN = * ), INTENT ( IN ) :: file_name
-  TYPE(global_environment_type), INTENT ( IN ), OPTIONAL :: globenv
-  CHARACTER ( LEN = * ), INTENT ( IN ), OPTIONAL :: section_end
-  CHARACTER ( LEN = 1 ), INTENT ( IN ), OPTIONAL :: comment
-  CHARACTER ( LEN = 132 ) :: line
-  INTEGER :: ios
-  LOGICAL :: exists
+    CHARACTER(LEN=*), INTENT(IN)             :: file_name
+    TYPE(global_environment_type), &
+      INTENT(IN), OPTIONAL                   :: globenv
+    CHARACTER(LEN=*), INTENT(IN), OPTIONAL   :: section_end
+    CHARACTER(LEN=1), INTENT(IN), OPTIONAL   :: comment
+
+    CHARACTER(LEN=132)                       :: line
+    LOGICAL                                  :: exists
 
 !------------------------------------------------------------------------------
-
 ! setup parameters for parallel parser
+
   IF ( PRESENT(globenv) ) THEN
     ionode = globenv%ionode
     parallel_io = .true.
@@ -151,7 +153,6 @@ END SUBROUTINE parser_init
 
 SUBROUTINE parser_end
 
-  IMPLICIT NONE
 
   IF(ionode) CLOSE ( UNIT = iunit )
 
@@ -161,15 +162,14 @@ END SUBROUTINE parser_end
 
 SUBROUTINE search_label ( label, ierr, ignore_case )
 
-  IMPLICIT NONE
 
-  INTEGER, INTENT ( OUT ) :: ierr
-  CHARACTER ( LEN = * ), INTENT ( INOUT ) :: label
-  LOGICAL, INTENT ( IN ), OPTIONAL :: ignore_case
+    CHARACTER(LEN=*), INTENT(INOUT)          :: label
+    INTEGER, INTENT(OUT)                     :: ierr
+    LOGICAL, INTENT(IN), OPTIONAL            :: ignore_case
 
-  CHARACTER ( LEN = 132 ) :: line
-  INTEGER :: ios
-  LOGICAL :: exists, igc
+    CHARACTER(LEN=132)                       :: line
+    INTEGER                                  :: ios
+    LOGICAL                                  :: igc
 
 !------------------------------------------------------------------------------
 
@@ -204,9 +204,9 @@ END SUBROUTINE search_label
 
 !******************************************************************************
 SUBROUTINE read_line_s ( line )
-  IMPLICIT NONE
-  CHARACTER ( LEN = * ) :: line
-  INTEGER :: ios
+    CHARACTER(LEN=*)                         :: line
+
+    INTEGER                                  :: ios
 
 !------------------------------------------------------------------------------
 
@@ -227,11 +227,10 @@ END SUBROUTINE read_line_s
 !******************************************************************************
 
 RECURSIVE SUBROUTINE read_line_p
-  IMPLICIT NONE
-  INTEGER :: llen, i, j, ii, ios
-  CHARACTER ( LEN = 132 ) :: line
-  CHARACTER ( LEN = 1 ) :: last
-  LOGICAL :: comment
+    CHARACTER(LEN=1)                         :: last
+    CHARACTER(LEN=132)                       :: line
+    INTEGER                                  :: i, ios, j, llen
+    LOGICAL                                  :: comment
 
 !------------------------------------------------------------------------------
 
@@ -347,11 +346,10 @@ END SUBROUTINE read_line_p
 
 FUNCTION test_next()
 
-  IMPLICIT NONE
 
-! Locals
-  CHARACTER ( LEN = 1 ) :: test_next
-  INTEGER :: n
+    CHARACTER(LEN=1)                         :: test_next
+
+    INTEGER                                  :: n
 
 !------------------------------------------------------------------------------
 
@@ -387,15 +385,12 @@ END FUNCTION test_next
 
 SUBROUTINE cfield ( string, length )
 
-  IMPLICIT NONE
 
-! Arguments
-  CHARACTER ( LEN = * ), INTENT ( INOUT ) :: string
-  INTEGER, INTENT ( INOUT ) :: length
+    CHARACTER(LEN=*), INTENT(INOUT)          :: string
+    INTEGER, INTENT(INOUT)                   :: length
 
-! Locals
-  CHARACTER ( LEN = 1 ) :: char1
-  INTEGER :: l, ll, i, ii
+    CHARACTER(LEN=1)                         :: char1
+    INTEGER                                  :: i, ii, l, ll
 
 !------------------------------------------------------------------------------
 
@@ -445,13 +440,10 @@ END SUBROUTINE cfield
 
 SUBROUTINE p_error ( ioutunit )
 
-  IMPLICIT NONE
 
-! Arguments
-  INTEGER, INTENT ( IN ), OPTIONAL :: ioutunit
+    INTEGER, INTENT(IN), OPTIONAL            :: ioutunit
 
-! Locals
-  INTEGER :: i, llen, iout
+    INTEGER                                  :: i, iout, llen
 
 !------------------------------------------------------------------------------
 
@@ -481,14 +473,13 @@ END SUBROUTINE p_error
 !******************************************************************************
 
 SUBROUTINE get_int(int)
-  IMPLICIT NONE
 
 ! Return value
-  INTEGER, INTENT(OUT) :: int
+    INTEGER, INTENT(OUT)                     :: int
+
+    REAL(dbl)                                :: rival
 
 ! Localse
-  REAL ( dbl ) :: rival
-
 !------------------------------------------------------------------------------
 
   CALL get_real(rival)
@@ -504,21 +495,19 @@ END SUBROUTINE get_int
 
 SUBROUTINE get_real(reval)
 
-  IMPLICIT NONE
 
 !..most general format :  I((sign)_._E(sign)_/(sign)_._E(sign)_)
 
 ! Return value
-  REAL ( dbl ), INTENT ( OUT ) :: reval
+    REAL(dbl), INTENT(OUT)                   :: reval
 
-! Locals
-  REAL ( dbl ) :: xx, v1, v2
-  REAL ( dbl ), SAVE :: value
-  LOGICAL, SAVE :: repetition = .FALSE.
-  INTEGER, SAVE :: rep_num=0
-  CHARACTER ( LEN = 256 ) :: string
-  INTEGER :: ie, llen, state, ii
-  REAL ( dbl ) :: s1, s2, e1, e2, se1, se2, x1, x2, y1, y2
+    CHARACTER(LEN=256)                       :: string
+    INTEGER                                  :: ie, ii, llen, state
+    INTEGER, SAVE                            :: rep_num = 0
+    LOGICAL, SAVE                            :: repetition = .FALSE.
+    REAL(dbl)                                :: e1, e2, s1, s2, se1, se2, v1, &
+                                                v2, x1, x2, xx, y1, y2
+    REAL(dbl), SAVE                          :: value
 
 !------------------------------------------------------------------------------
 
@@ -688,18 +677,15 @@ END SUBROUTINE get_real
 
 SUBROUTINE get_num ( string, result, rlen )
 
-  IMPLICIT NONE
 
-! Arguments
-  REAL ( dbl ), INTENT ( OUT ) :: result
-  CHARACTER ( LEN = * ), INTENT ( IN ) :: string
-  INTEGER, INTENT ( OUT ) :: rlen
+    CHARACTER(LEN=*), INTENT(IN)             :: string
+    REAL(dbl), INTENT(OUT)                   :: result
+    INTEGER, INTENT(OUT)                     :: rlen
 
-! Locals
-  REAL ( dbl ) :: sign, new
-  INTEGER :: istart, llen, i
+    REAL(dbl), PARAMETER                     :: ten = 10.0_dbl
 
-  REAL ( dbl ), PARAMETER :: ten = 10.0_dbl
+    INTEGER                                  :: i, istart, llen
+    REAL(dbl)                                :: new, sign
 
 !------------------------------------------------------------------------------
 
@@ -769,11 +755,9 @@ END SUBROUTINE get_num
 
 SUBROUTINE afield ( str )
 
-! Arguments
-  CHARACTER ( LEN = * ), INTENT ( OUT ) :: str
+    CHARACTER(LEN=*), INTENT(OUT)            :: str
 
-! Locals
-  INTEGER :: i, l, ii
+    INTEGER                                  :: i, ii, l
 
 !------------------------------------------------------------------------------
 
@@ -820,10 +804,8 @@ END SUBROUTINE afield
 
 SUBROUTINE stop_parser ( routine, commentary )
 
-  IMPLICIT NONE
 
-! Arguments
-  CHARACTER ( LEN = * ), INTENT ( IN ) :: routine, commentary
+    CHARACTER(LEN=*), INTENT(IN)             :: routine, commentary
 
   IF ( parallel_io) THEN
     IF ( ionode ) CALL stop_program( routine, commentary )

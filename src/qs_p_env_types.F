@@ -25,70 +25,31 @@
 !!   SOURCE
 ! ****************************************************************************
 MODULE qs_p_env_types
-  USE atomic_kind_types,               ONLY: atomic_kind_type,&
-                                             get_atomic_kind_set
-  USE cp_b_matrix_structure,           ONLY: cp_b_matrix_struct_type
-  USE cp_block_matrix,                 ONLY: cp_block_matrix_p_type,&
-                                             cp_block_matrix_type,&
-                                             cp_sp_array_create,&
-                                             cp_sp_array_dealloc,&
-                                             cp_sp_create,&
-                                             cp_sp_multiplies_blacs,&
-                                             cp_sp_set_to
   USE cp_error_handling,               ONLY: cp_a_l,&
                                              cp_assert,&
-                                             cp_assertion_failed,&
-                                             cp_debug,&
-                                             cp_error_dealloc_ref,&
                                              cp_error_get_logger,&
-                                             cp_error_init,&
                                              cp_error_message,&
-                                             cp_error_type,&
-                                             cp_internal_error,&
-                                             cp_unimplemented_error
-  USE cp_fm_pool_types,                ONLY: cp_fm_pool_p_type,&
-                                             cp_fm_pool_type,&
-                                             fm_pool_create_fm,&
-                                             fm_pool_get_el_struct,&
-                                             fm_pool_give_back_fm,&
-                                             fm_pools_create_fm_vect,&
-                                             fm_pools_give_back_fm_vect
-  USE cp_fm_struct,                    ONLY: cp_fm_struct_get,&
-                                             cp_fm_struct_type
-  USE cp_fm_types,                     ONLY: cp_fm_p_type,&
-                                             cp_fm_type
-  USE cp_fm_vect,                      ONLY: cp_fm_vect_copy,&
-                                             cp_fm_vect_dealloc,&
+                                             cp_error_type
+  USE cp_fm_types,                     ONLY: cp_fm_p_type
+  USE cp_fm_vect,                      ONLY: cp_fm_vect_dealloc,&
                                              cp_fm_vect_write
   USE cp_log_handling,                 ONLY: cp_failure_level,&
                                              cp_fatal_level,&
-                                             cp_log,&
-                                             cp_logger_get_default_unit_nr,&
                                              cp_logger_type,&
                                              cp_note_level,&
                                              cp_to_string,&
                                              cp_warning_level
   USE cp_matrix_utils,                 ONLY: cp_sm_output
   USE cp_para_types,                   ONLY: cp_para_env_type
-  USE cp_control_types,                       ONLY: dft_control_type
-  USE global_types,                    ONLY: global_environment_type
-  USE kinds,                           ONLY: dbl,&
-                                             dp
+  USE kinds,                           ONLY: dp
   USE qs_kpp1_env_types,               ONLY: kpp1_release,&
-                                             kpp1_retain,&
-                                             qs_kpp1_env_p_type,&
                                              qs_kpp1_env_type
-  USE qs_mo_types,                     ONLY: get_mo_set,&
-                                             mo_set_p_type,&
-                                             mo_set_type
   USE qs_rho_types,                    ONLY: qs_rho_type
-  USE sparse_matrix_types,             ONLY: deallocate_matrix,&
-                                             deallocate_matrix_set,&
-                                             get_matrix_info,&
-                                             real_matrix_p_type,&
-                                             real_matrix_type
+  USE sparse_matrix_types,             ONLY: deallocate_matrix_set,&
+                                             real_matrix_p_type
   USE timings,                         ONLY: timeset,&
                                              timestop
+
   IMPLICIT NONE
   PRIVATE
   PUBLIC :: qs_p_env_type, qs_p_env_p_type
@@ -214,12 +175,15 @@ CONTAINS
 !!
 !!*** **********************************************************************
 SUBROUTINE p_env_retain(p_env,error)
-  TYPE(qs_p_env_type), POINTER :: p_env
-  TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
-  
-  LOGICAL :: failure
-  CHARACTER(len=*), PARAMETER :: routineN='p_env_retain',&
-        routineP=moduleN//':'//routineN
+    TYPE(qs_p_env_type), POINTER             :: p_env
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'p_env_retain', &
+      routineP = moduleN//':'//routineN
+
+    LOGICAL                                  :: failure
+
   failure=.FALSE.
   
   CPPrecondition(ASSOCIATED(p_env),cp_failure_level,routineP,error,failure)
@@ -261,14 +225,14 @@ END SUBROUTINE p_env_retain
 !!*** **********************************************************************
   SUBROUTINE p_env_release(p_env, error)
 
-    ! arguments
-    TYPE(qs_p_env_type), POINTER                 :: p_env
-    TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
+    TYPE(qs_p_env_type), POINTER             :: p_env
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
 
-    ! locals
-    LOGICAL                     :: failure
-    CHARACTER(len=*), PARAMETER :: routineN = 'p_env_release',&
-                                   routineP = moduleN//':'//routineN
+    CHARACTER(len=*), PARAMETER :: routineN = 'p_env_release', &
+      routineP = moduleN//':'//routineN
+
+    LOGICAL                                  :: failure
 
     failure=.FALSE.
 
@@ -327,18 +291,21 @@ END SUBROUTINE p_env_retain
 !!
 !!*** **********************************************************************
   SUBROUTINE p_env_write(p_env, unit_nr, long_description, local, error)
-    TYPE(qs_p_env_type), POINTER :: p_env
-    INTEGER, INTENT(in) :: unit_nr
-    LOGICAL, OPTIONAL, INTENT(in) :: long_description, local
-    TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
+    TYPE(qs_p_env_type), POINTER             :: p_env
+    INTEGER, INTENT(in)                      :: unit_nr
+    LOGICAL, INTENT(in), OPTIONAL            :: long_description, local
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
 
-    LOGICAL :: failure, my_local, my_long_description, should_w
-    CHARACTER(len=*), PARAMETER :: routineN='p_env_write',&
-         routineP=moduleN//':'//routineN
-    INTEGER, SAVE :: uniquing_nr=0
-    INTEGER :: iostat, i
-    TYPE(cp_logger_type), POINTER :: logger
-    TYPE(cp_para_env_type), POINTER :: para_env
+    CHARACTER(len=*), PARAMETER :: routineN = 'p_env_write', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: i, iostat
+    INTEGER, SAVE                            :: uniquing_nr = 0
+    LOGICAL                                  :: failure, my_local, &
+                                                my_long_description, should_w
+    TYPE(cp_logger_type), POINTER            :: logger
+    TYPE(cp_para_env_type), POINTER          :: para_env
 
     failure=.FALSE.; my_local=.FALSE.; my_long_description=.FALSE.
     iostat=0

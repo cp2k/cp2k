@@ -28,23 +28,16 @@ MODULE greens_fn
                                              bessk1
   USE kinds,                           ONLY: dbl
   USE mathconstants,                   ONLY: fourpi,&
-                                             pi,&
                                              twopi
-  USE pw_grid_types,                   ONLY: HALFSPACE,&
-                                             pw_grid_type
-  USE pw_types,                        ONLY: COMPLEXDATA1D,&
-                                             COMPLEXDATA3D,&
-                                             NOSPACE,&
-                                             REALDATA1D,&
-                                             REALDATA3D,&
-                                             REALSPACE,&
+  USE pw_grid_types,                   ONLY: pw_grid_type
+  USE pw_types,                        ONLY: REALDATA1D,&
                                              RECIPROCALSPACE,&
                                              pw_allocate,&
                                              pw_deallocate,&
-                                             pw_transfer,&
                                              pw_type
   USE termination,                     ONLY: stop_memory,&
                                              stop_program
+
   IMPLICIT NONE
   
   PRIVATE
@@ -106,8 +99,8 @@ CONTAINS
 
 SUBROUTINE pw_green_fn_destroy ( gftype )
 
-  IMPLICIT NONE
-  TYPE ( greens_function_type ), INTENT ( INOUT ) :: gftype
+    TYPE(greens_function_type), &
+      INTENT(INOUT)                          :: gftype
 
   IF (ASSOCIATED(gftype%influence_function)) THEN
      CALL pw_deallocate(gftype%influence_function)
@@ -157,18 +150,17 @@ END SUBROUTINE pw_green_fn_destroy
 
 SUBROUTINE pw_green_fn_init ( gftype, grid, p3m, alpha )
 
-  IMPLICIT NONE
 
-! Arguments
-  TYPE ( greens_function_type ), INTENT ( INOUT ) :: gftype
-  TYPE ( pw_grid_type ), INTENT ( IN )  :: grid
-  INTEGER, OPTIONAL, INTENT ( IN ) :: p3m
-  REAL ( dbl ), OPTIONAL, INTENT ( IN ) :: alpha
+    TYPE(greens_function_type), &
+      INTENT(INOUT)                          :: gftype
+    TYPE(pw_grid_type), INTENT(IN)           :: grid
+    INTEGER, INTENT(IN), OPTIONAL            :: p3m
+    REAL(dbl), INTENT(IN), OPTIONAL          :: alpha
 
-! Locals
-  INTEGER :: use_data, ierr, n
+    INTEGER                                  :: ierr, use_data
 
 !------------------------------------------------------------------------------
+
   NULLIFY( gftype % p3m_coeff )
   NULLIFY( gftype % p3m_bm2 )
   SELECT CASE ( gftype % method )
@@ -234,16 +226,15 @@ END SUBROUTINE pw_green_fn_init
 
 SUBROUTINE pw_green_fn ( gftype )
 
-  IMPLICIT NONE
 
-! Arguments
-  TYPE ( greens_function_type ), INTENT ( INOUT ) :: gftype
+    TYPE(greens_function_type), &
+      INTENT(INOUT)                          :: gftype
 
-! Locals
-  TYPE ( pw_type ), POINTER :: gf
-  TYPE ( pw_grid_type ), POINTER :: grid
-  INTEGER :: method, ig, iz, nz, l, m, n
-  REAL ( dbl ) :: rlength, zlength, g3d, gxy, g2, j0g, j1g, k0g, k1g, gg
+    INTEGER                                  :: ig, iz, method, nz
+    REAL(dbl)                                :: g2, g3d, gg, gxy, j0g, j1g, &
+                                                k0g, k1g, rlength, zlength
+    TYPE(pw_grid_type), POINTER              :: grid
+    TYPE(pw_type), POINTER                   :: gf
 
 !------------------------------------------------------------------------------
 
@@ -364,18 +355,16 @@ END SUBROUTINE pw_green_fn
 
 SUBROUTINE influence_factor ( gftype )
 
-  IMPLICIT NONE
 
-! Arguments
-  TYPE ( greens_function_type ), TARGET, INTENT ( INOUT ) :: gftype
+    TYPE(greens_function_type), &
+      INTENT(INOUT), TARGET                  :: gftype
 
-! Locals
-  INTEGER :: dim, ierr, j, k, l, n, pt
-  INTEGER, DIMENSION ( : ), POINTER :: lb, ub
-  INTEGER, DIMENSION ( 3 ) :: npts
-  REAL ( dbl ) :: l_arg, prod_arg, val
-  REAL ( dbl ), DIMENSION ( : ), ALLOCATABLE :: m_assign
-  COMPLEX ( dbl ) :: exp_m, sum_m, b_m
+    COMPLEX(dbl)                             :: b_m, exp_m, sum_m
+    INTEGER                                  :: dim, ierr, j, k, l, n, pt
+    INTEGER, DIMENSION(3)                    :: npts
+    INTEGER, DIMENSION(:), POINTER           :: lb, ub
+    REAL(dbl)                                :: l_arg, prod_arg, val
+    REAL(dbl), ALLOCATABLE, DIMENSION(:)     :: m_assign
 
 !------------------------------------------------------------------------------
 

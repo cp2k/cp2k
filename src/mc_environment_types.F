@@ -48,16 +48,18 @@ CONTAINS
 
   SUBROUTINE get_mc_env ( mc_env, mc_par, force_env, blacs_env)
 
-    IMPLICIT NONE
 !   Purpose: Get the integrator environment...works differently than
 !            set_mc_env
 
 !   ***************************************************************************
 
-    TYPE ( mc_environment_type ), INTENT ( IN ) :: mc_env
-    TYPE ( mc_simulation_parameters_type ), POINTER, OPTIONAL :: mc_par
-    TYPE ( force_env_type ), POINTER, OPTIONAL :: force_env
-    TYPE ( cp_blacs_env_type ), POINTER, OPTIONAL :: blacs_env
+    TYPE(mc_environment_type), INTENT(IN)    :: mc_env
+    TYPE(mc_simulation_parameters_type), &
+      OPTIONAL, POINTER                      :: mc_par
+    TYPE(force_env_type), OPTIONAL, POINTER  :: force_env
+    TYPE(cp_blacs_env_type), OPTIONAL, &
+      POINTER                                :: blacs_env
+
 !   ---------------------------------------------------------------------------
 
     IF ( PRESENT ( mc_par ) ) mc_par => mc_env % mc_par
@@ -76,9 +78,10 @@ CONTAINS
 
 !   ***************************************************************************
 
-    TYPE(mc_environment_type), INTENT(OUT) :: mc_env
+    TYPE(mc_environment_type), INTENT(OUT)   :: mc_env
 
 !   ---------------------------------------------------------------------------
+
     NULLIFY ( mc_env % mc_par )
     NULLIFY ( mc_env % force_env )
     NULLIFY ( mc_env % blacs_env )
@@ -91,9 +94,10 @@ CONTAINS
 !   release the para_env for this environment 
 !   ***************************************************************************
 
-    TYPE(mc_environment_type), INTENT(OUT) :: mc_env
+    TYPE(mc_environment_type), INTENT(OUT)   :: mc_env
 
 !   ---------------------------------------------------------------------------
+
     NULLIFY ( mc_env % mc_par )
     NULLIFY ( mc_env % force_env )
     NULLIFY ( mc_env % blacs_env )
@@ -108,11 +112,12 @@ CONTAINS
 
 
 !   ***************************************************************************
-    IMPLICIT NONE
-    TYPE ( mc_environment_type ), INTENT ( OUT ) :: mc_env
-    TYPE ( mc_simulation_parameters_type ), POINTER, OPTIONAL :: mc_par
-    TYPE ( force_env_type ), POINTER, OPTIONAL :: force_env
-    TYPE ( cp_blacs_env_type ), POINTER, OPTIONAL :: blacs_env
+    TYPE(mc_environment_type), INTENT(OUT)   :: mc_env
+    TYPE(mc_simulation_parameters_type), &
+      OPTIONAL, POINTER                      :: mc_par
+    TYPE(force_env_type), OPTIONAL, POINTER  :: force_env
+    TYPE(cp_blacs_env_type), OPTIONAL, &
+      POINTER                                :: blacs_env
 
     IF ( PRESENT ( mc_par ) ) mc_env % mc_par => mc_par
     IF ( PRESENT ( blacs_env ) ) mc_env % blacs_env => blacs_env

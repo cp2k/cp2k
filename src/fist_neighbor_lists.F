@@ -26,36 +26,19 @@ MODULE fist_neighbor_lists
                                              get_atomic_kind_set
   USE checkpoint_handler,              ONLY: write_checkpoint_information
   USE distribution_1d_types,           ONLY: distribution_1d_type
-  USE global_types,                    ONLY: LOW,global_environment_type
-  USE kinds,                           ONLY: int_size,dp,dp_size
-  USE machine,                         ONLY: m_flush
-  USE message_passing,                 ONLY: mp_sum,&
-                                             mp_sync
-  USE particle_types,                  ONLY: exclusion_list_type,&
-                                             particle_type
-  USE qs_environment_types,            ONLY: get_qs_env,&
-                                             qs_environment_type,&
-                                             set_qs_env
+  USE global_types,                    ONLY: LOW,&
+                                             global_environment_type
+  USE kinds,                           ONLY: dp,&
+                                             dp_size,&
+                                             int_size
+  USE particle_types,                  ONLY: particle_type
   USE qs_neighbor_list_types,          ONLY: add_neighbor_list,&
                                              add_neighbor_node,&
                                              allocate_neighbor_list_set,&
-                                             clean_neighbor_list_set,&
                                              deallocate_neighbor_list_set,&
-                                             find_neighbor_list,&
-                                             first_list,&
-                                             first_node,&
-                                             get_neighbor_list,&
-                                             get_neighbor_list_set,&
-                                             get_neighbor_node,&
-                                             init_neighbor_list,&
-                                             init_neighbor_list_set,&
                                              neighbor_list_p_type,&
                                              neighbor_list_set_p_type,&
-                                             neighbor_list_set_type,&
-                                             neighbor_list_type,&
-                                             neighbor_node_type,&
-                                             next,&
-                                             set_neighbor_node
+                                             neighbor_list_set_type
   USE qs_neighbor_lists,               ONLY: allocate_subcell,&
                                              deallocate_subcell,&
                                              local_atoms_type,&
@@ -67,7 +50,6 @@ MODULE fist_neighbor_lists
                                              pbc,&
                                              real_to_scaled,&
                                              scaled_to_real
-  USE string_utilities,                ONLY: compress
   USE termination,                     ONLY: stop_memory
   USE timings,                         ONLY: timeset,&
                                              timestop
@@ -100,32 +82,27 @@ CONTAINS
 
 !   ***************************************************************************
 
-    TYPE(atomic_kind_type), DIMENSION(:), POINTER         :: atomic_kind_set
-    TYPE(particle_type), DIMENSION(:), POINTER            :: particle_set
-    TYPE(distribution_1d_type), POINTER                   :: local_particles
-    TYPE(cell_type), POINTER                              :: cell
-    REAL(dp), DIMENSION(:,:), INTENT(IN)                  :: r_cut  
-    TYPE(neighbor_list_set_p_type), DIMENSION(:), POINTER :: nonbonded
-    TYPE(global_environment_type), INTENT(IN)             :: globenv
-
-!   *** Local parameters ***
+    TYPE(atomic_kind_type), DIMENSION(:), &
+      POINTER                                :: atomic_kind_set
+    TYPE(particle_type), DIMENSION(:), &
+      POINTER                                :: particle_set
+    TYPE(distribution_1d_type), POINTER      :: local_particles
+    TYPE(cell_type), POINTER                 :: cell
+    REAL(dp), DIMENSION(:, :), INTENT(IN)    :: r_cut
+    TYPE(neighbor_list_set_p_type), &
+      DIMENSION(:), POINTER                  :: nonbonded
+    TYPE(global_environment_type), &
+      INTENT(IN)                             :: globenv
 
     CHARACTER(LEN=*), PARAMETER :: routine_name = "build_fist_neighbor_lists"
 
-!   *** Local variables ***
-
-    TYPE(atomic_kind_type), POINTER :: atomic_kind
-
-    CHARACTER(LEN=40) :: string
-    INTEGER           :: atom_a,handle,iatom,iatom_local,ikind,ipe,istat,&
-                         jatom,jkind,maxatom,maxatom_local,&
-                         natom_a,natom_local_a,nkind,output_unit
-    LOGICAL           :: print_subcell_grid
-
-    REAL(dp), DIMENSION(3) :: r_pbc
-    INTEGER, DIMENSION(3)  :: periodic
-
-    TYPE(local_atoms_type), DIMENSION(:), ALLOCATABLE :: atom
+    INTEGER :: atom_a, handle, iatom, iatom_local, ikind, istat, maxatom, &
+      maxatom_local, natom_a, natom_local_a, nkind, output_unit
+    LOGICAL                                  :: print_subcell_grid
+    REAL(dp), DIMENSION(3)                   :: r_pbc
+    TYPE(atomic_kind_type), POINTER          :: atomic_kind
+    TYPE(local_atoms_type), ALLOCATABLE, &
+      DIMENSION(:)                           :: atom
 
 !   ---------------------------------------------------------------------------
 
@@ -287,36 +264,34 @@ CONTAINS
 
 !   ***************************************************************************
 
-    TYPE(local_atoms_type), DIMENSION(:), INTENT(IN)      :: atom
-    TYPE(cell_type), POINTER                              :: cell
-    TYPE(neighbor_list_set_p_type), DIMENSION(:), POINTER :: ab
-    REAL(dp), DIMENSION(:,:), INTENT(IN)                  :: r_cut  
-    INTEGER, INTENT(IN)                                   :: maxatom_local,&
-                                                             output_unit
-    LOGICAL, INTENT(IN)                                   :: print_subcell_grid
-
-!   *** Local parameters ***
+    TYPE(neighbor_list_set_p_type), &
+      DIMENSION(:), POINTER                  :: ab
+    TYPE(local_atoms_type), DIMENSION(:), &
+      INTENT(IN)                             :: atom
+    TYPE(cell_type), POINTER                 :: cell
+    INTEGER, INTENT(IN)                      :: maxatom_local
+    LOGICAL, INTENT(IN)                      :: print_subcell_grid
+    INTEGER, INTENT(IN)                      :: output_unit
+    REAL(dp), DIMENSION(:, :), INTENT(IN)    :: r_cut
 
     CHARACTER(LEN=*), PARAMETER :: routine_name = "build_neighbor_lists"
 
-!   *** Local variables ***
-
-    TYPE(neighbor_list_set_type), POINTER :: neighbor_list_set
-
-    CHARACTER(LEN=8) :: unit_of_length_name
-    REAL(dp)         :: rab_max,rab2,rab2_max,subcells,unit_of_length
-    INTEGER          :: atom_a,atom_b,handle,i,iab,iatom,iatom_local,icell,&
-                        iatom_subcell,ikind,istat,isubcell,&
-                        j,jatom,jatom_local,jcell,jkind,jsubcell,&
-                        k,ksubcell,kcell,natom_local_a,natom_local_b,nkind
-    LOGICAL          :: include_ab
-
-    REAL(dp), DIMENSION(3) :: r,rab,rb,s,sab,sab_max,sb,sb_max,sb_min,sb_pbc
-    INTEGER, DIMENSION(3)  :: cell_a,cell_b,ncell,nsubcell,periodic
-
-    TYPE(neighbor_list_p_type), DIMENSION(maxatom_local) :: kind_a
-
-    TYPE(subcell_type), DIMENSION(:,:,:), POINTER :: subcell
+    CHARACTER(LEN=8)                         :: unit_of_length_name
+    INTEGER :: atom_a, atom_b, handle, i, iab, iatom, iatom_local, &
+      iatom_subcell, icell, ikind, istat, j, jatom, jatom_local, jcell, &
+      jkind, k, kcell, natom_local_a, natom_local_b, nkind
+    INTEGER, DIMENSION(3)                    :: cell_a, cell_b, ncell, &
+                                                nsubcell, periodic
+    LOGICAL                                  :: include_ab
+    REAL(dp)                                 :: rab2, rab2_max, rab_max, &
+                                                subcells, unit_of_length
+    REAL(dp), DIMENSION(3)                   :: r, rab, rb, s, sab, sab_max, &
+                                                sb, sb_max, sb_min, sb_pbc
+    TYPE(neighbor_list_p_type), &
+      DIMENSION(maxatom_local)               :: kind_a
+    TYPE(neighbor_list_set_type), POINTER    :: neighbor_list_set
+    TYPE(subcell_type), DIMENSION(:, :, :), &
+      POINTER                                :: subcell
 
 !   ---------------------------------------------------------------------------
 

@@ -80,10 +80,8 @@ CONTAINS
 !!   SOURCE
 !******************************************************************************
 SUBROUTINE init_topology (topology)
-  IMPLICIT NONE
-  ! Arguments
-  TYPE ( topology_parameters_type ),INTENT (INOUT) :: topology
-  ! Locals
+    TYPE(topology_parameters_type), &
+      INTENT(INOUT)                          :: topology
 
 !-------------------------------------------------------------------------------
 !-------------------------------------------------------------------------------
@@ -143,11 +141,10 @@ END SUBROUTINE init_topology
 !!   SOURCE
 !******************************************************************************
 SUBROUTINE deallocate_topology (topology)
-  IMPLICIT NONE
-  ! Arguments
-  TYPE ( topology_parameters_type ), INTENT (INOUT) :: topology
-  ! Locals
-  INTEGER :: istat
+    TYPE(topology_parameters_type), &
+      INTENT(INOUT)                          :: topology
+
+    INTEGER                                  :: istat
 
 !-------------------------------------------------------------------------------
 !-------------------------------------------------------------------------------

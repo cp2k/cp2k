@@ -34,6 +34,7 @@ MODULE xc_vwn
                                              calc_srs,&
                                              set_util,&
                                              setup_calculation
+
   IMPLICIT NONE
 
   PRIVATE
@@ -67,7 +68,7 @@ CONTAINS
 
   SUBROUTINE vwn_init ( cutoff )
 
-    REAL(dbl), INTENT(IN) :: cutoff
+    REAL(dbl), INTENT(IN)                    :: cutoff
 
     eps_rho = cutoff
     CALL set_util ( cutoff )
@@ -78,8 +79,7 @@ CONTAINS
 
   SUBROUTINE vwn_info ( reference, shortform )
 
-    CHARACTER (LEN=*), INTENT(OUT), OPTIONAL :: reference
-    CHARACTER (LEN=*), INTENT(OUT), OPTIONAL :: shortform
+    CHARACTER(LEN=*), INTENT(OUT), OPTIONAL  :: reference, shortform
 
     IF ( PRESENT ( reference ) ) THEN
        reference = "S. H. Vosko, L. Wilk and M. Nusair,"// &
@@ -97,16 +97,15 @@ CONTAINS
 
 !   ---------------------------------------------------------------------------
 
-    TYPE(xc_derivative_set_type), POINTER :: derivative_set
-    REAL(dbl), DIMENSION(:), INTENT(IN)  :: rho
-    REAL(dbl), DIMENSION(:,:), INTENT(OUT) :: pot
-    INTEGER, INTENT(IN), OPTIONAL :: order
+    TYPE(xc_derivative_set_type), POINTER    :: derivative_set
+    REAL(dbl), DIMENSION(:), INTENT(IN)      :: rho
+    REAL(dbl), DIMENSION(:, :), INTENT(OUT)  :: pot
+    INTEGER, INTENT(IN), OPTIONAL            :: order
 
-!   *** Local variables ***
-
-    LOGICAL   :: calc(0:4)
-    REAL(dbl), DIMENSION(:), ALLOCATABLE :: x
-    INTEGER :: n, error, m, mp, mt, mx(0:3,2), m1, m2
+    INTEGER                                  :: error, m, m1, mp, mt, &
+                                                mx(0:3,2), n
+    LOGICAL                                  :: calc(0:4)
+    REAL(dbl), ALLOCATABLE, DIMENSION(:)     :: x
 
 !   ---------------------------------------------------------------------------
 
@@ -150,17 +149,16 @@ CONTAINS
 
 !   ---------------------------------------------------------------------------
 
-    TYPE(xc_derivative_set_type), POINTER :: derivative_set
-    REAL(dbl), DIMENSION(:), INTENT(IN)  :: rhoa, rhob
-    REAL(dbl), DIMENSION(:,:), INTENT(OUT) :: pot
-    INTEGER, INTENT(IN), OPTIONAL :: order
+    TYPE(xc_derivative_set_type), POINTER    :: derivative_set
+    REAL(dbl), DIMENSION(:), INTENT(IN)      :: rhoa, rhob
+    REAL(dbl), DIMENSION(:, :), INTENT(OUT)  :: pot
+    INTEGER, INTENT(IN), OPTIONAL            :: order
 
-!   *** Local variables ***
-
-    LOGICAL   :: calc(0:4)
-    REAL(dbl), DIMENSION(:), ALLOCATABLE :: x
-    REAL(dbl), DIMENSION(:,:), ALLOCATABLE :: fx
-    INTEGER :: n, error, m, mp, mt, mx(0:3,2), m1, m2
+    INTEGER                                  :: error, m, m1, m2, mp, mt, &
+                                                mx(0:3,2), n
+    LOGICAL                                  :: calc(0:4)
+    REAL(dbl), ALLOCATABLE, DIMENSION(:)     :: x
+    REAL(dbl), ALLOCATABLE, DIMENSION(:, :)  :: fx
 
 !   ---------------------------------------------------------------------------
 
@@ -215,11 +213,12 @@ CONTAINS
 
   SUBROUTINE vwn_lda_0 ( rho, x, pot )
 
-    REAL(dbl), DIMENSION(:), INTENT(IN)  :: rho, x
-    REAL(dbl), DIMENSION(:), INTENT(OUT)  :: pot
+    REAL(dbl), DIMENSION(:), INTENT(IN)      :: rho, x
+    REAL(dbl), DIMENSION(:), INTENT(OUT)     :: pot
 
-    INTEGER :: ip, npoints
-    REAL(dbl) :: px, q, at, ln1, ln2, xb, dpx
+    INTEGER                                  :: ip, npoints
+    REAL(dbl)                                :: at, dpx, ln1, ln2, px, q, xb
+
 !   ---------------------------------------------------------------------------
 
     npoints = SIZE ( rho )
@@ -249,11 +248,14 @@ CONTAINS
 
   SUBROUTINE vwn_lda_1 ( rho, x, pot )
 
-    REAL(dbl), DIMENSION(:), INTENT(IN)  :: rho, x
-    REAL(dbl), DIMENSION(:), INTENT(OUT)  :: pot
+    REAL(dbl), DIMENSION(:), INTENT(IN)      :: rho, x
+    REAL(dbl), DIMENSION(:), INTENT(OUT)     :: pot
 
-    INTEGER :: ip, npoints
-    REAL(dbl) :: px, q, at, dat, ln1, ln2, xb, ex, pa, dpx, dex, dln1, dln2
+    INTEGER                                  :: ip, npoints
+    REAL(dbl)                                :: at, dat, dex, dln1, dln2, &
+                                                dpx, ex, ln1, ln2, pa, px, q, &
+                                                xb
+
 !   ---------------------------------------------------------------------------
 
     npoints = SIZE ( rho )
@@ -289,11 +291,14 @@ CONTAINS
 
   SUBROUTINE vwn_lda_01 ( rho, x, pot )
 
-    REAL(dbl), DIMENSION(:), INTENT(IN)  :: rho, x
-    REAL(dbl), DIMENSION(:,:), INTENT(OUT)  :: pot
+    REAL(dbl), DIMENSION(:), INTENT(IN)      :: rho, x
+    REAL(dbl), DIMENSION(:, :), INTENT(OUT)  :: pot
 
-    INTEGER :: ip, npoints
-    REAL(dbl) :: px, dpx, q, at, dat, ln1, ln2, xb, ex, pa, dex, dln1, dln2
+    INTEGER                                  :: ip, npoints
+    REAL(dbl)                                :: at, dat, dex, dln1, dln2, &
+                                                dpx, ex, ln1, ln2, pa, px, q, &
+                                                xb
+
 !   ---------------------------------------------------------------------------
 
     npoints = SIZE ( rho )
@@ -331,12 +336,15 @@ CONTAINS
 
   SUBROUTINE vwn_lda_2 ( rho, x, pot )
 
-    REAL(dbl), DIMENSION(:), INTENT(IN)  :: rho, x
-    REAL(dbl), DIMENSION(:), INTENT(OUT)  :: pot
+    REAL(dbl), DIMENSION(:), INTENT(IN)      :: rho, x
+    REAL(dbl), DIMENSION(:), INTENT(OUT)     :: pot
 
-    INTEGER :: ip, npoints
-    REAL(dbl) :: px, dpx, q, at, dat, ln1, ln2, xb, dex, pa, d2ex, dln1, dln2
-    REAL(dbl) :: d2ln1, d2ln2, d2at, fp, dfp, d2fp
+    INTEGER                                  :: ip, npoints
+    REAL(dbl)                                :: at, d2at, d2ex, d2fp, d2ln1, &
+                                                d2ln2, dat, dex, dfp, dln1, &
+                                                dln2, dpx, fp, ln1, ln2, pa, &
+                                                px, q, xb
+
 !   ---------------------------------------------------------------------------
 
     npoints = SIZE ( rho )
@@ -381,13 +389,14 @@ CONTAINS
 
   SUBROUTINE vwn_lda_3 ( rho, x, pot )
 
-    REAL(dbl), DIMENSION(:), INTENT(IN)  :: rho, x
-    REAL(dbl), DIMENSION(:), INTENT(OUT)  :: pot
+    REAL(dbl), DIMENSION(:), INTENT(IN)      :: rho, x
+    REAL(dbl), DIMENSION(:), INTENT(OUT)     :: pot
 
-    INTEGER :: ip, npoints
-    REAL(dbl) :: px, dpx, q, at, dat, ln1, ln2, xb, dex, pa, d2ex, dln1, dln2
-    REAL(dbl) :: d2ln1, d2ln2, d2at, d3ex, d3at, d3ln1, d3ln2, fp, dfp, d2fp
-    REAL(dbl) :: d3fp, ax, bx, dbx, d2bx, cx, dx, ddx, d2dx
+    INTEGER                                  :: ip, npoints
+    REAL(dbl) :: at, ax, bx, cx, d2at, d2bx, d2dx, d2ex, d2fp, d2ln1, d2ln2, &
+      d3at, d3ex, d3fp, d3ln1, d3ln2, dat, dbx, ddx, dex, dfp, dln1, dln2, &
+      dpx, dx, fp, ln1, ln2, pa, px, q, xb
+
 !   ---------------------------------------------------------------------------
 
     npoints = SIZE ( rho )
@@ -448,13 +457,13 @@ CONTAINS
 
   SUBROUTINE vwn_lsd_0 ( rhoa, rhob, x, fx, pot )
 
-    REAL(dbl), DIMENSION(:), INTENT(IN)  :: rhoa, rhob, x
-    REAL(dbl), DIMENSION(:,:), INTENT(IN)  :: fx
-    REAL(dbl), DIMENSION(:), INTENT(OUT)  :: pot
+    REAL(dbl), DIMENSION(:), INTENT(IN)      :: rhoa, rhob, x
+    REAL(dbl), DIMENSION(:, :), INTENT(IN)   :: fx
+    REAL(dbl), DIMENSION(:), INTENT(OUT)     :: pot
 
-    INTEGER :: ip, npoints
-    REAL(dbl) :: fa0, fa1, fa2, fa3, fb1, fb2, fb3, fb4
-    REAL(dbl) :: p, q, rhoab
+    INTEGER                                  :: ip, npoints
+    REAL(dbl)                                :: rhoab
+
 !   ---------------------------------------------------------------------------
 
     CALL stop_program ( "vwn_lsd_0", "Not implemented" )
@@ -481,13 +490,13 @@ CONTAINS
 
   SUBROUTINE vwn_lsd_1 ( rhoa, rhob, x, fx, pot )
 
-    REAL(dbl), DIMENSION(:), INTENT(IN)  :: rhoa, rhob, x
-    REAL(dbl), DIMENSION(:,:), INTENT(IN)  :: fx
-    REAL(dbl), DIMENSION(:,:), INTENT(OUT)  :: pot
+    REAL(dbl), DIMENSION(:), INTENT(IN)      :: rhoa, rhob, x
+    REAL(dbl), DIMENSION(:, :), INTENT(IN)   :: fx
+    REAL(dbl), DIMENSION(:, :), INTENT(OUT)  :: pot
 
-    INTEGER :: ip, npoints
-    REAL(dbl) :: fa0, fa1, fa2, fa3, fb1, fb2, fb3, fb4
-    REAL(dbl) :: p, q, dp, dq, xp, xq, rhoab, dr, dx, dc
+    INTEGER                                  :: ip, npoints
+    REAL(dbl)                                :: rhoab
+
 !   ---------------------------------------------------------------------------
 
     CALL stop_program ( "vwn_lsd_1", "Not implemented" )
@@ -515,13 +524,13 @@ CONTAINS
 
   SUBROUTINE vwn_lsd_01 ( rhoa, rhob, x, fx, pot )
 
-    REAL(dbl), DIMENSION(:), INTENT(IN)  :: rhoa, rhob, x
-    REAL(dbl), DIMENSION(:,:), INTENT(IN)  :: fx
-    REAL(dbl), DIMENSION(:,:), INTENT(OUT)  :: pot
+    REAL(dbl), DIMENSION(:), INTENT(IN)      :: rhoa, rhob, x
+    REAL(dbl), DIMENSION(:, :), INTENT(IN)   :: fx
+    REAL(dbl), DIMENSION(:, :), INTENT(OUT)  :: pot
 
-    INTEGER :: ip, npoints
-    REAL(dbl) :: fa0, fa1, fa2, fa3, fb1, fb2, fb3, fb4
-    REAL(dbl) :: p, q, dp, dq, xp, xq, rhoab, dr, dx, dc
+    INTEGER                                  :: ip, npoints
+    REAL(dbl)                                :: rhoab
+
 !   ---------------------------------------------------------------------------
 
     CALL stop_program ( "vwn_lsd_01", "Not implemented" )
@@ -550,14 +559,13 @@ CONTAINS
 
   SUBROUTINE vwn_lsd_2 ( rhoa, rhob, x, fx, pot )
 
-    REAL(dbl), DIMENSION(:), INTENT(IN)  :: rhoa, rhob, x
-    REAL(dbl), DIMENSION(:,:), INTENT(IN)  :: fx
-    REAL(dbl), DIMENSION(:,:), INTENT(OUT)  :: pot
+    REAL(dbl), DIMENSION(:), INTENT(IN)      :: rhoa, rhob, x
+    REAL(dbl), DIMENSION(:, :), INTENT(IN)   :: fx
+    REAL(dbl), DIMENSION(:, :), INTENT(OUT)  :: pot
 
-    INTEGER :: ip, npoints
-    REAL(dbl) :: fa0, fa1, fa2, fa3, fb1, fb2, fb3, fb4
-    REAL(dbl) :: p, q, dp, dq, xp, xq, rhoab, dr, dx, dc
-    REAL(dbl) :: d2p, d2q, dxp, dxq, drr, dxr, dxx, xt, yt, or
+    INTEGER                                  :: ip, npoints
+    REAL(dbl)                                :: rhoab
+
 !   ---------------------------------------------------------------------------
 
     CALL stop_program ( "vwn_lsd_2", "Not implemented" )
@@ -586,15 +594,13 @@ CONTAINS
 
   SUBROUTINE vwn_lsd_3 ( rhoa, rhob, x, fx, pot )
 
-    REAL(dbl), DIMENSION(:), INTENT(IN)  :: rhoa, rhob, x
-    REAL(dbl), DIMENSION(:,:), INTENT(IN)  :: fx
-    REAL(dbl), DIMENSION(:,:), INTENT(OUT)  :: pot
+    REAL(dbl), DIMENSION(:), INTENT(IN)      :: rhoa, rhob, x
+    REAL(dbl), DIMENSION(:, :), INTENT(IN)   :: fx
+    REAL(dbl), DIMENSION(:, :), INTENT(OUT)  :: pot
 
-    INTEGER :: ip, npoints
-    REAL(dbl) :: fa0, fa1, fa2, fa3, fb1, fb2, fb3, fb4
-    REAL(dbl) :: p, q, dp, dq, xp, xq, rhoab, dr, dx, dc
-    REAL(dbl) :: d2p, d2q, dxp, dxq, drr, dxr, dxx, xt, yt, or
-    REAL(dbl) :: d3p, d3q, d2xp, d2xq
+    INTEGER                                  :: ip, npoints
+    REAL(dbl)                                :: rhoab
+
 !   ---------------------------------------------------------------------------
 
     CALL stop_program ( "vwn_lsd_3", "Not implemented" )

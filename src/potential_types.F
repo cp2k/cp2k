@@ -21,10 +21,12 @@
 
 MODULE potential_types
   
-  USE kinds, ONLY : dbl
-  USE coefficient_types, ONLY : coeff_type, coeff_allocate, coeff_deallocate
-  USE pw_grid_types, ONLY : pw_grid_type
-  USE termination, ONLY : stop_program, stop_memory
+  USE coefficient_types,               ONLY: coeff_allocate,&
+                                             coeff_deallocate,&
+                                             coeff_type
+  USE pw_grid_types,                   ONLY: pw_grid_type
+  USE termination,                     ONLY: stop_memory,&
+                                             stop_program
 
   IMPLICIT NONE
 
@@ -71,18 +73,14 @@ CONTAINS
 
 SUBROUTINE potential_allocate ( potential, nspin, npart )
   
-  IMPLICIT NONE
   
-! Arguments
-  TYPE ( potential_type ), INTENT ( OUT ) :: potential
-  INTEGER, INTENT ( IN ), OPTIONAL :: nspin
-  INTEGER, INTENT ( IN ), OPTIONAL :: npart
-  
-! Locals
-  INTEGER :: ns, np, ierr
-  
+    TYPE(potential_type), INTENT(OUT)        :: potential
+    INTEGER, INTENT(IN), OPTIONAL            :: nspin, npart
+
+    INTEGER                                  :: ierr, np, ns
+
 !------------------------------------------------------------------------------
-  
+
   IF ( PRESENT ( nspin ) ) THEN
     potential % nspin = nspin
   ELSE
@@ -133,19 +131,16 @@ END SUBROUTINE potential_allocate
 SUBROUTINE potential_init ( potential, part, pw_grid, use_data, &
                             c_model, use_basis )
 
-  IMPLICIT NONE
 
-! Arguments
-  TYPE ( potential_type ), INTENT ( INOUT ) :: potential
-  INTEGER, INTENT ( IN ), OPTIONAL :: part
-  TYPE ( pw_grid_type ), OPTIONAL :: pw_grid
-  INTEGER, INTENT ( IN ), OPTIONAL :: use_data
-  TYPE ( coeff_type ), OPTIONAL :: c_model
-  INTEGER, INTENT ( IN ), OPTIONAL :: use_basis
- 
-! Locals
-  INTEGER :: is, np, ierr
-  TYPE ( coeff_type ), DIMENSION ( : ), POINTER :: potloc
+    TYPE(potential_type), INTENT(INOUT)      :: potential
+    INTEGER, INTENT(IN), OPTIONAL            :: part
+    TYPE(pw_grid_type), OPTIONAL             :: pw_grid
+    INTEGER, INTENT(IN), OPTIONAL            :: use_data
+    TYPE(coeff_type), OPTIONAL               :: c_model
+    INTEGER, INTENT(IN), OPTIONAL            :: use_basis
+
+    INTEGER                                  :: is, np
+    TYPE(coeff_type), DIMENSION(:), POINTER  :: potloc
 
 !------------------------------------------------------------------------------
 
@@ -202,13 +197,10 @@ END SUBROUTINE potential_init
 
 SUBROUTINE potential_deallocate ( potential )
 
-  IMPLICIT NONE
 
-! Arguments
-  TYPE ( potential_type ), INTENT ( OUT ) :: potential
+    TYPE(potential_type), INTENT(OUT)        :: potential
 
-! Locals
-  INTEGER :: spin, part, ierr
+    INTEGER                                  :: ierr, part, spin
 
 !------------------------------------------------------------------------------
 

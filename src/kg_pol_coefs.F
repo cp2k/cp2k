@@ -22,22 +22,20 @@
 
 MODULE kg_pol_coefs
   
-  USE ao_types,                 ONLY : ao_allocate, &
-                                       ao_type, & 
-                                       ao_zero
-  USE coefficient_types,        ONLY : coeff_type, &
-                                       PLANEWAVES, &
-                                       ATOMICORBITALS, &
-                                       PW_RECIPROCALSPACE
-  USE global_types,             ONLY : global_environment_type
-  USE kinds,                    ONLY : dbl
-  USE md,                       ONLY : simulation_parameters_type
-  USE pw_grid_types,            ONLY : pw_grid_type
-  USE pw_types,                 ONLY : COMPLEXDATA1D, &
-                                       pw_allocate, &
-                                       pw_zero
-  USE termination,              ONLY : stop_memory
-  USE util,                     ONLY : gasdev
+  USE ao_types,                        ONLY: ao_allocate,&
+                                             ao_zero
+  USE coefficient_types,               ONLY: ATOMICORBITALS,&
+                                             PLANEWAVES,&
+                                             PW_RECIPROCALSPACE,&
+                                             coeff_type
+  USE global_types,                    ONLY: global_environment_type
+  USE kinds,                           ONLY: dbl
+  USE md,                              ONLY: simulation_parameters_type
+  USE pw_grid_types,                   ONLY: pw_grid_type
+  USE pw_types,                        ONLY: COMPLEXDATA1D,&
+                                             pw_allocate,&
+                                             pw_zero
+  USE util,                            ONLY: gasdev
 
   IMPLICIT NONE
 
@@ -51,18 +49,13 @@ MODULE kg_pol_coefs
 !******************************************************************************
  SUBROUTINE allocate_coefs(n, c_pos, c_vel, c_force, pw_grid )
 
-    IMPLICIT NONE
-    INTEGER, INTENT (in) :: n
-    TYPE ( coeff_type ), INTENT(OUT) :: c_pos  
-    TYPE ( coeff_type ), INTENT(OUT) :: c_vel  
-    TYPE ( coeff_type ), INTENT(OUT) :: c_force  
-    TYPE ( pw_grid_type ), INTENT(IN), OPTIONAL :: pw_grid 
+    INTEGER, INTENT(in)                      :: n
+    TYPE(coeff_type), INTENT(OUT)            :: c_pos, c_vel, c_force
+    TYPE(pw_grid_type), INTENT(IN), OPTIONAL :: pw_grid
 
-! locals
+    INTEGER                                  :: inuse
+    LOGICAL                                  :: grid_flag, mass_flag
 
-   INTEGER :: inuse
-   LOGICAL :: mass_flag, grid_flag, eigr_flag
-     
    IF ( PRESENT ( pw_grid ) ) THEN         ! basis_type = PW
      c_pos % in_use = PLANEWAVES
      inuse = COMPLEXDATA1D
@@ -123,15 +116,12 @@ MODULE kg_pol_coefs
 !
   SUBROUTINE dump_coefs( c_pos, c_vel, c_force )
 
-    IMPLICIT NONE
-    TYPE (coeff_type), INTENT(IN) :: c_pos
-    TYPE (coeff_type), INTENT(IN) :: c_vel
-    TYPE (coeff_type), INTENT(IN) :: c_force
+    TYPE(coeff_type), INTENT(IN)             :: c_pos, c_vel, c_force
 
-! locals
-    INTEGER :: icoef, ncoef
+    INTEGER                                  :: icoef, ncoef
 
 ! write to the restart file
+
     OPEN ( unit = 666, file = 'coefficent.rst', status = 'unknown' )
     SELECT CASE ( c_pos % in_use )
     CASE ( ATOMICORBITALS )
@@ -156,18 +146,15 @@ MODULE kg_pol_coefs
 
  SUBROUTINE initialize_coefs ( simpar, c_pos, c_vel, c_force, globenv )
 
-    IMPLICIT NONE
-    TYPE ( simulation_parameters_type ), INTENT ( INOUT ) :: simpar
-    TYPE ( coeff_type ), INTENT(INOUT) :: c_pos  
-    TYPE ( coeff_type ), INTENT(INOUT) :: c_vel  
-    TYPE ( coeff_type ), INTENT(INOUT) :: c_force  
-    TYPE ( global_environment_type ), INTENT ( INOUT ) :: globenv
+    TYPE(simulation_parameters_type), &
+      INTENT(INOUT)                          :: simpar
+    TYPE(coeff_type), INTENT(INOUT)          :: c_pos, c_vel, c_force
+    TYPE(global_environment_type), &
+      INTENT(INOUT)                          :: globenv
 
-!   locals 
-    INTEGER :: ncoef, icoef
-    REAL ( dbl ) :: dum1_real, dum2_real
-    COMPLEX ( dbl ) :: dum1_cplx, dum2_cplx
-
+    COMPLEX(dbl)                             :: dum1_cplx, dum2_cplx
+    INTEGER                                  :: icoef, ncoef
+    REAL(dbl)                                :: dum1_real, dum2_real
 
     SELECT CASE (simpar%read_type_coef)   
 
@@ -237,14 +224,15 @@ MODULE kg_pol_coefs
 !------------------------------------------------------------------------------!
  SUBROUTINE initialize_coef_velocities ( simpar, c_vel, globenv )
 
- IMPLICIT NONE
-!arguments
-  TYPE ( simulation_parameters_type ), INTENT ( IN ) :: simpar
-  TYPE ( coeff_type ), INTENT ( OUT ) :: c_vel  
-  TYPE ( global_environment_type ), INTENT ( INOUT ) :: globenv
-! locals
-  REAL (dbl) :: akin, cmass, ctemp, sc
-  INTEGER :: ncoef, i
+    TYPE(simulation_parameters_type), &
+      INTENT(IN)                             :: simpar
+    TYPE(coeff_type), INTENT(OUT)            :: c_vel
+    TYPE(global_environment_type), &
+      INTENT(INOUT)                          :: globenv
+
+    INTEGER                                  :: i, ncoef
+    REAL(dbl)                                :: akin, cmass, ctemp, sc
+
 ! initializing velocities
 
   SELECT CASE ( c_vel % in_use )

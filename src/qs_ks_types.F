@@ -25,48 +25,26 @@
 !!   SOURCE
 !****************************************************************************
 MODULE qs_ks_types
-  USE coefficient_types,               ONLY: coeff_copy,&
-                                             coeff_deallocate,&
-                                             coeff_sumup,&
-                                             coeff_transform_space,&
-                                             coeff_type,&
-                                             coeff_zero
+  USE coefficient_types,               ONLY: coeff_type
   USE cp_error_handling,               ONLY: cp_a_l,&
                                              cp_assert,&
-                                             cp_assertion_failed,&
-                                             cp_debug,&
-                                             cp_error_dealloc_ref,&
                                              cp_error_get_logger,&
-                                             cp_error_init,&
                                              cp_error_message,&
-                                             cp_error_type,&
-                                             cp_internal_error,&
-                                             cp_unimplemented_error
+                                             cp_error_type
   USE cp_log_handling,                 ONLY: cp_failure_level,&
                                              cp_fatal_level,&
-                                             cp_log,&
                                              cp_note_level,&
                                              cp_to_string,&
                                              cp_warning_level
-  USE cp_para_types,                   ONLY: cp_para_env_type
   USE kinds,                           ONLY: dp
-  USE sparse_matrix_types,             ONLY: add_matrices,&
-                                             deallocate_matrix,&
-                                             first_block_node,&
-                                             get_block_node,&
-                                             get_matrix_info,&
-                                             next_block_node,&
-                                             real_block_node_type,&
-                                             real_matrix_p_type,&
-                                             replicate_matrix_structure,&
-                                             set_matrix,&
-                                             symmetrise_diagonal_blocks,&
-                                             transfer_matrix
-  USE pw_pool_types,                   ONLY: pw_pool_type,&
+  USE pw_pool_types,                   ONLY: pw_pool_give_back_coeff,&
                                              pw_pool_release,&
-                                             pw_pool_give_back_coeff
+                                             pw_pool_type
+  USE sparse_matrix_types,             ONLY: deallocate_matrix,&
+                                             real_matrix_p_type
   USE timings,                         ONLY: timeset,&
                                              timestop
+
   IMPLICIT NONE
   PRIVATE
 
@@ -184,13 +162,16 @@ CONTAINS
 !!
 !!*** **********************************************************************
   SUBROUTINE qs_ks_release(ks_env,error)
-    TYPE(qs_ks_env_type), POINTER :: ks_env
-    TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
+    TYPE(qs_ks_env_type), POINTER            :: ks_env
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
 
-    LOGICAL :: failure
-    CHARACTER(len=*), PARAMETER :: routineN='qs_ks_release',&
-         routineP=moduleN//':'//routineN
-    INTEGER :: stat, ispin
+    CHARACTER(len=*), PARAMETER :: routineN = 'qs_ks_release', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: ispin, stat
+    LOGICAL                                  :: failure
+
     failure=.FALSE.
 
     IF (ASSOCIATED(ks_env)) THEN
@@ -254,12 +235,15 @@ CONTAINS
 !!
 !!*** **********************************************************************
 SUBROUTINE qs_ks_retain(ks_env, error)
-  TYPE(qs_ks_env_type), POINTER :: ks_env
-  TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
-  
-  LOGICAL :: failure
-  CHARACTER(len=*), PARAMETER :: routineN='qs_ks_retain',&
-        routineP=moduleN//':'//routineN
+    TYPE(qs_ks_env_type), POINTER            :: ks_env
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'qs_ks_retain', &
+      routineP = moduleN//':'//routineN
+
+    LOGICAL                                  :: failure
+
   failure=.FALSE.
   
   CPPrecondition(ASSOCIATED(ks_env),cp_failure_level,routineP,error,failure)

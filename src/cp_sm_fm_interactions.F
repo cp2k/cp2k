@@ -21,89 +21,52 @@
 !!     Joost VandeVondele (2003-08)
 !!
 MODULE cp_sm_fm_interactions
-  USE cp_array_i_utils,                ONLY: cp_1d_i_p_type,&
-                                             cp_1d_i_write,&
-                                             cp_2d_i_write
-  USE cp_array_r_utils,                ONLY: cp_1d_r_write,&
-                                             cp_2d_r_p_type,&
-                                             cp_2d_r_write
-  USE cp_blacs_calls,                  ONLY: cp_blacs_pnum,&
-                                             cp_blacs_gridinit,&
+  USE cp_array_i_utils,                ONLY: cp_1d_i_p_type
+  USE cp_array_r_utils,                ONLY: cp_2d_r_p_type
+  USE cp_blacs_calls,                  ONLY: cp_blacs_get,&
+                                             cp_blacs_gridexit,&
                                              cp_blacs_gridinfo,&
-                                             cp_blacs_get,&
-                                             cp_blacs_gridexit
+                                             cp_blacs_gridinit,&
+                                             cp_blacs_pnum
   USE cp_error_handling,               ONLY: cp_a_l,&
                                              cp_assert,&
                                              cp_assertion_failed,&
-                                             cp_debug,&
-                                             cp_error_dealloc_ref,&
                                              cp_error_get_logger,&
-                                             cp_error_init,&
                                              cp_error_message,&
-                                             cp_error_type,&
-                                             cp_internal_error,&
-                                             cp_unimplemented_error
-  USE cp_fm_basic_linalg,              ONLY: cp_fm_scale_and_add
-  USE cp_fm_struct,                    ONLY: cp_fm_struct_compatible,&
-                                             cp_fm_struct_create,&
-                                             cp_fm_struct_release,&
-                                             cp_fm_struct_type,&
-                                             cp_fm_struct_write
-  USE cp_fm_types,                     ONLY: cp_fm_create,&
-                                             cp_fm_get_info,&
-                                             cp_fm_maxabsval,&
-                                             cp_fm_release,&
-                                             cp_fm_retain,&
-                                             cp_fm_set_element,&
-                                             cp_fm_type,&
-                                             cp_fm_write
+                                             cp_error_type
+  USE cp_fm_struct,                    ONLY: cp_fm_struct_compatible
+  USE cp_fm_types,                     ONLY: cp_fm_get_info,&
+                                             cp_fm_type
   USE cp_log_handling,                 ONLY: cp_failure_level,&
                                              cp_fatal_level,&
                                              cp_log,&
-                                             cp_logger_generate_filename,&
-                                             cp_logger_get_default_unit_nr,&
                                              cp_logger_type,&
                                              cp_note_level,&
                                              cp_to_string,&
                                              cp_warning_level
-  USE cp_matrix_utils,                 ONLY: cp_sm_write
   USE cp_para_types,                   ONLY: cp_blacs_env_type,&
                                              cp_para_env_type
   USE distribution_2d_types,           ONLY: distribution_2d_get
-  USE kinds,                           ONLY: dp,&
-                                             dp_size,&
-                                             int_size
-  USE machine,                         ONLY: m_flush
+  USE kinds,                           ONLY: dp
   USE mathlib,                         ONLY: lcm
   USE message_passing,                 ONLY: mp_alltoall,&
                                              mp_bcast,&
-                                             mp_gather,&
                                              mp_isendrecv,&
-                                             mp_max,&
-                                             mp_sendrecv,&
                                              mp_shift,&
                                              mp_sum,&
-                                             mp_sync,&
-                                             mp_wait,&
                                              mp_waitall
-  USE sparse_matrix_types,             ONLY: add_block_node,&
-                                             allocate_matrix,&
-                                             cp_sm_maxabsval,&
-                                             cp_sm_scale_and_add,&
-                                             deallocate_matrix,&
-                                             first_block_node,&
+  USE sparse_matrix_types,             ONLY: first_block_node,&
                                              get_block_node,&
                                              get_matrix_info,&
                                              next_block_node,&
                                              real_block_node_type,&
                                              real_matrix_type,&
-                                             replicate_matrix,&
                                              sparse_plus_loc_loct,&
-                                             sparse_times_local,&
-                                             write_blocks_maxabsval
+                                             sparse_times_local
   USE termination,                     ONLY: stop_memory
   USE timings,                         ONLY: timeset,&
                                              timestop
+
   IMPLICIT NONE
   PRIVATE
 
@@ -1074,19 +1037,22 @@ CONTAINS
   SUBROUTINE cp_sm_fm_multiply(sparse_matrix,v_in,v_out,ncol,para_env, &
        alpha,beta,error)
     ! to do: better interface
-    TYPE(real_matrix_type), POINTER   :: sparse_matrix
-    TYPE(cp_fm_type) , POINTER :: v_in
-    TYPE(cp_fm_type) , POINTER :: v_out
-    INTEGER, INTENT(IN)               :: ncol
-    TYPE(cp_para_env_type), POINTER :: para_env ! of the sparse matrix
-    REAL(KIND = dp), INTENT(in), OPTIONAL :: alpha, beta
-    TYPE(cp_error_type), INTENT(inout), OPTIONAL :: error
+    TYPE(real_matrix_type), POINTER          :: sparse_matrix
+    TYPE(cp_fm_type), POINTER                :: v_in, v_out
+    INTEGER, INTENT(IN)                      :: ncol
+    TYPE(cp_para_env_type), POINTER          :: para_env
+    REAL(KIND=dp), INTENT(in), OPTIONAL      :: alpha, beta
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
 
-    LOGICAL :: failure
-    TYPE(cp_logger_type), POINTER :: logger
-    CHARACTER(len=*), PARAMETER :: routineN='cp_sm_fm_multiply',&
-         routineP=moduleN//':'//routineN
-    REAL(KIND = dp) :: my_alpha,my_beta
+    CHARACTER(len=*), PARAMETER :: routineN = 'cp_sm_fm_multiply', &
+      routineP = moduleN//':'//routineN
+
+    LOGICAL                                  :: failure
+    REAL(KIND=dp)                            :: my_alpha, my_beta
+    TYPE(cp_logger_type), POINTER            :: logger
+
+! of the sparse matrix
 !FM  REAL(KIND = dp) :: diff
 !FM  TYPE(cp_fm_type), POINTER :: tmp_m
 
@@ -1189,17 +1155,20 @@ END SUBROUTINE cp_sm_fm_multiply
 !!*** **********************************************************************
 SUBROUTINE cp_sm_plus_fm_fm_t(sparse_matrix,matrix_v,matrix_g,ncol,&
      alpha,error)
-  TYPE(real_matrix_type), POINTER   :: sparse_matrix
-  TYPE(cp_fm_type) , POINTER :: matrix_v
-  TYPE(cp_fm_type) , POINTER, OPTIONAL :: matrix_g
-  INTEGER, INTENT(IN)               :: ncol
-  REAL(KIND = dp), OPTIONAL, INTENT(IN)    :: alpha
-  TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
+    TYPE(real_matrix_type), POINTER          :: sparse_matrix
+    TYPE(cp_fm_type), POINTER                :: matrix_v
+    TYPE(cp_fm_type), OPTIONAL, POINTER      :: matrix_g
+    INTEGER, INTENT(IN)                      :: ncol
+    REAL(KIND=dp), INTENT(IN), OPTIONAL      :: alpha
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
 
-  LOGICAL :: failure
-  TYPE(cp_logger_type), POINTER :: logger
-  CHARACTER(len=*), PARAMETER :: routineN='cp_sm_plus_fm_fm_t',&
-       routineP=moduleN//':'//routineN
+    CHARACTER(len=*), PARAMETER :: routineN = 'cp_sm_plus_fm_fm_t', &
+      routineP = moduleN//':'//routineN
+
+    LOGICAL                                  :: failure
+    TYPE(cp_logger_type), POINTER            :: logger
+
 !FM  REAL(KIND = dp) :: diff
 !FM  TYPE(real_matrix_type), POINTER :: tmp_m
 
@@ -1278,45 +1247,41 @@ END SUBROUTINE cp_sm_plus_fm_fm_t
   SUBROUTINE cp_sm_fm_multiply_2d(sm,fm_in,fm_out, alpha,beta,transpose_sm, &
        do_diagonal_blocks,antisymmetric, ncol, error)
 
-    TYPE(real_matrix_type), POINTER :: sm
-    TYPE(cp_fm_type), POINTER :: fm_in, fm_out
-    LOGICAL, INTENT(in) :: transpose_sm, do_diagonal_blocks,antisymmetric
-    REAL(KIND = dp), INTENT(in) :: alpha, beta
-    INTEGER, INTENT(in), OPTIONAL :: ncol
-    TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
+    TYPE(real_matrix_type), POINTER          :: sm
+    TYPE(cp_fm_type), POINTER                :: fm_in, fm_out
+    REAL(KIND=dp), INTENT(in)                :: alpha, beta
+    LOGICAL, INTENT(in)                      :: transpose_sm, &
+                                                do_diagonal_blocks, &
+                                                antisymmetric
+    INTEGER, INTENT(in), OPTIONAL            :: ncol
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
 
-    INTEGER :: fm_ncol_global, handle, handle2
-    INTEGER :: nprow,npcol,fm_ncol_local, fm_nrow_local
-    INTEGER :: njunk,junk_size, gindex
-    INTEGER :: njunk_local_in,njunk_local_out
+    CHARACTER(len=*), PARAMETER :: routineN = 'cp_sm_fm_multiply_2d', &
+      routineP = moduleN//':'//routineN
 
-    CHARACTER(len=*), PARAMETER :: routineN='cp_sm_fm_multiply_2d',&
-         routineP=moduleN//':'//routineN
-    LOGICAL :: failure, transpose_block
-    INTEGER :: sm_ncol_local, myprow,mypcol, stat,&
-         mepos,ip,icol,irow,ipcol,iprow, sm_nrow_local,ijunk,&
-         ijunk_offset, ijunk_ordered, irow_junk, iblock_atomic,&
-         irow_global, iblock, iblock_global, &
-         junk_in, junk_out, iblock_row, iblock_col, sbnrow,sbncol,&
-         junk_recv_in, junk_recv_out, row_dest, row_src, col_dest,&
-         col_src, sm_nblock_row, sm_nblock_col, fm_ncol_block, fm_nrow_block,&
-         fm_first_prow, fm_first_pcol, ikind, n_local_atomic_rows, &
-         n_local_atomic_cols, fm_nrow_global
-    INTEGER, DIMENSION(4) :: reqs
-    INTEGER, DIMENSION(:), POINTER :: junk_of_col, ncol_local_of_junk,&
-         col_offset_in_junk, row_offset_in_junk, fm_row_indices, &
-         fm_col_indices, sm_last_row, &
-         sm_first_row, sm_first_col,sm_last_col, atomic_col_distribution,&
-         atomic_row_distribution, ncol_global_of_junk, local_atomic_rows, &
-         local_atomic_cols
-    INTEGER, DIMENSION(:,:), POINTER :: blacs2mpi
-    REAL(KIND = dp), DIMENSION(:,:), POINTER :: sparse_block
-    REAL(KIND = dp) :: flops,flops_l,alpha_ji
-
-    TYPE(real_block_node_type), POINTER :: block_node
-    TYPE(cp_2d_r_p_type), DIMENSION(:), POINTER :: v_in, v_out
-    TYPE(cp_para_env_type), POINTER :: fm_para_env
-    TYPE (cp_logger_type), POINTER :: logger
+    INTEGER :: col_dest, col_src, fm_ncol_global, fm_ncol_local, &
+      fm_nrow_local, gindex, handle, handle2, iblock, iblock_col, &
+      iblock_global, iblock_row, ijunk, ipcol, iprow, junk_in, junk_out, &
+      junk_recv_in, junk_recv_out, junk_size, mypcol, myprow, &
+      n_local_atomic_cols, n_local_atomic_rows, njunk, njunk_local_in, &
+      njunk_local_out, npcol, nprow, row_dest, row_src, sbncol, sbnrow, &
+      sm_nblock_col, sm_nblock_row, sm_ncol_local, sm_nrow_local, stat
+    INTEGER, DIMENSION(4)                    :: reqs
+    INTEGER, DIMENSION(:), POINTER :: atomic_col_distribution, &
+      atomic_row_distribution, col_offset_in_junk, fm_col_indices, &
+      fm_row_indices, junk_of_col, local_atomic_cols, local_atomic_rows, &
+      ncol_global_of_junk, ncol_local_of_junk, row_offset_in_junk, &
+      sm_first_col, sm_first_row, sm_last_col, sm_last_row
+    INTEGER, DIMENSION(:, :), POINTER        :: blacs2mpi
+    LOGICAL                                  :: failure, transpose_block
+    REAL(KIND=dp)                            :: alpha_ji, flops, flops_l
+    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: sparse_block
+    TYPE(cp_2d_r_p_type), DIMENSION(:), &
+      POINTER                                :: v_in, v_out
+    TYPE(cp_logger_type), POINTER            :: logger
+    TYPE(cp_para_env_type), POINTER          :: fm_para_env
+    TYPE(real_block_node_type), POINTER      :: block_node
 
     CALL timeset(routineN,"I","Gflops",handle)
     NULLIFY(junk_of_col, ncol_local_of_junk,&
@@ -1596,46 +1561,41 @@ END SUBROUTINE cp_sm_plus_fm_fm_t
 !!*** **********************************************************************
   SUBROUTINE cp_sm_plus_fm_fm_t_2d(sm,matrix_v,matrix_g,ncol,&
        alpha,error)
-    TYPE(real_matrix_type), POINTER   :: sm
-    TYPE(cp_fm_type) , POINTER :: matrix_v
-    TYPE(cp_fm_type) , POINTER, OPTIONAL :: matrix_g
-    INTEGER, INTENT(IN),OPTIONAL :: ncol
-    REAL(KIND = dp), OPTIONAL, INTENT(IN)    :: alpha
-    TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
+    TYPE(real_matrix_type), POINTER          :: sm
+    TYPE(cp_fm_type), POINTER                :: matrix_v
+    TYPE(cp_fm_type), OPTIONAL, POINTER      :: matrix_g
+    INTEGER, INTENT(IN), OPTIONAL            :: ncol
+    REAL(KIND=dp), INTENT(IN), OPTIONAL      :: alpha
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
 
-    INTEGER :: fm_ncol_global, handle, handle2
-    INTEGER :: nprow,npcol,fm_ncol_local, fm_nrow_local
-    INTEGER :: njunk,junk_size, gindex
-    INTEGER :: njunk_local_in,njunk_local_out, ikind
+    CHARACTER(len=*), PARAMETER :: routineN = 'cp_sm_plus_fm_fm_t_2d', &
+      routineP = moduleN//':'//routineN
 
-    CHARACTER(len=*), PARAMETER :: routineN='cp_sm_plus_fm_fm_t_2d',&
-         routineP=moduleN//':'//routineN
-    LOGICAL :: failure, transpose_block
-    INTEGER :: sm_ncol_local, myprow,mypcol, stat,&
-         mepos,ip,icol,irow,ipcol,iprow, sm_nrow_local,ijunk,&
-         ijunk_offset, ijunk_ordered, irow_junk, iblock_atomic,&
-         irow_global, iblock, iblock_global, &
-         junk_in, junk_out, iblock_row, iblock_col, sbnrow,sbncol,&
-         junk_recv_in, junk_recv_out, row_dest, row_src, col_dest,&
-         col_src, sm_nblock_row, sm_nblock_col, fm_ncol_block, fm_nrow_block,&
-         fm_first_prow, fm_first_pcol, n_flat_local_rows, n_flat_local_cols,&
-         fm_nrow_global,g_matrix_ncol_g, g_matrix_nrow_g
-    INTEGER, DIMENSION(4) :: reqs
-    INTEGER, DIMENSION(:), POINTER :: junk_of_col, ncol_local_of_junk,&
-         col_offset_in_junk, row_offset_in_junk, fm_row_indices, fm_col_indices,&
-         sm_last_row,&
-         sm_first_row, sm_first_col,sm_last_col, atomic_col_distribution,&
-         atomic_row_distribution, ncol_global_of_junk, flat_local_rows, &
-         flat_local_cols
-    INTEGER, DIMENSION(:,:), POINTER :: blacs2mpi
-    REAL(KIND = dp), DIMENSION(:,:), POINTER :: sparse_block
-    REAL(KIND = dp) :: flops,flops_l,my_alpha
-    TYPE(cp_fm_type), POINTER :: my_matrix_g
-
-    TYPE(real_block_node_type), POINTER :: block_node
-    TYPE(cp_2d_r_p_type), DIMENSION(:), POINTER :: v_in, v_out
-    TYPE(cp_para_env_type), POINTER :: fm_para_env
-    TYPE (cp_logger_type), POINTER :: logger
+    INTEGER :: col_dest, col_src, fm_ncol_global, fm_ncol_local, &
+      fm_nrow_global, fm_nrow_local, g_matrix_ncol_g, g_matrix_nrow_g, &
+      gindex, handle, handle2, iblock, iblock_col, iblock_global, iblock_row, &
+      ijunk, junk_in, junk_out, junk_recv_in, junk_recv_out, junk_size, &
+      mypcol, myprow, n_flat_local_cols, n_flat_local_rows, njunk, &
+      njunk_local_in, njunk_local_out, npcol, nprow, row_dest, row_src, &
+      sbncol, sbnrow, sm_nblock_col, sm_nblock_row, sm_ncol_local, &
+      sm_nrow_local, stat
+    INTEGER, DIMENSION(4)                    :: reqs
+    INTEGER, DIMENSION(:), POINTER :: atomic_col_distribution, &
+      atomic_row_distribution, col_offset_in_junk, flat_local_cols, &
+      flat_local_rows, fm_col_indices, fm_row_indices, junk_of_col, &
+      ncol_global_of_junk, ncol_local_of_junk, row_offset_in_junk, &
+      sm_first_col, sm_first_row, sm_last_col, sm_last_row
+    INTEGER, DIMENSION(:, :), POINTER        :: blacs2mpi
+    LOGICAL                                  :: failure, transpose_block
+    REAL(KIND=dp)                            :: flops, flops_l, my_alpha
+    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: sparse_block
+    TYPE(cp_2d_r_p_type), DIMENSION(:), &
+      POINTER                                :: v_in, v_out
+    TYPE(cp_fm_type), POINTER                :: my_matrix_g
+    TYPE(cp_logger_type), POINTER            :: logger
+    TYPE(cp_para_env_type), POINTER          :: fm_para_env
+    TYPE(real_block_node_type), POINTER      :: block_node
 
     CALL timeset(routineN,"I","Gflops",handle)
     logger => cp_error_get_logger(error)
@@ -1909,14 +1869,16 @@ END SUBROUTINE cp_sm_plus_fm_fm_t
 !!
 !!*** **********************************************************************
   FUNCTION junk_of_fm_index(fm_index,fm_size,njunk,error) RESULT(res)
-    INTEGER ::res
-    INTEGER, INTENT(in) :: fm_index, fm_size, njunk
-    TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
+    INTEGER, INTENT(in)                      :: fm_index, fm_size, njunk
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
+    INTEGER                                  :: res
 
-    LOGICAL :: failure
-    CHARACTER(len=*), PARAMETER :: routineN='junk_of_fm_index',&
-         routineP=moduleN//':'//routineN
-    INTEGER :: size_small,n_large
+    CHARACTER(len=*), PARAMETER :: routineN = 'junk_of_fm_index', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: n_large, size_small
+    LOGICAL                                  :: failure
 
     failure=.FALSE.
 

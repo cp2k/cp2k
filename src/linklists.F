@@ -21,14 +21,23 @@
 
 MODULE linklists
 
-  USE kinds, ONLY : dbl
-  USE molecule_types, ONLY : molecule_structure_type, linklist_atoms, &
-       bond_parameters_type, linklist_bonds, bend_parameters_type, &
-       linklist_bends, torsion_parameters_type, linklist_torsions, &
-       linklist_dist_constraints, linklist_g3x3_constraints,  &
-       linklist_g4x6_constraints, linklist_exclusion, particle_node_type, &
-       molecule_type
-  USE termination, ONLY : stop_memory, stop_program
+  USE kinds,                           ONLY: dbl
+  USE molecule_types,                  ONLY: bend_parameters_type,&
+                                             bond_parameters_type,&
+                                             linklist_atoms,&
+                                             linklist_bends,&
+                                             linklist_bonds,&
+                                             linklist_dist_constraints,&
+                                             linklist_exclusion,&
+                                             linklist_g3x3_constraints,&
+                                             linklist_g4x6_constraints,&
+                                             linklist_torsions,&
+                                             molecule_structure_type,&
+                                             molecule_type,&
+                                             particle_node_type,&
+                                             torsion_parameters_type
+  USE termination,                     ONLY: stop_memory,&
+                                             stop_program
 
   IMPLICIT NONE
 
@@ -64,18 +73,14 @@ CONTAINS
 
 SUBROUTINE atom_link_list ( molecule, pnode )
 
-  IMPLICIT NONE
 
-! Arguments
-  TYPE ( molecule_structure_type ), DIMENSION ( : ), INTENT ( INOUT ) :: &
-       molecule
-  TYPE ( particle_node_type ), DIMENSION ( : ), INTENT ( INOUT ), TARGET :: &
-       pnode
+    TYPE(molecule_structure_type), &
+      DIMENSION(:), INTENT(INOUT)            :: molecule
+    TYPE(particle_node_type), DIMENSION(:), &
+      INTENT(INOUT), TARGET                  :: pnode
 
-! Locals
-  INTEGER :: imol, iatom, jatom
-  TYPE ( linklist_atoms ), POINTER :: current_ll_atom
-  INTEGER :: ios
+    INTEGER                                  :: iatom, imol, ios, jatom
+    TYPE(linklist_atoms), POINTER            :: current_ll_atom
 
 !------------------------------------------------------------------------------
 
@@ -119,31 +124,29 @@ SUBROUTINE exclusion(molecule,pnode)
 
 ! Routine to compute the exclusion list
 
-  IMPLICIT NONE
 
-! Arguments
-  TYPE (molecule_structure_type ), INTENT ( IN ), DIMENSION ( : ) :: molecule
-  TYPE (particle_node_type ), INTENT ( INOUT ), DIMENSION ( : ) :: pnode
+    TYPE(molecule_structure_type), &
+      DIMENSION(:), INTENT(IN)               :: molecule
+    TYPE(particle_node_type), DIMENSION(:), &
+      INTENT(INOUT)                          :: pnode
 
-! Locals
-  TYPE (linklist_exclusion), POINTER :: current_excl
-  TYPE (linklist_atoms), POINTER :: ll_atom
-  TYPE (linklist_bonds), POINTER :: ll_bond
-  TYPE (linklist_bends), POINTER :: ll_bend
-  TYPE (linklist_torsions), POINTER :: ll_torsion
-  TYPE (linklist_dist_constraints), POINTER :: ll_dist
-  TYPE (linklist_g3x3_constraints), POINTER :: ll_g3x3
-  TYPE (linklist_g4x6_constraints), POINTER :: ll_g4x6
-  INTEGER :: imol, iatom, jatom, ibond, ibend, itorsion, idist, i, ii
-  INTEGER :: jnode, ig3x3, ig4x6, ios
-  INTEGER, DIMENSION ( : ), ALLOCATABLE :: bond, bend, torsion
-  INTEGER :: natoms_mol, nbonds_mol, nbends_mol, ntorsions_mol, &
-             ndist_mol, n3x3_mol, n4x6_mol
-  LOGICAL :: match
+    INTEGER :: i, iatom, ibend, ibond, idist, ig3x3, ig4x6, ii, imol, ios, &
+      itorsion, jatom, jnode, n3x3_mol, n4x6_mol, natoms_mol, nbends_mol, &
+      nbonds_mol, ndist_mol, ntorsions_mol
+    INTEGER, ALLOCATABLE, DIMENSION(:)       :: bend, bond, torsion
+    LOGICAL                                  :: match
+    TYPE(linklist_atoms), POINTER            :: ll_atom
+    TYPE(linklist_bends), POINTER            :: ll_bend
+    TYPE(linklist_bonds), POINTER            :: ll_bond
+    TYPE(linklist_dist_constraints), POINTER :: ll_dist
+    TYPE(linklist_exclusion), POINTER        :: current_excl
+    TYPE(linklist_g3x3_constraints), POINTER :: ll_g3x3
+    TYPE(linklist_g4x6_constraints), POINTER :: ll_g4x6
+    TYPE(linklist_torsions), POINTER         :: ll_torsion
 
 !------------------------------------------------------------------------------
-
 ! allocating local variables containting intra atoms
+
   ALLOCATE (bond(2),STAT=ios)
   IF ( ios /= 0 ) CALL stop_memory( 'exclusion','bond', 2 )
   ALLOCATE (bend(3),STAT=ios)
@@ -401,20 +404,17 @@ SUBROUTINE checklist(pnode,match,jatom,ipart)
 
 ! checks to see if excluded particle is already in the list
 
-  IMPLICIT NONE
 
-! Arguments
-  TYPE (particle_node_type ), INTENT ( IN ) :: pnode
-  INTEGER, INTENT ( IN ) :: ipart, jatom
-  LOGICAL, INTENT ( OUT ) :: match
+    TYPE(particle_node_type), INTENT(IN)     :: pnode
+    LOGICAL, INTENT(OUT)                     :: match
+    INTEGER, INTENT(IN)                      :: jatom, ipart
 
-! Locals
-  TYPE ( linklist_exclusion ), POINTER :: ll_exclude
-  INTEGER :: i
+    INTEGER                                  :: i
+    TYPE(linklist_exclusion), POINTER        :: ll_exclude
 
 !------------------------------------------------------------------------------
-
 ! initialize match
+
   match = .FALSE.
 !BIGIF:  IF ((jatom==ipart) .OR. (ipart<jatom)) THEN
   BIGIF: IF (jatom==ipart) THEN
@@ -437,17 +437,14 @@ END SUBROUTINE checklist
 
 FUNCTION getnode ( molecule, atom ) RESULT ( node )
 
-  IMPLICIT NONE
 
 ! Return value
-  INTEGER :: node
+    TYPE(molecule_structure_type), &
+      DIMENSION(:), INTENT(IN)               :: molecule
+    INTEGER, INTENT(IN)                      :: atom
+    INTEGER                                  :: node
 
-! Arguments
-  TYPE (molecule_structure_type ), DIMENSION ( : ), INTENT ( IN ) :: molecule
-  INTEGER, INTENT ( IN ) :: atom
-
-! Locals
-  INTEGER :: imol
+    INTEGER                                  :: imol
 
 !------------------------------------------------------------------------------
 
@@ -488,20 +485,19 @@ END FUNCTION getnode
 
 SUBROUTINE bond_link_list ( pnode, molecule, mol_setup, bond_parm )
 
-  IMPLICIT NONE
 
-! Arguments
-  TYPE ( particle_node_type ), INTENT ( INOUT ), DIMENSION ( : ), TARGET :: &
-       pnode
-  TYPE ( molecule_structure_type ), INTENT ( INOUT ), DIMENSION ( : ) :: &
-       molecule
-  TYPE ( molecule_type ), INTENT ( IN ) :: mol_setup ( : )
-  TYPE ( bond_parameters_type ), DIMENSION ( : ), POINTER :: bond_parm
+    TYPE(particle_node_type), DIMENSION(:), &
+      INTENT(INOUT), TARGET                  :: pnode
+    TYPE(molecule_structure_type), &
+      DIMENSION(:), INTENT(INOUT)            :: molecule
+    TYPE(molecule_type), INTENT(IN)          :: mol_setup( : )
+    TYPE(bond_parameters_type), &
+      DIMENSION(:), POINTER                  :: bond_parm
 
-! Locals
-  INTEGER :: imol, jmol, nmol, ibond, nb, atombase, pTYPE
-  INTEGER :: index ( 2 ), ios
-  TYPE ( linklist_bonds ), POINTER :: current_ll_bonds
+    INTEGER                                  :: atombase, ibond, imol, &
+                                                index( 2 ), ios, jmol, nb, &
+                                                nmol, pTYPE
+    TYPE(linklist_bonds), POINTER            :: current_ll_bonds
 
 !------------------------------------------------------------------------------
 
@@ -562,20 +558,19 @@ END SUBROUTINE bond_link_list
 
 SUBROUTINE bend_link_list ( pnode, molecule, mol_setup, bend_parm )
 
-  IMPLICIT NONE
 
-! Arguments
-  TYPE ( particle_node_type ), DIMENSION ( : ), INTENT ( INOUT ), TARGET :: &
-       pnode
-  TYPE ( molecule_structure_type ), DIMENSION ( : ), INTENT ( INOUT ) :: &
-       molecule
-  TYPE ( molecule_type ), INTENT ( IN ) :: mol_setup ( : )
-  TYPE ( bend_parameters_type ), DIMENSION (:), POINTER :: bend_parm
+    TYPE(particle_node_type), DIMENSION(:), &
+      INTENT(INOUT), TARGET                  :: pnode
+    TYPE(molecule_structure_type), &
+      DIMENSION(:), INTENT(INOUT)            :: molecule
+    TYPE(molecule_type), INTENT(IN)          :: mol_setup( : )
+    TYPE(bend_parameters_type), &
+      DIMENSION(:), POINTER                  :: bend_parm
 
-! Locals
-  INTEGER :: imol, jmol, nmol, ibend, nb, atombase, pTYPE
-  INTEGER :: index ( 3 ), ios
-  TYPE ( linklist_bends ), POINTER :: current_ll_bends
+    INTEGER                                  :: atombase, ibend, imol, &
+                                                index( 3 ), ios, jmol, nb, &
+                                                nmol, pTYPE
+    TYPE(linklist_bends), POINTER            :: current_ll_bends
 
 !------------------------------------------------------------------------------
 
@@ -638,20 +633,19 @@ END SUBROUTINE bend_link_list
 
 SUBROUTINE torsion_link_list ( pnode, molecule, mol_setup, torsion_parm )
 
-  IMPLICIT NONE
 
-! Arguments
-  TYPE ( particle_node_type ), DIMENSION ( : ), INTENT ( INOUT ), TARGET :: &
-       pnode
-  TYPE ( molecule_structure_type ), DIMENSION ( : ), INTENT ( INOUT ) :: &
-       molecule
-  TYPE ( molecule_type ), INTENT ( IN ) :: mol_setup ( : )
-  TYPE ( torsion_parameters_type ), DIMENSION (:), POINTER :: torsion_parm
+    TYPE(particle_node_type), DIMENSION(:), &
+      INTENT(INOUT), TARGET                  :: pnode
+    TYPE(molecule_structure_type), &
+      DIMENSION(:), INTENT(INOUT)            :: molecule
+    TYPE(molecule_type), INTENT(IN)          :: mol_setup( : )
+    TYPE(torsion_parameters_type), &
+      DIMENSION(:), POINTER                  :: torsion_parm
 
-! Locals
-  INTEGER :: imol, jmol, nmol, itorsion, nb, atombase, pTYPE
-  INTEGER :: index ( 4 ), ios
-  TYPE (linklist_torsions), POINTER :: current_ll_torsions
+    INTEGER                                  :: atombase, imol, index( 4 ), &
+                                                ios, itorsion, jmol, nb, &
+                                                nmol, pTYPE
+    TYPE(linklist_torsions), POINTER         :: current_ll_torsions
 
 !------------------------------------------------------------------------------
 
@@ -719,20 +713,18 @@ END SUBROUTINE torsion_link_list
 SUBROUTINE distconst_link_list ( pnode, molecule, mol_setup, &
      constraint_distance )
 
-  IMPLICIT NONE
 
-! Arguments
-  TYPE ( particle_node_type ), INTENT ( INOUT ), DIMENSION ( : ), TARGET :: &
-       pnode
-  TYPE ( molecule_structure_type ), INTENT ( INOUT ), DIMENSION ( : ) :: &
-       molecule
-  TYPE ( molecule_type ), INTENT ( IN ) :: mol_setup ( : )
-  REAL ( dbl ), DIMENSION ( : ), POINTER :: constraint_distance
+    TYPE(particle_node_type), DIMENSION(:), &
+      INTENT(INOUT), TARGET                  :: pnode
+    TYPE(molecule_structure_type), &
+      DIMENSION(:), INTENT(INOUT)            :: molecule
+    TYPE(molecule_type), INTENT(IN)          :: mol_setup( : )
+    REAL(dbl), DIMENSION(:), POINTER         :: constraint_distance
 
-! Locals
-  INTEGER :: imol, jmol, nmol, idcon, nb, atombase, pTYPE
-  INTEGER :: index ( 2 ), ios
-  TYPE ( linklist_dist_constraints ), POINTER :: current_ll_dconst
+    INTEGER                                  :: atombase, idcon, imol, &
+                                                index( 2 ), ios, jmol, nb, &
+                                                nmol, pTYPE
+    TYPE(linklist_dist_constraints), POINTER :: current_ll_dconst
 
 !------------------------------------------------------------------------------
 
@@ -797,19 +789,18 @@ END SUBROUTINE distconst_link_list
 
 SUBROUTINE g3x3_link_list ( pnode, molecule, mol_setup, constraint_distance )
 
-  IMPLICIT NONE
 
-! Arguments
-  TYPE ( particle_node_type ), DIMENSION ( : ), INTENT ( INOUT ), TARGET :: &
-       pnode
-  TYPE ( molecule_structure_type ), DIMENSION ( : ), INTENT ( INOUT ) :: &
-       molecule
-  TYPE ( molecule_type ), INTENT ( IN ) :: mol_setup ( : )
-  REAL ( dbl ), DIMENSION ( : ), POINTER :: constraint_distance
-! Locals
-  INTEGER :: imol, jmol, nmol, ig3x3, nb, atombase, pTYPE ( 3 )
-  INTEGER :: index ( 3 ), ios
-  TYPE ( linklist_g3x3_constraints ), POINTER :: current_ll_g3x3
+    TYPE(particle_node_type), DIMENSION(:), &
+      INTENT(INOUT), TARGET                  :: pnode
+    TYPE(molecule_structure_type), &
+      DIMENSION(:), INTENT(INOUT)            :: molecule
+    TYPE(molecule_type), INTENT(IN)          :: mol_setup( : )
+    REAL(dbl), DIMENSION(:), POINTER         :: constraint_distance
+
+    INTEGER                                  :: atombase, ig3x3, imol, &
+                                                index( 3 ), ios, jmol, nb, &
+                                                nmol, pTYPE( 3 )
+    TYPE(linklist_g3x3_constraints), POINTER :: current_ll_g3x3
 
 !------------------------------------------------------------------------------
 
@@ -882,19 +873,18 @@ END SUBROUTINE g3x3_link_list
 
 SUBROUTINE g4x6_link_list ( pnode, molecule, mol_setup, constraint_distance )
 
-  IMPLICIT NONE
 
-! Arguments
-  TYPE ( particle_node_type ), DIMENSION ( : ), INTENT ( INOUT ), TARGET :: &
-       pnode
-  TYPE ( molecule_structure_type ), DIMENSION ( : ), INTENT ( INOUT ) :: &
-       molecule
-  TYPE ( molecule_type ), INTENT ( IN ) :: mol_setup ( : )
-  REAL ( dbl ), DIMENSION ( : ), POINTER :: constraint_distance
-! Locals
-  INTEGER :: imol, jmol, nmol, ig4x6, nb, atombase, pTYPE ( 6 )
-  INTEGER :: index ( 4 ), ios
-  TYPE ( linklist_g4x6_constraints ), POINTER :: current_ll_g4x6
+    TYPE(particle_node_type), DIMENSION(:), &
+      INTENT(INOUT), TARGET                  :: pnode
+    TYPE(molecule_structure_type), &
+      DIMENSION(:), INTENT(INOUT)            :: molecule
+    TYPE(molecule_type), INTENT(IN)          :: mol_setup( : )
+    REAL(dbl), DIMENSION(:), POINTER         :: constraint_distance
+
+    INTEGER                                  :: atombase, ig4x6, imol, &
+                                                index( 4 ), ios, jmol, nb, &
+                                                nmol, pTYPE( 6 )
+    TYPE(linklist_g4x6_constraints), POINTER :: current_ll_g4x6
 
 !------------------------------------------------------------------------------
 

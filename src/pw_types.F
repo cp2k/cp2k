@@ -52,6 +52,7 @@ MODULE pw_types
                                              stop_program
   USE timings,                         ONLY: timeset,&
                                              timestop
+
   IMPLICIT NONE
 
   PRIVATE
@@ -143,24 +144,25 @@ CONTAINS
 
 SUBROUTINE pw_allocate ( pw, pw_grid, use_data, mass_flag, cr3d_ptr, error )
 
-  IMPLICIT NONE
 
-! Arguments
-  INTEGER, INTENT ( IN ) :: use_data
-  TYPE ( pw_grid_type ), INTENT ( IN ), TARGET :: pw_grid
-  TYPE ( pw_type ), INTENT ( INOUT ), TARGET :: pw
-  LOGICAL, INTENT ( IN ), OPTIONAL :: mass_flag
-  REAL(kind=dbl), OPTIONAL, POINTER, DIMENSION(:,:,:) :: cr3d_ptr
-  TYPE(cp_error_type), INTENT(inout), OPTIONAL :: error
+    TYPE(pw_type), INTENT(INOUT), TARGET     :: pw
+    TYPE(pw_grid_type), INTENT(IN), TARGET   :: pw_grid
+    INTEGER, INTENT(IN)                      :: use_data
+    LOGICAL, INTENT(IN), OPTIONAL            :: mass_flag
+    REAL(kind=dbl), DIMENSION(:, :, :), &
+      OPTIONAL, POINTER                      :: cr3d_ptr
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
 
-! Locals
-  INTEGER :: allocstat, handle
-  INTEGER, DIMENSION ( :, : ), POINTER :: bounds
-  LOGICAL :: mass_flag_local
-  CHARACTER(len=*), PARAMETER :: routineN='pw_allocate',&
-       routineP=moduleN//':'//routineN
+    CHARACTER(len=*), PARAMETER :: routineN = 'pw_allocate', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: allocstat, handle
+    INTEGER, DIMENSION(:, :), POINTER        :: bounds
+    LOGICAL                                  :: mass_flag_local
 
 !------------------------------------------------------------------------------
+
   CALL timeset(routineN,"I","",handle)
   mass_flag_local = .FALSE.
   IF ( PRESENT ( mass_flag ) ) mass_flag_local = mass_flag
@@ -263,15 +265,13 @@ END SUBROUTINE pw_allocate
 
 SUBROUTINE pw_deallocate ( pw )
 
-  IMPLICIT NONE
 
-! Arguments
-  TYPE ( pw_type ), INTENT ( INOUT ) :: pw
+    TYPE(pw_type), INTENT(INOUT)             :: pw
 
-! Locals
-  INTEGER :: allocstat, handle
-  CHARACTER(len=*), PARAMETER :: routineN='pw_deallocate',&
-       routineP=moduleN//':'//routineN
+    CHARACTER(len=*), PARAMETER :: routineN = 'pw_deallocate', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: allocstat, handle
 
 !------------------------------------------------------------------------------
 
@@ -325,14 +325,11 @@ END SUBROUTINE pw_deallocate
 
 SUBROUTINE pw_zero ( pw )
 
-  IMPLICIT NONE
 
-! Arguments
-  TYPE ( pw_type ), INTENT ( INOUT ) :: pw
+    TYPE(pw_type), INTENT(INOUT)             :: pw
 
-! Local
-  INTEGER :: i, ns, handle
-  REAL ( dbl ) :: zr
+    INTEGER                                  :: handle, i, ns
+    REAL(dbl)                                :: zr
 
 !------------------------------------------------------------------------------
 
@@ -399,18 +396,15 @@ END SUBROUTINE pw_zero
 
 SUBROUTINE pw_copy ( pw1, pw2 )
   
-  IMPLICIT NONE
   
-! Arguments
-  TYPE ( pw_type ), INTENT ( IN ) :: pw1
-  TYPE ( pw_type ), INTENT ( INOUT ) :: pw2
+    TYPE(pw_type), INTENT(IN)                :: pw1
+    TYPE(pw_type), INTENT(INOUT)             :: pw2
 
-! Local
-  INTEGER :: ng1, ng2, ng, handle, ns, i, j
-  REAL ( dbl ) :: zc
-  
+    INTEGER                                  :: handle, i, j, ng, ng1, ng2, ns
+    REAL(dbl)                                :: zc
+
 !------------------------------------------------------------------------------
-  
+
   CALL timeset ( 'pw_copy', 'I', 'Mcopy', handle )
 
   IF ( pw1 % pw_grid % identifier /= pw2 % pw_grid % identifier ) THEN
@@ -590,17 +584,14 @@ END SUBROUTINE pw_copy
 
 SUBROUTINE pw_derive ( pw, n )
 
-  IMPLICIT NONE
 
-! Arguments
-  TYPE ( pw_type ), INTENT ( INOUT ) :: pw
-  INTEGER, DIMENSION ( 3 ), INTENT ( IN ) :: n
+    TYPE(pw_type), INTENT(INOUT)             :: pw
+    INTEGER, DIMENSION(3), INTENT(IN)        :: n
 
-! Local
-  INTEGER :: i, m, handle, ierr, cnt
-  COMPLEX ( dbl ) :: im
-  COMPLEX ( dbl ), ALLOCATABLE, DIMENSION ( : ) :: cc
-  REAL ( dbl ) :: flop
+    COMPLEX(dbl)                             :: im
+    COMPLEX(dbl), ALLOCATABLE, DIMENSION(:)  :: cc
+    INTEGER                                  :: cnt, handle, i, m
+    REAL(dbl)                                :: flop
 
 !------------------------------------------------------------------------------
 
@@ -706,14 +697,13 @@ END SUBROUTINE pw_derive
 !!   SOURCE
 !******************************************************************************
 SUBROUTINE pw_get_left_right ( pw, left, right )
-  IMPLICIT NONE
-  ! Arguments
-  TYPE ( pw_type ), INTENT ( IN ) :: pw
-  REAL ( KIND=dbl ), DIMENSION(:,:), POINTER :: left, right
+    TYPE(pw_type), INTENT(IN)                :: pw
+    REAL(KIND=dbl), DIMENSION(:, :), POINTER :: left, right
 
-  REAL ( KIND=dbl ), DIMENSION(:,:), POINTER :: send
-  INTEGER, DIMENSION(:,:), POINTER :: bl
-  INTEGER :: left_x,right_x,left_cpu,right_cpu
+    INTEGER                                  :: left_cpu, left_x, right_cpu, &
+                                                right_x
+    INTEGER, DIMENSION(:, :), POINTER        :: bl
+    REAL(KIND=dbl), DIMENSION(:, :), POINTER :: send
 
   bl => pw%pw_grid%bounds_local
   IF ( pw % in_space /= REALSPACE .OR.  pw % in_use /= REALDATA3D ) THEN
@@ -774,18 +764,15 @@ END SUBROUTINE pw_get_left_right
 !******************************************************************************
 
 SUBROUTINE pw_derive_fd ( pw, pw_der, n )
-  IMPLICIT NONE
-  ! Arguments
-  TYPE ( pw_type ), INTENT ( IN ) :: pw
-  TYPE ( pw_type ), INTENT ( INOUT ) :: pw_der
-  INTEGER, DIMENSION ( 3 ), INTENT ( IN ) :: n
+    TYPE(pw_type), INTENT(IN)                :: pw
+    TYPE(pw_type), INTENT(INOUT)             :: pw_der
+    INTEGER, DIMENSION(3), INTENT(IN)        :: n
 
-  INTEGER :: i,j,k
-  INTEGER, DIMENSION(:,:), POINTER :: bl
-  REAL(dbl) :: itwodelta
-  INTEGER, ALLOCATABLE, DIMENSION(:) :: wrap
-  INTEGER :: handle
-  REAL(KIND=dbl), DIMENSION(:,:), POINTER :: left,right
+    INTEGER                                  :: handle, i, j, k
+    INTEGER, ALLOCATABLE, DIMENSION(:)       :: wrap
+    INTEGER, DIMENSION(:, :), POINTER        :: bl
+    REAL(dbl)                                :: itwodelta
+    REAL(KIND=dbl), DIMENSION(:, :), POINTER :: left, right
 
   CALL timeset ( 'pw_derive_fd', 'I', '', handle )
  
@@ -968,11 +955,9 @@ END SUBROUTINE pw_derive_fd
 
 SUBROUTINE pw_transfer ( pw1, pw2 )
 
-  IMPLICIT NONE
 
-! Arguments
-  TYPE ( pw_type ), INTENT ( IN ) :: pw1
-  TYPE ( pw_type ), INTENT ( INOUT ) :: pw2
+    TYPE(pw_type), INTENT(IN)                :: pw1
+    TYPE(pw_type), INTENT(INOUT)             :: pw2
 
 !------------------------------------------------------------------------------
 
@@ -1045,18 +1030,16 @@ END SUBROUTINE pw_transfer
 
 SUBROUTINE pw_add ( pw1, pw2, pw3 )
   
-  IMPLICIT NONE
   
-! Arguments
-  TYPE ( pw_type ), INTENT ( IN ) :: pw1, pw2
-  TYPE ( pw_type ), INTENT ( INOUT ) :: pw3
-  
-! Local
-  INTEGER :: handle, ng3, ng2, ng1, ng, ngm, i, j
-  REAL ( dbl ) :: flop
-  
+    TYPE(pw_type), INTENT(IN)                :: pw1, pw2
+    TYPE(pw_type), INTENT(INOUT)             :: pw3
+
+    INTEGER                                  :: handle, i, j, ng, ng1, ng2, &
+                                                ng3, ngm
+    REAL(dbl)                                :: flop
+
 !------------------------------------------------------------------------------
-  
+
   CALL timeset ( 'pw_add', 'I', 'Mflops', handle )
 
   IF ( pw3 % pw_grid % identifier /= pw2 % pw_grid % identifier .OR. &
@@ -1275,16 +1258,13 @@ END SUBROUTINE pw_add
 
 SUBROUTINE pw_sumup_square ( pw1, pw2 )
   
-  IMPLICIT NONE
   
-! Arguments
-  TYPE ( pw_type ), INTENT ( INOUT ) :: pw1
-  TYPE ( pw_type ), INTENT ( IN ) :: pw2
-  
-! Local
-  INTEGER :: i, handle
-  REAL ( dbl ) :: flop
-  
+    TYPE(pw_type), INTENT(INOUT)             :: pw1
+    TYPE(pw_type), INTENT(IN)                :: pw2
+
+    INTEGER                                  :: handle, i
+    REAL(dbl)                                :: flop
+
 !------------------------------------------------------------------------------
 
   CALL timeset ( 'pw_sumup_square', 'I', 'Mflops', handle )
@@ -1374,18 +1354,15 @@ END SUBROUTINE pw_sumup_square
 
 SUBROUTINE pw_sumup ( pw1, pw2 )
  
-  IMPLICIT NONE
  
-! Arguments
-  TYPE ( pw_type ), INTENT ( IN ) :: pw1
-  TYPE ( pw_type ), INTENT ( INOUT ) :: pw2
-  
-! Local
-  INTEGER :: handle, ng1, ng2, ng, i, j
-  REAL ( dbl ) :: flop
- 
+    TYPE(pw_type), INTENT(IN)                :: pw1
+    TYPE(pw_type), INTENT(INOUT)             :: pw2
+
+    INTEGER                                  :: handle, i, j, ng, ng1, ng2
+    REAL(dbl)                                :: flop
+
 !------------------------------------------------------------------------------
- 
+
   CALL timeset ( 'pw_sumup', 'I', 'Mflops', handle )
 
   IF ( pw1 % pw_grid % identifier == pw2 % pw_grid % identifier ) THEN
@@ -1534,18 +1511,15 @@ END SUBROUTINE pw_sumup
 
 SUBROUTINE pw_subtract ( pw1, pw2, pw3 )
   
-  IMPLICIT NONE
   
-! Arguments
-  TYPE ( pw_type ), INTENT ( IN ) :: pw1, pw2
-  TYPE ( pw_type ), INTENT ( INOUT ) :: pw3
-  
-! Local
-  INTEGER :: handle
-  REAL ( dbl ) :: flop
-  
+    TYPE(pw_type), INTENT(IN)                :: pw1, pw2
+    TYPE(pw_type), INTENT(INOUT)             :: pw3
+
+    INTEGER                                  :: handle
+    REAL(dbl)                                :: flop
+
 !------------------------------------------------------------------------------
-  
+
   CALL timeset ( 'pw_subtract', 'I', 'Mflops', handle )
 
   IF ( pw1 % pw_grid % identifier /= pw2 % pw_grid % identifier ) &
@@ -1608,18 +1582,15 @@ END SUBROUTINE pw_subtract
 
 SUBROUTINE pw_reduce ( pw1, pw2 )
   
-  IMPLICIT NONE
   
-! Arguments
-  TYPE ( pw_type ), INTENT ( IN ) :: pw1
-  TYPE ( pw_type ), INTENT ( INOUT ) :: pw2
+    TYPE(pw_type), INTENT(IN)                :: pw1
+    TYPE(pw_type), INTENT(INOUT)             :: pw2
 
-! Local
-  INTEGER :: handle
-  REAL ( dbl ) :: flop
-  
+    INTEGER                                  :: handle
+    REAL(dbl)                                :: flop
+
 !------------------------------------------------------------------------------
-  
+
   CALL timeset ( 'pw_reduce', 'I', 'Mflops', handle )
 
   IF ( pw1 % pw_grid % identifier /= pw2 % pw_grid % identifier ) &
@@ -1669,18 +1640,16 @@ END SUBROUTINE pw_reduce
 
 SUBROUTINE pw_gather_s ( pw, c, scale )
  
-  IMPLICIT NONE
  
-! Arguments
-  TYPE ( pw_type ), INTENT ( INOUT ) :: pw
-  COMPLEX (dbl ), DIMENSION ( :, :, : ), INTENT ( IN ) :: c
-  COMPLEX ( dbl ), OPTIONAL, INTENT ( IN ) :: scale
+    TYPE(pw_type), INTENT(INOUT)             :: pw
+    COMPLEX(dbl), DIMENSION(:, :, :), &
+      INTENT(IN)                             :: c
+    COMPLEX(dbl), INTENT(IN), OPTIONAL       :: scale
 
-! Local
-  REAL ( dbl ) :: cpy
-  INTEGER :: l, m, n, ngpts, gpt,handle
-  INTEGER, DIMENSION ( : ), POINTER :: mapl, mapm, mapn
-  INTEGER, DIMENSION ( :, : ), POINTER :: ghat
+    INTEGER                                  :: gpt, handle, l, m, n, ngpts
+    INTEGER, DIMENSION(:), POINTER           :: mapl, mapm, mapn
+    INTEGER, DIMENSION(:, :), POINTER        :: ghat
+    REAL(dbl)                                :: cpy
 
 !------------------------------------------------------------------------------
 
@@ -1736,19 +1705,17 @@ END SUBROUTINE pw_gather_s
 
 SUBROUTINE pw_gather_p ( pw, c, scale )
 
-  IMPLICIT NONE
 
-! Arguments
-  TYPE ( pw_type ), INTENT ( INOUT ), TARGET :: pw
-  COMPLEX (dbl ), DIMENSION ( :, : ), INTENT ( IN ) :: c
-  COMPLEX ( dbl ), OPTIONAL, INTENT ( IN ) :: scale
+    TYPE(pw_type), INTENT(INOUT), TARGET     :: pw
+    COMPLEX(dbl), DIMENSION(:, :), &
+      INTENT(IN)                             :: c
+    COMPLEX(dbl), INTENT(IN), OPTIONAL       :: scale
 
-! Local
-  REAL ( dbl ) :: cpy
-  INTEGER :: l, m, n, mn, ngpts, gpt, handle
-  INTEGER, DIMENSION ( : ), POINTER :: mapl, mapm, mapn
-  INTEGER, DIMENSION ( :, : ), POINTER :: yzq
-  INTEGER, DIMENSION ( :, : ), POINTER :: ghat
+    INTEGER                                  :: gpt, handle, l, m, mn, n, &
+                                                ngpts
+    INTEGER, DIMENSION(:), POINTER           :: mapl, mapm, mapn
+    INTEGER, DIMENSION(:, :), POINTER        :: ghat, yzq
+    REAL(dbl)                                :: cpy
 
 !------------------------------------------------------------------------------
 
@@ -1828,18 +1795,16 @@ END SUBROUTINE pw_gather_p
 
 SUBROUTINE pw_scatter_s ( pw, c, scale )
 
-  IMPLICIT NONE
 
-! Arguments
-  TYPE ( pw_type ), INTENT ( IN ) :: pw
-  COMPLEX (dbl ), DIMENSION ( :, :, : ), INTENT ( INOUT ) :: c
-  COMPLEX ( dbl ), OPTIONAL, INTENT ( IN ) :: scale
+    TYPE(pw_type), INTENT(IN)                :: pw
+    COMPLEX(dbl), DIMENSION(:, :, :), &
+      INTENT(INOUT)                          :: c
+    COMPLEX(dbl), INTENT(IN), OPTIONAL       :: scale
 
-! Local
-  REAL ( dbl ) :: cpy
-  INTEGER :: l, m, n, ngpts, gpt, handle
-  INTEGER, DIMENSION ( : ), POINTER :: mapl, mapm, mapn
-  INTEGER, DIMENSION ( :, : ), POINTER :: ghat
+    INTEGER                                  :: gpt, handle, l, m, n, ngpts
+    INTEGER, DIMENSION(:), POINTER           :: mapl, mapm, mapn
+    INTEGER, DIMENSION(:, :), POINTER        :: ghat
+    REAL(dbl)                                :: cpy
 
 !------------------------------------------------------------------------------
 
@@ -1932,19 +1897,17 @@ END SUBROUTINE pw_scatter_s
 
 SUBROUTINE pw_scatter_p ( pw, c, scale )
 
-  IMPLICIT NONE
 
-! Arguments
-  TYPE ( pw_type ), INTENT ( IN ), TARGET :: pw
-  COMPLEX (dbl ), DIMENSION ( :, : ), INTENT ( INOUT ) :: c
-  COMPLEX ( dbl ), OPTIONAL, INTENT ( IN ) :: scale
+    TYPE(pw_type), INTENT(IN), TARGET        :: pw
+    COMPLEX(dbl), DIMENSION(:, :), &
+      INTENT(INOUT)                          :: c
+    COMPLEX(dbl), INTENT(IN), OPTIONAL       :: scale
 
-! Local
-  INTEGER :: l, m, n, mn, ngpts, gpt, handle
-  INTEGER, DIMENSION ( : ), POINTER :: mapl, mapm, mapn
-  INTEGER, DIMENSION ( :, : ), POINTER :: ghat
-  INTEGER, DIMENSION ( :, : ), POINTER :: yzq
-  REAL ( dbl ) :: cpy
+    INTEGER                                  :: gpt, handle, l, m, mn, n, &
+                                                ngpts
+    INTEGER, DIMENSION(:), POINTER           :: mapl, mapm, mapn
+    INTEGER, DIMENSION(:, :), POINTER        :: ghat, yzq
+    REAL(dbl)                                :: cpy
 
 !------------------------------------------------------------------------------
 
@@ -2069,16 +2032,14 @@ END SUBROUTINE pw_scatter_p
 
 SUBROUTINE fft_wrap_pw1 ( pw1, debug )
 
-  IMPLICIT NONE
 
-! Arguments
-  TYPE ( pw_type ), INTENT ( INOUT ), TARGET :: pw1
-  LOGICAL, INTENT ( IN ), OPTIONAL :: debug
+    TYPE(pw_type), INTENT(INOUT), TARGET     :: pw1
+    LOGICAL, INTENT(IN), OPTIONAL            :: debug
 
-! Local
-  INTEGER :: dir, out_space, handle
-  REAL ( dbl ) :: norm
-  LOGICAL :: test
+    INTEGER                                  :: dir, handle, out_space
+    LOGICAL                                  :: test
+    REAL(dbl)                                :: norm
+
 !------------------------------------------------------------------------------
 
   CALL timeset("fft_wrap_pw1","I","",handle)
@@ -2123,23 +2084,23 @@ END SUBROUTINE fft_wrap_pw1
 
 SUBROUTINE fft_wrap_pw1pw2 ( pw1, pw2, debug )
   
-  IMPLICIT NONE
 
-! Arguments
-  TYPE ( pw_type ), TARGET, INTENT ( IN ) :: pw1
-  TYPE ( pw_type ), TARGET, INTENT ( INOUT ) :: pw2
-  LOGICAL, INTENT ( IN ), OPTIONAL :: debug
-  
-! Locals
-  COMPLEX ( dbl ), DIMENSION ( :, :, : ), POINTER :: c_in
-  COMPLEX ( dbl ), DIMENSION ( :, :, : ), POINTER :: c_out
-  COMPLEX ( dbl ), DIMENSION ( :, : ), ALLOCATABLE :: grays
-  REAL ( dbl ) :: norm
-  INTEGER, DIMENSION ( : ), POINTER :: n
-  INTEGER :: dir, out_space, ierr, nrays, my_pos, nloc ( 3 ), handle, i, j, k,nsize,l1,l2,l3
-  CHARACTER ( LEN = 9 ) :: mode
-  LOGICAL :: test
-  
+    TYPE(pw_type), INTENT(IN), TARGET        :: pw1
+    TYPE(pw_type), INTENT(INOUT), TARGET     :: pw2
+    LOGICAL, INTENT(IN), OPTIONAL            :: debug
+
+    CHARACTER(LEN=9)                         :: mode
+    COMPLEX(dbl), ALLOCATABLE, &
+      DIMENSION(:, :)                        :: grays
+    COMPLEX(dbl), DIMENSION(:, :, :), &
+      POINTER                                :: c_in, c_out
+    INTEGER                                  :: dir, handle, i, ierr, l1, l2, &
+                                                l3, my_pos, nloc( 3 ), nrays, &
+                                                nsize, out_space
+    INTEGER, DIMENSION(:), POINTER           :: n
+    LOGICAL                                  :: test
+    REAL(dbl)                                :: norm
+
 !------------------------------------------------------------------------------
 
   CALL timeset("fft_wrap_pw1pw2","I","",handle)
@@ -2413,12 +2374,9 @@ END SUBROUTINE fft_wrap_pw1pw2
 
 FUNCTION fftselect ( use1, use2, space1 ) RESULT ( mode )
 
-  IMPLICIT NONE
 
-! Arguments
-  INTEGER, INTENT ( IN ) :: use1, use2, space1
-
-  CHARACTER ( LEN = 9 ) :: mode
+    INTEGER, INTENT(IN)                      :: use1, use2, space1
+    CHARACTER(LEN=9)                         :: mode
 
 !------------------------------------------------------------------------------
 
@@ -2495,14 +2453,17 @@ END FUNCTION fftselect
 !!
 !!*** **********************************************************************
 SUBROUTINE pw_write(pw, unit_nr, error)
-  TYPE(pw_type), INTENT(in) :: pw
-  INTEGER, INTENT(in) :: unit_nr
-  TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
-  
-  LOGICAL :: failure
-  INTEGER :: iostat
-  CHARACTER(len=*), PARAMETER :: routineN='pw_write',&
-        routineP=moduleN//':'//routineN
+    TYPE(pw_type), INTENT(in)                :: pw
+    INTEGER, INTENT(in)                      :: unit_nr
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'pw_write', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: iostat
+    LOGICAL                                  :: failure
+
   failure=.FALSE.
   
   WRITE (unit=unit_nr, fmt="('<pw>:{ id_nr=',i8,',')",iostat=iostat)&
@@ -2541,9 +2502,8 @@ END SUBROUTINE pw_write
 !***************************************************************************
 
 FUNCTION pw_compatible ( grida, gridb ) RESULT ( compat )
-   IMPLICIT NONE
-   TYPE ( pw_grid_type ), INTENT ( IN ) :: grida, gridb
-   LOGICAL :: compat
+    TYPE(pw_grid_type), INTENT(IN)           :: grida, gridb
+    LOGICAL                                  :: compat
 
    compat = .FALSE.
    IF ( grida%identifier == gridb%identifier ) THEN
@@ -2588,12 +2548,14 @@ END FUNCTION pw_compatible
 !!
 !!*** **********************************************************************
 SUBROUTINE pw_retain(pw, error)
-  TYPE(pw_type), POINTER :: pw
-  TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
-  
-  LOGICAL :: failure
-  CHARACTER(len=*), PARAMETER :: routineN='pw_retain',&
-        routineP=moduleN//':'//routineN
+    TYPE(pw_type), POINTER                   :: pw
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'pw_retain', &
+      routineP = moduleN//':'//routineN
+
+    LOGICAL                                  :: failure
 
   failure=.FALSE.
   
@@ -2635,13 +2597,15 @@ END SUBROUTINE pw_retain
 !!
 !!*** **********************************************************************
 SUBROUTINE pw_release(pw, error)
-  TYPE(pw_type), POINTER :: pw
-  TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
-  
-  LOGICAL :: failure
-  CHARACTER(len=*), PARAMETER :: routineN='pw_release',&
-        routineP=moduleN//':'//routineN
-  INTEGER :: stat
+    TYPE(pw_type), POINTER                   :: pw
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'pw_release', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: stat
+    LOGICAL                                  :: failure
 
   failure=.FALSE.
   
@@ -2701,18 +2665,21 @@ END SUBROUTINE pw_release
 !!
 !!*** **********************************************************************
 SUBROUTINE pw_create(pw, pw_grid, use_data, in_space, mass_flag, cr3d_ptr, error)
-  TYPE(pw_type), POINTER :: pw
-  TYPE(pw_grid_type), POINTER :: pw_grid
-  INTEGER, INTENT(in) :: use_data
-  INTEGER, INTENT(in), OPTIONAL :: in_space
-  LOGICAL, INTENT(in), OPTIONAL :: mass_flag
-  REAL(kind=dbl), DIMENSION(:,:,:), POINTER, OPTIONAL :: cr3d_ptr
-  TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
-  
-  LOGICAL :: failure
-  INTEGER :: stat
-  CHARACTER(len=*), PARAMETER :: routineN='pw_create',&
-        routineP=moduleN//':'//routineN
+    TYPE(pw_type), POINTER                   :: pw
+    TYPE(pw_grid_type), POINTER              :: pw_grid
+    INTEGER, INTENT(in)                      :: use_data
+    INTEGER, INTENT(in), OPTIONAL            :: in_space
+    LOGICAL, INTENT(in), OPTIONAL            :: mass_flag
+    REAL(kind=dbl), DIMENSION(:, :, :), &
+      OPTIONAL, POINTER                      :: cr3d_ptr
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'pw_create', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: stat
+    LOGICAL                                  :: failure
 
   failure=.FALSE.
   

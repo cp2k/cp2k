@@ -31,26 +31,20 @@
 !****************************************************************************
 MODULE qs_ks_methods
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
-                                             get_atomic_kind,&
                                              get_atomic_kind_set
   USE coefficient_types,               ONLY: coeff_add,&
-                                             coeff_copy,&
-                                             coeff_reduce,&
                                              coeff_sumup,&
                                              coeff_transform_space,&
                                              coeff_type,&
                                              coeff_zero
+  USE cp_control_types,                ONLY: dft_control_type
   USE cp_error_handling,               ONLY: cp_a_l,&
                                              cp_assert,&
                                              cp_assertion_failed,&
                                              cp_debug,&
-                                             cp_error_dealloc_ref,&
                                              cp_error_get_logger,&
-                                             cp_error_init,&
                                              cp_error_message,&
-                                             cp_error_type,&
-                                             cp_internal_error,&
-                                             cp_unimplemented_error
+                                             cp_error_type
   USE cp_log_handling,                 ONLY: cp_failure_level,&
                                              cp_fatal_level,&
                                              cp_log,&
@@ -60,70 +54,46 @@ MODULE qs_ks_methods
                                              cp_to_string,&
                                              cp_warning_level
   USE cp_para_types,                   ONLY: cp_para_env_type
-  USE cube_utils,                      ONLY: cube_info_type
-  USE cp_control_types,                       ONLY: dft_control_type
-  USE gaussian_gridlevels,             ONLY: gridlevel_info_type
   USE hartree,                         ONLY: calculate_hartree
   USE kinds,                           ONLY: dp
-  USE l_utils,                         ONLY: l_info_type
-  USE message_passing,                 ONLY: mp_allgather,&
-                                             mp_max,&
-                                             mp_range,&
-                                             mp_sum,&
-                                             mp_sync
+  USE message_passing,                 ONLY: mp_sum
   USE pw_env_types,                    ONLY: pw_env_get,&
                                              pw_env_type
   USE pw_pool_types,                   ONLY: pw_pool_give_back_coeff,&
                                              pw_pool_init_coeff,&
                                              pw_pool_p_type,&
+                                             pw_pool_retain,&
                                              pw_pool_type,&
                                              pw_pools_give_back_coeffs,&
                                              pw_pools_init_coeffs
   USE pw_types,                        ONLY: COMPLEXDATA1D,&
-                                             COMPLEXDATA3D,&
                                              REALDATA3D,&
                                              REALSPACE,&
-                                             RECIPROCALSPACE,&
-                                             pw_type
-  USE pw_pool_types,                   ONLY: pw_pool_retain
+                                             RECIPROCALSPACE
   USE pws,                             ONLY: cleanup_pw_poisson_solver,&
                                              init_pw_poisson_solver
   USE qs_charges_types,                ONLY: qs_charges_type
   USE qs_collocate_density,            ONLY: calculate_total_rho
-  USE qs_core_energies,                ONLY: calculate_ecore,&
-                                             calculate_ecore_overlap,&
-                                             calculate_ecore_self
+  USE qs_core_energies,                ONLY: calculate_ecore
   USE qs_energy_types,                 ONLY: qs_energy_type
   USE qs_environment_types,            ONLY: get_qs_env,&
-                                             qs_environment_type,&
-                                             set_qs_env
+                                             qs_environment_type
   USE qs_integrate_potential,          ONLY: integrate_v_core_rspace,&
                                              integrate_v_rspace
-  USE qs_ks_types,                     ONLY: qs_ks_env_p_type,&
-                                             qs_ks_env_type
-  USE qs_rho_methods,                  ONLY: qs_rho_update_rho
-  USE qs_rho_types,                    ONLY: qs_rho_did_change,&
-                                             qs_rho_type
-  USE simulation_cell,                 ONLY: cell_type,&
-                                             get_cell
+  USE qs_ks_types,                     ONLY: qs_ks_env_type
+  USE qs_rho_types,                    ONLY: qs_rho_type
+  USE simulation_cell,                 ONLY: cell_type
   USE sparse_matrix_types,             ONLY: add_matrices,&
-                                             cp_sm_scale_and_add, &
+                                             cp_sm_scale_and_add,&
                                              deallocate_matrix,&
-                                             first_block_node,&
-                                             get_block_node,&
-                                             get_matrix_info,&
-                                             next_block_node,&
-                                             real_block_node_type,&
                                              real_matrix_p_type,&
                                              replicate_matrix_structure,&
-                                             set_matrix,&
-                                             symmetrise_diagonal_blocks,&
-                                             transfer_matrix
-  USE termination,                     ONLY: stop_memory,&
-                                             stop_program
+                                             set_matrix
+  USE termination,                     ONLY: stop_program
   USE timings,                         ONLY: timeset,&
                                              timestop
   USE xc,                              ONLY: xc_calculate_pw2
+
   IMPLICIT NONE
 
   PRIVATE
@@ -170,18 +140,21 @@ CONTAINS
 !!
 !!*** **********************************************************************
   SUBROUTINE qs_ks_create(ks_env, qs_env, error)
-    TYPE(qs_ks_env_type),POINTER :: ks_env
-    TYPE(qs_environment_type), INTENT(in),TARGET :: qs_env
-    TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
+    TYPE(qs_ks_env_type), POINTER            :: ks_env
+    TYPE(qs_environment_type), INTENT(in), &
+      TARGET                                 :: qs_env
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
 
-    CHARACTER(len=*), PARAMETER :: routineN='qs_ks_create',&
-         routineP=moduleN//':'//routineN
-    LOGICAL :: failure
-    INTEGER  :: stat, ispin, nspins, handle
-    TYPE(dft_control_type), POINTER :: dft_control
-    TYPE(pw_pool_type), POINTER :: auxbas_pw_pool
-    TYPE(pw_env_type), POINTER :: pw_env
-    TYPE(cell_type), POINTER :: cell
+    CHARACTER(len=*), PARAMETER :: routineN = 'qs_ks_create', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: handle, ispin, nspins, stat
+    LOGICAL                                  :: failure
+    TYPE(cell_type), POINTER                 :: cell
+    TYPE(dft_control_type), POINTER          :: dft_control
+    TYPE(pw_env_type), POINTER               :: pw_env
+    TYPE(pw_pool_type), POINTER              :: auxbas_pw_pool
 
     CALL timeset(routineN,"I","",handle)
 
@@ -278,38 +251,46 @@ CONTAINS
 !!*** *********************************************************************
   SUBROUTINE qs_ks_build_kohn_sham_matrix(ks_env,qs_env,ks,&
        rho,energy,rebuild,calculate_forces,just_energy,error)
-    TYPE(qs_ks_env_type), POINTER :: ks_env
-    TYPE(qs_environment_type), INTENT(INOUT)  :: qs_env
-    TYPE(real_matrix_p_type), DIMENSION(:), INTENT(inout) :: ks
-    TYPE(qs_rho_type), POINTER :: rho
-    TYPE(qs_energy_type), INTENT(inout), TARGET :: energy
-    LOGICAL, INTENT(in) :: calculate_forces,rebuild, just_energy
-    TYPE(cp_error_type), INTENT(inout), OPTIONAL :: error
+    TYPE(qs_ks_env_type), POINTER            :: ks_env
+    TYPE(qs_environment_type), INTENT(INOUT) :: qs_env
+    TYPE(real_matrix_p_type), DIMENSION(:), &
+      INTENT(inout)                          :: ks
+    TYPE(qs_rho_type), POINTER               :: rho
+    TYPE(qs_energy_type), INTENT(inout), &
+      TARGET                                 :: energy
+    LOGICAL, INTENT(in)                      :: rebuild, calculate_forces, &
+                                                just_energy
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
 
-    !   *** Local variables ***
+    CHARACTER(len=*), PARAMETER :: routineN = 'build_kohn_sham', &
+      routineP = moduleN//':'//routineN
 
-    REAL(KIND = dp)          :: total_rho_elec_rspace
-    CHARACTER(len=*), PARAMETER :: routineN='build_kohn_sham',&  ! shorter for output
-         routineP=moduleN//':'//routineN
-    INTEGER :: handle,output_unit, nspins, ispin, stat, n_electrons,handle2
-    LOGICAL :: ionode, failure,r_build
-    TYPE(real_matrix_p_type), DIMENSION(:), POINTER :: h,s
-    TYPE(dft_control_type), POINTER :: dft_control
-    TYPE(atomic_kind_type), DIMENSION(:), POINTER :: atomic_kind_set
-    TYPE(pw_pool_p_type), DIMENSION(:), POINTER :: pw_pools
-    TYPE(pw_pool_type), POINTER :: auxbas_pw_pool
-    TYPE(pw_env_type), POINTER :: pw_env
-    TYPE(coeff_type), POINTER :: rho_core
-    TYPE(cell_type), POINTER :: cell
-    TYPE(cp_logger_type), POINTER :: logger
-    TYPE(qs_charges_type), POINTER :: qs_charges
+    INTEGER                                  :: handle, handle2, ispin, &
+                                                n_electrons, nspins, &
+                                                output_unit, stat
+    LOGICAL                                  :: failure, ionode, r_build
+    TYPE(atomic_kind_type), DIMENSION(:), &
+      POINTER                                :: atomic_kind_set
+    TYPE(cell_type), POINTER                 :: cell
+    TYPE(coeff_type)                         :: rho_tot_gspace, &
+                                                v_hartree_gspace
+    TYPE(coeff_type), ALLOCATABLE, &
+      DIMENSION(:)                           :: v_rspace_new
+    TYPE(coeff_type), DIMENSION(:), POINTER  :: mgrid_gspace, mgrid_rspace, &
+                                                v_tau_rspace
+    TYPE(coeff_type), POINTER                :: rho_core
+    TYPE(cp_logger_type), POINTER            :: logger
+    TYPE(dft_control_type), POINTER          :: dft_control
+    TYPE(pw_env_type), POINTER               :: pw_env
+    TYPE(pw_pool_p_type), DIMENSION(:), &
+      POINTER                                :: pw_pools
+    TYPE(pw_pool_type), POINTER              :: auxbas_pw_pool
+    TYPE(qs_charges_type), POINTER           :: qs_charges
+    TYPE(real_matrix_p_type), DIMENSION(:), &
+      POINTER                                :: h, s
 
-    TYPE(coeff_type), DIMENSION(:), ALLOCATABLE   :: v_rspace_new
-    TYPE(coeff_type)                              :: v_hartree_gspace,&
-                                                     rho_tot_gspace
-    TYPE(coeff_type), DIMENSION(:), POINTER       :: mgrid_gspace, &
-                                                     mgrid_rspace
-    TYPE(coeff_type), DIMENSION(:), POINTER       :: v_tau_rspace
+! shorter for output
 
     failure=.FALSE.
     r_build=rebuild
@@ -621,22 +602,28 @@ CONTAINS
 !!*** **********************************************************************
 SUBROUTINE qs_ks_update_qs_env(ks_env,qs_env,&
      rebuild,calculate_forces, just_energy, error)
-  TYPE(qs_ks_env_type), POINTER :: ks_env
-  TYPE(qs_environment_type), INTENT(inout), TARGET :: qs_env
-  LOGICAL, INTENT(in), OPTIONAL :: rebuild, calculate_forces, just_energy
-  TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
-  
-  LOGICAL :: failure, r_build, c_forces, energy_only, did_update
-  CHARACTER(len=*), PARAMETER :: routineN='qs_ks_update_qs_env',&
-        routineP=moduleN//':'//routineN
-  INTEGER :: handle,ispin
-  REAL(KIND = dp) :: ecore
-  TYPE(real_matrix_p_type), DIMENSION(:), POINTER :: ks,p, h, s
-  TYPE(qs_energy_type), POINTER :: energy
-  TYPE(cp_logger_type), POINTER :: logger
-  TYPE(qs_rho_type), POINTER :: rho
-  TYPE(dft_control_type), POINTER :: dft_control
-  TYPE(cp_para_env_type), POINTER :: para_env
+    TYPE(qs_ks_env_type), POINTER            :: ks_env
+    TYPE(qs_environment_type), &
+      INTENT(inout), TARGET                  :: qs_env
+    LOGICAL, INTENT(in), OPTIONAL            :: rebuild, calculate_forces, &
+                                                just_energy
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'qs_ks_update_qs_env', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: handle, ispin
+    LOGICAL                                  :: c_forces, did_update, &
+                                                energy_only, failure, r_build
+    REAL(KIND=dp)                            :: ecore
+    TYPE(cp_logger_type), POINTER            :: logger
+    TYPE(cp_para_env_type), POINTER          :: para_env
+    TYPE(dft_control_type), POINTER          :: dft_control
+    TYPE(qs_energy_type), POINTER            :: energy
+    TYPE(qs_rho_type), POINTER               :: rho
+    TYPE(real_matrix_p_type), DIMENSION(:), &
+      POINTER                                :: h, ks, p, s
 
   r_build=.FALSE.; c_forces=.FALSE.; energy_only = .FALSE.
   IF (PRESENT(just_energy)) energy_only=just_energy
@@ -751,14 +738,19 @@ END SUBROUTINE qs_ks_update_qs_env
 !!*** **********************************************************************
 SUBROUTINE qs_ks_did_change(ks_env,qs_env,s_mstruct_changed,&
      rho_changed,full_reset,error)
-  TYPE(qs_ks_env_type), POINTER :: ks_env
-  TYPE(qs_environment_type), INTENT(inout), TARGET :: qs_env
-  LOGICAL, INTENT(in), OPTIONAL :: s_mstruct_changed, rho_changed, full_reset
-  TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
-  
-  LOGICAL :: failure
-  CHARACTER(len=*), PARAMETER :: routineN='qs_ks_did_change',&
-        routineP=moduleN//':'//routineN
+    TYPE(qs_ks_env_type), POINTER            :: ks_env
+    TYPE(qs_environment_type), &
+      INTENT(inout), TARGET                  :: qs_env
+    LOGICAL, INTENT(in), OPTIONAL            :: s_mstruct_changed, &
+                                                rho_changed, full_reset
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'qs_ks_did_change', &
+      routineP = moduleN//':'//routineN
+
+    LOGICAL                                  :: failure
+
   failure=.FALSE.
   
   CPPrecondition(ASSOCIATED(ks_env),cp_failure_level,routineP,error,failure)
@@ -809,31 +801,28 @@ END SUBROUTINE qs_ks_did_change
 !!
 !!*** *********************************************************************
   SUBROUTINE calculate_xc_potential(v_rspace_new,v_tau_rspace,qs_env,error)
-    IMPLICIT NONE
-    TYPE(qs_environment_type), INTENT(in), TARGET :: qs_env
-    TYPE(coeff_type), DIMENSION(:), INTENT(inout) :: v_rspace_new
-    TYPE(coeff_type), DIMENSION(:), POINTER       :: v_tau_rspace
-    TYPE(cp_error_type), INTENT(inout), OPTIONAL  :: error
+    TYPE(coeff_type), DIMENSION(:), &
+      INTENT(inout)                          :: v_rspace_new
+    TYPE(coeff_type), DIMENSION(:), POINTER  :: v_tau_rspace
+    TYPE(qs_environment_type), INTENT(in), &
+      TARGET                                 :: qs_env
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
 
-!   *** Local variables ***
+    CHARACTER(len=*), PARAMETER :: routineN = 'calculate_xc_potential', &
+      routineP = moduleN//':'//routineN
 
-    INTEGER :: handle
-
-    INTEGER, DIMENSION(3) :: ng
-
-    REAL(KIND = dp), DIMENSION(:,:,:), POINTER :: drho,rho,vxc
-    TYPE(dft_control_type), POINTER :: dft_control
-    TYPE(qs_rho_type), POINTER :: rho_struct
-    TYPE(qs_energy_type), POINTER :: energy
-    TYPE(pw_env_type), POINTER :: pw_env
-    TYPE(pw_pool_type), POINTER :: auxbas_pw_pool
-    TYPE(cell_type), POINTER :: cell
-    REAL(KIND = dp) :: tau_xc_energy
-
-    LOGICAL :: failure
-    INTEGER :: i
-    CHARACTER(len=*), PARAMETER :: routineN='calculate_xc_potential',&
-         routineP=moduleN//':'//routineN
+    INTEGER                                  :: handle, i
+    LOGICAL                                  :: failure
+    REAL(KIND=dp)                            :: tau_xc_energy
+    REAL(KIND=dp), DIMENSION(:, :, :), &
+      POINTER                                :: drho, rho, vxc
+    TYPE(cell_type), POINTER                 :: cell
+    TYPE(dft_control_type), POINTER          :: dft_control
+    TYPE(pw_env_type), POINTER               :: pw_env
+    TYPE(pw_pool_type), POINTER              :: auxbas_pw_pool
+    TYPE(qs_energy_type), POINTER            :: energy
+    TYPE(qs_rho_type), POINTER               :: rho_struct
 
 !   ---------------------------------------------------------------------------
 

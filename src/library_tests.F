@@ -25,28 +25,48 @@
 
 MODULE library_tests
   
-  USE coefficient_types, ONLY : coeff_type, coeff_allocate, coeff_deallocate, &
-      coeff_zero, coeff_transform_space
-  USE fft_tools, ONLY : init_fft, get_fft_library, fft1dm, fft2dm, fft3d, &
-                 fft_radix_operations, FWFFT, BWFFT, FFT_RADIX_CLOSEST, &
-                 FFT_RADIX_NEXT, FFT_RADIX_NEXT_ODD
-  USE xc_functionals_tests, ONLY : xc_functional_test
-  USE cg_test, ONLY : clebsch_gordon_test
-  USE global_types, ONLY : global_environment_type
-  USE kinds, ONLY : dbl
-  USE machine, ONLY : m_cputime
-  USE message_passing, ONLY : mp_sum, mp_max
-  USE parser, ONLY : parser_init, parser_end, read_line, test_next, &
-       p_error, get_next, stop_parser, search_label
-  USE pw_grid_types, ONLY : pw_grid_type, HALFSPACE, FULLSPACE
-  USE pw_grids, ONLY : pw_grid_setup, pw_grid_construct, pw_grid_destruct, &
-       pw_find_cutoff
-  USE pw_types, ONLY : COMPLEXDATA3D, COMPLEXDATA1D, &
-       REALDATA3D, REALDATA1D, REALSPACE, RECIPROCALSPACE
-  USE real_space_test, ONLY : rs_test
-  USE simulation_cell, ONLY : cell_type, get_hinv, get_cell_param
-  USE termination, ONLY : stop_memory
-  USE string_utilities, ONLY : uppercase
+  USE cg_test,                         ONLY: clebsch_gordon_test
+  USE coefficient_types,               ONLY: coeff_allocate,&
+                                             coeff_deallocate,&
+                                             coeff_transform_space,&
+                                             coeff_type,&
+                                             coeff_zero
+  USE fft_tools,                       ONLY: BWFFT,&
+                                             FFT_RADIX_CLOSEST,&
+                                             FWFFT,&
+                                             fft3d,&
+                                             fft_radix_operations,&
+                                             init_fft
+  USE global_types,                    ONLY: global_environment_type
+  USE kinds,                           ONLY: dbl
+  USE machine,                         ONLY: m_cputime
+  USE message_passing,                 ONLY: mp_max,&
+                                             mp_sum
+  USE parser,                          ONLY: get_next,&
+                                             p_error,&
+                                             parser_end,&
+                                             parser_init,&
+                                             read_line,&
+                                             search_label,&
+                                             stop_parser,&
+                                             test_next
+  USE pw_grid_types,                   ONLY: FULLSPACE,&
+                                             HALFSPACE,&
+                                             pw_grid_type
+  USE pw_grids,                        ONLY: pw_find_cutoff,&
+                                             pw_grid_construct,&
+                                             pw_grid_destruct,&
+                                             pw_grid_setup
+  USE pw_types,                        ONLY: COMPLEXDATA1D,&
+                                             COMPLEXDATA3D,&
+                                             REALDATA3D,&
+                                             RECIPROCALSPACE
+  USE real_space_test,                 ONLY: rs_test
+  USE simulation_cell,                 ONLY: cell_type,&
+                                             get_hinv
+  USE string_utilities,                ONLY: uppercase
+  USE termination,                     ONLY: stop_memory
+  USE xc_functionals_tests,            ONLY: xc_functional_test
 
   IMPLICIT NONE
 
@@ -80,9 +100,10 @@ CONTAINS
 
 SUBROUTINE lib_test ( globenv )
 
-  TYPE ( global_environment_type ), INTENT ( IN ) :: globenv
+    TYPE(global_environment_type), &
+      INTENT(IN)                             :: globenv
 
-  INTEGER :: iw
+    INTEGER                                  :: iw
 
   iw = globenv % scr
   IF ( globenv % ionode ) THEN
@@ -143,12 +164,15 @@ END SUBROUTINE lib_test
 
 SUBROUTINE test_input ( globenv )
 
-  TYPE ( global_environment_type ), INTENT ( IN ) :: globenv
+    TYPE(global_environment_type), &
+      INTENT(IN)                             :: globenv
 
-  INTEGER :: iw, ierror, ilen
-  CHARACTER ( LEN = 20 ) :: string
-  CHARACTER ( LEN = 5 ) :: label
+    CHARACTER(LEN=20)                        :: string
+    CHARACTER(LEN=5)                         :: label
+    INTEGER                                  :: ierror, ilen, iw
+
 !
+
   iw = globenv % scr
 !..defaults
   runtest = 0
@@ -221,13 +245,15 @@ END SUBROUTINE test_input
 
 SUBROUTINE copy_test ( globenv )
 
-  TYPE ( global_environment_type ), INTENT ( IN ) :: globenv
+    TYPE(global_environment_type), &
+      INTENT(IN)                             :: globenv
 
-  REAL ( dbl ), DIMENSION ( : ), ALLOCATABLE :: ca, cb
-  INTEGER :: len, ntim, iw, ierr, i, j, siz
-  REAL ( dbl ) :: perf, tstart, tend, t
+    INTEGER                                  :: i, ierr, iw, j, len, ntim, siz
+    REAL(dbl)                                :: perf, t, tend, tstart
+    REAL(dbl), ALLOCATABLE, DIMENSION(:)     :: ca, cb
 
 ! test for copy --> Cache size
+
   siz = ABS ( runtest ( 1 ) )
   iw = globenv % scr
   IF ( globenv % ionode ) WRITE ( iw, '(//,A,/)' ) " Test of copy ( F95 ) "
@@ -290,13 +316,15 @@ END SUBROUTINE copy_test
 
 SUBROUTINE matmul_test ( globenv )
 
-  TYPE ( global_environment_type ), INTENT ( IN ) :: globenv
+    TYPE(global_environment_type), &
+      INTENT(IN)                             :: globenv
 
-  REAL ( dbl ), DIMENSION ( :, : ), ALLOCATABLE :: ma, mb, mc
-  INTEGER :: len, ntim, iw, ierr, i, j, siz
-  REAL ( dbl ) :: perf, tstart, tend, t
+    INTEGER                                  :: i, ierr, iw, j, len, ntim, siz
+    REAL(dbl)                                :: perf, t, tend, tstart
+    REAL(dbl), ALLOCATABLE, DIMENSION(:, :)  :: ma, mb, mc
 
 ! test for matrix multpies
+
   siz = ABS ( runtest ( 2 ) )
   iw = globenv % scr
   IF ( globenv % ionode ) WRITE ( iw, '(//,A,/)' ) " Test of matmul ( F95 ) "
@@ -507,18 +535,22 @@ END SUBROUTINE matmul_test
 
 SUBROUTINE fft_test ( globenv )
 
-  TYPE ( global_environment_type ), INTENT ( IN ) :: globenv
+    TYPE(global_environment_type), &
+      INTENT(IN)                             :: globenv
 
-  COMPLEX ( dbl ), DIMENSION ( :, :, : ), ALLOCATABLE :: ca, cb, cc, cd
-  REAL ( dbl ), DIMENSION ( :, :, : ), ALLOCATABLE :: ra
-  COMPLEX ( dbl ), DIMENSION ( 4, 4, 4 ) :: zz
-  INTEGER :: len, ntim, iw, ierr, i, j, it, n(3), iall, m
-  REAL ( dbl ) :: perf, tstart, tend, t, flops, scale, tdiff
-  INTEGER :: radix_in, radix_out, stat, siz
-  INTEGER :: ndate ( 3 ) = (/ 12, 48, 96 /)
-  CHARACTER ( LEN = 7 ) :: method
+    INTEGER :: iall, ierr, it, iw, j, len, n(3), &
+      ndate( 3 ) = (/ 12, 48, 96 /), ntim, radix_in, radix_out, siz, stat
+    COMPLEX(dbl), DIMENSION(4, 4, 4)         :: zz
+    COMPLEX(dbl), ALLOCATABLE, &
+      DIMENSION(:, :, :)                     :: ca, cb, cc
+    CHARACTER(LEN=7)                         :: method
+    REAL(dbl)                                :: flops, perf, scale, t, tdiff, &
+                                                tend, tstart
+    REAL(dbl), ALLOCATABLE, &
+      DIMENSION(:, :, :)                     :: ra
 
 ! test for 3d FFT
+
   iw = globenv % scr
   IF ( globenv % ionode ) WRITE ( iw, '(//,A,/)' ) " Test of 3D-FFT "
   siz = ABS ( runtest ( 3 ) )
@@ -660,18 +692,21 @@ END SUBROUTINE fft_test
 
 SUBROUTINE pw_fft_test ( globenv )
 
-  TYPE ( global_environment_type ), INTENT ( IN ) :: globenv
+    TYPE(global_environment_type), &
+      INTENT(IN)                             :: globenv
 
-  REAL ( dbl ), PARAMETER :: toler = 1.e-11_dbl
-  TYPE ( pw_grid_type ) :: grid
-  TYPE ( coeff_type ) :: ca, cb, cc
-  TYPE ( cell_type ) :: box
-  REAL ( dbl ), DIMENSION ( 3 ) :: cell_length
-  INTEGER, DIMENSION ( 3 ) :: np, no
-  REAL ( dbl ) :: gsq, tim, perf, r, tstart, tend, t, flops, em, et, cutoff
-  INTEGER :: ierr, nn, ig, ip, ntim, iw
+    REAL(dbl), PARAMETER                     :: toler = 1.e-11_dbl
+
+    INTEGER                                  :: ig, ip, iw, nn, ntim
+    INTEGER, DIMENSION(3)                    :: no, np
+    REAL(dbl)                                :: cutoff, em, et, flops, gsq, &
+                                                perf, r, t, tend, tim, tstart
+    TYPE(cell_type)                          :: box
+    TYPE(coeff_type)                         :: ca, cb, cc
+    TYPE(pw_grid_type)                       :: grid
 
 !..the unit cell
+
   box % hmat = RESHAPE ( (/10._dbl,0._dbl,0._dbl,0._dbl,8._dbl,0._dbl,&
                            0._dbl,0._dbl,7._dbl/), (/3,3/) )
   CALL get_hinv ( box )

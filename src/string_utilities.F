@@ -51,12 +51,10 @@ CONTAINS
 
 !   ***************************************************************************
 
-    INTEGER, DIMENSION(:), INTENT(IN) :: nascii
-    CHARACTER(LEN=*), INTENT(OUT)     :: string
+    INTEGER, DIMENSION(:), INTENT(IN)        :: nascii
+    CHARACTER(LEN=*), INTENT(OUT)            :: string
 
-!   *** Local variables ***
-
-    INTEGER :: i
+    INTEGER                                  :: i
 
 !   ---------------------------------------------------------------------------
 
@@ -83,13 +81,11 @@ CONTAINS
 
 !   ***************************************************************************
 
-    CHARACTER(LEN=*), INTENT(INOUT) :: string
-    LOGICAL, OPTIONAL, INTENT(IN)   :: full
+    CHARACTER(LEN=*), INTENT(INOUT)          :: string
+    LOGICAL, INTENT(IN), OPTIONAL            :: full
 
-!   *** Local variables ***
-
-    INTEGER :: i,z
-    LOGICAL :: remove_all
+    INTEGER                                  :: i, z
+    LOGICAL                                  :: remove_all
 
 !   ---------------------------------------------------------------------------
 
@@ -132,8 +128,8 @@ CONTAINS
 
 !   ***************************************************************************
 
-    INTEGER, INTENT(IN)           :: inumber
-    CHARACTER(LEN=*), INTENT(OUT) :: string
+    INTEGER, INTENT(IN)                      :: inumber
+    CHARACTER(LEN=*), INTENT(OUT)            :: string
 
 !   ---------------------------------------------------------------------------
 
@@ -153,12 +149,10 @@ CONTAINS
 
 !   ***************************************************************************
 
-    CHARACTER(LEN=*), INTENT(IN)       :: string
-    INTEGER, DIMENSION(:), INTENT(OUT) :: nascii
+    CHARACTER(LEN=*), INTENT(IN)             :: string
+    INTEGER, DIMENSION(:), INTENT(OUT)       :: nascii
 
-!   *** Local variables ***
-
-    INTEGER :: i
+    INTEGER                                  :: i
 
 !   ---------------------------------------------------------------------------
 
@@ -180,11 +174,9 @@ CONTAINS
 
 !   ***************************************************************************
 
-    CHARACTER(LEN=*), INTENT(INOUT) :: string
+    CHARACTER(LEN=*), INTENT(INOUT)          :: string
 
-!   *** Local variables ***
-
-    INTEGER :: i,iascii
+    INTEGER                                  :: i, iascii
 
 !   ---------------------------------------------------------------------------
 
@@ -201,8 +193,8 @@ CONTAINS
 
 SUBROUTINE xstring(string,ia,ib)
 
-  CHARACTER ( LEN = * ), INTENT ( IN ) :: string
-  INTEGER, INTENT ( OUT ) :: ia, ib
+    CHARACTER(LEN=*), INTENT(IN)             :: string
+    INTEGER, INTENT(OUT)                     :: ia, ib
 
 !------------------------------------------------------------------------------
 
@@ -220,9 +212,10 @@ END SUBROUTINE xstring
 
 SUBROUTINE make_tuple(int,nt,na,tuple)
 
-  INTEGER, INTENT ( IN ) :: INT ( :, : ), nt, na
-  INTEGER :: i, nm
-  CHARACTER ( LEN = * ), INTENT ( OUT ) :: tuple ( : )
+    INTEGER, INTENT(IN)                      :: INT( :, : ), nt, na
+    CHARACTER(LEN=*), INTENT(OUT)            :: tuple( : )
+
+    INTEGER                                  :: i, nm
 
   nm = MAXVAL(INT(1:nt,1:na))
   SELECT CASE (nt)
@@ -282,9 +275,10 @@ END SUBROUTINE make_tuple
 
 FUNCTION str_comp(str1,str2) RESULT (equal)
 
-  CHARACTER ( LEN = * ), INTENT ( IN ) :: str1, str2
-  LOGICAL equal
-  INTEGER :: i1, i2, j1, j2
+    CHARACTER(LEN=*), INTENT(IN)             :: str1, str2
+    LOGICAL                                  :: equal
+
+    INTEGER                                  :: i1, i2, j1, j2
 
   i1 = 0
   i2 = 0
@@ -298,9 +292,12 @@ END FUNCTION str_comp
 !******************************************************************************
 
 FUNCTION str_search(str1,n,str2) RESULT (pos)
-  CHARACTER ( LEN = * ), INTENT ( IN ) :: str1 ( : ), str2
-  INTEGER, INTENT ( IN ) :: n
-  INTEGER :: pos, i
+    CHARACTER(LEN=*), INTENT(IN)             :: str1( : )
+    INTEGER, INTENT(IN)                      :: n
+    CHARACTER(LEN=*), INTENT(IN)             :: str2
+    INTEGER                                  :: pos
+
+    INTEGER                                  :: i
 
   pos = 0
   DO i = 1, n

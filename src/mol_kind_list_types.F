@@ -42,6 +42,7 @@ MODULE mol_kind_list_types
   USE molecule_types,                  ONLY: molecule_type
   USE timings,                         ONLY: timeset,&
                                              timestop
+
   IMPLICIT NONE
   PRIVATE
 
@@ -163,16 +164,20 @@ CONTAINS
 !!*** **********************************************************************
 SUBROUTINE mol_kind_list_create(list, els_ptr, &
      owns_els, n_els, error)
-  TYPE(mol_kind_list_type), POINTER, OPTIONAL :: list
-  TYPE(molecule_type), DIMENSION(:), POINTER, OPTIONAL :: els_ptr
-  LOGICAL, INTENT(in), OPTIONAL :: owns_els
-  INTEGER, INTENT(in), OPTIONAL :: n_els
-  TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
-  
-  LOGICAL :: failure
-  CHARACTER(len=*), PARAMETER :: routineN='mol_kind_list_create',&
-        routineP=moduleN//':'//routineN
-  INTEGER :: stat
+    TYPE(mol_kind_list_type), OPTIONAL, &
+      POINTER                                :: list
+    TYPE(molecule_type), DIMENSION(:), &
+      OPTIONAL, POINTER                      :: els_ptr
+    LOGICAL, INTENT(in), OPTIONAL            :: owns_els
+    INTEGER, INTENT(in), OPTIONAL            :: n_els
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'mol_kind_list_create', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: stat
+    LOGICAL                                  :: failure
 
   failure=.FALSE.
 
@@ -236,12 +241,14 @@ END SUBROUTINE mol_kind_list_create
 !!
 !!*** **********************************************************************
 SUBROUTINE mol_kind_list_retain(list, error)
-  TYPE(mol_kind_list_type), POINTER :: list
-  TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
-  
-  LOGICAL :: failure
-  CHARACTER(len=*), PARAMETER :: routineN='mol_kind_list_retain',&
-        routineP=moduleN//':'//routineN
+    TYPE(mol_kind_list_type), POINTER        :: list
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'mol_kind_list_retain', &
+      routineP = moduleN//':'//routineN
+
+    LOGICAL                                  :: failure
 
   failure=.FALSE.
   
@@ -283,13 +290,15 @@ END SUBROUTINE mol_kind_list_retain
 !!
 !!*** **********************************************************************
 SUBROUTINE mol_kind_list_release(list, error)
-  TYPE(mol_kind_list_type), POINTER :: list
-  TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
-  
-  LOGICAL :: failure
-  CHARACTER(len=*), PARAMETER :: routineN='mol_kind_list_release',&
-        routineP=moduleN//':'//routineN
-  INTEGER :: stat
+    TYPE(mol_kind_list_type), POINTER        :: list
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'mol_kind_list_release', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: stat
+    LOGICAL                                  :: failure
 
   failure=.FALSE.
   

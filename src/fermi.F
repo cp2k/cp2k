@@ -34,6 +34,7 @@
                                              joule
   USE termination,                     ONLY: stop_memory,&
                                              stop_program
+
       IMPLICIT NONE
 !
       PRIVATE
@@ -102,26 +103,27 @@
                  states,electronic_temp,broadening_method,spins,&
                  spin_moment,fixed_occupation)
 
-        IMPLICIT NONE
 
-!       Arguments
-        TYPE (fermi_distribution_type), INTENT (INOUT) :: fdist
-        REAL (dbl), OPTIONAL, INTENT (IN) :: total_electrons
-        REAL (dbl), DIMENSION (:), OPTIONAL, INTENT (IN) :: electrons
-        INTEGER, OPTIONAL, INTENT (IN) :: total_states
-        INTEGER, DIMENSION (:), OPTIONAL, INTENT (IN) :: states
-        REAL (dbl), OPTIONAL, INTENT (IN) :: electronic_temp
-        CHARACTER (LEN=*), OPTIONAL, INTENT (IN) :: broadening_method
-        INTEGER, OPTIONAL, INTENT (IN) :: spins
-        REAL (dbl), OPTIONAL, INTENT (IN) :: spin_moment
-        LOGICAL, OPTIONAL, INTENT (IN) :: fixed_occupation
+    TYPE(fermi_distribution_type), &
+      INTENT(INOUT)                          :: fdist
+    REAL(dbl), INTENT(IN), OPTIONAL          :: total_electrons
+    REAL(dbl), DIMENSION(:), INTENT(IN), &
+      OPTIONAL                               :: electrons
+    INTEGER, INTENT(IN), OPTIONAL            :: total_states
+    INTEGER, DIMENSION(:), INTENT(IN), &
+      OPTIONAL                               :: states
+    REAL(dbl), INTENT(IN), OPTIONAL          :: electronic_temp
+    CHARACTER(LEN=*), INTENT(IN), OPTIONAL   :: broadening_method
+    INTEGER, INTENT(IN), OPTIONAL            :: spins
+    REAL(dbl), INTENT(IN), OPTIONAL          :: spin_moment
+    LOGICAL, INTENT(IN), OPTIONAL            :: fixed_occupation
 
-!       Locals
-        INTEGER :: m, isos
-        REAL ( dbl ) :: e
+    INTEGER                                  :: isos, m
+    REAL(dbl)                                :: e
 
 !------------------------------------------------------------------------------!
 !       set defaults
+
         fdist%chemical_potential = 0._dbl
         fdist%total_electrons = 0._dbl
         fdist%alpha_electrons = 0._dbl
@@ -399,15 +401,14 @@
 !******************************************************************************
       SUBROUTINE fermi_info(fdist,plevel,punit)
 
-        IMPLICIT NONE
 
-!       Arguments
-        TYPE (fermi_distribution_type), INTENT (IN) :: fdist
-        INTEGER :: plevel, punit
+    TYPE(fermi_distribution_type), &
+      INTENT(IN)                             :: fdist
+    INTEGER                                  :: plevel, punit
 
-!       Local
-        CHARACTER (len=10) :: mul(1:8)
-        INTEGER :: i
+    CHARACTER(len=10)                        :: mul(1:8)
+    INTEGER                                  :: i
+
 !------------------------------------------------------------------------------!
 
         mul = '          '
@@ -505,13 +506,14 @@
 !!
 !!*** **********************************************************************
 SUBROUTINE dealloc_fermi_dist(fermi_dist,error)
-  TYPE(fermi_distribution_type), POINTER :: fermi_dist
-  TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
-  
-  LOGICAL :: failure
-  CHARACTER(len=*), PARAMETER :: routineN='dealloc_fermi_dist',&
-        routineP=moduleN//':'//routineN
-  INTEGER :: stat
+    TYPE(fermi_distribution_type), POINTER   :: fermi_dist
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'dealloc_fermi_dist', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: stat
 
   IF (ASSOCIATED(fermi_dist)) THEN
      IF (ASSOCIATED(fermi_dist%electrons)) THEN

@@ -20,30 +20,41 @@
 
 MODULE pme
 
-  USE atomic_kind_types, ONLY : atomic_kind_type, get_atomic_kind
-  USE coefficient_types, ONLY : coeff_type, coeff_allocate, &
-       coeff_deallocate, coeff_zero, coeff_transform_space, &
-       PW_COMPLEXDATA3D, PW_REALDATA3D, &
-       PW_REALSPACE, PW_COMPLEXDATA1D, PW_RECIPROCALSPACE
-  USE dgs, ONLY : dg_get_strucfac, dg_get_patch, dg_sum_patch, &
-       dg_sum_patch_force_3d
-  USE dg_types, ONLY : dg_type
-  USE ewald_parameters_types, ONLY : ewald_parameters_type
-  USE hartree, ONLY : calculate_hartree
-  USE kinds, ONLY: dbl, sgl, dp_size, sp_size
-  USE mathconstants, ONLY : fourpi, pi
-  USE particle_types, ONLY : particle_type
-  USE pw_grid_types, ONLY : pw_grid_type
-  USE pws, ONLY : pw_poisson_solver, init_pw_poisson_solver, pw_integral_a2b, &
-                  cleanup_pw_poisson_solver
-  USE pw_types, ONLY : pw_transfer, pw_type, REALSPACE, RECIPROCALSPACE, NOSPACE
-  USE realspace_grid_types, ONLY : realspace_grid_type, rs_grid_allocate, &
-       rs_grid_deallocate, rs_grid_setup, rs_pw_transfer
-  USE simulation_cell, ONLY : cell_type, get_hinv
-  USE structure_factors, ONLY : structure_factor_allocate, &
-       structure_factor_deallocate
-  USE structure_factor_types, ONLY : structure_factor_type
-  USE timings, ONLY: timeset, timestop
+  USE atomic_kind_types,               ONLY: atomic_kind_type,&
+                                             get_atomic_kind
+  USE coefficient_types,               ONLY: PW_COMPLEXDATA1D,&
+                                             PW_REALDATA3D,&
+                                             coeff_allocate,&
+                                             coeff_deallocate,&
+                                             coeff_transform_space,&
+                                             coeff_type
+  USE dg_types,                        ONLY: dg_type
+  USE dgs,                             ONLY: dg_get_patch,&
+                                             dg_get_strucfac,&
+                                             dg_sum_patch,&
+                                             dg_sum_patch_force_3d
+  USE ewald_parameters_types,          ONLY: ewald_parameters_type
+  USE hartree,                         ONLY: calculate_hartree
+  USE kinds,                           ONLY: dbl
+  USE mathconstants,                   ONLY: fourpi
+  USE particle_types,                  ONLY: particle_type
+  USE pw_grid_types,                   ONLY: pw_grid_type
+  USE pw_types,                        ONLY: REALSPACE,&
+                                             RECIPROCALSPACE
+  USE pws,                             ONLY: cleanup_pw_poisson_solver,&
+                                             init_pw_poisson_solver,&
+                                             pw_integral_a2b
+  USE realspace_grid_types,            ONLY: realspace_grid_type,&
+                                             rs_grid_allocate,&
+                                             rs_grid_deallocate,&
+                                             rs_grid_setup,&
+                                             rs_pw_transfer
+  USE simulation_cell,                 ONLY: cell_type
+  USE structure_factor_types,          ONLY: structure_factor_type
+  USE structure_factors,               ONLY: structure_factor_allocate,&
+                                             structure_factor_deallocate
+  USE timings,                         ONLY: timeset,&
+                                             timestop
 
   IMPLICIT NONE
 
@@ -78,30 +89,28 @@ CONTAINS
 SUBROUTINE pme_evaluate ( dg, part, box, grid_s, grid_b, &
                     ewald_param, vg_coulomb, fg_coulomb, pv_g )
 
-  IMPLICIT NONE
 
-! Arguments
-  TYPE ( dg_type ), INTENT ( IN ), TARGET :: dg
-  TYPE ( particle_type ), DIMENSION ( : ), INTENT ( IN ) :: part
-  TYPE ( cell_type ), INTENT ( IN ) :: box
-  TYPE ( pw_grid_type ), INTENT ( IN ) :: grid_s
-  TYPE ( pw_grid_type ), INTENT ( IN ) :: grid_b
-  TYPE ( ewald_parameters_type ), INTENT ( IN ) :: ewald_param
-  REAL ( dbl ), INTENT ( OUT ) :: vg_coulomb
-  REAL ( dbl ), DIMENSION ( :, : ), INTENT ( OUT ), OPTIONAL :: fg_coulomb
-  REAL ( dbl ), DIMENSION ( :, : ), INTENT ( OUT ), OPTIONAL :: pv_g
+    TYPE(dg_type), INTENT(IN), TARGET        :: dg
+    TYPE(particle_type), DIMENSION(:), &
+      INTENT(IN)                             :: part
+    TYPE(cell_type), INTENT(IN)              :: box
+    TYPE(pw_grid_type), INTENT(IN)           :: grid_s, grid_b
+    TYPE(ewald_parameters_type), INTENT(IN)  :: ewald_param
+    REAL(dbl), INTENT(OUT)                   :: vg_coulomb
+    REAL(dbl), DIMENSION(:, :), &
+      INTENT(OUT), OPTIONAL                  :: fg_coulomb, pv_g
 
-! Locals
-  INTEGER :: handle, i, j, p1, p2, npart, ipart, jpart
-  TYPE ( realspace_grid_type ) :: rden, drpot ( 3 )
-  TYPE ( structure_factor_type ) :: exp_igr
-  TYPE ( coeff_type ) :: rhob_r, phi_r, dphi_g ( 3 ), rhos1, rhos2
-  REAL ( dbl ) :: inv_fourpi_eps0, ffa, dvols
-  REAL ( dbl ), DIMENSION ( 3 ) :: fat
-  REAL ( dbl ), DIMENSION ( 3, 3 ) :: h_stress, f_stress
+    INTEGER                                  :: handle, i, ipart, j, jpart, &
+                                                npart, p1, p2
+    REAL(dbl)                                :: dvols, ffa, inv_fourpi_eps0
+    REAL(dbl), DIMENSION(3)                  :: fat
+    REAL(dbl), DIMENSION(3, 3)               :: f_stress, h_stress
+    TYPE(coeff_type)                         :: dphi_g( 3 ), phi_r, rhob_r, &
+                                                rhos1, rhos2
+    TYPE(realspace_grid_type)                :: drpot( 3 ), rden
+    TYPE(structure_factor_type)              :: exp_igr
 
 !------------------------------------------------------------------------------
-
 !-------------- INITIALISATION ---------------------
 
   CALL timeset ( 'PME', 'I', ' ', handle )
@@ -265,26 +274,22 @@ END SUBROUTINE pme_evaluate
 SUBROUTINE get_patch ( dg, part, exp_igr, box, p1, p2, &
            grid_b, grid_s, rhos1, rhos2 )
 
-  IMPLICIT NONE
 
-! Arguments
-  TYPE ( dg_type ), INTENT ( IN ), TARGET :: dg
-  TYPE ( particle_type ), DIMENSION ( : ), INTENT ( IN ) :: part
-  TYPE ( structure_factor_type ) :: exp_igr
-  TYPE ( cell_type ), INTENT ( IN ) :: box
-  INTEGER, INTENT ( IN ) :: p1, p2
-  TYPE ( pw_grid_type ), INTENT ( IN ) :: grid_s
-  TYPE ( pw_grid_type ), INTENT ( IN ) :: grid_b
-  TYPE ( coeff_type ) :: rhos1
-  TYPE ( coeff_type ) :: rhos2
+    TYPE(dg_type), INTENT(IN), TARGET        :: dg
+    TYPE(particle_type), DIMENSION(:), &
+      INTENT(IN)                             :: part
+    TYPE(structure_factor_type)              :: exp_igr
+    TYPE(cell_type), INTENT(IN)              :: box
+    INTEGER, INTENT(IN)                      :: p1, p2
+    TYPE(pw_grid_type), INTENT(IN)           :: grid_b, grid_s
+    TYPE(coeff_type)                         :: rhos1, rhos2
 
-! Local
-  TYPE ( coeff_type ), POINTER :: rho0
-  REAL ( dbl ), DIMENSION ( 3 ) :: r1, r2
-  REAL ( dbl ) :: q1, q2
-  COMPLEX ( dbl ), DIMENSION ( : ), POINTER :: ex1, ey1, ez1, ex2, ey2, ez2
-  INTEGER, DIMENSION ( : ), POINTER :: center1, center2
-  TYPE ( atomic_kind_type ), POINTER :: atomic_kind
+    COMPLEX(dbl), DIMENSION(:), POINTER      :: ex1, ex2, ey1, ey2, ez1, ez2
+    INTEGER, DIMENSION(:), POINTER           :: center1, center2
+    REAL(dbl)                                :: q1, q2
+    REAL(dbl), DIMENSION(3)                  :: r1, r2
+    TYPE(atomic_kind_type), POINTER          :: atomic_kind
+    TYPE(coeff_type), POINTER                :: rho0
 
 !------------------------------------------------------------------------------
 
@@ -327,21 +332,18 @@ END SUBROUTINE get_patch
 
 SUBROUTINE get_patch_again ( dg, part, exp_igr, p1, p2, rhos1, rhos2 )
 
-  IMPLICIT NONE
 
-! Arguments
-  TYPE ( dg_type ), INTENT ( IN ), TARGET :: dg
-  TYPE ( particle_type ), DIMENSION ( : ), INTENT ( IN ) :: part
-  TYPE ( structure_factor_type ) :: exp_igr
-  INTEGER, INTENT ( IN ) :: p1, p2
-  TYPE ( coeff_type ) :: rhos1
-  TYPE ( coeff_type ) :: rhos2
+    TYPE(dg_type), INTENT(IN), TARGET        :: dg
+    TYPE(particle_type), DIMENSION(:), &
+      INTENT(IN)                             :: part
+    TYPE(structure_factor_type)              :: exp_igr
+    INTEGER, INTENT(IN)                      :: p1, p2
+    TYPE(coeff_type)                         :: rhos1, rhos2
 
-! Local
-  TYPE ( coeff_type ), POINTER :: rho0
-  REAL ( dbl ) :: q1, q2
-  COMPLEX ( dbl ), DIMENSION ( : ), POINTER :: ex1, ey1, ez1, ex2, ey2, ez2
-  TYPE ( atomic_kind_type ), POINTER :: atomic_kind
+    COMPLEX(dbl), DIMENSION(:), POINTER      :: ex1, ex2, ey1, ey2, ez1, ez2
+    REAL(dbl)                                :: q1, q2
+    TYPE(atomic_kind_type), POINTER          :: atomic_kind
+    TYPE(coeff_type), POINTER                :: rho0
 
 !------------------------------------------------------------------------------
 
@@ -391,20 +393,18 @@ END SUBROUTINE get_patch_again
 
 SUBROUTINE set_list ( part, npart, center, p1, p2, rs, ipart, jpart )
 
-  IMPLICIT NONE
 
-! Arguments
-  TYPE ( particle_type ), DIMENSION ( : ), INTENT ( IN ) :: part
-  INTEGER, INTENT ( IN ) :: npart
-  INTEGER, DIMENSION ( :, : ), INTENT ( IN ) :: center
-  INTEGER, INTENT ( OUT ) :: p1, p2
-  TYPE ( realspace_grid_type ) :: rs
-  INTEGER, INTENT ( INOUT ) :: ipart, jpart
+    TYPE(particle_type), DIMENSION(:), &
+      INTENT(IN)                             :: part
+    INTEGER, INTENT(IN)                      :: npart
+    INTEGER, DIMENSION(:, :), INTENT(IN)     :: center
+    INTEGER, INTENT(OUT)                     :: p1, p2
+    TYPE(realspace_grid_type)                :: rs
+    INTEGER, INTENT(INOUT)                   :: ipart, jpart
 
-! Local
-  INTEGER :: dir, lb, ub, ndim, npos
-  TYPE ( atomic_kind_type ), POINTER :: atomic_kind
-  REAL ( dbl ) :: charge
+    INTEGER                                  :: dir, lb, ndim, npos, ub
+    REAL(dbl)                                :: charge
+    TYPE(atomic_kind_type), POINTER          :: atomic_kind
 
 !------------------------------------------------------------------------------
 
@@ -483,11 +483,9 @@ END SUBROUTINE set_list
 
 FUNCTION in_slice ( pos, lb, ub ) RESULT ( internal )
 
-  IMPLICIT NONE
 
-! Arguments
-  INTEGER, INTENT ( IN ) :: pos, lb, ub
-  LOGICAL :: internal
+    INTEGER, INTENT(IN)                      :: pos, lb, ub
+    LOGICAL                                  :: internal
 
   IF ( pos >= lb .AND. pos <= ub ) THEN
     internal = .TRUE.
@@ -502,17 +500,15 @@ END FUNCTION in_slice
 
 SUBROUTINE get_center ( part, box, centre, npts )
 
-  IMPLICIT NONE
 
-! Arguments
-  TYPE ( particle_type ), DIMENSION ( : ), INTENT ( IN ) :: part
-  TYPE ( cell_type ), INTENT ( IN ) :: box
-  INTEGER, DIMENSION ( : ), INTENT ( IN ) :: npts
-  INTEGER, DIMENSION ( :, : ), INTENT ( OUT ) :: centre
+    TYPE(particle_type), DIMENSION(:), &
+      INTENT(IN)                             :: part
+    TYPE(cell_type), INTENT(IN)              :: box
+    INTEGER, DIMENSION(:, :), INTENT(OUT)    :: centre
+    INTEGER, DIMENSION(:), INTENT(IN)        :: npts
 
-! Locals
-  REAL ( dbl ), DIMENSION ( 3 ) :: s
-  INTEGER :: ipart
+    INTEGER                                  :: ipart
+    REAL(dbl), DIMENSION(3)                  :: s
 
 !------------------------------------------------------------------------------
 

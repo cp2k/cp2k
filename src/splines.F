@@ -21,9 +21,9 @@
 
 MODULE splines
 
-  USE kinds, ONLY : dbl
-
-  USE termination, ONLY : stop_memory, stop_program
+  USE kinds,                           ONLY: dbl
+  USE termination,                     ONLY: stop_memory,&
+                                             stop_program
 
   IMPLICIT NONE
 
@@ -105,14 +105,11 @@ CONTAINS
 !******************************************************************************
 SUBROUTINE init_splinexy ( spl, nn )
 
-  IMPLICIT NONE
 
-! Arguments
-  TYPE ( spline_data ), INTENT ( INOUT ) :: spl
-  INTEGER,              INTENT ( IN )    :: nn
+    TYPE(spline_data), INTENT(INOUT)         :: spl
+    INTEGER, INTENT(IN)                      :: nn
 
-! Locals
-  INTEGER :: err
+    INTEGER                                  :: err
 
 !------------------------------------------------------------------------------
 
@@ -186,19 +183,13 @@ END SUBROUTINE init_splinexy
 
 SUBROUTINE init_spline ( spl, dx, y1a, y1b )
 
-  IMPLICIT NONE
 
-! Arguments
-  TYPE (spline_data), INTENT ( INOUT )           :: spl
-  REAL ( dbl ),       INTENT ( IN )   , OPTIONAL :: dx
-  REAL ( dbl ),       INTENT ( IN )   , OPTIONAL :: y1a
-  REAL ( dbl ),       INTENT ( IN )   , OPTIONAL :: y1b
+    TYPE(spline_data), INTENT(INOUT)         :: spl
+    REAL(dbl), INTENT(IN), OPTIONAL          :: dx, y1a, y1b
 
-! Locals
-  INTEGER               :: err, i, n
-  REAL ( dbl ), POINTER :: ww ( : )
-  REAL ( dbl )          :: s
-  REAL ( dbl )          :: p
+    INTEGER                                  :: err, i, n
+    REAL(dbl)                                :: p, s
+    REAL(dbl), POINTER                       :: ww( : )
 
 !------------------------------------------------------------------------------
 
@@ -321,19 +312,15 @@ END SUBROUTINE init_spline
 
 FUNCTION interv ( spl, xx )
 
-  IMPLICIT NONE
 
-! Arguments
-  TYPE ( spline_data ), INTENT ( IN ) :: spl
-  REAL ( dbl ),         INTENT ( IN ) :: xx
+    TYPE(spline_data), INTENT(IN)            :: spl
+    REAL(dbl), INTENT(IN)                    :: xx
+    INTEGER                                  :: interv
+
+    INTEGER                                  :: i, k, khi, klo, n, p
+    REAL(dbl)                                :: xhi, xk, xlo
 
 ! Return value
-  INTEGER :: interv
-
-! Locals
-  INTEGER      :: khi, klo, i, p, n, k
-  REAL ( dbl ) :: xlo, xhi, xk
-
 !------------------------------------------------------------------------------
 
   IF (spl%h /= 0 ) THEN
@@ -448,22 +435,16 @@ END FUNCTION interv
 
 FUNCTION spline ( spl, xx, y1, y2, y3 )
 
-  IMPLICIT NONE
 
 ! Return value
-  REAL ( dbl ) :: spline
+    TYPE(spline_data), INTENT(INOUT)         :: spl
+    REAL(dbl), INTENT(IN)                    :: xx
+    REAL(dbl), INTENT(OUT), OPTIONAL         :: y1, y2, y3
+    REAL(dbl)                                :: spline
 
-! Arguments
-  TYPE ( spline_data ), INTENT ( INOUT )         :: spl
-  REAL ( dbl ),         INTENT ( IN )            :: xx
-  REAL ( dbl ),         INTENT ( OUT ), OPTIONAL :: y1
-  REAL ( dbl ),         INTENT ( OUT ), OPTIONAL :: y2
-  REAL ( dbl ),         INTENT ( OUT ), OPTIONAL :: y3
-
-! Locals
-  INTEGER      :: i
-  REAL ( dbl ) :: h, invh, h26, a, b
-  REAL ( dbl ) :: ylo, yhi, y2lo, y2hi
+    INTEGER                                  :: i
+    REAL(dbl)                                :: a, b, h, h26, invh, y2hi, &
+                                                y2lo, yhi, ylo
 
 !------------------------------------------------------------------------------
 
@@ -540,23 +521,20 @@ END FUNCTION spline
 
 FUNCTION splineh ( spl, xx, y1 )
 
-  IMPLICIT NONE
 
 ! Return value
-  REAL ( dbl ) :: splineh
+    TYPE(spline_data), INTENT(IN)            :: spl
+    REAL(dbl), INTENT(IN)                    :: xx
+    REAL(dbl), INTENT(OUT)                   :: y1
+    REAL(dbl)                                :: splineh
 
-! Arguments
-  TYPE (spline_data), INTENT ( IN )  :: spl
-  REAL ( dbl ),       INTENT ( IN )  :: xx
-  REAL ( dbl ),       INTENT ( OUT ) :: y1
-
-! Locals
-  INTEGER      :: i
-  REAL ( dbl ) :: a, b, h26, invh, ylo, yhi, y2lo, y2hi
+    INTEGER                                  :: i
+    REAL(dbl)                                :: a, b, h26, invh, y2hi, y2lo, &
+                                                yhi, ylo
 
 !------------------------------------------------------------------------------
-
 ! fast spline for pair potentials without checks
+
   h26 = spl%h26
   invh = spl%invh
   i = (xx-spl%x1)*invh + 1
@@ -600,18 +578,14 @@ END FUNCTION splineh
 
 FUNCTION spline_1 ( spl, xx )
 
-  IMPLICIT NONE
 
 ! Return value
-  REAL ( dbl ) :: spline_1
+    TYPE(spline_data), INTENT(INOUT)         :: spl
+    REAL(dbl), INTENT(IN)                    :: xx
+    REAL(dbl)                                :: spline_1
 
-! Arguments
-  TYPE ( spline_data ), INTENT ( INOUT ) :: spl
-  REAL ( dbl ),         INTENT ( IN )    :: xx
-
-! Locals
-  INTEGER      :: i
-  REAL ( dbl ) :: h, invh, h26, a, b
+    INTEGER                                  :: i
+    REAL(dbl)                                :: a, b, h, h26, invh
 
 !------------------------------------------------------------------------------
 
@@ -674,18 +648,14 @@ END FUNCTION spline_1
 
 FUNCTION stamm ( spl, p, xx )
 
-  IMPLICIT NONE
 
 ! Return value
-  REAL ( dbl ) :: stamm
+    TYPE(spline_data), INTENT(IN)            :: spl
+    INTEGER, INTENT(IN)                      :: p
+    REAL(dbl), INTENT(IN)                    :: xx
+    REAL(dbl)                                :: stamm
 
-! Arguments
-  TYPE (spline_data), INTENT ( IN ) :: spl
-  INTEGER,            INTENT ( IN ) :: p
-  REAL ( dbl ),       INTENT ( IN ) :: xx
-
-! Locals
-  REAL ( dbl ) :: a, b, aa, bb, h, h26
+    REAL(dbl)                                :: a, aa, b, bb, h, h26
 
 !------------------------------------------------------------------------------
 
@@ -737,19 +707,14 @@ END FUNCTION stamm
 
 FUNCTION spline_int( spl, x0, x1 )
 
-  IMPLICIT NONE
 
 ! Return value
-  REAL ( dbl ) :: spline_int
+    TYPE(spline_data), INTENT(INOUT)         :: spl
+    REAL(dbl), INTENT(IN)                    :: x0, x1
+    REAL(dbl)                                :: spline_int
 
-! Arguments
-  TYPE (spline_data), INTENT ( INOUT ) :: spl
-  REAL ( dbl ),       INTENT ( IN )    :: x0
-  REAL ( dbl ),       INTENT ( IN )    :: x1
-
-! Local
-  INTEGER      :: j, pa, pb
-  REAL ( dbl ) :: h, vorz, xa, xb, i1, i2
+    INTEGER                                  :: j, pa, pb
+    REAL(dbl)                                :: h, i1, i2, vorz, xa, xb
 
 !------------------------------------------------------------------------------
 
@@ -853,15 +818,12 @@ END FUNCTION spline_int
 
 SUBROUTINE kill_spline ( spl, what )
 
-  IMPLICIT NONE
 
-! Arguments
-  TYPE ( spline_data ), INTENT ( INOUT )         :: spl
-  CHARACTER,            INTENT ( IN ),  OPTIONAL :: what
+    TYPE(spline_data), INTENT(INOUT)         :: spl
+    CHARACTER, INTENT(IN), OPTIONAL          :: what
 
-! Locals
-  CHARACTER :: w
-  INTEGER   :: err
+    CHARACTER                                :: w
+    INTEGER                                  :: err
 
 !------------------------------------------------------------------------------
 

@@ -23,10 +23,10 @@
 
 MODULE force_field_types
 
-  USE kinds,                           ONLY: int_size,&
-                                             dp
-  USE termination,                     ONLY: stop_memory,&
-                                             stop_program
+  USE kinds,                           ONLY: dp,&
+                                             int_size
+  USE termination,                     ONLY: stop_memory
+
   IMPLICIT NONE
 
   PRIVATE
@@ -80,16 +80,13 @@ CONTAINS
 
 !   ***************************************************************************
 
-    TYPE(bend_kind_type), DIMENSION(:), POINTER :: bend_kind_set
-    INTEGER, INTENT(IN)                         :: nkind
-
-!   *** Local parameters ***
+    TYPE(bend_kind_type), DIMENSION(:), &
+      POINTER                                :: bend_kind_set
+    INTEGER, INTENT(IN)                      :: nkind
 
     CHARACTER(LEN=*), PARAMETER :: routine_name = "allocate_bend_kind_set"
 
-!   *** Local variables ***
-
-    INTEGER :: ikind,istat
+    INTEGER                                  :: ikind, istat
 
 !   ---------------------------------------------------------------------------
 
@@ -122,16 +119,13 @@ CONTAINS
 
 !   ***************************************************************************
 
-    TYPE(bond_kind_type), DIMENSION(:), POINTER :: bond_kind_set
-    INTEGER, INTENT(IN)                         :: nkind
-
-!   *** Local parameters ***
+    TYPE(bond_kind_type), DIMENSION(:), &
+      POINTER                                :: bond_kind_set
+    INTEGER, INTENT(IN)                      :: nkind
 
     CHARACTER(LEN=*), PARAMETER :: routine_name = "allocate_bond_kind_set"
 
-!   *** Local variables ***
-
-    INTEGER :: ikind,istat
+    INTEGER                                  :: ikind, istat
 
 !   ---------------------------------------------------------------------------
 
@@ -164,16 +158,13 @@ CONTAINS
 
 !   ***************************************************************************
 
-    TYPE(torsion_kind_type), DIMENSION(:), POINTER :: torsion_kind_set
-    INTEGER, INTENT(IN)                         :: nkind
-
-!   *** Local parameters ***
+    TYPE(torsion_kind_type), DIMENSION(:), &
+      POINTER                                :: torsion_kind_set
+    INTEGER, INTENT(IN)                      :: nkind
 
     CHARACTER(LEN=*), PARAMETER :: routine_name = "allocate_torsion_kind_set"
 
-!   *** Local variables ***
-
-    INTEGER :: ikind,istat
+    INTEGER                                  :: ikind, istat
 
 !   ---------------------------------------------------------------------------
 

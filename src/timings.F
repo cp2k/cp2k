@@ -33,8 +33,7 @@ MODULE timings
                                              mp_sync,&
                                              mp_world_setup
   USE string_utilities,                ONLY: compress,&
-                                             uppercase,&
-                                             xstring
+                                             uppercase
   USE util,                            ONLY: sort
 
   PRIVATE
@@ -300,18 +299,13 @@ END SUBROUTINE timestop
 
 SUBROUTINE timeprint(iw,global_print_level)
 
-  IMPLICIT NONE
 
-! Arguments
-  INTEGER, INTENT(IN) :: global_print_level,iw
+    INTEGER, INTENT(IN)                      :: iw, global_print_level
 
-! Locals
-  REAL(dbl) :: maxtime,mintime,perf,asd
-  INTEGER   :: i,j
-
-  CHARACTER(LEN=1), DIMENSION(0:1) :: ct = (/"I","E"/)
-
-  INTEGER, DIMENSION(max_timer) :: index
+    INTEGER                                  :: i, j
+    CHARACTER(LEN=1), DIMENSION(0:1)         :: ct = (/"I","E"/)
+    INTEGER, DIMENSION(max_timer)            :: index
+    REAL(dbl)                                :: asd, maxtime, mintime, perf
 
 !------------------------------------------------------------------------------
 
@@ -400,16 +394,15 @@ END SUBROUTINE timeprint
 
 SUBROUTINE trace_debug ( set, iw )
 
-  IMPLICIT NONE
 
-! Arguments 
-  CHARACTER (len=*) :: set
-  CHARACTER (len=5) :: set2
-  INTEGER, OPTIONAL :: iw
+    CHARACTER(len=*)                         :: set
+    INTEGER, OPTIONAL                        :: iw
 
-! Locals
-  INTEGER :: numtask, taskid, groupid
-  ! this is needed on SUN if the trace_debug("start") is used in the call (i.e. explicit string)
+    CHARACTER(len=5)                         :: set2
+    INTEGER                                  :: groupid, numtask, taskid
+
+! this is needed on SUN if the trace_debug("start") is used in the call (i.e. explicit string)
+
   set2=TRIM(set)
   CALL uppercase(set2)
 
@@ -464,13 +457,10 @@ END SUBROUTINE trace_debug
 
 SUBROUTINE print_stack ( iw )
 
-  IMPLICIT NONE
 
-! Arguments
-  INTEGER, OPTIONAL :: iw
+    INTEGER, OPTIONAL                        :: iw
 
-! Locals
-  INTEGER :: io, i
+    INTEGER                                  :: i, io
 
   io = 0
   IF ( PRESENT ( iw ) ) io = iw
@@ -492,15 +482,14 @@ END SUBROUTINE print_stack
 
 !   ***************************************************************************
 
-    TYPE(global_environment_type), INTENT(IN) :: globenv
-    CHARACTER(LEN=*), INTENT(IN)              :: checkpoint
+    CHARACTER(LEN=*), INTENT(IN)             :: checkpoint
+    TYPE(global_environment_type), &
+      INTENT(IN)                             :: globenv
 
-!   *** Local variables ***
-
-    CHARACTER(LEN=LEN_TRIM(checkpoint)+7)  :: string1
-    CHARACTER(LEN=LEN_TRIM(checkpoint)+55) :: string2
-    INTEGER                                :: group,ipe,mype,npe,output_unit,&
-                                              pid
+    CHARACTER(LEN=LEN_TRIM(checkpoint)+55)   :: string2
+    CHARACTER(LEN=LEN_TRIM(checkpoint)+7)    :: string1
+    INTEGER                                  :: group, ipe, mype, npe, &
+                                                output_unit, pid
 
 !   ---------------------------------------------------------------------------
 

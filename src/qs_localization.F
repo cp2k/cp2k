@@ -23,15 +23,12 @@
 
 MODULE qs_localization
 ! *****************************************************************************
-  USE atomic_kind_types,               ONLY: get_atomic_kind
-  USE coefficient_types,               ONLY: coeff_type,&
-                                             coeff_zero
+  USE coefficient_types,               ONLY: coeff_type
   USE cp_cfm_basic_linalg,             ONLY: cp_cfm_lu_decompose
   USE cp_cfm_types,                    ONLY: cp_cfm_create,&
                                              cp_cfm_release,&
                                              cp_cfm_type
-  USE cp_fm_basic_linalg,              ONLY: cp_fm_gemm,&
-                                             cp_fm_lu_decompose
+  USE cp_fm_basic_linalg,              ONLY: cp_fm_gemm
   USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
                                              cp_fm_struct_release,&
                                              cp_fm_struct_type
@@ -40,8 +37,7 @@ MODULE qs_localization
                                              cp_fm_get_info,&
                                              cp_fm_p_type,&
                                              cp_fm_release,&
-                                             cp_fm_type,&
-                                             cp_fm_write
+                                             cp_fm_type
   USE cp_para_env,                     ONLY: cp_para_env_release,&
                                              cp_para_env_retain
   USE cp_para_types,                   ONLY: cp_para_env_type
@@ -49,9 +45,9 @@ MODULE qs_localization
   USE distribution_1d_types,           ONLY: distribution_1d_type
   USE global_types,                    ONLY: WANNIER_CRAZY,&
                                              WANNIER_DIRECT,&
-                                             WANNIER_JACOBI,&
-                                             WANNIER_NONE
-  USE kinds,                           ONLY: dp,default_string_length
+                                             WANNIER_JACOBI
+  USE kinds,                           ONLY: default_string_length,&
+                                             dp
   USE mathconstants,                   ONLY: twopi
   USE memory_utilities,                ONLY: reallocate
   USE message_passing,                 ONLY: mp_max,&
@@ -80,7 +76,6 @@ MODULE qs_localization
                                              pbc
   USE sparse_matrix_types,             ONLY: deallocate_matrix,&
                                              real_matrix_p_type,&
-                                             real_matrix_type,&
                                              replicate_matrix_structure,&
                                              set_matrix
   USE termination,                     ONLY: stop_memory,&
@@ -124,13 +119,13 @@ CONTAINS
 !
 !******************************************************************************
 SUBROUTINE qs_loc_init(qs_loc_env,qs_env)
-  IMPLICIT NONE
 
-  TYPE(qs_loc_env_type), POINTER :: qs_loc_env
-  TYPE(qs_environment_type) :: qs_env
-! locals
-  TYPE(real_matrix_p_type), DIMENSION(:), POINTER :: s
-  INTEGER :: i, j, natoms, isos, handle
+    TYPE(qs_loc_env_type), POINTER           :: qs_loc_env
+    TYPE(qs_environment_type)                :: qs_env
+
+    INTEGER                                  :: handle, i, isos, j, natoms
+    TYPE(real_matrix_p_type), DIMENSION(:), &
+      POINTER                                :: s
 
   CALL timeset("qs_loc_init","I",'',handle)
   NULLIFY(qs_loc_env%para_env)
@@ -194,14 +189,14 @@ END SUBROUTINE qs_loc_init
 SUBROUTINE get_boys_foster_operator ( qs_loc_env, qs_env ) 
 
 ! globals
-  TYPE(qs_loc_env_type), POINTER :: qs_loc_env
-  TYPE(qs_environment_type) :: qs_env
-! locals
-  TYPE(coeff_type) :: op_rspace
-  TYPE(pw_env_type), POINTER :: pw_env
-  TYPE(pw_pool_type), POINTER :: auxbas_pw_pool
-  INTEGER ix, iy, iz, i, j
-  REAL(KIND = dp) :: x, y, z, thearg, theval
+    TYPE(qs_loc_env_type), POINTER           :: qs_loc_env
+    TYPE(qs_environment_type)                :: qs_env
+
+    INTEGER                                  :: i, ix, iy, iz, j
+    REAL(KIND=dp)                            :: thearg, theval, x, y, z
+    TYPE(coeff_type)                         :: op_rspace
+    TYPE(pw_env_type), POINTER               :: pw_env
+    TYPE(pw_pool_type), POINTER              :: auxbas_pw_pool
 
   NULLIFY ( pw_env, auxbas_pw_pool )
 !
@@ -260,10 +255,10 @@ END SUBROUTINE get_boys_foster_operator
 !
 !******************************************************************************
 SUBROUTINE get_pipek_menzy_operator ( qs_loc_env, qs_env )
-  IMPLICIT NONE
 ! globals
-  TYPE(qs_loc_env_type), POINTER :: qs_loc_env
-  TYPE(qs_environment_type) :: qs_env
+    TYPE(qs_loc_env_type), POINTER           :: qs_loc_env
+    TYPE(qs_environment_type)                :: qs_env
+
   CALL stop_program("qs_localization","PIPEK MENZY not implemented")
 END SUBROUTINE get_pipek_menzy_operator
 
@@ -274,20 +269,18 @@ END SUBROUTINE get_pipek_menzy_operator
 !******************************************************************************
 SUBROUTINE qs_loc_compute_properties(qs_loc_env, molecule_set, vectors, center, ionode, iunit)
 
-  TYPE(qs_loc_env_type), POINTER :: qs_loc_env
-  TYPE ( molecule_type ), POINTER :: molecule_set ( : )
-  TYPE(cp_fm_type), POINTER :: vectors
-  REAL ( KIND = dp ), DIMENSION(:,:), POINTER :: center 
-  LOGICAL :: ionode
-  INTEGER :: iunit
-! locals
-  TYPE(cp_fm_type), POINTER :: opvec
-  TYPE(cp_fm_p_type), ALLOCATABLE :: ZIJ ( :, : )
-  TYPE(cp_fm_struct_type), POINTER :: tmp_fm_struct
+    TYPE(qs_loc_env_type), POINTER           :: qs_loc_env
+    TYPE(molecule_type), POINTER             :: molecule_set( : )
+    TYPE(cp_fm_type), POINTER                :: vectors
+    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: center
+    LOGICAL                                  :: ionode
+    INTEGER                                  :: iunit
 
-  INTEGER :: n,k,natoms
-  INTEGER :: i,j,l,isos
-  INTEGER :: handle,sweeps
+    INTEGER                                  :: handle, i, isos, j, k, n, &
+                                                natoms, sweeps
+    TYPE(cp_fm_p_type), ALLOCATABLE          :: ZIJ( :, : )
+    TYPE(cp_fm_struct_type), POINTER         :: tmp_fm_struct
+    TYPE(cp_fm_type), POINTER                :: opvec
 
   CALL timeset("qs_loc_compute_properties","I",'',handle)
   NULLIFY(tmp_fm_struct,opvec)
@@ -378,21 +371,20 @@ END SUBROUTINE qs_loc_compute_properties
 
 SUBROUTINE centers_and_spreads ( ionode, iunit, qs_loc_env, zij, center )
 ! globals
-  INTEGER, INTENT ( IN ) :: iunit
-  LOGICAL, INTENT ( IN ) :: ionode
-  REAL ( KIND = dp ), INTENT ( OUT ) :: center ( :, : )
-  TYPE ( cp_fm_p_type ), INTENT ( INOUT ) :: zij ( :, : )
-  TYPE(qs_loc_env_type), POINTER :: qs_loc_env
+    LOGICAL, INTENT(IN)                      :: ionode
+    INTEGER, INTENT(IN)                      :: iunit
+    TYPE(qs_loc_env_type), POINTER           :: qs_loc_env
+    TYPE(cp_fm_p_type), INTENT(INOUT)        :: zij( :, : )
+    REAL(KIND=dp), INTENT(OUT)               :: center( :, : )
 
-! locals
-  TYPE ( cell_type ), POINTER :: cell
-  TYPE(cp_cfm_type), POINTER :: complexresult
-  COMPLEX ( KIND = dp ) :: almost_determinant
-  COMPLEX ( KIND = dp ) :: z
-  REAL ( KIND = dp ) :: realpart, imagpart
-  INTEGER :: l, i, nstates
+    COMPLEX(KIND=dp)                         :: almost_determinant, z
+    INTEGER                                  :: i, l, nstates
+    REAL(KIND=dp)                            :: imagpart, realpart
+    TYPE(cell_type), POINTER                 :: cell
+    TYPE(cp_cfm_type), POINTER               :: complexresult
 
 ! get nstates
+
   CALL cp_fm_get_info ( zij ( 1, 1 ) % matrix, nrow_global = nstates )
 
 ! initialize complexresult for boys-foster
@@ -432,9 +424,9 @@ END SUBROUTINE centers_and_spreads
 !******************************************************************************
 SUBROUTINE qs_loc_destroy ( qs_loc_env )
 
-  TYPE(qs_loc_env_type), POINTER :: qs_loc_env
+    TYPE(qs_loc_env_type), POINTER           :: qs_loc_env
 
-  INTEGER :: i , j
+    INTEGER                                  :: i, j
 
   IF (qs_loc_env%is_initialized.ne.777) CALL stop_program("qs_localization","problems")
 
@@ -453,35 +445,26 @@ END SUBROUTINE qs_loc_destroy
 !
 !******************************************************************************
 SUBROUTINE wfc_to_molecule ( qs_loc_env, center, molecule_set ) 
-  IMPLICIT NONE
-! arguments
-  TYPE ( qs_loc_env_type ), INTENT ( IN ) :: qs_loc_env
-  TYPE ( molecule_type ), POINTER :: molecule_set ( : )
-  TYPE (molecule_kind_type), POINTER :: molecule_kind
-  REAL ( KIND = dp ), INTENT ( IN ) :: center ( :, : )
+    TYPE(qs_loc_env_type), INTENT(IN)        :: qs_loc_env
+    REAL(KIND=dp), INTENT(IN)                :: center( :, : )
+    TYPE(molecule_type), POINTER             :: molecule_set( : )
 
-! locals
-  TYPE ( particle_type ), POINTER :: particle_set ( : )
-  TYPE ( cp_para_env_type ), POINTER :: para_env
-  INTEGER :: i, j , k, isos, iatom, istate, imoltyp, imolnum,first_atom
-  INTEGER :: counter, imol, natom, nbond, nmol, nstate, first, last, imol_now
-  INTEGER :: oldtyp,oldnum
-  REAL ( KIND = dp ) :: r_pbc ( 3 ), dr (3)
-  REAL ( KIND = dp ), POINTER :: distance ( : )
-  REAL ( KIND = dp ), POINTER :: r ( :, : )
-  INTEGER, POINTER :: wfc_to_atom_map ( : )
-
-  INTEGER :: local_location
-  INTEGER :: natom_max,natom_loc,nkind,ikind
-  REAL ( KIND = dp ) :: mydist(2)
-  TYPE(atom_type), DIMENSION(:), POINTER            :: atom_list
-  CHARACTER (LEN=default_string_length)  :: mol_name
-  TYPE(distribution_1d_type), POINTER :: local_molecules
-  TYPE(cell_type),POINTER :: cell
-
+    CHARACTER(LEN=default_string_length)     :: mol_name
+    INTEGER :: counter, first_atom, i, iatom, ikind, imol, imol_now, isos, &
+      istate, local_location, natom, natom_loc, natom_max, nkind, nmol, nstate
+    INTEGER, POINTER                         :: wfc_to_atom_map( : )
+    REAL(KIND=dp)                            :: dr(3), mydist(2), r_pbc( 3 )
+    REAL(KIND=dp), POINTER                   :: distance( : ), r( :, : )
+    TYPE(atom_type), DIMENSION(:), POINTER   :: atom_list
+    TYPE(cell_type), POINTER                 :: cell
+    TYPE(cp_para_env_type), POINTER          :: para_env
+    TYPE(distribution_1d_type), POINTER      :: local_molecules
+    TYPE(molecule_kind_type), POINTER        :: molecule_kind
+    TYPE(particle_type), POINTER             :: particle_set( : )
 
 !---------------------------------------------------------------------------
 !---------------------------------------------------------------------------
+
   cell => qs_loc_env % cell
   particle_set => qs_loc_env % particle_set
   para_env => qs_loc_env % para_env

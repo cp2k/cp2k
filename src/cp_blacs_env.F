@@ -26,25 +26,20 @@
 !****************************************************************************
 MODULE cp_blacs_env
   USE cp_array_i_utils,                ONLY: cp_2d_i_write
-  USE cp_blacs_calls,                  ONLY: cp_blacs_gridinit, &
-                                             cp_blacs_gridinfo, &
-                                             cp_blacs_pinfo, &
-                                             cp_blacs_get, &
-                                             cp_blacs_gridexit
+  USE cp_blacs_calls,                  ONLY: cp_blacs_get,&
+                                             cp_blacs_gridexit,&
+                                             cp_blacs_gridinfo,&
+                                             cp_blacs_gridinit,&
+                                             cp_blacs_pinfo
   USE cp_error_handling,               ONLY: cp_a_l,&
                                              cp_assert,&
                                              cp_assertion_failed,&
-                                             cp_debug,&
-                                             cp_error_dealloc_ref,&
                                              cp_error_get_logger,&
                                              cp_error_init,&
                                              cp_error_message,&
-                                             cp_error_type,&
-                                             cp_internal_error,&
-                                             cp_unimplemented_error
+                                             cp_error_type
   USE cp_log_handling,                 ONLY: cp_failure_level,&
                                              cp_fatal_level,&
-                                             cp_log,&
                                              cp_logger_type,&
                                              cp_note_level,&
                                              cp_to_string,&
@@ -57,18 +52,16 @@ MODULE cp_blacs_env
                                              BLACS_GRID_ROW,&
                                              BLACS_GRID_SQUARE,&
                                              global_environment_type
-  USE kinds,                           ONLY: int_size,&
-                                             dp,&
-                                             dp_size
+  USE kinds,                           ONLY: dp,&
+                                             int_size
   USE machine,                         ONLY: m_flush
-  USE message_passing,                 ONLY: mp_bcast,&
-                                             mp_max,&
-                                             mp_sum,&
+  USE message_passing,                 ONLY: mp_sum,&
                                              mp_sync
   USE termination,                     ONLY: stop_memory,&
                                              stop_program
   USE timings,                         ONLY: timeset,&
                                              timestop
+
   IMPLICIT NONE
   PRIVATE
 
@@ -96,15 +89,14 @@ CONTAINS
 
 !   ***************************************************************************
 
-    TYPE(cp_blacs_env_type), POINTER          :: blacs_env
-    INTEGER, OPTIONAL, INTENT(OUT)            :: my_process_column,&
-                                                 my_process_number,&
-                                                 my_process_row,&
-                                                 number_of_process_columns,&
-                                                 number_of_process_rows,&
-                                                 number_of_processes
-    TYPE(cp_para_env_type), POINTER, OPTIONAL  :: para_env
-    INTEGER, DIMENSION(:,:), POINTER, OPTIONAL :: blacs2mpi, mpi2blacs
+    TYPE(cp_blacs_env_type), POINTER         :: blacs_env
+    INTEGER, INTENT(OUT), OPTIONAL :: my_process_row, my_process_column, &
+      my_process_number, number_of_process_rows, number_of_process_columns, &
+      number_of_processes
+    TYPE(cp_para_env_type), OPTIONAL, &
+      POINTER                                :: para_env
+    INTEGER, DIMENSION(:, :), OPTIONAL, &
+      POINTER                                :: blacs2mpi, mpi2blacs
 
     IF (.NOT.ASSOCIATED(blacs_env)) CALL stop_program("get_blacs_info","no blacs environment")
 
@@ -160,17 +152,20 @@ CONTAINS
 !!*** **********************************************************************
 SUBROUTINE cp_blacs_env_create(blacs_env,group,para_env,owns_group,&
      source,error)
-  TYPE(cp_blacs_env_type), POINTER :: blacs_env
-  INTEGER, INTENT(in) :: group
-  TYPE(cp_para_env_type), POINTER :: para_env
-  LOGICAL, INTENT(in), OPTIONAL :: owns_group
-  INTEGER, DIMENSION(2), INTENT(in), OPTIONAL :: source
-  TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
-  
-  LOGICAL :: failure
-  CHARACTER(len=*), PARAMETER :: routineN='cp_blacs_env_create',&
-        routineP=moduleN//':'//routineN
-  INTEGER :: stat, ipcol,iprow
+    TYPE(cp_blacs_env_type), POINTER         :: blacs_env
+    INTEGER, INTENT(in)                      :: group
+    TYPE(cp_para_env_type), POINTER          :: para_env
+    LOGICAL, INTENT(in), OPTIONAL            :: owns_group
+    INTEGER, DIMENSION(2), INTENT(in), &
+      OPTIONAL                               :: source
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'cp_blacs_env_create', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: ipcol, iprow, stat
+    LOGICAL                                  :: failure
 
   failure=.FALSE.
 
@@ -256,12 +251,15 @@ END SUBROUTINE cp_blacs_env_create
 !!
 !!*** **********************************************************************
 SUBROUTINE cp_blacs_env_retain(blacs_env,error)
-  TYPE(cp_blacs_env_type), POINTER :: blacs_env
-  TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
-  
-  LOGICAL :: failure
-  CHARACTER(len=*), PARAMETER :: routineN='cp_blacs_env_retain',&
-        routineP=moduleN//':'//routineN
+    TYPE(cp_blacs_env_type), POINTER         :: blacs_env
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'cp_blacs_env_retain', &
+      routineP = moduleN//':'//routineN
+
+    LOGICAL                                  :: failure
+
   failure=.FALSE.
   CPPrecondition(ASSOCIATED(blacs_env),cp_failure_level,routineP,error,failure)
   IF (.NOT. failure) THEN
@@ -301,13 +299,16 @@ END SUBROUTINE cp_blacs_env_retain
 !!
 !!*** **********************************************************************
 SUBROUTINE cp_blacs_env_release(blacs_env,error)
-  TYPE(cp_blacs_env_type), POINTER :: blacs_env
-  TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
-  
-  LOGICAL :: failure
-  CHARACTER(len=*), PARAMETER :: routineN='cp_blacs_env_release',&
-        routineP=moduleN//':'//routineN
-  INTEGER :: stat
+    TYPE(cp_blacs_env_type), POINTER         :: blacs_env
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'cp_blacs_env_release', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: stat
+    LOGICAL                                  :: failure
+
   failure=.FALSE.
   
   IF (ASSOCIATED(blacs_env)) THEN
@@ -365,14 +366,17 @@ END SUBROUTINE cp_blacs_env_release
 !!
 !!*** **********************************************************************
 SUBROUTINE cp_blacs_env_write(blacs_env, unit_nr, error)
-  TYPE(cp_blacs_env_type), POINTER :: blacs_env
-  INTEGER, INTENT(in) :: unit_nr
-  TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
-  
-  LOGICAL :: failure
-  CHARACTER(len=*), PARAMETER :: routineN='cp_blacs_env_write',&
-        routineP=moduleN//':'//routineN
-  INTEGER :: iostat
+    TYPE(cp_blacs_env_type), POINTER         :: blacs_env
+    INTEGER, INTENT(in)                      :: unit_nr
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'cp_blacs_env_write', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: iostat
+    LOGICAL                                  :: failure
+
   failure=.FALSE.
   
   IF (ASSOCIATED(blacs_env)) THEN
@@ -431,22 +435,19 @@ END SUBROUTINE cp_blacs_env_write
 !   History: - Creation (22.05.2001, Matthias Krack)
 
 !   ***************************************************************************
-    TYPE(cp_blacs_env_type), POINTER :: blacs_env
-    TYPE(global_environment_type), INTENT(INOUT) :: globenv
+    TYPE(cp_blacs_env_type), POINTER         :: blacs_env
+    TYPE(global_environment_type), &
+      INTENT(INOUT)                          :: globenv
 
-!   *** Local parameters ***
+    CHARACTER(LEN=*), PARAMETER :: &
+      routine = "SUBROUTINE start_blacs (MODULE cp_blacs_env)"
 
-    CHARACTER(LEN=*), PARAMETER :: routine =&
-      "SUBROUTINE start_blacs (MODULE cp_blacs_env)"
-
-!   *** Local variables ***
-
-    INTEGER :: context,group,ipe,istat,mypcol,mype,myprow,npcol,npe,nprow,&
-               output_unit
-    LOGICAL :: ionode
-    TYPE(cp_error_type) :: error
-
-    INTEGER, DIMENSION(:), ALLOCATABLE :: pcol,pcon,prow
+    INTEGER                                  :: context, group, ipe, istat, &
+                                                mypcol, mype, myprow, npcol, &
+                                                npe, nprow, output_unit
+    INTEGER, ALLOCATABLE, DIMENSION(:)       :: pcol, pcon, prow
+    LOGICAL                                  :: ionode
+    TYPE(cp_error_type)                      :: error
 
 !   ---------------------------------------------------------------------------
 
@@ -558,21 +559,18 @@ END SUBROUTINE cp_blacs_env_write
 
 !   ***************************************************************************
 
-    TYPE(global_environment_type), INTENT(INOUT) :: globenv
-    TYPE(cp_blacs_env_type), POINTER :: blacs_env
+    TYPE(cp_blacs_env_type), POINTER         :: blacs_env
+    TYPE(global_environment_type), &
+      INTENT(INOUT)                          :: globenv
 
-!   *** Local parameters ***
+    CHARACTER(LEN=*), PARAMETER :: &
+      routine = "SUBROUTINE end_blacs (MODULE cp_blacs_env)"
 
-    CHARACTER(LEN=*), PARAMETER :: routine =&
-      "SUBROUTINE end_blacs (MODULE cp_blacs_env)"
-
-!   *** Local variables ***
-
-    INTEGER :: group,ipe,istat,mype,npe,output_unit
-    LOGICAL :: ionode
-
-    INTEGER, DIMENSION(:), ALLOCATABLE :: pcon
-    TYPE(cp_blacs_env_type), POINTER :: context
+    INTEGER                                  :: group, ipe, istat, mype, npe, &
+                                                output_unit
+    INTEGER, ALLOCATABLE, DIMENSION(:)       :: pcon
+    LOGICAL                                  :: ionode
+    TYPE(cp_blacs_env_type), POINTER         :: context
 
 !   ---------------------------------------------------------------------------
 

@@ -30,41 +30,33 @@ MODULE kg_ppl
                                              gto_basis_set_type
   USE checkpoint_handler,              ONLY: write_checkpoint_information
   USE distribution_1d_types,           ONLY: distribution_1d_type
-  USE external_potential_types,        ONLY: get_potential,&
-                                             elp_potential_type,&
+  USE external_potential_types,        ONLY: elp_potential_type,&
+                                             get_potential,&
                                              gth_potential_type
   USE global_types,                    ONLY: global_environment_type
-  USE kinds,                           ONLY: int_size,&
-                                             dbl,&
-                                             dp_size
-  USE message_passing,                 ONLY: mp_sum
-  USE orbital_pointers,                ONLY: indco,&
-                                             init_orbital_pointers,&
-                                             nco,&
-                                             ncoset
-  USE orbital_symbols,                 ONLY: cgf_symbol
-  USE particle_types,                  ONLY: particle_type
+  USE kg_energy_types,                 ONLY: kg_energy_type
   USE kg_environment_types,            ONLY: get_kg_env,&
                                              kg_environment_type
-  USE kg_energy_types,                 ONLY: kg_energy_type
   USE kg_force_types,                  ONLY: kg_force_type
+  USE kinds,                           ONLY: dbl,&
+                                             dp_size,&
+                                             int_size
+  USE message_passing,                 ONLY: mp_sum
+  USE orbital_pointers,                ONLY: init_orbital_pointers,&
+                                             ncoset
+  USE particle_types,                  ONLY: particle_type
   USE qs_neighbor_list_types,          ONLY: find_neighbor_list,&
-                                             first_list,&
                                              first_node,&
                                              get_neighbor_list,&
-                                             get_neighbor_list_set,&
                                              get_neighbor_node,&
                                              neighbor_list_set_p_type,&
-                                             neighbor_list_set_type,&
                                              neighbor_list_type,&
                                              neighbor_node_type,&
                                              next
-  USE string_utilities,                ONLY: compress,&
-                                             uppercase
-  USE termination,                     ONLY: stop_memory,&
-                                             stop_program
+  USE termination,                     ONLY: stop_memory
   USE timings,                         ONLY: timeset,&
                                              timestop
+
   IMPLICIT NONE
 
   PRIVATE
@@ -90,57 +82,50 @@ CONTAINS
 
 !   ***************************************************************************
 
-    TYPE(global_environment_type), INTENT(IN) :: globenv
-    TYPE(kg_environment_type), POINTER        :: kg_env
-    LOGICAL, INTENT(IN)                       :: calculate_forces
+    TYPE(kg_environment_type), POINTER       :: kg_env
+    TYPE(global_environment_type), &
+      INTENT(IN)                             :: globenv
+    LOGICAL, INTENT(IN)                      :: calculate_forces
 
-!   *** Local parameters ***
+    CHARACTER(LEN=*), PARAMETER :: routine_name = "calculate_rho0_pp", &
+      routine = "SUBROUTINE "//routine_name//" (MODULE "//module_name//")"
 
-    CHARACTER(LEN=*), PARAMETER :: routine_name = "calculate_rho0_pp"
-    CHARACTER(LEN=*), PARAMETER :: routine =&
-      "SUBROUTINE "//routine_name//" (MODULE "//module_name//")"
-
-!   *** Local variables ***
-
-    TYPE(atomic_kind_type), POINTER   :: atomic_kind
-    TYPE(distribution_1d_type),POINTER :: local_particles
-    TYPE(gth_potential_type), POINTER :: gth_potential
-    TYPE(elp_potential_type), POINTER :: elp_potential
-    TYPE(gto_basis_set_type), POINTER :: orb_basis_set
-    TYPE(kg_energy_type),POINTER      :: energy
-    TYPE(neighbor_list_type), POINTER               :: sac_ppl_neighbor_list
-    TYPE(neighbor_node_type), POINTER               :: sac_ppl_neighbor_node
-    TYPE(kg_force_type), DIMENSION(:), POINTER      :: force
-    TYPE(atomic_kind_type), DIMENSION(:), POINTER         :: atomic_kind_set
-    TYPE(neighbor_list_set_p_type), DIMENSION(:), POINTER :: sac_ppl
-    TYPE(particle_type), DIMENSION(:), POINTER            :: particle_set
-
-    INTEGER                           :: ldsab,maxder,maxsgf,nder,nkind
-    INTEGER  :: ab,ac,atom_a,atom_c,handle,&
-                i,iatom,ikind,ilist,inode,ipgf,iset,ishell,istat,jkind,&
-                katom,kkind,knode,kneigbor,l,lc_max,lc_min,maxco,maxl,&
-                maxlgto,maxlppl,natom,natom_of_kind,ncoa,group,&
-                nlist,nneighbor,nnode,nseta,sgfa,ncexp,ialpha,output_unit,&
-                nparticle_local,iparticle_local,ldai
-
-    INTEGER, DIMENSION(:), ALLOCATABLE    :: atom_of_kind,kind_of
-    INTEGER, DIMENSION(:), POINTER    :: la_max,la_min,npgfa,nsgfa 
-    INTEGER, DIMENSION(:), POINTER                :: atom_list
-    INTEGER, DIMENSION(:,:), POINTER  :: first_sgfa
-
-    REAL(dbl) :: dab,dac,dbc,rab2,rac2,rbc2,alfa,e_ppl
-    REAL(dbl), DIMENSION(1) :: zetc,zetb,rpgfb
-    REAL(dbl), DIMENSION(:,:), ALLOCATABLE :: hab,pab,work
-
-    REAL(dbl), DIMENSION(3)            :: force_a
-    REAL(dbl), DIMENSION(:), POINTER   :: set_radius_a,cexp
-    REAL(dbl), DIMENSION(:,:), POINTER :: rpgfa,sphi_a,zeta
-
-    REAL(dbl), DIMENSION(3)                  :: rab,rac,rbc
-    REAL(dbl), DIMENSION(:), ALLOCATABLE     :: ppl_radius
-
-    LOGICAL  :: gth_potential_present,elp_potential_present,&
-                ppl_present, ionode
+    INTEGER :: ac, atom_a, atom_c, group, handle, i, ialpha, iatom, ikind, &
+      iparticle_local, iset, istat, jkind, katom, kkind, knode, ldai, ldsab, &
+      maxco, maxder, maxl, maxlgto, maxlppl, maxsgf, natom, natom_of_kind, &
+      ncexp, ncoa, nder, nkind, nnode, nparticle_local, nseta, output_unit, &
+      sgfa
+    INTEGER, ALLOCATABLE, DIMENSION(:)       :: atom_of_kind
+    INTEGER, DIMENSION(:), POINTER           :: atom_list, la_max, la_min, &
+                                                npgfa, nsgfa
+    INTEGER, DIMENSION(:, :), POINTER        :: first_sgfa
+    LOGICAL                                  :: elp_potential_present, &
+                                                gth_potential_present, &
+                                                ionode, ppl_present
+    REAL(dbl)                                :: alfa, dab, dac, dbc, e_ppl, &
+                                                rab2, rac2, rbc2
+    REAL(dbl), ALLOCATABLE, DIMENSION(:)     :: ppl_radius
+    REAL(dbl), ALLOCATABLE, DIMENSION(:, :)  :: hab, pab, work
+    REAL(dbl), DIMENSION(1)                  :: rpgfb, zetb
+    REAL(dbl), DIMENSION(3)                  :: force_a, rab, rac, rbc
+    REAL(dbl), DIMENSION(:), POINTER         :: cexp, set_radius_a
+    REAL(dbl), DIMENSION(:, :), POINTER      :: rpgfa, sphi_a, zeta
+    TYPE(atomic_kind_type), DIMENSION(:), &
+      POINTER                                :: atomic_kind_set
+    TYPE(atomic_kind_type), POINTER          :: atomic_kind
+    TYPE(distribution_1d_type), POINTER      :: local_particles
+    TYPE(elp_potential_type), POINTER        :: elp_potential
+    TYPE(gth_potential_type), POINTER        :: gth_potential
+    TYPE(gto_basis_set_type), POINTER        :: orb_basis_set
+    TYPE(kg_energy_type), POINTER            :: energy
+    TYPE(kg_force_type), DIMENSION(:), &
+      POINTER                                :: force
+    TYPE(neighbor_list_set_p_type), &
+      DIMENSION(:), POINTER                  :: sac_ppl
+    TYPE(neighbor_list_type), POINTER        :: sac_ppl_neighbor_list
+    TYPE(neighbor_node_type), POINTER        :: sac_ppl_neighbor_node
+    TYPE(particle_type), DIMENSION(:), &
+      POINTER                                :: particle_set
 
     TYPE cexp_ppl_type
       REAL(dbl), DIMENSION(:,:), POINTER :: c
@@ -600,57 +585,47 @@ CONTAINS
 
 !   ***************************************************************************
 
-    REAL(dbl), DIMENSION(:), POINTER            :: eigenvector
-    REAL(dbl), DIMENSION(:), POINTER            :: eigenforce
-    TYPE(global_environment_type), INTENT(IN) :: globenv
-    TYPE(kg_environment_type), POINTER        :: kg_env
-    REAL(dbl), INTENT (out)                   :: energy
-    LOGICAL, INTENT(IN)                       :: calculate_forces
-    TYPE(kg_force_type), DIMENSION(:), POINTER, OPTIONAL            :: force
+    REAL(dbl), DIMENSION(:), POINTER         :: eigenvector, eigenforce
+    TYPE(kg_environment_type), POINTER       :: kg_env
+    TYPE(global_environment_type), &
+      INTENT(IN)                             :: globenv
+    REAL(dbl), INTENT(out)                   :: energy
+    LOGICAL, INTENT(IN)                      :: calculate_forces
+    TYPE(kg_force_type), DIMENSION(:), &
+      OPTIONAL, POINTER                      :: force
 
-!   *** Local parameters ***
+    CHARACTER(LEN=*), PARAMETER :: routine_name = "calculate_drho_pp", &
+      routine = "SUBROUTINE "//routine_name//" (MODULE "//module_name//")"
 
-    CHARACTER(LEN=*), PARAMETER :: routine_name = "calculate_drho_pp"
-    CHARACTER(LEN=*), PARAMETER :: routine =&
-      "SUBROUTINE "//routine_name//" (MODULE "//module_name//")"
-
-!   *** Local variables ***
-
-    TYPE(atomic_kind_type), POINTER   :: atomic_kind
-    TYPE(gth_potential_type), POINTER :: gth_potential
-    TYPE(gto_basis_set_type), POINTER :: aux_basis_set
-
-    TYPE(neighbor_list_type), POINTER               :: sac_ppl_neighbor_list
-    TYPE(neighbor_node_type), POINTER               :: sac_ppl_neighbor_node
-
-    TYPE(atomic_kind_type), DIMENSION(:), POINTER         :: atomic_kind_set
-    TYPE(neighbor_list_set_p_type), DIMENSION(:), POINTER :: sac_ppl_aux
-    TYPE(particle_type), DIMENSION(:), POINTER            :: particle_set
-
-    INTEGER                           :: ldsab,maxder,maxsgf,nder,nkind
-    INTEGER  :: ab,ac,atom_a,atom_c,handle,&
-                i,iatom,ikind,ilist,inode,ipgf,iset,ishell,istat,jkind,&
-                katom,kkind,knode,kneigbor,l,lc_max,lc_min,maxco,maxl,&
-                maxlgto,maxlppl,natom,natom_of_kind,ncoa,&
-                nlist,nneighbor,nnode,nseta,sgfa,offset,ldai
-
-    INTEGER, DIMENSION(:), ALLOCATABLE    :: atom_of_kind,kind_of
-    INTEGER, DIMENSION(:), POINTER    :: la_max,la_min,npgfa,nsgfa 
-    INTEGER, DIMENSION(:), POINTER                :: atom_list
-    INTEGER, DIMENSION(:,:), POINTER  :: first_sgfa
-
-    REAL(dbl) :: dab,dac,dbc,rab2,rac2,rbc2
-    REAL(dbl), DIMENSION(1) :: zetc,zetb,rpgfb
-    REAL(dbl), DIMENSION(:,:), ALLOCATABLE :: hab,pab,work
-
-    REAL(dbl), DIMENSION(3)            :: force_a
-    REAL(dbl), DIMENSION(:), POINTER   :: set_radius_a
-    REAL(dbl), DIMENSION(:,:), POINTER :: rpgfa,sphi_a,zeta
-
-    REAL(dbl), DIMENSION(3)                  :: rab,rac,rbc
-    REAL(dbl), DIMENSION(:), ALLOCATABLE     :: alpha_ppl,ppl_radius
-
-    LOGICAL  :: gth_potential_present, ppl_present
+    INTEGER :: ac, atom_a, atom_c, handle, i, iatom, ikind, iset, istat, &
+      jkind, katom, kkind, knode, ldai, ldsab, maxco, maxder, maxl, maxlgto, &
+      maxlppl, maxsgf, natom, natom_of_kind, ncoa, nder, nkind, nnode, nseta, &
+      offset, sgfa
+    INTEGER, ALLOCATABLE, DIMENSION(:)       :: atom_of_kind
+    INTEGER, DIMENSION(:), POINTER           :: atom_list, la_max, la_min, &
+                                                npgfa, nsgfa
+    INTEGER, DIMENSION(:, :), POINTER        :: first_sgfa
+    LOGICAL                                  :: gth_potential_present, &
+                                                ppl_present
+    REAL(dbl)                                :: dab, dac, dbc, rab2, rac2, &
+                                                rbc2
+    REAL(dbl), ALLOCATABLE, DIMENSION(:)     :: alpha_ppl, ppl_radius
+    REAL(dbl), ALLOCATABLE, DIMENSION(:, :)  :: hab, pab, work
+    REAL(dbl), DIMENSION(1)                  :: rpgfb, zetb
+    REAL(dbl), DIMENSION(3)                  :: force_a, rab, rac, rbc
+    REAL(dbl), DIMENSION(:), POINTER         :: set_radius_a
+    REAL(dbl), DIMENSION(:, :), POINTER      :: rpgfa, sphi_a, zeta
+    TYPE(atomic_kind_type), DIMENSION(:), &
+      POINTER                                :: atomic_kind_set
+    TYPE(atomic_kind_type), POINTER          :: atomic_kind
+    TYPE(gth_potential_type), POINTER        :: gth_potential
+    TYPE(gto_basis_set_type), POINTER        :: aux_basis_set
+    TYPE(neighbor_list_set_p_type), &
+      DIMENSION(:), POINTER                  :: sac_ppl_aux
+    TYPE(neighbor_list_type), POINTER        :: sac_ppl_neighbor_list
+    TYPE(neighbor_node_type), POINTER        :: sac_ppl_neighbor_node
+    TYPE(particle_type), DIMENSION(:), &
+      POINTER                                :: particle_set
 
     TYPE cexp_ppl_type
       REAL(dbl), DIMENSION(:), POINTER :: c

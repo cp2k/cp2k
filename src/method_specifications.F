@@ -6,7 +6,7 @@ MODULE method_specifications
 
 ! *****************************************************************************
 
-  USE functionals, ONLY: xc_type
+  USE functionals,                     ONLY: xc_type
 
   IMPLICIT NONE
 
@@ -42,8 +42,10 @@ CONTAINS
 
 ! *****************************************************************************
   SUBROUTINE get_maxder(maxder_index)
-    IMPLICIT NONE
-    INTEGER, INTENT(in), OPTIONAL :: maxder_index  ! maxder
+    INTEGER, INTENT(in), OPTIONAL            :: maxder_index
+
+! maxder
+
     IF (PRESENT(maxder_index)) maxder = maxder_index
   END SUBROUTINE get_maxder
 ! *****************************************************************************

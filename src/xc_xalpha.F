@@ -31,6 +31,7 @@ MODULE xc_xalpha
   USE xc_functionals_utilities,        ONLY: calc_rho13,&
                                              set_util,&
                                              setup_calculation
+
   IMPLICIT NONE
 
   PRIVATE
@@ -61,8 +62,8 @@ CONTAINS
 
   SUBROUTINE xalpha_init ( cutoff, PARAMETER )
 
-    REAL(dbl), INTENT(IN) :: cutoff
-    REAL(dbl), INTENT(IN), OPTIONAL :: PARAMETER
+    REAL(dbl), INTENT(IN)                    :: cutoff
+    REAL(dbl), INTENT(IN), OPTIONAL          :: PARAMETER
 
     eps_rho = cutoff
     CALL set_util ( cutoff )
@@ -81,8 +82,7 @@ CONTAINS
 
   SUBROUTINE xalpha_info ( reference, shortform )
 
-    CHARACTER (LEN=*), INTENT(OUT), OPTIONAL :: reference
-    CHARACTER (LEN=*), INTENT(OUT), OPTIONAL :: shortform
+    CHARACTER(LEN=*), INTENT(OUT), OPTIONAL  :: reference, shortform
 
     IF ( PRESENT ( reference ) ) THEN
        WRITE (reference,'(A,F8.4)') &
@@ -100,16 +100,14 @@ CONTAINS
 
 !   ---------------------------------------------------------------------------
 
-    TYPE(xc_derivative_set_type), POINTER :: derivative_set
-    REAL(dbl), DIMENSION(:), INTENT(IN)  :: rho
-    REAL(dbl), DIMENSION(:,:), INTENT(OUT) :: pot
-    INTEGER, INTENT(IN), OPTIONAL :: order
+    TYPE(xc_derivative_set_type), POINTER    :: derivative_set
+    REAL(dbl), DIMENSION(:), INTENT(IN)      :: rho
+    REAL(dbl), DIMENSION(:, :), INTENT(OUT)  :: pot
+    INTEGER, INTENT(IN), OPTIONAL            :: order
 
-!   *** Local variables ***
-
-    LOGICAL   :: calc(0:4)
-    REAL(dbl), DIMENSION(:), ALLOCATABLE :: r13
-    INTEGER :: n, error, m, mp, mt, mx(0:3,2)
+    INTEGER                                  :: error, m, mp, mt, mx(0:3,2), n
+    LOGICAL                                  :: calc(0:4)
+    REAL(dbl), ALLOCATABLE, DIMENSION(:)     :: r13
 
 !   ---------------------------------------------------------------------------
 
@@ -156,16 +154,15 @@ CONTAINS
 
 !   ---------------------------------------------------------------------------
 
-    TYPE(xc_derivative_set_type), POINTER :: derivative_set
-    REAL(dbl), DIMENSION(:), INTENT(IN)  :: rhoa, rhob
-    REAL(dbl), DIMENSION(:,:), INTENT(OUT) :: pot
-    INTEGER, INTENT(IN), OPTIONAL :: order
+    TYPE(xc_derivative_set_type), POINTER    :: derivative_set
+    REAL(dbl), DIMENSION(:), INTENT(IN)      :: rhoa, rhob
+    REAL(dbl), DIMENSION(:, :), INTENT(OUT)  :: pot
+    INTEGER, INTENT(IN), OPTIONAL            :: order
 
-!   *** Local variables ***
-
-    LOGICAL   :: calc(0:4)
-    REAL(dbl), DIMENSION(:), ALLOCATABLE :: r13a, r13b
-    INTEGER :: n, error, m, mp, mt, mx(0:3,2),m1,m2
+    INTEGER                                  :: error, m, m1, m2, mp, mt, &
+                                                mx(0:3,2), n
+    LOGICAL                                  :: calc(0:4)
+    REAL(dbl), ALLOCATABLE, DIMENSION(:)     :: r13a, r13b
 
 !   ---------------------------------------------------------------------------
 
@@ -218,14 +215,15 @@ CONTAINS
 
   SUBROUTINE xalpha_lda_0(n, rho, r13, pot)
 
-    INTEGER, INTENT(IN)                  :: n
-    REAL(dbl), DIMENSION(*), INTENT(IN)  :: rho, r13
-    REAL(dbl), DIMENSION(*), INTENT(OUT) :: pot
+    INTEGER, INTENT(IN)                      :: n
+    REAL(dbl), DIMENSION(*), INTENT(IN)      :: rho, r13
+    REAL(dbl), DIMENSION(*), INTENT(OUT)     :: pot
 
-    INTEGER :: ip
+    INTEGER                                  :: ip
+
 !   ---------------------------------------------------------------------------
-
 !$omp parallel do private(ip)
+
     DO ip = 1, n
       IF ( rho(ip) > eps_rho ) THEN
          pot(ip) = pot(ip) + flda*r13(ip)*rho(ip)
@@ -238,12 +236,13 @@ CONTAINS
 
   SUBROUTINE xalpha_lda_1(n, rho, r13, pot)
     
-    INTEGER, INTENT(IN)                  :: n
-    REAL(dbl), DIMENSION(*), INTENT(IN)  :: rho, r13
-    REAL(dbl), DIMENSION(*), INTENT(OUT) :: pot
+    INTEGER, INTENT(IN)                      :: n
+    REAL(dbl), DIMENSION(*), INTENT(IN)      :: rho, r13
+    REAL(dbl), DIMENSION(*), INTENT(OUT)     :: pot
 
-    INTEGER :: ip
-    REAL ( dbl ) :: f
+    INTEGER                                  :: ip
+    REAL(dbl)                                :: f
+
 !   ---------------------------------------------------------------------------
 
     f = f43 * flda
@@ -261,12 +260,13 @@ CONTAINS
 
   SUBROUTINE xalpha_lda_2(n, rho, r13, pot)
 
-    INTEGER, INTENT(IN)                  :: n
-    REAL(dbl), DIMENSION(*), INTENT(IN)  :: rho, r13
-    REAL(dbl), DIMENSION(*), INTENT(OUT) :: pot
+    INTEGER, INTENT(IN)                      :: n
+    REAL(dbl), DIMENSION(*), INTENT(IN)      :: rho, r13
+    REAL(dbl), DIMENSION(*), INTENT(OUT)     :: pot
 
-    INTEGER :: ip
-    REAL ( dbl ) :: f
+    INTEGER                                  :: ip
+    REAL(dbl)                                :: f
+
 !   ---------------------------------------------------------------------------
 
     f = f13 * f43 * flda
@@ -284,12 +284,13 @@ CONTAINS
 
   SUBROUTINE xalpha_lda_3(n, rho, r13, pot)
 
-    INTEGER, INTENT(IN)                  :: n
-    REAL(dbl), DIMENSION(*), INTENT(IN)  :: rho, r13
-    REAL(dbl), DIMENSION(*), INTENT(OUT) :: pot
+    INTEGER, INTENT(IN)                      :: n
+    REAL(dbl), DIMENSION(*), INTENT(IN)      :: rho, r13
+    REAL(dbl), DIMENSION(*), INTENT(OUT)     :: pot
 
-    INTEGER :: ip
-    REAL ( dbl ) :: f
+    INTEGER                                  :: ip
+    REAL(dbl)                                :: f
+
 !   ---------------------------------------------------------------------------
 
     f = -f23 * f13 * f43 * flda
@@ -307,15 +308,16 @@ CONTAINS
 
   SUBROUTINE xalpha_lsd_0 ( n, rhoa, rhob, r13a, r13b, pot )
 
-    INTEGER, INTENT(IN)                  :: n ! number of points in array 
-    REAL(dbl), DIMENSION(*), INTENT(IN)  :: rhoa, rhob, r13a, r13b
-    REAL(dbl), DIMENSION(*), INTENT(OUT) :: pot
+    INTEGER, INTENT(IN)                      :: n
+    REAL(dbl), DIMENSION(*), INTENT(IN)      :: rhoa, rhob, r13a, r13b
+    REAL(dbl), DIMENSION(*), INTENT(OUT)     :: pot
 
-    INTEGER :: ip, npoints
-    REAL(dbl) :: f
+    INTEGER                                  :: ip, npoints
+
+! number of points in array 
 !   ---------------------------------------------------------------------------
-
 !$omp parallel do private(ip)
+
     DO ip = 1, npoints
 
       IF ( rhoa(ip) > eps_rho ) THEN
@@ -333,12 +335,14 @@ CONTAINS
 
   SUBROUTINE xalpha_lsd_1 ( n, rhoa, rhob, r13a, r13b, pota, potb )
 
-    INTEGER, INTENT(IN)                  :: n ! number of points in array 
-    REAL(dbl), DIMENSION(*), INTENT(IN)  :: rhoa, rhob, r13a, r13b
-    REAL(dbl), DIMENSION(*), INTENT(OUT) :: pota, potb
+    INTEGER, INTENT(IN)                      :: n
+    REAL(dbl), DIMENSION(*), INTENT(IN)      :: rhoa, rhob, r13a, r13b
+    REAL(dbl), DIMENSION(*), INTENT(OUT)     :: pota, potb
 
-    INTEGER :: ip
-    REAL(dbl) :: f
+    INTEGER                                  :: ip
+    REAL(dbl)                                :: f
+
+! number of points in array 
 !   ---------------------------------------------------------------------------
 
     f = f43 * flsd
@@ -361,12 +365,14 @@ CONTAINS
 
   SUBROUTINE xalpha_lsd_2 ( n, rhoa, rhob, r13a, r13b, potaa, potbb )
 
-    INTEGER, INTENT(IN)                  :: n ! number of points in array 
-    REAL(dbl), DIMENSION(*), INTENT(IN)  :: rhoa, rhob, r13a, r13b
-    REAL(dbl), DIMENSION(*), INTENT(OUT) :: potaa, potbb
+    INTEGER, INTENT(IN)                      :: n
+    REAL(dbl), DIMENSION(*), INTENT(IN)      :: rhoa, rhob, r13a, r13b
+    REAL(dbl), DIMENSION(*), INTENT(OUT)     :: potaa, potbb
 
-    INTEGER :: ip
-    REAL(dbl) :: f
+    INTEGER                                  :: ip
+    REAL(dbl)                                :: f
+
+! number of points in array 
 !   ---------------------------------------------------------------------------
 
     f = f13 * f43 * flsd
@@ -389,12 +395,14 @@ CONTAINS
 
   SUBROUTINE xalpha_lsd_3 ( n, rhoa, rhob, r13a, r13b, potaaa, potbbb )
 
-    INTEGER, INTENT(IN)                  :: n ! number of points in array 
-    REAL(dbl), DIMENSION(*), INTENT(IN)  :: rhoa, rhob, r13a, r13b
-    REAL(dbl), DIMENSION(*), INTENT(OUT) :: potaaa, potbbb
+    INTEGER, INTENT(IN)                      :: n
+    REAL(dbl), DIMENSION(*), INTENT(IN)      :: rhoa, rhob, r13a, r13b
+    REAL(dbl), DIMENSION(*), INTENT(OUT)     :: potaaa, potbbb
 
-    INTEGER :: ip
-    REAL(dbl) :: f
+    INTEGER                                  :: ip
+    REAL(dbl)                                :: f
+
+! number of points in array 
 !   ---------------------------------------------------------------------------
 
     f = -f23 * f13 * f43 * flsd

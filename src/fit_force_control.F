@@ -15,17 +15,19 @@
 
 MODULE fit_force_control
 
-  USE coefficient_types, ONLY : coeff_type, PLANEWAVES, ATOMICORBITALS
-  USE ewald_parameters_types, ONLY : ewald_parameters_type
-  USE fist_force, ONLY : fist_force_control => force_env_types
-  USE pol_force_ao, ONLY : pol_force_control_ao => force_env_types
-  USE pol_force_pw, ONLY : pol_force_control_pw => force_env_types
-  USE global_types, ONLY : global_environment_type
-  USE kinds, ONLY : dbl
-  USE md, ONLY : simulation_parameters_type, thermodynamic_type
-  USE structure_types, ONLY : structure_type, interaction_type
-  USE fit_parameters_types, ONLY : fit_parameter_type
-  USE termination, ONLY : stop_program
+  USE coefficient_types,               ONLY: ATOMICORBITALS,&
+                                             PLANEWAVES
+  USE ewald_parameters_types,          ONLY: ewald_parameters_type
+  USE fist_force,                      ONLY: fist_force_control => force_env_types
+  USE fit_parameters_types,            ONLY: fit_parameter_type
+  USE global_types,                    ONLY: global_environment_type
+  USE md,                              ONLY: simulation_parameters_type,&
+                                             thermodynamic_type
+  USE pol_force_ao,                    ONLY: pol_force_control_ao => force_env_types
+  USE pol_force_pw,                    ONLY: pol_force_control_pw => force_env_types
+  USE structure_types,                 ONLY: interaction_type,&
+                                             structure_type
+  USE termination,                     ONLY: stop_program
 
   IMPLICIT NONE
 
@@ -48,20 +50,21 @@ CONTAINS
 SUBROUTINE fit_force ( struc, inter, thermo, simpar, ewald_param, &
                      box_change, fit_param, globenv)
   
-  IMPLICIT NONE
 
-! Arguments
-  TYPE ( structure_type ), INTENT ( INOUT ) :: struc
-  TYPE ( thermodynamic_type ), INTENT ( INOUT ) :: thermo
-  TYPE ( interaction_type ), INTENT ( INOUT ) :: inter
-  TYPE ( simulation_parameters_type ), INTENT ( IN ) :: simpar
-  TYPE ( ewald_parameters_type ), INTENT ( INOUT ) :: ewald_param
-  TYPE (fit_parameter_type), INTENT(INOUT) :: fit_param
-  TYPE ( global_environment_type), INTENT ( IN ) :: globenv
-  LOGICAL, INTENT (in) :: box_change
+    TYPE(structure_type), INTENT(INOUT)      :: struc
+    TYPE(interaction_type), INTENT(INOUT)    :: inter
+    TYPE(thermodynamic_type), INTENT(INOUT)  :: thermo
+    TYPE(simulation_parameters_type), &
+      INTENT(IN)                             :: simpar
+    TYPE(ewald_parameters_type), &
+      INTENT(INOUT)                          :: ewald_param
+    LOGICAL, INTENT(in)                      :: box_change
+    TYPE(fit_parameter_type), INTENT(INOUT)  :: fit_param
+    TYPE(global_environment_type), &
+      INTENT(IN)                             :: globenv
 
 !------------------------------------------------------------------------------
-!locals
+
   thermo % ptens_aval = .FALSE.
 
   SELECT CASE ( fit_param % fit_type )

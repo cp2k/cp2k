@@ -31,18 +31,15 @@ MODULE cp_block_matrix
                                              cp_assert,&
                                              cp_assertion_failed,&
                                              cp_debug,&
-                                             cp_error_dealloc_ref,&
                                              cp_error_get_logger,&
-                                             cp_error_init,&
                                              cp_error_message,&
                                              cp_error_type,&
-                                             cp_internal_error,&
                                              cp_precondition_failed,&
                                              cp_unimplemented_error
+  USE cp_fm_types,                     ONLY: cp_fm_get_info,&
+                                             cp_fm_type
   USE cp_log_handling,                 ONLY: cp_failure_level,&
                                              cp_fatal_level,&
-                                             cp_log,&
-                                             cp_logger_get_default_unit_nr,&
                                              cp_logger_type,&
                                              cp_note_level,&
                                              cp_to_string,&
@@ -53,17 +50,14 @@ MODULE cp_block_matrix
                                              cp_sm_b_i_init,&
                                              cp_sm_b_i_next,&
                                              cp_sm_set_to
-  USE cp_para_types,                   ONLY: cp_para_env_type
-  USE global_types,                    ONLY: global_environment_type
+  USE cp_sm_fm_interactions,           ONLY: cp_sm_fm_multiply
   USE kinds,                           ONLY: dp
   USE message_passing,                 ONLY: mp_sync
-  USE cp_fm_types,                     ONLY: cp_fm_get_info,&
-                                             cp_fm_type 
-  USE cp_sm_fm_interactions,           ONLY: cp_sm_fm_multiply
   USE sparse_matrix_types
   USE string_utilities,                ONLY: uppercase
   USE timings,                         ONLY: timeset,&
                                              timestop
+
   IMPLICIT NONE
   PRIVATE
 
@@ -293,20 +287,26 @@ CONTAINS
 !!*** **********************************************************************
   SUBROUTINE cp_sp_create(matrix, matrix_struct, u_matrix, &
        should_dealloc_matrix, b_rep_is_primary, allocate_nonsparse_blocks, error)
-    TYPE(cp_block_matrix_type), POINTER :: matrix
-    TYPE(cp_b_matrix_struct_type), INTENT(in), TARGET :: matrix_struct
-    TYPE(real_matrix_type), OPTIONAL, INTENT(in), TARGET :: u_matrix
-    LOGICAL, INTENT(in), OPTIONAL :: should_dealloc_matrix, b_rep_is_primary,&
-        allocate_nonsparse_blocks
-    TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
+    TYPE(cp_block_matrix_type), POINTER      :: matrix
+    TYPE(cp_b_matrix_struct_type), &
+      INTENT(in), TARGET                     :: matrix_struct
+    TYPE(real_matrix_type), INTENT(in), &
+      OPTIONAL, TARGET                       :: u_matrix
+    LOGICAL, INTENT(in), OPTIONAL            :: should_dealloc_matrix, &
+                                                b_rep_is_primary, &
+                                                allocate_nonsparse_blocks
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
 
-    LOGICAL :: failure
-    CHARACTER(len=*), PARAMETER :: routineN='cp_sp_create',&
-         routineP=moduleN//':'//routineN
-    CHARACTER(len=10) :: m_symm
-    TYPE(cp_b_dims_type), POINTER :: b_dims
-    INTEGER, SAVE :: last_id_nr=0
-    INTEGER :: stat, block_cols, block_rows
+    CHARACTER(len=*), PARAMETER :: routineN = 'cp_sp_create', &
+      routineP = moduleN//':'//routineN
+
+    CHARACTER(len=10)                        :: m_symm
+    INTEGER                                  :: block_cols, block_rows, stat
+    INTEGER, SAVE                            :: last_id_nr = 0
+    LOGICAL                                  :: failure
+    TYPE(cp_b_dims_type), POINTER            :: b_dims
+
     failure=.FALSE.
 
     ALLOCATE(matrix,stat=stat)
@@ -389,13 +389,16 @@ CONTAINS
 !!
 !!*** **********************************************************************
   SUBROUTINE cp_sp_dealloc(matrix, error)
-    TYPE(cp_block_matrix_type), POINTER :: matrix
-    TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
+    TYPE(cp_block_matrix_type), POINTER      :: matrix
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
 
-    LOGICAL :: failure
-    CHARACTER(len=*), PARAMETER :: routineN='cp_sp_dealloc',&
-         routineP=moduleN//':'//routineN
-    INTEGER :: stat
+    CHARACTER(len=*), PARAMETER :: routineN = 'cp_sp_dealloc', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: stat
+    LOGICAL                                  :: failure
+
     failure=.FALSE.
 
     IF (ASSOCIATED(matrix)) THEN
@@ -450,13 +453,17 @@ CONTAINS
 !!
 !!*** **********************************************************************
   SUBROUTINE cp_sp_retain(matrix, error)
-    TYPE(cp_block_matrix_type), INTENT(inout), TARGET :: matrix
-    TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
+    TYPE(cp_block_matrix_type), &
+      INTENT(inout), TARGET                  :: matrix
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
 
-    LOGICAL :: failure
-    CHARACTER(len=*), PARAMETER :: routineN='cp_sp_retain',&
-         routineP=moduleN//':'//routineN
-    TYPE(cp_block_matrix_type), POINTER :: m_ptr
+    CHARACTER(len=*), PARAMETER :: routineN = 'cp_sp_retain', &
+      routineP = moduleN//':'//routineN
+
+    LOGICAL                                  :: failure
+    TYPE(cp_block_matrix_type), POINTER      :: m_ptr
+
     failure=.FALSE.
     m_ptr => matrix
 
@@ -499,13 +506,15 @@ CONTAINS
 !!
 !!*** **********************************************************************
   SUBROUTINE cp_sp_release(matrix, error)
-    TYPE(cp_block_matrix_type), POINTER :: matrix
-    TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
+    TYPE(cp_block_matrix_type), POINTER      :: matrix
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
 
-    LOGICAL :: failure
-    CHARACTER(len=*), PARAMETER :: routineN='cp_sp_release',&
-         routineP=moduleN//':'//routineN
-    INTEGER :: stat
+    CHARACTER(len=*), PARAMETER :: routineN = 'cp_sp_release', &
+      routineP = moduleN//':'//routineN
+
+    LOGICAL                                  :: failure
+
     failure=.FALSE.
 
     IF (ASSOCIATED(matrix)) THEN
@@ -550,14 +559,16 @@ CONTAINS
 !!
 !!*** **********************************************************************
   FUNCTION cp_sp_get_matrix(matrix, error) RESULT(res)
-    TYPE(cp_block_matrix_type), POINTER :: matrix
-    TYPE(real_matrix_type), POINTER ::res
-    TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
+    TYPE(cp_block_matrix_type), POINTER      :: matrix
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
+    TYPE(real_matrix_type), POINTER          :: res
 
-    LOGICAL :: failure
-    CHARACTER(len=*), PARAMETER :: routineN='cp_sp_get_matrix',&
-         routineP=moduleN//':'//routineN
-    TYPE(cp_block_matrix_type), POINTER :: m_ptr
+    CHARACTER(len=*), PARAMETER :: routineN = 'cp_sp_get_matrix', &
+      routineP = moduleN//':'//routineN
+
+    LOGICAL                                  :: failure
+
     failure=.FALSE.
     
     CPPrecondition(ASSOCIATED(matrix),cp_failure_level,routineP,error,failure)
@@ -602,12 +613,15 @@ CONTAINS
 !!
 !!*** **********************************************************************
   SUBROUTINE cp_sp_set_b_rep(matrix,error)
-    TYPE(cp_block_matrix_type), POINTER :: matrix
-    TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
+    TYPE(cp_block_matrix_type), POINTER      :: matrix
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
 
-    LOGICAL :: failure
-    CHARACTER(len=*), PARAMETER :: routineN='cp_sp_set_b_rep',&
-         routineP=moduleN//':'//routineN
+    CHARACTER(len=*), PARAMETER :: routineN = 'cp_sp_set_b_rep', &
+      routineP = moduleN//':'//routineN
+
+    LOGICAL                                  :: failure
+
     failure=.FALSE.
 
     CPPrecondition(ASSOCIATED(matrix),cp_failure_level,routineP,error,failure)
@@ -650,12 +664,15 @@ CONTAINS
 !!
 !!*** **********************************************************************
   SUBROUTINE cp_sp_set_i_rep(matrix,error)
-    TYPE(cp_block_matrix_type), POINTER :: matrix
-    TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
+    TYPE(cp_block_matrix_type), POINTER      :: matrix
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
 
-    LOGICAL :: failure
-    CHARACTER(len=*), PARAMETER :: routineN='cp_sp_set_b_rep',&
-         routineP=moduleN//':'//routineN
+    CHARACTER(len=*), PARAMETER :: routineN = 'cp_sp_set_b_rep', &
+      routineP = moduleN//':'//routineN
+
+    LOGICAL                                  :: failure
+
     failure=.FALSE.
 
     CPPrecondition(ASSOCIATED(matrix),cp_failure_level,routineP,error,failure)
@@ -699,16 +716,19 @@ CONTAINS
 !!
 !!*** **********************************************************************
   SUBROUTINE cp_sp_flush_cache(matrix,flush_secondary_rep,error)
-    TYPE(cp_block_matrix_type), INTENT(in) :: matrix
-    LOGICAL, OPTIONAL, INTENT(in) :: flush_secondary_rep
-    TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
+    TYPE(cp_block_matrix_type), INTENT(in)   :: matrix
+    LOGICAL, INTENT(in), OPTIONAL            :: flush_secondary_rep
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
 
-    LOGICAL :: failure
-    INTEGER :: brow,bcol, mepos
-    CHARACTER(len=*), PARAMETER :: routineN='cp_sp_flush_cache',&
-         routineP=moduleN//':'//routineN
-    TYPE(cp_matrix_block_iterator) :: b_iterator
-    TYPE(cp_b_distribution_type), POINTER :: distribution
+    CHARACTER(len=*), PARAMETER :: routineN = 'cp_sp_flush_cache', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: bcol, brow, mepos
+    LOGICAL                                  :: failure
+    TYPE(cp_b_distribution_type), POINTER    :: distribution
+    TYPE(cp_matrix_block_iterator)           :: b_iterator
+
     NULLIFY(distribution)
     failure=.FALSE.
 
@@ -761,12 +781,16 @@ CONTAINS
 !!
 !!*** **********************************************************************
 SUBROUTINE cp_sp_block_handle_init(block_handle,error)
-  TYPE(cp_sp_block_handle_type), INTENT(out) :: block_handle
-  TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
-  
-  LOGICAL :: failure
-  CHARACTER(len=*), PARAMETER :: routineN='cp_sp_block_handle_init',&
-        routineP=moduleN//':'//routineN
+    TYPE(cp_sp_block_handle_type), &
+      INTENT(out)                            :: block_handle
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'cp_sp_block_handle_init', &
+      routineP = moduleN//':'//routineN
+
+    LOGICAL                                  :: failure
+
   failure=.FALSE.
   
   block_handle%block_col=-1
@@ -837,22 +861,28 @@ END SUBROUTINE cp_sp_block_handle_init
   SUBROUTINE cp_sp_get_local_block(matrix,block_row,block_col,&
        block_handle,trans,trans_to_do,block_val,&
        local_owner,owner,alloc_block,error)
-    TYPE(cp_block_matrix_type), INTENT(inout), TARGET :: matrix
-    INTEGER, INTENT(in) :: block_row,block_col
-    TYPE(cp_sp_block_handle_type), INTENT(inout) :: block_handle
-    CHARACTER(len=1), INTENT(in),OPTIONAL :: trans
-    CHARACTER(len=1), INTENT(out),OPTIONAL :: trans_to_do
-    REAL(KIND = dp), DIMENSION(:,:), OPTIONAL, POINTER :: block_val
-    LOGICAL, INTENT(out), OPTIONAL :: local_owner
-    INTEGER, INTENT(out), OPTIONAL :: owner
-    LOGICAL, INTENT(in), OPTIONAL :: alloc_block
-    TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
+    TYPE(cp_block_matrix_type), &
+      INTENT(inout), TARGET                  :: matrix
+    INTEGER, INTENT(in)                      :: block_row, block_col
+    TYPE(cp_sp_block_handle_type), &
+      INTENT(inout)                          :: block_handle
+    CHARACTER(len=1), INTENT(in), OPTIONAL   :: trans
+    CHARACTER(len=1), INTENT(out), OPTIONAL  :: trans_to_do
+    REAL(KIND=dp), DIMENSION(:, :), &
+      OPTIONAL, POINTER                      :: block_val
+    LOGICAL, INTENT(out), OPTIONAL           :: local_owner
+    INTEGER, INTENT(out), OPTIONAL           :: owner
+    LOGICAL, INTENT(in), OPTIONAL            :: alloc_block
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
 
-    LOGICAL :: failure
-    CHARACTER(len=*), PARAMETER :: routineN='cp_sp_get_local_block',&
-         routineP=moduleN//':'//routineN
-    INTEGER :: i, stat
-    REAL(KIND = dp), DIMENSION(:,:), POINTER :: tmp_block
+    CHARACTER(len=*), PARAMETER :: routineN = 'cp_sp_get_local_block', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: i, stat
+    LOGICAL                                  :: failure
+    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: tmp_block
+
     failure=.FALSE.
 
     CPPrecondition(matrix%initialized,cp_failure_level,routineP,error,failure)
@@ -970,15 +1000,19 @@ END SUBROUTINE cp_sp_block_handle_init
 !!
 !!*** **********************************************************************
   SUBROUTINE cp_sp_block_handle_release(block_handle,changed_values,error)
-    TYPE(cp_sp_block_handle_type), INTENT(inout) :: block_handle
-    LOGICAL, INTENT(in) :: changed_values
-    TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
+    TYPE(cp_sp_block_handle_type), &
+      INTENT(inout)                          :: block_handle
+    LOGICAL, INTENT(in)                      :: changed_values
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
 
-    LOGICAL :: failure
-    INTEGER :: stat
-    CHARACTER(len=*), PARAMETER :: routineN='cp_sp_block_handle_release',&
-         routineP=moduleN//':'//routineN
-    CHARACTER :: tt
+    CHARACTER(len=*), PARAMETER :: routineN = 'cp_sp_block_handle_release', &
+      routineP = moduleN//':'//routineN
+
+    CHARACTER                                :: tt
+    INTEGER                                  :: stat
+    LOGICAL                                  :: failure
+
     failure=.FALSE.
 
     CPPrecondition(block_handle%initialized,cp_failure_level,routineP,error,failure)
@@ -1056,19 +1090,24 @@ END SUBROUTINE cp_sp_block_handle_init
 !!*** **********************************************************************
   SUBROUTINE cp_sp_set_local_block(matrix,block_row,block_col,block_val,&
        trans,local_scratch,error)
-    TYPE(cp_block_matrix_type), INTENT(inout), TARGET :: matrix
-    INTEGER, INTENT(in) :: block_row, block_col
-    REAL(KIND = dp), INTENT(in), DIMENSION(:,:), TARGET :: block_val
-    CHARACTER, INTENT(in), OPTIONAL :: trans
-    LOGICAL, INTENT(in), OPTIONAL :: local_scratch
-    TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
+    TYPE(cp_block_matrix_type), &
+      INTENT(inout), TARGET                  :: matrix
+    INTEGER, INTENT(in)                      :: block_row, block_col
+    REAL(KIND=dp), DIMENSION(:, :), &
+      INTENT(in), TARGET                     :: block_val
+    CHARACTER, INTENT(in), OPTIONAL          :: trans
+    LOGICAL, INTENT(in), OPTIONAL            :: local_scratch
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
 
-    LOGICAL :: failure
-    CHARACTER(len=*), PARAMETER :: routineN='cp_sp_set_local_block',&
-         routineP=moduleN//':'//routineN
-    CHARACTER :: t_to_do
-    INTEGER :: b_row,b_col, i, stat
-    REAL(KIND = dp), DIMENSION(:,:), POINTER :: tmp_block
+    CHARACTER(len=*), PARAMETER :: routineN = 'cp_sp_set_local_block', &
+      routineP = moduleN//':'//routineN
+
+    CHARACTER                                :: t_to_do
+    INTEGER                                  :: b_col, b_row, i, stat
+    LOGICAL                                  :: failure
+    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: tmp_block
+
     failure=.FALSE.
 
     CPPrecondition(matrix%initialized,cp_failure_level,routineP,error,failure)
@@ -1145,13 +1184,17 @@ END SUBROUTINE cp_sp_block_handle_init
 !!
 !!*** **********************************************************************
   SUBROUTINE cp_sp_remove_block(matrix,block_row, block_col,error)
-    TYPE(cp_block_matrix_type), INTENT(inout), TARGET :: matrix
-    INTEGER, INTENT(in):: block_col, block_row
-    TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
+    TYPE(cp_block_matrix_type), &
+      INTENT(inout), TARGET                  :: matrix
+    INTEGER, INTENT(in)                      :: block_row, block_col
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
 
-    LOGICAL :: failure
-    CHARACTER(len=*), PARAMETER :: routineN='cp_sp_remove_block',&
-         routineP=moduleN//':'//routineN
+    CHARACTER(len=*), PARAMETER :: routineN = 'cp_sp_remove_block', &
+      routineP = moduleN//':'//routineN
+
+    LOGICAL                                  :: failure
+
     failure=.FALSE.
 
     CPPrecondition(matrix%initialized,cp_failure_level,routineP,error,failure)
@@ -1209,17 +1252,22 @@ END SUBROUTINE cp_sp_block_handle_init
 !!*** **********************************************************************
   SUBROUTINE cp_sp_array_create(matrixes, n_matrixes, matrix_struct, &
       b_rep_is_primary, allocate_nonsparse_blocks, error)
-    TYPE(cp_block_matrix_p_type), DIMENSION(:), POINTER :: matrixes
-    TYPE(cp_b_matrix_struct_type), INTENT(in), TARGET :: matrix_struct
-    INTEGER, INTENT(in) :: n_matrixes
-    LOGICAL, INTENT(in), OPTIONAL :: b_rep_is_primary,&
-        allocate_nonsparse_blocks
-    TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
+    TYPE(cp_block_matrix_p_type), &
+      DIMENSION(:), POINTER                  :: matrixes
+    INTEGER, INTENT(in)                      :: n_matrixes
+    TYPE(cp_b_matrix_struct_type), &
+      INTENT(in), TARGET                     :: matrix_struct
+    LOGICAL, INTENT(in), OPTIONAL            :: b_rep_is_primary, &
+                                                allocate_nonsparse_blocks
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
 
-    LOGICAL :: failure
-    CHARACTER(len=*), PARAMETER :: routineN='cp_sp_array_create',&
-         routineP=moduleN//':'//routineN
-    INTEGER :: stat,i
+    CHARACTER(len=*), PARAMETER :: routineN = 'cp_sp_array_create', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: i, stat
+    LOGICAL                                  :: failure
+
     failure=.FALSE.
     
     ALLOCATE(matrixes(n_matrixes),stat=stat)
@@ -1260,13 +1308,17 @@ END SUBROUTINE cp_sp_block_handle_init
 !!
 !!*** **********************************************************************
   SUBROUTINE cp_sp_array_dealloc(m_array, error)
-    TYPE(cp_block_matrix_p_type), DIMENSION(:), POINTER :: m_array
-    TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
+    TYPE(cp_block_matrix_p_type), &
+      DIMENSION(:), POINTER                  :: m_array
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
 
-    LOGICAL :: failure
-    CHARACTER(len=*), PARAMETER :: routineN='cp_sp_array_dealloc',&
-         routineP=moduleN//':'//routineN
-    INTEGER :: i, stat
+    CHARACTER(len=*), PARAMETER :: routineN = 'cp_sp_array_dealloc', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: i, stat
+    LOGICAL                                  :: failure
+
     failure=.FALSE.
 
     IF (ASSOCIATED(m_array)) THEN
@@ -1310,13 +1362,17 @@ END SUBROUTINE cp_sp_block_handle_init
 !!
 !!*** **********************************************************************
 SUBROUTINE cp_sp_array_release(array,error)
-  TYPE(cp_block_matrix_p_type), DIMENSION(:), INTENT(inout) :: array
-  TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
-  
-  LOGICAL :: failure
-  CHARACTER(len=*), PARAMETER :: routineN='cp_sp_array_release',&
-        routineP=moduleN//':'//routineN
-  INTEGER :: i
+    TYPE(cp_block_matrix_p_type), &
+      DIMENSION(:), INTENT(inout)            :: array
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'cp_sp_array_release', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: i
+    LOGICAL                                  :: failure
+
   failure=.FALSE.
   
   DO i=1,SIZE(array)
@@ -1357,12 +1413,16 @@ END SUBROUTINE cp_sp_array_release
 !!
 !!*** **********************************************************************
 SUBROUTINE cp_sp_alloc_nonsparse_blocks(matrix,error)
-  TYPE(cp_block_matrix_type), INTENT(inout), TARGET :: matrix
-  TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
-  
-  LOGICAL :: failure
-  CHARACTER(len=*), PARAMETER :: routineN='cp_sp_alloc_nonsparse_blocks',&
-        routineP=moduleN//':'//routineN
+    TYPE(cp_block_matrix_type), &
+      INTENT(inout), TARGET                  :: matrix
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'cp_sp_alloc_nonsparse_blocks', &
+      routineP = moduleN//':'//routineN
+
+    LOGICAL                                  :: failure
+
   failure=.FALSE.
   
   CPPrecondition(matrix%initialized,cp_failure_level,routineP,error,failure)
@@ -1401,12 +1461,16 @@ END SUBROUTINE cp_sp_alloc_nonsparse_blocks
 !!
 !!*** **********************************************************************
 SUBROUTINE cp_sp_update_sparsity(matrix,error)
-  TYPE(cp_block_matrix_type), INTENT(inout), TARGET :: matrix
-  TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
-  
-  LOGICAL :: failure
-  CHARACTER(len=*), PARAMETER :: routineN='cp_sp_update_sparsity',&
-        routineP=moduleN//':'//routineN
+    TYPE(cp_block_matrix_type), &
+      INTENT(inout), TARGET                  :: matrix
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'cp_sp_update_sparsity', &
+      routineP = moduleN//':'//routineN
+
+    LOGICAL                                  :: failure
+
   failure=.FALSE.
   
   IF (.NOT. failure) THEN
@@ -1441,12 +1505,16 @@ END SUBROUTINE cp_sp_update_sparsity
 !!
 !!*** **********************************************************************
 SUBROUTINE cp_sp_check_sparsity(matrix,error)
-  TYPE(cp_block_matrix_type), INTENT(inout), TARGET :: matrix
-  TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
-  
-  LOGICAL :: failure
-  CHARACTER(len=*), PARAMETER :: routineN='cp_sp_check_sparsity',&
-        routineP=moduleN//':'//routineN
+    TYPE(cp_block_matrix_type), &
+      INTENT(inout), TARGET                  :: matrix
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'cp_sp_check_sparsity', &
+      routineP = moduleN//':'//routineN
+
+    LOGICAL                                  :: failure
+
   failure=.FALSE.
   
   IF (.NOT. failure) THEN
@@ -1482,12 +1550,16 @@ END SUBROUTINE cp_sp_check_sparsity
 !!
 !!*** **********************************************************************
 SUBROUTINE cp_sp_enforce_sparsity(matrix,error)
-  TYPE(cp_block_matrix_type), INTENT(inout), TARGET :: matrix
-  TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
-  
-  LOGICAL :: failure
-  CHARACTER(len=*), PARAMETER :: routineN='cp_sp_enforce_sparsity',&
-        routineP=moduleN//':'//routineN
+    TYPE(cp_block_matrix_type), &
+      INTENT(inout), TARGET                  :: matrix
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'cp_sp_enforce_sparsity', &
+      routineP = moduleN//':'//routineN
+
+    LOGICAL                                  :: failure
+
   failure=.FALSE.
   
   IF (.NOT. failure) THEN
@@ -1524,12 +1596,16 @@ END SUBROUTINE cp_sp_enforce_sparsity
 !!
 !!*** **********************************************************************
 SUBROUTINE cp_sp_check_distribution(matrix,error)
-  TYPE(cp_block_matrix_type), INTENT(inout), TARGET :: matrix
-  TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
-  
-  LOGICAL :: failure
-  CHARACTER(len=*), PARAMETER :: routineN='cp_sp_check_distribution',&
-        routineP=moduleN//':'//routineN
+    TYPE(cp_block_matrix_type), &
+      INTENT(inout), TARGET                  :: matrix
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'cp_sp_check_distribution', &
+      routineP = moduleN//':'//routineN
+
+    LOGICAL                                  :: failure
+
   failure=.FALSE.
   
   IF (.NOT. failure) THEN
@@ -1593,19 +1669,26 @@ END SUBROUTINE cp_sp_check_distribution
 SUBROUTINE cp_sp_get(matrix,matrix_struct, distribution,dimensions,&
      sparsity, n_block_rows, n_block_cols, n_rows, n_cols, frozen,&
      b_rep_is_primary, id_nr, error)
-  TYPE(cp_block_matrix_type), POINTER :: matrix
-  TYPE(cp_b_matrix_struct_type), POINTER, OPTIONAL :: matrix_struct
-  TYPE(cp_b_distribution_type), POINTER, OPTIONAL :: distribution
-  TYPE(cp_b_dims_type), POINTER, OPTIONAL :: dimensions
-  LOGICAL, DIMENSION(:,:), POINTER, OPTIONAL :: sparsity
-  INTEGER, INTENT(out), OPTIONAL :: n_block_cols, n_block_rows,&
-       n_rows, n_cols, id_nr
-  LOGICAL, INTENT(out), OPTIONAL :: frozen, b_rep_is_primary
-  TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
-  
-  LOGICAL :: failure
-  CHARACTER(len=*), PARAMETER :: routineN='cp_sp_get',&
-        routineP=moduleN//':'//routineN
+    TYPE(cp_block_matrix_type), POINTER      :: matrix
+    TYPE(cp_b_matrix_struct_type), &
+      OPTIONAL, POINTER                      :: matrix_struct
+    TYPE(cp_b_distribution_type), OPTIONAL, &
+      POINTER                                :: distribution
+    TYPE(cp_b_dims_type), OPTIONAL, POINTER  :: dimensions
+    LOGICAL, DIMENSION(:, :), OPTIONAL, &
+      POINTER                                :: sparsity
+    INTEGER, INTENT(out), OPTIONAL           :: n_block_rows, n_block_cols, &
+                                                n_rows, n_cols
+    LOGICAL, INTENT(out), OPTIONAL           :: frozen, b_rep_is_primary
+    INTEGER, INTENT(out), OPTIONAL           :: id_nr
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'cp_sp_get', &
+      routineP = moduleN//':'//routineN
+
+    LOGICAL                                  :: failure
+
   failure=.FALSE.
   
   CPPrecondition(ASSOCIATED(matrix),cp_failure_level,routineP,error,failure)
@@ -1661,13 +1744,17 @@ END SUBROUTINE cp_sp_get
 !!
 !!*** **********************************************************************
 SUBROUTINE cp_sp_redistribute(matrix, new_distribution, error)
-  TYPE(cp_block_matrix_type), INTENT(inout), TARGET :: matrix
-  TYPE(cp_b_distribution_type), POINTER :: new_distribution
-  TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
-  
-  LOGICAL :: failure
-  CHARACTER(len=*), PARAMETER :: routineN='cp_sp_redistribute',&
-        routineP=moduleN//':'//routineN
+    TYPE(cp_block_matrix_type), &
+      INTENT(inout), TARGET                  :: matrix
+    TYPE(cp_b_distribution_type), POINTER    :: new_distribution
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'cp_sp_redistribute', &
+      routineP = moduleN//':'//routineN
+
+    LOGICAL                                  :: failure
+
   failure=.FALSE.
   
   IF (.NOT. failure) THEN
@@ -1710,13 +1797,16 @@ END SUBROUTINE cp_sp_redistribute
 !!
 !!*** **********************************************************************
 SUBROUTINE cp_sp_set_to(matrix, value, error)
-  TYPE(cp_block_matrix_type), POINTER :: matrix
-  REAL(KIND = dp), INTENT(in), OPTIONAL :: value
-  TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
-  
-  LOGICAL :: failure
-  CHARACTER(len=*), PARAMETER :: routineN='cp_sp_set_to',&
-        routineP=moduleN//':'//routineN
+    TYPE(cp_block_matrix_type), POINTER      :: matrix
+    REAL(KIND=dp), INTENT(in), OPTIONAL      :: value
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'cp_sp_set_to', &
+      routineP = moduleN//':'//routineN
+
+    LOGICAL                                  :: failure
+
   failure=.FALSE.
   
   CPPrecondition(ASSOCIATED(matrix),cp_failure_level,routineP,error,failure)
@@ -1778,13 +1868,14 @@ END SUBROUTINE cp_sp_set_to
 !!
 !!*** **********************************************************************
   SUBROUTINE cp_sp_multiplies_blacs(matrix_a,matrix_b,matrix_c,alpha,beta,error)
-    TYPE(cp_block_matrix_type), POINTER :: matrix_a
-    TYPE(cp_fm_type), POINTER :: matrix_b, matrix_c
-    REAL(KIND = dp), INTENT(in), OPTIONAL :: alpha, beta
-    TYPE(cp_error_type), INTENT(inout), OPTIONAL :: error
+    TYPE(cp_block_matrix_type), POINTER      :: matrix_a
+    TYPE(cp_fm_type), POINTER                :: matrix_b, matrix_c
+    REAL(KIND=dp), INTENT(in), OPTIONAL      :: alpha, beta
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
 
-    INTEGER :: ncol
-    
+    INTEGER                                  :: ncol
+
     CALL cp_fm_get_info(matrix_b,ncol_global=ncol)
     ! JVDV block owner commented away, this should be useless right now  
     CALL cp_sm_fm_multiply(matrix_a%sm, matrix_b, matrix_c,ncol,&

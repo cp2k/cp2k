@@ -27,12 +27,15 @@
 !
 !------------------------------------------------------------------------------!
 
-      USE kinds, ONLY : dbl
-
-      USE string_utilities, ONLY : xstring
-      USE termination, ONLY : stop_memory, stop_program
-      USE timings, ONLY : timeset, timestop
+  USE kinds,                           ONLY: dbl
+  USE string_utilities,                ONLY: xstring
+  USE termination,                     ONLY: stop_memory,&
+                                             stop_program
+  USE timings,                         ONLY: timeset,&
+                                             timestop
 !
+
+
       IMPLICIT NONE
 !
       PRIVATE
@@ -56,12 +59,12 @@
 !------------------------------------------------------------------------------!
       SUBROUTINE kp_sym_gen
 
-        IMPLICIT NONE
 
-        INTEGER :: iout, isos, nhash, handle
-        REAL (dbl), ALLOCATABLE :: rx(:,:), tvec(:,:), wvkl(:,:), rlist(:,:)
-        INTEGER, ALLOCATABLE :: isc(:), lwght(:), lrot(:,:), includ(:), &
-          list(:), f0(:,:)
+    INTEGER                                  :: handle, iout, isos, nhash
+    INTEGER, ALLOCATABLE                     :: f0(:,:), includ(:), isc(:), &
+                                                list(:), lrot(:,:), lwght(:)
+    REAL(dbl), ALLOCATABLE                   :: rlist(:,:), rx(:,:), &
+                                                tvec(:,:), wvkl(:,:)
 
         CALL timeset ( 'K290','I',' ',handle )
 
@@ -127,15 +130,13 @@
 
       SUBROUTINE set_k290(hmat,nk,shift,stress,symm,del,unit)
 
-        IMPLICIT NONE
 
-        REAL (dbl), INTENT (IN) :: hmat(3,3)
-        INTEGER, INTENT (IN) :: nk(3)
-        REAL (dbl), OPTIONAL, INTENT (IN) :: shift(3)
-        REAL (dbl), OPTIONAL, INTENT (IN) :: stress(3,3)
-        LOGICAL, OPTIONAL, INTENT (IN) :: symm
-        REAL (dbl), OPTIONAL, INTENT (IN) :: del
-        INTEGER, OPTIONAL, INTENT (IN) :: unit
+    REAL(dbl), INTENT(IN)                    :: hmat(3,3)
+    INTEGER, INTENT(IN)                      :: nk(3)
+    REAL(dbl), INTENT(IN), OPTIONAL          :: shift(3), stress(3,3)
+    LOGICAL, INTENT(IN), OPTIONAL            :: symm
+    REAL(dbl), INTENT(IN), OPTIONAL          :: del
+    INTEGER, INTENT(IN), OPTIONAL            :: unit
 
         a1(:) = hmat(:,1)
         a2(:) = hmat(:,2)
@@ -167,13 +168,14 @@
 
       SUBROUTINE set_k290_atoms(coor,types)
 
-        IMPLICIT NONE
 
-        REAL (dbl), INTENT (IN) :: coor(:,:)
-        INTEGER, INTENT (IN) :: types(:)
-        INTEGER :: isos, n
+    REAL(dbl), INTENT(IN)                    :: coor(:,:)
+    INTEGER, INTENT(IN)                      :: types(:)
+
+    INTEGER                                  :: isos, n
 
 !..total number of atoms
+
         nat = size(coor,2)
 !..allocate arrays for coordinates and atom types
         IF (allocated(xkappa)) DEALLOCATE (xkappa)
@@ -265,53 +267,58 @@
 !      "COMPUTER PHYSICS COMMUNICATIONS" PACKAGE "ACMI" - (1971,1974)
 !      WORLTON-WARREN).
 !------------------------------------------------------------------------------!
-        IMPLICIT NONE
-!     Arguments
-        INTEGER :: iout, nat, nkpoint, nsp, nhash, iq1, iq2, iq3, istriz, &
-          ntvec, ty(nat), isc(nat), f0(49,nat), lwght(nkpoint), &
-          lrot(48,nkpoint), includ(nkpoint), list(nkpoint+nhash)
-        REAL (dbl) :: a1(3), a2(3), a3(3), alat, strain(6), xkapa(3,nat), &
-          rx(3,nat), tvec(3,nat), wvk0(3), wvkl(3,nkpoint), rlist(3,nkpoint), &
-          delta
+    INTEGER                                  :: iout, nat, nkpoint, nsp, iq1, &
+                                                iq2, iq3, istriz
+    REAL(dbl)                                :: a1(3), a2(3), a3(3), alat, &
+                                                strain(6), xkapa(3,nat), &
+                                                rx(3,nat), tvec(3,nat)
+    INTEGER                                  :: ty(nat), isc(nat), &
+                                                f0(49,nat), ntvec
+    REAL(dbl)                                :: wvk0(3), wvkl(3,nkpoint)
+    INTEGER                                  :: lwght(nkpoint), &
+                                                lrot(48,nkpoint), nhash, &
+                                                includ(nkpoint), &
+                                                list(nkpoint+nhash)
+    REAL(dbl)                                :: rlist(3,nkpoint), delta
+
+    CHARACTER(len=10) :: rname_cubic(48) = (/ ' 1        ', ' 2[ 1 0 0]', &
+      ' 2[ 0 1 0]', ' 2[ 0 0 1]', ' 3[-1-1-1]', ' 3[ 1 1-1]', ' 3[-1 1 1]', &
+      ' 3[ 1-1 1]', ' 3[ 1 1 1]', ' 3[-1 1-1]', ' 3[-1-1 1]', ' 3[ 1-1-1]', &
+      ' 2[-1 1 0]', ' 4[ 0 0 1]', ' 4[ 0 0-1]', ' 2[ 1 1 0]', ' 2[ 0-1 1]', &
+      ' 2[ 0 1 1]', ' 4[ 1 0 0]', ' 4[-1 0 0]', ' 2[-1 0 1]', ' 4[ 0-1 0]', &
+      ' 2[ 1 0 1]', ' 4[ 0 1 0]', '-1        ', '-2[ 1 0 0]', '-2[ 0 1 0]', &
+      '-2[ 0 0 1]', '-3[-1-1-1]', '-3[ 1 1-1]', '-3[-1 1 1]', '-3[ 1-1 1]', &
+      '-3[ 1 1 1]', '-3[-1 1-1]', '-3[-1-1 1]', '-3[ 1-1-1]', '-2[-1 1 0]', &
+      '-4[ 0 0 1]', '-4[ 0 0-1]', '-2[ 1 1 0]', '-2[ 0-1 1]', '-2[ 0 1 1]', &
+      '-4[ 1 0 0]', '-4[-1 0 0]', '-2[-1 0 1]', '-4[ 0-1 0]', '-2[ 1 0 1]', &
+      '-4[ 0 1 0]'/)
+    CHARACTER(len=11) :: rname_hexa(24) = (/ ' 1         ', ' 6[ 0 0. 1]', &
+      ' 3[ 0 0. 1]', ' 2[ 0 0. 1]', ' 3[ 0 0.-1]', ' 6[ 0 0.-1]', &
+      ' 2[ 0 1. 0]', ' 2[-1 1. 0]', ' 2[ 1 0. 0]', ' 2[ 2 1. 0]', &
+      ' 2[ 1 1. 0]', ' 2[ 1 2. 0]', '-1         ', '-6[ 0 0. 1]', &
+      '-3[ 0 0. 1]', '-2[ 0 0. 1]', '-3[ 0 0.-1]', '-6[ 0 0.-1]', &
+      '-2[ 0 1. 0]', '-2[-1 1. 0]', '-2[ 1 0. 0]', '-2[ 2 1. 0]', &
+      '-2[ 1 1. 0]', '-2[ 1 2. 0]'/)
+    CHARACTER(len=12) :: icst(7) = (/ '   TRICLINIC', '  MONOCLINIC', &
+      'ORTHORHOMBIC', '  TETRAGONAL', '       CUBIC', '    TRIGONAL', &
+      '   HEXAGONAL'/)
+    INTEGER :: f00(49,1) = 0, i, ib(48), ib0(48), ihc, ihc0, ihg, ihg0, &
+      indpg, indpg0, invadd, istrin, iswght, isy, isy0, j, k, l, li, li0, &
+      lmax, n, nc, nc0, ntot, ntvec0
+    REAL(dbl) :: a01(3), a02(3), a03(3), b01(3), b02(3), b03(3), b1(3), &
+      b2(3), b3(3), dtotstr, origin(3), origin0(3), proj1, proj2, proj3, &
+      r(3,3,48), r0(3,3,48), totstr, tvec0(3,1), v(3,48) = 0._dbl, &
+      v0(3,48) = 0._dbl, volum, vv0(3), x0(3,1) = 0._dbl
+
 !------------------------------------------------------------------------------!
 !     Variables
-        INTEGER :: ib0(48), ib(48), i, istrin, itype, ihg, ihc, isy, li, nc, &
-          indpg, j, invadd, k, ihg0, ihc0, isy0, li0, nc0, indpg0, ntvec0, n, &
-          ntot, iswght, l, lmax
-        REAL (dbl) :: r(3,3,48), b1(3), b2(3), b3(3), origin(3), origin0(3), &
-          vv0(3), a01(3), a02(3), a03(3), b01(3), b02(3), b03(3), tvec0(3,1), &
-          r0(3,3,48), totstr, volum, proj1, proj2, proj3, dtotstr
 !------------------------------------------------------------------------------!
 !     Constants
-        INTEGER :: f00(49,1) = 0
-        REAL (dbl) :: v(3,48) = 0._dbl, v0(3,48) = 0._dbl, x0(3,1) = 0._dbl
-        CHARACTER (len=12) :: icst(7) = (/ '   TRICLINIC', '  MONOCLINIC', &
-          'ORTHORHOMBIC', '  TETRAGONAL', '       CUBIC', '    TRIGONAL', &
-          '   HEXAGONAL'/)
 !     Name of 48 rotations (convention Warren-Worlton)
-        CHARACTER (len=10) :: rname_cubic(48) = (/ ' 1        ', ' 2[ 1 0 0]', &
-          ' 2[ 0 1 0]', ' 2[ 0 0 1]', ' 3[-1-1-1]', ' 3[ 1 1-1]', &
-          ' 3[-1 1 1]', ' 3[ 1-1 1]', ' 3[ 1 1 1]', ' 3[-1 1-1]', &
-          ' 3[-1-1 1]', ' 3[ 1-1-1]', ' 2[-1 1 0]', ' 4[ 0 0 1]', &
-          ' 4[ 0 0-1]', ' 2[ 1 1 0]', ' 2[ 0-1 1]', ' 2[ 0 1 1]', &
-          ' 4[ 1 0 0]', ' 4[-1 0 0]', ' 2[-1 0 1]', ' 4[ 0-1 0]', &
-          ' 2[ 1 0 1]', ' 4[ 0 1 0]', '-1        ', '-2[ 1 0 0]', &
-          '-2[ 0 1 0]', '-2[ 0 0 1]', '-3[-1-1-1]', '-3[ 1 1-1]', &
-          '-3[-1 1 1]', '-3[ 1-1 1]', '-3[ 1 1 1]', '-3[-1 1-1]', &
-          '-3[-1-1 1]', '-3[ 1-1-1]', '-2[-1 1 0]', '-4[ 0 0 1]', &
-          '-4[ 0 0-1]', '-2[ 1 1 0]', '-2[ 0-1 1]', '-2[ 0 1 1]', &
-          '-4[ 1 0 0]', '-4[-1 0 0]', '-2[-1 0 1]', '-4[ 0-1 0]', &
-          '-2[ 1 0 1]', '-4[ 0 1 0]'/)
-        CHARACTER (len=11) :: rname_hexa(24) = (/ ' 1         ', &
-          ' 6[ 0 0. 1]', ' 3[ 0 0. 1]', ' 2[ 0 0. 1]', ' 3[ 0 0.-1]', &
-          ' 6[ 0 0.-1]', ' 2[ 0 1. 0]', ' 2[-1 1. 0]', ' 2[ 1 0. 0]', &
-          ' 2[ 2 1. 0]', ' 2[ 1 1. 0]', ' 2[ 1 2. 0]', '-1         ', &
-          '-6[ 0 0. 1]', '-3[ 0 0. 1]', '-2[ 0 0. 1]', '-3[ 0 0.-1]', &
-          '-6[ 0 0.-1]', '-2[ 0 1. 0]', '-2[-1 1. 0]', '-2[ 1 0. 0]', &
-          '-2[ 2 1. 0]', '-2[ 1 1. 0]', '-2[ 1 2. 0]'/)
 !------------------------------------------------------------------------------!
 !     read in lattice structure
 !------------------------------------------------------------------------------!
+
         DO i = 1, 3
           a01(i) = a1(i)/alat
           a02(i) = a2(i)/alat
@@ -661,16 +668,26 @@
 !        NONSYMMORPHIC AND WHETHER THE POINT GROUP OF THE CRYSTAL
 !        CONTAINS INVERSION.
 !------------------------------------------------------------------------------!
-        IMPLICIT NONE
-!     Arguments
-        INTEGER :: iout, nat, ihg, ihc, isy, li, nc, indpg, ntvec, ty(nat), &
-          ib(48), f0(49,nat), isc(nat)
-        REAL (dbl) :: a1(3), a2(3), a3(3), x(3,nat), rx(3,nat), tvec(3,nat), &
-          b1(3), b2(3), b3(3), origin(3), delta, v(3,48), r(3,3,48)
+    INTEGER                                  :: iout
+    REAL(dbl)                                :: a1(3), a2(3), a3(3)
+    INTEGER                                  :: nat, ty(nat)
+    REAL(dbl)                                :: x(3,nat), b1(3), b2(3), b3(3)
+    INTEGER                                  :: ihg, ihc, isy, li, nc, indpg, &
+                                                ib(48), ntvec
+    REAL(dbl)                                :: v(3,48)
+    INTEGER                                  :: f0(49,nat)
+    REAL(dbl)                                :: r(3,3,48), tvec(3,nat), &
+                                                origin(3), rx(3,nat)
+    INTEGER                                  :: isc(nat)
+    REAL(dbl)                                :: delta
+
+    INTEGER                                  :: i, ncprim
+    REAL(dbl)                                :: a(3,3), ai(3,3), ap(3,3), &
+                                                api(3,3)
+
 !     Variables
-        REAL (dbl) :: a(3,3), ai(3,3), ap(3,3), api(3,3)
-        INTEGER :: i, ncprim
 !------------------------------------------------------------------------------!
+
         DO i = 1, 3
           a(i,1) = a1(i)
           a(i,2) = a2(i)
@@ -735,13 +752,14 @@
 !        OUTPUT:
 !          AI(3,3) RECIPROCAL VECTOR BASIS
 !------------------------------------------------------------------------------!
-        IMPLICIT NONE
-!     Arguments
-        REAL (dbl) :: a(3,3), ai(3,3)
+    REAL(dbl)                                :: a(3,3), ai(3,3)
+
+    INTEGER                                  :: i, il, iu, j, jl, ju
+    REAL(dbl)                                :: det
+
 !     Variables
-        REAL (dbl) :: det
-        INTEGER :: i, il, iu, j, jl, ju
 !------------------------------------------------------------------------------!
+
         det = a(1,1)*a(2,2)*a(3,3) + a(2,1)*a(1,3)*a(3,2) + &
           a(3,1)*a(1,2)*a(2,3) - a(1,1)*a(2,3)*a(3,2) - a(2,1)*a(1,2)*a(3,3) - &
           a(3,1)*a(1,3)*a(2,2)
@@ -789,19 +807,25 @@
 !                        THE 49-TH LINE
 !          ISC(NAT)      SCRATCH ARRAY
 !------------------------------------------------------------------------------!
-        IMPLICIT NONE
-!     Arguments
-        INTEGER :: nat, ntvec, ty(nat), f0(49,nat), isc(nat)
-        REAL (dbl) :: a(3,3), ai(3,3), ap(3,3), api(3,3), x(3,nat), &
-          tvec(3,nat), delta
+    REAL(dbl)                                :: a(3,3), ai(3,3), ap(3,3), &
+                                                api(3,3)
+    INTEGER                                  :: nat, ty(nat)
+    REAL(dbl)                                :: x(3,nat)
+    INTEGER                                  :: ntvec
+    REAL(dbl)                                :: tvec(3,nat)
+    INTEGER                                  :: f0(49,nat), isc(nat)
+    REAL(dbl)                                :: delta
+
+    INTEGER                                  :: i, il, iv, j, k2
+    LOGICAL                                  :: oksym
+    REAL(dbl)                                :: vr(3), xb(3)
+
 !     Variables
-        INTEGER :: i, j, k2, il, iv
-        REAL (dbl) :: xb(3), vr(3)
-        LOGICAL :: oksym
 !------------------------------------------------------------------------------!
 !     First we check if there exist fractional translational vectors
 !     associated with Identity operation i.e.
 !     if the cell is duplicated or not.
+
         ntvec = 1
         tvec(1,1) = 0._dbl
         tvec(2,1) = 0._dbl
@@ -912,15 +936,17 @@
 !                 ALL 48 OR 24 MATRICES ARE LISTED.
 !                 FOLLOW NOTATION OF WORLTON-WARREN(1972)
 !------------------------------------------------------------------------------!
-        IMPLICIT NONE
-!     Arguments
-        INTEGER :: ihc, nc, ihg, ib(48)
-        REAL (dbl) :: a(3,3), ai(3,3), r(3,3,48), delta
+    REAL(dbl)                                :: a(3,3), ai(3,3)
+    INTEGER                                  :: ihc, nc, ib(48), ihg
+    REAL(dbl)                                :: r(3,3,48), delta
+
+    INTEGER                                  :: i, j, k, lx, n, nr
+    REAL(dbl)                                :: tr, vr(3), xa(3)
+
 !------------------------------------------------------------------------------!
 !     Variables
-        REAL (dbl) :: vr(3), xa(3), tr
-        INTEGER :: nr, n, k, i, j, lx
 !------------------------------------------------------------------------------!
+
         DO ihc = 0, 1
 !       IHC is 0 for hexagonal groups and 1 for cubic groups.
           IF (ihc==0) THEN
@@ -994,14 +1020,16 @@
 !           IL ABS OF VR
 !        K.K., 23.10.1979
 !------------------------------------------------------------------------------!
-        IMPLICIT NONE
-!     Arguments
-        INTEGER :: il
-        REAL (dbl) :: ai(3,3), xb(3), vr(3), delta
+    REAL(dbl)                                :: ai(3,3), xb(3), vr(3)
+    INTEGER                                  :: il
+    REAL(dbl)                                :: delta
+
+    INTEGER                                  :: i, j
+    REAL(dbl)                                :: ts
+
 !     Variables
-        REAL (dbl) :: ts
-        INTEGER :: i, j
 !------------------------------------------------------------------------------!
+
         il = 0
         DO i = 1, 3
           vr(i) = 0._dbl
@@ -1082,20 +1110,29 @@
 !        7   <3>(c3i)  15    4mm(c4v)   23  <6>m2(d3h)  31 <4>3m(td)
 !        8   32 (d3)   16  <4>2m(d2d)   24  6/mmm(d6h)  32   m3m(oh)
 !------------------------------------------------------------------------------!
-        IMPLICIT NONE
-!     Arguments
-        INTEGER :: iout, nat, ihg, nc, indpg, ntvec, isy, ib(48), f0(49,nat), &
-          ty(nat), isc(nat)
-        REAL (dbl) :: r(3,3,48), v(3,48), x(3,nat), rx(3,nat), a(3,3), &
-          ai(3,3), delta
+    INTEGER                                  :: iout
+    REAL(dbl)                                :: r(3,3,48), v(3,48), origin(3)
+    INTEGER                                  :: ib(48), nat, ty(nat), &
+                                                f0(49,nat)
+    REAL(dbl)                                :: x(3,nat)
+    INTEGER                                  :: ihg
+    REAL(dbl)                                :: rx(3,nat)
+    INTEGER                                  :: nc, indpg, ntvec
+    REAL(dbl)                                :: a(3,3), ai(3,3)
+    INTEGER                                  :: li, isy, isc(nat)
+    REAL(dbl)                                :: delta
+
+    CHARACTER(len=12)                        :: icst(7)
+    CHARACTER(len=3)                         :: pgrd(32)
+    CHARACTER(len=5)                         :: pgrp(32)
+    INTEGER                                  :: i, iis(48), il, info, j, k, &
+                                                k2, l, n, nca, ni
+    LOGICAL                                  :: nodupli, oksym
+    REAL(dbl)                                :: vc(3,48), vr(3), vs, xb(3)
+
 !     Variables
-        INTEGER :: iis(48), nca, n, l, k, i, j, k2, il, ni, li, info
-        REAL (dbl) :: vr(3), origin(3), xb(3), vc(3,48), vs
-        LOGICAL :: oksym, nodupli
-        CHARACTER(len=12) :: icst(7)
-        CHARACTER(len=5) :: pgrp(32)
-        CHARACTER(len=3) :: pgrd(32)
 !------------------------------------------------------------------------------!
+
         DATA icst/'TRICLINIC', 'MONOCLINIC', 'ORTHORHOMBIC', 'TETRAGONAL', &
           'CUBIC', 'TRIGONAL', 'HEXAGONAL'/
 !------------------------------------------------------------------------------!
@@ -1558,15 +1595,20 @@
 !                         EACH ATOM IS ONLY ONCE AN IMAGE
 !                         IF NO DUPLICATION OF THE CELL
 !------------------------------------------------------------------------------!
-        IMPLICIT NONE
-!     Arguments
-        INTEGER :: n, nat, ty(nat), f0(49,nat), isc(nat)
-        REAL (dbl) :: rx(3,nat), x(3,nat), vr(3), ai(3,3), delta
-        LOGICAL :: oksym, nodupli
+    INTEGER                                  :: n, nat, ty(nat)
+    REAL(dbl)                                :: rx(3,nat), x(3,nat), vr(3)
+    INTEGER                                  :: f0(49,nat)
+    REAL(dbl)                                :: ai(3,3)
+    INTEGER                                  :: isc(nat)
+    LOGICAL                                  :: nodupli, oksym
+    REAL(dbl)                                :: delta
+
+    INTEGER                                  :: ia, ib, il
+    REAL(dbl)                                :: vt(3), xb(3)
+
 !     Variables
-        REAL (dbl) :: xb(3), vt(3)
-        INTEGER :: ia, ib, il
 !------------------------------------------------------------------------------!
+
         DO ia = 1, nat
           isc(ia) = 0
         END DO
@@ -1622,16 +1664,21 @@
 !          INFO = 0 The group is not symmorphic
 !          INFO =-1 The routine cannot determine
 !------------------------------------------------------------------------------!
-        IMPLICIT NONE
-!     Arguments
-        INTEGER :: nc, ib(nc), info
-        REAL (dbl) :: r(3,3,48), v(3,nc), ai(3,3), origin(3), delta
+    INTEGER                                  :: nc, ib(nc)
+    REAL(dbl)                                :: r(3,3,48), v(3,nc), ai(3,3)
+    INTEGER                                  :: info
+    REAL(dbl)                                :: origin(3), delta
+
+    INTEGER                                  :: i, i1, ierror, igood(3), il, &
+                                                imissing2, imissing3, iok(3), &
+                                                ionly, ir, j, j1
+    REAL(dbl)                                :: diag, dif, r2(2,2), r3(3,3), &
+                                                vr(3), xb(3)
+
 !     Variables
-        INTEGER :: iok(3), igood(3), ir, i, j, i1, j1, il, ierror, imissing3, &
-          imissing2, ionly
-        REAL (dbl) :: dif, r3(3,3), r2(2,2), work(3,3), vr(3), xb(3), diag
 !------------------------------------------------------------------------------!
 !     Find a point A / V_R = (1-R).OA
+
         DO i = 1, 3
           iok(i) = 0
         END DO
@@ -1796,14 +1843,15 @@
 !        FOR IHC=1 THE FIRST 48 MATRICES OF THE ARRAY R REPRESENT
 !                  THE FULL CUBIC GROUP O(H)
 !------------------------------------------------------------------------------!
-        IMPLICIT NONE
-!     Arguments
-        INTEGER :: ihc
-        REAL (dbl) :: r(3,3,48)
+    INTEGER                                  :: ihc
+    REAL(dbl)                                :: r(3,3,48)
+
+    INTEGER                                  :: i, j, k, n, nv
+    REAL(dbl)                                :: c, s
+
 !     Variables
-        INTEGER :: i, j, k, n, nv
-        REAL (dbl) :: c, s
 !------------------------------------------------------------------------------!
+
         DO j = 1, 3
           DO i = 1, 3
             DO n = 1, 48
@@ -2056,22 +2104,32 @@
 !         IBCLR(I,POS) clears the bit POS to 1 in I integer
 !         BTEST(I,POS) .TRUE. if bit POS is 1 in I integer
 !------------------------------------------------------------------------------!
-        IMPLICIT NONE
-!     Arguments
-        INTEGER :: iout, iq1, iq2, iq3, nkpoint, inv, nc, ntot, ncbrav, &
-          istriz, nhash, ib(48), ibrav(48), lwght(nkpoint), lrot(48,nkpoint), &
-          includ(nkpoint), list(nkpoint+nhash)
-        REAL (dbl) :: wvk0(3), a1(3), a2(3), a3(3), b1(3), b2(3), b3(3), &
-          r(3,3,48), wvkl(3,nkpoint), rlist(3,nkpoint), delta
+    INTEGER                                  :: iout, iq1, iq2, iq3
+    REAL(dbl)                                :: wvk0(3)
+    INTEGER                                  :: nkpoint
+    REAL(dbl)                                :: a1(3), a2(3), a3(3), b1(3), &
+                                                b2(3), b3(3)
+    INTEGER                                  :: inv, nc, ib(48)
+    REAL(dbl)                                :: r(3,3,48)
+    INTEGER                                  :: ntot
+    REAL(dbl)                                :: wvkl(3,nkpoint)
+    INTEGER :: lwght(nkpoint), lrot(48,nkpoint), ncbrav, ibrav(48), istriz, &
+      nhash, includ(nkpoint), list(nkpoint+nhash)
+    REAL(dbl)                                :: rlist(3,nkpoint), delta
+
+    INTEGER, PARAMETER                       :: no = 0, nrsdir = 100, yes = 1
+
+    INTEGER                                  :: i, i1, i2, i3, ibsign, &
+                                                igarb0, igarbage, igarbg, &
+                                                imesh, iop, iplace, iremov, &
+                                                iwvk, j, jplace, k, n, nplane
+    REAL(dbl)                                :: diff, proja(3), projb(3), &
+                                                rsdir(4,nrsdir), ur1, ur2, &
+                                                ur3, wva(3), wvk(3)
+
 !------------------------------------------------------------------------------!
 !     Variables
-        INTEGER, PARAMETER :: yes = 1, no = 0
-        INTEGER, PARAMETER :: nrsdir = 100
-        REAL (dbl) :: wvk(3), wva(3), rsdir(4,nrsdir), proja(3), projb(3), &
-          ur1, ur2, ur3, diff
-        INTEGER :: i, j, nplane, igarb0, igarbg, imesh, i1, i2, i3, iop, &
-          iremov, k, jplace, iwvk, igarbage, n, ibsign
-        INTEGER :: iplace
+
         DATA iplace/ -2/
 !------------------------------------------------------------------------------!
         ntot = 0
@@ -2357,23 +2415,27 @@
 !                              (=0 IF WVK IS NOT IN THE LIST)
 !        DELTA      REQUIRED ACCURACY (1.D-6 IS A GOOD VALUE)
 !------------------------------------------------------------------------------!
-        IMPLICIT NONE
-!     Arguments
-        REAL (dbl) :: wvk(3), delta
-        INTEGER :: iout, iplace, igarb0, igarbg, nmesh, nhash, &
-          list(nhash+nmesh)
-        REAL (dbl) :: rlist(3,nmesh)
+    INTEGER                                  :: iout
+    REAL(dbl)                                :: wvk(3)
+    INTEGER                                  :: iplace, igarb0, igarbg, &
+                                                nmesh, nhash, &
+                                                list(nhash+nmesh)
+    REAL(dbl)                                :: rlist(3,nmesh), delta
+
+    INTEGER, PARAMETER                       :: nil = 0
+
+    INTEGER                                  :: i, ihash, ipoint, j
+    INTEGER, SAVE                            :: istore = 0
+    REAL(dbl)                                :: delta1, rhash
+
 !------------------------------------------------------------------------------!
 !     Variables
-        INTEGER, PARAMETER :: nil = 0
-        INTEGER :: ihash, i, j, ipoint
-        REAL (dbl) :: rhash, delta1
 !------------------------------------------------------------------------------!
 !     Save
-        INTEGER, SAVE :: istore=0
 !------------------------------------------------------------------------------!
 !        Initialization
 !------------------------------------------------------------------------------!
+
         delta1 = 10._dbl*delta
         IF (iplace<=-2) THEN
           DO i = 1, nhash + nmesh
@@ -2475,17 +2537,21 @@
 !                       0 IF WVK WAS NOT REMOVED
 !                         (WVK NOT IN THE LINKED LISTS)
 !------------------------------------------------------------------------------!
-        IMPLICIT NONE
-!     Arguments
-        REAL (dbl) :: wvk(3), delta
-        INTEGER :: iplace, igarb0, igarbg, nmesh, nhash, list(nhash+nmesh)
-        REAL (dbl) :: rlist(3,nmesh)
+    REAL(dbl)                                :: wvk(3)
+    INTEGER                                  :: iplace, igarb0, igarbg, &
+                                                nmesh, nhash, &
+                                                list(nhash+nmesh)
+    REAL(dbl)                                :: rlist(3,nmesh), delta
+
+    INTEGER, PARAMETER                       :: nil = 0
+
+    INTEGER                                  :: i, ihash, ipoint, j
+    REAL(dbl)                                :: delta1, rhash
+
 !------------------------------------------------------------------------------!
 !     Variables
-        INTEGER, PARAMETER :: nil = 0
-        INTEGER :: ihash, ipoint, i, j
-        REAL (dbl) :: rhash, delta1
 !------------------------------------------------------------------------------!
+
         delta1 = 10._dbl*delta
 !     The particular hash function used in this case:
         rhash = 0.7890D0*wvk(1) + 0.6810D0*wvk(2) + 0.5811D0*wvk(3) + delta
@@ -2540,16 +2606,20 @@
 !          IPLACE  ..... I > 0 IS THE PLACE IN THE GARBAGE LIST
 !                            0 IF WVK NOT AMONG THE GARBAGE
 !------------------------------------------------------------------------------!
-        IMPLICIT NONE
-!     Arguments
-        INTEGER :: iplace, igarb0, nmesh, nhash, list(nhash+nmesh)
-        REAL (dbl) :: wvk(3), delta, rlist(3,nmesh)
+    REAL(dbl)                                :: wvk(3)
+    INTEGER                                  :: iplace, igarb0, nmesh, nhash, &
+                                                list(nhash+nmesh)
+    REAL(dbl)                                :: rlist(3,nmesh), delta
+
+    INTEGER, PARAMETER                       :: nil = 0
+
+    INTEGER                                  :: i, ihash, ipoint, j
+    REAL(dbl)                                :: delta1
+
 !------------------------------------------------------------------------------!
 !     Variables
-        INTEGER, PARAMETER :: nil = 0
-        INTEGER :: ipoint, i, j, ihash
-        REAL (dbl) :: delta1
 !------------------------------------------------------------------------------!
+
         delta1 = 10._dbl*delta
 !     Search for WVK in linked list
 !     Point to the garbage list
@@ -2583,21 +2653,28 @@
 !        BY ADDING B-VECTORS
 !        DELTA      REQUIRED ACCURACY (1.D-6 IS A GOOD VALUE)
 !------------------------------------------------------------------------------!
-        IMPLICIT NONE
-!     Arguments
-        INTEGER :: nrsdir, nplane
-        REAL (dbl) :: wvk(3), a1(3), a2(3), a3(3), b1(3), b2(3), b3(3), &
-          rsdir(4,nrsdir), delta
+    REAL(dbl)                                :: wvk(3), a1(3), a2(3), a3(3), &
+                                                b1(3), b2(3), b3(3)
+    INTEGER                                  :: nrsdir
+    REAL(dbl)                                :: rsdir(4,nrsdir)
+    INTEGER                                  :: nplane
+    REAL(dbl)                                :: delta
+
+    INTEGER, PARAMETER                       :: nzones = 4, &
+                                                nnn = 2*nzones + 1, &
+                                                nn = nzones + 1, yes = 1
+
+    INTEGER                                  :: i, i1, i2, i3, n1, n2, n3, &
+                                                nn1, nn2, nn3
+    REAL(dbl)                                :: wb(3), wva(3)
+
 !------------------------------------------------------------------------------!
 !     Variables
 !     Look around +/- "NZONES" to locate vector
 !     NZONES may need to be increased for very anisotropic zones
-        INTEGER, PARAMETER :: nzones = 4, nnn = 2*nzones + 1, nn = nzones + 1
-        INTEGER, PARAMETER :: yes = 1
-        REAL (dbl) :: wva(3), wb(3)
-        INTEGER :: nn1, nn2, nn3, n1, i1, n2, i2, n3, i3, i
 !------------------------------------------------------------------------------!
 !     WVK already inside 1Bz
+
         IF (inbz(wvk,rsdir,nrsdir,nplane,delta)==yes) RETURN
 !     Express WVK in the basis of B1,2,3.
 !     This permits an estimate of how far WVK is from the 1Bz.
@@ -2642,16 +2719,21 @@
 !        THAT DEFINE THE 1BZ.
 !        DELTA      REQUIRED ACCURACY (1.D-6 IS A GOOD VALUE)
 !------------------------------------------------------------------------------!
-        IMPLICIT NONE
-!     Arguments
-        INTEGER :: nrsdir, nplane
-        REAL (dbl) :: wvk(3), rsdir(4,nrsdir), delta
-        INTEGER :: inbz
+    REAL(dbl)                                :: wvk(3)
+    INTEGER                                  :: nrsdir
+    REAL(dbl)                                :: rsdir(4,nrsdir)
+    INTEGER                                  :: nplane
+    REAL(dbl)                                :: delta
+    INTEGER                                  :: inbz
+
+    INTEGER, PARAMETER                       :: no = 0, yes = 1
+
+    INTEGER                                  :: n
+    REAL(dbl)                                :: projct
+
 !     Variables
-        INTEGER, PARAMETER :: yes = 1, no = 0
-        INTEGER :: n
-        REAL (dbl) :: projct
 !------------------------------------------------------------------------------!
+
         inbz = no
         DO n = 1, nplane
           projct = (rsdir(1,n)*wvk(1)+rsdir(2,n)*wvk(2)+rsdir(3,n)*wvk(3))/ &
@@ -2676,14 +2758,21 @@
 !        PLANES.
 !        DELTA      REQUIRED ACCURACY (1.D-6 IS A GOOD VALUE)
 !------------------------------------------------------------------------------!
-        IMPLICIT NONE
-!     Arguments
-        INTEGER :: iout, nrsdir, nplane
-        REAL (dbl) :: b1(3), b2(3), b3(3), rsdir(4,nrsdir), delta
+    INTEGER                                  :: iout
+    REAL(dbl)                                :: b1(3), b2(3), b3(3)
+    INTEGER                                  :: nrsdir
+    REAL(dbl)                                :: rsdir(4,nrsdir)
+    INTEGER                                  :: nplane
+    REAL(dbl)                                :: delta
+
+    INTEGER                                  :: i, i1, i2, i3, initlz, j, n, &
+                                                n1, n2, n3, nb1, nb2, nb3, &
+                                                nnb1, nnb2, nnb3
+    REAL(dbl)                                :: b1len, b2len, b3len, bmax, &
+                                                bvec(3), projct
+
 !     Variables
-        REAL (dbl) :: bvec(3), b1len, b2len, b3len, bmax, projct
-        INTEGER :: nb1, nb2, nb3, i, j, nnb1, nnb2, nnb3, n1, i1, n2, i2, n3, &
-          i3, n, initlz
+
         DATA initlz/0/
 !------------------------------------------------------------------------------!
         IF (initlz/=0) RETURN
@@ -2768,12 +2857,12 @@
 !------------------------------------------------------------------------------!
       SUBROUTINE invmat(a,info)
 ! returns inverse of matrix using the lapack routines DGETRF and DGETRI
-        IMPLICIT NONE
-        REAL (dbl), INTENT (INOUT) :: a(:,:)
-        INTEGER, INTENT (OUT) :: info
-        INTEGER, ALLOCATABLE :: ipiv(:)
-        REAL (dbl), ALLOCATABLE :: work(:)
-        INTEGER :: n, lwork
+    REAL(dbl), INTENT(INOUT)                 :: a(:,:)
+    INTEGER, INTENT(OUT)                     :: info
+
+    INTEGER                                  :: lwork, n
+    INTEGER, ALLOCATABLE                     :: ipiv(:)
+    REAL(dbl), ALLOCATABLE                   :: work(:)
 
         n = size(a,1)
         lwork = 20*n

@@ -33,15 +33,15 @@ MODULE qs_environment
                                              write_gto_basis_sets
   USE checkpoint_handler,              ONLY: write_checkpoint_information
   USE cntl_input,                      ONLY: read_cntl_section
-  USE cp_error_handling,               ONLY: cp_error_type
-  USE cp_fm_struct,                    ONLY: optimal_blacs_col_block_size,&
-                                             optimal_blacs_row_block_size
   USE cp_control_types,                ONLY: dft_control_release,&
                                              dft_control_type
   USE cp_control_utils,                ONLY: read_dft_control,&
-                                             read_qs_control, &
+                                             read_qs_control,&
                                              write_dft_control,&
                                              write_qs_control
+  USE cp_error_handling,               ONLY: cp_error_type
+  USE cp_fm_struct,                    ONLY: optimal_blacs_col_block_size,&
+                                             optimal_blacs_row_block_size
   USE distribution_1d_types,           ONLY: distribution_1d_release,&
                                              distribution_1d_type
   USE distribution_methods,            ONLY: distribute_molecules_1d
@@ -58,26 +58,20 @@ MODULE qs_environment
   USE orbital_transformation_matrices, ONLY: init_spherical_harmonics
   USE pao_read_section,                ONLY: pao_env_init_from_file
   USE pao_types,                       ONLY: pao_env_type
-  USE particle_list_types,             ONLY: particle_list_type
   USE particle_types,                  ONLY: particle_type,&
-                                             read_particle_set,&
                                              write_particle_distances,&
                                              write_qs_particle_coordinates
   USE qs_energy_types,                 ONLY: allocate_qs_energy,&
                                              qs_energy_type
-  USE qs_environment_methods,          ONLY: qs_env_rebuild_pw_env,&
-                                             qs_env_setup
+  USE qs_environment_methods,          ONLY: qs_env_setup
   USE qs_environment_types,            ONLY: get_qs_env,&
-                                             init_qs_env,&
                                              qs_environment_type,&
                                              set_qs_env
   USE qs_force_types,                  ONLY: allocate_qs_force,&
                                              qs_force_type
   USE qs_interactions,                 ONLY: init_interaction_radii
   USE qs_mo_types,                     ONLY: allocate_mo_set,&
-                                             get_mo_set,&
-                                             mo_set_p_type,&
-                                             mo_set_type
+                                             mo_set_p_type
   USE qs_wf_history_methods,           ONLY: wfi_create
   USE qs_wf_history_types,             ONLY: qs_wf_history_type,&
                                              wfi_release
@@ -96,6 +90,7 @@ MODULE qs_environment
   USE timings,                         ONLY: timeset,&
                                              timestop
   USE topology,                        ONLY: topology_control
+
   IMPLICIT NONE
 
   PRIVATE
@@ -124,43 +119,43 @@ CONTAINS
 
 !   ***************************************************************************
 
-    TYPE(qs_environment_type), POINTER           :: qs_env
-    TYPE(global_environment_type), INTENT(INOUT) :: globenv
-    TYPE(cp_error_type), INTENT(inout), OPTIONAL :: error
-    REAL(dp),DIMENSION(1:3,1:3),OPTIONAL,INTENT(IN) :: new_h_matrix
+    TYPE(qs_environment_type), POINTER       :: qs_env
+    TYPE(global_environment_type), &
+      INTENT(INOUT)                          :: globenv
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
+    REAL(dp), DIMENSION(1:3, 1:3), &
+      INTENT(IN), OPTIONAL                   :: new_h_matrix
 
-!   *** Local parameters ***
+    CHARACTER(LEN=*), PARAMETER              :: routine_name = "qs_init"
 
-    CHARACTER(LEN=*), PARAMETER :: routine_name = "qs_init"
-
-!   *** Local variables ***
-
-    TYPE(cell_type), POINTER            :: cell
-    TYPE(dft_control_type), POINTER     :: dft_control
-    TYPE(distribution_1d_type), POINTER :: local_molecules,&
-                                           local_particles
-    TYPE(qs_energy_type), POINTER       :: energy
-    TYPE(qs_wf_history_type), POINTER   :: wf_history
-    TYPE(pao_env_type), POINTER         :: pao_env
-    TYPE(scf_control_type), POINTER     :: scf_control
-
-    TYPE(setup_parameters_type) :: setup
-
-    REAL(dp) :: maxocc
-    INTEGER  :: handle,ikind,ispin,istat,maxl,maxlgto,maxlppl,maxlppnl,&
-                multiplicity,n_ao,natom,nelectron,nkind,output_unit
-    LOGICAL  :: ionode
-
-    TYPE(atomic_kind_type), DIMENSION(:), POINTER   :: atomic_kind_set
-    TYPE(mo_set_p_type), DIMENSION(:), POINTER      :: c
-    TYPE(molecule_kind_type), DIMENSION(:), POINTER :: molecule_kind_set
-    TYPE(molecule_type), DIMENSION(:), POINTER      :: molecule_set
-    TYPE(particle_type), DIMENSION(:), POINTER      :: particle_set
-    TYPE(qs_force_type), DIMENSION(:), POINTER      :: force
-
-    INTEGER, DIMENSION(2) :: n_mo,nelectron_spin
-
-    INTEGER, DIMENSION(:), ALLOCATABLE :: natom_of_kind
+    INTEGER :: handle, ispin, istat, maxl, maxlgto, maxlppl, maxlppnl, &
+      multiplicity, n_ao, nelectron, nkind, output_unit
+    INTEGER, ALLOCATABLE, DIMENSION(:)       :: natom_of_kind
+    INTEGER, DIMENSION(2)                    :: n_mo, nelectron_spin
+    LOGICAL                                  :: ionode
+    REAL(dp)                                 :: maxocc
+    TYPE(atomic_kind_type), DIMENSION(:), &
+      POINTER                                :: atomic_kind_set
+    TYPE(cell_type), POINTER                 :: cell
+    TYPE(dft_control_type), POINTER          :: dft_control
+    TYPE(distribution_1d_type), POINTER      :: local_molecules, &
+                                                local_particles
+    TYPE(mo_set_p_type), DIMENSION(:), &
+      POINTER                                :: c
+    TYPE(molecule_kind_type), DIMENSION(:), &
+      POINTER                                :: molecule_kind_set
+    TYPE(molecule_type), DIMENSION(:), &
+      POINTER                                :: molecule_set
+    TYPE(pao_env_type), POINTER              :: pao_env
+    TYPE(particle_type), DIMENSION(:), &
+      POINTER                                :: particle_set
+    TYPE(qs_energy_type), POINTER            :: energy
+    TYPE(qs_force_type), DIMENSION(:), &
+      POINTER                                :: force
+    TYPE(qs_wf_history_type), POINTER        :: wf_history
+    TYPE(scf_control_type), POINTER          :: scf_control
+    TYPE(setup_parameters_type)              :: setup
 
 !   ---------------------------------------------------------------------------
 
@@ -496,11 +491,10 @@ CONTAINS
 
 !   ***************************************************************************
 
-    TYPE(global_environment_type), INTENT(IN) :: globenv
+    TYPE(global_environment_type), &
+      INTENT(IN)                             :: globenv
 
-!   *** Local variables ***
-
-    INTEGER :: output_unit
+    INTEGER                                  :: output_unit
 
 !   ---------------------------------------------------------------------------
 
@@ -559,14 +553,17 @@ CONTAINS
 
 !   ***************************************************************************
 
-    TYPE(atomic_kind_type), DIMENSION(:), POINTER :: atomic_kind_set
-    TYPE(global_environment_type), INTENT(IN)     :: globenv
-    TYPE(particle_type), DIMENSION(:), POINTER    :: particle_set
+    TYPE(atomic_kind_type), DIMENSION(:), &
+      POINTER                                :: atomic_kind_set
+    TYPE(particle_type), DIMENSION(:), &
+      POINTER                                :: particle_set
+    TYPE(global_environment_type), &
+      INTENT(IN)                             :: globenv
 
-!   *** Local variables ***
-
-    INTEGER :: iatom,maxlgto,maxlppl,maxlppnl,natom,ncgf,nkind,npgf,nset,&
-               nsgf,nshell,output_unit
+    INTEGER                                  :: maxlgto, maxlppl, maxlppnl, &
+                                                natom, ncgf, nkind, npgf, &
+                                                nset, nsgf, nshell, &
+                                                output_unit
 
 !   ---------------------------------------------------------------------------
 

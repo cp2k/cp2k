@@ -28,28 +28,20 @@
 MODULE cp_e_rosenbrok_function
   USE cp_error_handling,               ONLY: cp_a_l,&
                                              cp_assert,&
-                                             cp_assertion_failed,&
-                                             cp_debug,&
-                                             cp_error_dealloc_ref,&
                                              cp_error_get_logger,&
-                                             cp_error_init,&
                                              cp_error_message,&
-                                             cp_error_type,&
-                                             cp_internal_error,&
-                                             cp_unimplemented_error
+                                             cp_error_type
   USE cp_log_handling,                 ONLY: cp_failure_level,&
                                              cp_fatal_level,&
-                                             cp_log,&
-                                             cp_logger_get_default_unit_nr,&
                                              cp_logger_type,&
                                              cp_note_level,&
                                              cp_to_string,&
                                              cp_warning_level
   USE cp_para_types,                   ONLY: cp_para_env_type
-  USE global_types,                    ONLY: global_environment_type
   USE kinds,                           ONLY: dp
   USE timings,                         ONLY: timeset,&
                                              timestop
+
   IMPLICIT NONE
   PRIVATE
 
@@ -144,14 +136,17 @@ CONTAINS
 !!
 !!*** **********************************************************************
 SUBROUTINE cp_ros_f_create(rf_env, n, error)
-  TYPE(cp_e_rosenbrok_f_type), POINTER :: rf_env
-  INTEGER, INTENT(in) :: n
-  TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
-  
-  LOGICAL :: failure
-  INTEGER :: handle, stat
-  CHARACTER(len=*), PARAMETER :: routineN='cp_ros_f_create',&
-        routineP=moduleN//':'//routineN
+    TYPE(cp_e_rosenbrok_f_type), POINTER     :: rf_env
+    INTEGER, INTENT(in)                      :: n
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'cp_ros_f_create', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: stat
+    LOGICAL                                  :: failure
+
   failure=.FALSE.
   
   ALLOCATE(rf_env,stat=stat)
@@ -195,12 +190,14 @@ END SUBROUTINE cp_ros_f_create
 !!
 !!*** **********************************************************************
 SUBROUTINE cp_ros_f_retain(rf_env, error)
-  TYPE(cp_e_rosenbrok_f_type), POINTER :: rf_env
-  TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
-  
-  LOGICAL :: failure
-  CHARACTER(len=*), PARAMETER :: routineN='cp_ros_f_retain',&
-        routineP=moduleN//':'//routineN
+    TYPE(cp_e_rosenbrok_f_type), POINTER     :: rf_env
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'cp_ros_f_retain', &
+      routineP = moduleN//':'//routineN
+
+    LOGICAL                                  :: failure
 
   failure=.FALSE.
   
@@ -243,13 +240,15 @@ END SUBROUTINE cp_ros_f_retain
 !!
 !!*** **********************************************************************
 SUBROUTINE cp_ros_f_release(rf_env, error)
-  TYPE(cp_e_rosenbrok_f_type), POINTER :: rf_env
-  TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
-  
-  LOGICAL :: failure
-  CHARACTER(len=*), PARAMETER :: routineN='cp_ros_f_release',&
-       routineP=moduleN//':'//routineN
-  INTEGER :: stat
+    TYPE(cp_e_rosenbrok_f_type), POINTER     :: rf_env
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'cp_ros_f_release', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: stat
+    LOGICAL                                  :: failure
 
   failure=.FALSE.
   
@@ -305,19 +304,23 @@ END SUBROUTINE cp_ros_f_release
 !!
 !!*** **********************************************************************
 SUBROUTINE cp_ros_f_eval_at(rf_env, x, f, gradient,master,para_env, error)
-  TYPE(cp_e_rosenbrok_f_type), POINTER :: rf_env
-  REAL(KIND = dp), DIMENSION(:), INTENT(in) :: x
-  REAL(KIND = dp), INTENT(out), OPTIONAL :: f
-  REAL(KIND = dp), POINTER, DIMENSION(:), OPTIONAL :: gradient
-  INTEGER, INTENT(in) :: master
-  TYPE(cp_para_env_type), POINTER :: para_env
-  TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
-  
-  LOGICAL :: failure
-  INTEGER :: handle, i
-  CHARACTER(len=*), PARAMETER :: routineN='cp_ros_f_eval_at',&
-       routineP=moduleN//':'//routineN
-  REAL(KIND = dp) :: t1,t2
+    TYPE(cp_e_rosenbrok_f_type), POINTER     :: rf_env
+    REAL(KIND=dp), DIMENSION(:), INTENT(in)  :: x
+    REAL(KIND=dp), INTENT(out), OPTIONAL     :: f
+    REAL(KIND=dp), DIMENSION(:), OPTIONAL, &
+      POINTER                                :: gradient
+    INTEGER, INTENT(in)                      :: master
+    TYPE(cp_para_env_type), POINTER          :: para_env
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'cp_ros_f_eval_at', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: i
+    LOGICAL                                  :: failure
+    REAL(KIND=dp)                            :: t1, t2
+
   failure=.FALSE.
   
   CPPrecondition(ASSOCIATED(rf_env),cp_failure_level,routineP,error,failure)
@@ -393,15 +396,19 @@ END SUBROUTINE cp_ros_f_eval_at
 !!*** **********************************************************************
 SUBROUTINE cp_bounds_and_x_ros_f_init(lower_bound, upper_bound, kind_of_bound,&
      x0,rf_env, error)
-  REAL(KIND = dp), DIMENSION(:), INTENT(out) :: lower_bound, upper_bound, x0
-  INTEGER, DIMENSION(:), INTENT(out) :: kind_of_bound
-  TYPE(cp_e_rosenbrok_f_type), POINTER :: rf_env
-  TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
-  
-  LOGICAL :: failure
-  INTEGER :: handle, i
-  CHARACTER(len=*), PARAMETER :: routineN='cp_bounds_ros_f_init',&
-       routineP=moduleN//':'//routineN
+    REAL(KIND=dp), DIMENSION(:), INTENT(out) :: lower_bound, upper_bound
+    INTEGER, DIMENSION(:), INTENT(out)       :: kind_of_bound
+    REAL(KIND=dp), DIMENSION(:), INTENT(out) :: x0
+    TYPE(cp_e_rosenbrok_f_type), POINTER     :: rf_env
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'cp_bounds_ros_f_init', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: i
+    LOGICAL                                  :: failure
+
   failure=.FALSE.
   
   !call timeset(routineN//','//moduleN,'I',"",handle)

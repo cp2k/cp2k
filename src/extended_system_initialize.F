@@ -18,13 +18,16 @@
 !!   SOURCE
 !******************************************************************************
 MODULE extended_system_initialize
-  USE extended_system_types, ONLY : npt_info_type, lnhc_parameters_type
-  USE global_types, ONLY : global_environment_type
-  USE kinds, ONLY : dbl
-  USE message_passing, ONLY: mp_bcast,mp_sum
-  USE termination, ONLY : stop_program
-  USE timings, ONLY : timeset, timestop
-  USE util, ONLY : gasdev
+  USE extended_system_types,           ONLY: lnhc_parameters_type,&
+                                             npt_info_type
+  USE global_types,                    ONLY: global_environment_type
+  USE kinds,                           ONLY: dbl
+  USE message_passing,                 ONLY: mp_bcast,&
+                                             mp_sum
+  USE termination,                     ONLY: stop_program
+  USE timings,                         ONLY: timeset,&
+                                             timestop
+  USE util,                            ONLY: gasdev
 
   IMPLICIT NONE
 
@@ -54,14 +57,17 @@ MODULE extended_system_initialize
 !******************************************************************************
 
 SUBROUTINE initialize_nhc(nhc,tau_nhc,temp_ext, globenv )
-  IMPLICIT NONE
-  TYPE (lnhc_parameters_type ), INTENT ( INOUT ) :: nhc
-  TYPE ( global_environment_type ), INTENT ( INOUT ) :: globenv
-  REAL ( dbl ), INTENT ( IN ) :: tau_nhc, temp_ext
-  INTEGER :: i, j, number
-  REAL ( dbl ) :: akin, temp, v
+    TYPE(lnhc_parameters_type), &
+      INTENT(INOUT)                          :: nhc
+    REAL(dbl), INTENT(IN)                    :: tau_nhc, temp_ext
+    TYPE(global_environment_type), &
+      INTENT(INOUT)                          :: globenv
+
+    INTEGER                                  :: i, j, number
+    REAL(dbl)                                :: akin, temp, v
 
 ! first initializing the mass of the nhc variables
+
   nhc % nvt ( :, : ) % mass = nhc % nvt ( :, : ) % nkt * tau_nhc * tau_nhc
 ! initializing velocities
   DO i = 1, nhc % num_nhc
@@ -133,21 +139,21 @@ END SUBROUTINE initialize_nhc
 SUBROUTINE initialize_npt ( npt, tau_cell, temp_ext, deth, nfree, ensemble, &
      globenv )
 
-  IMPLICIT NONE
 
-! Arguments
-  TYPE ( npt_info_type ), DIMENSION ( :, : ), INTENT ( OUT ) :: npt
-  REAL ( dbl ), INTENT ( IN ) :: tau_cell, temp_ext, deth
-  CHARACTER ( LEN = 20 ), INTENT ( IN ) :: ensemble
-  INTEGER, INTENT ( IN ) :: nfree
-  TYPE ( global_environment_type ), INTENT ( INOUT ) :: globenv
+    TYPE(npt_info_type), DIMENSION(:, :), &
+      INTENT(OUT)                            :: npt
+    REAL(dbl), INTENT(IN)                    :: tau_cell, temp_ext, deth
+    INTEGER, INTENT(IN)                      :: nfree
+    CHARACTER(LEN=20), INTENT(IN)            :: ensemble
+    TYPE(global_environment_type), &
+      INTENT(INOUT)                          :: globenv
 
-! Locals
-  INTEGER :: i, j, number, isos
-  REAL ( dbl ) :: akin, temp, v
+    INTEGER                                  :: i, j, number
+    REAL(dbl)                                :: akin, temp, v
 
 !------------------------------------------------------------------------------
 ! first initializing the mass of the nhc variables
+
   SELECT CASE ( ensemble )
   CASE ( 'NPT_I')
      npt ( :, : ) % mass = REAL ( nfree + 3, dbl ) &
@@ -224,14 +230,12 @@ END SUBROUTINE initialize_npt
 
 SUBROUTINE set_yoshida_coef ( nhc, dt )
 
-  IMPLICIT NONE
 
-! Arguments
-  TYPE ( lnhc_parameters_type ), INTENT ( INOUT ) :: nhc
-  REAL ( dbl ), INTENT ( IN ) :: dt
+    TYPE(lnhc_parameters_type), &
+      INTENT(INOUT)                          :: nhc
+    REAL(dbl), INTENT(IN)                    :: dt
 
-! Locals
-  REAL ( dbl ), DIMENSION (nhc % nyosh) :: yosh_wt
+    REAL(dbl), DIMENSION(nhc%nyosh)          :: yosh_wt
 
 !------------------------------------------------------------------------------
 

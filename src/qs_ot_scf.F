@@ -20,15 +20,14 @@
 
 MODULE qs_ot_scf
 ! *****************************************************************************
+  USE cp_fm_basic_linalg,              ONLY: cp_fm_scale_and_add
   USE cp_fm_types,                     ONLY: cp_fm_get_info,&
                                              cp_fm_set_all,&
-                                             cp_fm_to_fm, &
+                                             cp_fm_to_fm,&
                                              cp_fm_type
-  USE cp_fm_basic_linalg,              ONLY: cp_fm_scale_and_add
   USE cp_sm_fm_interactions,           ONLY: cp_sm_fm_multiply
   USE global_types,                    ONLY: global_environment_type
-  USE kinds,                           ONLY: int_size,&
-                                             dp
+  USE kinds,                           ONLY: dp
   USE qs_mo_types,                     ONLY: get_mo_set,&
                                              mo_set_p_type
   USE qs_ot,                           ONLY: qs_ot_allocate,&
@@ -38,18 +37,16 @@ MODULE qs_ot_scf
                                              qs_ot_init,&
                                              qs_ot_type
   USE qs_ot_minimizer,                 ONLY: ot_mini
-  USE qs_parser,                       ONLY: close_file,&
-                                             finish_parser,&
-                                             open_file,&
+  USE qs_parser,                       ONLY: finish_parser,&
                                              read_object,&
                                              start_parser,&
                                              test_object
   USE sparse_matrix_types,             ONLY: real_matrix_p_type,&
                                              real_matrix_type
-  USE termination,                     ONLY: stop_memory,&
-                                             stop_program
+  USE termination,                     ONLY: stop_program
   USE timings,                         ONLY: timeset,&
                                              timestop
+
   IMPLICIT NONE
 
 
@@ -66,16 +63,16 @@ MODULE qs_ot_scf
 CONTAINS
 
 SUBROUTINE ot_scf_read_input(qs_ot_env,globenv)
-    TYPE(global_environment_type), INTENT(IN)       :: globenv
-    TYPE(qs_ot_type), POINTER, DIMENSION(:)         :: qs_ot_env
+    TYPE(qs_ot_type), DIMENSION(:), POINTER  :: qs_ot_env
+    TYPE(global_environment_type), &
+      INTENT(IN)                             :: globenv
 
-    ! locals 
-    INTEGER :: handle
-    CHARACTER(LEN=40) :: keyword
-    CHARACTER(LEN=40) :: value
-    LOGICAL :: found
-    INTEGER :: nspin,ispin
-    ! executable
+    CHARACTER(LEN=40)                        :: keyword, value
+    INTEGER                                  :: handle, ispin, nspin
+    LOGICAL                                  :: found
+
+! executable
+
     CALL timeset("ot_scf_read_input","I","",handle)
     ! decide default settings
 
@@ -242,16 +239,20 @@ SUBROUTINE ot_scf_mini(mo_array,matrix_ks,matrix_s,energy, &
                                      energy_only,delta,qs_ot_env,globenv)
  
 
-    TYPE(mo_set_p_type), DIMENSION(:), POINTER      :: mo_array
-    TYPE(real_matrix_type), POINTER                 :: matrix_s
-    TYPE(real_matrix_p_type), POINTER, DIMENSION(:) :: matrix_ks
-    TYPE(global_environment_type), INTENT(IN)       :: globenv
-    TYPE(qs_ot_type), POINTER, DIMENSION(:)         :: qs_ot_env
-    LOGICAL                                         :: energy_only
-    REAL(KIND = dp)                                        :: energy,delta
+    TYPE(mo_set_p_type), DIMENSION(:), &
+      POINTER                                :: mo_array
+    TYPE(real_matrix_p_type), DIMENSION(:), &
+      POINTER                                :: matrix_ks
+    TYPE(real_matrix_type), POINTER          :: matrix_s
+    REAL(KIND=dp)                            :: energy
+    LOGICAL                                  :: energy_only
+    REAL(KIND=dp)                            :: delta
+    TYPE(qs_ot_type), DIMENSION(:), POINTER  :: qs_ot_env
+    TYPE(global_environment_type), &
+      INTENT(IN)                             :: globenv
 
-    INTEGER nspin,ispin,handle
-    TYPE(cp_fm_type), POINTER        :: mo_eigenvectors
+    INTEGER                                  :: handle, ispin, nspin
+    TYPE(cp_fm_type), POINTER                :: mo_eigenvectors
 
     CALL timeset("ot_scf_mini","I","",handle)
 
@@ -300,15 +301,17 @@ END SUBROUTINE
 !
 SUBROUTINE ot_scf_init(mo_array,matrix_s,qs_ot_env)
 
-    TYPE(mo_set_p_type), DIMENSION(:), POINTER      :: mo_array
-    TYPE(real_matrix_type), POINTER                 :: matrix_s
-    TYPE(qs_ot_type), POINTER, DIMENSION(:)         :: qs_ot_env
+    TYPE(mo_set_p_type), DIMENSION(:), &
+      POINTER                                :: mo_array
+    TYPE(real_matrix_type), POINTER          :: matrix_s
+    TYPE(qs_ot_type), DIMENSION(:), POINTER  :: qs_ot_env
 
-    ! locals 
-    INTEGER :: handle,nrow_block,ncol_block,n,k
-    TYPE(cp_fm_type), POINTER              :: mo_eigenvectors
-    INTEGER nspin,ispin
-    ! executable
+    INTEGER                                  :: handle, ispin, k, n, &
+                                                ncol_block, nrow_block, nspin
+    TYPE(cp_fm_type), POINTER                :: mo_eigenvectors
+
+! executable
+
     CALL timeset("ot_scf_init","I","",handle)
     nspin=SIZE(mo_array)
 
@@ -352,7 +355,7 @@ END SUBROUTINE
 
 SUBROUTINE ot_scf_destroy(qs_ot_env)
 
-    TYPE(qs_ot_type)                                :: qs_ot_env
+    TYPE(qs_ot_type)                         :: qs_ot_env
 
    CALL qs_ot_destroy(qs_ot_env)
 

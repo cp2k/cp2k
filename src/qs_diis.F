@@ -26,41 +26,32 @@
 MODULE qs_diis
   USE cp_error_handling,               ONLY: cp_a_l,&
                                              cp_assert,&
-                                             cp_assertion_failed,&
-                                             cp_debug,&
-                                             cp_error_check,&
-                                             cp_error_dealloc_ref,&
                                              cp_error_get_logger,&
-                                             cp_error_init,&
                                              cp_error_message,&
-                                             cp_error_type,&
-                                             cp_internal_error,&
-                                             cp_unimplemented_error
+                                             cp_error_type
+  USE cp_fm_basic_linalg,              ONLY: cp_fm_gemm,&
+                                             cp_fm_scale_and_add,&
+                                             cp_fm_symm,&
+                                             cp_fm_trace
   USE cp_fm_struct,                    ONLY: cp_fm_struct_type
   USE cp_fm_types,                     ONLY: cp_fm_create,&
                                              cp_fm_get_info,&
                                              cp_fm_maxabsval,&
-                                             cp_fm_set_all,&
                                              cp_fm_p_type,&
+                                             cp_fm_set_all,&
                                              cp_fm_to_fm,&
                                              cp_fm_type
-  USE cp_fm_basic_linalg,              ONLY: cp_fm_scale_and_add,&
-                                             cp_fm_gemm,&
-                                             cp_fm_symm,&
-                                             cp_fm_trace
-  USE cp_sm_fm_interactions,           ONLY: copy_sm_to_fm
   USE cp_log_handling,                 ONLY: cp_failure_level,&
                                              cp_fatal_level,&
-                                             cp_log,&
                                              cp_logger_get_default_unit_nr,&
                                              cp_logger_type,&
                                              cp_note_level,&
                                              cp_to_string,&
                                              cp_warning_level
+  USE cp_sm_fm_interactions,           ONLY: copy_sm_to_fm
   USE kinds,                           ONLY: dp,&
                                              dp_size
-  USE mathlib,                         ONLY: diagonalize_matrix,&
-                                             symmetrize_matrix
+  USE mathlib,                         ONLY: diagonalize_matrix
   USE qs_diis_types,                   ONLY: qs_diis_buffer_type
   USE qs_environment_types,            ONLY: get_qs_env,&
                                              qs_environment_type
@@ -72,6 +63,7 @@ MODULE qs_diis
   USE termination,                     ONLY: stop_memory
   USE timings,                         ONLY: timeset,&
                                              timestop
+
   IMPLICIT NONE
 
   PRIVATE
@@ -118,14 +110,16 @@ CONTAINS
 !!
 !!*** **********************************************************************
   SUBROUTINE qs_diis_b_create(diis_buffer,nbuffer,error)
-    TYPE(qs_diis_buffer_type), POINTER :: diis_buffer
-    INTEGER, INTENT(in) :: nbuffer
-    TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
+    TYPE(qs_diis_buffer_type), POINTER       :: diis_buffer
+    INTEGER, INTENT(in)                      :: nbuffer
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
 
-    LOGICAL :: failure
-    CHARACTER(len=*), PARAMETER :: routineN='qs_diis_b_create',&
-         routineP=moduleN//':'//routineN
-    INTEGER :: stat
+    CHARACTER(len=*), PARAMETER :: routineN = 'qs_diis_b_create', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: stat
+    LOGICAL                                  :: failure
 
     failure=.FALSE.
 
@@ -171,23 +165,20 @@ CONTAINS
   SUBROUTINE qs_diis_b_check_i_alloc(diis_buffer,&
        matrix_struct,nspin,error)
 
-    TYPE(qs_diis_buffer_type), POINTER :: diis_buffer
-    TYPE(cp_fm_struct_type), POINTER :: matrix_struct
-    INTEGER, INTENT(IN)                :: nspin
-    TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
+    TYPE(qs_diis_buffer_type), POINTER       :: diis_buffer
+    TYPE(cp_fm_struct_type), POINTER         :: matrix_struct
+    INTEGER, INTENT(IN)                      :: nspin
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
 
-    !   *** Local parameters ***
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'qs_diis_b_check_i_alloc', &
+      routineP = moduleN//':'//routineN
 
-    CHARACTER(LEN=*), PARAMETER :: routineN='qs_diis_b_check_i_alloc',&
-         routineP=moduleN//':'//routineN
+    INTEGER                                  :: ibuffer, ispin, istat, nbuffer
+    LOGICAL                                  :: failure
+    TYPE(cp_logger_type), POINTER            :: logger
 
-    !   *** Local variables ***
-
-    TYPE(cp_logger_type), POINTER :: logger
-    INTEGER :: ibuffer,istat,ispin,nbuffer
-    LOGICAL :: failure
-
-    !   ---------------------------------------------------------------------------
+!   ---------------------------------------------------------------------------
 
     failure=.FALSE.
     logger => cp_error_get_logger(error)
@@ -290,41 +281,39 @@ CONTAINS
   SUBROUTINE qs_diis_b_step(diis_buffer,mo_array,kc,sc,delta,error_max,&
        diis_step,qs_env,error)
 
-    TYPE(qs_diis_buffer_type), POINTER                 :: diis_buffer
-    TYPE(cp_fm_type), POINTER                 :: sc
-    TYPE(cp_fm_p_type),DIMENSION(:), POINTER  :: kc
-    TYPE(cp_error_type), INTENT(inout), OPTIONAL       :: error
-    TYPE(mo_set_type), POINTER                         :: mo_set
-    TYPE(mo_set_p_type), DIMENSION(:), POINTER         :: mo_array
-    TYPE(qs_environment_type), INTENT(IN)              :: qs_env
-    REAL(KIND = dp), INTENT(IN)                               :: delta
-    REAL(KIND = dp), INTENT(OUT)                              :: error_max
-    LOGICAL, INTENT(OUT)                               :: diis_step
+    TYPE(qs_diis_buffer_type), POINTER       :: diis_buffer
+    TYPE(mo_set_p_type), DIMENSION(:), &
+      POINTER                                :: mo_array
+    TYPE(cp_fm_p_type), DIMENSION(:), &
+      POINTER                                :: kc
+    TYPE(cp_fm_type), POINTER                :: sc
+    REAL(KIND=dp), INTENT(IN)                :: delta
+    REAL(KIND=dp), INTENT(OUT)               :: error_max
+    LOGICAL, INTENT(OUT)                     :: diis_step
+    TYPE(qs_environment_type), INTENT(IN)    :: qs_env
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
 
-    !   *** Local parameters ***
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'qs_diis_b_step', &
+      routineP = moduleN//':'//routineN
 
-    CHARACTER(LEN=*), PARAMETER :: routineN='qs_diis_b_step',&
-         routineP=moduleN//':'//routineN
+    INTEGER                                  :: handle, ib, ispin, istat, jb, &
+                                                nao, nb, nb1, nmo, nspin, &
+                                                output_unit
+    LOGICAL                                  :: failure, ionode
+    REAL(KIND=dp)                            :: eps_diis, tmp
+    REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: ev
+    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: a, b
+    TYPE(cp_fm_struct_type), POINTER         :: matrix_struct
+    TYPE(cp_fm_type), POINTER                :: c, new_errors, old_errors, &
+                                                parameters
+    TYPE(cp_logger_type), POINTER            :: logger
+    TYPE(mo_set_type), POINTER               :: mo_set
+    TYPE(real_matrix_p_type), DIMENSION(:), &
+      POINTER                                :: s
+    TYPE(scf_control_type), POINTER          :: scf_control
 
-    !   *** Local variables ***
-
-    TYPE(cp_fm_type), POINTER  :: c
-    TYPE(scf_control_type), POINTER     :: scf_control
-
-    INTEGER :: handle,ib,istat,jb,nao,nb,nb1,nmo,output_unit,&
-         nspin,ispin
-    LOGICAL :: ionode, failure
-    REAL(KIND = dp) :: eps_diis,tmp
-
-    TYPE(real_matrix_p_type), DIMENSION(:), POINTER :: s
-    TYPE(cp_fm_type), POINTER :: new_errors,old_errors,parameters
-    TYPE(cp_fm_struct_type), POINTER :: matrix_struct
-    TYPE(cp_logger_type), POINTER :: logger
-
-    REAL(KIND = dp), DIMENSION(:), ALLOCATABLE :: ev
-    REAL(KIND = dp), DIMENSION(:,:), POINTER   :: a,b
-
-    !   ---------------------------------------------------------------------------
+!   ---------------------------------------------------------------------------
 
     CALL timeset("scf_diis","I","",handle)
 
@@ -518,12 +507,14 @@ CONTAINS
 !!
 !!*** **********************************************************************
   SUBROUTINE qs_diis_b_clear(diis_buffer,error)
-    TYPE(qs_diis_buffer_type), POINTER :: diis_buffer
-    TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
+    TYPE(qs_diis_buffer_type), POINTER       :: diis_buffer
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
 
-    LOGICAL :: failure
-    CHARACTER(len=*), PARAMETER :: routineN='qs_diis_b_clear',&
-         routineP=moduleN//':'//routineN
+    CHARACTER(len=*), PARAMETER :: routineN = 'qs_diis_b_clear', &
+      routineP = moduleN//':'//routineN
+
+    LOGICAL                                  :: failure
 
     failure=.FALSE.
 

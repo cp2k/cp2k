@@ -21,7 +21,7 @@
 
 MODULE util
 
-  USE kinds, ONLY : dbl
+  USE kinds,                           ONLY: dbl
 
   IMPLICIT NONE
 
@@ -55,14 +55,11 @@ CONTAINS
 
 !   ***************************************************************************
 
-    INTEGER, DIMENSION(:), INTENT(IN) :: array
-    INTEGER, INTENT(IN)               :: x
+    INTEGER, DIMENSION(:), INTENT(IN)        :: array
+    INTEGER, INTENT(IN)                      :: x
+    INTEGER                                  :: x_index
 
-    INTEGER :: x_index
-
-!   *** Local variables ***
-
-    INTEGER :: jl,jm,ju,n
+    INTEGER                                  :: jl, jm, ju, n
 
 !   ---------------------------------------------------------------------------
 
@@ -94,19 +91,19 @@ CONTAINS
 
 SUBROUTINE sort2 ( arr, n, index )
 
-  IMPLICIT NONE
 
-! Arguments
-  INTEGER, INTENT ( IN ) :: n
-  REAL ( dbl ), INTENT ( INOUT ) :: arr(1:n)
-  INTEGER, INTENT ( OUT ) :: index(1:n)
+    INTEGER, INTENT(IN)                      :: n
+    REAL(dbl), INTENT(INOUT)                 :: arr(1:n)
+    INTEGER, INTENT(OUT)                     :: index(1:n)
 
-! Local
-  INTEGER, PARAMETER :: m = 7, nstack = 50
-  INTEGER :: i, l, ib, ir, jstack, k, istack(1:nstack), itemp, j
-  REAL ( dbl ) :: a, temp
+    INTEGER, PARAMETER                       :: m = 7, nstack = 50
+
+    INTEGER                                  :: i, ib, ir, istack(1:nstack), &
+                                                itemp, j, jstack, k, l
+    REAL(dbl)                                :: a, temp
 
 !------------------------------------------------------------------------------
+
   DO i = 1, n
      index(i) = i
   END DO
@@ -205,17 +202,16 @@ END SUBROUTINE sort2
 
 SUBROUTINE sort2i ( iarr, n, index )
 
-  IMPLICIT NONE
 
-! Arguments
-  INTEGER, INTENT ( IN ) :: n
-  INTEGER, INTENT ( INOUT ) :: iarr(1:n)
-  INTEGER, INTENT ( OUT ) :: index(1:n)
+    INTEGER, INTENT(IN)                      :: n
+    INTEGER, INTENT(INOUT)                   :: iarr(1:n)
+    INTEGER, INTENT(OUT)                     :: index(1:n)
 
-! Locals
-  INTEGER, PARAMETER :: m = 7, nstack = 50
-  INTEGER :: i, l, ib, ir, jstack, k, j
-  INTEGER :: a, temp, istack(1:nstack), itemp
+    INTEGER, PARAMETER                       :: m = 7, nstack = 50
+
+    INTEGER                                  :: a, i, ib, ir, &
+                                                istack(1:nstack), itemp, j, &
+                                                jstack, k, l, temp
 
 !------------------------------------------------------------------------------
 
@@ -321,16 +317,15 @@ END SUBROUTINE sort2i
 
 FUNCTION ran2 ( idum, icontrol )
 
-  IMPLICIT NONE
 
-! Arguments
-  INTEGER, INTENT ( INOUT ) :: idum
-  INTEGER, OPTIONAL, INTENT ( IN ) :: icontrol
+    INTEGER, INTENT(INOUT)                   :: idum
+    INTEGER, INTENT(IN), OPTIONAL            :: icontrol
+    REAL(dbl)                                :: ran2
 
-! Locals
-  REAL ( dbl ) :: ran2
-  INTEGER :: im1, im2, imm1, ia1, ia2, iq1, iq2, ir1, ir2, ntab, ndiv
-  REAL ( dbl ) am, eps, rnmx
+    INTEGER                                  :: ia1, ia2, im1, im2, imm1, &
+                                                iq1, iq2, ir1, ir2, ndiv, ntab
+    REAL(dbl)                                :: am, eps, rnmx
+
   PARAMETER (im1=2147483563,im2=2147483399,am=1.0_dbl/im1,imm1=im1-1, &
        ia1=40014,ia2=40692,iq1=53668,iq2=52774,ir1=12211,ir2=3791,ntab=32, &
        ndiv=1+imm1/ntab,eps=1.2E-7_dbl,rnmx=1._dbl-eps)
@@ -396,17 +391,14 @@ END FUNCTION ran2
 
 FUNCTION gasdev(idum)
 
-  IMPLICIT NONE
 
 ! Return value
-  REAL ( dbl ) :: gasdev
+    INTEGER, INTENT(INOUT)                   :: idum
+    REAL(dbl)                                :: gasdev
 
-! Arguments
-  INTEGER, INTENT ( INOUT ) :: idum
+    INTEGER                                  :: iset
+    REAL(dbl)                                :: fac, gset, r, v1, v2
 
-! Locals
-  REAL ( dbl ) :: v1, v2, r, fac, gset
-  INTEGER :: iset
   DATA iset/0/
   SAVE iset, gset
 
@@ -433,17 +425,15 @@ END FUNCTION gasdev
 
 FUNCTION get_unit() RESULT (unit)
 
-  IMPLICIT NONE
 
 ! Return value
-  INTEGER :: unit
+    INTEGER                                  :: unit
 
-! Locals
-  LOGICAL :: exists
+    LOGICAL                                  :: exists
 
 !------------------------------------------------------------------------------
-
 !..find a not associated unit
+
   unit = 10
   DO
      exists = .FALSE.
@@ -458,18 +448,15 @@ END FUNCTION get_unit
 
 SUBROUTINE close_unit ( u1, u2 )
 
-  IMPLICIT NONE
 
-! Arguments
-  INTEGER, INTENT ( IN ) :: u1, u2
+    INTEGER, INTENT(IN)                      :: u1, u2
 
-! Locals
-  INTEGER :: iunit
-  LOGICAL :: exists
+    INTEGER                                  :: iunit
+    LOGICAL                                  :: exists
 
 !------------------------------------------------------------------------------
-
 !..close all open units from u1 to u2
+
   DO iunit = u1, u2
      exists = .FALSE.
      INQUIRE (unit=iunit,opened=exists)
@@ -484,17 +471,13 @@ END SUBROUTINE close_unit
 
 FUNCTION get_share ( m, n, me ) RESULT ( nme )
 
-  IMPLICIT NONE
 
 ! Return value
-  INTEGER :: nme
+    INTEGER, INTENT(IN)                      :: m, n, me
+    INTEGER                                  :: nme
 
-! Arguments
-  INTEGER, INTENT ( IN ) :: m, n, me
-
-! Locals
-  INTEGER :: nl, nu
-  REAL ( dbl ) :: part
+    INTEGER                                  :: nl, nu
+    REAL(dbl)                                :: part
 
 !------------------------------------------------------------------------------
 
@@ -514,17 +497,13 @@ END FUNCTION get_share
 
 FUNCTION get_limit(m,n,me) RESULT (nlim)
 
-  IMPLICIT NONE
 
 ! Return value
-  INTEGER :: nlim ( 2 )
+    INTEGER, INTENT(IN)                      :: m, n, me
+    INTEGER                                  :: nlim( 2 )
 
-! Arguments
-  INTEGER, INTENT ( IN ) :: m, n, me
-
-! Locals
-  INTEGER :: nl, nu
-  REAL ( dbl ) :: part
+    INTEGER                                  :: nl, nu
+    REAL(dbl)                                :: part
 
 !------------------------------------------------------------------------------
 
@@ -540,13 +519,10 @@ END FUNCTION get_limit
 
 FUNCTION include_list(i,j) RESULT (doit)
 
-  IMPLICIT NONE
 
 ! Return value
-  LOGICAL :: doit
-
-! Arguments
-  INTEGER, INTENT ( IN ) :: i, j
+    INTEGER, INTENT(IN)                      :: i, j
+    LOGICAL                                  :: doit
 
 !------------------------------------------------------------------------------
 
@@ -564,14 +540,11 @@ END FUNCTION include_list
 
 SUBROUTINE getinv3x3 ( hmat, hmati )
 
-  IMPLICIT NONE
 
-! Arguments
-  REAL ( dbl ), DIMENSION (3,3), INTENT ( IN ) :: hmat
-  REAL ( dbl ), DIMENSION (3,3), INTENT ( OUT ) :: hmati
+    REAL(dbl), DIMENSION(3, 3), INTENT(IN)   :: hmat
+    REAL(dbl), DIMENSION(3, 3), INTENT(OUT)  :: hmati
 
-! Locals
-  REAL ( dbl ) :: odet, det
+    REAL(dbl)                                :: det, odet
 
 !------------------------------------------------------------------------------
 
@@ -595,14 +568,11 @@ END SUBROUTINE getinv3x3
 
 FUNCTION matvec_3x3 ( mat, vec )
 
-  IMPLICIT NONE
 
 ! Return value
-  REAL ( dbl ), DIMENSION(3) :: matvec_3x3
-
-! Arguments
-  REAL ( dbl ), DIMENSION(3,3), INTENT ( IN ) :: mat
-  REAL ( dbl ), DIMENSION(3), INTENT ( IN ) :: vec
+    REAL(dbl), DIMENSION(3, 3), INTENT(IN)   :: mat
+    REAL(dbl), DIMENSION(3), INTENT(IN)      :: vec
+    REAL(dbl), DIMENSION(3)                  :: matvec_3x3
 
 !------------------------------------------------------------------------------
 
@@ -616,13 +586,10 @@ END FUNCTION matvec_3x3
 
 FUNCTION dotprod_3d ( vec1, vec2 )
 
-  IMPLICIT NONE
 
 ! Return value
-  REAL ( dbl ) :: dotprod_3d
-
-! Arguments
-  REAL ( dbl ), DIMENSION(3), INTENT ( IN ) :: vec1,vec2
+    REAL(dbl), DIMENSION(3), INTENT(IN)      :: vec1, vec2
+    REAL(dbl)                                :: dotprod_3d
 
 !------------------------------------------------------------------------------
 
@@ -637,13 +604,10 @@ END FUNCTION dotprod_3d
 
 FUNCTION crossprod_3d ( vec1, vec2 )
 
-  IMPLICIT NONE
 
 ! Return value
-  REAL ( dbl ), DIMENSION ( 3 ) :: crossprod_3d
-
-! Arguments
-  REAL ( dbl ), DIMENSION ( 3 ), INTENT ( IN ) :: vec1, vec2
+    REAL(dbl), DIMENSION(3), INTENT(IN)      :: vec1, vec2
+    REAL(dbl), DIMENSION(3)                  :: crossprod_3d
 
 !------------------------------------------------------------------------------
 
@@ -657,16 +621,12 @@ END FUNCTION crossprod_3d
 
 FUNCTION transpose_3d ( mat )
 
-  IMPLICIT NONE
 
 ! Return value
-  REAL ( dbl ), DIMENSION(3,3) :: transpose_3d
+    REAL(dbl), DIMENSION(3, 3), INTENT(IN)   :: mat
+    REAL(dbl), DIMENSION(3, 3)               :: transpose_3d
 
-! Arguments
-  REAL ( dbl ), DIMENSION(3,3), INTENT ( IN ) :: mat
-
-! Locals
-  INTEGER :: i, j
+    INTEGER                                  :: i, j
 
 !------------------------------------------------------------------------------
 
@@ -682,13 +642,10 @@ END FUNCTION transpose_3d
 
 FUNCTION matmul_3x3 ( mat1, mat2 )
 
-  IMPLICIT NONE
 
 ! Return value
-  REAL ( dbl ), DIMENSION ( 3, 3 ) :: matmul_3x3
-
-! Arguments
-  REAL ( dbl ), DIMENSION ( 3, 3 ), INTENT ( IN ) :: mat1, mat2
+    REAL(dbl), DIMENSION(3, 3), INTENT(IN)   :: mat1, mat2
+    REAL(dbl), DIMENSION(3, 3)               :: matmul_3x3
 
 !------------------------------------------------------------------------------
 

@@ -1,7 +1,7 @@
 
 MODULE kpoints
 
-  USE kinds, ONLY : dbl
+  USE kinds,                           ONLY: dbl
 
   IMPLICIT NONE
 

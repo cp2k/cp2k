@@ -21,9 +21,9 @@
 
 MODULE fftessl_lib
 
-  USE kinds, ONLY: dbl
-  USE termination, ONLY : stop_memory
-  USE util, ONLY : sort
+  USE kinds,                           ONLY: dbl
+  USE termination,                     ONLY: stop_memory
+  USE util,                            ONLY: sort
 
   IMPLICIT NONE
 
@@ -56,21 +56,15 @@ CONTAINS
 
 SUBROUTINE fft_get_lengths ( data, max_length )
 
-  IMPLICIT NONE
 
-! Arguments
-  INTEGER, INTENT ( IN ) :: max_length
-  INTEGER, DIMENSION ( : ), POINTER :: data
+    INTEGER, DIMENSION(:), POINTER           :: data
+    INTEGER, INTENT(IN)                      :: max_length
 
-! Locals
-  INTEGER :: iloc
-  INTEGER, DIMENSION ( : ), ALLOCATABLE :: idx
-  INTEGER :: h, i, j, k, m, number, ndata, nmax, allocstat, maxn
-  INTEGER :: maxn_twos, maxn_threes, maxn_fives
-  INTEGER :: maxn_sevens, maxn_elevens, maxn_thirteens
+    INTEGER :: allocstat, h, i, j, k, m, maxn, maxn_elevens, maxn_fives, &
+      maxn_sevens, maxn_thirteens, maxn_threes, maxn_twos, ndata, nmax, number
+    INTEGER, ALLOCATABLE, DIMENSION(:)       :: idx
 
 !------------------------------------------------------------------------------
-
 ! compute ndata
 
   maxn_twos = 15
@@ -161,20 +155,20 @@ END SUBROUTINE fft_get_lengths
 
 SUBROUTINE fft3d ( fsign, scale, n, zg, zg_out )
 
-  IMPLICIT NONE
 
-! Arguments
-  INTEGER, INTENT ( INOUT ) :: fsign
-  REAL ( dbl ), INTENT ( IN ), OPTIONAL :: scale
-  INTEGER, DIMENSION ( : ), INTENT ( IN ) :: n
-  COMPLEX ( dbl ), DIMENSION(:,:,:), INTENT ( INOUT ) :: zg
-  COMPLEX ( dbl ), DIMENSION(:,:,:), INTENT ( INOUT ), OPTIONAL :: zg_out
+    INTEGER, INTENT(INOUT)                   :: fsign
+    REAL(dbl), INTENT(IN), OPTIONAL          :: scale
+    INTEGER, DIMENSION(:), INTENT(IN)        :: n
+    COMPLEX(dbl), DIMENSION(:, :, :), &
+      INTENT(INOUT)                          :: zg
+    COMPLEX(dbl), DIMENSION(:, :, :), &
+      INTENT(INOUT), OPTIONAL                :: zg_out
 
-! Locals
-  INTEGER :: sign_fft, ldx, ldy, ldz, ldox, ldoy, ldoz, ierr
-  INTEGER :: nx, ny, nz, na1, na2, isos, naux
-  COMPLEX ( dbl ), DIMENSION(:), ALLOCATABLE :: aux
-  LOGICAL :: fft_in_place
+    COMPLEX(dbl), ALLOCATABLE, DIMENSION(:)  :: aux
+    INTEGER                                  :: isos, ldox, ldoy, ldoz, ldx, &
+                                                ldy, ldz, na1, na2, naux, nx, &
+                                                ny, nz, sign_fft
+    LOGICAL                                  :: fft_in_place
 
 !------------------------------------------------------------------------------
 
@@ -267,22 +261,20 @@ END SUBROUTINE fft3d
 
 SUBROUTINE mfft2d ( rin, rout, fsign, scale, n1, n2, nm, zin, zout )
 
-  IMPLICIT NONE
 
-! Arguments
-  CHARACTER ( LEN = * ), INTENT ( IN ) :: rin, rout
-  INTEGER, INTENT ( INOUT ) :: fsign
-  REAL ( dbl ), INTENT ( IN ) :: scale
-  INTEGER, INTENT ( IN ) :: n1, n2, nm
-  COMPLEX ( dbl ), DIMENSION(:,:,:), INTENT ( IN ) :: zin
-  COMPLEX ( dbl ), DIMENSION(:,:,:), INTENT ( OUT ) :: zout
+    CHARACTER(LEN=*), INTENT(IN)             :: rin, rout
+    INTEGER, INTENT(INOUT)                   :: fsign
+    REAL(dbl), INTENT(IN)                    :: scale
+    INTEGER, INTENT(IN)                      :: n1, n2, nm
+    COMPLEX(dbl), DIMENSION(:, :, :), &
+      INTENT(IN)                             :: zin
+    COMPLEX(dbl), DIMENSION(:, :, :), &
+      INTENT(OUT)                            :: zout
 
-! Locals
-  INTEGER :: li1, li2, li3, lo1, lo2, lo3, ierr, sign_fft
-  INTEGER ::  i1, i2, i3, o1, o2, o3
-  INTEGER :: naux1, naux2, inc1x, inc2x, inc1y, inc2y, init, i
-  COMPLEX ( dbl ), DIMENSION(:), ALLOCATABLE :: aux1, aux2
-  REAL ( dbl ) :: r, s
+    COMPLEX(dbl), ALLOCATABLE, DIMENSION(:)  :: aux1, aux2
+    INTEGER :: i, i1, i2, i3, ierr, inc1x, inc1y, inc2x, inc2y, init, li1, &
+      li2, li3, lo1, lo2, lo3, naux1, naux2, o1, o2, o3, sign_fft
+    REAL(dbl)                                :: r, s
 
 !------------------------------------------------------------------------------
 
@@ -392,23 +384,23 @@ END SUBROUTINE mfft2d
 
 SUBROUTINE mltfft ( tin, tout, fsign, scale, n, m, zin, zout )
   
-  IMPLICIT NONE
   
-! Arguments
-  CHARACTER ( LEN = * ), INTENT ( IN ) :: tin, tout
-  INTEGER, INTENT ( INOUT ) :: fsign
-  REAL ( dbl ), INTENT ( IN ) :: scale
-  INTEGER, INTENT ( IN ) :: n, m
-  COMPLEX ( dbl ), DIMENSION(:,:), INTENT ( IN ) :: zin
-  COMPLEX ( dbl ), DIMENSION(:,:), INTENT ( OUT ) :: zout
-  
-! Locals
-  INTEGER :: ldi, lmi, ldo, lmo, init, isign, ierr
-  INTEGER :: naux1, naux2, inc1x, inc2x, inc1y, inc2y
-  COMPLEX ( dbl ), DIMENSION(:), ALLOCATABLE :: aux1, aux2
-  
+    CHARACTER(LEN=*), INTENT(IN)             :: tin, tout
+    INTEGER, INTENT(INOUT)                   :: fsign
+    REAL(dbl), INTENT(IN)                    :: scale
+    INTEGER, INTENT(IN)                      :: n, m
+    COMPLEX(dbl), DIMENSION(:, :), &
+      INTENT(IN)                             :: zin
+    COMPLEX(dbl), DIMENSION(:, :), &
+      INTENT(OUT)                            :: zout
+
+    COMPLEX(dbl), ALLOCATABLE, DIMENSION(:)  :: aux1, aux2
+    INTEGER                                  :: ierr, inc1x, inc1y, inc2x, &
+                                                inc2y, init, isign, ldi, ldo, &
+                                                lmi, lmo, naux1, naux2
+
 !------------------------------------------------------------------------------
-  
+
   ldi = SIZE ( zin, 1 )
   lmi = SIZE ( zin, 2 )
   ldo = SIZE ( zout, 1 )

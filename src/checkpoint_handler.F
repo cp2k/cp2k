@@ -21,11 +21,11 @@
 
 MODULE checkpoint_handler
 
-  USE global_types,     ONLY: global_environment_type
-  USE machine,          ONLY: m_flush
-  USE memory_utilities, ONLY: write_memory
-  USE message_passing,  ONLY: mp_sync
-  USE timings,          ONLY: write_cputime
+  USE global_types,                    ONLY: global_environment_type
+  USE machine,                         ONLY: m_flush
+  USE memory_utilities,                ONLY: write_memory
+  USE message_passing,                 ONLY: mp_sync
+  USE timings,                         ONLY: write_cputime
 
   IMPLICIT NONE
 
@@ -48,11 +48,11 @@ CONTAINS
 
 !   ***************************************************************************
 
-    TYPE(global_environment_type), INTENT(IN) :: globenv
-    CHARACTER(LEN=*), INTENT(IN)              :: checkpoint
+    CHARACTER(LEN=*), INTENT(IN)             :: checkpoint
+    TYPE(global_environment_type), &
+      INTENT(IN)                             :: globenv
 
 !   ---------------------------------------------------------------------------
-
 !   *** Wait for ionode and empty IO buffer ***
 
     CALL m_flush(globenv%scr)

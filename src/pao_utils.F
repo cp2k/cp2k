@@ -28,16 +28,14 @@
 MODULE pao_utils
   USE cp_error_handling,               ONLY: cp_a_l,&
                                              cp_assert,&
-                                             cp_assertion_failed,&
                                              cp_error_message,&
                                              cp_error_type
   USE cp_log_handling,                 ONLY: cp_failure_level,&
                                              cp_to_string,&
                                              cp_warning_level
-  USE global_types,                    ONLY: global_environment_type
   USE kinds,                           ONLY: dp
-  USE message_passing,                 ONLY: mp_sum
   USE sparse_matrix_types
+
   IMPLICIT NONE
   PRIVATE
   LOGICAL, PRIVATE, PARAMETER :: debug_this_module=.TRUE.
@@ -94,15 +92,17 @@ CONTAINS
 !****************************************************************************
   !pure
   FUNCTION cp_get_random_integer(from,to,error) RESULT(res)
-    INTEGER :: res
-    INTEGER, OPTIONAL, INTENT(in) :: from, to
-    TYPE(cp_error_type), OPTIONAL, INTENT(in) :: error
+    INTEGER, INTENT(in), OPTIONAL            :: from, to
+    TYPE(cp_error_type), INTENT(in), &
+      OPTIONAL                               :: error
+    INTEGER                                  :: res
 
-    LOGICAL :: failure
-    CHARACTER(len=*), PARAMETER :: routineP='util:cp_get_random_integer'
-    REAL :: rand
-    INTEGER :: fromi, toi
-    TYPE(cp_error_type) :: iError
+    CHARACTER(len=*), PARAMETER :: routineP = 'util:cp_get_random_integer'
+
+    INTEGER                                  :: fromi, toi
+    LOGICAL                                  :: failure
+    REAL                                     :: rand
+
     failure=.FALSE.
 !call cp_init(iError,template_error=error)
     IF (.NOT. PRESENT(from)) THEN

@@ -43,10 +43,10 @@ MODULE ai_overlap
 
 ! *****************************************************************************
 
-  USE kinds, ONLY: dp
-
-  USE mathconstants,    ONLY: pi
-  USE orbital_pointers, ONLY: coset,ncoset
+  USE kinds,                           ONLY: dp
+  USE mathconstants,                   ONLY: pi
+  USE orbital_pointers,                ONLY: coset,&
+                                             ncoset
 
   IMPLICIT NONE
 
@@ -74,23 +74,26 @@ CONTAINS
 
 !   ***************************************************************************
 
-    REAL(KIND = dp), INTENT(IN)                  :: rab2
-    INTEGER, INTENT(IN)                   :: la_max,la_min,lb_max,lb_min
-    REAL(KIND = dp), DIMENSION(3), INTENT(IN)    :: rab
-    REAL(KIND = dp), DIMENSION(:), INTENT(IN)    :: rpgfa,rpgfb,zeta,zetb
-    REAL(KIND = dp), DIMENSION(:,:), INTENT(OUT) :: sab
+    INTEGER, INTENT(IN)                      :: la_max
+    REAL(KIND=dp), DIMENSION(:), INTENT(IN)  :: zeta, rpgfa
+    INTEGER, INTENT(IN)                      :: la_min, lb_max
+    REAL(KIND=dp), DIMENSION(:), INTENT(IN)  :: zetb, rpgfb
+    INTEGER, INTENT(IN)                      :: lb_min
+    REAL(KIND=dp), DIMENSION(3), INTENT(IN)  :: rab
+    REAL(KIND=dp), INTENT(IN)                :: rab2
+    REAL(KIND=dp), DIMENSION(:, :), &
+      INTENT(OUT)                            :: sab
 
-!   *** Local variables ***
-
-    REAL(KIND = dp) :: dab,f0,f1,f2,f3,fx,fy,fz,zetp
-    INTEGER  :: ax,ay,az,bx,by,bz,i,ipgf,j,jpgf,la,la_start,lb,na,nb
-
-    REAL(KIND = dp), DIMENSION(3) :: rap,rbp
-
-    REAL(KIND = dp), DIMENSION(ncoset(la_max),ncoset(lb_max)) :: s
+    INTEGER                                  :: ax, ay, az, bx, by, bz, i, &
+                                                ipgf, j, jpgf, la, la_start, &
+                                                lb, na, nb
+    REAL(KIND=dp)                            :: dab, f0, f1, f2, f3, fx, fy, &
+                                                fz, zetp
+    REAL(KIND=dp), DIMENSION(3)              :: rap, rbp
+    REAL(KIND=dp), DIMENSION(ncoset(la_max),&
+      ncoset(lb_max))                        :: s
 
 !   ---------------------------------------------------------------------------
-
 !   *** Calculate the distance between the centers a and b ***
 
     dab = SQRT(rab2)

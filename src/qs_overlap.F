@@ -33,9 +33,9 @@ MODULE qs_overlap
                                              cp_fm_get_submatrix,&
                                              cp_fm_type
   USE global_types,                    ONLY: global_environment_type
-  USE kinds,                           ONLY: int_size,&
-                                             dp,&
-                                             dp_size
+  USE kinds,                           ONLY: dp,&
+                                             dp_size,&
+                                             int_size
   USE machine,                         ONLY: m_flush
   USE mathlib,                         ONLY: symmetrize_matrix
   USE message_passing,                 ONLY: mp_sum,&
@@ -73,6 +73,7 @@ MODULE qs_overlap
                                              stop_program
   USE timings,                         ONLY: timeset,&
                                              timestop
+
   IMPLICIT NONE
 
   PRIVATE
@@ -104,8 +105,9 @@ CONTAINS
 
 !   ***************************************************************************
 
-    TYPE(global_environment_type), INTENT(IN) :: globenv
-    TYPE(qs_environment_type), POINTER :: qs_env
+    TYPE(qs_environment_type), POINTER       :: qs_env
+    TYPE(global_environment_type), &
+      INTENT(IN)                             :: globenv
 
 !   *** Local types ***
 
@@ -489,27 +491,23 @@ CONTAINS
 
 !   ***************************************************************************
 
-    TYPE(cp_fm_type), POINTER                 :: blacs_matrix
-    INTEGER, INTENT(IN)                       :: after,before
-    TYPE(qs_environment_type), INTENT(IN)     :: qs_env
-    TYPE(global_environment_type), INTENT(IN) :: globenv
-    INTEGER, OPTIONAL, INTENT(IN)             :: first_col,first_row,&
-                                                 last_col,last_row
-
-!   *** Local parameters ***
+    TYPE(cp_fm_type), POINTER                :: blacs_matrix
+    INTEGER, INTENT(IN)                      :: before, after
+    TYPE(qs_environment_type), INTENT(IN)    :: qs_env
+    TYPE(global_environment_type), &
+      INTENT(IN)                             :: globenv
+    INTEGER, INTENT(IN), OPTIONAL            :: first_row, last_row, &
+                                                first_col, last_col
 
     CHARACTER(LEN=*), PARAMETER :: routine_name = "write_fm_with_basis_info"
 
-!   *** Local variables ***
-
-    CHARACTER(LEN=60) :: matrix_name
-    INTEGER           :: col1,col2,group,istat,nrow_global,ncol_global,&
-                         nsgf,output_unit,row1,row2
-
-    TYPE(atomic_kind_type), DIMENSION(:), POINTER :: atomic_kind_set
-
-    REAL(KIND = dp), DIMENSION(:,:), POINTER :: matrix
-
+    CHARACTER(LEN=60)                        :: matrix_name
+    INTEGER                                  :: col1, col2, group, istat, &
+                                                ncol_global, nrow_global, &
+                                                nsgf, output_unit, row1, row2
+    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: matrix
+    TYPE(atomic_kind_type), DIMENSION(:), &
+      POINTER                                :: atomic_kind_set
 
 !   ---------------------------------------------------------------------------
 
@@ -575,35 +573,31 @@ CONTAINS
 
 !   ***************************************************************************
 
-    REAL(KIND = dp), DIMENSION(:,:), POINTER  :: matrix
-    CHARACTER(LEN=*), INTENT(IN)              :: matrix_name
-    INTEGER, INTENT(IN)                       :: after,before,first_col,&
-                                                 first_row,last_col,last_row
-    TYPE(qs_environment_type), INTENT(IN)     :: qs_env
-    TYPE(global_environment_type), INTENT(IN) :: globenv
+    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: matrix
+    CHARACTER(LEN=*), INTENT(IN)             :: matrix_name
+    INTEGER, INTENT(IN)                      :: before, after
+    TYPE(qs_environment_type), INTENT(IN)    :: qs_env
+    TYPE(global_environment_type), &
+      INTENT(IN)                             :: globenv
+    INTEGER, INTENT(IN)                      :: first_row, last_row, &
+                                                first_col, last_col
 
-!   *** Local parameters ***
+    CHARACTER(LEN=*), PARAMETER              :: routine_name = "write_matrix"
 
-    CHARACTER(LEN=*), PARAMETER :: routine_name = "write_matrix"
-
-!   *** Local variables ***
-
-    TYPE(gto_basis_set_type), POINTER :: orb_basis_set
-
-    CHARACTER(LEN=25) :: fmtstr1
-    CHARACTER(LEN=35) :: fmtstr2
-    CHARACTER(LEN=2)  :: element_symbol
-    INTEGER           :: from,group,iatom,icol,irow,iset,isgf,iso,ishell,&
-                         jcol,l,left,natom,ncol,ndigits,nset,nsgf,&
-                         output_unit,right,to,width
-    LOGICAL           :: ionode
-
-    TYPE(atomic_kind_type), DIMENSION(:), POINTER :: atomic_kind_set
-    TYPE(particle_type), DIMENSION(:), POINTER    :: particle_set
-
-    CHARACTER(LEN=6), DIMENSION(:), POINTER :: sgf_symbol
-    INTEGER, DIMENSION(:), POINTER          :: nshell
-    INTEGER, DIMENSION(:,:), POINTER        :: lshell
+    CHARACTER(LEN=2)                         :: element_symbol
+    CHARACTER(LEN=25)                        :: fmtstr1
+    CHARACTER(LEN=35)                        :: fmtstr2
+    CHARACTER(LEN=6), DIMENSION(:), POINTER  :: sgf_symbol
+    INTEGER :: from, group, iatom, icol, irow, iset, isgf, ishell, iso, jcol, &
+      l, left, natom, ncol, ndigits, nset, nsgf, output_unit, right, to, width
+    INTEGER, DIMENSION(:), POINTER           :: nshell
+    INTEGER, DIMENSION(:, :), POINTER        :: lshell
+    LOGICAL                                  :: ionode
+    TYPE(atomic_kind_type), DIMENSION(:), &
+      POINTER                                :: atomic_kind_set
+    TYPE(gto_basis_set_type), POINTER        :: orb_basis_set
+    TYPE(particle_type), DIMENSION(:), &
+      POINTER                                :: particle_set
 
 !   ---------------------------------------------------------------------------
 
@@ -706,25 +700,22 @@ CONTAINS
 
 !   ***************************************************************************
 
-    TYPE(real_matrix_type), POINTER           :: matrix
-    TYPE(global_environment_type), INTENT(IN) :: globenv
-
-!   *** Local parameters ***
+    TYPE(real_matrix_type), POINTER          :: matrix
+    TYPE(global_environment_type), &
+      INTENT(IN)                             :: globenv
 
     CHARACTER(LEN=*), PARAMETER :: routine_name = "write_matrix_distribution"
 
-!   *** Local variables ***
-
-    CHARACTER(LEN=80) :: matrix_name,matrix_symmetry
-    REAL(KIND = dp)   :: occupation
-    INTEGER           :: group,ipe,istat,mype,natom,nblock_sum,nblock_tot,&
-                         nelement_sum,npe,nrow,output_unit
-    LOGICAL           :: ionode
-
-    INTEGER, DIMENSION(:), ALLOCATABLE :: nblock,nelement
+    CHARACTER(LEN=80)                        :: matrix_name, matrix_symmetry
+    INTEGER                                  :: group, ipe, istat, mype, &
+                                                natom, nblock_sum, &
+                                                nblock_tot, nelement_sum, &
+                                                npe, nrow, output_unit
+    INTEGER, ALLOCATABLE, DIMENSION(:)       :: nblock, nelement
+    LOGICAL                                  :: ionode
+    REAL(KIND=dp)                            :: occupation
 
 !   ---------------------------------------------------------------------------
-
 !   *** Quick return, if no printing is requested ***
 
     IF (.NOT.globenv%print%distribution) RETURN
@@ -807,26 +798,23 @@ CONTAINS
 
 !   ***************************************************************************
 
-    TYPE(real_matrix_type), POINTER           :: sparse_matrix
-    INTEGER, INTENT(IN)                       :: after,before
-    TYPE(qs_environment_type), INTENT(IN)     :: qs_env
-    TYPE(global_environment_type), INTENT(IN) :: globenv
-    INTEGER, OPTIONAL, INTENT(IN)             :: first_col,first_row,&
-                                                 last_col,last_row
-
-!   *** Local parameters ***
+    TYPE(real_matrix_type), POINTER          :: sparse_matrix
+    INTEGER, INTENT(IN)                      :: before, after
+    TYPE(qs_environment_type), INTENT(IN)    :: qs_env
+    TYPE(global_environment_type), &
+      INTENT(IN)                             :: globenv
+    INTEGER, INTENT(IN), OPTIONAL            :: first_row, last_row, &
+                                                first_col, last_col
 
     CHARACTER(LEN=*), PARAMETER :: routine_name = "write_sparse_matrix"
 
-!   *** Local variables ***
-
-    CHARACTER(LEN=80) :: matrix_name
-    CHARACTER(LEN=40) :: matrix_symmetry
-    INTEGER           :: col1,col2,group,istat,nsgf,output_unit,row1,row2
-
-    TYPE(atomic_kind_type), DIMENSION(:), POINTER :: atomic_kind_set
-
-    REAL(KIND = dp), DIMENSION(:,:), POINTER :: matrix
+    CHARACTER(LEN=40)                        :: matrix_symmetry
+    CHARACTER(LEN=80)                        :: matrix_name
+    INTEGER                                  :: col1, col2, group, istat, &
+                                                nsgf, output_unit, row1, row2
+    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: matrix
+    TYPE(atomic_kind_type), DIMENSION(:), &
+      POINTER                                :: atomic_kind_set
 
 !   ---------------------------------------------------------------------------
 

@@ -32,107 +32,59 @@ MODULE qs_kpp1_env_methods
                                              coeff_transform_space,&
                                              coeff_type,&
                                              coeff_zero
-  USE cp_block_matrix,                 ONLY: cp_block_matrix_p_type,&
-                                             cp_block_matrix_type
+  USE cp_control_types,                ONLY: dft_control_type
   USE cp_error_handling,               ONLY: cp_a_l,&
                                              cp_assert,&
                                              cp_assertion_failed,&
                                              cp_error_get_logger,&
-                                             cp_error_type,&
-                                             cp_unimplemented_error,&
-                                             cp_unimplemented_error_nr
+                                             cp_error_type
   USE cp_log_handling,                 ONLY: cp_failure_level,&
-                                             cp_log,&
                                              cp_logger_type,&
                                              cp_note_level,&
                                              cp_to_string,&
                                              cp_warning_level
   USE cp_output_handling,              ONLY: cp_finished_output,&
-                                             cp_unitnr_for_output,&
-                                             cp_would_output
-  USE cube_utils,                      ONLY: cube_info_type
-  USE cp_control_types,                       ONLY: dft_control_type
-  USE gaussian_gridlevels,             ONLY: gridlevel_info_type
-  USE global_types,                    ONLY: DEBUG,&
-                                             global_environment_type
+                                             cp_unitnr_for_output
   USE hartree,                         ONLY: calculate_hartree
   USE kinds,                           ONLY: dp
-  USE l_utils,                         ONLY: l_info_type
-  USE qs_ks_methods,                   ONLY: qs_ks_build_kohn_sham_matrix
-  USE message_passing,                 ONLY: mp_allgather,&
-                                             mp_max,&
-                                             mp_range,&
-                                             mp_sum,&
-                                             mp_sync
   USE pw_env_types,                    ONLY: pw_env_get,&
                                              pw_env_type
-  USE pw_grid_types,                   ONLY: HALFSPACE,&
-                                             pw_grid_type
-  USE pw_pool_types,                   ONLY: pw_pool_create_pw,&
-                                             pw_pool_give_back_coeff,&
-                                             pw_pool_give_back_pw,&
+  USE pw_pool_types,                   ONLY: pw_pool_give_back_coeff,&
                                              pw_pool_init_coeff,&
                                              pw_pool_p_type,&
                                              pw_pool_type,&
                                              pw_pools_give_back_coeffs,&
                                              pw_pools_init_coeffs
   USE pw_types,                        ONLY: COMPLEXDATA1D,&
-                                             COMPLEXDATA3D,&
                                              REALDATA3D,&
                                              REALSPACE,&
-                                             RECIPROCALSPACE,&
-                                             pw_copy,&
-                                             pw_derive,&
-                                             pw_p_type,&
-                                             pw_sumup,&
-                                             pw_transfer,&
-                                             pw_type,&
-                                             pw_zero
+                                             RECIPROCALSPACE
   USE pws,                             ONLY: cleanup_pw_poisson_solver,&
-                                             init_pw_poisson_solver,&
-                                             pw_poisson_solver
-  USE qs_charges_types,                ONLY: qs_charges_create,&
-                                             qs_charges_release,&
-                                             qs_charges_type
+                                             init_pw_poisson_solver
   USE qs_collocate_density,            ONLY: calculate_total_rho
   USE qs_energy_types,                 ONLY: allocate_qs_energy,&
                                              deallocate_qs_energy,&
                                              qs_energy_type
   USE qs_environment_types,            ONLY: get_qs_env,&
-                                             qs_environment_type,&
-                                             set_qs_env
-  USE qs_integrate_potential,          ONLY: integrate_v_core_rspace,&
-                                             integrate_v_rspace
-  USE qs_kpp1_env_types,               ONLY: kpp1_release,&
-                                             kpp1_retain,&
-                                             qs_kpp1_env_p_type,&
-                                             qs_kpp1_env_type
-  USE qs_rho_methods,                  ONLY: qs_rho_update_rho
-  USE qs_rho_types,                    ONLY: qs_rho_did_change,&
-                                             qs_rho_get,&
+                                             qs_environment_type
+  USE qs_integrate_potential,          ONLY: integrate_v_rspace
+  USE qs_kpp1_env_types,               ONLY: qs_kpp1_env_type
+  USE qs_ks_methods,                   ONLY: qs_ks_build_kohn_sham_matrix
+  USE qs_rho_types,                    ONLY: qs_rho_get,&
                                              qs_rho_type
-  USE qs_tddfpt_types,                 ONLY: tddfpt_control_type
-  USE simulation_cell,                 ONLY: cell_type,&
-                                             get_cell
-  USE sparse_matrix_types,             ONLY: add_matrices,&
+  USE simulation_cell,                 ONLY: cell_type
+  USE sparse_matrix_types,             ONLY: cp_sm_scale_and_add,&
                                              deallocate_matrix_set,&
-                                             first_block_node,&
-                                             get_block_node,&
-                                             get_matrix_info,&
-                                             next_block_node,&
-                                             real_block_node_type,&
                                              real_matrix_p_type,&
-                                             real_matrix_type,&
                                              replicate_matrix_structure,&
                                              set_matrix,&
-                                             symmetrise_diagonal_blocks,&
-                                             transfer_matrix,&
-                                             cp_sm_scale_and_add
+                                             transfer_matrix
   USE timings,                         ONLY: timeset,&
                                              timestop
-  USE xc,                              ONLY: xc_prep_2nd_deriv1, xc_calc_2nd_deriv1
-  USE xc_derivative_set_types,             ONLY: xc_derivative_set_type, &
-                                             xc_dset_release
+  USE xc,                              ONLY: xc_calc_2nd_deriv1,&
+                                             xc_prep_2nd_deriv1
+  USE xc_derivative_set_types,         ONLY: xc_dset_release
+
   IMPLICIT NONE
 
   PRIVATE
@@ -184,15 +136,18 @@ CONTAINS
 !!
 !!*** **********************************************************************
   SUBROUTINE kpp1_create(kpp1_env,qs_env, rebuild_each, error)
-    TYPE(qs_kpp1_env_type), POINTER :: kpp1_env
-    TYPE(qs_environment_type), INTENT(in), TARGET :: qs_env
-    INTEGER, INTENT(in), OPTIONAL :: rebuild_each
-    TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
+    TYPE(qs_kpp1_env_type), POINTER          :: kpp1_env
+    TYPE(qs_environment_type), INTENT(in), &
+      TARGET                                 :: qs_env
+    INTEGER, INTENT(in), OPTIONAL            :: rebuild_each
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
 
-    LOGICAL :: failure
-    INTEGER :: stat
-    CHARACTER(len=*), PARAMETER :: routineN='kpp1_create',&
-         routineP=moduleN//':'//routineN
+    CHARACTER(len=*), PARAMETER :: routineN = 'kpp1_create', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: stat
+    LOGICAL                                  :: failure
 
     failure=.FALSE.
 
@@ -242,33 +197,38 @@ CONTAINS
   SUBROUTINE kpp1_calc_k_p_p1(kpp1_env,qs_env,k_p_p1,rho,rho1,&
        rebuild,error)
     
-    IMPLICIT NONE
 
-    TYPE(qs_kpp1_env_type), POINTER                  :: kpp1_env
-    TYPE(qs_environment_type), INTENT(in), TARGET      :: qs_env
-    TYPE(real_matrix_p_type), DIMENSION(:), POINTER    :: k_p_p1
-    TYPE(qs_rho_type), POINTER                         :: rho, rho1
-    LOGICAL, intent(in), OPTIONAL                      :: rebuild
-    TYPE(cp_error_type), OPTIONAL, INTENT(inout)       :: error
+    TYPE(qs_kpp1_env_type), POINTER          :: kpp1_env
+    TYPE(qs_environment_type), INTENT(in), &
+      TARGET                                 :: qs_env
+    TYPE(real_matrix_p_type), DIMENSION(:), &
+      POINTER                                :: k_p_p1
+    TYPE(qs_rho_type), POINTER               :: rho, rho1
+    LOGICAL, intent(in), OPTIONAL            :: rebuild
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
 
-    LOGICAL :: failure, my_rebuild
-    INTEGER :: handle, nspins, ispin, stat, output_unit=6, ntot
-    CHARACTER(len=*), PARAMETER :: routineN='kpp1_calc_k_p_p1',&
-         routineP=moduleN//':'//routineN
-    REAL(KIND = dp) :: total_rho_gspace, energy_hartree, scale_fac
-    TYPE(dft_control_type), POINTER               :: dft_control
-    TYPE(pw_pool_p_type), DIMENSION(:), POINTER   :: pw_pools
-    TYPE(pw_pool_type), POINTER                   :: auxbas_pw_pool
-    TYPE(pw_env_type), POINTER                    :: pw_env
-    TYPE(coeff_type), DIMENSION(:), POINTER       :: v_rspace_new,&
-         rho_r,rho_g,rho1_r, rho1_g
-    TYPE(coeff_type), DIMENSION(:), POINTER       :: mgrid_gspace, &
-         mgrid_rspace
-    TYPE(coeff_type)                              :: v_hartree_gspace,&
-         v_hartree_rspace,&
-         rho1_tot_gspace
-    TYPE(cp_logger_type), POINTER                 :: logger
-    TYPE(cell_type), POINTER :: cell
+    CHARACTER(len=*), PARAMETER :: routineN = 'kpp1_calc_k_p_p1', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: handle, ispin, nspins, ntot, &
+                                                output_unit = 6, stat
+    LOGICAL                                  :: failure, my_rebuild
+    REAL(KIND=dp)                            :: energy_hartree, &
+                                                total_rho_gspace
+    TYPE(cell_type), POINTER                 :: cell
+    TYPE(coeff_type)                         :: rho1_tot_gspace, &
+                                                v_hartree_gspace, &
+                                                v_hartree_rspace
+    TYPE(coeff_type), DIMENSION(:), POINTER  :: mgrid_gspace, mgrid_rspace, &
+                                                rho1_g, rho1_r, rho_g, rho_r, &
+                                                v_rspace_new
+    TYPE(cp_logger_type), POINTER            :: logger
+    TYPE(dft_control_type), POINTER          :: dft_control
+    TYPE(pw_env_type), POINTER               :: pw_env
+    TYPE(pw_pool_p_type), DIMENSION(:), &
+      POINTER                                :: pw_pools
+    TYPE(pw_pool_type), POINTER              :: auxbas_pw_pool
 
     CALL timeset(routineN,"I","",handle)
     failure=.FALSE.
@@ -510,22 +470,27 @@ CONTAINS
 !!*** **********************************************************************
   SUBROUTINE kpp1_calc_k_p_p1_fdiff(kpp1_env,qs_env,k_p_p1,rho,rho1,&
        rebuild, diff, error)
-    TYPE(qs_kpp1_env_type), POINTER                    :: kpp1_env
-    TYPE(qs_environment_type), INTENT(inout), TARGET   :: qs_env
-    TYPE(real_matrix_p_type), DIMENSION(:), POINTER    :: k_p_p1
-    TYPE(qs_rho_type), POINTER                         :: rho, rho1
-    LOGICAL, intent(in), OPTIONAL                      :: rebuild
-    real(KIND = dp), intent(in), optional                 :: diff
-    TYPE(cp_error_type), OPTIONAL, INTENT(inout)       :: error
+    TYPE(qs_kpp1_env_type), POINTER          :: kpp1_env
+    TYPE(qs_environment_type), &
+      INTENT(inout), TARGET                  :: qs_env
+    TYPE(real_matrix_p_type), DIMENSION(:), &
+      POINTER                                :: k_p_p1
+    TYPE(qs_rho_type), POINTER               :: rho, rho1
+    LOGICAL, intent(in), OPTIONAL            :: rebuild
+    real(KIND=dp), intent(in), optional      :: diff
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
 
-    logical :: failure
-    CHARACTER(len=*), PARAMETER :: routineN='kpp1_calc_k_p_p1_fdiff',&
-         routineP=moduleN//':'//routineN
-    type(real_matrix_p_type), dimension(:), pointer :: ks_2, s, rho_ao
-    type(dft_control_type), pointer :: dft_control
-    type(qs_energy_type), pointer :: qs_energy
-    integer :: stat, ispin
-    real(KIND = dp):: scaling, my_diff
+    CHARACTER(len=*), PARAMETER :: routineN = 'kpp1_calc_k_p_p1_fdiff', &
+      routineP = moduleN//':'//routineN
+
+    integer                                  :: ispin, stat
+    logical                                  :: failure
+    real(KIND=dp)                            :: my_diff
+    type(dft_control_type), pointer          :: dft_control
+    type(qs_energy_type), pointer            :: qs_energy
+    TYPE(real_matrix_p_type), DIMENSION(:), &
+      POINTER                                :: ks_2, rho_ao, s
 
     nullify(ks_2,s,dft_control,qs_energy)
     my_diff=1.0e-6_dp
@@ -627,25 +592,27 @@ CONTAINS
 !!*** **********************************************************************
   SUBROUTINE kpp1_check_i_alloc(kpp1_env, qs_env, error)
 
-    IMPLICIT NONE
 
-    TYPE(qs_kpp1_env_type), POINTER                 :: kpp1_env
-    TYPE(qs_environment_type), INTENT(in), TARGET   :: qs_env
-    TYPE(cp_error_type), OPTIONAL, INTENT(inout)    :: error
-                                                    
-    LOGICAL                                         :: failure
-    INTEGER                                         :: stat, ispin, nspins
-    TYPE(dft_control_type), POINTER                 :: dft_control
-    TYPE(pw_env_type), POINTER                      :: pw_env
-    TYPE(pw_pool_type), POINTER                     :: auxbas_pw_pool
-    TYPE(real_matrix_p_type), DIMENSION(:), POINTER :: s
-    type(qs_rho_type), pointer                      :: rho
-    type(coeff_type), dimension(:), pointer         :: rho_r, rho_g
+    TYPE(qs_kpp1_env_type), POINTER          :: kpp1_env
+    TYPE(qs_environment_type), INTENT(in), &
+      TARGET                                 :: qs_env
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
 
-    CHARACTER(len=*), PARAMETER :: routineN='kpp1_check_i_alloc',&
-                                   routineP=moduleN//':'//routineN
+    CHARACTER(len=*), PARAMETER :: routineN = 'kpp1_check_i_alloc', &
+      routineP = moduleN//':'//routineN
 
-    ! ------------------------------------------------------------------
+    INTEGER                                  :: ispin, nspins, stat
+    LOGICAL                                  :: failure
+    type(coeff_type), dimension(:), pointer  :: rho_g, rho_r
+    TYPE(dft_control_type), POINTER          :: dft_control
+    TYPE(pw_env_type), POINTER               :: pw_env
+    TYPE(pw_pool_type), POINTER              :: auxbas_pw_pool
+    type(qs_rho_type), pointer               :: rho
+    TYPE(real_matrix_p_type), DIMENSION(:), &
+      POINTER                                :: s
+
+! ------------------------------------------------------------------
 
     failure=.FALSE.
     NULLIFY(pw_env,auxbas_pw_pool,s,rho,rho_r,rho_g)
@@ -760,15 +727,18 @@ CONTAINS
 !!*** **********************************************************************
   SUBROUTINE kpp1_did_change(kpp1_env, s_struct_changed, grid_changed,&
        psi0_changed, error)
-    TYPE(qs_kpp1_env_type), POINTER :: kpp1_env
-    LOGICAL, INTENT(in), OPTIONAL :: s_struct_changed, grid_changed, psi0_changed
-    TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
+    TYPE(qs_kpp1_env_type), POINTER          :: kpp1_env
+    LOGICAL, INTENT(in), OPTIONAL            :: s_struct_changed, &
+                                                grid_changed, psi0_changed
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
 
-    LOGICAL :: failure
-    CHARACTER(len=*), PARAMETER :: routineN='kpp1_did_change',&
-         routineP=moduleN//':'//routineN
-    INTEGER :: i, stat
-    logical :: my_s_struct_changed, my_psi0_changed
+    CHARACTER(len=*), PARAMETER :: routineN = 'kpp1_did_change', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: i, stat
+    LOGICAL                                  :: failure, my_psi0_changed, &
+                                                my_s_struct_changed
 
     failure=.FALSE.
     my_s_struct_changed=.false.

@@ -25,21 +25,30 @@
 !!   SOURCE
 !****************************************************************************
 MODULE xc_xbecke88
-  use cp_log_handling, only: cp_fatal_level, cp_failure_level,&
-       cp_warning_level, cp_note_level, cp_to_string, cp_log
-  use cp_error_handling, only: cp_debug, cp_error_type, cp_error_init,&
-       cp_error_dealloc_ref, cp_error_message, cp_assert,&
-       cp_assertion_failed, cp_internal_error, cp_unimplemented_error,&
-       cp_error_get_logger, cp_a_l, cp_error_check
-  use kinds, only: dp
-  use cp_para_types, only: cp_para_env_type
-  use timings, only: timeset, timestop
-  USE xc_derivative_set_types, ONLY: xc_derivative_set_type, xc_dset_get_derivative
-  USE xc_derivative_types, ONLY: xc_derivative_get, xc_derivative_type
-  USE xc_rho_set_types, ONLY: xc_rho_set_type, xc_rho_set_get, xc_rho_cflags_type,&
-       xc_rho_cflags_setall
-  USE cp_array_r_utils, only: cp_3d_r_p_type
+  USE cp_array_r_utils,                ONLY: cp_3d_r_p_type
+  USE cp_error_handling,               ONLY: cp_a_l,&
+                                             cp_assert,&
+                                             cp_error_get_logger,&
+                                             cp_error_message,&
+                                             cp_error_type,&
+                                             cp_unimplemented_error
+  USE cp_log_handling,                 ONLY: cp_failure_level,&
+                                             cp_fatal_level,&
+                                             cp_note_level,&
+                                             cp_to_string,&
+                                             cp_warning_level
+  USE kinds,                           ONLY: dp
   USE mathconstants,                   ONLY: pi
+  USE timings,                         ONLY: timeset,&
+                                             timestop
+  USE xc_derivative_set_types,         ONLY: xc_derivative_set_type,&
+                                             xc_dset_get_derivative
+  USE xc_derivative_types,             ONLY: xc_derivative_get,&
+                                             xc_derivative_type
+  USE xc_rho_set_types,                ONLY: xc_rho_cflags_type,&
+                                             xc_rho_set_get,&
+                                             xc_rho_set_type
+
   implicit none
   private
 
@@ -79,16 +88,16 @@ contains
 !!
 !!*** **********************************************************************
 SUBROUTINE xb88_lda_info(reference,shortform, needs, max_deriv, error)
-  CHARACTER (LEN=*), INTENT(OUT), OPTIONAL :: reference
-  CHARACTER (LEN=*), INTENT(OUT), OPTIONAL :: shortform
-  TYPE(xc_rho_cflags_type), INTENT(inout), optional :: needs
-  INTEGER, INTENT(out), OPTIONAL :: max_deriv
-  TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
-  
-  LOGICAL :: failure
-  CHARACTER(len=*), PARAMETER :: routineN='xb88_lda_info',&
-       routineP=moduleN//':'//routineN
-  
+    CHARACTER(LEN=*), INTENT(OUT), OPTIONAL  :: reference, shortform
+    TYPE(xc_rho_cflags_type), &
+      INTENT(inout), optional                :: needs
+    INTEGER, INTENT(out), OPTIONAL           :: max_deriv
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'xb88_lda_info', &
+      routineP = moduleN//':'//routineN
+
   IF ( PRESENT ( reference ) ) THEN
      reference = "A. Becke, Phys. Rev. A 38, 3098 (1988) {LDA version}"
   END IF
@@ -132,16 +141,16 @@ END SUBROUTINE xb88_lda_info
 !!
 !!*** **********************************************************************
 SUBROUTINE xb88_lsd_info(reference,shortform, needs, max_deriv, error)
-  CHARACTER (LEN=*), INTENT(OUT), OPTIONAL :: reference
-  CHARACTER (LEN=*), INTENT(OUT), OPTIONAL :: shortform
-  TYPE(xc_rho_cflags_type), INTENT(inout), optional :: needs
-  INTEGER, INTENT(out), OPTIONAL :: max_deriv
-  TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
-  
-  LOGICAL :: failure
-  CHARACTER(len=*), PARAMETER :: routineN='xb88_lsd_info',&
-       routineP=moduleN//':'//routineN
-  
+    CHARACTER(LEN=*), INTENT(OUT), OPTIONAL  :: reference, shortform
+    TYPE(xc_rho_cflags_type), &
+      INTENT(inout), optional                :: needs
+    INTEGER, INTENT(out), OPTIONAL           :: max_deriv
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'xb88_lsd_info', &
+      routineP = moduleN//':'//routineN
+
   IF ( PRESENT ( reference ) ) THEN
      reference = "A. Becke, Phys. Rev. A 38, 3098 (1988) {LSD version}"
   END IF
@@ -187,26 +196,23 @@ END SUBROUTINE xb88_lsd_info
 !!
 !!*** **********************************************************************
 SUBROUTINE xb88_lda_eval(rho_set,deriv_set,grad_deriv,error)
-  TYPE(xc_rho_set_type), pointer :: rho_set
-  TYPE(xc_derivative_set_type), pointer :: deriv_set
-  INTEGER, INTENT(in) :: grad_deriv
-  TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
-  
-  LOGICAL :: failure
-  CHARACTER(len=*), PARAMETER :: routineN='xb88_lda_eval',&
-        routineP=moduleN//':'//routineN
-  INTEGER :: i,j,k,npoints
-  integer, DIMENSION(:,:), pointer :: bo
-  REAL(kind=dp),DIMENSION(:,:,:), POINTER :: dummy,rho, rho_1_3, norm_drho,&
-       e_0,e_rho,e_ndrho,e_rho_rho,e_ndrho_rho,&
-       e_ndrho_ndrho, e_rho_rho_rho, e_ndrho_rho_rho, e_ndrho_ndrho_rho,&
-       e_ndrho_ndrho_ndrho
-  TYPE(xc_derivative_type), POINTER :: deriv
-  REAL(kind=dp) :: epsilon_rho, epsilon_norm_drho, x, t1,t2,t7,&
-       t3,t4,t5,t6,t8,t9,t10,t11,t12,t16,t17,t20,t30,t32,t36,&
-       t38,t39,t42,t44,t51,t58,t60,t64,t66,t67,t71,t75,t78,t82,t84,t86,&
-       t87,t90,t91,t93,t94,t98,t117,t146,t151,t155,t159,t161,t168,t173,t181
-  INTEGER :: stat
+    TYPE(xc_rho_set_type), pointer           :: rho_set
+    TYPE(xc_derivative_set_type), pointer    :: deriv_set
+    INTEGER, INTENT(in)                      :: grad_deriv
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'xb88_lda_eval', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: npoints, stat
+    integer, DIMENSION(:, :), pointer        :: bo
+    LOGICAL                                  :: failure
+    REAL(kind=dp), DIMENSION(:, :, :), POINTER :: dummy, e_0, e_ndrho, &
+      e_ndrho_ndrho, e_ndrho_ndrho_ndrho, e_ndrho_ndrho_rho, e_ndrho_rho, &
+      e_ndrho_rho_rho, e_rho, e_rho_rho, e_rho_rho_rho, norm_drho, rho, &
+      rho_1_3
+    TYPE(xc_derivative_type), POINTER        :: deriv
 
   failure=.false.
   nullify(bo)
@@ -327,27 +333,26 @@ SUBROUTINE xb88_lda_calc(rho, rho_1_3, norm_drho,&
      e_0,e_rho,e_ndrho,e_rho_rho,e_ndrho_rho,&
      e_ndrho_ndrho, e_rho_rho_rho, e_ndrho_rho_rho, e_ndrho_ndrho_rho,&
      e_ndrho_ndrho_ndrho,grad_deriv,npoints,error)
-  REAL(kind=dp),DIMENSION(*), intent(in) :: rho, rho_1_3, norm_drho
-  REAL(kind=dp), DIMENSION(*), intent(inout) :: e_0,e_rho,e_ndrho,&
-       e_rho_rho,e_ndrho_rho,&
-       e_ndrho_ndrho, e_rho_rho_rho, e_ndrho_rho_rho, e_ndrho_ndrho_rho,&
-       e_ndrho_ndrho_ndrho
-  INTEGER, INTENT(in) :: grad_deriv, npoints
-  TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
-  
-  LOGICAL :: failure
-  CHARACTER(len=*), PARAMETER :: routineN='xb88_lda_calc',&
-        routineP=moduleN//':'//routineN
-  INTEGER :: ii
-  REAL(kind=dp) :: epsilon_rho, epsilon_norm_drho, x, t1,t2,t7,&
-       t3,t4,t5,t6,t8,t9,t10,t11,t12,t16,t17,t20,t30,t32,t36,&
-       t38,t39,t42,t44,t51,t58,t60,t64,t66,t67,t71,t75,t78,t82,t84,t86,&
-       t87,t90,t91,t93,t94,t98,t117,t146,t151,t155,t159,t161,t168,t173,t181
+    REAL(kind=dp), DIMENSION(*), intent(in)  :: rho, rho_1_3, norm_drho
+    REAL(kind=dp), DIMENSION(*), intent(inout) :: e_0, e_rho, e_ndrho, &
+      e_rho_rho, e_ndrho_rho, e_ndrho_ndrho, e_rho_rho_rho, e_ndrho_rho_rho, &
+      e_ndrho_ndrho_rho, e_ndrho_ndrho_ndrho
+    INTEGER, INTENT(in)                      :: grad_deriv, npoints
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
 
-  REAL(kind=dp), PARAMETER :: t_2_3=2.0_dp/3.0_dp,&
-       t_4_3=4.0_dp/3.0_dp, t_1_9=1.0_dp/9.0_dp,&
-       t_2_9=2.0_dp/9.0_dp, t_4_27=4.0_dp/27.0_dp
+    CHARACTER(len=*), PARAMETER :: routineN = 'xb88_lda_calc', &
+      routineP = moduleN//':'//routineN
+    REAL(kind=dp), PARAMETER :: t_1_9 = 1.0_dp/9.0_dp, t_2_3 = 2.0_dp/3.0_dp, &
+      t_2_9 = 2.0_dp/9.0_dp, t_4_27 = 4.0_dp/27.0_dp, t_4_3 = 4.0_dp/3.0_dp
 
+    INTEGER                                  :: ii
+    LOGICAL                                  :: failure
+    REAL(kind=dp) :: epsilon_norm_drho, epsilon_rho, t1, t10, t11, t117, t12, &
+      t146, t151, t155, t159, t16, t161, t168, t17, t173, t181, t2, t20, t3, &
+      t30, t32, t36, t38, t39, t4, t42, t44, t5, t51, t58, t6, t60, t64, t66, &
+      t67, t7, t71, t75, t78, t8, t82, t84, t86, t87, t9, t90, t91, t93, t94, &
+      t98, x
 
   failure=.false.
   t1 = 2.0_dp ** (0.1e1_dp / 0.3e1_dp)
@@ -481,29 +486,25 @@ END SUBROUTINE xb88_lda_calc
 !!
 !!*** **********************************************************************
 SUBROUTINE xb88_lsd_eval(rho_set,deriv_set,grad_deriv,error)
-  TYPE(xc_rho_set_type), pointer :: rho_set
-  TYPE(xc_derivative_set_type), pointer :: deriv_set
-  INTEGER, INTENT(in) :: grad_deriv
-  TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
+    TYPE(xc_rho_set_type), pointer           :: rho_set
+    TYPE(xc_derivative_set_type), pointer    :: deriv_set
+    INTEGER, INTENT(in)                      :: grad_deriv
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
 
-  LOGICAL :: failure
-  CHARACTER(len=*), PARAMETER :: routineN='xb88_lsd_eval',&
-       routineP=moduleN//':'//routineN
-  INTEGER :: i,j,k, ispin, stat, npoints
-  INTEGER, DIMENSION(:,:),pointer :: bo
-  REAL(kind=dp), DIMENSION(:,:,:), POINTER :: dummy,e_0
-  TYPE(cp_3d_r_p_type),DIMENSION(2) :: rho, rho_1_3, norm_drho,&
-       e_rho,e_ndrho,e_rho_rho,e_ndrho_rho,&
-       e_ndrho_ndrho, e_rho_rho_rho, e_ndrho_rho_rho, e_ndrho_ndrho_rho,&
-       e_ndrho_ndrho_ndrho
-  TYPE(xc_derivative_type), POINTER :: deriv
-  REAL(kind=dp) :: epsilon_rho, epsilon_norm_drho, x,c, &
-       t1,t2,t3,t4,t5,t6,t7,t8,t9,t12,t13,t15,t16,t19,t20,t24,t25,t29,t30,t32,&
-       t33,t41,t42,t43,t50,t54,t55,t56,t60,t61,t63,t64,t66,t67,t70,t72,t73,&
-       t74,t77,t86,t102,t121,t124,t127,t129,t136,t142,t148
-  REAL(kind=dp) :: t_2_3=2.0_dp/3.0_dp, t_1_9=1.0_dp/9.0_dp,t_4_9=4.0_dp/9.0_dp,&
-       t_4_27=4.0_dp/27.0_dp, t_8_27=8.0_dp/27.0_dp,t_4_3=4.0_dp/3.0_dp
+    CHARACTER(len=*), PARAMETER :: routineN = 'xb88_lsd_eval', &
+      routineP = moduleN//':'//routineN
 
+    INTEGER                                  :: i, ispin, npoints, stat
+    INTEGER, DIMENSION(:, :), pointer        :: bo
+    LOGICAL                                  :: failure
+    REAL(kind=dp)                            :: epsilon_norm_drho, epsilon_rho
+    REAL(kind=dp), DIMENSION(:, :, :), &
+      POINTER                                :: dummy, e_0
+    TYPE(cp_3d_r_p_type), DIMENSION(2) :: e_ndrho, e_ndrho_ndrho, &
+      e_ndrho_ndrho_ndrho, e_ndrho_ndrho_rho, e_ndrho_rho, e_ndrho_rho_rho, &
+      e_rho, e_rho_rho, e_rho_rho_rho, norm_drho, rho, rho_1_3
+    TYPE(xc_derivative_type), POINTER        :: deriv
 
   failure=.false.
   NULLIFY(deriv, bo)
@@ -664,26 +665,29 @@ SUBROUTINE xb88_lsd_calc(rho_spin, rho_1_3_spin, norm_drho_spin,e_0,&
      e_ndrho_ndrho_spin, e_rho_rho_rho_spin, e_ndrho_rho_rho_spin,&
      e_ndrho_ndrho_rho_spin,&
      e_ndrho_ndrho_ndrho_spin,grad_deriv,npoints,error)
-  REAL(kind=dp),DIMENSION(*), intent(in) :: rho_spin, rho_1_3_spin, norm_drho_spin
-  REAL(kind=dp), DIMENSION(*), intent(inout) :: e_0,&
-       e_rho_spin,e_ndrho_spin, e_rho_rho_spin, e_ndrho_rho_spin,&
-       e_ndrho_ndrho_spin, e_rho_rho_rho_spin, e_ndrho_rho_rho_spin,&
-       e_ndrho_ndrho_rho_spin, e_ndrho_ndrho_ndrho_spin
-  INTEGER, INTENT(in) :: grad_deriv, npoints
-  TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
+    REAL(kind=dp), DIMENSION(*), intent(in)  :: rho_spin, rho_1_3_spin, &
+                                                norm_drho_spin
+    REAL(kind=dp), DIMENSION(*), intent(inout) :: e_0, e_rho_spin, &
+      e_ndrho_spin, e_rho_rho_spin, e_ndrho_rho_spin, e_ndrho_ndrho_spin, &
+      e_rho_rho_rho_spin, e_ndrho_rho_rho_spin, e_ndrho_ndrho_rho_spin, &
+      e_ndrho_ndrho_ndrho_spin
+    INTEGER, INTENT(in)                      :: grad_deriv, npoints
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
 
-  LOGICAL :: failure
-  CHARACTER(len=*), PARAMETER :: routineN='xb88_lsd_calc_123',&
-       routineP=moduleN//':'//routineN
-  INTEGER :: ii
-  REAL(kind=dp) :: epsilon_rho, epsilon_norm_drho, x,c, &
-       t1,t2,t3,t4,t5,t6,t7,t8,t9,t12,t13,t15,t16,t19,t20,t24,t25,t29,t30,t32,&
-       t33,t41,t42,t43,t50,t54,t55,t56,t60,t61,t63,t64,t66,t67,t70,t72,t73,&
-       t74,t77,t86,t102,t121,t124,t127,t129,t136,t142,t148
-  REAL(kind=dp),PARAMETER :: t_2_3=2.0_dp/3.0_dp, t_1_9=1.0_dp/9.0_dp,&
-       t_4_9=4.0_dp/9.0_dp,&
-       t_4_27=4.0_dp/27.0_dp, t_8_27=8.0_dp/27.0_dp,t_4_3=4.0_dp/3.0_dp
+    CHARACTER(len=*), PARAMETER :: routineN = 'xb88_lsd_calc_123', &
+      routineP = moduleN//':'//routineN
+    REAL(kind=dp), PARAMETER :: t_1_9 = 1.0_dp/9.0_dp, t_2_3 = 2.0_dp/3.0_dp, &
+      t_4_27 = 4.0_dp/27.0_dp, t_4_3 = 4.0_dp/3.0_dp, t_4_9 = 4.0_dp/9.0_dp, &
+      t_8_27 = 8.0_dp/27.0_dp
 
+    INTEGER                                  :: ii
+    LOGICAL                                  :: failure
+    REAL(kind=dp) :: c, epsilon_norm_drho, epsilon_rho, t1, t102, t12, t121, &
+      t124, t127, t129, t13, t136, t142, t148, t15, t16, t19, t20, t24, t25, &
+      t29, t3, t30, t32, t33, t4, t41, t42, t43, t5, t50, t54, t55, t56, t6, &
+      t60, t61, t63, t64, t66, t67, t7, t70, t72, t73, t74, t77, t8, t86, t9, &
+      x
 
   failure=.false.
   c=3.0_dp/2.0_dp*(3.0_dp/4.0_dp*Pi)**(1.0_dp/3.0_dp)

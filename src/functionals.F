@@ -85,7 +85,7 @@ MODULE functionals
 
 ! *****************************************************************************
 
-  USE kinds, ONLY: dp
+  USE kinds,                           ONLY: dp
 
   IMPLICIT NONE
 
@@ -186,7 +186,8 @@ CONTAINS
 
 !   ***************************************************************************
 
-    REAL(KIND = dp), OPTIONAL, INTENT(IN) :: drho_threshold,rho_threshold,xalpha
+    REAL(KIND=dp), INTENT(IN), OPTIONAL      :: rho_threshold, &
+                                                drho_threshold, xalpha
 
 !   ---------------------------------------------------------------------------
 
@@ -260,16 +261,13 @@ CONTAINS
 
 !   ***************************************************************************
 
-    REAL(KIND = dp), INTENT(IN)  :: drho,rho
-    REAL(KIND = dp), INTENT(OUT) :: ex,vx,vxg
+    REAL(KIND=dp), INTENT(IN)                :: rho, drho
+    REAL(KIND=dp), INTENT(OUT)               :: ex, vx, vxg
 
-!   *** Local parameters ***
+    REAL(KIND=dp), PARAMETER                 :: beta = 0.0042_dp
 
-    REAL(KIND = dp), PARAMETER :: beta = 0.0042_dp
-
-!   *** Local variables ***
-
-    REAL(KIND = dp) :: drhos,f,rho13,rho43,rhos13,rhos43,rhos,s,s2,y,z
+    REAL(KIND=dp)                            :: drhos, f, rho13, rho43, rhos, &
+                                                rhos13, rhos43, s, s2, y, z
 
 !   ---------------------------------------------------------------------------
 
@@ -319,15 +317,15 @@ CONTAINS
 
   SUBROUTINE becke88_1(rho,drho,ex,vx,vxg,weight)
 
-    REAL(KIND = dp), INTENT(INOUT)                      :: ex
-    REAL(KIND = dp), DIMENSION(:), INTENT(IN)           :: drho,rho
-    REAL(KIND = dp), DIMENSION(:), INTENT(INOUT)        :: vx,vxg
-    REAL(KIND = dp), DIMENSION(:), OPTIONAL, INTENT(IN) :: weight
+    REAL(KIND=dp), DIMENSION(:), INTENT(IN)  :: rho, drho
+    REAL(KIND=dp), INTENT(INOUT)             :: ex
+    REAL(KIND=dp), DIMENSION(:), &
+      INTENT(INOUT)                          :: vx, vxg
+    REAL(KIND=dp), DIMENSION(:), &
+      INTENT(IN), OPTIONAL                   :: weight
 
-!   *** Local variables ***
-
-    REAL(KIND = dp) :: ex0,vx0,vxg0
-    INTEGER  :: i,n1
+    INTEGER                                  :: i, n1
+    REAL(KIND=dp)                            :: ex0, vx0, vxg0
 
 !   ---------------------------------------------------------------------------
 
@@ -355,15 +353,16 @@ CONTAINS
 
   SUBROUTINE becke88_2(rho,drho,ex,vx,vxg,weight)
 
-    REAL(KIND = dp), INTENT(INOUT)                        :: ex
-    REAL(KIND = dp), DIMENSION(:,:), INTENT(IN)           :: drho,rho
-    REAL(KIND = dp), DIMENSION(:,:), INTENT(inOUT)        :: vx,vxg
-    REAL(KIND = dp), DIMENSION(:,:), OPTIONAL, INTENT(IN) :: weight
+    REAL(KIND=dp), DIMENSION(:, :), &
+      INTENT(IN)                             :: rho, drho
+    REAL(KIND=dp), INTENT(INOUT)             :: ex
+    REAL(KIND=dp), DIMENSION(:, :), &
+      INTENT(inOUT)                          :: vx, vxg
+    REAL(KIND=dp), DIMENSION(:, :), &
+      INTENT(IN), OPTIONAL                   :: weight
 
-!   *** Local variables ***
-
-    REAL(KIND = dp) :: ex0,vx0,vxg0
-    INTEGER  :: i,j,n1,n2
+    INTEGER                                  :: i, j, n1, n2
+    REAL(KIND=dp)                            :: ex0, vx0, vxg0
 
 !   ---------------------------------------------------------------------------
 
@@ -396,15 +395,16 @@ CONTAINS
 
   SUBROUTINE becke88_3(rho,drho,ex,vx,vxg,weight)
 
-    REAL(KIND = dp), INTENT(INOUT)                          :: ex
-    REAL(KIND = dp), DIMENSION(:,:,:), INTENT(IN)           :: drho,rho
-    REAL(KIND = dp), DIMENSION(:,:,:), INTENT(INOUT)        :: vx,vxg
-    REAL(KIND = dp), DIMENSION(:,:,:), OPTIONAL, INTENT(IN) :: weight
+    REAL(KIND=dp), DIMENSION(:, :, :), &
+      INTENT(IN)                             :: rho, drho
+    REAL(KIND=dp), INTENT(INOUT)             :: ex
+    REAL(KIND=dp), DIMENSION(:, :, :), &
+      INTENT(INOUT)                          :: vx, vxg
+    REAL(KIND=dp), DIMENSION(:, :, :), &
+      INTENT(IN), OPTIONAL                   :: weight
 
-!   *** Local variables ***
-
-    REAL(KIND = dp) :: ex0,vx0,vxg0
-    INTEGER  :: i,j,k,n1,n2,n3
+    INTEGER                                  :: i, j, k, n1, n2, n3
+    REAL(KIND=dp)                            :: ex0, vx0, vxg0
 
 !   ---------------------------------------------------------------------------
 
@@ -451,16 +451,12 @@ CONTAINS
 
 !   ***************************************************************************
 
-    REAL(KIND = dp), INTENT(IN)  :: drhos,rhos
-    REAL(KIND = dp), INTENT(OUT) :: exs,vxs,vxgs
+    REAL(KIND=dp), INTENT(IN)                :: rhos, drhos
+    REAL(KIND=dp), INTENT(OUT)               :: exs, vxs, vxgs
 
-!   *** Local parameters ***
+    REAL(KIND=dp), PARAMETER                 :: beta = 0.0042_dp
 
-    REAL(KIND = dp), PARAMETER :: beta = 0.0042_dp
-
-!   *** Local variables ***
-
-    REAL(KIND = dp) :: f,rhos13,rhos43,s,s2,y,z
+    REAL(KIND=dp)                            :: f, rhos13, rhos43, s, s2, y, z
 
 !   ---------------------------------------------------------------------------
 
@@ -487,12 +483,10 @@ CONTAINS
 
   SUBROUTINE becke88_sp_0(rhoa,rhob,drhoa,drhob,ex,vxa,vxb,vxga,vxgb)
 
-    REAL(KIND = dp), INTENT(IN)  :: drhoa,drhob,rhoa,rhob
-    REAL(KIND = dp), INTENT(OUT) :: ex,vxa,vxb,vxga,vxgb
+    REAL(KIND=dp), INTENT(IN)                :: rhoa, rhob, drhoa, drhob
+    REAL(KIND=dp), INTENT(OUT)               :: ex, vxa, vxb, vxga, vxgb
 
-!   *** Local variables ***
-
-    REAL(KIND = dp) :: exa,exb
+    REAL(KIND=dp)                            :: exa, exb
 
 !   ---------------------------------------------------------------------------
 
@@ -520,15 +514,15 @@ CONTAINS
 
   SUBROUTINE becke88_sp_1(rhoa,rhob,drhoa,drhob,ex,vxa,vxb,vxga,vxgb,weight)
 
-    REAL(KIND = dp), INTENT(INOUT)                      :: ex
-    REAL(KIND = dp), DIMENSION(:), INTENT(IN)           :: drhoa,drhob,rhoa,rhob
-    REAL(KIND = dp), DIMENSION(:), INTENT(INOUT)        :: vxa,vxb,vxga,vxgb
-    REAL(KIND = dp), DIMENSION(:), OPTIONAL, INTENT(IN) :: weight
+    REAL(KIND=dp), DIMENSION(:), INTENT(IN)  :: rhoa, rhob, drhoa, drhob
+    REAL(KIND=dp), INTENT(INOUT)             :: ex
+    REAL(KIND=dp), DIMENSION(:), &
+      INTENT(INOUT)                          :: vxa, vxb, vxga, vxgb
+    REAL(KIND=dp), DIMENSION(:), &
+      INTENT(IN), OPTIONAL                   :: weight
 
-!   *** Local variables ***
-
-    REAL(KIND = dp) :: ex0,vxa0,vxb0,vxga0,vxgb0
-    INTEGER  :: i,n1
+    INTEGER                                  :: i, n1
+    REAL(KIND=dp)                            :: ex0, vxa0, vxb0, vxga0, vxgb0
 
 !   ---------------------------------------------------------------------------
 
@@ -563,15 +557,16 @@ CONTAINS
 
   SUBROUTINE becke88_sp_2(rhoa,rhob,drhoa,drhob,ex,vxa,vxb,vxga,vxgb,weight)
 
-    REAL(KIND = dp), INTENT(INOUT)                        :: ex
-    REAL(KIND = dp), DIMENSION(:,:), INTENT(IN)           :: drhoa,drhob,rhoa,rhob
-    REAL(KIND = dp), DIMENSION(:,:), INTENT(INOUT)        :: vxa,vxb,vxga,vxgb
-    REAL(KIND = dp), DIMENSION(:,:), OPTIONAL, INTENT(IN) :: weight
+    REAL(KIND=dp), DIMENSION(:, :), &
+      INTENT(IN)                             :: rhoa, rhob, drhoa, drhob
+    REAL(KIND=dp), INTENT(INOUT)             :: ex
+    REAL(KIND=dp), DIMENSION(:, :), &
+      INTENT(INOUT)                          :: vxa, vxb, vxga, vxgb
+    REAL(KIND=dp), DIMENSION(:, :), &
+      INTENT(IN), OPTIONAL                   :: weight
 
-!   *** Local variables ***
-
-    REAL(KIND = dp) :: ex0,vxa0,vxb0,vxga0,vxgb0
-    INTEGER  :: i,j,n1,n2
+    INTEGER                                  :: i, j, n1, n2
+    REAL(KIND=dp)                            :: ex0, vxa0, vxb0, vxga0, vxgb0
 
 !   ---------------------------------------------------------------------------
 
@@ -612,15 +607,16 @@ CONTAINS
 
   SUBROUTINE becke88_sp_3(rhoa,rhob,drhoa,drhob,ex,vxa,vxb,vxga,vxgb,weight)
 
-    REAL(KIND = dp), INTENT(INOUT)                          :: ex
-    REAL(KIND = dp), DIMENSION(:,:,:), INTENT(IN)           :: drhoa,drhob,rhoa,rhob
-    REAL(KIND = dp), DIMENSION(:,:,:), INTENT(INOUT)        :: vxa,vxb,vxga,vxgb
-    REAL(KIND = dp), DIMENSION(:,:,:), OPTIONAL, INTENT(IN) :: weight
+    REAL(KIND=dp), DIMENSION(:, :, :), &
+      INTENT(IN)                             :: rhoa, rhob, drhoa, drhob
+    REAL(KIND=dp), INTENT(INOUT)             :: ex
+    REAL(KIND=dp), DIMENSION(:, :, :), &
+      INTENT(INOUT)                          :: vxa, vxb, vxga, vxgb
+    REAL(KIND=dp), DIMENSION(:, :, :), &
+      INTENT(IN), OPTIONAL                   :: weight
 
-!   *** Local variables ***
-
-    REAL(KIND = dp) :: ex0,vxa0,vxb0,vxga0,vxgb0
-    INTEGER  :: i,j,k,n1,n2,n3
+    INTEGER                                  :: i, j, k, n1, n2, n3
+    REAL(KIND=dp)                            :: ex0, vxa0, vxb0, vxga0, vxgb0
 
 !   ---------------------------------------------------------------------------
 
@@ -684,43 +680,25 @@ CONTAINS
 
 !   ***************************************************************************
 
-    INTEGER, INTENT(IN)   :: iparset
-    REAL(KIND = dp), INTENT(IN)  :: drho,rho
-    REAL(KIND = dp), INTENT(OUT) :: exc,vxc,vxcg
+    INTEGER, INTENT(IN)                      :: iparset
+    REAL(KIND=dp), INTENT(IN)                :: rho, drho
+    REAL(KIND=dp), INTENT(OUT)               :: exc, vxc, vxcg
 
-!   *** Local parameters ***
+    REAL(KIND=dp), DIMENSION(4), PARAMETER :: &
+      beta0 = (/ 7.59570_dp,3.58760_dp,1.63820_dp,0.49294_dp/), &
+      beta1 = (/14.11890_dp,6.19770_dp,3.36620_dp,0.62517_dp/)
+    REAL(KIND=dp), PARAMETER :: a0 = 0.031091_dp, a1 = 0.015545_dp, &
+      alpha0 = 0.21370_dp, alpha1 = 0.20548_dp, gamma_cab = 0.006_dp, &
+      gamma_css = 0.200_dp, gamma_xss = 0.004_dp
+
+    REAL(KIND=dp) :: dgcabddrho, dgcabdrho, dgcabds, dgcssddrho, dgcssdrho, &
+      dgcssds, dgdrs, dgxssddrho, dgxssdrho, dgxssds, drhos, drsdrho, ecab, &
+      ecss, exss, g, gcab, gcss, gs2, gxss, p, q, rho13, rho43, rhos, rhos13, &
+      rhos43, rs, rs12, s, s2, u, vcab, vcss, vxss, x, y
+    REAL(KIND=dp), DIMENSION(0:4)            :: ccab, ccss, cxss
 
 !   *** LSDA correlation parametrisation (PW92) ***
-
-    REAL(KIND = dp), PARAMETER :: a0 = 0.031091_dp,&
-                           a1 = 0.015545_dp,&
-                           alpha0 = 0.21370_dp,&
-                           alpha1 = 0.20548_dp
-
-    REAL(KIND = dp), DIMENSION(4), PARAMETER :: beta0 = (/ 7.59570_dp,&
-                                                    3.58760_dp,&
-                                                    1.63820_dp,&
-                                                    0.49294_dp/),&
-                                         beta1 = (/14.11890_dp,&
-                                                    6.19770_dp,&
-                                                    3.36620_dp,&
-                                                    0.62517_dp/)
-
 !   *** GGA parametrisation (HCTH/iparset) ***
-
-    REAL(KIND = dp), PARAMETER :: gamma_cab = 0.006_dp,&
-                           gamma_css = 0.200_dp,&
-                           gamma_xss = 0.004_dp
-
-!   *** Local variables ***
-
-    REAL(KIND = dp) :: dgcabddrho,dgcabdrho,dgcabds,dgcssddrho,dgcssdrho,dgcssds,&
-                dgdrs,dgxssddrho,dgxssdrho,dgxssds,drsdrho,drhos,ecab,ecss,&
-                exss,g,gcab,gcss,gs2,gxss,p,q,rho13,rho43,rhos13,rhos43,rhos,&
-                rs,rs12,s,s2,u,vcab,vcss,vxss,x,y
-
-    REAL(KIND = dp), DIMENSION(0:4) :: ccab,ccss,cxss
-
 !   ---------------------------------------------------------------------------
 
     IF (rho < eps_rho) THEN
@@ -910,16 +888,16 @@ CONTAINS
 
   SUBROUTINE hcth_1(iparset,rho,drho,exc,vxc,vxcg,weight)
 
-    INTEGER, INTENT(IN)                          :: iparset
-    REAL(KIND = dp), INTENT(INOUT)                      :: exc
-    REAL(KIND = dp), DIMENSION(:), INTENT(IN)           :: drho,rho
-    REAL(KIND = dp), DIMENSION(:), INTENT(INOUT)        :: vxc,vxcg
-    REAL(KIND = dp), DIMENSION(:), OPTIONAL, INTENT(IN) :: weight
+    INTEGER, INTENT(IN)                      :: iparset
+    REAL(KIND=dp), DIMENSION(:), INTENT(IN)  :: rho, drho
+    REAL(KIND=dp), INTENT(INOUT)             :: exc
+    REAL(KIND=dp), DIMENSION(:), &
+      INTENT(INOUT)                          :: vxc, vxcg
+    REAL(KIND=dp), DIMENSION(:), &
+      INTENT(IN), OPTIONAL                   :: weight
 
-!   *** Local variables ***
-
-    REAL(KIND = dp) :: exc0,vxc0,vxcg0
-    INTEGER  :: i,n1
+    INTEGER                                  :: i, n1
+    REAL(KIND=dp)                            :: exc0, vxc0, vxcg0
 
 !   ---------------------------------------------------------------------------
 
@@ -947,16 +925,17 @@ CONTAINS
 
   SUBROUTINE hcth_2(iparset,rho,drho,exc,vxc,vxcg,weight)
 
-    INTEGER, INTENT(IN)                            :: iparset
-    REAL(KIND = dp), INTENT(INOUT)                        :: exc
-    REAL(KIND = dp), DIMENSION(:,:), INTENT(IN)           :: drho,rho
-    REAL(KIND = dp), DIMENSION(:,:), INTENT(INOUT)        :: vxc,vxcg
-    REAL(KIND = dp), DIMENSION(:,:), OPTIONAL, INTENT(IN) :: weight
+    INTEGER, INTENT(IN)                      :: iparset
+    REAL(KIND=dp), DIMENSION(:, :), &
+      INTENT(IN)                             :: rho, drho
+    REAL(KIND=dp), INTENT(INOUT)             :: exc
+    REAL(KIND=dp), DIMENSION(:, :), &
+      INTENT(INOUT)                          :: vxc, vxcg
+    REAL(KIND=dp), DIMENSION(:, :), &
+      INTENT(IN), OPTIONAL                   :: weight
 
-!   *** Local variables ***
-
-    REAL(KIND = dp) :: exc0,vxc0,vxcg0
-    INTEGER  :: i,j,n1,n2
+    INTEGER                                  :: i, j, n1, n2
+    REAL(KIND=dp)                            :: exc0, vxc0, vxcg0
 
 !   ---------------------------------------------------------------------------
 
@@ -989,16 +968,17 @@ CONTAINS
 
   SUBROUTINE hcth_3(iparset,rho,drho,exc,vxc,vxcg,weight)
 
-    INTEGER, INTENT(IN)                              :: iparset
-    REAL(KIND = dp), INTENT(INOUT)                          :: exc
-    REAL(KIND = dp), DIMENSION(:,:,:), INTENT(IN)           :: drho,rho
-    REAL(KIND = dp), DIMENSION(:,:,:), INTENT(INOUT)        :: vxc,vxcg
-    REAL(KIND = dp), DIMENSION(:,:,:), OPTIONAL, INTENT(IN) :: weight
+    INTEGER, INTENT(IN)                      :: iparset
+    REAL(KIND=dp), DIMENSION(:, :, :), &
+      INTENT(IN)                             :: rho, drho
+    REAL(KIND=dp), INTENT(INOUT)             :: exc
+    REAL(KIND=dp), DIMENSION(:, :, :), &
+      INTENT(INOUT)                          :: vxc, vxcg
+    REAL(KIND=dp), DIMENSION(:, :, :), &
+      INTENT(IN), OPTIONAL                   :: weight
 
-!   *** Local variables ***
-
-    REAL(KIND = dp) :: exc0,vxc0,vxcg0
-    INTEGER  :: i,j,k,n1,n2,n3
+    INTEGER                                  :: i, j, k, n1, n2, n3
+    REAL(KIND=dp)                            :: exc0, vxc0, vxcg0
 
 !   ---------------------------------------------------------------------------
 
@@ -1048,20 +1028,17 @@ CONTAINS
 
 !   ***************************************************************************
 
-    REAL(KIND = dp), INTENT(IN)  :: drho,rho
-    REAL(KIND = dp), INTENT(OUT) :: ec,vc,vcg
+    REAL(KIND=dp), INTENT(IN)                :: rho, drho
+    REAL(KIND=dp), INTENT(OUT)               :: ec, vc, vcg
 
-!   *** Local parameters ***
+    REAL(KIND=dp), PARAMETER                 :: a = 0.04918_dp, &
+                                                b = 0.13200_dp, &
+                                                c = 0.25330_dp, d = 0.34900_dp
 
-    REAL(KIND = dp), PARAMETER :: a = 0.04918_dp,&
-                           b = 0.13200_dp,&
-                           c = 0.25330_dp,&
-                           d = 0.34900_dp
-
-!   *** Local variables ***
-
-    REAL(KIND = dp) :: crhom13,ddelta,delta,domega,doq,drho2,f,omega,q,rho13,rho53,&
-                rho83,rhom13,rhom23
+    REAL(KIND=dp)                            :: crhom13, ddelta, delta, &
+                                                domega, doq, drho2, f, omega, &
+                                                q, rho13, rho53, rho83, &
+                                                rhom13, rhom23
 
 !   ---------------------------------------------------------------------------
 
@@ -1108,15 +1085,15 @@ CONTAINS
 
   SUBROUTINE lyp_1(rho,drho,ec,vc,vcg,weight)
 
-    REAL(KIND = dp), INTENT(INOUT)                      :: ec
-    REAL(KIND = dp), DIMENSION(:), INTENT(IN)           :: drho,rho
-    REAL(KIND = dp), DIMENSION(:), INTENT(INOUT)        :: vc,vcg
-    REAL(KIND = dp), DIMENSION(:), OPTIONAL, INTENT(IN) :: weight
+    REAL(KIND=dp), DIMENSION(:), INTENT(IN)  :: rho, drho
+    REAL(KIND=dp), INTENT(INOUT)             :: ec
+    REAL(KIND=dp), DIMENSION(:), &
+      INTENT(INOUT)                          :: vc, vcg
+    REAL(KIND=dp), DIMENSION(:), &
+      INTENT(IN), OPTIONAL                   :: weight
 
-!   *** Local variables ***
-
-    REAL(KIND = dp) :: ec0,vc0,vcg0
-    INTEGER  :: i,n1
+    INTEGER                                  :: i, n1
+    REAL(KIND=dp)                            :: ec0, vc0, vcg0
 
 !   ---------------------------------------------------------------------------
 
@@ -1144,15 +1121,16 @@ CONTAINS
 
   SUBROUTINE lyp_2(rho,drho,ec,vc,vcg,weight)
 
-    REAL(KIND = dp), INTENT(INOUT)                        :: ec
-    REAL(KIND = dp), DIMENSION(:,:), INTENT(IN)           :: drho,rho
-    REAL(KIND = dp), DIMENSION(:,:), INTENT(INOUT)        :: vc,vcg
-    REAL(KIND = dp), DIMENSION(:,:), OPTIONAL, INTENT(IN) :: weight
+    REAL(KIND=dp), DIMENSION(:, :), &
+      INTENT(IN)                             :: rho, drho
+    REAL(KIND=dp), INTENT(INOUT)             :: ec
+    REAL(KIND=dp), DIMENSION(:, :), &
+      INTENT(INOUT)                          :: vc, vcg
+    REAL(KIND=dp), DIMENSION(:, :), &
+      INTENT(IN), OPTIONAL                   :: weight
 
-!   *** Local variables ***
-
-    REAL(KIND = dp) :: ec0,vc0,vcg0
-    INTEGER  :: i,j,n1,n2
+    INTEGER                                  :: i, j, n1, n2
+    REAL(KIND=dp)                            :: ec0, vc0, vcg0
 
 !   ---------------------------------------------------------------------------
 
@@ -1185,15 +1163,16 @@ CONTAINS
 
   SUBROUTINE lyp_3(rho,drho,ec,vc,vcg,weight)
 
-    REAL(KIND = dp), INTENT(INOUT)                          :: ec
-    REAL(KIND = dp), DIMENSION(:,:,:), INTENT(IN)           :: drho,rho
-    REAL(KIND = dp), DIMENSION(:,:,:), INTENT(INOUT)        :: vc,vcg
-    REAL(KIND = dp), DIMENSION(:,:,:), OPTIONAL, INTENT(IN) :: weight
+    REAL(KIND=dp), DIMENSION(:, :, :), &
+      INTENT(IN)                             :: rho, drho
+    REAL(KIND=dp), INTENT(INOUT)             :: ec
+    REAL(KIND=dp), DIMENSION(:, :, :), &
+      INTENT(INOUT)                          :: vc, vcg
+    REAL(KIND=dp), DIMENSION(:, :, :), &
+      INTENT(IN), OPTIONAL                   :: weight
 
-!   *** Local variables ***
-
-    REAL(KIND = dp) :: ec0,vc0,vcg0
-    INTEGER  :: i,j,k,n1,n2,n3
+    INTEGER                                  :: i, j, k, n1, n2, n3
+    REAL(KIND=dp)                            :: ec0, vc0, vcg0
 
 !   ---------------------------------------------------------------------------
 
@@ -1241,23 +1220,17 @@ CONTAINS
 
 !   ***************************************************************************
 
-    REAL(KIND = dp), INTENT(IN)  :: rho
-    REAL(KIND = dp), INTENT(OUT) :: exc,vxc
+    REAL(KIND=dp), INTENT(IN)                :: rho
+    REAL(KIND=dp), INTENT(OUT)               :: exc, vxc
 
-!   *** Local parameters ***
+    REAL(KIND=dp), PARAMETER :: a0 = 0.4581652932831429E+0_dp, &
+      a1 = 0.2217058676663745E+1_dp, a2 = 0.7405551735357053E+0_dp, &
+      a3 = 0.1968227878617998E-1_dp, b1 = 1.0000000000000000E+0_dp, &
+      b2 = 0.4504130959426697E+1_dp, b3 = 0.1110667363742916E+1_dp, &
+      b4 = 0.2359291751427506E-1_dp
 
-    REAL(KIND = dp), PARAMETER :: a0 = 0.4581652932831429E+0_dp,&
-                           a1 = 0.2217058676663745E+1_dp,&
-                           a2 = 0.7405551735357053E+0_dp,&
-                           a3 = 0.1968227878617998E-1_dp,&
-                           b1 = 1.0000000000000000E+0_dp,&
-                           b2 = 0.4504130959426697E+1_dp,&
-                           b3 = 0.1110667363742916E+1_dp,&
-                           b4 = 0.2359291751427506E-1_dp
-
-!   *** Local variables ***
-
-    REAL(KIND = dp) :: mydp,dq,epade,rs,p,q,rho13
+    REAL(KIND=dp)                            :: dq, epade, mydp, p, q, rho13, &
+                                                rs
 
 !   ---------------------------------------------------------------------------
 
@@ -1290,15 +1263,15 @@ CONTAINS
 
   SUBROUTINE pade_1(rho,exc,vxc,weight)
 
-    REAL(KIND = dp), INTENT(INOUT)                      :: exc
-    REAL(KIND = dp), DIMENSION(:), INTENT(IN)           :: rho
-    REAL(KIND = dp), DIMENSION(:), INTENT(INOUT)        :: vxc
-    REAL(KIND = dp), DIMENSION(:), OPTIONAL, INTENT(IN) :: weight
+    REAL(KIND=dp), DIMENSION(:), INTENT(IN)  :: rho
+    REAL(KIND=dp), INTENT(INOUT)             :: exc
+    REAL(KIND=dp), DIMENSION(:), &
+      INTENT(INOUT)                          :: vxc
+    REAL(KIND=dp), DIMENSION(:), &
+      INTENT(IN), OPTIONAL                   :: weight
 
-!   *** Local variables ***
-
-    REAL(KIND = dp) :: exc0,vxc0
-    INTEGER  :: i,n1
+    INTEGER                                  :: i, n1
+    REAL(KIND=dp)                            :: exc0, vxc0
 
 !   ---------------------------------------------------------------------------
 
@@ -1324,15 +1297,16 @@ CONTAINS
 
   SUBROUTINE pade_2(rho,exc,vxc,weight)
 
-    REAL(KIND = dp), INTENT(INOUT)                        :: exc
-    REAL(KIND = dp), DIMENSION(:,:), INTENT(IN)           :: rho
-    REAL(KIND = dp), DIMENSION(:,:), INTENT(INOUT)        :: vxc
-    REAL(KIND = dp), DIMENSION(:,:), OPTIONAL, INTENT(IN) :: weight
+    REAL(KIND=dp), DIMENSION(:, :), &
+      INTENT(IN)                             :: rho
+    REAL(KIND=dp), INTENT(INOUT)             :: exc
+    REAL(KIND=dp), DIMENSION(:, :), &
+      INTENT(INOUT)                          :: vxc
+    REAL(KIND=dp), DIMENSION(:, :), &
+      INTENT(IN), OPTIONAL                   :: weight
 
-!   *** Local variables ***
-
-    REAL(KIND = dp) :: exc0,vxc0
-    INTEGER  :: i,j,n1,n2
+    INTEGER                                  :: i, j, n1, n2
+    REAL(KIND=dp)                            :: exc0, vxc0
 
 !   ---------------------------------------------------------------------------
 
@@ -1363,15 +1337,16 @@ CONTAINS
 
   SUBROUTINE pade_3(rho,exc,vxc,weight)
 
-    REAL(KIND = dp), INTENT(INOUT)                          :: exc
-    REAL(KIND = dp), DIMENSION(:,:,:), INTENT(IN)           :: rho
-    REAL(KIND = dp), DIMENSION(:,:,:), INTENT(INOUT)        :: vxc
-    REAL(KIND = dp), DIMENSION(:,:,:), OPTIONAL, INTENT(IN) :: weight
+    REAL(KIND=dp), DIMENSION(:, :, :), &
+      INTENT(IN)                             :: rho
+    REAL(KIND=dp), INTENT(INOUT)             :: exc
+    REAL(KIND=dp), DIMENSION(:, :, :), &
+      INTENT(INOUT)                          :: vxc
+    REAL(KIND=dp), DIMENSION(:, :, :), &
+      INTENT(IN), OPTIONAL                   :: weight
 
-!   *** Local variables ***
-
-    REAL(KIND = dp) :: exc0,vxc0
-    INTEGER  :: i,j,k,n1,n2,n3
+    INTEGER                                  :: i, j, k, n1, n2, n3
+    REAL(KIND=dp)                            :: exc0, vxc0
 
 !   ---------------------------------------------------------------------------
 
@@ -1417,13 +1392,13 @@ CONTAINS
 
 !   ***************************************************************************
 
-    REAL(KIND = dp), INTENT(IN)  :: drho,rho
-    REAL(KIND = dp), INTENT(OUT) :: ec,vc,vcg
+    REAL(KIND=dp), INTENT(IN)                :: rho, drho
+    REAL(KIND=dp), INTENT(OUT)               :: ec, vc, vcg
 
-!   *** Local variables ***
-
-    REAL(KIND = dp) :: a,at2,bog,dade,dedr,dhddr,dhdr,dpda,dpdr,dpdt,dtddr,dtdr,e,&
-                expe,h,p,q,q2,rhom76,t,t2
+    REAL(KIND=dp)                            :: a, at2, bog, dade, dedr, &
+                                                dhddr, dhdr, dpda, dpdr, &
+                                                dpdt, dtddr, dtdr, e, expe, &
+                                                h, p, q, q2, rhom76, t, t2
 
 !   ---------------------------------------------------------------------------
 
@@ -1478,15 +1453,15 @@ CONTAINS
 
   SUBROUTINE pbe_c_1(rho,drho,ec,vc,vcg,weight)
 
-    REAL(KIND = dp), INTENT(INOUT)                      :: ec
-    REAL(KIND = dp), DIMENSION(:), INTENT(IN)           :: drho,rho
-    REAL(KIND = dp), DIMENSION(:), INTENT(INOUT)        :: vc,vcg
-    REAL(KIND = dp), DIMENSION(:), OPTIONAL, INTENT(IN) :: weight
+    REAL(KIND=dp), DIMENSION(:), INTENT(IN)  :: rho, drho
+    REAL(KIND=dp), INTENT(INOUT)             :: ec
+    REAL(KIND=dp), DIMENSION(:), &
+      INTENT(INOUT)                          :: vc, vcg
+    REAL(KIND=dp), DIMENSION(:), &
+      INTENT(IN), OPTIONAL                   :: weight
 
-!   *** Local variables ***
-
-    REAL(KIND = dp) :: ec0,vc0,vcg0
-    INTEGER  :: i,n1
+    INTEGER                                  :: i, n1
+    REAL(KIND=dp)                            :: ec0, vc0, vcg0
 
 !   ---------------------------------------------------------------------------
 
@@ -1514,15 +1489,16 @@ CONTAINS
 
   SUBROUTINE pbe_c_2(rho,drho,ec,vc,vcg,weight)
 
-    REAL(KIND = dp), INTENT(INOUT)                        :: ec
-    REAL(KIND = dp), DIMENSION(:,:), INTENT(IN)           :: drho,rho
-    REAL(KIND = dp), DIMENSION(:,:), INTENT(INOUT)        :: vc,vcg
-    REAL(KIND = dp), DIMENSION(:,:), OPTIONAL, INTENT(IN) :: weight
+    REAL(KIND=dp), DIMENSION(:, :), &
+      INTENT(IN)                             :: rho, drho
+    REAL(KIND=dp), INTENT(INOUT)             :: ec
+    REAL(KIND=dp), DIMENSION(:, :), &
+      INTENT(INOUT)                          :: vc, vcg
+    REAL(KIND=dp), DIMENSION(:, :), &
+      INTENT(IN), OPTIONAL                   :: weight
 
-!   *** Local variables ***
-
-    REAL(KIND = dp) :: ec0,vc0,vcg0
-    INTEGER  :: i,j,n1,n2
+    INTEGER                                  :: i, j, n1, n2
+    REAL(KIND=dp)                            :: ec0, vc0, vcg0
 
 !   ---------------------------------------------------------------------------
 
@@ -1555,15 +1531,16 @@ CONTAINS
 
   SUBROUTINE pbe_c_3(rho,drho,ec,vc,vcg,weight)
 
-    REAL(KIND = dp), INTENT(INOUT)                          :: ec
-    REAL(KIND = dp), DIMENSION(:,:,:), INTENT(IN)           :: drho,rho
-    REAL(KIND = dp), DIMENSION(:,:,:), INTENT(INOUT)        :: vc,vcg
-    REAL(KIND = dp), DIMENSION(:,:,:), OPTIONAL, INTENT(IN) :: weight
+    REAL(KIND=dp), DIMENSION(:, :, :), &
+      INTENT(IN)                             :: rho, drho
+    REAL(KIND=dp), INTENT(INOUT)             :: ec
+    REAL(KIND=dp), DIMENSION(:, :, :), &
+      INTENT(INOUT)                          :: vc, vcg
+    REAL(KIND=dp), DIMENSION(:, :, :), &
+      INTENT(IN), OPTIONAL                   :: weight
 
-!   *** Local variables ***
-
-    REAL(KIND = dp) :: ec0,vc0,vcg0
-    INTEGER  :: i,j,k,n1,n2,n3
+    INTEGER                                  :: i, j, k, n1, n2, n3
+    REAL(KIND=dp)                            :: ec0, vc0, vcg0
 
 !   ---------------------------------------------------------------------------
 
@@ -1611,17 +1588,13 @@ CONTAINS
 
 !   ***************************************************************************
 
-    REAL(KIND = dp), INTENT(IN)  :: drho,rho
-    REAL(KIND = dp), INTENT(OUT) :: ex,vx,vxg
+    REAL(KIND=dp), INTENT(IN)                :: rho, drho
+    REAL(KIND=dp), INTENT(OUT)               :: ex, vx, vxg
 
-!   *** Local parameters ***
+    REAL(KIND=dp), PARAMETER                 :: kappa = 0.804_dp, &
+                                                mu = 0.2195149727645171_dp
 
-    REAL(KIND = dp), PARAMETER :: kappa = 0.804_dp,&
-                           mu = 0.2195149727645171_dp
-
-!   *** Local variables ***
-
-    REAL(KIND = dp) :: dfx,fx,p,rho13,rho43,s
+    REAL(KIND=dp)                            :: dfx, fx, p, rho13, rho43, s
 
 !   ---------------------------------------------------------------------------
 
@@ -1655,15 +1628,15 @@ CONTAINS
 
   SUBROUTINE pbe_x_1(rho,drho,ex,vx,vxg,weight)
 
-    REAL(KIND = dp), INTENT(INOUT)                      :: ex
-    REAL(KIND = dp), DIMENSION(:), INTENT(IN)           :: drho,rho
-    REAL(KIND = dp), DIMENSION(:), INTENT(INOUT)        :: vx,vxg
-    REAL(KIND = dp), DIMENSION(:), OPTIONAL, INTENT(IN) :: weight
+    REAL(KIND=dp), DIMENSION(:), INTENT(IN)  :: rho, drho
+    REAL(KIND=dp), INTENT(INOUT)             :: ex
+    REAL(KIND=dp), DIMENSION(:), &
+      INTENT(INOUT)                          :: vx, vxg
+    REAL(KIND=dp), DIMENSION(:), &
+      INTENT(IN), OPTIONAL                   :: weight
 
-!   *** Local variables ***
-
-    REAL(KIND = dp) :: ex0,vx0,vxg0
-    INTEGER  :: i,n1
+    INTEGER                                  :: i, n1
+    REAL(KIND=dp)                            :: ex0, vx0, vxg0
 
 !   ---------------------------------------------------------------------------
 
@@ -1691,15 +1664,16 @@ CONTAINS
 
   SUBROUTINE pbe_x_2(rho,drho,ex,vx,vxg,weight)
 
-    REAL(KIND = dp), INTENT(INOUT)                        :: ex
-    REAL(KIND = dp), DIMENSION(:,:), INTENT(IN)           :: drho,rho
-    REAL(KIND = dp), DIMENSION(:,:), INTENT(INOUT)        :: vx,vxg
-    REAL(KIND = dp), DIMENSION(:,:), OPTIONAL, INTENT(IN) :: weight
+    REAL(KIND=dp), DIMENSION(:, :), &
+      INTENT(IN)                             :: rho, drho
+    REAL(KIND=dp), INTENT(INOUT)             :: ex
+    REAL(KIND=dp), DIMENSION(:, :), &
+      INTENT(INOUT)                          :: vx, vxg
+    REAL(KIND=dp), DIMENSION(:, :), &
+      INTENT(IN), OPTIONAL                   :: weight
 
-!   *** Local variables ***
-
-    REAL(KIND = dp) :: ex0,vx0,vxg0
-    INTEGER  :: i,j,n1,n2
+    INTEGER                                  :: i, j, n1, n2
+    REAL(KIND=dp)                            :: ex0, vx0, vxg0
 
 !   ---------------------------------------------------------------------------
 
@@ -1732,15 +1706,16 @@ CONTAINS
 
   SUBROUTINE pbe_x_3(rho,drho,ex,vx,vxg,weight)
 
-    REAL(KIND = dp), INTENT(INOUT)                          :: ex
-    REAL(KIND = dp), DIMENSION(:,:,:), INTENT(IN)           :: drho,rho
-    REAL(KIND = dp), DIMENSION(:,:,:), INTENT(INOUT)        :: vx,vxg
-    REAL(KIND = dp), DIMENSION(:,:,:), OPTIONAL, INTENT(IN) :: weight
+    REAL(KIND=dp), DIMENSION(:, :, :), &
+      INTENT(IN)                             :: rho, drho
+    REAL(KIND=dp), INTENT(INOUT)             :: ex
+    REAL(KIND=dp), DIMENSION(:, :, :), &
+      INTENT(INOUT)                          :: vx, vxg
+    REAL(KIND=dp), DIMENSION(:, :, :), &
+      INTENT(IN), OPTIONAL                   :: weight
 
-!   *** Local variables ***
-
-    REAL(KIND = dp) :: ex0,vx0,vxg0
-    INTEGER  :: i,j,k,n1,n2,n3
+    INTEGER                                  :: i, j, k, n1, n2, n3
+    REAL(KIND=dp)                            :: ex0, vx0, vxg0
 
 !   ---------------------------------------------------------------------------
 
@@ -1788,23 +1763,16 @@ CONTAINS
 
 !   ***************************************************************************
 
-    REAL(KIND = dp), INTENT(IN)  :: drho,rho
-    REAL(KIND = dp), INTENT(OUT) :: ec,vc,vcg
+    REAL(KIND=dp), INTENT(IN)                :: rho, drho
+    REAL(KIND=dp), INTENT(OUT)               :: ec, vc, vcg
 
-!   *** Local parameters ***
+    REAL(KIND=dp), PARAMETER :: c1 = 0.001667_dp, c2 = 0.002568_dp, &
+      c3 = 0.023266_dp, c4 = 7.389E-6_dp, c5 = 8.723_dp, c6 = 0.472_dp, &
+      c7 = 1.0E4_dp*c4, f = 0.11_dp
 
-    REAL(KIND = dp), PARAMETER :: c1 = 0.001667_dp,&
-                           c2 = 0.002568_dp,&
-                           c3 = 0.023266_dp,&
-                           c4 = 7.389E-6_dp,&
-                           c5 = 8.723_dp,&
-                           c6 = 0.472_dp,&
-                           c7 = 1.0E4_dp*c4,&
-                           f = 0.11_dp
-
-!   *** Local variables ***
-
-    REAL(KIND = dp) :: crho,dcrho,mydp,dq,drho2,ephi,rs,p,phi,q,rhom43,rhom76
+    REAL(KIND=dp)                            :: crho, dcrho, dq, drho2, ephi, &
+                                                mydp, p, phi, q, rhom43, &
+                                                rhom76, rs
 
 !   ---------------------------------------------------------------------------
 
@@ -1856,15 +1824,15 @@ CONTAINS
 
   SUBROUTINE perdew86_c_1(rho,drho,ec,vc,vcg,weight)
 
-    REAL(KIND = dp), INTENT(INOUT)                      :: ec
-    REAL(KIND = dp), DIMENSION(:), INTENT(IN)           :: drho,rho
-    REAL(KIND = dp), DIMENSION(:), INTENT(INOUT)        :: vc,vcg
-    REAL(KIND = dp), DIMENSION(:), OPTIONAL, INTENT(IN) :: weight
+    REAL(KIND=dp), DIMENSION(:), INTENT(IN)  :: rho, drho
+    REAL(KIND=dp), INTENT(INOUT)             :: ec
+    REAL(KIND=dp), DIMENSION(:), &
+      INTENT(INOUT)                          :: vc, vcg
+    REAL(KIND=dp), DIMENSION(:), &
+      INTENT(IN), OPTIONAL                   :: weight
 
-!   *** Local variables ***
-
-    REAL(KIND = dp) :: ec0,vc0,vcg0
-    INTEGER  :: i,n1
+    INTEGER                                  :: i, n1
+    REAL(KIND=dp)                            :: ec0, vc0, vcg0
 
 !   ---------------------------------------------------------------------------
 
@@ -1892,15 +1860,16 @@ CONTAINS
 
   SUBROUTINE perdew86_c_2(rho,drho,ec,vc,vcg,weight)
 
-    REAL(KIND = dp), INTENT(INOUT)                        :: ec
-    REAL(KIND = dp), DIMENSION(:,:), INTENT(IN)           :: drho,rho
-    REAL(KIND = dp), DIMENSION(:,:), INTENT(INOUT)        :: vc,vcg
-    REAL(KIND = dp), DIMENSION(:,:), OPTIONAL, INTENT(IN) :: weight
+    REAL(KIND=dp), DIMENSION(:, :), &
+      INTENT(IN)                             :: rho, drho
+    REAL(KIND=dp), INTENT(INOUT)             :: ec
+    REAL(KIND=dp), DIMENSION(:, :), &
+      INTENT(INOUT)                          :: vc, vcg
+    REAL(KIND=dp), DIMENSION(:, :), &
+      INTENT(IN), OPTIONAL                   :: weight
 
-!   *** Local variables ***
-
-    REAL(KIND = dp) :: ec0,vc0,vcg0
-    INTEGER  :: i,j,n1,n2
+    INTEGER                                  :: i, j, n1, n2
+    REAL(KIND=dp)                            :: ec0, vc0, vcg0
 
 !   ---------------------------------------------------------------------------
 
@@ -1933,15 +1902,16 @@ CONTAINS
 
   SUBROUTINE perdew86_c_3(rho,drho,ec,vc,vcg,weight)
 
-    REAL(KIND = dp), INTENT(INOUT)                          :: ec
-    REAL(KIND = dp), DIMENSION(:,:,:), INTENT(IN)           :: drho,rho
-    REAL(KIND = dp), DIMENSION(:,:,:), INTENT(INOUT)        :: vc,vcg
-    REAL(KIND = dp), DIMENSION(:,:,:), OPTIONAL, INTENT(IN) :: weight
+    REAL(KIND=dp), DIMENSION(:, :, :), &
+      INTENT(IN)                             :: rho, drho
+    REAL(KIND=dp), INTENT(INOUT)             :: ec
+    REAL(KIND=dp), DIMENSION(:, :, :), &
+      INTENT(INOUT)                          :: vc, vcg
+    REAL(KIND=dp), DIMENSION(:, :, :), &
+      INTENT(IN), OPTIONAL                   :: weight
 
-!   *** Local variables ***
-
-    REAL(KIND = dp) :: ec0,vc0,vcg0
-    INTEGER  :: i,j,k,n1,n2,n3
+    INTEGER                                  :: i, j, k, n1, n2, n3
+    REAL(KIND=dp)                            :: ec0, vc0, vcg0
 
 !   ---------------------------------------------------------------------------
 
@@ -1988,20 +1958,15 @@ CONTAINS
 
 !   ***************************************************************************
 
-    REAL(KIND = dp), INTENT(IN)  :: drho,rho
-    REAL(KIND = dp), INTENT(OUT) :: ex,vx,vxg
+    REAL(KIND=dp), INTENT(IN)                :: rho, drho
+    REAL(KIND=dp), INTENT(OUT)               :: ex, vx, vxg
 
-!   *** Local parameters ***
+    REAL(KIND=dp), PARAMETER                 :: b = 14.0_dp, c = 0.2_dp, &
+                                                d = 0.0864_dp, &
+                                                m = 1.0_dp/15.0_dp, a = d/m
 
-    REAL(KIND = dp), PARAMETER :: b = 14.0_dp,&
-                           c = 0.2_dp,&
-                           d = 0.0864_dp,&
-                           m = 1.0_dp/15.0_dp,&
-                           a = d/m
-
-!   *** Local variables ***
-
-    REAL(KIND = dp) :: dfx,mydp,fx,p,rho13,rho43,s,s2,t,tau
+    REAL(KIND=dp)                            :: dfx, fx, mydp, p, rho13, &
+                                                rho43, s, s2, t, tau
 
 !   ---------------------------------------------------------------------------
 
@@ -2046,15 +2011,15 @@ CONTAINS
 
   SUBROUTINE perdew86_x_1(rho,drho,ex,vx,vxg,weight)
 
-    REAL(KIND = dp), INTENT(INOUT)                      :: ex
-    REAL(KIND = dp), DIMENSION(:), INTENT(IN)           :: drho,rho
-    REAL(KIND = dp), DIMENSION(:), INTENT(INOUT)        :: vx,vxg
-    REAL(KIND = dp), DIMENSION(:), OPTIONAL, INTENT(IN) :: weight
+    REAL(KIND=dp), DIMENSION(:), INTENT(IN)  :: rho, drho
+    REAL(KIND=dp), INTENT(INOUT)             :: ex
+    REAL(KIND=dp), DIMENSION(:), &
+      INTENT(INOUT)                          :: vx, vxg
+    REAL(KIND=dp), DIMENSION(:), &
+      INTENT(IN), OPTIONAL                   :: weight
 
-!   *** Local variables ***
-
-    REAL(KIND = dp) :: ex0,vx0,vxg0
-    INTEGER  :: i,n1
+    INTEGER                                  :: i, n1
+    REAL(KIND=dp)                            :: ex0, vx0, vxg0
 
 !   ---------------------------------------------------------------------------
 
@@ -2082,15 +2047,16 @@ CONTAINS
 
   SUBROUTINE perdew86_x_2(rho,drho,ex,vx,vxg,weight)
 
-    REAL(KIND = dp), INTENT(INOUT)                        :: ex
-    REAL(KIND = dp), DIMENSION(:,:), INTENT(IN)           :: drho,rho
-    REAL(KIND = dp), DIMENSION(:,:), INTENT(INOUT)        :: vx,vxg
-    REAL(KIND = dp), DIMENSION(:,:), OPTIONAL, INTENT(IN) :: weight
+    REAL(KIND=dp), DIMENSION(:, :), &
+      INTENT(IN)                             :: rho, drho
+    REAL(KIND=dp), INTENT(INOUT)             :: ex
+    REAL(KIND=dp), DIMENSION(:, :), &
+      INTENT(INOUT)                          :: vx, vxg
+    REAL(KIND=dp), DIMENSION(:, :), &
+      INTENT(IN), OPTIONAL                   :: weight
 
-!   *** Local variables ***
-
-    REAL(KIND = dp) :: ex0,vx0,vxg0
-    INTEGER  :: i,j,n1,n2
+    INTEGER                                  :: i, j, n1, n2
+    REAL(KIND=dp)                            :: ex0, vx0, vxg0
 
 !   ---------------------------------------------------------------------------
 
@@ -2123,15 +2089,16 @@ CONTAINS
 
   SUBROUTINE perdew86_x_3(rho,drho,ex,vx,vxg,weight)
 
-    REAL(KIND = dp), INTENT(INOUT)                          :: ex
-    REAL(KIND = dp), DIMENSION(:,:,:), INTENT(IN)           :: drho,rho
-    REAL(KIND = dp), DIMENSION(:,:,:), INTENT(INOUT)        :: vx,vxg
-    REAL(KIND = dp), DIMENSION(:,:,:), OPTIONAL, INTENT(IN) :: weight
+    REAL(KIND=dp), DIMENSION(:, :, :), &
+      INTENT(IN)                             :: rho, drho
+    REAL(KIND=dp), INTENT(INOUT)             :: ex
+    REAL(KIND=dp), DIMENSION(:, :, :), &
+      INTENT(INOUT)                          :: vx, vxg
+    REAL(KIND=dp), DIMENSION(:, :, :), &
+      INTENT(IN), OPTIONAL                   :: weight
 
-!   *** Local variables ***
-
-    REAL(KIND = dp) :: ex0,vx0,vxg0
-    INTEGER  :: i,j,k,n1,n2,n3
+    INTEGER                                  :: i, j, k, n1, n2, n3
+    REAL(KIND=dp)                            :: ex0, vx0, vxg0
 
 !   ---------------------------------------------------------------------------
 
@@ -2178,12 +2145,10 @@ CONTAINS
 
 !   ***************************************************************************
 
-    REAL(KIND = dp), INTENT(IN)  :: rho
-    REAL(KIND = dp), INTENT(OUT) :: ex,vx
+    REAL(KIND=dp), INTENT(IN)                :: rho
+    REAL(KIND=dp), INTENT(OUT)               :: ex, vx
 
-!   *** Local variables ***
-
-    REAL(KIND = dp) :: rho13
+    REAL(KIND=dp)                            :: rho13
 
 !   ---------------------------------------------------------------------------
 
@@ -2207,15 +2172,15 @@ CONTAINS
 
   SUBROUTINE slater_1(rho,ex,vx,weight)
 
-    REAL(KIND = dp), INTENT(INOUT)                      :: ex
-    REAL(KIND = dp), DIMENSION(:), INTENT(IN)           :: rho
-    REAL(KIND = dp), DIMENSION(:), INTENT(INOUT)        :: vx
-    REAL(KIND = dp), DIMENSION(:), OPTIONAL, INTENT(IN) :: weight
+    REAL(KIND=dp), DIMENSION(:), INTENT(IN)  :: rho
+    REAL(KIND=dp), INTENT(INOUT)             :: ex
+    REAL(KIND=dp), DIMENSION(:), &
+      INTENT(INOUT)                          :: vx
+    REAL(KIND=dp), DIMENSION(:), &
+      INTENT(IN), OPTIONAL                   :: weight
 
-!   *** Local variables ***
-
-    REAL(KIND = dp) :: ex0,vx0
-    INTEGER  :: i,n1
+    INTEGER                                  :: i, n1
+    REAL(KIND=dp)                            :: ex0, vx0
 
 !   ---------------------------------------------------------------------------
 
@@ -2241,15 +2206,16 @@ CONTAINS
 
   SUBROUTINE slater_2(rho,ex,vx,weight)
 
-    REAL(KIND = dp), INTENT(INOUT)                        :: ex
-    REAL(KIND = dp), DIMENSION(:,:), INTENT(IN)           :: rho
-    REAL(KIND = dp), DIMENSION(:,:), INTENT(INOUT)        :: vx
-    REAL(KIND = dp), DIMENSION(:,:), OPTIONAL, INTENT(IN) :: weight
+    REAL(KIND=dp), DIMENSION(:, :), &
+      INTENT(IN)                             :: rho
+    REAL(KIND=dp), INTENT(INOUT)             :: ex
+    REAL(KIND=dp), DIMENSION(:, :), &
+      INTENT(INOUT)                          :: vx
+    REAL(KIND=dp), DIMENSION(:, :), &
+      INTENT(IN), OPTIONAL                   :: weight
 
-!   *** Local variables ***
-
-    REAL(KIND = dp) :: ex0,vx0
-    INTEGER  :: i,j,n1,n2
+    INTEGER                                  :: i, j, n1, n2
+    REAL(KIND=dp)                            :: ex0, vx0
 
 !   ---------------------------------------------------------------------------
 
@@ -2280,15 +2246,16 @@ CONTAINS
 
   SUBROUTINE slater_3(rho,ex,vx,weight)
 
-    REAL(KIND = dp), INTENT(INOUT)                          :: ex
-    REAL(KIND = dp), DIMENSION(:,:,:), INTENT(IN)           :: rho
-    REAL(KIND = dp), DIMENSION(:,:,:), INTENT(INOUT)        :: vx
-    REAL(KIND = dp), DIMENSION(:,:,:), OPTIONAL, INTENT(IN) :: weight
+    REAL(KIND=dp), DIMENSION(:, :, :), &
+      INTENT(IN)                             :: rho
+    REAL(KIND=dp), INTENT(INOUT)             :: ex
+    REAL(KIND=dp), DIMENSION(:, :, :), &
+      INTENT(INOUT)                          :: vx
+    REAL(KIND=dp), DIMENSION(:, :, :), &
+      INTENT(IN), OPTIONAL                   :: weight
 
-!   *** Local variables ***
-
-    REAL(KIND = dp) :: ex0,vx0
-    INTEGER  :: i,j,k,n1,n2,n3
+    INTEGER                                  :: i, j, k, n1, n2, n3
+    REAL(KIND=dp)                            :: ex0, vx0
 
 !   ---------------------------------------------------------------------------
 
@@ -2334,20 +2301,18 @@ CONTAINS
 
 !   ***************************************************************************
 
-    REAL(KIND = dp), INTENT(IN)  :: rho
-    REAL(KIND = dp), INTENT(OUT) :: ec,vc
+    REAL(KIND=dp), INTENT(IN)                :: rho
+    REAL(KIND=dp), INTENT(OUT)               :: ec, vc
+
+    REAL(KIND=dp), PARAMETER                 :: ap = 0.0621814_dp, &
+                                                bp = 3.72744_dp, &
+                                                cp = 12.9352_dp, &
+                                                xp = -0.10498_dp
+
+    REAL(KIND=dp)                            :: decp, ecp, pp, qp, x, x2, &
+                                                xmxp, xmxp2, xp2
 
 !   *** Local parameters (paramagnetic parameter set of VWN) ***
-
-    REAL(KIND = dp), PARAMETER :: ap =  0.0621814_dp,&
-                           bp =  3.72744_dp,&
-                           cp = 12.9352_dp,&
-                           xp = -0.10498_dp
-
-!   *** Local variables ***
-
-    REAL(KIND = dp) :: ecp,decp,qp,pp,x,x2,xmxp,xmxp2,xp2
-
 !   ---------------------------------------------------------------------------
 
     IF (rho < eps_rho) THEN
@@ -2386,15 +2351,15 @@ CONTAINS
 
   SUBROUTINE vwn_c_1(rho,ec,vc,weight)
 
-    REAL(KIND = dp), INTENT(INOUT)                      :: ec
-    REAL(KIND = dp), DIMENSION(:), INTENT(IN)           :: rho
-    REAL(KIND = dp), DIMENSION(:), INTENT(INOUT)        :: vc
-    REAL(KIND = dp), DIMENSION(:), OPTIONAL, INTENT(IN) :: weight
+    REAL(KIND=dp), DIMENSION(:), INTENT(IN)  :: rho
+    REAL(KIND=dp), INTENT(INOUT)             :: ec
+    REAL(KIND=dp), DIMENSION(:), &
+      INTENT(INOUT)                          :: vc
+    REAL(KIND=dp), DIMENSION(:), &
+      INTENT(IN), OPTIONAL                   :: weight
 
-!   *** Local variables ***
-
-    REAL(KIND = dp) :: ec0,vc0
-    INTEGER  :: i,n1
+    INTEGER                                  :: i, n1
+    REAL(KIND=dp)                            :: ec0, vc0
 
 !   ---------------------------------------------------------------------------
 
@@ -2420,15 +2385,16 @@ CONTAINS
 
   SUBROUTINE vwn_c_2(rho,ec,vc,weight)
 
-    REAL(KIND = dp), INTENT(INOUT)                        :: ec
-    REAL(KIND = dp), DIMENSION(:,:), INTENT(IN)           :: rho
-    REAL(KIND = dp), DIMENSION(:,:), INTENT(INOUT)        :: vc
-    REAL(KIND = dp), DIMENSION(:,:), OPTIONAL, INTENT(IN) :: weight
+    REAL(KIND=dp), DIMENSION(:, :), &
+      INTENT(IN)                             :: rho
+    REAL(KIND=dp), INTENT(INOUT)             :: ec
+    REAL(KIND=dp), DIMENSION(:, :), &
+      INTENT(INOUT)                          :: vc
+    REAL(KIND=dp), DIMENSION(:, :), &
+      INTENT(IN), OPTIONAL                   :: weight
 
-!   *** Local variables ***
-
-    REAL(KIND = dp) :: ec0,vc0
-    INTEGER  :: i,j,n1,n2
+    INTEGER                                  :: i, j, n1, n2
+    REAL(KIND=dp)                            :: ec0, vc0
 
 !   ---------------------------------------------------------------------------
 
@@ -2459,15 +2425,16 @@ CONTAINS
 
   SUBROUTINE vwn_c_3(rho,ec,vc,weight)
 
-    REAL(KIND = dp), INTENT(INOUT)                          :: ec
-    REAL(KIND = dp), DIMENSION(:,:,:), INTENT(IN)           :: rho
-    REAL(KIND = dp), DIMENSION(:,:,:), INTENT(INOUT)        :: vc
-    REAL(KIND = dp), DIMENSION(:,:,:), OPTIONAL, INTENT(IN) :: weight
+    REAL(KIND=dp), DIMENSION(:, :, :), &
+      INTENT(IN)                             :: rho
+    REAL(KIND=dp), INTENT(INOUT)             :: ec
+    REAL(KIND=dp), DIMENSION(:, :, :), &
+      INTENT(INOUT)                          :: vc
+    REAL(KIND=dp), DIMENSION(:, :, :), &
+      INTENT(IN), OPTIONAL                   :: weight
 
-!   *** Local variables ***
-
-    REAL(KIND = dp) :: ec0,vc0
-    INTEGER  :: i,j,k,n1,n2,n3
+    INTEGER                                  :: i, j, k, n1, n2, n3
+    REAL(KIND=dp)                            :: ec0, vc0
 
 !   ---------------------------------------------------------------------------
 
@@ -2513,12 +2480,10 @@ CONTAINS
 
 !   ***************************************************************************
 
-    REAL(KIND = dp), INTENT(IN)  :: rho
-    REAL(KIND = dp), INTENT(OUT) :: ex,vx
+    REAL(KIND=dp), INTENT(IN)                :: rho
+    REAL(KIND=dp), INTENT(OUT)               :: ex, vx
 
-!   *** Local variables ***
-
-    REAL(KIND = dp) :: rho13
+    REAL(KIND=dp)                            :: rho13
 
 !   ---------------------------------------------------------------------------
 
@@ -2542,15 +2507,15 @@ CONTAINS
 
   SUBROUTINE vwn_x_1(rho,ex,vx,weight)
 
-    REAL(KIND = dp), INTENT(INOUT)                      :: ex
-    REAL(KIND = dp), DIMENSION(:), INTENT(IN)           :: rho
-    REAL(KIND = dp), DIMENSION(:), INTENT(INOUT)        :: vx
-    REAL(KIND = dp), DIMENSION(:), OPTIONAL, INTENT(IN) :: weight
+    REAL(KIND=dp), DIMENSION(:), INTENT(IN)  :: rho
+    REAL(KIND=dp), INTENT(INOUT)             :: ex
+    REAL(KIND=dp), DIMENSION(:), &
+      INTENT(INOUT)                          :: vx
+    REAL(KIND=dp), DIMENSION(:), &
+      INTENT(IN), OPTIONAL                   :: weight
 
-!   *** Local variables ***
-
-    REAL(KIND = dp) :: ex0,vx0
-    INTEGER  :: i,n1
+    INTEGER                                  :: i, n1
+    REAL(KIND=dp)                            :: ex0, vx0
 
 !   ---------------------------------------------------------------------------
 
@@ -2576,15 +2541,16 @@ CONTAINS
 
   SUBROUTINE vwn_x_2(rho,ex,vx,weight)
 
-    REAL(KIND = dp), INTENT(INOUT)                        :: ex
-    REAL(KIND = dp), DIMENSION(:,:), INTENT(IN)           :: rho
-    REAL(KIND = dp), DIMENSION(:,:), INTENT(INOUT)        :: vx
-    REAL(KIND = dp), DIMENSION(:,:), OPTIONAL, INTENT(IN) :: weight
+    REAL(KIND=dp), DIMENSION(:, :), &
+      INTENT(IN)                             :: rho
+    REAL(KIND=dp), INTENT(INOUT)             :: ex
+    REAL(KIND=dp), DIMENSION(:, :), &
+      INTENT(INOUT)                          :: vx
+    REAL(KIND=dp), DIMENSION(:, :), &
+      INTENT(IN), OPTIONAL                   :: weight
 
-!   *** Local variables ***
-
-    REAL(KIND = dp) :: ex0,vx0
-    INTEGER  :: i,j,n1,n2
+    INTEGER                                  :: i, j, n1, n2
+    REAL(KIND=dp)                            :: ex0, vx0
 
 !   ---------------------------------------------------------------------------
 
@@ -2615,15 +2581,16 @@ CONTAINS
 
   SUBROUTINE vwn_x_3(rho,ex,vx,weight)
 
-    REAL(KIND = dp), INTENT(INOUT)                          :: ex
-    REAL(KIND = dp), DIMENSION(:,:,:), INTENT(IN)           :: rho
-    REAL(KIND = dp), DIMENSION(:,:,:), INTENT(INOUT)        :: vx
-    REAL(KIND = dp), DIMENSION(:,:,:), OPTIONAL, INTENT(IN) :: weight
+    REAL(KIND=dp), DIMENSION(:, :, :), &
+      INTENT(IN)                             :: rho
+    REAL(KIND=dp), INTENT(INOUT)             :: ex
+    REAL(KIND=dp), DIMENSION(:, :, :), &
+      INTENT(INOUT)                          :: vx
+    REAL(KIND=dp), DIMENSION(:, :, :), &
+      INTENT(IN), OPTIONAL                   :: weight
 
-!   *** Local variables ***
-
-    REAL(KIND = dp) :: ex0,vx0
-    INTEGER  :: i,j,k,n1,n2,n3
+    INTEGER                                  :: i, j, k, n1, n2, n3
+    REAL(KIND=dp)                            :: ex0, vx0
 
 !   ---------------------------------------------------------------------------
 

@@ -3,9 +3,11 @@
 
 MODULE cube_utils
 
-  USE kinds, ONLY: dp
-  USE timings,               ONLY: timeset,timestop
-  USE termination,           ONLY: stop_memory,stop_program
+  USE kinds,                           ONLY: dp
+  USE termination,                     ONLY: stop_memory,&
+                                             stop_program
+  USE timings,                         ONLY: timeset,&
+                                             timestop
 
   IMPLICIT NONE
 
@@ -30,12 +32,12 @@ MODULE cube_utils
 
 CONTAINS
   SUBROUTINE return_cube(info,radius,lb_cube,ub_cube,sphere_bounds)
-  IMPLICIT NONE
-    TYPE (cube_info_type)    :: info
-    real(KIND = dp)                 :: radius
-    integer                  :: lb_cube(3),ub_cube(3)
-    integer,dimension(:),pointer :: sphere_bounds
-    integer                  :: imr
+    TYPE(cube_info_type)                     :: info
+    real(KIND=dp)                            :: radius
+    integer                                  :: lb_cube(3), ub_cube(3)
+    integer, dimension(:), pointer           :: sphere_bounds
+
+    integer                                  :: imr
 
     imr=MAX(1,CEILING((radius+info%drsafe)/info%drmin))
     if (imr.gt.info%max_radius) then
@@ -49,10 +51,13 @@ CONTAINS
   END SUBROUTINE return_cube
 
   SUBROUTINE destroy_cube_info(info)
-    TYPE (cube_info_type) :: info
-    CHARACTER(LEN=*), PARAMETER :: routine =&
-      "SUBROUTINE destroy_cube_info (MODULE cube_utils)"
-    INTEGER :: i,istat
+    TYPE(cube_info_type)                     :: info
+
+    CHARACTER(LEN=*), PARAMETER :: &
+      routine = "SUBROUTINE destroy_cube_info (MODULE cube_utils)"
+
+    INTEGER                                  :: i, istat
+
     DEALLOCATE (info%lb_cube,STAT=istat)
     IF (istat /= 0) CALL stop_memory(routine,"info%lb_cube")
     DEALLOCATE (info%ub_cube,STAT=istat)
@@ -68,18 +73,19 @@ CONTAINS
   END SUBROUTINE
 
   SUBROUTINE init_cube_info(info,dr,max_radius,cmax)
-  IMPLICIT NONE
-    TYPE (cube_info_type) :: info 
-    CHARACTER(LEN=*), PARAMETER :: routine =&
-      "SUBROUTINE init_cube_info (MODULE cube_utils)"
-    real(KIND = dp)       :: dr(3)
-    real(KIND = dp)       :: max_radius
-    integer        :: cmax
-  
-    real(KIND = dp)       :: drmin,drsafe,dxi,dyi,dzi,dz2,dy2
-    real(KIND = dp)       :: radius,radius2
-    integer        :: imr,i,istat,k,kgmin,kgmax,kg2,kg,jgmin
-    integer        :: jgmax,jg2,jg,igmin,igmax,handle
+    TYPE(cube_info_type)                     :: info
+    real(KIND=dp)                            :: dr(3), max_radius
+    integer                                  :: cmax
+
+    CHARACTER(LEN=*), PARAMETER :: &
+      routine = "SUBROUTINE init_cube_info (MODULE cube_utils)"
+
+    integer                                  :: handle, i, igmin, imr, istat, &
+                                                jg, jg2, jgmin, k, kg, kg2, &
+                                                kgmin
+    real(KIND=dp)                            :: drmin, drsafe, dxi, dy2, dyi, &
+                                                dz2, dzi, radius, radius2
+
     CALL timeset("init_cube_info","I","",handle) 
     info%dr = dr
     drmin = MINVAL(dr)

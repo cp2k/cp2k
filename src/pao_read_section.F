@@ -25,25 +25,15 @@
 !!   SOURCE
 !****************************************************************************
 MODULE pao_read_section
-  USE atomic_kind_types,               ONLY: atomic_kind_type,&
-                                             get_atomic_kind
   USE cp_error_handling,               ONLY: cp_a_l,&
                                              cp_assert,&
                                              cp_assertion_failed,&
-                                             cp_debug,&
                                              cp_error_dealloc_ref,&
                                              cp_error_get_logger,&
-                                             cp_error_get_print_level,&
                                              cp_error_init,&
                                              cp_error_message,&
-                                             cp_error_type,&
-                                             cp_internal_error,&
-                                             cp_precondition_failed
-  USE cp_linked_list_int,              ONLY: cp_create,&
-                                             cp_dealloc,&
-                                             cp_get,&
-                                             cp_next,&
-                                             cp_sll_int_type
+                                             cp_error_type
+  USE cp_lbfgs_optimizer_tests,        ONLY: cp_lbfgs_e_rosen_test
   USE cp_log_handling,                 ONLY: cp_failure_level,&
                                              cp_log,&
                                              cp_logger_create,&
@@ -52,12 +42,15 @@ MODULE pao_read_section
                                              cp_note_level,&
                                              cp_to_string,&
                                              cp_warning_level
+  USE cp_sll_int_tests,                ONLY: cp_test_int_sll
+!use cp_sll_int_ptr_tests, only: cp_test_int_ptr_sll
+
   USE global_types,                    ONLY: global_environment_type
   USE kinds,                           ONLY: dp
-  USE pao_bas_projection_types,        ONLY: cp_get,&
-                                             pao_bas_projection_type
   USE pao_env_methods,                 ONLY: pao_env_init
+  USE pao_plain_rot_tests,             ONLY: pao_test_plain_rot
   USE pao_types,                       ONLY: pao_env_type
+  USE pao_types_tests,                 ONLY: cp_test_pao_types
   USE qs_environment_types,            ONLY: get_qs_env,&
                                              qs_environment_type
   USE qs_parser,                       ONLY: finish_parser,&
@@ -67,11 +60,6 @@ MODULE pao_read_section
   USE string_utilities,                ONLY: uppercase
   USE timings,                         ONLY: timeset,&
                                              timestop
-  USE pao_plain_rot_tests, ONLY: pao_test_plain_rot
-  USE pao_types_tests, ONLY: cp_test_pao_types
-  USE cp_sll_int_tests, ONLY: cp_test_int_sll
-  !use cp_sll_int_ptr_tests, only: cp_test_int_ptr_sll
-  USE cp_lbfgs_optimizer_tests, ONLY: cp_lbfgs_e_rosen_test
 
   IMPLICIT NONE
   PRIVATE
@@ -123,25 +111,26 @@ CONTAINS
   SUBROUTINE pao_env_init_from_file(qs_env, global_env, section_label,&
        error)
     TYPE(qs_environment_type), INTENT(inout) :: qs_env
-    TYPE(global_environment_type), INTENT(in), TARGET :: global_env
-    CHARACTER(len=*), INTENT(in), OPTIONAL :: section_label
-    TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
+    TYPE(global_environment_type), &
+      INTENT(in), TARGET                     :: global_env
+    CHARACTER(len=*), INTENT(in), OPTIONAL   :: section_label
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
 
-    LOGICAL :: failure, found
-    REAL(KIND = dp) :: wanted_subspace_pos_precision,&
-         wanted_in_subspace_precision
-    CHARACTER(len=*), PARAMETER :: routineN='pao_env_init_from_file',&
-         routineP=moduleN//':'//routineN, default_section_label="PAO"
-    CHARACTER(len=40) :: keyword,label
-    CHARACTER(len=3) :: obj_kind
-    INTEGER :: min_b_index,i,j
-    INTEGER, PARAMETER :: max_kinds=200, max_bas_size=1000
-    TYPE(cp_error_type) :: newErr
-    TYPE(cp_logger_type), POINTER :: fileLogger, errorLogger
-    TYPE(pao_env_type), POINTER :: pao_env
-    TYPE(atomic_kind_type), DIMENSION(:), POINTER :: atomic_kind_set
-    TYPE(pao_bas_projection_type), POINTER :: pao_bas_proj
-    CHARACTER(len=60) :: name
+    CHARACTER(len=*), PARAMETER :: default_section_label = "PAO", &
+      routineN = 'pao_env_init_from_file', routineP = moduleN//':'//routineN
+    INTEGER, PARAMETER                       :: max_bas_size = 1000, &
+                                                max_kinds = 200
+
+    CHARACTER(len=3)                         :: obj_kind
+    CHARACTER(len=40)                        :: keyword
+    LOGICAL                                  :: failure, found
+    REAL(KIND=dp)                            :: wanted_in_subspace_precision, &
+                                                wanted_subspace_pos_precision
+    TYPE(cp_error_type)                      :: newErr
+    TYPE(cp_logger_type), POINTER            :: errorLogger, fileLogger
+    TYPE(pao_env_type), POINTER              :: pao_env
+
     failure=.FALSE.
     errorLogger => cp_error_get_logger(error)
     wanted_subspace_pos_precision=1.0d-4
@@ -257,13 +246,16 @@ CONTAINS
 !!
 !!*** **********************************************************************
 FUNCTION cp_test_pao(global_env,error) RESULT(res)  
-  TYPE(global_environment_type) :: global_env
-  TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
-  LOGICAL :: res
-  
-  LOGICAL :: failure
-  CHARACTER(len=*), PARAMETER :: routineN='cp_test_pao',&
-        routineP=moduleN//':'//routineN
+    TYPE(global_environment_type)            :: global_env
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
+    LOGICAL                                  :: res
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'cp_test_pao', &
+      routineP = moduleN//':'//routineN
+
+    LOGICAL                                  :: failure
+
   failure=.FALSE.
 
   CALL cp_error_message(cp_note_level,routineP,&

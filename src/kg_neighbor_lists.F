@@ -23,55 +23,27 @@ MODULE kg_neighbor_lists
   USE basis_set_types,                 ONLY: get_gto_basis_set,&
                                              gto_basis_set_type
   USE checkpoint_handler,              ONLY: write_checkpoint_information
-  USE distribution_1d_types,           ONLY: distribution_1d_type,&
-                                             distribution_1d_write
-  USE external_potential_types,        ONLY: get_potential,&
-                                             elp_potential_type,&
+  USE distribution_1d_types,           ONLY: distribution_1d_type
+  USE external_potential_types,        ONLY: elp_potential_type,&
+                                             get_potential,&
                                              gth_potential_type
   USE global_types,                    ONLY: LOW,&
                                              global_environment_type
-  USE kinds,                           ONLY: int_size,&
-                                             dp,&
-                                             dp_size
-  USE particle_types,                  ONLY: exclusion_list_type,&
-                                             particle_type
   USE kg_environment_types,            ONLY: get_kg_env,&
                                              kg_environment_type,&
                                              set_kg_env
-  USE qs_neighbor_list_types,          ONLY: add_neighbor_list,&
-                                             add_neighbor_node,&
-                                             allocate_neighbor_list_set,&
-                                             clean_neighbor_list_set,&
-                                             deallocate_neighbor_list_set,&
-                                             find_neighbor_list,&
-                                             first_list,&
-                                             first_node,&
-                                             get_neighbor_list,&
-                                             get_neighbor_list_set,&
-                                             get_neighbor_node,&
-                                             init_neighbor_list,&
-                                             init_neighbor_list_set,&
-                                             neighbor_list_p_type,&
-                                             neighbor_list_set_p_type,&
-                                             neighbor_list_set_type,&
-                                             neighbor_list_type,&
-                                             neighbor_node_type,&
-                                             next,&
-                                             set_neighbor_node
-  USE qs_neighbor_lists,               ONLY: allocate_subcell,&
-                                             build_gth_ppl_neighbor_lists,&
-                                             deallocate_subcell,&
+  USE kinds,                           ONLY: dp,&
+                                             dp_size,&
+                                             int_size
+  USE particle_types,                  ONLY: particle_type
+  USE qs_neighbor_list_types,          ONLY: neighbor_list_set_p_type
+  USE qs_neighbor_lists,               ONLY: build_gth_ppl_neighbor_lists,&
                                              local_atoms_type,&
-                                             subcell_type,&
                                              write_neighbor_lists
   USE simulation_cell,                 ONLY: cell_type,&
-                                             get_cell,&
                                              pbc,&
-                                             real_to_scaled,&
-                                             scaled_to_real
-  USE string_utilities,                ONLY: compress
-  USE termination,                     ONLY: stop_memory,&
-                                             stop_program
+                                             real_to_scaled
+  USE termination,                     ONLY: stop_memory
   USE timings,                         ONLY: timeset,&
                                              timestop
 
@@ -102,48 +74,37 @@ CONTAINS
 
 !   ***************************************************************************
 
-    TYPE(global_environment_type), INTENT(IN) :: globenv
-    TYPE(kg_environment_type), INTENT(INOUT)  :: kg_env
-
-!   *** Local parameters ***
+    TYPE(kg_environment_type), INTENT(INOUT) :: kg_env
+    TYPE(global_environment_type), &
+      INTENT(IN)                             :: globenv
 
     CHARACTER(LEN=*), PARAMETER :: routine_name = "build_kg_neighbor_lists"
 
-!   *** Local variables ***
-
-    TYPE(atomic_kind_type), POINTER    :: atomic_kind
-    TYPE(cell_type), POINTER           :: cell
-    TYPE(distribution_1d_type), POINTER :: distribution_1d
-    TYPE(gth_potential_type), POINTER  :: gth_potential
-    TYPE(elp_potential_type), POINTER  :: elp_potential
-    TYPE(gto_basis_set_type), POINTER  :: orb_basis_set
-    TYPE(gto_basis_set_type), POINTER  :: aux_basis_set
-
-    CHARACTER(LEN=40) :: string
-    REAL(dp)          :: r_skin
-    INTEGER           :: atom_a,handle,iatom,iatom_local,ikind,ipe,istat,&
-                         jatom,jkind,maxatom,maxatom_local,&
-                         natom_a,natom_local_a,natom_local_b,nkind,&
-                         output_unit
-    LOGICAL           :: gth_potential_present,&
-                         elp_potential_present,print_subcell_grid
-
-    REAL(dp), DIMENSION(3) :: r_pbc
-    INTEGER, DIMENSION(3)  :: periodic
-
-    TYPE(atomic_kind_type), DIMENSION(:), POINTER         :: atomic_kind_set
-    TYPE(neighbor_list_set_p_type), DIMENSION(:), POINTER :: sac_ppl,&
-                                                             sac_ppl_aux
-    TYPE(particle_type), DIMENSION(:), POINTER            :: particle_set
-
-    TYPE(local_atoms_type), DIMENSION(:), ALLOCATABLE :: atom
-
-    REAL(dp), DIMENSION(:), ALLOCATABLE :: orb_radius,&
-                                           ppl_radius,&
-                                           aux_radius 
-    LOGICAL, DIMENSION(:), ALLOCATABLE  :: orb_present,&
-                                           ppl_present,&
-                                           aux_present
+    INTEGER :: atom_a, handle, iatom, iatom_local, ikind, istat, maxatom, &
+      maxatom_local, natom_a, natom_local_a, nkind, output_unit
+    LOGICAL                                  :: elp_potential_present, &
+                                                gth_potential_present, &
+                                                print_subcell_grid
+    LOGICAL, ALLOCATABLE, DIMENSION(:)       :: aux_present, orb_present, &
+                                                ppl_present
+    REAL(dp)                                 :: r_skin
+    REAL(dp), ALLOCATABLE, DIMENSION(:)      :: aux_radius, orb_radius, &
+                                                ppl_radius
+    REAL(dp), DIMENSION(3)                   :: r_pbc
+    TYPE(atomic_kind_type), DIMENSION(:), &
+      POINTER                                :: atomic_kind_set
+    TYPE(atomic_kind_type), POINTER          :: atomic_kind
+    TYPE(cell_type), POINTER                 :: cell
+    TYPE(distribution_1d_type), POINTER      :: distribution_1d
+    TYPE(elp_potential_type), POINTER        :: elp_potential
+    TYPE(gth_potential_type), POINTER        :: gth_potential
+    TYPE(gto_basis_set_type), POINTER        :: aux_basis_set, orb_basis_set
+    TYPE(local_atoms_type), ALLOCATABLE, &
+      DIMENSION(:)                           :: atom
+    TYPE(neighbor_list_set_p_type), &
+      DIMENSION(:), POINTER                  :: sac_ppl, sac_ppl_aux
+    TYPE(particle_type), DIMENSION(:), &
+      POINTER                                :: particle_set
 
 !   ---------------------------------------------------------------------------
 

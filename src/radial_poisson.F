@@ -21,12 +21,13 @@
 
 MODULE radial_poisson
 
-  USE kinds, ONLY : dbl
-
-  USE radial_grids, ONLY : radial_grid_type
-  USE radial_solver, ONLY : numerov, diff6p
-  USE radial_util, ONLY : radial_integrate
-  USE termination, ONLY : stop_memory, stop_program
+  USE kinds,                           ONLY: dbl
+  USE radial_grids,                    ONLY: radial_grid_type
+  USE radial_solver,                   ONLY: diff6p,&
+                                             numerov
+  USE radial_util,                     ONLY: radial_integrate
+  USE termination,                     ONLY: stop_memory,&
+                                             stop_program
 
   IMPLICIT NONE
 
@@ -60,21 +61,24 @@ CONTAINS
 
   SUBROUTINE rg_poisson ( rho, vh, nu, rg, method )
 
-!Arguments
-    REAL ( dbl ), DIMENSION ( 0: ), INTENT ( IN ) :: rho  ! the electron density
-    REAL ( dbl ), DIMENSION ( 0: ), INTENT ( OUT ) :: vh  ! the solution
-    INTEGER, INTENT ( IN ) :: nu                          ! variable of angular quantum number type
-    TYPE ( radial_grid_type ), INTENT ( IN ) :: rg        ! radial grid for computation
-    CHARACTER ( LEN=* ), OPTIONAL :: method               ! string to specify method to use
+    REAL(dbl), DIMENSION(0:), INTENT(IN)     :: rho
+    REAL(dbl), DIMENSION(0:), INTENT(OUT)    :: vh
+    INTEGER, INTENT(IN)                      :: nu
+    TYPE(radial_grid_type), INTENT(IN)       :: rg
+    CHARACTER(LEN=*), OPTIONAL               :: method
+
+    INTEGER                                  :: i, ierr, n
+    REAL(dbl)                                :: corr( 3 ), res, rn
+    REAL(dbl), ALLOCATABLE, DIMENSION(:)     :: f, g
+
+! the electron density
+! the solution
+! variable of angular quantum number type
+! radial grid for computation
+! string to specify method to use
 ! 'NUMEROV' or 'DIFF6P'
-
-!Locals
-    REAL ( dbl ), DIMENSION ( : ), ALLOCATABLE :: f, g
-    REAL ( dbl ) :: corr ( 3 )                            ! corrections needed for long range potentials
-    REAL ( dbl ) :: rn, res
-    INTEGER :: n                                          ! the number of grid points in rg
-    INTEGER :: ierr, i
-
+! corrections needed for long range potentials
+! the number of grid points in rg
 !------------------------------------------------------------------------------
 
     n = rg % n

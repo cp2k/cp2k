@@ -21,10 +21,10 @@
 
 MODULE radial_util
 
-  USE kinds, ONLY : dbl
-  USE radial_grids, ONLY : radial_grid_type
-  USE termination, ONLY : stop_memory
-  USE mathconstants, ONLY : pi
+  USE kinds,                           ONLY: dbl
+  USE mathconstants,                   ONLY: pi
+  USE radial_grids,                    ONLY: radial_grid_type
+  USE termination,                     ONLY: stop_memory
 
   IMPLICIT NONE
 
@@ -48,19 +48,15 @@ CONTAINS
 
 SUBROUTINE radial_int_s ( n, f, h, result, ierr )
 
-  IMPLICIT NONE
 
-! Arguments
-  INTEGER, INTENT ( IN ) :: n
-  REAL ( dbl ), DIMENSION (1:n), INTENT ( IN ) :: f
-  REAL ( dbl ), INTENT ( IN ) :: h
-  REAL ( dbl ), INTENT ( OUT ) :: result
-  INTEGER, INTENT ( OUT ) :: ierr
+    INTEGER, INTENT(IN)                      :: n
+    REAL(dbl), DIMENSION(1:n), INTENT(IN)    :: f
+    REAL(dbl), INTENT(IN)                    :: h
+    REAL(dbl), INTENT(OUT)                   :: result
+    INTEGER, INTENT(OUT)                     :: ierr
 
-! Locals
-  REAL ( dbl ), PARAMETER :: p1 = 0.375_dbl, &
-                             p2 = 1.16666666666666666667_dbl, &
-                             p3 = 0.95833333333333333333_dbl
+    REAL(dbl), PARAMETER :: p1 = 0.375_dbl, p2 = 1.16666666666666666667_dbl, &
+      p3 = 0.95833333333333333333_dbl
 
 ! Simpson's integration rule '''
 !------------------------------------------------------------------------------
@@ -82,18 +78,15 @@ END SUBROUTINE radial_int_s
 
 SUBROUTINE radial_int_r ( n, f, rg, result, ierr )
 
-  IMPLICIT NONE
 
-! Arguments
-  INTEGER, INTENT ( IN ) :: n
-  REAL ( dbl ), DIMENSION (1:n), INTENT ( IN ) :: f
-  TYPE ( radial_grid_type ), INTENT ( IN ) :: rg
-  REAL ( dbl ), INTENT ( OUT ) :: result
-  INTEGER, INTENT ( OUT ) :: ierr
+    INTEGER, INTENT(IN)                      :: n
+    REAL(dbl), DIMENSION(1:n), INTENT(IN)    :: f
+    TYPE(radial_grid_type), INTENT(IN)       :: rg
+    REAL(dbl), INTENT(OUT)                   :: result
+    INTEGER, INTENT(OUT)                     :: ierr
 
-! Locals
-  REAL ( dbl ), DIMENSION ( : ), ALLOCATABLE :: fs
-  INTEGER :: stat
+    INTEGER                                  :: stat
+    REAL(dbl), ALLOCATABLE, DIMENSION(:)     :: fs
 
 !------------------------------------------------------------------------------
 
@@ -112,19 +105,18 @@ END SUBROUTINE radial_int_r
 
 SUBROUTINE radial_diff_s ( n, f, df, order, stat )
 
-  IMPLICIT NONE
 
-! Arguments
-  INTEGER, INTENT ( IN ) :: n
-  REAL ( dbl ), DIMENSION (1:n), INTENT ( IN ) :: f
-  REAL ( dbl ), DIMENSION (1:n), INTENT ( OUT ) :: df
-  INTEGER, INTENT ( IN ) :: order
-  INTEGER, INTENT ( OUT ) :: stat
+    INTEGER, INTENT(IN)                      :: n
+    REAL(dbl), DIMENSION(1:n), INTENT(IN)    :: f
+    REAL(dbl), DIMENSION(1:n), INTENT(OUT)   :: df
+    INTEGER, INTENT(IN)                      :: order
+    INTEGER, INTENT(OUT)                     :: stat
 
-! Locals
-  REAL ( dbl ), PARAMETER :: t = 0.33333333333333333333_dbl, &
-                             z = 0.08333333333333333333_dbl
-  INTEGER :: i, o
+    REAL(dbl), PARAMETER                     :: t = 0.33333333333333333333_dbl&
+                                                , &
+                                                z = 0.08333333333333333333_dbl
+
+    INTEGER                                  :: i, o
 
 ! Differentiation using Lagrange's 5 point formula    '''
 !------------------------------------------------------------------------------
@@ -187,20 +179,17 @@ END SUBROUTINE radial_diff_s
 
 SUBROUTINE radial_diff_r ( n, f, df, order, rg, stat )
 
-  IMPLICIT NONE
 
-! Arguments
-  INTEGER, INTENT ( IN ) :: n
-  REAL ( dbl ), DIMENSION (1:n), INTENT ( IN ) :: f
-  REAL ( dbl ), DIMENSION (1:n), INTENT ( OUT ) :: df
-  INTEGER, INTENT ( IN ) :: order
-  TYPE ( radial_grid_type ), INTENT ( IN ) :: rg
-  INTEGER, INTENT ( OUT ) :: stat
+    INTEGER, INTENT(IN)                      :: n
+    REAL(dbl), DIMENSION(1:n), INTENT(IN)    :: f
+    REAL(dbl), DIMENSION(1:n), INTENT(OUT)   :: df
+    INTEGER, INTENT(IN)                      :: order
+    TYPE(radial_grid_type), INTENT(IN)       :: rg
+    INTEGER, INTENT(OUT)                     :: stat
 
-! Locals
-  INTEGER :: i, o, ierr
-  REAL ( dbl ) :: oh
-  REAL ( dbl ), DIMENSION ( : ), ALLOCATABLE :: fs
+    INTEGER                                  :: ierr, o
+    REAL(dbl)                                :: oh
+    REAL(dbl), ALLOCATABLE, DIMENSION(:)     :: fs
 
 !------------------------------------------------------------------------------
 
@@ -264,13 +253,12 @@ END SUBROUTINE radial_diff_r
 !!****
   SUBROUTINE radial_normalize(f, rg)
 
-    IMPLICIT NONE
 
-    REAL ( DBL ), DIMENSION ( 1: ), INTENT ( INOUT ) :: f
-    TYPE ( RADIAL_GRID_TYPE ), INTENT ( IN ) :: rg
+    REAL(DBL), DIMENSION(1:), INTENT(INOUT)  :: f
+    TYPE(RADIAL_GRID_TYPE), INTENT(IN)       :: rg
 
-    REAL ( DBL ) :: res
-    INTEGER      :: errno, np
+    INTEGER                                  :: errno, np
+    REAL(DBL)                                :: res
 
     np = rg%n
 

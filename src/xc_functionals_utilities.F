@@ -24,8 +24,8 @@ MODULE xc_functionals_utilities
 
 ! *****************************************************************************
 
-  USE kinds, ONLY: dbl
-  USE termination, ONLY: stop_program
+  USE kinds,                           ONLY: dbl
+  USE termination,                     ONLY: stop_program
 
   IMPLICIT NONE
 
@@ -65,7 +65,7 @@ CONTAINS
 
     SUBROUTINE set_util(cutoff)
 
-    REAL(dbl) :: cutoff
+    REAL(dbl)                                :: cutoff
 
     eps_rho = cutoff
 
@@ -75,10 +75,10 @@ CONTAINS
 
     SUBROUTINE setup_calculation(order,m,calc,tag)
 
-    INTEGER, INTENT(IN) :: order
-    INTEGER, INTENT(OUT) :: m(0:,:)
-    LOGICAL, INTENT(OUT) :: calc(0:)
-    INTEGER, INTENT(IN) :: tag
+    INTEGER, INTENT(IN)                      :: order
+    INTEGER, INTENT(OUT)                     :: m(0:,:)
+    LOGICAL, INTENT(OUT)                     :: calc(0:)
+    INTEGER, INTENT(IN)                      :: tag
 
     IF ( ABS(order) > 3 ) &
        CALL stop_program("setup_calculation","Order of derivative too high")
@@ -161,8 +161,8 @@ CONTAINS
 !   rs parameter : f*rho**(-1/3)
 !   ---------------------------------------------------------------------------
 
-    REAL(dbl), INTENT(IN)  :: rho
-    REAL(dbl), INTENT(OUT) :: rs
+    REAL(dbl), INTENT(IN)                    :: rho
+    REAL(dbl), INTENT(OUT)                   :: rs
 
 !   ---------------------------------------------------------------------------
 
@@ -182,10 +182,10 @@ CONTAINS
 !   rs parameter : f*rho**(-1/3)
 !   ---------------------------------------------------------------------------
 
-    REAL(dbl), DIMENSION(:), INTENT(IN)  :: rho
-    REAL(dbl), INTENT(OUT), DIMENSION(:) :: rs
+    REAL(dbl), DIMENSION(:), INTENT(IN)      :: rho
+    REAL(dbl), DIMENSION(:), INTENT(OUT)     :: rs
 
-    INTEGER :: k
+    INTEGER                                  :: k
 
 !   ---------------------------------------------------------------------------
 
@@ -212,15 +212,16 @@ CONTAINS
 !   rs parameter : f*rho**(-1/3)
 !   ---------------------------------------------------------------------------
 
-    REAL(KIND=dbl), DIMENSION(*), INTENT(IN)  :: rho
-    REAL(KIND=dbl), DIMENSION(*), INTENT(OUT) :: rs
-    INTEGER, INTENT(IN) :: n
+    REAL(KIND=dbl), DIMENSION(*), INTENT(IN) :: rho
+    REAL(KIND=dbl), DIMENSION(*), &
+      INTENT(OUT)                            :: rs
+    INTEGER, INTENT(IN)                      :: n
 
-    INTEGER :: k
+    INTEGER                                  :: k
 
 !   ---------------------------------------------------------------------------
-
 !$omp parallel do private(k)
+
     DO k=1, n
        IF ( rho(k) < eps_rho ) THEN
           rs(k) = 0.0_dbl
@@ -240,12 +241,10 @@ CONTAINS
 !   x = sqrt(rs)
 !   ---------------------------------------------------------------------------
 
-    REAL(dbl), DIMENSION(:), INTENT(IN)  :: rho
-    REAL(dbl), DIMENSION(:), INTENT(OUT) :: x
+    REAL(dbl), DIMENSION(:), INTENT(IN)      :: rho
+    REAL(dbl), DIMENSION(:), INTENT(OUT)     :: x
 
-!   *** Local variables ***
-
-    INTEGER :: n, ip
+    INTEGER                                  :: ip, n
 
 !   ---------------------------------------------------------------------------
 
@@ -265,12 +264,10 @@ CONTAINS
 
 !   ---------------------------------------------------------------------------
 
-    REAL(dbl), DIMENSION(:), INTENT(IN)  :: rho
-    REAL(dbl), DIMENSION(:), INTENT(OUT) :: r13
+    REAL(dbl), DIMENSION(:), INTENT(IN)      :: rho
+    REAL(dbl), DIMENSION(:), INTENT(OUT)     :: r13
 
-!   *** Local variables ***
-
-    INTEGER :: n, ip
+    INTEGER                                  :: ip, n
 
 !   ---------------------------------------------------------------------------
 
@@ -297,15 +294,12 @@ CONTAINS
 !   wave vector s = |nabla rho| / (2(3pi^2)^1/3 * rho^4/3)
 !   ---------------------------------------------------------------------------
 
-    CHARACTER (len=*), INTENT(IN)        :: tag
-    REAL(dbl), DIMENSION(:), INTENT(IN)  :: rho
-    REAL(dbl), DIMENSION(:), INTENT(IN)  :: grho
-    REAL(dbl), DIMENSION(:), INTENT(OUT) :: s
+    CHARACTER(len=*), INTENT(IN)             :: tag
+    REAL(dbl), DIMENSION(:), INTENT(IN)      :: rho, grho
+    REAL(dbl), DIMENSION(:), INTENT(OUT)     :: s
 
-!   *** Local variables ***
-
-    INTEGER :: n, ip
-    REAL(dbl) :: fac
+    INTEGER                                  :: ip, n
+    REAL(dbl)                                :: fac
 
 !   TAGS: U: total density, spin wave vector
 !         R: spin density, total density wave vector
@@ -346,20 +340,20 @@ CONTAINS
 !
 !   ---------------------------------------------------------------------------
 
-    INTEGER, INTENT(IN)                 :: n ! number of points
-    REAL(dbl), DIMENSION(*), INTENT(IN) :: rhoa, rhob
-    REAL(dbl), DIMENSION(:,:), INTENT(OUT) :: fx
-    INTEGER, INTENT(IN)                 :: m ! order of derivatives
+    INTEGER, INTENT(IN)                      :: n
+    REAL(dbl), DIMENSION(*), INTENT(IN)      :: rhoa, rhob
+    REAL(dbl), DIMENSION(:, :), INTENT(OUT)  :: fx
+    INTEGER, INTENT(IN)                      :: m
 
-!   *** Local variables ***
+    CHARACTER(len=*), PARAMETER :: routineN = "calc_fx_array", &
+      routineP = moduleN//"/"//routineN
 
-    INTEGER :: ierr, ip
-    REAL(dbl) :: x, rhoab
+    INTEGER                                  :: ip
+    REAL(dbl)                                :: rhoab, x
 
+! number of points
+! order of derivatives
 !   *** Parameters ***
-    CHARACTER(len=*), PARAMETER :: routineN="calc_fx_array", &
-                                   routineP=moduleN//"/"//routineN
-
 !   ---------------------------------------------------------------------------
 
     IF ( m > 3 ) CALL stop_program (routineP, "Order too high" )
@@ -419,14 +413,11 @@ CONTAINS
 !
 !   ---------------------------------------------------------------------------
 
-    REAL(dbl), INTENT(IN)  :: rhoa, rhob
-    REAL(dbl), DIMENSION(:), INTENT(OUT) :: fx
-    INTEGER, INTENT(IN) :: m
+    REAL(dbl), INTENT(IN)                    :: rhoa, rhob
+    REAL(dbl), DIMENSION(:), INTENT(OUT)     :: fx
+    INTEGER, INTENT(IN)                      :: m
 
-!   *** Local variables ***
-
-    INTEGER :: n, na, nb, ip
-    REAL(dbl) :: x, rhoab
+    REAL(dbl)                                :: rhoab, x
 
 !   ---------------------------------------------------------------------------
 
@@ -465,13 +456,13 @@ CONTAINS
 
   SUBROUTINE calc_z ( a, b, z, order )
 
-    IMPLICIT NONE
 
-    REAL(DBL), INTENT(IN) :: a, b
-    REAL(DBL), DIMENSION(0:,0:), INTENT(OUT) :: z
-    INTEGER, INTENT(IN) :: order
+    REAL(DBL), INTENT(IN)                    :: a, b
+    REAL(DBL), DIMENSION(0:, 0:), &
+      INTENT(OUT)                            :: z
+    INTEGER, INTENT(IN)                      :: order
 
-    REAL(DBL) :: c,d
+    REAL(DBL)                                :: c, d
 
     c = a+b
 

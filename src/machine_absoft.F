@@ -22,7 +22,8 @@
 
 MODULE machine_absoft
 
-  USE kinds, ONLY : dbl, sgl
+  USE kinds,                           ONLY: dbl,&
+                                             sgl
 
   IMPLICIT NONE
 
@@ -42,16 +43,20 @@ SUBROUTINE m_abort()
 END SUBROUTINE m_abort
 
 FUNCTION m_iargc() RESULT (ic)
-  INTEGER :: ic
-  INTEGER, EXTERNAL :: iargc
+    INTEGER                                  :: ic
+
+    INTEGER, EXTERNAL                        :: iargc
+
   ic = iargc()
 END FUNCTION m_iargc
 
 !******************************************************************************
 !!  cpu time in seconds
 FUNCTION m_cputime() RESULT (ct)
-  REAL (dbl) :: ct
-  REAL (sgl) etime,tarray(2),d
+    REAL(dbl)                                :: ct
+
+    REAL(sgl)                                :: d, etime, tarray(2)
+
   EXTERNAL etime
   d=ETIME(tarray)
   ct = DBLE(tarray(1))
@@ -59,8 +64,10 @@ END FUNCTION m_cputime
 !******************************************************************************
 !!  wall clock time in seconds
 FUNCTION m_walltime() RESULT (wt)
-  REAL (dbl) :: wt
-  REAL (sgl) :: etime
+    REAL(dbl)                                :: wt
+
+    REAL(sgl)                                :: etime
+
   TYPE tb_type
      SEQUENCE
      REAL (sgl) usrtime
@@ -72,8 +79,10 @@ END FUNCTION m_walltime
 !******************************************************************************
 !!  time and date
 SUBROUTINE m_datum(cal_date)
-  CHARACTER (len=*), INTENT (OUT) :: cal_date
-  CHARACTER (len=24) :: datum
+    CHARACTER(len=*), INTENT(OUT)            :: cal_date
+
+    CHARACTER(len=24)                        :: datum
+
   CALL fdate(datum)
   cal_date = datum
 END SUBROUTINE m_datum
@@ -88,7 +97,7 @@ END SUBROUTINE m_datum
 
 !   ***************************************************************************
 
-    INTEGER, INTENT(IN) :: lunit
+    INTEGER, INTENT(IN)                      :: lunit
 
 !   ---------------------------------------------------------------------------
 
@@ -104,12 +113,10 @@ END SUBROUTINE m_datum
 
 !   ***************************************************************************
 
-    CHARACTER(LEN=*), INTENT(IN) :: checkpoint
+    CHARACTER(LEN=*), INTENT(IN)             :: checkpoint
 
-!   *** Local variables ***
-
-    CHARACTER(LEN=200) :: cmdstr
-    INTEGER            :: pid
+    CHARACTER(LEN=200)                       :: cmdstr
+    INTEGER                                  :: pid
 
 !   ---------------------------------------------------------------------------
 
@@ -126,39 +133,49 @@ END SUBROUTINE m_datum
 ! *****************************************************************************
 
 SUBROUTINE m_hostnm(hname)
-  CHARACTER (len=*), INTENT (OUT) :: hname
-  INTEGER :: hostnm, ierror
+    CHARACTER(len=*), INTENT(OUT)            :: hname
+
+    INTEGER                                  :: hostnm, ierror
+
   ierror = hostnm(hname)
 END SUBROUTINE m_hostnm
 !******************************************************************************
 SUBROUTINE m_getcwd(curdir)
-  CHARACTER (len=*), INTENT (OUT) :: curdir
-  INTEGER :: getcwd, ierror
-  CHARACTER (len=255) :: dir
+    CHARACTER(len=*), INTENT(OUT)            :: curdir
+
+    CHARACTER(len=255)                       :: dir
+    INTEGER                                  :: getcwd, ierror
+
   ierror = getcwd(dir)
   curdir = dir
 END SUBROUTINE m_getcwd
 !******************************************************************************
 SUBROUTINE m_getlog(user)
-  CHARACTER (len=*), INTENT (OUT) :: user
+    CHARACTER(len=*), INTENT(OUT)            :: user
+
   CALL getlog(user)
 END SUBROUTINE m_getlog
 !******************************************************************************
 SUBROUTINE m_getuid(uid)
-  INTEGER, INTENT (OUT) :: uid
-  INTEGER :: getuid
+    INTEGER, INTENT(OUT)                     :: uid
+
+    INTEGER                                  :: getuid
+
   uid = getuid()
 END SUBROUTINE m_getuid
 !******************************************************************************
 SUBROUTINE m_getpid(pid)
-  INTEGER, INTENT (OUT) :: pid
-  INTEGER :: getpid
+    INTEGER, INTENT(OUT)                     :: pid
+
+    INTEGER                                  :: getpid
+
   pid = getpid()
 END SUBROUTINE m_getpid
 !******************************************************************************
 SUBROUTINE m_getarg(i,arg)
-  INTEGER, INTENT (IN) :: i
-  CHARACTER (len=*), INTENT (OUT) :: arg
+    INTEGER, INTENT(IN)                      :: i
+    CHARACTER(len=*), INTENT(OUT)            :: arg
+
   CALL getarg(i,arg)
 END SUBROUTINE m_getarg
 !******************************************************************************

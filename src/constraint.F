@@ -19,18 +19,24 @@
 
 MODULE constraint
 
-  USE atomic_kind_types, ONLY : atomic_kind_type, get_atomic_kind
-  USE global_types, ONLY : global_environment_type
-  USE kinds, ONLY : dbl
-  USE linear_systems, ONLY : solve_system
-  USE md, ONLY : simulation_parameters_type, virial_type
-  USE molecule_types, ONLY : molecule_structure_type, &
-       linklist_dist_constraints, linklist_g3x3_constraints, &
-       linklist_g4x6_constraints
-  USE message_passing, ONLY : mp_sum
-  USE termination, ONLY : stop_program
-  USE timings, ONLY : timeset, timestop
-  USE util, ONLY : getinv3x3, dotprod_3d, matvec_3x3, matmul_3x3, transpose_3d
+  USE atomic_kind_types,               ONLY: atomic_kind_type,&
+                                             get_atomic_kind
+  USE kinds,                           ONLY: dbl
+  USE linear_systems,                  ONLY: solve_system
+  USE md,                              ONLY: simulation_parameters_type,&
+                                             virial_type
+  USE message_passing,                 ONLY: mp_sum
+  USE molecule_types,                  ONLY: linklist_dist_constraints,&
+                                             linklist_g3x3_constraints,&
+                                             linklist_g4x6_constraints,&
+                                             molecule_structure_type
+  USE termination,                     ONLY: stop_program
+  USE timings,                         ONLY: timeset,&
+                                             timestop
+  USE util,                            ONLY: dotprod_3d,&
+                                             matmul_3x3,&
+                                             matvec_3x3,&
+                                             transpose_3d
 
   IMPLICIT NONE
 
@@ -47,20 +53,18 @@ CONTAINS
 
 SUBROUTINE shake_control(molecule,simpar)
 
-  IMPLICIT NONE
 
-! Arguments
-  TYPE ( molecule_structure_type ), DIMENSION ( : ), INTENT ( INOUT ) :: &
-       molecule
-  TYPE ( simulation_parameters_type ), INTENT ( IN ) :: simpar
+    TYPE(molecule_structure_type), &
+      DIMENSION(:), INTENT(INOUT)            :: molecule
+    TYPE(simulation_parameters_type), &
+      INTENT(IN)                             :: simpar
 
-! Locals
-  REAL ( dbl ) :: max_sigma
-  INTEGER :: imol, iconst, ishake, nmol, handle
+    INTEGER                                  :: handle, imol, ishake, nmol
+    REAL(dbl)                                :: max_sigma
 
 !------------------------------------------------------------------------------
-
 ! initialize locals
+
   CALL timeset ( 'SHAKE_CONTROL', 'I', ' ', handle )
 
   nmol = SIZE ( molecule )
@@ -97,16 +101,14 @@ END SUBROUTINE shake_control
 
 SUBROUTINE rattle_control ( molecule, simpar )
 
-  IMPLICIT NONE
 
-! Arguments
-  TYPE ( molecule_structure_type ), DIMENSION ( : ), INTENT ( INOUT ) :: &
-       molecule
-  TYPE ( simulation_parameters_type ), INTENT ( IN ) :: simpar
+    TYPE(molecule_structure_type), &
+      DIMENSION(:), INTENT(INOUT)            :: molecule
+    TYPE(simulation_parameters_type), &
+      INTENT(IN)                             :: simpar
 
-! Locals
-  REAL ( dbl ) :: max_sigma
-  INTEGER :: imol, iconst, nmol, irattle, handle
+    INTEGER                                  :: handle, imol, irattle, nmol
+    REAL(dbl)                                :: max_sigma
 
 !------------------------------------------------------------------------------
 
@@ -146,23 +148,23 @@ END SUBROUTINE rattle_control
 SUBROUTINE shake_roll_control ( molecule, simpar, thermo, roll_tol, iroll, &
      vector_r, vector_v, group, u )
 
-  IMPLICIT NONE
 
-! Arguments
-  TYPE ( molecule_structure_type ), INTENT ( INOUT ), DIMENSION ( : ) :: &
-       molecule
-  TYPE ( simulation_parameters_type ), INTENT ( IN ) :: simpar
-  TYPE ( virial_type ), INTENT ( INOUT ), OPTIONAL :: thermo
-  REAL ( dbl ), INTENT ( IN ), DIMENSION ( : ) :: vector_r, vector_v
-  REAL ( dbl ), INTENT ( OUT ) :: roll_tol
-  INTEGER, INTENT ( INOUT ) :: iroll
-  INTEGER, INTENT ( IN ) :: group
-  REAL ( dbl ), INTENT ( IN ), OPTIONAL, DIMENSION ( :, : ) :: u
+    TYPE(molecule_structure_type), &
+      DIMENSION(:), INTENT(INOUT)            :: molecule
+    TYPE(simulation_parameters_type), &
+      INTENT(IN)                             :: simpar
+    TYPE(virial_type), INTENT(INOUT), &
+      OPTIONAL                               :: thermo
+    REAL(dbl), INTENT(OUT)                   :: roll_tol
+    INTEGER, INTENT(INOUT)                   :: iroll
+    REAL(dbl), DIMENSION(:), INTENT(IN)      :: vector_r, vector_v
+    INTEGER, INTENT(IN)                      :: group
+    REAL(dbl), DIMENSION(:, :), INTENT(IN), &
+      OPTIONAL                               :: u
 
-! Locals
-  REAL ( dbl ) :: max_sigma
-  INTEGER :: imol, iconst, ishake, nmol, handle
-  REAL ( dbl ), DIMENSION ( 3, 3 ) :: r_shake, v_shake
+    INTEGER                                  :: handle, imol, ishake, nmol
+    REAL(dbl)                                :: max_sigma
+    REAL(dbl), DIMENSION(3, 3)               :: r_shake, v_shake
 
 !------------------------------------------------------------------------------
 
@@ -212,25 +214,25 @@ END SUBROUTINE shake_roll_control
 SUBROUTINE rattle_roll_control ( molecule, simpar, thermo, veps, mass, &
      roll_tol, iroll, vector, group, u )
 
-  IMPLICIT NONE
 
-! Arguments
-  TYPE ( molecule_structure_type ), INTENT ( INOUT ), DIMENSION ( : ) :: &
-       molecule
-  TYPE ( simulation_parameters_type ), INTENT ( IN ) :: simpar
-  TYPE ( virial_type ), INTENT ( INOUT ) :: thermo
-  REAL ( dbl ), DIMENSION ( :, : ), INTENT ( INOUT ) :: veps
-  REAL ( dbl ), DIMENSION ( :, : ), INTENT ( IN ) :: mass
-  REAL ( dbl ), INTENT ( OUT ) :: roll_tol
-  REAL ( dbl ), INTENT ( IN ), DIMENSION ( : ) :: vector
-  REAL ( dbl ), INTENT ( IN ), DIMENSION ( :, : ), OPTIONAL :: u
-  INTEGER, INTENT ( INOUT ) :: iroll
-  INTEGER, INTENT ( IN ) :: group
+    TYPE(molecule_structure_type), &
+      DIMENSION(:), INTENT(INOUT)            :: molecule
+    TYPE(simulation_parameters_type), &
+      INTENT(IN)                             :: simpar
+    TYPE(virial_type), INTENT(INOUT)         :: thermo
+    REAL(dbl), DIMENSION(:, :), &
+      INTENT(INOUT)                          :: veps
+    REAL(dbl), DIMENSION(:, :), INTENT(IN)   :: mass
+    REAL(dbl), INTENT(OUT)                   :: roll_tol
+    INTEGER, INTENT(INOUT)                   :: iroll
+    REAL(dbl), DIMENSION(:), INTENT(IN)      :: vector
+    INTEGER, INTENT(IN)                      :: group
+    REAL(dbl), DIMENSION(:, :), INTENT(IN), &
+      OPTIONAL                               :: u
 
-! Locals
-  REAL ( dbl ) :: max_sigma, feps
-  INTEGER :: imol, iconst, irattle, nmol, handle
-  REAL ( dbl ), DIMENSION ( 3, 3 ) :: r_rattle
+    INTEGER                                  :: handle, imol, irattle, nmol
+    REAL(dbl)                                :: max_sigma
+    REAL(dbl), DIMENSION(3, 3)               :: r_rattle
 
 !------------------------------------------------------------------------------
 
@@ -287,29 +289,28 @@ END SUBROUTINE rattle_roll_control
 
 SUBROUTINE shake_3x3 ( molecule, simpar, ishake )
 
-  IMPLICIT NONE
 
-! Arguments
-  TYPE (molecule_structure_type ), INTENT ( INOUT ) :: molecule
-  TYPE (simulation_parameters_type ), INTENT ( IN ) :: simpar
-  INTEGER, INTENT ( OUT ) :: ishake
+    TYPE(molecule_structure_type), &
+      INTENT(INOUT)                          :: molecule
+    TYPE(simulation_parameters_type), &
+      INTENT(IN)                             :: simpar
+    INTEGER, INTENT(OUT)                     :: ishake
 
-! Locals
-  REAL ( dbl ) :: idtsq, dtsqby2, dtby2, imass1, imass2, imass3
-  REAL ( dbl ) :: sigma, max_sigma
-  REAL ( dbl ) :: mass
-  REAL ( dbl ), DIMENSION(3) :: r12, r23, r13, vec
-  REAL ( dbl ), DIMENSION(3,1) :: bvec
-  REAL ( dbl ), DIMENSION(3) :: r0_12, r0_23, r0_13
-  REAL ( dbl ), DIMENSION(3) :: r1, r2, r3, v1, v2, v3, fc1, fc2, fc3
-  REAL ( dbl ), DIMENSION(3,3) :: amat, atemp
-  TYPE (linklist_g3x3_constraints), POINTER :: llconst
-  TYPE ( atomic_kind_type ), POINTER :: atomic_kind 
-  INTEGER :: iconst
+    INTEGER                                  :: iconst
+    REAL(dbl)                                :: dtby2, dtsqby2, idtsq, &
+                                                imass1, imass2, imass3, mass, &
+                                                max_sigma, sigma
+    REAL(dbl), DIMENSION(3)                  :: fc1, fc2, fc3, r0_12, r0_13, &
+                                                r0_23, r1, r12, r13, r2, r23, &
+                                                r3, v1, v2, v3, vec
+    REAL(dbl), DIMENSION(3, 1)               :: bvec
+    REAL(dbl), DIMENSION(3, 3)               :: amat, atemp
+    TYPE(atomic_kind_type), POINTER          :: atomic_kind
+    TYPE(linklist_g3x3_constraints), POINTER :: llconst
 
 !------------------------------------------------------------------------------
-
 ! define local variables
+
   dtsqby2 = simpar%dt*simpar%dt*.5_dbl
   idtsq = 1._dbl/simpar%dt/simpar%dt
   dtby2 = simpar%dt*.5_dbl
@@ -414,30 +415,30 @@ END SUBROUTINE shake_3x3
 
 SUBROUTINE shake_roll_3x3(molecule,simpar,r_shake,v_shake,ishake)
 
-  IMPLICIT NONE
 
-! Arguments
-  TYPE (molecule_structure_type ), INTENT ( INOUT ) :: molecule
-  TYPE (simulation_parameters_type ), INTENT ( IN ) :: simpar
-  REAL ( dbl ), DIMENSION ( :, : ), INTENT ( IN ) :: r_shake, v_shake
-  INTEGER, INTENT ( OUT ) :: ishake
+    TYPE(molecule_structure_type), &
+      INTENT(INOUT)                          :: molecule
+    TYPE(simulation_parameters_type), &
+      INTENT(IN)                             :: simpar
+    REAL(dbl), DIMENSION(:, :), INTENT(IN)   :: r_shake, v_shake
+    INTEGER, INTENT(OUT)                     :: ishake
 
-! Locals
-  REAL ( dbl ) :: idtsq, dtsqby2, dtby2, imass1, imass2, imass3, mass
-  REAL ( dbl ) :: sigma, max_sigma
-  REAL ( dbl ), DIMENSION(3) :: r12, r23, r13, vec
-  REAL ( dbl ), DIMENSION(3,1) :: bvec
-  REAL ( dbl ), DIMENSION(3) :: r0_12, r0_23, r0_13
-  REAL ( dbl ), DIMENSION(3) :: r1, r2, r3, v1, v2, v3, fc1, fc2, fc3,  &
-  f_roll1, f_roll2, f_roll3
-  REAL ( dbl ), DIMENSION(3,3) :: amat, atemp
-  TYPE (linklist_g3x3_constraints), POINTER :: llconst
-  TYPE ( atomic_kind_type ), POINTER :: atomic_kind 
-  INTEGER :: iconst
+    INTEGER                                  :: iconst
+    REAL(dbl)                                :: dtby2, dtsqby2, idtsq, &
+                                                imass1, imass2, imass3, mass, &
+                                                max_sigma, sigma
+    REAL(dbl), DIMENSION(3)                  :: f_roll1, f_roll2, f_roll3, &
+                                                fc1, fc2, fc3, r0_12, r0_13, &
+                                                r0_23, r1, r12, r13, r2, r23, &
+                                                r3, v1, v2, v3, vec
+    REAL(dbl), DIMENSION(3, 1)               :: bvec
+    REAL(dbl), DIMENSION(3, 3)               :: amat, atemp
+    TYPE(atomic_kind_type), POINTER          :: atomic_kind
+    TYPE(linklist_g3x3_constraints), POINTER :: llconst
 
 !------------------------------------------------------------------------------
-
 ! define local variables
+
   dtsqby2 = simpar%dt*simpar%dt*.5_dbl
   idtsq = 1._dbl/simpar%dt/simpar%dt
   dtby2 = simpar%dt*.5_dbl
@@ -548,30 +549,28 @@ END SUBROUTINE shake_roll_3x3
 
 SUBROUTINE shake_4x6 ( molecule, simpar, ishake )
 
-  IMPLICIT NONE
 
-! Arguments
-  TYPE (molecule_structure_type ), INTENT ( INOUT ) :: molecule
-  TYPE (simulation_parameters_type ), INTENT ( IN ) :: simpar
-  INTEGER, INTENT ( OUT ) :: ishake
+    TYPE(molecule_structure_type), &
+      INTENT(INOUT)                          :: molecule
+    TYPE(simulation_parameters_type), &
+      INTENT(IN)                             :: simpar
+    INTEGER, INTENT(OUT)                     :: ishake
 
-! Locals
-  INTEGER :: ipvt ( 6 ), info
-  REAL ( dbl ) :: idtsq, dtsqby2, dtby2, imass1, imass2, imass3, imass4
-  REAL ( dbl ) :: sigma, max_sigma
-  REAL ( dbl ) :: mass
-  REAL ( dbl ), DIMENSION(3) :: r12, r23, r13, r14, r24, r34, vec
-  REAL ( dbl ), DIMENSION ( 6, 1 ) :: bvec
-  REAL ( dbl ), DIMENSION(3) :: r0_12, r0_23, r0_13, r0_14, r0_24, r0_34
-  REAL ( dbl ), DIMENSION(3) :: r1, r2, r3, r4, v1, v2, v3, v4, fc1, fc2, fc3, fc4
-  REAL ( dbl ), DIMENSION(6,6) :: amat, atemp
-  TYPE (linklist_g4x6_constraints), POINTER :: llconst
-  TYPE ( atomic_kind_type ), POINTER :: atomic_kind 
-  INTEGER ::  iconst
+    INTEGER                                  :: iconst
+    REAL(dbl)                                :: dtby2, dtsqby2, idtsq, &
+                                                imass1, imass2, imass3, &
+                                                imass4, mass, max_sigma, sigma
+    REAL(dbl), DIMENSION(3) :: fc1, fc2, fc3, fc4, r0_12, r0_13, r0_14, &
+      r0_23, r0_24, r0_34, r1, r12, r13, r14, r2, r23, r24, r3, r34, r4, v1, &
+      v2, v3, v4, vec
+    REAL(dbl), DIMENSION(6, 1)               :: bvec
+    REAL(dbl), DIMENSION(6, 6)               :: amat, atemp
+    TYPE(atomic_kind_type), POINTER          :: atomic_kind
+    TYPE(linklist_g4x6_constraints), POINTER :: llconst
 
 !------------------------------------------------------------------------------
-
 ! define local variables
+
   dtsqby2 = simpar%dt*simpar%dt*.5_dbl
   idtsq = 1._dbl/simpar%dt/simpar%dt
   dtby2 = simpar%dt*.5_dbl
@@ -766,31 +765,29 @@ END SUBROUTINE shake_4x6
 
 SUBROUTINE shake_roll_4x6(molecule,simpar,r_shake,v_shake,ishake)
 
-  IMPLICIT NONE
 
-! Arguments
-  TYPE (molecule_structure_type ), INTENT ( INOUT ) :: molecule
-  TYPE (simulation_parameters_type ), INTENT ( IN ) :: simpar
-  REAL ( dbl ), DIMENSION ( :, : ), INTENT ( IN ) :: r_shake, v_shake
-  INTEGER, INTENT ( OUT ) :: ishake
+    TYPE(molecule_structure_type), &
+      INTENT(INOUT)                          :: molecule
+    TYPE(simulation_parameters_type), &
+      INTENT(IN)                             :: simpar
+    REAL(dbl), DIMENSION(:, :), INTENT(IN)   :: r_shake, v_shake
+    INTEGER, INTENT(OUT)                     :: ishake
 
-! Locals
-  INTEGER :: ipvt ( 6 ), info
-  REAL ( dbl ) :: idtsq, dtsqby2, dtby2, imass1, imass2, imass3, imass4, mass
-  REAL ( dbl ) :: sigma, max_sigma
-  REAL ( dbl ), DIMENSION(3) :: r12, r23, r13, r14, r24, r34, vec
-  REAL ( dbl ), DIMENSION ( 6, 1 ) :: bvec
-  REAL ( dbl ), DIMENSION(3) :: r0_12, r0_23, r0_13, r0_14, r0_24, r0_34
-  REAL ( dbl ), DIMENSION(3) :: r1, r2, r3, r4, v1, v2, v3, v4, fc1, fc2, fc3, fc4, &
-  f_roll1, f_roll2, f_roll3, f_roll4, f_roll5, f_roll6
-  REAL ( dbl ), DIMENSION(6,6) :: amat, atemp
-  TYPE (linklist_g4x6_constraints), POINTER :: llconst
-  TYPE ( atomic_kind_type ), POINTER :: atomic_kind 
-  INTEGER :: iconst
+    INTEGER                                  :: iconst
+    REAL(dbl)                                :: dtby2, dtsqby2, idtsq, &
+                                                imass1, imass2, imass3, &
+                                                imass4, mass, max_sigma, sigma
+    REAL(dbl), DIMENSION(3) :: f_roll1, f_roll2, f_roll3, f_roll4, f_roll5, &
+      f_roll6, fc1, fc2, fc3, fc4, r0_12, r0_13, r0_14, r0_23, r0_24, r0_34, &
+      r1, r12, r13, r14, r2, r23, r24, r3, r34, r4, v1, v2, v3, v4, vec
+    REAL(dbl), DIMENSION(6, 1)               :: bvec
+    REAL(dbl), DIMENSION(6, 6)               :: amat, atemp
+    TYPE(atomic_kind_type), POINTER          :: atomic_kind
+    TYPE(linklist_g4x6_constraints), POINTER :: llconst
 
 !------------------------------------------------------------------------------
-
 ! define local variables
+
   dtsqby2 = simpar%dt*simpar%dt*.5_dbl
   idtsq = 1._dbl/simpar%dt/simpar%dt
   dtby2 = simpar%dt*.5_dbl
@@ -993,32 +990,30 @@ END SUBROUTINE shake_roll_4x6
 
 SUBROUTINE rattle_roll_3x3(molecule,simpar,r_rattle,veps,max_sigma,irattle)
 
-  IMPLICIT NONE
 
-! Arguments
-  TYPE (molecule_structure_type ), INTENT ( INOUT ) :: molecule
-  TYPE (simulation_parameters_type ), INTENT ( IN ) :: simpar
-  REAL ( dbl ), INTENT ( INOUT ) :: max_sigma
-  INTEGER, INTENT ( IN ) :: irattle
-  REAL ( dbl ), INTENT ( IN ), DIMENSION ( :, : ) :: veps
-  REAL ( dbl ), INTENT ( IN ), DIMENSION ( :, : ) :: r_rattle
+    TYPE(molecule_structure_type), &
+      INTENT(INOUT)                          :: molecule
+    TYPE(simulation_parameters_type), &
+      INTENT(IN)                             :: simpar
+    REAL(dbl), DIMENSION(:, :), INTENT(IN)   :: r_rattle, veps
+    REAL(dbl), INTENT(INOUT)                 :: max_sigma
+    INTEGER, INTENT(IN)                      :: irattle
 
-! Locals
-  INTEGER :: iconst, info
-  REAL ( dbl ) :: idt, dtby2, imass1, imass2, imass3, mass, sigma_dot
-  REAL ( dbl ), DIMENSION(3) :: r12, r23, r13, vec
-  REAL ( dbl ), DIMENSION(3,1) :: bvec
-  REAL ( dbl ), DIMENSION(3) :: f_roll1, f_roll2, f_roll3
-  REAL ( dbl ), DIMENSION(3) :: v12_0, v23_0, v13_0
-  REAL ( dbl ), DIMENSION(3) :: v12, v23, v13
-  REAL ( dbl ), DIMENSION(3) :: fc1, fc2, fc3, lambda
-  REAL ( dbl ), DIMENSION(3,3) :: amat
-  TYPE (linklist_g3x3_constraints), POINTER :: llconst
-  TYPE (atomic_kind_type), POINTER :: atomic_kind
+    INTEGER                                  :: iconst
+    REAL(dbl)                                :: dtby2, idt, imass1, imass2, &
+                                                imass3, mass, sigma_dot
+    REAL(dbl), DIMENSION(3)                  :: f_roll1, f_roll2, f_roll3, &
+                                                fc1, fc2, fc3, lambda, r12, &
+                                                r13, r23, v12, v12_0, v13, &
+                                                v13_0, v23, v23_0
+    REAL(dbl), DIMENSION(3, 1)               :: bvec
+    REAL(dbl), DIMENSION(3, 3)               :: amat
+    TYPE(atomic_kind_type), POINTER          :: atomic_kind
+    TYPE(linklist_g3x3_constraints), POINTER :: llconst
 
 !------------------------------------------------------------------------------
-
 ! define local variables
+
   idt = 1._dbl/simpar%dt
   dtby2 = simpar%dt*.5_dbl
   IF (irattle==1) THEN
@@ -1139,26 +1134,25 @@ END SUBROUTINE rattle_roll_3x3
 
 SUBROUTINE rattle_3x3(molecule,simpar)
 
-  IMPLICIT NONE
 
-! Arguments
-  TYPE (molecule_structure_type ), INTENT ( INOUT ) :: molecule
-  TYPE (simulation_parameters_type ), INTENT ( IN ) :: simpar
+    TYPE(molecule_structure_type), &
+      INTENT(INOUT)                          :: molecule
+    TYPE(simulation_parameters_type), &
+      INTENT(IN)                             :: simpar
 
-! Locals
-  INTEGER :: iconst
-  REAL ( dbl ) :: idt, dtby2, imass1, imass2, imass3, mass
-  REAL ( dbl ), DIMENSION(3) :: r12, r23, r13, vec
-  REAL ( dbl ), DIMENSION(3,1) :: bvec
-  REAL ( dbl ), DIMENSION(3) :: v12, v23, v13
-  REAL ( dbl ), DIMENSION(3) :: fc1, fc2, fc3
-  REAL ( dbl ), DIMENSION(3,3) :: amat
-  TYPE (linklist_g3x3_constraints), POINTER :: llconst
-  TYPE (atomic_kind_type), POINTER :: atomic_kind
+    INTEGER                                  :: iconst
+    REAL(dbl)                                :: dtby2, idt, imass1, imass2, &
+                                                imass3, mass
+    REAL(dbl), DIMENSION(3)                  :: fc1, fc2, fc3, r12, r13, r23, &
+                                                v12, v13, v23
+    REAL(dbl), DIMENSION(3, 1)               :: bvec
+    REAL(dbl), DIMENSION(3, 3)               :: amat
+    TYPE(atomic_kind_type), POINTER          :: atomic_kind
+    TYPE(linklist_g3x3_constraints), POINTER :: llconst
 
 !------------------------------------------------------------------------------
-
 ! define local variables
+
   idt = 1._dbl/simpar%dt
   dtby2 = simpar%dt*.5_dbl
   llconst => molecule%ll_g3x3_const
@@ -1221,26 +1215,26 @@ END SUBROUTINE rattle_3x3
 !******************************************************************************
 SUBROUTINE rattle_4x6(molecule,simpar)
 
-  IMPLICIT NONE
 
-! Arguments
-  TYPE (molecule_structure_type ), INTENT ( INOUT ) :: molecule
-  TYPE (simulation_parameters_type ), INTENT ( IN ) :: simpar
+    TYPE(molecule_structure_type), &
+      INTENT(INOUT)                          :: molecule
+    TYPE(simulation_parameters_type), &
+      INTENT(IN)                             :: simpar
 
-! Locals
-  INTEGER :: iconst 
-  REAL ( dbl ) :: idt, dtby2, imass1, imass2, imass3, imass4, mass
-  REAL ( dbl ), DIMENSION(3) :: r12, r23, r13, r14, r24, r34, vec
-  REAL ( dbl ), DIMENSION ( 6, 1 ) :: bvec
-  REAL ( dbl ), DIMENSION(3) :: v12, v23, v13, v14, v24, v34
-  REAL ( dbl ), DIMENSION(3) :: fc1, fc2, fc3, fc4
-  REAL ( dbl ), DIMENSION(6,6) :: amat
-  TYPE (linklist_g4x6_constraints), POINTER :: llconst
-  TYPE (atomic_kind_type), POINTER :: atomic_kind
+    INTEGER                                  :: iconst
+    REAL(dbl)                                :: dtby2, idt, imass1, imass2, &
+                                                imass3, imass4, mass
+    REAL(dbl), DIMENSION(3)                  :: fc1, fc2, fc3, fc4, r12, r13, &
+                                                r14, r23, r24, r34, v12, v13, &
+                                                v14, v23, v24, v34
+    REAL(dbl), DIMENSION(6, 1)               :: bvec
+    REAL(dbl), DIMENSION(6, 6)               :: amat
+    TYPE(atomic_kind_type), POINTER          :: atomic_kind
+    TYPE(linklist_g4x6_constraints), POINTER :: llconst
 
 !------------------------------------------------------------------------------
-
 ! define local variables
+
   idt = 1._dbl/simpar%dt
   dtby2 = simpar%dt*.5_dbl
   llconst => molecule%ll_g4x6_const
@@ -1359,34 +1353,31 @@ END SUBROUTINE rattle_4x6
 
 SUBROUTINE rattle_roll_4x6(molecule,simpar,r_rattle,veps,max_sigma,irattle)
 
-  IMPLICIT NONE
 
-! Arguments
-  TYPE (molecule_structure_type ), INTENT ( INOUT ) :: molecule
-  TYPE (simulation_parameters_type ), INTENT ( IN ) :: simpar
-  REAL ( dbl ), INTENT ( INOUT ) :: max_sigma
-  INTEGER, INTENT ( IN ) :: irattle
-  REAL ( dbl ), INTENT ( IN ), DIMENSION ( :, : ) :: veps
-  REAL ( dbl ), INTENT ( IN ), DIMENSION ( :, : ) :: r_rattle
+    TYPE(molecule_structure_type), &
+      INTENT(INOUT)                          :: molecule
+    TYPE(simulation_parameters_type), &
+      INTENT(IN)                             :: simpar
+    REAL(dbl), DIMENSION(:, :), INTENT(IN)   :: r_rattle, veps
+    REAL(dbl), INTENT(INOUT)                 :: max_sigma
+    INTEGER, INTENT(IN)                      :: irattle
 
-! Locals
-  INTEGER :: iconst
-  REAL ( dbl ) :: idt, dtby2, imass1, imass2, imass3, imass4, mass
-  REAL ( dbl ) :: sigma_dot
-  REAL ( dbl ), DIMENSION(3) :: r12, r23, r13, r14, r24, r34, vec
-  REAL ( dbl ), DIMENSION ( 6, 1 ) :: bvec
-  REAL ( dbl ), DIMENSION ( 6 ) :: lambda
-  REAL ( dbl ), DIMENSION(3) :: f_roll1, f_roll2, f_roll3, f_roll4, f_roll5, f_roll6
-  REAL ( dbl ), DIMENSION(3) :: v12, v23, v13, v14, v24, v34
-  REAL ( dbl ), DIMENSION(3) :: v12_0, v23_0, v13_0, v14_0, v24_0, v34_0
-  REAL ( dbl ), DIMENSION(3) :: fc1, fc2, fc3, fc4
-  REAL ( dbl ), DIMENSION(6,6) :: amat
-  TYPE (linklist_g4x6_constraints), POINTER :: llconst
-  TYPE (atomic_kind_type), POINTER :: atomic_kind
+    INTEGER                                  :: iconst
+    REAL(dbl)                                :: dtby2, idt, imass1, imass2, &
+                                                imass3, imass4, mass, &
+                                                sigma_dot
+    REAL(dbl), DIMENSION(3) :: f_roll1, f_roll2, f_roll3, f_roll4, f_roll5, &
+      f_roll6, fc1, fc2, fc3, fc4, r12, r13, r14, r23, r24, r34, v12, v12_0, &
+      v13, v13_0, v14, v14_0, v23, v23_0, v24, v24_0, v34, v34_0
+    REAL(dbl), DIMENSION(6)                  :: lambda
+    REAL(dbl), DIMENSION(6, 1)               :: bvec
+    REAL(dbl), DIMENSION(6, 6)               :: amat
+    TYPE(atomic_kind_type), POINTER          :: atomic_kind
+    TYPE(linklist_g4x6_constraints), POINTER :: llconst
 
 !------------------------------------------------------------------------------
-
 ! define local variables
+
   idt = 1._dbl/simpar%dt
   dtby2 = simpar%dt*.5_dbl
   IF (irattle==1) THEN
@@ -1597,24 +1588,25 @@ END SUBROUTINE rattle_roll_4x6
 SUBROUTINE shake(molecule,simpar,max_sigma,ishake)
 
 ! updates the multiplier one molecule type at a time
-  IMPLICIT NONE
 
-! Arguments
-  TYPE (molecule_structure_type ), INTENT ( INOUT ) :: molecule
-  TYPE (simulation_parameters_type ), INTENT ( IN ) :: simpar
-  REAL ( dbl ), INTENT ( INOUT ) :: max_sigma
-  INTEGER, INTENT ( IN ) :: ishake
-!locals
-  REAL ( dbl ) :: dtsqby2, dtby2, imass1, imass2, fdotf, fdotf_sum, del_lam
-  REAL ( dbl ) :: mass
-  REAL ( dbl ), DIMENSION (3) :: fc_t, r12
-  TYPE (linklist_dist_constraints), POINTER :: llconst
-  TYPE (atomic_kind_type), POINTER :: atomic_kind
-  INTEGER :: imol, iconst
+    TYPE(molecule_structure_type), &
+      INTENT(INOUT)                          :: molecule
+    TYPE(simulation_parameters_type), &
+      INTENT(IN)                             :: simpar
+    REAL(dbl), INTENT(INOUT)                 :: max_sigma
+    INTEGER, INTENT(IN)                      :: ishake
+
+    INTEGER                                  :: iconst
+    REAL(dbl)                                :: del_lam, dtby2, dtsqby2, &
+                                                fdotf, fdotf_sum, imass1, &
+                                                imass2, mass
+    REAL(dbl), DIMENSION(3)                  :: fc_t, r12
+    TYPE(atomic_kind_type), POINTER          :: atomic_kind
+    TYPE(linklist_dist_constraints), POINTER :: llconst
 
 !------------------------------------------------------------------------------
-
 ! define local variables
+
   dtsqby2 = simpar%dt*simpar%dt*.5_dbl
   dtby2 = simpar%dt*.5_dbl
   IF (ishake==1) THEN
@@ -1693,25 +1685,25 @@ END SUBROUTINE shake
 SUBROUTINE rattle ( molecule, simpar, max_sigma, irattle )
 
 ! updates the multiplier one molecule type at a time
-  IMPLICIT NONE
 
-! Arguments
-  TYPE (molecule_structure_type ), INTENT ( INOUT ) :: molecule
-  TYPE (simulation_parameters_type ), INTENT ( IN ) :: simpar
-  REAL ( dbl ), INTENT ( INOUT ) :: max_sigma
-  INTEGER, INTENT ( IN ) :: irattle
+    TYPE(molecule_structure_type), &
+      INTENT(INOUT)                          :: molecule
+    TYPE(simulation_parameters_type), &
+      INTENT(IN)                             :: simpar
+    REAL(dbl), INTENT(INOUT)                 :: max_sigma
+    INTEGER, INTENT(IN)                      :: irattle
 
-! Locals
-  REAL ( dbl ) :: dtby2, imass1, imass2, fdotf, fdotf_sum, del_lam
-  REAL ( dbl ) :: mass
-  REAL ( dbl ), DIMENSION (3) :: r12, v12
-  TYPE (linklist_dist_constraints), POINTER :: llconst
-  TYPE (atomic_kind_type), POINTER :: atomic_kind
-  INTEGER :: imol, iconst
+    INTEGER                                  :: iconst
+    REAL(dbl)                                :: del_lam, dtby2, fdotf, &
+                                                fdotf_sum, imass1, imass2, &
+                                                mass
+    REAL(dbl), DIMENSION(3)                  :: r12, v12
+    TYPE(atomic_kind_type), POINTER          :: atomic_kind
+    TYPE(linklist_dist_constraints), POINTER :: llconst
 
 !------------------------------------------------------------------------------
-
 ! define local variables
+
   dtby2 = simpar%dt*.5_dbl
   IF (irattle==1) THEN
      llconst => molecule%ll_dist_const
@@ -1785,27 +1777,26 @@ SUBROUTINE rattle_roll(molecule,simpar,r_rattle,veps,max_sigma,irattle)
 
 ! updates the multiplier one molecule type at a time
 
-  IMPLICIT NONE
 
-! Arguments
-  TYPE (molecule_structure_type ), INTENT ( INOUT ) :: molecule
-  TYPE (simulation_parameters_type ), INTENT ( IN ) :: simpar
-  REAL ( dbl ), INTENT ( INOUT ) :: max_sigma
-  REAL ( dbl ), INTENT ( IN ), DIMENSION ( :, : ) :: r_rattle
-  INTEGER, INTENT ( IN ) :: irattle
-  REAL ( dbl ), INTENT ( IN ), DIMENSION ( :, : ) :: veps
+    TYPE(molecule_structure_type), &
+      INTENT(INOUT)                          :: molecule
+    TYPE(simulation_parameters_type), &
+      INTENT(IN)                             :: simpar
+    REAL(dbl), DIMENSION(:, :), INTENT(IN)   :: r_rattle, veps
+    REAL(dbl), INTENT(INOUT)                 :: max_sigma
+    INTEGER, INTENT(IN)                      :: irattle
 
-! Locals
-  REAL ( dbl ) :: dtby2, imass1, imass2, fdotf, fdotf_sum, del_lam
-  REAL ( dbl ) :: mass
-  REAL ( dbl ), DIMENSION (3) :: r12, v12, f_roll
-  TYPE (linklist_dist_constraints), POINTER :: llconst
-  TYPE ( atomic_kind_type ), POINTER :: atomic_kind
-  INTEGER :: imol, iconst, isos
+    INTEGER                                  :: iconst
+    REAL(dbl)                                :: del_lam, dtby2, fdotf, &
+                                                fdotf_sum, imass1, imass2, &
+                                                mass
+    REAL(dbl), DIMENSION(3)                  :: f_roll, r12, v12
+    TYPE(atomic_kind_type), POINTER          :: atomic_kind
+    TYPE(linklist_dist_constraints), POINTER :: llconst
 
 !------------------------------------------------------------------------------
-
 ! define local variables
+
   dtby2 = simpar % dt * 0.5_dbl
   IF ( irattle == 1 ) THEN
      llconst => molecule % ll_dist_const
@@ -1888,20 +1879,18 @@ END SUBROUTINE rattle_roll
 
 SUBROUTINE getold(molecule)
 
-  IMPLICIT NONE
 
-! Arguments
-  TYPE (molecule_structure_type ), DIMENSION ( : ), INTENT ( INOUT ) :: molecule
+    TYPE(molecule_structure_type), &
+      DIMENSION(:), INTENT(INOUT)            :: molecule
 
-! Locals
-  INTEGER :: imol, iconst
-  TYPE (linklist_dist_constraints), POINTER :: ll_dist
-  TYPE (linklist_g3x3_constraints), POINTER :: ll_g3x3
-  TYPE (linklist_g4x6_constraints), POINTER :: ll_g4x6
+    INTEGER                                  :: iconst, imol
+    TYPE(linklist_dist_constraints), POINTER :: ll_dist
+    TYPE(linklist_g3x3_constraints), POINTER :: ll_g3x3
+    TYPE(linklist_g4x6_constraints), POINTER :: ll_g4x6
 
 !------------------------------------------------------------------------------
-
 ! saves all of the old variables
+
   DO imol = 1, size(molecule)
      ll_dist => molecule(imol) % ll_dist_const
      DO iconst = 1, molecule(imol) % ndistconst_mol
@@ -1953,21 +1942,19 @@ END SUBROUTINE getold
 
 SUBROUTINE pv_constraint ( molecule, thermo, char, group )
 
-  IMPLICIT NONE
 
-! Arguments
-  TYPE ( molecule_structure_type ), DIMENSION ( : ), INTENT ( IN ) :: molecule
-  TYPE ( virial_type ), INTENT ( INOUT ) :: thermo
-  CHARACTER ( LEN = * ), INTENT ( IN ) :: char
-  INTEGER, INTENT ( IN ) :: group
+    TYPE(molecule_structure_type), &
+      DIMENSION(:), INTENT(IN)               :: molecule
+    TYPE(virial_type), INTENT(INOUT)         :: thermo
+    CHARACTER(LEN=*), INTENT(IN)             :: char
+    INTEGER, INTENT(IN)                      :: group
 
-! Locals
-  REAL ( dbl ) :: lambda, pv ( 3, 3 ), lambda_3x3 ( 3 ), lambda_4x6 ( 6 )
-  REAL ( dbl ) :: fc1 ( 3 ), fc2 ( 3 ), fc3 ( 3 ), fc4 ( 3 )
-  TYPE ( linklist_dist_constraints ), POINTER :: llconst
-  TYPE ( linklist_g3x3_constraints ), POINTER :: ll3x3
-  TYPE ( linklist_g4x6_constraints ), POINTER :: ll4x6
-  INTEGER :: imol, iconst
+    INTEGER                                  :: iconst, imol
+    REAL(dbl) :: fc1( 3 ), fc2( 3 ), fc3( 3 ), fc4( 3 ), lambda, &
+      lambda_3x3( 3 ), lambda_4x6( 6 ), pv( 3, 3 )
+    TYPE(linklist_dist_constraints), POINTER :: llconst
+    TYPE(linklist_g3x3_constraints), POINTER :: ll3x3
+    TYPE(linklist_g4x6_constraints), POINTER :: ll4x6
 
 !------------------------------------------------------------------------------
 
@@ -2169,26 +2156,26 @@ END SUBROUTINE pv_constraint
 SUBROUTINE shake_roll(molecule,simpar,r_shake,v_shake,max_sigma,ishake)
 
 ! updates the multiplier one molecule type at a time
-  IMPLICIT NONE
 
-! Arguments
-  TYPE (molecule_structure_type ), INTENT ( INOUT ) :: molecule
-  TYPE (simulation_parameters_type ), INTENT ( IN ) :: simpar
-  REAL ( dbl ), INTENT ( INOUT ) :: max_sigma
-  REAL ( dbl ), DIMENSION ( :, : ), INTENT ( IN ) :: r_shake, v_shake
-  INTEGER, INTENT ( IN ) :: ishake
+    TYPE(molecule_structure_type), &
+      INTENT(INOUT)                          :: molecule
+    TYPE(simulation_parameters_type), &
+      INTENT(IN)                             :: simpar
+    REAL(dbl), DIMENSION(:, :), INTENT(IN)   :: r_shake, v_shake
+    REAL(dbl), INTENT(INOUT)                 :: max_sigma
+    INTEGER, INTENT(IN)                      :: ishake
 
-! Locals
-  REAL ( dbl ) :: dtsqby2, dtby2, imass1, imass2, fdotf, fdotf_sum
-  REAL ( dbl ) :: mass
-  REAL ( dbl ), DIMENSION (3) :: fc_t, r12, f_roll_r, f_roll_v
-  TYPE (linklist_dist_constraints), POINTER :: llconst
-  TYPE ( atomic_kind_type ), POINTER :: atomic_kind
-  INTEGER :: imol, iconst
+    INTEGER                                  :: iconst
+    REAL(dbl)                                :: dtby2, dtsqby2, fdotf, &
+                                                fdotf_sum, imass1, imass2, &
+                                                mass
+    REAL(dbl), DIMENSION(3)                  :: f_roll_r, f_roll_v, fc_t, r12
+    TYPE(atomic_kind_type), POINTER          :: atomic_kind
+    TYPE(linklist_dist_constraints), POINTER :: llconst
 
 !------------------------------------------------------------------------------
-
 ! define local variables
+
   dtsqby2 = simpar%dt*simpar%dt*.5_dbl
   dtby2 = simpar%dt*.5_dbl
   IF (ishake==1) THEN
@@ -2276,22 +2263,16 @@ END SUBROUTINE shake_roll
 
 SUBROUTINE check_tol(roll_tol,iroll,char,matrix,veps)
 
-  IMPLICIT NONE
 
-! Arguments
-  REAL ( dbl ), INTENT ( OUT ) :: roll_tol
-  INTEGER, INTENT ( INOUT ) :: iroll
-  REAL ( dbl ), INTENT ( IN ), DIMENSION ( :, : ), OPTIONAL :: matrix
-  REAL ( dbl ), INTENT ( IN ), DIMENSION ( :, : ), OPTIONAL :: veps
-  CHARACTER ( LEN = * ), INTENT ( IN ) :: char
+    REAL(dbl), INTENT(OUT)                   :: roll_tol
+    INTEGER, INTENT(INOUT)                   :: iroll
+    CHARACTER(LEN=*), INTENT(IN)             :: char
+    REAL(dbl), DIMENSION(:, :), INTENT(IN), &
+      OPTIONAL                               :: matrix, veps
 
-! Locals
-  REAL ( dbl ), DIMENSION (3,3), SAVE :: matrix_old
-  REAL ( dbl ), DIMENSION (3,3), SAVE :: veps_old
-  REAL ( dbl ), DIMENSION (3,3) :: diff_rattle
-  REAL ( dbl ), DIMENSION (3,3) :: diff_shake
-  REAL ( dbl ) :: local_tol
-  INTEGER :: imol, iconst
+    REAL(dbl)                                :: local_tol
+    REAL(dbl), DIMENSION(3, 3)               :: diff_rattle, diff_shake
+    REAL(dbl), DIMENSION(3, 3), SAVE         :: matrix_old, veps_old
 
 !------------------------------------------------------------------------------
 
@@ -2334,17 +2315,17 @@ END SUBROUTINE check_tol
 
 SUBROUTINE get_roll_matrix(char,r_shake,v_shake,vector_r,vector_v,u)
 
-  IMPLICIT NONE
 
-! Arguments
-  REAL ( dbl ), DIMENSION ( :, : ), INTENT ( OUT ), OPTIONAL :: r_shake,v_shake
-  REAL ( dbl ), DIMENSION ( : ), INTENT ( IN ), OPTIONAL :: vector_r, vector_v
-  REAL ( dbl ), DIMENSION ( :, : ), INTENT ( IN ), OPTIONAL :: u
-  CHARACTER ( len = * ), INTENT ( IN ) :: char
+    CHARACTER(len=*), INTENT(IN)             :: char
+    REAL(dbl), DIMENSION(:, :), &
+      INTENT(OUT), OPTIONAL                  :: r_shake, v_shake
+    REAL(dbl), DIMENSION(:), INTENT(IN), &
+      OPTIONAL                               :: vector_r, vector_v
+    REAL(dbl), DIMENSION(:, :), INTENT(IN), &
+      OPTIONAL                               :: u
 
-! Locals
-  INTEGER :: i
-  REAL ( dbl ), DIMENSION (3,3) :: diag
+    INTEGER                                  :: i
+    REAL(dbl), DIMENSION(3, 3)               :: diag
 
 !------------------------------------------------------------------------------
 
@@ -2396,23 +2377,22 @@ END SUBROUTINE get_roll_matrix
 
 SUBROUTINE update_veps ( molecule, veps, mass, thermo, ensemble, dt, group )
 
-  IMPLICIT NONE
 
-! Arguments
-  REAL ( dbl ), DIMENSION ( :, : ), INTENT ( INOUT ) :: veps
-  REAL ( dbl ), DIMENSION ( :, : ), INTENT ( IN ) :: mass
-  REAL ( dbl ), INTENT ( IN ) :: dt
-  TYPE ( virial_type ), INTENT ( INOUT ) :: thermo
-  TYPE ( molecule_structure_type ), DIMENSION ( : ), INTENT ( IN ) :: molecule
-  CHARACTER ( LEN = * ), INTENT ( IN ) :: ensemble
-  INTEGER, INTENT ( IN ) :: group
+    TYPE(molecule_structure_type), &
+      DIMENSION(:), INTENT(IN)               :: molecule
+    REAL(dbl), DIMENSION(:, :), &
+      INTENT(INOUT)                          :: veps
+    REAL(dbl), DIMENSION(:, :), INTENT(IN)   :: mass
+    TYPE(virial_type), INTENT(INOUT)         :: thermo
+    CHARACTER(LEN=*), INTENT(IN)             :: ensemble
+    REAL(dbl), INTENT(IN)                    :: dt
+    INTEGER, INTENT(IN)                      :: group
 
-! Locals
-  REAL ( dbl ) :: feps
+    REAL(dbl)                                :: feps
 
 !------------------------------------------------------------------------------
-
 ! increment pressure pv_const
+
   CALL pv_constraint ( molecule, thermo, 'DEL', group )
 
   IF ( ensemble == 'NPT_I' ) THEN

@@ -25,53 +25,31 @@
 !****************************************************************************
 MODULE cp_cfm_types
 
-  USE cp_array_utils,                  ONLY: cp_2d_r_output,&
-                                             cp_2d_r_write
-  USE cp_blacs_calls,                  ONLY: cp_blacs_zgebs2d,&
-                                             cp_blacs_zgebr2d
+  USE cp_blacs_calls,                  ONLY: cp_blacs_zgebr2d,&
+                                             cp_blacs_zgebs2d
   USE cp_error_handling,               ONLY: cp_a_l,&
                                              cp_assert,&
                                              cp_assertion_failed,&
-                                             cp_debug,&
-                                             cp_error_dealloc_ref,&
                                              cp_error_get_logger,&
-                                             cp_error_init,&
                                              cp_error_message,&
-                                             cp_error_type,&
-                                             cp_internal_error,&
-                                             cp_unimplemented_error
-  USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
-                                             cp_fm_struct_equivalent,&
+                                             cp_error_type
+  USE cp_fm_struct,                    ONLY: cp_fm_struct_equivalent,&
                                              cp_fm_struct_release,&
                                              cp_fm_struct_retain,&
-                                             cp_fm_struct_type,&
-                                             cp_fm_struct_write
+                                             cp_fm_struct_type
   USE cp_log_handling,                 ONLY: cp_failure_level,&
                                              cp_fatal_level,&
-                                             cp_log,&
-                                             cp_logger_generate_filename,&
                                              cp_logger_type,&
                                              cp_note_level,&
                                              cp_to_string,&
                                              cp_warning_level
-  USE cp_para_env,                     ONLY: cp_para_env_from_globenv,&
-                                             cp_para_env_release,&
-                                             cp_para_env_retain
   USE cp_para_types,                   ONLY: cp_blacs_env_type,&
                                              cp_para_env_type
-  USE global_types,                    ONLY: global_environment_type
   USE kinds,                           ONLY: dp
-  USE message_passing,                 ONLY: mp_bcast,&
-                                             mp_max,&
-                                             mp_sum,&
-                                             mp_sync
   USE parallel,                        ONLY: cp2k_is_parallel
-  USE qs_parser,                       ONLY: close_file,&
-                                             open_file
-  USE termination,                     ONLY: stop_memory,&
-                                             stop_program
   USE timings,                         ONLY: timeset,&
                                              timestop
+
   IMPLICIT NONE
   PRIVATE
 
@@ -175,16 +153,20 @@ CONTAINS
 !!
 !!*** **********************************************************************
   SUBROUTINE cp_cfm_create(matrix,matrix_struct,name,error)
-    TYPE(cp_cfm_type), POINTER :: matrix
-    TYPE(cp_fm_struct_type), POINTER :: matrix_struct
-    CHARACTER(len=*), INTENT(in), OPTIONAL :: name
-    TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
+    TYPE(cp_cfm_type), POINTER               :: matrix
+    TYPE(cp_fm_struct_type), POINTER         :: matrix_struct
+    CHARACTER(len=*), INTENT(in), OPTIONAL   :: name
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
 
-    LOGICAL :: failure
-    CHARACTER(len=*), PARAMETER :: routineN='cp_cfm_create',&
-         routineP=moduleN//':'//routineN
-    INTEGER :: stat, nprow, npcol, iprow, ipcol, nrow_local, ncol_local
-    TYPE(cp_blacs_env_type), POINTER :: context
+    CHARACTER(len=*), PARAMETER :: routineN = 'cp_cfm_create', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: ncol_local, npcol, nprow, &
+                                                nrow_local, stat
+    LOGICAL                                  :: failure
+    TYPE(cp_blacs_env_type), POINTER         :: context
+
     failure=.FALSE.
 
 #if defined(__parallel) && ! defined(__SCALAPACK)
@@ -252,12 +234,15 @@ CONTAINS
 !!
 !!*** **********************************************************************
   SUBROUTINE cp_cfm_retain(matrix,error)
-    TYPE(cp_cfm_type), POINTER :: matrix
-    TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
+    TYPE(cp_cfm_type), POINTER               :: matrix
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
 
-    LOGICAL :: failure
-    CHARACTER(len=*), PARAMETER :: routineN='cp_cfm_retain',&
-         routineP=moduleN//':'//routineN
+    CHARACTER(len=*), PARAMETER :: routineN = 'cp_cfm_retain', &
+      routineP = moduleN//':'//routineN
+
+    LOGICAL                                  :: failure
+
     failure=.FALSE.
 
     CPPrecondition(ASSOCIATED(matrix),cp_failure_level,routineP,error,failure)
@@ -293,14 +278,17 @@ CONTAINS
 !!
 !!*** **********************************************************************
   SUBROUTINE cp_cfm_release(matrix,error)
-    TYPE(cp_cfm_type), POINTER :: matrix
-    TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
+    TYPE(cp_cfm_type), POINTER               :: matrix
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
 
-    LOGICAL :: failure
-    CHARACTER(len=*), PARAMETER :: routineN='cp_cfm_release',&
-         routineP=moduleN//':'//routineN
-    INTEGER :: iprow,ipcol, stat
-    TYPE(cp_blacs_env_type), POINTER :: context
+    CHARACTER(len=*), PARAMETER :: routineN = 'cp_cfm_release', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: stat
+    LOGICAL                                  :: failure
+    TYPE(cp_blacs_env_type), POINTER         :: context
+
     failure=.FALSE.
 
     IF (ASSOCIATED(matrix)) THEN
@@ -327,18 +315,20 @@ CONTAINS
 ! *****************************************************************************
   SUBROUTINE cp_cfm_init_random(matrix,ncol,error)
 
-    TYPE(cp_cfm_type), POINTER           :: matrix
-    INTEGER, INTENT(IN)                          :: ncol
-    TYPE(cp_error_type), INTENT(inout), OPTIONAL :: error
+    TYPE(cp_cfm_type), POINTER               :: matrix
+    INTEGER, INTENT(IN)                      :: ncol
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
 
-    INTEGER :: handle,n,i
-    COMPLEX(KIND = dp), DIMENSION(:,:), POINTER :: a
-    INTEGER :: nprow,npcol,myprow,mypcol,nrow_block,ncol_block
-    INTEGER, DIMENSION(9) :: desca
-    INTEGER, DIMENSION(4),SAVE :: ISEED
-    LOGICAL, SAVE :: FIRST = .TRUE.
-    INTEGER :: irow_global,icol_global,irow_local,icol_local,iprow,ipcol
-    TYPE(cp_blacs_env_type), POINTER :: context
+    COMPLEX(KIND=dp), DIMENSION(:, :), &
+      POINTER                                :: a
+    INTEGER                                  :: handle, i, icol_local, ipcol, &
+                                                iprow, irow_local, mypcol, &
+                                                myprow, n, npcol, nprow
+    INTEGER, DIMENSION(4), SAVE              :: ISEED
+    INTEGER, DIMENSION(9)                    :: desca
+    LOGICAL, SAVE                            :: FIRST = .TRUE.
+    TYPE(cp_blacs_env_type), POINTER         :: context
 
     CALL timeset("cp_cfm_init_random","I","",handle)
 
@@ -391,15 +381,13 @@ CONTAINS
 
 !   ***************************************************************************
 
-    TYPE(cp_cfm_type), POINTER           :: matrix
-    COMPLEX(KIND = dp), INTENT(IN)                         :: alpha
-    COMPLEX(KIND = dp), OPTIONAL, INTENT(IN)               :: beta
-    TYPE(cp_error_type), INTENT(inout), OPTIONAL :: error
+    TYPE(cp_cfm_type), POINTER               :: matrix
+    COMPLEX(KIND=dp), INTENT(IN)             :: alpha
+    COMPLEX(KIND=dp), INTENT(IN), OPTIONAL   :: beta
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
 
-!   *** Local variables ***
-
-    INTEGER :: mypcol,myprow,i
-    TYPE(cp_blacs_env_type), POINTER :: context
+    INTEGER                                  :: i
 
 !   ---------------------------------------------------------------------------
 
@@ -437,20 +425,18 @@ CONTAINS
 !!****
   SUBROUTINE cp_cfm_get_element(matrix,irow_global,icol_global,alpha)
     
-    IMPLICIT NONE
 
-    ! arguments
-    TYPE(cp_cfm_type), POINTER          :: matrix
-    COMPLEX(KIND = dp), INTENT(OUT)                     :: alpha
-    INTEGER, INTENT(IN)                       :: icol_global,&
-                                                 irow_global
+    TYPE(cp_cfm_type), POINTER               :: matrix
+    INTEGER, INTENT(IN)                      :: irow_global, icol_global
+    COMPLEX(KIND=dp), INTENT(OUT)            :: alpha
 
-    ! locals
-    INTEGER :: icol_local,ipcol,iprow,irow_local,mypcol,myprow,npcol,&
-               nprow
-    INTEGER, DIMENSION(9) :: desca
-    COMPLEX(KIND = dp), DIMENSION(:,:), POINTER :: a
-    TYPE(cp_blacs_env_type), POINTER :: context
+    COMPLEX(KIND=dp), DIMENSION(:, :), &
+      POINTER                                :: a
+    INTEGER                                  :: icol_local, ipcol, iprow, &
+                                                irow_local, mypcol, myprow, &
+                                                npcol, nprow
+    INTEGER, DIMENSION(9)                    :: desca
+    TYPE(cp_blacs_env_type), POINTER         :: context
 
     context => matrix%matrix_struct%context
     myprow=context%mepos(1)
@@ -488,21 +474,19 @@ CONTAINS
 
 !   ***************************************************************************
 
-    TYPE(cp_cfm_type), POINTER          :: matrix
-    COMPLEX(KIND = dp), INTENT(IN)                      :: alpha
-    INTEGER, INTENT(IN)                       :: icol_global,&
-         irow_global
-    TYPE(cp_error_type), INTENT(inout), OPTIONAL :: error
+    TYPE(cp_cfm_type), POINTER               :: matrix
+    INTEGER, INTENT(IN)                      :: irow_global, icol_global
+    COMPLEX(KIND=dp), INTENT(IN)             :: alpha
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
 
-!   *** Local variables ***
-
-    INTEGER :: icol_local,ipcol,iprow,irow_local,mypcol,myprow,npcol,&
-         nprow
-
-    INTEGER, DIMENSION(9) :: desca
-
-    COMPLEX(KIND = dp), DIMENSION(:,:), POINTER :: a
-    TYPE(cp_blacs_env_type), POINTER :: context
+    COMPLEX(KIND=dp), DIMENSION(:, :), &
+      POINTER                                :: a
+    INTEGER                                  :: icol_local, ipcol, iprow, &
+                                                irow_local, mypcol, myprow, &
+                                                npcol, nprow
+    INTEGER, DIMENSION(9)                    :: desca
+    TYPE(cp_blacs_env_type), POINTER         :: context
 
 !   ---------------------------------------------------------------------------
 
@@ -662,19 +646,15 @@ CONTAINS
 !!
 !!*** *********************************************************************
   SUBROUTINE cp_cfm_to_cfm(source,destination,error)
-    TYPE(cp_cfm_type), POINTER :: source,destination
-    TYPE(cp_error_type), INTENT(inout), OPTIONAL :: error
+    TYPE(cp_cfm_type), POINTER               :: source, destination
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
 
-!   *** Local parameters ***
+    CHARACTER(LEN=*), PARAMETER :: &
+      routine = "SUBROUTINE cp_cfm_to_cfm (MODULE cp_cfm_types)"
 
-    CHARACTER(LEN=*), PARAMETER :: routine =&
-      "SUBROUTINE cp_cfm_to_cfm (MODULE cp_cfm_types)"
-
-!   *** Local variables ***
-
-    INTEGER :: ipcol,iprow,istat,npcol,nprow,ncol_local,nrow_local,msize1,msize2
-    REAL(KIND = dp), DIMENSION(:,:), POINTER :: a,b
-    LOGICAL :: failure
+    INTEGER                                  :: npcol, nprow
+    LOGICAL                                  :: failure
 
 !   ---------------------------------------------------------------------------
 

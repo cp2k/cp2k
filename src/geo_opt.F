@@ -26,71 +26,47 @@
 !*****************************************************************************
 MODULE geo_opt
 
-  USE atomic_kind_types,               ONLY: atomic_kind_type,&
-                                             get_atomic_kind_set
   USE bfgs_optimizer,                  ONLY: geoopt_bfgs
   USE cp_error_handling,               ONLY: cp_a_l,&
                                              cp_assert,&
-                                             cp_assertion_failed,&
-                                             cp_debug,&
-                                             cp_error_dealloc_ref,&
                                              cp_error_get_logger,&
-                                             cp_error_init,&
                                              cp_error_message,&
-                                             cp_error_type,&
-                                             cp_internal_error,&
-                                             cp_unimplemented_error,&
-                                             cp_unimplemented_error_nr
-  USE cp_subsystem_types,               ONLY: cp_subsystem_p_type,&
-                                             cp_subsystem_type,&
-                                             cp_subsys_get
+                                             cp_error_type
   USE cp_lbfgs_optimizer_gopt,         ONLY: cp_lbfgs_opt_gopt_type,&
                                              cp_opt_gopt_create,&
-                                             cp_opt_gopt_get,&
                                              cp_opt_gopt_next,&
                                              cp_opt_gopt_release,&
                                              cp_opt_gopt_stop
   USE cp_log_handling,                 ONLY: cp_failure_level,&
                                              cp_fatal_level,&
-                                             cp_log,&
                                              cp_logger_get_default_unit_nr,&
                                              cp_logger_type,&
                                              cp_note_level,&
                                              cp_to_string,&
                                              cp_warning_level
   USE cp_para_types,                   ONLY: cp_para_env_type
-  USE force_env_types,                   ONLY: force_env_calculate_force,&
-                                             force_env_create,&
-                                             force_env_get,&
-                                             force_env_release,&
+  USE cp_subsystem_types,              ONLY: cp_subsys_get,&
+                                             cp_subsystem_p_type
+  USE force_env_types,                 ONLY: force_env_get,&
                                              force_env_type
   USE global_types,                    ONLY: global_environment_type
   USE gopt_f_types,                    ONLY: gopt_f_create,&
                                              gopt_f_create_x0,&
                                              gopt_f_eval_at,&
                                              gopt_f_release,&
-                                             gopt_f_retain,&
                                              gopt_f_type,&
-                                             gopt_param_create,&
                                              gopt_param_read,&
                                              gopt_param_release,&
                                              gopt_param_type
   USE kinds,                           ONLY: dp
   USE message_passing,                 ONLY: mp_bcast
   USE particle_list_types,             ONLY: particle_list_type
-  USE particle_types,                  ONLY: particle_type,&
-                                             write_particle_distances
-  USE qs_energy,                       ONLY: qs_energies
-  USE qs_energy_types,                 ONLY: qs_energy_type
-  USE qs_environment_types,            ONLY: get_qs_env,&
-                                             qs_environment_type,&
-                                             set_qs_env
-  USE qs_force,                        ONLY: qs_forces
-  USE qs_force_types,                  ONLY: init_qs_force,&
-                                             qs_force_type
+  USE particle_types,                  ONLY: write_particle_distances
+  USE qs_environment_types,            ONLY: qs_environment_type
   USE simulation_cell,                 ONLY: cell_type
   USE timings,                         ONLY: timeset,&
                                              timestop
+
  IMPLICIT NONE
  PRIVATE
 
@@ -101,17 +77,17 @@ MODULE geo_opt
 
    SUBROUTINE qs_geo_opt(force_env, globenv, error)
 
-     TYPE(global_environment_type), POINTER          :: globenv
-     TYPE(force_env_type), POINTER                   :: force_env
-     TYPE(cp_error_type), INTENT(inout), OPTIONAL    :: error
+    TYPE(force_env_type), POINTER            :: force_env
+    TYPE(global_environment_type), POINTER   :: globenv
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
 
-!     *** Local variables ***
+    CHARACTER(len=*), PARAMETER :: routineN = 'qs_geo_opt', &
+      routineP = moduleN//':'//routineN
 
-     TYPE(qs_environment_type), POINTER :: qs_env
-     TYPE(gopt_param_type), POINTER :: gopt_param
-     LOGICAL :: failure
-     CHARACTER(len=*), PARAMETER :: routineN='qs_geo_opt',&
-          routineP=moduleN//':'//routineN
+    LOGICAL                                  :: failure
+    TYPE(gopt_param_type), POINTER           :: gopt_param
+    TYPE(qs_environment_type), POINTER       :: qs_env
 
      CPPrecondition(ASSOCIATED(force_env),cp_failure_level,routineP,error,failure)
      CPPrecondition(ASSOCIATED(globenv),cp_failure_level,routineP,error,failure)
@@ -154,24 +130,28 @@ MODULE geo_opt
 !!
 !!*** **********************************************************************
 SUBROUTINE gopt_do_opt(force_env, gopt_param, globenv, error)
-  TYPE(force_env_type), POINTER :: force_env
-  TYPE(gopt_param_type), POINTER :: gopt_param
-  TYPE(global_environment_type), TARGET, INTENT(inout) :: globenv
-  TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
-  
-  LOGICAL :: failure, should_stop
-  CHARACTER(len=*), PARAMETER :: routineN='gopt_do_opt',&
-        routineP=moduleN//':'//routineN
-  TYPE(gopt_f_type), POINTER :: gopt_env
-  TYPE(cp_lbfgs_opt_gopt_type), POINTER :: optimizer
-  TYPE(cp_para_env_type), POINTER :: para_env
-  TYPE(cell_type), POINTER :: cell
-  TYPE(cp_logger_type), POINTER :: logger
-  TYPE(particle_list_type), POINTER :: particles
-  TYPE(cp_subsystem_p_type), DIMENSION(:), POINTER :: subsys 
-  INTEGER :: i, stat, isubsys, handle
-  REAL(KIND = dp) :: f
-  REAL(KIND = dp), DIMENSION(:), POINTER :: x0
+    TYPE(force_env_type), POINTER            :: force_env
+    TYPE(gopt_param_type), POINTER           :: gopt_param
+    TYPE(global_environment_type), &
+      INTENT(inout), TARGET                  :: globenv
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'gopt_do_opt', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: handle, i, isubsys, stat
+    LOGICAL                                  :: failure, should_stop
+    REAL(KIND=dp)                            :: f
+    REAL(KIND=dp), DIMENSION(:), POINTER     :: x0
+    TYPE(cell_type), POINTER                 :: cell
+    TYPE(cp_lbfgs_opt_gopt_type), POINTER    :: optimizer
+    TYPE(cp_logger_type), POINTER            :: logger
+    TYPE(cp_para_env_type), POINTER          :: para_env
+    TYPE(cp_subsystem_p_type), &
+      DIMENSION(:), POINTER                  :: subsys
+    TYPE(gopt_f_type), POINTER               :: gopt_env
+    TYPE(particle_list_type), POINTER        :: particles
 
   CALL timeset(routineN,"I","",handle)
   failure=.FALSE.

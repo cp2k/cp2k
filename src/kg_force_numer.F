@@ -20,35 +20,44 @@
  MODULE kg_force_numer
 !------------------------------------------------------------------------------!
 !
-  USE atomic_kinds, ONLY: kind_info_type
-  USE coefficient_types, ONLY : coeff_type, coeff_allocate, &
-      coeff_deallocate, coeff_transform_space, coeff_sumup, &
-      coeff_zero
-  USE cube_utils, ONLY : cube_info_type
-  USE gaussian_gridlevels, ONLY: gridlevel_info_type
-  USE global_types, ONLY : global_environment_type
-  USE hartree,                  ONLY: calculate_hartree
-  USE l_utils, ONLY : l_info_type
-  USE kg_core, ONLY : calculate_ecore_rspace
-  USE kg_density, ONLY : calculate_density, calculate_epc_density,&
-                     calculate_p_density 
-  USE kg_environment_types, ONLY : get_kg_env, kg_environment_type
-  USE kg_energy_types, ONLY : kg_energy_type 
+  USE coefficient_types,               ONLY: coeff_allocate,&
+                                             coeff_deallocate,&
+                                             coeff_sumup,&
+                                             coeff_type,&
+                                             coeff_zero
+  USE cube_utils,                      ONLY: cube_info_type
+  USE gaussian_gridlevels,             ONLY: gridlevel_info_type
+  USE global_types,                    ONLY: global_environment_type
+  USE hartree,                         ONLY: calculate_hartree
+  USE kg_core,                         ONLY: calculate_ecore_rspace
+  USE kg_density,                      ONLY: calculate_density,&
+                                             calculate_epc_density,&
+                                             calculate_p_density
+  USE kg_energy_types,                 ONLY: kg_energy_type
 !gt
+
 ! kg intra temporarily removed from OBJECT file
+
 !    USE kg_intra, ONLY : calculate_ebond_corr
+
 !gt
-  USE kg_kxc, ONLY : calculate_kxc_potential
-  USE kg_neighbor_lists, ONLY : build_kg_neighbor_lists
-  USE kg_ppl, ONLY : calculate_rho0_ppl, calculate_drho_ppl
-  USE kinds, ONLY : dbl
-  USE pw_grid_types, ONLY : pw_grid_type
-  USE particle_types, ONLY : particle_type
-  USE pw_pool_types, ONLY : pw_pool_type
-  USE pw_types,  ONLY: COMPLEXDATA1D, COMPLEXDATA3D,&
-       REALDATA3D, REALSPACE, RECIPROCALSPACE
-  USE simulation_cell, ONLY : cell_type
-  USE termination, ONLY : stop_memory, stop_program
+
+  USE kg_environment_types,            ONLY: get_kg_env,&
+                                             kg_environment_type
+  USE kg_kxc,                          ONLY: calculate_kxc_potential
+  USE kg_neighbor_lists,               ONLY: build_kg_neighbor_lists
+  USE kg_ppl,                          ONLY: calculate_drho_ppl,&
+                                             calculate_rho0_ppl
+  USE kinds,                           ONLY: dbl
+  USE l_utils,                         ONLY: l_info_type
+  USE particle_types,                  ONLY: particle_type
+  USE pw_grid_types,                   ONLY: pw_grid_type
+  USE pw_pool_types,                   ONLY: pw_pool_type
+  USE pw_types,                        ONLY: COMPLEXDATA1D,&
+                                             REALDATA3D,&
+                                             REALSPACE,&
+                                             RECIPROCALSPACE
+  USE termination,                     ONLY: stop_memory
 
   PRIVATE
   PUBLIC :: fpart_gspace_numer, fpart_bc_numer, fpart_xc_numer, &
@@ -65,34 +74,40 @@
  SUBROUTINE  fpart_gspace_numer  ( delta, kg_env, pw_grid, iref, &
                                    gridlevel_info, l_info, cube_info, &
                                    f_part, energy_numer, globenv )
-   IMPLICIT NONE
 !
 ! begin passed variable declaration:
 !
-   TYPE ( cube_info_type ), DIMENSION(:), POINTER :: cube_info
-   TYPE ( global_environment_type ), INTENT ( INOUT ) :: globenv
-   TYPE ( gridlevel_info_type ), INTENT(IN)       :: gridlevel_info
-   TYPE ( kg_environment_type ), POINTER :: kg_env
-   TYPE ( l_info_type ), INTENT(IN)               :: l_info
-   TYPE ( pw_grid_type ), INTENT ( IN ), DIMENSION ( : ) :: pw_grid
-   INTEGER, INTENT ( IN ) :: iref
-   REAL ( dbl ), INTENT ( IN ) :: delta
-   REAL ( dbl ), INTENT ( OUT ) :: energy_numer
-   REAL ( dbl ), INTENT ( OUT ), DIMENSION ( :, : ) :: f_part
+    REAL(dbl), INTENT(IN)                    :: delta
+    TYPE(kg_environment_type), POINTER       :: kg_env
+    TYPE(pw_grid_type), DIMENSION(:), &
+      INTENT(IN)                             :: pw_grid
+    INTEGER, INTENT(IN)                      :: iref
+    TYPE(gridlevel_info_type), INTENT(IN)    :: gridlevel_info
+    TYPE(l_info_type), INTENT(IN)            :: l_info
+    TYPE(cube_info_type), DIMENSION(:), &
+      POINTER                                :: cube_info
+    REAL(dbl), DIMENSION(:, :), INTENT(OUT)  :: f_part
+    REAL(dbl), INTENT(OUT)                   :: energy_numer
+    TYPE(global_environment_type), &
+      INTENT(INOUT)                          :: globenv
+
+    CHARACTER(LEN=*), PARAMETER :: &
+      routine = "SUBROUTINE fpart_gspace_numer (MODULE kg_force_numer)"
+
+    INTEGER                                  :: i, id, igrid_level, istat, &
+                                                natoms, ngrid_level
+    REAL(dbl)                                :: energy_minus, energy_plus, &
+                                                total_rho0_rspace, &
+                                                total_rho_core_rspace
+    TYPE(coeff_type)                         :: rho_core, rho_elec_rspace, &
+                                                rho_gspace, v_gspace
+    TYPE(coeff_type), POINTER                :: mgrid_gspace(:), &
+                                                mgrid_rspace(:)
+    TYPE(particle_type), DIMENSION(:), &
+      POINTER                                :: particle_set
 
 ! begin local variable declaration:
 !
-   CHARACTER(LEN=*), PARAMETER :: routine =&
-      "SUBROUTINE fpart_gspace_numer (MODULE kg_force_numer)"
-   INTEGER :: i, j, ngrid_level, igrid_level  
-   INTEGER :: id,  natoms, istat
-   REAL (dbl) :: energy
-   REAL (dbl) :: energy_plus, energy_minus
-   REAL (dbl) :: total_rho0_rspace, total_rho_core_rspace
-   TYPE (particle_type), DIMENSION(:), POINTER :: particle_set
-   TYPE ( coeff_type ) :: rho_gspace, rho_elec_rspace, rho_core, v_gspace
-   TYPE ( coeff_type ), POINTER :: mgrid_gspace (:)
-   TYPE ( coeff_type ), POINTER :: mgrid_rspace (:)
 
    energy_numer = 0.0_dbl
    f_part = 0.0_dbl
@@ -237,35 +252,40 @@ END SUBROUTINE  fpart_gspace_numer
  SUBROUTINE  fpart_xc_numer  ( delta, kg_env, pw_grid, pw_pool, iref, &
                                    gridlevel_info, l_info, cube_info, &
                                    f_part, energy_numer, globenv )
-   IMPLICIT NONE
 !
 ! begin passed variable declaration:
 !
-   TYPE ( cube_info_type ), DIMENSION(:), POINTER :: cube_info
-   TYPE ( global_environment_type ), INTENT ( INOUT ) :: globenv
-   TYPE ( gridlevel_info_type ), INTENT(IN)       :: gridlevel_info
-   TYPE ( kg_environment_type ), INTENT ( INOUT ) :: kg_env
-   TYPE ( l_info_type ), INTENT(IN)               :: l_info
-   TYPE ( pw_grid_type ), INTENT ( IN ), DIMENSION ( : ) :: pw_grid
-   TYPE ( pw_pool_type ), pointer :: pw_pool
-   INTEGER, INTENT ( IN ) :: iref
-   REAL ( dbl ), INTENT ( IN ) :: delta
-   REAL ( dbl ), INTENT ( OUT ) :: energy_numer
-   REAL ( dbl ), INTENT ( OUT ), DIMENSION ( :, : ) :: f_part
+    REAL(dbl), INTENT(IN)                    :: delta
+    TYPE(kg_environment_type), INTENT(INOUT) :: kg_env
+    TYPE(pw_grid_type), DIMENSION(:), &
+      INTENT(IN)                             :: pw_grid
+    TYPE(pw_pool_type), pointer              :: pw_pool
+    INTEGER, INTENT(IN)                      :: iref
+    TYPE(gridlevel_info_type), INTENT(IN)    :: gridlevel_info
+    TYPE(l_info_type), INTENT(IN)            :: l_info
+    TYPE(cube_info_type), DIMENSION(:), &
+      POINTER                                :: cube_info
+    REAL(dbl), DIMENSION(:, :), INTENT(OUT)  :: f_part
+    REAL(dbl), INTENT(OUT)                   :: energy_numer
+    TYPE(global_environment_type), &
+      INTENT(INOUT)                          :: globenv
+
+    CHARACTER(LEN=*), PARAMETER :: &
+      routine = "SUBROUTINE fpart_xc_numer (MODULE kg_force_numer)"
+
+    INTEGER                                  :: i, id, igrid_level, istat, &
+                                                natoms, ngrid_level
+    REAL(dbl)                                :: energy_minus, energy_plus, &
+                                                total_rho0_rspace
+    TYPE(coeff_type)                         :: rho_elec_rspace, rho_gspace, &
+                                                v_xc_rspace
+    TYPE(coeff_type), POINTER                :: mgrid_gspace(:), &
+                                                mgrid_rspace(:)
+    TYPE(particle_type), DIMENSION(:), &
+      POINTER                                :: particle_set
 
 ! begin local variable declaration:
 !
-   CHARACTER(LEN=*), PARAMETER :: routine =&
-      "SUBROUTINE fpart_xc_numer (MODULE kg_force_numer)"
-   INTEGER :: i, j, ngrid_level, igrid_level  
-   INTEGER :: id,  natoms, istat
-   REAL (dbl) :: energy
-   REAL (dbl) :: energy_plus, energy_minus
-   REAL (dbl) :: total_rho0_rspace, total_rho_core_rspace
-   TYPE (particle_type), DIMENSION(:), POINTER :: particle_set
-   TYPE ( coeff_type ) :: rho_gspace, rho_elec_rspace, v_xc_rspace
-   TYPE ( coeff_type ), POINTER :: mgrid_gspace (:)
-   TYPE ( coeff_type ), POINTER :: mgrid_rspace (:)
 
    energy_numer = 0.0_dbl
    energy_plus = 0.0_dbl
@@ -386,25 +406,26 @@ END SUBROUTINE  fpart_xc_numer
 
  SUBROUTINE  fpart_core_rspace_numer  ( delta, kg_env,  &
                                    f_part, energy_numer, globenv )
-   IMPLICIT NONE
 !
 ! begin passed variable declaration:
 !
-   TYPE ( global_environment_type ), INTENT ( INOUT ) :: globenv
-   TYPE ( kg_environment_type ), INTENT ( INOUT ) :: kg_env
-   REAL ( dbl ), INTENT ( IN ) :: delta
-   REAL ( dbl ), INTENT ( OUT ) :: energy_numer
-   REAL ( dbl ), INTENT ( OUT ), DIMENSION ( :, : ) :: f_part
+    REAL(dbl), INTENT(IN)                    :: delta
+    TYPE(kg_environment_type), INTENT(INOUT) :: kg_env
+    REAL(dbl), DIMENSION(:, :), INTENT(OUT)  :: f_part
+    REAL(dbl), INTENT(OUT)                   :: energy_numer
+    TYPE(global_environment_type), &
+      INTENT(INOUT)                          :: globenv
+
+    CHARACTER(LEN=*), PARAMETER :: &
+      routine = "SUBROUTINE fpart_core_rspace_numer (MODULE kg_force_numer)"
+
+    INTEGER                                  :: i, id, natoms
+    REAL(dbl)                                :: energy_minus, energy_plus
+    TYPE(particle_type), DIMENSION(:), &
+      POINTER                                :: particle_set
 
 ! begin local variable declaration:
 !
-   CHARACTER(LEN=*), PARAMETER :: routine =&
-     "SUBROUTINE fpart_core_rspace_numer (MODULE kg_force_numer)"
-   INTEGER :: i, j
-   INTEGER :: id,  natoms, istat
-   TYPE (particle_type), DIMENSION(:), POINTER :: particle_set
-   REAL (dbl) :: energy
-   REAL (dbl) :: energy_plus, energy_minus
 
    energy_numer = 0.0_dbl
    energy_plus = 0.0_dbl
@@ -447,26 +468,28 @@ END SUBROUTINE  fpart_core_rspace_numer
 
  SUBROUTINE  fpart_ppl_numer  ( delta, kg_env,  &
                                    f_part, energy_numer, globenv )
-   IMPLICIT NONE
 !
 ! begin passed variable declaration:
 !
-   TYPE ( global_environment_type ), INTENT ( INOUT ) :: globenv
-   TYPE ( kg_environment_type ), POINTER          :: kg_env
-   REAL ( dbl ), INTENT ( IN ) :: delta
-   REAL ( dbl ), INTENT ( OUT ) :: energy_numer
-   REAL ( dbl ), INTENT ( OUT ), DIMENSION ( :, : ) :: f_part
+    REAL(dbl), INTENT(IN)                    :: delta
+    TYPE(kg_environment_type), POINTER       :: kg_env
+    REAL(dbl), DIMENSION(:, :), INTENT(OUT)  :: f_part
+    REAL(dbl), INTENT(OUT)                   :: energy_numer
+    TYPE(global_environment_type), &
+      INTENT(INOUT)                          :: globenv
+
+    CHARACTER(LEN=*), PARAMETER :: &
+      routine = "SUBROUTINE fpart_ppl_numer (MODULE kg_force_numer)"
+
+    INTEGER                                  :: i, id, natoms
+    LOGICAL                                  :: calculate_forces
+    REAL(dbl)                                :: energy_minus, energy_plus
+    TYPE(kg_energy_type), POINTER            :: energy
+    TYPE(particle_type), DIMENSION(:), &
+      POINTER                                :: particle_set
 
 ! begin local variable declaration:
 !
-   CHARACTER(LEN=*), PARAMETER :: routine =&
-     "SUBROUTINE fpart_ppl_numer (MODULE kg_force_numer)"
-   INTEGER :: i, j
-   INTEGER :: id,  natoms, istat
-   REAL (dbl) :: energy_plus, energy_minus
-   TYPE (particle_type), DIMENSION(:), POINTER :: particle_set
-   TYPE(kg_energy_type), POINTER :: energy
-   LOGICAL :: calculate_forces
 
    energy_numer = 0.0_dbl
    energy_plus = 0.0_dbl
@@ -518,31 +541,30 @@ END SUBROUTINE  fpart_ppl_numer
 
  SUBROUTINE  fpart_p_ppl_numer  ( delta, kg_env,  &
                                    f_part, energy_numer, globenv )
-   IMPLICIT NONE
 !
 ! begin passed variable declaration:
 !
-   TYPE ( global_environment_type ), INTENT ( INOUT ) :: globenv
-   TYPE ( kg_environment_type ), POINTER          :: kg_env
-   REAL ( dbl ), INTENT ( IN ) :: delta
-   REAL ( dbl ), INTENT ( OUT ) :: energy_numer
-   REAL ( dbl ), INTENT ( OUT ), DIMENSION ( :, : ) :: f_part
+    REAL(dbl), INTENT(IN)                    :: delta
+    TYPE(kg_environment_type), POINTER       :: kg_env
+    REAL(dbl), DIMENSION(:, :), INTENT(OUT)  :: f_part
+    REAL(dbl), INTENT(OUT)                   :: energy_numer
+    TYPE(global_environment_type), &
+      INTENT(INOUT)                          :: globenv
+
+    CHARACTER(LEN=*), PARAMETER :: &
+      routine = "SUBROUTINE fpart_ppl_numer (MODULE kg_force_numer)"
+
+    INTEGER                                  :: i, id, natoms
+    LOGICAL                                  :: calculate_forces
+    REAL(dbl)                                :: energy2, energy_minus, &
+                                                energy_plus
+    TYPE(coeff_type), POINTER                :: coef_force, coef_pos
+    TYPE(kg_energy_type), POINTER            :: energy
+    TYPE(particle_type), DIMENSION(:), &
+      POINTER                                :: particle_set
 
 ! begin local variable declaration:
 !
-   CHARACTER(LEN=*), PARAMETER :: routine =&
-     "SUBROUTINE fpart_ppl_numer (MODULE kg_force_numer)"
-   INTEGER :: i, j
-   INTEGER :: id,  natoms, istat
-   REAL (dbl) :: energy2
-   REAL (dbl) :: energy_plus, energy_minus
-   LOGICAL :: calculate_forces
-   TYPE (kg_energy_type), POINTER :: energy
-   TYPE (particle_type), DIMENSION(:), POINTER :: particle_set
-   TYPE ( coeff_type ), POINTER :: coef_pos
-   TYPE ( coeff_type ), POINTER :: coef_vel
-   TYPE ( coeff_type ), POINTER :: coef_force
-
 !   coef_pos => kg_env % coef_pos (1)
 !   coef_vel => kg_env % coef_vel (1)
 !   coef_force => kg_env % coef_force (1)
@@ -605,26 +627,26 @@ END SUBROUTINE  fpart_p_ppl_numer
 
  SUBROUTINE  fpart_bc_numer  ( delta, kg_env,  &
                                    f_part, energy_numer, globenv )
-   IMPLICIT NONE
 !
 ! begin passed variable declaration:
 !
-   TYPE ( global_environment_type ), INTENT ( INOUT ) :: globenv
-   TYPE ( kg_environment_type ), INTENT ( INOUT ) :: kg_env
-   REAL ( dbl ), INTENT ( IN ) :: delta
-   REAL ( dbl ), INTENT ( OUT ) :: energy_numer
-   REAL ( dbl ), INTENT ( OUT ), DIMENSION ( :, : ) :: f_part
+    REAL(dbl), INTENT(IN)                    :: delta
+    TYPE(kg_environment_type), INTENT(INOUT) :: kg_env
+    REAL(dbl), DIMENSION(:, :), INTENT(OUT)  :: f_part
+    REAL(dbl), INTENT(OUT)                   :: energy_numer
+    TYPE(global_environment_type), &
+      INTENT(INOUT)                          :: globenv
+
+    CHARACTER(LEN=*), PARAMETER :: &
+      routine = "SUBROUTINE fpart_bc_numer (MODULE kg_force_numer)"
+
+    INTEGER                                  :: i, id, natoms
+    REAL(dbl)                                :: energy_minus, energy_plus
+    TYPE(particle_type), DIMENSION(:), &
+      POINTER                                :: particle_set
 
 ! begin local variable declaration:
 !
-   CHARACTER(LEN=*), PARAMETER :: routine =&
-     "SUBROUTINE fpart_bc_numer (MODULE kg_force_numer)"
-   INTEGER :: i, j
-   INTEGER :: id,  natoms, istat
-   TYPE (particle_type), DIMENSION(:), POINTER :: particle_set
-   REAL (dbl) :: energy
-   REAL (dbl) :: energy_plus, energy_minus
-
 
    NULLIFY (particle_set)
    CALL get_kg_env(kg_env=kg_env,particle_set=particle_set)
@@ -666,45 +688,46 @@ END SUBROUTINE  fpart_bc_numer
  SUBROUTINE  fpart_p_xc_numer  ( delta, kg_env, pw_grid, pw_pool, iref, &
                                    gridlevel_info, l_info, cube_info, &
                                    f_part, energy_numer, globenv )
-   IMPLICIT NONE
 !
 ! begin passed variable declaration:
 !
-   TYPE ( cube_info_type ), DIMENSION(:), POINTER :: cube_info
-   TYPE ( global_environment_type ), INTENT ( INOUT ) :: globenv
-   TYPE ( gridlevel_info_type ), INTENT(IN)       :: gridlevel_info
-   TYPE ( kg_environment_type ), INTENT ( INOUT ) :: kg_env
-   TYPE ( l_info_type ), INTENT(IN)               :: l_info
-   TYPE ( pw_grid_type ), INTENT ( IN ), DIMENSION ( : ) :: pw_grid
-   TYPE ( pw_pool_type ), pointer :: pw_pool
-   INTEGER, INTENT ( IN ) :: iref
-   REAL ( dbl ), INTENT ( IN ) :: delta
-   REAL ( dbl ), INTENT ( OUT ) :: energy_numer
-   REAL ( dbl ), INTENT ( OUT ), DIMENSION ( :, : ) :: f_part
+    REAL(dbl), INTENT(IN)                    :: delta
+    TYPE(kg_environment_type), INTENT(INOUT) :: kg_env
+    TYPE(pw_grid_type), DIMENSION(:), &
+      INTENT(IN)                             :: pw_grid
+    TYPE(pw_pool_type), pointer              :: pw_pool
+    INTEGER, INTENT(IN)                      :: iref
+    TYPE(gridlevel_info_type), INTENT(IN)    :: gridlevel_info
+    TYPE(l_info_type), INTENT(IN)            :: l_info
+    TYPE(cube_info_type), DIMENSION(:), &
+      POINTER                                :: cube_info
+    REAL(dbl), DIMENSION(:, :), INTENT(OUT)  :: f_part
+    REAL(dbl), INTENT(OUT)                   :: energy_numer
+    TYPE(global_environment_type), &
+      INTENT(INOUT)                          :: globenv
+
+    CHARACTER(LEN=*), PARAMETER :: &
+      routine = "SUBROUTINE fpart_xc_numer (MODULE kg_force_numer)"
+
+    INTEGER                                  :: i, id, igrid_level, istat, &
+                                                natoms, ngrid_level
+    REAL(dbl)                                :: e1_xc, e2_xc, energy_minus, &
+                                                energy_plus, exc, &
+                                                total_rho0_rspace, &
+                                                total_rhop_rspace
+    TYPE(coeff_type) :: rho_elec_rspace, rho_gspace, rho_p_gspace, &
+      rho_p_rspace, v1_xc_rspace, v2_xc_rspace, v_xc_rspace
+    TYPE(coeff_type), POINTER                :: coef_pos, mgrid_gspace(:), &
+                                                mgrid_rspace(:)
+    TYPE(particle_type), DIMENSION(:), &
+      POINTER                                :: particle_set
 
 ! begin local variable declaration:
 !
-   CHARACTER(LEN=*), PARAMETER :: routine =&
-      "SUBROUTINE fpart_xc_numer (MODULE kg_force_numer)"
-   INTEGER :: i, j, ngrid_level, igrid_level  
-   INTEGER :: id,  natoms, istat
-   REAL (dbl) :: energy, exc, e1_xc, e2_xc
-   REAL (dbl) :: energy_plus, energy_minus
-   REAL (dbl) :: total_rho0_rspace, total_rho_core_rspace
-   REAL (dbl) :: total_rhop_rspace
-   TYPE ( coeff_type ) :: rho_gspace, rho_elec_rspace, v_xc_rspace
-   TYPE ( coeff_type ) :: rho_p_gspace, rho_p_rspace
-   TYPE ( coeff_type ) :: v1_xc_rspace, v2_xc_rspace
-   TYPE ( coeff_type ), POINTER :: mgrid_gspace (:)
-   TYPE ( coeff_type ), POINTER :: mgrid_rspace (:)
-   TYPE (particle_type), DIMENSION(:), POINTER :: particle_set
-   TYPE ( coeff_type ), POINTER :: coef_pos
-   TYPE ( coeff_type ), POINTER :: coef_vel
-   TYPE ( coeff_type ), POINTER :: coef_force
-
 !   coef_pos => kg_env % coef_pos (1)
 !   coef_vel => kg_env % coef_vel (1)
 !   coef_force => kg_env % coef_force (1)
+
    energy_numer = 0.0_dbl
    energy_plus = 0.0_dbl
    energy_minus = 0.0_dbl
@@ -878,44 +901,43 @@ END SUBROUTINE  fpart_p_xc_numer
  SUBROUTINE  fpart_p_gspace_numer  ( delta, kg_env, pw_grid, iref, &
                                    gridlevel_info, l_info, cube_info, &
                                    f_part, energy_numer, globenv )
-   IMPLICIT NONE
 !
 ! begin passed variable declaration:
 !
-   TYPE ( cube_info_type ), DIMENSION(:), POINTER :: cube_info
-   TYPE ( global_environment_type ), INTENT ( INOUT ) :: globenv
-   TYPE ( gridlevel_info_type ), INTENT(IN)       :: gridlevel_info
-   TYPE ( kg_environment_type ), INTENT ( INOUT ) :: kg_env
-   TYPE ( l_info_type ), INTENT(IN)               :: l_info
-   TYPE ( pw_grid_type ), INTENT ( IN ), DIMENSION ( : ) :: pw_grid
-   INTEGER, INTENT ( IN ) :: iref
-   REAL ( dbl ), INTENT ( IN ) :: delta
-   REAL ( dbl ), INTENT ( OUT ) :: energy_numer
-   REAL ( dbl ), INTENT ( OUT ), DIMENSION ( :, : ) :: f_part
+    REAL(dbl), INTENT(IN)                    :: delta
+    TYPE(kg_environment_type), INTENT(INOUT) :: kg_env
+    TYPE(pw_grid_type), DIMENSION(:), &
+      INTENT(IN)                             :: pw_grid
+    INTEGER, INTENT(IN)                      :: iref
+    TYPE(gridlevel_info_type), INTENT(IN)    :: gridlevel_info
+    TYPE(l_info_type), INTENT(IN)            :: l_info
+    TYPE(cube_info_type), DIMENSION(:), &
+      POINTER                                :: cube_info
+    REAL(dbl), DIMENSION(:, :), INTENT(OUT)  :: f_part
+    REAL(dbl), INTENT(OUT)                   :: energy_numer
+    TYPE(global_environment_type), &
+      INTENT(INOUT)                          :: globenv
+
+    CHARACTER(LEN=*), PARAMETER :: &
+      routine = "SUBROUTINE fpart_gspace_numer (MODULE kg_force_numer)"
+
+    INTEGER                                  :: i, id, igrid_level, istat, &
+                                                natoms, ngrid_level
+    REAL(dbl) :: energy_minus, energy_plus, total_rho0_rspace, &
+      total_rho_core_rspace, total_rhop_rspace
+    TYPE(coeff_type)                         :: rho_core, rho_elec_rspace, &
+                                                rho_gspace, rho_p_gspace, &
+                                                rho_p_rspace, v_gspace
+    TYPE(coeff_type), POINTER                :: coef_pos, mgrid_gspace(:), &
+                                                mgrid_rspace(:)
+    type(particle_type), DIMENSION(:), &
+      POINTER                                :: particle_set
 
 ! begin local variable declaration:
 !
-   CHARACTER(LEN=*), PARAMETER :: routine =&
-      "SUBROUTINE fpart_gspace_numer (MODULE kg_force_numer)"
-   INTEGER :: i, j, ngrid_level, igrid_level  
-   INTEGER :: id,  natoms, istat
-   REAL (dbl) :: energy
-   REAL (dbl) :: energy_plus, energy_minus
-   REAL (dbl) :: total_rho0_rspace, total_rho_core_rspace
-   REAL (dbl) :: total_rhop_rspace
-   type (particle_type), DIMENSION(:), POINTER :: particle_set
-   TYPE ( coeff_type ) :: rho_gspace, rho_elec_rspace, rho_core, v_gspace
-   TYPE ( coeff_type ) :: rho_p_gspace, rho_p_rspace
-   TYPE ( coeff_type ), POINTER :: mgrid_gspace (:)
-   TYPE ( coeff_type ), POINTER :: mgrid_rspace (:)
-   TYPE ( coeff_type ), POINTER :: coef_pos
-   TYPE ( coeff_type ), POINTER :: coef_vel
-   TYPE ( coeff_type ), POINTER :: coef_force
-
 !   coef_pos => kg_env % coef_pos (1)
 !   coef_vel => kg_env % coef_vel (1)
 !   coef_force => kg_env % coef_force (1)
-
 
    energy_numer = 0.0_dbl
    f_part = 0.0_dbl
@@ -1098,44 +1120,44 @@ END SUBROUTINE  fpart_p_gspace_numer
  SUBROUTINE  fcoef_p_xc_numer  ( delta, kg_env, pw_grid, pw_pool, iref, &
                                    gridlevel_info, l_info, cube_info, &
                                    f_coef, energy_numer, globenv )
-   IMPLICIT NONE
 !
 ! begin passed variable declaration:
 !
-   TYPE ( cube_info_type ), DIMENSION(:), POINTER :: cube_info
-   TYPE ( global_environment_type ), INTENT ( INOUT ) :: globenv
-   TYPE ( gridlevel_info_type ), INTENT(IN)       :: gridlevel_info
-   TYPE ( kg_environment_type ), INTENT ( INOUT ) :: kg_env
-   TYPE ( l_info_type ), INTENT(IN)               :: l_info
-   TYPE ( pw_grid_type ), INTENT ( IN ), DIMENSION ( : ) :: pw_grid
-   TYPE ( pw_pool_type ), pointer  :: pw_pool
-   INTEGER, INTENT ( IN ) :: iref
-   REAL ( dbl ), INTENT ( IN ) :: delta
-   REAL ( dbl ), INTENT ( OUT ) :: energy_numer
-   REAL ( dbl ), INTENT ( OUT ), DIMENSION ( : ) :: f_coef
+    REAL(dbl), INTENT(IN)                    :: delta
+    TYPE(kg_environment_type), INTENT(INOUT) :: kg_env
+    TYPE(pw_grid_type), DIMENSION(:), &
+      INTENT(IN)                             :: pw_grid
+    TYPE(pw_pool_type), pointer              :: pw_pool
+    INTEGER, INTENT(IN)                      :: iref
+    TYPE(gridlevel_info_type), INTENT(IN)    :: gridlevel_info
+    TYPE(l_info_type), INTENT(IN)            :: l_info
+    TYPE(cube_info_type), DIMENSION(:), &
+      POINTER                                :: cube_info
+    REAL(dbl), DIMENSION(:), INTENT(OUT)     :: f_coef
+    REAL(dbl), INTENT(OUT)                   :: energy_numer
+    TYPE(global_environment_type), &
+      INTENT(INOUT)                          :: globenv
+
+    CHARACTER(LEN=*), PARAMETER :: &
+      routine = "SUBROUTINE fcoef_p_xc_numer (MODULE kg_force_numer)"
+
+    INTEGER                                  :: i, igrid_level, istat, ncoef, &
+                                                ngrid_level
+    REAL(dbl)                                :: e1_xc, e2_xc, energy_minus, &
+                                                energy_plus, exc, &
+                                                total_rho0_rspace, &
+                                                total_rhop_rspace
+    TYPE(coeff_type) :: rho_elec_rspace, rho_gspace, rho_p_gspace, &
+      rho_p_rspace, v1_xc_rspace, v2_xc_rspace, v_xc_rspace
+    TYPE(coeff_type), POINTER                :: coef_pos, mgrid_gspace(:), &
+                                                mgrid_rspace(:)
 
 ! begin local variable declaration:
 !
-   CHARACTER(LEN=*), PARAMETER :: routine =&
-      "SUBROUTINE fcoef_p_xc_numer (MODULE kg_force_numer)"
-   INTEGER :: i, j, ngrid_level, igrid_level  
-   INTEGER :: id,  ncoef, istat
-   REAL (dbl) :: energy, exc, e1_xc, e2_xc
-   REAL (dbl) :: energy_plus, energy_minus
-   REAL (dbl) :: total_rho0_rspace, total_rho_core_rspace
-   REAL (dbl) :: total_rhop_rspace
-   TYPE ( coeff_type ) :: rho_gspace, rho_elec_rspace, v_xc_rspace
-   TYPE ( coeff_type ) :: rho_p_gspace, rho_p_rspace
-   TYPE ( coeff_type ) :: v1_xc_rspace, v2_xc_rspace
-   TYPE ( coeff_type ), POINTER :: mgrid_gspace (:)
-   TYPE ( coeff_type ), POINTER :: mgrid_rspace (:)
-   TYPE ( coeff_type ), POINTER :: coef_pos
-   TYPE ( coeff_type ), POINTER :: coef_vel
-   TYPE ( coeff_type ), POINTER :: coef_force
-
 !   coef_pos => kg_env % coef_pos (1)
 !   coef_vel => kg_env % coef_vel (1)
 !   coef_force => kg_env % coef_force (1)
+
    energy_numer = 0.0_dbl
    energy_plus = 0.0_dbl
    energy_minus = 0.0_dbl
@@ -1303,43 +1325,41 @@ END SUBROUTINE  fcoef_p_xc_numer
  SUBROUTINE  fcoef_p_gspace_numer  ( delta, kg_env, pw_grid, iref, &
                                    gridlevel_info, l_info, cube_info, &
                                    f_coef, energy_numer, globenv )
-   IMPLICIT NONE
 !
 ! begin passed variable declaration:
 !
-   TYPE ( cube_info_type ), DIMENSION(:), POINTER :: cube_info
-   TYPE ( global_environment_type ), INTENT ( INOUT ) :: globenv
-   TYPE ( gridlevel_info_type ), INTENT(IN)       :: gridlevel_info
-   TYPE ( kg_environment_type ), INTENT ( INOUT ) :: kg_env
-   TYPE ( l_info_type ), INTENT(IN)               :: l_info
-   TYPE ( pw_grid_type ), INTENT ( IN ), DIMENSION ( : ) :: pw_grid
-   INTEGER, INTENT ( IN ) :: iref
-   REAL ( dbl ), INTENT ( IN ) :: delta
-   REAL ( dbl ), INTENT ( OUT ) :: energy_numer
-   REAL ( dbl ), INTENT ( OUT ), DIMENSION ( : ) :: f_coef
+    REAL(dbl), INTENT(IN)                    :: delta
+    TYPE(kg_environment_type), INTENT(INOUT) :: kg_env
+    TYPE(pw_grid_type), DIMENSION(:), &
+      INTENT(IN)                             :: pw_grid
+    INTEGER, INTENT(IN)                      :: iref
+    TYPE(gridlevel_info_type), INTENT(IN)    :: gridlevel_info
+    TYPE(l_info_type), INTENT(IN)            :: l_info
+    TYPE(cube_info_type), DIMENSION(:), &
+      POINTER                                :: cube_info
+    REAL(dbl), DIMENSION(:), INTENT(OUT)     :: f_coef
+    REAL(dbl), INTENT(OUT)                   :: energy_numer
+    TYPE(global_environment_type), &
+      INTENT(INOUT)                          :: globenv
+
+    CHARACTER(LEN=*), PARAMETER :: &
+      routine = "SUBROUTINE fcoef_gspace_numer (MODULE kg_force_numer)"
+
+    INTEGER                                  :: i, igrid_level, istat, ncoef, &
+                                                ngrid_level
+    REAL(dbl) :: energy_minus, energy_plus, total_rho0_rspace, &
+      total_rho_core_rspace, total_rhop_rspace
+    TYPE(coeff_type)                         :: rho_core, rho_elec_rspace, &
+                                                rho_gspace, rho_p_gspace, &
+                                                rho_p_rspace, v_gspace
+    TYPE(coeff_type), POINTER                :: coef_pos, mgrid_gspace(:), &
+                                                mgrid_rspace(:)
 
 ! begin local variable declaration:
 !
-   CHARACTER(LEN=*), PARAMETER :: routine =&
-      "SUBROUTINE fcoef_gspace_numer (MODULE kg_force_numer)"
-   INTEGER :: i, j, ngrid_level, igrid_level  
-   INTEGER :: id,  ncoef , istat
-   REAL (dbl) :: energy
-   REAL (dbl) :: energy_plus, energy_minus
-   REAL (dbl) :: total_rho0_rspace, total_rho_core_rspace
-   REAL (dbl) :: total_rhop_rspace
-   TYPE ( coeff_type ) :: rho_gspace, rho_elec_rspace, rho_core, v_gspace
-   TYPE ( coeff_type ) :: rho_p_gspace, rho_p_rspace
-   TYPE ( coeff_type ), POINTER :: mgrid_gspace (:)
-   TYPE ( coeff_type ), POINTER :: mgrid_rspace (:)
-   TYPE ( coeff_type ), POINTER :: coef_pos
-   TYPE ( coeff_type ), POINTER :: coef_vel
-   TYPE ( coeff_type ), POINTER :: coef_force
-
 !   coef_pos => kg_env % coef_pos (1)
 !   coef_vel => kg_env % coef_vel (1)
 !   coef_force => kg_env % coef_force (1)
-
 
    energy_numer = 0.0_dbl
    f_coef = 0.0_dbl
@@ -1513,29 +1533,26 @@ END SUBROUTINE  fcoef_p_gspace_numer
 
  SUBROUTINE  fcoef_p_ppl_numer  ( delta, kg_env,  &
                                    f_coef, energy_numer, globenv )
-   IMPLICIT NONE
 !
 ! begin passed variable declaration:
 !
-   TYPE ( global_environment_type ), INTENT ( INOUT ) :: globenv
-   TYPE ( kg_environment_type ), POINTER          :: kg_env
-   REAL ( dbl ), INTENT ( IN ) :: delta
-   REAL ( dbl ), INTENT ( OUT ) :: energy_numer
-   REAL ( dbl ), INTENT ( OUT ), DIMENSION ( : ) :: f_coef
+    REAL(dbl), INTENT(IN)                    :: delta
+    TYPE(kg_environment_type), POINTER       :: kg_env
+    REAL(dbl), DIMENSION(:), INTENT(OUT)     :: f_coef
+    REAL(dbl), INTENT(OUT)                   :: energy_numer
+    TYPE(global_environment_type), &
+      INTENT(INOUT)                          :: globenv
+
+    CHARACTER(LEN=*), PARAMETER :: &
+      routine = "SUBROUTINE fcoef_ppl_numer (MODULE kg_force_numer)"
+
+    INTEGER                                  :: i, ncoef
+    LOGICAL                                  :: calculate_forces
+    REAL(dbl)                                :: energy_minus, energy_plus
+    TYPE(coeff_type), POINTER                :: coef_force, coef_pos
 
 ! begin local variable declaration:
 !
-   CHARACTER(LEN=*), PARAMETER :: routine =&
-     "SUBROUTINE fcoef_ppl_numer (MODULE kg_force_numer)"
-   INTEGER :: i, j
-   INTEGER :: id,  ncoef, istat
-   REAL (dbl) :: energy,energy2
-   REAL (dbl) :: energy_plus, energy_minus
-   LOGICAL :: calculate_forces
-   TYPE ( coeff_type ), POINTER :: coef_pos
-   TYPE ( coeff_type ), POINTER :: coef_vel
-   TYPE ( coeff_type ), POINTER :: coef_force
-
 !   coef_pos => kg_env % coef_pos (1)
 !   coef_vel => kg_env % coef_vel (1)
 !    coef_force => kg_env % coef_force (1)

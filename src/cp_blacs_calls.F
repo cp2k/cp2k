@@ -25,7 +25,8 @@
 !!   SOURCE
 !****************************************************************************
 MODULE cp_blacs_calls
-  USE kinds,  ONLY : dbl
+  USE kinds,                           ONLY: dbl
+
   IMPLICIT NONE
   CHARACTER(len=*), PRIVATE, PARAMETER :: moduleN='cp_blacs_calls'
   ! setup / info calls

@@ -33,14 +33,12 @@ MODULE pao_glob_angles_methods
   USE cp_block_matrix,                 ONLY: cp_block_matrix_p_type,&
                                              cp_block_matrix_type,&
                                              cp_dealloc,&
-                                             cp_get_matrix,&
                                              cp_release,&
                                              cp_retain,&
                                              cp_sp_create
   USE cp_error_handling,               ONLY: cp_a_l,&
                                              cp_assert,&
                                              cp_assertion_failed,&
-                                             cp_debug,&
                                              cp_error_dealloc_ref,&
                                              cp_error_get_level,&
                                              cp_error_get_print_level,&
@@ -50,16 +48,14 @@ MODULE pao_glob_angles_methods
                                              cp_error_propagate_error,&
                                              cp_error_set,&
                                              cp_error_type
-  USE cp_subsystem_types,               ONLY: cp_subsystem_type,&
-                                             cp_subsys_get
   USE cp_log_handling,                 ONLY: cp_failure_level,&
                                              cp_note_level,&
                                              cp_to_string,&
                                              cp_warning_level
-  USE cp_para_types,                   ONLY: cp_para_env_type
+  USE cp_subsystem_types,              ONLY: cp_subsys_get,&
+                                             cp_subsystem_type
   USE global_types,                    ONLY: global_environment_type
   USE kinds,                           ONLY: dp
-  USE pao_bas_projection_types,        ONLY: pao_bas_projection_type
   USE pao_types,                       ONLY: cp_get,&
                                              pao_env_type,&
                                              pao_glob_angles_type
@@ -68,6 +64,7 @@ MODULE pao_glob_angles_methods
                                              qs_environment_type
   USE timings,                         ONLY: timeset,&
                                              timestop
+
   IMPLICIT NONE
   PRIVATE
 
@@ -194,17 +191,26 @@ CONTAINS
 !!*** **********************************************************************
   SUBROUTINE pao_g_ang_init(glob_angles, qs_env, global_env, angles, source,&
        min_overlap_m, min_hamiltonian_m, error)
-    TYPE(pao_glob_angles_type), INTENT(out) :: glob_angles
-    TYPE(qs_environment_type), INTENT(in), TARGET :: qs_env
-    TYPE(global_environment_type), INTENT(in), TARGET :: global_env
-    REAL(KIND = dp), OPTIONAL, DIMENSION(:), INTENT(in) :: angles
-    TYPE(pao_glob_angles_type), INTENT(in), OPTIONAL :: source
-    TYPE(cp_block_matrix_p_type), INTENT(in), OPTIONAL, &
-         DIMENSION(:) :: min_overlap_m, min_hamiltonian_m
-    TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
+    TYPE(pao_glob_angles_type), INTENT(out)  :: glob_angles
+    TYPE(qs_environment_type), INTENT(in), &
+      TARGET                                 :: qs_env
+    TYPE(global_environment_type), &
+      INTENT(in), TARGET                     :: global_env
+    REAL(KIND=dp), DIMENSION(:), &
+      INTENT(in), OPTIONAL                   :: angles
+    TYPE(pao_glob_angles_type), INTENT(in), &
+      OPTIONAL                               :: source
+    TYPE(cp_block_matrix_p_type), &
+      DIMENSION(:), INTENT(in), OPTIONAL     :: min_overlap_m, &
+                                                min_hamiltonian_m
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
 
-    LOGICAL :: failure
-    CHARACTER(len=*), PARAMETER :: routineP='pao_glob_angles_methods:pao_g_ang_init'
+    CHARACTER(len=*), PARAMETER :: &
+      routineP = 'pao_glob_angles_methods:pao_g_ang_init'
+
+    LOGICAL                                  :: failure
+
     failure=.FALSE.
 
     NULLIFY(glob_angles%angles, glob_angles%unitary_t,&
@@ -256,13 +262,19 @@ CONTAINS
 !!
 !!*** **********************************************************************
   SUBROUTINE pao_g_ang_dealloc_ref(glob_angles,global_env, error)
-    TYPE(pao_glob_angles_type), INTENT(inout) :: glob_angles
-    TYPE(global_environment_type), INTENT(in), TARGET :: global_env
-    TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
+    TYPE(pao_glob_angles_type), &
+      INTENT(inout)                          :: glob_angles
+    TYPE(global_environment_type), &
+      INTENT(in), TARGET                     :: global_env
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
 
-    LOGICAL :: failure
-    CHARACTER(len=*), PARAMETER :: routineP='pao_glob_angles_methods:pao_g_ang_dealloc_ref'
-    INTEGER ::stat
+    CHARACTER(len=*), PARAMETER :: &
+      routineP = 'pao_glob_angles_methods:pao_g_ang_dealloc_ref'
+
+    INTEGER                                  :: stat
+    LOGICAL                                  :: failure
+
     failure=.FALSE.
 
     CPPrecondition(glob_angles%initialized, cp_failure_level,routineP,error,failure)
@@ -319,13 +331,18 @@ CONTAINS
 !!
 !!*** **********************************************************************
   SUBROUTINE pao_g_ang_dealloc(glob_angles,global_env,error)
-    TYPE(pao_glob_angles_type), POINTER :: glob_angles
-    TYPE(global_environment_type), INTENT(in), TARGET :: global_env
-    TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
+    TYPE(pao_glob_angles_type), POINTER      :: glob_angles
+    TYPE(global_environment_type), &
+      INTENT(in), TARGET                     :: global_env
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
 
-    LOGICAL :: failure
-    CHARACTER(len=*), PARAMETER :: routineP='pao_glob_angles_methods:pao_g_ang_dealloc'
-    INTEGER :: stat
+    CHARACTER(len=*), PARAMETER :: &
+      routineP = 'pao_glob_angles_methods:pao_g_ang_dealloc'
+
+    INTEGER                                  :: stat
+    LOGICAL                                  :: failure
+
     failure=.FALSE.
 
     IF (ASSOCIATED(glob_angles)) THEN
@@ -381,19 +398,27 @@ CONTAINS
 !!*** **********************************************************************
   SUBROUTINE pao_g_ang_create(glob_angles, qs_env, global_env, angles, source,&
        min_overlap_m, min_hamiltonian_m, error)
-    TYPE(pao_glob_angles_type), POINTER :: glob_angles
-    TYPE(qs_environment_type), INTENT(in), TARGET :: qs_env
-    TYPE(global_environment_type), INTENT(in), TARGET :: global_env
-    REAL(KIND = dp), OPTIONAL, DIMENSION(:), INTENT(in) :: angles
-    TYPE(pao_glob_angles_type), INTENT(in), OPTIONAL :: source
+    TYPE(pao_glob_angles_type), POINTER      :: glob_angles
+    TYPE(qs_environment_type), INTENT(in), &
+      TARGET                                 :: qs_env
+    TYPE(global_environment_type), &
+      INTENT(in), TARGET                     :: global_env
+    REAL(KIND=dp), DIMENSION(:), &
+      INTENT(in), OPTIONAL                   :: angles
+    TYPE(pao_glob_angles_type), INTENT(in), &
+      OPTIONAL                               :: source
+    TYPE(cp_block_matrix_p_type), &
+      DIMENSION(:), INTENT(in), OPTIONAL     :: min_overlap_m, &
+                                                min_hamiltonian_m
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
 
-    TYPE(cp_block_matrix_p_type), INTENT(in), DIMENSION(:), OPTIONAL ::&
-         min_hamiltonian_m, min_overlap_m
-    TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
+    CHARACTER(len=*), PARAMETER :: &
+      routineP = 'pao_glob_angles_methods:pao_g_ang_create'
 
-    LOGICAL :: failure
-    CHARACTER(len=*), PARAMETER :: routineP='pao_glob_angles_methods:pao_g_ang_create'
-    INTEGER :: stat
+    INTEGER                                  :: stat
+    LOGICAL                                  :: failure
+
     failure=.FALSE.
 
     ALLOCATE(glob_angles, stat=stat)
@@ -443,15 +468,21 @@ CONTAINS
 !!
 !!*** **********************************************************************
   FUNCTION pao_g_ang_validate(glob_angles,qs_env,global_env, error) RESULT(res)
-    LOGICAL ::res
-    TYPE(pao_glob_angles_type), INTENT(in) :: glob_angles
-    TYPE(qs_environment_type), INTENT(in),TARGET :: qs_env
-    TYPE(global_environment_type), INTENT(in), TARGET :: global_env
-    TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
+    TYPE(pao_glob_angles_type), INTENT(in)   :: glob_angles
+    TYPE(qs_environment_type), INTENT(in), &
+      TARGET                                 :: qs_env
+    TYPE(global_environment_type), &
+      INTENT(in), TARGET                     :: global_env
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
+    LOGICAL                                  :: res
 
-    LOGICAL :: failure
-    CHARACTER(len=*), PARAMETER :: routineP='pao_glob_angles_methods:pao_g_ang_validate'
-    TYPE(pao_env_type), POINTER :: pao_env
+    CHARACTER(len=*), PARAMETER :: &
+      routineP = 'pao_glob_angles_methods:pao_g_ang_validate'
+
+    LOGICAL                                  :: failure
+    TYPE(pao_env_type), POINTER              :: pao_env
+
     failure=.FALSE.
     CPPrecondition(glob_angles%initialized,cp_failure_level,routineP,error,failure)
     failureIf: IF (.NOT. failure) THEN
@@ -564,24 +595,32 @@ CONTAINS
   SUBROUTINE pao_g_ang_set(glob_angles, qs_env, global_env, angles,source,&
        min_overlap_m, min_hamiltonian_m,&
        m_s_m_valid, m_h_m_valid, angles_val, error)
-    TYPE(pao_glob_angles_type), INTENT(inout) :: glob_angles
-    TYPE(qs_environment_type), INTENT(in), TARGET :: qs_env
-    TYPE(global_environment_type), INTENT(in), TARGET :: global_env
-    REAL(KIND = dp), OPTIONAL, DIMENSION(:), INTENT(in) :: angles
-    TYPE(pao_glob_angles_type), OPTIONAL, INTENT(in) :: source
-    TYPE(cp_block_matrix_p_type), OPTIONAL, INTENT(in), DIMENSION(:) :: &
-         min_overlap_m
-    TYPE(cp_block_matrix_p_type), DIMENSION(:), INTENT(in),&
-         OPTIONAL :: min_hamiltonian_m
-    LOGICAL, INTENT(in), OPTIONAL :: m_h_m_valid, m_s_m_valid
-    REAL(KIND = dp), INTENT(in), OPTIONAL :: angles_val
-    TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
+    TYPE(pao_glob_angles_type), &
+      INTENT(inout)                          :: glob_angles
+    TYPE(qs_environment_type), INTENT(in), &
+      TARGET                                 :: qs_env
+    TYPE(global_environment_type), &
+      INTENT(in), TARGET                     :: global_env
+    REAL(KIND=dp), DIMENSION(:), &
+      INTENT(in), OPTIONAL                   :: angles
+    TYPE(pao_glob_angles_type), INTENT(in), &
+      OPTIONAL                               :: source
+    TYPE(cp_block_matrix_p_type), &
+      DIMENSION(:), INTENT(in), OPTIONAL     :: min_overlap_m, &
+                                                min_hamiltonian_m
+    LOGICAL, INTENT(in), OPTIONAL            :: m_s_m_valid, m_h_m_valid
+    REAL(KIND=dp), INTENT(in), OPTIONAL      :: angles_val
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
 
-    LOGICAL :: failure
-    CHARACTER(len=*), PARAMETER :: routineP='pao_glob_angles_methods:pao_g_ang_set'
-    TYPE(pao_env_type), POINTER :: pao_env
-    INTEGER :: stat
-    TYPE(cp_error_type) :: iError
+    CHARACTER(len=*), PARAMETER :: &
+      routineP = 'pao_glob_angles_methods:pao_g_ang_set'
+
+    INTEGER                                  :: stat
+    LOGICAL                                  :: failure
+    TYPE(cp_error_type)                      :: iError
+    TYPE(pao_env_type), POINTER              :: pao_env
+
     CALL cp_error_init(iError,template_error=error)
     failure=.FALSE.
 
@@ -724,25 +763,34 @@ CONTAINS
   SUBROUTINE pao_g_ang_get(glob_angles, qs_env, global_env, angles,&
        m_s_m_valid, m_h_m_valid, ut_calculated, unitary_t, &
        NUi_injection_calculated, NUi_injection, error)
-    TYPE(pao_glob_angles_type), INTENT(inout) :: glob_angles
-    TYPE(qs_environment_type), INTENT(in), TARGET :: qs_env
-    TYPE(global_environment_type), INTENT(in), TARGET :: global_env
-    REAL(KIND = dp), OPTIONAL, DIMENSION(:), POINTER :: angles
-    LOGICAL, INTENT(out), OPTIONAL :: m_h_m_valid, m_s_m_valid
-    LOGICAL, DIMENSION(:), POINTER, OPTIONAL :: ut_calculated, &
-         NUi_injection_calculated
-    TYPE(cp_block_matrix_type), POINTER, OPTIONAL :: unitary_t,&
-         NUi_injection
-    TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
-    TYPE(cp_subsystem_type), POINTER :: subsys
-    TYPE(particle_list_type), POINTER :: particles
+    TYPE(pao_glob_angles_type), &
+      INTENT(inout)                          :: glob_angles
+    TYPE(qs_environment_type), INTENT(in), &
+      TARGET                                 :: qs_env
+    TYPE(global_environment_type), &
+      INTENT(in), TARGET                     :: global_env
+    REAL(KIND=dp), DIMENSION(:), OPTIONAL, &
+      POINTER                                :: angles
+    LOGICAL, INTENT(out), OPTIONAL           :: m_s_m_valid, m_h_m_valid
+    LOGICAL, DIMENSION(:), OPTIONAL, POINTER :: ut_calculated
+    TYPE(cp_block_matrix_type), OPTIONAL, &
+      POINTER                                :: unitary_t
+    LOGICAL, DIMENSION(:), OPTIONAL, POINTER :: NUi_injection_calculated
+    TYPE(cp_block_matrix_type), OPTIONAL, &
+      POINTER                                :: NUi_injection
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
 
-    LOGICAL :: failure
-    CHARACTER(len=*), PARAMETER :: routineP='pao_glob_angles_methods:pao_g_ang_get'
-    TYPE(cp_error_type) :: iError
-    TYPE(pao_env_type), POINTER :: pao_env
-    TYPE(cp_b_matrix_struct_type), POINTER :: m_struct
-    INTEGER :: stat, n_atoms
+    CHARACTER(len=*), PARAMETER :: &
+      routineP = 'pao_glob_angles_methods:pao_g_ang_get'
+
+    INTEGER                                  :: n_atoms, stat
+    LOGICAL                                  :: failure
+    TYPE(cp_b_matrix_struct_type), POINTER   :: m_struct
+    TYPE(cp_error_type)                      :: iError
+    TYPE(cp_subsystem_type), POINTER         :: subsys
+    TYPE(pao_env_type), POINTER              :: pao_env
+    TYPE(particle_list_type), POINTER        :: particles
 
     NULLIFY(subsys, particles, pao_env, m_struct)
     CALL cp_error_init(iError,template_error=error)
@@ -843,14 +891,20 @@ CONTAINS
 !!
 !!*** **********************************************************************
   FUNCTION pao_g_ang_valid(glob_angles, qs_env, global_env, error) RESULT(res)
-    LOGICAL ::res
-    TYPE(pao_glob_angles_type), INTENT(in) :: glob_angles
-    TYPE(qs_environment_type), INTENT(in), TARGET :: qs_env
-    TYPE(global_environment_type), INTENT(in), TARGET :: global_env
-    TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
+    TYPE(pao_glob_angles_type), INTENT(in)   :: glob_angles
+    TYPE(qs_environment_type), INTENT(in), &
+      TARGET                                 :: qs_env
+    TYPE(global_environment_type), &
+      INTENT(in), TARGET                     :: global_env
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
+    LOGICAL                                  :: res
 
-    LOGICAL :: failure
-    CHARACTER(len=*), PARAMETER :: routineP='pao_glob_angles_methods:pao_g_ang_valid'
+    CHARACTER(len=*), PARAMETER :: &
+      routineP = 'pao_glob_angles_methods:pao_g_ang_valid'
+
+    LOGICAL                                  :: failure
+
     failure=.FALSE.
 
     CPPrecondition(glob_angles%initialized,cp_failure_level,routineP,error,failure)
@@ -912,16 +966,23 @@ CONTAINS
 !!*** **********************************************************************
   SUBROUTINE pao_g_angles_set_unitary_t(glob_angles,&
        new_value, ut_calculated,error)
-    TYPE(pao_glob_angles_type), INTENT(inout) :: glob_angles
-    TYPE(cp_block_matrix_type), TARGET, OPTIONAL, INTENT(in) :: new_value
-    LOGICAL, DIMENSION(:), INTENT(in), OPTIONAL, TARGET :: ut_calculated
-    TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
+    TYPE(pao_glob_angles_type), &
+      INTENT(inout)                          :: glob_angles
+    TYPE(cp_block_matrix_type), INTENT(in), &
+      OPTIONAL, TARGET                       :: new_value
+    LOGICAL, DIMENSION(:), INTENT(in), &
+      OPTIONAL, TARGET                       :: ut_calculated
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
 
-    LOGICAL :: failure
-    CHARACTER(len=*), PARAMETER :: routineP='pao_glob_angles_methods:pao_g_angles_set_unitary_t'
-    LOGICAL, DIMENSION(:),POINTER :: ut_c
-    TYPE(cp_block_matrix_type), POINTER :: n_value
-    TYPE (cp_error_type) :: iError
+    CHARACTER(len=*), PARAMETER :: &
+      routineP = 'pao_glob_angles_methods:pao_g_angles_set_unitary_t'
+
+    LOGICAL                                  :: failure
+    LOGICAL, DIMENSION(:), POINTER           :: ut_c
+    TYPE(cp_block_matrix_type), POINTER      :: n_value
+    TYPE(cp_error_type)                      :: iError
+
     CALL cp_error_init(iError, template_error=error, &
          print_level=MAX(cp_failure_level, cp_error_get_print_level(error)))
     failure=.FALSE.
@@ -979,15 +1040,20 @@ CONTAINS
 !!
 !!*** **********************************************************************
   SUBROUTINE pao_g_angles_set_min_s_m(glob_angles, new_value,error)
-    TYPE(pao_glob_angles_type), INTENT(inout) :: glob_angles
-    TYPE(cp_block_matrix_p_type), DIMENSION(:),OPTIONAL, &
-         INTENT(in) :: new_value
-    TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
+    TYPE(pao_glob_angles_type), &
+      INTENT(inout)                          :: glob_angles
+    TYPE(cp_block_matrix_p_type), &
+      DIMENSION(:), INTENT(in), OPTIONAL     :: new_value
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
 
-    LOGICAL :: failure
-    CHARACTER(len=*), PARAMETER :: routineP='pao_glob_angles_methods:pao_g_angles_set_min_s_m'
-    INTEGER :: i, stat
-    TYPE(cp_block_matrix_type), POINTER :: n_val
+    CHARACTER(len=*), PARAMETER :: &
+      routineP = 'pao_glob_angles_methods:pao_g_angles_set_min_s_m'
+
+    INTEGER                                  :: i, stat
+    LOGICAL                                  :: failure
+    TYPE(cp_block_matrix_type), POINTER      :: n_val
+
     failure=.FALSE.
 
     IF (PRESENT(new_value)) THEN
@@ -1036,16 +1102,20 @@ CONTAINS
 !!
 !!*** **********************************************************************
   SUBROUTINE pao_g_angles_set_min_h_m(glob_angles, new_value,error)
-    TYPE(pao_glob_angles_type), INTENT(inout) :: glob_angles
-    TYPE(cp_block_matrix_p_type), DIMENSION(:), OPTIONAL, &
-         INTENT(in) :: new_value
-    TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
+    TYPE(pao_glob_angles_type), &
+      INTENT(inout)                          :: glob_angles
+    TYPE(cp_block_matrix_p_type), &
+      DIMENSION(:), INTENT(in), OPTIONAL     :: new_value
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
 
-    LOGICAL :: failure
-    CHARACTER(len=*), PARAMETER :: routineN='pao_g_angles_set_min_h_m',&
-         routineP=moduleN//':'//routineN
-    INTEGER :: i, stat
-    TYPE(cp_block_matrix_type), POINTER :: n_val
+    CHARACTER(len=*), PARAMETER :: routineN = 'pao_g_angles_set_min_h_m', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: i, stat
+    LOGICAL                                  :: failure
+    TYPE(cp_block_matrix_type), POINTER      :: n_val
+
     failure=.FALSE.
 
     IF (PRESENT(new_value)) THEN
@@ -1110,19 +1180,25 @@ CONTAINS
   SUBROUTINE pao_g_ang_did_change(glob_angles,qs_env,global_env,&
        h_changed, s_changed,&
        angles_changed, full_reset, error)
-    TYPE(pao_glob_angles_type), INTENT(inout),TARGET :: glob_angles
-    TYPE(qs_environment_type), INTENT(in),TARGET :: qs_env
-    TYPE(global_environment_type), INTENT(in),TARGET ::global_env
-    LOGICAL, INTENT(in), OPTIONAL :: h_changed, s_changed, &
-         angles_changed, full_reset
-    TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
+    TYPE(pao_glob_angles_type), &
+      INTENT(inout), TARGET                  :: glob_angles
+    TYPE(qs_environment_type), INTENT(in), &
+      TARGET                                 :: qs_env
+    TYPE(global_environment_type), &
+      INTENT(in), TARGET                     :: global_env
+    LOGICAL, INTENT(in), OPTIONAL            :: h_changed, s_changed, &
+                                                angles_changed, full_reset
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
 
-    LOGICAL :: failure
-    INTEGER :: handle, stat
-    CHARACTER(len=*), PARAMETER :: routineN='pao_g_ang_did_change',&
-         routineP=moduleN//':'//routineN
-    LOGICAL :: h_c,s_c, a_c, full_r
-    !call timeset(routineN,'I',moduleN,handle)
+    CHARACTER(len=*), PARAMETER :: routineN = 'pao_g_ang_did_change', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: stat
+    LOGICAL                                  :: a_c, failure, full_r, h_c, s_c
+
+!call timeset(routineN,'I',moduleN,handle)
+
     failure=.FALSE.
     h_c=.TRUE. ; s_c=.FALSE. ; a_c=.TRUE. ; full_r=.FALSE.
 

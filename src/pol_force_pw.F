@@ -17,48 +17,55 @@
 
 MODULE pol_force_pw
 
-  USE atomic_kinds, ONLY : kind_info_type
-  USE dg_types, ONLY : dg_type
-  USE coefficient_types, ONLY : coeff_type,  coeff_allocate, &
-       coeff_deallocate, coeff_zero, coeff_transform_space, &
-       PW_COMPLEXDATA3D, PW_REALDATA3D, &
-       PW_REALSPACE, PW_COMPLEXDATA1D, PW_RECIPROCALSPACE
-  USE empirical_parameters, ONLY : empirical_parameter_type
-  USE ewald_parameters_types, ONLY : ewald_parameters_type
-  USE ewalds, ONLY : ewald_evaluate, ewald_setup
-  USE fist_intra_force, ONLY : force_intra_control
-  USE fist_nonbond_force, ONLY : force_nonbond, bonded_correct_gaussian
-  USE global_types, ONLY : global_environment_type
-  USE greens_fn, ONLY : pw_green_fn_init
-  USE kinds, ONLY : dbl
-  USE linklist_control, ONLY : list_control
-  USE mathconstants, ONLY : pi, zero
-  USE md, ONLY : thermodynamic_type, simulation_parameters_type
-  USE molecule_types, ONLY : molecule_structure_type, particle_node_type, &
-       linklist_neighbor, linklist_exclusion, linklist_bonds, &
-       linklist_bends, linklist_torsions
-  USE message_passing, ONLY : mp_sum
-  USE pair_potential, ONLY : potentialparm_type
-  USE particle_types, ONLY : particle_type
-  USE pme, ONLY : pme_evaluate
-  USE pol_initialize_coef_pw, ONLY : initialize_coef_pw
-  USE pol_electrostatics_pw, ONLY : electrostatics
-  USE pol_overlap_pw, ONLY : force_overlap
-  USE pol_projectors_pw, ONLY : projectors, pol_projector_type
-  USE pol_thk_pw, ONLY : force_thk
 !dbg
-  USE pol_fo_kernel_pw, ONLY : force_fo_kernel
+  USE atomic_kinds,                    ONLY: kind_info_type
+  USE coefficient_types,               ONLY: PW_COMPLEXDATA1D,&
+                                             coeff_allocate,&
+                                             coeff_deallocate,&
+                                             coeff_type,&
+                                             coeff_zero
+  USE dg_types,                        ONLY: dg_type
+  USE empirical_parameters,            ONLY: empirical_parameter_type
+  USE ewald_parameters_types,          ONLY: ewald_parameters_type
+  USE ewalds,                          ONLY: ewald_evaluate,&
+                                             ewald_setup
+  USE fist_nonbond_force,              ONLY: bonded_correct_gaussian,&
+                                             force_nonbond
+  USE global_types,                    ONLY: global_environment_type
+  USE greens_fn,                       ONLY: pw_green_fn_init
+  USE kinds,                           ONLY: dbl
+  USE linklist_control,                ONLY: list_control
+  USE linklist_types,                  ONLY: linklist_internal_data_type
+  USE mathconstants,                   ONLY: zero
+  USE md,                              ONLY: simulation_parameters_type,&
+                                             thermodynamic_type
+  USE message_passing,                 ONLY: mp_sum
+  USE molecule_types,                  ONLY: molecule_structure_type,&
+                                             particle_node_type
+  USE pair_potential,                  ONLY: potentialparm_type
+  USE particle_types,                  ONLY: particle_type
+  USE pme,                             ONLY: pme_evaluate
+  USE pol_electrostatics_pw,           ONLY: electrostatics
+  USE pol_fo_kernel_pw,                ONLY: force_fo_kernel
 !dbg
-  USE pol_grids, ONLY : pol_grids_allocate, pol_grids_count, &
-       pol_grids_map, pol_grids_initialize, assign_coefs_to_grids, &
-       pol_grids_ref_grid
-  USE pw_grid_types, ONLY : pw_grid_type
-  USE pw_grids, ONLY : pw_grid_change
-  USE pw_types, ONLY : REALSPACE, RECIPROCALSPACE, NOSPACE
-  USE simulation_cell, ONLY : cell_type, get_hinv
-  USE termination, ONLY : stop_program, stop_memory
-  USE timings, ONLY : timeset, timestop
-  USE linklist_types, ONLY : linklist_internal_data_type
+
+  USE pol_grids,                       ONLY: assign_coefs_to_grids,&
+                                             pol_grids_allocate,&
+                                             pol_grids_count,&
+                                             pol_grids_initialize,&
+                                             pol_grids_map,&
+                                             pol_grids_ref_grid
+  USE pol_initialize_coef_pw,          ONLY: initialize_coef_pw
+  USE pol_overlap_pw,                  ONLY: force_overlap
+  USE pol_projectors_pw,               ONLY: pol_projector_type,&
+                                             projectors
+  USE pw_grid_types,                   ONLY: pw_grid_type
+  USE pw_types,                        ONLY: RECIPROCALSPACE
+  USE simulation_cell,                 ONLY: cell_type
+  USE termination,                     ONLY: stop_memory,&
+                                             stop_program
+  USE timings,                         ONLY: timeset,&
+                                             timestop
 
   PRIVATE
   PUBLIC :: force_env_types, debug_variables_type, get_pol_grids
@@ -96,55 +103,51 @@ SUBROUTINE force_env_types ( molecule, pnode, part, box, box_ref, &
      proj, pw_grid, thermo, potparm, empparm, ewald_param, box_change, &
      fc_global, lldata, simpar, debug)
 
-  IMPLICIT NONE
 
-! Arguments
-  TYPE ( particle_type ), DIMENSION ( : ), INTENT ( INOUT ) :: part
-  TYPE ( particle_node_type ), DIMENSION ( : ), INTENT ( INOUT ) :: pnode
-  TYPE ( molecule_structure_type ), DIMENSION ( : ), INTENT ( IN ) :: molecule
-  TYPE ( cell_type ), INTENT ( INOUT ) :: box
-  TYPE ( cell_type ), INTENT ( IN ) :: box_ref
-  TYPE ( kind_info_type ), POINTER, DIMENSION ( : ) :: drho_basis_info
-  TYPE ( kind_info_type ), POINTER, DIMENSION ( : ) :: rho0_basis_info
-  TYPE ( coeff_type ), INTENT (INOUT) :: coef_pos
-  TYPE ( coeff_type ), INTENT (INOUT) :: coef_vel
-  TYPE ( coeff_type ), INTENT (INOUT) :: coef_force
-  TYPE ( coeff_type ), INTENT (INOUT) :: proj
-  TYPE ( pw_grid_type ), INTENT (INOUT), TARGET :: pw_grid
-  TYPE ( thermodynamic_type ), INTENT ( INOUT ) :: thermo
-  TYPE ( potentialparm_type ), DIMENSION ( :,: ), INTENT ( IN ) :: potparm
-  TYPE ( empirical_parameter_type ), DIMENSION ( : ), INTENT ( IN ) :: empparm
-  TYPE ( ewald_parameters_type ), INTENT ( INOUT ) :: ewald_param
-  LOGICAL, INTENT ( IN ) :: box_change
-  TYPE ( global_environment_type ), INTENT ( IN ) :: fc_global
-  TYPE ( linklist_internal_data_type), DIMENSION (:), INTENT (INOUT) :: lldata
-  TYPE ( simulation_parameters_type ), intent (IN) :: simpar
-  TYPE ( debug_variables_type ), INTENT ( OUT ), OPTIONAL :: debug
+    TYPE(molecule_structure_type), &
+      DIMENSION(:), INTENT(IN)               :: molecule
+    TYPE(particle_node_type), DIMENSION(:), &
+      INTENT(INOUT)                          :: pnode
+    TYPE(particle_type), DIMENSION(:), &
+      INTENT(INOUT)                          :: part
+    TYPE(cell_type), INTENT(INOUT)           :: box
+    TYPE(cell_type), INTENT(IN)              :: box_ref
+    TYPE(kind_info_type), DIMENSION(:), &
+      POINTER                                :: drho_basis_info, &
+                                                rho0_basis_info
+    TYPE(coeff_type), INTENT(INOUT)          :: coef_pos, coef_vel, &
+                                                coef_force, proj
+    TYPE(pw_grid_type), INTENT(INOUT), &
+      TARGET                                 :: pw_grid
+    TYPE(thermodynamic_type), INTENT(INOUT)  :: thermo
+    TYPE(potentialparm_type), &
+      DIMENSION(:, :), INTENT(IN)            :: potparm
+    TYPE(empirical_parameter_type), &
+      DIMENSION(:), INTENT(IN)               :: empparm
+    TYPE(ewald_parameters_type), &
+      INTENT(INOUT)                          :: ewald_param
+    LOGICAL, INTENT(IN)                      :: box_change
+    TYPE(global_environment_type), &
+      INTENT(IN)                             :: fc_global
+    TYPE(linklist_internal_data_type), &
+      DIMENSION(:), INTENT(INOUT)            :: lldata
+    TYPE(simulation_parameters_type), &
+      intent(IN)                             :: simpar
+    TYPE(debug_variables_type), &
+      INTENT(OUT), OPTIONAL                  :: debug
 
-! Locals
-  INTEGER :: id, i, ii, natoms, nnodes, handle, isos, ncoef
-  INTEGER :: ng, igrid, ng_proj, ng_atom, nt_proj, nt_atom, npts_max ( 3 )
-  INTEGER :: nproj
-  REAL ( dbl ) :: pot_nonbond, vg_coulomb                                                
-  REAL ( dbl ) :: pot_overlap, pot_electrostatics 
-  REAL ( dbl ) :: pot_thk                                                
-  REAL ( dbl ) :: e0, e1, e2                                                
-  REAL ( dbl ) :: e_ovl_ii, e_ovl_ij                                        
-  REAL ( dbl ) :: e_gsq                                                
-  REAL ( dbl ), DIMENSION ( :,: ), ALLOCATABLE :: fe_part
-  REAL ( dbl ), DIMENSION ( :,: ), ALLOCATABLE :: fo_part
-  REAL ( dbl ), DIMENSION ( :,: ), ALLOCATABLE :: fthk_part
-  COMPLEX ( dbl ), DIMENSION (:), ALLOCATABLE :: fe_coef
-  COMPLEX ( dbl ), DIMENSION (:), ALLOCATABLE :: fo_coef
-  COMPLEX ( dbl ), DIMENSION (:), ALLOCATABLE :: fthk_coef
-  REAL ( dbl ), DIMENSION ( :,: ), ALLOCATABLE :: f_total
-  REAL ( dbl ), DIMENSION ( :, : ), ALLOCATABLE :: fg_coulomb
-  REAL ( dbl ), DIMENSION ( 3,3 ) :: pv_nonbond, pv_g, pv_bc, ident
-  LOGICAL :: first_time
-  REAL ( dbl ) :: max_cut, cutoff_radius_max
-  TYPE ( coeff_type ) :: rho0
-  TYPE ( pol_projector_type ), ALLOCATABLE :: fproj_part ( : )
-  
+    COMPLEX(dbl), ALLOCATABLE, DIMENSION(:)  :: fe_coef, fo_coef, fthk_coef
+    INTEGER :: handle, i, igrid, ii, isos, natoms, ncoef, ng, ng_atom, &
+      ng_proj, nnodes, nproj, npts_max( 3 ), nt_atom, nt_proj
+    LOGICAL                                  :: first_time
+    REAL(dbl) :: cutoff_radius_max, e0, e1, e2, e_gsq, e_ovl_ii, e_ovl_ij, &
+      max_cut, pot_electrostatics, pot_nonbond, pot_overlap, pot_thk, &
+      vg_coulomb
+    REAL(dbl), ALLOCATABLE, DIMENSION(:, :)  :: f_total, fe_part, fg_coulomb, &
+                                                fo_part, fthk_part
+    REAL(dbl), DIMENSION(3, 3)               :: pv_bc, pv_g, pv_nonbond
+    TYPE(coeff_type)                         :: rho0
+    TYPE(pol_projector_type), ALLOCATABLE    :: fproj_part( : )
 
 !------------------------------------------------------------------------------
 
@@ -575,13 +578,12 @@ END SUBROUTINE force_env_types
 !******************************************************************************
 
 SUBROUTINE get_pol_grids ( pw_big, pw_small, dg1, dg2, ii )
-  IMPLICIT NONE
-  TYPE ( pw_grid_type ), POINTER, DIMENSION ( : ), OPTIONAL :: pw_big
-  TYPE ( pw_grid_type ), POINTER, DIMENSION ( : ), OPTIONAL :: pw_small
-  TYPE ( dg_type ), POINTER, DIMENSION ( : ), OPTIONAL :: dg1
-  TYPE ( dg_type ), POINTER, DIMENSION ( : ), OPTIONAL :: dg2
-  INTEGER, INTENT ( OUT ), OPTIONAL :: ii
-  
+    TYPE(pw_grid_type), DIMENSION(:), &
+      OPTIONAL, POINTER                      :: pw_big, pw_small
+    TYPE(dg_type), DIMENSION(:), OPTIONAL, &
+      POINTER                                :: dg1, dg2
+    INTEGER, INTENT(OUT), OPTIONAL           :: ii
+
   IF ( PRESENT ( pw_big ) ) pw_big  => big_grid 
   IF ( PRESENT ( pw_small ) ) pw_small => small_grid 
   IF ( PRESENT ( dg1 ) ) dg1 => dg_atom 

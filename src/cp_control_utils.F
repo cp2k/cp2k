@@ -16,35 +16,28 @@
 
 MODULE cp_control_utils
 
-  USE band,                            ONLY: band_structure_dealloc_ref,&
-                                             band_structure_preinit,&
-                                             band_structure_type
-  USE cp_control_types,                ONLY: dft_control_type, xc_grid_type,&
-                                             kg_control_type, qs_control_type,&
-                                             wave_control_type, tddfpt_control_type, &
-                                             pw_grid_option, xc_control_type, &
-                                             xc_rho_no_smooth, xc_rho_spline2_smooth,&
-                                             xc_rho_spline3_smooth, xc_rho_nn10, &
-                                             xc_deriv_pw, xc_deriv_spline2,&
-                                             xc_deriv_spline3, xc_deriv_spline2_smooth,&
-                                             xc_deriv_spline3_smooth, &
-                                             dft_control_create
+  USE cp_control_types,                ONLY: dft_control_create,&
+                                             dft_control_type,&
+                                             kg_control_type,&
+                                             qs_control_type,&
+                                             tddfpt_control_type,&
+                                             wave_control_type,&
+                                             xc_deriv_pw,&
+                                             xc_deriv_spline2,&
+                                             xc_deriv_spline2_smooth,&
+                                             xc_deriv_spline3,&
+                                             xc_deriv_spline3_smooth,&
+                                             xc_rho_nn10,&
+                                             xc_rho_no_smooth,&
+                                             xc_rho_spline2_smooth,&
+                                             xc_rho_spline3_smooth
   USE cp_error_handling,               ONLY: cp_a_l,&
                                              cp_assert,&
-                                             cp_assertion_failed,&
-                                             cp_debug,&
-                                             cp_error_dealloc_ref,&
                                              cp_error_get_logger,&
-                                             cp_error_init,&
                                              cp_error_message,&
-                                             cp_error_type,&
-                                             cp_internal_error,&
-                                             cp_unimplemented_error,&
-                                             cp_unimplemented_error_nr
-  USE cp_fm_types,                     ONLY: cp_fm_p_type
+                                             cp_error_type
   USE cp_log_handling,                 ONLY: cp_failure_level,&
                                              cp_fatal_level,&
-                                             cp_log,&
                                              cp_logger_type,&
                                              cp_note_level,&
                                              cp_to_string,&
@@ -52,7 +45,6 @@ MODULE cp_control_utils
   USE global_types,                    ONLY: global_environment_type
   USE kinds,                           ONLY: dp,&
                                              dp_size
-  USE pw_grid_types,                   ONLY: pw_grid_type
   USE qs_parser,                       ONLY: finish_parser,&
                                              read_object,&
                                              start_parser,&
@@ -69,8 +61,7 @@ MODULE cp_control_utils
   USE termination,                     ONLY: stop_memory,&
                                              stop_program
   USE xc_functionals,                  ONLY: xc_get_functional,&
-                                             xc_print_info,&
-                                             xc_set
+                                             xc_print_info
 
   IMPLICIT NONE
 
@@ -123,22 +114,19 @@ CONTAINS
 !!                                                                            !
 !!<----------------------------------------------------------------------------
 
-    TYPE(dft_control_type), POINTER           :: dft_control
-    TYPE(global_environment_type), INTENT(IN) :: globenv
-    TYPE(cp_error_type), INTENT(inout), OPTIONAL  :: error
+    TYPE(dft_control_type), POINTER          :: dft_control
+    TYPE(global_environment_type), &
+      INTENT(IN)                             :: globenv
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
 
-!   *** Local parameters ***
+    CHARACTER(LEN=*), PARAMETER :: &
+      routine = "SUBROUTINE read_dft_control (MODULE dft_types)"
 
-    CHARACTER(LEN=*), PARAMETER :: routine =&
-      "SUBROUTINE read_dft_control (MODULE dft_types)"
-
-!   *** Local variables ***
-
-    CHARACTER(LEN=60) :: keyword, string, str1, str2, str3
-    CHARACTER(LEN=3)  :: test_result
-    INTEGER           :: istat, i ,tmp
-    LOGICAL           :: section_found
-    REAL (KIND = dp)       :: ecut, mesh(3)
+    CHARACTER(LEN=3)                         :: test_result
+    CHARACTER(LEN=60)                        :: keyword, str1, str2, string
+    LOGICAL                                  :: section_found
+    REAL(KIND=dp)                            :: mesh(3)
 
 !   ---------------------------------------------------------------------------
 
@@ -327,25 +315,21 @@ CONTAINS
 
 !   ***************************************************************************
 
-    TYPE(kg_control_type), INTENT(OUT)        :: kg_control
-    TYPE(global_environment_type), INTENT(IN) :: globenv
+    TYPE(kg_control_type), INTENT(OUT)       :: kg_control
+    TYPE(global_environment_type), &
+      INTENT(IN)                             :: globenv
 
-!   *** Local parameters ***
+    CHARACTER(LEN=*), PARAMETER :: &
+      routine = "SUBROUTINE read_kg_control (MODULE dft_types)"
 
-    CHARACTER(LEN=*), PARAMETER :: routine =&
-      "SUBROUTINE read_kg_control (MODULE dft_types)"
-
-!   *** Local variables ***
-
-    CHARACTER(LEN=60) :: keyword,string,string2
-    CHARACTER(LEN=3)  :: test_result
-    REAL(KIND = dp)          :: value
-    INTEGER           :: igrid_level,istat,ngrid_level
-    LOGICAL           :: section_found
-    LOGICAL           :: cutoff_set, multgrid_set, ngrid_set
+    CHARACTER(LEN=60)                        :: keyword, string, string2
+    INTEGER                                  :: igrid_level, istat, &
+                                                ngrid_level
+    LOGICAL                                  :: cutoff_set, multgrid_set, &
+                                                ngrid_set, section_found
+    REAL(KIND=dp)                            :: value
 
 !   ---------------------------------------------------------------------------
-
 !   *** Load the default values ***
 
     kg_control%method = "KG_NOPOL"
@@ -562,25 +546,22 @@ CONTAINS
 
 !   ***************************************************************************
 
-    TYPE(qs_control_type), INTENT(OUT)        :: qs_control
-    TYPE(global_environment_type), INTENT(IN) :: globenv
+    TYPE(qs_control_type), INTENT(OUT)       :: qs_control
+    TYPE(global_environment_type), &
+      INTENT(IN)                             :: globenv
 
-!   *** Local parameters ***
+    CHARACTER(LEN=*), PARAMETER :: &
+      routine = "SUBROUTINE read_qs_control (MODULE dft_types)"
 
-    CHARACTER(LEN=*), PARAMETER :: routine =&
-      "SUBROUTINE read_qs_control (MODULE dft_types)"
-
-!   *** Local variables ***
-
-    CHARACTER(LEN=60) :: keyword,string,string2
-    CHARACTER(LEN=3)  :: test_result
-    REAL(KIND = dp)          :: value
-    INTEGER           :: igrid_level,istat,ngrid_level
-    LOGICAL           :: section_found
-    LOGICAL           :: cutoff_set, multgrid_set, ngrid_set
+    CHARACTER(LEN=3)                         :: test_result
+    CHARACTER(LEN=60)                        :: keyword, string, string2
+    INTEGER                                  :: igrid_level, istat, &
+                                                ngrid_level
+    LOGICAL                                  :: cutoff_set, multgrid_set, &
+                                                ngrid_set, section_found
+    REAL(KIND=dp)                            :: value
 
 !   ---------------------------------------------------------------------------
-
 !   *** Load the default values ***
 
     qs_control%method = "GPW"
@@ -844,25 +825,22 @@ CONTAINS
 
   SUBROUTINE read_tddfpt_control(t_control, glob_env)
 
-    IMPLICIT NONE
 
-    ! arguments
-    TYPE(tddfpt_control_type)                 :: t_control
-    TYPE(global_environment_type), INTENT(in) :: glob_env
+    TYPE(tddfpt_control_type)                :: t_control
+    TYPE(global_environment_type), &
+      INTENT(in)                             :: glob_env
 
-    ! locals
-    LOGICAL                                   :: section_found
-    CHARACTER(LEN=60)                         :: keyword, field
-    INTEGER                                   :: error, length
+    CHARACTER(len=*), PARAMETER :: routineN = "read_tddfpt_control", &
+      routineP = moduleN//"/"//routineN
 
-    CHARACTER(len=*), PARAMETER               :: routineN = "read_tddfpt_control", &
-                                                 routineP = moduleN//"/"//routineN
+    CHARACTER(LEN=60)                        :: field, keyword
+    LOGICAL                                  :: section_found
 
-    ! -------------------------------------------------------------------
-    
-    !----------------!
-    ! do the parsing !
-    !----------------!
+! -------------------------------------------------------------------
+!----------------!
+! do the parsing !
+!----------------!
+
     section_found = .FALSE.
         CALL start_parser(file_name=glob_env%input_file_name,&
                       globenv=glob_env,&
@@ -958,21 +936,17 @@ CONTAINS
 !!                                                                            !
 !!<----------------------------------------------------------------------------
 
-    TYPE(wave_control_type), INTENT(OUT)      :: wave_control
-    TYPE(global_environment_type), INTENT(IN) :: globenv
+    TYPE(wave_control_type), INTENT(OUT)     :: wave_control
+    TYPE(global_environment_type), &
+      INTENT(IN)                             :: globenv
 
-!   *** Local parameters ***
+    CHARACTER(LEN=*), PARAMETER :: &
+      routine = "SUBROUTINE read_wave_control (MODULE dft_types)"
 
-    CHARACTER(LEN=*), PARAMETER :: routine =&
-      "SUBROUTINE read_wave_control (MODULE dft_types)"
-
-!   *** Local variables ***
-
-    CHARACTER(LEN=60) :: keyword,string
-    LOGICAL           :: section_found
+    CHARACTER(LEN=60)                        :: keyword
+    LOGICAL                                  :: section_found
 
 !   ---------------------------------------------------------------------------
-
 !   *** Load the default values ***
 
     wave_control%e_cutoff_wf = -1.0_dp
@@ -1007,13 +981,12 @@ CONTAINS
 
 !   ***************************************************************************
 
-    TYPE(dft_control_type), POINTER           :: dft_control
-    TYPE(global_environment_type), INTENT(IN) :: globenv
+    TYPE(dft_control_type), POINTER          :: dft_control
+    TYPE(global_environment_type), &
+      INTENT(IN)                             :: globenv
 
-!   *** Local variables ***
-
-    INTEGER :: output_unit
-    CHARACTER(len=20) :: tmpStr
+    CHARACTER(len=20)                        :: tmpStr
+    INTEGER                                  :: output_unit
 
 !   ---------------------------------------------------------------------------
 
@@ -1086,12 +1059,12 @@ CONTAINS
 
 !   ***************************************************************************
 
-    TYPE(kg_control_type), INTENT(IN)         :: kg_control
-    TYPE(global_environment_type), INTENT(IN) :: globenv
+    TYPE(kg_control_type), INTENT(IN)        :: kg_control
+    TYPE(global_environment_type), &
+      INTENT(IN)                             :: globenv
 
-!   *** Local variables ***
-
-    INTEGER :: igrid_level,ngrid_level,output_unit
+    INTEGER                                  :: igrid_level, ngrid_level, &
+                                                output_unit
 
 !   ---------------------------------------------------------------------------
 
@@ -1154,12 +1127,12 @@ CONTAINS
 
 !   ***************************************************************************
 
-    TYPE(qs_control_type), INTENT(IN)         :: qs_control
-    TYPE(global_environment_type), INTENT(IN) :: globenv
+    TYPE(qs_control_type), INTENT(IN)        :: qs_control
+    TYPE(global_environment_type), &
+      INTENT(IN)                             :: globenv
 
-!   *** Local variables ***
-
-    INTEGER :: igrid_level,ngrid_level,output_unit
+    INTEGER                                  :: igrid_level, ngrid_level, &
+                                                output_unit
 
 !   ---------------------------------------------------------------------------
 
@@ -1229,12 +1202,11 @@ CONTAINS
 
 !   ***************************************************************************
 
-    TYPE(wave_control_type), INTENT(IN)       :: wave_control
-    TYPE(global_environment_type), INTENT(IN) :: globenv
+    TYPE(wave_control_type), INTENT(IN)      :: wave_control
+    TYPE(global_environment_type), &
+      INTENT(IN)                             :: globenv
 
-!   *** Local variables ***
-
-    INTEGER :: output_unit
+    INTEGER                                  :: output_unit
 
 !   ---------------------------------------------------------------------------
 
@@ -1276,13 +1248,15 @@ CONTAINS
 !!
 !!*** **********************************************************************
 FUNCTION xc_get_rho_smooth_label(xc_rho_smooth_id,error) RESULT(res)
-  INTEGER, INTENT(in) :: xc_rho_smooth_id
-  CHARACTER(len=10) :: res
-  TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
-  
-  CHARACTER(len=*), PARAMETER :: routineN='xc_get_rho_smooth_label',&
-        routineP=moduleN//':'//routineN
-  LOGICAL :: failure
+    INTEGER, INTENT(in)                      :: xc_rho_smooth_id
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
+    CHARACTER(len=10)                        :: res
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'xc_get_rho_smooth_label', &
+      routineP = moduleN//':'//routineN
+
+    LOGICAL                                  :: failure
 
   failure=.FALSE.
   
@@ -1326,14 +1300,16 @@ END FUNCTION xc_get_rho_smooth_label
 !!
 !!*** **********************************************************************
 FUNCTION xc_get_deriv_method_label(xc_deriv_method_id,error) RESULT(res)
-  INTEGER, INTENT(in) :: xc_deriv_method_id
-  CHARACTER(len=20) :: res
-  TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
-  
-  CHARACTER(len=*), PARAMETER :: routineN='xc_get_deriv_method_label',&
-        routineP=moduleN//':'//routineN
-  LOGICAL :: failure
-  
+    INTEGER, INTENT(in)                      :: xc_deriv_method_id
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
+    CHARACTER(len=20)                        :: res
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'xc_get_deriv_method_label', &
+      routineP = moduleN//':'//routineN
+
+    LOGICAL                                  :: failure
+
   failure=.FALSE.
   
   SELECT CASE(xc_deriv_method_id)

@@ -24,42 +24,37 @@ MODULE md_energies
   USE cp_error_handling,               ONLY: cp_a_l,&
                                              cp_assert,&
                                              cp_error_type
-  USE cp_subsystem_types,               ONLY: cp_subsystem_p_type,&
-                                             cp_subsystem_type,&
-                                             cp_subsys_get
   USE cp_log_handling,                 ONLY: cp_failure_level,&
                                              cp_logger_type,&
                                              cp_to_string
-  USE force_env_types,                   ONLY: force_env_get,&
+  USE cp_subsystem_types,              ONLY: cp_subsys_get,&
+                                             cp_subsystem_p_type
+  USE force_env_types,                 ONLY: force_env_get,&
                                              force_env_type
   USE global_types,                    ONLY: global_environment_type
   USE kinds,                           ONLY: dp
-  USE linklist_types,                  ONLY: get_linklist_internal_data,&
-                                             linklist_internal_data_type
   USE machine,                         ONLY: m_flush
   USE mathconstants,                   ONLY: zero
   USE md,                              ONLY: mdio_parameters_type,&
                                              simulation_parameters_type
   USE md_conserved_quantities,         ONLY: compute_conserved_quantity
-                                             !compute_conserved_quantity_pimd
+!compute_conserved_quantity_pimd
+
   USE md_environment_types,            ONLY: get_md_env,&
                                              md_environment_type,&
                                              set_md_env
-  USE message_passing,                 ONLY: mp_bcast,&
-                                             mp_comm_dup,&
-                                             mp_sum
+  USE message_passing,                 ONLY: mp_bcast
   USE output_utilities,                ONLY: print_warning
   USE particle_list_types,             ONLY: particle_list_type
-  USE particle_types,                  ONLY: particle_type,&
-                                             write_particle_coordinates
+  USE particle_types,                  ONLY: write_particle_coordinates
   USE physcon,                         ONLY: femtoseconds,&
                                              kelvin
   USE qs_parser,                       ONLY: open_file
   USE simulation_cell,                 ONLY: cell_type
-  USE termination,                     ONLY: stop_memory,&
-                                             stop_program
+  USE termination,                     ONLY: stop_program
   USE timings,                         ONLY: timeset,&
                                              timestop
+
   IMPLICIT NONE
 
   PRIVATE
@@ -107,11 +102,10 @@ CONTAINS
 
 SUBROUTINE set_qs_energies ( globenv, mdio )
 
-  IMPLICIT NONE
 
-! Arguments
-  TYPE ( mdio_parameters_type ), INTENT ( IN ) :: mdio
-  TYPE ( global_environment_type ), INTENT ( IN ) :: globenv
+    TYPE(global_environment_type), &
+      INTENT(IN)                             :: globenv
+    TYPE(mdio_parameters_type), INTENT(IN)   :: mdio
 
 !------------------------------------------------------------------------------
 
@@ -157,28 +151,26 @@ END SUBROUTINE set_qs_energies
 
   SUBROUTINE md_energy_qs(md_env, error)
 
-    TYPE(md_environment_type), POINTER :: md_env
-    TYPE(cp_error_type), INTENT(inout), OPTIONAL :: error
+    TYPE(md_environment_type), POINTER       :: md_env
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
 
-!   *** Local parameters ***
+    CHARACTER(LEN=*), PARAMETER              :: routine_name = "md_energy_qs"
 
-    CHARACTER(LEN=*), PARAMETER :: routine_name = "md_energy_qs"
-
-!   *** Local variables ***
-
-    TYPE(cell_type), POINTER                  :: cell
-    TYPE(particle_list_type), POINTER         :: particles
-    TYPE(simulation_parameters_type), POINTER :: simpar
-    TYPE(force_env_type), POINTER             :: force_env
-    REAL (KIND = dp), POINTER                 :: constant, used_time
-    INTEGER, POINTER                          :: itimes
-
-    CHARACTER(LEN=200) :: title
-    REAL(KIND = dp)           :: cons,e_diff,ekin,e_old,rcons,t,temp,x, epot
-    INTEGER            :: handle,istat,iw, isubsys
-    LOGICAL            :: file_exists,replace_file
-
-    TYPE(cp_subsystem_p_type), DIMENSION(:), POINTER :: subsys
+    CHARACTER(LEN=200)                       :: title
+    INTEGER                                  :: handle, istat, isubsys, iw
+    INTEGER, POINTER                         :: itimes
+    LOGICAL                                  :: file_exists, replace_file
+    REAL(KIND=dp)                            :: cons, e_diff, e_old, ekin, &
+                                                epot, rcons, t, temp, x
+    REAL(KIND=dp), POINTER                   :: constant, used_time
+    TYPE(cell_type), POINTER                 :: cell
+    TYPE(cp_subsystem_p_type), &
+      DIMENSION(:), POINTER                  :: subsys
+    TYPE(force_env_type), POINTER            :: force_env
+    TYPE(particle_list_type), POINTER        :: particles
+    TYPE(simulation_parameters_type), &
+      POINTER                                :: simpar
 
 !   ---------------------------------------------------------------------------
 
@@ -310,14 +302,11 @@ END SUBROUTINE set_qs_energies
 
   SUBROUTINE open_md_file(file_name,unit_number,replace_file)
 
-    CHARACTER(LEN=*), INTENT(IN)  :: file_name
-    INTEGER, INTENT(OUT)          :: unit_number
-    LOGICAL, OPTIONAL, INTENT(IN) :: replace_file
+    CHARACTER(LEN=*), INTENT(IN)             :: file_name
+    INTEGER, INTENT(OUT)                     :: unit_number
+    LOGICAL, INTENT(IN), OPTIONAL            :: replace_file
 
-!   *** Local variables ***
-
-    INTEGER :: istat
-    LOGICAL :: file_exists,keep_file
+    LOGICAL                                  :: file_exists, keep_file
 
 !   ---------------------------------------------------------------------------
 

@@ -25,17 +25,22 @@
 !!   SOURCE
 !****************************************************************************
 module qs_diis_types
-  use cp_log_handling, only: cp_fatal_level, cp_failure_level,&
-       cp_warning_level, cp_note_level, cp_to_string, cp_log
-  use cp_error_handling, only: cp_debug, cp_error_type, cp_error_init,&
-       cp_error_dealloc_ref, cp_error_message, cp_assert,&
-       cp_assertion_failed, cp_internal_error, cp_unimplemented_error,&
-       cp_error_get_logger, cp_a_l, cp_error_check
-  USE cp_fm_types, ONLY: cp_fm_p_type, cp_fm_type,&
-       cp_fm_release, cp_fm_retain
-  use kinds, only: dp
-  use cp_para_types, only: cp_para_env_type
-  use timings, only: timeset, timestop
+  USE cp_error_handling,               ONLY: cp_a_l,&
+                                             cp_assert,&
+                                             cp_error_get_logger,&
+                                             cp_error_message,&
+                                             cp_error_type
+  USE cp_fm_types,                     ONLY: cp_fm_p_type,&
+                                             cp_fm_release
+  USE cp_log_handling,                 ONLY: cp_failure_level,&
+                                             cp_fatal_level,&
+                                             cp_note_level,&
+                                             cp_to_string,&
+                                             cp_warning_level
+  USE kinds,                           ONLY: dp
+  USE timings,                         ONLY: timeset,&
+                                             timestop
+
   implicit none
   private
 
@@ -132,12 +137,14 @@ CONTAINS
 !!
 !!*** **********************************************************************
 SUBROUTINE qs_diis_b_retain(diis_buffer,error)
-  type(qs_diis_buffer_type), pointer :: diis_buffer
-  type(cp_error_type), optional, intent(inout) :: error
-  
-  logical :: failure
-  character(len=*), parameter :: routineN='qs_diis_b_retain',&
-        routineP=moduleN//':'//routineN
+    type(qs_diis_buffer_type), pointer       :: diis_buffer
+    type(cp_error_type), intent(inout), &
+      optional                               :: error
+
+    character(len=*), parameter :: routineN = 'qs_diis_b_retain', &
+      routineP = moduleN//':'//routineN
+
+    logical                                  :: failure
 
   failure=.false.
   
@@ -173,13 +180,15 @@ END SUBROUTINE qs_diis_b_retain
 !!
 !!*** **********************************************************************
 subroutine qs_diis_b_release(diis_buffer,error)
-  type(qs_diis_buffer_type), pointer :: diis_buffer  
-  type(cp_error_type), optional, intent(inout) :: error
-  
-  logical :: failure
-  character(len=*), parameter :: routineN='qs_diis_b_release',&
-        routineP=moduleN//':'//routineN
-  INTEGER :: stat,i,j
+    type(qs_diis_buffer_type), pointer       :: diis_buffer
+    type(cp_error_type), intent(inout), &
+      optional                               :: error
+
+    character(len=*), parameter :: routineN = 'qs_diis_b_release', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: i, j, stat
+    logical                                  :: failure
 
   failure=.false.
   

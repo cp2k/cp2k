@@ -7,21 +7,33 @@
 
 MODULE force_fit
 
-  USE amoeba, ONLY : amoeba_evaluate
-  USE global_types, ONLY : globenv
+  USE global_types,                    ONLY: globenv
 ! USE io_parameters, ONLY : scr
-  USE kinds, ONLY : dbl
-  USE md, ONLY : simulation_parameters_type, thermodynamic_type
-  USE pair_potential, ONLY : potentialparm_type, spline_nonbond_control
-  USE parser, ONLY : parser_init, parser_end, read_line, test_next, &
-       cfield, p_error, get_real, get_int, search_label
-  USE structure_types, ONLY : structure_type
-  USE termination, ONLY : stop_program
 
+  USE kinds,                           ONLY: dbl
+  USE md,                              ONLY: simulation_parameters_type,&
+                                             thermodynamic_type
+  USE pair_potential,                  ONLY: potentialparm_type,&
+                                             spline_nonbond_control
+  USE parser,                          ONLY: cfield,&
+                                             get_int,&
+                                             get_real,&
+                                             p_error,&
+                                             parser_end,&
+                                             parser_init,&
+                                             read_line,&
+                                             search_label,&
+                                             test_next
+  USE structure_types,                 ONLY: structure_type
+  USE termination,                     ONLY: stop_program
 !  USE fist_input, ONLY : atom_names
+
 !  USE force_env_types, ONLY : force
+
 !  USE md, ONLY : simulation_parameters
+
 !  USE pair_potential, ONLY : potentialparm, spline_nonbond_control
+
 
   IMPLICIT NONE
 
@@ -84,18 +96,16 @@ CONTAINS
 
 SUBROUTINE read_fit_section ( fit_param )
 
-  IMPLICIT NONE
 
-! Arguments
-  TYPE ( fit_parameter_type ), INTENT ( OUT ) :: fit_param
+    TYPE(fit_parameter_type), INTENT(OUT)    :: fit_param
 
-! Locals
-  INTEGER :: ierror, ilen, scr
-  CHARACTER ( len = 20 ) :: string
-  CHARACTER ( len = 5 ) :: label
+    CHARACTER(len=20)                        :: string
+    CHARACTER(len=5)                         :: label
+    INTEGER                                  :: ierror, ilen, scr
 
 !------------------------------------------------------------------------------
 ! this is just a temporary fix to get rid of io_parameters
+
   scr = 6
 
 !..defaults
@@ -204,18 +214,17 @@ END SUBROUTINE read_fit_section
 
 SUBROUTINE fit_control ( struc, potparm, thermo, simpar )
 
-  IMPLICIT NONE
 
-! Arguments
-  TYPE ( structure_type ), INTENT ( IN ) :: struc
-  TYPE ( potentialparm_type ), DIMENSION ( :, : ), INTENT ( IN ) :: potparm
-  TYPE ( simulation_parameters_type ), INTENT ( IN ) :: simpar
-  TYPE ( thermodynamic_type ), INTENT ( IN ) :: thermo
+    TYPE(structure_type), INTENT(IN)         :: struc
+    TYPE(potentialparm_type), &
+      DIMENSION(:, :), INTENT(IN)            :: potparm
+    TYPE(thermodynamic_type), INTENT(IN)     :: thermo
+    TYPE(simulation_parameters_type), &
+      INTENT(IN)                             :: simpar
 
-! Locals
-  LOGICAL :: conv_flag
-  INTEGER :: isos
-  TYPE ( fit_parameter_type ) :: fit_param
+    INTEGER                                  :: isos
+    LOGICAL                                  :: conv_flag
+    TYPE(fit_parameter_type)                 :: fit_param
 
 !------------------------------------------------------------------------------
 
@@ -286,20 +295,17 @@ END SUBROUTINE fit_control
 
 SUBROUTINE fit ( conv_flag, fit_param, struc, simpar )
 
-  IMPLICIT NONE
 
-! Arguments
-  LOGICAL, INTENT ( INOUT ) :: conv_flag
-  TYPE ( fit_parameter_type ), INTENT ( INOUT ) :: fit_param
-  TYPE ( structure_type ), INTENT ( IN ) :: struc
-  TYPE ( simulation_parameters_type ), INTENT ( IN ) :: simpar
+    LOGICAL, INTENT(INOUT)                   :: conv_flag
+    TYPE(fit_parameter_type), INTENT(INOUT)  :: fit_param
+    TYPE(structure_type), INTENT(IN)         :: struc
+    TYPE(simulation_parameters_type), &
+      INTENT(IN)                             :: simpar
 
-! Locals
-  INTEGER :: i, j
-  REAL ( dbl ) :: tol
-  REAL ( dbl ), DIMENSION ( : ), POINTER :: y
-  REAL ( dbl ), DIMENSION ( :, : ), POINTER :: p
-
+    INTEGER                                  :: i
+    REAL(dbl)                                :: tol
+    REAL(dbl), DIMENSION(:), POINTER         :: y
+    REAL(dbl), DIMENSION(:, :), POINTER      :: p
   INTERFACE
      FUNCTION func ( x )
        USE kinds, ONLY : dbl
@@ -310,8 +316,8 @@ SUBROUTINE fit ( conv_flag, fit_param, struc, simpar )
   END INTERFACE
 
 !------------------------------------------------------------------------------
-
 ! Allocate and intialize arrays for amoeba
+
   CALL copy_params ( fit_param, potparm )
 
 ! Get reference force
@@ -371,14 +377,12 @@ END SUBROUTINE fit
 
 SUBROUTINE copy_params ( fit_param, potparm, x )
 
-  IMPLICIT NONE
 
-! Arguments
-  TYPE ( fit_parameter_type ), INTENT ( IN ) :: fit_param
-  TYPE ( potentialparm_type ), DIMENSION ( :, : ), INTENT ( INOUT ) :: potparm
-  REAL ( dbl ), DIMENSION ( : ), INTENT ( IN ), OPTIONAL :: x
-
-! Locals
+    TYPE(fit_parameter_type), INTENT(IN)     :: fit_param
+    TYPE(potentialparm_type), &
+      DIMENSION(:, :), INTENT(INOUT)         :: potparm
+    REAL(dbl), DIMENSION(:), INTENT(IN), &
+      OPTIONAL                               :: x
 
 !------------------------------------------------------------------------------
 
@@ -399,19 +403,20 @@ END SUBROUTINE copy_params
 
 SUBROUTINE lj_fit ( potparm, x, y, p )
 
-  IMPLICIT NONE
 
-! Arguments
-  TYPE ( potentialparm_type ), DIMENSION ( :, : ), INTENT ( INOUT ) :: potparm
-  REAL ( dbl ), DIMENSION ( : ), POINTER, OPTIONAL :: y
-  REAL ( dbl ), DIMENSION ( :, : ), POINTER, OPTIONAL :: p
-  REAL ( dbl ), DIMENSION ( : ), INTENT ( IN ), OPTIONAL :: x
-  TYPE ( linklist_real_type ), POINTER :: llsig
-  TYPE ( linklist_real_type ), POINTER :: lleps
+    TYPE(potentialparm_type), &
+      DIMENSION(:, :), INTENT(INOUT)         :: potparm
+    REAL(dbl), DIMENSION(:), INTENT(IN), &
+      OPTIONAL                               :: x
+    REAL(dbl), DIMENSION(:), OPTIONAL, &
+      POINTER                                :: y
+    REAL(dbl), DIMENSION(:, :), OPTIONAL, &
+      POINTER                                :: p
 
-! Locals
-  INTEGER :: i, icount, iatom, jatom, numpar, isos
-  REAL ( dbl ) :: sig, eps
+    INTEGER                                  :: i, iatom, icount, isos, &
+                                                jatom, numpar
+    REAL(dbl)                                :: eps, sig
+    TYPE(linklist_real_type), POINTER        :: lleps, llsig
 
 !------------------------------------------------------------------------------
 
@@ -507,20 +512,22 @@ END SUBROUTINE lj_fit
 
 SUBROUTINE will_fit ( potparm, x, y, p )
 
-  IMPLICIT NONE
 
-! Arguments
-  TYPE ( potentialparm_type ), DIMENSION ( :, : ), INTENT ( INOUT ) :: potparm
-  REAL ( dbl ), DIMENSION ( : ), POINTER, OPTIONAL :: y
-  REAL ( dbl ), DIMENSION ( :, : ), POINTER, OPTIONAL :: p
-  REAL ( dbl ), DIMENSION ( : ), INTENT ( IN ), OPTIONAL :: x
-  TYPE ( linklist_a ), POINTER :: lla
-  TYPE ( linklist_b ), POINTER :: llb
-  TYPE ( linklist_c ), POINTER :: llc
+    TYPE(potentialparm_type), &
+      DIMENSION(:, :), INTENT(INOUT)         :: potparm
+    REAL(dbl), DIMENSION(:), INTENT(IN), &
+      OPTIONAL                               :: x
+    REAL(dbl), DIMENSION(:), OPTIONAL, &
+      POINTER                                :: y
+    REAL(dbl), DIMENSION(:, :), OPTIONAL, &
+      POINTER                                :: p
 
-! Locals
-  INTEGER :: i, icount, iatom, jatom, numpar, isos
-  REAL ( dbl ) a, b, c
+    INTEGER                                  :: i, iatom, icount, isos, &
+                                                jatom, numpar
+    REAL(dbl)                                :: a, b, c
+    TYPE(linklist_a), POINTER                :: lla
+    TYPE(linklist_b), POINTER                :: llb
+    TYPE(linklist_c), POINTER                :: llc
 
 !------------------------------------------------------------------------------
 
@@ -639,24 +646,24 @@ END SUBROUTINE will_fit
 
 SUBROUTINE force_ref ( y, p, fit_param, struc, simpar )
 
-  IMPLICIT NONE
 
-! Arguments
-  REAL ( dbl ), DIMENSION ( : ), INTENT ( OUT ) :: y
-  REAL ( dbl ), DIMENSION ( :, : ), INTENT ( OUT ) :: p
-  TYPE ( fit_parameter_type ), INTENT ( INOUT ) :: fit_param
-  TYPE ( structure_type ), INTENT ( IN ) :: struc
-  TYPE ( simulation_parameters_type ), INTENT ( IN ) :: simpar
+    REAL(dbl), DIMENSION(:), INTENT(OUT)     :: y
+    REAL(dbl), DIMENSION(:, :), INTENT(OUT)  :: p
+    TYPE(fit_parameter_type), INTENT(INOUT)  :: fit_param
+    TYPE(structure_type), INTENT(IN)         :: struc
+    TYPE(simulation_parameters_type), &
+      INTENT(IN)                             :: simpar
 
-! Locals
-  INTEGER :: npart, ipart, itime, ii, it, isos
-  REAL ( dbl ), ALLOCATABLE, DIMENSION ( :, :, : ) :: r, v
-  REAL ( dbl ), DIMENSION ( 3 ) :: fref
-  LOGICAL :: copy
+    INTEGER                                  :: ii, ipart, isos, it, itime, &
+                                                npart
+    LOGICAL                                  :: copy
+    REAL(dbl)                                :: dummy
+    REAL(dbl), ALLOCATABLE, &
+      DIMENSION(:, :, :)                     :: r, v
+    REAL(dbl), DIMENSION(3)                  :: fref
+
 ! dbg
-  REAL ( dbl ) :: dummy
 ! dbg
-
 !------------------------------------------------------------------------------
 
   npart = SIZE ( struc % pnode )
@@ -800,14 +807,11 @@ END SUBROUTINE force_ref
 
 SUBROUTINE forcefit ( fit_param, struc )
 
-  IMPLICIT NONE
 
-! Arguments
-  TYPE ( fit_parameter_type ), INTENT ( INOUT ) :: fit_param
-  TYPE ( structure_type ), INTENT ( INOUT ) :: struc
+    TYPE(fit_parameter_type), INTENT(INOUT)  :: fit_param
+    TYPE(structure_type), INTENT(INOUT)      :: struc
 
-! Locals
-  INTEGER :: itime, ipart, npart
+    INTEGER                                  :: ipart, itime, npart
 
 !------------------------------------------------------------------------------
 
@@ -838,24 +842,21 @@ END SUBROUTINE forcefit
 
 FUNCTION local ( x, fit_param, struc, potparm )
 
-  IMPLICIT NONE
 
 ! Return type
-  REAL ( dbl ) :: local
+    REAL(dbl), DIMENSION(:), INTENT(IN)      :: x
+    TYPE(fit_parameter_type), INTENT(INOUT)  :: fit_param
+    TYPE(structure_type), INTENT(INOUT)      :: struc
+    TYPE(potentialparm_type), &
+      DIMENSION(:, :), INTENT(INOUT)         :: potparm
+    REAL(dbl)                                :: local
 
-! Arguments
-  REAL ( dbl ), DIMENSION ( : ), INTENT ( IN ) :: x
-  TYPE ( fit_parameter_type ), INTENT ( INOUT ) :: fit_param
-  TYPE ( structure_type ), INTENT ( INOUT ) :: struc
-  TYPE ( potentialparm_type ), DIMENSION ( :, : ), INTENT ( INOUT ) :: potparm
+    INTEGER                                  :: ipart, itime, npart
+    REAL(dbl), DIMENSION(3)                  :: vec
 
-! Locals
-  REAL ( dbl ), DIMENSION ( 3 ) :: vec
 ! dbg
 !        REAL ( dbl ) :: vdiff
 ! dbg
-  INTEGER :: itime, ipart, npart
-
 !------------------------------------------------------------------------------
 
   npart = SIZE ( struc % pnode )
@@ -896,15 +897,13 @@ END FUNCTION local
 
 SUBROUTINE fit_print_info ( fit_param, tol, potparm )
 
-  IMPLICIT NONE
 
-! Arguments
-  TYPE ( fit_parameter_type ), INTENT ( IN ) :: fit_param
-  REAL ( dbl ), INTENT ( IN ) :: tol
-  TYPE ( potentialparm_type ), DIMENSION ( :, : ), INTENT ( INOUT ) :: potparm
+    TYPE(fit_parameter_type), INTENT(IN)     :: fit_param
+    REAL(dbl), INTENT(IN)                    :: tol
+    TYPE(potentialparm_type), &
+      DIMENSION(:, :), INTENT(INOUT)         :: potparm
 
-! Locals
-  INTEGER :: iatom, jatom
+    INTEGER                                  :: iatom, jatom
 
 !------------------------------------------------------------------------------
 
@@ -963,15 +962,12 @@ END SUBROUTINE fit_print_info
 
 SUBROUTINE get_lj_params ( potparm )
 
-  IMPLICIT NONE
 
-! Arguments
-  TYPE ( potentialparm_type ), DIMENSION ( :, : ), INTENT ( INOUT ) :: potparm
+    TYPE(potentialparm_type), &
+      DIMENSION(:, :), INTENT(INOUT)         :: potparm
 
-! Locals
-  INTEGER :: iatom, jatom, i
-  TYPE ( linklist_real_type ), POINTER :: lleps
-  TYPE ( linklist_real_type ), POINTER :: llsig
+    INTEGER                                  :: i, iatom, jatom
+    TYPE(linklist_real_type), POINTER        :: lleps, llsig
 
 !------------------------------------------------------------------------------
 
@@ -1002,16 +998,12 @@ END SUBROUTINE get_lj_params
 
 SUBROUTINE get_will_params ( potparm )
 
-  IMPLICIT NONE
 
-! Arguments
-  TYPE ( potentialparm_type ), DIMENSION ( :, : ), INTENT ( INOUT ) :: potparm
+    TYPE(potentialparm_type), &
+      DIMENSION(:, :), INTENT(INOUT)         :: potparm
 
-! Locals
-  INTEGER :: iatom, jatom, i
-  TYPE ( linklist_real_type ), POINTER :: lla
-  TYPE ( linklist_real_type ), POINTER :: llb
-  TYPE ( linklist_real_type ), POINTER :: llc
+    INTEGER                                  :: i, iatom, jatom
+    TYPE(linklist_real_type), POINTER        :: lla, llb, llc
 
 !------------------------------------------------------------------------------
 
@@ -1043,18 +1035,15 @@ END SUBROUTINE get_will_params
 
 SUBROUTINE fit_write_restart ( y, p )
 
-  IMPLICIT NONE
 
-! Arguments
-  REAL ( dbl ), DIMENSION ( : ), INTENT ( IN ) :: y
-  REAL ( dbl ), DIMENSION ( :, : ), INTENT ( IN ) :: p
+    REAL(dbl), DIMENSION(:), INTENT(IN)      :: y
+    REAL(dbl), DIMENSION(:, :), INTENT(IN)   :: p
 
-! Locals
-  INTEGER :: i, j, iochannel = 99
+    INTEGER                                  :: i, iochannel = 99, j
 
 !------------------------------------------------------------------------------
-
 ! write to the restart file
+
   OPEN ( UNIT = iochannel, FILE = 'amoeba.rst', STATUS = 'UNKNOWN' )
 
   DO i = 1, SIZE ( y )
@@ -1073,18 +1062,15 @@ END SUBROUTINE fit_write_restart
 
 SUBROUTINE fit_read_restart ( y, p )
 
-  IMPLICIT NONE
 
-! Arguments
-  REAL ( dbl ), DIMENSION ( : ), INTENT ( OUT ) :: y
-  REAL ( dbl ), DIMENSION ( :, : ), INTENT ( OUT ) :: p
+    REAL(dbl), DIMENSION(:), INTENT(OUT)     :: y
+    REAL(dbl), DIMENSION(:, :), INTENT(OUT)  :: p
 
-! Locals
-  INTEGER :: i, j, iochannel = 99
+    INTEGER                                  :: i, iochannel = 99, j
 
 !------------------------------------------------------------------------------
-
 ! read from the restart file
+
   OPEN ( UNIT = iochannel, FILE = 'amoeba.rst', STATUS = 'UNKNOWN' )
 
   DO i = 1, SIZE ( y )

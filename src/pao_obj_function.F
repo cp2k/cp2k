@@ -29,8 +29,7 @@ MODULE pao_obj_function
 !  use pao_env_methods
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                              get_atomic_kind_set
-  USE cp_array_utils,                  ONLY: cp_1d_r_output,&
-                                             cp_2d_r_output
+  USE cp_array_utils,                  ONLY: cp_1d_r_output
   USE cp_b_matrix_structure,           ONLY: cp_b_matrix_struct_type
   USE cp_block_matrix,                 ONLY: cp_block_matrix_p_type,&
                                              cp_block_matrix_type,&
@@ -42,20 +41,15 @@ MODULE pao_obj_function
                                              cp_assert,&
                                              cp_assertion_failed,&
                                              cp_debug,&
-                                             cp_error_dealloc_ref,&
                                              cp_error_get_logger,&
                                              cp_error_init,&
                                              cp_error_message,&
-                                             cp_error_type,&
-                                             cp_precondition_failed
+                                             cp_error_type
   USE cp_fm_basic_linalg,              ONLY: cp_fm_gemm,&
                                              cp_fm_symm,&
-                                             cp_fm_trace,&
                                              cp_fm_upper_to_full
   USE cp_fm_diag,                      ONLY: cp_fm_power,&
                                              cp_fm_syevx
-  USE cp_fm_pool_types,                ONLY: cp_fm_pool_p_type,&
-                                             cp_fm_pool_type
   USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
                                              cp_fm_struct_release,&
                                              cp_fm_struct_type
@@ -65,7 +59,6 @@ MODULE pao_obj_function
                                              cp_fm_type
   USE cp_log_handling,                 ONLY: cp_failure_level,&
                                              cp_get_default_logger,&
-                                             cp_log,&
                                              cp_logger_type,&
                                              cp_note_level,&
                                              cp_to_string,&
@@ -90,11 +83,9 @@ MODULE pao_obj_function
   USE message_passing,                 ONLY: mp_sum
   USE pao_glob_angles_methods,         ONLY: pao_g_ang_did_change,&
                                              pao_g_ang_set
-  USE pao_l_angles_methods,            ONLY: cp_get_angle,&
-                                             cp_get_g_index,&
+  USE pao_l_angles_methods,            ONLY: cp_get_g_index,&
                                              cp_set,&
                                              pao_l_ang_dealloc_ref,&
-                                             pao_l_ang_get,&
                                              pao_l_ang_init,&
                                              pao_local_angles_type
   USE pao_proj_methods,                ONLY: cp_m2f_with_B_M_pi,&
@@ -126,6 +117,7 @@ MODULE pao_obj_function
                                              symmetrise_diagonal_blocks
   USE timings,                         ONLY: timeset,&
                                              timestop
+
   IMPLICIT NONE
   PRIVATE
   
@@ -276,26 +268,37 @@ CONTAINS
 !!*** **********************************************************************
   SUBROUTINE pao_gerd_f_create(gf_env,qs_env,global_env, scf_work1,scf_work2,&
        scf_work3, mo_orbital, should_dealloc_mo, error)
-    TYPE(pao_gerd_functional_type), POINTER :: gf_env
-    TYPE(qs_environment_type), INTENT(in), TARGET :: qs_env
-    TYPE(global_environment_type), INTENT(in),TARGET :: global_env
-    TYPE(cp_fm_type), INTENT(in), TARGET :: scf_work1, scf_work2,&
-         scf_work3
-    TYPE(mo_set_p_type), DIMENSION(:), TARGET, INTENT(in),OPTIONAL ::&
-         mo_orbital
-    LOGICAL, INTENT(in), OPTIONAL :: should_dealloc_mo
-    TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
+    TYPE(pao_gerd_functional_type), POINTER  :: gf_env
+    TYPE(qs_environment_type), INTENT(in), &
+      TARGET                                 :: qs_env
+    TYPE(global_environment_type), &
+      INTENT(in), TARGET                     :: global_env
+    TYPE(cp_fm_type), INTENT(in), TARGET     :: scf_work1, scf_work2, &
+                                                scf_work3
+    TYPE(mo_set_p_type), DIMENSION(:), &
+      INTENT(in), OPTIONAL, TARGET           :: mo_orbital
+    LOGICAL, INTENT(in), OPTIONAL            :: should_dealloc_mo
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
 
-    LOGICAL :: failure
-    CHARACTER(len=*), PARAMETER :: routineP='pao_obj_function:pao_gerd_f_create'
-    INTEGER :: ntot_min_bas, ntot_full_bas, i, stat, nelectron, n_atoms
-    TYPE(real_matrix_p_type), DIMENSION(:), POINTER:: full_overlap_m
-    TYPE(real_matrix_type), POINTER :: diagMatrix
-    TYPE(cp_b_matrix_struct_type), POINTER :: min_bas_m_struct, full_bas_m_struct
-    TYPE(pao_env_type), POINTER :: pao_env
-    TYPE(atomic_kind_type), DIMENSION(:), POINTER :: atomic_kind_set
-    TYPE(qs_matrix_pools_type), POINTER :: mpools
-    TYPE(cp_fm_struct_type), POINTER :: fm_struct_tmp
+    CHARACTER(len=*), PARAMETER :: &
+      routineP = 'pao_obj_function:pao_gerd_f_create'
+
+    INTEGER                                  :: i, n_atoms, nelectron, &
+                                                ntot_full_bas, ntot_min_bas, &
+                                                stat
+    LOGICAL                                  :: failure
+    TYPE(atomic_kind_type), DIMENSION(:), &
+      POINTER                                :: atomic_kind_set
+    TYPE(cp_b_matrix_struct_type), POINTER   :: full_bas_m_struct, &
+                                                min_bas_m_struct
+    TYPE(cp_fm_struct_type), POINTER         :: fm_struct_tmp
+    TYPE(pao_env_type), POINTER              :: pao_env
+    TYPE(qs_matrix_pools_type), POINTER      :: mpools
+    TYPE(real_matrix_p_type), DIMENSION(:), &
+      POINTER                                :: full_overlap_m
+    TYPE(real_matrix_type), POINTER          :: diagMatrix
+
     NULLIFY(diagMatrix, min_bas_m_struct, full_bas_m_struct, pao_env,&
          atomic_kind_set,mpools,fm_struct_tmp)
 
@@ -404,12 +407,14 @@ CONTAINS
 !!
 !!*** **********************************************************************
 SUBROUTINE pao_gerd_f_retain(gf_env,error)
-  TYPE(pao_gerd_functional_type), POINTER :: gf_env
-  TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
-  
-  LOGICAL :: failure
-  CHARACTER(len=*), PARAMETER :: routineN='pao_gerd_f_retain',&
-        routineP=moduleN//':'//routineN
+    TYPE(pao_gerd_functional_type), POINTER  :: gf_env
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'pao_gerd_f_retain', &
+      routineP = moduleN//':'//routineN
+
+    LOGICAL                                  :: failure
 
   failure=.FALSE.
   
@@ -451,12 +456,16 @@ END SUBROUTINE pao_gerd_f_retain
 !!
 !!*** **********************************************************************
   SUBROUTINE pao_gerd_f_release(gf_env, error)
-    TYPE(pao_gerd_functional_type), POINTER :: gf_env
-    TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
+    TYPE(pao_gerd_functional_type), POINTER  :: gf_env
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
 
-    LOGICAL :: failure
-    CHARACTER(len=*), PARAMETER :: routineP='pao_obj_function:pao_gerd_f_release'
-    INTEGER :: stat,i
+    CHARACTER(len=*), PARAMETER :: &
+      routineP = 'pao_obj_function:pao_gerd_f_release'
+
+    INTEGER                                  :: i, stat
+    LOGICAL                                  :: failure
+
     failure=.FALSE.
 
     IF (ASSOCIATED(gf_env)) THEN
@@ -521,12 +530,16 @@ END SUBROUTINE pao_gerd_f_retain
 !!
 !!*** **********************************************************************
   FUNCTION pao_gerd_f_valid(gf_env, error) RESULT(res)
-    LOGICAL ::res
-    TYPE(pao_gerd_functional_type), POINTER :: gf_env
-    TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
+    TYPE(pao_gerd_functional_type), POINTER  :: gf_env
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
+    LOGICAL                                  :: res
 
-    LOGICAL :: failure
-    CHARACTER(len=*), PARAMETER :: routineP='pao_obj_function:pao_gerd_f_valid'
+    CHARACTER(len=*), PARAMETER :: &
+      routineP = 'pao_obj_function:pao_gerd_f_valid'
+
+    LOGICAL                                  :: failure
+
     failure=.FALSE.
 
     CPPrecondition(ASSOCIATED(gf_env),cp_failure_level,routineP,error,failure)
@@ -599,42 +612,44 @@ END SUBROUTINE pao_gerd_f_retain
 !!
 !!*** **********************************************************************
   SUBROUTINE pao_gerd_f_eval_at(gf_env,x, master, para_env, f, gradient, error)
-    TYPE(pao_gerd_functional_type), POINTER :: gf_env
-    REAL(KIND = dp), INTENT(in), DIMENSION(:) :: x
-    REAL(KIND = dp), INTENT(out), OPTIONAL :: f
-    REAL(KIND = dp), OPTIONAL, POINTER, DIMENSION(:) :: gradient
-    INTEGER, INTENT(in) :: master
-    TYPE(cp_para_env_type), POINTER :: para_env
-    TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
+    TYPE(pao_gerd_functional_type), POINTER  :: gf_env
+    REAL(KIND=dp), DIMENSION(:), INTENT(in)  :: x
+    INTEGER, INTENT(in)                      :: master
+    TYPE(cp_para_env_type), POINTER          :: para_env
+    REAL(KIND=dp), INTENT(out), OPTIONAL     :: f
+    REAL(KIND=dp), DIMENSION(:), OPTIONAL, &
+      POINTER                                :: gradient
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
 
-    LOGICAL :: failure
-    CHARACTER(len=*), PARAMETER :: routineP='pao_obj_function:pao_gerd_f_eval_at'
-    TYPE(pao_glob_angles_type), POINTER :: angles
-    TYPE(cp_block_matrix_type), POINTER :: h_matrix, s_matrix
-    TYPE(cp_block_matrix_p_type), DIMENSION(:), POINTER :: h_matrixes, &
-         s_matrixes
+    CHARACTER(len=*), PARAMETER :: &
+      routineP = 'pao_obj_function:pao_gerd_f_eval_at'
+
+    INTEGER :: block_col, block_row, excl_bas, full_bas_size, min_bas, &
+      min_bas_size, size_null_space, stat
+    LOGICAL                                  :: failure
+    REAL(KIND=dp), DIMENSION(:), POINTER     :: mo_eigenvalues, &
+                                                mo_occupation_numbers
+    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: block_val, du
+    TYPE(cp_block_matrix_p_type), &
+      DIMENSION(:), POINTER                  :: h_matrixes, min_d_smpv, &
+                                                s_matrixes
+    TYPE(cp_block_matrix_type), POINTER      :: h_matrix, s_matrix
+    TYPE(cp_error_type)                      :: iError
+    TYPE(cp_logger_type), POINTER            :: logger
+    TYPE(cp_matrix_block_iterator)           :: block_iterator
+    TYPE(global_environment_type), POINTER   :: g_env
+    TYPE(pao_calc_u_du_type)                 :: calc_u_du
+    TYPE(pao_env_type), POINTER              :: pao_env
+    TYPE(pao_glob_angles_type), POINTER      :: angles
+    TYPE(pao_local_angles_type)              :: local_angles
+    TYPE(real_matrix_p_type), DIMENSION(:), &
+      POINTER                                :: full_h_rmpv, full_s_rmpv
+    TYPE(real_matrix_type), POINTER          :: diagMatrix, min_density_m
+
 !         full_hamiltonian_m
-    TYPE(cp_error_type) :: iError
-    TYPE(global_environment_type), POINTER :: g_env
-    TYPE(pao_calc_u_du_type) :: calc_u_du
-    TYPE(cp_matrix_block_iterator) :: block_iterator
-    !type(cp_block_matrix_type) :: full_pao_m, min_pao_m
+!type(cp_block_matrix_type) :: full_pao_m, min_pao_m
 
-    TYPE(real_matrix_p_type), DIMENSION(:), POINTER :: full_h_rmpv,full_s_rmpv
-    TYPE(cp_block_matrix_p_type), DIMENSION(:), POINTER :: min_d_smpv
-    TYPE(real_matrix_type), POINTER :: min_density_m
-    TYPE(cp_logger_type), POINTER :: logger
-
-    TYPE(pao_env_type), POINTER :: pao_env
-
-    REAL(KIND = dp), DIMENSION(:), POINTER  :: mo_eigenvalues,&
-                                        mo_occupation_numbers
-    INTEGER :: min_bas_size, full_bas_size, block_row, block_col,&
-         min_bas, excl_bas, stat,size_null_space
-    REAL(KIND = dp) :: f1,f2,f3
-    REAL(KIND = dp), DIMENSION(:,:), POINTER :: du, block_val
-    TYPE(pao_local_angles_type) :: local_angles
-    TYPE(real_matrix_type), POINTER :: diagMatrix
     CALL cp_error_init(iError, template_error=error)
     NULLIFY(diagMatrix, mo_eigenvalues, mo_occupation_numbers,min_density_m,&
          min_d_smpv,full_h_rmpv,full_s_rmpv, h_matrixes, s_matrixes, h_matrix,&
@@ -866,14 +881,15 @@ END SUBROUTINE pao_gerd_f_retain
 
 !   ***************************************************************************
 
-    TYPE(global_environment_type), INTENT(IN) :: globenv
-    TYPE(cp_fm_type), POINTER          :: ortho,work
-    INTEGER, INTENT(OUT)                      :: ndep
+    TYPE(cp_fm_type), POINTER                :: ortho, work
+    INTEGER, INTENT(OUT)                     :: ndep
+    TYPE(global_environment_type), &
+      INTENT(IN)                             :: globenv
 
-!   *** Local variables ***
+    REAL(KIND=dp), PARAMETER                 :: eps_eigval = 1.0E-5_dp, &
+                                                work_syevx = 1.0_dp
 
-    INTEGER :: handle,nao
-    REAL(KIND = dp), PARAMETER :: eps_eigval = 1.0E-5_dp, work_syevx = 1.0_dp
+    INTEGER                                  :: handle
 
 !   ---------------------------------------------------------------------------
 
@@ -895,12 +911,11 @@ END SUBROUTINE pao_gerd_f_retain
 
 !   ***************************************************************************
 
-    TYPE(cp_fm_type), POINTER          :: ks,ortho,work
-    TYPE(global_environment_type), INTENT(IN) :: globenv
+    TYPE(cp_fm_type), POINTER                :: ortho, ks, work
+    TYPE(global_environment_type), &
+      INTENT(IN)                             :: globenv
 
-!   *** Local variables ***
-
-    INTEGER :: handle,nao
+    INTEGER                                  :: handle, nao
 
 !   ---------------------------------------------------------------------------
 
@@ -925,19 +940,20 @@ END SUBROUTINE pao_gerd_f_retain
 
 !   ***************************************************************************
 
-    TYPE(cp_fm_type), POINTER          :: ks,ortho,work
-    TYPE(global_environment_type), INTENT(IN) :: globenv
-    TYPE(mo_set_type), POINTER                :: mo_set
+    TYPE(cp_fm_type), POINTER                :: ks
+    TYPE(mo_set_type), POINTER               :: mo_set
+    TYPE(cp_fm_type), POINTER                :: ortho, work
+    TYPE(global_environment_type), &
+      INTENT(IN)                             :: globenv
 
-!   *** Local variables ***
+    CHARACTER(len=*), PARAMETER :: routineN = "eigensolver", &
+      routineP = moduleN//':'//routineN
 
-    INTEGER :: handle,imo,nao,nmo
-    INTEGER, SAVE :: iter=0
+    INTEGER                                  :: handle, nao, nmo
+    INTEGER, SAVE                            :: iter = 0
+    REAL(KIND=dp), DIMENSION(:), POINTER     :: mo_eigenvalues
+    TYPE(cp_fm_type), POINTER                :: mo_eigenvectors
 
-    TYPE(cp_fm_type), POINTER :: mo_eigenvectors
-    REAL(KIND = dp), DIMENSION(:), POINTER  :: mo_eigenvalues
-    CHARACTER(len=*), PARAMETER :: routineN="eigensolver",&
-         routineP=moduleN//':'//routineN
 !   ---------------------------------------------------------------------------
 
     CALL timeset("eigensolver","I","",handle)
@@ -995,19 +1011,26 @@ END SUBROUTINE pao_gerd_f_retain
 !!
 !!*** **********************************************************************
 SUBROUTINE cp_l_multiply_atomic_ortho(matrix,qs_env,global_env,error)
-  TYPE(real_matrix_type), POINTER :: matrix
-  ! pao_env might be modified
-  TYPE(qs_environment_type), INTENT(in), TARGET :: qs_env
-  TYPE(global_environment_type), INTENT(in), TARGET :: global_env
-  TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
-  
-  LOGICAL :: failure
-  CHARACTER(len=*), PARAMETER :: routineN='cp_l_multiply_atomic_ortho',&
-        routineP=moduleN//':'//routineN
-  INTEGER :: block_row, stat, max_full_bas
-  REAL(KIND = dp), DIMENSION(:,:), POINTER :: block_val, a_ortho
-  REAL(KIND = dp), DIMENSION(:,:), ALLOCATABLE :: t1_m
-  TYPE(cp_matrix_block_iterator) :: iterator
+    TYPE(real_matrix_type), POINTER          :: matrix
+    TYPE(qs_environment_type), INTENT(in), &
+      TARGET                                 :: qs_env
+    TYPE(global_environment_type), &
+      INTENT(in), TARGET                     :: global_env
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'cp_l_multiply_atomic_ortho', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: block_row, max_full_bas, stat
+    LOGICAL                                  :: failure
+    REAL(KIND=dp), ALLOCATABLE, &
+      DIMENSION(:, :)                        :: t1_m
+    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: a_ortho, block_val
+    TYPE(cp_matrix_block_iterator)           :: iterator
+
+! pao_env might be modified
+
   failure=.FALSE.
   NULLIFY(block_val,a_ortho)
   
@@ -1097,26 +1120,27 @@ END SUBROUTINE cp_l_multiply_atomic_ortho
 !!*** **********************************************************************
   SUBROUTINE add_blacs_to_block_diag_sm(source_m, target_m, &
        d_struct, error)
-    TYPE(cp_fm_type), POINTER :: source_m
-    TYPE(real_matrix_type), INTENT(inout), TARGET :: target_m
-    INTEGER, DIMENSION(:), POINTER, OPTIONAL :: d_struct
-    TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
+    TYPE(cp_fm_type), POINTER                :: source_m
+    TYPE(real_matrix_type), INTENT(inout), &
+      TARGET                                 :: target_m
+    INTEGER, DIMENSION(:), OPTIONAL, POINTER :: d_struct
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
 
-    LOGICAL :: failure
-    INTEGER :: handle, i, nrows, ncols, stat, j
-    INTEGER, DIMENSION(:), POINTER :: my_d_struct, first_col,first_row,&
-         last_col, last_row
-    INTEGER :: start_proc_row,start_proc_col,n_blacs_proc, sm_block_proc,&
-         nprow,npcol,myprow,mypcol,b_block_row_start,b_block_row_stop,&
-         b_block_col_start,b_block_col_stop,sm_block_nr,b_block_row,&
-         b_block_col, start_row_of_b, end_row_of_b, start_row_of_sm,&
-         end_row_of_sm, start_col_of_b, end_col_of_b, start_col_of_sm,&
-         end_col_of_sm,nblock_col
-    CHARACTER(len=*), PARAMETER :: routineN='add_blacs_to_block_diag_sm',&
-         routineP=moduleN//':'//routineN
-    TYPE(real_matrix_type), POINTER :: target_ptr
-    TYPE(cp_matrix_block_iterator) :: iterator
-    REAL(KIND = dp), DIMENSION(:,:), POINTER :: block_val
+    CHARACTER(len=*), PARAMETER :: routineN = 'add_blacs_to_block_diag_sm', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: handle, i, j, nblock_col, &
+                                                ncols, nrows, sm_block_nr, &
+                                                stat
+    INTEGER, DIMENSION(:), POINTER           :: first_col, first_row, &
+                                                last_col, last_row, &
+                                                my_d_struct
+    LOGICAL                                  :: failure
+    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: block_val
+    TYPE(cp_matrix_block_iterator)           :: iterator
+    TYPE(real_matrix_type), POINTER          :: target_ptr
+
     failure=.FALSE.
     target_ptr => target_m
     NULLIFY(my_d_struct)

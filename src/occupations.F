@@ -21,13 +21,15 @@
 
 MODULE occupations
 
-  USE erf_fn, ONLY : erfc  
-  USE kinds, ONLY : dbl
-  USE mathconstants, ONLY : pi
-  USE termination, ONLY : stop_program
-  USE wf_types, ONLY : wf_type, wf_spinset_type, wf_kset_type
-  USE dft_types, ONLY : dft_control_type
-  USE kpoints, ONLY : kset
+  USE dft_types,                       ONLY: dft_control_type
+  USE erf_fn,                          ONLY: erfc
+  USE kinds,                           ONLY: dbl
+  USE kpoints,                         ONLY: kset
+  USE mathconstants,                   ONLY: pi
+  USE termination,                     ONLY: stop_program
+  USE wf_types,                        ONLY: wf_kset_type,&
+                                             wf_spinset_type,&
+                                             wf_type
 
   IMPLICIT NONE
   
@@ -46,24 +48,21 @@ CONTAINS
 SUBROUTINE occupations_assign ( efermi, broadening_method, mp_order, &
      eigenvalue, occupation, occupation_sum, entropy, ekt, cold_a )
   
-! Arguments
-  REAL ( dbl ), INTENT ( IN ) :: efermi
-  REAL ( dbl ), INTENT ( IN ) :: ekt
-  REAL ( dbl ), INTENT ( IN ) :: cold_a
-  CHARACTER ( LEN = * ), INTENT ( IN ) :: broadening_method
-  INTEGER, INTENT ( IN ) :: mp_order
-  REAL ( dbl ), DIMENSION ( : ), INTENT ( IN ) :: eigenvalue
-  REAL ( dbl ), DIMENSION ( : ), INTENT ( OUT ), OPTIONAL :: occupation
-  REAL ( dbl ), INTENT ( OUT ), OPTIONAL :: entropy
-  REAL ( dbl ), INTENT ( OUT ), OPTIONAL :: occupation_sum
-  
-! Locals
-  INTEGER :: st, order
-  REAL ( dbl ) :: x, h, AN, SN, S0, HN, HNm1
-  REAL ( dbl ) :: pp, qq, entr, entr_mp, occ
-  
+    REAL(dbl), INTENT(IN)                    :: efermi
+    CHARACTER(LEN=*), INTENT(IN)             :: broadening_method
+    INTEGER, INTENT(IN)                      :: mp_order
+    REAL(dbl), DIMENSION(:), INTENT(IN)      :: eigenvalue
+    REAL(dbl), DIMENSION(:), INTENT(OUT), &
+      OPTIONAL                               :: occupation
+    REAL(dbl), INTENT(OUT), OPTIONAL         :: occupation_sum, entropy
+    REAL(dbl), INTENT(IN)                    :: ekt, cold_a
+
+    INTEGER                                  :: order, st
+    REAL(dbl)                                :: AN, entr, entr_mp, HN, HNm1, &
+                                                occ, pp, qq, S0, SN, x
+
 !------------------------------------------------------------------------------
-  
+
   IF ( PRESENT ( entropy ) ) entropy = 0.0_dbl
   IF ( PRESENT ( occupation ) ) occupation ( : ) = 0.0_dbl
   IF ( PRESENT ( occupation_sum ) ) occupation_sum = 0.0_dbl
@@ -136,23 +135,21 @@ END SUBROUTINE occupations_assign
 
 FUNCTION occupations_fsum_spin ( psi_s, efermi ) RESULT ( nelectrons_integrated )
   
-  IMPLICIT NONE
   
-! Arguments
-  TYPE ( wf_spinset_type ), INTENT ( IN ), TARGET :: psi_s
-  REAL ( dbl ), INTENT ( IN ) :: efermi
-  
-  REAL ( dbl ) :: nelectrons_integrated
-  
-! Local
-  INTEGER :: kpt, nkpts, spin, nspins
-  TYPE ( wf_kset_type ), POINTER :: psi_ks
-  REAL ( dbl ) :: occupation_sum
-  REAL ( dbl ) :: ekt = 0.1_dbl !TMPTMPTMP
-  REAL ( dbl ) :: cold_a = 0.0_dbl !TMPTMPTMP
-  
+    TYPE(wf_spinset_type), INTENT(IN), &
+      TARGET                                 :: psi_s
+    REAL(dbl), INTENT(IN)                    :: efermi
+    REAL(dbl)                                :: nelectrons_integrated
+
+    INTEGER                                  :: kpt, nkpts
+    REAL(dbl)                                :: cold_a = 0.0_dbl , &
+                                                ekt = 0.1_dbl , occupation_sum
+    TYPE(wf_kset_type), POINTER              :: psi_ks
+
+!TMPTMPTMP
+!TMPTMPTMP
 !------------------------------------------------------------------------------
-  
+
   nelectrons_integrated = 0
   
   nkpts = SIZE ( psi_s % psi_ks )
@@ -172,23 +169,24 @@ END FUNCTION occupations_fsum_spin
 !******************************************************************************
 
 SUBROUTINE occupations_set ( psi, efermi, dft_control )
-  IMPLICIT NONE
   
-! Arguments
-  TYPE ( wf_type ), DIMENSION ( : ), INTENT ( INOUT ) :: psi
-  TYPE ( dft_control_type ), INTENT ( IN ) :: dft_control
-  REAL ( dbl ), INTENT ( INOUT ) :: efermi
-  
-! Locals
-  INTEGER :: kpt, nkpts, spin, nspins, wfset, nwfsets
-  REAL ( dbl ) :: efermi_min, efermi_max, nelcs_occupied, delta
-  TYPE ( wf_kset_type ), POINTER :: psi_ks
-  TYPE ( wf_spinset_type ), POINTER :: psi_s
-  REAL ( dbl ) :: ekt = 0.1_dbl !TMPTMPTMP
-  REAL ( dbl ) :: cold_a = 0.0_dbl !TMPTMPTMP
-  
+    TYPE(wf_type), DIMENSION(:), &
+      INTENT(INOUT)                          :: psi
+    REAL(dbl), INTENT(INOUT)                 :: efermi
+    TYPE(dft_control_type), INTENT(IN)       :: dft_control
+
+    INTEGER                                  :: kpt, nkpts, nspins, nwfsets, &
+                                                spin, wfset
+    REAL(dbl)                                :: cold_a = 0.0_dbl , delta, &
+                                                efermi_max, efermi_min, &
+                                                ekt = 0.1_dbl , nelcs_occupied
+    TYPE(wf_kset_type), POINTER              :: psi_ks
+    TYPE(wf_spinset_type), POINTER           :: psi_s
+
+!TMPTMPTMP
+!TMPTMPTMP
 !------------------------------------------------------------------------------
-  
+
   efermi_max = efermi + 0.2_dbl
   
   DO
@@ -281,24 +279,23 @@ END SUBROUTINE occupations_set
 !******************************************************************************
 
 SUBROUTINE occupations_fsm_set ( psi, efermi, dft_control )
-  IMPLICIT NONE
   
-! Arguments
-  TYPE ( wf_type ), DIMENSION ( : ), INTENT ( INOUT ) :: psi
-  TYPE ( dft_control_type ), INTENT ( IN ) :: dft_control
-  REAL ( dbl ), DIMENSION ( : ), INTENT ( INOUT ) :: efermi
-  
-! Locals
-  INTEGER :: kpt, nkpts, spin, nspins, wfset, nwfsets
-  REAL ( dbl ) :: efermi_min, efermi_max, nelcs_occupied, delta
-  REAL ( dbl ) :: nelcs_wanted
-  TYPE ( wf_kset_type ), POINTER :: psi_ks
-  TYPE ( wf_spinset_type ), POINTER :: psi_s
-  REAL ( dbl ) :: ekt = 0.1_dbl !TMPTMPTMP
-  REAL ( dbl ) :: cold_a = 0.0_dbl !TMPTMPTMP
-  
+    TYPE(wf_type), DIMENSION(:), &
+      INTENT(INOUT)                          :: psi
+    REAL(dbl), DIMENSION(:), INTENT(INOUT)   :: efermi
+    TYPE(dft_control_type), INTENT(IN)       :: dft_control
+
+    INTEGER                                  :: kpt, nkpts, nspins, nwfsets, &
+                                                spin, wfset
+    REAL(dbl) :: cold_a = 0.0_dbl , delta, efermi_max, efermi_min, &
+      ekt = 0.1_dbl , nelcs_occupied, nelcs_wanted
+    TYPE(wf_kset_type), POINTER              :: psi_ks
+    TYPE(wf_spinset_type), POINTER           :: psi_s
+
+!TMPTMPTMP
+!TMPTMPTMP
 !------------------------------------------------------------------------------
-  
+
   IF ( SIZE ( psi ( 1 ) % psi_s ) /= 2 ) THEN
      CALL stop_program ( "occupations_fsm_set", &
           "fixed spin moment works only with nspins == 2" )
@@ -387,14 +384,17 @@ END SUBROUTINE occupations_fsm_set
 ! eigenvalues do not have to be sorted
 ! routine adapted from CPMD
 !
-        IMPLICIT NONE
-        TYPE (band_structure_type), INTENT (INOUT) :: bs
-        REAL (dbl) :: amu, amu1, amu2, damu, sdeg
-        REAL (dbl) :: rhint, rhint1, rhint2, precision
-        INTEGER, PARAMETER :: it_max = 200
-        INTEGER :: nk, it
+    TYPE(band_structure_type), INTENT(INOUT) :: bs
+
+    INTEGER, PARAMETER                       :: it_max = 200
+
+    INTEGER                                  :: it
+    REAL(dbl)                                :: amu, amu1, amu2, damu, &
+                                                precision, rhint, rhint1, &
+                                                rhint2
 
 !
+
         precision = precpar*log(float(bs%fd%nel+1))
 !..min and max eigenvalue
         amu1 = minval(bs%ev)
@@ -442,12 +442,14 @@ END SUBROUTINE occupations_fsm_set
       END SUBROUTINE adjust_mu
 !------------------------------------------------------------------------------!
       FUNCTION rhoint(bs,mu)
-        IMPLICIT NONE
-        TYPE (band_structure_type), INTENT (IN) :: bs
-        REAL (dbl), INTENT (IN) :: mu
-        REAL (dbl) :: rhoint, xlm, arg, argmin, argmax, sdeg, remain
-        REAL (dbl) :: dramu, drwe, wbigwe
-        INTEGER :: is, ik, i, n
+    TYPE(band_structure_type), INTENT(IN)    :: bs
+    REAL(dbl), INTENT(IN)                    :: mu
+    REAL(dbl)                                :: rhoint
+
+    INTEGER                                  :: i, ik, is, n
+    REAL(dbl)                                :: arg, argmax, argmin, dramu, &
+                                                drwe, remain, sdeg, wbigwe, &
+                                                xlm
 
         argmin = log(toll)
         argmax = -argmin
@@ -502,11 +504,12 @@ END SUBROUTINE occupations_fsm_set
       END FUNCTION rhoint
 !------------------------------------------------------------------------------!
       SUBROUTINE occupation(bs)
-        IMPLICIT NONE
-        TYPE (band_structure_type), INTENT (INOUT) :: bs
-        REAL (dbl) :: xlm, arg, argmin, argmax, sdeg
-        REAL (dbl) :: dramu, drwe, wbigwe, remain, rhotot
-        INTEGER :: is, ik, i, n
+    TYPE(band_structure_type), INTENT(INOUT) :: bs
+
+    INTEGER                                  :: i, ik, is, n
+    REAL(dbl)                                :: arg, argmax, argmin, dramu, &
+                                                drwe, remain, rhotot, sdeg, &
+                                                wbigwe, xlm
 
         argmin = log(toll)
         argmax = -argmin
@@ -560,9 +563,8 @@ END SUBROUTINE occupations_fsm_set
       END SUBROUTINE occupation
 !------------------------------------------------------------------------------!
       FUNCTION dround(a,delta)
-        IMPLICIT NONE
-        REAL (dbl), INTENT (IN) :: a, delta
-        REAL (dbl) :: dround
+    REAL(dbl), INTENT(IN)                    :: a, delta
+    REAL(dbl)                                :: dround
 
         dround = a - mod(a,delta)
       END FUNCTION dround

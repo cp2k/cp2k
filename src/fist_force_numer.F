@@ -20,28 +20,37 @@
 !******************************************************************************
 
 MODULE fist_force_numer
-  USE atomic_kind_types, ONLY : atomic_kind_type, get_atomic_kind
-  USE dg_types, ONLY : dg_type
-  USE ewald_parameters_types, ONLY : ewald_parameters_type
-  USE kinds, ONLY : dbl, dp_size
-  USE mathconstants, ONLY : pi
-  USE molecule_types, ONLY : molecule_structure_type, linklist_bonds, &
-       linklist_bends, linklist_torsions, linklist_exclusion, particle_node_type
-  USE mol_force, ONLY : force_bonds, force_bends, force_torsions
-  USE particle_types, ONLY : particle_type
-  USE pair_potential_types, ONLY : pair_potential_type
-  USE pair_potential, ONLY : potential_f
-  USE pme, ONLY : pme_evaluate
-  USE pw_grid_types, ONLY : pw_grid_type
-  USE pw_grids, ONLY : pw_find_cutoff, pw_grid_setup, &
-                       pw_grid_construct, pw_grid_destruct
-  USE simulation_cell,          ONLY: cell_type,&
-                                      get_cell,&
-                                      pbc,&
-                                      real_to_scaled,&
-                                      scaled_to_real,&
-                                      get_hinv
-  USE termination, ONLY : stop_memory
+  USE atomic_kind_types,               ONLY: atomic_kind_type,&
+                                             get_atomic_kind
+  USE dg_types,                        ONLY: dg_type
+  USE ewald_parameters_types,          ONLY: ewald_parameters_type
+  USE kinds,                           ONLY: dbl,&
+                                             dp_size
+  USE mol_force,                       ONLY: force_bends,&
+                                             force_bonds,&
+                                             force_torsions
+  USE molecule_types,                  ONLY: linklist_bends,&
+                                             linklist_bonds,&
+                                             linklist_exclusion,&
+                                             linklist_torsions,&
+                                             molecule_structure_type,&
+                                             particle_node_type
+  USE pair_potential,                  ONLY: potential_f
+  USE pair_potential_types,            ONLY: pair_potential_type
+  USE particle_types,                  ONLY: particle_type
+  USE pme,                             ONLY: pme_evaluate
+  USE pw_grid_types,                   ONLY: pw_grid_type
+  USE pw_grids,                        ONLY: pw_find_cutoff,&
+                                             pw_grid_construct,&
+                                             pw_grid_destruct,&
+                                             pw_grid_setup
+  USE simulation_cell,                 ONLY: cell_type,&
+                                             get_cell,&
+                                             get_hinv,&
+                                             pbc,&
+                                             real_to_scaled,&
+                                             scaled_to_real
+  USE termination,                     ONLY: stop_memory
 
   TYPE pbc_coord_type
     REAL(dbl), DIMENSION(:,:), POINTER :: r,s
@@ -80,24 +89,23 @@ CONTAINS
 SUBROUTINE force_bond_numer ( molecule, f_bond_numer, pot_bond, &
      numerical_shift )
 
-  IMPLICIT NONE
 
-! Arguments
-  TYPE ( molecule_structure_type ), DIMENSION ( : ), INTENT ( IN ) :: molecule
-  REAL ( dbl ), DIMENSION ( :, : ), INTENT ( OUT ) :: f_bond_numer
-  REAL ( dbl ), INTENT ( OUT ) :: pot_bond
-  REAL ( dbl ), INTENT ( IN ) :: numerical_shift
+    TYPE(molecule_structure_type), &
+      DIMENSION(:), INTENT(IN)               :: molecule
+    REAL(dbl), DIMENSION(:, :), INTENT(OUT)  :: f_bond_numer
+    REAL(dbl), INTENT(OUT)                   :: pot_bond
+    REAL(dbl), INTENT(IN)                    :: numerical_shift
 
-! Locals
-  TYPE ( linklist_bonds ), POINTER :: llbond
-  INTEGER :: imol, ibond, idim, atom1, atom2
-  REAL ( dbl ), DIMENSION (3) :: rij, rij_minus_delta, rij_plus_delta
-  REAL ( dbl ) :: e0, ep, em, fscalar
-  REAL ( dbl ), DIMENSION (3) :: delta
+    INTEGER                                  :: atom1, atom2, ibond, idim, &
+                                                imol
+    REAL(dbl)                                :: e0, em, ep, fscalar
+    REAL(dbl), DIMENSION(3)                  :: delta, rij, rij_minus_delta, &
+                                                rij_plus_delta
+    TYPE(linklist_bonds), POINTER            :: llbond
 
 !------------------------------------------------------------------------------
-
 ! initializing the forces
+
   f_bond_numer = 0.0_dbl
   pot_bond = 0.0_dbl
   MOL: DO imol = 1, SIZE ( molecule )
@@ -158,29 +166,29 @@ END SUBROUTINE force_bond_numer
 SUBROUTINE force_bend_numer ( molecule, f_bend_numer, pot_bend, &
      numerical_shift )
 
-  IMPLICIT NONE
 
-! Arguments
-  TYPE ( molecule_structure_type ), DIMENSION ( : ), INTENT ( IN ) :: molecule
-  REAL ( dbl ), DIMENSION ( :, : ), INTENT ( OUT ) :: f_bend_numer
-  REAL ( dbl ), INTENT ( OUT ) :: pot_bend
-  REAL ( dbl ), INTENT ( IN ) :: numerical_shift
+    TYPE(molecule_structure_type), &
+      DIMENSION(:), INTENT(IN)               :: molecule
+    REAL(dbl), DIMENSION(:, :), INTENT(OUT)  :: f_bend_numer
+    REAL(dbl), INTENT(OUT)                   :: pot_bend
+    REAL(dbl), INTENT(IN)                    :: numerical_shift
 
-! Locals
-  TYPE ( linklist_bends ), POINTER :: llbend
-  INTEGER :: idim, imol, ibend, atom1, atom2, atom3
-  REAL ( dbl ) :: d12, d12p, d12m, id12, id12p, id12m
-  REAL ( dbl ) :: d32, d32p, d32m, id32, id32p, id32m
-  REAL ( dbl ) :: dist, theta
-  REAL ( dbl ) :: em, ep, e0, fscalar
-  REAL ( dbl ), DIMENSION (3) :: g1, g2, g3
-  REAL ( dbl ), DIMENSION (3) :: b12, b12_plus_delta, b12_minus_delta
-  REAL ( dbl ), DIMENSION (3) :: b32, b32_plus_delta, b32_minus_delta
-  REAL ( dbl ), DIMENSION (3) :: delta
+    INTEGER                                  :: atom1, atom2, atom3, ibend, &
+                                                idim, imol
+    REAL(dbl)                                :: d12, d12m, d12p, d32, d32m, &
+                                                d32p, dist, e0, em, ep, &
+                                                fscalar, id12, id12m, id12p, &
+                                                id32, id32m, id32p, theta
+    REAL(dbl), DIMENSION(3)                  :: b12, b12_minus_delta, &
+                                                b12_plus_delta, b32, &
+                                                b32_minus_delta, &
+                                                b32_plus_delta, delta, g1, &
+                                                g2, g3
+    TYPE(linklist_bends), POINTER            :: llbend
 
 !------------------------------------------------------------------------------
-
 ! initializing the forces
+
   f_bend_numer = 0.0_dbl
   pot_bend = 0.0_dbl
   MOL: DO imol = 1, SIZE ( molecule )
@@ -285,32 +293,26 @@ END SUBROUTINE force_bend_numer
 SUBROUTINE force_torsion_numer ( molecule, f_torsion_numer, pot_torsion, &
      numerical_shift )
 
-  IMPLICIT NONE
 
-! Arguments
-  TYPE ( molecule_structure_type ), DIMENSION ( : ), INTENT ( IN ) :: molecule
-  REAL ( dbl ), DIMENSION ( :, : ), INTENT ( OUT ) :: f_torsion_numer
-  REAL ( dbl ), INTENT ( OUT ) :: pot_torsion
-  REAL ( dbl ), INTENT ( IN ) :: numerical_shift
+    TYPE(molecule_structure_type), &
+      DIMENSION(:), INTENT(IN)               :: molecule
+    REAL(dbl), DIMENSION(:, :), INTENT(OUT)  :: f_torsion_numer
+    REAL(dbl), INTENT(OUT)                   :: pot_torsion
+    REAL(dbl), INTENT(IN)                    :: numerical_shift
 
-! Locals
-  TYPE ( linklist_torsions ), POINTER :: lltorsion
-  INTEGER :: idim, imol, itorsion, atom1, atom2, atom3, atom4
-  REAL ( dbl ) :: s32, s32m, s32p, is32, is32m, is32p
-  REAL ( dbl ) :: w1, w1m, w1p, iw1, iw1m, iw1p
-  REAL ( dbl ) :: w2, w2m, w2p, iw2, iw2m, iw2p
-  REAL ( dbl ) :: dist1, dist2, dist1m, dist2m, dist1p, dist2p
-  REAL ( dbl ) :: e0, em, ep, fscalar
-  REAL ( dbl ), DIMENSION (3) :: t12, t12_minus_delta, t12_plus_delta
-  REAL ( dbl ), DIMENSION (3) :: t32, t32_minus_delta, t32_plus_delta
-  REAL ( dbl ), DIMENSION (3) :: t43, t43_minus_delta, t43_plus_delta
-  REAL ( dbl ), DIMENSION (3) :: u1, u2, u1m, u2m, u1p, u2p
-  REAL ( dbl ), DIMENSION (3) :: gt1, gt2, gt3, gt4
-  REAL ( dbl ), DIMENSION (3) :: delta
+    INTEGER                                  :: atom1, atom2, atom3, atom4, &
+                                                idim, imol, itorsion
+    REAL(dbl) :: dist1, dist1m, dist1p, dist2, dist2m, dist2p, e0, em, ep, &
+      fscalar, is32, is32m, is32p, iw1, iw1m, iw1p, iw2, iw2m, iw2p, s32, &
+      s32m, s32p, w1, w1m, w1p, w2, w2m, w2p
+    REAL(dbl), DIMENSION(3) :: delta, gt1, gt2, gt3, gt4, t12, &
+      t12_minus_delta, t12_plus_delta, t32, t32_minus_delta, t32_plus_delta, &
+      t43, t43_minus_delta, t43_plus_delta, u1, u1m, u1p, u2, u2m, u2p
+    TYPE(linklist_torsions), POINTER         :: lltorsion
 
 !------------------------------------------------------------------------------
-
 ! initializing the forces
+
   f_torsion_numer = 0.0_dbl
   pot_torsion = 0.0_dbl
   MOL: DO imol = 1, SIZE ( molecule )
@@ -476,36 +478,34 @@ END SUBROUTINE force_torsion_numer
 SUBROUTINE force_nonbond_numer ( box, ewald_param, part, pnode, potparm,  &
                                  numerical_shift, f_numer, energy_numer )
 
- IMPLICIT NONE
 
-! Arguments
- TYPE ( cell_type ), POINTER :: box
- TYPE ( ewald_parameters_type ), INTENT ( IN ) :: ewald_param
- TYPE ( particle_node_type ), DIMENSION ( : ), INTENT ( IN ) :: pnode
- TYPE ( particle_type ), DIMENSION ( : ), INTENT ( IN ) :: part
- TYPE ( pair_potential_type ), DIMENSION ( :, : ), INTENT ( IN ) :: potparm
- REAL ( dbl ), INTENT ( OUT ), DIMENSION ( :, : ) :: f_numer
- REAL ( dbl ), INTENT ( OUT ) :: energy_numer
- REAL ( dbl ), INTENT ( IN ) :: numerical_shift
+    TYPE(cell_type), POINTER                 :: box
+    TYPE(ewald_parameters_type), INTENT(IN)  :: ewald_param
+    TYPE(particle_type), DIMENSION(:), &
+      INTENT(IN)                             :: part
+    TYPE(particle_node_type), DIMENSION(:), &
+      INTENT(IN)                             :: pnode
+    TYPE(pair_potential_type), &
+      DIMENSION(:, :), INTENT(IN)            :: potparm
+    REAL(dbl), INTENT(IN)                    :: numerical_shift
+    REAL(dbl), DIMENSION(:, :), INTENT(OUT)  :: f_numer
+    REAL(dbl), INTENT(OUT)                   :: energy_numer
 
-! Locals
- CHARACTER(LEN=*), PARAMETER :: routine_name = "force_nonbond_numer"
- CHARACTER(LEN=*), PARAMETER :: module_name = "fist_force_numer"
- CHARACTER(LEN=*), PARAMETER :: routine =&
-   "SUBROUTINE "//routine_name//" (MODULE "//module_name//")"
+    CHARACTER(LEN=*), PARAMETER :: module_name = "fist_force_numer", &
+      routine_name = "force_nonbond_numer", &
+      routine = "SUBROUTINE "//routine_name//" (MODULE "//module_name//")"
 
- INTEGER :: ikind, jkind, id, inode, jnode, nnode, atom_a, atom_b
- INTEGER :: icell,jcell,kcell,ncell ( 3 ), periodic ( 3 ), cell_b ( 3 )
- INTEGER :: iexclude, istat, nexcl, natoms
- REAL ( dbl ) :: energy, fscalar, rab2, rab_max, rab2_max
- REAL ( dbl ), DIMENSION ( 3 ) :: sab_max, ra_pbc, sb, sb_pbc, rb, r, rab  
- REAL ( dbl ) :: rij_minus_delta_sq, rij_plus_delta_sq
- REAL ( dbl ), DIMENSION (3) :: delta
- REAL ( dbl ) :: energy_plus, energy_minus, qa, qb
- TYPE ( linklist_exclusion ), POINTER :: ll_exclude
- TYPE ( pbc_coord_type ) ::  pbc_coord
- TYPE ( atomic_kind_type ), POINTER :: atomic_kind
- LOGICAL :: match
+    INTEGER :: atom_a, atom_b, cell_b( 3 ), icell, id, iexclude, ikind, &
+      inode, istat, jcell, jkind, jnode, kcell, natoms, ncell( 3 ), nexcl, &
+      nnode, periodic( 3 )
+    LOGICAL                                  :: match
+    REAL(dbl) :: energy, energy_minus, energy_plus, qa, qb, rab2, rab2_max, &
+      rab_max, rij_minus_delta_sq, rij_plus_delta_sq
+    REAL(dbl), DIMENSION(3)                  :: delta, r, ra_pbc, rab, rb, &
+                                                sab_max, sb, sb_pbc
+    TYPE(atomic_kind_type), POINTER          :: atomic_kind
+    TYPE(linklist_exclusion), POINTER        :: ll_exclude
+    TYPE(pbc_coord_type)                     :: pbc_coord
 
 !------------------------------------------------------------------------------
 
@@ -649,27 +649,26 @@ END SUBROUTINE force_nonbond_numer
 SUBROUTINE ewald_force_numer ( ewald_param, pnode, box, pw_grid,  &
                                numerical_shift, f_numer )
 
-  IMPLICIT NONE
 
-! Arguments
-  TYPE ( cell_type ), INTENT ( IN ) :: box
-  TYPE ( ewald_parameters_type ), INTENT ( IN ) :: ewald_param
-  TYPE ( particle_node_type ), DIMENSION ( : ), INTENT ( IN ) :: pnode
-  TYPE ( pw_grid_type ), INTENT ( IN ) :: pw_grid
-  REAL ( dbl ), INTENT ( IN ) :: numerical_shift
-  REAL ( dbl ), DIMENSION ( :, : ), INTENT ( INOUT ) :: f_numer
+    TYPE(ewald_parameters_type), INTENT(IN)  :: ewald_param
+    TYPE(particle_node_type), DIMENSION(:), &
+      INTENT(IN)                             :: pnode
+    TYPE(cell_type), INTENT(IN)              :: box
+    TYPE(pw_grid_type), INTENT(IN)           :: pw_grid
+    REAL(dbl), INTENT(IN)                    :: numerical_shift
+    REAL(dbl), DIMENSION(:, :), &
+      INTENT(INOUT)                          :: f_numer
 
-! Locals
-  COMPLEX ( dbl ), ALLOCATABLE, DIMENSION ( : ) :: sum_igr
-  REAL ( dbl ), ALLOCATABLE, DIMENSION ( : ) :: gauss
-  REAL ( dbl ), ALLOCATABLE, DIMENSION ( : ) :: r_delta
-  REAL ( dbl ) :: alpha, epsilon0, ep, em, charge
-  INTEGER :: gpt, i, idim, natoms, ngtot, isos, lp, mp, np
-  TYPE ( atomic_kind_type ), POINTER :: atomic_kind
+    COMPLEX(dbl), ALLOCATABLE, DIMENSION(:)  :: sum_igr
+    INTEGER                                  :: i, idim, isos, natoms, ngtot
+    REAL(dbl)                                :: alpha, charge, em, ep, &
+                                                epsilon0
+    REAL(dbl), ALLOCATABLE, DIMENSION(:)     :: gauss, r_delta
+    TYPE(atomic_kind_type), POINTER          :: atomic_kind
 
 !------------------------------------------------------------------------------
-
 ! allocating
+
   ngtot = pw_grid % ngpts_cut
   ALLOCATE (sum_igr(ngtot),STAT=isos)
   IF ( isos /= 0 ) CALL stop_memory ( 'ewald_force_numer', 'sum_igr', ngtot )
@@ -737,25 +736,24 @@ END SUBROUTINE ewald_force_numer
 
 SUBROUTINE pv_bond_numer ( molecule, pv_test, box, pnode, delta )
 
-  IMPLICIT NONE
 
-! Arguments
-  TYPE ( molecule_structure_type ), DIMENSION ( : ), INTENT ( IN ) :: molecule
-  TYPE ( particle_node_type ), DIMENSION ( : ), INTENT ( IN ) :: pnode
-  TYPE ( cell_type ), INTENT ( IN ) :: box
-  REAL ( dbl ), DIMENSION ( :, : ), INTENT ( OUT ) :: pv_test
-  REAL ( dbl ), INTENT ( IN ) :: delta
+    TYPE(molecule_structure_type), &
+      DIMENSION(:), INTENT(IN)               :: molecule
+    REAL(dbl), DIMENSION(:, :), INTENT(OUT)  :: pv_test
+    TYPE(cell_type), INTENT(IN)              :: box
+    TYPE(particle_node_type), DIMENSION(:), &
+      INTENT(IN)                             :: pnode
+    REAL(dbl), INTENT(IN)                    :: delta
 
-! Locals
-  TYPE ( cell_type ) :: box_local
-  REAL ( dbl ), DIMENSION ( :, : ), ALLOCATABLE :: x, s
-  REAL ( dbl ), DIMENSION ( 3, 3 ) :: dvdh
-  REAL ( dbl ) :: idelta, vm, vp, vnb
-  INTEGER :: i, j, k, ii, jj, natoms, isos
+    INTEGER                                  :: i, ii, isos, j, jj, k, natoms
+    REAL(dbl)                                :: idelta, vm, vp
+    REAL(dbl), ALLOCATABLE, DIMENSION(:, :)  :: s, x
+    REAL(dbl), DIMENSION(3, 3)               :: dvdh
+    TYPE(cell_type)                          :: box_local
 
 !------------------------------------------------------------------------------
-
 ! assigning the local variables
+
   natoms = size(pnode)
   ALLOCATE (x(3,natoms),STAT=isos)
   IF ( isos /= 0 ) CALL stop_memory ( 'pv_bond_numer', 'x', 3 * natoms )
@@ -844,25 +842,24 @@ END SUBROUTINE pv_bond_numer
 
 SUBROUTINE pv_bend_numer(molecule,pv_test,box,pnode,delta)
 
-  IMPLICIT NONE
 
-! Arguments
-  TYPE ( molecule_structure_type ), INTENT ( IN ), DIMENSION ( : ) :: molecule
-  TYPE ( particle_node_type ), INTENT ( IN ), DIMENSION ( : ) :: pnode
-  TYPE ( cell_type ), INTENT ( IN ) :: box
-  REAL ( dbl ), INTENT ( OUT ), DIMENSION ( :, : ) :: pv_test
-  REAL ( dbl ), INTENT ( IN ) :: delta
+    TYPE(molecule_structure_type), &
+      DIMENSION(:), INTENT(IN)               :: molecule
+    REAL(dbl), DIMENSION(:, :), INTENT(OUT)  :: pv_test
+    TYPE(cell_type), INTENT(IN)              :: box
+    TYPE(particle_node_type), DIMENSION(:), &
+      INTENT(IN)                             :: pnode
+    REAL(dbl), INTENT(IN)                    :: delta
 
-! Locals
-  TYPE (cell_type) :: box_local
-  REAL ( dbl ), DIMENSION ( :, : ), ALLOCATABLE :: x, s
-  REAL ( dbl ), DIMENSION (3,3) :: dvdh
-  REAL ( dbl ) :: idelta, vm, vp, vnb
-  INTEGER :: i, j, k, ii, jj, natoms, isos
+    INTEGER                                  :: i, ii, isos, j, jj, k, natoms
+    REAL(dbl)                                :: idelta, vm, vp
+    REAL(dbl), ALLOCATABLE, DIMENSION(:, :)  :: s, x
+    REAL(dbl), DIMENSION(3, 3)               :: dvdh
+    TYPE(cell_type)                          :: box_local
 
 !------------------------------------------------------------------------------
-
 ! assigning the local variables
+
   natoms = size(pnode)
   ALLOCATE (x(3,natoms),STAT=isos)
   IF ( isos /= 0 ) CALL stop_memory ( 'pv_bend_numer', 'x', 3 * natoms )
@@ -946,25 +943,24 @@ END SUBROUTINE pv_bend_numer
 
 SUBROUTINE pv_torsion_numer(molecule,pv_test,box,pnode,delta)
 
-  IMPLICIT NONE
 
-! Arguments
-  TYPE ( molecule_structure_type ), INTENT ( IN ), DIMENSION ( : ) :: molecule
-  TYPE ( particle_node_type ), INTENT ( IN ), DIMENSION ( : ) :: pnode
-  TYPE ( cell_type ), INTENT ( IN ) :: box
-  REAL ( dbl ), INTENT ( OUT ), DIMENSION ( :, : ) :: pv_test
-  REAL ( dbl ), INTENT ( IN ) :: delta
+    TYPE(molecule_structure_type), &
+      DIMENSION(:), INTENT(IN)               :: molecule
+    REAL(dbl), DIMENSION(:, :), INTENT(OUT)  :: pv_test
+    TYPE(cell_type), INTENT(IN)              :: box
+    TYPE(particle_node_type), DIMENSION(:), &
+      INTENT(IN)                             :: pnode
+    REAL(dbl), INTENT(IN)                    :: delta
 
-! Locals
-  TYPE (cell_type) :: box_local
-  REAL ( dbl ), DIMENSION ( :, : ), ALLOCATABLE :: x, s
-  REAL ( dbl ), DIMENSION (3,3) :: dvdh
-  REAL ( dbl ) :: idelta, vm, vp, vnb
-  INTEGER :: i, j, k, ii, jj, natoms, isos
+    INTEGER                                  :: i, ii, isos, j, jj, k, natoms
+    REAL(dbl)                                :: idelta, vm, vp
+    REAL(dbl), ALLOCATABLE, DIMENSION(:, :)  :: s, x
+    REAL(dbl), DIMENSION(3, 3)               :: dvdh
+    TYPE(cell_type)                          :: box_local
 
 !------------------------------------------------------------------------------
-
 ! assigning the local variables
+
   natoms = size(pnode)
   ALLOCATE (x(3,natoms),STAT=isos)
   IF ( isos /= 0 ) CALL stop_memory ( 'pv_torsion_numer', 'x', 3 * natoms )
@@ -1048,29 +1044,29 @@ END SUBROUTINE pv_torsion_numer
 
 SUBROUTINE ptens_numer(box,ewald_param,part,pnode,potparm,pv_test,delta)
 
-  IMPLICIT NONE
 
-! Arguments
-  TYPE ( cell_type ), POINTER :: box
-  TYPE ( particle_node_type ), DIMENSION ( : ), INTENT ( IN ) :: pnode
-  TYPE ( particle_type ), DIMENSION ( : ), INTENT ( IN ) :: part
-  TYPE ( ewald_parameters_type ), INTENT ( IN ) :: ewald_param
-  REAL ( dbl ), INTENT ( IN ) :: delta
-  TYPE ( pair_potential_type ), DIMENSION ( :, : ), INTENT ( IN ) :: potparm
-  REAL ( dbl ), DIMENSION ( 3, 3 ), INTENT ( OUT ) :: pv_test
+    TYPE(cell_type), POINTER                 :: box
+    TYPE(ewald_parameters_type), INTENT(IN)  :: ewald_param
+    TYPE(particle_type), DIMENSION(:), &
+      INTENT(IN)                             :: part
+    TYPE(particle_node_type), DIMENSION(:), &
+      INTENT(IN)                             :: pnode
+    TYPE(pair_potential_type), &
+      DIMENSION(:, :), INTENT(IN)            :: potparm
+    REAL(dbl), DIMENSION(3, 3), INTENT(OUT)  :: pv_test
+    REAL(dbl), INTENT(IN)                    :: delta
 
-! Locals
-  CHARACTER(LEN=*), PARAMETER :: routine_name = "ptens_numer"
-  CHARACTER(LEN=*), PARAMETER :: module_name = "fist_force_numer"
-  CHARACTER(LEN=*), PARAMETER :: routine =&
-    "SUBROUTINE "//routine_name//" (MODULE "//module_name//")"
-  REAL ( dbl ), DIMENSION ( 3 ) :: sa, ra_pbc
-  REAL ( dbl ), DIMENSION (3,3) :: dvdh
-  REAL ( dbl ) :: idelta, vm, vp, vnb
-  INTEGER :: i, j, k, ii, jj, istat, atom_a, nnode, inode
-  TYPE ( pbc_coord_type ) ::  pbc_coord
-  INTEGER :: natoms
-  INTEGER, DIMENSION ( 3 ) :: periodic
+    CHARACTER(LEN=*), PARAMETER :: module_name = "fist_force_numer", &
+      routine_name = "ptens_numer", &
+      routine = "SUBROUTINE "//routine_name//" (MODULE "//module_name//")"
+
+    INTEGER                                  :: atom_a, i, ii, inode, istat, &
+                                                j, jj, k, natoms, nnode
+    INTEGER, DIMENSION(3)                    :: periodic
+    REAL(dbl)                                :: idelta, vm, vnb, vp
+    REAL(dbl), DIMENSION(3)                  :: ra_pbc, sa
+    REAL(dbl), DIMENSION(3, 3)               :: dvdh
+    TYPE(pbc_coord_type)                     :: pbc_coord
 
 !------------------------------------------------------------------------------
 
@@ -1177,31 +1173,31 @@ END SUBROUTINE ptens_numer
 
 SUBROUTINE pvg_numer(ewald_param,pnode,box,pw_grid,pv_test,delta)
 
-  IMPLICIT NONE
 
-! Arguments
-  TYPE ( ewald_parameters_type ), INTENT ( IN ) :: ewald_param
-  TYPE ( pw_grid_type ), INTENT ( IN ) :: pw_grid
-  TYPE ( particle_node_type ), DIMENSION ( : ), INTENT ( IN ) :: pnode
-  TYPE ( cell_type ), INTENT ( IN ) :: box
-  REAL ( dbl ), INTENT ( IN ) :: delta
-  REAL ( dbl ), DIMENSION ( :, : ), INTENT ( OUT ) :: pv_test
+    TYPE(ewald_parameters_type), INTENT(IN)  :: ewald_param
+    TYPE(particle_node_type), DIMENSION(:), &
+      INTENT(IN)                             :: pnode
+    TYPE(cell_type), INTENT(IN)              :: box
+    TYPE(pw_grid_type), INTENT(IN)           :: pw_grid
+    REAL(dbl), DIMENSION(:, :), INTENT(OUT)  :: pv_test
+    REAL(dbl), INTENT(IN)                    :: delta
 
-! Locals
-  TYPE ( pw_grid_type ) :: pw_grid_local
-  TYPE ( cell_type ) :: box_local
-  TYPE ( particle_node_type ), DIMENSION ( : ), ALLOCATABLE :: pnode_local
-  REAL ( dbl ), DIMENSION (3,3) :: dvdh
-  REAL ( dbl ) :: idelta, vm, vp
-  REAL ( dbl ), DIMENSION ( :, : ), ALLOCATABLE :: s
-  REAL ( dbl ) :: alpha, epsilon0, cutoff, ecut
-  REAL ( dbl ), DIMENSION ( : ), ALLOCATABLE :: gauss
-  COMPLEX ( dbl ), DIMENSION ( : ), ALLOCATABLE :: sum_igr
-  INTEGER :: i, j, k, ii, jj, natoms, isos, gmax, npts_s(3), ngtot
+    COMPLEX(dbl), ALLOCATABLE, DIMENSION(:)  :: sum_igr
+    INTEGER                                  :: gmax, i, ii, isos, j, jj, k, &
+                                                natoms, ngtot, npts_s(3)
+    REAL(dbl)                                :: alpha, cutoff, ecut, &
+                                                epsilon0, idelta, vm, vp
+    REAL(dbl), ALLOCATABLE, DIMENSION(:)     :: gauss
+    REAL(dbl), ALLOCATABLE, DIMENSION(:, :)  :: s
+    REAL(dbl), DIMENSION(3, 3)               :: dvdh
+    TYPE(cell_type)                          :: box_local
+    TYPE(particle_node_type), ALLOCATABLE, &
+      DIMENSION(:)                           :: pnode_local
+    TYPE(pw_grid_type)                       :: pw_grid_local
 
 !------------------------------------------------------------------------------
-
 ! allocating
+
   natoms = SIZE ( pnode )
   ALLOCATE ( s ( 3, natoms ), STAT = isos )
   IF ( isos /= 0 ) CALL stop_memory ( 'pvg_numer', 's', 3 * natoms )
@@ -1322,25 +1318,23 @@ END SUBROUTINE pvg_numer
 SUBROUTINE potential_g_numer(energy,pnode,sum_igr,gauss,alpha, &
      glocal,ngtot)
 
-  IMPLICIT NONE
 
-! Arguments
-  TYPE (particle_node_type ), DIMENSION ( : ), INTENT ( IN ) :: pnode
-  REAL ( dbl ), INTENT ( OUT ) :: energy
-  REAL ( dbl ), INTENT ( IN ) :: alpha
-  REAL ( dbl ), INTENT ( IN ), DIMENSION ( :, : ) :: glocal
-  COMPLEX ( dbl ), INTENT ( OUT ), DIMENSION ( : ) :: sum_igr
-  REAL ( dbl ), INTENT ( OUT ), DIMENSION ( : ) :: gauss
-  INTEGER, INTENT ( IN ) :: ngtot
+    REAL(dbl), INTENT(OUT)                   :: energy
+    TYPE(particle_node_type), DIMENSION(:), &
+      INTENT(IN)                             :: pnode
+    COMPLEX(dbl), DIMENSION(:), INTENT(OUT)  :: sum_igr
+    REAL(dbl), DIMENSION(:), INTENT(OUT)     :: gauss
+    REAL(dbl), INTENT(IN)                    :: alpha
+    REAL(dbl), DIMENSION(:, :), INTENT(IN)   :: glocal
+    INTEGER, INTENT(IN)                      :: ngtot
 
-! Locals
-  REAL ( dbl ) :: gdotr, gsq, charge
-  INTEGER :: iatom, ig, natoms
-  TYPE (atomic_kind_type), POINTER :: atomic_kind
+    INTEGER                                  :: iatom, ig, natoms
+    REAL(dbl)                                :: charge, gdotr, gsq
+    TYPE(atomic_kind_type), POINTER          :: atomic_kind
 
 !------------------------------------------------------------------------------
-
 ! numerical energy
+
   natoms = SIZE ( pnode )
   energy = 0.0_dbl
   sum_igr = 0.0_dbl
@@ -1383,25 +1377,21 @@ END SUBROUTINE potential_g_numer
 SUBROUTINE de_g_numer(energy,sum_igr,gauss,r,r_delta,charge,glocal, &
      igtot)
 
-  IMPLICIT NONE
 
-! Arguments
-  REAL ( dbl ), INTENT ( IN ) :: charge
-  COMPLEX ( dbl ), DIMENSION ( : ), INTENT ( IN ) :: sum_igr
-  REAL ( dbl ), DIMENSION ( : ), INTENT ( IN ) :: gauss
-  REAL ( dbl ), INTENT ( OUT ) :: energy
-  REAL ( dbl ), INTENT ( IN ), DIMENSION ( :, : ) :: glocal
-  REAL ( dbl ), INTENT ( IN ), DIMENSION ( : ) :: r, r_delta
-  INTEGER, INTENT ( IN ) :: igtot
+    REAL(dbl), INTENT(OUT)                   :: energy
+    COMPLEX(dbl), DIMENSION(:), INTENT(IN)   :: sum_igr
+    REAL(dbl), DIMENSION(:), INTENT(IN)      :: gauss, r, r_delta
+    REAL(dbl), INTENT(IN)                    :: charge
+    REAL(dbl), DIMENSION(:, :), INTENT(IN)   :: glocal
+    INTEGER, INTENT(IN)                      :: igtot
 
-! Locals
-  INTEGER :: ig
-  REAL ( dbl ) :: gdotr, gdotr_delta, gsq
-  COMPLEX ( dbl ) :: sum
+    COMPLEX(dbl)                             :: sum
+    INTEGER                                  :: ig
+    REAL(dbl)                                :: gdotr, gdotr_delta, gsq
 
 !------------------------------------------------------------------------------
-
 ! initialize energy
+
   energy =  0._dbl
   sum = CMPLX( 0._dbl, 0._dbl, dbl )
   DO ig = 1, igtot
@@ -1440,18 +1430,17 @@ END SUBROUTINE de_g_numer
 
 SUBROUTINE pme_force_numer ( delta, f_part, dg, part, box, grid_s, grid_b,  &
                              ewald_param )
-  IMPLICIT NONE
-  TYPE ( dg_type ), INTENT ( IN ) :: dg
-  TYPE ( particle_type ), INTENT ( INOUT ), DIMENSION ( : ) :: part
-  TYPE ( cell_type ), INTENT ( IN ) :: box
-  TYPE ( pw_grid_type ), INTENT ( IN ) :: grid_s, grid_b
-  TYPE ( ewald_parameters_type ), INTENT ( IN ) :: ewald_param
-  REAL ( dbl ), INTENT ( OUT ), DIMENSION ( :, : ) :: f_part
-  REAL ( dbl ), INTENT ( IN ) :: delta
+    REAL(dbl), INTENT(IN)                    :: delta
+    REAL(dbl), DIMENSION(:, :), INTENT(OUT)  :: f_part
+    TYPE(dg_type), INTENT(IN)                :: dg
+    TYPE(particle_type), DIMENSION(:), &
+      INTENT(INOUT)                          :: part
+    TYPE(cell_type), INTENT(IN)              :: box
+    TYPE(pw_grid_type), INTENT(IN)           :: grid_s, grid_b
+    TYPE(ewald_parameters_type), INTENT(IN)  :: ewald_param
 
-! locals
-  INTEGER :: natoms, i, id 
-  REAL ( dbl ) :: eplus, eminus
+    INTEGER                                  :: i, id, natoms
+    REAL(dbl)                                :: eminus, eplus
 
   natoms = SIZE ( part ) 
   DO i = 1, natoms 
@@ -1487,13 +1476,13 @@ END SUBROUTINE pme_force_numer
 !******************************************************************************
 
 SUBROUTINE pme_energy_numer ( dg, part, box, grid_s, grid_b, ewald_param, energy )
-  IMPLICIT NONE
-  TYPE ( dg_type ), INTENT ( IN ) :: dg
-  TYPE ( particle_type ), INTENT ( IN ), DIMENSION ( : ) :: part
-  TYPE ( cell_type ), INTENT ( IN ) :: box
-  TYPE ( pw_grid_type ), INTENT ( IN ) :: grid_s, grid_b
-  TYPE ( ewald_parameters_type ), INTENT ( IN ) :: ewald_param
-  REAL ( dbl ), INTENT ( OUT ) :: energy 
+    TYPE(dg_type), INTENT(IN)                :: dg
+    TYPE(particle_type), DIMENSION(:), &
+      INTENT(IN)                             :: part
+    TYPE(cell_type), INTENT(IN)              :: box
+    TYPE(pw_grid_type), INTENT(IN)           :: grid_s, grid_b
+    TYPE(ewald_parameters_type), INTENT(IN)  :: ewald_param
+    REAL(dbl), INTENT(OUT)                   :: energy
 
   CALL pme_evaluate ( dg, part, box, grid_s, grid_b, ewald_param, energy )
    
@@ -1519,24 +1508,21 @@ END SUBROUTINE pme_energy_numer
 SUBROUTINE ewald_energy_numer ( ewald_param, pnode, box, pw_grid, &
      energy_numer, ngtot )
 
-  IMPLICIT NONE
 
-! Arguments
-  TYPE ( ewald_parameters_type ), INTENT ( IN ) :: ewald_param
-  TYPE ( pw_grid_type ), INTENT ( IN ):: pw_grid
-  TYPE ( particle_node_type ), DIMENSION ( : ), INTENT ( IN ) :: pnode
-  TYPE ( cell_type ), INTENT ( IN ) :: box
-  REAL ( dbl ), INTENT ( OUT ) :: energy_numer
-  INTEGER, INTENT ( IN ) :: ngtot
+    TYPE(ewald_parameters_type), INTENT(IN)  :: ewald_param
+    TYPE(particle_node_type), DIMENSION(:), &
+      INTENT(IN)                             :: pnode
+    TYPE(cell_type), INTENT(IN)              :: box
+    TYPE(pw_grid_type), INTENT(IN)           :: pw_grid
+    REAL(dbl), INTENT(OUT)                   :: energy_numer
+    INTEGER, INTENT(IN)                      :: ngtot
 
-! Locals
-  COMPLEX ( dbl ), ALLOCATABLE, DIMENSION ( : ) :: sum_igr
-  REAL ( dbl ), ALLOCATABLE, DIMENSION ( : ) :: gauss
-  REAL ( dbl ) :: alpha, epsilon0
-  INTEGER :: ig, i, idim, isos, lp, mp, np
+    COMPLEX(dbl), ALLOCATABLE, DIMENSION(:)  :: sum_igr
+    INTEGER                                  :: isos
+    REAL(dbl)                                :: alpha, epsilon0
+    REAL(dbl), ALLOCATABLE, DIMENSION(:)     :: gauss
 
 !------------------------------------------------------------------------------
-
 ! allocating
 
   ALLOCATE ( sum_igr ( ngtot ), STAT = isos )
@@ -1583,22 +1569,20 @@ END SUBROUTINE ewald_energy_numer
 
 SUBROUTINE potential_bond ( molecule, x, energy )
 
-  IMPLICIT NONE
 
-! Arguments
-  REAL ( dbl ), INTENT ( OUT ) :: energy
-  REAL ( dbl ), DIMENSION ( :, : ), INTENT ( IN ) :: x
-  TYPE ( molecule_structure_type ), DIMENSION ( : ), INTENT ( IN ) :: molecule
+    TYPE(molecule_structure_type), &
+      DIMENSION(:), INTENT(IN)               :: molecule
+    REAL(dbl), DIMENSION(:, :), INTENT(IN)   :: x
+    REAL(dbl), INTENT(OUT)                   :: energy
 
-! Locals
-  REAL ( dbl ), DIMENSION ( 3 ) :: rij
-  REAL ( dbl ) :: e0, fscalar
-  INTEGER :: imol, ibond
-  TYPE ( linklist_bonds ), POINTER :: llbond
+    INTEGER                                  :: ibond, imol
+    REAL(dbl)                                :: e0, fscalar
+    REAL(dbl), DIMENSION(3)                  :: rij
+    TYPE(linklist_bonds), POINTER            :: llbond
 
 !------------------------------------------------------------------------------
-
 ! initializing
+
   energy = 0.0_dbl
   MOL: DO imol = 1, SIZE ( molecule )
      llbond => molecule ( imol ) % ll_bonds
@@ -1634,22 +1618,21 @@ END SUBROUTINE potential_bond
 
 SUBROUTINE potential_bend ( molecule, x, energy )
 
-  IMPLICIT NONE
 
-! Arguments
-  REAL ( dbl ), INTENT ( OUT ) :: energy
-  REAL ( dbl ), DIMENSION ( :, : ), INTENT ( IN ) :: x
-  TYPE ( molecule_structure_type ), DIMENSION ( : ), INTENT ( IN ) :: molecule
+    TYPE(molecule_structure_type), &
+      DIMENSION(:), INTENT(IN)               :: molecule
+    REAL(dbl), DIMENSION(:, :), INTENT(IN)   :: x
+    REAL(dbl), INTENT(OUT)                   :: energy
 
-! Locals
-  REAL ( dbl ), DIMENSION (3) :: b12, b32, g1, g2, g3
-  REAL ( dbl ) :: d12, d32, id12, id32, dist, theta, e0, fscalar
-  INTEGER :: imol, ibend
-  TYPE ( linklist_bends ), POINTER :: llbend
+    INTEGER                                  :: ibend, imol
+    REAL(dbl)                                :: d12, d32, dist, e0, fscalar, &
+                                                id12, id32, theta
+    REAL(dbl), DIMENSION(3)                  :: b12, b32, g1, g2, g3
+    TYPE(linklist_bends), POINTER            :: llbend
 
 !------------------------------------------------------------------------------
-
 ! initializing
+
   energy = 0.0_dbl
   MOL: DO imol = 1, SIZE ( molecule )
      llbend => molecule ( imol ) % ll_bends
@@ -1693,22 +1676,22 @@ END SUBROUTINE potential_bend
 
 SUBROUTINE potential_torsion ( molecule, x, energy )
 
-  IMPLICIT NONE
 
-! Arguments
-  REAL ( dbl ), INTENT ( OUT ) :: energy
-  REAL ( dbl ), DIMENSION ( :, : ), INTENT ( IN ) :: x
-  TYPE ( molecule_structure_type ), DIMENSION ( : ), INTENT ( IN ) :: molecule
+    TYPE(molecule_structure_type), &
+      DIMENSION(:), INTENT(IN)               :: molecule
+    REAL(dbl), DIMENSION(:, :), INTENT(IN)   :: x
+    REAL(dbl), INTENT(OUT)                   :: energy
 
-! Locals
-  REAL ( dbl ), DIMENSION (3) :: t12, t32, t43, u1, u2, gt1, gt2, gt3, gt4
-  REAL ( dbl ) :: s32, is32, dist1, dist2, w1, w2, iw1, iw2, e0, fscalar
-  INTEGER :: imol, itorsion
-  TYPE ( linklist_torsions ), POINTER :: lltorsion
+    INTEGER                                  :: imol, itorsion
+    REAL(dbl)                                :: dist1, dist2, e0, fscalar, &
+                                                is32, iw1, iw2, s32, w1, w2
+    REAL(dbl), DIMENSION(3)                  :: gt1, gt2, gt3, gt4, t12, t32, &
+                                                t43, u1, u2
+    TYPE(linklist_torsions), POINTER         :: lltorsion
 
 !------------------------------------------------------------------------------
-
 ! initializing
+
   energy = 0.0_dbl
   MOL: DO imol = 1, SIZE ( molecule )
      lltorsion => molecule ( imol ) % ll_torsions
@@ -1755,33 +1738,31 @@ END SUBROUTINE potential_torsion
 
 SUBROUTINE getv_ptens ( ewald_param, pnode, pbc_coord, box, periodic, potparm, vnb )
 
-  IMPLICIT NONE
 
-! Arguments
-  TYPE (ewald_parameters_type), INTENT (IN) :: ewald_param
-  TYPE (particle_node_type ), INTENT ( IN ), DIMENSION ( : ) :: pnode
-  TYPE ( pbc_coord_type ), INTENT ( IN ) :: pbc_coord
-  TYPE ( cell_type ), POINTER :: box 
-  TYPE (pair_potential_type), INTENT ( IN ), DIMENSION ( :, : ) :: potparm
-  INTEGER, INTENT ( IN ), DIMENSION ( : ) :: periodic
-  REAL ( dbl ), INTENT ( OUT ) :: vnb
+    TYPE(ewald_parameters_type), INTENT(IN)  :: ewald_param
+    TYPE(particle_node_type), DIMENSION(:), &
+      INTENT(IN)                             :: pnode
+    TYPE(pbc_coord_type), INTENT(IN)         :: pbc_coord
+    TYPE(cell_type), POINTER                 :: box
+    INTEGER, DIMENSION(:), INTENT(IN)        :: periodic
+    TYPE(pair_potential_type), &
+      DIMENSION(:, :), INTENT(IN)            :: potparm
+    REAL(dbl), INTENT(OUT)                   :: vnb
 
-! Locals
- INTEGER :: ikind, jkind, inode, jnode, nnode, atom_a, atom_b
- INTEGER :: icell,jcell,kcell,ncell ( 3 ), cell_b ( 3 )
- INTEGER :: iexclude, natoms, nexcl
- REAL ( dbl ) :: energy, rab2, rab_max, rab2_max
- REAL ( dbl ), DIMENSION ( 3 ) :: sab_max, ra_pbc, sb, sb_pbc, rb, r, rab  
- REAL ( dbl ), DIMENSION ( 3 ) :: delta
- REAL ( dbl ) :: qa, qb
- TYPE ( linklist_exclusion ), POINTER :: ll_exclude
- LOGICAL :: match
+    INTEGER :: atom_a, atom_b, cell_b( 3 ), icell, iexclude, ikind, inode, &
+      jcell, jkind, jnode, kcell, ncell( 3 ), nexcl, nnode
+    LOGICAL                                  :: match
+    REAL(dbl)                                :: energy, qa, qb, rab2, &
+                                                rab2_max, rab_max
+    REAL(dbl), DIMENSION(3)                  :: r, rab, rb, sab_max, sb, &
+                                                sb_pbc
+    TYPE(linklist_exclusion), POINTER        :: ll_exclude
 
 !------------------------------------------------------------------------------
-
 !
 ! initializing the potential energy
 !
+
   vnb = 0.0_dbl
 !
 ! starting the loop

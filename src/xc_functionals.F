@@ -37,8 +37,7 @@ MODULE xc_functionals
                                              pbe_c,&
                                              pbe_x
   USE kinds,                           ONLY: dbl
-  USE termination,                     ONLY: stop_memory,&
-                                             stop_program
+  USE termination,                     ONLY: stop_program
   USE xc_cs1,                          ONLY: cs1
   USE xc_derivative_set_types,         ONLY: xc_derivative_set_type
   USE xc_exchange_gga,                 ONLY: b88,&
@@ -64,6 +63,7 @@ MODULE xc_functionals
   USE xc_thomas_fermi,                 ONLY: thomas_fermi
   USE xc_vwn,                          ONLY: vwn
   USE xc_xalpha,                       ONLY: xalpha
+
   LOGICAL, PARAMETER :: GRADIENT_FUNCTIONAL = .TRUE., CROSS_TERM = .TRUE.
 
   PRIVATE
@@ -87,10 +87,8 @@ CONTAINS
 !******************************************************************************
 
   SUBROUTINE xc_set ( density_cutoff, gradient_cutoff, falpha )
-     IMPLICIT NONE
-     REAL ( dbl ), INTENT(IN), OPTIONAL :: density_cutoff
-     REAL ( dbl ), INTENT(IN), OPTIONAL :: gradient_cutoff
-     REAL ( dbl ), INTENT(IN), OPTIONAL :: falpha
+    REAL(dbl), INTENT(IN), OPTIONAL          :: density_cutoff, &
+                                                gradient_cutoff, falpha
 
      IF ( PRESENT ( density_cutoff ) ) THEN
         cutoff = density_cutoff
@@ -113,15 +111,14 @@ CONTAINS
 !******************************************************************************
 
   FUNCTION xc_get_pot_size ( lsd, gc, ct, order ) RESULT ( pot_size )
-     LOGICAL, INTENT ( IN ) :: lsd, gc, ct
-     INTEGER, INTENT ( IN ) :: order
+    LOGICAL, INTENT(IN)                      :: lsd, gc, ct
+    INTEGER, INTENT(IN)                      :: order
+    INTEGER                                  :: pot_size
 
-     INTEGER :: pot_size
+    INTEGER, PARAMETER                       :: omax = 3
 
-     INTEGER, PARAMETER :: omax = 3
-     INTEGER :: m(0:omax,1:100)
-     LOGICAL :: calc(0:omax)
-     INTEGER :: tag, o
+    INTEGER                                  :: m(0:omax,1:100), o, tag
+    LOGICAL                                  :: calc(0:omax)
 
      tag = 100
      IF ( lsd ) tag = tag + 100
@@ -140,13 +137,12 @@ CONTAINS
 
    SUBROUTINE xc_get_order ( lsd, gc, ct, gc_all, ct_all, order, index )
 
-     IMPLICIT NONE
 
-     LOGICAL, INTENT ( IN ) :: lsd, gc, ct, gc_all, ct_all
-     INTEGER, INTENT ( IN ) :: order
-     INTEGER, DIMENSION (:), INTENT ( OUT ) :: index
-    
-     INTEGER :: i
+    LOGICAL, INTENT(IN)                      :: lsd, gc, ct, gc_all, ct_all
+    INTEGER, INTENT(IN)                      :: order
+    INTEGER, DIMENSION(:), INTENT(OUT)       :: index
+
+    INTEGER                                  :: i
 
      IF ( .NOT. LSD ) THEN
         IF ( gc_all .AND. .NOT. gc ) THEN
@@ -176,23 +172,27 @@ CONTAINS
   SUBROUTINE xc_lda ( derivative_set, functional, gradient_functionals, crossterms, &
                       rho, order, drho, error )
 
-     IMPLICIT NONE
 
-     TYPE(xc_derivative_set_type), POINTER          :: derivative_set
-     CHARACTER (LEN=*), DIMENSION ( 3 ), INTENT(IN) :: functional
-     LOGICAL, DIMENSION ( 3 ), INTENT(IN)           :: gradient_functionals, crossterms
-     REAL(dbl), DIMENSION (:), INTENT(in)           :: rho
-     REAL(dbl), DIMENSION (:), INTENT(in), OPTIONAL :: drho
-     INTEGER, INTENT(IN)                            :: order
-     TYPE(cp_error_type), INTENT(inout), OPTIONAL   :: error
+    TYPE(xc_derivative_set_type), POINTER    :: derivative_set
+    CHARACTER(LEN=*), DIMENSION(3), &
+      INTENT(IN)                             :: functional
+    LOGICAL, DIMENSION(3), INTENT(IN)        :: gradient_functionals, &
+                                                crossterms
+    REAL(dbl), DIMENSION(:), INTENT(in)      :: rho
+    INTEGER, INTENT(IN)                      :: order
+    REAL(dbl), DIMENSION(:), INTENT(in), &
+      OPTIONAL                               :: drho
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
 
-     LOGICAL :: gradient_correction, cross_term, docalc ( 3 )
-     REAL ( dbl ), DIMENSION (:,:), ALLOCATABLE :: locpot
-     INTEGER :: ifun, i, ierr, lp, ind ( 100 )
-     INTEGER :: npotentials, ngridpoints
+    CHARACTER(len=*), PARAMETER :: routineN = 'xc_lda', &
+      routineP = moduleN//':'//routineN
 
-     CHARACTER(len=*), PARAMETER :: routineN = 'xc_lda',&
-                                    routineP = moduleN//':'//routineN
+    INTEGER                                  :: i, ierr, ifun, ind( 100 ), &
+                                                lp, ngridpoints, npotentials
+    LOGICAL                                  :: cross_term, docalc( 3 ), &
+                                                gradient_correction
+    REAL(dbl), ALLOCATABLE, DIMENSION(:, :)  :: locpot
 
      gradient_correction = ANY(gradient_functionals)
      ! no crossterms in unpolarised spin calculations
@@ -248,27 +248,29 @@ CONTAINS
                       rho_a, rho_b, order, &
                       drho_a, drho_b, error )
 
-     IMPLICIT NONE
 
-     ! arguments
-     TYPE(xc_derivative_set_type), POINTER          :: derivative_set
-     CHARACTER (LEN=*), DIMENSION ( 3 ), INTENT(IN) :: functional
-     LOGICAL, DIMENSION ( 3 ), INTENT(IN)           :: gradient_functionals, crossterms
-     REAL ( dbl ), DIMENSION (:), INTENT(in)        :: rho_a, rho_b
-     REAL ( dbl ), DIMENSION (:), INTENT(in), OPTIONAL :: drho_a, drho_b
-     INTEGER, INTENT(IN)                            :: order
-     TYPE(cp_error_type), INTENT(inout), OPTIONAL   :: error
+    TYPE(xc_derivative_set_type), POINTER    :: derivative_set
+    CHARACTER(LEN=*), DIMENSION(3), &
+      INTENT(IN)                             :: functional
+    LOGICAL, DIMENSION(3), INTENT(IN)        :: gradient_functionals, &
+                                                crossterms
+    REAL(dbl), DIMENSION(:), INTENT(in)      :: rho_a, rho_b
+    INTEGER, INTENT(IN)                      :: order
+    REAL(dbl), DIMENSION(:), INTENT(in), &
+      OPTIONAL                               :: drho_a, drho_b
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
 
-     ! locals
-     LOGICAL :: gradient_correction, cross_term, docalc ( 3 )
-     REAL ( dbl ), DIMENSION (:,:), ALLOCATABLE :: locpot
-     INTEGER :: ifun, i, ierr, lp, ind ( 100 )
-     INTEGER :: ngridpoints, npotentials
+    CHARACTER(len=*), PARAMETER :: routineN = 'xc_lsd', &
+      routineP = moduleN//':'//routineN
 
-     CHARACTER(len=*), PARAMETER :: routineN='xc_lsd',&
-                                    routineP=moduleN//':'//routineN
+    INTEGER                                  :: i, ierr, ifun, ind( 100 ), &
+                                                lp, ngridpoints, npotentials
+    LOGICAL                                  :: cross_term, docalc( 3 ), &
+                                                gradient_correction
+    REAL(dbl), ALLOCATABLE, DIMENSION(:, :)  :: locpot
 
-     ! ------------------------------------------------------------
+! ------------------------------------------------------------
 
      gradient_correction = ANY ( gradient_functionals )
      cross_term = ANY ( crossterms )
@@ -321,18 +323,21 @@ CONTAINS
 !******************************************************************************
 
   SUBROUTINE xc_calculate_lda ( derivative_set, functional, rho, pot, order, drho ,error )
-     IMPLICIT NONE
-     TYPE(xc_derivative_set_type), POINTER :: derivative_set
-     CHARACTER (LEN=*), INTENT(IN) :: functional
-     REAL ( dbl ), DIMENSION (:), INTENT(in) :: rho
-     REAL ( dbl ), DIMENSION (:), INTENT(in), OPTIONAL :: drho
-     REAL ( dbl ), DIMENSION (:,:), INTENT(INOUT) :: pot
-     INTEGER, INTENT(IN) :: order
-     TYPE(cp_error_type), INTENT(inout), OPTIONAL :: error
+    TYPE(xc_derivative_set_type), POINTER    :: derivative_set
+    CHARACTER(LEN=*), INTENT(IN)             :: functional
+    REAL(dbl), DIMENSION(:), INTENT(in)      :: rho
+    REAL(dbl), DIMENSION(:, :), &
+      INTENT(INOUT)                          :: pot
+    INTEGER, INTENT(IN)                      :: order
+    REAL(dbl), DIMENSION(:), INTENT(in), &
+      OPTIONAL                               :: drho
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
 
-     INTEGER :: i,ierr
-     CHARACTER(len=*),PARAMETER :: routineN = 'xc_calculate_lda',&
-                                   routineP = moduleN//':'//routineN
+    CHARACTER(len=*), PARAMETER :: routineN = 'xc_calculate_lda', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: i, ierr
 
      ierr = 0
 
@@ -460,19 +465,22 @@ CONTAINS
   SUBROUTINE xc_calculate_lsd ( derivative_set, functional, rhoa, rhob, pot, &
        order, drhoa, drhob, error )
 
-     IMPLICIT NONE
 
-     TYPE(xc_derivative_set_type), POINTER :: derivative_set
-     CHARACTER (LEN=*), INTENT(IN) :: functional
-     REAL ( dbl ), DIMENSION (:), INTENT(in) :: rhoa, rhob
-     REAL ( dbl ), DIMENSION (:), INTENT(in), OPTIONAL :: drhoa, drhob
-     REAL ( dbl ), DIMENSION (:,:), INTENT(INOUT) :: pot
-     INTEGER, INTENT(IN) :: order
-     TYPE(cp_error_type), INTENT(inout), OPTIONAL :: error
+    TYPE(xc_derivative_set_type), POINTER    :: derivative_set
+    CHARACTER(LEN=*), INTENT(IN)             :: functional
+    REAL(dbl), DIMENSION(:), INTENT(in)      :: rhoa, rhob
+    REAL(dbl), DIMENSION(:, :), &
+      INTENT(INOUT)                          :: pot
+    INTEGER, INTENT(IN)                      :: order
+    REAL(dbl), DIMENSION(:), INTENT(in), &
+      OPTIONAL                               :: drhoa, drhob
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
 
-     INTEGER :: ierr
-     CHARACTER(len=*),PARAMETER :: routineN = 'xc_calculate_lsd',&
-                                   routineP = moduleN//':'//routineN
+    CHARACTER(len=*), PARAMETER :: routineN = 'xc_calculate_lsd', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: ierr
 
      ierr = 0
 
@@ -593,13 +601,14 @@ CONTAINS
 
   SUBROUTINE xc_get_functional ( tag, string, functional, gradient_functionals, crossterms )
 
-     IMPLICIT NONE
-     INTEGER, INTENT ( in ) :: tag
-     CHARACTER (LEN=*), INTENT ( IN ) :: string
-     CHARACTER (LEN=*), DIMENSION ( 3 ), INTENT ( INOUT ) :: functional
-     LOGICAL, DIMENSION ( 3 ), INTENT (OUT) :: gradient_functionals, crossterms
+    INTEGER, INTENT(in)                      :: tag
+    CHARACTER(LEN=*), INTENT(IN)             :: string
+    CHARACTER(LEN=*), DIMENSION(3), &
+      INTENT(INOUT)                          :: functional
+    LOGICAL, DIMENSION(3), INTENT(OUT)       :: gradient_functionals, &
+                                                crossterms
 
-     INTEGER :: ierr
+    INTEGER                                  :: ierr
 
      ierr = 0
      SELECT CASE ( tag )
@@ -786,15 +795,14 @@ CONTAINS
 
   SUBROUTINE xc_print_info ( iunit, functional, lsd )
 
-    IMPLICIT NONE
-    INTEGER, INTENT ( IN ) :: iunit
-    CHARACTER ( LEN=* ), DIMENSION ( 3 ), INTENT ( IN ) :: functional
-    LOGICAL, INTENT ( IN ) :: lsd
+    INTEGER, INTENT(IN)                      :: iunit
+    CHARACTER(LEN=*), DIMENSION(3), &
+      INTENT(IN)                             :: functional
+    LOGICAL, INTENT(IN)                      :: lsd
 
-    CHARACTER (LEN=80), DIMENSION ( 3 ) :: reference
-    CHARACTER (LEN=80), DIMENSION ( 3 ) :: shortform
-    CHARACTER (LEN=80) :: not_tested
-    LOGICAL, DIMENSION ( 3 ) :: tested
+    CHARACTER(LEN=80)                        :: not_tested
+    CHARACTER(LEN=80), DIMENSION(3)          :: reference, shortform
+    LOGICAL, DIMENSION(3)                    :: tested
 
     tested = .FALSE.
     not_tested = " *** WARNING : THIS FUNCTIONAL IS NOT FULLY TESTED ***"
@@ -963,17 +971,20 @@ CONTAINS
 !!*** **********************************************************************
   SUBROUTINE xc_create_2nd_deriv_info(lsd,gradient,crossterms,&
        spin_pot,grad_pot,ndiag_term,error)
-    LOGICAL, INTENT(in) :: lsd, gradient,crossterms
-    INTEGER, DIMENSION(:,:), POINTER :: spin_pot
-    LOGICAL, DIMENSION(:,:), POINTER :: grad_pot
-    LOGICAL, DIMENSION(:), POINTER :: ndiag_term
-    TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
+    LOGICAL, INTENT(in)                      :: lsd, gradient, crossterms
+    INTEGER, DIMENSION(:, :), POINTER        :: spin_pot
+    LOGICAL, DIMENSION(:, :), POINTER        :: grad_pot
+    LOGICAL, DIMENSION(:), POINTER           :: ndiag_term
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
 
-    LOGICAL :: failure
-    CHARACTER(len=*), PARAMETER :: routineN='xc_create_2nd_deriv_info',&
-         routineP=moduleN//':'//routineN
-    INTEGER :: npot, stat
-    INTEGER, DIMENSION(2,15) :: spin_template
+    CHARACTER(len=*), PARAMETER :: routineN = 'xc_create_2nd_deriv_info', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: npot, stat
+    INTEGER, DIMENSION(2, 15)                :: spin_template
+    LOGICAL                                  :: failure
+
     failure=.FALSE.
 
     npot=xc_get_pot_size(lsd,gradient,crossterms,-2)

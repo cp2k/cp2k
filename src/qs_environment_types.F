@@ -23,114 +23,66 @@
 MODULE qs_environment_types
   USE atomic_kind_list_types,          ONLY: atomic_kind_list_create,&
                                              atomic_kind_list_release,&
-                                             atomic_kind_list_retain,&
                                              atomic_kind_list_type
-  USE atomic_kind_types,               ONLY: atomic_kind_type,&
-                                             deallocate_atomic_kind_set,&
-                                             get_atomic_kind_set
+  USE atomic_kind_types,               ONLY: atomic_kind_type
   USE coefficient_types,               ONLY: coeff_deallocate,&
                                              coeff_type
-  USE cp_b_matrix_structure,           ONLY: cp_b_matrix_struct_type,&
-                                             cp_bmstruct_create,&
-                                             cp_bmstruct_release
   USE cp_blacs_env,                    ONLY: cp_blacs_env_release,&
                                              cp_blacs_env_retain
+  USE cp_control_types,                ONLY: dft_control_release,&
+                                             dft_control_retain,&
+                                             dft_control_type
   USE cp_error_handling,               ONLY: cp_a_l,&
                                              cp_assert,&
-                                             cp_assertion_failed,&
-                                             cp_debug,&
-                                             cp_error_dealloc_ref,&
                                              cp_error_get_logger,&
-                                             cp_error_init,&
                                              cp_error_message,&
-                                             cp_error_type,&
-                                             cp_internal_error,&
-                                             cp_unimplemented_error,&
-                                             cp_unimplemented_error_nr
-  USE cp_fm_pool_types,                ONLY: cp_fm_pool_p_type,&
-                                             cp_fm_pool_type,&
-                                             fm_pool_create_fm,&
-                                             fm_pool_give_back_fm
-  USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
-                                             cp_fm_struct_release,&
-                                             cp_fm_struct_retain,&
-                                             cp_fm_struct_type
+                                             cp_error_type
+  USE cp_fm_pool_types,                ONLY: cp_fm_pool_type
   USE cp_fm_types,                     ONLY: cp_fm_create,&
                                              cp_fm_get_info,&
                                              cp_fm_release,&
                                              cp_fm_type
   USE cp_log_handling,                 ONLY: cp_failure_level,&
                                              cp_fatal_level,&
-                                             cp_log,&
-                                             cp_logger_get_default_unit_nr,&
                                              cp_logger_type,&
                                              cp_note_level,&
                                              cp_to_string,&
                                              cp_warning_level
-  USE cp_matrix_utils,                 ONLY: sm_struct_add_sm_local_blocks
   USE cp_para_env,                     ONLY: cp_para_env_release,&
                                              cp_para_env_retain
   USE cp_para_types,                   ONLY: cp_blacs_env_type,&
                                              cp_para_env_type
   USE cp_sm_fm_interactions,           ONLY: cp_sm_fm_multiply
-  USE cp_sm_pool_types,                ONLY: sm_pools_give_back_matrix_vect, &
-                                             cp_sm_pool_p_type,&
-                                             cp_sm_pool_type,&
-                                             sm_pool_create,&
-                                             sm_pool_get_mstruct,&
-                                             sm_pool_release,&
-                                             sm_pool_retain,&
-                                             sm_pools_copy,&
-                                             sm_pools_dealloc,&
-                                             sm_pools_flush_cache
-  USE cp_sm_struct,                    ONLY: cp_sm_struct_type,&
-                                             sm_struct_clear_local_blocks,&
-                                             sm_struct_create,&
-                                             sm_struct_release,&
-                                             sm_struct_retain
+  USE cp_sm_pool_types,                ONLY: cp_sm_pool_p_type,&
+                                             sm_pools_give_back_matrix_vect
   USE cp_subsystem_types,              ONLY: cp_subsys_create,&
                                              cp_subsys_get,&
                                              cp_subsys_release,&
                                              cp_subsys_retain,&
                                              cp_subsys_set,&
                                              cp_subsystem_type
-  USE cp_control_types,                       ONLY: dft_control_release,&
-                                             dft_control_retain,&
-                                             dft_control_type
-  USE distribution_1d_types,           ONLY: distribution_1d_create,&
-                                             distribution_1d_release,&
-                                             distribution_1d_retain,&
-                                             distribution_1d_type
+  USE distribution_1d_types,           ONLY: distribution_1d_type
   USE distribution_2d_types,           ONLY: distribution_2d_release,&
                                              distribution_2d_retain,&
                                              distribution_2d_type
   USE kinds,                           ONLY: dp
-  USE mol_kind_list_types,             ONLY: mol_kind_list_create,&
-                                             mol_kind_list_release,&
-                                             mol_kind_list_retain,&
-                                             mol_kind_list_type
   USE mol_kind_new_list_types,         ONLY: mol_kind_new_list_create,&
                                              mol_kind_new_list_release,&
-                                             mol_kind_new_list_retain,&
                                              mol_kind_new_list_type
   USE mol_new_list_types,              ONLY: mol_new_list_create,&
                                              mol_new_list_release,&
-                                             mol_new_list_retain,&
                                              mol_new_list_type
   USE molecule_kind_types,             ONLY: molecule_kind_type
   USE molecule_types_new,              ONLY: molecule_type
   USE pao_types,                       ONLY: pao_env_type
   USE particle_list_types,             ONLY: particle_list_create,&
                                              particle_list_release,&
-                                             particle_list_retain,&
                                              particle_list_type
-  USE particle_types,                  ONLY: deallocate_particle_set,&
-                                             particle_type
+  USE particle_types,                  ONLY: particle_type
   USE pw_env_types,                    ONLY: pw_env_release,&
                                              pw_env_retain,&
                                              pw_env_type
-  USE qs_charges_types,                ONLY: qs_charges_create,&
-                                             qs_charges_release,&
+  USE qs_charges_types,                ONLY: qs_charges_release,&
                                              qs_charges_retain,&
                                              qs_charges_type
   USE qs_energy_types,                 ONLY: deallocate_qs_energy,&
@@ -166,11 +118,10 @@ MODULE qs_environment_types
                                              cell_retain,&
                                              cell_type
   USE sparse_matrix_types,             ONLY: deallocate_matrix_set,&
-                                             get_matrix_info,&
-                                             real_matrix_p_type,&
-                                             real_matrix_type
+                                             real_matrix_p_type
   USE timings,                         ONLY: timeset,&
                                              timestop
+
   IMPLICIT NONE
 
   PRIVATE
@@ -335,53 +286,68 @@ CONTAINS
 
 !   ***************************************************************************
 
-    TYPE(qs_environment_type), INTENT(in), TARGET :: qs_env
-    TYPE(atomic_kind_type), DIMENSION(:),&
-      OPTIONAL, POINTER                           :: atomic_kind_set
-    TYPE(cell_type), OPTIONAL, POINTER            :: cell
-    TYPE(dft_control_type), OPTIONAL, POINTER     :: dft_control
-    TYPE(mo_set_p_type),  DIMENSION(:),&
-      OPTIONAL, POINTER                           :: c
-    TYPE(neighbor_list_set_p_type),&
-      DIMENSION(:), OPTIONAL, POINTER             :: sab_orb,sac_erfc,sac_ppl,&
-                                                     sac_ppnl,sbc_ppnl
-    TYPE(pao_env_type), OPTIONAL, POINTER         :: pao_env
-    TYPE(particle_type), DIMENSION(:),&
-      OPTIONAL, POINTER                           :: particle_set
-    TYPE(qs_energy_type), OPTIONAL, POINTER       :: energy
-    TYPE(qs_force_type), DIMENSION(:),&
-      OPTIONAL, POINTER                           :: force
-    TYPE(real_matrix_p_type), DIMENSION(:),&
-      OPTIONAL, POINTER                           :: h,k,s,kinetic,w
-    TYPE(qs_matrix_pools_type), OPTIONAL, POINTER :: mpools
-    TYPE(qs_rho_type), OPTIONAL, POINTER          :: rho
-    TYPE(pw_env_type), OPTIONAL, POINTER          :: pw_env
-    TYPE(cp_para_env_type), OPTIONAL, POINTER     :: para_env
-    TYPE(cp_blacs_env_type), OPTIONAL, POINTER    :: blacs_env
-    TYPE(scf_control_type), OPTIONAL, POINTER     :: scf_control
-    TYPE(qs_charges_type), OPTIONAL, POINTER      :: qs_charges
-    TYPE(coeff_type), OPTIONAL, POINTER           :: rho_core
-    TYPE(qs_ks_env_type), OPTIONAL, POINTER       :: ks_env
-    TYPE(qs_wf_history_type), OPTIONAL, POINTER   :: wf_history
-    TYPE(qs_scf_env_type), OPTIONAL, POINTER      :: scf_env
-    INTEGER, INTENT(out), OPTIONAL                :: id_nr
-    TYPE(distribution_1d_type),OPTIONAL, POINTER  :: local_particles,&
-                                                     local_molecules
-    TYPE(distribution_2d_type), OPTIONAL, POINTER :: distribution_2d
-    TYPE(cp_error_type), OPTIONAL,INTENT(INOUT)   :: error
-    TYPE(molecule_kind_type), DIMENSION(:),&
-      OPTIONAL, POINTER                           :: molecule_kind_set
-    TYPE(molecule_type), DIMENSION(:),&
-      OPTIONAL, POINTER                           :: molecule_set
-    TYPE(cp_subsystem_type), POINTER, OPTIONAL     :: subsys
+    TYPE(qs_environment_type), INTENT(in), &
+      TARGET                                 :: qs_env
+    TYPE(atomic_kind_type), DIMENSION(:), &
+      OPTIONAL, POINTER                      :: atomic_kind_set
+    TYPE(cell_type), OPTIONAL, POINTER       :: cell
+    TYPE(dft_control_type), OPTIONAL, &
+      POINTER                                :: dft_control
+    TYPE(mo_set_p_type), DIMENSION(:), &
+      OPTIONAL, POINTER                      :: c
+    TYPE(neighbor_list_set_p_type), &
+      DIMENSION(:), OPTIONAL, POINTER        :: sab_orb, sac_erfc, sac_ppl, &
+                                                sac_ppnl, sbc_ppnl
+    TYPE(pao_env_type), OPTIONAL, POINTER    :: pao_env
+    TYPE(particle_type), DIMENSION(:), &
+      OPTIONAL, POINTER                      :: particle_set
+    TYPE(qs_energy_type), OPTIONAL, POINTER  :: energy
+    TYPE(qs_force_type), DIMENSION(:), &
+      OPTIONAL, POINTER                      :: force
+    TYPE(real_matrix_p_type), DIMENSION(:), &
+      OPTIONAL, POINTER                      :: h, k, s, w
+    TYPE(qs_rho_type), OPTIONAL, POINTER     :: rho
+    TYPE(pw_env_type), OPTIONAL, POINTER     :: pw_env
+    TYPE(qs_matrix_pools_type), OPTIONAL, &
+      POINTER                                :: mpools
+    TYPE(cp_para_env_type), OPTIONAL, &
+      POINTER                                :: para_env
+    TYPE(cp_blacs_env_type), OPTIONAL, &
+      POINTER                                :: blacs_env
+    TYPE(scf_control_type), OPTIONAL, &
+      POINTER                                :: scf_control
+    TYPE(real_matrix_p_type), DIMENSION(:), &
+      OPTIONAL, POINTER                      :: kinetic
+    TYPE(qs_charges_type), OPTIONAL, POINTER :: qs_charges
+    TYPE(coeff_type), OPTIONAL, POINTER      :: rho_core
+    TYPE(qs_ks_env_type), OPTIONAL, POINTER  :: ks_env
+    TYPE(qs_wf_history_type), OPTIONAL, &
+      POINTER                                :: wf_history
+    TYPE(qs_scf_env_type), OPTIONAL, POINTER :: scf_env
+    INTEGER, INTENT(out), OPTIONAL           :: id_nr
+    TYPE(distribution_1d_type), OPTIONAL, &
+      POINTER                                :: local_particles, &
+                                                local_molecules
+    TYPE(distribution_2d_type), OPTIONAL, &
+      POINTER                                :: distribution_2d
+    TYPE(molecule_kind_type), DIMENSION(:), &
+      OPTIONAL, POINTER                      :: molecule_kind_set
+    TYPE(molecule_type), DIMENSION(:), &
+      OPTIONAL, POINTER                      :: molecule_set
+    TYPE(cp_subsystem_type), OPTIONAL, &
+      POINTER                                :: subsys
+    TYPE(cp_error_type), INTENT(INOUT), &
+      OPTIONAL                               :: error
 
-    LOGICAL :: failure
-    CHARACTER(len=*), PARAMETER :: routineN='get_qs_env',&
-         routineP=moduleN//':'//routineN
-    TYPE (atomic_kind_list_type), POINTER :: atomic_kinds
-    TYPE (particle_list_type), POINTER :: particles
-    TYPE (mol_new_list_type), POINTER :: molecules_new
-    TYPE (mol_kind_new_list_type), POINTER :: molecule_kinds_new
+    CHARACTER(len=*), PARAMETER :: routineN = 'get_qs_env', &
+      routineP = moduleN//':'//routineN
+
+    LOGICAL                                  :: failure
+    TYPE(atomic_kind_list_type), POINTER     :: atomic_kinds
+    TYPE(mol_kind_new_list_type), POINTER    :: molecule_kinds_new
+    TYPE(mol_new_list_type), POINTER         :: molecules_new
+    TYPE(particle_list_type), POINTER        :: particles
+
 !   ---------------------------------------------------------------------------
 
     failure=.FALSE.
@@ -447,10 +413,11 @@ CONTAINS
 
 !   ***************************************************************************
 
-    TYPE(qs_environment_type), INTENT(OUT)       :: qs_env
-    TYPE(cp_para_env_type), POINTER              :: para_env
-    TYPE(cp_blacs_env_type), POINTER             :: blacs_env
-    TYPE(cp_error_type), INTENT(inout), OPTIONAL :: error
+    TYPE(qs_environment_type), INTENT(OUT)   :: qs_env
+    TYPE(cp_para_env_type), POINTER          :: para_env
+    TYPE(cp_blacs_env_type), POINTER         :: blacs_env
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
 
 !   ---------------------------------------------------------------------------
 
@@ -509,50 +476,63 @@ CONTAINS
 
 !   ***************************************************************************
 
-    TYPE(qs_environment_type), INTENT(inout), TARGET :: qs_env
-    TYPE(atomic_kind_type), DIMENSION(:),&
-      OPTIONAL, POINTER                           :: atomic_kind_set
-    TYPE(cell_type), OPTIONAL, POINTER            :: cell
-    TYPE(dft_control_type), OPTIONAL, POINTER     :: dft_control
-    TYPE(mo_set_p_type),  DIMENSION(:),&
-      OPTIONAL, POINTER                           :: c
-    TYPE(neighbor_list_set_p_type),&
-      DIMENSION(:), OPTIONAL, POINTER             :: sab_orb,sac_erfc,sac_ppl,&
-                                                     sac_ppnl,sbc_ppnl
-    TYPE(pao_env_type), OPTIONAL, POINTER         :: pao_env
-    TYPE(particle_type), DIMENSION(:),&
-      OPTIONAL, POINTER                           :: particle_set
-    TYPE(qs_energy_type), OPTIONAL, POINTER       :: energy
-    TYPE(qs_force_type), DIMENSION(:),&
-      OPTIONAL, POINTER                           :: force
-    TYPE(real_matrix_p_type), DIMENSION(:),&
-         OPTIONAL, POINTER                        :: h,k,s,kinetic,w
-    TYPE(qs_rho_type), OPTIONAL, POINTER          :: rho
-    TYPE(pw_env_type), OPTIONAL, POINTER          :: pw_env
-    TYPE(scf_control_type), OPTIONAL, POINTER     :: scf_control
-    TYPE(qs_charges_type), OPTIONAL, POINTER      :: qs_charges
-    TYPE(coeff_type), OPTIONAL, POINTER           :: rho_core
-    TYPE(qs_ks_env_type), OPTIONAL, POINTER       :: ks_env
-    TYPE(qs_wf_history_type), OPTIONAL, POINTER   :: wf_history
-    TYPE(qs_scf_env_type), OPTIONAL, POINTER      :: scf_env
-    TYPE(qs_matrix_pools_type), OPTIONAL, POINTER :: mpools
-    TYPE(distribution_1d_type), OPTIONAL,POINTER  :: local_particles,&
-                                                     local_molecules
-    TYPE(distribution_2d_type), OPTIONAL, POINTER :: distribution_2d
-    TYPE(cp_error_type), OPTIONAL, INTENT(INOUT)  :: error
-    TYPE(molecule_kind_type), DIMENSION(:),&
-      OPTIONAL, POINTER                           :: molecule_kind_set
-    TYPE(molecule_type), DIMENSION(:),&
-      OPTIONAL, POINTER                           :: molecule_set
-    TYPE(cp_subsystem_type), POINTER, OPTIONAL     :: subsys
+    TYPE(qs_environment_type), &
+      INTENT(inout), TARGET                  :: qs_env
+    TYPE(atomic_kind_type), DIMENSION(:), &
+      OPTIONAL, POINTER                      :: atomic_kind_set
+    TYPE(cell_type), OPTIONAL, POINTER       :: cell
+    TYPE(dft_control_type), OPTIONAL, &
+      POINTER                                :: dft_control
+    TYPE(mo_set_p_type), DIMENSION(:), &
+      OPTIONAL, POINTER                      :: c
+    TYPE(neighbor_list_set_p_type), &
+      DIMENSION(:), OPTIONAL, POINTER        :: sab_orb, sac_erfc, sac_ppl, &
+                                                sac_ppnl, sbc_ppnl
+    TYPE(pao_env_type), OPTIONAL, POINTER    :: pao_env
+    TYPE(particle_type), DIMENSION(:), &
+      OPTIONAL, POINTER                      :: particle_set
+    TYPE(qs_energy_type), OPTIONAL, POINTER  :: energy
+    TYPE(qs_force_type), DIMENSION(:), &
+      OPTIONAL, POINTER                      :: force
+    TYPE(real_matrix_p_type), DIMENSION(:), &
+      OPTIONAL, POINTER                      :: h, k, s, w
+    TYPE(pw_env_type), OPTIONAL, POINTER     :: pw_env
+    TYPE(qs_matrix_pools_type), OPTIONAL, &
+      POINTER                                :: mpools
+    TYPE(qs_rho_type), OPTIONAL, POINTER     :: rho
+    TYPE(real_matrix_p_type), DIMENSION(:), &
+      OPTIONAL, POINTER                      :: kinetic
+    TYPE(scf_control_type), OPTIONAL, &
+      POINTER                                :: scf_control
+    TYPE(qs_charges_type), OPTIONAL, POINTER :: qs_charges
+    TYPE(coeff_type), OPTIONAL, POINTER      :: rho_core
+    TYPE(qs_ks_env_type), OPTIONAL, POINTER  :: ks_env
+    TYPE(qs_wf_history_type), OPTIONAL, &
+      POINTER                                :: wf_history
+    TYPE(qs_scf_env_type), OPTIONAL, POINTER :: scf_env
+    TYPE(distribution_1d_type), OPTIONAL, &
+      POINTER                                :: local_particles, &
+                                                local_molecules
+    TYPE(distribution_2d_type), OPTIONAL, &
+      POINTER                                :: distribution_2d
+    TYPE(molecule_kind_type), DIMENSION(:), &
+      OPTIONAL, POINTER                      :: molecule_kind_set
+    TYPE(molecule_type), DIMENSION(:), &
+      OPTIONAL, POINTER                      :: molecule_set
+    TYPE(cp_subsystem_type), OPTIONAL, &
+      POINTER                                :: subsys
+    TYPE(cp_error_type), INTENT(INOUT), &
+      OPTIONAL                               :: error
 
-    CHARACTER(len=*), PARAMETER :: routineN="set_qs_env",&
-         routineP=moduleN//':'//routineN
-    LOGICAL :: failure
-    TYPE (atomic_kind_list_type), POINTER :: atomic_kinds
-    TYPE (particle_list_type), POINTER :: particles
-    TYPE (mol_new_list_type), POINTER :: molecules_new
-    TYPE (mol_kind_new_list_type), POINTER :: molecule_kinds_new
+    CHARACTER(len=*), PARAMETER :: routineN = "set_qs_env", &
+      routineP = moduleN//':'//routineN
+
+    LOGICAL                                  :: failure
+    TYPE(atomic_kind_list_type), POINTER     :: atomic_kinds
+    TYPE(mol_kind_new_list_type), POINTER    :: molecule_kinds_new
+    TYPE(mol_new_list_type), POINTER         :: molecules_new
+    TYPE(particle_list_type), POINTER        :: particles
+
 !   ---------------------------------------------------------------------------
 
     failure=.FALSE.
@@ -718,15 +698,17 @@ CONTAINS
 !!
 !!*** **********************************************************************
 SUBROUTINE qs_env_create(qs_env,para_env,blacs_env,error)
-  TYPE(qs_environment_type), POINTER :: qs_env
-  TYPE(cp_para_env_type), POINTER :: para_env
-  TYPE(cp_blacs_env_type), POINTER :: blacs_env
-  TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
-  
-  LOGICAL :: failure
-  CHARACTER(len=*), PARAMETER :: routineN='qs_env_create',&
-        routineP=moduleN//':'//routineN
-  INTEGER :: stat
+    TYPE(qs_environment_type), POINTER       :: qs_env
+    TYPE(cp_para_env_type), POINTER          :: para_env
+    TYPE(cp_blacs_env_type), POINTER         :: blacs_env
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'qs_env_create', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: stat
+    LOGICAL                                  :: failure
 
   failure=.FALSE.
   
@@ -769,12 +751,15 @@ END SUBROUTINE qs_env_create
 !!
 !!*** **********************************************************************
 SUBROUTINE qs_env_retain(qs_env,error)
-  TYPE(qs_environment_type), POINTER :: qs_env
-  TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
-  
-  LOGICAL :: failure
-  CHARACTER(len=*), PARAMETER :: routineN='qs_env_retain',&
-        routineP=moduleN//':'//routineN
+    TYPE(qs_environment_type), POINTER       :: qs_env
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'qs_env_retain', &
+      routineP = moduleN//':'//routineN
+
+    LOGICAL                                  :: failure
+
   failure=.FALSE.
   
   CPPrecondition(ASSOCIATED(qs_env),cp_failure_level,routineP,error,failure)
@@ -815,14 +800,17 @@ END SUBROUTINE qs_env_retain
 !!
 !!*** **********************************************************************
 SUBROUTINE qs_env_release(qs_env,error)
-  TYPE(qs_environment_type), POINTER :: qs_env
-  TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
+    TYPE(qs_environment_type), POINTER       :: qs_env
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
 
-  LOGICAL :: failure
-  CHARACTER(len=*), PARAMETER :: routineN='qs_env_release',&
-       routineP=moduleN//':'//routineN
-  INTEGER :: i, stat
-  TYPE(cp_sm_pool_p_type), DIMENSION(:), POINTER :: S_sm_pools
+    CHARACTER(len=*), PARAMETER :: routineN = 'qs_env_release', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: i, stat
+    LOGICAL                                  :: failure
+    TYPE(cp_sm_pool_p_type), DIMENSION(:), &
+      POINTER                                :: S_sm_pools
 
   NULLIFY(S_sm_pools)
   failure=.FALSE.
@@ -967,24 +955,28 @@ END SUBROUTINE qs_env_release
 !!*** **********************************************************************
 SUBROUTINE qs_env_reorthogonalize_vectors(qs_env, v_matrix, ispin, n_col,&
      error)
-  TYPE(qs_environment_type), POINTER :: qs_env
-  TYPE(cp_fm_type), POINTER :: v_matrix
-  INTEGER, INTENT(in) :: ispin
-  INTEGER, INTENT(in), OPTIONAL :: n_col
-  TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
-  
-  LOGICAL :: failure, ortho_contains_cholesky
-  CHARACTER(len=*), PARAMETER :: routineN='qs_env_reorthogonalize_vectors',&
-        routineP=moduleN//':'//routineN
-  INTEGER :: my_n_col, nmo
-  TYPE(qs_scf_env_type), POINTER :: scf_env
-  TYPE(scf_control_type), POINTER :: scf_control
-  TYPE(cp_fm_type), POINTER :: sv
-  TYPE(cp_fm_pool_type), POINTER :: maxao_maxmo_fm_pool
-  TYPE(real_matrix_p_type), DIMENSION(:), POINTER :: s
-  TYPE(qs_matrix_pools_type), POINTER :: mpools
-  INTEGER :: handle
-  
+    TYPE(qs_environment_type), POINTER       :: qs_env
+    TYPE(cp_fm_type), POINTER                :: v_matrix
+    INTEGER, INTENT(in)                      :: ispin
+    INTEGER, INTENT(in), OPTIONAL            :: n_col
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
+
+    CHARACTER(len=*), PARAMETER :: &
+      routineN = 'qs_env_reorthogonalize_vectors', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: handle, my_n_col
+    LOGICAL                                  :: failure, &
+                                                ortho_contains_cholesky
+    TYPE(cp_fm_pool_type), POINTER           :: maxao_maxmo_fm_pool
+    TYPE(cp_fm_type), POINTER                :: sv
+    TYPE(qs_matrix_pools_type), POINTER      :: mpools
+    TYPE(qs_scf_env_type), POINTER           :: scf_env
+    TYPE(real_matrix_p_type), DIMENSION(:), &
+      POINTER                                :: s
+    TYPE(scf_control_type), POINTER          :: scf_control
+
   failure=.FALSE.
   NULLIFY(scf_env,scf_control,sv,maxao_maxmo_fm_pool,s,mpools)
   CALL timeset(routineN,'I',' ',handle)

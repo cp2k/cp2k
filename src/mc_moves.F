@@ -23,33 +23,29 @@
 
 MODULE mc_moves
   USE cp_error_handling,               ONLY: cp_error_type
-  USE cp_subsystem_types,              ONLY: cp_subsystem_p_type,&
-                                             cp_subsystem_type,&
-                                             cp_subsys_set,&
-                                             cp_subsys_release,&
-                                             cp_subsys_get
   USE cp_para_types,                   ONLY: cp_blacs_env_type
-  USE force_env_types,                 ONLY: force_env_calculate_energy,&
+  USE cp_subsystem_types,              ONLY: cp_subsys_get,&
+                                             cp_subsys_release,&
+                                             cp_subsys_set,&
+                                             cp_subsystem_p_type,&
+                                             cp_subsystem_type
+  USE force_env_types,                 ONLY: force_env_get,&
                                              force_env_release,&
-                                             force_env_get,&
                                              force_env_type
   USE global_types,                    ONLY: global_environment_type
-  USE kinds,                           ONLY: dp,dbl
-  USE mathlib,                         ONLY: invert_matrix
-  USE mc_environment_types,            ONLY: mc_environment_type,&
-                                             get_mc_env
+  USE kinds,                           ONLY: dbl,&
+                                             dp
   USE mc_control,                      ONLY: mc_simulation_parameters_type
-  USE mc_misc,                         ONLY: mc_classical_energy,&
-                                             mc_averages_type
-  USE mc_move_control,                 ONLY: mc_move_update,&
+  USE mc_misc,                         ONLY: mc_averages_type,&
+                                             mc_classical_energy
+  USE mc_move_control,                 ONLY: mc_energy_restart,&
+                                             mc_move_update,&
                                              mc_moves_type,&
                                              move_q_reinit,&
-                                             q_move_accept,&
-                                             mc_energy_restart
+                                             q_move_accept
   USE particle_list_types,             ONLY: particle_list_type
   USE qs_main,                         ONLY: quickstep_create_force_env
   USE simulation_cell,                 ONLY: cell_type
-  USE string_utilities,                ONLY: integer_to_string
   USE timings,                         ONLY: timeset,&
                                              timestop
 
@@ -81,33 +77,34 @@ CONTAINS
 
 !   ***************************************************************************
 
-    REAL(KIND = dp),INTENT(INOUT) :: old_energy,energy_check
-    TYPE(mc_moves_type),POINTER  :: moves,move_updates
-    TYPE(mc_averages_type), POINTER :: averages
-    TYPE(force_env_type), POINTER :: force_env
-    INTEGER,INTENT(IN)      :: nnstep
-    TYPE(cp_error_type),OPTIONAL,INTENT(INOUT) :: error
-    TYPE(mc_simulation_parameters_type),POINTER :: mc_par
-    REAL(KIND=dp),DIMENSION(1:3,1:mc_par%nunits_tot), &
-                               INTENT(INOUT) :: r_old
+    TYPE(mc_simulation_parameters_type), &
+      POINTER                                :: mc_par
+    TYPE(force_env_type), POINTER            :: force_env
+    TYPE(mc_moves_type), POINTER             :: moves, move_updates
+    REAL(KIND=dp), INTENT(INOUT)             :: energy_check
+    REAL(KIND=dp), &
+      DIMENSION(1:3, 1:mc_par%nunits_tot), &
+      INTENT(INOUT)                          :: r_old
+    INTEGER, INTENT(IN)                      :: nnstep
+    REAL(KIND=dp), INTENT(INOUT)             :: old_energy
+    TYPE(mc_averages_type), POINTER          :: averages
+    TYPE(cp_error_type), INTENT(INOUT), &
+      OPTIONAL                               :: error
 
-!   *** Local parameters ***
+    CHARACTER(LEN=*), PARAMETER              :: routineN = "mc_Quickstep_move"
 
-    CHARACTER(LEN=*), PARAMETER :: routineN = "mc_Quickstep_move"
-
-!   *** Local variables ***
-    REAL(KIND = dp) ::                 rand,dis_ion,w,new_energy,&
-                                       classical_energy_new,&
-                                       classical_energy_old
-    TYPE(particle_list_type), POINTER :: particles
-    TYPE(cp_subsystem_p_type),DIMENSION(:),POINTER :: subsys
+    INTEGER                                  :: handle, i, iparticle, istep
+    REAL(KIND=dp)                            :: classical_energy_new, &
+                                                classical_energy_old, &
+                                                new_energy, rand, w
+    TYPE(cp_subsystem_p_type), &
+      DIMENSION(:), POINTER                  :: subsys
+    TYPE(particle_list_type), POINTER        :: particles
 
 !   *** Local Counters ***
-    INTEGER  ::                  i,iparticle,handle,imol,istep
-
 !   ---------------------------------------------------------------------------
-
 ! begin the timing of the subroutine
+
       CALL timeset(routineN,'I','',handle)
 
 ! create a new variable to keep averages correct
@@ -239,30 +236,30 @@ CONTAINS
 
 !   ***************************************************************************
 
-    REAL(KIND = dp),INTENT(INOUT) :: classical_energy_old
-    TYPE(mc_moves_type),POINTER  :: moves,move_updates
-    TYPE(force_env_type), POINTER :: force_env
-    INTEGER,INTENT(IN)      :: nnstep,counter
-    TYPE(cp_error_type),OPTIONAL,INTENT(INOUT) :: error
-    TYPE(mc_simulation_parameters_type),POINTER :: mc_par
-
-!   *** Local parameters ***
+    TYPE(mc_simulation_parameters_type), &
+      POINTER                                :: mc_par
+    TYPE(force_env_type), POINTER            :: force_env
+    TYPE(mc_moves_type), POINTER             :: moves, move_updates
+    INTEGER, INTENT(IN)                      :: nnstep, counter
+    REAL(KIND=dp), INTENT(INOUT)             :: classical_energy_old
+    TYPE(cp_error_type), INTENT(INOUT), &
+      OPTIONAL                               :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = "mc_atom_translation"
 
-!   *** Local variables ***
-    REAL(KIND = dp) ::                 rand,dis_ion,w,&
-                                       classical_energy_new
-    TYPE(particle_list_type), POINTER :: particles
-    TYPE(cp_subsystem_p_type),DIMENSION(:),POINTER :: subsys
-    REAL(KIND=dp),DIMENSION(1:3,1:mc_par%nunits_tot) :: r
+    INTEGER                                  :: handle, i, imol, iparticle
+    REAL(KIND=dp)                            :: classical_energy_new, &
+                                                dis_ion, rand, w
+    TYPE(cp_subsystem_p_type), &
+      DIMENSION(:), POINTER                  :: subsys
+    REAL(KIND=dp), &
+      DIMENSION(1:3, 1:mc_par%nunits_tot)    :: r
+    TYPE(particle_list_type), POINTER        :: particles
 
 !   *** Local Counters ***
-    INTEGER  ::                  i,iparticle,handle,imol
-
 !   ---------------------------------------------------------------------------
-
 ! begin the timing of the subroutine
+
   CALL timeset(routineN,'I','',handle)
 
 ! nullify some pointers
@@ -364,31 +361,31 @@ CONTAINS
 
 !   ***************************************************************************
 
-    TYPE(cp_error_type),OPTIONAL,INTENT(INOUT) :: error
-    REAL(KIND = dp),INTENT(INOUT) :: classical_energy_old
-    TYPE(mc_moves_type),POINTER  :: moves,move_updates
-    TYPE(force_env_type), POINTER :: force_env
-    INTEGER,INTENT(IN)      :: nnstep,counter
-    TYPE(mc_simulation_parameters_type),POINTER :: mc_par
-
-!   *** Local parameters ***
+    TYPE(mc_simulation_parameters_type), &
+      POINTER                                :: mc_par
+    TYPE(force_env_type), POINTER            :: force_env
+    TYPE(mc_moves_type), POINTER             :: moves, move_updates
+    INTEGER, INTENT(IN)                      :: nnstep, counter
+    REAL(KIND=dp), INTENT(INOUT)             :: classical_energy_old
+    TYPE(cp_error_type), INTENT(INOUT), &
+      OPTIONAL                               :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = "mc_molecule_translation"
 
-!   *** Local variables ***
-    TYPE(particle_list_type), POINTER :: particles
-    TYPE(cp_subsystem_p_type), DIMENSION(:), POINTER :: subsys
-    REAL(KIND = dp) ::                 rand,dis_mol,w,&
-                               classical_energy_new
-    REAL(KIND = dp),DIMENSION(1:3,1:mc_par%nunits_tot) :: r          
+    INTEGER                                  :: handle, i, imol, imolecule, &
+                                                iparticle
+    REAL(KIND=dp)                            :: classical_energy_new, &
+                                                dis_mol, rand, w
+    TYPE(cp_subsystem_p_type), &
+      DIMENSION(:), POINTER                  :: subsys
+    REAL(KIND=dp), &
+      DIMENSION(1:3, 1:mc_par%nunits_tot)    :: r
+    TYPE(particle_list_type), POINTER        :: particles
 
 !   *** Local Counters ***
-    INTEGER  ::                  i,imolecule,iparticle,handle,&
-                                 imol
-
 !   ---------------------------------------------------------------------------
-
 ! begin the timing of the subroutine
+
       CALL timeset(routineN,'I','',handle)
 
 ! nullify some pointers
@@ -497,35 +494,36 @@ CONTAINS
 
 !   ***************************************************************************
 
-    TYPE(cp_error_type),OPTIONAL,INTENT(INOUT) :: error
-    REAL(KIND = dp),INTENT(INOUT) :: classical_energy_old
-    TYPE(mc_moves_type),POINTER  :: moves,move_updates
-    TYPE(force_env_type), POINTER :: force_env
-    INTEGER,INTENT(IN)      :: nnstep,counter
-    TYPE(mc_simulation_parameters_type),POINTER :: mc_par
-
-!   *** Local parameters ***
+    TYPE(mc_simulation_parameters_type), &
+      POINTER                                :: mc_par
+    TYPE(force_env_type), POINTER            :: force_env
+    TYPE(mc_moves_type), POINTER             :: moves, move_updates
+    INTEGER, INTENT(IN)                      :: nnstep, counter
+    REAL(KIND=dp), INTENT(INOUT)             :: classical_energy_old
+    TYPE(cp_error_type), INTENT(INOUT), &
+      OPTIONAL                               :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = "mc_molecule_rotation"
-    REAL(KIND=dp),DIMENSION(1:3),PARAMETER :: &
-                             mass=(/ 15.994d0,1.008d0,1.008d0 /)
+    REAL(KIND=dp), DIMENSION(1:3), PARAMETER :: &
+      mass = (/ 15.994d0,1.008d0,1.008d0 /)
 
-!   *** Local variables ***
-    TYPE(cp_subsystem_p_type), DIMENSION(:), POINTER :: subsys
-    TYPE(particle_list_type), POINTER :: particles
-    REAL(KIND = dp) ::                 rand,dis_mol,w,new_energy,&
-                              classical_energy_new
-    REAL(KIND = dp),DIMENSION(1:3,1:mc_par%nunits_tot) :: r          
+    INTEGER                                  :: dir, handle, ii, imol, &
+                                                imolecule, iunit
+    LOGICAL                                  :: lx, ly
+    REAL(KIND=dp)                            :: classical_energy_new, cosdg, &
+                                                dgamma, nxcm, nycm, nzcm, &
+                                                rand, rx, rxnew, ry, rynew, &
+                                                rz, rznew, sindg, w
+    TYPE(cp_subsystem_p_type), &
+      DIMENSION(:), POINTER                  :: subsys
+    REAL(KIND=dp), &
+      DIMENSION(1:3, 1:mc_par%nunits_tot)    :: r
+    TYPE(particle_list_type), POINTER        :: particles
 
 !   *** Local Counters ***
-    INTEGER  ::                  imolecule,iparticle,dir,ii,iunit
-    INTEGER  ::                  handle,istep,imol
-    LOGICAL  ::                  lx,ly
-    REAL(KIND=dp) ::             nxcm,nycm,nzcm,rx,ry,rz,rxnew,&
-                                 rynew,rznew,dgamma,cosdg,sindg
 !   ---------------------------------------------------------------------------
-
 ! begin the timing of the subroutine
+
       CALL timeset(routineN,'I','',handle)
 
 ! nullify some pointers
@@ -697,47 +695,44 @@ CONTAINS
 
 !   ***************************************************************************
 
-    TYPE(global_environment_type), POINTER :: globenv
-    TYPE(cp_blacs_env_type), POINTER :: blacs_env
-    REAL(KIND = dp),INTENT(INOUT) :: old_energy,energy_check
-    TYPE(mc_moves_type),POINTER  :: moves,move_updates
-    TYPE(mc_averages_type),POINTER  :: averages
-    TYPE(force_env_type), POINTER :: force_env
-    INTEGER,INTENT(IN)      :: nnstep
-    TYPE(cp_error_type),OPTIONAL,INTENT(INOUT) :: error
-    TYPE(mc_simulation_parameters_type),POINTER :: mc_par
-    REAL(KIND=dp),DIMENSION(1:3,1:mc_par%nunits_tot), &
-                               INTENT(INOUT) :: r_old
+    TYPE(mc_simulation_parameters_type), &
+      POINTER                                :: mc_par
+    TYPE(force_env_type), POINTER            :: force_env
+    TYPE(mc_moves_type), POINTER             :: moves, move_updates
+    INTEGER, INTENT(IN)                      :: nnstep
+    TYPE(mc_averages_type), POINTER          :: averages
+    REAL(KIND=dp), INTENT(INOUT)             :: old_energy
+    TYPE(global_environment_type), POINTER   :: globenv
+    TYPE(cp_blacs_env_type), POINTER         :: blacs_env
+    REAL(KIND=dp), INTENT(INOUT)             :: energy_check
+    REAL(KIND=dp), &
+      DIMENSION(1:3, 1:mc_par%nunits_tot), &
+      INTENT(INOUT)                          :: r_old
+    TYPE(cp_error_type), INTENT(INOUT), &
+      OPTIONAL                               :: error
 
-!   *** Local parameters ***
+    CHARACTER(LEN=*), PARAMETER              :: routineN = "mc_volume_move"
+    REAL(KIND=dp), DIMENSION(1:3), PARAMETER :: &
+      mass = (/ 15.994d0,1.008d0,1.008d0 /)
+    REAL(KIND=dp), PARAMETER                 :: mass_tot = 18.01d0
 
-    CHARACTER(LEN=*), PARAMETER :: routineN = "mc_volume_move"
-    REAL(KIND=dp),DIMENSION(1:3),PARAMETER :: &
-                             mass=(/ 15.994d0,1.008d0,1.008d0 /)
-    REAL(KIND=dp),PARAMETER :: mass_tot=18.01d0
+    INTEGER                                  :: handle, i, imol, istep
+    REAL(KIND=dp)                            :: new_cell_length, new_energy, &
+                                                old_cell_length, rand, vol, w
+    REAL(KIND=dp), DIMENSION(1:3)            :: center_of_mass, &
+                                                center_of_mass_new, diff
+    REAL(KIND=dp), DIMENSION(1:3, 1:3)       :: h_matrix, new_h
+    TYPE(force_env_type), POINTER            :: test_env
+    TYPE(cp_subsystem_type), POINTER         :: subsys
+    TYPE(cp_subsystem_p_type), &
+      DIMENSION(:), POINTER                  :: newsys, oldsys
+    TYPE(cell_type), POINTER                 :: cell
+    TYPE(particle_list_type), POINTER        :: particles, particles_old
 
-!   *** Local variables ***
-    REAL(KIND = dp) ::                 rand,dis_length,w,new_energy,&
-                                       old_length,max_error,vol,&
-                                       density_old,new_cell_length,&
-                                       old_cell_length
-    TYPE(force_env_type), POINTER :: test_env
-    TYPE(particle_list_type), POINTER :: particles_old
-    TYPE(particle_list_type), POINTER :: particles
-    TYPE(cp_subsystem_p_type),DIMENSION(:),POINTER :: oldsys,&
-                                                      newsys
-    TYPE(cp_subsystem_type), POINTER :: subsys
-    TYPE(cell_type), POINTER :: cell
-    REAL(KIND =dp),DIMENSION(1:3,1:3) ::       h_matrix,new_h,&
-                                               new_h_inverse
-    REAL(KIND=dp),DIMENSION(1:3)  :: diff,center_of_mass,&
-                                     center_of_mass_new
 !   *** Local Counters ***
-    INTEGER  ::                  imol,handle,i,IO_stat,istep
-      
 !   ---------------------------------------------------------------------------
-
 ! begin the timing of the subroutine
+
   CALL timeset(routineN,'I','',handle)
 
 ! rewrite a variable so the averages aren't thrown off

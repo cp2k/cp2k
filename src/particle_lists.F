@@ -20,11 +20,12 @@
 
 MODULE particle_lists
 
-  USE atomic_kind_types, ONLY : atomic_kind_type, get_atomic_kind
-  USE kinds, ONLY : dbl
-  USE molecule_types, ONLY : particle_node_type
-  USE particle_types, ONLY : particle_type
-  USE termination, ONLY : stop_memory
+  USE atomic_kind_types,               ONLY: atomic_kind_type,&
+                                             get_atomic_kind
+  USE kinds,                           ONLY: dbl
+  USE molecule_types,                  ONLY: particle_node_type
+  USE particle_types,                  ONLY: particle_type
+  USE termination,                     ONLY: stop_memory
 
   IMPLICIT NONE
 
@@ -47,18 +48,16 @@ CONTAINS
 !******************************************************************************
 
 SUBROUTINE particle_list_select ( pnode, plist, nparts)
-  IMPLICIT NONE
 
-! Arguments
-  TYPE ( particle_node_type ), DIMENSION ( : ), INTENT ( IN ), TARGET :: pnode
-  TYPE ( particle_list_type ), POINTER :: plist
-  INTEGER , INTENT ( OUT )  :: nparts
+    TYPE(particle_node_type), DIMENSION(:), &
+      INTENT(IN), TARGET                     :: pnode
+    TYPE(particle_list_type), POINTER        :: plist
+    INTEGER, INTENT(OUT)                     :: nparts
 
-! Locals
-  INTEGER :: node, nnodes, isos
-  REAL ( dbl ), TARGET :: charge
-  TYPE ( particle_list_type ), POINTER :: plist_loc
-  TYPE ( atomic_kind_type ), POINTER :: atomic_kind
+    INTEGER                                  :: isos, nnodes, node
+    REAL(dbl), TARGET                        :: charge
+    TYPE(atomic_kind_type), POINTER          :: atomic_kind
+    TYPE(particle_list_type), POINTER        :: plist_loc
 
 !------------------------------------------------------------------------------
 
@@ -104,25 +103,22 @@ END SUBROUTINE particle_list_select
 !****************************************************************************
 
 SUBROUTINE particle_list_grid ( part, plist, atom_list, nparts, grid_tag )
-  IMPLICIT NONE
 
-! Arguments
-  TYPE ( particle_type ), DIMENSION ( : ), INTENT ( INOUT ), TARGET :: part
-  TYPE ( particle_list_type ), POINTER :: plist
-  INTEGER, INTENT (IN), DIMENSION (:) :: ATOM_LIST
-  INTEGER , INTENT ( OUT )  :: nparts
-  INTEGER , INTENT ( IN )  :: grid_tag
+    TYPE(particle_type), DIMENSION(:), &
+      INTENT(INOUT), TARGET                  :: part
+    TYPE(particle_list_type), POINTER        :: plist
+    INTEGER, DIMENSION(:), INTENT(IN)        :: ATOM_LIST
+    INTEGER, INTENT(OUT)                     :: nparts
+    INTEGER, INTENT(IN)                      :: grid_tag
 
-! Locals
-  INTEGER :: npart,  isos, part_index
-  TYPE ( particle_list_type ), POINTER :: plist_loc
-  REAL (dbl), TARGET :: charge
- 
+    INTEGER                                  :: isos, npart, part_index
+    REAL(dbl), TARGET                        :: charge
+    TYPE(particle_list_type), POINTER        :: plist_loc
+
 !------------------------------------------------------------------------------
- 
- 
-  ! 'plist' will always point to the beginning of the list, 'plist_loc'
-  !    to the current position
+! 'plist' will always point to the beginning of the list, 'plist_loc'
+!    to the current position
+
   NULLIFY ( plist )
   NULLIFY ( plist_loc )
  

@@ -17,8 +17,10 @@
 !
 !------------------------------------------------------------------------------!
 
-      USE kinds, ONLY : dbl
+  USE kinds,                           ONLY: dbl
 !
+
+
       IMPLICIT NONE
 !
       PRIVATE
@@ -151,12 +153,14 @@ SUBROUTINE CALERF(ARG,RESULT,JINT)
 !
 !------------------------------------------------------------------
 
-  IMPLICIT NONE
-  INTEGER I,JINT
-  REAL ( dbl ) :: &
-       A,ARG,B,C,D,DEL,FOUR,HALF,P,ONE,Q,RESULT,SIXTEN,SQRPI, &
-       TWO,THRESH,X,XBIG,XDEN,XHUGE,XINF,XMAX,XNEG,XNUM,XSMALL, &
-       Y,YSQ,ZERO
+    REAL(dbl)                                :: ARG, RESULT
+    INTEGER                                  :: JINT
+
+    INTEGER                                  :: I
+    REAL(dbl) :: A, B, C, D, DEL, FOUR, HALF, ONE, P, Q, SIXTEN, SQRPI, &
+      THRESH, TWO, X, XBIG, XDEN, XHUGE, XINF, XMAX, XNEG, XNUM, XSMALL, Y, &
+      YSQ, ZERO
+
   DIMENSION A(5),B(4),C(9),D(8),P(6),Q(5)
 !------------------------------------------------------------------
 !  Mathematical constants
@@ -320,10 +324,10 @@ FUNCTION ERF(X)
 !   Author/date: W. J. Cody, January 8, 1985
 !
 !--------------------------------------------------------------------
-  IMPLICIT NONE
-  REAL ( dbl ) :: ERF
-  INTEGER JINT
-  REAL ( dbl ) :: X, RESULT
+    REAL(dbl)                                :: X, ERF
+
+    INTEGER                                  :: JINT
+    REAL(dbl)                                :: RESULT
 
 !------------------------------------------------------------------
 
@@ -343,11 +347,13 @@ FUNCTION ERFC(X)
 !   Author/date: W. J. Cody, January 8, 1985
 !
 !--------------------------------------------------------------------
-  IMPLICIT NONE
-  REAL ( dbl ) :: ERFC
-  INTEGER JINT
-  REAL ( dbl ) :: X, RESULT
+    REAL(dbl)                                :: X, ERFC
+
+    INTEGER                                  :: JINT
+    REAL(dbl)                                :: RESULT
+
 !------------------------------------------------------------------
+
   JINT = 1
   CALL CALERF(X,RESULT,JINT)
   ERFC = RESULT
@@ -364,11 +370,13 @@ FUNCTION ERFCX(X)
 !   Author/date: W. J. Cody, March 30, 1987
 !
 !------------------------------------------------------------------
-  IMPLICIT NONE
-  REAL ( dbl ) :: ERFCX
-  INTEGER JINT
-  REAL ( dbl ) :: X, RESULT
+    REAL(dbl)                                :: X, ERFCX
+
+    INTEGER                                  :: JINT
+    REAL(dbl)                                :: RESULT
+
 !------------------------------------------------------------------
+
   JINT = 2
   CALL CALERF(X,RESULT,JINT)
   ERFCX = RESULT

@@ -5,15 +5,21 @@
 
 MODULE atom_types
 
-  USE functionals, ONLY : init_functionals
-  USE global_types, ONLY : GLOBAL_ENVIRONMENT_TYPE
-  USE kinds, ONLY : DBL
-  USE parser, ONLY : p_error, parser_end, parser_init, get_next, &
-       test_next, read_line, stop_parser, search_label
-  USE mathconstants, ONLY : pi
-  USE radial_grids, ONLY : RADIAL_GRID_TYPE, init_radial_grid
-  USE radial_util, ONLY : radial_integrate, radial_normalize
-  USE string_utilities, ONLY : uppercase
+  USE functionals,                     ONLY: init_functionals
+  USE global_types,                    ONLY: GLOBAL_ENVIRONMENT_TYPE
+  USE kinds,                           ONLY: DBL
+  USE mathconstants,                   ONLY: pi
+  USE parser,                          ONLY: get_next,&
+                                             parser_end,&
+                                             parser_init,&
+                                             read_line,&
+                                             search_label,&
+                                             stop_parser,&
+                                             test_next
+  USE radial_grids,                    ONLY: RADIAL_GRID_TYPE,&
+                                             init_radial_grid
+  USE radial_util,                     ONLY: radial_normalize
+  USE string_utilities,                ONLY: uppercase
 
   IMPLICIT NONE
 
@@ -73,14 +79,12 @@ CONTAINS
   
   FUNCTION is_valid ( atom )
     
-    IMPLICIT NONE
     
-    TYPE(ATOM_TYPE), INTENT(IN) :: atom
-    LOGICAL :: is_valid
-    
-    INTEGER :: n,l
-    INTEGER :: ne
-    
+    TYPE(ATOM_TYPE), INTENT(IN)              :: atom
+    LOGICAL                                  :: is_valid
+
+    INTEGER                                  :: l, n, ne
+
     is_valid = .FALSE.
     ne = 0
     
@@ -107,13 +111,13 @@ CONTAINS
     ! Reads the init file and initializes the atom and atom_calculation
     ! objects with the information therein.
     !
-    IMPLICIT NONE
-    ! arguments
-    TYPE(ATOM_TYPE), INTENT(OUT)                :: atom
-    TYPE(ATOM_CALCULATION_TYPE), INTENT(OUT)     :: ac
-    TYPE(GLOBAL_ENVIRONMENT_TYPE), INTENT ( IN ) :: globenv
-    ! variables
-    
+    TYPE(ATOM_TYPE), INTENT(OUT)             :: atom
+    TYPE(ATOM_CALCULATION_TYPE), INTENT(OUT) :: ac
+    TYPE(GLOBAL_ENVIRONMENT_TYPE), &
+      INTENT(IN)                             :: globenv
+
+! variables
+
     CALL parser_init(globenv%input_file_name, globenv)
     
     CALL handle_ac(ac, globenv)
@@ -131,18 +135,18 @@ CONTAINS
   ! ****************************************************************************
   
   SUBROUTINE handle_atom ( atom, ac, globenv )
-    IMPLICIT NONE
-    ! arguments
-    TYPE(ATOM_TYPE), INTENT(OUT)                :: atom
-    TYPE(ATOM_CALCULATION_TYPE), INTENT(IN)      :: ac
-    TYPE(GLOBAL_ENVIRONMENT_TYPE), INTENT ( IN ) :: globenv
-    ! variables
-    CHARACTER(8)   :: label, string    
-    INTEGER        :: err, len, out
-    INTEGER        :: n, l, np,i 
-    INTEGER        :: avail, set
-    REAL(DBL)      :: res, x
-    
+    TYPE(ATOM_TYPE), INTENT(OUT)             :: atom
+    TYPE(ATOM_CALCULATION_TYPE), INTENT(IN)  :: ac
+    TYPE(GLOBAL_ENVIRONMENT_TYPE), &
+      INTENT(IN)                             :: globenv
+
+    CHARACTER(8)                             :: label, string
+    INTEGER                                  :: avail, err, i, l, len, n, np, &
+                                                out, set
+    REAL(DBL)                                :: x
+
+! variables
+
     np = ac%rg%n
     len = 8
     out = globenv%scr
@@ -254,17 +258,15 @@ CONTAINS
   ! ****************************************************************************
   
   SUBROUTINE handle_ac ( ac, globenv )
-    IMPLICIT NONE
-    ! arguments
-    TYPE(ATOM_CALCULATION_TYPE), INTENT(OUT)     :: ac
-    TYPE(GLOBAL_ENVIRONMENT_TYPE), INTENT ( IN ) :: globenv
-    ! variables
-    CHARACTER(8)   :: label, string, gridtype
-    INTEGER        :: err, len, out
-    INTEGER        :: np
-    REAL(DBL)      :: rmax
-    REAL(DBL), DIMENSION(0:5) :: b
-    
+    TYPE(ATOM_CALCULATION_TYPE), INTENT(OUT) :: ac
+    TYPE(GLOBAL_ENVIRONMENT_TYPE), &
+      INTENT(IN)                             :: globenv
+
+    CHARACTER(8)                             :: label, string
+    INTEGER                                  :: err, len, out
+
+! variables
+
     len = 8
     out = globenv%scr
     label = "&CALC"
@@ -321,17 +323,17 @@ CONTAINS
   ! ****************************************************************************
   
   SUBROUTINE handle_grid ( ac, globenv )
-    IMPLICIT NONE
-    ! arguments
-    TYPE(ATOM_CALCULATION_TYPE), INTENT(OUT)     :: ac
-    TYPE(GLOBAL_ENVIRONMENT_TYPE), INTENT ( IN ) :: globenv
-    ! variables
-    CHARACTER(8)   :: label, string, gridtype
-    INTEGER        :: err, len, out
-    INTEGER        :: np
-    REAL(DBL)      :: rmax
-    REAL(DBL), DIMENSION(0:5) :: b
-    
+    TYPE(ATOM_CALCULATION_TYPE), INTENT(OUT) :: ac
+    TYPE(GLOBAL_ENVIRONMENT_TYPE), &
+      INTENT(IN)                             :: globenv
+
+    CHARACTER(8)                             :: gridtype, label, string
+    INTEGER                                  :: err, len, np, out
+    REAL(DBL)                                :: rmax
+    REAL(DBL), DIMENSION(0:5)                :: b
+
+! variables
+
     len = 8
     out = globenv%scr
     label = "&GRID"
@@ -439,14 +441,15 @@ CONTAINS
 !!! ****************************************************************************
   
   SUBROUTINE handle_method_specific ( ac, globenv )
-    IMPLICIT NONE
-    ! arguments
-    TYPE(ATOM_CALCULATION_TYPE), INTENT(OUT)     :: ac
-    TYPE(GLOBAL_ENVIRONMENT_TYPE), INTENT ( IN ) :: globenv
-    ! variables
-    CHARACTER(8)   :: label, string
-    INTEGER        :: err, len, out
-    
+    TYPE(ATOM_CALCULATION_TYPE), INTENT(OUT) :: ac
+    TYPE(GLOBAL_ENVIRONMENT_TYPE), &
+      INTENT(IN)                             :: globenv
+
+    CHARACTER(8)                             :: label, string
+    INTEGER                                  :: err, len, out
+
+! variables
+
     len = 8
     out = globenv%scr
     SELECT CASE (ac%method)
@@ -499,11 +502,11 @@ CONTAINS
 !!! ****************************************************************************
 
   SUBROUTINE print_atom(atom)
-    IMPLICIT NONE
-    TYPE(ATOM_TYPE), INTENT(IN) :: atom
-    CHARACTER(11) :: t(0:7), e(0:7)
+    TYPE(ATOM_TYPE), INTENT(IN)              :: atom
 
-    INTEGER :: n, l
+    CHARACTER(11)                            :: e(0:7), t(0:7)
+    INTEGER                                  :: l, n
+
     WRITE (6,*)
     WRITE (6,'(1X,A)') "============================================================="
     WRITE (6,'(1X,A)') "STATE of the atom"
@@ -529,9 +532,8 @@ CONTAINS
 
   SUBROUTINE print_parameters(ac)
 
-    IMPLICIT NONE
     
-    TYPE(ATOM_CALCULATION_TYPE), INTENT(IN) :: ac
+    TYPE(ATOM_CALCULATION_TYPE), INTENT(IN)  :: ac
 
     WRITE (6,*)
     WRITE (6,'(1X,A)') "============================================================="

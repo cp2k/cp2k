@@ -22,8 +22,7 @@
 MODULE molecule_types_new
 
   USE kinds,                           ONLY: int_size
-  USE molecule_kind_types,             ONLY: get_molecule_kind,&
-                                             molecule_kind_type
+  USE molecule_kind_types,             ONLY: molecule_kind_type
   USE termination,                     ONLY: stop_memory,&
                                              stop_program
 
@@ -75,16 +74,13 @@ CONTAINS
 
 !   ***************************************************************************
 
-    TYPE(molecule_type), DIMENSION(:), POINTER :: molecule_set
-    INTEGER, INTENT(IN)                        :: nmolecule
-
-!   *** Local parameters ***
+    TYPE(molecule_type), DIMENSION(:), &
+      POINTER                                :: molecule_set
+    INTEGER, INTENT(IN)                      :: nmolecule
 
     CHARACTER(LEN=*), PARAMETER :: routine_name = "allocate_molecule_set"
 
-!   *** Local variables ***
-
-    INTEGER :: imolecule,istat
+    INTEGER                                  :: imolecule, istat
 
 !   ---------------------------------------------------------------------------
 
@@ -112,15 +108,12 @@ CONTAINS
 
 !   ***************************************************************************
 
-    TYPE(molecule_type), DIMENSION(:), POINTER :: molecule_set
-
-!   *** Local parameters ***
+    TYPE(molecule_type), DIMENSION(:), &
+      POINTER                                :: molecule_set
 
     CHARACTER(LEN=*), PARAMETER :: routine_name = "deallocate_molecule_set"
 
-!   *** Local variables ***
-
-    INTEGER :: istat,imolecule
+    INTEGER                                  :: imolecule, istat
 
 !   ---------------------------------------------------------------------------
 
@@ -157,17 +150,13 @@ CONTAINS
 
 !   ***************************************************************************
 
-    TYPE(molecule_type), POINTER                :: molecule
-    TYPE(molecule_kind_type), OPTIONAL, POINTER :: molecule_kind
-    TYPE(local_molecule_type), OPTIONAL, POINTER :: lmi
+    TYPE(molecule_type), POINTER             :: molecule
+    TYPE(molecule_kind_type), OPTIONAL, &
+      POINTER                                :: molecule_kind
+    TYPE(local_molecule_type), OPTIONAL, &
+      POINTER                                :: lmi
 
-!   *** Local parameters ***
-
-    CHARACTER(LEN=*), PARAMETER :: routine_name = "get_molecule"
-
-!   *** Local variables ***
-
-    INTEGER :: istat
+    CHARACTER(LEN=*), PARAMETER              :: routine_name = "get_molecule"
 
 !   ---------------------------------------------------------------------------
 
@@ -195,17 +184,13 @@ CONTAINS
 
 !   ***************************************************************************
 
-    TYPE(molecule_type), POINTER                :: molecule
-    TYPE(molecule_kind_type), OPTIONAL, POINTER :: molecule_kind
-    TYPE(local_molecule_type), OPTIONAL, POINTER :: lmi
+    TYPE(molecule_type), POINTER             :: molecule
+    TYPE(molecule_kind_type), OPTIONAL, &
+      POINTER                                :: molecule_kind
+    TYPE(local_molecule_type), OPTIONAL, &
+      POINTER                                :: lmi
 
-!   *** Local parameters ***
-
-    CHARACTER(LEN=*), PARAMETER :: routine_name = "set_molecule"
-
-!   *** Local variables ***
-
-    INTEGER :: istat
+    CHARACTER(LEN=*), PARAMETER              :: routine_name = "set_molecule"
 
 !   ---------------------------------------------------------------------------
 
@@ -233,16 +218,14 @@ CONTAINS
 
 !   ***************************************************************************
 
-    TYPE(molecule_type), DIMENSION(:), POINTER  :: molecule_set
-    INTEGER, DIMENSION(:), OPTIONAL, INTENT(IN) :: first_atom
-
-!   *** Local parameters ***
+    TYPE(molecule_type), DIMENSION(:), &
+      POINTER                                :: molecule_set
+    INTEGER, DIMENSION(:), INTENT(IN), &
+      OPTIONAL                               :: first_atom
 
     CHARACTER(LEN=*), PARAMETER :: routine_name = "set_molecule_set"
 
-!   *** Local variables ***
-
-    INTEGER :: imolecule,istat
+    INTEGER                                  :: imolecule
 
 !   ---------------------------------------------------------------------------
 

@@ -36,9 +36,12 @@ MODULE spherical_harmonics
 
 ! *****************************************************************************
 
-  USE kinds,         ONLY: dbl
-  USE mathconstants, ONLY: pi, fac, maxfac
-  USE termination,   ONLY: stop_memory, stop_program
+  USE kinds,                           ONLY: dbl
+  USE mathconstants,                   ONLY: fac,&
+                                             maxfac,&
+                                             pi
+  USE termination,                     ONLY: stop_memory,&
+                                             stop_program
 
   IMPLICIT NONE
 
@@ -73,10 +76,10 @@ CONTAINS
 ! *****************************************************************************
 
   SUBROUTINE clebsch_gordon_complex (l1,m1,l2,m2,clm)
-     IMPLICIT NONE
-     INTEGER, INTENT(IN) :: l1,m1,l2,m2
-     REAL(dbl), DIMENSION (:), INTENT(OUT) :: clm
-     INTEGER :: l, n, icase, lm, ind, lp
+    INTEGER, INTENT(IN)                      :: l1, m1, l2, m2
+    REAL(dbl), DIMENSION(:), INTENT(OUT)     :: clm
+
+    INTEGER                                  :: icase, ind, l, lm, lp, n
 
      l = l1 + l2
      IF (l > lmax) CALL clebsch_gordon_init ( l )
@@ -98,11 +101,12 @@ CONTAINS
   END SUBROUTINE clebsch_gordon_complex
 
   SUBROUTINE clebsch_gordon_real (l1,m1,l2,m2,rlm)
-     IMPLICIT NONE
-     INTEGER, INTENT(IN) :: l1,m1,l2,m2
-     REAL(dbl), DIMENSION (:,:), INTENT(OUT) :: rlm
-     INTEGER :: l, n, icase1, icase2, lm, ind, lp, mcase, mm(2)
-     REAL(dbl) :: xsi
+    INTEGER, INTENT(IN)                      :: l1, m1, l2, m2
+    REAL(dbl), DIMENSION(:, :), INTENT(OUT)  :: rlm
+
+    INTEGER                                  :: icase1, icase2, ind, l, lm, &
+                                                lp, mm(2), n
+    REAL(dbl)                                :: xsi
 
      l = l1 + l2
      IF (l > lmax) CALL clebsch_gordon_init ( l )
@@ -132,9 +136,11 @@ CONTAINS
 ! *****************************************************************************
 
   FUNCTION getm(m1,m2) RESULT(m)
-     INTEGER, INTENT(IN) :: m1,m2
-     INTEGER, DIMENSION(2) :: m
-     INTEGER :: mp, mm
+    INTEGER, INTENT(IN)                      :: m1, m2
+    INTEGER, DIMENSION(2)                    :: m
+
+    INTEGER                                  :: mm, mp
+
      mp = m1 + m2
      mm = m1 - m2
      IF ( m1*m2 < 0  .OR. (m1*m2==0 .AND. (m1<0 .OR. m2<0))) THEN
@@ -149,9 +155,11 @@ CONTAINS
   END FUNCTION getm
 
   FUNCTION get_factor(m1,m2,m) RESULT(f)
-     INTEGER, INTENT(IN) :: m1,m2,m
-     INTEGER :: mx, my
-     REAL(dbl) :: f
+    INTEGER, INTENT(IN)                      :: m1, m2, m
+    REAL(dbl)                                :: f
+
+    INTEGER                                  :: mx, my
+
      f = 1._dbl
      IF ( ABS(m1)>=ABS(m2) ) THEN
        mx = m1
@@ -189,9 +197,10 @@ CONTAINS
 ! *****************************************************************************
 
   SUBROUTINE clebsch_gordon_init ( l )
-     IMPLICIT NONE
-     INTEGER, INTENT(IN) :: l
-     INTEGER :: ierr, n, m, l1, m1, l2, m2, ml, lp, mp, i1, i2, ix, iy
+    INTEGER, INTENT(IN)                      :: l
+
+    INTEGER                                  :: i1, i2, ierr, ix, iy, l1, l2, &
+                                                lp, m, m1, m2, ml, mp, n
 
      sq2 = SQRT(2._dbl)
      osq2 = 1._dbl/sq2
@@ -238,14 +247,15 @@ CONTAINS
 ! *****************************************************************************
 
   FUNCTION cgc(l1,m1,l2,m2,lp,mp)
-    IMPLICIT NONE
-    INTEGER, INTENT(IN) :: l1,m1,l2,m2,lp,mp
-    REAL(dbl) :: cgc
-    REAL(dbl) :: pref, f1, f2
-    INTEGER :: la, ma, lb, mb
-    INTEGER :: ll, s, t, tmin, tmax, z1, z2, z3, z4, z5
+    INTEGER, INTENT(IN)                      :: l1, m1, l2, m2, lp, mp
+    REAL(dbl)                                :: cgc
 
-    ! m1 >= 0; m2 >= 0; mp >= 0
+    INTEGER                                  :: la, lb, ll, ma, mb, s, t, &
+                                                tmax, tmin, z1, z2, z3, z4, z5
+    REAL(dbl)                                :: f1, f2, pref
+
+! m1 >= 0; m2 >= 0; mp >= 0
+
     IF ( m1<0 .OR. m2<0 .OR. mp<0 ) THEN
        write(6,*) l1,l2,lp
        write(6,*) m1,m2,mp
@@ -292,8 +302,11 @@ CONTAINS
   END FUNCTION cgc
 
   FUNCTION sfac ( n ) RESULT (fval)
-    INTEGER :: n, i
-    REAL ( dbl ) :: fval
+    INTEGER                                  :: n
+    REAL(dbl)                                :: fval
+
+    INTEGER                                  :: i
+
     IF ( n > maxfac ) THEN
        fval = fac(maxfac)
        DO i = maxfac+1, n
@@ -309,9 +322,11 @@ CONTAINS
 ! *****************************************************************************
 
   FUNCTION order(l1,m1,l2,m2) RESULT(ind)
-    IMPLICIT NONE
-    INTEGER, INTENT(IN) :: l1,m1,l2,m2
-    INTEGER :: ind,i1,i2,ix,iy
+    INTEGER, INTENT(IN)                      :: l1, m1, l2, m2
+    INTEGER                                  :: ind
+
+    INTEGER                                  :: i1, i2, ix, iy
+
     i1 = (l1*(l1+1))/2 + ABS(m1) + 1
     i2 = (l2*(l2+1))/2 + ABS(m2) + 1
     ix = MAX(i1,i2)
@@ -333,13 +348,13 @@ CONTAINS
 !
 ! Input: r == (x,y,z) : normalised    x^2 + y^2 + z^2 = 1
 !
-  IMPLICIT NONE
-  REAL(dbl), DIMENSION (:,:), INTENT(IN) :: r
-  REAL(dbl), DIMENSION (:), INTENT(OUT) :: y
-  INTEGER, INTENT(IN) :: l, m
+    REAL(dbl), DIMENSION(:, :), INTENT(IN)   :: r
+    REAL(dbl), DIMENSION(:), INTENT(OUT)     :: y
+    INTEGER, INTENT(IN)                      :: l, m
 
-  INTEGER :: i
-  REAL(dbl) :: pf, lpm, lmm, plm, z, rxy, t, cp, sp
+    INTEGER                                  :: i
+    REAL(dbl)                                :: cp, lmm, lpm, pf, plm, rxy, &
+                                                sp, t, z
 
   SELECT CASE ( l )
   CASE ( : -1 )
@@ -459,13 +474,12 @@ CONTAINS
 !
 ! Input: r == (x,y,z) : normalised    x^2 + y^2 + z^2 = 1
 !
-  IMPLICIT NONE
-  REAL(dbl), DIMENSION (:), INTENT(IN) :: r
-  REAL(dbl), INTENT(OUT) :: y
-  INTEGER, INTENT(IN) :: l, m
+    REAL(dbl), DIMENSION(:), INTENT(IN)      :: r
+    REAL(dbl), INTENT(OUT)                   :: y
+    INTEGER, INTENT(IN)                      :: l, m
 
-  INTEGER :: i
-  REAL(dbl) :: pf, lpm, lmm, plm, z, rxy, t, cp, sp
+    REAL(dbl)                                :: cp, lmm, lpm, pf, plm, rxy, &
+                                                sp, t, z
 
   SELECT CASE ( l )
   CASE ( : -1 )
@@ -583,13 +597,13 @@ CONTAINS
 !
 ! Input: r == (x,y,z) : normalised    x^2 + y^2 + z^2 = 1
 !
-  IMPLICIT NONE
-  REAL(dbl), DIMENSION (:,:), INTENT(IN) :: r
-  COMPLEX(dbl), DIMENSION (:), INTENT(OUT) :: y
-  INTEGER, INTENT(IN) :: l, m
+    REAL(dbl), DIMENSION(:, :), INTENT(IN)   :: r
+    COMPLEX(dbl), DIMENSION(:), INTENT(OUT)  :: y
+    INTEGER, INTENT(IN)                      :: l, m
 
-  INTEGER :: i, n
-  REAL(dbl) :: pf, lpm, lmm, plm, z, rxy, t, cp, sp, yp, ym
+    INTEGER                                  :: i, n
+    REAL(dbl)                                :: cp, lmm, lpm, pf, plm, rxy, &
+                                                sp, t, ym, yp, z
 
   n = SIZE ( r ,2 )
   SELECT CASE ( l )
@@ -758,13 +772,12 @@ CONTAINS
 !
 ! Input: r == (x,y,z) : normalised    x^2 + y^2 + z^2 = 1
 !
-  IMPLICIT NONE
-  REAL(dbl), DIMENSION (:), INTENT(IN) :: r
-  COMPLEX(dbl), INTENT(OUT) :: y
-  INTEGER, INTENT(IN) :: l, m
+    REAL(dbl), DIMENSION(:), INTENT(IN)      :: r
+    COMPLEX(dbl), INTENT(OUT)                :: y
+    INTEGER, INTENT(IN)                      :: l, m
 
-  INTEGER :: i
-  REAL(dbl) :: pf, lpm, lmm, plm, z, rxy, t, cp, sp, yp, ym
+    REAL(dbl)                                :: cp, lmm, lpm, pf, plm, rxy, &
+                                                sp, t, ym, yp, z
 
   SELECT CASE ( l )
   CASE ( : -1 )
@@ -898,12 +911,12 @@ CONTAINS
 
   FUNCTION legendre ( x, l, m ) RESULT ( plm )
 
-  IMPLICIT NONE
-  REAL(dbl), INTENT(IN) :: x
-  INTEGER, INTENT(IN) :: l, m
-  REAL(dbl) :: plm
-  INTEGER :: mm, err, im, il
-  REAL(dbl) :: pmm, somx2, fact, pmmp1, pll
+    REAL(dbl), INTENT(IN)                    :: x
+    INTEGER, INTENT(IN)                      :: l, m
+    REAL(dbl)                                :: plm
+
+    INTEGER                                  :: il, im, mm
+    REAL(dbl)                                :: fact, pll, pmm, pmmp1, somx2
 
   IF ( ABS ( x ) > 1._dbl ) call stop_program("legendre","x value > 1")
   SELECT CASE ( l )
@@ -1037,9 +1050,8 @@ CONTAINS
 
   FUNCTION choose ( n, k )
 
-  IMPLICIT NONE
-  INTEGER, INTENT ( IN ) :: n, k
-  REAL ( dbl ) :: choose
+    INTEGER, INTENT(IN)                      :: n, k
+    REAL(dbl)                                :: choose
 
   IF ( n >= k ) THEN
     choose = REAL ( NINT ( fac ( n ) / ( fac ( k ) * fac ( n - k ) ) ), dbl )
@@ -1053,11 +1065,11 @@ CONTAINS
 
   FUNCTION cosn ( n, c, s )
 
-  IMPLICIT NONE
-  INTEGER, INTENT ( IN ) :: n
-  REAL(dbl), INTENT ( IN ) :: c, s
-  REAL(dbl) :: cosn
-  INTEGER :: i, j
+    INTEGER, INTENT(IN)                      :: n
+    REAL(dbl), INTENT(IN)                    :: c, s
+    REAL(dbl)                                :: cosn
+
+    INTEGER                                  :: i, j
 
   cosn = 0._dbl
 
@@ -1076,11 +1088,11 @@ CONTAINS
 
   FUNCTION sinn ( n, c, s )
 
-  IMPLICIT NONE
-  INTEGER, INTENT ( IN ) :: n
-  REAL(dbl), INTENT ( IN ) :: c, s
-  REAL(dbl) :: sinn
-  INTEGER :: i, j
+    INTEGER, INTENT(IN)                      :: n
+    REAL(dbl), INTENT(IN)                    :: c, s
+    REAL(dbl)                                :: sinn
+
+    INTEGER                                  :: i, j
 
   sinn = 0._dbl
 

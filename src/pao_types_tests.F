@@ -28,34 +28,18 @@
 MODULE pao_types_tests
 !  use pao_proj_methods
 !  use pao_glob_angles_methods
-  USE cp_block_matrix,                 ONLY: cp_block_matrix_type,&
-                                             cp_create,&
-                                             cp_dealloc,&
-                                             cp_release,&
-                                             cp_retain
+  USE cp_block_matrix,                 ONLY: cp_block_matrix_type
   USE cp_error_handling,               ONLY: cp_a_l,&
                                              cp_assert,&
-                                             cp_assertion_failed,&
-                                             cp_debug,&
-                                             cp_error_dealloc_ref,&
-                                             cp_error_init,&
                                              cp_error_message,&
-                                             cp_error_type,&
-                                             cp_precondition_failed
+                                             cp_error_type
   USE cp_log_handling,                 ONLY: cp_failure_level,&
-                                             cp_log,&
                                              cp_to_string,&
                                              cp_warning_level
-  USE cp_matrix_utils,                 ONLY: cp_sup_norm_matrix
   USE global_types,                    ONLY: global_environment_type
   USE kinds,                           ONLY: dp
-  USE pao_env_methods,                 ONLY: pao_env_init
-  USE pao_l_angles_methods,            ONLY: cp_get,&
-                                             cp_init,&
-                                             pao_local_angles_type
-  USE pao_types,                       ONLY: pao_env_type,&
-                                             pao_glob_angles_type
-  USE pao_utils,                       ONLY: cp_get_random_integer
+  USE pao_types,                       ONLY: pao_env_type
+
   IMPLICIT NONE
 
   LOGICAL, PRIVATE, PARAMETER :: debug_this_module=.TRUE.
@@ -97,19 +81,17 @@ CONTAINS
 !!
 !!*** **********************************************************************
   SUBROUTINE cp_test_pao_types(g_env, failed,error)
-    TYPE(global_environment_type), INTENT(in) ::g_env
-    LOGICAL, INTENT(inout) :: failed
-    TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
+    TYPE(global_environment_type), &
+      INTENT(in)                             :: g_env
+    LOGICAL, INTENT(inout)                   :: failed
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
 
-    LOGICAL :: failure
-    CHARACTER(len=*), PARAMETER :: routineP='pao_types_tests:cp_test_pao_types'
-    TYPE(pao_env_type) :: pao_env
-    TYPE(pao_glob_angles_type) :: glob_angles
-    TYPE(pao_local_angles_type) :: local_angles
-    TYPE(cp_block_matrix_type) :: pao_t
-    INTEGER, PARAMETER :: atomNr=3
-    INTEGER, DIMENSION(atomNr) :: minB, fullB
-    INTEGER :: i
+    CHARACTER(len=*), PARAMETER :: &
+      routineP = 'pao_types_tests:cp_test_pao_types'
+    INTEGER, PARAMETER                       :: atomNr = 3
+
+    LOGICAL                                  :: failure
 
     failure=.FALSE.
 !!FM    if (cp_debug.and.debug_this_module) then
@@ -185,16 +167,19 @@ CONTAINS
 !!
 !!*** **********************************************************************
   SUBROUTINE cp_init_test_pao_env(pao_env, glob_env, atom_nr, error)
-    TYPE(pao_env_type), INTENT(out) :: pao_env
-    TYPE(global_environment_type), TARGET, INTENT(in) :: glob_env
-    INTEGER, OPTIONAL :: atom_nr
-    TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
+    TYPE(pao_env_type), INTENT(out)          :: pao_env
+    TYPE(global_environment_type), &
+      INTENT(in), TARGET                     :: glob_env
+    INTEGER, OPTIONAL                        :: atom_nr
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
 
-    LOGICAL :: failure
-    CHARACTER(len=*), PARAMETER :: routineP='pao_types_tests:cp_init_test_pao_env'
-    INTEGER, DIMENSION(:), ALLOCATABLE :: minB, fullB
-    INTEGER :: n_atom,i, stat
-    TYPE(cp_block_matrix_type), POINTER :: u
+    CHARACTER(len=*), PARAMETER :: &
+      routineP = 'pao_types_tests:cp_init_test_pao_env'
+
+    LOGICAL                                  :: failure
+    TYPE(cp_block_matrix_type), POINTER      :: u
+
     NULLIFY(u)
     failure=.FALSE.
 

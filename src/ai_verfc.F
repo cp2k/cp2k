@@ -77,11 +77,11 @@ MODULE ai_verfc
 
 ! *****************************************************************************
 
-  USE kinds, ONLY: dp
-
-  USE gamma,            ONLY: fgamma
-  USE mathconstants,    ONLY: pi
-  USE orbital_pointers, ONLY: coset,ncoset
+  USE gamma,                           ONLY: fgamma
+  USE kinds,                           ONLY: dp
+  USE mathconstants,                   ONLY: pi
+  USE orbital_pointers,                ONLY: coset,&
+                                             ncoset
 
   IMPLICIT NONE
 
@@ -111,24 +111,32 @@ CONTAINS
 
 !   ***************************************************************************
 
-    REAL(KIND = dp), INTENT(IN)                    :: cerf,rab2,rac2,rbc2,rpgfc,zc,&
-                                               zetc
-    INTEGER, INTENT(IN)                     :: la_max,la_min,lb_max,lb_min
-    REAL(KIND = dp), DIMENSION(3), INTENT(IN)      :: rab,rac,rbc
-    REAL(KIND = dp), DIMENSION(:), INTENT(IN)      :: rpgfa,rpgfb,zeta,zetb
-    REAL(KIND = dp), DIMENSION(:,:), INTENT(INOUT) :: vabc
+    INTEGER, INTENT(IN)                      :: la_max
+    REAL(KIND=dp), DIMENSION(:), INTENT(IN)  :: zeta, rpgfa
+    INTEGER, INTENT(IN)                      :: la_min, lb_max
+    REAL(KIND=dp), DIMENSION(:), INTENT(IN)  :: zetb, rpgfb
+    INTEGER, INTENT(IN)                      :: lb_min
+    REAL(KIND=dp), INTENT(IN)                :: zetc, rpgfc, zc, cerf
+    REAL(KIND=dp), DIMENSION(3), INTENT(IN)  :: rab
+    REAL(KIND=dp), INTENT(IN)                :: rab2
+    REAL(KIND=dp), DIMENSION(3), INTENT(IN)  :: rac
+    REAL(KIND=dp), INTENT(IN)                :: rac2
+    REAL(KIND=dp), DIMENSION(3), INTENT(IN)  :: rbc
+    REAL(KIND=dp), INTENT(IN)                :: rbc2
+    REAL(KIND=dp), DIMENSION(:, :), &
+      INTENT(INOUT)                          :: vabc
 
-!   *** Local variables ***
-
-    REAL(KIND = dp) :: dab,dac,dbc,f0,f1,f2,f3,f4,ferf,fnuc,fx,fy,fz,rcp2,t,zetp,&
-                zetq,zetw
-    INTEGER  :: ax,ay,az,bx,by,bz,i,ipgf,j,jpgf,la,la_start,lb,n,na,nb,nmax
-
-    REAL(KIND = dp), DIMENSION(3)               :: rap,rbp,rcp,rpw
-    REAL(KIND = dp), DIMENSION(0:la_max+lb_max) :: f
-    REAL(KIND = dp), DIMENSION(ncoset(la_max),&
-                        ncoset(lb_max),&
-                        la_max+lb_max+1) :: verf,vnuc
+    INTEGER                                  :: ax, ay, az, bx, by, bz, i, &
+                                                ipgf, j, jpgf, la, la_start, &
+                                                lb, n, na, nb, nmax
+    REAL(KIND=dp)                            :: dab, dac, dbc, f0, f1, f2, &
+                                                f3, f4, ferf, fnuc, fx, fy, &
+                                                fz, rcp2, t, zetp, zetq, zetw
+    REAL(KIND=dp), &
+      DIMENSION(0:la_max+lb_max)             :: f
+    REAL(KIND=dp), DIMENSION(3)              :: rap, rbp, rcp, rpw
+    REAL(KIND=dp), DIMENSION(ncoset(la_max),&
+      ncoset(lb_max), la_max+lb_max+1)       :: verf, vnuc
 
 !   ---------------------------------------------------------------------------
 

@@ -20,8 +20,9 @@
 
 MODULE fftsg_lib
 
-  USE kinds, ONLY: dbl
-  USE termination, ONLY : stop_program, stop_memory
+  USE kinds,                           ONLY: dbl
+  USE termination,                     ONLY: stop_memory,&
+                                             stop_program
 
   IMPLICIT NONE
 
@@ -54,22 +55,19 @@ CONTAINS
 
 SUBROUTINE fft_get_lengths ( data, max_length )
 
-  IMPLICIT NONE
 
-! Arguments
-  INTEGER, INTENT ( IN ) :: max_length
-  INTEGER, DIMENSION ( : ), POINTER :: data
+    INTEGER, DIMENSION(:), POINTER           :: data
+    INTEGER, INTENT(IN)                      :: max_length
 
-! Locals
-  INTEGER, PARAMETER :: rlen = 82
-  INTEGER, DIMENSION ( rlen ), PARAMETER :: radix = &
-   (/ 2, 4, 5, 6, 8, 9, 12, 15, 16, 18, 20, 24, 25, 27, 30, 32, 36, 40, &
-     45, 48, 54, 60, 64, 72, 75, 80, 81, 90, 96, 100, 108, 120, 125, 128, &
-     135, 144, 150, 160, 162, 180, 192, 200, 216, 225, 240, 243, 256, 270, &
-     288, 300, 320, 324, 360, 375, 384, 400, 405, 432, 450, 480, 486, 500, &
-     512, 540, 576, 600, 625, 640, 648, 675, 720, 729, 750, 768, 800, 810, &
-     864, 900, 960, 972, 1000, 1024 /)
-  INTEGER :: i, allocstat, ndata
+    INTEGER, PARAMETER                       :: rlen = 82
+    INTEGER, DIMENSION(rlen), PARAMETER :: radix = (/ 2, 4, 5, 6, 8, 9, 12, 15&
+      , 16, 18, 20, 24, 25, 27, 30, 32, 36, 40, 45, 48, 54, 60, 64, 72, 75, 80&
+      , 81, 90, 96, 100, 108, 120, 125, 128, 135, 144, 150, 160, 162, 180, 192&
+      , 200, 216, 225, 240, 243, 256, 270, 288, 300, 320, 324, 360, 375, 384, &
+      400, 405, 432, 450, 480, 486, 500, 512, 540, 576, 600, 625, 640, 648, &
+      675, 720, 729, 750, 768, 800, 810, 864, 900, 960, 972, 1000, 1024 /)
+
+    INTEGER                                  :: allocstat, i, ndata
 
 !------------------------------------------------------------------------------
 
@@ -110,20 +108,19 @@ END SUBROUTINE fft_get_lengths
 
 SUBROUTINE fft3d ( fsign, scale, n, zg, zg_out )
 
-  IMPLICIT NONE
 
-! Arguments
-  INTEGER, INTENT ( INOUT ) :: fsign
-  REAL ( dbl ), INTENT ( IN ), OPTIONAL :: scale
-  INTEGER, DIMENSION ( : ), INTENT ( IN ) :: n
-  COMPLEX ( dbl ), DIMENSION(:,:,:), INTENT ( INOUT ) :: zg
-  COMPLEX ( dbl ), DIMENSION(:,:,:), INTENT ( INOUT ), OPTIONAL :: zg_out
+    INTEGER, INTENT(INOUT)                   :: fsign
+    REAL(dbl), INTENT(IN), OPTIONAL          :: scale
+    INTEGER, DIMENSION(:), INTENT(IN)        :: n
+    COMPLEX(dbl), DIMENSION(:, :, :), &
+      INTENT(INOUT)                          :: zg
+    COMPLEX(dbl), DIMENSION(:, :, :), &
+      INTENT(INOUT), OPTIONAL                :: zg_out
 
-! Locals
-  INTEGER :: sign_fft, ldx, ldy, ldz, ldox, ldoy, ldoz, ierr
-  INTEGER :: nx, ny, nz
-  COMPLEX ( dbl ), DIMENSION(:), ALLOCATABLE :: xf, yf
-  LOGICAL :: fft_in_place
+    COMPLEX(dbl), ALLOCATABLE, DIMENSION(:)  :: xf, yf
+    INTEGER                                  :: ierr, ldox, ldoy, ldoz, ldx, &
+                                                ldy, ldz, nx, ny, nz, sign_fft
+    LOGICAL                                  :: fft_in_place
 
 !------------------------------------------------------------------------------
 

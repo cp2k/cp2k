@@ -20,10 +20,9 @@
 
 MODULE kg_force_types
 
-  USE kinds, ONLY : dbl
-  USE global_types, ONLY: global_environment_type
-  USE termination,  ONLY: stop_memory,&
-                          stop_program
+  USE kinds,                           ONLY: dbl
+  USE termination,                     ONLY: stop_memory,&
+                                             stop_program
 
   IMPLICIT NONE
 
@@ -63,19 +62,15 @@ CONTAINS
 
 !   ***************************************************************************
     
-    IMPLICIT NONE
 
-    TYPE(kg_force_type), DIMENSION(:), POINTER :: kg_forces
-    INTEGER, DIMENSION(:), INTENT(IN)          :: natom_of_kind
+    TYPE(kg_force_type), DIMENSION(:), &
+      POINTER                                :: kg_forces
+    INTEGER, DIMENSION(:), INTENT(IN)        :: natom_of_kind
 
-!   *** Local parameters ***
+    CHARACTER(LEN=*), PARAMETER :: &
+      routine = "SUBROUTINE allocate_kg_force (MODULE kg_force_types)"
 
-    CHARACTER(LEN=*), PARAMETER :: routine =&
-      "SUBROUTINE allocate_kg_force (MODULE kg_force_types)"
-
-!   *** Local variables ***
-
-    INTEGER :: ikind,istat,n,nkind
+    INTEGER                                  :: ikind, istat, n, nkind
 
 !   ---------------------------------------------------------------------------
 
@@ -145,18 +140,14 @@ CONTAINS
 !   History: - Creation (30.09.2002,gt)
 
 !   ***************************************************************************
-    IMPLICIT NONE
 
-    TYPE(kg_force_type), DIMENSION(:), POINTER :: kg_forces
+    TYPE(kg_force_type), DIMENSION(:), &
+      POINTER                                :: kg_forces
 
-!   *** Local parameters ***
+    CHARACTER(LEN=*), PARAMETER :: &
+      routine = "SUBROUTINE deallocate_kg_force (MODULE kg_force_types)"
 
-    CHARACTER(LEN=*), PARAMETER :: routine =&
-      "SUBROUTINE deallocate_kg_force (MODULE kg_force_types)"
-
-!   *** Local variables ***
-
-    INTEGER :: ikind,istat,nkind
+    INTEGER                                  :: ikind, istat, nkind
 
 !   ---------------------------------------------------------------------------
 
@@ -242,18 +233,14 @@ CONTAINS
 
 !   ***************************************************************************
 
-    IMPLICIT NONE
 
-    TYPE(kg_force_type), DIMENSION(:), POINTER :: kg_forces
+    TYPE(kg_force_type), DIMENSION(:), &
+      POINTER                                :: kg_forces
 
-!   *** Local parameters ***
+    CHARACTER(LEN=*), PARAMETER :: &
+      routine = "SUBROUTINE init_kg_force (MODULE kg_force_types)"
 
-    CHARACTER(LEN=*), PARAMETER :: routine =&
-      "SUBROUTINE init_kg_force (MODULE kg_force_types)"
-
-!   *** Local variables ***
-
-    INTEGER :: ikind,istat
+    INTEGER                                  :: ikind
 
 !   ---------------------------------------------------------------------------
 

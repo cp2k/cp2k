@@ -22,13 +22,14 @@
 
 MODULE pol_projectors_scale
 
-  USE ai_overlap,               ONLY : overlap
-  USE atomic_kinds,             ONLY :  kind_info_type
-  USE ao_types,                 ONLY : ao_type
-  USE kinds,                    ONLY : dbl
-  USE orbital_pointers,         ONLY : nco,ncoset
-  USE particle_types,           ONLY : particle_type
-  USE termination, ONLY : stop_memory
+  USE ai_overlap,                      ONLY: overlap
+  USE ao_types,                        ONLY: ao_type
+  USE atomic_kinds,                    ONLY: kind_info_type
+  USE kinds,                           ONLY: dbl
+  USE orbital_pointers,                ONLY: nco,&
+                                             ncoset
+  USE particle_types,                  ONLY: particle_type
+  USE termination,                     ONLY: stop_memory
 
   IMPLICIT NONE
 
@@ -42,17 +43,17 @@ MODULE pol_projectors_scale
 
  SUBROUTINE get_proj_scale_factor (ao, ki, part)
 
- IMPLICIT NONE
- TYPE (ao_type), intent(inout)  :: ao
- TYPE (kind_info_type), POINTER, DIMENSION(:) :: ki
- TYPE (particle_type), intent(in), DIMENSION(:) :: part
+    TYPE(ao_type), intent(inout)             :: ao
+    TYPE(kind_info_type), DIMENSION(:), &
+      POINTER                                :: ki
+    TYPE(particle_type), DIMENSION(:), &
+      intent(in)                             :: part
 
-! locals
- INTEGER :: nco, natoms, ikind, ipart, ii, icoef, icgf, nkind, ios
- INTEGER :: nset, nshell, iset, ishell, first_cgf, last_cgf
- INTEGER :: maxco, maxcgf, l_max, l_min, npgf, ncgf
- REAL(dbl), DIMENSION(:,:), ALLOCATABLE :: sab, work, s_block
- REAL (dbl), DIMENSION (:), POINTER :: zet, rpgf
+    INTEGER :: first_cgf, icgf, icoef, ii, ikind, ios, ipart, iset, ishell, &
+      l_max, l_min, last_cgf, maxcgf, maxco, natoms, ncgf, nco, nkind, npgf, &
+      nset, nshell
+    REAL(dbl), ALLOCATABLE, DIMENSION(:, :)  :: s_block, sab, work
+    REAL(dbl), DIMENSION(:), POINTER         :: rpgf, zet
 
  nkind = size ( ki )
 
@@ -156,20 +157,17 @@ MODULE pol_projectors_scale
                               work,s_block,cphi)
 !---------------------------------------------------------------------------------
 
- IMPLICIT NONE
 
-  INTEGER, INTENT (IN) :: l_max, l_min
-  REAL (dbl), DIMENSION (:), POINTER :: rpgf,zet
-  INTEGER, INTENT (IN) :: nco, ncgf
-  REAL(dbl), DIMENSION (:,:), intent(in)  :: cphi
-  REAL(dbl), DIMENSION (:,:), intent(inout) :: sab
-  REAL(dbl), DIMENSION (:,:), intent(inout) :: s_block
-  REAL(dbl), DIMENSION (:,:), intent(inout) :: work
+    INTEGER, INTENT(IN)                      :: l_max
+    REAL(dbl), DIMENSION(:), POINTER         :: zet, rpgf
+    INTEGER, INTENT(IN)                      :: l_min, nco, ncgf
+    REAL(dbl), DIMENSION(:, :), &
+      intent(inout)                          :: sab, work, s_block
+    REAL(dbl), DIMENSION(:, :), intent(in)   :: cphi
 
-!locals
-  INTEGER :: lda, ldb, ldc
-  REAL (dbl) :: rijsq
-  REAL (dbl),  DIMENSION (3) :: rij
+    INTEGER                                  :: lda, ldb, ldc
+    REAL(dbl)                                :: rijsq
+    REAL(dbl), DIMENSION(3)                  :: rij
 
 !---------------------------------------------------------------------------
 

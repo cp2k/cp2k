@@ -55,10 +55,10 @@ MODULE ai_overlap_ppl
 
 ! *****************************************************************************
 
-  USE kinds,                           ONLY: dp,dp_size
+  USE kinds,                           ONLY: dp
   USE mathconstants,                   ONLY: pi
-  USE orbital_pointers,                ONLY: coset,ncoset
-  USE termination,                     ONLY: stop_memory
+  USE orbital_pointers,                ONLY: coset,&
+                                             ncoset
 
   IMPLICIT NONE
 
@@ -96,43 +96,41 @@ CONTAINS
 
 !   ***************************************************************************
 
-    REAL(KIND = dp), INTENT(IN)                        :: dab,dac,dbc,rpgfc,&
-                                                          zetc
-    INTEGER, INTENT(IN)                                :: da_max,db_max,&
-                                                          la_max_set,&
-                                                          la_min_set,&
-                                                          lb_max_set,&
-                                                          lb_min_set,&
-                                                          npgfa,npgfb
-    REAL(KIND = dp), DIMENSION(3), INTENT(IN)          :: rab,rac,rbc
-    REAL(KIND = dp), DIMENSION(:), INTENT(IN)          :: cexp_ppl,&
-                                                          rpgfa,rpgfb,&
-                                                          zeta,zetb
-    REAL(KIND = dp), DIMENSION(:,:), INTENT(INOUT)     :: vab
-    LOGICAL, INTENT(IN)                                :: return_derivatives
-    REAL(KIND = dp), DIMENSION(:,:,:,:), INTENT(INOUT) :: s
+    INTEGER, INTENT(IN)                      :: la_max_set, la_min_set, npgfa
+    REAL(KIND=dp), DIMENSION(:), INTENT(IN)  :: rpgfa, zeta
+    INTEGER, INTENT(IN)                      :: lb_max_set, lb_min_set, npgfb
+    REAL(KIND=dp), DIMENSION(:), INTENT(IN)  :: rpgfb, zetb, cexp_ppl
+    REAL(KIND=dp), INTENT(IN)                :: zetc, rpgfc
+    REAL(KIND=dp), DIMENSION(3), INTENT(IN)  :: rab
+    REAL(KIND=dp), INTENT(IN)                :: dab
+    REAL(KIND=dp), DIMENSION(3), INTENT(IN)  :: rac
+    REAL(KIND=dp), INTENT(IN)                :: dac
+    REAL(KIND=dp), DIMENSION(3), INTENT(IN)  :: rbc
+    REAL(KIND=dp), INTENT(IN)                :: dbc
+    REAL(KIND=dp), DIMENSION(:, :), &
+      INTENT(INOUT)                          :: vab
+    INTEGER, INTENT(IN)                      :: da_max, db_max
+    LOGICAL, INTENT(IN)                      :: return_derivatives
+    REAL(KIND=dp), DIMENSION(:, :, :, :), &
+      INTENT(INOUT)                          :: s
+    REAL(KIND=dp), DIMENSION(:, :), &
+      INTENT(IN), OPTIONAL                   :: pab
+    REAL(KIND=dp), DIMENSION(3), &
+      INTENT(OUT), OPTIONAL                  :: force_a, force_b
 
-    REAL(KIND = dp), DIMENSION(:,:), OPTIONAL, INTENT(IN) :: pab
-    REAL(KIND = dp), DIMENSION(3), OPTIONAL, INTENT(OUT)  :: force_a,force_b
+    CHARACTER(LEN=*), PARAMETER              :: routine_name = "overlap_ppl"
 
-!   *** Local parameters ***
-
-    CHARACTER(LEN=*), PARAMETER :: routine_name = "overlap_ppl"
-
-!   *** Local variables ***
-
-    REAL(KIND = dp) :: f0,f1,f2,f3,f4,fax,fay,faz,fbx,fby,fbz,fc,ftz,&
-                       rcg2,rcp2,zetg,zetp
-    INTEGER         :: ax,ay,az,bx,by,bz,c,cda,cdax,cday,cdaz,&
-                       cdb,cdbx,cdby,cdbz,coa,coamx,coamy,coamz,&
-                       coapx,coapy,coapz,cob,cobmx,cobmy,cobmz,&
-                       cobpx,cobpy,cobpz,da,dax,day,daz,db,dbx,dby,dbz,&
-                       i,ipgf,istat,j,jk,jpgf,jstart,k,&
-                       la,la_max,la_min,la_start,lb,lb_max,lb_min,lc,&
-                       na,nb,maxder,nexp_ppl
-    LOGICAL         :: calculate_force_a,calculate_force_b
-
-    REAL(KIND = dp), DIMENSION(3) :: rag,rbg,rcg,rcp
+    INTEGER :: ax, ay, az, bx, by, bz, c, cda, cdax, cday, cdaz, cdb, cdbx, &
+      cdby, cdbz, coa, coamx, coamy, coamz, coapx, coapy, coapz, cob, cobmx, &
+      cobmy, cobmz, cobpx, cobpy, cobpz, da, dax, day, daz, db, dbx, dby, &
+      dbz, i, ipgf, j, jk, jpgf, jstart, k, la, la_max, la_min, la_start, lb, &
+      lb_max, lb_min, lc, maxder, na, nb, nexp_ppl
+    LOGICAL                                  :: calculate_force_a, &
+                                                calculate_force_b
+    REAL(KIND=dp)                            :: f0, f1, f2, f3, f4, fax, fay, &
+                                                faz, fbx, fby, fbz, fc, ftz, &
+                                                rcg2, rcp2, zetg, zetp
+    REAL(KIND=dp), DIMENSION(3)              :: rag, rbg, rcg, rcp
 
 !   ---------------------------------------------------------------------------
 

@@ -82,18 +82,13 @@ CONTAINS
 
 !   ***************************************************************************
 
-    INTEGER, INTENT(IN) :: maxl
-
-!   *** Local parameters ***
+    INTEGER, INTENT(IN)                      :: maxl
 
     CHARACTER(LEN=*), PARAMETER :: routine_name = "init_orbital_pointers"
 
-!   *** Local variables ***
-
-    INTEGER :: istat,l,lx,ly,lz
+    INTEGER                                  :: istat, l, lx, ly, lz
 
 !   ---------------------------------------------------------------------------
-
 !   *** Quick return, if the current initialization is sufficient ***
 
     IF (maxl <= current_maxl) RETURN

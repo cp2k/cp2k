@@ -22,15 +22,19 @@
 !
 !------------------------------------------------------------------------------!
 
-      USE kinds, ONLY : dbl
-
-      USE atomic_kind_types, ONLY : atomic_kind_type, get_atomic_kind
-      USE brillouin, ONLY : kpoint_type
-      USE global_types, ONLY : global_environment_type
-      USE k290, ONLY : set_k290, set_k290_atoms, kp_sym_gen
-      USE particle_types, ONLY : particle_type
-      USE termination, ONLY : stop_memory
+  USE atomic_kind_types,               ONLY: atomic_kind_type,&
+                                             get_atomic_kind
+  USE brillouin,                       ONLY: kpoint_type
+  USE global_types,                    ONLY: global_environment_type
+  USE k290,                            ONLY: kp_sym_gen,&
+                                             set_k290,&
+                                             set_k290_atoms
+  USE kinds,                           ONLY: dbl
+  USE particle_types,                  ONLY: particle_type
+  USE termination,                     ONLY: stop_memory
 !
+
+
       IMPLICIT NONE
 !
       PRIVATE
@@ -61,18 +65,17 @@
 
       SUBROUTINE initialize_kpoints(inpar,kp,symm,hmat,part)
 
-        IMPLICIT NONE
 
-        TYPE (global_environment_type) :: inpar
-        TYPE (kpoint_type) :: kp
-        LOGICAL, INTENT (IN) :: symm
-        REAL (dbl), INTENT (IN) :: hmat(:,:)
-        TYPE (particle_type), INTENT (IN) :: part(:)
+    TYPE(global_environment_type)            :: inpar
+    TYPE(kpoint_type)                        :: kp
+    LOGICAL, INTENT(IN)                      :: symm
+    REAL(dbl), INTENT(IN)                    :: hmat(:,:)
+    TYPE(particle_type), INTENT(IN)          :: part(:)
 
-        REAL (dbl), ALLOCATABLE :: coor(:,:)
-        INTEGER, ALLOCATABLE :: types(:)
-        INTEGER :: i, nat, isos, ikind
-        TYPE (atomic_kind_type), POINTER :: atomic_kind
+    INTEGER                                  :: i, ikind, isos, nat
+    INTEGER, ALLOCATABLE                     :: types(:)
+    REAL(dbl), ALLOCATABLE                   :: coor(:,:)
+    TYPE(atomic_kind_type), POINTER          :: atomic_kind
 
         IF (symm .OR. kp%scheme=='MONKHORST-PACK' .OR. kp%scheme=='MACDONALD') &
             THEN

@@ -29,6 +29,7 @@ MODULE xc_exchange_gga
                                              calc_wave_vector,&
                                              set_util,&
                                              setup_calculation
+
   IMPLICIT NONE
 
   PRIVATE
@@ -76,8 +77,7 @@ CONTAINS
 
   SUBROUTINE xgga_init ( cutoff )
 
-    IMPLICIT NONE
-    REAL(dbl), INTENT(IN) :: cutoff
+    REAL(dbl), INTENT(IN)                    :: cutoff
 
     eps_rho = cutoff
     CALL set_util ( cutoff )
@@ -95,9 +95,7 @@ CONTAINS
 
   SUBROUTINE b88_info ( reference, shortform )
 
-    IMPLICIT NONE
-    CHARACTER (LEN=*), INTENT(OUT), OPTIONAL :: reference
-    CHARACTER (LEN=*), INTENT(OUT), OPTIONAL :: shortform
+    CHARACTER(LEN=*), INTENT(OUT), OPTIONAL  :: reference, shortform
 
     IF ( PRESENT ( reference ) ) THEN
       reference = "A. Becke, Phys. Rev. A 38, 3098 (1988)"
@@ -110,9 +108,7 @@ CONTAINS
 
   SUBROUTINE pw86_info ( reference, shortform )
 
-    IMPLICIT NONE
-    CHARACTER (LEN=*), INTENT(OUT), OPTIONAL :: reference
-    CHARACTER (LEN=*), INTENT(OUT), OPTIONAL :: shortform
+    CHARACTER(LEN=*), INTENT(OUT), OPTIONAL  :: reference, shortform
 
     IF ( PRESENT ( reference ) ) THEN
       reference = "J.P. Perdew and Y. Wang, Phys. Rev. B, 33, 8800 (1986)"
@@ -125,9 +121,7 @@ CONTAINS
 
   SUBROUTINE pw91_info ( reference, shortform )
 
-    IMPLICIT NONE
-    CHARACTER (LEN=*), INTENT(OUT), OPTIONAL :: reference
-    CHARACTER (LEN=*), INTENT(OUT), OPTIONAL :: shortform
+    CHARACTER(LEN=*), INTENT(OUT), OPTIONAL  :: reference, shortform
 
     IF ( PRESENT ( reference ) ) THEN
       reference = "J.P. Perdew et al., Phys. Rev. B, 46, 6671 (1992)"
@@ -140,9 +134,7 @@ CONTAINS
 
   SUBROUTINE pbex_info ( reference, shortform )
 
-    IMPLICIT NONE
-    CHARACTER (LEN=*), INTENT(OUT), OPTIONAL :: reference
-    CHARACTER (LEN=*), INTENT(OUT), OPTIONAL :: shortform
+    CHARACTER(LEN=*), INTENT(OUT), OPTIONAL  :: reference, shortform
 
     IF ( PRESENT ( reference ) ) THEN
       reference = "J.P. Perdew, K. Burke, M Ernzerhof, Phys. Rev. Lett, 77, 3865 (1996)"
@@ -155,9 +147,7 @@ CONTAINS
 
   SUBROUTINE revpbex_info ( reference, shortform )
 
-    IMPLICIT NONE
-    CHARACTER (LEN=*), INTENT(OUT), OPTIONAL :: reference
-    CHARACTER (LEN=*), INTENT(OUT), OPTIONAL :: shortform
+    CHARACTER(LEN=*), INTENT(OUT), OPTIONAL  :: reference, shortform
 
     IF ( PRESENT ( reference ) ) THEN
       reference = "Y. Zang et al., PRL, 80, 890 (1998) (Revised PBEX)"
@@ -170,9 +160,7 @@ CONTAINS
 
   SUBROUTINE optx_info ( reference, shortform )
 
-    IMPLICIT NONE
-    CHARACTER (LEN=*), INTENT(OUT), OPTIONAL :: reference
-    CHARACTER (LEN=*), INTENT(OUT), OPTIONAL :: shortform
+    CHARACTER(LEN=*), INTENT(OUT), OPTIONAL  :: reference, shortform
 
     IF ( PRESENT ( reference ) ) THEN
       reference = "Wee-Meng Hoe, A.J. Cohen, N.C. Handy, CPL, 341, 319 (2001)"
@@ -186,127 +174,103 @@ CONTAINS
 ! *****************************************************************************
 
   SUBROUTINE b88_u ( derivative_set, rho, grho, pot, order )
-    IMPLICIT NONE
-    TYPE(xc_derivative_set_type), POINTER :: derivative_set
-    REAL(dbl), DIMENSION(:), INTENT(IN)  :: rho
-    REAL(dbl), DIMENSION(:), INTENT(IN)  :: grho
-    REAL(dbl), DIMENSION(:,:), INTENT(OUT) :: pot
-    INTEGER, INTENT(IN), OPTIONAL :: order
+    TYPE(xc_derivative_set_type), POINTER    :: derivative_set
+    REAL(dbl), DIMENSION(:), INTENT(IN)      :: rho, grho
+    REAL(dbl), DIMENSION(:, :), INTENT(OUT)  :: pot
+    INTEGER, INTENT(IN), OPTIONAL            :: order
 
     CALL x_u ( derivative_set, 1, rho, grho, pot, order )
   END SUBROUTINE b88_u
   SUBROUTINE b88_p ( derivative_set, rhoa, rhob, grhoa, grhob, pot, order )
-    IMPLICIT NONE
-    TYPE(xc_derivative_set_type), POINTER :: derivative_set
-    REAL(dbl), DIMENSION(:), INTENT(IN)  :: rhoa, rhob
-    REAL(dbl), DIMENSION(:), INTENT(IN)  :: grhoa, grhob
-    REAL(dbl), DIMENSION(:,:), INTENT(OUT) :: pot
-    INTEGER, INTENT(IN), OPTIONAL :: order
+    TYPE(xc_derivative_set_type), POINTER    :: derivative_set
+    REAL(dbl), DIMENSION(:), INTENT(IN)      :: rhoa, rhob, grhoa, grhob
+    REAL(dbl), DIMENSION(:, :), INTENT(OUT)  :: pot
+    INTEGER, INTENT(IN), OPTIONAL            :: order
 
     CALL x_p ( derivative_set, 1, rhoa, rhob, grhoa, grhob, pot, order )
   END SUBROUTINE b88_p
 
   SUBROUTINE pw86_u ( derivative_set, rho, grho, pot, order )
-    IMPLICIT NONE
-    TYPE(xc_derivative_set_type), POINTER :: derivative_set
-    REAL(dbl), DIMENSION(:), INTENT(IN)  :: rho
-    REAL(dbl), DIMENSION(:), INTENT(IN)  :: grho
-    REAL(dbl), DIMENSION(:,:), INTENT(OUT) :: pot
-    INTEGER, INTENT(IN), OPTIONAL :: order
+    TYPE(xc_derivative_set_type), POINTER    :: derivative_set
+    REAL(dbl), DIMENSION(:), INTENT(IN)      :: rho, grho
+    REAL(dbl), DIMENSION(:, :), INTENT(OUT)  :: pot
+    INTEGER, INTENT(IN), OPTIONAL            :: order
 
     CALL x_u ( derivative_set, 2, rho, grho, pot, order )
   END SUBROUTINE pw86_u
   SUBROUTINE pw86_p ( derivative_set, rhoa, rhob, grhoa, grhob, pot, order )
-    IMPLICIT NONE
-    TYPE(xc_derivative_set_type), POINTER :: derivative_set
-    REAL(dbl), DIMENSION(:), INTENT(IN)  :: rhoa, rhob
-    REAL(dbl), DIMENSION(:), INTENT(IN)  :: grhoa, grhob
-    REAL(dbl), DIMENSION(:,:), INTENT(OUT) :: pot
-    INTEGER, INTENT(IN), OPTIONAL :: order
+    TYPE(xc_derivative_set_type), POINTER    :: derivative_set
+    REAL(dbl), DIMENSION(:), INTENT(IN)      :: rhoa, rhob, grhoa, grhob
+    REAL(dbl), DIMENSION(:, :), INTENT(OUT)  :: pot
+    INTEGER, INTENT(IN), OPTIONAL            :: order
 
     CALL x_p ( derivative_set, 2, rhoa, rhob, grhoa, grhob, pot, order )
   END SUBROUTINE pw86_p
 
   SUBROUTINE pw91_u ( derivative_set, rho, grho, pot, order )
-    IMPLICIT NONE
-    TYPE(xc_derivative_set_type), POINTER :: derivative_set
-    REAL(dbl), DIMENSION(:), INTENT(IN)  :: rho
-    REAL(dbl), DIMENSION(:), INTENT(IN)  :: grho
-    REAL(dbl), DIMENSION(:,:), INTENT(OUT) :: pot
-    INTEGER, INTENT(IN), OPTIONAL :: order
+    TYPE(xc_derivative_set_type), POINTER    :: derivative_set
+    REAL(dbl), DIMENSION(:), INTENT(IN)      :: rho, grho
+    REAL(dbl), DIMENSION(:, :), INTENT(OUT)  :: pot
+    INTEGER, INTENT(IN), OPTIONAL            :: order
 
     CALL x_u ( derivative_set, 3, rho, grho, pot, order )
   END SUBROUTINE pw91_u
   SUBROUTINE pw91_p ( derivative_set, rhoa, rhob, grhoa, grhob, pot, order )
-    IMPLICIT NONE
-    TYPE(xc_derivative_set_type), POINTER :: derivative_set
-    REAL(dbl), DIMENSION(:), INTENT(IN)  :: rhoa, rhob
-    REAL(dbl), DIMENSION(:), INTENT(IN)  :: grhoa, grhob
-    REAL(dbl), DIMENSION(:,:), INTENT(OUT) :: pot
-    INTEGER, INTENT(IN), OPTIONAL :: order
+    TYPE(xc_derivative_set_type), POINTER    :: derivative_set
+    REAL(dbl), DIMENSION(:), INTENT(IN)      :: rhoa, rhob, grhoa, grhob
+    REAL(dbl), DIMENSION(:, :), INTENT(OUT)  :: pot
+    INTEGER, INTENT(IN), OPTIONAL            :: order
 
     CALL x_p ( derivative_set, 3, rhoa, rhob, grhoa, grhob, pot, order )
   END SUBROUTINE pw91_p
 
   SUBROUTINE pbex_u ( derivative_set, rho, grho, pot, order )
-    IMPLICIT NONE
-    TYPE(xc_derivative_set_type), POINTER :: derivative_set
-    REAL(dbl), DIMENSION(:), INTENT(IN)  :: rho
-    REAL(dbl), DIMENSION(:), INTENT(IN)  :: grho
-    REAL(dbl), DIMENSION(:,:), INTENT(OUT) :: pot
-    INTEGER, INTENT(IN), OPTIONAL :: order
+    TYPE(xc_derivative_set_type), POINTER    :: derivative_set
+    REAL(dbl), DIMENSION(:), INTENT(IN)      :: rho, grho
+    REAL(dbl), DIMENSION(:, :), INTENT(OUT)  :: pot
+    INTEGER, INTENT(IN), OPTIONAL            :: order
 
     CALL x_u ( derivative_set, 4, rho, grho, pot, order )
   END SUBROUTINE pbex_u
   SUBROUTINE pbex_p ( derivative_set, rhoa, rhob, grhoa, grhob, pot, order )
-    IMPLICIT NONE
-    TYPE(xc_derivative_set_type), POINTER :: derivative_set
-    REAL(dbl), DIMENSION(:), INTENT(IN)  :: rhoa, rhob
-    REAL(dbl), DIMENSION(:), INTENT(IN)  :: grhoa, grhob
-    REAL(dbl), DIMENSION(:,:), INTENT(OUT) :: pot
-    INTEGER, INTENT(IN), OPTIONAL :: order
+    TYPE(xc_derivative_set_type), POINTER    :: derivative_set
+    REAL(dbl), DIMENSION(:), INTENT(IN)      :: rhoa, rhob, grhoa, grhob
+    REAL(dbl), DIMENSION(:, :), INTENT(OUT)  :: pot
+    INTEGER, INTENT(IN), OPTIONAL            :: order
 
     CALL x_p ( derivative_set, 4, rhoa, rhob, grhoa, grhob, pot, order )
   END SUBROUTINE pbex_p
 
   SUBROUTINE revpbex_u ( derivative_set, rho, grho, pot, order )
-    IMPLICIT NONE
-    TYPE(xc_derivative_set_type), POINTER :: derivative_set
-    REAL(dbl), DIMENSION(:), INTENT(IN)  :: rho
-    REAL(dbl), DIMENSION(:), INTENT(IN)  :: grho
-    REAL(dbl), DIMENSION(:,:), INTENT(OUT) :: pot
-    INTEGER, INTENT(IN), OPTIONAL :: order
+    TYPE(xc_derivative_set_type), POINTER    :: derivative_set
+    REAL(dbl), DIMENSION(:), INTENT(IN)      :: rho, grho
+    REAL(dbl), DIMENSION(:, :), INTENT(OUT)  :: pot
+    INTEGER, INTENT(IN), OPTIONAL            :: order
 
     CALL x_u ( derivative_set, 5, rho, grho, pot, order )
   END SUBROUTINE revpbex_u
   SUBROUTINE revpbex_p ( derivative_set, rhoa, rhob, grhoa, grhob, pot, order )
-    IMPLICIT NONE
-    TYPE(xc_derivative_set_type), POINTER :: derivative_set
-    REAL(dbl), DIMENSION(:), INTENT(IN)  :: rhoa, rhob
-    REAL(dbl), DIMENSION(:), INTENT(IN)  :: grhoa, grhob
-    REAL(dbl), DIMENSION(:,:), INTENT(OUT) :: pot
-    INTEGER, INTENT(IN), OPTIONAL :: order
+    TYPE(xc_derivative_set_type), POINTER    :: derivative_set
+    REAL(dbl), DIMENSION(:), INTENT(IN)      :: rhoa, rhob, grhoa, grhob
+    REAL(dbl), DIMENSION(:, :), INTENT(OUT)  :: pot
+    INTEGER, INTENT(IN), OPTIONAL            :: order
 
     CALL x_p ( derivative_set, 5, rhoa, rhob, grhoa, grhob, pot, order )
   END SUBROUTINE revpbex_p
 
   SUBROUTINE optx_u ( derivative_set, rho, grho, pot, order )
-    IMPLICIT NONE
-    TYPE(xc_derivative_set_type), POINTER :: derivative_set
-    REAL(dbl), DIMENSION(:), INTENT(IN)  :: rho
-    REAL(dbl), DIMENSION(:), INTENT(IN)  :: grho
-    REAL(dbl), DIMENSION(:,:), INTENT(OUT) :: pot
-    INTEGER, INTENT(IN), OPTIONAL :: order
+    TYPE(xc_derivative_set_type), POINTER    :: derivative_set
+    REAL(dbl), DIMENSION(:), INTENT(IN)      :: rho, grho
+    REAL(dbl), DIMENSION(:, :), INTENT(OUT)  :: pot
+    INTEGER, INTENT(IN), OPTIONAL            :: order
 
     CALL x_u ( derivative_set, 6, rho, grho, pot, order )
   END SUBROUTINE optx_u
   SUBROUTINE optx_p ( derivative_set, rhoa, rhob, grhoa, grhob, pot, order )
-    IMPLICIT NONE
-    TYPE(xc_derivative_set_type), POINTER :: derivative_set
-    REAL(dbl), DIMENSION(:), INTENT(IN)  :: rhoa, rhob
-    REAL(dbl), DIMENSION(:), INTENT(IN)  :: grhoa, grhob
-    REAL(dbl), DIMENSION(:,:), INTENT(OUT) :: pot
-    INTEGER, INTENT(IN), OPTIONAL :: order
+    TYPE(xc_derivative_set_type), POINTER    :: derivative_set
+    REAL(dbl), DIMENSION(:), INTENT(IN)      :: rhoa, rhob, grhoa, grhob
+    REAL(dbl), DIMENSION(:, :), INTENT(OUT)  :: pot
+    INTEGER, INTENT(IN), OPTIONAL            :: order
 
     CALL x_p ( derivative_set, 6, rhoa, rhob, grhoa, grhob, pot, order )
   END SUBROUTINE optx_p
@@ -317,20 +281,17 @@ CONTAINS
 
 !   ---------------------------------------------------------------------------
 
-    IMPLICIT NONE
-    TYPE(xc_derivative_set_type), POINTER :: derivative_set
-    INTEGER, INTENT(IN) :: functional
-    REAL(dbl), DIMENSION(:), INTENT(IN)  :: rho
-    REAL(dbl), DIMENSION(:), INTENT(IN)  :: grho
-    REAL(dbl), DIMENSION(:,:), INTENT(OUT) :: pot
-    INTEGER, INTENT(IN), OPTIONAL :: order
+    TYPE(xc_derivative_set_type), POINTER    :: derivative_set
+    INTEGER, INTENT(IN)                      :: functional
+    REAL(dbl), DIMENSION(:), INTENT(IN)      :: rho, grho
+    REAL(dbl), DIMENSION(:, :), INTENT(OUT)  :: pot
+    INTEGER, INTENT(IN), OPTIONAL            :: order
 
-!   *** Local variables ***
-
-    LOGICAL   :: calc(0:4)
-    REAL(dbl), DIMENSION(:), ALLOCATABLE :: r13, s
-    REAL(dbl), DIMENSION(:,:), ALLOCATABLE :: fs
-    INTEGER :: n, error, m, mp, mt, ip, mx(0:3,2), m1, m2
+    INTEGER                                  :: error, m, m1, m2, mp, mt, &
+                                                mx(0:3,2), n
+    LOGICAL                                  :: calc(0:4)
+    REAL(dbl), ALLOCATABLE, DIMENSION(:)     :: r13, s
+    REAL(dbl), ALLOCATABLE, DIMENSION(:, :)  :: fs
 
 !   ---------------------------------------------------------------------------
 
@@ -405,20 +366,17 @@ CONTAINS
 
 !   ---------------------------------------------------------------------------
 
-    IMPLICIT NONE
-    TYPE(xc_derivative_set_type), POINTER :: derivative_set
-    INTEGER, INTENT(IN) :: functional
-    REAL(dbl), DIMENSION(:), INTENT(IN)  :: rhoa, rhob
-    REAL(dbl), DIMENSION(:), INTENT(IN)  :: grhoa, grhob
-    REAL(dbl), DIMENSION(:,:), INTENT(OUT) :: pot
-    INTEGER, INTENT(IN), OPTIONAL :: order
+    TYPE(xc_derivative_set_type), POINTER    :: derivative_set
+    INTEGER, INTENT(IN)                      :: functional
+    REAL(dbl), DIMENSION(:), INTENT(IN)      :: rhoa, rhob, grhoa, grhob
+    REAL(dbl), DIMENSION(:, :), INTENT(OUT)  :: pot
+    INTEGER, INTENT(IN), OPTIONAL            :: order
 
-!   *** Local variables ***
-
-    LOGICAL   :: calc(0:4)
-    REAL(dbl), DIMENSION(:), ALLOCATABLE :: r13, s
-    REAL(dbl), DIMENSION(:,:), ALLOCATABLE :: fs
-    INTEGER :: n, error, m, mp, mt, ip, mx(0:3,2), m1, m2
+    INTEGER                                  :: error, m, m1, m2, mp, mt, &
+                                                mx(0:3,2), n
+    LOGICAL                                  :: calc(0:4)
+    REAL(dbl), ALLOCATABLE, DIMENSION(:)     :: r13, s
+    REAL(dbl), ALLOCATABLE, DIMENSION(:, :)  :: fs
 
 !   ---------------------------------------------------------------------------
 
@@ -537,12 +495,12 @@ CONTAINS
 
   SUBROUTINE x_p_0 ( rho, r13, fs, pot )
 
-    IMPLICIT NONE
-    REAL(dbl), DIMENSION(:), INTENT(IN)  :: rho, r13
-    REAL(dbl), DIMENSION(:,:), INTENT(IN)  :: fs
-    REAL(dbl), DIMENSION(:), INTENT(OUT)  :: pot
+    REAL(dbl), DIMENSION(:), INTENT(IN)      :: rho, r13
+    REAL(dbl), DIMENSION(:, :), INTENT(IN)   :: fs
+    REAL(dbl), DIMENSION(:), INTENT(OUT)     :: pot
 
-    INTEGER :: ip, npoints
+    INTEGER                                  :: ip, npoints
+
 !   ---------------------------------------------------------------------------
 
     npoints = SIZE ( rho )
@@ -564,14 +522,15 @@ CONTAINS
 
   SUBROUTINE x_p_1 ( rho, grho, r13, s, fs, pot )
 
-    IMPLICIT NONE
-    REAL(dbl), DIMENSION(:), INTENT(IN)  :: rho, grho, r13, s
-    REAL(dbl), DIMENSION(:,:), INTENT(IN)  :: fs
-    REAL(dbl), DIMENSION(:,:), INTENT(OUT)  :: pot
+    REAL(dbl), DIMENSION(:), INTENT(IN)      :: rho, grho, r13, s
+    REAL(dbl), DIMENSION(:, :), INTENT(IN)   :: fs
+    REAL(dbl), DIMENSION(:, :), INTENT(OUT)  :: pot
 
-    INTEGER :: ip, npoints
-    REAL ( dbl ) :: a0, a1, sx, sy
+    INTEGER                                  :: ip, npoints
+    REAL(dbl)                                :: a0, a1, sx, sy
+
 !   ---------------------------------------------------------------------------
+
     npoints = SIZE ( rho )
     IF ( npoints > SIZE(pot) ) &
        CALL stop_program ( "x_p_1", "Inconsistent array sizes" )
@@ -598,14 +557,15 @@ CONTAINS
 
   SUBROUTINE x_p_2 ( rho, grho, r13, s, fs, pot )
 
-    IMPLICIT NONE
-    REAL(dbl), DIMENSION(:), INTENT(IN)  :: rho, grho, r13, s
-    REAL(dbl), DIMENSION(:,:), INTENT(IN)  :: fs
-    REAL(dbl), DIMENSION(:,:), INTENT(OUT)  :: pot
+    REAL(dbl), DIMENSION(:), INTENT(IN)      :: rho, grho, r13, s
+    REAL(dbl), DIMENSION(:, :), INTENT(IN)   :: fs
+    REAL(dbl), DIMENSION(:, :), INTENT(OUT)  :: pot
 
-    INTEGER :: ip, npoints
-    REAL ( dbl ) :: a0, a1, a2, sx, sxx, sy, sxy
+    INTEGER                                  :: ip, npoints
+    REAL(dbl)                                :: a0, a1, a2, sx, sxx, sxy, sy
+
 !   ---------------------------------------------------------------------------
+
     npoints = SIZE ( rho )
     IF ( npoints > SIZE(pot) ) &
        CALL stop_program ( "x_p_2", "Inconsistent array sizes" )
@@ -638,14 +598,16 @@ CONTAINS
 
   SUBROUTINE x_p_3 ( rho, grho, r13, s, fs, pot )
 
-    IMPLICIT NONE
-    REAL(dbl), DIMENSION(:), INTENT(IN)  :: rho, grho, r13, s
-    REAL(dbl), DIMENSION(:,:), INTENT(IN)  :: fs
-    REAL(dbl), DIMENSION(:,:), INTENT(OUT)  :: pot
+    REAL(dbl), DIMENSION(:), INTENT(IN)      :: rho, grho, r13, s
+    REAL(dbl), DIMENSION(:, :), INTENT(IN)   :: fs
+    REAL(dbl), DIMENSION(:, :), INTENT(OUT)  :: pot
 
-    INTEGER :: ip, npoints
-    REAL ( dbl ) :: a0, a1, a2, a3, sx, sxx, sxxx, sy, sxy, sxxy
+    INTEGER                                  :: ip, npoints
+    REAL(dbl)                                :: a0, a1, a2, a3, sx, sxx, &
+                                                sxxx, sxxy, sxy, sy
+
 !   ---------------------------------------------------------------------------
+
     npoints = SIZE ( rho )
     IF ( npoints > SIZE(pot) ) &
        CALL stop_program ( "x_u_3", "Inconsistent array sizes" )
@@ -687,16 +649,14 @@ CONTAINS
 ! Enhancement Factors
 ! *****************************************************************************
   SUBROUTINE efactor_b88 ( s, fs, m )
-    IMPLICIT NONE
-    REAL(dbl), DIMENSION(:), INTENT(IN) :: s
-    REAL(dbl), DIMENSION(:,:), INTENT(OUT) :: fs
-    INTEGER, INTENT(IN) :: m
+    REAL(dbl), DIMENSION(:), INTENT(IN)      :: s
+    REAL(dbl), DIMENSION(:, :), INTENT(OUT)  :: fs
+    INTEGER, INTENT(IN)                      :: m
 
-    INTEGER :: ip
-    REAL(dbl) :: p, q, x, as, sas, asp, asp2, asp3, bs, ys, sbs, sbs3, sbs5
-    REAL(dbl) :: w1, w2, beta, f0, f1, f2
-    REAL(dbl) :: t1,t2,t4,t5,t6,t8,t9,t10,t13,t15,t16,t19,t22,t24,t25,t32,t34
-    REAL(dbl) :: t36,t39,t40,t41,t44,t48,t49,t65,t87
+    INTEGER                                  :: ip
+    REAL(dbl) :: as, asp, beta, bs, f0, p, q, sas, sbs, sbs3, t1, t10, t13, &
+      t15, t16, t19, t2, t22, t24, t25, t32, t34, t36, t39, t4, t40, t41, &
+      t44, t48, t49, t5, t6, t65, t8, t87, t9, x, ys
 
     beta = 0.0042_dbl
     f0 = 1._dbl/sfac
@@ -776,15 +736,14 @@ CONTAINS
   END SUBROUTINE efactor_b88
 ! *****************************************************************************
   SUBROUTINE efactor_pw86 ( s, fs, m )
-    IMPLICIT NONE
-    REAL(dbl), DIMENSION(:), INTENT(IN) :: s
-    REAL(dbl), DIMENSION(:,:), INTENT(OUT) :: fs
-    INTEGER, INTENT(IN) :: m
+    REAL(dbl), DIMENSION(:), INTENT(IN)      :: s
+    REAL(dbl), DIMENSION(:, :), INTENT(OUT)  :: fs
+    INTEGER, INTENT(IN)                      :: m
 
-    INTEGER :: ip
-    REAL(dbl) :: t1, t2, t3, f15, s2, s4, s6
-    REAL(dbl) :: p0, p1, p2, p3, p15
-    REAL(dbl) :: t8, t9, t10, t12, t13, t14, t19, t25
+    INTEGER                                  :: ip
+    REAL(dbl)                                :: f15, p0, p1, p15, s2, s4, s6, &
+                                                t1, t10, t12, t13, t14, t19, &
+                                                t2, t25, t3, t8, t9
 
     t1 = 1.296_dbl
     t2 = 14._dbl
@@ -838,14 +797,16 @@ CONTAINS
   END SUBROUTINE efactor_pw86
 ! *****************************************************************************
   SUBROUTINE efactor_optx ( s, fs, m )
-    IMPLICIT NONE
-    REAL(dbl), DIMENSION(:), INTENT(IN) :: s
-    REAL(dbl), DIMENSION(:,:), INTENT(OUT) :: fs
-    INTEGER, INTENT(IN) :: m
+    REAL(dbl), DIMENSION(:), INTENT(IN)      :: s
+    REAL(dbl), DIMENSION(:, :), INTENT(OUT)  :: fs
+    INTEGER, INTENT(IN)                      :: m
 
-    INTEGER :: ip
-    REAL(dbl), PARAMETER :: a1=1.05151_dbl, a2=1.43169_dbl, gamma=0.006_dbl
-    REAL(dbl) :: f0, x, a, b, y
+    REAL(dbl), PARAMETER                     :: a1 = 1.05151_dbl, &
+                                                a2 = 1.43169_dbl, &
+                                                gamma = 0.006_dbl
+
+    INTEGER                                  :: ip
+    REAL(dbl)                                :: a, b, f0, x, y
 
     f0 = 1._dbl/sfac
     b = -a2/flsd
@@ -878,13 +839,13 @@ CONTAINS
   END SUBROUTINE efactor_optx
 ! *****************************************************************************
   SUBROUTINE efactor_pw91 ( s, fs, m )
-    IMPLICIT NONE
-    REAL(dbl), DIMENSION(:), INTENT(IN) :: s
-    REAL(dbl), DIMENSION(:,:), INTENT(OUT) :: fs
-    INTEGER, INTENT(IN) :: m
+    REAL(dbl), DIMENSION(:), INTENT(IN)      :: s
+    REAL(dbl), DIMENSION(:, :), INTENT(OUT)  :: fs
+    INTEGER, INTENT(IN)                      :: m
 
-    INTEGER :: ip
-    REAL(dbl) :: a1,a2,a3,a4,a,b1,o,s1,s2,s3,x
+    INTEGER                                  :: ip
+    REAL(dbl)                                :: a, a1, a2, a3, a4, b1, o, s1, &
+                                                s2, s3, x
 
     o=1._dbl
     a1 = 0.19645_dbl
@@ -973,15 +934,16 @@ CONTAINS
   END SUBROUTINE efactor_pw91
 ! *****************************************************************************
   SUBROUTINE efactor_pbex ( s, fs, m, pset )
-    IMPLICIT NONE
-    REAL(dbl), DIMENSION(:), INTENT(IN) :: s
-    REAL(dbl), DIMENSION(:,:), INTENT(OUT) :: fs
-    INTEGER, INTENT(IN) :: m, pset
+    REAL(dbl), DIMENSION(:), INTENT(IN)      :: s
+    REAL(dbl), DIMENSION(:, :), INTENT(OUT)  :: fs
+    INTEGER, INTENT(IN)                      :: m, pset
 
-    INTEGER :: ip
-    REAL(dbl), PARAMETER :: kappa1=0.804_dbl, kappa2=1.245_dbl, &
-                            mu=0.2195149727645171_dbl
-    REAL(dbl) :: x, x2, mk, y, f0
+    REAL(dbl), PARAMETER                     :: kappa1 = 0.804_dbl, &
+                                                kappa2 = 1.245_dbl, &
+                                                mu = 0.2195149727645171_dbl
+
+    INTEGER                                  :: ip
+    REAL(dbl)                                :: f0, mk, x, x2, y
 
     IF( pset==1 ) mk=mu/kappa1
     IF( pset==2 ) mk=mu/kappa2

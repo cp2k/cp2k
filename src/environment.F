@@ -23,8 +23,8 @@
 !******************************************************************************
 
 MODULE environment
-  USE cp_log_handling,                 ONLY: cp_init_default_logger
   USE cp2k_units,                      ONLY: init_cp2k_units
+  USE cp_log_handling,                 ONLY: cp_init_default_logger
   USE fft_tools,                       ONLY: fft3d,&
                                              init_fft
   USE global_types,                    ONLY: BLACS_GRID_COL,&
@@ -41,16 +41,15 @@ MODULE environment
                                              WANNIER_NONE,&
                                              global_environment_type,&
                                              init_print_keys
-  USE kinds,                           ONLY: print_kind_info,&
-                                             dp
+  USE kinds,                           ONLY: dp,&
+                                             print_kind_info
   USE machine,                         ONLY: m_datum,&
                                              m_getarg,&
                                              m_getcwd,&
                                              m_getlog,&
                                              m_getpid,&
-                                             m_getuid,&
                                              m_hostnm,&
-                                             m_iargc 
+                                             m_iargc
   USE mathconstants,                   ONLY: init_mathcon
   USE message_passing,                 ONLY: mp_bcast
   USE parallel,                        ONLY: end_parallel,&
@@ -60,20 +59,18 @@ MODULE environment
   USE qs_parser,                       ONLY: finish_parser,&
                                              open_file,&
                                              read_object,&
-                                             search_object,&
                                              start_parser,&
                                              stop_parser,&
                                              test_object
-  USE string_utilities,                ONLY: compress,&
-                                             uppercase
   USE termination,                     ONLY: set_error_unit,&
                                              stop_program
   USE timings,                         ONLY: timeprint,&
                                              timeset,&
                                              timestop,&
-                                             trace_debug, &
+                                             trace_debug,&
                                              use_HPM
   USE util,                            ONLY: ran2
+
   IMPLICIT NONE
 
   PRIVATE
@@ -298,22 +295,18 @@ CONTAINS
 !******************************************************************************
   SUBROUTINE read_print_section(globenv)
 
-    TYPE(global_environment_type), INTENT(INOUT) :: globenv
+    TYPE(global_environment_type), &
+      INTENT(INOUT)                          :: globenv
 
-!   *** Local parameters ***
+    CHARACTER(LEN=*), PARAMETER :: routine_name = "read_print_section", &
+      start_section_label = "PRINT"
 
-    CHARACTER(LEN=*), PARAMETER :: routine_name = "read_print_section"
-    CHARACTER(LEN=*), PARAMETER :: start_section_label = "PRINT"
-
-!   *** Local variables ***
-
-    CHARACTER(LEN=60) :: keyword
-    CHARACTER(LEN=3)  :: test_result
-    INTEGER           :: ipos1,ipos2
-    LOGICAL           :: print_request,section_found
+    CHARACTER(LEN=3)                         :: test_result
+    CHARACTER(LEN=60)                        :: keyword
+    INTEGER                                  :: ipos1, ipos2
+    LOGICAL                                  :: print_request, section_found
 
 !   ---------------------------------------------------------------------------
-
 !   *** Initialize print keys (the default print level is LOW) ***
 
     globenv%print%level = LOW
@@ -588,22 +581,18 @@ CONTAINS
 !******************************************************************************
   SUBROUTINE read_io_section(globenv)
 
-    TYPE(global_environment_type), INTENT(INOUT) :: globenv
+    TYPE(global_environment_type), &
+      INTENT(INOUT)                          :: globenv
 
-!   *** Local parameters ***
+    CHARACTER(LEN=*), PARAMETER :: routine_name = "read_io_section", &
+      start_section_label = "IO"
 
-    CHARACTER(LEN=*), PARAMETER :: routine_name = "read_io_section"
-    CHARACTER(LEN=*), PARAMETER :: start_section_label = "IO"
-
-!   *** Local variables ***
-
-    CHARACTER(LEN=60) :: keyword
-    CHARACTER(LEN=3)  :: test_result
-    INTEGER           :: output_unit,unit_number
-    LOGICAL           :: section_found
+    CHARACTER(LEN=3)                         :: test_result
+    CHARACTER(LEN=60)                        :: keyword
+    INTEGER                                  :: output_unit, unit_number
+    LOGICAL                                  :: section_found
 
 !   ---------------------------------------------------------------------------
-
 !   *** Load the default settings ***
 
     globenv%pp_library_path = "./"
@@ -725,27 +714,20 @@ CONTAINS
 
   SUBROUTINE read_cp2k_section(globenv)
 
-    TYPE(global_environment_type), INTENT(INOUT) :: globenv
+    TYPE(global_environment_type), &
+      INTENT(INOUT)                          :: globenv
 
-!   *** Local parameters ***
+    CHARACTER(LEN=*), PARAMETER :: routine_name = "read_cp2k_section", &
+      start_section_label = "CP2K"
 
-    CHARACTER(LEN=*), PARAMETER :: routine_name = "read_cp2k_section"
-    CHARACTER(LEN=*), PARAMETER :: start_section_label = "CP2K"
-
-!   *** Local variables ***
-
-    CHARACTER(LEN=60) :: keyword,keyvalue
-    CHARACTER(LEN=3)  :: test_result
-    INTEGER           :: output_unit,stat
-    LOGICAL           :: section_found
-
-    INTEGER, DIMENSION(3) :: n
-    INTEGER :: omp_get_num_threads, num_threads
-
-    COMPLEX(KIND = dp), DIMENSION(4,4,4) :: zz
+    CHARACTER(LEN=3)                         :: test_result
+    CHARACTER(LEN=60)                        :: keyvalue, keyword
+    COMPLEX(KIND=dp), DIMENSION(4, 4, 4)     :: zz
+    INTEGER                                  :: num_threads, output_unit, stat
+    INTEGER, DIMENSION(3)                    :: n
+    LOGICAL                                  :: section_found
 
 !   ---------------------------------------------------------------------------
-
 !   *** Load the default settings ***
 
     globenv%blacs_grid_layout = BLACS_GRID_SQUARE

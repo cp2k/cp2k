@@ -31,7 +31,6 @@ MODULE xc_pade
 ! *****************************************************************************
   USE cp_error_handling,               ONLY: cp_a_l,&
                                              cp_assert,&
-                                             cp_assertion_failed,&
                                              cp_error_message,&
                                              cp_error_type
   USE cp_log_handling,                 ONLY: cp_failure_level,&
@@ -43,10 +42,10 @@ MODULE xc_pade
   USE kinds,                           ONLY: dbl
   USE termination,                     ONLY: stop_memory,&
                                              stop_program
-  USE xc_derivative_types,             ONLY: xc_derivative_type, &
-                                             xc_derivative_get
-  USE xc_derivative_set_types,         ONLY: xc_derivative_set_type, &
+  USE xc_derivative_set_types,         ONLY: xc_derivative_set_type,&
                                              xc_dset_get_derivative
+  USE xc_derivative_types,             ONLY: xc_derivative_get,&
+                                             xc_derivative_type
   USE xc_functionals_utilities,        ONLY: calc_fx,&
                                              calc_rs,&
                                              calc_rs_pw,&
@@ -105,8 +104,8 @@ CONTAINS
 
   SUBROUTINE pade_init ( cutoff, debug )
 
-    REAL(dbl), INTENT(IN) :: cutoff
-    LOGICAL, OPTIONAL, INTENT(IN) :: debug
+    REAL(dbl), INTENT(IN)                    :: cutoff
+    LOGICAL, INTENT(IN), OPTIONAL            :: debug
 
     eps_rho = cutoff
     CALL set_util ( cutoff )
@@ -123,14 +122,15 @@ CONTAINS
 
   SUBROUTINE pade_info ( reference, shortform, lsd, needs, error )
 
-    CHARACTER (LEN=*), INTENT(OUT), OPTIONAL :: reference
-    CHARACTER (LEN=*), INTENT(OUT), OPTIONAL :: shortform
+    CHARACTER(LEN=*), INTENT(OUT), OPTIONAL  :: reference, shortform
     LOGICAL, INTENT(IN), OPTIONAL            :: lsd
-    TYPE(xc_rho_cflags_type), INTENT(inout), optional :: needs
-    TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
+    TYPE(xc_rho_cflags_type), &
+      INTENT(inout), optional                :: needs
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = "pade_info", &
-                                   routineP = moduleN//"/"//routineN
+      routineP = moduleN//"/"//routineN
 
     IF ( PRESENT ( reference ) ) THEN
        reference = "S. Goedecker, M. Teter and J. Hutter," &
@@ -158,16 +158,16 @@ CONTAINS
 
 !   ---------------------------------------------------------------------------
 
-    TYPE(xc_derivative_set_type), POINTER :: derivative_set
-    REAL(dbl), DIMENSION(:), INTENT(IN)  :: rho
-    REAL(dbl), DIMENSION(:,:), INTENT(INOUT) :: pot
-    INTEGER, INTENT(IN), OPTIONAL :: order
+    TYPE(xc_derivative_set_type), POINTER    :: derivative_set
+    REAL(dbl), DIMENSION(:), INTENT(IN)      :: rho
+    REAL(dbl), DIMENSION(:, :), &
+      INTENT(INOUT)                          :: pot
+    INTEGER, INTENT(IN), OPTIONAL            :: order
 
-!   *** Local variables ***
-
-    LOGICAL   :: calc(0:4)
-    REAL(dbl), DIMENSION(:), ALLOCATABLE :: rs
-    INTEGER :: n, error, m, mp, mt, mx(0:3,2), m1, m2
+    INTEGER                                  :: error, m, m1, m2, mp, mt, &
+                                                mx(0:3,2), n
+    LOGICAL                                  :: calc(0:4)
+    REAL(dbl), ALLOCATABLE, DIMENSION(:)     :: rs
 
 !   ---------------------------------------------------------------------------
 
@@ -211,18 +211,18 @@ CONTAINS
 
   SUBROUTINE pade_lda_pw_eval(deriv_set, rho_set, order, error)
 
-    TYPE(xc_derivative_set_type), POINTER :: deriv_set
-    TYPE(xc_rho_set_type), POINTER :: rho_set
-    INTEGER, INTENT(IN), OPTIONAL :: order
-    TYPE(cp_error_type), OPTIONAL, INTENT(INOUT) :: error
+    TYPE(xc_derivative_set_type), POINTER    :: deriv_set
+    TYPE(xc_rho_set_type), POINTER           :: rho_set
+    INTEGER, INTENT(IN), OPTIONAL            :: order
+    TYPE(cp_error_type), INTENT(INOUT), &
+      OPTIONAL                               :: error
 
-!   *** Local variables ***
-
-    LOGICAL   :: calc(0:4)
-    REAL(dbl), DIMENSION(:), ALLOCATABLE :: rs
-    INTEGER :: n, stat
-    REAL(KIND = dbl), DIMENSION(:,:,:), POINTER :: e_0, e_r, e_rr, e_rrr
-    TYPE(xc_derivative_type), POINTER :: deriv
+    INTEGER                                  :: n, stat
+    LOGICAL                                  :: calc(0:4)
+    REAL(dbl), ALLOCATABLE, DIMENSION(:)     :: rs
+    REAL(KIND=dbl), DIMENSION(:, :, :), &
+      POINTER                                :: e_0, e_r, e_rr, e_rrr
+    TYPE(xc_derivative_type), POINTER        :: deriv
 
 !   ---------------------------------------------------------------------------
 
@@ -276,15 +276,17 @@ CONTAINS
 
   SUBROUTINE pade_lsd ( derivative_set, rhoa, rhob, pot, order )
 
-    TYPE(xc_derivative_set_type), POINTER :: derivative_set
-    REAL(dbl), DIMENSION(:), INTENT(IN)  :: rhoa, rhob
-    REAL(dbl), DIMENSION(:,:), INTENT(INOUT) :: pot
-    INTEGER, INTENT(IN), OPTIONAL :: order
+    TYPE(xc_derivative_set_type), POINTER    :: derivative_set
+    REAL(dbl), DIMENSION(:), INTENT(IN)      :: rhoa, rhob
+    REAL(dbl), DIMENSION(:, :), &
+      INTENT(INOUT)                          :: pot
+    INTEGER, INTENT(IN), OPTIONAL            :: order
 
-    LOGICAL   :: calc(0:4)
-    REAL(dbl) :: rs
-    REAL(dbl), DIMENSION(4) :: fx
-    INTEGER :: i, n, error, m, mp, mt, mx(0:3,2), m1, m2
+    INTEGER                                  :: i, m, m1, m2, mp, mt, &
+                                                mx(0:3,2), n
+    LOGICAL                                  :: calc(0:4)
+    REAL(dbl)                                :: rs
+    REAL(dbl), DIMENSION(4)                  :: fx
 
 !   ---------------------------------------------------------------------------
 
@@ -340,21 +342,21 @@ CONTAINS
 
   SUBROUTINE pade_lsd_pw_eval ( deriv_set, rho_set, order, error )
 
-    TYPE(xc_derivative_set_type), POINTER        :: deriv_set
-    TYPE(xc_rho_set_type), POINTER               :: rho_set
-    INTEGER, INTENT(IN), OPTIONAL                :: order
-    TYPE(cp_error_type), OPTIONAL, INTENT(INOUT) :: error
+    TYPE(xc_derivative_set_type), POINTER    :: deriv_set
+    TYPE(xc_rho_set_type), POINTER           :: rho_set
+    INTEGER, INTENT(IN), OPTIONAL            :: order
+    TYPE(cp_error_type), INTENT(INOUT), &
+      OPTIONAL                               :: error
 
-    INTEGER :: i, j, k
-    LOGICAL   :: calc(0:4)
-    REAL(dbl) :: rs, rhoa, rhob
-    REAL(dbl), DIMENSION(4) :: fx
-    REAL(KIND = dbl), DIMENSION(:,:,:), POINTER :: e_0, &
-                                                   e_ra, e_rb, &
-                                                   e_rara, e_rarb, e_rbrb, &
-                                                   e_rarara, e_rararb, e_rarbrb, e_rbrbrb
-    TYPE(xc_derivative_type), POINTER :: deriv
-
+    INTEGER                                  :: i, j, k
+    LOGICAL                                  :: calc(0:4)
+    REAL(dbl)                                :: rhoa, rhob, rs
+    REAL(dbl), DIMENSION(4)                  :: fx
+    REAL(KIND=dbl), DIMENSION(:, :, :), &
+      POINTER                                :: e_0, e_ra, e_rara, e_rarara, &
+                                                e_rararb, e_rarb, e_rarbrb, &
+                                                e_rb, e_rbrb, e_rbrbrb
+    TYPE(xc_derivative_type), POINTER        :: deriv
 
 !   ---------------------------------------------------------------------------
 
@@ -440,15 +442,16 @@ CONTAINS
 
   SUBROUTINE pade_lda_0(n, rho, rs, pot)
 
-    INTEGER, INTENT(IN)                    :: n
-    REAL(dbl), DIMENSION(*), INTENT(IN)    :: rho, rs
-    REAL(dbl), DIMENSION(*), INTENT(INOUT) :: pot
+    INTEGER, INTENT(IN)                      :: n
+    REAL(dbl), DIMENSION(*), INTENT(IN)      :: rho, rs
+    REAL(dbl), DIMENSION(*), INTENT(INOUT)   :: pot
 
-    INTEGER :: ip
-    REAL(dbl) :: p, q, epade
+    INTEGER                                  :: ip
+    REAL(dbl)                                :: epade, p, q
+
 !   ---------------------------------------------------------------------------
-
 !$omp parallel do private(ip,p,q,epade)
+
     DO ip = 1, n
       IF ( rho(ip) > eps_rho ) THEN
          p = a0 + (a1 + (a2 + a3*rs(ip))*rs(ip))*rs(ip)
@@ -464,15 +467,16 @@ CONTAINS
 
   SUBROUTINE pade_lda_1(n, rho, rs, pot)
 
-    INTEGER, INTENT(IN)                    :: n
-    REAL(dbl), DIMENSION(*), INTENT(IN)    :: rho, rs
-    REAL(dbl), DIMENSION(*), INTENT(INOUT) :: pot
+    INTEGER, INTENT(IN)                      :: n
+    REAL(dbl), DIMENSION(*), INTENT(IN)      :: rho, rs
+    REAL(dbl), DIMENSION(*), INTENT(INOUT)   :: pot
 
-    INTEGER :: ip
-    REAL(dbl) :: p, q, dp, dq, epade, depade
+    INTEGER                                  :: ip
+    REAL(dbl)                                :: depade, dp, dq, epade, p, q
+
 !   ---------------------------------------------------------------------------
-
 !$omp parallel do private(ip,p,q,epade,dp,dq,depade)
+
     DO ip = 1, n
       IF ( rho(ip) > eps_rho ) THEN
 
@@ -495,15 +499,16 @@ CONTAINS
 
   SUBROUTINE pade_lda_01(n, rho, rs, pot0, pot1)
 
-    INTEGER, INTENT(IN)                    :: n
-    REAL(dbl), DIMENSION(*), INTENT(IN)    :: rho, rs
-    REAL(dbl), DIMENSION(*), INTENT(INOUT) :: pot0, pot1
+    INTEGER, INTENT(IN)                      :: n
+    REAL(dbl), DIMENSION(*), INTENT(IN)      :: rho, rs
+    REAL(dbl), DIMENSION(*), INTENT(INOUT)   :: pot0, pot1
 
-    INTEGER :: ip
-    REAL(dbl) :: p, q, dp, dq, epade, depade
+    INTEGER                                  :: ip
+    REAL(dbl)                                :: depade, dp, dq, epade, p, q
+
 !   ---------------------------------------------------------------------------
-
 !$omp parallel do private(ip,p,q,epade,dp,dq,depade)
+
     DO ip = 1, n
       IF ( rho(ip) > eps_rho ) THEN
 
@@ -527,15 +532,17 @@ CONTAINS
 
   SUBROUTINE pade_lda_2(n, rho, rs, pot)
 
-    INTEGER, INTENT(IN)                    :: n
-    REAL(dbl), DIMENSION(*), INTENT(IN)    :: rho, rs
-    REAL(dbl), DIMENSION(*), INTENT(INOUT) :: pot
+    INTEGER, INTENT(IN)                      :: n
+    REAL(dbl), DIMENSION(*), INTENT(IN)      :: rho, rs
+    REAL(dbl), DIMENSION(*), INTENT(INOUT)   :: pot
 
-    INTEGER :: ip
-    REAL(dbl) :: p, q, dp, dq, d2p, d2q, rsr, t1, t2, t3
- !   ---------------------------------------------------------------------------
+    INTEGER                                  :: ip
+    REAL(dbl)                                :: d2p, d2q, dp, dq, p, q, rsr, &
+                                                t1, t2, t3
 
+!   ---------------------------------------------------------------------------
 !$omp parallel do private(ip,p,q,dp,dq,d2p,d2q,rsr,t1,t2,t3)
+
     DO ip = 1, n
       IF ( rho(ip) > eps_rho ) THEN
 
@@ -564,16 +571,18 @@ CONTAINS
 
   SUBROUTINE pade_lda_3(n, rho, rs, pot)
 
-    INTEGER, INTENT(IN)                    :: n
-    REAL(dbl), DIMENSION(*), INTENT(IN)    :: rho, rs
-    REAL(dbl), DIMENSION(*), INTENT(INOUT) :: pot
+    INTEGER, INTENT(IN)                      :: n
+    REAL(dbl), DIMENSION(*), INTENT(IN)      :: rho, rs
+    REAL(dbl), DIMENSION(*), INTENT(INOUT)   :: pot
 
-    INTEGER :: ip
-    REAL(dbl) :: ab1, ab2, ab3, rsr1, rsr2, rsr3
-    REAL(dbl) :: p, q, dp, dq, d2p, d2q, d3p, d3q
+    INTEGER                                  :: ip
+    REAL(dbl)                                :: ab1, ab2, ab3, d2p, d2q, d3p, &
+                                                d3q, dp, dq, p, q, rsr1, &
+                                                rsr2, rsr3
+
 !   ---------------------------------------------------------------------------
-
 !$omp parallel do private(ip,p,q,dp,dq,d2p,d2q,d3p,d3q,ab1,ab2,ab3,rsr1,rsr2,rsr3)
+
     DO ip = 1, n
       IF ( rho(ip) > eps_rho ) THEN
 
@@ -608,15 +617,14 @@ CONTAINS
 
   SUBROUTINE pade_lsd_0(rhoa, rhob, rs, fx, pot0 )
 
-    REAL(dbl), INTENT(IN)               :: rhoa, rhob, rs
-    REAL(dbl), DIMENSION(:), INTENT(IN) :: fx
-    REAL(dbl), INTENT(INOUT)            :: pot0
+    REAL(dbl), INTENT(IN)                    :: rhoa, rhob, rs
+    REAL(dbl), DIMENSION(:), INTENT(IN)      :: fx
+    REAL(dbl), INTENT(INOUT)                 :: pot0
 
-    INTEGER :: ip
-    REAL(dbl) :: fa0, fa1, fa2, fa3, fb1, fb2, fb3, fb4
-    REAL(dbl) :: p, q, rhoab
+    REAL(dbl)                                :: fa0, fa1, fa2, fa3, fb1, fb2, &
+                                                fb3, fb4, p, q, rhoab
+
 !   ---------------------------------------------------------------------------
-
 
       rhoab = rhoa + rhob
 
@@ -644,13 +652,14 @@ CONTAINS
 
   SUBROUTINE pade_lsd_1 ( rhoa, rhob, rs, fx, pota, potb )
 
-    REAL(dbl), INTENT(IN)  :: rhoa, rhob, rs
-    REAL(dbl), DIMENSION(:), INTENT(IN)  :: fx
-    REAL(dbl), INTENT(INOUT)  :: pota, potb
+    REAL(dbl), INTENT(IN)                    :: rhoa, rhob, rs
+    REAL(dbl), DIMENSION(:), INTENT(IN)      :: fx
+    REAL(dbl), INTENT(INOUT)                 :: pota, potb
 
-    INTEGER :: ip, n
-    REAL(dbl) :: fa0, fa1, fa2, fa3, fb1, fb2, fb3, fb4
-    REAL(dbl) :: p, q, dp, dq, xp, xq, rhoab, dr, dx, dc
+    REAL(dbl)                                :: dc, dp, dq, dr, dx, fa0, fa1, &
+                                                fa2, fa3, fb1, fb2, fb3, fb4, &
+                                                p, q, rhoab, xp, xq
+
 !   ---------------------------------------------------------------------------
 
       rhoab = rhoa + rhob
@@ -689,13 +698,14 @@ CONTAINS
 
   SUBROUTINE pade_lsd_01 ( rhoa, rhob, rs, fx, pot0, pota, potb )
 
-    REAL(dbl), INTENT(IN)    :: rhoa, rhob, rs
-    REAL(dbl), DIMENSION(:), INTENT(IN) :: fx
-    REAL(dbl), INTENT(INOUT) :: pot0, pota, potb
+    REAL(dbl), INTENT(IN)                    :: rhoa, rhob, rs
+    REAL(dbl), DIMENSION(:), INTENT(IN)      :: fx
+    REAL(dbl), INTENT(INOUT)                 :: pot0, pota, potb
 
-    INTEGER :: ip
-    REAL(dbl) :: fa0, fa1, fa2, fa3, fb1, fb2, fb3, fb4
-    REAL(dbl) :: p, q, dp, dq, xp, xq, rhoab, dr, dx, dc
+    REAL(dbl)                                :: dc, dp, dq, dr, dx, fa0, fa1, &
+                                                fa2, fa3, fb1, fb2, fb3, fb4, &
+                                                p, q, rhoab, xp, xq
+
 !   ---------------------------------------------------------------------------
 
       rhoab = rhoa + rhob
@@ -735,14 +745,16 @@ CONTAINS
 
   SUBROUTINE pade_lsd_2 (rhoa, rhob, rs, fx, potaa, potab, potbb )
 
-    REAL(dbl), INTENT(IN)    :: rhoa, rhob, rs
-    REAL(dbl), DIMENSION(:), INTENT(IN)  :: fx
-    REAL(dbl), INTENT(INOUT) :: potaa, potab, potbb
+    REAL(dbl), INTENT(IN)                    :: rhoa, rhob, rs
+    REAL(dbl), DIMENSION(:), INTENT(IN)      :: fx
+    REAL(dbl), INTENT(INOUT)                 :: potaa, potab, potbb
 
-    INTEGER :: ip
-    REAL(dbl) :: fa0, fa1, fa2, fa3, fb1, fb2, fb3, fb4
-    REAL(dbl) :: p, q, dp, dq, xp, xq, rhoab, dr, dx, dc
-    REAL(dbl) :: d2p, d2q, dxp, dxq, drr, dxr, dxx, xt, yt, or
+    REAL(dbl)                                :: d2p, d2q, dp, dq, dr, drr, &
+                                                dx, dxp, dxq, dxr, dxx, fa0, &
+                                                fa1, fa2, fa3, fb1, fb2, fb3, &
+                                                fb4, or, p, q, rhoab, xp, xq, &
+                                                xt, yt
+
 !   ---------------------------------------------------------------------------
 
       rhoab = rhoa + rhob
@@ -806,16 +818,14 @@ CONTAINS
 
   SUBROUTINE pade_lsd_3 ( rhoa, rhob, rs, fx, potaaa, potaab, potabb, potbbb )
 
-    REAL(dbl), INTENT(IN)    :: rhoa, rhob, rs
-    REAL(dbl), DIMENSION(:), INTENT(IN)  :: fx
-    REAL(dbl), INTENT(INOUT) :: potaaa, potaab, potabb, potbbb
+    REAL(dbl), INTENT(IN)                    :: rhoa, rhob, rs
+    REAL(dbl), DIMENSION(:), INTENT(IN)      :: fx
+    REAL(dbl), INTENT(INOUT)                 :: potaaa, potaab, potabb, potbbb
 
-    INTEGER :: ip
-    REAL(dbl) :: fa0, fa1, fa2, fa3, fb1, fb2, fb3, fb4
-    REAL(dbl) :: p, q, dp, dq, xp, xq, rhoab, dr, dx, dc
-    REAL(dbl) :: d2p, d2q, dxp, dxq, drr, dxr, dxx, xt, yt, or
-    REAL(dbl) :: d3p, d3q, d2xp, d2xq
-    REAL(dbl) :: drrr, dxrr, dxxr, dxxx
+    REAL(dbl) :: d2p, d2q, d2xp, d2xq, d3p, d3q, dp, dq, dr, drr, drrr, dx, &
+      dxp, dxq, dxr, dxrr, dxx, dxxr, dxxx, fa0, fa1, fa2, fa3, fb1, fb2, &
+      fb3, fb4, or, p, q, rhoab, xp, xq, xt, yt
+
 !   ---------------------------------------------------------------------------
 
     IF ( .NOT. debug_flag ) CALL stop_program("pade_lsd_3","Routine not tested")

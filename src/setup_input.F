@@ -20,12 +20,9 @@
 !******************************************************************************
 
 MODULE setup_input
-  USE convert_units,                   ONLY: convert_to_cp2k_units
   USE global_types,                    ONLY: global_environment_type
   USE input_types,                     ONLY: setup_parameters_type
   USE kinds,                           ONLY: dbl
-  USE mathconstants,                   ONLY: pi,&
-                                             zero
   USE parser,                          ONLY: get_next,&
                                              p_error,&
                                              parser_end,&
@@ -34,14 +31,8 @@ MODULE setup_input
                                              search_label,&
                                              stop_parser,&
                                              test_next
-  USE periodic_table,                  ONLY: ptable
-  USE string_utilities,                ONLY: make_tuple,&
-                                             str_comp,&
-                                             str_search,&
-                                             uppercase,&
-                                             xstring
-  USE termination,                     ONLY: stop_memory,&
-                                             stop_program
+  USE string_utilities,                ONLY: uppercase
+
   IMPLICIT NONE
 
   PRIVATE
@@ -98,20 +89,18 @@ CONTAINS
 
 SUBROUTINE read_setup_section ( setup, globenv )
 
-  IMPLICIT NONE
 
-! Arguments
-  TYPE ( setup_parameters_type ) :: setup
-  TYPE ( global_environment_type ), INTENT ( IN ) :: globenv
+    TYPE(setup_parameters_type)              :: setup
+    TYPE(global_environment_type), &
+      INTENT(IN)                             :: globenv
 
-! Locals
-  INTEGER :: ilen, iw, source, group, icount, nmol_type, ios
-  INTEGER :: ierror, i, j, nmol_topo
-  LOGICAL :: sim, section_found
-  CHARACTER ( LEN = 20 ) :: string, string2
-  CHARACTER ( LEN = 6 ) :: label
-  CHARACTER ( LEN = 12 ) :: default_thermostat
-  CHARACTER ( LEN = 3 ), PARAMETER :: yn ( 0:1 ) = (/ ' NO', 'YES' /)
+    CHARACTER(LEN=3), PARAMETER              :: yn( 0:1 ) = (/ ' NO', 'YES' /)
+
+    CHARACTER(LEN=12)                        :: default_thermostat
+    CHARACTER(LEN=20)                        :: string
+    CHARACTER(LEN=6)                         :: label
+    INTEGER                                  :: icount, ierror, ilen, iw
+    LOGICAL                                  :: section_found
 
   default_thermostat = "GLOBAL"
   iw = globenv % scr

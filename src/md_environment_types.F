@@ -23,19 +23,11 @@ MODULE md_environment_types
   USE coefficient_types,               ONLY: coeff_type
   USE cp_error_handling,               ONLY: cp_a_l,&
                                              cp_assert,&
-                                             cp_assertion_failed,&
-                                             cp_debug,&
-                                             cp_error_check,&
-                                             cp_error_dealloc_ref,&
                                              cp_error_get_logger,&
-                                             cp_error_init,&
                                              cp_error_message,&
-                                             cp_error_type,&
-                                             cp_internal_error,&
-                                             cp_unimplemented_error
+                                             cp_error_type
   USE cp_log_handling,                 ONLY: cp_failure_level,&
                                              cp_fatal_level,&
-                                             cp_log,&
                                              cp_logger_type,&
                                              cp_note_level,&
                                              cp_to_string,&
@@ -52,8 +44,9 @@ MODULE md_environment_types
   USE md,                              ONLY: simulation_parameters_type,&
                                              virial_type
   USE simulation_cell,                 ONLY: cell_type
-  !USE termination,                     ONLY: stop_memory
-           
+!USE termination,                     ONLY: stop_memory
+
+
   IMPLICIT NONE
 
   PRIVATE
@@ -109,33 +102,32 @@ CONTAINS
                           nhc_part, nhc_coef, nhc_baro, npt, force_env, &
                           para_env )
 
-    IMPLICIT NONE
 !   Purpose: Get the integrator environment
 
 !   ***************************************************************************
 
-    TYPE ( md_environment_type ), POINTER :: md_env
-    TYPE ( virial_type ), POINTER, OPTIONAL :: virial
-    TYPE ( cell_type ), POINTER, OPTIONAL :: cell
-    TYPE ( simulation_parameters_type ), POINTER, OPTIONAL :: simpar
-    TYPE ( coeff_type ), OPTIONAL, POINTER :: coef_pos ( : )
-    TYPE ( coeff_type ), OPTIONAL, POINTER :: coef_vel ( : )
-    TYPE ( coeff_type ), OPTIONAL, POINTER :: coef_force ( : )
-!    TYPE ( pimd_environment_type ), POINTER :: pimd_env
-    TYPE ( lnhc_parameters_type ), POINTER, OPTIONAL :: nhc_part ( : )
-    TYPE ( lnhc_parameters_type ), POINTER, OPTIONAL :: nhc_coef 
-    TYPE ( lnhc_parameters_type ), POINTER, OPTIONAL :: nhc_baro ( : )
-    TYPE ( npt_info_type ), POINTER, OPTIONAL :: npt ( :, : )
-    TYPE ( force_env_type ), POINTER, OPTIONAL :: force_env
-    INTEGER, POINTER, OPTIONAL :: itimes
-    REAL ( dbl ), POINTER, OPTIONAL :: constant
-    REAL ( dbl ), POINTER, OPTIONAL :: used_time
-    TYPE(cp_para_env_type), POINTER, OPTIONAL :: para_env 
-!   ---------------------------------------------------------------------------
-!   *** Local parameters ***
+    TYPE(md_environment_type), POINTER       :: md_env
+    INTEGER, OPTIONAL, POINTER               :: itimes
+    REAL(dbl), OPTIONAL, POINTER             :: constant, used_time
+    TYPE(cell_type), OPTIONAL, POINTER       :: cell
+    TYPE(simulation_parameters_type), &
+      OPTIONAL, POINTER                      :: simpar
+    TYPE(coeff_type), OPTIONAL, POINTER      :: coef_pos( : ), coef_vel( : ), &
+                                                coef_force( : )
+    TYPE(virial_type), OPTIONAL, POINTER     :: virial
+    TYPE(lnhc_parameters_type), OPTIONAL, &
+      POINTER                                :: nhc_part( : ), nhc_coef, &
+                                                nhc_baro( : )
+    TYPE(npt_info_type), OPTIONAL, POINTER   :: npt( :, : )
+    TYPE(force_env_type), OPTIONAL, POINTER  :: force_env
+    TYPE(cp_para_env_type), OPTIONAL, &
+      POINTER                                :: para_env
 
-    CHARACTER(LEN=*), PARAMETER :: routine_name = "get_md_env",&
-         routineP=moduleN//':'//routine_name
+    CHARACTER(LEN=*), PARAMETER :: routine_name = "get_md_env", &
+      routineP = moduleN//':'//routine_name
+
+!    TYPE ( pimd_environment_type ), POINTER :: pimd_env
+!   ---------------------------------------------------------------------------
 
     IF ( PRESENT ( itimes ) ) itimes => md_env % itimes
     IF ( PRESENT ( constant ) ) constant => md_env % constant
@@ -166,16 +158,18 @@ CONTAINS
 
 !   ***************************************************************************
 
-    TYPE( md_environment_type ), POINTER :: md_env
-    TYPE ( cp_para_env_type ), POINTER :: para_env 
-    TYPE ( cp_error_type ), INTENT ( INOUT ), OPTIONAL :: error
-!   *** Local parameters ***
+    TYPE(md_environment_type), POINTER       :: md_env
+    TYPE(cp_para_env_type), POINTER          :: para_env
+    TYPE(cp_error_type), INTENT(INOUT), &
+      OPTIONAL                               :: error
 
-    CHARACTER(LEN=*), PARAMETER :: routine_name = "md_env_create",&
-         routineP=moduleN//':'//routine_name
-    INTEGER :: istat
+    CHARACTER(LEN=*), PARAMETER :: routine_name = "md_env_create", &
+      routineP = moduleN//':'//routine_name
+
+    INTEGER                                  :: istat
 
 !   ---------------------------------------------------------------------------
+
     ALLOCATE ( md_env, stat=istat )
     CPPostconditionNoFail(istat==0,cp_warning_level,routineP,error)
     last_md_env_id=last_md_env_id+1
@@ -242,12 +236,14 @@ CONTAINS
 !!
 !!*** **********************************************************************
 SUBROUTINE md_env_retain(md_env, error)
-  TYPE(md_environment_type), POINTER :: md_env
-  TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
-  
-  LOGICAL :: failure
-  CHARACTER(len=*), PARAMETER :: routineN='md_env_retain',&
-        routineP=moduleN//':'//routineN
+    TYPE(md_environment_type), POINTER       :: md_env
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'md_env_retain', &
+      routineP = moduleN//':'//routineN
+
+    LOGICAL                                  :: failure
 
   failure=.FALSE.
   
@@ -289,13 +285,15 @@ END SUBROUTINE md_env_retain
 !!
 !!*** **********************************************************************
 SUBROUTINE md_env_release(md_env, error)
-  TYPE(md_environment_type), POINTER :: md_env
-  TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
-  
-  LOGICAL :: failure
-  CHARACTER(len=*), PARAMETER :: routineN='md_env_release',&
-        routineP=moduleN//':'//routineN
-  INTEGER :: stat,i,istat
+    TYPE(md_environment_type), POINTER       :: md_env
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'md_env_release', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: istat, stat
+    LOGICAL                                  :: failure
 
   failure=.FALSE.
   
@@ -344,27 +342,27 @@ END SUBROUTINE md_env_release
 
 !   ***************************************************************************
 
-    TYPE ( md_environment_type ), POINTER :: md_env
-    TYPE ( virial_type ), POINTER, OPTIONAL :: virial
-    TYPE ( cell_type ), POINTER, OPTIONAL :: cell
-    TYPE ( simulation_parameters_type ), POINTER, OPTIONAL :: simpar
-    TYPE ( coeff_type ), POINTER, OPTIONAL :: coef_pos ( : )
-    TYPE ( coeff_type ), POINTER, OPTIONAL :: coef_vel ( : )
-    TYPE ( coeff_type ), POINTER, OPTIONAL :: coef_force ( : )
+    TYPE(md_environment_type), POINTER       :: md_env
+    INTEGER, OPTIONAL, POINTER               :: itimes
+    REAL(dbl), OPTIONAL, POINTER             :: constant
+    TYPE(cell_type), OPTIONAL, POINTER       :: cell
+    TYPE(simulation_parameters_type), &
+      OPTIONAL, POINTER                      :: simpar
+    TYPE(coeff_type), OPTIONAL, POINTER      :: coef_pos( : ), coef_vel( : ), &
+                                                coef_force( : )
+    TYPE(virial_type), OPTIONAL, POINTER     :: virial
+    TYPE(lnhc_parameters_type), OPTIONAL, &
+      POINTER                                :: nhc_part( : ), nhc_coef, &
+                                                nhc_baro( : )
+    TYPE(npt_info_type), OPTIONAL, POINTER   :: npt( :, : )
+    TYPE(force_env_type), OPTIONAL, POINTER  :: force_env
+    TYPE(cp_para_env_type), OPTIONAL, &
+      POINTER                                :: para_env
+
+    CHARACTER(LEN=*), PARAMETER :: routine_name = "set_md_env", &
+      routineP = moduleN//':'//routine_name
+
 !    TYPE ( pimd_environment_type ), POINTER :: pimd_env
-    TYPE ( lnhc_parameters_type ), POINTER, OPTIONAL :: nhc_part ( : )
-    TYPE ( lnhc_parameters_type ), POINTER, OPTIONAL :: nhc_coef 
-    TYPE ( lnhc_parameters_type ), POINTER, OPTIONAL :: nhc_baro ( : )
-    TYPE ( npt_info_type ), POINTER, OPTIONAL :: npt ( :, : )
-    TYPE ( force_env_type ), POINTER, OPTIONAL :: force_env
-    INTEGER, POINTER, OPTIONAL :: itimes
-    REAL ( dbl ), POINTER, OPTIONAL :: constant
-    TYPE(cp_para_env_type), POINTER, OPTIONAL :: para_env 
-
-!   *** Local parameters ***
-
-    CHARACTER(LEN=*), PARAMETER :: routine_name = "set_md_env",&
-         routineP=moduleN//':'//routine_name
 
     IF ( PRESENT ( cell ) ) md_env % cell => cell
     IF ( PRESENT ( coef_pos ) ) md_env % coef_pos => coef_pos
@@ -398,11 +396,10 @@ END SUBROUTINE md_env_release
 
 !   ***************************************************************************
 
-    TYPE (virial_type), INTENT(OUT) :: virial
-!   *** Local parameters ***
+    TYPE(virial_type), INTENT(OUT)           :: virial
 
-    CHARACTER(LEN=*), PARAMETER :: routine_name = "zero_virial",&
-         routineP=moduleN//':'//routine_name
+    CHARACTER(LEN=*), PARAMETER :: routine_name = "zero_virial", &
+      routineP = moduleN//':'//routine_name
 
     virial % pv_total = 0._dbl 
     virial % pv_kinetic = 0._dbl 

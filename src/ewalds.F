@@ -20,33 +20,40 @@
 
 MODULE ewalds
 
-  USE atomic_kind_types, ONLY : atomic_kind_type, get_atomic_kind
-  USE coefficient_types, ONLY : coeff_type
-  USE convert_units, ONLY : convert_to_cp2k_units
-  USE cp2k_units, ONLY : unit_convert_type, get_cp2k_units
-  USE dgs, ONLY : dg_pme_grid_setup
-  USE dg_types, ONLY : dg_type
-  USE dg_rho0s, ONLY : dg_rho0_setup
-  USE ewald_parameters_types, ONLY : ewald_parameters_type
-  USE global_types, ONLY : global_environment_type
-  USE qs_interactions, ONLY :  exp_radius
-  USE kinds, ONLY : dbl
-  USE mathconstants, ONLY : pi, zero
-  USE molecule_types, ONLY : particle_node_type
-  USE message_passing, ONLY : mp_sum
-  USE particle_types, ONLY : particle_type
-  USE particle_lists, ONLY : particle_list_select
-  USE pw_grid_types, ONLY : pw_grid_type, HALFSPACE
-  USE pw_grids, ONLY : pw_find_cutoff, pw_grid_setup, pw_grid_construct
-  USE realspace_grid_types, ONLY : realspace_grid_type, rs_grid_setup
-  USE simulation_cell, ONLY : cell_type
-  USE structure_factor_types, ONLY : structure_factor_type
-  USE structure_factors, ONLY : structure_factor_evaluate, &
-                                structure_factor_allocate, &
-                                structure_factor_deallocate
-  USE termination, ONLY : stop_memory, stop_program
-  USE timings, ONLY : timeset, timestop
-  USE util, ONLY : matvec_3x3
+  USE atomic_kind_types,               ONLY: atomic_kind_type,&
+                                             get_atomic_kind
+  USE coefficient_types,               ONLY: coeff_type
+  USE cp2k_units,                      ONLY: get_cp2k_units,&
+                                             unit_convert_type
+  USE dg_rho0s,                        ONLY: dg_rho0_setup
+  USE dg_types,                        ONLY: dg_type
+  USE dgs,                             ONLY: dg_pme_grid_setup
+  USE ewald_parameters_types,          ONLY: ewald_parameters_type
+  USE global_types,                    ONLY: global_environment_type
+  USE kinds,                           ONLY: dbl
+  USE mathconstants,                   ONLY: pi
+  USE message_passing,                 ONLY: mp_sum
+  USE molecule_types,                  ONLY: particle_node_type
+  USE particle_lists,                  ONLY: particle_list_select
+  USE particle_types,                  ONLY: particle_type
+  USE pw_grid_types,                   ONLY: HALFSPACE,&
+                                             pw_grid_type
+  USE pw_grids,                        ONLY: pw_find_cutoff,&
+                                             pw_grid_construct,&
+                                             pw_grid_setup
+  USE qs_interactions,                 ONLY: exp_radius
+  USE realspace_grid_types,            ONLY: realspace_grid_type,&
+                                             rs_grid_setup
+  USE simulation_cell,                 ONLY: cell_type
+  USE structure_factor_types,          ONLY: structure_factor_type
+  USE structure_factors,               ONLY: structure_factor_allocate,&
+                                             structure_factor_deallocate,&
+                                             structure_factor_evaluate
+  USE termination,                     ONLY: stop_memory,&
+                                             stop_program
+  USE timings,                         ONLY: timeset,&
+                                             timestop
+  USE util,                            ONLY: matvec_3x3
 
   IMPLICIT NONE
 
@@ -85,31 +92,30 @@ CONTAINS
 SUBROUTINE ewald_evaluate (dg, ewald_param, fg_coulomb, vg_coulomb, &
      pv_g, pnode, box )
   
-  IMPLICIT NONE
 
-! Arguments
-  TYPE ( dg_type ), INTENT ( IN ), TARGET :: dg
-  TYPE ( cell_type ), INTENT ( IN ) :: box
-  TYPE ( ewald_parameters_type ), INTENT ( IN ) :: ewald_param
-  TYPE ( particle_node_type ), INTENT ( IN ), DIMENSION ( : ) :: pnode
-  REAL ( dbl ), INTENT ( OUT ) :: vg_coulomb
-  REAL ( dbl ), INTENT ( OUT ), DIMENSION ( :, : ) :: fg_coulomb
-  REAL ( dbl ), INTENT ( OUT ), DIMENSION ( :, : ) :: pv_g
+    TYPE(dg_type), INTENT(IN), TARGET        :: dg
+    TYPE(ewald_parameters_type), INTENT(IN)  :: ewald_param
+    REAL(dbl), DIMENSION(:, :), INTENT(OUT)  :: fg_coulomb
+    REAL(dbl), INTENT(OUT)                   :: vg_coulomb
+    REAL(dbl), DIMENSION(:, :), INTENT(OUT)  :: pv_g
+    TYPE(particle_node_type), DIMENSION(:), &
+      INTENT(IN)                             :: pnode
+    TYPE(cell_type), INTENT(IN)              :: box
 
-! Locals
-  INTEGER :: node, gpt, nnodes, handle, isos, gptl, gptm, gptn
-  INTEGER :: lp, mp, np
-  INTEGER, DIMENSION ( :, : ), POINTER :: bds
-  REAL ( dbl ) :: gdotr, gsq, four_alpha_sq, common, pref
-  REAL ( dbl ) :: denom, charge, e_igdotr, flops
-  REAL ( dbl ) :: gauss
-  REAL ( dbl ), DIMENSION ( 3 ) :: vec
-  REAL ( dbl ), DIMENSION ( :, :, : ), POINTER :: rho0
-  COMPLEX ( dbl ), DIMENSION ( : ), ALLOCATABLE :: summe
-  TYPE ( atomic_kind_type ), POINTER :: atomic_kind
-  TYPE ( coeff_type ), POINTER :: dg_rho0
-  TYPE ( pw_grid_type ), POINTER :: pw_grid
-  TYPE ( structure_factor_type ) :: exp_igr
+    COMPLEX(dbl), ALLOCATABLE, DIMENSION(:)  :: summe
+    INTEGER                                  :: gpt, handle, isos, lp, mp, &
+                                                nnodes, node, np
+    INTEGER, DIMENSION(:, :), POINTER        :: bds
+    REAL(dbl)                                :: charge, common, denom, &
+                                                e_igdotr, flops, &
+                                                four_alpha_sq, gauss, gsq, &
+                                                pref
+    REAL(dbl), DIMENSION(3)                  :: vec
+    REAL(dbl), DIMENSION(:, :, :), POINTER   :: rho0
+    TYPE(atomic_kind_type), POINTER          :: atomic_kind
+    TYPE(coeff_type), POINTER                :: dg_rho0
+    TYPE(pw_grid_type), POINTER              :: pw_grid
+    TYPE(structure_factor_type)              :: exp_igr
 
 !------------------------------------------------------------------------------
 
@@ -272,15 +278,14 @@ END SUBROUTINE ewald_evaluate
 
 SUBROUTINE ewald_self ( ewald_param, pnode, e_self, e_neut  )
 
-! Arguments
-  TYPE ( ewald_parameters_type ), INTENT ( IN ) :: ewald_param
-  TYPE ( particle_node_type ), DIMENSION ( : ), INTENT ( IN ) :: pnode
-  REAL ( dbl ), INTENT ( OUT ) :: e_self, e_neut 
+    TYPE(ewald_parameters_type), INTENT(IN)  :: ewald_param
+    TYPE(particle_node_type), DIMENSION(:), &
+      INTENT(IN)                             :: pnode
+    REAL(dbl), INTENT(OUT)                   :: e_self, e_neut
 
-! Locals
-  INTEGER :: nnodes, i
-  REAL ( dbl ) :: q_self, q_sum, q
-  TYPE ( atomic_kind_type ), POINTER :: atomic_kind
+    INTEGER                                  :: i, nnodes
+    REAL(dbl)                                :: q, q_self, q_sum
+    TYPE(atomic_kind_type), POINTER          :: atomic_kind
 
 !------------------------------------------------------------------------------
 
@@ -335,23 +340,22 @@ END SUBROUTINE ewald_self
 FUNCTION ewald_correction ( ewald_param, qi, qj, rcutsq ) &
      RESULT ( e_cutoff_coul )
 
-  IMPLICIT NONE
 
-! Arguments
-  TYPE ( ewald_parameters_type ), INTENT ( IN ) :: ewald_param
-  REAL ( dbl ), INTENT ( IN ) :: qi, qj, rcutsq
-  REAL ( dbl ) ::e_cutoff_coul
+    TYPE(ewald_parameters_type), INTENT(IN)  :: ewald_param
+    REAL(dbl), INTENT(IN)                    :: qi, qj, rcutsq
+    REAL(dbl)                                :: e_cutoff_coul
 
-! Locals
-  REAL ( dbl ) :: inv_fourpieps0
-  REAL ( dbl ), PARAMETER :: ac1 = 0.254829592_dbl, &
-       ac2 = -0.284496736_dbl, ac3 = 1.421413741_dbl, &
-       ac4 = -1.453152027_dbl, ac5 = 1.061405429_dbl, pc = 0.3275911_dbl
-  REAL ( dbl ) :: tc, arg, e_arg_arg, erfcf, erfc_over_rij
+    REAL(dbl), PARAMETER :: ac1 = 0.254829592_dbl, ac2 = -0.284496736_dbl, &
+      ac3 = 1.421413741_dbl, ac4 = -1.453152027_dbl, ac5 = 1.061405429_dbl, &
+      pc = 0.3275911_dbl
+
+    REAL(dbl)                                :: arg, e_arg_arg, &
+                                                erfc_over_rij, erfcf, &
+                                                inv_fourpieps0, tc
 
 !------------------------------------------------------------------------------
-
 ! compute the value of the real-space coulomb at the cut-off
+
   inv_fourpieps0 = 1.0_dbl / ( 4.0_dbl * pi * ewald_param % eps0 )
   arg = ewald_param % alpha * SQRT ( rcutsq )
   e_arg_arg = EXP ( - arg ** 2 )
@@ -382,17 +386,16 @@ END FUNCTION ewald_correction
 
 SUBROUTINE ewald_print ( iw, box, e_gspace, e_self, e_neut, e_bonded )
 
-  IMPLICIT NONE
 
-! Arguments
-  INTEGER, INTENT ( IN ) :: iw
-  TYPE ( cell_type ), INTENT ( IN ) :: box
-  REAL ( dbl ), INTENT ( IN ) :: e_gspace, e_self, e_neut, e_bonded
+    INTEGER, INTENT(IN)                      :: iw
+    TYPE(cell_type), INTENT(IN)              :: box
+    REAL(dbl), INTENT(IN)                    :: e_gspace, e_self, e_neut, &
+                                                e_bonded
 
-! locals
-  TYPE ( unit_convert_type ), POINTER :: units
+    TYPE(unit_convert_type), POINTER         :: units
 
 !------------------------------------------------------------------------------
+
   CALL get_cp2k_units ( units )
 
   WRITE ( iw, '( A, A )' ) ' *********************************', &
@@ -433,32 +436,33 @@ END SUBROUTINE ewald_print
 SUBROUTINE ewald_initialize ( dg, part, pnode, pnode_grp, ewald_param, box, &
           e_self, e_neut, ewald_grid, pme_small_grid, pme_big_grid, spme_grid )
   
-  IMPLICIT NONE
 
-! Arguments
-  TYPE ( dg_type ), INTENT ( OUT ) :: dg
-  TYPE ( ewald_parameters_type ), INTENT ( INOUT ) :: ewald_param
-  TYPE ( particle_type ), DIMENSION ( : ), INTENT ( IN ) :: part
-  TYPE ( particle_node_type ), DIMENSION ( : ), INTENT ( IN ) :: pnode
-  TYPE ( global_environment_type ), INTENT ( IN ) :: pnode_grp
-  TYPE ( cell_type ), INTENT ( INOUT ) :: box
-  REAL ( dbl ), INTENT ( OUT ) :: e_self, e_neut
-  TYPE ( pw_grid_type ), INTENT ( OUT ), OPTIONAL :: ewald_grid
-  TYPE ( pw_grid_type ), INTENT ( OUT ), OPTIONAL :: pme_small_grid
-  TYPE ( pw_grid_type ), INTENT ( OUT ), OPTIONAL :: pme_big_grid
-  TYPE ( pw_grid_type ), INTENT ( OUT ), OPTIONAL :: spme_grid
-  
-! Locals
-  INTEGER ::  iat, jat, gmax, npts_s ( 3 ), iw
-  REAL ( dbl ) :: i, cutoff, ecut, alphasq, norm, cutoff_radius
-  TYPE ( realspace_grid_type ) :: rs
+    TYPE(dg_type), INTENT(OUT)               :: dg
+    TYPE(particle_type), DIMENSION(:), &
+      INTENT(IN)                             :: part
+    TYPE(particle_node_type), DIMENSION(:), &
+      INTENT(IN)                             :: pnode
+    TYPE(global_environment_type), &
+      INTENT(IN)                             :: pnode_grp
+    TYPE(ewald_parameters_type), &
+      INTENT(INOUT)                          :: ewald_param
+    TYPE(cell_type), INTENT(INOUT)           :: box
+    REAL(dbl), INTENT(OUT)                   :: e_self, e_neut
+    TYPE(pw_grid_type), INTENT(OUT), &
+      OPTIONAL                               :: ewald_grid, pme_small_grid, &
+                                                pme_big_grid, spme_grid
+
+    INTEGER                                  :: gmax, iw, npts_s( 3 )
+    REAL(dbl)                                :: alphasq, cutoff, &
+                                                cutoff_radius, ecut, norm
+    TYPE(realspace_grid_type)                :: rs
 
 !------------------------------------------------------------------------------
-
 ! parallelisation is over atoms (pnodes), so the group of processors
 ! has to be the same as the group for the pnodes
 ! This holds only for normal Ewald sums!
 ! For the grid based methods, G-Space/Real Space are distributed differently
+
   ewald_param % group = pnode_grp % group
 
 ! fire up the reciprocal space and compute self interaction and
@@ -566,19 +570,16 @@ END SUBROUTINE ewald_initialize
 
 SUBROUTINE ewald_setup ( pw_grid, ewald_param, dg )
 
-  IMPLICIT NONE
 
-! Arguments
-  TYPE ( ewald_parameters_type ), INTENT ( IN ) :: ewald_param
-  TYPE ( pw_grid_type ), INTENT ( IN ) :: pw_grid
-  TYPE ( dg_type ), INTENT ( OUT ) :: dg
+    TYPE(pw_grid_type), INTENT(IN)           :: pw_grid
+    TYPE(ewald_parameters_type), INTENT(IN)  :: ewald_param
+    TYPE(dg_type), INTENT(OUT)               :: dg
 
-! Locals
-  INTEGER :: isos
+    INTEGER                                  :: isos
 
 !------------------------------------------------------------------------------
-
 ! This is the first (and only) double grid
+
   dg % grid_index = 1
 
   ALLOCATE ( dg % dg_rho0 % zet (1) , STAT = isos)

@@ -22,17 +22,18 @@
 
 MODULE extended_system_dynamics
  
-  USE ao_types, ONLY : ao_type
-  USE atomic_kind_types, ONLY : atomic_kind_type, get_atomic_kind
-  USE distribution_1d_types, ONLY : distribution_1d_type
-  USE extended_system_types, ONLY : lnhc_parameters_type, npt_info_type
-  USE global_types, ONLY : global_environment_type
-  USE kinds, ONLY : dbl
-  USE message_passing, ONLY : mp_bcast, mp_sum
-  USE particle_types, ONLY : particle_type
-  USE pw_types, ONLY : pw_type
-  USE termination, ONLY : stop_program
-  USE timings, ONLY : timeset, timestop
+  USE ao_types,                        ONLY: ao_type
+  USE atomic_kind_types,               ONLY: atomic_kind_type,&
+                                             get_atomic_kind
+  USE distribution_1d_types,           ONLY: distribution_1d_type
+  USE extended_system_types,           ONLY: lnhc_parameters_type,&
+                                             npt_info_type
+  USE kinds,                           ONLY: dbl
+  USE message_passing,                 ONLY: mp_sum
+  USE particle_types,                  ONLY: particle_type
+  USE pw_types,                        ONLY: pw_type
+  USE timings,                         ONLY: timeset,&
+                                             timestop
 
   IMPLICIT NONE
 
@@ -66,15 +67,14 @@ CONTAINS
 !!   SOURCE
 !******************************************************************************
 SUBROUTINE lnhc_ao ( nhc, ao, group )
-  IMPLICIT NONE
-! Arguments
-  TYPE ( lnhc_parameters_type ), INTENT ( INOUT ) :: nhc
-  TYPE ( ao_type ), INTENT ( INOUT ) :: ao
-  INTEGER, INTENT ( IN ) :: group
+    TYPE(lnhc_parameters_type), &
+      INTENT(INOUT)                          :: nhc
+    TYPE(ao_type), INTENT(INOUT)             :: ao
+    INTEGER, INTENT(IN)                      :: group
 
-! Locals
-  INTEGER :: i, j, nnodes, inc, iyosh, n, inhc, handle, nx1, nx2, ncoef
-  REAL ( dbl ) :: scale, flops
+    INTEGER                                  :: handle, i, inc, inhc, iyosh, &
+                                                n, ncoef, nx1, nx2
+    REAL(dbl)                                :: flops, scale
 
   CALL timeset('LNHC','I','Mflops',handle)
   flops = 0._dbl
@@ -190,15 +190,14 @@ END SUBROUTINE lnhc_ao
 !!   SOURCE
 !******************************************************************************
 SUBROUTINE lnhc_pw ( nhc, pw, group )
-  IMPLICIT NONE
-! Arguments
-  TYPE ( lnhc_parameters_type ), INTENT ( INOUT ) :: nhc
-  TYPE ( pw_type ), INTENT ( INOUT ) :: pw
-  INTEGER, INTENT ( IN ) :: group
+    TYPE(lnhc_parameters_type), &
+      INTENT(INOUT)                          :: nhc
+    TYPE(pw_type), INTENT(INOUT)             :: pw
+    INTEGER, INTENT(IN)                      :: group
 
-! Locals
-  INTEGER :: i, j, nnodes, inc, iyosh, n, inhc, handle, nx1, nx2, ncoef
-  REAL ( dbl ) :: scale, flops
+    INTEGER                                  :: handle, i, inc, inhc, iyosh, &
+                                                n, ncoef, nx1, nx2
+    REAL(dbl)                                :: flops, scale
 
   CALL timeset('LNHC','I','Mflops',handle)
   flops = 0._dbl
@@ -320,16 +319,16 @@ END SUBROUTINE lnhc_pw
 !******************************************************************************
 SUBROUTINE lnhc_barostat ( nhc, npt, group )
 
-  IMPLICIT NONE
 
-! Arguments
-  TYPE ( lnhc_parameters_type ), INTENT ( INOUT ) :: nhc
-  TYPE ( npt_info_type ), DIMENSION ( :, : ), INTENT ( INOUT ) :: npt
-  INTEGER, INTENT ( IN ) :: group
+    TYPE(lnhc_parameters_type), &
+      INTENT(INOUT)                          :: nhc
+    TYPE(npt_info_type), DIMENSION(:, :), &
+      INTENT(INOUT)                          :: npt
+    INTEGER, INTENT(IN)                      :: group
 
-! Locals
-  INTEGER :: i, j, nnodes, inc, iyosh, n, inhc, handle, nx1, nx2, ncoef
-  REAL ( dbl ) :: scale, flops
+    INTEGER                                  :: handle, i, inc, inhc, iyosh, &
+                                                j, n, ncoef, nx1, nx2
+    REAL(dbl)                                :: flops, scale
 
 !------------------------------------------------------------------------------
 
@@ -466,20 +465,19 @@ END SUBROUTINE lnhc_barostat
 !******************************************************************************
 SUBROUTINE lnhc_particles ( nhc, atomic_kind_set, particle_set, particles, group )
 
-  IMPLICIT NONE
 
-! Arguments
-  TYPE ( lnhc_parameters_type ), INTENT ( INOUT ) :: nhc
-  TYPE ( particle_type ), POINTER :: particle_set ( : )
-  TYPE ( atomic_kind_type ), POINTER :: atomic_kind_set ( : )
-  TYPE ( distribution_1d_type ), POINTER :: particles
-  INTEGER, INTENT ( IN ) :: group
+    TYPE(lnhc_parameters_type), &
+      INTENT(INOUT)                          :: nhc
+    TYPE(atomic_kind_type), POINTER          :: atomic_kind_set( : )
+    TYPE(particle_type), POINTER             :: particle_set( : )
+    TYPE(distribution_1d_type), POINTER      :: particles
+    INTEGER, INTENT(IN)                      :: group
 
-! Locals
-  INTEGER :: i, npart_local, inc, iyosh, n, inhc, handle, nx1, nx2
-  INTEGER :: ikind, ipart
-  REAL ( dbl ) :: scale, flops, mass
-  TYPE ( atomic_kind_type ), POINTER :: atomic_kind
+    INTEGER                                  :: handle, i, ikind, inc, inhc, &
+                                                ipart, iyosh, n, npart_local, &
+                                                nx1, nx2
+    REAL(dbl)                                :: flops, mass, scale
+    TYPE(atomic_kind_type), POINTER          :: atomic_kind
 
 !------------------------------------------------------------------------------
 

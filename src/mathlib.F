@@ -27,12 +27,13 @@ MODULE mathlib
 
 ! *****************************************************************************
 
-  USE kinds, ONLY: dp
-
-  USE output_utilities, ONLY: print_message,print_warning
-  USE termination,      ONLY: stop_memory,stop_program
-  USE mathconstants, ONLY: fac
-  USE termination, ONLY: get_error_unit
+  USE kinds,                           ONLY: dp
+  USE mathconstants,                   ONLY: fac
+  USE output_utilities,                ONLY: print_message,&
+                                             print_warning
+  USE termination,                     ONLY: get_error_unit,&
+                                             stop_memory,&
+                                             stop_program
 
   IMPLICIT NONE
 
@@ -86,9 +87,9 @@ CONTAINS
 !!
 !!*** *********************************************************************
   FUNCTION gcd(a,b)
-     INTEGER :: a,b,gcd
+    INTEGER                                  :: a, b, gcd
 
-     INTEGER :: s,l,aa,ab,rem
+    INTEGER                                  :: aa, ab, l, rem, s
 
      aa=ABS(a)
      ab=ABS(b)
@@ -137,9 +138,9 @@ CONTAINS
 !!
 !!*** *********************************************************************
   FUNCTION lcm(a,b)
-     integer :: lcm,a,b
+    integer                                  :: a, b, lcm
 
-     integer :: tmp
+    integer                                  :: tmp
 
      tmp = gcd(a,b)
      IF (tmp==0) THEN
@@ -163,13 +164,11 @@ CONTAINS
 
 !   ***************************************************************************
 
-    REAL(KIND = dp), DIMENSION(:), INTENT(IN) :: a,b
+    REAL(KIND=dp), DIMENSION(:), INTENT(IN)  :: a, b
+    REAL(KIND=dp)                            :: angle
 
-    REAL(KIND = dp) :: angle,length_of_a,length_of_b
-
-!   *** Local variables ***
-
-    REAL(KIND = dp), DIMENSION(SIZE(a,1)) :: a_norm,b_norm
+    REAL(KIND=dp)                            :: length_of_a, length_of_b
+    REAL(KIND=dp), DIMENSION(SIZE(a, 1))     :: a_norm, b_norm
 
 !   ---------------------------------------------------------------------------
 
@@ -197,9 +196,8 @@ CONTAINS
 
 !   ***************************************************************************
 
-    INTEGER, INTENT(IN) :: k,n
-
-    REAL(KIND = dp) :: n_over_k
+    INTEGER, INTENT(IN)                      :: n, k
+    REAL(KIND=dp)                            :: n_over_k
 
 !   ---------------------------------------------------------------------------
 
@@ -223,20 +221,15 @@ CONTAINS
 
 !   ***************************************************************************
 
-    REAL(KIND = dp), INTENT(IN) :: phi
+    REAL(KIND=dp), INTENT(IN)                :: phi
+    REAL(KIND=dp), DIMENSION(3), INTENT(IN)  :: a
+    REAL(KIND=dp), DIMENSION(3, 3), &
+      INTENT(OUT)                            :: rotmat
 
-    REAL(KIND = dp), DIMENSION(3), INTENT(IN) :: a
-
-    REAL(KIND = dp), DIMENSION(3,3), INTENT(OUT) :: rotmat
-
-!   *** Local variables ***
-
-    REAL(KIND = dp) :: cosp,cost,length_of_a,sinp
-
-    REAL(KIND = dp), DIMENSION(3) :: d
+    REAL(KIND=dp)                            :: cosp, cost, length_of_a, sinp
+    REAL(KIND=dp), DIMENSION(3)              :: d
 
 !   ---------------------------------------------------------------------------
-
 !   *** Check the length of the vector a ***
 
     length_of_a = SQRT(a(1)*a(1) + a(2)*a(2) + a(3)*a(3))
@@ -286,22 +279,21 @@ CONTAINS
 
 !   ***************************************************************************
 
-    REAL(KIND = dp), DIMENSION(:,:), INTENT(INOUT) :: a
-    REAL(KIND = dp), DIMENSION(:,:), INTENT(OUT)   :: eigvec
-    REAL(KIND = dp), DIMENSION(:), INTENT(OUT)     :: eigval
+    REAL(KIND=dp), DIMENSION(:, :), &
+      INTENT(INOUT)                          :: a
+    REAL(KIND=dp), DIMENSION(:, :), &
+      INTENT(OUT)                            :: eigvec
+    REAL(KIND=dp), DIMENSION(:), INTENT(OUT) :: eigval
 
-!   *** Local variables ***
-
-    REAL(KIND = dp) :: abstol
-    INTEGER  :: info,istat,liwork,lwork,m,n,n_eigvec,nb
-
-    REAL(KIND = dp), DIMENSION(:), ALLOCATABLE :: work
-    INTEGER, DIMENSION(:), ALLOCATABLE  :: ifail,iwork
+    INTEGER                                  :: info, istat, liwork, lwork, &
+                                                m, n, n_eigvec, nb
+    INTEGER, ALLOCATABLE, DIMENSION(:)       :: ifail, iwork
+    INTEGER, EXTERNAL                        :: ilaenv
+    REAL(KIND=dp)                            :: abstol
+    REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: work
+    REAL(KIND=dp), EXTERNAL                  :: dlamch
 
 !   *** Externals (LAPACK) ***
-
-    REAL(KIND = dp), EXTERNAL :: dlamch
-    INTEGER, EXTERNAL  :: ilaenv
 
     EXTERNAL dsyevx
 
@@ -413,24 +405,21 @@ CONTAINS
 
 !   ***************************************************************************
 
-    REAL(KIND = dp), DIMENSION(:,:), INTENT(INOUT) :: a
-    REAL(KIND = dp), DIMENSION(:), INTENT(OUT)     :: eigval
+    REAL(KIND=dp), DIMENSION(:, :), &
+      INTENT(INOUT)                          :: a
+    REAL(KIND=dp), DIMENSION(:), INTENT(OUT) :: eigval
+    LOGICAL, INTENT(IN), OPTIONAL            :: dac
 
-    LOGICAL, INTENT(IN), OPTIONAL :: dac
-
-!   *** Local variables ***
-
-    INTEGER  :: info,istat,liwork,lwork,n,nb
-    LOGICAL  :: divide_and_conquer
-
-    REAL(KIND = dp), DIMENSION(:), ALLOCATABLE :: work
-    INTEGER, DIMENSION(:), ALLOCATABLE  :: iwork
+    INTEGER                                  :: info, istat, liwork, lwork, &
+                                                n, nb
+    INTEGER, ALLOCATABLE, DIMENSION(:)       :: iwork
+    INTEGER, EXTERNAL                        :: ilaenv
+    LOGICAL                                  :: divide_and_conquer
+    REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: work
 
 !   *** Externals (LAPACK) ***
-
-    INTEGER, EXTERNAL :: ilaenv
-
 !MK EXTERNAL dsyev,dsyevd
+
     EXTERNAL dsyev
 
 !   ---------------------------------------------------------------------------
@@ -534,22 +523,16 @@ CONTAINS
 
 !   ***************************************************************************
 
-    REAL(KIND = dp), INTENT(IN) :: radius,prefactor,threshold
-    INTEGER, INTENT(IN)  :: l
+    INTEGER, INTENT(IN)                      :: l
+    REAL(KIND=dp), INTENT(IN)                :: radius, threshold, prefactor
+    REAL(KIND=dp)                            :: exponent
 
-    REAL(KIND = dp) :: exponent
+    CHARACTER(LEN=*), PARAMETER :: &
+      routine = "FUNCTION gauss_exponent (MODULE mathlib)"
 
-!   *** Local parameters ***
-
-    CHARACTER(LEN=*), PARAMETER :: routine =&
-      "FUNCTION gauss_exponent (MODULE mathlib)"
-
-!   *** Local variables ***
-
-    REAL(KIND = dp) :: d,r,t
+    REAL(KIND=dp)                            :: d, r, t
 
 !   ---------------------------------------------------------------------------
-
 !   *** Initialize function value ***
 
     exponent = 0.0_dp
@@ -595,13 +578,12 @@ CONTAINS
 
 !   ***************************************************************************
 
-    REAL(KIND = dp), DIMENSION(:,:), INTENT(IN) :: a
+    REAL(KIND=dp), DIMENSION(:, :), &
+      INTENT(IN)                             :: a
+    REAL(KIND=dp), &
+      DIMENSION(MIN(SIZE(a, 1), SIZE(a, 2))) :: a_diag
 
-    REAL(KIND = dp), DIMENSION(MIN(SIZE(a,1),SIZE(a,2))) :: a_diag
-
-!   *** Local variables ***
-
-    INTEGER :: i,n
+    INTEGER                                  :: i, n
 
 !   ---------------------------------------------------------------------------
 
@@ -636,27 +618,24 @@ CONTAINS
 !   ***************************************************************************
 
 
-    REAL(KIND = dp), INTENT(OUT) :: error
+    REAL(KIND=dp), DIMENSION(:, :), &
+      INTENT(IN)                             :: a
+    REAL(KIND=dp), DIMENSION(:, :), &
+      INTENT(OUT)                            :: a_inverse
+    REAL(KIND=dp), INTENT(OUT)               :: error
+    CHARACTER(LEN=1), INTENT(IN), OPTIONAL   :: option
 
-    REAL(KIND = dp), DIMENSION(:,:), INTENT(IN)  :: a
-    REAL(KIND = dp), DIMENSION(:,:), INTENT(OUT) :: a_inverse
-
-    CHARACTER(LEN=1), INTENT(IN), OPTIONAL :: option
-
-!   *** Local variables ***
-
-    CHARACTER(LEN=80) :: message
-    CHARACTER(LEN=1)  :: norm,trans
-    REAL(KIND = dp)          :: a_norm,old_error,r_cond
-    INTEGER           :: info,istat,iter,n,output_unit
-
-    REAL(KIND = dp), DIMENSION(:), ALLOCATABLE :: berr,ferr,work
-    INTEGER, DIMENSION(:), ALLOCATABLE  :: ipiv,iwork
-
-    REAL(KIND = dp), DIMENSION(:,:), ALLOCATABLE :: a_lu,b
+    CHARACTER(LEN=1)                         :: norm, trans
+    CHARACTER(LEN=80)                        :: message
+    INTEGER                                  :: info, istat, iter, n, &
+                                                output_unit
+    INTEGER, ALLOCATABLE, DIMENSION(:)       :: ipiv, iwork
+    REAL(KIND=dp)                            :: a_norm, old_error, r_cond
+    REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: berr, ferr, work
+    REAL(KIND=dp), ALLOCATABLE, &
+      DIMENSION(:, :)                        :: a_lu, b
 
 !   *** Externals (LAPACK) ***
-
 !MK    REAL(KIND = dp), EXTERNAL :: dlange
 
     EXTERNAL dgecon,dgerfs,dgetrf,dgetrs
@@ -844,22 +823,19 @@ CONTAINS
 
 !   ***************************************************************************
 
-    REAL(KIND = dp), DIMENSION(:,:), INTENT(INOUT) :: a
-    REAL(KIND = dp), DIMENSION(:,:), INTENT(OUT)   :: a_power
+    REAL(KIND=dp), DIMENSION(:, :), &
+      INTENT(INOUT)                          :: a
+    REAL(KIND=dp), DIMENSION(:, :), &
+      INTENT(OUT)                            :: a_power
+    REAL(KIND=dp), INTENT(IN)                :: exponent
+    REAL(KIND=dp), INTENT(IN), OPTIONAL      :: threshold
+    INTEGER, INTENT(OUT), OPTIONAL           :: n_dependent
+    LOGICAL, INTENT(IN), OPTIONAL            :: dac
 
-    REAL(KIND = dp), INTENT(IN) :: exponent
-
-    REAL(KIND = dp), INTENT(IN), OPTIONAL :: threshold
-    INTEGER, INTENT(OUT), OPTIONAL :: n_dependent
-    LOGICAL, INTENT(IN), OPTIONAL  :: dac
-
-!   *** Local variables ***
-
-    REAL(KIND = dp) :: eps_eigval,expa
-    INTEGER  :: i,istat,n,n_dep
-    LOGICAL  :: divide_and_conquer
-
-    REAL(KIND = dp), DIMENSION(:), ALLOCATABLE :: eigval
+    INTEGER                                  :: i, istat, n, n_dep
+    LOGICAL                                  :: divide_and_conquer
+    REAL(KIND=dp)                            :: eps_eigval, expa
+    REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: eigval
 
     EXTERNAL dsyrk
 
@@ -956,18 +932,13 @@ CONTAINS
 
 !   ***************************************************************************
 
-    REAL(KIND = dp), DIMENSION(3), INTENT(IN) :: a,b
+    REAL(KIND=dp), DIMENSION(3), INTENT(IN)  :: a, b
+    REAL(KIND=dp), DIMENSION(3)              :: a_mirror
 
-    REAL(KIND = dp), DIMENSION(3) :: a_mirror
-
-!   *** Local variables ***
-
-    REAL(KIND = dp) :: length_of_b,scapro
-
-    REAL(KIND = dp), DIMENSION(3) :: d
+    REAL(KIND=dp)                            :: length_of_b, scapro
+    REAL(KIND=dp), DIMENSION(3)              :: d
 
 !   ---------------------------------------------------------------------------
-
 !   *** Check the length of the vector b ***
 
     length_of_b = SQRT(b(1)*b(1) + b(2)*b(2) + b(3)*b(3))
@@ -1002,20 +973,15 @@ CONTAINS
 
 !   ***************************************************************************
 
-    REAL(KIND = dp), INTENT(IN) :: phi
+    REAL(KIND=dp), DIMENSION(3), INTENT(IN)  :: a
+    REAL(KIND=dp), INTENT(IN)                :: phi
+    REAL(KIND=dp), DIMENSION(3), INTENT(IN)  :: b
+    REAL(KIND=dp), DIMENSION(3)              :: a_rot
 
-    REAL(KIND = dp), DIMENSION(3), INTENT(IN) :: a,b
-
-    REAL(KIND = dp), DIMENSION(3) :: a_rot
-
-!   *** Local variables ***
-
-    REAL(KIND = dp) :: length_of_b
-
-    REAL(KIND = dp), DIMENSION(3,3) :: rotmat
+    REAL(KIND=dp)                            :: length_of_b
+    REAL(KIND=dp), DIMENSION(3, 3)           :: rotmat
 
 !   ---------------------------------------------------------------------------
-
 !   *** Check the length of vector the b ***
 
     length_of_b = SQRT(b(1)*b(1) + b(2)*b(2) + b(3)*b(3))
@@ -1048,13 +1014,11 @@ CONTAINS
 
 !   ***************************************************************************
 
-    REAL(KIND = dp), INTENT(IN) :: b
+    REAL(KIND=dp), DIMENSION(:, :), &
+      INTENT(INOUT)                          :: a
+    REAL(KIND=dp), INTENT(IN)                :: b
 
-    REAL(KIND = dp), DIMENSION(:,:), INTENT(INOUT) :: a
-
-!   *** Local variables ***
-
-    INTEGER :: i,n
+    INTEGER                                  :: i, n
 
 !   ---------------------------------------------------------------------------
 
@@ -1076,13 +1040,11 @@ CONTAINS
 
 !   ***************************************************************************
 
-    REAL(KIND = dp), DIMENSION(:), INTENT(IN) :: b
+    REAL(KIND=dp), DIMENSION(:, :), &
+      INTENT(INOUT)                          :: a
+    REAL(KIND=dp), DIMENSION(:), INTENT(IN)  :: b
 
-    REAL(KIND = dp), DIMENSION(:,:), INTENT(INOUT) :: a
-
-!   *** Local variables ***
-
-    INTEGER :: i,n
+    INTEGER                                  :: i, n
 
 !   ---------------------------------------------------------------------------
 
@@ -1109,14 +1071,12 @@ CONTAINS
 
 !   ***************************************************************************
 
-    CHARACTER(LEN=*), INTENT(IN) :: option
+    REAL(KIND=dp), DIMENSION(:, :), &
+      INTENT(INOUT)                          :: a
+    CHARACTER(LEN=*), INTENT(IN)             :: option
 
-    REAL(KIND = dp), DIMENSION(:,:), INTENT(INOUT) :: a
-
-!   *** Local variables ***
-
-    CHARACTER(LEN=80) :: message
-    INTEGER           :: i,n
+    CHARACTER(LEN=80)                        :: message
+    INTEGER                                  :: i, n
 
 !   ---------------------------------------------------------------------------
 
@@ -1156,7 +1116,8 @@ CONTAINS
 
 !   ***************************************************************************
 
-    REAL(KIND = dp), DIMENSION(:,:), INTENT(INOUT) :: a
+    REAL(KIND=dp), DIMENSION(:, :), &
+      INTENT(INOUT)                          :: a
 
 !   ---------------------------------------------------------------------------
 
@@ -1176,9 +1137,8 @@ CONTAINS
 
 !   ***************************************************************************
 
-    REAL(KIND = dp), DIMENSION(3), INTENT(IN) :: a,b
-
-    REAL(KIND = dp), DIMENSION(3) :: c
+    REAL(KIND=dp), DIMENSION(3), INTENT(IN)  :: a, b
+    REAL(KIND=dp), DIMENSION(3)              :: c
 
 !   ---------------------------------------------------------------------------
 

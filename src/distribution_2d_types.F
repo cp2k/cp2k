@@ -23,40 +23,31 @@
 !!
 MODULE distribution_2d_types
   
-  USE kinds,                           ONLY: int_size,&
-                                             dp,&
-                                             dp_size
-
-  USE cp_para_types,                   ONLY: cp_blacs_env_type
-  USE cp_blacs_env,                    ONLY: cp_blacs_env_retain, &
-                                             cp_blacs_env_release,&
-                                             cp_blacs_env_write
+  USE cp_array_i_utils,                ONLY: cp_1d_i_p_type,&
+                                             cp_1d_i_write
   USE cp_blacs_calls,                  ONLY: cp_blacs_igsum2d
+  USE cp_blacs_env,                    ONLY: cp_blacs_env_release,&
+                                             cp_blacs_env_retain,&
+                                             cp_blacs_env_write
   USE cp_error_handling,               ONLY: cp_a_l,&
                                              cp_assert,&
                                              cp_assertion_failed,&
-                                             cp_debug,&
-                                             cp_error_dealloc_ref,&
                                              cp_error_get_logger,&
-                                             cp_error_init,&
                                              cp_error_message,&
-                                             cp_error_type,&
-                                             cp_internal_error,&
-                                             cp_unimplemented_error
+                                             cp_error_type
   USE cp_log_handling,                 ONLY: cp_failure_level,&
                                              cp_fatal_level,&
-                                             cp_log,&
-                                             cp_logger_generate_filename,&
                                              cp_logger_type,&
                                              cp_note_level,&
                                              cp_to_string,&
                                              cp_warning_level
-  USE cp_array_i_utils, ONLY: cp_1d_i_p_type, cp_1d_i_write
+  USE cp_para_types,                   ONLY: cp_blacs_env_type
+  USE kinds,                           ONLY: dp
+  USE machine,                         ONLY: m_flush
+  USE message_passing,                 ONLY: mp_max,&
+                                             mp_sum
   USE timings,                         ONLY: timeset,&
                                              timestop
-  USE machine, only: m_flush
-  USE message_passing, ONLY: mp_max, mp_sum
-  USE termination,                     ONLY: stop_memory
 
   IMPLICIT NONE
   PRIVATE
@@ -160,20 +151,29 @@ SUBROUTINE distribution_2d_create(distribution_2d, blacs_env,&
      local_rows_ptr, n_local_rows, &
      local_cols_ptr, row_distribution_ptr, col_distribution_ptr,&
      n_local_cols, n_row_distribution, n_col_distribution, error)
-   TYPE(distribution_2d_type), POINTER, optional :: distribution_2d
-   TYPE(cp_blacs_env_type), POINTER :: blacs_env
-   TYPE(cp_1d_i_p_type), DIMENSION(:), POINTER, OPTIONAL :: local_cols_ptr, &
-        local_rows_ptr
-   INTEGER, DIMENSION(:), POINTER, optional :: row_distribution_ptr,&
-        col_distribution_ptr
-   INTEGER, DIMENSION(:), INTENT(in), optional :: n_local_rows, n_local_cols
-   INTEGER, INTENT(in), optional :: n_row_distribution, n_col_distribution
-   TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
+    TYPE(distribution_2d_type), optional, &
+      POINTER                                :: distribution_2d
+    TYPE(cp_blacs_env_type), POINTER         :: blacs_env
+    TYPE(cp_1d_i_p_type), DIMENSION(:), &
+      OPTIONAL, POINTER                      :: local_rows_ptr
+    INTEGER, DIMENSION(:), INTENT(in), &
+      optional                               :: n_local_rows
+    TYPE(cp_1d_i_p_type), DIMENSION(:), &
+      OPTIONAL, POINTER                      :: local_cols_ptr
+    INTEGER, DIMENSION(:), optional, POINTER :: row_distribution_ptr, &
+                                                col_distribution_ptr
+    INTEGER, DIMENSION(:), INTENT(in), &
+      optional                               :: n_local_cols
+    INTEGER, INTENT(in), optional            :: n_row_distribution, &
+                                                n_col_distribution
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
 
-   CHARACTER(len=*), PARAMETER :: routineN='distribution_2d_create',&
-                                  routineP=moduleN//':'//routineN
-   LOGICAL :: failure
-   INTEGER :: stat, i, local_row_size, local_col_size
+    CHARACTER(len=*), PARAMETER :: routineN = 'distribution_2d_create', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: i, stat
+    LOGICAL                                  :: failure
 
    failure=.FALSE.
    CPPrecondition(ASSOCIATED(blacs_env),cp_failure_level,routineP,error,failure)
@@ -302,13 +302,15 @@ SUBROUTINE distribution_2d_create(distribution_2d, blacs_env,&
 !!
 !!*** *********************************************************************
 SUBROUTINE distribution_2d_retain(distribution_2d,error)
-  TYPE(distribution_2d_type), POINTER :: distribution_2d
-  TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
-  
-  CHARACTER(len=*), PARAMETER :: routineN='distribution_2d_retain',&
-       routineP=moduleN//':'//routineN
-  LOGICAL :: failure
-  
+    TYPE(distribution_2d_type), POINTER      :: distribution_2d
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'distribution_2d_retain', &
+      routineP = moduleN//':'//routineN
+
+    LOGICAL                                  :: failure
+
   failure=.false.
   CPPrecondition(ASSOCIATED(distribution_2d),cp_failure_level,routineP,error,failure)
   IF (.NOT.failure) THEN
@@ -336,13 +338,15 @@ END SUBROUTINE distribution_2d_retain
 !!
 !!*** *********************************************************************
 SUBROUTINE distribution_2d_release(distribution_2d,error)
-   TYPE(distribution_2d_type), POINTER :: distribution_2d
-   TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
+    TYPE(distribution_2d_type), POINTER      :: distribution_2d
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
 
-   CHARACTER(len=*), PARAMETER :: routineN='distribution_2d_release',&
-                                  routineP=moduleN//':'//routineN
-   LOGICAL :: failure
-   INTEGER :: istat,i
+    CHARACTER(len=*), PARAMETER :: routineN = 'distribution_2d_release', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: i, istat
+    LOGICAL                                  :: failure
 
    failure=.FALSE.
    IF (ASSOCIATED(distribution_2d)) THEN
@@ -421,14 +425,17 @@ END SUBROUTINE distribution_2d_release
 !!
 !!*** **********************************************************************
 SUBROUTINE distribution_2d_build_gdist(distribution_2d,error)
-  TYPE(distribution_2d_type), POINTER :: distribution_2d
-  TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
+    TYPE(distribution_2d_type), POINTER      :: distribution_2d
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
 
-  LOGICAL :: failure
-  CHARACTER(len=*), PARAMETER :: routineN='distribution_2d_build_gdist',&
-       routineP=moduleN//':'//routineN
-  INTEGER :: ilist, stat, max_el, max_loc, max_el1, i, my_id, nprow, npcol
-  INTEGER, DIMENSION(:), POINTER :: g_dist
+    CHARACTER(len=*), PARAMETER :: routineN = 'distribution_2d_build_gdist', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: i, ilist, max_el, max_el1, &
+                                                my_id, npcol, nprow, stat
+    INTEGER, DIMENSION(:), POINTER           :: g_dist
+    LOGICAL                                  :: failure
 
   failure=.FALSE.
   NULLIFY(g_dist)
@@ -614,13 +621,16 @@ END SUBROUTINE distribution_2d_build_gdist
 !!
 !!*** **********************************************************************
 SUBROUTINE distribution_2d_destroy_gdist(distribution_2d,error)
-  TYPE(distribution_2d_type), pointer :: distribution_2d
-  type(cp_error_type), optional, intent(inout) :: error
-  
-  logical :: failure
-  character(len=*), parameter :: routineN='distribution_2d_destroy_gdist',&
-        routineP=moduleN//':'//routineN
-  integer :: stat
+    TYPE(distribution_2d_type), pointer      :: distribution_2d
+    type(cp_error_type), intent(inout), &
+      optional                               :: error
+
+    character(len=*), parameter :: &
+      routineN = 'distribution_2d_destroy_gdist', &
+      routineP = moduleN//':'//routineN
+
+    integer                                  :: stat
+    logical                                  :: failure
 
   failure=.false.
 
@@ -670,17 +680,19 @@ END SUBROUTINE distribution_2d_destroy_gdist
 !!*** **********************************************************************
 SUBROUTINE distribution_2d_write(distribution_2d, unit_nr, local,&
      long_description, error)
-  TYPE(distribution_2d_type), pointer :: distribution_2d
-  INTEGER, INTENT(in) :: unit_nr
-  LOGICAL, INTENT(in), OPTIONAL :: local, long_description
-  type(cp_error_type), optional, intent(inout) :: error
-  
-  LOGICAL :: failure, my_local, my_long_description
-  character(len=*), parameter :: routineN='distribution_2d',&
-        routineP=moduleN//':'//routineN
-  INTEGER :: stat, i
-  INTEGER, DIMENSION(:), ALLOCATABLE :: nparticle
-  TYPE(cp_logger_type), POINTER :: logger
+    TYPE(distribution_2d_type), pointer      :: distribution_2d
+    INTEGER, INTENT(in)                      :: unit_nr
+    LOGICAL, INTENT(in), OPTIONAL            :: local, long_description
+    type(cp_error_type), intent(inout), &
+      optional                               :: error
+
+    character(len=*), parameter :: routineN = 'distribution_2d', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: i
+    LOGICAL                                  :: failure, my_local, &
+                                                my_long_description
+    TYPE(cp_logger_type), POINTER            :: logger
 
   failure=.FALSE.
   logger => cp_error_get_logger(error)
@@ -862,24 +874,32 @@ SUBROUTINE distribution_2d_get(distribution_2d, row_distribution, &
      flat_local_rows, flat_local_cols, n_flat_local_rows, n_flat_local_cols,&
      blacs_env, id_nr,&
      error)
-  TYPE(distribution_2d_type), POINTER :: distribution_2d
-  INTEGER, DIMENSION(:), POINTER, OPTIONAL :: row_distribution, col_distribution
-  INTEGER, INTENT(out), OPTIONAL :: n_row_distribution,n_col_distribution
-  INTEGER, DIMENSION(:), POINTER, OPTIONAL :: n_local_rows, n_local_cols
-  TYPE(cp_1d_i_p_type), DIMENSION(:), POINTER, OPTIONAL :: local_rows
-  TYPE(cp_1d_i_p_type), DIMENSION(:), POINTER, OPTIONAL :: local_cols
-  INTEGER, DIMENSION(:), POINTER, OPTIONAL :: flat_local_rows, flat_local_cols
-  INTEGER, INTENT(out), OPTIONAL :: n_flat_local_rows, n_flat_local_cols
-  TYPE(cp_blacs_env_type), POINTER, OPTIONAL :: blacs_env
-  INTEGER, INTENT(out), optional :: id_nr
-  type(cp_error_type), optional, intent(inout) :: error
-  
-  LOGICAL :: failure
-  CHARACTER(len=*), PARAMETER :: routineN='distribution_2d_get',&
-       routineP=moduleN//':'//routineN
-  INTEGER :: iblock_atomic, iblock_min, ikind_min,ikind, stat
-  INTEGER, DIMENSION(:), allocatable :: multiindex
-  
+    TYPE(distribution_2d_type), POINTER      :: distribution_2d
+    INTEGER, DIMENSION(:), OPTIONAL, POINTER :: row_distribution, &
+                                                col_distribution
+    INTEGER, INTENT(out), OPTIONAL           :: n_row_distribution, &
+                                                n_col_distribution
+    INTEGER, DIMENSION(:), OPTIONAL, POINTER :: n_local_rows, n_local_cols
+    TYPE(cp_1d_i_p_type), DIMENSION(:), &
+      OPTIONAL, POINTER                      :: local_rows, local_cols
+    INTEGER, DIMENSION(:), OPTIONAL, POINTER :: flat_local_rows, &
+                                                flat_local_cols
+    INTEGER, INTENT(out), OPTIONAL           :: n_flat_local_rows, &
+                                                n_flat_local_cols
+    TYPE(cp_blacs_env_type), OPTIONAL, &
+      POINTER                                :: blacs_env
+    INTEGER, INTENT(out), OPTIONAL           :: id_nr
+    type(cp_error_type), intent(inout), &
+      optional                               :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'distribution_2d_get', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: iblock_atomic, iblock_min, &
+                                                ikind, ikind_min, stat
+    INTEGER, allocatable, DIMENSION(:)       :: multiindex
+    LOGICAL                                  :: failure
+
   failure=.FALSE.
   CPPrecondition(ASSOCIATED(distribution_2d),cp_failure_level,routineP,error,failure)
   CPPrecondition(distribution_2d%ref_count>0,cp_failure_level,routineP,error,failure)

@@ -35,10 +35,8 @@ CONTAINS
 
 SUBROUTINE fist_header ( iw )
 
-  IMPLICIT NONE
 
-! Arguments
-  INTEGER :: iw
+    INTEGER                                  :: iw
 
 !------------------------------------------------------------------------------
 
@@ -64,8 +62,7 @@ END SUBROUTINE fist_header
 !******************************************************************************
 
 SUBROUTINE tbmd_header ( iw )
-  IMPLICIT NONE
-  INTEGER :: iw
+    INTEGER                                  :: iw
 
 !------------------------------------------------------------------------------
 
@@ -92,10 +89,8 @@ END SUBROUTINE tbmd_header
 
 SUBROUTINE qs_header ( iw )
 
-  IMPLICIT NONE
 
-! Arguments
-  INTEGER :: iw
+    INTEGER                                  :: iw
 
   WRITE ( iw, '( / )' )
   WRITE ( iw, '( 14(5x,a,/) )' ) &
@@ -120,10 +115,8 @@ END SUBROUTINE qs_header
 
 SUBROUTINE wave_header ( iw )
 
-  IMPLICIT NONE
 
-! Arguments
-  INTEGER :: iw
+    INTEGER                                  :: iw
 
 !------------------------------------------------------------------------------
 
@@ -149,8 +142,7 @@ END SUBROUTINE wave_header
 !******************************************************************************
 
 SUBROUTINE atom_header ( iw )
-  IMPLICIT NONE
-  INTEGER :: iw
+    INTEGER                                  :: iw
 
 !------------------------------------------------------------------------------
 

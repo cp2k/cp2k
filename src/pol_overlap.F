@@ -26,32 +26,30 @@ MODULE pol_overlap
 
 ! *****************************************************************************
 
-  USE kinds, ONLY: dbl        
-  USE ai_derivatives, ONLY : dabdr
-  USE ai_overlap, ONLY : overlap
-  USE ao_types, ONLY : ao_type
-  USE atomic_kinds,             ONLY: kind_info_type   
-  USE empirical_parameters,     ONLY : empirical_parameter_type
-  USE fist_nonbond_force,       ONLY : find_image
-  USE global_types,             ONLY: global_environment_type
-  USE mathlib,                  ONLY: symmetrize_matrix
-  USE sparse_matrix_types,      ONLY: add_block_node,&
-                                      allocate_matrix,&
-                                      deallocate_matrix,&
-                                      deallocate_matrix_row,&
-                                      first_block_node,&
-                                      get_block_node,&
-                                      next_block_node,&
-                                      real_block_node_type,&
-                                      real_matrix_p_type
-  USE method_specifications,    ONLY: maxder
-  USE molecule_types,           ONLY : particle_node_type, &
-                                       linklist_images, linklist_neighbor
-  USE orbital_pointers,         ONLY: nco,ncoset
-  USE particle_types,           ONLY : particle_type
-  USE simulation_cell,          ONLY : cell_type, get_cell_param
-  USE termination,              ONLY: stop_memory, stop_program
-  USE timings,                  ONLY: timeset,timestop
+  USE ai_derivatives,                  ONLY: dabdr
+  USE ai_overlap,                      ONLY: overlap
+  USE ao_types,                        ONLY: ao_type
+  USE atomic_kinds,                    ONLY: kind_info_type
+  USE empirical_parameters,            ONLY: empirical_parameter_type
+  USE fist_nonbond_force,              ONLY: find_image
+  USE kinds,                           ONLY: dbl
+  USE method_specifications,           ONLY: maxder
+  USE molecule_types,                  ONLY: linklist_images,&
+                                             linklist_neighbor,&
+                                             particle_node_type
+  USE orbital_pointers,                ONLY: ncoset
+  USE particle_types,                  ONLY: particle_type
+  USE simulation_cell,                 ONLY: cell_type,&
+                                             get_cell_param
+  USE sparse_matrix_types,             ONLY: add_block_node,&
+                                             allocate_matrix,&
+                                             deallocate_matrix,&
+                                             get_block_node,&
+                                             real_matrix_p_type
+  USE termination,                     ONLY: stop_memory,&
+                                             stop_program
+  USE timings,                         ONLY: timeset,&
+                                             timestop
 
   IMPLICIT NONE
 
@@ -75,45 +73,46 @@ CONTAINS
 
 !   ***************************************************************************
 
-  TYPE ( ao_type ), INTENT(INOUT) :: ao 
-  TYPE ( kind_info_type ),  INTENT (IN), DIMENSION (:) :: kind_info
-  TYPE ( particle_type ), INTENT (IN),  dimension (:) :: part
-  TYPE ( particle_node_type ), INTENT (INOUT),  dimension (:) :: pnode
-  TYPE ( cell_type ), INTENT ( IN ) :: box
-  TYPE ( empirical_parameter_type ), DIMENSION ( : ), INTENT ( IN ) :: empparm
-  REAL ( dbl ), INTENT(OUT) :: energy
-  REAL ( dbl ), DIMENSION (:), INTENT(INOUT) :: fo_coef
-  REAL ( dbl ), DIMENSION (:,:), INTENT(INOUT), OPTIONAL :: fo_part
+    TYPE(ao_type), INTENT(INOUT)             :: ao
+    TYPE(kind_info_type), DIMENSION(:), &
+      INTENT(IN)                             :: kind_info
+    TYPE(particle_type), dimension(:), &
+      INTENT(IN)                             :: part
+    TYPE(particle_node_type), dimension(:), &
+      INTENT(INOUT)                          :: pnode
+    TYPE(cell_type), INTENT(IN)              :: box
+    TYPE(empirical_parameter_type), &
+      DIMENSION(:), INTENT(IN)               :: empparm
+    REAL(dbl), INTENT(OUT)                   :: energy
+    REAL(dbl), DIMENSION(:), INTENT(INOUT)   :: fo_coef
+    REAL(dbl), DIMENSION(:, :), &
+      INTENT(INOUT), OPTIONAL                :: fo_part
 
-! locals
-
-  INTEGER :: maxco,maxcgf,maxdim         
-  REAL(dbl), DIMENSION(:,:), ALLOCATABLE :: sab,work 
-  REAL(dbl), DIMENSION(:,:), ALLOCATABLE :: sabdx, sabdy, sabdz
-  REAL (dbl), DIMENSION (:,:,:), ALLOCATABLE :: atom_block
-  REAL(dbl) :: radius_a,radius_b, rijsq, r2max, rcut 
-  INTEGER  :: first_cgfa,first_cgfb,id,i,ii,is,im,j,ipart,jpart, &
-                iatom,ikind,ineighbor,ipgf,iset,ishell,istat,&
-                jatom,jkind,jneighbor,jpgf,jset,jshell,&
-                la_max,la_min,last_cgfa,last_cgfb,lb_max,lb_min,&
-                ncgfa,ncgfb,ncoa,ncob,npgfa,npgfb,nseta,nsetb,nshella,nshellb,&
-                ncgf,natom,nat,npart,nkind
-  REAL (dbl), DIMENSION (:,:), POINTER :: s_block
-  REAL (dbl), DIMENSION (:), POINTER :: zeta, zetb, rpgfa, rpgfb
-  TYPE (real_matrix_p_type) :: smat
-  REAL ( dbl ), DIMENSION (3) :: ri, rij, s, perd, &
-       vec, quotient, cell_lengths
-  REAL ( dbl ), DIMENSION (3,3) :: hmat, h_inv                                                  
-  TYPE (linklist_neighbor), POINTER :: current_neighbor
-  TYPE (linklist_images), POINTER :: current_image
-  TYPE (atom_basis_info_type), DIMENSION (:), POINTER :: ainfo
-  INTEGER, DIMENSION(:,:,:), ALLOCATABLE, SAVE :: n_images
-  LOGICAL :: first_time                                             
-  LOGICAL :: forces                                             
-  LOGICAL :: deriv                                             
+    INTEGER :: first_cgfa, first_cgfb, i, iatom, id, ikind, im, ipart, iset, &
+      istat, j, jatom, jkind, jpart, jset, la_max, la_min, last_cgfa, &
+      last_cgfb, lb_max, lb_min, maxcgf, maxco, maxdim, nat, natom, ncgf, &
+      ncgfa, ncgfb, ncoa, ncob, nkind, npart, npgfa, npgfb, nseta, nsetb, &
+      nshella, nshellb
+    INTEGER, ALLOCATABLE, &
+      DIMENSION(:, :, :), SAVE               :: n_images
+    LOGICAL                                  :: deriv, first_time, forces
+    REAL(dbl)                                :: r2max, radius_a, radius_b, &
+                                                rcut, rijsq
+    REAL(dbl), ALLOCATABLE, DIMENSION(:, :)  :: sab, sabdx, sabdy, sabdz, work
+    REAL(dbl), ALLOCATABLE, &
+      DIMENSION(:, :, :)                     :: atom_block
+    REAL(dbl), DIMENSION(3)                  :: cell_lengths, perd, quotient, &
+                                                ri, rij, s, vec
+    REAL(dbl), DIMENSION(3, 3)               :: h_inv, hmat
+    REAL(dbl), DIMENSION(:), POINTER         :: rpgfa, rpgfb, zeta, zetb
+    REAL(dbl), DIMENSION(:, :), POINTER      :: s_block
+    TYPE(atom_basis_info_type), &
+      DIMENSION(:), POINTER                  :: ainfo
+    TYPE(linklist_images), POINTER           :: current_image
+    TYPE(linklist_neighbor), POINTER         :: current_neighbor
+    TYPE(real_matrix_p_type)                 :: smat
 
 !   ---------------------------------------------------------------------------
-
 !  initialize atomic info
 
   ncgf = 0
@@ -468,23 +467,25 @@ CONTAINS
                               sabdz,work,s_block,cphia,cphib,atom_block,forces) 
 !---------------------------------------------------------------------------------
 
-   IMPLICIT NONE
 
-  INTEGER, INTENT (IN) :: la_max, la_min, lb_max, lb_min
-  REAL (dbl), DIMENSION (:), POINTER :: rpgfa,rpgfb,zeta,zetb
-  INTEGER, INTENT (IN) :: ncoa, ncob, ncgfa, ncgfb  
-  REAL (dbl), INTENT (IN), DIMENSION (:) :: rij
-  REAL (dbl), intent (IN)  ::  rijsq
-  REAL(dbl), DIMENSION (:,:), intent(in)  :: cphia, cphib
-  REAL(dbl), DIMENSION (:,:), intent(inout) :: sab, sabdx, sabdy, sabdz 
-  REAL(dbl), DIMENSION (:,:), intent(inout) :: s_block                           
-  REAL(dbl), DIMENSION (:,:), intent(inout) :: work                           
-  REAL(dbl), DIMENSION (:,:,:), intent (inout) :: atom_block                           
-  INTEGER :: lda, ldb, ldc
-  LOGICAL, INTENT (IN) :: forces
+    INTEGER, INTENT(IN)                      :: la_max
+    REAL(dbl), DIMENSION(:), POINTER         :: zeta, rpgfa
+    INTEGER, INTENT(IN)                      :: la_min, lb_max
+    REAL(dbl), DIMENSION(:), POINTER         :: zetb, rpgfb
+    INTEGER, INTENT(IN)                      :: lb_min
+    REAL(dbl), DIMENSION(:), INTENT(IN)      :: rij
+    REAL(dbl), intent(IN)                    :: rijsq
+    INTEGER, INTENT(IN)                      :: ncoa, ncob, ncgfa, ncgfb
+    REAL(dbl), DIMENSION(:, :), &
+      intent(inout)                          :: sab, sabdx, sabdy, sabdz, &
+                                                work, s_block
+    REAL(dbl), DIMENSION(:, :), intent(in)   :: cphia, cphib
+    REAL(dbl), DIMENSION(:, :, :), &
+      intent(inout)                          :: atom_block
+    LOGICAL, INTENT(IN)                      :: forces
 
-! locals
-  REAL (dbl) :: dab
+    INTEGER                                  :: lda, ldb, ldc
+    REAL(dbl)                                :: dab
 
 !   ---------------------------------------------------------------------------
 
@@ -585,19 +586,18 @@ CONTAINS
   SUBROUTINE  build_block_overlap_matrix(pnode,part,ainfo,smat,natom,ncgf)
 !--------------------------------------------------------------------------------------
 
-  IMPLICIT NONE
-  TYPE (particle_node_type), dimension (:), intent (in) :: pnode
-  TYPE (particle_type), dimension (:), intent (in) :: part
-  TYPE (atom_basis_info_type), DIMENSION (:) , INTENT (IN) :: ainfo
-  TYPE (real_matrix_p_type), intent (out) :: smat
-  INTEGER, intent (in) :: natom
-  INTEGER, intent (in) :: ncgf
+    TYPE(particle_node_type), dimension(:), &
+      intent(in)                             :: pnode
+    TYPE(particle_type), dimension(:), &
+      intent(in)                             :: part
+    TYPE(atom_basis_info_type), &
+      DIMENSION(:), INTENT(IN)               :: ainfo
+    TYPE(real_matrix_p_type), intent(out)    :: smat
+    INTEGER, intent(in)                      :: natom, ncgf
 
- ! locals
- 
-  INTEGER :: i, ikind, ii, ipart, iatom, j, jpart, jatom
-  TYPE (linklist_neighbor), POINTER :: current_neighbor
-   
+    INTEGER                                  :: i, iatom, ikind, ipart, j, &
+                                                jatom, jpart
+    TYPE(linklist_neighbor), POINTER         :: current_neighbor
 
   CALL allocate_matrix(matrix=smat%matrix,&
                          nblock_row=natom,&
@@ -648,22 +648,22 @@ CONTAINS
                                    part,ipart,jpart,iset,jset)
 !--------------------------------------------------------------------------------------
 
-  IMPLICIT NONE
-  TYPE (ao_type), intent (inout) :: ao
-  TYPE ( kind_info_type ),  INTENT (IN), DIMENSION (:) :: kind_info
-  REAL (dbl), DIMENSION (:), INTENT(INOUT) :: fo_coef
-  REAL (dbl), INTENT (INOUT) :: energy
-  TYPE ( empirical_parameter_type ), DIMENSION ( : ), INTENT ( IN ) :: empparm
-  REAL (dbl), INTENT (IN) , DIMENSION (:,:,:) :: atom_block
-  TYPE (particle_type), dimension (:), intent (in) :: part
-  INTEGER, intent (in) :: ipart,jpart 
-  INTEGER, intent (in) :: iset,jset 
+    TYPE(ao_type), intent(inout)             :: ao
+    TYPE(kind_info_type), DIMENSION(:), &
+      INTENT(IN)                             :: kind_info
+    REAL(dbl), DIMENSION(:), INTENT(INOUT)   :: fo_coef
+    REAL(dbl), INTENT(INOUT)                 :: energy
+    TYPE(empirical_parameter_type), &
+      DIMENSION(:), INTENT(IN)               :: empparm
+    REAL(dbl), DIMENSION(:, :, :), &
+      INTENT(IN)                             :: atom_block
+    TYPE(particle_type), dimension(:), &
+      intent(in)                             :: part
+    INTEGER, intent(in)                      :: ipart, jpart, iset, jset
 
-! locals
-
-  INTEGER :: ikind, jkind, first_cgfa, last_cgfa, first_cgfb, last_cgfb
-  INTEGER :: nshellb, nshella, ncgfa, ncgfb, ic, jc, icoef, jcoef
-  REAL ( dbl ) :: hpi, hpj
+    INTEGER :: first_cgfa, first_cgfb, ic, icoef, ikind, jc, jcoef, jkind, &
+      last_cgfa, last_cgfb, nshella, nshellb
+    REAL(dbl)                                :: hpi, hpj
 
   ikind = part (ipart) %  kind          
   jkind = part (jpart) %  kind             
@@ -709,21 +709,22 @@ CONTAINS
                                    part,ipart,jpart,iset,jset)
 !--------------------------------------------------------------------------------------
 
-  IMPLICIT NONE
-  TYPE (ao_type), intent (inout) :: ao
-  TYPE ( kind_info_type ),  INTENT (IN), DIMENSION (:) :: kind_info
-  REAL (dbl), DIMENSION (:,:), INTENT(INOUT) :: fo_part
-  TYPE ( empirical_parameter_type ), DIMENSION ( : ), INTENT ( IN ) :: empparm
-  REAL (dbl), INTENT (IN) , DIMENSION (:,:,:) :: atom_block
-  TYPE (particle_type), dimension (:), intent (in) :: part
-  INTEGER, intent (in) :: ipart,jpart
-  INTEGER, intent (in) :: iset,jset
+    TYPE(ao_type), intent(inout)             :: ao
+    TYPE(kind_info_type), DIMENSION(:), &
+      INTENT(IN)                             :: kind_info
+    REAL(dbl), DIMENSION(:, :), &
+      INTENT(INOUT)                          :: fo_part
+    TYPE(empirical_parameter_type), &
+      DIMENSION(:), INTENT(IN)               :: empparm
+    REAL(dbl), DIMENSION(:, :, :), &
+      INTENT(IN)                             :: atom_block
+    TYPE(particle_type), dimension(:), &
+      intent(in)                             :: part
+    INTEGER, intent(in)                      :: ipart, jpart, iset, jset
 
-! locals
-
-  INTEGER :: ikind, jkind, first_cgfa, last_cgfa, first_cgfb, last_cgfb
-  INTEGER :: nshellb, nshella, ncgfa, ncgfb, ic, jc, icoef, jcoef      
-  REAL ( dbl ) :: hpi, hpj
+    INTEGER :: first_cgfa, first_cgfb, ic, icoef, ikind, jc, jcoef, jkind, &
+      last_cgfa, last_cgfb, nshella, nshellb
+    REAL(dbl)                                :: hpi, hpj
 
   ikind = part (ipart) %  kind               
   jkind = part (jpart) %  kind                 

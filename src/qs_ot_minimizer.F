@@ -22,16 +22,17 @@
 MODULE qs_ot_minimizer
 
 ! *****************************************************************************
-  USE kinds, ONLY: dp, dp_size
-  USE termination,         ONLY: stop_memory, stop_program
-  USE timings,             ONLY: timeset, timestop
-  USE cp_fm_types,         ONLY: cp_fm_set_all, &
-                                 cp_fm_to_fm
-  USE cp_fm_basic_linalg,  ONLY: cp_fm_trace, cp_fm_scale_and_add
-  USE global_types,        ONLY: global_environment_type
-  USE preconditioner,      ONLY: preconditioner_type, & 
-                                 apply_preconditioner
-  USE qs_ot,               ONLY: qs_ot_type, qs_ot_get_derivative
+  USE cp_fm_basic_linalg,              ONLY: cp_fm_scale_and_add,&
+                                             cp_fm_trace
+  USE cp_fm_types,                     ONLY: cp_fm_set_all,&
+                                             cp_fm_to_fm
+  USE kinds,                           ONLY: dp
+  USE preconditioner,                  ONLY: apply_preconditioner
+  USE qs_ot,                           ONLY: qs_ot_get_derivative,&
+                                             qs_ot_type
+  USE termination,                     ONLY: stop_program
+  USE timings,                         ONLY: timeset,&
+                                             timestop
 
   IMPLICIT NONE
 
@@ -51,10 +52,10 @@ CONTAINS
 ! (indicating that the data type for the gradient/position and minization should be separated)
 !
 SUBROUTINE ot_mini(qs_ot_env)
-   TYPE(qs_ot_type), POINTER, DIMENSION(:)   :: qs_ot_env
-   INTEGER :: handle
-   INTEGER :: nspin,ispin
-   REAL(KIND = dp) :: tmp
+    TYPE(qs_ot_type), DIMENSION(:), POINTER  :: qs_ot_env
+
+    INTEGER                                  :: handle, ispin, nspin
+    REAL(KIND=dp)                            :: tmp
 
    CALL timeset("ot_mini","I","",handle)
 
@@ -116,8 +117,8 @@ END SUBROUTINE ot_mini
 ! or if we should improve the line_search, if it is used
 !
 FUNCTION current_point_is_fine(qs_ot_env) RESULT(res)
-   LOGICAL                                                          :: res
-   TYPE(qs_ot_type), POINTER, DIMENSION(:)                          :: qs_ot_env
+    TYPE(qs_ot_type), DIMENSION(:), POINTER  :: qs_ot_env
+    LOGICAL                                  :: res
 
    res=.false.
    
@@ -144,7 +145,8 @@ END FUNCTION current_point_is_fine
 ! performs various kinds of line searches
 !
 SUBROUTINE do_line_search(qs_ot_env)
-   TYPE(qs_ot_type), POINTER, DIMENSION(:)   :: qs_ot_env
+    TYPE(qs_ot_type), DIMENSION(:), POINTER  :: qs_ot_env
+
    SELECT CASE(qs_ot_env(1)%settings%line_search_method)
    CASE("GOLD")
        CALL do_line_search_gold(qs_ot_env)
@@ -162,12 +164,14 @@ END SUBROUTINE do_line_search
 ! implements a golden ratio search as a robust way of minimizing 
 SUBROUTINE do_line_search_gold(qs_ot_env)
 
-   TYPE(qs_ot_type), POINTER, DIMENSION(:)   :: qs_ot_env
+    TYPE(qs_ot_type), DIMENSION(:), POINTER  :: qs_ot_env
 
-   INTEGER                                   :: count
-   REAL(KIND = dp), PARAMETER                       :: gold_sec=0.3819_dp ! approx (3-sqrt(5))/2
-   REAL(KIND = dp)                                  :: ds
-   INTEGER :: ispin,nspin
+    REAL(KIND=dp), PARAMETER                 :: gold_sec = 0.3819_dp 
+
+    INTEGER                                  :: count, ispin, nspin
+    REAL(KIND=dp)                            :: ds
+
+! approx (3-sqrt(5))/2
 
    nspin=SIZE(qs_ot_env)
 
@@ -268,11 +272,11 @@ END SUBROUTINE do_line_search_gold
 
 SUBROUTINE do_line_search_3pnt(qs_ot_env)
 
-   TYPE(qs_ot_type), POINTER, DIMENSION(:)                          :: qs_ot_env
+    TYPE(qs_ot_type), DIMENSION(:), POINTER  :: qs_ot_env
 
-   INTEGER count,ispin,nspin
-
-   real(KIND = dp) :: xa,xb,xc,fa,fb,fc,pos,val,ds,nom,denom
+    INTEGER                                  :: count, ispin, nspin
+    real(KIND=dp)                            :: denom, ds, fa, fb, fc, nom, &
+                                                pos, val, xa, xb, xc
 
    nspin=size(qs_ot_env)
 
@@ -341,11 +345,10 @@ END SUBROUTINE do_line_search_3pnt
 
 SUBROUTINE do_line_search_2pnt(qs_ot_env)
 
-   TYPE(qs_ot_type), POINTER, DIMENSION(:)   :: qs_ot_env
+    TYPE(qs_ot_type), DIMENSION(:), POINTER  :: qs_ot_env
 
-   INTEGER count,ispin,nspin
-
-   real(KIND = dp) :: x0,x1,a,b,c,ds,pos,val
+    INTEGER                                  :: count, ispin, nspin
+    real(KIND=dp)                            :: a, b, c, ds, pos, val, x0, x1
 
    nspin=SIZE(qs_ot_env)
 
@@ -401,9 +404,10 @@ SUBROUTINE do_line_search_2pnt(qs_ot_env)
 END SUBROUTINE do_line_search_2pnt
 
 SUBROUTINE do_line_search_none(qs_ot_env)
-   TYPE(qs_ot_type), POINTER, DIMENSION(:)   :: qs_ot_env
+    TYPE(qs_ot_type), DIMENSION(:), POINTER  :: qs_ot_env
 
-   INTEGER ispin,nspin
+    INTEGER                                  :: ispin, nspin
+
    nspin=size(qs_ot_env)
 
    ! use the fixed step to do the move
@@ -427,10 +431,10 @@ END SUBROUTINE do_line_search_none
 !
 
 SUBROUTINE ot_new_sd_direction(qs_ot_env)
-   TYPE(qs_ot_type), POINTER, DIMENSION(:)   :: qs_ot_env
+    TYPE(qs_ot_type), DIMENSION(:), POINTER  :: qs_ot_env
 
-   real(KIND = dp) :: gnorm_cross,beta_pr,test_down,tmp
-   integer n,k,ispin,nspin
+    integer                                  :: ispin, k, n, nspin
+    real(KIND=dp)                            :: tmp
 
    nspin=SIZE(qs_ot_env)
 
@@ -475,11 +479,11 @@ END SUBROUTINE ot_new_sd_direction
 ! also updates the gradient for line search
 !
 SUBROUTINE ot_new_cg_direction(qs_ot_env)
-   TYPE(qs_ot_type), POINTER, DIMENSION(:)    :: qs_ot_env
+    TYPE(qs_ot_type), DIMENSION(:), POINTER  :: qs_ot_env
 
-   real(KIND = dp) :: gnorm_cross,beta_pr,test_down,tmp
-   integer n,k
-   integer ispin,nspin
+    integer                                  :: ispin, k, n, nspin
+    real(KIND=dp)                            :: beta_pr, gnorm_cross, &
+                                                test_down, tmp
 
    nspin=SIZE(qs_ot_env)
 
@@ -547,11 +551,11 @@ SUBROUTINE ot_new_cg_direction(qs_ot_env)
 END SUBROUTINE ot_new_cg_direction
 
 SUBROUTINE ot_diis_step(qs_ot_env)
-   TYPE(qs_ot_type), POINTER, DIMENSION(:)   :: qs_ot_env
+    TYPE(qs_ot_type), DIMENSION(:), POINTER  :: qs_ot_env
 
-   INTEGER :: diis_m,i,j,diis_bound,info,n,k
-   INTEGER :: nspin,ispin
-   REAL(KIND = dp) :: tmp
+    INTEGER                                  :: diis_bound, diis_m, i, info, &
+                                                ispin, j, k, n, nspin
+    REAL(KIND=dp)                            :: tmp
 
    nspin=SIZE(qs_ot_env)
 

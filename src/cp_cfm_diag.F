@@ -24,28 +24,22 @@
 
 MODULE cp_cfm_diag
 
+  USE cp_cfm_types,                    ONLY: cp_cfm_type
   USE cp_error_handling,               ONLY: cp_a_l,&
                                              cp_assert,&
-                                             cp_assertion_failed,&
                                              cp_error_get_logger,&
                                              cp_error_message,&
-                                             cp_error_type,&
-                                             cp_unimplemented_error
-
+                                             cp_error_type
   USE cp_log_handling,                 ONLY: cp_failure_level,&
-                                             cp_log,&
-                                             cp_logger_get_unit_nr,&
                                              cp_logger_type,&
                                              cp_to_string,&
                                              cp_warning_level
-
   USE kinds,                           ONLY: dp
-  USE cp_cfm_types,                    ONLY: cp_cfm_type
   USE termination,                     ONLY: stop_memory,&
                                              stop_program
   USE timings,                         ONLY: timeset,&
                                              timestop
-  
+
   IMPLICIT NONE
   PRIVATE
   CHARACTER(len=*), PRIVATE, PARAMETER :: moduleN='cp_cfm_diag'
@@ -58,21 +52,23 @@ CONTAINS
 
   SUBROUTINE cp_cfm_heevd(matrix,eigenvectors,eigenvalues,error)
 
-    TYPE(cp_cfm_type), POINTER                   :: eigenvectors,matrix
-    REAL(KIND = dp), DIMENSION(:), INTENT(OUT)          :: eigenvalues
-    TYPE(cp_error_type), INTENT(inout), OPTIONAL :: error
+    TYPE(cp_cfm_type), POINTER               :: matrix, eigenvectors
+    REAL(KIND=dp), DIMENSION(:), INTENT(OUT) :: eigenvalues
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
 
-    INTEGER  :: handle,info,istat,liwork,lwork,lrwork,n
+    CHARACTER(len=*), PARAMETER :: routineN = 'cp_cfm_heevd', &
+      routineP = moduleN//':'//routineN
 
-    INTEGER, DIMENSION(9) :: descm,descv
-    COMPLEX(KIND = dp), DIMENSION(:,:), POINTER  :: m,v
-
-    COMPLEX(KIND = dp), DIMENSION(:), POINTER :: work
-    REAL(KIND = dp), DIMENSION(:), POINTER    :: rwork
-    INTEGER, DIMENSION(:), POINTER     :: iwork
-    LOGICAL :: failure
-    CHARACTER(len=*), PARAMETER :: routineN='cp_cfm_heevd',&
-         routineP=moduleN//':'//routineN
+    COMPLEX(KIND=dp), DIMENSION(:), POINTER  :: work
+    COMPLEX(KIND=dp), DIMENSION(:, :), &
+      POINTER                                :: m, v
+    INTEGER                                  :: handle, info, istat, liwork, &
+                                                lrwork, lwork, n
+    INTEGER, DIMENSION(9)                    :: descm, descv
+    INTEGER, DIMENSION(:), POINTER           :: iwork
+    LOGICAL                                  :: failure
+    REAL(KIND=dp), DIMENSION(:), POINTER     :: rwork
 
     CALL timeset(routineN,"I","",handle)
     failure=.FALSE.

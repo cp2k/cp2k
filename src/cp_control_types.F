@@ -24,43 +24,18 @@ MODULE cp_control_types
                                              band_structure_type
   USE cp_error_handling,               ONLY: cp_a_l,&
                                              cp_assert,&
-                                             cp_assertion_failed,&
-                                             cp_debug,&
-                                             cp_error_dealloc_ref,&
                                              cp_error_get_logger,&
-                                             cp_error_init,&
                                              cp_error_message,&
-                                             cp_error_type,&
-                                             cp_internal_error,&
-                                             cp_unimplemented_error,&
-                                             cp_unimplemented_error_nr
+                                             cp_error_type
   USE cp_fm_types,                     ONLY: cp_fm_p_type
   USE cp_log_handling,                 ONLY: cp_failure_level,&
                                              cp_fatal_level,&
-                                             cp_log,&
                                              cp_logger_type,&
                                              cp_note_level,&
                                              cp_to_string,&
                                              cp_warning_level
-  USE global_types,                    ONLY: global_environment_type
-  USE kinds,                           ONLY: dp,&
-                                             dp_size
+  USE kinds,                           ONLY: dp
   USE pw_grid_types,                   ONLY: pw_grid_type
-  USE qs_parser,                       ONLY: finish_parser,&
-                                             read_object,&
-                                             start_parser,&
-                                             stop_parser,&
-                                             test_object
-  USE qs_wf_history_types,             ONLY: wfi_linear_p_method_nr,&
-                                             wfi_linear_ps_method_nr,&
-                                             wfi_linear_wf_method_nr,&
-                                             wfi_ps_method_nr,&
-                                             wfi_use_guess_method_nr,&
-                                             wfi_use_prev_p_method_nr,&
-                                             wfi_use_prev_rho_r_method_nr,&
-                                             wfi_use_prev_wf_method_nr
-  USE termination,                     ONLY: stop_memory,&
-                                             stop_program
 
   IMPLICIT NONE
 
@@ -272,13 +247,15 @@ CONTAINS
 !!
 !!*** **********************************************************************
 SUBROUTINE dft_control_create(dft_control, error)
-  TYPE(dft_control_type), POINTER :: dft_control
-  TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
+    TYPE(dft_control_type), POINTER          :: dft_control
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
 
-  LOGICAL :: failure
-  CHARACTER(len=*), PARAMETER :: routineN='dft_control_create',&
-       routineP=moduleN//':'//routineN
-  INTEGER :: stat
+    CHARACTER(len=*), PARAMETER :: routineN = 'dft_control_create', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: stat
+    LOGICAL                                  :: failure
 
   failure=.FALSE.
 
@@ -332,12 +309,14 @@ END SUBROUTINE dft_control_create
 !!
 !!*** **********************************************************************
 SUBROUTINE dft_control_retain(dft_control,error)
-  TYPE(dft_control_type), POINTER :: dft_control
-  TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
-  
-  LOGICAL :: failure
-  CHARACTER(len=*), PARAMETER :: routineN='dft_control_retain',&
-        routineP=moduleN//':'//routineN
+    TYPE(dft_control_type), POINTER          :: dft_control
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'dft_control_retain', &
+      routineP = moduleN//':'//routineN
+
+    LOGICAL                                  :: failure
 
   failure=.FALSE.
   CPPrecondition(ASSOCIATED(dft_control),cp_failure_level,routineP,error,failure)
@@ -378,13 +357,15 @@ END SUBROUTINE dft_control_retain
 !!
 !!*** **********************************************************************
 SUBROUTINE dft_control_release(dft_control,error)
-  TYPE(dft_control_type), POINTER :: dft_control
-  TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
-  
-  LOGICAL :: failure
-  CHARACTER(len=*), PARAMETER :: routineN='dft_control_release',&
-        routineP=moduleN//':'//routineN
-  INTEGER :: stat
+    TYPE(dft_control_type), POINTER          :: dft_control
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'dft_control_release', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: stat
+    LOGICAL                                  :: failure
 
   failure=.FALSE.
   IF (ASSOCIATED(dft_control)) THEN
@@ -407,19 +388,22 @@ END SUBROUTINE dft_control_release
 !***************************************************************************
 
 SUBROUTINE kg_control_init(kg_control, error)
-  TYPE(kg_control_type), INTENT(out) :: kg_control
-  TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
-  
+    TYPE(kg_control_type), INTENT(out)       :: kg_control
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
+
   NULLIFY(kg_control%e_cutoff)
 END SUBROUTINE kg_control_init
 
 SUBROUTINE kg_control_dealloc_ref(kg_control, error)
-  TYPE(kg_control_type), INTENT(inout) :: kg_control
-  TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
+    TYPE(kg_control_type), INTENT(inout)     :: kg_control
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
 
-  CHARACTER(len=*), PARAMETER :: routineN = "kg_control_dealloc_ref", &
-       routineP = moduleN//"/"//routineN
-  INTEGER :: stat
+    CHARACTER(len=*), PARAMETER :: routineN = "kg_control_dealloc_ref", &
+      routineP = moduleN//"/"//routineN
+
+    INTEGER                                  :: stat
 
   IF (ASSOCIATED(kg_control%e_cutoff)) THEN
      DEALLOCATE(kg_control%e_cutoff,stat=stat)
@@ -428,19 +412,22 @@ SUBROUTINE kg_control_dealloc_ref(kg_control, error)
 END SUBROUTINE kg_control_dealloc_ref
 
 SUBROUTINE qs_control_init(qs_control, error)
-  TYPE(qs_control_type), INTENT(out) :: qs_control
-  TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
-  
+    TYPE(qs_control_type), INTENT(out)       :: qs_control
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
+
   NULLIFY(qs_control%e_cutoff)
 END SUBROUTINE qs_control_init
 
 SUBROUTINE qs_control_dealloc_ref(qs_control, error)
-  TYPE(qs_control_type), INTENT(inout) :: qs_control
-  TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
+    TYPE(qs_control_type), INTENT(inout)     :: qs_control
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
 
-  INTEGER :: stat
     CHARACTER(len=*), PARAMETER :: routineN = "qs_control_dealloc_ref", &
-         routineP = moduleN//"/"//routineN
+      routineP = moduleN//"/"//routineN
+
+    INTEGER                                  :: stat
 
   IF (ASSOCIATED(qs_control%e_cutoff)) THEN
      DEALLOCATE(qs_control%e_cutoff,stat=stat)
@@ -449,19 +436,23 @@ SUBROUTINE qs_control_dealloc_ref(qs_control, error)
 END SUBROUTINE qs_control_dealloc_ref
 
 SUBROUTINE tddfpt_control_init(tddfpt_control, error)
-  TYPE(tddfpt_control_type), INTENT(out) :: tddfpt_control
-  TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
+    TYPE(tddfpt_control_type), INTENT(out)   :: tddfpt_control
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
+
   NULLIFY(tddfpt_control%lumos,tddfpt_control%lumos_eigenvalues)
 END SUBROUTINE tddfpt_control_init
 
 SUBROUTINE tddfpt_control_dealloc_ref(tddfpt_control, error)
-  TYPE(tddfpt_control_type), INTENT(inout) :: tddfpt_control
-  TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
+    TYPE(tddfpt_control_type), INTENT(inout) :: tddfpt_control
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
 
-  INTEGER :: stat
-  CHARACTER(len=*), PARAMETER :: routineN = "tddfpt_control_dealloc_ref", &
-       routineP = moduleN//"/"//routineN
-  
+    CHARACTER(len=*), PARAMETER :: routineN = "tddfpt_control_dealloc_ref", &
+      routineP = moduleN//"/"//routineN
+
+    INTEGER                                  :: stat
+
   IF (ASSOCIATED(tddfpt_control%lumos)) THEN
      DEALLOCATE(tddfpt_control%lumos,stat=stat)
      CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
@@ -473,47 +464,45 @@ SUBROUTINE tddfpt_control_dealloc_ref(tddfpt_control, error)
 END SUBROUTINE tddfpt_control_dealloc_ref
 
 SUBROUTINE wave_control_init(wave_control, error)
-  TYPE(wave_control_type), INTENT(out) :: wave_control
-  TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
-  
+    TYPE(wave_control_type), INTENT(out)     :: wave_control
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
 
 END SUBROUTINE wave_control_init
 
 SUBROUTINE wave_control_dealloc_ref(wave_control, error)
-  TYPE(wave_control_type), INTENT(inout) :: wave_control
-  TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
-
-  INTEGER :: stat
+    TYPE(wave_control_type), INTENT(inout)   :: wave_control
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
 
 END SUBROUTINE wave_control_dealloc_ref
 
 SUBROUTINE xc_grid_init(xc_grid, error)
 
-  TYPE(xc_grid_type), INTENT(out) :: xc_grid
-  TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
+    TYPE(xc_grid_type), INTENT(out)          :: xc_grid
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
 
 END SUBROUTINE xc_grid_init
 
 SUBROUTINE xc_grid_dealloc_ref(xc_grid, error)
-  TYPE(xc_grid_type), INTENT(inout) :: xc_grid
-  TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
-
-  INTEGER :: stat
+    TYPE(xc_grid_type), INTENT(inout)        :: xc_grid
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
 
 END SUBROUTINE xc_grid_dealloc_ref
 
 SUBROUTINE xc_control_init(xc_control, error)
-  TYPE(xc_control_type), INTENT(out) :: xc_control
-  TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
-  
+    TYPE(xc_control_type), INTENT(out)       :: xc_control
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
 
 END SUBROUTINE xc_control_init
 
 SUBROUTINE xc_control_dealloc_ref(xc_control, error)
-  TYPE(xc_control_type), INTENT(inout) :: xc_control
-  TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
-
-  INTEGER :: stat
+    TYPE(xc_control_type), INTENT(inout)     :: xc_control
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
 
 END SUBROUTINE xc_control_dealloc_ref
 

@@ -28,36 +28,25 @@
 MODULE qs_wf_history_types
   USE cp_error_handling,               ONLY: cp_a_l,&
                                              cp_assert,&
-                                             cp_assertion_failed,&
-                                             cp_debug,&
-                                             cp_error_check,&
-                                             cp_error_dealloc_ref,&
                                              cp_error_get_logger,&
-                                             cp_error_init,&
                                              cp_error_message,&
-                                             cp_error_type,&
-                                             cp_internal_error,&
-                                             cp_unimplemented_error
-  USE cp_fm_types,                     ONLY: cp_fm_release,&
-                                             cp_fm_p_type,&
-                                             cp_fm_type
+                                             cp_error_type
+  USE cp_fm_types,                     ONLY: cp_fm_p_type,&
+                                             cp_fm_release
   USE cp_log_handling,                 ONLY: cp_failure_level,&
                                              cp_fatal_level,&
-                                             cp_log,&
                                              cp_note_level,&
                                              cp_to_string,&
                                              cp_warning_level
-  USE cp_para_types,                   ONLY: cp_para_env_type
   USE kinds,                           ONLY: dp
-  USE pw_types,                        ONLY: pw_p_type,&
-                                             pw_type
-  USE sparse_matrix_types,             ONLY: cp_sm_scale_and_add,&
+  USE pw_types,                        ONLY: pw_p_type
+  USE sparse_matrix_types,             ONLY: deallocate_matrix,&
                                              deallocate_matrix_set,&
-                                             deallocate_matrix,&
                                              real_matrix_p_type,&
                                              real_matrix_type
   USE timings,                         ONLY: timeset,&
                                              timestop
+
   IMPLICIT NONE
   PRIVATE
 
@@ -221,12 +210,14 @@ CONTAINS
 !!
 !!*** **********************************************************************
 SUBROUTINE wfs_retain(snapshot,error)
-  TYPE(qs_wf_snapshot_type), POINTER :: snapshot 
-  TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
-  
-  LOGICAL :: failure
-  CHARACTER(len=*), PARAMETER :: routineN='wfs_retain',&
-        routineP=moduleN//':'//routineN
+    TYPE(qs_wf_snapshot_type), POINTER       :: snapshot
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'wfs_retain', &
+      routineP = moduleN//':'//routineN
+
+    LOGICAL                                  :: failure
 
   failure=.FALSE.
   
@@ -267,13 +258,15 @@ END SUBROUTINE wfs_retain
 !!
 !!*** **********************************************************************
 SUBROUTINE wfs_release(snapshot,error)
-  TYPE(qs_wf_snapshot_type), POINTER :: snapshot 
-  TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
-  
-  LOGICAL :: failure
-  CHARACTER(len=*), PARAMETER :: routineN='wfs_release',&
-        routineP=moduleN//':'//routineN
-  INTEGER :: i, stat
+    TYPE(qs_wf_snapshot_type), POINTER       :: snapshot
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'wfs_release', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: i, stat
+    LOGICAL                                  :: failure
 
   failure=.FALSE.
   
@@ -332,12 +325,14 @@ END SUBROUTINE wfs_release
 !!
 !!*** **********************************************************************
 SUBROUTINE wfi_retain(wf_history,error)
-  TYPE(qs_wf_history_type), POINTER :: wf_history 
-  TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
-  
-  LOGICAL :: failure
-  CHARACTER(len=*), PARAMETER :: routineN='wfi_retain',&
-        routineP=moduleN//':'//routineN
+    TYPE(qs_wf_history_type), POINTER        :: wf_history
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'wfi_retain', &
+      routineP = moduleN//':'//routineN
+
+    LOGICAL                                  :: failure
 
   failure=.FALSE.
   
@@ -379,13 +374,15 @@ END SUBROUTINE wfi_retain
 !!
 !!*** **********************************************************************
 SUBROUTINE wfi_release(wf_history,error)
-  TYPE(qs_wf_history_type), POINTER :: wf_history 
-  TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
-  
-  LOGICAL :: failure
-  CHARACTER(len=*), PARAMETER :: routineN='wfi_release',&
-        routineP=moduleN//':'//routineN
-  INTEGER :: i, stat
+    TYPE(qs_wf_history_type), POINTER        :: wf_history
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'wfi_release', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: i, stat
+    LOGICAL                                  :: failure
 
   failure=.FALSE.
   
@@ -442,15 +439,16 @@ END SUBROUTINE wfi_release
 !!
 !!*** **********************************************************************
 FUNCTION wfi_get_snapshot(wf_history, index, error) RESULT(res)
-  TYPE(qs_wf_history_type), POINTER :: wf_history
-  INTEGER, INTENT(in) :: index
-  TYPE(qs_wf_snapshot_type), POINTER ::res
-  TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
-  INTEGER  :: I
-  
-  LOGICAL :: failure
-  CHARACTER(len=*), PARAMETER :: routineN='wfi_get_snapshot',&
-        routineP=moduleN//':'//routineN
+    TYPE(qs_wf_history_type), POINTER        :: wf_history
+    INTEGER, INTENT(in)                      :: index
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
+    TYPE(qs_wf_snapshot_type), POINTER       :: res
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'wfi_get_snapshot', &
+      routineP = moduleN//':'//routineN
+
+    LOGICAL                                  :: failure
 
   failure=.FALSE.
   NULLIFY(res)
@@ -496,14 +494,16 @@ END FUNCTION wfi_get_snapshot
 !!
 !!*** **********************************************************************
 SUBROUTINE wfi_clear_history(wf_history,flush_buffer,error)
-  TYPE(qs_wf_history_type), POINTER :: wf_history
-  LOGICAL, INTENT(in), OPTIONAL :: flush_buffer
-  TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
-  
-  LOGICAL :: failure, my_flush_buffer
-  CHARACTER(len=*), PARAMETER :: routineN='wfi_clear_history',&
-        routineP=moduleN//':'//routineN
-  INTEGER :: i
+    TYPE(qs_wf_history_type), POINTER        :: wf_history
+    LOGICAL, INTENT(in), OPTIONAL            :: flush_buffer
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'wfi_clear_history', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: i
+    LOGICAL                                  :: failure, my_flush_buffer
 
   failure=.FALSE.
   my_flush_buffer=.FALSE.

@@ -73,6 +73,7 @@ MODULE pw_pool_types
                                              pw_type
   USE timings,                         ONLY: timeset,&
                                              timestop
+
   IMPLICIT NONE
   PRIVATE
 
@@ -189,14 +190,17 @@ CONTAINS
 !!
 !!*** **********************************************************************
   SUBROUTINE pw_pool_create(pool, pw_grid, error)
-    TYPE(pw_pool_type), POINTER :: pool
-    TYPE(pw_grid_type), POINTER :: pw_grid
-    TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
+    TYPE(pw_pool_type), POINTER              :: pool
+    TYPE(pw_grid_type), POINTER              :: pw_grid
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
 
-    LOGICAL :: failure
-    CHARACTER(len=*), PARAMETER :: routineN='pw_pool_create',&
-         routineP=moduleN//':'//routineN
-    INTEGER :: stat
+    CHARACTER(len=*), PARAMETER :: routineN = 'pw_pool_create', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: stat
+    LOGICAL                                  :: failure
+
     failure=.FALSE.
 
     ALLOCATE(pool, stat=stat)
@@ -243,12 +247,15 @@ CONTAINS
 !!
 !!*** **********************************************************************
   SUBROUTINE pw_pool_retain(pool,error)
-    TYPE(pw_pool_type), POINTER :: pool
-    TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
+    TYPE(pw_pool_type), POINTER              :: pool
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
 
-    LOGICAL :: failure
-    CHARACTER(len=*), PARAMETER :: routineN='pw_pool_retain',&
-         routineP=moduleN//':'//routineN
+    CHARACTER(len=*), PARAMETER :: routineN = 'pw_pool_retain', &
+      routineP = moduleN//':'//routineN
+
+    LOGICAL                                  :: failure
+
     failure=.FALSE.
 
     CPPrecondition(ASSOCIATED(pool),cp_failure_level,routineP,error,failure)
@@ -290,17 +297,21 @@ CONTAINS
 !!
 !!*** **********************************************************************
   SUBROUTINE pw_pool_flush_cache(pool, error)
-    TYPE(pw_pool_type), POINTER :: pool
-    TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
+    TYPE(pw_pool_type), POINTER              :: pool
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
 
-    LOGICAL :: failure
-    CHARACTER(len=*), PARAMETER :: routineN='pw_pool_flush_cache',&
-         routineP=moduleN//':'//routineN
-    TYPE(cp_sll_pw_type), POINTER :: iterator
-    TYPE(cp_sll_3d_r_type), POINTER :: array_iterator
-    TYPE(pw_type), POINTER :: pw_el
-    REAL(kind=dp), DIMENSION(:,:,:), POINTER :: array_att
-    INTEGER :: stat
+    CHARACTER(len=*), PARAMETER :: routineN = 'pw_pool_flush_cache', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: stat
+    LOGICAL                                  :: failure
+    REAL(kind=dp), DIMENSION(:, :, :), &
+      POINTER                                :: array_att
+    TYPE(cp_sll_3d_r_type), POINTER          :: array_iterator
+    TYPE(cp_sll_pw_type), POINTER            :: iterator
+    TYPE(pw_type), POINTER                   :: pw_el
+
     failure=.FALSE.
  
 
@@ -380,13 +391,16 @@ CONTAINS
 !!
 !!*** **********************************************************************
   SUBROUTINE pw_pool_release(pool,error)
-    TYPE(pw_pool_type), POINTER :: pool
-    TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
+    TYPE(pw_pool_type), POINTER              :: pool
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
 
-    LOGICAL :: failure
-    CHARACTER(len=*), PARAMETER :: routineN='pw_pool_release',&
-         routineP=moduleN//':'//routineN
-    INTEGER :: stat
+    CHARACTER(len=*), PARAMETER :: routineN = 'pw_pool_release', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: stat
+    LOGICAL                                  :: failure
+
     failure=.FALSE.
 
     IF (ASSOCIATED(pool)) THEN
@@ -431,8 +445,8 @@ CONTAINS
 !!
 !!*** **********************************************************************
   FUNCTION try_pop(list) RESULT(res)
-    TYPE(pw_type), POINTER ::res
-    TYPE(cp_sll_pw_type), POINTER :: list
+    TYPE(cp_sll_pw_type), POINTER            :: list
+    TYPE(pw_type), POINTER                   :: res
 
     IF (ASSOCIATED(list)) THEN
        res => cp_sll_pw_get_first_el(list)
@@ -484,18 +498,22 @@ CONTAINS
 !!
 !!*** **********************************************************************
   SUBROUTINE pw_pool_create_pw(pool, pw, use_data, in_space, mass_flag, error)
-    TYPE(pw_pool_type), POINTER :: pool
-    INTEGER, INTENT(in) :: use_data
-    INTEGER, INTENT(in), OPTIONAL :: in_space
-    LOGICAL, INTENT(in), OPTIONAL :: mass_flag
-    TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
-    TYPE(pw_type), POINTER :: pw
+    TYPE(pw_pool_type), POINTER              :: pool
+    TYPE(pw_type), POINTER                   :: pw
+    INTEGER, INTENT(in)                      :: use_data
+    INTEGER, INTENT(in), OPTIONAL            :: in_space
+    LOGICAL, INTENT(in), OPTIONAL            :: mass_flag
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
 
-    LOGICAL :: failure
-    CHARACTER(len=*), PARAMETER :: routineN='pw_pool_create_pw',&
-         routineP=moduleN//':'//routineN
-    INTEGER :: stat, handle
-    REAL(kind=dp), DIMENSION(:,:,:), POINTER :: cr3d_ptr
+    CHARACTER(len=*), PARAMETER :: routineN = 'pw_pool_create_pw', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: handle, stat
+    LOGICAL                                  :: failure
+    REAL(kind=dp), DIMENSION(:, :, :), &
+      POINTER                                :: cr3d_ptr
+
     failure=.FALSE.
 
     CALL timeset(routineN,"I","",handle)
@@ -597,15 +615,18 @@ CONTAINS
 !!
 !!*** **********************************************************************
   SUBROUTINE pw_pool_give_back_pw(pool, pw, accept_non_compatible, error)
-    TYPE(pw_pool_type), POINTER :: pool
-    TYPE(pw_type), POINTER :: pw
-    LOGICAL, INTENT(in), OPTIONAL :: accept_non_compatible
-    TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
+    TYPE(pw_pool_type), POINTER              :: pool
+    TYPE(pw_type), POINTER                   :: pw
+    LOGICAL, INTENT(in), OPTIONAL            :: accept_non_compatible
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
 
-    LOGICAL :: failure, did_insert, my_accept_non_compatible
-    CHARACTER(len=*), PARAMETER :: routineN='pw_pool_give_back_pw',&
-         routineP=moduleN//':'//routineN
-    INTEGER :: stat, handle
+    CHARACTER(len=*), PARAMETER :: routineN = 'pw_pool_give_back_pw', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: handle, stat
+    LOGICAL                                  :: did_insert, failure, &
+                                                my_accept_non_compatible
 
     failure=.FALSE.
     my_accept_non_compatible=.FALSE.
@@ -725,15 +746,18 @@ CONTAINS
 !!
 !!*** **********************************************************************
 SUBROUTINE pw_pool_create_cr3d(pw_pool,cr3d,error)
-  TYPE(pw_pool_type), POINTER :: pw_pool
-  REAL(kind=dp), DIMENSION(:,:,:), POINTER :: cr3d
-  TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
-  
-  LOGICAL :: failure
-  CHARACTER(len=*), PARAMETER :: routineN='pw_pool_create_cr3d',&
-        routineP=moduleN//':'//routineN
-  INTEGER :: stat
-  TYPE(pw_type), POINTER :: pw
+    TYPE(pw_pool_type), POINTER              :: pw_pool
+    REAL(kind=dp), DIMENSION(:, :, :), &
+      POINTER                                :: cr3d
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'pw_pool_create_cr3d', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: stat
+    LOGICAL                                  :: failure
+    TYPE(pw_type), POINTER                   :: pw
 
   failure=.FALSE.
   NULLIFY(pw)
@@ -801,15 +825,19 @@ END SUBROUTINE pw_pool_create_cr3d
 !!
 !!*** **********************************************************************
 SUBROUTINE pw_pool_give_back_cr3d(pw_pool,cr3d,accept_non_compatible,error)
-  TYPE(pw_pool_type), POINTER :: pw_pool
-  REAL(kind=dp), DIMENSION(:,:,:), POINTER :: cr3d
-  LOGICAL, INTENT(in), OPTIONAL :: accept_non_compatible
-  TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
-  
-  LOGICAL :: failure, compatible, my_accept_non_compatible
-  CHARACTER(len=*), PARAMETER :: routineN='pw_pool_give_back_cr3d',&
-        routineP=moduleN//':'//routineN
-  INTEGER :: stat
+    TYPE(pw_pool_type), POINTER              :: pw_pool
+    REAL(kind=dp), DIMENSION(:, :, :), &
+      POINTER                                :: cr3d
+    LOGICAL, INTENT(in), OPTIONAL            :: accept_non_compatible
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'pw_pool_give_back_cr3d', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: stat
+    LOGICAL                                  :: compatible, failure, &
+                                                my_accept_non_compatible
 
   failure=.FALSE.
   my_accept_non_compatible=.FALSE.
@@ -876,16 +904,19 @@ END SUBROUTINE pw_pool_give_back_cr3d
 !!
 !!*** **********************************************************************
 SUBROUTINE pw_pool_init_coeff(pool, coeff, use_data, in_space, mass_flag,error)
-    TYPE(pw_pool_type), POINTER :: pool
-    TYPE(coeff_type), INTENT(inout) :: coeff
-    INTEGER, INTENT(in) :: use_data
-    LOGICAL, INTENT(in), OPTIONAL :: mass_flag
-    INTEGER, INTENT(in), OPTIONAL :: in_space
-    TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
-  
-  LOGICAL :: failure
-  CHARACTER(len=*), PARAMETER :: routineN='pw_pool_init_coeff',&
-        routineP=moduleN//':'//routineN
+    TYPE(pw_pool_type), POINTER              :: pool
+    TYPE(coeff_type), INTENT(inout)          :: coeff
+    INTEGER, INTENT(in)                      :: use_data
+    INTEGER, INTENT(in), OPTIONAL            :: in_space
+    LOGICAL, INTENT(in), OPTIONAL            :: mass_flag
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'pw_pool_init_coeff', &
+      routineP = moduleN//':'//routineN
+
+    LOGICAL                                  :: failure
+
   failure=.FALSE.
   
   CPPrecondition(ASSOCIATED(pool),cp_failure_level,routineP,error,failure)
@@ -932,13 +963,16 @@ END SUBROUTINE pw_pool_init_coeff
 !!
 !!*** **********************************************************************
 SUBROUTINE pw_pool_give_back_coeff(pool,coeff,error)
-  TYPE(pw_pool_type), POINTER :: pool
-  TYPE(coeff_type), INTENT(inout) :: coeff
-  TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
-  
-  LOGICAL :: failure
-  CHARACTER(len=*), PARAMETER :: routineN='pw_pool_give_back_coeff',&
-        routineP=moduleN//':'//routineN
+    TYPE(pw_pool_type), POINTER              :: pool
+    TYPE(coeff_type), INTENT(inout)          :: coeff
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'pw_pool_give_back_coeff', &
+      routineP = moduleN//':'//routineN
+
+    LOGICAL                                  :: failure
+
   failure=.FALSE.
   
   CALL pw_pool_give_back_pw(pool,coeff%pw)
@@ -987,17 +1021,22 @@ END SUBROUTINE pw_pool_give_back_coeff
 !!*** **********************************************************************
 SUBROUTINE pw_pools_init_coeffs(pools, coeffs, use_data,&
      mass_flag, in_space, error)
-  TYPE(pw_pool_p_type), DIMENSION(:), POINTER :: pools
-  TYPE(coeff_type), DIMENSION(:), INTENT(inout)    :: coeffs
-  INTEGER, INTENT(in) :: use_data
-  LOGICAL, INTENT(in), OPTIONAL :: mass_flag
-  INTEGER, INTENT(in), OPTIONAL :: in_space
-  TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
-  
-  LOGICAL :: failure
-  CHARACTER(len=*), PARAMETER :: routineN='pw_pools_init_coeffs',&
-        routineP=moduleN//':'//routineN
-  INTEGER :: i
+    TYPE(pw_pool_p_type), DIMENSION(:), &
+      POINTER                                :: pools
+    TYPE(coeff_type), DIMENSION(:), &
+      INTENT(inout)                          :: coeffs
+    INTEGER, INTENT(in)                      :: use_data
+    LOGICAL, INTENT(in), OPTIONAL            :: mass_flag
+    INTEGER, INTENT(in), OPTIONAL            :: in_space
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'pw_pools_init_coeffs', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: i
+    LOGICAL                                  :: failure
+
   failure=.FALSE.
   
   CPPrecondition(ASSOCIATED(pools),cp_failure_level,routineP,error,failure)
@@ -1043,14 +1082,19 @@ END SUBROUTINE pw_pools_init_coeffs
 !!
 !!*** **********************************************************************
 SUBROUTINE pw_pools_give_back_coeffs(pools, coeffs, error)
-  TYPE(pw_pool_p_type), DIMENSION(:), POINTER  :: pools
-  TYPE(coeff_type), DIMENSION(:), INTENT(inout):: coeffs
-  TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
+    TYPE(pw_pool_p_type), DIMENSION(:), &
+      POINTER                                :: pools
+    TYPE(coeff_type), DIMENSION(:), &
+      INTENT(inout)                          :: coeffs
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
 
-  LOGICAL :: failure
-  CHARACTER(len=*), PARAMETER :: routineN='pw_pools_give_back_coeffs',&
-       routineP=moduleN//':'//routineN
-  INTEGER :: i
+    CHARACTER(len=*), PARAMETER :: routineN = 'pw_pools_give_back_coeffs', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: i
+    LOGICAL                                  :: failure
+
   failure=.FALSE.
 
   CPPrecondition(ASSOCIATED(pools),cp_failure_level,routineP,error,failure)
@@ -1095,13 +1139,17 @@ END SUBROUTINE pw_pools_give_back_coeffs
 !!
 !!*** **********************************************************************
 SUBROUTINE pw_pools_copy(source_pools, target_pools, error)
-  TYPE(pw_pool_p_type), DIMENSION(:), POINTER :: source_pools, target_pools
-  TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
-  
-  LOGICAL :: failure
-  CHARACTER(len=*), PARAMETER :: routineN='pw_pools_copy',&
-        routineP=moduleN//':'//routineN
-  INTEGER :: stat,i
+    TYPE(pw_pool_p_type), DIMENSION(:), &
+      POINTER                                :: source_pools, target_pools
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'pw_pools_copy', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: i, stat
+    LOGICAL                                  :: failure
+
   failure=.FALSE.
   
   CPPrecondition(ASSOCIATED(source_pools),cp_failure_level,routineP,error,failure)
@@ -1149,13 +1197,17 @@ END SUBROUTINE pw_pools_copy
 !!
 !!*** **********************************************************************
 SUBROUTINE pw_pools_dealloc(pools,error)
-  TYPE(pw_pool_p_type), DIMENSION(:), POINTER :: pools
-  TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
-  
-  LOGICAL :: failure
-  CHARACTER(len=*), PARAMETER :: routineN='pw_pools_dealloc',&
-        routineP=moduleN//':'//routineN
-  INTEGER :: i, stat
+    TYPE(pw_pool_p_type), DIMENSION(:), &
+      POINTER                                :: pools
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'pw_pools_dealloc', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: i, stat
+    LOGICAL                                  :: failure
+
   failure=.FALSE.
   
   IF (ASSOCIATED(pools)) THEN
@@ -1199,13 +1251,17 @@ END SUBROUTINE pw_pools_dealloc
 !!
 !!*** **********************************************************************
 SUBROUTINE pw_pools_flush_cache(pools,error)
-  TYPE(pw_pool_p_type), DIMENSION(:), POINTER :: pools
-  TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
-  
-  LOGICAL :: failure
-  CHARACTER(len=*), PARAMETER :: routineN='pw_pools_flush_cache',&
-        routineP=moduleN//':'//routineN
-  INTEGER :: i
+    TYPE(pw_pool_p_type), DIMENSION(:), &
+      POINTER                                :: pools
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'pw_pools_flush_cache', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: i
+    LOGICAL                                  :: failure
+
   failure=.FALSE.
   
   CPPrecondition(ASSOCIATED(pools),cp_failure_level,routineP,error,failure)
@@ -1247,15 +1303,17 @@ END SUBROUTINE pw_pools_flush_cache
 !!
 !!*** **********************************************************************
 SUBROUTINE pw_pool_write(pw_pool,unit_nr,error)
-  TYPE(pw_pool_type), POINTER :: pw_pool
-  INTEGER :: unit_nr
-  TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
-  
-  LOGICAL :: failure
-  CHARACTER(len=*), PARAMETER :: routineN='pw_pool_write',&
-        routineP=moduleN//':'//routineN
-  TYPE(pw_type), POINTER :: pw_att
-  TYPE(cp_sll_pw_type), POINTER :: iter
+    TYPE(pw_pool_type), POINTER              :: pw_pool
+    INTEGER                                  :: unit_nr
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'pw_pool_write', &
+      routineP = moduleN//':'//routineN
+
+    LOGICAL                                  :: failure
+    TYPE(cp_sll_pw_type), POINTER            :: iter
+    TYPE(pw_type), POINTER                   :: pw_att
 
   failure=.FALSE.
   

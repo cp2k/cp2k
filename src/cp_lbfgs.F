@@ -211,6 +211,7 @@ SUBROUTINE setulb (n, m, x, l, u, nbd, f, g, factr, pgtol, wa, &
 !
 !
 !     ************
+
   IF (task.eq.'START') THEN  
      isave (1) = m * n  
      isave (2) = m**2  
@@ -463,6 +464,7 @@ SUBROUTINE mainlb (n, m, x, l, u, nbd, f, g, factr, pgtol, ws, wy, &
 !
 !
 !     ************
+
   IF (task.eq.'START') THEN  
 
 
@@ -1018,6 +1020,7 @@ SUBROUTINE active (n, l, u, nbd, x, iwhere, iprint, prjctd, &
 !
 !     ************
 !     Initialize nbdd, prjctd, cnstnd and boxed.
+
   nbdd = 0  
   prjctd = .FALSE.  
   cnstnd = .FALSE.  
@@ -1147,6 +1150,7 @@ SUBROUTINE bmv (m, sy, wt, col, v, p, info)
 !
 !
 !     ************
+
   IF (col.eq.0) RETURN  
   !     PART I: solve [  D^(1/2)      O ] [ p1 ] = [ v1 ]
   !                   [ -L*D^(-1/2)   J ] [ p2 ]   [ v2 ].
@@ -1404,6 +1408,7 @@ SUBROUTINE cauchy (n, x, l, u, nbd, g, iorder, iwhere, t, d, xcp, &
 !     Check the status of the variables, reset iwhere(i) if necessary;
 !       compute the Cauchy direction d and the breakpoints t; initialize
 !       the derivative f1 and the vector p = W'd (for theta = 1).    '
+
   IF (sbgnrm.le.zero) THEN  
      IF (iprint.ge.0) WRITE ( cp_lbfgs_unit_nr,  * ) 'Subgnorm = 0.  GCP = X.'  
      CALL dcopy (n, x, 1, xcp, 1)  
@@ -1740,6 +1745,7 @@ SUBROUTINE cmprlb (n, m, x, g, ws, wy, sy, wt, z, r, wa, index, &
 !
 !
 !     ************
+
   IF (.not.cnstnd.and.col.gt.0) THEN  
      DO 26 i = 1, n  
         r (i) = - g (i)  
@@ -1804,6 +1810,7 @@ SUBROUTINE errclb (n, m, factr, l, u, nbd, task, info, k)
 !
 !     ************
 !     Check the input arguments for errors.
+
   IF (n.le.0) task = 'ERROR: N .LE. 0'  
   IF (m.le.0) task = 'ERROR: M .LE. 0'  
 
@@ -1981,6 +1988,7 @@ SUBROUTINE formk (n, nsub, ind, nenter, ileave, indx2, iupdat, &
 !                     [L_a+R_z   S'AA'S   ]
 !        where L_a is the strictly lower triangular part of S'AA'Y
 !              R_z is the upper triangular part of S'ZZ'Y.
+
   IF (updatd) THEN  
      IF (iupdat.gt.m) THEN  
         !                                 shift old part of WN1.
@@ -2206,6 +2214,7 @@ SUBROUTINE formt (m, wt, sy, ss, col, theta, info)
 !     ************
 !     Form the upper half of  T = theta*SS + L*D^(-1)*L',    '
 !        store T in the upper triangle of the array wt.
+
   DO 52 j = 1, col  
      wt (1, j) = theta * ss (1, j)  
 52 END DO
@@ -2281,6 +2290,7 @@ SUBROUTINE freev (n, nfree, index, nenter, ileave, indx2, iwhere, &
 !
 !
 !     ************
+
   nenter = 0  
   ileave = n + 1  
   IF (iter.gt.0.and.cnstnd) THEN  
@@ -2379,6 +2389,7 @@ SUBROUTINE hpsolb (n, t, iorder, iheap)
 !     in collaboration with R.H. Byrd, P. Lu-Chen and J. Nocedal.
 !
 !     ************
+
   IF (iheap.eq.0) THEN  
      !        Rearrange the elements t(1) to t(n) to form a heap.
      DO 20 k = 2, n  
@@ -2489,6 +2500,7 @@ SUBROUTINE lnsrlb (n, l, u, nbd, x, f, fold, gd, gdold, g, d, r, &
 !
 !
 !     **********
+
   IF (task (1:5) .EQ.'FG_LN') GOTO 556  
   dtd = ddot (n, d, 1, d, 1)  
 
@@ -2611,6 +2623,7 @@ SUBROUTINE matupd (n, m, ws, wy, sy, ss, d, r, itail, iupdat, col, &
 !
 !     ************
 !     Set pointers for matrices WS and WY.
+
   IF (iupdat.le.m) THEN  
      col = iupdat  
      itail = MOD (head+iupdat - 2, m) + 1  
@@ -2690,6 +2703,7 @@ SUBROUTINE prn1lb (n, m, l, u, x, iprint, itfile, epsmch)
 !
 !
 !     ************
+
   IF (iprint.ge.0) THEN  
      WRITE ( cp_lbfgs_unit_nr, 7001) epsmch  
      WRITE ( cp_lbfgs_unit_nr,  * ) 'N = ', n, '    M = ', m  
@@ -2768,6 +2782,7 @@ SUBROUTINE prn2lb (n, x, f, g, iprint, itfile, iter, nfgv, nact, &
 !
 !     ************
 !           'word' records the status of subspace solutions.
+
   IF (iword.eq.0) THEN  
      !                            the subspace minimization converged.
      word = 'con'  
@@ -2845,6 +2860,7 @@ SUBROUTINE prn3lb (n, x, f, task, iprint, info, itfile, iter, &
 !
 !
 !     ************
+
   IF (task (1:5) .EQ.'ERROR') GOTO 999  
   IF (iprint.ge.0) THEN  
      WRITE ( cp_lbfgs_unit_nr, 3003)  
@@ -2972,6 +2988,7 @@ SUBROUTINE projgr (n, l, u, nbd, x, g, sbgnrm)
 !
 !
 !     ************
+
   sbgnrm = zero  
   DO 15 i = 1, n  
      gi = g (i)  
@@ -3157,6 +3174,7 @@ SUBROUTINE subsm (n, m, nsub, ind, l, u, nbd, x, d, ws, wy, theta, &
 !
 !
 !     ************
+
   IF (nsub.le.0) RETURN  
 
 
@@ -3428,6 +3446,7 @@ SUBROUTINE dcsrch (f, g, stp, ftol, gtol, xtol, stpmin, stpmax, &
 !
 !     **********
 !     Initialization block.
+
   IF (task (1:5) .EQ.'START') THEN  
      !        Check the input arguments for errors.
      IF (stp.lt.stpmin) task = 'ERROR: STP .LT. STPMIN'  
@@ -3729,6 +3748,7 @@ SUBROUTINE dcstep (stx, fx, dx, sty, fy, dy, stp, fp, dp, brackt, &
 !     Brett M. Averick and Jorge J. More'.    '
 !
 !     **********
+
   sgnd = dp * (dx / ABS (dx) )  
   !     First case: A higher function value. The minimum is bracketed.
   !     If the cubic step is closer to stx than the quadratic step, the
@@ -3916,6 +3936,7 @@ SUBROUTINE timer (ttime)
 !temp = etime (tarray)  
 !ttime = dble (tarray (1) )  
 ! changed by fawzi to use machine, only: m_cputime
+
   ttime = m_cputime()
   RETURN  
 
@@ -3960,6 +3981,7 @@ FUNCTION dnrm2 (n, x, incx)
 !     Brett M. Averick.
 !
 !     **********
+
   dnrm2 = 0.0e0_dbl  
 
   scale = 0.0e0_dbl  
@@ -4020,6 +4042,7 @@ FUNCTION dpmeps ()
 !     Brett M. Averick.
 !
 !     *******
+
   DATA zero, one, two / 0.0e0_dbl, 1.0e0_dbl, 2.0e0_dbl /  
   !     determine ibeta, beta ala malcolm.
   a = one  
@@ -4096,6 +4119,7 @@ SUBROUTINE daxpy (n, da, dx, incx, dy, incy)
 !     jack dongarra, linpack, 3/11/78.
 !
 !
+
   IF (n.le.0) RETURN  
   IF (da.eq.0.0e0_dbl) RETURN  
   IF (incx.eq.1.and.incy.eq.1) GOTO 20  
@@ -4152,6 +4176,7 @@ SUBROUTINE dcopy (n, dx, incx, dy, incy)
 !     jack dongarra, linpack, 3/11/78.
 !
 !
+
   IF (n.le.0) RETURN  
   IF (incx.eq.1.and.incy.eq.1) GOTO 20  
   !
@@ -4212,6 +4237,7 @@ FUNCTION ddot (n, dx, incx, dy, incy)
 !     jack dongarra, linpack, 3/11/78.
 !
 !
+
   ddot = 0.0e0_dbl  
   dtemp = 0.0e0_dbl  
   IF (n.le.0) RETURN  
@@ -4308,6 +4334,7 @@ SUBROUTINE dpofa (a, lda, n, info)
 !     begin block with ...exits to 40
 !
 !
+
   DO 30 j = 1, n  
      info = j  
      s = 0.0e0_dbl  
@@ -4346,6 +4373,7 @@ SUBROUTINE dscal (n, da, dx, incx)
 !     modified 3/93 to return if incx .le. 0.
 !
 !
+
   IF (n.le.0.or.incx.le.0) RETURN  
   IF (incx.eq.1) GOTO 20  
   !
@@ -4453,6 +4481,7 @@ SUBROUTINE dtrsl (t, ldt, n, b, job, info)
 !
 !        check for zero diagonal elements.
 !
+
   DO 10 info = 1, n  
      !     ......exit
      IF (t (info, info) .eq.0.0e0_dbl) GOTO 150  

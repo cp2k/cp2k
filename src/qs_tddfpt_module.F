@@ -21,14 +21,14 @@ MODULE qs_tddfpt_module
   USE global_types,                    ONLY: global_environment_type
   USE kinds,                           ONLY: dbl
   USE qs_environment_types,            ONLY: qs_environment_type
-  USE qs_p_env_types,                  ONLY: p_env_release,&
-                                             qs_p_env_type
+  USE qs_p_env_types,                  ONLY: qs_p_env_type
   USE qs_tddfpt_eigensolver,           ONLY: tddfpt_es
   USE qs_tddfpt_types,                 ONLY: tddfpt_env_type
-  USE qs_tddfpt_utils,                 ONLY: tddfpt_cleanup, &
-                                             tddfpt_init, &
+  USE qs_tddfpt_utils,                 ONLY: tddfpt_cleanup,&
+                                             tddfpt_init,&
                                              tddfpt_write_banner
-  USE timings,                         ONLY: timeset, timestop
+  USE timings,                         ONLY: timeset,&
+                                             timestop
 
   IMPLICIT NONE
 
@@ -63,22 +63,22 @@ CONTAINS
 !!****
   SUBROUTINE tddfpt_calculation(qs_env, glob_env)
 
-    IMPLICIT NONE
 
-    ! arguments
-    TYPE(qs_environment_type), INTENT(inout)         :: qs_env
-    TYPE(global_environment_type), INTENT(in)        :: glob_env
+    TYPE(qs_environment_type), INTENT(inout) :: qs_env
+    TYPE(global_environment_type), &
+      INTENT(in)                             :: glob_env
 
-    ! locals
-    TYPE(qs_p_env_type), POINTER           :: p_env         ! perturbation environment
-    TYPE(tddfpt_env_type)                  :: t_env         ! tddfpt environment
+    CHARACTER(len=*), PARAMETER :: routineN = 'tddfpt_calculation', &
+      routineP = moduleN//'/'//routineN
 
-    INTEGER                                :: handle
+    INTEGER                                  :: handle
+    TYPE(qs_p_env_type), POINTER             :: p_env
+    TYPE(tddfpt_env_type)                    :: t_env
 
-    CHARACTER(len=*), PARAMETER            :: routineN = 'tddfpt_calculation', &
-                                              routineP = moduleN//'/'//routineN
+! perturbation environment
+! tddfpt environment
+! abort if this calculation is not wanted
 
-    ! abort if this calculation is not wanted
     IF (.NOT.qs_env%dft_control%do_tddfpt_calculation) RETURN
 
     CALL timeset(routineN,"I","",handle)

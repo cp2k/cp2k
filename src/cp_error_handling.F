@@ -53,6 +53,7 @@ MODULE cp_error_handling
                                              cp_to_string
   USE termination,                     ONLY: stop_program
   USE timings,                         ONLY: print_stack
+
   IMPLICIT NONE
   PRIVATE
 
@@ -201,13 +202,13 @@ CONTAINS
 !!*** **********************************************************************
   SUBROUTINE cp_error_init(error, stop_level, print_level, logger, template_error, error_nr, level)
 
-    IMPLICIT NONE
 
-    TYPE(cp_error_type), INTENT(out) :: error
-    INTEGER, OPTIONAL, INTENT(in) :: stop_level, print_level, &
-         error_nr, level
-    TYPE(cp_logger_type), OPTIONAL, POINTER :: logger
-    TYPE(cp_error_type), INTENT(in), OPTIONAL :: template_error
+    TYPE(cp_error_type), INTENT(out)         :: error
+    INTEGER, INTENT(in), OPTIONAL            :: stop_level, print_level
+    TYPE(cp_logger_type), OPTIONAL, POINTER  :: logger
+    TYPE(cp_error_type), INTENT(in), &
+      OPTIONAL                               :: template_error
+    INTEGER, INTENT(in), OPTIONAL            :: error_nr, level
 
     error%initialized=.TRUE.
     error%error_nr=0
@@ -268,7 +269,8 @@ CONTAINS
 !!
 !!*** **********************************************************************
   SUBROUTINE cp_error_reset(error)
-    TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
 
     IF (PRESENT(error)) THEN
        IF (.NOT. error%initialized) THEN
@@ -320,12 +322,14 @@ CONTAINS
 !!*** **********************************************************************
   SUBROUTINE cp_error_set(error,level,error_nr,stop_level,print_level,logger,&
        template_error)
-    TYPE(cp_error_type), INTENT(inout) :: error
-    INTEGER, OPTIONAL, INTENT(in) :: level, error_nr, stop_level,print_level
-    TYPE(cp_logger_type), OPTIONAL, POINTER :: logger
-    TYPE(cp_error_type), OPTIONAL, INTENT(in) :: template_error
+    TYPE(cp_error_type), INTENT(inout)       :: error
+    INTEGER, INTENT(in), OPTIONAL            :: level, error_nr, stop_level, &
+                                                print_level
+    TYPE(cp_logger_type), OPTIONAL, POINTER  :: logger
+    TYPE(cp_error_type), INTENT(in), &
+      OPTIONAL                               :: template_error
 
-    TYPE(cp_logger_type), POINTER :: old_logger
+    TYPE(cp_logger_type), POINTER            :: old_logger
 
     old_logger => error%logger
     IF (PRESENT(template_error)) THEN
@@ -378,11 +382,15 @@ CONTAINS
 !!
 !!*** **********************************************************************
   SUBROUTINE cp_error_dealloc_ref(err_to_free, error)
-    TYPE(cp_error_type), INTENT(inout) :: err_to_free
-    TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
+    TYPE(cp_error_type), INTENT(inout)       :: err_to_free
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
 
-    LOGICAL :: failure
-    CHARACTER(len=*), PARAMETER :: routineP='cp_error_handling:cp_error_dealloc_ref'
+    CHARACTER(len=*), PARAMETER :: &
+      routineP = 'cp_error_handling:cp_error_dealloc_ref'
+
+    LOGICAL                                  :: failure
+
     failure=.FALSE.
     CALL cp_assert(err_to_free%initialized,cp_warning_level,&
          cp_precondition_failed, routineP, "uninitialized error",&
@@ -426,12 +434,12 @@ CONTAINS
 !!
 !!*** **********************************************************************
   SUBROUTINE cp_error_get(error,level,error_nr,stop_level,print_level,logger)
-    TYPE(cp_error_type), INTENT(inout) :: error
-    INTEGER, OPTIONAL, INTENT(out) :: level, error_nr, stop_level,print_level
-    TYPE(cp_logger_type), OPTIONAL, POINTER :: logger
+    TYPE(cp_error_type), INTENT(inout)       :: error
+    INTEGER, INTENT(out), OPTIONAL           :: level, error_nr, stop_level, &
+                                                print_level
+    TYPE(cp_logger_type), OPTIONAL, POINTER  :: logger
 
-    LOGICAL :: failure
-    CHARACTER(len=*), PARAMETER :: routineP='cp_error_handling:cp_error_get'
+    CHARACTER(len=*), PARAMETER :: routineP = 'cp_error_handling:cp_error_get'
 
     IF (PRESENT(level)) level=error%level
     IF (PRESENT(error_nr)) error_nr=error%error_nr
@@ -470,8 +478,9 @@ CONTAINS
 !!
 !!*** **********************************************************************
   FUNCTION cp_error_get_level(error) RESULT(res)
-    INTEGER :: res
-    TYPE(cp_error_type), INTENT(in), OPTIONAL :: error
+    TYPE(cp_error_type), INTENT(in), &
+      OPTIONAL                               :: error
+    INTEGER                                  :: res
 
     IF (PRESENT(error)) THEN
        res=error%level
@@ -513,8 +522,9 @@ CONTAINS
 !!*** **********************************************************************
   ! pure 
   FUNCTION cp_error_get_print_level(error) RESULT(res)
-    INTEGER :: res
-    TYPE(cp_error_type), OPTIONAL, INTENT(in) :: error
+    TYPE(cp_error_type), INTENT(in), &
+      OPTIONAL                               :: error
+    INTEGER                                  :: res
 
     IF (PRESENT(error)) THEN
        res=error%print_level
@@ -554,9 +564,10 @@ CONTAINS
 !!*** **********************************************************************
   ! pure 
   FUNCTION cp_error_get_nr(error) RESULT(res)
-    INTEGER :: res
-    TYPE(cp_error_type), INTENT(in), OPTIONAL :: error
-    
+    TYPE(cp_error_type), INTENT(in), &
+      OPTIONAL                               :: error
+    INTEGER                                  :: res
+
     IF (PRESENT(error)) THEN
        res=error%error_nr
     ELSE
@@ -598,8 +609,9 @@ CONTAINS
 !!
 !!*** **********************************************************************
   FUNCTION cp_error_get_logger(error) RESULT(res)
-    TYPE(cp_logger_type), POINTER :: res
-    TYPE(cp_error_type), INTENT(in), OPTIONAL :: error
+    TYPE(cp_error_type), INTENT(in), &
+      OPTIONAL                               :: error
+    TYPE(cp_logger_type), POINTER            :: res
 
     NULLIFY(res)
     IF (PRESENT(error)) res=>error%logger
@@ -642,8 +654,9 @@ CONTAINS
 !!*** **********************************************************************
   ! pure 
   FUNCTION cp_error_get_stop_level(error) RESULT(res)
-    INTEGER :: res
-    TYPE(cp_error_type), INTENT(in), OPTIONAL :: error
+    TYPE(cp_error_type), INTENT(in), &
+      OPTIONAL                               :: error
+    INTEGER                                  :: res
 
     IF (PRESENT(error)) THEN
        res=error%stop_level
@@ -684,7 +697,7 @@ CONTAINS
 !!
 !!*** **********************************************************************
   SUBROUTINE cp_error_common_stop(fromWhere,message)
-    CHARACTER(len=*), INTENT(in) :: fromWhere, message 
+    CHARACTER(len=*), INTENT(in)             :: fromWhere, message
 
     CALL print_stack() ! remove?
     CALL stop_program(fromWhere,message)
@@ -725,12 +738,11 @@ CONTAINS
 !!
 !!*** **********************************************************************
   SUBROUTINE cp_error_handle_error(error, fromWhere, message)
-    TYPE(cp_error_type), INTENT(in) :: error
-    CHARACTER(len=*),INTENT(in) :: fromWhere,message
+    TYPE(cp_error_type), INTENT(in)          :: error
+    CHARACTER(len=*), INTENT(in)             :: fromWhere, message
 
-    INTEGER :: mepos
-    TYPE(cp_logger_type), POINTER :: logger
-
+    INTEGER                                  :: mepos
+    TYPE(cp_logger_type), POINTER            :: logger
 
     logger => cp_error_get_logger(error)
     IF (debug_this_module) PRINT *, "entred in cp_error_handle_error"
@@ -784,11 +796,12 @@ CONTAINS
 !!
 !!*** **********************************************************************
   SUBROUTINE cp_error_message(level, fromWhere, message, error)
-    INTEGER, INTENT(in) :: level
-    CHARACTER(len=*), INTENT(in) :: fromWhere, message
-    TYPE(cp_error_type), OPTIONAL, INTENT(in) :: error
+    INTEGER, INTENT(in)                      :: level
+    CHARACTER(len=*), INTENT(in)             :: fromWhere, message
+    TYPE(cp_error_type), INTENT(in), &
+      OPTIONAL                               :: error
 
-    TYPE(cp_logger_type), POINTER :: logger
+    TYPE(cp_logger_type), POINTER            :: logger
 
     logger => cp_error_get_logger(error)
     IF (cp_error_get_print_level(error) <= level) THEN
@@ -844,19 +857,22 @@ CONTAINS
   SUBROUTINE cp_assert(condition, level, error_nr, fromWhere, &
        message, error,failure)
 !! the condition that is checked, if false, an error did happen
-    LOGICAL, INTENT(in) :: condition
-!! level of the error
-    INTEGER, INTENT(in) :: level
-!! error number
-    INTEGER, INTENT(in) :: error_nr
-    CHARACTER(len=*), INTENT(in) :: fromWhere, message
-    TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
-!! is set to true if condition is false
-    LOGICAL, OPTIONAL, INTENT(inout) :: failure
+    LOGICAL, INTENT(in)                      :: condition
+    INTEGER, INTENT(in)                      :: level, error_nr
+    CHARACTER(len=*), INTENT(in)             :: fromWhere, message
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
+    LOGICAL, INTENT(inout), OPTIONAL         :: failure
 
-    LOGICAL :: oldFailure
-    TYPE(cp_error_type) :: err
-    CHARACTER(len=*),PARAMETER :: routineP='cp_error_handling:cp_assert'
+    CHARACTER(len=*), PARAMETER :: routineP = 'cp_error_handling:cp_assert'
+
+    LOGICAL                                  :: oldFailure
+    TYPE(cp_error_type)                      :: err
+
+!! level of the error
+!! error number
+!! is set to true if condition is false
+
     IF (.NOT. condition) THEN
        IF (debug_this_module) PRINT *, "assertion failed, in "//fromWhere//" msg="//message
        IF (PRESENT(failure)) THEN
@@ -925,15 +941,19 @@ CONTAINS
 !!*** **********************************************************************
   SUBROUTINE cp_error_propagate_error(iError, fromWhere, message, error, &
        failure, failure_level)
-    TYPE(cp_error_type), INTENT(in) :: iError
-    CHARACTER(len=*) :: fromWhere
-    CHARACTER(len=*), OPTIONAL :: message
-    TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
-    LOGICAL, OPTIONAL, INTENT(inout):: failure
-    INTEGER, OPTIONAL, INTENT(in):: failure_level
+    TYPE(cp_error_type), INTENT(in)          :: iError
+    CHARACTER(len=*)                         :: fromWhere
+    CHARACTER(len=*), OPTIONAL               :: message
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
+    LOGICAL, INTENT(inout), OPTIONAL         :: failure
+    INTEGER, INTENT(in), OPTIONAL            :: failure_level
 
-    CHARACTER(len=*), PARAMETER :: routineP='cp_error_handling:cp_error_propagate_error'
-    INTEGER :: f_level
+    CHARACTER(len=*), PARAMETER :: &
+      routineP = 'cp_error_handling:cp_error_propagate_error'
+
+    INTEGER                                  :: f_level
+
     f_level=cp_warning_level
     IF (PRESENT(failure_level)) f_level=failure_level
     IF (cp_error_get_level(iError) /= 0 .AND. iError%level>=f_level) THEN
@@ -989,15 +1009,17 @@ CONTAINS
 !!
 !!*** **********************************************************************
 SUBROUTINE cp_unimplemented_error(fromWhere, message, error, error_level)
-  CHARACTER(len=*), INTENT(in) :: fromWhere
-  CHARACTER(len=*), INTENT(in), OPTIONAL :: message
-  TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
-  INTEGER, INTENT(in),OPTIONAL :: error_level
-  
-  LOGICAL :: failure
-  CHARACTER(len=*), PARAMETER :: routineN='cp_unimplemented_error',&
-        routineP=moduleN//':'//routineN
-  INTEGER :: err_l
+    CHARACTER(len=*), INTENT(in)             :: fromWhere
+    CHARACTER(len=*), INTENT(in), OPTIONAL   :: message
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
+    INTEGER, INTENT(in), OPTIONAL            :: error_level
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'cp_unimplemented_error', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: err_l
+
   err_l=cp_failure_level
 
   IF(PRESENT(error_level)) err_l=error_level
@@ -1047,13 +1069,14 @@ END SUBROUTINE cp_unimplemented_error
 !!
 !!*** **********************************************************************
 SUBROUTINE cp_a_l(condition, level, fromWhere, lineNr, error,failure)
-  LOGICAL, INTENT(in) :: condition
-  INTEGER, INTENT(in) :: level
-  CHARACTER(len=*), INTENT(in) :: fromWhere
-  INTEGER, INTENT(in) :: lineNr
-  TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
-  LOGICAL, OPTIONAL, INTENT(inout) :: failure
-  
+    LOGICAL, INTENT(in)                      :: condition
+    INTEGER, INTENT(in)                      :: level
+    CHARACTER(len=*), INTENT(in)             :: fromWhere
+    INTEGER, INTENT(in)                      :: lineNr
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
+    LOGICAL, INTENT(inout), OPTIONAL         :: failure
+
   CALL cp_assert(condition,level=level,error_nr=cp_assertion_failed,&
        fromWhere=fromWhere,&
        message="condition FAILED at line "//ADJUSTL(cp_to_string(lineNr)),&
@@ -1090,11 +1113,13 @@ END SUBROUTINE cp_a_l
 !!
 !!*** **********************************************************************
 SUBROUTINE cp_error_check(error, failure)
-  TYPE(cp_error_type), OPTIONAL, INTENT(in) :: error
-  LOGICAL, INTENT(inout), OPTIONAL :: failure
-  
-  CHARACTER(len=*), PARAMETER :: routineN='cp_error_check',&
-        routineP=moduleN//':'//routineN
+    TYPE(cp_error_type), INTENT(in), &
+      OPTIONAL                               :: error
+    LOGICAL, INTENT(inout), OPTIONAL         :: failure
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'cp_error_check', &
+      routineP = moduleN//':'//routineN
+
   failure=.FALSE.
   
   IF (PRESENT(error).and.PRESENT(failure)) THEN
@@ -1137,16 +1162,13 @@ END SUBROUTINE cp_error_check
 !!****
   SUBROUTINE cp_simple_assert(condition, routineP, line)
   
-    IMPLICIT NONE
 
-        ! arguments
-    LOGICAL, INTENT(in)          :: condition
-    CHARACTER(len=*), INTENT(in) :: routineP
-    INTEGER, INTENT(in)          :: line
-  
-  ! locals
-  
-  ! code
+    LOGICAL, INTENT(in)                      :: condition
+    CHARACTER(len=*), INTENT(in)             :: routineP
+    INTEGER, INTENT(in)                      :: line
+
+! code
+
     IF (.NOT.condition) THEN
        WRITE (*,*) "======== ASSERTION FAILED ========"
        WRITE (*,*) routineP, ": ", cp_to_string(line)

@@ -28,6 +28,7 @@ MODULE xc_tfw
   USE xc_functionals_utilities,        ONLY: calc_rho13,&
                                              set_util,&
                                              setup_calculation
+
   IMPLICIT NONE
 
   PRIVATE
@@ -59,7 +60,7 @@ CONTAINS
 
   SUBROUTINE tfw_init ( cutoff )
 
-    REAL(dbl), INTENT(IN) :: cutoff
+    REAL(dbl), INTENT(IN)                    :: cutoff
 
     eps_rho = cutoff
     CALL set_util ( cutoff )
@@ -75,8 +76,7 @@ CONTAINS
 
   SUBROUTINE tfw_info ( reference, shortform )
 
-    CHARACTER (LEN=*), INTENT(OUT), OPTIONAL :: reference
-    CHARACTER (LEN=*), INTENT(OUT), OPTIONAL :: shortform
+    CHARACTER(LEN=*), INTENT(OUT), OPTIONAL  :: reference, shortform
 
     IF ( PRESENT ( reference ) ) THEN
       reference = "Thomas-Fermi-Weizsaecker kinetic energy functional"
@@ -93,17 +93,15 @@ CONTAINS
 
 !   ---------------------------------------------------------------------------
 
-    TYPE(xc_derivative_set_type), POINTER :: derivative_set
-    REAL(dbl), DIMENSION(:), INTENT(IN)  :: rho
-    REAL(dbl), DIMENSION(:), INTENT(IN)  :: grho
-    REAL(dbl), DIMENSION(:,:), INTENT(OUT) :: pot
-    INTEGER, INTENT(IN), OPTIONAL :: order
+    TYPE(xc_derivative_set_type), POINTER    :: derivative_set
+    REAL(dbl), DIMENSION(:), INTENT(IN)      :: rho, grho
+    REAL(dbl), DIMENSION(:, :), INTENT(OUT)  :: pot
+    INTEGER, INTENT(IN), OPTIONAL            :: order
 
-!   *** Local variables ***
-
-    LOGICAL   :: calc(0:4), allcalc
-    REAL(dbl), DIMENSION(:), ALLOCATABLE :: r13, s
-    INTEGER :: n, error, m, mp, mt, ip, mx(0:3,2), m1, m2
+    INTEGER                                  :: error, ip, m, m1, m2, mp, mt, &
+                                                mx(0:3,2), n
+    LOGICAL                                  :: calc(0:4)
+    REAL(dbl), ALLOCATABLE, DIMENSION(:)     :: r13, s
 
 !   ---------------------------------------------------------------------------
 
@@ -160,17 +158,15 @@ CONTAINS
 
 !   ---------------------------------------------------------------------------
 
-    TYPE(xc_derivative_set_type), POINTER :: derivative_set
-    REAL(dbl), DIMENSION(:), INTENT(IN)  :: rhoa, rhob
-    REAL(dbl), DIMENSION(:), INTENT(IN)  :: grhoa, grhob
-    REAL(dbl), DIMENSION(:,:), INTENT(OUT) :: pot
-    INTEGER, INTENT(IN), OPTIONAL :: order
+    TYPE(xc_derivative_set_type), POINTER    :: derivative_set
+    REAL(dbl), DIMENSION(:), INTENT(IN)      :: rhoa, rhob, grhoa, grhob
+    REAL(dbl), DIMENSION(:, :), INTENT(OUT)  :: pot
+    INTEGER, INTENT(IN), OPTIONAL            :: order
 
-!   *** Local variables ***
-
-    LOGICAL   :: calc(0:4), allcalc
-    REAL(dbl), DIMENSION(:), ALLOCATABLE :: r13a, r13b, sa, sb
-    INTEGER :: n, error, m, mp, mt, ip, mx(0:3,2), m1, m2
+    INTEGER                                  :: error, ip, m, m1, m2, mp, mt, &
+                                                mx(0:3,2), n
+    LOGICAL                                  :: calc(0:4)
+    REAL(dbl), ALLOCATABLE, DIMENSION(:)     :: r13a, r13b, sa, sb
 
 !   ---------------------------------------------------------------------------
 
@@ -243,10 +239,11 @@ CONTAINS
 
   SUBROUTINE tfw_u_0 ( rho, r13, s, pot )
 
-    REAL(dbl), DIMENSION(:), INTENT(IN)  :: rho, r13, s
-    REAL(dbl), DIMENSION(:), INTENT(OUT)  :: pot
+    REAL(dbl), DIMENSION(:), INTENT(IN)      :: rho, r13, s
+    REAL(dbl), DIMENSION(:), INTENT(OUT)     :: pot
 
-    INTEGER :: ip, npoints
+    INTEGER                                  :: ip, npoints
+
 !   ---------------------------------------------------------------------------
 
     npoints = SIZE ( rho )
@@ -270,11 +267,12 @@ CONTAINS
 
   SUBROUTINE tfw_u_1 ( rho, grho, r13, s, pot )
 
-    REAL(dbl), DIMENSION(:), INTENT(IN)  :: rho, grho, r13, s
-    REAL(dbl), DIMENSION(:,:), INTENT(OUT)  :: pot
+    REAL(dbl), DIMENSION(:), INTENT(IN)      :: rho, grho, r13, s
+    REAL(dbl), DIMENSION(:, :), INTENT(OUT)  :: pot
 
-    INTEGER :: ip, npoints
-    REAL ( dbl ) :: f
+    INTEGER                                  :: ip, npoints
+    REAL(dbl)                                :: f
+
 !   ---------------------------------------------------------------------------
 
     npoints = SIZE ( rho )
@@ -301,11 +299,12 @@ CONTAINS
 
   SUBROUTINE tfw_u_2 ( rho, grho, r13, s, pot )
 
-    REAL(dbl), DIMENSION(:), INTENT(IN)  :: rho, grho, r13, s
-    REAL(dbl), DIMENSION(:,:), INTENT(OUT)  :: pot
+    REAL(dbl), DIMENSION(:), INTENT(IN)      :: rho, grho, r13, s
+    REAL(dbl), DIMENSION(:, :), INTENT(OUT)  :: pot
 
-    INTEGER :: ip, npoints
-    REAL ( dbl ) :: f
+    INTEGER                                  :: ip, npoints
+    REAL(dbl)                                :: f
+
 !   ---------------------------------------------------------------------------
 
     npoints = SIZE ( rho )
@@ -333,11 +332,12 @@ CONTAINS
 
   SUBROUTINE tfw_u_3 ( rho, grho, r13, s, pot )
 
-    REAL(dbl), DIMENSION(:), INTENT(IN)  :: rho, grho, r13, s
-    REAL(dbl), DIMENSION(:,:), INTENT(OUT)  :: pot
+    REAL(dbl), DIMENSION(:), INTENT(IN)      :: rho, grho, r13, s
+    REAL(dbl), DIMENSION(:, :), INTENT(OUT)  :: pot
 
-    INTEGER :: ip, npoints
-    REAL ( dbl ) :: f
+    INTEGER                                  :: ip, npoints
+    REAL(dbl)                                :: f
+
 !   ---------------------------------------------------------------------------
 
     npoints = SIZE ( rho )
@@ -367,12 +367,12 @@ CONTAINS
 
   SUBROUTINE tfw_p_0 ( rhoa, rhob, grhoa, grhob, r13a, r13b, sa, sb, pot )
 
-    REAL(dbl), DIMENSION(:), INTENT(IN)  :: rhoa, rhob, grhoa, grhob, &
-                                            r13a, r13b, sa, sb
-    REAL(dbl), DIMENSION(:), INTENT(OUT)  :: pot
+    REAL(dbl), DIMENSION(:), INTENT(IN)      :: rhoa, rhob, grhoa, grhob, &
+                                                r13a, r13b, sa, sb
+    REAL(dbl), DIMENSION(:), INTENT(OUT)     :: pot
 
-    INTEGER :: ip, npoints
-    REAL(dbl) :: f
+    INTEGER                                  :: ip, npoints
+
 !   ---------------------------------------------------------------------------
 
     npoints = SIZE ( rhoa )
@@ -397,12 +397,13 @@ CONTAINS
 
   SUBROUTINE tfw_p_1 ( rhoa, rhob, grhoa, grhob, r13a, r13b, sa, sb, pot )
 
-    REAL(dbl), DIMENSION(:), INTENT(IN)  :: rhoa, rhob, grhoa, grhob, &
-                                            r13a, r13b, sa, sb
-    REAL(dbl), DIMENSION(:,:), INTENT(OUT)  :: pot
+    REAL(dbl), DIMENSION(:), INTENT(IN)      :: rhoa, rhob, grhoa, grhob, &
+                                                r13a, r13b, sa, sb
+    REAL(dbl), DIMENSION(:, :), INTENT(OUT)  :: pot
 
-    INTEGER :: ip, npoints
-    REAL(dbl) :: f
+    INTEGER                                  :: ip, npoints
+    REAL(dbl)                                :: f
+
 !   ---------------------------------------------------------------------------
 
     npoints = SIZE ( rhoa )
@@ -431,12 +432,13 @@ CONTAINS
 
   SUBROUTINE tfw_p_2 ( rhoa, rhob, grhoa, grhob, r13a, r13b, sa, sb, pot )
 
-    REAL(dbl), DIMENSION(:), INTENT(IN)  :: rhoa, rhob, grhoa, grhob, &
-                                            r13a, r13b, sa, sb
-    REAL(dbl), DIMENSION(:,:), INTENT(OUT)  :: pot
+    REAL(dbl), DIMENSION(:), INTENT(IN)      :: rhoa, rhob, grhoa, grhob, &
+                                                r13a, r13b, sa, sb
+    REAL(dbl), DIMENSION(:, :), INTENT(OUT)  :: pot
 
-    INTEGER :: ip, npoints
-    REAL(dbl) :: f
+    INTEGER                                  :: ip, npoints
+    REAL(dbl)                                :: f
+
 !   ---------------------------------------------------------------------------
 
     npoints = SIZE ( rhoa )
@@ -467,12 +469,13 @@ CONTAINS
 
   SUBROUTINE tfw_p_3 ( rhoa, rhob, grhoa, grhob, r13a, r13b, sa, sb, pot )
 
-    REAL(dbl), DIMENSION(:), INTENT(IN)  :: rhoa, rhob, grhoa, grhob, &
-                                            r13a, r13b, sa, sb
-    REAL(dbl), DIMENSION(:,:), INTENT(OUT)  :: pot
+    REAL(dbl), DIMENSION(:), INTENT(IN)      :: rhoa, rhob, grhoa, grhob, &
+                                                r13a, r13b, sa, sb
+    REAL(dbl), DIMENSION(:, :), INTENT(OUT)  :: pot
 
-    INTEGER :: ip, npoints
-    REAL(dbl) :: f
+    INTEGER                                  :: ip, npoints
+    REAL(dbl)                                :: f
+
 !   ---------------------------------------------------------------------------
 
     npoints = SIZE ( rhoa )

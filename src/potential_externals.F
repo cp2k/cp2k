@@ -4,8 +4,6 @@
 
 MODULE potential_externals
 
-  USE kinds, ONLY : dbl
-  
   IMPLICIT NONE
   
   PRIVATE
@@ -17,16 +15,12 @@ CONTAINS
 
 SUBROUTINE potential_external_update ( v_external )
   
-  IMPLICIT NONE
   
-! Arguments
-  TYPE ( potential_external_type ), INTENT ( INOUT ) :: v_external
-  
-! Local
-  
-  
+    TYPE(potential_external_type), &
+      INTENT(INOUT)                          :: v_external
+
 !------------------------------------------------------------------------------
-  
+
   DO potential_index = 1, npotentials
      potential => potential ( potential_index )
      ncentres => potential % ncentres

@@ -25,10 +25,14 @@
 
 MODULE eigenvalueproblems
 
-  USE kinds, ONLY : dbl
-  USE lapack, ONLY : lapack_ssyev, lapack_chpev, lapack_sspgv, lapack_chpgv, &
-                     lapack_sgesvd, lapack_cgesvd
-  USE termination, ONLY : stop_program
+  USE kinds,                           ONLY: dbl
+  USE lapack,                          ONLY: lapack_cgesvd,&
+                                             lapack_chpev,&
+                                             lapack_chpgv,&
+                                             lapack_sgesvd,&
+                                             lapack_sspgv,&
+                                             lapack_ssyev
+  USE termination,                     ONLY: stop_program
 
   IMPLICIT NONE
 
@@ -60,21 +64,16 @@ CONTAINS
 SUBROUTINE diagonalise_ssyev ( matrix, mysize, storageform, eigenvalues, &
      eigenvectors )
 
-  IMPLICIT NONE
 
-! Arguments
-  CHARACTER ( LEN = * ), INTENT ( IN ) :: storageform
-  INTEGER, INTENT ( IN ) :: mysize
-  REAL ( KIND = dbl ), INTENT ( IN ) :: matrix ( :, : )
-  REAL ( KIND = dbl ), INTENT ( OUT ) :: eigenvalues ( : )
-  REAL ( KIND = dbl ), INTENT ( OUT ) :: eigenvectors ( :, : )
+    REAL(KIND=dbl), INTENT(IN)               :: matrix( :, : )
+    INTEGER, INTENT(IN)                      :: mysize
+    CHARACTER(LEN=*), INTENT(IN)             :: storageform
+    REAL(KIND=dbl), INTENT(OUT)              :: eigenvalues( : ), &
+                                                eigenvectors( :, : )
 
-! Local
-  CHARACTER :: jobz = "V", uplo
-  INTEGER :: info, itype
-
-  INTEGER :: lwork, lda
-  REAL ( KIND = dbl ) :: work ( 3 * mysize - 1 )
+    CHARACTER                                :: jobz = "V", uplo
+    INTEGER                                  :: info, lda, lwork
+    REAL(KIND=dbl)                           :: work( 3 * mysize - 1 )
 
 !------------------------------------------------------------------------------
 
@@ -108,21 +107,17 @@ END SUBROUTINE diagonalise_ssyev
 SUBROUTINE diagonalise_chpev ( matrix, mysize, storageform, eigenvalues, &
      eigenvectors )
 
-  IMPLICIT NONE
 
-! Arguments
-  CHARACTER ( LEN = * ), INTENT ( IN ) :: storageform
-  INTEGER, INTENT ( IN ) :: mysize
-  REAL ( KIND = dbl ), INTENT ( OUT ) :: eigenvalues ( : )
-  COMPLEX ( KIND = dbl ), INTENT ( OUT ) :: eigenvectors ( :, : )
-  COMPLEX ( KIND = dbl ), INTENT ( INOUT ) :: matrix ( : )
+    COMPLEX(KIND=dbl), INTENT(INOUT)         :: matrix( : )
+    INTEGER, INTENT(IN)                      :: mysize
+    CHARACTER(LEN=*), INTENT(IN)             :: storageform
+    REAL(KIND=dbl), INTENT(OUT)              :: eigenvalues( : )
+    COMPLEX(KIND=dbl), INTENT(OUT)           :: eigenvectors( :, : )
 
-! Local
-  CHARACTER :: jobz = "V", uplo
-  INTEGER :: info, itype
-
-  REAL ( KIND = dbl ) :: rwork ( 3 * mysize - 2 )
-  COMPLEX ( KIND = dbl ) :: work ( 2 * mysize - 1 )
+    CHARACTER                                :: jobz = "V", uplo
+    INTEGER                                  :: info
+    COMPLEX(KIND=dbl)                        :: work( 2 * mysize - 1 )
+    REAL(KIND=dbl)                           :: rwork( 3 * mysize - 2 )
 
 !------------------------------------------------------------------------------
 
@@ -151,19 +146,16 @@ END SUBROUTINE diagonalise_chpev
 SUBROUTINE diagonalise_sspgv ( matrix, overlap, mysize, type, storageform, &
      eigenvalues, eigenvectors )
 
-  IMPLICIT NONE
 
-! Arguments
-  CHARACTER ( LEN = * ), INTENT ( IN ) :: storageform
-  INTEGER, INTENT ( IN ) :: type, mysize
-  REAL ( KIND = dbl ), INTENT ( OUT ) :: eigenvalues ( : )
-  REAL ( KIND = dbl ), INTENT ( OUT ) :: eigenvectors ( :, : )
-  REAL ( KIND = dbl ), INTENT ( INOUT ) :: matrix ( : ), overlap ( : )
+    REAL(KIND=dbl), INTENT(INOUT)            :: matrix( : ), overlap( : )
+    INTEGER, INTENT(IN)                      :: mysize, type
+    CHARACTER(LEN=*), INTENT(IN)             :: storageform
+    REAL(KIND=dbl), INTENT(OUT)              :: eigenvalues( : ), &
+                                                eigenvectors( :, : )
 
-! Local
-  CHARACTER :: jobz = "V", uplo
-  INTEGER :: info
-  REAL ( kind = dbl ) :: work ( 2 * mysize - 1 )
+    CHARACTER                                :: jobz = "V", uplo
+    INTEGER                                  :: info
+    REAL(kind=dbl)                           :: work( 2 * mysize - 1 )
 
 !----------------------------------------------------------------------
 
@@ -192,20 +184,17 @@ END SUBROUTINE diagonalise_sspgv
 SUBROUTINE diagonalise_chpgv ( matrix, overlap, mysize, type, storageform, &
      eigenvalues, eigenvectors )
 
-  IMPLICIT NONE
 
-! Arguments
-  CHARACTER ( LEN = * ), INTENT ( IN ) :: storageform
-  INTEGER, INTENT ( IN ) :: type, mysize
-  REAL ( KIND = dbl ), INTENT ( OUT ) :: eigenvalues ( : )
-  COMPLEX ( KIND = dbl ), INTENT ( OUT ) :: eigenvectors ( :, : )
-  COMPLEX ( KIND = dbl ), INTENT ( INOUT ) :: matrix ( : ), overlap ( : )
+    COMPLEX(KIND=dbl), INTENT(INOUT)         :: matrix( : ), overlap( : )
+    INTEGER, INTENT(IN)                      :: mysize, type
+    CHARACTER(LEN=*), INTENT(IN)             :: storageform
+    REAL(KIND=dbl), INTENT(OUT)              :: eigenvalues( : )
+    COMPLEX(KIND=dbl), INTENT(OUT)           :: eigenvectors( :, : )
 
-! Local
-  CHARACTER :: jobz = "V", uplo
-  INTEGER :: info
-  REAL ( kind = dbl ) :: rwork ( 3 * mysize - 2 )
-  COMPLEX ( kind = dbl ) :: work ( 2 * mysize - 1 )
+    CHARACTER                                :: jobz = "V", uplo
+    INTEGER                                  :: info
+    COMPLEX(kind=dbl)                        :: work( 2 * mysize - 1 )
+    REAL(kind=dbl)                           :: rwork( 3 * mysize - 2 )
 
 !----------------------------------------------------------------------
 
@@ -233,19 +222,16 @@ END SUBROUTINE diagonalise_chpgv
 
 SUBROUTINE cp2k_sgesvd ( matrix, svalues, mrow, ncol, uvec, vtvec )
 
-  IMPLICIT NONE
 
-! Arguments
-  INTEGER, INTENT ( IN ) :: mrow, ncol
-  REAL ( KIND = dbl ), INTENT ( IN ) :: matrix ( :, : )
-  REAL ( KIND = dbl ), INTENT ( OUT ) :: svalues ( : )
-  REAL ( KIND = dbl ), INTENT ( OUT ) :: uvec ( :, : )
-  REAL ( KIND = dbl ), INTENT ( OUT ) :: vtvec ( :, : )
+    REAL(KIND=dbl), INTENT(IN)               :: matrix( :, : )
+    REAL(KIND=dbl), INTENT(OUT)              :: svalues( : )
+    INTEGER, INTENT(IN)                      :: mrow, ncol
+    REAL(KIND=dbl), INTENT(OUT)              :: uvec( :, : ), vtvec( :, : )
 
-! Local
-  CHARACTER, PARAMETER :: jobu = "A", jobvt = "A"
-  INTEGER :: lda, ldu, ldvt, lwork, info
-  REAL ( kind = dbl ) :: work ( 25 * ( mrow + ncol ) )
+    CHARACTER, PARAMETER                     :: jobu = "A", jobvt = "A"
+
+    INTEGER                                  :: info, lda, ldu, ldvt, lwork
+    REAL(kind=dbl)                           :: work( 25 * ( mrow + ncol ) )
 
 !----------------------------------------------------------------------
 
@@ -267,20 +253,17 @@ END SUBROUTINE cp2k_sgesvd
 
 SUBROUTINE cp2k_cgesvd ( matrix, svalues, mrow, ncol, uvec, vtvec )
 
-  IMPLICIT NONE
 
-! Arguments
-  INTEGER, INTENT ( IN ) :: mrow, ncol
-  COMPLEX ( KIND = dbl ), INTENT ( IN ) :: matrix ( :, : )
-  REAL ( KIND = dbl ), INTENT ( OUT ) :: svalues ( : )
-  COMPLEX ( KIND = dbl ), INTENT ( OUT ) :: uvec ( :, : )
-  COMPLEX ( KIND = dbl ), INTENT ( OUT ) :: vtvec ( :, : )
+    COMPLEX(KIND=dbl), INTENT(IN)            :: matrix( :, : )
+    REAL(KIND=dbl), INTENT(OUT)              :: svalues( : )
+    INTEGER, INTENT(IN)                      :: mrow, ncol
+    COMPLEX(KIND=dbl), INTENT(OUT)           :: uvec( :, : ), vtvec( :, : )
 
-! Local
-  CHARACTER, PARAMETER :: jobu = "A", jobvt = "A"
-  INTEGER :: lda, ldu, ldvt, lwork, info
-  REAL ( kind = dbl ) :: rwork ( 25 * ( mrow + ncol ) )
-  COMPLEX ( kind = dbl ) :: work ( 25 * ( mrow + ncol ) )
+    CHARACTER, PARAMETER                     :: jobu = "A", jobvt = "A"
+
+    INTEGER                                  :: info, lda, ldu, ldvt, lwork
+    COMPLEX(kind=dbl)                        :: work( 25 * ( mrow + ncol ) )
+    REAL(kind=dbl)                           :: rwork( 25 * ( mrow + ncol ) )
 
 !----------------------------------------------------------------------
 

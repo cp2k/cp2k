@@ -21,8 +21,9 @@
 
 MODULE radial_solver
 
-  USE kinds, ONLY : dbl
-  USE termination, ONLY : stop_memory, stop_program
+  USE kinds,                           ONLY: dbl
+  USE termination,                     ONLY: stop_memory,&
+                                             stop_program
 
   IMPLICIT NONE
 
@@ -56,25 +57,27 @@ CONTAINS
 
   SUBROUTINE numerov ( f, g, w, corr )
 
-    implicit none
 
-    !Arguments
-    REAL ( dbl ), DIMENSION ( 0: ), INTENT ( IN ) :: f    ! the potential (in s-form)
-    REAL ( dbl ), DIMENSION ( 0: ), INTENT ( INOUT ) :: g ! first the inhomegenity (in s-form) 
-                                                          ! later the solution
-    REAL ( dbl ), DIMENSION ( 0: ), INTENT ( IN ) :: w    ! the weights W
-    REAL ( dbl ), DIMENSION ( : ), INTENT ( IN ) :: corr  ! corrections for the boundaries
+    REAL(dbl), DIMENSION(0:), INTENT(IN)     :: f
+    REAL(dbl), DIMENSION(0:), INTENT(INOUT)  :: g
+    REAL(dbl), DIMENSION(0:), INTENT(IN)     :: w
+    REAL(dbl), DIMENSION(:), INTENT(IN)      :: corr
 
-    !Locals
-    INTEGER :: n, ierr, info, i
-    REAL ( dbl ) :: e, ww
-    REAL (dbl) :: h212                                    ! square of stepsize divided by 12
+    INTEGER                                  :: i, ierr, info, n
+    INTEGER, ALLOCATABLE, DIMENSION(:)       :: ipiv
+    REAL(dbl)                                :: e, h212, ww
+    REAL(dbl), ALLOCATABLE, DIMENSION(:)     :: s
+    REAL(dbl), ALLOCATABLE, DIMENSION(:, :)  :: ab
 
-    INTEGER, DIMENSION ( : ), ALLOCATABLE :: ipiv
-    REAL ( dbl ), DIMENSION ( :, : ), ALLOCATABLE :: ab   ! the coefficient matrix
-    REAL ( dbl ), DIMENSION ( : ), ALLOCATABLE :: s       ! solution
-
-    !------------------------------------------------------------------------------
+! the potential (in s-form)
+! first the inhomegenity (in s-form) 
+! later the solution
+! the weights W
+! corrections for the boundaries
+! square of stepsize divided by 12
+! the coefficient matrix
+! solution
+!------------------------------------------------------------------------------
 
     n = SIZE ( f ) - 2
 
@@ -164,27 +167,29 @@ CONTAINS
 
   SUBROUTINE diff6p ( f, g, w, corr )
 
-    IMPLICIT NONE
 
-    !Arguments
-    REAL(DBL), DIMENSION(0:), INTENT(in) :: f    ! as in the equation above (in s-form)
-    REAL(DBL), DIMENSION(0:), INTENT(INOUT) :: g ! on input an inhomogenity on output
-                                                 ! the solution 
-    REAL(DBL), DIMENSION(0:), INTENT(IN) :: w    ! weights from the variable transformation
-    REAL(DBL), INTENT(IN), OPTIONAL :: corr      ! correction for the case that
-                                                 ! y(n+1) /= 0
-                                                 ! value should be w(n+1)*y(n+1)
+    REAL(DBL), DIMENSION(0:), INTENT(in)     :: f
+    REAL(DBL), DIMENSION(0:), INTENT(INOUT)  :: g
+    REAL(DBL), DIMENSION(0:), INTENT(in)     :: w
+    REAL(DBL), INTENT(IN), OPTIONAL          :: corr
 
-    !Locals
-    INTEGER :: n, ierr, info
-    INTEGER :: i,j                               ! loop variables (i: row, j: column)
-    REAL(DBL) :: ww
-    REAL(DBL) :: h2_60                           ! factor needed in calc
+    INTEGER                                  :: i, ierr, info, j, n
+    INTEGER, ALLOCATABLE, DIMENSION(:)       :: ipiv
+    REAL(DBL)                                :: h2_60, ww
+    REAL(DBL), ALLOCATABLE, DIMENSION(:, :)  :: ab
 
-    INTEGER, DIMENSION(:), ALLOCATABLE :: ipiv   ! vector of pivot elements for dgbsv
-    REAL(DBL), DIMENSION(:,:), ALLOCATABLE :: ab ! matrix to solve
-
-    !------------------------------------------------------------------------------
+! as in the equation above (in s-form)
+! on input an inhomogenity on output
+! the solution 
+! weights from the variable transformation
+! correction for the case that
+! y(n+1) /= 0
+! value should be w(n+1)*y(n+1)
+! loop variables (i: row, j: column)
+! factor needed in calc
+! vector of pivot elements for dgbsv
+! matrix to solve
+!------------------------------------------------------------------------------
 
     n = SIZE(f) - 2
 

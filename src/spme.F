@@ -21,28 +21,40 @@
 
 MODULE spme
 
-  USE atomic_kind_types, ONLY : atomic_kind_type, get_atomic_kind
-  USE coefficient_types, ONLY : coeff_type, coeff_allocate, &
-      coeff_deallocate, coeff_transform_space, &
-      PW_REALDATA3D, PW_COMPLEXDATA1D, &
-      PW_REALSPACE, PW_RECIPROCALSPACE
-  USE dg_types, ONLY : dg_type
-  USE dgs, ONLY : dg_sum_patch, dg_sum_patch_force_3d
-  USE ewald_parameters_types, ONLY : ewald_parameters_type
-  USE greens_fn, ONLY : greens_function_type
-  USE hartree, ONLY : calculate_hartree
-  USE kinds, ONLY : dbl
-  USE mathconstants, ONLY : fourpi
-  USE particle_types, ONLY : particle_type
-  USE pw_types, ONLY : pw_type
-  USE pw_grid_types, ONLY : pw_grid_type
-  USE pws, ONLY : pw_poisson_solver, init_pw_poisson_solver, pw_integral_a2b, &
-                  cleanup_pw_poisson_solver
-  USE realspace_grid_types, ONLY : realspace_grid_type, rs_grid_setup, &
-      rs_grid_allocate, rs_grid_deallocate, rs_pw_transfer
-  USE simulation_cell, ONLY : cell_type
-  USE termination, ONLY : stop_program, stop_memory
-  USE timings, ONLY: timeset, timestop
+  USE atomic_kind_types,               ONLY: atomic_kind_type,&
+                                             get_atomic_kind
+  USE coefficient_types,               ONLY: PW_COMPLEXDATA1D,&
+                                             PW_REALDATA3D,&
+                                             PW_REALSPACE,&
+                                             PW_RECIPROCALSPACE,&
+                                             coeff_allocate,&
+                                             coeff_deallocate,&
+                                             coeff_transform_space,&
+                                             coeff_type
+  USE dg_types,                        ONLY: dg_type
+  USE dgs,                             ONLY: dg_sum_patch,&
+                                             dg_sum_patch_force_3d
+  USE ewald_parameters_types,          ONLY: ewald_parameters_type
+  USE greens_fn,                       ONLY: greens_function_type
+  USE hartree,                         ONLY: calculate_hartree
+  USE kinds,                           ONLY: dbl
+  USE mathconstants,                   ONLY: fourpi
+  USE particle_types,                  ONLY: particle_type
+  USE pw_grid_types,                   ONLY: pw_grid_type
+  USE pw_types,                        ONLY: pw_type
+  USE pws,                             ONLY: cleanup_pw_poisson_solver,&
+                                             init_pw_poisson_solver,&
+                                             pw_integral_a2b
+  USE realspace_grid_types,            ONLY: realspace_grid_type,&
+                                             rs_grid_allocate,&
+                                             rs_grid_deallocate,&
+                                             rs_grid_setup,&
+                                             rs_pw_transfer
+  USE simulation_cell,                 ONLY: cell_type
+  USE termination,                     ONLY: stop_memory,&
+                                             stop_program
+  USE timings,                         ONLY: timeset,&
+                                             timestop
 
   IMPLICIT NONE
 
@@ -73,30 +85,30 @@ CONTAINS
 SUBROUTINE spme_evaluate ( dg, part, fg_coulomb, vg_coulomb, pv_g, box, &
      grid_spme, ewald_param )
 
-  IMPLICIT NONE
 
-! Arguments
-  TYPE ( dg_type ), INTENT ( IN ), TARGET :: dg
-  TYPE ( particle_type ), DIMENSION ( : ), INTENT ( IN ) :: part
-  TYPE ( cell_type ), INTENT ( INOUT ) :: box
-  TYPE ( pw_grid_type ), INTENT ( IN ), TARGET :: grid_spme
-  TYPE ( ewald_parameters_type ), INTENT ( IN ) :: ewald_param
-  REAL ( dbl ), DIMENSION ( :, : ), INTENT ( OUT ) :: fg_coulomb
-  REAL ( dbl ), INTENT ( OUT ) :: vg_coulomb
-  REAL ( dbl ), DIMENSION ( :, : ), INTENT ( OUT ) :: pv_g
+    TYPE(dg_type), INTENT(IN), TARGET        :: dg
+    TYPE(particle_type), DIMENSION(:), &
+      INTENT(IN)                             :: part
+    REAL(dbl), DIMENSION(:, :), INTENT(OUT)  :: fg_coulomb
+    REAL(dbl), INTENT(OUT)                   :: vg_coulomb
+    REAL(dbl), DIMENSION(:, :), INTENT(OUT)  :: pv_g
+    TYPE(cell_type), INTENT(INOUT)           :: box
+    TYPE(pw_grid_type), INTENT(IN), TARGET   :: grid_spme
+    TYPE(ewald_parameters_type), INTENT(IN)  :: ewald_param
 
-! Locals
-  INTEGER :: handle, i, j, p1, n, ierr, ndim ( 3 ), ipart, jpart, npart
-  INTEGER, DIMENSION ( :, : ), ALLOCATABLE :: centre
-  TYPE ( realspace_grid_type ) :: rden, drpot ( 3 )
-  TYPE ( coeff_type ) :: rhob_r, rhob_g, phi_g, dphi_g ( 3 )
-  REAL ( dbl ) :: inv_fourpi_eps0, dvols, ffa
-  REAL ( dbl ), DIMENSION ( 3 ) :: fat
-  REAL ( dbl ), DIMENSION ( 3, 3 ) :: h_stress, f_stress
-  REAL ( dbl ), DIMENSION ( :,:,: ), ALLOCATABLE :: rhos
+    INTEGER                                  :: handle, i, ierr, ipart, j, &
+                                                jpart, n, ndim( 3 ), npart, p1
+    INTEGER, ALLOCATABLE, DIMENSION(:, :)    :: centre
+    REAL(dbl)                                :: dvols, ffa, inv_fourpi_eps0
+    REAL(dbl), ALLOCATABLE, &
+      DIMENSION(:, :, :)                     :: rhos
+    REAL(dbl), DIMENSION(3)                  :: fat
+    REAL(dbl), DIMENSION(3, 3)               :: f_stress, h_stress
+    TYPE(coeff_type)                         :: dphi_g( 3 ), phi_g, rhob_g, &
+                                                rhob_r
+    TYPE(realspace_grid_type)                :: drpot( 3 ), rden
 
 !------------------------------------------------------------------------------
-
 !-------------- INITIALISATION ---------------------
 
   CALL timeset ( 'SPME', 'I', ' ', handle )
@@ -242,17 +254,15 @@ END SUBROUTINE spme_evaluate
 
 SUBROUTINE p3m_update ( gf )
 
-  IMPLICIT NONE
 
-! Arguments
-  TYPE ( greens_function_type ), TARGET, INTENT ( INOUT ) :: gf
+    TYPE(greens_function_type), &
+      INTENT(INOUT), TARGET                  :: gf
 
-! Locals
-  TYPE ( pw_grid_type ), POINTER :: grid
-  TYPE ( pw_type ), POINTER :: pc
-  REAL ( dbl ), DIMENSION ( :, : ), POINTER :: bm2
-  REAL ( dbl ) :: arg, novol
-  INTEGER :: ig, l, m, n
+    INTEGER                                  :: ig, l, m, n
+    REAL(dbl)                                :: arg, novol
+    REAL(dbl), DIMENSION(:, :), POINTER      :: bm2
+    TYPE(pw_grid_type), POINTER              :: grid
+    TYPE(pw_type), POINTER                   :: pc
 
 !------------------------------------------------------------------------------
 
@@ -296,20 +306,18 @@ END SUBROUTINE p3m_update
 
 SUBROUTINE get_patch ( part, box, npts, p, rhos )
 
-  IMPLICIT NONE
 
-! Arguments
-  TYPE ( particle_type ), DIMENSION ( : ), INTENT ( IN ) :: part
-  TYPE ( cell_type ), INTENT ( IN ) :: box
-  INTEGER, DIMENSION ( 3 ), INTENT ( IN ) :: npts
-  INTEGER, INTENT ( IN ) :: p
-  REAL ( dbl ), DIMENSION ( :,:,: ), INTENT ( OUT ) :: rhos
+    TYPE(particle_type), DIMENSION(:), &
+      INTENT(IN)                             :: part
+    TYPE(cell_type), INTENT(IN)              :: box
+    INTEGER, DIMENSION(3), INTENT(IN)        :: npts
+    INTEGER, INTENT(IN)                      :: p
+    REAL(dbl), DIMENSION(:, :, :), &
+      INTENT(OUT)                            :: rhos
 
-! Local
-  REAL ( dbl ), DIMENSION ( 3 ) :: r, delta
-  REAL ( dbl ) :: q
-  INTEGER :: nbox
-  INTEGER, DIMENSION ( 3 ) :: center
+    INTEGER                                  :: nbox
+    REAL(dbl)                                :: q
+    REAL(dbl), DIMENSION(3)                  :: delta, r
 
 !------------------------------------------------------------------------------
 
@@ -342,22 +350,23 @@ END SUBROUTINE get_patch
 !!*** *************************************************************************
 
 SUBROUTINE spme_get_patch ( rhos, n, delta, q, coeff )
-  IMPLICIT NONE
 
-! Arguments
-  REAL ( dbl ), DIMENSION ( :, :, : ), INTENT ( OUT ) :: rhos
-  INTEGER, INTENT ( IN ) :: n
-  REAL ( dbl ), DIMENSION ( 3 ), INTENT ( IN ) :: delta
-  REAL ( dbl ), INTENT ( IN ) :: q
-  REAL ( dbl ), DIMENSION (-(n-1):n-1, 0:n-1), INTENT ( IN ) :: coeff
+    REAL(dbl), DIMENSION(:, :, :), &
+      INTENT(OUT)                            :: rhos
+    INTEGER, INTENT(IN)                      :: n
+    REAL(dbl), DIMENSION(3), INTENT(IN)      :: delta
+    REAL(dbl), INTENT(IN)                    :: q
+    REAL(dbl), &
+      DIMENSION(-(n-1):n-1, 0:n-1), &
+      INTENT(IN)                             :: coeff
 
-! Local
-  INTEGER, PARAMETER :: nmax = 12
-  INTEGER :: dim, i, i1, i2, i3, ierr, j, l
-  REAL ( dbl ), DIMENSION ( 3, 0:nmax-1 ) :: deltal
-  REAL ( dbl ), DIMENSION ( 3, -nmax:nmax ) :: w_assign
-  REAL ( dbl ), DIMENSION ( 3, 1:nmax ) :: f_assign
-  REAL ( dbl ) :: x, r3, r2
+    INTEGER, PARAMETER                       :: nmax = 12
+
+    INTEGER                                  :: i, i1, i2, i3, j, l
+    REAL(dbl)                                :: r2, r3
+    REAL(dbl), DIMENSION(3, -nmax:nmax)      :: w_assign
+    REAL(dbl), DIMENSION(3, 0:nmax-1)        :: deltal
+    REAL(dbl), DIMENSION(3, 1:nmax)          :: f_assign
 
 !------------------------------------------------------------------------------
 
@@ -422,20 +431,18 @@ END SUBROUTINE spme_get_patch
 
 SUBROUTINE set_list ( part, npart, center, p1, rs, ipart, jpart )
 
-  IMPLICIT NONE
 
-! Arguments
-  TYPE ( particle_type ), DIMENSION ( : ), INTENT ( IN ) :: part
-  INTEGER, INTENT ( IN ) :: npart
-  INTEGER, DIMENSION ( :, : ), INTENT ( IN ) :: center
-  INTEGER, INTENT ( OUT ) :: p1
-  TYPE ( realspace_grid_type ) :: rs
-  INTEGER, INTENT ( INOUT ) :: ipart, jpart
+    TYPE(particle_type), DIMENSION(:), &
+      INTENT(IN)                             :: part
+    INTEGER, INTENT(IN)                      :: npart
+    INTEGER, DIMENSION(:, :), INTENT(IN)     :: center
+    INTEGER, INTENT(OUT)                     :: p1
+    TYPE(realspace_grid_type)                :: rs
+    INTEGER, INTENT(INOUT)                   :: ipart, jpart
 
-! Local
-  INTEGER :: dir, lb, ub, ndim, npos
-  REAL (dbl) :: charge
-  TYPE ( atomic_kind_type ), POINTER :: atomic_kind
+    INTEGER                                  :: dir, lb, ndim, npos, ub
+    REAL(dbl)                                :: charge
+    TYPE(atomic_kind_type), POINTER          :: atomic_kind
 
 !------------------------------------------------------------------------------
 
@@ -485,11 +492,9 @@ END SUBROUTINE set_list
 
 FUNCTION in_slice ( pos, lb, ub ) RESULT ( internal )
 
-  IMPLICIT NONE
 
-! Arguments
-  INTEGER, INTENT ( IN ) :: pos, lb, ub
-  LOGICAL :: internal
+    INTEGER, INTENT(IN)                      :: pos, lb, ub
+    LOGICAL                                  :: internal
 
   IF ( pos >= lb .AND. pos <= ub ) THEN
     internal = .TRUE.
@@ -503,19 +508,17 @@ END FUNCTION in_slice
 
 SUBROUTINE get_center ( part, box, centre, npts, n )
 
-  IMPLICIT NONE
 
-! Arguments
-  TYPE ( particle_type ), DIMENSION ( : ), INTENT ( IN ) :: part
-  TYPE ( cell_type ), INTENT ( IN ) :: box
-  INTEGER, DIMENSION ( : ), INTENT ( IN ) :: npts
-  INTEGER, DIMENSION ( :, : ), INTENT ( OUT ) :: centre
-  INTEGER, INTENT ( IN ) :: n
+    TYPE(particle_type), DIMENSION(:), &
+      INTENT(IN)                             :: part
+    TYPE(cell_type), INTENT(IN)              :: box
+    INTEGER, DIMENSION(:, :), INTENT(OUT)    :: centre
+    INTEGER, DIMENSION(:), INTENT(IN)        :: npts
+    INTEGER, INTENT(IN)                      :: n
 
-! Locals
-  REAL ( dbl ), DIMENSION ( 3 ) :: s, gp
-  REAL ( dbl ) :: rmp  
-  INTEGER :: ipart, mp
+    INTEGER                                  :: ipart, mp
+    REAL(dbl)                                :: rmp
+    REAL(dbl), DIMENSION(3)                  :: gp, s
 
 !------------------------------------------------------------------------------
 
@@ -539,21 +542,17 @@ END SUBROUTINE get_center
 !******************************************************************************
 
 SUBROUTINE get_delta ( box, r, npts, delta, n )
-  IMPLICIT NONE
 
-! Arguments
-  TYPE ( cell_type ), INTENT ( IN ) :: box
-  REAL ( dbl ), DIMENSION ( : ), INTENT ( IN ) :: r
-  INTEGER, DIMENSION ( : ), INTENT ( IN ) :: npts
-  INTEGER, INTENT ( IN ) :: n
+    TYPE(cell_type), INTENT(IN)              :: box
+    REAL(dbl), DIMENSION(:), INTENT(IN)      :: r
+    INTEGER, DIMENSION(:), INTENT(IN)        :: npts
+    REAL(dbl), DIMENSION(:), INTENT(OUT)     :: delta
+    INTEGER, INTENT(IN)                      :: n
 
-  REAL ( dbl ), DIMENSION ( : ), INTENT ( OUT ) :: delta
-
-! Locals
-  REAL ( dbl ), DIMENSION ( 3 ) :: s, grid_i, ca
-  INTEGER, DIMENSION ( 3 ) :: centre
-  REAL ( dbl ) :: rmp  
-  INTEGER :: mp
+    INTEGER                                  :: mp
+    INTEGER, DIMENSION(3)                    :: centre
+    REAL(dbl)                                :: rmp
+    REAL(dbl), DIMENSION(3)                  :: ca, grid_i, s
 
 !------------------------------------------------------------------------------
 
@@ -600,16 +599,15 @@ END SUBROUTINE get_delta
 
 SUBROUTINE spme_coeff_calculate ( n, coeff )
 
-  IMPLICIT NONE
 
-! Arguments
-  INTEGER, INTENT ( IN ) :: n
-  REAL ( dbl ), DIMENSION ( -(n-1):n-1, 0:n-1 ), INTENT ( OUT ) :: coeff
+    INTEGER, INTENT(IN)                      :: n
+    REAL(dbl), &
+      DIMENSION(-(n-1):n-1, 0:n-1), &
+      INTENT(OUT)                            :: coeff
 
-! Locals
-  INTEGER :: i, j, l, m
-  REAL ( dbl ), DIMENSION ( n, -n:n, 0:n-1 ) :: a
-  REAL ( dbl ) :: b
+    INTEGER                                  :: i, j, l, m
+    REAL(dbl)                                :: b
+    REAL(dbl), DIMENSION(n, -n:n, 0:n-1)     :: a
 
 !------------------------------------------------------------------------------
 

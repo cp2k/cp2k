@@ -26,23 +26,16 @@
 !!   SOURCE
 !****************************************************************************
 MODULE cp_fm_types
-  USE cp_array_utils,                  ONLY: cp_2d_r_output,&
-                                             cp_2d_r_write
-  USE cp_blacs_calls,                  ONLY: cp_blacs_dgebs2d,&
-                                             cp_blacs_dgebr2d
+  USE cp_array_utils,                  ONLY: cp_2d_r_write
+  USE cp_blacs_calls,                  ONLY: cp_blacs_dgebr2d,&
+                                             cp_blacs_dgebs2d
   USE cp_error_handling,               ONLY: cp_a_l,&
                                              cp_assert,&
                                              cp_assertion_failed,&
-                                             cp_debug,&
-                                             cp_error_dealloc_ref,&
                                              cp_error_get_logger,&
-                                             cp_error_init,&
                                              cp_error_message,&
-                                             cp_error_type,&
-                                             cp_internal_error,&
-                                             cp_unimplemented_error
-  USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
-                                             cp_fm_struct_equivalent,&
+                                             cp_error_type
+  USE cp_fm_struct,                    ONLY: cp_fm_struct_equivalent,&
                                              cp_fm_struct_get,&
                                              cp_fm_struct_release,&
                                              cp_fm_struct_retain,&
@@ -50,31 +43,24 @@ MODULE cp_fm_types
                                              cp_fm_struct_write
   USE cp_log_handling,                 ONLY: cp_failure_level,&
                                              cp_fatal_level,&
-                                             cp_log,&
                                              cp_logger_generate_filename,&
                                              cp_logger_type,&
                                              cp_note_level,&
                                              cp_to_string,&
                                              cp_warning_level
-  USE cp_para_env,                     ONLY: cp_para_env_from_globenv,&
-                                             cp_para_env_release,&
-                                             cp_para_env_retain
   USE cp_para_types,                   ONLY: cp_blacs_env_type,&
                                              cp_para_env_type
-  USE global_types,                    ONLY: global_environment_type
   USE kinds,                           ONLY: dp
   USE message_passing,                 ONLY: mp_bcast,&
                                              mp_max,&
-                                             mp_sum,&
-                                             mp_sync
+                                             mp_sum
   USE parallel,                        ONLY: cp2k_is_parallel
   USE qs_parser,                       ONLY: close_file,&
                                              open_file
   USE string_utilities,                ONLY: compress
-  USE termination,                     ONLY: stop_memory,&
-                                             stop_program
   USE timings,                         ONLY: timeset,&
                                              timestop
+
   IMPLICIT NONE
   PRIVATE
 
@@ -214,16 +200,20 @@ CONTAINS
 !!
 !!*** **********************************************************************
   SUBROUTINE cp_fm_create(matrix,matrix_struct,name,error)
-    TYPE(cp_fm_type), POINTER :: matrix
-    TYPE(cp_fm_struct_type), POINTER :: matrix_struct
-    CHARACTER(len=*), INTENT(in), OPTIONAL :: name
-    TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
+    TYPE(cp_fm_type), POINTER                :: matrix
+    TYPE(cp_fm_struct_type), POINTER         :: matrix_struct
+    CHARACTER(len=*), INTENT(in), OPTIONAL   :: name
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
 
-    LOGICAL :: failure
-    CHARACTER(len=*), PARAMETER :: routineN='cp_fm_create',&
-         routineP=moduleN//':'//routineN
-    INTEGER :: stat, nprow, npcol, iprow, ipcol, nrow_local, ncol_local
-    TYPE(cp_blacs_env_type), POINTER :: context
+    CHARACTER(len=*), PARAMETER :: routineN = 'cp_fm_create', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: ncol_local, npcol, nprow, &
+                                                nrow_local, stat
+    LOGICAL                                  :: failure
+    TYPE(cp_blacs_env_type), POINTER         :: context
+
     failure=.FALSE.
 
 #if defined(__parallel) && ! defined(__SCALAPACK)
@@ -300,12 +290,14 @@ CONTAINS
 !!
 !!*** **********************************************************************
   SUBROUTINE cp_fm_retain(matrix,error)
-    TYPE(cp_fm_type), POINTER :: matrix
-    TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
+    TYPE(cp_fm_type), POINTER                :: matrix
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
 
-    LOGICAL :: failure
-    CHARACTER(len=*), PARAMETER :: routineN='cp_fm_retain',&
-         routineP=moduleN//':'//routineN
+    CHARACTER(len=*), PARAMETER :: routineN = 'cp_fm_retain', &
+      routineP = moduleN//':'//routineN
+
+    LOGICAL                                  :: failure
 
     failure=.FALSE.
 
@@ -348,13 +340,15 @@ CONTAINS
 !!
 !!*** **********************************************************************
   SUBROUTINE cp_fm_release(matrix,error)
-    TYPE(cp_fm_type), POINTER :: matrix
-    TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
+    TYPE(cp_fm_type), POINTER                :: matrix
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
 
-    LOGICAL :: failure
-    CHARACTER(len=*), PARAMETER :: routineN='cp_fm_release',&
-         routineP=moduleN//':'//routineN
-    INTEGER :: iprow,ipcol, stat
+    CHARACTER(len=*), PARAMETER :: routineN = 'cp_fm_release', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: stat
+    LOGICAL                                  :: failure
 
     failure=.FALSE.
 
@@ -408,22 +402,20 @@ CONTAINS
 !!
 !!*** *********************************************************************
   SUBROUTINE cp_fm_init_random(matrix,ncol,start_col,error)
-    TYPE(cp_fm_type), POINTER           :: matrix
-    INTEGER, INTENT(IN), OPTIONAL       :: ncol
-    INTEGER, INTENT(IN), OPTIONAL       :: start_col
-    TYPE(cp_error_type), INTENT(inout), OPTIONAL :: error
+    TYPE(cp_fm_type), POINTER                :: matrix
+    INTEGER, INTENT(IN), OPTIONAL            :: ncol, start_col
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
 
-    INTEGER :: handle,n,i,my_start_col
-    REAL(KIND = dp), DIMENSION(:,:), POINTER :: a,buff
-    INTEGER :: nprow,npcol,myprow,mypcol,nrow_block,ncol_block
-    INTEGER, DIMENSION(9) :: desca
-    INTEGER, DIMENSION(4),SAVE :: ISEED
-    LOGICAL, SAVE :: FIRST = .TRUE.
-    LOGICAL :: failure
-    INTEGER :: icol,my_ncol
-    TYPE(cp_blacs_env_type), POINTER :: context
-    CHARACTER(len=*), PARAMETER :: routineN='cp_fm_init_random',&
-                                   routineP=moduleN//':'//routineN
+    CHARACTER(len=*), PARAMETER :: routineN = 'cp_fm_init_random', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: handle, i, icol, my_ncol, &
+                                                my_start_col, n
+    INTEGER, DIMENSION(4), SAVE              :: ISEED
+    LOGICAL                                  :: failure
+    LOGICAL, SAVE                            :: FIRST = .TRUE.
+    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: buff
 
     CALL timeset("cp_fm_init_random","I","",handle)
     IF (FIRST) THEN
@@ -487,14 +479,13 @@ CONTAINS
 !!*** *********************************************************************
 
   SUBROUTINE cp_fm_set_all(matrix,alpha,beta,error)
-    TYPE(cp_fm_type), POINTER           :: matrix
-    REAL(KIND = dp), INTENT(IN)                         :: alpha
-    REAL(KIND = dp), INTENT(IN), OPTIONAL               :: beta
-    TYPE(cp_error_type), INTENT(inout), OPTIONAL :: error
+    TYPE(cp_fm_type), POINTER                :: matrix
+    REAL(KIND=dp), INTENT(IN)                :: alpha
+    REAL(KIND=dp), INTENT(IN), OPTIONAL      :: beta
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
 
-!   *** Local variables ***
-
-    INTEGER :: matrix_size,i
+    INTEGER                                  :: i, matrix_size
 
 !   ---------------------------------------------------------------------------
 
@@ -623,20 +614,18 @@ CONTAINS
 !!
 !!*** *********************************************************************
   SUBROUTINE cp_fm_set_element(matrix,irow_global,icol_global,alpha,error)
-    TYPE(cp_fm_type), POINTER          :: matrix
-    REAL(KIND = dp), INTENT(IN)               :: alpha
-    INTEGER, INTENT(IN)                :: icol_global, irow_global
-    TYPE(cp_error_type), INTENT(inout), OPTIONAL :: error
+    TYPE(cp_fm_type), POINTER                :: matrix
+    INTEGER, INTENT(IN)                      :: irow_global, icol_global
+    REAL(KIND=dp), INTENT(IN)                :: alpha
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
 
-!   *** Local variables ***
-
-    INTEGER :: icol_local,ipcol,iprow,irow_local,mypcol,myprow,npcol,&
-         nprow
-
-    INTEGER, DIMENSION(9) :: desca
-
-    REAL(KIND = dp), DIMENSION(:,:), POINTER :: a
-    TYPE(cp_blacs_env_type), POINTER :: context
+    INTEGER                                  :: icol_local, ipcol, iprow, &
+                                                irow_local, mypcol, myprow, &
+                                                npcol, nprow
+    INTEGER, DIMENSION(9)                    :: desca
+    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: a
+    TYPE(cp_blacs_env_type), POINTER         :: context
 
 !   ---------------------------------------------------------------------------
 
@@ -719,24 +708,28 @@ CONTAINS
 !!*** *********************************************************************
   SUBROUTINE cp_fm_set_submatrix(fm,new_values,start_row,&
        start_col, n_rows, n_cols, alpha, beta, transpose, error)
-    TYPE(cp_fm_type) , POINTER :: fm
-    REAL(KIND = dp), DIMENSION(:,:), INTENT(in) :: new_values
-    INTEGER, INTENT(in), OPTIONAL :: start_row, start_col,&
-         n_rows, n_cols
-    REAL(KIND = dp), INTENT(in), OPTIONAL :: alpha, beta
-    LOGICAL, INTENT(in), OPTIONAL :: transpose
-    TYPE(cp_error_type), INTENT(inout), OPTIONAL :: error
+    TYPE(cp_fm_type), POINTER                :: fm
+    REAL(KIND=dp), DIMENSION(:, :), &
+      INTENT(in)                             :: new_values
+    INTEGER, INTENT(in), OPTIONAL            :: start_row, start_col, n_rows, &
+                                                n_cols
+    REAL(KIND=dp), INTENT(in), OPTIONAL      :: alpha, beta
+    LOGICAL, INTENT(in), OPTIONAL            :: transpose
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
 
-    REAL(KIND = dp), DIMENSION(:,:), POINTER :: full_block
-    REAL(KIND = dp) :: al,be
-    INTEGER :: i0,j0,ncol,nrow,i,j,nrow_global,ncol_global,ncol_block,&
-         this_col,this_row,nrow_local,ncol_local,nrow_block,handle
-    INTEGER, DIMENSION(:), POINTER :: row_indices,col_indices
-    CHARACTER(len=*), PARAMETER :: routineN='cp_fm_set_submatrix',&
-         routineP=moduleN//':'//routineN
-    LOGICAL :: tr_a, failure
-    TYPE(cp_para_env_type), POINTER :: para_env
-    TYPE(cp_blacs_env_type), POINTER :: context
+    CHARACTER(len=*), PARAMETER :: routineN = 'cp_fm_set_submatrix', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER :: i, i0, j, j0, ncol, ncol_block, ncol_global, ncol_local, nrow, &
+      nrow_block, nrow_global, nrow_local, this_col, this_row
+    INTEGER, DIMENSION(:), POINTER           :: col_indices, row_indices
+    LOGICAL                                  :: failure, tr_a
+    REAL(KIND=dp)                            :: al, be
+    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: full_block
+    TYPE(cp_blacs_env_type), POINTER         :: context
+    TYPE(cp_para_env_type), POINTER          :: para_env
+
     al=1.0_dp; be=0.0_dp; i0=1; j0=1; tr_a=.FALSE.
     ! can be called too many times, making it a bit useless
     ! CALL timeset(routineN//','//moduleN,"I","",handle)
@@ -889,22 +882,26 @@ CONTAINS
 !!*** *********************************************************************
   SUBROUTINE cp_fm_get_submatrix(fm,target_m, start_row,&
        start_col, n_rows, n_cols, transpose, error)
-    TYPE(cp_fm_type) , POINTER :: fm
-    REAL(KIND = dp), DIMENSION(:,:), INTENT(out) :: target_m
-    INTEGER, INTENT(in), OPTIONAL :: start_row, start_col,&
-         n_rows, n_cols
-    LOGICAL, INTENT(in), OPTIONAL :: transpose
-    TYPE(cp_error_type), INTENT(inout), OPTIONAL :: error
+    TYPE(cp_fm_type), POINTER                :: fm
+    REAL(KIND=dp), DIMENSION(:, :), &
+      INTENT(out)                            :: target_m
+    INTEGER, INTENT(in), OPTIONAL            :: start_row, start_col, n_rows, &
+                                                n_cols
+    LOGICAL, INTENT(in), OPTIONAL            :: transpose
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
 
-    REAL(KIND = dp), DIMENSION(:,:), POINTER :: full_block
-    INTEGER :: i0,j0,ncol,nrow,i,j,nrow_global,ncol_global,ncol_block,&
-         this_col,this_row,nrow_local,ncol_local,nrow_block,handle
-    INTEGER, DIMENSION(:), POINTER :: row_indices,col_indices
-    CHARACTER(len=*), PARAMETER :: routineN='cp_fm_get_submatrix',&
-         routineP=moduleN//':'//routineN
-    LOGICAL :: tr_a, failure
-    TYPE(cp_para_env_type), POINTER :: para_env
-    TYPE(cp_blacs_env_type), POINTER :: context
+    CHARACTER(len=*), PARAMETER :: routineN = 'cp_fm_get_submatrix', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER :: handle, i, i0, j, j0, ncol, ncol_block, ncol_global, &
+      ncol_local, nrow, nrow_block, nrow_global, nrow_local, this_col, &
+      this_row
+    INTEGER, DIMENSION(:), POINTER           :: col_indices, row_indices
+    LOGICAL                                  :: failure, tr_a
+    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: full_block
+    TYPE(cp_blacs_env_type), POINTER         :: context
+    TYPE(cp_para_env_type), POINTER          :: para_env
 
     CALL timeset(routineN,"I","",handle)
 
@@ -1109,15 +1106,13 @@ CONTAINS
 !!
 !!*** *********************************************************************
   SUBROUTINE cp_fm_maxabsval(matrix,a_max,error)
-    TYPE(cp_fm_type), POINTER        :: matrix
-    REAL(KIND = dp), INTENT(OUT)                     :: a_max
-    TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
+    TYPE(cp_fm_type), POINTER                :: matrix
+    REAL(KIND=dp), INTENT(OUT)               :: a_max
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
 
-!   *** Local variables ***
-
-    INTEGER :: handle, nrow_local, ncol_local
-
-    REAL(KIND = dp), DIMENSION(:,:), POINTER :: my_block
+    INTEGER                                  :: handle, ncol_local, nrow_local
+    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: my_block
 
 !   ---------------------------------------------------------------------------
 
@@ -1163,16 +1158,14 @@ CONTAINS
 !!
 !!*** *********************************************************************
   SUBROUTINE cp_fm_maxabsrownorm(matrix, a_max)
-    TYPE(cp_fm_type), POINTER        :: matrix
-    REAL(KIND = dp), INTENT(OUT)     :: a_max
+    TYPE(cp_fm_type), POINTER                :: matrix
+    REAL(KIND=dp), INTENT(OUT)               :: a_max
 
-!   *** Local variables ***
-
-    INTEGER :: handle, nrow_local, ncol_local,nrow_global,i,j
-    INTEGER, POINTER, DIMENSION(:) :: row_indices
-
-    REAL(KIND = dp), DIMENSION(:,:), POINTER   :: my_block
-    REAL(KIND = dp), DIMENSION(:), ALLOCATABLE :: values
+    INTEGER                                  :: handle, i, j, ncol_local, &
+                                                nrow_global, nrow_local
+    INTEGER, DIMENSION(:), POINTER           :: row_indices
+    REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: values
+    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: my_block
 
 !   ---------------------------------------------------------------------------
 
@@ -1236,18 +1229,21 @@ CONTAINS
 !!
 !!*** **********************************************************************
   SUBROUTINE cp_fm_write(matrix, unit_nr, long_description, local, error)
-    TYPE(cp_fm_type), POINTER :: matrix
-    INTEGER, INTENT(in) :: unit_nr
-    LOGICAL, OPTIONAL, INTENT(in) :: long_description, local
-    TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
+    TYPE(cp_fm_type), POINTER                :: matrix
+    INTEGER, INTENT(in)                      :: unit_nr
+    LOGICAL, INTENT(in), OPTIONAL            :: long_description, local
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
 
-    LOGICAL :: failure, loc, my_long_description, exists
-    CHARACTER(len=*), PARAMETER :: routineN='cp_fm_write',&
-         routineP=moduleN//':'//routineN
-    INTEGER :: iostat, desc_unit, data_unit
-    TYPE(cp_logger_type), POINTER :: logger
-    TYPE(cp_para_env_type), POINTER :: para_env
-    CHARACTER(len=60):: filename
+    CHARACTER(len=*), PARAMETER :: routineN = 'cp_fm_write', &
+      routineP = moduleN//':'//routineN
+
+    CHARACTER(len=60)                        :: filename
+    INTEGER                                  :: data_unit, desc_unit, iostat
+    LOGICAL                                  :: exists, failure, loc, &
+                                                my_long_description
+    TYPE(cp_logger_type), POINTER            :: logger
+    TYPE(cp_para_env_type), POINTER          :: para_env
 
     failure=.FALSE.; loc=.FALSE.; my_long_description=.FALSE.
     filename=' '
@@ -1354,19 +1350,15 @@ CONTAINS
 !!
 !!*** *********************************************************************
   SUBROUTINE cp_fm_to_fm_matrix(source,destination,error)
-    TYPE(cp_fm_type), POINTER :: source,destination
-    TYPE(cp_error_type), INTENT(inout), OPTIONAL :: error
+    TYPE(cp_fm_type), POINTER                :: source, destination
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
 
-!   *** Local parameters ***
+    CHARACTER(LEN=*), PARAMETER :: &
+      routine = "SUBROUTINE cp_fm_to_fm (MODULE cp_fm_types)"
 
-    CHARACTER(LEN=*), PARAMETER :: routine =&
-      "SUBROUTINE cp_fm_to_fm (MODULE cp_fm_types)"
-
-!   *** Local variables ***
-
-    INTEGER :: ipcol,iprow,istat,npcol,nprow,ncol_local,nrow_local,msize1,msize2
-    REAL(KIND = dp), DIMENSION(:,:), POINTER :: a,b
-    LOGICAL :: failure
+    INTEGER                                  :: npcol, nprow
+    LOGICAL                                  :: failure
 
 !   ---------------------------------------------------------------------------
 
@@ -1436,16 +1428,15 @@ CONTAINS
 !!
 !!*** *********************************************************************
   SUBROUTINE cp_fm_to_fm_columns(msource,mtarget,ncol,source_start,target_start)
-    TYPE(cp_fm_type), POINTER                 :: msource,mtarget
-    INTEGER, INTENT(IN)                       :: ncol
-    INTEGER, INTENT(IN), OPTIONAL             :: source_start,target_start
+    TYPE(cp_fm_type), POINTER                :: msource, mtarget
+    INTEGER, INTENT(IN)                      :: ncol
+    INTEGER, INTENT(IN), OPTIONAL            :: source_start, target_start
 
-    REAL(KIND = dp), DIMENSION(:,:), POINTER         :: a,b
-    INTEGER                                   :: nprow,npcol,&
-                                                 myprow,mypcol,i,n
-    INTEGER, DIMENSION(9)                     :: desca,descb
-    TYPE(cp_blacs_env_type), POINTER          :: context
-    INTEGER ss,ts
+    INTEGER                                  :: i, mypcol, myprow, n, ss, ts
+    INTEGER, DIMENSION(9)                    :: desca, descb
+    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: a, b
+    TYPE(cp_blacs_env_type), POINTER         :: context
+
     ss=1
     ts=1
     IF (PRESENT(source_start)) ss=source_start

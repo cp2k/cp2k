@@ -30,8 +30,7 @@ MODULE ewald_parameters_types
                                              search_label,&
                                              stop_parser,&
                                              test_next
-  USE string_utilities,                ONLY: uppercase,&
-                                             xstring
+  USE string_utilities,                ONLY: uppercase
 
   TYPE ewald_parameters_type
     CHARACTER( LEN = 12 ) :: ewald_type  ! type of ewald
@@ -65,14 +64,15 @@ CONTAINS
 !!   SOURCE
 !******************************************************************************
 SUBROUTINE read_ewald_section ( ewald_param, globenv )
-  IMPLICIT NONE
-  TYPE ( ewald_parameters_type )  :: ewald_param
-  TYPE ( global_environment_type ), INTENT ( IN ) :: globenv
-! locals
-  LOGICAL :: found, setf, datf, topf
-  INTEGER :: ierror, ilen, ia, ie, i, j, n, iw, source, group
-  CHARACTER ( LEN = 20 ) :: string, str2
-  CHARACTER ( LEN = 5 ) :: label
+    TYPE(ewald_parameters_type)              :: ewald_param
+    TYPE(global_environment_type), &
+      INTENT(IN)                             :: globenv
+
+    CHARACTER(LEN=20)                        :: string
+    CHARACTER(LEN=5)                         :: label
+    INTEGER                                  :: ierror, ilen, iw, n
+    LOGICAL                                  :: found
+
   iw = globenv % scr
 ! Defaults
   ewald_param % alpha = 0.4_dbl

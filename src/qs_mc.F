@@ -20,16 +20,16 @@ MODULE qs_mc
   USE cp2k_units,                      ONLY: init_cp2k_units
   USE cp_error_handling,               ONLY: cp_error_type
   USE cp_para_types,                   ONLY: cp_blacs_env_type
-  USE cp_subsystem_types,              ONLY: cp_subsystem_p_type,&
-                                             cp_subsys_get
-  USE force_env_types,                 ONLY: force_env_type,&
-                                             force_env_get
+  USE cp_subsystem_types,              ONLY: cp_subsys_get,&
+                                             cp_subsystem_p_type
+  USE force_env_types,                 ONLY: force_env_get,&
+                                             force_env_type
   USE global_types,                    ONLY: global_environment_type
-  USE mc_control,                      ONLY: read_mc_section,&
-                                             mc_simulation_parameters_type,&
-                                             read_mc_restart
-  USE mc_ensembles,                    ONLY: mc_traditional_ensemble,&
-                                             gemc_nvt
+  USE mc_control,                      ONLY: mc_simulation_parameters_type,&
+                                             read_mc_restart,&
+                                             read_mc_section
+  USE mc_ensembles,                    ONLY: gemc_nvt,&
+                                             mc_traditional_ensemble
   USE mc_environment_types,            ONLY: destroy_mc_env,&
                                              init_mc_env,&
                                              mc_environment_type,&
@@ -80,28 +80,29 @@ CONTAINS
 
   SUBROUTINE qs_mon_car ( force_env, blacs_env, globenv, error )
 
-  IMPLICIT NONE
 
 ! Argument
-  TYPE ( global_environment_type ), POINTER :: globenv
-  TYPE( cp_error_type ), INTENT(inout), OPTIONAL :: error
-  TYPE ( force_env_type ),POINTER :: force_env
-  TYPE ( cp_blacs_env_type ),POINTER :: blacs_env
+    TYPE(force_env_type), POINTER            :: force_env
+    TYPE(cp_blacs_env_type), POINTER         :: blacs_env
+    TYPE(global_environment_type), POINTER   :: globenv
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
 
-!   *** Local parameters ***
+    CHARACTER(LEN=*), PARAMETER              :: routineN = "qs_mon_car"
 
-  CHARACTER(LEN=*), PARAMETER :: routineN = "qs_mon_car"
+    INTEGER                                  :: handle, isos, iw, natom, &
+                                                nmolecule
+    TYPE(cp_subsystem_p_type), &
+      DIMENSION(:), POINTER                  :: subsys
+    TYPE(mc_environment_type), POINTER       :: mc_env
+    TYPE(mc_simulation_parameters_type), &
+      POINTER                                :: mc_par
+    TYPE(mol_kind_new_list_type), POINTER    :: molecule_kinds_new
+    TYPE(molecule_kind_type), POINTER        :: molecule_kind
 
-! Locals
-  TYPE (molecule_kind_type), POINTER                 :: molecule_kind
-  TYPE(cp_subsystem_p_type),DIMENSION(:),POINTER :: subsys
-  TYPE (mol_kind_new_list_type), POINTER :: molecule_kinds_new
-  TYPE ( mc_environment_type ), POINTER :: mc_env
-  TYPE ( mc_simulation_parameters_type ), POINTER :: mc_par
-  INTEGER :: isos,handle,nmolecule,natom,nbond,iw
 !------------------------------------------------------------------------------
-
 ! begin the timing of the subroutine
+
   CALL timeset(routineN,'I','',handle)
 
   CALL init_cp2k_units ()

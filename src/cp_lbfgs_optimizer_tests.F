@@ -31,22 +31,16 @@ MODULE cp_lbfgs_optimizer_tests
                                              cp_ros_f_release
   USE cp_error_handling,               ONLY: cp_a_l,&
                                              cp_assert,&
-                                             cp_assertion_failed,&
-                                             cp_debug,&
-                                             cp_error_dealloc_ref,&
                                              cp_error_get_logger,&
                                              cp_error_get_print_level,&
-                                             cp_error_init,&
                                              cp_error_message,&
-                                             cp_error_type,&
-                                             cp_precondition_failed
+                                             cp_error_type
   USE cp_lbfgs_optimizer_e_rosen,      ONLY: cp_get,&
                                              cp_lbfgs_opt_e_rosen_type,&
                                              cp_next,&
                                              cp_opt_e_rosen_create,&
                                              cp_opt_e_rosen_release
   USE cp_log_handling,                 ONLY: cp_failure_level,&
-                                             cp_log,&
                                              cp_logger_type,&
                                              cp_note_level,&
                                              cp_to_string,&
@@ -55,6 +49,7 @@ MODULE cp_lbfgs_optimizer_tests
   USE kinds,                           ONLY: dp
   USE timings,                         ONLY: timeset,&
                                              timestop
+
   IMPLICIT NONE
   PRIVATE
 
@@ -98,20 +93,24 @@ CONTAINS
 !!
 !!*** **********************************************************************
 FUNCTION cp_lbfgs_e_rosen_test(global_env,error) RESULT(res)
-  TYPE(global_environment_type), INTENT(in), TARGET :: global_env
-  TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
-  LOGICAL :: res
-  
-  LOGICAL :: failure, finished
-  INTEGER :: handle, i, print_every
-  INTEGER, PARAMETER :: n=25
-  INTEGER, DIMENSION(n) :: kind_of_bound
-  REAL(KIND = dp), DIMENSION(n) :: lower_bound, upper_bound, x0
-  REAL(KIND = dp) :: f
-  CHARACTER(len=*), PARAMETER :: routineN='cp_lbfgs_e_rosen_test',&
-       routineP=moduleN//':'//routineN
-  TYPE(cp_lbfgs_opt_e_rosen_type), POINTER :: optimizer
-  TYPE(cp_e_rosenbrok_f_type), POINTER :: obj_f
+    TYPE(global_environment_type), &
+      INTENT(in), TARGET                     :: global_env
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
+    LOGICAL                                  :: res
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'cp_lbfgs_e_rosen_test', &
+      routineP = moduleN//':'//routineN
+    INTEGER, PARAMETER                       :: n = 25
+
+    INTEGER                                  :: handle, i, print_every
+    INTEGER, DIMENSION(n)                    :: kind_of_bound
+    LOGICAL                                  :: failure, finished
+    REAL(KIND=dp)                            :: f
+    REAL(KIND=dp), DIMENSION(n)              :: lower_bound, upper_bound, x0
+    TYPE(cp_e_rosenbrok_f_type), POINTER     :: obj_f
+    TYPE(cp_lbfgs_opt_e_rosen_type), POINTER :: optimizer
+
   failure=.FALSE.
   
   CALL timeset(routineN//','//moduleN,'I',"",handle)

@@ -28,28 +28,19 @@
 MODULE gopt_f_types
   USE cp_error_handling,               ONLY: cp_a_l,&
                                              cp_assert,&
-                                             cp_assertion_failed,&
-                                             cp_debug,&
-                                             cp_error_dealloc_ref,&
                                              cp_error_get_logger,&
-                                             cp_error_init,&
                                              cp_error_message,&
-                                             cp_error_type,&
-                                             cp_internal_error,&
-                                             cp_unimplemented_error
-  USE cp_subsystem_types,               ONLY: cp_subsystem_p_type,&
-                                             cp_subsystem_type,&
-                                             cp_subsys_get
+                                             cp_error_type
   USE cp_log_handling,                 ONLY: cp_failure_level,&
                                              cp_fatal_level,&
-                                             cp_log,&
-                                             cp_logger_get_default_unit_nr,&
                                              cp_logger_type,&
                                              cp_note_level,&
                                              cp_to_string,&
                                              cp_warning_level
   USE cp_para_types,                   ONLY: cp_para_env_type
-  USE force_env_types,                   ONLY: force_env_calculate_energy,&
+  USE cp_subsystem_types,              ONLY: cp_subsys_get,&
+                                             cp_subsystem_p_type
+  USE force_env_types,                 ONLY: force_env_calculate_energy,&
                                              force_env_calculate_force,&
                                              force_env_get,&
                                              force_env_release,&
@@ -58,8 +49,7 @@ MODULE gopt_f_types
   USE global_types,                    ONLY: global_environment_type
   USE kinds,                           ONLY: dp
   USE particle_list_types,             ONLY: particle_list_type
-  USE particle_types,                  ONLY: particle_type,&
-                                             write_particle_distances,&
+  USE particle_types,                  ONLY: write_particle_distances,&
                                              write_qs_particle_coordinates
   USE qs_parser,                       ONLY: finish_parser,&
                                              read_object,&
@@ -67,10 +57,9 @@ MODULE gopt_f_types
                                              stop_parser,&
                                              test_object
   USE simulation_cell,                 ONLY: cell_type
-  USE termination,                     ONLY: stop_memory,&
-                                             stop_program
   USE timings,                         ONLY: timeset,&
                                              timestop
+
   IMPLICIT NONE
   PRIVATE
 
@@ -195,15 +184,18 @@ CONTAINS
 !!
 !!*** **********************************************************************
 SUBROUTINE gopt_f_create(gopt_env, force_env, globenv, error)
-  TYPE(gopt_f_type), POINTER :: gopt_env
-  TYPE(force_env_type), POINTER :: force_env
-  TYPE(global_environment_type), INTENT(inout), TARGET :: globenv
-  TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
-  
-  LOGICAL :: failure
-  CHARACTER(len=*), PARAMETER :: routineN='gopt_f_create',&
-       routineP=moduleN//':'//routineN
-  INTEGER :: stat
+    TYPE(gopt_f_type), POINTER               :: gopt_env
+    TYPE(force_env_type), POINTER            :: force_env
+    TYPE(global_environment_type), &
+      INTENT(inout), TARGET                  :: globenv
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'gopt_f_create', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: stat
+    LOGICAL                                  :: failure
 
   failure=.FALSE.
   
@@ -249,12 +241,14 @@ END SUBROUTINE gopt_f_create
 !!
 !!*** **********************************************************************
 SUBROUTINE gopt_f_retain(gopt_env, error)
-  TYPE(gopt_f_type), POINTER :: gopt_env
-  TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
-  
-  LOGICAL :: failure
-  CHARACTER(len=*), PARAMETER :: routineN='gopt_f_retain',&
-       routineP=moduleN//':'//routineN
+    TYPE(gopt_f_type), POINTER               :: gopt_env
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'gopt_f_retain', &
+      routineP = moduleN//':'//routineN
+
+    LOGICAL                                  :: failure
 
   failure=.FALSE.
   
@@ -296,13 +290,15 @@ END SUBROUTINE gopt_f_retain
 !!
 !!*** **********************************************************************
 SUBROUTINE gopt_f_release(gopt_env, error)
-  TYPE(gopt_f_type), POINTER :: gopt_env
-  TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
-  
-  LOGICAL :: failure
-  CHARACTER(len=*), PARAMETER :: routineN='gopt_f_release',&
-       routineP=moduleN//':'//routineN
-  INTEGER :: stat
+    TYPE(gopt_f_type), POINTER               :: gopt_env
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'gopt_f_release', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: stat
+    LOGICAL                                  :: failure
 
   failure=.FALSE.
   
@@ -359,22 +355,26 @@ END SUBROUTINE gopt_f_release
 !!
 !!*** **********************************************************************
 SUBROUTINE gopt_f_eval_at(gopt_env, x, f, gradient, master, para_env, error)
-  TYPE(gopt_f_type), POINTER :: gopt_env
-  REAL(KIND = dp), DIMENSION(:), INTENT(in) :: x
-  REAL(KIND = dp), INTENT(out), OPTIONAL :: f
-  REAL(KIND = dp), POINTER, DIMENSION(:), OPTIONAL :: gradient
-  INTEGER, INTENT(in) :: master
-  TYPE(cp_para_env_type), POINTER :: para_env
-  TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
-  
-  LOGICAL :: failure
-  INTEGER :: handle,idg,isubsys,idir,ip
-  CHARACTER(len=*), PARAMETER :: routineN='gopt_f_eval_at',&
-       routineP=moduleN//':'//routineN
-  TYPE(particle_list_type), POINTER :: particles
-  TYPE(cp_subsystem_p_type), DIMENSION(:), POINTER :: subsys
-  TYPE(cp_logger_type), POINTER :: logger
-  TYPE(cell_type), POINTER :: cell
+    TYPE(gopt_f_type), POINTER               :: gopt_env
+    REAL(KIND=dp), DIMENSION(:), INTENT(in)  :: x
+    REAL(KIND=dp), INTENT(out), OPTIONAL     :: f
+    REAL(KIND=dp), DIMENSION(:), OPTIONAL, &
+      POINTER                                :: gradient
+    INTEGER, INTENT(in)                      :: master
+    TYPE(cp_para_env_type), POINTER          :: para_env
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'gopt_f_eval_at', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: handle, idg, idir, ip, isubsys
+    LOGICAL                                  :: failure
+    TYPE(cell_type), POINTER                 :: cell
+    TYPE(cp_logger_type), POINTER            :: logger
+    TYPE(cp_subsystem_p_type), &
+      DIMENSION(:), POINTER                  :: subsys
+    TYPE(particle_list_type), POINTER        :: particles
 
   failure=.FALSE.
   NULLIFY(particles, subsys, cell)
@@ -470,16 +470,20 @@ END SUBROUTINE gopt_f_eval_at
 !!
 !!*** **********************************************************************
 SUBROUTINE gopt_f_create_x0(gopt_env, x0, error)
-  TYPE(gopt_f_type), POINTER :: gopt_env
-  TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
-  REAL(KIND = dp), DIMENSION(:), POINTER :: x0
-  
-  LOGICAL :: failure
-  CHARACTER(len=*), PARAMETER :: routineN='gopt_f_create_x0',&
-       routineP=moduleN//':'//routineN
-  INTEGER :: stat, idg, ndg, idir, isubsys, ip
-  TYPE(particle_list_type), POINTER :: particles
-  TYPE(cp_subsystem_p_type), DIMENSION(:), POINTER :: subsys
+    TYPE(gopt_f_type), POINTER               :: gopt_env
+    REAL(KIND=dp), DIMENSION(:), POINTER     :: x0
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'gopt_f_create_x0', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: idg, idir, ip, isubsys, ndg, &
+                                                stat
+    LOGICAL                                  :: failure
+    TYPE(cp_subsystem_p_type), &
+      DIMENSION(:), POINTER                  :: subsys
+    TYPE(particle_list_type), POINTER        :: particles
 
   failure=.FALSE.
   NULLIFY(particles,subsys)
@@ -541,13 +545,15 @@ END SUBROUTINE gopt_f_create_x0
 !!
 !!*** **********************************************************************
 SUBROUTINE gopt_param_create(gopt_param,error)
-  TYPE(gopt_param_type), POINTER :: gopt_param
-  TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
-  
-  LOGICAL :: failure
-  CHARACTER(len=*), PARAMETER :: routineN='gopt_param_create',&
-        routineP=moduleN//':'//routineN
-  INTEGER :: stat
+    TYPE(gopt_param_type), POINTER           :: gopt_param
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'gopt_param_create', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: stat
+    LOGICAL                                  :: failure
 
   failure=.FALSE.
   
@@ -602,15 +608,18 @@ END SUBROUTINE gopt_param_create
 !!
 !!*** **********************************************************************
 SUBROUTINE gopt_param_read(gopt_param, globenv, error)
-  TYPE(gopt_param_type), POINTER :: gopt_param
-  TYPE(global_environment_type), TARGET, INTENT(inout) :: globenv
-  TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
-  
-  LOGICAL :: failure, section_found
-  CHARACTER(len=*), PARAMETER :: routineN='gopt_param_read',&
-        routineP=moduleN//':'//routineN
-  CHARACTER(LEN=60) :: keyword
-  CHARACTER(LEN=3)  :: test_result
+    TYPE(gopt_param_type), POINTER           :: gopt_param
+    TYPE(global_environment_type), &
+      INTENT(inout), TARGET                  :: globenv
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'gopt_param_read', &
+      routineP = moduleN//':'//routineN
+
+    CHARACTER(LEN=3)                         :: test_result
+    CHARACTER(LEN=60)                        :: keyword
+    LOGICAL                                  :: failure, section_found
 
   failure=.FALSE.
   
@@ -696,12 +705,14 @@ END SUBROUTINE gopt_param_read
 !!
 !!*** **********************************************************************
 SUBROUTINE gopt_param_retain(gopt_param, error)
-  TYPE(gopt_param_type), POINTER :: gopt_param
-  TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
-  
-  LOGICAL :: failure
-  CHARACTER(len=*), PARAMETER :: routineN='gopt_param_retain',&
-       routineP=moduleN//':'//routineN
+    TYPE(gopt_param_type), POINTER           :: gopt_param
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'gopt_param_retain', &
+      routineP = moduleN//':'//routineN
+
+    LOGICAL                                  :: failure
 
   failure=.FALSE.
   
@@ -743,13 +754,15 @@ END SUBROUTINE gopt_param_retain
 !!
 !!*** **********************************************************************
 SUBROUTINE gopt_param_release(gopt_param, error)
-  TYPE(gopt_param_type), POINTER :: gopt_param
-  TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
-  
-  LOGICAL :: failure
-  CHARACTER(len=*), PARAMETER :: routineN='gopt_param_release',&
-       routineP=moduleN//':'//routineN
-  INTEGER :: stat
+    TYPE(gopt_param_type), POINTER           :: gopt_param
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'gopt_param_release', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: stat
+    LOGICAL                                  :: failure
 
   failure=.FALSE.
   

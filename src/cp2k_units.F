@@ -19,12 +19,21 @@
 !******************************************************************************
 
 MODULE cp2k_units
-  USE kinds, ONLY : dbl
-  USE mathconstants, ONLY : pi
-  USE physcon, ONLY : e_charge, angstrom, a_bohr, e_mass, joule, a_mass, &
-       c_light, boltzmann, kcalmol, massunit, bohr, evolt, h_bar, wavenum, &
-       hz, permittivity, femtoseconds
-  USE termination, ONLY : stop_memory
+  USE kinds,                           ONLY: dbl
+  USE physcon,                         ONLY: a_bohr,&
+                                             angstrom,&
+                                             bohr,&
+                                             boltzmann,&
+                                             e_charge,&
+                                             femtoseconds,&
+                                             h_bar,&
+                                             hz,&
+                                             joule,&
+                                             kcalmol,&
+                                             massunit,&
+                                             permittivity,&
+                                             wavenum
+  USE termination,                     ONLY: stop_memory
 
   PRIVATE
 
@@ -65,8 +74,7 @@ CONTAINS
 
 SUBROUTINE init_cp2k_units ()
 
-  IMPLICIT NONE
-  INTEGER :: isos
+    INTEGER                                  :: isos
 
 !------------------------------------------------------------------------------
 
@@ -120,9 +128,9 @@ END SUBROUTINE init_cp2k_units
 !******************************************************************************
 
 SUBROUTINE get_cp2k_units ( unit_struc )
-  IMPLICIT NONE
 
-  TYPE ( unit_convert_type ), POINTER :: unit_struc
+    TYPE(unit_convert_type), POINTER         :: unit_struc
+
   unit_struc => units
 
 END SUBROUTINE get_cp2k_units

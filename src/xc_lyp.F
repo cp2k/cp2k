@@ -27,6 +27,7 @@ MODULE xc_lyp
   USE xc_functionals_utilities,        ONLY: calc_rho13,&
                                              set_util,&
                                              setup_calculation
+
   IMPLICIT NONE
 
   PRIVATE
@@ -65,8 +66,8 @@ CONTAINS
 
   SUBROUTINE lyp_init ( cutoff, debug )
 
-    REAL(dbl), INTENT(IN) :: cutoff
-    LOGICAL, OPTIONAL, INTENT(IN) :: debug
+    REAL(dbl), INTENT(IN)                    :: cutoff
+    LOGICAL, INTENT(IN), OPTIONAL            :: debug
 
     eps_rho = cutoff
     CALL set_util ( cutoff )
@@ -85,8 +86,7 @@ CONTAINS
 
   SUBROUTINE lyp_info ( reference, shortform )
 
-    CHARACTER (LEN=*), INTENT(OUT), OPTIONAL :: reference
-    CHARACTER (LEN=*), INTENT(OUT), OPTIONAL :: shortform
+    CHARACTER(LEN=*), INTENT(OUT), OPTIONAL  :: reference, shortform
 
     IF ( PRESENT ( reference ) ) THEN
       reference = "C. Lee, W. Yang, R.G. Parr, Phys. Rev. B, 37, 785 (1988)"
@@ -103,17 +103,15 @@ CONTAINS
 
 !   ---------------------------------------------------------------------------
 
-    TYPE(xc_derivative_set_type), POINTER :: derivative_set
-    REAL(dbl), DIMENSION(:), INTENT(IN)  :: rho
-    REAL(dbl), DIMENSION(:), INTENT(IN)  :: grho
-    REAL(dbl), DIMENSION(:,:), INTENT(OUT) :: pot
-    INTEGER, INTENT(IN), OPTIONAL :: order
+    TYPE(xc_derivative_set_type), POINTER    :: derivative_set
+    REAL(dbl), DIMENSION(:), INTENT(IN)      :: rho, grho
+    REAL(dbl), DIMENSION(:, :), INTENT(OUT)  :: pot
+    INTEGER, INTENT(IN), OPTIONAL            :: order
 
-!   *** Local variables ***
-
-    LOGICAL   :: calc(0:4), allcalc
-    REAL(dbl), DIMENSION(:), ALLOCATABLE :: r13
-    INTEGER :: n, error, m, mp, mt, ip, mx(0:3,2), m1, m2
+    INTEGER                                  :: error, m, m1, m2, mp, mt, &
+                                                mx(0:3,2), n
+    LOGICAL                                  :: calc(0:4)
+    REAL(dbl), ALLOCATABLE, DIMENSION(:)     :: r13
 
 !   ---------------------------------------------------------------------------
 
@@ -159,17 +157,15 @@ CONTAINS
 
 !   ---------------------------------------------------------------------------
 
-    TYPE(xc_derivative_set_type), POINTER :: derivative_set
-    REAL(dbl), DIMENSION(:), INTENT(IN)  :: rhoa, rhob
-    REAL(dbl), DIMENSION(:), INTENT(IN)  :: grhoa, grhob
-    REAL(dbl), DIMENSION(:,:), INTENT(OUT) :: pot
-    INTEGER, INTENT(IN), OPTIONAL :: order
+    TYPE(xc_derivative_set_type), POINTER    :: derivative_set
+    REAL(dbl), DIMENSION(:), INTENT(IN)      :: rhoa, rhob, grhoa, grhob
+    REAL(dbl), DIMENSION(:, :), INTENT(OUT)  :: pot
+    INTEGER, INTENT(IN), OPTIONAL            :: order
 
-!   *** Local variables ***
-
-    LOGICAL   :: calc(0:4), allcalc
-    REAL(dbl), DIMENSION(:), ALLOCATABLE :: r13a, r13b
-    INTEGER :: n, error, m, mp, mt, ip, mx(0:3,2), m1, m2
+    INTEGER                                  :: error, m, m1, m2, mp, mt, &
+                                                mx(0:3,2), n
+    LOGICAL                                  :: calc(0:4)
+    REAL(dbl), ALLOCATABLE, DIMENSION(:)     :: r13a, r13b
 
 !   ---------------------------------------------------------------------------
 
@@ -218,11 +214,13 @@ CONTAINS
 
   SUBROUTINE lyp_u_0 ( rho, grho, r13, pot )
 
-    REAL(dbl), DIMENSION(:), INTENT(IN)  :: rho, r13, grho
-    REAL(dbl), DIMENSION(:), INTENT(OUT)  :: pot
+    REAL(dbl), DIMENSION(:), INTENT(IN)      :: rho, grho, r13
+    REAL(dbl), DIMENSION(:), INTENT(OUT)     :: pot
 
-    INTEGER :: ip, npoints
-    REAL(dbl) :: x, odx, ecx, lda, ax, bx, g, f24
+    INTEGER                                  :: ip, npoints
+    REAL(dbl)                                :: ax, bx, ecx, f24, g, lda, &
+                                                odx, x
+
 !   ---------------------------------------------------------------------------
 
     npoints = SIZE ( rho )
@@ -253,11 +251,13 @@ CONTAINS
 
   SUBROUTINE lyp_u_1 ( rho, grho, r13, pot )
 
-    REAL(dbl), DIMENSION(:), INTENT(IN)  :: rho, grho, r13
-    REAL(dbl), DIMENSION(:,:), INTENT(OUT)  :: pot
+    REAL(dbl), DIMENSION(:), INTENT(IN)      :: rho, grho, r13
+    REAL(dbl), DIMENSION(:, :), INTENT(OUT)  :: pot
 
-    INTEGER :: ip, npoints
-    REAL(dbl) :: x, g, odx, ecx, lda, dlda, ax, bx, dax, dbx, f24
+    INTEGER                                  :: ip, npoints
+    REAL(dbl)                                :: ax, bx, dax, dbx, dlda, ecx, &
+                                                f24, g, lda, odx, x
+
 !   ---------------------------------------------------------------------------
 
     npoints = SIZE ( rho )
@@ -293,12 +293,14 @@ CONTAINS
 
   SUBROUTINE lyp_u_2 ( rho, grho, r13, pot )
 
-    REAL(dbl), DIMENSION(:), INTENT(IN)  :: rho, grho, r13
-    REAL(dbl), DIMENSION(:,:), INTENT(OUT)  :: pot
+    REAL(dbl), DIMENSION(:), INTENT(IN)      :: rho, grho, r13
+    REAL(dbl), DIMENSION(:, :), INTENT(OUT)  :: pot
 
-    INTEGER :: ip, npoints
-    REAL(dbl) :: odx, ecx, x, g, lda, dlda, ax, bx, dax, dbx, dab, d2ab
-    REAL(dbl) :: d2lda, d2ax, d2bx, f24
+    INTEGER                                  :: ip, npoints
+    REAL(dbl)                                :: ax, bx, d2ab, d2ax, d2bx, &
+                                                d2lda, dab, dax, dbx, dlda, &
+                                                ecx, f24, g, lda, odx, x
+
 !   ---------------------------------------------------------------------------
 
     npoints = SIZE ( rho )
@@ -344,12 +346,15 @@ CONTAINS
 
   SUBROUTINE lyp_u_3 ( rho, grho, r13, pot )
 
-    REAL(dbl), DIMENSION(:), INTENT(IN)  :: rho, grho, r13
-    REAL(dbl), DIMENSION(:,:), INTENT(OUT)  :: pot
+    REAL(dbl), DIMENSION(:), INTENT(IN)      :: rho, grho, r13
+    REAL(dbl), DIMENSION(:, :), INTENT(OUT)  :: pot
 
-    INTEGER :: ip, npoints
-    REAL(dbl) :: odx, ecx, x, g, lda, dlda, ax, bx, dax, dbx, dab, d2ab, d3ab
-    REAL(dbl) :: d2lda, d2ax, d2bx, d3lda, d3ax, d3bx, f24
+    INTEGER                                  :: ip, npoints
+    REAL(dbl)                                :: ax, bx, d2ab, d2ax, d2bx, &
+                                                d2lda, d3ab, d3ax, d3bx, &
+                                                d3lda, dab, dax, dbx, dlda, &
+                                                ecx, f24, g, lda, odx, x
+
 !   ---------------------------------------------------------------------------
 
     npoints = SIZE ( rho )
@@ -406,11 +411,12 @@ CONTAINS
 
   SUBROUTINE lyp_p_0 ( rhoa, rhob, grhoa, grhob, r13a, r13b, pot )
 
-    REAL(dbl), DIMENSION(:), INTENT(IN)  :: rhoa, rhob, grhoa, grhob, &
-                                            r13a, r13b
-    REAL(dbl), DIMENSION(:), INTENT(OUT)  :: pot
+    REAL(dbl), DIMENSION(:), INTENT(IN)      :: rhoa, rhob, grhoa, grhob, &
+                                                r13a, r13b
+    REAL(dbl), DIMENSION(:), INTENT(OUT)     :: pot
 
-    INTEGER :: ip, npoints
+    INTEGER                                  :: ip, npoints
+
 !   ---------------------------------------------------------------------------
 
     npoints = SIZE ( rhoa )
@@ -436,11 +442,12 @@ CONTAINS
 
   SUBROUTINE lyp_p_1 ( rhoa, rhob, grhoa, grhob, r13a, r13b, pot )
 
-    REAL(dbl), DIMENSION(:), INTENT(IN)  :: rhoa, rhob, grhoa, grhob, &
-                                            r13a, r13b
-    REAL(dbl), DIMENSION(:,:), INTENT(OUT)  :: pot
+    REAL(dbl), DIMENSION(:), INTENT(IN)      :: rhoa, rhob, grhoa, grhob, &
+                                                r13a, r13b
+    REAL(dbl), DIMENSION(:, :), INTENT(OUT)  :: pot
 
-    INTEGER :: ip, npoints
+    INTEGER                                  :: ip, npoints
+
 !   ---------------------------------------------------------------------------
 
     npoints = SIZE ( rhoa )
@@ -468,11 +475,12 @@ CONTAINS
 
   SUBROUTINE lyp_p_2 ( rhoa, rhob, grhoa, grhob, r13a, r13b, pot )
 
-    REAL(dbl), DIMENSION(:), INTENT(IN)  :: rhoa, rhob, grhoa, grhob, &
-                                            r13a, r13b
-    REAL(dbl), DIMENSION(:,:), INTENT(OUT)  :: pot
+    REAL(dbl), DIMENSION(:), INTENT(IN)      :: rhoa, rhob, grhoa, grhob, &
+                                                r13a, r13b
+    REAL(dbl), DIMENSION(:, :), INTENT(OUT)  :: pot
 
-    INTEGER :: ip, npoints
+    INTEGER                                  :: ip, npoints
+
 !   ---------------------------------------------------------------------------
 
     npoints = SIZE ( rhoa )
@@ -502,11 +510,12 @@ CONTAINS
 
   SUBROUTINE lyp_p_3 ( rhoa, rhob, grhoa, grhob, r13a, r13b, pot )
 
-    REAL(dbl), DIMENSION(:), INTENT(IN)  :: rhoa, rhob, grhoa, grhob, &
-                                            r13a, r13b
-    REAL(dbl), DIMENSION(:,:), INTENT(OUT)  :: pot
+    REAL(dbl), DIMENSION(:), INTENT(IN)      :: rhoa, rhob, grhoa, grhob, &
+                                                r13a, r13b
+    REAL(dbl), DIMENSION(:, :), INTENT(OUT)  :: pot
 
-    INTEGER :: ip, npoints
+    INTEGER                                  :: ip, npoints
+
 !   ---------------------------------------------------------------------------
 
     npoints = SIZE ( rhoa )

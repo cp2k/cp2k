@@ -19,12 +19,15 @@
 
 MODULE dg_rho0s
 
-  USE coefficient_types, ONLY : coeff_type, coeff_allocate, coeff_zero, &
-       PW_REALDATA3D, PW_COMPLEXDATA3D 
-  USE kinds, ONLY : dbl
-  USE mathconstants, ONLY : pi
-  USE pw_grid_types, ONLY : pw_grid_type
-  USE termination, ONLY : stop_program
+  USE coefficient_types,               ONLY: PW_COMPLEXDATA3D,&
+                                             PW_REALDATA3D,&
+                                             coeff_allocate,&
+                                             coeff_type,&
+                                             coeff_zero
+  USE kinds,                           ONLY: dbl
+  USE mathconstants,                   ONLY: pi
+  USE pw_grid_types,                   ONLY: pw_grid_type
+  USE termination,                     ONLY: stop_program
 
   IMPLICIT NONE
 
@@ -54,13 +57,9 @@ CONTAINS
 
 SUBROUTINE dg_rho0_setup ( dg_rho0, pw_grid )
 
-  IMPLICIT NONE
 
-! Arguments
-  TYPE ( dg_rho0_type ), INTENT ( INOUT ) :: dg_rho0
-  TYPE ( pw_grid_type ), INTENT ( IN ) :: pw_grid
-
-! Locals
+    TYPE(dg_rho0_type), INTENT(INOUT)        :: dg_rho0
+    TYPE(pw_grid_type), INTENT(IN)           :: pw_grid
 
 !------------------------------------------------------------------------------
 
@@ -91,21 +90,19 @@ END SUBROUTINE dg_rho0_setup
 
 SUBROUTINE dg_rho0_pme_gauss ( dg_rho0, alpha )
 
-  IMPLICIT NONE
 
-! Arguments
-  TYPE ( coeff_type ), INTENT ( INOUT ), TARGET :: dg_rho0
-  REAL ( dbl ), INTENT ( IN ) :: alpha
+    TYPE(coeff_type), INTENT(INOUT), TARGET  :: dg_rho0
+    REAL(dbl), INTENT(IN)                    :: alpha
 
-! Locals
-  TYPE ( pw_grid_type ), POINTER :: pw_grid
-  INTEGER :: l0, m0, n0
-  INTEGER, PARAMETER :: IMPOSSIBLE = 10000
-  REAL ( dbl ) :: const, e_gsq
-  INTEGER :: lp, mp, np, ln, mn, nn, gpt
-  INTEGER, DIMENSION ( :, : ), POINTER :: bds
-  INTEGER, DIMENSION ( : ), POINTER :: ghat
-  REAL ( dbl ), DIMENSION ( :, :, : ), POINTER :: rho0
+    INTEGER, PARAMETER                       :: IMPOSSIBLE = 10000
+
+    INTEGER                                  :: gpt, l0, ln, lp, m0, mn, mp, &
+                                                n0, nn, np
+    INTEGER, DIMENSION(:), POINTER           :: ghat
+    INTEGER, DIMENSION(:, :), POINTER        :: bds
+    REAL(dbl)                                :: const, e_gsq
+    REAL(dbl), DIMENSION(:, :, :), POINTER   :: rho0
+    TYPE(pw_grid_type), POINTER              :: pw_grid
 
 !------------------------------------------------------------------------------
 
@@ -187,22 +184,19 @@ SUBROUTINE dg_rho0_s_cgf ( dg_rho0, zet, gcc )
 
 
 
-  IMPLICIT NONE
 
-! Arguments
-  TYPE ( coeff_type ), INTENT ( INOUT ), TARGET :: dg_rho0
-  REAL ( dbl ), INTENT ( IN ), DIMENSION ( : ) :: zet
-  REAL ( dbl ), INTENT ( IN ), DIMENSION ( : ) :: gcc
+    TYPE(coeff_type), INTENT(INOUT), TARGET  :: dg_rho0
+    REAL(dbl), DIMENSION(:), INTENT(IN)      :: zet, gcc
 
-! Locals
-  TYPE ( pw_grid_type ), POINTER :: pw_grid
-  INTEGER :: l0, m0, n0
-  INTEGER, PARAMETER :: IMPOSSIBLE = 10000
-  REAL ( dbl ) :: const, e_gsq, charge, coef
-  INTEGER :: lp, mp, np, ln, mn, nn, gpt, ncg, icg
-  INTEGER, DIMENSION ( :, : ), POINTER :: bds
-  INTEGER, DIMENSION ( : ), POINTER :: ghat
-  REAL ( dbl ), DIMENSION ( :, :, : ), POINTER :: rho0
+    INTEGER, PARAMETER                       :: IMPOSSIBLE = 10000
+
+    INTEGER                                  :: gpt, icg, l0, ln, lp, m0, mn, &
+                                                mp, n0, ncg, nn, np
+    INTEGER, DIMENSION(:), POINTER           :: ghat
+    INTEGER, DIMENSION(:, :), POINTER        :: bds
+    REAL(dbl)                                :: charge, coef, const, e_gsq
+    REAL(dbl), DIMENSION(:, :, :), POINTER   :: rho0
+    TYPE(pw_grid_type), POINTER              :: pw_grid
 
 !------------------------------------------------------------------------------
 
@@ -298,28 +292,26 @@ SUBROUTINE dg_rho0_p_cgf ( dg_rho0, zet, gcc, type )
 
 
 
-  IMPLICIT NONE
 
-! Arguments
-  TYPE ( coeff_type ), INTENT ( INOUT ), TARGET :: dg_rho0
-  REAL ( dbl ), INTENT ( IN ), DIMENSION (:) :: zet
-  REAL ( dbl ), INTENT ( IN ), DIMENSION (:) :: gcc
-  CHARACTER ( LEN = 12 ), INTENT ( IN ) :: type
+    TYPE(coeff_type), INTENT(INOUT), TARGET  :: dg_rho0
+    REAL(dbl), DIMENSION(:), INTENT(IN)      :: zet, gcc
+    CHARACTER(LEN=12), INTENT(IN)            :: type
 
+    INTEGER, PARAMETER                       :: IMPOSSIBLE = 10000
 
-! Locals
-  TYPE ( pw_grid_type ), POINTER :: pw_grid
-  INTEGER :: l0, m0, n0
-  INTEGER, PARAMETER :: IMPOSSIBLE = 10000
-  REAL ( dbl ) :: charge, const, e_gsq, p_on_grid
-  INTEGER :: lp, mp, np, ln, mn, nn, gpt, ncg, icg
-  INTEGER, DIMENSION ( :, : ), POINTER :: bds
-  INTEGER, DIMENSION ( : ), POINTER :: ghat
-  COMPLEX ( dbl ), DIMENSION ( :, :, : ), POINTER :: rho0
-  COMPLEX ( dbl ) :: minus_i
-  REAL ( dbl ) :: coef
+    COMPLEX(dbl)                             :: minus_i
+    COMPLEX(dbl), DIMENSION(:, :, :), &
+      POINTER                                :: rho0
+    INTEGER                                  :: gpt, icg, l0, ln, lp, m0, mn, &
+                                                mp, n0, ncg, nn, np
+    INTEGER, DIMENSION(:), POINTER           :: ghat
+    INTEGER, DIMENSION(:, :), POINTER        :: bds
+    REAL(dbl)                                :: charge, coef, const, e_gsq, &
+                                                p_on_grid
+    TYPE(pw_grid_type), POINTER              :: pw_grid
 
 !------------------------------------------------------------------------------
+
   minus_i = CMPLX( 0._dbl, -1.0_dbl, dbl )
   ncg = size(zet)
 

@@ -28,27 +28,17 @@
 MODULE scf_control_types
   USE cp_error_handling,               ONLY: cp_a_l,&
                                              cp_assert,&
-                                             cp_assertion_failed,&
-                                             cp_debug,&
-                                             cp_error_dealloc_ref,&
                                              cp_error_get_logger,&
-                                             cp_error_init,&
                                              cp_error_message,&
-                                             cp_error_type,&
-                                             cp_internal_error,&
-                                             cp_unimplemented_error
+                                             cp_error_type
   USE cp_log_handling,                 ONLY: cp_failure_level,&
                                              cp_fatal_level,&
-                                             cp_log,&
                                              cp_note_level,&
                                              cp_to_string,&
                                              cp_warning_level
-  USE cp_para_types,                   ONLY: cp_para_env_type
   USE global_types,                    ONLY: global_environment_type
   USE kinds,                           ONLY: dp
-  USE qs_parser,                       ONLY: close_file,&
-                                             finish_parser,&
-                                             open_file,&
+  USE qs_parser,                       ONLY: finish_parser,&
                                              read_object,&
                                              start_parser,&
                                              stop_parser,&
@@ -56,6 +46,7 @@ MODULE scf_control_types
   USE termination,                     ONLY: stop_program
   USE timings,                         ONLY: timeset,&
                                              timestop
+
   IMPLICIT NONE
   PRIVATE
 
@@ -159,13 +150,16 @@ CONTAINS
 !!
 !!*** **********************************************************************
   SUBROUTINE scf_c_create(scf_control,error)
-    TYPE(scf_control_type), POINTER :: scf_control
-    TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
+    TYPE(scf_control_type), POINTER          :: scf_control
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
 
-    LOGICAL :: failure
-    CHARACTER(len=*), PARAMETER :: routineN='scf_c_create',&
-         routineP=moduleN//':'//routineN
-    INTEGER :: stat
+    CHARACTER(len=*), PARAMETER :: routineN = 'scf_c_create', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: stat
+    LOGICAL                                  :: failure
+
     failure=.FALSE.
 
     ALLOCATE(scf_control,stat=stat)
@@ -231,12 +225,15 @@ CONTAINS
 !!
 !!*** **********************************************************************
   SUBROUTINE scf_c_retain(scf_control,error)
-    TYPE(scf_control_type), POINTER :: scf_control
-    TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
+    TYPE(scf_control_type), POINTER          :: scf_control
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
 
-    LOGICAL :: failure
-    CHARACTER(len=*), PARAMETER :: routineN='scf_c_retain',&
-         routineP=moduleN//':'//routineN
+    CHARACTER(len=*), PARAMETER :: routineN = 'scf_c_retain', &
+      routineP = moduleN//':'//routineN
+
+    LOGICAL                                  :: failure
+
     failure=.FALSE.
 
     CPPrecondition(ASSOCIATED(scf_control),cp_failure_level,routineP,error,failure)
@@ -277,13 +274,16 @@ CONTAINS
 !!
 !!*** **********************************************************************
   SUBROUTINE scf_c_release(scf_control,error)
-    TYPE(scf_control_type), POINTER :: scf_control
-    TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
+    TYPE(scf_control_type), POINTER          :: scf_control
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
 
-    LOGICAL :: failure
-    CHARACTER(len=*), PARAMETER :: routineN='scf_c_release',&
-         routineP=moduleN//':'//routineN
-    INTEGER :: stat
+    CHARACTER(len=*), PARAMETER :: routineN = 'scf_c_release', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: stat
+    LOGICAL                                  :: failure
+
     failure=.FALSE.
 
     IF (ASSOCIATED(scf_control)) THEN
@@ -330,14 +330,18 @@ CONTAINS
 !!
 !!*** **********************************************************************
   SUBROUTINE scf_c_read_parameters(scf_control, globenv,error)
-    TYPE(scf_control_type), POINTER              :: scf_control
-    TYPE(global_environment_type), INTENT(IN)    :: globenv
-    TYPE(cp_error_type), INTENT(inout), OPTIONAL :: error
+    TYPE(scf_control_type), POINTER          :: scf_control
+    TYPE(global_environment_type), &
+      INTENT(IN)                             :: globenv
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
 
-    CHARACTER(LEN=*),PARAMETER :: routineN='scf_c_read_parameters',&
-         routineP=moduleN//':'//routineN
-    CHARACTER(LEN=40) :: keyword
-    LOGICAL           :: failure
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'scf_c_read_parameters', &
+      routineP = moduleN//':'//routineN
+
+    CHARACTER(LEN=40)                        :: keyword
+    LOGICAL                                  :: failure
+
     failure=.FALSE.
 
     CPPrecondition(ASSOCIATED(scf_control),cp_failure_level,routineP,error,failure)
@@ -447,14 +451,18 @@ CONTAINS
 !!
 !!*** **********************************************************************
   SUBROUTINE scf_c_write_parameters(scf_control,globenv, error)
-    TYPE(scf_control_type), POINTER              :: scf_control
-    TYPE(global_environment_type), INTENT(IN)    :: globenv
-    TYPE(cp_error_type), INTENT(inout), OPTIONAL :: error
+    TYPE(scf_control_type), POINTER          :: scf_control
+    TYPE(global_environment_type), &
+      INTENT(IN)                             :: globenv
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
 
-    LOGICAL :: failure
-    CHARACTER(LEN=*), PARAMETER :: routineN='scf_c_write_parameters',&
-         routineP=moduleN//':'//routineN
-    INTEGER :: output_unit
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'scf_c_write_parameters', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: output_unit
+    LOGICAL                                  :: failure
+
     failure=.FALSE.
 
     CPPrecondition(ASSOCIATED(scf_control),cp_failure_level,routineP,error,failure)

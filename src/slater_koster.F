@@ -24,9 +24,12 @@
 
     MODULE slater_koster
 !------------------------------------------------------------------------------!
-      USE kinds, ONLY : dbl
-      USE slater_koster_matr, ONLY : gmat, dgmat
+  USE kinds,                           ONLY: dbl
+  USE slater_koster_matr,              ONLY: dgmat,&
+                                             gmat
 !
+
+
       IMPLICIT NONE
 !
       PRIVATE
@@ -61,15 +64,13 @@
 !!   SOURCE
 !******************************************************************************
       SUBROUTINE m_integrals(l1,l2,r,tll,hmm)
-        IMPLICIT NONE
-        INTEGER, INTENT (IN) :: l1, l2
-        REAL (dbl), INTENT (IN) :: r(3)
-        REAL (dbl), INTENT (IN) :: tll(0:2*min(l1,l2))
-        REAL (dbl), INTENT (OUT) :: hmm(0:2*l1,0:2*l2)
+    INTEGER, INTENT(IN)                      :: l1, l2
+    REAL(dbl), INTENT(IN)                    :: r(3), tll(0:2*min(l1,l2))
+    REAL(dbl), INTENT(OUT)                   :: hmm(0:2*l1,0:2*l2)
 
-        REAL (dbl) :: gmu(0:6,0:6,0:3)
-        REAL (dbl) :: dll(0:6,0:6,0:6)
-        INTEGER :: m, m1, m2, mu, i
+    INTEGER                                  :: i, m1, m2, mu
+    REAL(dbl)                                :: dll(0:6,0:6,0:6), &
+                                                gmu(0:6,0:6,0:3)
 
         IF (l1+l2==0) THEN
           hmm(0,0) = tll(0)
@@ -105,19 +106,16 @@
 !!*****
 !------------------------------------------------------------------------------!
       SUBROUTINE dm_integrals(l1,l2,r,tllr,dtll,pmm,grad)
-        IMPLICIT NONE
-        INTEGER, INTENT (IN) :: l1, l2
-        REAL (dbl), INTENT (IN) :: r(3)
-        REAL (dbl), INTENT (IN) :: tllr(0:2*min(l1,l2))
-        REAL (dbl), INTENT (IN) :: dtll(0:2*min(l1,l2))
-        REAL (dbl), INTENT (IN) :: pmm(0:2*l1,0:2*l2)
-        REAL (dbl), INTENT (OUT) :: grad(1:3)
+    INTEGER, INTENT(IN)                      :: l1, l2
+    REAL(dbl), INTENT(IN)                    :: r(3), tllr(0:2*min(l1,l2)), &
+                                                dtll(0:2*min(l1,l2)), &
+                                                pmm(0:2*l1,0:2*l2)
+    REAL(dbl), INTENT(OUT)                   :: grad(1:3)
 
-        REAL (dbl) :: dgmu(0:6,0:6,0:3,1:3)
-        REAL (dbl) :: ddll(0:6,0:6,0:6,1:3)
-        REAL (dbl) :: hmm(0:6,0:6)
-        REAL (dbl) :: ph
-        INTEGER :: m, m1, m2, mu, i, j
+    INTEGER                                  :: i, j, m1, m2, mu
+    REAL(dbl)                                :: ddll(0:6,0:6,0:6,1:3), &
+                                                dgmu(0:6,0:6,0:3,1:3), &
+                                                hmm(0:6,0:6), ph
 
         mu = min(l1,l2)
         m1 = 2*l1
@@ -142,10 +140,10 @@
       END SUBROUTINE dm_integrals
 !------------------------------------------------------------------------------!
       FUNCTION trace_AB(A,B) RESULT(T)
-        IMPLICIT NONE
-        REAL(dbl), INTENT (IN) :: A(:,:), B(:,:)
-        REAL(dbl) :: T
-        INTEGER m, n, i
+    REAL(dbl), INTENT(IN)                    :: A(:,:), B(:,:)
+    REAL(dbl)                                :: T
+
+    INTEGER                                  :: i, m, n
 
         m = SIZE(A,1)
         n = SIZE(A,2)

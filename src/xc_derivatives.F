@@ -18,6 +18,7 @@
 !!
 !!****
 MODULE xc_derivatives
+  USE cp_control_types,                ONLY: xc_control_type
   USE cp_error_handling,               ONLY: cp_a_l,&
                                              cp_assert,&
                                              cp_assertion_failed,&
@@ -29,24 +30,23 @@ MODULE xc_derivatives
                                              cp_note_level,&
                                              cp_to_string,&
                                              cp_warning_level
-  USE cp_control_types,                ONLY: xc_control_type
   USE kinds,                           ONLY: dp
   USE timings,                         ONLY: timeset,&
                                              timestop
   USE xc_derivative_set_types,         ONLY: xc_derivative_set_type
-  USE xc_functionals,                  ONLY: xc_get_pot_size,&
-                                             xc_lda,&
+  USE xc_functionals,                  ONLY: xc_lda,&
                                              xc_lsd,&
                                              xc_set
-  USE xc_pade,                         ONLY: pade_lda_pw_eval, &
-                                             pade_lsd_pw_eval, &
-                                             pade
+  USE xc_pade,                         ONLY: pade,&
+                                             pade_lda_pw_eval,&
+                                             pade_lsd_pw_eval
   USE xc_rho_set_types,                ONLY: xc_rho_cflags_type,&
                                              xc_rho_set_type
   USE xc_xbecke88,                     ONLY: xb88_lda_eval,&
                                              xb88_lda_info,&
                                              xb88_lsd_eval,&
                                              xb88_lsd_info
+
   IMPLICIT NONE
 
   PRIVATE
@@ -105,24 +105,21 @@ CONTAINS
        drhoa, drhob, &
        error)
 
-    IMPLICIT NONE
 
-    ! arguments
-    TYPE(xc_derivative_set_type), POINTER        :: derivative_set
-    TYPE(xc_control_type), INTENT(in)            :: xc_control
-    INTEGER, INTENT(in)                          :: order
-    REAL(KIND = dp), DIMENSION(:), INTENT(in)    :: rhoa
-    REAL(KIND = dp), DIMENSION(:), INTENT(in), OPTIONAL :: rhob, drhoa, drhob
-    TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
-    
-    ! locals
-    LOGICAL :: do_lsd
-    LOGICAL :: failure
-    INTEGER :: npot, stat, handle
-    
-    ! parameters
+    TYPE(xc_derivative_set_type), POINTER    :: derivative_set
+    TYPE(xc_control_type), INTENT(in)        :: xc_control
+    INTEGER, INTENT(in)                      :: order
+    REAL(KIND=dp), DIMENSION(:), INTENT(in)  :: rhoa
+    REAL(KIND=dp), DIMENSION(:), &
+      INTENT(in), OPTIONAL                   :: rhob, drhoa, drhob
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
+
     CHARACTER(len=*), PARAMETER :: routineN = 'xc_calc_derivatives', &
-                                   routineP = moduleN//'/'//routineN
+      routineP = moduleN//'/'//routineN
+
+    INTEGER                                  :: handle
+    LOGICAL                                  :: do_lsd, failure
 
     CALL timeset(routineN,"I","",handle)
 
@@ -237,17 +234,19 @@ CONTAINS
 !!*** **********************************************************************
 SUBROUTINE xc_functional_get_info(functional,lsd,reference,shortform,&
      needs, max_deriv, error)
-  CHARACTER (len=*), INTENT(in) :: functional
-  LOGICAL, INTENT(in) :: lsd
-  CHARACTER (LEN=*), INTENT(OUT), OPTIONAL :: reference
-  CHARACTER (LEN=*), INTENT(OUT), OPTIONAL :: shortform
-  TYPE(xc_rho_cflags_type), INTENT(inout), OPTIONAL :: needs
-  INTEGER, INTENT(out), OPTIONAL :: max_deriv
-  TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
-  
-  LOGICAL :: failure
-  CHARACTER(len=*), PARAMETER :: routineN='xc_functional_get_info',&
-        routineP=moduleN//':'//routineN
+    CHARACTER(len=*), INTENT(in)             :: functional
+    LOGICAL, INTENT(in)                      :: lsd
+    CHARACTER(LEN=*), INTENT(OUT), OPTIONAL  :: reference, shortform
+    TYPE(xc_rho_cflags_type), &
+      INTENT(inout), OPTIONAL                :: needs
+    INTEGER, INTENT(out), OPTIONAL           :: max_deriv
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'xc_functional_get_info', &
+      routineP = moduleN//':'//routineN
+
+    LOGICAL                                  :: failure
 
   failure=.FALSE.
   
@@ -332,18 +331,19 @@ END SUBROUTINE xc_functional_get_info
 SUBROUTINE xc_functional_eval(functional, lsd, rho_set, deriv_set, &
                               deriv_order, density_cut, gradient_cut, error)
 
-  CHARACTER(len=*), INTENT(in)   :: functional
-  LOGICAL, INTENT(in)            :: lsd
-  TYPE(xc_rho_set_type), POINTER :: rho_set
-  TYPE(xc_derivative_set_type), POINTER :: deriv_set
-  INTEGER, INTENT(IN)            :: deriv_order
-  REAL(KIND=dp), INTENT(IN)      :: density_cut
-  REAL(KIND=dp), INTENT(IN)      :: gradient_cut
-  TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
-  
-  LOGICAL :: failure
-  CHARACTER(len=*), PARAMETER :: routineN='xc_functional_eval',&
-       routineP=moduleN//':'//routineN
+    CHARACTER(len=*), INTENT(in)             :: functional
+    LOGICAL, INTENT(in)                      :: lsd
+    TYPE(xc_rho_set_type), POINTER           :: rho_set
+    TYPE(xc_derivative_set_type), POINTER    :: deriv_set
+    INTEGER, INTENT(IN)                      :: deriv_order
+    REAL(KIND=dp), INTENT(IN)                :: density_cut, gradient_cut
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'xc_functional_eval', &
+      routineP = moduleN//':'//routineN
+
+    LOGICAL                                  :: failure
 
   failure=.FALSE.
   

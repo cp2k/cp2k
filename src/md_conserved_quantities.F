@@ -21,33 +21,27 @@
 
 MODULE md_conserved_quantities
   
-  USE atomic_kind_list_types,        ONLY: atomic_kind_list_type
-  USE atomic_kind_types,             ONLY : atomic_kind_type,&
-                                            get_atomic_kind
-  USE coefficient_types,             ONLY : coeff_type
-  USE cp_para_types,                 ONLY : cp_para_env_type
-  USE cp_subsystem_types,            ONLY : cp_subsystem_p_type,&
-                                            cp_subsys_get
-  USE distribution_1d_types,         ONLY : distribution_1d_type
-  USE extended_system_types,         ONLY : lnhc_parameters_type, &
-                                            npt_info_type
-  USE kinds,                         ONLY : dbl
-  USE force_env_types,               ONLY : force_env_get,&
-                                            force_env_type, &
-                                            force_env_write_variables
-  USE mathconstants,                 ONLY : zero
-  USE md,                            ONLY : simulation_parameters_type
-  USE md_environment_types,          ONLY : md_environment_type,&
-                                            get_md_env,&
-                                            set_md_env
-  USE message_passing,               ONLY : mp_sum, &
-                                            mp_comm_dup
-  USE particle_types,                ONLY: particle_type
-  USE particle_list_types,           ONLY: particle_list_type
-  USE simulation_cell,               ONLY : cell_type
-  USE termination,                   ONLY : stop_memory, &
-                                            stop_program
-  USE util,                          ONLY : get_unit
+  USE atomic_kind_list_types,          ONLY: atomic_kind_list_type
+  USE atomic_kind_types,               ONLY: atomic_kind_type,&
+                                             get_atomic_kind
+  USE cp_para_types,                   ONLY: cp_para_env_type
+  USE cp_subsystem_types,              ONLY: cp_subsys_get,&
+                                             cp_subsystem_p_type
+  USE distribution_1d_types,           ONLY: distribution_1d_type
+  USE extended_system_types,           ONLY: lnhc_parameters_type,&
+                                             npt_info_type
+  USE force_env_types,                 ONLY: force_env_get,&
+                                             force_env_type
+  USE kinds,                           ONLY: dbl
+  USE mathconstants,                   ONLY: zero
+  USE md,                              ONLY: simulation_parameters_type
+  USE md_environment_types,            ONLY: get_md_env,&
+                                             md_environment_type,&
+                                             set_md_env
+  USE message_passing,                 ONLY: mp_sum
+  USE particle_list_types,             ONLY: particle_list_type
+  USE particle_types,                  ONLY: particle_type
+  USE simulation_cell,                 ONLY: cell_type
 
   IMPLICIT NONE
 
@@ -101,27 +95,23 @@ CONTAINS
 SUBROUTINE compute_conserved_quantity (md_env, epot, cons, cons_rel, ekin,&
                                        temp, ekin_coefs, temp_coefs )                            
 
-  IMPLICIT NONE
 
-! Arguments
-  TYPE (md_environment_type), POINTER :: md_env
-  REAL (dbl), INTENT (IN) :: epot
-  REAL (dbl), INTENT (OUT) :: cons
-  REAL (dbl), INTENT (OUT), OPTIONAL :: cons_rel
-  REAL (dbl), INTENT (OUT), OPTIONAL :: ekin
-  REAL (dbl), INTENT (OUT), OPTIONAL :: temp
-  REAL (dbl), INTENT (OUT), OPTIONAL :: ekin_coefs
-  REAL (dbl), INTENT (OUT), OPTIONAL :: temp_coefs
+    TYPE(md_environment_type), POINTER       :: md_env
+    REAL(dbl), INTENT(IN)                    :: epot
+    REAL(dbl), INTENT(OUT)                   :: cons
+    REAL(dbl), INTENT(OUT), OPTIONAL         :: cons_rel, ekin, temp, &
+                                                ekin_coefs, temp_coefs
 
-!Locals
-  TYPE (simulation_parameters_type), POINTER :: simpar
-  INTEGER, POINTER :: itimes
-  INTEGER ::  int_grp
-  REAL ( dbl ), POINTER :: constant
-  type ( md_ener_type ) :: md_ener
-  type ( cp_para_env_type ) ,POINTER :: para_env
+    INTEGER                                  :: int_grp
+    INTEGER, POINTER                         :: itimes
+    REAL(dbl), POINTER                       :: constant
+    type(cp_para_env_type), POINTER          :: para_env
+    type(md_ener_type)                       :: md_ener
+    TYPE(simulation_parameters_type), &
+      POINTER                                :: simpar
 
 !------------------------------------------------------------------------------
+
   md_ener%epot=epot 
 
   CALL get_md_env (md_env=md_env,&
@@ -294,17 +284,10 @@ END SUBROUTINE compute_conserved_quantity
 !!*** *************************************************************************
 SUBROUTINE get_econs_nve ( md_env, md_ener, cons )
 
-  IMPLICIT NONE
 
-! Arguments
-  TYPE (md_environment_type), POINTER :: md_env
-  TYPE (md_ener_type), INTENT (inout) :: md_ener
-  REAL (dbl), INTENT (OUT) :: cons
-
-  TYPE (lnhc_parameters_type), POINTER :: nhc_coef
-
-! Locals
-  REAL ( dbl ) :: nhc_coef_pot, nhc_coef_kin
+    TYPE(md_environment_type), POINTER       :: md_env
+    TYPE(md_ener_type), INTENT(inout)        :: md_ener
+    REAL(dbl), INTENT(OUT)                   :: cons
 
 !----------------------------------------------------------------------------
 
@@ -346,24 +329,16 @@ END SUBROUTINE get_econs_nve
 
 SUBROUTINE get_econs_nvt ( md_env, md_ener, cons, int_grp)                            
 
-  IMPLICIT NONE
 
-! Arguments
-  TYPE (md_environment_type), POINTER :: md_env
-  TYPE (md_ener_type), INTENT (inout) :: md_ener
-  REAL (dbl), INTENT (OUT) :: cons
-  INTEGER, INTENT ( IN ) :: int_grp
+    TYPE(md_environment_type), POINTER       :: md_env
+    TYPE(md_ener_type), INTENT(inout)        :: md_ener
+    REAL(dbl), INTENT(OUT)                   :: cons
+    INTEGER, INTENT(IN)                      :: int_grp
 
-! Locals
-  TYPE (lnhc_parameters_type), POINTER :: nhc_part ( : )
-  TYPE (lnhc_parameters_type), POINTER :: nhc_coef       
-
-  REAL ( dbl ) :: nhc_part_pot, nhc_part_kin
-  REAL ( dbl ) :: nhc_coef_pot, nhc_coef_kin
+    REAL(dbl)                                :: nhc_part_kin, nhc_part_pot
+    TYPE(lnhc_parameters_type), POINTER      :: nhc_part( : )
 
 !----------------------------------------------------------------------------
-
-
 
   CALL get_md_env ( md_env, nhc_part = nhc_part )
   CALL get_nhc_energies ( nhc_part ( 1 ), nhc_part_kin, nhc_part_pot, int_grp )
@@ -406,23 +381,20 @@ END SUBROUTINE get_econs_nvt
 
 SUBROUTINE get_econs_npt ( md_env, md_ener, cons, int_grp)
 
-  IMPLICIT NONE
 
-! Arguments
-  TYPE (md_environment_type), POINTER :: md_env
-  TYPE (md_ener_type), INTENT (inout) :: md_ener
-  REAL (dbl), INTENT (OUT) :: cons
-  INTEGER, INTENT ( IN ) :: int_grp
+    TYPE(md_environment_type), POINTER       :: md_env
+    TYPE(md_ener_type), INTENT(inout)        :: md_ener
+    REAL(dbl), INTENT(OUT)                   :: cons
+    INTEGER, INTENT(IN)                      :: int_grp
 
-  TYPE (cell_type), POINTER :: box
-  TYPE (lnhc_parameters_type), POINTER :: nhc_baro ( : )
-  TYPE (lnhc_parameters_type), POINTER :: nhc_part ( : )
-  TYPE (npt_info_type), POINTER :: npt ( :, : )
-  TYPE (simulation_parameters_type), POINTER :: simpar
-
-! Locals
-  REAL ( dbl ) :: nhc_part_pot, nhc_part_kin, nhc_baro_pot, nhc_baro_kin
-  REAL ( dbl ) :: baro_pot, baro_kin
+    REAL(dbl)                                :: baro_kin, baro_pot, &
+                                                nhc_baro_kin, nhc_baro_pot, &
+                                                nhc_part_kin, nhc_part_pot
+    TYPE(cell_type), POINTER                 :: box
+    TYPE(lnhc_parameters_type), POINTER      :: nhc_baro( : ), nhc_part( : )
+    TYPE(npt_info_type), POINTER             :: npt( :, : )
+    TYPE(simulation_parameters_type), &
+      POINTER                                :: simpar
 
 !----------------------------------------------------------------------------
 
@@ -460,16 +432,17 @@ END SUBROUTINE get_econs_npt
 !!
 !!*** *************************************************************************
 SUBROUTINE get_baro_energies ( box, simpar, nhc, npt, baro_kin, baro_pot, int_grp )
-  IMPLICIT NONE
 
-  TYPE ( cell_type ), INTENT ( IN ) :: box
-  TYPE ( simulation_parameters_type), INTENT ( IN ) :: simpar
-  TYPE ( lnhc_parameters_type), INTENT ( IN ) :: nhc
-  TYPE ( npt_info_type ), INTENT ( IN ), DIMENSION ( :, : ) :: npt
-  REAL ( dbl ), INTENT ( OUT ) :: baro_pot, baro_kin
-  INTEGER, INTENT ( IN ) :: int_grp
+    TYPE(cell_type), INTENT(IN)              :: box
+    TYPE(simulation_parameters_type), &
+      INTENT(IN)                             :: simpar
+    TYPE(lnhc_parameters_type), INTENT(IN)   :: nhc
+    TYPE(npt_info_type), DIMENSION(:, :), &
+      INTENT(IN)                             :: npt
+    REAL(dbl), INTENT(OUT)                   :: baro_kin, baro_pot
+    INTEGER, INTENT(IN)                      :: int_grp
 
-  INTEGER :: i, j
+    INTEGER                                  :: i, j
 
   IF ( simpar%ensemble == 'NPT_I' ) THEN
      baro_pot = simpar % p_ext * box % deth
@@ -512,12 +485,11 @@ END SUBROUTINE get_baro_energies
 !!
 !!***8*************************************************************************
 SUBROUTINE get_nhc_energies ( nhc, nhc_pot, nhc_kin, int_grp )
-  IMPLICIT NONE
-  TYPE ( lnhc_parameters_type ), INTENT ( IN ) :: nhc
-  REAL ( dbl ), INTENT ( OUT ) :: nhc_pot, nhc_kin
-  INTEGER :: int_grp
+    TYPE(lnhc_parameters_type), INTENT(IN)   :: nhc
+    REAL(dbl), INTENT(OUT)                   :: nhc_pot, nhc_kin
+    INTEGER                                  :: int_grp
 
-  INTEGER :: n, l
+    INTEGER                                  :: l, n
 
    nhc_kin = 0.0_dbl
    nhc_pot = 0.0_dbl
@@ -555,24 +527,27 @@ END SUBROUTINE get_nhc_energies
 
 SUBROUTINE get_part_ke ( md_env, ekin, int_grp )
 
-  IMPLICIT NONE
 
-!arguments
-  TYPE ( md_environment_type ), POINTER :: md_env
-  REAL ( dbl ), INTENT ( OUT ) :: ekin         
-  INTEGER, INTENT ( IN ) :: int_grp
-!locals
-  TYPE(atomic_kind_list_type), POINTER :: atomic_kinds
-  TYPE(atomic_kind_type), POINTER      :: atomic_kind
-  TYPE(distribution_1d_type), POINTER  :: local_particles
-  TYPE(force_env_type), POINTER        :: force_env
-  TYPE(particle_list_type), POINTER    :: particles
-  TYPE(cp_subsystem_p_type), POINTER, DIMENSION(:) :: subsys
-  TYPE(atomic_kind_type), DIMENSION(:), POINTER   :: atomic_kind_set
-  TYPE(particle_type), DIMENSION(:), POINTER      :: particle_set
-  INTEGER  :: iparticle,iparticle_kind,iparticle_local,&
-              nparticle_kind,nparticle_local
-  REAL ( dbl ) :: mass
+    TYPE(md_environment_type), POINTER       :: md_env
+    REAL(dbl), INTENT(OUT)                   :: ekin
+    INTEGER, INTENT(IN)                      :: int_grp
+
+    INTEGER                                  :: iparticle, iparticle_kind, &
+                                                iparticle_local, &
+                                                nparticle_kind, &
+                                                nparticle_local
+    REAL(dbl)                                :: mass
+    TYPE(atomic_kind_list_type), POINTER     :: atomic_kinds
+    TYPE(atomic_kind_type), DIMENSION(:), &
+      POINTER                                :: atomic_kind_set
+    TYPE(atomic_kind_type), POINTER          :: atomic_kind
+    TYPE(cp_subsystem_p_type), &
+      DIMENSION(:), POINTER                  :: subsys
+    TYPE(distribution_1d_type), POINTER      :: local_particles
+    TYPE(force_env_type), POINTER            :: force_env
+    TYPE(particle_list_type), POINTER        :: particles
+    TYPE(particle_type), DIMENSION(:), &
+      POINTER                                :: particle_set
 
   ekin  = zero
 

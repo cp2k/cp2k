@@ -4,12 +4,14 @@
 
 MODULE wf_types
   
-  USE kinds, ONLY : dbl
-  USE pw_types, ONLY : pw_allocate
-  USE pw_grid_types, ONLY : pw_grid_type
-  USE coefficient_types, ONLY : coeff_type, PLANEWAVES, PW_COMPLEXDATA1D
-  USE termination, ONLY : stop_program
-  
+  USE coefficient_types,               ONLY: PLANEWAVES,&
+                                             PW_COMPLEXDATA1D,&
+                                             coeff_type
+  USE kinds,                           ONLY: dbl
+  USE pw_grid_types,                   ONLY: pw_grid_type
+  USE pw_types,                        ONLY: pw_allocate
+  USE termination,                     ONLY: stop_program
+
   IMPLICIT NONE
   
   PRIVATE
@@ -49,21 +51,19 @@ CONTAINS
 
 SUBROUTINE wf_allocate ( nstates, nkpts, nspins, psi, pw_grid )
   
-  IMPLICIT NONE
   
-! Arguments
-  INTEGER, INTENT ( IN ) :: nstates, nkpts, nspins
-  TYPE ( wf_type ), POINTER :: psi
-  TYPE ( pw_grid_type ), INTENT ( IN ), OPTIONAL, TARGET :: pw_grid
-  
-! Locals
-  INTEGER :: gpt, state, kpt, spin, allocstat
-  TYPE ( wf_spinset_type ), POINTER :: psi_s
-  TYPE ( wf_kset_type ), POINTER :: psi_ks
-  TYPE ( coeff_type ), POINTER :: psi_iks
-  
+    INTEGER, INTENT(IN)                      :: nstates, nkpts, nspins
+    TYPE(wf_type), POINTER                   :: psi
+    TYPE(pw_grid_type), INTENT(IN), &
+      OPTIONAL, TARGET                       :: pw_grid
+
+    INTEGER                                  :: allocstat, kpt, spin, state
+    TYPE(coeff_type), POINTER                :: psi_iks
+    TYPE(wf_kset_type), POINTER              :: psi_ks
+    TYPE(wf_spinset_type), POINTER           :: psi_s
+
 !------------------------------------------------------------------------------
-  
+
   IF ( PRESENT ( pw_grid ) ) THEN
      psi % in_use = PLANEWAVES
   ELSE
@@ -123,18 +123,17 @@ END SUBROUTINE wf_allocate
 
 SUBROUTINE wf_allocate_eigenvalues ( psi )
   
-  IMPLICIT NONE
   
-! Arguments
-  TYPE ( wf_type ), DIMENSION ( : ) :: psi
-  
-! Locals
-  INTEGER :: nstates, kpt, nkpts, spin, nspins, wfset, nwfsets, allocstat
-  TYPE ( wf_spinset_type ), POINTER :: psi_s
-  TYPE ( wf_kset_type ), POINTER :: psi_ks
-  
+    TYPE(wf_type), DIMENSION(:)              :: psi
+
+    INTEGER                                  :: allocstat, kpt, nkpts, &
+                                                nspins, nstates, nwfsets, &
+                                                spin, wfset
+    TYPE(wf_kset_type), POINTER              :: psi_ks
+    TYPE(wf_spinset_type), POINTER           :: psi_s
+
 !------------------------------------------------------------------------------
-  
+
   nwfsets = SIZE ( psi )
   DO wfset = 1, nwfsets
      
@@ -161,17 +160,13 @@ END SUBROUTINE wf_allocate_eigenvalues
 
 SUBROUTINE wf_state_allocate ( psi_iks, pw_grid )
   
-  IMPLICIT NONE
   
-! Arguments
-  TYPE ( coeff_type ), INTENT ( OUT ) :: psi_iks
-  TYPE ( pw_grid_type ), INTENT ( IN ), OPTIONAL, TARGET :: pw_grid
-  
-! Locals
-  INTEGER :: gpt, state, kpt, spin
-  
+    TYPE(coeff_type), INTENT(OUT)            :: psi_iks
+    TYPE(pw_grid_type), INTENT(IN), &
+      OPTIONAL, TARGET                       :: pw_grid
+
 !------------------------------------------------------------------------------
-  
+
   IF ( PRESENT ( pw_grid ) ) THEN
      psi_iks % in_use = PLANEWAVES
      

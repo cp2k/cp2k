@@ -23,23 +23,22 @@
 MODULE qs_conductivity
 ! *****************************************************************************
   USE cp_fm_basic_linalg,              ONLY: cp_fm_gemm
-  USE cp_sm_fm_interactions,           ONLY: cp_sm_fm_multiply
   USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
                                              cp_fm_struct_release,&
                                              cp_fm_struct_type
   USE cp_fm_types,                     ONLY: cp_fm_create,&
                                              cp_fm_get_info,&
                                              cp_fm_release,&
-                                             cp_fm_p_type,&
                                              cp_fm_type
-  USE sparse_matrix_types,             ONLY: real_matrix_p_type
+  USE cp_sm_fm_interactions,           ONLY: cp_sm_fm_multiply
   USE kinds,                           ONLY: dp
   USE mathconstants,                   ONLY: pi
   USE message_passing,                 ONLY: mp_sum
-  USE termination,                     ONLY: stop_memory,&
-                                             stop_program
+  USE sparse_matrix_types,             ONLY: real_matrix_p_type
+  USE termination,                     ONLY: stop_program
   USE timings,                         ONLY: timeset,&
                                              timestop
+
   IMPLICIT NONE
 
 ! *** Public ***
@@ -50,30 +49,34 @@ CONTAINS
 
 SUBROUTINE optical_conductivity(matrix_s,occupied_orbs,occupied_evals, &
                                 unoccupied_orbs,unoccupied_evals,volume,ionode,scr)
-   TYPE(real_matrix_p_type), DIMENSION(:), POINTER :: matrix_s
-   TYPE(cp_fm_type), POINTER              :: occupied_orbs, unoccupied_orbs
-   REAL(KIND = dp), DIMENSION(:), POINTER                 :: occupied_evals, unoccupied_evals
-   REAL(KIND = dp)                                        :: volume
-   LOGICAL                                         :: ionode
-   INTEGER                                         :: scr
+    TYPE(real_matrix_p_type), DIMENSION(:), &
+      POINTER                                :: matrix_s
+    TYPE(cp_fm_type), POINTER                :: occupied_orbs
+    REAL(KIND=dp), DIMENSION(:), POINTER     :: occupied_evals
+    TYPE(cp_fm_type), POINTER                :: unoccupied_orbs
+    REAL(KIND=dp), DIMENSION(:), POINTER     :: unoccupied_evals
+    REAL(KIND=dp)                            :: volume
+    LOGICAL                                  :: ionode
+    INTEGER                                  :: scr
 
+    INTEGER, PARAMETER                       :: nbands = 4, npoints = 1000
 
-   TYPE(cp_fm_type), POINTER              :: buf,matrix_elements
-   TYPE(cp_fm_struct_type), POINTER                :: me_struct,template
-   INTEGER                                         :: component,nocc,nunocc,nao,i,j,nrow_local, &
-                                                      ncol_local,index,handle
+    INTEGER                                  :: component, handle, i, iband, &
+                                                index, j, nao, ncol_local, &
+                                                nocc, nrow_local, nunocc
+    INTEGER, DIMENSION(:), POINTER           :: col_indices, row_indices
+    REAL(KIND=dp)                            :: dE_bin, emax, emin, energy, &
+                                                occ_max, occ_min, strength, &
+                                                unocc_max, unocc_min
+    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: result
+    TYPE(cp_fm_struct_type), POINTER         :: me_struct, template
+    TYPE(cp_fm_type), POINTER                :: buf, matrix_elements
 
-   ! bands can be used to split the spectrum divinding the occupied evals in nbands
-   INTEGER, PARAMETER                              :: npoints=1000,nbands=4
-   REAL(KIND = dp), DIMENSION(:,:), POINTER                 :: result
-   REAL(KIND = dp)                                        :: emin,emax,strength,occ_min,occ_max, &
-                                                      unocc_min,unocc_max,energy,dE_bin
-   INTEGER, DIMENSION(:), POINTER                  :: row_indices,col_indices
-   INTEGER                                         :: iband
+! bands can be used to split the spectrum divinding the occupied evals in nbands
+! CALL stop_program("optical_conductivity","NYI")
+! very much *not* tested and most likely to be wrong
+! the core is present 
 
-   ! CALL stop_program("optical_conductivity","NYI")
-   ! very much *not* tested and most likely to be wrong
-   ! the core is present 
    CALL timeset("optical_conductivity","I","",handle)
 
    IF (SIZE(matrix_s).lt.4) CALL stop_program("optical_conductivity","where is the derivative ?")

@@ -21,8 +21,10 @@
 !
     MODULE slater_koster_util
 !------------------------------------------------------------------------------!
-      USE kinds, ONLY : dbl
+  USE kinds,                           ONLY: dbl
 !
+
+
       IMPLICIT NONE
 !
       PRIVATE
@@ -37,15 +39,18 @@
       SUBROUTINE sph(l,r,gsl)
 ! Spherical Harmonics up to f functions
 ! There is a factor sqrt(4*PI)/sqrt(2*l+1) omitted
-        IMPLICIT NONE
-        INTEGER, INTENT (IN) :: l
-        REAL (dbl), INTENT (IN) :: r(3)
-        REAL (dbl), INTENT (OUT) :: gsl(0:6)
+    INTEGER, INTENT(IN)                      :: l
+    REAL(dbl), INTENT(IN)                    :: r(3)
+    REAL(dbl), INTENT(OUT)                   :: gsl(0:6)
 
-        REAL (dbl), PARAMETER :: sq3 = 1.732050807568877_dbl ! sqrt(3._dbl)
-        REAL (dbl), PARAMETER :: sq15 = 3.872983346207417_dbl ! sqrt(15._dbl)
-        REAL (dbl), PARAMETER :: sq38 = 0.612372435695794_dbl ! sqrt(0.375_dbl)
-        REAL (dbl), PARAMETER :: sq58 = 0.790569415042095_dbl ! sqrt(0.625_dbl)
+    REAL(dbl), PARAMETER :: sq15 = 3.872983346207417_dbl , &
+      sq3 = 1.732050807568877_dbl , sq38 = 0.612372435695794_dbl , &
+      sq58 = 0.790569415042095_dbl 
+
+! sqrt(3._dbl)
+! sqrt(15._dbl)
+! sqrt(0.375_dbl)
+! sqrt(0.625_dbl)
 
         SELECT CASE (l)
         CASE (0)
@@ -75,16 +80,20 @@
       SUBROUTINE dsph(l,r,dgsl)
 ! Derivatives of Spherical Harmonics up to f functions
 ! There is a factor sqrt(4*PI)/sqrt(2*l+1)/R omitted
-        IMPLICIT NONE
-        INTEGER, INTENT (IN) :: l
-        REAL (dbl), INTENT (IN) :: r(3)
-        REAL (dbl), INTENT (OUT) :: dgsl(0:6,1:3)
+    INTEGER, INTENT(IN)                      :: l
+    REAL(dbl), INTENT(IN)                    :: r(3)
+    REAL(dbl), INTENT(OUT)                   :: dgsl(0:6,1:3)
 
-        REAL (dbl), PARAMETER :: sq3 = 1.732050807568877_dbl ! sqrt(3._dbl)
-        REAL (dbl), PARAMETER :: sq15 = 3.872983346207417_dbl ! sqrt(15._dbl)
-        REAL (dbl), PARAMETER :: sq38 = 0.612372435695794_dbl ! sqrt(0.375_dbl)
-        REAL (dbl), PARAMETER :: sq58 = 0.790569415042095_dbl ! sqrt(0.625_dbl)
-        REAL (dbl) :: dc(0:6)
+    REAL(dbl), PARAMETER :: sq15 = 3.872983346207417_dbl , &
+      sq3 = 1.732050807568877_dbl , sq38 = 0.612372435695794_dbl , &
+      sq58 = 0.790569415042095_dbl 
+
+    REAL(dbl)                                :: dc(0:6)
+
+! sqrt(3._dbl)
+! sqrt(15._dbl)
+! sqrt(0.375_dbl)
+! sqrt(0.625_dbl)
 
         SELECT CASE (l)
         CASE (0)
@@ -141,10 +150,10 @@
       END SUBROUTINE dsph
 !------------------------------------------------------------------------------!
       SUBROUTINE out_prod(mat,v1,v2)
-        IMPLICIT NONE
-        REAL (dbl), INTENT (IN) :: v1(:), v2(:)
-        REAL (dbl), INTENT (OUT) :: mat(:,:)
-        INTEGER :: n1, n2, i, j
+    REAL(dbl), INTENT(OUT)                   :: mat(:,:)
+    REAL(dbl), INTENT(IN)                    :: v1(:), v2(:)
+
+    INTEGER                                  :: i, j, n1, n2
 
         n1 = size(v1)
         n2 = size(v2)
@@ -156,11 +165,10 @@
       END SUBROUTINE out_prod
 !------------------------------------------------------------------------------!
       SUBROUTINE out_dprod(dmat,v1,v2,dv1,dv2)
-        IMPLICIT NONE
-        REAL (dbl), INTENT (IN) :: v1(:), v2(:)
-        REAL (dbl), INTENT (IN) :: dv1(:), dv2(:)
-        REAL (dbl), INTENT (OUT) :: dmat(:,:)
-        INTEGER :: n1, n2, i, j
+    REAL(dbl), INTENT(OUT)                   :: dmat(:,:)
+    REAL(dbl), INTENT(IN)                    :: v1(:), v2(:), dv1(:), dv2(:)
+
+    INTEGER                                  :: i, j, n1, n2
 
         n1 = size(v1)
         n2 = size(v2)
@@ -172,11 +180,11 @@
       END SUBROUTINE out_dprod
 !------------------------------------------------------------------------------!
       FUNCTION dpro(g1,g2,l1,l2)
-        IMPLICIT NONE
-        REAL (dbl), INTENT (IN) :: g1(0:6,0:6), g2(0:6,0:6)
-        INTEGER, INTENT (IN) :: l1, l2
-        REAL (dbl) :: dpro
-        INTEGER :: i, j
+    REAL(dbl), INTENT(IN)                    :: g1(0:6,0:6), g2(0:6,0:6)
+    INTEGER, INTENT(IN)                      :: l1, l2
+    REAL(dbl)                                :: dpro
+
+    INTEGER                                  :: i, j
 
         dpro = 0._dbl
         DO i = 0, 2*l2

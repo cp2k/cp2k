@@ -20,23 +20,29 @@
 
 MODULE tbmd_debug
 
-  USE ewald_parameters_types, ONLY : ewald_parameters_type
-  USE fist_force_numer, ONLY : force_nonbond_numer, ewald_energy_numer, &
-       ptens_numer, pvg_numer, potential_g_numer, de_g_numer, &
-       ewald_force_numer
-  USE tbmd_force, ONLY : force_env_types, debug_variables_type
-  USE global_types, ONLY : global_environment_type
-  USE kinds, ONLY : dbl
-  USE linklists, ONLY : dist_constraints, g3x3_constraints
-  USE md, ONLY : thermodynamic_type
-  USE molecule_types, ONLY : molecule_structure_type, particle_node_type
-  USE particle_types, ONLY : particle_type
-  USE pair_potential, ONLY : potentialparm_type
-  USE pw_grid_types, ONLY : pw_grid_type, HALFSPACE
-  USE pw_grids, ONLY : pw_find_cutoff, pw_grid_setup, pw_grid_construct
-  USE simulation_cell, ONLY : cell_type
-  USE termination, ONLY : stop_memory
-  USE linklist_types, ONLY : linklist_internal_data_type
+  USE ewald_parameters_types,          ONLY: ewald_parameters_type
+  USE fist_force_numer,                ONLY: ewald_energy_numer,&
+                                             ewald_force_numer,&
+                                             force_nonbond_numer,&
+                                             ptens_numer,&
+                                             pvg_numer
+  USE global_types,                    ONLY: global_environment_type
+  USE kinds,                           ONLY: dbl
+  USE linklist_types,                  ONLY: linklist_internal_data_type
+  USE md,                              ONLY: thermodynamic_type
+  USE molecule_types,                  ONLY: molecule_structure_type,&
+                                             particle_node_type
+  USE pair_potential,                  ONLY: potentialparm_type
+  USE particle_types,                  ONLY: particle_type
+  USE pw_grid_types,                   ONLY: HALFSPACE,&
+                                             pw_grid_type
+  USE pw_grids,                        ONLY: pw_find_cutoff,&
+                                             pw_grid_construct,&
+                                             pw_grid_setup
+  USE simulation_cell,                 ONLY: cell_type
+  USE tbmd_force,                      ONLY: debug_variables_type,&
+                                             force_env_types
+  USE termination,                     ONLY: stop_memory
 
   IMPLICIT NONE
 
@@ -69,33 +75,34 @@ CONTAINS
 SUBROUTINE debug_control ( globenv, ewald_param, part, pnode, molecule, box, &
      box_ref, thermo, potparm, lldata )
 
-  IMPLICIT NONE
 
-! Arguments
-  TYPE ( global_environment_type ), INTENT ( INOUT ) :: globenv
-  TYPE ( ewald_parameters_type ), INTENT ( INOUT ) :: ewald_param
-  TYPE ( particle_type ), INTENT ( INOUT ), DIMENSION ( : ) :: part
-  TYPE ( particle_node_type ), INTENT ( INOUT ), DIMENSION ( : ) :: pnode
-  TYPE ( potentialparm_type ), INTENT ( IN ), DIMENSION ( :, : ) :: potparm
-  TYPE ( molecule_structure_type ), INTENT ( IN ), DIMENSION ( : ) :: molecule
-  TYPE ( cell_type ), INTENT ( INOUT ) :: box
-  TYPE ( cell_type ), INTENT ( INOUT ) :: box_ref
-  TYPE ( thermodynamic_type ), INTENT ( INOUT ) :: thermo
-  TYPE ( linklist_internal_data_type ) :: lldata
+    TYPE(global_environment_type), &
+      INTENT(INOUT)                          :: globenv
+    TYPE(ewald_parameters_type), &
+      INTENT(INOUT)                          :: ewald_param
+    TYPE(particle_type), DIMENSION(:), &
+      INTENT(INOUT)                          :: part
+    TYPE(particle_node_type), DIMENSION(:), &
+      INTENT(INOUT)                          :: pnode
+    TYPE(molecule_structure_type), &
+      DIMENSION(:), INTENT(IN)               :: molecule
+    TYPE(cell_type), INTENT(INOUT)           :: box, box_ref
+    TYPE(thermodynamic_type), INTENT(INOUT)  :: thermo
+    TYPE(potentialparm_type), &
+      DIMENSION(:, :), INTENT(IN)            :: potparm
+    TYPE(linklist_internal_data_type)        :: lldata
 
-! Locals
-  TYPE ( debug_variables_type ) :: dbg
-  TYPE ( pw_grid_type ) :: ewald_grid
-  INTEGER :: iflag, i, natoms, isos, iatom, iw, ir, npts_s(3), gmax
-  INTEGER, DIMENSION ( 2 ) :: dum
-  REAL ( dbl ) :: delta, energy_numer, cutoff, ecut
-  REAL ( dbl ) :: e_numer, pv_test ( 3, 3 )
-  REAL ( dbl ) :: err1, numer, denom1, vec ( 3 ), e_bc, e_real, energy_tot
-  REAL ( dbl ) :: denom2, err2
-  REAL ( dbl ), DIMENSION ( :, : ), ALLOCATABLE :: f_bc, f_real
-  REAL ( dbl ), DIMENSION ( :, : ), ALLOCATABLE :: f_numer
-  REAL ( dbl ), DIMENSION ( :, : ), ALLOCATABLE :: rel, diff
-  LOGICAL, PARAMETER :: box_change = .FALSE.
+    LOGICAL, PARAMETER                       :: box_change = .FALSE.
+
+    INTEGER                                  :: gmax, i, iflag, ir, isos, iw, &
+                                                natoms, npts_s(3)
+    INTEGER, DIMENSION(2)                    :: dum
+    REAL(dbl)                                :: cutoff, delta, ecut, &
+                                                energy_numer, numer, &
+                                                pv_test( 3, 3 )
+    REAL(dbl), ALLOCATABLE, DIMENSION(:, :)  :: diff, f_numer, rel
+    TYPE(debug_variables_type)               :: dbg
+    TYPE(pw_grid_type)                       :: ewald_grid
 
 !------------------------------------------------------------------------------
 

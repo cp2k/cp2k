@@ -19,36 +19,38 @@
 
 MODULE pol_grids
 
-  USE atomic_kinds, ONLY :  kind_info_type
-  USE ao_types, ONLY : ao_type
-  USE basis_set_types, ONLY :  gto_basis_set_type
-  USE coefficient_lists, ONLY : coef_list_type, coef_list_grid
-  USE dg_types, ONLY : dg_type 
-  USE dgs, ONLY : dg_pol_grid_setup, dg_pme_grid_setup, dg_find_cutoff 
-  USE dg_rho0s, ONLY :  dg_rho0_type, dg_rho0_setup  
-  USE ewald_parameters_types, ONLY : ewald_parameters_type
-  USE ewalds, ONLY : ewald_self
-  USE global_types, ONLY :  global_environment_type
-  USE kinds, ONLY : dbl
-  USE mathconstants, ONLY : pi, zero
-  USE md, ONLY : thermodynamic_type
-  USE molecule_types, ONLY : particle_node_type
-  USE message_passing, ONLY : mp_sum
-  USE particle_types, ONLY : particle_type
-  USE particle_lists, ONLY : particle_list_type, particle_list_grid, &
-                             particle_list_select
-  USE pw_grid_types, ONLY : pw_grid_type, HALFSPACE
-  USE pw_grids, ONLY : pw_find_cutoff, pw_grid_setup, pw_grid_construct
-  USE qs_interactions, ONLY : exp_radius
-  USE realspace_grid_types, ONLY : realspace_grid_type, rs_grid_setup
-  USE simulation_cell, ONLY : cell_type
-  USE structure_factor_types, ONLY : structure_factor_type
-  USE structure_factors, ONLY : structure_factor_evaluate, &
-                                structure_factor_allocate, &
-                                structure_factor_deallocate
-  USE termination, ONLY : stop_memory, stop_program
-  USE timings, ONLY : timeset, timestop
-  USE util, ONLY : matvec_3x3
+  USE ao_types,                        ONLY: ao_type
+  USE atomic_kinds,                    ONLY: kind_info_type
+  USE basis_set_types,                 ONLY: gto_basis_set_type
+  USE coefficient_lists,               ONLY: coef_list_grid
+  USE dg_rho0s,                        ONLY: dg_rho0_setup
+  USE dg_types,                        ONLY: dg_type
+  USE dgs,                             ONLY: dg_find_cutoff,&
+                                             dg_pme_grid_setup,&
+                                             dg_pol_grid_setup
+  USE ewald_parameters_types,          ONLY: ewald_parameters_type
+  USE ewalds,                          ONLY: ewald_self
+  USE global_types,                    ONLY: global_environment_type
+  USE kinds,                           ONLY: dbl
+  USE mathconstants,                   ONLY: pi
+  USE md,                              ONLY: thermodynamic_type
+  USE molecule_types,                  ONLY: particle_node_type
+  USE particle_lists,                  ONLY: particle_list_grid,&
+                                             particle_list_select
+  USE particle_types,                  ONLY: particle_type
+  USE pw_grid_types,                   ONLY: HALFSPACE,&
+                                             pw_grid_type
+  USE pw_grids,                        ONLY: pw_find_cutoff,&
+                                             pw_grid_construct,&
+                                             pw_grid_setup
+  USE qs_interactions,                 ONLY: exp_radius
+  USE realspace_grid_types,            ONLY: realspace_grid_type,&
+                                             rs_grid_setup
+  USE simulation_cell,                 ONLY: cell_type
+  USE termination,                     ONLY: stop_memory,&
+                                             stop_program
+  USE timings,                         ONLY: timeset,&
+                                             timestop
 
   IMPLICIT NONE
 
@@ -76,19 +78,13 @@ CONTAINS
   SUBROUTINE pol_grids_allocate ( dg_coef, dg_atom, small_grid, big_grid, & 
                    ntc, nta, ng )
   
-  IMPLICIT NONE
 
-! Arguments
-  TYPE ( dg_type ), POINTER, DIMENSION (:) :: dg_coef
-  TYPE ( dg_type ), POINTER, DIMENSION (:) :: dg_atom
-  TYPE ( pw_grid_type ), POINTER, DIMENSION (:) :: small_grid
-  TYPE ( pw_grid_type ), POINTER, DIMENSION (:) :: big_grid
-  INTEGER, intent(IN) :: ntc
-  INTEGER, intent(IN) :: nta
-  INTEGER, intent(IN) :: ng
-  
-! Locals
-  INTEGER ::  ios                                         
+    TYPE(dg_type), DIMENSION(:), POINTER     :: dg_coef, dg_atom
+    TYPE(pw_grid_type), DIMENSION(:), &
+      POINTER                                :: small_grid, big_grid
+    INTEGER, intent(IN)                      :: ntc, nta, ng
+
+    INTEGER                                  :: ios
 
 !---------------------------------------------
 
@@ -133,18 +129,14 @@ CONTAINS
 
 SUBROUTINE pol_grids_count ( drho_basis_info, rho0_basis_info, ngc, nga, ntc, nta )
   
-  IMPLICIT NONE
   
-  TYPE ( kind_info_type ), INTENT(IN), DIMENSION ( : ) :: drho_basis_info
-  TYPE ( kind_info_type ), INTENT(IN), DIMENSION ( : ) :: rho0_basis_info
-  INTEGER, INTENT ( OUT ) :: ngc
-  INTEGER, INTENT ( OUT ) :: nga
-  INTEGER, INTENT ( OUT ) :: ntc
-  INTEGER, INTENT ( OUT ) :: nta
+    TYPE(kind_info_type), DIMENSION(:), &
+      INTENT(IN)                             :: drho_basis_info, &
+                                                rho0_basis_info
+    INTEGER, INTENT(OUT)                     :: ngc, nga, ntc, nta
 
-! locals
-
-  INTEGER :: i, iset,  nshell_set, ishell, nkinda, nkindc
+    INTEGER                                  :: i, iset, ishell, nkinda, &
+                                                nkindc, nshell_set
 
   nkindc = size(drho_basis_info)
   nkinda = size(rho0_basis_info)
@@ -197,15 +189,15 @@ SUBROUTINE pol_grids_count ( drho_basis_info, rho0_basis_info, ngc, nga, ntc, nt
 
 SUBROUTINE pol_grids_map ( dg, ki, igrid )
 
-  IMPLICIT NONE
   
-  TYPE ( dg_type ), POINTER, DIMENSION ( : ) :: dg
-  TYPE ( kind_info_type ), POINTER, DIMENSION ( : )  :: ki
-  INTEGER, INTENT ( INOUT ) :: igrid
+    TYPE(dg_type), DIMENSION(:), POINTER     :: dg
+    TYPE(kind_info_type), DIMENSION(:), &
+      POINTER                                :: ki
+    INTEGER, INTENT(INOUT)                   :: igrid
 
-! locals
-  INTEGER :: igt, ikind, iset, ishell, nshell, ncc, icc, ios, ip
-  TYPE ( gto_basis_set_type ), POINTER :: gto_info
+    INTEGER                                  :: icc, igt, ikind, ios, ip, &
+                                                iset, ishell, ncc, nshell
+    TYPE(gto_basis_set_type), POINTER        :: gto_info
 
   igt = 0
   
@@ -318,29 +310,27 @@ SUBROUTINE pol_grids_map ( dg, ki, igrid )
 SUBROUTINE pol_grids_ref_grid ( dg_coef, dg_atom, drho_basis_info, rho0_basis_info, box, &
                              small_grid, big_grid, iref, npts_max, cutoff_radius_max, max_cut )
   
-  IMPLICIT NONE
 
-! Arguments
-  TYPE ( dg_type ), INTENT ( OUT ), DIMENSION (:) :: dg_coef
-  TYPE ( dg_type ), INTENT ( OUT ), DIMENSION (:) :: dg_atom
-  TYPE ( kind_info_type ), POINTER, DIMENSION ( : ) :: drho_basis_info
-  TYPE ( kind_info_type ), POINTER, DIMENSION ( : ) :: rho0_basis_info
-  TYPE ( cell_type ), INTENT ( IN ) :: box
-  TYPE ( pw_grid_type ), INTENT ( INOUT ), DIMENSION (:) :: small_grid
-  TYPE ( pw_grid_type ), INTENT ( INOUT ), DIMENSION (:) :: big_grid
-  INTEGER, INTENT (OUT) :: iref
-  INTEGER, INTENT (OUT) :: npts_max ( : )
-  REAL ( dbl ), INTENT ( OUT ) :: cutoff_radius_max, max_cut
-  
-! Locals
-  INTEGER ::  npts_s ( 3 )
-  INTEGER :: igt, ikind, igrid, ig, igrid_old
-  REAL ( dbl ) :: i, cutoff, cutoff_radius, max_cut0
-  TYPE (kind_info_type), POINTER :: ki
+    TYPE(dg_type), DIMENSION(:), INTENT(OUT) :: dg_coef, dg_atom
+    TYPE(kind_info_type), DIMENSION(:), &
+      POINTER                                :: drho_basis_info, &
+                                                rho0_basis_info
+    TYPE(cell_type), INTENT(IN)              :: box
+    TYPE(pw_grid_type), DIMENSION(:), &
+      INTENT(INOUT)                          :: small_grid, big_grid
+    INTEGER, INTENT(OUT)                     :: iref, npts_max( : )
+    REAL(dbl), INTENT(OUT)                   :: cutoff_radius_max, max_cut
+
+    INTEGER                                  :: igrid, igrid_old, igt, ikind, &
+                                                npts_s( 3 )
+    REAL(dbl)                                :: cutoff, cutoff_radius, &
+                                                max_cut0
+    TYPE(kind_info_type), POINTER            :: ki
 
 !------------------------------------------------------------------------------
 ! initialize igrid_old to negative number as to not
 ! be activated by accident
+
   igrid_old = -1
 
 ! set up grids
@@ -422,38 +412,38 @@ SUBROUTINE pol_grids_initialize ( ewald_param, dg_coef, dg_atom, part, &
      small_grid, big_grid, iref, npts_max, cutoff_radius_max,  &
      pme_small_grid, pme_big_grid, ewald_grid, dg_ewald, ref_grid )
   
-  IMPLICIT NONE
 
-! Arguments
-  TYPE ( ewald_parameters_type ), INTENT ( INOUT ) :: ewald_param
-  TYPE ( dg_type ), INTENT ( OUT ), DIMENSION (:) :: dg_coef
-  TYPE ( dg_type ), INTENT ( OUT ), DIMENSION (:) :: dg_atom
-  TYPE ( particle_type ), DIMENSION ( : ), INTENT ( INOUT ) :: part
-  TYPE ( particle_node_type ), DIMENSION ( : ), INTENT ( IN ) :: pnode
-  TYPE ( thermodynamic_type ), INTENT ( INOUT ) :: thermo
-  TYPE ( ao_type ), INTENT (inout) :: ao
-  TYPE ( kind_info_type ), POINTER, DIMENSION ( : ) :: drho_basis_info
-  TYPE ( kind_info_type ), POINTER, DIMENSION ( : ) :: rho0_basis_info
-  TYPE ( global_environment_type ), INTENT ( IN ) :: pnode_grp
-  TYPE ( cell_type ), INTENT ( IN ) :: box
-  TYPE ( pw_grid_type ), INTENT ( INOUT ), DIMENSION (:) :: small_grid
-  TYPE ( pw_grid_type ), INTENT ( INOUT ), DIMENSION (:) :: big_grid
-  INTEGER, INTENT (IN) :: iref, npts_max ( 3 )
-  REAL ( dbl ), INTENT ( IN ) :: cutoff_radius_max
-  TYPE ( pw_grid_type ), POINTER, OPTIONAL :: pme_small_grid
-  TYPE ( pw_grid_type ), POINTER, OPTIONAL :: pme_big_grid
-  TYPE ( pw_grid_type ), POINTER, OPTIONAL :: ewald_grid
-  TYPE ( dg_type ), POINTER, OPTIONAL :: dg_ewald
-  TYPE ( pw_grid_type ), INTENT ( IN ), OPTIONAL :: ref_grid
-  
-! Locals
-  INTEGER ::  natoms, npts_s ( 3 ), iw
-  INTEGER :: igt, ikind, igrid, ig, igrid_old
-  INTEGER :: gmax, isos
-  REAL ( dbl ) :: i, cutoff, cutoff_radius
-  REAL ( dbl ) :: norm, alphasq, ecut
-  TYPE (kind_info_type), POINTER :: ki
-  TYPE ( realspace_grid_type ) :: rs 
+    TYPE(ewald_parameters_type), &
+      INTENT(INOUT)                          :: ewald_param
+    TYPE(dg_type), DIMENSION(:), INTENT(OUT) :: dg_coef, dg_atom
+    TYPE(particle_type), DIMENSION(:), &
+      INTENT(INOUT)                          :: part
+    TYPE(particle_node_type), DIMENSION(:), &
+      INTENT(IN)                             :: pnode
+    TYPE(thermodynamic_type), INTENT(INOUT)  :: thermo
+    TYPE(ao_type), INTENT(inout)             :: ao
+    TYPE(kind_info_type), DIMENSION(:), &
+      POINTER                                :: drho_basis_info, &
+                                                rho0_basis_info
+    TYPE(global_environment_type), &
+      INTENT(IN)                             :: pnode_grp
+    TYPE(cell_type), INTENT(IN)              :: box
+    TYPE(pw_grid_type), DIMENSION(:), &
+      INTENT(INOUT)                          :: small_grid, big_grid
+    INTEGER, INTENT(IN)                      :: iref, npts_max( 3 )
+    REAL(dbl), INTENT(IN)                    :: cutoff_radius_max
+    TYPE(pw_grid_type), OPTIONAL, POINTER    :: pme_small_grid, pme_big_grid, &
+                                                ewald_grid
+    TYPE(dg_type), OPTIONAL, POINTER         :: dg_ewald
+    TYPE(pw_grid_type), INTENT(IN), OPTIONAL :: ref_grid
+
+    INTEGER                                  :: gmax, igrid, igrid_old, igt, &
+                                                ikind, isos, iw, natoms, &
+                                                npts_s( 3 )
+    REAL(dbl)                                :: alphasq, cutoff, &
+                                                cutoff_radius, ecut, norm
+    TYPE(kind_info_type), POINTER            :: ki
+    TYPE(realspace_grid_type)                :: rs
 
   iw = pnode_grp % scr 
 ! first: setup the reference grid
@@ -705,17 +695,17 @@ END SUBROUTINE pol_grids_initialize
 !******************************************************************************
  SUBROUTINE assign_coefs_to_grids( ao, part, ki, ngt )
 
-  IMPLICIT NONE
   
-  TYPE (ao_type), INTENT (INOUT) :: ao
-  TYPE (particle_type), INTENT(IN), DIMENSION (:) :: part
-  TYPE (kind_info_type), DIMENSION (:), INTENT(IN) :: ki
-  INTEGER, INTENT(IN) :: ngt
+    TYPE(ao_type), INTENT(INOUT)             :: ao
+    TYPE(particle_type), DIMENSION(:), &
+      INTENT(IN)                             :: part
+    TYPE(kind_info_type), DIMENSION(:), &
+      INTENT(IN)                             :: ki
+    INTEGER, INTENT(IN)                      :: ngt
 
-! locals 
-  INTEGER :: ngrid_types, ngrid, ngrid_types_kind, ngrid_kind, first_cgf, last_cgf 
-  INTEGER :: ii, icoef, icgf, ikind, nshell, ncgf, ipart, iset, ishell
-  INTEGER :: grid_type_identifier, grid_identifier        
+    INTEGER :: first_cgf, grid_identifier, grid_type_identifier, icgf, icoef, &
+      ii, ikind, ipart, iset, ishell, last_cgf, ncgf, ngrid, ngrid_kind, &
+      ngrid_types, ngrid_types_kind, nshell
 
   ngrid_types = 0
   ngrid = 0

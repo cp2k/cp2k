@@ -22,10 +22,10 @@
 
 MODULE ao_types
   
-  USE kinds, ONLY : dbl
-  USE structure_factor_types, ONLY : structure_factor_type
-  USE termination, ONLY : stop_memory, stop_program
-  USE timings, ONLY : timeset, timestop
+  USE kinds,                           ONLY: dbl
+  USE termination,                     ONLY: stop_memory
+  USE timings,                         ONLY: timeset,&
+                                             timestop
 
   IMPLICIT NONE
 
@@ -75,16 +75,16 @@ CONTAINS
 
 SUBROUTINE ao_allocate ( ao, ncoefs, mass_flag, grid_flag, eigr_flag )
 
-  IMPLICIT NONE
 
-! Arguments
-  TYPE ( ao_type ), INTENT ( INOUT ), TARGET :: ao
-  INTEGER, INTENT ( IN ) :: ncoefs
-  LOGICAL, INTENT ( IN ), OPTIONAL :: mass_flag, grid_flag, eigr_flag
+    TYPE(ao_type), INTENT(INOUT), TARGET     :: ao
+    INTEGER, INTENT(IN)                      :: ncoefs
+    LOGICAL, INTENT(IN), OPTIONAL            :: mass_flag, grid_flag, &
+                                                eigr_flag
 
-! Locals
-  INTEGER :: allocstat
-  LOGICAL :: local_mass_flag, local_grid_flag, local_eigr_flag
+    INTEGER                                  :: allocstat
+    LOGICAL                                  :: local_eigr_flag, &
+                                                local_grid_flag, &
+                                                local_mass_flag
 
 !------------------------------------------------------------------------------
 
@@ -174,13 +174,10 @@ END SUBROUTINE ao_allocate
 
 SUBROUTINE ao_deallocate ( ao )
 
-  IMPLICIT NONE
 
-! Arguments
-  TYPE ( ao_type ), INTENT ( INOUT ) :: ao
+    TYPE(ao_type), INTENT(INOUT)             :: ao
 
-! Locals
-  INTEGER :: allocstat
+    INTEGER                                  :: allocstat
 
 !------------------------------------------------------------------------------
 
@@ -255,14 +252,11 @@ END SUBROUTINE ao_deallocate
 
 SUBROUTINE ao_zero ( ao )
 
-  IMPLICIT NONE
 
-! Arguments
-  TYPE ( ao_type ), INTENT ( INOUT ) :: ao
+    TYPE(ao_type), INTENT(INOUT)             :: ao
 
-! Local
-  INTEGER :: ns, handle
-  REAL ( dbl ) :: zr
+    INTEGER                                  :: handle, ns
+    REAL(dbl)                                :: zr
 
 !------------------------------------------------------------------------------
 

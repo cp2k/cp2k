@@ -27,22 +27,17 @@
 MODULE qs_charges_types
   USE cp_error_handling,               ONLY: cp_a_l,&
                                              cp_assert,&
-                                             cp_assertion_failed,&
-                                             cp_debug,&
-                                             cp_error_dealloc_ref,&
-                                             cp_error_init,&
                                              cp_error_message,&
-                                             cp_error_type,&
-                                             cp_internal_error
+                                             cp_error_type
   USE cp_log_handling,                 ONLY: cp_failure_level,&
                                              cp_fatal_level,&
                                              cp_note_level,&
                                              cp_to_string,&
                                              cp_warning_level
-  USE global_types,                    ONLY: global_environment_type
   USE kinds,                           ONLY: dp
   USE timings,                         ONLY: timeset,&
                                              timestop
+
   IMPLICIT NONE
   PRIVATE
 
@@ -123,16 +118,19 @@ CONTAINS
 !!*** **********************************************************************
 SUBROUTINE qs_charges_create(qs_charges,nspins,total_rho_core_rspace, &
      total_rho_gspace, error)
-  TYPE(qs_charges_type), POINTER :: qs_charges
-  INTEGER, INTENT(in) :: nspins
-  REAL (KIND = dp), INTENT(in), OPTIONAL :: total_rho_core_rspace, &
-       total_rho_gspace
-  TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
-  
-  LOGICAL :: failure
-  CHARACTER(len=*), PARAMETER :: routineN='qs_charges_create',&
-        routineP=moduleN//':'//routineN
-  INTEGER :: stat
+    TYPE(qs_charges_type), POINTER           :: qs_charges
+    INTEGER, INTENT(in)                      :: nspins
+    REAL(KIND=dp), INTENT(in), OPTIONAL      :: total_rho_core_rspace, &
+                                                total_rho_gspace
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'qs_charges_create', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: stat
+    LOGICAL                                  :: failure
+
   failure=.FALSE.
   
   ALLOCATE(qs_charges, stat=stat)
@@ -179,12 +177,15 @@ END SUBROUTINE qs_charges_create
 !!
 !!*** **********************************************************************
 SUBROUTINE qs_charges_retain(qs_charges, error)
-  TYPE(qs_charges_type), POINTER :: qs_charges
-  TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
-  
-  LOGICAL :: failure
-  CHARACTER(len=*), PARAMETER :: routineN='qs_charges_retain',&
-        routineP=moduleN//':'//routineN
+    TYPE(qs_charges_type), POINTER           :: qs_charges
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'qs_charges_retain', &
+      routineP = moduleN//':'//routineN
+
+    LOGICAL                                  :: failure
+
   failure=.FALSE.
   
   CPPrecondition(ASSOCIATED(qs_charges),cp_failure_level,routineP,error,failure)
@@ -225,13 +226,16 @@ END SUBROUTINE qs_charges_retain
 !!
 !!*** **********************************************************************
 SUBROUTINE qs_charges_release(qs_charges, error)
-  TYPE(qs_charges_type), POINTER :: qs_charges
-  TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
-  
-  LOGICAL :: failure
-  CHARACTER(len=*), PARAMETER :: routineN='qs_charges_release',&
-        routineP=moduleN//':'//routineN
-  INTEGER :: stat
+    TYPE(qs_charges_type), POINTER           :: qs_charges
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'qs_charges_release', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: stat
+    LOGICAL                                  :: failure
+
   failure=.FALSE.
   
   IF (ASSOCIATED(qs_charges)) THEN

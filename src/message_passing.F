@@ -29,6 +29,7 @@ MODULE message_passing
   USE kinds,                           ONLY: dbl
   USE machine,                         ONLY: m_cputime
   USE parallel_include
+
   IMPLICIT NONE
 
   PRIVATE
@@ -129,10 +130,8 @@ CONTAINS
 !..mp_start
 SUBROUTINE mp_start()
 
-  IMPLICIT NONE
 
-! Locals
-  INTEGER :: ierr, i
+    INTEGER                                  :: i, ierr
 
   ierr = 0
 #if defined(__parallel)
@@ -160,13 +159,12 @@ END SUBROUTINE mp_start
 !..mp_end
 SUBROUTINE mp_end ( scr )
 
-  IMPLICIT NONE
 
-! Arguments
-  INTEGER, INTENT ( IN ), OPTIONAL :: scr
-! Locals
-  INTEGER :: ierr, i, iw, numtask, taskid, groupid
-  REAL ( dbl ) :: vol, per
+    INTEGER, INTENT(IN), OPTIONAL            :: scr
+
+    INTEGER                                  :: groupid, i, ierr, iw, &
+                                                numtask, taskid
+    REAL(dbl)                                :: per, vol
 
   ierr = 0
 #if defined(__parallel)
@@ -253,8 +251,7 @@ END SUBROUTINE mp_stop
 !..mp_abort
 SUBROUTINE mp_abort ( )
 
-! Locals
-  INTEGER :: numtask, taskid, groupid
+    INTEGER                                  :: groupid, numtask, taskid
 
   CALL mp_world_setup ( numtask, taskid, groupid )
 
@@ -299,13 +296,10 @@ END SUBROUTINE mp_sync
 !..mp_world_setup
 SUBROUTINE mp_world_setup ( numtask, taskid, groupid )
 
-  IMPLICIT NONE
 
-! Arguments
-  INTEGER, INTENT ( OUT ) :: numtask, taskid, groupid
+    INTEGER, INTENT(OUT)                     :: numtask, taskid, groupid
 
-! Locals
-  INTEGER :: ierr
+    INTEGER                                  :: ierr
 
   ierr = 0
   numtask = 1
@@ -327,14 +321,11 @@ END SUBROUTINE mp_world_setup
 !..mp_environ
 SUBROUTINE mp_environ_l ( numtask, taskid, groupid )
 
-  IMPLICIT NONE
 
-! Arguments
-  INTEGER, INTENT ( IN ) :: groupid
-  INTEGER, INTENT ( OUT ) :: numtask, taskid
+    INTEGER, INTENT(OUT)                     :: numtask, taskid
+    INTEGER, INTENT(IN)                      :: groupid
 
-! Locals
-  INTEGER :: ierr
+    INTEGER                                  :: ierr
 
   ierr = 0
   numtask = 1
@@ -351,15 +342,13 @@ END SUBROUTINE mp_environ_l
 
 SUBROUTINE mp_environ_c ( numtask, dims, task_coor, groupid )
 
-  IMPLICIT NONE
 
-! Arguments
-  INTEGER, INTENT ( IN ) :: groupid
-  INTEGER, INTENT ( OUT ) :: numtask, task_coor ( 2 ), dims ( 2 )
+    INTEGER, INTENT(OUT)                     :: numtask, dims( 2 ), &
+                                                task_coor( 2 )
+    INTEGER, INTENT(IN)                      :: groupid
 
-! Locals
-  INTEGER :: ierr, rank
-  LOGICAL :: periods ( 2 )
+    INTEGER                                  :: ierr
+    LOGICAL                                  :: periods( 2 )
 
   ierr = 0
   numtask = 1
@@ -380,14 +369,12 @@ END SUBROUTINE mp_environ_c
 !..mp_group
 SUBROUTINE mp_group(group_list,group_size,base_group,groupid)
 
-  IMPLICIT NONE
 
-! Arguments
-  INTEGER, INTENT ( IN ) :: group_list ( : ), group_size, base_group
-  INTEGER, INTENT ( OUT ) :: groupid
+    INTEGER, INTENT(IN)                      :: group_list( : ), group_size, &
+                                                base_group
+    INTEGER, INTENT(OUT)                     :: groupid
 
-! Locals
-  INTEGER :: base, newgroup, ierr
+    INTEGER                                  :: base, ierr, newgroup
 
   ierr = 0
   groupid = base_group
@@ -413,16 +400,13 @@ END SUBROUTINE mp_group
 !..mp_cart_create
 SUBROUTINE mp_cart_create ( comm_old, ndims, dims, pos, comm_cart )
 
-  IMPLICIT NONE
 
-! Arguments
-  INTEGER, INTENT ( IN ) :: comm_old, ndims
-  INTEGER, INTENT ( INOUT ) :: dims ( : )
-  INTEGER, INTENT ( OUT ) :: pos ( : ), comm_cart
+    INTEGER, INTENT(IN)                      :: comm_old, ndims
+    INTEGER, INTENT(INOUT)                   :: dims( : )
+    INTEGER, INTENT(OUT)                     :: pos( : ), comm_cart
 
-! Locals
-  INTEGER :: ierr, nodes
-  LOGICAL :: period(1:ndims), reorder
+    INTEGER                                  :: ierr, nodes
+    LOGICAL                                  :: period(1:ndims), reorder
 
   ierr = 0
   pos ( 1:ndims ) = 1
@@ -459,14 +443,11 @@ END SUBROUTINE mp_cart_create
 !..mp_cart_coords 
 SUBROUTINE mp_cart_coords ( comm, rank, coords)
 
-  IMPLICIT NONE
 
-! Arguments
-  INTEGER, INTENT ( IN ) :: comm, rank
-  INTEGER, DIMENSION ( : ), INTENT ( OUT ) :: coords
+    INTEGER, INTENT(IN)                      :: comm, rank
+    INTEGER, DIMENSION(:), INTENT(OUT)       :: coords
 
-! Locals
-  INTEGER :: ierr, m
+    INTEGER                                  :: ierr, m
 
   ierr = 0
   m = SIZE ( coords )
@@ -484,14 +465,11 @@ END SUBROUTINE mp_cart_coords
 !..mp_cart_shift
 SUBROUTINE mp_cart_shift ( comm, dir, disp, source, dest )
 
-  IMPLICIT NONE
 
-! Arguments
-  INTEGER, INTENT ( IN ) :: comm, dir, disp
-  INTEGER, INTENT ( OUT ) :: source, dest
+    INTEGER, INTENT(IN)                      :: comm, dir, disp
+    INTEGER, INTENT(OUT)                     :: source, dest
 
-! Locals
-  INTEGER :: ierr
+    INTEGER                                  :: ierr
 
   ierr = 0
 #if defined(__parallel)
@@ -509,14 +487,11 @@ END SUBROUTINE mp_cart_shift
 !..mp_comm_compare
 SUBROUTINE mp_comm_compare ( comm1, comm2, RESULT)
 
-  IMPLICIT NONE
 
-! Arguments
-  INTEGER, INTENT ( IN ) :: comm1, comm2
-  INTEGER, INTENT ( OUT ) :: RESULT
+    INTEGER, INTENT(IN)                      :: comm1, comm2
+    INTEGER, INTENT(OUT)                     :: RESULT
 
-! Locals
-  INTEGER :: ierr, iout
+    INTEGER                                  :: ierr, iout
 
   ierr = 0
   RESULT = 0
@@ -533,15 +508,12 @@ END SUBROUTINE mp_comm_compare
 !..mp_cart_sub
 SUBROUTINE mp_cart_sub ( comm, rdim, sub_comm )
 
-  IMPLICIT NONE
 
-! Arguments
-  INTEGER, INTENT ( IN ) :: comm
-  LOGICAL, DIMENSION ( : ), INTENT ( IN ) :: rdim
-  INTEGER, INTENT ( OUT ) :: sub_comm
+    INTEGER, INTENT(IN)                      :: comm
+    LOGICAL, DIMENSION(:), INTENT(IN)        :: rdim
+    INTEGER, INTENT(OUT)                     :: sub_comm
 
-! Locals
-  INTEGER :: ierr
+    INTEGER                                  :: ierr
 
   ierr = 0
   sub_comm = 0
@@ -557,13 +529,10 @@ END SUBROUTINE mp_cart_sub
 !..mp_comm_free
 SUBROUTINE mp_comm_free ( comm )
 
-  IMPLICIT NONE
 
-! Arguments
-  INTEGER, INTENT ( IN ) :: comm
+    INTEGER, INTENT(IN)                      :: comm
 
-! Locals
-  INTEGER :: ierr
+    INTEGER                                  :: ierr
 
   ierr = 0
 #if defined(__parallel)
@@ -578,14 +547,11 @@ END SUBROUTINE mp_comm_free
 !..mp_comm_dup
 SUBROUTINE mp_comm_dup ( comm1, comm2 )
 
-  IMPLICIT NONE
 
-! Arguments
-  INTEGER, INTENT ( IN ) :: comm1
-  INTEGER, INTENT ( OUT ) :: comm2
+    INTEGER, INTENT(IN)                      :: comm1
+    INTEGER, INTENT(OUT)                     :: comm2
 
-! Locals
-  INTEGER :: ierr
+    INTEGER                                  :: ierr
 
   ierr = 0
 #if defined(__parallel)
@@ -602,15 +568,12 @@ END SUBROUTINE mp_comm_dup
 !..mp_rank_compare
 SUBROUTINE mp_rank_compare ( comm1, comm2, rank )
 
-  IMPLICIT NONE
 
-! Arguments
-  INTEGER, INTENT ( IN ) :: comm1, comm2
-  INTEGER, DIMENSION ( : ), INTENT ( OUT ) :: rank
+    INTEGER, INTENT(IN)                      :: comm1, comm2
+    INTEGER, DIMENSION(:), INTENT(OUT)       :: rank
 
-! Locals
-  INTEGER :: ierr, n1, n2, n, g1, g2, i
-  INTEGER, DIMENSION ( : ), ALLOCATABLE :: rin
+    INTEGER                                  :: g1, g2, i, ierr, n, n1, n2
+    INTEGER, ALLOCATABLE, DIMENSION(:)       :: rin
 
   ierr = 0
   rank = 0
@@ -831,16 +794,13 @@ END SUBROUTINE mp_cart_rank
 
 SUBROUTINE mp_alltoall_i11v ( sb, scount, sdispl, rb, rcount, rdispl, group )
 
-  IMPLICIT NONE
 
-! Arguments
-  INTEGER, DIMENSION ( : ), INTENT ( IN ) :: sb
-  INTEGER, DIMENSION ( : ), INTENT ( OUT ) :: rb
-  INTEGER, DIMENSION ( : ), INTENT ( IN ) :: scount, sdispl,rcount, rdispl
-  INTEGER, INTENT ( IN ) :: group
+    INTEGER, DIMENSION(:), INTENT(IN)        :: sb, scount, sdispl
+    INTEGER, DIMENSION(:), INTENT(OUT)       :: rb
+    INTEGER, DIMENSION(:), INTENT(IN)        :: rcount, rdispl
+    INTEGER, INTENT(IN)                      :: group
 
-! Locals
-  INTEGER :: ierr, msglen
+    INTEGER                                  :: ierr, msglen
 
   ierr = 0
 #if defined(__parallel)
@@ -861,16 +821,14 @@ END SUBROUTINE mp_alltoall_i11v
 
 SUBROUTINE mp_alltoall_r11v ( sb, scount, sdispl, rb, rcount, rdispl, group )
 
-  IMPLICIT NONE
 
-! Arguments
-  REAL(dbl), DIMENSION ( : ), INTENT ( IN ) :: sb
-  REAL(dbl), DIMENSION ( : ), INTENT ( OUT ) :: rb
-  INTEGER, DIMENSION ( : ), INTENT ( IN ) :: scount, sdispl,rcount, rdispl
-  INTEGER, INTENT ( IN ) :: group
+    REAL(dbl), DIMENSION(:), INTENT(IN)      :: sb
+    INTEGER, DIMENSION(:), INTENT(IN)        :: scount, sdispl
+    REAL(dbl), DIMENSION(:), INTENT(OUT)     :: rb
+    INTEGER, DIMENSION(:), INTENT(IN)        :: rcount, rdispl
+    INTEGER, INTENT(IN)                      :: group
 
-! Locals
-  INTEGER :: ierr, msglen
+    INTEGER                                  :: ierr, msglen
 
   ierr = 0
 #if defined(__parallel)
@@ -893,16 +851,16 @@ END SUBROUTINE mp_alltoall_r11v
 !..mp_alltoall
 SUBROUTINE mp_alltoall_c22v ( sb, scount, sdispl, rb, rcount, rdispl, group )
 
-  IMPLICIT NONE
 
-! Arguments
-  COMPLEX ( dbl ), DIMENSION ( :, : ), INTENT ( IN ) :: sb
-  COMPLEX ( dbl ), DIMENSION ( :, : ), INTENT ( OUT ) :: rb
-  INTEGER, DIMENSION ( : ), INTENT ( IN ) :: scount, sdispl,rcount, rdispl
-  INTEGER, INTENT ( IN ) :: group
+    COMPLEX(dbl), DIMENSION(:, :), &
+      INTENT(IN)                             :: sb
+    INTEGER, DIMENSION(:), INTENT(IN)        :: scount, sdispl
+    COMPLEX(dbl), DIMENSION(:, :), &
+      INTENT(OUT)                            :: rb
+    INTEGER, DIMENSION(:), INTENT(IN)        :: rcount, rdispl
+    INTEGER, INTENT(IN)                      :: group
 
-! Locals
-  INTEGER :: ierr, msglen
+    INTEGER                                  :: ierr, msglen
 
   ierr = 0
 #if defined(__parallel)
@@ -923,15 +881,12 @@ END SUBROUTINE mp_alltoall_c22v
 
 SUBROUTINE mp_alltoall_i ( sb, rb, count, group )
 
-  IMPLICIT NONE
 
-! Arguments
-  INTEGER, DIMENSION ( : ), INTENT ( IN ) :: sb
-  INTEGER, DIMENSION ( : ), INTENT ( OUT ) :: rb
-  INTEGER, INTENT ( IN ) :: count, group
+    INTEGER, DIMENSION(:), INTENT(IN)        :: sb
+    INTEGER, DIMENSION(:), INTENT(OUT)       :: rb
+    INTEGER, INTENT(IN)                      :: count, group
 
-! Locals
-  INTEGER :: ierr, msglen, np
+    INTEGER                                  :: ierr, msglen, np
 
   ierr = 0
 #if defined(__parallel)
@@ -956,10 +911,9 @@ END SUBROUTINE mp_alltoall_i
 
 !..mp_bcast
 SUBROUTINE mp_bcast_i1(msg,source,gid)
-  IMPLICIT NONE
-  INTEGER :: msg
-  INTEGER :: source, gid
-  INTEGER :: msglen, ierr
+    INTEGER                                  :: msg, source, gid
+
+    INTEGER                                  :: ierr, msglen
 
   ierr = 0
   msglen = 1
@@ -974,10 +928,9 @@ SUBROUTINE mp_bcast_i1(msg,source,gid)
 #endif
 END SUBROUTINE mp_bcast_i1
 SUBROUTINE mp_bcast_iv(msg,source,gid)
-  IMPLICIT NONE
-  INTEGER :: msg ( : )
-  INTEGER :: source, gid
-  INTEGER :: msglen, ierr
+    INTEGER                                  :: msg( : ), source, gid
+
+    INTEGER                                  :: ierr, msglen
 
   ierr = 0
   msglen = SIZE(msg)
@@ -992,10 +945,9 @@ SUBROUTINE mp_bcast_iv(msg,source,gid)
 #endif
 END SUBROUTINE mp_bcast_iv
 SUBROUTINE mp_bcast_im(msg,source,gid)
-  IMPLICIT NONE
-  INTEGER :: msg ( :, : )
-  INTEGER :: source, gid
-  INTEGER :: msglen, ierr
+    INTEGER                                  :: msg( :, : ), source, gid
+
+    INTEGER                                  :: ierr, msglen
 
   ierr = 0
   msglen = SIZE(msg)
@@ -1010,10 +962,10 @@ SUBROUTINE mp_bcast_im(msg,source,gid)
 #endif
 END SUBROUTINE mp_bcast_im
 SUBROUTINE mp_bcast_r1(msg,source,gid)
-  IMPLICIT NONE
-  REAL ( dbl ) :: msg
-  INTEGER :: msglen, source, gid
-  INTEGER :: ierr
+    REAL(dbl)                                :: msg
+    INTEGER                                  :: source, gid
+
+    INTEGER                                  :: ierr, msglen
 
   ierr = 0
   msglen = 1
@@ -1028,10 +980,10 @@ SUBROUTINE mp_bcast_r1(msg,source,gid)
 #endif
 END SUBROUTINE mp_bcast_r1
 SUBROUTINE mp_bcast_rv(msg,source,gid)
-  IMPLICIT NONE
-  REAL ( dbl ) :: msg ( : )
-  INTEGER :: source, gid
-  INTEGER :: msglen, ierr
+    REAL(dbl)                                :: msg( : )
+    INTEGER                                  :: source, gid
+
+    INTEGER                                  :: ierr, msglen
 
   ierr = 0
   msglen = SIZE(msg)
@@ -1046,10 +998,10 @@ SUBROUTINE mp_bcast_rv(msg,source,gid)
 #endif
 END SUBROUTINE mp_bcast_rv
 SUBROUTINE mp_bcast_rm(msg,source,gid)
-  IMPLICIT NONE
-  REAL ( dbl ) :: msg ( :, : )
-  INTEGER :: source, gid
-  INTEGER :: msglen, ierr
+    REAL(dbl)                                :: msg( :, : )
+    INTEGER                                  :: source, gid
+
+    INTEGER                                  :: ierr, msglen
 
   ierr = 0
   msglen = SIZE(msg)
@@ -1064,10 +1016,10 @@ SUBROUTINE mp_bcast_rm(msg,source,gid)
 #endif
 END SUBROUTINE mp_bcast_rm
 SUBROUTINE mp_bcast_rm3(msg,source,gid)
-  IMPLICIT NONE
-  REAL ( dbl ) :: msg ( :, :, : )
-  INTEGER :: source, gid
-  INTEGER :: msglen, ierr
+    REAL(dbl)                                :: msg( :, :, : )
+    INTEGER                                  :: source, gid
+
+    INTEGER                                  :: ierr, msglen
 
   ierr = 0
   msglen = SIZE(msg)
@@ -1082,10 +1034,10 @@ SUBROUTINE mp_bcast_rm3(msg,source,gid)
 #endif
 END SUBROUTINE mp_bcast_rm3
 SUBROUTINE mp_bcast_c1(msg,source,gid)
-  IMPLICIT NONE
-  COMPLEX ( dbl ) :: msg
-  INTEGER :: source, gid
-  INTEGER :: msglen, ierr
+    COMPLEX(dbl)                             :: msg
+    INTEGER                                  :: source, gid
+
+    INTEGER                                  :: ierr, msglen
 
   ierr = 0
   msglen = 1
@@ -1100,10 +1052,10 @@ SUBROUTINE mp_bcast_c1(msg,source,gid)
 #endif
 END SUBROUTINE mp_bcast_c1
 SUBROUTINE mp_bcast_cv(msg,source,gid)
-  IMPLICIT NONE
-  COMPLEX ( dbl ) :: msg ( : )
-  INTEGER :: source, gid
-  INTEGER :: msglen, ierr
+    COMPLEX(dbl)                             :: msg( : )
+    INTEGER                                  :: source, gid
+
+    INTEGER                                  :: ierr, msglen
 
   ierr = 0
   msglen = SIZE(msg)
@@ -1118,10 +1070,10 @@ SUBROUTINE mp_bcast_cv(msg,source,gid)
 #endif
 END SUBROUTINE mp_bcast_cv
 SUBROUTINE mp_bcast_cm(msg,source,gid)
-  IMPLICIT NONE
-  COMPLEX ( dbl ) :: msg ( :, : )
-  INTEGER :: source, gid
-  INTEGER :: msglen, ierr
+    COMPLEX(dbl)                             :: msg( :, : )
+    INTEGER                                  :: source, gid
+
+    INTEGER                                  :: ierr, msglen
 
   ierr = 0
   msglen = SIZE(msg)
@@ -1136,10 +1088,10 @@ SUBROUTINE mp_bcast_cm(msg,source,gid)
 #endif
 END SUBROUTINE mp_bcast_cm
 SUBROUTINE mp_bcast_l(msg,source,gid)
-  IMPLICIT NONE
-  LOGICAL :: msg
-  INTEGER :: source, gid
-  INTEGER :: msglen, ierr
+    LOGICAL                                  :: msg
+    INTEGER                                  :: source, gid
+
+    INTEGER                                  :: ierr, msglen
 
   ierr = 0
   msglen = 1
@@ -1154,11 +1106,11 @@ SUBROUTINE mp_bcast_l(msg,source,gid)
 #endif
 END SUBROUTINE mp_bcast_l
 SUBROUTINE mp_bcast_z(msg,source,gid)
-  IMPLICIT NONE
-  CHARACTER ( LEN = * ) :: msg
-  INTEGER :: source, gid
-  INTEGER :: msglen, ierr, i
-  INTEGER, ALLOCATABLE :: imsg ( : )
+    CHARACTER(LEN=*)                         :: msg
+    INTEGER                                  :: source, gid
+
+    INTEGER                                  :: i, ierr, msglen
+    INTEGER, ALLOCATABLE                     :: imsg( : )
 
   ierr = 0
   msglen = LEN(msg)
@@ -1190,10 +1142,10 @@ END SUBROUTINE mp_bcast_z
 
 !..mp_sum
 SUBROUTINE mp_sum_i1(msg,gid)
-  IMPLICIT NONE
-  INTEGER, INTENT ( INOUT ) :: msg
-  INTEGER, INTENT ( IN ) :: gid
-  INTEGER :: msglen, res, ierr
+    INTEGER, INTENT(INOUT)                   :: msg
+    INTEGER, INTENT(IN)                      :: gid
+
+    INTEGER                                  :: ierr, msglen, res
 
   msglen = 1
 #if defined(__parallel)
@@ -1276,11 +1228,11 @@ SUBROUTINE mp_sum_im3(msg,gid)
 #endif
 END SUBROUTINE mp_sum_im3
 SUBROUTINE mp_sum_r1(msg,gid)
-  IMPLICIT NONE
-  REAL ( dbl ), INTENT ( INOUT ) :: msg
-  INTEGER, INTENT ( IN ) :: gid
-  INTEGER :: msglen, ierr
-  REAL ( dbl ) :: res
+    REAL(dbl), INTENT(INOUT)                 :: msg
+    INTEGER, INTENT(IN)                      :: gid
+
+    INTEGER                                  :: ierr, msglen
+    REAL(dbl)                                :: res
 
   msglen = 1
 #if defined(__parallel)
@@ -1451,11 +1403,11 @@ SUBROUTINE mp_sum_root_rm3(msg,root,gid)
 #endif
 END SUBROUTINE mp_sum_root_rm3
 SUBROUTINE mp_sum_c1(msg,gid)
-  IMPLICIT NONE
-  COMPLEX ( dbl ), INTENT ( INOUT ) :: msg
-  INTEGER, INTENT ( IN ) :: gid
-  INTEGER :: msglen, ierr
-  COMPLEX ( dbl ) :: res
+    COMPLEX(dbl), INTENT(INOUT)              :: msg
+    INTEGER, INTENT(IN)                      :: gid
+
+    COMPLEX(dbl)                             :: res
+    INTEGER                                  :: ierr, msglen
 
   msglen = 2
 #if defined(__parallel)
@@ -1853,16 +1805,11 @@ END SUBROUTINE mp_gather_rv
 !**********************************************************************************
 
 SUBROUTINE mp_range(mepos,num_pe,elements,local_offset,local_planes,offsets,planes)
-  IMPLICIT NONE
-  INTEGER, INTENT ( IN ) :: elements
-  INTEGER, INTENT ( IN ) :: mepos
-  INTEGER, INTENT ( IN ) :: num_pe
-  INTEGER, INTENT ( OUT ) :: local_offset
-  INTEGER, INTENT ( OUT ) :: local_planes
-  INTEGER, INTENT ( OUT ), OPTIONAL :: offsets ( : )
-  INTEGER, INTENT ( OUT ), OPTIONAL :: planes ( : )
+    INTEGER, INTENT(IN)                      :: mepos, num_pe, elements
+    INTEGER, INTENT(OUT)                     :: local_offset, local_planes
+    INTEGER, INTENT(OUT), OPTIONAL           :: offsets( : ), planes( : )
 
-  INTEGER :: equal_planes,i
+    INTEGER                                  :: equal_planes, i
 
   IF (MODULO(elements,num_pe).eq.0) THEN
        equal_planes=elements/num_pe
@@ -2273,17 +2220,20 @@ END SUBROUTINE mp_waitall
 !!
 !!*** **********************************************************************
 SUBROUTINE mp_split(comm,sub_comm, subgroup_min_size, same_size,n_subgroups)
-  INTEGER, INTENT(in) :: comm
-  INTEGER, INTENT(out) :: sub_comm
-  LOGICAL, INTENT(in), OPTIONAL :: same_size
-  INTEGER, OPTIONAL, INTENT(in) :: subgroup_min_size,n_subgroups
-  
-  LOGICAL :: failure
-  CHARACTER(len=*), PARAMETER :: routineN='mp_split',&
-        routineP=moduleN//':'//routineN
-  INTEGER :: nnodes, ierr, nrest_proc,i, tmp_comm,stat, my_subgroup_min_size,&
-       my_n_subgroups, j, color, mepos, subgroup_size, pos
-  INTEGER, DIMENSION(:), ALLOCATABLE :: c_rank, edges
+    INTEGER, INTENT(in)                      :: comm
+    INTEGER, INTENT(out)                     :: sub_comm
+    INTEGER, INTENT(in), OPTIONAL            :: subgroup_min_size
+    LOGICAL, INTENT(in), OPTIONAL            :: same_size
+    INTEGER, INTENT(in), OPTIONAL            :: n_subgroups
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'mp_split', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER :: color, i, ierr, j, mepos, my_n_subgroups, &
+      my_subgroup_min_size, nnodes, nrest_proc, pos, stat, subgroup_size, &
+      tmp_comm
+    INTEGER, ALLOCATABLE, DIMENSION(:)       :: c_rank, edges
+    LOGICAL                                  :: failure
 
   failure=.FALSE.
   

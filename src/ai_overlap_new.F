@@ -42,9 +42,10 @@ MODULE ai_overlap_new
 
 ! *****************************************************************************
 
-  USE kinds,                           ONLY: dp,dp_size
+  USE kinds,                           ONLY: dp
   USE mathconstants,                   ONLY: pi
-  USE orbital_pointers,                ONLY: coset,ncoset
+  USE orbital_pointers,                ONLY: coset,&
+                                             ncoset
 
   IMPLICIT NONE
 
@@ -75,39 +76,37 @@ CONTAINS
 
 !   ***************************************************************************
 
-    REAL(KIND = dp), INTENT(IN)                       :: dab
-    INTEGER, INTENT(IN)                               :: da_max_set,&
-                                                         la_max_set,&
-                                                         la_min_set,&
-                                                         lb_max_set,&
-                                                         lb_min_set,&
-                                                         lds,npgfa,npgfb
-    REAL(KIND = dp), DIMENSION(3), INTENT(IN)         :: rab
-    REAL(KIND = dp), DIMENSION(:), INTENT(IN)         :: rpgfa,rpgfb,zeta,zetb
-    REAL(KIND = dp), DIMENSION(:,:), INTENT(INOUT)    :: sab
-    LOGICAL, INTENT(IN)                               :: return_derivatives
+    INTEGER, INTENT(IN)                      :: la_max_set, la_min_set, npgfa
+    REAL(KIND=dp), DIMENSION(:), INTENT(IN)  :: rpgfa, zeta
+    INTEGER, INTENT(IN)                      :: lb_max_set, lb_min_set, npgfb
+    REAL(KIND=dp), DIMENSION(:), INTENT(IN)  :: rpgfb, zetb
+    REAL(KIND=dp), DIMENSION(3), INTENT(IN)  :: rab
+    REAL(KIND=dp), INTENT(IN)                :: dab
+    REAL(KIND=dp), DIMENSION(:, :), &
+      INTENT(INOUT)                          :: sab
+    INTEGER, INTENT(IN)                      :: da_max_set
+    LOGICAL, INTENT(IN)                      :: return_derivatives
+    INTEGER, INTENT(IN)                      :: lds
+    REAL(KIND=dp), DIMENSION(lds, lds, *), &
+      INTENT(INOUT)                          :: s
+    REAL(KIND=dp), DIMENSION(:, :, :), &
+      INTENT(INOUT), OPTIONAL                :: sdab
+    REAL(KIND=dp), DIMENSION(:, :), &
+      INTENT(IN), OPTIONAL                   :: pab
+    REAL(KIND=dp), DIMENSION(3), &
+      INTENT(OUT), OPTIONAL                  :: force_a
 
-    REAL(KIND = dp), DIMENSION(lds,lds,*), INTENT(INOUT)       :: s
-    REAL(KIND = dp), DIMENSION(:,:,:), OPTIONAL, INTENT(INOUT) :: sdab
-    REAL(KIND = dp), DIMENSION(:,:), OPTIONAL, INTENT(IN)      :: pab
-    REAL(KIND = dp), DIMENSION(3), OPTIONAL, INTENT(OUT)       :: force_a
+    CHARACTER(LEN=*), PARAMETER              :: routine_name = "overlap"
 
-!   *** Local parameters ***
-
-    CHARACTER(LEN=*), PARAMETER :: routine_name = "overlap"
-
-!   *** Local variables ***
-
-    REAL(KIND = dp) :: f0,f1,f2,f3,f4,fax,fay,faz,ftz,zetp
-    INTEGER         :: ax,ay,az,bx,by,bz,cda,cdax,cday,cdaz,coa,&
-                       coamx,coamy,coamz,coapx,coapy,coapz,cob,&
-                       cobm2x,cobm2y,cobm2z,cobmx,cobmy,cobmz,&
-                       da,da_max,dax,day,daz,i,ipgf,istat,&
-                       j,jk,jpgf,jstart,k,la,la_max,la_min,la_start,&
-                       lb,lb_max,lb_min,lb_start,na,nb,nda
-    LOGICAL         :: calculate_force_a
-
-    REAL(KIND = dp), DIMENSION(3) :: rap,rbp
+    INTEGER :: ax, ay, az, bx, by, bz, cda, cdax, cday, cdaz, coa, coamx, &
+      coamy, coamz, coapx, coapy, coapz, cob, cobm2x, cobm2y, cobm2z, cobmx, &
+      cobmy, cobmz, da, da_max, dax, day, daz, i, ipgf, j, jk, jpgf, jstart, &
+      k, la, la_max, la_min, la_start, lb, lb_max, lb_min, lb_start, na, nb, &
+      nda
+    LOGICAL                                  :: calculate_force_a
+    REAL(KIND=dp)                            :: f0, f1, f2, f3, f4, fax, fay, &
+                                                faz, ftz, zetp
+    REAL(KIND=dp), DIMENSION(3)              :: rap, rbp
 
 !   ---------------------------------------------------------------------------
 

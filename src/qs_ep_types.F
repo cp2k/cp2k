@@ -27,45 +27,29 @@
 MODULE qs_ep_types
   USE cp_error_handling,               ONLY: cp_a_l,&
                                              cp_assert,&
-                                             cp_assertion_failed,&
-                                             cp_debug,&
-                                             cp_error_dealloc_ref,&
                                              cp_error_get_logger,&
-                                             cp_error_init,&
                                              cp_error_message,&
-                                             cp_error_type,&
-                                             cp_internal_error,&
-                                             cp_unimplemented_error
-  USE cp_fm_types,                     ONLY: cp_fm_release,&
-                                             cp_fm_retain,&
-                                             cp_fm_p_type,&
-                                             cp_fm_type
+                                             cp_error_type
+  USE cp_fm_types,                     ONLY: cp_fm_p_type
   USE cp_fm_vect,                      ONLY: cp_fm_vect_dealloc
   USE cp_log_handling,                 ONLY: cp_failure_level,&
                                              cp_fatal_level,&
-                                             cp_log,&
                                              cp_note_level,&
                                              cp_to_string,&
                                              cp_warning_level
-  USE cp_para_types,                   ONLY: cp_para_env_type
   USE kinds,                           ONLY: dp
   USE preconditioner,                  ONLY: destroy_preconditioner,&
-                                             preconditioner_p_type,&
-                                             preconditioner_type
-  USE qs_environment_types,            ONLY: get_qs_env,&
-                                             qs_env_release,&
+                                             preconditioner_p_type
+  USE qs_environment_types,            ONLY: qs_env_release,&
                                              qs_environment_p_type,&
-                                             qs_environment_type,&
-                                             set_qs_env
+                                             qs_environment_type
   USE qs_p_env_types,                  ONLY: p_env_release,&
-                                             p_env_retain,&
                                              qs_p_env_type
   USE qs_p_sparse_psi,                 ONLY: p_proj_release,&
-                                             p_proj_retain,&
-                                             qs_p_projection_p_type,&
-                                             qs_p_projection_type
+                                             qs_p_projection_p_type
   USE timings,                         ONLY: timeset,&
                                              timestop
+
   IMPLICIT NONE
   PRIVATE
 
@@ -179,12 +163,15 @@ CONTAINS
 !!
 !!*** **********************************************************************
 SUBROUTINE ep_env_retain(ep_env, error)
-  TYPE(qs_ep_env_type), POINTER :: ep_env
-  TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
-  
-  LOGICAL :: failure
-  CHARACTER(len=*), PARAMETER :: routineN='ep_env_retain',&
-        routineP=moduleN//':'//routineN
+    TYPE(qs_ep_env_type), POINTER            :: ep_env
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'ep_env_retain', &
+      routineP = moduleN//':'//routineN
+
+    LOGICAL                                  :: failure
+
   failure=.FALSE.
   
   CPPrecondition(ASSOCIATED(ep_env),cp_failure_level,routineP,error,failure)
@@ -225,13 +212,16 @@ END SUBROUTINE ep_env_retain
 !!
 !!*** **********************************************************************
 SUBROUTINE ep_env_release(ep_env, error)
-  TYPE(qs_ep_env_type), POINTER :: ep_env
-  TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
-  
-  LOGICAL :: failure
-  CHARACTER(len=*), PARAMETER :: routineN='ep_env_release',&
-        routineP=moduleN//':'//routineN
-  INTEGER :: stat, i
+    TYPE(qs_ep_env_type), POINTER            :: ep_env
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'ep_env_release', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: i, stat
+    LOGICAL                                  :: failure
+
   failure=.FALSE.
   
   IF (ASSOCIATED(ep_env)) THEN
@@ -313,18 +303,25 @@ END SUBROUTINE ep_env_release
 !!*** **********************************************************************
 SUBROUTINE ep_env_get(ep_env,id_nr, sub_qs_env, sub_proj, main_qs_env,&
      main_p_env, preconditioner, error)
-  TYPE(qs_ep_env_type), POINTER :: ep_env
-  INTEGER, INTENT(out), OPTIONAL :: id_nr
-  TYPE(qs_environment_p_type), DIMENSION(:), POINTER, OPTIONAL :: sub_qs_env
-  TYPE(qs_p_projection_p_type), DIMENSION(:), POINTER, OPTIONAL :: sub_proj
-  TYPE(qs_environment_type), POINTER, OPTIONAL :: main_qs_env
-  TYPE(qs_p_env_type), POINTER, OPTIONAL :: main_p_env
-  TYPE(preconditioner_p_type), DIMENSION(:), POINTER, OPTIONAL :: preconditioner
-  TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
-  
-  LOGICAL :: failure
-  CHARACTER(len=*), PARAMETER :: routineN='ep_env_get',&
-        routineP=moduleN//':'//routineN
+    TYPE(qs_ep_env_type), POINTER            :: ep_env
+    INTEGER, INTENT(out), OPTIONAL           :: id_nr
+    TYPE(qs_environment_p_type), &
+      DIMENSION(:), OPTIONAL, POINTER        :: sub_qs_env
+    TYPE(qs_p_projection_p_type), &
+      DIMENSION(:), OPTIONAL, POINTER        :: sub_proj
+    TYPE(qs_environment_type), OPTIONAL, &
+      POINTER                                :: main_qs_env
+    TYPE(qs_p_env_type), OPTIONAL, POINTER   :: main_p_env
+    TYPE(preconditioner_p_type), &
+      DIMENSION(:), OPTIONAL, POINTER        :: preconditioner
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'ep_env_get', &
+      routineP = moduleN//':'//routineN
+
+    LOGICAL                                  :: failure
+
   failure=.FALSE.
   
   CPPrecondition(ASSOCIATED(ep_env),cp_failure_level,routineP,error,failure)

@@ -22,47 +22,36 @@ MODULE level_shift
 ! *****************************************************************************
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                              get_atomic_kind
-  USE coefficient_types,               ONLY: coeff_transform_space,&
-                                             coeff_type, &
-                                             coeff_sumup, &
-                                             coeff_add
+  USE coefficient_types,               ONLY: coeff_sumup,&
+                                             coeff_transform_space,&
+                                             coeff_type
   USE cp_error_handling,               ONLY: cp_a_l,&
                                              cp_assert,&
-                                             cp_assertion_failed,&
-                                             cp_debug,&
-                                             cp_error_dealloc_ref,&
                                              cp_error_get_logger,&
-                                             cp_error_init,&
                                              cp_error_message,&
-                                             cp_error_type,&
-                                             cp_internal_error,&
-                                             cp_unimplemented_error
+                                             cp_error_type
   USE cp_rs_pool_types,                ONLY: cp_rs_pool_type,&
-                                             rs_pool_create_rs,&
-                                             rs_pool_give_back_rs
+                                             rs_pool_create_rs
   USE kinds,                           ONLY: dp
   USE mathconstants,                   ONLY: twopi
   USE particle_types,                  ONLY: particle_type
-  USE pw_types,                        ONLY: COMPLEXDATA1D,&
-                                             COMPLEXDATA3D,&
-                                             REALDATA3D,&
-                                             REALSPACE,&
-                                             RECIPROCALSPACE,&
-                                             pw_type
   USE pw_env_types,                    ONLY: pw_env_get,&
                                              pw_env_type
   USE pw_pool_types,                   ONLY: pw_pool_give_back_coeff,&
                                              pw_pool_init_coeff,&
                                              pw_pool_type
+  USE pw_types,                        ONLY: COMPLEXDATA1D,&
+                                             REALDATA3D,&
+                                             REALSPACE,&
+                                             RECIPROCALSPACE
   USE qs_rho_types,                    ONLY: qs_rho_type
   USE realspace_grid_types,            ONLY: realspace_grid_type,&
                                              rs_pw_transfer
   USE simulation_cell,                 ONLY: cell_type,&
                                              pbc
-  USE termination,                     ONLY: stop_memory,&
-                                             stop_program
   USE timings,                         ONLY: timeset,&
                                              timestop
+
   IMPLICIT NONE
 
   PRIVATE
@@ -75,19 +64,23 @@ MODULE level_shift
 CONTAINS
 
   SUBROUTINE level_shift_testing(atomic_kind_set, particle_set, cell, centers, pw_env, rho, rho_core, error )
-    TYPE(atomic_kind_type), DIMENSION(:), POINTER :: atomic_kind_set
-    TYPE(particle_type), DIMENSION(:), POINTER    :: particle_set
-    TYPE(cell_type), POINTER                      :: cell
-    TYPE(pw_env_type), POINTER                    :: pw_env
-    TYPE(coeff_type), POINTER                     :: rho_core
-    TYPE(qs_rho_type)                             :: rho
-    REAL(KIND = dp), DIMENSION(:,:), POINTER             :: centers
-    TYPE(cp_error_type), OPTIONAL, INTENT(INOUT)  :: error
+    TYPE(atomic_kind_type), DIMENSION(:), &
+      POINTER                                :: atomic_kind_set
+    TYPE(particle_type), DIMENSION(:), &
+      POINTER                                :: particle_set
+    TYPE(cell_type), POINTER                 :: cell
+    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: centers
+    TYPE(pw_env_type), POINTER               :: pw_env
+    TYPE(qs_rho_type)                        :: rho
+    TYPE(coeff_type), POINTER                :: rho_core
+    TYPE(cp_error_type), INTENT(INOUT), &
+      OPTIONAL                               :: error
 
-    TYPE(coeff_type)            :: rho_tot_rspace, rho_tot_gspace
-    TYPE(pw_pool_type), POINTER :: auxbas_pw_pool
-    INTEGER :: ispin, handle, power
-    REAL(KIND = dp) :: origin(3),electronic_eshift,core_eshift
+    INTEGER                                  :: handle, ispin, power
+    REAL(KIND=dp)                            :: core_eshift, &
+                                                electronic_eshift, origin(3)
+    TYPE(coeff_type)                         :: rho_tot_gspace, rho_tot_rspace
+    TYPE(pw_pool_type), POINTER              :: auxbas_pw_pool
 
     CALL timeset("level_shift_testing","I","",handle)
 
@@ -132,10 +125,11 @@ CONTAINS
   END SUBROUTINE level_shift_testing
 
   SUBROUTINE wannier_part(centers,electronic_eshift)
-    REAL(KIND = dp), DIMENSION(:,:), POINTER :: centers
-    REAL(KIND = dp) ::electronic_eshift
+    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: centers
+    REAL(KIND=dp)                            :: electronic_eshift
 
-    INTEGER :: i
+    INTEGER                                  :: i
+
     electronic_eshift=0.0_dp
     DO i=1,SIZE(centers,1)
        electronic_eshift=electronic_eshift&
@@ -144,17 +138,19 @@ CONTAINS
   END SUBROUTINE wannier_part
 
   SUBROUTINE core_part(atomic_kind_set, particle_set, cell, core_eshift)
-    REAL(KIND = dp) :: core_eshift
-    TYPE(atomic_kind_type), DIMENSION(:), POINTER :: atomic_kind_set
-    TYPE(particle_type), DIMENSION(:), POINTER    :: particle_set
-    TYPE(cell_type), POINTER        :: cell
+    TYPE(atomic_kind_type), DIMENSION(:), &
+      POINTER                                :: atomic_kind_set
+    TYPE(particle_type), DIMENSION(:), &
+      POINTER                                :: particle_set
+    TYPE(cell_type), POINTER                 :: cell
+    REAL(KIND=dp)                            :: core_eshift
 
-    TYPE(atomic_kind_type), POINTER :: atomic_kind
-    INTEGER, DIMENSION(:), POINTER  :: atom_list
-    INTEGER :: ikind,natom,iatom,atom_a,zeff
-    REAL(KIND = dp)    :: alpha
-    REAL(KIND = dp), DIMENSION(3) :: ra, center
-    REAL(KIND = dp) :: pos_part, spread_part
+    INTEGER                                  :: atom_a, iatom, ikind, natom, &
+                                                zeff
+    INTEGER, DIMENSION(:), POINTER           :: atom_list
+    REAL(KIND=dp)                            :: alpha, pos_part, spread_part
+    REAL(KIND=dp), DIMENSION(3)              :: center, ra
+    TYPE(atomic_kind_type), POINTER          :: atomic_kind
 
     NULLIFY(atomic_kind,atom_list)
     core_eshift=0.0_dp
@@ -183,11 +179,12 @@ CONTAINS
   END SUBROUTINE core_part
 
   FUNCTION get_value(rho_g,g) result(RES)
-    TYPE(coeff_type)                      :: rho_g
-    INTEGER :: g(3)
-    COMPLEX(dp) :: RES
-   
-    INTEGER :: i 
+    TYPE(coeff_type)                         :: rho_g
+    INTEGER                                  :: g(3)
+    COMPLEX(dp)                              :: RES
+
+    INTEGER                                  :: i
+
     RES=(0.0_dp,0.0_dp)
     DO i=1,rho_g%pw%pw_grid%ngpts_local
        IF (ALL(rho_g%pw%pw_grid%g_hat(:,i).EQ.g)) THEN
@@ -198,13 +195,13 @@ CONTAINS
   END FUNCTION get_value
  
   SUBROUTINE gspace_approach(rho_g,pw_env,cell)
-    TYPE(coeff_type)                      :: rho_g
-    TYPE(pw_env_type), POINTER            :: pw_env
-    TYPE(cell_type), POINTER              :: cell
+    TYPE(coeff_type)                         :: rho_g
+    TYPE(pw_env_type), POINTER               :: pw_env
+    TYPE(cell_type), POINTER                 :: cell
 
-    INTEGER :: i
-    INTEGER :: g(3)
-    REAL(KIND=dp) :: resp,resm,rest
+    INTEGER                                  :: g(3), i
+    REAL(KIND=dp)                            :: resm, resp, rest
+
     rest=(0.0_dp,0.0_dp)
     DO i=1,3
        g=0
@@ -221,20 +218,18 @@ CONTAINS
   END SUBROUTINE
 
   SUBROUTINE realspace_approach(rho_r,pw_env,cell,center,power,ionode)
-    TYPE(coeff_type)                      :: rho_r
-    TYPE(pw_env_type), POINTER            :: pw_env
-    logical :: ionode
-    REAL(KIND = dp)                         :: center(3)
-    TYPE(cell_type), POINTER              :: cell
-    INTEGER :: power
+    TYPE(coeff_type)                         :: rho_r
+    TYPE(pw_env_type), POINTER               :: pw_env
+    TYPE(cell_type), POINTER                 :: cell
+    REAL(KIND=dp)                            :: center(3)
+    INTEGER                                  :: power
+    logical                                  :: ionode
 
-    TYPE(realspace_grid_type), POINTER    :: rs_rho
-    TYPE(cp_rs_pool_type), POINTER        :: auxbas_rs_pool
-
-    REAL(KIND = dp)   :: monopole,dipole(3),quadrupole(3,3),r(3),boxl(3)
-
-    INTEGER :: i,j,k,m,n,shift
-    INTEGER, DIMENSION(3) :: gvec
+    INTEGER                                  :: i, j, k, m, n
+    REAL(KIND=dp)                            :: boxl(3), dipole(3), monopole, &
+                                                quadrupole(3,3), r(3)
+    TYPE(cp_rs_pool_type), POINTER           :: auxbas_rs_pool
+    TYPE(realspace_grid_type), POINTER       :: rs_rho
 
     NULLIFY(rs_rho,auxbas_rs_pool)
     CALL pw_env_get(pw_env, auxbas_rs_pool=auxbas_rs_pool)

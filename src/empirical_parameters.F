@@ -22,14 +22,21 @@
 
 MODULE empirical_parameters
 
-  USE atomic_kinds, ONLY : kind_info_type
-  USE global_types, ONLY : global_environment_type
-  USE kinds, ONLY : dbl
-  USE message_passing, ONLY : mp_bcast
-  USE parser, ONLY : parser_init, parser_end, read_line, test_next, &
-       p_error, get_next, stop_parser, search_label
-  USE string_utilities, ONLY : uppercase, xstring, str_search
-  USE termination, ONLY : stop_memory, stop_program                               
+  USE atomic_kinds,                    ONLY: kind_info_type
+  USE global_types,                    ONLY: global_environment_type
+  USE kinds,                           ONLY: dbl
+  USE parser,                          ONLY: get_next,&
+                                             p_error,&
+                                             parser_end,&
+                                             parser_init,&
+                                             read_line,&
+                                             search_label,&
+                                             stop_parser,&
+                                             test_next
+  USE string_utilities,                ONLY: str_search,&
+                                             uppercase
+  USE termination,                     ONLY: stop_memory,&
+                                             stop_program
 
   IMPLICIT NONE
 
@@ -53,22 +60,25 @@ CONTAINS
 
  SUBROUTINE read_empirical_parameters (  ki, set_fn, atom_names, empparm, globenv )
 
- IMPLICIT NONE
 
- TYPE (kind_info_type), intent(in), dimension (:) :: ki
- CHARACTER ( LEN = * ), INTENT ( IN ) :: set_fn
- CHARACTER ( len = * ), DIMENSION ( : ), INTENT ( IN ) :: atom_names
- TYPE (empirical_parameter_type), POINTER, DIMENSION (:) :: empparm
- TYPE ( global_environment_type ), INTENT ( IN ) :: globenv
+    TYPE(kind_info_type), dimension(:), &
+      intent(in)                             :: ki
+    CHARACTER(LEN=*), INTENT(IN)             :: set_fn
+    CHARACTER(len=*), DIMENSION(:), &
+      INTENT(IN)                             :: atom_names
+    TYPE(empirical_parameter_type), &
+      DIMENSION(:), POINTER                  :: empparm
+    TYPE(global_environment_type), &
+      INTENT(IN)                             :: globenv
 
-! LOCALS
-  INTEGER :: ierror, ilen, iw, source, group, icount, nmol_type, ios, i
-  INTEGER :: nkind, nset, iset, iat, natom_types
-  CHARACTER ( LEN = 20 ) :: string, string2
-  CHARACTER ( LEN = 6 ) :: label, aname, merda, shit
-  CHARACTER ( LEN = 6 ), POINTER, DIMENSION (:) :: element_symbol
-  TYPE (empirical_parameter_type), POINTER, DIMENSION (:) :: read_ep
-
+    CHARACTER(LEN=20)                        :: string, string2
+    CHARACTER(LEN=6)                         :: aname, label
+    CHARACTER(LEN=6), DIMENSION(:), POINTER  :: element_symbol
+    INTEGER                                  :: i, iat, icount, ierror, ilen, &
+                                                ios, iset, iw, natom_types, &
+                                                nkind, nset
+    TYPE(empirical_parameter_type), &
+      DIMENSION(:), POINTER                  :: read_ep
 
   natom_types = SIZE ( atom_names )
   iw = globenv % scr

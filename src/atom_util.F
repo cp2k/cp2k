@@ -23,12 +23,13 @@
 !!
 MODULE atom_util
 
-  USE atom_types, ONLY : atom_type, atom_calculation_type
-  USE functionals, ONLY : slater
-  USE kinds, ONLY : dbl
-  USE mathconstants, ONLY : PI
-  USE radial_poisson, ONLY : rg_poisson
-  USE radial_util, ONLY : radial_integrate
+  USE atom_types,                      ONLY: atom_calculation_type,&
+                                             atom_type
+  USE functionals,                     ONLY: slater
+  USE kinds,                           ONLY: dbl
+  USE mathconstants,                   ONLY: PI
+  USE radial_poisson,                  ONLY: rg_poisson
+  USE radial_util,                     ONLY: radial_integrate
 
   PRIVATE
   PUBLIC :: calculate_energy, &
@@ -45,22 +46,20 @@ CONTAINS
 
   FUNCTION calculate_energy ( atom, ac, rho ) RESULT (res)
 
-    IMPLICIT NONE
 
-    ! ARGUMENTS
-    TYPE ( atom_type ), INTENT ( IN ) :: atom
-    TYPE ( atom_calculation_type ), INTENT(IN) :: ac
-    REAL ( DBL ), DIMENSION ( : ), INTENT ( IN ) :: rho
+    TYPE(atom_type), INTENT(IN)              :: atom
+    TYPE(atom_calculation_type), INTENT(IN)  :: ac
+    REAL(DBL), DIMENSION(:), INTENT(IN)      :: rho
+    REAL(DBL)                                :: res
 
-    ! FUNCTION
-    REAL ( DBL ) :: res
+    INTEGER                                  :: errno, i, l, n, np
+    REAL(DBL)                                :: res_int
+    REAL(DBL), ALLOCATABLE, DIMENSION(:)     :: t, y0
 
-    ! VARIABLES
-    INTEGER :: i, n, l, np, errno
-    REAL ( DBL ) :: res_int
-    REAL ( DBL ), DIMENSION ( : ), ALLOCATABLE :: t, y0
+! FUNCTION
+! VARIABLES
+! ------------------------------------------------------------
 
-    ! ------------------------------------------------------------
     np = ac%rg%n
 
     DO n=1, atom%ns
@@ -114,13 +113,14 @@ CONTAINS
 !!! Returns the full density (with angular function) and
 !!! assumes that the wavefunction is the full wavefunction.
 !!! ***********************************************************
-    IMPLICIT NONE
-    TYPE(ATOM_TYPE), INTENT(INOUT) :: atom
-    INTEGER, INTENT(IN)             :: np
-    REAL(DBL), DIMENSION(1:np)      :: calculate_rho
-    INTEGER                         :: n, l, k
+    TYPE(ATOM_TYPE), INTENT(INOUT)           :: atom
+    INTEGER, INTENT(IN)                      :: np
+    REAL(DBL), DIMENSION(1:np)               :: calculate_rho
 
-    ! cannot use DSCAL here
+    INTEGER                                  :: k, l, n
+
+! cannot use DSCAL here
+
     calculate_rho = 0._dbl
 
     DO n=1, atom%ns
@@ -138,10 +138,11 @@ CONTAINS
 ! ****************************************************************************
   
   FUNCTION find_matchp(pot, ev)
-    IMPLICIT NONE
-    REAL(DBL), DIMENSION(:), INTENT(IN) :: pot
-    REAL(DBL), INTENT(IN)               :: ev
-    INTEGER :: find_matchp, k
+    REAL(DBL), DIMENSION(:), INTENT(IN)      :: pot
+    REAL(DBL), INTENT(IN)                    :: ev
+    INTEGER                                  :: find_matchp
+
+    INTEGER                                  :: k
 
     find_matchp = SIZE(pot) / 3
 
@@ -158,18 +159,19 @@ CONTAINS
 ! ****************************************************************************
   
   SUBROUTINE calculate_potential(pot, n, l, rho, atom, ac)
-    IMPLICIT NONE
 !!! arguments
-    REAL(DBL), DIMENSION(:), INTENT(OUT)    :: pot
-    INTEGER, INTENT(IN)                     :: n, l
-    REAL(DBL), DIMENSION(:), INTENT(IN)     :: rho
-    TYPE(ATOM_TYPE), INTENT(IN)            :: atom
-    TYPE(ATOM_CALCULATION_TYPE), INTENT(IN) :: ac
+    REAL(DBL), DIMENSION(:), INTENT(OUT)     :: pot
+    INTEGER, INTENT(IN)                      :: n, l
+    REAL(DBL), DIMENSION(:), INTENT(IN)      :: rho
+    TYPE(ATOM_TYPE), INTENT(IN)              :: atom
+    TYPE(ATOM_CALCULATION_TYPE), INTENT(IN)  :: ac
+
+    INTEGER                                  :: i, np
+    REAL(DBL)                                :: ex, vx, z_eff
+    REAL(DBL), DIMENSION(0:ac%rg%n+1)        :: rc, y0
+
 !!! variables
-    INTEGER                                 :: np, i
-    REAL(DBL)                               :: r, z_eff, ex, vx
-    REAL(DBL), DIMENSION(0:ac%rg%n+1)       :: rc, y0
-    
+
     np = ac%rg%n
 
 !!! zentrifugal term
@@ -205,10 +207,9 @@ CONTAINS
 
   FUNCTION signum(a)
     
-    IMPLICIT NONE
 
-    INTEGER :: signum    
-    REAL(DBL), INTENT(IN) :: a
+    REAL(DBL), INTENT(IN)                    :: a
+    INTEGER                                  :: signum
 
     IF (a < 0.0_dbl) THEN 
        signum = -1
@@ -222,13 +223,11 @@ CONTAINS
 
   SUBROUTINE count_nodes(nodes, f)
 
-    IMPLICIT NONE
 
-    INTEGER, INTENT(OUT) :: nodes
-    REAL(DBL), DIMENSION(:), INTENT(IN) :: f
-    
-    INTEGER :: n, i
-    INTEGER :: s
+    INTEGER, INTENT(OUT)                     :: nodes
+    REAL(DBL), DIMENSION(:), INTENT(IN)      :: f
+
+    INTEGER                                  :: i, n, s
 
     n = SIZE(f)
     IF ((n < 4) .OR. (f(1) < 0.0_dbl)) THEN ! not enough or bad function data
@@ -253,9 +252,9 @@ CONTAINS
 ! ****************************************************************************
       
   SUBROUTINE DGESS(ALPHA, X)
-    IMPLICIT NONE
-    REAL(DBL), INTENT(IN)    :: ALPHA
-    REAL(DBL), INTENT(INOUT) :: X
+    REAL(DBL), INTENT(IN)                    :: ALPHA
+    REAL(DBL), INTENT(INOUT)                 :: X
+
     X = ALPHA * X
   END SUBROUTINE DGESS
  

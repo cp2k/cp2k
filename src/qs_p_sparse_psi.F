@@ -28,33 +28,25 @@
 MODULE qs_p_sparse_psi
   USE cp_error_handling,               ONLY: cp_a_l,&
                                              cp_assert,&
-                                             cp_assertion_failed,&
-                                             cp_debug,&
-                                             cp_error_dealloc_ref,&
                                              cp_error_get_logger,&
-                                             cp_error_init,&
                                              cp_error_message,&
-                                             cp_error_type,&
-                                             cp_internal_error,&
-                                             cp_unimplemented_error
+                                             cp_error_type
   USE cp_fm_types,                     ONLY: cp_fm_get_info,&
                                              cp_fm_get_submatrix,&
                                              cp_fm_set_submatrix,&
                                              cp_fm_type
   USE cp_log_handling,                 ONLY: cp_failure_level,&
                                              cp_fatal_level,&
-                                             cp_log,&
-                                             cp_logger_get_default_unit_nr,&
                                              cp_logger_type,&
                                              cp_note_level,&
                                              cp_to_string,&
                                              cp_warning_level
-  USE global_types,                    ONLY: global_environment_type
   USE kinds,                           ONLY: dp
   USE particle_types,                  ONLY: get_particle_set,&
                                              particle_type
   USE timings,                         ONLY: timeset,&
                                              timestop
+
   IMPLICIT NONE
   PRIVATE
 
@@ -172,17 +164,23 @@ CONTAINS
 !!
 !!*** **********************************************************************
 SUBROUTINE p_proj_create(p_proj, atoms, proj_indexes, particle_set, error)
-  TYPE(qs_p_projection_type), POINTER :: p_proj
-  INTEGER, DIMENSION(:), INTENT(in) :: atoms
-  INTEGER, DIMENSION(:), INTENT(in), OPTIONAL :: proj_indexes
-  TYPE(particle_type), DIMENSION(:), POINTER, OPTIONAL :: particle_set
-  TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
-  
-  LOGICAL :: failure
-  INTEGER :: stat, size_proj, i, j, pos, nparticle
-  CHARACTER(len=*), PARAMETER :: routineN='p_proj_create',&
-        routineP=moduleN//':'//routineN
-  INTEGER, DIMENSION(:), ALLOCATABLE :: first_sgf,last_sgf
+    TYPE(qs_p_projection_type), POINTER      :: p_proj
+    INTEGER, DIMENSION(:), INTENT(in)        :: atoms
+    INTEGER, DIMENSION(:), INTENT(in), &
+      OPTIONAL                               :: proj_indexes
+    TYPE(particle_type), DIMENSION(:), &
+      OPTIONAL, POINTER                      :: particle_set
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'p_proj_create', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: i, j, nparticle, pos, &
+                                                size_proj, stat
+    INTEGER, ALLOCATABLE, DIMENSION(:)       :: first_sgf, last_sgf
+    LOGICAL                                  :: failure
+
   failure=.FALSE.
   ALLOCATE(p_proj, stat=stat)
   CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
@@ -271,12 +269,15 @@ END SUBROUTINE p_proj_create
 !!
 !!*** **********************************************************************
 SUBROUTINE p_proj_retain(p_proj, error)
-  TYPE(qs_p_projection_type), POINTER :: p_proj
-  TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
-  
-  LOGICAL :: failure
-  CHARACTER(len=*), PARAMETER :: routineN='p_proj_retain',&
-        routineP=moduleN//':'//routineN
+    TYPE(qs_p_projection_type), POINTER      :: p_proj
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'p_proj_retain', &
+      routineP = moduleN//':'//routineN
+
+    LOGICAL                                  :: failure
+
   failure=.FALSE.
   
   CPPrecondition(ASSOCIATED(p_proj),cp_failure_level,routineP,error,failure)
@@ -320,13 +321,16 @@ END SUBROUTINE p_proj_retain
 !!
 !!*** **********************************************************************
 SUBROUTINE p_proj_release(p_proj, error)
-  TYPE(qs_p_projection_type), POINTER :: p_proj
-  TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
-  
-  LOGICAL :: failure
-  INTEGER :: stat
-  CHARACTER(len=*), PARAMETER :: routineN='p_proj_release',&
-        routineP=moduleN//':'//routineN
+    TYPE(qs_p_projection_type), POINTER      :: p_proj
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'p_proj_release', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: stat
+    LOGICAL                                  :: failure
+
   failure=.FALSE.
   
   IF (ASSOCIATED(p_proj)) THEN
@@ -389,18 +393,22 @@ END SUBROUTINE p_proj_release
 !!*** **********************************************************************
 SUBROUTINE p_proj_transfer_blacs_to_f(p_proj, min_m, full_m,&
      start_col_full, start_col_min, ncol, error)
-  TYPE(qs_p_projection_type), POINTER :: p_proj
-  TYPE(cp_fm_type), POINTER :: min_m, full_m
-  INTEGER, INTENT(in), OPTIONAL :: start_col_min, start_col_full, ncol
-  TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
-  
-  LOGICAL :: failure
-  CHARACTER(len=*), PARAMETER :: routineN='p_proj_transfer_blacs_to_f',&
-        routineP=moduleN//':'//routineN
-  INTEGER, PARAMETER          :: max_blocksize = 100
-  INTEGER :: ncol_min, ncol_full, nrow_min, nrow_full, blocksize, stat,&
-       my_start_col_min, my_start_col_full, my_ncol, handle, icol,i
-  REAL(KIND = dp), DIMENSION(:,:), ALLOCATABLE :: tmp_min,tmp_full
+    TYPE(qs_p_projection_type), POINTER      :: p_proj
+    TYPE(cp_fm_type), POINTER                :: min_m, full_m
+    INTEGER, INTENT(in), OPTIONAL            :: start_col_full, &
+                                                start_col_min, ncol
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'p_proj_transfer_blacs_to_f', &
+      routineP = moduleN//':'//routineN
+    INTEGER, PARAMETER                       :: max_blocksize = 100
+
+    INTEGER :: blocksize, handle, i, icol, my_ncol, my_start_col_full, &
+      my_start_col_min, ncol_full, ncol_min, nrow_full, nrow_min, stat
+    LOGICAL                                  :: failure
+    REAL(KIND=dp), ALLOCATABLE, &
+      DIMENSION(:, :)                        :: tmp_full, tmp_min
 
   CALL timeset(routineN,"I","",handle)
   failure=.FALSE.
@@ -496,19 +504,22 @@ END SUBROUTINE p_proj_transfer_blacs_to_f
 !!
 !!*** **********************************************************************
 SUBROUTINE p_proj_restrain_f(p_proj, full_m,start_col, ncol, error)
-  TYPE(qs_p_projection_type), POINTER :: p_proj
-  TYPE(cp_fm_type), POINTER :: full_m
-  INTEGER, INTENT(in), OPTIONAL :: start_col, ncol
-  TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
-  
-  LOGICAL :: failure
-  CHARACTER(len=*), PARAMETER :: routineN='p_proj_restrain_f',&
-        routineP=moduleN//':'//routineN
-  LOGICAL, DIMENSION(:), ALLOCATABLE :: keep_row
-  INTEGER, DIMENSION(:), POINTER :: row_indices, col_indices
-  INTEGER :: my_start_col,my_end_col, min_index, max_index, handle,&
-       icol,irow, stat, row_index
-  REAL(KIND = dp), DIMENSION(:,:), ALLOCATABLE :: tmp_min,tmp_full
+    TYPE(qs_p_projection_type), POINTER      :: p_proj
+    TYPE(cp_fm_type), POINTER                :: full_m
+    INTEGER, INTENT(in), OPTIONAL            :: start_col, ncol
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'p_proj_restrain_f', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: handle, icol, irow, &
+                                                max_index, min_index, &
+                                                my_end_col, my_start_col, &
+                                                row_index, stat
+    INTEGER, DIMENSION(:), POINTER           :: col_indices, row_indices
+    LOGICAL                                  :: failure
+    LOGICAL, ALLOCATABLE, DIMENSION(:)       :: keep_row
 
   CALL timeset(routineN,"I","",handle)
 

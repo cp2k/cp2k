@@ -23,44 +23,34 @@
 ! ************************************************************************************
 
 MODULE cp_fm_diag
-  USE cp_blacs_calls,                  ONLY: cp_blacs_get, &
-                                             cp_blacs_gridinit, &
-                                             cp_blacs_pinfo, &
-                                             cp_blacs_gridexit
+  USE cp_blacs_calls,                  ONLY: cp_blacs_get,&
+                                             cp_blacs_gridexit,&
+                                             cp_blacs_gridinit,&
+                                             cp_blacs_pinfo
   USE cp_error_handling,               ONLY: cp_a_l,&
                                              cp_assert,&
-                                             cp_assertion_failed,&
                                              cp_error_get_logger,&
                                              cp_error_message,&
-                                             cp_error_type,&
-                                             cp_unimplemented_error
-
+                                             cp_error_type
+  USE cp_fm_basic_linalg,              ONLY: cp_fm_syrk
+  USE cp_fm_types,                     ONLY: cp_fm_to_fm,&
+                                             cp_fm_type
   USE cp_log_handling,                 ONLY: cp_failure_level,&
-                                             cp_log,&
                                              cp_logger_get_unit_nr,&
                                              cp_logger_type,&
                                              cp_to_string,&
                                              cp_warning_level
-
-  USE cp_para_types,                   ONLY: cp_blacs_env_type,&
-                                             cp_para_env_type
-  USE kinds,                           ONLY: int_size,&
-                                             dp,&
-                                             dp_size
-  USE cp_fm_types,                     ONLY: cp_fm_type, &
-                                             cp_fm_to_fm
-  USE cp_fm_basic_linalg,              ONLY: cp_fm_syrk
+  USE cp_para_types,                   ONLY: cp_blacs_env_type
+  USE kinds,                           ONLY: dp,&
+                                             dp_size,&
+                                             int_size
   USE message_passing,                 ONLY: mp_bcast
-
   USE termination,                     ONLY: stop_memory,&
                                              stop_program
   USE timings,                         ONLY: timeset,&
                                              timestop
   USE util,                            ONLY: sort
 
-
-
-  
   IMPLICIT NONE
   PRIVATE
   CHARACTER(len=*), PRIVATE, PARAMETER :: moduleN='cp_fm_diag'
@@ -82,20 +72,23 @@ CONTAINS
 !*************************************************************************
   SUBROUTINE cp_fm_syevd(matrix,eigenvectors,eigenvalues,error)
 
-    TYPE(cp_fm_type), POINTER          :: eigenvectors,matrix
-    REAL(KIND = dp), DIMENSION(:), INTENT(OUT)       :: eigenvalues
-    TYPE(cp_error_type), INTENT(inout), OPTIONAL :: error
+    TYPE(cp_fm_type), POINTER                :: matrix, eigenvectors
+    REAL(KIND=dp), DIMENSION(:), INTENT(OUT) :: eigenvalues
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
 
-    INTEGER  :: handle,info,istat,liwork,lwork,mypcol,myprow,n
+    CHARACTER(len=*), PARAMETER :: routineN = 'cp_fm_syevd', &
+      routineP = moduleN//':'//routineN
 
-    INTEGER, DIMENSION(9) :: descm,descv
-    REAL(KIND = dp), DIMENSION(:,:), POINTER :: m,v
-    REAL(KIND = dp), DIMENSION(:), POINTER :: work
-    INTEGER, DIMENSION(:), POINTER  :: iwork
-    TYPE(cp_blacs_env_type), POINTER          :: context
-    LOGICAL :: failure
-    CHARACTER(len=*), PARAMETER :: routineN='cp_fm_syevd',&
-         routineP=moduleN//':'//routineN
+    INTEGER                                  :: handle, info, istat, liwork, &
+                                                lwork, mypcol, myprow, n
+    INTEGER, DIMENSION(9)                    :: descm, descv
+    INTEGER, DIMENSION(:), POINTER           :: iwork
+    LOGICAL                                  :: failure
+    REAL(KIND=dp), DIMENSION(:), POINTER     :: work
+    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: m, v
+    TYPE(cp_blacs_env_type), POINTER         :: context
+
 !!FM    integer :: muno1,muno2
 
     CALL timeset("cp_fm_syevd","I","",handle)
@@ -522,23 +515,28 @@ CONTAINS
 
 !   ***************************************************************************
 
-    TYPE(cp_fm_type), POINTER        :: eigenvectors,matrix
-    INTEGER, INTENT(IN),OPTIONAL              :: blocksize   ! Gibt an wieviele Eigenwerte/vektoren berechnet werden solln
-    INTEGER, INTENT(IN)                       :: Anz_max     ! Gibt die maximal Anzahl an Jacobi-Iterationen an
-    REAL(KIND = dp), INTENT(IN)                      :: epsi,thresh ! epsi: Abbruchkriterium, wenn epsi kleiner als die Quadratsumme
-                                                             ! der Ausserdiagonalwerte ist
-                                                             ! thresh: Ein Element wird nur rotiert, wenn es groesser als thresh ist.
-    REAL(KIND = dp), DIMENSION(:), INTENT(OUT)       :: eigenvalues ! Enthaelt die Eigenwerte 1:blocksize (vom kleinsten bis zum groessten)
-                                                             ! Da ab einem gewissen SCF-SChritt nicht mehr umsortiert werden muss
-!   *** Local variables ***
-    INTEGER :: handle
-    REAL(KIND = dp), DIMENSION(:,:), POINTER   :: A,EV         ! EV: Eigenvektoren
+    TYPE(cp_fm_type), POINTER                :: matrix, eigenvectors
+    REAL(KIND=dp), DIMENSION(:), INTENT(OUT) :: eigenvalues
+    REAL(KIND=dp), INTENT(IN)                :: epsi
+    INTEGER, INTENT(IN)                      :: Anz_max
+    REAL(KIND=dp), INTENT(IN)                :: thresh
+    INTEGER, INTENT(IN), OPTIONAL            :: blocksize
 
+    INTEGER                                  :: Anz, bs, handle, I, J, N, p, q
+    REAL(KIND=dp)                            :: A_off, c, J_pp, J_pq, J_qp, &
+                                                J_qq, s, tan_theta, tau
+    REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: c_ip, c_iq
+    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: A, EV
+
+! Gibt an wieviele Eigenwerte/vektoren berechnet werden solln
+! Gibt die maximal Anzahl an Jacobi-Iterationen an
+! epsi: Abbruchkriterium, wenn epsi kleiner als die Quadratsumme
+! der Ausserdiagonalwerte ist
+! thresh: Ein Element wird nur rotiert, wenn es groesser als thresh ist.
+! Enthaelt die Eigenwerte 1:blocksize (vom kleinsten bis zum groessten)
+! Da ab einem gewissen SCF-SChritt nicht mehr umsortiert werden muss
+! EV: Eigenvektoren
 !   ***** LOKALE VARIABLEN *******
-    REAL(KIND = dp) :: tan_theta,tau,c,s,J_pp,J_pq,J_qp,J_qq,A_off
-    INTEGER  :: I,J,Anz,q,p,bs,N
-    REAL(KIND = dp), DIMENSION (:),ALLOCATABLE :: c_ip,c_iq
-
 !   ---------------------------------------------------------------------------
 
     CALL timeset("cp_fm_jacobi","I","",handle)
@@ -720,7 +718,6 @@ CONTAINS
 ! *****************************************************************************
 
   SUBROUTINE cp_fm_block_jacobi_scaled(matrix,eigenvectors,eigenvalues,thresh,start_sec_block)
-    IMPLICIT NONE
 !
 !   Purpose: Calculates Block diagonalizazion from full symmetric matrix
 !   History: - Creation (07.10.2002, Martin Fengler) Has its origin in cp_fm_syevx
@@ -729,23 +726,23 @@ CONTAINS
 
 !   ***************************************************************************
 
-    TYPE(cp_fm_type), POINTER        :: eigenvectors,matrix
-    INTEGER, INTENT(IN)                       :: start_sec_block  ! Gibt an wo der zweite Block BEGINNT
-    REAL(KIND = dp), INTENT(IN)                      :: thresh ! thresh: Ein SKALIERTES Element wird nur rotiert, wenn es grsser als thresh ist.
-    REAL(KIND = dp), DIMENSION(:), INTENT(IN)        :: eigenvalues ! Enthaelt die Eigenwerte 1:N(vom kleinsten bis zum grssten)
-                                                             ! Da ab einem gewissen SCF-SChritt nicht mehr umsortiert werden muss
+    TYPE(cp_fm_type), POINTER                :: matrix, eigenvectors
+    REAL(KIND=dp), DIMENSION(:), INTENT(IN)  :: eigenvalues
+    REAL(KIND=dp), INTENT(IN)                :: thresh
+    INTEGER, INTENT(IN)                      :: start_sec_block
 
-!   *** Local variables ***
-    INTEGER :: handle
-    REAL(KIND = dp), DIMENSION(:,:), POINTER   :: A,EV         ! EV: Eigenvektoren
+    INTEGER                                  :: handle, I, N, p, q
+    REAL(KIND=dp)                            :: c, k, max_thresh, new_thresh, &
+                                                s, tan_theta, tau, temp
+    REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: c_ip, c_iq
+    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: A, EV
 
+! Gibt an wo der zweite Block BEGINNT
+! thresh: Ein SKALIERTES Element wird nur rotiert, wenn es grsser als thresh ist.
+! Enthaelt die Eigenwerte 1:N(vom kleinsten bis zum grssten)
+! Da ab einem gewissen SCF-SChritt nicht mehr umsortiert werden muss
+! EV: Eigenvektoren
 !   ***** LOKALE VARIABLEN *******
-    REAL(KIND = dp) :: tan_theta,tau,c,s,k,max_thresh,new_thresh, temp
-    INTEGER  :: I,J,q,p,bs,N
-    REAL(KIND = dp), DIMENSION (:),ALLOCATABLE :: c_ip,c_iq
-
-
-
 !   ---------------------------------------------------------------------------
 
     CALL timeset("cp_fm_block_jacobi_scaled","I","",handle)

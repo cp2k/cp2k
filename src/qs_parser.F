@@ -25,11 +25,11 @@ MODULE qs_parser
   USE kinds,                           ONLY: dp
   USE message_passing,                 ONLY: mp_bcast,&
                                              mp_sync
-  USE output_utilities,                ONLY: print_warning
   USE string_utilities,                ONLY: compress,&
                                              uppercase
   USE termination,                     ONLY: get_error_unit,&
                                              stop_program
+
   IMPLICIT NONE
 
   PRIVATE
@@ -120,7 +120,7 @@ CONTAINS
 
 !   ***************************************************************************
 
-    INTEGER, INTENT(IN), OPTIONAL :: ifail
+    INTEGER, INTENT(IN), OPTIONAL            :: ifail
 
 !   ---------------------------------------------------------------------------
 
@@ -141,22 +141,17 @@ CONTAINS
 
 !   ***************************************************************************
 
-    CHARACTER(LEN=*), OPTIONAL, INTENT(IN) :: file_status
-    INTEGER, INTENT(IN)                    :: unit_number
+    INTEGER, INTENT(IN)                      :: unit_number
+    CHARACTER(LEN=*), INTENT(IN), OPTIONAL   :: file_status
 
-!   *** Local parameters ***
+    CHARACTER(LEN=*), PARAMETER              :: routine_name = "close_file"
 
-    CHARACTER(LEN=*), PARAMETER :: routine_name = "close_file"
-
-!   *** Local variables ***
-
-    CHARACTER(LEN=max_message_length) :: message
-    CHARACTER(LEN=6)                  :: status_string
-    INTEGER                           :: istat
-    LOGICAL                           :: exists,opened
+    CHARACTER(LEN=6)                         :: status_string
+    CHARACTER(LEN=max_message_length)        :: message
+    INTEGER                                  :: istat
+    LOGICAL                                  :: exists, opened
 
 !   ---------------------------------------------------------------------------
-
 !   *** Check the specified input file name ***
 
     INQUIRE (UNIT=unit_number,EXIST=exists,OPENED=opened,IOSTAT=istat)
@@ -209,13 +204,8 @@ CONTAINS
 
 !   ***************************************************************************
 
-!   *** Local parameters ***
 
-    CHARACTER(LEN=*), PARAMETER :: routine_name = "finish_parser"
-
-!   *** Local variables ***
-
-    CHARACTER(LEN=max_message_length) :: message
+    CHARACTER(LEN=*), PARAMETER              :: routine_name = "finish_parser"
 
 !   ---------------------------------------------------------------------------
 
@@ -246,8 +236,8 @@ CONTAINS
 
 !   ***************************************************************************
 
-    INTEGER, INTENT(IN)            :: nline
-    INTEGER, INTENT(OUT), OPTIONAL :: ifail
+    INTEGER, INTENT(IN)                      :: nline
+    INTEGER, INTENT(OUT), OPTIONAL           :: ifail
 
 !   ---------------------------------------------------------------------------
 
@@ -271,16 +261,11 @@ CONTAINS
 
 !   ***************************************************************************
 
-    INTEGER, OPTIONAL, INTENT(IN) :: string_length
-
-!   *** Local parameters ***
+    INTEGER, INTENT(IN), OPTIONAL            :: string_length
 
     CHARACTER(LEN=*), PARAMETER :: routine_name = "get_next_input_string"
 
-!   *** Local variables ***
-
-    CHARACTER(LEN=max_message_length) :: message
-    INTEGER                           :: i,length
+    INTEGER                                  :: i, length
 
 !   ---------------------------------------------------------------------------
 
@@ -430,12 +415,10 @@ CONTAINS
 
 !   ***************************************************************************
 
-    INTEGER :: unit_number
+    INTEGER                                  :: unit_number
 
-!   *** Local variables ***
-
-    INTEGER :: istat
-    LOGICAL :: exists,opened
+    INTEGER                                  :: istat
+    LOGICAL                                  :: exists, opened
 
 !   ---------------------------------------------------------------------------
 
@@ -459,13 +442,10 @@ CONTAINS
 
 !   ***************************************************************************
 
-    CHARACTER(LEN=*), INTENT(IN) :: string
+    CHARACTER(LEN=*), INTENT(IN)             :: string
+    LOGICAL                                  :: contains_integer_object
 
-    LOGICAL :: contains_integer_object
-
-!   *** Local variables ***
-
-    INTEGER :: i,length
+    INTEGER                                  :: i, length
 
 !   ---------------------------------------------------------------------------
 
@@ -508,26 +488,18 @@ CONTAINS
 
 !   ***************************************************************************
 
-    CHARACTER(LEN=*), INTENT(IN)           :: file_name
-    CHARACTER(LEN=*), OPTIONAL, INTENT(IN) :: file_action,&
-                                              file_form,&
-                                              file_position,&
-                                              file_status
-    INTEGER, INTENT(OUT)                   :: unit_number
+    CHARACTER(LEN=*), INTENT(IN)             :: file_name
+    CHARACTER(LEN=*), INTENT(IN), OPTIONAL   :: file_status, file_form, &
+                                                file_action, file_position
+    INTEGER, INTENT(OUT)                     :: unit_number
 
-!   *** Local parameters ***
+    CHARACTER(LEN=*), PARAMETER              :: routine_name = "open_file"
 
-    CHARACTER(LEN=*), PARAMETER :: routine_name = "open_file"
-
-!   *** Local variables ***
-
-    CHARACTER(LEN=max_message_length) :: message
-    CHARACTER(LEN=11)                 :: action_string,&
-                                         form_string,&
-                                         position_string,&
-                                         status_string
-    INTEGER                           :: istat
-    LOGICAL                           :: exists,opened
+    CHARACTER(LEN=11)                        :: action_string, form_string, &
+                                                position_string, status_string
+    CHARACTER(LEN=max_message_length)        :: message
+    INTEGER                                  :: istat
+    LOGICAL                                  :: exists, opened
 
 !   ---------------------------------------------------------------------------
 
@@ -629,17 +601,13 @@ CONTAINS
 
 !   ***************************************************************************
 
-    INTEGER, INTENT(OUT)          :: object
-    INTEGER, INTENT(IN), OPTIONAL :: skip_lines,string_length
-    LOGICAL, INTENT(IN), OPTIONAL :: lower_to_upper,newline
-
-!   *** Local parameters ***
+    INTEGER, INTENT(OUT)                     :: object
+    LOGICAL, INTENT(IN), OPTIONAL            :: lower_to_upper, newline
+    INTEGER, INTENT(IN), OPTIONAL            :: skip_lines, string_length
 
     CHARACTER(LEN=*), PARAMETER :: routine_name = "read_integer_object"
 
-!   *** Local variables ***
-
-    INTEGER :: nline
+    INTEGER                                  :: nline
 
 !   ---------------------------------------------------------------------------
 
@@ -690,18 +658,14 @@ CONTAINS
 
 !   ***************************************************************************
 
-    LOGICAL, INTENT(OUT)          :: object
-    INTEGER, INTENT(IN), OPTIONAL :: skip_lines,string_length
-    LOGICAL, INTENT(IN), OPTIONAL :: newline
-
-!   *** Local parameters ***
+    LOGICAL, INTENT(OUT)                     :: object
+    LOGICAL, INTENT(IN), OPTIONAL            :: newline
+    INTEGER, INTENT(IN), OPTIONAL            :: skip_lines, string_length
 
     CHARACTER(LEN=*), PARAMETER :: routine_name = "read_logical_object"
 
-!   *** Local variables ***
-
-    CHARACTER(LEN=max_line_length) :: input_string
-    INTEGER                        :: input_string_length,nline
+    CHARACTER(LEN=max_line_length)           :: input_string
+    INTEGER                                  :: input_string_length, nline
 
 !   ---------------------------------------------------------------------------
 
@@ -762,17 +726,13 @@ CONTAINS
 
 !   ***************************************************************************
 
-    INTEGER, INTENT(IN)            :: nline
-    INTEGER, INTENT(OUT), OPTIONAL :: ifail
-
-!   *** Local parameters ***
+    INTEGER, INTENT(IN)                      :: nline
+    INTEGER, INTENT(OUT), OPTIONAL           :: ifail
 
     CHARACTER(LEN=*), PARAMETER :: routine_name = "read_next_input_line"
 
-!   *** Local variables ***
-
-    CHARACTER(LEN=max_message_length)   :: message
-    INTEGER                             :: icomment,iline,istat
+    CHARACTER(LEN=max_message_length)        :: message
+    INTEGER                                  :: icomment, iline, istat
 
 !   ---------------------------------------------------------------------------
 
@@ -848,20 +808,17 @@ CONTAINS
 
 !   ***************************************************************************
 
-    REAL(KIND = dp), INTENT(OUT)         :: object
-    INTEGER, INTENT(IN), OPTIONAL :: skip_lines,string_length
-    LOGICAL, INTENT(IN), OPTIONAL :: lower_to_upper,newline
-
-!   *** Local parameters ***
+    REAL(KIND=dp), INTENT(OUT)               :: object
+    LOGICAL, INTENT(IN), OPTIONAL            :: lower_to_upper, newline
+    INTEGER, INTENT(IN), OPTIONAL            :: skip_lines, string_length
 
     CHARACTER(LEN=*), PARAMETER :: routine_name = "read_real_object"
 
-!   *** Local variables ***
-
-    INTEGER :: idot_first,idot_last,islash,istat,iz,nline,nz
-
-    CHARACTER(LEN=max_line_length), DIMENSION(2) :: string
-    REAL(KIND = dp), DIMENSION(2)                       :: z
+    CHARACTER(LEN=max_line_length), &
+      DIMENSION(2)                           :: string
+    INTEGER                                  :: idot_first, idot_last, &
+                                                islash, istat, iz, nline, nz
+    REAL(KIND=dp), DIMENSION(2)              :: z
 
 !   ---------------------------------------------------------------------------
 
@@ -949,18 +906,14 @@ CONTAINS
 
 !   ***************************************************************************
 
-    CHARACTER(LEN=*), INTENT(OUT) :: object
-    INTEGER, INTENT(IN), OPTIONAL :: skip_lines,string_length
-    LOGICAL, INTENT(IN), OPTIONAL :: lower_to_upper,newline
-
-!   *** Local parameters ***
+    CHARACTER(LEN=*), INTENT(OUT)            :: object
+    LOGICAL, INTENT(IN), OPTIONAL            :: lower_to_upper, newline
+    INTEGER, INTENT(IN), OPTIONAL            :: skip_lines, string_length
 
     CHARACTER(LEN=*), PARAMETER :: routine_name = "read_string_object"
 
-!   *** Local variables ***
-
-    CHARACTER(LEN=max_message_length) :: message
-    INTEGER                           :: input_string_length,nline
+    CHARACTER(LEN=max_message_length)        :: message
+    INTEGER                                  :: input_string_length, nline
 
 !   ---------------------------------------------------------------------------
 
@@ -1022,21 +975,17 @@ CONTAINS
 
 !   ***************************************************************************
 
-    CHARACTER(LEN=*), INTENT(IN)            :: string
-    CHARACTER(LEN=*), INTENT(OUT), OPTIONAL :: line
-    LOGICAL, INTENT(IN)                     :: ignore_case
-    LOGICAL, INTENT(OUT)                    :: found
+    CHARACTER(LEN=*), INTENT(IN)             :: string
+    LOGICAL, INTENT(IN)                      :: ignore_case
+    LOGICAL, INTENT(OUT)                     :: found
+    CHARACTER(LEN=*), INTENT(OUT), OPTIONAL  :: line
 
-!   *** Local parameters ***
+    CHARACTER(LEN=*), PARAMETER              :: routine_name = "search_object"
 
-    CHARACTER(LEN=*), PARAMETER :: routine_name = "search_object"
-
-!   *** Local variables ***
-
-    CHARACTER(LEN=max_line_length+1)  :: current_line
-    CHARACTER(LEN=max_message_length) :: message
-    CHARACTER(LEN=LEN(string))        :: pattern
-    INTEGER                           :: ifail,ipattern
+    CHARACTER(LEN=LEN(string))               :: pattern
+    CHARACTER(LEN=max_line_length+1)         :: current_line
+    CHARACTER(LEN=max_message_length)        :: message
+    INTEGER                                  :: ifail, ipattern
 
 !   ---------------------------------------------------------------------------
 
@@ -1112,27 +1061,23 @@ CONTAINS
 
 !   ***************************************************************************
 
-    TYPE(global_environment_type), INTENT(IN) :: globenv
-    CHARACTER(LEN=*), INTENT(IN)              :: file_name
-    CHARACTER(LEN=*), OPTIONAL, INTENT(IN)    :: end_section_label,&
-                                                 separator_chars,&
-                                                 start_section_label,&
-                                                 start_section_name
-    CHARACTER(LEN=1), OPTIONAL, INTENT(IN)    :: comment_char,&
-                                                 continuation_char,&
-                                                 section_char
-    LOGICAL, OPTIONAL, INTENT(OUT)            :: section_found
+    CHARACTER(LEN=*), INTENT(IN)             :: file_name
+    TYPE(global_environment_type), &
+      INTENT(IN)                             :: globenv
+    CHARACTER(LEN=*), INTENT(IN), OPTIONAL   :: end_section_label, &
+                                                separator_chars, &
+                                                start_section_label, &
+                                                start_section_name
+    CHARACTER(LEN=1), INTENT(IN), OPTIONAL   :: comment_char, &
+                                                continuation_char, &
+                                                section_char
+    LOGICAL, INTENT(OUT), OPTIONAL           :: section_found
 
-!   *** Local parameters ***
+    CHARACTER(LEN=*), PARAMETER              :: routine_name = "start_parser"
 
-    CHARACTER(LEN=*), PARAMETER :: routine_name = "start_parser"
-
-!   *** Local variables ***
-
-    CHARACTER(LEN=max_message_length) :: message
-    CHARACTER(LEN=60)                 :: current_name,requested_name
-    CHARACTER(LEN=3)                  :: test_result
-    LOGICAL                           :: found
+    CHARACTER(LEN=3)                         :: test_result
+    CHARACTER(LEN=60)                        :: current_name, requested_name
+    LOGICAL                                  :: found
 
 !   ---------------------------------------------------------------------------
 
@@ -1234,11 +1179,9 @@ CONTAINS
 
 !   ***************************************************************************
 
-    CHARACTER(LEN=*), INTENT(IN) :: message,routine
+    CHARACTER(LEN=*), INTENT(IN)             :: routine, message
 
-!   *** Local variables ***
-
-    CHARACTER(LEN=max_message_length) :: error_message
+    CHARACTER(LEN=max_message_length)        :: error_message
 
 !   ---------------------------------------------------------------------------
 
@@ -1299,14 +1242,13 @@ CONTAINS
 
 !   ***************************************************************************
 
-    CHARACTER(LEN=*), INTENT(IN) :: message,module_name,routine_name
-    INTEGER, INTENT(IN)          :: line_number
+    CHARACTER(LEN=*), INTENT(IN)             :: routine_name, module_name
+    INTEGER, INTENT(IN)                      :: line_number
+    CHARACTER(LEN=*), INTENT(IN)             :: message
 
-!   *** Local variables ***
-
-    CHARACTER(LEN=max_line_length)    :: indicators
-    CHARACTER(LEN=max_message_length) :: error_message
-    INTEGER                           :: i
+    CHARACTER(LEN=max_line_length)           :: indicators
+    CHARACTER(LEN=max_message_length)        :: error_message
+    INTEGER                                  :: i
 
 !   ---------------------------------------------------------------------------
 
@@ -1373,20 +1315,16 @@ CONTAINS
 
 !   ***************************************************************************
 
-    INTEGER, INTENT(IN), OPTIONAL :: skip_lines,string_length
-    LOGICAL, INTENT(IN), OPTIONAL :: newline
+    LOGICAL, INTENT(IN), OPTIONAL            :: newline
+    INTEGER, INTENT(IN), OPTIONAL            :: skip_lines, string_length
+    CHARACTER(LEN=3)                         :: test_result
 
-    CHARACTER(LEN=3) :: test_result
-
-!   *** Local variables ***
-
-    CHARACTER(LEN=max_line_length) :: old_input_line
-    REAL(KIND = dp)                       :: z
-    INTEGER                        :: idot_first,idot_last,ifail,iline,islash,&
-                                      istat,iz,nline,nz,old_icol,old_icol1,&
-                                      old_icol2,old_input_line_number
-
-    CHARACTER(LEN=max_line_length), DIMENSION(2) :: string
+    CHARACTER(LEN=max_line_length)           :: old_input_line
+    CHARACTER(LEN=max_line_length), &
+      DIMENSION(2)                           :: string
+    INTEGER :: idot_first, idot_last, ifail, iline, islash, istat, iz, nline, &
+      nz, old_icol, old_icol1, old_icol2, old_input_line_number
+    REAL(KIND=dp)                            :: z
 
 !   ---------------------------------------------------------------------------
 

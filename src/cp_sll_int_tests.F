@@ -43,6 +43,7 @@ MODULE cp_sll_int_tests
                                              cp_warning_level
   USE global_types,                    ONLY: global_environment_type
   USE kinds,                           ONLY: dp
+
   IMPLICIT NONE
   PRIVATE
 
@@ -88,18 +89,20 @@ CONTAINS
 !!   SOURCE
 !***************************************************************************
 FUNCTION cp_test_int_sll(glob_env, error) RESULT(res)
-  LOGICAL :: res
-  TYPE(global_environment_type), TARGET :: glob_env
-  TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
-  
-  LOGICAL :: failure
-  CHARACTER(len=*), PARAMETER :: routineN='cp_test_int_sll',&
-       routineP=moduleN//routineN
-  INTEGER, PARAMETER :: n=6
-  INTEGER, DIMENSION(n) :: array
-  INTEGER :: i
-  TYPE(cp_sll_int_type), POINTER :: reverseList, iterator
-  INTEGER :: el
+    TYPE(global_environment_type), TARGET    :: glob_env
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
+    LOGICAL                                  :: res
+
+    CHARACTER(len=*), PARAMETER              :: routineN = 'cp_test_int_sll', &
+                                                routineP = moduleN//routineN
+    INTEGER, PARAMETER                       :: n = 6
+
+    INTEGER                                  :: el, i
+    INTEGER, DIMENSION(n)                    :: array
+    LOGICAL                                  :: failure
+    TYPE(cp_sll_int_type), POINTER           :: iterator, reverseList
+
   failure=.FALSE.
   NULLIFY(reverseList,iterator)
   

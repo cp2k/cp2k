@@ -21,42 +21,30 @@
 
 MODULE topology
 
-  USE atomic_kind_types,                ONLY: atomic_kind_type
-  USE atoms_input,                      ONLY: read_atoms_input
-  USE checkpoint_handler,               ONLY: write_checkpoint_information
-  USE global_types,                     ONLY: global_environment_type
-  USE kinds,                            ONLY: dbl
-  USE molecule_types_new,               ONLY: allocate_molecule_set,&
-                                              molecule_type,&
-                                              set_molecule_set
-  USE molecule_kind_types,              ONLY: allocate_molecule_kind_set,&
-                                              atom_type,&
-                                              get_molecule_kind,&
-                                              molecule_kind_type,&
-                                              read_molecule_kind_set,&
-                                              set_molecule_kind
-  USE particle_types,                   ONLY: particle_type,&
-                                              read_particle_set
-  USE simulation_cell,                  ONLY: cell_type,get_cell,&
-                                              read_cell,write_cell
-  USE termination,                      ONLY: stop_program,&
-                                              stop_memory
-  USE timings,                          ONLY: timeset,&
-                                              timestop
-  USE topology_input,                   ONLY: read_topology_section
-  USE topology_gromos,                  ONLY: read_topology_gromos
-  USE topology_pdb,                     ONLY: read_coordinate_pdb
-  USE topology_psf,                     ONLY: read_topology_psf
-  USE topology_types,                   ONLY: deallocate_topology,&
-                                              init_topology,&
-                                              topology_parameters_type
-  USE topology_util,                    ONLY: topology_coordinate_pack,&
-                                              topology_generate_bond,&
-                                              topology_generate_bend,&
-                                              topology_generate_dihe,&
-                                              topology_generate_molecule,&
-                                              topology_connectivity_pack
-
+  USE atomic_kind_types,               ONLY: atomic_kind_type
+  USE atoms_input,                     ONLY: read_atoms_input
+  USE checkpoint_handler,              ONLY: write_checkpoint_information
+  USE global_types,                    ONLY: global_environment_type
+  USE kinds,                           ONLY: dbl
+  USE molecule_kind_types,             ONLY: molecule_kind_type
+  USE molecule_types_new,              ONLY: molecule_type
+  USE particle_types,                  ONLY: particle_type
+  USE simulation_cell,                 ONLY: read_cell
+  USE termination,                     ONLY: stop_program
+  USE timings,                         ONLY: timeset,&
+                                             timestop
+  USE topology_input,                  ONLY: read_topology_section
+  USE topology_pdb,                    ONLY: read_coordinate_pdb
+  USE topology_psf,                    ONLY: read_topology_psf
+  USE topology_types,                  ONLY: deallocate_topology,&
+                                             init_topology,&
+                                             topology_parameters_type
+  USE topology_util,                   ONLY: topology_connectivity_pack,&
+                                             topology_coordinate_pack,&
+                                             topology_generate_bend,&
+                                             topology_generate_bond,&
+                                             topology_generate_dihe,&
+                                             topology_generate_molecule
 
   CHARACTER(LEN=*), PARAMETER, PRIVATE :: moduleN = "topology"
 
@@ -89,25 +77,27 @@ SUBROUTINE topology_control (atomic_kind_set,particle_set,&
                              molecule_kind_set,molecule_set,&
                              globenv)
 
-  IMPLICIT NONE
 
-! Arguments
-  TYPE ( atomic_kind_type ), DIMENSION(:), POINTER  :: atomic_kind_set
-  TYPE ( particle_type ), DIMENSION(:), POINTER     :: particle_set
-  TYPE ( molecule_kind_type), DIMENSION(:), POINTER :: molecule_kind_set
-  TYPE ( molecule_type), DIMENSION(:), POINTER      :: molecule_set
-  TYPE ( global_environment_type ), INTENT ( IN )   :: globenv
+    TYPE(atomic_kind_type), DIMENSION(:), &
+      POINTER                                :: atomic_kind_set
+    TYPE(particle_type), DIMENSION(:), &
+      POINTER                                :: particle_set
+    TYPE(molecule_kind_type), DIMENSION(:), &
+      POINTER                                :: molecule_kind_set
+    TYPE(molecule_type), DIMENSION(:), &
+      POINTER                                :: molecule_set
+    TYPE(global_environment_type), &
+      INTENT(IN)                             :: globenv
 
+    CHARACTER(len=*), PARAMETER :: routineN = 'topology_control', &
+      routineP = moduleN//':'//routineN
 
-! Locals
-  TYPE ( topology_parameters_type ) :: topology
-  CHARACTER(len=*), PARAMETER :: routineN='topology_control',&
-       routineP=moduleN//':'//routineN
-
-  INTEGER :: iw,handle
+    INTEGER                                  :: handle, iw
+    TYPE(topology_parameters_type)           :: topology
 
 !-------------------------------------------------------------------------------
 !-------------------------------------------------------------------------------
+
   iw = globenv%scr
 
   CALL write_checkpoint_information("entering "//routineN,globenv)
@@ -213,20 +203,21 @@ END SUBROUTINE topology_control
 !******************************************************************************
 SUBROUTINE connectivity_control(topology,globenv)
 
-  IMPLICIT NONE
 
-! Arguments
-  TYPE ( topology_parameters_type ), INTENT (INOUT)   :: topology
-  TYPE ( global_environment_type ), OPTIONAL,INTENT ( IN )  :: globenv
+    TYPE(topology_parameters_type), &
+      INTENT(INOUT)                          :: topology
+    TYPE(global_environment_type), &
+      INTENT(IN), OPTIONAL                   :: globenv
 
-! Locals
-  LOGICAL found
-  CHARACTER(len=*), PARAMETER :: routineN='connectivity_control',&
-       routineP=moduleN//':'//routineN
-  INTEGER :: iw,handle
+    CHARACTER(len=*), PARAMETER :: routineN = 'connectivity_control', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: handle, iw
+    LOGICAL                                  :: found
 
 !-------------------------------------------------------------------------------
 !-------------------------------------------------------------------------------
+
   iw = globenv%scr
   CALL write_checkpoint_information("entering "//routineN,globenv)
   CALL timeset(routineN,'I','',handle)
@@ -308,26 +299,21 @@ END SUBROUTINE connectivity_control
 !******************************************************************************
 SUBROUTINE coordinate_control(topology,globenv)
 
-  IMPLICIT NONE
 
-! Arguments
-  TYPE ( molecule_type ), DIMENSION ( : ),POINTER :: molecule_set
-  TYPE ( molecule_kind_type ), DIMENSION ( : ),POINTER :: molecule_kind_set
-  TYPE ( topology_parameters_type ), INTENT (INOUT) :: topology
-  TYPE ( global_environment_type ), INTENT ( IN ) :: globenv
-  TYPE(atomic_kind_type), DIMENSION(:), POINTER :: atomic_kind_set
-  TYPE(particle_type), DIMENSION(:), POINTER    :: particle_set
+    TYPE(topology_parameters_type), &
+      INTENT(INOUT)                          :: topology
+    TYPE(global_environment_type), &
+      INTENT(IN)                             :: globenv
 
-! Locals
-  LOGICAL found
-  CHARACTER(len=*), PARAMETER :: routineN='connectivity_control',&
-       routineP=moduleN//':'//routineN
-  CHARACTER ( LEN = 20 ) :: unit_type
-  CHARACTER ( LEN = 4 ) :: fext
-  INTEGER :: iw,handle
+    CHARACTER(len=*), PARAMETER :: routineN = 'connectivity_control', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: handle, iw
+    LOGICAL                                  :: found
 
 !-------------------------------------------------------------------------------
 !-------------------------------------------------------------------------------
+
   iw = globenv%scr
   CALL write_checkpoint_information("entering "//routineN,globenv)
   CALL timeset(routineN,'I','',handle)

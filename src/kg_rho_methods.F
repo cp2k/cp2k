@@ -23,18 +23,13 @@
 
 MODULE kg_rho_methods
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
-                                             get_atomic_kind,&
                                              get_atomic_kind_set
+  USE cp_control_types,                ONLY: dft_control_type
   USE cp_error_handling,               ONLY: cp_a_l,&
                                              cp_assert,&
-                                             cp_assertion_failed,&
-                                             cp_debug,&
-                                             cp_error_dealloc_ref,&
                                              cp_error_get_logger,&
-                                             cp_error_init,&
                                              cp_error_message,&
-                                             cp_error_type,&
-                                             cp_internal_error
+                                             cp_error_type
   USE cp_log_handling,                 ONLY: cp_failure_level,&
                                              cp_fatal_level,&
                                              cp_logger_get_default_unit_nr,&
@@ -43,49 +38,31 @@ MODULE kg_rho_methods
                                              cp_to_string,&
                                              cp_warning_level
   USE cp_para_types,                   ONLY: cp_para_env_type
-  USE cube_utils,                      ONLY: cube_info_type,&
-                                             destroy_cube_info,&
+  USE cube_utils,                      ONLY: destroy_cube_info,&
                                              init_cube_info
-  USE cp_control_types,                       ONLY: dft_control_type
   USE gaussian_gridlevels,             ONLY: destroy_gaussian_gridlevel,&
-                                             gridlevel_info_type,&
                                              init_gaussian_gridlevel
-  USE greens_fn,                       ONLY: pw_green_fn_init,&
-                                             pw_green_fn_destroy
+  USE greens_fn,                       ONLY: pw_green_fn_destroy,&
+                                             pw_green_fn_init
   USE kg_environment_types,            ONLY: get_kg_env,&
                                              kg_environment_type
   USE kg_rho_types,                    ONLY: allocate_kg_densities,&
-                                             deallocate_kg_densities,&
-                                             kg_rho_type  
-  USE kinds,                           ONLY: dp,dp_size
+                                             kg_rho_type
+  USE kinds,                           ONLY: dp
   USE l_utils,                         ONLY: destroy_l_info,&
-                                             init_l_info,&
-                                             l_info_type
-  USE mathconstants,                   ONLY: pi,&
-                                             zero
-  USE message_passing,                 ONLY: mp_allgather,&
-                                             mp_max,&
-                                             mp_range,&
-                                             mp_sum,&
-                                             mp_sync
+                                             init_l_info
   USE pw_grid_types,                   ONLY: FULLSPACE,&
                                              HALFSPACE,&
                                              pw_grid_type
-  USE pw_grids,                        ONLY: pw_find_cutoff,&
-                                             pw_grid_change,&
-                                             pw_grid_construct,&
+  USE pw_grids,                        ONLY: pw_grid_construct,&
                                              pw_grid_setup
   USE pw_pool_types,                   ONLY: pw_pool_create,&
-                                             pw_pool_release,&
                                              pw_pool_type
-  USE pw_types,                        ONLY: pw_type
-  USE simulation_cell,                 ONLY: cell_type,&
-                                             get_cell,&
-                                             get_hinv
-  USE termination,                     ONLY: stop_memory,&
-                                             stop_program
+  USE simulation_cell,                 ONLY: cell_type
+  USE termination,                     ONLY: stop_memory
   USE timings,                         ONLY: timeset,&
                                              timestop
+
   IMPLICIT NONE
 
   PRIVATE
@@ -98,14 +75,18 @@ CONTAINS
 
 !!*** **********************************************************************
 SUBROUTINE kg_rho_create(kg_rho,kg_env,error)
-  TYPE(kg_rho_type), POINTER :: kg_rho
-  TYPE(kg_environment_type), INTENT(in), TARGET, OPTIONAL :: kg_env
-  TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
- 
-  LOGICAL :: failure
-  CHARACTER(len=*), PARAMETER :: routineN='kg_rho_create',&
-        routineP=moduleN//':'//routineN
-  INTEGER :: stat
+    TYPE(kg_rho_type), POINTER               :: kg_rho
+    TYPE(kg_environment_type), INTENT(in), &
+      OPTIONAL, TARGET                       :: kg_env
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'kg_rho_create', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: stat
+    LOGICAL                                  :: failure
+
   failure=.FALSE.
  
   ALLOCATE(kg_rho, stat=stat)
@@ -143,30 +124,30 @@ END SUBROUTINE kg_rho_create
 !!*** **********************************************************************
   SUBROUTINE kg_rho_setup(kg_rho, kg_env, error )
 
-  IMPLICIT NONE
 
-! Arguments
 
-  TYPE(kg_rho_type), POINTER :: kg_rho
-  TYPE(kg_environment_type), INTENT(IN), TARGET :: kg_env
-  TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
+    TYPE(kg_rho_type), POINTER               :: kg_rho
+    TYPE(kg_environment_type), INTENT(IN), &
+      TARGET                                 :: kg_env
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
 
-! Locals
+    CHARACTER(len=*), PARAMETER :: routineN = 'kg_rho_setup ', &
+      routineP = moduleN//':'//routineN
+    INTEGER, PARAMETER                       :: maxgridpoints = 100
 
-  LOGICAL :: failure
-  CHARACTER(len=*), PARAMETER :: routineN='kg_rho_setup ',&
-        routineP=moduleN//':'//routineN
-  INTEGER :: stat
-
-  INTEGER, PARAMETER :: maxgridpoints = 100
-  REAL(dp)          :: rel_cutoff,maxradius
-  INTEGER :: ngrid_level,handle
-  REAL(dp), DIMENSION(:), POINTER :: cutoff
-  INTEGER  :: cmax,cmaxl,igrid_level, istat,maxlgto
-  TYPE(atomic_kind_type), DIMENSION(:), POINTER :: atomic_kind_set
-  TYPE(dft_control_type), POINTER     :: dft_control
+    INTEGER                                  :: cmax, cmaxl, handle, &
+                                                igrid_level, istat, maxlgto, &
+                                                ngrid_level, stat
+    LOGICAL                                  :: failure
+    REAL(dp)                                 :: maxradius, rel_cutoff
+    REAL(dp), DIMENSION(:), POINTER          :: cutoff
+    TYPE(atomic_kind_type), DIMENSION(:), &
+      POINTER                                :: atomic_kind_set
+    TYPE(dft_control_type), POINTER          :: dft_control
 
 !   ---------------------------------------------------------------------------
+
     CALL timeset(routineN,"I","",handle)
 
     failure=.FALSE.
@@ -242,35 +223,32 @@ END SUBROUTINE kg_rho_create
 !!*** **********************************************************************
   SUBROUTINE init_grid ( kg_rho, kg_env, ngrid_level,error )
 
-  IMPLICIT NONE
 
-!   Arguments
 
-    TYPE(kg_rho_type), INTENT(INOUT) :: kg_rho
-    TYPE(kg_environment_type), INTENT(IN) :: kg_env
-    INTEGER, INTENT(IN) :: ngrid_level
-    TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
+    TYPE(kg_rho_type), INTENT(INOUT)         :: kg_rho
+    TYPE(kg_environment_type), INTENT(IN)    :: kg_env
+    INTEGER, INTENT(IN)                      :: ngrid_level
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
 
-!   *** Local parameters ***
+    CHARACTER(len=*), PARAMETER :: routineN = 'init_grid' , &
+      routineP = moduleN//':'//routineN
 
-    CHARACTER(len=*), PARAMETER :: routineN='init_grid' ,&
-       routineP=moduleN//':'//routineN
+    INTEGER                                  :: auxbas, handle, i, &
+                                                igrid_level, istat
+    LOGICAL                                  :: failure, pw_grid_information
+    REAL(dp)                                 :: cutilev
+    REAL(dp), DIMENSION(:), POINTER          :: cutoff
+    TYPE(cell_type), POINTER                 :: cell
+    TYPE(cp_logger_type), POINTER            :: logger
+    TYPE(cp_para_env_type), POINTER          :: para_env
+    TYPE(dft_control_type), POINTER          :: dft_control
+    TYPE(pw_grid_type), DIMENSION(:), &
+      POINTER                                :: pw_grid
+    TYPE(pw_grid_type), POINTER              :: pw_grid_loc
+    TYPE(pw_pool_type), POINTER              :: pw_pool
 
-!   *** Local variables ***
-
-    INTEGER :: handle,i,igrid_level,istat,output_unit ! ,grid_info
-    INTEGER :: nrhos, auxbas
-    LOGICAL :: pw_grid_information, failure
-    TYPE(cell_type), POINTER          :: cell
-    TYPE(dft_control_type), POINTER   :: dft_control
-    TYPE(pw_grid_type), DIMENSION(:), POINTER :: pw_grid
-    TYPE(pw_grid_type), POINTER :: pw_grid_loc
-    TYPE(pw_pool_type), POINTER :: pw_pool
-    TYPE(cp_para_env_type), POINTER :: para_env
-    TYPE(cp_logger_type), POINTER :: logger
-    REAL(dp), DIMENSION(:), POINTER :: cutoff
-    REAL(dp) :: cutilev
-
+! ,grid_info
 !   ---------------------------------------------------------------------------
 
     CALL timeset("init_grid","I","",handle)

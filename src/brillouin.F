@@ -42,6 +42,7 @@
   USE string_utilities,                ONLY: uppercase
   USE termination,                     ONLY: stop_memory,&
                                              stop_program
+
       IMPLICIT NONE
 !
       PRIVATE
@@ -104,17 +105,18 @@
 !******************************************************************************
       SUBROUTINE kpoint_input(kp,inpar)
 
-        IMPLICIT NONE
 
-        TYPE (kpoint_type), INTENT (OUT) :: kp
-        TYPE (global_environment_type), INTENT (IN) :: inpar
+    TYPE(kpoint_type), INTENT(OUT)           :: kp
+    TYPE(global_environment_type), &
+      INTENT(IN)                             :: inpar
 
-        CHARACTER (len=20) :: string, str2
-        CHARACTER (len=6) :: label
-        INTEGER :: iw, ierror, ilen, isos, i, source, group
+    CHARACTER(len=20)                        :: str2, string
+    CHARACTER(len=6)                         :: label
+    INTEGER                                  :: i, ierror, ilen, isos, iw
+
 !------------------------------------------------------------------------------!
-
 !..defaults
+
         kp%scheme = 'NULL'
         kp%symmetry = .FALSE.
         kp%wfn_type = 0
@@ -244,11 +246,11 @@
 !!   SOURCE
 !******************************************************************************
       SUBROUTINE brillouin_info(kp,inpar)
-        IMPLICIT NONE
-        TYPE (kpoint_type), INTENT (IN) :: kp
-        TYPE (global_environment_type), INTENT (IN) :: inpar
-        INTEGER :: punit
-        INTEGER :: i
+    TYPE(kpoint_type), INTENT(IN)            :: kp
+    TYPE(global_environment_type), &
+      INTENT(IN)                             :: inpar
+
+    INTEGER                                  :: i, punit
 
         IF ( inpar%ionode ) THEN
            punit = inpar%scr
@@ -333,13 +335,15 @@
 !!
 !!*** **********************************************************************
 SUBROUTINE kpoint_dealloc(kp,error)
-  TYPE(kpoint_type), POINTER :: kp
-  TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
-  
-  LOGICAL :: failure
-  CHARACTER(len=*), PARAMETER :: routineN='kpoint_dealloc',&
-        routineP=moduleN//':'//routineN
-  INTEGER :: stat
+    TYPE(kpoint_type), POINTER               :: kp
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'kpoint_dealloc', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: stat
+    LOGICAL                                  :: failure
 
   failure=.FALSE.
   

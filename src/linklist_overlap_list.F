@@ -20,22 +20,29 @@
 
 MODULE linklist_overlap_list
 
-  USE kinds, ONLY : dbl
-
-  USE atomic_kinds, ONLY : kind_info_type
-  USE global_types, ONLY : global_environment_type
-  USE linklist_cell_types, ONLY : cell_neighborlist_type, &
-       neighbor_cells_type, cell_atoms_linklist_type
-  USE linklist_utilities, ONLY : get_match, update_verlet_list,  &
-       number_of_image_cells, startlist_images_type
-  USE molecule_types, ONLY : particle_node_type, linklist_neighbor, &
-       linklist_exclusion
-  USE message_passing, ONLY : mp_max, mp_min, mp_sum
-  USE particle_types, ONLY : particle_type
-  USE simulation_cell, ONLY : cell_type
-  USE termination, ONLY : stop_memory
-  USE timings, ONLY : timeset, timestop
-  USE util, ONLY : include_list, sort
+  USE atomic_kinds,                    ONLY: kind_info_type
+  USE global_types,                    ONLY: global_environment_type
+  USE kinds,                           ONLY: dbl
+  USE linklist_cell_types,             ONLY: cell_atoms_linklist_type,&
+                                             cell_neighborlist_type,&
+                                             neighbor_cells_type
+  USE linklist_utilities,              ONLY: get_match,&
+                                             number_of_image_cells,&
+                                             startlist_images_type,&
+                                             update_verlet_list
+  USE message_passing,                 ONLY: mp_max,&
+                                             mp_min,&
+                                             mp_sum
+  USE molecule_types,                  ONLY: linklist_exclusion,&
+                                             linklist_neighbor,&
+                                             particle_node_type
+  USE particle_types,                  ONLY: particle_type
+  USE simulation_cell,                 ONLY: cell_type
+  USE termination,                     ONLY: stop_memory
+  USE timings,                         ONLY: timeset,&
+                                             timestop
+  USE util,                            ONLY: include_list,&
+                                             sort
 
   IMPLICIT NONE
 
@@ -55,54 +62,54 @@ SUBROUTINE overlap_list(n_images,n_cell,pnode,part,box, &
      ki,verlet_skin,rlist_cut,rlist_cutsq,neighbor, &
      cell_ll,start_list_nl,start_list_im, globenv,list_type)
 
-  IMPLICIT NONE
 
 !
 ! neighbor_list lists all the neighbors of all atoms
 !
 
-! Arguments
-  TYPE ( particle_node_type ), DIMENSION ( : ), INTENT ( INOUT ), TARGET :: &
-       pnode
-  TYPE ( particle_type ), DIMENSION ( : ), INTENT ( IN ), TARGET :: part
-  TYPE ( cell_type ), INTENT ( IN ) :: box
-  TYPE ( kind_info_type), INTENT (IN), DIMENSION (:) :: ki
-  TYPE ( linklist_neighbor), POINTER :: start_list_nl
-  TYPE ( startlist_images_type ), POINTER :: start_list_im ( : )
-  TYPE ( cell_neighborlist_type ), DIMENSION ( :, :, : ), POINTER :: cell_ll
-  TYPE ( neighbor_cells_type ), DIMENSION ( :, : ), POINTER :: neighbor
-  TYPE ( global_environment_type ), INTENT ( IN ) :: globenv
-  REAL ( dbl ), DIMENSION ( :, : ), INTENT ( IN ) :: rlist_cut, rlist_cutsq
-  REAL ( dbl ), INTENT ( IN ) :: verlet_skin
-  INTEGER, DIMENSION ( :, :, : ), POINTER :: n_images
-  INTEGER, DIMENSION ( : ), INTENT ( IN ) :: n_cell
-  INTEGER, INTENT (IN) :: list_type
+    INTEGER, DIMENSION(:, :, :), POINTER     :: n_images
+    INTEGER, DIMENSION(:), INTENT(IN)        :: n_cell
+    TYPE(particle_node_type), DIMENSION(:), &
+      INTENT(INOUT), TARGET                  :: pnode
+    TYPE(particle_type), DIMENSION(:), &
+      INTENT(IN), TARGET                     :: part
+    TYPE(cell_type), INTENT(IN)              :: box
+    TYPE(kind_info_type), DIMENSION(:), &
+      INTENT(IN)                             :: ki
+    REAL(dbl), INTENT(IN)                    :: verlet_skin
+    REAL(dbl), DIMENSION(:, :), INTENT(IN)   :: rlist_cut, rlist_cutsq
+    TYPE(neighbor_cells_type), &
+      DIMENSION(:, :), POINTER               :: neighbor
+    TYPE(cell_neighborlist_type), &
+      DIMENSION(:, :, :), POINTER            :: cell_ll
+    TYPE(linklist_neighbor), POINTER         :: start_list_nl
+    TYPE(startlist_images_type), POINTER     :: start_list_im( : )
+    TYPE(global_environment_type), &
+      INTENT(IN)                             :: globenv
+    INTEGER, INTENT(IN)                      :: list_type
 
-! Locals
-  TYPE (cell_atoms_linklist_type ), POINTER :: ll
-  INTEGER :: i, ii, j, natoms, nnodes, handle, ipair
-  INTEGER :: iatom, jatom, iexclude, isos
-  INTEGER :: nkind, ikind, jkind, nat
-  INTEGER :: nloc, nsum, nmax, nmin, nexcl, ncells
-  INTEGER :: k, ipart, jpart, npairs
-  INTEGER, DIMENSION (3) :: index
-  INTEGER, PARAMETER :: els = 50
-  INTEGER, DIMENSION ( : ), POINTER :: elist, ind
-  REAL ( dbl ) :: rijsq, fis
-  REAL ( dbl ), DIMENSION (3) :: perd
-  REAL ( dbl ), DIMENSION (3,3) :: hmat, h_inv
-  LOGICAL :: first_time
+    INTEGER, PARAMETER                       :: els = 50
+
+    INTEGER :: handle, i, iexclude, ii, ikind, ipair, isos, j, jkind, jpart, &
+      k, nat, natoms, ncells, nexcl, nkind, nloc, nmax, nmin, nnodes, npairs, &
+      nsum
+    INTEGER, DIMENSION(3)                    :: index
+    INTEGER, DIMENSION(:), POINTER           :: elist, ind
+    LOGICAL                                  :: first_time
+    REAL(dbl)                                :: fis
+    REAL(dbl), DIMENSION(3)                  :: perd
+    REAL(dbl), DIMENSION(3, 3)               :: h_inv, hmat
+    TYPE(cell_atoms_linklist_type), POINTER  :: ll
+    TYPE(linklist_exclusion), POINTER        :: ll_exclude
+    TYPE(linklist_neighbor), POINTER         :: current_neighbor
 
 !
 ! the following lines are used for the link_list of
 ! neighbors
 !
-  TYPE (linklist_neighbor), POINTER :: current_neighbor
-  TYPE (linklist_exclusion), POINTER :: ll_exclude
-
 !------------------------------------------------------------------------------
-
 ! initialize values
+
   natoms = 0
   nat = 0
 

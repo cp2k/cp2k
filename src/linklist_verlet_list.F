@@ -20,39 +20,44 @@
 
 MODULE linklist_verlet_list
 
-  USE atomic_kind_types,        ONLY: atomic_kind_type,&
-                                      get_atomic_kind,&
-                                      get_atomic_kind_set
-  USE checkpoint_handler,       ONLY: write_checkpoint_information
-  USE global_types, ONLY : global_environment_type, LOW
-  USE kinds, ONLY : dbl, int_size, dp_size
-  USE linklist_types, ONLY : linklist_internal_data_type, subcell_data_type
-  USE linklist_utilities, ONLY : get_match
-  USE molecule_types, ONLY : particle_node_type, linklist_exclusion
-  USE message_passing, ONLY : mp_max, mp_min, mp_sum
-  USE particle_types, ONLY : particle_type
-  USE qs_neighbor_list_types,   ONLY: add_neighbor_list,&
-                                      add_neighbor_node,&
-                                      allocate_neighbor_list_set,&
-                                      deallocate_neighbor_list_set,&
-                                      first_list,&
-                                      first_node,&
-                                      get_neighbor_list,&
-                                      get_neighbor_node,&
-                                      init_neighbor_list,&
-                                      neighbor_list_set_p_type,&
-                                      neighbor_list_set_type,&
-                                      neighbor_list_type,&
-                                      neighbor_node_type,&
-                                      next
-  USE simulation_cell,          ONLY: cell_type,&
-                                      get_cell,&
-                                      pbc,&
-                                      real_to_scaled,&
-                                      scaled_to_real
-  USE termination, ONLY : stop_memory
-  USE timings, ONLY : timeset, timestop
-  USE util, ONLY : include_list, sort
+  USE atomic_kind_types,               ONLY: atomic_kind_type,&
+                                             get_atomic_kind
+  USE checkpoint_handler,              ONLY: write_checkpoint_information
+  USE global_types,                    ONLY: LOW,&
+                                             global_environment_type
+  USE kinds,                           ONLY: dbl,&
+                                             dp_size,&
+                                             int_size
+  USE linklist_types,                  ONLY: linklist_internal_data_type,&
+                                             subcell_data_type
+  USE linklist_utilities,              ONLY: get_match
+  USE molecule_types,                  ONLY: linklist_exclusion,&
+                                             particle_node_type
+  USE particle_types,                  ONLY: particle_type
+  USE qs_neighbor_list_types,          ONLY: add_neighbor_list,&
+                                             add_neighbor_node,&
+                                             allocate_neighbor_list_set,&
+                                             deallocate_neighbor_list_set,&
+                                             first_list,&
+                                             first_node,&
+                                             get_neighbor_list,&
+                                             get_neighbor_node,&
+                                             init_neighbor_list,&
+                                             neighbor_list_set_p_type,&
+                                             neighbor_list_set_type,&
+                                             neighbor_list_type,&
+                                             neighbor_node_type,&
+                                             next
+  USE simulation_cell,                 ONLY: cell_type,&
+                                             get_cell,&
+                                             pbc,&
+                                             real_to_scaled,&
+                                             scaled_to_real
+  USE termination,                     ONLY: stop_memory
+  USE timings,                         ONLY: timeset,&
+                                             timestop
+  USE util,                            ONLY: include_list,&
+                                             sort
 
   IMPLICIT NONE
 
@@ -91,32 +96,35 @@ CONTAINS
 
 !   ***************************************************************************
 
-    TYPE ( atomic_kind_type ), DIMENSION ( : ), POINTER   :: atomic_kind_set
-    TYPE ( particle_type ), DIMENSION ( : ), INTENT ( IN )  :: part
-    TYPE ( linklist_internal_data_type ), INTENT ( IN ) :: ll_data 
-    TYPE ( cell_type ), POINTER :: cell
-    TYPE ( particle_node_type ), DIMENSION ( : ), INTENT ( INOUT ) :: pnode
+    TYPE(atomic_kind_type), DIMENSION(:), &
+      POINTER                                :: atomic_kind_set
+    TYPE(particle_type), DIMENSION(:), &
+      INTENT(IN)                             :: part
+    TYPE(cell_type), POINTER                 :: cell
+    TYPE(linklist_internal_data_type), &
+      INTENT(IN)                             :: ll_data
+    TYPE(particle_node_type), DIMENSION(:), &
+      INTENT(INOUT)                          :: pnode
 
+    CHARACTER(LEN=*), PARAMETER :: module_name = "linklist_verlet_list", &
+      routine_name = "build_verlet_lists", &
+      routine = "SUBROUTINE "//routine_name//" (MODULE "//module_name//")"
 
-!   *** Local parameters ***
-
-    CHARACTER(LEN=*), PARAMETER :: routine_name = "build_verlet_lists"
-    CHARACTER(LEN=*), PARAMETER :: module_name = "linklist_verlet_list"
-    CHARACTER(LEN=*), PARAMETER :: routine =&
-      "SUBROUTINE "//routine_name//" (MODULE "//module_name//")"
-
-!   *** Local variables ***
-    CHARACTER ( LEN = 8 ) :: unit_of_length_name
-    LOGICAL :: ionode
-    INTEGER :: group, mype, npe, ikind, inode, &
-               nkind, nnodes, istat, handle, &
-               atom_a, natoms, periodic ( 3 )
-    INTEGER, DIMENSION ( : ), ALLOCATABLE :: natom
-    REAL ( dbl ) :: ra ( 3 ), lat_vec ( 3 ), sa ( 3 ), unit_of_length, subcells
-    TYPE ( atomic_kind_type ), POINTER :: atomic_kind
-    TYPE ( atoms_type ), DIMENSION ( : ), ALLOCATABLE :: atoms
-    TYPE ( global_environment_type ) :: globenv
-    TYPE ( pbc_coord_type ) :: pbc_coord
+    CHARACTER(LEN=8)                         :: unit_of_length_name
+    INTEGER                                  :: atom_a, group, handle, ikind, &
+                                                inode, istat, mype, natoms, &
+                                                nkind, nnodes, npe, &
+                                                periodic( 3 )
+    INTEGER, ALLOCATABLE, DIMENSION(:)       :: natom
+    LOGICAL                                  :: ionode
+    REAL(dbl)                                :: lat_vec( 3 ), ra( 3 ), &
+                                                sa( 3 ), subcells, &
+                                                unit_of_length
+    TYPE(atomic_kind_type), POINTER          :: atomic_kind
+    TYPE(atoms_type), ALLOCATABLE, &
+      DIMENSION(:)                           :: atoms
+    TYPE(global_environment_type)            :: globenv
+    TYPE(pbc_coord_type)                     :: pbc_coord
 
 !   ---------------------------------------------------------------------------
 
@@ -233,49 +241,37 @@ CONTAINS
 !   History: - Creation (20.03.2002,MK)
 
 !   ***************************************************************************
-    REAL ( dbl ), INTENT ( IN ) :: subcells
-    REAL ( dbl ), INTENT ( IN ) :: rlist_cutsq ( :, : )
-    REAL ( dbl ), INTENT ( IN ) :: rlist_cut ( :, : )
-    INTEGER, INTENT ( IN ) :: natom ( : )
-    TYPE ( cell_type ), POINTER :: cell
-    TYPE ( pbc_coord_type ), INTENT ( IN )  :: pbc_coord
-    TYPE ( atoms_type ), INTENT ( IN ) :: atoms ( : )
-    TYPE ( particle_type ), INTENT ( IN ) :: part ( : )
-    TYPE ( particle_node_type ), INTENT ( INOUT ) :: pnode ( : )
-    TYPE ( subcell_data_type ), POINTER :: ll_cell ( :, : )
-    TYPE ( neighbor_list_set_p_type ), POINTER :: sab_orb ( : )
+    REAL(dbl), INTENT(IN)                    :: subcells, rlist_cut( :, : ), &
+                                                rlist_cutsq( :, : )
+    TYPE(pbc_coord_type), INTENT(IN)         :: pbc_coord
+    TYPE(atoms_type), INTENT(IN)             :: atoms( : )
+    INTEGER, INTENT(IN)                      :: natom( : )
+    TYPE(neighbor_list_set_p_type), POINTER  :: sab_orb( : )
+    TYPE(cell_type), POINTER                 :: cell
+    TYPE(subcell_data_type), POINTER         :: ll_cell( :, : )
+    TYPE(particle_type), INTENT(IN)          :: part( : )
+    TYPE(particle_node_type), INTENT(INOUT)  :: pnode( : )
 
-!   *** Local parameters ***
+    CHARACTER(LEN=*), PARAMETER :: &
+      routine_name = "build_verlet_neighbor_lists", &
+      routine = "SUBROUTINE "//routine_name//" (MODULE "//module_name//")"
+    INTEGER, PARAMETER                       :: els = 50
 
-    CHARACTER(LEN=*), PARAMETER :: routine_name =&
-      "build_verlet_neighbor_lists"
-    CHARACTER(LEN=*), PARAMETER :: routine =&
-      "SUBROUTINE "//routine_name//" (MODULE "//module_name//")"
-
-!   *** Local variables ***
-
-    INTEGER :: ab,handle,natom_a,istat,atom_a,atom_b
-    INTEGER :: igrid, jgrid, kgrid, nnode, inode, ikind, jkind
-    INTEGER :: nexcl, iexclude, iatom, jatom, nkinds
-    INTEGER :: periodic ( 3 ), cell_a ( 3 ), cell_b ( 3 )
-    INTEGER :: iijk, id
-    INTEGER, POINTER, DIMENSION ( : ) :: ncell, ngrid 
-    REAL ( dbl ) :: a_min, a_max, b_min, b_max, c_min, c_max
-    REAL ( dbl ), POINTER :: grid_min ( :, :, :, : )
-    REAL ( dbl ), POINTER :: grid_max ( :, :, :, : )
-    INTEGER, POINTER :: nijk ( :, :, : )
-    INTEGER, POINTER :: ijk( :, :, :, : )
-    INTEGER, DIMENSION ( : ), POINTER :: elist, ind
-    INTEGER, PARAMETER :: els = 50
-    REAL ( dbl ) :: r ( 3 ), rab_max, rab2_max, abc ( 3 ), quotient ( 3 )
-    REAL ( dbl ), POINTER :: sab_max ( : )
-    REAL ( dbl ) :: ra ( 3 ), rb ( 3 ), unit_of_length
-    REAL ( dbl ) :: sb_pbc ( 3 ), sa_pbc ( 3 )
-    REAL ( dbl ) :: sa ( 3 ), sa_min ( 3 ), sa_max ( 3 )
-    REAL ( dbl ) :: sa_min_pbc ( 3 ), sa_max_pbc ( 3 )
-    TYPE ( linklist_exclusion ), POINTER :: ll_exclude
-    CHARACTER ( LEN = 8 ) :: unit_of_length_name
-    LOGICAL :: wrap_x,wrap_y,wrap_z
+    CHARACTER(LEN=8)                         :: unit_of_length_name
+    INTEGER :: ab, atom_a, atom_b, cell_a( 3 ), handle, iatom, id, iexclude, &
+      igrid, iijk, ikind, inode, istat, jatom, jgrid, jkind, kgrid, nexcl, &
+      nkinds, nnode, periodic( 3 )
+    INTEGER, DIMENSION(:), POINTER           :: elist, ind, ncell, ngrid
+    INTEGER, POINTER                         :: ijk( :, :, :, : ), &
+                                                nijk( :, :, : )
+    LOGICAL                                  :: wrap_x, wrap_y, wrap_z
+    REAL(dbl) :: a_max, a_min, abc( 3 ), b_max, b_min, c_max, c_min, r( 3 ), &
+      ra( 3 ), rab2_max, rab_max, rb( 3 ), sa_max( 3 ), sa_max_pbc( 3 ), &
+      sa_min( 3 ), sa_min_pbc( 3 ), sa_pbc( 3 ), sb_pbc( 3 ), unit_of_length
+    REAL(dbl), POINTER                       :: grid_max( :, :, :, : ), &
+                                                grid_min( :, :, :, : ), &
+                                                sab_max( : )
+    TYPE(linklist_exclusion), POINTER        :: ll_exclude
 
 !   ---------------------------------------------------------------------------
 
@@ -601,31 +597,30 @@ CONTAINS
 
 !   ***************************************************************************
 
-    TYPE ( atomic_kind_type ), DIMENSION ( : ), POINTER   :: atomic_kind_set
-    TYPE ( particle_type ), DIMENSION ( : ), INTENT ( IN )  :: part
-    TYPE ( linklist_internal_data_type ), INTENT ( IN ) :: ll_data 
-    TYPE ( cell_type ), POINTER :: cell
-    TYPE ( particle_node_type ), DIMENSION ( : ), INTENT ( INOUT ) :: pnode
+    TYPE(atomic_kind_type), DIMENSION(:), &
+      POINTER                                :: atomic_kind_set
+    TYPE(particle_type), DIMENSION(:), &
+      INTENT(IN)                             :: part
+    TYPE(cell_type), POINTER                 :: cell
+    TYPE(linklist_internal_data_type), &
+      INTENT(IN)                             :: ll_data
+    TYPE(particle_node_type), DIMENSION(:), &
+      INTENT(INOUT)                          :: pnode
 
+    CHARACTER(LEN=*), PARAMETER :: module_name = "linklist_verlet_list", &
+      routine_name = "rebuild_verlet_lists", &
+      routine = "SUBROUTINE "//routine_name//" (MODULE "//module_name//")"
 
-!   *** Local parameters ***
-
-    CHARACTER(LEN=*), PARAMETER :: routine_name = "rebuild_verlet_lists"
-    CHARACTER(LEN=*), PARAMETER :: module_name = "linklist_verlet_list"
-    CHARACTER(LEN=*), PARAMETER :: routine =&
-      "SUBROUTINE "//routine_name//" (MODULE "//module_name//")"
-
-!   *** Local variables ***
-    LOGICAL :: ionode
-    INTEGER :: group, mype, npe, ikind, inode, &
-               nkind, nnodes, istat, handle, output_unit, &
-               atom_a, natoms, periodic ( 3 )
-    INTEGER, DIMENSION ( : ), ALLOCATABLE :: natom
-    REAL ( dbl ) :: ra ( 3 ), sa ( 3 ),  lat_vec ( 3 ), subcells
-    TYPE ( atomic_kind_type ), POINTER :: atomic_kind
-    TYPE ( atoms_type ), DIMENSION ( : ), ALLOCATABLE :: atoms
-    TYPE ( global_environment_type ) :: globenv
-    TYPE ( pbc_coord_type ) :: pbc_coord
+    INTEGER :: atom_a, group, handle, ikind, inode, istat, mype, natoms, &
+      nkind, nnodes, npe, output_unit, periodic( 3 )
+    INTEGER, ALLOCATABLE, DIMENSION(:)       :: natom
+    LOGICAL                                  :: ionode
+    REAL(dbl)                                :: lat_vec( 3 ), ra( 3 ), sa( 3 )
+    TYPE(atomic_kind_type), POINTER          :: atomic_kind
+    TYPE(atoms_type), ALLOCATABLE, &
+      DIMENSION(:)                           :: atoms
+    TYPE(global_environment_type)            :: globenv
+    TYPE(pbc_coord_type)                     :: pbc_coord
 
 !   ---------------------------------------------------------------------------
 
@@ -729,45 +724,34 @@ CONTAINS
 !   History: - Creation (20.03.2002,MK)
 
 !   ***************************************************************************
-    REAL ( dbl ), INTENT ( IN ) :: rlist_cutsq ( :, : )
-    INTEGER, INTENT ( IN ) :: natom ( : )
-    TYPE ( cell_type ), POINTER :: cell
-    TYPE ( pbc_coord_type ), INTENT ( IN )  :: pbc_coord
-    TYPE ( atoms_type ), INTENT ( IN ) :: atoms ( : )
-    TYPE ( particle_type ), INTENT ( IN ) :: part ( : )
-    TYPE ( particle_node_type ), INTENT ( INOUT ) :: pnode ( : )
-    TYPE ( subcell_data_type ), POINTER :: ll_cell ( :, : )
-    TYPE ( neighbor_list_set_p_type ), POINTER :: sab_orb ( : )
+    REAL(dbl), INTENT(IN)                    :: rlist_cutsq( :, : )
+    TYPE(pbc_coord_type), INTENT(IN)         :: pbc_coord
+    TYPE(atoms_type), INTENT(IN)             :: atoms( : )
+    INTEGER, INTENT(IN)                      :: natom( : )
+    TYPE(neighbor_list_set_p_type), POINTER  :: sab_orb( : )
+    TYPE(cell_type), POINTER                 :: cell
+    TYPE(subcell_data_type), POINTER         :: ll_cell( :, : )
+    TYPE(particle_type), INTENT(IN)          :: part( : )
+    TYPE(particle_node_type), INTENT(INOUT)  :: pnode( : )
 
-!   *** Local parameters ***
+    CHARACTER(LEN=*), PARAMETER :: &
+      routine_name = "rebuild_verlet_neighbor_lists", &
+      routine = "SUBROUTINE "//routine_name//" (MODULE "//module_name//")"
+    INTEGER, PARAMETER                       :: els = 50
 
-    CHARACTER(LEN=*), PARAMETER :: routine_name =&
-      "rebuild_verlet_neighbor_lists"
-    CHARACTER(LEN=*), PARAMETER :: routine =&
-      "SUBROUTINE "//routine_name//" (MODULE "//module_name//")"
-
-!   *** Local variables ***
-
-    INTEGER :: ab,handle,natom_a,istat,atom_a,atom_b
-    INTEGER :: igrid, jgrid, kgrid, nnode, inode, ikind, jkind
-    INTEGER :: nexcl, iexclude, iatom, jatom, nkinds
-    INTEGER :: periodic ( 3 ), cell_a ( 3 ), cell_b ( 3 )
-    INTEGER :: iijk
-    INTEGER, POINTER, DIMENSION ( : ) :: ncell, ngrid 
-    REAL ( dbl ) :: a_min, a_max, b_min, b_max, c_min, c_max
-    REAL ( dbl ), POINTER :: grid_min ( :, :, :, : )
-    REAL ( dbl ), POINTER :: grid_max ( :, :, :, : )
-    INTEGER, POINTER :: nijk ( :, :, : )
-    INTEGER, POINTER :: ijk( :, :, :, : )
-    INTEGER, DIMENSION ( : ), POINTER :: elist, ind
-    INTEGER, PARAMETER :: els = 50
-    REAL ( dbl ) :: r ( 3 ), rab2_max
-    REAL ( dbl ), POINTER :: sab_max ( : )
-    REAL ( dbl ) :: sa_pbc ( 3 ), sb_pbc ( 3 ), ra ( 3 ), rb ( 3 )
-    REAL ( dbl ) :: sa_min ( 3 ), sa_max ( 3 )
-    REAL ( dbl ) :: sa_min_pbc ( 3 ), sa_max_pbc ( 3 )
-    TYPE ( linklist_exclusion ), POINTER :: ll_exclude
-    LOGICAL :: wrap_x,wrap_y,wrap_z
+    INTEGER :: atom_a, atom_b, cell_a( 3 ), handle, iatom, iexclude, igrid, &
+      iijk, ikind, inode, istat, jatom, jgrid, jkind, kgrid, nexcl, nkinds, &
+      nnode, periodic( 3 )
+    INTEGER, DIMENSION(:), POINTER           :: elist, ind, ncell, ngrid
+    INTEGER, POINTER                         :: ijk( :, :, :, : ), &
+                                                nijk( :, :, : )
+    LOGICAL                                  :: wrap_x, wrap_y, wrap_z
+    REAL(dbl) :: r( 3 ), ra( 3 ), rab2_max, rb( 3 ), sa_max( 3 ), &
+      sa_max_pbc( 3 ), sa_min( 3 ), sa_min_pbc( 3 ), sa_pbc( 3 ), sb_pbc( 3 )
+    REAL(dbl), POINTER                       :: grid_max( :, :, :, : ), &
+                                                grid_min( :, :, :, : ), &
+                                                sab_max( : )
+    TYPE(linklist_exclusion), POINTER        :: ll_exclude
 
 !   ---------------------------------------------------------------------------
 
@@ -977,25 +961,23 @@ CONTAINS
 ! *****************************************************************************
   SUBROUTINE update_neighbor_node ( cell, ra, rb, atom_b, ncell, periodic, &
                                     rab2_max, nneighbor, neighbor_list )
-    IMPLICIT NONE
-! arguments
-    TYPE ( cell_type ), POINTER :: cell
-    REAL ( dbl ), DIMENSION ( : ), INTENT ( IN ) :: ra, rb
-    INTEGER, INTENT ( IN ) ::  atom_b
-    INTEGER, DIMENSION ( : ), INTENT ( IN ) :: ncell
-    INTEGER, DIMENSION ( : ), INTENT ( IN ) :: periodic
-    REAL ( dbl ), INTENT ( IN ) :: rab2_max
-    INTEGER, INTENT ( INOUT ) :: nneighbor
-    TYPE ( neighbor_list_type ), POINTER :: neighbor_list
-! locals
-    INTEGER :: icell, jcell, kcell
-    REAL ( dbl ) :: rab ( 3 ), sab ( 3 ), sab_pbc ( 3 )
-    REAL ( dbl ) :: rab2
-    INTEGER :: cell_b ( 3 ), ncell_loc ( 3 ), lat_vec ( 3 ) 
-    INTEGER :: imin, imax, jmin, jmax, kmin, kmax
+    TYPE(cell_type), POINTER                 :: cell
+    REAL(dbl), DIMENSION(:), INTENT(IN)      :: ra, rb
+    INTEGER, INTENT(IN)                      :: atom_b
+    INTEGER, DIMENSION(:), INTENT(IN)        :: ncell, periodic
+    REAL(dbl), INTENT(IN)                    :: rab2_max
+    INTEGER, INTENT(INOUT)                   :: nneighbor
+    TYPE(neighbor_list_type), POINTER        :: neighbor_list
 
+    INTEGER                                  :: cell_b( 3 ), icell, imax, &
+                                                imin, jcell, jmax, jmin, &
+                                                kcell, kmax, kmin, &
+                                                lat_vec( 3 )
+    REAL(dbl)                                :: rab( 3 ), rab2, sab( 3 ), &
+                                                sab_pbc( 3 )
 
 ! compute distance vector
+
     rab ( : ) = rb( : ) - ra ( : )
     sab ( : ) = real_to_scaled(rab(:),cell)
 ! compute lattice translation vector
@@ -1046,25 +1028,24 @@ CONTAINS
 
 !   ***************************************************************************
 
-    TYPE(particle_type), DIMENSION(:), INTENT ( IN )  ::  part
-    TYPE( cell_type ), POINTER :: cell
-    TYPE(neighbor_list_set_p_type), DIMENSION(:), POINTER :: neighbor_lists
-    CHARACTER(LEN=*), INTENT(IN)                          :: unit_of_length_name
-    REAL ( dbl ), INTENT(IN)                              :: unit_of_length
-    CHARACTER(LEN=*), INTENT(IN)                          :: name
+    TYPE(particle_type), DIMENSION(:), &
+      INTENT(IN)                             :: part
+    TYPE(cell_type), POINTER                 :: cell
+    TYPE(neighbor_list_set_p_type), &
+      DIMENSION(:), POINTER                  :: neighbor_lists
+    CHARACTER(LEN=*), INTENT(IN)             :: unit_of_length_name
+    REAL(dbl), INTENT(IN)                    :: unit_of_length
+    CHARACTER(LEN=*), INTENT(IN)             :: name
 
-!   *** Local variables ***
-
-    INTEGER :: ab,atom_a,atom_b,i,nneighbor
-
-    REAL(dbl), DIMENSION(3) :: ra,rab,rb
-    INTEGER, DIMENSION(3)  :: cell_a,cell_b
-    TYPE ( neighbor_node_type ), POINTER :: neighbor_node
-    TYPE ( neighbor_list_type ), POINTER :: neighbor_list
-    TYPE ( neighbor_list_set_type ), POINTER :: neighbor_list_set
+    INTEGER                                  :: ab, atom_a, atom_b, i, &
+                                                nneighbor
+    INTEGER, DIMENSION(3)                    :: cell_a, cell_b
+    REAL(dbl), DIMENSION(3)                  :: ra, rab, rb
+    TYPE(neighbor_list_set_type), POINTER    :: neighbor_list_set
+    TYPE(neighbor_list_type), POINTER        :: neighbor_list
+    TYPE(neighbor_node_type), POINTER        :: neighbor_node
 
 !   ---------------------------------------------------------------------------
-
 !   *** Write headline ***
 
     WRITE (UNIT=output_unit,FMT="(/,/,T2,A,/,/,T3,A,7X,A,2(11X,A),10X,A)")&

@@ -30,100 +30,79 @@
 !****************************************************************************
 MODULE qs_wf_history_methods
   USE coefficient_types,               ONLY: coeff_type
+  USE cp_control_types,                ONLY: dft_control_type
   USE cp_error_handling,               ONLY: cp_a_l,&
                                              cp_assert,&
                                              cp_assertion_failed,&
-                                             cp_debug,&
                                              cp_error_check,&
-                                             cp_error_dealloc_ref,&
                                              cp_error_get_logger,&
-                                             cp_error_init,&
                                              cp_error_message,&
-                                             cp_error_type,&
-                                             cp_internal_error,&
-                                             cp_unimplemented_error
-  USE cp_fm_basic_linalg,              ONLY: cp_fm_scale_and_add, &
-                                             cp_fm_gemm, &
-                                             cp_fm_scale
+                                             cp_error_type
+  USE cp_fm_basic_linalg,              ONLY: cp_fm_gemm,&
+                                             cp_fm_scale,&
+                                             cp_fm_scale_and_add
   USE cp_fm_pool_types,                ONLY: cp_fm_pool_p_type,&
-                                             cp_fm_pool_type,&
                                              fm_pools_create_fm_vect,&
                                              fm_pools_give_back_fm_vect
-  USE cp_fm_struct,                    ONLY: cp_fm_struct_type, &
-                                             cp_fm_struct_create, &
-                                             cp_fm_struct_release
-  USE cp_fm_types,                     ONLY: cp_fm_p_type,&
-                                             cp_fm_type,&
-                                             cp_fm_create,&
-                                             cp_fm_release,&
+  USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
+                                             cp_fm_struct_release,&
+                                             cp_fm_struct_type
+  USE cp_fm_types,                     ONLY: cp_fm_create,&
                                              cp_fm_get_info,&
-                                             cp_fm_to_fm
+                                             cp_fm_release,&
+                                             cp_fm_to_fm,&
+                                             cp_fm_type
   USE cp_log_handling,                 ONLY: cp_failure_level,&
                                              cp_fatal_level,&
-                                             cp_log,&
                                              cp_note_level,&
                                              cp_to_string,&
                                              cp_warning_level
-  USE cp_para_types,                   ONLY: cp_para_env_type
+  USE cp_sm_fm_interactions,           ONLY: cp_sm_fm_multiply
   USE cp_sm_pool_types,                ONLY: cp_sm_pool_p_type,&
-                                             cp_sm_pool_type,&
-                                             sm_pool_create_matrix_vect,&
                                              sm_pool_create_matrix,&
                                              sm_pools_create_matrix_vect
-  USE cp_sm_fm_interactions,           ONLY: cp_sm_fm_multiply
-  USE cp_control_types,                       ONLY: dft_control_type
   USE kinds,                           ONLY: dp
   USE pw_env_types,                    ONLY: pw_env_get,&
                                              pw_env_type
   USE pw_pool_types,                   ONLY: pw_pool_create_pw,&
                                              pw_pool_give_back_pw,&
-                                             pw_pool_p_type,&
                                              pw_pool_type
   USE pw_types,                        ONLY: COMPLEXDATA1D,&
-                                             COMPLEXDATA3D,&
-                                             NOSPACE,&
-                                             REALDATA1D,&
                                              REALDATA3D,&
                                              REALSPACE,&
                                              RECIPROCALSPACE,&
-                                             pw_copy,&
-                                             pw_p_type,&
-                                             pw_type
+                                             pw_copy
   USE qs_environment_types,            ONLY: get_qs_env,&
                                              qs_env_reorthogonalize_vectors,&
                                              qs_environment_type
   USE qs_ks_methods,                   ONLY: qs_ks_did_change
-  USE qs_matrix_pools,                 ONLY: mpools_get,&
-                                             qs_matrix_pools_type
-  USE qs_mo_types,                     ONLY: get_mo_set,&
-                                             mo_set_p_type,&
-                                             mo_set_type
+  USE qs_matrix_pools,                 ONLY: mpools_get
   USE qs_mo_methods,                   ONLY: calculate_density_matrix
+  USE qs_mo_types,                     ONLY: get_mo_set,&
+                                             mo_set_p_type
   USE qs_rho_methods,                  ONLY: qs_rho_update_rho
   USE qs_rho_types,                    ONLY: qs_rho_get,&
                                              qs_rho_type
   USE qs_wf_history_types,             ONLY: qs_wf_history_type,&
-                                             qs_wf_snapshot_p_type,&
                                              qs_wf_snapshot_type,&
                                              wfi_get_snapshot,&
                                              wfi_linear_p_method_nr,&
                                              wfi_linear_ps_method_nr,&
-                                             wfi_ps_method_nr,&
                                              wfi_linear_wf_method_nr,&
+                                             wfi_ps_method_nr,&
                                              wfi_use_guess_method_nr,&
                                              wfi_use_prev_p_method_nr,&
                                              wfi_use_prev_rho_r_method_nr,&
                                              wfi_use_prev_wf_method_nr
   USE sparse_matrix_types,             ONLY: copy_matrix,&
                                              cp_sm_scale_and_add,&
-                                             deallocate_matrix_set,&
                                              deallocate_matrix,&
+                                             deallocate_matrix_set,&
                                              real_matrix_p_type,&
-                                             real_matrix_type,&
                                              transfer_matrix
-  USE string_utilities,                ONLY: uppercase
   USE timings,                         ONLY: timeset,&
                                              timestop
+
   IMPLICIT NONE
   PRIVATE
 
@@ -168,13 +147,15 @@ CONTAINS
 !!
 !!*** **********************************************************************
 SUBROUTINE wfs_create(snapshot, error)
-  TYPE(qs_wf_snapshot_type), POINTER :: snapshot
-  TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
-  
-  LOGICAL :: failure
-  CHARACTER(len=*), PARAMETER :: routineN='wfs_create',&
-        routineP=moduleN//':'//routineN
-  INTEGER :: i, stat
+    TYPE(qs_wf_snapshot_type), POINTER       :: snapshot
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'wfs_create', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: stat
+    LOGICAL                                  :: failure
 
   failure=.FALSE.
   
@@ -218,26 +199,33 @@ END SUBROUTINE wfs_create
 !!
 !!*** **********************************************************************
 SUBROUTINE wfs_update(snapshot,wf_history,qs_env,dt,error)
-  TYPE(qs_wf_snapshot_type), POINTER :: snapshot
-  TYPE(qs_wf_history_type), POINTER :: wf_history
-  TYPE(qs_environment_type), INTENT(inout),TARGET :: qs_env
-  REAL(KIND = dp), INTENT(in), OPTIONAL :: dt
-  TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
+    TYPE(qs_wf_snapshot_type), POINTER       :: snapshot
+    TYPE(qs_wf_history_type), POINTER        :: wf_history
+    TYPE(qs_environment_type), &
+      INTENT(inout), TARGET                  :: qs_env
+    REAL(KIND=dp), INTENT(in), OPTIONAL      :: dt
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
 
-  LOGICAL :: failure
-  CHARACTER(len=*), PARAMETER :: routineN='wfs_update',&
-       routineP=moduleN//':'//routineN
-  TYPE(pw_env_type), POINTER :: pw_env
-  TYPE(pw_pool_type), POINTER :: auxbas_pw_pool
-  TYPE(cp_fm_pool_p_type), DIMENSION(:), POINTER :: ao_mo_pools
-  TYPE(dft_control_type), POINTER :: dft_control
-  TYPE(mo_set_p_type), DIMENSION(:), POINTER :: mos
-  TYPE(cp_fm_type), POINTER :: eigenvectors
-  TYPE(qs_rho_type), POINTER :: rho
-  TYPE(coeff_type), DIMENSION(:), POINTER :: rho_r, rho_g
-  TYPE(real_matrix_p_type), DIMENSION(:), POINTER :: rho_ao , s_array
-  TYPE(cp_sm_pool_p_type), DIMENSION(:), POINTER :: S_sm_pools
-  INTEGER :: ispin, nspins, stat, handle
+    CHARACTER(len=*), PARAMETER :: routineN = 'wfs_update', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: handle, ispin, nspins, stat
+    LOGICAL                                  :: failure
+    TYPE(coeff_type), DIMENSION(:), POINTER  :: rho_g, rho_r
+    TYPE(cp_fm_pool_p_type), DIMENSION(:), &
+      POINTER                                :: ao_mo_pools
+    TYPE(cp_fm_type), POINTER                :: eigenvectors
+    TYPE(cp_sm_pool_p_type), DIMENSION(:), &
+      POINTER                                :: S_sm_pools
+    TYPE(dft_control_type), POINTER          :: dft_control
+    TYPE(mo_set_p_type), DIMENSION(:), &
+      POINTER                                :: mos
+    TYPE(pw_env_type), POINTER               :: pw_env
+    TYPE(pw_pool_type), POINTER              :: auxbas_pw_pool
+    TYPE(qs_rho_type), POINTER               :: rho
+    TYPE(real_matrix_p_type), DIMENSION(:), &
+      POINTER                                :: rho_ao, s_array
 
   CALL timeset(routineN,"I","",handle)
 
@@ -399,15 +387,18 @@ END SUBROUTINE wfs_update
 !!
 !!*** **********************************************************************
 SUBROUTINE wfi_create(wf_history, interpolation_method_nr, extrapolation_order, error)
-  TYPE(qs_wf_history_type), POINTER :: wf_history
-  INTEGER, INTENT(in) :: interpolation_method_nr
-  INTEGER, INTENT(in), OPTIONAL :: extrapolation_order
-  TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
-  
-  LOGICAL :: failure
-  CHARACTER(len=*), PARAMETER :: routineN='wfi_create',&
-        routineP=moduleN//':'//routineN
-  INTEGER :: stat, i, my_extrapolation_order
+    TYPE(qs_wf_history_type), POINTER        :: wf_history
+    INTEGER, INTENT(in)                      :: interpolation_method_nr
+    INTEGER, INTENT(in), OPTIONAL            :: extrapolation_order
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'wfi_create', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: i, my_extrapolation_order, &
+                                                stat
+    LOGICAL                                  :: failure
 
   my_extrapolation_order = 1
   IF (PRESENT(extrapolation_order)) my_extrapolation_order=extrapolation_order
@@ -506,13 +497,15 @@ END SUBROUTINE wfi_create
 !!
 !!*** **********************************************************************
 FUNCTION wfi_get_method_label(method_nr,error) RESULT(res)
-  INTEGER, INTENT(in) :: method_nr
-  CHARACTER(len=30) ::res
-  TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
-  
-  LOGICAL :: failure
-  CHARACTER(len=*), PARAMETER :: routineN='wfi_get_method_label',&
-        routineP=moduleN//':'//routineN
+    INTEGER, INTENT(in)                      :: method_nr
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
+    CHARACTER(len=30)                        :: res
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'wfi_get_method_label', &
+      routineP = moduleN//':'//routineN
+
+    LOGICAL                                  :: failure
 
   failure=.FALSE.
   
@@ -589,29 +582,31 @@ END FUNCTION wfi_get_method_label
 !!*** **********************************************************************
 SUBROUTINE wfi_extrapolate(wf_history, qs_env, dt, extrapolation_method_nr, &
      orthogonal_wf, error)
-  TYPE(qs_wf_history_type), POINTER :: wf_history
-  TYPE(qs_environment_type), POINTER :: qs_env
-  REAL(KIND = dp), INTENT(in) :: dt
-  INTEGER, INTENT(out), OPTIONAL :: extrapolation_method_nr
-  LOGICAL, INTENT(out), OPTIONAL :: orthogonal_wf
-  TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
-  
-  LOGICAL :: failure, my_orthogonal_wf
-  CHARACTER(len=*), PARAMETER :: routineN='wfi_extrapolate',&
-        routineP=moduleN//':'//routineN
-  TYPE(mo_set_p_type), DIMENSION(:), POINTER :: mos
-  TYPE(cp_fm_pool_p_type), DIMENSION(:), POINTER :: ao_mo_fm_pools
-  TYPE(qs_wf_snapshot_type), POINTER :: t0_state, t1_state
-  TYPE(cp_fm_type), POINTER :: eigenvectors
-  TYPE(qs_rho_type), POINTER :: rho
-  REAL(KIND = dp) :: t0,t1,t2
-  INTEGER :: ispin, actual_extrapolation_method_nr, nmo, handle
-  INTEGER :: n,k
-  TYPE(cp_fm_struct_type), POINTER :: matrix_struct,matrix_struct_new
-  TYPE(cp_fm_type), POINTER :: csc
-  INTEGER :: nvec,i 
-  REAL(KIND = dp) :: alpha
-  TYPE(cp_fm_type), POINTER :: fm_tmp
+    TYPE(qs_wf_history_type), POINTER        :: wf_history
+    TYPE(qs_environment_type), POINTER       :: qs_env
+    REAL(KIND=dp), INTENT(in)                :: dt
+    INTEGER, INTENT(out), OPTIONAL           :: extrapolation_method_nr
+    LOGICAL, INTENT(out), OPTIONAL           :: orthogonal_wf
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'wfi_extrapolate', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: actual_extrapolation_method_nr&
+                                                , handle, i, ispin, k, n, &
+                                                nmo, nvec
+    LOGICAL                                  :: failure, my_orthogonal_wf
+    REAL(KIND=dp)                            :: alpha, t0, t1, t2
+    TYPE(cp_fm_pool_p_type), DIMENSION(:), &
+      POINTER                                :: ao_mo_fm_pools
+    TYPE(cp_fm_struct_type), POINTER         :: matrix_struct, &
+                                                matrix_struct_new
+    TYPE(cp_fm_type), POINTER                :: csc, eigenvectors, fm_tmp
+    TYPE(mo_set_p_type), DIMENSION(:), &
+      POINTER                                :: mos
+    TYPE(qs_rho_type), POINTER               :: rho
+    TYPE(qs_wf_snapshot_type), POINTER       :: t0_state, t1_state
 
   NULLIFY(mos, ao_mo_fm_pools, t0_state, t1_state, eigenvectors, rho)
   failure=.FALSE.
@@ -904,14 +899,16 @@ END SUBROUTINE wfi_extrapolate
 !!
 !!*** **********************************************************************
 SUBROUTINE wfi_update(wf_history, qs_env, dt, error)
-  TYPE(qs_wf_history_type), POINTER :: wf_history
-  TYPE(qs_environment_type), POINTER :: qs_env
-  REAL(KIND = dp), INTENT(in) :: dt
-  TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
-  
-  LOGICAL :: failure
-  CHARACTER(len=*), PARAMETER :: routineN='wfi_update',&
-        routineP=moduleN//':'//routineN
+    TYPE(qs_wf_history_type), POINTER        :: wf_history
+    TYPE(qs_environment_type), POINTER       :: qs_env
+    REAL(KIND=dp), INTENT(in)                :: dt
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'wfi_update', &
+      routineP = moduleN//':'//routineN
+
+    LOGICAL                                  :: failure
 
   failure=.FALSE.
 

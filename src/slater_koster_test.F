@@ -21,10 +21,13 @@
 !
     MODULE slater_koster_test
 !------------------------------------------------------------------------------!
-      USE kinds, ONLY : dbl
-      USE slater_koster_util, ONLY : dpro
-      USE slater_koster_matr, ONLY : gmat, dgmat
+  USE kinds,                           ONLY: dbl
+  USE slater_koster_matr,              ONLY: dgmat,&
+                                             gmat
 !
+
+  USE slater_koster_util,              ONLY: dpro
+
       IMPLICIT NONE
 !
       PRIVATE
@@ -37,13 +40,12 @@
 !
 !------------------------------------------------------------------------------!
       SUBROUTINE sk_test(l1,l2,emax)
-        IMPLICIT NONE
-        INTEGER, INTENT (IN) :: l1, l2
-        REAL (dbl), INTENT (OUT) :: emax
-        REAL (dbl) :: r1(3), r2(3), rr, chi
-        REAL (dbl) :: gmu1(0:6,0:6,0:3), gmu2(0:6,0:6,0:3)
-        REAL (dbl) :: dll1(0:6,0:6,0:6), dll2(0:6,0:6,0:6)
-        INTEGER :: lm, lu
+    INTEGER, INTENT(IN)                      :: l1, l2
+    REAL(dbl), INTENT(OUT)                   :: emax
+
+    INTEGER                                  :: lm, lu
+    REAL(dbl) :: chi, dll1(0:6,0:6,0:6), dll2(0:6,0:6,0:6), &
+      gmu1(0:6,0:6,0:3), gmu2(0:6,0:6,0:3), r1(3), r2(3), rr
 
         CALL random_number(r1)
         rr = dot_product(r1,r1)
@@ -77,16 +79,14 @@
       END SUBROUTINE sk_test
 !------------------------------------------------------------------------------!
       SUBROUTINE dsk_test(l1,l2,emax)
-        IMPLICIT NONE
-        INTEGER, INTENT (IN) :: l1, l2
-        REAL (dbl), INTENT (OUT) :: emax
-        REAL (dbl) :: r1(3), r2(3), rr, chi
-        REAL (dbl) :: dchi1(3), dchi2(3)
-        REAL (dbl) :: gmu1(0:6,0:6,0:3), gmu2(0:6,0:6,0:3)
-        REAL (dbl) :: dgmu1(0:6,0:6,0:3,1:3), dgmu2(0:6,0:6,0:3,1:3)
-        REAL (dbl) :: dll1(0:6,0:6,0:6), dll2(0:6,0:6,0:6)
-        REAL (dbl) :: ddll1(0:6,0:6,0:6,1:3), ddll2(0:6,0:6,0:6,1:3)
-        INTEGER :: lm, lu
+    INTEGER, INTENT(IN)                      :: l1, l2
+    REAL(dbl), INTENT(OUT)                   :: emax
+
+    INTEGER                                  :: lm, lu
+    REAL(dbl) :: chi, dchi1(3), dchi2(3), ddll1(0:6,0:6,0:6,1:3), &
+      ddll2(0:6,0:6,0:6,1:3), dgmu1(0:6,0:6,0:3,1:3), dgmu2(0:6,0:6,0:3,1:3), &
+      dll1(0:6,0:6,0:6), dll2(0:6,0:6,0:6), gmu1(0:6,0:6,0:3), &
+      gmu2(0:6,0:6,0:3), r1(3), r2(3), rr
 
         CALL random_number(r1)
         rr = dot_product(r1,r1)
@@ -135,13 +135,13 @@
       END SUBROUTINE dsk_test
 !------------------------------------------------------------------------------!
       SUBROUTINE s_test(chi,gmu1,gmu2,l1,l2,emax)
-        IMPLICIT NONE
-        INTEGER, INTENT (IN) :: l1, l2
-        REAL (dbl), INTENT (OUT) :: emax
-        REAL (dbl), INTENT (IN) :: chi
-        REAL (dbl), INTENT (IN) :: gmu1(0:6,0:6,0:3), gmu2(0:6,0:6,0:3)
-        REAL (dbl) :: xt
-        INTEGER :: lm, lu
+    REAL(dbl), INTENT(IN)                    :: chi, gmu1(0:6,0:6,0:3), &
+                                                gmu2(0:6,0:6,0:3)
+    INTEGER, INTENT(IN)                      :: l1, l2
+    REAL(dbl), INTENT(OUT)                   :: emax
+
+    INTEGER                                  :: lm, lu
+    REAL(dbl)                                :: xt
 
         lm = max(l1,l2)
         lu = min(l1,l2)
@@ -161,15 +161,15 @@
       END SUBROUTINE s_test
 
       SUBROUTINE p_test(chi,gmu1,gmu2,dll1,dll2,l1,l2,emax)
-        IMPLICIT NONE
-        INTEGER, INTENT (IN) :: l1, l2
-        REAL (dbl), INTENT (OUT) :: emax
-        REAL (dbl), INTENT (IN) :: chi
-        REAL (dbl), INTENT (IN) :: gmu1(0:6,0:6,0:3), gmu2(0:6,0:6,0:3)
-        REAL (dbl), INTENT (IN) :: dll1(0:6,0:6,0:6), dll2(0:6,0:6,0:6)
-        REAL (dbl) :: xt1, xt2, xt3
-        REAL (dbl) :: dt1, dt2, dt3
-        INTEGER :: lm, lu
+    REAL(dbl), INTENT(IN)                    :: chi, gmu1(0:6,0:6,0:3), &
+                                                gmu2(0:6,0:6,0:3), &
+                                                dll1(0:6,0:6,0:6), &
+                                                dll2(0:6,0:6,0:6)
+    INTEGER, INTENT(IN)                      :: l1, l2
+    REAL(dbl), INTENT(OUT)                   :: emax
+
+    INTEGER                                  :: lm, lu
+    REAL(dbl)                                :: dt1, dt2, dt3, xt1, xt2, xt3
 
         lm = max(l1,l2)
         lu = min(l1,l2)
@@ -237,16 +237,17 @@
       END SUBROUTINE p_test
 
       SUBROUTINE d_test(chi,gmu1,gmu2,dll1,dll2,l1,l2,emax)
-        IMPLICIT NONE
-        INTEGER, INTENT (IN) :: l1, l2
-        REAL (dbl), INTENT (OUT) :: emax
-        REAL (dbl), INTENT (IN) :: chi
-        REAL (dbl), INTENT (IN) :: gmu1(0:6,0:6,0:3), gmu2(0:6,0:6,0:3)
-        REAL (dbl), INTENT (IN) :: dll1(0:6,0:6,0:6), dll2(0:6,0:6,0:6)
-        REAL (dbl) :: xt1, xt2, xt3, xt4, xt5, xt6
-        REAL (dbl) :: dt1, dt2, dt3, dt4, dt5, dt6
-        REAL (dbl) :: c2, c4
-        INTEGER :: lm, lu
+    REAL(dbl), INTENT(IN)                    :: chi, gmu1(0:6,0:6,0:3), &
+                                                gmu2(0:6,0:6,0:3), &
+                                                dll1(0:6,0:6,0:6), &
+                                                dll2(0:6,0:6,0:6)
+    INTEGER, INTENT(IN)                      :: l1, l2
+    REAL(dbl), INTENT(OUT)                   :: emax
+
+    INTEGER                                  :: lm, lu
+    REAL(dbl)                                :: c2, c4, dt1, dt2, dt3, dt4, &
+                                                dt5, dt6, xt1, xt2, xt3, xt4, &
+                                                xt5, xt6
 
         lm = max(l1,l2)
         lu = min(l1,l2)
@@ -331,16 +332,18 @@
       END SUBROUTINE d_test
 
       SUBROUTINE f_test(chi,gmu1,gmu2,dll1,dll2,l1,l2,emax)
-        IMPLICIT NONE
-        INTEGER, INTENT (IN) :: l1, l2
-        REAL (dbl), INTENT (OUT) :: emax
-        REAL (dbl), INTENT (IN) :: chi
-        REAL (dbl), INTENT (IN) :: gmu1(0:6,0:6,0:3), gmu2(0:6,0:6,0:3)
-        REAL (dbl), INTENT (IN) :: dll1(0:6,0:6,0:6), dll2(0:6,0:6,0:6)
-        REAL (dbl) :: xt1, xt2, xt3, xt4, xt5, xt6, xt7, xt8, xt9, xt0
-        REAL (dbl) :: dt1, dt2, dt3, dt4, dt5, dt6, dt7, dt8, dt9, dt0
-        REAL (dbl) :: c2, c4, c6
-        INTEGER :: lm, lu
+    REAL(dbl), INTENT(IN)                    :: chi, gmu1(0:6,0:6,0:3), &
+                                                gmu2(0:6,0:6,0:3), &
+                                                dll1(0:6,0:6,0:6), &
+                                                dll2(0:6,0:6,0:6)
+    INTEGER, INTENT(IN)                      :: l1, l2
+    REAL(dbl), INTENT(OUT)                   :: emax
+
+    INTEGER                                  :: lm, lu
+    REAL(dbl)                                :: c2, c4, c6, dt0, dt1, dt2, &
+                                                dt3, dt4, dt5, dt6, dt7, dt8, &
+                                                dt9, xt0, xt1, xt2, xt3, xt4, &
+                                                xt5, xt6, xt7, xt8, xt9
 
         lm = max(l1,l2)
         lu = min(l1,l2)
@@ -413,14 +416,13 @@
       END SUBROUTINE f_test
 !------------------------------------------------------------------------------!
       SUBROUTINE ds_test(chi,dchi1,dchi2,gmu1,gmu2,dgmu1,dgmu2,l1,l2,emax)
-        IMPLICIT NONE
-        INTEGER, INTENT (IN) :: l1, l2
-        REAL (dbl), INTENT (OUT) :: emax
-        REAL (dbl), INTENT (IN) :: chi, dchi1(3), dchi2(3)
-        REAL (dbl), INTENT (IN)  :: gmu1(0:6,0:6,0:3), gmu2(0:6,0:6,0:3)
-        REAL (dbl), INTENT (IN)  :: dgmu1(0:6,0:6,0:3,1:3), dgmu2(0:6,0:6,0:3,1:3)
-        REAL (dbl) :: xt, yt, zt
-        INTEGER :: lm, lu
+    REAL(dbl), INTENT(IN) :: chi, dchi1(3), dchi2(3), gmu1(0:6,0:6,0:3), &
+      gmu2(0:6,0:6,0:3), dgmu1(0:6,0:6,0:3,1:3), dgmu2(0:6,0:6,0:3,1:3)
+    INTEGER, INTENT(IN)                      :: l1, l2
+    REAL(dbl), INTENT(OUT)                   :: emax
+
+    INTEGER                                  :: lm, lu
+    REAL(dbl)                                :: xt, yt, zt
 
         emax = 0._dbl
         lm = max(l1,l2)
@@ -481,21 +483,17 @@
       END SUBROUTINE ds_test
       SUBROUTINE dp_test(chi,dchi1,dchi2,gmu1,gmu2,dgmu1,dgmu2, &
                          dll1,dll2,ddll1,ddll2,l1,l2,emax)
-        IMPLICIT NONE
-        INTEGER, INTENT (IN) :: l1, l2
-        REAL (dbl), INTENT (OUT) :: emax
-        REAL (dbl), INTENT (IN) :: chi, dchi1(3), dchi2(3)
-        REAL (dbl), INTENT (IN) :: gmu1(0:6,0:6,0:3), gmu2(0:6,0:6,0:3)
-        REAL (dbl), INTENT (IN) :: dgmu1(0:6,0:6,0:3,1:3), dgmu2(0:6,0:6,0:3,1:3)
-        REAL (dbl), INTENT (IN) :: dll1(0:6,0:6,0:6), dll2(0:6,0:6,0:6)
-        REAL (dbl), INTENT (IN) :: ddll1(0:6,0:6,0:6,1:3), ddll2(0:6,0:6,0:6,1:3)
-        REAL (dbl) :: xt1, xt2, xt3
-        REAL (dbl) :: yt1, yt2, yt3
-        REAL (dbl) :: zt1, zt2, zt3
-        REAL (dbl) :: dx1, dx2, dx3
-        REAL (dbl) :: dy1, dy2, dy3
-        REAL (dbl) :: dz1, dz2, dz3
-        INTEGER :: lm, lu
+    REAL(dbl), INTENT(IN) :: chi, dchi1(3), dchi2(3), gmu1(0:6,0:6,0:3), &
+      gmu2(0:6,0:6,0:3), dgmu1(0:6,0:6,0:3,1:3), dgmu2(0:6,0:6,0:3,1:3), &
+      dll1(0:6,0:6,0:6), dll2(0:6,0:6,0:6), ddll1(0:6,0:6,0:6,1:3), &
+      ddll2(0:6,0:6,0:6,1:3)
+    INTEGER, INTENT(IN)                      :: l1, l2
+    REAL(dbl), INTENT(OUT)                   :: emax
+
+    INTEGER                                  :: lm, lu
+    REAL(dbl)                                :: dx1, dx2, dx3, dy1, dy2, dy3, &
+                                                dz1, dz2, dz3, xt1, xt2, xt3, &
+                                                yt1, yt2, yt3, zt1, zt2, zt3
 
         emax = 0._dbl
         lm = max(l1,l2)
@@ -843,22 +841,17 @@
       END SUBROUTINE dp_test
       SUBROUTINE dd_test(chi,dchi1,dchi2,gmu1,gmu2,dgmu1,dgmu2, &
                          dll1,dll2,ddll1,ddll2,l1,l2,emax)
-        IMPLICIT NONE
-        INTEGER, INTENT (IN) :: l1, l2
-        REAL (dbl), INTENT (OUT) :: emax
-        REAL (dbl), INTENT (IN) :: chi, dchi1(3), dchi2(3)
-        REAL (dbl), INTENT (IN) :: gmu1(0:6,0:6,0:3), gmu2(0:6,0:6,0:3)
-        REAL (dbl), INTENT (IN) :: dgmu1(0:6,0:6,0:3,1:3), dgmu2(0:6,0:6,0:3,1:3)
-        REAL (dbl), INTENT (IN) :: dll1(0:6,0:6,0:6), dll2(0:6,0:6,0:6)
-        REAL (dbl), INTENT (IN) :: ddll1(0:6,0:6,0:6,1:3), ddll2(0:6,0:6,0:6,1:3)
-        REAL (dbl) :: c2, c4, c6
-        REAL (dbl) :: xt1, xt2, xt3, xt4, xt5, xt6
-        REAL (dbl) :: yt1, yt2, yt3, yt4, yt5, yt6
-        REAL (dbl) :: zt1, zt2, zt3, zt4, zt5, zt6
-        REAL (dbl) :: dx1, dx2, dx3, dx4, dx5, dx6
-        REAL (dbl) :: dy1, dy2, dy3, dy4, dy5, dy6
-        REAL (dbl) :: dz1, dz2, dz3, dz4, dz5, dz6
-        INTEGER :: lm, lu
+    REAL(dbl), INTENT(IN) :: chi, dchi1(3), dchi2(3), gmu1(0:6,0:6,0:3), &
+      gmu2(0:6,0:6,0:3), dgmu1(0:6,0:6,0:3,1:3), dgmu2(0:6,0:6,0:3,1:3), &
+      dll1(0:6,0:6,0:6), dll2(0:6,0:6,0:6), ddll1(0:6,0:6,0:6,1:3), &
+      ddll2(0:6,0:6,0:6,1:3)
+    INTEGER, INTENT(IN)                      :: l1, l2
+    REAL(dbl), INTENT(OUT)                   :: emax
+
+    INTEGER                                  :: lm, lu
+    REAL(dbl) :: c2, c4, dx1, dx2, dx3, dx4, dx5, dx6, dy1, dy2, dy3, dy4, &
+      dy5, dy6, dz1, dz2, dz3, dz4, dz5, dz6, xt1, xt2, xt3, xt4, xt5, xt6, &
+      yt1, yt2, yt3, yt4, yt5, yt6, zt1, zt2, zt3, zt4, zt5, zt6
 
         emax = 0._dbl
         lm = max(l1,l2)
@@ -1303,22 +1296,19 @@
       END SUBROUTINE dd_test
       SUBROUTINE df_test(chi,dchi1,dchi2,gmu1,gmu2,dgmu1,dgmu2, &
                          dll1,dll2,ddll1,ddll2,l1,l2,emax)
-        IMPLICIT NONE
-        INTEGER, INTENT (IN) :: l1, l2
-        REAL (dbl), INTENT (OUT) :: emax
-        REAL (dbl), INTENT (IN) :: chi, dchi1(3), dchi2(3)
-        REAL (dbl), INTENT (IN) :: gmu1(0:6,0:6,0:3), gmu2(0:6,0:6,0:3)
-        REAL (dbl), INTENT (IN) :: dgmu1(0:6,0:6,0:3,1:3), dgmu2(0:6,0:6,0:3,1:3)
-        REAL (dbl), INTENT (IN) :: dll1(0:6,0:6,0:6), dll2(0:6,0:6,0:6)
-        REAL (dbl), INTENT (IN) :: ddll1(0:6,0:6,0:6,1:3), ddll2(0:6,0:6,0:6,1:3)
-        REAL (dbl) :: c2, c4
-        REAL (dbl) :: xt1, xt2, xt3, xt4, xt5, xt6, xt7, xt8, xt9, xt0
-        REAL (dbl) :: yt1, yt2, yt3, yt4, yt5, yt6, yt7, yt8, yt9, yt0
-        REAL (dbl) :: zt1, zt2, zt3, zt4, zt5, zt6, zt7, zt8, zt9, zt0
-        REAL (dbl) :: dx1, dx2, dx3, dx4, dx5, dx6, dx7, dx8, dx9, dx0
-        REAL (dbl) :: dy1, dy2, dy3, dy4, dy5, dy6, dy7, dy8, dy9, dy0
-        REAL (dbl) :: dz1, dz2, dz3, dz4, dz5, dz6, dz7, dz8, dz9, dz0
-        INTEGER :: lm, lu
+    REAL(dbl), INTENT(IN) :: chi, dchi1(3), dchi2(3), gmu1(0:6,0:6,0:3), &
+      gmu2(0:6,0:6,0:3), dgmu1(0:6,0:6,0:3,1:3), dgmu2(0:6,0:6,0:3,1:3), &
+      dll1(0:6,0:6,0:6), dll2(0:6,0:6,0:6), ddll1(0:6,0:6,0:6,1:3), &
+      ddll2(0:6,0:6,0:6,1:3)
+    INTEGER, INTENT(IN)                      :: l1, l2
+    REAL(dbl), INTENT(OUT)                   :: emax
+
+    INTEGER                                  :: lm, lu
+    REAL(dbl) :: c2, c4, dx0, dx1, dx2, dx3, dx4, dx5, dx6, dx7, dx8, dx9, &
+      dy0, dy1, dy2, dy3, dy4, dy5, dy6, dy7, dy8, dy9, dz0, dz1, dz2, dz3, &
+      dz4, dz5, dz6, dz7, dz8, dz9, xt0, xt1, xt2, xt3, xt4, xt5, xt6, xt7, &
+      xt8, xt9, yt0, yt1, yt2, yt3, yt4, yt5, yt6, yt7, yt8, yt9, zt0, zt1, &
+      zt2, zt3, zt4, zt5, zt6, zt7, zt8, zt9
 
         emax = 0._dbl
         lm = max(l1,l2)

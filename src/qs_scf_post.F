@@ -24,69 +24,43 @@
 
 MODULE qs_scf_post
 
-  USE atomic_kind_types,               ONLY: atomic_kind_type,&
-                                             get_atomic_kind,&
-                                             get_atomic_kind_set
+  USE atomic_kind_types,               ONLY: atomic_kind_type
   USE coefficient_types,               ONLY: coeff_copy,&
                                              coeff_reduce,&
                                              coeff_sumup,&
-                                             coeff_transform_space,&
-                                             coeff_type,&
-                                             coeff_zero
+                                             coeff_type
+  USE cp_control_types,                ONLY: dft_control_type
   USE cp_error_handling,               ONLY: cp_a_l,&
                                              cp_assert,&
-                                             cp_assertion_failed,&
-                                             cp_debug,&
-                                             cp_error_dealloc_ref,&
                                              cp_error_get_logger,&
-                                             cp_error_init,&
                                              cp_error_message,&
-                                             cp_error_type,&
-                                             cp_internal_error
+                                             cp_error_type
   USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
-                                             cp_fm_struct_get,&
                                              cp_fm_struct_release,&
                                              cp_fm_struct_type
   USE cp_fm_types,                     ONLY: cp_fm_create,&
-                                             cp_fm_get_element,&
                                              cp_fm_get_info,&
                                              cp_fm_init_random,&
                                              cp_fm_p_type,&
                                              cp_fm_release,&
-                                             cp_fm_set_all,&
-                                             cp_fm_set_element,&
                                              cp_fm_to_fm,&
-                                             cp_fm_type,&
-                                             cp_fm_write
+                                             cp_fm_type
   USE cp_log_handling,                 ONLY: cp_failure_level,&
-                                             cp_log,&
                                              cp_logger_get_default_unit_nr,&
                                              cp_logger_type,&
                                              cp_note_level,&
                                              cp_to_string,&
                                              cp_warning_level
-  USE cp_para_types,                   ONLY: cp_blacs_env_type,&
-                                             cp_para_env_type
-  USE cp_control_types,                       ONLY: dft_control_type
-
-  USE global_types,                    ONLY: DEBUG,&
-                                             WANNIER_NONE, &
+  USE global_types,                    ONLY: WANNIER_NONE,&
                                              global_environment_type
-  USE kinds,                           ONLY: int_size,&
-                                             dp
+  USE kinds,                           ONLY: dp
   USE level_shift,                     ONLY: level_shift_testing
-  USE machine,                         ONLY: m_flush,&
-                                             m_walltime
-  USE mathconstants,                   ONLY: fourpi,&
-                                             twopi
   USE molecular_states,                ONLY: construct_molecular_states
   USE molecule_types_new,              ONLY: molecule_type
   USE mulliken,                        ONLY: mulliken_charges
-  USE particle_types,                  ONLY: get_particle_set,&
-                                             particle_type 
+  USE particle_types,                  ONLY: particle_type
   USE physcon,                         ONLY: angstrom
-  USE pw_env_types,                    ONLY: pw_env_flush_cache,&
-                                             pw_env_get,&
+  USE pw_env_types,                    ONLY: pw_env_get,&
                                              pw_env_type
   USE pw_pool_types,                   ONLY: pw_pool_give_back_coeff,&
                                              pw_pool_init_coeff,&
@@ -95,52 +69,23 @@ MODULE qs_scf_post
                                              pw_pools_give_back_coeffs,&
                                              pw_pools_init_coeffs
   USE pw_types,                        ONLY: COMPLEXDATA1D,&
-                                             COMPLEXDATA3D,&
                                              REALDATA3D,&
                                              REALSPACE,&
-                                             RECIPROCALSPACE,&
-                                             pw_type
-  USE qs_charges_types,                ONLY: qs_charges_type
+                                             RECIPROCALSPACE
   USE qs_collocate_density,            ONLY: calculate_total_abs_rho,&
-                                             calculate_total_rho,&
                                              calculate_wavefunction
   USE qs_conductivity,                 ONLY: optical_conductivity
-  USE qs_core_energies,                ONLY: calculate_ecore_overlap,&
-                                             calculate_ecore_self
-  USE qs_core_hamiltonian,             ONLY: build_core_hamiltonian_matrix
-  USE qs_diis,                         ONLY: qs_diis_b_clear,&
-                                             qs_diis_b_create,&
-                                             qs_diis_b_step
-  USE qs_diis_types,                   ONLY: qs_diis_b_release,&
-                                             qs_diis_buffer_type
-  USE qs_energy_types,                 ONLY: qs_energy_type
   USE qs_environment_types,            ONLY: get_qs_env,&
-                                             qs_env_reorthogonalize_vectors,&
-                                             qs_environment_type,&
-                                             set_qs_env
-  USE qs_ks_methods,                   ONLY: qs_ks_create,&
-                                             qs_ks_did_change,&
-                                             qs_ks_update_qs_env
-  USE qs_ks_types,                     ONLY: qs_ks_env_p_type,&
-                                             qs_ks_env_type
+                                             qs_environment_type
+  USE qs_ks_methods,                   ONLY: qs_ks_update_qs_env
   USE qs_localization,                 ONLY: qs_loc_compute_properties,&
                                              qs_loc_destroy,&
                                              qs_loc_env_type,&
                                              qs_loc_init
-  USE qs_matrix_pools,                 ONLY: mpools_get,&
-                                             qs_matrix_pools_type
   USE qs_mo_methods,                   ONLY: calculate_density_matrix,&
-                                             calculate_orthonormality,&
-                                             calculate_subspace_eigenvalues,&
-                                             make_basis
-  USE qs_mo_types,                     ONLY: allocate_mo_set,&
-                                             correct_mo_eigenvalues,&
-                                             get_mo_set,&
-                                             init_mo_set,&
+                                             calculate_subspace_eigenvalues
+  USE qs_mo_types,                     ONLY: get_mo_set,&
                                              mo_set_p_type,&
-                                             mo_set_type,&
-                                             read_mo_set,&
-                                             set_mo_occupation,&
                                              write_mo_set
   USE qs_ot_eigensolver,               ONLY: ot_eigensolver
   USE qs_overlap,                      ONLY: write_sparse_matrix
@@ -148,27 +93,20 @@ MODULE qs_scf_post
                                              open_file
   USE qs_rho_types,                    ONLY: qs_rho_type
   USE qs_scf_types,                    ONLY: qs_scf_env_type
-  USE qs_wf_history_methods,           ONLY: wfi_extrapolate,&
-                                             wfi_get_method_label,&
-                                             wfi_update
-  USE qs_wf_history_types,             ONLY: qs_wf_history_type,&
-                                             qs_wf_snapshot_p_type,&
-                                             qs_wf_snapshot_type,&
-                                             wfi_use_guess_method_nr
   USE realspace_grid_types,            ONLY: rs_pw_to_cube
   USE scf_control_types,               ONLY: scf_control_type
+  USE simulation_cell,                 ONLY: cell_type,&
+                                             get_cell
   USE sparse_matrix_types,             ONLY: add_all_real_matrix_blocks,&
                                              deallocate_matrix,&
                                              real_matrix_p_type,&
                                              real_matrix_type,&
                                              replicate_matrix,&
                                              write_blocks_maxabsval
-  USE simulation_cell,                 ONLY: cell_type,&
-                                             get_cell
-  USE termination,                     ONLY: stop_memory,&
-                                             stop_program
+  USE termination,                     ONLY: stop_program
   USE timings,                         ONLY: timeset,&
                                              timestop
+
   IMPLICIT NONE
 
   PRIVATE
@@ -211,36 +149,45 @@ CONTAINS
 !!
 !!*** **********************************************************************
   SUBROUTINE scf_post_calculation(scf_env,qs_env,globenv,error)
-    TYPE(qs_scf_env_type), POINTER :: scf_env
-    TYPE(qs_environment_type), POINTER :: qs_env
-    TYPE(global_environment_type), INTENT(in), TARGET :: globenv
-    TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
+    TYPE(qs_scf_env_type), POINTER           :: scf_env
+    TYPE(qs_environment_type), POINTER       :: qs_env
+    TYPE(global_environment_type), &
+      INTENT(in), TARGET                     :: globenv
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
 
-    LOGICAL :: failure, ionode
-    CHARACTER(len=*), PARAMETER :: routineN='scf_env_post_calc',&
-         routineP=moduleN//':'//routineN
-    TYPE(cell_type), POINTER :: cell
-    TYPE(dft_control_type), POINTER :: dft_control
-    TYPE(pw_env_type), POINTER :: pw_env
-    TYPE(pw_pool_type), POINTER :: auxbas_pw_pool
-    TYPE(pw_pool_p_type), DIMENSION(:), POINTER :: pw_pools
-    TYPE(coeff_type) :: wf_r, wf_g
-    TYPE(coeff_type), POINTER :: rho_core
-    REAL(KIND = dp) :: total_abs_spin_dens
-    TYPE(coeff_type), DIMENSION(:), POINTER :: mgrid_gspace, mgrid_rspace
-    TYPE(mo_set_p_type), DIMENSION(:), POINTER :: c
-    TYPE(atomic_kind_type), DIMENSION(:), POINTER :: atomic_kind_set
-    TYPE(particle_type), DIMENSION(:), POINTER :: particle_set
-    TYPE(qs_rho_type), POINTER :: rho
-    TYPE(cp_logger_type), POINTER :: logger
-    TYPE(cp_fm_type), POINTER :: mo_eigenvectors, mo_localized
-    REAL(KIND = dp), DIMENSION(:), POINTER :: mo_eigenvalues
-    TYPE(real_matrix_p_type), DIMENSION(:), POINTER :: ks_rmpv, s
-    TYPE(qs_loc_env_type), POINTER :: qs_loc_env
-    TYPE(scf_control_type), POINTER :: scf_control
-    TYPE(cp_fm_p_type), POINTER, DIMENSION(:) :: unoccupied_orbs
-    TYPE(cp_fm_struct_type), POINTER :: fm_struct_tmp
-    TYPE ( molecule_type ), POINTER :: molecule_set ( : ) 
+    CHARACTER(len=*), PARAMETER :: routineN = 'scf_env_post_calc', &
+      routineP = moduleN//':'//routineN
+
+    LOGICAL                                  :: failure, ionode
+    REAL(KIND=dp), DIMENSION(:), POINTER     :: mo_eigenvalues
+    TYPE(atomic_kind_type), DIMENSION(:), &
+      POINTER                                :: atomic_kind_set
+    TYPE(cell_type), POINTER                 :: cell
+    TYPE(coeff_type)                         :: wf_g, wf_r
+    TYPE(coeff_type), DIMENSION(:), POINTER  :: mgrid_gspace, mgrid_rspace
+    TYPE(coeff_type), POINTER                :: rho_core
+    TYPE(cp_fm_p_type), DIMENSION(:), &
+      POINTER                                :: unoccupied_orbs
+    TYPE(cp_fm_struct_type), POINTER         :: fm_struct_tmp
+    TYPE(cp_fm_type), POINTER                :: mo_eigenvectors, mo_localized
+    TYPE(cp_logger_type), POINTER            :: logger
+    TYPE(dft_control_type), POINTER          :: dft_control
+    TYPE(mo_set_p_type), DIMENSION(:), &
+      POINTER                                :: c
+    TYPE(molecule_type), POINTER             :: molecule_set( : )
+    TYPE(particle_type), DIMENSION(:), &
+      POINTER                                :: particle_set
+    TYPE(pw_env_type), POINTER               :: pw_env
+    TYPE(pw_pool_p_type), DIMENSION(:), &
+      POINTER                                :: pw_pools
+    TYPE(pw_pool_type), POINTER              :: auxbas_pw_pool
+    TYPE(qs_loc_env_type), POINTER           :: qs_loc_env
+    TYPE(qs_rho_type), POINTER               :: rho
+    TYPE(real_matrix_p_type), DIMENSION(:), &
+      POINTER                                :: ks_rmpv, s
+    TYPE(scf_control_type), POINTER          :: scf_control
+
     TYPE evals_p_type
          REAL(KIND = dp), DIMENSION(:), POINTER :: evals
     END TYPE
@@ -565,34 +512,44 @@ CONTAINS
   END SUBROUTINE scf_post_calculation
 
   SUBROUTINE write_available_results(qs_env,globenv,error)
-    TYPE(qs_environment_type), POINTER :: qs_env
-    TYPE(global_environment_type), INTENT(in), TARGET :: globenv
-    TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
+    TYPE(qs_environment_type), POINTER       :: qs_env
+    TYPE(global_environment_type), &
+      INTENT(in), TARGET                     :: globenv
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
 
-    LOGICAL :: failure, ionode
-    CHARACTER(len=*), PARAMETER :: routineN='write_available_results',&
-         routineP=moduleN//':'//routineN
-    TYPE(cell_type), POINTER :: cell
-    TYPE(dft_control_type), POINTER :: dft_control
-    TYPE(pw_env_type), POINTER :: pw_env
-    TYPE(pw_pool_type), POINTER :: auxbas_pw_pool
-    TYPE(pw_pool_p_type), DIMENSION(:), POINTER :: pw_pools
-    TYPE(coeff_type) :: wf_r, wf_g
-    REAL(KIND = dp) :: total_abs_spin_dens
-    TYPE(coeff_type), DIMENSION(:), POINTER :: mgrid_gspace, mgrid_rspace
-    TYPE(mo_set_p_type), DIMENSION(:), POINTER :: c
-    TYPE(atomic_kind_type), DIMENSION(:), POINTER :: atomic_kind_set
-    TYPE(particle_type), DIMENSION(:), POINTER :: particle_set
-    TYPE(qs_rho_type), POINTER :: rho
-    TYPE(cp_logger_type), POINTER :: logger
-    TYPE(cp_fm_type), POINTER :: mo_eigenvectors, mo_localized
-    REAL(KIND = dp), DIMENSION(:), POINTER :: mo_eigenvalues
-    TYPE(real_matrix_p_type), DIMENSION(:), POINTER :: ks_rmpv, s
-    TYPE(qs_loc_env_type), POINTER :: qs_loc_env
-    TYPE(scf_control_type), POINTER :: scf_control
-    TYPE(cp_fm_p_type), POINTER, DIMENSION(:) :: unoccupied_orbs
-    TYPE(cp_fm_struct_type), POINTER :: fm_struct_tmp
-    TYPE ( molecule_type ), POINTER :: molecule_set ( : ) 
+    CHARACTER(len=*), PARAMETER :: routineN = 'write_available_results', &
+      routineP = moduleN//':'//routineN
+
+    LOGICAL                                  :: failure, ionode
+    REAL(KIND=dp)                            :: total_abs_spin_dens
+    REAL(KIND=dp), DIMENSION(:), POINTER     :: mo_eigenvalues
+    TYPE(atomic_kind_type), DIMENSION(:), &
+      POINTER                                :: atomic_kind_set
+    TYPE(cell_type), POINTER                 :: cell
+    TYPE(coeff_type)                         :: wf_r
+    TYPE(coeff_type), DIMENSION(:), POINTER  :: mgrid_gspace, mgrid_rspace
+    TYPE(cp_fm_p_type), DIMENSION(:), &
+      POINTER                                :: unoccupied_orbs
+    TYPE(cp_fm_struct_type), POINTER         :: fm_struct_tmp
+    TYPE(cp_fm_type), POINTER                :: mo_eigenvectors
+    TYPE(cp_logger_type), POINTER            :: logger
+    TYPE(dft_control_type), POINTER          :: dft_control
+    TYPE(mo_set_p_type), DIMENSION(:), &
+      POINTER                                :: c
+    TYPE(molecule_type), POINTER             :: molecule_set( : )
+    TYPE(particle_type), DIMENSION(:), &
+      POINTER                                :: particle_set
+    TYPE(pw_env_type), POINTER               :: pw_env
+    TYPE(pw_pool_p_type), DIMENSION(:), &
+      POINTER                                :: pw_pools
+    TYPE(pw_pool_type), POINTER              :: auxbas_pw_pool
+    TYPE(qs_loc_env_type), POINTER           :: qs_loc_env
+    TYPE(qs_rho_type), POINTER               :: rho
+    TYPE(real_matrix_p_type), DIMENSION(:), &
+      POINTER                                :: ks_rmpv, s
+    TYPE(scf_control_type), POINTER          :: scf_control
+
     TYPE evals_p_type
          REAL(KIND = dp), DIMENSION(:), POINTER :: evals
     END TYPE

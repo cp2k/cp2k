@@ -30,12 +30,11 @@ MODULE kg_core
                                              kg_environment_type
   USE kg_force_types,                  ONLY: kg_force_type
   USE kinds,                           ONLY: dbl,&
-                                             int_size,&
-                                             dp_size
-  USE linklist_utilities,              ONLY: get_match
+                                             dp_size,&
+                                             int_size
   USE mathconstants,                   ONLY: oorootpi,&
-                                             twopi, pi
-  USE message_passing,                 ONLY: mp_sum
+                                             pi,&
+                                             twopi
   USE particle_types,                  ONLY: particle_type
   USE simulation_cell,                 ONLY: cell_type,&
                                              get_cell,&
@@ -46,7 +45,7 @@ MODULE kg_core
                                              stop_program
   USE timings,                         ONLY: timeset,&
                                              timestop
-  USE util,                            ONLY: sort
+
   IMPLICIT NONE
 
   PRIVATE
@@ -70,17 +69,16 @@ CONTAINS
 
 !   ***************************************************************************
 
-    IMPLICIT NONE
 
-    TYPE(global_environment_type), INTENT(IN) :: globenv
-    TYPE(kg_environment_type), INTENT(INOUT)  :: kg_env
-    REAL(dbl), INTENT (out) :: e_rspace_core
-    TYPE(kg_force_type), DIMENSION(:), POINTER, OPTIONAL  :: force
+    TYPE(kg_environment_type), INTENT(INOUT) :: kg_env
+    TYPE(global_environment_type), &
+      INTENT(IN)                             :: globenv
+    REAL(dbl), INTENT(out)                   :: e_rspace_core
+    TYPE(kg_force_type), DIMENSION(:), &
+      OPTIONAL, POINTER                      :: force
 
-!   *** Local parameters ***
-
-    CHARACTER(LEN=*), PARAMETER :: routine =&
-      "SUBROUTINE calculate_ecore_rspace (MODULE kg_core)"
+    CHARACTER(LEN=*), PARAMETER :: &
+      routine = "SUBROUTINE calculate_ecore_rspace (MODULE kg_core)"
 
 !   *** Local data types ***
 
@@ -403,16 +401,15 @@ CONTAINS
 
 !   ***************************************************************************
 
-    TYPE(kg_environment_type), INTENT(IN) :: kg_env
-    REAL (dbl), INTENT(OUT) :: ecore_self
+    TYPE(kg_environment_type), INTENT(IN)    :: kg_env
+    REAL(dbl), INTENT(OUT)                   :: ecore_self
 
-!   *** Local variables ***
-
-    TYPE(atomic_kind_type), POINTER :: atomic_kind
-    REAL(dbl)                        :: alpha_core_charge,qeff,ccore_charge
-    INTEGER                         :: ikind,natom
-
-    TYPE(atomic_kind_type), DIMENSION(:), POINTER :: atomic_kind_set
+    INTEGER                                  :: ikind, natom
+    REAL(dbl)                                :: alpha_core_charge, &
+                                                ccore_charge, qeff
+    TYPE(atomic_kind_type), DIMENSION(:), &
+      POINTER                                :: atomic_kind_set
+    TYPE(atomic_kind_type), POINTER          :: atomic_kind
 
 !   ---------------------------------------------------------------------------
 

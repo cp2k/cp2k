@@ -25,12 +25,8 @@
 !!   SOURCE
 !!
 MODULE qs_main
-  USE checkpoint_handler,              ONLY: write_checkpoint_information
-  USE cp_blacs_env,                    ONLY: end_blacs,&
-                                             start_blacs
   USE cp_error_handling,               ONLY: cp_a_l,&
                                              cp_assert,&
-                                             cp_assertion_failed,&
                                              cp_error_get_logger,&
                                              cp_error_type
   USE cp_log_handling,                 ONLY: cp_failure_level,&
@@ -40,20 +36,17 @@ MODULE qs_main
                                              cp_to_string,&
                                              cp_warning_level
   USE cp_para_types,                   ONLY: cp_blacs_env_type
-  USE force_env_types,                   ONLY: force_env_create,&
+  USE force_env_types,                 ONLY: force_env_create,&
                                              force_env_type
   USE global_types,                    ONLY: global_environment_type
   USE kinds,                           ONLY: dp
-  USE molecule_types,                  ONLY: molecule_type
-  USE particle_list_types,             ONLY: particle_list_type
-  USE qs_energy,                       ONLY: qs_energies
   USE qs_environment,                  ONLY: qs_init
   USE qs_environment_types,            ONLY: qs_env_create,&
                                              qs_env_release,&
                                              qs_environment_type
-  USE termination,                     ONLY: stop_program
   USE timings,                         ONLY: timeset,&
                                              timestop
+
     IMPLICIT NONE
 
   PRIVATE
@@ -97,21 +90,18 @@ CONTAINS
   SUBROUTINE quickstep_create_force_env(force_env,blacs_env,globenv,&
                      new_h_matrix,error)
 
-    TYPE(force_env_type), POINTER :: force_env
-    TYPE(cp_blacs_env_type), POINTER :: blacs_env
-    TYPE(global_environment_type), POINTER :: globenv
-    TYPE(cp_error_type), INTENT(inout), OPTIONAL :: error
-    REAL(dp),DIMENSION(1:3,1:3),OPTIONAL,INTENT(IN) :: new_h_matrix
-    
-!   *** Local parameters ***
+    TYPE(force_env_type), POINTER            :: force_env
+    TYPE(cp_blacs_env_type), POINTER         :: blacs_env
+    TYPE(global_environment_type), POINTER   :: globenv
+    REAL(dp), DIMENSION(1:3, 1:3), &
+      INTENT(IN), OPTIONAL                   :: new_h_matrix
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
 
-    CHARACTER(LEN=*), PARAMETER :: routineN = "quickstep_create_force_env",&
-         routineP=moduleN//":"//routineN
+    CHARACTER(LEN=*), PARAMETER :: routineN = "quickstep_create_force_env", &
+      routineP = moduleN//":"//routineN
 
-!   *** Local variables ***
-
-    LOGICAL :: failure
-    INTEGER              :: handle
+    INTEGER                                  :: handle
 
 !   ---------------------------------------------------------------------------
 

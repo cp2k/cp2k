@@ -20,27 +20,28 @@
 MODULE pol_force_numer_pw
 !------------------------------------------------------------------------------!
 !
-   USE ao_types, ONLY : ao_type
-   USE atomic_kinds, ONLY: kind_info_type
-   USE coefficient_types, ONLY : coeff_type, coeff_allocate, &
-       coeff_deallocate, coeff_zero, coeff_transform_space, &
-       PW_COMPLEXDATA3D, PW_REALDATA3D, &
-       PW_REALSPACE, PW_COMPLEXDATA1D, PW_RECIPROCALSPACE
-   USE dg_types, ONLY : dg_type
-   USE ewald_parameters_types, ONLY : ewald_parameters_type
-   USE empirical_parameters, ONLY : empirical_parameter_type
-   USE kinds, ONLY : dbl
-   USE molecule_types, ONLY : particle_node_type
-   USE particle_types, ONLY : particle_type
-   USE pol_fo_kernel_pw, ONLY : force_fo_kernel 
-   USE pol_electrostatics_pw, ONLY : electrostatics
-   USE pol_overlap_pw, ONLY : force_overlap
-   USE pol_projectors_pw, ONLY : projectors
-   USE pol_thk_pw, ONLY : force_thk
-   USE pw_grid_types, ONLY : pw_grid_type
-   USE pw_types, ONLY : pw_type, REALSPACE, RECIPROCALSPACE, NOSPACE
-   USE simulation_cell, ONLY : cell_type
-   USE termination, ONLY : stop_memory, stop_program
+  USE ao_types,                        ONLY: ao_type
+  USE atomic_kinds,                    ONLY: kind_info_type
+  USE coefficient_types,               ONLY: PW_COMPLEXDATA1D,&
+                                             coeff_allocate,&
+                                             coeff_deallocate,&
+                                             coeff_type,&
+                                             coeff_zero
+  USE dg_types,                        ONLY: dg_type
+  USE empirical_parameters,            ONLY: empirical_parameter_type
+  USE ewald_parameters_types,          ONLY: ewald_parameters_type
+  USE kinds,                           ONLY: dbl
+  USE molecule_types,                  ONLY: particle_node_type
+  USE particle_types,                  ONLY: particle_type
+  USE pol_electrostatics_pw,           ONLY: electrostatics
+  USE pol_fo_kernel_pw,                ONLY: force_fo_kernel
+  USE pol_overlap_pw,                  ONLY: force_overlap
+  USE pol_projectors_pw,               ONLY: projectors
+  USE pol_thk_pw,                      ONLY: force_thk
+  USE pw_grid_types,                   ONLY: pw_grid_type
+  USE pw_types,                        ONLY: RECIPROCALSPACE,&
+                                             pw_type
+  USE simulation_cell,                 ONLY: cell_type
 
    PRIVATE
    PUBLIC :: part_electrostatics_numer, coef_electrostatics_numer, &
@@ -53,28 +54,27 @@ MODULE pol_force_numer_pw
 !------------------------------------------------------------------------------!
 SUBROUTINE part_electrostatics_numer ( delta, dg_part, part, pw, box, pw_small, &
                                        pw_big, ewald_param, energy_numer, f_part )
-   IMPLICIT NONE
 !
 ! begin passed variable declaration:
 !
-   TYPE ( dg_type ), INTENT ( IN ), DIMENSION ( : ) :: dg_part
-   TYPE ( pw_type ), INTENT ( INOUT ) :: pw
-   TYPE ( particle_type ), DIMENSION ( : ), INTENT ( INOUT ) :: part
-   TYPE ( cell_type ), INTENT ( IN ) :: box
-   TYPE ( pw_grid_type ), INTENT ( IN ), DIMENSION ( : ) :: pw_small
-   TYPE ( pw_grid_type ), INTENT ( IN ), DIMENSION ( : ) :: pw_big
-   TYPE ( ewald_parameters_type ), INTENT ( IN ) :: ewald_param
-   REAL ( dbl ), INTENT ( OUT ), DIMENSION ( :, : ) :: f_part
-   REAL ( dbl ), INTENT ( OUT ) :: energy_numer
-   REAL ( dbl ), INTENT ( IN ) :: delta
+    REAL(dbl), INTENT(IN)                    :: delta
+    TYPE(dg_type), DIMENSION(:), INTENT(IN)  :: dg_part
+    TYPE(particle_type), DIMENSION(:), &
+      INTENT(INOUT)                          :: part
+    TYPE(pw_type), INTENT(INOUT)             :: pw
+    TYPE(cell_type), INTENT(IN)              :: box
+    TYPE(pw_grid_type), DIMENSION(:), &
+      INTENT(IN)                             :: pw_small, pw_big
+    TYPE(ewald_parameters_type), INTENT(IN)  :: ewald_param
+    REAL(dbl), INTENT(OUT)                   :: energy_numer
+    REAL(dbl), DIMENSION(:, :), INTENT(OUT)  :: f_part
+
+    INTEGER                                  :: i, id, natoms
+    REAL(dbl)                                :: energy_minus, energy_plus
+    TYPE(coeff_type)                         :: rho0
 
 ! begin local variable declaration:
 !
-   INTEGER :: i, j 
-   INTEGER :: id,  natoms
-   REAL (dbl) :: energy
-   REAL (dbl) :: energy_plus, energy_minus
-   TYPE ( coeff_type ) :: rho0
 
    CALL coeff_allocate ( rho0 , pw % pw_grid, use_data = PW_COMPLEXDATA1D )
    rho0 % pw % in_space = RECIPROCALSPACE
@@ -112,28 +112,27 @@ END SUBROUTINE part_electrostatics_numer
 SUBROUTINE coef_electrostatics_numer ( delta, dg_part, part, &
                                       pw, box, pw_small, pw_big,  &
                                       ewald_param,  energy_numer, f_coef )
-   IMPLICIT NONE
 !
 ! begin passed variable declaration:
 !
-   TYPE ( dg_type ), INTENT ( IN ), DIMENSION ( : ) :: dg_part
-   TYPE ( pw_type ), INTENT ( INOUT ) :: pw
-   TYPE ( particle_type ), DIMENSION ( : ), INTENT ( IN ) :: part
-   TYPE ( cell_type ), INTENT ( IN ) :: box
-   TYPE ( pw_grid_type ), INTENT ( IN ), DIMENSION ( : ) :: pw_small
-   TYPE ( pw_grid_type ), INTENT ( IN ), DIMENSION ( : ) :: pw_big
-   TYPE ( ewald_parameters_type ), INTENT ( IN ) :: ewald_param
-   COMPLEX ( dbl ), INTENT ( OUT ), DIMENSION ( : ) :: f_coef
-   REAL ( dbl ), INTENT ( OUT ) :: energy_numer
-   REAL ( dbl ), INTENT ( IN ) :: delta
+    REAL(dbl), INTENT(IN)                    :: delta
+    TYPE(dg_type), DIMENSION(:), INTENT(IN)  :: dg_part
+    TYPE(particle_type), DIMENSION(:), &
+      INTENT(IN)                             :: part
+    TYPE(pw_type), INTENT(INOUT)             :: pw
+    TYPE(cell_type), INTENT(IN)              :: box
+    TYPE(pw_grid_type), DIMENSION(:), &
+      INTENT(IN)                             :: pw_small, pw_big
+    TYPE(ewald_parameters_type), INTENT(IN)  :: ewald_param
+    REAL(dbl), INTENT(OUT)                   :: energy_numer
+    COMPLEX(dbl), DIMENSION(:), INTENT(OUT)  :: f_coef
+
+    INTEGER                                  :: i, ncoeff
+    REAL(dbl)                                :: energy_minus, energy_plus
+    TYPE(coeff_type)                         :: rho0
 
 ! begin local variable declaration:
 !
-   INTEGER :: i, j 
-   INTEGER ::  ncoeff
-   REAL (dbl) :: energy
-   REAL (dbl) :: energy_plus, energy_minus
-   TYPE ( coeff_type ) :: rho0
 
    CALL coeff_allocate ( rho0 , pw % pw_grid, use_data = PW_COMPLEXDATA1D )
    rho0 % pw % in_space = RECIPROCALSPACE
@@ -190,30 +189,32 @@ END SUBROUTINE coef_electrostatics_numer
 
 SUBROUTINE part_overlap_numer ( delta, dg, pw, ao, drho_basis_info, part, pnode, &
                                 box, empparm, grid_s, grid_b, energy_numer, f_part )
-   IMPLICIT NONE
 !
 ! begin passed variable declaration:
 !
-   REAL ( dbl ), INTENT ( IN ) :: delta
-   TYPE ( dg_type ), INTENT ( IN ), DIMENSION ( : ) :: dg
-   TYPE ( pw_type ), INTENT ( IN ) :: pw
-   TYPE ( pw_grid_type ), INTENT ( IN ), DIMENSION ( : ) :: grid_s, grid_b
-   TYPE ( ao_type ), INTENT ( INOUT ) :: ao
-   TYPE ( kind_info_type ),  INTENT ( IN ), DIMENSION ( : ) :: drho_basis_info
-   TYPE ( particle_type ), DIMENSION ( : ), INTENT ( INOUT ) :: part
-   TYPE ( particle_node_type ), DIMENSION ( : ), INTENT ( INOUT ) :: pnode
-   TYPE ( cell_type ), INTENT ( IN ) :: box
-   TYPE ( empirical_parameter_type ), DIMENSION ( : ), INTENT ( IN ) :: empparm
-   REAL ( dbl ), INTENT ( OUT ), DIMENSION ( :, : ) :: f_part
-   REAL ( dbl ), INTENT ( OUT ) :: energy_numer
+    REAL(dbl), INTENT(IN)                    :: delta
+    TYPE(dg_type), DIMENSION(:), INTENT(IN)  :: dg
+    TYPE(pw_type), INTENT(IN)                :: pw
+    TYPE(ao_type), INTENT(INOUT)             :: ao
+    TYPE(kind_info_type), DIMENSION(:), &
+      INTENT(IN)                             :: drho_basis_info
+    TYPE(particle_type), DIMENSION(:), &
+      INTENT(INOUT)                          :: part
+    TYPE(particle_node_type), DIMENSION(:), &
+      INTENT(INOUT)                          :: pnode
+    TYPE(cell_type), INTENT(IN)              :: box
+    TYPE(empirical_parameter_type), &
+      DIMENSION(:), INTENT(IN)               :: empparm
+    TYPE(pw_grid_type), DIMENSION(:), &
+      INTENT(IN)                             :: grid_s, grid_b
+    REAL(dbl), INTENT(OUT)                   :: energy_numer
+    REAL(dbl), DIMENSION(:, :), INTENT(OUT)  :: f_part
+
+    INTEGER                                  :: i, id, natoms
+    REAL(dbl)                                :: energy_minus, energy_plus
 
 ! begin local variable declaration:
 !
-   INTEGER :: i, j 
-   INTEGER :: ios
-   INTEGER :: id,  natoms
-   REAL (dbl) :: energy
-   REAL (dbl) :: energy_plus, energy_minus
 
    energy_numer = 0.0_dbl
    f_part = 0.0_dbl
@@ -246,31 +247,32 @@ END SUBROUTINE part_overlap_numer
 !------------------------------------------------------------------------------!
 SUBROUTINE coef_overlap_numer ( delta, dg, pw, ao, drho_basis_info, part, pnode, &
                                 box, empparm, grid_s, grid_b, energy_numer, f_coef )
-   IMPLICIT NONE
 !
 ! begin passed variable declaration:
 !
-   REAL ( dbl ), INTENT ( IN ) :: delta
-   TYPE ( dg_type ), INTENT ( IN ), DIMENSION ( : ) :: dg
-   TYPE ( pw_type ), INTENT ( INOUT ) :: pw
-   TYPE ( pw_grid_type ), INTENT ( IN ), DIMENSION ( : )  :: grid_s, grid_b
-   TYPE ( ao_type ), INTENT ( INOUT ) :: ao
-   TYPE ( kind_info_type ),  INTENT (IN), DIMENSION (:) :: drho_basis_info
-   TYPE ( particle_type ), DIMENSION ( : ), INTENT ( INOUT ) :: part
-   TYPE ( particle_node_type ), DIMENSION ( : ), INTENT ( INOUT ) :: pnode
-   TYPE ( cell_type ), INTENT ( IN ) :: box
-   TYPE ( empirical_parameter_type ), DIMENSION ( : ), INTENT ( IN ) :: empparm
-   COMPLEX ( dbl ), INTENT ( OUT ), DIMENSION ( : ) :: f_coef
-   REAL ( dbl ), INTENT ( OUT ) :: energy_numer
+    REAL(dbl), INTENT(IN)                    :: delta
+    TYPE(dg_type), DIMENSION(:), INTENT(IN)  :: dg
+    TYPE(pw_type), INTENT(INOUT)             :: pw
+    TYPE(ao_type), INTENT(INOUT)             :: ao
+    TYPE(kind_info_type), DIMENSION(:), &
+      INTENT(IN)                             :: drho_basis_info
+    TYPE(particle_type), DIMENSION(:), &
+      INTENT(INOUT)                          :: part
+    TYPE(particle_node_type), DIMENSION(:), &
+      INTENT(INOUT)                          :: pnode
+    TYPE(cell_type), INTENT(IN)              :: box
+    TYPE(empirical_parameter_type), &
+      DIMENSION(:), INTENT(IN)               :: empparm
+    TYPE(pw_grid_type), DIMENSION(:), &
+      INTENT(IN)                             :: grid_s, grid_b
+    REAL(dbl), INTENT(OUT)                   :: energy_numer
+    COMPLEX(dbl), DIMENSION(:), INTENT(OUT)  :: f_coef
 
+    INTEGER                                  :: i, ncoeff
+    REAL(dbl)                                :: energy_minus, energy_plus
 
 ! begin local variable declaration:
 !
-   INTEGER :: i, j 
-   INTEGER :: ios
-   INTEGER ::  ncoeff
-   REAL (dbl) :: energy
-   REAL (dbl) :: energy_plus, energy_minus
 
    ncoeff = SIZE ( pw % cc )
    energy_numer = 0.0_dbl
@@ -324,28 +326,28 @@ END SUBROUTINE coef_overlap_numer
 
 SUBROUTINE part_thk_numer ( delta, dg, pw, ao, part, box, empparm, grid_s,  &
                             grid_b, energy_numer, f_part )
-   IMPLICIT NONE
 !
 ! begin passed variable declaration:
 !
-   REAL ( dbl ), INTENT ( IN ) :: delta
-   TYPE ( dg_type ), INTENT ( IN ), DIMENSION ( : ) :: dg
-   TYPE ( pw_type ), INTENT ( IN ) :: pw
-   TYPE ( pw_grid_type ), INTENT ( IN ), DIMENSION ( : ) :: grid_s, grid_b
-   TYPE ( ao_type ), INTENT ( INOUT ) :: ao
-   TYPE ( particle_type ), DIMENSION ( : ), INTENT ( INOUT ) :: part
-   TYPE ( cell_type ), INTENT ( IN ) :: box
-   TYPE ( empirical_parameter_type ), DIMENSION ( : ), INTENT ( IN ) :: empparm
-   REAL ( dbl ), INTENT ( OUT ), DIMENSION ( :, : ) :: f_part
-   REAL ( dbl ), INTENT ( OUT ) :: energy_numer
+    REAL(dbl), INTENT(IN)                    :: delta
+    TYPE(dg_type), DIMENSION(:), INTENT(IN)  :: dg
+    TYPE(pw_type), INTENT(IN)                :: pw
+    TYPE(ao_type), INTENT(INOUT)             :: ao
+    TYPE(particle_type), DIMENSION(:), &
+      INTENT(INOUT)                          :: part
+    TYPE(cell_type), INTENT(IN)              :: box
+    TYPE(empirical_parameter_type), &
+      DIMENSION(:), INTENT(IN)               :: empparm
+    TYPE(pw_grid_type), DIMENSION(:), &
+      INTENT(IN)                             :: grid_s, grid_b
+    REAL(dbl), INTENT(OUT)                   :: energy_numer
+    REAL(dbl), DIMENSION(:, :), INTENT(OUT)  :: f_part
+
+    INTEGER                                  :: i, id, natoms
+    REAL(dbl)                                :: energy_minus, energy_plus
 
 ! begin local variable declaration:
 !
-   INTEGER :: i, j 
-   INTEGER :: ios
-   INTEGER :: id,  natoms
-   REAL (dbl) :: energy
-   REAL (dbl) :: energy_plus, energy_minus
 
    energy_numer = 0.0_dbl
    f_part = 0.0_dbl
@@ -375,30 +377,28 @@ END SUBROUTINE part_thk_numer
 !------------------------------------------------------------------------------!
 SUBROUTINE coef_thk_numer ( delta, dg, pw, ao, part, box, empparm, grid_s,  &
                             grid_b, energy_numer, f_coef )
-   IMPLICIT NONE
 !
 ! begin passed variable declaration:
 !
-   REAL ( dbl ), INTENT ( IN ) :: delta
-   TYPE ( dg_type ), INTENT ( IN ), DIMENSION ( : ) :: dg
-   TYPE ( pw_type ), INTENT ( INOUT ) :: pw
-   TYPE ( pw_grid_type ), INTENT ( IN ), DIMENSION ( : ) :: grid_s, grid_b
-   TYPE ( ao_type ), INTENT ( INOUT ) :: ao
-   TYPE ( particle_type ), DIMENSION ( : ), INTENT ( INOUT ) :: part
-   TYPE ( cell_type ), INTENT ( IN ) :: box
-   TYPE ( empirical_parameter_type ), DIMENSION ( : ), INTENT ( IN ) :: empparm
-   COMPLEX ( dbl ), INTENT ( OUT ), DIMENSION ( : ) :: f_coef
-   REAL ( dbl ), INTENT ( OUT ) :: energy_numer
+    REAL(dbl), INTENT(IN)                    :: delta
+    TYPE(dg_type), DIMENSION(:), INTENT(IN)  :: dg
+    TYPE(pw_type), INTENT(INOUT)             :: pw
+    TYPE(ao_type), INTENT(INOUT)             :: ao
+    TYPE(particle_type), DIMENSION(:), &
+      INTENT(INOUT)                          :: part
+    TYPE(cell_type), INTENT(IN)              :: box
+    TYPE(empirical_parameter_type), &
+      DIMENSION(:), INTENT(IN)               :: empparm
+    TYPE(pw_grid_type), DIMENSION(:), &
+      INTENT(IN)                             :: grid_s, grid_b
+    REAL(dbl), INTENT(OUT)                   :: energy_numer
+    COMPLEX(dbl), DIMENSION(:), INTENT(OUT)  :: f_coef
 
+    INTEGER                                  :: i, ncoeff
+    REAL(dbl)                                :: energy_minus, energy_plus
 
 ! begin local variable declaration:
 !
-   INTEGER :: i, j 
-   INTEGER :: ios
-   INTEGER ::  ncoeff
-   REAL (dbl) :: energy
-   REAL (dbl) :: energy_plus, energy_minus
-
 
    ncoeff = SIZE ( pw % cc )
    energy_numer = 0.0_dbl
@@ -446,29 +446,28 @@ END SUBROUTINE coef_thk_numer
 
 SUBROUTINE part_fo_kernel_numer ( delta, dg_part, pw, part, box, grid_s,  &
                             grid_b, ewald_param, energy_numer, f_part )
-   IMPLICIT NONE
 !
 ! begin passed variable declaration:
 !
-   REAL ( dbl ), INTENT ( IN ) :: delta
-   TYPE ( dg_type ), INTENT ( IN ), DIMENSION ( : ) :: dg_part
-   TYPE ( pw_type ), INTENT ( INOUT ) :: pw
-   TYPE ( pw_grid_type ), INTENT ( IN ), DIMENSION ( : ) :: grid_s, grid_b
-   TYPE ( particle_type ), DIMENSION ( : ), INTENT ( INOUT ) :: part
-   TYPE ( cell_type ), INTENT ( IN ) :: box
-   TYPE ( ewald_parameters_type ),  INTENT ( IN ) :: ewald_param
-   REAL ( dbl ), INTENT ( OUT ), DIMENSION ( :, : ) :: f_part
-   REAL ( dbl ), INTENT ( OUT ) :: energy_numer
+    REAL(dbl), INTENT(IN)                    :: delta
+    TYPE(dg_type), DIMENSION(:), INTENT(IN)  :: dg_part
+    TYPE(pw_type), INTENT(INOUT)             :: pw
+    TYPE(particle_type), DIMENSION(:), &
+      INTENT(INOUT)                          :: part
+    TYPE(cell_type), INTENT(IN)              :: box
+    TYPE(pw_grid_type), DIMENSION(:), &
+      INTENT(IN)                             :: grid_s, grid_b
+    TYPE(ewald_parameters_type), INTENT(IN)  :: ewald_param
+    REAL(dbl), INTENT(OUT)                   :: energy_numer
+    REAL(dbl), DIMENSION(:, :), INTENT(OUT)  :: f_part
+
+    INTEGER                                  :: i, id, natoms
+    REAL(dbl)                                :: ener, energy_minus, &
+                                                energy_plus
+    TYPE(coeff_type)                         :: rho0
 
 ! begin local variable declaration:
 !
-   INTEGER :: i, j 
-   INTEGER :: ios
-   INTEGER :: id,  natoms
-   REAL (dbl) :: energy
-   REAL (dbl) :: ener  
-   REAL (dbl) :: energy_plus, energy_minus
-   TYPE ( coeff_type ) :: rho0
 
    CALL coeff_allocate ( rho0 , pw % pw_grid, use_data = PW_COMPLEXDATA1D )
    rho0 % pw % in_space = RECIPROCALSPACE
@@ -511,30 +510,28 @@ END SUBROUTINE part_fo_kernel_numer
 !------------------------------------------------------------------------------!
 SUBROUTINE coef_fo_kernel_numer ( delta, dg, pw, part, box, grid_s,  &
                             grid_b, ewald_param, energy_numer, f_coef )
-   IMPLICIT NONE
 !
 ! begin passed variable declaration:
 !
-   REAL ( dbl ), INTENT ( IN ) :: delta
-   TYPE ( dg_type ), INTENT ( IN ), DIMENSION ( : ) :: dg
-   TYPE ( pw_type ), INTENT ( INOUT ) :: pw
-   TYPE ( pw_grid_type ), INTENT ( IN ), DIMENSION ( : ) :: grid_s, grid_b
-   TYPE ( particle_type ), DIMENSION ( : ), INTENT ( INOUT ) :: part
-   TYPE ( cell_type ), INTENT ( IN ) :: box
-   TYPE ( ewald_parameters_type ),  INTENT ( IN ) :: ewald_param
-   COMPLEX ( dbl ), INTENT ( OUT ), DIMENSION ( : ) :: f_coef
-   REAL ( dbl ), INTENT ( OUT ) :: energy_numer
+    REAL(dbl), INTENT(IN)                    :: delta
+    TYPE(dg_type), DIMENSION(:), INTENT(IN)  :: dg
+    TYPE(pw_type), INTENT(INOUT)             :: pw
+    TYPE(particle_type), DIMENSION(:), &
+      INTENT(INOUT)                          :: part
+    TYPE(cell_type), INTENT(IN)              :: box
+    TYPE(pw_grid_type), DIMENSION(:), &
+      INTENT(IN)                             :: grid_s, grid_b
+    TYPE(ewald_parameters_type), INTENT(IN)  :: ewald_param
+    REAL(dbl), INTENT(OUT)                   :: energy_numer
+    COMPLEX(dbl), DIMENSION(:), INTENT(OUT)  :: f_coef
 
+    INTEGER                                  :: i, ncoeff
+    REAL(dbl)                                :: ener, energy_minus, &
+                                                energy_plus
+    TYPE(coeff_type)                         :: rho0
 
 ! begin local variable declaration:
 !
-   INTEGER :: i, j 
-   INTEGER :: ios
-   INTEGER ::  ncoeff
-   REAL (dbl) :: energy
-   REAL (dbl) :: ener
-   REAL (dbl) :: energy_plus, energy_minus
-   TYPE ( coeff_type ) :: rho0
 
    CALL coeff_allocate ( rho0 , pw % pw_grid, use_data = PW_COMPLEXDATA1D )
    rho0 % pw % in_space = RECIPROCALSPACE

@@ -16,18 +16,17 @@
 !*****************************************************************
 !------------------------------------------------------------------------------!
 !
-  USE amoeba, ONLY : amoeba_evaluate
-  USE global_types, ONLY : global_environment_type
-  USE kinds, ONLY : dbl
-  USE md, ONLY : simulation_parameters_type, thermodynamic_type
-  USE ewald_parameters_types, ONLY : ewald_parameters_type  
-  USE pair_potential, ONLY : potentialparm_type, spline_nonbond_control
-  USE particle_types, ONLY : particle_prop_type     
-  USE structure_types, ONLY : structure_type
-  USE termination, ONLY : stop_program, stop_memory
-  USE fit_parameters_types, ONLY : fit_parameter_type, linklist_real_type, &
-                                   linklist_parameters_type
-  
+  USE ewald_parameters_types,          ONLY: ewald_parameters_type
+  USE fit_parameters_types,            ONLY: fit_parameter_type,&
+                                             linklist_parameters_type,&
+                                             linklist_real_type
+  USE kinds,                           ONLY: dbl
+  USE pair_potential,                  ONLY: potentialparm_type,&
+                                             spline_nonbond_control
+  USE particle_types,                  ONLY: particle_prop_type
+  USE termination,                     ONLY: stop_memory,&
+                                             stop_program
+
   IMPLICIT NONE
 !
   PUBLIC :: copy_params, initialize_params
@@ -40,13 +39,15 @@
 !
   SUBROUTINE copy_params(fit_param, potparm, pstat, param, ewald_param, x)
 
-  IMPLICIT NONE
-  TYPE ( fit_parameter_type ), INTENT ( IN ) :: fit_param
-  TYPE (potentialparm_type), DIMENSION (:,:), INTENT (INOUT) :: potparm
-  TYPE (linklist_parameters_type ), INTENT(INOUT), DIMENSION ( :, : ) :: param  
-  TYPE ( ewald_parameters_type ), INTENT ( IN ) :: ewald_param  
-  TYPE ( particle_prop_type ), DIMENSION ( : ), POINTER :: pstat 
-  REAL (dbl), DIMENSION (:), INTENT (IN) :: x
+    TYPE(fit_parameter_type), INTENT(IN)     :: fit_param
+    TYPE(potentialparm_type), &
+      DIMENSION(:, :), INTENT(INOUT)         :: potparm
+    TYPE(particle_prop_type), DIMENSION(:), &
+      POINTER                                :: pstat
+    TYPE(linklist_parameters_type), &
+      DIMENSION(:, :), INTENT(INOUT)         :: param
+    TYPE(ewald_parameters_type), INTENT(IN)  :: ewald_param
+    REAL(dbl), DIMENSION(:), INTENT(IN)      :: x
 
 !------------------------------------------------------------------------------!
 
@@ -72,12 +73,13 @@
 !
   SUBROUTINE initialize_params(fit_param, potparm, param, y, p)
 
-  IMPLICIT NONE
-  TYPE ( fit_parameter_type ), INTENT ( IN ) :: fit_param
-  TYPE (potentialparm_type), DIMENSION (:,:), INTENT (INOUT) :: potparm
-  TYPE (linklist_parameters_type ), INTENT(INOUT), DIMENSION ( :, : ) :: param  
-  REAL ( dbl ), DIMENSION ( : ), POINTER  :: y
-  REAL ( dbl ), DIMENSION ( :, : ), POINTER :: p
+    TYPE(fit_parameter_type), INTENT(IN)     :: fit_param
+    TYPE(potentialparm_type), &
+      DIMENSION(:, :), INTENT(INOUT)         :: potparm
+    TYPE(linklist_parameters_type), &
+      DIMENSION(:, :), INTENT(INOUT)         :: param
+    REAL(dbl), DIMENSION(:), POINTER         :: y
+    REAL(dbl), DIMENSION(:, :), POINTER      :: p
 
 !------------------------------------------------------------------------------!
 
@@ -103,17 +105,17 @@
 !
   SUBROUTINE lj_fit(potparm,pstat,param,ewald_param,x)
 
-  IMPLICIT NONE
 
-  TYPE (potentialparm_type), DIMENSION (:,:), INTENT (INOUT) :: potparm
-  TYPE ( particle_prop_type ), DIMENSION ( : ), POINTER :: pstat 
-  TYPE (linklist_parameters_type ), INTENT(INOUT), DIMENSION ( :, : ) :: param  
-  TYPE ( ewald_parameters_type ), INTENT ( IN ) :: ewald_param
-  REAL (dbl), DIMENSION (:), INTENT (IN) :: x
+    TYPE(potentialparm_type), &
+      DIMENSION(:, :), INTENT(INOUT)         :: potparm
+    TYPE(particle_prop_type), DIMENSION(:), &
+      POINTER                                :: pstat
+    TYPE(linklist_parameters_type), &
+      DIMENSION(:, :), INTENT(INOUT)         :: param
+    TYPE(ewald_parameters_type), INTENT(IN)  :: ewald_param
+    REAL(dbl), DIMENSION(:), INTENT(IN)      :: x
 
-! locals
-
-  INTEGER :: i, icount, iatom, jatom, numpar, isos
+    INTEGER                                  :: iatom, icount, jatom
 
     icount = 0
     
@@ -150,15 +152,16 @@
 !
   SUBROUTINE will_fit(potparm,pstat,param,ewald_param,x)
 
-  IMPLICIT NONE
-  TYPE (potentialparm_type), DIMENSION (:,:), INTENT (INOUT) :: potparm
-  TYPE ( particle_prop_type ), DIMENSION ( : ), POINTER :: pstat 
-  TYPE (linklist_parameters_type ), INTENT(INOUT), DIMENSION ( :, : ) :: param  
-  TYPE ( ewald_parameters_type ), INTENT ( IN ) :: ewald_param
-  REAL (dbl), DIMENSION (:), INTENT (IN) :: x
+    TYPE(potentialparm_type), &
+      DIMENSION(:, :), INTENT(INOUT)         :: potparm
+    TYPE(particle_prop_type), DIMENSION(:), &
+      POINTER                                :: pstat
+    TYPE(linklist_parameters_type), &
+      DIMENSION(:, :), INTENT(INOUT)         :: param
+    TYPE(ewald_parameters_type), INTENT(IN)  :: ewald_param
+    REAL(dbl), DIMENSION(:), INTENT(IN)      :: x
 
-! locals
-  INTEGER :: i, icount, iatom, jatom, numpar, isos
+    INTEGER                                  :: iatom, icount, jatom
 
     icount = 0
 
@@ -192,20 +195,18 @@
 !
   SUBROUTINE lj_initialize(potparm,param,y,p)
 
-  IMPLICIT NONE
 
-  TYPE (potentialparm_type), DIMENSION (:,:), INTENT (INOUT) :: potparm
-  TYPE (linklist_parameters_type ), INTENT(INOUT), DIMENSION ( :, : ) :: param  
-  REAL ( dbl ), DIMENSION ( : ), POINTER :: y
-  REAL ( dbl ), DIMENSION ( :, : ), POINTER :: p
+    TYPE(potentialparm_type), &
+      DIMENSION(:, :), INTENT(INOUT)         :: potparm
+    TYPE(linklist_parameters_type), &
+      DIMENSION(:, :), INTENT(INOUT)         :: param
+    REAL(dbl), DIMENSION(:), POINTER         :: y
+    REAL(dbl), DIMENSION(:, :), POINTER      :: p
 
-! locals
-
-  INTEGER :: i, icount, iatom, jatom, numpar, isos
-  REAL(dbl) :: sig, eps
-  TYPE (linklist_real_type), POINTER :: llsig
-  TYPE (linklist_real_type), POINTER :: lleps
-
+    INTEGER                                  :: i, iatom, icount, isos, &
+                                                jatom, numpar
+    REAL(dbl)                                :: eps, sig
+    TYPE(linklist_real_type), POINTER        :: lleps, llsig
 
 ! number of potential parameters to be optimized is 2*number 
 ! of interactions (remember: we only need the upper triangle)
@@ -279,18 +280,17 @@
 !
   SUBROUTINE will_initialize(potparm,param,y,p)
 
-  IMPLICIT NONE
-  TYPE (potentialparm_type), DIMENSION (:,:), INTENT (INOUT) :: potparm
-  TYPE (linklist_parameters_type ), INTENT(INOUT), DIMENSION ( :, : ) :: param  
-  REAL ( dbl ), DIMENSION ( : ), POINTER :: y
-  REAL ( dbl ), DIMENSION ( :, : ), POINTER :: p
+    TYPE(potentialparm_type), &
+      DIMENSION(:, :), INTENT(INOUT)         :: potparm
+    TYPE(linklist_parameters_type), &
+      DIMENSION(:, :), INTENT(INOUT)         :: param
+    REAL(dbl), DIMENSION(:), POINTER         :: y
+    REAL(dbl), DIMENSION(:, :), POINTER      :: p
 
-! locals
-  INTEGER :: i, icount, iatom, jatom, numpar, isos
-  REAL(dbl) a,b,c
-  TYPE (linklist_real_type), POINTER :: lla
-  TYPE (linklist_real_type), POINTER :: llb
-  TYPE (linklist_real_type), POINTER :: llc
+    INTEGER                                  :: i, iatom, icount, isos, &
+                                                jatom, numpar
+    REAL(dbl)                                :: a, b, c
+    TYPE(linklist_real_type), POINTER        :: lla, llb, llc
 
 ! of interactions (remember: we only need the upper triangle)
 ! e.g. for WILL each interaction has 3 parameters, a, b, and c.

@@ -30,19 +30,12 @@
 MODULE cp_b_matrix_structure
   USE cp_error_handling,               ONLY: cp_a_l,&
                                              cp_assert,&
-                                             cp_assertion_failed,&
                                              cp_debug,&
-                                             cp_error_dealloc_ref,&
                                              cp_error_get_logger,&
-                                             cp_error_init,&
                                              cp_error_message,&
-                                             cp_error_type,&
-                                             cp_internal_error,&
-                                             cp_unimplemented_error
+                                             cp_error_type
   USE cp_log_handling,                 ONLY: cp_failure_level,&
                                              cp_fatal_level,&
-                                             cp_log,&
-                                             cp_logger_get_default_unit_nr,&
                                              cp_logger_type,&
                                              cp_note_level,&
                                              cp_to_string,&
@@ -54,6 +47,7 @@ MODULE cp_b_matrix_structure
   USE message_passing,                 ONLY: mp_sum
   USE timings,                         ONLY: timeset,&
                                              timestop
+
   IMPLICIT NONE
   PRIVATE
 
@@ -347,16 +341,19 @@ CONTAINS
 !!*** **********************************************************************
   SUBROUTINE cp_dstruct_create(d_struct,para_env,n_block_rows,n_block_cols,&
        error)
-    TYPE(cp_b_distribution_type), POINTER :: d_struct
-    TYPE(cp_para_env_type), POINTER :: para_env
-    INTEGER, INTENT(in) :: n_block_rows, n_block_cols
-    TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
+    TYPE(cp_b_distribution_type), POINTER    :: d_struct
+    TYPE(cp_para_env_type), POINTER          :: para_env
+    INTEGER, INTENT(in)                      :: n_block_rows, n_block_cols
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
 
-    LOGICAL :: failure
-    INTEGER :: stat
-    INTEGER, SAVE :: last_id_nr=0
-    CHARACTER(len=*), PARAMETER :: routineN='cp_b_distribution_type',&
-         routineP=moduleN//':'//routineN
+    CHARACTER(len=*), PARAMETER :: routineN = 'cp_b_distribution_type', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: stat
+    INTEGER, SAVE                            :: last_id_nr = 0
+    LOGICAL                                  :: failure
+
     failure=.FALSE.
 
     CPPrecondition(n_block_cols>0,cp_failure_level,routineP,error,failure)
@@ -410,13 +407,16 @@ CONTAINS
 !!
 !!*** **********************************************************************
   SUBROUTINE cp_dstruct_dealloc(d_struct,error)
-    TYPE(cp_b_distribution_type), POINTER :: d_struct
-    TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
+    TYPE(cp_b_distribution_type), POINTER    :: d_struct
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
 
-    LOGICAL :: failure
-    INTEGER :: stat
-    CHARACTER(len=*), PARAMETER :: routineN='cp_dstruct_dealloc',&
-         routineP=moduleN//':'//routineN
+    CHARACTER(len=*), PARAMETER :: routineN = 'cp_dstruct_dealloc', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: stat
+    LOGICAL                                  :: failure
+
     failure=.FALSE.
 
     IF (ASSOCIATED(d_struct)) THEN
@@ -469,12 +469,15 @@ CONTAINS
 !!
 !!*** **********************************************************************
   SUBROUTINE cp_dstruct_retain(d_struct,error)
-    TYPE(cp_b_distribution_type), POINTER :: d_struct
-    TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
+    TYPE(cp_b_distribution_type), POINTER    :: d_struct
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
 
-    LOGICAL :: failure
-    CHARACTER(len=*), PARAMETER :: routineN='cp_dstruct_retain',&
-         routineP=moduleN//':'//routineN
+    CHARACTER(len=*), PARAMETER :: routineN = 'cp_dstruct_retain', &
+      routineP = moduleN//':'//routineN
+
+    LOGICAL                                  :: failure
+
     failure=.FALSE.
 
     IF (cp_debug) THEN
@@ -520,12 +523,15 @@ CONTAINS
 !!
 !!*** **********************************************************************
   SUBROUTINE cp_dstruct_release(d_struct,error)
-    TYPE(cp_b_distribution_type), POINTER :: d_struct
-    TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
+    TYPE(cp_b_distribution_type), POINTER    :: d_struct
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
 
-    LOGICAL :: failure
-    CHARACTER(len=*), PARAMETER :: routineN='cp_dstruct_release',&
-         routineP=moduleN//':'//routineN
+    CHARACTER(len=*), PARAMETER :: routineN = 'cp_dstruct_release', &
+      routineP = moduleN//':'//routineN
+
+    LOGICAL                                  :: failure
+
     failure=.FALSE.
 
     IF (ASSOCIATED(d_struct)) THEN
@@ -580,13 +586,18 @@ CONTAINS
 !!*** **********************************************************************
   SUBROUTINE cp_dstruct_get(d_struct, block_owner, para_env, error)
     TYPE(cp_b_distribution_type), INTENT(in) :: d_struct
-    INTEGER, DIMENSION(:,:), POINTER, OPTIONAL :: block_owner
-    TYPE(cp_para_env_type), POINTER, OPTIONAL :: para_env
-    TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
+    INTEGER, DIMENSION(:, :), OPTIONAL, &
+      POINTER                                :: block_owner
+    TYPE(cp_para_env_type), OPTIONAL, &
+      POINTER                                :: para_env
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
 
-    LOGICAL :: failure
-    CHARACTER(len=*), PARAMETER :: routineN='cp_dstruct_get',&
-         routineP=moduleN//':'//routineN
+    CHARACTER(len=*), PARAMETER :: routineN = 'cp_dstruct_get', &
+      routineP = moduleN//':'//routineN
+
+    LOGICAL                                  :: failure
+
     failure=.FALSE.
 
     CPPrecondition(d_struct%initialized,cp_failure_level,routineP,error,failure)
@@ -625,15 +636,18 @@ CONTAINS
 !!
 !!*** **********************************************************************
   SUBROUTINE cp_b_dims_create(b_dims, b_row_sizes, b_col_sizes, error)
-    TYPE(cp_b_dims_type), POINTER :: b_dims
-    INTEGER, DIMENSION(:), INTENT(in) :: b_row_sizes, b_col_sizes
-    TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
+    TYPE(cp_b_dims_type), POINTER            :: b_dims
+    INTEGER, DIMENSION(:), INTENT(in)        :: b_row_sizes, b_col_sizes
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
 
-    LOGICAL :: failure
-    INTEGER :: stat,i
-    INTEGER, SAVE :: last_id_nr=0
-    CHARACTER(len=*), PARAMETER :: routineN='cp_b_dims_create',&
-         routineP=moduleN//':'//routineN
+    CHARACTER(len=*), PARAMETER :: routineN = 'cp_b_dims_create', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: i, stat
+    INTEGER, SAVE                            :: last_id_nr = 0
+    LOGICAL                                  :: failure
+
     failure=.FALSE.
 
     CPPrecondition(SIZE(b_row_sizes)>0,cp_failure_level,routineP,error,failure)
@@ -701,13 +715,16 @@ CONTAINS
 !!
 !!*** **********************************************************************
   SUBROUTINE cp_b_dims_dealloc(b_dims,error)
-    TYPE(cp_b_dims_type), POINTER :: b_dims
-    TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
+    TYPE(cp_b_dims_type), POINTER            :: b_dims
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
 
-    LOGICAL :: failure
-    INTEGER :: stat
-    CHARACTER(len=*), PARAMETER :: routineN='cp_b_dims_dealloc',&
-         routineP=moduleN//':'//routineN
+    CHARACTER(len=*), PARAMETER :: routineN = 'cp_b_dims_dealloc', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: stat
+    LOGICAL                                  :: failure
+
     failure=.FALSE.
 
     CPPrecondition(b_dims%initialized,cp_failure_level,routineP,error,failure)
@@ -762,12 +779,15 @@ CONTAINS
 !!
 !!*** **********************************************************************
   SUBROUTINE cp_b_dims_retain(b_dims,error)
-    TYPE(cp_b_dims_type), INTENT(inout) :: b_dims
-    TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
+    TYPE(cp_b_dims_type), INTENT(inout)      :: b_dims
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
 
-    LOGICAL :: failure
-    CHARACTER(len=*), PARAMETER :: routineN='cp_b_dims_retain',&
-         routineP=moduleN//':'//routineN
+    CHARACTER(len=*), PARAMETER :: routineN = 'cp_b_dims_retain', &
+      routineP = moduleN//':'//routineN
+
+    LOGICAL                                  :: failure
+
     failure=.FALSE.
 
     CPPrecondition(b_dims%initialized,cp_failure_level,routineP,error,failure)
@@ -810,12 +830,15 @@ CONTAINS
 !!
 !!*** **********************************************************************
   SUBROUTINE cp_b_dims_release(b_dims,error)
-    TYPE(cp_b_dims_type), POINTER :: b_dims
-    TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
+    TYPE(cp_b_dims_type), POINTER            :: b_dims
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
 
-    LOGICAL :: failure
-    CHARACTER(len=*), PARAMETER :: routineN='cp_b_dims_release',&
-         routineP=moduleN//':'//routineN
+    CHARACTER(len=*), PARAMETER :: routineN = 'cp_b_dims_release', &
+      routineP = moduleN//':'//routineN
+
+    LOGICAL                                  :: failure
+
     failure=.FALSE.
 
     IF (ASSOCIATED(b_dims)) THEN
@@ -886,20 +909,30 @@ CONTAINS
 !!*** **********************************************************************
   SUBROUTINE cp_bmstruct_create(m_struct,symmetric,d_struct,b_dims, &
        sparsity, no_sparsity, para_env, b_row_sizes, b_col_sizes,error)
-    TYPE(cp_b_matrix_struct_type), POINTER :: m_struct
-    TYPE(cp_b_distribution_type), TARGET, INTENT(inout), OPTIONAL :: d_struct
-    TYPE(cp_b_dims_type), TARGET, INTENT(inout), OPTIONAL :: b_dims
-    LOGICAL, DIMENSION(:,:), OPTIONAL :: sparsity !, intent(in)
-    LOGICAL, INTENT(in), OPTIONAL :: no_sparsity, symmetric
-    TYPE(cp_para_env_type), POINTER, OPTIONAL :: para_env
-    INTEGER, DIMENSION(:), INTENT(in), OPTIONAL :: b_row_sizes, b_col_sizes
-    TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
+    TYPE(cp_b_matrix_struct_type), POINTER   :: m_struct
+    LOGICAL, INTENT(in), OPTIONAL            :: symmetric
+    TYPE(cp_b_distribution_type), &
+      INTENT(inout), OPTIONAL, TARGET        :: d_struct
+    TYPE(cp_b_dims_type), INTENT(inout), &
+      OPTIONAL, TARGET                       :: b_dims
+    LOGICAL, DIMENSION(:, :), OPTIONAL       :: sparsity
+    LOGICAL, INTENT(in), OPTIONAL            :: no_sparsity
+    TYPE(cp_para_env_type), OPTIONAL, &
+      POINTER                                :: para_env
+    INTEGER, DIMENSION(:), INTENT(in), &
+      OPTIONAL                               :: b_row_sizes, b_col_sizes
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
 
-    LOGICAL :: failure, no_spars
-    INTEGER :: stat
-    INTEGER, SAVE :: last_id_nr=0
-    CHARACTER(len=*), PARAMETER :: routineN='cp_bmstruct_create',&
-         routineP=moduleN//':'//routineN
+    CHARACTER(len=*), PARAMETER :: routineN = 'cp_bmstruct_create', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: stat
+    INTEGER, SAVE                            :: last_id_nr = 0
+    LOGICAL                                  :: failure, no_spars
+
+!, intent(in)
+
     failure=.FALSE.
 
     no_spars=.FALSE.
@@ -1013,13 +1046,16 @@ CONTAINS
 !!
 !!*** **********************************************************************
   SUBROUTINE cp_bmstruct_dealloc(m_struct,error)
-    TYPE(cp_b_matrix_struct_type), POINTER :: m_struct
-    TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
+    TYPE(cp_b_matrix_struct_type), POINTER   :: m_struct
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
 
-    LOGICAL :: failure
-    INTEGER :: stat
-    CHARACTER(len=*), PARAMETER :: routineN='cp_bmstruct_dealloc',&
-         routineP=moduleN//':'//routineN
+    CHARACTER(len=*), PARAMETER :: routineN = 'cp_bmstruct_dealloc', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: stat
+    LOGICAL                                  :: failure
+
     failure=.FALSE.
 
     IF (ASSOCIATED(m_struct)) THEN
@@ -1081,18 +1117,25 @@ CONTAINS
 SUBROUTINE cp_bmstruct_get(m_struct, para_env, sparsity, sparsity_frozen,&
      symmetric,&
      b_dims, distribution, id_nr, ref_count, error)
-  TYPE(cp_b_matrix_struct_type), INTENT(in) :: m_struct
-  TYPE(cp_para_env_type), POINTER, OPTIONAL :: para_env
-  TYPE(cp_b_dims_type), POINTER, OPTIONAL :: b_dims
-  TYPE(cp_b_distribution_type), POINTER, OPTIONAL :: distribution
-  LOGICAL, DIMENSION(:,:), POINTER, OPTIONAL :: sparsity
-  INTEGER, INTENT(out), OPTIONAL:: ref_count, id_nr
-  LOGICAL, INTENT(out), OPTIONAL:: sparsity_frozen, symmetric
-  TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
-  
-  LOGICAL :: failure
-  CHARACTER(len=*), PARAMETER :: routineN='cp_bmstruct_get',&
-        routineP=moduleN//':'//routineN
+    TYPE(cp_b_matrix_struct_type), &
+      INTENT(in)                             :: m_struct
+    TYPE(cp_para_env_type), OPTIONAL, &
+      POINTER                                :: para_env
+    LOGICAL, DIMENSION(:, :), OPTIONAL, &
+      POINTER                                :: sparsity
+    LOGICAL, INTENT(out), OPTIONAL           :: sparsity_frozen, symmetric
+    TYPE(cp_b_dims_type), OPTIONAL, POINTER  :: b_dims
+    TYPE(cp_b_distribution_type), OPTIONAL, &
+      POINTER                                :: distribution
+    INTEGER, INTENT(out), OPTIONAL           :: id_nr, ref_count
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'cp_bmstruct_get', &
+      routineP = moduleN//':'//routineN
+
+    LOGICAL                                  :: failure
+
   failure=.FALSE.
   
   CPPrecondition(m_struct%initialized,cp_failure_level,routineP,error,failure)
@@ -1145,15 +1188,19 @@ END SUBROUTINE cp_bmstruct_get
 !!
 !!*** **********************************************************************
   SUBROUTINE cp_bmstruct_freeze_sparsity(matrix_struct,no_sync,error)
-    TYPE(cp_b_matrix_struct_type), INTENT(inout) :: matrix_struct
-    LOGICAL, OPTIONAL, INTENT(in) :: no_sync
-    TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
+    TYPE(cp_b_matrix_struct_type), &
+      INTENT(inout)                          :: matrix_struct
+    LOGICAL, INTENT(in), OPTIONAL            :: no_sync
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
 
-    LOGICAL :: failure, sync
-    INTEGER :: handle, stat
-    INTEGER, ALLOCATABLE, DIMENSION(:,:) :: tmp_distr
-    CHARACTER(len=*), PARAMETER :: routineN='cp_bmstruct_freeze_sparsity',&
-         routineP=moduleN//':'//routineN
+    CHARACTER(len=*), PARAMETER :: routineN = 'cp_bmstruct_freeze_sparsity', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: handle, stat
+    INTEGER, ALLOCATABLE, DIMENSION(:, :)    :: tmp_distr
+    LOGICAL                                  :: failure, sync
+
     failure=.FALSE.
     sync=.TRUE.
 
@@ -1222,14 +1269,19 @@ END SUBROUTINE cp_bmstruct_get
 !!
 !!*** **********************************************************************
   FUNCTION cp_bmstruct_get_sparsity_frozen(matrix_struct,error) RESULT(res)
-    TYPE(cp_b_matrix_struct_type), INTENT(in) :: matrix_struct
-    TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
-    LOGICAL :: res
+    TYPE(cp_b_matrix_struct_type), &
+      INTENT(in)                             :: matrix_struct
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
+    LOGICAL                                  :: res
 
-    LOGICAL :: failure
-    INTEGER :: handle
-    CHARACTER(len=*), PARAMETER :: routineN='cp_bmstruct_get_sparsity_frozen',&
-         routineP=moduleN//':'//routineN
+    CHARACTER(len=*), PARAMETER :: &
+      routineN = 'cp_bmstruct_get_sparsity_frozen', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: handle
+    LOGICAL                                  :: failure
+
     failure=.FALSE.
 
     CALL timeset(routineN//','//moduleN,'I',"",handle)
@@ -1275,12 +1327,16 @@ END SUBROUTINE cp_bmstruct_get
 !!
 !!*** **********************************************************************
   SUBROUTINE cp_bmstruct_retain(m_struct,error)
-    TYPE(cp_b_matrix_struct_type), INTENT(inout) :: m_struct
-    TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
+    TYPE(cp_b_matrix_struct_type), &
+      INTENT(inout)                          :: m_struct
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
 
-    LOGICAL :: failure
-    CHARACTER(len=*), PARAMETER :: routineN='cp_bmstruct_retain',&
-         routineP=moduleN//':'//routineN
+    CHARACTER(len=*), PARAMETER :: routineN = 'cp_bmstruct_retain', &
+      routineP = moduleN//':'//routineN
+
+    LOGICAL                                  :: failure
+
     failure=.FALSE.
 
     CPPrecondition(m_struct%initialized,cp_failure_level,routineP,error,failure)
@@ -1323,12 +1379,15 @@ END SUBROUTINE cp_bmstruct_get
 !!
 !!*** **********************************************************************
   SUBROUTINE cp_bmstruct_release(m_struct,error)
-    TYPE(cp_b_matrix_struct_type), POINTER :: m_struct
-    TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
+    TYPE(cp_b_matrix_struct_type), POINTER   :: m_struct
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
 
-    LOGICAL :: failure
-    CHARACTER(len=*), PARAMETER :: routineN='cp_bmstruct_release',&
-         routineP=moduleN//':'//routineN
+    CHARACTER(len=*), PARAMETER :: routineN = 'cp_bmstruct_release', &
+      routineP = moduleN//':'//routineN
+
+    LOGICAL                                  :: failure
+
     failure=.FALSE.
 
     IF (ASSOCIATED(m_struct)) THEN
@@ -1398,16 +1457,20 @@ END SUBROUTINE cp_bmstruct_get
   SUBROUTINE cp_bmstruct_get_block_info(m_struct,block_row, block_col,&
        owner,n_local_rows,n_local_cols,begins_at_row,ends_at_row,&
        begins_at_col,ends_at_col,out_of_sparsity, me_owner, error)
-    TYPE(cp_b_matrix_struct_type), INTENT(in) :: m_struct
-    INTEGER, INTENT(in) :: block_col, block_row
-    INTEGER, INTENT(out), OPTIONAL :: owner, n_local_rows,n_local_cols,&
-         begins_at_row,begins_at_col, ends_at_row, ends_at_col
-    LOGICAL, INTENT(out), OPTIONAL :: me_owner, out_of_sparsity
-    TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
+    TYPE(cp_b_matrix_struct_type), &
+      INTENT(in)                             :: m_struct
+    INTEGER, INTENT(in)                      :: block_row, block_col
+    INTEGER, INTENT(out), OPTIONAL :: owner, n_local_rows, n_local_cols, &
+      begins_at_row, ends_at_row, begins_at_col, ends_at_col
+    LOGICAL, INTENT(out), OPTIONAL           :: out_of_sparsity, me_owner
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
 
-    LOGICAL :: failure
-    CHARACTER(len=*), PARAMETER :: routineN='cp_bmstruct_get_block_info',&
-         routineP=moduleN//':'//routineN
+    CHARACTER(len=*), PARAMETER :: routineN = 'cp_bmstruct_get_block_info', &
+      routineP = moduleN//':'//routineN
+
+    LOGICAL                                  :: failure
+
     failure=.FALSE.
 
     CPPrecondition(m_struct%initialized,cp_failure_level,routineP,error,failure)
@@ -1496,15 +1559,19 @@ END SUBROUTINE cp_bmstruct_get
 !!*** **********************************************************************
   SUBROUTINE cp_bs_iter_init(bs_iterator, m_struct, do_global,&
        do_zero, do_lower_half, error)
-    TYPE(cp_bs_iterator_type), INTENT(out) :: bs_iterator
-    TYPE(cp_b_matrix_struct_type), INTENT(in), TARGET :: m_struct
-    LOGICAL, INTENT(in) :: do_global
-    LOGICAL, INTENT(in), OPTIONAL :: do_zero, do_lower_half
-    TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
+    TYPE(cp_bs_iterator_type), INTENT(out)   :: bs_iterator
+    TYPE(cp_b_matrix_struct_type), &
+      INTENT(in), TARGET                     :: m_struct
+    LOGICAL, INTENT(in)                      :: do_global
+    LOGICAL, INTENT(in), OPTIONAL            :: do_zero, do_lower_half
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
 
-    LOGICAL :: failure
-    CHARACTER(len=*), PARAMETER :: routineN='cp_bs_iter_init',&
-         routineP=moduleN//':'//routineN
+    CHARACTER(len=*), PARAMETER :: routineN = 'cp_bs_iter_init', &
+      routineP = moduleN//':'//routineN
+
+    LOGICAL                                  :: failure
+
     failure=.FALSE.
 
     CPPrecondition(m_struct%initialized,cp_failure_level,routineP,error,failure)
@@ -1556,11 +1623,14 @@ END SUBROUTINE cp_bmstruct_get
 !!*** **********************************************************************
   SUBROUTINE cp_bs_iter_dealloc_ref(bs_iterator,error)
     TYPE(cp_bs_iterator_type), INTENT(inout) :: bs_iterator
-    TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
 
-    LOGICAL :: failure
-    CHARACTER(len=*), PARAMETER :: routineN='cp_bs_iter_dealloc_ref',&
-         routineP=moduleN//':'//routineN
+    CHARACTER(len=*), PARAMETER :: routineN = 'cp_bs_iter_dealloc_ref', &
+      routineP = moduleN//':'//routineN
+
+    LOGICAL                                  :: failure
+
     failure=.FALSE.
 
     CPPrecondition(bs_iterator%initialized,cp_failure_level,routineP,error,failure)
@@ -1625,16 +1695,19 @@ END SUBROUTINE cp_bmstruct_get
        begins_at_col,ends_at_col,out_of_sparsity, me_owner, error)&
        RESULT(res)
     TYPE(cp_bs_iterator_type), INTENT(inout) :: bs_iterator
-    INTEGER, INTENT(out), OPTIONAL :: block_col, block_row,owner,&
-         n_local_rows,n_local_cols,begins_at_row,begins_at_col,&
-         ends_at_row, ends_at_col
-    LOGICAL, INTENT(out), OPTIONAL :: me_owner, out_of_sparsity
-    TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
-    LOGICAL :: res
+    INTEGER, INTENT(out), OPTIONAL :: block_row, block_col, owner, &
+      n_local_rows, n_local_cols, begins_at_row, ends_at_row, begins_at_col, &
+      ends_at_col
+    LOGICAL, INTENT(out), OPTIONAL           :: out_of_sparsity, me_owner
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
+    LOGICAL                                  :: res
 
-    LOGICAL :: failure
-    CHARACTER(len=*), PARAMETER :: routineN='cp_bs_iter_next',&
-         routineP=moduleN//':'//routineN
+    CHARACTER(len=*), PARAMETER :: routineN = 'cp_bs_iter_next', &
+      routineP = moduleN//':'//routineN
+
+    LOGICAL                                  :: failure
+
     failure=.FALSE.
 
     IF (cp_debug) THEN

@@ -25,20 +25,32 @@ MODULE real_space_test
 
 ! *****************************************************************************
 
-  USE kinds, ONLY: dbl
-  USE simulation_cell, ONLY : cell_type, get_hinv, get_cell_param
-  USE pw_grid_types, ONLY : pw_grid_type, FULLSPACE
-  USE pw_grids, ONLY : pw_grid_setup, pw_grid_construct, pw_grid_destruct
-  USE pw_types, ONLY : pw_type, pw_allocate, pw_deallocate, pw_zero, REALDATA3D
-  USE global_types, ONLY : global_environment_type
-  USE termination, ONLY : stop_memory, stop_program
-  USE realspace_grid_types, ONLY : realspace_grid_type, rs_grid_allocate, &
-       rs_grid_deallocate, rs_grid_setup, rs_pw_transfer, rs_grid_zero, &
-       rs_get_my_tasks
-  USE message_passing, ONLY : mp_sum, mp_max, mp_bcast, mp_environ
-  USE util, ONLY : get_limit
-  USE machine, ONLY : m_cputime
-  USE memory_utilities, ONLY: reallocate
+  USE global_types,                    ONLY: global_environment_type
+  USE kinds,                           ONLY: dbl
+  USE machine,                         ONLY: m_cputime
+  USE message_passing,                 ONLY: mp_bcast,&
+                                             mp_environ,&
+                                             mp_sum
+  USE pw_grid_types,                   ONLY: FULLSPACE,&
+                                             pw_grid_type
+  USE pw_grids,                        ONLY: pw_grid_construct,&
+                                             pw_grid_setup
+  USE pw_types,                        ONLY: REALDATA3D,&
+                                             pw_allocate,&
+                                             pw_deallocate,&
+                                             pw_type
+  USE realspace_grid_types,            ONLY: realspace_grid_type,&
+                                             rs_get_my_tasks,&
+                                             rs_grid_allocate,&
+                                             rs_grid_deallocate,&
+                                             rs_grid_setup,&
+                                             rs_grid_zero,&
+                                             rs_pw_transfer
+  USE simulation_cell,                 ONLY: cell_type,&
+                                             get_hinv
+  USE termination,                     ONLY: stop_memory,&
+                                             stop_program
+  USE util,                            ONLY: get_limit
 
   IMPLICIT NONE
 
@@ -53,27 +65,29 @@ CONTAINS
 !******************************************************************************
 SUBROUTINE rs_test ( globenv )
 
-  TYPE ( global_environment_type ), INTENT ( IN ) :: globenv
+    TYPE(global_environment_type), &
+      INTENT(IN)                             :: globenv
 
-  INTEGER :: iw, ierr, i, j, dir, sdir, pp, n, me, npme
-  TYPE ( pw_grid_type ) :: grid
-  TYPE ( cell_type ) :: box
-  INTEGER, DIMENSION ( :, : ), POINTER :: tasks
-  INTEGER, DIMENSION ( 3 ) :: np, no, pt
-  INTEGER, DIMENSION ( 2 ) :: bo
-  REAL ( dbl ), DIMENSION ( 3 ) :: s
-  REAL ( dbl ) :: tstart, tend, t1, t2, t3
-  REAL ( dbl ) :: energy1, energy2, energy3, integral
-  INTEGER :: memory1, memory2, memory3
+    INTEGER, PARAMETER                       :: nparticle = 5000
 
-  TYPE ( pw_type ) :: pw_a, pw_b, pw_c
-  TYPE ( realspace_grid_type ) :: rden
-
-  INTEGER, PARAMETER :: nparticle = 5000
-  INTEGER, DIMENSION ( nparticle ) :: bsize
-  REAL ( dbl ), DIMENSION ( nparticle ) :: bval
-  REAL ( dbl ), DIMENSION ( 3, nparticle ) :: coord
-  INTEGER, DIMENSION ( 3, nparticle ) :: refpt, refco
+    INTEGER                                  :: dir, i, ierr, iw, j, me, &
+                                                memory1, memory2, memory3, n, &
+                                                npme
+    INTEGER, DIMENSION(2)                    :: bo
+    INTEGER, DIMENSION(3)                    :: no, np, pt
+    INTEGER, DIMENSION(3, nparticle)         :: refco, refpt
+    INTEGER, DIMENSION(:, :), POINTER        :: tasks
+    INTEGER, DIMENSION(nparticle)            :: bsize
+    REAL(dbl)                                :: energy1, energy2, energy3, &
+                                                integral, t1, t2, t3, tend, &
+                                                tstart
+    REAL(dbl), DIMENSION(3)                  :: s
+    REAL(dbl), DIMENSION(3, nparticle)       :: coord
+    REAL(dbl), DIMENSION(nparticle)          :: bval
+    TYPE(cell_type)                          :: box
+    TYPE(pw_grid_type)                       :: grid
+    TYPE(pw_type)                            :: pw_a, pw_b, pw_c
+    TYPE(realspace_grid_type)                :: rden
 
   iw =globenv % scr
 
@@ -295,13 +309,14 @@ END SUBROUTINE rs_test
 
 SUBROUTINE put_on_grid ( r, nc, np, val, dir )
 
-  REAL ( dbl ), DIMENSION (:,:,:) :: r
-  INTEGER, DIMENSION ( 3 ) :: nc, np
-  INTEGER :: dir
-  REAL ( dbl ) :: val
- 
-  INTEGER :: i, j, k, ii, jj, kk, nx, ny, nz, ns
-  INTEGER, DIMENSION ( 3 ) :: nl, nu
+    REAL(dbl), DIMENSION(:, :, :)            :: r
+    INTEGER, DIMENSION(3)                    :: nc, np
+    REAL(dbl)                                :: val
+    INTEGER                                  :: dir
+
+    INTEGER                                  :: i, ii, j, jj, k, kk, ns, nx, &
+                                                ny, nz
+    INTEGER, DIMENSION(3)                    :: nl, nu
 
   nx = SIZE ( r, 1 )
   ny = SIZE ( r, 2 )
@@ -333,13 +348,15 @@ END SUBROUTINE put_on_grid
 
 SUBROUTINE int_on_grid ( r, nc, np, val, dir, integral )
 
-  REAL ( dbl ), DIMENSION (:,:,:) :: r
-  INTEGER, DIMENSION ( 3 ) :: nc, np
-  INTEGER :: dir
-  REAL ( dbl ) :: val, integral
+    REAL(dbl), DIMENSION(:, :, :)            :: r
+    INTEGER, DIMENSION(3)                    :: nc, np
+    REAL(dbl)                                :: val
+    INTEGER                                  :: dir
+    REAL(dbl)                                :: integral
 
-  INTEGER :: i, j, k, ii, jj, kk, nx, ny, nz, ns
-  INTEGER, DIMENSION ( 3 ) :: nl, nu
+    INTEGER                                  :: i, ii, j, jj, k, kk, ns, nx, &
+                                                ny, nz
+    INTEGER, DIMENSION(3)                    :: nl, nu
 
   integral = 0._dbl
   nx = SIZE ( r, 1 )
@@ -372,23 +389,18 @@ END SUBROUTINE int_on_grid
 
 SUBROUTINE rs_pw_get ( rs, pw )
 
-!  Arguments
-   TYPE ( realspace_grid_type ), INTENT ( INOUT ) :: rs
-   TYPE ( pw_type ), TARGET, INTENT ( INOUT ) :: pw
+    TYPE(realspace_grid_type), INTENT(INOUT) :: rs
+    TYPE(pw_type), INTENT(INOUT), TARGET     :: pw
 
-!  Local
-   INTEGER, DIMENSION ( :, : ), POINTER :: pbo
-   INTEGER, DIMENSION ( 3 ) :: lb, ub, lc, uc
-   INTEGER :: subgroup, source, dest, ierr, idir, nn, handle
-   LOGICAL :: subdim ( 2 )
-   REAL ( dbl ), DIMENSION ( :, :, : ), ALLOCATABLE :: buffer
-
-   INTEGER :: np, ip, ix, iy, iz, ii, nma, mepos, group
-   REAL ( dbl ), DIMENSION ( : ), ALLOCATABLE :: rlocal
-   INTEGER, DIMENSION ( : ), ALLOCATABLE :: rcount
-   INTEGER, DIMENSION (:,:,:), POINTER :: bo
+    INTEGER                                  :: group, ierr, ii, ip, ix, iy, &
+                                                iz, mepos, nn, np
+    INTEGER, DIMENSION(3)                    :: lb, ub
+    INTEGER, DIMENSION(:, :), POINTER        :: pbo
+    INTEGER, DIMENSION(:, :, :), POINTER     :: bo
+    REAL(dbl), ALLOCATABLE, DIMENSION(:)     :: rlocal
 
 !-----------------------------------------------------------------------------!
+
    IF ( rs % group_dim ( 1 ) /= 1 ) &
        CALL stop_program ( "rs_pw_get", "rs grid has to be replicated" )
    IF ( pw % in_use /= REALDATA3D ) &

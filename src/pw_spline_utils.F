@@ -40,7 +40,6 @@ MODULE pw_spline_utils
                                              cp_warning_level
   USE kinds,                           ONLY: dp
   USE mathconstants,                   ONLY: twopi
-  USE message_passing,                 ONLY: mp_sum
   USE pw_grid_types,                   ONLY: FULLSPACE
   USE pw_types,                        ONLY: COMPLEXDATA1D,&
                                              REALDATA3D,&
@@ -51,6 +50,7 @@ MODULE pw_spline_utils
   USE simulation_cell,                 ONLY: cell_type
   USE timings,                         ONLY: timeset,&
                                              timestop
+
   IMPLICIT NONE
   PRIVATE
 
@@ -102,18 +102,21 @@ CONTAINS
 !!
 !!*** **********************************************************************
   SUBROUTINE pw_spline2_interpolate_values_g(spline_g,error)
-    TYPE(pw_type),POINTER :: spline_g
-    TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
+    TYPE(pw_type), POINTER                   :: spline_g
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
 
-    LOGICAL :: failure
-    CHARACTER(len=*), PARAMETER :: routineN='pw_spline2_interpolate_values_g',&
-         routineP=moduleN//':'//routineN
-    REAL (KIND = dp) :: c23, c_val, coeff
-    REAL (KIND = dp), DIMENSION(:), ALLOCATABLE :: cosIVals,cosJVals,cosKVals
-    INTEGER, DIMENSION(3) :: n_tot
-    INTEGER :: ii,i, j, k, handle, stat
-    INTEGER, DIMENSION (2,3) :: gbo
-    TYPE(cp_logger_type), POINTER :: logger
+    CHARACTER(len=*), PARAMETER :: &
+      routineN = 'pw_spline2_interpolate_values_g', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: handle, i, ii, j, k, stat
+    INTEGER, DIMENSION(2, 3)                 :: gbo
+    INTEGER, DIMENSION(3)                    :: n_tot
+    LOGICAL                                  :: failure
+    REAL(KIND=dp)                            :: c23, coeff
+    REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: cosIVals, cosJVals, cosKVals
+    TYPE(cp_logger_type), POINTER            :: logger
 
     CALL timeset(routineN,"I","",handle)
 
@@ -204,18 +207,21 @@ CONTAINS
 !!
 !!*** **********************************************************************
   SUBROUTINE pw_spline3_interpolate_values_g(spline_g,error)
-    TYPE(pw_type),POINTER :: spline_g
-    TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
+    TYPE(pw_type), POINTER                   :: spline_g
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
 
-    LOGICAL :: failure
-    CHARACTER(len=*), PARAMETER :: routineN='pw_spline3_interpolate_values_g',&
-         routineP=moduleN//':'//routineN
-    REAL (KIND = dp) :: c23, c_val, coeff
-    REAL (KIND = dp), DIMENSION(:), ALLOCATABLE :: cosIVals,cosJVals,cosKVals
-    INTEGER, DIMENSION(3) :: n_tot
-    INTEGER :: ii,i, j, k, handle, stat
-    INTEGER, DIMENSION (2,3) :: gbo
-    TYPE(cp_logger_type), POINTER :: logger
+    CHARACTER(len=*), PARAMETER :: &
+      routineN = 'pw_spline3_interpolate_values_g', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: handle, i, ii, j, k, stat
+    INTEGER, DIMENSION(2, 3)                 :: gbo
+    INTEGER, DIMENSION(3)                    :: n_tot
+    LOGICAL                                  :: failure
+    REAL(KIND=dp)                            :: c23, coeff
+    REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: cosIVals, cosJVals, cosKVals
+    TYPE(cp_logger_type), POINTER            :: logger
 
     CALL timeset(routineN,"I","",handle)
 
@@ -312,18 +318,19 @@ CONTAINS
 !!
 !!*** **********************************************************************
   SUBROUTINE pw_spline2_evaluate_values_g(spline_g,error)
-    TYPE(pw_type),POINTER :: spline_g
-    TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
+    TYPE(pw_type), POINTER                   :: spline_g
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
 
-    LOGICAL :: failure
-    CHARACTER(len=*), PARAMETER :: routineN='pw_spline2_evaluate_values_g',&
-         routineP=moduleN//':'//routineN
-    REAL (KIND = dp) :: c23, c_val, coeff, inv64
-    REAL (KIND = dp), DIMENSION(:), ALLOCATABLE :: cosIVals,cosJVals, cosKVals
-    INTEGER, DIMENSION(3) :: n,n_tot
-    INTEGER :: ii,i, j, k, handle, stat
-    INTEGER, DIMENSION (2,3) :: bo, gbo
-    TYPE(cp_logger_type), POINTER :: logger
+    CHARACTER(len=*), PARAMETER :: routineN = 'pw_spline2_evaluate_values_g', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: handle, i, ii, j, k, stat
+    INTEGER, DIMENSION(2, 3)                 :: bo, gbo
+    INTEGER, DIMENSION(3)                    :: n, n_tot
+    LOGICAL                                  :: failure
+    REAL(KIND=dp)                            :: c23, coeff, inv64
+    REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: cosIVals, cosJVals, cosKVals
 
     CALL timeset(routineN,"I","",handle)
 
@@ -420,20 +427,21 @@ CONTAINS
 !!
 !!*** **********************************************************************
   SUBROUTINE pw_nn_smear_g(spline_g,coeffs,error)
-    TYPE(pw_type),POINTER :: spline_g
-    REAL(KIND = dp), DIMENSION(4), INTENT(in) :: coeffs
-    TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
+    TYPE(pw_type), POINTER                   :: spline_g
+    REAL(KIND=dp), DIMENSION(4), INTENT(in)  :: coeffs
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
 
-    LOGICAL :: failure
-    CHARACTER(len=*), PARAMETER :: routineN='pw_nn_smear_g',&
-         routineP=moduleN//':'//routineN
-    REAL (KIND = dp) :: c23, c_val, coeff
-    REAL (KIND = dp), DIMENSION(4) :: r_coeffs
-    REAL (KIND = dp), DIMENSION(:), ALLOCATABLE :: cosIVals,cosJVals, cosKVals
-    INTEGER, DIMENSION(3) :: n,n_tot
-    INTEGER :: ii,i, j, k, handle, stat
-    INTEGER, DIMENSION (2,3) :: bo, gbo
-    TYPE(cp_logger_type), POINTER :: logger
+    CHARACTER(len=*), PARAMETER :: routineN = 'pw_nn_smear_g', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: handle, i, ii, j, k, stat
+    INTEGER, DIMENSION(2, 3)                 :: bo, gbo
+    INTEGER, DIMENSION(3)                    :: n, n_tot
+    LOGICAL                                  :: failure
+    REAL(KIND=dp)                            :: c23, coeff
+    REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: cosIVals, cosJVals, cosKVals
+    REAL(KIND=dp), DIMENSION(4)              :: r_coeffs
 
     CALL timeset(routineN,"I","",handle)
 
@@ -527,18 +535,19 @@ CONTAINS
 !!
 !!*** **********************************************************************
   SUBROUTINE pw_spline3_evaluate_values_g(spline_g,error)
-    TYPE(pw_type),POINTER :: spline_g
-    TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
+    TYPE(pw_type), POINTER                   :: spline_g
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
 
-    LOGICAL :: failure
-    CHARACTER(len=*), PARAMETER :: routineN='pw_spline3_evaluate_values_g',&
-         routineP=moduleN//':'//routineN
-    REAL (KIND = dp) :: c23, c_val, coeff, inv27
-    REAL (KIND = dp), DIMENSION(:), ALLOCATABLE :: cosIVals,cosJVals, cosKVals
-    INTEGER, DIMENSION(3) :: n,n_tot
-    INTEGER :: ii,i, j, k, handle, stat
-    INTEGER, DIMENSION (2,3) :: bo, gbo
-    TYPE(cp_logger_type), POINTER :: logger
+    CHARACTER(len=*), PARAMETER :: routineN = 'pw_spline3_evaluate_values_g', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: handle, i, ii, j, k, stat
+    INTEGER, DIMENSION(2, 3)                 :: bo, gbo
+    INTEGER, DIMENSION(3)                    :: n, n_tot
+    LOGICAL                                  :: failure
+    REAL(KIND=dp)                            :: c23, coeff, inv27
+    REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: cosIVals, cosJVals, cosKVals
 
     CALL timeset(routineN,"I","",handle)
 
@@ -638,21 +647,21 @@ CONTAINS
 !!
 !!*** **********************************************************************
   SUBROUTINE pw_spline3_deriv_r(spline_coeff_r,deriv_val_r, idir, error)
-    TYPE(pw_type),POINTER :: spline_coeff_r, deriv_val_r
-    INTEGER, INTENT(in) :: idir
-    TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
+    TYPE(pw_type), POINTER                   :: spline_coeff_r, deriv_val_r
+    INTEGER, INTENT(in)                      :: idir
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
 
-    LOGICAL :: failure
-    CHARACTER(len=*), PARAMETER :: routineN='pw_spline3_deriv',&
-         routineP=moduleN//':'//routineN
-    REAL (KIND = dp), DIMENSION(3) :: cosVal
-    REAL (KIND = dp), DIMENSION(3,3) :: deriv_coeff
-    REAL (KIND = dp) :: c23, c_val, cosKVal
-    REAL (KIND = dp), DIMENSION(:), ALLOCATABLE :: cosIVals,cosJVals
-    INTEGER, DIMENSION(3) :: n,n_tot
-    INTEGER :: ii, i, j, k, handle, stat, ij
-    INTEGER, DIMENSION (2,3) :: bo
-    TYPE(cp_logger_type), POINTER :: logger
+    CHARACTER(len=*), PARAMETER :: routineN = 'pw_spline3_deriv', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: handle, i, ii, ij, j, k
+    INTEGER, DIMENSION(2, 3)                 :: bo
+    INTEGER, DIMENSION(3)                    :: n, n_tot
+    LOGICAL                                  :: failure
+    REAL(KIND=dp)                            :: c_val
+    REAL(KIND=dp), DIMENSION(3, 3)           :: deriv_coeff
+    TYPE(cp_logger_type), POINTER            :: logger
 
     CALL timeset(routineN,"I","",handle)
 
@@ -814,21 +823,21 @@ CONTAINS
 !!
 !!*** **********************************************************************
   SUBROUTINE pw_spline2_deriv_r(spline_coeff_r,deriv_val_r, idir, error)
-    TYPE(pw_type),POINTER :: spline_coeff_r, deriv_val_r
-    INTEGER, INTENT(in) :: idir
-    TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
+    TYPE(pw_type), POINTER                   :: spline_coeff_r, deriv_val_r
+    INTEGER, INTENT(in)                      :: idir
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
 
-    LOGICAL :: failure
-    CHARACTER(len=*), PARAMETER :: routineN='pw_spline2_deriv',&
-         routineP=moduleN//':'//routineN
-    REAL (KIND = dp), DIMENSION(3) :: cosVal
-    REAL (KIND = dp), DIMENSION(3,3) :: deriv_coeff
-    REAL (KIND = dp) :: c23, c_val, cosKVal
-    REAL (KIND = dp), DIMENSION(:), ALLOCATABLE :: cosIVals,cosJVals
-    INTEGER, DIMENSION(3) :: n,n_tot
-    INTEGER :: ii, i, j, k, handle, stat, ij
-    INTEGER, DIMENSION (2,3) :: bo
-    TYPE(cp_logger_type), POINTER :: logger
+    CHARACTER(len=*), PARAMETER :: routineN = 'pw_spline2_deriv', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: handle, i, ii, ij, j, k
+    INTEGER, DIMENSION(2, 3)                 :: bo
+    INTEGER, DIMENSION(3)                    :: n, n_tot
+    LOGICAL                                  :: failure
+    REAL(KIND=dp)                            :: c_val
+    REAL(KIND=dp), DIMENSION(3, 3)           :: deriv_coeff
+    TYPE(cp_logger_type), POINTER            :: logger
 
     CALL timeset(routineN,"I","",handle)
 
@@ -992,21 +1001,25 @@ CONTAINS
 !!
 !!*** **********************************************************************
   SUBROUTINE pw_spline_scale_deriv(deriv_vals_r,cell,transpose,scale,error)
-    TYPE(pw_p_type), DIMENSION(3) :: deriv_vals_r ! sun does not like that its components are modified
-    TYPE(cell_type), POINTER :: cell
-    LOGICAL, INTENT(in), OPTIONAL :: transpose
-    REAL(KIND = dp), INTENT(in), OPTIONAL :: scale
-    TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
+    TYPE(pw_p_type), DIMENSION(3)            :: deriv_vals_r
+    TYPE(cell_type), POINTER                 :: cell
+    LOGICAL, INTENT(in), OPTIONAL            :: transpose
+    REAL(KIND=dp), INTENT(in), OPTIONAL      :: scale
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
 
-    LOGICAL :: failure, my_transpose
-    CHARACTER(len=*), PARAMETER :: routineN='pw_spline_scale_deriv',&
-         routineP=moduleN//':'//routineN
-    REAL (KIND = dp), DIMENSION(3) :: derivVal
-    REAL (KIND = dp), DIMENSION(3,3) :: h_grid
-    REAL(KIND = dp) :: my_scale
-    INTEGER, DIMENSION(3) :: n,n_tot
-    INTEGER :: i, j, k, handle, stat, idir
-    INTEGER, DIMENSION (2,3) :: bo
+    CHARACTER(len=*), PARAMETER :: routineN = 'pw_spline_scale_deriv', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: handle, i, idir, j, k
+    INTEGER, DIMENSION(2, 3)                 :: bo
+    INTEGER, DIMENSION(3)                    :: n_tot
+    LOGICAL                                  :: failure, my_transpose
+    REAL(KIND=dp)                            :: my_scale
+    REAL(KIND=dp), DIMENSION(3)              :: derivVal
+    REAL(KIND=dp), DIMENSION(3, 3)           :: h_grid
+
+! sun does not like that its components are modified
 
     CALL timeset(routineN,"I","",handle)
 
@@ -1096,19 +1109,20 @@ CONTAINS
 !!
 !!*** **********************************************************************
   SUBROUTINE pw_spline3_deriv_g(spline_g,idir,error)
-    TYPE(pw_type),POINTER :: spline_g
-    INTEGER, INTENT(in) :: idir
-    TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
+    TYPE(pw_type), POINTER                   :: spline_g
+    INTEGER, INTENT(in)                      :: idir
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
 
-    LOGICAL :: failure
-    CHARACTER(len=*), PARAMETER :: routineN='pw_spline3_deriv_g',&
-         routineP=moduleN//':'//routineN
-    REAL (KIND = dp) :: tmp, c_val, coeff, inv9
-    REAL (KIND = dp), DIMENSION(:), ALLOCATABLE :: csIVals,csJVals, csKVals
-    INTEGER, DIMENSION(3) :: n,n_tot
-    INTEGER :: ii,i, j, k, handle, stat
-    INTEGER, DIMENSION (2,3) :: bo, gbo
-    TYPE(cp_logger_type), POINTER :: logger
+    CHARACTER(len=*), PARAMETER :: routineN = 'pw_spline3_deriv_g', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: handle, i, ii, j, k, stat
+    INTEGER, DIMENSION(2, 3)                 :: bo, gbo
+    INTEGER, DIMENSION(3)                    :: n, n_tot
+    LOGICAL                                  :: failure
+    REAL(KIND=dp)                            :: coeff, inv9, tmp
+    REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: csIVals, csJVals, csKVals
 
     CALL timeset(routineN,"I","",handle)
 
@@ -1262,19 +1276,20 @@ CONTAINS
 !!
 !!*** **********************************************************************
   SUBROUTINE pw_spline2_deriv_g(spline_g,idir,error)
-    TYPE(pw_type),POINTER :: spline_g
-    INTEGER, INTENT(in) :: idir
-    TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
+    TYPE(pw_type), POINTER                   :: spline_g
+    INTEGER, INTENT(in)                      :: idir
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
 
-    LOGICAL :: failure
-    CHARACTER(len=*), PARAMETER :: routineN='pw_spline2_deriv_g',&
-         routineP=moduleN//':'//routineN
-    REAL (KIND = dp) :: tmp, c_val, coeff, inv16
-    REAL (KIND = dp), DIMENSION(:), ALLOCATABLE :: csIVals,csJVals, csKVals
-    INTEGER, DIMENSION(3) :: n,n_tot
-    INTEGER :: ii,i, j, k, handle, stat
-    INTEGER, DIMENSION (2,3) :: bo
-    TYPE(cp_logger_type), POINTER :: logger
+    CHARACTER(len=*), PARAMETER :: routineN = 'pw_spline2_deriv_g', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: handle, i, ii, j, k, stat
+    INTEGER, DIMENSION(2, 3)                 :: bo
+    INTEGER, DIMENSION(3)                    :: n, n_tot
+    LOGICAL                                  :: failure
+    REAL(KIND=dp)                            :: coeff, inv16, tmp
+    REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: csIVals, csJVals, csKVals
 
     CALL timeset(routineN,"I","",handle)
 
@@ -1425,17 +1440,20 @@ CONTAINS
 !!
 !!*** **********************************************************************
   SUBROUTINE pw_spline3_test_coeff(spline_coeff_r, spline_values_r,error)
-    TYPE(pw_type), POINTER :: spline_coeff_r, spline_values_r
-    TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
+    TYPE(pw_type), POINTER                   :: spline_coeff_r, &
+                                                spline_values_r
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
 
-    LOGICAL :: failure
-    CHARACTER(len=*), PARAMETER :: routineN='pw_spline3_test_coeff',&
-         routineP=moduleN//':'//routineN
-    REAL (KIND = dp), DIMENSION(3,3,3) :: spline_coeff
-    REAL(KIND = dp) :: maxdiff,diff, c_val
-    INTEGER :: i,j,k,ii,ij,ik
-    INTEGER, DIMENSION(2,3) :: bo
-    INTEGER, DIMENSION(3) :: n_tot
+    CHARACTER(len=*), PARAMETER :: routineN = 'pw_spline3_test_coeff', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: i, ii, ij, ik, j, k
+    INTEGER, DIMENSION(2, 3)                 :: bo
+    INTEGER, DIMENSION(3)                    :: n_tot
+    LOGICAL                                  :: failure
+    REAL(KIND=dp)                            :: c_val, diff, maxdiff
+    REAL(KIND=dp), DIMENSION(3, 3, 3)        :: spline_coeff
 
     failure=.FALSE.
     bo = spline_values_r%pw_grid%bounds_local
@@ -1527,17 +1545,20 @@ CONTAINS
 !!
 !!*** **********************************************************************
   SUBROUTINE pw_spline2_test_coeff(spline_coeff_r, spline_values_r,error)
-    TYPE(pw_type), POINTER :: spline_coeff_r, spline_values_r
-    TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
+    TYPE(pw_type), POINTER                   :: spline_coeff_r, &
+                                                spline_values_r
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
 
-    LOGICAL :: failure
-    CHARACTER(len=*), PARAMETER :: routineN='pw_spline2_test_coeff',&
-         routineP=moduleN//':'//routineN
-    REAL (KIND = dp), DIMENSION(3,3,3) :: spline_coeff
-    REAL(KIND = dp) :: maxdiff,diff, c_val
-    INTEGER :: i,j,k,ii,ij,ik
-    INTEGER, DIMENSION(2,3) :: bo
-    INTEGER, DIMENSION(3) :: n_tot
+    CHARACTER(len=*), PARAMETER :: routineN = 'pw_spline2_test_coeff', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: i, ii, ij, ik, j, k
+    INTEGER, DIMENSION(2, 3)                 :: bo
+    INTEGER, DIMENSION(3)                    :: n_tot
+    LOGICAL                                  :: failure
+    REAL(KIND=dp)                            :: c_val, diff, maxdiff
+    REAL(KIND=dp), DIMENSION(3, 3, 3)        :: spline_coeff
 
     failure=.FALSE.
     bo = spline_values_r%pw_grid%bounds_local

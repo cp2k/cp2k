@@ -28,15 +28,9 @@ MODULE qs_matrix_pools
   USE cp_error_handling,               ONLY: cp_a_l,&
                                              cp_assert,&
                                              cp_assertion_failed,&
-                                             cp_debug,&
-                                             cp_error_check,&
-                                             cp_error_dealloc_ref,&
                                              cp_error_get_logger,&
-                                             cp_error_init,&
                                              cp_error_message,&
-                                             cp_error_type,&
-                                             cp_internal_error,&
-                                             cp_unimplemented_error
+                                             cp_error_type
   USE cp_fm_pool_types,                ONLY: cp_fm_pool_p_type,&
                                              cp_fm_pool_type,&
                                              fm_pool_create,&
@@ -48,11 +42,9 @@ MODULE qs_matrix_pools
   USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
                                              cp_fm_struct_get,&
                                              cp_fm_struct_release,&
-                                             cp_fm_struct_retain,&
                                              cp_fm_struct_type
   USE cp_log_handling,                 ONLY: cp_failure_level,&
                                              cp_fatal_level,&
-                                             cp_log,&
                                              cp_note_level,&
                                              cp_to_string,&
                                              cp_warning_level
@@ -60,33 +52,22 @@ MODULE qs_matrix_pools
   USE cp_para_types,                   ONLY: cp_blacs_env_type,&
                                              cp_para_env_type
   USE cp_sm_pool_types,                ONLY: cp_sm_pool_p_type,&
-                                             cp_sm_pool_type,&
                                              sm_pool_create,&
-                                             sm_pool_get_mstruct,&
-                                             sm_pool_release,&
                                              sm_pool_retain,&
-                                             sm_pools_copy,&
-                                             sm_pools_dealloc,&
-                                             sm_pools_flush_cache
-  USE cp_sm_struct,                    ONLY: cp_sm_node_type,&
-                                             cp_sm_struct_type,&
-                                             sm_struct_clear_local_blocks,&
+                                             sm_pools_dealloc
+  USE cp_sm_struct,                    ONLY: cp_sm_struct_type,&
                                              sm_struct_create,&
-                                             sm_struct_release,&
-                                             sm_struct_retain,&
-                                             sm_struct_write
+                                             sm_struct_release
   USE kinds,                           ONLY: dp
-  USE message_passing,                 ONLY: mp_sum
   USE particle_types,                  ONLY: get_particle_set,&
                                              particle_type
   USE qs_mo_types,                     ONLY: get_mo_set,&
                                              mo_set_p_type
   USE sparse_matrix_types,             ONLY: get_matrix_info,&
-                                             real_block_node_type,&
-                                             real_matrix_p_type,&
-                                             real_matrix_type
+                                             real_matrix_p_type
   USE timings,                         ONLY: timeset,&
                                              timestop
+
   IMPLICIT NONE
   PRIVATE
 
@@ -180,12 +161,14 @@ CONTAINS
 !!
 !!*** **********************************************************************
 SUBROUTINE mpools_retain(mpools, error)
-  TYPE(qs_matrix_pools_type), POINTER :: mpools
-  TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
-  
-  LOGICAL :: failure
-  CHARACTER(len=*), PARAMETER :: routineN='mpools_retain',&
-        routineP=moduleN//':'//routineN
+    TYPE(qs_matrix_pools_type), POINTER      :: mpools
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'mpools_retain', &
+      routineP = moduleN//':'//routineN
+
+    LOGICAL                                  :: failure
 
   failure=.FALSE.
   
@@ -227,13 +210,15 @@ END SUBROUTINE mpools_retain
 !!
 !!*** **********************************************************************
 SUBROUTINE mpools_release(mpools,error)
-  TYPE(qs_matrix_pools_type), POINTER :: mpools
-  TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
-  
-  LOGICAL :: failure
-  CHARACTER(len=*), PARAMETER :: routineN='mpools_release',&
-        routineP=moduleN//':'//routineN
-  INTEGER :: stat
+    TYPE(qs_matrix_pools_type), POINTER      :: mpools
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'mpools_release', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: stat
+    LOGICAL                                  :: failure
 
   failure=.FALSE.
   
@@ -289,18 +274,23 @@ END SUBROUTINE mpools_release
 SUBROUTINE mpools_set(mpools,ao_mo_fm_pools,ao_ao_fm_pools,&
      mo_mo_fm_pools,&
      S_sm_pools,error)
-  TYPE(qs_matrix_pools_type), POINTER :: mpools
-  TYPE(cp_sm_pool_p_type), DIMENSION(:), OPTIONAL, POINTER :: &
-       S_sm_pools
-  TYPE(cp_fm_pool_p_type), DIMENSION(:), OPTIONAL, POINTER :: &
-       ao_mo_fm_pools,ao_ao_fm_pools, mo_mo_fm_pools
-  TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
-  
-  LOGICAL :: failure
-  CHARACTER(len=*), PARAMETER :: routineN='mpools_set',&
-        routineP=moduleN//':'//routineN
-  TYPE(cp_fm_pool_p_type), DIMENSION(:), POINTER :: new_fm_pools
-  TYPE(cp_sm_pool_p_type), DIMENSION(:), POINTER :: new_sm_pools
+    TYPE(qs_matrix_pools_type), POINTER      :: mpools
+    TYPE(cp_fm_pool_p_type), DIMENSION(:), &
+      OPTIONAL, POINTER                      :: ao_mo_fm_pools, &
+                                                ao_ao_fm_pools, mo_mo_fm_pools
+    TYPE(cp_sm_pool_p_type), DIMENSION(:), &
+      OPTIONAL, POINTER                      :: S_sm_pools
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'mpools_set', &
+      routineP = moduleN//':'//routineN
+
+    LOGICAL                                  :: failure
+    TYPE(cp_fm_pool_p_type), DIMENSION(:), &
+      POINTER                                :: new_fm_pools
+    TYPE(cp_sm_pool_p_type), DIMENSION(:), &
+      POINTER                                :: new_sm_pools
 
   failure=.FALSE.
   NULLIFY(new_fm_pools, new_sm_pools)
@@ -376,19 +366,22 @@ SUBROUTINE mpools_get(mpools,ao_mo_fm_pools,ao_ao_fm_pools,&
      mo_mo_fm_pools, maxao_maxmo_fm_pool,&
      maxao_maxao_fm_pool, maxmo_maxmo_fm_pool,&
      S_sm_pools,error)
-  TYPE(qs_matrix_pools_type), POINTER :: mpools
-  TYPE(cp_sm_pool_p_type), DIMENSION(:), OPTIONAL, POINTER :: &
-       S_sm_pools
-  TYPE(cp_fm_pool_p_type), DIMENSION(:), OPTIONAL, POINTER :: &
-       ao_mo_fm_pools,ao_ao_fm_pools, mo_mo_fm_pools
-    TYPE(cp_fm_pool_type), OPTIONAL, POINTER    :: maxao_maxmo_fm_pool,&
-                                                   maxao_maxao_fm_pool,&
-                                                   maxmo_maxmo_fm_pool
-  TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
-  
-  LOGICAL :: failure
-  CHARACTER(len=*), PARAMETER :: routineN='mpools_get',&
-        routineP=moduleN//':'//routineN
+    TYPE(qs_matrix_pools_type), POINTER      :: mpools
+    TYPE(cp_fm_pool_p_type), DIMENSION(:), &
+      OPTIONAL, POINTER                      :: ao_mo_fm_pools, &
+                                                ao_ao_fm_pools, mo_mo_fm_pools
+    TYPE(cp_fm_pool_type), OPTIONAL, POINTER :: maxao_maxmo_fm_pool, &
+                                                maxao_maxao_fm_pool, &
+                                                maxmo_maxmo_fm_pool
+    TYPE(cp_sm_pool_p_type), DIMENSION(:), &
+      OPTIONAL, POINTER                      :: S_sm_pools
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'mpools_get', &
+      routineP = moduleN//':'//routineN
+
+    LOGICAL                                  :: failure
 
   failure=.FALSE.
   
@@ -452,13 +445,15 @@ END SUBROUTINE mpools_get
 !!
 !!*** **********************************************************************
 SUBROUTINE mpools_create(mpools,error)
-  TYPE(qs_matrix_pools_type), POINTER :: mpools
-  TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
-  
-  LOGICAL :: failure
-  CHARACTER(len=*), PARAMETER :: routineN='mpools_create',&
-        routineP=moduleN//':'//routineN
-  INTEGER :: stat
+    TYPE(qs_matrix_pools_type), POINTER      :: mpools
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'mpools_create', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: stat
+    LOGICAL                                  :: failure
 
   failure=.FALSE.
   
@@ -518,20 +513,24 @@ END SUBROUTINE mpools_create
 !!*** **********************************************************************
 SUBROUTINE mpools_rebuild_fm_pools(mpools, mos, blacs_env, para_env,&
      nrow_block,ncol_block,error)
-  TYPE(qs_matrix_pools_type), POINTER :: mpools
-  TYPE(mo_set_p_type), DIMENSION(:), POINTER :: mos
-  TYPE(cp_blacs_env_type), POINTER :: blacs_env
-  TYPE(cp_para_env_type), POINTER :: para_env
-  INTEGER, INTENT(in) :: nrow_block, ncol_block
-  TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
+    TYPE(qs_matrix_pools_type), POINTER      :: mpools
+    TYPE(mo_set_p_type), DIMENSION(:), &
+      POINTER                                :: mos
+    TYPE(cp_blacs_env_type), POINTER         :: blacs_env
+    TYPE(cp_para_env_type), POINTER          :: para_env
+    INTEGER, INTENT(in)                      :: nrow_block, ncol_block
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
 
-  LOGICAL :: failure, should_rebuild
-  CHARACTER(len=*), PARAMETER :: routineN='mpools_rebuild_fm_pools',&
-       routineP=moduleN//':'//routineN
-  INTEGER :: handle, nmo,nao, max_nmo, min_nmo, stat, ispin, nspins,&
-       nrg,ncg
-  TYPE(cp_fm_struct_type), POINTER               :: fmstruct
-  TYPE(cp_fm_pool_type), POINTER                 :: p_att
+    CHARACTER(len=*), PARAMETER :: routineN = 'mpools_rebuild_fm_pools', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: handle, ispin, max_nmo, &
+                                                min_nmo, nao, ncg, nmo, nrg, &
+                                                nspins, stat
+    LOGICAL                                  :: failure, should_rebuild
+    TYPE(cp_fm_pool_type), POINTER           :: p_att
+    TYPE(cp_fm_struct_type), POINTER         :: fmstruct
 
   CALL timeset(routineN,"I","",handle)
 
@@ -775,20 +774,25 @@ END SUBROUTINE mpools_rebuild_fm_pools
 !!*** **********************************************************************
 SUBROUTINE mpools_rebuild_s_sm_pools(mpools, s, nspins, particle_set, &
      para_env, error)
-  TYPE(qs_matrix_pools_type), POINTER :: mpools
-  TYPE(real_matrix_p_type), DIMENSION(:), POINTER :: s
-  INTEGER, INTENT(in) :: nspins
-  TYPE(particle_type), POINTER, DIMENSION(:) :: particle_set
-  TYPE(cp_para_env_type), POINTER :: para_env
-  TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
+    TYPE(qs_matrix_pools_type), POINTER      :: mpools
+    TYPE(real_matrix_p_type), DIMENSION(:), &
+      POINTER                                :: s
+    INTEGER, INTENT(in)                      :: nspins
+    TYPE(particle_type), DIMENSION(:), &
+      POINTER                                :: particle_set
+    TYPE(cp_para_env_type), POINTER          :: para_env
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
 
-  LOGICAL :: failure
-  CHARACTER(len=*), PARAMETER :: routineN='mpools_rebuild_s_sm_pools',&
-       routineP=moduleN//':'//routineN
-  INTEGER, DIMENSION(:), ALLOCATABLE :: block_begins_at
-  INTEGER, DIMENSION(:), POINTER :: first_row, first_col, last_row, last_col
-  TYPE(cp_sm_struct_type), POINTER :: s_mstruct
-  INTEGER :: stat, n_atoms, ispin, handle
+    CHARACTER(len=*), PARAMETER :: routineN = 'mpools_rebuild_s_sm_pools', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: handle, ispin, n_atoms, stat
+    INTEGER, ALLOCATABLE, DIMENSION(:)       :: block_begins_at
+    INTEGER, DIMENSION(:), POINTER           :: first_col, first_row, &
+                                                last_col, last_row
+    LOGICAL                                  :: failure
+    TYPE(cp_sm_struct_type), POINTER         :: s_mstruct
 
   CALL timeset(routineN,"I","",handle)
   failure=.FALSE.

@@ -24,10 +24,10 @@ MODULE qs_interactions
 
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                              get_atomic_kind
-  USE basis_set_types,                 ONLY: gto_basis_set_type,&
-                                             get_gto_basis_set,&
+  USE basis_set_types,                 ONLY: get_gto_basis_set,&
+                                             gto_basis_set_type,&
                                              set_gto_basis_set
-  USE cp_control_types,                       ONLY: kg_control_type,&
+  USE cp_control_types,                ONLY: kg_control_type,&
                                              qs_control_type
   USE external_potential_types,        ONLY: all_potential_type,&
                                              elp_potential_type,&
@@ -37,7 +37,7 @@ MODULE qs_interactions
   USE global_types,                    ONLY: global_environment_type
   USE kinds,                           ONLY: default_string_length,&
                                              dp
-  USE orbital_pointers,                ONLY: coset,ncoset
+  USE orbital_pointers,                ONLY: coset
   USE simulation_cell,                 ONLY: cell_type,&
                                              get_cell
   USE termination,                     ONLY: stop_program
@@ -77,29 +77,29 @@ CONTAINS
 
 !   ***************************************************************************
 
-    TYPE(kg_control_type)                         :: kg_control
-    TYPE(atomic_kind_type), DIMENSION(:), POINTER :: atomic_kind_set
-    TYPE(cell_type), POINTER                      :: cell
-    TYPE(global_environment_type), INTENT(IN)     :: globenv
+    TYPE(kg_control_type)                    :: kg_control
+    TYPE(cell_type), POINTER                 :: cell
+    TYPE(atomic_kind_type), DIMENSION(:), &
+      POINTER                                :: atomic_kind_set
+    TYPE(global_environment_type), &
+      INTENT(IN)                             :: globenv
 
-!   *** Local variables ***
-
-    TYPE(atomic_kind_type), POINTER   :: atomic_kind
-    TYPE(elp_potential_type), POINTER :: elp_potential
-    TYPE(gth_potential_type), POINTER :: gth_potential
-    TYPE(gto_basis_set_type), POINTER :: orb_basis_set
-    TYPE(gto_basis_set_type), POINTER :: aux_basis_set
-
-    REAL(KIND = dp) :: alpha_core_charge,alpha_ppl,ccore_charge,cerf_ppl,&
-                core_charge_radius,gcca,kind_radius,ppl_radius,zeta
-    INTEGER  :: iexp_ppl,ikind,ipgf,iset,ishell,l,lppl,nexp_ppl,nkind,nset,i
-
-    REAL(KIND = dp), DIMENSION(:), POINTER     :: set_radius,cexp_ppl,&
-                                                  alpha_ppl_elp
-    INTEGER, DIMENSION(:), POINTER      :: npgf,nshell,nexp_ppl_elp
-    REAL(KIND = dp), DIMENSION(:,:), POINTER   :: pgf_radius,zet,cexp_ppl_elp
-    INTEGER, DIMENSION(:,:), POINTER    :: lshell
-    REAL(KIND = dp), DIMENSION(:,:,:), POINTER :: gcc
+    INTEGER                                  :: i, iexp_ppl, ikind, ipgf, &
+                                                iset, ishell, l, lppl, &
+                                                nexp_ppl, nkind, nset
+    INTEGER, DIMENSION(:), POINTER           :: nexp_ppl_elp, npgf, nshell
+    INTEGER, DIMENSION(:, :), POINTER        :: lshell
+    REAL(KIND=dp) :: alpha_core_charge, alpha_ppl, ccore_charge, cerf_ppl, &
+      core_charge_radius, gcca, kind_radius, ppl_radius, zeta
+    REAL(KIND=dp), DIMENSION(:), POINTER     :: alpha_ppl_elp, cexp_ppl, &
+                                                set_radius
+    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: cexp_ppl_elp, pgf_radius, zet
+    REAL(KIND=dp), DIMENSION(:, :, :), &
+      POINTER                                :: gcc
+    TYPE(atomic_kind_type), POINTER          :: atomic_kind
+    TYPE(elp_potential_type), POINTER        :: elp_potential
+    TYPE(gth_potential_type), POINTER        :: gth_potential
+    TYPE(gto_basis_set_type), POINTER        :: aux_basis_set, orb_basis_set
 
 !   ---------------------------------------------------------------------------
 
@@ -299,30 +299,30 @@ CONTAINS
 
 !   ***************************************************************************
 
-    TYPE(qs_control_type), INTENT(IN)             :: qs_control
-    TYPE(cell_type), POINTER                      :: cell
-    TYPE(atomic_kind_type), DIMENSION(:), POINTER :: atomic_kind_set
-    TYPE(global_environment_type), INTENT(IN)     :: globenv
+    TYPE(qs_control_type), INTENT(IN)        :: qs_control
+    TYPE(cell_type), POINTER                 :: cell
+    TYPE(atomic_kind_type), DIMENSION(:), &
+      POINTER                                :: atomic_kind_set
+    TYPE(global_environment_type), &
+      INTENT(IN)                             :: globenv
 
-!   *** Local variables ***
-
-    TYPE(atomic_kind_type), POINTER   :: atomic_kind
-    TYPE(all_potential_type), POINTER :: all_potential
-    TYPE(gth_potential_type), POINTER :: gth_potential
-    TYPE(gto_basis_set_type), POINTER :: orb_basis_set
-
-    REAL(KIND = dp) :: alpha_core_charge,alpha_ppl,ccore_charge,cerf_ppl,&
-                       core_charge_radius,gcca,kind_radius,ppl_radius,&
-                       ppnl_radius,zeta
-    INTEGER         :: iexp_ppl,ikind,ipgf,iprj_ppnl,iset,ishell,l,lppl,lppnl,&
-                       lprj_ppnl,nexp_ppl,nkind,nset
-
-    REAL(KIND = dp), DIMENSION(:), POINTER     :: alpha_ppnl,cexp_ppl,set_radius
-    REAL(KIND = dp), DIMENSION(:,:), POINTER   :: cprj_ppnl,pgf_radius,zet
-    REAL(KIND = dp), DIMENSION(:,:,:), POINTER :: gcc
-
-    INTEGER, DIMENSION(:,:), POINTER :: lshell
-    INTEGER, DIMENSION(:), POINTER   :: npgf,nprj_ppnl,nshell
+    INTEGER                                  :: iexp_ppl, ikind, ipgf, &
+                                                iprj_ppnl, iset, ishell, l, &
+                                                lppl, lppnl, lprj_ppnl, &
+                                                nexp_ppl, nkind, nset
+    INTEGER, DIMENSION(:), POINTER           :: npgf, nprj_ppnl, nshell
+    INTEGER, DIMENSION(:, :), POINTER        :: lshell
+    REAL(KIND=dp) :: alpha_core_charge, alpha_ppl, ccore_charge, cerf_ppl, &
+      core_charge_radius, gcca, kind_radius, ppl_radius, ppnl_radius, zeta
+    REAL(KIND=dp), DIMENSION(:), POINTER     :: alpha_ppnl, cexp_ppl, &
+                                                set_radius
+    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: cprj_ppnl, pgf_radius, zet
+    REAL(KIND=dp), DIMENSION(:, :, :), &
+      POINTER                                :: gcc
+    TYPE(all_potential_type), POINTER        :: all_potential
+    TYPE(atomic_kind_type), POINTER          :: atomic_kind
+    TYPE(gth_potential_type), POINTER        :: gth_potential
+    TYPE(gto_basis_set_type), POINTER        :: orb_basis_set
 
 !   ---------------------------------------------------------------------------
 
@@ -470,21 +470,21 @@ CONTAINS
 
 !   ***************************************************************************
 
-    TYPE(cell_type), POINTER                      :: cell
-    TYPE(atomic_kind_type), DIMENSION(:), POINTER :: atomic_kind_set
-    TYPE(global_environment_type), INTENT(IN)     :: globenv
+    TYPE(cell_type), POINTER                 :: cell
+    TYPE(atomic_kind_type), DIMENSION(:), &
+      POINTER                                :: atomic_kind_set
+    TYPE(global_environment_type), &
+      INTENT(IN)                             :: globenv
 
-!   *** Local variables ***
-
-    TYPE(atomic_kind_type), POINTER   :: atomic_kind
-    TYPE(all_potential_type), POINTER :: all_potential
-    TYPE(elp_potential_type), POINTER :: elp_potential
-    TYPE(gth_potential_type), POINTER :: gth_potential
-
-    CHARACTER(LEN=default_string_length) :: name
-    CHARACTER(LEN=8)                     :: unit_of_length_name
-    REAL(KIND = dp)                      :: core_charge_radius,unit_of_length
-    INTEGER                              :: ikind,nkind,output_unit
+    CHARACTER(LEN=8)                         :: unit_of_length_name
+    CHARACTER(LEN=default_string_length)     :: name
+    INTEGER                                  :: ikind, nkind, output_unit
+    REAL(KIND=dp)                            :: core_charge_radius, &
+                                                unit_of_length
+    TYPE(all_potential_type), POINTER        :: all_potential
+    TYPE(atomic_kind_type), POINTER          :: atomic_kind
+    TYPE(elp_potential_type), POINTER        :: elp_potential
+    TYPE(gth_potential_type), POINTER        :: gth_potential
 
 !   ---------------------------------------------------------------------------
 
@@ -540,25 +540,22 @@ CONTAINS
 
 !   ***************************************************************************
 
-    TYPE(cell_type), POINTER                      :: cell
-    TYPE(atomic_kind_type), DIMENSION(:), POINTER :: atomic_kind_set
-    TYPE(global_environment_type), INTENT(IN)     :: globenv
+    TYPE(cell_type), POINTER                 :: cell
+    TYPE(atomic_kind_type), DIMENSION(:), &
+      POINTER                                :: atomic_kind_set
+    TYPE(global_environment_type), &
+      INTENT(IN)                             :: globenv
 
-!   *** Local variables ***
-
-    TYPE(atomic_kind_type), POINTER   :: atomic_kind
-    TYPE(gto_basis_set_type), POINTER :: orb_basis_set
-
-    CHARACTER(LEN=default_string_length) :: name
-    CHARACTER(LEN=8)                     :: unit_of_length_name
-    REAL(KIND = dp)                      :: kind_radius,unit_of_length
-    INTEGER                              :: ikind,ipgf,iset,nkind,nset,&
-                                            output_unit
-
-    REAL(KIND = dp), DIMENSION(:), POINTER   :: set_radius
-    REAL(KIND = dp), DIMENSION(:,:), POINTER :: pgf_radius
-
-    INTEGER, DIMENSION(:), POINTER :: npgf
+    CHARACTER(LEN=8)                         :: unit_of_length_name
+    CHARACTER(LEN=default_string_length)     :: name
+    INTEGER                                  :: ikind, ipgf, iset, nkind, &
+                                                nset, output_unit
+    INTEGER, DIMENSION(:), POINTER           :: npgf
+    REAL(KIND=dp)                            :: kind_radius, unit_of_length
+    REAL(KIND=dp), DIMENSION(:), POINTER     :: set_radius
+    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: pgf_radius
+    TYPE(atomic_kind_type), POINTER          :: atomic_kind
+    TYPE(gto_basis_set_type), POINTER        :: orb_basis_set
 
 !   ---------------------------------------------------------------------------
 
@@ -646,19 +643,18 @@ CONTAINS
 
 !   ***************************************************************************
 
-    TYPE(cell_type), POINTER                      :: cell
-    TYPE(atomic_kind_type), DIMENSION(:), POINTER :: atomic_kind_set
-    TYPE(global_environment_type), INTENT(IN)     :: globenv
+    TYPE(cell_type), POINTER                 :: cell
+    TYPE(atomic_kind_type), DIMENSION(:), &
+      POINTER                                :: atomic_kind_set
+    TYPE(global_environment_type), &
+      INTENT(IN)                             :: globenv
 
-!   *** Local variables ***
-
-    TYPE(atomic_kind_type), POINTER   :: atomic_kind
-    TYPE(gth_potential_type), POINTER :: gth_potential
-
-    CHARACTER(LEN=default_string_length) :: name
-    CHARACTER(LEN=8)                     :: unit_of_length_name
-    REAL(KIND = dp)                      :: ppl_radius,unit_of_length
-    INTEGER                              :: ikind,nkind,output_unit
+    CHARACTER(LEN=8)                         :: unit_of_length_name
+    CHARACTER(LEN=default_string_length)     :: name
+    INTEGER                                  :: ikind, nkind, output_unit
+    REAL(KIND=dp)                            :: ppl_radius, unit_of_length
+    TYPE(atomic_kind_type), POINTER          :: atomic_kind
+    TYPE(gth_potential_type), POINTER        :: gth_potential
 
 !   ---------------------------------------------------------------------------
 
@@ -701,19 +697,18 @@ CONTAINS
 
 !   ***************************************************************************
 
-    TYPE(cell_type), POINTER                      :: cell
-    TYPE(atomic_kind_type), DIMENSION(:), POINTER :: atomic_kind_set
-    TYPE(global_environment_type), INTENT(IN)     :: globenv
+    TYPE(cell_type), POINTER                 :: cell
+    TYPE(atomic_kind_type), DIMENSION(:), &
+      POINTER                                :: atomic_kind_set
+    TYPE(global_environment_type), &
+      INTENT(IN)                             :: globenv
 
-!   *** Local variables ***
-
-    TYPE(atomic_kind_type), POINTER   :: atomic_kind
-    TYPE(gth_potential_type), POINTER :: gth_potential
-
-    CHARACTER(LEN=default_string_length) :: name
-    CHARACTER(LEN=8)                     :: unit_of_length_name
-    REAL(KIND = dp)                      :: ppnl_radius,unit_of_length
-    INTEGER                              :: ikind,nkind,output_unit
+    CHARACTER(LEN=8)                         :: unit_of_length_name
+    CHARACTER(LEN=default_string_length)     :: name
+    INTEGER                                  :: ikind, nkind, output_unit
+    REAL(KIND=dp)                            :: ppnl_radius, unit_of_length
+    TYPE(atomic_kind_type), POINTER          :: atomic_kind
+    TYPE(gth_potential_type), POINTER        :: gth_potential
 
 !   ---------------------------------------------------------------------------
 
@@ -773,26 +768,21 @@ CONTAINS
 
 !   ***************************************************************************
 
-    REAL(KIND = dp), INTENT(IN) :: alpha,prefactor,threshold
-    INTEGER, INTENT(IN)  :: l
-    REAL(KIND = dp), INTENT(IN), OPTIONAL :: epsin
+    INTEGER, INTENT(IN)                      :: l
+    REAL(KIND=dp), INTENT(IN)                :: alpha, threshold, prefactor
+    REAL(KIND=dp), INTENT(IN), OPTIONAL      :: epsin
+    REAL(KIND=dp)                            :: radius
 
-    REAL(KIND = dp) :: radius
+    CHARACTER(LEN=*), PARAMETER :: &
+      routine = "FUNCTION exp_radius (MODULE mathlib)"
+    INTEGER, PARAMETER                       :: maxiter = 5000
 
-!   *** Local parameters ***
-
-    CHARACTER(LEN=*), PARAMETER :: routine =&
-      "FUNCTION exp_radius (MODULE mathlib)"
-
-    REAL(KIND = dp) :: epsiter 
-    INTEGER, PARAMETER  :: maxiter = 5000
-
-!   *** Local variables ***
-
-    REAL(KIND = dp) :: a,ar2,d,delta,dg,g,r,t,rlow,rhigh,rmid
-    INTEGER  :: iter
+    INTEGER                                  :: iter
+    REAL(KIND=dp)                            :: a, ar2, d, epsiter, g, r, &
+                                                rhigh, rlow, rmid, t
 
 !   ---------------------------------------------------------------------------
+
     if (present(epsin)) then
        epsiter=epsin
     else
@@ -882,16 +872,20 @@ CONTAINS
   FUNCTION exp_radius_very_extended(la_min,la_max,lb_min,lb_max,pab,o1,o2,ra,rb,rp,&
                           zetp,eps,prefactor,cutoff) result(radius)
 
-    integer ,INTENT(IN)     :: la_min,la_max,lb_min,lb_max
-    real(KIND = dp) ,INTENT(IN)    :: ra(3),rb(3),rp(3),zetp,eps,prefactor
-    real(KIND = dp) ,INTENT(IN)    :: cutoff
-    real(KIND = dp) , DIMENSION(:,:), POINTER, optional   :: pab
-    integer,optional        :: o1,o2
-    real(KIND = dp)    :: radius
-    integer     :: lxa,lxb,lya,lyb,lza,lzb,la(3),lb(3),ico,jco,handle
-    real(KIND = dp)    :: prefactor_local
-    real(KIND = dp) polycoef(0:60),coef(0:20,3),bini,binj,s1,s2
-    integer :: d,i,j,k
+    integer, INTENT(IN)                      :: la_min, la_max, lb_min, lb_max
+    real(KIND=dp), DIMENSION(:, :), &
+      optional, POINTER                      :: pab
+    integer, optional                        :: o1, o2
+    real(KIND=dp), INTENT(IN)                :: ra(3), rb(3), rp(3), zetp, &
+                                                eps, prefactor, cutoff
+    real(KIND=dp)                            :: radius
+
+    integer                                  :: d, i, ico, j, jco, k, la(3), &
+                                                lb(3), lxa, lxb, lya, lyb, &
+                                                lza, lzb
+    real(KIND=dp)                            :: bini, binj, coef(0:20,3), &
+                                                polycoef(0:60), &
+                                                prefactor_local, s1, s2
 
     radius=0.0_dp
     polycoef(:)=0.0_dp

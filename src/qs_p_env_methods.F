@@ -25,41 +25,25 @@
 !!
 !!****
 MODULE qs_p_env_methods
-  USE atomic_kind_types,               ONLY: atomic_kind_type,&
-                                             get_atomic_kind_set
-  USE cp_b_matrix_structure,           ONLY: cp_b_matrix_struct_type
-  USE cp_block_matrix,                 ONLY: cp_block_matrix_p_type,&
-                                             cp_block_matrix_type,&
-                                             cp_sp_array_create,&
-                                             cp_sp_array_dealloc,&
-                                             cp_sp_create,&
-                                             cp_sp_multiplies_blacs,&
-                                             cp_sp_set_to
+  USE atomic_kind_types,               ONLY: atomic_kind_type
+  USE cp_control_types,                ONLY: dft_control_type
   USE cp_error_handling,               ONLY: cp_a_l,&
                                              cp_assert,&
-                                             cp_assertion_failed,&
-                                             cp_debug,&
-                                             cp_error_dealloc_ref,&
                                              cp_error_get_logger,&
-                                             cp_error_init,&
                                              cp_error_message,&
                                              cp_error_type,&
-                                             cp_internal_error,&
                                              cp_unimplemented_error
   USE cp_fm_basic_linalg,              ONLY: cp_fm_gemm,&
                                              cp_fm_scale_and_add,&
                                              cp_fm_symm,&
                                              cp_fm_triangular_multiply
-  USE cp_fm_cholesky,                  ONLY: cp_fm_cholesky_decompose,&
-                                             cp_fm_cholesky_invert,&
-                                             cp_fm_cholesky_restore
+  USE cp_fm_cholesky,                  ONLY: cp_fm_cholesky_decompose
   USE cp_fm_pool_types,                ONLY: cp_fm_pool_p_type,&
                                              cp_fm_pool_type,&
                                              fm_pool_create_fm,&
                                              fm_pool_get_el_struct,&
                                              fm_pool_give_back_fm,&
-                                             fm_pools_create_fm_vect,&
-                                             fm_pools_give_back_fm_vect
+                                             fm_pools_create_fm_vect
   USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
                                              cp_fm_struct_get,&
                                              cp_fm_struct_release,&
@@ -75,8 +59,6 @@ MODULE qs_p_env_methods
                                              cp_fm_vect_dealloc
   USE cp_log_handling,                 ONLY: cp_failure_level,&
                                              cp_fatal_level,&
-                                             cp_log,&
-                                             cp_logger_get_default_unit_nr,&
                                              cp_logger_type,&
                                              cp_note_level,&
                                              cp_to_string,&
@@ -86,13 +68,8 @@ MODULE qs_p_env_methods
   USE cp_sm_fm_interactions,           ONLY: cp_sm_fm_multiply,&
                                              cp_sm_plus_fm_fm_t
   USE cp_sm_pool_types,                ONLY: cp_sm_pool_p_type,&
-                                             cp_sm_pool_type,&
-                                             sm_pool_create,&
-                                             sm_pool_get_mstruct,&
                                              sm_pools_create_matrix_vect,&
                                              sm_pools_give_back_matrix_vect
-  USE cp_control_types,                       ONLY: dft_control_type
-  USE global_types,                    ONLY: global_environment_type
   USE kinds,                           ONLY: dbl,&
                                              dp
   USE qs_environment_types,            ONLY: get_qs_env,&
@@ -101,28 +78,20 @@ MODULE qs_p_env_methods
                                              kpp1_calc_k_p_p1_fdiff,&
                                              kpp1_create,&
                                              kpp1_did_change
-  USE qs_kpp1_env_types,               ONLY: kpp1_release,&
-                                             kpp1_retain,&
-                                             qs_kpp1_env_type
+  USE qs_kpp1_env_types,               ONLY: qs_kpp1_env_type
   USE qs_ks_methods,                   ONLY: qs_ks_did_change,&
                                              qs_ks_update_qs_env
   USE qs_ks_types,                     ONLY: qs_ks_env_type
-  USE qs_matrix_pools,                 ONLY: mpools_get,&
-                                             qs_matrix_pools_type
+  USE qs_matrix_pools,                 ONLY: mpools_get
   USE qs_mo_types,                     ONLY: get_mo_set,&
-                                             mo_set_p_type,&
-                                             mo_set_type
-  USE qs_p_env_types,                  ONLY: p_env_release,&
-                                             p_env_retain,&
-                                             qs_p_env_type
+                                             mo_set_p_type
+  USE qs_p_env_types,                  ONLY: qs_p_env_type
   USE qs_rho_methods,                  ONLY: qs_rho_rebuild,&
                                              qs_rho_update_rho
   USE qs_rho_types,                    ONLY: qs_rho_release,&
                                              qs_rho_type
-  USE qs_tddfpt_types,                 ONLY: tddfpt_env_type
   USE sparse_matrix_types,             ONLY: cp_sm_scale_and_add,&
                                              deallocate_matrix_set,&
-                                             get_matrix_info,&
                                              real_matrix_p_type,&
                                              real_matrix_type,&
                                              replicate_matrix_structure,&
@@ -130,6 +99,7 @@ MODULE qs_p_env_methods
   USE string_utilities,                ONLY: compress
   USE timings,                         ONLY: timeset,&
                                              timestop
+
   IMPLICIT NONE
 
   CHARACTER(len=*), PRIVATE, PARAMETER :: moduleN='qs_p_env_methods'
@@ -188,32 +158,34 @@ CONTAINS
   SUBROUTINE p_env_create(p_env, qs_env, kpp1_env, p1_option, &
        psi0d, orthogonal_orbitals, error)
 
-    IMPLICIT NONE
 
-    ! arguments
-    TYPE(qs_p_env_type), POINTER                     :: p_env
-    TYPE(qs_environment_type), INTENT(inout), TARGET :: qs_env
-    TYPE(qs_kpp1_env_type), INTENT(in),&
-         TARGET, OPTIONAL                            :: kpp1_env
-    TYPE(real_matrix_p_type), DIMENSION(:), POINTER, &
-         OPTIONAL                                    :: p1_option
-    TYPE(cp_fm_p_type), DIMENSION(:),&
-         POINTER, OPTIONAL                           :: psi0d
-    LOGICAL, INTENT(in), OPTIONAL                    :: orthogonal_orbitals
-    TYPE(cp_error_type), OPTIONAL, INTENT(inout)     :: error
+    TYPE(qs_p_env_type), POINTER             :: p_env
+    TYPE(qs_environment_type), &
+      INTENT(inout), TARGET                  :: qs_env
+    TYPE(qs_kpp1_env_type), INTENT(in), &
+      OPTIONAL, TARGET                       :: kpp1_env
+    TYPE(real_matrix_p_type), DIMENSION(:), &
+      OPTIONAL, POINTER                      :: p1_option
+    TYPE(cp_fm_p_type), DIMENSION(:), &
+      OPTIONAL, POINTER                      :: psi0d
+    LOGICAL, INTENT(in), OPTIONAL            :: orthogonal_orbitals
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
 
-    ! locals
-    LOGICAL :: failure
-    CHARACTER(len=*), PARAMETER      :: routineN='p_env_create',&
-                                        routineP=moduleN//':'//routineN
-    INTEGER                          :: n_ao, n_mo, n_spins, spin, stat,handle
-    TYPE(atomic_kind_type), DIMENSION(:), POINTER :: atomic_kind_set
-    TYPE(dft_control_type), POINTER  :: dft_control
-    TYPE(cp_fm_type), POINTER :: qs_env_c
-    TYPE(cp_fm_pool_p_type), DIMENSION(:), POINTER :: ao_mo_fm_pools,&
-         mo_mo_fm_pools
+    CHARACTER(len=*), PARAMETER :: routineN = 'p_env_create', &
+      routineP = moduleN//':'//routineN
 
-    ! code
+    INTEGER                                  :: handle, n_ao, n_mo, n_spins, &
+                                                spin, stat
+    LOGICAL                                  :: failure
+    TYPE(atomic_kind_type), DIMENSION(:), &
+      POINTER                                :: atomic_kind_set
+    TYPE(cp_fm_pool_p_type), DIMENSION(:), &
+      POINTER                                :: ao_mo_fm_pools, mo_mo_fm_pools
+    TYPE(cp_fm_type), POINTER                :: qs_env_c
+    TYPE(dft_control_type), POINTER          :: dft_control
+
+! code
 
     CALL timeset(routineN,"I","",handle)
 
@@ -345,17 +317,21 @@ CONTAINS
 !!
 !!*** **********************************************************************
   SUBROUTINE p_env_check_i_alloc(p_env, qs_env, error)
-    TYPE(qs_p_env_type), POINTER :: p_env
-    TYPE(qs_environment_type), INTENT(in), TARGET :: qs_env
-    TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
+    TYPE(qs_p_env_type), POINTER             :: p_env
+    TYPE(qs_environment_type), INTENT(in), &
+      TARGET                                 :: qs_env
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
 
-    LOGICAL :: failure
-    INTEGER :: stat, ispin, nspins, handle
-    CHARACTER(len=*), PARAMETER :: routineN='p_env_check_i_alloc',&
-         routineP=moduleN//':'//routineN
-    CHARACTER(len=25) :: name
-    TYPE(dft_control_type), POINTER :: dft_control
-    TYPE(real_matrix_p_type), DIMENSION(:), POINTER :: s
+    CHARACTER(len=*), PARAMETER :: routineN = 'p_env_check_i_alloc', &
+      routineP = moduleN//':'//routineN
+
+    CHARACTER(len=25)                        :: name
+    INTEGER                                  :: handle, ispin, nspins, stat
+    LOGICAL                                  :: failure
+    TYPE(dft_control_type), POINTER          :: dft_control
+    TYPE(real_matrix_p_type), DIMENSION(:), &
+      POINTER                                :: s
 
     CALL timeset(routineN,"I","",handle)
 
@@ -420,14 +396,15 @@ CONTAINS
 !!
 !!*** **********************************************************************
 SUBROUTINE p_env_did_change(p_env, s_struct_changed, grid_changed,error)
-  TYPE(qs_p_env_type), POINTER :: p_env
-  LOGICAL, INTENT(in), OPTIONAL :: s_struct_changed, grid_changed
-  TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
-  
-  LOGICAL :: failure
-  CHARACTER(len=*), PARAMETER :: routineN='p_env_did_change',&
-        routineP=moduleN//':'//routineN
-  INTEGER :: i, stat
+    TYPE(qs_p_env_type), POINTER             :: p_env
+    LOGICAL, INTENT(in), OPTIONAL            :: s_struct_changed, grid_changed
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'p_env_did_change', &
+      routineP = moduleN//':'//routineN
+
+    LOGICAL                                  :: failure
 
   failure=.FALSE.
   
@@ -501,36 +478,41 @@ END SUBROUTINE p_env_did_change
 !!*** **********************************************************************
   SUBROUTINE p_env_psi0_changed(p_env, qs_env, psi0, Hrho_psi0d, error)
 
-    IMPLICIT NONE
 
-    ! arguments
-    TYPE(qs_p_env_type), POINTER                 :: p_env
-    TYPE(qs_environment_type), INTENT(inout), &
-         TARGET                                  :: qs_env
+    TYPE(qs_p_env_type), POINTER             :: p_env
+    TYPE(qs_environment_type), &
+      INTENT(inout), TARGET                  :: qs_env
     TYPE(cp_fm_p_type), DIMENSION(:), &
-         INTENT(in), TARGET, OPTIONAL            :: psi0
+      INTENT(in), OPTIONAL, TARGET           :: psi0
     TYPE(cp_fm_p_type), DIMENSION(:), &
-         INTENT(inout), OPTIONAL                 :: Hrho_psi0d
-    TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
+      INTENT(inout), OPTIONAL                :: Hrho_psi0d
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
 
-    ! locals
-    LOGICAL                                :: failure
-    INTEGER                                :: n_spins, spin, stat, handle,&
-         lfomo,nmo
-    CHARACTER(len=*), PARAMETER            :: routineN = 'p_env_psi0_changed',&
-                                              routineP = moduleN//':'//routineN
-    REAL(KIND = dp) :: maxocc
-    TYPE(cp_fm_type), POINTER                 :: tmp
-    TYPE(cp_fm_pool_p_type), DIMENSION(:), POINTER     :: ao_mo_fm_pools
-    TYPE(cp_fm_p_type), DIMENSION(:), POINTER :: my_psi0
-    TYPE(real_matrix_p_type), DIMENSION(:), POINTER    :: S,p_new
-    TYPE(mo_set_p_type), DIMENSION(:), POINTER         :: c
-    TYPE(cp_para_env_type), POINTER                    :: para_env
-    TYPE(qs_ks_env_type), POINTER                      :: ks_env
-    TYPE(qs_rho_type), POINTER                         :: rho
-    TYPE(cp_sm_pool_p_type), DIMENSION(:), POINTER     :: S_sm_pools
+    CHARACTER(len=*), PARAMETER :: routineN = 'p_env_psi0_changed', &
+      routineP = moduleN//':'//routineN
 
-    ! code
+    INTEGER                                  :: handle, lfomo, n_spins, nmo, &
+                                                spin, stat
+    LOGICAL                                  :: failure
+    REAL(KIND=dp)                            :: maxocc
+    TYPE(cp_fm_p_type), DIMENSION(:), &
+      POINTER                                :: my_psi0
+    TYPE(cp_fm_pool_p_type), DIMENSION(:), &
+      POINTER                                :: ao_mo_fm_pools
+    TYPE(cp_fm_type), POINTER                :: tmp
+    TYPE(cp_para_env_type), POINTER          :: para_env
+    TYPE(cp_sm_pool_p_type), DIMENSION(:), &
+      POINTER                                :: S_sm_pools
+    TYPE(mo_set_p_type), DIMENSION(:), &
+      POINTER                                :: c
+    TYPE(qs_ks_env_type), POINTER            :: ks_env
+    TYPE(qs_rho_type), POINTER               :: rho
+    TYPE(real_matrix_p_type), DIMENSION(:), &
+      POINTER                                :: p_new, S
+
+! code
+
     CALL timeset(routineN,"I","",handle)
 
     failure=.FALSE.
@@ -754,22 +736,26 @@ END SUBROUTINE p_env_did_change
 !!***
   SUBROUTINE p_op_l1(p_env, qs_env, v, res, error)
  
-    IMPLICIT NONE
    
     ! argument
-    TYPE(qs_p_env_type), POINTER                             :: p_env
-    TYPE(qs_environment_type), INTENT(in), TARGET            :: qs_env
-    TYPE(cp_fm_p_type), DIMENSION(:), INTENT(in)    :: v
-    TYPE(cp_fm_p_type), DIMENSION(:), INTENT(inout) :: res
-    TYPE(cp_error_type), OPTIONAL, INTENT(inout)             :: error
-                                                           
-    ! locals                                               
-    LOGICAL                          :: failure
-    INTEGER                          :: n_spins, spin, ncol
-    CHARACTER(len=*), PARAMETER      :: routineN = 'p_op_l1',&
-                                        routineP = moduleN//':'//routineN
+    TYPE(qs_p_env_type), POINTER             :: p_env
+    TYPE(qs_environment_type), INTENT(in), &
+      TARGET                                 :: qs_env
+    TYPE(cp_fm_p_type), DIMENSION(:), &
+      INTENT(in)                             :: v
+    TYPE(cp_fm_p_type), DIMENSION(:), &
+      INTENT(inout)                          :: res
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
 
-    ! code
+    CHARACTER(len=*), PARAMETER :: routineN = 'p_op_l1', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: n_spins, spin
+    LOGICAL                                  :: failure
+
+! code
+
     failure = .FALSE.
     
     CPPrecondition(ASSOCIATED(p_env),cp_failure_level,routineP,error,failure)
@@ -825,28 +811,30 @@ END SUBROUTINE p_env_did_change
 !!***
   SUBROUTINE p_op_l1_spin(p_env, qs_env, spin, v, res, error)
  
-    IMPLICIT NONE
    
     ! argument
-    TYPE(qs_p_env_type), POINTER                     :: p_env
-    TYPE(qs_environment_type), INTENT(in), TARGET    :: qs_env
-    INTEGER, INTENT(IN)                              :: spin
-    TYPE(cp_fm_type), POINTER               :: v
-    TYPE(cp_fm_type), POINTER               :: res
-    TYPE(cp_error_type), OPTIONAL, INTENT(inout)     :: error
-                                                           
-    ! locals                                               
-    LOGICAL                            :: failure
-    INTEGER                            :: ncol, handle
-    TYPE(real_matrix_type), POINTER    :: k_p
-    TYPE(cp_fm_type), POINTER :: tmp
-    TYPE(cp_para_env_type), POINTER    :: para_env
-    TYPE(cp_fm_pool_type),POINTER      :: maxao_maxmo_fm_pool
-    TYPE(mo_set_p_type), DIMENSION(:), POINTER :: mos
-    CHARACTER(len=*), PARAMETER        :: routineN = 'p_op_l1',&
-                                          routineP = moduleN//':'//routineN
+    TYPE(qs_p_env_type), POINTER             :: p_env
+    TYPE(qs_environment_type), INTENT(in), &
+      TARGET                                 :: qs_env
+    INTEGER, INTENT(IN)                      :: spin
+    TYPE(cp_fm_type), POINTER                :: v, res
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
 
-    ! code
+    CHARACTER(len=*), PARAMETER :: routineN = 'p_op_l1', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: handle, ncol
+    LOGICAL                                  :: failure
+    TYPE(cp_fm_pool_type), POINTER           :: maxao_maxmo_fm_pool
+    TYPE(cp_fm_type), POINTER                :: tmp
+    TYPE(cp_para_env_type), POINTER          :: para_env
+    TYPE(mo_set_p_type), DIMENSION(:), &
+      POINTER                                :: mos
+    TYPE(real_matrix_type), POINTER          :: k_p
+
+! code
+
     CALL timeset(routineN,"I","",handle)
 
     NULLIFY(tmp,mos)
@@ -930,26 +918,29 @@ END SUBROUTINE p_env_did_change
 !!*** **********************************************************************
   SUBROUTINE p_op_l2(p_env, qs_env, p1, res, alpha, beta, error)
     
-    ! ARGUMENTS
-    TYPE(qs_p_env_type), POINTER                             :: p_env
-    TYPE(qs_environment_type), INTENT(inout), TARGET         :: qs_env
-    TYPE(real_matrix_p_type), DIMENSION(:), POINTER          :: p1
-    TYPE(cp_fm_p_type), DIMENSION(:), INTENT(INOUT) :: res
-    REAL(kind=dbl), INTENT(in), OPTIONAL                     :: alpha, beta
-    TYPE(cp_error_type), OPTIONAL, INTENT(INOUT)             :: error
+    TYPE(qs_p_env_type), POINTER             :: p_env
+    TYPE(qs_environment_type), &
+      INTENT(inout), TARGET                  :: qs_env
+    TYPE(real_matrix_p_type), DIMENSION(:), &
+      POINTER                                :: p1
+    TYPE(cp_fm_p_type), DIMENSION(:), &
+      INTENT(INOUT)                          :: res
+    REAL(kind=dbl), INTENT(in), OPTIONAL     :: alpha, beta
+    TYPE(cp_error_type), INTENT(INOUT), &
+      OPTIONAL                               :: error
 
-    ! locals
-    LOGICAL                     :: failure
-    CHARACTER(len=*), PARAMETER :: routineN = 'p_op_l2',&
-                                   routineP = moduleN//':'//routineN
-    INTEGER                     :: ispin, n_spins, stat, handle
-    REAL(KIND = dp) :: my_alpha, my_beta
-    TYPE(dft_control_type), POINTER :: dft_control
-    TYPE(cp_para_env_type), POINTER :: para_env
-    TYPE(qs_rho_type), POINTER :: rho
-    TYPE(cp_logger_type), POINTER :: logger
-    INTEGER, SAVE :: iter=0
-    LOGICAL, PARAMETER :: fdiff=.FALSE.
+    CHARACTER(len=*), PARAMETER :: routineN = 'p_op_l2', &
+      routineP = moduleN//':'//routineN
+    LOGICAL, PARAMETER                       :: fdiff = .FALSE.
+
+    INTEGER                                  :: handle, ispin, n_spins
+    INTEGER, SAVE                            :: iter = 0
+    LOGICAL                                  :: failure
+    REAL(KIND=dp)                            :: my_alpha, my_beta
+    TYPE(cp_logger_type), POINTER            :: logger
+    TYPE(cp_para_env_type), POINTER          :: para_env
+    TYPE(dft_control_type), POINTER          :: dft_control
+    TYPE(qs_rho_type), POINTER               :: rho
 
     CALL timeset(routineN,"I","",handle)
 
@@ -1048,28 +1039,32 @@ END SUBROUTINE p_env_did_change
 !!*** **********************************************************************
   SUBROUTINE p_preortho(p_env, qs_env, v, n_cols, error)
 
-    IMPLICIT NONE
 
-    ! arguments
-    TYPE(qs_p_env_type), POINTER                             :: p_env
-    TYPE(qs_environment_type), INTENT(in), TARGET            :: qs_env
-    TYPE(cp_fm_p_type), DIMENSION(:), INTENT(inout) :: v
-    INTEGER, DIMENSION(:), INTENT(in), OPTIONAL              :: n_cols
-    TYPE(cp_error_type), OPTIONAL, INTENT(inout)             :: error
+    TYPE(qs_p_env_type), POINTER             :: p_env
+    TYPE(qs_environment_type), INTENT(in), &
+      TARGET                                 :: qs_env
+    TYPE(cp_fm_p_type), DIMENSION(:), &
+      INTENT(inout)                          :: v
+    INTEGER, DIMENSION(:), INTENT(in), &
+      OPTIONAL                               :: n_cols
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
 
-    ! locals
-    LOGICAL                            :: failure
-    CHARACTER(len=*), PARAMETER        :: routineN = 'p_preortho',&
-         routineP = moduleN//':'//routineN
-    INTEGER                            :: v_rows, v_cols, cols, handle
-    INTEGER                            :: n_spins, spin, nmo2,maxnmo, max_cols
-    TYPE(cp_fm_type), POINTER :: tmp_matrix
-    TYPE(cp_fm_pool_type), POINTER     :: maxmo_maxmo_fm_pool
-    TYPE(cp_fm_struct_type), POINTER   :: maxmo_maxmo_fmstruct,&
-         tmp_fmstruct
-    TYPE(dft_control_type), POINTER    :: dft_control
+    CHARACTER(len=*), PARAMETER :: routineN = 'p_preortho', &
+      routineP = moduleN//':'//routineN
 
-    ! code
+    INTEGER                                  :: cols, handle, max_cols, &
+                                                maxnmo, n_spins, nmo2, spin, &
+                                                v_cols, v_rows
+    LOGICAL                                  :: failure
+    TYPE(cp_fm_pool_type), POINTER           :: maxmo_maxmo_fm_pool
+    TYPE(cp_fm_struct_type), POINTER         :: maxmo_maxmo_fmstruct, &
+                                                tmp_fmstruct
+    TYPE(cp_fm_type), POINTER                :: tmp_matrix
+    TYPE(dft_control_type), POINTER          :: dft_control
+
+! code
+
     CALL timeset(routineN,"I","",handle)
 
     failure=.FALSE.
@@ -1192,28 +1187,32 @@ END SUBROUTINE p_env_did_change
 
   SUBROUTINE p_postortho(p_env, qs_env, v, n_cols, error)
 
-    IMPLICIT NONE
 
-    ! arguments
-    TYPE(qs_p_env_type), POINTER                             :: p_env
-    TYPE(qs_environment_type), INTENT(in), TARGET            :: qs_env
-    TYPE(cp_fm_p_type), DIMENSION(:), INTENT(inout) :: v
-    INTEGER, DIMENSION(:), INTENT(in), OPTIONAL              :: n_cols
-    TYPE(cp_error_type), OPTIONAL, INTENT(inout)             :: error
+    TYPE(qs_p_env_type), POINTER             :: p_env
+    TYPE(qs_environment_type), INTENT(in), &
+      TARGET                                 :: qs_env
+    TYPE(cp_fm_p_type), DIMENSION(:), &
+      INTENT(inout)                          :: v
+    INTEGER, DIMENSION(:), INTENT(in), &
+      OPTIONAL                               :: n_cols
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
 
-    ! locals
-    LOGICAL                            :: failure
-    CHARACTER(len=*), PARAMETER        :: routineN = 'p_postortho',&
-         routineP = moduleN//':'//routineN
-    INTEGER                            :: v_rows, v_cols, cols, handle
-    INTEGER                            :: n_spins, spin, nmo2,maxnmo, max_cols
-    TYPE(cp_fm_type), POINTER :: tmp_matrix
-    TYPE(cp_fm_pool_type), POINTER     :: maxmo_maxmo_fm_pool
-    TYPE(cp_fm_struct_type), POINTER :: maxmo_maxmo_fmstruct,&
-         tmp_fmstruct
-    TYPE(dft_control_type), POINTER    :: dft_control
+    CHARACTER(len=*), PARAMETER :: routineN = 'p_postortho', &
+      routineP = moduleN//':'//routineN
 
-    ! code
+    INTEGER                                  :: cols, handle, max_cols, &
+                                                maxnmo, n_spins, nmo2, spin, &
+                                                v_cols, v_rows
+    LOGICAL                                  :: failure
+    TYPE(cp_fm_pool_type), POINTER           :: maxmo_maxmo_fm_pool
+    TYPE(cp_fm_struct_type), POINTER         :: maxmo_maxmo_fmstruct, &
+                                                tmp_fmstruct
+    TYPE(cp_fm_type), POINTER                :: tmp_matrix
+    TYPE(dft_control_type), POINTER          :: dft_control
+
+! code
+
     CALL timeset(routineN,"I","",handle)
 
     failure=.FALSE.
@@ -1336,27 +1335,33 @@ END SUBROUTINE p_env_did_change
 !!*** **********************************************************************
   SUBROUTINE p_op_l2_fawzi(p_env, qs_env, v, res, alpha, beta, error)
     
-    ! arguments
-    TYPE(qs_p_env_type), POINTER                             :: p_env
-    TYPE(qs_environment_type), INTENT(inout), TARGET         :: qs_env
-    TYPE(cp_fm_p_type), DIMENSION(:), INTENT(in)    :: v
-    TYPE(cp_fm_p_type), DIMENSION(:), INTENT(inout) :: res
-    REAL(kind=dbl), INTENT(in), OPTIONAL                     :: alpha, beta
-    TYPE(cp_error_type), OPTIONAL, INTENT(inout)             :: error
+    TYPE(qs_p_env_type), POINTER             :: p_env
+    TYPE(qs_environment_type), &
+      INTENT(inout), TARGET                  :: qs_env
+    TYPE(cp_fm_p_type), DIMENSION(:), &
+      INTENT(in)                             :: v
+    TYPE(cp_fm_p_type), DIMENSION(:), &
+      INTENT(inout)                          :: res
+    REAL(kind=dbl), INTENT(in), OPTIONAL     :: alpha, beta
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
 
-    ! locals
-    LOGICAL                     :: failure
-    CHARACTER(len=*), PARAMETER :: routineN = 'p_op_l2',&
-                                   routineP = moduleN//':'//routineN
-    INTEGER                     :: ispin, n_spins, stat, lfomo, nmo, handle
-    REAL(KIND = dp) :: my_alpha, my_beta, maxocc
-    TYPE(real_matrix_p_type), DIMENSION(:), POINTER :: p1_new, s
-    TYPE(dft_control_type), POINTER :: dft_control
-    TYPE(cp_para_env_type), POINTER :: para_env
-    TYPE(qs_rho_type), POINTER :: rho
-    TYPE(cp_logger_type), POINTER :: logger
-    TYPE(mo_set_p_type), DIMENSION(:), POINTER :: mos
-    INTEGER, SAVE :: iter=0
+    CHARACTER(len=*), PARAMETER :: routineN = 'p_op_l2', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: handle, ispin, lfomo, &
+                                                n_spins, nmo
+    INTEGER, SAVE                            :: iter = 0
+    LOGICAL                                  :: failure
+    REAL(KIND=dp)                            :: maxocc, my_alpha, my_beta
+    TYPE(cp_logger_type), POINTER            :: logger
+    TYPE(cp_para_env_type), POINTER          :: para_env
+    TYPE(dft_control_type), POINTER          :: dft_control
+    TYPE(mo_set_p_type), DIMENSION(:), &
+      POINTER                                :: mos
+    TYPE(qs_rho_type), POINTER               :: rho
+    TYPE(real_matrix_p_type), DIMENSION(:), &
+      POINTER                                :: p1_new, s
 
     CALL timeset(routineN,"I","",handle)
 

@@ -39,6 +39,7 @@ MODULE xc_perdew_zunger
                                              calc_rs,&
                                              calc_z,&
                                              set_util
+
   IMPLICIT NONE
 
   LOGICAL :: initialized = .FALSE.
@@ -85,8 +86,7 @@ CONTAINS
 !!****
   SUBROUTINE pz_info ( reference, shortform )
 
-    CHARACTER (LEN=*), INTENT(OUT), OPTIONAL :: reference
-    CHARACTER (LEN=*), INTENT(OUT), OPTIONAL :: shortform
+    CHARACTER(LEN=*), INTENT(OUT), OPTIONAL  :: reference, shortform
 
     IF ( PRESENT ( reference ) ) THEN
        reference = "J. P. Perdew and Alex Zunger," &
@@ -133,17 +133,15 @@ CONTAINS
 !!****
   SUBROUTINE pz_lda ( derivative_set, rho, ec, order )
     
-    IMPLICIT NONE
     
-    TYPE(xc_derivative_set_type), POINTER :: derivative_set
-    REAL(DBL), DIMENSION(:), INTENT(IN) :: rho
-    REAL(DBL), DIMENSION(:,0:), INTENT(OUT) :: ec
-    INTEGER, INTENT(IN), OPTIONAL :: order
+    TYPE(xc_derivative_set_type), POINTER    :: derivative_set
+    REAL(DBL), DIMENSION(:), INTENT(IN)      :: rho
+    REAL(DBL), DIMENSION(:, 0:), INTENT(OUT) :: ec
+    INTEGER, INTENT(IN), OPTIONAL            :: order
 
-    INTEGER :: k, m, n, order_
-    INTEGER :: timer_handle
-    LOGICAL, DIMENSION(0:3) :: calc
-    REAL(DBL), DIMENSION(0:3) :: ed
+    INTEGER                                  :: k, m, n, order_, timer_handle
+    LOGICAL, DIMENSION(0:3)                  :: calc
+    REAL(DBL), DIMENSION(0:3)                :: ed
 
     CALL timeset('perdew_zunger lda', 'I', ' ', timer_handle)
 
@@ -244,13 +242,13 @@ CONTAINS
 !!****
   SUBROUTINE pz_lda_ed(rho, ed, order)
 
-    IMPLICIT NONE
 
-    REAL(DBL), DIMENSION(1:), INTENT(IN) :: rho
-    REAL(DBL), DIMENSION(1:,0:), INTENT(OUT) :: ed
-    INTEGER, INTENT(IN), OPTIONAL :: order
+    REAL(DBL), DIMENSION(1:), INTENT(IN)     :: rho
+    REAL(DBL), DIMENSION(1:, 0:), &
+      INTENT(OUT)                            :: ed
+    INTEGER, INTENT(IN), OPTIONAL            :: order
 
-    INTEGER :: k, n, m, order_ = 0
+    INTEGER                                  :: k, m, n, order_ = 0
 
     n = SIZE(rho)
     IF (PRESENT(order)) order_ = order
@@ -320,19 +318,17 @@ CONTAINS
 !!****
   SUBROUTINE pz_lsd ( derivative_set, a, b, ec, order )
     
-    IMPLICIT NONE
     
-    TYPE(xc_derivative_set_type), POINTER :: derivative_set
-    REAL(DBL), DIMENSION(:), INTENT(IN) :: a, b
-    REAL(DBL), DIMENSION(:,0:), INTENT(OUT) :: ec
-    INTEGER, INTENT(IN), OPTIONAL :: order
+    TYPE(xc_derivative_set_type), POINTER    :: derivative_set
+    REAL(DBL), DIMENSION(:), INTENT(IN)      :: a, b
+    REAL(DBL), DIMENSION(:, 0:), INTENT(OUT) :: ec
+    INTEGER, INTENT(IN), OPTIONAL            :: order
 
-    INTEGER :: k, n, m, order_
-    INTEGER :: timer_handle
-    LOGICAL, DIMENSION(0:3) :: calc
-    REAL(DBL), DIMENSION(0:9) :: ed
-    REAL(DBL) :: rho
-    
+    INTEGER                                  :: k, m, n, order_, timer_handle
+    LOGICAL, DIMENSION(0:3)                  :: calc
+    REAL(DBL)                                :: rho
+    REAL(DBL), DIMENSION(0:9)                :: ed
+
     CALL timeset('perdew_zunger lsd', 'I', ' ', timer_handle)
 
     n = SIZE(a)
@@ -446,15 +442,13 @@ CONTAINS
 !!****
   SUBROUTINE pz_lsd_ed(rhoa, rhob, ed, order)
 
-    IMPLICIT NONE
 
-    REAL(DBL), DIMENSION(1:), INTENT(IN) :: rhoa, rhob
-    REAL(DBL), DIMENSION(1:,0:), INTENT(OUT) :: ed
-    INTEGER, INTENT(IN), OPTIONAL :: order
+    REAL(DBL), DIMENSION(1:), INTENT(IN)     :: rhoa, rhob
+    REAL(DBL), DIMENSION(1:, 0:), &
+      INTENT(OUT)                            :: ed
+    INTEGER, INTENT(IN), OPTIONAL            :: order
 
-    INTEGER :: k, l, n, m, order_ = 0
-    LOGICAL, DIMENSION(0:3) :: calc = .FALSE.
-    REAL(DBL) :: rho
+    INTEGER                                  :: k, m, n, order_ = 0
 
     IF (PRESENT(order)) order_ = order
 
@@ -509,11 +503,10 @@ CONTAINS
 !!****
   SUBROUTINE pz_init ( method, cutoff )
     
-    IMPLICIT NONE
 
-    CHARACTER(*), INTENT(IN) :: method
-    REAL(DBL), INTENT(IN) :: cutoff
-    
+    CHARACTER(*), INTENT(IN)                 :: method
+    REAL(DBL), INTENT(IN)                    :: cutoff
+
     CALL set_util(cutoff)
 
     eps_rho = cutoff
@@ -562,14 +555,13 @@ CONTAINS
 
   SUBROUTINE calc_g(r, z, g, order)
 
-    IMPLICIT NONE
 
-    REAL(DBL), INTENT(IN) :: r
-    INTEGER, INTENT(IN) :: z
-    REAL(DBL), DIMENSION(0:), INTENT(OUT) :: g
-    INTEGER, INTENT(IN) :: order
+    REAL(DBL), INTENT(IN)                    :: r
+    INTEGER, INTENT(IN)                      :: z
+    REAL(DBL), DIMENSION(0:), INTENT(OUT)    :: g
+    INTEGER, INTENT(IN)                      :: order
 
-    REAL(DBL) :: sr, rsr, rr
+    REAL(DBL)                                :: rr, rsr, sr
 
     IF (r >= 1.0_dbl) THEN
 
@@ -621,16 +613,14 @@ CONTAINS
 
   SUBROUTINE pz_lda_ed_loc ( rho, ed, order )
     
-    IMPLICIT NONE
     
-    REAL(DBL), INTENT(IN) :: rho
-    REAL(DBL), DIMENSION(0:), INTENT(OUT) :: ed
-    INTEGER, INTENT(IN) :: order
+    REAL(DBL), INTENT(IN)                    :: rho
+    REAL(DBL), DIMENSION(0:), INTENT(OUT)    :: ed
+    INTEGER, INTENT(IN)                      :: order
 
-    INTEGER :: m, order_
-    LOGICAL, DIMENSION(0:3) :: calc
-    REAL(DBL), DIMENSION(0:3) :: r
-    REAL(DBL), DIMENSION(0:3) :: e0
+    INTEGER                                  :: m, order_
+    LOGICAL, DIMENSION(0:3)                  :: calc
+    REAL(DBL), DIMENSION(0:3)                :: e0, r
 
     calc = .FALSE.
 
@@ -672,20 +662,18 @@ CONTAINS
 
   SUBROUTINE pz_lsd_ed_loc ( a, b, ed, order )
     
-    IMPLICIT NONE
     
-    REAL(DBL), INTENT(IN) :: a, b
-    REAL(DBL), DIMENSION(0:), INTENT(OUT) :: ed
-    INTEGER, INTENT(IN), OPTIONAL :: order
+    REAL(DBL), INTENT(IN)                    :: a, b
+    REAL(DBL), DIMENSION(0:), INTENT(OUT)    :: ed
+    INTEGER, INTENT(IN), OPTIONAL            :: order
 
-    INTEGER :: m, order_
-    LOGICAL, DIMENSION(0:3) :: calc
-    REAL(DBL), DIMENSION(0:3) :: e0, e1, f
-    REAL(DBL), DIMENSION(0:3,0:3) :: z
+    INTEGER                                  :: m, order_
+    LOGICAL, DIMENSION(0:3)                  :: calc
+    REAL(DBL)                                :: rho, tr, trr, trrr, trrz, &
+                                                trz, trzz, tz, tzz, tzzz
+    REAL(DBL), DIMENSION(0:3)                :: e0, e1, f, r
+    REAL(DBL), DIMENSION(0:3, 0:3)           :: z
 
-    REAL(DBL) :: rho, tr, tz, trr, trz, tzz, trrr, trrz, trzz, tzzz
-    REAL(DBL), DIMENSION(0:3) :: r
-    
     calc = .FALSE.
 
     order_ = 0

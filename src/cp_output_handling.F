@@ -36,24 +36,18 @@
 MODULE cp_output_handling
   USE cp_error_handling,               ONLY: cp_a_l,&
                                              cp_assert,&
-                                             cp_assertion_failed,&
-                                             cp_debug,&
-                                             cp_error_dealloc_ref,&
                                              cp_error_get_logger,&
-                                             cp_error_init,&
                                              cp_error_message,&
-                                             cp_error_type,&
-                                             cp_internal_error,&
-                                             cp_unimplemented_error
+                                             cp_error_type
   USE cp_log_handling,                 ONLY: cp_failure_level,&
                                              cp_fatal_level,&
-                                             cp_log,&
                                              cp_logger_get_default_unit_nr,&
                                              cp_logger_type,&
                                              cp_note_level,&
                                              cp_to_string,&
                                              cp_warning_level
   USE kinds,                           ONLY: dp
+
   IMPLICIT NONE
   PRIVATE
 
@@ -112,13 +106,13 @@ CONTAINS
 !!*** *********************************************************************
 ! pure 
   FUNCTION cp_would_output(logger, outputName , fromWhere, iter, local, error)
-    LOGICAL :: cp_would_output
-    TYPE(cp_logger_type), POINTER ::logger
-    CHARACTER(len=*) , INTENT(in) :: outputName
-    CHARACTER(len=*), INTENT(in):: fromWhere
-    INTEGER, INTENT(in) :: iter
-    LOGICAL, INTENT(in), OPTIONAL :: local
-    TYPE(cp_error_type), INTENT(inout), OPTIONAL :: error
+    TYPE(cp_logger_type), POINTER            :: logger
+    CHARACTER(len=*), INTENT(in)             :: outputName, fromWhere
+    INTEGER, INTENT(in)                      :: iter
+    LOGICAL, INTENT(in), OPTIONAL            :: local
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
+    LOGICAL                                  :: cp_would_output
 
     cp_would_output=.TRUE.
   END FUNCTION cp_would_output
@@ -170,12 +164,13 @@ CONTAINS
 !pure 
   FUNCTION cp_unitnr_for_output(logger, outputName, fromWhere, iter, local,&
        error) RESULT(res)
-    INTEGER :: res
-    TYPE(cp_logger_type), POINTER :: logger
-    CHARACTER(len=*), INTENT(in):: outputName, fromWhere
-    INTEGER, INTENT(in) :: iter
-    LOGICAL, INTENT(in), OPTIONAL :: local
-    TYPE(cp_error_type), INTENT(inout), OPTIONAL :: error
+    TYPE(cp_logger_type), POINTER            :: logger
+    CHARACTER(len=*), INTENT(in)             :: outputName, fromWhere
+    INTEGER, INTENT(in)                      :: iter
+    LOGICAL, INTENT(in), OPTIONAL            :: local
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
+    INTEGER                                  :: res
 
     res=cp_logger_get_default_unit_nr(logger,local=local)
   END FUNCTION cp_unitnr_for_output
@@ -217,16 +212,18 @@ CONTAINS
 !!*** **********************************************************************
   SUBROUTINE cp_finished_output(logger, outputName, fromWhere, iter, &
        unit_nr,local,error)
-    INTEGER :: cp_unitnr_for_output
-    TYPE(cp_logger_type), POINTER :: logger
-    CHARACTER(len=*), INTENT(in):: outputName, fromWhere
-    INTEGER, INTENT(in) :: iter, unit_nr
-    LOGICAL, INTENT(in), OPTIONAL :: local
-    TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
+    TYPE(cp_logger_type), POINTER            :: logger
+    CHARACTER(len=*), INTENT(in)             :: outputName, fromWhere
+    INTEGER, INTENT(in)                      :: iter, unit_nr
+    LOGICAL, INTENT(in), OPTIONAL            :: local
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
 
-    LOGICAL :: failure
-    CHARACTER(len=*), PARAMETER :: routineN='cp_finished_output',&
-         routineP=moduleN//':'//routineN
+    CHARACTER(len=*), PARAMETER :: routineN = 'cp_finished_output', &
+      routineP = moduleN//':'//routineN
+
+    LOGICAL                                  :: failure
+
     failure=.FALSE.
 
   END SUBROUTINE cp_finished_output
@@ -281,16 +278,20 @@ CONTAINS
 !!*** *********************************************************************
   SUBROUTINE cp_write_output(logger, outputName , fromWhere , iter, message,&
        local,error)
-    TYPE(cp_logger_type), POINTER :: logger
-    CHARACTER(len=*), INTENT(in)  :: outputName
-    CHARACTER(len=*), INTENT(in)  :: fromWhere, message
-    INTEGER, INTENT(in)           :: iter
-    LOGICAL, INTENT(in), OPTIONAL :: local
-    TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
+    TYPE(cp_logger_type), POINTER            :: logger
+    CHARACTER(len=*), INTENT(in)             :: outputName, fromWhere
+    INTEGER, INTENT(in)                      :: iter
+    CHARACTER(len=*), INTENT(in)             :: message
+    LOGICAL, INTENT(in), OPTIONAL            :: local
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
 
-    CHARACTER(len=*), PARAMETER :: routineP='cp_output_handling:cp_write_output'
-    LOGICAL :: failure, my_local
-    INTEGER ::unitNr,oErr
+    CHARACTER(len=*), PARAMETER :: &
+      routineP = 'cp_output_handling:cp_write_output'
+
+    INTEGER                                  :: oErr, unitNr
+    LOGICAL                                  :: failure, my_local
+
     failure=.FALSE.
     my_local=.FALSE.
     IF (PRESENT(local)) my_local=local

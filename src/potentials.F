@@ -21,15 +21,20 @@
 
 MODULE potentials
   
-  USE coefficient_types, ONLY : coeff_type, coeff_zero, coeff_copy, &
-       coeff_allocate, coeff_deallocate, coeff_add
-  USE density_types, ONLY : density_type
-  USE cp_control_types, ONLY : dft_control_type
-  USE hartree, ONLY : calculate_hartree
-  USE kinds, ONLY : dbl
-  USE potential_types, ONLY : potential_type
+  USE coefficient_types,               ONLY: coeff_add,&
+                                             coeff_allocate,&
+                                             coeff_copy,&
+                                             coeff_deallocate,&
+                                             coeff_type,&
+                                             coeff_zero
+  USE cp_control_types,                ONLY: dft_control_type
+  USE density_types,                   ONLY: density_type
+  USE hartree,                         ONLY: calculate_hartree
+  USE kinds,                           ONLY: dbl
+  USE potential_types,                 ONLY: potential_type
 !JH  USE xc, ONLY : calculate_xc
-  
+
+
   PRIVATE
   PUBLIC :: potential_update, zero
   
@@ -45,23 +50,23 @@ CONTAINS
 
 SUBROUTINE potential_update ( n, vloc, dft_control, tprint )
   
-  IMPLICIT NONE
   
-! Arguments
-  TYPE ( density_type ), DIMENSION ( : ), INTENT ( IN ) :: n
-  TYPE ( dft_control_type ), INTENT ( IN ) :: dft_control
-  LOGICAL, INTENT ( IN ) :: tprint
-  TYPE ( potential_type ), DIMENSION ( : ), INTENT ( INOUT ), TARGET :: vloc
-  
-! Local
-  INTEGER :: densityset, ndensitysets, spin, nspins
-  REAL ( dbl ) :: e_hartree, e_xc, e_ext  ! TMPTMPTMP
-  TYPE ( coeff_type ), POINTER :: vloc_s
-  TYPE ( coeff_type ) :: n_total
-  TYPE ( potential_type ), POINTER :: v_xc, v_hartree, v_ext
-  
+    TYPE(density_type), DIMENSION(:), &
+      INTENT(IN)                             :: n
+    TYPE(potential_type), DIMENSION(:), &
+      INTENT(INOUT), TARGET                  :: vloc
+    TYPE(dft_control_type), INTENT(IN)       :: dft_control
+    LOGICAL, INTENT(IN)                      :: tprint
+
+    INTEGER                                  :: densityset, ndensitysets, &
+                                                nspins, spin
+    REAL(dbl)                                :: e_hartree
+    TYPE(coeff_type)                         :: n_total
+    TYPE(potential_type), POINTER            :: v_ext, v_hartree, v_xc
+
+! TMPTMPTMP
 !------------------------------------------------------------------------------
-  
+
   ndensitysets = SIZE ( n )
   
   DO densityset = 1, ndensitysets
@@ -111,16 +116,14 @@ END SUBROUTINE potential_update
 
 SUBROUTINE potential_set_zero ( vloc )
   
-  IMPLICIT NONE
   
-! Arguments
-  TYPE ( potential_type ), DIMENSION ( : ), INTENT ( INOUT ) :: vloc
-  
-! Locals
-  INTEGER :: spin, nspins, potset, npotsets
-  
+    TYPE(potential_type), DIMENSION(:), &
+      INTENT(INOUT)                          :: vloc
+
+    INTEGER                                  :: npotsets, nspins, potset, spin
+
 !------------------------------------------------------------------------------
-  
+
   npotsets = SIZE ( vloc )
   
   DO potset = 1, npotsets
@@ -137,16 +140,13 @@ END SUBROUTINE potential_set_zero
 
 SUBROUTINE potential_zero ( vloc )
   
-  IMPLICIT NONE
   
-! Arguments
-  TYPE ( potential_type ), INTENT ( INOUT ) :: vloc
-  
-! Locals
-  INTEGER :: spin, nspins
-  
+    TYPE(potential_type), INTENT(INOUT)      :: vloc
+
+    INTEGER                                  :: nspins, spin
+
 !------------------------------------------------------------------------------
-  
+
   nspins = vloc % nspin
   
   DO spin = 1, nspins
@@ -159,13 +159,11 @@ END SUBROUTINE potential_zero
 
 SUBROUTINE potential_zero_spinset ( vloc_s )
   
-  IMPLICIT NONE
   
-! Arguments
-  TYPE ( coeff_type ), INTENT ( INOUT ) :: vloc_s
-  
+    TYPE(coeff_type), INTENT(INOUT)          :: vloc_s
+
 !------------------------------------------------------------------------------
-  
+
   CALL coeff_zero ( vloc_s )
   
 END SUBROUTINE potential_zero_spinset

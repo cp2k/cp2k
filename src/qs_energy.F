@@ -25,15 +25,13 @@ MODULE qs_energy
   USE kinds,                           ONLY: dp
   USE qs_core_hamiltonian,             ONLY: build_core_hamiltonian_matrix
   USE qs_environment_methods,          ONLY: qs_env_update_s_mstruct
-  USE qs_environment_types,            ONLY: get_qs_env,&
-                                             qs_environment_type,&
-                                             set_qs_env
+  USE qs_environment_types,            ONLY: qs_environment_type
   USE qs_neighbor_lists,               ONLY: build_qs_neighbor_lists
   USE qs_scf,                          ONLY: scf
   USE qs_tddfpt_module,                ONLY: tddfpt_calculation
-  USE termination,                     ONLY: stop_program
   USE timings,                         ONLY: timeset,&
                                              timestop
+
   IMPLICIT NONE
 
   PRIVATE
@@ -59,20 +57,16 @@ CONTAINS
 
 !   ***************************************************************************
 
-    TYPE(global_environment_type),INTENT(in) :: globenv
     TYPE(qs_environment_type), POINTER       :: qs_env
+    TYPE(global_environment_type), &
+      INTENT(in)                             :: globenv
     LOGICAL, INTENT(in), OPTIONAL            :: neighbor_lists_from_scratch
 
-!   *** Local parameters ***
-    
-    CHARACTER(LEN=*), PARAMETER :: routine_name = "qs_energies"
-    CHARACTER(LEN=*), PARAMETER :: routine =&
-      "SUBROUTINE "//routine_name//" (MODULE "//module_name//")"
+    CHARACTER(LEN=*), PARAMETER :: routine_name = "qs_energies", &
+      routine = "SUBROUTINE "//routine_name//" (MODULE "//module_name//")"
 
-!   *** Local variables ***
-
-    INTEGER :: handle
-    LOGICAL :: my_neighbor_lists_from_scratch
+    INTEGER                                  :: handle
+    LOGICAL                                  :: my_neighbor_lists_from_scratch
 
 !   ---------------------------------------------------------------------------
 

@@ -24,7 +24,9 @@ MODULE external_potential_types
   USE global_types,                    ONLY: global_environment_type
   USE kinds,                           ONLY: default_string_length,&
                                              dp
-  USE mathconstants,                   ONLY: dfac,fac,pi
+  USE mathconstants,                   ONLY: dfac,&
+                                             fac,&
+                                             pi
   USE mathlib,                         ONLY: symmetrize_matrix
   USE memory_utilities,                ONLY: reallocate
   USE orbital_pointers,                ONLY: co,&
@@ -185,15 +187,11 @@ CONTAINS
 
 !   ***************************************************************************
 
-    TYPE(all_potential_type), POINTER :: potential
-
-!   *** Local parameters ***
+    TYPE(all_potential_type), POINTER        :: potential
 
     CHARACTER(LEN=*), PARAMETER :: routine_name = "allocate_all_potential"
 
-!   *** Local variables ***
-
-    INTEGER :: istat
+    INTEGER                                  :: istat
 
 !   ---------------------------------------------------------------------------
 
@@ -220,15 +218,11 @@ CONTAINS
 
 !   ***************************************************************************
 
-    TYPE(elp_potential_type), POINTER :: potential
-
-!   *** Local parameters ***
+    TYPE(elp_potential_type), POINTER        :: potential
 
     CHARACTER(LEN=*), PARAMETER :: routine_name = "allocate_elp_potential"
 
-!   *** Local variables ***
-
-    INTEGER :: istat
+    INTEGER                                  :: istat
 
 !   ---------------------------------------------------------------------------
 
@@ -255,15 +249,11 @@ CONTAINS
 
 !   ***************************************************************************
 
-    TYPE(gth_potential_type), POINTER :: potential
-
-!   *** Local parameters ***
+    TYPE(gth_potential_type), POINTER        :: potential
 
     CHARACTER(LEN=*), PARAMETER :: routine_name = "allocate_gth_potential"
 
-!   *** Local variables ***
-
-    INTEGER :: istat
+    INTEGER                                  :: istat
 
 !   ---------------------------------------------------------------------------
 
@@ -300,15 +290,11 @@ CONTAINS
 
 !   ***************************************************************************
 
-    TYPE(all_potential_type), POINTER :: potential
-
-!   *** Local parameters ***
+    TYPE(all_potential_type), POINTER        :: potential
 
     CHARACTER(LEN=*), PARAMETER :: routine_name = "deallocate_all_potential"
 
-!   *** Local variables ***
-
-    INTEGER :: istat
+    INTEGER                                  :: istat
 
 !   ---------------------------------------------------------------------------
 
@@ -340,15 +326,11 @@ CONTAINS
 
 !   ***************************************************************************
 
-    TYPE(elp_potential_type), POINTER :: potential
-
-!   *** Local parameters ***
+    TYPE(elp_potential_type), POINTER        :: potential
 
     CHARACTER(LEN=*), PARAMETER :: routine_name = "deallocate_elp_potential"
 
-!   *** Local variables ***
-
-    INTEGER :: istat
+    INTEGER                                  :: istat
 
 !   ---------------------------------------------------------------------------
 
@@ -395,15 +377,11 @@ CONTAINS
 
 !   ***************************************************************************
 
-    TYPE(gth_potential_type), POINTER :: potential
-
-!   *** Local parameters ***
+    TYPE(gth_potential_type), POINTER        :: potential
 
     CHARACTER(LEN=*), PARAMETER :: routine_name = "deallocate_gth_potential"
 
-!   *** Local variables ***
-
-    INTEGER :: istat
+    INTEGER                                  :: istat
 
 !   ---------------------------------------------------------------------------
 
@@ -477,15 +455,13 @@ CONTAINS
 !   ***************************************************************************
 
     TYPE(all_potential_type), POINTER        :: potential
-    CHARACTER(LEN=default_string_length),&
-      OPTIONAL, INTENT(OUT)                  :: name
-    REAL(KIND = dp), OPTIONAL, INTENT(OUT)   :: alpha_core_charge,&
-                                                ccore_charge,&
+    CHARACTER(LEN=default_string_length), &
+      INTENT(OUT), OPTIONAL                  :: name
+    REAL(KIND=dp), INTENT(OUT), OPTIONAL     :: alpha_core_charge, &
+                                                ccore_charge, &
                                                 core_charge_radius
-    INTEGER, OPTIONAL, INTENT(OUT)           :: z,zeff
+    INTEGER, INTENT(OUT), OPTIONAL           :: z, zeff
     INTEGER, DIMENSION(:), OPTIONAL, POINTER :: elec_conf
-
-!   *** Local parameters ***
 
     CHARACTER(LEN=*), PARAMETER :: routine_name = "get_all_potential"
 
@@ -526,21 +502,21 @@ CONTAINS
 !   ***************************************************************************
 
     TYPE(elp_potential_type), POINTER        :: potential
-    CHARACTER(LEN=default_string_length),&
-      OPTIONAL, INTENT(OUT)                  :: name
-    REAL(KIND = dp), OPTIONAL, INTENT(OUT)   :: alpha_core_charge,&
-                                                ccore_charge,&
-                                                cerf_ppl,&
-                                                core_charge_radius,&
-                                                ppl_radius,&
-                                                qeff
-    INTEGER,DIMENSION (:),OPTIONAL, POINTER         :: nexp_ppl               
-    REAL(KIND = dp),DIMENSION(:),OPTIONAL,POINTER   :: alpha_ppl
-    REAL(KIND = dp),DIMENSION(:,:),OPTIONAL,POINTER :: cexp_ppl  
-    INTEGER, OPTIONAL                             :: nalpha_ppl
-    LOGICAL, OPTIONAL, INTENT(OUT)                :: ppl_present
-
-!   *** Local parameters ***
+    CHARACTER(LEN=default_string_length), &
+      INTENT(OUT), OPTIONAL                  :: name
+    REAL(KIND=dp), INTENT(OUT), OPTIONAL     :: alpha_core_charge
+    REAL(KIND=dp), DIMENSION(:), OPTIONAL, &
+      POINTER                                :: alpha_ppl
+    REAL(KIND=dp), INTENT(OUT), OPTIONAL     :: cerf_ppl
+    REAL(KIND=dp), DIMENSION(:, :), &
+      OPTIONAL, POINTER                      :: cexp_ppl
+    INTEGER, OPTIONAL                        :: nalpha_ppl
+    REAL(KIND=dp), INTENT(OUT), OPTIONAL     :: ccore_charge, &
+                                                core_charge_radius
+    INTEGER, DIMENSION(:), OPTIONAL, POINTER :: nexp_ppl
+    REAL(KIND=dp), INTENT(OUT), OPTIONAL     :: ppl_radius
+    LOGICAL, INTENT(OUT), OPTIONAL           :: ppl_present
+    REAL(KIND=dp), INTENT(OUT), OPTIONAL     :: qeff
 
     CHARACTER(LEN=*), PARAMETER :: routine_name = "get_elp_potential"
 
@@ -588,27 +564,22 @@ CONTAINS
 
 !   ***************************************************************************
 
-    TYPE(gth_potential_type), POINTER             :: potential
-    CHARACTER(LEN=default_string_length),&
-      OPTIONAL, INTENT(OUT)                       :: name
-    REAL(KIND = dp), OPTIONAL, INTENT(OUT)        :: alpha_core_charge,&
-                                                     alpha_ppl,ccore_charge,&
-                                                     cerf_ppl,&
-                                                     core_charge_radius,&
-                                                     ppl_radius,ppnl_radius
-    INTEGER, OPTIONAL, INTENT(OUT)                :: lppnl,lprj_ppnl_max,&
-                                                     nexp_ppl,nppnl,&
-                                                     nprj_ppnl_max,z,zeff
-    LOGICAL, OPTIONAL, INTENT(OUT)                :: ppl_present,ppnl_present
-    REAL(KIND = dp), DIMENSION(:), OPTIONAL,&
-      POINTER                                     :: alpha_ppnl,cexp_ppl
-    INTEGER, DIMENSION(:), OPTIONAL, POINTER      :: elec_conf,nprj_ppnl
-    REAL(KIND = dp), DIMENSION(:,:), OPTIONAL,&
-      POINTER                                     :: cprj,cprj_ppnl,vprj_ppnl
-    REAL(KIND = dp), DIMENSION(:,:,:), OPTIONAL,&
-      POINTER                                     :: hprj_ppnl
-
-!   *** Local parameters ***
+    TYPE(gth_potential_type), POINTER        :: potential
+    CHARACTER(LEN=default_string_length), &
+      INTENT(OUT), OPTIONAL                  :: name
+    REAL(KIND=dp), INTENT(OUT), OPTIONAL :: alpha_core_charge, alpha_ppl, &
+      ccore_charge, cerf_ppl, core_charge_radius, ppl_radius, ppnl_radius
+    INTEGER, INTENT(OUT), OPTIONAL           :: lppnl, lprj_ppnl_max, &
+                                                nexp_ppl, nppnl, &
+                                                nprj_ppnl_max, z, zeff
+    LOGICAL, INTENT(OUT), OPTIONAL           :: ppl_present, ppnl_present
+    REAL(KIND=dp), DIMENSION(:), OPTIONAL, &
+      POINTER                                :: alpha_ppnl, cexp_ppl
+    INTEGER, DIMENSION(:), OPTIONAL, POINTER :: elec_conf, nprj_ppnl
+    REAL(KIND=dp), DIMENSION(:, :), &
+      OPTIONAL, POINTER                      :: cprj, cprj_ppnl, vprj_ppnl
+    REAL(KIND=dp), DIMENSION(:, :, :), &
+      OPTIONAL, POINTER                      :: hprj_ppnl
 
     CHARACTER(LEN=*), PARAMETER :: routine_name = "get_gth_potential"
 
@@ -666,13 +637,12 @@ CONTAINS
 
 !   ***************************************************************************
 
-    TYPE(gth_potential_type), POINTER :: potential
+    TYPE(gth_potential_type), POINTER        :: potential
 
-!   *** Local variables ***
-
-    REAL(KIND = dp) :: alpha_ppnl,cp
-    INTEGER         :: cpx,cpy,cpz,cx,cy,cz,ico,iprj,iprj_ppnl,l,lp,&
-                       lprj_ppnl,nprj,px,py,pz
+    INTEGER                                  :: cpx, cpy, cpz, cx, cy, cz, &
+                                                ico, iprj, iprj_ppnl, l, lp, &
+                                                lprj_ppnl, nprj, px, py, pz
+    REAL(KIND=dp)                            :: alpha_ppnl, cp
 
 !   ---------------------------------------------------------------------------
 
@@ -719,7 +689,7 @@ CONTAINS
 
 !   ***************************************************************************
 
-    TYPE(gth_potential_type), POINTER :: potential
+    TYPE(gth_potential_type), POINTER        :: potential
 
 !   ---------------------------------------------------------------------------
 
@@ -753,11 +723,11 @@ CONTAINS
 
 !   ***************************************************************************
 
-    TYPE(gth_potential_type), POINTER :: potential
+    TYPE(gth_potential_type), POINTER        :: potential
 
-!   *** Local variables ***
-
-    INTEGER :: i,ico,iprj,iprj_ppnl,iso,j,jco,jprj,jprj_ppnl,l,nprj
+    INTEGER                                  :: i, ico, iprj, iprj_ppnl, iso, &
+                                                j, jco, jprj, jprj_ppnl, l, &
+                                                nprj
 
 !   ---------------------------------------------------------------------------
 
@@ -799,27 +769,23 @@ CONTAINS
 
 !   ***************************************************************************
 
-    TYPE(all_potential_type), POINTER         :: potential
-    TYPE(global_environment_type), INTENT(IN) :: globenv
-    CHARACTER(LEN=*), INTENT(IN)              :: element_symbol,potential_name
-
-!   *** Local parameters ***
+    CHARACTER(LEN=*), INTENT(IN)             :: element_symbol, potential_name
+    TYPE(all_potential_type), POINTER        :: potential
+    TYPE(global_environment_type), &
+      INTENT(IN)                             :: globenv
 
     CHARACTER(LEN=*), PARAMETER :: routine_name = "read_all_potential"
 
-!   *** Local variables ***
-
-    CHARACTER(LEN=LEN(potential_name))   :: apname
-    CHARACTER(LEN=LEN(potential_name)+2) :: apname2
-    CHARACTER(LEN=240)                   :: line
-    CHARACTER(LEN=242)                   :: line2
-    CHARACTER(LEN=LEN(element_symbol))   :: symbol
-    CHARACTER(LEN=LEN(element_symbol)+2) :: symbol2
-    REAL(KIND = dp)                      :: alpha,r
-    INTEGER                              :: istat,l,strlen1,strlen2
-    LOGICAL                              :: found
-
-    INTEGER, DIMENSION(:), POINTER :: elec_conf
+    CHARACTER(LEN=240)                       :: line
+    CHARACTER(LEN=242)                       :: line2
+    CHARACTER(LEN=LEN(element_symbol))       :: symbol
+    CHARACTER(LEN=LEN(element_symbol)+2)     :: symbol2
+    CHARACTER(LEN=LEN(potential_name))       :: apname
+    CHARACTER(LEN=LEN(potential_name)+2)     :: apname2
+    INTEGER                                  :: istat, l, strlen1, strlen2
+    INTEGER, DIMENSION(:), POINTER           :: elec_conf
+    LOGICAL                                  :: found
+    REAL(KIND=dp)                            :: alpha, r
 
 !   ---------------------------------------------------------------------------
 
@@ -922,26 +888,23 @@ CONTAINS
 
 !   ***************************************************************************
 
-    TYPE(elp_potential_type), POINTER         :: potential
-    TYPE(global_environment_type), INTENT(IN) :: globenv
-    CHARACTER(LEN=*), INTENT(IN)              :: element_symbol,potential_name
-
-!   *** Local parameters ***
+    CHARACTER(LEN=*), INTENT(IN)             :: element_symbol, potential_name
+    TYPE(elp_potential_type), POINTER        :: potential
+    TYPE(global_environment_type), &
+      INTENT(IN)                             :: globenv
 
     CHARACTER(LEN=*), PARAMETER :: routine_name = "read_elp_potential"
 
-!   *** Local variables ***
-
-    CHARACTER(LEN=LEN(potential_name))   :: apname
-    CHARACTER(LEN=LEN(potential_name)+2) :: apname2
-    CHARACTER(LEN=240)                   :: line
-    CHARACTER(LEN=242)                   :: line2
-    CHARACTER(LEN=LEN(element_symbol))   :: symbol
-    CHARACTER(LEN=LEN(element_symbol)+2) :: symbol2
-    REAL(KIND = dp)                      :: alpha,qeff
-    INTEGER                              :: istat,strlen1,strlen2
-    INTEGER                              :: nalpha_ppl,n,nmax,i,j,maxlppl
-    LOGICAL                              :: found
+    CHARACTER(LEN=240)                       :: line
+    CHARACTER(LEN=242)                       :: line2
+    CHARACTER(LEN=LEN(element_symbol))       :: symbol
+    CHARACTER(LEN=LEN(element_symbol)+2)     :: symbol2
+    CHARACTER(LEN=LEN(potential_name))       :: apname
+    CHARACTER(LEN=LEN(potential_name)+2)     :: apname2
+    INTEGER                                  :: i, j, maxlppl, n, nalpha_ppl, &
+                                                nmax, strlen1, strlen2
+    LOGICAL                                  :: found
+    REAL(KIND=dp)                            :: alpha, qeff
 
 !   ---------------------------------------------------------------------------
 
@@ -1065,33 +1028,29 @@ CONTAINS
 
 !   ***************************************************************************
 
-    TYPE(global_environment_type), INTENT(IN) :: globenv
-    TYPE(gth_potential_type), POINTER         :: potential
-    CHARACTER(LEN=*), INTENT(IN)              :: element_symbol,&
-                                                 potential_name
-
-!   *** Local parameters ***
+    CHARACTER(LEN=*), INTENT(IN)             :: element_symbol, potential_name
+    TYPE(gth_potential_type), POINTER        :: potential
+    TYPE(global_environment_type), &
+      INTENT(IN)                             :: globenv
 
     CHARACTER(LEN=*), PARAMETER :: routine_name = "read_gth_potential"
 
-!   *** Local variables ***
-
-    CHARACTER(LEN=LEN(potential_name))   :: apname
-    CHARACTER(LEN=LEN(potential_name)+2) :: apname2
-    CHARACTER(LEN=240)                   :: line
-    CHARACTER(LEN=242)                   :: line2
-    CHARACTER(LEN=LEN(element_symbol))   :: symbol
-    CHARACTER(LEN=LEN(element_symbol)+2) :: symbol2
-    REAL(KIND = dp)                      :: alpha,r
-    INTEGER                              :: i,istat,j,l,lppnl,lprj_ppnl,&
-                                            lprj_ppnl_max,n,maxlppl,nppnl,&
-                                            nprj_ppnl,nprj_ppnl_max,strlen1,&
-                                            strlen2
-    LOGICAL                              :: found
-
-    INTEGER, DIMENSION(:), POINTER :: elec_conf
-
-    REAL(KIND = dp), DIMENSION(:,:,:), POINTER :: hprj_ppnl
+    CHARACTER(LEN=240)                       :: line
+    CHARACTER(LEN=242)                       :: line2
+    CHARACTER(LEN=LEN(element_symbol))       :: symbol
+    CHARACTER(LEN=LEN(element_symbol)+2)     :: symbol2
+    CHARACTER(LEN=LEN(potential_name))       :: apname
+    CHARACTER(LEN=LEN(potential_name)+2)     :: apname2
+    INTEGER                                  :: i, istat, j, l, lppnl, &
+                                                lprj_ppnl_max, maxlppl, n, &
+                                                nppnl, nprj_ppnl, &
+                                                nprj_ppnl_max, strlen1, &
+                                                strlen2
+    INTEGER, DIMENSION(:), POINTER           :: elec_conf
+    LOGICAL                                  :: found
+    REAL(KIND=dp)                            :: alpha, r
+    REAL(KIND=dp), DIMENSION(:, :, :), &
+      POINTER                                :: hprj_ppnl
 
 !   ---------------------------------------------------------------------------
 
@@ -1294,15 +1253,13 @@ CONTAINS
 !   ***************************************************************************
 
     TYPE(all_potential_type), POINTER        :: potential
-    CHARACTER(LEN=default_string_length),&
-      OPTIONAL, INTENT(IN)                   :: name
-    REAL(KIND = dp), OPTIONAL, INTENT(IN)    :: alpha_core_charge,&
-                                                ccore_charge,&
+    CHARACTER(LEN=default_string_length), &
+      INTENT(IN), OPTIONAL                   :: name
+    REAL(KIND=dp), INTENT(IN), OPTIONAL      :: alpha_core_charge, &
+                                                ccore_charge, &
                                                 core_charge_radius
-    INTEGER, OPTIONAL, INTENT(IN)            :: z,zeff
+    INTEGER, INTENT(IN), OPTIONAL            :: z, zeff
     INTEGER, DIMENSION(:), OPTIONAL, POINTER :: elec_conf
-
-!   *** Local parameters ***
 
     CHARACTER(LEN=*), PARAMETER :: routine_name = "set_all_potential"
 
@@ -1341,19 +1298,18 @@ CONTAINS
 !   ***************************************************************************
 
     TYPE(elp_potential_type), POINTER        :: potential
-    CHARACTER(LEN=default_string_length),&
-      OPTIONAL, INTENT(IN)                   :: name
-    REAL(KIND = dp), OPTIONAL, INTENT(IN)    :: alpha_core_charge,&
-                                                ccore_charge,&
-                                                cerf_ppl,&
-                                                core_charge_radius,&
-                                                qeff, ppl_radius
-    REAL(KIND=dp),OPTIONAL,DIMENSION(:,:),POINTER   :: cexp_ppl
-    REAL(KIND=dp),OPTIONAL,DIMENSION(:),POINTER     :: alpha_ppl
-    INTEGER,OPTIONAL,DIMENSION(:),POINTER     :: nexp_ppl
-    INTEGER,OPTIONAL     :: nalpha_ppl
-
-!   *** Local parameters ***
+    CHARACTER(LEN=default_string_length), &
+      INTENT(IN), OPTIONAL                   :: name
+    REAL(KIND=dp), INTENT(IN), OPTIONAL      :: alpha_core_charge, &
+                                                ccore_charge, &
+                                                core_charge_radius
+    REAL(KIND=dp), DIMENSION(:, :), &
+      OPTIONAL, POINTER                      :: cexp_ppl
+    REAL(KIND=dp), INTENT(IN), OPTIONAL      :: cerf_ppl, qeff, ppl_radius
+    REAL(KIND=dp), DIMENSION(:), OPTIONAL, &
+      POINTER                                :: alpha_ppl
+    INTEGER, DIMENSION(:), OPTIONAL, POINTER :: nexp_ppl
+    INTEGER, OPTIONAL                        :: nalpha_ppl
 
     CHARACTER(LEN=*), PARAMETER :: routine_name = "set_elp_potential"
 
@@ -1399,26 +1355,21 @@ CONTAINS
 
 !   ***************************************************************************
 
-    TYPE(gth_potential_type), POINTER             :: potential
-    CHARACTER(LEN=default_string_length),&
-      OPTIONAL, INTENT(IN)                        :: name
-    REAL(KIND = dp), OPTIONAL, INTENT(IN)         :: alpha_core_charge,&
-                                                     alpha_ppl,ccore_charge,&
-                                                     cerf_ppl,&
-                                                     core_charge_radius,&
-                                                     ppl_radius,ppnl_radius
-    INTEGER, OPTIONAL, INTENT(IN)                 :: lppnl,lprj_ppnl_max,&
-                                                     nexp_ppl,nppnl,&
-                                                     nprj_ppnl_max,z,zeff
-    REAL(KIND = dp), DIMENSION(:), OPTIONAL,&
-      POINTER                                     :: alpha_ppnl,cexp_ppl
-    INTEGER, DIMENSION(:), OPTIONAL, POINTER      :: elec_conf,nprj_ppnl
-    REAL(KIND = dp), DIMENSION(:,:), OPTIONAL,&
-      POINTER                                     :: cprj,cprj_ppnl,vprj_ppnl
-    REAL(KIND = dp), DIMENSION(:,:,:), OPTIONAL,&
-      POINTER                                     :: hprj_ppnl
-
-!   *** Local parameters ***
+    TYPE(gth_potential_type), POINTER        :: potential
+    CHARACTER(LEN=default_string_length), &
+      INTENT(IN), OPTIONAL                   :: name
+    REAL(KIND=dp), INTENT(IN), OPTIONAL :: alpha_core_charge, alpha_ppl, &
+      ccore_charge, cerf_ppl, core_charge_radius, ppl_radius, ppnl_radius
+    INTEGER, INTENT(IN), OPTIONAL            :: lppnl, lprj_ppnl_max, &
+                                                nexp_ppl, nppnl, &
+                                                nprj_ppnl_max, z, zeff
+    REAL(KIND=dp), DIMENSION(:), OPTIONAL, &
+      POINTER                                :: alpha_ppnl, cexp_ppl
+    INTEGER, DIMENSION(:), OPTIONAL, POINTER :: elec_conf, nprj_ppnl
+    REAL(KIND=dp), DIMENSION(:, :), &
+      OPTIONAL, POINTER                      :: cprj, cprj_ppnl, vprj_ppnl
+    REAL(KIND=dp), DIMENSION(:, :, :), &
+      OPTIONAL, POINTER                      :: hprj_ppnl
 
     CHARACTER(LEN=*), PARAMETER :: routine_name = "set_gth_potential"
 
@@ -1472,12 +1423,11 @@ CONTAINS
 
 !   ***************************************************************************
 
-    TYPE(all_potential_type), POINTER         :: potential
-    TYPE(global_environment_type), INTENT(IN) :: globenv
+    TYPE(all_potential_type), POINTER        :: potential
+    TYPE(global_environment_type), &
+      INTENT(IN)                             :: globenv
 
-!   *** Local variables ***
-
-    INTEGER :: output_unit
+    INTEGER                                  :: output_unit
 
 !   ---------------------------------------------------------------------------
 
@@ -1515,14 +1465,12 @@ CONTAINS
 
 !   ***************************************************************************
 
-    TYPE(elp_potential_type), POINTER         :: potential
-    TYPE(global_environment_type), INTENT(IN) :: globenv
+    TYPE(elp_potential_type), POINTER        :: potential
+    TYPE(global_environment_type), &
+      INTENT(IN)                             :: globenv
 
-!   *** Local variables ***
-
-    INTEGER :: output_unit
-    INTEGER :: i,j
-    REAL(KIND = dp) :: r 
+    INTEGER                                  :: i, j, output_unit
+    REAL(KIND=dp)                            :: r
 
 !   ---------------------------------------------------------------------------
 
@@ -1569,13 +1517,12 @@ CONTAINS
 
 !   ***************************************************************************
 
-    TYPE(gth_potential_type), POINTER         :: potential
-    TYPE(global_environment_type), INTENT(IN) :: globenv
+    TYPE(gth_potential_type), POINTER        :: potential
+    TYPE(global_environment_type), &
+      INTENT(IN)                             :: globenv
 
-!   *** Local variables ***
-
-    REAL(KIND = dp) :: r
-    INTEGER         :: i,j,l,output_unit
+    INTEGER                                  :: i, j, l, output_unit
+    REAL(KIND=dp)                            :: r
 
 !   ---------------------------------------------------------------------------
 

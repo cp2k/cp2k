@@ -77,13 +77,11 @@ CONTAINS
 
 SUBROUTINE print_kind_info ( iw )
   
-  IMPLICIT NONE
   
-! Arguments
-  INTEGER, INTENT ( IN ) :: iw
-  
+    INTEGER, INTENT(IN)                      :: iw
+
 !------------------------------------------------------------------------------
-  
+
   WRITE ( iw, '( /, T2, A )' ) 'DATA TYPE INFORMATION:'
   
   WRITE ( iw, '( /,T2,A,T78,A,2(/,T2,A,T75,I6),3(/,T2,A,T67,E14.8) )' ) &

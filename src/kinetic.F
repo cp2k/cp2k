@@ -22,11 +22,12 @@
 
 MODULE kinetic
   
-  USE kinds, ONLY: dbl
-  USE coefficient_types, ONLY: coeff_type, PLANEWAVES
-  USE pws, ONLY : pw_kinetic_evaluate
-  USE termination, ONLY : stop_program
-  
+  USE coefficient_types,               ONLY: PLANEWAVES,&
+                                             coeff_type
+  USE kinds,                           ONLY: dbl
+  USE pws,                             ONLY: pw_kinetic_evaluate
+  USE termination,                     ONLY: stop_program
+
   IMPLICIT NONE
   
   PRIVATE
@@ -40,18 +41,16 @@ CONTAINS
 SUBROUTINE kinetic_evaluate ( psi_iks, x_kpt, e_kinetic, kinetic_oper_psi, &
      stress_kinetic )
   
-  IMPLICIT NONE
   
-! Arguments
-  TYPE ( coeff_type ), INTENT ( IN ) :: psi_iks
-  REAL ( dbl ), INTENT ( IN ) :: x_kpt ( 3 )
-  
-  REAL ( dbl ), INTENT ( INOUT ), OPTIONAL :: e_kinetic
-  TYPE ( coeff_type ), INTENT ( INOUT ), OPTIONAL :: kinetic_oper_psi
-  REAL ( dbl ), INTENT ( INOUT ), OPTIONAL :: stress_kinetic ( 3, 3 )
-  
+    TYPE(coeff_type), INTENT(IN)             :: psi_iks
+    REAL(dbl), INTENT(IN)                    :: x_kpt( 3 )
+    REAL(dbl), INTENT(INOUT), OPTIONAL       :: e_kinetic
+    TYPE(coeff_type), INTENT(INOUT), &
+      OPTIONAL                               :: kinetic_oper_psi
+    REAL(dbl), INTENT(INOUT), OPTIONAL       :: stress_kinetic( 3, 3 )
+
 !------------------------------------------------------------------------------
-  
+
   IF ( psi_iks % in_use == PLANEWAVES ) THEN
      CALL pw_kinetic_evaluate ( psi_iks, x_kpt, e_kinetic, kinetic_oper_psi, &
           stress_kinetic )

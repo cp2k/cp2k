@@ -19,20 +19,20 @@
 !******************************************************************************
 
 MODULE mc_misc
+  USE cp_error_handling,               ONLY: cp_error_type
+  USE cp_subsystem_types,              ONLY: cp_subsys_get,&
+                                             cp_subsystem_p_type
   USE force_env_types,                 ONLY: force_env_get,&
                                              force_env_type
-  USE cp_error_handling,               ONLY: cp_error_type
-  USE cp_subsystem_types,              ONLY: cp_subsystem_p_type,&
-                                             cp_subsys_get
-  USE kinds,                           ONLY: dp,dbl
+  USE kinds,                           ONLY: dbl,&
+                                             dp
   USE mc_control,                      ONLY: mc_simulation_parameters_type
   USE mc_move_control,                 ONLY: mc_moves_type
   USE particle_list_types,             ONLY: particle_list_type
   USE simulation_cell,                 ONLY: cell_type
+  USE termination,                     ONLY: stop_memory
   USE timings,                         ONLY: timeset,&
                                              timestop
-  USE termination,                     ONLY: stop_memory
-
 
   IMPLICIT NONE
 
@@ -76,21 +76,16 @@ CONTAINS
 
 SUBROUTINE init_mc_averages ( averages  )
 
-  IMPLICIT NONE
 
-! Arguments
-      TYPE(mc_averages_type), POINTER :: averages
+    TYPE(mc_averages_type), POINTER          :: averages
 
-!   *** Local parameters ***
+    CHARACTER(LEN=*), PARAMETER              :: routineN = "init_mc_averages"
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = "init_mc_averages"
-
-! Locals
-      INTEGER :: handle,stat
+    INTEGER                                  :: handle, stat
 
 !------------------------------------------------------------------------------
-
 ! begin the timing of the subroutine
+
       CALL timeset(routineN,'I','',handle)
 
 ! allocate all the structures...not sure why, but it won't work otherwise
@@ -133,28 +128,25 @@ END SUBROUTINE init_mc_averages
 
 SUBROUTINE get_water_data ( force_env,averages,nnstep,nchain,data  )
 
-  IMPLICIT NONE
 
-! Arguments
-      TYPE(mc_averages_type), POINTER :: averages
-      TYPE(force_env_type), POINTER :: force_env
-      INTEGER, INTENT(IN)               :: nnstep,nchain,data
+    TYPE(force_env_type), POINTER            :: force_env
+    TYPE(mc_averages_type), POINTER          :: averages
+    INTEGER, INTENT(IN)                      :: nnstep, nchain, data
 
-!   *** Local parameters ***
+    CHARACTER(LEN=*), PARAMETER              :: routineN = "get_water_data"
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = "get_water_data"
+    INTEGER                                  :: handle, i, iimol, imol
+    REAL(KIND=dp)                            :: angle_loc, bond1_loc, &
+                                                bond2_loc, tot_squared
+    REAL(KIND=dp), DIMENSION(1:3)            :: vec_1, vec_2
+    TYPE(cp_error_type)                      :: error
+    TYPE(cp_subsystem_p_type), &
+      DIMENSION(:), POINTER                  :: oldsys
+    TYPE(particle_list_type), POINTER        :: particles
 
-! Locals
-      INTEGER                           :: i,imol,iimol,handle
-      TYPE(particle_list_type), POINTER :: particles
-      TYPE(cp_subsystem_p_type), DIMENSION(:), POINTER :: oldsys
-      TYPE(cp_error_type) :: error
-      REAL(KIND = dp)       :: tot_squared,bond1_loc,&
-                               bond2_loc,angle_loc
-      REAL(KIND=dp),DIMENSION(1:3)    :: vec_1,vec_2
 !------------------------------------------------------------------------------
-
 ! begin the timing of the subroutine
+
       CALL timeset(routineN,'I','',handle)
 
 ! initialize some stuff
@@ -238,27 +230,22 @@ END SUBROUTINE get_water_data
 SUBROUTINE final_mc_write (mc_par,moves,iw,energy_check,initial_energy,&
                            old_energy,averages)
 
-  IMPLICIT NONE
 
-! Arguments
-      REAL(KIND = dp),INTENT(IN)            :: energy_check,&
-                                               initial_energy,&
-                                               old_energy
-      TYPE(mc_averages_type),POINTER  :: averages
-      TYPE(mc_moves_type),POINTER  :: moves
-      TYPE(mc_simulation_parameters_type), POINTER :: mc_par
-      INTEGER, INTENT(IN)  :: iw
+    TYPE(mc_simulation_parameters_type), &
+      POINTER                                :: mc_par
+    TYPE(mc_moves_type), POINTER             :: moves
+    INTEGER, INTENT(IN)                      :: iw
+    REAL(KIND=dp), INTENT(IN)                :: energy_check, initial_energy, &
+                                                old_energy
+    TYPE(mc_averages_type), POINTER          :: averages
 
-!   *** Local parameters ***
+    CHARACTER(LEN=*), PARAMETER              :: routineN = "final_mc_write"
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = "final_mc_write"
+    INTEGER                                  :: handle
 
-!   *** Local variables ***
-      INTEGER :: handle
- 
 !------------------------------------------------------------------------------
-
 ! begin the timing of the subroutine
+
     CALL timeset(routineN,'I','',handle)
 
     WRITE(iw,*)
@@ -382,31 +369,31 @@ END SUBROUTINE final_mc_write
 SUBROUTINE mc_classical_energy ( force_env, classical_energy_new,&
                                  mc_par )
 
-  IMPLICIT NONE
 
-! Arguments
-      TYPE(force_env_type), POINTER :: force_env
-      REAL(KIND = dp),INTENT(OUT) :: classical_energy_new
-      TYPE(mc_simulation_parameters_type),POINTER :: mc_par
+    TYPE(force_env_type), POINTER            :: force_env
+    REAL(KIND=dp), INTENT(OUT)               :: classical_energy_new
+    TYPE(mc_simulation_parameters_type), &
+      POINTER                                :: mc_par
 
-!   *** Local parameters ***
+    CHARACTER(LEN=*), PARAMETER :: routineN = "mc_classical_energy"
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = "mc_classical_energy"
-      REAL(KIND = dp)       :: fpie=2.5669722003d-38 !C^2/Hartree/a.u.
-! Locals
-      INTEGER                           :: i,imol,iimol,handle,ipart,&
-                                           jpart,jmol
-      TYPE(particle_list_type), POINTER :: particles
-      TYPE(cp_subsystem_p_type), DIMENSION(:), POINTER :: oldsys
-      TYPE(cp_error_type) :: error
-      REAL(KIND=dp),DIMENSION(1:3)    :: RIJ,min_IJ,charges
-      TYPE(cell_type), POINTER :: cell
-      REAL(KIND=dp) :: dist,four_epsilon,box_length,rcut,&
-                       LJ_energy,charge_energy
-      REAL(KIND=dp),DIMENSION(1:3,1:3,1:mc_par%nchain) :: r
+    INTEGER                                  :: handle, i, imol, ipart, jmol, &
+                                                jpart
+    REAL(KIND=dp) :: box_length, charge_energy, dist, four_epsilon, &
+      fpie = 2.5669722003d-38 , LJ_energy, rcut
+    REAL(KIND=dp), DIMENSION(1:3)            :: charges, min_IJ, RIJ
+    TYPE(cp_subsystem_p_type), &
+      DIMENSION(:), POINTER                  :: oldsys
+    TYPE(cp_error_type)                      :: error
+    TYPE(cell_type), POINTER                 :: cell
+    REAL(KIND=dp), &
+      DIMENSION(1:3, 1:3, 1:mc_par%nchain)   :: r
+    TYPE(particle_list_type), POINTER        :: particles
+
+!C^2/Hartree/a.u.
 !------------------------------------------------------------------------------
-
 ! begin the timing of the subroutine
+
       CALL timeset(routineN,'I','',handle)
 
 ! initialize some stuff

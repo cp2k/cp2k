@@ -24,30 +24,27 @@
 
 MODULE force_fields
 
-  USE convert_units,                      ONLY : convert_to_cp2k_units
-  USE global_types,                       ONLY : global_environment_type
-  USE kinds,                              ONLY : dbl
-  USE mathconstants,                      ONLY : pi
-  USE molecule_types,                     ONLY : bond_parameters_type, &
-                                                 bend_parameters_type, &
-                                                 torsion_parameters_type, &
-                                                 intra_parameters_type
-  USE pair_potential_types,               ONLY : pair_potential_type
-  USE parser,                             ONLY : parser_init, &
-                                                 parser_end, &
-                                                 read_line, &
-                                                 test_next, &
-                                                 p_error, &
-                                                 get_next, &
-                                                 stop_parser, &
-                                                 search_label
-  USE string_utilities,                   ONLY : uppercase, &
-                                                 xstring, &
-                                                 str_search,  &
-                                                 str_comp, &
-                                                 make_tuple
-  USE termination,                        ONLY : stop_memory
-  USE topology_types,                     ONLY : topology_parameters_type
+  USE convert_units,                   ONLY: convert_to_cp2k_units
+  USE global_types,                    ONLY: global_environment_type
+  USE kinds,                           ONLY: dbl
+  USE mathconstants,                   ONLY: pi
+  USE molecule_types,                  ONLY: bend_parameters_type,&
+                                             bond_parameters_type,&
+                                             intra_parameters_type,&
+                                             torsion_parameters_type
+  USE pair_potential_types,            ONLY: pair_potential_type
+  USE parser,                          ONLY: get_next,&
+                                             p_error,&
+                                             parser_end,&
+                                             parser_init,&
+                                             read_line,&
+                                             search_label,&
+                                             stop_parser,&
+                                             test_next
+  USE string_utilities,                ONLY: str_search,&
+                                             uppercase
+  USE termination,                     ONLY: stop_memory
+  USE topology_types,                  ONLY: topology_parameters_type
 
   IMPLICIT NONE
 
@@ -84,22 +81,22 @@ CONTAINS
 SUBROUTINE read_force_field_section ( topology, set_fn, intra_param, &
                                       potparm, globenv_input )
 
-  IMPLICIT NONE
 
-! Arguments
-  CHARACTER ( LEN = * ), INTENT ( IN ) :: set_fn
-  TYPE (intra_parameters_type ), INTENT ( OUT ) :: intra_param
-  TYPE (pair_potential_type ), DIMENSION ( :, : ), POINTER :: potparm
-  TYPE (topology_parameters_type ), INTENT ( INOUT ) :: topology
-  TYPE ( global_environment_type ), INTENT ( IN ) :: globenv_input
+    TYPE(topology_parameters_type), &
+      INTENT(INOUT)                          :: topology
+    CHARACTER(LEN=*), INTENT(IN)             :: set_fn
+    TYPE(intra_parameters_type), INTENT(OUT) :: intra_param
+    TYPE(pair_potential_type), &
+      DIMENSION(:, :), POINTER               :: potparm
+    TYPE(global_environment_type), &
+      INTENT(IN)                             :: globenv_input
 
-! Locals
-  INTEGER :: ios, iw, natom_type
-  INTEGER :: ierror, ilen
-  LOGICAL :: units_set = .FALSE.
-  CHARACTER ( LEN = 20 ) :: string
-  CHARACTER ( LEN = 12 ) :: label
-  CHARACTER ( LEN = 9 ) :: units
+    CHARACTER(LEN=12)                        :: label
+    CHARACTER(LEN=20)                        :: string
+    CHARACTER(LEN=9)                         :: units
+    INTEGER                                  :: ierror, ilen, ios, iw, &
+                                                natom_type
+    LOGICAL                                  :: units_set = .FALSE.
 
 !------------------------------------------------------------------------------
 
@@ -207,24 +204,19 @@ END SUBROUTINE read_force_field_section
 
 SUBROUTINE input_nonbonded (energy_unit, potparm, atom_names, set_fn )
 
-  IMPLICIT NONE
 
-! Arguments
-  TYPE (pair_potential_type ), INTENT ( INOUT ) :: potparm ( :, : )
-  CHARACTER ( LEN = * ), INTENT ( IN ) :: energy_unit
-  CHARACTER ( LEN = * ), INTENT ( IN ) :: atom_names ( : )
-  CHARACTER ( LEN = * ), INTENT ( IN ) :: set_fn
+    CHARACTER(LEN=*), INTENT(IN)             :: energy_unit
+    TYPE(pair_potential_type), INTENT(INOUT) :: potparm( :, : )
+    CHARACTER(LEN=*), INTENT(IN)             :: atom_names( : ), set_fn
 
-! Locals
-  INTEGER :: ios, i, i1, i2, msglen, np, iw, source, allgrp
-  INTEGER :: ierror, ilen, natom_types
-  LOGICAL :: exists
-  CHARACTER ( LEN = 10 ) :: at1, at2
-  CHARACTER ( LEN = 40 ) :: string, string2
-  CHARACTER ( LEN = 12 ) :: label
-  REAL ( dbl ) :: epsilon, sigma, rcut, a, b, c, c0, c1, c2, d
-  REAL ( dbl ) :: vr0, dc, m, mc
-  CHARACTER ( LEN = 8 ) :: length_unit
+    CHARACTER(LEN=10)                        :: at1, at2
+    CHARACTER(LEN=12)                        :: label
+    CHARACTER(LEN=40)                        :: string, string2
+    CHARACTER(LEN=8)                         :: length_unit
+    INTEGER                                  :: i1, i2, ierror, ilen, iw, &
+                                                natom_types, np
+    REAL(dbl)                                :: a, b, c, d, dc, epsilon, m, &
+                                                mc, rcut, sigma, vr0
 
 !------------------------------------------------------------------------------
 
@@ -441,21 +433,15 @@ END SUBROUTINE input_nonbonded
 !******************************************************************************
 
 SUBROUTINE input_bonds(energy_unit,bond_parm,set_fn)
-  IMPLICIT NONE
 
-! Arguments
-  TYPE (bond_parameters_type ), POINTER :: bond_parm ( : )
-  CHARACTER ( LEN = * ), INTENT ( IN ) :: energy_unit
-  CHARACTER ( LEN = * ), INTENT ( IN ) :: set_fn
+    CHARACTER(LEN=*), INTENT(IN)             :: energy_unit
+    TYPE(bond_parameters_type), POINTER      :: bond_parm( : )
+    CHARACTER(LEN=*), INTENT(IN)             :: set_fn
 
-! Locals
-  INTEGER :: i, ierror, ilen, ios
-  INTEGER :: nb, iw, allgrp, source
-  LOGICAL :: exists
-  CHARACTER ( LEN = 20 ) :: type
-  CHARACTER ( LEN = 40 ) :: string, string2
-  CHARACTER ( LEN = 12 ) :: label
-  REAL ( dbl ) :: bp1, bp2
+    CHARACTER(LEN=12)                        :: label
+    CHARACTER(LEN=40)                        :: string, string2
+    INTEGER                                  :: i, ierror, ilen, ios, iw, nb
+    REAL(dbl)                                :: bp1, bp2
 
 !------------------------------------------------------------------------------
 
@@ -561,20 +547,15 @@ END SUBROUTINE input_bonds
 
 SUBROUTINE input_bends ( energy_unit, bend_parm, set_fn )
 
-  IMPLICIT NONE
 
-! Arguments
-  TYPE (bend_parameters_type ), POINTER  :: bend_parm(:)
-  CHARACTER ( LEN = * ), INTENT ( IN ) :: energy_unit
-  CHARACTER ( LEN = * ), INTENT ( IN ) :: set_fn
+    CHARACTER(LEN=*), INTENT(IN)             :: energy_unit
+    TYPE(bend_parameters_type), POINTER      :: bend_parm(:)
+    CHARACTER(LEN=*), INTENT(IN)             :: set_fn
 
-! Locals
-  INTEGER :: i, ierror, ilen, ios
-  INTEGER ::  nb, iw, allgrp, source
-  CHARACTER ( LEN = 20 ) :: type
-  CHARACTER ( LEN = 40 ) :: string, string2
-  CHARACTER ( LEN = 12 ) :: label
-  REAL ( dbl ) :: bp1, bp2, torad, todeg
+    CHARACTER(LEN=12)                        :: label
+    CHARACTER(LEN=40)                        :: string, string2
+    INTEGER                                  :: i, ierror, ilen, ios, iw, nb
+    REAL(dbl)                                :: bp1, bp2, todeg, torad
 
 !------------------------------------------------------------------------------
 
@@ -683,20 +664,17 @@ END SUBROUTINE input_bends
 
 SUBROUTINE input_torsions ( energy_unit,  torsion_parm, set_fn )
 
-  IMPLICIT NONE
 
-! Arguments
-  TYPE ( torsion_parameters_type ), POINTER :: torsion_parm ( : )
-  CHARACTER ( LEN = * ), INTENT ( IN ) :: energy_unit
-  CHARACTER ( LEN = * ), INTENT ( IN ) :: set_fn
+    CHARACTER(LEN=*), INTENT(IN)             :: energy_unit
+    TYPE(torsion_parameters_type), POINTER   :: torsion_parm( : )
+    CHARACTER(LEN=*), INTENT(IN)             :: set_fn
 
-! Locals
-  INTEGER :: i, j, ierror, ilen, ios
-  INTEGER :: nb, iw, allgrp, source
-  CHARACTER ( LEN = 20 ) :: type
-  CHARACTER ( LEN = 40 ) :: string, string2
-  CHARACTER ( LEN = 12 ) :: label
-  REAL ( dbl ), DIMENSION (0:3) :: tp
+    CHARACTER(LEN=12)                        :: label
+    CHARACTER(LEN=20)                        :: type
+    CHARACTER(LEN=40)                        :: string, string2
+    INTEGER                                  :: i, ierror, ilen, ios, iw, j, &
+                                                nb
+    REAL(dbl), DIMENSION(0:3)                :: tp
 
 !------------------------------------------------------------------------------
 
@@ -804,19 +782,14 @@ END SUBROUTINE input_torsions
 
 SUBROUTINE input_distance_constraints ( energy_unit, constraint_distance, set_fn )
 
-  IMPLICIT NONE
 
-! Arguments
-  REAL ( dbl ), POINTER :: constraint_distance ( : )
-  CHARACTER ( LEN = * ), INTENT ( IN ) :: energy_unit
-  CHARACTER ( LEN = * ), INTENT ( IN ) :: set_fn
+    CHARACTER(LEN=*), INTENT(IN)             :: energy_unit
+    REAL(dbl), POINTER                       :: constraint_distance( : )
+    CHARACTER(LEN=*), INTENT(IN)             :: set_fn
 
-! Locals
-  INTEGER :: i, ierror, ilen, ios
-  INTEGER :: nb, iw, allgrp, source
-  CHARACTER ( LEN = 40 ) :: string, string2, string2_tmp
-  CHARACTER ( LEN = 12 ) :: label
-  REAL ( dbl ) :: dp
+    CHARACTER(LEN=12)                        :: label
+    CHARACTER(LEN=40)                        :: string
+    INTEGER                                  :: i, ierror, ilen, ios, iw, nb
 
 !------------------------------------------------------------------------------
 

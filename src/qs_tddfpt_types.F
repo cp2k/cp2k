@@ -24,23 +24,19 @@
 !!
 !!***
 MODULE qs_tddfpt_types
-  USE cp_error_handling,               ONLY: cp_simple_assert
-  USE cp_fm_struct,                    ONLY: cp_fm_struct_type, &
-                                             cp_fm_struct_create
-  USE cp_fm_types,                     ONLY: cp_fm_type, &
-                                             cp_fm_p_type, &
-                                             cp_fm_create, &
+  USE cp_control_types,                ONLY: tddfpt_control_type
+  USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
+                                             cp_fm_struct_type
+  USE cp_fm_types,                     ONLY: cp_fm_create,&
+                                             cp_fm_p_type,&
                                              cp_fm_release,&
                                              cp_fm_set_all
   USE cp_log_handling,                 ONLY: cp_to_string
-  USE cp_control_types,                       ONLY: dft_control_type, &
-                                             tddfpt_control_type
   USE global_types,                    ONLY: global_environment_type
   USE kinds,                           ONLY: dbl
   USE qs_environment_types,            ONLY: qs_environment_type
   USE qs_p_env_types,                  ONLY: qs_p_env_type
-  USE termination,                     ONLY: stop_memory,&
-                                             stop_program
+  USE termination,                     ONLY: stop_memory
 
   IMPLICIT NONE
 
@@ -109,24 +105,24 @@ CONTAINS
 !!***
   SUBROUTINE tddfpt_env_allocate(t_env, p_env, qs_env, glob_env)
   
-    IMPLICIT NONE
 
-  ! ARGUMENTS
-    TYPE(tddfpt_env_type), INTENT(out)        :: t_env
-    TYPE(qs_p_env_type), POINTER              :: p_env
-    TYPE(qs_environment_type), INTENT(inout), TARGET :: qs_env
-    TYPE(global_environment_type), INTENT(in) :: glob_env
-  
-  ! LOCALS
-    INTEGER                            :: stat          ! 
-    INTEGER                            :: n_ev, n_spins ! (convenience values)
-    INTEGER                            :: ev, spin      ! loop indices
-    TYPE(cp_fm_struct_type), POINTER   :: fm_struct
+    TYPE(tddfpt_env_type), INTENT(out)       :: t_env
+    TYPE(qs_p_env_type), POINTER             :: p_env
+    TYPE(qs_environment_type), &
+      INTENT(inout), TARGET                  :: qs_env
+    TYPE(global_environment_type), &
+      INTENT(in)                             :: glob_env
 
     CHARACTER(len=*), PARAMETER :: routineN = 'tddfpt_env_allocate', &
-                                   routineP = moduleN//'/'//routineN
-  
-    ! -------------------------------------------------------------------
+      routineP = moduleN//'/'//routineN
+
+    INTEGER                                  :: ev, n_ev, n_spins, spin, stat
+    TYPE(cp_fm_struct_type), POINTER         :: fm_struct
+
+! 
+! (convenience values)
+! loop indices
+! -------------------------------------------------------------------
 
     n_ev    = qs_env%dft_control%tddfpt_control%n_ev
     n_spins = qs_env%dft_control%nspins
@@ -179,21 +175,17 @@ CONTAINS
 !!***
   SUBROUTINE tddfpt_env_deallocate(t_env, glob_env)
   
-    IMPLICIT NONE
 
-  ! ARGUMENTS
-    TYPE(tddfpt_env_type), INTENT(inout)      :: t_env
-    TYPE(global_environment_type), INTENT(in) :: glob_env
+    TYPE(tddfpt_env_type), INTENT(inout)     :: t_env
+    TYPE(global_environment_type), &
+      INTENT(in)                             :: glob_env
 
-  ! LOCALS
-    INTEGER                                   :: stat
-    INTEGER                                   :: n_ev, n_spins
-    INTEGER                                   :: ev, spin
+    CHARACTER(len=*), PARAMETER :: routineN = 'tddfpt_env_deallocate', &
+      routineP = moduleN//'/'//routineN
 
-    CHARACTER(len=*), PARAMETER               :: routineN = 'tddfpt_env_deallocate', &
-                                                 routineP = moduleN//'/'//routineN
-  
-    ! -------------------------------------------------------------------
+    INTEGER                                  :: ev, n_ev, n_spins, spin, stat
+
+! -------------------------------------------------------------------
 
     n_ev    = size(t_env%x)
     n_spins = size(t_env%x(1)%spins)

@@ -2,9 +2,10 @@
   MODULE pol_diis
 !------------------------------------------------------------------------------!
 !
-  USE kinds, ONLY : dbl
-  USE linear_systems, ONLY : solve_system
-  USE termination, ONLY : stop_program, stop_memory
+  USE kinds,                           ONLY: dbl
+  USE linear_systems,                  ONLY: solve_system
+  USE termination,                     ONLY: stop_memory
+
   IMPLICIT NONE
 !
   PUBLIC :: diis
@@ -28,26 +29,22 @@
 !  nhist: number of histories to be stored
 !  ihist: history counter
 !--------------------------------------------------------------------------
-  IMPLICIT NONE
 
-! Arguments                   
-  REAL ( dbl ), DIMENSION(:), INTENT(INOUT):: c_pos
-  REAL ( dbl ), DIMENSION(:), INTENT(INOUT):: c_force
-  REAL ( dbl ), INTENT(IN) :: dtw
-  REAL ( dbl ), INTENT(INOUT) :: fconv
-  REAL ( dbl ), DIMENSION(:), INTENT(IN) :: hess
-  REAL ( dbl ), DIMENSION(:,:), INTENT(INOUT) :: e_hist
-  REAL ( dbl ), DIMENSION(:,:), INTENT(INOUT) :: c_hist
-  INTEGER, INTENT(IN) :: nhist
-  INTEGER, INTENT(INOUT) :: ihist
+    REAL(dbl), DIMENSION(:), INTENT(INOUT)   :: c_pos, c_force
+    REAL(dbl), INTENT(IN)                    :: dtw
+    REAL(dbl), INTENT(INOUT)                 :: fconv
+    REAL(dbl), DIMENSION(:), INTENT(IN)      :: hess
+    REAL(dbl), DIMENSION(:, :), &
+      INTENT(INOUT)                          :: e_hist, c_hist
+    INTEGER, INTENT(IN)                      :: nhist
+    INTEGER, INTENT(INOUT)                   :: ihist
 
-! Locals                  
-  REAL(dbl), DIMENSION(:), ALLOCATABLE :: eg
-  INTEGER :: i,j,k,icoef,ii,jj,kk,ncoef 
-  REAL(dbl), ALLOCATABLE :: dcg(:)
-  REAL(dbl), DIMENSION(:), ALLOCATABLE :: cg
+    INTEGER                                  :: icoef, j, ncoef
+    REAL(dbl), ALLOCATABLE                   :: dcg(:)
+    REAL(dbl), ALLOCATABLE, DIMENSION(:)     :: cg, eg
 
 ! allocating the arrays
+
    ncoef = size(c_pos)
    ALLOCATE(cg(ncoef)) 
    ALLOCATE(eg(ncoef))
@@ -88,20 +85,17 @@
 !------------------------------------------------------------------------------!
   SUBROUTINE STORE_HIST(c_forces,dtw,cg,e_hist,c_hist,hess,nhist,ihist)
 !------------------------------------------------------------------------------!
-  IMPLICIT NONE
 
-!arguments
-  REAL ( dbl ), DIMENSION (:), INTENT(INOUT) :: c_forces
-  REAL ( dbl ), INTENT(IN) :: dtw
-  REAL ( dbl ), DIMENSION(:), INTENT(IN) :: cg
-  REAL ( dbl ), DIMENSION(:,:), INTENT(INOUT) :: e_hist
-  REAL ( dbl ), DIMENSION(:,:), INTENT(INOUT) :: c_hist
-  REAL ( dbl ), DIMENSION(:), INTENT(IN) :: hess
-  INTEGER, INTENT(IN) :: nhist
-  INTEGER, INTENT(INOUT) :: ihist
+    REAL(dbl), DIMENSION(:), INTENT(INOUT)   :: c_forces
+    REAL(dbl), INTENT(IN)                    :: dtw
+    REAL(dbl), DIMENSION(:), INTENT(IN)      :: cg
+    REAL(dbl), DIMENSION(:, :), &
+      INTENT(INOUT)                          :: e_hist, c_hist
+    REAL(dbl), DIMENSION(:), INTENT(IN)      :: hess
+    INTEGER, INTENT(IN)                      :: nhist
+    INTEGER, INTENT(INOUT)                   :: ihist
 
-! Locals
-  INTEGER :: i,j,ig, icoef,ncoef
+    INTEGER                                  :: icoef, j, ncoef
 
   ncoef = size(c_forces)
 
@@ -130,19 +124,15 @@
 !------------------------------------------------------------------------------!
   SUBROUTINE SOLVE(dcg,e_hist,ihist,ncoef)
 !------------------------------------------------------------------------------!
-  IMPLICIT NONE
-! arguments
-  REAL(dbl), INTENT(OUT) :: dcg(:)
-  REAL(dbl), DIMENSION(:,:), intent(IN) :: e_hist
-  INTEGER, INTENT(IN) :: IHIST
-  INTEGER, INTENT(IN) :: ncoef
-! locals
-  REAL(dbl), DIMENSION(:,:), ALLOCATABLE :: bcg
-  REAL(dbl), DIMENSION(:,:), ALLOCATABLE :: eigenvec
-  REAL(dbl) :: sum
-  INTEGER :: mysize,i,j,k,ig,ii,icoef,ios
+    REAL(dbl), INTENT(OUT)                   :: dcg(:)
+    REAL(dbl), DIMENSION(:, :), intent(IN)   :: e_hist
+    INTEGER, INTENT(IN)                      :: IHIST, ncoef
+
+    INTEGER                                  :: icoef, ios, j, k, mysize
+    REAL(dbl), ALLOCATABLE, DIMENSION(:, :)  :: bcg, eigenvec
 
 ! constructing the solution vector
+
   do j=1, ihist
    dcg(j)=0._dbl
   enddo

@@ -27,46 +27,24 @@
 MODULE cp_fm_vect
   USE cp_error_handling,               ONLY: cp_a_l,&
                                              cp_assert,&
-                                             cp_assertion_failed,&
-                                             cp_debug,&
-                                             cp_error_dealloc_ref,&
                                              cp_error_get_logger,&
-                                             cp_error_init,&
                                              cp_error_message,&
-                                             cp_error_type,&
-                                             cp_internal_error,&
-                                             cp_unimplemented_error
-  USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
-                                             cp_fm_struct_equivalent,&
-                                             cp_fm_struct_release,&
-                                             cp_fm_struct_retain,&
-                                             cp_fm_struct_type
-  USE cp_fm_types,                     ONLY: cp_fm_create,&
-                                             cp_fm_get_info,&
-                                             cp_fm_init_random,&
+                                             cp_error_type
+  USE cp_fm_types,                     ONLY: cp_fm_p_type,&
                                              cp_fm_release,&
                                              cp_fm_retain,&
                                              cp_fm_set_all,&
-                                             cp_fm_set_element,&
-                                             cp_fm_write,&
-                                             cp_fm_p_type,&
-                                             cp_fm_type
+                                             cp_fm_write
   USE cp_log_handling,                 ONLY: cp_failure_level,&
                                              cp_fatal_level,&
-                                             cp_log,&
                                              cp_logger_type,&
                                              cp_note_level,&
                                              cp_to_string,&
                                              cp_warning_level
-  USE cp_para_env,                     ONLY: cp_para_env_from_globenv,&
-                                             cp_para_env_release,&
-                                             cp_para_env_retain
-  USE cp_para_types,                   ONLY: cp_blacs_env_type,&
-                                             cp_para_env_type
-  USE global_types,                    ONLY: global_environment_type
   USE kinds,                           ONLY: dp
   USE timings,                         ONLY: timeset,&
                                              timestop
+
   IMPLICIT NONE
   PRIVATE
 
@@ -109,13 +87,17 @@ CONTAINS
 !!
 !!*** **********************************************************************
   SUBROUTINE cp_fm_vect_dealloc(matrixes, error)
-    TYPE(cp_fm_p_type), DIMENSION(:), POINTER :: matrixes
-    TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
+    TYPE(cp_fm_p_type), DIMENSION(:), &
+      POINTER                                :: matrixes
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
 
-    LOGICAL :: failure
-    CHARACTER(len=*), PARAMETER :: routineN='cp_fm_vect_dealloc',&
-         routineP=moduleN//':'//routineN
-    INTEGER :: stat, i
+    CHARACTER(len=*), PARAMETER :: routineN = 'cp_fm_vect_dealloc', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: i, stat
+    LOGICAL                                  :: failure
+
     failure=.FALSE.
 
     IF (ASSOCIATED(matrixes)) THEN
@@ -160,14 +142,19 @@ CONTAINS
 !!
 !!*** **********************************************************************
 SUBROUTINE cp_fm_vect_copy(matrixes, copy, error)
-  TYPE(cp_fm_p_type), DIMENSION(:), INTENT(in) :: matrixes
-  TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
-  TYPE(cp_fm_p_type), DIMENSION(:), POINTER :: copy
-  
-  LOGICAL :: failure
-  CHARACTER(len=*), PARAMETER :: routineN='cp_fm_vect_copy',&
-        routineP=moduleN//':'//routineN
-  INTEGER :: stat,i
+    TYPE(cp_fm_p_type), DIMENSION(:), &
+      INTENT(in)                             :: matrixes
+    TYPE(cp_fm_p_type), DIMENSION(:), &
+      POINTER                                :: copy
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'cp_fm_vect_copy', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: i, stat
+    LOGICAL                                  :: failure
+
   failure=.FALSE.
   
   ALLOCATE(copy(SIZE(matrixes)),stat=stat)
@@ -220,16 +207,20 @@ END SUBROUTINE cp_fm_vect_copy
 !!*** **********************************************************************
   SUBROUTINE cp_fm_vect_write(matrixes, unit_nr, long_description,&
        local, error)
-    TYPE(cp_fm_p_type), DIMENSION(:), POINTER :: matrixes
-    INTEGER, INTENT(in) :: unit_nr
-    LOGICAL, OPTIONAL, INTENT(in) :: long_description, local
-    TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
-  
-  LOGICAL :: failure, my_local, my_long_description, should_w
-  CHARACTER(len=*), PARAMETER :: routineN='cp_fm_vect_write',&
-        routineP=moduleN//':'//routineN
-  INTEGER :: i
-  TYPE(cp_logger_type), POINTER :: logger
+    TYPE(cp_fm_p_type), DIMENSION(:), &
+      POINTER                                :: matrixes
+    INTEGER, INTENT(in)                      :: unit_nr
+    LOGICAL, INTENT(in), OPTIONAL            :: long_description, local
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'cp_fm_vect_write', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: i
+    LOGICAL                                  :: failure, my_local, &
+                                                my_long_description, should_w
+    TYPE(cp_logger_type), POINTER            :: logger
 
   failure=.FALSE.; my_local=.FALSE.; my_long_description=.FALSE.
   logger => cp_error_get_logger(error)
@@ -288,15 +279,18 @@ END SUBROUTINE cp_fm_vect_write
 !!
 !!*** **********************************************************************
 SUBROUTINE cp_fm_vect_set_all(matrixes,value,error)
-  TYPE(cp_fm_p_type), DIMENSION(:), POINTER :: matrixes
-  REAL(KIND = dp), INTENT(in), OPTIONAL :: value
-  TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
-  
-  LOGICAL :: failure
-  CHARACTER(len=*), PARAMETER :: routineN='cp_fm_vect_set_all',&
-        routineP=moduleN//':'//routineN
-  REAL(KIND = dp) :: my_value
-  INTEGER :: i
+    TYPE(cp_fm_p_type), DIMENSION(:), &
+      POINTER                                :: matrixes
+    REAL(KIND=dp), INTENT(in), OPTIONAL      :: value
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'cp_fm_vect_set_all', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: i
+    LOGICAL                                  :: failure
+    REAL(KIND=dp)                            :: my_value
 
   failure=.FALSE.
   my_value=0.0_dp

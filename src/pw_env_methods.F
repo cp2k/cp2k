@@ -32,16 +32,12 @@ MODULE pw_env_methods
                                              get_atomic_kind_set
   USE basis_set_types,                 ONLY: get_gto_basis_set,&
                                              gto_basis_set_type
+  USE cp_control_types,                ONLY: dft_control_type
   USE cp_error_handling,               ONLY: cp_a_l,&
                                              cp_assert,&
-                                             cp_assertion_failed,&
-                                             cp_debug,&
-                                             cp_error_dealloc_ref,&
                                              cp_error_get_logger,&
-                                             cp_error_init,&
                                              cp_error_message,&
-                                             cp_error_type,&
-                                             cp_internal_error
+                                             cp_error_type
   USE cp_log_handling,                 ONLY: cp_failure_level,&
                                              cp_fatal_level,&
                                              cp_logger_get_default_unit_nr,&
@@ -51,57 +47,38 @@ MODULE pw_env_methods
                                              cp_warning_level
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE cp_rs_pool_types,                ONLY: cp_rs_pool_p_type,&
-                                             cp_rs_pool_type,&
                                              rs_pool_create,&
-                                             rs_pool_release,&
-                                             rs_pool_retain,&
-                                             rs_pools_copy,&
                                              rs_pools_dealloc
-  USE cube_utils,                      ONLY: cube_info_type,&
-                                             destroy_cube_info,&
+  USE cube_utils,                      ONLY: destroy_cube_info,&
                                              init_cube_info
-  USE cp_control_types,                       ONLY: dft_control_type
   USE gaussian_gridlevels,             ONLY: destroy_gaussian_gridlevel,&
-                                             gridlevel_info_type,&
-                                             init_gaussian_gridlevel, &
-                                             gaussian_gridlevel
-  USE global_types,                    ONLY: global_environment_type
-  USE greens_fn,                       ONLY: pw_green_fn_init, &
-                                             pw_green_fn_destroy 
+                                             gaussian_gridlevel,&
+                                             init_gaussian_gridlevel
+  USE greens_fn,                       ONLY: pw_green_fn_destroy,&
+                                             pw_green_fn_init
   USE kinds,                           ONLY: dp
   USE l_utils,                         ONLY: destroy_l_info,&
-                                             init_l_info,&
-                                             l_info_type
-  USE pw_env_types,                    ONLY: pw_env_get,&
-                                             pw_env_release,&
-                                             pw_env_retain,&
-                                             pw_env_type
+                                             init_l_info
+  USE pw_env_types,                    ONLY: pw_env_type
   USE pw_grid_types,                   ONLY: FULLSPACE,&
                                              HALFSPACE,&
                                              pw_grid_type
-  USE pw_grids,                        ONLY: pw_find_cutoff,&
-                                             pw_grid_construct,&
+  USE pw_grids,                        ONLY: pw_grid_construct,&
                                              pw_grid_release,&
                                              pw_grid_setup
   USE pw_pool_types,                   ONLY: pw_pool_create,&
-                                             pw_pool_init_coeff,&
                                              pw_pool_p_type,&
-                                             pw_pool_release,&
-                                             pw_pool_retain,&
-                                             pw_pool_type,&
-                                             pw_pools_copy,&
                                              pw_pools_dealloc
-  USE pws,                             ONLY: init_pw_poisson_solver
   USE qs_environment_types,            ONLY: get_qs_env,&
-                                             qs_environment_type,&
-                                             set_qs_env
-  USE qs_interactions,                 ONLY: exp_radius
-  USE qs_mo_types,                     ONLY: get_mo_set
-  USE qs_interactions,                 ONLY: exp_radius_very_extended
+                                             qs_environment_type
+  USE qs_interactions,                 ONLY: exp_radius,&
+                                             exp_radius_very_extended
   USE simulation_cell,                 ONLY: cell_type
-  USE termination,                     ONLY: stop_memory, stop_program
+  USE termination,                     ONLY: stop_memory,&
+                                             stop_program
   USE timings,                         ONLY: timeset,&
                                              timestop
+
   IMPLICIT NONE
   PRIVATE
 
@@ -145,14 +122,18 @@ CONTAINS
 !!
 !!*** **********************************************************************
 SUBROUTINE pw_env_create(pw_env,qs_env,error)
-  TYPE(pw_env_type), POINTER :: pw_env
-  TYPE(qs_environment_type), INTENT(in), TARGET, OPTIONAL :: qs_env
-  TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
-  
-  LOGICAL :: failure
-  CHARACTER(len=*), PARAMETER :: routineN='pw_env_create',&
-        routineP=moduleN//':'//routineN
-  INTEGER :: stat
+    TYPE(pw_env_type), POINTER               :: pw_env
+    TYPE(qs_environment_type), INTENT(in), &
+      OPTIONAL, TARGET                       :: qs_env
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'pw_env_create', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: stat
+    LOGICAL                                  :: failure
+
   failure=.FALSE.
   
   ALLOCATE(pw_env, stat=stat)
@@ -200,36 +181,42 @@ END SUBROUTINE pw_env_create
 !!
 !!*** **********************************************************************
 SUBROUTINE pw_env_rebuild(pw_env, qs_env, error)
-  TYPE(pw_env_type), POINTER :: pw_env
-  TYPE(qs_environment_type), INTENT(in), TARGET :: qs_env
-  TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
+    TYPE(pw_env_type), POINTER               :: pw_env
+    TYPE(qs_environment_type), INTENT(in), &
+      TARGET                                 :: qs_env
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
 
-  REAL(KIND = dp), PARAMETER :: safety_factor = 1.2 ! should be be avoided (see later)
-  LOGICAL :: failure, pw_grid_information
-  CHARACTER(len=*), PARAMETER :: routineN='pw_env_rebuild',&
-       routineP=moduleN//':'//routineN
-  REAL(KIND = dp)          :: rel_cutoff, maxradius, cutilev, drmin
-  INTEGER :: handle,i,igrid_level,stat, ngrid_level, cmax,cmaxl, istat,maxlgto
-  INTEGER :: nsmax
-  REAL(KIND = dp), DIMENSION(:), ALLOCATABLE :: radius
-  REAL(KIND = dp), DIMENSION(:), POINTER :: cutoff
-  TYPE(cell_type), POINTER          :: cell
-  TYPE(pw_grid_type), POINTER :: pw_grid, old_pw_grid
-  TYPE(dft_control_type), POINTER :: dft_control
-  TYPE(atomic_kind_type), DIMENSION(:), POINTER :: atomic_kind_set
-  TYPE(pw_pool_p_type),DIMENSION(:), POINTER :: pw_pools
-  TYPE(cp_rs_pool_p_type),DIMENSION(:), POINTER :: rs_pools
-  TYPE(cp_para_env_type), POINTER :: para_env
-  TYPE(cp_logger_type), POINTER :: logger
-  TYPE(atomic_kind_type), POINTER :: atomic_kind
-  TYPE(gto_basis_set_type), POINTER :: orb_basis_set 
-  INTEGER ikind,jkind,nkind,iset,jset,ipgf,jpgf
-  INTEGER, DIMENSION(:), POINTER ::  npgfa,npgfb,nshella,nshellb
-  INTEGER, DIMENSION(:,:), POINTER :: lshella,lshellb
-  INTEGER  :: nseta,nsetb,lgrid_level
-  REAL(KIND = dp), DIMENSION(:,:), POINTER :: zeta,zetb
-  REAL(KIND = dp) :: zetp,alpha
-  INTEGER :: ishell,jshell,la,lb
+    CHARACTER(len=*), PARAMETER :: routineN = 'pw_env_rebuild', &
+      routineP = moduleN//':'//routineN
+    REAL(KIND=dp), PARAMETER                 :: safety_factor = 1.2 
+
+    INTEGER :: cmax, cmaxl, handle, i, igrid_level, ikind, ipgf, iset, &
+      ishell, istat, jkind, jpgf, jset, jshell, la, lb, lgrid_level, maxlgto, &
+      ngrid_level, nkind, nseta, nsetb, nsmax, stat
+    INTEGER, DIMENSION(:), POINTER           :: npgfa, npgfb, nshella, nshellb
+    INTEGER, DIMENSION(:, :), POINTER        :: lshella, lshellb
+    LOGICAL                                  :: failure, pw_grid_information
+    REAL(KIND=dp)                            :: alpha, cutilev, drmin, &
+                                                maxradius, rel_cutoff, zetp
+    REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: radius
+    REAL(KIND=dp), DIMENSION(:), POINTER     :: cutoff
+    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: zeta, zetb
+    TYPE(atomic_kind_type), DIMENSION(:), &
+      POINTER                                :: atomic_kind_set
+    TYPE(atomic_kind_type), POINTER          :: atomic_kind
+    TYPE(cell_type), POINTER                 :: cell
+    TYPE(cp_logger_type), POINTER            :: logger
+    TYPE(cp_para_env_type), POINTER          :: para_env
+    TYPE(cp_rs_pool_p_type), DIMENSION(:), &
+      POINTER                                :: rs_pools
+    TYPE(dft_control_type), POINTER          :: dft_control
+    TYPE(gto_basis_set_type), POINTER        :: orb_basis_set
+    TYPE(pw_grid_type), POINTER              :: old_pw_grid, pw_grid
+    TYPE(pw_pool_p_type), DIMENSION(:), &
+      POINTER                                :: pw_pools
+
+! should be be avoided (see later)
 
   CALL timeset(routineN,"I","",handle)
 
@@ -455,22 +442,24 @@ END SUBROUTINE pw_env_rebuild
 !***************************************************************************
 
 SUBROUTINE get_subgrid_size ( qs_env, cutoff, radius )
-  TYPE(qs_environment_type), INTENT(in), TARGET :: qs_env
-  REAL (KIND = dp), DIMENSION ( : ), INTENT ( IN ) :: cutoff
-  REAL (KIND = dp), DIMENSION ( : ), INTENT ( OUT ) :: radius
+    TYPE(qs_environment_type), INTENT(in), &
+      TARGET                                 :: qs_env
+    REAL(KIND=dp), DIMENSION(:), INTENT(IN)  :: cutoff
+    REAL(KIND=dp), DIMENSION(:), INTENT(OUT) :: radius
 
-  TYPE(atomic_kind_type), DIMENSION(:), POINTER :: atomic_kind_set
-  TYPE(atomic_kind_type), POINTER :: atomic_kind
-  TYPE(dft_control_type), POINTER :: dft_control
-  TYPE(gto_basis_set_type), POINTER :: orb_basis_set
-  REAL(KIND = dp), DIMENSION(:,:), POINTER :: zet
-  REAL(KIND = dp), DIMENSION(:,:), POINTER :: p
-  REAL(KIND = dp), DIMENSION(3) :: ra, rb, rp
-
-  INTEGER :: stat
-  INTEGER :: maxlgto, numgrids, igrid_level, ikind, i, j
-  REAL (KIND = dp) :: lcut, rel_cutoff, mincoreval, minexpval, maxcharge, &
-                 charge, alpha, eps_rho_rspace
+    INTEGER                                  :: i, igrid_level, ikind, j, &
+                                                maxlgto, numgrids, stat
+    REAL(KIND=dp)                            :: alpha, charge, &
+                                                eps_rho_rspace, lcut, &
+                                                maxcharge, mincoreval, &
+                                                minexpval, rel_cutoff
+    REAL(KIND=dp), DIMENSION(3)              :: ra, rb, rp
+    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: p, zet
+    TYPE(atomic_kind_type), DIMENSION(:), &
+      POINTER                                :: atomic_kind_set
+    TYPE(atomic_kind_type), POINTER          :: atomic_kind
+    TYPE(dft_control_type), POINTER          :: dft_control
+    TYPE(gto_basis_set_type), POINTER        :: orb_basis_set
 
   radius = 1.E10_dp
 

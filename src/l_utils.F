@@ -1,8 +1,11 @@
 ! ***************************************************************
 MODULE l_utils
-   USE kinds,                 ONLY: dp
-   USE termination,           ONLY: stop_memory,stop_program
-   USE timings,               ONLY: timeset,timestop
+  USE kinds,                           ONLY: dp
+  USE termination,                     ONLY: stop_memory,&
+                                             stop_program
+  USE timings,                         ONLY: timeset,&
+                                             timestop
+
    IMPLICIT NONE
 
    public :: l_info_type
@@ -33,15 +36,18 @@ CONTAINS
    SUBROUTINE return_l_info(l_info,la_min,la_max,lb_min,lb_max,ithread, &
                             lx_max,lxy_max,lxyz_max,ly_max,lz_max,&
                             map,polx,poly,polz,dpy,dpz,alpha,pzyx,ipzyx,cmax)
-      IMPLICIT NONE
-      type(l_info_type) :: l_info
-      integer           :: la_min,la_max,lb_min,lb_max,ithread
-      integer           :: lx_max,lxy_max,lxyz_max,cmax
-      integer, pointer, dimension(:) :: ly_max,lz_max
-      integer, pointer, dimension(:,:)  :: map
-      real(KIND = dp), pointer, dimension(:,:) :: polx,poly,polz,alpha,dpy,dpz
-      real(KIND = dp), pointer, dimension(:)   :: pzyx
-      integer,  pointer, dimension(:,:,:,:,:,:)   :: ipzyx
+    type(l_info_type)                        :: l_info
+    integer                                  :: la_min, la_max, lb_min, &
+                                                lb_max, ithread, lx_max, &
+                                                lxy_max, lxyz_max
+    integer, dimension(:), pointer           :: ly_max, lz_max
+    integer, dimension(:, :), pointer        :: map
+    real(KIND=dp), dimension(:, :), pointer  :: polx, poly, polz, dpy, dpz, &
+                                                alpha
+    real(KIND=dp), dimension(:), pointer     :: pzyx
+    integer, dimension(:, :, :, :, :, :), &
+      pointer                                :: ipzyx
+    integer                                  :: cmax
 
       if (la_max.gt.l_info%lmax .or. lb_max.gt.l_info%lmax) then
         CALL stop_program("return_l_info","called with l too large")
@@ -70,13 +76,14 @@ CONTAINS
 ! really not so elegant...
 ! the nthread argument is optional, the right number of threads should be determined automatically
    SUBROUTINE init_l_info(l_info,lmax,cmax,nthread)
-      IMPLICIT NONE
-      integer :: lmax,cmax
-      integer, optional :: nthread
-      type(l_info_type) :: l_info
-      integer :: la_min,la_max,lb_min,lb_max
-      integer :: nthread_l
-      integer :: omp_get_max_threads,ithread,handle
+    type(l_info_type)                        :: l_info
+    integer                                  :: lmax, cmax
+    integer, optional                        :: nthread
+
+    integer                                  :: handle, ithread, la_max, &
+                                                la_min, lb_max, lb_min, &
+                                                nthread_l
+
       CALL timeset("init_l_info","I","",handle)
       IF (PRESENT(nthread)) THEN
          nthread_l=nthread
@@ -105,9 +112,11 @@ CONTAINS
    END SUBROUTINE
 
    SUBROUTINE destroy_l_info(l_info)
-      IMPLICIT NONE
-      type(l_info_type) :: l_info
-      integer :: istat,la_min,la_max,lb_min,lb_max,ithread
+    type(l_info_type)                        :: l_info
+
+    integer                                  :: istat, ithread, la_max, &
+                                                la_min, lb_max, lb_min
+
       DO ithread=0,l_info%nthread-1
       DO lb_max=0,l_info%lmax
       DO lb_min=0,lb_max
@@ -124,10 +133,13 @@ CONTAINS
    END SUBROUTINE
 
    SUBROUTINE init_l_set_info_type(la_min,la_max,lb_min,lb_max,cmax,l_set_info)
-      IMPLICIT NONE
-      integer               :: la_min,lb_min,la_max,lb_max,cmax
-      TYPE(l_set_info_type) :: l_set_info
-      integer lxa,lxb,lya,lyb,lza,lzb,lx,lxy,coef_max,lxyz
+    integer                                  :: la_min, la_max, lb_min, &
+                                                lb_max, cmax
+    TYPE(l_set_info_type)                    :: l_set_info
+
+    integer                                  :: coef_max, lx, lxa, lxb, lxy, &
+                                                lxyz, lya, lyb, lza, lzb
+
       coef_max=la_max+lb_max+1
 
       l_set_info%lxyz_max=0
@@ -186,8 +198,10 @@ CONTAINS
    END SUBROUTINE
 
    SUBROUTINE destroy_l_set_info_type(l_set_info)
-      TYPE(l_set_info_type) :: l_set_info
-      INTEGER :: istat
+    TYPE(l_set_info_type)                    :: l_set_info
+
+    INTEGER                                  :: istat
+
       deallocate(l_set_info%ly_max,l_set_info%lz_max,l_set_info%map,&
                  l_set_info%polz,l_set_info%poly,l_set_info%polx,&
                  l_set_info%dpy,l_set_info%dpz,l_set_info%pzyx,&

@@ -20,17 +20,15 @@
 
 MODULE qs_force
 
-  USE kinds,                           ONLY: int_size,&
-                                             dp
-
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                              get_atomic_kind_set
   USE checkpoint_handler,              ONLY: write_checkpoint_information
-  USE cp_control_types,                       ONLY: dft_control_type
+  USE cp_control_types,                ONLY: dft_control_type
   USE global_types,                    ONLY: global_environment_type
+  USE kinds,                           ONLY: dp,&
+                                             int_size
   USE message_passing,                 ONLY: mp_sum
   USE particle_types,                  ONLY: particle_type
-  USE qs_core_energies,                ONLY: calculate_ecore_overlap
   USE qs_core_hamiltonian,             ONLY: build_core_hamiltonian_matrix
   USE qs_energy,                       ONLY: qs_energies
   USE qs_environment_types,            ONLY: get_qs_env,&
@@ -38,29 +36,22 @@ MODULE qs_force
                                              set_qs_env
   USE qs_force_types,                  ONLY: init_qs_force,&
                                              qs_force_type
-  USE qs_ks_methods,                   ONLY: qs_ks_did_change,&
-                                             qs_ks_update_qs_env
-  USE qs_ks_types,                     ONLY: qs_ks_env_p_type,&
-                                             qs_ks_env_type
-  USE qs_matrix_pools,                 ONLY: mpools_get,&
-                                             qs_matrix_pools_type
+  USE qs_ks_methods,                   ONLY: qs_ks_update_qs_env
+  USE qs_ks_types,                     ONLY: qs_ks_env_type
+  USE qs_mo_methods,                   ONLY: calculate_w_matrix
   USE qs_mo_types,                     ONLY: mo_set_p_type,&
                                              mo_set_type
-  USE qs_mo_methods,                   ONLY: calculate_density_matrix, &
-                                             calculate_w_matrix
   USE qs_overlap,                      ONLY: write_sparse_matrix
-  USE qs_scf,                          ONLY: scf
   USE scf_control_types,               ONLY: scf_control_type
   USE sparse_matrix_types,             ONLY: allocate_matrix_set,&
                                              deallocate_matrix_set,&
                                              real_matrix_p_type,&
-                                             real_matrix_type,&
-                                             replicate_matrix_structure,&
-                                             symmetrise_diagonal_blocks
+                                             replicate_matrix_structure
   USE termination,                     ONLY: stop_memory,&
                                              stop_program
   USE timings,                         ONLY: timeset,&
                                              timestop
+
   IMPLICIT NONE
 
   PRIVATE
@@ -88,33 +79,31 @@ CONTAINS
 
 !   ***************************************************************************
 
-    TYPE(global_environment_type), INTENT(IN) :: globenv
-    TYPE(qs_environment_type), POINTER        :: qs_env
-    LOGICAL, INTENT(IN), OPTIONAL             :: neighbor_lists_from_scratch
+    TYPE(qs_environment_type), POINTER       :: qs_env
+    TYPE(global_environment_type), &
+      INTENT(IN)                             :: globenv
+    LOGICAL, INTENT(IN), OPTIONAL            :: neighbor_lists_from_scratch
 
-!   *** Local parameters ***
+    CHARACTER(LEN=*), PARAMETER :: routine_name = "qs_forces", &
+      routine = "SUBROUTINE "//routine_name//" (MODULE "//module_name//")"
 
-    CHARACTER(LEN=*), PARAMETER :: routine_name = "qs_forces"
-    CHARACTER(LEN=*), PARAMETER :: routine =&
-      "SUBROUTINE "//routine_name//" (MODULE "//module_name//")"
-
-!   *** Local variables ***
-
-    TYPE(dft_control_type), POINTER :: dft_control
-    TYPE(mo_set_type), POINTER      :: mo_set
-    TYPE(qs_ks_env_type), POINTER   :: ks_env
-    TYPE(scf_control_type), POINTER :: scf_control
-
-    INTEGER :: handle,i,iatom,ikind,ispin,istat,natom,nspin,output_unit
-    LOGICAL :: gth_potential_present
-
-    INTEGER, DIMENSION(:), ALLOCATABLE :: atom_of_kind,kind_of
-
-    TYPE(atomic_kind_type), DIMENSION(:), POINTER   :: atomic_kind_set
-    TYPE(mo_set_p_type), DIMENSION(:), POINTER      :: c
-    TYPE(particle_type), DIMENSION(:), POINTER      :: particle_set
-    TYPE(qs_force_type), DIMENSION(:), POINTER      :: force
-    TYPE(real_matrix_p_type), DIMENSION(:), POINTER :: k,s,w
+    INTEGER                                  :: handle, i, iatom, ikind, &
+                                                ispin, istat, natom, nspin
+    INTEGER, ALLOCATABLE, DIMENSION(:)       :: atom_of_kind, kind_of
+    TYPE(atomic_kind_type), DIMENSION(:), &
+      POINTER                                :: atomic_kind_set
+    TYPE(dft_control_type), POINTER          :: dft_control
+    TYPE(mo_set_p_type), DIMENSION(:), &
+      POINTER                                :: c
+    TYPE(mo_set_type), POINTER               :: mo_set
+    TYPE(particle_type), DIMENSION(:), &
+      POINTER                                :: particle_set
+    TYPE(qs_force_type), DIMENSION(:), &
+      POINTER                                :: force
+    TYPE(qs_ks_env_type), POINTER            :: ks_env
+    TYPE(real_matrix_p_type), DIMENSION(:), &
+      POINTER                                :: k, s, w
+    TYPE(scf_control_type), POINTER          :: scf_control
 
 !   ---------------------------------------------------------------------------
 
@@ -250,25 +239,23 @@ CONTAINS
 
 !   ***************************************************************************
 
-    TYPE(global_environment_type), INTENT(IN)     :: globenv
-    TYPE(atomic_kind_type), DIMENSION(:), POINTER :: atomic_kind_set
-    TYPE(qs_force_type), DIMENSION(:), POINTER    :: qs_force
+    TYPE(qs_force_type), DIMENSION(:), &
+      POINTER                                :: qs_force
+    TYPE(atomic_kind_type), DIMENSION(:), &
+      POINTER                                :: atomic_kind_set
+    TYPE(global_environment_type), &
+      INTENT(IN)                             :: globenv
 
-!   *** Local parameters ***
+    CHARACTER(LEN=*), PARAMETER :: &
+      routine = "SUBROUTINE write_forces (MODULE qs_force_types)"
 
-    CHARACTER(LEN=*), PARAMETER :: routine =&
-      "SUBROUTINE write_forces (MODULE qs_force_types)"
-
-!   *** Local variables ***
-
-    CHARACTER(LEN=48) :: fmtstr1
-    CHARACTER(LEN=35) :: fmtstr2
-    CHARACTER(LEN=20) :: fmtstr3
-    INTEGER           :: i,iatom,ikind,istat,natom,ndigits,output_unit
-
-    REAL(KIND = dp), DIMENSION(3) :: grand_total
-
-    INTEGER, DIMENSION(:), ALLOCATABLE :: atom_of_kind,kind_of
+    CHARACTER(LEN=20)                        :: fmtstr3
+    CHARACTER(LEN=35)                        :: fmtstr2
+    CHARACTER(LEN=48)                        :: fmtstr1
+    INTEGER                                  :: i, iatom, ikind, istat, &
+                                                natom, ndigits, output_unit
+    INTEGER, ALLOCATABLE, DIMENSION(:)       :: atom_of_kind, kind_of
+    REAL(KIND=dp), DIMENSION(3)              :: grand_total
 
 !   ---------------------------------------------------------------------------
 

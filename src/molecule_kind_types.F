@@ -28,11 +28,10 @@ MODULE molecule_kind_types
                                              bond_kind_type,&
                                              torsion_kind_type
   USE global_types,                    ONLY: global_environment_type
-  USE kinds,                           ONLY: int_size,&
-                                             dp,default_string_length
+  USE kinds,                           ONLY: default_string_length,&
+                                             dp,&
+                                             int_size
   USE memory_utilities,                ONLY: reallocate
-  USE periodic_table,                  ONLY: ptable
-  USE physcon,                         ONLY: massunit
   USE qs_parser,                       ONLY: finish_parser,&
                                              read_object,&
                                              start_parser,&
@@ -40,8 +39,7 @@ MODULE molecule_kind_types
                                              test_object
   USE string_utilities,                ONLY: ascii_to_string,&
                                              compress,&
-                                             string_to_ascii,&
-                                             uppercase
+                                             string_to_ascii
   USE termination,                     ONLY: stop_memory,&
                                              stop_program
 
@@ -148,16 +146,13 @@ CONTAINS
 
 !   ***************************************************************************
 
-    TYPE(molecule_kind_type), DIMENSION(:), POINTER :: molecule_kind_set
-    INTEGER, INTENT(IN)                             :: nmolecule_kind
-
-!   *** Local parameters ***
+    TYPE(molecule_kind_type), DIMENSION(:), &
+      POINTER                                :: molecule_kind_set
+    INTEGER, INTENT(IN)                      :: nmolecule_kind
 
     CHARACTER(LEN=*), PARAMETER :: routine_name = "allocate_molecule_kind_set"
 
-!   *** Local variables ***
-
-    INTEGER :: imolecule_kind,istat
+    INTEGER                                  :: imolecule_kind, istat
 
 !   ---------------------------------------------------------------------------
 
@@ -204,15 +199,14 @@ CONTAINS
 
 !   ***************************************************************************
 
-    TYPE(molecule_kind_type), DIMENSION(:), POINTER :: molecule_kind_set
+    TYPE(molecule_kind_type), DIMENSION(:), &
+      POINTER                                :: molecule_kind_set
 
-!   *** Local parameters ***
+    CHARACTER(LEN=*), PARAMETER :: &
+      routine_name = "deallocate_molecule_kind_set"
 
-    CHARACTER(LEN=*), PARAMETER :: routine_name = "deallocate_molecule_kind_set"
-
-!   *** Local variables ***
-
-    INTEGER :: imolecule_kind,istat,nmolecule_kind
+    INTEGER                                  :: imolecule_kind, istat, &
+                                                nmolecule_kind
 
 !   ---------------------------------------------------------------------------
 
@@ -301,37 +295,32 @@ CONTAINS
 
 !   ***************************************************************************
 
-    TYPE(molecule_kind_type), POINTER                     :: molecule_kind
-    TYPE(atom_type), DIMENSION(:), OPTIONAL, POINTER      :: atom_list
-    TYPE(bend_type), DIMENSION(:), OPTIONAL, POINTER      :: bend_list
-    TYPE(bond_type), DIMENSION(:), OPTIONAL, POINTER      :: bond_list
-    TYPE(dist_constraint_type), DIMENSION(:),&
-      OPTIONAL, POINTER                                   :: dist_list
-    TYPE(g3x3_constraint_type), DIMENSION(:),&
-      OPTIONAL, POINTER                                   :: g3x3_list
-    TYPE(torsion_type), DIMENSION(:), OPTIONAL, POINTER   :: torsion_list
-    CHARACTER(LEN=default_string_length), OPTIONAL, INTENT(OUT) :: name,nhcopt
-    REAL(KIND = dp), DIMENSION(:), OPTIONAL, POINTER      :: mass
-    REAL(KIND = dp), DIMENSION(:), OPTIONAL, POINTER      :: charge
-    INTEGER, OPTIONAL, INTENT(OUT)                        :: kind_number,&
-                                                             natom,&
-                                                             nbend,&
-                                                             nbond,&
-                                                             nconstraint,&
-                                                             ndist,&
-                                                             ng3x3,&
-                                                             nmolecule,&
-                                                             nsgf,&
-                                                             ntorsion
-    INTEGER, DIMENSION(:), OPTIONAL, POINTER              :: molecule_list
-
-!   *** Local parameters ***
+    TYPE(molecule_kind_type), POINTER        :: molecule_kind
+    TYPE(atom_type), DIMENSION(:), &
+      OPTIONAL, POINTER                      :: atom_list
+    TYPE(bond_type), DIMENSION(:), &
+      OPTIONAL, POINTER                      :: bond_list
+    TYPE(bend_type), DIMENSION(:), &
+      OPTIONAL, POINTER                      :: bend_list
+    TYPE(dist_constraint_type), &
+      DIMENSION(:), OPTIONAL, POINTER        :: dist_list
+    TYPE(g3x3_constraint_type), &
+      DIMENSION(:), OPTIONAL, POINTER        :: g3x3_list
+    TYPE(torsion_type), DIMENSION(:), &
+      OPTIONAL, POINTER                      :: torsion_list
+    CHARACTER(LEN=default_string_length), &
+      INTENT(OUT), OPTIONAL                  :: name, nhcopt
+    REAL(KIND=dp), DIMENSION(:), OPTIONAL, &
+      POINTER                                :: mass, charge
+    INTEGER, INTENT(OUT), OPTIONAL           :: kind_number, natom, nbend, &
+                                                nbond, nconstraint, ndist, &
+                                                ng3x3, nmolecule, nsgf, &
+                                                ntorsion
+    INTEGER, DIMENSION(:), OPTIONAL, POINTER :: molecule_list
 
     CHARACTER(LEN=*), PARAMETER :: routine_name = "get_molecule_kind"
 
-!   *** Local variables ***
-
-    INTEGER :: iatom,n
+    INTEGER                                  :: iatom, n
 
 !   ---------------------------------------------------------------------------
 
@@ -388,21 +377,16 @@ CONTAINS
 
 !   ***************************************************************************
 
-    TYPE(molecule_kind_type), DIMENSION(:), POINTER :: molecule_kind_set
-    INTEGER, OPTIONAL, INTENT(OUT)                  :: maxatom,&
-                                                       natom,&
-                                                       nconstraint,&
-                                                       nmolecule
-
-!   *** Local parameters ***
+    TYPE(molecule_kind_type), DIMENSION(:), &
+      POINTER                                :: molecule_kind_set
+    INTEGER, INTENT(OUT), OPTIONAL           :: maxatom, natom, nconstraint, &
+                                                nmolecule
 
     CHARACTER(LEN=*), PARAMETER :: routine_name = "get_molecule_kind_set"
 
-!   *** Local variables ***
-
-    TYPE(molecule_kind_type), POINTER :: molecule_kind
-
-    INTEGER :: imolecule_kind,na,nc,nmolecule_kind,nm
+    INTEGER                                  :: imolecule_kind, na, nc, nm, &
+                                                nmolecule_kind
+    TYPE(molecule_kind_type), POINTER        :: molecule_kind
 
 !   ---------------------------------------------------------------------------
 
@@ -450,28 +434,25 @@ CONTAINS
 
 !   ***************************************************************************
 
-    TYPE(atomic_kind_type), DIMENSION(:), POINTER :: atomic_kind_set
-    TYPE(global_environment_type), INTENT(IN)     :: globenv
-    TYPE(molecule_kind_type), POINTER             :: molecule_kind
+    TYPE(molecule_kind_type), POINTER        :: molecule_kind
+    TYPE(atomic_kind_type), DIMENSION(:), &
+      POINTER                                :: atomic_kind_set
+    TYPE(global_environment_type), &
+      INTENT(IN)                             :: globenv
 
-!   *** Local parameters ***
+    CHARACTER(LEN=*), PARAMETER :: routine_name = "read_molecule_kind", &
+      start_section_label = "MOLECULE"
+    INTEGER, PARAMETER                       :: nblock = 1
 
-    CHARACTER(LEN=*), PARAMETER :: routine_name = "read_molecule_kind"
-    CHARACTER(LEN=*), PARAMETER :: start_section_label = "MOLECULE"
-    INTEGER, PARAMETER          :: nblock = 1
-
-!   *** Local variables ***
-
-    TYPE(atomic_kind_type), POINTER :: atomic_kind
-
-    CHARACTER(LEN=default_string_length) :: atomic_kind_name,current_name,keyword,&
-                                      label
-    CHARACTER(LEN=3)               :: test_result
-    INTEGER                        :: iatom,ikind,istat,natom
-    LOGICAL                        :: name_found,section_found,atoms_read
-
-    INTEGER, DIMENSION(:), POINTER   :: kind_list
-    INTEGER, DIMENSION(:,:), POINTER :: name_list
+    CHARACTER(LEN=3)                         :: test_result
+    CHARACTER(LEN=default_string_length)     :: atomic_kind_name, &
+                                                current_name, keyword
+    INTEGER                                  :: iatom, ikind, istat, natom
+    INTEGER, DIMENSION(:), POINTER           :: kind_list
+    INTEGER, DIMENSION(:, :), POINTER        :: name_list
+    LOGICAL                                  :: atoms_read, name_found, &
+                                                section_found
+    TYPE(atomic_kind_type), POINTER          :: atomic_kind
 
 !   ---------------------------------------------------------------------------
 
@@ -620,19 +601,17 @@ CONTAINS
 
 !   ***************************************************************************
 
-    TYPE(atomic_kind_type), DIMENSION(:), POINTER   :: atomic_kind_set
-    TYPE(global_environment_type), INTENT(IN)       :: globenv
-    TYPE(molecule_kind_type), DIMENSION(:), POINTER :: molecule_kind_set
-
-!   *** Local parameters ***
+    TYPE(molecule_kind_type), DIMENSION(:), &
+      POINTER                                :: molecule_kind_set
+    TYPE(atomic_kind_type), DIMENSION(:), &
+      POINTER                                :: atomic_kind_set
+    TYPE(global_environment_type), &
+      INTENT(IN)                             :: globenv
 
     CHARACTER(LEN=*), PARAMETER :: routine_name = "read_molecule_kind_set"
 
-!   *** Local variables ***
-
-    TYPE(molecule_kind_type), POINTER :: molecule_kind
-
-    INTEGER :: imolecule_kind,istat
+    INTEGER                                  :: imolecule_kind
+    TYPE(molecule_kind_type), POINTER        :: molecule_kind
 
 !   ---------------------------------------------------------------------------
 
@@ -667,28 +646,28 @@ CONTAINS
 
 !   ***************************************************************************
 
-    TYPE(molecule_kind_type), POINTER                :: molecule_kind
-    CHARACTER(LEN=*), OPTIONAL, INTENT(IN)           :: name
-    REAL(KIND = dp), DIMENSION(:), OPTIONAL, POINTER      :: mass
-    REAL(KIND = dp), DIMENSION(:), OPTIONAL, POINTER      :: charge
-    INTEGER, OPTIONAL, INTENT(IN)                    :: kind_number
-    INTEGER, DIMENSION(:), OPTIONAL, POINTER         :: molecule_list
-    TYPE(atom_type), DIMENSION(:), OPTIONAL, POINTER :: atom_list
-    CHARACTER(LEN=*), OPTIONAL, INTENT(IN)           :: nhcopt
-    INTEGER, OPTIONAL, INTENT(IN)                    :: nbond
-    TYPE(bond_type), DIMENSION(:), OPTIONAL, POINTER      :: bond_list
-    INTEGER, OPTIONAL, INTENT(IN)                    :: nbend
-    TYPE(bend_type), DIMENSION(:), OPTIONAL, POINTER      :: bend_list
-    INTEGER, OPTIONAL, INTENT(IN)                    :: ntorsion
-    TYPE(torsion_type), DIMENSION(:), OPTIONAL, POINTER      :: torsion_list
-
-!   *** Local parameters ***
+    TYPE(molecule_kind_type), POINTER        :: molecule_kind
+    CHARACTER(LEN=*), INTENT(IN), OPTIONAL   :: name
+    REAL(KIND=dp), DIMENSION(:), OPTIONAL, &
+      POINTER                                :: mass, charge
+    INTEGER, INTENT(IN), OPTIONAL            :: kind_number
+    INTEGER, DIMENSION(:), OPTIONAL, POINTER :: molecule_list
+    TYPE(atom_type), DIMENSION(:), &
+      OPTIONAL, POINTER                      :: atom_list
+    CHARACTER(LEN=*), INTENT(IN), OPTIONAL   :: nhcopt
+    INTEGER, INTENT(IN), OPTIONAL            :: nbond
+    TYPE(bond_type), DIMENSION(:), &
+      OPTIONAL, POINTER                      :: bond_list
+    INTEGER, INTENT(IN), OPTIONAL            :: nbend
+    TYPE(bend_type), DIMENSION(:), &
+      OPTIONAL, POINTER                      :: bend_list
+    INTEGER, INTENT(IN), OPTIONAL            :: ntorsion
+    TYPE(torsion_type), DIMENSION(:), &
+      OPTIONAL, POINTER                      :: torsion_list
 
     CHARACTER(LEN=*), PARAMETER :: routine_name = "set_molecule_kind"
 
-!   *** Local variables ***
-
-    INTEGER :: i,istat,n
+    INTEGER                                  :: n
 
 !   ---------------------------------------------------------------------------
 
@@ -779,20 +758,16 @@ CONTAINS
 
 !   ***************************************************************************
 
-    TYPE(molecule_kind_type), POINTER         :: molecule_kind
-    TYPE(global_environment_type), INTENT(IN) :: globenv
-
-!   *** Local parameters ***
+    TYPE(molecule_kind_type), POINTER        :: molecule_kind
+    TYPE(global_environment_type), &
+      INTENT(IN)                             :: globenv
 
     CHARACTER(LEN=*), PARAMETER :: routine_name = "write_molecule_kind"
 
-!   *** Local variables ***
-
-    TYPE(atomic_kind_type), POINTER :: atomic_kind
-
-    CHARACTER(LEN=default_string_length) :: name
-    INTEGER                        :: iatom,imolecule,natom,nmolecule,&
-                                      output_unit
+    CHARACTER(LEN=default_string_length)     :: name
+    INTEGER                                  :: iatom, imolecule, natom, &
+                                                nmolecule, output_unit
+    TYPE(atomic_kind_type), POINTER          :: atomic_kind
 
 !   ---------------------------------------------------------------------------
 
@@ -849,18 +824,16 @@ CONTAINS
 
 !   ***************************************************************************
 
-    TYPE(molecule_kind_type), DIMENSION(:), POINTER :: molecule_kind_set
-    TYPE(global_environment_type), INTENT(IN)       :: globenv
-
-!   *** Local parameters ***
+    TYPE(molecule_kind_type), DIMENSION(:), &
+      POINTER                                :: molecule_kind_set
+    TYPE(global_environment_type), &
+      INTENT(IN)                             :: globenv
 
     CHARACTER(LEN=*), PARAMETER :: routine_name = "write_molecule_kind_set"
 
-!   *** Local variables ***
-
-    TYPE(molecule_kind_type), POINTER :: molecule_kind
-    INTEGER                           :: imolecule_kind,nmolecule_kind,&
-                                         output_unit
+    INTEGER                                  :: imolecule_kind, &
+                                                nmolecule_kind, output_unit
+    TYPE(molecule_kind_type), POINTER        :: molecule_kind
 
 !   ---------------------------------------------------------------------------
 

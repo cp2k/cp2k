@@ -45,9 +45,9 @@ MODULE ai_kinetic
 
 ! *****************************************************************************
 
-  USE kinds,                           ONLY: dp,dp_size
-  USE orbital_pointers,                ONLY: coset,ncoset
-  USE termination,                     ONLY: stop_memory
+  USE kinds,                           ONLY: dp
+  USE orbital_pointers,                ONLY: coset,&
+                                             ncoset
 
   IMPLICIT NONE
 
@@ -78,38 +78,37 @@ CONTAINS
 
 !   ***************************************************************************
 
-    REAL(KIND = dp), INTENT(IN)                           :: dab
-    INTEGER, INTENT(IN)                                   :: da_max,&
-                                                             la_max_set,&
-                                                             la_min_set,&
-                                                             lb_max_set,&
-                                                             lb_min_set,&
-                                                             ldt,npgfa,npgfb
-    REAL(KIND = dp), DIMENSION(3), INTENT(IN)             :: rab
-    REAL(KIND = dp), DIMENSION(:), INTENT(IN)             :: rpgfa,rpgfb,&
-                                                             zeta,zetb
-    REAL(KIND = dp), DIMENSION(:,:), INTENT(INOUT)        :: tab
-    REAL(KIND = dp), DIMENSION(:,:,:), INTENT(INOUT)      :: sdab
-    LOGICAL, INTENT(IN)                                   :: return_derivatives
-    REAL(KIND = dp), DIMENSION(ldt,ldt,*), INTENT(INOUT)  :: t
-    REAL(KIND = dp), DIMENSION(:,:), OPTIONAL, INTENT(IN) :: pab
-    REAL(KIND = dp), DIMENSION(3), OPTIONAL, INTENT(OUT)  :: force_a
+    INTEGER, INTENT(IN)                      :: la_max_set, la_min_set, npgfa
+    REAL(KIND=dp), DIMENSION(:), INTENT(IN)  :: rpgfa, zeta
+    INTEGER, INTENT(IN)                      :: lb_max_set, lb_min_set, npgfb
+    REAL(KIND=dp), DIMENSION(:), INTENT(IN)  :: rpgfb, zetb
+    REAL(KIND=dp), DIMENSION(3), INTENT(IN)  :: rab
+    REAL(KIND=dp), INTENT(IN)                :: dab
+    REAL(KIND=dp), DIMENSION(:, :, :), &
+      INTENT(INOUT)                          :: sdab
+    REAL(KIND=dp), DIMENSION(:, :), &
+      INTENT(INOUT)                          :: tab
+    INTEGER, INTENT(IN)                      :: da_max
+    LOGICAL, INTENT(IN)                      :: return_derivatives
+    INTEGER, INTENT(IN)                      :: ldt
+    REAL(KIND=dp), DIMENSION(ldt, ldt, *), &
+      INTENT(INOUT)                          :: t
+    REAL(KIND=dp), DIMENSION(:, :), &
+      INTENT(IN), OPTIONAL                   :: pab
+    REAL(KIND=dp), DIMENSION(3), &
+      INTENT(OUT), OPTIONAL                  :: force_a
 
-!   *** Local parameters ***
+    CHARACTER(LEN=*), PARAMETER              :: routine_name = "kinetic"
 
-    CHARACTER(LEN=*), PARAMETER :: routine_name = "kinetic"
-
-!   *** Local variables ***
-
-    REAL(KIND = dp) :: f0,f1,f2,f3,f4,fax,fay,faz,ftz,xi,zetp
-    INTEGER  :: ax,ay,az,bx,by,bz,cda,cdax,cday,cdaz,coa,coam2x,coam2y,coam2z,&
-                coamx,coamy,coamz,coapx,coapy,coapz,cob,cobm2x,cobm2y,cobm2z,&
-                cobmx,cobmy,cobmz,da,dax,day,daz,i,ipgf,istat,j,jk,jpgf,&
-                jstart,k,la,la_max,la_min,la_start,lb,lb_max,lb_min,lb_start,&
-                na,nb,nb1,nda,nda1
-    LOGICAL  :: calculate_force_a
-
-    REAL(KIND = dp), DIMENSION(3) :: rap,rbp
+    INTEGER :: ax, ay, az, bx, by, bz, cda, cdax, cday, cdaz, coa, coam2x, &
+      coam2y, coam2z, coamx, coamy, coamz, coapx, coapy, coapz, cob, cobm2x, &
+      cobm2y, cobm2z, cobmx, cobmy, cobmz, da, dax, day, daz, i, ipgf, j, jk, &
+      jpgf, jstart, k, la, la_max, la_min, la_start, lb, lb_max, lb_min, &
+      lb_start, na, nb, nb1, nda, nda1
+    LOGICAL                                  :: calculate_force_a
+    REAL(KIND=dp)                            :: f0, f1, f2, f3, f4, fax, fay, &
+                                                faz, ftz, xi, zetp
+    REAL(KIND=dp), DIMENSION(3)              :: rap, rbp
 
 !   ---------------------------------------------------------------------------
 

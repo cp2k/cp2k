@@ -24,6 +24,7 @@
 MODULE global_types
 
   USE cp_para_types,                   ONLY: cp_para_env_type
+
   IMPLICIT NONE
 
   PRIVATE
@@ -201,13 +202,10 @@ CONTAINS
 !!
   SUBROUTINE init_print_keys(print_key,level)
 
-    TYPE(print_key_type) :: print_key
-    INTEGER, INTENT(IN)  :: level
+    TYPE(print_key_type)                     :: print_key
+    INTEGER, INTENT(IN)                      :: level
 
-!   *** Local parameters ***
-
-    LOGICAL, PARAMETER :: f = .FALSE.,&
-                          t = .TRUE.
+    LOGICAL, PARAMETER                       :: f = .FALSE., t = .TRUE.
 
 !   ---------------------------------------------------------------------------
 
@@ -291,10 +289,9 @@ CONTAINS
 
   FUNCTION key_value(level,level_values) RESULT(value)
 
-    INTEGER, INTENT(IN)               :: level
-    LOGICAL, DIMENSION(3), INTENT(IN) :: level_values
-
-    LOGICAL :: value
+    INTEGER, INTENT(IN)                      :: level
+    LOGICAL, DIMENSION(3), INTENT(IN)        :: level_values
+    LOGICAL                                  :: value
 
 !   ---------------------------------------------------------------------------
 

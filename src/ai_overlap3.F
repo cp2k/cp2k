@@ -48,7 +48,8 @@ MODULE ai_overlap3
 
   USE kinds,                           ONLY: dp
   USE mathconstants,                   ONLY: pi
-  USE orbital_pointers,                ONLY: coset,ncoset
+  USE orbital_pointers,                ONLY: coset,&
+                                             ncoset
 
   IMPLICIT NONE
 
@@ -78,28 +79,33 @@ CONTAINS
 
 !   ***************************************************************************
 
-    REAL(KIND = dp), INTENT(IN)                      :: dab,dac,dbc,rpgfc,zetc
-    INTEGER, INTENT(IN)                              :: la_max,la_min,&
-                                                        lb_max,lb_min,&
-                                                        lc_max,lc_min
-    REAL(KIND = dp), DIMENSION(3), INTENT(IN)        :: rab,rac,rbc
-    REAL(KIND = dp), DIMENSION(:), INTENT(IN)        :: rpgfa,rpgfb,zeta,zetb
-    REAL(KIND = dp), DIMENSION(:,:,:), INTENT(INOUT) :: sabc
+    INTEGER, INTENT(IN)                      :: la_max
+    REAL(KIND=dp), DIMENSION(:), INTENT(IN)  :: zeta, rpgfa
+    INTEGER, INTENT(IN)                      :: la_min, lb_max
+    REAL(KIND=dp), DIMENSION(:), INTENT(IN)  :: zetb, rpgfb
+    INTEGER, INTENT(IN)                      :: lb_min, lc_max
+    REAL(KIND=dp), INTENT(IN)                :: zetc, rpgfc
+    INTEGER, INTENT(IN)                      :: lc_min
+    REAL(KIND=dp), DIMENSION(3), INTENT(IN)  :: rab
+    REAL(KIND=dp), INTENT(IN)                :: dab
+    REAL(KIND=dp), DIMENSION(3), INTENT(IN)  :: rac
+    REAL(KIND=dp), INTENT(IN)                :: dac
+    REAL(KIND=dp), DIMENSION(3), INTENT(IN)  :: rbc
+    REAL(KIND=dp), INTENT(IN)                :: dbc
+    REAL(KIND=dp), DIMENSION(:, :, :), &
+      INTENT(INOUT)                          :: sabc
 
-!   *** Local variables ***
-
-    REAL(KIND = dp) :: f0,f1,f2,f3,fcx,fcy,fcz,fx,fy,fz,rcp2,zetg,zetp
-    INTEGER         :: ax,ay,az,bx,by,bz,coa,coax,coay,coaz,coc,cocx,cocy,&
-                       cocz,cx,cy,cz,i,ipgf,j,jpgf,k,la,la_start,lb,lc,na,nb
-
-    REAL(KIND = dp), DIMENSION(3) :: rag,rbg,rcg,rcp
-
-    REAL(KIND = dp), DIMENSION(ncoset(la_max),&
-                               ncoset(lb_max),&
-                               ncoset(lc_max)) :: s
+    INTEGER :: ax, ay, az, bx, by, bz, coa, coax, coay, coaz, coc, cocx, &
+      cocy, cocz, cx, cy, cz, i, ipgf, j, jpgf, k, la, la_start, lb, lc, na, &
+      nb
+    REAL(KIND=dp)                            :: f0, f1, f2, f3, fcx, fcy, &
+                                                fcz, fx, fy, fz, rcp2, zetg, &
+                                                zetp
+    REAL(KIND=dp), DIMENSION(3)              :: rag, rbg, rcg, rcp
+    REAL(KIND=dp), DIMENSION(ncoset(la_max),&
+      ncoset(lb_max), ncoset(lc_max))        :: s
 
 !   ---------------------------------------------------------------------------
-
 !   *** Loop over all pairs of primitive Gaussian-type functions ***
 
     na = 0

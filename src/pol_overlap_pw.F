@@ -24,49 +24,57 @@
 MODULE pol_overlap_pw
 !******************************************************************************
 
-  USE ai_derivatives,           ONLY : dabdr
-  USE ai_overlap,               ONLY : overlap
-  USE ao_types,                 ONLY : ao_type
-  USE atomic_kinds,             ONLY: kind_info_type   
-  USE coefficient_types,        ONLY : coeff_type, coeff_allocate, &
-                                       coeff_deallocate, coeff_zero, coeff_transform_space, &
-                                       PW_COMPLEXDATA3D, PW_REALDATA3D, &
-                                       PW_REALSPACE, PW_COMPLEXDATA1D, PW_RECIPROCALSPACE
-  USE coefficient_lists,        ONLY : coef_list_type     
-  USE dgs,                      ONLY : dg_get_strucfac, dg_sum_patch, dg_get_patch
-  USE dg_types,                 ONLY : dg_type
-  USE empirical_parameters,     ONLY : empirical_parameter_type
-  USE fist_nonbond_force,       ONLY : find_image
-  USE global_types,             ONLY: global_environment_type
-  USE kinds, ONLY: dbl        
-  USE mathlib,                  ONLY: symmetrize_matrix
-  USE sparse_matrix_types,      ONLY: add_block_node,&
-                                      allocate_matrix,&
-                                      deallocate_matrix,&
-                                      deallocate_matrix_row,&
-                                      first_block_node,&
-                                      get_block_node,&
-                                      next_block_node,&
-                                      real_block_node_type,&
-                                      real_matrix_p_type
-  USE method_specifications,    ONLY : maxder
-  USE molecule_types,           ONLY : particle_node_type, &
-                                       linklist_images, linklist_neighbor
-  USE orbital_pointers,         ONLY : nco,ncoset
-  USE particle_types,           ONLY : particle_type
-  USE pol_projectors_pw,        ONLY : pol_projector_type
-  USE pw_grid_types,            ONLY : pw_grid_type, HALFSPACE, FULLSPACE
-  USE pw_types,                 ONLY :  pw_type, pw_add, pw_allocate,  &
-                                        pw_copy, pw_deallocate
-  USE realspace_grid_types,     ONLY : realspace_grid_type, rs_grid_allocate, &
-                                       rs_grid_deallocate, rs_grid_setup, &
-                                       rs_pw_transfer
-  USE simulation_cell,          ONLY : cell_type, get_cell_param
-  USE structure_factors,        ONLY : structure_factor_allocate, &
-                                       structure_factor_deallocate
-  USE structure_factor_types,   ONLY: structure_factor_type
-  USE termination,              ONLY: stop_memory, stop_program
-  USE timings,                  ONLY: timeset,timestop
+  USE ai_derivatives,                  ONLY: dabdr
+  USE ai_overlap,                      ONLY: overlap
+  USE ao_types,                        ONLY: ao_type
+  USE atomic_kinds,                    ONLY: kind_info_type
+  USE coefficient_lists,               ONLY: coef_list_type
+  USE coefficient_types,               ONLY: PW_COMPLEXDATA1D,&
+                                             PW_COMPLEXDATA3D,&
+                                             PW_REALDATA3D,&
+                                             PW_REALSPACE,&
+                                             PW_RECIPROCALSPACE,&
+                                             coeff_allocate,&
+                                             coeff_deallocate,&
+                                             coeff_transform_space,&
+                                             coeff_type,&
+                                             coeff_zero
+  USE dg_types,                        ONLY: dg_type
+  USE dgs,                             ONLY: dg_get_patch,&
+                                             dg_get_strucfac,&
+                                             dg_sum_patch
+  USE empirical_parameters,            ONLY: empirical_parameter_type
+  USE fist_nonbond_force,              ONLY: find_image
+  USE kinds,                           ONLY: dbl
+  USE method_specifications,           ONLY: maxder
+  USE molecule_types,                  ONLY: linklist_images,&
+                                             linklist_neighbor,&
+                                             particle_node_type
+  USE orbital_pointers,                ONLY: ncoset
+  USE particle_types,                  ONLY: particle_type
+  USE pol_projectors_pw,               ONLY: pol_projector_type
+  USE pw_grid_types,                   ONLY: pw_grid_type
+  USE pw_types,                        ONLY: pw_add,&
+                                             pw_copy
+  USE realspace_grid_types,            ONLY: realspace_grid_type,&
+                                             rs_grid_allocate,&
+                                             rs_grid_deallocate,&
+                                             rs_grid_setup,&
+                                             rs_pw_transfer
+  USE simulation_cell,                 ONLY: cell_type,&
+                                             get_cell_param
+  USE sparse_matrix_types,             ONLY: add_block_node,&
+                                             allocate_matrix,&
+                                             deallocate_matrix,&
+                                             get_block_node,&
+                                             real_matrix_p_type
+  USE structure_factor_types,          ONLY: structure_factor_type
+  USE structure_factors,               ONLY: structure_factor_allocate,&
+                                             structure_factor_deallocate
+  USE termination,                     ONLY: stop_memory,&
+                                             stop_program
+  USE timings,                         ONLY: timeset,&
+                                             timestop
 
   IMPLICIT NONE
 
@@ -88,58 +96,61 @@ CONTAINS
                              fproj_part, e_ovl_ii, e_ovl_ij )
 
 
-  IMPLICIT NONE
-  TYPE ( dg_type ), INTENT ( IN ), DIMENSION ( : ) :: dg 
-  TYPE ( pw_grid_type ), INTENT ( IN ) :: pw_grid
-  TYPE ( ao_type ), INTENT( INOUT ) :: ao 
-  TYPE ( kind_info_type ),  INTENT ( IN ), DIMENSION ( : ) :: kind_info
-  TYPE ( pw_grid_type ), INTENT ( IN ), DIMENSION ( : ) :: grid_s
-  TYPE ( pw_grid_type ), INTENT ( IN ), DIMENSION ( : ) :: grid_b
-  TYPE ( particle_type ), INTENT ( IN ),  dimension ( : ) :: part
-  TYPE ( particle_node_type ), INTENT ( INOUT ),  DIMENSION ( : ) :: pnode
-  TYPE ( cell_type ), INTENT ( IN ) :: box
-  TYPE ( empirical_parameter_type ), DIMENSION ( : ), INTENT ( IN ) :: empparm
-  REAL ( dbl ), INTENT ( OUT ) :: energy
-  COMPLEX ( dbl ), DIMENSION ( : ), INTENT ( INOUT ), OPTIONAL :: fo_coef
-  REAL ( dbl ), DIMENSION ( :,: ), INTENT( INOUT ), OPTIONAL :: fo_part
-  TYPE ( pol_projector_type ), DIMENSION ( : ), INTENT ( IN ), OPTIONAL :: fproj_part
-  REAL ( dbl ), INTENT ( OUT ), OPTIONAL :: e_ovl_ii
-  REAL ( dbl ), INTENT ( OUT ), OPTIONAL  :: e_ovl_ij
+    TYPE(dg_type), DIMENSION(:), INTENT(IN)  :: dg
+    TYPE(pw_grid_type), INTENT(IN)           :: pw_grid
+    TYPE(ao_type), INTENT(INOUT)             :: ao
+    TYPE(kind_info_type), DIMENSION(:), &
+      INTENT(IN)                             :: kind_info
+    TYPE(particle_type), dimension(:), &
+      INTENT(IN)                             :: part
+    TYPE(particle_node_type), DIMENSION(:), &
+      INTENT(INOUT)                          :: pnode
+    TYPE(cell_type), INTENT(IN)              :: box
+    TYPE(empirical_parameter_type), &
+      DIMENSION(:), INTENT(IN)               :: empparm
+    TYPE(pw_grid_type), DIMENSION(:), &
+      INTENT(IN)                             :: grid_s, grid_b
+    REAL(dbl), INTENT(OUT)                   :: energy
+    COMPLEX(dbl), DIMENSION(:), &
+      INTENT(INOUT), OPTIONAL                :: fo_coef
+    REAL(dbl), DIMENSION(:, :), &
+      INTENT(INOUT), OPTIONAL                :: fo_part
+    TYPE(pol_projector_type), DIMENSION(:), &
+      INTENT(IN), OPTIONAL                   :: fproj_part
+    REAL(dbl), INTENT(OUT), OPTIONAL         :: e_ovl_ii, e_ovl_ij
 
-! locals
-
-  INTEGER :: maxco,maxcgf,maxdim         
-  INTEGER :: ig, allocstat, ngrids, nbasis
-  INTEGER :: nproj, gt, ngt, igt
-  INTEGER, DIMENSION(:,:,:), ALLOCATABLE, SAVE :: n_images
-  INTEGER  :: first_cgfa,first_cgfb,id,i,ii,is,im,j,ipart,jpart, &
-                iatom,ikind,ineighbor,ipgf,iset,ishell,&
-                jatom,jkind,jneighbor,jpgf,jset,jshell,&
-                la_max,la_min,last_cgfa,last_cgfb,lb_max,lb_min,&
-                ncgfa,ncgfb,ncoa,ncob,npgfa,npgfb,nseta,nsetb,nshella,nshellb,&
-                ncgf,natom,nat,npart,nkind
-  REAL(dbl), DIMENSION(:,:), ALLOCATABLE :: sab,work 
-  REAL(dbl), DIMENSION(:,:), ALLOCATABLE :: sabdx, sabdy, sabdz
-  REAL (dbl), DIMENSION (:,:,:), ALLOCATABLE :: atom_block
-  REAL(dbl) :: radius_a,radius_b, rijsq, r2max, rcut 
-  REAL (dbl), DIMENSION (:,:), POINTER :: s_block
-  REAL (dbl), DIMENSION (:), POINTER :: zeta, zetb, rpgfa, rpgfb
-  REAL ( dbl ), DIMENSION (3) :: ri, rij, s, perd, &
-       vec, quotient, cell_lengths
-  REAL ( dbl ), DIMENSION (3,3) :: hmat, h_inv                                                  
-  TYPE (linklist_neighbor), POINTER :: current_neighbor
-  TYPE (linklist_images), POINTER :: current_image
-  TYPE (atom_basis_info_type), DIMENSION (:), POINTER :: ainfo
-  TYPE ( structure_factor_type ), ALLOCATABLE, DIMENSION ( : ) :: exp_igr
-  TYPE (real_matrix_p_type) :: smat
-  TYPE ( coeff_type ) :: rho_tot, coeff_dummy
-  TYPE ( realspace_grid_type ), ALLOCATABLE, DIMENSION ( : ) :: rho_rs
-  LOGICAL :: first_time                                             
-  LOGICAL :: forces                                             
-  LOGICAL :: deriv                                             
+    INTEGER :: allocstat, first_cgfa, first_cgfb, gt, i, iatom, id, ig, igt, &
+      ikind, im, ipart, iset, j, jatom, jkind, jpart, jset, la_max, la_min, &
+      last_cgfa, last_cgfb, lb_max, lb_min, maxcgf, maxco, maxdim, nat, &
+      natom, ncgf, ncgfa, ncgfb, ncoa, ncob, ngrids, ngt, nkind, npart, &
+      npgfa, npgfb, nproj, nseta, nsetb, nshella, nshellb
+    INTEGER, ALLOCATABLE, &
+      DIMENSION(:, :, :), SAVE               :: n_images
+    LOGICAL                                  :: deriv, first_time, forces
+    REAL(dbl)                                :: r2max, radius_a, radius_b, &
+                                                rcut, rijsq
+    REAL(dbl), ALLOCATABLE, DIMENSION(:, :)  :: sab, sabdx, sabdy, sabdz, work
+    REAL(dbl), ALLOCATABLE, &
+      DIMENSION(:, :, :)                     :: atom_block
+    REAL(dbl), DIMENSION(3)                  :: cell_lengths, perd, quotient, &
+                                                ri, rij, s, vec
+    REAL(dbl), DIMENSION(3, 3)               :: h_inv, hmat
+    REAL(dbl), DIMENSION(:), POINTER         :: rpgfa, rpgfb, zeta, zetb
+    REAL(dbl), DIMENSION(:, :), POINTER      :: s_block
+    TYPE(atom_basis_info_type), &
+      DIMENSION(:), POINTER                  :: ainfo
+    TYPE(coeff_type)                         :: coeff_dummy, rho_tot
+    TYPE(linklist_images), POINTER           :: current_image
+    TYPE(linklist_neighbor), POINTER         :: current_neighbor
+    TYPE(real_matrix_p_type)                 :: smat
+    TYPE(realspace_grid_type), ALLOCATABLE, &
+      DIMENSION(:)                           :: rho_rs
+    TYPE(structure_factor_type), &
+      ALLOCATABLE, DIMENSION(:)              :: exp_igr
 
 !   ---------------------------------------------------------------------------
 ! allocating the structure factor vector to the number of grid_types
+
   ngrids = SIZE ( dg )
   ALLOCATE ( exp_igr ( ngrids ), STAT=allocstat )
   IF ( allocstat /= 0 ) CALL stop_memory ( "force_overlap", &
@@ -576,23 +587,25 @@ CONTAINS
                               sabdz,work,s_block,cphia,cphib,atom_block,forces) 
 !---------------------------------------------------------------------------------
 
-   IMPLICIT NONE
 
-  INTEGER, INTENT (IN) :: la_max, la_min, lb_max, lb_min
-  REAL (dbl), DIMENSION (:), POINTER :: rpgfa,rpgfb,zeta,zetb
-  INTEGER, INTENT (IN) :: ncoa, ncob, ncgfa, ncgfb  
-  REAL (dbl), INTENT (IN), DIMENSION (:) :: rij
-  REAL (dbl), intent (IN)  ::  rijsq
-  REAL(dbl), DIMENSION (:,:), intent(in)  :: cphia, cphib
-  REAL(dbl), DIMENSION (:,:), intent(inout) :: sab, sabdx, sabdy, sabdz 
-  REAL(dbl), DIMENSION (:,:), intent(inout) :: s_block                           
-  REAL(dbl), DIMENSION (:,:), intent(inout) :: work                           
-  REAL(dbl), DIMENSION (:,:,:), intent (inout) :: atom_block                           
-  INTEGER :: lda, ldb, ldc
-  LOGICAL, INTENT (IN) :: forces
+    INTEGER, INTENT(IN)                      :: la_max
+    REAL(dbl), DIMENSION(:), POINTER         :: zeta, rpgfa
+    INTEGER, INTENT(IN)                      :: la_min, lb_max
+    REAL(dbl), DIMENSION(:), POINTER         :: zetb, rpgfb
+    INTEGER, INTENT(IN)                      :: lb_min
+    REAL(dbl), DIMENSION(:), INTENT(IN)      :: rij
+    REAL(dbl), intent(IN)                    :: rijsq
+    INTEGER, INTENT(IN)                      :: ncoa, ncob, ncgfa, ncgfb
+    REAL(dbl), DIMENSION(:, :), &
+      intent(inout)                          :: sab, sabdx, sabdy, sabdz, &
+                                                work, s_block
+    REAL(dbl), DIMENSION(:, :), intent(in)   :: cphia, cphib
+    REAL(dbl), DIMENSION(:, :, :), &
+      intent(inout)                          :: atom_block
+    LOGICAL, INTENT(IN)                      :: forces
 
-! locals
-  REAL (dbl) :: dab
+    INTEGER                                  :: lda, ldb, ldc
+    REAL(dbl)                                :: dab
 
 !   ---------------------------------------------------------------------------
 
@@ -693,19 +706,18 @@ CONTAINS
   SUBROUTINE  build_block_overlap_matrix(pnode,part,ainfo,smat,natom,ncgf)
 !--------------------------------------------------------------------------------------
 
-  IMPLICIT NONE
-  TYPE (particle_node_type), dimension (:), intent (in) :: pnode
-  TYPE (particle_type), dimension (:), intent (in) :: part
-  TYPE (atom_basis_info_type), DIMENSION (:) , INTENT (IN) :: ainfo
-  TYPE (real_matrix_p_type), intent (out) :: smat
-  INTEGER, intent (in) :: natom
-  INTEGER, intent (in) :: ncgf
+    TYPE(particle_node_type), dimension(:), &
+      intent(in)                             :: pnode
+    TYPE(particle_type), dimension(:), &
+      intent(in)                             :: part
+    TYPE(atom_basis_info_type), &
+      DIMENSION(:), INTENT(IN)               :: ainfo
+    TYPE(real_matrix_p_type), intent(out)    :: smat
+    INTEGER, intent(in)                      :: natom, ncgf
 
- ! locals
- 
-  INTEGER :: i, ikind, ii, ipart, iatom, j, jpart, jatom
-  TYPE (linklist_neighbor), POINTER :: current_neighbor
-   
+    INTEGER                                  :: i, iatom, ikind, ipart, j, &
+                                                jatom, jpart
+    TYPE(linklist_neighbor), POINTER         :: current_neighbor
 
   CALL allocate_matrix(matrix=smat%matrix,&
                          nblock_row=natom,&
@@ -756,27 +768,29 @@ CONTAINS
                               jpart, iset, jset, energy, grid_s, fcoef, e_ovl_ii, e_ovl_ij )
 !--------------------------------------------------------------------------------------
 
-  IMPLICIT NONE
-  TYPE ( ao_type ), INTENT ( INOUT ) :: ao
-  TYPE ( dg_type ), INTENT ( IN ), DIMENSION ( : ) :: dg
-  TYPE ( realspace_grid_type ), INTENT ( INOUT ), DIMENSION ( : ) :: rho_rs 
-  TYPE ( kind_info_type ),  INTENT ( IN ), DIMENSION ( : ) :: kind
-  TYPE ( particle_type ), DIMENSION ( : ), INTENT ( IN )  :: part
-  REAL ( dbl ), INTENT ( IN ) , DIMENSION ( :, :, : ) :: atom_block
-  TYPE ( empirical_parameter_type ), DIMENSION ( : ), INTENT ( IN ) :: empparm
-  INTEGER, INTENT ( IN ) :: ipart, jpart 
-  INTEGER, INTENT ( IN ) :: iset, jset 
-  REAL ( dbl ), INTENT ( INOUT ) :: energy
-  REAL ( dbl ), INTENT ( INOUT ) :: e_ovl_ii
-  REAL ( dbl ), INTENT ( INOUT ) :: e_ovl_ij
-  TYPE ( pw_grid_type ), DIMENSION ( : ), INTENT ( IN ) :: grid_s
-  COMPLEX ( dbl ), DIMENSION ( : ), INTENT ( IN ), OPTIONAL :: fcoef
+    TYPE(ao_type), INTENT(INOUT)             :: ao
+    TYPE(dg_type), DIMENSION(:), INTENT(IN)  :: dg
+    TYPE(realspace_grid_type), &
+      DIMENSION(:), INTENT(INOUT)            :: rho_rs
+    TYPE(kind_info_type), DIMENSION(:), &
+      INTENT(IN)                             :: kind
+    TYPE(particle_type), DIMENSION(:), &
+      INTENT(IN)                             :: part
+    REAL(dbl), DIMENSION(:, :, :), &
+      INTENT(IN)                             :: atom_block
+    TYPE(empirical_parameter_type), &
+      DIMENSION(:), INTENT(IN)               :: empparm
+    INTEGER, INTENT(IN)                      :: ipart, jpart, iset, jset
+    REAL(dbl), INTENT(INOUT)                 :: energy
+    TYPE(pw_grid_type), DIMENSION(:), &
+      INTENT(IN)                             :: grid_s
+    COMPLEX(dbl), DIMENSION(:), INTENT(IN), &
+      OPTIONAL                               :: fcoef
+    REAL(dbl), INTENT(INOUT)                 :: e_ovl_ii, e_ovl_ij
 
-! locals
-
-  INTEGER :: ikind, jkind, first_cgfa, last_cgfa, first_cgfb, last_cgfb
-  INTEGER :: nshellb, nshella, ncgfa, ncgfb, ic, jc, iproj, jproj
-  REAL ( dbl ) :: hpi, hpj, eij
+    INTEGER :: first_cgfa, first_cgfb, ic, ikind, iproj, jc, jkind, jproj, &
+      last_cgfa, last_cgfb, nshella, nshellb
+    REAL(dbl)                                :: eij, hpi, hpj
 
   ikind = part ( ipart ) %  kind          
   jkind = part ( jpart ) %  kind             
@@ -842,17 +856,17 @@ CONTAINS
 !!   SOURCE
 !******************************************************************************
   SUBROUTINE get_patch ( eij, dg, ao, grid_s, iproj, jproj, rho_rs )
-  IMPLICIT NONE
-  REAL ( dbl ), INTENT ( IN ) :: eij
-  TYPE ( dg_type ), INTENT ( IN ), DIMENSION ( : ) :: dg
-  TYPE ( ao_type ), INTENT ( INOUT ) :: ao
-  TYPE ( pw_grid_type ), INTENT ( IN ), DIMENSION ( : ) :: grid_s
-  INTEGER, INTENT ( IN ) :: iproj, jproj
-  TYPE ( realspace_grid_type ), INTENT ( INOUT ), DIMENSION ( : ) :: rho_rs
+    REAL(dbl), INTENT(IN)                    :: eij
+    TYPE(dg_type), DIMENSION(:), INTENT(IN)  :: dg
+    TYPE(ao_type), INTENT(INOUT)             :: ao
+    TYPE(pw_grid_type), DIMENSION(:), &
+      INTENT(IN)                             :: grid_s
+    INTEGER, INTENT(IN)                      :: iproj, jproj
+    TYPE(realspace_grid_type), &
+      DIMENSION(:), INTENT(INOUT)            :: rho_rs
 
-! locals
-  INTEGER :: ig, gt, ig1, gt1, ig2, gt2
-  TYPE ( coeff_type ) :: rhos1, rhos2 
+    INTEGER                                  :: gt, gt1, gt2, ig, ig1, ig2
+    TYPE(coeff_type)                         :: rhos1, rhos2
 
       ig = 0
       gt = 0
@@ -907,14 +921,17 @@ CONTAINS
 !******************************************************************************
 
    SUBROUTINE rs_force_evaluate ( grid_b, rho_rs, coeff_dummy, rho_tot )
-      IMPLICIT NONE
-      TYPE ( pw_grid_type ), INTENT ( IN ), DIMENSION ( : ) :: grid_b
-      TYPE ( realspace_grid_type ), INTENT ( INOUT ), DIMENSION ( : ) :: rho_rs
-      TYPE ( coeff_type ), INTENT ( INOUT ) :: coeff_dummy, rho_tot
-! locals
-      INTEGER :: igt
-      TYPE ( coeff_type ) :: rhob_r, rhob_g
+    TYPE(pw_grid_type), DIMENSION(:), &
+      INTENT(IN)                             :: grid_b
+    TYPE(realspace_grid_type), &
+      DIMENSION(:), INTENT(INOUT)            :: rho_rs
+    TYPE(coeff_type), INTENT(INOUT)          :: coeff_dummy, rho_tot
+
+    INTEGER                                  :: igt
+    TYPE(coeff_type)                         :: rhob_g, rhob_r
+
 ! Sum to reference grid 
+
       DO igt = 1, SIZE ( grid_b )
 
         IF ( ALL ( rho_rs ( igt ) % r == 0._dbl ) ) CYCLE
@@ -962,25 +979,26 @@ SUBROUTINE fpart_evaluate ( ao, kind_info, fproj_part, empparm, atom_block, &
                               part, ipart, jpart, iset, jset, fo_part )
 !--------------------------------------------------------------------------------------
 
-  IMPLICIT NONE
-  TYPE (ao_type), intent (inout) :: ao
-  TYPE ( kind_info_type ),  INTENT (IN), DIMENSION (:) :: kind_info
-  TYPE ( pol_projector_type ), DIMENSION ( : ), INTENT ( IN ), TARGET :: fproj_part
-  TYPE ( empirical_parameter_type ), DIMENSION ( : ), INTENT ( IN ) :: empparm
-  REAL (dbl), INTENT (IN) , DIMENSION (:,:,:) :: atom_block
-  TYPE (particle_type), DIMENSION ( : ), INTENT ( IN ) :: part
-  INTEGER, intent (in) :: ipart,jpart
-  INTEGER, intent (in) :: iset,jset
-  REAL (dbl), DIMENSION (:,:), INTENT(INOUT) :: fo_part
+    TYPE(ao_type), intent(inout)             :: ao
+    TYPE(kind_info_type), DIMENSION(:), &
+      INTENT(IN)                             :: kind_info
+    TYPE(pol_projector_type), DIMENSION(:), &
+      INTENT(IN), TARGET                     :: fproj_part
+    TYPE(empirical_parameter_type), &
+      DIMENSION(:), INTENT(IN)               :: empparm
+    REAL(dbl), DIMENSION(:, :, :), &
+      INTENT(IN)                             :: atom_block
+    TYPE(particle_type), DIMENSION(:), &
+      INTENT(IN)                             :: part
+    INTEGER, intent(in)                      :: ipart, jpart, iset, jset
+    REAL(dbl), DIMENSION(:, :), &
+      INTENT(INOUT)                          :: fo_part
 
-! locals
-
-  INTEGER :: ikind, jkind, first_cgfa, last_cgfa, first_cgfb, last_cgfb
-  INTEGER :: nshellb, nshella, ncgfa, ncgfb, ic, jc, iproj, jproj      
-  REAL ( dbl ) :: hpi, hpj
-  REAL ( dbl ),  DIMENSION ( : ), POINTER :: fpart_i, fpart_j
-  REAL ( dbl ), POINTER :: proj_i, proj_j
-  REAL ( dbl ), POINTER :: norm_i, norm_j
+    INTEGER :: first_cgfa, first_cgfb, ic, ikind, iproj, jc, jkind, jproj, &
+      last_cgfa, last_cgfb, nshella, nshellb
+    REAL(dbl)                                :: hpi, hpj
+    REAL(dbl), DIMENSION(:), POINTER         :: fpart_i, fpart_j
+    REAL(dbl), POINTER                       :: norm_i, norm_j, proj_i, proj_j
 
   ikind = part (ipart) %  kind               
   jkind = part (jpart) %  kind                 
@@ -1080,24 +1098,21 @@ END SUBROUTINE fpart_evaluate
 !******************************************************************************
 SUBROUTINE structure_factor_evaluate ( dg, part, ao, box, exp_igr, grid_s, grid_b )
 
-  IMPLICIT NONE
 
-! Arguments
-  TYPE ( dg_type ), INTENT ( IN ), TARGET :: dg
-  TYPE ( particle_type ), DIMENSION ( : ), INTENT ( IN ) :: part
-  TYPE ( ao_type ), INTENT ( INOUT ) :: ao
-  TYPE ( cell_type ), INTENT ( IN ) :: box
-  TYPE ( pw_grid_type ), INTENT ( IN ) :: grid_s
-  TYPE ( pw_grid_type ), INTENT ( IN ) :: grid_b
-  TYPE ( structure_factor_type ), INTENT ( OUT ) :: exp_igr
+    TYPE(dg_type), INTENT(IN), TARGET        :: dg
+    TYPE(particle_type), DIMENSION(:), &
+      INTENT(IN)                             :: part
+    TYPE(ao_type), INTENT(INOUT)             :: ao
+    TYPE(cell_type), INTENT(IN)              :: box
+    TYPE(structure_factor_type), INTENT(OUT) :: exp_igr
+    TYPE(pw_grid_type), INTENT(IN)           :: grid_s, grid_b
 
-! Locals
-  INTEGER :: handle, p1, p2, c1, c2, ip1, ip2
-  TYPE ( coef_list_type ), POINTER :: clist
-  REAL ( dbl ) :: r1 ( 3 ), r2 ( 3 )
+    INTEGER                                  :: c1, c2, handle, ip1, ip2, p1, &
+                                                p2
+    REAL(dbl)                                :: r1( 3 ), r2( 3 )
+    TYPE(coef_list_type), POINTER            :: clist
 
 !------------------------------------------------------------------------------
-
 
   CALL timeset ( 'STRUCTURE_FACTOR_EVALUATE', 'I', ' ', handle )
 
@@ -1141,14 +1156,14 @@ END SUBROUTINE structure_factor_evaluate
 !******************************************************************************
 SUBROUTINE set_list_drho ( clist, p1, p2, ip1, ip2, c1, c2 )
 
-  IMPLICIT NONE
 
-! Arguments
-  TYPE ( coef_list_type ),  POINTER :: clist
-  INTEGER, INTENT ( OUT ) :: p1, p2, c1, c2
-  INTEGER, INTENT ( INOUT ) :: ip1, ip2
+    TYPE(coef_list_type), POINTER            :: clist
+    INTEGER, INTENT(OUT)                     :: p1, p2
+    INTEGER, INTENT(INOUT)                   :: ip1, ip2
+    INTEGER, INTENT(OUT)                     :: c1, c2
 
 !------------------------------------------------------------------------------
+
   p1 = 0
   p2 = 0
   c1 = 0
@@ -1192,20 +1207,16 @@ END SUBROUTINE set_list_drho
 SUBROUTINE get_struc_fac ( r1, r2, exp_igr, box, p2, c1, c2, &
            ip1, ip2, grid_b, grid_s, ao )
 
-  IMPLICIT NONE
 
-! Arguments
-  TYPE ( ao_type ), INTENT ( INOUT ) :: ao
-  TYPE ( structure_factor_type ) :: exp_igr
-  TYPE ( cell_type ), INTENT ( IN ) :: box
-  INTEGER, INTENT ( IN ) :: c1, c2, p2, ip1, ip2
-  TYPE ( pw_grid_type ), INTENT ( IN ) :: grid_s
-  TYPE ( pw_grid_type ), INTENT ( IN ) :: grid_b
-  REAL ( dbl ), DIMENSION ( 3 ), INTENT ( IN ) :: r1, r2
+    REAL(dbl), DIMENSION(3), INTENT(IN)      :: r1, r2
+    TYPE(structure_factor_type)              :: exp_igr
+    TYPE(cell_type), INTENT(IN)              :: box
+    INTEGER, INTENT(IN)                      :: p2, c1, c2, ip1, ip2
+    TYPE(pw_grid_type), INTENT(IN)           :: grid_b, grid_s
+    TYPE(ao_type), INTENT(INOUT)             :: ao
 
-! Local
-  COMPLEX ( dbl ), DIMENSION ( : ), POINTER :: ex1, ey1, ez1, ex2, ey2, ez2
-  INTEGER, DIMENSION ( : ), POINTER :: center1, center2
+    COMPLEX(dbl), DIMENSION(:), POINTER      :: ex1, ex2, ey1, ey2, ez1, ez2
+    INTEGER, DIMENSION(:), POINTER           :: center1, center2
 
 !------------------------------------------------------------------------------
 
@@ -1240,17 +1251,15 @@ END SUBROUTINE get_struc_fac
 
 SUBROUTINE get_center ( part, box, centre, npts )
 
-  IMPLICIT NONE
 
-! Arguments
-  TYPE ( particle_type ), DIMENSION ( : ), INTENT ( IN ) :: part
-  TYPE ( cell_type ), INTENT ( IN ) :: box
-  INTEGER, DIMENSION ( : ), INTENT ( IN ) :: npts
-  INTEGER, DIMENSION ( :, : ), INTENT ( OUT ) :: centre
+    TYPE(particle_type), DIMENSION(:), &
+      INTENT(IN)                             :: part
+    TYPE(cell_type), INTENT(IN)              :: box
+    INTEGER, DIMENSION(:, :), INTENT(OUT)    :: centre
+    INTEGER, DIMENSION(:), INTENT(IN)        :: npts
 
-! Locals
-  REAL ( dbl ), DIMENSION ( 3 ) :: s
-  INTEGER :: ipart
+    INTEGER                                  :: ipart
+    REAL(dbl), DIMENSION(3)                  :: s
 
 !------------------------------------------------------------------------------
 
@@ -1284,22 +1293,18 @@ END SUBROUTINE get_center
 
 SUBROUTINE sum_patch_2x ( dg, rho_rs, ao, iproj, jproj, eij, rhos1, rhos2 )
 
-  IMPLICIT NONE
 
-! Arguments
-  TYPE ( dg_type ), INTENT ( IN ), TARGET :: dg
-  TYPE ( realspace_grid_type ), INTENT ( INOUT ) :: rho_rs
-  TYPE ( ao_type ), INTENT ( IN ) :: ao
-  INTEGER, INTENT ( IN ) :: iproj, jproj
-  REAL ( dbl ), INTENT ( IN ) :: eij
-  TYPE ( coeff_type ), INTENT ( INOUT ) :: rhos1
-  TYPE ( coeff_type ), INTENT ( INOUT ) :: rhos2
+    TYPE(dg_type), INTENT(IN), TARGET        :: dg
+    TYPE(realspace_grid_type), INTENT(INOUT) :: rho_rs
+    TYPE(ao_type), INTENT(IN)                :: ao
+    INTEGER, INTENT(IN)                      :: iproj, jproj
+    REAL(dbl), INTENT(IN)                    :: eij
+    TYPE(coeff_type), INTENT(INOUT)          :: rhos1, rhos2
 
-! Local
-  REAL ( dbl ) :: q1, q2
-  TYPE ( coeff_type ), POINTER :: rho0
-  COMPLEX ( dbl ), DIMENSION ( : ), POINTER :: ex1, ey1, ez1, ex2, ey2, ez2
-  INTEGER, DIMENSION ( : ), POINTER :: center1, center2
+    COMPLEX(dbl), DIMENSION(:), POINTER      :: ex1, ex2, ey1, ey2, ez1, ez2
+    INTEGER, DIMENSION(:), POINTER           :: center1, center2
+    REAL(dbl)                                :: q1, q2
+    TYPE(coeff_type), POINTER                :: rho0
 
 !------------------------------------------------------------------------------
 
@@ -1347,21 +1352,18 @@ END SUBROUTINE sum_patch_2x
 
 SUBROUTINE sum_patch_1x ( dg, rho_rs, ao, iproj, jproj, eij, rhos1 )
 
-  IMPLICIT NONE
 
-! Arguments
-  TYPE ( dg_type ), INTENT ( IN ), TARGET :: dg
-  TYPE ( realspace_grid_type ), INTENT ( INOUT ) :: rho_rs
-  TYPE ( ao_type ), INTENT ( IN ) :: ao
-  INTEGER, INTENT ( IN ) :: iproj, jproj
-  REAL ( dbl ), INTENT ( IN ) :: eij
-  TYPE ( coeff_type ), INTENT ( INOUT ) :: rhos1
+    TYPE(dg_type), INTENT(IN), TARGET        :: dg
+    TYPE(realspace_grid_type), INTENT(INOUT) :: rho_rs
+    TYPE(ao_type), INTENT(IN)                :: ao
+    INTEGER, INTENT(IN)                      :: iproj, jproj
+    REAL(dbl), INTENT(IN)                    :: eij
+    TYPE(coeff_type), INTENT(INOUT)          :: rhos1
 
-! Local
-  REAL ( dbl ) :: q1
-  TYPE ( coeff_type ), POINTER :: rho0
-  COMPLEX ( dbl ), DIMENSION ( : ), POINTER :: ex1, ey1, ez1
-  INTEGER, DIMENSION ( : ), POINTER :: center1
+    COMPLEX(dbl), DIMENSION(:), POINTER      :: ex1, ey1, ez1
+    INTEGER, DIMENSION(:), POINTER           :: center1
+    REAL(dbl)                                :: q1
+    TYPE(coeff_type), POINTER                :: rho0
 
 !------------------------------------------------------------------------------
 

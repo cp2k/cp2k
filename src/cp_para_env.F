@@ -28,11 +28,7 @@
 MODULE cp_para_env
   USE cp_error_handling,               ONLY: cp_a_l,&
                                              cp_assert,&
-                                             cp_assertion_failed,&
-                                             cp_debug,&
-                                             cp_error_type,&
-                                             cp_internal_error,&
-                                             cp_unimplemented_error
+                                             cp_error_type
   USE cp_log_handling,                 ONLY: cp_failure_level,&
                                              cp_logger_type,&
                                              cp_note_level,&
@@ -46,6 +42,7 @@ MODULE cp_para_env
                                              mp_environ
   USE timings,                         ONLY: timeset,&
                                              timestop
+
   IMPLICIT NONE
   PRIVATE
 
@@ -99,16 +96,19 @@ CONTAINS
 !!*** **********************************************************************
   SUBROUTINE cp_para_env_create(para_env, group, source,mepos, num_pe,&
       owns_group,error)
-    TYPE(cp_para_env_type), POINTER :: para_env
-    INTEGER, INTENT(in) :: group
-    INTEGER, INTENT(in), OPTIONAL :: source,mepos, num_pe
-    LOGICAL, INTENT(in), OPTIONAL :: owns_group
-    TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
+    TYPE(cp_para_env_type), POINTER          :: para_env
+    INTEGER, INTENT(in)                      :: group
+    INTEGER, INTENT(in), OPTIONAL            :: source, mepos, num_pe
+    LOGICAL, INTENT(in), OPTIONAL            :: owns_group
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
 
-    LOGICAL :: failure
-    CHARACTER(len=*), PARAMETER :: routineN='cp_para_env_create',&
-         routineP=moduleN//':'//routineN
-    INTEGER :: stat
+    CHARACTER(len=*), PARAMETER :: routineN = 'cp_para_env_create', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: stat
+    LOGICAL                                  :: failure
+
     failure=.FALSE.
 
     ALLOCATE(para_env,stat=stat)
@@ -164,14 +164,17 @@ CONTAINS
 !!
 !!*** **********************************************************************
   SUBROUTINE cp_para_env_duplicate(para_env, TEMPLATE, source,error)
-    TYPE(cp_para_env_type), POINTER :: para_env, TEMPLATE
-    INTEGER, INTENT(in), OPTIONAL :: source
-    TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
+    TYPE(cp_para_env_type), POINTER          :: para_env, TEMPLATE
+    INTEGER, INTENT(in), OPTIONAL            :: source
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
 
-    LOGICAL :: failure
-    CHARACTER(len=*), PARAMETER :: routineN='cp_para_env_duplicate',&
-         routineP=moduleN//':'//routineN
-    INTEGER :: stat
+    CHARACTER(len=*), PARAMETER :: routineN = 'cp_para_env_duplicate', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: stat
+    LOGICAL                                  :: failure
+
     failure=.FALSE.
 
     CPPrecondition(ASSOCIATED(TEMPLATE),cp_failure_level,routineP,error,failure)
@@ -224,13 +227,15 @@ CONTAINS
 !!
 !!*** **********************************************************************
   SUBROUTINE cp_para_env_retain(para_env, error)
-    TYPE(cp_para_env_type), POINTER :: para_env
-    TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
+    TYPE(cp_para_env_type), POINTER          :: para_env
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
 
-    LOGICAL :: failure
-    CHARACTER(len=*), PARAMETER :: routineN='cp_para_env_retain',&
-         routineP=moduleN//':'//routineN
-    INTEGER :: stat
+    CHARACTER(len=*), PARAMETER :: routineN = 'cp_para_env_retain', &
+      routineP = moduleN//':'//routineN
+
+    LOGICAL                                  :: failure
+
     failure=.FALSE.
 
     CPPrecondition(ASSOCIATED(para_env),cp_failure_level,routineP,error,failure)
@@ -273,13 +278,16 @@ CONTAINS
 !!
 !!*** **********************************************************************
   SUBROUTINE cp_para_env_release(para_env, error)
-    TYPE(cp_para_env_type), POINTER :: para_env
-    TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
+    TYPE(cp_para_env_type), POINTER          :: para_env
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
 
-    LOGICAL :: failure
-    CHARACTER(len=*), PARAMETER :: routineN='cp_para_env_release',&
-         routineP=moduleN//':'//routineN
-    INTEGER :: stat
+    CHARACTER(len=*), PARAMETER :: routineN = 'cp_para_env_release', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: stat
+    LOGICAL                                  :: failure
+
     failure=.FALSE.
 
     IF (ASSOCIATED(para_env)) THEN
@@ -321,13 +329,15 @@ CONTAINS
 !!
 !!*** **********************************************************************
   SUBROUTINE cp_para_env_update(para_env, error)
-    TYPE(cp_para_env_type), POINTER :: para_env
-    TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
+    TYPE(cp_para_env_type), POINTER          :: para_env
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
 
-    LOGICAL :: failure
-    CHARACTER(len=*), PARAMETER :: routineN='cp_para_env_update',&
-         routineP=moduleN//':'//routineN
-    INTEGER :: stat
+    CHARACTER(len=*), PARAMETER :: routineN = 'cp_para_env_update', &
+      routineP = moduleN//':'//routineN
+
+    LOGICAL                                  :: failure
+
     failure=.FALSE.
 
     CPPrecondition(ASSOCIATED(para_env),cp_failure_level,routineP,error,failure)
@@ -373,13 +383,17 @@ CONTAINS
 !!
 !!*** **********************************************************************
 FUNCTION cp_para_env_from_globenv(global_env, error) RESULT(res)
-  TYPE(cp_para_env_type),POINTER :: res
-  TYPE(global_environment_type), INTENT(in), TARGET :: global_env
-  TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
-  
-  LOGICAL :: failure
-  CHARACTER(len=*), PARAMETER :: routineN='cp_para_env_from_globenv',&
-        routineP=moduleN//':'//routineN
+    TYPE(global_environment_type), &
+      INTENT(in), TARGET                     :: global_env
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
+    TYPE(cp_para_env_type), POINTER          :: res
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'cp_para_env_from_globenv', &
+      routineP = moduleN//':'//routineN
+
+    LOGICAL                                  :: failure
+
   failure=.FALSE.
   
   CPPrecondition(ASSOCIATED(global_env%para_env),cp_failure_level,routineP,error,failure)
@@ -419,14 +433,17 @@ END FUNCTION cp_para_env_from_globenv
 !!
 !!*** **********************************************************************
 SUBROUTINE cp_para_env_write(para_env,unit_nr,error)
-  TYPE(cp_para_env_type), POINTER :: para_env
-  INTEGER, INTENT(in) :: unit_nr
-  TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
-  
-  LOGICAL :: failure
-  CHARACTER(len=*), PARAMETER :: routineN='cp_para_env_write',&
-        routineP=moduleN//':'//routineN
-  INTEGER :: iostat
+    TYPE(cp_para_env_type), POINTER          :: para_env
+    INTEGER, INTENT(in)                      :: unit_nr
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'cp_para_env_write', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: iostat
+    LOGICAL                                  :: failure
+
   failure=.FALSE.
   
   IF (ASSOCIATED(para_env)) THEN

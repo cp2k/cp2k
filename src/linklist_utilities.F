@@ -22,8 +22,6 @@
 
 MODULE linklist_utilities
 
-  USE kinds, ONLY : dbl
-
   IMPLICIT NONE
 
   PUBLIC :: get_match
@@ -36,12 +34,10 @@ MODULE linklist_utilities
 
 !------------------------------------------------------------------------------!
   FUNCTION get_match(jatom,elist,nexcl) RESULT (match)
-    IMPLICIT NONE
-    INTEGER, INTENT ( IN ) :: jatom
-    INTEGER, INTENT ( IN ) :: elist ( : )
-    INTEGER, INTENT ( IN ) :: nexcl
-    LOGICAL :: match
-    INTEGER :: iexclude
+    INTEGER, INTENT(IN)                      :: jatom, elist( : ), nexcl
+    LOGICAL                                  :: match
+
+    INTEGER                                  :: iexclude
 
     match = .FALSE.
     DO iexclude = 1, nexcl

@@ -19,17 +19,22 @@
 
  MODULE amoeba
 
-  USE kinds, ONLY : dbl
-  USE nrutil, ONLY : assert_eq, imaxloc, iminloc, nrerror, swap
-  USE structure_types, ONLY : structure_type, interaction_type
-  USE particle_types, ONLY : particle_prop_type
-  USE md, ONLY : simulation_parameters_type, thermodynamic_type
-  USE fit_parameters_types, ONLY : fit_parameter_type, linklist_parameters_type, &
-                                   fit_info_type
-  USE ewald_parameters_types, ONLY : ewald_parameters_type
-  USE global_types, ONLY : global_environment_type
-  USE simulation_cell, ONLY : cell_type
-
+  USE ewald_parameters_types,          ONLY: ewald_parameters_type
+  USE fit_parameters_types,            ONLY: fit_info_type,&
+                                             fit_parameter_type,&
+                                             linklist_parameters_type
+  USE global_types,                    ONLY: global_environment_type
+  USE kinds,                           ONLY: dbl
+  USE md,                              ONLY: simulation_parameters_type,&
+                                             thermodynamic_type
+  USE nrutil,                          ONLY: assert_eq,&
+                                             imaxloc,&
+                                             iminloc,&
+                                             swap
+  USE particle_types,                  ONLY: particle_prop_type
+  USE simulation_cell,                 ONLY: cell_type
+  USE structure_types,                 ONLY: interaction_type,&
+                                             structure_type
 
   IMPLICIT NONE
 
@@ -61,25 +66,28 @@ CONTAINS
   SUBROUTINE amoeba_evaluate ( p, y, rtol, struc, thermo, inter, simpar, &
            fit_param, box_ref, finfo, param, pstat, ewald_param, globenv, func )
 
-  IMPLICIT NONE
 
-! Arguments
-  REAL (dbl), DIMENSION (:,:), INTENT (INOUT) :: p
-  REAL (dbl), DIMENSION (:), INTENT (INOUT) :: y
-  REAL (dbl), INTENT ( OUT ) :: rtol
-  TYPE (structure_type), INTENT (INOUT) :: struc
-  TYPE (interaction_type), INTENT (INOUT) :: inter
-  TYPE (thermodynamic_type), INTENT (INOUT) :: thermo
-  TYPE (simulation_parameters_type), INTENT (IN) :: simpar
-  TYPE (fit_parameter_type), INTENT(INOUT) :: fit_param
-  TYPE (cell_type) , POINTER, DIMENSION (:) :: box_ref
-  TYPE (fit_info_type), DIMENSION (:,:), POINTER :: finfo
-  TYPE (linklist_parameters_type ), INTENT(INOUT), DIMENSION ( :, : ) :: param 
-  TYPE (particle_prop_type ), DIMENSION ( : ), POINTER :: pstat 
-  TYPE ( ewald_parameters_type ), INTENT ( INOUT ) :: ewald_param  
-  TYPE ( global_environment_type), INTENT ( IN ) :: globenv
-
-! Interface
+    REAL(dbl), DIMENSION(:, :), &
+      INTENT(INOUT)                          :: p
+    REAL(dbl), DIMENSION(:), INTENT(INOUT)   :: y
+    REAL(dbl), INTENT(OUT)                   :: rtol
+    TYPE(structure_type), INTENT(INOUT)      :: struc
+    TYPE(thermodynamic_type), INTENT(INOUT)  :: thermo
+    TYPE(interaction_type), INTENT(INOUT)    :: inter
+    TYPE(simulation_parameters_type), &
+      INTENT(IN)                             :: simpar
+    TYPE(fit_parameter_type), INTENT(INOUT)  :: fit_param
+    TYPE(cell_type), DIMENSION(:), POINTER   :: box_ref
+    TYPE(fit_info_type), DIMENSION(:, :), &
+      POINTER                                :: finfo
+    TYPE(linklist_parameters_type), &
+      DIMENSION(:, :), INTENT(INOUT)         :: param
+    TYPE(particle_prop_type), DIMENSION(:), &
+      POINTER                                :: pstat
+    TYPE(ewald_parameters_type), &
+      INTENT(INOUT)                          :: ewald_param
+    TYPE(global_environment_type), &
+      INTENT(IN)                             :: globenv
   INTERFACE
      FUNCTION func ( x ,struc,inter,thermo,simpar,fit_param,box_ref,&
        finfo,param,pstat,ewald_param, globenv)
@@ -113,9 +121,9 @@ CONTAINS
 
   END INTERFACE
 
-  INTEGER :: ihi, ndim, itmax
-  REAL (dbl), DIMENSION (size(p,2)) :: psum 
-  REAL  (dbl) :: ftol
+    INTEGER                                  :: ihi, itmax, ndim
+    REAL(dbl)                                :: ftol
+    REAL(dbl), DIMENSION(size(p, 2))         :: psum
 
   ftol = fit_param % max_tol
   itmax = fit_param % iwrite
@@ -173,11 +181,11 @@ CONTAINS
 
 !BL
   FUNCTION amotry(fac)
-    IMPLICIT NONE
-    REAL (dbl), INTENT (IN) :: fac
-    REAL (dbl) :: amotry
-    REAL (dbl) :: fac1, fac2, ytry
-    REAL (dbl), DIMENSION (size(p,2)) :: ptry
+    REAL(dbl), INTENT(IN)                    :: fac
+    REAL(dbl)                                :: amotry
+
+    REAL(dbl)                                :: fac1, fac2, ytry
+    REAL(dbl), DIMENSION(size(p, 2))         :: ptry
 
     fac1 = (1.0_dbl-fac)/ndim
     fac2 = fac1 - fac

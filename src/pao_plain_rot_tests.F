@@ -29,14 +29,10 @@ MODULE pao_plain_rot_tests
   USE cp_array_utils,                  ONLY: cp_2d_r_output
   USE cp_error_handling,               ONLY: cp_a_l,&
                                              cp_assert,&
-                                             cp_assertion_failed,&
                                              cp_debug,&
-                                             cp_error_dealloc_ref,&
                                              cp_error_get_logger,&
-                                             cp_error_init,&
                                              cp_error_message,&
-                                             cp_error_type,&
-                                             cp_precondition_failed
+                                             cp_error_type
   USE cp_log_handling,                 ONLY: cp_failure_level,&
                                              cp_log,&
                                              cp_logger_type,&
@@ -47,18 +43,12 @@ MODULE pao_plain_rot_tests
   USE global_types,                    ONLY: global_environment_type
   USE kinds,                           ONLY: dp
   USE mathconstants,                   ONLY: pi
-  USE pao_l_angles_methods,            ONLY: cp_dealloc_ref,&
-                                             cp_get,&
-                                             cp_init,&
-                                             pao_local_angles_type
   USE pao_plain_rot,                   ONLY: cp_left_compose_p_rot,&
                                              cp_left_compose_p_rot_deriv,&
                                              cp_right_compose_p_rot,&
                                              cp_right_compose_p_rot_deriv
-  USE pao_types,                       ONLY: pao_env_type,&
-                                             pao_glob_angles_type
-  USE pao_types_tests,                 ONLY: cp_init_test_pao_env
   USE pao_utils,                       ONLY: cp_get_random_integer
+
   IMPLICIT NONE
   PRIVATE
 
@@ -102,16 +92,22 @@ CONTAINS
 !!
 !!*** ************************************************************************
   SUBROUTINE pao_test_plain_rot(g_env, failed, error)
-    TYPE(global_environment_type), INTENT(in), TARGET ::g_env
-    LOGICAL, INTENT(inout) :: failed
-    TYPE(cp_error_type), OPTIONAL, INTENT(inout):: error
+    TYPE(global_environment_type), &
+      INTENT(in), TARGET                     :: g_env
+    LOGICAL, INTENT(inout)                   :: failed
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
 
-    LOGICAL :: failure
-    CHARACTER(len=*), PARAMETER :: routineP='cp_plain_rot_tests:cp_test_plain_rot'
-    INTEGER, PARAMETER :: n=10
-    INTEGER :: i,j
-    REAL(KIND = dp) :: m1(n,n),m2(n,n),tmpV1(n), angle, err
-    TYPE(cp_logger_type), POINTER :: logger
+    CHARACTER(len=*), PARAMETER :: &
+      routineP = 'cp_plain_rot_tests:cp_test_plain_rot'
+    INTEGER, PARAMETER                       :: n = 10
+
+    INTEGER                                  :: i, j
+    LOGICAL                                  :: failure
+    REAL(KIND=dp)                            :: angle, err, m1(n,n), m2(n,n), &
+                                                tmpV1(n)
+    TYPE(cp_logger_type), POINTER            :: logger
+
     failure=.FALSE.
     CPPrecondition(n>1,cp_failure_level,routineP,error,failure)
     IF (.NOT. failure) THEN
@@ -348,21 +344,18 @@ CONTAINS
 !!
 !!*** **********************************************************************
   FUNCTION pao_test_u_du(glob_env,error) RESULT(res)
-    LOGICAL ::res
-    TYPE(global_environment_type), TARGET :: glob_env
-    TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
+    TYPE(global_environment_type), TARGET    :: glob_env
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
+    LOGICAL                                  :: res
 
-    LOGICAL :: failure
-    CHARACTER(len=*), PARAMETER :: routineP='pao_plain_rot_tests:pao_test_u_du'
-    INTEGER, PARAMETER :: n_atom=3, atom_nr=1
-    TYPE(pao_env_type) :: pao_env
-    TYPE(pao_glob_angles_type), POINTER :: g_angles
-    TYPE(pao_local_angles_type) :: l_angles
-    REAL(KIND = dp), DIMENSION(:), POINTER :: angles
-    REAL(KIND = dp),DIMENSION(:,:), ALLOCATABLE :: m1,m2,m3
-    REAL(KIND = dp) :: err
-    INTEGER :: stat, full_bas_size, i
-    TYPE(cp_logger_type), POINTER :: logger
+    CHARACTER(len=*), PARAMETER :: &
+      routineP = 'pao_plain_rot_tests:pao_test_u_du'
+    INTEGER, PARAMETER                       :: atom_nr = 1, n_atom = 3
+
+    LOGICAL                                  :: failure
+    TYPE(cp_logger_type), POINTER            :: logger
+
     failure=.FALSE.
     logger=>cp_error_get_logger(error)
 

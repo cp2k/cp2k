@@ -26,6 +26,16 @@
 !****************************************************************************
 MODULE xc_rho_set_types
   USE cp_array_r_utils,                ONLY: cp_3d_r_p_type
+  USE cp_control_types,                ONLY: dft_control_type,&
+                                             xc_deriv_pw,&
+                                             xc_deriv_spline2,&
+                                             xc_deriv_spline2_smooth,&
+                                             xc_deriv_spline3,&
+                                             xc_deriv_spline3_smooth,&
+                                             xc_rho_nn10,&
+                                             xc_rho_no_smooth,&
+                                             xc_rho_spline2_smooth,&
+                                             xc_rho_spline3_smooth
   USE cp_error_handling,               ONLY: cp_a_l,&
                                              cp_assert,&
                                              cp_assertion_failed,&
@@ -38,16 +48,6 @@ MODULE xc_rho_set_types
                                              cp_note_level,&
                                              cp_to_string,&
                                              cp_warning_level
-  USE cp_control_types,                ONLY: dft_control_type,&
-                                             xc_deriv_pw,&
-                                             xc_deriv_spline2,&
-                                             xc_deriv_spline2_smooth,&
-                                             xc_deriv_spline3,&
-                                             xc_deriv_spline3_smooth,&
-                                             xc_rho_nn10,&
-                                             xc_rho_no_smooth,&
-                                             xc_rho_spline2_smooth,&
-                                             xc_rho_spline3_smooth
   USE kinds,                           ONLY: dp
   USE pw_pool_types,                   ONLY: pw_pool_create_cr3d,&
                                              pw_pool_create_pw,&
@@ -75,6 +75,7 @@ MODULE xc_rho_set_types
   USE simulation_cell,                 ONLY: cell_type
   USE timings,                         ONLY: timeset,&
                                              timestop
+
   IMPLICIT NONE
   PRIVATE
   LOGICAL, PRIVATE, PARAMETER :: debug_this_module=.TRUE.
@@ -232,13 +233,15 @@ CONTAINS
 !!
 !!*** **********************************************************************
   SUBROUTINE xc_rho_cflags_setall(cflags, value, error)
-    TYPE(xc_rho_cflags_type), INTENT(out) :: cflags
-    LOGICAL, INTENT(in) :: value
-    TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
+    TYPE(xc_rho_cflags_type), INTENT(out)    :: cflags
+    LOGICAL, INTENT(in)                      :: value
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
 
-    LOGICAL :: failure
-    CHARACTER(len=*), PARAMETER :: routineN='xc_rho_cflags_setall',&
-         routineP=moduleN//':'//routineN
+    CHARACTER(len=*), PARAMETER :: routineN = 'xc_rho_cflags_setall', &
+      routineP = moduleN//':'//routineN
+
+    LOGICAL                                  :: failure
 
     failure=.FALSE.
     cflags%rho=value
@@ -278,13 +281,15 @@ CONTAINS
 !!
 !!*** **********************************************************************
   SUBROUTINE xc_rho_cflags_or(cflags1, cflags2, error)
-    TYPE(xc_rho_cflags_type), INTENT(inout) :: cflags1
-    TYPE(xc_rho_cflags_type), INTENT(in) :: cflags2
-    TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
+    TYPE(xc_rho_cflags_type), INTENT(inout)  :: cflags1
+    TYPE(xc_rho_cflags_type), INTENT(in)     :: cflags2
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
 
-    LOGICAL :: failure
-    CHARACTER(len=*), PARAMETER :: routineN='xc_rho_cflags_or',&
-         routineP=moduleN//':'//routineN
+    CHARACTER(len=*), PARAMETER :: routineN = 'xc_rho_cflags_or', &
+      routineP = moduleN//':'//routineN
+
+    LOGICAL                                  :: failure
 
     failure=.FALSE.
 
@@ -326,13 +331,15 @@ CONTAINS
 !!
 !!*** **********************************************************************
   SUBROUTINE xc_rho_cflags_and(cflags1, cflags2, error)
-    TYPE(xc_rho_cflags_type), INTENT(inout) :: cflags1
-    TYPE(xc_rho_cflags_type), INTENT(in) :: cflags2
-    TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
+    TYPE(xc_rho_cflags_type), INTENT(inout)  :: cflags1
+    TYPE(xc_rho_cflags_type), INTENT(in)     :: cflags2
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
 
-    LOGICAL :: failure
-    CHARACTER(len=*), PARAMETER :: routineN='xc_rho_cflags_and',&
-         routineP=moduleN//':'//routineN
+    CHARACTER(len=*), PARAMETER :: routineN = 'xc_rho_cflags_and', &
+      routineP = moduleN//':'//routineN
+
+    LOGICAL                                  :: failure
 
     failure=.FALSE.
 
@@ -374,14 +381,16 @@ CONTAINS
 !!
 !!*** **********************************************************************
   FUNCTION xc_rho_cflags_equal(cflags1, cflags2, error) RESULT(equal)
-    TYPE(xc_rho_cflags_type), INTENT(inout) :: cflags1
-    TYPE(xc_rho_cflags_type), INTENT(in) :: cflags2
-    TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
-    LOGICAL :: equal
+    TYPE(xc_rho_cflags_type), INTENT(inout)  :: cflags1
+    TYPE(xc_rho_cflags_type), INTENT(in)     :: cflags2
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
+    LOGICAL                                  :: equal
 
-    LOGICAL :: failure
-    CHARACTER(len=*), PARAMETER :: routineN='xc_rho_cflags_equal',&
-         routineP=moduleN//':'//routineN
+    CHARACTER(len=*), PARAMETER :: routineN = 'xc_rho_cflags_equal', &
+      routineP = moduleN//':'//routineN
+
+    LOGICAL                                  :: failure
 
     failure=.FALSE.
 
@@ -427,14 +436,16 @@ CONTAINS
 !!
 !!*** **********************************************************************
   FUNCTION xc_rho_cflags_contain(cflags1, cflags2, error) RESULT(contain)
-    TYPE(xc_rho_cflags_type), INTENT(inout) :: cflags1
-    TYPE(xc_rho_cflags_type), INTENT(in) :: cflags2
-    TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
-    LOGICAL :: contain
+    TYPE(xc_rho_cflags_type), INTENT(inout)  :: cflags1
+    TYPE(xc_rho_cflags_type), INTENT(in)     :: cflags2
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
+    LOGICAL                                  :: contain
 
-    LOGICAL :: failure
-    CHARACTER(len=*), PARAMETER :: routineN='xc_rho_cflags_contain',&
-         routineP=moduleN//':'//routineN
+    CHARACTER(len=*), PARAMETER :: routineN = 'xc_rho_cflags_contain', &
+      routineP = moduleN//':'//routineN
+
+    LOGICAL                                  :: failure
 
     failure=.FALSE.
 
@@ -478,15 +489,17 @@ CONTAINS
 !!*** **********************************************************************
   SUBROUTINE xc_rho_set_create(rho_set,local_bounds,rho_cutoff,drho_cutoff,&
        error)
-    TYPE(xc_rho_set_type), POINTER :: rho_set
-    INTEGER, DIMENSION(2,3), INTENT(in) :: local_bounds
-    REAL(kind=dp), INTENT(in), OPTIONAL :: rho_cutoff, drho_cutoff
-    TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
+    TYPE(xc_rho_set_type), POINTER           :: rho_set
+    INTEGER, DIMENSION(2, 3), INTENT(in)     :: local_bounds
+    REAL(kind=dp), INTENT(in), OPTIONAL      :: rho_cutoff, drho_cutoff
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
 
-    LOGICAL :: failure
-    CHARACTER(len=*), PARAMETER :: routineN='xc_rho_set_create',&
-         routineP=moduleN//':'//routineN
-    INTEGER :: stat, i
+    CHARACTER(len=*), PARAMETER :: routineN = 'xc_rho_set_create', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: i, stat
+    LOGICAL                                  :: failure
 
     failure=.FALSE.
 
@@ -541,12 +554,14 @@ CONTAINS
 !!
 !!*** **********************************************************************
   SUBROUTINE xc_rho_set_retain(rho_set, error)
-    TYPE(xc_rho_set_type), POINTER :: rho_set
-    TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
+    TYPE(xc_rho_set_type), POINTER           :: rho_set
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
 
-    LOGICAL :: failure
-    CHARACTER(len=*), PARAMETER :: routineN='xc_rho_set_retain',&
-         routineP=moduleN//':'//routineN
+    CHARACTER(len=*), PARAMETER :: routineN = 'xc_rho_set_retain', &
+      routineP = moduleN//':'//routineN
+
+    LOGICAL                                  :: failure
 
     failure=.FALSE.
     CPPrecondition(ASSOCIATED(rho_set),cp_failure_level,routineP,error,failure)
@@ -578,13 +593,15 @@ CONTAINS
 !!
 !!*** **********************************************************************
   SUBROUTINE xc_rho_set_release(rho_set, error)
-    TYPE(xc_rho_set_type), POINTER :: rho_set
-    TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
+    TYPE(xc_rho_set_type), POINTER           :: rho_set
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
 
-    LOGICAL :: failure
-    CHARACTER(len=*), PARAMETER :: routineN='xc_rho_set_release',&
-         routineP=moduleN//':'//routineN
-    INTEGER :: stat,i
+    CHARACTER(len=*), PARAMETER :: routineN = 'xc_rho_set_release', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: i, stat
+    LOGICAL                                  :: failure
 
     failure=.FALSE.
 
@@ -730,28 +747,32 @@ CONTAINS
        rhoa, rhob, norm_drhoa, norm_drhob, drhoa_drhob,rho_1_3,rhoa_1_3,&
        rhob_1_3,drhoa,drhob,rho_cutoff,drho_cutoff,kinetic,kinetic_a,&
        kinetic_b,local_bounds,error)
-    TYPE(xc_rho_set_type), POINTER :: rho_set
-    LOGICAL, INTENT(in), OPTIONAL :: can_return_null
-    REAL(KIND = dp), DIMENSION(:,:,:), POINTER, OPTIONAL :: rho
-    TYPE(cp_3d_r_p_type), DIMENSION(:), POINTER, OPTIONAL:: drho
-    REAL(KIND = dp), DIMENSION(:,:,:), POINTER, OPTIONAL :: norm_drho
-    REAL(KIND = dp), DIMENSION(:,:,:), POINTER, OPTIONAL :: rhoa, rhob
-    TYPE(cp_3d_r_p_type), DIMENSION(:), OPTIONAL, POINTER :: drhoa, drhob
-    REAL(KIND = dp), DIMENSION(:,:,:), POINTER, OPTIONAL :: norm_drhoa, &
-         norm_drhob
-    REAL(KIND = dp), DIMENSION(:,:,:), POINTER, OPTIONAL :: drhoa_drhob
-    REAL(KIND = dp), DIMENSION(:,:,:), POINTER, OPTIONAL :: rho_1_3
-    REAL(KIND = dp), DIMENSION(:,:,:), POINTER, OPTIONAL :: rhoa_1_3,rhob_1_3
-    REAL(kind=dp), INTENT(out), OPTIONAL :: rho_cutoff, drho_cutoff
-    REAL(KIND = dp), DIMENSION(:,:,:), POINTER, OPTIONAL :: kinetic, &
-         kinetic_a, kinetic_b
-    INTEGER, DIMENSION(:,:), POINTER, OPTIONAL :: local_bounds
-    TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
+    TYPE(xc_rho_set_type), POINTER           :: rho_set
+    LOGICAL, INTENT(in), OPTIONAL            :: can_return_null
+    REAL(KIND=dp), DIMENSION(:, :, :), &
+      OPTIONAL, POINTER                      :: rho
+    TYPE(cp_3d_r_p_type), DIMENSION(:), &
+      OPTIONAL, POINTER                      :: drho
+    REAL(KIND=dp), DIMENSION(:, :, :), &
+      OPTIONAL, POINTER                      :: norm_drho, rhoa, rhob, &
+                                                norm_drhoa, norm_drhob, &
+                                                drhoa_drhob, rho_1_3, &
+                                                rhoa_1_3, rhob_1_3
+    TYPE(cp_3d_r_p_type), DIMENSION(:), &
+      OPTIONAL, POINTER                      :: drhoa, drhob
+    REAL(kind=dp), INTENT(out), OPTIONAL     :: rho_cutoff, drho_cutoff
+    REAL(KIND=dp), DIMENSION(:, :, :), &
+      OPTIONAL, POINTER                      :: kinetic, kinetic_a, kinetic_b
+    INTEGER, DIMENSION(:, :), OPTIONAL, &
+      POINTER                                :: local_bounds
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
 
-    LOGICAL :: failure, my_can_return_null, valid
-    CHARACTER(len=*), PARAMETER :: routineN='xc_rho_set_get',&
-         routineP=moduleN//':'//routineN
-    INTEGER :: i
+    CHARACTER(len=*), PARAMETER :: routineN = 'xc_rho_set_get', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: i
+    LOGICAL                                  :: failure, my_can_return_null
 
     failure=.FALSE.
     my_can_return_null=.FALSE.
@@ -882,25 +903,29 @@ CONTAINS
 !!*** **********************************************************************
   SUBROUTINE xc_rho_set_update(rho_set, rho_r, rho_g, needs,&
        dft_control,cell,pw_pool,error)
-    TYPE(xc_rho_set_type), POINTER :: rho_set
-    TYPE(pw_p_type),DIMENSION(:), INTENT(inout), TARGET :: rho_r
-    TYPE(pw_p_type),DIMENSION(:), POINTER        :: rho_g
-    TYPE(xc_rho_cflags_type), INTENT(in) :: needs
-    TYPE(dft_control_type), POINTER :: dft_control
-    TYPE(cell_type), POINTER :: cell
-    TYPE(pw_pool_type), POINTER :: pw_pool
-    TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
+    TYPE(xc_rho_set_type), POINTER           :: rho_set
+    TYPE(pw_p_type), DIMENSION(:), &
+      INTENT(inout), TARGET                  :: rho_r
+    TYPE(pw_p_type), DIMENSION(:), POINTER   :: rho_g
+    TYPE(xc_rho_cflags_type), INTENT(in)     :: needs
+    TYPE(dft_control_type), POINTER          :: dft_control
+    TYPE(cell_type), POINTER                 :: cell
+    TYPE(pw_pool_type), POINTER              :: pw_pool
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
 
-    LOGICAL :: failure, my_rho_r_local, my_rho_g_local, gradient_f
-    CHARACTER(len=*), PARAMETER :: routineN='xc_rho_set_update',&
-         routineP=moduleN//':'//routineN
-    INTEGER, DIMENSION (3,3) :: nd 
-    INTEGER :: stat, ispin, idir, nspins, i,j,k
-    TYPE(pw_p_type), DIMENSION(2) :: my_rho_r
-    TYPE(pw_p_type), DIMENSION(3,2) :: drho_r
-    TYPE(pw_p_type), DIMENSION(3) :: drho_r_att
-    TYPE(pw_type), POINTER :: tmp_g, my_rho_g
-    REAL(KIND=dp), PARAMETER :: f13=(1.0_dp/3.0_dp)
+    CHARACTER(len=*), PARAMETER :: routineN = 'xc_rho_set_update', &
+      routineP = moduleN//':'//routineN
+    REAL(KIND=dp), PARAMETER                 :: f13 = (1.0_dp/3.0_dp)
+
+    INTEGER                                  :: i, idir, ispin, j, k, nspins
+    INTEGER, DIMENSION(3, 3)                 :: nd
+    LOGICAL                                  :: failure, gradient_f, &
+                                                my_rho_g_local, my_rho_r_local
+    TYPE(pw_p_type), DIMENSION(2)            :: my_rho_r
+    TYPE(pw_p_type), DIMENSION(3)            :: drho_r_att
+    TYPE(pw_p_type), DIMENSION(3, 2)         :: drho_r
+    TYPE(pw_type), POINTER                   :: my_rho_g, tmp_g
 
     failure=.FALSE.
     DO ispin=1,2

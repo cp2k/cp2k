@@ -24,28 +24,31 @@ MODULE kg_intra
 
 ! *****************************************************************************
 
-  USE atomic_kind_types,        ONLY: atomic_kind_type,&
-                                      get_atomic_kind,&
-                                      get_atomic_kind_set
-  USE basis_set_types,          ONLY: get_gto_basis_set,&
-                                      gto_basis_set_type
-  USE erf_fn,                   ONLY: erf
-  USE global_types,             ONLY : global_environment_type
-  USE kg_environment_types,     ONLY: kg_environment_type, &
-                                      get_kg_env
-  USE kg_force_types,           ONLY: kg_force_type 
-  USE kinds,                    ONLY: int_size,&
-                                      dp,&
-                                      dp_size
-  USE mathconstants,            ONLY: oorootpi,twopi, pi
-  USE molecule_types,           ONLY : molecule_structure_type, particle_node_type, &
-                                       linklist_exclusion, linklist_atoms
-  USE particle_types,           ONLY: particle_type
-  USE simulation_cell,          ONLY: cell_type,&
-                                      pbc
-  USE termination,              ONLY: stop_memory
-  USE timings,                  ONLY: timeset,&
-                                      timestop
+  USE atomic_kind_types,               ONLY: atomic_kind_type,&
+                                             get_atomic_kind,&
+                                             get_atomic_kind_set
+  USE basis_set_types,                 ONLY: get_gto_basis_set,&
+                                             gto_basis_set_type
+  USE erf_fn,                          ONLY: erf
+  USE global_types,                    ONLY: global_environment_type
+  USE kg_environment_types,            ONLY: get_kg_env,&
+                                             kg_environment_type
+  USE kg_force_types,                  ONLY: kg_force_type
+  USE kinds,                           ONLY: dp,&
+                                             dp_size,&
+                                             int_size
+  USE mathconstants,                   ONLY: oorootpi,&
+                                             pi,&
+                                             twopi
+  USE molecule_types,                  ONLY: linklist_atoms,&
+                                             linklist_exclusion,&
+                                             molecule_structure_type
+  USE particle_types,                  ONLY: particle_type
+  USE simulation_cell,                 ONLY: cell_type,&
+                                             pbc
+  USE termination,                     ONLY: stop_memory
+  USE timings,                         ONLY: timeset,&
+                                             timestop
 
   IMPLICIT NONE
 
@@ -68,48 +71,41 @@ CONTAINS
 
 !   ***************************************************************************
 
-    IMPLICIT NONE
 
-    TYPE(global_environment_type), INTENT(IN) :: globenv
-    TYPE(kg_environment_type), INTENT(INOUT)  :: kg_env
-    REAL(KIND = dp), intent (out) :: e_bc
-    TYPE(kg_force_type), DIMENSION(:), POINTER, OPTIONAL  :: force
+    TYPE(kg_environment_type), INTENT(INOUT) :: kg_env
+    TYPE(global_environment_type), &
+      INTENT(IN)                             :: globenv
+    REAL(KIND=dp), intent(out)               :: e_bc
+    TYPE(kg_force_type), DIMENSION(:), &
+      OPTIONAL, POINTER                      :: force
 
-!   *** Local parameters ***
+    CHARACTER(LEN=*), PARAMETER :: &
+      routine = "SUBROUTINE calculate_ebond_corr (MODULE kg_intra)"
 
-    CHARACTER(LEN=*), PARAMETER :: routine =&
-      "SUBROUTINE calculate_ebond_corr (MODULE kg_intra)"
-
-!   *** Local variables ***
-
-    TYPE(atomic_kind_type), POINTER :: atomic_kind
-    TYPE(cell_type), POINTER        :: box
-    TYPE(gto_basis_set_type), POINTER :: orb_basis_set
-    REAL(KIND = dp)                        :: ann,eee,ene,enn,&
-                                       fee,fne,fnn,fscalar,gnorm, &
-                                       dij,idij,prefac,q_i,q_j,qnn,rijsq,&
-                                       rootann,rootzee,rootzne,&
-                                       zne,zee,z_i,z_j             
-    INTEGER                         :: atom_a,atom_b,handle, &
-                                       iat,iatom,iset,ishell,ipgf,ikind,&
-                                       imol,istat,j,jatom,jkind,jshell,jset,jpgf,&
-                                       nseta,nsetb,maxatom,natom_a,nkind,nmol,npart,&
-                                       output_unit
-    LOGICAL                         :: ionode
-
-    REAL(KIND = dp), DIMENSION(3) :: rij
-
-    TYPE(atomic_kind_type), DIMENSION(:), POINTER :: atomic_kind_set
-    TYPE ( molecule_structure_type ), POINTER :: molecule ( : )
-    TYPE(particle_type), DIMENSION(:), POINTER    :: part
-    INTEGER, DIMENSION(:), POINTER :: nshella, nshellb, npgfa, npgfb
-    REAL(KIND = dp), DIMENSION(:,:,:), POINTER :: gcca, gccb
-    REAL(KIND = dp), DIMENSION(:,:), POINTER :: zeta,zetb
-
-    TYPE ( linklist_exclusion ), POINTER :: llex
-    TYPE ( linklist_atoms ), POINTER :: llat
-    REAL(KIND = dp), DIMENSION(:), ALLOCATABLE             :: alpha,qnuc
-    INTEGER, DIMENSION(:), ALLOCATABLE              :: atom_of_kind
+    INTEGER :: atom_a, atom_b, handle, iat, iatom, ikind, imol, ipgf, iset, &
+      ishell, istat, j, jatom, jkind, jpgf, jset, jshell, nkind, nmol, npart, &
+      nseta, nsetb, output_unit
+    INTEGER, ALLOCATABLE, DIMENSION(:)       :: atom_of_kind
+    INTEGER, DIMENSION(:), POINTER           :: npgfa, npgfb, nshella, nshellb
+    LOGICAL                                  :: ionode
+    REAL(KIND=dp) :: ann, dij, eee, ene, enn, fee, fne, fnn, fscalar, gnorm, &
+      idij, prefac, q_i, q_j, qnn, rijsq, rootann, rootzee, rootzne, z_i, &
+      z_j, zee, zne
+    REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: alpha, qnuc
+    REAL(KIND=dp), DIMENSION(3)              :: rij
+    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: zeta, zetb
+    REAL(KIND=dp), DIMENSION(:, :, :), &
+      POINTER                                :: gcca, gccb
+    TYPE(atomic_kind_type), DIMENSION(:), &
+      POINTER                                :: atomic_kind_set
+    TYPE(atomic_kind_type), POINTER          :: atomic_kind
+    TYPE(cell_type), POINTER                 :: box
+    TYPE(gto_basis_set_type), POINTER        :: orb_basis_set
+    TYPE(linklist_atoms), POINTER            :: llat
+    TYPE(linklist_exclusion), POINTER        :: llex
+    TYPE(molecule_structure_type), POINTER   :: molecule( : )
+    TYPE(particle_type), DIMENSION(:), &
+      POINTER                                :: part
 
 !   ---------------------------------------------------------------------------
 
@@ -284,16 +280,14 @@ CONTAINS
 
 !   ***************************************************************************
 
-    TYPE(kg_environment_type), INTENT(IN) :: kg_env
-    REAL (KIND = dp), intent(OUT) :: ecore_self
+    TYPE(kg_environment_type), INTENT(IN)    :: kg_env
+    REAL(KIND=dp), intent(OUT)               :: ecore_self
 
-!   *** Local variables ***
-
-    TYPE(atomic_kind_type), POINTER :: atomic_kind
-    REAL(KIND = dp)                        :: alpha_core_charge,qeff
-    INTEGER                         :: ikind,natom
-
-    TYPE(atomic_kind_type), DIMENSION(:), POINTER :: atomic_kind_set
+    INTEGER                                  :: ikind, natom
+    REAL(KIND=dp)                            :: alpha_core_charge, qeff
+    TYPE(atomic_kind_type), DIMENSION(:), &
+      POINTER                                :: atomic_kind_set
+    TYPE(atomic_kind_type), POINTER          :: atomic_kind
 
 !   ---------------------------------------------------------------------------
 

@@ -23,7 +23,6 @@
 MODULE topology_input
   USE checkpoint_handler,              ONLY: write_checkpoint_information
   USE global_types,                    ONLY: global_environment_type
-  USE kinds,                           ONLY: dbl
   USE parser,                          ONLY: get_next,&
                                              p_error,&
                                              parser_end,&
@@ -32,14 +31,11 @@ MODULE topology_input
                                              search_label,&
                                              stop_parser,&
                                              test_next
-  USE string_utilities,                ONLY: make_tuple,&
-                                             str_comp,&
-                                             str_search,&
-                                             uppercase,&
+  USE string_utilities,                ONLY: uppercase,&
                                              xstring
-  USE termination,                     ONLY: stop_memory,&
-                                             stop_program
+  USE termination,                     ONLY: stop_program
   USE topology_types,                  ONLY: topology_parameters_type
+
   IMPLICIT NONE
 
   CHARACTER(LEN=*), PARAMETER, PRIVATE :: moduleN = "topology_input"
@@ -89,21 +85,20 @@ CONTAINS
 !******************************************************************************
 SUBROUTINE read_topology_section ( topology, globenv )
 
-  IMPLICIT NONE
 
-! Arguments
-  TYPE ( topology_parameters_type ) :: topology
-  TYPE ( global_environment_type ), INTENT ( IN ) :: globenv
+    TYPE(topology_parameters_type)           :: topology
+    TYPE(global_environment_type), &
+      INTENT(IN)                             :: globenv
 
-! Locals
-  INTEGER :: ierror,i,n,ilen,ia,ie
-  INTEGER :: iw,handle
-  CHARACTER ( LEN = 20 ) :: string, str2
-  CHARACTER ( LEN = 6 ) :: label
-  CHARACTER(len=*), PARAMETER :: routineN='read_topology_section',&
-       routineP=moduleN//':'//routineN
+    CHARACTER(len=*), PARAMETER :: routineN = 'read_topology_section', &
+      routineP = moduleN//':'//routineN
+
+    CHARACTER(LEN=20)                        :: str2, string
+    CHARACTER(LEN=6)                         :: label
+    INTEGER                                  :: ia, ie, ierror, ilen, iw
 
 !------------------------------------------------------------------------------
+
   CALL write_checkpoint_information("entering "//routineN,globenv)
 
   iw = globenv % scr

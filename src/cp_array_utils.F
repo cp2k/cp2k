@@ -29,4 +29,5 @@ MODULE cp_array_utils
   USE cp_array_i_utils
   USE cp_array_logical_utils
   USE cp_array_r_utils
+
 END MODULE cp_array_utils

@@ -28,17 +28,21 @@
 !!
 MODULE atom_module
 
-  USE atom_types, ONLY : ATOM_TYPE, ATOM_CALCULATION_TYPE, init, print_atom
+  USE atom_types,                      ONLY: ATOM_CALCULATION_TYPE,&
+                                             ATOM_TYPE,&
+                                             init
   USE atom_util
-  USE global_types, ONLY : global_environment_type
-  USE header, ONLY : atom_header
-  USE kinds, ONLY : dbl
-  USE mathconstants, ONLY : pi, zero
-  USE radial_grids, ONLY : radial_grid_type
-  USE radial_poisson, ONLY : rg_poisson
-  USE radial_util, ONLY : radial_integrate, radial_normalize
-  USE termination, ONLY : stop_memory, stop_program
-  USE timings, ONLY : timeset, timestop
+  USE global_types,                    ONLY: global_environment_type
+  USE header,                          ONLY: atom_header
+  USE kinds,                           ONLY: dbl
+  USE mathconstants,                   ONLY: pi,&
+                                             zero
+  USE radial_grids,                    ONLY: radial_grid_type
+  USE radial_util,                     ONLY: radial_integrate,&
+                                             radial_normalize
+  USE termination,                     ONLY: stop_program
+  USE timings,                         ONLY: timeset,&
+                                             timestop
 
   IMPLICIT NONE
 
@@ -82,18 +86,15 @@ CONTAINS
 !!
   SUBROUTINE atomic_code(globenv)
 
-    IMPLICIT NONE
 
-    ! Arguments
-    TYPE (GLOBAL_ENVIRONMENT_TYPE), INTENT(INOUT) :: globenv
+    TYPE(GLOBAL_ENVIRONMENT_TYPE), &
+      INTENT(INOUT)                          :: globenv
 
-    ! Locals
-    TYPE (ATOM_TYPE) :: atom
-    TYPE(ATOM_CALCULATION_TYPE) :: ac
+    INTEGER                                  :: handle
+    TYPE(ATOM_CALCULATION_TYPE)              :: ac
+    TYPE(ATOM_TYPE)                          :: atom
 
-    INTEGER :: handle ! for the timer
-    LOGICAL :: condition, failure
-    
+! for the timer
 
     CALL timeset('ATOMIC_CODE', 'I', ' ', handle)
     
@@ -111,22 +112,20 @@ CONTAINS
 ! ****************************************************************************
   
   SUBROUTINE calculate ( atom, ac )
-    IMPLICIT NONE
 
-    ! arguments
-    TYPE(ATOM_TYPE), INTENT(INOUT)         :: atom
-    TYPE(ATOM_CALCULATION_TYPE), INTENT(IN) :: ac
+    TYPE(ATOM_TYPE), INTENT(INOUT)           :: atom
+    TYPE(ATOM_CALCULATION_TYPE), INTENT(IN)  :: ac
 
-    ! variables
-    INTEGER                                 :: i, err
-    INTEGER                                 :: n, l, nodes, matchp
-    INTEGER                                 :: it, max_iter, si, max_shoot
-    LOGICAL                                 :: shoot_converged
-    REAL(DBL), DIMENSION(:), ALLOCATABLE    :: rho, pot, wf
-    REAL(DBL)                               :: ldd, a, ncv, mix_ang
-    REAL(DBL)                               :: eg, eg_li ! ground state enegy (and of last iteration)
-    REAL(DBL)                               :: ev, precision
-    REAL(DBL)                               :: res
+    INTEGER                                  :: err, i, it, l, matchp, &
+                                                max_iter, max_shoot, n, &
+                                                nodes, si
+    LOGICAL                                  :: shoot_converged
+    REAL(DBL)                                :: a, eg, eg_li, ev, ldd, &
+                                                mix_ang, ncv, precision, res
+    REAL(DBL), ALLOCATABLE, DIMENSION(:)     :: pot, rho, wf
+
+! variables
+! ground state enegy (and of last iteration)
 
     a = 5._dbl
     ncv = 0.1_dbl  ! node correction value
@@ -242,20 +241,18 @@ CONTAINS
 ! ****************************************************************************
   
   FUNCTION shoot(wf, ev, pot, matchp, rg)
-    IMPLICIT NONE
-    ! arguments
-    REAL(DBL), DIMENSION(:), INTENT(OUT) :: wf
-    REAL(DBL), INTENT(IN)                :: ev
-    REAL(DBL), DIMENSION(:), INTENT(IN)  :: pot
-    INTEGER, INTENT(IN)                  :: matchp
-    TYPE(radial_grid_type), INTENT(IN)   :: rg
+    REAL(DBL), DIMENSION(:), INTENT(OUT)     :: wf
+    REAL(DBL), INTENT(IN)                    :: ev
+    REAL(DBL), DIMENSION(:), INTENT(IN)      :: pot
+    INTEGER, INTENT(IN)                      :: matchp
+    TYPE(radial_grid_type), INTENT(IN)       :: rg
+    REAL(DBL)                                :: shoot
 
-    ! function
-    REAL(DBL)                            :: shoot
+    INTEGER                                  :: k
+    REAL(DBL)                                :: h2, h2_12, scale
 
-    ! variables
-    INTEGER                              :: k
-    REAL(DBL)                            :: h2, h2_12, scale, ldd
+! function
+! variables
 
     h2 = rg%h * rg%h
     h2_12 = h2 / 12._dbl
@@ -307,9 +304,10 @@ CONTAINS
 ! ****************************************************************************
   
   SUBROUTINE init_globals(ac)
-    IMPLICIT NONE
-    TYPE(atom_calculation_type), INTENT(IN) :: ac
-    INTEGER :: err
+    TYPE(atom_calculation_type), INTENT(IN)  :: ac
+
+    INTEGER                                  :: err
+
     np = ac%rg%n
     ALLOCATE (wdd_w(1:np), spot(1:np), tl(0:np+1), tu(0:np+1), stat=err)
     IF (err /= 0) THEN

@@ -20,30 +20,35 @@
 
 MODULE tbmd_force
 
-  USE dg_types, ONLY : dg_type
-  USE dgs, ONLY : dg_grid_change
-  USE ewald_parameters_types, ONLY : ewald_parameters_type
-  USE ewalds, ONLY : ewald_evaluate, ewald_initialize, ewald_setup
-  USE fist_nonbond_force, ONLY : force_nonbond
-  USE global_types, ONLY : global_environment_type
-  USE greens_fn, ONLY : pw_green_fn_init
-  USE kinds, ONLY : dbl
-  USE linklist_control, ONLY : list_control
-  USE mathconstants, ONLY : pi, zero
-  USE md, ONLY : thermodynamic_type
-  USE molecule_types, ONLY : molecule_structure_type, particle_node_type, &
-       linklist_neighbor, linklist_exclusion, linklist_bonds, linklist_bends
-  USE message_passing, ONLY : mp_sum
-  USE pair_potential, ONLY : potentialparm_type
-  USE particle_types, ONLY : particle_type
-  USE pme, ONLY: pme_evaluate
-  USE pw_grid_types, ONLY : pw_grid_type
-  USE pw_grids, ONLY : pw_grid_change
-  USE simulation_cell, ONLY : cell_type, get_hinv
-  USE spme, ONLY : spme_evaluate
-  USE termination, ONLY : stop_memory, stop_program
-  USE timings, ONLY : timeset, timestop
-  USE linklist_types, ONLY : linklist_internal_data_type
+  USE dg_types,                        ONLY: dg_type
+  USE dgs,                             ONLY: dg_grid_change
+  USE ewald_parameters_types,          ONLY: ewald_parameters_type
+  USE ewalds,                          ONLY: ewald_evaluate,&
+                                             ewald_initialize,&
+                                             ewald_setup
+  USE fist_nonbond_force,              ONLY: force_nonbond
+  USE global_types,                    ONLY: global_environment_type
+  USE greens_fn,                       ONLY: pw_green_fn_init
+  USE kinds,                           ONLY: dbl
+  USE linklist_control,                ONLY: list_control
+  USE linklist_types,                  ONLY: linklist_internal_data_type
+  USE mathconstants,                   ONLY: zero
+  USE md,                              ONLY: thermodynamic_type
+  USE message_passing,                 ONLY: mp_sum
+  USE molecule_types,                  ONLY: molecule_structure_type,&
+                                             particle_node_type
+  USE pair_potential,                  ONLY: potentialparm_type
+  USE particle_types,                  ONLY: particle_type
+  USE pme,                             ONLY: pme_evaluate
+  USE pw_grid_types,                   ONLY: pw_grid_type
+  USE pw_grids,                        ONLY: pw_grid_change
+  USE simulation_cell,                 ONLY: cell_type,&
+                                             get_hinv
+  USE spme,                            ONLY: spme_evaluate
+  USE termination,                     ONLY: stop_memory,&
+                                             stop_program
+  USE timings,                         ONLY: timeset,&
+                                             timestop
 
   PRIVATE
   PUBLIC :: force_env_types, debug_variables_type
@@ -82,33 +87,38 @@ CONTAINS
 SUBROUTINE force_env_types ( molecule, pnode, part, box, box_ref, thermo, &
      potparm, ewald_param, box_change, fc_global, lldata, debug )
 
-  IMPLICIT NONE
 
-! Arguments
-  TYPE ( particle_type ), DIMENSION ( : ), INTENT ( INOUT ) :: part
-  TYPE ( particle_node_type ), DIMENSION ( : ), INTENT ( INOUT ) :: pnode
-  TYPE ( molecule_structure_type ), DIMENSION ( : ), INTENT ( IN ) :: molecule
-  TYPE ( cell_type ), INTENT ( INOUT ) :: box
-  TYPE ( cell_type ), INTENT ( INOUT ) :: box_ref
-  TYPE ( thermodynamic_type ), INTENT ( INOUT ) :: thermo
-  TYPE ( potentialparm_type ), DIMENSION ( :,: ), INTENT ( IN ) :: potparm
-  TYPE ( ewald_parameters_type ), INTENT ( INOUT ) :: ewald_param
-  LOGICAL, INTENT ( IN ) :: box_change
-  TYPE ( global_environment_type ), INTENT ( IN ) :: fc_global
-  TYPE ( linklist_internal_data_type ), INTENT ( INOUT ) :: lldata
-  TYPE ( debug_variables_type ), INTENT ( OUT ), OPTIONAL :: debug
+    TYPE(molecule_structure_type), &
+      DIMENSION(:), INTENT(IN)               :: molecule
+    TYPE(particle_node_type), DIMENSION(:), &
+      INTENT(INOUT)                          :: pnode
+    TYPE(particle_type), DIMENSION(:), &
+      INTENT(INOUT)                          :: part
+    TYPE(cell_type), INTENT(INOUT)           :: box, box_ref
+    TYPE(thermodynamic_type), INTENT(INOUT)  :: thermo
+    TYPE(potentialparm_type), &
+      DIMENSION(:, :), INTENT(IN)            :: potparm
+    TYPE(ewald_parameters_type), &
+      INTENT(INOUT)                          :: ewald_param
+    LOGICAL, INTENT(IN)                      :: box_change
+    TYPE(global_environment_type), &
+      INTENT(IN)                             :: fc_global
+    TYPE(linklist_internal_data_type), &
+      INTENT(INOUT)                          :: lldata
+    TYPE(debug_variables_type), &
+      INTENT(OUT), OPTIONAL                  :: debug
 
-! Locals
-  INTEGER :: id, i, natoms, nnodes, handle, isos
-  REAL ( dbl ) :: pot_nonbond, vg_coulomb
-  REAL ( dbl ), DIMENSION ( :,: ), ALLOCATABLE, SAVE :: f_nonbond
-  REAL ( dbl ), DIMENSION ( 3,3 ) :: pv_nonbond
-  REAL ( dbl ), DIMENSION ( :,: ), ALLOCATABLE :: fg_coulomb
-  REAL ( dbl ), DIMENSION ( 3,3 ) :: pv_g, ident
-  REAL ( dbl ), DIMENSION ( 3,3 ) :: pv_bc
-  TYPE ( pw_grid_type ), SAVE :: grid_s, grid_b, grid_ewald, grid_spme
-  TYPE ( dg_type ), SAVE :: dg
-  LOGICAL :: first_time
+    INTEGER                                  :: handle, i, isos, natoms, &
+                                                nnodes
+    LOGICAL                                  :: first_time
+    REAL(dbl)                                :: pot_nonbond, vg_coulomb
+    REAL(dbl), ALLOCATABLE, DIMENSION(:, :)  :: fg_coulomb
+    REAL(dbl), ALLOCATABLE, &
+      DIMENSION(:, :), SAVE                  :: f_nonbond
+    REAL(dbl), DIMENSION(3, 3)               :: ident, pv_bc, pv_g, pv_nonbond
+    TYPE(dg_type), SAVE                      :: dg
+    TYPE(pw_grid_type), SAVE                 :: grid_b, grid_ewald, grid_s, &
+                                                grid_spme
 
 !------------------------------------------------------------------------------
 

@@ -19,19 +19,23 @@
     MODULE energy_optimize
 !------------------------------------------------------------------------------!
 !
-  USE brillouin, ONLY : kpoint_type
-  USE cp_control_types, ONLY : dft_control_type
-  USE energy_input, ONLY : energy_min_type, min_info_type
-  USE ewald_parameters_types, ONLY : ewald_parameters_type
-  USE fit_parameters_types, ONLY : fit_parameter_type
-  USE fit_force_control, ONLY : fit_force
-  USE force_env_types, ONLY : force
-  USE global_types, ONLY : global_environment_type
-  USE kinds, ONLY : dbl
-  USE md, ONLY : simulation_parameters_type, thermodynamic_type              
-  USE pol_diis, ONLY : diis
-  USE structure_types, ONLY : structure_type, interaction_type
-  USE termination, ONLY : stop_program, stop_memory
+  USE brillouin,                       ONLY: kpoint_type
+  USE cp_control_types,                ONLY: dft_control_type
+  USE energy_input,                    ONLY: energy_min_type,&
+                                             min_info_type
+  USE ewald_parameters_types,          ONLY: ewald_parameters_type
+  USE fit_force_control,               ONLY: fit_force
+  USE fit_parameters_types,            ONLY: fit_parameter_type
+  USE force_env_types,                 ONLY: force
+  USE global_types,                    ONLY: global_environment_type
+  USE kinds,                           ONLY: dbl
+  USE md,                              ONLY: simulation_parameters_type,&
+                                             thermodynamic_type
+  USE pol_diis,                        ONLY: diis
+  USE structure_types,                 ONLY: interaction_type,&
+                                             structure_type
+  USE termination,                     ONLY: stop_memory
+
   IMPLICIT NONE
 !
   PUBLIC :: optimize_ao, optimize_pw                                          
@@ -53,29 +57,33 @@
  SUBROUTINE optimize_ao_pol ( struc, inter, thermo, simpar, ewald_param, box_change, &
                         globenv, dft_control, kp, energy_min, iter)        
 
-  IMPLICIT NONE
-! Arguments
-  TYPE ( structure_type ), INTENT ( INOUT ) :: struc
-  TYPE ( thermodynamic_type ), INTENT ( INOUT ) :: thermo
-  TYPE ( simulation_parameters_type ), INTENT ( IN ) :: simpar
-  TYPE ( ewald_parameters_type ), INTENT ( INOUT ) :: ewald_param
-  LOGICAL, INTENT ( IN ) :: box_change
-  TYPE ( interaction_type ), INTENT ( IN ) :: inter
-  TYPE ( global_environment_type), INTENT ( IN ) :: globenv
-  TYPE ( dft_control_type ), INTENT ( IN ) :: dft_control
-  TYPE ( kpoint_type ), INTENT ( IN ) :: kp
-  TYPE ( energy_min_type ), INTENT (INOUT) :: energy_min
-  INTEGER, intent(IN) :: iter      
+    TYPE(structure_type), INTENT(INOUT)      :: struc
+    TYPE(interaction_type), INTENT(IN)       :: inter
+    TYPE(thermodynamic_type), INTENT(INOUT)  :: thermo
+    TYPE(simulation_parameters_type), &
+      INTENT(IN)                             :: simpar
+    TYPE(ewald_parameters_type), &
+      INTENT(INOUT)                          :: ewald_param
+    LOGICAL, INTENT(IN)                      :: box_change
+    TYPE(global_environment_type), &
+      INTENT(IN)                             :: globenv
+    TYPE(dft_control_type), INTENT(IN)       :: dft_control
+    TYPE(kpoint_type), INTENT(IN)            :: kp
+    TYPE(energy_min_type), INTENT(INOUT)     :: energy_min
+    INTEGER, intent(IN)                      :: iter
 
-! locals
-  INTEGER :: i, itimes, ncoef, isos, nhist
-  INTEGER, SAVE :: ihist
-  REAL(dbl) :: cons,fconv,tol, deltae
-  REAL (dbl), SAVE :: step
-  REAL(dbl), DIMENSION(:), ALLOCATABLE :: cgrad              
-  REAL(dbl), DIMENSION(:), ALLOCATABLE, SAVE ::  hess
-  REAL(dbl), DIMENSION(:,:), ALLOCATABLE, SAVE :: c_hist,e_hist
+    INTEGER                                  :: i, isos, ncoef, nhist
+    INTEGER, SAVE                            :: ihist
+    REAL(dbl)                                :: fconv, tol
+    REAL(dbl), ALLOCATABLE, DIMENSION(:)     :: cgrad
+    REAL(dbl), ALLOCATABLE, DIMENSION(:), &
+      SAVE                                   :: hess
+    REAL(dbl), ALLOCATABLE, &
+      DIMENSION(:, :), SAVE                  :: c_hist, e_hist
+    REAL(dbl), SAVE                          :: step
+
 !
+
   ncoef = size(struc % coef_pos (1) % ao % cr)
   nhist = energy_min % ndiis
 
@@ -135,30 +143,34 @@
  SUBROUTINE optimize_pw_pol ( struc, inter, thermo, simpar, ewald_param, box_change, &
                         globenv, dft_control, kp, energy_min, iter)        
 
-  IMPLICIT NONE
-! Arguments
-  TYPE ( structure_type ), INTENT ( INOUT ) :: struc
-  TYPE ( thermodynamic_type ), INTENT ( INOUT ) :: thermo
-  TYPE ( simulation_parameters_type ), INTENT ( IN ) :: simpar
-  TYPE ( ewald_parameters_type ), INTENT ( INOUT ) :: ewald_param
-  LOGICAL, INTENT ( IN ) :: box_change
-  TYPE ( interaction_type ), INTENT ( IN ) :: inter
-  TYPE ( global_environment_type), INTENT ( IN ) :: globenv
-  TYPE ( dft_control_type ), INTENT ( IN ) :: dft_control
-  TYPE ( kpoint_type ), INTENT ( IN ) :: kp
-  TYPE ( energy_min_type ), INTENT (INOUT) :: energy_min
-  INTEGER, intent(IN) :: iter      
+    TYPE(structure_type), INTENT(INOUT)      :: struc
+    TYPE(interaction_type), INTENT(IN)       :: inter
+    TYPE(thermodynamic_type), INTENT(INOUT)  :: thermo
+    TYPE(simulation_parameters_type), &
+      INTENT(IN)                             :: simpar
+    TYPE(ewald_parameters_type), &
+      INTENT(INOUT)                          :: ewald_param
+    LOGICAL, INTENT(IN)                      :: box_change
+    TYPE(global_environment_type), &
+      INTENT(IN)                             :: globenv
+    TYPE(dft_control_type), INTENT(IN)       :: dft_control
+    TYPE(kpoint_type), INTENT(IN)            :: kp
+    TYPE(energy_min_type), INTENT(INOUT)     :: energy_min
+    INTEGER, intent(IN)                      :: iter
 
-! locals
-  INTEGER :: i, itimes, ncoef, isos, nhist
-  INTEGER, SAVE :: ihist, jhist
-  REAL(dbl) :: cons,fconv,tol, deltae, tol1, tol2, ivol
-  REAL (dbl), SAVE :: step
-  REAL(dbl), DIMENSION(:), ALLOCATABLE :: agrad, bgrad              
-  REAL(dbl), DIMENSION(:), ALLOCATABLE, SAVE ::  hess_r, hess_i
-  REAL(dbl), DIMENSION(:,:), ALLOCATABLE, SAVE :: cr_hist,er_hist, ci_hist, ei_hist
-  REAL(dbl), DIMENSION(:), ALLOCATABLE, SAVE :: fr, fi, ci, cr
+    INTEGER                                  :: i, isos, ncoef, nhist
+    INTEGER, SAVE                            :: ihist, jhist
+    REAL(dbl)                                :: fconv, ivol, tol, tol1, tol2
+    REAL(dbl), ALLOCATABLE, DIMENSION(:)     :: agrad, bgrad
+    REAL(dbl), ALLOCATABLE, DIMENSION(:), &
+      SAVE                                   :: ci, cr, fi, fr, hess_i, hess_r
+    REAL(dbl), ALLOCATABLE, &
+      DIMENSION(:, :), SAVE                  :: ci_hist, cr_hist, ei_hist, &
+                                                er_hist
+    REAL(dbl), SAVE                          :: step
+
 !
+
   ncoef = size(struc % coef_pos (1) % pw % cc)
   nhist = energy_min % ndiis
   ivol = 1._dbl / struc % box % deth
@@ -274,28 +286,31 @@
  SUBROUTINE optimize_ao_fit ( struc, inter, thermo, simpar, ewald_param, box_change, &
                         globenv,fit_param, energy_min, iter)
 
-  IMPLICIT NONE
-! Arguments
-  TYPE ( structure_type ), INTENT ( INOUT ) :: struc
-  TYPE ( thermodynamic_type ), INTENT ( INOUT ) :: thermo
-  TYPE ( simulation_parameters_type ), INTENT ( IN ) :: simpar
-  TYPE ( ewald_parameters_type ), INTENT ( INOUT ) :: ewald_param
-  LOGICAL, INTENT ( IN ) :: box_change
-  TYPE ( interaction_type ), INTENT ( INOUT ) :: inter
-  TYPE ( global_environment_type), INTENT ( IN ) :: globenv
-  TYPE (fit_parameter_type), INTENT(INOUT) :: fit_param
-  TYPE ( energy_min_type ), INTENT (INOUT) :: energy_min
-  INTEGER, intent(IN) :: iter
+    TYPE(structure_type), INTENT(INOUT)      :: struc
+    TYPE(interaction_type), INTENT(INOUT)    :: inter
+    TYPE(thermodynamic_type), INTENT(INOUT)  :: thermo
+    TYPE(simulation_parameters_type), &
+      INTENT(IN)                             :: simpar
+    TYPE(ewald_parameters_type), &
+      INTENT(INOUT)                          :: ewald_param
+    LOGICAL, INTENT(IN)                      :: box_change
+    TYPE(global_environment_type), &
+      INTENT(IN)                             :: globenv
+    TYPE(fit_parameter_type), INTENT(INOUT)  :: fit_param
+    TYPE(energy_min_type), INTENT(INOUT)     :: energy_min
+    INTEGER, intent(IN)                      :: iter
 
-! locals
-  INTEGER :: i, itimes, ncoef, isos, nhist
-  INTEGER, SAVE :: ihist
-  REAL(dbl) :: cons,fconv,tol, deltae
-  REAL (dbl), SAVE :: step
-  REAL(dbl), DIMENSION(:), ALLOCATABLE :: cgrad
-  REAL(dbl), DIMENSION(:), ALLOCATABLE, SAVE ::  hess
-  REAL(dbl), DIMENSION(:,:), ALLOCATABLE, SAVE :: c_hist,e_hist
+    INTEGER                                  :: i, isos, ncoef, nhist
+    INTEGER, SAVE                            :: ihist
+    REAL(dbl)                                :: fconv, tol
+    REAL(dbl), ALLOCATABLE, DIMENSION(:)     :: cgrad
+    REAL(dbl), ALLOCATABLE, DIMENSION(:), &
+      SAVE                                   :: hess
+    REAL(dbl), ALLOCATABLE, &
+      DIMENSION(:, :), SAVE                  :: c_hist, e_hist
+
 !
+
   ncoef = size(struc % coef_pos (1) % ao % cr)
   nhist = energy_min % ndiis
 
@@ -356,29 +371,32 @@
  SUBROUTINE optimize_pw_fit ( struc, inter, thermo, simpar, ewald_param, box_change, &
                         globenv,fit_param, energy_min, iter)
 
-  IMPLICIT NONE
-! Arguments
-  TYPE ( structure_type ), INTENT ( INOUT ) :: struc
-  TYPE ( thermodynamic_type ), INTENT ( INOUT ) :: thermo
-  TYPE ( simulation_parameters_type ), INTENT ( IN ) :: simpar
-  TYPE ( ewald_parameters_type ), INTENT ( INOUT ) :: ewald_param
-  LOGICAL, INTENT ( IN ) :: box_change
-  TYPE ( interaction_type ), INTENT ( INOUT ) :: inter
-  TYPE ( global_environment_type), INTENT ( IN ) :: globenv
-  TYPE (fit_parameter_type), INTENT(INOUT) :: fit_param
-  TYPE ( energy_min_type ), INTENT (INOUT) :: energy_min
-  INTEGER, intent(IN) :: iter
+    TYPE(structure_type), INTENT(INOUT)      :: struc
+    TYPE(interaction_type), INTENT(INOUT)    :: inter
+    TYPE(thermodynamic_type), INTENT(INOUT)  :: thermo
+    TYPE(simulation_parameters_type), &
+      INTENT(IN)                             :: simpar
+    TYPE(ewald_parameters_type), &
+      INTENT(INOUT)                          :: ewald_param
+    LOGICAL, INTENT(IN)                      :: box_change
+    TYPE(global_environment_type), &
+      INTENT(IN)                             :: globenv
+    TYPE(fit_parameter_type), INTENT(INOUT)  :: fit_param
+    TYPE(energy_min_type), INTENT(INOUT)     :: energy_min
+    INTEGER, intent(IN)                      :: iter
 
-! locals
-  INTEGER :: i, itimes, ncoef, isos, nhist
-  INTEGER, SAVE :: ihist, jhist
-  REAL(dbl) :: cons,fconv,tol, deltae, tol1, tol2, ivol
-  REAL (dbl), SAVE :: step
-  REAL(dbl), DIMENSION(:), ALLOCATABLE :: agrad, bgrad
-  REAL(dbl), DIMENSION(:), ALLOCATABLE, SAVE ::  hess_r, hess_i
-  REAL(dbl), DIMENSION(:,:), ALLOCATABLE, SAVE :: cr_hist,er_hist, ci_hist, ei_hist
-  REAL(dbl), DIMENSION(:), ALLOCATABLE, SAVE :: fr, fi, ci, cr
+    INTEGER                                  :: i, isos, ncoef, nhist
+    INTEGER, SAVE                            :: ihist, jhist
+    REAL(dbl)                                :: fconv, ivol, tol, tol1, tol2
+    REAL(dbl), ALLOCATABLE, DIMENSION(:)     :: agrad, bgrad
+    REAL(dbl), ALLOCATABLE, DIMENSION(:), &
+      SAVE                                   :: ci, cr, fi, fr, hess_i, hess_r
+    REAL(dbl), ALLOCATABLE, &
+      DIMENSION(:, :), SAVE                  :: ci_hist, cr_hist, ei_hist, &
+                                                er_hist
+
 !
+
   ncoef = size(struc % coef_pos (1) % pw % cc)
   nhist = energy_min % ndiis
   ivol = 1._dbl / struc % box % deth
@@ -494,25 +512,26 @@
   SUBROUTINE sd_ao ( struc, inter, thermo, simpar, ewald_param, box_change, &
                         globenv, dft_control, kp, energy_min, iter, step)          
 
-  IMPLICIT NONE
-! Arguments
-  TYPE ( structure_type ), INTENT ( INOUT ) :: struc
-  TYPE ( thermodynamic_type ), INTENT ( INOUT ) :: thermo
-  TYPE ( simulation_parameters_type ), INTENT ( IN ) :: simpar
-  TYPE ( ewald_parameters_type ), INTENT ( INOUT ) :: ewald_param
-  LOGICAL, INTENT ( IN ) :: box_change
-  TYPE ( interaction_type ), INTENT ( IN ) :: inter
-  TYPE ( global_environment_type), INTENT ( IN ) :: globenv
-  TYPE ( dft_control_type ), INTENT ( IN ) :: dft_control
-  TYPE ( kpoint_type ), INTENT ( IN ) :: kp
-  TYPE ( energy_min_type ), INTENT (INOUT) :: energy_min
-  INTEGER, intent (in) :: iter
-  REAL ( dbl ), intent (inout) :: step
+    TYPE(structure_type), INTENT(INOUT)      :: struc
+    TYPE(interaction_type), INTENT(IN)       :: inter
+    TYPE(thermodynamic_type), INTENT(INOUT)  :: thermo
+    TYPE(simulation_parameters_type), &
+      INTENT(IN)                             :: simpar
+    TYPE(ewald_parameters_type), &
+      INTENT(INOUT)                          :: ewald_param
+    LOGICAL, INTENT(IN)                      :: box_change
+    TYPE(global_environment_type), &
+      INTENT(IN)                             :: globenv
+    TYPE(dft_control_type), INTENT(IN)       :: dft_control
+    TYPE(kpoint_type), INTENT(IN)            :: kp
+    TYPE(energy_min_type), INTENT(INOUT)     :: energy_min
+    INTEGER, intent(in)                      :: iter
+    REAL(dbl), intent(inout)                 :: step
 
-! locals
-  REAL( dbl ), DIMENSION(:), ALLOCATABLE, SAVE ::  c_old, f_old
-  INteger :: ios, ncoef, iw, i
-  REAL ( dbl ) :: ezero, deltae
+    INteger                                  :: i, ios, iw, ncoef
+    REAL(dbl)                                :: deltae, ezero
+    REAL(dbl), ALLOCATABLE, DIMENSION(:), &
+      SAVE                                   :: c_old, f_old
 
   ezero = 1.0E-50_dbl
   ncoef = size ( struc % coef_pos (1) % ao % cr )
@@ -569,26 +588,26 @@
   SUBROUTINE sd_pw ( struc, inter, thermo, simpar, ewald_param, box_change, &
                         globenv, dft_control, kp, energy_min, iter, step)          
 
-  IMPLICIT NONE
-! Arguments
-  TYPE ( structure_type ), INTENT ( INOUT ) :: struc
-  TYPE ( thermodynamic_type ), INTENT ( INOUT ) :: thermo
-  TYPE ( simulation_parameters_type ), INTENT ( IN ) :: simpar
-  TYPE ( ewald_parameters_type ), INTENT ( INOUT ) :: ewald_param
-  LOGICAL, INTENT ( IN ) :: box_change
-  TYPE ( interaction_type ), INTENT ( IN ) :: inter
-  TYPE ( global_environment_type), INTENT ( IN ) :: globenv
-  TYPE ( dft_control_type ), INTENT ( IN ) :: dft_control
-  TYPE ( kpoint_type ), INTENT ( IN ) :: kp
-  TYPE ( energy_min_type ), INTENT (INOUT) :: energy_min
-  INTEGER, intent (in) :: iter
-  REAL ( dbl ), intent (inout) :: step
+    TYPE(structure_type), INTENT(INOUT)      :: struc
+    TYPE(interaction_type), INTENT(IN)       :: inter
+    TYPE(thermodynamic_type), INTENT(INOUT)  :: thermo
+    TYPE(simulation_parameters_type), &
+      INTENT(IN)                             :: simpar
+    TYPE(ewald_parameters_type), &
+      INTENT(INOUT)                          :: ewald_param
+    LOGICAL, INTENT(IN)                      :: box_change
+    TYPE(global_environment_type), &
+      INTENT(IN)                             :: globenv
+    TYPE(dft_control_type), INTENT(IN)       :: dft_control
+    TYPE(kpoint_type), INTENT(IN)            :: kp
+    TYPE(energy_min_type), INTENT(INOUT)     :: energy_min
+    INTEGER, intent(in)                      :: iter
+    REAL(dbl), intent(inout)                 :: step
 
-! locals
-  COMPLEX( dbl ), DIMENSION(:), ALLOCATABLE, SAVE ::  c_old
-  COMPLEX( dbl ), DIMENSION(:), ALLOCATABLE, SAVE ::  f_old
-  INteger :: ios, ncoef, iw, i
-  REAL ( dbl ) :: ezero, deltae, ivol
+    COMPLEX(dbl), ALLOCATABLE, &
+      DIMENSION(:), SAVE                     :: c_old, f_old
+    INteger                                  :: i, ios, iw, ncoef
+    REAL(dbl)                                :: deltae, ezero, ivol
 
   ezero = 1.0E-50_dbl
   ivol = 1._dbl / struc % box % deth
@@ -642,15 +661,13 @@
   END SUBROUTINE sd_pw
 !------------------------------------------------------------------------------!
   SUBROUTINE copy_energy_info ( min_info, thermo, tol, fconv )
-  IMPLICIT NONE
-! Arguments
-  TYPE ( min_info_type ), INTENT ( INOUT ) :: min_info
-  TYPE ( thermodynamic_type ), INTENT ( IN ) :: thermo
-  REAL ( dbl ), intent (in) :: tol
-  REAL ( dbl ), intent (in) :: fconv
+    TYPE(min_info_type), INTENT(INOUT)       :: min_info
+    TYPE(thermodynamic_type), INTENT(IN)     :: thermo
+    REAL(dbl), intent(in)                    :: tol, fconv
+
+    REAL(dbl)                                :: eold
+
 !
-!Locals
-  REAL ( dbl ) :: eold
 
   eold = min_info %e
   min_info %e = thermo % pot

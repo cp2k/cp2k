@@ -31,18 +31,11 @@ MODULE cp_fm_struct
   USE cp_error_handling,               ONLY: cp_a_l,&
                                              cp_assert,&
                                              cp_assertion_failed,&
-                                             cp_debug,&
-                                             cp_error_dealloc_ref,&
                                              cp_error_get_logger,&
-                                             cp_error_init,&
                                              cp_error_message,&
-                                             cp_error_type,&
-                                             cp_internal_error,&
-                                             cp_unimplemented_error
+                                             cp_error_type
   USE cp_log_handling,                 ONLY: cp_failure_level,&
                                              cp_fatal_level,&
-                                             cp_log,&
-                                             cp_logger_get_default_unit_nr,&
                                              cp_logger_type,&
                                              cp_note_level,&
                                              cp_to_string,&
@@ -53,12 +46,10 @@ MODULE cp_fm_struct
   USE cp_para_types,                   ONLY: cp_blacs_env_type,&
                                              cp_para_env_type
   USE kinds,                           ONLY: dp
-  USE message_passing,                 ONLY: mp_bcast,&
-                                             mp_max,&
-                                             mp_sum,&
-                                             mp_sync
+  USE message_passing,                 ONLY: mp_sum
   USE timings,                         ONLY: timeset,&
                                              timestop
+
   IMPLICIT NONE
   PRIVATE
 
@@ -392,12 +383,15 @@ END SUBROUTINE cp_fm_struct_create
 !!
 !!*** **********************************************************************
 SUBROUTINE cp_fm_struct_retain(fmstruct,error)
-  TYPE(cp_fm_struct_type), POINTER :: fmstruct
-  TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
-  
-  LOGICAL :: failure
-  CHARACTER(len=*), PARAMETER :: routineN='cp_fm_struct_retain',&
-        routineP=moduleN//':'//routineN
+    TYPE(cp_fm_struct_type), POINTER         :: fmstruct
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'cp_fm_struct_retain', &
+      routineP = moduleN//':'//routineN
+
+    LOGICAL                                  :: failure
+
   failure=.FALSE.
   
   CPPrecondition(ASSOCIATED(fmstruct),cp_failure_level,routineP,error,failure)
@@ -438,13 +432,16 @@ END SUBROUTINE cp_fm_struct_retain
 !!
 !!*** **********************************************************************
 SUBROUTINE cp_fm_struct_release(fmstruct,error)
-  TYPE(cp_fm_struct_type), POINTER :: fmstruct
-  TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
-  
-  LOGICAL :: failure
-  CHARACTER(len=*), PARAMETER :: routineN='cp_fm_struct_release',&
-        routineP=moduleN//':'//routineN
-  INTEGER :: stat
+    TYPE(cp_fm_struct_type), POINTER         :: fmstruct
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'cp_fm_struct_release', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: stat
+    LOGICAL                                  :: failure
+
   failure=.FALSE.
   
   IF (ASSOCIATED(fmstruct)) THEN
@@ -511,14 +508,17 @@ END SUBROUTINE cp_fm_struct_release
 !!
 !!*** **********************************************************************
 FUNCTION cp_fm_struct_equivalent(fmstruct1,fmstruct2,error) RESULT(res)
-  TYPE(cp_fm_struct_type), POINTER :: fmstruct1, fmstruct2
-  TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
-  LOGICAL :: res
-  
-  LOGICAL :: failure
-  CHARACTER(len=*), PARAMETER :: routineN='cp_fm_struct_equivalent',&
-        routineP=moduleN//':'//routineN
-  INTEGER :: i
+    TYPE(cp_fm_struct_type), POINTER         :: fmstruct1, fmstruct2
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
+    LOGICAL                                  :: res
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'cp_fm_struct_equivalent', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: i
+    LOGICAL                                  :: failure
+
   failure=.FALSE.
 
   CPPrecondition(ASSOCIATED(fmstruct1),cp_failure_level,routineP,error,failure)
@@ -576,14 +576,16 @@ END FUNCTION cp_fm_struct_equivalent
 !!
 !!*** **********************************************************************
 FUNCTION cp_fm_struct_compatible(fmstruct1,fmstruct2,error) RESULT(res)
-  TYPE(cp_fm_struct_type), POINTER :: fmstruct1, fmstruct2
-  TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
-  LOGICAL :: res
-  
-  LOGICAL :: failure
-  CHARACTER(len=*), PARAMETER :: routineN='cp_fm_struct_compatible',&
-        routineP=moduleN//':'//routineN
-  INTEGER :: i
+    TYPE(cp_fm_struct_type), POINTER         :: fmstruct1, fmstruct2
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
+    LOGICAL                                  :: res
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'cp_fm_struct_compatible', &
+      routineP = moduleN//':'//routineN
+
+    LOGICAL                                  :: failure
+
   failure=.FALSE.
 
   CPPrecondition(ASSOCIATED(fmstruct1),cp_failure_level,routineP,error,failure)
@@ -634,16 +636,19 @@ END FUNCTION cp_fm_struct_compatible
 !!
 !!*** **********************************************************************
 SUBROUTINE cp_fm_struct_write(fmstruct, unit_nr, long_description,error)
-  TYPE(cp_fm_struct_type), POINTER :: fmstruct
-  INTEGER, INTENT(in) :: unit_nr
-  LOGICAL, INTENT(in), OPTIONAL :: long_description
-  TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
-  
-  LOGICAL :: failure,l_desc
-  INTEGER :: iostat
-  CHARACTER (len=80) :: fmtstring
-  CHARACTER(len=*), PARAMETER :: routineN='cp_fm_struct_write',&
-        routineP=moduleN//':'//routineN
+    TYPE(cp_fm_struct_type), POINTER         :: fmstruct
+    INTEGER, INTENT(in)                      :: unit_nr
+    LOGICAL, INTENT(in), OPTIONAL            :: long_description
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'cp_fm_struct_write', &
+      routineP = moduleN//':'//routineN
+
+    CHARACTER(len=80)                        :: fmtstring
+    INTEGER                                  :: iostat
+    LOGICAL                                  :: failure, l_desc
+
   failure=.FALSE.; l_desc=.FALSE.
   
   IF (PRESENT(long_description)) l_desc=long_description

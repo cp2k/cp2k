@@ -75,6 +75,7 @@ MODULE xc_functionals_tests
                                              x_pw86,&
                                              x_pw91,&
                                              xalpha
+
   IMPLICIT NONE
 
   PRIVATE
@@ -135,14 +136,14 @@ CONTAINS
 
 SUBROUTINE xc_functional_test ( globenv )
 
-  TYPE ( global_environment_type ), INTENT ( IN ) :: globenv
+    TYPE(global_environment_type), &
+      INTENT(IN)                             :: globenv
 
-  INTEGER :: i, j, ia, ir, funtype
-  REAL(dbl) :: drho, r
-  CHARACTER (LEN=80) :: fun_string
-  LOGICAL :: crossterm
-    TYPE(xc_derivative_set_type), POINTER :: derivative_set
-
+    CHARACTER(LEN=80)                        :: fun_string
+    INTEGER                                  :: funtype, i
+    LOGICAL                                  :: crossterm
+    REAL(dbl)                                :: r
+    TYPE(xc_derivative_set_type), POINTER    :: derivative_set
 
 ! *****************************************************************************
 
@@ -396,19 +397,20 @@ END SUBROUTINE xc_functional_test
 ! *****************************************************************************
 
 SUBROUTINE testder(message,p,pp,pm,rho)
-  CHARACTER (LEN=*), INTENT(IN) :: message
-  REAL(dbl), DIMENSION(:), INTENT(IN) :: p,pp,pm,rho
+    CHARACTER(LEN=*), INTENT(IN)             :: message
+    REAL(dbl), DIMENSION(:), INTENT(IN)      :: p, pp, pm, rho
+
   abserr(:) = ABS(p(:)-(pp(:)-pm(:))/(2._dbl*rrho*rho))
   relerr(:) = abserr(:)/ABS(p(:)+1.e-30_dbl)
   CALL output ( iw, rho, p(:), abserr, relerr, message )
 END SUBROUTINE testder
 
 SUBROUTINE output(iw,rhoref,pot,abserr,relerr,message)
-  INTEGER, INTENT(IN) :: iw
-  REAL(dbl), DIMENSION(:), INTENT(IN) :: rhoref, pot, abserr, relerr
-  CHARACTER (LEN=*), INTENT(IN) :: message
+    INTEGER, INTENT(IN)                      :: iw
+    REAL(dbl), DIMENSION(:), INTENT(IN)      :: rhoref, pot, abserr, relerr
+    CHARACTER(LEN=*), INTENT(IN)             :: message
 
-  INTEGER :: ia,ir
+    INTEGER                                  :: ia, ir
 
   ia=MAXVAL(MAXLOC(abserr))
   ir=MAXVAL(MAXLOC(relerr))
@@ -425,8 +427,7 @@ END SUBROUTINE output
 ! *****************************************************************************
 
 SUBROUTINE allocate_arrays
-     INTEGER :: ierr
-     INTEGER :: mm=57
+    INTEGER                                  :: ierr, mm = 57
 
      ALLOCATE ( abserr ( n ), STAT = ierr )
      IF ( ierr /= 0 ) CALL stop_memory ( "functional_test", "abserr", n )
@@ -501,7 +502,7 @@ SUBROUTINE allocate_arrays
 END SUBROUTINE allocate_arrays
 
 SUBROUTINE deallocate_arrays
-     INTEGER :: ierr
+    INTEGER                                  :: ierr
 
      DEALLOCATE ( abserr, STAT = ierr )
      IF ( ierr /= 0 ) CALL stop_memory ( "functional_test", "abserr" )
@@ -571,10 +572,10 @@ END SUBROUTINE deallocate_arrays
 
 SUBROUTINE fun_init ( fun, cutoff, funtype, crossterm )
 
-    INTEGER, INTENT(IN) :: fun
-    REAL(dbl), INTENT(IN) :: cutoff
-    INTEGER, INTENT(OUT) :: funtype
-    LOGICAL, INTENT(OUT) :: crossterm
+    INTEGER, INTENT(IN)                      :: fun
+    REAL(dbl), INTENT(IN)                    :: cutoff
+    INTEGER, INTENT(OUT)                     :: funtype
+    LOGICAL, INTENT(OUT)                     :: crossterm
 
 !
 !   funtype : 0 nothing implemented
@@ -685,9 +686,8 @@ END SUBROUTINE fun_init
 
 SUBROUTINE fun_info ( fun, reference, shortform )
 
-    INTEGER, INTENT(IN) :: fun
-    CHARACTER (LEN=*), INTENT(OUT), OPTIONAL :: reference
-    CHARACTER (LEN=*), INTENT(OUT), OPTIONAL :: shortform
+    INTEGER, INTENT(IN)                      :: fun
+    CHARACTER(LEN=*), INTENT(OUT), OPTIONAL  :: reference, shortform
 
     SELECT CASE (fun)
     CASE (1)
@@ -742,11 +742,11 @@ END SUBROUTINE fun_info
 
 SUBROUTINE fun_lda ( derivative_set, fun, rho, pot, order )
 
-    TYPE(xc_derivative_set_type), POINTER :: derivative_set
-    INTEGER, INTENT(IN) :: fun
-    REAL(dbl), DIMENSION(:), INTENT(IN)  :: rho
-    REAL(dbl), DIMENSION(:,:), INTENT(OUT) :: pot
-    INTEGER, INTENT(IN), OPTIONAL :: order
+    TYPE(xc_derivative_set_type), POINTER    :: derivative_set
+    INTEGER, INTENT(IN)                      :: fun
+    REAL(dbl), DIMENSION(:), INTENT(IN)      :: rho
+    REAL(dbl), DIMENSION(:, :), INTENT(OUT)  :: pot
+    INTEGER, INTENT(IN), OPTIONAL            :: order
 
     SELECT CASE (fun)
     CASE (1)
@@ -775,11 +775,11 @@ END SUBROUTINE fun_lda
 
 SUBROUTINE fun_lsd ( derivative_set, fun, rhoa, rhob, pot, order )
 
-    TYPE(xc_derivative_set_type), POINTER :: derivative_set
-    INTEGER, INTENT(IN) :: fun
-    REAL(dbl), DIMENSION(:), INTENT(IN)  :: rhoa, rhob
-    REAL(dbl), DIMENSION(:,:), INTENT(OUT) :: pot
-    INTEGER, INTENT(IN), OPTIONAL :: order
+    TYPE(xc_derivative_set_type), POINTER    :: derivative_set
+    INTEGER, INTENT(IN)                      :: fun
+    REAL(dbl), DIMENSION(:), INTENT(IN)      :: rhoa, rhob
+    REAL(dbl), DIMENSION(:, :), INTENT(OUT)  :: pot
+    INTEGER, INTENT(IN), OPTIONAL            :: order
 
     SELECT CASE (fun)
     CASE (1)
@@ -805,11 +805,11 @@ END SUBROUTINE fun_lsd
 
 SUBROUTINE funggau ( derivative_set, fun, rho, grho, pot, order )
 
-    TYPE(xc_derivative_set_type), POINTER :: derivative_set
-    INTEGER, INTENT(IN) :: fun
-    REAL(dbl), DIMENSION(:), INTENT(IN)  :: rho, grho
-    REAL(dbl), DIMENSION(:,:), INTENT(OUT) :: pot
-    INTEGER, INTENT(IN), OPTIONAL :: order
+    TYPE(xc_derivative_set_type), POINTER    :: derivative_set
+    INTEGER, INTENT(IN)                      :: fun
+    REAL(dbl), DIMENSION(:), INTENT(IN)      :: rho, grho
+    REAL(dbl), DIMENSION(:, :), INTENT(OUT)  :: pot
+    INTEGER, INTENT(IN), OPTIONAL            :: order
 
     SELECT CASE (fun)
     CASE (7)
@@ -871,12 +871,11 @@ END SUBROUTINE funggau
 
 SUBROUTINE funggap ( derivative_set, fun, rhoa, rhob, grhoa, grhob, pot, order )
 
-    TYPE(xc_derivative_set_type), POINTER :: derivative_set
-    INTEGER, INTENT(IN) :: fun
-    REAL(dbl), DIMENSION(:), INTENT(IN)  :: rhoa, rhob
-    REAL(dbl), DIMENSION(:), INTENT(IN)  :: grhoa, grhob
-    REAL(dbl), DIMENSION(:,:), INTENT(OUT) :: pot
-    INTEGER, INTENT(IN), OPTIONAL :: order
+    TYPE(xc_derivative_set_type), POINTER    :: derivative_set
+    INTEGER, INTENT(IN)                      :: fun
+    REAL(dbl), DIMENSION(:), INTENT(IN)      :: rhoa, rhob, grhoa, grhob
+    REAL(dbl), DIMENSION(:, :), INTENT(OUT)  :: pot
+    INTEGER, INTENT(IN), OPTIONAL            :: order
 
     SELECT CASE (fun)
     CASE (7)
@@ -929,12 +928,12 @@ END SUBROUTINE funggap
 
 SUBROUTINE funggab ( derivative_set, fun, rhoa, rhob, grhoa, grhob, grhoab, pot, order )
 
-    TYPE(xc_derivative_set_type), POINTER :: derivative_set
-    INTEGER, INTENT(IN) :: fun
-    REAL(dbl), DIMENSION(:), INTENT(IN)  :: rhoa, rhob
-    REAL(dbl), DIMENSION(:), INTENT(IN)  :: grhoa, grhob, grhoab
-    REAL(dbl), DIMENSION(:,:), INTENT(OUT) :: pot
-    INTEGER, INTENT(IN), OPTIONAL :: order
+    TYPE(xc_derivative_set_type), POINTER    :: derivative_set
+    INTEGER, INTENT(IN)                      :: fun
+    REAL(dbl), DIMENSION(:), INTENT(IN)      :: rhoa, rhob, grhoa, grhob, &
+                                                grhoab
+    REAL(dbl), DIMENSION(:, :), INTENT(OUT)  :: pot
+    INTEGER, INTENT(IN), OPTIONAL            :: order
 
     SELECT CASE (fun)
     CASE (23)

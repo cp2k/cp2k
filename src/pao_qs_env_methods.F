@@ -37,19 +37,15 @@ MODULE pao_qs_env_methods
   USE cp_block_matrix,                 ONLY: cp_block_matrix_p_type,&
                                              cp_block_matrix_type,&
                                              cp_get_matrix,&
-                                             cp_sp_block_handle_init,&
-                                             cp_sp_block_handle_release,&
-                                             cp_sp_block_handle_type,&
                                              cp_sp_create,&
                                              cp_sp_release
+  USE cp_control_types,                ONLY: dft_control_type
   USE cp_error_handling,               ONLY: cp_a_l,&
                                              cp_assert,&
                                              cp_debug,&
                                              cp_error_get_logger,&
                                              cp_error_message,&
                                              cp_error_type
-  USE cp_subsystem_types,               ONLY: cp_subsystem_type,&
-                                             cp_subsys_get
   USE cp_log_handling,                 ONLY: cp_failure_level,&
                                              cp_logger_type,&
                                              cp_note_level,&
@@ -57,7 +53,8 @@ MODULE pao_qs_env_methods
                                              cp_warning_level
   USE cp_matrix_utils,                 ONLY: cp_sm_set_dist_sparsity_from_sm
   USE cp_para_types,                   ONLY: cp_para_env_type
-  USE cp_control_types,                       ONLY: dft_control_type
+  USE cp_subsystem_types,              ONLY: cp_subsys_get,&
+                                             cp_subsystem_type
   USE global_types,                    ONLY: global_environment_type
   USE kinds,                           ONLY: dp
   USE mathlib,                         ONLY: power_matrix,&
@@ -73,10 +70,10 @@ MODULE pao_qs_env_methods
                                              qs_environment_type
   USE sparse_matrix_types,             ONLY: add_block_node,&
                                              get_block_node,&
-                                             real_matrix_p_type,&
-                                             real_matrix_type
+                                             real_matrix_p_type
   USE timings,                         ONLY: timeset,&
                                              timestop
+
   IMPLICIT NONE
   PRIVATE
 
@@ -134,15 +131,19 @@ CONTAINS
 !!
 !!*** **********************************************************************
   FUNCTION pao_qs_env_get_b_projection(qs_env, atom_nr, error) RESULT(res)
-    TYPE(pao_bas_projection_type), POINTER ::res
-    TYPE(qs_environment_type), INTENT(in) :: qs_env
-    INTEGER, INTENT(in) :: atom_nr
-    TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
+    TYPE(qs_environment_type), INTENT(in)    :: qs_env
+    INTEGER, INTENT(in)                      :: atom_nr
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
+    TYPE(pao_bas_projection_type), POINTER   :: res
 
-    LOGICAL :: failure
-    CHARACTER(len=*), PARAMETER :: routineN='pao_qs_env_get_b_projection',&
-        routineP=moduleN//':'//routineN
-    TYPE(particle_type), DIMENSION(:), POINTER :: particle_set
+    CHARACTER(len=*), PARAMETER :: routineN = 'pao_qs_env_get_b_projection', &
+      routineP = moduleN//':'//routineN
+
+    LOGICAL                                  :: failure
+    TYPE(particle_type), DIMENSION(:), &
+      POINTER                                :: particle_set
+
     failure=.FALSE.
 
     CALL get_qs_env(qs_env, particle_set=particle_set)
@@ -215,34 +216,41 @@ SUBROUTINE pao_qs_env_get(qs_env, global_env, pao_env, pao_max_min_bas,&
      pao_angles_att, pao_w_subspace_pos_precision,&
      pao_w_in_subspace_precision,pao_atomic_ortho,&
      pao_atomic_ortho_valid, n_atoms, n_electrons, error)
-  TYPE(qs_environment_type), INTENT(in), TARGET :: qs_env
-  TYPE(global_environment_type), INTENT(in), TARGET :: global_env
-  TYPE(pao_env_type), POINTER, OPTIONAL :: pao_env
-  INTEGER, INTENT(out), OPTIONAL :: pao_max_min_bas,&
-       pao_max_full_bas, pao_max_excl_bas, pao_max_l_angles,&
-       pao_tot_min_bas, pao_tot_full_bas, pao_tot_excl_bas,&
-       n_atoms, n_electrons
-  REAL(KIND = dp), OPTIONAL, INTENT(out) :: pao_w_subspace_pos_precision
-  REAL(KIND = dp), OPTIONAL, INTENT(out) :: pao_w_in_subspace_precision
-  TYPE(pao_glob_angles_type), OPTIONAL, POINTER :: pao_angles_att
-  TYPE(cp_block_matrix_p_type), DIMENSION(:), OPTIONAL, POINTER ::&
-       pao_min_density_m
-  TYPE(cp_b_matrix_struct_type), POINTER, OPTIONAL :: pao_min_bas_m_struct, &
-       pao_full_bas_m_struct,pao_min_full_bas_m_struct, &
-       pao_full_min_bas_m_struct, pao_full_bas_diag_m_struct
-  TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
-  LOGICAL, DIMENSION(:), POINTER, OPTIONAL :: pao_atomic_ortho_valid
-  TYPE(cp_block_matrix_type), POINTER, OPTIONAL :: pao_atomic_ortho
-  
-  LOGICAL :: failure
-  INTEGER :: natoms
-  CHARACTER(len=*), PARAMETER :: routineN='pao_qs_env_get',&
-        routineP=moduleN//':'//routineN
-  TYPE(atomic_kind_type), DIMENSION(:), POINTER :: atomic_kind_set
-  TYPE(pao_env_type), POINTER :: p_env
-  TYPE(dft_control_type), POINTER :: dft_control
-  TYPE(cp_subsystem_type), POINTER :: subsys
-  TYPE(particle_list_type), POINTER :: particles
+    TYPE(qs_environment_type), INTENT(in), &
+      TARGET                                 :: qs_env
+    TYPE(global_environment_type), &
+      INTENT(in), TARGET                     :: global_env
+    TYPE(pao_env_type), OPTIONAL, POINTER    :: pao_env
+    INTEGER, INTENT(out), OPTIONAL :: pao_max_min_bas, pao_max_full_bas, &
+      pao_max_excl_bas, pao_max_l_angles, pao_tot_min_bas, pao_tot_full_bas, &
+      pao_tot_excl_bas
+    TYPE(cp_block_matrix_p_type), &
+      DIMENSION(:), OPTIONAL, POINTER        :: pao_min_density_m
+    TYPE(cp_b_matrix_struct_type), OPTIONAL, POINTER :: pao_min_bas_m_struct, &
+      pao_full_bas_m_struct, pao_min_full_bas_m_struct, &
+      pao_full_min_bas_m_struct, pao_full_bas_diag_m_struct
+    TYPE(pao_glob_angles_type), OPTIONAL, &
+      POINTER                                :: pao_angles_att
+    REAL(KIND=dp), INTENT(out), OPTIONAL     :: pao_w_subspace_pos_precision, &
+                                                pao_w_in_subspace_precision
+    TYPE(cp_block_matrix_type), OPTIONAL, &
+      POINTER                                :: pao_atomic_ortho
+    LOGICAL, DIMENSION(:), OPTIONAL, POINTER :: pao_atomic_ortho_valid
+    INTEGER, INTENT(out), OPTIONAL           :: n_atoms, n_electrons
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'pao_qs_env_get', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: natoms
+    LOGICAL                                  :: failure
+    TYPE(atomic_kind_type), DIMENSION(:), &
+      POINTER                                :: atomic_kind_set
+    TYPE(cp_subsystem_type), POINTER         :: subsys
+    TYPE(dft_control_type), POINTER          :: dft_control
+    TYPE(pao_env_type), POINTER              :: p_env
+    TYPE(particle_list_type), POINTER        :: particles
 
   NULLIFY(atomic_kind_set, p_env, dft_control, subsys, particles)
   CALL get_qs_env(qs_env, subsys=subsys, error=error)
@@ -348,22 +356,26 @@ END SUBROUTINE pao_qs_env_get
 SUBROUTINE pao_qs_env_did_change(qs_env,global_env,&
      h_changed, s_changed,&
      angles_changed, full_reset, error)
-  TYPE (qs_environment_type), INTENT(inout) :: qs_env
-  TYPE(global_environment_type), INTENT(in), TARGET :: global_env
-  LOGICAL, INTENT(in), OPTIONAL :: h_changed, s_changed, &
-       angles_changed, full_reset
-  TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
-  
-  LOGICAL :: failure
-  CHARACTER(len=*), PARAMETER :: routineN='pao_qs_env_did_change',&
-       routineP=moduleN//':'//routineN
-  LOGICAL :: s_c, full_r
-  INTEGER :: i
-  TYPE(pao_env_type), POINTER :: pao_env
-  TYPE(real_matrix_p_type), DIMENSION(:), POINTER :: overlap_rmpv
-  TYPE(cp_b_dims_type), POINTER :: b_dims
-  TYPE(cp_b_matrix_struct_type), POINTER :: old_m_struct
-  TYPE(cp_para_env_type), POINTER :: para_env
+    TYPE(qs_environment_type), INTENT(inout) :: qs_env
+    TYPE(global_environment_type), &
+      INTENT(in), TARGET                     :: global_env
+    LOGICAL, INTENT(in), OPTIONAL            :: h_changed, s_changed, &
+                                                angles_changed, full_reset
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'pao_qs_env_did_change', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: i
+    LOGICAL                                  :: failure, full_r, s_c
+    TYPE(cp_b_dims_type), POINTER            :: b_dims
+    TYPE(cp_b_matrix_struct_type), POINTER   :: old_m_struct
+    TYPE(cp_para_env_type), POINTER          :: para_env
+    TYPE(pao_env_type), POINTER              :: pao_env
+    TYPE(real_matrix_p_type), DIMENSION(:), &
+      POINTER                                :: overlap_rmpv
+
   failure=.FALSE.
   s_c=.FALSE.; full_r=.FALSE.
   
@@ -492,24 +504,31 @@ END SUBROUTINE pao_qs_env_did_change
 !!*** **********************************************************************
 FUNCTION pao_qs_env_get_atomic_ortho(qs_env,global_env,atom_nr,error)&
      RESULT(res)
-  TYPE(qs_environment_type), INTENT(in), TARGET :: qs_env
-  TYPE(global_environment_type), INTENT(in), TARGET :: global_env
-  INTEGER, INTENT(in) :: atom_nr
-  TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
-  REAL(KIND = dp), DIMENSION(:,:), POINTER :: res
+    TYPE(qs_environment_type), INTENT(in), &
+      TARGET                                 :: qs_env
+    TYPE(global_environment_type), &
+      INTENT(in), TARGET                     :: global_env
+    INTEGER, INTENT(in)                      :: atom_nr
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
+    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: res
 
-  LOGICAL :: failure
-  CHARACTER(len=*), PARAMETER :: routineN='pao_qs_env_get_atomic_ortho',&
-       routineP=moduleN//':'//routineN
-  INTEGER :: stat, n_atoms
-  INTEGER, SAVE :: iter=0
-  TYPE(cp_block_matrix_type), POINTER :: atomic_ortho
-  TYPE(pao_env_type), POINTER :: pao_env
-  TYPE(real_matrix_p_type), DIMENSION(:), POINTER :: s
-  TYPE(cp_logger_type), POINTER :: logger
-  REAL(KIND = dp), DIMENSION(:,:), POINTER :: block_val
-  REAL(KIND = dp), DIMENSION(:,:), ALLOCATABLE :: tmp_m
-  REAL(KIND = dp) :: eps_eigval
+    CHARACTER(len=*), PARAMETER :: routineN = 'pao_qs_env_get_atomic_ortho', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: n_atoms, stat
+    INTEGER, SAVE                            :: iter = 0
+    LOGICAL                                  :: failure
+    REAL(KIND=dp)                            :: eps_eigval
+    REAL(KIND=dp), ALLOCATABLE, &
+      DIMENSION(:, :)                        :: tmp_m
+    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: block_val
+    TYPE(cp_block_matrix_type), POINTER      :: atomic_ortho
+    TYPE(cp_logger_type), POINTER            :: logger
+    TYPE(pao_env_type), POINTER              :: pao_env
+    TYPE(real_matrix_p_type), DIMENSION(:), &
+      POINTER                                :: s
+
   failure=.FALSE.
   NULLIFY(res, atomic_ortho, block_val, pao_env, s)
 
@@ -611,18 +630,22 @@ END FUNCTION pao_qs_env_get_atomic_ortho
 !!
 !!*** **********************************************************************
 SUBROUTINE pao_qs_env_preinit_atom_ortho(qs_env,global_env,error)
-  TYPE(qs_environment_type), INTENT(in), TARGET :: qs_env
-  TYPE(global_environment_type), INTENT(in), TARGET :: global_env
-  TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
+    TYPE(qs_environment_type), INTENT(in), &
+      TARGET                                 :: qs_env
+    TYPE(global_environment_type), &
+      INTENT(in), TARGET                     :: global_env
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
 
-  LOGICAL :: failure
-  CHARACTER(len=*), PARAMETER :: routineN='pao_qs_env_preinit_atom_ortho',&
-       routineP=moduleN//':'//routineN
-  INTEGER :: stat, n_atoms,i
-  TYPE(cp_block_matrix_type), POINTER :: atomic_ortho
-  TYPE(pao_env_type), POINTER :: pao_env
-  TYPE(cp_sp_block_handle_type) :: block_handle
-  
+    CHARACTER(len=*), PARAMETER :: &
+      routineN = 'pao_qs_env_preinit_atom_ortho', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: n_atoms, stat
+    LOGICAL                                  :: failure
+    TYPE(cp_block_matrix_type), POINTER      :: atomic_ortho
+    TYPE(pao_env_type), POINTER              :: pao_env
+
   failure=.FALSE.
   NULLIFY(atomic_ortho, pao_env)
 

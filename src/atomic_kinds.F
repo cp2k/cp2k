@@ -1,11 +1,9 @@
 MODULE atomic_kinds
 
-  USE kinds, ONLY: dp
-
-  USE basis_set_types,          ONLY: gto_basis_set_type
-  USE global_types,             ONLY: global_environment_type
-  USE external_potential_types, ONLY: all_potential_type,&
-                                      gth_potential_type
+  USE basis_set_types,                 ONLY: gto_basis_set_type
+  USE external_potential_types,        ONLY: all_potential_type,&
+                                             gth_potential_type
+  USE kinds,                           ONLY: dp
 
   IMPLICIT NONE
 

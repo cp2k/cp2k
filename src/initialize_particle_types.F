@@ -19,12 +19,13 @@
 
 MODULE initialize_particle_types
 
-  USE atoms_input, ONLY : system_type
-  USE kinds, ONLY : dbl
-  USE md, ONLY : simulation_parameters_type
-  USE molecule_types, ONLY : molecule_type
-  USE particle_types, ONLY : particle_type, particle_prop_type
-  USE string_utilities, ONLY : str_search
+  USE atoms_input,                     ONLY: system_type
+  USE kinds,                           ONLY: dbl
+  USE md,                              ONLY: simulation_parameters_type
+  USE molecule_types,                  ONLY: molecule_type
+  USE particle_types,                  ONLY: particle_prop_type,&
+                                             particle_type
+  USE string_utilities,                ONLY: str_search
 
   IMPLICIT NONE
 
@@ -55,18 +56,21 @@ CONTAINS
 SUBROUTINE initialize_particle_type ( atom_names, simpar, mol_setup, &
      ainp, pstat, part )
 
-  IMPLICIT NONE
 
-! Arguments
-  TYPE ( particle_type ), DIMENSION ( : ), INTENT ( INOUT ) :: part
-  TYPE ( particle_prop_type ), INTENT ( IN ), DIMENSION ( : ), TARGET :: pstat
-  TYPE ( molecule_type ), DIMENSION ( : ), INTENT ( IN ) :: mol_setup
-  TYPE ( simulation_parameters_type ), INTENT ( IN ) :: simpar
-  TYPE ( system_type ), INTENT ( INOUT ) :: ainp
-  CHARACTER ( len = * ), DIMENSION ( : ), INTENT ( IN ) :: atom_names
+    CHARACTER(len=*), DIMENSION(:), &
+      INTENT(IN)                             :: atom_names
+    TYPE(simulation_parameters_type), &
+      INTENT(IN)                             :: simpar
+    TYPE(molecule_type), DIMENSION(:), &
+      INTENT(IN)                             :: mol_setup
+    TYPE(system_type), INTENT(INOUT)         :: ainp
+    TYPE(particle_prop_type), DIMENSION(:), &
+      INTENT(IN), TARGET                     :: pstat
+    TYPE(particle_type), DIMENSION(:), &
+      INTENT(INOUT)                          :: part
 
-!locals
-  INTEGER :: natoms,iat,nmol_type,i,j,k,n,iw,natom_types
+    INTEGER                                  :: i, iat, j, k, n, natom_types, &
+                                                natoms, nmol_type
 
 !------------------------------------------------------------------------------
 

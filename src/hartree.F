@@ -21,13 +21,16 @@
 
 MODULE hartree
   
-  USE kinds, ONLY : dbl
-  USE coefficient_types, ONLY : coeff_type, coeff_allocate, coeff_deallocate, &
-      PLANEWAVES
-  USE pws, ONLY : pw_poisson_solver
-  USE termination, ONLY: stop_memory
-  USE timings, ONLY: timeset, timestop
-  
+  USE coefficient_types,               ONLY: PLANEWAVES,&
+                                             coeff_allocate,&
+                                             coeff_deallocate,&
+                                             coeff_type
+  USE kinds,                           ONLY: dbl
+  USE pws,                             ONLY: pw_poisson_solver
+  USE termination,                     ONLY: stop_memory
+  USE timings,                         ONLY: timeset,&
+                                             timestop
+
   IMPLICIT NONE
 
 !!*****
@@ -55,19 +58,20 @@ CONTAINS
 
 SUBROUTINE calculate_hartree ( density, ehartree, vhartree, dvhartree, h_stress )
   
-! Arguments
-  TYPE ( coeff_type ), INTENT ( IN ) :: density
-  REAL ( dbl ), INTENT ( OUT ), OPTIONAL :: ehartree
-  TYPE ( coeff_type ), TARGET, INTENT ( INOUT ), OPTIONAL :: vhartree
-  TYPE ( coeff_type ), DIMENSION ( 3 ), INTENT ( INOUT ), OPTIONAL :: dvhartree
-  REAL ( dbl ), DIMENSION ( 3, 3 ), INTENT ( OUT ), OPTIONAL :: h_stress
-  
-! Local
-  INTEGER :: handle, ierr
-  TYPE ( coeff_type ), POINTER :: vh
-  
+    TYPE(coeff_type), INTENT(IN)             :: density
+    REAL(dbl), INTENT(OUT), OPTIONAL         :: ehartree
+    TYPE(coeff_type), INTENT(INOUT), &
+      OPTIONAL, TARGET                       :: vhartree
+    TYPE(coeff_type), DIMENSION(3), &
+      INTENT(INOUT), OPTIONAL                :: dvhartree
+    REAL(dbl), DIMENSION(3, 3), &
+      INTENT(OUT), OPTIONAL                  :: h_stress
+
+    INTEGER                                  :: handle, ierr
+    TYPE(coeff_type), POINTER                :: vh
+
 !------------------------------------------------------------------------------
-  
+
   CALL timeset ( 'hartree', 'I', ' ', handle )
   NULLIFY (vh)
 
@@ -112,17 +116,18 @@ END SUBROUTINE calculate_hartree
 
 SUBROUTINE poisson_solver ( density, ehartree, vhartree, dvhartree, h_stress )
   
-  IMPLICIT NONE
   
-! Arguments
-  TYPE ( coeff_type ), INTENT ( IN ) :: density
-  REAL ( dbl ), INTENT ( OUT ), OPTIONAL :: ehartree
-  TYPE ( coeff_type ), INTENT ( INOUT ), OPTIONAL :: vhartree
-  TYPE ( coeff_type ), DIMENSION ( 3 ), INTENT ( INOUT ), OPTIONAL :: dvhartree
-  REAL ( dbl ), DIMENSION ( 3, 3 ), INTENT ( OUT ), OPTIONAL :: h_stress
-  
+    TYPE(coeff_type), INTENT(IN)             :: density
+    REAL(dbl), INTENT(OUT), OPTIONAL         :: ehartree
+    TYPE(coeff_type), INTENT(INOUT), &
+      OPTIONAL                               :: vhartree
+    TYPE(coeff_type), DIMENSION(3), &
+      INTENT(INOUT), OPTIONAL                :: dvhartree
+    REAL(dbl), DIMENSION(3, 3), &
+      INTENT(OUT), OPTIONAL                  :: h_stress
+
 !------------------------------------------------------------------------------
-  
+
   IF ( density % in_use == PLANEWAVES ) THEN
     CALL pw_poisson_solver ( density, ehartree, vhartree, dvhartree, h_stress )
   ELSE

@@ -27,43 +27,54 @@ MODULE kg_environment
                                              write_atomic_kind_set,&
                                              write_gto_basis_sets
   USE checkpoint_handler,              ONLY: write_checkpoint_information
-  USE cp_error_handling,               ONLY: cp_error_type
-  USE cp_control_types,                ONLY: dft_control_type,&
-                                             dft_control_release
+  USE cp_control_types,                ONLY: dft_control_release,&
+                                             dft_control_type
   USE cp_control_utils,                ONLY: read_dft_control,&
                                              read_kg_control,&
                                              write_dft_control,&
                                              write_kg_control
+  USE cp_error_handling,               ONLY: cp_error_type
   USE distribution_1d_types,           ONLY: distribution_1d_release,&
                                              distribution_1d_type
   USE distribution_methods,            ONLY: distribute_molecules_1d
-
 ! USE force_env_types,                   ONLY: force_env_calculate_force,&
+
 !                                            force_env_create,&
+
 !                                            force_env_release,&
+
 !                                            force_env_type
+
   USE global_types,                    ONLY: global_environment_type
 !  USE kg_energy_utils,                 ONLY: energy_min_type,&
+
 !                                             min_info_type,&
+
 !                                             print_convergence,&
+
 !                                             print_energy_info,&
+
 !                                             read_energy_section
-  USE kg_environment_types,            ONLY: init_kg_env,&
-                                             get_kg_env,&
-                                             kg_environment_type,&
-                                             set_kg_env  
+
   USE kg_energy_types,                 ONLY: allocate_kg_energy,&
-                                             kg_energy_type 
+                                             kg_energy_type
+  USE kg_environment_types,            ONLY: get_kg_env,&
+                                             kg_environment_type,&
+                                             set_kg_env
   USE kg_force_types,                  ONLY: allocate_kg_force,&
-                                             kg_force_type 
+                                             kg_force_type
   USE kg_rho_methods,                  ONLY: kg_rho_create,&
-                                             kg_rho_setup 
+                                             kg_rho_setup
   USE kg_rho_types,                    ONLY: kg_rho_release,&
-                                             kg_rho_type  
+                                             kg_rho_type
 !  USE kg_force,                        ONLY: kg_force_release
+
 !  USE kg_pol_coefs,                    ONLY: allocate_coefs,&
+
 !                                             dump_coefs,&
+
 !                                             initialize_coefs
+
   USE kinds,                           ONLY: dp,&
                                              int_size
   USE machine,                         ONLY: m_flush
@@ -74,21 +85,16 @@ MODULE kg_environment
   USE orbital_transformation_matrices, ONLY: init_spherical_harmonics
   USE particle_types,                  ONLY: particle_type,&
                                              write_particle_distances
-  USE physcon,                         ONLY: boltzmann,&
-                                             h_planck
   USE qs_interactions,                 ONLY: init_interaction_radii
-  USE simulation_cell,                 ONLY: cell_type,&
-                                             cell_release,&
+  USE simulation_cell,                 ONLY: cell_release,&
+                                             cell_type,&
                                              read_cell,&
                                              write_cell
-  USE string_utilities,                ONLY: integer_to_string,&
-                                             xstring
-  USE termination,                     ONLY: stop_memory,&
-                                             stop_program
+  USE termination,                     ONLY: stop_memory
   USE timings,                         ONLY: timeset,&
-                                             timestop,&
-                                             trace_debug
+                                             timestop
   USE topology,                        ONLY: topology_control
+
   IMPLICIT NONE
 
   PRIVATE
@@ -124,45 +130,39 @@ CONTAINS
 
 SUBROUTINE kg_init (kg_env,globenv,error)
 
-  IMPLICIT NONE
 
-! Arguments
 
-  TYPE(kg_environment_type), POINTER           :: kg_env
-  TYPE (global_environment_type ), INTENT ( INOUT ) :: globenv
-  TYPE(cp_error_type), INTENT(inout), OPTIONAL :: error
+    TYPE(kg_environment_type), POINTER       :: kg_env
+    TYPE(global_environment_type), &
+      INTENT(INOUT)                          :: globenv
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
 
-! Locals
-! Local parameters 
+    CHARACTER(LEN=*), PARAMETER              :: routine_name = "kg_init"
 
-  CHARACTER(LEN=*), PARAMETER :: routine_name = "kg_init"
-
-! Local variables 
-
-  TYPE(cell_type), POINTER            :: cell
-  TYPE(dft_control_type), POINTER     :: dft_control
-  TYPE(distribution_1d_type), POINTER :: local_molecules,&
-                                           local_particles
-  TYPE(kg_energy_type), POINTER       :: energy
-  TYPE (atomic_kind_type), DIMENSION(:), POINTER:: atomic_kind_set
-  TYPE(molecule_kind_type), DIMENSION(:), POINTER :: molecule_kind_set
-  TYPE(molecule_type), DIMENSION(:), POINTER      :: molecule_set
-  TYPE(particle_type), DIMENSION(:), POINTER      :: particle_set
-  TYPE(kg_force_type), DIMENSION(:), POINTER      :: force
-
-  INTEGER :: handle,isos
-  INTEGER :: ia, ib
-  INTEGER :: n, nll, i
-  INTEGER :: maxder
-  INTEGER :: ncoef
-  INTEGER :: ikind,istat,maxl,maxlgto,maxlppl,maxlppnl,nkind,output_unit
-  LOGICAL :: ionode, kgpol
-
-  INTEGER, DIMENSION(:), ALLOCATABLE :: natom_of_kind
+    INTEGER                                  :: handle, i, istat, maxl, &
+                                                maxlgto, maxlppl, maxlppnl, &
+                                                nkind, output_unit
+    INTEGER, ALLOCATABLE, DIMENSION(:)       :: natom_of_kind
+    LOGICAL                                  :: ionode, kgpol
+    TYPE(atomic_kind_type), DIMENSION(:), &
+      POINTER                                :: atomic_kind_set
+    TYPE(cell_type), POINTER                 :: cell
+    TYPE(dft_control_type), POINTER          :: dft_control
+    TYPE(distribution_1d_type), POINTER      :: local_molecules, &
+                                                local_particles
+    TYPE(kg_energy_type), POINTER            :: energy
+    TYPE(kg_force_type), DIMENSION(:), &
+      POINTER                                :: force
+    TYPE(molecule_kind_type), DIMENSION(:), &
+      POINTER                                :: molecule_kind_set
+    TYPE(molecule_type), DIMENSION(:), &
+      POINTER                                :: molecule_set
+    TYPE(particle_type), DIMENSION(:), &
+      POINTER                                :: particle_set
 
 !  CHARACTER ( LEN = 40 ) :: set_fn, project_name
 !  CHARACTER ( LEN = 5 ) :: tag
-  
 !------------------------------------------------------------------------------
 
   CALL write_checkpoint_information("entering "//routine_name,globenv)
@@ -342,16 +342,15 @@ SUBROUTINE kg_init (kg_env,globenv,error)
 !***************************************************************************
 SUBROUTINE kg_env_setup(kg_env,error)
 
-  TYPE(kg_environment_type), INTENT(inout)                :: kg_env
-  TYPE(cp_error_type), OPTIONAL, INTENT(inout)            :: error
+    TYPE(kg_environment_type), INTENT(inout) :: kg_env
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
 
-!locals
+    CHARACTER(len=*), PARAMETER :: routineN = 'kg_env_setup', &
+      routineP = moduleN//':'//routineN
 
-  LOGICAL :: failure
-  CHARACTER(len=*), PARAMETER :: routineN='kg_env_setup',&
-        routineP=moduleN//':'//routineN
-
-  TYPE(kg_rho_type), POINTER          :: rho
+    LOGICAL                                  :: failure
+    TYPE(kg_rho_type), POINTER               :: rho
 
   failure=.FALSE.
   NULLIFY(rho)

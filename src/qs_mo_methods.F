@@ -24,11 +24,9 @@
 MODULE qs_mo_methods
   USE cp_error_handling,               ONLY: cp_a_l,&
                                              cp_assert,&
-                                             cp_assertion_failed,&
                                              cp_error_get_logger,&
                                              cp_error_message,&
-                                             cp_error_type,&
-                                             cp_unimplemented_error
+                                             cp_error_type
   USE cp_fm_basic_linalg,              ONLY: cp_fm_column_scale,&
                                              cp_fm_gemm,&
                                              cp_fm_syrk
@@ -45,8 +43,6 @@ MODULE qs_mo_methods
                                              cp_fm_to_fm,&
                                              cp_fm_type
   USE cp_log_handling,                 ONLY: cp_failure_level,&
-                                             cp_log,&
-                                             cp_logger_get_unit_nr,&
                                              cp_logger_type,&
                                              cp_to_string,&
                                              cp_warning_level
@@ -54,9 +50,7 @@ MODULE qs_mo_methods
                                              cp_para_env_type
   USE cp_sm_fm_interactions,           ONLY: cp_sm_fm_multiply,&
                                              cp_sm_plus_fm_fm_t
-  USE kinds,                           ONLY: int_size,&
-                                             dp,&
-                                             dp_size
+  USE kinds,                           ONLY: dp
   USE message_passing,                 ONLY: mp_max
   USE qs_mo_types,                     ONLY: mo_set_p_type,&
                                              mo_set_type
@@ -66,6 +60,7 @@ MODULE qs_mo_methods
                                              stop_program
   USE timings,                         ONLY: timeset,&
                                              timestop
+
   IMPLICIT NONE
   PRIVATE
   CHARACTER(len=*), PRIVATE, PARAMETER :: moduleN='qs_mo_types'
@@ -117,22 +112,25 @@ CONTAINS
   SUBROUTINE make_basis(vmatrix,ncol,ortho,otype,pmatrix,work)
 ! *****************************************************************************
 
-    TYPE(cp_fm_type), POINTER                   :: vmatrix
-    TYPE(cp_fm_type), POINTER, OPTIONAL         :: pmatrix,work,ortho
-    INTEGER, INTENT(IN)                                :: ncol
-    CHARACTER ( LEN = * ), INTENT ( IN ),OPTIONAL      :: otype
+    TYPE(cp_fm_type), POINTER                :: vmatrix
+    INTEGER, INTENT(IN)                      :: ncol
+    TYPE(cp_fm_type), OPTIONAL, POINTER      :: ortho
+    CHARACTER(LEN=*), INTENT(IN), OPTIONAL   :: otype
+    TYPE(cp_fm_type), OPTIONAL, POINTER      :: pmatrix, work
 
-!   *** Local variables ***
-
-    INTEGER :: handle,n,info
-    REAL(KIND = dp), DIMENSION(:,:), POINTER :: a,b,vv,w,p,o
-    REAL(KIND = dp) :: rone,rzero
-    INTEGER :: nprow,npcol,myprow,mypcol,nrow_block,ncol_block,i
-    INTEGER, DIMENSION(9) :: desca,descb,descvv,descw,descp,desco
-    TYPE(cp_fm_type), POINTER           :: overlap_vv
-    LOGICAL :: found_type,use_pmatrix,use_cholesky,use_sv,use_simple
-    TYPE(cp_blacs_env_type), POINTER :: context
-    TYPE(cp_fm_struct_type), POINTER :: fm_struct_tmp
+    INTEGER                                  :: handle, i, info, mypcol, &
+                                                myprow, n, ncol_block, npcol, &
+                                                nprow, nrow_block
+    INTEGER, DIMENSION(9)                    :: desca, desco, descp, descvv, &
+                                                descw
+    LOGICAL                                  :: found_type, use_cholesky, &
+                                                use_pmatrix, use_simple, &
+                                                use_sv
+    REAL(KIND=dp)                            :: rone, rzero
+    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: a, o, p, vv, w
+    TYPE(cp_blacs_env_type), POINTER         :: context
+    TYPE(cp_fm_struct_type), POINTER         :: fm_struct_tmp
+    TYPE(cp_fm_type), POINTER                :: overlap_vv
 
 !   ---------------------------------------------------------------------------
 
@@ -291,13 +289,12 @@ CONTAINS
 
 !   ***************************************************************************
 
-    TYPE(cp_fm_type), POINTER        :: density_matrix
-    TYPE(mo_set_type), POINTER                :: mo_set
-    TYPE(cp_error_type), INTENT(inout), OPTIONAL :: error
+    TYPE(mo_set_type), POINTER               :: mo_set
+    TYPE(cp_fm_type), POINTER                :: density_matrix
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
 
-!   *** Local variables ***
-
-    INTEGER :: handle,imo
+    INTEGER                                  :: handle, imo
 
 !   ---------------------------------------------------------------------------
 
@@ -328,15 +325,14 @@ CONTAINS
 
 !   ***************************************************************************
 
-    TYPE(real_matrix_type), POINTER           :: density_matrix
-    TYPE(mo_set_type), POINTER                :: mo_set
-    TYPE(cp_error_type), INTENT(inout), OPTIONAL :: error
+    TYPE(mo_set_type), POINTER               :: mo_set
+    TYPE(real_matrix_type), POINTER          :: density_matrix
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
 
-!   *** Local variables ***
-
-    INTEGER :: handle,imo
-    TYPE(cp_fm_type), POINTER :: fm_tmp
-    REAL(KIND = dp) :: alpha
+    INTEGER                                  :: handle
+    REAL(KIND=dp)                            :: alpha
+    TYPE(cp_fm_type), POINTER                :: fm_tmp
 
 !   ---------------------------------------------------------------------------
 
@@ -381,20 +377,18 @@ CONTAINS
 
 !   ***************************************************************************
 
-    TYPE(real_matrix_type), POINTER           :: w_matrix
-    TYPE(mo_set_type), POINTER                :: mo_set
-    TYPE(cp_fm_type), POINTER        :: weighted_vectors
+    TYPE(mo_set_type), POINTER               :: mo_set
+    TYPE(real_matrix_type), POINTER          :: w_matrix
 
-!   *** Local variables ***
+    CHARACTER(LEN=*), PARAMETER :: routine_name = "calculate_w_matrix_1", &
+      routine = "SUBROUTINE "//routine_name//" (MODULE "//moduleN//")"
 
-    REAL(KIND = dp), DIMENSION(:), POINTER :: eigocc
-    INTEGER  :: handle,imo,istat
-
-    CHARACTER(LEN=*), PARAMETER :: routine_name = "calculate_w_matrix_1"
-    CHARACTER(LEN=*), PARAMETER :: routine =&
-      "SUBROUTINE "//routine_name//" (MODULE "//moduleN//")"
+    INTEGER                                  :: handle, imo, istat
+    REAL(KIND=dp), DIMENSION(:), POINTER     :: eigocc
+    TYPE(cp_fm_type), POINTER                :: weighted_vectors
 
 !   ---------------------------------------------------------------------------
+
     CALL timeset(routine_name,"I","",handle)
     NULLIFY(weighted_vectors)
 
@@ -432,14 +426,14 @@ CONTAINS
 
 !   ***************************************************************************
 
-    TYPE(real_matrix_type), POINTER           :: w_matrix,ks_matrix
-    TYPE(mo_set_type), POINTER                :: mo_set
-    TYPE(cp_fm_type), POINTER        :: weighted_vectors,h_block
-    TYPE(cp_fm_struct_type), POINTER          :: fm_struct_tmp
+    TYPE(mo_set_type), POINTER               :: mo_set
+    TYPE(real_matrix_type), POINTER          :: ks_matrix, w_matrix
 
-!   *** Local variables ***
-
-    INTEGER :: handle,imo,ncol_global,nrow_global,nrow_block,ncol_block
+    INTEGER                                  :: handle, ncol_block, &
+                                                ncol_global, nrow_block, &
+                                                nrow_global
+    TYPE(cp_fm_struct_type), POINTER         :: fm_struct_tmp
+    TYPE(cp_fm_type), POINTER                :: h_block, weighted_vectors
 
 !   ---------------------------------------------------------------------------
 
@@ -498,20 +492,22 @@ CONTAINS
 
 !   ***************************************************************************
 
-    TYPE(real_matrix_type), POINTER           :: ks_matrix
-    TYPE(cp_fm_type), POINTER          :: orbitals
-    TYPE(cp_para_env_type),  POINTER   :: para_env
-    TYPE(cp_blacs_env_type), POINTER   :: ctxt
-    REAL(KIND = dp), DIMENSION(:),  POINTER, OPTIONAL :: evals_arg
-    LOGICAL, OPTIONAL :: ionode
-    INTEGER, OPTIONAL :: scr
+    TYPE(cp_fm_type), POINTER                :: orbitals
+    TYPE(real_matrix_type), POINTER          :: ks_matrix
+    REAL(KIND=dp), DIMENSION(:), OPTIONAL, &
+      POINTER                                :: evals_arg
+    TYPE(cp_para_env_type), POINTER          :: para_env
+    TYPE(cp_blacs_env_type), POINTER         :: ctxt
+    LOGICAL, OPTIONAL                        :: ionode
+    INTEGER, OPTIONAL                        :: scr
 
-!   *** Local variables ***
-
-    TYPE(cp_fm_type), POINTER          :: weighted_vectors,h_block,e_vectors
-    REAL(KIND = dp), DIMENSION(:), ALLOCATABLE       :: evals
-    INTEGER  :: handle,imo,ncol_global,nrow_global,nrow_block,ncol_block,i,j
-    TYPE(cp_fm_struct_type), POINTER :: fm_struct_tmp
+    INTEGER                                  :: handle, i, j, ncol_block, &
+                                                ncol_global, nrow_block, &
+                                                nrow_global
+    REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: evals
+    TYPE(cp_fm_struct_type), POINTER         :: fm_struct_tmp
+    TYPE(cp_fm_type), POINTER                :: e_vectors, h_block, &
+                                                weighted_vectors
 
 !   ---------------------------------------------------------------------------
 
@@ -588,16 +584,18 @@ CONTAINS
 ! orthonormality is the max deviation from unity of the C^T S C
 ! *****************************************************************************
   SUBROUTINE calculate_orthonormality(mo_array,matrix_s,orthonormality)
-   TYPE(real_matrix_type), POINTER                 :: matrix_s
-   TYPE(mo_set_p_type), DIMENSION(:), POINTER      :: mo_array
-   REAL(KIND = dp)                                        :: orthonormality
-   
-   INTEGER :: ispin,nspin,i,j,n,k,handle
-   REAL(KIND = dp) :: alpha,max_alpha
-   TYPE(cp_fm_struct_type), POINTER :: tmp_fm_struct
-   TYPE(cp_fm_type), POINTER :: svec,overlap
-   INTEGER :: nrow_local,ncol_local
-   INTEGER, DIMENSION(:), POINTER :: row_indices,col_indices
+    TYPE(mo_set_p_type), DIMENSION(:), &
+      POINTER                                :: mo_array
+    TYPE(real_matrix_type), POINTER          :: matrix_s
+    REAL(KIND=dp)                            :: orthonormality
+
+    INTEGER                                  :: handle, i, ispin, j, k, n, &
+                                                ncol_local, nrow_local, nspin
+    INTEGER, DIMENSION(:), POINTER           :: col_indices, row_indices
+    REAL(KIND=dp)                            :: alpha, max_alpha
+    TYPE(cp_fm_struct_type), POINTER         :: tmp_fm_struct
+    TYPE(cp_fm_type), POINTER                :: overlap, svec
+
    NULLIFY(tmp_fm_struct,svec,overlap)
 
    CALL timeset("calculate_orthonormality","I","",handle)

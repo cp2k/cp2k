@@ -6,13 +6,17 @@
 
 MODULE energy_input
 
-  USE global_types, ONLY : global_environment_type
-  USE kinds, ONLY : dbl
-  USE parser, ONLY : parser_init, parser_end, read_line, test_next, &
-       p_error, get_next, stop_parser, search_label
-  USE string_utilities, ONLY : uppercase
-  USE termination, ONLY : stop_program 
-
+  USE global_types,                    ONLY: global_environment_type
+  USE kinds,                           ONLY: dbl
+  USE parser,                          ONLY: get_next,&
+                                             p_error,&
+                                             parser_end,&
+                                             parser_init,&
+                                             read_line,&
+                                             search_label,&
+                                             test_next
+  USE string_utilities,                ONLY: uppercase
+  USE termination,                     ONLY: stop_program
 
   IMPLICIT NONE
 
@@ -50,18 +54,17 @@ CONTAINS
 
 SUBROUTINE read_energy_section ( energy_min, globenv )
 
-  IMPLICIT NONE
 
-! Arguments
-  TYPE ( energy_min_type ), INTENT ( OUT ) :: energy_min
-  TYPE ( global_environment_type ), INTENT ( IN ) :: globenv     
+    TYPE(energy_min_type), INTENT(OUT)       :: energy_min
+    TYPE(global_environment_type), &
+      INTENT(IN)                             :: globenv
 
-! Locals
-  INTEGER :: ierror, ilen, iw
-  CHARACTER ( len = 20 ) :: string
-  CHARACTER ( len = 5 ) :: label
+    CHARACTER(len=20)                        :: string
+    CHARACTER(len=5)                         :: label
+    INTEGER                                  :: ierror, ilen, iw
 
 !------------------------------------------------------------------------------
+
   iw = globenv % scr
 
 !..defaults

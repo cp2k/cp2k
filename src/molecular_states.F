@@ -25,39 +25,33 @@ MODULE molecular_states
 ! *****************************************************************************
   USE coefficient_types,               ONLY: coeff_type
   USE cp_error_handling,               ONLY: cp_error_type
-  USE cp_para_types,                   ONLY: cp_para_env_type
+  USE cp_fm_basic_linalg,              ONLY: cp_fm_gemm
+  USE cp_fm_diag,                      ONLY: cp_fm_syevd
   USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
                                              cp_fm_struct_release,&
                                              cp_fm_struct_type
   USE cp_fm_types,                     ONLY: cp_fm_create,&
-                                             cp_fm_type,&
-                                             cp_fm_get_info,&
                                              cp_fm_get_element,&
+                                             cp_fm_get_info,&
                                              cp_fm_release,&
-                                             cp_fm_to_fm, &
-                                             cp_fm_write
+                                             cp_fm_to_fm,&
+                                             cp_fm_type
+  USE cp_para_types,                   ONLY: cp_para_env_type
   USE cp_sm_fm_interactions,           ONLY: cp_sm_fm_multiply
-  USE cp_fm_basic_linalg,              ONLY: cp_fm_gemm
-  USE cp_fm_diag,                      ONLY: cp_fm_syevd
-  USE distribution_1d_types,           ONLY: distribution_1d_type
-  USE global_types,                    ONLY: DEBUG,&
-                                             global_environment_type
-  USE kinds,                           ONLY: int_size,&
-                                             default_string_length,&
+  USE global_types,                    ONLY: global_environment_type
+  USE kinds,                           ONLY: default_string_length,&
                                              dp
-  USE message_passing,                 ONLY: mp_max,mp_maxloc,mp_sum,&
-                                             mp_allgather,mp_bcast
+  USE message_passing,                 ONLY: mp_bcast,&
+                                             mp_maxloc
   USE molecule_types_new,              ONLY: molecule_type
-  USE pw_env_types,                    ONLY: pw_env_type 
+  USE pw_env_types,                    ONLY: pw_env_type
   USE qs_collocate_density,            ONLY: calculate_wavefunction
   USE qs_environment_types,            ONLY: qs_environment_type
   USE realspace_grid_types,            ONLY: rs_pw_to_cube
   USE sparse_matrix_types,             ONLY: real_matrix_type
-  USE termination,                     ONLY: stop_memory,&
-                                             stop_program
+  USE termination,                     ONLY: stop_memory
   USE timings,                         ONLY: timeset,&
-                                             timestop,&
-                                             trace_debug
+                                             timestop
 
   IMPLICIT NONE
 
@@ -84,47 +78,40 @@ SUBROUTINE construct_molecular_states(molecule_set, mo_localized, &
                                    Hks,matrix_S,globenv,pw_env,qs_env,wf_r,wf_g, &
                                    mgrid_rspace,mgrid_gspace)
 
-  IMPLICIT NONE
 
-  TYPE ( molecule_type ), DIMENSION ( : ), POINTER      :: molecule_set
-  TYPE ( cp_fm_type ), POINTER                          :: mo_eigenvectors, mo_localized
-  REAL (KIND = dp), POINTER, DIMENSION(:)                    :: mo_eigenvalues
-  TYPE ( real_matrix_type ), POINTER                    :: Hks,matrix_S
-  TYPE ( global_environment_type ), INTENT ( IN )       :: globenv
-  TYPE ( pw_env_type ), POINTER                         :: pw_env
-  TYPE ( qs_environment_type ), INTENT ( IN )           :: qs_env
-  TYPE ( coeff_type ), INTENT ( INOUT )                 :: wf_r, wf_g
-  TYPE ( coeff_type ), DIMENSION ( : ), POINTER         :: mgrid_gspace,&
-                                                           mgrid_rspace
-  
-! locals
-  TYPE ( cp_para_env_type ), POINTER :: para_env
-  CHARACTER (LEN=default_string_length)                            :: filename
-  INTEGER                                       :: i, j, k, imol, isos, &
-                                                   nrow_global, ncol_global, ns
-  REAL(KIND = dp), ALLOCATABLE                           :: evals( : )
-  TYPE(cp_fm_type), POINTER                       :: b,c,d
-  TYPE(cp_fm_type), POINTER                       :: e_vectors,&
-                                                     rot_e_vectors
-  TYPE(cp_fm_type), POINTER                       :: D_igk
-  TYPE ( cp_fm_type ), POINTER                    :: smo
-  TYPE(cp_fm_struct_type), POINTER                :: fm_struct_tmp
-  TYPE(cp_error_type)                             :: error
+    TYPE(molecule_type), DIMENSION(:), &
+      POINTER                                :: molecule_set
+    TYPE(cp_fm_type), POINTER                :: mo_localized, mo_eigenvectors
+    REAL(KIND=dp), DIMENSION(:), POINTER     :: mo_eigenvalues
+    TYPE(real_matrix_type), POINTER          :: Hks, matrix_S
+    TYPE(global_environment_type), &
+      INTENT(IN)                             :: globenv
+    TYPE(pw_env_type), POINTER               :: pw_env
+    TYPE(qs_environment_type), INTENT(IN)    :: qs_env
+    TYPE(coeff_type), INTENT(INOUT)          :: wf_r, wf_g
+    TYPE(coeff_type), DIMENSION(:), POINTER  :: mgrid_rspace, mgrid_gspace
 
-  INTEGER  :: nproc, iproc,nmol,istates
-  INTEGER, POINTER :: nstates(:)
-  INTEGER, POINTER :: states(:)
-  INTEGER, DIMENSION ( : ), POINTER               :: ind
-  INTEGER :: unit_report
-  REAL(KIND = dp) :: tmp
-  INTEGER :: ikind,nkind
+    CHARACTER(LEN=default_string_length)     :: filename
+    INTEGER                                  :: i, imol, iproc, isos, j, k, &
+                                                ncol_global, nproc, &
+                                                nrow_global, ns, unit_report
+    INTEGER, DIMENSION(:), POINTER           :: ind
+    INTEGER, POINTER                         :: nstates(:), states(:)
+    REAL(KIND=dp)                            :: tmp
+    REAL(KIND=dp), ALLOCATABLE               :: evals( : )
+    TYPE(cp_error_type)                      :: error
+    TYPE(cp_fm_struct_type), POINTER         :: fm_struct_tmp
+    TYPE(cp_fm_type), POINTER                :: b, c, d, D_igk, e_vectors, &
+                                                rot_e_vectors, smo
+    TYPE(cp_para_env_type), POINTER          :: para_env
+
 !-------------------------------------------------------------------------------
 !-------------------------------------------------------------------------------
+!-----------------------------------------------------------------------------
+!-----------------------------------------------------------------------------
+! 1. 
+!-----------------------------------------------------------------------------
 
-  !-----------------------------------------------------------------------------
-  !-----------------------------------------------------------------------------
-  ! 1. 
-  !-----------------------------------------------------------------------------
   para_env => qs_env % para_env
   nproc = para_env%num_pe
  

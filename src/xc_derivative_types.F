@@ -35,6 +35,7 @@ MODULE xc_derivative_types
                                              MAX_LABEL_LENGTH,&
                                              create_split_derivative_desc,&
                                              standardize_dervitative_desc
+
   IMPLICIT NONE
 
   PRIVATE
@@ -127,20 +128,20 @@ CONTAINS
 !!*** **********************************************************************
   SUBROUTINE xc_derivative_create(derivative, desc, cr3d_ptr, error)
 
-    ! arguments
-    TYPE(xc_derivative_type), POINTER              :: derivative
-    CHARACTER(len=*), INTENT(in)                   :: desc
-    REAL(kind=dp), DIMENSION(:,:,:), POINTER       :: cr3d_ptr
-    TYPE(cp_error_type), OPTIONAL, INTENT(inout)   :: error
+    TYPE(xc_derivative_type), POINTER        :: derivative
+    CHARACTER(len=*), INTENT(in)             :: desc
+    REAL(kind=dp), DIMENSION(:, :, :), &
+      POINTER                                :: cr3d_ptr
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
 
-    ! locals
-    LOGICAL                                   :: failure
-    INTEGER                                   :: stat
-    CHARACTER(len=MAX_DERIVATIVE_DESC_LENGTH) :: my_desc
+    CHARACTER(len=*), PARAMETER :: routineN = 'xc_derivative_create', &
+      routineP = moduleN//':'//routineN
 
-    ! parameters
-    CHARACTER(len=*), PARAMETER :: routineN = 'xc_derivative_create',&
-         routineP = moduleN//':'//routineN
+    CHARACTER&
+      (len=MAX_DERIVATIVE_DESC_LENGTH)       :: my_desc
+    INTEGER                                  :: stat
+    LOGICAL                                  :: failure
 
     failure=.FALSE.
 
@@ -191,12 +192,14 @@ CONTAINS
 !!
 !!*** **********************************************************************
 SUBROUTINE xc_derivative_retain(deriv,error)
-  TYPE(xc_derivative_type), POINTER :: deriv
-  TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
-  
-  LOGICAL :: failure
-  CHARACTER(len=*), PARAMETER :: routineN='xc_derivative_retain',&
-        routineP=moduleN//':'//routineN
+    TYPE(xc_derivative_type), POINTER        :: deriv
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'xc_derivative_retain', &
+      routineP = moduleN//':'//routineN
+
+    LOGICAL                                  :: failure
 
   failure=.FALSE.
   
@@ -236,19 +239,16 @@ END SUBROUTINE xc_derivative_retain
 !!*** **********************************************************************
   SUBROUTINE xc_derivative_release(derivative, pw_pool, error)
 
-    ! arguments
-    TYPE(xc_derivative_type), POINTER              :: derivative
-    TYPE(pw_pool_type), POINTER, OPTIONAL          :: pw_pool
-    TYPE(cp_error_type), OPTIONAL, INTENT(inout)   :: error
+    TYPE(xc_derivative_type), POINTER        :: derivative
+    TYPE(pw_pool_type), OPTIONAL, POINTER    :: pw_pool
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
 
-    ! locals
-    LOGICAL                                   :: failure
-    INTEGER                                   :: stat
-    CHARACTER(len=MAX_DERIVATIVE_DESC_LENGTH) :: my_desc
+    CHARACTER(len=*), PARAMETER :: routineN = 'xc_derivative_release', &
+      routineP = moduleN//':'//routineN
 
-    ! parameters
-    CHARACTER(len=*), PARAMETER :: routineN = 'xc_derivative_release',&
-                                   routineP = moduleN//':'//routineN
+    INTEGER                                  :: stat
+    LOGICAL                                  :: failure
 
     failure=.FALSE.
 
@@ -321,18 +321,23 @@ END SUBROUTINE xc_derivative_retain
 !!*** **********************************************************************
 SUBROUTINE xc_derivative_get(deriv,desc,split_desc,&
      order,deriv_data,accept_null_data, error)
-  TYPE(xc_derivative_type), POINTER :: deriv
-  CHARACTER(len=MAX_DERIVATIVE_DESC_LENGTH), POINTER, OPTIONAL :: desc
-  CHARACTER(len=MAX_LABEL_LENGTH), DIMENSION(:), POINTER, OPTIONAL :: &
-       split_desc
-  INTEGER, INTENT(out), OPTIONAL :: order
-  REAL(kind=dp), DIMENSION(:,:,:), POINTER, OPTIONAL :: deriv_data
-  LOGICAL, OPTIONAL, intent(in) :: accept_null_data
-  TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
-  
-  LOGICAL :: failure, my_accept_null_data
-  CHARACTER(len=*), PARAMETER :: routineN='xc_derivative_get',&
-        routineP=moduleN//':'//routineN
+    TYPE(xc_derivative_type), POINTER        :: deriv
+    CHARACTER&
+      (len=MAX_DERIVATIVE_DESC_LENGTH), &
+      OPTIONAL, POINTER                      :: desc
+    CHARACTER(len=MAX_LABEL_LENGTH), &
+      DIMENSION(:), OPTIONAL, POINTER        :: split_desc
+    INTEGER, INTENT(out), OPTIONAL           :: order
+    REAL(kind=dp), DIMENSION(:, :, :), &
+      OPTIONAL, POINTER                      :: deriv_data
+    LOGICAL, intent(in), OPTIONAL            :: accept_null_data
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'xc_derivative_get', &
+      routineP = moduleN//':'//routineN
+
+    LOGICAL                                  :: failure, my_accept_null_data
 
   failure=.FALSE.
   my_accept_null_data=.FALSE.
@@ -390,15 +395,17 @@ END SUBROUTINE xc_derivative_get
 !!
 !!*** **********************************************************************
 SUBROUTINE xc_derivative_write(deriv,unit_nr,long_description,error)
-  TYPE(xc_derivative_type), POINTER :: deriv
-  INTEGER, INTENT(in) :: unit_nr
-  LOGICAL, INTENT(in), OPTIONAL :: long_description
-  TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
-  
-  LOGICAL :: failure, my_long_description
-  INTEGER :: i
-  CHARACTER(len=*), PARAMETER :: routineN='xc_derivative_write',&
-        routineP=moduleN//':'//routineN
+    TYPE(xc_derivative_type), POINTER        :: deriv
+    INTEGER, INTENT(in)                      :: unit_nr
+    LOGICAL, INTENT(in), OPTIONAL            :: long_description
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'xc_derivative_write', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: i
+    LOGICAL                                  :: failure, my_long_description
 
   failure=.FALSE.
   my_long_description=.FALSE.

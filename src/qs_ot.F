@@ -21,42 +21,35 @@
 !!
 MODULE qs_ot
 ! *****************************************************************************
-  USE global_types,                    ONLY: global_environment_type
-  USE kinds,                           ONLY: dp,&
-                                             dp_size
-  USE preconditioner,                  ONLY: apply_preconditioner,&
-                                             preconditioner_type
-  USE cp_fm_struct,                    ONLY: cp_fm_struct_type, &
-                                             cp_fm_struct_create, &
-                                             cp_fm_struct_release
-  USE cp_fm_types,                     ONLY: cp_fm_create,&
-                                             cp_fm_p_type,&
-                                             cp_fm_get_info,&
-                                             cp_fm_release,&
-                                             cp_fm_set_all,&
-                                             cp_fm_maxabsval,&
-                                             cp_fm_maxabsrownorm,& 
-                                             cp_fm_to_fm, &
-                                             cp_fm_type
-  USE cp_fm_basic_linalg,              ONLY: cp_fm_scale_and_add,&
-                                             cp_fm_column_scale, &
-                                             cp_fm_transpose, &
+  USE cp_fm_basic_linalg,              ONLY: cp_fm_column_scale,&
                                              cp_fm_gemm,&
+                                             cp_fm_scale_and_add,&
                                              cp_fm_schur_product,&
                                              cp_fm_symm,&
-                                             cp_fm_trace
+                                             cp_fm_transpose
   USE cp_fm_cholesky,                  ONLY: cp_fm_cholesky_decompose,&
-                                             cp_fm_cholesky_invert,&
-                                             cp_fm_cholesky_reduce,&
-                                             cp_fm_cholesky_restore
-  USE cp_para_types,                   ONLY: cp_para_env_type, &
-                                             cp_blacs_env_type
-  USE cp_fm_diag,                      ONLY: cp_fm_syevd, &
-                                             cp_fm_syevx
-  USE termination,                     ONLY: stop_memory,&
-                                             stop_program
+                                             cp_fm_cholesky_invert
+  USE cp_fm_diag,                      ONLY: cp_fm_syevd
+  USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
+                                             cp_fm_struct_release,&
+                                             cp_fm_struct_type
+  USE cp_fm_types,                     ONLY: cp_fm_create,&
+                                             cp_fm_get_info,&
+                                             cp_fm_maxabsrownorm,&
+                                             cp_fm_p_type,&
+                                             cp_fm_release,&
+                                             cp_fm_set_all,&
+                                             cp_fm_to_fm,&
+                                             cp_fm_type
+  USE cp_para_types,                   ONLY: cp_blacs_env_type,&
+                                             cp_para_env_type
+  USE kinds,                           ONLY: dp
+  USE preconditioner,                  ONLY: apply_preconditioner,&
+                                             preconditioner_type
+  USE termination,                     ONLY: stop_program
   USE timings,                         ONLY: timeset,&
                                              timestop
+
   IMPLICIT NONE
   PUBLIC  :: qs_ot_type
   PUBLIC  :: qs_ot_allocate
@@ -166,10 +159,10 @@ CONTAINS
 ! (or you can reuse it on the next step of the computation)
 !*******************************************************************************
 SUBROUTINE qs_ot_new_preconditioner(qs_ot_env,preconditioner)
-  TYPE(qs_ot_type)                                :: qs_ot_env
-  TYPE(preconditioner_type), TARGET               :: preconditioner
+    TYPE(qs_ot_type)                         :: qs_ot_env
+    TYPE(preconditioner_type), TARGET        :: preconditioner
+
 !----
-  INTEGER n,ortho_k,nrow_block,ncol_block
 
   qs_ot_env%preconditioner => preconditioner
   qs_ot_env%os_valid = .FALSE.
@@ -189,14 +182,15 @@ END SUBROUTINE
 ! allocates data
 !*******************************************************************************
 SUBROUTINE qs_ot_allocate(qs_ot_env,para_env,context)
-   TYPE(qs_ot_type)                          :: qs_ot_env 
-   TYPE(cp_para_env_type), POINTER           :: para_env
-   TYPE(cp_blacs_env_type), POINTER          :: context
+    TYPE(qs_ot_type)                         :: qs_ot_env
+    TYPE(cp_para_env_type), POINTER          :: para_env
+    TYPE(cp_blacs_env_type), POINTER         :: context
 
-   INTEGER i,n,k,m_diis,nrow_block,ncol_block,ortho_k
-
-   TYPE(cp_fm_struct_type), POINTER :: fm_struct_o_o, fm_struct_o_k, fm_struct_k_k, &
-                                       fm_struct_n_k, fm_struct_n_o
+    INTEGER                                  :: i, k, m_diis, n, ncol_block, &
+                                                nrow_block, ortho_k
+    TYPE(cp_fm_struct_type), POINTER         :: fm_struct_k_k, fm_struct_n_k, &
+                                                fm_struct_n_o, fm_struct_o_k, &
+                                                fm_struct_o_o
 
    NULLIFY(fm_struct_o_o, fm_struct_o_k, fm_struct_k_k,fm_struct_n_k, fm_struct_n_o)
    NULLIFY(qs_ot_env%preconditioner)
@@ -294,9 +288,11 @@ END SUBROUTINE qs_ot_allocate
 ! init matrices, needs c0 and sc0 so that c0*sc0=1
 !******************************************************************************
 SUBROUTINE qs_ot_init(qs_ot_env)
-   TYPE(qs_ot_type)                          :: qs_ot_env 
-   REAL(KIND = dp), PARAMETER :: rone=1.0_dp, rzero=0.0_dp
-   INTEGER :: n, ortho_k
+    TYPE(qs_ot_type)                         :: qs_ot_env
+
+    REAL(KIND=dp), PARAMETER                 :: rone = 1.0_dp, rzero = 0.0_dp
+
+    INTEGER                                  :: n, ortho_k
 
    n=qs_ot_env%settings%n
    ortho_k=qs_ot_env%settings%ortho_k
@@ -325,9 +321,9 @@ END SUBROUTINE
 ! deallocates data
 !******************************************************************************
 SUBROUTINE qs_ot_destroy(qs_ot_env)
-   TYPE(qs_ot_type)                          :: qs_ot_env 
+    TYPE(qs_ot_type)                         :: qs_ot_env
 
-   INTEGER i
+    INTEGER                                  :: i
 
    DEALLOCATE(qs_ot_env%evals)
    DEALLOCATE(qs_ot_env%dum)
@@ -379,14 +375,14 @@ END SUBROUTINE qs_ot_destroy
 !*******************************************************************************
 SUBROUTINE qs_ot_get_p(matrix_x,matrix_sx,qs_ot_env)
 
-  TYPE(cp_fm_type), POINTER          :: matrix_sx,matrix_x
-  TYPE(qs_ot_type)                   :: qs_ot_env
+    TYPE(cp_fm_type), POINTER                :: matrix_x, matrix_sx
+    TYPE(qs_ot_type)                         :: qs_ot_env
 
-  REAL(KIND = dp) , PARAMETER        :: rone=1.0_dp , rzero=0.0_dp
-  INTEGER                            :: n,k,handle
+    REAL(KIND=dp), PARAMETER                 :: rone = 1.0_dp , rzero = 0.0_dp
 
-  TYPE(cp_fm_type), POINTER          :: cp_fm_test1,cp_fm_test2
-  REAL(KIND = dp)                    :: dum
+    INTEGER                                  :: handle, k, n
+    TYPE(cp_fm_type), POINTER                :: cp_fm_test1, cp_fm_test2
+
   NULLIFY(cp_fm_test1)
   NULLIFY(cp_fm_test2)
   CALL timeset("qs_ot_get_p","I","",handle)
@@ -424,10 +420,10 @@ END SUBROUTINE qs_ot_get_p
 ! 
 !*******************************************************************************
 SUBROUTINE decide_strategy(qs_ot_env)
-  TYPE(qs_ot_type)                          :: qs_ot_env
+    TYPE(qs_ot_type)                         :: qs_ot_env
 
-  INTEGER                                   :: N
-  REAL(KIND=dp)                             :: num_error
+    INTEGER                                  :: N
+    REAL(KIND=dp)                            :: num_error
 
   qs_ot_env % do_taylor = .FALSE.
   N=0
@@ -449,13 +445,12 @@ END SUBROUTINE
 !*******************************************************************************
 SUBROUTINE qs_ot_get_orbitals(matrix_c, matrix_x, qs_ot_env)
 
-  TYPE(qs_ot_type)                          :: qs_ot_env
-  TYPE(cp_fm_type), POINTER          :: matrix_c,matrix_x
+    TYPE(cp_fm_type), POINTER                :: matrix_c, matrix_x
+    TYPE(qs_ot_type)                         :: qs_ot_env
 
-! locals 
+    REAL(KIND=dp), PARAMETER                 :: rone = 1.0_dp , rzero = 0.0_dp
 
-  REAL(KIND = dp) , PARAMETER            :: rone=1.0_dp , rzero=0.0_dp
-  INTEGER                         :: n,k,handle
+    INTEGER                                  :: handle, k, n
 
   CALL timeset("qs_ot_get_orbitals","I","",handle)
 
@@ -479,13 +474,14 @@ END SUBROUTINE qs_ot_get_orbitals
 !*******************************************************************************
 SUBROUTINE qs_ot_get_derivative(matrix_hc,matrix_x,matrix_sx,matrix_gx, &
                                                qs_ot_env)
-  TYPE(cp_fm_type), POINTER          :: matrix_hc,matrix_x
-  TYPE(cp_fm_type), POINTER          :: matrix_sx,matrix_gx
-  TYPE(qs_ot_type)                          :: qs_ot_env
+    TYPE(cp_fm_type), POINTER                :: matrix_hc, matrix_x, &
+                                                matrix_sx, matrix_gx
+    TYPE(qs_ot_type)                         :: qs_ot_env
 
-  REAL(KIND = dp) , PARAMETER        :: rone=1.0_dp , rzero=0.0_dp
-  INTEGER                            :: n,k,handle,ortho_k
-  TYPE(cp_fm_type), POINTER          :: matrix_target
+    REAL(KIND=dp), PARAMETER                 :: rone = 1.0_dp , rzero = 0.0_dp
+
+    INTEGER                                  :: handle, k, n, ortho_k
+    TYPE(cp_fm_type), POINTER                :: matrix_target
 
   CALL timeset("qs_ot_get_derivative","I","",handle)
 
@@ -539,15 +535,13 @@ END SUBROUTINE qs_ot_get_derivative
 SUBROUTINE qs_ot_get_derivative_diag(matrix_hc,matrix_x,matrix_sx,matrix_gx, &
                                                qs_ot_env)
 
-  TYPE(cp_fm_type), POINTER          :: matrix_hc,matrix_x
-  TYPE(cp_fm_type), POINTER          :: matrix_sx,matrix_gx
-  TYPE(qs_ot_type)                          :: qs_ot_env
+    TYPE(cp_fm_type), POINTER                :: matrix_hc, matrix_x, &
+                                                matrix_sx, matrix_gx
+    TYPE(qs_ot_type)                         :: qs_ot_env
 
-! locals 
+    REAL(KIND=dp), PARAMETER                 :: rone = 1.0_dp , rzero = 0.0_dp
 
-  REAL(KIND = dp) , PARAMETER            :: rone=1.0_dp , rzero=0.0_dp
-  INTEGER                         :: n,k,handle,ortho_k
-  TYPE(cp_fm_type), POINTER :: matrix_target
+    INTEGER                                  :: handle, k, n, ortho_k
 
   CALL timeset("qs_ot_get_derivative_diag","I","",handle)
 
@@ -611,17 +605,15 @@ END SUBROUTINE qs_ot_get_derivative_diag
 SUBROUTINE qs_ot_get_derivative_taylor(matrix_hc,matrix_x,matrix_sx,matrix_gx, &
                                                qs_ot_env)
 
-  TYPE(cp_fm_type), POINTER          :: matrix_hc,matrix_x
-  TYPE(cp_fm_type), POINTER          :: matrix_sx,matrix_gx
-  TYPE(qs_ot_type)                          :: qs_ot_env
+    TYPE(cp_fm_type), POINTER                :: matrix_hc, matrix_x, &
+                                                matrix_sx, matrix_gx
+    TYPE(qs_ot_type)                         :: qs_ot_env
 
-! locals 
+    REAL(KIND=dp), PARAMETER                 :: rone = 1.0_dp , rzero = 0.0_dp
 
-  REAL(KIND = dp) , PARAMETER            :: rone=1.0_dp , rzero=0.0_dp
-  INTEGER                         :: n,k,handle,ortho_k,i
-  TYPE(cp_fm_type), POINTER :: matrix_target
-  TYPE(cp_fm_type), POINTER          :: matrix_left, matrix_right
-  REAL(KIND = dp) :: cosfactor,sinfactor
+    INTEGER                                  :: handle, i, k, n, ortho_k
+    REAL(KIND=dp)                            :: cosfactor, sinfactor
+    TYPE(cp_fm_type), POINTER                :: matrix_left, matrix_right
 
   CALL timeset("qs_ot_get_derivative_taylor","I","",handle)
 
@@ -702,12 +694,13 @@ END SUBROUTINE qs_ot_get_derivative_taylor
 ! computes a taylor expansion. 
 !*******************************************************************************
 SUBROUTINE qs_ot_p2m_taylor(qs_ot_env)
-  TYPE(qs_ot_type)                           :: qs_ot_env
+    TYPE(qs_ot_type)                         :: qs_ot_env
 
-  ! locals
-  INTEGER  :: handle,k,i
-  REAL(KIND = dp), PARAMETER :: rone=1.0_dp, rzero=0.0_dp
-  REAL(KIND = dp) :: cosfactor,sinfactor
+    REAL(KIND=dp), PARAMETER                 :: rone = 1.0_dp, rzero = 0.0_dp
+
+    INTEGER                                  :: handle, i, k
+    REAL(KIND=dp)                            :: cosfactor, sinfactor
+
   CALL timeset("qs_ot_p2m_taylor","I","",handle)
 
   ! zeroth order
@@ -756,11 +749,12 @@ END SUBROUTINE qs_ot_p2m_taylor
 !*******************************************************************************
 SUBROUTINE qs_ot_p2m_diag(qs_ot_env)
 
-  TYPE(qs_ot_type)                           :: qs_ot_env
-  ! locals
-  INTEGER  :: k,i,j,handle
-  REAL(KIND = dp) :: dum,a,b,timedum
-  REAL(KIND = dp), PARAMETER :: rone=1.0_dp, rzero=0.0_dp
+    TYPE(qs_ot_type)                         :: qs_ot_env
+
+    REAL(KIND=dp), PARAMETER                 :: rone = 1.0_dp, rzero = 0.0_dp
+
+    INTEGER                                  :: handle, i, j, k
+    REAL(KIND=dp)                            :: a, b
 
   CALL timeset("qs_ot_p2m_diag","I","",handle)
 
@@ -819,20 +813,16 @@ END SUBROUTINE qs_ot_p2m_diag
 !*******************************************************************************
 FUNCTION qs_ot_sinc(x)
 
-        REAL(KIND = dp), INTENT(IN)               :: x
-        REAL(KIND = dp)                           :: qs_ot_sinc
-! locals
-        REAL(KIND = dp)                           :: y
-        REAL(KIND = dp), PARAMETER :: q1 =1.0_dp
-        REAL(KIND = dp), PARAMETER :: q2 =-q1/(2.0_dp *3.0_dp)
-        REAL(KIND = dp), PARAMETER :: q3 =-q2/(4.0_dp *5.0_dp)
-        REAL(KIND = dp), PARAMETER :: q4 =-q3/(6.0_dp *7.0_dp)
-        REAL(KIND = dp), PARAMETER :: q5 =-q4/(8.0_dp *9.0_dp)
-        REAL(KIND = dp), PARAMETER :: q6 =-q5/(10.0_dp*11.0_dp)
-        REAL(KIND = dp), PARAMETER :: q7 =-q6/(12.0_dp*13.0_dp)
-        REAL(KIND = dp), PARAMETER :: q8 =-q7/(14.0_dp*15.0_dp)
-        REAL(KIND = dp), PARAMETER :: q9 =-q8/(16.0_dp*17.0_dp)
-        REAL(KIND = dp), PARAMETER :: q10=-q9/(18.0_dp*19.0_dp)
+    REAL(KIND=dp), INTENT(IN)                :: x
+    REAL(KIND=dp)                            :: qs_ot_sinc
+
+    REAL(KIND=dp), PARAMETER :: q1 = 1.0_dp, q2 = -q1/(2.0_dp *3.0_dp), &
+      q3 = -q2/(4.0_dp *5.0_dp), q4 = -q3/(6.0_dp *7.0_dp), &
+      q5 = -q4/(8.0_dp *9.0_dp), q6 = -q5/(10.0_dp*11.0_dp), &
+      q7 = -q6/(12.0_dp*13.0_dp), q8 = -q7/(14.0_dp*15.0_dp), &
+      q9 = -q8/(16.0_dp*17.0_dp), q10 = -q9/(18.0_dp*19.0_dp)
+
+    REAL(KIND=dp)                            :: y
 
 IF (ABS(x)>0.5_dp) THEN
    qs_ot_sinc=SIN(x)/x
@@ -846,14 +836,15 @@ END FUNCTION qs_ot_sinc
 !*******************************************************************************
 FUNCTION qs_ot_sincf(xa,ya)
 
-        REAL(KIND = dp), INTENT(IN)               :: xa,ya
-        REAL(KIND = dp)                           :: qs_ot_sincf
- 
-! locals
-        REAL(KIND = dp)                           :: dum,a,b,ybx,ybxs,sf,rs,xs,x,y
-        INTEGER                            :: i
+    REAL(KIND=dp), INTENT(IN)                :: xa, ya
+    REAL(KIND=dp)                            :: qs_ot_sincf
+
+    INTEGER                                  :: i
+    REAL(KIND=dp)                            :: a, b, rs, sf, x, xs, y, ybx, &
+                                                ybxs
 
 ! this is currently a limit of the routine, could be removed rather easily
+
 IF (xa.lt.0) CALL stop_program("qs_ot_sincf","x is negative")
 IF (ya.lt.0) CALL stop_program("qs_ot_sincf","y is negative")
 

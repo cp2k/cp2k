@@ -21,41 +21,39 @@
 
 MODULE qs_ot_eigensolver
 ! *****************************************************************************
+  USE cp_fm_basic_linalg,              ONLY: cp_fm_gemm,&
+                                             cp_fm_scale_and_add,&
+                                             cp_fm_symm,&
+                                             cp_fm_trace
+  USE cp_fm_cholesky,                  ONLY: cp_fm_cholesky_decompose,&
+                                             cp_fm_cholesky_invert
   USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
                                              cp_fm_struct_release,&
                                              cp_fm_struct_type
   USE cp_fm_types,                     ONLY: cp_fm_create,&
                                              cp_fm_get_info,&
+                                             cp_fm_release,&
                                              cp_fm_set_all,&
-                                             cp_fm_to_fm, &
-                                             cp_fm_type,&
-                                             cp_fm_release
-  USE cp_fm_cholesky,                  ONLY: cp_fm_cholesky_decompose,&
-                                             cp_fm_cholesky_invert
-  USE cp_fm_basic_linalg,              ONLY: cp_fm_gemm,&
-                                             cp_fm_scale_and_add,&
-                                             cp_fm_symm,&
-                                             cp_fm_trace
+                                             cp_fm_to_fm,&
+                                             cp_fm_type
   USE cp_sm_fm_interactions,           ONLY: cp_sm_fm_multiply
   USE global_types,                    ONLY: global_environment_type
   USE kinds,                           ONLY: dp
   USE preconditioner,                  ONLY: preconditioner_in_use,&
                                              preconditioner_type
+  USE qs_mo_methods,                   ONLY: make_basis
   USE qs_ot,                           ONLY: qs_ot_allocate,&
                                              qs_ot_destroy,&
-                                             qs_ot_get_derivative,&
                                              qs_ot_get_orbitals,&
                                              qs_ot_get_p,&
                                              qs_ot_init,&
                                              qs_ot_new_preconditioner,&
                                              qs_ot_type
   USE qs_ot_minimizer,                 ONLY: ot_mini
-  USE qs_mo_methods,                   ONLY: make_basis
   USE sparse_matrix_types,             ONLY: real_matrix_type
-  USE termination,                     ONLY: stop_memory,&
-                                             stop_program
   USE timings,                         ONLY: timeset,&
                                              timestop
+
   IMPLICIT NONE
 
 
@@ -75,33 +73,31 @@ CONTAINS
                             matrix_c,preconditioner,eps_gradient, &
                             iter_max,globenv,size_ortho_space)
 
-    TYPE(global_environment_type), INTENT(IN) :: globenv
-    TYPE(cp_fm_type), POINTER          :: matrix_c
-    TYPE(cp_fm_type), POINTER, OPTIONAL:: matrix_orthogonal_space
-    REAL(KIND = dp)                                  :: eps_gradient
-    TYPE(real_matrix_type), POINTER           :: matrix_h,matrix_s
-    INTEGER                                   :: iter_max
-    TYPE(preconditioner_type), POINTER , OPTIONAL  :: preconditioner
+    TYPE(real_matrix_type), POINTER          :: matrix_h, matrix_s
+    TYPE(cp_fm_type), OPTIONAL, POINTER      :: matrix_orthogonal_space
+    TYPE(cp_fm_type), POINTER                :: matrix_c
+    TYPE(preconditioner_type), OPTIONAL, &
+      POINTER                                :: preconditioner
+    REAL(KIND=dp)                            :: eps_gradient
+    INTEGER                                  :: iter_max
+    TYPE(global_environment_type), &
+      INTENT(IN)                             :: globenv
+    INTEGER, OPTIONAL                        :: size_ortho_space
 
-!   *** Local variables ***
+    REAL(KIND=dp), PARAMETER                 :: rone = 1.0_dp, rzero = 0.0_dp
 
-    TYPE(qs_ot_type), POINTER, DIMENSION(:)   :: qs_ot_env
-    INTEGER                                   :: n,k,nrow_block,ncol_block
-    INTEGER                                   :: ieigensolver,handle
-    REAL(KIND = dp)                                  :: energy,delta
-    LOGICAL                                   :: energy_only
-    INTEGER                                   :: ortho_k,ortho_space_k
-    LOGICAL                                   :: ortho
-    REAL(KIND = dp), PARAMETER :: rzero = 0.0_dp
-    REAL(KIND = dp), PARAMETER :: rone  = 1.0_dp
-    TYPE(cp_fm_type), POINTER          :: matrix_s_ortho, &
-                                                 matrix_os_ortho, &
-                                                 matrix_buf1_ortho, &
-                                                 matrix_buf2_ortho
-    TYPE(cp_fm_struct_type), POINTER          :: fm_struct_tmp
-    INTEGER, OPTIONAL                         :: size_ortho_space
+    INTEGER                                  :: handle, ieigensolver, k, n, &
+                                                ncol_block, nrow_block, &
+                                                ortho_space_k
+    LOGICAL                                  :: energy_only, ortho
+    REAL(KIND=dp)                            :: delta, energy
+    TYPE(cp_fm_struct_type), POINTER         :: fm_struct_tmp
+    TYPE(cp_fm_type), POINTER                :: matrix_buf1_ortho, &
+                                                matrix_buf2_ortho, &
+                                                matrix_os_ortho, &
+                                                matrix_s_ortho
+    TYPE(qs_ot_type), DIMENSION(:), POINTER  :: qs_ot_env
 
-    
 !   ---------------------------------------------------------------------------
 
     CALL timeset("ot_eigensolver","I","",handle)

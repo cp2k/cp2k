@@ -19,11 +19,10 @@
 
 MODULE structure_factors
 
-  USE kinds, ONLY : dbl
-
-  USE mathconstants, ONLY : twopi
-  USE structure_factor_types, ONLY : structure_factor_type
-  USE termination, ONLY : stop_memory
+  USE kinds,                           ONLY: dbl
+  USE mathconstants,                   ONLY: twopi
+  USE structure_factor_types,          ONLY: structure_factor_type
+  USE termination,                     ONLY: stop_memory
 
   IMPLICIT NONE
 
@@ -40,13 +39,11 @@ CONTAINS
 
 SUBROUTINE structure_factor_deallocate ( exp_igr )
 
-  IMPLICIT NONE
 
-! Arguments
-  TYPE ( structure_factor_type ), INTENT ( INOUT ) :: exp_igr
+    TYPE(structure_factor_type), &
+      INTENT(INOUT)                          :: exp_igr
 
-! Locals
-  INTEGER :: isos
+    INTEGER                                  :: isos
 
 !------------------------------------------------------------------------------
 
@@ -68,16 +65,13 @@ END SUBROUTINE structure_factor_deallocate
 
 SUBROUTINE structure_factor_allocate ( bds, nparts, exp_igr, &
                                       allocate_centre)
-  IMPLICIT NONE
 
-! Arguments
-  TYPE ( structure_factor_type ),  INTENT ( OUT ) :: exp_igr
-  INTEGER, DIMENSION ( :, : ), INTENT ( IN ) :: bds
-  INTEGER, INTENT ( IN ) :: nparts
-  LOGICAL, INTENT ( IN ), OPTIONAL :: allocate_centre
+    INTEGER, DIMENSION(:, :), INTENT(IN)     :: bds
+    INTEGER, INTENT(IN)                      :: nparts
+    TYPE(structure_factor_type), INTENT(OUT) :: exp_igr
+    LOGICAL, INTENT(IN), OPTIONAL            :: allocate_centre
 
-! Locals
-  INTEGER :: isos
+    INTEGER                                  :: isos
 
 !------------------------------------------------------------------------------
 
@@ -110,20 +104,20 @@ END SUBROUTINE structure_factor_allocate
 
 SUBROUTINE structure_factor_evaluate ( delta, npts, lb, ex, ey, ez )
 
-  IMPLICIT NONE
 
-! Arguments
-  INTEGER, DIMENSION ( : ), INTENT ( IN ) :: npts
-  INTEGER, DIMENSION ( 3 ), INTENT ( IN ) :: lb
-  COMPLEX ( dbl ), DIMENSION ( lb(1): ), INTENT ( out ) :: ex
-  COMPLEX ( dbl ), DIMENSION ( lb(2): ), INTENT ( out ) :: ey
-  COMPLEX ( dbl ), DIMENSION ( lb(3): ), INTENT ( out ) :: ez
-  REAL ( dbl ), DIMENSION ( : ), INTENT ( in ) :: delta
+    REAL(dbl), DIMENSION(:), INTENT(in)      :: delta
+    INTEGER, DIMENSION(:), INTENT(IN)        :: npts
+    INTEGER, DIMENSION(3), INTENT(IN)        :: lb
+    COMPLEX(dbl), DIMENSION(lb(1):), &
+      INTENT(out)                            :: ex
+    COMPLEX(dbl), DIMENSION(lb(2):), &
+      INTENT(out)                            :: ey
+    COMPLEX(dbl), DIMENSION(lb(3):), &
+      INTENT(out)                            :: ez
 
-! Locals
-  REAL ( dbl ) :: vec ( 3 )
-  COMPLEX ( dbl ) :: fp, fm
-  INTEGER :: l0, m0, n0, j, l1, m1, n1
+    COMPLEX(dbl)                             :: fm, fp
+    INTEGER                                  :: j, l0, l1, m0, m1, n0, n1
+    REAL(dbl)                                :: vec( 3 )
 
 !------------------------------------------------------------------------------
 

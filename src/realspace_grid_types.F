@@ -36,7 +36,6 @@ MODULE realspace_grid_types
                                              cp_unimplemented_error
   USE cp_log_handling,                 ONLY: cp_failure_level,&
                                              cp_fatal_level,&
-                                             cp_log,&
                                              cp_logger_get_default_unit_nr,&
                                              cp_logger_type,&
                                              cp_note_level,&
@@ -70,6 +69,7 @@ MODULE realspace_grid_types
   USE timings,                         ONLY: timeset,&
                                              timestop
   USE util,                            ONLY: get_limit
+
   IMPLICIT NONE
 
   PRIVATE
@@ -150,14 +150,13 @@ CONTAINS
 
   SUBROUTINE rs_grid_allocate_1 ( rs )
 
-    !  Arguments
-    TYPE ( realspace_grid_type ), TARGET, INTENT (INOUT) :: rs
+    TYPE(realspace_grid_type), &
+      INTENT(INOUT), TARGET                  :: rs
 
-    !  Local
-    INTEGER :: ierr,handle
-    INTEGER, DIMENSION (:), POINTER :: lb, ub
+    INTEGER                                  :: handle, ierr
+    INTEGER, DIMENSION(:), POINTER           :: lb, ub
 
-    !-----------------------------------------------------------------------------!
+!-----------------------------------------------------------------------------!
 
     CALL timeset("rs_grid_allocate",'I',' ',handle)
 
@@ -187,13 +186,12 @@ CONTAINS
 
   SUBROUTINE rs_grid_allocate_n ( rs )
 
-    !  Arguments
-    TYPE ( realspace_grid_type ), DIMENSION ( : ), INTENT (INOUT) :: rs
+    TYPE(realspace_grid_type), &
+      DIMENSION(:), INTENT(INOUT)            :: rs
 
-    !  Local
-    INTEGER :: n, i
+    INTEGER                                  :: i, n
 
-    !-----------------------------------------------------------------------------!
+!-----------------------------------------------------------------------------!
 
     n = SIZE ( rs )
 
@@ -226,13 +224,12 @@ CONTAINS
 
   SUBROUTINE rs_grid_deallocate_1 ( rs )
 
-    !  Arguments
-    TYPE ( realspace_grid_type ), INTENT (INOUT) :: rs
+    TYPE(realspace_grid_type), INTENT(INOUT) :: rs
 
-    !  Local
-    INTEGER :: ierr,handle
+    INTEGER                                  :: handle, ierr
 
-    !-----------------------------------------------------------------------------!
+!-----------------------------------------------------------------------------!
+
     CALL timeset("rs_grid_dealloc",'I',' ',handle)
     allocated_rs_grid_count=allocated_rs_grid_count-1
     DEALLOCATE ( rs % r, STAT = ierr )
@@ -257,13 +254,12 @@ CONTAINS
 
   SUBROUTINE rs_grid_deallocate_n ( rs )
 
-    !  Arguments
-    TYPE ( realspace_grid_type ), DIMENSION ( : ), INTENT (INOUT) :: rs
+    TYPE(realspace_grid_type), &
+      DIMENSION(:), INTENT(INOUT)            :: rs
 
-    !  Local
-    INTEGER :: n, i, ierr
+    INTEGER                                  :: i, n
 
-    !-----------------------------------------------------------------------------!
+!-----------------------------------------------------------------------------!
 
     n = SIZE ( rs )
 
@@ -294,17 +290,18 @@ CONTAINS
 
   SUBROUTINE rs_grid_setup_1 ( rs, pw_grid, nsmax, iounit )
 
-    !  Arguments
-    TYPE ( realspace_grid_type ), INTENT (INOUT) :: rs
-    TYPE ( pw_grid_type ), INTENT ( IN ) :: pw_grid
-    INTEGER, INTENT ( IN ) :: nsmax 
-    INTEGER, OPTIONAL, INTENT ( IN ) :: iounit
+    TYPE(realspace_grid_type), INTENT(INOUT) :: rs
+    TYPE(pw_grid_type), INTENT(IN)           :: pw_grid
+    INTEGER, INTENT(IN)                      :: nsmax
+    INTEGER, INTENT(IN), OPTIONAL            :: iounit
 
-    !  Local
-    INTEGER :: dir, nmin, ngmax, ip, n_slices, pos ( 2 ), lb ( 2 ), nn, i
-    REAL ( dbl ) :: pp ( 3 )
+    INTEGER                                  :: dir, i, ip, lb( 2 ), &
+                                                n_slices, ngmax, nmin, nn, &
+                                                pos( 2 )
+    REAL(dbl)                                :: pp( 3 )
 
-    !-----------------------------------------------------------------------------!
+!-----------------------------------------------------------------------------!
+
     rs % dr = pw_grid%dr
     rs % identifier = pw_grid % identifier
     last_rs_id = last_rs_id+1
@@ -467,16 +464,15 @@ CONTAINS
 
   SUBROUTINE rs_grid_setup_n ( rs, pw_grid, nsmax, iounit )
 
-    !  Arguments
-    TYPE ( realspace_grid_type ), DIMENSION ( : ), INTENT (INOUT) :: rs
-    TYPE ( pw_grid_type ), INTENT ( IN ) :: pw_grid
-    INTEGER, INTENT ( IN ) :: nsmax 
-    INTEGER, OPTIONAL, INTENT ( IN ) :: iounit
+    TYPE(realspace_grid_type), &
+      DIMENSION(:), INTENT(INOUT)            :: rs
+    TYPE(pw_grid_type), INTENT(IN)           :: pw_grid
+    INTEGER, INTENT(IN)                      :: nsmax
+    INTEGER, INTENT(IN), OPTIONAL            :: iounit
 
-    !  Local
-    INTEGER :: i
+    INTEGER                                  :: i
 
-    !-----------------------------------------------------------------------------!
+!-----------------------------------------------------------------------------!
 
     CALL rs_grid_setup_1 ( rs ( 1 ), pw_grid, nsmax, iounit )
 
@@ -518,24 +514,25 @@ CONTAINS
 
   SUBROUTINE rs_pw_transfer ( rs, pw, dir )
 
-    !  Arguments
-    TYPE ( realspace_grid_type ), INTENT ( INOUT ) :: rs
-    TYPE ( pw_type ), TARGET, INTENT ( INOUT ) :: pw
-    CHARACTER ( LEN = * ), INTENT ( IN ) :: dir
+    TYPE(realspace_grid_type), INTENT(INOUT) :: rs
+    TYPE(pw_type), INTENT(INOUT), TARGET     :: pw
+    CHARACTER(LEN=*), INTENT(IN)             :: dir
 
-    !  Local
-    INTEGER, DIMENSION ( :, : ), POINTER :: pbo
-    INTEGER, DIMENSION ( 3 ) :: lb, ub, lc, uc
-    INTEGER :: subgroup, source, dest, ierr, idir, nn, handle
-    LOGICAL :: subdim ( 2 )
-    REAL ( dbl ), DIMENSION ( :, :, : ), ALLOCATABLE :: buffer
+    INTEGER                                  :: dest, group, handle, idir, &
+                                                ierr, ii, ip, ix, iy, iz, &
+                                                mepos, nma, nn, np, source, &
+                                                subgroup
+    INTEGER, ALLOCATABLE, DIMENSION(:)       :: rcount
+    INTEGER, DIMENSION(3)                    :: lb, lc, ub, uc
+    INTEGER, DIMENSION(:, :), POINTER        :: pbo
+    INTEGER, DIMENSION(:, :, :), POINTER     :: bo
+    LOGICAL                                  :: subdim( 2 )
+    REAL(dbl), ALLOCATABLE, DIMENSION(:)     :: rlocal
+    REAL(dbl), ALLOCATABLE, &
+      DIMENSION(:, :, :)                     :: buffer
 
-    INTEGER :: np, ip, ix, iy, iz, ii, nma, mepos, group
-    REAL ( dbl ), DIMENSION ( : ), ALLOCATABLE :: rlocal
-    INTEGER, DIMENSION ( : ), ALLOCATABLE :: rcount
-    INTEGER, DIMENSION (:,:,:), POINTER :: bo
+!-----------------------------------------------------------------------------!
 
-    !-----------------------------------------------------------------------------!
     CALL timeset("rs_pw_transfer",'I',' ',handle)
     IF ( rs % identifier /= pw % pw_grid % identifier ) THEN
        CALL stop_program ( "rs_pw_transfer", &
@@ -775,15 +772,15 @@ CONTAINS
 
 SUBROUTINE send_forward ( rs, pw )
 
-!  Arguments
-   TYPE ( realspace_grid_type ), INTENT ( INOUT ) :: rs
-   TYPE ( pw_type ), INTENT ( INOUT ) :: pw
+    TYPE(realspace_grid_type), INTENT(INOUT) :: rs
+    TYPE(pw_type), INTENT(INOUT)             :: pw
 
-!  Local
-   LOGICAL, DIMENSION ( 2 ) :: subdim
-   INTEGER :: subgroup, ierr, nn, idir, il, iu, source
-   INTEGER, DIMENSION ( 3 ) :: lb, ub, lbp, ubp, lz, uz
-   REAL ( dbl ), DIMENSION ( :, :, : ), ALLOCATABLE :: buffer
+    INTEGER                                  :: idir, ierr, nn, source, &
+                                                subgroup
+    INTEGER, DIMENSION(3)                    :: lb, lbp, lz, ub, ubp, uz
+    LOGICAL, DIMENSION(2)                    :: subdim
+    REAL(dbl), ALLOCATABLE, &
+      DIMENSION(:, :, :)                     :: buffer
 
 !-----------------------------------------------------------------------------!
 
@@ -843,19 +840,19 @@ END SUBROUTINE send_forward
 
 SUBROUTINE send_backward ( rs, pw )
 
-!  Arguments
-   TYPE ( realspace_grid_type ), INTENT ( INOUT ) :: rs
-   TYPE ( pw_type ), INTENT ( INOUT ) :: pw
+    TYPE(realspace_grid_type), INTENT(INOUT) :: rs
+    TYPE(pw_type), INTENT(INOUT)             :: pw
 
-!  Local
-   LOGICAL, DIMENSION ( 2 ) :: subdim
-   INTEGER :: subgroup, ierr, nn, idir, il, iu, source
-   INTEGER, DIMENSION ( 3 ) :: lb, ub, lbp, ubp, lz, uz
-   REAL ( dbl ), DIMENSION ( :, :, : ), ALLOCATABLE :: buffer
+    INTEGER                                  :: idir, ierr, nn, source, &
+                                                subgroup
+    INTEGER, DIMENSION(3)                    :: lb, lbp, lz, ub, ubp, uz
+    LOGICAL, DIMENSION(2)                    :: subdim
+    REAL(dbl), ALLOCATABLE, &
+      DIMENSION(:, :, :)                     :: buffer
 
 !-----------------------------------------------------------------------------!
+! initialize the rs grid to zero
 
-   ! initialize the rs grid to zero
    CALL rs_grid_zero( rs )
    lbp ( : ) = pw % pw_grid % bounds_local ( 1, : )
    ubp ( : ) = pw % pw_grid % bounds_local ( 2, : )
@@ -941,11 +938,9 @@ END SUBROUTINE send_backward
 
 SUBROUTINE rs_grid_zero ( rs )
 
-!  Arguments
-   TYPE ( realspace_grid_type ), INTENT (INOUT) :: rs
+    TYPE(realspace_grid_type), INTENT(INOUT) :: rs
 
-!  Local
-   INTEGER :: n,handle
+    INTEGER                                  :: handle, n
 
 !-----------------------------------------------------------------------------!
 
@@ -957,16 +952,17 @@ SUBROUTINE rs_grid_zero ( rs )
 END SUBROUTINE rs_grid_zero
 !******************************************************************************
 SUBROUTINE rs_grid_to_cube ( rs, iunit, ionode, title )
-!  Arguments
-   TYPE ( realspace_grid_type ), INTENT (IN) :: rs
-   INTEGER, INTENT(IN) :: iunit
-   LOGICAL, INTENT(IN) :: ionode
-   CHARACTER(*), OPTIONAL :: title
-   INTEGER :: I1,I2,I3
-   INTEGER :: S1,S2,S3
-   INTEGER :: L1,L2,L3,U1,U2,U3,N1,N2,N3
+    TYPE(realspace_grid_type), INTENT(IN)    :: rs
+    INTEGER, INTENT(IN)                      :: iunit
+    LOGICAL, INTENT(IN)                      :: ionode
+    CHARACTER(*), OPTIONAL                   :: title
+
+    INTEGER                                  :: I1, I2, I3, L1, L2, L3, S1, &
+                                                S2, S3, U1, U2, U3
+
 !-----------------------------------------------------------------------------!
-   ! not working for distributed grids !
+! not working for distributed grids !
+
    IF (rs%ngpts.ne.rs%ngpts_local) CALL stop_program("rs_grid_to_cube","NYI")
    IF (ionode) THEN
      ! this format seems to work for e.g. molekel and gOpenmol
@@ -1003,15 +999,17 @@ END SUBROUTINE rs_grid_to_cube
 
 !******************************************************************************
 SUBROUTINE rs_pw_to_cube ( pw, iunit, ionode, title )
- !  Arguments
-   TYPE ( pw_type), INTENT ( INOUT )        :: pw
-   INTEGER, INTENT(IN)                      :: iunit
-   LOGICAL, INTENT(IN)                      :: ionode
-   CHARACTER(*), INTENT(IN), OPTIONAL       :: title
- !-----------------------------------------------------------------------------!
-   TYPE ( realspace_grid_type )   :: rs
-   INTEGER                        :: nsmax
- !-----------------------------------------------------------------------------!
+    TYPE(pw_type), INTENT(INOUT)             :: pw
+    INTEGER, INTENT(IN)                      :: iunit
+    LOGICAL, INTENT(IN)                      :: ionode
+    CHARACTER(*), INTENT(IN), OPTIONAL       :: title
+
+    INTEGER                                  :: nsmax
+    TYPE(realspace_grid_type)                :: rs
+
+!-----------------------------------------------------------------------------!
+!-----------------------------------------------------------------------------!
+
    nsmax=-1
    CALL rs_grid_setup(rs,pw%pw_grid,nsmax)
    CALL rs_grid_allocate(rs)
@@ -1057,13 +1055,15 @@ END SUBROUTINE rs_pw_to_cube
 !!
 !!*** **********************************************************************
 SUBROUTINE rs_grid_write(rs,unit_nr,error)
-  TYPE(realspace_grid_type), POINTER :: rs
-  INTEGER, INTENT(in) :: unit_nr
-  TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
-  
-  LOGICAL :: failure
-  CHARACTER(len=*), PARAMETER :: routineN='rs_grid_write',&
-        routineP=moduleN//':'//routineN
+    TYPE(realspace_grid_type), POINTER       :: rs
+    INTEGER, INTENT(in)                      :: unit_nr
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'rs_grid_write', &
+      routineP = moduleN//':'//routineN
+
+    LOGICAL                                  :: failure
 
   failure=.FALSE.
   
@@ -1106,17 +1106,18 @@ END SUBROUTINE rs_grid_write
 !!
 !!*** **********************************************************************
 SUBROUTINE rs_grid_create(rs_grid, pw_grid, nsmax, error)
-  TYPE(realspace_grid_type), POINTER :: rs_grid
-  TYPE ( pw_grid_type ), POINTER :: pw_grid
-  INTEGER, OPTIONAL, INTENT(in) :: nsmax
-  TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
-  
-  LOGICAL :: failure
-  CHARACTER(len=*), PARAMETER :: routineN='rs_grid_create',&
-        routineP=moduleN//':'//routineN
-  TYPE(cp_logger_type), POINTER :: logger
-  INTEGER :: stat, iounit
-  INTEGER :: my_nsmax
+    TYPE(realspace_grid_type), POINTER       :: rs_grid
+    TYPE(pw_grid_type), POINTER              :: pw_grid
+    INTEGER, INTENT(in), OPTIONAL            :: nsmax
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'rs_grid_create', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: iounit, my_nsmax, stat
+    LOGICAL                                  :: failure
+    TYPE(cp_logger_type), POINTER            :: logger
 
   failure=.FALSE.
   logger => cp_error_get_logger(error)
@@ -1170,12 +1171,14 @@ END SUBROUTINE rs_grid_create
 !!
 !!*** **********************************************************************
 SUBROUTINE rs_grid_retain(rs_grid, error)
-  TYPE(realspace_grid_type), POINTER :: rs_grid
-  TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
-  
-  LOGICAL :: failure
-  CHARACTER(len=*), PARAMETER :: routineN='rs_grid_retain',&
-        routineP=moduleN//':'//routineN
+    TYPE(realspace_grid_type), POINTER       :: rs_grid
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'rs_grid_retain', &
+      routineP = moduleN//':'//routineN
+
+    LOGICAL                                  :: failure
 
   failure=.FALSE.
   
@@ -1217,13 +1220,15 @@ END SUBROUTINE rs_grid_retain
 !!
 !!*** **********************************************************************
 SUBROUTINE rs_grid_release(rs_grid,error)
-  TYPE(realspace_grid_type), POINTER :: rs_grid
-  TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
-  
-  LOGICAL :: failure
-  CHARACTER(len=*), PARAMETER :: routineN='rs_grid_release',&
-        routineP=moduleN//':'//routineN
-  INTEGER :: stat
+    TYPE(realspace_grid_type), POINTER       :: rs_grid
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'rs_grid_release', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: stat
+    LOGICAL                                  :: failure
 
   failure=.FALSE.
   
@@ -1280,24 +1285,26 @@ END SUBROUTINE rs_grid_release
 
 SUBROUTINE rs_get_my_tasks ( rs, tasks, npme, ival, rval, pmat, pcor )
 
-  TYPE ( realspace_grid_type ), INTENT ( IN ) :: rs
-  INTEGER, DIMENSION ( :, : ), POINTER :: tasks
-  INTEGER, INTENT ( OUT ) :: npme
-  INTEGER, DIMENSION ( :, : ), POINTER, OPTIONAL :: ival
-  REAL(dbl), DIMENSION ( :, : ), POINTER, OPTIONAL :: rval
-  TYPE ( real_matrix_type ), POINTER, OPTIONAL :: pmat
-  INTEGER, DIMENSION ( :, : ), POINTER, OPTIONAL :: pcor
+    TYPE(realspace_grid_type), INTENT(IN)    :: rs
+    INTEGER, DIMENSION(:, :), POINTER        :: tasks
+    INTEGER, INTENT(OUT)                     :: npme
+    INTEGER, DIMENSION(:, :), OPTIONAL, &
+      POINTER                                :: ival
+    REAL(dbl), DIMENSION(:, :), OPTIONAL, &
+      POINTER                                :: rval
+    TYPE(real_matrix_type), OPTIONAL, &
+      POINTER                                :: pmat
+    INTEGER, DIMENSION(:, :), OPTIONAL, &
+      POINTER                                :: pcor
 
-  INTEGER, DIMENSION ( :, : ), POINTER :: tlist, ilist, plist, pls
-  REAL(dbl), DIMENSION ( :, : ), POINTER :: rlist
-  REAL(dbl), DIMENSION (:,:), POINTER :: p_block
-  REAL(dbl), DIMENSION (:), POINTER :: ppack
-  INTEGER :: subgroup, subsize, subpos
-  INTEGER :: isend, ileft, i, j, k, lb, ub, n1, stat, npmax, ic, acol, arow
-  INTEGER :: icmax, plength, nppp, handle
-  LOGICAL, DIMENSION ( 2 ) :: subdim
-  LOGICAL :: matrix
- 
+    INTEGER :: acol, arow, handle, i, ic, icmax, ileft, isend, j, k, lb, n1, &
+      npmax, nppp, plength, stat, subgroup, subpos, subsize, ub
+    INTEGER, DIMENSION(:, :), POINTER        :: ilist, plist, pls, tlist
+    LOGICAL                                  :: matrix
+    LOGICAL, DIMENSION(2)                    :: subdim
+    REAL(dbl), DIMENSION(:), POINTER         :: ppack
+    REAL(dbl), DIMENSION(:, :), POINTER      :: p_block, rlist
+
   CALL timeset("rs_get_my_tasks",'I',' ',handle)
 
   IF ( .NOT. ASSOCIATED ( tasks ) ) &
@@ -1544,14 +1551,15 @@ END SUBROUTINE rs_get_my_tasks
 !***************************************************************************
 SUBROUTINE pack_matrix ( pmat, pls, ppack , plength, group )
 
-  TYPE ( real_matrix_type ), POINTER, OPTIONAL :: pmat
-  INTEGER, DIMENSION ( :, : ), POINTER         :: pls
-  REAL(dbl), DIMENSION ( : ), POINTER          :: ppack
-  INTEGER, INTENT ( OUT )                      :: plength
-  INTEGER, INTENT ( IN )                       :: group
+    TYPE(real_matrix_type), OPTIONAL, &
+      POINTER                                :: pmat
+    INTEGER, DIMENSION(:, :), POINTER        :: pls
+    REAL(dbl), DIMENSION(:), POINTER         :: ppack
+    INTEGER, INTENT(OUT)                     :: plength
+    INTEGER, INTENT(IN)                      :: group
 
-  REAL(dbl), DIMENSION (:,:), POINTER :: p_block
-  INTEGER :: i, j, k, arow, acol, nc, nr, n
+    INTEGER                                  :: acol, arow, i, j, k, n, nc, nr
+    REAL(dbl), DIMENSION(:, :), POINTER      :: p_block
 
   plength = 0
   DO i = 1, SIZE ( pls, 2 )
@@ -1593,14 +1601,15 @@ END SUBROUTINE pack_matrix
 
 SUBROUTINE unpack_matrix ( pmat, pcor, pls, ic, ppack )
 
-  TYPE ( real_matrix_type ), POINTER, OPTIONAL :: pmat
-  INTEGER, DIMENSION ( :, : ), POINTER         :: pcor
-  INTEGER, DIMENSION ( :, : ), POINTER         :: pls
-  INTEGER, INTENT ( IN )                       :: ic
-  REAL(dbl), DIMENSION ( : ), POINTER          :: ppack
+    TYPE(real_matrix_type), OPTIONAL, &
+      POINTER                                :: pmat
+    INTEGER, DIMENSION(:, :), POINTER        :: pcor, pls
+    INTEGER, INTENT(IN)                      :: ic
+    REAL(dbl), DIMENSION(:), POINTER         :: ppack
 
-  REAL(dbl), DIMENSION (:,:), POINTER :: p_block
-  INTEGER :: i, j, k, nc, nr, pl, arow, acol, stat
+    INTEGER                                  :: acol, arow, i, j, k, nc, nr, &
+                                                pl
+    REAL(dbl), DIMENSION(:, :), POINTER      :: p_block
 
   pl = 0
   DO i = 1, ic
@@ -1630,13 +1639,15 @@ END SUBROUTINE unpack_matrix
 
 SUBROUTINE rs_get_loop_vars ( npme, ival, natom_pairs, asets, atasks )
 
-     INTEGER, INTENT(IN) :: npme
-     INTEGER, INTENT(OUT) :: natom_pairs
-     INTEGER, DIMENSION(6,npme), INTENT(IN) :: ival
-     INTEGER, DIMENSION(:,:), POINTER :: asets, atasks
+    INTEGER, INTENT(IN)                      :: npme
+    INTEGER, DIMENSION(6, npme), INTENT(IN)  :: ival
+    INTEGER, INTENT(OUT)                     :: natom_pairs
+    INTEGER, DIMENSION(:, :), POINTER        :: asets, atasks
 
-     INTEGER :: itask, iatom, jatom, iatom_old, jatom_old, &
-                nset_pairs, iset, jset, iset_old, jset_old
+    INTEGER                                  :: iatom, iatom_old, iset, &
+                                                iset_old, itask, jatom, &
+                                                jatom_old, jset, jset_old, &
+                                                nset_pairs
 
      IF(SIZE(asets,2) < npme) CALL reallocate(asets,1,2,1,npme)
      IF(SIZE(atasks,2) < npme) CALL reallocate(atasks,1,2,1,npme)

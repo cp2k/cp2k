@@ -6,49 +6,35 @@
 MODULE bfgs_optimizer
 
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
-                                             get_atomic_kind,&
-                                             get_atomic_kind_set
+                                             get_atomic_kind
   USE checkpoint_handler,              ONLY: write_checkpoint_information
   USE global_types,                    ONLY: global_environment_type
   USE gopt_f_types,                    ONLY: gopt_param_type
-  USE kinds,                           ONLY: int_size,&
-                                             dp,&
-                                             dp_size
+  USE kinds,                           ONLY: dp
   USE machine,                         ONLY: m_flush
   USE mathlib,                         ONLY: diamat
-  USE md_energies,                  ONLY: md_energy_qs,&
-                                             set_qs_energies
   USE message_passing,                 ONLY: mp_bcast
   USE particle_types,                  ONLY: particle_type,&
-                                             write_qs_particle_coordinates,&
                                              write_particle_coordinates,&
-                                             write_particle_distances
-  USE physcon,                         ONLY: kelvin,&
-                                             femtoseconds
-  USE qs_energy,                       ONLY: qs_energies
+                                             write_particle_distances,&
+                                             write_qs_particle_coordinates
   USE qs_energy_types,                 ONLY: qs_energy_type
   USE qs_environment_types,            ONLY: get_qs_env,&
                                              qs_environment_type,&
                                              set_qs_env
   USE qs_force,                        ONLY: qs_forces
-  USE qs_parser,                       ONLY: finish_parser,&
+  USE qs_parser,                       ONLY: close_file,&
+                                             finish_parser,&
                                              open_file,&
                                              read_object,&
-                                             search_object,&
                                              start_parser,&
                                              stop_parser,&
-                                             test_object,&
-                                             close_file
+                                             test_object
   USE qs_wf_history_methods,           ONLY: wfi_create
-  USE qs_wf_history_types,             ONLY: qs_wf_history_type,&
-                                             wfi_linear_p_method_nr,&
-                                             wfi_release
+  USE qs_wf_history_types,             ONLY: qs_wf_history_type
   USE simulation_cell,                 ONLY: cell_type
-  USE termination,                     ONLY: stop_memory,&
-                                             stop_program
   USE timings,                         ONLY: timeset,&
                                              timestop
-  USE util,                            ONLY: gasdev
 
   IMPLICIT NONE
 
@@ -66,32 +52,31 @@ CONTAINS
 
   SUBROUTINE geoopt_bfgs(qs_env,globenv,gopt_param)
 
-    TYPE(global_environment_type), INTENT(IN) :: globenv
-    TYPE(qs_environment_type), POINTER        :: qs_env
-    TYPE(gopt_param_type), POINTER            :: gopt_param
+    TYPE(qs_environment_type), POINTER       :: qs_env
+    TYPE(global_environment_type), &
+      INTENT(IN)                             :: globenv
+    TYPE(gopt_param_type), POINTER           :: gopt_param
 
-!   *** Local parameters ***
-    CHARACTER(LEN=*), PARAMETER :: routine_name = 'geoopt_bfgs'
-    CHARACTER(LEN=80)        :: title
+    CHARACTER(LEN=*), PARAMETER              :: routine_name = 'geoopt_bfgs'
+    REAL(KIND=dp), PARAMETER                 :: one = 1.0_dp, zero = 0.0_dp
 
-    INTEGER                  :: atom,handle,i,iatom,ikind,istat,&
-                                natom,nkind,output_unit,nfree,indf,&
-                                j,it,ndf,neig,ifail,hesunit,dataunit,maxiter
-    LOGICAL                  :: ionode,conv,hesrest
-    REAL(KIND = dp)                 :: rad,step,dumm,pred,etot,eold,ediff,&
-                                emin,DDOT,rat
-    REAL(KIND = dp), ALLOCATABLE    :: x(:), xold(:),g(:),dx(:),eigval(:),eigvec(:,:),tmp(:,:)
-    REAL(KIND = dp), ALLOCATABLE    :: hes(:),gold(:),work(:),hes_mat(:,:),dg(:),dr(:)
-    REAL(KIND = dp) , PARAMETER :: one       =  1.0_dp
-    REAL(KIND = dp) , PARAMETER :: zero      =  0.0_dp
-
-    TYPE(atomic_kind_type), POINTER               :: atomic_kind
-    TYPE(cell_type), POINTER                      :: cell
-    TYPE(qs_energy_type), POINTER                 :: energy
-    TYPE(qs_wf_history_type), POINTER             :: wf_history
-    TYPE(particle_type), DIMENSION(:), POINTER    :: particle_set
-    TYPE(atomic_kind_type), DIMENSION(:), POINTER :: atomic_kind_set
-    INTEGER, DIMENSION(:), POINTER                :: atom_list
+    CHARACTER(LEN=80)                        :: title
+    INTEGER :: atom, dataunit, handle, hesunit, i, iatom, ikind, indf, istat, &
+      it, j, maxiter, natom, ndf, nfree, nkind, output_unit
+    INTEGER, DIMENSION(:), POINTER           :: atom_list
+    LOGICAL                                  :: conv, hesrest, ionode
+    REAL(KIND=dp)                            :: ediff, emin, eold, etot, &
+                                                pred, rad, rat, step
+    REAL(KIND=dp), ALLOCATABLE :: dg(:), dr(:), dx(:), eigval(:), &
+      eigvec(:,:), g(:), gold(:), hes(:), hes_mat(:,:), work(:), x(:), xold(:)
+    TYPE(atomic_kind_type), DIMENSION(:), &
+      POINTER                                :: atomic_kind_set
+    TYPE(atomic_kind_type), POINTER          :: atomic_kind
+    TYPE(cell_type), POINTER                 :: cell
+    TYPE(particle_type), DIMENSION(:), &
+      POINTER                                :: particle_set
+    TYPE(qs_energy_type), POINTER            :: energy
+    TYPE(qs_wf_history_type), POINTER        :: wf_history
 
     CALL write_checkpoint_information("entering "//routine_name,globenv)
 
@@ -443,16 +428,20 @@ CONTAINS
 
   SUBROUTINE rat_fun_opt(ndf,dg,eigval,work,eigvec,g)
 
-    INTEGER, INTENT(IN) :: ndf
-    REAL(KIND = dp) , INTENT(INOUT)   :: dg(ndf)
-    REAL(KIND = dp) , INTENT(INOUT) :: eigval(ndf), work(ndf), eigvec(ndf,ndf), g(ndf)
+    INTEGER, INTENT(IN)                      :: ndf
+    REAL(KIND=dp), INTENT(INOUT)             :: dg(ndf), eigval(ndf), &
+                                                work(ndf), eigvec(ndf,ndf), &
+                                                g(ndf)
+
+    REAL(KIND=dp), PARAMETER                 :: one = 1.0_dp
+
+    INTEGER                                  :: indf, iref, iter, maxit
+    LOGICAL                                  :: bisec, fail, set
+    REAL(KIND=dp)                            :: DDOT, fun, fun1, fun2, fun3, &
+                                                fung, lam1, lam2, ln, lp, &
+                                                ssize, step, stol
 
 !   ** Locals **
-
-    INTEGER :: indf, iter, iref, maxit
-    REAL(KIND = dp)    :: ln, lp, stol, step, fun, fung, fun1, fun2, fun3, lam1, lam2, ssize,DDOT
-    LOGICAL :: fail, set, bisec
-    REAL(KIND = dp), PARAMETER :: one = 1.0_dp
 
     stol  = 1.0E-8_dp
     ssize = 0.2_dp
@@ -586,17 +575,19 @@ CONTAINS
 
   SUBROUTINE get_gopt_atmfix(globenv,natom,nfree,to_move)
 
-    INTEGER, INTENT(IN) :: natom
-    INTEGER, INTENT(OUT) :: nfree
-    LOGICAL, INTENT(INOUT) :: to_move(natom)
-    TYPE(global_environment_type), INTENT(IN) :: globenv
+    TYPE(global_environment_type), &
+      INTENT(IN)                             :: globenv
+    INTEGER, INTENT(IN)                      :: natom
+    INTEGER, INTENT(OUT)                     :: nfree
+    LOGICAL, INTENT(INOUT)                   :: to_move(natom)
 
-  LOGICAL :: failure, section_found
-  CHARACTER(len=*), PARAMETER :: routineN='get_gopt_atmfix',&
-        routineP=moduleN//':'//routineN
-  CHARACTER(LEN=60) :: keyword
-  CHARACTER(LEN=3)  :: test_result
-  INTEGER :: itemp,ntemp,i
+    CHARACTER(len=*), PARAMETER :: routineN = 'get_gopt_atmfix', &
+      routineP = moduleN//':'//routineN
+
+    CHARACTER(LEN=3)                         :: test_result
+    CHARACTER(LEN=60)                        :: keyword
+    INTEGER                                  :: i, itemp, ntemp
+    LOGICAL                                  :: failure, section_found
 
   failure=.FALSE.
 
@@ -644,15 +635,14 @@ CONTAINS
 
 !   ** Globals **
 
-    INTEGER,  INTENT(IN)  :: ndf
-    REAL(KIND = dp), INTENT(INOUT)  :: dx(ndf), dg(ndf), work(ndf)
-    REAL(KIND = dp), INTENT(INOUT) :: hes(ndf*(ndf+1)/2)
+    INTEGER, INTENT(IN)                      :: ndf
+    REAL(KIND=dp), INTENT(INOUT)             :: dx(ndf), dg(ndf), &
+                                                hes(ndf*(ndf+1)/2), work(ndf)
 
-    REAL(KIND = dp), PARAMETER :: one   = 1.0_dp
-    REAL(KIND = dp), PARAMETER :: zero  = 0.0_dp
+    REAL(KIND=dp), PARAMETER                 :: one = 1.0_dp, zero = 0.0_dp
 
-    REAL(KIND = dp):: gdx, dxw, DDOT
-    INTEGER :: indf, j, i
+    INTEGER                                  :: i, indf, j
+    REAL(KIND=dp)                            :: DDOT, dxw, gdx
 
     CALL DSPMV('U',ndf,one,hes,dx,1,zero,work,1)
 
@@ -676,16 +666,18 @@ CONTAINS
   SUBROUTINE set_hes_eig(ndf,eigval,work)
 
 !    ** Globals **
-     INTEGER, INTENT(IN) :: ndf
-     REAL(KIND = dp), INTENT(INOUT) :: eigval(ndf), work(ndf)
+    INTEGER, INTENT(IN)                      :: ndf
+    REAL(KIND=dp), INTENT(INOUT)             :: eigval(ndf), work(ndf)
+
+    REAL(KIND=dp), PARAMETER                 :: max_neg = -0.5_dp, &
+                                                max_pos = 5.0_dp, &
+                                                min_eig = 0.005_dp, &
+                                                one = 1.0_dp
+
+    INTEGER                                  :: indf
+    LOGICAL                                  :: neg
 
 !    ** Locals **
-     INTEGER  :: indf
-     LOGICAL  :: neg
-     REAL(KIND = dp), PARAMETER :: max_neg   = -0.5_dp
-     REAL(KIND = dp), PARAMETER :: max_pos   =  5.0_dp
-     REAL(KIND = dp), PARAMETER :: min_eig   =  0.005_dp
-     REAL(KIND = dp), PARAMETER :: one       =  1.0_dp
 
      DO indf = 1, ndf
        IF(eigval(indf) < 0.0_dp )neg = .TRUE.
@@ -721,14 +713,15 @@ CONTAINS
 
   SUBROUTINE geoopt_get_step(ndf,eigval,eigvec,hes_mat,dr,g)
 
-     INTEGER, INTENT(IN)    :: ndf
-     REAL(KIND = dp), INTENT(INOUT):: eigval(ndf), eigvec(ndf,ndf), hes_mat(ndf,ndf), &
-                               dr(ndf), g(ndf)
+    INTEGER, INTENT(IN)                      :: ndf
+    REAL(KIND=dp), INTENT(INOUT)             :: eigval(ndf), eigvec(ndf,ndf), &
+                                                hes_mat(ndf,ndf), dr(ndf), &
+                                                g(ndf)
 
-     INTEGER :: indf, j, i
-     REAL(KIND = dp), PARAMETER :: one = 1.0_dp
-     REAL(KIND = dp), PARAMETER :: zero = 0.0_dp
-     REAL(KIND = dp), ALLOCATABLE :: tmp(:,:)
+    REAL(KIND=dp), PARAMETER                 :: one = 1.0_dp, zero = 0.0_dp
+
+    INTEGER                                  :: i, indf, j
+    REAL(KIND=dp), ALLOCATABLE               :: tmp(:,:)
 
      DO indf = 1, ndf
        eigval(indf) = one / eigval(indf)
@@ -770,15 +763,16 @@ CONTAINS
   SUBROUTINE trust_radius(ndf,nfree,step,rad,rat,dr,output_unit,ionode)
 
 !   ** Globals **
-    INTEGER, INTENT(IN)   :: ndf, nfree,output_unit
-    REAL(KIND = dp), INTENT(INOUT)  :: rad, dr(ndf)
-    REAL(KIND = dp), INTENT(INOUT) :: step, rat
-    LOGICAL, INTENT(IN)   :: ionode
+    INTEGER, INTENT(IN)                      :: ndf, nfree
+    REAL(KIND=dp), INTENT(INOUT)             :: step, rad, rat, dr(ndf)
+    INTEGER, INTENT(IN)                      :: output_unit
+    LOGICAL, INTENT(IN)                      :: ionode
+
+    REAL(KIND=dp), PARAMETER                 :: one = 1.0_dp, zero = 0.0_dp 
+
+    REAL(KIND=dp)                            :: DDOT, scal
 
 !   ** Locals **
-    REAL(KIND = dp) :: scal, DDOT
-    REAL(KIND = dp), PARAMETER :: one = 1.0_dp
-    REAL(KIND = dp), PARAMETER :: zero = 0.0_dp 
 
     step = DDOT(ndf,dr,1,dr,1)
     scal = MAX(one,LOG10(REAL(nfree,dp)))
@@ -801,17 +795,20 @@ CONTAINS
 
    SUBROUTINE energy_predict(ndf,work,hes,dr,g,ionode,output_unit,conv,pred)
 
-     INTEGER, INTENT(IN)  :: ndf, output_unit
-     REAL(KIND = dp),INTENT(INOUT)  :: work(ndf), hes(ndf*(ndf+1)/2), dr(ndf), g(ndf)
-     REAL(KIND = dp),INTENT(INOUT) :: pred
-     LOGICAL, INTENT(IN)  :: ionode
-     LOGICAL, INTENT(INOUT) :: conv
+    INTEGER, INTENT(IN)                      :: ndf
+    REAL(KIND=dp), INTENT(INOUT)             :: work(ndf), &
+                                                hes(ndf*(ndf+1)/2), dr(ndf), &
+                                                g(ndf)
+    LOGICAL, INTENT(IN)                      :: ionode
+    INTEGER, INTENT(IN)                      :: output_unit
+    LOGICAL, INTENT(INOUT)                   :: conv
+    REAL(KIND=dp), INTENT(INOUT)             :: pred
 
-     REAL(KIND = dp) :: ener1, ener2, DDOT
-     REAL(KIND = dp), PARAMETER :: one   =  1.0_dp
-     REAL(KIND = dp), PARAMETER :: zero  =  0.0_dp
-     REAL(KIND = dp), PARAMETER :: limit = 1.0E-9_dp 
-    
+    REAL(KIND=dp), PARAMETER                 :: limit = 1.0E-9_dp , &
+                                                one = 1.0_dp, zero = 0.0_dp
+
+    REAL(KIND=dp)                            :: DDOT, ener1, ener2
+
      ener1 = DDOT(ndf,g,1,dr,1)
      CALL DSPMV('U',ndf,one,hes,dr,1,zero,work,1)
      ener2 = DDOT(ndf,dr,1,work,1)
@@ -839,8 +836,9 @@ CONTAINS
 
  SUBROUTINE write_cycle_infos(output_unit,it,etot,ediff,pred,rat,step,rad,emin)
 
-     INTEGER, INTENT(IN) :: output_unit,it
-     REAL(KIND = dp), INTENT(IN) :: etot, ediff, pred, rat, step, rad, emin
+    INTEGER, INTENT(IN)                      :: output_unit, it
+    REAL(KIND=dp), INTENT(IN)                :: etot, ediff, pred, rat, step, &
+                                                rad, emin
 
      WRITE(UNIT=output_unit,FMT="(/,T2,8('-'),A,I5,1X,8('-'))")&
      "  Informations at step = ",it
@@ -872,12 +870,10 @@ CONTAINS
 
    SUBROUTINE update_trust_rad(rat,rad,step,ediff)
 
-    REAL(KIND = dp), INTENT(INOUT) :: rad
-    REAL(KIND = dp), INTENT(INOUT)    :: rat, step, ediff
-    
-    REAL(KIND = dp) , PARAMETER :: max_trust =  1.0_dp
-    REAL(KIND = dp) , PARAMETER :: min_trust =  0.1_dp
+    REAL(KIND=dp), INTENT(INOUT)             :: rat, rad, step, ediff
 
+    REAL(KIND=dp), PARAMETER                 :: max_trust = 1.0_dp, &
+                                                min_trust = 0.1_dp
 
     IF( rat > 4.0_dp )THEN
       IF( ediff < 0.0_dp)THEN
@@ -942,19 +938,21 @@ CONTAINS
 
   SUBROUTINE check_converg(ndf,dr,g,ionode,output_unit,conv)
 
-   INTEGER, INTENT(IN)  :: output_unit,ndf
-   REAL(KIND = dp),INTENT(IN) :: dr(ndf), g(ndf)
-   LOGICAL, INTENT(IN)  :: ionode
-   LOGICAL, INTENT(OUT) :: conv
+    INTEGER, INTENT(IN)                      :: ndf
+    REAL(KIND=dp), INTENT(IN)                :: dr(ndf), g(ndf)
+    LOGICAL, INTENT(IN)                      :: ionode
+    INTEGER, INTENT(IN)                      :: output_unit
+    LOGICAL, INTENT(OUT)                     :: conv
 
-   INTEGER  :: indf
-   REAL(KIND = dp) :: dumm,maxdum(4)
-   LOGICAL  :: conv_dx, conv_rdx, conv_g, conv_rg
+    REAL(KIND=dp), PARAMETER                 :: dxcon = 0.0030_dp, &
+                                                gcon = 0.00045_dp, &
+                                                rmsgcon = 0.00030_dp, &
+                                                rmsxcon = 0.0015_dp
 
-   REAL(KIND = dp) , PARAMETER :: dxcon     =  0.0030_dp
-   REAL(KIND = dp) , PARAMETER :: rmsxcon   =  0.0015_dp
-   REAL(KIND = dp) , PARAMETER :: gcon      =  0.00045_dp
-   REAL(KIND = dp) , PARAMETER :: rmsgcon   =  0.00030_dp
+    INTEGER                                  :: indf
+    LOGICAL                                  :: conv_dx, conv_g, conv_rdx, &
+                                                conv_rg
+    REAL(KIND=dp)                            :: dumm, maxdum(4)
 
    conv     = .FALSE.
    conv_dx  = .TRUE.

@@ -21,7 +21,7 @@
 
 MODULE machine_aix
 
-  USE kinds, ONLY : dbl, sgl
+  USE kinds,                           ONLY: dbl
 
   IMPLICIT NONE
 
@@ -42,16 +42,20 @@ SUBROUTINE m_abort()
 END SUBROUTINE m_abort
 
 FUNCTION m_iargc() RESULT (ic)
-  INTEGER :: ic
-  INTEGER, EXTERNAL :: iargc
+    INTEGER                                  :: ic
+
+    INTEGER, EXTERNAL                        :: iargc
+
   ic = iargc()
 END FUNCTION m_iargc
 
 !******************************************************************************
 !!  cpu time in seconds
 FUNCTION m_cputime() RESULT (ct)
-  REAL (dbl) :: ct
-  REAL       :: wtl
+    REAL(dbl)                                :: ct
+
+    REAL                                     :: wtl
+
   CALL CPU_TIME(wtl)
   ct=wtl
 END FUNCTION m_cputime
@@ -70,8 +74,10 @@ END FUNCTION m_walltime
 !******************************************************************************
 !!  time and date
 SUBROUTINE m_datum(cal_date)
-  CHARACTER (len=*), INTENT (OUT) :: cal_date
-  INTEGER :: l, le
+    CHARACTER(len=*), INTENT(OUT)            :: cal_date
+
+    INTEGER                                  :: l, le
+
   CALL fdate_(cal_date)
   l = len(cal_date)
   le = len_trim(cal_date)
@@ -88,7 +94,7 @@ END SUBROUTINE m_datum
 
 !   ***************************************************************************
 
-    INTEGER, INTENT(IN) :: lunit
+    INTEGER, INTENT(IN)                      :: lunit
 
 !   ---------------------------------------------------------------------------
 
@@ -104,12 +110,7 @@ END SUBROUTINE m_datum
 
 !   ***************************************************************************
 
-    CHARACTER(LEN=*), INTENT(IN) :: checkpoint
-
-!   *** Local variables ***
-
-    CHARACTER(LEN=200) :: cmdstr
-    INTEGER            :: pid
+    CHARACTER(LEN=*), INTENT(IN)             :: checkpoint
 
 !   ---------------------------------------------------------------------------
 ! here there is definitely a problem with integer sizes. 
@@ -117,6 +118,7 @@ END SUBROUTINE m_datum
 ! and depends on the 32 (INTEGER*4) or 64 (INTEGER*8) compilation flag
 ! this should present a hack
 ! we use the fact that the default LOC kind (on IBM) is 4 or 8 in 32 or 64 bit mode
+
     TYPE memorytype4
        SEQUENCE
        INTEGER*4 arena,ordblks,smblks,hblks,hblkhd,usmblks,fsmblks,uordblks,fordblks,keepcost
@@ -143,37 +145,47 @@ END SUBROUTINE m_datum
 ! *****************************************************************************
 
 SUBROUTINE m_hostnm(hname)
-  CHARACTER (len=*), INTENT (OUT) :: hname
-  INTEGER :: hostnm_, ierror
+    CHARACTER(len=*), INTENT(OUT)            :: hname
+
+    INTEGER                                  :: hostnm_, ierror
+
   ierror = hostnm_(hname)
 END SUBROUTINE m_hostnm
 !******************************************************************************
 SUBROUTINE m_getcwd(curdir)
-  CHARACTER (len=*), INTENT (OUT) :: curdir
-  INTEGER :: getcwd_, ierror
+    CHARACTER(len=*), INTENT(OUT)            :: curdir
+
+    INTEGER                                  :: getcwd_, ierror
+
   ierror = getcwd_(curdir)
 END SUBROUTINE m_getcwd
 !******************************************************************************
 SUBROUTINE m_getlog(user)
-  CHARACTER (len=*), INTENT (OUT) :: user
+    CHARACTER(len=*), INTENT(OUT)            :: user
+
   CALL getlog_(user)
 END SUBROUTINE m_getlog
 !******************************************************************************
 SUBROUTINE m_getuid(uid)
-  INTEGER, INTENT (OUT) :: uid
-  INTEGER :: getuid_
+    INTEGER, INTENT(OUT)                     :: uid
+
+    INTEGER                                  :: getuid_
+
   uid = getuid_()
 END SUBROUTINE m_getuid
 !******************************************************************************
 SUBROUTINE m_getpid(pid)
-  INTEGER, INTENT (OUT) :: pid
-  INTEGER :: getpid_
+    INTEGER, INTENT(OUT)                     :: pid
+
+    INTEGER                                  :: getpid_
+
   pid = getpid_()
 END SUBROUTINE m_getpid
 !******************************************************************************
 SUBROUTINE m_getarg(i,arg)
-  INTEGER, INTENT (IN) :: i
-  CHARACTER (len=*), INTENT (OUT) :: arg
+    INTEGER, INTENT(IN)                      :: i
+    CHARACTER(len=*), INTENT(OUT)            :: arg
+
   CALL getarg(i,arg)
 END SUBROUTINE m_getarg
 !******************************************************************************

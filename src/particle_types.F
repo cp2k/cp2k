@@ -29,38 +29,33 @@ MODULE particle_types
                                              get_atomic_kind,&
                                              read_atomic_kind_set,&
                                              set_atomic_kind
-  USE basis_set_types,                 ONLY: get_gto_basis_set,&
-                                             gto_basis_set_type
   USE global_types,                    ONLY: global_environment_type
-  USE kinds,                           ONLY: dbl,int_size,&
+  USE kinds,                           ONLY: dbl,&
+                                             default_string_length,&
                                              dp,&
                                              dp_size,&
-                                             default_string_length
-  USE machine,                         ONLY: m_flush
+                                             int_size
   USE memory_utilities,                ONLY: reallocate
-  USE molecule_types_new,              ONLY: allocate_molecule_set,&
-                                             molecule_type,&
-                                             set_molecule_set
   USE molecule_kind_types,             ONLY: allocate_molecule_kind_set,&
                                              atom_type,&
                                              get_molecule_kind,&
                                              molecule_kind_type,&
                                              read_molecule_kind_set,&
                                              set_molecule_kind
-  USE periodic_table,                  ONLY: ptable
+  USE molecule_types_new,              ONLY: allocate_molecule_set,&
+                                             molecule_type,&
+                                             set_molecule_set
   USE physcon,                         ONLY: angstrom,&
                                              massunit
   USE qs_parser,                       ONLY: finish_parser,&
                                              integer_object,&
                                              read_object,&
-                                             search_object,&
                                              start_parser,&
                                              stop_parser,&
                                              test_object
   USE simulation_cell,                 ONLY: cell_type,&
                                              get_cell,&
                                              pbc,&
-                                             real_to_scaled,&
                                              scaled_to_real
   USE string_utilities,                ONLY: ascii_to_string,&
                                              compress,&
@@ -134,16 +129,13 @@ CONTAINS
 
 !   ***************************************************************************
 
-    TYPE(particle_type), DIMENSION(:), POINTER :: particle_set
-    INTEGER, INTENT(IN)                        :: nparticle
-
-!   *** Local parameters ***
+    TYPE(particle_type), DIMENSION(:), &
+      POINTER                                :: particle_set
+    INTEGER, INTENT(IN)                      :: nparticle
 
     CHARACTER(LEN=*), PARAMETER :: routine_name = "allocate_particle_set"
 
-!   *** Local variables ***
-
-    INTEGER :: iparticle,istat
+    INTEGER                                  :: iparticle, istat
 
 !   ---------------------------------------------------------------------------
 
@@ -177,15 +169,12 @@ CONTAINS
 
 !   ***************************************************************************
 
-    TYPE(particle_type), DIMENSION(:), POINTER :: particle_set
-
-!   *** Local parameters ***
+    TYPE(particle_type), DIMENSION(:), &
+      POINTER                                :: particle_set
 
     CHARACTER(LEN=*), PARAMETER :: routine_name = "deallocate_particle_set"
 
-!   *** Local variables ***
-
-    INTEGER :: iparticle,istat
+    INTEGER                                  :: iparticle, istat
 
 !   ---------------------------------------------------------------------------
 
@@ -240,22 +229,18 @@ CONTAINS
 
 !   ***************************************************************************
 
-    TYPE(particle_type), DIMENSION(:), POINTER      :: particle_set
-    INTEGER, DIMENSION(:), OPTIONAL, INTENT(OUT)    :: first_cgf,&
-                                                       first_sgf,&
-                                                       last_cgf,&
-                                                       last_sgf,&
-                                                       ncgf,&
-                                                       nsgf
-    REAL(KIND = dp), DIMENSION(:,:), OPTIONAL, INTENT(OUT) :: r
-
-!   *** Local parameters ***
+    TYPE(particle_type), DIMENSION(:), &
+      POINTER                                :: particle_set
+    INTEGER, DIMENSION(:), INTENT(OUT), &
+      OPTIONAL                               :: first_cgf, first_sgf, &
+                                                last_cgf, last_sgf, ncgf, nsgf
+    REAL(KIND=dp), DIMENSION(:, :), &
+      INTENT(OUT), OPTIONAL                  :: r
 
     CHARACTER(LEN=*), PARAMETER :: routine_name = "get_particle_set"
 
-!   *** Local variables ***
-
-    INTEGER :: icgf,iparticle,isgf,nc,nparticle,ns
+    INTEGER                                  :: icgf, iparticle, isgf, nc, &
+                                                nparticle, ns
 
 !   ---------------------------------------------------------------------------
 
@@ -368,64 +353,49 @@ CONTAINS
 
 !   ***************************************************************************
 
-    TYPE(atomic_kind_type), DIMENSION(:), POINTER   :: atomic_kind_set
-    TYPE(cell_type), POINTER                        :: cell
-    TYPE(global_environment_type), INTENT(IN)       :: globenv
-    TYPE(molecule_type), DIMENSION(:), POINTER      :: molecule_set
-    TYPE(molecule_kind_type), DIMENSION(:), POINTER :: molecule_kind_set
-    TYPE(particle_type), DIMENSION(:), POINTER      :: particle_set
-
-!   *** Local parameters ***
+    TYPE(particle_type), DIMENSION(:), &
+      POINTER                                :: particle_set
+    TYPE(atomic_kind_type), DIMENSION(:), &
+      POINTER                                :: atomic_kind_set
+    TYPE(molecule_type), DIMENSION(:), &
+      POINTER                                :: molecule_set
+    TYPE(molecule_kind_type), DIMENSION(:), &
+      POINTER                                :: molecule_kind_set
+    TYPE(cell_type), POINTER                 :: cell
+    TYPE(global_environment_type), &
+      INTENT(IN)                             :: globenv
 
     CHARACTER(LEN=*), PARAMETER :: routine_name = "read_particle_set"
-    CHARACTER(LEN=4), PARAMETER :: required_descriptors = "AXYZ"
+    CHARACTER(LEN=4), PARAMETER              :: required_descriptors = "AXYZ"
+    INTEGER, PARAMETER                       :: nblock1 = 1, nblock2 = 1   
 
-    INTEGER, PARAMETER :: nblock1 = 1,& ! blocking for number of particles
-                          nblock2 = 1   ! blocking for number of kinds
+    CHARACTER(LEN=1)                         :: descriptor
+    CHARACTER(LEN=200)                       :: message
+    CHARACTER(LEN=3)                         :: test_result
+    CHARACTER(LEN=80)                        :: default_format, gro_format, &
+                                                input_format, pdb_format, &
+                                                xyz_format
+    CHARACTER(LEN=default_string_length)     :: label, molecule_name, &
+                                                particle_name, string
+    INTEGER :: atom_a, first_atom, handle, i, iatom, idummy, ikind, &
+      imolecule, imolecule_kind, input_format_length, iparticle, &
+      iparticle_kind, istat, natom, ndigits, nmolecule, nmolecule_kind, &
+      nparticle, nparticle_kind, string_length
+    INTEGER, DIMENSION(:), POINTER :: first_atom_of_molecule, list, &
+      molecule_kind_of, nmolecule_of_kind, nparticle_of_kind, particle_kind_of
+    INTEGER, DIMENSION(:, :), POINTER        :: molecule_kind_name, &
+                                                particle_kind_name
+    LOGICAL                                  :: found, new_kind, newline, &
+                                                pdb, scaled_coordinates, &
+                                                section_found
+    REAL(KIND=dp)                            :: fdummy, unit_of_length
+    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: r
+    TYPE(atom_type), DIMENSION(:), POINTER   :: atom_list
+    TYPE(atomic_kind_type), POINTER          :: atomic_kind
+    TYPE(molecule_kind_type), POINTER        :: molecule_kind
 
-!   *** Local variables ***
-
-    TYPE(atomic_kind_type), POINTER   :: atomic_kind
-    TYPE(molecule_kind_type), POINTER :: molecule_kind
-    CHARACTER(LEN=default_string_length)    :: atom_name,&
-                                         label,&
-                                         molecule_name,&
-                                         particle_name,&
-                                         string
-    CHARACTER(LEN=200)                :: message
-    CHARACTER(LEN=80)                 :: default_format,&
-                                         gro_format,&
-                                         input_format,&
-                                         pdb_format,&
-                                         xyz_format
-    CHARACTER(LEN=3)                  :: test_result
-    CHARACTER(LEN=1)                  :: descriptor
-    REAL(KIND = dp)                          :: fdummy,unit_of_length
-    INTEGER                           :: atom_a,first_atom,handle,i,&
-                                         idummy,input_format_length,&
-                                         iatom,ikind,imolecule,&
-                                         imolecule_kind,iparticle,&
-                                         iparticle_kind,istat,&
-                                         molecule_a,&
-                                         n,natom,ndigits,nmolecule,&
-                                         nmolecule_kind,nparticle,&
-                                         nparticle_kind,string_length
-    LOGICAL                           :: found,new_kind,newline,pdb,&
-                                         scaled_coordinates,section_found
-
-    TYPE(atom_type), DIMENSION(:), POINTER :: atom_list
-
-    INTEGER, DIMENSION(:), POINTER :: first_atom_of_molecule,&
-                                      list,&
-                                      molecule_kind_of,&
-                                      nmolecule_of_kind,&
-                                      nparticle_of_kind,&
-                                      particle_kind_of
-
-    REAL(KIND = dp), DIMENSION(:,:), POINTER :: r
-    INTEGER, DIMENSION(:,:), POINTER  :: molecule_kind_name,&
-                                         particle_kind_name
-
+! blocking for number of particles
+! blocking for number of kinds
 !   ---------------------------------------------------------------------------
 
     CALL timeset(routine_name,"I",'',handle)
@@ -1025,19 +995,16 @@ CONTAINS
   SUBROUTINE write_particle_coordinates(particle_set,cell,iunit,format,&
                                         content,title)
 
-    TYPE(particle_type), DIMENSION(:), POINTER :: particle_set
-    TYPE(cell_type), POINTER                   :: cell
-    INTEGER                                    :: iunit
-    LOGICAL                                    :: ionode
-    CHARACTER(LEN=*)                           :: format
-    CHARACTER(LEN=*)                           :: content
-    CHARACTER(LEN=*)                           :: title
+    TYPE(particle_type), DIMENSION(:), &
+      POINTER                                :: particle_set
+    TYPE(cell_type), POINTER                 :: cell
+    INTEGER                                  :: iunit
+    CHARACTER(LEN=*)                         :: format, content, title
 
-    INTEGER :: natom,iatom
-    CHARACTER(LEN=2) :: element_symbol
+    CHARACTER(LEN=2)                         :: element_symbol
+    INTEGER                                  :: iatom, natom
+    REAL(KIND=dp), DIMENSION(3)              :: r
 
-    REAL(KIND = dp), DIMENSION(3) :: r
- 
     natom = SIZE(particle_set)
 
     SELECT CASE (TRIM(format))
@@ -1084,16 +1051,17 @@ CONTAINS
 
 !   ***************************************************************************
 
-    TYPE(global_environment_type), INTENT(IN)  :: globenv
-    TYPE(cell_type), POINTER                   :: cell
-    TYPE(particle_type), DIMENSION(:), POINTER :: particle_set
+    TYPE(particle_type), DIMENSION(:), &
+      POINTER                                :: particle_set
+    TYPE(cell_type), POINTER                 :: cell
+    TYPE(global_environment_type), &
+      INTENT(IN)                             :: globenv
 
-!   *** Local variables ***
-
-    CHARACTER(LEN=8) :: unit_of_length_name
-    CHARACTER(LEN=2) :: element_symbol
-    REAL(KIND = dp)         :: mass,unit_of_length
-    INTEGER          :: iatom,ikind,natom,output_unit,z,zeff
+    CHARACTER(LEN=2)                         :: element_symbol
+    CHARACTER(LEN=8)                         :: unit_of_length_name
+    INTEGER                                  :: iatom, ikind, natom, &
+                                                output_unit, z, zeff
+    REAL(KIND=dp)                            :: mass, unit_of_length
 
 !   ---------------------------------------------------------------------------
 
@@ -1143,26 +1111,25 @@ CONTAINS
 
 !   ***************************************************************************
 
-    TYPE(cell_type), POINTER                   :: cell
-    TYPE(global_environment_type), INTENT(IN)  :: globenv
-    TYPE(particle_type), DIMENSION(:), POINTER :: particle_set
-
-!   *** Local parameters ***
+    TYPE(particle_type), DIMENSION(:), &
+      POINTER                                :: particle_set
+    TYPE(cell_type), POINTER                 :: cell
+    TYPE(global_environment_type), &
+      INTENT(IN)                             :: globenv
 
     CHARACTER(LEN=*), PARAMETER :: routine_name = "write_particle_distances"
 
-!   *** Local variables ***
-
-    CHARACTER(LEN=2) :: element_symbol
-    CHARACTER(LEN=8) :: unit_of_length_name
-    REAL(KIND = dp)         :: dab,dab_image,unit_of_length
-    INTEGER          :: from,iatom,icell,icol,ikind,istat,jatom,jcell,kcell,&
-                        natom,output_unit,to
-
-    REAL(KIND = dp), DIMENSION(3) :: r,ra,rab,rab_image,rb,rb_image
-    INTEGER, DIMENSION(3)  :: periodic
-
-    REAL(KIND = dp), DIMENSION(:,:), ALLOCATABLE :: distance_matrix
+    CHARACTER(LEN=2)                         :: element_symbol
+    CHARACTER(LEN=8)                         :: unit_of_length_name
+    INTEGER                                  :: from, iatom, icell, icol, &
+                                                ikind, istat, jatom, jcell, &
+                                                kcell, natom, output_unit, to
+    INTEGER, DIMENSION(3)                    :: periodic
+    REAL(KIND=dp)                            :: dab, dab_image, unit_of_length
+    REAL(KIND=dp), ALLOCATABLE, &
+      DIMENSION(:, :)                        :: distance_matrix
+    REAL(KIND=dp), DIMENSION(3)              :: r, ra, rab, rab_image, rb, &
+                                                rb_image
 
 !   ---------------------------------------------------------------------------
 

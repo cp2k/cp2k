@@ -19,9 +19,11 @@
 
 MODULE coefficients
 
-  USE coefficient_types, ONLY : coeff_type, PLANEWAVES
-  USE kinds, ONLY : dbl
-  USE pws, ONLY : pw_integral_aa, pw_integral_ab
+  USE coefficient_types,               ONLY: PLANEWAVES,&
+                                             coeff_type
+  USE kinds,                           ONLY: dbl
+  USE pws,                             ONLY: pw_integral_aa,&
+                                             pw_integral_ab
 
   IMPLICIT NONE
 
@@ -41,10 +43,9 @@ CONTAINS
 
 FUNCTION integral_aa ( coeff, flag ) RESULT ( integral_value )
 
-  TYPE ( coeff_type ), INTENT ( IN ) :: coeff
-  INTEGER, INTENT ( IN ), OPTIONAL :: flag
-
-  REAL ( dbl ) :: integral_value
+    TYPE(coeff_type), INTENT(IN)             :: coeff
+    INTEGER, INTENT(IN), OPTIONAL            :: flag
+    REAL(dbl)                                :: integral_value
 
 !------------------------------------------------------------------------------
 
@@ -60,10 +61,9 @@ END FUNCTION integral_aa
 
 FUNCTION integral_ab ( coeff1, coeff2, flag ) RESULT ( integral_value )
 
-  TYPE ( coeff_type ), INTENT ( IN ) :: coeff1, coeff2
-  INTEGER, INTENT ( IN ), OPTIONAL :: flag
-
-  REAL ( dbl ) :: integral_value
+    TYPE(coeff_type), INTENT(IN)             :: coeff1, coeff2
+    INTEGER, INTENT(IN), OPTIONAL            :: flag
+    REAL(dbl)                                :: integral_value
 
 !------------------------------------------------------------------------------
 

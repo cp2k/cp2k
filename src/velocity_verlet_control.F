@@ -22,23 +22,21 @@
 
 MODULE velocity_verlet_control
 
-  USE coefficient_types,               ONLY: ATOMICORBITALS,&
-                                             PLANEWAVES
-  USE force_env_types,                   ONLY: force_env_get,&
+  USE force_env_types,                 ONLY: force_env_get,&
+                                             force_env_type,&
                                              use_fist_force,&
                                              use_kg_force,&
-                                             use_pol_force,&
-                                             use_qs_force, &
-                                             force_env_type
+                                             use_qs_force
   USE integrator,                      ONLY: nve,&
                                              nvt
-  USE kinds,                           ONLY: dbl
   USE mathconstants,                   ONLY: zero
-  USE md_environment_types,            ONLY: md_environment_type,get_md_env
   USE md,                              ONLY: simulation_parameters_type
+  USE md_environment_types,            ONLY: get_md_env,&
+                                             md_environment_type
   USE termination,                     ONLY: stop_program
   USE timings,                         ONLY: timeset,&
                                              timestop
+
   IMPLICIT NONE
 
   PRIVATE
@@ -73,17 +71,16 @@ CONTAINS
 
 SUBROUTINE velocity_verlet ( md_env )
   
-  IMPLICIT NONE
 
-! Arguments
-  TYPE ( md_environment_type ), POINTER :: md_env
-  
-! locals
-  INTEGER :: handle, in_use
-  TYPE ( simulation_parameters_type ), POINTER :: simpar
-  TYPE ( force_env_type ), POINTER :: force_env
+    TYPE(md_environment_type), POINTER       :: md_env
+
+    INTEGER                                  :: handle, in_use
+    TYPE(force_env_type), POINTER            :: force_env
+    TYPE(simulation_parameters_type), &
+      POINTER                                :: simpar
 
 !------------------------------------------------------------------------------
+
   CALL timeset ( 'velocity_verlet', 'I', ' ', handle )
 
 ! get force environment

@@ -21,7 +21,7 @@
 
 MODULE machine_t3e
 
-  USE kinds, ONLY : dbl, sgl
+  USE kinds,                           ONLY: dbl
 
   IMPLICIT NONE
 
@@ -43,8 +43,9 @@ END SUBROUTINE m_abort
 
 
 FUNCTION m_iargc() RESULT (ic)
-  INTEGER :: ic
-  INTEGER, EXTERNAL :: iargc
+    INTEGER                                  :: ic
+
+    INTEGER, EXTERNAL                        :: iargc
 
   ic = iargc()
 END FUNCTION m_iargc
@@ -52,23 +53,29 @@ END FUNCTION m_iargc
 !******************************************************************************
 !!  cpu time in seconds
 FUNCTION m_cputime() RESULT (ct)
-  REAL (dbl) :: ct
-  REAL (dbl) :: tsecnd
+    REAL(dbl)                                :: ct
+
+    REAL(dbl)                                :: tsecnd
+
   ct = tsecnd()
 END FUNCTION m_cputime
 !******************************************************************************
 !!  wall clock time in seconds
 FUNCTION m_walltime() RESULT (wt)
-  REAL (dbl) :: wt
-  REAL (dbl) :: time
+    REAL(dbl)                                :: wt
+
+    REAL(dbl)                                :: time
+
   EXTERNAL time
   wt = time()
 END FUNCTION m_walltime
 !******************************************************************************
 !!  time and date
 SUBROUTINE m_datum(cal_date)
-  CHARACTER (len=*), INTENT (OUT) :: cal_date
-  INTEGER :: l, le
+    CHARACTER(len=*), INTENT(OUT)            :: cal_date
+
+    INTEGER                                  :: l, le
+
   WRITE (cal_date,'(a8,'' on '',a8)') clock(), date()
   l = len(cal_date)
   le = len_trim(cal_date)
@@ -85,10 +92,9 @@ END SUBROUTINE m_datum
 
 !   ***************************************************************************
 
-    INTEGER, INTENT(IN) :: lunit
+    INTEGER, INTENT(IN)                      :: lunit
 
 !   ---------------------------------------------------------------------------
-
 !MK CALL flush(lunit)
 
   END SUBROUTINE m_flush
@@ -101,21 +107,13 @@ END SUBROUTINE m_datum
 
 !   ***************************************************************************
 
-    CHARACTER(LEN=*), INTENT(IN) :: checkpoint
-
-!   *** Local variables ***
-
-    CHARACTER(LEN=200) :: cmdstr
-    INTEGER            :: pid
+    CHARACTER(LEN=*), INTENT(IN)             :: checkpoint
 
 !   ---------------------------------------------------------------------------
-
 !MK CALL m_getpid(pid)
-
 !MK WRITE(UNIT=cmdstr,FMT="(A,I8,A,I8,A)")&
 !MK   "echo -e ""\\n Memory size of process""",pid,""" <"//TRIM(checkpoint)//&
 !MK   ">:"" `ps -o vsz -p",pid," | tail -1` KBytes""\\c"""
-
 !MK CALL ishell(cmdstr)
 
   END SUBROUTINE print_memory
@@ -123,37 +121,47 @@ END SUBROUTINE m_datum
 ! *****************************************************************************
 
 SUBROUTINE m_hostnm(hname)
-  CHARACTER (len=*), INTENT (OUT) :: hname
+    CHARACTER(len=*), INTENT(OUT)            :: hname
+
   CALL gethost(hname)
 END SUBROUTINE m_hostnm
 !******************************************************************************
 SUBROUTINE m_getcwd(curdir)
-  CHARACTER (len=*), INTENT (OUT) :: curdir
+    CHARACTER(len=*), INTENT(OUT)            :: curdir
+
   CALL getcwd(curdir)
 END SUBROUTINE m_getcwd
 !******************************************************************************
 SUBROUTINE m_getlog(user)
-  CHARACTER (len=*), INTENT (OUT) :: user
-  INTEGER :: ilen, ierror
+    CHARACTER(len=*), INTENT(OUT)            :: user
+
+    INTEGER                                  :: ierror, ilen
+
   CALL pxfgetlogin(user,ilen,ierror)
 END SUBROUTINE m_getlog
 !******************************************************************************
 SUBROUTINE m_getuid(uid)
-  INTEGER, INTENT (OUT) :: uid
-  INTEGER :: ierror
+    INTEGER, INTENT(OUT)                     :: uid
+
+    INTEGER                                  :: ierror
+
   CALL pxfgetuid(uid,ierror)
 END SUBROUTINE m_getuid
 !******************************************************************************
 SUBROUTINE m_getpid(pid)
-  INTEGER, INTENT (OUT) :: pid
-  INTEGER :: ierror
+    INTEGER, INTENT(OUT)                     :: pid
+
+    INTEGER                                  :: ierror
+
   CALL pxfgetpid(pid,ierror)
 END SUBROUTINE m_getpid
 !******************************************************************************
 SUBROUTINE m_getarg(i,arg)
-  INTEGER, INTENT (IN) :: i
-  CHARACTER (len=*), INTENT (OUT) :: arg
-  INTEGER :: ilen, ierror
+    INTEGER, INTENT(IN)                      :: i
+    CHARACTER(len=*), INTENT(OUT)            :: arg
+
+    INTEGER                                  :: ierror, ilen
+
   CALL pxfgetarg(i,arg,ilen,ierror)
 END SUBROUTINE m_getarg
 !******************************************************************************

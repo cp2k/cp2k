@@ -22,25 +22,21 @@
 
 MODULE topology_gromos
 
-  USE global_types,                          ONLY : global_environment_type
-  USE kinds,                                 ONLY : dbl
-  USE message_passing,                       ONLY : mp_bcast
-  USE molecule_types,                        ONLY : molecule_type
-  USE parser,                                ONLY : parser_init, &
-                                                    parser_end, &
-                                                    read_line, &
-                                                    test_next, &
-                                                    p_error, &
-                                                    get_next, &
-                                                    stop_parser, &
-                                                    search_label
-  USE string_utilities,                      ONLY : uppercase, &
-                                                    xstring, &
-                                                    integer_to_string, &
-                                                    str_search
-  USE util,                                  ONLY : get_unit
-  USE termination,                           ONLY : stop_program, &
-                                                    stop_memory
+  USE global_types,                    ONLY: global_environment_type
+  USE kinds,                           ONLY: dbl
+  USE message_passing,                 ONLY: mp_bcast
+  USE molecule_types,                  ONLY: molecule_type
+  USE parser,                          ONLY: get_next,&
+                                             parser_end,&
+                                             parser_init,&
+                                             read_line,&
+                                             search_label,&
+                                             test_next
+  USE string_utilities,                ONLY: integer_to_string,&
+                                             str_search
+  USE termination,                     ONLY: stop_memory,&
+                                             stop_program
+  USE util,                            ONLY: get_unit
 
   TYPE solute_atom
    INTEGER :: atnm                    ! atom number
@@ -162,20 +158,18 @@ CONTAINS
 
 SUBROUTINE read_topology_gromos ( filename, globenv )
 
-  IMPLICIT NONE
 
-! Arguments
-  CHARACTER ( LEN=* ), INTENT ( IN ) :: filename
-  TYPE ( global_environment_type ), INTENT ( IN ) :: globenv
+    CHARACTER(LEN=*), INTENT(IN)             :: filename
+    TYPE(global_environment_type), &
+      INTENT(IN)                             :: globenv
 
-! Locals
-  LOGICAL found
-  CHARACTER (LEN=20) :: label
-  CHARACTER (LEN=80) :: line
-  INTEGER :: iunit, ierr
+    CHARACTER(LEN=80)                        :: line
+    INTEGER                                  :: ierr, iunit
+    LOGICAL                                  :: found
 
 !------------------------------------------------------------------------------
 ! mark topology type as inactive
+
   topo_file % active = .FALSE.
 
 ! Is there a topology file
@@ -239,18 +233,17 @@ END SUBROUTINE read_topology_gromos
 
 SUBROUTINE read_gromos_topology ( filename, gromos, globenv )
 
-  IMPLICIT NONE
 
-! Arguments
-  CHARACTER ( LEN=* ), INTENT ( IN ) :: filename
-  TYPE ( gromos_topology_type ) :: gromos
-  TYPE ( global_environment_type ), INTENT ( IN ) :: globenv
+    CHARACTER(LEN=*), INTENT(IN)             :: filename
+    TYPE(gromos_topology_type)               :: gromos
+    TYPE(global_environment_type), &
+      INTENT(IN)                             :: globenv
 
-! Locals
-  INTEGER :: ierror,i,j,io,ilen
-  CHARACTER ( LEN=30 ) :: label
-  CHARACTER ( LEN=132 ) :: line
-  CHARACTER ( LEN=10 ) :: cnum
+    CHARACTER(LEN=10)                        :: cnum
+    CHARACTER(LEN=132)                       :: line
+    CHARACTER(LEN=30)                        :: label
+    INTEGER                                  :: i, ierror, ilen, io, j
+
 !------------------------------------------------------------------------------
 
   CALL parser_init ( filename, globenv, comment="#", section_end="END" )
@@ -744,11 +737,11 @@ SUBROUTINE read_gromos_topology ( filename, gromos, globenv )
 END SUBROUTINE read_gromos_topology
 
 SUBROUTINE find_keyword ( label, filename, ierr )
-  IMPLICIT NONE
-  CHARACTER ( LEN=* ) label, filename
-  INTEGER :: ierr
-  INTEGER :: llen, lu,ios
-  CHARACTER ( len=132 ) :: line
+    CHARACTER(LEN=*)                         :: label, filename
+    INTEGER                                  :: ierr
+
+    CHARACTER(len=132)                       :: line
+    INTEGER                                  :: ios, llen, lu
 
   INQUIRE ( FILE=filename, NUMBER=lu )
   REWIND ( lu )
@@ -791,10 +784,8 @@ END SUBROUTINE find_keyword
 
 FUNCTION get_molecules_topology ( ) RESULT ( nmol )
 
-  IMPLICIT NONE
 
-! Arguments
-  INTEGER :: nmol
+    INTEGER                                  :: nmol
 
 !------------------------------------------------------------------------------
 
@@ -834,16 +825,15 @@ END FUNCTION get_molecules_topology
 
 SUBROUTINE set_molecule_type_topology ( mol_setup, default_thermostat )
 
-  IMPLICIT NONE
 
-! Arguments
-  TYPE ( molecule_type ), DIMENSION ( : ), INTENT ( INOUT ) :: mol_setup
-  CHARACTER ( LEN = * ), INTENT ( IN ) :: default_thermostat
+    TYPE(molecule_type), DIMENSION(:), &
+      INTENT(INOUT)                          :: mol_setup
+    CHARACTER(LEN=*), INTENT(IN)             :: default_thermostat
 
-! Local
-  INTEGER :: imol, nmol, j, nlen, istat, inserted
-  LOGICAL, DIMENSION ( : ), ALLOCATABLE :: found
-  CHARACTER ( LEN=10 ) :: molname
+    CHARACTER(LEN=10)                        :: molname
+    INTEGER                                  :: imol, inserted, istat, j, &
+                                                nlen, nmol
+    LOGICAL, ALLOCATABLE, DIMENSION(:)       :: found
 
 !------------------------------------------------------------------------------
 
@@ -941,16 +931,16 @@ END SUBROUTINE set_molecule_type_topology
 
 SUBROUTINE get_molecule_structure_topology ( molname, mol_setup )
 
-  IMPLICIT NONE
 
-! Arguments
-  CHARACTER ( LEN = * ), DIMENSION ( : ), INTENT ( IN ) :: molname
-  TYPE ( molecule_type ), DIMENSION ( : ), INTENT ( INOUT ) :: mol_setup
+    CHARACTER(LEN=*), DIMENSION(:), &
+      INTENT(IN)                             :: molname
+    TYPE(molecule_type), DIMENSION(:), &
+      INTENT(INOUT)                          :: mol_setup
 
-! Local
-  INTEGER :: nmol_type, iraa, na, i, j, imol, ios
-  CHARACTER ( LEN = 10 ) :: string
-  LOGICAL :: solvent
+    CHARACTER(LEN=10)                        :: string
+    INTEGER                                  :: i, imol, ios, iraa, j, na, &
+                                                nmol_type
+    LOGICAL                                  :: solvent
 
 !------------------------------------------------------------------------------
 

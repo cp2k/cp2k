@@ -21,8 +21,8 @@
 MODULE mc_control
   USE convert_units,                   ONLY: convert_to_cp2k_units
   USE cp_error_handling,               ONLY: cp_error_type
-  USE cp_subsystem_types,              ONLY: cp_subsystem_p_type,&
-                                             cp_subsys_get
+  USE cp_subsystem_types,              ONLY: cp_subsys_get,&
+                                             cp_subsystem_p_type
   USE force_env_types,                 ONLY: force_env_get,&
                                              force_env_type
   USE global_types,                    ONLY: global_environment_type
@@ -36,12 +36,12 @@ MODULE mc_control
                                              stop_parser,&
                                              test_next
   USE particle_list_types,             ONLY: particle_list_type
-  USE physcon,                         ONLY: boltzmann,joule
+  USE physcon,                         ONLY: boltzmann,&
+                                             joule
   USE simulation_cell,                 ONLY: cell_type
   USE string_utilities,                ONLY: uppercase
   USE timings,                         ONLY: timeset,&
                                              timestop
-
 
   IMPLICIT NONE
 
@@ -131,26 +131,22 @@ CONTAINS
 
 SUBROUTINE read_mc_section ( mc_par, globenv )
 
-  IMPLICIT NONE
 
-! Arguments
-  TYPE ( mc_simulation_parameters_type ), INTENT ( OUT ) :: mc_par
-  TYPE ( global_environment_type ), INTENT ( IN ) :: globenv
+    TYPE(mc_simulation_parameters_type), &
+      INTENT(OUT)                            :: mc_par
+    TYPE(global_environment_type), &
+      INTENT(IN)                             :: globenv
 
-!   *** Local parameters ***
+    CHARACTER(LEN=*), PARAMETER              :: routineN = "read_mc_section"
 
-  CHARACTER(LEN=*), PARAMETER :: routineN = "read_mc_section"
-
-! Locals
-  INTEGER :: ierror, ilen, msglen, ia, ie, iw, allgrp, source
-  INTEGER :: ibox,imolty,handle
-  CHARACTER ( LEN = 20 ) :: string
-  CHARACTER ( LEN = 5 ) :: label
-  REAL( KIND = dp ) :: length
+    CHARACTER(LEN=20)                        :: string
+    CHARACTER(LEN=5)                         :: label
+    INTEGER                                  :: handle, ierror, ilen, iw
+    REAL(KIND=dp)                            :: length
 
 !------------------------------------------------------------------------------
-
 ! begin the timing of the subroutine
+
   CALL timeset(routineN,'I','',handle)
 
 !..defaults
@@ -353,26 +349,24 @@ SUBROUTINE write_mc_restart ( nnstep, mc_par, force_env )
 
 ! write a bunch of data to a file that we can restart from
 
-  IMPLICIT NONE
 
-! Arguments
-  TYPE ( mc_simulation_parameters_type ), POINTER :: mc_par
-  TYPE ( force_env_type ), POINTER :: force_env
-  INTEGER,INTENT(IN) :: nnstep
+    INTEGER, INTENT(IN)                      :: nnstep
+    TYPE(mc_simulation_parameters_type), &
+      POINTER                                :: mc_par
+    TYPE(force_env_type), POINTER            :: force_env
 
-!   *** Local parameters ***
+    CHARACTER(LEN=*), PARAMETER              :: routineN = "write_mc_restart"
 
-  CHARACTER(LEN=*), PARAMETER :: routineN = "write_mc_restart"
+    INTEGER                                  :: handle, ipart
+    TYPE(cell_type), POINTER                 :: cell
+    TYPE(cp_error_type)                      :: error
+    TYPE(cp_subsystem_p_type), &
+      DIMENSION(:), POINTER                  :: subsys
+    TYPE(particle_list_type), POINTER        :: particles
 
-! Locals
-      INTEGER :: ipart,handle
-      TYPE(cell_type),POINTER :: cell
-      TYPE(cp_subsystem_p_type),DIMENSION(:),POINTER :: subsys
-      TYPE(particle_list_type), POINTER :: particles
-      TYPE(cp_error_type)      :: error
 !------------------------------------------------------------------------------
-
 ! begin the timing of the subroutine
+
   CALL timeset(routineN,'I','',handle)
 
 ! open the file and write some simulation parameters
@@ -407,29 +401,27 @@ SUBROUTINE read_mc_restart ( mc_par, force_env ,iw )
 
 ! read a bunch of data from a restart file
 
-  IMPLICIT NONE
 
-! Arguments
-  TYPE ( mc_simulation_parameters_type ), POINTER :: mc_par
-  TYPE ( force_env_type ), POINTER :: force_env
-  INTEGER,INTENT(IN) :: iw
+    TYPE(mc_simulation_parameters_type), &
+      POINTER                                :: mc_par
+    TYPE(force_env_type), POINTER            :: force_env
+    INTEGER, INTENT(IN)                      :: iw
 
-!   *** Local parameters ***
+    CHARACTER(LEN=*), PARAMETER              :: routineN = "read_mc_restart"
 
-  CHARACTER(LEN=*), PARAMETER :: routineN = "read_mc_restart"
+    CHARACTER(LEN=20)                        :: ensemble
+    INTEGER                                  :: handle, ipart, nunits_tot
+    REAL(KIND=dp)                            :: box_length, temp
+    REAL(KIND=dp), DIMENSION(1:3)            :: r
+    TYPE(cell_type), POINTER                 :: cell
+    TYPE(cp_error_type)                      :: error
+    TYPE(cp_subsystem_p_type), &
+      DIMENSION(:), POINTER                  :: subsys
+    TYPE(particle_list_type), POINTER        :: particles
 
-! Locals
-      INTEGER :: ipart,handle,nunits_tot
-      TYPE(cell_type),POINTER :: cell
-      TYPE(cp_subsystem_p_type),DIMENSION(:),POINTER :: subsys
-      TYPE(particle_list_type), POINTER :: particles
-      TYPE(cp_error_type)      :: error
-      REAL(KIND=dp),DIMENSION(1:3) :: r
-      REAL(KIND=dp) :: temp,box_length
-      CHARACTER(LEN=20) :: ensemble
 !------------------------------------------------------------------------------
-
 ! begin the timing of the subroutine
+
   CALL timeset(routineN,'I','',handle)
 
 ! open the file and write some simulation parameters

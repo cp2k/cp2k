@@ -20,40 +20,30 @@ MODULE preconditioner
 ! *****************************************************************************
   USE cp_blacs_env,                    ONLY: cp_blacs_env_release,&
                                              cp_blacs_env_retain
-  USE cp_fm_basic_linalg,              ONLY: cp_fm_scale_and_add,&
+  USE cp_fm_basic_linalg,              ONLY: cp_fm_column_scale,&
                                              cp_fm_gemm,&
-                                             cp_fm_schur_product,&
                                              cp_fm_symm,&
-                                             cp_fm_trace, &
-                                             cp_fm_column_scale, &
                                              cp_fm_upper_to_full
-  USE cp_sm_fm_interactions,           ONLY: cp_sm_fm_multiply,&
-                                             copy_sm_to_fm
   USE cp_fm_cholesky,                  ONLY: cp_fm_cholesky_decompose,&
                                              cp_fm_cholesky_invert,&
                                              cp_fm_cholesky_reduce,&
                                              cp_fm_cholesky_restore
-  USE cp_fm_struct,                    ONLY: cp_fm_struct_type, &
-                                             cp_fm_struct_create, &
-                                             cp_fm_struct_release
-  
-  USE cp_fm_types,                     ONLY: cp_fm_init_random, &
-                                             cp_fm_create,&
+  USE cp_fm_diag,                      ONLY: cp_fm_syevd
+  USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
+                                             cp_fm_struct_release,&
+                                             cp_fm_struct_type
+  USE cp_fm_types,                     ONLY: cp_fm_create,&
                                              cp_fm_get_info,&
                                              cp_fm_release,&
-                                             cp_fm_set_all,&
-                                             cp_fm_p_type,&
                                              cp_fm_to_fm,&
                                              cp_fm_type
-  USE cp_fm_diag,                      ONLY: cp_fm_syevd
-  USE cp_para_env,                     ONLY: cp_para_env_from_globenv,&
-                                             cp_para_env_release,&
+  USE cp_para_env,                     ONLY: cp_para_env_release,&
                                              cp_para_env_retain
   USE cp_para_types,                   ONLY: cp_blacs_env_type,&
                                              cp_para_env_type
-  USE global_types,                    ONLY: global_environment_type
-  USE kinds,                           ONLY: dp,&
-                                             dp_size
+  USE cp_sm_fm_interactions,           ONLY: copy_sm_to_fm,&
+                                             cp_sm_fm_multiply
+  USE kinds,                           ONLY: dp
   USE message_passing,                 ONLY: mp_sum
   USE qs_mo_methods,                   ONLY: calculate_subspace_eigenvalues
   USE sparse_matrix_types,             ONLY: add_block_node,&
@@ -70,6 +60,7 @@ MODULE preconditioner
                                              stop_program
   USE timings,                         ONLY: timeset,&
                                              timestop
+
   IMPLICIT NONE
 
   PUBLIC  :: preconditioner_type, preconditioner_p_type
@@ -103,16 +94,17 @@ MODULE preconditioner
 CONTAINS
 
 FUNCTION preconditioner_in_use(preconditioner)
-  TYPE(preconditioner_type) :: preconditioner
-  LOGICAL preconditioner_in_use
+    TYPE(preconditioner_type)                :: preconditioner
+    LOGICAL                                  :: preconditioner_in_use
+
   preconditioner_in_use = .NOT. (preconditioner%in_use .EQ. 0)
 END FUNCTION
 
 SUBROUTINE init_preconditioner(preconditioner_env,para_env,blacs_env)
 
-   TYPE(preconditioner_type)                  :: preconditioner_env
-   TYPE(cp_para_env_type), POINTER            :: para_env
-   TYPE(cp_blacs_env_type), POINTER           :: blacs_env
+    TYPE(preconditioner_type)                :: preconditioner_env
+    TYPE(cp_para_env_type), POINTER          :: para_env
+    TYPE(cp_blacs_env_type), POINTER         :: blacs_env
 
    NULLIFY(preconditioner_env%sparse_matrix)
    NULLIFY(preconditioner_env%fm)
@@ -127,7 +119,7 @@ END SUBROUTINE init_preconditioner
 
 SUBROUTINE destroy_preconditioner(preconditioner_env)
 
-   TYPE(preconditioner_type) :: preconditioner_env
+    TYPE(preconditioner_type)                :: preconditioner_env
 
    IF (ASSOCIATED(preconditioner_env%sparse_matrix)) THEN
       CALL deallocate_matrix(preconditioner_env%sparse_matrix)
@@ -159,17 +151,17 @@ END SUBROUTINE destroy_preconditioner
 SUBROUTINE make_preconditioner_single(preconditioner_env, USE, matrix_h, matrix_s, &
                                       matrix_t,mo_eigenvectors, energy_gap )
 
-  TYPE(preconditioner_type)               :: preconditioner_env
-  CHARACTER(LEN=*)                                :: USE
-  TYPE(real_matrix_type), POINTER            :: matrix_h,matrix_s,matrix_t
-  TYPE(cp_fm_type), POINTER :: mo_eigenvectors
-  REAL(KIND = dp), DIMENSION(:), POINTER :: eigenvalues_ot
-  REAL(KIND = dp)                                   :: energy_gap
+    TYPE(preconditioner_type)                :: preconditioner_env
+    CHARACTER(LEN=*)                         :: USE
+    TYPE(real_matrix_type), POINTER          :: matrix_h, matrix_s, matrix_t
+    TYPE(cp_fm_type), POINTER                :: mo_eigenvectors
+    REAL(KIND=dp)                            :: energy_gap
 
+    INTEGER                                  :: handle, k
+    REAL(KIND=dp)                            :: energy_homo
+    REAL(KIND=dp), DIMENSION(:), POINTER     :: eigenvalues_ot
 
 !----
-  REAL(KIND = dp)                                   :: energy_homo
-  INTEGER handle,k
 
   CALL timeset("make_preconditioner","I","",handle)
 
@@ -217,10 +209,12 @@ END SUBROUTINE make_preconditioner_single
 !*******************************************************************************
 SUBROUTINE apply_preconditioner(preconditioner_env, matrix_in, matrix_out)
 
-  TYPE(preconditioner_type)               :: preconditioner_env
-  TYPE(cp_fm_type), POINTER            :: matrix_in,matrix_out
+    TYPE(preconditioner_type)                :: preconditioner_env
+    TYPE(cp_fm_type), POINTER                :: matrix_in, matrix_out
+
+    INTEGER                                  :: handle
+
 !----
-  INTEGER handle
 
   CALL timeset("apply_preconditioner","I","",handle)
 
@@ -247,10 +241,13 @@ END SUBROUTINE apply_preconditioner
 ! a sparse block diagonal approximation
 SUBROUTINE apply_sparse_diag(preconditioner_env, matrix_in, matrix_out)
 
-  TYPE(preconditioner_type)               :: preconditioner_env
-  TYPE(cp_fm_type), POINTER            :: matrix_in,matrix_out
+    TYPE(preconditioner_type)                :: preconditioner_env
+    TYPE(cp_fm_type), POINTER                :: matrix_in, matrix_out
+
+    INTEGER                                  :: k
+
 !----
-  INTEGER k
+
   CALL cp_fm_get_info(matrix_in,ncol_global=k)
   CALL cp_sm_fm_multiply(preconditioner_env%sparse_matrix,matrix_in, &
                          matrix_out,k, para_env=preconditioner_env%para_env)
@@ -260,19 +257,16 @@ END SUBROUTINE apply_sparse_diag
 SUBROUTINE make_sparse_diag(preconditioner_env, matrix_h, matrix_s, &
                           energy_homo, energy_gap )
 
-  TYPE(preconditioner_type)               :: preconditioner_env
-  TYPE(real_matrix_type), POINTER            :: matrix_h,matrix_s
-  REAL(KIND = dp)                                   :: energy_homo,energy_gap
+    TYPE(preconditioner_type)                :: preconditioner_env
+    TYPE(real_matrix_type), POINTER          :: matrix_h, matrix_s
+    REAL(KIND=dp)                            :: energy_homo, energy_gap
+
+    INTEGER                                  :: iblock_col_h, iblock_col_s, &
+                                                iblock_row, n, nblocks
+    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: block_h, block_pre, block_s
+    TYPE(real_block_node_type), POINTER      :: block_node_h, block_node_s
 
 !----
-  INTEGER :: iblock_row,iblock_col_s,iblock_col_h,nblocks,n,handle
-
-  TYPE(real_block_node_type), POINTER :: block_node_s
-  TYPE(real_block_node_type), POINTER :: block_node_h
-  REAL(KIND = dp), DIMENSION(:,:), POINTER :: block_h
-  REAL(KIND = dp), DIMENSION(:,:), POINTER :: block_s
-  REAL(KIND = dp), DIMENSION(:,:), POINTER :: block_pre
-
 
   IF (ASSOCIATED(preconditioner_env%sparse_matrix)) THEN 
      CALL deallocate_matrix(preconditioner_env%sparse_matrix)
@@ -322,20 +316,16 @@ END SUBROUTINE make_sparse_diag
 SUBROUTINE make_local_block(block_h,block_s,block_pre, &
                                  energy_homo,energy_gap, TYPE)
 
-  REAL(KIND = dp), DIMENSION(:,:), POINTER :: block_h
-  REAL(KIND = dp), DIMENSION(:,:), POINTER :: block_s
-  REAL(KIND = dp), DIMENSION(:,:), POINTER :: block_pre
-  REAL(KIND = dp)                          :: energy_homo,energy_gap
-  INTEGER                           :: TYPE
-  REAL(KIND = dp), DIMENSION(:,:), POINTER :: block_chol
-  REAL(KIND = dp), DIMENSION(:,:), POINTER :: block_evec
-  REAL(KIND = dp), DIMENSION(:,:), POINTER :: block_buf1
-  REAL(KIND = dp), DIMENSION(:,:), POINTER :: block_buf2
-  REAL(KIND = dp), DIMENSION(:), POINTER :: evals 
-  INTEGER,  DIMENSION(:), POINTER :: iwork
-  REAL(KIND = dp), DIMENSION(:), POINTER :: work
-  INTEGER :: n,i,info,liwork,lwork,istat,j
+    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: block_h, block_s, block_pre
+    REAL(KIND=dp)                            :: energy_homo, energy_gap
+    INTEGER                                  :: TYPE
 
+    INTEGER                                  :: i, info, istat, liwork, &
+                                                lwork, n
+    INTEGER, DIMENSION(:), POINTER           :: iwork
+    REAL(KIND=dp), DIMENSION(:), POINTER     :: evals, work
+    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: block_buf1, block_chol, &
+                                                block_evec
 
   n=SIZE(block_s,1)
   lwork=1+6*n+2*n**2+50
@@ -457,23 +447,19 @@ END SUBROUTINE make_local_block
 SUBROUTINE make_sparse_first_order(preconditioner_env, matrix_h, matrix_s, &
                                    energy_homo, energy_gap )
 
-  TYPE(preconditioner_type)                  :: preconditioner_env
-  TYPE(real_matrix_type), POINTER            :: matrix_h,matrix_s
-  REAL(KIND = dp)                                   :: energy_homo,energy_gap
+    TYPE(preconditioner_type)                :: preconditioner_env
+    TYPE(real_matrix_type), POINTER          :: matrix_h, matrix_s
+    REAL(KIND=dp)                            :: energy_homo, energy_gap
+
+    INTEGER                                  :: iblock_col_h, iblock_col_s, &
+                                                iblock_row, k, n, nblocks
+    INTEGER, DIMENSION(:), POINTER           :: first_row, last_row, offset
+    REAL(KIND=dp), DIMENSION(:), POINTER     :: block_buffer
+    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: block_h, block_pre, block_s, &
+                                                block_tmp
+    TYPE(real_block_node_type), POINTER      :: block_node_h, block_node_s
 
 !----
-  INTEGER :: iblock_row,iblock_col_s,iblock_col_h,nblocks,n,handle,k
-
-  TYPE(real_block_node_type), POINTER :: block_node_s
-  TYPE(real_block_node_type), POINTER :: block_node_h
-  REAL(KIND = dp), DIMENSION(:,:), POINTER :: block_h
-  REAL(KIND = dp), DIMENSION(:,:), POINTER :: block_s
-  REAL(KIND = dp), DIMENSION(:,:), POINTER :: block_pre
-  REAL(KIND = dp), DIMENSION(:,:), POINTER :: block_tmp
-  INTEGER, DIMENSION(:), POINTER :: first_row,last_row
-  INTEGER, DIMENSION(:),POINTER :: offset
-  REAL(KIND = dp), DIMENSION(:), POINTER :: block_buffer
-
 
   IF (ASSOCIATED(preconditioner_env%sparse_matrix)) THEN
      CALL deallocate_matrix(preconditioner_env%sparse_matrix)
@@ -580,10 +566,13 @@ END SUBROUTINE make_sparse_first_order
 ! a full matrix preconditioner
 SUBROUTINE apply_full_single(preconditioner_env, matrix_in, matrix_out)
 
-  TYPE(preconditioner_type)               :: preconditioner_env
-  TYPE(cp_fm_type), POINTER            :: matrix_in,matrix_out
+    TYPE(preconditioner_type)                :: preconditioner_env
+    TYPE(cp_fm_type), POINTER                :: matrix_in, matrix_out
+
+    INTEGER                                  :: k, n
+
 !----
-  INTEGER n,k
+
   CALL cp_fm_get_info(matrix_in,nrow_global=n,ncol_global=k)
   CALL cp_fm_gemm('N','N',n,k,n,1.0_dp,preconditioner_env%fm, &
                   matrix_in,0.0_dp,matrix_out)
@@ -592,16 +581,18 @@ END SUBROUTINE apply_full_single
 SUBROUTINE make_full_single(preconditioner_env, matrix_h, matrix_s, &
                        energy_homo, energy_gap )
 
-  TYPE(preconditioner_type)               :: preconditioner_env
-  TYPE(real_matrix_type), POINTER            :: matrix_h,matrix_s
-  REAL(KIND = dp)                                   :: energy_homo,energy_gap
+    TYPE(preconditioner_type)                :: preconditioner_env
+    TYPE(real_matrix_type), POINTER          :: matrix_h, matrix_s
+    REAL(KIND=dp)                            :: energy_homo, energy_gap
+
+    INTEGER                                  :: i, n
+    REAL(KIND=dp), DIMENSION(:), POINTER     :: evals
+    TYPE(cp_fm_struct_type), POINTER         :: fm_struct_tmp
+    TYPE(cp_fm_type), POINTER                :: fm_h, fm_s
 
 ! ---
-  TYPE(cp_fm_type), POINTER :: fm_h,fm_s
-  TYPE(cp_fm_struct_type), POINTER        :: fm_struct_tmp
-  REAL(KIND = dp), DIMENSION(:), POINTER :: evals
-  INTEGER :: i,n
 ! ---
+
   NULLIFY(fm_h,fm_s,fm_struct_tmp,evals)
 
   IF (ASSOCIATED(preconditioner_env%fm)) THEN 
@@ -645,10 +636,13 @@ END SUBROUTINE make_full_single
 ! a full matrix preconditioner
 SUBROUTINE apply_full_s_inverse(preconditioner_env, matrix_in, matrix_out)
 
-  TYPE(preconditioner_type)               :: preconditioner_env
-  TYPE(cp_fm_type), POINTER            :: matrix_in,matrix_out
+    TYPE(preconditioner_type)                :: preconditioner_env
+    TYPE(cp_fm_type), POINTER                :: matrix_in, matrix_out
+
+    INTEGER                                  :: k, n
+
 !----
-  INTEGER n,k
+
   CALL cp_fm_get_info(matrix_in,nrow_global=n,ncol_global=k)
   CALL cp_fm_symm('L','U',n,k,1.0_dp,preconditioner_env%fm, &
                         matrix_in, &
@@ -658,15 +652,17 @@ END SUBROUTINE apply_full_s_inverse
 SUBROUTINE make_full_s_inverse(preconditioner_env, matrix_h, matrix_s, &
                                energy_homo, energy_gap )
 
-  TYPE(preconditioner_type)               :: preconditioner_env
-  TYPE(real_matrix_type), POINTER            :: matrix_h,matrix_s
-  REAL(KIND = dp)                                   :: energy_homo,energy_gap
+    TYPE(preconditioner_type)                :: preconditioner_env
+    TYPE(real_matrix_type), POINTER          :: matrix_h, matrix_s
+    REAL(KIND=dp)                            :: energy_homo, energy_gap
+
+    INTEGER                                  :: n
+    TYPE(cp_fm_struct_type), POINTER         :: fm_struct_tmp
+    TYPE(cp_fm_type), POINTER                :: fm_work
 
 ! ---
-  INTEGER :: i,n
-  TYPE(cp_fm_struct_type), POINTER        :: fm_struct_tmp
-  TYPE(cp_fm_type) , POINTER              :: fm_work
 ! ---
+
   NULLIFY(fm_struct_tmp,fm_work)
 
   IF (ASSOCIATED(preconditioner_env%fm)) THEN
@@ -694,16 +690,18 @@ END SUBROUTINE make_full_s_inverse
 SUBROUTINE make_full_kinetic(preconditioner_env, matrix_t, matrix_s, &
                                energy_homo, energy_gap )
 
-  TYPE(preconditioner_type)               :: preconditioner_env
-  TYPE(real_matrix_type), POINTER            :: matrix_t,matrix_s
-  REAL(KIND = dp)                                   :: energy_homo,energy_gap,shift
+    TYPE(preconditioner_type)                :: preconditioner_env
+    TYPE(real_matrix_type), POINTER          :: matrix_t, matrix_s
+    REAL(KIND=dp)                            :: energy_homo, energy_gap
+
+    INTEGER                                  :: n
+    REAL(KIND=dp)                            :: shift
+    TYPE(cp_fm_struct_type), POINTER         :: fm_struct_tmp
+    TYPE(cp_fm_type), POINTER                :: fm_work
 
 ! ---
-  INTEGER :: i,n
-  TYPE(cp_fm_struct_type), POINTER        :: fm_struct_tmp
-  TYPE(cp_fm_type) , POINTER              :: fm_work
-
 ! ---
+
   NULLIFY(fm_struct_tmp,fm_work)
 
   IF (ASSOCIATED(preconditioner_env%fm)) THEN

@@ -21,20 +21,23 @@
 
 MODULE initialize_extended_types
 
-  USE coefficient_types, ONLY : coeff_type
-  USE distribution_1d_types, ONLY : distribution_1d_type
-  USE extended_system_initialize, ONLY : initialize_nhc, initialize_npt
-  USE extended_system_types, ONLY :  lnhc_parameters_type, npt_info_type
-  USE global_types, ONLY : global_environment_type
-  USE kinds, ONLY : dbl
-  USE md, ONLY : simulation_parameters_type
-  USE molecule_types_new, ONLY : molecule_type
-  USE molecule_kind_types, ONLY: get_molecule_kind_set,&
+  USE distribution_1d_types,           ONLY: distribution_1d_type
+  USE extended_system_initialize,      ONLY: initialize_nhc,&
+                                             initialize_npt
+  USE extended_system_types,           ONLY: lnhc_parameters_type,&
+                                             npt_info_type
+  USE global_types,                    ONLY: global_environment_type
+  USE kinds,                           ONLY: dbl
+  USE md,                              ONLY: simulation_parameters_type
+  USE molecule_kind_types,             ONLY: get_molecule_kind_set,&
                                              molecule_kind_type
-  USE message_passing, ONLY : mp_sum
-  USE nhc, ONLY : nhc_particle_setup, nhc_barostat_setup!, nhc_coef_setup
-  USE simulation_cell, ONLY : cell_type
-  USE termination, ONLY : stop_program
+  USE molecule_types_new,              ONLY: molecule_type
+  USE nhc,                             ONLY: nhc_barostat_setup,&
+                                             nhc_particle_setup
+!, nhc_coef_setup
+
+  USE simulation_cell,                 ONLY: cell_type
+  USE termination,                     ONLY: stop_program
 
   IMPLICIT NONE
 
@@ -66,19 +69,20 @@ CONTAINS
 
 SUBROUTINE initialize_npt_type ( simpar, globenv, npt_info, box )
 
-  IMPLICIT NONE
 
-! Arguments
-  TYPE ( simulation_parameters_type ), INTENT ( INOUT ) :: simpar
-  TYPE ( global_environment_type ), INTENT ( INOUT ) :: globenv
-  TYPE ( npt_info_type ), DIMENSION ( :, : ), POINTER :: npt_info
-  TYPE ( cell_type ), INTENT (inout) :: box
-! locals
-  INTEGER :: isos
+    TYPE(simulation_parameters_type), &
+      INTENT(INOUT)                          :: simpar
+    TYPE(global_environment_type), &
+      INTENT(INOUT)                          :: globenv
+    TYPE(npt_info_type), DIMENSION(:, :), &
+      POINTER                                :: npt_info
+    TYPE(cell_type), INTENT(inout)           :: box
+
+    INTEGER                                  :: isos
 
 !------------------------------------------------------------------------------
-
 ! first allocating the npt_info_type
+
   SELECT CASE ( simpar % ensemble )
   CASE ( 'NPT_I')
      ALLOCATE ( npt_info ( 1, 1 ), STAT = isos )
@@ -122,18 +126,17 @@ END SUBROUTINE initialize_npt_type
 
 SUBROUTINE initialize_nhc_baro ( simpar, globenv, nhc )
 
-  IMPLICIT NONE
 
-! Arguments
-  TYPE ( simulation_parameters_type ), INTENT ( INOUT ) :: simpar
-  TYPE ( global_environment_type ), INTENT ( INOUT ) :: globenv
-  TYPE ( lnhc_parameters_type ),  INTENT ( INOUT ) :: nhc
-! locals
-  INTEGER :: isos
+    TYPE(simulation_parameters_type), &
+      INTENT(INOUT)                          :: simpar
+    TYPE(global_environment_type), &
+      INTENT(INOUT)                          :: globenv
+    TYPE(lnhc_parameters_type), &
+      INTENT(INOUT)                          :: nhc
 
 !------------------------------------------------------------------------------
-
 ! fire up the thermostats, if NPT
+
   CALL nhc_barostat_setup ( simpar, nhc, globenv )
 
   IF ( simpar % read_type /= 'ALL' ) THEN
@@ -166,21 +169,21 @@ END SUBROUTINE initialize_nhc_baro
 SUBROUTINE initialize_nhc_part ( box, simpar, local_molecules, molecule, &
                                  molecule_kind_set, globenv, nhc )
 
-  IMPLICIT NONE
 
-! Arguments
-  TYPE ( simulation_parameters_type ), INTENT ( INOUT ) :: simpar
-  TYPE ( distribution_1d_type ), POINTER  :: local_molecules
-  TYPE ( molecule_type ), POINTER :: molecule ( : )
-  TYPE ( molecule_kind_type ), POINTER :: molecule_kind_set ( : )
-  TYPE ( cell_type ), INTENT ( IN ) :: box
-  TYPE ( global_environment_type ), INTENT ( INOUT ) :: globenv
-  TYPE ( lnhc_parameters_type ),  INTENT ( INOUT ) :: nhc
-! locals
-  INTEGER :: isos, nfree, nconstraint, iw, natom 
+    TYPE(cell_type), INTENT(IN)              :: box
+    TYPE(simulation_parameters_type), &
+      INTENT(INOUT)                          :: simpar
+    TYPE(distribution_1d_type), POINTER      :: local_molecules
+    TYPE(molecule_type), POINTER             :: molecule( : )
+    TYPE(molecule_kind_type), POINTER        :: molecule_kind_set( : )
+    TYPE(global_environment_type), &
+      INTENT(INOUT)                          :: globenv
+    TYPE(lnhc_parameters_type), &
+      INTENT(INOUT)                          :: nhc
+
+    INTEGER                                  :: iw, natom, nconstraint, nfree
 
 !------------------------------------------------------------------------------
-
 ! Initialize simpar%nfree to dim (because at this point no
 ! assumptions have been made about thermostatting options
 ! and COM is ALWAYS zeroed in this code.  If there are
@@ -288,13 +291,13 @@ END SUBROUTINE initialize_nhc_part
 !!   SOURCE
 !******************************************************************************
 SUBROUTINE initialize_nhc_forces ( nhc_part, nhc_baro )
-  IMPLICIT NONE
-  TYPE ( lnhc_parameters_type ), INTENT ( INOUT ) :: nhc_baro
-  TYPE ( lnhc_parameters_type ), INTENT ( INOUT ) :: nhc_part
-! locals
-  INTEGER :: i, j
-  
+    TYPE(lnhc_parameters_type), &
+      INTENT(INOUT)                          :: nhc_part, nhc_baro
+
+    INTEGER                                  :: i, j
+
 ! assign the forces
+
   DO i = 1, SIZE ( nhc_part % nvt, 2 )
      DO j = 2, SIZE ( nhc_part % nvt, 1 )
         nhc_part % nvt ( j, i ) % f = nhc_part % nvt ( j-1, i ) % mass * &

@@ -22,20 +22,18 @@
 
 MODULE topology_psf
 
-  USE global_types,                     ONLY : global_environment_type
-  USE kinds,                            ONLY : dbl
-  USE parser,                           ONLY : parser_init, &
-                                               parser_end, &
-                                               read_line, &
-                                               test_next, &
-                                               p_error, &
-                                               get_next, &
-                                               search_label
-  USE termination,                      ONLY : stop_memory
-  USE topology_types,                   ONLY : topology_parameters_type
-  USE topology_util,                    ONLY : sort_bond,&
-                                               sort_bend,&
-                                               sort_dihe
+  USE global_types,                    ONLY: global_environment_type
+  USE kinds,                           ONLY: dbl
+  USE parser,                          ONLY: get_next,&
+                                             parser_end,&
+                                             parser_init,&
+                                             read_line,&
+                                             search_label
+  USE termination,                     ONLY: stop_memory
+  USE topology_types,                  ONLY: topology_parameters_type
+  USE topology_util,                   ONLY: sort_bend,&
+                                             sort_bond,&
+                                             sort_dihe
 
   PRIVATE
   PUBLIC :: read_topology_psf
@@ -66,35 +64,26 @@ CONTAINS
 
 SUBROUTINE read_topology_psf (topology,globenv)
 
-  IMPLICIT NONE
 
-! Arguments
-  TYPE ( topology_parameters_type ), INTENT (INOUT) :: topology
-  TYPE ( global_environment_type ), INTENT ( IN ) :: globenv
+    TYPE(topology_parameters_type), &
+      INTENT(INOUT)                          :: topology
+    TYPE(global_environment_type), &
+      INTENT(IN)                             :: globenv
 
-! Locals
-  CHARACTER ( LEN=20 ) :: label,str2
-  INTEGER :: iw,ierror,ilen
-  INTEGER :: iatom,natom
-  CHARACTER (LEN=20), POINTER :: atm_mol_name(:)
-  INTEGER, POINTER :: atm_res_num(:)
-  CHARACTER (LEN=20), POINTER :: atm_res_name(:)
-  CHARACTER (LEN=20), POINTER :: atm_name1(:)
-  CHARACTER (LEN=20), POINTER :: atm_name2(:)
-  REAL (dbl), POINTER :: atm_charge(:)
-  REAL (dbl), POINTER :: atm_mass(:)
-  INTEGER, POINTER :: map_mol_typ(:) !map_mol_typ(iatom)= mol_typ number
-  INTEGER, POINTER :: map_mol_num(:) !map_mol_num(iatom)= mol number
-  INTEGER :: ibond,nbond
-  INTEGER, POINTER :: bond_a(:),bond_b(:)
-  INTEGER :: itheta,ntheta
-  INTEGER, POINTER :: theta_a(:),theta_b(:),theta_c(:)
-  INTEGER :: iphi,nphi
-  INTEGER, POINTER :: phi_a(:),phi_b(:),phi_c(:),phi_d(:)
-  INTEGER :: iunit
-  INTEGER :: i,j,k,first,last,search
-  INTEGER :: nmol_typ
-  INTEGER, POINTER :: checkme(:)
+    CHARACTER(LEN=20)                        :: label
+    CHARACTER(LEN=20), POINTER               :: atm_mol_name(:), &
+                                                atm_name1(:), atm_name2(:), &
+                                                atm_res_name(:)
+    INTEGER                                  :: i, iatom, ibond, ierror, &
+                                                ilen, iphi, itheta, iunit, &
+                                                iw, natom, nbond, nphi, ntheta
+    INTEGER, POINTER :: atm_res_num(:), bond_a(:), bond_b(:), map_mol_num(:), &
+      map_mol_typ(:), phi_a(:), phi_b(:), phi_c(:), phi_d(:), theta_a(:), &
+      theta_b(:), theta_c(:)
+    REAL(dbl), POINTER                       :: atm_charge(:), atm_mass(:)
+
+!map_mol_typ(iatom)= mol_typ number
+!map_mol_num(iatom)= mol number
 !------------------------------------------------------------------------------
 !------------------------------------------------------------------------------
 

@@ -20,7 +20,7 @@
 
 MODULE structure_factor_types
 
-  USE kinds, ONLY : dbl
+  USE kinds,                           ONLY: dbl
 
   IMPLICIT NONE
 

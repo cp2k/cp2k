@@ -6,14 +6,19 @@
 
 MODULE kg_energy_utils
 
-  USE global_types, ONLY : global_environment_type
-  USE kinds, ONLY : dbl
-  USE linear_systems, ONLY : solve_system
-  USE parser, ONLY : parser_init, parser_end, read_line, test_next, &
-       p_error, get_next, stop_parser, search_label
-  USE string_utilities, ONLY : uppercase
-  USE termination, ONLY : stop_memory, stop_program 
-
+  USE global_types,                    ONLY: global_environment_type
+  USE kinds,                           ONLY: dbl
+  USE linear_systems,                  ONLY: solve_system
+  USE parser,                          ONLY: get_next,&
+                                             p_error,&
+                                             parser_end,&
+                                             parser_init,&
+                                             read_line,&
+                                             search_label,&
+                                             test_next
+  USE string_utilities,                ONLY: uppercase
+  USE termination,                     ONLY: stop_memory,&
+                                             stop_program
 
   IMPLICIT NONE
 
@@ -51,18 +56,17 @@ CONTAINS
 
 SUBROUTINE read_energy_section ( energy_min, globenv )
 
-  IMPLICIT NONE
 
-! Arguments
-  TYPE ( energy_min_type ), INTENT ( OUT ) :: energy_min
-  TYPE ( global_environment_type ), INTENT ( IN ) :: globenv     
+    TYPE(energy_min_type), INTENT(OUT)       :: energy_min
+    TYPE(global_environment_type), &
+      INTENT(IN)                             :: globenv
 
-! Locals
-  INTEGER :: ierror, ilen, iw
-  CHARACTER ( len = 20 ) :: string
-  CHARACTER ( len = 5 ) :: label
+    CHARACTER(len=20)                        :: string
+    CHARACTER(len=5)                         :: label
+    INTEGER                                  :: ierror, ilen, iw
 
 !------------------------------------------------------------------------------
+
   iw = globenv % scr
 
 !..defaults
@@ -162,14 +166,13 @@ END SUBROUTINE read_energy_section
 !
   SUBROUTINE print_energy_info ( iter, min_info, min_type, globenv )
 
-    IMPLICIT NONE
-    INTEGER,  INTENT (IN) :: iter
-    TYPE ( min_info_type ), INTENT(IN) :: min_info
-    CHARACTER ( len = * ), INTENT ( IN ) :: min_type
-    TYPE ( global_environment_type ), INTENT (IN) :: globenv
+    INTEGER, INTENT(IN)                      :: iter
+    TYPE(min_info_type), INTENT(IN)          :: min_info
+    CHARACTER(len=*), INTENT(IN)             :: min_type
+    TYPE(global_environment_type), &
+      INTENT(IN)                             :: globenv
 
-!   locals
-    integer :: iw
+    integer                                  :: iw
 
     iw = globenv % scr
     
@@ -195,12 +198,11 @@ END SUBROUTINE read_energy_section
 
   SUBROUTINE print_convergence ( conv_flag, globenv )
 
-    IMPLICIT NONE
-    LOGICAL, INTENT (IN) :: conv_flag               
-    TYPE ( global_environment_type ), INTENT (IN) :: globenv
+    LOGICAL, INTENT(IN)                      :: conv_flag
+    TYPE(global_environment_type), &
+      INTENT(IN)                             :: globenv
 
-!   locals
-    integer :: iw
+    integer                                  :: iw
 
     iw = globenv % scr
 
@@ -236,26 +238,22 @@ END SUBROUTINE read_energy_section
 !  nhist: number of histories to be stored
 !  ihist: history counter
 !--------------------------------------------------------------------------
-  IMPLICIT NONE
 
-! Arguments                   
-  REAL ( dbl ), DIMENSION(:), INTENT(INOUT):: c_pos
-  REAL ( dbl ), DIMENSION(:), INTENT(INOUT):: c_force
-  REAL ( dbl ), INTENT(IN) :: dtw
-  REAL ( dbl ), INTENT(INOUT) :: fconv
-  REAL ( dbl ), DIMENSION(:), INTENT(IN) :: hess
-  REAL ( dbl ), DIMENSION(:,:), INTENT(INOUT) :: e_hist
-  REAL ( dbl ), DIMENSION(:,:), INTENT(INOUT) :: c_hist
-  INTEGER, INTENT(IN) :: nhist
-  INTEGER, INTENT(INOUT) :: ihist
+    REAL(dbl), DIMENSION(:), INTENT(INOUT)   :: c_pos, c_force
+    REAL(dbl), INTENT(IN)                    :: dtw
+    REAL(dbl), INTENT(INOUT)                 :: fconv
+    REAL(dbl), DIMENSION(:), INTENT(IN)      :: hess
+    REAL(dbl), DIMENSION(:, :), &
+      INTENT(INOUT)                          :: e_hist, c_hist
+    INTEGER, INTENT(IN)                      :: nhist
+    INTEGER, INTENT(INOUT)                   :: ihist
 
-! Locals                  
-  REAL(dbl), DIMENSION(:), ALLOCATABLE :: eg
-  INTEGER :: i,j,k,icoef,ii,jj,kk,ncoef 
-  REAL(dbl), ALLOCATABLE :: dcg(:)
-  REAL(dbl), DIMENSION(:), ALLOCATABLE :: cg
+    INTEGER                                  :: icoef, j, ncoef
+    REAL(dbl), ALLOCATABLE                   :: dcg(:)
+    REAL(dbl), ALLOCATABLE, DIMENSION(:)     :: cg, eg
 
 ! allocating the arrays
+
    ncoef = size(c_pos)
    ALLOCATE(cg(ncoef)) 
    ALLOCATE(eg(ncoef))
@@ -296,20 +294,17 @@ END SUBROUTINE read_energy_section
 !------------------------------------------------------------------------------!
   SUBROUTINE STORE_HIST(c_forces,dtw,cg,e_hist,c_hist,hess,nhist,ihist)
 !------------------------------------------------------------------------------!
-  IMPLICIT NONE
 
-!arguments
-  REAL ( dbl ), DIMENSION (:), INTENT(INOUT) :: c_forces
-  REAL ( dbl ), INTENT(IN) :: dtw
-  REAL ( dbl ), DIMENSION(:), INTENT(IN) :: cg
-  REAL ( dbl ), DIMENSION(:,:), INTENT(INOUT) :: e_hist
-  REAL ( dbl ), DIMENSION(:,:), INTENT(INOUT) :: c_hist
-  REAL ( dbl ), DIMENSION(:), INTENT(IN) :: hess
-  INTEGER, INTENT(IN) :: nhist
-  INTEGER, INTENT(INOUT) :: ihist
+    REAL(dbl), DIMENSION(:), INTENT(INOUT)   :: c_forces
+    REAL(dbl), INTENT(IN)                    :: dtw
+    REAL(dbl), DIMENSION(:), INTENT(IN)      :: cg
+    REAL(dbl), DIMENSION(:, :), &
+      INTENT(INOUT)                          :: e_hist, c_hist
+    REAL(dbl), DIMENSION(:), INTENT(IN)      :: hess
+    INTEGER, INTENT(IN)                      :: nhist
+    INTEGER, INTENT(INOUT)                   :: ihist
 
-! Locals
-  INTEGER :: i,j,ig, icoef,ncoef
+    INTEGER                                  :: icoef, j, ncoef
 
   ncoef = size(c_forces)
 
@@ -338,19 +333,15 @@ END SUBROUTINE read_energy_section
 !------------------------------------------------------------------------------!
   SUBROUTINE SOLVE(dcg,e_hist,ihist,ncoef)
 !------------------------------------------------------------------------------!
-  IMPLICIT NONE
-! arguments
-  REAL(dbl), INTENT(OUT) :: dcg(:)
-  REAL(dbl), DIMENSION(:,:), intent(IN) :: e_hist
-  INTEGER, INTENT(IN) :: IHIST
-  INTEGER, INTENT(IN) :: ncoef
-! locals
-  REAL(dbl), DIMENSION(:,:), ALLOCATABLE :: bcg
-  REAL(dbl), DIMENSION(:,:), ALLOCATABLE :: eigenvec
-  REAL(dbl) :: sum
-  INTEGER :: mysize,i,j,k,ig,ii,icoef,ios
+    REAL(dbl), INTENT(OUT)                   :: dcg(:)
+    REAL(dbl), DIMENSION(:, :), intent(IN)   :: e_hist
+    INTEGER, INTENT(IN)                      :: IHIST, ncoef
+
+    INTEGER                                  :: icoef, ios, j, k, mysize
+    REAL(dbl), ALLOCATABLE, DIMENSION(:, :)  :: bcg, eigenvec
 
 ! constructing the solution vector
+
   do j=1, ihist
    dcg(j)=0._dbl
   enddo

@@ -28,6 +28,7 @@
 !****************************************************************************
 MODULE cp_para_types
   USE kinds,                           ONLY: dp
+
   IMPLICIT NONE
   PRIVATE
 

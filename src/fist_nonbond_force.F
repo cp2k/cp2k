@@ -22,31 +22,32 @@
 
 MODULE fist_nonbond_force
 
-  USE atomic_kind_types, ONLY : atomic_kind_type, get_atomic_kind
-  USE ewald_parameters_types, ONLY : ewald_parameters_type
-  USE kinds, ONLY : dbl, dp_size
-  USE mathconstants, ONLY : pi
-  USE molecule_types, ONLY : molecule_structure_type, particle_node_type, &
-                             linklist_atoms, linklist_exclusion
-  USE pair_potential_types, ONLY : pair_potential_type
-  USE pair_potential, ONLY : potential_s
-  USE particle_types, ONLY : particle_type
-  USE qs_neighbor_list_types,   ONLY: first_list,&
-                                      first_node,&
-                                      get_neighbor_list,&
-                                      get_neighbor_list_set,&
-                                      get_neighbor_node,&
-                                      neighbor_list_set_type,&
-                                      neighbor_list_type,&
-                                      neighbor_node_type,&
-                                      next
-  USE simulation_cell, ONLY : cell_type, pbc, get_cell_param, &
-                              real_to_scaled, scaled_to_real
-  USE termination, ONLY : stop_memory
-  USE timings, ONLY : timeset, timestop
-  USE util, ONLY : include_list
-
-  USE qs_neighbor_list_types, ONLY: neighbor_list_set_p_type
+  USE atomic_kind_types,               ONLY: atomic_kind_type,&
+                                             get_atomic_kind
+  USE ewald_parameters_types,          ONLY: ewald_parameters_type
+  USE kinds,                           ONLY: dbl
+  USE mathconstants,                   ONLY: pi
+  USE molecule_types,                  ONLY: linklist_atoms,&
+                                             linklist_exclusion,&
+                                             molecule_structure_type,&
+                                             particle_node_type
+  USE pair_potential,                  ONLY: potential_s
+  USE pair_potential_types,            ONLY: pair_potential_type
+  USE particle_types,                  ONLY: particle_type
+  USE qs_neighbor_list_types,          ONLY: first_list,&
+                                             first_node,&
+                                             get_neighbor_list,&
+                                             get_neighbor_list_set,&
+                                             get_neighbor_node,&
+                                             neighbor_list_set_p_type,&
+                                             neighbor_list_set_type,&
+                                             neighbor_list_type,&
+                                             neighbor_node_type,&
+                                             next
+  USE simulation_cell,                 ONLY: cell_type,&
+                                             scaled_to_real
+  USE timings,                         ONLY: timeset,&
+                                             timestop
 
   IMPLICIT NONE
 
@@ -67,42 +68,39 @@ SUBROUTINE force_nonbond ( ewald_param, part, pnode, box, potparm, &
 ! Calculates the force and the potential of the minimum image, and
 ! the pressure tensor
 !
-  IMPLICIT NONE
 
-! Arguments
-  TYPE (ewald_parameters_type ), INTENT ( IN ) :: ewald_param
-  TYPE (pair_potential_type ), INTENT ( IN ), DIMENSION ( :, : ) :: potparm
-  TYPE (particle_type ), INTENT ( IN ), DIMENSION ( : ) :: part
-  TYPE (particle_node_type ), INTENT ( IN ), DIMENSION ( : ) :: pnode
-  TYPE ( cell_type ), INTENT ( IN ), TARGET :: box
-  REAL ( dbl ), INTENT ( OUT ) :: pot_nonbond
-  REAL ( dbl ), INTENT ( OUT ), DIMENSION ( :, : ) :: f_nonbond
-  REAL ( dbl ), INTENT ( OUT ), DIMENSION ( :, : ) :: ptens_nonbond
+    TYPE(ewald_parameters_type), INTENT(IN)  :: ewald_param
+    TYPE(particle_type), DIMENSION(:), &
+      INTENT(IN)                             :: part
+    TYPE(particle_node_type), DIMENSION(:), &
+      INTENT(IN)                             :: pnode
+    TYPE(cell_type), INTENT(IN), TARGET      :: box
+    TYPE(pair_potential_type), &
+      DIMENSION(:, :), INTENT(IN)            :: potparm
+    REAL(dbl), INTENT(OUT)                   :: pot_nonbond
+    REAL(dbl), DIMENSION(:, :), INTENT(OUT)  :: f_nonbond, ptens_nonbond
+    TYPE(neighbor_list_set_p_type), &
+      DIMENSION(:), INTENT(IN)               :: nonbonded
+    REAL(dbl), DIMENSION(:, :), INTENT(IN)   :: r_last_update
 
-  TYPE(neighbor_list_set_p_type), DIMENSION(:), INTENT(IN) :: nonbonded
-  REAL(dbl), DIMENSION(:,:), INTENT(IN)                    :: r_last_update
+    CHARACTER(LEN=*), PARAMETER :: module_name = "fist_nonbond_force", &
+      routine_name = "force_nonbond", &
+      routine = "SUBROUTINE "//routine_name//" (MODULE "//module_name//")"
 
-! Locals
-  CHARACTER(LEN=*), PARAMETER :: routine_name = "force_nonbond"
-  CHARACTER(LEN=*), PARAMETER :: module_name = "fist_nonbond_force"
-  CHARACTER(LEN=*), PARAMETER :: routine =&
-    "SUBROUTINE "//routine_name//" (MODULE "//module_name//")"
-  INTEGER :: ikind, jkind, nkinds, inode, natoms, nnodes, ab
-  INTEGER :: handle, istat, nneighbor, ineighbor, atom_a, atom_b, cell_b ( 3 )
-  REAL ( dbl ), DIMENSION (3) :: sab_pbc, rab, rb, sab, ra
-  REAL ( dbl ) :: energy, fscalar, rab2, flops, rab2_max
-  REAL ( dbl ), ALLOCATABLE, DIMENSION ( :, : ) :: rtest
-  TYPE ( neighbor_list_type ), POINTER :: neighbor_list
-  TYPE ( neighbor_node_type ), POINTER :: neighbor_node
-  TYPE ( cell_type ), POINTER :: cell
+    INTEGER                                  :: ab, atom_a, atom_b, &
+                                                cell_b( 3 ), handle, ikind, &
+                                                ilist, inode, jkind, nkinds, &
+                                                nlist, nnode
+    REAL(dbl)                                :: energy, flops, fscalar, rab2, &
+                                                rab2_max
+    REAL(dbl), DIMENSION(3)                  :: dra, drb, fr, rab, &
+                                                rab_last_update
+    TYPE(cell_type), POINTER                 :: cell
+    TYPE(neighbor_list_set_type), POINTER    :: neighbor_list_set
+    TYPE(neighbor_list_type), POINTER        :: neighbor_list
+    TYPE(neighbor_node_type), POINTER        :: neighbor_node
+
 !MK
-  TYPE(neighbor_list_set_type), POINTER :: neighbor_list_set
-
-  INTEGER :: ilist,nlist,nnode
-
-  REAL(dbl), DIMENSION(3) :: dra,drb,fr,rab_last_update
-  REAL(dbl), DIMENSION(3) :: sb
-
 !------------------------------------------------------------------------------
 
   CALL timeset ( routine_name, 'E', 'Mflops', handle )
@@ -270,17 +268,17 @@ END SUBROUTINE force_nonbond
 
 SUBROUTINE sum_ener_forces ( i, j, pot, e, fs, f, rij, pv )
 
-  IMPLICIT NONE
 
-! Arguments
-  INTEGER, INTENT ( IN ) :: i, j
-  REAL ( dbl ), INTENT ( INOUT ) :: pot
-  REAL ( dbl ), INTENT ( IN ) :: e, fs
-  REAL ( dbl ), DIMENSION ( :, : ), INTENT ( INOUT ) :: f, pv
-  REAL ( dbl ), DIMENSION ( : ), INTENT ( IN ) :: rij
+    INTEGER, INTENT(IN)                      :: i, j
+    REAL(dbl), INTENT(INOUT)                 :: pot
+    REAL(dbl), INTENT(IN)                    :: e, fs
+    REAL(dbl), DIMENSION(:, :), &
+      INTENT(INOUT)                          :: f
+    REAL(dbl), DIMENSION(:), INTENT(IN)      :: rij
+    REAL(dbl), DIMENSION(:, :), &
+      INTENT(INOUT)                          :: pv
 
-! Locals
-  REAL ( dbl ), DIMENSION(3) :: fr
+    REAL(dbl), DIMENSION(3)                  :: fr
 
 !------------------------------------------------------------------------------
 
@@ -311,27 +309,28 @@ END SUBROUTINE sum_ener_forces
 SUBROUTINE bonded_correct_gaussian ( ewald_param, molecule, v_bonded_corr, &
      pv_bc )
 
-  IMPLICIT NONE
 
-! Arguments
-  TYPE ( ewald_parameters_type ), INTENT ( IN ) :: ewald_param
-  TYPE ( molecule_structure_type ), INTENT ( IN ) :: molecule ( : )
-  REAL ( dbl ), INTENT ( OUT ) :: v_bonded_corr
-  REAL ( dbl ), INTENT ( OUT ), DIMENSION ( :, : ) :: pv_bc
+    TYPE(ewald_parameters_type), INTENT(IN)  :: ewald_param
+    TYPE(molecule_structure_type), &
+      INTENT(IN)                             :: molecule( : )
+    REAL(dbl), INTENT(OUT)                   :: v_bonded_corr
+    REAL(dbl), DIMENSION(:, :), INTENT(OUT)  :: pv_bc
 
-! Locals
-  TYPE ( linklist_exclusion ), POINTER :: llex
-  TYPE ( linklist_atoms ), POINTER :: llat
+    REAL(dbl), PARAMETER :: ac1 = 0.254829592_dbl, ac2 = -0.284496736_dbl, &
+      ac3 = 1.421413741_dbl, ac4 = -1.453152027_dbl, ac5 = 1.061405429_dbl, &
+      pc = 0.3275911_dbl
+
+    INTEGER                                  :: handle, iat, imol, j, nmol
+    REAL(dbl)                                :: alpha, arg, const, dij, &
+                                                e_arg_arg, errf, flops, &
+                                                fscalar, idij, ifourpieps0, &
+                                                qi, qj, rijsq, tc
+    REAL(dbl), DIMENSION(3)                  :: rij
+    TYPE(atomic_kind_type), POINTER          :: atomic_kind
+    TYPE(linklist_atoms), POINTER            :: llat
+    TYPE(linklist_exclusion), POINTER        :: llex
+
 ! parameters for the numerical erf in Abramowitz and Stegun Eq. 7.1.26 pg 299
-  REAL ( dbl ), PARAMETER :: ac1 = 0.254829592_dbl, &
-       ac2 = -0.284496736_dbl, ac3 = 1.421413741_dbl, &
-       ac4 = -1.453152027_dbl, ac5 = 1.061405429_dbl, pc = 0.3275911_dbl
-  REAL ( dbl ) :: arg, e_arg_arg, tc, errf, alpha, fscalar, flops
-  REAL ( dbl ) :: const, ifourpieps0, dij, idij, rijsq, qi, qj
-  REAL ( dbl ), DIMENSION (3) :: rij
-  INTEGER :: i, j, nmol, imol, iat, handle
-  TYPE ( atomic_kind_type ), POINTER :: atomic_kind
-
 !------------------------------------------------------------------------------
 
   CALL timeset ( 'BOND_CORRECT_GAUSSIAN', 'E', 'Mflops', handle )

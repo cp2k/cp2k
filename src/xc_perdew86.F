@@ -22,11 +22,14 @@ MODULE xc_perdew86
 
 ! *****************************************************************************
 
-  USE kinds, ONLY: dbl
-  USE xc_derivative_set_types, ONLY: xc_derivative_set_type
-  USE xc_functionals_utilities, ONLY: set_util, setup_calculation, calc_rs
-  USE xc_perdew_zunger, ONLY : perdew_zunger
-  USE termination, ONLY: stop_memory, stop_program
+  USE kinds,                           ONLY: dbl
+  USE termination,                     ONLY: stop_memory,&
+                                             stop_program
+  USE xc_derivative_set_types,         ONLY: xc_derivative_set_type
+  USE xc_functionals_utilities,        ONLY: calc_rs,&
+                                             set_util,&
+                                             setup_calculation
+  USE xc_perdew_zunger,                ONLY: perdew_zunger
 
   IMPLICIT NONE
 
@@ -71,8 +74,8 @@ CONTAINS
 
   SUBROUTINE p86_init ( cutoff, debug )
 
-    REAL(dbl), INTENT(IN) :: cutoff
-    LOGICAL, OPTIONAL, INTENT(IN) :: debug
+    REAL(dbl), INTENT(IN)                    :: cutoff
+    LOGICAL, INTENT(IN), OPTIONAL            :: debug
 
     eps_rho = cutoff
     CALL set_util ( cutoff )
@@ -91,8 +94,7 @@ CONTAINS
 
   SUBROUTINE p86_info ( reference, shortform )
 
-    CHARACTER (LEN=*), INTENT(OUT), OPTIONAL :: reference
-    CHARACTER (LEN=*), INTENT(OUT), OPTIONAL :: shortform
+    CHARACTER(LEN=*), INTENT(OUT), OPTIONAL  :: reference, shortform
 
     IF ( PRESENT ( reference ) ) THEN
       reference = "J. P. Perdew, Phys. Rev. B, 33, 8822 (1986)"
@@ -109,17 +111,15 @@ CONTAINS
 
 !   ---------------------------------------------------------------------------
 
-    TYPE(xc_derivative_set_type), POINTER :: derivative_set
-    REAL(dbl), DIMENSION(:), INTENT(IN)  :: rho
-    REAL(dbl), DIMENSION(:), INTENT(IN)  :: grho
-    REAL(dbl), DIMENSION(:,:), INTENT(OUT) :: pot
-    INTEGER, INTENT(IN), OPTIONAL :: order
+    TYPE(xc_derivative_set_type), POINTER    :: derivative_set
+    REAL(dbl), DIMENSION(:), INTENT(IN)      :: rho, grho
+    REAL(dbl), DIMENSION(:, :), INTENT(OUT)  :: pot
+    INTEGER, INTENT(IN), OPTIONAL            :: order
 
-!   *** Local variables ***
-
-    LOGICAL   :: calc(0:4), allcalc
-    REAL(dbl), DIMENSION(:), ALLOCATABLE :: rs
-    INTEGER :: n, error, m, mp, mt, ip, mx(0:3,2), m1, m2
+    INTEGER                                  :: error, m, m1, m2, mp, mt, &
+                                                mx(0:3,2), n
+    LOGICAL                                  :: calc(0:4)
+    REAL(dbl), ALLOCATABLE, DIMENSION(:)     :: rs
 
 !   ---------------------------------------------------------------------------
 
@@ -168,18 +168,15 @@ CONTAINS
 
 !   ---------------------------------------------------------------------------
 
-    TYPE(xc_derivative_set_type), POINTER :: derivative_set
-    REAL(dbl), DIMENSION(:), INTENT(IN)  :: rhoa, rhob
-    REAL(dbl), DIMENSION(:), INTENT(IN)  :: grhoa, grhob
-    REAL(dbl), DIMENSION(:,:), INTENT(OUT) :: pot
-    INTEGER, INTENT(IN), OPTIONAL :: order
+    TYPE(xc_derivative_set_type), POINTER    :: derivative_set
+    REAL(dbl), DIMENSION(:), INTENT(IN)      :: rhoa, rhob, grhoa, grhob
+    REAL(dbl), DIMENSION(:, :), INTENT(OUT)  :: pot
+    INTEGER, INTENT(IN), OPTIONAL            :: order
 
-!   *** Local variables ***
-
-    LOGICAL   :: calc(0:4), allcalc
-    REAL(dbl), DIMENSION(:), ALLOCATABLE :: rsa, rsb
-    REAL(dbl), DIMENSION(:,:), ALLOCATABLE :: locpot
-    INTEGER :: n, error, m, mp, mt, ip, mx(0:3,2), m1, m2, k
+    INTEGER                                  :: error, m, m1, m2, mp, mt, &
+                                                mx(0:3,2), n
+    LOGICAL                                  :: calc(0:4)
+    REAL(dbl), ALLOCATABLE, DIMENSION(:)     :: rsa, rsb
 
 !   ---------------------------------------------------------------------------
 
@@ -228,12 +225,13 @@ CONTAINS
 
   SUBROUTINE p86_u_0 ( derivative_set, rho, rs, grho, pot )
 
-     TYPE(xc_derivative_set_type), POINTER :: derivative_set
-   REAL(dbl), DIMENSION(:), INTENT(IN)  :: rho, rs, grho
-    REAL(dbl), DIMENSION(:), INTENT(OUT)  :: pot
+    TYPE(xc_derivative_set_type), POINTER    :: derivative_set
+    REAL(dbl), DIMENSION(:), INTENT(IN)      :: rho, rs, grho
+    REAL(dbl), DIMENSION(:), INTENT(OUT)     :: pot
 
-    INTEGER :: ip, npoints
-    REAL(dbl) :: r, cr, phi, ep, g, or, x
+    INTEGER                                  :: ip, npoints
+    REAL(dbl)                                :: cr, ep, g, or, phi, r, x
+
 !   ---------------------------------------------------------------------------
 
     npoints = SIZE ( rho )
@@ -263,12 +261,15 @@ CONTAINS
 
   SUBROUTINE p86_u_1 ( derivative_set, rho, grho, rs, pot )
 
-    TYPE(xc_derivative_set_type), POINTER :: derivative_set
-    REAL(dbl), DIMENSION(:), INTENT(IN)  :: rho, grho, rs
-    REAL(dbl), DIMENSION(:,:), INTENT(OUT)  :: pot
+    TYPE(xc_derivative_set_type), POINTER    :: derivative_set
+    REAL(dbl), DIMENSION(:), INTENT(IN)      :: rho, grho, rs
+    REAL(dbl), DIMENSION(:, :), INTENT(OUT)  :: pot
 
-    INTEGER :: ip, npoints
-    REAL(dbl) :: x, r, cr, phi, ep, g, or, p, q, dp, dq, dphir, dcr, dphig, ff
+    INTEGER                                  :: ip, npoints
+    REAL(dbl)                                :: cr, dcr, dp, dphig, dphir, &
+                                                dq, ep, ff, g, or, p, phi, q, &
+                                                r, x
+
 !   ---------------------------------------------------------------------------
 
     npoints = SIZE ( rho )
@@ -306,13 +307,16 @@ CONTAINS
 
   SUBROUTINE p86_u_2 ( derivative_set, rho, grho, rs, pot )
 
-     TYPE(xc_derivative_set_type), POINTER :: derivative_set
-   REAL(dbl), DIMENSION(:), INTENT(IN)  :: rho, grho, rs
-    REAL(dbl), DIMENSION(:,:), INTENT(OUT)  :: pot
+    TYPE(xc_derivative_set_type), POINTER    :: derivative_set
+    REAL(dbl), DIMENSION(:), INTENT(IN)      :: rho, grho, rs
+    REAL(dbl), DIMENSION(:, :), INTENT(OUT)  :: pot
 
-    INTEGER :: ip, npoints
-    REAL(dbl) :: x, r, cr, phi, ep, g, or, p, q, dp, dq, dphir, dcr, dphig
-    REAL(dbl) :: dphigr, d2phir, d2cr, d2p, d2q
+    INTEGER                                  :: ip, npoints
+    REAL(dbl)                                :: cr, d2cr, d2p, d2phir, d2q, &
+                                                dcr, dp, dphig, dphigr, &
+                                                dphir, dq, ep, g, or, p, phi, &
+                                                q, r, x
+
 !   ---------------------------------------------------------------------------
 
     npoints = SIZE ( rho )
@@ -361,14 +365,15 @@ CONTAINS
 
   SUBROUTINE p86_u_3 ( derivative_set, rho, grho, rs, pot )
 
-    TYPE(xc_derivative_set_type), POINTER :: derivative_set
-    REAL(dbl), DIMENSION(:), INTENT(IN)  :: rho, grho, rs
-    REAL(dbl), DIMENSION(:,:), INTENT(OUT)  :: pot
+    TYPE(xc_derivative_set_type), POINTER    :: derivative_set
+    REAL(dbl), DIMENSION(:), INTENT(IN)      :: rho, grho, rs
+    REAL(dbl), DIMENSION(:, :), INTENT(OUT)  :: pot
 
-    INTEGER :: ip, npoints
-    REAL(dbl) :: x, r, cr, phi, ep, g, or, p, q, dp, dq, dphir, dcr, dphig
-    REAL(dbl) :: dphigr, d2phir, d3phir, d2cr, d3cr, d2p, d2q, d2phirg, d3q
-    REAL(dbl) :: pq, dpq, d2pq, d3pq, oz, dz, d2z, d3z
+    INTEGER                                  :: ip, npoints
+    REAL(dbl) :: cr, d2cr, d2p, d2phir, d2phirg, d2pq, d2q, d2z, d3cr, &
+      d3phir, d3pq, d3q, d3z, dcr, dp, dphig, dphigr, dphir, dpq, dq, dz, ep, &
+      g, or, oz, p, phi, pq, q, r, x
+
 !   ---------------------------------------------------------------------------
 
     npoints = SIZE ( rho )
@@ -445,12 +450,13 @@ CONTAINS
 
   SUBROUTINE p86_p_0 ( derivative_set, rhoa, rhob, grhoa, grhob, rsa, rsb, pot )
 
-    TYPE(xc_derivative_set_type), POINTER :: derivative_set
-    REAL(dbl), DIMENSION(:), INTENT(IN)  :: rhoa, rhob, grhoa, grhob, &
-                                            rsa, rsb
-    REAL(dbl), DIMENSION(:), INTENT(OUT)  :: pot
+    TYPE(xc_derivative_set_type), POINTER    :: derivative_set
+    REAL(dbl), DIMENSION(:), INTENT(IN)      :: rhoa, rhob, grhoa, grhob, &
+                                                rsa, rsb
+    REAL(dbl), DIMENSION(:), INTENT(OUT)     :: pot
 
-    INTEGER :: ip, npoints
+    INTEGER                                  :: ip, npoints
+
 !   ---------------------------------------------------------------------------
 
     npoints = SIZE ( rhoa )
@@ -476,12 +482,13 @@ CONTAINS
 
   SUBROUTINE p86_p_1 ( derivative_set, rhoa, rhob, grhoa, grhob, rsa, rsb, pot )
 
-    TYPE(xc_derivative_set_type), POINTER :: derivative_set
-    REAL(dbl), DIMENSION(:), INTENT(IN)  :: rhoa, rhob, grhoa, grhob, &
-                                            rsa, rsb
-    REAL(dbl), DIMENSION(:,:), INTENT(OUT)  :: pot
+    TYPE(xc_derivative_set_type), POINTER    :: derivative_set
+    REAL(dbl), DIMENSION(:), INTENT(IN)      :: rhoa, rhob, grhoa, grhob, &
+                                                rsa, rsb
+    REAL(dbl), DIMENSION(:, :), INTENT(OUT)  :: pot
 
-    INTEGER :: ip, npoints
+    INTEGER                                  :: ip, npoints
+
 !   ---------------------------------------------------------------------------
 
     npoints = SIZE ( rhoa )
@@ -509,12 +516,13 @@ CONTAINS
 
   SUBROUTINE p86_p_2 ( derivative_set, rhoa, rhob, grhoa, grhob, rsa, rsb, pot )
 
-    TYPE(xc_derivative_set_type), POINTER :: derivative_set
-    REAL(dbl), DIMENSION(:), INTENT(IN)  :: rhoa, rhob, grhoa, grhob, &
-                                            rsa, rsb
-    REAL(dbl), DIMENSION(:,:), INTENT(OUT)  :: pot
+    TYPE(xc_derivative_set_type), POINTER    :: derivative_set
+    REAL(dbl), DIMENSION(:), INTENT(IN)      :: rhoa, rhob, grhoa, grhob, &
+                                                rsa, rsb
+    REAL(dbl), DIMENSION(:, :), INTENT(OUT)  :: pot
 
-    INTEGER :: ip, npoints
+    INTEGER                                  :: ip, npoints
+
 !   ---------------------------------------------------------------------------
 
     npoints = SIZE ( rhoa )
@@ -544,12 +552,13 @@ CONTAINS
 
   SUBROUTINE p86_p_3 ( derivative_set, rhoa, rhob, grhoa, grhob, rsa, rsb, pot )
 
-    TYPE(xc_derivative_set_type), POINTER :: derivative_set
-    REAL(dbl), DIMENSION(:), INTENT(IN)  :: rhoa, rhob, grhoa, grhob, &
-                                            rsa, rsb
-    REAL(dbl), DIMENSION(:,:), INTENT(OUT)  :: pot
+    TYPE(xc_derivative_set_type), POINTER    :: derivative_set
+    REAL(dbl), DIMENSION(:), INTENT(IN)      :: rhoa, rhob, grhoa, grhob, &
+                                                rsa, rsb
+    REAL(dbl), DIMENSION(:, :), INTENT(OUT)  :: pot
 
-    INTEGER :: ip, npoints
+    INTEGER                                  :: ip, npoints
+
 !   ---------------------------------------------------------------------------
 
     npoints = SIZE ( rhoa )

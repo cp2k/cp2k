@@ -20,10 +20,11 @@
 
 MODULE parallel
 
-  USE global_types, ONLY : global_environment_type
-  USE kinds, ONLY : dbl
-  USE message_passing, ONLY : mp_start, mp_world_setup, mp_end
-  USE cp_para_env, ONLY: cp_para_env_create
+  USE cp_para_env,                     ONLY: cp_para_env_create
+  USE global_types,                    ONLY: global_environment_type
+  USE message_passing,                 ONLY: mp_end,&
+                                             mp_start,&
+                                             mp_world_setup
 
   IMPLICIT NONE
 
@@ -44,8 +45,7 @@ CONTAINS
 
 SUBROUTINE start_parallel ( globenv )
 
-! Arguments
-  TYPE ( global_environment_type ), TARGET :: globenv
+    TYPE(global_environment_type), TARGET    :: globenv
 
 !------------------------------------------------------------------------------
 
@@ -63,7 +63,7 @@ END SUBROUTINE start_parallel
 
 SUBROUTINE end_parallel ( globenv )
 
-  TYPE ( global_environment_type ), TARGET :: globenv
+    TYPE(global_environment_type), TARGET    :: globenv
 
 !------------------------------------------------------------------------------
 

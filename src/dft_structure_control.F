@@ -21,40 +21,44 @@
 
 MODULE dft_structure_control
   
-  USE atoms_input, ONLY : read_coord_vel, system_type
-  USE brillouin, ONLY : kpoint_type
-  USE density_types, ONLY : density_type, density_allocate, density_init
-  USE densities, ONLY : density_update
-  USE cp_control_types, ONLY : dft_control_type
-  USE ewald_parameters_types, ONLY : ewald_parameters_type
-  USE global_types, ONLY : global_environment_type
-  USE greens_fn, ONLY : pw_green_fn_init
-  USE input_types, ONLY : setup_parameters_type
-  USE kinds, ONLY : dbl, YES, NO
-  USE linklist_control, ONLY : set_ll_parm
-  USE linklist_types, ONLY : linklist_internal_data_type
-  USE mathconstants, ONLY : twopi, zero
-  USE md, ONLY : read_md_section, simulation_parameters_type, &
-       initialize_velocities, thermodynamic_type
-  USE molecule_types, ONLY : molecule_structure_type, particle_node_type, &
-       molecule_type
-  USE pair_potential_types, ONLY : pair_potential_type
-  USE pair_potential, ONLY : get_potrange, spline_nonbond_control
-  USE particle_types, ONLY : particle_type
-  USE potential_types, ONLY : potential_type, potential_allocate, &
-       potential_init
-  USE potentials, ONLY : potential_update
-  USE pw_grids, ONLY : pw_grid_setup, pw_grid_construct
-  USE pw_grid_types, ONLY : pw_grid_type, HALFSPACE, FULLSPACE
-  USE pws, ONLY : init_pw_poisson_solver
-  USE pw_types, ONLY : PW_REALDATA3D => REALDATA3D
-  USE simulation_cell, ONLY : cell_type, get_hinv
-  USE termination, ONLY : stop_memory
-  USE structure_types, ONLY : structure_type
-  USE timings, ONLY : timeset, timestop
-  USE wf_types, ONLY : wf_type, wf_allocate
-  USE wfs, ONLY : wf_update, wf_randomise, wf_write_restart
-  
+  USE brillouin,                       ONLY: kpoint_type
+  USE cp_control_types,                ONLY: dft_control_type
+  USE densities,                       ONLY: density_update
+  USE density_types,                   ONLY: density_allocate,&
+                                             density_init,&
+                                             density_type
+  USE ewald_parameters_types,          ONLY: ewald_parameters_type
+  USE global_types,                    ONLY: global_environment_type
+  USE greens_fn,                       ONLY: pw_green_fn_init
+  USE kinds,                           ONLY: NO,&
+                                             YES,&
+                                             dbl
+  USE linklist_types,                  ONLY: linklist_internal_data_type
+  USE md,                              ONLY: thermodynamic_type
+  USE molecule_types,                  ONLY: molecule_structure_type,&
+                                             particle_node_type
+  USE pair_potential_types,            ONLY: pair_potential_type
+  USE particle_types,                  ONLY: particle_type
+  USE potential_types,                 ONLY: potential_allocate,&
+                                             potential_init,&
+                                             potential_type
+  USE potentials,                      ONLY: potential_update
+  USE pw_grid_types,                   ONLY: FULLSPACE,&
+                                             pw_grid_type
+  USE pw_grids,                        ONLY: pw_grid_construct,&
+                                             pw_grid_setup
+  USE pw_types,                        ONLY: PW_REALDATA3D => REALDATA3D
+  USE pws,                             ONLY: init_pw_poisson_solver
+  USE simulation_cell,                 ONLY: cell_type,&
+                                             get_hinv
+  USE timings,                         ONLY: timeset,&
+                                             timestop
+  USE wf_types,                        ONLY: wf_allocate,&
+                                             wf_type
+  USE wfs,                             ONLY: wf_randomise,&
+                                             wf_update,&
+                                             wf_write_restart
+
   IMPLICIT NONE
   
   PRIVATE
@@ -68,32 +72,37 @@ SUBROUTINE dft_force_control ( molecule, pnode, part, box, thermo, &
      potparm, ewald_param, box_change, lldata, dft_control, kp, &
      dftpar, wavepar )
   
-  IMPLICIT NONE
   
-! Arguments
-  TYPE ( particle_type ), DIMENSION ( : ), INTENT ( INOUT ) :: part
-  TYPE ( particle_node_type ), DIMENSION ( : ), INTENT ( INOUT ) :: pnode
-  TYPE ( molecule_structure_type ), DIMENSION ( : ), INTENT ( IN ) :: molecule
-  TYPE ( cell_type ), INTENT ( INOUT ) :: box
-  TYPE ( thermodynamic_type ), INTENT ( INOUT ) :: thermo
-  TYPE ( pair_potential_type ), DIMENSION ( :,: ), INTENT ( IN ) :: potparm
-  TYPE ( ewald_parameters_type ), INTENT ( INOUT ) :: ewald_param
-  LOGICAL, INTENT ( IN ) :: box_change
-  TYPE ( linklist_internal_data_type), INTENT (INOUT) :: lldata
-  TYPE ( global_environment_type ), INTENT ( IN ) :: dftpar, wavepar
-  TYPE ( dft_control_type ), INTENT ( IN ) :: dft_control
-  TYPE ( kpoint_type ), INTENT ( IN ) :: kp
-  
-! Locals
-  TYPE ( wf_type ), DIMENSION ( : ), POINTER :: psi
-  TYPE ( density_type ), DIMENSION ( : ), POINTER :: n
-  TYPE ( potential_type ), DIMENSION ( : ), POINTER :: vloc
-  
+    TYPE(molecule_structure_type), &
+      DIMENSION(:), INTENT(IN)               :: molecule
+    TYPE(particle_node_type), DIMENSION(:), &
+      INTENT(INOUT)                          :: pnode
+    TYPE(particle_type), DIMENSION(:), &
+      INTENT(INOUT)                          :: part
+    TYPE(cell_type), INTENT(INOUT)           :: box
+    TYPE(thermodynamic_type), INTENT(INOUT)  :: thermo
+    TYPE(pair_potential_type), &
+      DIMENSION(:, :), INTENT(IN)            :: potparm
+    TYPE(ewald_parameters_type), &
+      INTENT(INOUT)                          :: ewald_param
+    LOGICAL, INTENT(IN)                      :: box_change
+    TYPE(linklist_internal_data_type), &
+      INTENT(INOUT)                          :: lldata
+    TYPE(dft_control_type), INTENT(IN)       :: dft_control
+    TYPE(kpoint_type), INTENT(IN)            :: kp
+    TYPE(global_environment_type), &
+      INTENT(IN)                             :: dftpar, wavepar
+
+    REAL(dbl), ALLOCATABLE, DIMENSION(:, :)  :: fion, tau
+    TYPE(density_type), DIMENSION(:), &
+      POINTER                                :: n
+    TYPE(potential_type), DIMENSION(:), &
+      POINTER                                :: vloc
+    TYPE(wf_type), DIMENSION(:), POINTER     :: psi
+
 !TMPTMPTMP
-  REAL ( dbl ), DIMENSION ( :, : ), ALLOCATABLE :: tau, fion
-  
 !------------------------------------------------------------------------------
-  
+
   CALL dft_initialise ( box, psi, n, vloc, dft_control, kp, wavepar )
   
   ALLOCATE ( tau ( 3, 1 ), fion ( 3, 1 ) ) !TMPTMPTMP
@@ -116,31 +125,32 @@ END SUBROUTINE dft_force_control
 
 SUBROUTINE dft_initialise ( cell, psi, n, vloc, dft_control, kp, wavepar )
   
-  IMPLICIT NONE
   
-! Arguments
-  TYPE ( cell_type ) :: cell
-  TYPE ( wf_type ), DIMENSION ( : ), POINTER :: psi
-  TYPE ( density_type ), DIMENSION ( : ), POINTER :: n
-  TYPE ( potential_type ), DIMENSION ( : ), POINTER :: vloc
-  TYPE ( pw_grid_type ), DIMENSION ( : ), POINTER :: pw_grid
-  TYPE ( dft_control_type ) :: dft_control
-  TYPE ( kpoint_type ), INTENT ( IN ) :: kp
-  TYPE ( global_environment_type ), INTENT ( IN ) :: wavepar
-  
-! Locals
-  TYPE ( wf_type ), POINTER :: psi_n
-  TYPE ( density_type ), POINTER :: n_n
-  TYPE ( potential_type ), POINTER :: vloc_n
-  
-  INTEGER :: nstates, nkpts, nspins, wfset, nwfsets ! TMPTMPTMP
-  INTEGER :: densityset, ndensitysets, kpt
-  INTEGER, DIMENSION ( :, : ), POINTER :: bounds
-  INTEGER, DIMENSION ( 2, 3 ) :: mybounds
-  REAL ( dbl ) :: gcut_wf, gcut_density
-  
+    TYPE(cell_type)                          :: cell
+    TYPE(wf_type), DIMENSION(:), POINTER     :: psi
+    TYPE(density_type), DIMENSION(:), &
+      POINTER                                :: n
+    TYPE(potential_type), DIMENSION(:), &
+      POINTER                                :: vloc
+    TYPE(dft_control_type)                   :: dft_control
+    TYPE(kpoint_type), INTENT(IN)            :: kp
+    TYPE(global_environment_type), &
+      INTENT(IN)                             :: wavepar
+
+    INTEGER                                  :: densityset, kpt, &
+                                                ndensitysets, nkpts, nspins, &
+                                                nstates, nwfsets, wfset
+    INTEGER, DIMENSION(:, :), POINTER        :: bounds
+    REAL(dbl)                                :: gcut_density, gcut_wf
+    TYPE(density_type), POINTER              :: n_n
+    TYPE(potential_type), POINTER            :: vloc_n
+    TYPE(pw_grid_type), DIMENSION(:), &
+      POINTER                                :: pw_grid
+    TYPE(wf_type), POINTER                   :: psi_n
+
+! TMPTMPTMP
 !------------------------------------------------------------------------------
-  
+
   CALL get_hinv ( cell )
   
   nkpts = kp % nkpt
@@ -243,10 +253,9 @@ END SUBROUTINE dft_initialise
 !******************************************************************************
 
 SUBROUTINE dft_finalise ( dft_control )
-  IMPLICIT NONE
   
-  TYPE ( dft_control_type ) :: dft_control
-  
+    TYPE(dft_control_type)                   :: dft_control
+
 !!!!! if the pw_grid is deallocated -> do not forget to get rid of the Greens function
 
 END SUBROUTINE dft_finalise
@@ -256,35 +265,32 @@ END SUBROUTINE dft_finalise
 SUBROUTINE dft_scf_loop ( psi, n, vloc, tau, fion, dft_control, kp, &
      dftpar, wavepar )
   
-  IMPLICIT NONE
   
-! Arguments
-  REAL ( dbl ), DIMENSION ( :, : ), INTENT ( IN ) :: tau
-  TYPE ( dft_control_type ), INTENT ( IN ) :: dft_control
-  TYPE ( kpoint_type ), INTENT ( IN ) :: kp
-  TYPE ( global_environment_type ), INTENT ( IN ) :: dftpar
-  TYPE ( global_environment_type ), INTENT ( IN ) :: wavepar
-  
-  TYPE ( wf_type ), DIMENSION ( : ), INTENT ( INOUT ) :: psi
-  TYPE ( density_type ), DIMENSION ( : ), INTENT ( INOUT ) :: n
+    TYPE(wf_type), DIMENSION(:), &
+      INTENT(INOUT)                          :: psi
+    TYPE(density_type), DIMENSION(:), &
+      INTENT(INOUT)                          :: n
+    TYPE(potential_type), DIMENSION(:), &
+      INTENT(INOUT), TARGET                  :: vloc
+    REAL(dbl), DIMENSION(:, :), INTENT(IN)   :: tau
+    REAL(dbl), DIMENSION(:, :), INTENT(OUT)  :: fion
+    TYPE(dft_control_type), INTENT(IN)       :: dft_control
+    TYPE(kpoint_type), INTENT(IN)            :: kp
+    TYPE(global_environment_type), &
+      INTENT(IN)                             :: dftpar, wavepar
+
+    INTEGER                                  :: iter_elc, niter_elc
+    INTEGER, POINTER                         :: bds( :, : )
+    LOGICAL                                  :: tlastloop, tprint, &
+                                                tultimateloop
+
 !TMPTMPTMP  TYPE ( potential_type ), DIMENSION ( : ), INTENT ( INOUT ) :: vloc
-  TYPE ( potential_type ), DIMENSION ( : ), INTENT ( INOUT ), TARGET :: vloc
-  REAL ( dbl ), DIMENSION ( :, : ), INTENT ( OUT ) :: fion
-  
-! Locals
-  LOGICAL :: tlastloop       !! Last loop of (adiabatic) electronic structure,
-                             !!    maybe/probably we shall still return
-  LOGICAL :: tultimateloop   !! Final loop, no return here anymore
-  LOGICAL :: tprint
-  
+!! Last loop of (adiabatic) electronic structure,
+!!    maybe/probably we shall still return
+!! Final loop, no return here anymore
 !  LOGICAL, SAVE :: first_time = .true.
-  LOGICAL :: first_time = .TRUE.
-  INTEGER :: iter_elc, niter_elc
-  
-  INTEGER, POINTER :: bds ( :, : )
-  
 !------------------------------------------------------------------------------
-  
+
   IF ( dftpar % print_level > 2 ) &
        WRITE ( dftpar % scr, * ) "Entering scf loop..."
   

@@ -14,23 +14,32 @@
 !*****************************************************************
 !------------------------------------------------------------------------------!
 !
-  USE amoeba, ONLY : amoeba_evaluate
-  USE global_types, ONLY : global_environment_type
-  USE kinds, ONLY : dbl
-  USE md, ONLY : simulation_parameters_type, thermodynamic_type
-  USE pair_potential, ONLY : potentialparm_type, spline_nonbond_control
-  USE particle_types, ONLY : particle_prop_type 
-  USE structure_types, ONLY : structure_type, interaction_type
-  USE termination, ONLY : stop_program, stop_memory
-  USE fit_parameters_types, ONLY : fit_parameter_type,  fit_averages_type, &
-      linklist_parameters_type, fit_info_type
-  USE fit_utilities, ONLY : force_ref, fit_print_info, get_will_params, &
-                            get_lj_params, fit_read_restart, fit_write_restart
-  USE fit_types, ONLY : copy_params, initialize_params
-  USE simulation_cell, ONLY :  get_hinv, cell_type      
-  USE fit_force_control, ONLY : fit_force
-  USE ewald_parameters_types, ONLY : ewald_parameters_type
-  
+  USE amoeba,                          ONLY: amoeba_evaluate
+  USE ewald_parameters_types,          ONLY: ewald_parameters_type
+  USE fit_force_control,               ONLY: fit_force
+  USE fit_parameters_types,            ONLY: fit_averages_type,&
+                                             fit_info_type,&
+                                             fit_parameter_type,&
+                                             linklist_parameters_type
+  USE fit_types,                       ONLY: copy_params,&
+                                             initialize_params
+  USE fit_utilities,                   ONLY: fit_print_info,&
+                                             fit_read_restart,&
+                                             fit_write_restart,&
+                                             get_lj_params,&
+                                             get_will_params
+  USE global_types,                    ONLY: global_environment_type
+  USE kinds,                           ONLY: dbl
+  USE md,                              ONLY: simulation_parameters_type,&
+                                             thermodynamic_type
+  USE pair_potential,                  ONLY: potentialparm_type
+  USE particle_types,                  ONLY: particle_prop_type
+  USE simulation_cell,                 ONLY: cell_type
+  USE structure_types,                 ONLY: interaction_type,&
+                                             structure_type
+  USE termination,                     ONLY: stop_memory,&
+                                             stop_program
+
   IMPLICIT NONE
 !
   PUBLIC :: fit_potparm, local
@@ -62,27 +71,33 @@
 !
   SUBROUTINE fit_potparm(struc,inter,simpar,fit_param, pstat, &
                          ewald_param,box_ref,finfo, atom_names,globenv)
-    IMPLICIT NONE
-    TYPE (structure_type), INTENT (INOUT) :: struc
-!    TYPE (potentialparm_type ), INTENT ( INOUT ), DIMENSION ( :, : ) :: potparm 
-    TYPE ( interaction_type ), intent (inout)  :: inter
-    TYPE (simulation_parameters_type), INTENT ( IN ) :: simpar      
-    TYPE (particle_prop_type ), DIMENSION ( : ), POINTER :: pstat 
-    TYPE (fit_parameter_type), INTENT(INOUT) :: fit_param
-    TYPE ( ewald_parameters_type ), INTENT ( INOUT ) :: ewald_param  
-    TYPE (cell_type) , POINTER, DIMENSION (:) :: box_ref
-    TYPE (fit_info_type), DIMENSION (:,:), POINTER :: finfo
-    TYPE ( global_environment_type ), INTENT ( IN ) :: globenv  
-    CHARACTER ( LEN = * ), DIMENSION ( : ), POINTER :: atom_names 
+    TYPE(structure_type), INTENT(INOUT)      :: struc
+    TYPE(interaction_type), intent(inout)    :: inter
+    TYPE(simulation_parameters_type), &
+      INTENT(IN)                             :: simpar
+    TYPE(fit_parameter_type), INTENT(INOUT)  :: fit_param
+    TYPE(particle_prop_type), DIMENSION(:), &
+      POINTER                                :: pstat
+    TYPE(ewald_parameters_type), &
+      INTENT(INOUT)                          :: ewald_param
+    TYPE(cell_type), DIMENSION(:), POINTER   :: box_ref
+    TYPE(fit_info_type), DIMENSION(:, :), &
+      POINTER                                :: finfo
+    CHARACTER(LEN=*), DIMENSION(:), POINTER  :: atom_names
+    TYPE(global_environment_type), &
+      INTENT(IN)                             :: globenv
 
+    INTEGER                                  :: isos
+    LOGICAL                                  :: conv_flag
+    TYPE(fit_averages_type)                  :: fit_ave
+    TYPE(linklist_parameters_type), &
+      DIMENSION(:, :), POINTER               :: param
+    TYPE(potentialparm_type), &
+      DIMENSION(:, :), POINTER               :: potparm
+    TYPE(thermodynamic_type)                 :: thermo
+
+!    TYPE (potentialparm_type ), INTENT ( INOUT ), DIMENSION ( :, : ) :: potparm 
 !
-    INTEGER :: isos
-! locals
-    TYPE ( thermodynamic_type ) :: thermo
-    TYPE ( fit_averages_type ) :: fit_ave
-    TYPE ( linklist_parameters_type ), POINTER, DIMENSION ( :, : ) :: param   
-    TYPE (potentialparm_type ), POINTER, DIMENSION ( :, : ) :: potparm 
-    LOGICAL :: conv_flag
 
     potparm => inter % potparm
 !
@@ -193,32 +208,32 @@
 ! Given the reference force, and the derived force, optimize
 ! paramters with a least squares fit.
 
-  IMPLICIT NONE
 
-  TYPE (structure_type), INTENT (INOUT) :: struc
-!!  TYPE (potentialparm_type), DIMENSION (:,:), INTENT (INOUT) :: potparm
-  TYPE (interaction_type), INTENT (INOUT) ::  inter
-  TYPE (thermodynamic_type), INTENT (INOUT) :: thermo
-  TYPE (simulation_parameters_type), INTENT (IN) :: simpar
-  TYPE (fit_parameter_type), INTENT(INOUT) :: fit_param
-  TYPE (linklist_parameters_type ), INTENT(INOUT), DIMENSION ( :, : ) :: param   
-  TYPE ( particle_prop_type ), DIMENSION ( : ), POINTER :: pstat 
-  TYPE (fit_averages_type) :: fit_ave
-  TYPE ( ewald_parameters_type ), INTENT ( INOUT ) :: ewald_param  
-  TYPE ( global_environment_type ), INTENT ( IN ) :: globenv  
-  TYPE (cell_type) , POINTER, DIMENSION (:) :: box_ref
-  TYPE (fit_info_type), DIMENSION (:,:), POINTER :: finfo
-  CHARACTER ( LEN = * ), DIMENSION ( : ), POINTER :: atom_names 
-  LOGICAL, INTENT (INOUT) :: conv_flag
+    TYPE(structure_type), INTENT(INOUT)      :: struc
+    TYPE(interaction_type), INTENT(INOUT)    :: inter
+    TYPE(thermodynamic_type), INTENT(INOUT)  :: thermo
+    TYPE(simulation_parameters_type), &
+      INTENT(IN)                             :: simpar
+    TYPE(fit_parameter_type), INTENT(INOUT)  :: fit_param
+    TYPE(linklist_parameters_type), &
+      DIMENSION(:, :), INTENT(INOUT)         :: param
+    TYPE(particle_prop_type), DIMENSION(:), &
+      POINTER                                :: pstat
+    TYPE(fit_averages_type)                  :: fit_ave
+    TYPE(ewald_parameters_type), &
+      INTENT(INOUT)                          :: ewald_param
+    CHARACTER(LEN=*), DIMENSION(:), POINTER  :: atom_names
+    TYPE(cell_type), DIMENSION(:), POINTER   :: box_ref
+    TYPE(fit_info_type), DIMENSION(:, :), &
+      POINTER                                :: finfo
+    TYPE(global_environment_type), &
+      INTENT(IN)                             :: globenv
+    LOGICAL, INTENT(INOUT)                   :: conv_flag
 
-! locals
-
-  INTEGER :: i, j, iter
-  REAL (dbl) :: tol
-  REAL ( dbl ), DIMENSION ( : ), POINTER :: y
-  REAL ( dbl ), DIMENSION ( :, : ), POINTER :: p
-
-
+    INTEGER                                  :: i, iter
+    REAL(dbl)                                :: tol
+    REAL(dbl), DIMENSION(:), POINTER         :: y
+    REAL(dbl), DIMENSION(:, :), POINTER      :: p
   INTERFACE
     
     FUNCTION func(x,struc,inter,thermo,simpar,fit_param,box_ref, &
@@ -253,6 +268,7 @@
 
   END INTERFACE
 
+!!  TYPE (potentialparm_type), DIMENSION (:,:), INTENT (INOUT) :: potparm
 ! Allocate and intialize arrays for amoeba
 
   SELECT CASE (fit_param%fit_type)
@@ -328,23 +344,24 @@
   SUBROUTINE forcefit(struc, inter, thermo, simpar,box_ref,finfo, &
                       fit_param, ewald_param, globenv)
 
-  IMPLICIT NONE
-  TYPE (structure_type), INTENT (INOUT) :: struc
-  TYPE (interaction_type), INTENT (INOUT) :: inter
-  TYPE (thermodynamic_type), INTENT (INOUT) :: thermo
-  TYPE (simulation_parameters_type), INTENT (IN) :: simpar
-  TYPE (cell_type) , POINTER, DIMENSION (:) :: box_ref
-  TYPE (fit_info_type), DIMENSION (:,:), POINTER :: finfo
-  TYPE (fit_parameter_type), INTENT(INOUT) :: fit_param
-  TYPE ( ewald_parameters_type ), INTENT ( INOUT ) :: ewald_param  
-  TYPE ( global_environment_type), INTENT ( IN ) :: globenv
+    TYPE(structure_type), INTENT(INOUT)      :: struc
+    TYPE(interaction_type), INTENT(INOUT)    :: inter
+    TYPE(thermodynamic_type), INTENT(INOUT)  :: thermo
+    TYPE(simulation_parameters_type), &
+      INTENT(IN)                             :: simpar
+    TYPE(cell_type), DIMENSION(:), POINTER   :: box_ref
+    TYPE(fit_info_type), DIMENSION(:, :), &
+      POINTER                                :: finfo
+    TYPE(fit_parameter_type), INTENT(INOUT)  :: fit_param
+    TYPE(ewald_parameters_type), &
+      INTENT(INOUT)                          :: ewald_param
+    TYPE(global_environment_type), &
+      INTENT(IN)                             :: globenv
 
-!locals
+    INTEGER                                  :: ii, ipart, itime, jj, npart
+    LOGICAL                                  :: box_change
+    REAL(dbl)                                :: boxtol, deltabox
 
-  INTEGER :: itime, ipart, npart, ii, jj
-  REAL (dbl) :: deltabox, boxtol
-  LOGICAL :: box_change
-  
 ! From the reference trajectory file obtain the fit force
 ! using a CP2K force field.
 
@@ -388,25 +405,28 @@ inn:   DO JJ = 1,3
   FUNCTION local(x,struc,inter,thermo,simpar,fit_param,box_ref,finfo, &
                  param, pstat, ewald_param, globenv )
 
-  IMPLICIT NONE
-  REAL (dbl), DIMENSION (:), INTENT (IN) :: x
-  TYPE (structure_type), INTENT (INOUT) :: struc
-  TYPE (thermodynamic_type), INTENT (INOUT) :: thermo
-  TYPE (simulation_parameters_type), INTENT (IN) :: simpar
-  TYPE (interaction_type),  INTENT (INOUT) :: inter
-  TYPE (fit_parameter_type), INTENT(INOUT) :: fit_param
-  TYPE (cell_type) , POINTER, DIMENSION (:) :: box_ref
-  TYPE (fit_info_type), DIMENSION (:,:), POINTER :: finfo
-  TYPE (linklist_parameters_type ), INTENT(INOUT), DIMENSION ( :, : ) :: param 
-  TYPE (particle_prop_type ), DIMENSION ( : ), POINTER :: pstat 
-  TYPE ( ewald_parameters_type ), INTENT ( INOUT ) :: ewald_param  
-  TYPE ( global_environment_type), INTENT ( IN ) :: globenv
+    REAL(dbl), DIMENSION(:), INTENT(IN)      :: x
+    TYPE(structure_type), INTENT(INOUT)      :: struc
+    TYPE(interaction_type), INTENT(INOUT)    :: inter
+    TYPE(thermodynamic_type), INTENT(INOUT)  :: thermo
+    TYPE(simulation_parameters_type), &
+      INTENT(IN)                             :: simpar
+    TYPE(fit_parameter_type), INTENT(INOUT)  :: fit_param
+    TYPE(cell_type), DIMENSION(:), POINTER   :: box_ref
+    TYPE(fit_info_type), DIMENSION(:, :), &
+      POINTER                                :: finfo
+    TYPE(linklist_parameters_type), &
+      DIMENSION(:, :), INTENT(INOUT)         :: param
+    TYPE(particle_prop_type), DIMENSION(:), &
+      POINTER                                :: pstat
+    TYPE(ewald_parameters_type), &
+      INTENT(INOUT)                          :: ewald_param
+    TYPE(global_environment_type), &
+      INTENT(IN)                             :: globenv
+    REAL(dbl)                                :: local
 
-
-! locals
-  REAL (dbl), DIMENSION (3) :: vec
-  REAL (dbl) :: local
-  INTEGER :: itime, ipart, npart
+    INTEGER                                  :: ipart, itime, npart
+    REAL(dbl), DIMENSION(3)                  :: vec
 
   npart = size(struc%pnode)
   

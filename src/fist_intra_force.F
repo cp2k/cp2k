@@ -21,12 +21,19 @@
 
 MODULE fist_intra_force
 
-  USE kinds, ONLY : dbl
-  USE mol_force, ONLY : force_bonds, force_bends, force_torsions, &
-       get_pv_bond, get_pv_bend, get_pv_torsion
-  USE molecule_types, ONLY : molecule_structure_type, linklist_bonds, &
-       linklist_bends, linklist_torsions
-  USE timings, ONLY : timeset, timestop
+  USE kinds,                           ONLY: dbl
+  USE mol_force,                       ONLY: force_bends,&
+                                             force_bonds,&
+                                             force_torsions,&
+                                             get_pv_bend,&
+                                             get_pv_bond,&
+                                             get_pv_torsion
+  USE molecule_types,                  ONLY: linklist_bends,&
+                                             linklist_bonds,&
+                                             linklist_torsions,&
+                                             molecule_structure_type
+  USE timings,                         ONLY: timeset,&
+                                             timestop
 
   IMPLICIT NONE
 
@@ -61,26 +68,28 @@ SUBROUTINE force_intra_control ( molecule, pot_bond, pot_bend, pot_torsion, &
 
 ! parses up intramolecular properties
 
-  IMPLICIT NONE
 
-! Arguments
-  TYPE (molecule_structure_type ), DIMENSION ( : ), INTENT ( IN ) :: molecule
-  REAL ( dbl ), INTENT ( INOUT ) :: pot_bond, pot_bend, pot_torsion
-  REAL ( dbl ), DIMENSION ( :, : ), INTENT ( INOUT ) :: &
-                pv_bond, pv_bend, pv_torsion
-  REAL ( dbl ), DIMENSION ( :, : ), OPTIONAL, INTENT ( OUT ) :: &
-                f_bond, f_bend, f_torsion
+    TYPE(molecule_structure_type), &
+      DIMENSION(:), INTENT(IN)               :: molecule
+    REAL(dbl), INTENT(INOUT)                 :: pot_bond, pot_bend, &
+                                                pot_torsion
+    REAL(dbl), DIMENSION(:, :), &
+      INTENT(INOUT)                          :: pv_bond, pv_bend, pv_torsion
+    REAL(dbl), DIMENSION(:, :), &
+      INTENT(OUT), OPTIONAL                  :: f_bond, f_bend, f_torsion
 
-! Locals
-  REAL ( dbl ) :: d12, d32, id12, id32, s32, is32, &
-                  dist, dist1, dist2, w1, w2, iw1, iw2, theta
-  REAL ( dbl ) :: energy, fscalar
-  REAL ( dbl ), DIMENSION (3) :: rij, b12, b32, t12, t32, t43, &
-                                 u1, u2, g1, g2, g3, gt1, gt2, gt3, gt4
-  TYPE (linklist_bonds), POINTER :: llbond
-  TYPE (linklist_bends), POINTER :: llbend
-  TYPE (linklist_torsions), POINTER :: lltorsion
-  INTEGER :: ibond, ibend, itorsion, imol, handle
+    INTEGER                                  :: handle, ibend, ibond, imol, &
+                                                itorsion
+    REAL(dbl)                                :: d12, d32, dist, dist1, dist2, &
+                                                energy, fscalar, id12, id32, &
+                                                is32, iw1, iw2, s32, theta, &
+                                                w1, w2
+    REAL(dbl), DIMENSION(3)                  :: b12, b32, g1, g2, g3, gt1, &
+                                                gt2, gt3, gt4, rij, t12, t32, &
+                                                t43, u1, u2
+    TYPE(linklist_bends), POINTER            :: llbend
+    TYPE(linklist_bonds), POINTER            :: llbond
+    TYPE(linklist_torsions), POINTER         :: lltorsion
 
 !------------------------------------------------------------------------------
 

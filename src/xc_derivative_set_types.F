@@ -51,6 +51,7 @@ MODULE xc_derivative_set_types
   USE xc_derivative_types,             ONLY: xc_derivative_create,&
                                              xc_derivative_release,&
                                              xc_derivative_type
+
   IMPLICIT NONE
   PRIVATE
 
@@ -122,23 +123,23 @@ CONTAINS
   FUNCTION xc_dset_get_derivative(derivative_set, description, allocate_deriv, error) &
        RESULT(res)
 
-    ! arguments
-    TYPE(xc_derivative_set_type), POINTER        :: derivative_set
-    CHARACTER(len=*), INTENT(in)                 :: description
-    LOGICAL, INTENT(in), OPTIONAL                :: allocate_deriv
-    TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
-    TYPE(xc_derivative_type), POINTER            :: res
+    TYPE(xc_derivative_set_type), POINTER    :: derivative_set
+    CHARACTER(len=*), INTENT(in)             :: description
+    LOGICAL, INTENT(in), OPTIONAL            :: allocate_deriv
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
+    TYPE(xc_derivative_type), POINTER        :: res
 
-    ! locals
-    LOGICAL                                      :: failure, my_allocate_deriv
-    CHARACTER(len=MAX_DERIVATIVE_DESC_LENGTH)    :: std_deriv_desc
-    TYPE(cp_sll_xc_deriv_type), POINTER          :: pos
-    TYPE(xc_derivative_type), POINTER            :: deriv_att
-    REAL(kind=dp), DIMENSION(:,:,:), POINTER     :: cr3d_ptr
+    CHARACTER(len=*), PARAMETER :: routineN = 'xc_dset_get_derivative', &
+      routineP = moduleN//':'//routineN
 
-    ! parameters
-    CHARACTER(len=*), PARAMETER :: routineN = 'xc_dset_get_derivative',&
-                                   routineP = moduleN//':'//routineN
+    CHARACTER&
+      (len=MAX_DERIVATIVE_DESC_LENGTH)       :: std_deriv_desc
+    LOGICAL                                  :: failure, my_allocate_deriv
+    REAL(kind=dp), DIMENSION(:, :, :), &
+      POINTER                                :: cr3d_ptr
+    TYPE(cp_sll_xc_deriv_type), POINTER      :: pos
+    TYPE(xc_derivative_type), POINTER        :: deriv_att
 
     failure=.FALSE.
     NULLIFY(pos,deriv_att,cr3d_ptr)
@@ -195,18 +196,16 @@ CONTAINS
 !!*** **********************************************************************
   SUBROUTINE xc_dset_create(derivative_set, pw_pool, error)
 
-    ! arguments
-    TYPE(xc_derivative_set_type), POINTER        :: derivative_set
-    TYPE(pw_pool_type), POINTER :: pw_pool
-    TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
+    TYPE(xc_derivative_set_type), POINTER    :: derivative_set
+    TYPE(pw_pool_type), POINTER              :: pw_pool
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
 
-    ! locals
-    LOGICAL :: failure
-    INTEGER :: stat
+    CHARACTER(len=*), PARAMETER :: routineN = 'xc_dset_create', &
+      routineP = moduleN//':'//routineN
 
-    ! parameters
-    CHARACTER(len=*), PARAMETER :: routineN = 'xc_dset_create',&
-                                   routineP = moduleN//':'//routineN
+    INTEGER                                  :: stat
+    LOGICAL                                  :: failure
 
     failure=.FALSE.
     
@@ -250,19 +249,17 @@ CONTAINS
 !!*** **********************************************************************
   SUBROUTINE xc_dset_release(derivative_set, error)
 
-    ! arguments
-    TYPE(xc_derivative_set_type), POINTER        :: derivative_set
-    TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
+    TYPE(xc_derivative_set_type), POINTER    :: derivative_set
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
 
-    ! locals
-    LOGICAL :: failure
-    INTEGER :: stat
-    TYPE(xc_derivative_type), POINTER :: deriv_att
-    TYPE(cp_sll_xc_deriv_type), POINTER :: pos
+    CHARACTER(len=*), PARAMETER :: routineN = 'xc_dset_release', &
+      routineP = moduleN//':'//routineN
 
-    ! parameters
-    CHARACTER(len=*), PARAMETER :: routineN = 'xc_dset_release',&
-                                   routineP = moduleN//':'//routineN
+    INTEGER                                  :: stat
+    LOGICAL                                  :: failure
+    TYPE(cp_sll_xc_deriv_type), POINTER      :: pos
+    TYPE(xc_derivative_type), POINTER        :: deriv_att
 
     failure=.FALSE.
     
@@ -324,12 +321,14 @@ CONTAINS
 !!
 !!*** **********************************************************************
 SUBROUTINE xc_dset_retain(deriv_set,error)
-  TYPE(xc_derivative_set_type), POINTER :: deriv_set
-  TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
-  
-  LOGICAL :: failure
-  CHARACTER(len=*), PARAMETER :: routineN='xc_dset_retain',&
-        routineP=moduleN//':'//routineN
+    TYPE(xc_derivative_set_type), POINTER    :: deriv_set
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'xc_dset_retain', &
+      routineP = moduleN//':'//routineN
+
+    LOGICAL                                  :: failure
 
   failure=.FALSE.
   

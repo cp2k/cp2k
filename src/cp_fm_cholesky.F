@@ -28,28 +28,20 @@ MODULE cp_fm_cholesky
   USE cp_error_handling,               ONLY: cp_a_l,&
                                              cp_assert,&
                                              cp_assertion_failed,&
-                                             cp_debug,&
-                                             cp_error_dealloc_ref,&
                                              cp_error_get_logger,&
-                                             cp_error_init,&
                                              cp_error_message,&
-                                             cp_error_type,&
-                                             cp_internal_error,&
-                                             cp_unimplemented_error
-  USE cp_fm_types,                     ONLY: cp_fm_get_info,&
-                                             cp_fm_p_type,&
-                                             cp_fm_type
+                                             cp_error_type
+  USE cp_fm_types,                     ONLY: cp_fm_type
   USE cp_log_handling,                 ONLY: cp_failure_level,&
                                              cp_fatal_level,&
-                                             cp_log,&
                                              cp_note_level,&
                                              cp_to_string,&
                                              cp_warning_level
-  USE cp_para_types,                   ONLY: cp_blacs_env_type,&
-                                             cp_para_env_type
+  USE cp_para_types,                   ONLY: cp_blacs_env_type
   USE kinds,                           ONLY: dp
   USE timings,                         ONLY: timeset,&
                                              timestop
+
   IMPLICIT NONE
   PRIVATE
 
@@ -98,19 +90,19 @@ CONTAINS
 !!
 !!*** *********************************************************************
   SUBROUTINE cp_fm_cholesky_decompose(matrix,n,error)
-    TYPE(cp_fm_type), POINTER           :: matrix
-    INTEGER, INTENT(in), OPTIONAL                :: n
-    TYPE(cp_error_type), INTENT(inout), OPTIONAL :: error
+    TYPE(cp_fm_type), POINTER                :: matrix
+    INTEGER, INTENT(in), OPTIONAL            :: n
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
 
-    CHARACTER(len=*), PARAMETER :: routineN="cp_fm_cholesky_decompose",&
-         routineP=moduleN//':'//routineN
-    REAL(KIND = dp), DIMENSION(:,:), POINTER         :: a
-    INTEGER                                   :: info,handle
-    INTEGER                                   :: output_unit,source,my_n
-    LOGICAL                                   :: ionode
-    TYPE(cp_blacs_env_type), POINTER          :: context
-    INTEGER, DIMENSION(9)                     :: desca
-    LOGICAL                                   :: failure
+    CHARACTER(len=*), PARAMETER :: routineN = "cp_fm_cholesky_decompose", &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: handle, info, my_n
+    INTEGER, DIMENSION(9)                    :: desca
+    LOGICAL                                  :: failure, ionode
+    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: a
+    TYPE(cp_blacs_env_type), POINTER         :: context
 
     CALL timeset(routineN,"I","",handle)
 

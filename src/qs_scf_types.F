@@ -27,28 +27,18 @@
 MODULE qs_scf_types
   USE cp_error_handling,               ONLY: cp_a_l,&
                                              cp_assert,&
-                                             cp_assertion_failed,&
-                                             cp_debug,&
-                                             cp_error_check,&
-                                             cp_error_dealloc_ref,&
                                              cp_error_get_logger,&
-                                             cp_error_init,&
                                              cp_error_message,&
-                                             cp_error_type,&
-                                             cp_internal_error,&
-                                             cp_unimplemented_error
+                                             cp_error_type
   USE cp_fm_types,                     ONLY: cp_fm_p_type,&
                                              cp_fm_release,&
-                                             cp_fm_retain,&
                                              cp_fm_type
   USE cp_fm_vect,                      ONLY: cp_fm_vect_dealloc
   USE cp_log_handling,                 ONLY: cp_failure_level,&
                                              cp_fatal_level,&
-                                             cp_log,&
                                              cp_note_level,&
                                              cp_to_string,&
                                              cp_warning_level
-  USE cp_para_types,                   ONLY: cp_para_env_type
   USE kinds,                           ONLY: dp
   USE preconditioner,                  ONLY: destroy_preconditioner,&
                                              preconditioner_type
@@ -57,10 +47,10 @@ MODULE qs_scf_types
   USE qs_ot,                           ONLY: qs_ot_destroy,&
                                              qs_ot_type
   USE sparse_matrix_types,             ONLY: deallocate_matrix_set,&
-                                             real_matrix_p_type,&
-                                             real_matrix_type
+                                             real_matrix_p_type
   USE timings,                         ONLY: timeset,&
                                              timestop
+
   IMPLICIT NONE
   PRIVATE
 
@@ -175,12 +165,14 @@ CONTAINS
 !!
 !!*** **********************************************************************
 SUBROUTINE scf_env_retain(scf_env,error)
-  TYPE(qs_scf_env_type), POINTER :: scf_env
-  TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
-  
-  LOGICAL :: failure
-  CHARACTER(len=*), PARAMETER :: routineN='scf_env_retain',&
-        routineP=moduleN//':'//routineN
+    TYPE(qs_scf_env_type), POINTER           :: scf_env
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'scf_env_retain', &
+      routineP = moduleN//':'//routineN
+
+    LOGICAL                                  :: failure
 
   failure=.FALSE.
   
@@ -222,13 +214,15 @@ END SUBROUTINE scf_env_retain
 !!
 !!*** **********************************************************************
 SUBROUTINE scf_env_release(scf_env,error)
-  TYPE(qs_scf_env_type), POINTER :: scf_env
-  TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
-  
-  LOGICAL :: failure
-  CHARACTER(len=*), PARAMETER :: routineN='scf_env_release',&
-        routineP=moduleN//':'//routineN
-  INTEGER :: stat,i
+    TYPE(qs_scf_env_type), POINTER           :: scf_env
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'scf_env_release', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: i, stat
+    LOGICAL                                  :: failure
 
   failure=.FALSE.
   

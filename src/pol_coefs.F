@@ -22,20 +22,24 @@
 
 MODULE pol_coefs
   
-  USE atomic_kinds, ONLY :  kind_info_type
-  USE ao_types, ONLY : ao_type, ao_allocate, ao_zero
-  USE coefficient_types, ONLY : coeff_type, PLANEWAVES, ATOMICORBITALS, &
-                                PW_RECIPROCALSPACE
-  USE global_types, ONLY : global_environment_type
-  USE kinds, ONLY : dbl
-  USE particle_types, ONLY : particle_type
-  USE md, ONLY : simulation_parameters_type
-  USE molecule_types , ONLY : molecule_type, read_basis_type 
-  USE pol_projectors_scale, ONLY :  get_proj_scale_factor
-  USE pw_types, ONLY : COMPLEXDATA1D, pw_allocate, pw_zero
-  USE pw_grid_types, ONLY : pw_grid_type
-  USE termination, ONLY : stop_memory
-  USE util, ONLY : gasdev
+  USE ao_types,                        ONLY: ao_allocate,&
+                                             ao_type,&
+                                             ao_zero
+  USE atomic_kinds,                    ONLY: kind_info_type
+  USE coefficient_types,               ONLY: ATOMICORBITALS,&
+                                             PLANEWAVES,&
+                                             PW_RECIPROCALSPACE,&
+                                             coeff_type
+  USE global_types,                    ONLY: global_environment_type
+  USE kinds,                           ONLY: dbl
+  USE md,                              ONLY: simulation_parameters_type
+  USE particle_types,                  ONLY: particle_type
+  USE pol_projectors_scale,            ONLY: get_proj_scale_factor
+  USE pw_grid_types,                   ONLY: pw_grid_type
+  USE pw_types,                        ONLY: COMPLEXDATA1D,&
+                                             pw_allocate,&
+                                             pw_zero
+  USE util,                            ONLY: gasdev
 
   IMPLICIT NONE
 
@@ -49,19 +53,15 @@ MODULE pol_coefs
 !******************************************************************************
  SUBROUTINE allocate_pol_coefs(n, c_pos, c_vel, c_force, projector, pw_grid )
 
-    IMPLICIT NONE
-    INTEGER, INTENT (in) :: n
-    TYPE ( coeff_type ), INTENT(OUT) :: c_pos  
-    TYPE ( coeff_type ), INTENT(OUT) :: c_vel  
-    TYPE ( coeff_type ), INTENT(OUT) :: c_force  
-    TYPE ( coeff_type ), INTENT(OUT), OPTIONAL :: projector
-    TYPE ( pw_grid_type ), INTENT(IN), OPTIONAL :: pw_grid 
+    INTEGER, INTENT(in)                      :: n
+    TYPE(coeff_type), INTENT(OUT)            :: c_pos, c_vel, c_force
+    TYPE(coeff_type), INTENT(OUT), OPTIONAL  :: projector
+    TYPE(pw_grid_type), INTENT(IN), OPTIONAL :: pw_grid
 
-! locals
+    INTEGER                                  :: inuse
+    LOGICAL                                  :: eigr_flag, grid_flag, &
+                                                mass_flag
 
-   INTEGER :: inuse
-   LOGICAL :: mass_flag, grid_flag, eigr_flag
-     
    IF ( PRESENT ( pw_grid ) ) THEN         ! basis_type = PW
      c_pos % in_use = PLANEWAVES
      inuse = COMPLEXDATA1D
@@ -131,15 +131,12 @@ MODULE pol_coefs
 !
   SUBROUTINE dump_pol_coefs( c_pos, c_vel, c_force )
 
-    IMPLICIT NONE
-    TYPE (coeff_type), INTENT(IN) :: c_pos
-    TYPE (coeff_type), INTENT(IN) :: c_vel
-    TYPE (coeff_type), INTENT(IN) :: c_force
+    TYPE(coeff_type), INTENT(IN)             :: c_pos, c_vel, c_force
 
-! locals
-    INTEGER :: icoef, ncoef
+    INTEGER                                  :: icoef, ncoef
 
 ! write to the restart file
+
     OPEN ( unit = 666, file = 'coefficent.rst', status = 'unknown' )
     SELECT CASE ( c_pos % in_use )
     CASE ( ATOMICORBITALS )
@@ -165,23 +162,21 @@ MODULE pol_coefs
  SUBROUTINE initialize_pol_coefs ( simpar , ki, part, c_pos, c_vel, c_force, &
                                    globenv, proj )
 
-    IMPLICIT NONE
-    TYPE ( simulation_parameters_type ), INTENT ( INOUT ) :: simpar
-    TYPE (kind_info_type), POINTER, DIMENSION(:) :: ki
-    TYPE (particle_type), intent(in), DIMENSION(:) :: part
-    TYPE ( coeff_type ), INTENT(OUT) :: c_pos  
-    TYPE ( coeff_type ), INTENT(OUT) :: c_vel  
-    TYPE ( coeff_type ), INTENT(OUT) :: c_force  
-    TYPE ( global_environment_type ), INTENT ( INOUT ) :: globenv
-    TYPE ( coeff_type ), INTENT(OUT),  OPTIONAL :: proj
+    TYPE(simulation_parameters_type), &
+      INTENT(INOUT)                          :: simpar
+    TYPE(kind_info_type), DIMENSION(:), &
+      POINTER                                :: ki
+    TYPE(particle_type), DIMENSION(:), &
+      intent(in)                             :: part
+    TYPE(coeff_type), INTENT(OUT)            :: c_pos, c_vel, c_force
+    TYPE(global_environment_type), &
+      INTENT(INOUT)                          :: globenv
+    TYPE(coeff_type), INTENT(OUT), OPTIONAL  :: proj
 
-!   locals 
-    INTEGER :: ncoef, icoef
-    LOGICAL :: kind_flag
-    REAL ( dbl ) :: dum1_real, dum2_real
-    COMPLEX ( dbl ) :: dum1_cplx, dum2_cplx
-
-
+    COMPLEX(dbl)                             :: dum1_cplx, dum2_cplx
+    INTEGER                                  :: icoef, ncoef
+    LOGICAL                                  :: kind_flag
+    REAL(dbl)                                :: dum1_real, dum2_real
 
     SELECT CASE (simpar%pol_read_type)   
 
@@ -268,14 +263,15 @@ MODULE pol_coefs
 !------------------------------------------------------------------------------!
  SUBROUTINE initialize_coef_velocities ( simpar, c_vel, globenv )
 
- IMPLICIT NONE
-!arguments
-  TYPE ( simulation_parameters_type ), INTENT ( IN ) :: simpar
-  TYPE ( coeff_type ), INTENT ( OUT ) :: c_vel  
-  TYPE ( global_environment_type ), INTENT ( INOUT ) :: globenv
-! locals
-  REAL (dbl) :: akin, cmass, ctemp, sc
-  INTEGER :: ncoef, i
+    TYPE(simulation_parameters_type), &
+      INTENT(IN)                             :: simpar
+    TYPE(coeff_type), INTENT(OUT)            :: c_vel
+    TYPE(global_environment_type), &
+      INTENT(INOUT)                          :: globenv
+
+    INTEGER                                  :: i, ncoef
+    REAL(dbl)                                :: akin, cmass, ctemp, sc
+
 ! initializing velocities
 
   SELECT CASE ( c_vel % in_use )
@@ -337,15 +333,17 @@ MODULE pol_coefs
    
  SUBROUTINE get_kind_and_part_index (ao, ki, part, flag)
   
-   IMPLICIT NONE
-   TYPE (ao_type), intent(inout)  :: ao
-   TYPE (kind_info_type), POINTER, DIMENSION(:) :: ki
-   TYPE (particle_type), intent(in), DIMENSION(:) :: part
-   LOGICAL, intent (in) :: flag
+    TYPE(ao_type), intent(inout)             :: ao
+    TYPE(kind_info_type), DIMENSION(:), &
+      POINTER                                :: ki
+    TYPE(particle_type), DIMENSION(:), &
+      intent(in)                             :: part
+    LOGICAL, intent(in)                      :: flag
 
-! locals
-  INTEGER ::  ncoef, ikind, ipart, ii, iat, icoef, icgf, natoms, ios
-  INTEGER ::  nset, iset, ishell, first_cgf, last_cgf
+    INTEGER                                  :: first_cgf, iat, icgf, icoef, &
+                                                ii, ikind, ios, ipart, iset, &
+                                                ishell, last_cgf, natoms, &
+                                                ncoef, nset
 
    ncoef = size (ao % cr)
 

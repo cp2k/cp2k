@@ -20,9 +20,9 @@
 
 MODULE molecule_types
 
-  USE kinds, ONLY : dbl
-  USE particle_types, ONLY : particle_type
-  USE qs_neighbor_list_types, ONLY: neighbor_list_type
+  USE kinds,                           ONLY: dbl
+  USE particle_types,                  ONLY: particle_type
+  USE qs_neighbor_list_types,          ONLY: neighbor_list_type
 
   IMPLICIT NONE
 
@@ -197,7 +197,8 @@ MODULE molecule_types
 CONTAINS
 
   SUBROUTINE init_molecule_parameter_type(molpar)
-    TYPE(molecule_parameter_type) :: molpar
+    TYPE(molecule_parameter_type)            :: molpar
+
     molpar%name="#"
     molpar%natom=0
     molpar%natom_type=0
@@ -220,7 +221,8 @@ CONTAINS
   END SUBROUTINE
 
   SUBROUTINE init_molecule_type(mol)
-    TYPE(molecule_type) :: mol
+    TYPE(molecule_type)                      :: mol
+
     mol%file_name=""
     mol%nhcopt=""
     mol%num_mol=0

@@ -26,9 +26,9 @@ MODULE pol_thk
 
 ! *****************************************************************************
 
-  USE kinds, ONLY: dbl        
-  USE ao_types, ONLY : ao_type
-  USE empirical_parameters,     ONLY : empirical_parameter_type
+  USE ao_types,                        ONLY: ao_type
+  USE empirical_parameters,            ONLY: empirical_parameter_type
+  USE kinds,                           ONLY: dbl
 
   IMPLICIT NONE
 
@@ -46,15 +46,14 @@ CONTAINS
 
 !   ***************************************************************************
 
-  TYPE ( ao_type ), INTENT(INOUT) :: ao 
-  TYPE ( empirical_parameter_type ), DIMENSION ( : ), INTENT ( IN ) :: empparm
-  REAL ( dbl ), DIMENSION (:), INTENT(INOUT) :: fthk
-  REAL ( dbl ), INTENT(OUT) :: energy
+    TYPE(ao_type), INTENT(INOUT)             :: ao
+    TYPE(empirical_parameter_type), &
+      DIMENSION(:), INTENT(IN)               :: empparm
+    REAL(dbl), DIMENSION(:), INTENT(INOUT)   :: fthk
+    REAL(dbl), INTENT(OUT)                   :: energy
 
-! locals
-
-  INTEGER :: icoef, ncoef, ikind, iset
-  REAL (dbl) :: thk
+    INTEGER                                  :: icoef, ikind, iset, ncoef
+    REAL(dbl)                                :: thk
 
   ncoef = size(ao%cr)
   fthk(:) = 0.0_dbl

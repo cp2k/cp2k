@@ -29,9 +29,9 @@ MODULE ai_derivatives
 
 ! *****************************************************************************
 
-  USE kinds, ONLY: dp
-  USE orbital_pointers, ONLY: coset,ncoset
-
+  USE kinds,                           ONLY: dp
+  USE orbital_pointers,                ONLY: coset,&
+                                             ncoset
 
   IMPLICIT NONE
 
@@ -57,20 +57,24 @@ CONTAINS
 
 !   ***************************************************************************
 
-    REAL(KIND = dp), INTENT(IN)                  :: dab
-    INTEGER, INTENT(IN)                   :: la_max,la_min,lb_max,lb_min
-    REAL(KIND = dp), DIMENSION(:), INTENT(IN)    :: rpgfa,rpgfb,zeta,zetb
-    REAL(KIND = dp), DIMENSION(:,:), INTENT(IN)  :: ab
-    REAL(KIND = dp), DIMENSION(:,:), INTENT(OUT) :: dabdx,dabdy,dabdz
+    INTEGER, INTENT(IN)                      :: la_max
+    REAL(KIND=dp), DIMENSION(:), INTENT(IN)  :: zeta, rpgfa
+    INTEGER, INTENT(IN)                      :: la_min, lb_max
+    REAL(KIND=dp), DIMENSION(:), INTENT(IN)  :: zetb, rpgfb
+    INTEGER, INTENT(IN)                      :: lb_min
+    REAL(KIND=dp), INTENT(IN)                :: dab
+    REAL(KIND=dp), DIMENSION(:, :), &
+      INTENT(IN)                             :: ab
+    REAL(KIND=dp), DIMENSION(:, :), &
+      INTENT(OUT)                            :: dabdx, dabdy, dabdz
 
-!   *** Local variables ***
-
-    REAL(KIND = dp) :: fa,fx,fy,fz
-    INTEGER  :: ax,ay,az,bx,by,bz,coa,coamx,coamy,coamz,coapx,coapy,coapz,cob,&
-                coda,i,ipgf,j,jpgf,la,lb,na,nb,nda
+    INTEGER                                  :: ax, ay, az, bx, by, bz, coa, &
+                                                coamx, coamy, coamz, coapx, &
+                                                coapy, coapz, cob, i, ipgf, &
+                                                j, jpgf, la, lb, na, nb, nda
+    REAL(KIND=dp)                            :: fa, fx, fy, fz
 
 !   ---------------------------------------------------------------------------
-
 !   *** Loop over all pairs of primitive Gaussian-type functions ***
 
     na = 0

@@ -40,13 +40,8 @@ MODULE distribution_1d_types
   USE cp_error_handling,               ONLY: cp_a_l,&
                                              cp_assert,&
                                              cp_assertion_failed,&
-                                             cp_debug,&
-                                             cp_error_check,&
-                                             cp_error_dealloc_ref,&
-                                             cp_error_init,&
                                              cp_error_message,&
-                                             cp_error_type,&
-                                             cp_internal_error
+                                             cp_error_type
   USE cp_log_handling,                 ONLY: cp_failure_level,&
                                              cp_fatal_level,&
                                              cp_logger_type,&
@@ -56,13 +51,13 @@ MODULE distribution_1d_types
   USE cp_para_env,                     ONLY: cp_para_env_release,&
                                              cp_para_env_retain
   USE cp_para_types,                   ONLY: cp_para_env_type
-  USE global_types,                    ONLY: global_environment_type
   USE kinds,                           ONLY: dp
   USE message_passing,                 ONLY: mp_max,&
                                              mp_sum
   USE timings,                         ONLY: timeset,&
                                              timestop
   USE util,                            ONLY: sort
+
   IMPLICIT NONE
   PRIVATE
 
@@ -192,17 +187,20 @@ CONTAINS
 !!*** **********************************************************************
 SUBROUTINE distribution_1d_create(distribution_1d,para_env,listbased_distribution,&
      n_el,n_lists,error)
-  TYPE(distribution_1d_type), POINTER :: distribution_1d
-  INTEGER, INTENT(in), OPTIONAL :: n_lists
-  TYPE(cp_para_env_type), POINTER :: para_env
-  LOGICAL, INTENT(in), OPTIONAL :: listbased_distribution
-  INTEGER, DIMENSION(:), INTENT(in), OPTIONAL :: n_el
-  TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
-  
-  LOGICAL :: failure
-  CHARACTER(len=*), PARAMETER :: routineN='distribution_1d_create',&
-        routineP=moduleN//':'//routineN
-  INTEGER :: stat, ilist, my_n_lists
+    TYPE(distribution_1d_type), POINTER      :: distribution_1d
+    TYPE(cp_para_env_type), POINTER          :: para_env
+    LOGICAL, INTENT(in), OPTIONAL            :: listbased_distribution
+    INTEGER, DIMENSION(:), INTENT(in), &
+      OPTIONAL                               :: n_el
+    INTEGER, INTENT(in), OPTIONAL            :: n_lists
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'distribution_1d_create', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: ilist, my_n_lists, stat
+    LOGICAL                                  :: failure
 
   failure=.FALSE.
   my_n_lists=1
@@ -275,12 +273,14 @@ END SUBROUTINE distribution_1d_create
 !!
 !!*** **********************************************************************
 SUBROUTINE distribution_1d_retain(distribution_1d,error)
-  TYPE(distribution_1d_type), POINTER :: distribution_1d
-  TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
-  
-  LOGICAL :: failure
-  CHARACTER(len=*), PARAMETER :: routineN='distribution_1d_retain',&
-        routineP=moduleN//':'//routineN
+    TYPE(distribution_1d_type), POINTER      :: distribution_1d
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'distribution_1d_retain', &
+      routineP = moduleN//':'//routineN
+
+    LOGICAL                                  :: failure
 
   failure=.FALSE.
   
@@ -322,13 +322,15 @@ END SUBROUTINE distribution_1d_retain
 !!
 !!*** **********************************************************************
 SUBROUTINE distribution_1d_release(distribution_1d,error)
-  TYPE(distribution_1d_type), POINTER :: distribution_1d
-  TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
-  
-  LOGICAL :: failure
-  CHARACTER(len=*), PARAMETER :: routineN='distribution_1d_release',&
-        routineP=moduleN//':'//routineN
-  INTEGER :: stat, ilist
+    TYPE(distribution_1d_type), POINTER      :: distribution_1d
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'distribution_1d_release', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: ilist, stat
+    LOGICAL                                  :: failure
 
   failure=.FALSE.
   
@@ -392,15 +394,17 @@ END SUBROUTINE distribution_1d_release
 !!
 !!*** **********************************************************************
 SUBROUTINE distribution_1d_sort_list(distribution_1d,i_list,error)
-  TYPE(distribution_1d_type), POINTER :: distribution_1d
-  INTEGER, INTENT(in), OPTIONAL :: i_list
-  TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
-  
-  LOGICAL :: failure
-  CHARACTER(len=*), PARAMETER :: routineN='distribution_1d_sort_list',&
-        routineP=moduleN//':'//routineN
-  INTEGER, DIMENSION(:), ALLOCATABLE :: indexes
-  INTEGER :: stat,ilist
+    TYPE(distribution_1d_type), POINTER      :: distribution_1d
+    INTEGER, INTENT(in), OPTIONAL            :: i_list
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'distribution_1d_sort_list', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: ilist, stat
+    INTEGER, ALLOCATABLE, DIMENSION(:)       :: indexes
+    LOGICAL                                  :: failure
 
   failure=.FALSE.
   
@@ -478,17 +482,20 @@ END SUBROUTINE distribution_1d_sort_list
 !!*** **********************************************************************
 SUBROUTINE distribution_1d_search_el(distribution_1d, element, found, i_list_to_search, &
      i_pos,i_list, error)
-  TYPE(distribution_1d_type), POINTER :: distribution_1d
-  INTEGER, INTENT(in) :: element
-  LOGICAL, INTENT(out) :: found
-  INTEGER, INTENT(in), OPTIONAL :: i_list_to_search
-  INTEGER, OPTIONAL, INTENT(out) :: i_pos, i_list
-  TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
-  
-  LOGICAL :: failure
-  CHARACTER(len=*), PARAMETER :: routineN='distribution_1d_search_el',&
-       routineP=moduleN//':'//routineN
-  INTEGER :: index, ilist
+    TYPE(distribution_1d_type), POINTER      :: distribution_1d
+    INTEGER, INTENT(in)                      :: element
+    LOGICAL, INTENT(out)                     :: found
+    INTEGER, INTENT(in), OPTIONAL            :: i_list_to_search
+    INTEGER, INTENT(out), OPTIONAL           :: i_pos, i_list
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'distribution_1d_search_el', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: ilist, index
+    LOGICAL                                  :: failure
+
   failure=.FALSE.
   
   CPPrecondition(ASSOCIATED(distribution_1d),cp_failure_level,routineP,error,failure)
@@ -552,14 +559,17 @@ END SUBROUTINE distribution_1d_search_el
 !!
 !!*** **********************************************************************
 SUBROUTINE distribution_1d_build_gdist(distribution_1d,error)
-  TYPE(distribution_1d_type), POINTER :: distribution_1d
-  TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
+    TYPE(distribution_1d_type), POINTER      :: distribution_1d
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
 
-  LOGICAL :: failure
-  CHARACTER(len=*), PARAMETER :: routineN='distribution_1d_build_gdist',&
-       routineP=moduleN//':'//routineN
-  INTEGER :: ilist, stat, max_el, max_loc, max_el1, i, my_id
-  INTEGER, DIMENSION(:), POINTER :: g_dist
+    CHARACTER(len=*), PARAMETER :: routineN = 'distribution_1d_build_gdist', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: i, ilist, max_el, max_el1, &
+                                                my_id, stat
+    INTEGER, DIMENSION(:), POINTER           :: g_dist
+    LOGICAL                                  :: failure
 
   failure=.FALSE.
   NULLIFY(g_dist)
@@ -727,13 +737,16 @@ END SUBROUTINE distribution_1d_build_gdist
 !!
 !!*** **********************************************************************
 SUBROUTINE distribution_1d_destroy_gdist(distribution_1d,error)
-  TYPE(distribution_1d_type), POINTER :: distribution_1d
-  TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
-  
-  LOGICAL :: failure
-  CHARACTER(len=*), PARAMETER :: routineN='distribution_1d_destroy_gdist',&
-        routineP=moduleN//':'//routineN
-  INTEGER :: stat, ilist
+    TYPE(distribution_1d_type), POINTER      :: distribution_1d
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
+
+    CHARACTER(len=*), PARAMETER :: &
+      routineN = 'distribution_1d_destroy_gdist', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: ilist, stat
+    LOGICAL                                  :: failure
 
   failure=.FALSE.
 
@@ -780,14 +793,16 @@ END SUBROUTINE distribution_1d_destroy_gdist
 !!
 !!*** **********************************************************************
 SUBROUTINE distribution_1d_write(distribution_1d, unit_nr, error)
-  TYPE(distribution_1d_type), pointer :: distribution_1d
-  INTEGER, INTENT(in) :: unit_nr
-  type(cp_error_type), optional, intent(inout) :: error
-  
-  logical :: failure
-  character(len=*), parameter :: routineN='distribution_1d_write',&
-        routineP=moduleN//':'//routineN
-  INTEGER :: ilist, i
+    TYPE(distribution_1d_type), pointer      :: distribution_1d
+    INTEGER, INTENT(in)                      :: unit_nr
+    type(cp_error_type), intent(inout), &
+      optional                               :: error
+
+    character(len=*), parameter :: routineN = 'distribution_1d_write', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: i, ilist
+    logical                                  :: failure
 
   failure=.false.
 

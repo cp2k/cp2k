@@ -27,19 +27,11 @@
 MODULE cp_sm_struct
   USE cp_error_handling,               ONLY: cp_a_l,&
                                              cp_assert,&
-                                             cp_assertion_failed,&
-                                             cp_debug,&
-                                             cp_error_check,&
-                                             cp_error_dealloc_ref,&
                                              cp_error_get_logger,&
-                                             cp_error_init,&
                                              cp_error_message,&
-                                             cp_error_type,&
-                                             cp_internal_error,&
-                                             cp_unimplemented_error
+                                             cp_error_type
   USE cp_log_handling,                 ONLY: cp_failure_level,&
                                              cp_fatal_level,&
-                                             cp_log,&
                                              cp_logger_type,&
                                              cp_note_level,&
                                              cp_to_string,&
@@ -54,6 +46,7 @@ MODULE cp_sm_struct
   USE kinds,                           ONLY: dp
   USE timings,                         ONLY: timeset,&
                                              timestop
+
   IMPLICIT NONE
   PRIVATE
 
@@ -205,19 +198,21 @@ CONTAINS
 SUBROUTINE sm_struct_create(sm_struct, block_begins_at_row,&
      block_begins_at_col, para_env, symmetry, distribution_2d,&
      local_blocks_ptr,error)
-  TYPE(cp_sm_struct_type), POINTER :: sm_struct
-  INTEGER, DIMENSION(:), INTENT(in) :: block_begins_at_row, &
-       block_begins_at_col
-  TYPE(cp_para_env_type), POINTER :: para_env
-  CHARACTER(len=*) :: symmetry
-  TYPE(distribution_2d_type), POINTER :: distribution_2d
-  TYPE(cp_sm_node_type), OPTIONAL, POINTER :: local_blocks_ptr
-  TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
-  
-  LOGICAL :: failure
-  CHARACTER(len=*), PARAMETER :: routineN='sm_struct_create',&
-        routineP=moduleN//':'//routineN
-  INTEGER :: stat
+    TYPE(cp_sm_struct_type), POINTER         :: sm_struct
+    INTEGER, DIMENSION(:), INTENT(in)        :: block_begins_at_row, &
+                                                block_begins_at_col
+    TYPE(cp_para_env_type), POINTER          :: para_env
+    CHARACTER(len=*)                         :: symmetry
+    TYPE(distribution_2d_type), POINTER      :: distribution_2d
+    TYPE(cp_sm_node_type), OPTIONAL, POINTER :: local_blocks_ptr
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'sm_struct_create', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: stat
+    LOGICAL                                  :: failure
 
   failure=.FALSE.
   
@@ -283,12 +278,14 @@ END SUBROUTINE sm_struct_create
 !!
 !!*** **********************************************************************
 SUBROUTINE sm_struct_retain(sm_struct,error)
-  TYPE(cp_sm_struct_type), POINTER :: sm_struct
-  TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
-  
-  LOGICAL :: failure
-  CHARACTER(len=*), PARAMETER :: routineN='sm_struct_retain',&
-        routineP=moduleN//':'//routineN
+    TYPE(cp_sm_struct_type), POINTER         :: sm_struct
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'sm_struct_retain', &
+      routineP = moduleN//':'//routineN
+
+    LOGICAL                                  :: failure
 
   failure=.FALSE.
   
@@ -325,14 +322,16 @@ END SUBROUTINE sm_struct_retain
 !!
 !!*** **********************************************************************
 SUBROUTINE sm_nodes_dealloc(sm_nodes,error)
-  TYPE(cp_sm_node_type), POINTER :: sm_nodes
-  TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
-  
-  LOGICAL :: failure
-  CHARACTER(len=*), PARAMETER :: routineN='sm_nodes_dealloc',&
-        routineP=moduleN//':'//routineN
-  TYPE(cp_sm_node_type), POINTER :: next_row, pos_att, next_pos
-  INTEGER :: stat
+    TYPE(cp_sm_node_type), POINTER           :: sm_nodes
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'sm_nodes_dealloc', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: stat
+    LOGICAL                                  :: failure
+    TYPE(cp_sm_node_type), POINTER           :: next_pos, next_row, pos_att
 
   failure=.FALSE.
   
@@ -384,13 +383,15 @@ END SUBROUTINE sm_nodes_dealloc
 !!
 !!*** **********************************************************************
 SUBROUTINE sm_struct_release(sm_struct, error)
-  TYPE(cp_sm_struct_type), POINTER :: sm_struct
-  TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
-  
-  LOGICAL :: failure
-  CHARACTER(len=*), PARAMETER :: routineN='sm_struct_release',&
-        routineP=moduleN//':'//routineN
-  INTEGER :: stat
+    TYPE(cp_sm_struct_type), POINTER         :: sm_struct
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'sm_struct_release', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: stat
+    LOGICAL                                  :: failure
 
   failure=.FALSE.
   
@@ -467,15 +468,17 @@ END SUBROUTINE sm_struct_release
 !!
 !!*** **********************************************************************
 SUBROUTINE sm_struct_add_local_block(sm_struct, block_row, block_col, error)
-  TYPE(cp_sm_struct_type), POINTER :: sm_struct
-  INTEGER, INTENT(in) :: block_row, block_col
-  TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
-  
-  LOGICAL :: failure
-  CHARACTER(len=*), PARAMETER :: routineN='sm_struct_add_local_block',&
-        routineP=moduleN//':'//routineN
-  TYPE(cp_sm_node_type), POINTER :: row_att, col_att,new_node
-  INTEGER :: stat
+    TYPE(cp_sm_struct_type), POINTER         :: sm_struct
+    INTEGER, INTENT(in)                      :: block_row, block_col
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'sm_struct_add_local_block', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: stat
+    LOGICAL                                  :: failure
+    TYPE(cp_sm_node_type), POINTER           :: col_att, new_node, row_att
 
   failure=.FALSE.
   NULLIFY(row_att, col_att, new_node)
@@ -599,15 +602,17 @@ END SUBROUTINE sm_struct_add_local_block
 !!
 !!*** **********************************************************************
 SUBROUTINE sm_nodes_renumber(sm_nodes, nblocks, error)
-  TYPE(cp_sm_node_type), POINTER :: sm_nodes
-  INTEGER, INTENT(out), OPTIONAL :: nblocks
-  TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
-  
-  LOGICAL :: failure
-  CHARACTER(len=*), PARAMETER :: routineN='sm_nodes_renumber',&
-        routineP=moduleN//':'//routineN
-  TYPE(cp_sm_node_type), POINTER :: next_row, pos_att, next_pos
-  INTEGER :: nr
+    TYPE(cp_sm_node_type), POINTER           :: sm_nodes
+    INTEGER, INTENT(out), OPTIONAL           :: nblocks
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'sm_nodes_renumber', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: nr
+    LOGICAL                                  :: failure
+    TYPE(cp_sm_node_type), POINTER           :: next_row, pos_att
 
   failure=.FALSE.
   nr=0
@@ -664,12 +669,14 @@ END SUBROUTINE sm_nodes_renumber
 !!
 !!*** **********************************************************************
 SUBROUTINE sm_struct_clear_local_blocks(sm_struct, error)
-  TYPE(cp_sm_struct_type), POINTER :: sm_struct
-  TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
-  
-  LOGICAL :: failure
-  CHARACTER(len=*), PARAMETER :: routineN='sm_struct_clear_local_blocks',&
-        routineP=moduleN//':'//routineN
+    TYPE(cp_sm_struct_type), POINTER         :: sm_struct
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'sm_struct_clear_local_blocks', &
+      routineP = moduleN//':'//routineN
+
+    LOGICAL                                  :: failure
 
   failure=.FALSE.
   
@@ -728,22 +735,29 @@ SUBROUTINE sm_struct_get(sm_struct, ref_count, id_nr, n_local_blocks,&
      block_begins_at_row, block_begins_at_col, first_col, &
      first_row, last_col, last_row, para_env, symmetry, local_blocks,&
      n_blocks_row,n_blocks_col,n_rows,n_cols,distribution_2d, error)
-  TYPE(cp_sm_struct_type), POINTER :: sm_struct
-  INTEGER, INTENT(out),OPTIONAL :: ref_count, id_nr, n_local_blocks
-  INTEGER, DIMENSION(:), POINTER, OPTIONAL :: block_begins_at_row, &
-       block_begins_at_col, first_col, &
-       first_row, last_col, last_row
-  TYPE(cp_para_env_type), POINTER, OPTIONAL :: para_env
-  CHARACTER(len=*), INTENT(out), OPTIONAL :: symmetry
-  TYPE(cp_sm_node_type), POINTER, OPTIONAL :: local_blocks
-  INTEGER, INTENT(out), OPTIONAL :: n_blocks_row,n_blocks_col,n_rows,n_cols
-  TYPE(distribution_2d_type), POINTER, OPTIONAL :: distribution_2d
-  TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
-  
-  LOGICAL :: failure
-  CHARACTER(len=*), PARAMETER :: routineN='sm_struct_get',&
-        routineP=moduleN//':'//routineN
-  INTEGER :: stat
+    TYPE(cp_sm_struct_type), POINTER         :: sm_struct
+    INTEGER, INTENT(out), OPTIONAL           :: ref_count, id_nr, &
+                                                n_local_blocks
+    INTEGER, DIMENSION(:), OPTIONAL, POINTER :: block_begins_at_row, &
+                                                block_begins_at_col, &
+                                                first_col, first_row, &
+                                                last_col, last_row
+    TYPE(cp_para_env_type), OPTIONAL, &
+      POINTER                                :: para_env
+    CHARACTER(len=*), INTENT(out), OPTIONAL  :: symmetry
+    TYPE(cp_sm_node_type), OPTIONAL, POINTER :: local_blocks
+    INTEGER, INTENT(out), OPTIONAL           :: n_blocks_row, n_blocks_col, &
+                                                n_rows, n_cols
+    TYPE(distribution_2d_type), OPTIONAL, &
+      POINTER                                :: distribution_2d
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'sm_struct_get', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: stat
+    LOGICAL                                  :: failure
 
   failure=.FALSE.
   
@@ -851,16 +865,20 @@ END SUBROUTINE sm_struct_get
 !!
 !!*** **********************************************************************
 SUBROUTINE sm_struct_write(sm_struct, unit_nr, local, short_description, error)
-  TYPE(cp_sm_struct_type), POINTER :: sm_struct
-  INTEGER, INTENT(in) :: unit_nr
-  LOGICAL, INTENT(in), OPTIONAL :: local, short_description
-  TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
+    TYPE(cp_sm_struct_type), POINTER         :: sm_struct
+    INTEGER, INTENT(in)                      :: unit_nr
+    LOGICAL, INTENT(in), OPTIONAL            :: local, short_description
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
 
-  LOGICAL :: failure, my_local, my_short_description, should_write
-  CHARACTER(len=*), PARAMETER :: routineN='sm_struct_write',&
-       routineP=moduleN//':'//routineN
-  TYPE(cp_logger_type), POINTER :: logger
-  TYPE(cp_sm_node_type), POINTER :: pos_att,next_row
+    CHARACTER(len=*), PARAMETER :: routineN = 'sm_struct_write', &
+      routineP = moduleN//':'//routineN
+
+    LOGICAL                                  :: failure, my_local, &
+                                                my_short_description, &
+                                                should_write
+    TYPE(cp_logger_type), POINTER            :: logger
+    TYPE(cp_sm_node_type), POINTER           :: next_row, pos_att
 
   failure=.FALSE.
   NULLIFY(pos_att,next_row)

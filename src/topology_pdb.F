@@ -18,23 +18,24 @@
 !******************************************************************************
 MODULE topology_pdb
 
-  USE checkpoint_handler,       ONLY : write_checkpoint_information
-  USE convert_units,            ONLY : convert_to_cp2k_units
-  USE global_types,             ONLY : global_environment_type
-  USE kinds,                    ONLY : dbl,default_string_length
-  USE memory_utilities,         ONLY : reallocate
-  USE parser,                   ONLY : parser_init, &
-                                       parser_end, &
-                                       read_line, &
-                                       test_next, &
-                                       get_next, &
-                                       search_label
-  USE string_utilities,         ONLY : uppercase
-  USE termination,              ONLY : stop_memory, &
-                                       stop_program
-  USE timings,                  ONLY : timeset,&
-                                       timestop
-  USE topology_types,           ONLY : topology_parameters_type
+  USE checkpoint_handler,              ONLY: write_checkpoint_information
+  USE convert_units,                   ONLY: convert_to_cp2k_units
+  USE global_types,                    ONLY: global_environment_type
+  USE kinds,                           ONLY: dbl,&
+                                             default_string_length
+  USE memory_utilities,                ONLY: reallocate
+  USE parser,                          ONLY: get_next,&
+                                             parser_end,&
+                                             parser_init,&
+                                             read_line,&
+                                             search_label,&
+                                             test_next
+  USE string_utilities,                ONLY: uppercase
+  USE termination,                     ONLY: stop_memory,&
+                                             stop_program
+  USE timings,                         ONLY: timeset,&
+                                             timestop
+  USE topology_types,                  ONLY: topology_parameters_type
 
   IMPLICIT NONE
 
@@ -68,28 +69,26 @@ CONTAINS
 
 SUBROUTINE read_coordinate_pdb (topology,globenv)
 
-  IMPLICIT NONE
 
-! Arguments
-  TYPE ( topology_parameters_type ) :: topology
-  TYPE ( global_environment_type ), INTENT ( IN ) :: globenv
+    TYPE(topology_parameters_type)           :: topology
+    TYPE(global_environment_type), &
+      INTENT(IN)                             :: globenv
 
-! Locals
-  INTEGER :: ilen,iw,handle,istat
-  INTEGER, PARAMETER :: nblock_atom = 1000
+    CHARACTER(len=*), PARAMETER :: routineN = 'read_coordinate_pdb', &
+      routineP = moduleN//':'//routineN
+    INTEGER, PARAMETER                       :: nblock_atom = 1000
 
-  CHARACTER(LEN=default_string_length)  :: label,string
-  CHARACTER (LEN=default_string_length), POINTER :: tmp_atmname(:)
-  CHARACTER (LEN=default_string_length), POINTER :: tmp_resname(:)
-  INTEGER                         :: iatom,natom
-
-  INTEGER, POINTER :: num_atmid(:),num_resid(:)
-  REAL (dbl), POINTER :: pos1(:),pos2(:),pos3(:)
-  CHARACTER(len=*), PARAMETER :: routineN='read_coordinate_pdb',&
-       routineP=moduleN//':'//routineN
+    CHARACTER(LEN=default_string_length)     :: label, string
+    CHARACTER(LEN=default_string_length), &
+      POINTER                                :: tmp_atmname(:), tmp_resname(:)
+    INTEGER                                  :: handle, iatom, ilen, istat, &
+                                                iw, natom
+    INTEGER, POINTER                         :: num_atmid(:), num_resid(:)
+    REAL(dbl), POINTER                       :: pos1(:), pos2(:), pos3(:)
 
 !------------------------------------------------------------------------------
 !------------------------------------------------------------------------------
+
   iw = globenv % scr
 
   CALL write_checkpoint_information("entering "//routineN,globenv)

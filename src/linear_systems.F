@@ -26,10 +26,13 @@
 
 MODULE linear_systems
 
-  USE kinds, ONLY : dbl
-  USE lapack, ONLY : lapack_spotrf, lapack_cpotrf, lapack_strtri, lapack_ctrtri, &
-                     lapack_sgesv
-  USE termination, ONLY : stop_program
+  USE kinds,                           ONLY: dbl
+  USE lapack,                          ONLY: lapack_cpotrf,&
+                                             lapack_ctrtri,&
+                                             lapack_sgesv,&
+                                             lapack_spotrf,&
+                                             lapack_strtri
+  USE termination,                     ONLY: stop_program
 
   IMPLICIT NONE
 
@@ -51,16 +54,13 @@ CONTAINS
 
 SUBROUTINE ch_inv_pdsym ( matrix, mysize, storageform )
 
-  IMPLICIT NONE
 
-! Arguments
-  CHARACTER ( LEN = * ), INTENT ( IN ) :: storageform
-  INTEGER, INTENT ( IN ) :: mysize
-  REAL ( KIND = dbl ), INTENT ( INOUT ) :: matrix ( :, : )
+    REAL(KIND=dbl), INTENT(INOUT)            :: matrix( :, : )
+    INTEGER, INTENT(IN)                      :: mysize
+    CHARACTER(LEN=*), INTENT(IN)             :: storageform
 
-! Local
-  CHARACTER :: uplo, diag="N"
-  INTEGER :: info, lda
+    CHARACTER                                :: diag = "N", uplo
+    INTEGER                                  :: info, lda
 
 !------------------------------------------------------------------------------
 
@@ -93,16 +93,13 @@ END SUBROUTINE ch_inv_pdsym
 
 SUBROUTINE ch_inv_pdher ( matrix, mysize, storageform )
 
-  IMPLICIT NONE
 
-! Arguments
-  CHARACTER ( LEN = * ), INTENT ( IN ) :: storageform
-  INTEGER, INTENT ( IN ) :: mysize
-  COMPLEX ( KIND = dbl ), INTENT ( INOUT ) :: matrix ( :, : )
+    COMPLEX(KIND=dbl), INTENT(INOUT)         :: matrix( :, : )
+    INTEGER, INTENT(IN)                      :: mysize
+    CHARACTER(LEN=*), INTENT(IN)             :: storageform
 
-! Local
-  CHARACTER :: uplo, diag="N"
-  INTEGER :: info, lda
+    CHARACTER                                :: diag = "N", uplo
+    INTEGER                                  :: info, lda
 
 !------------------------------------------------------------------------------
 
@@ -134,16 +131,13 @@ END SUBROUTINE ch_inv_pdher
 !******************************************************************************
 SUBROUTINE solve_system ( matrix, mysize, eigenvectors )
 
-  IMPLICIT NONE
 
-! Arguments
-  REAL ( KIND = dbl ), INTENT ( INOUT ) :: matrix ( :, : )
-  INTEGER, INTENT ( IN ) :: mysize
-  REAL ( KIND = dbl ), INTENT ( INOUT ) :: eigenvectors ( :, : )
+    REAL(KIND=dbl), INTENT(INOUT)            :: matrix( :, : )
+    INTEGER, INTENT(IN)                      :: mysize
+    REAL(KIND=dbl), INTENT(INOUT)            :: eigenvectors( :, : )
 
-! Local
-  INTEGER :: info, lda, ldb, n, nrhs
-  integer :: ipiv ( mysize )
+    INTEGER                                  :: info, lda, ldb, nrhs
+    INTEGER                                  :: ipiv( mysize )
 
   lda = SIZE ( matrix, 1 )
   ldb = SIZE ( eigenvectors, 1 )

@@ -31,32 +31,22 @@
 MODULE qs_ep_methods
 !MK  USE qs_overlap,                      ONLY: distribute_overlap_matrix
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
-                                             get_atomic_kind,&
-                                             get_atomic_kind_set,&
-                                             set_atomic_kind
+                                             get_atomic_kind
   USE coefficient_types,               ONLY: coeff_deallocate,&
                                              coeff_type
+  USE cp_control_types,                ONLY: dft_control_type
   USE cp_error_handling,               ONLY: cp_a_l,&
                                              cp_assert,&
-                                             cp_assertion_failed,&
-                                             cp_debug,&
                                              cp_error_check,&
-                                             cp_error_dealloc_ref,&
                                              cp_error_get_logger,&
-                                             cp_error_init,&
                                              cp_error_message,&
                                              cp_error_type,&
-                                             cp_internal_error,&
                                              cp_unimplemented_error
   USE cp_fm_basic_linalg,              ONLY: cp_fm_scale_and_add,&
                                              cp_fm_trace
   USE cp_fm_pool_types,                ONLY: cp_fm_pool_p_type,&
-                                             cp_fm_pool_type,&
-                                             fm_pool_get_el_struct,&
                                              fm_pools_create_fm_vect,&
                                              fm_pools_give_back_fm_vect
-  USE cp_fm_struct,                    ONLY: cp_fm_struct_get,&
-                                             cp_fm_struct_type
   USE cp_fm_types,                     ONLY: cp_fm_get_info,&
                                              cp_fm_p_type,&
                                              cp_fm_set_all,&
@@ -74,41 +64,28 @@ MODULE qs_ep_methods
                                              cp_to_string,&
                                              cp_warning_level
   USE cp_matrix_utils,                 ONLY: cp_sm_output
-  USE cp_para_env,                     ONLY: cp_para_env_from_globenv
   USE cp_para_types,                   ONLY: cp_blacs_env_type,&
                                              cp_para_env_type
   USE cp_sm_fm_interactions,           ONLY: cp_sm_fm_multiply
-  USE cp_control_types,                       ONLY: dft_control_type
-  USE global_types,                    ONLY: global_environment_type,&
-                                             print_key_type
+  USE global_types,                    ONLY: global_environment_type
   USE greens_fn,                       ONLY: pw_green_fn_init
   USE kinds,                           ONLY: dp
   USE machine,                         ONLY: m_flush
   USE particle_types,                  ONLY: particle_type
   USE preconditioner,                  ONLY: apply_preconditioner,&
                                              init_preconditioner,&
-                                             make_preconditioner,&
-                                             preconditioner_p_type,&
-                                             preconditioner_type
+                                             make_preconditioner
   USE pw_env_types,                    ONLY: pw_env_get,&
-                                             pw_env_release,&
                                              pw_env_retain,&
                                              pw_env_type
   USE pw_pool_types,                   ONLY: pw_pool_init_coeff,&
                                              pw_pool_type
   USE pw_types,                        ONLY: COMPLEXDATA1D,&
-                                             COMPLEXDATA3D,&
-                                             REALDATA3D,&
-                                             REALSPACE,&
-                                             RECIPROCALSPACE,&
-                                             pw_type
+                                             RECIPROCALSPACE
   USE qs_charges_types,                ONLY: qs_charges_create,&
                                              qs_charges_release,&
                                              qs_charges_type
-  USE qs_collocate_density,            ONLY: calculate_total_rho,&
-                                             calculate_wavefunction
-  USE qs_core_energies,                ONLY: calculate_ecore,&
-                                             calculate_ecore_overlap,&
+  USE qs_core_energies,                ONLY: calculate_ecore_overlap,&
                                              calculate_ecore_self
   USE qs_core_hamiltonian,             ONLY: build_core_hamiltonian_matrix
   USE qs_energy,                       ONLY: qs_energies
@@ -121,29 +98,17 @@ MODULE qs_ep_methods
                                              qs_environment_type,&
                                              set_qs_env
   USE qs_ep_types,                     ONLY: ep_env_get,&
-                                             ep_env_release,&
-                                             ep_env_retain,&
                                              qs_ep_env_type
-  USE qs_kpp1_env_types,               ONLY: kpp1_write,&
-                                             qs_kpp1_env_type
-  USE qs_ks_methods,                   ONLY: qs_ks_create,&
-                                             qs_ks_did_change,&
-                                             qs_ks_update_qs_env
-  USE qs_ks_types,                     ONLY: qs_ks_env_p_type,&
-                                             qs_ks_env_type
+  USE qs_kpp1_env_types,               ONLY: kpp1_write
+  USE qs_ks_methods,                   ONLY: qs_ks_create
+  USE qs_ks_types,                     ONLY: qs_ks_env_type
   USE qs_matrix_pools,                 ONLY: mpools_get,&
                                              mpools_rebuild_fm_pools,&
                                              qs_matrix_pools_type
-  USE qs_mo_methods,                   ONLY: calculate_density_matrix
   USE qs_mo_types,                     ONLY: allocate_mo_set,&
-                                             correct_mo_eigenvalues,&
                                              get_mo_set,&
                                              init_mo_set,&
-                                             mo_set_p_type,&
-                                             mo_set_type,&
-                                             read_mo_set,&
-                                             set_mo_occupation,&
-                                             write_mo_set
+                                             mo_set_p_type
   USE qs_neighbor_lists,               ONLY: build_qs_neighbor_lists
   USE qs_p_env_methods,                ONLY: p_env_create,&
                                              p_env_psi0_changed,&
@@ -154,8 +119,6 @@ MODULE qs_ep_methods
   USE qs_p_env_types,                  ONLY: p_env_write,&
                                              qs_p_env_type
   USE qs_p_sparse_psi,                 ONLY: p_proj_create,&
-                                             p_proj_release,&
-                                             p_proj_restrain_f,&
                                              p_proj_retain,&
                                              p_proj_transfer_blacs_to_f,&
                                              qs_p_projection_p_type,&
@@ -163,18 +126,15 @@ MODULE qs_ep_methods
   USE qs_parser,                       ONLY: close_file,&
                                              open_file
   USE realspace_grid_types,            ONLY: rs_pw_to_cube
-  USE scf_control_types,               ONLY: scf_c_release,&
-                                             scf_c_retain,&
+  USE scf_control_types,               ONLY: scf_c_retain,&
                                              scf_control_type
   USE simulation_cell,                 ONLY: cell_type
   USE sparse_matrix_types,             ONLY: allocate_matrix_set,&
-                                             real_block_node_type,&
                                              real_matrix_p_type,&
-                                             real_matrix_type,&
                                              replicate_matrix_structure
   USE timings,                         ONLY: timeset,&
-                                             timestop,&
-                                             trace_debug
+                                             timestop
+
   IMPLICIT NONE
   PRIVATE
 
@@ -221,25 +181,32 @@ CONTAINS
 !!
 !!*** **********************************************************************
 SUBROUTINE qs_ep_calculation(qs_env,globenv, error)
-  TYPE(qs_environment_type), POINTER :: qs_env
-  TYPE(global_environment_type), INTENT(inout), TARGET :: globenv
-  TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
-  
-  LOGICAL :: failure, print_ep_matrixes
-  CHARACTER(len=*), PARAMETER :: routineN='qs_ep_calculation',&
-        routineP=moduleN//':'//routineN
-  INTEGER :: isub, iatom, natoms, handle, stat, unit_nr,&
-       ispin, nspins, file_unit, nmo, lfomo
-  TYPE(qs_p_projection_p_type), DIMENSION(2) :: sub_proj
-  TYPE(particle_type), DIMENSION(:), POINTER :: particle_set
-  TYPE(qs_ep_env_type), POINTER :: ep_env
-  TYPE(cp_logger_type), POINTER :: logger
-  TYPE(qs_environment_type), POINTER :: sub_qs
-  INTEGER, DIMENSION(:), ALLOCATABLE :: atoms
-  TYPE(dft_control_type), POINTER :: dft_control
-  TYPE(qs_energy_type), POINTER :: energy
-  REAL(KIND = dp) :: e_corr, e_corr_s, maxocc
-  TYPE(mo_set_p_type), DIMENSION(:), POINTER :: mos
+    TYPE(qs_environment_type), POINTER       :: qs_env
+    TYPE(global_environment_type), &
+      INTENT(inout), TARGET                  :: globenv
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'qs_ep_calculation', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: file_unit, handle, iatom, &
+                                                ispin, isub, lfomo, natoms, &
+                                                nmo, nspins, stat, unit_nr
+    INTEGER, ALLOCATABLE, DIMENSION(:)       :: atoms
+    LOGICAL                                  :: failure, print_ep_matrixes
+    REAL(KIND=dp)                            :: e_corr, e_corr_s, maxocc
+    TYPE(cp_logger_type), POINTER            :: logger
+    TYPE(dft_control_type), POINTER          :: dft_control
+    TYPE(mo_set_p_type), DIMENSION(:), &
+      POINTER                                :: mos
+    TYPE(particle_type), DIMENSION(:), &
+      POINTER                                :: particle_set
+    TYPE(qs_energy_type), POINTER            :: energy
+    TYPE(qs_environment_type), POINTER       :: sub_qs
+    TYPE(qs_ep_env_type), POINTER            :: ep_env
+    TYPE(qs_p_projection_p_type), &
+      DIMENSION(2)                           :: sub_proj
 
   CALL timeset(routineN,"I","",handle)
   
@@ -462,36 +429,47 @@ END SUBROUTINE qs_ep_calculation
 !!
 !!*** **********************************************************************
   SUBROUTINE ep_env_create(ep_env,main_qs_env,projections, error)
-    TYPE(qs_ep_env_type), POINTER :: ep_env
-    TYPE(qs_environment_type), INTENT(inout),TARGET :: main_qs_env
-    TYPE(qs_p_projection_p_type), DIMENSION(:), INTENT(in) :: projections
-    TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
+    TYPE(qs_ep_env_type), POINTER            :: ep_env
+    TYPE(qs_environment_type), &
+      INTENT(inout), TARGET                  :: main_qs_env
+    TYPE(qs_p_projection_p_type), &
+      DIMENSION(:), INTENT(in)               :: projections
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
 
-    LOGICAL :: failure
-    CHARACTER(len=*), PARAMETER :: routineN='ep_env_create',&
-         routineP=moduleN//':'//routineN
-    INTEGER :: ikind, isub, iatom, natoms, ispin, stat, isub_atom,&
-         handle, nat, n_ao, n_mo, nelectron, next_cgf, next_sgf, nsub
-    INTEGER, DIMENSION(:), POINTER :: atom_list, sub_atom_list
-    TYPE(atomic_kind_type), POINTER :: atomic_kind
-    TYPE(dft_control_type), POINTER :: dft_control
-    TYPE(scf_control_type), POINTER :: scf_control
-    TYPE(cp_para_env_type), POINTER :: para_env
-    TYPE(cp_blacs_env_type), POINTER :: blacs_env
-    TYPE(mo_set_p_type), DIMENSION(:), POINTER :: sub_c
-    TYPE(atomic_kind_type), DIMENSION(:), POINTER :: atomic_kind_set
-    TYPE(qs_charges_type), POINTER :: sub_qs_charges
-    TYPE(qs_p_projection_type), POINTER :: proj
-    TYPE(qs_environment_type), POINTER :: sub_qs
-    TYPE(particle_type), DIMENSION(:), POINTER :: particle_set, p_set
-    TYPE(coeff_type), POINTER   :: sub_rho_core
-    TYPE(pw_pool_type), POINTER :: auxbas_pw_pool
-    TYPE(pw_env_type), POINTER :: pw_env
-    TYPE(cell_type), POINTER :: sub_cell
-    TYPE(cp_logger_type), POINTER :: logger
-    TYPE(cp_fm_p_type), DIMENSION(:), POINTER :: psi0
-    TYPE(cp_fm_pool_p_type), DIMENSION(:), POINTER :: ao_mo_fm_pools
-    TYPE(qs_matrix_pools_type), POINTER :: mpools
+    CHARACTER(len=*), PARAMETER :: routineN = 'ep_env_create', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: handle, iatom, ikind, ispin, &
+                                                isub, isub_atom, n_ao, n_mo, &
+                                                nat, natoms, nelectron, nsub, &
+                                                stat
+    INTEGER, DIMENSION(:), POINTER           :: atom_list, sub_atom_list
+    LOGICAL                                  :: failure
+    TYPE(atomic_kind_type), DIMENSION(:), &
+      POINTER                                :: atomic_kind_set
+    TYPE(atomic_kind_type), POINTER          :: atomic_kind
+    TYPE(cell_type), POINTER                 :: sub_cell
+    TYPE(coeff_type), POINTER                :: sub_rho_core
+    TYPE(cp_blacs_env_type), POINTER         :: blacs_env
+    TYPE(cp_fm_p_type), DIMENSION(:), &
+      POINTER                                :: psi0
+    TYPE(cp_fm_pool_p_type), DIMENSION(:), &
+      POINTER                                :: ao_mo_fm_pools
+    TYPE(cp_logger_type), POINTER            :: logger
+    TYPE(cp_para_env_type), POINTER          :: para_env
+    TYPE(dft_control_type), POINTER          :: dft_control
+    TYPE(mo_set_p_type), DIMENSION(:), &
+      POINTER                                :: sub_c
+    TYPE(particle_type), DIMENSION(:), &
+      POINTER                                :: p_set, particle_set
+    TYPE(pw_env_type), POINTER               :: pw_env
+    TYPE(pw_pool_type), POINTER              :: auxbas_pw_pool
+    TYPE(qs_charges_type), POINTER           :: sub_qs_charges
+    TYPE(qs_environment_type), POINTER       :: sub_qs
+    TYPE(qs_matrix_pools_type), POINTER      :: mpools
+    TYPE(qs_p_projection_type), POINTER      :: proj
+    TYPE(scf_control_type), POINTER          :: scf_control
 
     CALL timeset(routineN,"I","",handle)
     failure=.FALSE.
@@ -760,20 +738,25 @@ END SUBROUTINE qs_ep_calculation
 !!
 !!*** **********************************************************************
 SUBROUTINE ep_env_finish_qs_init(qs_env,globenv,error)
-  TYPE(qs_environment_type), POINTER :: qs_env
-  TYPE(global_environment_type), INTENT(in), TARGET :: globenv
-  TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
+    TYPE(qs_environment_type), POINTER       :: qs_env
+    TYPE(global_environment_type), &
+      INTENT(in), TARGET                     :: globenv
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
 
-  LOGICAL :: failure
-  CHARACTER(len=*), PARAMETER :: routineN='ep_env_finish_qs_init',&
-       routineP=moduleN//':'//routineN
-  INTEGER :: handle, stat, ispin
-  TYPE(qs_ks_env_type), POINTER :: ks_env
-  TYPE(mo_set_p_type), DIMENSION(:), POINTER :: c
-  TYPE(cp_fm_type), POINTER :: eigenvectors
-  TYPE(cp_para_env_type), POINTER :: para_env
-  TYPE(dft_control_type), POINTER :: dft_control
-  TYPE(real_matrix_p_type), DIMENSION(:), POINTER :: k,h,s
+    CHARACTER(len=*), PARAMETER :: routineN = 'ep_env_finish_qs_init', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: handle, ispin
+    LOGICAL                                  :: failure
+    TYPE(cp_fm_type), POINTER                :: eigenvectors
+    TYPE(cp_para_env_type), POINTER          :: para_env
+    TYPE(dft_control_type), POINTER          :: dft_control
+    TYPE(mo_set_p_type), DIMENSION(:), &
+      POINTER                                :: c
+    TYPE(qs_ks_env_type), POINTER            :: ks_env
+    TYPE(real_matrix_p_type), DIMENSION(:), &
+      POINTER                                :: h, k, s
 
   failure=.FALSE.
   NULLIFY(ks_env, c, eigenvectors, para_env, dft_control,k,h,s)
@@ -857,19 +840,26 @@ END SUBROUTINE ep_env_finish_qs_init
 !!
 !!*** **********************************************************************
 SUBROUTINE ep_env_transfer_psi0(ep_env, error)
-  TYPE(qs_ep_env_type), POINTER :: ep_env
-  TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
-  
-  LOGICAL :: failure
-  CHARACTER(len=*), PARAMETER :: routineN='ep_env_transfer_psi0',&
-        routineP=moduleN//':'//routineN
-  TYPE(cp_fm_type), POINTER :: orbitals, sub_orbitals
-  TYPE(mo_set_p_type), DIMENSION(:), POINTER :: c, sub_c
-  TYPE(qs_environment_type), POINTER :: main_qs_env
-  TYPE(qs_environment_p_type), DIMENSION(:), POINTER :: sub_qs_env
-  TYPE(qs_p_projection_p_type), DIMENSION(:), POINTER :: sub_proj
-  TYPE(cp_logger_type), POINTER :: logger
-  INTEGER :: isub, ispin, nspins, start_col, handle,unit_nr, nmo,sub_nmo
+    TYPE(qs_ep_env_type), POINTER            :: ep_env
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'ep_env_transfer_psi0', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: handle, ispin, isub, nmo, &
+                                                nspins, start_col, sub_nmo, &
+                                                unit_nr
+    LOGICAL                                  :: failure
+    TYPE(cp_fm_type), POINTER                :: orbitals, sub_orbitals
+    TYPE(cp_logger_type), POINTER            :: logger
+    TYPE(mo_set_p_type), DIMENSION(:), &
+      POINTER                                :: c, sub_c
+    TYPE(qs_environment_p_type), &
+      DIMENSION(:), POINTER                  :: sub_qs_env
+    TYPE(qs_environment_type), POINTER       :: main_qs_env
+    TYPE(qs_p_projection_p_type), &
+      DIMENSION(:), POINTER                  :: sub_proj
 
   CALL timeset(routineN,"I","",handle)
 
@@ -955,22 +945,27 @@ END SUBROUTINE ep_env_transfer_psi0
 !!
 !!*** **********************************************************************
 SUBROUTINE stupid_solve(ep_env,eps_r,error)
-  TYPE(qs_ep_env_type), POINTER :: ep_env
-  REAL(KIND = dp), INTENT(in) :: eps_r
-  TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
-  
-  LOGICAL :: failure
-  CHARACTER(len=*), PARAMETER :: routineN='stupid_solve',&
-        routineP=moduleN//':'//routineN
-  TYPE(cp_fm_p_type), DIMENSION(:), POINTER :: p,p_ortho, Ap,r,z
-  TYPE(cp_fm_pool_p_type), DIMENSION(:), POINTER :: ao_mo_fm_pools
-  TYPE(dft_control_type), POINTER :: dft_control
-  TYPE(cp_logger_type), POINTER :: logger
-  TYPE(real_matrix_p_type), DIMENSION(:), POINTER :: s
-  TYPE(qs_matrix_pools_type), POINTER :: mpools
-  REAL(KIND = dp) :: r_norm2, r_norm2_s, r_z,r_z_s,r_z_new, alpha, beta,&
-       Ap_p, Ap_p_s, p_ortho_norm, p_ortho_norm_s
-  INTEGER :: i,j, ispin, nspins
+    TYPE(qs_ep_env_type), POINTER            :: ep_env
+    REAL(KIND=dp), INTENT(in)                :: eps_r
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'stupid_solve', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: i, ispin, j, nspins
+    LOGICAL                                  :: failure
+    REAL(KIND=dp) :: alpha, Ap_p, Ap_p_s, beta, p_ortho_norm, p_ortho_norm_s, &
+      r_norm2, r_norm2_s, r_z, r_z_new, r_z_s
+    TYPE(cp_fm_p_type), DIMENSION(:), &
+      POINTER                                :: Ap, p, p_ortho, r, z
+    TYPE(cp_fm_pool_p_type), DIMENSION(:), &
+      POINTER                                :: ao_mo_fm_pools
+    TYPE(cp_logger_type), POINTER            :: logger
+    TYPE(dft_control_type), POINTER          :: dft_control
+    TYPE(qs_matrix_pools_type), POINTER      :: mpools
+    TYPE(real_matrix_p_type), DIMENSION(:), &
+      POINTER                                :: s
 
   failure=.FALSE.
   logger => cp_error_get_logger(error)
@@ -1212,19 +1207,24 @@ END SUBROUTINE stupid_solve
 !!
 !!*** **********************************************************************
 SUBROUTINE p_op_ep(p_env, qs_env, v, res, error)
-  TYPE(qs_p_env_type), POINTER                             :: p_env
-  TYPE(qs_environment_type), INTENT(inout), TARGET            :: qs_env
-  TYPE(cp_fm_p_type), DIMENSION(:), INTENT(in)    :: v
-  TYPE(cp_fm_p_type), DIMENSION(:), INTENT(inout) :: res
-  TYPE(cp_error_type), OPTIONAL, INTENT(inout)             :: error
-  
-  LOGICAL :: failure
-  CHARACTER(len=*), PARAMETER :: routineN='p_op_ep',&
-        routineP=moduleN//':'//routineN
-  TYPE(real_matrix_p_type), DIMENSION(:), POINTER :: s
-  TYPE(mo_set_p_type), DIMENSION(:), POINTER :: mos
-  REAL(KIND = dp) :: maxocc, scale_factor
-  INTEGER :: lfomo,nmo, ispin, handle
+    TYPE(qs_p_env_type), POINTER             :: p_env
+    TYPE(qs_environment_type), &
+      INTENT(inout), TARGET                  :: qs_env
+    TYPE(cp_fm_p_type), DIMENSION(:), &
+      INTENT(in)                             :: v
+    TYPE(cp_fm_p_type), DIMENSION(:), &
+      INTENT(inout)                          :: res
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'p_op_ep', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: handle, ispin, lfomo, nmo
+    LOGICAL                                  :: failure
+    REAL(KIND=dp)                            :: maxocc, scale_factor
+    TYPE(mo_set_p_type), DIMENSION(:), &
+      POINTER                                :: mos
 
   CALL timeset(routineN,"I","",handle)
 
@@ -1289,21 +1289,27 @@ END SUBROUTINE p_op_ep
 !!
 !!*** **********************************************************************
 SUBROUTINE p_env_write_ep_matrix(p_env, qs_env, name, error)
-  TYPE(qs_p_env_type), POINTER :: p_env
-  TYPE(qs_environment_type), INTENT(inout), TARGET :: qs_env
-  CHARACTER(len=*), INTENT(in) :: name
-  TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
-  
-  LOGICAL :: failure
-  CHARACTER(len=*), PARAMETER :: routineN='p_env_write_ep_matrix',&
-        routineP=moduleN//':'//routineN
-  TYPE(cp_fm_p_type), DIMENSION(:), POINTER :: res,v
-  TYPE(cp_fm_pool_p_type), DIMENSION(:), POINTER :: ao_mo_fm_pools
-  TYPE(dft_control_type), POINTER :: dft_control
-  TYPE(cp_logger_type), POINTER :: logger
-  TYPE(real_matrix_p_type), DIMENSION(:), POINTER :: s
-  INTEGER :: ispin, imo, iao, ispin2
-  REAL(KIND = dp) :: v_norm, v_norm_s
+    TYPE(qs_p_env_type), POINTER             :: p_env
+    TYPE(qs_environment_type), &
+      INTENT(inout), TARGET                  :: qs_env
+    CHARACTER(len=*), INTENT(in)             :: name
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'p_env_write_ep_matrix', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: iao, imo, ispin, ispin2
+    LOGICAL                                  :: failure
+    REAL(KIND=dp)                            :: v_norm, v_norm_s
+    TYPE(cp_fm_p_type), DIMENSION(:), &
+      POINTER                                :: res, v
+    TYPE(cp_fm_pool_p_type), DIMENSION(:), &
+      POINTER                                :: ao_mo_fm_pools
+    TYPE(cp_logger_type), POINTER            :: logger
+    TYPE(dft_control_type), POINTER          :: dft_control
+    TYPE(real_matrix_p_type), DIMENSION(:), &
+      POINTER                                :: s
 
   failure=.FALSE.
   logger => cp_error_get_logger(error)
@@ -1390,19 +1396,27 @@ END SUBROUTINE p_env_write_ep_matrix
 !!
 !!*** **********************************************************************
 SUBROUTINE ep_env_localize_matrix(ep_env, wf_coeff, error)
-  TYPE(qs_ep_env_type), POINTER :: ep_env
-  TYPE(cp_fm_p_type), DIMENSION(:), POINTER :: wf_coeff
-  TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
-  
-  LOGICAL :: failure
-  CHARACTER(len=*), PARAMETER :: routineN='ep_env_localize_matrix',&
-        routineP=moduleN//':'//routineN
-  TYPE(qs_environment_type), POINTER :: main_qs_env
-  TYPE(qs_environment_p_type), DIMENSION(:), POINTER :: sub_qs_env
-  TYPE(qs_p_projection_p_type), DIMENSION(:), POINTER :: sub_proj
-  TYPE(mo_set_p_type), DIMENSION(:), POINTER :: sub_c
-  TYPE(cp_logger_type), POINTER :: logger
-  INTEGER :: isub, ispin, nspins, start_col, handle,unit_nr, nmo,sub_nmo
+    TYPE(qs_ep_env_type), POINTER            :: ep_env
+    TYPE(cp_fm_p_type), DIMENSION(:), &
+      POINTER                                :: wf_coeff
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'ep_env_localize_matrix', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: handle, ispin, isub, nmo, &
+                                                nspins, start_col, sub_nmo, &
+                                                unit_nr
+    LOGICAL                                  :: failure
+    TYPE(cp_logger_type), POINTER            :: logger
+    TYPE(mo_set_p_type), DIMENSION(:), &
+      POINTER                                :: sub_c
+    TYPE(qs_environment_p_type), &
+      DIMENSION(:), POINTER                  :: sub_qs_env
+    TYPE(qs_environment_type), POINTER       :: main_qs_env
+    TYPE(qs_p_projection_p_type), &
+      DIMENSION(:), POINTER                  :: sub_proj
 
   CALL timeset(routineN,"I","",handle)
 

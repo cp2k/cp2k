@@ -20,8 +20,6 @@
 
 MODULE linklist_cell_types
 
-  USE kinds, ONLY : dbl
-
   IMPLICIT NONE
 
   PRIVATE

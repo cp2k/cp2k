@@ -20,11 +20,11 @@
 !
     MODULE tbmd_initialize
 
-      USE kinds, ONLY : dbl
-
-      USE particle_types, ONLY : particle_type
-      USE tbmd_types, ONLY : tbatom_param_type, tb_hopping_type
-      USE termination, ONLY : stop_memory
+  USE kinds,                           ONLY: dbl
+  USE particle_types,                  ONLY: particle_type
+  USE tbmd_types,                      ONLY: tb_hopping_type,&
+                                             tbatom_param_type
+  USE termination,                     ONLY: stop_memory
 
       IMPLICIT NONE
 
@@ -54,14 +54,19 @@
 !******************************************************************************
 
       SUBROUTINE tbmd_init(part,tbatom,tbhop)
-        IMPLICIT NONE
-        TYPE (particle_type), INTENT (IN) :: part(:)
-        TYPE (tbatom_param_type), DIMENSION(:), INTENT (INOUT) :: tbatom
-        TYPE (tb_hopping_type), DIMENSION(:,:), INTENT (INOUT) :: tbhop
-        INTEGER :: iat, jat, i, j, k, n, ii, ni, nj, is, js, ju, ios
-        INTEGER :: natom_type
+    TYPE(particle_type), INTENT(IN)          :: part(:)
+    TYPE(tbatom_param_type), DIMENSION(:), &
+      INTENT(INOUT)                          :: tbatom
+    TYPE(tb_hopping_type), DIMENSION(:, :), &
+      INTENT(INOUT)                          :: tbhop
+
+    INTEGER                                  :: i, iat, ii, ios, is, j, jat, &
+                                                js, ju, k, n, natom_type, ni, &
+                                                nj
+
 !
 ! count number of atoms per atom type
+
         natom_type = size(tbatom)
         DO iat = 1, natom_type
           tbatom(iat) %natoms = 0
@@ -134,9 +139,11 @@
 !!*****
 !------------------------------------------------------------------------------!
       FUNCTION tb_get_basize(tbatom) RESULT (basis_size)
-        IMPLICIT NONE
-        TYPE (tbatom_param_type), DIMENSION(:), INTENT (IN) :: tbatom
-        INTEGER :: basis_size, i
+    TYPE(tbatom_param_type), DIMENSION(:), &
+      INTENT(IN)                             :: tbatom
+    INTEGER                                  :: basis_size
+
+    INTEGER                                  :: i
 
         basis_size = 0
         DO i = 1, size(tbatom)
@@ -145,10 +152,12 @@
       END FUNCTION tb_get_basize
 !------------------------------------------------------------------------------!
       FUNCTION tb_get_numel(tbatom,charge) RESULT (number_of_electrons)
-        IMPLICIT NONE
-        TYPE (tbatom_param_type), DIMENSION(:), INTENT (IN) :: tbatom
-        REAL (dbl) , INTENT(IN) :: charge
-        INTEGER :: number_of_electrons, i
+    TYPE(tbatom_param_type), DIMENSION(:), &
+      INTENT(IN)                             :: tbatom
+    REAL(dbl), INTENT(IN)                    :: charge
+    INTEGER                                  :: number_of_electrons
+
+    INTEGER                                  :: i
 
         number_of_electrons = 0
         DO i = 1, size(tbatom)

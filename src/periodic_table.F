@@ -21,7 +21,7 @@
 
 MODULE periodic_table
 
-  USE kinds, ONLY : dbl
+  USE kinds,                           ONLY: dbl
 
   IMPLICIT NONE
 
@@ -69,12 +69,11 @@ CONTAINS
 
 SUBROUTINE init_periodic_table()
 
-  IMPLICIT NONE
-  REAL ( dbl ), PARAMETER :: z = 0.0_dbl
+    REAL(dbl), PARAMETER                     :: z = 0.0_dbl
 
 !------------------------------------------------------------------------------
-
 ! Dummy
+
   ptable(0) % symbol = 'X '
   ptable(0) % name = 'Dummy'
   ptable(0) % number = 0

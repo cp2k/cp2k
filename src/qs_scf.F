@@ -53,16 +53,13 @@ MODULE qs_scf
   USE basis_set_types,                 ONLY: get_gto_basis_set,&
                                              gto_basis_set_type
   USE checkpoint_handler,              ONLY: write_checkpoint_information
+  USE cp_control_types,                ONLY: dft_control_type
   USE cp_error_handling,               ONLY: cp_a_l,&
                                              cp_assert,&
                                              cp_assertion_failed,&
-                                             cp_debug,&
-                                             cp_error_dealloc_ref,&
                                              cp_error_get_logger,&
-                                             cp_error_init,&
                                              cp_error_message,&
-                                             cp_error_type,&
-                                             cp_internal_error
+                                             cp_error_type
   USE cp_fm_basic_linalg,              ONLY: cp_fm_gemm,&
                                              cp_fm_symm,&
                                              cp_fm_upper_to_full
@@ -74,7 +71,6 @@ MODULE qs_scf
                                              cp_fm_syevd,&
                                              cp_fm_syevx
   USE cp_fm_pool_types,                ONLY: cp_fm_pool_p_type,&
-                                             cp_fm_pool_type,&
                                              fm_pool_get_el_struct
   USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
                                              cp_fm_struct_get,&
@@ -82,17 +78,13 @@ MODULE qs_scf
                                              cp_fm_struct_type
   USE cp_fm_types,                     ONLY: cp_fm_create,&
                                              cp_fm_get_element,&
-                                             cp_fm_get_info,&
                                              cp_fm_init_random,&
                                              cp_fm_p_type,&
                                              cp_fm_release,&
-                                             cp_fm_set_all,&
                                              cp_fm_set_element,&
                                              cp_fm_to_fm,&
-                                             cp_fm_type,&
-                                             cp_fm_write
+                                             cp_fm_type
   USE cp_log_handling,                 ONLY: cp_failure_level,&
-                                             cp_log,&
                                              cp_logger_get_default_unit_nr,&
                                              cp_logger_type,&
                                              cp_note_level,&
@@ -103,53 +95,29 @@ MODULE qs_scf
   USE cp_sm_fm_interactions,           ONLY: copy_sm_to_fm,&
                                              cp_sm_fm_multiply
   USE cp_sm_pool_types,                ONLY: cp_sm_pool_p_type,&
-                                             cp_sm_pool_type,&
-                                             sm_pool_create_matrix,&
-                                             sm_pool_give_back_matrix,&
                                              sm_pools_create_matrix_vect,&
                                              sm_pools_flush_cache,&
                                              sm_pools_give_back_matrix_vect
-  USE cp_control_types,                       ONLY: dft_control_type
   USE external_potential_types,        ONLY: all_potential_type,&
                                              get_potential,&
                                              gth_potential_type
-  USE global_types,                    ONLY: DEBUG,&
-                                             WANNIER_NONE, &
-                                             global_environment_type
-  USE kinds,                           ONLY: int_size,&
-                                             dp,&
-                                             dp_size
+  USE global_types,                    ONLY: global_environment_type
+  USE kinds,                           ONLY: dp,&
+                                             dp_size,&
+                                             int_size
   USE machine,                         ONLY: m_flush,&
                                              m_walltime
   USE message_passing,                 ONLY: mp_bcast,&
                                              mp_max,&
                                              mp_sum
-  USE molecular_states,                ONLY: construct_molecular_states
-  USE molecule_types_new,              ONLY: molecule_type
-  USE mulliken,                        ONLY: mulliken_charges
   USE pao_types,                       ONLY: pao_env_type
   USE particle_types,                  ONLY: get_particle_set,&
-                                             particle_type 
-  USE physcon,                         ONLY: angstrom
+                                             particle_type
   USE preconditioner,                  ONLY: destroy_preconditioner,&
                                              init_preconditioner,&
-                                             make_preconditioner,&
-                                             preconditioner_type
-  USE pw_env_types,                    ONLY: pw_env_flush_cache,&
-                                             pw_env_get,&
-                                             pw_env_type
-  USE pw_pool_types,                   ONLY: pw_pool_give_back_coeff,&
-                                             pw_pool_init_coeff,&
-                                             pw_pool_p_type,&
-                                             pw_pool_type,&
-                                             pw_pools_give_back_coeffs,&
-                                             pw_pools_init_coeffs
-  USE pw_types,                        ONLY: pw_type
+                                             make_preconditioner
+  USE pw_env_types,                    ONLY: pw_env_type
   USE qs_charges_types,                ONLY: qs_charges_type
-  USE qs_collocate_density,            ONLY: calculate_total_abs_rho,&
-                                             calculate_total_rho,&
-                                             calculate_wavefunction
-  USE qs_conductivity,                 ONLY: optical_conductivity
   USE qs_core_energies,                ONLY: calculate_ecore_overlap,&
                                              calculate_ecore_self
   USE qs_diis,                         ONLY: qs_diis_b_clear,&
@@ -163,21 +131,13 @@ MODULE qs_scf
   USE qs_ks_methods,                   ONLY: qs_ks_create,&
                                              qs_ks_did_change,&
                                              qs_ks_update_qs_env
-  USE qs_ks_types,                     ONLY: qs_ks_env_p_type,&
-                                             qs_ks_release, &
-                                             qs_ks_env_type
-  USE qs_localization,                 ONLY: qs_loc_compute_properties,&
-                                             qs_loc_destroy,&
-                                             qs_loc_env_type,&
-                                             qs_loc_init
-  USE qs_matrix_pools,                 ONLY: mpools_get,&
-                                             qs_matrix_pools_type
+  USE qs_ks_types,                     ONLY: qs_ks_env_type,&
+                                             qs_ks_release
+  USE qs_matrix_pools,                 ONLY: mpools_get
   USE qs_mo_methods,                   ONLY: calculate_density_matrix,&
                                              calculate_orthonormality,&
-                                             calculate_subspace_eigenvalues,&
                                              make_basis
-  USE qs_mo_types,                     ONLY: allocate_mo_set,&
-                                             correct_mo_eigenvalues,&
+  USE qs_mo_types,                     ONLY: correct_mo_eigenvalues,&
                                              get_mo_set,&
                                              init_mo_set,&
                                              mo_set_p_type,&
@@ -185,9 +145,7 @@ MODULE qs_scf
                                              read_mo_set,&
                                              set_mo_occupation,&
                                              write_mo_set
-  USE qs_ot,                           ONLY: qs_ot_new_preconditioner,&
-                                             qs_ot_type
-  USE qs_ot_eigensolver,               ONLY: ot_eigensolver
+  USE qs_ot,                           ONLY: qs_ot_new_preconditioner
   USE qs_ot_scf,                       ONLY: ot_scf_destroy,&
                                              ot_scf_init,&
                                              ot_scf_mini,&
@@ -195,47 +153,37 @@ MODULE qs_scf
   USE qs_overlap,                      ONLY: write_fm_with_basis_info,&
                                              write_sparse_matrix
   USE qs_rho_methods,                  ONLY: qs_rho_update_rho
-  USE qs_rho_types,                    ONLY: qs_rho_did_change,&
-                                             qs_rho_get,&
-                                             qs_rho_type
+  USE qs_rho_types,                    ONLY: qs_rho_type
+  USE qs_scf_post,                     ONLY: scf_post_calculation
   USE qs_scf_types,                    ONLY: ao_mixing_nr,&
                                              diagonalisation_method_nr,&
                                              no_mixing_nr,&
                                              ot_method_nr,&
                                              pao_mehod_nr,&
-                                             qs_scf_env_type, &
+                                             qs_scf_env_type,&
                                              scf_env_release
-  USE qs_scf_post,                     ONLY: scf_post_calculation
   USE qs_wf_history_methods,           ONLY: wfi_extrapolate,&
                                              wfi_get_method_label,&
                                              wfi_update
-  USE qs_wf_history_types,             ONLY: qs_wf_history_type,&
-                                             qs_wf_snapshot_p_type,&
-                                             qs_wf_snapshot_type,&
-                                             wfi_use_guess_method_nr
-  USE realspace_grid_types,            ONLY: rs_pw_to_cube
+  USE qs_wf_history_types,             ONLY: wfi_use_guess_method_nr
   USE scf_control_types,               ONLY: scf_control_type
-  USE simulation_cell,                 ONLY: cell_type,&
-                                             get_cell
+  USE simulation_cell,                 ONLY: cell_type
   USE sparse_matrix_types,             ONLY: cp_sm_scale_and_add,&
                                              deallocate_matrix_set,&
                                              first_block_node,&
                                              get_block_node,&
-                                             get_matrix_info,&
                                              get_matrix_diagonal,&
+                                             get_matrix_info,&
                                              next_block_node,&
                                              real_block_node_type,&
                                              real_matrix_p_type,&
                                              real_matrix_type,&
-                                             replicate_matrix,&
-                                             replicate_matrix_structure,&
-                                             set_matrix,&
-                                             set_matrix_diagonal,&
-                                             write_blocks_maxabsval
+                                             set_matrix_diagonal
   USE termination,                     ONLY: stop_memory,&
                                              stop_program
   USE timings,                         ONLY: timeset,&
                                              timestop
+
   IMPLICIT NONE
 
   PRIVATE
@@ -293,17 +241,20 @@ CONTAINS
 !!
 !!*** **********************************************************************
   SUBROUTINE scf_env_create(scf_env, qs_env, error)
-    TYPE(qs_scf_env_type), POINTER :: scf_env
-    TYPE(qs_environment_type), INTENT(in), TARGET :: qs_env
-    TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
+    TYPE(qs_scf_env_type), POINTER           :: scf_env
+    TYPE(qs_environment_type), INTENT(in), &
+      TARGET                                 :: qs_env
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
 
-    LOGICAL :: failure
-    CHARACTER(len=*), PARAMETER :: routineN='scf_env_create',&
-         routineP=moduleN//':'//routineN
-    TYPE(scf_control_type), POINTER :: scf_control
-    TYPE(dft_control_type), POINTER   :: dft_control
-    TYPE(pao_env_type), POINTER :: pao_env
-    INTEGER :: stat
+    CHARACTER(len=*), PARAMETER :: routineN = 'scf_env_create', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: stat
+    LOGICAL                                  :: failure
+    TYPE(dft_control_type), POINTER          :: dft_control
+    TYPE(pao_env_type), POINTER              :: pao_env
+    TYPE(scf_control_type), POINTER          :: scf_control
 
     failure=.FALSE.
     NULLIFY(scf_control,dft_control,pao_env)
@@ -383,15 +334,20 @@ CONTAINS
 !!
 !!*** **********************************************************************
   SUBROUTINE scf(qs_env,globenv,error)
-    TYPE(qs_environment_type), INTENT(INOUT), TARGET :: qs_env
-    TYPE(global_environment_type), INTENT(IN)  :: globenv
-    TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
+    TYPE(qs_environment_type), &
+      INTENT(INOUT), TARGET                  :: qs_env
+    TYPE(global_environment_type), &
+      INTENT(IN)                             :: globenv
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
 
-    LOGICAL :: failure
-    CHARACTER(len=*), PARAMETER :: routineN='scf',&
-         routineP=moduleN//':'//routineN
-    TYPE(qs_scf_env_type), POINTER :: scf_env
-    TYPE(qs_environment_type), POINTER :: my_qs_env
+    CHARACTER(len=*), PARAMETER :: routineN = 'scf', &
+      routineP = moduleN//':'//routineN
+
+    LOGICAL                                  :: failure
+    TYPE(qs_environment_type), POINTER       :: my_qs_env
+    TYPE(qs_scf_env_type), POINTER           :: scf_env
+
     NULLIFY(scf_env,my_qs_env)
     my_qs_env => qs_env
     failure=.FALSE.
@@ -445,39 +401,42 @@ CONTAINS
 !!*** **********************************************************************
   SUBROUTINE scf_env_do_scf(scf_env,qs_env,globenv,error)
 
-    TYPE(qs_scf_env_type), POINTER :: scf_env
-    TYPE(global_environment_type), INTENT(IN)  :: globenv
-    TYPE(qs_environment_type), POINTER   :: qs_env
-    TYPE(cp_error_type),INTENT(inout),OPTIONAL :: error
+    TYPE(qs_scf_env_type), POINTER           :: scf_env
+    TYPE(qs_environment_type), POINTER       :: qs_env
+    TYPE(global_environment_type), &
+      INTENT(IN)                             :: globenv
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
 
-!   *** Local parameters ***
+    CHARACTER(LEN=*), PARAMETER :: routineN = "scf_env_do_scf", &
+      routineP = moduleN//':'//routineN
 
-    CHARACTER(LEN=*), PARAMETER :: routineN = "scf_env_do_scf"
-    CHARACTER(LEN=*), PARAMETER :: routineP =&
-         moduleN//':'//routineN
-
-!   *** Local variables ***
-
-    TYPE(dft_control_type), POINTER   :: dft_control
-    REAL(KIND = dp) :: diis_error,t1,t2,orthonormality
-    INTEGER  :: handle,handle2,output_unit,ispin
-    LOGICAL  :: diis_step,do_level_shift,ionode, should_stop,&
-         use_jacobi,use_cholesky, failure,energy_only, rebuild
-    TYPE(real_matrix_p_type), DIMENSION(:), POINTER :: h,s,&
-         ks, p
-    TYPE(qs_rho_type), POINTER :: rho
-    TYPE(qs_energy_type), POINTER :: energy
-    TYPE(scf_control_type), POINTER   :: scf_control
-    TYPE(cp_logger_type), POINTER :: logger
-    TYPE(pw_env_type), POINTER :: pw_env
-    TYPE(qs_charges_type), POINTER :: qs_charges
-    TYPE(qs_ks_env_type), POINTER :: ks_env
-    TYPE(mo_set_p_type), DIMENSION(:), POINTER    :: c
-    TYPE(atomic_kind_type), DIMENSION(:), POINTER :: atomic_kind_set
-    TYPE(particle_type), DIMENSION(:), POINTER    :: particle_set
-    TYPE(cp_fm_p_type), DIMENSION(:), POINTER :: scf_work1
-    TYPE(cp_fm_type), POINTER  :: ortho,scf_work2
-    TYPE(cell_type), POINTER :: cell
+    INTEGER                                  :: handle, handle2, ispin, &
+                                                output_unit
+    LOGICAL :: diis_step, do_level_shift, energy_only, failure, ionode, &
+      rebuild, should_stop, use_cholesky, use_jacobi
+    REAL(KIND=dp)                            :: diis_error, orthonormality, &
+                                                t1, t2
+    TYPE(atomic_kind_type), DIMENSION(:), &
+      POINTER                                :: atomic_kind_set
+    TYPE(cell_type), POINTER                 :: cell
+    TYPE(cp_fm_p_type), DIMENSION(:), &
+      POINTER                                :: scf_work1
+    TYPE(cp_fm_type), POINTER                :: ortho, scf_work2
+    TYPE(cp_logger_type), POINTER            :: logger
+    TYPE(dft_control_type), POINTER          :: dft_control
+    TYPE(mo_set_p_type), DIMENSION(:), &
+      POINTER                                :: c
+    TYPE(particle_type), DIMENSION(:), &
+      POINTER                                :: particle_set
+    TYPE(pw_env_type), POINTER               :: pw_env
+    TYPE(qs_charges_type), POINTER           :: qs_charges
+    TYPE(qs_energy_type), POINTER            :: energy
+    TYPE(qs_ks_env_type), POINTER            :: ks_env
+    TYPE(qs_rho_type), POINTER               :: rho
+    TYPE(real_matrix_p_type), DIMENSION(:), &
+      POINTER                                :: h, ks, p, s
+    TYPE(scf_control_type), POINTER          :: scf_control
 
 !   ---------------------------------------------------------------------------
 
@@ -813,17 +772,18 @@ CONTAINS
 !!
 !!*** **********************************************************************
   SUBROUTINE scf_env_density_mixing(scf_env,qs_env,invert,error)
-    TYPE(qs_scf_env_type), POINTER :: scf_env
-    TYPE(qs_environment_type), POINTER :: qs_env
-    LOGICAL, INTENT(in), OPTIONAL :: invert
-    TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
+    TYPE(qs_scf_env_type), POINTER           :: scf_env
+    TYPE(qs_environment_type), POINTER       :: qs_env
+    LOGICAL, INTENT(in), OPTIONAL            :: invert
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
 
-    LOGICAL :: failure
-    CHARACTER(len=*), PARAMETER :: routineN='scf_env_density_mixing',&
-         routineP=moduleN//':'//routineN
-    REAL(KIND = dp) :: tmp
-    LOGICAL :: my_invert
-    INTEGER :: ispin
+    CHARACTER(len=*), PARAMETER :: routineN = 'scf_env_density_mixing', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: ispin
+    LOGICAL                                  :: failure, my_invert
+    REAL(KIND=dp)                            :: tmp
 
     failure=.FALSE.
     my_invert=.FALSE.
@@ -878,31 +838,34 @@ CONTAINS
 
 !   ***************************************************************************
 
-    TYPE(qs_scf_env_type), POINTER :: scf_env
-    TYPE(global_environment_type), INTENT(in) :: globenv
-    TYPE(qs_environment_type), POINTER        :: qs_env
-    TYPE(cp_error_type), INTENT(inout), OPTIONAL :: error
+    TYPE(qs_scf_env_type), POINTER           :: scf_env
+    TYPE(qs_environment_type), POINTER       :: qs_env
+    TYPE(global_environment_type), &
+      INTENT(in)                             :: globenv
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
 
-!   *** Local parameters ***
+    CHARACTER(LEN=*), PARAMETER :: routineN = "init_scf_run", &
+      routineP = moduleN//':'//routineN
 
-    CHARACTER(LEN=*), PARAMETER :: routineN = "init_scf_run"
-    CHARACTER(LEN=*), PARAMETER :: routineP =&
-         moduleN//':'//routineN
-
-!   *** Local variables ***
-
-    INTEGER :: handle,homo,nao,ndep,ispin,nelectron_spin,&
-         output_unit, stat
-    LOGICAL :: ionode, gth_potential_present, failure
-    TYPE(scf_control_type), POINTER :: scf_control
-    TYPE(atomic_kind_type), DIMENSION(:), POINTER :: atomic_kind_set
-    TYPE(real_matrix_p_type), DIMENSION(:), POINTER :: h,s,k
-    TYPE(dft_control_type), POINTER   :: dft_control
-    TYPE(mo_set_p_type), DIMENSION(:), POINTER    :: c
-    TYPE(cp_fm_p_type), DIMENSION(:), POINTER :: scf_work1
-    TYPE(cp_fm_type), POINTER  :: ortho,scf_work2
-    TYPE(cp_logger_type), POINTER :: logger
-    TYPE(cp_fm_type), POINTER :: mo_eigenvectors
+    INTEGER                                  :: handle, homo, ispin, nao, &
+                                                ndep, nelectron_spin, &
+                                                output_unit, stat
+    LOGICAL                                  :: failure, &
+                                                gth_potential_present, ionode
+    TYPE(atomic_kind_type), DIMENSION(:), &
+      POINTER                                :: atomic_kind_set
+    TYPE(cp_fm_p_type), DIMENSION(:), &
+      POINTER                                :: scf_work1
+    TYPE(cp_fm_type), POINTER                :: mo_eigenvectors, ortho, &
+                                                scf_work2
+    TYPE(cp_logger_type), POINTER            :: logger
+    TYPE(dft_control_type), POINTER          :: dft_control
+    TYPE(mo_set_p_type), DIMENSION(:), &
+      POINTER                                :: c
+    TYPE(real_matrix_p_type), DIMENSION(:), &
+      POINTER                                :: h, k, s
+    TYPE(scf_control_type), POINTER          :: scf_control
 
 !   ---------------------------------------------------------------------------
 
@@ -1078,25 +1041,31 @@ CONTAINS
 !!
 !!*** **********************************************************************
   SUBROUTINE scf_env_check_i_alloc(scf_env,qs_env,error)
-    TYPE(qs_scf_env_type), POINTER :: scf_env
-    TYPE(qs_environment_type), POINTER        :: qs_env
-    TYPE(cp_error_type), INTENT(inout), OPTIONAL :: error
+    TYPE(qs_scf_env_type), POINTER           :: scf_env
+    TYPE(qs_environment_type), POINTER       :: qs_env
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
 
-    CHARACTER(LEN=*), PARAMETER :: routineN = "scf_env_check_i_alloc",&
-         routineP = moduleN//":"//routineN
-    INTEGER :: stat,nao,ispin,handle,nrow_block
-    LOGICAL :: failure
-    TYPE(real_matrix_p_type), DIMENSION(:), POINTER :: k
-    TYPE(cp_fm_pool_p_type),DIMENSION(:), POINTER :: ao_mo_fm_pools
-    TYPE(real_matrix_p_type), DIMENSION(:), POINTER :: s
-    TYPE(cp_fm_struct_type), POINTER :: ao_mo_fmstruct, ao_ao_fmstruct
-    TYPE(cp_fm_type), POINTER :: eigenvectors
-    TYPE(dft_control_type), POINTER   :: dft_control
-    TYPE(mo_set_p_type), DIMENSION(:), POINTER    :: c
-    TYPE(cp_sm_pool_p_type), DIMENSION(:), POINTER :: S_sm_pools
-    TYPE(qs_ks_env_type), POINTER :: ks_env
-    LOGICAL :: gth_potential_present
-    TYPE(atomic_kind_type), DIMENSION(:), POINTER :: atomic_kind_set
+    CHARACTER(LEN=*), PARAMETER :: routineN = "scf_env_check_i_alloc", &
+      routineP = moduleN//":"//routineN
+
+    INTEGER                                  :: handle, ispin, nao, &
+                                                nrow_block, stat
+    LOGICAL                                  :: failure, gth_potential_present
+    TYPE(atomic_kind_type), DIMENSION(:), &
+      POINTER                                :: atomic_kind_set
+    TYPE(cp_fm_pool_p_type), DIMENSION(:), &
+      POINTER                                :: ao_mo_fm_pools
+    TYPE(cp_fm_struct_type), POINTER         :: ao_ao_fmstruct, ao_mo_fmstruct
+    TYPE(cp_fm_type), POINTER                :: eigenvectors
+    TYPE(cp_sm_pool_p_type), DIMENSION(:), &
+      POINTER                                :: S_sm_pools
+    TYPE(dft_control_type), POINTER          :: dft_control
+    TYPE(mo_set_p_type), DIMENSION(:), &
+      POINTER                                :: c
+    TYPE(qs_ks_env_type), POINTER            :: ks_env
+    TYPE(real_matrix_p_type), DIMENSION(:), &
+      POINTER                                :: k, s
 
 !   ---------------------------------------------------------------------------
 
@@ -1229,14 +1198,13 @@ CONTAINS
 
 !   ***************************************************************************
 
-    TYPE(cp_fm_type), POINTER        :: ortho,work
-    TYPE(real_matrix_type), POINTER           :: s
-    INTEGER, INTENT(OUT)                      :: ndep
-    REAL(KIND = dp), INTENT(in)                 :: eps_eigval,work_syevx
+    TYPE(cp_fm_type), POINTER                :: ortho
+    TYPE(real_matrix_type), POINTER          :: s
+    TYPE(cp_fm_type), POINTER                :: work
+    INTEGER, INTENT(OUT)                     :: ndep
+    REAL(KIND=dp), INTENT(in)                :: eps_eigval, work_syevx
 
-!   *** Local variables ***
-
-    INTEGER :: handle,nao
+    INTEGER                                  :: handle
 
 !   ---------------------------------------------------------------------------
 
@@ -1265,23 +1233,25 @@ CONTAINS
 
 !   ***************************************************************************
 
-    TYPE(cp_fm_type), POINTER        :: ks,ortho,work
-    TYPE(mo_set_type), POINTER                :: mo_set
-    LOGICAL, INTENT(INOUT)                    :: use_cholesky
-    LOGICAL, INTENT(IN)                       :: do_level_shift,&
-         use_jacobi
-    REAL(KIND = dp), INTENT(IN)                      :: level_shift,work_syevx,&
-         eps_jacobi,jacobi_threshold,&
-         smear
-    TYPE(cp_para_env_type), POINTER :: para_env
-    TYPE(cp_blacs_env_type), POINTER :: blacs_env
-    TYPE(cp_error_type), INTENT(inout), OPTIONAL :: error
+    TYPE(cp_fm_type), POINTER                :: ks
+    TYPE(mo_set_type), POINTER               :: mo_set
+    TYPE(cp_fm_type), POINTER                :: ortho, work
+    LOGICAL, INTENT(IN)                      :: do_level_shift
+    REAL(KIND=dp), INTENT(IN)                :: level_shift
+    LOGICAL, INTENT(INOUT)                   :: use_cholesky
+    REAL(KIND=dp), INTENT(IN)                :: work_syevx
+    LOGICAL, INTENT(IN)                      :: use_jacobi
+    REAL(KIND=dp), INTENT(IN)                :: eps_jacobi, jacobi_threshold, &
+                                                smear
+    TYPE(cp_blacs_env_type), POINTER         :: blacs_env
+    TYPE(cp_para_env_type), POINTER          :: para_env
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
 
-!   *** Local variables ***
-    INTEGER :: handle,imo,nao,nmo,homo,ncv
-    TYPE(cp_fm_type), POINTER :: mo_eigenvectors
-    REAL(KIND = dp), DIMENSION(:), POINTER    :: mo_eigenvalues
-    REAL(KIND = dp) :: alpha
+    INTEGER                                  :: handle, homo, imo, nao, nmo
+    REAL(KIND=dp)                            :: alpha
+    REAL(KIND=dp), DIMENSION(:), POINTER     :: mo_eigenvalues
+    TYPE(cp_fm_type), POINTER                :: mo_eigenvectors
 
 !   ---------------------------------------------------------------------------
 
@@ -1411,22 +1381,21 @@ CONTAINS
 !!*** *********************************************************************
   SUBROUTINE cp_sm_mix(m1,m2,p_mix,delta,para_env,error)
 
-    TYPE(real_matrix_type), POINTER :: m1,m2
-    REAL(KIND = dp), INTENT(IN) :: p_mix
-    REAL(KIND = dp), INTENT(OUT) :: delta
-    TYPE(cp_para_env_type), POINTER :: para_env
-    TYPE(cp_error_type), INTENT(inout), OPTIONAL:: error
+    TYPE(real_matrix_type), POINTER          :: m1, m2
+    REAL(KIND=dp), INTENT(IN)                :: p_mix
+    REAL(KIND=dp), INTENT(OUT)               :: delta
+    TYPE(cp_para_env_type), POINTER          :: para_env
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
 
-!   *** Local variables ***
+    CHARACTER(len=*), PARAMETER :: routineN = "cp_sm_mix", &
+      routineP = moduleN//':'//routineN
 
-    TYPE(real_block_node_type), POINTER :: block_node
-
-    CHARACTER(len=*), PARAMETER :: routineN="cp_sm_mix",&
-         routineP=moduleN//':'//routineN
-    REAL(KIND = dp) :: r_mix
-    INTEGER  :: handle,i,iblock_col,iblock_row,j,nblock_row
-
-    REAL(KIND = dp), DIMENSION(:,:), POINTER :: p_new_block,p_old_block
+    INTEGER                                  :: handle, i, iblock_col, &
+                                                iblock_row, j, nblock_row
+    REAL(KIND=dp)                            :: r_mix
+    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: p_new_block, p_old_block
+    TYPE(real_block_node_type), POINTER      :: block_node
 
 !   ---------------------------------------------------------------------------
 
@@ -1477,48 +1446,44 @@ CONTAINS
 ! *****************************************************************************
   SUBROUTINE calculate_first_density_matrix(scf_env,qs_env,globenv,error)
 
-    TYPE(qs_scf_env_type), POINTER :: scf_env
-    TYPE(qs_environment_type), POINTER :: qs_env
-    TYPE(global_environment_type), INTENT(IN) :: globenv
-    TYPE(cp_error_type), INTENT(inout), OPTIONAL :: error
+    TYPE(qs_scf_env_type), POINTER           :: scf_env
+    TYPE(qs_environment_type), POINTER       :: qs_env
+    TYPE(global_environment_type), &
+      INTENT(IN)                             :: globenv
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
 
-!   *** Local parameters ***
+    CHARACTER(LEN=*), PARAMETER :: &
+      routineN = "calculate_first_density_matrix", &
+      routineP = moduleN//":"//routineN
 
-    CHARACTER(LEN=*), PARAMETER :: routineN =&
-         "calculate_first_density_matrix"
-    CHARACTER(LEN=*), PARAMETER :: routineP =&
-         moduleN//":"//routineN
-
-!   *** Local variables ***
-
-    TYPE(all_potential_type), POINTER :: all_potential
-    TYPE(atomic_kind_type), POINTER   :: atomic_kind
-    TYPE(cp_fm_type), POINTER  :: mo_eigenvectors,sv
-    TYPE(gth_potential_type), POINTER :: gth_potential
-    TYPE(gto_basis_set_type), POINTER :: orb_basis_set
-    TYPE(atomic_kind_type), DIMENSION(:), POINTER :: atomic_kind_set
-    TYPE(particle_type), DIMENSION(:), POINTER    :: particle_set
-
-    TYPE(cp_fm_type), POINTER        :: ortho,work2
-    TYPE(cp_fm_p_type), DIMENSION(:), POINTER        :: work1
-    TYPE(mo_set_p_type),  DIMENSION(:), POINTER               :: mo_array
-    TYPE(real_matrix_p_type), DIMENSION(:), POINTER   :: s_sparse
-    TYPE(real_matrix_p_type), DIMENSION(:), POINTER   :: p_rmpv
-    TYPE(scf_control_type), POINTER           :: scf_control
-    TYPE(dft_control_type), POINTER :: dft_control
-
-    REAL(KIND = dp) :: maxocc,nelec,paa,saa,scale,trps1,trps2
-    INTEGER  :: atom_a,handle,homo,iatom,ikind,iset,isgf,isgfa,&
-                ishell,istat,la,maxl,nao,natom,ncount,nmo,nset,&
-                qs_env_id,restart_unit
-
-    REAL(KIND = dp), DIMENSION(:), ALLOCATABLE :: econf,pdiag,sdiag
-    INTEGER, DIMENSION(:), ALLOCATABLE :: first_sgf
-
-    INTEGER, DIMENSION(:), POINTER   :: atom_list,elec_conf,nshell
-    INTEGER, DIMENSION(:,:), POINTER :: first_sgfa,l,last_sgfa
-    INTEGER :: group,nspin,ispin,nelectron
-    LOGICAL :: local
+    INTEGER :: atom_a, group, handle, homo, iatom, ikind, iset, isgf, isgfa, &
+      ishell, ispin, istat, la, maxl, nao, natom, ncount, nelectron, nmo, &
+      nset, nspin, qs_env_id
+    INTEGER, ALLOCATABLE, DIMENSION(:)       :: first_sgf
+    INTEGER, DIMENSION(:), POINTER           :: atom_list, elec_conf, nshell
+    INTEGER, DIMENSION(:, :), POINTER        :: first_sgfa, l, last_sgfa
+    REAL(KIND=dp)                            :: maxocc, nelec, paa, scale, &
+                                                trps1, trps2
+    REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: econf, pdiag, sdiag
+    TYPE(all_potential_type), POINTER        :: all_potential
+    TYPE(atomic_kind_type), DIMENSION(:), &
+      POINTER                                :: atomic_kind_set
+    TYPE(atomic_kind_type), POINTER          :: atomic_kind
+    TYPE(cp_fm_p_type), DIMENSION(:), &
+      POINTER                                :: work1
+    TYPE(cp_fm_type), POINTER                :: mo_eigenvectors, ortho, sv, &
+                                                work2
+    TYPE(dft_control_type), POINTER          :: dft_control
+    TYPE(gth_potential_type), POINTER        :: gth_potential
+    TYPE(gto_basis_set_type), POINTER        :: orb_basis_set
+    TYPE(mo_set_p_type), DIMENSION(:), &
+      POINTER                                :: mo_array
+    TYPE(particle_type), DIMENSION(:), &
+      POINTER                                :: particle_set
+    TYPE(real_matrix_p_type), DIMENSION(:), &
+      POINTER                                :: p_rmpv, s_sparse
+    TYPE(scf_control_type), POINTER          :: scf_control
 
 !   ---------------------------------------------------------------------------
 
@@ -1781,17 +1746,21 @@ CONTAINS
 !!
 !!*** **********************************************************************
   SUBROUTINE scf_env_initial_rho_setup(scf_env, qs_env, globenv, error)
-    TYPE(qs_scf_env_type), POINTER :: scf_env
-    TYPE(qs_environment_type), POINTER :: qs_env
-    TYPE(global_environment_type), INTENT(in), TARGET :: globenv
-    TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
+    TYPE(qs_scf_env_type), POINTER           :: scf_env
+    TYPE(qs_environment_type), POINTER       :: qs_env
+    TYPE(global_environment_type), &
+      INTENT(in), TARGET                     :: globenv
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
 
-    LOGICAL :: failure, orthogonal_wf,ionode
-    CHARACTER(len=*), PARAMETER :: routineN='scf_env_initial_rho_setup',&
-         routineP=moduleN//':'//routineN
-    INTEGER :: handle, nmo, ispin, extrapolation_method_nr
-    TYPE(cp_fm_type), POINTER :: eigenvectors
-    TYPE(cp_logger_type), POINTER :: logger
+    CHARACTER(len=*), PARAMETER :: routineN = 'scf_env_initial_rho_setup', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: extrapolation_method_nr, &
+                                                handle, ispin, nmo
+    LOGICAL                                  :: failure, ionode, orthogonal_wf
+    TYPE(cp_fm_type), POINTER                :: eigenvectors
+    TYPE(cp_logger_type), POINTER            :: logger
 
     CALL timeset(routineN,"I","",handle)
     failure=.FALSE.
@@ -1863,15 +1832,18 @@ CONTAINS
 !!
 !!*** **********************************************************************
   SUBROUTINE scf_env_cleanup(scf_env,qs_env,error)
-    TYPE(qs_scf_env_type), POINTER :: scf_env
-    TYPE(qs_environment_type), POINTER :: qs_env
-    TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
+    TYPE(qs_scf_env_type), POINTER           :: scf_env
+    TYPE(qs_environment_type), POINTER       :: qs_env
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
 
-    LOGICAL :: failure
-    CHARACTER(len=*), PARAMETER :: routineN='scf_env_cleanup',&
-         routineP=moduleN//':'//routineN
-    INTEGER :: stat, ispin,handle
-    TYPE(cp_sm_pool_p_type), DIMENSION(:), POINTER :: S_sm_pools
+    CHARACTER(len=*), PARAMETER :: routineN = 'scf_env_cleanup', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: handle, ispin, stat
+    LOGICAL                                  :: failure
+    TYPE(cp_sm_pool_p_type), DIMENSION(:), &
+      POINTER                                :: S_sm_pools
 
     CALL timeset(routineN,"I","",handle)
 
@@ -1962,14 +1934,16 @@ CONTAINS
 !!
 !!*** **********************************************************************
 SUBROUTINE scf_env_did_change(scf_env,qs_env,s_mstruct_changed,error)
-  TYPE(qs_scf_env_type), POINTER :: scf_env
-  TYPE(qs_environment_type), POINTER :: qs_env
-  LOGICAL, INTENT(in) :: s_mstruct_changed
-  TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
-  
-  LOGICAL :: failure
-  CHARACTER(len=*), PARAMETER :: routineN='scf_env_did_change',&
-        routineP=moduleN//':'//routineN
+    TYPE(qs_scf_env_type), POINTER           :: scf_env
+    TYPE(qs_environment_type), POINTER       :: qs_env
+    LOGICAL, INTENT(in)                      :: s_mstruct_changed
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'scf_env_did_change', &
+      routineP = moduleN//':'//routineN
+
+    LOGICAL                                  :: failure
 
   failure=.FALSE.
   

@@ -30,17 +30,15 @@ MODULE distribution_methods
                                              cp_error_type
   USE cp_log_handling,                 ONLY: cp_logger_get_default_unit_nr,&
                                              cp_logger_type
-  USE cp_para_types,                   ONLY: cp_blacs_env_type,&
-                                             cp_para_env_type
-  USE distribution_1d_types,           ONLY: distribution_1d_type,&
-                                             distribution_1d_create
+  USE cp_para_types,                   ONLY: cp_blacs_env_type
+  USE distribution_1d_types,           ONLY: distribution_1d_create,&
+                                             distribution_1d_type
   USE distribution_2d_types,           ONLY: distribution_2d_create,&
                                              distribution_2d_type,&
                                              distribution_2d_write
   USE global_types,                    ONLY: LOW
-  USE kinds,                           ONLY: int_size,&
-                                             dp,&
-                                             dp_size
+  USE kinds,                           ONLY: dp,&
+                                             int_size
   USE machine,                         ONLY: m_flush
   USE message_passing,                 ONLY: mp_sum,&
                                              mp_sync
@@ -48,8 +46,7 @@ MODULE distribution_methods
                                              molecule_kind_type
   USE molecule_types_new,              ONLY: molecule_type
   USE particle_types,                  ONLY: particle_type
-  USE termination,                     ONLY: stop_memory,&
-                                             stop_program
+  USE termination,                     ONLY: stop_memory
 
   IMPLICIT NONE
 
@@ -102,38 +99,34 @@ CONTAINS
                                      molecule_kind_set,molecule_set,&
                                      local_molecules, error)
 
-    TYPE(atomic_kind_type), DIMENSION(:), POINTER   :: particle_kind_set
-    TYPE(particle_type), DIMENSION(:), POINTER      :: particle_set
-    TYPE(molecule_kind_type), DIMENSION(:), POINTER :: molecule_kind_set
-    TYPE(molecule_type), DIMENSION(:), POINTER      :: molecule_set
-    TYPE(distribution_1d_type), POINTER             :: local_molecules,&
-                                                       local_particles
-    TYPE(cp_error_type), OPTIONAL, INTENT(INOUT)    :: error
-
-!   *** Local parameters ***
+    TYPE(atomic_kind_type), DIMENSION(:), &
+      POINTER                                :: particle_kind_set
+    TYPE(particle_type), DIMENSION(:), &
+      POINTER                                :: particle_set
+    TYPE(distribution_1d_type), POINTER      :: local_particles
+    TYPE(molecule_kind_type), DIMENSION(:), &
+      POINTER                                :: molecule_kind_set
+    TYPE(molecule_type), DIMENSION(:), &
+      POINTER                                :: molecule_set
+    TYPE(distribution_1d_type), POINTER      :: local_molecules
+    TYPE(cp_error_type), INTENT(INOUT), &
+      OPTIONAL                               :: error
 
     CHARACTER(LEN=*), PARAMETER :: routine_name = "distribute_molecules_1d"
 
-!   *** Local variables ***
-
-    TYPE(cp_logger_type), POINTER     :: logger
-    TYPE(molecule_kind_type), POINTER :: molecule_kind
-
-    INTEGER :: atom_a,group,i,iatom,imolecule,imolecule_kind,imolecule_local,&
-               iparticle_kind,ipe,istat,j,jpe,kind_a,molecule_a,mype,n,natom,&
-               nload,nmolecule,nmolecule_kind,nparticle_kind,npe,nsgf,&
-               output_unit
-    LOGICAL :: ionode
-
-    TYPE(cp_1d_i_p_type), DIMENSION(:), ALLOCATABLE :: local_molecule
-
-    INTEGER, DIMENSION(:), ALLOCATABLE :: nmolecule_local,&
-                                          nparticle_local,&
-                                          work,&
-                                          workload,&
-                                          workload_old
-
-    INTEGER, DIMENSION(:), POINTER :: molecule_list
+    INTEGER :: atom_a, group, iatom, imolecule, imolecule_kind, &
+      imolecule_local, iparticle_kind, ipe, istat, jpe, kind_a, molecule_a, &
+      mype, n, natom, nload, nmolecule, nmolecule_kind, nparticle_kind, npe, &
+      nsgf, output_unit
+    INTEGER, ALLOCATABLE, DIMENSION(:)       :: nmolecule_local, &
+                                                nparticle_local, work, &
+                                                workload, workload_old
+    INTEGER, DIMENSION(:), POINTER           :: molecule_list
+    LOGICAL                                  :: ionode
+    TYPE(cp_1d_i_p_type), ALLOCATABLE, &
+      DIMENSION(:)                           :: local_molecule
+    TYPE(cp_logger_type), POINTER            :: logger
+    TYPE(molecule_kind_type), POINTER        :: molecule_kind
 
 !   ---------------------------------------------------------------------------
 
@@ -476,48 +469,39 @@ CONTAINS
                                      molecule_kind_set,molecule_set,&
                                      distribution_2d,blacs_env,error)
 
-    TYPE(atomic_kind_type), DIMENSION(:), POINTER   :: particle_kind_set
-    TYPE(particle_type), DIMENSION(:), POINTER      :: particle_set
-    TYPE(molecule_kind_type), DIMENSION(:), POINTER :: molecule_kind_set
-    TYPE(molecule_type), DIMENSION(:), POINTER      :: molecule_set
-    TYPE(distribution_2d_type), POINTER             :: distribution_2d
-    TYPE(cp_blacs_env_type), POINTER                :: blacs_env
-    TYPE(cp_error_type), OPTIONAL, INTENT(INOUT)    :: error
-
-!   *** Local parameters ***
+    TYPE(atomic_kind_type), DIMENSION(:), &
+      POINTER                                :: particle_kind_set
+    TYPE(particle_type), DIMENSION(:), &
+      POINTER                                :: particle_set
+    TYPE(molecule_kind_type), DIMENSION(:), &
+      POINTER                                :: molecule_kind_set
+    TYPE(molecule_type), DIMENSION(:), &
+      POINTER                                :: molecule_set
+    TYPE(distribution_2d_type), POINTER      :: distribution_2d
+    TYPE(cp_blacs_env_type), POINTER         :: blacs_env
+    TYPE(cp_error_type), INTENT(INOUT), &
+      OPTIONAL                               :: error
 
     CHARACTER(LEN=*), PARAMETER :: routine_name = "distribute_molecules_2d"
 
-!   *** Local variables ***
-
-    TYPE(molecule_kind_type), POINTER :: molecule_kind
-    TYPE(cp_logger_type), POINTER     :: logger
-
-    INTEGER :: atom_a,group,iatom,iatom_local,ipcol,iprow,ikind,imolecule,&
-               imolecule_kind,imolecule_local,iparticle_kind,istat,j,jpcol,&
-               jprow,kind_a,molecule_a,mypcol,myprow,n,natom,nkind,nload,&
-               nmolecule,nmolecule_kind,nparticle_kind,npcol,nprow,nsgf,&
-               output_unit
-
-    LOGICAL :: ionode
-
-    INTEGER, DIMENSION(:), ALLOCATABLE :: nmolecule_local_col,&
-                                          nmolecule_local_row,&
-                                          nparticle_local_col,&
-                                          nparticle_local_row,&
-                                          work,&
-                                          workload_col,&
-                                          workload_col_old,&
-                                          workload_row,&
-                                          workload_row_old
-
-    TYPE(cp_1d_i_p_type), DIMENSION(:), POINTER :: local_molecule_col,&
-                                                   local_molecule_row,&
-                                                   local_particle_col,&
-                                                   local_particle_row
-    INTEGER, DIMENSION(:), POINTER              :: molecule_list
-    INTEGER, DIMENSION(:), POINTER              :: col_distribution,&
-                                                   row_distribution
+    INTEGER :: atom_a, group, iatom, imolecule, imolecule_kind, &
+      imolecule_local, iparticle_kind, ipcol, iprow, istat, jpcol, jprow, &
+      kind_a, molecule_a, mypcol, myprow, n, natom, nload, nmolecule, &
+      nmolecule_kind, nparticle_kind, npcol, nprow, nsgf, output_unit
+    INTEGER, ALLOCATABLE, DIMENSION(:) :: nmolecule_local_col, &
+      nmolecule_local_row, nparticle_local_col, nparticle_local_row, work, &
+      workload_col, workload_col_old, workload_row, workload_row_old
+    INTEGER, DIMENSION(:), POINTER           :: col_distribution, &
+                                                molecule_list, &
+                                                row_distribution
+    LOGICAL                                  :: ionode
+    TYPE(cp_1d_i_p_type), DIMENSION(:), &
+      POINTER                                :: local_molecule_col, &
+                                                local_molecule_row, &
+                                                local_particle_col, &
+                                                local_particle_row
+    TYPE(cp_logger_type), POINTER            :: logger
+    TYPE(molecule_kind_type), POINTER        :: molecule_kind
 
 !   ---------------------------------------------------------------------------
 

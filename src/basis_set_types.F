@@ -25,10 +25,15 @@ MODULE basis_set_types
   USE kinds,                           ONLY: default_string_length,&
                                              dp,&
                                              dp_size
-  USE mathconstants,                   ONLY: dfac,pi
+  USE mathconstants,                   ONLY: dfac,&
+                                             pi
   USE memory_utilities,                ONLY: reallocate
-  USE orbital_pointers,                ONLY: coset,init_orbital_pointers,&
-                                             indco,nco,ncoset,nso
+  USE orbital_pointers,                ONLY: coset,&
+                                             indco,&
+                                             init_orbital_pointers,&
+                                             nco,&
+                                             ncoset,&
+                                             nso
   USE orbital_symbols,                 ONLY: cgf_symbol,&
                                              sgf_symbol
   USE orbital_transformation_matrices, ONLY: orbtramat
@@ -104,15 +109,11 @@ CONTAINS
 
 !   ***************************************************************************
 
-    TYPE(gto_basis_set_type), POINTER :: gto_basis_set
-
-!   *** Local parameters ***
+    TYPE(gto_basis_set_type), POINTER        :: gto_basis_set
 
     CHARACTER(LEN=*), PARAMETER :: routine_name = "allocate_gto_basis_set"
 
-!   *** Local variables ***
-
-    INTEGER :: istat
+    INTEGER                                  :: istat
 
 !   ---------------------------------------------------------------------------
 
@@ -160,15 +161,11 @@ CONTAINS
 
 !   ***************************************************************************
 
-    TYPE(gto_basis_set_type), POINTER :: gto_basis_set
-
-!   *** Local parameters ***
+    TYPE(gto_basis_set_type), POINTER        :: gto_basis_set
 
     CHARACTER(LEN=*), PARAMETER :: routine_name = "deallocate_gto_basis_set"
 
-!   *** Local variables ***
-
-    INTEGER :: istat
+    INTEGER                                  :: istat
 
 !   ---------------------------------------------------------------------------
 
@@ -294,38 +291,35 @@ CONTAINS
 
 !   ***************************************************************************
 
-    TYPE(gto_basis_set_type), POINTER                  :: gto_basis_set
-    CHARACTER(LEN=default_string_length), OPTIONAL,&
-      INTENT(OUT)                                      :: name
-    REAL(KIND = dp), OPTIONAL, INTENT(OUT)             :: kind_radius
-    INTEGER, OPTIONAL, INTENT(OUT)                     :: maxco,maxl,maxpgf,&
-                                                          maxsgf_set,maxshell,&
-                                                          ncgf,nco_sum,npgf_sum,&
-                                                          nset,nsgf,nshell_sum
-    CHARACTER(LEN=12), DIMENSION(:), OPTIONAL, POINTER :: cgf_symbol
-    CHARACTER(LEN=6), DIMENSION(:), OPTIONAL, POINTER  :: sgf_symbol
-    REAL(KIND = dp), DIMENSION(:), OPTIONAL, POINTER   :: norm_cgf,&
-                                                          set_radius
-    INTEGER, DIMENSION(:), OPTIONAL, POINTER           :: lmax,lmin,lx,ly,&
-                                                          lz,m,ncgf_set,npgf,&
-                                                          nsgf_set,nshell
-    REAL(KIND = dp), DIMENSION(:,:), OPTIONAL, POINTER :: cphi,pgf_radius,&
-                                                          sphi,zet
-    INTEGER, DIMENSION(:,:), OPTIONAL, POINTER         :: first_cgf,&
-                                                          first_sgf,l,&
-                                                          last_cgf,&
-                                                          last_sgf,n
-    REAL(KIND = dp), DIMENSION(:,:,:), OPTIONAL,&
-      POINTER                                          :: gcc
-    INTEGER, OPTIONAL, INTENT(IN)                      :: maxder
-
-!   *** Local parameters ***
+    TYPE(gto_basis_set_type), POINTER        :: gto_basis_set
+    CHARACTER(LEN=default_string_length), &
+      INTENT(OUT), OPTIONAL                  :: name
+    REAL(KIND=dp), INTENT(OUT), OPTIONAL     :: kind_radius
+    INTEGER, INTENT(OUT), OPTIONAL           :: ncgf, nset, nsgf
+    CHARACTER(LEN=12), DIMENSION(:), &
+      OPTIONAL, POINTER                      :: cgf_symbol
+    CHARACTER(LEN=6), DIMENSION(:), &
+      OPTIONAL, POINTER                      :: sgf_symbol
+    REAL(KIND=dp), DIMENSION(:), OPTIONAL, &
+      POINTER                                :: norm_cgf, set_radius
+    INTEGER, DIMENSION(:), OPTIONAL, POINTER :: lmax, lmin, lx, ly, lz, m, &
+                                                ncgf_set, npgf, nsgf_set, &
+                                                nshell
+    REAL(KIND=dp), DIMENSION(:, :), &
+      OPTIONAL, POINTER                      :: cphi, pgf_radius, sphi, zet
+    INTEGER, DIMENSION(:, :), OPTIONAL, &
+      POINTER                                :: first_cgf, first_sgf, l, &
+                                                last_cgf, last_sgf, n
+    REAL(KIND=dp), DIMENSION(:, :, :), &
+      OPTIONAL, POINTER                      :: gcc
+    INTEGER, INTENT(OUT), OPTIONAL           :: maxco, maxl, maxpgf, &
+                                                maxsgf_set, maxshell, &
+                                                nco_sum, npgf_sum, nshell_sum
+    INTEGER, INTENT(IN), OPTIONAL            :: maxder
 
     CHARACTER(LEN=*), PARAMETER :: routine_name = "get_gto_basis_set"
 
-!   *** Local variables ***
-
-    INTEGER :: iset,nder,nshella
+    INTEGER                                  :: iset, nder
 
 !   ---------------------------------------------------------------------------
 
@@ -422,7 +416,7 @@ CONTAINS
 
 !   ***************************************************************************
 
-    TYPE(gto_basis_set_type), POINTER :: gto_basis_set
+    TYPE(gto_basis_set_type), POINTER        :: gto_basis_set
 
 !   ---------------------------------------------------------------------------
 
@@ -451,14 +445,13 @@ CONTAINS
 
 !   ***************************************************************************
 
-    TYPE(gto_basis_set_type), POINTER :: gto_basis_set
+    TYPE(gto_basis_set_type), POINTER        :: gto_basis_set
 
-!   *** Local variables ***
-
-    INTEGER :: first_cgf,first_sgf,icgf,ico,ipgf,iset,ishell,l,n,ncgf,nsgf
+    INTEGER                                  :: first_cgf, first_sgf, icgf, &
+                                                ico, ipgf, iset, ishell, l, &
+                                                n, ncgf, nsgf
 
 !   ---------------------------------------------------------------------------
-
 !   *** Build the Cartesian transformation matrix "cphi" ***
 
     DO iset=1,gto_basis_set%nset
@@ -509,21 +502,18 @@ CONTAINS
 
 !   ***************************************************************************
 
-    TYPE(gto_basis_set_type), POINTER :: gto_basis_set
-
-!   *** Local parameters ***
+    TYPE(gto_basis_set_type), POINTER        :: gto_basis_set
 
     CHARACTER(LEN=*), PARAMETER :: routine_name = "init_norm_cgf_aux"
 
-!   *** Local variables ***
-
-    REAL(KIND = dp) :: fnorm,gcca,gccb
-    INTEGER         :: ico,icgf,ipgf,iset,ishell,istat,jco,jpgf,lmax,lmin,&
-                       lx,ly,lz,n,npgfa
-
-    REAL(KIND = dp), DIMENSION(:), POINTER :: rpgfa,zeta
-
-    REAL(KIND = dp), DIMENSION(:,:), ALLOCATABLE :: gaa
+    INTEGER                                  :: icgf, ico, ipgf, iset, &
+                                                ishell, istat, jco, jpgf, &
+                                                lmax, lmin, lx, ly, lz, n, &
+                                                npgfa
+    REAL(KIND=dp)                            :: fnorm, gcca, gccb
+    REAL(KIND=dp), ALLOCATABLE, &
+      DIMENSION(:, :)                        :: gaa
+    REAL(KIND=dp), DIMENSION(:), POINTER     :: rpgfa, zeta
 
 !   ---------------------------------------------------------------------------
 
@@ -587,13 +577,11 @@ CONTAINS
 
 !   ***************************************************************************
 
-    TYPE(gto_basis_set_type), POINTER :: gto_basis_set
-
-!   *** Local variables ***
+    TYPE(gto_basis_set_type), POINTER        :: gto_basis_set
 
     CHARACTER(LEN=*), PARAMETER :: routine_name = "init_norm_cgf_aux_2"
 
-    INTEGER  :: ipgf,iset,ishell,l,icgf
+    INTEGER                                  :: icgf, iset, ishell
 
 !   ---------------------------------------------------------------------------
 
@@ -619,12 +607,12 @@ CONTAINS
 
 !   ***************************************************************************
 
-    TYPE(gto_basis_set_type), POINTER :: gto_basis_set
+    TYPE(gto_basis_set_type), POINTER        :: gto_basis_set
 
-!   *** Local variables ***
-
-    REAL(KIND = dp) :: expzet,fnorm,gcca,gccb,prefac,zeta,zetb
-    INTEGER         :: icgf,ipgf,iset,ishell,jpgf,l,lx,ly,lz
+    INTEGER                                  :: icgf, ipgf, iset, ishell, &
+                                                jpgf, l, lx, ly, lz
+    REAL(KIND=dp)                            :: expzet, fnorm, gcca, gccb, &
+                                                prefac, zeta, zetb
 
 !   ---------------------------------------------------------------------------
 
@@ -674,15 +662,14 @@ CONTAINS
 
 !   ***************************************************************************
 
-    TYPE(gto_basis_set_type), POINTER         :: gto_basis_set
-    TYPE(global_environment_type), INTENT(IN) :: globenv
-
-!   *** Local variables ***
+    TYPE(gto_basis_set_type), POINTER        :: gto_basis_set
+    TYPE(global_environment_type), &
+      INTENT(IN)                             :: globenv
 
     CHARACTER(LEN=*), PARAMETER :: routine_name = "init_norm_cgf_orb_den"
 
-    REAL(KIND = dp) :: expzet,gcca,prefac,zeta
-    INTEGER         :: ipgf,iset,ishell,l,icgf
+    INTEGER                                  :: icgf, ipgf, iset, ishell, l
+    REAL(KIND=dp)                            :: expzet, gcca, prefac, zeta
 
 !   ---------------------------------------------------------------------------
 
@@ -719,11 +706,7 @@ CONTAINS
 
 !   ***************************************************************************
 
-    TYPE(gto_basis_set_type), POINTER :: gto_basis_set
-
-!   *** Local variables ***
-
-    INTEGER :: first_sgfa,iset,la_max,last_sgfa,npgfa,nsgfa,nshella
+    TYPE(gto_basis_set_type), POINTER        :: gto_basis_set
 
 !   ---------------------------------------------------------------------------
 
@@ -754,8 +737,9 @@ CONTAINS
 
 !   ***************************************************************************
 
-    TYPE(gto_basis_set_type), POINTER :: gto_basis_set
-    TYPE(global_environment_type), INTENT(IN) :: globenv
+    TYPE(gto_basis_set_type), POINTER        :: gto_basis_set
+    TYPE(global_environment_type), &
+      INTENT(IN)                             :: globenv
 
 !   ---------------------------------------------------------------------------
 
@@ -783,12 +767,10 @@ CONTAINS
 
 !   ***************************************************************************
 
-    TYPE(gto_basis_set_type), POINTER :: gto_basis_set
+    TYPE(gto_basis_set_type), POINTER        :: gto_basis_set
 
-!   *** Local variables ***
-
-    REAL(KIND = dp) :: expzet,gcca,prefac,zeta
-    INTEGER         :: ipgf,iset,ishell,l
+    INTEGER                                  :: ipgf, iset, ishell, l
+    REAL(KIND=dp)                            :: expzet, gcca, prefac, zeta
 
 !   ---------------------------------------------------------------------------
 
@@ -819,32 +801,27 @@ CONTAINS
 
 !   ***************************************************************************
 
-    TYPE(global_environment_type), INTENT(IN) :: globenv
-    TYPE(gto_basis_set_type), POINTER         :: gto_basis_set
-    CHARACTER(LEN=*), INTENT(IN)              :: basis_set_name,&
-                                                 element_symbol
-
-!   *** Local parameters ***
+    CHARACTER(LEN=*), INTENT(IN)             :: element_symbol, basis_set_name
+    TYPE(gto_basis_set_type), POINTER        :: gto_basis_set
+    TYPE(global_environment_type), &
+      INTENT(IN)                             :: globenv
 
     CHARACTER(LEN=*), PARAMETER :: routine_name = "read_gto_basis_set"
 
-!   *** Local variables ***
-
-    CHARACTER(LEN=LEN(basis_set_name))   :: bsname
-    CHARACTER(LEN=LEN(basis_set_name)+2) :: bsname2
-    CHARACTER(LEN=240)                   :: line
-    CHARACTER(LEN=242)                   :: line2
-    CHARACTER(LEN=LEN(element_symbol))   :: symbol
-    CHARACTER(LEN=LEN(element_symbol)+2) :: symbol2
-
-    INTEGER :: i,ico,ipgf,iset,ishell,istat,lshell,m,maxco,maxl,&
-               maxpgf,maxshell,ncgf,ncgf_set,nmin,nset,nsgf,strlen1,strlen2
-    LOGICAL :: found
-
-    INTEGER, DIMENSION(:), POINTER             :: lmax,lmin,npgf,nshell
-    REAL(KIND = dp), DIMENSION(:,:), POINTER   :: zet
-    INTEGER, DIMENSION(:,:), POINTER           :: l,n
-    REAL(KIND = dp), DIMENSION(:,:,:), POINTER :: gcc
+    CHARACTER(LEN=240)                       :: line
+    CHARACTER(LEN=242)                       :: line2
+    CHARACTER(LEN=LEN(basis_set_name))       :: bsname
+    CHARACTER(LEN=LEN(basis_set_name)+2)     :: bsname2
+    CHARACTER(LEN=LEN(element_symbol))       :: symbol
+    CHARACTER(LEN=LEN(element_symbol)+2)     :: symbol2
+    INTEGER :: i, ico, ipgf, iset, ishell, istat, lshell, m, maxco, maxl, &
+      maxpgf, maxshell, ncgf, nmin, nset, nsgf, strlen1, strlen2
+    INTEGER, DIMENSION(:), POINTER           :: lmax, lmin, npgf, nshell
+    INTEGER, DIMENSION(:, :), POINTER        :: l, n
+    LOGICAL                                  :: found
+    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: zet
+    REAL(KIND=dp), DIMENSION(:, :, :), &
+      POINTER                                :: gcc
 
 !   ---------------------------------------------------------------------------
 
@@ -1092,28 +1069,27 @@ CONTAINS
 
 !   ***************************************************************************
 
-    TYPE(gto_basis_set_type), POINTER                    :: gto_basis_set
-    CHARACTER(LEN=default_string_length), OPTIONAL,&
-      INTENT(IN)                                         :: name
-    REAL(KIND = dp), OPTIONAL, INTENT(IN)                :: kind_radius
-    INTEGER, OPTIONAL, INTENT(IN)                        :: ncgf,nset,nsgf
-    CHARACTER(LEN=12), DIMENSION(:), OPTIONAL, POINTER   :: cgf_symbol
-    CHARACTER(LEN=6), DIMENSION(:), OPTIONAL, POINTER    :: sgf_symbol
-    REAL(KIND = dp), DIMENSION(:), OPTIONAL, POINTER            :: norm_cgf,&
-                                                            set_radius
-    INTEGER, DIMENSION(:), OPTIONAL, POINTER             :: lmax,lmin,lx,ly,&
-                                                            lz,m,ncgf_set,&
-                                                            npgf,nsgf_set,&
-                                                            nshell
-    REAL(KIND = dp), DIMENSION(:,:), OPTIONAL, POINTER   :: cphi,pgf_radius,&
-                                                            sphi,zet
-    INTEGER, DIMENSION(:,:), OPTIONAL, POINTER           :: first_cgf,&
-                                                            first_sgf,l,&
-                                                            last_cgf,&
-                                                            last_sgf,n
-    REAL(KIND = dp), DIMENSION(:,:,:), OPTIONAL, POINTER :: gcc
-
-!   *** Local parameters ***
+    TYPE(gto_basis_set_type), POINTER        :: gto_basis_set
+    CHARACTER(LEN=default_string_length), &
+      INTENT(IN), OPTIONAL                   :: name
+    REAL(KIND=dp), INTENT(IN), OPTIONAL      :: kind_radius
+    INTEGER, INTENT(IN), OPTIONAL            :: ncgf, nset, nsgf
+    CHARACTER(LEN=12), DIMENSION(:), &
+      OPTIONAL, POINTER                      :: cgf_symbol
+    CHARACTER(LEN=6), DIMENSION(:), &
+      OPTIONAL, POINTER                      :: sgf_symbol
+    REAL(KIND=dp), DIMENSION(:), OPTIONAL, &
+      POINTER                                :: norm_cgf, set_radius
+    INTEGER, DIMENSION(:), OPTIONAL, POINTER :: lmax, lmin, lx, ly, lz, m, &
+                                                ncgf_set, npgf, nsgf_set, &
+                                                nshell
+    REAL(KIND=dp), DIMENSION(:, :), &
+      OPTIONAL, POINTER                      :: cphi, pgf_radius, sphi, zet
+    INTEGER, DIMENSION(:, :), OPTIONAL, &
+      POINTER                                :: first_cgf, first_sgf, l, &
+                                                last_cgf, last_sgf, n
+    REAL(KIND=dp), DIMENSION(:, :, :), &
+      OPTIONAL, POINTER                      :: gcc
 
     CHARACTER(LEN=*), PARAMETER :: routine_name = "set_gto_basis_set"
 
@@ -1168,12 +1144,12 @@ CONTAINS
 
 !   ***************************************************************************
 
-    TYPE(gto_basis_set_type), POINTER         :: aux_basis_set
-    TYPE(global_environment_type), INTENT(IN) :: globenv
+    TYPE(gto_basis_set_type), POINTER        :: aux_basis_set
+    TYPE(global_environment_type), &
+      INTENT(IN)                             :: globenv
 
-!   *** Local variables ***
-
-    INTEGER :: icgf,ico,ipgf,iset,ishell,output_unit
+    INTEGER                                  :: icgf, ico, ipgf, iset, &
+                                                ishell, output_unit
 
 !   ---------------------------------------------------------------------------
 
@@ -1237,12 +1213,12 @@ CONTAINS
 
 !   ***************************************************************************
 
-    TYPE(gto_basis_set_type), POINTER         :: gto_basis_set
-    TYPE(global_environment_type), INTENT(IN) :: globenv
+    TYPE(gto_basis_set_type), POINTER        :: gto_basis_set
+    TYPE(global_environment_type), &
+      INTENT(IN)                             :: globenv
 
-!   *** Local variables ***
-
-    INTEGER :: ipgf,iset,ishell,output_unit
+    INTEGER                                  :: ipgf, iset, ishell, &
+                                                output_unit
 
 !   ---------------------------------------------------------------------------
 
@@ -1285,12 +1261,12 @@ CONTAINS
 
 !   ***************************************************************************
 
-    TYPE(gto_basis_set_type), POINTER         :: orb_basis_set
-    TYPE(global_environment_type), INTENT(IN) :: globenv
+    TYPE(gto_basis_set_type), POINTER        :: orb_basis_set
+    TYPE(global_environment_type), &
+      INTENT(IN)                             :: globenv
 
-!   *** Local variables ***
-
-    INTEGER :: icgf,ico,ipgf,iset,ishell,output_unit
+    INTEGER                                  :: icgf, ico, ipgf, iset, &
+                                                ishell, output_unit
 
 !   ---------------------------------------------------------------------------
 

@@ -43,6 +43,7 @@ MODULE mulliken
   USE termination,                     ONLY: stop_program
   USE timings,                         ONLY: timeset,&
                                              timestop
+
   IMPLICIT NONE
 
   PRIVATE
@@ -62,26 +63,25 @@ CONTAINS
 ! still needs generalization for smear
 
   SUBROUTINE mulliken_charges(mo_array,s_matrix,particle_set,scr,ionode)
-    TYPE(mo_set_p_type), DIMENSION(:), POINTER         :: mo_array
-    TYPE(real_matrix_type), POINTER                    :: s_matrix
-    TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
-    LOGICAL                                            :: ionode
-    INTEGER                                            :: scr
+    TYPE(mo_set_p_type), DIMENSION(:), &
+      POINTER                                :: mo_array
+    TYPE(real_matrix_type), POINTER          :: s_matrix
+    TYPE(particle_type), DIMENSION(:), &
+      POINTER                                :: particle_set
+    INTEGER                                  :: scr
+    LOGICAL                                  :: ionode
 
-    ! locals
+    CHARACTER(LEN=2)                         :: element_symbol
+    INTEGER                                  :: handle, homo, i, iblock, &
+                                                ispin, nblock, nspin, zeff
+    REAL(KIND=dp)                            :: total_charge
+    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: BLOCK, charges
+    TYPE(cp_fm_type), POINTER                :: eigenvectors, fm_temp
+    TYPE(real_matrix_p_type), DIMENSION(:), &
+      POINTER                                :: charge_matrix
 
-    INTEGER :: nspin,ispin,handle,homo
-    TYPE(real_matrix_p_type), POINTER, DIMENSION(:)    :: charge_matrix
-    TYPE(cp_fm_type), POINTER                 :: fm_temp,eigenvectors
-    REAL(KIND = dp), DIMENSION(:,:), POINTER             :: BLOCK
-    REAL(KIND = dp), DIMENSION(:,:), POINTER              :: charges
-        CHARACTER(LEN=2) :: element_symbol
-        INTEGER :: zeff
+! GO
 
-    INTEGER :: nblock,iblock,i
-    REAL(KIND = dp)       :: total_charge
-
-    ! GO
     CALL timeset("mulliken_charges","I","",handle)
     NULLIFY(charge_matrix,fm_temp,BLOCK,eigenvectors)
 

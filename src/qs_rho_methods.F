@@ -27,29 +27,22 @@
 MODULE qs_rho_methods
   USE coefficient_types,               ONLY: coeff_deallocate,&
                                              coeff_type
+  USE cp_control_types,                ONLY: dft_control_type
   USE cp_error_handling,               ONLY: cp_a_l,&
                                              cp_assert,&
                                              cp_assertion_failed,&
-                                             cp_debug,&
-                                             cp_error_dealloc_ref,&
                                              cp_error_get_logger,&
-                                             cp_error_init,&
                                              cp_error_message,&
-                                             cp_error_type,&
-                                             cp_internal_error,&
-                                             cp_unimplemented_error
+                                             cp_error_type
   USE cp_log_handling,                 ONLY: cp_failure_level,&
                                              cp_fatal_level,&
-                                             cp_log,&
                                              cp_note_level,&
                                              cp_to_string,&
                                              cp_warning_level
   USE cp_para_types,                   ONLY: cp_para_env_type
-  USE cp_control_types,                       ONLY: dft_control_type
   USE kinds,                           ONLY: dp
   USE pw_env_types,                    ONLY: pw_env_get,&
                                              pw_env_type
-  USE pw_grid_types,                   ONLY: pw_grid_type
   USE pw_pool_types,                   ONLY: pw_pool_give_back_coeff,&
                                              pw_pool_init_coeff,&
                                              pw_pool_p_type,&
@@ -57,33 +50,21 @@ MODULE qs_rho_methods
                                              pw_pools_give_back_coeffs,&
                                              pw_pools_init_coeffs
   USE pw_types,                        ONLY: COMPLEXDATA1D,&
-                                             COMPLEXDATA3D,&
                                              REALDATA3D,&
                                              REALSPACE,&
-                                             RECIPROCALSPACE,&
-                                             pw_copy,&
-                                             pw_derive,&
-                                             pw_sumup,&
-                                             pw_transfer,&
-                                             pw_type
-  USE qs_collocate_density,            ONLY: calculate_rho_elec,&
-                                             calculate_total_rho
-  USE qs_energy_types,                 ONLY: qs_energy_type
+                                             RECIPROCALSPACE
+  USE qs_collocate_density,            ONLY: calculate_rho_elec
   USE qs_environment_types,            ONLY: get_qs_env,&
                                              qs_environment_type
-  USE qs_rho_types,                    ONLY: qs_rho_did_change,&
-                                             qs_rho_get,&
-                                             qs_rho_release,&
-                                             qs_rho_retain,&
-                                             qs_rho_type
+  USE qs_rho_types,                    ONLY: qs_rho_type
   USE sparse_matrix_types,             ONLY: allocate_matrix_set,&
                                              deallocate_matrix_set,&
                                              real_matrix_p_type,&
-                                             real_matrix_type,&
                                              replicate_matrix_structure,&
                                              transfer_matrix
   USE timings,                         ONLY: timeset,&
                                              timestop
+
   IMPLICIT NONE
   PRIVATE
 
@@ -143,20 +124,26 @@ CONTAINS
 !!*** **********************************************************************
   SUBROUTINE qs_rho_rebuild(rho, qs_env, rho_ao_with_h_mstruct,&
      rebuild_ao, rebuild_grids, error)
-  TYPE(qs_rho_type), POINTER                    :: rho
-  TYPE(qs_environment_type), INTENT(in), TARGET :: qs_env
-  LOGICAL, INTENT(in), OPTIONAL                 :: rho_ao_with_h_mstruct,&
-       rebuild_ao, rebuild_grids
-  TYPE(cp_error_type), OPTIONAL, INTENT(inout)  :: error
-  
-  LOGICAL :: failure, my_rho_ao_with_h_struct, my_rebuild_ao, my_rebuild_grids
-  CHARACTER(len=*), PARAMETER :: routineN='qs_rho_rebuild',&
-        routineP=moduleN//':'//routineN
-  TYPE(pw_env_type), POINTER :: pw_env
-  TYPE(pw_pool_type), POINTER :: auxbas_pw_pool
-  TYPE(real_matrix_p_type), DIMENSION(:), POINTER :: h,s
-  TYPE(dft_control_type), POINTER :: dft_control
-  INTEGER :: stat, i, nspins, handle
+    TYPE(qs_rho_type), POINTER               :: rho
+    TYPE(qs_environment_type), INTENT(in), &
+      TARGET                                 :: qs_env
+    LOGICAL, INTENT(in), OPTIONAL            :: rho_ao_with_h_mstruct, &
+                                                rebuild_ao, rebuild_grids
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'qs_rho_rebuild', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: handle, i, nspins, stat
+    LOGICAL                                  :: failure, my_rebuild_ao, &
+                                                my_rebuild_grids, &
+                                                my_rho_ao_with_h_struct
+    TYPE(dft_control_type), POINTER          :: dft_control
+    TYPE(pw_env_type), POINTER               :: pw_env
+    TYPE(pw_pool_type), POINTER              :: auxbas_pw_pool
+    TYPE(real_matrix_p_type), DIMENSION(:), &
+      POINTER                                :: h, s
 
   NULLIFY(pw_env,auxbas_pw_pool,h,s,dft_control)
   CALL timeset(routineN,'I',' ',handle)
@@ -354,25 +341,32 @@ END SUBROUTINE qs_rho_rebuild
 !!*** **********************************************************************
 SUBROUTINE qs_rho_update_rho(rho_struct, rho_ao_new,qs_env,&
      rebuild,update_rho_ao, error)
-  TYPE(qs_rho_type), POINTER :: rho_struct
-  TYPE(qs_environment_type), INTENT(in) :: qs_env
-  TYPE(real_matrix_p_type),DIMENSION(:), INTENT(in) :: rho_ao_new
-  LOGICAL, INTENT(in),OPTIONAL :: rebuild, update_rho_ao
-  TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
-  
-  LOGICAL :: failure, my_rebuild, update_rho_ao_local
-  INTEGER :: nspins, ispin, stat
-  CHARACTER(len=*), PARAMETER :: routineN='qs_rho_update_rho',&
-        routineP=moduleN//':'//routineN
-  REAL(KIND = dp) :: ecore, charge_tot, dum
-  TYPE(dft_control_type), POINTER :: dft_control
-  TYPE(coeff_type) :: tmp_gspace
-  TYPE(coeff_type), DIMENSION(:), POINTER :: mgrid_rspace, mgrid_gspace
-  TYPE(pw_env_type), POINTER :: pw_env
-  TYPE(pw_pool_type), POINTER :: auxbas_pw_pool
-  TYPE(pw_pool_p_type), DIMENSION(:), POINTER :: pw_pools
-  TYPE(cp_para_env_type), POINTER :: para_env
-  TYPE(real_matrix_p_type), DIMENSION(:), POINTER :: h, s
+    TYPE(qs_rho_type), POINTER               :: rho_struct
+    TYPE(real_matrix_p_type), DIMENSION(:), &
+      INTENT(in)                             :: rho_ao_new
+    TYPE(qs_environment_type), INTENT(in)    :: qs_env
+    LOGICAL, INTENT(in), OPTIONAL            :: rebuild, update_rho_ao
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'qs_rho_update_rho', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: ispin, nspins, stat
+    LOGICAL                                  :: failure, my_rebuild, &
+                                                update_rho_ao_local
+    REAL(KIND=dp)                            :: dum
+    TYPE(coeff_type)                         :: tmp_gspace
+    TYPE(coeff_type), DIMENSION(:), POINTER  :: mgrid_gspace, mgrid_rspace
+    TYPE(cp_para_env_type), POINTER          :: para_env
+    TYPE(dft_control_type), POINTER          :: dft_control
+    TYPE(pw_env_type), POINTER               :: pw_env
+    TYPE(pw_pool_p_type), DIMENSION(:), &
+      POINTER                                :: pw_pools
+    TYPE(pw_pool_type), POINTER              :: auxbas_pw_pool
+    TYPE(real_matrix_p_type), DIMENSION(:), &
+      POINTER                                :: h, s
+
   failure=.FALSE.
   update_rho_ao_local=.TRUE.
   IF (PRESENT(update_rho_ao)) update_rho_ao_local=update_rho_ao

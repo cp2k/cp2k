@@ -21,17 +21,21 @@
 
 MODULE densities
   
-  USE coefficient_types, ONLY : coeff_type,  &
-       coeff_zero, PLANEWAVES
-  USE coefficients, ONLY : integral
-  USE cp_control_types, ONLY : dft_control_type
-  USE density_types, ONLY : density_type
-  USE global_types, ONLY : global_environment_type
-  USE kinds, ONLY : dbl
+  USE coefficient_types,               ONLY: PLANEWAVES,&
+                                             coeff_type,&
+                                             coeff_zero
+  USE coefficients,                    ONLY: integral
+  USE cp_control_types,                ONLY: dft_control_type
+  USE density_types,                   ONLY: density_type
+  USE global_types,                    ONLY: global_environment_type
+  USE kinds,                           ONLY: dbl
 !  USE pws, ONLY : pw_stateset_density
-  USE termination, ONLY : stop_program
-  USE wf_types, ONLY : wf_type, wf_spinset_type, wf_kset_type
-  
+
+  USE termination,                     ONLY: stop_program
+  USE wf_types,                        ONLY: wf_kset_type,&
+                                             wf_spinset_type,&
+                                             wf_type
+
   PRIVATE
   PUBLIC :: density_update, zero
   
@@ -47,23 +51,23 @@ CONTAINS
 
 SUBROUTINE density_update ( psi, n, dft_control, tprint, wavepar )
   
-  IMPLICIT NONE
   
-! Arguments
-  TYPE ( wf_type ), DIMENSION ( : ), INTENT ( IN ) :: psi
-  TYPE ( dft_control_type ), INTENT ( IN ) :: dft_control
-  LOGICAL, INTENT ( IN ) :: tprint
-  TYPE ( density_type ), DIMENSION ( : ), INTENT ( OUT ) :: n
-  TYPE ( global_environment_type ), INTENT ( IN ) :: wavepar
-  
-! Local
-  INTEGER :: kpt, nkpts, spin, nspins, wfset, nwfsets, part
-  REAL ( dbl ) :: rho_total, rho_spin
-  TYPE ( coeff_type ), POINTER :: n_s
-  TYPE ( wf_spinset_type ), POINTER :: psi_s
-  
+    TYPE(wf_type), DIMENSION(:), INTENT(IN)  :: psi
+    TYPE(density_type), DIMENSION(:), &
+      INTENT(OUT)                            :: n
+    TYPE(dft_control_type), INTENT(IN)       :: dft_control
+    LOGICAL, INTENT(IN)                      :: tprint
+    TYPE(global_environment_type), &
+      INTENT(IN)                             :: wavepar
+
+    INTEGER                                  :: kpt, nkpts, nspins, nwfsets, &
+                                                part, spin, wfset
+    REAL(dbl)                                :: rho_spin, rho_total
+    TYPE(coeff_type), POINTER                :: n_s
+    TYPE(wf_spinset_type), POINTER           :: psi_s
+
 !------------------------------------------------------------------------------
-  
+
   nwfsets = SIZE ( psi )
   part = 1 !TMPTMPTMP
   
@@ -109,14 +113,12 @@ END SUBROUTINE density_update
 
 SUBROUTINE stateset_density ( psi_ks, n_s )
   
-  IMPLICIT NONE
   
-! Arguments
-  TYPE ( wf_kset_type ), INTENT ( IN ) :: psi_ks
-  TYPE ( coeff_type ), INTENT ( OUT ) :: n_s
-  
+    TYPE(wf_kset_type), INTENT(IN)           :: psi_ks
+    TYPE(coeff_type), INTENT(OUT)            :: n_s
+
 !------------------------------------------------------------------------------
-  
+
   IF ( psi_ks % in_use == PLANEWAVES ) THEN
 !     CALL pw_stateset_density ( psi_ks, n_s )
      CALL stop_program ( "stateset_density", &
@@ -132,16 +134,13 @@ END SUBROUTINE stateset_density
 
 SUBROUTINE density_zero ( n )
   
-  IMPLICIT NONE
   
-! Arguments
-  TYPE ( density_type ), INTENT ( INOUT ) :: n
-  
-! Locals
-  INTEGER :: spin, nspins, part
-  
+    TYPE(density_type), INTENT(INOUT)        :: n
+
+    INTEGER                                  :: nspins, part, spin
+
 !------------------------------------------------------------------------------
-  
+
   nspins = n % nspin
   part = 1 !TMPTMPTMP
   
@@ -155,13 +154,11 @@ END SUBROUTINE density_zero
 
 SUBROUTINE density_zero_spinset ( n_s )
   
-  IMPLICIT NONE
   
-! Arguments
-  TYPE ( coeff_type ), INTENT ( INOUT ) :: n_s
-  
+    TYPE(coeff_type), INTENT(INOUT)          :: n_s
+
 !------------------------------------------------------------------------------
-  
+
   CALL coeff_zero ( n_s )
   
 END SUBROUTINE density_zero_spinset

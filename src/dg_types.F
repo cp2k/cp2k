@@ -17,9 +17,9 @@
 !******************************************************************************
 MODULE dg_types
 
-  USE dg_rho0s, ONLY : dg_rho0_type
-  USE particle_lists, ONLY : particle_list_type
-  USE coefficient_lists, ONLY : coef_list_type
+  USE coefficient_lists,               ONLY: coef_list_type
+  USE dg_rho0s,                        ONLY: dg_rho0_type
+  USE particle_lists,                  ONLY: particle_list_type
 
   IMPLICIT NONE
 

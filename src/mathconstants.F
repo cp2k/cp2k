@@ -22,7 +22,7 @@
 
 MODULE mathconstants
 
-  USE kinds, ONLY : dbl
+  USE kinds,                           ONLY: dbl
 
   IMPLICIT NONE
 
@@ -74,10 +74,8 @@ CONTAINS
 
 SUBROUTINE init_mathcon
 
-  IMPLICIT NONE
 
-! Locals
-  INTEGER :: i
+    INTEGER                                  :: i
 
 !------------------------------------------------------------------------------
 

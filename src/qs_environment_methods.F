@@ -29,84 +29,37 @@
 MODULE qs_environment_methods
 
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
-                                             get_atomic_kind,&
-                                             get_atomic_kind_set
+                                             get_atomic_kind
   USE basis_set_types,                 ONLY: get_gto_basis_set,&
                                              gto_basis_set_type
   USE coefficient_types,               ONLY: coeff_deallocate,&
                                              coeff_type
   USE cp_array_i_utils,                ONLY: cp_1d_i_p_type
+  USE cp_control_types,                ONLY: dft_control_type
   USE cp_error_handling,               ONLY: cp_a_l,&
                                              cp_assert,&
-                                             cp_assertion_failed,&
-                                             cp_debug,&
-                                             cp_error_dealloc_ref,&
                                              cp_error_get_logger,&
-                                             cp_error_init,&
                                              cp_error_message,&
-                                             cp_error_type,&
-                                             cp_internal_error,&
-                                             cp_unimplemented_error
-  USE cp_fm_basic_linalg,              ONLY: cp_fm_gemm,&
-                                             cp_fm_scale_and_add
-  USE cp_fm_pool_types,                ONLY: cp_fm_pool_p_type,&
-                                             cp_fm_pool_type,&
-                                             fm_pool_create,&
-                                             fm_pool_release,&
-                                             fm_pool_retain,&
-                                             fm_pools_copy,&
-                                             fm_pools_dealloc
-  USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
-                                             cp_fm_struct_release,&
-                                             cp_fm_struct_retain,&
-                                             cp_fm_struct_type
-  USE cp_fm_types,                     ONLY: cp_fm_get_info,&
-                                             cp_fm_p_type,&
-                                             cp_fm_release,&
-                                             cp_fm_type
+                                             cp_error_type
   USE cp_log_handling,                 ONLY: cp_failure_level,&
                                              cp_fatal_level,&
-                                             cp_log,&
                                              cp_logger_get_default_unit_nr,&
                                              cp_logger_type,&
                                              cp_note_level,&
                                              cp_to_string,&
                                              cp_warning_level
-  USE cp_matrix_utils,                 ONLY: sm_struct_add_sm_local_blocks
-  USE cp_para_env,                     ONLY: cp_para_env_release,&
-                                             cp_para_env_retain
   USE cp_para_types,                   ONLY: cp_blacs_env_type,&
                                              cp_para_env_type
-  USE cp_sm_fm_interactions,           ONLY: cp_sm_fm_multiply
-  USE cp_sm_pool_types,                ONLY: cp_sm_pool_p_type,&
-                                             cp_sm_pool_type,&
-                                             sm_pool_create,&
-                                             sm_pool_get_mstruct,&
-                                             sm_pool_release,&
-                                             sm_pool_retain,&
-                                             sm_pools_dealloc,&
-                                             sm_pools_flush_cache
-  USE cp_sm_struct,                    ONLY: cp_sm_struct_type,&
-                                             sm_struct_clear_local_blocks,&
-                                             sm_struct_create,&
-                                             sm_struct_release,&
-                                             sm_struct_retain,&
-                                             sm_struct_write
-  USE cp_control_types,                       ONLY: dft_control_type
   USE distribution_2d_types,           ONLY: distribution_2d_create,&
                                              distribution_2d_release,&
-                                             distribution_2d_retain,&
                                              distribution_2d_type,&
                                              distribution_2d_write
   USE distribution_methods,            ONLY: distribute_molecules_2d
-  USE global_types,                    ONLY: LOW,&
-                                             global_environment_type
-  USE kinds,                           ONLY: int_size,&
-                                             dp,&
-                                             dp_size
+  USE global_types,                    ONLY: LOW
+  USE kinds,                           ONLY: dp,&
+                                             int_size
   USE machine,                         ONLY: m_flush
-  USE message_passing,                 ONLY: mp_sum,&
-                                             mp_sync
+  USE message_passing,                 ONLY: mp_sum
   USE molecule_kind_types,             ONLY: molecule_kind_type
   USE molecule_types_new,              ONLY: molecule_type
   USE particle_types,                  ONLY: particle_type
@@ -114,19 +67,13 @@ MODULE qs_environment_methods
                                              pw_env_rebuild
   USE pw_env_types,                    ONLY: pw_env_get,&
                                              pw_env_release,&
-                                             pw_env_retain,&
                                              pw_env_type
   USE pw_pool_types,                   ONLY: pw_pool_init_coeff,&
                                              pw_pool_type
   USE pw_types,                        ONLY: COMPLEXDATA1D,&
-                                             COMPLEXDATA3D,&
-                                             REALDATA3D,&
-                                             REALSPACE,&
-                                             RECIPROCALSPACE,&
-                                             pw_type
+                                             RECIPROCALSPACE
   USE qs_charges_types,                ONLY: qs_charges_create,&
                                              qs_charges_release,&
-                                             qs_charges_retain,&
                                              qs_charges_type
   USE qs_collocate_density,            ONLY: calculate_rho_core
   USE qs_environment_types,            ONLY: get_qs_env,&
@@ -134,21 +81,14 @@ MODULE qs_environment_methods
                                              set_qs_env
   USE qs_ks_methods,                   ONLY: qs_ks_did_change
   USE qs_matrix_pools,                 ONLY: mpools_rebuild_fm_pools,&
-                                             mpools_rebuild_s_sm_pools,&
-                                             qs_matrix_pools_type
-  USE qs_mo_types,                     ONLY: get_mo_set,&
-                                             mo_set_p_type
+                                             mpools_rebuild_s_sm_pools
   USE qs_rho_methods,                  ONLY: qs_rho_rebuild
-  USE qs_rho_types,                    ONLY: qs_rho_release,&
-                                             qs_rho_type
   USE qs_scf,                          ONLY: scf_env_did_change
-  USE scf_control_types,               ONLY: scf_c_release,&
-                                             scf_c_retain,&
-                                             scf_control_type
-  USE simulation_cell,                 ONLY: cell_type
+  USE scf_control_types,               ONLY: scf_control_type
   USE termination,                     ONLY: stop_memory
   USE timings,                         ONLY: timeset,&
                                              timestop
+
   IMPLICIT NONE
   PRIVATE
 
@@ -198,25 +138,27 @@ CONTAINS
 !!*** **********************************************************************
 SUBROUTINE qs_env_setup(qs_env,error)
 
-  TYPE(qs_environment_type), INTENT(inout)                :: qs_env
-  TYPE(cp_error_type), OPTIONAL, INTENT(inout)            :: error
+    TYPE(qs_environment_type), INTENT(inout) :: qs_env
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
 
-  LOGICAL :: failure
-  CHARACTER(len=*), PARAMETER :: routineN='qs_env_setup',&
-        routineP=moduleN//':'//routineN
+    CHARACTER(len=*), PARAMETER :: routineN = 'qs_env_setup', &
+      routineP = moduleN//':'//routineN
 
-  TYPE(dft_control_type), POINTER     :: dft_control
-  TYPE(scf_control_type), POINTER     :: scf_control
-  TYPE(qs_charges_type), POINTER      :: qs_charges
-  TYPE(cp_para_env_type), POINTER     :: para_env
-  TYPE(distribution_2d_type), POINTER :: distribution_2d
-
-  TYPE(atomic_kind_type), DIMENSION(:), POINTER   :: atomic_kind_set
-  TYPE(molecule_kind_type), DIMENSION(:), POINTER :: molecule_kind_set
-  TYPE(molecule_type), DIMENSION(:), POINTER      :: molecule_set
-  TYPE(particle_type), DIMENSION(:), POINTER      :: particle_set
-
-  INTEGER :: n_mo, n_ao
+    LOGICAL                                  :: failure
+    TYPE(atomic_kind_type), DIMENSION(:), &
+      POINTER                                :: atomic_kind_set
+    TYPE(cp_para_env_type), POINTER          :: para_env
+    TYPE(dft_control_type), POINTER          :: dft_control
+    TYPE(distribution_2d_type), POINTER      :: distribution_2d
+    TYPE(molecule_kind_type), DIMENSION(:), &
+      POINTER                                :: molecule_kind_set
+    TYPE(molecule_type), DIMENSION(:), &
+      POINTER                                :: molecule_set
+    TYPE(particle_type), DIMENSION(:), &
+      POINTER                                :: particle_set
+    TYPE(qs_charges_type), POINTER           :: qs_charges
+    TYPE(scf_control_type), POINTER          :: scf_control
 
   failure=.FALSE.
   NULLIFY(atomic_kind_set, dft_control, scf_control, qs_charges, para_env,&
@@ -301,17 +243,20 @@ END SUBROUTINE qs_env_setup
 !!
 !!*** **********************************************************************
 SUBROUTINE qs_env_update_s_mstruct(qs_env,error)
-  TYPE(qs_environment_type), POINTER           :: qs_env
-  TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
+    TYPE(qs_environment_type), POINTER       :: qs_env
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
 
-  LOGICAL :: failure
-  CHARACTER(len=*), PARAMETER :: routineN='qs_env_update_s_mstruct',&
-        routineP=moduleN//':'//routineN
-  INTEGER :: stat, handle
-  TYPE(cp_para_env_type), POINTER :: para_env
-  TYPE(dft_control_type), POINTER :: dft_control
-  TYPE(cp_logger_type), POINTER :: logger
-  TYPE(particle_type), DIMENSION(:), POINTER :: particle_set
+    CHARACTER(len=*), PARAMETER :: routineN = 'qs_env_update_s_mstruct', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: handle
+    LOGICAL                                  :: failure
+    TYPE(cp_logger_type), POINTER            :: logger
+    TYPE(cp_para_env_type), POINTER          :: para_env
+    TYPE(dft_control_type), POINTER          :: dft_control
+    TYPE(particle_type), DIMENSION(:), &
+      POINTER                                :: particle_set
 
   CALL timeset(routineN,"I","",handle)
   failure=.FALSE.
@@ -389,16 +334,20 @@ END SUBROUTINE qs_env_update_s_mstruct
 !!
 !!*** **********************************************************************
 SUBROUTINE qs_env_rebuild_pw_env(qs_env,error)
-  TYPE(qs_environment_type), INTENT(inout), TARGET :: qs_env
-  TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
+    TYPE(qs_environment_type), &
+      INTENT(inout), TARGET                  :: qs_env
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
 
-  LOGICAL :: failure
-  CHARACTER(len=*), PARAMETER :: routineN='qs_env_rebuild_pw_env',&
-        routineP=moduleN//':'//routineN
-  TYPE(pw_env_type), POINTER  :: new_pw_env
-  TYPE(coeff_type), POINTER   :: rho_core
-  TYPE(pw_pool_type), POINTER :: auxbas_pw_pool
-  INTEGER                     :: stat
+    CHARACTER(len=*), PARAMETER :: routineN = 'qs_env_rebuild_pw_env', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: stat
+    LOGICAL                                  :: failure
+    TYPE(coeff_type), POINTER                :: rho_core
+    TYPE(pw_env_type), POINTER               :: new_pw_env
+    TYPE(pw_pool_type), POINTER              :: auxbas_pw_pool
+
   failure=.FALSE.
 
   ! rebuild pw_env
@@ -477,14 +426,15 @@ END SUBROUTINE qs_env_rebuild_pw_env
 !!*** **********************************************************************
 SUBROUTINE qs_env_rebuild_rho(qs_env, rho_ao_with_h_mstruct,&
      rebuild_ao, rebuild_grids, error)
-  TYPE(qs_environment_type), INTENT(inout), TARGET :: qs_env
-  LOGICAL, INTENT(in), OPTIONAL                    :: rho_ao_with_h_mstruct,&
-       rebuild_grids,rebuild_ao
-  TYPE(cp_error_type), OPTIONAL, INTENT(inout)     :: error
+    TYPE(qs_environment_type), &
+      INTENT(inout), TARGET                  :: qs_env
+    LOGICAL, INTENT(in), OPTIONAL            :: rho_ao_with_h_mstruct, &
+                                                rebuild_ao, rebuild_grids
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
 
-  LOGICAL :: failure
-  CHARACTER(len=*), PARAMETER :: routineN='qs_env_rebuild_rho',&
-        routineP=moduleN//':'//routineN
+    CHARACTER(len=*), PARAMETER :: routineN = 'qs_env_rebuild_rho', &
+      routineP = moduleN//':'//routineN
 
   CALL qs_rho_rebuild(qs_env%rho,qs_env=qs_env,&
        rho_ao_with_h_mstruct=rho_ao_with_h_mstruct,&
@@ -516,15 +466,19 @@ END SUBROUTINE qs_env_rebuild_rho
 !!
 !!*** **********************************************************************
 SUBROUTINE qs_env_update_rho_core(qs_env,error)
-  TYPE(qs_environment_type), INTENT(inout), TARGET :: qs_env
-  TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
+    TYPE(qs_environment_type), &
+      INTENT(inout), TARGET                  :: qs_env
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
 
-  LOGICAL :: failure
-  CHARACTER(len=*), PARAMETER :: routineN='qs_env_update_rho_core',&
-        routineP=moduleN//':'//routineN
-  TYPE(pw_env_type), POINTER :: pw_env
-  TYPE(coeff_type), POINTER  :: rho_core
-  TYPE(qs_charges_type), POINTER :: qs_charges
+    CHARACTER(len=*), PARAMETER :: routineN = 'qs_env_update_rho_core', &
+      routineP = moduleN//':'//routineN
+
+    LOGICAL                                  :: failure
+    TYPE(coeff_type), POINTER                :: rho_core
+    TYPE(pw_env_type), POINTER               :: pw_env
+    TYPE(qs_charges_type), POINTER           :: qs_charges
+
   failure=.FALSE.
 
   CALL get_qs_env(qs_env, pw_env=pw_env, rho_core=rho_core,&
@@ -570,30 +524,30 @@ END SUBROUTINE qs_env_update_rho_core
   SUBROUTINE qs_distribution_2d_create(distribution_2d,atomic_kind_set,&
        blacs_env, error)
 
-    TYPE(atomic_kind_type), DIMENSION(:), POINTER :: atomic_kind_set
-    TYPE(cp_blacs_env_type), POINTER              :: blacs_env
-    TYPE(distribution_2d_type), POINTER           :: distribution_2d
-    TYPE(cp_error_type), INTENT(inout), OPTIONAL  :: error
+    TYPE(distribution_2d_type), POINTER      :: distribution_2d
+    TYPE(atomic_kind_type), DIMENSION(:), &
+      POINTER                                :: atomic_kind_set
+    TYPE(cp_blacs_env_type), POINTER         :: blacs_env
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
 
-    CHARACTER(LEN=*), PARAMETER :: routineN = "qs_distribution_2d_create"
-    CHARACTER(LEN=*), PARAMETER :: routineP =&
-      "SUBROUTINE "//routineN//" (MODULE "//moduleN//")"
+    CHARACTER(LEN=*), PARAMETER :: routineN = "qs_distribution_2d_create", &
+      routineP = "SUBROUTINE "//routineN//" (MODULE "//moduleN//")"
 
-    TYPE(atomic_kind_type), POINTER   :: atomic_kind
-    TYPE(gto_basis_set_type), POINTER :: orb_basis_set
-    INTEGER :: group,i,iatom,iatom_local,ipcol,iprow,ikind,stat,j,&
-               mypcol,myprow,natom,nkind,npcol,nprow,nsgf,&
-               output_unit, natom_total
-    LOGICAL :: ionode, failure
-    TYPE(cp_1d_i_p_type), DIMENSION(:), POINTER :: local_rows, local_cols
-    INTEGER, DIMENSION(:), ALLOCATABLE         :: natom_local_col,&
-                                                  natom_local_row,&
-                                                  ncol,ncol_old,&
-                                                  nparticle,&
-                                                  nrow,nrow_old
-    INTEGER, DIMENSION(:), POINTER             :: atom_list
-    INTEGER, DIMENSION(:), POINTER             :: row_distribution,col_distribution
-    TYPE(cp_logger_type), POINTER :: logger
+    INTEGER :: group, i, iatom, iatom_local, ikind, ipcol, iprow, j, mypcol, &
+      myprow, natom, natom_total, nkind, npcol, nprow, nsgf, output_unit, stat
+    INTEGER, ALLOCATABLE, DIMENSION(:)       :: natom_local_col, &
+                                                natom_local_row, ncol, &
+                                                ncol_old, nparticle, nrow, &
+                                                nrow_old
+    INTEGER, DIMENSION(:), POINTER           :: atom_list, col_distribution, &
+                                                row_distribution
+    LOGICAL                                  :: failure, ionode
+    TYPE(atomic_kind_type), POINTER          :: atomic_kind
+    TYPE(cp_1d_i_p_type), DIMENSION(:), &
+      POINTER                                :: local_cols, local_rows
+    TYPE(cp_logger_type), POINTER            :: logger
+    TYPE(gto_basis_set_type), POINTER        :: orb_basis_set
 
 !   ---------------------------------------------------------------------------
 

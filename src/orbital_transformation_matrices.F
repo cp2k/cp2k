@@ -31,15 +31,21 @@ MODULE orbital_transformation_matrices
 
 ! *****************************************************************************
 
-  USE kinds, ONLY: dp,&
-                   dp_size
+  USE global_types,                    ONLY: global_environment_type
+  USE kinds,                           ONLY: dp,&
+                                             dp_size
+  USE mathconstants,                   ONLY: dfac,&
+                                             fac,&
+                                             pi
+  USE mathlib
+!,          ONLY: OPERATOR(.over.)
 
-  USE orbital_pointers, ONLY: co,nco,nso
-  USE global_types,     ONLY: global_environment_type
-  USE mathconstants,    ONLY: dfac,fac,pi
-  USE mathlib !,          ONLY: OPERATOR(.over.)
-  USE termination,      ONLY: stop_memory
-  USE orbital_symbols, ONLY: cgf_symbol,sgf_symbol
+  USE orbital_pointers,                ONLY: co,&
+                                             nco,&
+                                             nso
+  USE orbital_symbols,                 ONLY: cgf_symbol,&
+                                             sgf_symbol
+  USE termination,                     ONLY: stop_memory
 
   IMPLICIT NONE
 
@@ -92,23 +98,21 @@ CONTAINS
 !!
   SUBROUTINE init_spherical_harmonics(maxl,globenv)
 
-    TYPE(global_environment_type), INTENT(IN) :: globenv
-    INTEGER, INTENT(IN)                       :: maxl
+    INTEGER, INTENT(IN)                      :: maxl
+    TYPE(global_environment_type), &
+      INTENT(IN)                             :: globenv
 
-!   *** Local parameters ***
-
-    CHARACTER(LEN=*), PARAMETER :: routine =&
+    CHARACTER(LEN=*), PARAMETER :: routine = &
       "SUBROUTINE init_spherical_harmonics (MODULE spherical_harmonics)"
 
-!   *** Local variables ***
-
-    CHARACTER(LEN=78) :: headline
-    REAL(KIND = dp)          :: s,s1,s2
-    INTEGER           :: expo,i,ic,ic1,ic2,is,istat,j,k,l,lx,lx1,lx2,ly,ly1,&
-                         ly2,lz,lz1,lz2,m,ma,nc,ns,output_unit
+    CHARACTER(LEN=78)                        :: headline
+    INTEGER                                  :: expo, i, ic, ic1, ic2, is, &
+                                                istat, j, k, l, lx, lx1, lx2, &
+                                                ly, ly1, ly2, lz, lz1, lz2, &
+                                                m, ma, nc, ns, output_unit
+    REAL(KIND=dp)                            :: s, s1, s2
 
 !   ---------------------------------------------------------------------------
-
 !   *** Quick return, if the current initialization is sufficient ***
 
     IF (maxl <= current_maxl) RETURN
@@ -308,19 +312,16 @@ CONTAINS
 
 !   ---------------------------------------------------------------------------
 
-    CHARACTER(LEN=*), INTENT(IN) :: headline
-    INTEGER, INTENT(IN)          :: l,lunit
+    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: matrix
+    INTEGER, INTENT(IN)                      :: l, lunit
+    CHARACTER(LEN=*), INTENT(IN)             :: headline
 
-    REAL(KIND = dp), DIMENSION(:,:), POINTER :: matrix
-
-!   *** Local variables ***
-
-    CHARACTER(LEN=78) :: string
-    CHARACTER(12)     :: symbol
-    INTEGER           :: from,i,ic,is,jc,lx,ly,lz,m,nc,to
+    CHARACTER(12)                            :: symbol
+    CHARACTER(LEN=78)                        :: string
+    INTEGER                                  :: from, i, ic, is, jc, lx, ly, &
+                                                lz, m, nc, to
 
 !   ---------------------------------------------------------------------------
-
 !   *** Write headline ***
 
     WRITE (UNIT=lunit,FMT="(/,/,T2,A)") TRIM(headline)

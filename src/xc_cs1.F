@@ -22,10 +22,13 @@ MODULE xc_cs1
 
 ! *****************************************************************************
 
-  USE kinds, ONLY: dbl
-  USE xc_derivative_set_types, ONLY: xc_derivative_set_type
-  USE xc_functionals_utilities, ONLY: set_util, calc_rho13, setup_calculation
-  USE termination, ONLY: stop_memory, stop_program
+  USE kinds,                           ONLY: dbl
+  USE termination,                     ONLY: stop_memory,&
+                                             stop_program
+  USE xc_derivative_set_types,         ONLY: xc_derivative_set_type
+  USE xc_functionals_utilities,        ONLY: calc_rho13,&
+                                             set_util,&
+                                             setup_calculation
 
   IMPLICIT NONE
 
@@ -70,8 +73,8 @@ CONTAINS
 
   SUBROUTINE cs1_init ( cutoff, debug )
 
-    REAL(dbl), INTENT(IN) :: cutoff
-    LOGICAL, OPTIONAL, INTENT(IN) :: debug
+    REAL(dbl), INTENT(IN)                    :: cutoff
+    LOGICAL, INTENT(IN), OPTIONAL            :: debug
 
     eps_rho = cutoff
     CALL set_util ( cutoff )
@@ -90,8 +93,7 @@ CONTAINS
 
   SUBROUTINE cs1_info ( reference, shortform )
 
-    CHARACTER (LEN=*), INTENT(OUT), OPTIONAL :: reference
-    CHARACTER (LEN=*), INTENT(OUT), OPTIONAL :: shortform
+    CHARACTER(LEN=*), INTENT(OUT), OPTIONAL  :: reference, shortform
 
     IF ( PRESENT ( reference ) ) THEN
       reference = "N.C. Handy and A.J. Cohen, J. Chem. Phys., 116, 5411 (2002)"
@@ -108,17 +110,15 @@ CONTAINS
 
 !   ---------------------------------------------------------------------------
 
-    TYPE(xc_derivative_set_type), POINTER :: derivative_set
-    REAL(dbl), DIMENSION(:), INTENT(IN)  :: rho
-    REAL(dbl), DIMENSION(:), INTENT(IN)  :: grho
-    REAL(dbl), DIMENSION(:,:), INTENT(OUT) :: pot
-    INTEGER, INTENT(IN), OPTIONAL :: order
+    TYPE(xc_derivative_set_type), POINTER    :: derivative_set
+    REAL(dbl), DIMENSION(:), INTENT(IN)      :: rho, grho
+    REAL(dbl), DIMENSION(:, :), INTENT(OUT)  :: pot
+    INTEGER, INTENT(IN), OPTIONAL            :: order
 
-!   *** Local variables ***
-
-    LOGICAL   :: calc(0:4), allcalc
-    REAL(dbl), DIMENSION(:), ALLOCATABLE :: r13
-    INTEGER :: n, error, m, mp, mt, ip, mx(0:3,2), m1, m2
+    INTEGER                                  :: error, m, m1, m2, mp, mt, &
+                                                mx(0:3,2), n
+    LOGICAL                                  :: calc(0:4)
+    REAL(dbl), ALLOCATABLE, DIMENSION(:)     :: r13
 
 !   ---------------------------------------------------------------------------
 
@@ -164,17 +164,16 @@ CONTAINS
 
 !   ---------------------------------------------------------------------------
 
-    TYPE(xc_derivative_set_type), POINTER :: derivative_set
-    REAL(dbl), DIMENSION(:), INTENT(IN)  :: rhoa, rhob
-    REAL(dbl), DIMENSION(:), INTENT(IN)  :: grhoa, grhob, grhoab
-    REAL(dbl), DIMENSION(:,:), INTENT(OUT) :: pot
-    INTEGER, INTENT(IN), OPTIONAL :: order
+    TYPE(xc_derivative_set_type), POINTER    :: derivative_set
+    REAL(dbl), DIMENSION(:), INTENT(IN)      :: rhoa, rhob, grhoa, grhob, &
+                                                grhoab
+    REAL(dbl), DIMENSION(:, :), INTENT(OUT)  :: pot
+    INTEGER, INTENT(IN), OPTIONAL            :: order
 
-!   *** Local variables ***
-
-    LOGICAL   :: calc(0:4), allcalc
-    REAL(dbl), DIMENSION(:), ALLOCATABLE :: r13a, r13b
-    INTEGER :: n, error, m, mp, mt, ip, mx(0:3,2), m1, m2
+    INTEGER                                  :: error, m, m1, m2, mp, mt, &
+                                                mx(0:3,2), n
+    LOGICAL                                  :: calc(0:4)
+    REAL(dbl), ALLOCATABLE, DIMENSION(:)     :: r13a, r13b
 
 !   ---------------------------------------------------------------------------
 
@@ -224,12 +223,14 @@ CONTAINS
 
   SUBROUTINE cs1_u_0 ( rho, grho, r13, pot )
 
-    REAL(dbl), DIMENSION(:), INTENT(IN)  :: rho, r13, grho
-    REAL(dbl), DIMENSION(:), INTENT(OUT)  :: pot
+    REAL(dbl), DIMENSION(:), INTENT(IN)      :: rho, grho, r13
+    REAL(dbl), DIMENSION(:), INTENT(OUT)     :: pot
 
-    INTEGER :: ip, npoints
-    REAL(dbl) :: F1, F2, F3, F4
-    REAL(dbl) :: r, r3, x, g, dp, c2p, cp, od, oc, odp, ocp, c3p, c4p
+    INTEGER                                  :: ip, npoints
+    REAL(dbl)                                :: c2p, c3p, c4p, cp, dp, F1, &
+                                                F2, F3, F4, g, oc, ocp, od, &
+                                                odp, r, r3, x
+
 !   ---------------------------------------------------------------------------
 
     npoints = SIZE ( rho )
@@ -269,12 +270,14 @@ CONTAINS
 
   SUBROUTINE cs1_u_1 ( rho, grho, r13, pot )
 
-    REAL(dbl), DIMENSION(:), INTENT(IN)  :: rho, grho, r13
-    REAL(dbl), DIMENSION(:,:), INTENT(OUT)  :: pot
+    REAL(dbl), DIMENSION(:), INTENT(IN)      :: rho, grho, r13
+    REAL(dbl), DIMENSION(:, :), INTENT(OUT)  :: pot
 
-    INTEGER :: ip, npoints
-    REAL(dbl) :: dF1, drF2, dgF2, dF3, drF4, dgF4
-    REAL(dbl) :: r, r3, x, g, dp, cp, c2p, od, oc, odp, ocp, c3p, c4p
+    INTEGER                                  :: ip, npoints
+    REAL(dbl)                                :: c2p, c3p, c4p, cp, dF1, dF3, &
+                                                dgF2, dgF4, dp, drF2, drF4, &
+                                                g, oc, ocp, od, odp, r, r3
+
 !   ---------------------------------------------------------------------------
 
     npoints = SIZE ( rho )
@@ -318,12 +321,15 @@ CONTAINS
 
   SUBROUTINE cs1_u_2 ( rho, grho, r13, pot )
 
-    REAL(dbl), DIMENSION(:), INTENT(IN)  :: rho, grho, r13
-    REAL(dbl), DIMENSION(:,:), INTENT(OUT)  :: pot
+    REAL(dbl), DIMENSION(:), INTENT(IN)      :: rho, grho, r13
+    REAL(dbl), DIMENSION(:, :), INTENT(OUT)  :: pot
 
-    INTEGER :: ip, npoints
-    REAL(dbl) :: d2F1, d2rF2, drgF2, d2gF2, d2F3, d2rF4, drgF4, d2gF4
-    REAL(dbl) :: r, r3, x, g, dp, cp, c2p, od, oc, odp, ocp, c3p, c4p
+    INTEGER                                  :: ip, npoints
+    REAL(dbl)                                :: c2p, c3p, c4p, cp, d2F1, &
+                                                d2F3, d2gF2, d2gF4, d2rF2, &
+                                                d2rF4, dp, drgF2, drgF4, g, &
+                                                oc, ocp, od, odp, r, r3
+
 !   ---------------------------------------------------------------------------
 
     npoints = SIZE ( rho )
@@ -377,16 +383,16 @@ CONTAINS
 
   SUBROUTINE cs1_u_3 ( rho, grho, r13, pot )
 
-    REAL(dbl), DIMENSION(:), INTENT(IN)  :: rho, grho, r13
-    REAL(dbl), DIMENSION(:,:), INTENT(OUT)  :: pot
+    REAL(dbl), DIMENSION(:), INTENT(IN)      :: rho, grho, r13
+    REAL(dbl), DIMENSION(:, :), INTENT(OUT)  :: pot
 
-    INTEGER :: ip, npoints
-    REAL(dbl) :: d3F1, d3rF2, d2rgF2, dr2gF2, d3gF2, d3F3, &
-                 d3rF4, d2rgF4, dr2gF4, d3gF4
-    REAL(dbl) :: r, r3, x, g, dp, cp, c2p, od, oc, odp, ocp, c3p, c4p
-    REAL(dbl) :: t1, t2, t3, t4, t6, t7, t8, t9, t10, t11, t13, t15, t16, &
-                 t17, t19, t22, t23, t26, t29, t32, t33, t37, t44, t45, t50, &
-                 t51, t52, t58, t61, t74, t76, t77, t80, t81, t82
+    INTEGER                                  :: ip, npoints
+    REAL(dbl) :: c2p, c3p, c4p, cp, d2rgF2, d2rgF4, d3F1, d3F3, d3gF2, d3gF4, &
+      d3rF2, d3rF4, dp, dr2gF2, dr2gF4, g, oc, ocp, od, odp, r, r3, t1, t10, &
+      t11, t13, t15, t16, t17, t19, t2, t22, t23, t26, t29, t3, t32, t33, &
+      t37, t4, t44, t45, t50, t51, t52, t58, t6, t61, t7, t74, t76, t77, t8, &
+      t80, t81, t82, t9
+
 !   ---------------------------------------------------------------------------
 
     npoints = SIZE ( rho )
@@ -470,14 +476,15 @@ CONTAINS
 
   SUBROUTINE cs1_ss_0 ( rhoa, rhob, grhoa, grhob, grhoab, r13a, r13b, pot )
 
-    REAL(dbl), DIMENSION(:), INTENT(IN)  :: rhoa, rhob, grhoa, grhob, grhoab, &
-                                            r13a, r13b
-    REAL(dbl), DIMENSION(:), INTENT(OUT)  :: pot
+    REAL(dbl), DIMENSION(:), INTENT(IN)      :: rhoa, rhob, grhoa, grhob, &
+                                                grhoab, r13a, r13b
+    REAL(dbl), DIMENSION(:), INTENT(OUT)     :: pot
 
-    INTEGER :: ip, npoints
-    REAL(dbl) :: F1a, F1b, F2a, F2b
-    REAL(dbl) :: ra, r3a, ga, xa, oda, oca
-    REAL(dbl) :: rb, r3b, gb, xb, odb, ocb
+    INTEGER                                  :: ip, npoints
+    REAL(dbl)                                :: F1a, F1b, F2a, F2b, ga, gb, &
+                                                oca, ocb, oda, odb, r3a, r3b, &
+                                                ra, rb, xa, xb
+
 !   ---------------------------------------------------------------------------
 
     npoints = SIZE ( rhoa )
@@ -525,14 +532,16 @@ CONTAINS
 
   SUBROUTINE cs1_ss_1 ( rhoa, rhob, grhoa, grhob, grhoab, r13a, r13b, pot )
 
-    REAL(dbl), DIMENSION(:), INTENT(IN)  :: rhoa, rhob, grhoa, grhob, grhoab, &
-                                            r13a, r13b
-    REAL(dbl), DIMENSION(:,:), INTENT(OUT)  :: pot
+    REAL(dbl), DIMENSION(:), INTENT(IN)      :: rhoa, rhob, grhoa, grhob, &
+                                                grhoab, r13a, r13b
+    REAL(dbl), DIMENSION(:, :), INTENT(OUT)  :: pot
 
-    INTEGER :: ip, npoints
-    REAL(dbl) :: dF1a, dF1b, drF2a, dgF2a, drF2b, dgF2b
-    REAL(dbl) :: ra, r3a, ga, oda, oca
-    REAL(dbl) :: rb, r3b, gb, odb, ocb
+    INTEGER                                  :: ip, npoints
+    REAL(dbl)                                :: dF1a, dF1b, dgF2a, dgF2b, &
+                                                drF2a, drF2b, ga, gb, oca, &
+                                                ocb, oda, odb, r3a, r3b, ra, &
+                                                rb
+
 !   ---------------------------------------------------------------------------
 
     npoints = SIZE ( rhoa )
@@ -594,11 +603,12 @@ CONTAINS
 
   SUBROUTINE cs1_ss_2 ( rhoa, rhob, grhoa, grhob, grhoab, r13a, r13b, pot )
 
-    REAL(dbl), DIMENSION(:), INTENT(IN)  :: rhoa, rhob, grhoa, grhob, grhoab, &
-                                            r13a, r13b
-    REAL(dbl), DIMENSION(:,:), INTENT(OUT)  :: pot
+    REAL(dbl), DIMENSION(:), INTENT(IN)      :: rhoa, rhob, grhoa, grhob, &
+                                                grhoab, r13a, r13b
+    REAL(dbl), DIMENSION(:, :), INTENT(OUT)  :: pot
 
-    INTEGER :: ip, npoints
+    INTEGER                                  :: ip, npoints
+
 !   ---------------------------------------------------------------------------
 
     npoints = SIZE ( rhoa )
@@ -636,11 +646,12 @@ CONTAINS
 
   SUBROUTINE cs1_ss_3 ( rhoa, rhob, grhoa, grhob, grhoab, r13a, r13b, pot )
 
-    REAL(dbl), DIMENSION(:), INTENT(IN)  :: rhoa, rhob, grhoa, grhob, grhoab, &
-                                            r13a, r13b
-    REAL(dbl), DIMENSION(:,:), INTENT(OUT)  :: pot
+    REAL(dbl), DIMENSION(:), INTENT(IN)      :: rhoa, rhob, grhoa, grhob, &
+                                                grhoab, r13a, r13b
+    REAL(dbl), DIMENSION(:, :), INTENT(OUT)  :: pot
 
-    INTEGER :: ip, npoints
+    INTEGER                                  :: ip, npoints
+
 !   ---------------------------------------------------------------------------
 
     npoints = SIZE ( rhoa )

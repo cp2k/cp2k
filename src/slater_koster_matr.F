@@ -20,9 +20,14 @@
 
     MODULE slater_koster_matr
 !------------------------------------------------------------------------------!
-      USE kinds, ONLY : dbl
-      USE slater_koster_util, ONLY : sph, dsph, out_prod, out_dprod
+  USE kinds,                           ONLY: dbl
+  USE slater_koster_util,              ONLY: dsph,&
+                                             out_dprod,&
+                                             out_prod,&
+                                             sph
 !
+
+
       IMPLICIT NONE
 !
       PRIVATE
@@ -38,14 +43,13 @@
 !
 !------------------------------------------------------------------------------!
       SUBROUTINE gmat(l1,l2,r,gmu,dll)
-        IMPLICIT NONE
-        INTEGER, INTENT (IN) :: l1, l2
-        REAL (dbl), INTENT (IN) :: r(3)
-        REAL (dbl), INTENT (OUT) :: gmu(0:6,0:6,0:3)
-        REAL (dbl), INTENT (OUT) :: dll(0:6,0:6,0:6)
+    INTEGER, INTENT(IN)                      :: l1, l2
+    REAL(dbl), INTENT(IN)                    :: r(3)
+    REAL(dbl), INTENT(OUT)                   :: gmu(0:6,0:6,0:3), &
+                                                dll(0:6,0:6,0:6)
 
-        REAL (dbl) :: gsl(0:6,0:3)
-        INTEGER :: mu, mo, m1, m2, i
+    INTEGER                                  :: i, m1, m2, mo, mu
+    REAL(dbl)                                :: gsl(0:6,0:3)
 
         mu = min(l1,l2)
         mo = max(l1,l2)
@@ -157,15 +161,14 @@
       END SUBROUTINE gmat
 !------------------------------------------------------------------------------!
       SUBROUTINE dgmat(l1,l2,r,dgmu,ddll)
-        IMPLICIT NONE
-        INTEGER, INTENT (IN) :: l1, l2
-        REAL (dbl), INTENT (IN) :: r(3)
-        REAL (dbl), INTENT (OUT) :: dgmu(0:6,0:6,0:3,1:3)
-        REAL (dbl), INTENT (OUT) :: ddll(0:6,0:6,0:6,1:3)
+    INTEGER, INTENT(IN)                      :: l1, l2
+    REAL(dbl), INTENT(IN)                    :: r(3)
+    REAL(dbl), INTENT(OUT)                   :: dgmu(0:6,0:6,0:3,1:3), &
+                                                ddll(0:6,0:6,0:6,1:3)
 
-        REAL (dbl) :: gsl(0:6,0:3)
-        REAL (dbl) :: dgsl(0:6,0:3,1:3)
-        INTEGER :: mu, mo, m1, m2, i
+    INTEGER                                  :: i, m1, m2, mo, mu
+    REAL(dbl)                                :: dgsl(0:6,0:3,1:3), &
+                                                gsl(0:6,0:3)
 
         mu = min(l1,l2)
         mo = max(l1,l2)
@@ -319,13 +322,17 @@
       END SUBROUTINE dgmat
 !------------------------------------------------------------------------------!
       SUBROUTINE set_mat(mat,r,num)
-        IMPLICIT NONE
-        REAL (dbl), INTENT (IN) :: r(3)
-        INTEGER, INTENT (IN) :: num
-        REAL (dbl), INTENT (OUT) :: mat(0:,0:)
-        INTEGER :: l1, l2
-        REAL (dbl), PARAMETER :: s3 = 0.577350269189626_dbl ! sqrt(1._dbl/3._dbl)
-        REAL (dbl) :: x, y, z, xx, yy, zz, xy, xz, yz
+    REAL(dbl), INTENT(OUT)                   :: mat(0:,0:)
+    REAL(dbl), INTENT(IN)                    :: r(3)
+    INTEGER, INTENT(IN)                      :: num
+
+    REAL(dbl), PARAMETER                     :: s3 = 0.577350269189626_dbl 
+
+    INTEGER                                  :: l1, l2
+    REAL(dbl)                                :: x, xx, xy, xz, y, yy, yz, z, &
+                                                zz
+
+! sqrt(1._dbl/3._dbl)
 
         l1 = size(mat,1)
         l2 = size(mat,2)
@@ -697,14 +704,17 @@
       END SUBROUTINE set_mat
 !------------------------------------------------------------------------------!
       SUBROUTINE set_dmat(dmat,r,num)
-        IMPLICIT NONE
-        REAL (dbl), INTENT (IN) :: r(3)
-        INTEGER, INTENT (IN) :: num
-        REAL (dbl), INTENT (OUT) :: dmat(0:,0:,1:)
-        INTEGER :: l1, l2
-        REAL (dbl), PARAMETER :: s3 = 0.577350269189626_dbl ! sqrt(1._dbl/3._dbl)
-        REAL (dbl) :: x, y, z, xx, yy, zz, xy, xz, yz
-        REAL (dbl) :: dc(0:6,0:6)
+    REAL(dbl), INTENT(OUT)                   :: dmat(0:,0:,1:)
+    REAL(dbl), INTENT(IN)                    :: r(3)
+    INTEGER, INTENT(IN)                      :: num
+
+    REAL(dbl), PARAMETER                     :: s3 = 0.577350269189626_dbl 
+
+    INTEGER                                  :: l1, l2
+    REAL(dbl)                                :: dc(0:6,0:6), x, xx, xy, xz, &
+                                                y, yy, yz, z, zz
+
+! sqrt(1._dbl/3._dbl)
 
         l1 = size(dmat,1)
         l2 = size(dmat,2)

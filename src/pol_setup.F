@@ -22,18 +22,25 @@
 
 MODULE pol_setup
   
-  USE atomic_kinds, ONLY :  kind_info_type
-  USE basis_set_types, ONLY : read_gto_basis_set, allocate_gto_basis_set, &
-                              deallocate_gto_basis_set, gto_basis_set_type
-  USE global_types,             ONLY: global_environment_type
-  USE kinds, ONLY : dbl
-  USE qs_interactions, ONLY :  exp_radius
-  USE molecule_types , ONLY : molecule_type, read_basis_type 
-  USE orbital_pointers,  ONLY: coset,nco,ncoset,nso,init_orbital_pointers
-  USE particle_types, ONLY : particle_type
-  USE string_utilities, ONLY : str_search
-  USE termination, ONLY : stop_memory, stop_program
-  USE timings, ONLY : timeset, timestop
+  USE atomic_kinds,                    ONLY: kind_info_type
+  USE basis_set_types,                 ONLY: allocate_gto_basis_set,&
+                                             deallocate_gto_basis_set,&
+                                             gto_basis_set_type,&
+                                             read_gto_basis_set
+  USE global_types,                    ONLY: global_environment_type
+  USE kinds,                           ONLY: dbl
+  USE molecule_types,                  ONLY: molecule_type,&
+                                             read_basis_type
+  USE orbital_pointers,                ONLY: coset,&
+                                             init_orbital_pointers,&
+                                             ncoset
+  USE particle_types,                  ONLY: particle_type
+  USE qs_interactions,                 ONLY: exp_radius
+  USE string_utilities,                ONLY: str_search
+  USE termination,                     ONLY: stop_memory,&
+                                             stop_program
+  USE timings,                         ONLY: timeset,&
+                                             timestop
 
   IMPLICIT NONE
 
@@ -48,22 +55,25 @@ MODULE pol_setup
  SUBROUTINE read_pol_basis_sets(rho0_basis_info, drho_basis_info, &
                  mol_setup,part,atom_names,ncoef,globenv)
 
-    IMPLICIT NONE
-    TYPE ( kind_info_type ), POINTER, DIMENSION(:) :: rho0_basis_info  
-    TYPE ( kind_info_type ), POINTER, DIMENSION(:) :: drho_basis_info
-    TYPE ( molecule_type ), DIMENSION ( : ), POINTER :: mol_setup   
-    TYPE ( particle_type ), POINTER, DIMENSION(:) :: part
-    CHARACTER ( LEN = * ), DIMENSION ( : ), POINTER :: atom_names
-    integer, intent (out) :: ncoef
-    TYPE(global_environment_type), INTENT(IN) :: globenv
+    TYPE(kind_info_type), DIMENSION(:), &
+      POINTER                                :: rho0_basis_info, &
+                                                drho_basis_info
+    TYPE(molecule_type), DIMENSION(:), &
+      POINTER                                :: mol_setup
+    TYPE(particle_type), DIMENSION(:), &
+      POINTER                                :: part
+    CHARACTER(LEN=*), DIMENSION(:), POINTER  :: atom_names
+    integer, intent(out)                     :: ncoef
+    TYPE(global_environment_type), &
+      INTENT(IN)                             :: globenv
+
+    INTEGER                                  :: i, icount, imol, isos, ndrho, &
+                                                nrho0
+    LOGICAL                                  :: flag
+    TYPE(read_basis_type), DIMENSION(:), &
+      POINTER                                :: pol_basis, rho0_basis
+
 !    TYPE (ao_type) :: ao
-
-! locals
-    INTEGER :: i,nrho0,ndrho,ikind,ncgf,isos,imol, icount
-    TYPE  ( read_basis_type ), POINTER,  DIMENSION (:) ::  pol_basis
-    TYPE  ( read_basis_type ), POINTER,  DIMENSION (:) ::  rho0_basis
-    LOGICAL :: flag
-
 !   count the total number of basis functions for 
 !   rho0 and polarization density
 
@@ -129,15 +139,13 @@ MODULE pol_setup
 
   SUBROUTINE allocate_pol_basis_info(ki,number_of_kinds)
 
-    INTEGER, INTENT(IN) :: number_of_kinds
-    TYPE (kind_info_type), POINTER, DIMENSION(:) :: ki
+    TYPE(kind_info_type), DIMENSION(:), &
+      POINTER                                :: ki
+    INTEGER, INTENT(IN)                      :: number_of_kinds
 
-!   *** Local variables ***
-
-    INTEGER :: ikind,istat,nkind
+    INTEGER                                  :: ikind, istat, nkind
 
 !   ---------------------------------------------------------------------------
-
 !   *** Deallocate the old data structure for the atomic kGind information ***
 
     IF (ASSOCIATED(ki)) THEN
@@ -181,22 +189,21 @@ MODULE pol_setup
 
   SUBROUTINE initialize_pol_basis_info(ki,basis_size,molinfo,part,atom_names,&
                                        flag,globenv)
-    IMPLICIT NONE
-    TYPE(kind_info_type), POINTER, DIMENSION(:) :: ki
-    INTEGER :: basis_size
-    TYPE(particle_type), POINTER, DIMENSION(:) :: part
-    TYPE(read_basis_type), DIMENSION(:), POINTER   :: molinfo
-    CHARACTER ( LEN = * ), DIMENSION ( : ), POINTER :: atom_names
-    LOGICAL, INTENT (IN) :: flag
-    TYPE(global_environment_type), INTENT(IN) :: globenv
+    TYPE(kind_info_type), DIMENSION(:), &
+      POINTER                                :: ki
+    INTEGER                                  :: basis_size
+    TYPE(read_basis_type), DIMENSION(:), &
+      POINTER                                :: molinfo
+    TYPE(particle_type), DIMENSION(:), &
+      POINTER                                :: part
+    CHARACTER(LEN=*), DIMENSION(:), POINTER  :: atom_names
+    LOGICAL, INTENT(IN)                      :: flag
+    TYPE(global_environment_type), &
+      INTENT(IN)                             :: globenv
 
+    CHARACTER(len=20)                        :: string
+    INTEGER                                  :: ikind, itype, nt
 
-! locals
-
-    CHARACTER(len=20) :: string
-
-    INTEGER :: icount, itype, nt, ikind
-    
     nt = size (atom_names)
 
     DO ikind= 1, size(ki)
@@ -226,15 +233,15 @@ MODULE pol_setup
 !------------------------------------------------------------------------------!
   SUBROUTINE get_atom_list(ki,part,itype,ikind,flag)
   
-    IMPLICIT NONE
 
-    TYPE(kind_info_type), INTENT(inout) :: ki
-    TYPE(particle_type), DIMENSION(:), INTENT(inout) :: part
-    INTEGER, INTENT(in) :: itype
-    INTEGER, INTENT(in) :: ikind
-    LOGICAL, INTENT (IN) :: flag
-! locals
-    INTEGER :: isos,i,icount
+    TYPE(kind_info_type), INTENT(inout)      :: ki
+    TYPE(particle_type), DIMENSION(:), &
+      INTENT(inout)                          :: part
+    INTEGER, INTENT(in)                      :: itype, ikind
+    LOGICAL, INTENT(IN)                      :: flag
+
+    INTEGER                                  :: i, icount, isos
+
     icount=0
     DO i=1, SIZE(part)
       IF (part(i)%prop%ptype==itype) icount=icount+1
@@ -256,17 +263,16 @@ MODULE pol_setup
 !------------------------------------------------------------------------------!
   SUBROUTINE get_radii(ki,eps)
 
-  IMPLICIT NONE
    
-  TYPE (kind_info_type), INTENT(inout) :: ki
-  REAL (dbl), INTENT(inout) :: eps
+    TYPE(kind_info_type), INTENT(inout)      :: ki
+    REAL(dbl), INTENT(inout)                 :: eps
 
-!locals
-  REAL(dbl) :: gcca,kind_radius,pgf_radius,set_radius,zeta
-  INTEGER  :: ipgf,ikind,iset,ishell,l
- 
+    INTEGER                                  :: ipgf, iset, ishell, l
+    REAL(dbl)                                :: gcca, kind_radius, &
+                                                pgf_radius, set_radius, zeta
+
 !---------------------------------------------------------------------------
- 
+
   kind_radius = 0.0_dbl
   DO iset=1,ki%orb_basis_set%nset
     set_radius = 0.0_dbl
@@ -291,15 +297,16 @@ MODULE pol_setup
 
   SUBROUTINE get_number_of_coefs(ki, part, ncoefs)
   
-  IMPLICIT NONE
   
-  TYPE (kind_info_type), INTENT(in), DIMENSION (:) :: ki
-  TYPE (particle_type), INTENT(inout), DIMENSION (:) :: part
-  INTEGER, INTENT (OUT) :: ncoefs
-  
-!  locals
-  INTEGER :: icount, ii, ikind, i, icgf, ncgf, isos   
-  
+    TYPE(kind_info_type), DIMENSION(:), &
+      INTENT(in)                             :: ki
+    TYPE(particle_type), DIMENSION(:), &
+      INTENT(inout)                          :: part
+    INTEGER, INTENT(OUT)                     :: ncoefs
+
+    INTEGER                                  :: i, icgf, icount, ii, ikind, &
+                                                isos, ncgf
+
     ncoefs = 0
     icount = 0
     
@@ -330,14 +337,13 @@ MODULE pol_setup
 !------------------------------------------------------------------------------ 
   SUBROUTINE get_rcutsq_cgf(ki,rsq)
 
-  IMPLICIT NONE
    
-  TYPE (kind_info_type), DIMENSION (:), INTENT(in) :: kI
-  REAL (dbl), INTENT(out), DIMENSION (:,:) :: rsq
+    TYPE(kind_info_type), DIMENSION(:), &
+      INTENT(in)                             :: kI
+    REAL(dbl), DIMENSION(:, :), INTENT(out)  :: rsq
 
-!locals
-  INTEGER  :: i, j
-  REAL (dbl) :: rcut
+    INTEGER                                  :: i, j
+    REAL(dbl)                                :: rcut
 
 ! calculate the cutoff radius for the Gaussians needed for the overlap list
 
@@ -366,16 +372,14 @@ MODULE pol_setup
 !   ***************************************************************************
  
  
-    TYPE(gto_basis_set_type), POINTER :: orb_basis_set
- 
-!   *** Local variables ***
- 
-    INTEGER :: first_cgf,first_sgf,icgf,ico,ipgf,iset,ishell,l,n,ncgf,nsgf
- 
+    TYPE(gto_basis_set_type), POINTER        :: orb_basis_set
+
+    INTEGER                                  :: icgf, ico, ipgf, iset, &
+                                                ishell, n
+
 !   ---------------------------------------------------------------------------
- 
 !   *** Build the Cartesian transformation matrix "cphi" ***
- 
+
     DO iset=1,orb_basis_set%nset
       CALL init_orbital_pointers(orb_basis_set%lmax(iset)+1)
       n = ncoset(orb_basis_set%lmax(iset))

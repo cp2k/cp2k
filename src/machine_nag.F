@@ -21,10 +21,12 @@
 
 MODULE machine_nag
 
-  USE kinds, ONLY : dbl
   USE f90_unix
   USE f90_unix_dir
-  USE f90_unix_env, ONLY : gethostname, getlogin
+  USE f90_unix_env,                    ONLY: gethostname,&
+                                             getlogin
+  USE kinds,                           ONLY: dbl
+
   IMPLICIT NONE
 
   PRIVATE
@@ -45,34 +47,41 @@ END SUBROUTINE m_abort
 
 
 FUNCTION m_iargc() RESULT (ic)
-  INTEGER :: ic
+    INTEGER                                  :: ic
+
   ic = iargc()
 END FUNCTION m_iargc
 
 !******************************************************************************
 !!  cpu time in seconds
 FUNCTION m_cputime() RESULT (ct)
-  REAL (dbl) :: ct
-  REAL       :: ctr
+    REAL(dbl)                                :: ct
+
+    REAL                                     :: ctr
+
   CALL CPU_TIME(ctr)
   ct=ctr
 END FUNCTION m_cputime
 !******************************************************************************
 !!  wall clock time in seconds
 FUNCTION m_walltime() RESULT (wt)
-  REAL (dbl) :: wt
-  INTEGER :: count,count_rate
+    REAL(dbl)                                :: wt
+
+    INTEGER                                  :: count, count_rate
+
   CALL system_clock(count=count,count_rate=count_rate)
   wt = DBLE(count)/count_rate
 END FUNCTION m_walltime
 !******************************************************************************
 !!  time and date
 SUBROUTINE m_datum(cal_date)
-  CHARACTER (len=*), INTENT (OUT) :: cal_date
-  character(len= 8) :: date
-  character(len=10) :: time
-  character(len= 5) :: zone
-  integer, dimension(8) ::values
+    CHARACTER(len=*), INTENT(OUT)            :: cal_date
+
+    character(len=10)                        :: time
+    character(len=5)                         :: zone
+    character(len=8)                         :: date
+    integer, dimension(8)                    :: values
+
   call date_and_time(date=date, time=time, zone=zone, values=values)
   cal_date=date//" "//time
 END SUBROUTINE m_datum
@@ -87,7 +96,7 @@ END SUBROUTINE m_datum
 
 !   ***************************************************************************
 
-    INTEGER, INTENT(IN) :: lunit
+    INTEGER, INTENT(IN)                      :: lunit
 
 !   ---------------------------------------------------------------------------
 
@@ -103,12 +112,10 @@ END SUBROUTINE m_datum
 
 !   ***************************************************************************
 
-    CHARACTER(LEN=*), INTENT(IN) :: checkpoint
+    CHARACTER(LEN=*), INTENT(IN)             :: checkpoint
 
-!   *** Local variables ***
-
-    CHARACTER(LEN=200) :: cmdstr
-    INTEGER            :: pid
+    CHARACTER(LEN=200)                       :: cmdstr
+    INTEGER                                  :: pid
 
 !   ---------------------------------------------------------------------------
 
@@ -125,45 +132,54 @@ END SUBROUTINE m_datum
 ! *****************************************************************************
 
 SUBROUTINE m_hostnm(hname)
-  CHARACTER (len=*), INTENT (OUT) :: hname
-  CHARACTER (len=60) :: tmpname
-  INTEGER :: len
+    CHARACTER(len=*), INTENT(OUT)            :: hname
+
+    INTEGER                                  :: len
+    CHARACTER(len=60)                        :: tmpname
+
   len=60
   CALL gethostname(tmpname,len)
   hname=tmpname(1:len)
 END SUBROUTINE m_hostnm
 !******************************************************************************
 SUBROUTINE m_getcwd(curdir)
-  CHARACTER (len=*), INTENT (OUT) :: curdir
-  CHARACTER (len=60) :: tmpdir
-  INTEGER :: len
+    CHARACTER(len=*), INTENT(OUT)            :: curdir
+
+    INTEGER                                  :: len
+    CHARACTER(len=60)                        :: tmpdir
+
   len=60
   CALL getcwd(tmpdir,len)
   curdir=tmpdir(1:len)
 END SUBROUTINE m_getcwd
 !******************************************************************************
 SUBROUTINE m_getlog(user)
-  CHARACTER (len=*), INTENT (OUT) :: user
-  CHARACTER (len=60) :: tmp
-  INTEGER :: len
+    CHARACTER(len=*), INTENT(OUT)            :: user
+
+    INTEGER                                  :: len
+    CHARACTER(len=60)                        :: tmp
+
   len=60
   CALL getlogin(tmp,len)
   user=tmp(1:len)
 END SUBROUTINE m_getlog
 !******************************************************************************
 SUBROUTINE m_getuid(uid)
-  INTEGER, INTENT (OUT) :: uid
+    INTEGER, INTENT(OUT)                     :: uid
+
   uid = getuid()
 END SUBROUTINE m_getuid
 !******************************************************************************
 SUBROUTINE m_getpid(pid)
-  INTEGER, INTENT (OUT) :: pid
+    INTEGER, INTENT(OUT)                     :: pid
+
   pid = getpid()
 END SUBROUTINE m_getpid
 !******************************************************************************
 SUBROUTINE m_getarg(i,arg)
-  INTEGER, INTENT (IN) :: i
-  CHARACTER (len=*), INTENT (OUT) :: arg
+    INTEGER, INTENT(IN)                      :: i
+    CHARACTER(len=*), INTENT(OUT)            :: arg
+
   CALL getarg(i,arg)
 END SUBROUTINE m_getarg
 !******************************************************************************

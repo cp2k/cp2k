@@ -74,17 +74,14 @@ CONTAINS
 
   SUBROUTINE print_message(message,output_unit,declev,before,after)
 
-    CHARACTER(LEN=*), INTENT(IN)  :: message
-    INTEGER, INTENT(IN)           :: output_unit
-    INTEGER, OPTIONAL, INTENT(IN) :: after,before,declev
+    CHARACTER(LEN=*), INTENT(IN)             :: message
+    INTEGER, INTENT(IN)                      :: output_unit
+    INTEGER, INTENT(IN), OPTIONAL            :: declev, before, after
 
-!   *** Local variables ***
-
-    CHARACTER(LEN=12) :: fmtstr1
-    CHARACTER(LEN=23) :: fmtstr2
-    INTEGER           :: blank_lines_after,blank_lines_before,&
-                         decoration_level,i,ibreak,ipos1,ipos2,maxrowlen,&
-                         msglen,nrow,rowlen
+    CHARACTER(LEN=12)                        :: fmtstr1
+    CHARACTER(LEN=23)                        :: fmtstr2
+    INTEGER :: blank_lines_after, blank_lines_before, decoration_level, i, &
+      ibreak, ipos1, ipos2, maxrowlen, msglen, nrow, rowlen
 
 !   ---------------------------------------------------------------------------
 
@@ -251,12 +248,10 @@ CONTAINS
 
   SUBROUTINE print_warning(routine,message,output_unit)
 
-    CHARACTER(LEN=*), INTENT(IN)  :: message,routine
-    INTEGER, OPTIONAL, INTENT(IN) :: output_unit
+    CHARACTER(LEN=*), INTENT(IN)             :: routine, message
+    INTEGER, INTENT(IN), OPTIONAL            :: output_unit
 
-!   *** Local variables ***
-
-    INTEGER :: lunit
+    INTEGER                                  :: lunit
 
 !   ---------------------------------------------------------------------------
 

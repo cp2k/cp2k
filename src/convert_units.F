@@ -19,12 +19,13 @@
 
 MODULE convert_units
 
-  USE cp2k_units, ONLY : unit_convert_type, get_cp2k_units
-  USE kinds, ONLY : dbl
-  USE molecule_types, ONLY : intra_parameters_type
-  USE pair_potential_types, ONLY : pair_potential_type
-  USE particle_types, ONLY : particle_type
-  USE simulation_cell, ONLY : cell_type
+  USE cp2k_units,                      ONLY: get_cp2k_units,&
+                                             unit_convert_type
+  USE kinds,                           ONLY: dbl
+  USE molecule_types,                  ONLY: intra_parameters_type
+  USE pair_potential_types,            ONLY: pair_potential_type
+  USE particle_types,                  ONLY: particle_type
+  USE simulation_cell,                 ONLY: cell_type
 
   IMPLICIT NONE
 
@@ -57,27 +58,21 @@ SUBROUTINE convert_to_cp2k_units ( unit_char, time, temperature, pressure, lengt
                                    tau_nhc, mass, eps0, l_power, part, box, potparm, &
                                    intra_param )
 
-  IMPLICIT NONE
 
-! Arguments
-  CHARACTER ( len = * ), INTENT ( IN ), OPTIONAL :: unit_char
-  REAL ( dbl ), INTENT ( INOUT ), OPTIONAL :: time
-  REAL ( dbl ), INTENT ( INOUT ), OPTIONAL :: temperature
-  REAL ( dbl ), INTENT ( INOUT ), OPTIONAL :: pressure
-  REAL ( dbl ), INTENT ( INOUT ), OPTIONAL :: length
-  REAL ( dbl ), INTENT ( INOUT ), OPTIONAL :: tau_nhc
-  REAL ( dbl ), INTENT ( INOUT ), OPTIONAL :: mass
-  REAL ( dbl ), INTENT ( INOUT ), OPTIONAL :: eps0
-  INTEGER, INTENT ( IN ), OPTIONAL :: l_power
-  TYPE (particle_type ), INTENT ( INOUT ), OPTIONAL :: part ( : )
-  TYPE (cell_type ), INTENT ( INOUT ), OPTIONAL :: box
-  TYPE (intra_parameters_type ), INTENT ( INOUT ), OPTIONAL :: intra_param
-  TYPE (pair_potential_type ), INTENT ( INOUT ), OPTIONAL :: potparm ( :, : )
+    CHARACTER(len=*), INTENT(IN), OPTIONAL   :: unit_char
+    REAL(dbl), INTENT(INOUT), OPTIONAL       :: time, temperature, pressure, &
+                                                length, tau_nhc, mass, eps0
+    INTEGER, INTENT(IN), OPTIONAL            :: l_power
+    TYPE(particle_type), INTENT(INOUT), &
+      OPTIONAL                               :: part( : )
+    TYPE(cell_type), INTENT(INOUT), OPTIONAL :: box
+    TYPE(pair_potential_type), &
+      INTENT(INOUT), OPTIONAL                :: potparm( :, : )
+    TYPE(intra_parameters_type), &
+      INTENT(INOUT), OPTIONAL                :: intra_param
 
-! Locals
-  REAL ( dbl ) :: conv2k
-  INTEGER :: i, ll
-  TYPE ( unit_convert_type ), POINTER :: units
+    INTEGER                                  :: i, ll
+    TYPE(unit_convert_type), POINTER         :: units
 
 !------------------------------------------------------------------------------
 

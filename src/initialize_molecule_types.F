@@ -26,30 +26,19 @@ MODULE initialize_molecule_types
                                              get_atomic_kind
   USE cp_error_handling,               ONLY: cp_a_l,&
                                              cp_assert,&
-                                             cp_assertion_failed,&
-                                             cp_debug,&
-                                             cp_error_dealloc_ref,&
                                              cp_error_get_logger,&
-                                             cp_error_init,&
                                              cp_error_message,&
-                                             cp_error_type,&
-                                             cp_internal_error,&
-                                             cp_unimplemented_error,&
-                                             cp_unimplemented_error_nr
+                                             cp_error_type
   USE cp_log_handling,                 ONLY: cp_failure_level,&
                                              cp_fatal_level,&
-                                             cp_log,&
                                              cp_logger_type,&
                                              cp_note_level,&
                                              cp_to_string,&
                                              cp_warning_level
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE distribution_1d_types,           ONLY: distribution_1d_create,&
-                                             distribution_1d_release,&
-                                             distribution_1d_retain,&
                                              distribution_1d_type
   USE global_types,                    ONLY: global_environment_type
-  USE kinds,                           ONLY: dbl
   USE linklists,                       ONLY: atom_link_list,&
                                              bend_link_list,&
                                              bond_link_list,&
@@ -58,13 +47,13 @@ MODULE initialize_molecule_types
                                              g3x3_link_list,&
                                              g4x6_link_list,&
                                              torsion_link_list
-  USE md,                              ONLY: simulation_parameters_type
   USE molecule_types,                  ONLY: intra_parameters_type,&
                                              molecule_structure_type,&
                                              molecule_type,&
                                              particle_node_type
   USE particle_types,                  ONLY: particle_type
   USE util,                            ONLY: get_limit
+
   IMPLICIT NONE
 
   PUBLIC :: initialize_molecule_type, mol_local_particles_create
@@ -96,18 +85,21 @@ CONTAINS
 SUBROUTINE initialize_molecule_type ( mol_setup, pnode, part, molecule,&
                                       globenv, intra_param )
 
-  IMPLICIT NONE
-  TYPE ( molecule_type ), DIMENSION ( : ), INTENT ( IN ) :: mol_setup
-  TYPE ( particle_node_type ), DIMENSION ( : ), INTENT ( INOUT ) :: pnode
-  TYPE ( particle_type ), DIMENSION ( : ), INTENT ( INOUT ), TARGET :: part
-  TYPE ( molecule_structure_type ), DIMENSION ( : ), INTENT ( INOUT ) :: &
-       molecule
-  TYPE ( global_environment_type ), INTENT ( IN ) :: globenv
-  TYPE ( intra_parameters_type ), INTENT ( IN ), OPTIONAL :: intra_param
+    TYPE(molecule_type), DIMENSION(:), &
+      INTENT(IN)                             :: mol_setup
+    TYPE(particle_node_type), DIMENSION(:), &
+      INTENT(INOUT)                          :: pnode
+    TYPE(particle_type), DIMENSION(:), &
+      INTENT(INOUT), TARGET                  :: part
+    TYPE(molecule_structure_type), &
+      DIMENSION(:), INTENT(INOUT)            :: molecule
+    TYPE(global_environment_type), &
+      INTENT(IN)                             :: globenv
+    TYPE(intra_parameters_type), &
+      INTENT(IN), OPTIONAL                   :: intra_param
 
-! Locals
-  INTEGER :: imol, i, j, k, atombase, iat, nlim ( 2 ), iw, nmol_type
-  INTEGER, DIMENSION(:), ALLOCATABLE :: i_att
+    INTEGER                                  :: atombase, i, iat, imol, iw, &
+                                                j, k, nlim( 2 ), nmol_type
 
 !------------------------------------------------------------------------------
 
@@ -262,20 +254,25 @@ END SUBROUTINE initialize_molecule_type
 !!*** **********************************************************************
 SUBROUTINE mol_local_particles_create(local_particles, atomic_kind_set,&
      particles, local_molecules, para_env, error)
-  TYPE(distribution_1d_type), POINTER :: local_particles
-  TYPE(atomic_kind_type), DIMENSION(:), POINTER :: atomic_kind_set
-  TYPE(molecule_structure_type), DIMENSION(:), POINTER :: local_molecules
-  TYPE(particle_type), DIMENSION(:), POINTER :: particles
-  TYPE(cp_para_env_type), POINTER :: para_env
-  TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
+    TYPE(distribution_1d_type), POINTER      :: local_particles
+    TYPE(atomic_kind_type), DIMENSION(:), &
+      POINTER                                :: atomic_kind_set
+    TYPE(particle_type), DIMENSION(:), &
+      POINTER                                :: particles
+    TYPE(molecule_structure_type), &
+      DIMENSION(:), POINTER                  :: local_molecules
+    TYPE(cp_para_env_type), POINTER          :: para_env
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
 
-  LOGICAL :: failure
-  TYPE(atomic_kind_type), POINTER :: atomic_kind
-  CHARACTER(len=*), PARAMETER :: routineN='mol_local_particles_create',&
-        routineP=moduleN//':'//routineN
-  INTEGER :: stat, ikind, imol,j, atombase
-  INTEGER, DIMENSION(:), ALLOCATABLE :: multiindex
-  INTEGER, DIMENSION(:), POINTER :: atom_list
+    CHARACTER(len=*), PARAMETER :: routineN = 'mol_local_particles_create', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: atombase, ikind, imol, j, stat
+    INTEGER, ALLOCATABLE, DIMENSION(:)       :: multiindex
+    INTEGER, DIMENSION(:), POINTER           :: atom_list
+    LOGICAL                                  :: failure
+    TYPE(atomic_kind_type), POINTER          :: atomic_kind
 
   failure=.FALSE.
   NULLIFY(atom_list)
