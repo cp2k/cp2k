@@ -39,127 +39,202 @@
 PROGRAM cp2k
   USE cp2k_runs,         ONLY : write_cp2k_html_manual
   USE machine,           ONLY : m_iargc,m_getarg
-  USE message_passing,   ONLY : mp_world_init, &
-       mp_world_finalize, mp_sync
+  USE message_passing,   ONLY : mp_sync
   USE kinds,             ONLY : default_string_length
-  USE cp_para_types, only: cp_para_env_type
-  USE cp_para_env, ONLY: cp_para_env_create, cp_para_env_release
-  USE f77_interface, ONLY: init_cp2k, finalize_cp2k, run_input, &
-       check_input, default_para_env
+  USE f77_interface,     ONLY : init_cp2k, finalize_cp2k, run_input, &
+                                check_input, default_para_env
   IMPLICIT NONE
 
-  CHARACTER(LEN=default_string_length) :: input_file_name,arg_att
+  CHARACTER(LEN=default_string_length) :: input_file_name,output_file_name,arg_att
   INTEGER                              :: output_unit
-  INTEGER                              :: ierr, i, n_arg
-  LOGICAL                              :: check, manual, usage, echo_input
+  INTEGER                              :: ierr, i, n_arg, i_arg
+  LOGICAL                              :: check, manual, usage, echo_input, command_line_error
+  LOGICAL                              :: run_it, force_run, has_input
   ! this is the only place that should need unit 6 all others will get 
   ! something reasonable from the cp_logger
   INTEGER, PARAMETER                   :: default_output_unit = 6 
-  TYPE(cp_para_env_type), pointer      :: para_env
 
   ! output goes to the screen by default
   output_unit=default_output_unit
 
-  ! do the initial setup of cp2k
+  ! do the initial setup of cp2k, provides a default_para_env
   CALL init_cp2k(init_mpi=.TRUE.,ierr=ierr)
 
   IF (ierr==0) then
-     para_env => default_para_env
 #if defined(__HMD)
-    DO i=0,para_env%num_pe-1
-       IF (para_env%mepos==i) THEN
-          PRINT *, "***** proc ",i
-          CALL _dump_allocated(%VAL(0))
-       END IF
-       CALL mp_sync(para_env%group)
-    END DO
+     DO i=0,default_para_env%num_pe-1
+        IF (default_para_env%mepos==i) THEN
+           PRINT *, "***** proc ",i
+           CALL _dump_allocated(%VAL(0))
+        END IF
+        CALL mp_sync(default_para_env%group)
+     END DO
 #endif
-     ! get the input file name and command line flags
-     check=.FALSE.
-     manual=.false.
-     usage=.false.
-     echo_input=.false.
-     input_file_name = "input"
-     n_arg=0
-     DO i=1,m_iargc()
-        CALL m_getarg(i,arg_att)
+
+     ! set default behaviour for the command line switches 
+     check      =.FALSE.
+     manual     =.FALSE.
+     usage      =.FALSE.
+     echo_input =.FALSE.
+     has_input  =.FALSE.
+     run_it     =.TRUE.
+     force_run  =.FALSE.
+     command_line_error=.FALSE.
+     input_file_name  = "Missing input file name"   ! no default
+     output_file_name = "__STD_OUT__"               ! by default we go to std_out
+
+     ! parsing of command line arguments
+     n_arg=m_iargc()
+  
+     ! this is an error condition, provide usage information
+     IF (n_arg<1) THEN
+         WRITE (output_unit,'(a)') ''
+         WRITE (output_unit,'(a)') 'ERROR: At least one command line argument must be specified'
+         command_line_error=.TRUE.
+     ENDIF
+
+     i_arg=0
+arg_loop: DO WHILE (i_arg<n_arg) 
+        i_arg=i_arg+1
+        CALL m_getarg(i_arg,arg_att)
         SELECT CASE(arg_att)
         CASE("--check","-c")
            check=.TRUE.
+           run_it=.FALSE.
            echo_input=.false.
         CASE("--echo","-e")
            check=.TRUE.
+           run_it=.FALSE.
            echo_input=.true.
         CASE("--html-manual")
-           manual=.true.
+           manual=.TRUE.
+           run_it=.FALSE.
+        CASE("--run","-r")
+           force_run=.TRUE.
         CASE("-help","--help","-h")
-           usage=.true.
-        CASE default
-           n_arg=n_arg+1
-           IF (n_arg==1) THEN
+           usage=.TRUE.
+           run_it=.FALSE.
+        CASE("-i")
+           i_arg=i_arg+1
+           CALL m_getarg(i_arg,arg_att)
+           ! argument does not start with a - it is an filename
+           IF (.NOT. arg_att(1:1)=='-') THEN  
               input_file_name=arg_att
-           END IF
+              has_input=.TRUE.
+           ELSE
+              WRITE (output_unit,'(a)') ''
+              WRITE (output_unit,'(a)') 'ERROR: the input file name'//TRIM(arg_att)//' starts with -'     
+              command_line_error=.TRUE.
+              EXIT arg_loop
+           ENDIF
+        CASE("-o")
+           i_arg=i_arg+1
+           CALL m_getarg(i_arg,arg_att)
+           ! argument does not start with a - it is an filename
+           IF (.NOT. arg_att(1:1)=='-') THEN  
+              output_file_name=arg_att
+           ELSE
+              WRITE (output_unit,'(a)') ''
+              WRITE (output_unit,'(a)') 'ERROR: the output file name'//TRIM(arg_att)//' starts with -'     
+              command_line_error=.TRUE.
+              EXIT arg_loop
+           ENDIF
+        CASE default
+           ! if the last argument does not start with a - it is an input filename
+           IF (i_arg.EQ.n_arg .AND. .NOT. arg_att(1:1)=='-') THEN  
+              input_file_name=arg_att
+              has_input=.TRUE.
+           ELSE
+              WRITE (output_unit,'(a)') ''
+              WRITE (output_unit,'(a)') 'ERROR: the command line argument '//TRIM(arg_att)//' can not be parsed'     
+              IF (arg_att(1:1)=='-') THEN
+                 WRITE (output_unit,'(a)') '       notice that you can not yet write [-eri] and spaces are required'
+              ELSE
+                 WRITE (output_unit,'(a)') '       notice that [-i] is required before the input file name,'
+                 WRITE (output_unit,'(a)') '       unless it is the last argument'
+              ENDIF
+              command_line_error=.TRUE.
+              EXIT arg_loop
+           ENDIF
         END SELECT
-     END DO
-     !     IF (n_arg>1) usage=.true. ! check ?
-     IF (manual) THEN
-        IF (para_env%mepos==para_env%source) THEN
-           CALL write_cp2k_html_manual()
-        END IF
-     ELSE IF (usage) THEN
-        IF (para_env%source==para_env%mepos) THEN
+     END DO arg_loop
+
+     IF ((run_it .OR. force_run .OR. check .OR. echo_input ) .AND. &
+         (.NOT. has_input) .AND. (.NOT. command_line_error) ) THEN
+         WRITE (output_unit,'(a)') ''
+         WRITE (output_unit,'(a)') 'ERROR: an input file name is required'
+         command_line_error=.TRUE.
+     ENDIF
+ 
+     ! some first info concerning how to run cp2k
+     IF (usage .OR. command_line_error) THEN
+        IF (default_para_env%source==default_para_env%mepos) THEN
            CALL m_getarg(0,arg_att) ! actually this is non-standard
            WRITE (output_unit,'(T5,a)') ''    
-           WRITE (output_unit,'(T5,a)') ''    
-           WRITE (output_unit,'(a)') trim(arg_att)//' [-c|--check] [-e|--echo] [-h|--help] [--html-manual] [input_file]'
+           WRITE (output_unit,'(a)') trim(arg_att)//' [-c|--check] [-e|--echo] [-h|--help] [--html-manual]'//&
+                                                    ' [-r|-run] [-o ouput_file] [[-i] input_file]'
            WRITE (output_unit,'(T5,a)') ''    
            WRITE (output_unit,'(T5,a)') 'Starts the CP2K simulation program, see <http://cp2k.berlios.de/>.'
            WRITE (output_unit,'(T5,a)') ''    
-           WRITE (output_unit,'(T5,a)') 'Without options, a simulation is performed using [input_file]'
-           WRITE (output_unit,'(T5,a)') 'or "input" by default.'    
+           WRITE (output_unit,'(T5,A)') '-o output_file : '//'provides an output file name [default: screen]'
+           WRITE (output_unit,'(T5,A)') '-i input_file  : '//'provides an input file name, if it is the last '
+           WRITE (output_unit,'(T5,A)') '                 '//'argument, the -i is not needed'
            WRITE (output_unit,'(T5,a)') ''    
-           WRITE (output_unit,'(T5,a)') 'The switches skip the simulation but : '    
+           WRITE (output_unit,'(T5,a)') 'These switches skip the simulation, unless [-r|-run] is specified: '    
+           WRITE (output_unit,'(T5,A)') '--run, -r      : '//'force a run after any of the following'
            WRITE (output_unit,'(T5,A)') '--check, -c    : '//'perform a syntax check of [input_file].'
-           WRITE (output_unit,'(T5,A)') '--echo , -e    : '//'echos [input_file], and makes all defaults explicit.'
+           WRITE (output_unit,'(T5,A)') '--echo, -e     : '//'echos [input_file], and makes all defaults explicit.'
+           WRITE (output_unit,'(T5,A)') '                 '//'The input is also checked, but only failure is reported.'
            WRITE (output_unit,'(T5,A)') '--help, -h     : '//'writes this message'
-           WRITE (output_unit,'(T5,A)') '--html-manual  : '//'writes a html reference manual of the cp2k input file.' 
+           WRITE (output_unit,'(T5,A)') '--html-manual  : '//'writes a html reference manual of the cp2k input file' 
            WRITE (output_unit,'(T5,A)') '                 '//'in the current directory. index.html is a good starting'
            WRITE (output_unit,'(T5,A)') '                 '//'point for browsing.'
            WRITE (output_unit,'(T5,a)') ''    
         END IF
-     ELSE IF (check) then
-        CALL check_input(input_file_name,"__STD_OUT__",echo_input=echo_input,&
-             ierr=ierr)
-        IF (para_env%source==para_env%mepos) THEN
-           IF (ierr==0) THEN
-              WRITE (output_unit,&
-                   "(/,'SUCCESS, the input could be interpreted correctly')")
-              WRITE (output_unit,&
-                   "('         This does not imply the the the input is meaningful or guarantees')")
-              WRITE (output_unit,&
-                   "('         a succesful run')")
-           ELSE
-              WRITE (output_unit,&
-                   "(/,'ERROR,   the input could NOT be interpreted correctly')")
-              WRITE (output_unit,&
-                   "('         please check and correct it')")
+     ENDIF
+
+     IF (.NOT. command_line_error) THEN
+        ! if a manual is needed
+        IF (manual) THEN
+           IF (default_para_env%mepos==default_para_env%source) THEN
+              CALL write_cp2k_html_manual()
            END IF
+        ENDIF
+
+        IF (check) then
+           CALL check_input(input_file_name,output_file_name,echo_input=echo_input,&
+                ierr=ierr)
+           IF (default_para_env%source==default_para_env%mepos) THEN
+              IF (ierr==0) THEN
+                IF (.NOT. echo_input) THEN
+                   WRITE (output_unit,'(a)') 'SUCCESS, the input could be parsed correctly.'
+                   WRITE (output_unit,'(a)') '         This is does not guarantee that this input is meaningful'
+                   WRITE (output_unit,'(a)') '         or will run successfully'
+                ENDIF
+              ELSE
+                 WRITE (output_unit,'(a)') 'ERROR,   the input could *NOT* be parsed correctly.'
+                 WRITE (output_unit,'(a)') '         Please, check and correct it'
+              END IF
+           END IF
+        ENDIF
+
+        IF (run_it .OR. force_run) THEN
+           CALL run_input(input_file_name,output_file_name,ierr=ierr)
         END IF
-     ELSE
-        CALL run_input(input_file_name,"__STD_OUT__",ierr=ierr)
-     END IF
-  ELSE
-     WRITE(output_unit,"(/,'initial setup (mpi) error')")
-  ENDIF
+     ENDIF
+
 #if defined(__HMD)
-    DO i=0,para_env%num_pe-1
-       IF (para_env%mepos==i) THEN
-          PRINT *, "***** proc ",i
-          CALL _dump_allocated_delta(%VAL(0))
-       END IF
-       CALL mp_sync(para_env%group)
-    END DO
+     DO i=0,default_para_env%num_pe-1
+        IF (default_para_env%mepos==i) THEN
+           PRINT *, "***** proc ",i
+           CALL _dump_allocated_delta(%VAL(0))
+        END IF
+        CALL mp_sync(default_para_env%group)
+     END DO
 #endif
+  ELSE
+     WRITE(output_unit,"(/,'initial setup (MPI ?) error')")
+  ENDIF
  
   ! and the final cleanup
   CALL finalize_cp2k(finalize_mpi=.TRUE.,ierr=ierr)
