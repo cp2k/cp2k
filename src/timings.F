@@ -101,7 +101,7 @@ SUBROUTINE timeset ( name, ct, pu, handle )
   routine_stack ( stack_size ) = name
 
 !..if debug mode echo the subroutine name
-  write(sformat,*) "(A,",MAX(1,3*stack_size-9),"X,I,1X,A,A)"
+  write(sformat,*) "(A,",MAX(1,3*stack_size-9),"X,I4,1X,A,A)"
   IF ( trace ) write ( iod, sformat) &
      astring,stack_size,TRIM( routine_stack ( stack_size ))," start"
 
@@ -190,7 +190,7 @@ SUBROUTINE timestop ( perf, handle )
      END DO
 
 !..if debug mode echo the subroutine name
-  write(sformat,*) "(A,",MAX(1,3*stack_size-9),"X,I,1X,A,F8.3)"
+  write(sformat,*) "(A,",MAX(1,3*stack_size-9),"X,I4,1X,A,F8.3)"
   IF ( trace ) write ( iod, sformat) &
      bstring,stack_size,TRIM(routine_stack(stack_size)),cpt
 
@@ -379,7 +379,7 @@ SUBROUTINE print_stack ( iw )
 
   WRITE ( io , '(/,A)') " ===== Routine Calling Stack ===== "
   DO i = stack_size, 1, -1
-     WRITE ( io, '(T10,A)') ADJUSTL( routine_stack ( i ) )
+     WRITE ( io, '(T10,I4,A)') i,ADJUSTL( routine_stack ( i ) )
   END DO
 
 END SUBROUTINE print_stack

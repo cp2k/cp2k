@@ -238,7 +238,6 @@ SUBROUTINE qs_ot_mini(qs_ot_env,globenv)
          ! should we test for a downhill direction (we use inexact linesearch) ?
          CALL cp_fm_trace(qs_ot_env%matrix_gx,qs_ot_env%matrix_dx,test_down)
          if (test_down.ge.0.0_wp) then
-            write(6,*) "steepest"
             CALL cp_fm_add(0.0_wp,qs_ot_env%matrix_dx,-1.0_wp,qs_ot_env%matrix_gx)  
          endif
          qs_ot_env%gnorm_old=qs_ot_env%gnorm
