@@ -114,8 +114,8 @@ MODULE xc_rho_set_types
 !!       gradient of the spin density)
 !!     - drhoa_drhob: flag for drhoa_drhob (the scalar product of the
 !!       gradient of the two spin densities)
-!!     - rho_1_3: flag for rho**(1./3.)
-!!     - rho_spin_1_3: flag for rhoa**(1./3.) and rhob**(1./3.)
+!!     - rho_1_3: flag for rho**(1.D0/3.D0)
+!!     - rho_spin_1_3: flag for rhoa**(1.D0/3.D0) and rhob**(1.D0/3.D0)
 !!     - kinetic: flags for the kinetic (KS) part of rho 
 !!     - kinetic_spin: flags for the kinetic (KS) part of rhoa and rhob
 !!
@@ -171,8 +171,8 @@ MODULE xc_rho_set_types
 !!     - norm_drhoa, norm_drhob: norm of the gradient of rhoa and rhob
 !!     - drhoa_drhob: the scalar product between the gradient of rhoa and the
 !!       one of rhob
-!!     - rho_1_3: rho^(1./3.)
-!!     - rhoa_1_3, rhob_1_3: rhoa^(1./3.), rhob^(1./3.)
+!!     - rho_1_3: rho^(1.D0/3.D0)
+!!     - rhoa_1_3, rhob_1_3: rhoa^(1.D0/3.D0), rhob^(1.D0/3.D0)
 !!     - kinetic: the kinetic (KohnSham) part of rho
 !!     - kinetic_a: the kinetic (KohnSham) part of rhoa
 !!     - kinetic_b: the kinetic (KohnSham) part of rhob
@@ -900,6 +900,7 @@ CONTAINS
     TYPE(pw_p_type), DIMENSION(3,2) :: drho_r
     TYPE(pw_p_type), DIMENSION(3) :: drho_r_att
     TYPE(pw_type), POINTER :: tmp_g, my_rho_g
+    REAL(KIND=dp), PARAMETER :: f13=(1.0_dp/3.0_dp)
 
     failure=.FALSE.
     DO ispin=1,2
@@ -1134,7 +1135,7 @@ CONTAINS
           DO k=rho_set%local_bounds(1,1),rho_set%local_bounds(2,1)
              DO j=rho_set%local_bounds(1,2),rho_set%local_bounds(2,2)
                 DO i=rho_set%local_bounds(1,3),rho_set%local_bounds(2,3)
-                   rho_set%rho_1_3(i,j,k)=(my_rho_r(1)%pw%cr3d(i,j,k))**(1./3.)
+                   rho_set%rho_1_3(i,j,k)=(my_rho_r(1)%pw%cr3d(i,j,k))**f13
                 END DO
              END DO
           END DO
@@ -1199,7 +1200,7 @@ CONTAINS
              DO j=rho_set%local_bounds(1,2),rho_set%local_bounds(2,2)
                 DO i=rho_set%local_bounds(1,3),rho_set%local_bounds(2,3)
                    rho_set%rho_1_3(i,j,k)=(rho_r(1)%pw%cr3d(i,j,k)+&
-                        rho_r(2)%pw%cr3d(i,j,k))**(1./3.)
+                        rho_r(2)%pw%cr3d(i,j,k))**f13
                 END DO
              END DO
           END DO
@@ -1213,7 +1214,7 @@ CONTAINS
           DO k=rho_set%local_bounds(1,1),rho_set%local_bounds(2,1)
              DO j=rho_set%local_bounds(1,2),rho_set%local_bounds(2,2)
                 DO i=rho_set%local_bounds(1,3),rho_set%local_bounds(2,3)
-                   rho_set%rhoa_1_3(i,j,k)=(rho_r(1)%pw%cr3d(i,j,k))**(1./3.)
+                   rho_set%rhoa_1_3(i,j,k)=(rho_r(1)%pw%cr3d(i,j,k))**f13
                 END DO
              END DO
           END DO
@@ -1223,7 +1224,7 @@ CONTAINS
           DO k=rho_set%local_bounds(1,1),rho_set%local_bounds(2,1)
              DO j=rho_set%local_bounds(1,2),rho_set%local_bounds(2,2)
                 DO i=rho_set%local_bounds(1,3),rho_set%local_bounds(2,3)
-                   rho_set%rhob_1_3(i,j,k)=(rho_r(2)%pw%cr3d(i,j,k))**(1./3.)
+                   rho_set%rhob_1_3(i,j,k)=(rho_r(2)%pw%cr3d(i,j,k))**f13
                 END DO
              END DO
           END DO
