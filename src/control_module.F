@@ -143,7 +143,7 @@ SUBROUTINE control ( globenv )
   
   TYPE ( particle_prop_type ), DIMENSION ( : ), POINTER :: pstat
   TYPE ( molecule_type ), DIMENSION ( : ), POINTER :: mol_setup
-  TYPE ( topology_type ) :: topology
+  TYPE ( topology_type ) :: topo
   TYPE ( unit_convert_type ) :: units
   TYPE ( simulation_parameters_type ) :: simpar
   TYPE ( structure_type ), ALLOCATABLE, DIMENSION ( : ) :: struc
@@ -277,7 +277,7 @@ SUBROUTINE control ( globenv )
 
   CALL read_molecule_section ( mol_setup, setup, globenv )
 
-  CALL read_topology_section ( topology, setup, globenv )
+  CALL read_topology_section ( topo, setup, globenv )
 
 ! read force_field information for classical MD
 ! read pair potential information for TB
