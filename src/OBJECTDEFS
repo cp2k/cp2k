@@ -149,7 +149,7 @@ OBJECTS_GENERIC =\
  pao_plain_rot.o\
  pao_plain_rot_tests.o\
  pao_proj_methods.o\
- pao_projection.o\
+ pao_bas_projection_types.o\
  pao_qs_env_methods.o\
  pao_read_section.o\
  pao_types.o\
