@@ -131,8 +131,14 @@ SUBROUTINE pw_poisson_solver ( density, ehartree, vhartree, dvhartree, h_stress 
   END IF
 
   NULLIFY (pw_grid)
+
+! point pw
+  IF ( PRESENT ( vhartree ) .OR. PRESENT ( dvhartree ) ) &
+  pw_grid => vhartree % pw % pw_grid
+  IF ( PRESENT ( dvhartree ) .AND. .NOT. PRESENT ( vhartree ) ) &
+  CALL stop_program ( 'pw_poisson_solver', 'Need vhartree for dvhartree calculation' )
+
   IF ( PRESENT ( vhartree ) ) THEN
-    pw_grid => vhartree % pw % pw_grid
      vhartree % pw % in_space = RECIPROCALSPACE
 ! density in G space
     CALL pw_allocate ( rhog, pw_grid, COMPLEXDATA1D )
@@ -155,8 +161,11 @@ SUBROUTINE pw_poisson_solver ( density, ehartree, vhartree, dvhartree, h_stress 
   ENDIF
 
   ! do we need to calculate the energy
-  IF ( PRESENT ( ehartree ) ) &
-  ehartree = 0.5_dbl * pw_integral_ab ( density % pw, vhartree % pw )
+  IF ( PRESENT ( ehartree ) .AND. PRESENT ( vhartree ) ) THEN
+    ehartree = 0.5_dbl * pw_integral_ab ( density % pw, vhartree % pw )
+  ELSE
+    CALL stop_program ( 'pw_poisson_solver', 'Need vhartree for ehartree calculation' )
+  ENDIF
 
   ! do we need to calculate the derivative of the potential?
   IF ( PRESENT ( h_stress ) .OR. PRESENT ( dvhartree ) ) THEN

@@ -1343,7 +1343,7 @@ END SUBROUTINE  get_coef_temp
 !!****** integrator/get_coef_ke [1.0] *
 !!
 !!   NAME
-!!     get_part_ke
+!!     get_coef_ke
 !!
 !!   FUNCTION
 !!     Calculates kinetic energy of coefs
@@ -1363,21 +1363,30 @@ SUBROUTINE get_coef_ke ( struc, ekinc )
   REAL (dbl), INTENT ( out ) :: ekinc
 
   INTEGER :: i, ncoef
-
   ekinc = zero
-  ncoef = SIZE ( struc % coef_vel (1) % ao % cr )
-  DO i = 1, ncoef 
-     ekinc = ekinc + 0.5_dbl * struc%coef_vel(1)%ao%mass(i) * & 
-        struc%coef_vel(1)%ao%cr(i) * struc%coef_vel(1)%ao%cr(i)
-  END DO
+
+  SELECT CASE ( struc % coef_pos ( 1 ) % in_use )
+  CASE ( 402 )
+    ncoef = SIZE ( struc % coef_vel ( 1 ) % ao % cr )
+    DO i = 1, ncoef 
+       ekinc = ekinc + 0.5_dbl * struc % coef_vel ( 1 ) % ao % mass ( i ) * & 
+          struc % coef_vel ( 1 ) % ao % cr ( i ) * struc % coef_vel ( 1 ) % ao % cr ( i )
+    END DO
+  CASE ( 401 )
+    ncoef = SIZE ( struc % coef_vel ( 1 ) % pw % cc )
+    DO i = 1, ncoef 
+       ekinc = ekinc + 0.5_dbl * struc % coef_vel ( 1 ) % pw % mass_cc ( i ) * & 
+          struc % coef_vel ( 1 ) % pw % cc ( i ) * struc % coef_vel ( 1 ) % pw % cc ( i )
+    END DO
+  CASE DEFAULT
+     CALL stop_program ( 'nvt_coef','integrator not implemented')
+  END SELECT 
 
 ! sum all contributions to energy over calculated parts on all processors
 #if defined(__parallel)
   CALL mp_sum(thermo%kin,int_group)
 #endif
 END SUBROUTINE get_coef_ke
-
-!******************************************************************************
 
 !!*****
 !******************************************************************************
@@ -1463,18 +1472,140 @@ SUBROUTINE nve_coef ( itimes, constant, simpar, inter, thermo,  &
   TYPE ( kpoint_type ), INTENT ( IN ) :: kp
   TYPE ( lnhc_parameters_type ), INTENT ( INOUT ) :: nhc_coef
 
-  SELECT CASE ( struc % coef_pos (1) % in_use )
+  SELECT CASE ( struc % coef_pos ( 1 ) % in_use )
   CASE ( 402 )
     CALL nve_ao ( itimes, constant, simpar, inter, thermo,  &
                   struc, ewald_param, nhc_coef, dft_control, kp )
   CASE ( 401 )
-     CALL stop_program ( 'nve_coef','integrator not implemented')
+    CALL nve_pw ( itimes, constant, simpar, inter, thermo,  &
+                  struc, ewald_param, nhc_coef, dft_control, kp )
   CASE DEFAULT
      CALL stop_program ( 'nve_coef','integrator not implemented')
   END SELECT 
   
 
 END SUBROUTINE nve_coef 
+!!*****
+!******************************************************************************
+!!****** integrator/nve_pw [1.0] *
+!!
+!!   NAME
+!!     nve_ao
+!!
+!!   FUNCTION
+!!     nve integrator for particle positions & momenta
+!!
+!!   AUTHOR
+!!     CJM
+!!
+!!   MODIFICATION HISTORY
+!!     none
+!!
+!!   SOURCE
+!******************************************************************************
+
+SUBROUTINE nve_pw ( itimes, constant, simpar, inter, thermo, struc, &
+                    ewald_param, nhc_coef, dft_control, kp )
+  
+  IMPLICIT NONE
+  
+! Arguments
+  INTEGER, INTENT ( IN ) :: itimes
+  REAL ( dbl ), INTENT ( INOUT ) :: constant
+  TYPE (simulation_parameters_type ), INTENT ( IN ) :: simpar
+  TYPE (thermodynamic_type ), INTENT ( INOUT ) :: thermo
+  TYPE (structure_type ), INTENT ( INOUT ) :: struc
+  TYPE (ewald_parameters_type ), INTENT ( INOUT ) :: ewald_param
+  TYPE (interaction_type ), INTENT ( IN ) :: inter
+  TYPE ( dft_control_type ) :: dft_control
+  TYPE ( kpoint_type ), INTENT ( IN ) :: kp
+  TYPE ( lnhc_parameters_type ), INTENT ( INOUT ) :: nhc_coef
+  
+! Local
+  INTEGER :: i, nnodes, ncoef
+  REAL ( dbl ) :: dtom, dtocm
+  LOGICAL, PARAMETER :: box_change = .FALSE.
+
+!------------------------------------------------------------------------------
+  IF ( simpar % pol_ensemble == "NVT" ) & 
+  CALL lnhc ( nhc_coef, struc % coef_vel ( 1 ) % pw, int_group )
+
+  IF ( simpar % constraint ) CALL getold ( struc % molecule )
+!
+! first half of velocity verlet
+!
+  nnodes = size(struc%pnode)
+  DO i = 1, nnodes
+     dtom = 0.5_dbl*simpar%dt/struc%pnode(i) %p%prop%mass
+     struc%pnode(i) %p%v(1) = struc%pnode(i) %p%v(1) + &
+          dtom*struc%pnode(i) %p%f(1)
+     struc%pnode(i) %p%v(2) = struc%pnode(i) %p%v(2) + &
+          dtom*struc%pnode(i) %p%f(2)
+     struc%pnode(i) %p%v(3) = struc%pnode(i) %p%v(3) + &
+          dtom*struc%pnode(i) %p%f(3)
+     struc%pnode(i) %p%r(1) = struc%pnode(i) %p%r(1) + &
+          struc%pnode(i) %p%v(1)*simpar%dt
+     struc%pnode(i) %p%r(2) = struc%pnode(i) %p%r(2) + &
+          struc%pnode(i) %p%v(2)*simpar%dt
+     struc%pnode(i) %p%r(3) = struc%pnode(i) %p%r(3) + &
+          struc%pnode(i) %p%v(3)*simpar%dt
+  END DO
+
+  IF (simpar%constraint) CALL shake_control(struc%molecule,simpar)
+
+  ncoef = SIZE ( struc % coef_pos ( 1 ) % pw % cc )
+  DO i = 1, ncoef
+     dtocm = 0.5_dbl * simpar % dt / struc % coef_vel ( 1 ) % pw % mass_cc ( i )
+     struc % coef_vel ( 1 ) % pw % cc ( i ) = struc % coef_vel ( 1 ) % pw  % cc ( i ) &
+                     + dtocm * struc % coef_force ( 1 ) % pw % cc ( i )
+     struc % coef_pos ( 1 ) % pw % cc ( i ) = struc % coef_pos ( 1 ) % pw % cc ( i ) &
+             + struc % coef_vel ( 1 ) % pw % cc ( i ) * simpar % dt
+  END DO
+
+#if defined(__parallel)
+  CALL update_structure(struc,'POS')
+#endif
+
+!
+! get new forces
+!
+  CALL force ( struc, inter, thermo, simpar, ewald_param, box_change, &
+               intenv, dft_control, kp )
+  
+!
+! second half of velocity verlet
+!
+  DO i = 1, nnodes
+     dtom = 0.5_dbl*simpar%dt/struc%pnode(i) %p%prop%mass
+     struc%pnode(i) %p%v(1) = struc%pnode(i) %p%v(1) + &
+          dtom*struc%pnode(i) %p%f(1)
+     struc%pnode(i) %p%v(2) = struc%pnode(i) %p%v(2) + &
+          dtom*struc%pnode(i) %p%f(2)
+     struc%pnode(i) %p%v(3) = struc%pnode(i) %p%v(3) + &
+          dtom*struc%pnode(i) %p%f(3)
+  END DO
+
+  DO i = 1, ncoef
+     dtocm = 0.5_dbl * simpar % dt / struc % coef_vel ( 1 ) % pw % mass_cc ( i )
+     struc % coef_vel ( 1 ) % pw % cc ( i ) = struc % coef_vel ( 1 ) % pw % cc ( i ) &
+                      + dtocm * struc % coef_force ( 1 ) % pw % cc ( i )
+  END DO
+
+  IF ( simpar % pol_ensemble == "NVT" ) & 
+  CALL lnhc ( nhc_coef, struc % coef_vel ( 1 ) % pw, int_group )
+
+  IF (simpar%constraint) CALL rattle_control(struc%molecule,simpar)
+#if defined(__parallel)
+  CALL update_structure(struc,'VEL')
+#endif
+
+! updating the virial
+  IF (simpar%constraint) CALL pv_constraint(struc%molecule,thermo, &
+                                            'FULL',int_group )
+
+  CALL pressure(struc%pnode,thermo)
+
+END SUBROUTINE nve_pw
 
 !!*****
 !******************************************************************************
@@ -1597,6 +1728,132 @@ SUBROUTINE nve_ao ( itimes, constant, simpar, inter, thermo, struc, &
   CALL pressure(struc%pnode,thermo)
 
 END SUBROUTINE nve_ao
+!!*****
+!******************************************************************************
+!!****** integrator/nvt_ao [1.0] *
+!!
+!!   NAME
+!!     nvt_pw
+!!
+!!   FUNCTION
+!!     nvt integrator for particle positions & momenta
+!!
+!!   AUTHOR
+!!     CJM
+!!
+!!   MODIFICATION HISTORY
+!!     none
+!!
+!!   SOURCE
+!******************************************************************************
+
+SUBROUTINE nvt_pw ( itimes, constant, simpar, inter, thermo, struc, &
+                    ewald_param, nhc_part, nhc_coef, dft_control, kp )
+
+  IMPLICIT NONE
+  
+! Arguments
+  INTEGER, INTENT ( IN ) :: itimes
+  REAL ( dbl ), INTENT ( INOUT ) :: constant
+  TYPE ( simulation_parameters_type ), INTENT ( IN ) :: simpar
+  TYPE ( interaction_type ), INTENT ( IN ) :: inter
+  TYPE ( thermodynamic_type ), INTENT ( INOUT ) :: thermo
+  TYPE ( structure_type ), INTENT ( INOUT ) :: struc
+  TYPE ( ewald_parameters_type ), INTENT ( INOUT ) :: ewald_param
+  TYPE ( lnhc_parameters_type ), INTENT ( INOUT ) :: nhc_part
+  TYPE ( lnhc_parameters_type ), INTENT ( INOUT ) :: nhc_coef
+  TYPE ( dft_control_type ) :: dft_control
+  TYPE ( kpoint_type ), INTENT ( IN ) :: kp
+  
+! Local
+  INTEGER :: i, nnodes, ncoef
+  REAL ( dbl ) :: dtom, dtocm
+  LOGICAL, PARAMETER :: box_change = .FALSE.
+
+!------------------------------------------------------------------------------
+  IF ( simpar % pol_ensemble == "NVT" ) & 
+  CALL lnhc ( nhc_coef, struc % coef_vel ( 1 ) % pw, int_group )
+
+  CALL lnhc ( nhc_part, struc % pnode, int_group )
+
+  IF ( simpar % constraint ) CALL getold ( struc % molecule )
+!
+! first half of velocity verlet
+!
+  nnodes = size(struc%pnode)
+  DO i = 1, nnodes
+     dtom = 0.5_dbl*simpar%dt/struc%pnode(i) %p%prop%mass
+     struc%pnode(i) %p%v(1) = struc%pnode(i) %p%v(1) + &
+          dtom*struc%pnode(i) %p%f(1)
+     struc%pnode(i) %p%v(2) = struc%pnode(i) %p%v(2) + &
+          dtom*struc%pnode(i) %p%f(2)
+     struc%pnode(i) %p%v(3) = struc%pnode(i) %p%v(3) + &
+          dtom*struc%pnode(i) %p%f(3)
+     struc%pnode(i) %p%r(1) = struc%pnode(i) %p%r(1) + &
+          struc%pnode(i) %p%v(1)*simpar%dt
+     struc%pnode(i) %p%r(2) = struc%pnode(i) %p%r(2) + &
+          struc%pnode(i) %p%v(2)*simpar%dt
+     struc%pnode(i) %p%r(3) = struc%pnode(i) %p%r(3) + &
+          struc%pnode(i) %p%v(3)*simpar%dt
+  END DO
+
+  IF (simpar%constraint) CALL shake_control(struc%molecule,simpar)
+
+  ncoef = SIZE ( struc % coef_pos (1) % pw % cc )
+  DO i = 1, ncoef
+     dtocm = 0.5_dbl * simpar % dt / struc % coef_vel ( 1 ) % pw % mass_cc ( i )
+     struc % coef_vel ( 1 ) % pw % cc ( i ) = struc % coef_vel ( 1 ) % pw  % cc ( i ) &
+                      + dtocm * struc % coef_force ( 1 ) % pw % cc ( i )
+     struc % coef_pos ( 1 ) % pw % cc ( i ) = struc % coef_pos ( 1 ) % pw % cc ( i ) &
+                      + struc % coef_vel ( 1 ) % pw % cc ( i ) * simpar % dt
+  END DO
+
+#if defined(__parallel)
+  CALL update_structure(struc,'POS')
+#endif
+
+!
+! get new forces
+!
+  CALL force ( struc, inter, thermo, simpar, ewald_param, box_change, &
+               intenv, dft_control, kp )
+  
+!
+! second half of velocity verlet
+!
+  DO i = 1, nnodes
+     dtom = 0.5_dbl*simpar%dt/struc%pnode(i) %p%prop%mass
+     struc%pnode(i) %p%v(1) = struc%pnode(i) %p%v(1) + &
+          dtom*struc%pnode(i) %p%f(1)
+     struc%pnode(i) %p%v(2) = struc%pnode(i) %p%v(2) + &
+          dtom*struc%pnode(i) %p%f(2)
+     struc%pnode(i) %p%v(3) = struc%pnode(i) %p%v(3) + &
+          dtom*struc%pnode(i) %p%f(3)
+  END DO
+
+  DO i = 1, ncoef
+     dtocm = 0.5_dbl * simpar % dt / struc % coef_vel ( 1 ) % pw % mass_cc ( i )
+     struc % coef_vel ( 1 ) % pw % cc ( i ) = struc % coef_vel ( 1 ) % pw % cc ( i ) &
+                      + dtocm * struc % coef_force ( 1 ) % pw % cc ( i )
+  END DO
+
+  IF ( simpar % pol_ensemble == "NVT" ) & 
+  CALL lnhc ( nhc_coef, struc % coef_vel ( 1 ) % pw, int_group )
+
+  CALL lnhc ( nhc_part, struc % pnode, int_group )
+
+  IF (simpar%constraint) CALL rattle_control(struc%molecule,simpar)
+#if defined(__parallel)
+  CALL update_structure(struc,'VEL')
+#endif
+
+! updating the virial
+  IF (simpar%constraint) CALL pv_constraint(struc%molecule,thermo, &
+                                            'FULL',int_group )
+
+  CALL pressure(struc%pnode,thermo)
+
+END SUBROUTINE nvt_pw
 
 !!*****
 !******************************************************************************

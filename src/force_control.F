@@ -21,12 +21,14 @@
 
 MODULE force_control
 
+  USE coefficient_types, ONLY : coeff_type, PLANEWAVES, ATOMICORBITALS
   USE brillouin, ONLY : kpoint_type
   USE ewald_parameters_types, ONLY : ewald_parameters_type
 !!!!  USE dft_structure_control, ONLY : dft_force_control
   USE dft_types, ONLY : dft_control_type
   USE fist_force, ONLY : fist_force_control => force_control
-  USE pol_force, ONLY : pol_force_control => force_control
+  USE pol_force_ao, ONLY : pol_force_control_ao => force_control
+  USE pol_force_pw, ONLY : pol_force_control_pw => force_control
   USE global_types, ONLY : global_environment_type
   USE tbmd_force, ONLY : tbmd_force_control => force_control
   USE kinds, ONLY : dbl
@@ -96,11 +98,21 @@ SUBROUTINE force_1 ( struc, inter, thermo, simpar, ewald_param, box_change, &
           box_change, globenv, struc%ll_data (1) )
 
   CASE ( 'POL' )
-     CALL pol_force_control ( struc % molecule, struc % pnode, struc % part, &
+     SELECT CASE ( struc % coef_pos ( 1 ) % in_use )
+     CASE ( ATOMICORBITALS )
+       CALL pol_force_control_ao ( struc % molecule, struc % pnode, struc % part, &
           struc % box, struc % box_ref, struc % drho_basis_info, &
           struc % rho0_basis_info, struc % coef_pos (1), struc % coef_vel (1), &
           struc % coef_force (1), thermo, inter%potparm, inter%empparm,  &
           ewald_param, box_change, globenv, struc%ll_data )
+     CASE ( PLANEWAVES )
+       CALL pol_force_control_pw ( struc % molecule, struc % pnode, struc % part, &
+          struc % box, struc % box_ref, struc % drho_basis_info, &
+          struc % rho0_basis_info, struc % coef_pos (1), struc % coef_vel (1), &
+          struc % coef_force (1), struc % projector ( 1 ), struc % pw_grid ( 1 ), &
+          thermo, inter%potparm, inter%empparm, ewald_param, box_change, globenv, &
+          struc%ll_data )
+     END SELECT 
 
   CASE ( 'TBMD' )
      CALL tbmd_force_control ( struc % molecule, struc % pnode, struc % part, &

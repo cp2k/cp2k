@@ -47,9 +47,9 @@ MODULE pw_types
   PUBLIC :: NOSPACE, REALSPACE, RECIPROCALSPACE
 
   TYPE pw_type
-     REAL ( dbl ), DIMENSION ( : ), POINTER :: cr
+     REAL ( dbl ), DIMENSION ( : ), POINTER :: cr, mass_cr
      REAL ( dbl ), DIMENSION ( :, :, : ), POINTER :: cr3d
-     COMPLEX ( dbl ), DIMENSION ( : ), POINTER :: cc
+     COMPLEX ( dbl ), DIMENSION ( : ), POINTER :: cc, mass_cc
      COMPLEX ( dbl ), DIMENSION ( :, :, : ), POINTER :: cc3d
 
      INTEGER :: in_use              ! Which data is used [r1d/c1d/r3d/c3d]
@@ -104,7 +104,7 @@ CONTAINS
 !!   SOURCE
 !******************************************************************************
 
-SUBROUTINE pw_allocate ( pw, pw_grid, use_data )
+SUBROUTINE pw_allocate ( pw, pw_grid, use_data, mass_flag )
 
   IMPLICIT NONE
 
@@ -112,12 +112,16 @@ SUBROUTINE pw_allocate ( pw, pw_grid, use_data )
   INTEGER, INTENT ( IN ) :: use_data
   TYPE ( pw_grid_type ), INTENT ( IN ), TARGET :: pw_grid
   TYPE ( pw_type ), INTENT ( INOUT ), TARGET :: pw
+  LOGICAL, INTENT ( IN ), OPTIONAL :: mass_flag
 
 ! Locals
   INTEGER :: allocstat
   INTEGER, DIMENSION ( :, : ), POINTER :: bounds
+  LOGICAL :: mass_flag_local
 
 !------------------------------------------------------------------------------
+  mass_flag_local = .FALSE.
+  IF ( PRESENT ( mass_flag ) ) mass_flag_local = mass_flag
 
   NULLIFY ( pw % pw_grid )
   pw % in_use = use_data
@@ -131,11 +135,21 @@ SUBROUTINE pw_allocate ( pw, pw_grid, use_data )
      ALLOCATE ( pw % cr ( pw % pw_grid % ngpts_cut_local ), STAT = allocstat )
      IF ( allocstat /= 0 ) CALL stop_memory ( "pw_allocate", &
         "cr", pw % pw_grid % ngpts_cut_local )
+     IF ( mass_flag_local ) THEN
+       ALLOCATE ( pw % mass_cr ( pw % pw_grid % ngpts_cut_local ), STAT = allocstat )
+       IF ( allocstat /= 0 ) CALL stop_memory ( "pw_allocate", &
+          "mass_cr", pw % pw_grid % ngpts_cut_local )
+     ENDIF
 
   ELSE IF ( use_data == COMPLEXDATA1D ) THEN
      ALLOCATE ( pw % cc ( pw % pw_grid % ngpts_cut_local ), STAT = allocstat )
      IF ( allocstat /= 0 ) CALL stop_memory ( "pw_allocate", &
         "cc", pw % pw_grid % ngpts_cut_local )
+     IF ( mass_flag_local ) THEN
+       ALLOCATE ( pw % mass_cc ( pw % pw_grid % ngpts_cut_local ), STAT = allocstat )
+       IF ( allocstat /= 0 ) CALL stop_memory ( "pw_allocate", &
+          "mass_cc", pw % pw_grid % ngpts_cut_local )
+     ENDIF
 
   ELSE IF ( use_data == REALDATA3D ) THEN
      ALLOCATE ( pw % cr3d ( &
@@ -1389,6 +1403,7 @@ SUBROUTINE fft_wrap_pw1 ( pw1, debug )
                     "replicated data with COMPLEXDATA3D structure" )
   END IF
   CALL timestop(0.0_dbl,handle) 
+
 END SUBROUTINE fft_wrap_pw1
 
 
@@ -1409,7 +1424,7 @@ SUBROUTINE fft_wrap_pw1pw2 ( pw1, pw2, debug )
   COMPLEX ( dbl ), DIMENSION ( :, : ), ALLOCATABLE :: grays
   REAL ( dbl ) :: norm
   INTEGER, DIMENSION ( : ), POINTER :: n
-  INTEGER :: dir, out_space, ierr, nrays, my_pos, nloc ( 3 ), handle, i,j,k
+  INTEGER :: dir, out_space, ierr, nrays, my_pos, nloc ( 3 ), handle, i, j, k
   CHARACTER ( LEN = 9 ) :: mode
   LOGICAL :: test
   
@@ -1473,7 +1488,6 @@ SUBROUTINE fft_wrap_pw1pw2 ( pw1, pw2, debug )
          WRITE ( *,'(A,T66,A)') "  out space ","RECIPROCALSPACE"
       WRITE ( *,'(A,T66,E15.6)') "  scale factor",norm
     END IF
-
 
     SELECT CASE ( mode )
       CASE DEFAULT
@@ -1581,7 +1595,6 @@ SUBROUTINE fft_wrap_pw1pw2 ( pw1, pw2, debug )
          WRITE ( *,'(A,T66,A)') "  out space ","RECIPROCALSPACE"
       WRITE ( *,'(A,T66,E15.6)') "  scale factor",norm
     END IF
-
 
     my_pos = pw1 % pw_grid % para % my_pos
     nrays = pw1 % pw_grid % para % nyzray ( my_pos )

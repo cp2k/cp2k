@@ -22,7 +22,7 @@
 
 MODULE nhc
 
-  USE coefficient_types, ONLY : coeff_type
+  USE coefficient_types, ONLY : coeff_type, PLANEWAVES, ATOMICORBITALS
   USE global_types, ONLY : global_environment_type
   USE kinds, ONLY : dbl
   USE md, ONLY : simulation_parameters_type
@@ -67,7 +67,7 @@ SUBROUTINE nhc_pol_setup ( simpar, coeff, nhc, globenv )
   TYPE ( lnhc_parameters_type ), INTENT ( OUT ) :: nhc
   TYPE ( global_environment_type ), INTENT ( IN ) :: globenv
 ! begin local definitions
-  INTEGER :: i, iw
+  INTEGER :: i, j, iw
   INTEGER :: isos, number, ncoef
 !
   iw = globenv % scr
@@ -85,28 +85,45 @@ SUBROUTINE nhc_pol_setup ( simpar, coeff, nhc, globenv )
     nhc % nyosh = simpar % pol_nyosh
     nhc % nc = simpar % pol_nc
     nhc % nhc_len = simpar % pol_nhclen
-    IF ( simpar % pol_option == 'GLOBAL' )  THEN
-      number = 1
-      nhc % num_nhc = 1
-    ELSEIF ( simpar % pol_option == 'MASSIVE' )  THEN
-      number = SIZE ( coeff % ao % cr )
-      nhc % num_nhc = number
-    ENDIF
-    ncoef = SIZE ( coeff % ao % cr )
+
+    SELECT CASE ( coeff % in_use )
+    CASE ( ATOMICORBITALS )
+      ncoef = SIZE ( coeff % ao % cr )
+      IF ( simpar % pol_option == 'GLOBAL' )  THEN
+        nhc % num_nhc = 1
+      ELSEIF ( simpar % pol_option == 'MASSIVE' )  THEN
+        nhc % num_nhc = ncoef
+      ENDIF
+    CASE ( PLANEWAVES )
+      ncoef = SIZE ( coeff % pw % cc )
+      IF ( simpar % pol_option == 'GLOBAL' )  THEN
+        nhc % num_nhc = 1
+      ELSEIF ( simpar % pol_option == 'MASSIVE' )  THEN
+        nhc % num_nhc = 2 * ncoef
+      ENDIF
+    END SELECT    
 
 ! Now we can allocate the target array s_kin and p_kin
 
     ALLOCATE ( nhc % s_kin ( nhc % num_nhc ), STAT = isos)
-    IF ( isos /= 0 ) CALL stop_program ( 'nhc_ao_setup', &
+    IF ( isos /= 0 ) CALL stop_program ( 'nhc_pol_setup', &
       'failed to allocate nhc%s_kin' )
     ALLOCATE ( nhc % v_scale ( nhc % num_nhc ), STAT = isos )
-    IF (isos/=0) CALL stop_program('nhc_ao_setup', &
+    IF (isos/=0) CALL stop_program('nhc_pol_setup', &
       'failed to allocate nhc%v_scale' )
-    ALLOCATE ( nhc % p_kin ( 1, ncoef ), STAT = isos )
-    IF (isos/=0) CALL stop_program('nhc_ao_setup', &
-      'failed to allocate nhc%p_kin' )
-    ALLOCATE ( nhc % p_scale ( 1, ncoef ), STAT = isos )
-    IF (isos/=0) CALL stop_program('nhc_ao_setup', &
+    IF ( coeff % in_use == ATOMICORBITALS ) THEN
+      ALLOCATE ( nhc % p_kin ( 1, ncoef ), STAT = isos )
+    ELSEIF ( coeff % in_use == PLANEWAVES ) THEN
+      ALLOCATE ( nhc % p_kin ( 2, ncoef ), STAT = isos )
+    ENDIF
+    IF (isos/=0) CALL stop_program('nhc_pol_setup', &
+      'failed to allocate nhc % p_kin' )
+    IF ( coeff % in_use == ATOMICORBITALS ) THEN
+      ALLOCATE ( nhc % p_scale ( 1, ncoef ), STAT = isos )
+    ELSEIF ( coeff % in_use == PLANEWAVES ) THEN
+      ALLOCATE ( nhc % p_scale ( 2, ncoef ), STAT = isos )
+    ENDIF
+    IF (isos/=0) CALL stop_program('nhc_pol_setup', &
       'failed to allocate nhc%p_scale')
 
 ! Begin the mapping loop
@@ -117,9 +134,13 @@ SUBROUTINE nhc_pol_setup ( simpar, coeff, nhc, globenv )
         nhc % p_scale ( 1, i ) % point => nhc % v_scale ( 1 )
       END DO
     ELSEIF ( simpar % pol_option == 'MASSIVE' )  THEN
+      number = 0
       DO i = 1, ncoef
-        nhc % p_kin ( 1, i ) % point => nhc % s_kin ( i )
-        nhc % p_scale ( 1, i ) % point => nhc % v_scale ( i )
+        DO j = 1, SIZE ( nhc % p_kin, 1 )
+          number = number + 1
+          nhc % p_kin ( j, i ) % point => nhc % s_kin ( number )
+          nhc % p_scale ( j, i ) % point => nhc % v_scale ( number )
+        END DO
       END DO
     ENDIF
 
@@ -131,7 +152,9 @@ SUBROUTINE nhc_pol_setup ( simpar, coeff, nhc, globenv )
 ! Find the number of degrees of freedom on each thermostat
     nhc % s_kin = 0._dbl
     DO i = 1, ncoef
-      nhc % p_kin ( 1, i ) % point  = nhc % p_kin ( 1, i ) % point  + 1._dbl
+      DO j = 1, SIZE ( nhc % p_kin, 1 ) 
+        nhc % p_kin ( j, i ) % point  = nhc % p_kin ( j, i ) % point  + 1._dbl
+      END DO
     ENDDO
      
 !
@@ -139,7 +162,7 @@ SUBROUTINE nhc_pol_setup ( simpar, coeff, nhc, globenv )
 ! (number of degrees of freedom times k_B T )
 
     DO i = 1, nhc % num_nhc
-       nhc % nvt ( 1, i ) % nkt = simpar % pol_temp * nhc % s_kin ( i )
+     nhc % nvt ( 1, i ) % nkt = simpar % pol_temp * nhc % s_kin ( i )
     END DO
 
 ! getting the number of degrees of freedom times k_B T for the rest of the chain
@@ -155,7 +178,6 @@ SUBROUTINE nhc_pol_setup ( simpar, coeff, nhc, globenv )
       'failed to allocate nhc%dt_yosh')
     CALL yoshida_coef( nhc, simpar % dt )
   END SELECT
-
 
 END SUBROUTINE nhc_pol_setup
 !******************************************************************************

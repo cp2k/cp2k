@@ -28,7 +28,6 @@ MODULE pol_grids
   USE dg_rho0s, ONLY :  dg_rho0_type, dg_rho0_setup  
   USE kinds, ONLY : dbl
   USE mathconstants, ONLY : pi, zero
-  USE md, ONLY : thermodynamic_type
   USE molecule_types, ONLY : particle_node_type
   USE message_passing, ONLY : mp_sum
   USE particle_types, ONLY : particle_type
@@ -48,15 +47,12 @@ MODULE pol_grids
 
   PRIVATE
   PUBLIC :: pol_grids_allocate, pol_grids_count, pol_grids_initialize
-  PUBLIC :: pol_grids_map, assign_coefs_to_grids                       
+  PUBLIC :: pol_grids_map, assign_coefs_to_grids, pol_grids_ref_grid                       
   
-!!*****
 !******************************************************************************
 
 CONTAINS
 
-!******************************************************************************
-!*****
 !******************************************************************************
 !!****** pol_grids/pol_grids_allocate [1.0] *
 !!
@@ -89,33 +85,31 @@ CONTAINS
 
 !---------------------------------------------
 
-  NULLIFY (dg_coef, dg_atom)
-  NULLIFY (small_grid, big_grid)
+  NULLIFY ( dg_coef, dg_atom )
+  NULLIFY ( small_grid, big_grid )
 
-  ALLOCATE (dg_coef(ntc), STAT = ios)
-  IF (ios /= 0 ) THEN
-    CALL stop_memory ('allocate_pol_grids', 'dg_coef', ntc)
+  ALLOCATE ( dg_coef ( ntc ), STAT = ios )
+  IF ( ios /= 0 ) THEN
+    CALL stop_memory ( 'allocate_pol_grids', 'dg_coef', ntc )
   END IF
 
-  ALLOCATE (dg_atom(nta), STAT = ios)
-  IF (ios /= 0 ) THEN
-    CALL stop_memory ('allocate_pol_grids', 'dg_atom', nta)
+  ALLOCATE ( dg_atom ( nta ), STAT = ios )
+  IF ( ios /= 0 ) THEN
+    CALL stop_memory ( 'allocate_pol_grids', 'dg_atom', nta )
   END IF
 
-  ALLOCATE (small_grid(ng), STAT = ios)
-  IF (ios /= 0 ) THEN
-    CALL stop_memory ('allocate_pol_grids', 'small_grid', ng)
+  ALLOCATE ( small_grid ( ng ), STAT = ios )
+  IF ( ios /= 0 ) THEN
+    CALL stop_memory ( 'allocate_pol_grids', 'small_grid', ng )
   END IF
 
-  ALLOCATE (big_grid(ng), STAT = ios)
-  IF (ios /= 0 ) THEN
-    CALL stop_memory ('allocate_pol_grids', 'big_grid', ng)
+  ALLOCATE ( big_grid ( ng ), STAT = ios )
+  IF ( ios /= 0 ) THEN
+    CALL stop_memory ( 'allocate_pol_grids', 'big_grid', ng )
   END IF
 
  END SUBROUTINE pol_grids_allocate
 
-!******************************************************************************
-!*****
 !******************************************************************************
 !!****** pol_grids/pol_grids_count [1.0] *
 !!
@@ -130,16 +124,16 @@ CONTAINS
 !!   SOURCE
 !******************************************************************************
 
-SUBROUTINE pol_grids_count (drho_basis_info, rho0_basis_info, ngc, nga, ntc, nta)
+SUBROUTINE pol_grids_count ( drho_basis_info, rho0_basis_info, ngc, nga, ntc, nta )
   
   IMPLICIT NONE
   
   TYPE ( kind_info_type ), INTENT(IN), DIMENSION ( : ) :: drho_basis_info
   TYPE ( kind_info_type ), INTENT(IN), DIMENSION ( : ) :: rho0_basis_info
-  INTEGER, INTENT(out) :: ngc
-  INTEGER, INTENT(out) :: nga
-  INTEGER, INTENT(out) :: ntc
-  INTEGER, INTENT(out) :: nta
+  INTEGER, INTENT ( OUT ) :: ngc
+  INTEGER, INTENT ( OUT ) :: nga
+  INTEGER, INTENT ( OUT ) :: ntc
+  INTEGER, INTENT ( OUT ) :: nta
 
 ! locals
 
@@ -159,7 +153,7 @@ SUBROUTINE pol_grids_count (drho_basis_info, rho0_basis_info, ngc, nga, ntc, nta
         nshell_set =  drho_basis_info(i)%orb_basis_set % nshell(iset)
         ngc = ngc + nshell_set
         DO ishell = 1, nshell_set
-          ntc = ntc +(2*drho_basis_info(i)% orb_basis_set % l(ishell,iset)+1)
+          ntc = ntc + ( 2 * drho_basis_info ( i ) % orb_basis_set % l ( ishell, iset ) + 1 )
         ENDDO
       ENDDO
     ENDDO
@@ -181,8 +175,6 @@ SUBROUTINE pol_grids_count (drho_basis_info, rho0_basis_info, ngc, nga, ntc, nta
 
 
 !******************************************************************************
-!*****
-!******************************************************************************
 !!****** pol_grids/pol_grids_map [1.0] *
 !!
 !!   NAME
@@ -196,13 +188,13 @@ SUBROUTINE pol_grids_count (drho_basis_info, rho0_basis_info, ngc, nga, ntc, nta
 !!   SOURCE
 !******************************************************************************
 
-SUBROUTINE pol_grids_map ( dg, ki, igrid)
+SUBROUTINE pol_grids_map ( dg, ki, igrid )
 
   IMPLICIT NONE
   
-  TYPE ( dg_type ), POINTER, DIMENSION (:) :: dg
+  TYPE ( dg_type ), POINTER, DIMENSION ( : ) :: dg
   TYPE ( kind_info_type ), POINTER, DIMENSION ( : )  :: ki
-  INTEGER, INTENT(INOUT) :: igrid
+  INTEGER, INTENT ( INOUT ) :: igrid
 
 ! locals
   INTEGER :: igt, ikind, iset, ishell, nshell, ncc, icc, ios, ip
@@ -210,84 +202,84 @@ SUBROUTINE pol_grids_map ( dg, ki, igrid)
 
   igt = 0
   
-  DO ikind=1,SIZE(ki) 
+  DO ikind=1,SIZE ( ki ) 
   
-     gto_info => ki(ikind)%orb_basis_set
+     gto_info => ki ( ikind ) % orb_basis_set
      
      DO iset = 1, gto_info%nset
      
-        nshell = gto_info%nshell(iset)
+        nshell = gto_info%nshell ( iset )
 
-        DO ishell=1, nshell
+        DO ishell = 1, nshell
 
-           igrid = igrid+1
+           igrid = igrid + 1
    
-           SELECT CASE(gto_info%l(ishell,iset))
+           SELECT CASE ( gto_info % l ( ishell, iset ) )
      
-           CASE(0)
+           CASE ( 0 )
    
-              igt=igt+1 
+              igt = igt + 1 
 
-              dg(igt) % grid_index = igrid
-              dg(igt)% dg_rho0 % type  = "S"
-              dg(igt)% dg_rho0 % grid = igrid 
-              dg(igt)% dg_rho0 % kind = ikind 
-              dg(igt)% dg_rho0 % cutoff_radius = gto_info%set_radius(iset)
-              dg(igt)% nparts = size (ki(ikind)%atom_list)
+              dg ( igt ) % grid_index = igrid
+              dg ( igt ) % dg_rho0 % type  = "S"
+              dg ( igt ) % dg_rho0 % grid = igrid 
+              dg ( igt ) % dg_rho0 % kind = ikind 
+              dg ( igt ) % dg_rho0 % cutoff_radius = gto_info % set_radius ( iset )
+              dg ( igt ) % nparts = SIZE ( ki ( ikind ) % atom_list )
 
-              ncc=SIZE(gto_info % gcc(:,ishell,iset))
+              ncc = SIZE ( gto_info % gcc ( :, ishell, iset ) )
 
-              ALLOCATE(dg(igt)%dg_rho0%gcc(ncc), STAT=ios)
+              ALLOCATE ( dg ( igt ) % dg_rho0 % gcc ( ncc ), STAT = ios )
               IF (ios /= 0 ) THEN
                  CALL stop_memory ('pol_grids_map', 'gcc', ncc)
               END IF
 
-              ALLOCATE(dg(igt)%dg_rho0%zet(ncc), STAT=ios)
-              IF (ios /= 0 ) THEN
-                 CALL stop_memory ('pol_grids_map', 'zet', ncc)
+              ALLOCATE ( dg ( igt ) % dg_rho0 % zet ( ncc ), STAT = ios )
+              IF ( ios /= 0 ) THEN
+                 CALL stop_memory ( 'pol_grids_map', 'zet', ncc )
               END IF 
 
               DO icc=1, ncc
-                dg(igt)% dg_rho0 % zet(icc) = gto_info%zet(icc,iset)
-                dg(igt)% dg_rho0 % gcc(icc) = gto_info%gcc(icc,ishell,iset)
+                dg ( igt ) % dg_rho0 % zet ( icc ) = gto_info % zet ( icc, iset )
+                dg ( igt ) % dg_rho0 % gcc ( icc ) = gto_info % gcc ( icc, ishell, iset )
               ENDDO                                             
 
-           CASE(1)
+           CASE ( 1 )
 
-               DO ip=1,3
+               DO ip = 1, 3
 
-                 igt=igt+1
+                 igt = igt + 1
  
-                 SELECT CASE(ip)
-                 CASE(1)
-                  dg(igt)% dg_rho0% type ="PX"
-                 CASE(2)
-                  dg(igt)% dg_rho0% type ="PY"
-                 CASE(3)
-                  dg(igt)% dg_rho0% type ="PZ"
+                 SELECT CASE ( ip )
+                 CASE ( 1 )
+                  dg ( igt ) % dg_rho0 % type = "PX"
+                 CASE ( 2 )
+                  dg ( igt ) % dg_rho0 % type = "PY"
+                 CASE ( 3 )
+                  dg ( igt ) % dg_rho0 % type = "PZ"
                  END SELECT                       
 
-                 dg(igt) % grid_index = igrid
-                 dg(igt)% dg_rho0% grid = igrid 
-                 dg(igt)% dg_rho0% kind = ikind 
-                 dg(igt)% dg_rho0 % cutoff_radius = gto_info%set_radius(iset)
-                 dg(igt)% nparts = size (ki(ikind)%atom_list)
+                 dg ( igt ) % grid_index = igrid
+                 dg ( igt ) % dg_rho0 % grid = igrid 
+                 dg ( igt ) % dg_rho0 % kind = ikind 
+                 dg ( igt ) % dg_rho0 % cutoff_radius = gto_info % set_radius ( iset )
+                 dg ( igt ) % nparts = SIZE ( ki ( ikind ) % atom_list )
 
-                 ncc=SIZE(gto_info % gcc(:,ishell,iset))
+                 ncc = SIZE ( gto_info % gcc ( :, ishell, iset ) )
 
-                 ALLOCATE(dg(igt)%dg_rho0%gcc(ncc), STAT=ios)
-                 IF (ios /= 0 ) THEN
-                    CALL stop_memory ('pol_grids_map', 'gcc', ncc)
+                 ALLOCATE ( dg ( igt ) % dg_rho0 % gcc ( ncc ), STAT = ios )
+                 IF ( ios /= 0 ) THEN
+                    CALL stop_memory ( 'pol_grids_map', 'gcc', ncc )
                  END IF
 
-                 ALLOCATE(dg(igt)%dg_rho0%zet(ncc), STAT=ios)
-                 IF (ios /= 0 ) THEN
-                    CALL stop_memory ('pol_grids_map', 'zet', ncc)
+                 ALLOCATE ( dg ( igt ) % dg_rho0 % zet ( ncc ), STAT = ios )
+                 IF ( ios /= 0 ) THEN
+                    CALL stop_memory ( 'pol_grids_map', 'zet', ncc )
                  END IF
                   
-                 DO icc=1, ncc
-                   dg(igt)% dg_rho0 % zet(icc) = gto_info%zet(icc,iset)
-                   dg(igt)% dg_rho0 % gcc(icc) = gto_info%gcc(icc,ishell,iset)
+                 DO icc = 1, ncc
+                   dg ( igt ) % dg_rho0 % zet ( icc ) = gto_info % zet ( icc, iset )
+                   dg ( igt ) % dg_rho0 % gcc ( icc ) = gto_info % gcc ( icc, ishell, iset )
                  ENDDO                                             
  
                  END DO
@@ -303,10 +295,10 @@ SUBROUTINE pol_grids_map ( dg, ki, igrid)
  END SUBROUTINE pol_grids_map 
 !******************************************************************************
 !*****
-!!****** pol_grids/pol_grids_initialize [1.0] *
+!!****** pol_grids/pol_grids_ref_grid [1.0] *
 !!
 !!   NAME
-!!     pol_grids_initialize
+!!     pol_grids_ref_grid
 !!
 !!   FUNCTION
 !!
@@ -316,41 +308,30 @@ SUBROUTINE pol_grids_map ( dg, ki, igrid)
 !!   SOURCE
 !******************************************************************************
 
-SUBROUTINE pol_grids_initialize ( dg_coef, dg_atom,  part, pnode, ao, &
-     drho_basis_info, rho0_basis_info, pnode_grp,  box, &
-     thermo, small_grid, big_grid, iref )
+SUBROUTINE pol_grids_ref_grid ( dg_coef, dg_atom, drho_basis_info, rho0_basis_info, box, &
+                             small_grid, big_grid, iref, npts_max, cutoff_radius_max, max_cut )
   
   IMPLICIT NONE
 
 ! Arguments
   TYPE ( dg_type ), INTENT ( OUT ), DIMENSION (:) :: dg_coef
   TYPE ( dg_type ), INTENT ( OUT ), DIMENSION (:) :: dg_atom
-  TYPE ( particle_type ), DIMENSION ( : ), INTENT ( INOUT ) :: part
-  TYPE ( particle_node_type ), DIMENSION ( : ), INTENT ( IN ) :: pnode
-  TYPE ( ao_type ), INTENT (inout) :: ao
   TYPE ( kind_info_type ), POINTER, DIMENSION ( : ) :: drho_basis_info
   TYPE ( kind_info_type ), POINTER, DIMENSION ( : ) :: rho0_basis_info
-  TYPE ( global_environment_type ), INTENT ( IN ) :: pnode_grp
   TYPE ( cell_type ), INTENT ( IN ) :: box
-  TYPE ( thermodynamic_type ), INTENT ( INOUT ) :: thermo
   TYPE ( pw_grid_type ), INTENT ( INOUT ), DIMENSION (:) :: small_grid
   TYPE ( pw_grid_type ), INTENT ( INOUT ), DIMENSION (:) :: big_grid
   INTEGER, INTENT (OUT) :: iref
+  INTEGER, INTENT (OUT) :: npts_max ( : )
+  REAL ( dbl ), INTENT ( OUT ) :: cutoff_radius_max, max_cut
   
 ! Locals
-  INTEGER ::  natoms, npts_s ( 3 ), npts_max ( 3 ), iw
+  INTEGER ::  npts_s ( 3 )
   INTEGER :: igt, ikind, igrid, ig, igrid_old
-  REAL ( dbl ) :: qi, qj, i, cutoff, cutoff_radius, cutoff_max,  &
-                  max_cut0, max_cut
+  REAL ( dbl ) :: i, cutoff, cutoff_radius, max_cut0
   TYPE (kind_info_type), POINTER :: ki
 
 !------------------------------------------------------------------------------
-
-! fire up the reciprocal space and compute self interaction and
-! term from the neutralizing background.
-
- iw = pnode_grp % scr  
-
 ! initialize igrid_old to negative number as to not
 ! be activated by accident
   igrid_old = -1
@@ -381,7 +362,7 @@ SUBROUTINE pol_grids_initialize ( dg_coef, dg_atom,  part, pnode, ao, &
        iref = igrid
        max_cut0 = max_cut
        npts_max = npts_s
-       cutoff_max = cutoff_radius
+       cutoff_radius_max = cutoff_radius
      END IF   
 
      igrid_old = igrid
@@ -406,19 +387,68 @@ SUBROUTINE pol_grids_initialize ( dg_coef, dg_atom,  part, pnode, ao, &
      IF (max_cut /= max_cut0) THEN
        iref = igrid
        max_cut0 = max_cut
-       max_cut0 = max_cut
        npts_max = npts_s
-       cutoff_max = cutoff_radius
+       cutoff_radius_max = cutoff_radius
      END IF   
 
      igrid_old = igrid
 
   ENDDO
 
-! Second: setup the reference grid
+END SUBROUTINE pol_grids_ref_grid
+!******************************************************************************
+!*****
+!!****** pol_grids/pol_grids_initialize [1.0] *
+!!
+!!   NAME
+!!     pol_grids_initialize
+!!
+!!   FUNCTION
+!!
+!!   AUTHOR
+!!     gloria
+!!
+!!   SOURCE
+!******************************************************************************
+SUBROUTINE pol_grids_initialize ( dg_coef, dg_atom,  part, pnode, ao, &
+     drho_basis_info, rho0_basis_info, pnode_grp, box, small_grid, &
+     big_grid, iref, npts_max, cutoff_radius_max, ref_grid )
+  
+  IMPLICIT NONE
 
-  CALL dg_pol_grid_setup ( box, npts_max, cutoff_max , &
-           small_grid ( iref ), big_grid ( iref ), pnode_grp )
+! Arguments
+  TYPE ( dg_type ), INTENT ( OUT ), DIMENSION (:) :: dg_coef
+  TYPE ( dg_type ), INTENT ( OUT ), DIMENSION (:) :: dg_atom
+  TYPE ( particle_type ), DIMENSION ( : ), INTENT ( INOUT ) :: part
+  TYPE ( particle_node_type ), DIMENSION ( : ), INTENT ( IN ) :: pnode
+  TYPE ( ao_type ), INTENT (inout) :: ao
+  TYPE ( kind_info_type ), POINTER, DIMENSION ( : ) :: drho_basis_info
+  TYPE ( kind_info_type ), POINTER, DIMENSION ( : ) :: rho0_basis_info
+  TYPE ( global_environment_type ), INTENT ( IN ) :: pnode_grp
+  TYPE ( cell_type ), INTENT ( IN ) :: box
+  TYPE ( pw_grid_type ), INTENT ( INOUT ), DIMENSION (:) :: small_grid
+  TYPE ( pw_grid_type ), INTENT ( INOUT ), DIMENSION (:) :: big_grid
+  INTEGER, INTENT (IN) :: iref, npts_max ( 3 )
+  REAL ( dbl ), INTENT ( IN ) :: cutoff_radius_max
+  TYPE ( pw_grid_type ), INTENT ( IN ), OPTIONAL :: ref_grid
+  
+! Locals
+  INTEGER ::  natoms, npts_s ( 3 ), iw
+  INTEGER :: igt, ikind, igrid, ig, igrid_old
+  REAL ( dbl ) :: i, cutoff, cutoff_radius
+  TYPE (kind_info_type), POINTER :: ki
+
+
+! first: setup the reference grid
+
+  cutoff_radius = cutoff_radius_max
+  IF ( PRESENT ( ref_grid ) ) THEN
+    CALL dg_pol_grid_setup ( box, npts_max, cutoff_radius, &
+         small_grid ( iref ), big_grid ( iref ), pnode_grp, ref_grid )
+  ELSE
+    CALL dg_pol_grid_setup ( box, npts_max, cutoff_radius, &
+         small_grid ( iref ), big_grid ( iref ), pnode_grp )
+  ENDIF
 
 ! Third: setup rest of the grids w.r.t. the reference grid
 
@@ -438,10 +468,18 @@ SUBROUTINE pol_grids_initialize ( dg_coef, dg_atom,  part, pnode, ao, &
 
      IF ( igrid /= igrid_old ) THEN
 
-       IF ( igrid /= iref ) &
-       CALL dg_pol_grid_setup ( box, npts_s, cutoff_radius , &
-           small_grid ( igrid ), big_grid ( igrid ), &
-           pnode_grp, big_grid ( iref ) )
+       IF ( igrid /= iref ) THEN
+         IF ( PRESENT ( ref_grid ) ) THEN
+           CALL dg_pol_grid_setup ( box, npts_s, cutoff_radius, &
+             small_grid ( igrid ), big_grid ( igrid ), &
+             pnode_grp, ref_grid  )
+         ELSE
+           CALL dg_pol_grid_setup ( box, npts_s, cutoff_radius , &
+             small_grid ( igrid ), big_grid ( igrid ), &
+             pnode_grp, big_grid ( iref )  )
+         ENDIF
+       ENDIF
+
      ENDIF
 
      CALL dg_rho0_setup ( dg_coef ( igt ) % dg_rho0, small_grid ( igrid ) )
@@ -456,7 +494,7 @@ SUBROUTINE pol_grids_initialize ( dg_coef, dg_atom,  part, pnode, ao, &
            WRITE ( iw, '( A,T63,3I6 )' ) &
             ' POL_GRIDS_INIT| Full box grid ', big_grid ( igrid ) % npts
          END IF
-       ELSE
+       ELSEIF ( igrid == iref .AND. .NOT.PRESENT ( ref_grid ) ) THEN
          IF ( pnode_grp % ionode ) THEN
            WRITE ( iw, '( A,T63,3I6 )' ) &
             ' POL_GRIDS_INIT| Ref. grid number   ', iref
@@ -488,10 +526,17 @@ SUBROUTINE pol_grids_initialize ( dg_coef, dg_atom,  part, pnode, ao, &
 
      IF ( igrid /= igrid_old ) THEN
 
-       IF ( igrid /= iref ) &
-       CALL dg_pol_grid_setup ( box, npts_s, cutoff_radius , &
-           small_grid ( igrid ), big_grid ( igrid ), &
-           pnode_grp, big_grid ( iref ) )
+       IF ( igrid /= iref ) THEN
+         IF ( PRESENT ( ref_grid ) ) THEN
+            CALL dg_pol_grid_setup ( box, npts_s, cutoff_radius , &
+                small_grid ( igrid ), big_grid ( igrid ), &
+                pnode_grp, ref_grid )
+         ELSE
+            CALL dg_pol_grid_setup ( box, npts_s, cutoff_radius , &
+                small_grid ( igrid ), big_grid ( igrid ), &
+                pnode_grp, big_grid ( iref ) )
+         ENDIF
+       ENDIF
      ENDIF
 
      CALL dg_rho0_setup ( dg_atom ( igt ) % dg_rho0, small_grid ( igrid ) )
@@ -506,7 +551,7 @@ SUBROUTINE pol_grids_initialize ( dg_coef, dg_atom,  part, pnode, ao, &
            WRITE ( iw, '( A,T63,3I6 )' ) &
             ' POL_GRIDS_INIT| Full box grid ', big_grid ( igrid ) % npts
          END IF
-       ELSE
+       ELSEIF ( igrid == iref .AND. .NOT.PRESENT ( ref_grid ) ) THEN
          IF ( pnode_grp % ionode ) THEN
            WRITE ( iw, '( A,T63,3I6 )' ) &
             ' POL_GRIDS_INIT| Ref. grid number   ', iref
@@ -521,10 +566,10 @@ SUBROUTINE pol_grids_initialize ( dg_coef, dg_atom,  part, pnode, ao, &
 
   END DO
 
-
 END SUBROUTINE pol_grids_initialize
+
 !******************************************************************************
-  SUBROUTINE assign_coefs_to_grids(ao,part,ki,ngt)
+ SUBROUTINE assign_coefs_to_grids( ao, part, ki, ngt )
 
   IMPLICIT NONE
   
@@ -534,30 +579,61 @@ END SUBROUTINE pol_grids_initialize
   INTEGER, INTENT(IN) :: ngt
 
 ! locals 
-  INTEGER :: ngrid_types, grid_type_identifier, ikind, ii, ipart
-  INTEGER :: ngrid_kind, ncgf, icoef, icgf
+  INTEGER :: ngrid_types, ngrid, ngrid_types_kind, ngrid_kind, first_cgf, last_cgf 
+  INTEGER :: ii, icoef, icgf, ikind, nshell, ncgf, ipart, iset, ishell
+  INTEGER :: grid_type_identifier, grid_identifier        
 
   ngrid_types = 0
+  ngrid = 0
+  ngrid_types_kind = 0
   ngrid_kind = 0
+  grid_type_identifier = 0
+  grid_identifier = 0
   
   DO ikind = 1 , size ( ki )
    
-    ngrid_types = ngrid_types + ngrid_kind
+     ngrid_types = ngrid_types + ngrid_types_kind
+     ngrid = ngrid + ngrid_kind 
  
-    DO ii = 1, ki ( ikind )%natom
+     DO ii = 1, ki ( ikind ) % natom
 
-      ipart = ki ( ikind )% atom_list ( ii )
-      ncgf = ki ( ikind ) % orb_basis_set % ncgf
+! nshells, total number of shells, gives the number of grids of the kind 
+! ncgf, total number of CGF, gives the number of grid types of the kind 
+! they are set to 0 here because you are looping on ii, the total
+! number of atoms corresponding to each basis kind.
+        nshell = 0
+        ncgf = 0
+        ipart = ki ( ikind ) % atom_list ( ii )
 
-      DO icgf = 1, ncgf
-         grid_type_identifier = ngrid_types + icgf
-         icoef  = part ( ipart ) % coef_list( icgf )
-         ao % grid_id ( icoef ) = grid_type_identifier
-      ENDDO
-
+        DO iset = 1, ki ( ikind ) % orb_basis_set% nset
+           DO ishell = 1, ki ( ikind ) % orb_basis_set % nshell ( iset )
+              nshell = nshell + 1
+              grid_identifier = ngrid + nshell
+              first_cgf = ki ( ikind ) % orb_basis_set % first_cgf ( ishell, iset )
+              last_cgf = ki ( ikind ) % orb_basis_set % last_cgf ( ishell, iset )
+              DO icgf = first_cgf, last_cgf
+                 ncgf = ncgf + 1
+! into this loop, ncgf and icgf are the same, you can use both of them,
+! They represent the PARTIAL (i.e. atomic) coefficient index
+! icoef is different from icgf, it is the GLOBAL (i.e. whole system) coefficient index
+                 grid_type_identifier = ngrid_types + icgf
+                 icoef  = part ( ipart ) % coef_list ( icgf )
+!!!!!
+! here the identifiers are assigned
+! gt in pol_electrostatics corresponds to  ao % grid_id ( icoef )
+! ig in pol_electrostatics corresponds to  ao % grid_type_id ( icoef )
+!!!!!
+                 ao % grid_id ( icoef ) = grid_identifier
+                 ao % grid_type_id ( icoef ) = grid_type_identifier
+              ENDDO
+           ENDDO
+        ENDDO
     END DO
 
-    ngrid_kind = ncgf
+!here the number of grids corresponding to each basis kind is updated
+    ngrid_kind = nshell
+!here the number of grid_types corresponding to each basis kind is updated
+    ngrid_types_kind = ncgf
  
  END DO                                       
 
@@ -568,7 +644,6 @@ END SUBROUTINE pol_grids_initialize
  END SUBROUTINE assign_coefs_to_grids
 
 
-!!*****
 !******************************************************************************
 
 END MODULE pol_grids

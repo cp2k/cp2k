@@ -24,12 +24,14 @@ MODULE pol_coefs
   
   USE atomic_kinds, ONLY :  kind_info_type
   USE ao_types, ONLY : ao_type, ao_allocate, ao_zero
-  USE coefficient_types, ONLY : coeff_type
+  USE coefficient_types, ONLY : coeff_type, PLANEWAVES, ATOMICORBITALS
   USE global_types, ONLY : global_environment_type
   USE kinds, ONLY : dbl
   USE particle_types, ONLY : particle_type
   USE md, ONLY : simulation_parameters_type
   USE molecule_types , ONLY : molecule_type, read_basis_type 
+  USE pw_types, ONLY : COMPLEXDATA1D, pw_allocate, pw_zero
+  USE pw_grid_types, ONLY : pw_grid_type
   USE termination, ONLY : stop_memory
   USE util, ONLY : gasdev
 
@@ -43,42 +45,79 @@ MODULE pol_coefs
   CONTAINS
 
 !******************************************************************************
- SUBROUTINE allocate_pol_coefs(ncoef, c_pos, c_vel, c_force)
+ SUBROUTINE allocate_pol_coefs(n, c_pos, c_vel, c_force, projector, pw_grid )
 
     IMPLICIT NONE
-    INTEGER, INTENT (in) :: ncoef
+    INTEGER, INTENT (in) :: n
     TYPE ( coeff_type ), INTENT(OUT) :: c_pos  
     TYPE ( coeff_type ), INTENT(OUT) :: c_vel  
     TYPE ( coeff_type ), INTENT(OUT) :: c_force  
+    TYPE ( coeff_type ), INTENT(OUT), OPTIONAL :: projector
+    TYPE ( pw_grid_type ), INTENT(IN), OPTIONAL :: pw_grid 
 
 ! locals
 
-   INTEGER, PARAMETER :: ATOMICORBITALS = 402
+   INTEGER :: inuse
    LOGICAL :: mass_flag, grid_flag
      
-!   allocate cpos 
-    
-   c_pos % in_use = ATOMICORBITALS
-   mass_flag = .FALSE.
-   grid_flag = .TRUE.
-   CALL ao_allocate ( c_pos % ao, ncoef, mass_flag, grid_flag )  
-   CALL ao_zero ( c_pos % ao)
+   IF ( PRESENT ( pw_grid ) ) THEN         ! basis_type = PW
+     c_pos % in_use = PLANEWAVES
+     inuse = COMPLEXDATA1D
+     mass_flag = .FALSE.
+     CALL pw_allocate ( c_pos % pw, pw_grid, inuse, mass_flag )  
+     CALL pw_zero ( c_pos % pw )
      
 !   allocate cvel 
     
-   c_vel % in_use = ATOMICORBITALS
-   mass_flag = .TRUE.
-   grid_flag = .FALSE.
-   CALL ao_allocate ( c_vel % ao, ncoef, mass_flag, grid_flag )  
-   CALL ao_zero ( c_vel % ao)
+     c_vel % in_use = PLANEWAVES
+     inuse = COMPLEXDATA1D
+     mass_flag = .TRUE.
+     CALL pw_allocate ( c_vel % pw, pw_grid, inuse, mass_flag )  
+     CALL pw_zero ( c_vel % pw )
      
 !   allocate cforce
     
-   c_force % in_use = ATOMICORBITALS
-   mass_flag = .FALSE.
-   grid_flag = .FALSE.
-   CALL ao_allocate ( c_force % ao, ncoef, mass_flag, grid_flag )  
-   CALL ao_zero ( c_force % ao)
+     c_force % in_use = PLANEWAVES
+     inuse = COMPLEXDATA1D
+     mass_flag = .FALSE.
+     CALL pw_allocate ( c_force % pw, pw_grid, inuse, mass_flag )  
+     CALL pw_zero ( c_force % pw )
+
+!   allocate projector
+
+     projector % in_use = ATOMICORBITALS
+     mass_flag = .FALSE.
+     grid_flag = .TRUE.
+     CALL ao_allocate ( projector % ao, n, mass_flag, grid_flag )  
+     CALL ao_zero ( projector % ao )
+
+   ELSE                                    ! basis_type = AO
+
+!   allocate cpos 
+    
+     c_pos % in_use = ATOMICORBITALS
+     mass_flag = .FALSE.
+     grid_flag = .TRUE.
+     CALL ao_allocate ( c_pos % ao, n, mass_flag, grid_flag )  
+     CALL ao_zero ( c_pos % ao)
+     
+!   allocate cvel 
+    
+     c_vel % in_use = ATOMICORBITALS
+     mass_flag = .TRUE.
+     grid_flag = .FALSE.
+     CALL ao_allocate ( c_vel % ao, n, mass_flag, grid_flag )  
+     CALL ao_zero ( c_vel % ao)
+     
+!   allocate cforce
+    
+     c_force % in_use = ATOMICORBITALS
+     mass_flag = .FALSE.
+     grid_flag = .FALSE.
+     CALL ao_allocate ( c_force % ao, n, mass_flag, grid_flag )  
+     CALL ao_zero ( c_force % ao)
+   ENDIF
+     
 
   END SUBROUTINE allocate_pol_coefs
 
@@ -94,23 +133,31 @@ MODULE pol_coefs
 ! locals
     INTEGER :: icoef, ncoef
 
-    ncoef = size (c_pos%ao%cr(:))
-
 ! write to the restart file
-    OPEN (unit=666,file='coefficent.rst',status='unknown')
-
-    DO icoef = 1, ncoef
-       WRITE(666,*) c_pos % ao % cr (icoef), c_vel % ao % cr (icoef), &
-                    c_force % ao % cr (icoef)
-     END DO
-    CLOSE (666)
+    OPEN ( unit = 666, file = 'coefficent.rst', status = 'unknown' )
+    SELECT CASE ( c_pos % in_use )
+    CASE ( ATOMICORBITALS )
+      ncoef = SIZE ( c_pos % ao % cr ( : ) )
+      DO icoef = 1, ncoef
+         WRITE ( 666, * ) c_pos % ao % cr ( icoef ), c_vel % ao % cr ( icoef ), &
+                      c_force % ao % cr ( icoef )
+       END DO
+      CLOSE (666)
+    CASE ( PLANEWAVES )
+      ncoef = SIZE ( c_pos % pw % cc ( : ) )
+      DO icoef = 1, ncoef
+         WRITE ( 666, * ) c_pos % pw % cc ( icoef ), c_vel % pw % cc ( icoef ), &
+                      c_force % pw % cc ( icoef )
+       END DO
+      CLOSE (666)
+    END SELECT
 
   END SUBROUTINE dump_pol_coefs
 !
 !***************************************************************************
 
  SUBROUTINE initialize_pol_coefs ( simpar , ki, part, c_pos, c_vel, c_force, &
-                                   globenv )
+                                   globenv, proj )
 
     IMPLICIT NONE
     TYPE ( simulation_parameters_type ), INTENT ( INOUT ) :: simpar
@@ -120,12 +167,12 @@ MODULE pol_coefs
     TYPE ( coeff_type ), INTENT(OUT) :: c_vel  
     TYPE ( coeff_type ), INTENT(OUT) :: c_force  
     TYPE ( global_environment_type ), INTENT ( INOUT ) :: globenv
+    TYPE ( coeff_type ), INTENT(OUT), OPTIONAL :: proj
 
 !   locals 
     INTEGER :: ncoef, icoef
     LOGICAL :: kind_flag
 
-    ncoef = size (c_pos%ao%cr(:))
 
     SELECT CASE (simpar%pol_read_type)   
 
@@ -133,39 +180,67 @@ MODULE pol_coefs
 
       CALL initialize_coef_velocities ( simpar, c_vel, globenv )
     
-      c_pos % ao % cr ( : ) =  1.0_dbl
+      SELECT CASE ( c_pos % in_use )
+      CASE ( ATOMICORBITALS )
+        ncoef = size (c_pos%ao%cr(:))
+        c_pos % ao % cr ( : ) =  1.0_dbl
+      CASE ( PLANEWAVES )
+        ncoef = size (c_pos%pw%cc(:))
+        c_pos % pw % cc ( : ) =  CMPLX ( 1.0_dbl, 1.0_dbl )
+      END SELECT 
       
     CASE ("POS")
 
       CALL initialize_coef_velocities ( simpar, c_vel, globenv )
 
       OPEN (unit=666,file='coefficent.rst',status='unknown')
-      DO icoef = 1, ncoef
-        READ (666,*) c_pos % ao % cr (icoef)
-      END DO
+      SELECT CASE ( c_pos % in_use )
+      CASE ( ATOMICORBITALS )
+        DO icoef = 1, ncoef
+          READ (666,*) c_pos % ao % cr ( icoef )
+        END DO
+      CASE ( PLANEWAVES )
+        DO icoef = 1, ncoef
+          READ (666,*) c_pos % pw % cc ( icoef )
+        END DO
+      END SELECT 
       CLOSE (666)                                         
 
     CASE ("POSVEL")
 
       OPEN (unit=666,file='coefficent.rst',status='unknown')
-      DO icoef = 1, ncoef
-        READ (666,*)  c_pos % ao % cr (icoef),  c_vel % ao % cr (icoef)
-        c_vel % ao % mass ( icoef ) = simpar % pol_mass
-      END DO
+      SELECT CASE ( c_pos % in_use )
+      CASE ( ATOMICORBITALS )
+        DO icoef = 1, ncoef
+          READ (666,*)  c_pos % ao % cr ( icoef ),  c_vel % ao % cr ( icoef )
+          c_vel % ao % mass ( icoef ) = simpar % pol_mass
+        END DO
+      CASE ( PLANEWAVES )
+        DO icoef = 1, ncoef
+          READ (666,*)  c_pos % pw % cc ( icoef ),  c_vel % pw % cc ( icoef )
+          c_vel % pw % mass_cc ( icoef ) = CMPLX ( simpar % pol_mass,  &
+                                                   simpar % pol_mass )
+        END DO
+      END SELECT 
       CLOSE (666)                                                          
 
     END SELECT
 
 ! fills the remaining information...
 
-   kind_flag = .TRUE.
-   CALL get_kind_and_part_index ( c_pos % ao, ki, part, kind_flag)
+   IF ( PRESENT ( proj ) ) THEN
+     kind_flag = .TRUE.
+     CALL get_kind_and_part_index ( proj % ao, ki, part, kind_flag)
+   ELSE
+     kind_flag = .TRUE.
+     CALL get_kind_and_part_index ( c_pos % ao, ki, part, kind_flag)
    
-   kind_flag = .FALSE.
-   CALL get_kind_and_part_index ( c_vel % ao, ki, part, kind_flag)
+     kind_flag = .FALSE.
+     CALL get_kind_and_part_index ( c_vel % ao, ki, part, kind_flag)
    
-   kind_flag = .FALSE.
-   CALL get_kind_and_part_index ( c_force % ao, ki, part, kind_flag)
+     kind_flag = .FALSE.
+     CALL get_kind_and_part_index ( c_force % ao, ki, part, kind_flag)
+   ENDIF
 
  END SUBROUTINE initialize_pol_coefs 
 
@@ -182,28 +257,56 @@ MODULE pol_coefs
   INTEGER :: ncoef, i
 ! initializing velocities
 
-  ncoef = SIZE ( c_vel % ao % cr ( : ) )
-  cmass = simpar % pol_mass         
+  SELECT CASE ( c_vel % in_use )
+  CASE ( ATOMICORBITALS )
+    ncoef = SIZE ( c_vel % ao % cr ( : ) )
+    cmass = simpar % pol_mass         
 
-  DO i = 1, ncoef
-     c_vel % ao % cr ( i ) = gasdev ( globenv % idum )
-     c_vel % ao % mass ( i ) = cmass                    
-  END DO
-  akin = 0.0_dbl
-  DO i = 1, ncoef
-     akin = akin + 0.5_dbl *  &
-      ( cmass * c_vel % ao % cr ( i ) * c_vel % ao % cr ( i ) )
-  END DO
+    DO i = 1, ncoef
+       c_vel % ao % cr ( i ) = gasdev ( globenv % idum )
+       c_vel % ao % mass ( i ) = cmass                    
+    END DO
+    akin = 0.0_dbl
+    DO i = 1, ncoef
+       akin = akin + 0.5_dbl *  &
+        ( cmass * c_vel % ao % cr ( i ) * c_vel % ao % cr ( i ) )
+    END DO
 
-  ctemp = 2.0_dbl * akin / REAL ( ncoef, dbl )
+    ctemp = 2.0_dbl * akin / REAL ( ncoef, dbl )
 
 ! scale velocities to get the correct initial temperature
 
-  sc = SQRT ( simpar % pol_temp / ctemp )
-  DO i = 1, ncoef 
-     c_vel % ao % cr ( i ) = sc *  c_vel % ao % cr ( i )
-  END DO
+    sc = SQRT ( simpar % pol_temp / ctemp )
+    DO i = 1, ncoef 
+       c_vel % ao % cr ( i ) = sc *  c_vel % ao % cr ( i )
+    END DO
+  CASE ( PLANEWAVES )
+    ncoef = SIZE ( c_vel % pw % cc ( : ) )
+    cmass = simpar % pol_mass         
 
+    DO i = 1, ncoef
+        c_vel % pw % cc ( i ) = CMPLX ( gasdev ( globenv % idum ), &
+                                        gasdev ( globenv % idum ), dbl )
+    END DO
+    akin = 0.0_dbl
+    DO i = 1, ncoef
+       akin = akin + 0.5_dbl *  &
+        ( cmass * REAL ( c_vel % pw % cc ( i ) ) * &
+                  REAL ( c_vel % pw % cc ( i ) ) + &
+          cmass * IMAG ( c_vel % pw % cc ( i ) ) * &
+                  IMAG ( c_vel % pw % cc ( i ) ) )
+    END DO
+
+    ctemp = 2.0_dbl * akin / REAL ( ncoef, dbl ) / 2._dbl
+
+! scale velocities to get the correct initial temperature
+
+    sc = SQRT ( simpar % pol_temp / ctemp )
+    DO i = 1, ncoef 
+        c_vel % pw % cc ( i ) = CMPLX ( sc *  REAL ( c_vel % pw % cc ( i ) ), &
+                                        IMAG ( c_vel % pw % cc ( i ) ), dbl )
+    END DO
+  END SELECT 
  END SUBROUTINE initialize_coef_velocities 
 
 !------------------------------------------------------------------------------!

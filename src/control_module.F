@@ -69,8 +69,10 @@ MODULE control_module
   USE pair_potential, ONLY : spline_nonbond_control
   USE particle_types, ONLY : particle_prop_type, particle_type
   USE pol_coefs, ONLY :  allocate_pol_coefs, initialize_pol_coefs, dump_pol_coefs
-  USE pol_debug, ONLY : pol_debug_control => debug_control
+  USE pol_debug_ao, ONLY : debug_control_ao => debug_control
+  USE pol_debug_pw, ONLY : debug_control_pw => debug_control
   USE pol_setup, ONLY : read_pol_basis_sets , get_rcutsq_cgf
+  USE pw_grids, ONLY : pw_grid_setup
   USE physcon, ONLY : boltzmann, h_planck
   USE read_pimd, ONLY : read_pimd_section
   USE simulation_cell, ONLY : cell_type, get_hinv, init_cell
@@ -134,7 +136,7 @@ SUBROUTINE control ( globenv )
   REAL ( dbl ), DIMENSION ( :, : ), ALLOCATABLE :: rcut_cgf
   INTEGER :: handle1, handle2, isos
   INTEGER :: nel, ibead, beads, ia, ib
-  INTEGER :: ncoef, nll, nbasis_types, i
+  INTEGER :: ncoef, nproj, n, nll, nbasis_types, i
   INTEGER :: maxder
 
   CHARACTER ( LEN = 40 ) :: set_fn, project_name
@@ -435,6 +437,8 @@ SUBROUTINE control ( globenv )
     NULLIFY ( struc ( i ) % coef_pos )
     NULLIFY ( struc ( i ) % coef_vel )
     NULLIFY ( struc ( i ) % coef_force )
+    NULLIFY ( struc ( i ) % projector )
+    NULLIFY ( struc ( i ) % pw_grid )
   ENDDO
 
   IF ( pol ) then
@@ -455,9 +459,18 @@ SUBROUTINE control ( globenv )
 
      ALLOCATE ( struc ( 1 ) % coef_force ( 1 ) , STAT = isos )
      IF ( isos /=0 ) CALL stop_memory ( 'control', 'coef_force', 1 )
+
+     IF ( simpar % pol_basis == "PW" ) THEN
+       ALLOCATE ( struc ( 1 ) % projector ( 1 ) )
+       IF ( isos /=0 ) CALL stop_memory ( 'control', 'projector', 1 )
+
+       ALLOCATE ( struc ( 1 ) % pw_grid ( 1 ) )
+       IF ( isos /=0 ) CALL stop_memory ( 'control', 'pw_grid', 1 )
+     ENDIF
   
-     CALL read_pol_basis_sets( struc ( 1 ) % rho0_basis_info, struc ( 1 ) % drho_basis_info, &
-                               mol_setup, struc ( 1 ) % part, setup % atom_names, ncoef, globenv )
+     CALL read_pol_basis_sets( struc ( 1 ) % rho0_basis_info,  &
+          struc ( 1 ) % drho_basis_info, mol_setup, struc ( 1 ) % part, &
+          setup % atom_names, n, globenv )
 
      nbasis_types  = size ( struc ( 1 ) % drho_basis_info )
 
@@ -469,13 +482,29 @@ SUBROUTINE control ( globenv )
 
      CALL get_rcutsq_cgf ( struc ( 1 ) % drho_basis_info, rcut_cgf )
 
-
-     CALL allocate_pol_coefs ( ncoef, struc ( 1 ) % coef_pos ( 1 ),  &
+     IF ( simpar % pol_basis == "AO" ) THEN
+       ncoef = n
+       CALL allocate_pol_coefs ( ncoef, struc ( 1 ) % coef_pos ( 1 ),  &
           struc ( 1 ) % coef_vel ( 1 ), struc ( 1 ) % coef_force ( 1 ) )
 
-     CALL initialize_pol_coefs ( simpar, struc ( 1 ) % drho_basis_info, &
+       CALL initialize_pol_coefs ( simpar, struc ( 1 ) % drho_basis_info, &
           struc ( 1 ) % part, struc ( 1 ) % coef_pos ( 1 ),  &
-          struc ( 1 )% coef_vel ( 1 ), struc ( 1 ) % coef_force ( 1 ), globenv )
+          struc ( 1 ) % coef_vel ( 1 ), struc ( 1 ) % coef_force ( 1 ), globenv )
+
+     ELSEIF ( simpar % pol_basis == "PW" ) THEN
+     
+       CALL pw_grid_setup ( struc ( 1 ) % box, struc ( 1 ) % pw_grid ( 1 ),  &
+                            simpar % pol_ecut )
+       nproj = n
+       CALL allocate_pol_coefs ( nproj, struc ( 1 ) % coef_pos ( 1 ),  &
+          struc ( 1 ) % coef_vel ( 1 ), struc ( 1 ) % coef_force ( 1 ), &
+          struc ( 1 ) % projector ( 1 ) )
+
+       CALL initialize_pol_coefs ( simpar, struc ( 1 ) % drho_basis_info, &
+          struc ( 1 ) % part, struc ( 1 ) % coef_pos ( 1 ),  &
+          struc ( 1 ) % coef_vel ( 1 ), struc ( 1 ) % coef_force ( 1 ), globenv, &
+          struc ( 1 ) % projector ( 1 ) )
+     ENDIF
 
      CALL initialize_nhc_pol ( simpar, struc ( 1 ) % coef_vel ( 1 ),  &
                                globenv, extended_type % nhc_pol )
@@ -729,11 +758,19 @@ SUBROUTINE control_debug_work ( globenv, simpar, struc, inter, ewald_param, &
           struc%pnode, struc%molecule, struc%box, struc%box_ref, thermo, &
           inter%potparm, struc % ll_data ( 1 ) )
   ELSE IF ( pol ) then
-    CALL pol_debug_control ( globenv, ewald_param, struc % pnode, struc % part, &
+    IF ( simpar % pol_basis == "AO" ) THEN
+      CALL debug_control_ao ( globenv, ewald_param, struc % pnode, struc % part, &
           struc % molecule, struc % box, struc % box_ref, struc % drho_basis_info, &
           struc % rho0_basis_info, struc % coef_pos ( 1 ), struc % coef_vel ( 1 ), &
           struc % coef_force ( 1 ), thermo, inter % potparm, inter % empparm,  &
           struc % ll_data )
+    ELSEIF ( simpar % pol_basis == "PW" ) THEN
+      CALL debug_control_pw ( globenv, ewald_param, struc % pnode, struc % part, &
+          struc % molecule, struc % box, struc % box_ref, struc % drho_basis_info, &
+          struc % rho0_basis_info, struc % coef_pos ( 1 ), struc % coef_vel ( 1 ), &
+          struc % coef_force ( 1 ), struc % projector ( 1 ), struc % pw_grid ( 1 ), &
+          thermo, inter % potparm, inter % empparm, struc % ll_data )
+    ENDIF
   ELSE
      CALL stop_program ( "control_debug_work", "no method to debug found" )
   END IF
@@ -849,6 +886,7 @@ SUBROUTINE control_md_work ( globenv, units, simpar, struc, inter, &
 ! Path integrals?
   pimd = simpar % pimd_params % beads /= 0
 
+! Using coefficients?
   coef_flag = ( ASSOCIATED ( struc ( 1 ) % coef_pos ) .AND.  &
                 ASSOCIATED ( struc ( 1 ) % coef_vel ) .AND.  &
                 ASSOCIATED ( struc ( 1 ) % coef_force ) ) 

@@ -24,6 +24,7 @@ MODULE ao_types
   
   USE atomic_kinds, ONLY :  kind_info_type
   USE kinds, ONLY : dbl
+  USE structure_factor_types, ONLY : structure_factor_type
   USE termination, ONLY : stop_memory, stop_program
   USE timings, ONLY : timeset, timestop
 
@@ -34,14 +35,21 @@ MODULE ao_types
   PUBLIC :: ao_allocate, ao_deallocate
   PUBLIC :: ao_zero
 
+  TYPE ao_structure_factor_type
+     COMPLEX ( dbl ), DIMENSION ( : ), POINTER :: ex, ey, ez
+     INTEGER, DIMENSION ( : ), POINTER :: centre
+  END TYPE ao_structure_factor_type
+
   TYPE ao_type
      REAL ( dbl ), DIMENSION ( : ), POINTER :: cr
      REAL ( dbl ), DIMENSION ( : ), POINTER :: mass
      INTEGER, DIMENSION ( : ), POINTER :: coef_to_basis 
      INTEGER, DIMENSION ( : ), POINTER :: coef_to_set 
      INTEGER, DIMENSION ( : ), POINTER :: coef_to_part 
+     INTEGER, DIMENSION ( : ), POINTER :: grid_type_id
      INTEGER, DIMENSION ( : ), POINTER :: grid_id
      TYPE ( kind_info_type ), DIMENSION ( : ),  POINTER :: kind_info
+     TYPE ( ao_structure_factor_type ), DIMENSION ( : ),  POINTER :: eigr
   END TYPE ao_type
 
 !!*****
@@ -67,18 +75,18 @@ CONTAINS
 !!   SOURCE
 !******************************************************************************
 
-SUBROUTINE ao_allocate ( ao, ncoefs, mass_flag, grid_flag )
+SUBROUTINE ao_allocate ( ao, ncoefs, mass_flag, grid_flag, eigr_flag )
 
   IMPLICIT NONE
 
 ! Arguments
   TYPE ( ao_type ), INTENT ( INOUT ), TARGET :: ao
   INTEGER, INTENT ( IN ) :: ncoefs
-  LOGICAL, INTENT ( IN ), OPTIONAL :: mass_flag, grid_flag
+  LOGICAL, INTENT ( IN ), OPTIONAL :: mass_flag, grid_flag, eigr_flag
 
 ! Locals
   INTEGER :: allocstat
-  LOGICAL :: local_mass_flag, local_grid_flag
+  LOGICAL :: local_mass_flag, local_grid_flag, local_eigr_flag
 
 !------------------------------------------------------------------------------
 
@@ -93,11 +101,22 @@ SUBROUTINE ao_allocate ( ao, ncoefs, mass_flag, grid_flag )
   ELSE
     local_grid_flag=.FALSE.
   ENDIF
+
+  IF ( PRESENT ( eigr_flag ) ) THEN
+    local_eigr_flag=eigr_flag
+  ELSE
+    local_eigr_flag=.FALSE.
+  ENDIF
    
-  NULLIFY ( ao % cr, ao % coef_to_basis, ao % coef_to_set, ao % coef_to_part )
+  NULLIFY ( ao % cr )
+  NULLIFY ( ao % coef_to_basis )
+  NULLIFY ( ao % coef_to_set )
+  NULLIFY ( ao % coef_to_part )
   NULLIFY ( ao % mass )
   NULLIFY ( ao % grid_id )
+  NULLIFY ( ao % grid_type_id )
   NULLIFY ( ao % kind_info )
+  NULLIFY ( ao % eigr )
 
   ALLOCATE ( ao % cr ( ncoefs ), STAT = allocstat )
   IF ( allocstat /= 0 ) CALL stop_memory ( "ao_allocate", &
@@ -116,10 +135,19 @@ SUBROUTINE ao_allocate ( ao, ncoefs, mass_flag, grid_flag )
     IF ( allocstat /= 0 ) CALL stop_memory ( "ao_allocate", &
        "ao % mass",  ncoefs )
   ENDIF
+  IF ( local_eigr_flag ) THEN  
+    ALLOCATE ( ao % eigr ( ncoefs ), STAT = allocstat )
+    IF ( allocstat /= 0 ) CALL stop_memory ( "ao_allocate", &
+     "ao % eigr",  ncoefs )
+  ENDIF
+
   IF ( local_grid_flag ) THEN  
     ALLOCATE ( ao % grid_id ( ncoefs ), STAT = allocstat )
     IF ( allocstat /= 0 ) CALL stop_memory ( "ao_allocate", &
        "ao % grid_id",  ncoefs )
+    ALLOCATE ( ao % grid_type_id ( ncoefs ), STAT = allocstat )
+    IF ( allocstat /= 0 ) CALL stop_memory ( "ao_allocate", &
+       "ao % grid_type_id",  ncoefs )
   ENDIF
 
 
@@ -179,9 +207,19 @@ SUBROUTINE ao_deallocate ( ao )
   ENDIF
 
   IF ( ASSOCIATED ( ao % grid_id )) THEN
-    DEALLOCATE ( ao % mass, STAT = allocstat )
+    DEALLOCATE ( ao % grid_id, STAT = allocstat )
     IF ( allocstat /= 0 ) CALL stop_memory ( "ao_deallocate", &
        "ao % grid_id",  SIZE ( ao % grid_id ) )
+  ENDIF
+  IF ( ASSOCIATED ( ao % grid_type_id )) THEN
+    DEALLOCATE ( ao % grid_type_id, STAT = allocstat )
+    IF ( allocstat /= 0 ) CALL stop_memory ( "ao_deallocate", &
+       "ao % grid_type_id",  SIZE ( ao % grid_type_id ) )
+  ENDIF
+  IF ( ASSOCIATED ( ao % eigr )) THEN
+    DEALLOCATE ( ao % eigr, STAT = allocstat )
+    IF ( allocstat /= 0 ) CALL stop_memory ( "ao_deallocate", &
+       "ao % eigr",  SIZE ( ao % eigr ) )
   ENDIF
 
 END SUBROUTINE ao_deallocate
@@ -226,12 +264,13 @@ SUBROUTINE ao_zero ( ao )
   ao % coef_to_set = 0
   IF ( ASSOCIATED ( ao % mass ) ) ao % mass = 0.0_dbl
   IF ( ASSOCIATED ( ao % grid_id ) ) ao % grid_id = 0
+  IF ( ASSOCIATED ( ao % grid_type_id ) ) ao % grid_type_id = 0
+  IF ( ASSOCIATED ( ao % eigr ) ) NULLIFY ( ao % eigr )
   zr = REAL ( ns, dbl ) * 1.e-6_dbl
   CALL timestop ( zr, handle )
 
 END SUBROUTINE ao_zero
 
-!!*****
 !******************************************************************************
 
 END MODULE ao_types
