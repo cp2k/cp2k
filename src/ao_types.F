@@ -32,7 +32,7 @@ MODULE ao_types
 
   PRIVATE
   PUBLIC :: ao_type
-  PUBLIC :: ao_allocate, ao_deallocate
+  PUBLIC :: ao_allocate, ao_deallocate, ao_structure_factor_type
   PUBLIC :: ao_zero
 
   TYPE ao_structure_factor_type
