@@ -1097,6 +1097,7 @@ CONTAINS
     potential_name = "GTH"
     potential_type = ""
     z = -1
+    atomic_kind%mass=-1.0_dp
 
     CALL cp_sll_int_create(min_bas_sll)
     CALL cp_error_init(error)
@@ -1168,7 +1169,9 @@ CONTAINS
               CALL uppercase(current_symbol)
               IF (current_symbol == element_symbol) THEN
                 atomic_kind%element_symbol = ptable(i)%symbol
-                atomic_kind%mass = ptable(i)%amass
+                if (atomic_kind%mass==-1.0_dp) then
+                   atomic_kind%mass = ptable(i)%amass
+                end if
                 z = i
                 EXIT
               END IF
@@ -1240,14 +1243,16 @@ CONTAINS
         CALL uppercase(current_symbol)
         IF (current_symbol == element_symbol) THEN
           atomic_kind%element_symbol = ptable(i)%symbol
-          atomic_kind%mass = ptable(i)%amass
+          if (atomic_kind%mass==-1.0_dp) then
+             atomic_kind%mass = ptable(i)%amass
+          end if
           z = i
           EXIT
         END IF
       END DO
     END IF
 
-    atomic_kind%mass = ptable(i)%amass*massunit
+    atomic_kind%mass = atomic_kind%mass*massunit
 
     IF (z == -1) THEN
       CALL stop_program(routine_name,module_name,__LINE__,&
