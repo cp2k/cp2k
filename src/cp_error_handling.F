@@ -53,7 +53,7 @@ MODULE cp_error_handling
                                              cp_to_string
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE message_passing,                 ONLY: mp_abort,&
-                                             mp_alltoall
+                                             mp_max
   USE output_utilities,                ONLY: print_message
   USE timings,                         ONLY: print_stack
 
@@ -950,33 +950,28 @@ SUBROUTINE cp_error_synchronize_error(error,para_env)
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: i, stat
-    INTEGER, ALLOCATABLE, DIMENSION(:)       :: codes
     INTEGER, DIMENSION(2)                    :: my_codes
     LOGICAL                                  :: failure
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(cp_para_env_type), POINTER          :: my_para_env
 
   failure=.FALSE.
-  NULLIFY(my_para_env)
+  NULLIFY(my_para_env,logger)
   IF (PRESENT(error)) THEN
-     logger => cp_error_get_logger(error)
-     my_para_env => logger%para_env
-     IF (PRESENT(para_env)) my_para_env => para_env
+     IF (PRESENT(para_env)) THEN
+        my_para_env => para_env
+     ELSE
+        logger => cp_error_get_logger(error)
+        my_para_env => logger%para_env
+     END IF
      CALL cp_assert(ASSOCIATED(my_para_env),cp_failure_level,cp_failure_level,&
           routineP,"cannot synchronize without a valid para_env",error,failure)
      IF (my_para_env%num_pe>1) THEN
-        ALLOCATE(codes(my_para_env%num_pe*2),stat=stat)
-        my_codes(1)=error%level
-        my_codes(2)=error%error_nr
-        CALL mp_alltoall( my_codes, codes, 2, my_para_env%group )
-        error%level=codes(1)
-        error%error_nr=codes(2)
-        DO i=1,my_para_env%num_pe-1
-           IF (codes(i*2+1)> error%level) THEN
-              error%level=codes(i*2+1)
-              error%error_nr=codes(i*2+2)
-           END IF
-        END DO
+        my_codes(1)=abs(error%level)
+        my_codes(2)=abs(error%error_nr)
+        CALL mp_max( my_codes, my_para_env%group )
+        error%level=my_codes(1)
+        error%error_nr=my_codes(2)
      END IF
   END IF
 END SUBROUTINE cp_error_synchronize_error

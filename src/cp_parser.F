@@ -267,6 +267,8 @@ END SUBROUTINE parser_retain
 
     IF (nline>0) THEN
        CALL parser_read_line(parser,nline,at_end=at_end,error=error)
+       IF (PRESENT(at_end)) CALL mp_bcast(at_end, parser%para_env%source,&
+            parser%para_env%group)
        CALL broadcast_input_information(parser,error=error)
     END IF
 
@@ -428,7 +430,7 @@ SUBROUTINE parser_next_token(parser,string_length,error)
               END DO
               IF (parser%icol == i.or.parser%input_line(i:i)==&
                    parser%comment_character) THEN
-                 CALL parser_read_line(parser,1,error=error) 
+                 CALL parser_get_next_line(parser,1,error=error) 
                  ! does not pass at_end, it is an error to continue to EOF, change this behavoiur?
                  CYCLE
               ELSE
@@ -602,7 +604,7 @@ END SUBROUTINE parser_next_token
           IF (newline) nline = nline + 1
        END IF
 
-       CALL parser_read_line(parser,nline,at_end=my_at_end,error=error)
+       CALL parser_get_next_line(parser,nline,at_end=my_at_end,error=error)
        IF (PRESENT(at_end)) THEN
           at_end=my_at_end
           IF (my_at_end) RETURN
@@ -684,7 +686,7 @@ END SUBROUTINE parser_next_token
           IF (newline) nline = nline + 1
        END IF
 
-       CALL parser_read_line(parser,nline,at_end=my_at_end,error=error)
+       CALL parser_get_next_line(parser,nline,at_end=my_at_end,error=error)
        IF (PRESENT(at_end)) THEN
           at_end=my_at_end
           IF (my_at_end) RETURN
@@ -887,7 +889,7 @@ END SUBROUTINE parser_next_token
           IF (newline) nline = nline + 1
        END IF
 
-       CALL parser_read_line(parser,nline,at_end=my_at_end,error=error)
+       CALL parser_get_next_line(parser,nline,at_end=my_at_end,error=error)
        IF (PRESENT(at_end)) THEN
           at_end=my_at_end
           IF (my_at_end) RETURN
@@ -900,7 +902,7 @@ END SUBROUTINE parser_next_token
        CALL parser_next_token(parser,string_length,error=error)
 
        IF (parser%icol1 > parser%icol2.and.my_multiline) THEN
-          CALL parser_read_line(parser,1,at_end=my_at_end,error=error)
+          CALL parser_get_next_line(parser,1,at_end=my_at_end,error=error)
           IF (PRESENT(at_end)) THEN
              at_end=my_at_end
              IF (my_at_end) RETURN
@@ -1016,7 +1018,7 @@ END SUBROUTINE parser_next_token
           IF (newline) nline = nline + 1
        END IF
        
-       CALL parser_read_line(parser,nline,at_end=my_at_end,error=error)
+       CALL parser_get_next_line(parser,nline,at_end=my_at_end,error=error)
        IF (PRESENT(at_end)) THEN
           at_end=my_at_end
           IF (my_at_end) RETURN
@@ -1140,6 +1142,7 @@ END SUBROUTINE parser_next_token
 
        IF (parser%para_env%num_pe>1) THEN
           CALL mp_bcast(found,parser%para_env%source,parser%para_env%group)
+          CALL broadcast_input_information(parser,error)
           CALL cp_error_synchronize_error(error,para_env=parser%para_env)
        END IF
 
@@ -1315,7 +1318,7 @@ END SUBROUTINE parser_next_token
           IF (newline) nline = nline + 1
        END IF
 
-       CALL parser_read_line(parser,nline,at_end=at_end,error=suberror)
+       CALL parser_get_next_line(parser,nline,at_end=at_end,error=suberror)
        CALL cp_error_propagate_error(suberror, fromWhere=routineP, error=error, &
             failure=failure, failure_level=cp_warning_level)
 

@@ -1076,6 +1076,7 @@ CONTAINS
     rho_set%local_bounds=rho_r(1)%pw%pw_grid%bounds_local
     rho_cutoff=0.5*rho_set%rho_cutoff
 
+    my_rho_g_local=.false.
     ! some checks
     SELECT CASE(nspins)
     CASE(1)
@@ -1157,18 +1158,18 @@ CONTAINS
           END SELECT
           CALL zero_core(my_rho_r(ispin)%pw,atoms,set_shift=0,error=error)
        END IF
-       IF (needs_rho_g.AND..NOT.ASSOCIATED(my_rho_g)) THEN
-          my_rho_g_local=.TRUE.
-          CALL pw_pool_create_pw(pw_pool, my_rho_g,&
-               use_data=COMPLEXDATA1D, in_space=RECIPROCALSPACE, &
-               error=error)
-          CALL pw_transfer(my_rho_r(ispin)%pw,my_rho_g)
-       END IF
 
        IF (gradient_f) THEN ! calculate the grad of rho
           ! normally when you need the gradient you need the whole gradient
           ! (for the partial integration)
           ! deriv rho
+          IF (needs_rho_g.AND..NOT.ASSOCIATED(my_rho_g)) THEN
+             my_rho_g_local=.TRUE.
+             CALL pw_pool_create_pw(pw_pool, my_rho_g,&
+                  use_data=COMPLEXDATA1D, in_space=RECIPROCALSPACE, &
+                  error=error)
+             CALL pw_transfer(my_rho_r(ispin)%pw,my_rho_g)
+          END IF
           DO idir=1,3
              NULLIFY(drho_r(idir,ispin)%pw)
              CALL pw_pool_create_pw(pw_pool,drho_r(idir,ispin)%pw, &
@@ -1271,13 +1272,12 @@ CONTAINS
           DO idir=1,3
              CALL zero_core(drho_r(idir,ispin)%pw,atoms,set_shift=2,error=error)
           END DO
-       END IF
 
-       IF (my_rho_g_local) THEN
-          my_rho_g_local=.FALSE.
-          CALL pw_pool_give_back_pw(pw_pool, my_rho_g ,error=error)
+          IF (my_rho_g_local) THEN
+             my_rho_g_local=.FALSE.
+             CALL pw_pool_give_back_pw(pw_pool, my_rho_g ,error=error)
+          END IF
        END IF
-       NULLIFY(my_rho_g)
 
     END DO
 
