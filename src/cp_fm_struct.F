@@ -664,16 +664,17 @@ END SUBROUTINE cp_fm_struct_write
 !!     Subroutine cp_fm_struct_get(fmstruct, para_env, context, descriptor,&
 !!         ncol_block, nrow_block, nrow_global, ncol_global, id_nr,&
 !!         ref_count, first_p_pos, row_indices, col_indices, nrow_local,&
-!!         ncol_local, error)
+!!         ncol_local, nrow_locals, ncol_locals, error)
 !!       Type(cp_fm_struct_type), Pointer:: fmstruct
 !!       Type(cp_para_env_type), Pointer, Optional:: para_env
 !!       Type(cp_blacs_env_type), Pointer, Optional:: context
 !!       Integer, Dimension(9), Intent (OUT), Optional:: descriptor
 !!       Integer, Intent (OUT), Optional:: ncol_block, nrow_block,&
-!!         nrow_global, ncol_global, id_nr, ref_count
+!!         nrow_global, ncol_global, id_nr, ref_count, nrow_local,&
+!!         ncol_local
 !!       Integer, Dimension(2), Intent (OUT), Optional:: first_p_pos
 !!       Integer, Dimension(:), Pointer, Optional:: row_indices,&
-!!         col_indices, nrow_local, ncol_local
+!!         col_indices, nrow_locals, ncol_locals
 !!       Type(cp_error_type), Intent (INOUT), Optional:: error
 !!     End Subroutine cp_fm_struct_get
 !!
@@ -699,16 +700,16 @@ END SUBROUTINE cp_fm_struct_write
 SUBROUTINE cp_fm_struct_get(fmstruct, para_env, context,&
      descriptor, ncol_block, nrow_block, nrow_global,&
      ncol_global, id_nr, ref_count, first_p_pos, row_indices,&
-     col_indices, nrow_local, ncol_local, error)
+     col_indices, nrow_local, ncol_local, nrow_locals, ncol_locals, error)
   TYPE(cp_fm_struct_type), POINTER :: fmstruct
   TYPE(cp_para_env_type), POINTER, OPTIONAL :: para_env
   TYPE(cp_blacs_env_type), POINTER, OPTIONAL :: context
   INTEGER, DIMENSION(9), INTENT(OUT), OPTIONAL :: descriptor
   INTEGER, INTENT(out), OPTIONAL :: ncol_block, nrow_block, nrow_global,&
-       ncol_global, id_nr, ref_count
+       ncol_global, id_nr, ref_count, nrow_local, ncol_local
   INTEGER, DIMENSION(2), INTENT(out), OPTIONAL :: first_p_pos
   INTEGER, DIMENSION(:), POINTER, OPTIONAL :: row_indices, col_indices,&
-       nrow_local, ncol_local
+       nrow_locals, ncol_locals
   TYPE(cp_error_type), INTENT(inout), OPTIONAL :: error
 
   LOGICAL :: failure
@@ -734,13 +735,16 @@ SUBROUTINE cp_fm_struct_get(fmstruct, para_env, context,&
      IF (PRESENT(id_nr)) id_nr=fmstruct%id_nr
      IF (PRESENT(ref_count)) ref_count=fmstruct%ref_count
      IF (PRESENT(first_p_pos)) first_p_pos=fmstruct%first_p_pos
-     IF (PRESENT(nrow_local)) nrow_local => fmstruct%nrow_local
-     IF (PRESENT(ncol_local)) ncol_local => fmstruct%ncol_local
+     IF (PRESENT(nrow_locals)) nrow_locals => fmstruct%nrow_local
+     IF (PRESENT(ncol_locals)) ncol_locals => fmstruct%ncol_local
 
     myprow=fmstruct%context%mepos(1)
     mypcol=fmstruct%context%mepos(2)
     nprow=fmstruct%context%num_pe(1)
     npcol=fmstruct%context%num_pe(2)
+
+    IF (PRESENT(nrow_local)) nrow_local=fmstruct%nrow_local(myprow)
+    IF (PRESENT(ncol_local)) ncol_local=fmstruct%ncol_local(mypcol)
 
     IF (PRESENT(row_indices)) THEN
        row_indices => fmstruct%row_indices
