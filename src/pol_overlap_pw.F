@@ -183,7 +183,7 @@ CONTAINS
 
 ! allocate coeff_dummy
   CALL coeff_allocate ( coeff_dummy, pw_grid, use_data = PW_COMPLEXDATA1D ) 
-  rho_tot % pw % in_space = PW_RECIPROCALSPACE
+  coeff_dummy % pw % in_space = PW_RECIPROCALSPACE
   CALL coeff_zero ( coeff_dummy )
 
 
@@ -538,9 +538,10 @@ CONTAINS
 
 ! Obtain g-space force on the coefficients
     rho_tot % pw % cc = CONJG ( rho_tot % pw % cc )
-!    fo_coef = box % deth * CMPLX ( -2._dbl * REAL ( rho_tot % pw % cc, dbl ),  &
-     fo_coef =  CMPLX ( -2._dbl * REAL ( rho_tot % pw % cc, dbl ),  &
+    fo_coef =  CMPLX ( -2._dbl * REAL ( rho_tot % pw % cc, dbl ),  &
                        2._dbl * AIMAG ( rho_tot % pw % cc ), dbl )
+! renormalize to 0 the force on g=0
+    fo_coef (1) =  CMPLX ( 0.0_dbl, 0.0_dbl )
   ENDIF  
 
   CALL coeff_deallocate ( coeff_dummy ) 
@@ -795,11 +796,13 @@ CONTAINS
 
         jproj = part ( jpart ) % coef_list ( jc )
 
-        eij =  0.25_dbl * ( hpi + hpj ) * atom_block ( ic, jc, 1 )
+        eij =  0.25_dbl * ( hpi + hpj ) * atom_block ( ic, jc, 1 ) * &
+               ao % norm ( iproj ) * ao % norm ( jproj )
 
         IF ( ipart /= jpart ) THEN 
 
-          eij = eij + 0.25_dbl * ( hpi + hpj ) * atom_block ( ic, jc, 1 )
+          eij = eij + 0.25_dbl * ( hpi + hpj ) * atom_block ( ic, jc, 1 ) * &
+                ao % norm ( iproj ) * ao % norm ( jproj )
                                       
         END IF
 
@@ -868,8 +871,8 @@ CONTAINS
         CALL coeff_allocate ( rhos1,  grid_s ( gt1 ), use_data = PW_REALDATA3D )
         CALL coeff_allocate ( rhos2,  grid_s ( gt2 ), use_data = PW_REALDATA3D )
 
-        CALL sum_patch_1x ( dg ( ig1 ), rho_rs ( gt1 ), ao, iproj, eij, rhos1 )
-        CALL sum_patch_1x ( dg ( ig2 ), rho_rs ( gt2 ), ao, jproj, eij, rhos2 )
+        CALL sum_patch_1x ( dg ( ig1 ), rho_rs ( gt1 ), ao, iproj, jproj, eij, rhos1 )
+        CALL sum_patch_1x ( dg ( ig2 ), rho_rs ( gt2 ), ao, jproj, iproj, eij, rhos2 )
           
 ! do a little cleaning
         CALL coeff_deallocate ( rhos2 )
@@ -966,6 +969,7 @@ SUBROUTINE fpart_evaluate ( ao, kind_info, fproj_part, empparm, atom_block, &
   REAL ( dbl ) :: hpi, hpj
   REAL ( dbl ),  DIMENSION ( : ), POINTER :: fpart_i, fpart_j
   REAL ( dbl ), POINTER :: proj_i, proj_j
+  REAL ( dbl ), POINTER :: norm_i, norm_j
 
   ikind = part (ipart) %  kind               
   jkind = part (jpart) %  kind                 
@@ -995,48 +999,51 @@ SUBROUTINE fpart_evaluate ( ao, kind_info, fproj_part, empparm, atom_block, &
         proj_i => ao % cr ( iproj )
         proj_j => ao % cr ( jproj )
 
+        norm_i => ao % norm ( iproj )
+        norm_j => ao % norm ( jproj )
+
         IF ( ipart /= jpart ) THEN
           fo_part ( 1, ipart ) = fo_part ( 1, ipart ) - 0.5_dbl * ( hpi + hpj ) * &
-                             ( proj_i * proj_j * atom_block ( ic, jc, 2 ) - &
-                              fpart_i ( 1 ) * proj_j * atom_block ( ic, jc, 1 ) )
+                  (norm_i * norm_j * proj_i * proj_j * atom_block ( ic, jc, 2 ) - &
+                   norm_i * norm_j * fpart_i ( 1 ) * proj_j * atom_block ( ic, jc, 1 ) )
 
           fo_part ( 1, jpart ) = fo_part ( 1, jpart ) + 0.5_dbl * ( hpi + hpj ) * &
-                             ( proj_i * proj_j * atom_block ( ic, jc, 2 ) + &
-                              fpart_j ( 1 ) * proj_i * atom_block ( ic, jc, 1 ) )
+                  (norm_i * norm_j * proj_i * proj_j * atom_block ( ic, jc, 2 ) + &
+                   norm_i * norm_j * fpart_j ( 1 ) * proj_i * atom_block ( ic, jc, 1 ) )
 
           fo_part ( 2, ipart ) = fo_part ( 2, ipart ) - 0.5_dbl * ( hpi + hpj ) * &
-                             ( proj_i * proj_j * atom_block ( ic, jc, 3 ) - &
-                              fpart_i ( 2 ) * proj_j * atom_block ( ic, jc, 1 ) )
+                  (norm_i * norm_j * proj_i * proj_j * atom_block ( ic, jc, 3 ) - &
+                   norm_i * norm_j *fpart_i ( 2 ) * proj_j * atom_block ( ic, jc, 1 ) )
 
           fo_part ( 2, jpart ) = fo_part ( 2, jpart ) + 0.5_dbl * ( hpi + hpj ) * &
-                             ( proj_i * proj_j * atom_block ( ic, jc, 3 ) + &
-                              fpart_j ( 2 ) * proj_i * atom_block ( ic, jc, 1 ) )
+                  (norm_i * norm_j * proj_i * proj_j * atom_block ( ic, jc, 3 ) + &
+                   norm_i * norm_j * fpart_j ( 2 ) * proj_i * atom_block ( ic, jc, 1 ) )
 
           fo_part ( 3, ipart ) = fo_part ( 3, ipart ) - 0.5_dbl * ( hpi + hpj ) * &
-                             ( proj_i * proj_j * atom_block ( ic, jc, 4 ) - &
-                             fpart_i ( 3 ) * proj_j * atom_block ( ic, jc, 1 ) )
+                  (norm_i * norm_j * proj_i * proj_j * atom_block ( ic, jc, 4 ) - &
+                   norm_i * norm_j * fpart_i ( 3 ) * proj_j * atom_block ( ic, jc, 1 ) )
 
           fo_part ( 3, jpart ) = fo_part ( 3, jpart ) + 0.5_dbl * ( hpi + hpj ) * &
-                            ( proj_i * proj_j * atom_block ( ic, jc, 4 ) + &
-                             fpart_j ( 3 ) * proj_i * atom_block ( ic, jc, 1 ) )
+                  (norm_i * norm_j * proj_i * proj_j * atom_block ( ic, jc, 4 ) + &
+                   norm_i * norm_j * fpart_j ( 3 ) * proj_i * atom_block ( ic, jc, 1 ) )
         ELSEIF ( ipart == jpart ) THEN
           fo_part ( 1, ipart ) = fo_part ( 1, ipart ) + 0.25_dbl * ( hpi + hpj ) * &
-                              fpart_i ( 1 ) * proj_j  * atom_block ( ic, jc, 1 ) 
+                   norm_i * norm_j * fpart_i ( 1 ) * proj_j  * atom_block ( ic, jc, 1 ) 
 
           fo_part ( 1, jpart ) = fo_part ( 1, jpart ) + 0.25_dbl * ( hpi + hpj ) * &
-                              fpart_j ( 1 ) * proj_i  * atom_block ( ic, jc, 1 )
+                   norm_i * norm_j * fpart_j ( 1 ) * proj_i  * atom_block ( ic, jc, 1 )
 
           fo_part ( 2, ipart ) = fo_part ( 2, ipart ) + 0.25_dbl * ( hpi + hpj ) * &
-                              fpart_i ( 2 ) * proj_j * atom_block ( ic, jc, 1 )
+                   norm_i * norm_j * fpart_i ( 2 ) * proj_j * atom_block ( ic, jc, 1 )
 
           fo_part ( 2, jpart ) = fo_part ( 2, jpart ) + 0.25_dbl * ( hpi + hpj ) * &
-                              fpart_j ( 2 ) * proj_i * atom_block ( ic, jc, 1 )
+                    norm_i * norm_j *fpart_j ( 2 ) * proj_i * atom_block ( ic, jc, 1 )
 
           fo_part ( 3, ipart ) = fo_part ( 3, ipart ) + 0.25_dbl * ( hpi + hpj ) * &
-                              fpart_i ( 3 ) * proj_j * atom_block ( ic, jc, 1 )
+                    norm_i * norm_j * fpart_i ( 3 ) * proj_j * atom_block ( ic, jc, 1 )
 
           fo_part ( 3, jpart ) = fo_part ( 3, jpart ) + 0.25_dbl * ( hpi + hpj ) * &
-                              fpart_j ( 3 ) * proj_i * atom_block ( ic, jc, 1 )
+                    norm_i * norm_j * fpart_j ( 3 ) * proj_i * atom_block ( ic, jc, 1 )
         ENDIF 
      END DO
  
@@ -1297,8 +1304,8 @@ SUBROUTINE sum_patch_2x ( dg, rho_rs, ao, iproj, jproj, eij, rhos1, rhos2 )
   ey2 => ao % eigr ( jproj ) % ey ( : )
   ez2 => ao % eigr ( jproj ) % ez ( : )
 
-  q1 = ao % cr ( iproj ) * eij
-  q2 = ao % cr ( jproj ) * eij
+  q1 = ao % cr ( jproj ) * ao % norm ( iproj ) * eij
+  q2 = ao % cr ( iproj ) * ao % norm ( jproj ) * eij
 
   CALL dg_get_patch ( rho0, rhos1, rhos2, q1, q2, &
                      ex1, ey1, ez1, ex2, ey2, ez2 )
@@ -1327,7 +1334,7 @@ END SUBROUTINE sum_patch_2x
 !!   SOURCE
 !******************************************************************************
 
-SUBROUTINE sum_patch_1x ( dg, rho_rs, ao, iproj, eij, rhos1 )
+SUBROUTINE sum_patch_1x ( dg, rho_rs, ao, iproj, jproj, eij, rhos1 )
 
   IMPLICIT NONE
 
@@ -1335,7 +1342,7 @@ SUBROUTINE sum_patch_1x ( dg, rho_rs, ao, iproj, eij, rhos1 )
   TYPE ( dg_type ), INTENT ( IN ), TARGET :: dg
   TYPE ( realspace_grid_type ), INTENT ( INOUT ) :: rho_rs
   TYPE ( ao_type ), INTENT ( IN ) :: ao
-  INTEGER, INTENT ( IN ) :: iproj
+  INTEGER, INTENT ( IN ) :: iproj, jproj
   REAL ( dbl ), INTENT ( IN ) :: eij
   TYPE ( coeff_type ), INTENT ( INOUT ) :: rhos1
 
@@ -1354,7 +1361,7 @@ SUBROUTINE sum_patch_1x ( dg, rho_rs, ao, iproj, eij, rhos1 )
   ey1 => ao % eigr ( iproj ) % ey ( : )
   ez1 => ao % eigr ( iproj ) % ez ( : )
 
-  q1 = ao % cr ( iproj ) * eij
+  q1 = ao % cr ( jproj ) * ao % norm ( iproj ) * eij
 
   CALL dg_get_patch ( rho0, rhos1, q1, ex1, ey1, ez1 )
 
