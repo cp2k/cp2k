@@ -1,4 +1,14 @@
-#!/bin/ksh
+#!/bin/bash
+# changed to bash as it is more likely to exist. ksh was not everywhere
+
+
+#
+# this script should return some simplified machine code
+# corresponding to the machine dependent files in 
+# cp2k/arch/*.*
+#
+
+
 
 ### Aliasing of commands ###
 
@@ -17,7 +27,6 @@
     machine=$(uname -m)
 
     platform="${ostype}-${osversion}-${osrelease}-${machine}"
-    
     case $platform in
       (Darwin-*-*-Power\ Macintosh)
         PLATFORM="Darwin-PowerMacintosh-absoft";;
@@ -26,7 +35,7 @@
         if [[ -n $arch ]]; then
           PLATFORM="AIX-$arch"
         else
-          PLATFORM="AIX"
+          PLATFORM="unknown"
         fi;;
       (IRIX-*-*-*)
         PLATFORM="IRIX";;
@@ -36,6 +45,8 @@
         PLATFORM="Linux-dec-alpha";;
       (OSF1-*-*-alpha)
         PLATFORM="DEC_OS";;
+      (CYGWIN*-*-i686)
+        PLATFORM="Cygwin-i686-g95";;
       (Linux-*-*-i686)
         if [[ -n $FORT_C_NAME ]]; then
 	  PLATFORM="Linux-i686-$FORT_C_NAME"
@@ -53,7 +64,16 @@
       (SunOS-*-sun4u)
         PLATFORM="SUN";;
       (*)
-        PLATFORM='unknown';;
+        PLATFORM="unknown"
+    esac
+
+    case $PLATFORM in
+        (unknown)
+        echo "############################################################" >&2
+        echo "have a look at cp2k/tools/get_arch_code" >&2
+        echo "your system is a $platform" >&2
+        echo "but get_arch_code is not able to deal with that "  >&2
+        echo "############################################################" >&2
     esac
 
     echo ${PLATFORM}
