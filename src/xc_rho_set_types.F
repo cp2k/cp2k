@@ -45,6 +45,7 @@ MODULE xc_rho_set_types
                                              cp_unimplemented_error
   USE cp_log_handling,                 ONLY: cp_failure_level,&
                                              cp_fatal_level,&
+                                             cp_logger_type,&
                                              cp_note_level,&
                                              cp_to_string,&
                                              cp_warning_level
@@ -90,7 +91,7 @@ MODULE xc_rho_set_types
        xc_rho_cflags_equal, xc_rho_cflags_contain
 
 !!***
-!****************************************************************************
+  !****************************************************************************
 
 !!****s* xc_rho_set_types/xc_rho_cflags_type [1.0] *
 !!
@@ -127,14 +128,14 @@ MODULE xc_rho_set_types
 !!     11.2003 created [fawzi]
 !!
 !!   SOURCE
-!***************************************************************************
+  !***************************************************************************
   TYPE xc_rho_cflags_type
      LOGICAL :: rho, rho_spin, drho, drho_spin,&
           norm_drho, norm_drho_spin, drhoa_drhob,&
           rho_1_3,rho_spin_1_3, kinetic, kinetic_spin
   END TYPE xc_rho_cflags_type
 !!***
-!****************************************************************************
+  !****************************************************************************
 
 
 !!****s* xc_rho_set_types/xc_rho_set_type [1.0] *
@@ -185,19 +186,19 @@ MODULE xc_rho_set_types
 !!     11.2003 created [fawzi & thomas]
 !!
 !!   SOURCE
-!***************************************************************************
+  !***************************************************************************
   TYPE xc_rho_set_type
      INTEGER :: ref_count, id_nr
      INTEGER, DIMENSION(2,3) :: local_bounds
      REAL(kind=dp) :: rho_cutoff, drho_cutoff
      TYPE(xc_rho_cflags_type) :: owns, has
-! for spin restricted systems
+     ! for spin restricted systems
      REAL(KIND = dp), DIMENSION(:,:,:), POINTER :: rho
      TYPE(cp_3d_r_p_type), DIMENSION(3)         :: drho
      REAL(KIND = dp), DIMENSION(:,:,:), POINTER :: norm_drho
      REAL(KIND = dp), DIMENSION(:,:,:), POINTER :: rho_1_3
      REAL(kind = dp), DIMENSION(:,:,:), POINTER :: kinetic
-! for UNrestricted systems
+     ! for UNrestricted systems
      REAL(KIND = dp), DIMENSION(:,:,:), POINTER :: rhoa, rhob
      TYPE(cp_3d_r_p_type), DIMENSION(3)         :: drhoa, drhob
      REAL(KIND = dp), DIMENSION(:,:,:), POINTER :: norm_drhoa, norm_drhob
@@ -206,7 +207,7 @@ MODULE xc_rho_set_types
      REAL(kind = dp), DIMENSION(:,:,:), POINTER :: kinetic_a, kinetic_b
   END TYPE xc_rho_set_type
 !!***
-!****************************************************************************
+  !****************************************************************************
 
 CONTAINS
 
@@ -256,7 +257,7 @@ CONTAINS
     cflags%kinetic=value
     cflags%kinetic_spin=value
   END SUBROUTINE xc_rho_cflags_setall
-!***************************************************************************
+  !***************************************************************************
 
 !!****f* xc_rho_set_types/xc_rho_cflags_or [1.0] *
 !!
@@ -306,7 +307,7 @@ CONTAINS
     cflags1%kinetic_spin=cflags1%kinetic_spin.OR.cflags2%kinetic_spin
 
   END SUBROUTINE xc_rho_cflags_or
-!***************************************************************************
+  !***************************************************************************
 
 !!****f* xc_rho_set_types/xc_rho_cflags_and [1.0] *
 !!
@@ -356,7 +357,7 @@ CONTAINS
     cflags1%kinetic_spin=cflags1%kinetic_spin.AND.cflags2%kinetic_spin
 
   END SUBROUTINE xc_rho_cflags_and
-!***************************************************************************
+  !***************************************************************************
 
 !!****f* xc_rho_set_types/xc_rho_cflags_equal [1.0] *
 !!
@@ -407,7 +408,7 @@ CONTAINS
          (cflags1%kinetic_spin.EQV.cflags2%kinetic_spin))
 
   END FUNCTION xc_rho_cflags_equal
-!***************************************************************************
+  !***************************************************************************
 
 !!****f* xc_rho_set_types/xc_rho_cflags_contain [1.0] *
 !!
@@ -462,7 +463,57 @@ CONTAINS
          (cflags1%kinetic_spin.OR..NOT.cflags2%kinetic_spin))
 
   END FUNCTION xc_rho_cflags_contain
-!***************************************************************************
+  !***************************************************************************
+
+!!****f* xc_rho_set_types/xc_rho_cflags_write *
+!!
+!!   NAME
+!!     xc_rho_cflags_write
+!!
+!!   FUNCTION
+!!     writes out the values of the cflags
+!!
+!!   NOTES
+!!     -
+!!
+!!   ARGUMENTS
+!!     - cflags: the flags to be written out
+!!     - unit_nr: the unit to write to
+!!     - error: variable to control error logging, stopping,... 
+!!       see module cp_error_handling 
+!!
+!!   AUTHOR
+!!     fawzi
+!!
+!!   MODIFICATION HISTORY
+!!     11.2003 created [fawzi]
+!!
+!!*** **********************************************************************
+  SUBROUTINE xc_rho_cflags_write(cflags,unit_nr,error)
+    TYPE(xc_rho_cflags_type), INTENT(in)     :: cflags
+    INTEGER, INTENT(in)                      :: unit_nr
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'xc_rho_cflags_write', &
+      routineP = moduleN//':'//routineN
+
+    WRITE(unit=unit_nr,fmt="(' <xc_rho_cflags>{')")
+    WRITE(unit=unit_nr,fmt="('   rho=',l1,',')") cflags%rho
+    WRITE(unit=unit_nr,fmt="('   rho_spin=',l1,',')") cflags%rho_spin
+    WRITE(unit=unit_nr,fmt="('   drho=',l1,',')") cflags%drho
+    WRITE(unit=unit_nr,fmt="('   drho_spin=',l1,',')") cflags%drho_spin
+    WRITE(unit=unit_nr,fmt="('   norm_drho=',l1,',')") cflags%norm_drho
+    WRITE(unit=unit_nr,fmt="('   norm_drho_spin=',l1,',')") cflags%norm_drho_spin
+    WRITE(unit=unit_nr,fmt="('   drhoa_drhob=',l1,',')") cflags%drhoa_drhob
+    WRITE(unit=unit_nr,fmt="('   rho_1_3=',l1,',')") cflags%rho_1_3
+    WRITE(unit=unit_nr,fmt="('   rho_spin_1_3=',l1,',')") cflags%rho_spin_1_3
+    WRITE(unit=unit_nr,fmt="('   kinetic=',l1,',')") cflags%kinetic
+    WRITE(unit=unit_nr,fmt="('   kinetic_spin=',l1)") cflags%kinetic_spin
+    WRITE(unit=unit_nr,fmt="(' }')")
+
+  END SUBROUTINE xc_rho_cflags_write
+  !***************************************************************************
 
 !!****f* xc_rho_set_types/xc_rho_set_create [1.0] *
 !!
@@ -531,7 +582,7 @@ CONTAINS
             rho_set%kinetic,rho_set%kinetic_a,rho_set%kinetic_b)
     END IF
   END SUBROUTINE xc_rho_set_create
-!***************************************************************************
+  !***************************************************************************
 
 !!****f* xc_rho_set_types/xc_rho_set_retain [1.0] *
 !!
@@ -570,7 +621,7 @@ CONTAINS
        rho_set%ref_count=rho_set%ref_count+1
     END IF
   END SUBROUTINE xc_rho_set_retain
-!***************************************************************************
+  !***************************************************************************
 
 !!****f* xc_rho_set_types/xc_rho_set_release [1.0] *
 !!
@@ -578,8 +629,9 @@ CONTAINS
 !!     xc_rho_set_release
 !!
 !!   SYNOPSIS
-!!     Subroutine xc_rho_set_release(rho_set, error)
+!!     Subroutine xc_rho_set_release(rho_set, pw_pool, error)
 !!       Type(xc_rho_set_type), Pointer:: rho_set
+!!       Type(pw_pool_type), Pointer, Optional:: pw_pool
 !!       Type(cp_error_type), Intent (INOUT), Optional:: error
 !!     End Subroutine xc_rho_set_release
 !!
@@ -588,12 +640,14 @@ CONTAINS
 !!
 !!   ARGUMENTS
 !!     - rho_set: the structure to release
+!!     - pw_pool: the plae where to give back the arrays
 !!     - error: variable to control error logging, stopping,... 
 !!       see module cp_error_handling 
 !!
 !!*** **********************************************************************
-  SUBROUTINE xc_rho_set_release(rho_set, error)
+  SUBROUTINE xc_rho_set_release(rho_set, pw_pool, error)
     TYPE(xc_rho_set_type), POINTER           :: rho_set
+    TYPE(pw_pool_type), OPTIONAL, POINTER    :: pw_pool
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
@@ -609,6 +663,16 @@ CONTAINS
        CPPreconditionNoFail(rho_set%ref_count>0,cp_failure_level,routineP,error)
        rho_set%ref_count=rho_set%ref_count-1
        IF (rho_set%ref_count==0) THEN
+          IF (PRESENT(pw_pool)) THEN
+             IF (ASSOCIATED(pw_pool)) THEN
+                rho_set%ref_count=1
+                CALL xc_rho_set_clean(rho_set,pw_pool,error)
+                rho_set%ref_count=0
+             ELSE
+                CPPrecondition(.FALSE.,cp_warning_level,routineP,error,failure)
+             END IF
+          END IF
+
           rho_set%local_bounds(1,:)=-HUGE(0) ! we want to crash...
           rho_set%local_bounds(1,:)=HUGE(0)
           IF (rho_set%owns%rho .AND. ASSOCIATED(rho_set%rho)) THEN
@@ -697,7 +761,7 @@ CONTAINS
     END IF
     NULLIFY(rho_set)
   END SUBROUTINE xc_rho_set_release
-!***************************************************************************
+  !***************************************************************************
 
 !!****f* xc_rho_set_types/xc_rho_set_get [1.0] *
 !!
@@ -858,7 +922,112 @@ CONTAINS
        IF (PRESENT(local_bounds)) local_bounds => rho_set%local_bounds
     END IF
   END SUBROUTINE xc_rho_set_get
-!***************************************************************************
+  !***************************************************************************
+
+!!****f* xc_rho_set_types/xc_rho_set_clean [1.0] *
+!!
+!!   NAME
+!!     xc_rho_set_clean
+!!
+!!   FUNCTION
+!!     cleans (releases) most of the data stored in the rho_set giving back
+!!     what it can to the pw_pool
+!!
+!!   NOTES
+!!     -
+!!
+!!   INPUTS
+!!     - rho_set: the rho_set to be cleaned
+!!     - pw_pool: place to give back 3d arrays,...
+!!     - error: variable to control error logging, stopping,... 
+!!       see module cp_error_handling 
+!!
+!!   AUTHOR
+!!     Fawzi Mohamed
+!!
+!!*** **********************************************************************
+  SUBROUTINE xc_rho_set_clean(rho_set,pw_pool,error)
+    TYPE(xc_rho_set_type), POINTER           :: rho_set
+    TYPE(pw_pool_type), POINTER              :: pw_pool
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'xc_rho_set_clean', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: idir
+    LOGICAL                                  :: failure
+
+    failure=.FALSE.
+
+    CPPrecondition(ASSOCIATED(rho_set),cp_failure_level,routineP,error,failure)
+    CPPrecondition(rho_set%ref_count>0,cp_failure_level,routineP,error,failure)
+
+    IF (.NOT. failure) THEN
+
+       IF (rho_set%owns%rho) THEN
+          CALL pw_pool_give_back_cr3d(pw_pool,rho_set%rho, &
+               accept_non_compatible=.TRUE., error=error)
+       ELSE
+          NULLIFY(rho_set%rho)
+       END IF
+       IF (rho_set%owns%drho) THEN
+          DO idir=1,3
+             CALL pw_pool_give_back_cr3d(pw_pool,rho_set%drho(idir)%array,&
+                  accept_non_compatible=.TRUE.,error=error)
+          END DO
+       ELSE
+          DO idir=1,3
+             NULLIFY(rho_set%drho(idir)%array)
+          END DO
+       END IF
+       IF (rho_set%owns%norm_drho) THEN
+          CALL pw_pool_give_back_cr3d(pw_pool,rho_set%norm_drho,&
+               accept_non_compatible=.TRUE.,error=error)
+       ELSE
+          NULLIFY(rho_set%norm_drho)
+       END IF
+       IF (rho_set%owns%rho_spin) THEN
+          CALL pw_pool_give_back_cr3d(pw_pool,rho_set%rhoa,&
+               accept_non_compatible=.TRUE., error=error)
+          CALL pw_pool_give_back_cr3d(pw_pool,rho_set%rhob,&
+               accept_non_compatible=.TRUE., error=error)
+       ELSE
+          NULLIFY(rho_set%rhoa,rho_set%rhob)
+       END IF
+       IF (rho_set%owns%drho_spin) THEN
+          DO idir=1,3
+             CALL pw_pool_give_back_cr3d(pw_pool,rho_set%drhoa(idir)%array,&
+                  accept_non_compatible=.TRUE.,error=error)
+             CALL pw_pool_give_back_cr3d(pw_pool,rho_set%drhob(idir)%array,&
+                  accept_non_compatible=.TRUE.,error=error)
+          END DO
+       ELSE
+          DO idir=1,3
+             NULLIFY(rho_set%drhoa(idir)%array,rho_set%drhob(idir)%array)
+          END DO
+       END IF
+       IF (rho_set%owns%norm_drho_spin) THEN
+          CALL pw_pool_give_back_cr3d(pw_pool,rho_set%norm_drhoa,&
+               accept_non_compatible=.TRUE.,error=error)
+          CALL pw_pool_give_back_cr3d(pw_pool,rho_set%norm_drhob,&
+               accept_non_compatible=.TRUE.,error=error)
+       ELSE
+          NULLIFY(rho_set%norm_drhoa, rho_set%norm_drhob)
+       END IF
+       IF (rho_set%owns%drhoa_drhob) THEN
+          CALL pw_pool_give_back_cr3d(pw_pool, rho_set%drhoa_drhob,&
+               accept_non_compatible=.TRUE., error=error)
+       ELSE
+          NULLIFY(rho_set%drhoa_drhob)
+       END IF
+
+       CALL xc_rho_cflags_setall(rho_set%has,.FALSE.,error=error)
+       CALL xc_rho_cflags_setall(rho_set%owns,.FALSE.,error=error)
+
+    END IF
+  END SUBROUTINE xc_rho_set_clean
+  !***************************************************************************
 
 
 !!****f* xc_rho_set_types/xc_rho_set_update [1.0] *
@@ -919,6 +1088,7 @@ CONTAINS
     LOGICAL                                  :: failure, gradient_f, &
                                                 my_rho_g_local, my_rho_r_local
     REAL(kind=dp)                            :: rho_cutoff
+    TYPE(cp_logger_type), POINTER            :: logger
     TYPE(pw_p_type), DIMENSION(2)            :: my_rho_r
     TYPE(pw_p_type), DIMENSION(3)            :: drho_r_att
     TYPE(pw_p_type), DIMENSION(3, 2)         :: drho_r
@@ -936,6 +1106,7 @@ CONTAINS
     END DO
     NULLIFY(tmp_g,my_rho_g)
     nd = RESHAPE ((/1,0,0,0,1,0,0,0,1/),(/3,3/))
+    logger => cp_error_get_logger(error)
 
     CPPrecondition(ASSOCIATED(rho_set),cp_failure_level,routineP,error,failure)
     CPPrecondition(rho_set%ref_count>0,cp_failure_level,routineP,error,failure)
@@ -947,7 +1118,7 @@ CONTAINS
     rho_set%local_bounds=rho_r(1)%pw%pw_grid%bounds_local
     rho_cutoff=0.5*rho_set%rho_cutoff
 
-! some checks
+    ! some checks
     SELECT CASE(dft_control%nspins)
     CASE(1)
        CPPrecondition(SIZE(rho_r)==1,cp_failure_level,routineP,error,failure)
@@ -968,72 +1139,13 @@ CONTAINS
        CPAssert(.FALSE.,cp_failure_level,routineP,error,failure)
     END SELECT
 
-! preclean
-    IF (rho_set%owns%rho) THEN
-       CALL pw_pool_give_back_cr3d(pw_pool,rho_set%rho, &
-            accept_non_compatible=.TRUE., error=error)
-    ELSE
-       NULLIFY(rho_set%rho)
-    END IF
-    IF (rho_set%owns%drho) THEN
-       DO idir=1,3
-          CALL pw_pool_give_back_cr3d(pw_pool,rho_set%drho(idir)%array,&
-               accept_non_compatible=.TRUE.,error=error)
-       END DO
-    ELSE
-       DO idir=1,3
-          NULLIFY(rho_set%drho(idir)%array)
-       END DO
-    END IF
-    IF (rho_set%owns%norm_drho) THEN
-       CALL pw_pool_give_back_cr3d(pw_pool,rho_set%norm_drho,&
-            accept_non_compatible=.TRUE.,error=error)
-    ELSE
-       NULLIFY(rho_set%norm_drho)
-    END IF
-    IF (rho_set%owns%rho_spin) THEN
-       CALL pw_pool_give_back_cr3d(pw_pool,rho_set%rhoa,&
-            accept_non_compatible=.TRUE., error=error)
-       CALL pw_pool_give_back_cr3d(pw_pool,rho_set%rhob,&
-            accept_non_compatible=.TRUE., error=error)
-    ELSE
-       NULLIFY(rho_set%rhoa,rho_set%rhob)
-    END IF
-    IF (rho_set%owns%drho_spin) THEN
-       DO idir=1,3
-          CALL pw_pool_give_back_cr3d(pw_pool,rho_set%drhoa(idir)%array,&
-               accept_non_compatible=.TRUE.,error=error)
-          CALL pw_pool_give_back_cr3d(pw_pool,rho_set%drhob(idir)%array,&
-               accept_non_compatible=.TRUE.,error=error)
-       END DO
-    ELSE
-       DO idir=1,3
-          NULLIFY(rho_set%drhoa(idir)%array,rho_set%drhob(idir)%array)
-       END DO
-    END IF
-    IF (rho_set%owns%norm_drho_spin) THEN
-       CALL pw_pool_give_back_cr3d(pw_pool,rho_set%norm_drhoa,&
-            accept_non_compatible=.TRUE.,error=error)
-       CALL pw_pool_give_back_cr3d(pw_pool,rho_set%norm_drhob,&
-            accept_non_compatible=.TRUE.,error=error)
-    ELSE
-       NULLIFY(rho_set%norm_drhoa, rho_set%norm_drhob)
-    END IF
-    IF (rho_set%owns%drhoa_drhob) THEN
-       CALL pw_pool_give_back_cr3d(pw_pool, rho_set%drhoa_drhob,&
-            accept_non_compatible=.TRUE., error=error)
-    ELSE
-       NULLIFY(rho_set%drhoa_drhob)
-    END IF
-
-    CALL xc_rho_cflags_setall(rho_set%has,.FALSE.,error=error)
-    CALL xc_rho_cflags_setall(rho_set%owns,.FALSE.,error=error)
+    CALL xc_rho_set_clean(rho_set,pw_pool=pw_pool,error=error)
 
     gradient_f=(needs%drho_spin.OR.needs%norm_drho_spin.OR.&
          needs%drhoa_drhob.OR.needs%drho.OR.needs%norm_drho)
 
     DO ispin=1,nspins
-! introduce a smoothing kernel on the density
+       ! introduce a smoothing kernel on the density
        IF (dft_control%xc_rho_smooth_id==xc_rho_no_smooth) THEN
           my_rho_r_local=.FALSE.
           my_rho_g_local=.FALSE.
@@ -1068,9 +1180,9 @@ CONTAINS
        END IF
 
        IF (gradient_f) THEN ! calculate the grad of rho
-! normally when you need the gradient you need the whole gradient
-! (for the partial integration)
-! deriv rho
+          ! normally when you need the gradient you need the whole gradient
+          ! (for the partial integration)
+          ! deriv rho
           DO idir=1,3
              NULLIFY(drho_r(idir,ispin)%pw)
              CALL pw_pool_create_pw(pw_pool,drho_r(idir,ispin)%pw, &
@@ -1139,8 +1251,8 @@ CONTAINS
                   error=error)
           END IF
 
-! my_rho_g might be either rho_g or the weights of the spline
-! my_rho_r contains the function that has been derived
+          ! my_rho_g might be either rho_g or the weights of the spline
+          ! my_rho_r contains the function that has been derived
 
           IF (my_rho_g_local) THEN
              my_rho_g_local=.FALSE.
@@ -1157,7 +1269,7 @@ CONTAINS
        IF (needs%rho_1_3) THEN
           CALL pw_pool_create_cr3d(pw_pool, rho_set%rho_1_3, &
                error=error)
-!FM$omp parallel do default(none) private(i,j,k) shared(rho_set,my_rho)
+          !$omp parallel do default(none) private(i,j,k) shared(rho_set,my_rho_r)
           DO k=rho_set%local_bounds(1,1),rho_set%local_bounds(2,1)
              DO j=rho_set%local_bounds(1,2),rho_set%local_bounds(2,2)
                 DO i=rho_set%local_bounds(1,3),rho_set%local_bounds(2,3)
@@ -1177,7 +1289,7 @@ CONTAINS
        IF (needs%norm_drho) THEN
           CALL pw_pool_create_cr3d(pw_pool, rho_set%norm_drho, &
                error=error)
-!$omp parallel do private(i,j,k)
+          !$omp parallel do default(none) private(i,j,k) shared(rho_set,drho_r)
           DO k=rho_set%local_bounds(1,1),rho_set%local_bounds(2,1)
              DO j=rho_set%local_bounds(1,2),rho_set%local_bounds(2,2)
                 DO i=rho_set%local_bounds(1,3),rho_set%local_bounds(2,3)
@@ -1201,12 +1313,12 @@ CONTAINS
        END IF
     CASE(2)
        IF (needs%rho) THEN
-! this should basically never be the case unless you use LDA functionals
-! with LSD
+          ! this should basically never be the case unless you use LDA functionals
+          ! with LSD
 
           CALL pw_pool_create_cr3d(pw_pool,rho_set%rho,error=error)
-!assume that the bounds are the same?
-!FM$omp parallel do private(i,j,k)
+          !assume that the bounds are the same?
+          !$omp parallel do default(none) private(i,j,k) shared(rho_set,my_rho_r)
           DO k=rho_set%local_bounds(1,1),rho_set%local_bounds(2,1)
              DO j=rho_set%local_bounds(1,2),rho_set%local_bounds(2,2)
                 DO i=rho_set%local_bounds(1,3),rho_set%local_bounds(2,3)
@@ -1220,8 +1332,8 @@ CONTAINS
        END IF
        IF (needs%rho_1_3) THEN
           CALL pw_pool_create_cr3d(pw_pool,rho_set%rho_1_3,error=error)
-!assume that the bounds are the same?
-!FM$omp parallel do private(i,j,k)
+          !assume that the bounds are the same?
+          !$omp parallel do default(none) private(i,j,k) shared(rho_set,my_rho_r)
           DO k=rho_set%local_bounds(1,1),rho_set%local_bounds(2,1)
              DO j=rho_set%local_bounds(1,2),rho_set%local_bounds(2,2)
                 DO i=rho_set%local_bounds(1,3),rho_set%local_bounds(2,3)
@@ -1235,8 +1347,8 @@ CONTAINS
        END IF
        IF (needs%rho_spin_1_3) THEN
           CALL pw_pool_create_cr3d(pw_pool,rho_set%rhoa_1_3,error=error)
-!assume that the bounds are the same?
-!FM$omp parallel do private(i,j,k)
+          !assume that the bounds are the same?
+          !$omp parallel do default(none) private(i,j,k) shared(rho_set,my_rho_r)
           DO k=rho_set%local_bounds(1,1),rho_set%local_bounds(2,1)
              DO j=rho_set%local_bounds(1,2),rho_set%local_bounds(2,2)
                 DO i=rho_set%local_bounds(1,3),rho_set%local_bounds(2,3)
@@ -1245,8 +1357,8 @@ CONTAINS
              END DO
           END DO
           CALL pw_pool_create_cr3d(pw_pool,rho_set%rhob_1_3,error=error)
-!assume that the bounds are the same?
-!FM$omp parallel do private(i,j,k)
+          !assume that the bounds are the same?
+          !$omp parallel do default(none) private(i,j,k) shared(rho_set,my_rho_r)
           DO k=rho_set%local_bounds(1,1),rho_set%local_bounds(2,1)
              DO j=rho_set%local_bounds(1,2),rho_set%local_bounds(2,2)
                 DO i=rho_set%local_bounds(1,3),rho_set%local_bounds(2,3)
@@ -1272,7 +1384,7 @@ CONTAINS
 
           CALL pw_pool_create_cr3d(pw_pool, rho_set%norm_drhoa, &
                error=error)
-!FM$omp parallel do private(i,j,k)
+          !$omp parallel do default(none) private(i,j,k) shared(rho_set,drho_r)
           DO k=rho_set%local_bounds(1,1),rho_set%local_bounds(2,1)
              DO j=rho_set%local_bounds(1,2),rho_set%local_bounds(2,2)
                 DO i=rho_set%local_bounds(1,3),rho_set%local_bounds(2,3)
@@ -1287,7 +1399,7 @@ CONTAINS
           CALL pw_pool_create_cr3d(pw_pool, rho_set%norm_drhob, &
                error=error)
           rho_set%owns%norm_drho_spin=.TRUE.
-!FM$omp parallel do private(i,j,k)
+          !$omp parallel do default(none) private(i,j,k) shared(rho_set,drho_r)
           DO k=rho_set%local_bounds(1,1),rho_set%local_bounds(2,1)
              DO j=rho_set%local_bounds(1,2),rho_set%local_bounds(2,2)
                 DO i=rho_set%local_bounds(1,3),rho_set%local_bounds(2,3)
@@ -1305,7 +1417,7 @@ CONTAINS
        IF (needs%drhoa_drhob) THEN
           CALL pw_pool_create_cr3d(pw_pool, rho_set%drhoa_drhob, &
                error=error)
-!FM$omp parallel do private(i,j,k)
+          !$omp parallel do default(none) private(i,j,k) shared(rho_set,drho_r)
           DO k=rho_set%local_bounds(1,1),rho_set%local_bounds(2,1)
              DO j=rho_set%local_bounds(1,2),rho_set%local_bounds(2,2)
                 DO i=rho_set%local_bounds(1,3),rho_set%local_bounds(2,3)
@@ -1320,13 +1432,13 @@ CONTAINS
           rho_set%has%drhoa_drhob=.TRUE.
        END IF
        IF (needs%drho) THEN
-! this should basically never be the case unless you use LDA functionals
-! with LSD
+          ! this should basically never be the case unless you use LDA functionals
+          ! with LSD
           DO idir=1,3
              CALL pw_pool_create_cr3d(pw_pool,rho_set%drho(idir)%array,&
                   error=error)
-!assume that the bounds are the same?
-!FM$omp parallel do private(i,j,k)
+             !assume that the bounds are the same?
+             !$omp parallel do default(none) private(i,j,k) shared(rho_set,drho_r,idir)
              DO k=rho_set%local_bounds(1,1),rho_set%local_bounds(2,1)
                 DO j=rho_set%local_bounds(1,2),rho_set%local_bounds(2,2)
                    DO i=rho_set%local_bounds(1,3),rho_set%local_bounds(2,3)
@@ -1357,7 +1469,7 @@ CONTAINS
             error=error, error_level=cp_failure_level)
     END IF
 
-! post cleanup
+    ! post cleanup
     DO ispin=1,nspins
        DO idir=1,3
           CALL pw_pool_give_back_pw(pw_pool, drho_r(idir,ispin)%pw, &
@@ -1371,9 +1483,13 @@ CONTAINS
        END DO
     END IF
 
+!FM    CALL xc_rho_cflags_write(rho_set%has,&
+!FM         cp_logger_get_default_unit_nr(logger,local=.TRUE.),error=error)
+!FM    CALL xc_rho_cflags_write(needs,&
+!FM         cp_logger_get_default_unit_nr(logger,local=.TRUE.),error=error)
     CPPostcondition(xc_rho_cflags_equal(rho_set%has,needs),cp_failure_level,routineP,error,failure)
 
   END SUBROUTINE xc_rho_set_update
-!***************************************************************************
+  !***************************************************************************
 
 END MODULE xc_rho_set_types
