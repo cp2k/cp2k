@@ -121,7 +121,7 @@ CONTAINS
 
 !   *** TD calculation ***
     
-    CALL tddfpt_calculation(qs_env, ks_env, globenv)
+    ! Joost : coredumps : CALL tddfpt_calculation(qs_env, ks_env, globenv)
 
 !   *** Calculate forces ***
 
