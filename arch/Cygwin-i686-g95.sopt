@@ -1,0 +1,13 @@
+PERL     = perl
+CC       = gcc
+CPP      = cpp
+FC       = g95 -ffree-form
+FC_fixed = g95 -ffixed-form
+LD       = gcc
+AR       = ar -r
+CPPFLAGS = -C -P -traditional -D__G95 -D__FFTSG 
+FCFLAGS  = -O2
+LDFLAGS  = $(FCFLAGS)
+LIBS     = -llapack -lblas
+
+OBJECTS_ARCHITECTURE = machine_g95.o
