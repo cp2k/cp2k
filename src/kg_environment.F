@@ -188,6 +188,7 @@ CONTAINS
     NULLIFY ( molecule_set )
     NULLIFY ( particle_set )
     NULLIFY ( scf_control )
+    NULLIFY ( cell_ref )
 
     ! Read/write the input section with the dft and qs control parameters
     CALL read_dft_control ( dft_control, globenv, error )
