@@ -69,11 +69,23 @@ MODULE qs_environment_methods
                                              cp_note_level,&
                                              cp_to_string,&
                                              cp_warning_level
-  USE cp_matrix_utils,                 ONLY: cp_sm_set_dist_sparsity_from_sm
+  USE cp_matrix_utils,                 ONLY: sm_struct_add_sm_local_blocks
   USE cp_para_env,                     ONLY: cp_para_env_release,&
                                              cp_para_env_retain
   USE cp_para_types,                   ONLY: cp_blacs_env_type,&
                                              cp_para_env_type
+  USE cp_sm_pool_types,                ONLY: cp_sm_pool_p_type,&
+                                             cp_sm_pool_type,&
+                                             sm_pool_create,&
+                                             sm_pool_get_mstruct,&
+                                             sm_pool_release,&
+                                             sm_pool_retain,&
+                                             sm_pools_flush_cache
+  USE cp_sm_struct,                    ONLY: cp_sm_struct_type,&
+                                             sm_struct_clear_local_blocks,&
+                                             sm_struct_create,&
+                                             sm_struct_release,&
+                                             sm_struct_retain
   USE dft_types,                       ONLY: dft_control_type
   USE global_types,                    ONLY: global_environment_type
   USE kinds,                           ONLY: dbl,&
@@ -140,7 +152,8 @@ MODULE qs_environment_methods
   CHARACTER(len=*), PRIVATE, PARAMETER :: moduleN='qs_environment_methods'
 
   PUBLIC :: qs_env_update_s_mstruct, qs_env_rebuild_pw_env,&
-       qs_env_rebuild_aomo_pools, qs_env_rebuild_rho, qs_env_setup
+       qs_env_rebuild_aomo_pools, qs_env_rebuild_rho, qs_env_setup,&
+       qs_env_update_h_redundant_pools
 !***
 !****************************************************************************
 CONTAINS
@@ -261,46 +274,59 @@ SUBROUTINE qs_env_update_s_mstruct(qs_env,error)
   LOGICAL :: failure
   CHARACTER(len=*), PARAMETER :: routineN='qs_env_update_s_mstruct',&
         routineP=moduleN//':'//routineN
-  INTEGER :: n_atoms, stat
-  INTEGER, DIMENSION(:), ALLOCATABLE :: block_sizes
+  INTEGER :: n_atoms, stat, ispin
+  INTEGER, DIMENSION(:), ALLOCATABLE :: block_begins_at
   INTEGER, DIMENSION(:), POINTER :: first_row, first_col, last_row, last_col
   TYPE(cp_para_env_type), POINTER :: para_env
+  TYPE(cp_sm_struct_type), POINTER :: s_mstruct
+  TYPE(dft_control_type), POINTER :: dft_control
 
   failure=.FALSE.
   NULLIFY(first_row, first_col, last_row, last_col, para_env)
   
-  IF (ASSOCIATED(qs_env%s_mstruct)) CALL cp_bmstruct_release(qs_env%s_mstruct)
-  CALL get_qs_env(qs_env, para_env=para_env, error=error)
-  n_atoms=SIZE(qs_env%particle_set)
-  ALLOCATE(block_sizes(n_atoms),stat=stat)
-  CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-  block_sizes=qs_env%particle_set(:)%last_sgf-qs_env%particle_set(:)%first_sgf+1
-  CALL cp_bmstruct_create(qs_env%s_mstruct,&
-       symmetric=.TRUE.,&
-       para_env=para_env,&
-       b_row_sizes=block_sizes,&
-       b_col_sizes=block_sizes,&
+  CALL get_qs_env(qs_env, para_env=para_env, dft_control=dft_control,&
        error=error)
+  n_atoms=SIZE(qs_env%particle_set)
+  
+  IF (ASSOCIATED(qs_env%S_sm_pools)) THEN
+     s_mstruct => sm_pool_get_mstruct(qs_env%S_sm_pools(1)%pool,error=error)
+     CALL sm_struct_clear_local_blocks(s_mstruct,error=error)
+  ELSE
+     ALLOCATE(block_begins_at(n_atoms+1), stat=stat)
+     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+     block_begins_at(1:n_atoms)=qs_env%particle_set(1:n_atoms)%first_sgf
+     block_begins_at(n_atoms+1)=qs_env%particle_set(n_atoms)%last_sgf+1
+     
+     CALL sm_struct_create(s_mstruct, &
+          block_begins_at_row=block_begins_at,&
+          block_begins_at_col=block_begins_at,&
+          para_env=para_env, symmetry="symmetric",&
+          error=error)
+
+     DEALLOCATE(block_begins_at,stat=stat)
+     CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+  END IF
+
   CALL get_matrix_info(qs_env%s(1)%matrix,first_row=first_row,&
        last_row=last_row, first_col=first_col,&
        last_col=last_col)
 
-  CALL cp_assert(ALL(qs_env%s_mstruct%b_dims%block_begins_at_row(1:n_atoms)==&
+  CALL cp_assert(ALL(s_mstruct%block_begins_at_row(1:n_atoms)==&
        first_row),cp_failure_level,cp_assertion_failed,routineP,&
        "s has unexpected size, "//&
        CPSourceFileRef,&
        error)
-  CALL cp_assert(ALL(qs_env%s_mstruct%b_dims%block_begins_at_col(1:n_atoms)==&
+  CALL cp_assert(ALL(s_mstruct%block_begins_at_col(1:n_atoms)==&
        first_col),cp_failure_level,cp_assertion_failed,routineP,&
        "s has unexpected size, "//&
        CPSourceFileRef,&
        error)
-  CALL cp_assert(qs_env%s_mstruct%b_dims%block_begins_at_col(n_atoms+1)==&
+  CALL cp_assert(s_mstruct%block_begins_at_col(n_atoms+1)==&
        last_col(n_atoms)+1,cp_failure_level,cp_assertion_failed,routineP,&
        "s has unexpected size, "//&
        CPSourceFileRef,&
        error)
-  CALL cp_assert(qs_env%s_mstruct%b_dims%block_begins_at_row(n_atoms+1)==&
+  CALL cp_assert(s_mstruct%block_begins_at_row(n_atoms+1)==&
        last_row(n_atoms)+1,cp_failure_level,cp_assertion_failed,routineP,&
        "s has unexpected size, "//&
        CPSourceFileRef,&
@@ -308,11 +334,28 @@ SUBROUTINE qs_env_update_s_mstruct(qs_env,error)
 
   ! at the moment read from s, maybe in the future s will take its structure
   ! from this
-  CALL cp_sm_set_dist_sparsity_from_sm(qs_env%s_mstruct,&
-       para_env=para_env,&
-       sample_matrix=qs_env%s(1)%matrix,&
+  CALL sm_struct_add_sm_local_blocks(s_mstruct,&
+       matrix=qs_env%s(1)%matrix,&
        error=error)
-!FM  
+  
+  IF (.not.ASSOCIATED(qs_env%S_sm_pools)) THEN
+     ALLOCATE(qs_env%S_sm_pools(dft_control%nspins),stat=stat)
+     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+     
+     NULLIFY(qs_env%S_sm_pools(1)%pool)
+     CALL sm_pool_create(qs_env%S_sm_pools(1)%pool,matrix_struct=s_mstruct,&
+          error=error)
+     CALL sm_struct_release(s_mstruct,error=error)
+     
+     DO ispin=2,dft_control%nspins
+        qs_env%S_sm_pools(ispin)%pool => qs_env%S_sm_pools(1)%pool
+        CALL sm_pool_retain(qs_env%S_sm_pools(ispin)%pool,error=error)
+     END DO
+  ELSE
+     NULLIFY(s_mstruct)
+     CALL sm_pools_flush_cache(qs_env%S_sm_pools)
+  END IF
+
   ! *** updates rho core ***
   CPPrecondition(ASSOCIATED(qs_env%rho_core),cp_failure_level,routineP,error,failure)
   CPPrecondition(ASSOCIATED(qs_env%pw_env),cp_failure_level,routineP,error,failure)
@@ -565,9 +608,10 @@ SUBROUTINE qs_env_rebuild_rho(qs_env, rho_ao_with_h_mstruct,&
   LOGICAL :: failure, my_rho_ao_with_h_mstruct
   CHARACTER(len=*), PARAMETER :: routineN='qs_env_rebuild_rho',&
         routineP=moduleN//':'//routineN
-  
-  my_rho_ao_with_h_mstruct=.true.
-  if (present(rho_ao_with_h_mstruct)) my_rho_ao_with_h_mstruct=rho_ao_with_h_mstruct
+
+  my_rho_ao_with_h_mstruct=.TRUE.
+  IF (PRESENT(rho_ao_with_h_mstruct)) my_rho_ao_with_h_mstruct=rho_ao_with_h_mstruct
+
   CALL qs_rho_rebuild(qs_env%rho,qs_env=qs_env,&
        rho_ao_with_h_mstruct=my_rho_ao_with_h_mstruct,&
        rebuild_ao=rebuild_ao, rebuild_grids=rebuild_grids, error=error)
@@ -621,6 +665,92 @@ SUBROUTINE qs_env_update_rho_core(qs_env,error)
           qs_charges%total_rho_core_rspace,qs_env,error)
   END IF
 END SUBROUTINE qs_env_update_rho_core
+!***************************************************************************
+
+!!****f* qs_environment_methods/qs_env_update_h_redundant_pools [1.0] *
+!!
+!!   NAME
+!!     qs_env_update_h_redundant_pools
+!!
+!!   SYNOPSIS
+!!     Subroutine qs_env_update_h_redundant_pools(qs_env, error)
+!!       Type(qs_environment_type), Pointer:: qs_env
+!!       Type(cp_error_type), Optional, Intent (INOUT):: error
+!!     End Subroutine qs_env_update_h_redundant_pools
+!!
+!!   FUNCTION
+!!     updates the H_redundant_sm_pools, to be called after qs_env%h changes
+!!
+!!   NOTES
+!!     qs_env%S_sm_pools should be valid
+!!
+!!   ARGUMENTS
+!!     - qs_env: the qs_env to update
+!!     - error: variable to control error logging, stopping,... 
+!!       see module cp_error_handling 
+!!
+!!   AUTHOR
+!!     fawzi
+!!
+!!   MODIFICATION HISTORY
+!!     02.2003 created [fawzi]
+!!
+!!*** **********************************************************************
+SUBROUTINE qs_env_update_h_redundant_pools(qs_env,error)
+  TYPE(qs_environment_type), POINTER :: qs_env
+  TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
+  
+  LOGICAL :: failure
+  CHARACTER(len=*), PARAMETER :: routineN='qs_env_update_h_redundant_pools',&
+        routineP=moduleN//':'//routineN
+  TYPE(cp_sm_struct_type), POINTER :: s_mstruct, h_mstruct
+  INTEGER :: stat, ispin
+
+  failure=.FALSE.
+  NULLIFY(s_mstruct, h_mstruct)
+  
+  CPPrecondition(ASSOCIATED(qs_env),cp_failure_level,routineP,error,failure)
+  CPPrecondition(qs_env%ref_count>0,cp_failure_level,routineP,error,failure)
+  IF (.NOT. failure) THEN
+    IF (ASSOCIATED(qs_env%H_redundant_sm_pools)) THEN
+       h_mstruct => sm_pool_get_mstruct(qs_env%H_redundant_sm_pools(1)%pool,&
+            error=error)
+       CALL sm_struct_clear_local_blocks(h_mstruct,error=error)
+    ELSE
+       s_mstruct => sm_pool_get_mstruct(qs_env%S_sm_pools(1)%pool,error=error)
+       CALL sm_struct_create(h_mstruct, &
+            block_begins_at_row=s_mstruct%block_begins_at_row,&
+            block_begins_at_col=s_mstruct%block_begins_at_col,&
+            para_env=s_mstruct%para_env, symmetry="symmetric",&
+            error=error)
+    END IF
+
+    CALL sm_struct_add_sm_local_blocks(h_mstruct,&
+         matrix=qs_env%h(1)%matrix,&
+         error=error)  
+
+    IF (.not.ASSOCIATED(qs_env%H_redundant_sm_pools)) THEN
+       ALLOCATE(qs_env%H_redundant_sm_pools(SIZE(qs_env%S_sm_pools)),stat=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       
+       NULLIFY(qs_env%H_redundant_sm_pools(1)%pool)
+       CALL sm_pool_create(qs_env%H_redundant_sm_pools(1)%pool,&
+            matrix_struct=s_mstruct,&
+            error=error)
+       CALL sm_struct_release(h_mstruct,error=error)
+     
+       DO ispin=2,SIZE(qs_env%H_redundant_sm_pools)
+          qs_env%H_redundant_sm_pools(ispin)%pool => &
+               qs_env%H_redundant_sm_pools(1)%pool
+          CALL sm_pool_retain(qs_env%H_redundant_sm_pools(ispin)%pool,&
+               error=error)
+       END DO
+    ELSE
+       NULLIFY(h_mstruct)
+       CALL sm_pools_flush_cache(qs_env%H_redundant_sm_pools)
+    END IF
+  END IF
+END SUBROUTINE qs_env_update_h_redundant_pools
 !***************************************************************************
 
 END MODULE qs_environment_methods

@@ -85,12 +85,12 @@ MODULE qs_ot
        CHARACTER(LEN=4)  :: ot_method
        CHARACTER(LEN=4)  :: line_search_method
        CHARACTER(LEN=12) :: preconditioner_type
-       real(wp)          :: ds_min
-       integer           :: diis_m
-       real(wp)          :: gold_target
+       REAL(wp)          :: ds_min
+       INTEGER           :: diis_m
+       REAL(wp)          :: gold_target
 
-       integer           :: n,k,nrow_block,ncol_block
-       integer           :: ortho_k
+       INTEGER           :: n,k,nrow_block,ncol_block
+       INTEGER           :: ortho_k
   END TYPE qs_ot_settings_type
 
   TYPE qs_ot_type
@@ -148,13 +148,13 @@ MODULE qs_ot
      REAL(wp), DIMENSION(:),   POINTER  :: c_diis
      INTEGER,  DIMENSION(:),   POINTER  :: ipivot
 
-     real(kind=wp)    :: ot_pos(53),ot_energy(53),ot_grad(53) ! HARD LIMIT FOR THE LS
+     REAL(kind=wp)    :: ot_pos(53),ot_energy(53),ot_grad(53) ! HARD LIMIT FOR THE LS
      INTEGER :: line_search_left,line_search_right,line_search_mid
-     integer          :: line_search_count
+     INTEGER          :: line_search_count
      LOGICAL          :: line_search_might_be_done
-     real(kind=wp)    :: delta,gnorm,gnorm_old,etotal,gradient
-     logical          :: energy_only
-     integer          :: diis_iter
+     REAL(kind=wp)    :: delta,gnorm,gnorm_old,etotal,gradient
+     LOGICAL          :: energy_only
+     INTEGER          :: diis_iter
      CHARACTER(LEN=8) :: OT_METHOD_FULL
      INTEGER          :: OT_count
      REAL(wp)         :: ds_min
@@ -178,7 +178,7 @@ SUBROUTINE qs_ot_new_preconditioner(qs_ot_env,preconditioner)
   INTEGER n,ortho_k,nrow_block,ncol_block
 
   qs_ot_env%preconditioner => preconditioner
-  qs_ot_env%os_valid = .false.
+  qs_ot_env%os_valid = .FALSE.
   IF (.NOT. ASSOCIATED(qs_ot_env%matrix_psc0)) THEN
       CALL replicate_blacs_matrix(qs_ot_env%matrix_sc0,&
                                   qs_ot_env%matrix_psc0,&
@@ -210,8 +210,8 @@ SUBROUTINE qs_ot_allocate(qs_ot_env,globenv)
    nrow_block=qs_ot_env%settings%nrow_block
    ncol_block=qs_ot_env%settings%ncol_block
 
-   qs_ot_env%use_gx_old=.false. 
-   qs_ot_env%use_dx=.false.
+   qs_ot_env%use_gx_old=.FALSE. 
+   qs_ot_env%use_dx=.FALSE.
 
    NULLIFY(qs_ot_env%preconditioner)
    NULLIFY(qs_ot_env%matrix_psc0)
@@ -222,25 +222,25 @@ SUBROUTINE qs_ot_allocate(qs_ot_env,globenv)
    CASE ("SD")
       ! nothing
    CASE ("CG")
-      qs_ot_env%use_gx_old=.true.
-      qs_ot_env%use_dx    =.true.
+      qs_ot_env%use_gx_old=.TRUE.
+      qs_ot_env%use_dx    =.TRUE.
    CASE ("DIIS")
       IF (m_diis.lt.1) CALL stop_program("qs_ot_allocate","diis_m less than one")
    CASE DEFAULT
       CALL stop_program("qs_ot_allocate","unknown option")
    END SELECT
 
-   if (qs_ot_env%settings%ot_method.eq."DIIS") then
-      allocate(qs_ot_env%ls_diis(m_diis+1,m_diis+1))
-      allocate(qs_ot_env%lss_diis(m_diis+1,m_diis+1))
-      allocate(qs_ot_env%c_diis(m_diis+1))
-      allocate(qs_ot_env%ipivot(m_diis+1))
-      allocate(qs_ot_env%matrix_h_e(m_diis))
-      allocate(qs_ot_env%matrix_h_x(m_diis))
-   endif
+   IF (qs_ot_env%settings%ot_method.eq."DIIS") THEN
+      ALLOCATE(qs_ot_env%ls_diis(m_diis+1,m_diis+1))
+      ALLOCATE(qs_ot_env%lss_diis(m_diis+1,m_diis+1))
+      ALLOCATE(qs_ot_env%c_diis(m_diis+1))
+      ALLOCATE(qs_ot_env%ipivot(m_diis+1))
+      ALLOCATE(qs_ot_env%matrix_h_e(m_diis))
+      ALLOCATE(qs_ot_env%matrix_h_x(m_diis))
+   ENDIF
 
-   allocate(qs_ot_env%evals(k))
-   allocate(qs_ot_env%dum(k))
+   ALLOCATE(qs_ot_env%evals(k))
+   ALLOCATE(qs_ot_env%dum(k))
 
    CALL cp_fm_create2(new_matrix=qs_ot_env%matrix_os,&
                               nrow_global=ortho_k,&
@@ -386,7 +386,7 @@ SUBROUTINE qs_ot_allocate(qs_ot_env,globenv)
                              name="matrix_gx",&
                              globenv=globenv)
 
-  if (qs_ot_env%use_gx_old) &
+  IF (qs_ot_env%use_gx_old) &
   CALL cp_fm_create2(new_matrix=qs_ot_env%matrix_gx_old,&
                              nrow_global=n,&
                              ncol_global=k,&
@@ -395,7 +395,7 @@ SUBROUTINE qs_ot_allocate(qs_ot_env,globenv)
                              name="matrix_gx_old",&
                              globenv=globenv)
 
-  if (qs_ot_env%use_dx) &
+  IF (qs_ot_env%use_dx) &
   CALL cp_fm_create2(new_matrix=qs_ot_env%matrix_dx,&
                              nrow_global=n,&
                              ncol_global=k,&
@@ -404,7 +404,7 @@ SUBROUTINE qs_ot_allocate(qs_ot_env,globenv)
                              name="matrix_dx",&
                              globenv=globenv)
 
-  if (qs_ot_env%settings%ot_method.eq."DIIS") then
+  IF (qs_ot_env%settings%ot_method.eq."DIIS") THEN
      DO i=1,m_diis
        CALL cp_fm_create2(new_matrix=qs_ot_env%matrix_h_x(i)%matrix,&
                              nrow_global=n,&
@@ -421,7 +421,7 @@ SUBROUTINE qs_ot_allocate(qs_ot_env,globenv)
                              name="matrix_h_e",&
                              globenv=globenv)
      ENDDO
-  endif
+  ENDIF
 
   CALL cp_fm_get_info(qs_ot_env%matrix_cosp_b, &
                              nrow_local=qs_ot_env%nrow_local, &
@@ -429,7 +429,7 @@ SUBROUTINE qs_ot_allocate(qs_ot_env,globenv)
                              row_indices=qs_ot_env%row_indices, &
                              col_indices=qs_ot_env%col_indices)
 
-  allocate(qs_ot_env%local_block(qs_ot_env%nrow_local,qs_ot_env%ncol_local))
+  ALLOCATE(qs_ot_env%local_block(qs_ot_env%nrow_local,qs_ot_env%ncol_local))
 
 END SUBROUTINE qs_ot_allocate
 
@@ -440,7 +440,7 @@ SUBROUTINE qs_ot_init(qs_ot_env,globenv)
    TYPE(qs_ot_type)                          :: qs_ot_env 
    TYPE(global_environment_type), INTENT(IN) :: globenv
    REAL(wp), PARAMETER :: rone=1.0_wp, rzero=0.0_wp
-   integer :: n, ortho_k
+   INTEGER :: n, ortho_k
 
    n=qs_ot_env%settings%n
    ortho_k=qs_ot_env%settings%ortho_k
@@ -451,16 +451,16 @@ SUBROUTINE qs_ot_init(qs_ot_env,globenv)
    qs_ot_env%OT_grad(:)=0.0_wp
    qs_ot_env%line_search_count=0
 
-   qs_ot_env%energy_only=.false.
+   qs_ot_env%energy_only=.FALSE.
    qs_ot_env%gnorm_old=1.0_wp
    qs_ot_env%diis_iter=0
    qs_ot_env%ds_min=qs_ot_env%settings%ds_min
-   qs_ot_env%os_valid=.false.
+   qs_ot_env%os_valid=.FALSE.
 
    CALL cp_fm_set_all(qs_ot_env%matrix_gx,0.0_wp)
-   if (qs_ot_env%use_dx) &
+   IF (qs_ot_env%use_dx) &
      CALL cp_fm_set_all(qs_ot_env%matrix_dx,0.0_wp)
-   if (qs_ot_env%use_gx_old) &
+   IF (qs_ot_env%use_gx_old) &
      CALL cp_fm_set_all(qs_ot_env%matrix_gx_old,0.0_wp)
 
 END SUBROUTINE
@@ -468,56 +468,55 @@ END SUBROUTINE
 !******************************************************************************
 ! deallocates data
 !******************************************************************************
-SUBROUTINE qs_ot_destroy(qs_ot_env,globenv)
+SUBROUTINE qs_ot_destroy(qs_ot_env)
    TYPE(qs_ot_type)                          :: qs_ot_env 
-   TYPE(global_environment_type), INTENT(IN) :: globenv
 
-   integer i
+   INTEGER i
 
-   deallocate(qs_ot_env%evals)
-   deallocate(qs_ot_env%dum)
-   deallocate(qs_ot_env%local_block)
-   call cp_fm_release(qs_ot_env%matrix_os)
-   call cp_fm_release(qs_ot_env%matrix_p)
-   call cp_fm_release(qs_ot_env%matrix_cosp)
-   call cp_fm_release(qs_ot_env%matrix_sinp)
-   call cp_fm_release(qs_ot_env%matrix_r)
-   call cp_fm_release(qs_ot_env%matrix_cosp_b)
-   call cp_fm_release(qs_ot_env%matrix_sinp_b)
-   call cp_fm_release(qs_ot_env%matrix_buf1)
-   call cp_fm_release(qs_ot_env%matrix_buf2)
-   call cp_fm_release(qs_ot_env%matrix_buf3)
+   DEALLOCATE(qs_ot_env%evals)
+   DEALLOCATE(qs_ot_env%dum)
+   DEALLOCATE(qs_ot_env%local_block)
+   CALL cp_fm_release(qs_ot_env%matrix_os)
+   CALL cp_fm_release(qs_ot_env%matrix_p)
+   CALL cp_fm_release(qs_ot_env%matrix_cosp)
+   CALL cp_fm_release(qs_ot_env%matrix_sinp)
+   CALL cp_fm_release(qs_ot_env%matrix_r)
+   CALL cp_fm_release(qs_ot_env%matrix_cosp_b)
+   CALL cp_fm_release(qs_ot_env%matrix_sinp_b)
+   CALL cp_fm_release(qs_ot_env%matrix_buf1)
+   CALL cp_fm_release(qs_ot_env%matrix_buf2)
+   CALL cp_fm_release(qs_ot_env%matrix_buf3)
    CALL cp_fm_release(qs_ot_env%matrix_buf1_ortho)
    CALL cp_fm_release(qs_ot_env%matrix_buf2_ortho)
 
-   call cp_fm_release(qs_ot_env%matrix_c0)
-   call cp_fm_release(qs_ot_env%matrix_sc0)
-   call cp_fm_release(qs_ot_env%matrix_hc)
-   call cp_fm_release(qs_ot_env%matrix_x)
-   call cp_fm_release(qs_ot_env%matrix_gx)
-   call cp_fm_release(qs_ot_env%matrix_sx)
+   CALL cp_fm_release(qs_ot_env%matrix_c0)
+   CALL cp_fm_release(qs_ot_env%matrix_sc0)
+   CALL cp_fm_release(qs_ot_env%matrix_hc)
+   CALL cp_fm_release(qs_ot_env%matrix_x)
+   CALL cp_fm_release(qs_ot_env%matrix_gx)
+   CALL cp_fm_release(qs_ot_env%matrix_sx)
 
    IF (ASSOCIATED(qs_ot_env%matrix_psc0)) THEN
-        call cp_fm_release(qs_ot_env%matrix_psc0)
+        CALL cp_fm_release(qs_ot_env%matrix_psc0)
    ENDIF
 
-   if (qs_ot_env%use_dx) &
-      call cp_fm_release(qs_ot_env%matrix_dx)
-   if (qs_ot_env%use_gx_old) &
-      call cp_fm_release(qs_ot_env%matrix_gx_old)
+   IF (qs_ot_env%use_dx) &
+      CALL cp_fm_release(qs_ot_env%matrix_dx)
+   IF (qs_ot_env%use_gx_old) &
+      CALL cp_fm_release(qs_ot_env%matrix_gx_old)
 
-   if (qs_ot_env%settings%ot_method.eq."DIIS") then
-     do i=1,qs_ot_env%settings%diis_m
-        call cp_fm_release(qs_ot_env%matrix_h_x(i)%matrix)
-        call cp_fm_release(qs_ot_env%matrix_h_e(i)%matrix)
-     enddo
-     deallocate(qs_ot_env%matrix_h_x)
-     deallocate(qs_ot_env%matrix_h_e)
-     deallocate(qs_ot_env%ls_diis)
-     deallocate(qs_ot_env%lss_diis)
-     deallocate(qs_ot_env%c_diis)
-     deallocate(qs_ot_env%ipivot)
-   endif
+   IF (qs_ot_env%settings%ot_method.eq."DIIS") THEN
+     DO i=1,qs_ot_env%settings%diis_m
+        CALL cp_fm_release(qs_ot_env%matrix_h_x(i)%matrix)
+        CALL cp_fm_release(qs_ot_env%matrix_h_e(i)%matrix)
+     ENDDO
+     DEALLOCATE(qs_ot_env%matrix_h_x)
+     DEALLOCATE(qs_ot_env%matrix_h_e)
+     DEALLOCATE(qs_ot_env%ls_diis)
+     DEALLOCATE(qs_ot_env%lss_diis)
+     DEALLOCATE(qs_ot_env%c_diis)
+     DEALLOCATE(qs_ot_env%ipivot)
+   ENDIF
 
 END SUBROUTINE qs_ot_destroy
 !*******************************************************************************
@@ -661,7 +660,7 @@ SUBROUTINE qs_ot_get_derivative(matrix_hc,matrix_x,matrix_sx,matrix_gx, &
       matrix_target => qs_ot_env%matrix_sc0
   ENDIF
   ! first make the matrix os if not yet valid
-  IF (.not. qs_ot_env%os_valid) THEN
+  IF (.NOT. qs_ot_env%os_valid) THEN
      ! this assumes that the preconditioner is a single matrix
      ! that maps sc0 onto psc0
      IF (ASSOCIATED(qs_ot_env%preconditioner)) THEN
@@ -673,7 +672,7 @@ SUBROUTINE qs_ot_get_derivative(matrix_hc,matrix_x,matrix_sx,matrix_gx, &
                      rzero,qs_ot_env%matrix_os)
      CALL cp_fm_cholesky_decompose(qs_ot_env%matrix_os)
      CALL cp_fm_cholesky_invert(qs_ot_env%matrix_os)
-     qs_ot_env%os_valid=.true.
+     qs_ot_env%os_valid=.TRUE.
   ENDIF
 
 
@@ -718,40 +717,40 @@ SUBROUTINE qs_ot_p2m(qs_ot_env,globenv)
         qs_ot_env%evals(i)=MAX(0.0_wp,qs_ot_env%evals(i))
   ENDDO
 
-  do i=1,k
-     qs_ot_env%dum(i)=cos(sqrt(qs_ot_env%evals(i)))
-  enddo
+  DO i=1,k
+     qs_ot_env%dum(i)=COS(SQRT(qs_ot_env%evals(i)))
+  ENDDO
   CALL copy_blacs_to_blacs_matrix(qs_ot_env%matrix_r,qs_ot_env%matrix_buf1)
   CALL blacs_scale_matrix(qs_ot_env%matrix_buf1,qs_ot_env%dum)
   CALL cp_fm_gemm('N','T',k,k,k,rone,qs_ot_env%matrix_r,qs_ot_env%matrix_buf1, &
                                      rzero,qs_ot_env%matrix_cosp)
 
-  do i=1,k
-     qs_ot_env%dum(i)=qs_ot_sinc(sqrt(qs_ot_env%evals(i)))
-  enddo
+  DO i=1,k
+     qs_ot_env%dum(i)=qs_ot_sinc(SQRT(qs_ot_env%evals(i)))
+  ENDDO
   CALL copy_blacs_to_blacs_matrix(qs_ot_env%matrix_r,qs_ot_env%matrix_buf1)
   CALL blacs_scale_matrix(qs_ot_env%matrix_buf1,qs_ot_env%dum)
   CALL cp_fm_gemm('N','T',k,k,k,rone,qs_ot_env%matrix_r,qs_ot_env%matrix_buf1, &
                                      rzero,qs_ot_env%matrix_sinp)
 
-  do j=1,qs_ot_env%ncol_local
-    do i=1,qs_ot_env%nrow_local
-       a=(sqrt(qs_ot_env%evals(qs_ot_env%row_indices(i))) & 
-                  -sqrt(qs_ot_env%evals(qs_ot_env%col_indices(j))))/2.0_wp
-       b=(sqrt(qs_ot_env%evals(qs_ot_env%row_indices(i))) &
-                  +sqrt(qs_ot_env%evals(qs_ot_env%col_indices(j))))/2.0_wp
+  DO j=1,qs_ot_env%ncol_local
+    DO i=1,qs_ot_env%nrow_local
+       a=(SQRT(qs_ot_env%evals(qs_ot_env%row_indices(i))) & 
+                  -SQRT(qs_ot_env%evals(qs_ot_env%col_indices(j))))/2.0_wp
+       b=(SQRT(qs_ot_env%evals(qs_ot_env%row_indices(i))) &
+                  +SQRT(qs_ot_env%evals(qs_ot_env%col_indices(j))))/2.0_wp
        qs_ot_env%local_block(i,j)=-0.5_wp*qs_ot_sinc(a)*qs_ot_sinc(b)
-    enddo
-  enddo
+    ENDDO
+  ENDDO
   CALL blacs_set_local_block(qs_ot_env%matrix_cosp_b,qs_ot_env%local_block)
 
-  do j=1,qs_ot_env%ncol_local
-    do i=1,qs_ot_env%nrow_local
-       a=sqrt(qs_ot_env%evals(qs_ot_env%row_indices(i))) 
-       b=sqrt(qs_ot_env%evals(qs_ot_env%col_indices(j)))
+  DO j=1,qs_ot_env%ncol_local
+    DO i=1,qs_ot_env%nrow_local
+       a=SQRT(qs_ot_env%evals(qs_ot_env%row_indices(i))) 
+       b=SQRT(qs_ot_env%evals(qs_ot_env%col_indices(j)))
        qs_ot_env%local_block(i,j)=qs_ot_sincf(a,b)
-    enddo
-  enddo
+    ENDDO
+  ENDDO
   CALL blacs_set_local_block(qs_ot_env%matrix_sinp_b,qs_ot_env%local_block)
 
 
@@ -777,8 +776,8 @@ FUNCTION qs_ot_sinc(x)
         REAL(wp), PARAMETER :: q9 =-q8/(16.0_wp*17.0_wp)
         REAL(wp), PARAMETER :: q10=-q9/(18.0_wp*19.0_wp)
 
-IF (abs(x)>0.5_wp) THEN
-   qs_ot_sinc=sin(x)/x
+IF (ABS(x)>0.5_wp) THEN
+   qs_ot_sinc=SIN(x)/x
 ELSE
    y=x*x
    qs_ot_sinc=q1+y*(q2+y*(q3+y*(q4+y*(q5+y*(q6+y*(q7+y*(q8+y*(q9+y*(q10)))))))))
@@ -797,49 +796,49 @@ FUNCTION qs_ot_sincf(xa,ya)
         INTEGER                            :: i
 
 ! this is currently a limit of the routine, could be removed rather easily
-if (xa.lt.0) call stop_program("qs_ot_sincf","x is negative")
-if (ya.lt.0) call stop_program("qs_ot_sincf","y is negative")
+IF (xa.lt.0) CALL stop_program("qs_ot_sincf","x is negative")
+IF (ya.lt.0) CALL stop_program("qs_ot_sincf","y is negative")
 
-if (xa.lt.ya) then 
+IF (xa.lt.ya) THEN 
    x=ya
    y=xa
-else
+ELSE
    x=xa
    y=ya
-endif
+ENDIF
 
-if ( x .lt. 0.5_wp ) then ! use series, keeping in mind that x,y,x+y,x-y can all be zero
+IF ( x .LT. 0.5_wp ) THEN ! use series, keeping in mind that x,y,x+y,x-y can all be zero
 
   qs_ot_sincf=0.0_wp
-  if (x .gt. 0.0_wp) then
+  IF (x .GT. 0.0_wp) THEN
      ybx=y/x  
-  else ! should be irrelevant  !?
+  ELSE ! should be irrelevant  !?
      ybx=0.0_wp
-  endif
+  ENDIF
 
   sf=-1.0_wp/((1.0_wp+ybx)*6.0_wp)
   rs=1.0_wp
   ybxs=ybx
   xs=1.0_wp
 
-  do i=1,10
+  DO i=1,10
      qs_ot_sincf=qs_ot_sincf+sf*rs*xs*(1.0_wp+ybxs)
-     sf=-sf/(real((2*i+2),wp)*real((2*i+3),wp))
+     sf=-sf/(REAL((2*i+2),wp)*REAL((2*i+3),wp))
      rs=rs+ybxs
      ybxs=ybxs*ybx
      xs=xs*x*x
-  enddo
+  ENDDO
 
-else ! no series expansion
-  if ( x-y .gt. 0.1_wp ) then  ! safe to use the normal form
+ELSE ! no series expansion
+  IF ( x-y .GT. 0.1_wp ) THEN  ! safe to use the normal form
      qs_ot_sincf=(qs_ot_sinc(x)-qs_ot_sinc(y))/((x+y)*(x-y))
-  else
+  ELSE
      a=(x+y)/2.0_wp
      b=(x-y)/2.0_wp ! might be close to zero
                     ! y (=(a-b)) can not be close to zero since it is close to x>0.5
-     qs_ot_sincf=(qs_ot_sinc(b)*cos(a)-qs_ot_sinc(a)*cos(b))/(2*x*y)
-  endif
-endif
+     qs_ot_sincf=(qs_ot_sinc(b)*COS(a)-qs_ot_sinc(a)*COS(b))/(2*x*y)
+  ENDIF
+ENDIF
 
 END FUNCTION qs_ot_sincf
 

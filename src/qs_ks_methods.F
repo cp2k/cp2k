@@ -254,7 +254,7 @@ CONTAINS
 !!     End Subroutine qs_ks_build_kohn_sham_matrix
 !!
 !!   FUNCTION
-!!     private routine where the real calculations are made: the
+!!     routine where the real calculations are made: the
 !!     KS matrix is calculated
 !!
 !!   NOTES
@@ -351,6 +351,8 @@ CONTAINS
     CPPrecondition(ASSOCIATED(rho),cp_failure_level,routineP,error,failure)
     CPPrecondition(ASSOCIATED(pw_env),cp_failure_level,routineP,error,failure)
     CPPrecondition(SIZE(ks)>0,cp_failure_level,routineP,error,failure)
+    CPPrecondition(rho%rho_r_valid,cp_failure_level,routineP,error,failure)
+    CPPrecondition(rho%rho_g_valid,cp_failure_level,routineP,error,failure)
     
     ! gets the tmp grids
     IF (.NOT. failure) THEN
@@ -587,7 +589,7 @@ SUBROUTINE qs_ks_update_qs_env(ks_env,qs_env,&
 
   failure=.FALSE.
   did_update=.FALSE.
-  NULLIFY(ks,p,h,s,energy, logger, rho, dft_control, para_env)
+  NULLIFY(ks,h,s,energy, logger, rho, dft_control, para_env)
   logger => cp_error_get_logger(error)
   r_build=.FALSE.; c_forces=.FALSE.; energy_only = .FALSE.
   IF (PRESENT(just_energy)) energy_only=just_energy
@@ -601,15 +603,21 @@ SUBROUTINE qs_ks_update_qs_env(ks_env,qs_env,&
      IF (ks_env%p_changed .OR. ks_env%s_mstruct_changed .OR.&
           (c_forces.AND..NOT.ks_env%forces_up_to_date)) THEN
         did_update=.TRUE.
-        CALL get_qs_env(qs_env,k=ks,p=p,rho=rho,energy=energy,&
+        CALL get_qs_env(qs_env,k=ks,rho=rho,energy=energy,&
              dft_control=dft_control,&
              h=h,para_env=para_env,s=s,error=error)
 
         ! update ecore
+        CALL cp_assert(rho%rho_ao_valid,cp_warning_level,&
+             cp_assertion_failed, routineP,&
+             "rho_ao  is not valid, thus energy%core (and total) might "//&
+             "be wrong "//&
+             CPSourceFileRef,&
+             error=error)
         energy%core=0.0_wp
         DO ispin=1,dft_control%nspins
            CALL calculate_ecore(h=h(1)%matrix,&
-                p=p(ispin)%matrix,&
+                p=rho%rho_ao(ispin)%matrix,&
                 s=s(1)%matrix,&
                 ecore=ecore,&
                 para_env=para_env,&
@@ -617,8 +625,6 @@ SUBROUTINE qs_ks_update_qs_env(ks_env,qs_env,&
            energy%core=energy%core+ecore
         END DO
 
-        CALL qs_rho_update_rho(rho, rho_ao_new=p, qs_env=qs_env,&
-             rebuild=r_build, error=error)
         CALL qs_ks_build_kohn_sham_matrix(ks_env,qs_env=qs_env,&
              ks=ks,&
              rho=rho,energy=energy,rebuild=r_build,&

@@ -142,7 +142,7 @@ CONTAINS
 !!   SYNOPSIS
 !!     Subroutine cp_fm_struct_create(fmstruct, para_env, context,&
 !!         nrow_global, ncol_global, nrow_block, ncol_block, descriptor,&
-!!         first_p_pos, template_fmstruct, error)
+!!         first_p_pos, template_fmstruct, square_blocks, error)
 !!       Type(cp_fm_struct_type), Pointer:: fmstruct
 !!       Type(cp_para_env_type), Pointer, Optional:: para_env
 !!       Integer, Intent (IN), Optional:: nrow_global, ncol_global
@@ -151,6 +151,7 @@ CONTAINS
 !!       Integer, Dimension(9), Intent (IN), Optional:: descriptor
 !!       Integer, Optional, Dimension(2):: first_p_pos
 !!       Type(cp_fm_struct_type), Pointer, Optional:: template_fmstruct
+!!       Logical, Optional, Intent (IN):: square_blocks
 !!       Type(cp_error_type), Optional, Intent (INOUT):: error
 !!     End Subroutine cp_fm_struct_create
 !!
@@ -183,7 +184,7 @@ CONTAINS
 !!*** **********************************************************************
 SUBROUTINE cp_fm_struct_create(fmstruct,para_env,context, nrow_global,&
      ncol_global, nrow_block, ncol_block, descriptor, first_p_pos, &
-     template_fmstruct, error)
+     template_fmstruct, square_blocks, error)
   TYPE(cp_fm_struct_type), POINTER       :: fmstruct
   TYPE(cp_para_env_type), POINTER, OPTIONAL    :: para_env
   INTEGER, INTENT(in), OPTIONAL                :: nrow_global,ncol_global
@@ -191,14 +192,15 @@ SUBROUTINE cp_fm_struct_create(fmstruct,para_env,context, nrow_global,&
   TYPE(cp_blacs_env_type), POINTER, OPTIONAL   :: context
   INTEGER, DIMENSION(9), INTENT(in), OPTIONAL  :: descriptor
   INTEGER,OPTIONAL, DIMENSION(2)               :: first_p_pos
-  TYPE(cp_fm_struct_type), POINTER, OPTIONAL :: template_fmstruct
+  TYPE(cp_fm_struct_type), POINTER, OPTIONAL   :: template_fmstruct
+  LOGICAL, OPTIONAL, INTENT(in)                :: square_blocks
   TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
   
 #if defined(__SCALAPACK)
     INTEGER, EXTERNAL :: numroc
 #endif
 
-  LOGICAL :: failure
+  LOGICAL :: failure, my_square_blocks
   CHARACTER(len=*), PARAMETER :: routineN='cp_fm_struct_create',&
         routineP=moduleN//':'//routineN
   INTEGER :: stat, i
@@ -262,11 +264,15 @@ SUBROUTINE cp_fm_struct_create(fmstruct,para_env,context, nrow_global,&
      fmstruct%ncol_block=MAX(1,&
           MIN(fmstruct%ncol_block,&
           fmstruct%ncol_global/fmstruct%context%num_pe(2)))
-     IF (fmstruct%nrow_global==fmstruct%ncol_global) THEN
-        ! square matrix -> square blocks (otherwise some op fail)
+     
+     ! square matrix -> square blocks (otherwise some op fail)
+     my_square_blocks = fmstruct%nrow_global==fmstruct%ncol_global
+     IF (PRESENT(square_blocks)) my_square_blocks=square_blocks
+     IF (my_square_blocks) THEN
         fmstruct%nrow_block=MIN(fmstruct%nrow_block,fmstruct%ncol_block)
         fmstruct%ncol_block=fmstruct%nrow_block
      END IF
+
      ALLOCATE(fmstruct%nrow_local(0:(fmstruct%context%num_pe(1)-1)),&
           fmstruct%ncol_local(0:(fmstruct%context%num_pe(2)-1)),stat=stat)
      CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
@@ -291,12 +297,12 @@ SUBROUTINE cp_fm_struct_create(fmstruct,para_env,context, nrow_global,&
      CALL mp_sum(fmstruct%ncol_local,fmstruct%para_env%group)
      fmstruct%nrow_local(:)=fmstruct%nrow_local(:)/fmstruct%context%num_pe(2)
      fmstruct%ncol_local(:)=fmstruct%ncol_local(:)/fmstruct%context%num_pe(1)
-     do i=0,(size(fmstruct%nrow_local)-1)
-        fmstruct%nrow_local(i)=max(1,fmstruct%nrow_local(i))
-     end do
-     do i=0,(size(fmstruct%ncol_local)-1)
-        fmstruct%ncol_local(i)=max(1,fmstruct%ncol_local(i))
-     end do
+     DO i=0,(SIZE(fmstruct%nrow_local)-1)
+        fmstruct%nrow_local(i)=MAX(1,fmstruct%nrow_local(i))
+     END DO
+     DO i=0,(SIZE(fmstruct%ncol_local)-1)
+        fmstruct%ncol_local(i)=MAX(1,fmstruct%ncol_local(i))
+     END DO
 #else
      ! block = full matrix
      fmstruct%nrow_block=fmstruct%nrow_global

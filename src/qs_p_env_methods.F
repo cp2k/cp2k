@@ -592,13 +592,13 @@ END SUBROUTINE p_env_did_change
                   scale=0.0_wp, diagonal_add=1.0_wp, error=error)
              ! faster using cp_fm_cholesky_invert ?
              CALL cp_fm_triangular_multiply(&
-                  triangular_matrix=p_env%Smo_inv(spin)%matrix,&
-                  matrix_b=p_env%psi0d(spin)%matrix,side='R',&
+                  triangular_matrix=p_env%m_epsilon(spin)%matrix,&
+                  matrix_b=p_env%Smo_inv(spin)%matrix,side='R',&
                   invert_tr=.TRUE., n_rows=p_env%n_mo(spin),&
                   n_cols=p_env%n_mo(spin),error=error)
              CALL cp_fm_triangular_multiply(&
-                  triangular_matrix=p_env%Smo_inv(spin)%matrix,&
-                  matrix_b=p_env%psi0d(spin)%matrix,side='R',&
+                  triangular_matrix=p_env%m_epsilon(spin)%matrix,&
+                  matrix_b=p_env%Smo_inv(spin)%matrix,side='R',&
                   transpose_tr=.TRUE.,&
                   invert_tr=.TRUE., n_rows=p_env%n_mo(spin),&
                   n_cols=p_env%n_mo(spin),error=error)

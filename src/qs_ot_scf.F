@@ -25,12 +25,12 @@ MODULE qs_ot_scf
   USE global_types,                    ONLY: global_environment_type
   USE kinds,                           ONLY: int_size,&
                                              wp => dp
-  USE qs_mo_types,                        ONLY: get_mo_set, &
-                                             mo_set_p_type
   USE qs_blacs,                        ONLY: copy_blacs_to_blacs_matrix,&
                                              cp_fm_add,&
                                              cp_fm_set_all,&
                                              cp_sm_fm_multiply
+  USE qs_mo_types,                     ONLY: get_mo_set,&
+                                             mo_set_p_type
   USE qs_ot,                           ONLY: qs_ot_allocate,&
                                              qs_ot_destroy,&
                                              qs_ot_get_orbitals,&
@@ -44,7 +44,8 @@ MODULE qs_ot_scf
                                              read_object,&
                                              start_parser,&
                                              test_object
-  USE sparse_matrix_types,             ONLY: real_matrix_type, real_matrix_p_type
+  USE sparse_matrix_types,             ONLY: real_matrix_p_type,&
+                                             real_matrix_type
   USE termination,                     ONLY: stop_memory,&
                                              stop_program
   USE timings,                         ONLY: timeset,&
@@ -78,7 +79,7 @@ SUBROUTINE ot_scf_read_input(qs_ot_env,globenv)
     CALL timeset("ot_scf_read_input","I","",handle)
     ! decide default settings
 
-    nspin=size(qs_ot_env)
+    nspin=SIZE(qs_ot_env)
 
     qs_ot_env(1)%settings%ot_method="CG"
     qs_ot_env(1)%settings%diis_m=7 
@@ -90,7 +91,7 @@ SUBROUTINE ot_scf_read_input(qs_ot_env,globenv)
                       globenv=globenv,&
                       start_section_label="OTSCF",section_found=found)
 
-    if (found) then 
+    IF (found) THEN 
     DO WHILE (test_object(newline=.TRUE.) /= "EOS")
           CALL read_object(keyword,lower_to_upper=.TRUE.,newline=.TRUE.)
           SELECT CASE (TRIM(keyword))
@@ -104,11 +105,11 @@ SUBROUTINE ot_scf_read_input(qs_ot_env,globenv)
                CASE ("DIIS")
                     qs_ot_env(1)%settings%ot_method="DIIS"
                     qs_ot_env(1)%settings%diis_m=7 
-                    IF (test_object().eq."INT") THEN
+                    IF (test_object().EQ."INT") THEN
                        CALL read_object(qs_ot_env(1)%settings%diis_m)
                     ENDIF
                CASE DEFAULT
-                    IF (globenv%ionode) write(globenv%scr,*) value
+                    IF (globenv%ionode) WRITE(globenv%scr,*) value
                     CALL stop_program("READ OTSCF MINIMIZER","VALUE UNKNOWN")
                END SELECT
           CASE ("LINESEARCH")
@@ -123,11 +124,11 @@ SUBROUTINE ot_scf_read_input(qs_ot_env,globenv)
                CASE ("GOLD")
                     qs_ot_env(1)%settings%gold_target=0.01 ! 1 percent in the position 
                     qs_ot_env(1)%settings%line_search_method="GOLD"
-                    IF (test_object().eq."FLT") THEN
+                    IF (test_object().EQ."FLT") THEN
                        CALL read_object(qs_ot_env(1)%settings%gold_target)
                     ENDIF
                CASE DEFAULT
-                    IF (globenv%ionode) write(globenv%scr,*) value
+                    IF (globenv%ionode) WRITE(globenv%scr,*) value
                     CALL stop_program("READ OTSCF LINESEARCH","VALUE UNKNOWN")
                END SELECT
           CASE ("PRECONDITIONER")
@@ -144,77 +145,77 @@ SUBROUTINE ot_scf_read_input(qs_ot_env,globenv)
                CASE ("NONE")
                     qs_ot_env(1)%settings%preconditioner_type="NONE"
                CASE DEFAULT ! others are too experimental to be here
-                    IF (globenv%ionode) write(globenv%scr,*) value
+                    IF (globenv%ionode) WRITE(globenv%scr,*) value
                     CALL stop_program("READ OTSCF PRECONDITIONER","VALUE UNKNOWN")
                END SELECT
           CASE ("STEPSIZE")
                CALL read_object(qs_ot_env(1)%settings%ds_min)
           CASE DEFAULT
-               IF (globenv%ionode) write(globenv%scr,*) keyword
+               IF (globenv%ionode) WRITE(globenv%scr,*) keyword
                CALL stop_program("READ OTSCF","KEYWORD UNKNOWN")
           END SELECT 
     ENDDO
-    endif
+    ENDIF
     CALL finish_parser()
     IF (globenv%ionode) THEN
-    write(6,*) ""
-    write(6,*) " ------------------------------------- OT ----------------------------------------"
-    write(6,*) ""
-    write(6,*) " An efficient orbital transformation method for electronic structure calculations "
-    write(6,*) " Joost VandeVondele and Juerg Hutter"
-    write(6,*) " J. Chem. Phys. 118, 4365, 2003"
-    write(6,*) ""
+    WRITE(6,*) ""
+    WRITE(6,*) " ------------------------------------- OT ----------------------------------------"
+    WRITE(6,*) ""
+    WRITE(6,*) " An efficient orbital transformation method for electronic structure calculations "
+    WRITE(6,*) " Joost VandeVondele and Juerg Hutter"
+    WRITE(6,*) " J. Chem. Phys. 118, 4365, 2003"
+    WRITE(6,*) ""
     SELECT CASE (qs_ot_env(1)%settings%OT_METHOD)
     CASE ("SD")
-         write(6,*) " minimizer      : SD             : steepest descent"
+         WRITE(6,*) " minimizer      : SD             : steepest descent"
     CASE ("CG")
-         write(6,*) " minimizer      : CG             : conjugate gradient"
+         WRITE(6,*) " minimizer      : CG             : conjugate gradient"
     CASE ("DIIS")
-         write(6,*) " minimizer      : DIIS           : direct inversion in the iterative subspace"
-         write(6,*) "                           using : ",qs_ot_env(1)%settings%diis_m," diis vectors"
+         WRITE(6,*) " minimizer      : DIIS           : direct inversion in the iterative subspace"
+         WRITE(6,*) "                           using : ",qs_ot_env(1)%settings%diis_m," diis vectors"
     CASE DEFAULT
-         write(6,*) " minimizer      :      ",qs_ot_env(1)%settings%OT_METHOD," : UNKNOWN"
+         WRITE(6,*) " minimizer      :      ",qs_ot_env(1)%settings%OT_METHOD," : UNKNOWN"
     END SELECT
     SELECT CASE (qs_ot_env(1)%settings%preconditioner_type)
     CASE ("FULL_SINGLE")
-         write(6,*) " preconditioner : FULL_SINGLE    : diagonalization based "
+         WRITE(6,*) " preconditioner : FULL_SINGLE    : diagonalization based "
     CASE ("FULL_KINETIC")
-         write(6,*) " preconditioner : FULL_KINETIC   : cholesky inversion of T + eS"
+         WRITE(6,*) " preconditioner : FULL_KINETIC   : cholesky inversion of T + eS"
     CASE ("FULL_S_INVERSE")
-         write(6,*) " preconditioner : FULL_S_INVERSE : cholesky inversion of S"
+         WRITE(6,*) " preconditioner : FULL_S_INVERSE : cholesky inversion of S"
     CASE ("SPARSE_DIAG")
-         write(6,*)  &
+         WRITE(6,*)  &
            " preconditioner : SPARSE_DIAG    : diagonal atomic block diagonalization"
     CASE ("NONE")
-         write(6,*) " preconditioner : NONE  "
+         WRITE(6,*) " preconditioner : NONE  "
     CASE DEFAULT 
-         write(6,*) " preconditioner : ",qs_ot_env(1)%settings%preconditioner_type," : UNKNOWN"
+         WRITE(6,*) " preconditioner : ",qs_ot_env(1)%settings%preconditioner_type," : UNKNOWN"
     END SELECT
     IF (qs_ot_env(1)%settings%OT_METHOD .EQ."SD".OR.qs_ot_env(1)%settings%OT_METHOD.EQ."CG") THEN
        SELECT CASE (qs_ot_env(1)%settings%line_search_method)
          CASE ("2PNT")
-                    write(6,*) " line search    : 2PNT           : 2 energies, one gradient "
+                    WRITE(6,*) " line search    : 2PNT           : 2 energies, one gradient "
          CASE ("3PNT")
-                    write(6,*) " line search    : 3PNT           : 3 energies "
+                    WRITE(6,*) " line search    : 3PNT           : 3 energies "
          CASE ("GOLD")
-                    write(6,*) " line search    : GOLD           : bracketing and golden section search "
-                    write(6,*) "                  target relative accuracy : ", &
+                    WRITE(6,*) " line search    : GOLD           : bracketing and golden section search "
+                    WRITE(6,*) "                  target relative accuracy : ", &
                                qs_ot_env(1)%settings%gold_target
          CASE ("NONE")
-                    write(6,*) " line search    : NONE "
+                    WRITE(6,*) " line search    : NONE "
          CASE DEFAULT
-                    write(6,*) " line search : ", &
+                    WRITE(6,*) " line search : ", &
                                qs_ot_env(1)%settings%line_search_method," : UNKNOWN"
        END SELECT
     ENDIF
-    write(6,*) " stepsize       :",qs_ot_env(1)%settings%ds_min
-    write(6,*) " "
-    write(6,*) " ----------------------------------- OT --------------------------------------"
+    WRITE(6,*) " stepsize       :",qs_ot_env(1)%settings%ds_min
+    WRITE(6,*) " "
+    WRITE(6,*) " ----------------------------------- OT --------------------------------------"
     ENDIF
  
-    do ispin=2,nspin
+    DO ispin=2,nspin
        qs_ot_env(ispin)%settings=qs_ot_env(1)%settings
-    enddo
+    ENDDO
 
 
     CALL timestop(0.0_wp,handle)
@@ -297,7 +298,7 @@ SUBROUTINE ot_scf_init(mo_array,matrix_s,qs_ot_env,globenv)
     INTEGER nspin,ispin
     ! executable
     CALL timeset("ot_scf_init","I","",handle)
-    nspin=size(mo_array)
+    nspin=SIZE(mo_array)
 
     DO ispin=1,nspin
        CALL get_mo_set(mo_set=mo_array(ispin)%mo_set,eigenvectors=mo_eigenvectors)
@@ -336,12 +337,11 @@ SUBROUTINE ot_scf_init(mo_array,matrix_s,qs_ot_env,globenv)
     CALL timestop(0.0_wp,handle)
 END SUBROUTINE
 
-SUBROUTINE ot_scf_destroy(qs_ot_env,globenv)
+SUBROUTINE ot_scf_destroy(qs_ot_env)
 
-    TYPE(global_environment_type), INTENT(IN)       :: globenv
     TYPE(qs_ot_type)                                :: qs_ot_env
 
-   CALL qs_ot_destroy(qs_ot_env,globenv)
+   CALL qs_ot_destroy(qs_ot_env)
 
 END SUBROUTINE
 

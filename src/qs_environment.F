@@ -138,7 +138,7 @@ CONTAINS
 
 !   ***************************************************************************
 
-    TYPE(qs_environment_type), INTENT(OUT)       :: qs_env
+    TYPE(qs_environment_type), pointer           :: qs_env
     TYPE(global_environment_type), INTENT(INOUT) :: globenv
     TYPE(cp_error_type), INTENT(inout), OPTIONAL :: error
 
@@ -181,10 +181,6 @@ CONTAINS
     ionode = globenv%ionode
     output_unit = globenv%scr
 
-!   *** Initialize the BLACS environment ***
-
-    CALL start_blacs(globenv)
-
 !   *** Initialise the Quickstep environment ***
 
     NULLIFY (atomic_kind_set)
@@ -195,11 +191,6 @@ CONTAINS
     NULLIFY (energy)
     NULLIFY (force)
     NULLIFY (scf_control,fmstruct, para_env, blacs_env)
-
-    para_env => cp_para_env_from_globenv(globenv)
-    blacs_env => cp_blacs_env_from_globenv(globenv)
-
-    CALL init_qs_env(qs_env,para_env=para_env,blacs_env=blacs_env)
 
 !   *** Print the Quickstep program banner (copyright and version number) ***
 

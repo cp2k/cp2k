@@ -112,8 +112,8 @@ CONTAINS
                                                nrow_global=n, &
                                                ncol_global=k)
 
-    ortho=.false.
-    IF (present(matrix_orthogonal_space)) ortho=.true.
+    ortho=.FALSE.
+    IF (PRESENT(matrix_orthogonal_space)) ortho=.TRUE.
 
     ! decide settings
     qs_ot_env(1)%settings%ot_method="CG"
@@ -122,20 +122,20 @@ CONTAINS
     qs_ot_env(1)%settings%diis_m=7 
     qs_ot_env(1)%settings%n=n 
     qs_ot_env(1)%settings%k=k 
-    if (ortho) then
+    IF (ortho) THEN
        CALL cp_fm_get_info(matrix_orthogonal_space,&
                                   ncol_global=ortho_space_k)
        qs_ot_env(1)%settings%ortho_k=ortho_space_k+k
-    else
+    ELSE
        qs_ot_env(1)%settings%ortho_k=k
-    endif
+    ENDIF
     qs_ot_env(1)%settings%nrow_block=nrow_block
     qs_ot_env(1)%settings%ncol_block=ncol_block
 
     ! allocate
     CALL qs_ot_allocate(qs_ot_env(1),globenv)
 
-    if (ortho) then
+    IF (ortho) THEN
         ! construct an initial guess that is orthogonal to matrix_orthogonal_space
         CALL cp_fm_create2(matrix_s_ortho, &
                                    nrow_block=nrow_block, &
@@ -202,7 +202,7 @@ CONTAINS
         CALL cp_fm_release(matrix_os_ortho)
         CALL cp_fm_release(matrix_s_ortho)
 
-    else
+    ELSE
 
     ! set c0,sc0
        CALL copy_blacs_to_blacs_matrix(matrix_c,qs_ot_env(1)%matrix_c0)
@@ -211,7 +211,7 @@ CONTAINS
                                para_env=globenv%para_env)
        CALL blacs_make_basis(qs_ot_env(1)%matrix_c0,k, &
                              ortho=qs_ot_env(1)%matrix_sc0,otype="SV")
-    endif
+    ENDIF
     ! init
     CALL qs_ot_init(qs_ot_env(1),globenv)
     energy_only=qs_ot_env(1)%energy_only
@@ -226,7 +226,7 @@ CONTAINS
 
     ! if present preconditioner, use it
 
-    IF (present(preconditioner)) THEN
+    IF (PRESENT(preconditioner)) THEN
        IF (preconditioner_in_use(preconditioner)) THEN
           CALL qs_ot_new_preconditioner(qs_ot_env(1),preconditioner) 
        ELSE
@@ -246,9 +246,9 @@ CONTAINS
                                      qs_ot_env(1)%settings%k,&
                                      para_env=globenv%para_env)
       CALL cp_fm_trace(matrix_c,qs_ot_env(1)%matrix_hc,energy)
-      if (.not. energy_only) then
+      IF (.NOT. energy_only) THEN
        CALL cp_fm_add(2.0_wp,qs_ot_env(1)%matrix_hc,0.0_wp,qs_ot_env(1)%matrix_hc)
-      endif
+      ENDIF
  
       qs_ot_env(1)%etotal=energy
       CALL ot_mini(qs_ot_env,globenv)
@@ -264,24 +264,24 @@ CONTAINS
       CALL qs_ot_get_orbitals(matrix_c,qs_ot_env(1)%matrix_x,qs_ot_env(1),globenv)
 
       IF (delta < eps_gradient) THEN
-          if (globenv%ionode) THEN
-             write(globenv%scr,*) " Reached convergence in ",ieigensolver, &
+          IF (globenv%ionode) THEN
+             WRITE(globenv%scr,*) " Reached convergence in ",ieigensolver, &
                                   " iterations "
-          endif
+          ENDIF
           EXIT eigensolver_loop
       ENDIF
-      IF (ieigensolver .ge. iter_max) THEN
-         if (globenv%ionode) then 
-           write(globenv%scr,*) "WARNING : did not converge in ot_eigensolver"
-           write(globenv%scr,*) "number of iterations ",ieigensolver
-           write(globenv%scr,*) "current gradient / target gradient",delta," / ",eps_gradient
-         endif
+      IF (ieigensolver .GE. iter_max) THEN
+         IF (globenv%ionode) THEN 
+           WRITE(globenv%scr,*) "WARNING : did not converge in ot_eigensolver"
+           WRITE(globenv%scr,*) "number of iterations ",ieigensolver
+           WRITE(globenv%scr,*) "current gradient / target gradient",delta," / ",eps_gradient
+         ENDIF
          EXIT eigensolver_loop
       ENDIF
 
     END DO eigensolver_loop
 
-    call qs_ot_destroy(qs_ot_env(1),globenv)
+    CALL qs_ot_destroy(qs_ot_env(1))
     DEALLOCATE(qs_ot_env)
 
     CALL timestop(0.0_wp,handle)

@@ -79,4 +79,27 @@
  'equalQ':'CP_SLL_FM_EQUAL_Q',
  'write_el':'cp_fm_write'
 }
+,
+{
+ 'nametype1':'sm', 
+ 'type1':'type(real_matrix_type),pointer', 
+ 'type1in':'type(real_matrix_type), target',
+ 'type1out':'type(real_matrix_type), pointer',
+ 'USE':
+"""USE sparse_matrix_types, ONLY: real_matrix_type, real_matrix_p_type,&
+     cp_sm_get_id_nr
+USE cp_matrix_utils, ONLY: cp_sm_write""",
+ 'defines':
+"""! less not much meningful...
+#define CP_SLL_SM_LESS_Q(el1,el2) ( cp_sm_get_id_nr(el1) < cp_sm_get_id_nr(el2) )
+#define CP_SLL_SM_EQUAL_Q(el1,el2) ( cp_sm_get_id_nr(el1) == cp_sm_get_id_nr(el2) )
+""",
+ '=':'=>',
+ 'type1arrayEl':'type(real_matrix_p_type)',
+ 'array=':'=>',
+ 'arrayEl':'%matrix',
+ 'lessQ':'CP_SLL_SM_LESS_Q',
+ 'equalQ':'CP_SLL_SM_EQUAL_Q',
+ 'write_el':'cp_sm_write'
+}
 ]

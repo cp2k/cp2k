@@ -73,73 +73,71 @@
 !******************************************************************************
 
 MODULE qs_core_hamiltonian
-
 ! *****************************************************************************
-
-  USE kinds, ONLY: int_size,&
-                   wp => dp,&
-                   wp_size => dp_size
-
-  USE ai_kinetic,               ONLY: kinetic
-
-  USE qs_parser,            ONLY: close_file,&
-                                  open_file
-
-  USE ai_overlap_new,           ONLY: overlap
-  USE ai_overlap_ppl,           ONLY: overlap_ppl
-  USE atomic_kind_types,        ONLY: atomic_kind_type,&
-                                      get_atomic_kind,&
-                                      get_atomic_kind_set
-  USE basis_set_types,          ONLY: get_gto_basis_set,&
-                                      gto_basis_set_type
-  USE checkpoint_handler,       ONLY: write_checkpoint_information
-  USE external_potential_types, ONLY: get_potential,&
-                                      gth_potential_type
-  USE global_types,             ONLY: global_environment_type
-  USE message_passing,          ONLY: mp_sum
-  USE orbital_pointers,         ONLY: indco,init_orbital_pointers,nco,ncoset
-  USE orbital_symbols,          ONLY: cgf_symbol
-  USE particle_types,           ONLY: particle_type
-  USE qs_environment_types,     ONLY: get_qs_env,&
-                                      qs_environment_type,&
-                                      set_qs_env
-  USE qs_force_types,           ONLY: qs_force_type
-  USE qs_neighbor_list_types,   ONLY: find_neighbor_list,&
-                                      first_list,&
-                                      first_node,&
-                                      get_neighbor_list,&
-                                      get_neighbor_node,&
-                                      neighbor_list_set_type,&
-                                      neighbor_list_set_p_type,&
-                                      neighbor_list_type,&
-                                      neighbor_node_type,&
-                                      next
-  USE qs_overlap,               ONLY: write_sparse_matrix
-  USE sparse_matrix_types,      ONLY: add_block_node,&
-                                      allocate_matrix,&
-                                      allocate_matrix_set,&
-                                      copy_sparse_to_full_matrix,&
-                                      deallocate_matrix,&
-                                      deallocate_matrix_set,&
-                                      deallocate_matrix_row,&
-                                      first_block_node,&
-                                      get_block_node,&
-                                      get_matrix_info,&
-                                      next_block_node,&
-                                      real_block_node_type,&
-                                      real_matrix_p_type,&
-                                      real_matrix_type,&
-                                      replicate_matrix,&
-                                      replicate_matrix_structure,&
-                                      set_matrix,&
-                                      write_blocks_maxabsval
-  USE string_utilities,         ONLY: compress,&
-                                      uppercase
-  USE termination,              ONLY: stop_memory,&
-                                      stop_program
-  USE timings,                  ONLY: timeset,&
-                                      timestop
-
+  USE ai_kinetic,                      ONLY: kinetic
+  USE ai_overlap_new,                  ONLY: overlap
+  USE ai_overlap_ppl,                  ONLY: overlap_ppl
+  USE atomic_kind_types,               ONLY: atomic_kind_type,&
+                                             get_atomic_kind,&
+                                             get_atomic_kind_set
+  USE basis_set_types,                 ONLY: get_gto_basis_set,&
+                                             gto_basis_set_type
+  USE checkpoint_handler,              ONLY: write_checkpoint_information
+  USE external_potential_types,        ONLY: get_potential,&
+                                             gth_potential_type
+  USE global_types,                    ONLY: global_environment_type
+  USE kinds,                           ONLY: int_size,&
+                                             wp => dp,&
+                                             wp_size => dp_size
+  USE message_passing,                 ONLY: mp_sum
+  USE orbital_pointers,                ONLY: indco,&
+                                             init_orbital_pointers,&
+                                             nco,&
+                                             ncoset
+  USE orbital_symbols,                 ONLY: cgf_symbol
+  USE particle_types,                  ONLY: particle_type
+  USE qs_environment_methods,          ONLY: qs_env_update_h_redundant_pools
+  USE qs_environment_types,            ONLY: get_qs_env,&
+                                             qs_environment_type,&
+                                             set_qs_env
+  USE qs_force_types,                  ONLY: qs_force_type
+  USE qs_neighbor_list_types,          ONLY: find_neighbor_list,&
+                                             first_list,&
+                                             first_node,&
+                                             get_neighbor_list,&
+                                             get_neighbor_node,&
+                                             neighbor_list_set_p_type,&
+                                             neighbor_list_set_type,&
+                                             neighbor_list_type,&
+                                             neighbor_node_type,&
+                                             next
+  USE qs_overlap,                      ONLY: write_sparse_matrix
+  USE qs_parser,                       ONLY: close_file,&
+                                             open_file
+  USE sparse_matrix_types,             ONLY: add_block_node,&
+                                             allocate_matrix,&
+                                             allocate_matrix_set,&
+                                             copy_sparse_to_full_matrix,&
+                                             deallocate_matrix,&
+                                             deallocate_matrix_row,&
+                                             deallocate_matrix_set,&
+                                             first_block_node,&
+                                             get_block_node,&
+                                             get_matrix_info,&
+                                             next_block_node,&
+                                             real_block_node_type,&
+                                             real_matrix_p_type,&
+                                             real_matrix_type,&
+                                             replicate_matrix,&
+                                             replicate_matrix_structure,&
+                                             set_matrix,&
+                                             write_blocks_maxabsval
+  USE string_utilities,                ONLY: compress,&
+                                             uppercase
+  USE termination,                     ONLY: stop_memory,&
+                                             stop_program
+  USE timings,                         ONLY: timeset,&
+                                             timestop
   IMPLICIT NONE
 
   PRIVATE
@@ -147,7 +145,7 @@ MODULE qs_core_hamiltonian
 ! *** Global types (in this module) ***
 
   TYPE block_p_type
-    REAL(wp), DIMENSION(:,:), POINTER :: block
+    REAL(wp), DIMENSION(:,:), POINTER :: BLOCK
   END TYPE block_p_type
 
 ! *** Global parameters ***
@@ -204,7 +202,7 @@ CONTAINS
 !   ***************************************************************************
 
     TYPE(global_environment_type), INTENT(IN) :: globenv
-    TYPE(qs_environment_type), INTENT(INOUT)  :: qs_env
+    TYPE(qs_environment_type), POINTER        :: qs_env
     LOGICAL, INTENT(IN)                       :: calculate_forces
     TYPE(real_matrix_type), OPTIONAL, POINTER :: p,w
 
@@ -350,7 +348,7 @@ CONTAINS
 !   *** matrix (only needed for printing)    ***
 !   *** also needed as an OT preconditioner  ***
 
-    construct_kinetic_energy_matrix = (.TRUE. .or. globenv%print%kinetic_energy_matrix)
+    construct_kinetic_energy_matrix = (.TRUE. .OR. globenv%print%kinetic_energy_matrix)
 
     IF (construct_kinetic_energy_matrix) THEN
       IF (globenv%print%derivatives.AND.&
@@ -362,7 +360,7 @@ CONTAINS
       END IF
 
       CALL replicate_matrix_structure(source=s(1)%matrix,&
-                                      target=t(1)%matrix,&
+                                      TARGET=t(1)%matrix,&
                                       target_name="KINETIC ENERGY MATRIX")
 
       DO i=2,SIZE(t)
@@ -371,7 +369,7 @@ CONTAINS
         CALL compress(name)
         CALL uppercase(name)
         CALL replicate_matrix_structure(source=t(1)%matrix,&
-                                        target=t(i)%matrix,&
+                                        TARGET=t(i)%matrix,&
                                         target_name=name,&
                                         target_symmetry="antisymmetric")
       END DO
@@ -382,7 +380,7 @@ CONTAINS
     CALL allocate_matrix_set(h,1)
 
     CALL replicate_matrix_structure(source=s(1)%matrix,&
-                                    target=h(1)%matrix,&
+                                    TARGET=h(1)%matrix,&
                                     target_name="CORE HAMILTONIAN MATRIX")
 
 !   *** Allocate work storage ***
@@ -617,12 +615,12 @@ CONTAINS
               CALL get_block_node(matrix=s(1)%matrix,&
                                   block_row=iatom,&
                                   block_col=jatom,&
-                                  block=sint(1)%block)
+                                  BLOCK=sint(1)%block)
             ELSE
               CALL get_block_node(matrix=s(1)%matrix,&
                                   block_row=jatom,&
                                   block_col=iatom,&
-                                  block=sint(1)%block)
+                                  BLOCK=sint(1)%block)
             END IF
 
 !           *** Check, if the atomic block has to be ***
@@ -637,12 +635,12 @@ CONTAINS
                   CALL get_block_node(matrix=s(i)%matrix,&
                                       block_row=iatom,&
                                       block_col=jatom,&
-                                      block=sint(i)%block)
+                                      BLOCK=sint(i)%block)
                 ELSE
                   CALL get_block_node(matrix=s(i)%matrix,&
                                       block_row=jatom,&
                                       block_col=iatom,&
-                                      block=sint(i)%block)
+                                      BLOCK=sint(i)%block)
                 END IF
               END DO
 
@@ -652,12 +650,12 @@ CONTAINS
                     CALL get_block_node(matrix=t(i)%matrix,&
                                         block_row=iatom,&
                                         block_col=jatom,&
-                                        block=tint(i)%block)
+                                        BLOCK=tint(i)%block)
                   ELSE
                     CALL get_block_node(matrix=t(i)%matrix,&
                                         block_row=jatom,&
                                         block_col=iatom,&
-                                        block=tint(i)%block)
+                                        BLOCK=tint(i)%block)
                   END IF
                 END DO
               END IF
@@ -666,31 +664,31 @@ CONTAINS
                 CALL get_block_node(matrix=h(1)%matrix,&
                                     block_row=iatom,&
                                     block_col=jatom,&
-                                    block=h_block)
+                                    BLOCK=h_block)
                 IF (calculate_forces) THEN
                   CALL get_block_node(matrix=p,&
                                       block_row=iatom,&
                                       block_col=jatom,&
-                                      block=p_block)
+                                      BLOCK=p_block)
                   CALL get_block_node(matrix=w,&
                                       block_row=iatom,&
                                       block_col=jatom,&
-                                      block=w_block)
+                                      BLOCK=w_block)
                 END IF
               ELSE
                 CALL get_block_node(matrix=h(1)%matrix,&
                                     block_row=jatom,&
                                     block_col=iatom,&
-                                    block=h_block)
+                                    BLOCK=h_block)
                 IF (calculate_forces) THEN
                   CALL get_block_node(matrix=p,&
                                       block_row=jatom,&
                                       block_col=iatom,&
-                                      block=p_block)
+                                      BLOCK=p_block)
                   CALL get_block_node(matrix=w,&
                                       block_row=jatom,&
                                       block_col=iatom,&
-                                      block=w_block)
+                                      BLOCK=w_block)
                 END IF
               END IF
 
@@ -1150,6 +1148,9 @@ CONTAINS
       CALL write_sparse_matrix(h(1)%matrix,4,6,qs_env,globenv)
     END IF
 
+!   *** Update the H_redundant matrix pools
+    CALL qs_env_update_h_redundant_pools(qs_env)
+    
     CALL write_checkpoint_information("leaving "//routine_name,globenv)
 
   END SUBROUTINE build_core_hamiltonian_matrix
@@ -1307,7 +1308,7 @@ CONTAINS
         CALL compress(name)
         CALL uppercase(name)
         CALL replicate_matrix_structure(source=sca(1)%matrix,&
-                                        target=sca(i)%matrix,&
+                                        TARGET=sca(i)%matrix,&
                                         target_name=name,&
                                         target_symmetry="no symmetry")
       END DO
@@ -1332,7 +1333,7 @@ CONTAINS
         CALL compress(name)
         CALL uppercase(name)
         CALL replicate_matrix_structure(source=scb(1)%matrix,&
-                                        target=scb(i)%matrix,&
+                                        TARGET=scb(i)%matrix,&
                                         target_name=name,&
                                         target_symmetry="no symmetry")
       END DO
@@ -1393,7 +1394,7 @@ CONTAINS
             CALL add_block_node(matrix=sca(i)%matrix,&
                                 block_row=1,&
                                 block_col=iatom,&
-                                block=scaint(i)%block)
+                                BLOCK=scaint(i)%block)
           END DO
 
 !         *** Calculate the current overlap matrix block ***
@@ -1508,7 +1509,7 @@ CONTAINS
             CALL add_block_node(matrix=scb(i)%matrix,&
                                 block_row=1,&
                                 block_col=iatom,&
-                                block=scbint(i)%block)
+                                BLOCK=scbint(i)%block)
           END DO
 
 !         *** Calculate the current overlap matrix block ***
@@ -1591,11 +1592,11 @@ CONTAINS
           block_node_dum => ca(1)%block_node
           CALL get_block_node(block_node=block_node_dum,&
                               block_col=iatom,&
-                              block=scaint(1)%block)
+                              BLOCK=scaint(1)%block)
           DO i=2,maxder
             block_node_dum => ca(i)%block_node
             CALL get_block_node(block_node=block_node_dum,&
-                                block=scaint(i)%block)
+                                BLOCK=scaint(i)%block)
           END DO
 
           IF (calculate_forces) atom_a = atom_of_kind(iatom)
@@ -1620,11 +1621,11 @@ CONTAINS
             block_node_dum => cb(1)%block_node
             CALL get_block_node(block_node=block_node_dum,&
                                 block_col=jatom,&
-                                block=scbint(1)%block)
+                                BLOCK=scbint(1)%block)
             DO i=2,maxder
               block_node_dum => cb(i)%block_node
               CALL get_block_node(block_node=block_node_dum,&
-                                  block=scbint(i)%block)
+                                  BLOCK=scbint(i)%block)
             END DO
 
             IF (calculate_forces) atom_b = atom_of_kind(jatom)
@@ -1635,12 +1636,12 @@ CONTAINS
               CALL get_block_node(matrix=h(1)%matrix,&
                                   block_row=iatom,&
                                   block_col=jatom,&
-                                  block=h_block)
+                                  BLOCK=h_block)
               IF (.NOT.ASSOCIATED(h_block)) THEN
                 CALL add_block_node(matrix=h(1)%matrix,&
                                     block_row=iatom,&
                                     block_col=jatom,&
-                                    block=h_block)
+                                    BLOCK=h_block)
               END IF
               CALL dgemm("T","N",na,nb,nprjc,&
                          1.0_wp,work(1,1),SIZE(work,1),&
@@ -1650,7 +1651,7 @@ CONTAINS
                 CALL get_block_node(matrix=p,&
                                     block_row=iatom,&
                                     block_col=jatom,&
-                                    block=p_block)
+                                    BLOCK=p_block)
                 DO i=1,3
                   first_col = i*SIZE(work,1) + 1
                   CALL dgemm("T","N",na,nb,nprjc,&
@@ -1677,12 +1678,12 @@ CONTAINS
               CALL get_block_node(matrix=h(1)%matrix,&
                                   block_row=jatom,&
                                   block_col=iatom,&
-                                  block=h_block)
+                                  BLOCK=h_block)
               IF (.NOT.ASSOCIATED(h_block)) THEN
                 CALL add_block_node(matrix=h(1)%matrix,&
                                     block_row=jatom,&
                                     block_col=iatom,&
-                                    block=h_block)
+                                    BLOCK=h_block)
               END IF
               CALL dgemm("T","N",nb,na,nprjc,&
                          1.0_wp,scbint(1)%block(1,1),nprjc,&
@@ -1697,7 +1698,7 @@ CONTAINS
                 CALL get_block_node(matrix=p,&
                                     block_row=jatom,&
                                     block_col=iatom,&
-                                    block=p_block)
+                                    BLOCK=p_block)
                 DO i=1,3
                   first_col = i*SIZE(work,1) + 1
                   CALL dgemm("T","N",nb,na,nprjc,&
@@ -1738,11 +1739,11 @@ CONTAINS
             block_node_dum => cb(1)%block_node
             CALL get_block_node(block_node=block_node_dum,&
                                 block_col=jatom,&
-                                block=scbint(1)%block)
+                                BLOCK=scbint(1)%block)
             DO i=2,maxder
               block_node_dum => cb(i)%block_node
               CALL get_block_node(block_node=block_node_dum,&
-                                  block=scbint(i)%block)
+                                  BLOCK=scbint(i)%block)
             END DO
 
             IF (calculate_forces) atom_b = atom_of_kind(jatom)
@@ -1753,12 +1754,12 @@ CONTAINS
               CALL get_block_node(matrix=h(1)%matrix,&
                                   block_row=iatom,&
                                   block_col=jatom,&
-                                  block=h_block)
+                                  BLOCK=h_block)
               IF (.NOT.ASSOCIATED(h_block)) THEN
                 CALL add_block_node(matrix=h(1)%matrix,&
                                     block_row=iatom,&
                                     block_col=jatom,&
-                                    block=h_block)
+                                    BLOCK=h_block)
               END IF
               CALL dgemm("T","N",na,nb,nprjc,&
                          1.0_wp,work(1,1),SIZE(work,1),&
@@ -1773,7 +1774,7 @@ CONTAINS
                 CALL get_block_node(matrix=p,&
                                     block_row=iatom,&
                                     block_col=jatom,&
-                                    block=p_block)
+                                    BLOCK=p_block)
                 DO i=1,3
                   first_col = i*SIZE(work,1) + 1
                   CALL dgemm("T","N",na,nb,nprjc,&

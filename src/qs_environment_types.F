@@ -65,6 +65,13 @@ MODULE qs_environment_types
                                              cp_para_env_retain
   USE cp_para_types,                   ONLY: cp_blacs_env_type,&
                                              cp_para_env_type
+  USE cp_sm_pool_types,                ONLY: cp_sm_pool_p_type,&
+                                             cp_sm_pool_type,&
+                                             sm_pool_create,&
+                                             sm_pool_release,&
+                                             sm_pool_retain,&
+                                             sm_pools_copy,&
+                                             sm_pools_dealloc
   USE dft_types,                       ONLY: dft_control_type
   USE kinds,                           ONLY: wp => dp
   USE pao_types,                       ONLY: pao_env_type
@@ -162,7 +169,9 @@ MODULE qs_environment_types
 !!     - s: the overlap matrix (s(1)), if needed by the calculation also
 !!       its derivatives wrt. x,y, and z (s(2:4))
 !!     - kinetic: kinetic part of h
-!!     - s_mstruct: structure of s
+!!     - S_sm_pools: pools of sparse matrixes with the structure of S
+!!     - H_redundant_sm_pools: pools of sparse matrixes with the redundant
+!!       structure of h (in the scf h is converted to the s structure)
 !!     - rho: the (old) density, in various representations (ao+grid)
 !!     - scf_control: various parameters relevant to the scf cycle
 !!     - ao_mo_fm_pools: pools with (ao x mo) full matrixes (same order as
@@ -203,7 +212,8 @@ MODULE qs_environment_types
     TYPE(qs_energy_type), POINTER                         :: energy
     TYPE(qs_force_type), DIMENSION(:), POINTER            :: force
     TYPE(real_matrix_p_type), DIMENSION(:), POINTER       :: h,k,p,s,kinetic
-    TYPE(cp_b_matrix_struct_type), POINTER                :: s_mstruct
+    TYPE(cp_sm_pool_p_type), DIMENSION(:), POINTER        :: S_sm_pools
+    TYPE(cp_sm_pool_p_type), DIMENSION(:), POINTER        :: H_redundant_sm_pools
     TYPE(qs_rho_type), POINTER                            :: rho
     TYPE(scf_control_type), POINTER                       :: scf_control
     TYPE(cp_fm_pool_p_type), DIMENSION(:), POINTER        :: ao_mo_fm_pools
@@ -249,11 +259,12 @@ CONTAINS
 
   SUBROUTINE get_qs_env(qs_env,atomic_kind_set,cell,dft_control,c,sab_orb,&
                         sac_erfc,sac_ppl,sca_ppnl,scb_ppnl,pao_env,&
-                        particle_set,energy,force,h,k,p,s, s_mstruct,&
+                        particle_set,energy,force,h,k,p,s, S_sm_pools,&
                         rho, ao_mo_fm_pools,ao_maxmo_fm_pool, pw_env, &
                         para_env, blacs_env, scf_control,&
                         kinetic,qs_charges, rho_core, ks_env,&
-                        wf_history,scf_env,error)
+                        wf_history,scf_env,H_redundant_sm_pools,&
+                        id_nr,error)
 
 !   Purpose: Get the QUICKSTEP environment.
 
@@ -279,8 +290,9 @@ CONTAINS
       OPTIONAL, POINTER                         :: force
     TYPE(real_matrix_p_type), DIMENSION(:),&
       OPTIONAL, POINTER                         :: h,k,p,s,kinetic
-    TYPE(cp_b_matrix_struct_type), OPTIONAL,&
-         POINTER                                :: s_mstruct
+    TYPE(cp_sm_pool_p_type), DIMENSION(:), &
+         OPTIONAL, POINTER                      :: S_sm_pools,&
+                                                   H_redundant_sm_pools
     TYPE(qs_rho_type), OPTIONAL, POINTER        :: rho
     TYPE(cp_fm_pool_p_type), DIMENSION(:),&
          OPTIONAL, POINTER                      :: ao_mo_fm_pools
@@ -294,6 +306,7 @@ CONTAINS
     TYPE(qs_ks_env_type), OPTIONAL, POINTER     :: ks_env
     TYPE(qs_wf_history_type), OPTIONAL, POINTER :: wf_history
     TYPE(qs_scf_env_type), OPTIONAL, POINTER    :: scf_env
+    INTEGER, INTENT(out), OPTIONAL              :: id_nr
     TYPE(cp_error_type), OPTIONAL,INTENT(inout) :: error
 !   ---------------------------------------------------------------------------
 
@@ -315,7 +328,10 @@ CONTAINS
     IF (PRESENT(p)) p => qs_env%p
     IF (PRESENT(kinetic)) kinetic => qs_env%kinetic
     IF (PRESENT(s)) s => qs_env%s
-    IF (PRESENT(s_mstruct)) s_mstruct => qs_env%s_mstruct
+    IF (PRESENT(S_sm_pools)) S_sm_pools => qs_env%S_sm_pools
+    IF (PRESENT(H_redundant_sm_pools)) THEN
+       H_redundant_sm_pools => qs_env%H_redundant_sm_pools
+    END IF
     IF (PRESENT(rho)) rho => qs_env%rho
     IF (PRESENT(pw_env)) pw_env => qs_env%pw_env
     IF (PRESENT(ao_mo_fm_pools)) ao_mo_fm_pools => qs_env%ao_mo_fm_pools
@@ -334,6 +350,7 @@ CONTAINS
     IF (PRESENT(ks_env)) ks_env => qs_env%ks_env
     IF (PRESENT(wf_history)) wf_history => qs_env%wf_history
     IF (PRESENT(scf_env)) scf_env => qs_env%scf_env
+    IF (PRESENT(id_nr)) id_nr=qs_env%id_nr
 
   END SUBROUTINE get_qs_env
 
@@ -372,7 +389,8 @@ CONTAINS
     NULLIFY (qs_env%p)
     NULLIFY (qs_env%kinetic)
     NULLIFY (qs_env%s)
-    NULLIFY (qs_env%s_mstruct)
+    NULLIFY (qs_env%S_sm_pools)
+    NULLIFY (qs_env%H_redundant_sm_pools)
     NULLIFY (qs_env%rho)
     NULLIFY (qs_env%ao_mo_fm_pools)
     NULLIFY (qs_env%pw_env)
@@ -717,7 +735,8 @@ SUBROUTINE qs_env_release(qs_env,error)
              CALL deallocate_matrix_set(qs_env%s)
         IF (ASSOCIATED(qs_env%kinetic))&
              CALL deallocate_matrix_set(qs_env%kinetic)
-        CALL cp_bmstruct_release(qs_env%s_mstruct,error=error)
+        CALL sm_pools_dealloc(qs_env%S_sm_pools,error=error)
+        CALL sm_pools_dealloc(qs_env%H_redundant_sm_pools,error=error)
         CALL qs_rho_release(qs_env%rho, error=error)
         CALL scf_c_release(qs_env%scf_control, error=error)
         CALL fm_pools_dealloc(qs_env%ao_mo_fm_pools, error=error)

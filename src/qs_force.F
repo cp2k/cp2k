@@ -84,7 +84,7 @@ CONTAINS
 !   ***************************************************************************
 
     TYPE(global_environment_type), INTENT(IN) :: globenv
-    TYPE(qs_environment_type), INTENT(INOUT)  :: qs_env
+    TYPE(qs_environment_type), POINTER        :: qs_env
 
 !   *** Local parameters ***
 
@@ -138,6 +138,8 @@ CONTAINS
                              atom_of_kind=atom_of_kind,&
                              kind_of=kind_of)
 
+    ! to do calculate redundant density
+    ! CALL calculate_density_matrix(mo_set,rho%rho_ao(1)%matrix,globenv)
     p => rho%rho_ao
 
     CALL init_qs_force(force)
@@ -220,7 +222,7 @@ CONTAINS
 !   ***************************************************************************
 
     TYPE(global_environment_type), INTENT(IN) :: globenv
-    TYPE(qs_environment_type), INTENT(INOUT)  :: qs_env
+    TYPE(qs_environment_type), POINTER        :: qs_env
 
 !   *** Local parameters ***
 

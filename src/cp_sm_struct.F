@@ -58,7 +58,8 @@ MODULE cp_sm_struct
 
   PUBLIC :: cp_sm_node_type, cp_sm_struct_type, cp_sm_struct_p_type
   PUBLIC :: sm_struct_create, sm_struct_retain, sm_struct_release,&
-       sm_struct_add_local_block, sm_struct_clear_local_blocks
+       sm_struct_add_local_block, sm_struct_clear_local_blocks,&
+       sm_struct_get
 !!***
 !****************************************************************************
 
@@ -169,10 +170,10 @@ CONTAINS
 !!         block_begins_at_col, para_env, symmetry, local_blocks_ptr,&
 !!         error)
 !!       Type(cp_sm_struct_type), Pointer:: sm_struct
-!!       Integer, Dimension(:), Pointer:: block_begins_at_row,&
+!!       Integer, Dimension(:), Intent (IN):: block_begins_at_row,&
 !!         block_begins_at_col
 !!       Type(cp_para_env_type), Pointer:: para_env
-!!       Character(Len=40):: symmetry
+!!       Character(Len=*):: symmetry
 !!       Type(cp_sm_node_type), Optional, Pointer:: local_blocks_ptr
 !!       Type(cp_error_type), Optional, Intent (INOUT):: error
 !!     End Subroutine sm_struct_create
@@ -195,12 +196,12 @@ CONTAINS
 !!
 !!*** **********************************************************************
 SUBROUTINE sm_struct_create(sm_struct, block_begins_at_row,&
-     block_begins_at_col, para_env, symmetry, local_blocks_ptr, error)
+     block_begins_at_col, para_env, symmetry, local_blocks_ptr,error)
   TYPE(cp_sm_struct_type), POINTER :: sm_struct
-  INTEGER, DIMENSION(:), POINTER :: block_begins_at_row, &
+  INTEGER, DIMENSION(:), INTENT(in) :: block_begins_at_row, &
        block_begins_at_col
   TYPE(cp_para_env_type), POINTER :: para_env
-  CHARACTER(len=40) :: symmetry
+  CHARACTER(len=*) :: symmetry
   TYPE(cp_sm_node_type), OPTIONAL, POINTER :: local_blocks_ptr
   TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
   
@@ -213,8 +214,6 @@ SUBROUTINE sm_struct_create(sm_struct, block_begins_at_row,&
   
   ALLOCATE(sm_struct, stat=stat)
   CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-  CPPrecondition(ASSOCIATED(block_begins_at_row),cp_failure_level,routineP,error,failure)
-  CPPrecondition(ASSOCIATED(block_begins_at_col),cp_failure_level,routineP,error,failure)
   IF (.NOT. failure) THEN
      sm_struct%ref_count=1
      last_sm_struct_id=last_sm_struct_id+1
@@ -222,6 +221,9 @@ SUBROUTINE sm_struct_create(sm_struct, block_begins_at_row,&
      ALLOCATE(sm_struct%block_begins_at_row(SIZE(block_begins_at_row)), &
           sm_struct%block_begins_at_col(SIZE(block_begins_at_col)),&
           stat=stat)
+     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+     sm_struct%block_begins_at_row=block_begins_at_row
+     sm_struct%block_begins_at_col=block_begins_at_col
      NULLIFY(sm_struct%first_col, sm_struct%first_row,&
           sm_struct%last_col, sm_struct%last_row)
      sm_struct%para_env => para_env
@@ -530,7 +532,7 @@ SUBROUTINE sm_struct_add_local_block(sm_struct, block_row, block_col, error)
      DO WHILE (.TRUE.)
         IF (.not.ASSOCIATED(col_att%next_row)) EXIT
         IF (col_att%next_row%row>=block_row) EXIT
-        row_att => row_att%next_col
+        col_att => col_att%next_row
      END DO
   END IF
 
@@ -668,6 +670,23 @@ END SUBROUTINE sm_struct_clear_local_blocks
 !!   NAME
 !!     sm_struct_get
 !!
+!!   SYNOPSIS
+!!     Subroutine sm_struct_get(sm_struct, ref_count, id_nr, n_local_blocks,&
+!!         block_begins_at_row, block_begins_at_col, first_col, first_row,&
+!!         last_col, last_row, para_env, symmetry, local_blocks,&
+!!         n_blocks_row, n_blocks_col, n_rows, n_cols, error)
+!!       Type(cp_sm_struct_type), Pointer:: sm_struct
+!!       Integer, Intent (OUT), Optional:: ref_count, id_nr, n_local_blocks
+!!       Integer, Dimension(:), Pointer, Optional:: block_begins_at_row,&
+!!         block_begins_at_col, first_col, first_row, last_col, last_row
+!!       Type(cp_para_env_type), Pointer, Optional:: para_env
+!!       Character(Len=*), Intent (OUT), Optional:: symmetry
+!!       Type(cp_sm_node_type), Pointer, Optional:: local_blocks
+!!       Integer, Intent (OUT), Optional:: n_blocks_row, n_blocks_col,&
+!!         n_rows, n_cols
+!!       Type(cp_error_type), Optional, Intent (INOUT):: error
+!!     End Subroutine sm_struct_get
+!!
 !!   FUNCTION
 !!     returns various attributes about the given sm_struct
 !!
@@ -675,7 +694,7 @@ END SUBROUTINE sm_struct_clear_local_blocks
 !!     -
 !!
 !!   ARGUMENTS
-!!     - sm_struct: 
+!!     - sm_struct: the structure you want info about
 !!     - error: variable to control error logging, stopping,... 
 !!       see module cp_error_handling 
 !!
@@ -689,7 +708,7 @@ END SUBROUTINE sm_struct_clear_local_blocks
 SUBROUTINE sm_struct_get(sm_struct, ref_count, id_nr, n_local_blocks,&
      block_begins_at_row, block_begins_at_col, first_col, &
      first_row, last_col, last_row, para_env, symmetry, local_blocks,&
-     error)
+     n_blocks_row,n_blocks_col,n_rows,n_cols,error)
   TYPE(cp_sm_struct_type), POINTER :: sm_struct
   INTEGER, INTENT(out),OPTIONAL :: ref_count, id_nr, n_local_blocks
   INTEGER, DIMENSION(:), POINTER, OPTIONAL :: block_begins_at_row, &
@@ -698,6 +717,7 @@ SUBROUTINE sm_struct_get(sm_struct, ref_count, id_nr, n_local_blocks,&
   TYPE(cp_para_env_type), POINTER, OPTIONAL :: para_env
   CHARACTER(len=*), INTENT(out), OPTIONAL :: symmetry
   TYPE(cp_sm_node_type), POINTER, OPTIONAL :: local_blocks
+  INTEGER, INTENT(out), OPTIONAL :: n_blocks_row,n_blocks_col,n_rows,n_cols
   TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
   
   LOGICAL :: failure
@@ -717,11 +737,11 @@ SUBROUTINE sm_struct_get(sm_struct, ref_count, id_nr, n_local_blocks,&
           block_begins_at_col => sm_struct%block_begins_at_col
      IF (PRESENT(block_begins_at_row)) &
           block_begins_at_row => sm_struct%block_begins_at_row
-     IF (PRESENT(first_col)) THEN !
+     IF (PRESENT(first_col)) THEN !FM works? or should allocate it
         first_col => sm_struct%block_begins_at_col(1:&
              (SIZE(sm_struct%block_begins_at_col)-1))
      END IF
-     IF (PRESENT(first_row)) THEN
+     IF (PRESENT(first_row)) THEN !FM works? or should allocate it
         first_row => sm_struct%block_begins_at_row(1:&
              (SIZE(sm_struct%block_begins_at_row)-1))
      END IF
@@ -748,6 +768,16 @@ SUBROUTINE sm_struct_get(sm_struct, ref_count, id_nr, n_local_blocks,&
         symmetry = sm_struct%symmetry
      END IF
      IF (PRESENT(local_blocks)) local_blocks => sm_struct%local_blocks
+     IF (PRESENT(n_blocks_row))n_blocks_row=SIZE(sm_struct%block_begins_at_row)-1
+     IF (PRESENT(n_blocks_col))n_blocks_col=SIZE(sm_struct%block_begins_at_col)-1
+     IF (PRESENT(n_rows)) THEN
+        n_rows=sm_struct%block_begins_at_row(&
+             SIZE(sm_struct%block_begins_at_row))-1
+     END IF
+     IF (PRESENT(n_cols)) THEN
+        n_cols=sm_struct%block_begins_at_col(&
+             SIZE(sm_struct%block_begins_at_col))-1
+     END IF
   END IF
 END SUBROUTINE sm_struct_get
 !***************************************************************************

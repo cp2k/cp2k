@@ -51,6 +51,7 @@ MODULE sparse_matrix_types
   PRIVATE
 
   CHARACTER(LEN=*), PRIVATE, PARAMETER :: moduleN='sparse_matrix_types'
+  INTEGER, SAVE, PRIVATE :: last_matrix_id=0
 
 ! *** Define a real matrix data type ***
 
@@ -73,7 +74,8 @@ MODULE sparse_matrix_types
     CHARACTER(LEN=40)                                 :: symmetry
     INTEGER                                           :: nblock_col,&
                                                          nblock_row,&
-                                                         ncol,nrow
+                                                         ncol,nrow,&
+                                                         id_nr, ref_count
     INTEGER, DIMENSION(:), POINTER                    :: first_col,&
                                                          first_row,&
                                                          last_col,&
@@ -117,7 +119,9 @@ MODULE sparse_matrix_types
             write_blocks_maxabsval, &
             add_all_real_matrix_blocks,&
             get_real_matrix_occupation,&
-            cp_sm_scale_and_add
+            cp_sm_scale_and_add,&
+            cp_sm_get_id_nr,&
+            cp_sm_set
 
 ! *** Public functions ***
 
@@ -620,6 +624,10 @@ END SUBROUTINE cp_sm_scale_and_add
 
     ALLOCATE (matrix%block_list(nblock_row),STAT=istat)
     IF (istat /= 0) CALL stop_memory(routine,matrix%name,0)
+    
+    last_matrix_id=last_matrix_id+1
+    matrix%id_nr=last_matrix_id
+    matrix%ref_count=1
 
     matrix%name = matrix_name
     matrix%symmetry = matrix_symmetry
@@ -2264,5 +2272,103 @@ END SUBROUTINE cp_sm_scale_and_add
     IF (PRESENT(memory_occupation)) memory_occupation = REAL(memory_counter, wp) / REAL(max_memory, wp)
 
   END SUBROUTINE get_real_matrix_occupation
+
+!!****f* sparse_matrix_types/cp_sm_get_id_nr [1.0] *
+!!
+!!   NAME
+!!     cp_sm_get_id_nr
+!!
+!!   SYNOPSIS
+!!     Function cp_sm_get_id_nr(matrix, error) Result(res)
+!!       Integer:: res
+!!       Type(real_matrix_type), Intent (IN), Target:: matrix
+!!       Type(cp_error_type), Optional, Intent (INOUT):: error
+!!     End Function cp_sm_get_id_nr
+!!
+!!   FUNCTION
+!!     returns the id of the given matrix
+!!
+!!   NOTES
+!!     -
+!!
+!!   ARGUMENTS
+!!     - matrix: the matrix you want info about
+!!     - error: variable to control error logging, stopping,... 
+!!       see module cp_error_handling 
+!!
+!!   AUTHOR
+!!     fawzi
+!!
+!!   MODIFICATION HISTORY
+!!     02.2003 created [fawzi]
+!!
+!!*** **********************************************************************
+FUNCTION cp_sm_get_id_nr(matrix,error) RESULT(res)
+  INTEGER ::res
+  TYPE(real_matrix_type), INTENT(in), TARGET :: matrix
+  TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
+  
+  LOGICAL :: failure
+  CHARACTER(len=*), PARAMETER :: routineN='cp_sm_get_id_nr',&
+        routineP=moduleN//':'//routineN
+
+  failure=.FALSE.
+!  CPPrecondition(associated(matrix),cp_failure_level,routineP,error,failure)
+  CPPrecondition(matrix%ref_count>0,cp_failure_level,routineP,error,failure)
+  IF (.NOT. failure) THEN
+     res=matrix%id_nr
+  ELSE
+    res=0
+  END IF
+END FUNCTION cp_sm_get_id_nr
+!***************************************************************************
+
+!!****f* sparse_matrix_types/cp_sm_set [1.0] *
+!!
+!!   NAME
+!!     cp_sm_set
+!!
+!!   SYNOPSIS
+!!     Subroutine cp_sm_set(matrix, name, error)
+!!       Type(real_matrix_type), Pointer:: matrix
+!!       Character(Len=*), Intent (IN), Optional:: name
+!!       Type(cp_error_type), Optional, Intent (INOUT):: error
+!!     End Subroutine cp_sm_set
+!!
+!!   FUNCTION
+!!     sets various attributes of the given matrix
+!!
+!!   NOTES
+!!     -
+!!
+!!   ARGUMENTS
+!!     - error: variable to control error logging, stopping,... 
+!!       see module cp_error_handling 
+!!
+!!   AUTHOR
+!!     fawzi
+!!
+!!   MODIFICATION HISTORY
+!!     02.2003 created [fawzi]
+!!
+!!*** **********************************************************************
+SUBROUTINE cp_sm_set(matrix,name,error)
+  TYPE(real_matrix_type), POINTER :: matrix
+  CHARACTER(len=*), INTENT(in), OPTIONAL :: name
+  TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
+  
+  LOGICAL :: failure
+  CHARACTER(len=*), PARAMETER :: routineN='cp_sm_set',&
+        routineP=moduleN//':'//routineN
+
+  failure=.FALSE.
+  
+  CPPrecondition(ASSOCIATED(matrix),cp_failure_level,routineP,error,failure)
+  CPPrecondition(matrix%ref_count>0,cp_failure_level,routineP,error,failure)
+  IF (.NOT. failure) THEN
+     IF (PRESENT(name)) matrix%name=name
+  END IF
+END SUBROUTINE cp_sm_set
+!***************************************************************************
 
 END MODULE sparse_matrix_types

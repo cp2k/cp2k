@@ -50,6 +50,10 @@ MODULE qs_scf_types
                                              cp_warning_level
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE kinds,                           ONLY: wp=>dp
+  USE preconditioner,                  ONLY: destroy_preconditioner,&
+                                             preconditioner_type
+  USE qs_ot,                           ONLY: qs_ot_destroy,&
+                                             qs_ot_type
   USE sparse_matrix_types,             ONLY: deallocate_matrix_set,&
                                              real_matrix_p_type,&
                                              real_matrix_type
@@ -90,11 +94,16 @@ MODULE qs_scf_types
 !!   SOURCE
   !***************************************************************************
 TYPE qs_scf_env_type
-   INTEGER :: ref_count, id_nr, print_count
+   INTEGER :: ref_count, id_nr, print_count, iter_count
+   INTEGER :: nelectron, method, mixing_method
+   REAL(kind=wp) :: iter_param, iter_delta, p_mix
+   CHARACTER (len=15) :: iter_method
+   LOGICAL :: print_iter_line
    TYPE(cp_full_matrix_p_type), DIMENSION(:), POINTER :: scf_work1
-   TYPE(cp_full_matrix_type), POINTER  :: ortho,scf_work2
+   TYPE(cp_full_matrix_type), POINTER  :: scf_work2, ortho
    TYPE(real_matrix_p_type), DIMENSION(:), POINTER :: p_new
-   INTEGER :: nelectron, method
+   TYPE(preconditioner_type), POINTER :: ot_preconditioner
+   TYPE(qs_ot_type), POINTER, DIMENSION(:)  :: qs_ot_env
 END TYPE qs_scf_env_type
 !!***
   !****************************************************************************
@@ -212,7 +221,7 @@ SUBROUTINE scf_env_release(scf_env,error)
   LOGICAL :: failure
   CHARACTER(len=*), PARAMETER :: routineN='scf_env_release',&
         routineP=moduleN//':'//routineN
-  INTEGER :: stat
+  INTEGER :: stat,i
 
   failure=.FALSE.
   
@@ -224,6 +233,18 @@ SUBROUTINE scf_env_release(scf_env,error)
         CALL cp_fm_release(scf_env%scf_work2,error=error)
         CALL cp_fm_vect_dealloc(scf_env%scf_work1,error=error)
         CALL deallocate_matrix_set(scf_env%p_new)
+        IF (ASSOCIATED(scf_env%qs_ot_env)) THEN
+           DO i=1,SIZE(scf_env%qs_ot_env)
+              CALL qs_ot_destroy(scf_env%qs_ot_env(i))
+           END DO
+           DEALLOCATE(scf_env%qs_ot_env, stat=stat)
+           CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+        END IF
+        IF (ASSOCIATED(scf_env%ot_preconditioner)) THEN
+           CALL destroy_preconditioner(scf_env%ot_preconditioner)
+           DEALLOCATE(scf_env%ot_preconditioner,stat=stat)
+           CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+        END IF
         DEALLOCATE(scf_env, stat=stat)
         CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
      END IF

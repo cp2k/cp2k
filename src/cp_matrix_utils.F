@@ -42,7 +42,8 @@ MODULE cp_matrix_utils
                                              cp_error_message,&
                                              cp_error_propagate_error,&
                                              cp_error_type,&
-                                             cp_postcondition_failed
+                                             cp_postcondition_failed,&
+                                             cp_unimplemented_error
   USE cp_log_handling,                 ONLY: cp_failure_level,&
                                              cp_fatal_level,&
                                              cp_logger_type,&
@@ -51,6 +52,10 @@ MODULE cp_matrix_utils
                                              cp_warning_level
   USE cp_output_handling,              ONLY: cp_would_output
   USE cp_para_types,                   ONLY: cp_para_env_type
+  USE cp_sm_struct,                    ONLY: cp_sm_struct_type,&
+                                             sm_struct_add_local_block,&
+                                             sm_struct_release,&
+                                             sm_struct_retain
   USE global_types,                    ONLY: global_environment_type
   USE kinds,                           ONLY: wp=>dp
   USE mathlib,                         ONLY: symmetrize_matrix
@@ -83,13 +88,13 @@ MODULE cp_matrix_utils
        cp_is_block_diagonal, cp_init_diagonal_blocks,&
        cp_d_struct_create, cp_set_to
   
-  ! underliying methods (try to use the generic interface)
+  ! underliying methods
   PUBLIC :: cp_sm_diag_trace, cp_sm_set_to, cp_sm_b_i_init,&
        cp_sm_b_i_dealloc_ref, cp_sm_b_i_get, &
        cp_sm_b_i_next, cp_sm_b_i_valid, &
        cp_sm_is_block_diagonal, cp_sm_init_diagonal_blocks,&
        cp_sm_set_dist_sparsity_from_sm,cp_sm_alloc_nonsparse_blocks,&
-       cp_sm_output
+       cp_sm_output, cp_sm_write, sm_struct_add_sm_local_blocks
 
   ! return the trace of the given matrices
   INTERFACE cp_trace
@@ -1397,6 +1402,114 @@ SUBROUTINE cp_sm_output(logger, outputName, &
      END IF
   END IF
 END SUBROUTINE cp_sm_output
+!***************************************************************************
+
+!!****f* cp_matrix_utils/cp_sm_write [1.0] *
+!!
+!!   NAME
+!!     cp_sm_write
+!!
+!!   SYNOPSIS
+!!     Subroutine cp_sm_write(matrix, unit_nr, error)
+!!       Type(real_matrix_type), Pointer:: matrix
+!!       Integer, Intent (IN):: unit_nr
+!!       Type(cp_error_type), Optional, Intent (INOUT):: error
+!!     End Subroutine cp_sm_write
+!!
+!!   FUNCTION
+!!     writes a matrix to the given output unit
+!!
+!!   NOTES
+!!     to do
+!!
+!!   ARGUMENTS
+!!     - error: variable to control error logging, stopping,... 
+!!       see module cp_error_handling 
+!!
+!!   AUTHOR
+!!     fawzi
+!!
+!!   MODIFICATION HISTORY
+!!     02.2003 created [fawzi]
+!!
+!!*** **********************************************************************
+SUBROUTINE cp_sm_write(matrix,unit_nr,error)
+  TYPE(real_matrix_type), POINTER :: matrix
+  INTEGER, INTENT(in) :: unit_nr
+  TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
+  
+  LOGICAL :: failure
+  CHARACTER(len=*), PARAMETER :: routineN='cp_sm_write',&
+        routineP=moduleN//':'//routineN
+
+  failure=.FALSE.
+  
+  IF (.NOT. failure) THEN
+     CALL cp_unimplemented_error(routineP, &
+          message="write to implement with the new structure",&
+          error=error)
+  END IF
+END SUBROUTINE cp_sm_write
+!***************************************************************************
+
+!!****f* cp_matrix_utils/sm_struct_add_sm_local_blocks [1.0] *
+!!
+!!   NAME
+!!     sm_struct_add_sm_local_blocks
+!!
+!!   SYNOPSIS
+!!     Subroutine sm_struct_add_sm_local_blocks(sm_struct, matrix, error)
+!!       Type(cp_sm_struct_type), Pointer:: sm_struct
+!!       Type(real_matrix_type), Pointer:: matrix
+!!       Type(cp_error_type), Optional, Intent (INOUT):: error
+!!     End Subroutine sm_struct_add_sm_local_blocks
+!!
+!!   FUNCTION
+!!     Adds the blocks of the given matrix to the local blocks of the
+!!     given matrix structure
+!!
+!!   NOTES
+!!     -
+!!
+!!   ARGUMENTS
+!!     - sm_struct: the structure to update
+!!     - matrix: the matrix from where to get the blocks
+!!     - error: variable to control error logging, stopping,... 
+!!       see module cp_error_handling 
+!!
+!!   AUTHOR
+!!     fawzi
+!!
+!!   MODIFICATION HISTORY
+!!     02.2003 created [fawzi]
+!!
+!!*** **********************************************************************
+SUBROUTINE sm_struct_add_sm_local_blocks(sm_struct,matrix,error)
+  TYPE(cp_sm_struct_type), POINTER :: sm_struct
+  TYPE(real_matrix_type), POINTER :: matrix
+  TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
+  
+  LOGICAL :: failure
+  CHARACTER(len=*), PARAMETER :: routineN='sm_struct_add_sm_local_blocks',&
+        routineP=moduleN//':'//routineN
+  TYPE(cp_matrix_block_iterator) :: m_iter
+  INTEGER :: block_col, block_row
+
+  failure=.FALSE.
+  
+  CPPrecondition(ASSOCIATED(sm_struct),cp_failure_level,routineP,error,failure)
+  CPPrecondition(sm_struct%ref_count>0,cp_failure_level,routineP,error,failure)
+  CPPrecondition(ASSOCIATED(matrix),cp_failure_level,routineP,error,failure)
+  IF (.NOT. failure) THEN
+     CALL cp_sm_b_i_init(m_iter, matrix=matrix, error=error)
+     
+     DO WHILE( cp_sm_b_i_next(m_iter, block_row=block_row, &
+          block_col=block_col,error=error))
+        CALL sm_struct_add_local_block(sm_struct, block_row=block_row,&
+             block_col=block_col, error=error)
+     END DO
+  END IF
+END SUBROUTINE sm_struct_add_sm_local_blocks
 !***************************************************************************
 
 END MODULE cp_matrix_utils

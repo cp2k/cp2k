@@ -32,7 +32,8 @@ MODULE qs_main
   USE qs_energy,                       ONLY: qs_energies
   USE qs_environment,                  ONLY: qs_finalize,&
                                              qs_init
-  USE qs_environment_types,            ONLY: qs_environment_type
+  USE qs_environment_types,            ONLY: qs_env_create,&
+                                             qs_environment_type
   USE qs_ep_methods,                   ONLY: qs_ep_calculation
   USE qs_force,                        ONLY: qs_forces
   USE qs_md,                           ONLY: qs_mol_dyn
@@ -41,6 +42,7 @@ MODULE qs_main
   USE timings,                         ONLY: timeset,&
                                              timestop,&
                                              trace_debug
+  use cp_blacs_env, only: start_blacs
   IMPLICIT NONE
 
   PRIVATE
@@ -51,7 +53,7 @@ MODULE qs_main
 
 ! *** Global variables ***
 
-  TYPE(qs_environment_type), TARGET :: qs_env
+  TYPE(qs_environment_type), POINTER :: qs_env
 
   PUBLIC :: quickstep
 
@@ -89,6 +91,13 @@ CONTAINS
     CALL write_checkpoint_information("entering "//routine_name,globenv)
 
     CALL timeset(routine_name,"I","",handle)
+
+!   *** Initialize the BLACS environment ***
+
+    CALL start_blacs(globenv)
+
+    CALL qs_env_create(qs_env,para_env=globenv%para_env,&
+         blacs_env=globenv%blacs_env)
 
 !   *** Read the input and the database files and perform further  ***
 !   *** initializations for the setup of the QUICKSTEP environment ***

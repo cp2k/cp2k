@@ -69,8 +69,8 @@ CONTAINS
 
 !   ***************************************************************************
 
-    TYPE(global_environment_type), INTENT(IN) :: globenv
-    TYPE(qs_environment_type), INTENT(INOUT)  :: qs_env
+    TYPE(global_environment_type),INTENT(in) :: globenv
+    TYPE(qs_environment_type), POINTER       :: qs_env
 
 !   *** Local parameters ***
 
@@ -138,7 +138,7 @@ CONTAINS
 !   ***************************************************************************
 
     TYPE(global_environment_type), INTENT(IN) :: globenv
-    TYPE(qs_environment_type), INTENT(INOUT)  :: qs_env
+    TYPE(qs_environment_type), POINTER        :: qs_env
 
 !   *** Local parameters ***
 

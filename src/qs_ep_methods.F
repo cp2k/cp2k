@@ -1,3 +1,4 @@
+
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
 !   Copyright (C) 2002  CP2K developers group                                 !
@@ -197,7 +198,7 @@ CONTAINS
 !!
 !!   SYNOPSIS
 !!     Subroutine qs_ep_calculation(qs_env, globenv, error)
-!!       Type(qs_environment_type), Intent (INOUT), Target:: qs_env
+!!       Type(qs_environment_type), Pointer:: qs_env
 !!       Type(global_environment_type), Intent (INOUT), Target:: globenv
 !!       Type(cp_error_type), Optional, Intent (INOUT):: error
 !!     End Subroutine qs_ep_calculation
@@ -222,7 +223,7 @@ CONTAINS
 !!
 !!*** **********************************************************************
 SUBROUTINE qs_ep_calculation(qs_env,globenv, error)
-  TYPE(qs_environment_type), INTENT(inout),TARGET :: qs_env
+  TYPE(qs_environment_type), POINTER :: qs_env
   TYPE(global_environment_type), INTENT(inout), TARGET :: globenv
   TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
   
@@ -386,7 +387,7 @@ SUBROUTINE qs_ep_calculation(qs_env,globenv, error)
      e_corr=e_corr-e_corr_s
   END DO
   e_corr=e_corr
-  WRITE(unit=unit_nr,fmt="(a,es16.10)")" ep energy correction = ", e_corr
+  WRITE(unit=unit_nr,fmt="(a,es18.10)")" ep energy correction = ", e_corr
 
   IF (print_ep_matrixes) THEN
      CALL cp_fm_vect_write(matrixes=ep_env%psi1, &
@@ -728,7 +729,7 @@ END SUBROUTINE qs_ep_calculation
 !!
 !!   SYNOPSIS
 !!     Subroutine ep_env_finish_qs_init(qs_env, globenv, error)
-!!       Type(qs_environment_type), Intent (INOUT), Target:: qs_env
+!!       Type(qs_environment_type), Pointer:: qs_env
 !!       Type(global_environment_type), Intent (IN), Target:: globenv
 !!       Type(cp_error_type), Optional, Intent (INOUT):: error
 !!     End Subroutine ep_env_finish_qs_init
@@ -752,7 +753,7 @@ END SUBROUTINE qs_ep_calculation
 !!
 !!*** **********************************************************************
 SUBROUTINE ep_env_finish_qs_init(qs_env,globenv,error)
-  TYPE(qs_environment_type), INTENT(inout), TARGET :: qs_env
+  TYPE(qs_environment_type), POINTER :: qs_env
   TYPE(global_environment_type), INTENT(in), TARGET :: globenv
   TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
 

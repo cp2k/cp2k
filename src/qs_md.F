@@ -20,7 +20,6 @@
 !******************************************************************************
 
 MODULE qs_md
-
   USE checkpoint_handler,              ONLY: write_checkpoint_information
   USE cntl_input,                      ONLY: read_cntl_section
   USE convert_units,                   ONLY: convert
@@ -56,8 +55,8 @@ MODULE qs_md
                                              particle_node_type,&
                                              topology_type
   USE particle_types,                  ONLY: particle_type
-  USE qs_energy_types,                 ONLY: qs_energy_type
   USE qs_energy,                       ONLY: qs_energies
+  USE qs_energy_types,                 ONLY: qs_energy_type
   USE qs_environment_types,            ONLY: get_qs_env,&
                                              qs_environment_type
   USE qs_force,                        ONLY: qs_forces
@@ -98,7 +97,7 @@ CONTAINS
 !   ***************************************************************************
 
     TYPE(global_environment_type), INTENT(INOUT) :: globenv
-    TYPE(qs_environment_type), INTENT(INOUT)     :: qs_env
+    TYPE(qs_environment_type), POINTER           :: qs_env
 
 !   *** Local parameters ***
 
@@ -172,7 +171,7 @@ CONTAINS
                     particle_set=particle_set,energy=energy)
 
     ! is not supposed to be working in parallel case !
-    IF (globenv%num_pe .ne. 1) CALL stop_program("qs_md","MD not parallel")
+    IF (globenv%num_pe .NE. 1) CALL stop_program("qs_md","MD not parallel")
     natom = SIZE(particle_set)
 
     ALLOCATE (pnode(natom),STAT=istat)
@@ -241,7 +240,7 @@ CONTAINS
       CALL velocity_verlet(md_env)
 
       CALL compute_conserved_quantity (md_env, energy%total, econs, ekin=ekin)
-      write(6,'(A,3F20.12)') "XXXXXXXXXXXXXXXX EKIN,EPOT,TOTAL ",ekin,energy%total,econs            
+      WRITE(6,'(A,3F20.12)') "XXXXXXXXXXXXXXXX EKIN,EPOT,TOTAL ",ekin,energy%total,econs            
 !!      nnodes = SIZE ( pnode)
 !!      ekin=0.0_wp
 !!      DO i = 1, nnodes
