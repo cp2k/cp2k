@@ -97,12 +97,13 @@ SUBROUTINE initialize_coef_pw ( dg_proj, pw, part, box, grid_s,  &
   LOGICAL :: first_time, match
 
 !------------------------------------------------------------------------------
+ ngrids = SIZE ( dg_proj )
 
  ALLOCATE ( exp_igr_proj ( ngrids ), STAT=allocstat )
   IF ( allocstat /= 0 ) CALL stop_memory ( "pol_electrostatics_pw", &
    "exp_igr_proj", ngrids )
 
- DO ig = 1, SIZE ( dg_proj )
+ DO ig = 1, ngrids
 
     nproj = dg_proj ( ig ) % ncoefs
 
