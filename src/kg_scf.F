@@ -115,6 +115,7 @@ MODULE kg_scf
                                              ot_scf_read_input
   USE qs_rho_methods,                  ONLY: qs_rho_update_rho
   USE qs_rho_types,                    ONLY: qs_rho_type
+  USE qs_scf,                          ONLY: scf_env_density_mixing
   USE qs_scf_post,                     ONLY: scf_post_calculation
   USE qs_scf_types,                    ONLY: ao_mixing_nr,&
                                              general_diag_method_nr,&
@@ -310,8 +311,8 @@ CONTAINS
     REAL(KIND=dp)                              :: t1, t2
     INTEGER                                    :: handle, handle2
     INTEGER                                    :: output_unit, ispin, istat
-    INTEGER                                    :: ib, imol, imolecule_kind, &
-                                                  jb, nat_mol, n_ao_kind, &
+    INTEGER                                    :: ib, imol, &
+                                                  jb, nat_mol, &
                                                   nb, nb1, nelectron_global,&
                                                   nmolecule_global, nmol_local,&
                                                   nmolecule_kind
@@ -450,7 +451,7 @@ CONTAINS
                                 error=error,&
                                 calculate_forces=.FALSE.,&
                                 just_energy=energy_only)
- stop 'first ks'
+
        DO ispin=1,dft_control%nspins
 
           IF (logger%print_keys%density_matrix.AND.&
@@ -468,14 +469,19 @@ CONTAINS
        IF (logger%print_keys%mo_orthonormality) THEN
          ALLOCATE(orthonormality(nmolecule_global), STAT =istat)
          IF (istat /= 0) CALL stop_memory(routineP,"orthonormality",nmolecule_global*dp_size)
+ 
          orthonormality = 0.0_dp
          CALL fm_mol_orthonormality(orthonormality,kg_fm_set%kg_fm_mol_set,&
                                     matrix_s(1)%matrix,dft_control%nspins)
          CALL mp_sum(orthonormality,qs_env%para_env%group)
-!         IF (ionode) THEN
-!            WRITE(output_unit,'(T8,A,T60,E20.4)')  &
-!                   " Maximum deviation from MO S-orthonormality",orthonormality
-!         ENDIF
+
+         IF (ionode) THEN
+           DO imol = 1, nmolecule_global
+            WRITE(output_unit,'(T8,A,T60,I4,E20.4)')  &
+               " Maximum deviation from MOS-orthonormality for molecule",&
+               imol,orthonormality(imol)
+           END DO
+         ENDIF
          DEALLOCATE(orthonormality, STAT =istat)
          IF (istat /= 0) CALL stop_memory(routineP,"deall. orthonormality")
        ENDIF
@@ -484,7 +490,9 @@ CONTAINS
        scf_env%iter_param = 0.0_dp
        IF (scf_env%mixing_method==ao_mixing_nr) scf_env%iter_param = scf_env%p_mix
 
-
+ write(*,*) scf_env%mixing_method, ao_mixing_nr
+ write(*,*)  scf_env%method, general_diag_method_nr,special_diag_method_nr,ot_method_nr
+ STOP 'method'
        SELECT CASE (scf_env%method)
          CASE DEFAULT
             CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,&
@@ -492,7 +500,6 @@ CONTAINS
                cp_to_string(scf_env%method),error,failure)
          CASE(general_diag_method_nr) ! diagonalisation (default)
   
-           
            IF (scf_env%iter_count > 1) THEN
              ib = MODULO(scf_env%scf_diis_buffer%ncall,scf_env%scf_diis_buffer%nbuffer) + 1
              scf_env%scf_diis_buffer%ncall = scf_env%scf_diis_buffer%ncall + 1
@@ -604,10 +611,12 @@ CONTAINS
                      "Ot_method_nr not implemented with KG_GPW yet")
        END SELECT
 
-!       IF (scf_env%mixing_method.EQ.ao_mixing_nr) THEN
-!          CALL scf_env_density_mixing(scf_env,qs_env=qs_env,error=error)
-!       ENDIF
-!
+       IF (scf_env%mixing_method.EQ.ao_mixing_nr) THEN
+          CALL scf_env_density_mixing(scf_env%p_mix_new,scf_env%mixing_method,&
+                                    scf_env%p_mix,scf_env%iter_delta,&
+                                    qs_env=qs_env,error=error)
+       ENDIF
+
        t2 = m_walltime()
 
        IF (ionode.AND.logger%print_keys%scf.and.scf_env%print_iter_line) THEN
@@ -703,8 +712,9 @@ CONTAINS
 !
 !!   *** mixing methods need to undo mixing of the density matrix (restore original density) ***
 !    IF (scf_env%mixing_method.EQ.ao_mixing_nr) THEN
-!       CALL scf_env_density_mixing(scf_env,qs_env=qs_env,invert=.TRUE.,&
-!                                       error=error)
+!       CALL scf_env_density_mixing(scf_env%p_mix_new,scf_env%mixing_method,&
+!                                    scf_env%p_mix,scf_env%iter_delta,&
+!                                    qs_env=qs_env,invert=.TRUE.,error=error)
 !       DO ispin=1,dft_control%nspins
 !          CALL transfer_matrix(scf_env%p_mix_new(ispin)%matrix,&
 !                                     rho%rho_ao(ispin)%matrix)
@@ -737,87 +747,6 @@ CONTAINS
   END SUBROUTINE scf_env_do_scf
 !**************************************************************************
 
-!!!****f* qs_scf/scf_env_density_mixing [1.0] *
-!!!
-!!!   NAME
-!!!     scf_env_density_mixing
-!!!
-!!!   FUNCTION
-!!!     perform (if requested) a density mixing
-!!!
-!!!   NOTES
-!!!     -
-!!!
-!!!   ARGUMENTS
-!!!     - error: variable to control error logging, stopping,... 
-!!!       see module cp_error_handling 
-!!!
-!!!   AUTHOR
-!!!     fawzi
-!!!
-!!!   MODIFICATION HISTORY
-!!!     02.2003 created [fawzi]
-!!!
-!!!*** **********************************************************************
-!  SUBROUTINE scf_env_density_mixing(scf_env,qs_env,invert,error)
-!    TYPE(qs_scf_env_type), POINTER           :: scf_env
-!    TYPE(qs_environment_type), POINTER       :: qs_env
-!    LOGICAL, INTENT(in), OPTIONAL            :: invert
-!    TYPE(cp_error_type), INTENT(inout), &
-!      OPTIONAL                               :: error
-!
-!    CHARACTER(len=*), PARAMETER :: routineN = 'scf_env_density_mixing', &
-!      routineP = moduleN//':'//routineN
-!
-!    INTEGER                                  :: ispin
-!    LOGICAL                                  :: failure, my_invert
-!    REAL(KIND=dp)                            :: tmp
-!
-!    failure=.FALSE.
-!    my_invert=.FALSE.
-!    IF (PRESENT(invert)) my_invert=invert
-!
-!    CPPrecondition(ASSOCIATED(scf_env),cp_failure_level,routineP,error,failure)
-!    CPPrecondition(scf_env%ref_count>0,cp_failure_level,routineP,error,failure)
-!    CPPrecondition(ASSOCIATED(qs_env),cp_failure_level,routineP,error,failure)
-!    CPPrecondition(qs_env%ref_count>0,cp_failure_level,routineP,error,failure)
-!    IF (.NOT. failure) THEN
-!       SELECT CASE (scf_env%mixing_method)
-!       CASE(no_mixing_nr)
-!          CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,&
-!               routineP,"don't call mixing in no_mixing_nr:",error,failure)
-!       CASE(ao_mixing_nr)
-!          CPPrecondition(ASSOCIATED(scf_env%p_mix_new),cp_failure_level,routineP,error,failure)
-!!FM        scf_env%iter_delta=0.0_dp
-!          DO ispin=1,SIZE(scf_env%p_mix_new)
-!             IF (my_invert) THEN
-!                CPPrecondition(scf_env%p_mix/=0.0_dp,cp_failure_level,routineP,error,failure)
-!                IF (scf_env%p_mix/=1.0_dp) THEN
-!                   CALL cp_sm_scale_and_add(matrix_a=scf_env%p_mix_new(ispin)%matrix,&
-!                        alpha=1.0_dp/scf_env%p_mix,&
-!                        matrix_b=qs_env%rho%rho_ao(ispin)%matrix,&
-!                        beta=(scf_env%p_mix-1.0_dp)/scf_env%p_mix,&
-!                        error=error)
-!                END IF
-!             ELSE
-!                CALL cp_sm_mix(m1=scf_env%p_mix_new(ispin)%matrix,&
-!                     m2=qs_env%rho%rho_ao(ispin)%matrix,&
-!                     p_mix=scf_env%p_mix,&
-!                     delta=tmp,&
-!                     para_env=qs_env%para_env,&
-!                     error=error)
-!                scf_env%iter_delta=MAX(scf_env%iter_delta,tmp)
-!             END IF
-!          END DO
-!       CASE default
-!          CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,&
-!               routineP,"unknown density mixing method:"//&
-!               cp_to_string(scf_env%mixing_method),error,failure)
-!       END SELECT
-!    END IF
-!  END SUBROUTINE scf_env_density_mixing
-!!***************************************************************************
-
   SUBROUTINE init_kgscf_run(scf_env,kg_env,globenv,error)
 
 !   Purpose : Initialize the kg_env%scf_env 
@@ -846,7 +775,6 @@ CONTAINS
     INTEGER                                  :: handle, ndep, output_unit
 !    INTEGER                                  :: homo, ispin, nao, &
 !                                                ndep, nelectron_spin, &
-!                                                stat
     LOGICAL                                  :: failure
     LOGICAL                                  :: do_ortho,ionode
 
@@ -863,13 +791,6 @@ CONTAINS
 
 !    TYPE(atomic_kind_type), DIMENSION(:), &
 !      POINTER                                :: atomic_kind_set
-!    TYPE(cp_fm_type), POINTER                :: mo_coeff, ortho, &
-!                                                scf_work2
-!    TYPE(mo_set_p_type), DIMENSION(:), &
-!      POINTER                                :: c
-!    TYPE(real_matrix_p_type), DIMENSION(:), &
-!      POINTER                                :: h, k, s
-!
 !   ---------------------------------------------------------------------------
 
     CALL timeset("init_kgscf_run","I"," ",handle)

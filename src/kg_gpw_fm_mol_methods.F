@@ -629,7 +629,7 @@ CONTAINS
       mo_ncol_old = 0
       NULLIFY(aux1_matrix,csc_matrix)
       DO imol = 1, nmol_local
-        NULLIFY(mol_block,mos,aux1_matrix,mos)
+        NULLIFY(mol_block,mos,mos)
         mol_block => fm_mol_blocks(imol)
         CALL get_fm_mol_block(fm_mol_block = mol_block,mos=mos)
 
@@ -652,7 +652,7 @@ CONTAINS
              ldcsc = mo_ncol
              mo_ncol_old = mo_ncol
            END IF
-
+ 
            CALL DGEMM('N','N',n_ao_kind,mo_ncol,n_ao_kind,1.0_dp,aux2_matrix,ldaux2,&
                       mo_coeff,ldc,0.0_dp,aux1_matrix,n_ao_kind)
            CALL DGEMM('T','N',mo_ncol,mo_ncol,n_ao_kind,1.0_dp,mo_coeff,ldc,&

@@ -208,8 +208,9 @@ MODULE qs_scf
 
 ! *** Public subroutines ***
 
-  PUBLIC :: scf, scf_env_create, scf_env_do_scf, &
-       scf_env_did_change
+  PUBLIC :: scf, scf_env_density_mixing,&
+            scf_env_create, scf_env_do_scf, &
+            scf_env_did_change
 
 ! *****************************************************************************
 
@@ -716,7 +717,9 @@ CONTAINS
        END SELECT
 
        IF (scf_env%mixing_method.EQ.ao_mixing_nr) THEN
-          CALL scf_env_density_mixing(scf_env,qs_env=qs_env,error=error)
+          CALL scf_env_density_mixing(scf_env%p_mix_new,scf_env%mixing_method,&
+                                    scf_env%p_mix,scf_env%iter_delta,&
+                                    qs_env=qs_env,error=error)
        ENDIF
 
        t2 = m_walltime()
@@ -870,8 +873,10 @@ CONTAINS
 
 !   *** mixing methods need to undo mixing of the density matrix (restore original density) ***
     IF (scf_env%mixing_method.EQ.ao_mixing_nr) THEN
-       CALL scf_env_density_mixing(scf_env,qs_env=qs_env,invert=.TRUE.,&
-                                       error=error)
+        CALL scf_env_density_mixing(scf_env%p_mix_new,scf_env%mixing_method,&
+                                    scf_env%p_mix,scf_env%iter_delta,&
+                                    qs_env=qs_env,invert=.TRUE.,error=error)
+
        DO ispin=1,dft_control%nspins
           CALL transfer_matrix(scf_env%p_mix_new(ispin)%matrix,&
                                      rho%rho_ao(ispin)%matrix)
@@ -928,8 +933,14 @@ CONTAINS
 !!     02.2003 created [fawzi]
 !!
 !!*** **********************************************************************
-  SUBROUTINE scf_env_density_mixing(scf_env,qs_env,invert,error)
-    TYPE(qs_scf_env_type), POINTER           :: scf_env
+  SUBROUTINE scf_env_density_mixing(p_mix_new,mixing_method,p_mix,iter_delta,&
+                                    qs_env,invert,error)
+
+    TYPE(real_matrix_p_type), DIMENSION(:), &
+      POINTER                                :: p_mix_new 
+    INTEGER, INTENT(IN)                      :: mixing_method
+    REAL(KIND = dp), INTENT(IN)              :: p_mix
+    REAL(KIND = dp), INTENT(INOUT)           :: iter_delta
     TYPE(qs_environment_type), POINTER       :: qs_env
     LOGICAL, INTENT(in), OPTIONAL            :: invert
     TYPE(cp_error_type), INTENT(inout), &
@@ -946,42 +957,40 @@ CONTAINS
     my_invert=.FALSE.
     IF (PRESENT(invert)) my_invert=invert
 
-    CPPrecondition(ASSOCIATED(scf_env),cp_failure_level,routineP,error,failure)
-    CPPrecondition(scf_env%ref_count>0,cp_failure_level,routineP,error,failure)
     CPPrecondition(ASSOCIATED(qs_env),cp_failure_level,routineP,error,failure)
     CPPrecondition(qs_env%ref_count>0,cp_failure_level,routineP,error,failure)
     IF (.NOT. failure) THEN
-       SELECT CASE (scf_env%mixing_method)
+       SELECT CASE (mixing_method)
        CASE(no_mixing_nr)
           CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,&
                routineP,"don't call mixing in no_mixing_nr:",error,failure)
        CASE(ao_mixing_nr)
-          CPPrecondition(ASSOCIATED(scf_env%p_mix_new),cp_failure_level,routineP,error,failure)
-!FM        scf_env%iter_delta=0.0_dp
-          DO ispin=1,SIZE(scf_env%p_mix_new)
+          CPPrecondition(ASSOCIATED(p_mix_new),cp_failure_level,routineP,error,failure)
+!FM       iter_delta=0.0_dp
+          DO ispin=1,SIZE(p_mix_new)
              IF (my_invert) THEN
-                CPPrecondition(scf_env%p_mix/=0.0_dp,cp_failure_level,routineP,error,failure)
-                IF (scf_env%p_mix/=1.0_dp) THEN
-                   CALL cp_sm_scale_and_add(matrix_a=scf_env%p_mix_new(ispin)%matrix,&
-                        alpha=1.0_dp/scf_env%p_mix,&
+                CPPrecondition(p_mix/=0.0_dp,cp_failure_level,routineP,error,failure)
+                IF (p_mix/=1.0_dp) THEN
+                   CALL cp_sm_scale_and_add(matrix_a=p_mix_new(ispin)%matrix,&
+                        alpha=1.0_dp/p_mix,&
                         matrix_b=qs_env%rho%rho_ao(ispin)%matrix,&
-                        beta=(scf_env%p_mix-1.0_dp)/scf_env%p_mix,&
+                        beta=(p_mix-1.0_dp)/p_mix,&
                         error=error)
                 END IF
              ELSE
-                CALL cp_sm_mix(m1=scf_env%p_mix_new(ispin)%matrix,&
+                CALL cp_sm_mix(m1=p_mix_new(ispin)%matrix,&
                      m2=qs_env%rho%rho_ao(ispin)%matrix,&
-                     p_mix=scf_env%p_mix,&
+                     p_mix=p_mix,&
                      delta=tmp,&
                      para_env=qs_env%para_env,&
                      error=error)
-                scf_env%iter_delta=MAX(scf_env%iter_delta,tmp)
+                iter_delta=MAX(iter_delta,tmp)
              END IF
           END DO
        CASE default
           CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,&
                routineP,"unknown density mixing method:"//&
-               cp_to_string(scf_env%mixing_method),error,failure)
+               cp_to_string(mixing_method),error,failure)
        END SELECT
     END IF
   END SUBROUTINE scf_env_density_mixing
@@ -1025,6 +1034,8 @@ CONTAINS
       POINTER                                :: matrix_h, matrix_ks, matrix_s
     TYPE(scf_control_type), POINTER          :: scf_control
 
+!dbg 
+    INTEGER :: i
 !   ---------------------------------------------------------------------------
 
     CALL timeset("init_scf_run","I"," ",handle)
@@ -1408,7 +1419,7 @@ CONTAINS
     INTEGER, INTENT(OUT)                     :: ndep
     REAL(KIND=dp), INTENT(in)                :: eps_eigval, work_syevx
 
-    INTEGER                                  :: handle
+    INTEGER                                  :: handle,i
 
 !   ---------------------------------------------------------------------------
 
@@ -1758,6 +1769,8 @@ CONTAINS
       POINTER                                :: particle_set
     TYPE(real_matrix_p_type), DIMENSION(:), &
       POINTER                                :: p_rmpv, s_sparse
+    TYPE(real_matrix_p_type), DIMENSION(:), &
+      POINTER                                :: h_core_sparse
     TYPE(scf_control_type), POINTER          :: scf_control
     LOGICAL                                  :: ortho_basis
 
@@ -1766,12 +1779,13 @@ CONTAINS
     NULLIFY(all_potential,atomic_kind, mo_coeff, sv,&
          gth_potential, orb_basis_set, atomic_kind_set, particle_set,&
          ortho,work2,work1,mo_array,s_sparse,p_rmpv,scf_control, &
-         dft_control)
+         dft_control,h_core_sparse)
 
     CALL timeset("calculate_first_density_matrix","I"," ",handle)
 
     CALL get_qs_env(qs_env,atomic_kind_set=atomic_kind_set,&
          particle_set=particle_set,mos=mo_array, matrix_s=s_sparse,&
+         matrix_h=h_core_sparse,&
          scf_control=scf_control, id_nr=qs_env_id, dft_control=dft_control,&
          error=error)
 
@@ -1857,12 +1871,14 @@ CONTAINS
        ENDDO
 
     ELSE IF (scf_control%density_guess == "CORE") THEN
-
+ 
        IF (dft_control%restricted) CALL stop_program("calculate_first_density_matrix","Option not yet implemented")
 
        ! work1(1) should contain the core hamiltonian
        ! we need a copy the core matrix for every spin (the dumbest solution,
        ! we should copy the mos)..
+       
+       CALL copy_sm_to_fm(h_core_sparse(1)%matrix,work1(1)%matrix)
 
        IF (dft_control%nspins.eq.2) THEN
           IF (.NOT. scf_control%use_ot) THEN
