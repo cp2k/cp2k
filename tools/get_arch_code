@@ -30,6 +30,10 @@
         PLATFORM="IRIX";;
       (IRIX64-*-*-*)
         PLATFORM="IRIX";;
+      (Linux-*-*-alpha)
+        PLATFORM="Linux-dec-alpha";;
+      (OSF1-*-*-alpha)
+        PLATFORM="DEC_OS";;
       (Linux-*-*-i686)
         if [[ -n $PGI ]]; then
           PLATFORM="Linux-i686-pgi"
@@ -37,14 +41,6 @@
           PLATFORM="Linux-i686-absoft"
         else
           PLATFORM="Linux-i686"
-        fi;;
-      (Linux-*-*-ppc)
-        if [[ -n $PGI ]]; then
-          PLATFORM="Linux-ppc-pgi"
-        elif [[ -d /usr/absoft ]]; then
-          PLATFORM="Linux-ppc-absoft"
-        else
-          PLATFORM="Linux-ppc"
         fi;;
       (*-unicosmk-*-CRAY*T3E)
         PLATFORM="CRAY-T3E";;
