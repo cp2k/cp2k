@@ -49,7 +49,7 @@ MODULE input_cp2k
        xc_rho_spline2_smooth,xc_rho_spline3_smooth,xc_deriv_pw,&
        xc_deriv_spline3, xc_deriv_spline2,&
        xc_deriv_nn50_smooth, xc_deriv_nn10_smooth, xc_deriv_spline2_smooth,&
-       xc_deriv_spline3_smooth,sic_none, sic_mauri_us, sic_mauri_spz,&
+       xc_deriv_spline3_smooth,sic_none, sic_mauri_us, sic_ad, sic_mauri_spz,&
        no_excitations,tddfpt_excitations
   USE pw_spline_utils, only: no_precond,precond_spl3_aint, precond_spl3_1
   USE cp_output_handling, only: cp_print_key_section_create
@@ -778,7 +778,6 @@ SUBROUTINE create_qs_section(section,error)
   logical :: failure
   character(len=*), parameter :: routineN='create_qs_section',&
         routineP=moduleN//':'//routineN
-  TYPE(section_type), pointer :: subsection
   TYPE(keyword_type), pointer :: keyword
 
   failure=.false.
@@ -790,7 +789,7 @@ SUBROUTINE create_qs_section(section,error)
           n_keywords=34, n_subsections=2, repeats=.FALSE., required=.FALSE.,&
           error=error)
 
-     NULLIFY(subsection,keyword)
+     NULLIFY(keyword)
     
     CALL keyword_create(keyword, name="RESTART_FILE_NAME",&
          description="The path to the pseudo potential file",&
@@ -2405,15 +2404,15 @@ SUBROUTINE create_sic_section(section,error)
      nullify(keyword)
 
      CALL keyword_create(keyword, name="SIC_SCALING_A",&
-          description="Scaling to be performed on spin1 to have the total density",&
-          usage="SIC_SCALING_A 2.0",&
+          description="Scaling of the coulomb term in sic [experimental]",&
+          usage="SIC_SCALING_A 0.5",&
           default_r_val=1.0_dp,error=error)
      CALL section_add_keyword(section,keyword,error=error)
      CALL keyword_release(keyword,error=error)
 
      CALL keyword_create(keyword, name="SIC_SCALING_B",&
-          description="Scaling to be performed on spin2 to have the total density",&
-          usage="SIC_SCALING_B -1.0",&
+          description="Scaling of the xc term in sic [experimental]",&
+          usage="SIC_SCALING_B 0.5",&
           default_r_val=1.0_dp,error=error)
      CALL section_add_keyword(section,keyword,error=error)
      CALL keyword_release(keyword,error=error)
@@ -2425,8 +2424,9 @@ SUBROUTINE create_sic_section(section,error)
           enum_c_vals=(/&
           "NONE     ",&
           "MAURI_US ",&
-          "MAURI_SPZ"/),&
-          enum_i_vals=(/sic_none,sic_mauri_us,sic_mauri_spz/),&
+          "MAURI_SPZ",&
+          "AD       "/),&
+          enum_i_vals=(/sic_none,sic_mauri_us,sic_mauri_spz,sic_ad/),&
           error=error)
      CALL section_add_keyword(section,keyword,error=error)
      CALL keyword_release(keyword,error=error)
