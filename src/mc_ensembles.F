@@ -60,8 +60,8 @@ MODULE mc_ensembles
                                              mc_molecule_rotation,&
                                              mc_molecule_translation,&
                                              mc_volume_move
-  USE mc_GE_moves,                     ONLY: mc_GE_Quickstep_move,&
-                                             mc_GE_volume_move
+  USE mc_ge_moves,                     ONLY: mc_ge_quickstep_move,&
+                                             mc_ge_volume_move
   USE message_passing,                 ONLY: mp_bcast
   USE particle_list_types,             ONLY: particle_list_type
   USE particle_types,                  ONLY: write_particle_coordinates
@@ -598,7 +598,7 @@ CONTAINS
          ENDDO         
 
 ! now do a Quickstep calculation to see if we accept the sequence
-         CALL mc_GE_Quickstep_move(mc_par_1,mc_par_2,force_env_1,&
+         CALL mc_ge_quickstep_move(mc_par_1,mc_par_2,force_env_1,&
               force_env_2,moves_1,moves_2,move_updates_1,move_updates_2&
               ,energy_check(:),r_old_1,r_old_2,istep,old_energy(:),&
               averages_1,averages_2,box_flag(:),error=error)
@@ -611,7 +611,7 @@ CONTAINS
 !         ENDIF
 !         IF(box_flag(2) == 1) THEN
 !            istep(2)=istep(2)+1
-!            CALL mc_GE_Quickstep_move(mc_par_2,force_env_2,moves_2,&
+!            CALL mc_ge_quickstep_move(mc_par_2,force_env_2,moves_2,&
 !                        move_updates_2,energy_check(2),r_old_2,&
 !                        nnstep,old_energy(2),averages_2,&
 !                        error=error)
