@@ -116,13 +116,13 @@ function do_test_1(){
   return 1 ;;
  esac 
 }
-# *** a small error in the latest "POTENTIAL ENERGY[hartree]    ="
+# *** a small error in the latest "POTENTIAL ENERGY"
 function do_test_2(){
  output_new=$1
  output_old=$2
  error_file=$3
- e1=`grep "POTENTIAL ENERGY[hartree]    =" ${output_old} | tail -1 | ${awk} '{print $4}'`
- e2=`grep "POTENTIAL ENERGY[hartree]    =" ${output_new} | tail -1 | ${awk} '{print $4}'`
+ e1=`grep "POTENTIAL ENERGY" ${output_old} | tail -1 | ${awk} '{print $4}'`
+ e2=`grep "POTENTIAL ENERGY" ${output_new} | tail -1 | ${awk} '{print $4}'`
  big=`echo "${e1} ${e2}" | ${awk} '{v=sqrt((($1-$2)/$2)^2); if (v>1.0E-14) printf("%16.8e",v); else printf("0") ;}'`
  case ${big} in
  0)
