@@ -1859,7 +1859,9 @@ CONTAINS
                qs_env=qs_env, dt=1.0_wp, &
                extrapolation_method_nr=extrapolation_method_nr,&
                orthogonal_wf=orthogonal_wf, error=error)
-          IF (.NOT.orthogonal_wf.AND.scf_env%method==ot_method_nr) THEN
+          ! wfi_use_guess_method_nr the wavefunctions are not yet initialized
+          IF (.NOT.orthogonal_wf.AND.scf_env%method==ot_method_nr.AND. &
+                                .NOT.extrapolation_method_nr==wfi_use_guess_method_nr) THEN
              DO ispin=1,SIZE(qs_env%c)
                 CALL get_mo_set(qs_env%c(ispin)%mo_set, &
                      eigenvectors=eigenvectors, nmo=nmo)

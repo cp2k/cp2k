@@ -584,10 +584,12 @@ SUBROUTINE wfi_extrapolate(wf_history, qs_env, dt, extrapolation_method_nr, &
   TYPE(cp_full_matrix_type), POINTER :: eigenvectors
   TYPE(qs_rho_type), POINTER :: rho
   REAL(kind=wp) :: t0,t1,t2
-  INTEGER :: ispin, actual_extrapolation_method_nr, nmo
+  INTEGER :: ispin, actual_extrapolation_method_nr, nmo, handle
 
   NULLIFY(mos, ao_mo_fm_pools, t0_state, t1_state, eigenvectors, rho)
   failure=.FALSE.
+
+  CALL timeset(routineN,"I","",handle)
   
   CPPrecondition(ASSOCIATED(wf_history),cp_failure_level,routineP,error,failure)
   CPPrecondition(wf_history%ref_count>0,cp_failure_level,routineP,error,failure)
@@ -773,6 +775,7 @@ CPSourceFileRef,&
      END SELECT
      IF (PRESENT(orthogonal_wf)) orthogonal_wf=my_orthogonal_wf
   END IF
+  CALL timestop(0.0_wp,handle)
 END SUBROUTINE wfi_extrapolate
 !***************************************************************************
 

@@ -94,7 +94,7 @@ MODULE qs_environment_types
   USE pw_env_types,                    ONLY: pw_env_release,&
                                              pw_env_retain,&
                                              pw_env_type
-  USE qs_blacs,                        ONLY: blacs_make_basis
+  USE qs_blacs,                        ONLY: blacs_make_basis, write_blacs_matrix
   USE qs_charges_types,                ONLY: qs_charges_create,&
                                              qs_charges_release,&
                                              qs_charges_retain,&
@@ -821,9 +821,11 @@ SUBROUTINE qs_env_reorthogonalize_vectors(qs_env, v_matrix, ispin, n_col,&
   TYPE(cp_fm_pool_type), POINTER :: maxao_maxmo_fm_pool
   TYPE(real_matrix_p_type), DIMENSION(:), POINTER :: s
   TYPE(qs_matrix_pools_type), POINTER :: mpools
+  INTEGER :: handle
   
   failure=.FALSE.
   NULLIFY(scf_env,scf_control,sv,maxao_maxmo_fm_pool,s,mpools)
+  CALL timeset(routineN,'I',' ',handle)
   
   CPPrecondition(ASSOCIATED(qs_env),cp_failure_level,routineP,error,failure)
   CPPrecondition(ASSOCIATED(v_matrix),cp_failure_level,routineP,error,failure)
@@ -860,6 +862,7 @@ SUBROUTINE qs_env_reorthogonalize_vectors(qs_env, v_matrix, ispin, n_col,&
         CALL fm_pool_give_back_fm(maxao_maxmo_fm_pool,sv,error=error)
      END IF
   END IF
+  CALL timestop(0.0_wp,handle)
 END SUBROUTINE qs_env_reorthogonalize_vectors
 !***************************************************************************
 
