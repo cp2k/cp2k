@@ -162,8 +162,10 @@ CONTAINS
           !
           qmmm_gaussian_fns(I)%pgf%Elp_Radius          = radius(I)
        END DO       
-       IF (ASSOCIATED(radius)) DEALLOCATE(radius,stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,Failure)      
+       IF (ASSOCIATED(radius)) THEN 
+          DEALLOCATE(radius,stat=stat)
+          CPPostcondition(stat==0,cp_failure_level,routineP,error,Failure)      
+       END IF
        !
        CALL read_mm_potential(globenv, qmmm_gaussian_fns, qm_cell_small,&
                               error)
