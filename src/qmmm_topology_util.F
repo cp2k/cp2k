@@ -198,8 +198,13 @@ CONTAINS
                 IF (.NOT.ANY(qm_atom_index == i)) detected_link = .TRUE.
              END DO
              IF (detected_link) THEN
-                WRITE(iw,'(A)') " QM/MM link detected... Setting up info for QM/MM linkage!"
-                CPPostcondition(.false.,cp_failure_level,routineP,error,failure)
+                WRITE(iw,fmt='(A)',ADVANCE="NO") " QM/MM link detected..."
+                IF (qmmm_env%qmmm_link) THEN 
+                   WRITE(iw,fmt='(A)')" link was properly set up in input file."
+                ELSE
+                   WRITE(iw,fmt='(A)')" Missing LINK section in input file!!"
+                   CPPostcondition(.FALSE.,cp_failure_level,routineP,error,failure)
+                END IF
              END IF
              qm_molecule_index(qm_mol_num) = imolecule
           END IF

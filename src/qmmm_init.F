@@ -989,6 +989,7 @@ CONTAINS
 
     failure = .FALSE.
     n_imomm = 0
+    n_gho   = 0
     qmmm_link_section => section_vals_get_subs_vals(qmmm_section,"LINK",error=error)
     CALL section_vals_get(qmmm_link_section,n_repetition=nlinks,error=error)    
     CPPostcondition(nlinks /= 0,cp_failure_level,routineP,error,failure)
@@ -1004,7 +1005,9 @@ CONTAINS
        ALLOCATE(qmmm_links%imomm(n_imomm), stat=stat)
        CPPostcondition(stat == 0,cp_failure_level,routineP,error,failure)
        DO ikind = 1, n_imomm
-          NULLIFY(qmmm_links%imomm(ikind)%link)          
+          NULLIFY(qmmm_links%imomm(ikind)%link)
+          ALLOCATE(qmmm_links%imomm(ikind)%link,stat=stat)
+          CPPostcondition(stat == 0,cp_failure_level,routineP,error,failure)
        END DO
        n_imomm = 0
        DO ikind = 1, nlinks

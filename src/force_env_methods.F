@@ -78,7 +78,8 @@ MODULE force_env_methods
   USE metadynamics_types,              ONLY: meta_env_retain,&
                                              meta_env_type
   USE particle_list_types,             ONLY: particle_list_type
-  USE particle_types,                  ONLY: particle_type
+  USE particle_types,                  ONLY: particle_type,&
+                                             write_qs_particle_coordinates
   USE qmmm_electrostatic_methods,      ONLY: qmmm_el_coupling
   USE qmmm_methods,                    ONLY: qmmm_forces
   USE qmmm_types,                      ONLY: qmmm_env_qm_type,&
@@ -98,6 +99,7 @@ MODULE force_env_methods
   USE qs_ks_qmmm_methods,              ONLY: ks_qmmm_env_rebuild
   USE qmmm_links_methods,              ONLY: qmmm_link_Imomm_coord,&
                                              qmmm_link_Imomm_forces
+  USE qmmm_elpot,                      ONLY: qmmm_validate_this_run
   USE input_section_types, ONLY: section_type, section_create, &
        section_add_keyword, section_add_subsection, section_release,&
        section_describe_html, section_describe_index_html, section_vals_type,&
@@ -624,10 +626,6 @@ RECURSIVE SUBROUTINE qmmm_energy_and_forces(force_env,calc_force,error)
      transl_v(2) = transl_v(2) - qm_cell%hmat(2,2)/2.0_dp
      transl_v(3) = transl_v(3) - qm_cell%hmat(3,3)/2.0_dp
 
-     IF (logger%para_env%mepos==logger%para_env%source) &
-          WRITE (unit=cp_logger_get_default_unit_nr(logger,local=.FALSE.),fmt='(A)')&
-          " Translating the system in order to center the QM fragment in the QM box."
-
      DO isubsys=1,SIZE(subsys_mm)     
         particles_mm => subsys_mm(isubsys)%subsys%particles%els
         DO ip=1,subsys_mm(isubsys)%subsys%particles%n_els
@@ -635,6 +633,9 @@ RECURSIVE SUBROUTINE qmmm_energy_and_forces(force_env,calc_force,error)
                 particles_mm(ip)%r - transl_v
         END DO
      END DO
+     IF (logger%para_env%mepos==logger%para_env%source) &
+          WRITE (unit=cp_logger_get_default_unit_nr(logger,local=.FALSE.),fmt='(/1X,A)')&
+          " Translating the system in order to center the QM fragment in the QM box."
      IF (.NOT.force_env%qmmm_env%center_qm_subsys) do_translate = .FALSE.
   END IF
   !  CALL force_env_write_variables(force_env, 6, .true., error)
@@ -649,6 +650,13 @@ RECURSIVE SUBROUTINE qmmm_energy_and_forces(force_env,calc_force,error)
   ! If present QM/MM links (just IMOMM) correct the position of the qm-link atom
   IF (qmmm_link_imomm) CALL qmmm_link_Imomm_coord(qmmm_links, particles_qm, qm_atom_index, error)
   
+  ! Do some checks on coordinates and box
+  CALL qmmm_validate_this_run(particles_qm, particles_mm, mm_cell, qm_cell, error=error)
+
+  ! Dump out coordinates
+  CALL write_qs_particle_coordinates(particles_qm,qm_cell,&
+       force_env%sub_force_env(qs_subsys)%force_env%globenv)
+
   ! Initialize ks_qmmm_env
   CALL ks_qmmm_env_rebuild(qs_env=force_env%sub_force_env(qs_subsys)%force_env%qs_env,&
        qmmm_env=force_env%qmmm_env,error=error)

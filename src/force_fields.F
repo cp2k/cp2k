@@ -2420,6 +2420,7 @@ SUBROUTINE force_field_pack (particle_set,atomic_kind_set,&
     CALL get_molecule_kind(molecule_kind=molecule_kind,&
                            natom=natom,atom_list=atom_list,&
                            ntorsion=ntorsion,torsion_list=torsion_list)
+
     DO j=1,ntorsion
      IF(torsion_list(j)%torsion_kind%name == "UNSET") THEN
       atm_a = torsion_list(j)%a
@@ -2482,7 +2483,8 @@ SUBROUTINE force_field_pack (particle_set,atomic_kind_set,&
             torsion_list(j)%torsion_kind%cosphi0(imul) = chm_info%torsion_cosphi0(k)
             torsion_list(j)%torsion_kind%nmul = imul
             IF(found .AND. PM1) &
-               WRITE(iw,*) "    Multiple Torsion declarations: overwriting"
+               WRITE(iw,'(A,4A10)') "    Multiple Torsion for:",name_atm_a,name_atm_b,&
+                                                                name_atm_c,name_atm_d
             found = .TRUE.
           END IF
         END DO
@@ -2518,18 +2520,18 @@ SUBROUTINE force_field_pack (particle_set,atomic_kind_set,&
         !CALL stop_program("FF_pack","missing torsion parm")
 
       END IF
-     END IF
-     !
-     ! QM/MM modifications
-     !
-     IF (only_qm) THEN
-        IF (torsion_list(j)%torsion_kind%nmul .NE. 0) THEN
-           DO imul = 1, torsion_list(j)%torsion_kind%nmul
-              torsion_list(j)%torsion_kind%k(imul) = 0.0_dp
-           END DO
-        ELSE
-           torsion_list(j)%torsion_kind%k      = 0.0_dp
-        END IF
+      !
+      ! QM/MM modifications
+      !
+      IF (only_qm) THEN
+         IF (torsion_list(j)%torsion_kind%nmul .NE. 0) THEN
+            DO imul = 1, torsion_list(j)%torsion_kind%nmul
+               torsion_list(j)%torsion_kind%k(imul) = 0.0_dp
+            END DO
+         ELSE
+            torsion_list(j)%torsion_kind%k      = 0.0_dp
+         END IF
+      END IF
      END IF
 
     END DO

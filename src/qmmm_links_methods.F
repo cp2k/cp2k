@@ -172,9 +172,8 @@ CONTAINS
           END DO
           CPPrecondition(ip /= SIZE(qm_atom_index)+1,cp_failure_level,routineP,error,failure)
           ip_mm = ip
-          particles_qm(ip_qm)%f = particles_qm(ip_qm)%f * (2.0_dp-alpha)
-          particles_qm(ip_mm)%f = particles_qm(ip_mm)%f * alpha
-          
+          particles_qm(ip_qm)%f = particles_qm(ip_qm)%f + particles_qm(ip_mm)%f * (1.0_dp-alpha)
+          particles_qm(ip_mm)%f = particles_qm(ip_mm)%f * alpha          
        END DO
     END IF
 
