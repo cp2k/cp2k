@@ -111,7 +111,7 @@ SUBROUTINE force_1 ( struc, inter, thermo, simpar, ewald_param, box_change, &
           struc % rho0_basis_info, struc % coef_pos (1), struc % coef_vel (1), &
           struc % coef_force (1), struc % projector ( 1 ), struc % pw_grid ( 1 ), &
           thermo, inter%potparm, inter%empparm, ewald_param, box_change, globenv, &
-          struc%ll_data )
+          struc%ll_data, simpar )
      END SELECT 
 
   CASE ( 'TBMD' )
