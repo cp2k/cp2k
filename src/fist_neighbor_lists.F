@@ -268,7 +268,7 @@ CONTAINS
       jkind, k, kcell, natom_local_a, natom_local_b, nkind
     INTEGER, DIMENSION(3)                    :: cell_a, cell_b, ncell, &
                                                 nsubcell, periodic
-    LOGICAL                                  :: include_ab
+    LOGICAL                                  :: cell000,include_ab
     REAL(dp)                                 :: rab2, rab2_max, rab_max, &
                                                 subcells, unit_of_length
     REAL(dp), DIMENSION(3)                   :: r, rab, rb, s, sab, sab_max, &
@@ -412,31 +412,43 @@ CONTAINS
                   IF (sb_max(1) < -0.5_dp) CYCLE loop1_icell
                   cell_b(1) = icell
 
+                  cell000 = ((icell == 0).AND.&
+                             (jcell == 0).AND.&
+                             (kcell == 0))
+
                   rb(:) = scaled_to_real(sb(:),cell)
 
                   DO iatom_local=1,natom_local_a
                     iatom = atom(ikind)%list_local_a_index(iatom_local)
                     atom_a = atom(ikind)%list(iatom)
-                    IF (atom_a > atom_b) THEN
-                      include_ab = (MODULO(atom_a + atom_b,2) /= 0)
+                    IF (cell000) THEN
+                      IF (atom_a > atom_b) THEN
+                        include_ab = (MODULO(atom_a + atom_b,2) == 0)
+                      ELSE
+                        include_ab = (MODULO(atom_a + atom_b,2) /= 0)
+                      END IF
                     ELSE
-                      include_ab = (MODULO(atom_a + atom_b,2) == 0)
+                      IF (atom_a == atom_b) THEN
+                        include_ab = .TRUE.
+                      ELSE IF (atom_a > atom_b) THEN
+                        include_ab = (MODULO(atom_a + atom_b,2) == 0)
+                      ELSE
+                        include_ab = (MODULO(atom_a + atom_b,2) /= 0)
+                      END IF
                     END IF
                     IF (include_ab) THEN
                       rab(:) = rb(:) - atom(ikind)%r_pbc(:,iatom)
                       rab2 = rab(1)*rab(1) + rab(2)*rab(2) + rab(3)*rab(3)
                       IF (rab2 < rab2_max) THEN
-                        IF (rab2 > 1.0E-6_dp) THEN
-                          sab(:) = real_to_scaled(rab(:),cell)
-                          CALL add_neighbor_node(&
-                            neighbor_list=kind_a(iatom_local)%neighbor_list,&
-                            neighbor=atom_b,&
-                            cell=cell_b,&
-                            r=rab,&
-                            s=sab,&
-                            exclusion_list = particle_set ( atom_a ) % lpi %  &
-                                             exclusion ( jkind ) % list )
-                         END IF
+                        sab(:) = real_to_scaled(rab(:),cell)
+                        CALL add_neighbor_node(&
+                          neighbor_list=kind_a(iatom_local)%neighbor_list,&
+                          neighbor=atom_b,&
+                          cell=cell_b,&
+                          r=rab,&
+                          s=sab,&
+                          exclusion_list = particle_set(atom_a)%lpi%&
+                                           exclusion(jkind)%list)
                       END IF
                     END IF
                   END DO
@@ -500,6 +512,10 @@ CONTAINS
                   IF (sb_max(1) < -0.5_dp) CYCLE loop2_icell
                   cell_b(1) = icell
 
+                  cell000 = ((icell == 0).AND.&
+                             (jcell == 0).AND.&
+                             (kcell == 0))
+
                   rb(:) = scaled_to_real(sb(:),cell)
 
                   loop_k: DO k=1,nsubcell(3)
@@ -521,26 +537,34 @@ CONTAINS
                           iatom_local = subcell(i,j,k)%atom_list(iatom_subcell)
                           iatom = atom(ikind)%list_local_a_index(iatom_local)
                           atom_a = atom(ikind)%list(iatom)
-                          IF (atom_a > atom_b) THEN
-                            include_ab = (MODULO(atom_a + atom_b,2) /= 0)
+                          IF (cell000) THEN
+                            IF (atom_a > atom_b) THEN
+                              include_ab = (MODULO(atom_a + atom_b,2) == 0)
+                            ELSE
+                              include_ab = (MODULO(atom_a + atom_b,2) /= 0)
+                            END IF
                           ELSE
-                            include_ab = (MODULO(atom_a + atom_b,2) == 0)
+                            IF (atom_a == atom_b) THEN
+                              include_ab = .TRUE.
+                            ELSE IF (atom_a > atom_b) THEN
+                              include_ab = (MODULO(atom_a + atom_b,2) == 0)
+                            ELSE
+                              include_ab = (MODULO(atom_a + atom_b,2) /= 0)
+                            END IF
                           END IF
                           IF (include_ab) THEN
                             rab(:) = rb(:) - atom(ikind)%r_pbc(:,iatom)
                             rab2 = rab(1)*rab(1) + rab(2)*rab(2) + rab(3)*rab(3)
                             IF (rab2 < rab2_max) THEN
-                              IF (rab2 > 1.0E-6_dp) THEN
-                                sab(:) = real_to_scaled(rab(:),cell)
-                                CALL add_neighbor_node(&
-                                  neighbor_list=kind_a(iatom_local)%neighbor_list,&
-                                  neighbor=atom_b,&
-                                  cell=cell_b,&
-                                  r=rab,&
-                                  s=sab,&
-                                  exclusion_list=particle_set ( atom_a ) % lpi %  &
-                                                 exclusion ( jkind ) % list )
-                              END IF
+                              sab(:) = real_to_scaled(rab(:),cell)
+                              CALL add_neighbor_node(&
+                                neighbor_list=kind_a(iatom_local)%neighbor_list,&
+                                neighbor=atom_b,&
+                                cell=cell_b,&
+                                r=rab,&
+                                s=sab,&
+                                exclusion_list=particle_set(atom_a)%lpi%&
+                                               exclusion(jkind)%list)
                             END IF
                           END IF
                         END DO
