@@ -13,7 +13,7 @@
 !!     APSI & JGH
 !!
 !!   MODIFICATION HISTORY
-!!     none
+!!     JGH (05.07.2001) : added G95 interface
 !!
 !!   SOURCE
 !******************************************************************************
@@ -25,6 +25,9 @@ MODULE machine
        m_hostnm, m_getcwd, m_getlog, m_getuid, m_getpid, m_getarg
 #elif defined ( __IRIX )
   USE machine_irix, ONLY : m_walltime, m_cputime, m_datum,  &
+       m_hostnm, m_getcwd, m_getlog, m_getuid, m_getpid, m_getarg
+#elif defined ( __G95 )
+  USE machine_g95, ONLY : m_walltime, m_cputime, m_datum,  &
        m_hostnm, m_getcwd, m_getlog, m_getuid, m_getpid, m_getarg
 #elif defined ( __PGI )
   USE machine_pgi, ONLY : m_walltime, m_cputime, m_datum,  &
