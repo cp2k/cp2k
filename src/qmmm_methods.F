@@ -48,6 +48,7 @@ MODULE qmmm_methods
   USE kinds,                           ONLY: default_string_length,&
                                              dp,&
                                              dbl
+  USE qs_energy_types,                 ONLY: qs_energy_type
   USE particle_types,                  ONLY: particle_type
   USE pw_types,                        ONLY: COMPLEXDATA1D,&
                                              REALDATA3D,&
@@ -225,16 +226,18 @@ CONTAINS
     TYPE(pw_env_type),POINTER                :: pw_env
     TYPE(pw_pool_type),POINTER               :: auxbas_pool
     TYPE(pw_type),POINTER                    :: rho_tot_r
+    TYPE(qs_energy_type), POINTER            :: energy
     LOGICAL :: failure
     INTEGER :: handle, ispin
 
     CALL timeset(routineN,"I","",handle)
     failure=.FALSE.
-    NULLIFY(cell, ks_qmmm_env_loc, rho, pw_env, auxbas_pool, rho_tot_r)
+    NULLIFY(cell, ks_qmmm_env_loc, rho, pw_env, auxbas_pool, rho_tot_r,energy)
     CALL get_qs_env(qs_env=qs_env,&
                     rho=rho,&
                     rho_core=rho_core,&
                     pw_env=pw_env,&
+                    energy=energy,&
                     cell=cell,&
                     error=error)
     ks_qmmm_env_loc => qs_env%ks_qmmm_env
@@ -245,6 +248,14 @@ CONTAINS
     CALL pw_pool_create_pw(auxbas_pool,rho_tot_r,&
          in_space=REALSPACE,use_data=REALDATA3D, error=error)
     CALL pw_transfer(rho_core%pw,rho_tot_r)
+    !
+    ! Computes the QM/MM Nuclear Electrostatic Potential
+    !
+    energy%qmmm_nu = pw_integral_ab ( rho_tot_r, ks_qmmm_env_loc%v_qmmm_rspace%pw )
+    energy%total = energy%total +  energy%qmmm_nu
+    WRITE(6,'(T3,A,F15.9)')" QM/MM Nuclear Electrostatic Potential :",energy%qmmm_nu
+    WRITE(6,'(T3,A,F15.9)')" Total Energy after the QM/MM Calculation :",energy%total    
+    !
     DO ispin=1,SIZE(rho%rho_r)
        CALL pw_sumup(rho%rho_r(ispin)%pw,rho_tot_r)
     END DO
@@ -323,7 +334,6 @@ CONTAINS
 
     CALL qmmm_forces_on_grid_low(v_qmmm,&
                                  rho%cr3d,&
-                                 v_qmmm%pw%cr3d,&
                                  mm_particles,&
                                  mm_charges,&
                                  mm_el_pot_radius,&
@@ -335,7 +345,7 @@ CONTAINS
 
   END SUBROUTINE qmmm_forces_on_grid
 
-  SUBROUTINE qmmm_forces_on_grid_low(v_qmmm,Rho,Varray,mm_particles,mm_charges,&
+  SUBROUTINE qmmm_forces_on_grid_low(v_qmmm,Rho,mm_particles,mm_charges,&
        mm_el_pot_radius, mm_atom_index,num_mm_atoms,cell,dvol,error)
     Implicit None
     CHARACTER(len=*), PARAMETER :: routineN = 'qmmm_forces_on_grid_low', &
@@ -346,7 +356,7 @@ CONTAINS
     TYPE(particle_type), DIMENSION(:), POINTER   :: mm_particles
     INTEGER, DIMENSION(:), POINTER   :: mm_atom_index
     REAL(dbl), DIMENSION(:), POINTER :: mm_charges, mm_el_pot_radius
-    REAL(dbl), DIMENSION(*) :: Varray, Rho
+    REAL(dbl), DIMENSION(*) :: Rho
     REAL(dbl), INTENT(IN) :: dvol
     INTEGER, INTENT(IN) :: num_mm_atoms
     TYPE(cell_type), POINTER                 :: cell
@@ -389,8 +399,8 @@ CONTAINS
        qt=mm_charges(Imm)*dvol
        !$omp parallel do default (none) private( i, j, k, Imm, IndMM,jj,my_k,my_j,&
        !$omp                            r, r0, qt, rNexp, rNexp1, r0Nexp, r0Nexp1,&
-       !$omp                   dr1,dr2,dr3, xs1,xs2,xs3, rv1,rv2,rv3, rt1,rt2,rt3)&
-       !$omp                            shared(Varray)
+       !$omp                   dr1,dr2,dr3, xs1,xs2,xs3, rv1,rv2,rv3, rt1,rt2,rt3,&
+       !$omp                   ft1,ft2,ft3,dvol) shared(Rho)        
        LoopOnGrid: Do k = bo(1,3), bo(2,3)
           my_k=(k+n3/2)
           xs3 = real(my_k,dbl)*dr3
@@ -412,7 +422,7 @@ CONTAINS
                 dpot = 4.0_dbl * (rNexp1-r0Nexp1)* rNexp0 -&
                        5.0_dbl * (rNexp -r0Nexp) * rNexp
                 dpot = dpot / ((rNexp1 - r0Nexp1)**2 * r) 
-                fac=Rho(jj)* dpot 
+                fac= - Rho(jj)* dpot 
                 ft1 = ft1 + fac * rv1
                 ft2 = ft2 + fac * rv2
                 ft3 = ft3 + fac * rv3
@@ -424,7 +434,7 @@ CONTAINS
        mm_particles(IndMM)%f(1) = ft1 * qt ! + mm_particles(IndMM)%f(1) 
        mm_particles(IndMM)%f(2) = ft2 * qt ! + mm_particles(IndMM)%f(2) 
        mm_particles(IndMM)%f(3) = ft3 * qt ! + mm_particles(IndMM)%f(3) 
-       WRITE(*,*) IndMM, mm_particles(IndMM)%f
+       WRITE(6,'(I6,3F15.9)') IndMM, mm_particles(IndMM)%f
     END DO MainLoopMM
 
     CALL timestop(0.0_dp,handle)

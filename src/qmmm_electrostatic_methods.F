@@ -266,19 +266,19 @@ CONTAINS
           my_j=bo(1,2)+n2/2
           jj=my_k*n1*n2+my_j*n1
           xs2 = real(my_j,dbl)*dr2
+          rv3 = rt3 - xs3
           Do j = bo(1,2), bo(2,2)
              xs1 = (bo(1,1)+n1/2)*dr1
+             rv2 = rt2 - xs2
              Do i = bo(1,1), bo(2,1)
                 jj=jj+1
                 rv1 = rt1 - xs1
-                rv2 = rt2 - xs2
-                rv3 = rt3 - xs3
                 r  = sqrt(rv1*rv1 + rv2*rv2 + rv3*rv3)
                 rNexp = r**2
                 rNexp = rNexp*rNexp
                 rNexp1 = rNexp*r
                 Varray(jj)=Varray(jj)+ &
-                                        (-1.0_dbl) *                  & ! to take care of the fisical sign of electrons
+                                        (-1.0_dbl) * & ! Sign of electrons
                                         qt* &
                                         (rNexp - r0Nexp)/(rNexp1 - r0Nexp1)
                 xs1 = xs1 + dr1

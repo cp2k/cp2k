@@ -35,7 +35,8 @@ MODULE qs_energy_types
                 core_overlap,&
                 core_self,&
                 exc,&
-                qmmm,&
+                qmmm_el,&
+                qmmm_nu,&
                 hartree,&
                 total
   END TYPE qs_energy_type
@@ -133,7 +134,8 @@ CONTAINS
       qs_energy%core = 0.0_dp
       qs_energy%core_overlap = 0.0_dp
       qs_energy%core_self = 0.0_dp
-      qs_energy%qmmm = 0.0_dp
+      qs_energy%qmmm_el = 0.0_dp
+      qs_energy%qmmm_nu = 0.0_dp
       qs_energy%exc = 0.0_dp
       qs_energy%hartree = 0.0_dp
       qs_energy%total = 0.0_dp

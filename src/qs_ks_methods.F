@@ -439,7 +439,7 @@ CONTAINS
            CALL qmmm_calculate_energy (qs_env=qs_env,&
                                        rho=rho%rho_r,&
                                        v_qmmm=qs_env%ks_qmmm_env%v_qmmm_rspace,&
-                                       qmmm_energy=energy%qmmm,&
+                                       qmmm_energy=energy%qmmm_el,&
                                        error=error)
            CALL qmmm_modify_hartree_pot(v_hartree=ks_env%v_hartree_rspace,&
                                         v_qmmm=qs_env%ks_qmmm_env%v_qmmm_rspace,&
@@ -460,7 +460,7 @@ CONTAINS
        ENDIF
 
        energy%total = energy%core_overlap + energy%core_self + &
-            energy%core + energy%hartree + energy%exc + energy%qmmm
+            energy%core + energy%hartree + energy%exc + energy%qmmm_el
 
        IF (ionode.AND.logger%print_keys%scf_energies) THEN
           WRITE (UNIT=output_unit,FMT="(/,(T3,A,T60,F20.10))")&
@@ -469,7 +469,7 @@ CONTAINS
                "Exchange-correlation energy:                   ",energy%exc
           If  (qs_env%qmmm) Then
              WRITE (UNIT=output_unit,FMT="(T3,A,T60,F20.10)")&
-               "QM/MM Electrostatic energy:                    ",energy%qmmm
+               "QM/MM Electrostatic energy:                    ",energy%qmmm_el
           End If
        END IF
 
