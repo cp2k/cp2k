@@ -20,12 +20,14 @@
 
 MODULE fist_debug
 
+  USE dg_types, ONLY : dg_type
   USE ewald_parameters_types, ONLY : ewald_parameters_type
   USE fist_force_numer, ONLY : force_bond_numer, force_bend_numer, &
-       force_torsion_numer, force_nonbond_numer, force_recip_numer, &
+       force_torsion_numer, force_nonbond_numer, ewald_energy_numer, &
        pv_bond_numer, pv_bend_numer, pv_torsion_numer, ptens_numer, &
-       pvg_numer, potential_g_numer, de_g_numer, energy_recip_numer
-  USE fist_force, ONLY : force_control, debug_variables_type
+       pvg_numer, potential_g_numer, de_g_numer, ewald_force_numer, &
+       pme_force_numer, pme_energy_numer
+  USE fist_force, ONLY : force_control, debug_variables_type, get_ewald_grids
   USE global_types, ONLY : global_environment_type
   USE kinds, ONLY : dbl
   USE linklists, ONLY : bonds, bends, torsions, dist_constraints, &
@@ -34,10 +36,9 @@ MODULE fist_debug
   USE molecule_types, ONLY : molecule_structure_type, particle_node_type
   USE particle_types, ONLY : particle_type
   USE pair_potential, ONLY : potentialparm_type
-  USE pw_grid_types, ONLY : pw_grid_type, HALFSPACE
-  USE pw_grids, ONLY : pw_find_cutoff, pw_grid_setup, pw_grid_construct
+  USE pw_grid_types, ONLY : pw_grid_type
   USE simulation_cell, ONLY : cell_type
-  USE termination, ONLY : stop_memory
+  USE termination, ONLY : stop_memory, stop_program
   USE linklist_types, ONLY : linklist_internal_data_type
 
   IMPLICIT NONE
@@ -90,7 +91,6 @@ SUBROUTINE debug_control ( globenv, ewald_param, part, pnode, molecule, box, &
 
 ! Locals
   TYPE ( debug_variables_type ) :: dbg
-  TYPE ( pw_grid_type ) :: ewald_grid
   INTEGER :: iflag, i, natoms, isos, iatom, iw, iwf, ir, npts_s(3), gmax
   INTEGER, DIMENSION ( 2 ) :: dum
   REAL ( dbl ) :: delta, energy_numer, cutoff, ecut
@@ -101,6 +101,8 @@ SUBROUTINE debug_control ( globenv, ewald_param, part, pnode, molecule, box, &
   REAL ( dbl ), DIMENSION ( :, : ), ALLOCATABLE :: f_numer
   REAL ( dbl ), DIMENSION ( :, : ), ALLOCATABLE :: rel, diff
   LOGICAL, PARAMETER :: box_change = .FALSE.
+  TYPE ( pw_grid_type ), POINTER :: pw_big, pw_small, pw_ewald, pw_spme
+  TYPE ( dg_type ), POINTER :: dg
 
 !------------------------------------------------------------------------------
 
@@ -109,7 +111,7 @@ SUBROUTINE debug_control ( globenv, ewald_param, part, pnode, molecule, box, &
   ir = 5
   WRITE ( iw, '( 16x,A )' ) &
        '***************************************************'
-  WRITE ( iw, '( 16x,A )' ) '                   BEGIN DEBUG'
+  WRITE ( iw, '( 16x,A )' ) '                   BEGIN FIST DEBUG'
   WRITE ( iw, '( 16x,A )' ) &
        '***************************************************'
 
@@ -534,28 +536,28 @@ SUBROUTINE debug_control ( globenv, ewald_param, part, pnode, molecule, box, &
          ' DO YOU WANT TO DEBUG YOUR G-SPACE INTERACTIONS (1=yes)?'
     READ ( ir, * ) iflag
     IF ( iflag == 1 ) THEN
-       CALL pw_grid_construct ( ewald_grid )
-       gmax = ewald_param % gmax
-       ewald_grid % bounds ( 1, : ) = -gmax / 2
-       ewald_grid % bounds ( 2, : ) = +gmax / 2
-       npts_s = (/ gmax, gmax, gmax /)
-       ewald_grid % grid_span = HALFSPACE
-
-       CALL pw_find_cutoff ( npts_s, box_ref, cutoff )
-
-       ecut = 0.5_dbl * cutoff * cutoff
-       CALL pw_grid_setup( box_ref, ewald_grid, ecut, fft_usage = .FALSE. )
-
        WRITE ( iw, '( A )' ) &
             ' DO YOU WANT TO DEBUG YOUR G-SPACE ENERGIES (1=yes)?'
        READ ( ir, * ) iflag
        IF ( iflag == 1 ) THEN
-          WRITE ( iw, '( A, T71, I10 )' ) ' TOTAL NUMBER OF G-VECTORS = ', &
-               ewald_grid % ngpts_cut
-          WRITE ( iw, '( A, T71, F10.4 )' ) ' ALPHA= ', &
-               ewald_param % alpha
-          CALL energy_recip_numer ( ewald_param, pnode, box_ref,  &
-                  ewald_grid, energy_numer, ewald_grid % ngpts_cut )
+          SELECT CASE ( ewald_param % ewald_type )
+          CASE ( "EWALD" )
+            CALL get_ewald_grids ( pw_ewald = pw_ewald, dblgrd = dg )
+          CASE ( "PME" )
+            CALL get_ewald_grids ( pw_big = pw_big, pw_small = pw_small, dblgrd = dg )
+          CASE ( "SPME" )
+            CALL get_ewald_grids ( pw_spme = pw_spme, dblgrd = dg )
+          END SELECT
+          SELECT CASE ( ewald_param % ewald_type )
+          CASE ( "EWALD" )
+            CALL ewald_energy_numer ( ewald_param, pnode, box_ref,  &
+                  pw_ewald, energy_numer, pw_ewald % ngpts_cut )
+          CASE ( "PME" )
+            CALL pme_energy_numer ( dg, part, box, pw_small, pw_big, &
+                                    ewald_param, energy_numer )
+          CASE ( "SPME" )
+            CALL stop_program ( "fist_debug", " NO SPME debug routines " )
+          END SELECT
           WRITE ( iw, '( A, T61, G20.12 )' ) ' G-SPACE ANA ENERGY = ', &
                dbg % pot_g
           WRITE ( iw, '( A, T61, G20.12 )' ) ' G-SPACE DBG ENERGY = ', &
@@ -574,9 +576,33 @@ SUBROUTINE debug_control ( globenv, ewald_param, part, pnode, molecule, box, &
           ELSE
              WRITE ( iw, '( A, T61, G20.12 )' ) ' DELTA = ', delta
           END IF
+          SELECT CASE ( ewald_param % ewald_type )
+          CASE ( "EWALD" )
+            CALL ewald_force_numer ( ewald_param, pnode, box_ref, pw_ewald, &
+                                     delta, f_numer )
+          CASE ( "PME" )
+            CALL pme_force_numer ( delta, f_numer, dg, part, box, pw_small, &
+                                   pw_big, ewald_param )
+          CASE ( "SPME" )
+            CALL stop_program ( "fist_debug", " NO SPME debug routines " )
+          END SELECT
+! write out all particle numbers and forces
+          WRITE ( iw, '( /,A )' ) &
+          ' DO YOU WANT TO GET THE FORCES ON ALL PARTICLES (FILE=gspace, 1=yes)?'
+          READ ( ir, * ) iflag
+          IF ( iflag == 1 ) THEN
+             OPEN (UNIT = iwf, FILE = 'gspace', STATUS = 'REPLACE', ACTION = 'WRITE')
+             DO iatom = 1, natoms
+             WRITE ( iwf, '( A,T71,I10 )' ) ' ATOM NUMBER ', iatom
+             WRITE ( iwf, '( A,T21,3G20.12 )' ) &
+                  ' F ANA GSPACE =', dbg % f_g(:,iatom)
+             WRITE ( iwf, '( A,T21,3G20.12,/ )' ) &
+                  ' F NUM GSPACE =', f_numer(:,iatom)
+             END DO
+             CLOSE (iwf)
+          END IF
 
-          CALL force_recip_numer ( ewald_param, pnode, box_ref, ewald_grid, &
-                                   delta, f_numer )
+! compute the absolute value of the differences in the forces
 
 ! compute the absolute value of the differences in the forces
           diff = ABS ( ABS (dbg % f_g) - ABS (f_numer) )
@@ -624,7 +650,7 @@ SUBROUTINE debug_control ( globenv, ewald_param, part, pnode, molecule, box, &
              WRITE ( iw, '( A,T71,F10.6 )' ) ' DELTA = ', delta
           END IF
           CALL pvg_numer ( ewald_param, pnode, box_ref, &
-                           ewald_grid, pv_test, delta )
+                           pw_ewald, pv_test, delta )
 
 ! write out the virials
           WRITE ( iw, '( A )' ) ' PV NUM G-SPACE'
@@ -643,7 +669,7 @@ SUBROUTINE debug_control ( globenv, ewald_param, part, pnode, molecule, box, &
   WRITE ( iw, '( 16x, A )' ) &
        '***************************************************'
   WRITE ( iw, '( 16x, A )' ) &
-       '*                     END DEBUG                   *'
+       '*                     END FIST DEBUG                   *'
   WRITE ( iw, '( 16x, A )' ) &
        '***************************************************'
 END SUBROUTINE debug_control
