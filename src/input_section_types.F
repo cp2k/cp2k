@@ -1177,7 +1177,7 @@ END SUBROUTINE section_vals_get
 !!     fawzi
 !!
 !!*** **********************************************************************
-FUNCTION section_vals_get_subs_vals(section_vals,subsection_name,&
+RECURSIVE FUNCTION section_vals_get_subs_vals(section_vals,subsection_name,&
      i_rep_section,can_return_null,error) RESULT(res)
   TYPE(section_vals_type), pointer :: section_vals
   CHARACTER(len=*), intent(in) :: subsection_name
@@ -1186,33 +1186,54 @@ FUNCTION section_vals_get_subs_vals(section_vals,subsection_name,&
   type(cp_error_type), optional, intent(inout) :: error
   TYPE(section_vals_type), pointer :: res
   
-  LOGICAL :: failure, my_can_return_null
+  LOGICAL :: failure, my_can_return_null,is_path
   character(len=*), parameter :: routineN='section_vals_get_subs_vals',&
         routineP=moduleN//':'//routineN
-  INTEGER :: isection,irep
+  INTEGER :: isection,irep,my_index
 
   failure=.false.
   CPPrecondition(ASSOCIATED(section_vals),cp_failure_level,routineP,error,failure)
   CPPrecondition(section_vals%ref_count>0,cp_failure_level,routineP,error,failure)
+
+
   my_can_return_null=.false.
   if (present(can_return_null)) my_can_return_null=can_return_null
   nullify(res)
   IF (.NOT. failure) THEN
      irep=1
      if (present(i_rep_section)) irep=i_rep_section
+
+     ! prepare for recursive parsing of subsections. i_rep_section will be used for last section
+     my_index=INDEX(subsection_name,"%")
+     IF (my_index.EQ.0) THEN
+        is_path=.FALSE.
+        my_index=LEN(subsection_name)
+     ELSE
+        is_path=.TRUE.
+        irep=1
+        my_index=my_index-1
+     ENDIF
+
      CPPrecondition(irep<=SIZE(section_vals%subs_vals,2),cp_failure_level,routineP,error,failure)
   END IF
+
+
   IF (.NOT.failure) THEN
-     isection=section_get_subsection_index(section_vals%section,subsection_name,&
+     isection=section_get_subsection_index(section_vals%section,subsection_name(1:my_index),&
           error=error)
      IF (isection>0) res => section_vals%subs_vals(isection,irep)%section_vals
   END IF
   call cp_assert(ASSOCIATED(res).OR.my_can_return_null,cp_failure_level,&
        cp_assertion_failed,routineP,&
-       "could not find subsection "//TRIM(subsection_name)//" in section "//&
+       "could not find subsection "//TRIM(subsection_name(1:my_index))//" in section "//&
        TRIM(section_vals%section%name)//" at "//&
        CPSourceFileRef,&
        error,failure)
+  IF (is_path .AND. ASSOCIATED(res) ) THEN
+     res=>section_vals_get_subs_vals(res,subsection_name(my_index+2:LEN(subsection_name)),&
+     i_rep_section,can_return_null,error) 
+  ENDIF
+
 END FUNCTION section_vals_get_subs_vals
 !***************************************************************************
 

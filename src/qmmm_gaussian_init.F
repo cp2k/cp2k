@@ -51,7 +51,7 @@ MODULE qmmm_gaussian_init
   USE pw_env_types, ONLY: pw_env_type, pw_env_release, pw_env_get
   USE qmmm_types, only: qmmm_env_qm_type
   USE gaussian_gridlevels, ONLY: gaussian_gridlevel, gridlevel_info_type
-  USE input_cp2k, ONLY: do_qmmm_grid, do_qmmm_gauss, do_qmmm_none
+  USE input_constants, ONLY: do_qmmm_grid, do_qmmm_gauss, do_qmmm_none
   IMPLICIT NONE
   PRIVATE
 

@@ -74,7 +74,7 @@ MODULE qmmm_pw_grid
   USE mathconstants,                   ONLY: pi
   USE simulation_cell,                 ONLY: cell_type
   USE pw_types,                        ONLY: pw_allocate
-  USE input_cp2k, ONLY: do_qmmm_grid, do_qmmm_gauss, do_qmmm_none
+  USE input_constants, ONLY: do_qmmm_grid, do_qmmm_gauss, do_qmmm_none
   IMPLICIT NONE
 
   PRIVATE

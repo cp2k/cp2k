@@ -47,7 +47,7 @@ MODULE qmmm_types
                                              deallocate_particle_set,&
                                              allocate_particle_set
   USE pw_pool_types, ONLY: pw_pool_p_type, pw_pool_type, pw_pools_dealloc
-  USE input_cp2k, ONLY: do_qmmm_grid, do_qmmm_gauss, do_qmmm_none
+  USE input_constants, ONLY: do_qmmm_grid, do_qmmm_gauss, do_qmmm_none
   IMPLICIT NONE
   PRIVATE
 

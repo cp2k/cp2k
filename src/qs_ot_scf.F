@@ -34,6 +34,14 @@ MODULE qs_ot_scf
                                              cp_fm_write
   USE cp_sm_fm_interactions,           ONLY: cp_sm_fm_multiply
   USE global_types,                    ONLY: global_environment_type
+  USE input_constants,                 ONLY: ot_mini_sd,ot_mini_cg,ot_mini_diis, &
+                                             ot_ls_none,ot_ls_2pnt,ot_ls_3pnt,ot_ls_gold, &
+                                             ot_precond_none,ot_precond_full_single,ot_precond_full_kinetic, & 
+                                             ot_precond_s_inverse, ot_precond_sparse_diag
+  USE input_section_types,             ONLY: section_vals_get_subs_vals, &
+                                             section_vals_type, &
+                                             section_vals_val_get, &
+                                             section_vals_get
   USE kinds,                           ONLY: dp
   USE qs_mo_types,                     ONLY: get_mo_set,&
                                              mo_set_p_type, &
@@ -78,7 +86,9 @@ SUBROUTINE ot_scf_read_input(qs_ot_env,globenv)
 
     CHARACTER(LEN=40)                        :: keyword, value
     INTEGER                                  :: handle, ispin, nspin
-    LOGICAL                                  :: found
+    LOGICAL                                  :: found,explicit
+    TYPE(section_vals_type), POINTER         :: ot_section
+    INTEGER :: ot_method,ls_method,preconditioner_method
 
 ! executable
 
@@ -87,96 +97,154 @@ SUBROUTINE ot_scf_read_input(qs_ot_env,globenv)
     ! decide default settings
     CALL qs_ot_settings_init(qs_ot_env(1)%settings)
 
+    ! use ot input new style
+    ot_section=>section_vals_get_subs_vals(globenv%input_file,"FORCE_EVAL%DFT%SCF%OT")
+    CALL section_vals_get(ot_section,explicit=explicit)
 
-    CALL start_parser(file_name=globenv%input_file_name,&
-                      globenv=globenv,&
-                      start_section_label="OTSCF",section_found=found)
+    IF (explicit) THEN
+       CALL section_vals_val_get(ot_section,"MINIMIZER",i_val=ot_method)
+       ! compatibility
+       SELECT CASE(ot_method)
+       CASE (ot_mini_sd)
+         qs_ot_env(1)%settings%ot_method="SD"
+       CASE (ot_mini_cg)
+         qs_ot_env(1)%settings%ot_method="CG"
+       CASE (ot_mini_diis)
+         qs_ot_env(1)%settings%ot_method="DIIS"
+         CALL section_vals_val_get(ot_section,"N_DIIS",i_val=qs_ot_env(1)%settings%diis_m)
+       CASE DEFAULT
+         CALL stop_program("READ OTSCF MINIMIZER","VALUE UNKNOWN")
+       END SELECT
+       CALL section_vals_val_get(ot_section,"SAFER_DIIS",l_val=qs_ot_env(1)%settings%safer_diis)
+       CALL section_vals_val_get(ot_section,"LINESEARCH",i_val=ls_method)
+       SELECT CASE(ls_method)
+       CASE (ot_ls_none)
+         qs_ot_env(1)%settings%line_search_method="NONE"
+       CASE (ot_ls_2pnt)
+         qs_ot_env(1)%settings%line_search_method="2PNT"
+       CASE (ot_ls_3pnt)
+         qs_ot_env(1)%settings%line_search_method="3PNT"
+       CASE (ot_ls_gold)
+         qs_ot_env(1)%settings%line_search_method="GOLD"
+         CALL section_vals_val_get(ot_section,"GOLD_TARGET",r_val=qs_ot_env(1)%settings%gold_target)
+       CASE DEFAULT
+         CALL stop_program("READ OTSCF LS","VALUE UNKNOWN")
+       END SELECT
+       CALL section_vals_val_get(ot_section,"PRECONDITIONER",i_val=preconditioner_method)
+       SELECT CASE(preconditioner_method)
+       CASE(ot_precond_none)
+           qs_ot_env(1)%settings%preconditioner_type="NONE"
+       CASE(ot_precond_full_single)
+           qs_ot_env(1)%settings%preconditioner_type="FULL_SINGLE"
+       CASE(ot_precond_full_kinetic)
+           qs_ot_env(1)%settings%preconditioner_type="FULL_KINETIC"
+       CASE(ot_precond_s_inverse)
+           qs_ot_env(1)%settings%preconditioner_type="FULL_S_INVERSE"
+       CASE(ot_precond_sparse_diag)
+           qs_ot_env(1)%settings%preconditioner_type="SPARSE_DIAG"
+       CASE DEFAULT
+         CALL stop_program("READ OTSCF PRECONDITIONER","VALUE UNKNOWN")
+       END SELECT
+       CALL section_vals_val_get(ot_section,"STEPSIZE",r_val=qs_ot_env(1)%settings%ds_min)
+       CALL section_vals_val_get(ot_section,"ENERGY_GAP",r_val=qs_ot_env(1)%settings%energy_gap)
+       CALL section_vals_val_get(ot_section,"EPS_TAYLOR",r_val=qs_ot_env(1)%settings%eps_taylor)
+       CALL section_vals_val_get(ot_section,"MAX_TAYLOR",i_val=qs_ot_env(1)%settings%max_taylor)
+       CALL section_vals_val_get(ot_section,"ROTATION",l_val=qs_ot_env(1)%settings%do_rotation)
+    ELSE
 
-    IF (found) THEN 
-    DO WHILE (test_object(newline=.TRUE.) /= "EOS")
-          CALL read_object(keyword,lower_to_upper=.TRUE.,newline=.TRUE.)
-          SELECT CASE (TRIM(keyword))
-          CASE ("MINIMIZER")
-               CALL read_object(value,lower_to_upper=.TRUE.)
-               SELECT CASE (TRIM(value))
-               CASE ("SD")
-                    qs_ot_env(1)%settings%ot_method="SD"
-               CASE ("CG")
-                    qs_ot_env(1)%settings%ot_method="CG"
-               CASE ("DIIS")
-                    qs_ot_env(1)%settings%ot_method="DIIS"
-                    qs_ot_env(1)%settings%diis_m=7 
-                    IF (test_object().EQ."INT") THEN
-                       CALL read_object(qs_ot_env(1)%settings%diis_m)
-                    ENDIF
-               CASE DEFAULT
-                    IF (globenv%ionode) WRITE(globenv%scr,*) value
-                    CALL stop_program("READ OTSCF MINIMIZER","VALUE UNKNOWN")
-               END SELECT
-          CASE ("SAFER_DIIS","SAFE_DIIS")
-               CALL read_object(value,lower_to_upper=.TRUE.)
-               SELECT CASE (TRIM(value))
-               CASE ("ON")
-                    qs_ot_env(1)%settings%safer_diis=.TRUE.
-               CASE ("OFF")
+       CALL start_parser(file_name=globenv%input_file_name,&
+                         globenv=globenv,&
+                         start_section_label="OTSCF",section_found=found)
+
+       IF (found) THEN 
+       DO WHILE (test_object(newline=.TRUE.) /= "EOS")
+             CALL read_object(keyword,lower_to_upper=.TRUE.,newline=.TRUE.)
+             SELECT CASE (TRIM(keyword))
+             CASE ("MINIMIZER")
+                  CALL read_object(value,lower_to_upper=.TRUE.)
+                  SELECT CASE (TRIM(value))
+                  CASE ("SD")
+                       qs_ot_env(1)%settings%ot_method="SD"
+                  CASE ("CG")
+                       qs_ot_env(1)%settings%ot_method="CG"
+                  CASE ("DIIS")
+                       qs_ot_env(1)%settings%ot_method="DIIS"
+                       qs_ot_env(1)%settings%diis_m=7 
+                       IF (test_object().EQ."INT") THEN
+                          CALL read_object(qs_ot_env(1)%settings%diis_m)
+                       ENDIF
+                  CASE DEFAULT
+                       IF (globenv%ionode) WRITE(globenv%scr,*) value
+                       CALL stop_program("READ OTSCF MINIMIZER","VALUE UNKNOWN")
+                  END SELECT
+             CASE ("SAFER_DIIS","SAFE_DIIS")
+                  CALL read_object(value,lower_to_upper=.TRUE.)
+                  SELECT CASE (TRIM(value))
+                  CASE ("ON")
+                       qs_ot_env(1)%settings%safer_diis=.TRUE.
+                  CASE ("OFF")
                     qs_ot_env(1)%settings%safer_diis=.FALSE.
-               CASE DEFAULT
-                    IF (globenv%ionode) WRITE(globenv%scr,*) value
-                    CALL stop_program("READ OTSCF MINIMIZER","VALUE UNKNOWN")
-               END SELECT
-          CASE ("LINESEARCH")
-               CALL read_object(value,lower_to_upper=.TRUE.)
-               SELECT CASE (TRIM(value))
-               CASE ("NONE")
-                    qs_ot_env(1)%settings%line_search_method="NONE"
-               CASE ("2PNT")
-                    qs_ot_env(1)%settings%line_search_method="2PNT"
-               CASE ("3PNT")
-                    qs_ot_env(1)%settings%line_search_method="3PNT"
-               CASE ("GOLD")
-                    qs_ot_env(1)%settings%gold_target=0.01_dp ! 1 percent in the position 
-                    qs_ot_env(1)%settings%line_search_method="GOLD"
-                    IF (test_object().EQ."FLT") THEN
-                       CALL read_object(qs_ot_env(1)%settings%gold_target)
-                    ENDIF
-               CASE DEFAULT
-                    IF (globenv%ionode) WRITE(globenv%scr,*) value
-                    CALL stop_program("READ OTSCF LINESEARCH","VALUE UNKNOWN")
-               END SELECT
-          CASE ("PRECONDITIONER")
-               CALL read_object(value,lower_to_upper=.TRUE.)
-               SELECT CASE (TRIM(value)) ! somehow in order of efficiency
-               CASE ("FULL_SINGLE")
-                    qs_ot_env(1)%settings%preconditioner_type="FULL_SINGLE"
-               CASE ("FULL_KINETIC")
-                    qs_ot_env(1)%settings%preconditioner_type="FULL_KINETIC"
-               CASE ("FULL_S_INVERSE")
-                    qs_ot_env(1)%settings%preconditioner_type="FULL_S_INVERSE"
-               CASE ("SPARSE_DIAG")
-                    qs_ot_env(1)%settings%preconditioner_type="SPARSE_DIAG"
-               CASE ("NONE")
-                    qs_ot_env(1)%settings%preconditioner_type="NONE"
-               CASE DEFAULT ! others are too experimental to be here
-                    IF (globenv%ionode) WRITE(globenv%scr,*) value
-                    CALL stop_program("READ OTSCF PRECONDITIONER","VALUE UNKNOWN")
-               END SELECT
-          CASE ("STEPSIZE")
-               CALL read_object(qs_ot_env(1)%settings%ds_min)
-          CASE ("ENERGY_GAP")
-               CALL read_object(qs_ot_env(1)%settings%energy_gap)
-          CASE ("EPS_TAYLOR")
-               CALL read_object(qs_ot_env(1)%settings%eps_taylor)
-          CASE ("MAX_TAYLOR")
-               CALL read_object(qs_ot_env(1)%settings%max_taylor)
-          CASE ("ROTATION")
-               qs_ot_env(1)%settings%do_rotation=.TRUE.
-          CASE DEFAULT
-               IF (globenv%ionode) WRITE(globenv%scr,*) keyword
-               CALL stop_program("READ OTSCF","KEYWORD UNKNOWN")
-          END SELECT 
-    ENDDO
+                  CASE DEFAULT
+                       IF (globenv%ionode) WRITE(globenv%scr,*) value
+                       CALL stop_program("READ OTSCF MINIMIZER","VALUE UNKNOWN")
+                  END SELECT
+             CASE ("LINESEARCH")
+                  CALL read_object(value,lower_to_upper=.TRUE.)
+                  SELECT CASE (TRIM(value))
+                  CASE ("NONE")
+                       qs_ot_env(1)%settings%line_search_method="NONE"
+                  CASE ("2PNT")
+                       qs_ot_env(1)%settings%line_search_method="2PNT"
+                  CASE ("3PNT")
+                       qs_ot_env(1)%settings%line_search_method="3PNT"
+                  CASE ("GOLD")
+                       qs_ot_env(1)%settings%gold_target=0.01_dp ! 1 percent in the position 
+                       qs_ot_env(1)%settings%line_search_method="GOLD"
+                       IF (test_object().EQ."FLT") THEN
+                          CALL read_object(qs_ot_env(1)%settings%gold_target)
+                       ENDIF
+                  CASE DEFAULT
+                       IF (globenv%ionode) WRITE(globenv%scr,*) value
+                       CALL stop_program("READ OTSCF LINESEARCH","VALUE UNKNOWN")
+                  END SELECT
+             CASE ("PRECONDITIONER")
+                  CALL read_object(value,lower_to_upper=.TRUE.)
+                  SELECT CASE (TRIM(value)) ! somehow in order of efficiency
+                  CASE ("FULL_SINGLE")
+                       qs_ot_env(1)%settings%preconditioner_type="FULL_SINGLE"
+                  CASE ("FULL_KINETIC")
+                       qs_ot_env(1)%settings%preconditioner_type="FULL_KINETIC"
+                  CASE ("FULL_S_INVERSE")
+                       qs_ot_env(1)%settings%preconditioner_type="FULL_S_INVERSE"
+                  CASE ("SPARSE_DIAG")
+                       qs_ot_env(1)%settings%preconditioner_type="SPARSE_DIAG"
+                  CASE ("NONE")
+                       qs_ot_env(1)%settings%preconditioner_type="NONE"
+                  CASE DEFAULT ! others are too experimental to be here
+                       IF (globenv%ionode) WRITE(globenv%scr,*) value
+                       CALL stop_program("READ OTSCF PRECONDITIONER","VALUE UNKNOWN")
+                  END SELECT
+             CASE ("STEPSIZE")
+                  CALL read_object(qs_ot_env(1)%settings%ds_min)
+             CASE ("ENERGY_GAP")
+                  CALL read_object(qs_ot_env(1)%settings%energy_gap)
+             CASE ("EPS_TAYLOR")
+                  CALL read_object(qs_ot_env(1)%settings%eps_taylor)
+             CASE ("MAX_TAYLOR")
+                  CALL read_object(qs_ot_env(1)%settings%max_taylor)
+             CASE ("ROTATION")
+                  qs_ot_env(1)%settings%do_rotation=.TRUE.
+             CASE DEFAULT
+                  IF (globenv%ionode) WRITE(globenv%scr,*) keyword
+                  CALL stop_program("READ OTSCF","KEYWORD UNKNOWN")
+             END SELECT 
+       ENDDO
+       ENDIF
+       CALL finish_parser()
     ENDIF
-    CALL finish_parser()
+
+    ! write OT output
+
     IF (globenv%ionode) THEN
     WRITE(globenv%scr,'(A)') " "
     WRITE(globenv%scr,'(A)') "  ----------------------------------- OT --------------------------------------"

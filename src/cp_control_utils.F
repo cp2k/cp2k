@@ -70,14 +70,14 @@ MODULE cp_control_utils
                                              cp_to_string,&
                                              cp_warning_level
   USE global_types,                    ONLY: global_environment_type
-  USE input_cp2k,                      ONLY: electronic_spectra_run,&
+  USE input_constants,                 ONLY: electronic_spectra_run,&
                                              energy_force_run,&
                                              energy_run,&
                                              geo_opt_run,&
                                              mc_run,&
                                              md_run,&
-                                             parsed_cp2k_input,&
                                              qs_debug
+  USE input_cp2k,                      ONLY: parsed_cp2k_input
   USE input_section_types,             ONLY: section_vals_get,&
                                              section_vals_get_subs_vals,&
                                              section_vals_get_subs_vals2,&

@@ -56,7 +56,7 @@ MODULE qs_ks_qmmm_methods
   USE kinds,                           ONLY: dp
   USE timings,                         ONLY: timeset,&
                                              timestop
-  USE input_cp2k, ONLY: do_qmmm_grid, do_qmmm_gauss, do_qmmm_none
+  USE input_constants, ONLY: do_qmmm_grid, do_qmmm_gauss, do_qmmm_none
   IMPLICIT NONE
 
   PRIVATE

@@ -133,6 +133,7 @@ OBJECTS_GENERIC =\
  hartree_local_types.o\
  header.o\
  initialize_extended_types.o\
+ input_constants.o\
  input_cp2k.o\
  input_enumeration_types.o\
  input_keyword_types.o\

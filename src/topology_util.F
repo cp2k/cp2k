@@ -89,7 +89,7 @@ MODULE topology_util
                                              constraint_info_type
   USE qmmm_ff_fist, ONLY: qmmm_ff_precond_only_qm
   USE qmmm_types,   ONLY: qmmm_env_mm_type
-  USE input_cp2k,   ONLY: do_qmmm_none
+  USE input_constants,   ONLY: do_qmmm_none
   
 
   IMPLICIT NONE
