@@ -12,19 +12,32 @@ MODULE atom_type
   PUBLIC :: atom_info, atom_init, atom_destroy
   
   TYPE atom_info
-     ! the properties
+
+     ! the ATOMic properties
      INTEGER :: z                          ! atomic number
-     INTEGER, DIMENSION(0:9) :: nel        ! number of electrons specified in file
-     INTEGER, DIMENSION(10,0:9) :: elconf  ! the electron configuration
+     INTEGER, DIMENSION(1:55) :: elec_conf ! configuration of electrons in orbits
+
+     ! the ATOMic results
+     REAL(DBL) :: ground_state_energy               
+     REAL(DBL), DIMENSION(55) :: eigenvalues        ! energy eigenvalues of the orbitals
+     REAL(DBL), DIMENSION(:,:), POINTER :: orbitals ! the electronic orbitals
+
+     ! program parameters
+     TYPE (radial_grid_type) :: rg         ! the grid to be used for computations
+
      CHARACTER(8) :: method                ! name of the method to be used
      REAL(DBL), DIMENSION(5) :: mpara      ! parameters for the method (specific)
+
      REAL(DBL) :: precision                ! precision to be achieved
      INTEGER :: maxiter                    ! maximum number of iterations
-     TYPE (radial_grid_type) :: rg         ! the grid to be used for computations
-     ! the results
-     REAL(DBL) :: gse                               ! ground state energy
-     REAL(DBL), DIMENSION(55) :: oew                ! energy of the orbitals
-     REAL(DBL), DIMENSION(:,:), POINTER :: orbitals ! the electronic orbitals
+     INTEGER :: maxshoot                   ! maximum number of shooting tries
+     REAL(DBL) :: dma                      ! density mixing angle
+     REAL(DBL) :: ncv                      ! node correction value
+     REAL(DBL) :: lddrsv                   ! ldd rescale factor
+
+     CHARACTER(255) :: wf_logfile
+     LOGICAL :: log_wf
+
   END TYPE atom_info
 
   CONTAINS
@@ -43,9 +56,10 @@ MODULE atom_type
   !******************************************************************************
   SUBROUTINE atom_init(this, globenv, print)
 
+    USE functionals, ONLY : init_functionals
+    USE mathconstants, ONLY : pi
     USE parser, ONLY : p_error, parser_end, parser_init, get_next, &
          test_next, read_line, stop_parser, search_label
-    USE mathconstants, ONLY : pi
     USE termination, ONLY : stop_memory
 
     IMPLICIT NONE
@@ -63,36 +77,47 @@ MODULE atom_type
     INTEGER :: len                     ! length of the fields in file
     INTEGER :: index                   ! a simple index
     CHARACTER(255) :: string           ! 
-    CHARACTER(9) :: label              ! label of the input file section to be read
+    CHARACTER(20) :: label             ! label of the input file section to be read
+    INTEGER, DIMENSION(0:9) :: nel     ! number of electrons specified in file
                                        
     CHARACTER(8) :: rgtype             ! variables for radial grid
     INTEGER :: ngp                     !
+    INTEGER :: orbit
                                        
     REAL(DBL) :: rmax                  !
     REAL(DBL), DIMENSION(0:5) :: b     ! 
     REAL(DBL) :: z                     !
                                        
-    LOGICAL :: z_set, nel_set          ! flags to check if parameters
     LOGICAL, DIMENSION(0:5) :: b_set   ! were supplied in the file
+    LOGICAL :: nel_set, mpara_set(5), z_set 
     LOGICAL :: pflag
     
-    pflag = .false.
+    pflag = .FALSE.
     IF (PRESENT(print)) pflag = print
-    label = '&ATOMINFO'
+    label = "&ATOMINFO"
     iw = globenv%scr
 
-    z_set = .false.
-    nel_set = .false.
-    b_set = .false.
-
+    b_set = .FALSE.
+    nel_set = .FALSE.
+    mpara_set = .FALSE.
+    z_set = .FALSE.
+    
     ! some default values
-    this%nel = 0
+    nel = 0
+    this%elec_conf = 0
     this%mpara = 0.0_dbl
-    this%maxiter = 10
+    this%maxiter = 40
+    this%maxshoot = 1500
     this%precision = 1.E-9_dbl
-    b = 1.0_dbl; b(1) = 0.04_dbl
+    b = 1.0_dbl; b(1) = 0.08_dbl
     ngp = 100
     rmax = 10._dbl
+
+    this%dma = 0.5_dbl
+    this%ncv = 0.1_dbl
+    this%lddrsv = 2.0_dbl
+
+    this%log_wf = .FALSE.
 
     ! open file for reading
     CALL parser_init( globenv%input_file_name, globenv )
@@ -120,11 +145,35 @@ MODULE atom_type
                      "option Z needs numeric argument")
              END IF
 
+          CASE ('DMA')
+             IF (test_next() == 'N') THEN 
+                CALL get_next ( this%dma );
+             ELSE 
+                CALL stop_parser("atom_type/atom_init", &
+                     "option DMA needs numeric argument")
+             END IF
+
+          CASE ('NCV')
+             IF (test_next() == 'N') THEN 
+                CALL get_next ( this%ncv );
+             ELSE 
+                CALL stop_parser("atom_type/atom_init", &
+                     "option NCV needs numeric argument")
+             END IF
+
+          CASE ('LDDRSV')
+             IF (test_next() == 'N') THEN 
+                CALL get_next ( this%lddrsv );
+             ELSE 
+                CALL stop_parser("atom_type/atom_init", &
+                     "option LDDRSV needs numeric argument")
+             END IF
+
           CASE ('NOELEC')
              l = 0
              DO
                 IF (test_next() /= 'N') EXIT
-                CALL get_next ( this%nel(l) ); nel_set = .true.
+                CALL get_next ( nel(l) ); nel_set = .true.
                 l = l+1
              END DO
              IF (.NOT. nel_set ) CALL stop_parser("atom_type/atom_init", &
@@ -144,6 +193,14 @@ MODULE atom_type
              ELSE 
                 CALL stop_parser("atom_type/atom_init", &
                      "option MAXITER needs numeric argument")
+             END IF
+
+          CASE ('MAXSHOOT')
+             IF (test_next() == 'N') THEN 
+                CALL get_next ( this%maxshoot )
+             ELSE 
+                CALL stop_parser("atom_type/atom_init", &
+                     "option MAXSHOOT needs numeric argument")
              END IF
 
           CASE ('GRIDTYPE')
@@ -171,61 +228,25 @@ MODULE atom_type
                      "option GRIDRMAX needs numeric argument")
              END IF
 
-          CASE ('GRIDB0')
-             IF (test_next() == 'N') THEN 
-               CALL get_next ( b(0) ); b_set(0) = .TRUE.
-             ELSE 
-                CALL stop_parser("atom_type/atom_init", &
-                     "option GRIDB0 needs numeric argument")
-             END IF
-
-          CASE ('GRIDB1')
-             IF (test_next() == 'N') THEN 
-                CALL get_next ( b(1) ); b_set(1) = .TRUE.
-             ELSE 
-                CALL stop_parser("atom_type/atom_init", &
-                     "option GRIDB1 needs numeric argument")
-             END IF
-
-          CASE ('GRIDB2')
-             IF (test_next() == 'N') THEN 
-                CALL get_next ( b(2) ); b_set(2) = .TRUE.
-             ELSE 
-                CALL stop_parser("atom_type/atom_init", &
-                     "option GRIDB2 needs numeric argument")
-             END IF
-
-          CASE ('GRIDB3')
-             IF (test_next() == 'N') THEN 
-                CALL get_next ( b(3) ); b_set(3) = .TRUE.
-             ELSE 
-                CALL stop_parser("atom_type/atom_init", &
-                     "option GRIDB3 needs numeric argument")
-             END IF
-
-          CASE ('GRIDB4')
-             IF (test_next() == 'N') THEN 
-                CALL get_next ( b(4) ); b_set(4) = .TRUE.
-             ELSE 
-                CALL stop_parser("atom_type/atom_init", &
-                     "option GRIDB4 needs numeric argument")
-             END IF
-
-          CASE ('GRIDB5')
-             IF (test_next() == 'N') THEN 
-                CALL get_next ( b(5) ); b_set(5) = .TRUE.
-             ELSE 
-                CALL stop_parser("atom_type/atom_init", &
-                     "option GRIDB5 needs numeric argument")
-             END IF
-
-          CASE ('MPARA')
-             index = 1 
+          CASE ('GRIDB')
+             index = 0
              DO
                 IF (test_next() /= 'N') EXIT
-                CALL get_next ( this%mpara(index) )
+                IF (index > 5) &
+                     CALL stop_parser("atom_type/atom_init", &
+                     "option GRIDB can only have up to 6 arguments")
+                CALL get_next ( b(index) )
                 index = index + 1
-             END DO
+             ENDDO
+
+          CASE ('WFLOGF')
+             IF (test_next() == 'C') THEN
+                len = 255; CALL get_next ( this%wf_logfile, len )
+                this%log_wf = .TRUE.
+             ELSE
+                CALL stop_parser("atom_type/atom_init", &
+                     "option WFLOGF needs a filename as an argument")
+             END IF
 
           CASE ('METHOD')
              IF (test_next() == 'C') THEN
@@ -235,6 +256,18 @@ MODULE atom_type
                 CALL stop_parser("atom_type/atom_init", &
                      "option METHOD needs string argument")
              END IF
+
+          CASE ('MPARA')
+             index = 1
+             DO
+                IF (test_next() /= 'N') EXIT
+                IF (index > 5) &
+                     CALL stop_parser("atom_type/atom_init", &
+                     "option MPARA can only have up to 5 arguments")
+                CALL get_next ( this%mpara(index) ); mpara_set(index) = .TRUE.
+                index = index + 1
+             END DO
+
 
           END SELECT
           CALL read_line()
@@ -248,33 +281,36 @@ MODULE atom_type
        WRITE (6,'(1X,A,T47,I3)') &
             "Option Z read with value ", this%z
        WRITE (6,'(1X,A,10I3)') &
-            "Option NOELEC read with values ", this%nel
+            "Option NOELEC read with values ", nel
+
        WRITE (6,'(1X,A,T42,A8)') &
             "Option MEHTOD read with value ", TRIM(this%method)
        WRITE (6,'(1X,A,5ES10.2)') &
             "Option MPARA read with values  ", this%mpara
+
        WRITE (6,'(1X,A,T40,ES10.3)') &
             "Option PRECI read with value ", this%precision
+
        WRITE (6,'(1X,A,T47,I3)') &
             "Option MAXITER read with value ", this%maxiter
+       WRITE (6,'(1X,A,T45,I5)') &
+            "Option MAXSHOOT read with value ", this%maxshoot
+       WRITE (6,'(1X,A,T46,F4.2)') &
+            "Option DMA read with value ", this%dma
+       WRITE (6,'(1X,A,T45,F5.1)') &
+            "Option NCV read with value ", this%ncv
+       WRITE (6,'(1X,A,T45,F5.1)') &
+            "Option LDDRSV read with value ", this%lddrsv
+
        WRITE (6,'(1X,A,T40,A10)') &
             "Option GRIDTYPE read with value ", TRIM(rgtype)
        WRITE (6,'(1X,A,T46,I4)') &
             "Option GRIDN read with value ", ngp
-       WRITE (6,'(1X,A,T40,ES10.3)') &
+       WRITE (6,'(1X,A,T45,F5.2)') &
             "Option GRIDRMAX read with value ", rmax
-       WRITE (6,'(1X,A,T40,ES10.3)') &
-            "Option GRIDB0 read with value ", b(0)
-       WRITE (6,'(1X,A,T40,ES10.3)') &
-            "Option GRIDB1 read with value ", b(1)
-       WRITE (6,'(1X,A,T40,ES10.3)') &
-            "Option GRIDB2 read with value ", b(2)
-       WRITE (6,'(1X,A,T40,ES10.3)') &
-            "Option GRIDB3 read with value ", b(3)
-       WRITE (6,'(1X,A,T40,ES10.3)') &
-            "Option GRIDB4 read with value ", b(4)
-       WRITE (6,'(1X,A,T40,ES10.3)') &
-            "Option GRIDB5 read with value ", b(5)
+       WRITE (6,'(1X,A,3ES10.3)') &
+            "Option GRIDB read with values ", b(0:2)
+       
        WRITE (6,*)
     END IF
 
@@ -283,7 +319,7 @@ MODULE atom_type
     IF (.NOT. z_set .OR. (this%z < 1)) THEN
        CALL stop_program("atom_type/atom_init", "no or bad value provided for z")
     END IF
-    IF (.NOT. nel_set .OR. SUM(this%nel) < 1) THEN
+    IF (.NOT. nel_set .OR. SUM(nel) < 1) THEN
        CALL stop_program("atom_type/atom_init", &
             "no or bad value provided for the number of electrons")
     END IF
@@ -320,7 +356,8 @@ MODULE atom_type
     ! allocate memory for the electron orbitals
     IF (ASSOCIATED(this%orbitals)) DEALLOCATE (this%orbitals, STAT=err)
     ALLOCATE (this%orbitals(this%rg%n,0:55), STAT=err)
-    IF (err /=0) CALL stop_memory("atom_type/atom_init","atom_info%orbitals",55*this%rg%n)
+    IF (err /=0) CALL &
+         stop_memory("atom_type/atom_init","atom_info%orbitals",55*this%rg%n)
     
     ! further necessary initialisations
 
@@ -334,7 +371,7 @@ MODULE atom_type
        !! nothing to do
        
     CASE ('XA')
-       !! should check if first parameter is set
+       IF (.NOT.mpara_set(1)) this%mpara(1) = 0.6666666666667_dbl
        
        !! the constant factor 3/2 alpha (3/pi)^1/3 
        !! is stored in parameter 2 
@@ -345,10 +382,13 @@ MODULE atom_type
     ! from the read electron numbers compute the electron configuration of the atom
     DO n=1, 10
        DO l=0, n-1
-          this%elconf(n,l) = MIN(2*(2*l+1), this%nel(l) - (n-(l+1))*2*(2*l+1))
-          IF (this%elconf(n,l) < 1) this%elconf(n,l) = 0
+          orbit = (n*(n-1))/2 + l + 1
+          this%elec_conf(orbit) = MIN(2*(2*l+1), nel(l) - (n-(l+1))*2*(2*l+1))
+          IF (this%elec_conf(orbit) < 1) this%elec_conf(orbit) = 0
        END DO
     END DO
+
+    CALL init_functionals( xalpha = this%mpara(1) )
 
   END SUBROUTINE atom_init
 
