@@ -932,7 +932,7 @@ SUBROUTINE initialize_velocities ( simpar, part, mdpar )
         END IF
      END DO
      temp = 2.0_dp * akin / REAL ( simpar % nfree,KIND=dp)
-
+ 
 ! scale velocities to get the correct initial temperature and
      sc = SQRT ( simpar % temp_ext / temp )
      DO i = 1, natoms
