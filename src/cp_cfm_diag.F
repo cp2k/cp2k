@@ -71,7 +71,7 @@ CONTAINS
     REAL(wp), DIMENSION(:), POINTER    :: rwork
     INTEGER, DIMENSION(:), POINTER     :: iwork
     LOGICAL :: failure
-    CHARACTER(len=*), PARAMETER :: routineN='cp_fm_heevd',&
+    CHARACTER(len=*), PARAMETER :: routineN='cp_cfm_heevd',&
          routineP=moduleN//':'//routineN
 
     CALL timeset(routineN,"I","",handle)
@@ -116,7 +116,7 @@ CONTAINS
     eigenvectors%local_data=matrix%local_data
 #endif
 
-    IF (info.NE.0) CALL stop_program("cp_fm_heevd","unable to diagonalize matrix")
+    IF (info.NE.0) CALL stop_program("cp_cfm_heevd","unable to diagonalize matrix")
     DEALLOCATE(work,iwork,rwork)
     CALL timestop(0.0_wp,handle)
 

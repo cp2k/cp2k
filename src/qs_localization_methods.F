@@ -14,31 +14,42 @@
 !!     CJM (04.2003)
 !!
 !!   MODIFICATION HISTORY
+!!     Initial parallellization of jacobi (JVDV 07.2003)
+!!     direct minimization using exponential parametrization (JVDV 09.2003)
 !!
 !!   SOURCE
 !******************************************************************************
 MODULE qs_localization_methods
 ! *****************************************************************************
   USE cp_error_handling,               ONLY: cp_error_type
-  USE cp_fm_basic_linalg,              ONLY: cp_fm_gemm
+  USE cp_fm_basic_linalg,              ONLY: cp_fm_gemm, &
+                                             cp_fm_trace
   USE cp_cfm_types,                    ONLY: cp_cfm_create,&
                                              cp_cfm_release,&
                                              cp_cfm_type, &
                                              cp_cfm_p_type, &
                                              cp_cfm_get_info, &
                                              cp_cfm_set_all, &
-                                             cp_cfm_get_element
+                                             cp_cfm_get_element, &
+                                             cp_cfm_to_cfm
+  USE cp_cfm_basic_linalg,             ONLY: cp_cfm_gemm, &
+                                             cp_cfm_column_scale, &
+                                             cp_cfm_schur_product
+  USE cp_cfm_diag,                     ONLY: cp_cfm_heevd
   USE cp_fm_types,                     ONLY: cp_fm_create,&
                                              cp_fm_get_element,&
                                              cp_fm_get_info,&
                                              cp_fm_release,&
                                              cp_fm_set_all,&
+                                             cp_fm_init_random, &
                                              cp_fm_maxval,&
                                              cp_fm_p_type,&
                                              cp_fm_write, &
                                              cp_fm_type, &
-                                             cp_fm_to_fm
-         
+                                             cp_fm_to_fm, &
+                                             cp_fm_set_element
+  USE cp_fm_basic_linalg,              ONLY: cp_fm_scale_and_add, &
+                                             cp_fm_transpose
   USE kinds,                           ONLY: wp => dp
   USE mathconstants,                   ONLY: pi
   USE qs_environment_types,            ONLY: get_qs_env, qs_environment_type
@@ -65,6 +76,7 @@ CONTAINS
     ENDDO
   END SUBROUTINE initialize_weights 
 ! *****************************************************************************
+! *****************************************************************************
   SUBROUTINE jacobi_rotations ( weights, zij, vectors, sweeps )
     IMPLICIT NONE
     REAL ( wp ), INTENT ( IN ) :: weights ( : )
@@ -79,10 +91,16 @@ CONTAINS
     REAL ( KIND = wp ) :: tolerance, st, ct 
     COMPLEX (KIND = wp ) :: mii ( 3 ), mjj ( 3 ), mij ( 3 )
     REAL ( KIND = wp ) :: theta
-    INTEGER :: istate, jstate, idim, nstate, isos
+    INTEGER :: istate, jstate, idim, nstate, isos, handle
     TYPE ( cp_error_type ) :: error
     TYPE ( cp_fm_type ), POINTER :: matrix_r, matrix_i
     COMPLEX( KIND = wp ) :: dum
+
+    write(6,*) "Start direct mini"
+    CALL direct_mini(weights,zij,vectors,sweeps)
+    write(6,*) "Stop direct mini"
+
+    CALL timeset("wannier_jacobi","I","",handle)
 
     NULLIFY(rmat,c_rmat,c_zij)
     ALLOCATE(c_zij(SIZE(zij,2)))
@@ -132,6 +150,8 @@ CONTAINS
     CALL cp_cfm_release( c_rmat )
     CALL rotate_orbitals ( rmat, vectors ) 
     CALL cp_fm_release ( rmat )
+
+    CALL timestop(0.0_wp,handle)
 
   END SUBROUTINE jacobi_rotations
 ! *****************************************************************************
@@ -294,7 +314,6 @@ CONTAINS
                     REAL ( 4.0_wp * CONJG ( zij ) * ( zjj - zii ), wp )
         END DO
         matrix % local_data ( istate, jstate ) = grad_ij
-!       matrix % local_data ( jstate, istate ) = -grad_ij
       END DO
     END DO
     DEALLOCATE(diag)
@@ -302,4 +321,273 @@ CONTAINS
 !    stop
   END SUBROUTINE grad_at_0
 ! *****************************************************************************
+!
+! use the exponential parametrization as described in to perform a direct mini
+!
+! Gerd Berghold et al. PRB 61 (15), pag. 10040 (2000)
+!
+! none of the input is modified for the time being, just finds the rotations 
+! that minimizes, and throws it away afterwards :-)
+!
+! *****************************************************************************
+  SUBROUTINE direct_mini( weights, zij, vectors, iterations )
+    IMPLICIT NONE
+    REAL ( wp ), INTENT ( IN ) :: weights ( : )
+    TYPE ( cp_fm_p_type ), INTENT ( INOUT ) :: ZIJ ( :, : )
+    TYPE ( cp_fm_type ), POINTER :: vectors
+    INTEGER :: iterations,handle
+
+    TYPE ( cp_fm_type ), POINTER :: matrix_A,matrix_G,matrix_T,matrix_G_search,matrix_G_old
+    TYPE ( cp_cfm_p_type ), POINTER, DIMENSION(:) :: c_zij
+    TYPE ( cp_cfm_type ), POINTER :: cmat_A,cmat_R,cmat_t1,cmat_t2,cmat_U, cmat_B, cmat_M
+    COMPLEX(KIND=wp), DIMENSION(:), POINTER :: evals_exp, diag_z
+    REAL(KIND=wp), DIMENSION(:), POINTER :: evals,fval,fvald
+    INTEGER :: n,idim
+    COMPLEX(KIND=wp), PARAMETER :: czero=(0.0_wp,0.0_wp), cone=(1.0_wp,0.0_wp)
+    TYPE ( cp_error_type ) :: error
+    REAL(wp) :: omega,tol,step_size
+    INTEGER :: irow, icol, nrow_local, ncol_local, i
+    INTEGER, DIMENSION(:), POINTER :: row_indices, col_indices
+    COMPLEX(kind=wp) :: ll,lk,tmp
+
+    REAL(wp) :: normg,normg_cross,normg_old,beta_pr,ds_min,ds
+    REAL(wp) :: a,b,c,x0,x1,val,npos,xa,xb,xc,fa,fb,fc,nom,denom
+    REAL(wp), DIMENSION(5) :: energy,pos,grad
+    INTEGER :: line_search_count
+    LOGICAL  :: new_direction
+
+    NULLIFY(evals,evals_exp,diag_z,fval,fvald,c_zij) 
+    NULLIFY(matrix_A,matrix_G,matrix_T,matrix_G_search,matrix_G_old)
+    NULLIFY(cmat_A,cmat_U,cmat_R,cmat_t1,cmat_t2,cmat_B,cmat_M)
+
+    CALL timeset("direct_mini","I","",handle)
+    n = zij(1,1)%matrix%matrix_struct%nrow_global
+    ALLOCATE(evals(n),evals_exp(n),diag_z(n),fval(n),fvald(n))
+    ALLOCATE(c_zij(SIZE(zij,2)))
+
+    Step_size=1.0E-4
+    Iterations=0
+
+    ! create the three complex matrices Z
+    DO idim=1,SIZE(c_zij)
+       NULLIFY(c_zij(idim)%matrix)
+       CALL cp_cfm_create ( c_zij(idim)%matrix, zij ( 1, 1 ) % matrix % matrix_struct, error=error )
+       c_zij(idim)%matrix% local_data = CMPLX (zij(1,idim) % matrix % local_data, &
+                    zij(2,idim) % matrix % local_data, wp )
+    ENDDO
+
+    CALL cp_fm_create  ( matrix_A, zij ( 1, 1 ) % matrix % matrix_struct, error=error )
+    CALL cp_fm_create  ( matrix_G, zij ( 1, 1 ) % matrix % matrix_struct, error=error )
+    CALL cp_fm_create  ( matrix_T, zij ( 1, 1 ) % matrix % matrix_struct, error=error )
+    CALL cp_fm_create  ( matrix_G_search, zij ( 1, 1 ) % matrix % matrix_struct, error=error )
+    CALL cp_fm_create  ( matrix_G_old, zij ( 1, 1 ) % matrix % matrix_struct, error=error )
+    CALL cp_fm_set_all ( matrix_A, 0.0_wp )
+
+    CALL cp_cfm_create ( cmat_A, zij ( 1, 1 ) % matrix % matrix_struct, error=error )
+    CALL cp_cfm_create ( cmat_U, zij ( 1, 1 ) % matrix % matrix_struct, error=error )
+    CALL cp_cfm_create ( cmat_R, zij ( 1, 1 ) % matrix % matrix_struct, error=error )
+    CALL cp_cfm_create ( cmat_t1, zij ( 1, 1 ) % matrix % matrix_struct, error=error )
+    CALL cp_cfm_create ( cmat_t2, zij ( 1, 1 ) % matrix % matrix_struct, error=error )
+    CALL cp_cfm_create ( cmat_B, zij ( 1, 1 ) % matrix % matrix_struct, error=error )
+    CALL cp_cfm_create ( cmat_M, zij ( 1, 1 ) % matrix % matrix_struct, error=error )
+
+    CALL cp_cfm_get_info ( cmat_B, nrow_local=nrow_local, ncol_local=ncol_local, &
+                                   row_indices=row_indices, col_indices=col_indices )
+
+    CALL cp_fm_set_all(matrix_G_old,0.0_wp)
+    CALL cp_fm_set_all(matrix_G_search,0.0_wp)
+    normg_old=1.0E99_wp
+    ds_min=1.0E-4_wp
+    new_direction=.TRUE.
+
+    DO
+         iterations = iterations + 1
+         ! compute U,R,evals given A
+         cmat_A % local_data = CMPLX ( 0.0_wp , matrix_A % local_data, wp ) ! cmat_A is hermitian, evals are reals
+         CALL cp_cfm_heevd(cmat_A,cmat_R,evals) 
+         evals_exp(:)=exp( (0.0_wp,-1.0_wp) * evals(:) )
+         CALL cp_cfm_to_cfm(cmat_R,cmat_t1)
+         CALL cp_cfm_column_scale(cmat_t1,evals_exp)
+         CALL cp_cfm_gemm('N','C',n,n,n,cone,cmat_t1,cmat_R,czero,cmat_U) 
+         cmat_U%local_data=REAL(cmat_U%local_data) ! enforce numerics, U is a real matrix
+
+         ! compute Omega and M
+         CALL cp_cfm_set_all(cmat_M,czero)
+         omega = 0.0_wp
+         DO idim=1,SIZE(c_zij)
+            CALL cp_cfm_gemm('N','N',n,n,n,cone,c_zij(idim)%matrix,cmat_U,czero,cmat_t1) ! t1=ZU
+            CALL cp_cfm_gemm('C','N',n,n,n,cone,cmat_U,cmat_t1,czero,cmat_t2) ! t2=(U^T)ZU
+            DO i=1,n    
+               CALL cp_cfm_get_element(cmat_t2,i,i,diag_z(i))
+               SELECT CASE (2) ! allows for selection of different spread functionals
+               CASE (1)
+                 fval(i) =-weights(idim)*log(ABS(diag_z(i))**2)
+                 fvald(i)=-weights(idim)/(ABS(diag_z(i))**2)
+               CASE (2) ! corresponds to the jacobi setup
+                 fval(i) =1.0_wp-weights(idim)*abs(diag_z(i))**2
+                 fvald(i)=-weights(idim)
+               END SELECT
+               omega=omega+fval(i)
+            ENDDO
+            DO icol=1,ncol_local
+               DO irow=1,nrow_local
+                  tmp = cmat_t1%local_data(irow,icol)*CONJG(diag_z(col_indices(icol)))
+                  cmat_M%local_data(irow,icol)=cmat_M%local_data(irow,icol) &
+                                              +4.0_wp*fvald(col_indices(icol))*REAL(tmp)
+               ENDDO
+            ENDDO
+         ENDDO
+
+         ! compute B
+         DO icol=1,ncol_local
+          DO irow=1,nrow_local
+             ll=(0.0_wp,-1.0_wp)*evals(row_indices(irow))
+             lk=(0.0_wp,-1.0_wp)*evals(col_indices(icol))
+             IF (ABS(ll-lk).lt.0.5) THEN ! use a series expansion to avoid loss of precision
+                tmp=1.0_wp
+                cmat_B%local_data(irow,icol)=0.0
+                DO i=1,16
+                   cmat_B%local_data(irow,icol)=cmat_B%local_data(irow,icol)+tmp
+                   tmp=tmp*(ll-lk)/(i+1)
+                ENDDO
+                cmat_B%local_data(irow,icol)=cmat_B%local_data(irow,icol)*exp(lk)
+             ELSE
+                cmat_B%local_data(irow,icol)=(exp(lk)-exp(ll))/(lk-ll)
+             ENDIF
+          ENDDO
+         ENDDO
+         ! compute gradient matrix_G
+
+         CALL cp_cfm_gemm('C','N',n,n,n,cone,cmat_M,cmat_R,czero,cmat_t1) ! t1=(M^T)(R^T)
+         CALL cp_cfm_gemm('C','N',n,n,n,cone,cmat_R,cmat_t1,czero,cmat_t2) ! t2=(R)t1
+         CALL cp_cfm_schur_product(cmat_t2,cmat_B,cmat_t1)
+         CALL cp_cfm_gemm('N','C',n,n,n,cone,cmat_t1,cmat_R,czero,cmat_t2) 
+         CALL cp_cfm_gemm('N','N',n,n,n,cone,cmat_R,cmat_t2,czero,cmat_t1) 
+         matrix_G%local_data=REAL(cmat_t1%local_data)
+         CALL cp_fm_transpose(matrix_G,matrix_T)
+         CALL cp_fm_scale_and_add(  -1.0_wp,matrix_G, 1.0_wp,matrix_T)
+         CALL cp_fm_maxval(matrix_G,tol)
+
+         ! from here on, minimizing technology
+         IF (new_direction) THEN
+            ! energy converged up to machine precision ?
+            IF (tol.lt.1.0E-3)  EXIT
+            IF (matrix_A%matrix_struct%para_env%mepos .EQ. 0 ) write(6,*) Iterations,Omega,tol
+
+            IF (.FALSE.) THEN ! do conjugate gradient CG
+                CALL cp_fm_trace(matrix_G,matrix_G_old,normg_cross)
+                normg_cross=normg_cross*0.5_wp ! takes into account the fact that A is antisymmetric
+                CALL cp_fm_trace(matrix_G,matrix_G,normg)
+                normg=normg*0.5_wp
+                beta_pr=(normg-normg_cross)/normg_old
+                beta_pr=MAX(beta_pr,0.0_wp)
+                CALL cp_fm_to_fm(matrix_G,matrix_G_old)
+                normg_old=normg
+                CALL cp_fm_scale_and_add(beta_pr,matrix_G_search,-1.0_wp,matrix_G)
+                CALL cp_fm_trace(matrix_G_search,matrix_G,normg_cross)
+                IF (normg_cross .ge. 0) THEN ! back to SD
+                   beta_pr=0.0_wp
+                   CALL cp_fm_scale_and_add(beta_pr,matrix_G_search,-1.0_wp,matrix_G)
+                ENDIF
+            ELSE ! SD
+                CALL cp_fm_scale_and_add(0.0_wp,matrix_G_search,-1.0_wp,matrix_G)
+            ENDIF
+            ! ds_min=1.0E-4_wp
+            line_search_count=0
+         END IF
+         line_search_count=line_search_count+1
+         energy(line_search_count)=Omega
+
+         ! line search section
+         IF (.FALSE.) THEN ! two point line search
+           SELECT CASE (line_search_count)
+           CASE (1)
+              pos(1)=0.0_wp
+              pos(2)=ds_min
+              CALL cp_fm_trace(matrix_G,matrix_G_search,grad(1)) 
+              grad(1)=grad(1)/2.0_wp
+              new_direction=.false.
+           CASE (2)
+              new_direction=.true.
+              x0=pos(1) ! 0.0_wp
+              c=energy(1)
+              b=grad(1)
+              x1=pos(2)
+              a=(energy(2)-b*x1-c)/(x1**2)
+              if (a.le.0.0_wp) a=1.0E-15_wp
+              npos=-b/(2.0_wp*a)
+              val=a*npos**2+b*npos+c
+              if (val.lt.energy(1) .and. val.le.energy(2)) then
+                 ! we go to a minimum, but ...
+                 ! we take a guard against too large steps
+                 pos(3)=MIN(npos,MAXVAL(pos(1:2))*4.0_wp)
+              else  ! just take an extended step
+                 pos(3)=MAXVAL(pos(1:2))*2.0
+              endif
+           END SELECT 
+         ELSE ! 3 point line search
+              SELECT CASE(line_search_count)
+	      CASE(1)
+                new_direction=.false.
+                pos(1)=0.0_wp
+                pos(2)=ds_min*0.8
+              CASE(2)
+                new_direction=.false.
+                if (energy(2).gt.energy(1)) then
+                   pos(3)=ds_min*0.5
+                else
+                   pos(3)=ds_min*1.4
+                endif
+              CASE(3)
+                new_direction=.true.
+                xa=pos(1)
+                xb=pos(2)
+                xc=pos(3)
+                fa=energy(1)
+                fb=energy(2)
+                fc=energy(3)
+                nom  =(xb-xa)**2*(fb-fc) -  (xb-xc)**2*(fb-fa)
+                denom=(xb-xa)*(fb-fc) -  (xb-xc)*(fb-fa)
+                if (abs(denom) .le. 1.0E-18_wp*MAX(abs(fb-fc),abs(fb-fa))) then
+                    npos = xb
+                else
+                    npos = xb-0.5_wp*nom/denom ! position of the stationary point
+                endif
+                val = (npos-xa)*(npos-xb)*fc/((xc-xa)*(xc-xb))+ &
+                      (npos-xb)*(npos-xc)*fa/((xa-xb)*(xa-xc))+ &
+                      (npos-xc)*(npos-xa)*fb/((xb-xc)*(xb-xa))
+                if (val.lt.fa .and. val.le.fb .and. val.le.fc) then ! OK, we go to a minimum
+                    ! we take a guard against too large steps
+                    pos(4)=MAX(MAXVAL(pos(1:3))*0.01, &
+                                                 MIN(npos,MAXVAL(pos(1:3))*4.0_wp))
+                else  ! just take an extended step
+                    pos(4)=MAXVAL(pos(1:3))*2.0
+                endif
+              END SELECT
+         ENDIF
+         ! now go to the suggested point
+         ds_min=pos(line_search_count+1)
+         ds=pos(line_search_count+1)-pos(line_search_count)
+         CALL cp_fm_scale_and_add(1.0_wp,matrix_A,ds,matrix_G_search)
+    ENDDO 
+
+    CALL cp_fm_release  ( matrix_A)
+    CALL cp_fm_release  ( matrix_G)
+    CALL cp_fm_release  ( matrix_T)
+    CALL cp_fm_release  ( matrix_G_search)
+    CALL cp_fm_release  ( matrix_G_old)
+    CALL cp_cfm_release ( cmat_A)
+    CALL cp_cfm_release ( cmat_U)
+    CALL cp_cfm_release ( cmat_R)
+    CALL cp_cfm_release ( cmat_t1)
+    CALL cp_cfm_release ( cmat_t2)
+    CALL cp_cfm_release ( cmat_B)
+    CALL cp_cfm_release ( cmat_M)
+
+    DEALLOCATE(evals,evals_exp,diag_z,fval,fvald)
+    DEALLOCATE(c_zij)
+
+    CALL timestop(0.0_wp,handle)
+
+  END SUBROUTINE
 END MODULE qs_localization_methods
