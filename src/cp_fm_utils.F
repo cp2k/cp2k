@@ -33,11 +33,8 @@ MODULE cp_fm_utils
   LOGICAL, PARAMETER :: DEBUG_THIS_MODULE=.FALSE.
 
   PRIVATE
-  PUBLIC :: copy_fm_col_to_rep_vec, &
-            copy_rep_vec_to_fm_col, &
-            copy_fm_to_rep_vec, &
-            copy_rep_vec_to_fm, &
-            copy_fm_col_to_fm
+  PUBLIC :: copy_fm_to_rep_vec, &
+            copy_rep_vec_to_fm
 
 CONTAINS
 
@@ -273,37 +270,6 @@ CONTAINS
     END IF
 
   END SUBROUTINE copy_rep_vec_to_fm
-
-! *****************************************************************************
-
-  SUBROUTINE copy_fm_col_to_fm(mat_a, col_a, mat_b)
-    
-    IMPLICIT NONE
-
-    ! arguments
-    TYPE(cp_fm_type), POINTER :: mat_a
-    INTEGER, INTENT(in)                :: col_a
-    TYPE(cp_fm_type), POINTER :: mat_b
-
-    ! locals
-    INTEGER :: a_row_global, stat
-    REAL(dbl), DIMENSION(:), POINTER :: temp_vec
-    CHARACTER(len=*), PARAMETER :: routineN='copy_fm_col_to_fm', &
-                                   routineP=moduleN//'/'//routineN
-    
-
-    CALL cp_fm_get_info(matrix=mat_a, nrow_global=a_row_global)
-
-    ALLOCATE(temp_vec(a_row_global), stat=stat)
-    IF (stat/=0) CALL stop_memory(routineP, 'temp_vec', a_row_global*dp_size)
-
-    CALL copy_fm_col_to_rep_vec(mat_a, col_a, temp_vec)
-    CALL copy_rep_vec_to_fm(temp_vec, mat_b)
-
-    DEALLOCATE(temp_vec, stat=stat)
-    IF (stat/=0) CALL stop_memory(routineP, 'temp_vec')
-
-  END SUBROUTINE copy_fm_col_to_fm
 
 ! *****************************************************************************
 

@@ -23,7 +23,6 @@ MODULE qs_tddfpt_module
                                              cp_fm_release,&
                                              cp_fm_p_type,&
                                              cp_fm_type
-  USE cp_fm_utils,                     ONLY: copy_fm_col_to_fm
   USE dft_types,                       ONLY: read_tddfpt_control
   USE global_types,                    ONLY: global_environment_type
   USE kinds,                           ONLY: dbl

@@ -51,7 +51,6 @@ MODULE qs_ot
                                              cp_fm_cholesky_restore
   USE cp_para_types,                   ONLY: cp_para_env_type, &
                                              cp_blacs_env_type
-  USE qs_blacs,                        ONLY: blacs_make_basis
   USE cp_fm_diag,                      ONLY: cp_fm_syevd, &
                                              cp_fm_syevx
   USE sparse_matrix_types,             ONLY: add_all_real_matrix_blocks,&
