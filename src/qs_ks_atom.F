@@ -46,7 +46,8 @@ MODULE qs_ks_atom
                                              neighbor_list_type,&
                                              neighbor_node_type,&
                                              next,&
-                                             qlist_type
+                                             reduced_3c_list_type
+!                                             qlist_type
   USE qs_oce_types,                    ONLY: oce_matrix_type
   USE qs_p_env_types,                  ONLY: qs_p_env_type
   USE qs_rho_atom_types,               ONLY: get_rho_atom,&
@@ -58,7 +59,7 @@ MODULE qs_ks_atom
   USE termination,                     ONLY: stop_memory
   USE timings,                         ONLY: timeset,&
                                              timestop
-  USE util,                            ONLY: locate
+!  USE util,                            ONLY: locate
 
   IMPLICIT NONE
 
@@ -88,17 +89,15 @@ CONTAINS
 
     CHARACTER(LEN=*), PARAMETER              :: routine = "update_ks_atom"
 
-    INTEGER :: handle, i, ia_kind, iab, iatom, ibc, ikind, ilist, inode, &
+    INTEGER :: handle, i, ia_kind, iab, iatom, ikind, ilist, inode, &
                istat, ja_kind, jatom, jkind, ka_kind, katom, &
-               kkind, kneighbor, knode, last_jatom, last_katom, max_gau, max_nsgf, &
+               kkind, knode, last_jatom, last_katom, max_gau, max_nsgf, &
                maxsoc, natom, nkind, nlist, nnode, nnode_c, &
                nsetc, nsgfa, nsgfb, nsoctot
-    INTEGER, DIMENSION(3)                    :: cell_c
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: atom_of_kind
     LOGICAL                                  ::  my_tddft, &
                                                  new_atom_b, new_atom_c,&
                                                  paw_atom
-    REAL(dp), DIMENSION(3)                   :: rbc
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :)                        :: C_int_h, C_int_s
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: h_block, p_block
@@ -109,20 +108,17 @@ CONTAINS
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
     TYPE(gto_basis_set_type), POINTER        :: orb_basis
     TYPE(neighbor_list_set_p_type), &
-      DIMENSION(:), POINTER                  :: sab_orb, sac_oce, sbc_oce
+      DIMENSION(:), POINTER                  :: sab_orb
     TYPE(neighbor_list_type), POINTER        :: sab_orb_neighbor_list, &
-                                                sab_orb_neighbor_list_local, &
-                                                sbc_oce_neighbor_list
-    TYPE(neighbor_node_type), POINTER        :: sab_orb_neighbor_node, &
-                                                sbc_oce_neighbor_node
+                                                sab_orb_neighbor_list_local
+    TYPE(neighbor_node_type), POINTER        :: sab_orb_neighbor_node
     TYPE(oce_matrix_type), POINTER           :: oce
     TYPE(ecoul_1center_type), DIMENSION(:), & 
                                  POINTER     :: ecoul_1c
-    TYPE(qlist_type), DIMENSION(:, :, :), &
-      POINTER                                :: tmp_neigh
-    TYPE(qlist_type), POINTER                :: sac_oce_neighbor
     TYPE(qs_force_type), DIMENSION(:), &
       POINTER                                :: force
+    TYPE(reduced_3c_list_type), &
+      DIMENSION(:), POINTER                  :: reduced_3c_oce
     TYPE(rho_atom_type), DIMENSION(:), &
       POINTER                                :: rho_atom
     TYPE(rho_atom_type), POINTER             :: rho_at
@@ -131,8 +127,8 @@ CONTAINS
 
     CALL timeset("update_ks_atom","I"," ",handle)
 
-    NULLIFY(atomic_kind_set,force,oce,rho_atom,sab_orb,sac_oce,sbc_oce)
-    NULLIFY(orb_basis,ecoul_1c)
+    NULLIFY(atomic_kind_set,force,oce,rho_atom,sab_orb)
+    NULLIFY(orb_basis,ecoul_1c,reduced_3c_oce)
 
     my_tddft = .FALSE.
     IF (PRESENT(tddft)) my_tddft = tddft
@@ -153,8 +149,6 @@ CONTAINS
            oce=oce, &
            rho_atom_set=rho_atom,&
            sab_orb=sab_orb,&
-           sac_oce=sac_oce,&
-           sbc_oce=sbc_oce,&
            ecoul_1c=ecoul_1c)
 
     IF (my_tddft) THEN
@@ -223,7 +217,8 @@ CONTAINS
 
           DO inode=1,nnode
             CALL get_neighbor_node(neighbor_node=sab_orb_neighbor_node,&
-                                   neighbor=jatom)
+                                   neighbor=jatom,&
+                                   reduced_3c_oce=reduced_3c_oce)
 
             IF (jatom /= last_jatom) THEN
               new_atom_b = .TRUE.
@@ -263,19 +258,6 @@ CONTAINS
 
             DO kkind=1,nkind
 
-              IF(.NOT.ASSOCIATED(oce%voce(kkind,iatom)%neighbor)) CYCLE
-
-              ibc = jkind + nkind*(kkind - 1)
-
-              IF (.NOT.ASSOCIATED(sbc_oce(ibc)%neighbor_list_set)) CYCLE
-              NULLIFY(sbc_oce_neighbor_list)
-
-              sbc_oce_neighbor_list =>&
-                         find_neighbor_list(neighbor_list_set=&
-                         sbc_oce(ibc)%neighbor_list_set,&
-                         atom=jatom)
-              IF(.NOT. ASSOCIATED(sbc_oce_neighbor_list)) CYCLE
-
               atomic_kind => atomic_kind_set(kkind)
 
               CALL get_atomic_kind(atomic_kind=atomic_kind,&
@@ -292,47 +274,18 @@ CONTAINS
               IF (istat /= 0) CALL stop_memory(routine,module_name,__LINE__,&
                               "C_int_h,C_int_s",nsoctot*max_nsgf*dp_size)
 
-              CALL get_neighbor_list(neighbor_list=sbc_oce_neighbor_list,&
-                                     nnode=nnode_c)
               last_katom = 0
-              sbc_oce_neighbor_node => first_node(sbc_oce_neighbor_list)
 
-              knodeloop: DO knode=1,nnode_c
+              nnode_c = reduced_3c_oce(kkind)%nnode
+              DO knode=1,nnode_c
 
-                CALL get_neighbor_node(neighbor_node=sbc_oce_neighbor_node,&
-                          neighbor=katom,&
-                          cell=cell_c,&
-                          r=rbc)
-                tmp_neigh => oce%voce(kkind,iatom)%neighbor
-                DO i=1, 3
-                   IF ( (cell_c(i) < LBOUND(tmp_neigh,i)) .OR. &
-                         (cell_c(i) > UBOUND(tmp_neigh,i))) THEN
-                      sbc_oce_neighbor_node => next(sbc_oce_neighbor_node)
-                      CYCLE knodeloop
-                   END IF
-                END DO
-
-                sac_oce_neighbor => oce%voce(kkind,iatom)%neighbor(cell_c(1),&
-                                                            cell_c(2),&
-                                                            cell_c(3))
-                IF (sac_oce_neighbor%n == 0) THEN
-                    sbc_oce_neighbor_node => next(sbc_oce_neighbor_node)
-                    CYCLE
-                END IF
-
-!               *** Locate operator atom in the sac_ppnl neighbor list ***
-                kneighbor = locate(sac_oce_neighbor%list,katom)
-                IF (kneighbor == 0) THEN
-                    sbc_oce_neighbor_node => next(sbc_oce_neighbor_node)
-                    CYCLE
-                END IF
+                katom = reduced_3c_oce(kkind)%index_atom(knode)
 
                 IF (katom /= last_katom) THEN
                    new_atom_c = .TRUE.
                    last_katom = katom
                 ELSE
                    new_atom_c = .FALSE.
-                   sbc_oce_neighbor_node => next(sbc_oce_neighbor_node)
                    CYCLE
                 END IF
 
@@ -376,8 +329,7 @@ CONTAINS
                   END IF
                 END IF
 
-                sbc_oce_neighbor_node => next(sbc_oce_neighbor_node)
-              ENDDO knodeloop    ! knode
+              END DO
 
               DEALLOCATE (C_int_h,C_int_s,STAT=istat)
               IF (istat /= 0) CALL stop_memory(routine,module_name,__LINE__,&

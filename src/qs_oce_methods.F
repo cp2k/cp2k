@@ -36,15 +36,7 @@ MODULE qs_oce_methods
   USE qs_environment_types,            ONLY: get_qs_env,&
                                              qs_environment_type
   USE qs_neighbor_list_types,          ONLY: block_p_type,&
-                                             find_neighbor_list,&
-                                             first_node,&
-                                             get_neighbor_list,&
-                                             get_neighbor_node,&
-                                             neighbor_list_set_p_type,&
-                                             neighbor_list_type,&
-                                             neighbor_node_type,&
-                                             next,&
-                                             qlist_type
+                                             reduced_3c_list_type
   USE qs_oce_types,                    ONLY: oce_matrix_type
   USE sparse_matrix_types,             ONLY: add_1d_block_node,&
                                              get_block_node
@@ -52,8 +44,6 @@ MODULE qs_oce_methods
                                              stop_program
   USE timings,                         ONLY: timeset,&
                                              timestop
-
-  USE util,                            ONLY: locate
 
   IMPLICIT NONE
 
@@ -377,7 +367,8 @@ CONTAINS
 
 ! *****************************************************************************
 
-  SUBROUTINE set_up_oce(qs_env,oce,ikind,iatom,jkind,jatom,rab,&
+  SUBROUTINE set_up_oce(atomic_kind_set,reduced_3c_oce,oce,&
+                        ikind,iatom,jkind,jatom,rab,&
                         oceh,oces,nder)
 
 !   Purpose: set up the sparse matrix for the coefficients  of one center expansions
@@ -386,7 +377,10 @@ CONTAINS
 
 !   ***************************************************************************
 
-    TYPE(qs_environment_type), POINTER       :: qs_env
+    TYPE(atomic_kind_type), DIMENSION(:), &
+      POINTER                                :: atomic_kind_set
+    TYPE(reduced_3c_list_type), &
+      DIMENSION(:), POINTER                  :: reduced_3c_oce
     TYPE(oce_matrix_type), POINTER           :: oce
     INTEGER, INTENT(IN)                      :: ikind, iatom, jkind, jatom
     REAL(dp), DIMENSION(3), INTENT(IN)       :: rab
@@ -396,106 +390,37 @@ CONTAINS
 
     CHARACTER(LEN=*), PARAMETER              :: routine_name = "set_up_oce"
 
-    INTEGER                                  :: handle, i, ibc, j, katom, kkind, &
-                                                kkneighbor, kneighbor, ndist, nkind, &
+    INTEGER                                  :: handle, i, j, katom, kkind, &
+                                                kneighbor, ndist, nkind, &
                                                 nneighbor
-    INTEGER, DIMENSION(3)                    :: cell_c
     LOGICAL                                  :: add_oce,dist_done,paw_atom
     REAL(KIND=dp)                            :: dac, dbc
     REAL(KIND=dp), DIMENSION(3)              :: rac, rbc, rdist
-    TYPE(atomic_kind_type), DIMENSION(:), &
-      POINTER                                :: atomic_kind_set
     TYPE(atomic_kind_type), POINTER          :: at_a, at_b, atomic_kind
-    TYPE(gto_basis_set_type), POINTER        :: orb_basis_set
-    TYPE(neighbor_list_set_p_type), &
-      DIMENSION(:), POINTER                  :: sac_oce, sbc_oce
-    TYPE(neighbor_list_type), POINTER        :: sbc_oce_neighbor_list
-    TYPE(neighbor_node_type), POINTER        :: sbc_oce_neighbor_node
-    TYPE(qlist_type), DIMENSION(:, :, :), &
-      POINTER                                :: tmp_neigh
-    TYPE(qlist_type), POINTER                :: sac_oce_neighbor
 
 !   ***************************************************************************
 
     CALL timeset(routine_name,"I"," ",handle)
 
-    NULLIFY(atomic_kind_set)
-    NULLIFY(sac_oce)
-    NULLIFY(sbc_oce)
-
-    CALL get_qs_env(qs_env=qs_env,&
-                    atomic_kind_set=atomic_kind_set,&
-                    sac_oce=sac_oce,&
-                    sbc_oce=sbc_oce)
     nkind = SIZE(atomic_kind_set)
 
     DO kkind=1,nkind
 
-       IF(.NOT.ASSOCIATED(oce%voce(kkind,iatom)%neighbor)) CYCLE
-
-       ibc = jkind + nkind*(kkind - 1)
-
-       IF (.NOT.ASSOCIATED(sbc_oce(ibc)%neighbor_list_set)) CYCLE
-       NULLIFY(sbc_oce_neighbor_list)
-
-       sbc_oce_neighbor_list =>&
-             find_neighbor_list(neighbor_list_set=&
-             sbc_oce(ibc)%neighbor_list_set,&
-             atom=jatom)
-       IF (.NOT.ASSOCIATED(sbc_oce_neighbor_list)) CYCLE
-
        atomic_kind => atomic_kind_set(kkind)
 
        CALL get_atomic_kind(atomic_kind=atomic_kind,&
-                            orb_basis_set=orb_basis_set,&
                             paw_atom=paw_atom)
 
        IF(.NOT. paw_atom)  CYCLE
 
-       sbc_oce_neighbor_list =>&
-         find_neighbor_list(neighbor_list_set=&
-                         sbc_oce(ibc)%neighbor_list_set,atom=jatom)
+        nneighbor = reduced_3c_oce(kkind)%nnode
+        DO kneighbor = 1,nneighbor
 
-       CALL get_neighbor_list(neighbor_list=sbc_oce_neighbor_list,&
-                                     nnode=nneighbor)
-
-       sbc_oce_neighbor_node => first_node(sbc_oce_neighbor_list)
-
-       knodeloop: DO kneighbor=1,nneighbor
-          CALL get_neighbor_node(neighbor_node=sbc_oce_neighbor_node,&
-                            neighbor=katom,&
-                            cell=cell_c,&
-                            r=rbc)
-          dbc = SQRT(rbc(1)*rbc(1)+ rbc(2)*rbc(2) + rbc(3)*rbc(3))
-
-          tmp_neigh => oce%voce(kkind,iatom)%neighbor
-          DO i=1, 3
-            IF ( (cell_c(i) < LBOUND(tmp_neigh,i)) .OR. &
-                 (cell_c(i) > UBOUND(tmp_neigh,i))) THEN
-              sbc_oce_neighbor_node => next(sbc_oce_neighbor_node)
-              CYCLE knodeloop
-            END IF
-          END DO
-
-          sac_oce_neighbor => oce%voce(kkind,iatom)%neighbor(cell_c(1),&
-                                                            cell_c(2),&
-                                                            cell_c(3))
-          IF (sac_oce_neighbor%n == 0) THEN
-              sbc_oce_neighbor_node => next(sbc_oce_neighbor_node)
-              CYCLE
-          END IF
-
-!         *** Locate operator atom in the sac_oce neighbor list ***
-
-           kkneighbor = locate(sac_oce_neighbor%list,katom)
-
-           IF (kkneighbor == 0) THEN
-               sbc_oce_neighbor_node => next(sbc_oce_neighbor_node)
-               CYCLE
-           END IF
-
-           rac(:) = sac_oce_neighbor%r(:,kkneighbor)
-           dac = SQRT(rac(1)*rac(1)+ rac(2)*rac(2) + rac(3)*rac(3))
+           katom = reduced_3c_oce(kkind)%index_atom(kneighbor)
+           rac(1:3) = reduced_3c_oce(kkind)%rac(1:3,kneighbor)
+           dac = SQRT(reduced_3c_oce(kkind)%rac2(kneighbor))
+           rbc(1:3) = reduced_3c_oce(kkind)%rbc(1:3,kneighbor)
+           dbc = SQRT(reduced_3c_oce(kkind)%rbc2(kneighbor))
 
 !          *** Check whether this block is already done
            add_oce = .FALSE.
@@ -560,7 +485,6 @@ CONTAINS
 
 10         CONTINUE
            IF(jatom == iatom) THEN
-             sbc_oce_neighbor_node => next(sbc_oce_neighbor_node)
              CYCLE
            ENDIF
 !          *** Check whether this block is already done
@@ -626,9 +550,8 @@ CONTAINS
           oce%couple(katom,jatom)%rdist_old(1:3,ndist) = rbc(1:3)
 
 20         CONTINUE
-           sbc_oce_neighbor_node => next(sbc_oce_neighbor_node)
 
-       ENDDO  knodeloop ! kneighbor
+       ENDDO   ! kneighbor
     ENDDO  ! kkind
  
     CALL timestop(0.0_dp,handle)

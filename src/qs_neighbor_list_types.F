@@ -350,15 +350,15 @@ CONTAINS
       new_neighbor_node%cell(:) = cell(:)
       new_neighbor_node%r(:) = r(:)
       IF (PRESENT(s)) new_neighbor_node%s(:) = s(:)
+
+      NULLIFY(new_neighbor_node%reduced_3c_oce)
       IF (my_l3c_oce) THEN
         CALL create_reduced_3c_list(new_neighbor_node%reduced_3c_oce,my_nkind)
-      ELSE
-          NULLIFY(new_neighbor_node%reduced_3c_oce)
       END IF
+
+      NULLIFY(new_neighbor_node%reduced_3c_rho0)
       IF (my_l3c_rho0) THEN
         CALL create_reduced_3c_list(new_neighbor_node%reduced_3c_rho0,my_nkind)
-      ELSE
-          NULLIFY(new_neighbor_node%reduced_3c_rho0)
       END IF
 
 !     *** Update the pointer to the last neighbor node of the neighbor list ***
@@ -511,8 +511,6 @@ CONTAINS
  
 !   ---------------------------------------------------------------------------
 
-    IF(ASSOCIATED(reduced_3c_list)) &
-           CALL deallocate_reduced_3c_list(reduced_3c_list)
     ALLOCATE(reduced_3c_list(nkind),STAT=istat)
     IF (istat /= 0) THEN
        CALL stop_memory(routine_name,module_name,__LINE__,"reduced_3c_list")

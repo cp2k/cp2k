@@ -54,7 +54,8 @@ MODULE qs_rho_atom_methods
                                              neighbor_list_type,&
                                              neighbor_node_type,&
                                              next,&
-                                             qlist_type
+!                                             qlist_type,&
+                                             reduced_3c_list_type
   USE qs_oce_types,                    ONLY: oce_matrix_type
   USE qs_rho_atom_types,               ONLY: allocate_rho_atom_set,&
                                              rho_atom_coeff,&
@@ -68,7 +69,7 @@ MODULE qs_rho_atom_methods
   USE termination,                     ONLY: stop_memory
   USE timings,                         ONLY: timeset,&
                                              timestop
-  USE util,                            ONLY: get_limit,locate
+  USE util,                            ONLY: get_limit !,locate
   USE whittaker,                       ONLY: whittaker_c0,&
                                              whittaker_ci
 
@@ -394,8 +395,8 @@ MODULE qs_rho_atom_methods
 
     CHARACTER(LEN=*), PARAMETER :: routine_name = "calculate_rho_atom_coeff"
 
-    INTEGER :: handle, i, iab, iatom, ibc, icol, ikind, ilist, inode, irow, ispin, istat, j, &
-      jatom, jkind, katom, kkind, kneighbor, knode, last_jatom, last_katom, max_gau, max_nsgf, &
+    INTEGER :: handle, i, iab, iatom, icol, ikind, ilist, inode, irow, ispin, istat, j, &
+      jatom, jkind, katom, kkind, kneighbor, last_jatom, last_katom, max_gau, max_nsgf, &
       maxsoc, natom, nat_kind, nkind, nlist, nnode, nnode_c, nsetc,  &
       nsgfa, nsgfb, nsoctot, nspins
     INTEGER, DIMENSION(3)                    :: cell_c
@@ -407,23 +408,20 @@ MODULE qs_rho_atom_methods
                                                 C_coeff_ss_a, C_coeff_ss_b
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :, :)                     :: coef_aux_h, coef_aux_s
-    REAL(KIND=dp), DIMENSION(3)              :: rab, rbc
+    REAL(KIND=dp), DIMENSION(3)              :: rab
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(gto_basis_set_type), POINTER        :: orb_basis_set
     TYPE(neighbor_list_set_p_type), &
-      DIMENSION(:), POINTER                  :: sab_orb, sbc_oce
+      DIMENSION(:), POINTER                  :: sab_orb 
     TYPE(neighbor_list_type), POINTER        :: sab_orb_neighbor_list, &
-                                                sab_orb_neighbor_list_local, &
-                                                sbc_oce_neighbor_list
-    TYPE(neighbor_node_type), POINTER        :: sab_orb_neighbor_node, &
-                                                sbc_oce_neighbor_node
+                                                sab_orb_neighbor_list_local
+    TYPE(neighbor_node_type), POINTER        :: sab_orb_neighbor_node!
     TYPE(oce_matrix_type), POINTER           :: oce
-    TYPE(qlist_type), DIMENSION(:, :, :), &
-      POINTER                                :: tmp_neigh
-    TYPE(qlist_type), POINTER                :: sac_oce_neighbor
+    TYPE(reduced_3c_list_type), &
+      DIMENSION(:), POINTER                  :: reduced_3c_oce
     TYPE(rho_atom_coeff), DIMENSION(:), &
       POINTER                                :: p_block_spin
     TYPE(rho_atom_type), DIMENSION(:), &
@@ -437,16 +435,15 @@ MODULE qs_rho_atom_methods
     NULLIFY(atomic_kind_set)
     NULLIFY(oce)
     NULLIFY(sab_orb)
-    NULLIFY(sbc_oce)
     NULLIFY(rho_atom)
     NULLIFY(orb_basis_set)
+    NULLIFY(reduced_3c_oce)
 
 
     CALL get_qs_env(qs_env=qs_env,&
             dft_control=dft_control,&
             atomic_kind_set=atomic_kind_set,&
             oce=oce,sab_orb=sab_orb,&
-            sbc_oce=sbc_oce,&
             rho_atom_set=rho_atom)
 
     IF (PRESENT(tddft)) THEN
@@ -551,7 +548,8 @@ MODULE qs_rho_atom_methods
 
             CALL get_neighbor_node(neighbor_node=sab_orb_neighbor_node,&
                                    neighbor=jatom,&
-                                   r=rab)
+                                   r=rab,&
+                                   reduced_3c_oce=reduced_3c_oce)
 
             IF (jatom /= last_jatom) THEN
               new_atom_b = .TRUE.
@@ -588,19 +586,6 @@ MODULE qs_rho_atom_methods
             ENDIF
             
             DO kkind=1,nkind
-              IF(.NOT.ASSOCIATED(oce%voce(kkind,iatom)%neighbor)) CYCLE
-
-              ibc = jkind + nkind*(kkind - 1)
-
-              IF (.NOT.ASSOCIATED(sbc_oce(ibc)%neighbor_list_set)) CYCLE
-              NULLIFY(sbc_oce_neighbor_list)
-
-              sbc_oce_neighbor_list =>&
-                         find_neighbor_list(neighbor_list_set=&
-                         sbc_oce(ibc)%neighbor_list_set,&
-                         atom=jatom)
-
-              IF (.NOT.ASSOCIATED(sbc_oce_neighbor_list)) CYCLE
 
               atomic_kind => atomic_kind_set(kkind)
 
@@ -615,52 +600,18 @@ MODULE qs_rho_atom_methods
 
               IF(.NOT. paw_atom)  CYCLE
 
-              CALL get_neighbor_list(neighbor_list=sbc_oce_neighbor_list,&
-                                     nnode=nnode_c)
-
               last_katom = 0
-              sbc_oce_neighbor_node => first_node(sbc_oce_neighbor_list)
 
-              knodeloop: DO knode=1,nnode_c
+              nnode_c = reduced_3c_oce(kkind)%nnode
+              DO kneighbor = 1,nnode_c
 
-                CALL get_neighbor_node(neighbor_node=sbc_oce_neighbor_node,&
-                          neighbor=katom,&
-                          cell=cell_c,&
-                          r=rbc)
-                
-                tmp_neigh => oce%voce(kkind,iatom)%neighbor
-                DO i=1, 3
-                   IF ( (cell_c(i) < LBOUND(tmp_neigh,i)) .OR. &
-                         (cell_c(i) > UBOUND(tmp_neigh,i))) THEN
-                      sbc_oce_neighbor_node => next(sbc_oce_neighbor_node)
-                      CYCLE knodeloop
-                   END IF
-                END DO
-
-                sac_oce_neighbor => oce%voce(kkind,iatom)%neighbor(cell_c(1),&
-                                                            cell_c(2),&
-                                                            cell_c(3))
-
-                IF (sac_oce_neighbor%n == 0) THEN
-                    sbc_oce_neighbor_node => next(sbc_oce_neighbor_node)
-                    CYCLE
-                END IF
-
-!               *** Locate operator atom in the sac_oce neighbor list ***
-
-                kneighbor = locate(sac_oce_neighbor%list,katom)
-
-                IF (kneighbor == 0) THEN
-                    sbc_oce_neighbor_node => next(sbc_oce_neighbor_node)
-                    CYCLE
-                END IF
+                katom = reduced_3c_oce(kkind)%index_atom(kneighbor)
 
                 IF (katom /= last_katom) THEN
                    new_atom_c = .TRUE.
                    last_katom = katom
                 ELSE
                    new_atom_c = .FALSE.
-                   sbc_oce_neighbor_node => next(sbc_oce_neighbor_node)
                    CYCLE
                 END IF
 
@@ -787,8 +738,7 @@ MODULE qs_rho_atom_methods
                    END DO
 
                 ENDIF
-                sbc_oce_neighbor_node => next(sbc_oce_neighbor_node)
-              ENDDO  knodeloop ! knode
+              ENDDO  ! kneighbor
             ENDDO  ! kkind
           sab_orb_neighbor_node => next(sab_orb_neighbor_node)
           ENDDO  ! inode

@@ -1172,7 +1172,8 @@ CONTAINS
                                           sbc_oce, oce%voce, reduced_3c_oce)
 
 !            *** Calculate the coefficients of the one center expansions ***
-              CALL set_up_oce(qs_env,oce,ikind,iatom,jkind,jatom,rab,&
+              CALL set_up_oce(atomic_kind_set,reduced_3c_oce,oce,&
+                              ikind,iatom,jkind,jatom,rab,&
                               oceh,oces,nder)
             END IF
 
