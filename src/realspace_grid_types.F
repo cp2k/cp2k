@@ -1,6 +1,6 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000  CP2K developers group                                 !
+!   Copyright (C) 2001 - 2002  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 !!****s* cp2k/realspace_grid_types [1.0] *
 !!
@@ -14,6 +14,7 @@
 !!
 !!   MODIFICATION HISTORY
 !!     JGH (22-May-2002) : New routine rs_grid_zero
+!!     JGH (12-Jun-2002) : Bug fix for mpi groups
 !!
 !!   NOTES
 !!     Basic type for real space grid methods
@@ -33,7 +34,7 @@ MODULE realspace_grid_types
   USE simulation_cell, ONLY : cell_type
   USE termination, ONLY : stop_memory, stop_program
   USE util, ONLY : get_limit
-  USE timings, ONLy : timeset,timestop
+  USE timings, ONLY : timeset, timestop
   
   IMPLICIT NONE
   
@@ -303,7 +304,7 @@ SUBROUTINE rs_grid_setup_1 ( rs, pw_grid, nsmax, iounit )
      rs % group_dim ( 1 ) = n_slices
      rs % group_dim ( 2 ) = pw_grid % para % group_size / n_slices
      IF ( n_slices == 1 ) THEN
-       ! CASE 1 : only one slice: we do not need overlapping reagions and special
+       ! CASE 1 : only one slice: we do not need overlapping regions and special
        !          recombination of the total density
        rs % perd = 1
        rs % border = 0
@@ -312,16 +313,16 @@ SUBROUTINE rs_grid_setup_1 ( rs, pw_grid, nsmax, iounit )
        rs % lb_local = pw_grid % bounds ( 1, : )
        rs % ub_local = pw_grid % bounds ( 2, : )
        rs % parallel = .TRUE.
-       CALL mp_comm_dup( pw_grid % para % group , rs % group )
+       CALL mp_comm_dup( pw_grid % para % rs_group , rs % group )
        rs % group_head = pw_grid % para % group_head
        rs % group_coor ( 1 ) = 0
-       rs % group_coor ( 2 ) = pw_grid % para % my_pos
+       rs % group_coor ( 2 ) = pw_grid % para % rs_mpo
      ELSE
        ! CASE 2 : general case
        ! periodicity is no longer enforced along direction dir
        rs % perd = 1
        rs % perd ( dir ) = 0
-       ! we keep a border on nmin points
+       ! we keep a border of nmin points
        rs % border = nmin
        ! we are going parallel on the real space grid
        rs % parallel = .TRUE.
@@ -513,8 +514,7 @@ SUBROUTINE rs_pw_transfer ( rs, pw, dir )
             END DO
          END DO
 
-         CALL mp_sum_scatter ( rbuffer, rlocal, rcount(0:np-1), &
-                               pw % pw_grid % para % group )
+         CALL mp_sum_scatter ( rbuffer, rlocal, rcount(0:np-1), rs % group )
 
          IF ( pw % in_use == REALDATA3D ) THEN
            CALL dcopy ( nn, rlocal, 1, pw % cr3d, 1 )
@@ -535,7 +535,7 @@ SUBROUTINE rs_pw_transfer ( rs, pw, dir )
          END IF
 
          CALL mp_allgather ( rlocal, rbuffer, rcount(0:np-1), rdispl(0:np-1), &
-                             pw % pw_grid % para % group )
+                             rs % group )
 
          DO ip = 1, np
             ii = rdispl ( ip-1 )
