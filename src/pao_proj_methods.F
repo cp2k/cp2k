@@ -219,8 +219,8 @@ contains
                 call dgemm('N','N',size(u_row,1),size(u_row,2),&
                      size(u_col,2),1.0_wp,&
                      u_row,size(u_row,1),&
-                     block_val,size(block_val,1),&
-                     0.0_wp,t1_m,size(t1_m,1))
+                     t1_m,size(t1_m,1),&
+                     0.0_wp,block_val,size(block_val,1))
              end if
 
           end do blocksDo
@@ -527,8 +527,8 @@ contains
                      error,failure)
              end if
              if (.not.failure) then ! put result in the small basis block
-                do i=1,size(block_val,1)
-                   do j=1,size(block_val,2)
+                do j=1,size(block_val,2)
+                   do i=1,size(block_val,1)
                       block_val(i,j)=t2_m(l_index(i),r_index(j))
                    end do
                 end do

@@ -64,6 +64,7 @@ module pao_obj_function
   use sparse_matrix_types, only: real_matrix_p_type, real_matrix_type,&
        get_matrix_info
   use atomic_kind_types, only: atomic_kind_type, get_atomic_kind_set
+  use cp_array_utils, only: cp_1d_r_output
 !  use pao_utils
   implicit none
   private
@@ -123,22 +124,24 @@ module pao_obj_function
 !!     by Lee and Head-Gordon in Chem. Phys. 107,p 9085, (1997)
 !!
 !!   ATTRIBUTES
-!!     initialized: true if initialized (bug catcher)
-!!     pao_env: a pointer to the actual pao_env. It is assumed that the
-!!           size of the min and full basis, and the pao env do not change
-!!           between sucessive evaluations
-!!     min_hamiltonian_m: qs_blacs matrix with the hamiltonian in the min basis
-!!     min_overlap_m: qs_blacs matrix with the overlap in the min basis
-!!     density_m: qs_blacs matrix with the density matrix
-!!     work_m: qs_blacs matrix in the small basis
-!!     blacs_context: the qs_blacs context
-!!     alpha_mo: molecular orbitals
-!!     scf_work1, scf_work2, scf_work3: qs_blacs matrices in the big basis
-!!     diag_matrix: diagonal sparse matrix
-!!     full_work_m: sparse matrix in the full basis
-!!     min_work_m: sparse matrix in the minimal basis
-!!     d_struct: the distribution structure of the diagonal blocks between
-!!          the processors (d_struct(i) gives on which processor is blocks i)
+!!     - initialized: true if initialized (bug catcher)
+!!     - pao_env: a pointer to the actual pao_env. It is assumed that the
+!!       size of the min and full basis, and the pao env do not change
+!!       between sucessive evaluations
+!!     - min_hamiltonian_m: qs_blacs matrix with the hamiltonian in the 
+!!       min basis
+!!     - min_overlap_m: qs_blacs matrix with the overlap in the min basis
+!!     - density_m: qs_blacs matrix with the density matrix
+!!     - work_m: qs_blacs matrix in the small basis
+!!     - blacs_context: the qs_blacs context
+!!     - alpha_mo: molecular orbitals
+!!     - scf_work1, scf_work2, scf_work3: qs_blacs matrices in the big basis
+!!     - diag_matrix: diagonal sparse matrix
+!!     - full_work_m: sparse matrix in the full basis
+!!     - min_work_m: sparse matrix in the minimal basis
+!!     - d_struct: the distribution structure of the diagonal blocks between
+!!       the processors (d_struct(i) gives on which processor is blocks i)
+!!     - n_eval: the number of function evaluations
 !!
 !!   AUTHOR
 !!     @author Fawzi Mohamed
@@ -151,6 +154,7 @@ module pao_obj_function
 !***************************************************************************
   type pao_gerd_functional_type
      logical :: initialized, should_dealloc_mo
+     integer :: n_eval
      type(qs_environment_type), pointer :: qs_env
      type(blacs_matrix_type), POINTER :: min_blacs_1, min_blacs_2,&
           min_blacs_3
@@ -229,6 +233,7 @@ contains
     failure=.false.
 
     gf_env%qs_env => qs_env
+    gf_env%n_eval = 0
     if (.not.failure) then
 #ifdef __parallel
        call blacs_get(0,0,gf_env%blacs_context) ! the default context
@@ -499,7 +504,7 @@ contains
 
     type(real_matrix_p_type), pointer :: full_h_rmp, full_s_rmp
     type(cp_sparse_matrix_p_type), dimension(:), pointer :: min_d_rmpv
-    type(real_matrix_type), pointer :: d_matrix
+    type(real_matrix_type), pointer :: min_density_m
 
     type(pao_env_type), pointer :: pao_env
 
@@ -517,6 +522,7 @@ contains
     
     CPAssert(cp_valid(gf_env,error=error),cp_failure_level,routineP,error,failure)
     if (.not.failure) then
+       gf_env%n_eval = gf_env%n_eval+1
        ! get actual min_hamiltonian_m and min_overlap_m
        call get_qs_env(gf_env%qs_env,pao_env=pao_env,&
             h=full_h_rmp, s=full_s_rmp, natoms=n_atom)
@@ -531,7 +537,7 @@ contains
        CPPrecondition(size(min_d_rmpv)==1,cp_failure_level,routineP,error,failure)
     end if
     if (.not.failure) then
-       d_matrix => min_d_rmpv(1)%matrix%matrix
+       min_density_m => min_d_rmpv(1)%matrix%matrix
        call pao_g_ang_set(angles,qs_env=gf_env%qs_env,global_env=g_env,&
             angles=x,error=error)
        call pao_g_ang_did_change(angles, qs_env=gf_env%qs_env,&
@@ -572,9 +578,9 @@ contains
             context=gf_env%blacs_context,globenv=g_env)
        
        call copy_blacs_to_sparse_matrix(gf_env%min_blacs_2,&
-            d_matrix,gf_env%blacs_context,g_env)
+            min_density_m,gf_env%blacs_context,g_env)
 
-       call symmetrise_diagonal_blocks(d_matrix)
+       call symmetrise_diagonal_blocks(min_density_m)
 
        ! could be avoided by having two more qs_blacs matrices
        ! (copy from qs_blacs to qs_blacs does not need communication)
@@ -606,7 +612,7 @@ contains
 !!$          call blacs_trace(gf_env%min_blacs_2,gf_env%min_blacs_3,f2,&
 !!$               gf_env%blacs_context,g_env)
 !!$          ! Tr[VP]
-!!$          f3=cp_trace(mo_eigenvalues,d_matrix)
+!!$          f3=cp_trace(mo_eigenvalues,min_density_m)
 !!$          f=f1-f2+f3
        end if
 
@@ -617,7 +623,7 @@ contains
           ! N H B P i^*
           call copy_sparse_to_blacs_matrix(full_h_rmp%matrix,&
                gf_env%scf_work1,gf_env%blacs_context,g_env)
-          call cp_m2f_with_B_M_pi(d_matrix,cp_get_matrix(gf_env%full_work_m),&
+          call cp_m2f_with_B_M_pi(min_density_m,cp_get_matrix(gf_env%full_work_m),&
                glob_angles=angles, qs_env=gf_env%qs_env, global_env=g_env,&
                error=error)
           call copy_sparse_to_blacs_matrix(cp_get_matrix(gf_env%full_work_m),&
@@ -686,6 +692,8 @@ contains
                 end if
              end if
           end do
+          call cp_1d_r_output(cp_error_get_logger(error),"gerdGrad",&
+               routineP,gf_env%n_eval,gradient,error=error)
           call pao_l_ang_dealloc_ref(local_angles,error=error)
           call cp_matrix_b_i_dealloc_ref(block_iterator,error=error)
           call mp_sum(gradient,g_env%group)
@@ -693,7 +701,6 @@ contains
     end if
   end subroutine pao_gerd_f_eval_at
 !***************************************************************************
-
 
 !=========== qs_scf rip off (to avoid circular ref) to do =========
 

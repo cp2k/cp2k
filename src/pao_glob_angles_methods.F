@@ -1067,7 +1067,7 @@ contains
     logical :: h_c,s_c, a_c, full_r
     !call timeset(routineN,'I',moduleN,handle)
     failure=.false.
-    h_c=.true. ; s_c=.true. ; a_c=.true. ; full_r=.false.
+    h_c=.true. ; s_c=.false. ; a_c=.true. ; full_r=.false.
 
     CPPrecondition(glob_angles%initialized,cp_failure_level,routineP,error,failure)
     if (.not. failure) then

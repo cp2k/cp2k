@@ -35,6 +35,7 @@ module cp_sparse_matrix
   use cp_b_matrix_structure
   use sparse_matrix_types
   use message_passing, only: mp_sync
+  use cp_matrix_utils, only: cp_sm_alloc_nonsparse_blocks
   implicit none
   private
 
@@ -50,7 +51,8 @@ module cp_sparse_matrix
   public :: cp_sp_create, cp_sp_dealloc, cp_sp_retain, cp_sp_release,&
        cp_sp_consolidate_matrix, cp_sp_get_local_block,&
        cp_sp_release_block, cp_sp_set_local_block, cp_sp_remove_block,&
-       cp_sp_array_dealloc, cp_sp_get_matrix, cp_sp_array_release
+       cp_sp_array_dealloc, cp_sp_get_matrix, cp_sp_array_release,&
+       cp_sp_alloc_nonsparse_blocks
 
   interface cp_create
      module procedure cp_sp_create
@@ -1038,6 +1040,55 @@ subroutine cp_sp_array_release(array,error)
      nullify(array(i)%matrix)
   end do
 end subroutine cp_sp_array_release
+!***************************************************************************
+
+!!****f* cp_sparse_matrix/cp_sp_alloc_nonsparse_blocks *
+!!
+!!   NAME
+!!     cp_sp_alloc_nonsparse_blocks
+!!
+!!   SYNOPSIS
+!!     Subroutine cp_sp_alloc_nonsparse_blocks(matrix, error)
+!!       Type(cp_sparse_matrix_type), Intent (INOUT), Target:: matrix
+!!       Type(cp_error_type), Optional, Intent (INOUT):: error
+!!     End Subroutine cp_sp_alloc_nonsparse_blocks
+!!
+!!   FUNCTION
+!!     guarantees that all the blocks that are declared nonzero in the
+!!     sparsity of the matrix are allocated
+!!
+!!   NOTES
+!!     -
+!!
+!!   INPUTS
+!!     - matrix: the matrix to be modified
+!!     - error: variable to control error logging, stopping,... 
+!!       see module cp_error_handling 
+!!
+!!   AUTHOR
+!!     Fawzi Mohamed
+!!
+!!   MODIFICATION HISTORY
+!!     5.2002 created [fawzi]
+!!
+!!*** **********************************************************************
+subroutine cp_sp_alloc_nonsparse_blocks(matrix,error)
+  type(cp_sparse_matrix_type), intent(inout), target :: matrix
+  type(cp_error_type), optional, intent(inout) :: error
+  
+  logical :: failure
+  character(len=*), parameter :: routineN='cp_sp_alloc_nonsparse_blocks',&
+        routineP=moduleN//':'//routineN
+  failure=.false.
+  
+  CPPrecondition(matrix%initialized,cp_failure_level,routineP,error,failure)
+  if (.not. failure) then
+     call cp_sm_alloc_nonsparse_blocks(matrix%matrix,&
+          m_struct=matrix%matrix_struct,&
+          global_env=matrix%global_env,&
+          error=error)
+  end if
+end subroutine cp_sp_alloc_nonsparse_blocks
 !***************************************************************************
 
 end module cp_sparse_matrix

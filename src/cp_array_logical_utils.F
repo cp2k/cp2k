@@ -46,14 +46,16 @@ module cp_array_logical_utils
   ! the underlying procedures
   public :: cp_1d_logical_output, cp_2d_logical_output,&
        cp_1d_logical_guarantee_size, cp_logical_write,&
-       cp_1d_logical_write, cp_2d_logical_write
+       cp_1d_logical_write, cp_2d_logical_write,&
+       cp_2d_logical_guarantee_size
 
   interface cp_output
      module procedure cp_1d_logical_output, &
           cp_2d_logical_output
   end interface
   interface cp_guarantee_size
-     module procedure cp_1d_logical_guarantee_size
+     module procedure cp_1d_logical_guarantee_size,&
+          cp_2d_logical_guarantee_size
   end interface
   interface cp_write
      module procedure cp_logical_write, cp_1d_logical_write,&
@@ -470,6 +472,80 @@ end subroutine cp_2d_logical_write
        end if
     end if failureIf
   end subroutine cp_1d_logical_guarantee_size
+!***************************************************************************
+
+!!****f* cp_array_logical_utils/cp_2d_logical_guarantee_size [1.0] *
+!!
+!!   NAME
+!!     cp_2d_logical_guarantee_size
+!!
+!!   SYNOPSIS
+!!     Subroutine cp_2d_logical_guarantee_size(array, n_rows, n_cols, init,&
+!!         error)
+!!       Logical, Dimension(:,:), Pointer:: array
+!!       Integer, Intent (IN):: n_rows, n_cols
+!!       Logical, Intent (IN), Optional:: init
+!!       Type(cp_error_type), Optional, Intent (INOUT):: error
+!!     End Subroutine cp_2d_logical_guarantee_size
+!!
+!!   FUNCTION
+!!     If the size of the array is changes reallocate it.
+!!     Issues a warning when the size changes (but not on allocation
+!!     and deallocation).
+!!     
+!!     The data is NOT preserved (if you want to preserve the data see
+!!     the realloc in the module memory_utilities)
+!!
+!!   NOTES
+!!     this is a different behaviour than the realloc in the module
+!!     memory_utilities. It is quite low level
+!!
+!!   INPUTS
+!!     - array: the array to reallocate if necessary
+!!     - n_rows: the wanted number of rows
+!!     - n_cols: the wanted number of cols
+!!     - init: the initial value of the elements when resized
+!!     - error: variable to control error logging, stopping,... 
+!!       see module cp_error_handling 
+!!
+!!   AUTHOR
+!!     Fawzi Mohamed
+!!
+!!   MODIFICATION HISTORY
+!!     5.2001 first version [fawzi]
+!!
+!!*** **********************************************************************
+  subroutine cp_2d_logical_guarantee_size(array, n_rows, n_cols ,&
+       init, error)
+    logical, dimension(:,:), pointer :: array
+    integer, intent(in) :: n_rows, n_cols
+    logical, intent(in), optional :: init
+    type(cp_error_type), optional, intent(inout) :: error
+
+    logical :: failure
+    integer :: stat
+    character(len=*), parameter :: routineN='cp_2d_logical_guarantee_size',&
+         routineP=moduleN//':'//routineN
+    failure=.false.
+
+    CPPrecondition(n_cols>=0,cp_failure_level,routineP,error,failure)
+    CPPrecondition(n_rows>=0,cp_failure_level,routineP,error,failure)
+    failureIf: if (.not. failure) then
+       if (associated(array)) then
+          if (size(array,1) /= n_rows .or. size(array,2) /= n_cols) then
+             CPErrorMessage(cp_warning_level,routineP,'size has changed',error)
+             deallocate(array, stat=stat)
+             CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+             nullify(array)
+          end if
+       end if
+       if (.not.associated(array)) then
+          allocate(array(n_rows,n_cols), stat=stat)
+          CPPostconditionNoFail(stat==0, cp_failure_level,routineP,error)
+          if (present(init).and..not.failure) array=init
+       end if
+    end if failureIf
+  end subroutine cp_2d_logical_guarantee_size
 !***************************************************************************
 
   ! template def put here so that line numbers in template and derived 

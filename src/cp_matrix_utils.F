@@ -35,10 +35,14 @@ module cp_matrix_utils
   use kinds, only: wp=>dp
   use global_types, only: global_environment_type
   use timings, only: timeset, timestop
-  use sparse_matrix_types
+  use sparse_matrix_types, only: real_matrix_type, get_matrix_info,&
+       first_block_node, add_block_node, get_block_node, &
+       find_block_node, real_block_node_type, next_block_node
   use message_passing, only: mp_sum
   use cp_b_matrix_structure, only: cp_b_matrix_struct_type,&
        cp_b_distribution_type
+  use cp_array_utils, only: cp_2d_i_guarantee_size, &
+       cp_2d_logical_guarantee_size
   !use qs_blacs, only:
   implicit none
   private
@@ -62,7 +66,7 @@ module cp_matrix_utils
        cp_matrix_b_i_dealloc_ref, cp_matrix_b_i_get, &
        cp_matrix_b_i_next_block, cp_matrix_b_i_valid, &
        cp_sm_is_block_diagonal, cp_sm_init_diagonal_blocks,&
-       cp_sm_set_dist_sparsity_from_sm
+       cp_sm_set_dist_sparsity_from_sm,cp_sm_alloc_nonsparse_blocks
 
   ! return the trace of the given matrices
   interface cp_trace
@@ -521,10 +525,17 @@ contains
 !!     cp_matrix_b_i_next_block
 !!
 !!   SYNOPSIS
-!!     Function cp_matrix_b_i_next_block(block_iterator, error) Result(res)
-!!       Logical:: res
+!!     Function cp_matrix_b_i_next_block(block_iterator, block_row,&
+!!         block_col, block_val, finished, matrix, block_node, error)&
+!!         Result(res)
 !!       Type(cp_matrix_block_iterator), Intent (INOUT):: block_iterator
+!!       Integer, Optional, Intent (OUT):: block_row, block_col
+!!       Real(Kind=wp), Dimension(:,:), Pointer, Optional:: block_val
+!!       Logical, Optional, Intent (OUT):: finished
+!!       Type(real_matrix_type), Optional, Pointer:: matrix
+!!       Type(real_block_node_type), Optional, Pointer:: block_node
 !!       Type(cp_error_type), Optional, Intent (INOUT):: error
+!!       Logical:: res
 !!     End Function cp_matrix_b_i_next_block
 !!
 !!   FUNCTION
@@ -535,9 +546,12 @@ contains
 !!     -
 !!
 !!   INPUTS
-!!     block_iterator: the block iterator that you want to move
-!!     error: variable to control error logging, stopping,... 
-!!            see module cp_error_handling 
+!!     - block_iterator: the block iterator that you want to move
+!!     - error: variable to control error logging, stopping,... 
+!!       see module cp_error_handling 
+!!
+!!     the other arguments are the same as the get function, and
+!!     are valid only if the result is true
 !!
 !!   AUTHOR
 !!     @author Fawzi Mohamed
@@ -547,10 +561,16 @@ contains
 !!     none
 !!
 !!*** **********************************************************************
-  function cp_matrix_b_i_next_block(block_iterator, error) result(res)
-    logical :: res
+  function cp_matrix_b_i_next_block(block_iterator, block_row, block_col,&
+       block_val, finished, matrix, block_node, error)result(res)
     type(cp_matrix_block_iterator), intent(inout) :: block_iterator
+    integer, optional, intent(out) :: block_row, block_col
+    real(kind=wp), dimension(:,:), pointer, optional :: block_val
+    logical, optional, intent(out) :: finished
+    type(real_matrix_type), optional, pointer :: matrix
+    type(real_block_node_type), optional, pointer :: block_node
     type(cp_error_type), optional, intent(inout) :: error
+    logical :: res
 
     logical :: failure
     character(len=*), parameter :: routineP='cp_matrix_utils:cp_matrix_b_i_next_block'
@@ -583,6 +603,10 @@ contains
              block_iterator%block_row=-1
           else
              res=.true.
+             call cp_matrix_b_i_get(block_iterator, block_row=block_row,&
+                  block_col=block_col, block_val=block_val,&
+                  finished=finished, matrix=matrix, block_node=block_node,&
+                  error=error)
              return
           end if
        end if
@@ -1101,16 +1125,151 @@ subroutine cp_sm_set_dist_sparsity_from_sm(m_struct, global_env,&
   logical :: failure
   character(len=*), parameter :: routineN='cp_sm_set_dist_sparsity_from_sm',&
         routineP=moduleN//':'//routineN
+  integer, dimension(:,:), pointer :: b_owner
+  integer :: nblock_cols, nblock_rows, block_row,block_col,i,j
+  type(cp_matrix_block_iterator) :: b_iterator
+  type(real_block_node_type), pointer :: block_node
   failure=.false.
   
-#ifdef __parallel
-  ! to do
-  CPAssert(.false.,cp_failure_level,routineP,error,failure)
-#else
-  m_struct%distribution%block_owner = global_env%source
-  if (associated(m_struct%sparsity)) m_struct%sparsity=.true.
-#endif
+  CPPrecondition(associated(sample_matrix),cp_failure_level,routineP,error,failure)
+  CPPrecondition(m_struct%initialized,cp_failure_level,routineP,error,failure)
+  if (.not.failure) then
+     call get_matrix_info(sample_matrix,nblock_row=nblock_rows, &
+          nblock_col=nblock_cols)
+     call cp_2d_i_guarantee_size(m_struct%distribution%block_owner,&
+          n_rows=nblock_rows, n_cols=nblock_cols, error=error)
+     call cp_2d_logical_guarantee_size(m_struct%sparsity,&
+          n_rows=nblock_rows, n_cols=nblock_cols, error=error)
+     b_owner => m_struct%distribution%block_owner
+     b_owner=0
+     m_struct%sparsity=.true.
+     call cp_matrix_b_i_init(b_iterator, matrix=sample_matrix, error=error)
+     do
+        if (.not.cp_matrix_b_i_next_block(b_iterator,block_row=block_row, &
+             block_col=block_col,error=error)) exit
+        b_owner(block_row,block_col)=global_env%mepos+1
+     end do
+     call cp_matrix_b_i_dealloc_ref(b_iterator,error=error)
+     call mp_sum(b_owner,global_env%group)
+     do j=1,size(b_owner,2)
+      do i=1,size(b_owner,1)
+        if (b_owner(i,j)==0) then
+          b_owner(i,j)= mod(j,global_env%num_pe)
+          m_struct%sparsity(i,j)=.false.
+        else if (b_owner(i,j)==global_env%mepos+1) then
+          b_owner(i,j)=global_env%mepos
+          if (cp_debug .and. debug_this_module) then
+            call get_block_node(sample_matrix,block_row=i,&
+                block_col=j,block_node=block_node)
+            CPPostcondition(associated(block_node),cp_failure_level,routineP,error,failure)
+          end if
+        else
+          b_owner(i,j)=b_owner(i,j)-1
+          CPPostcondition(b_owner(i,j)<global_env%num_pe,cp_failure_level,routineP,error,failure)
+        end if
+      end do
+     end do
+  end if
 end subroutine cp_sm_set_dist_sparsity_from_sm
+!***************************************************************************
+
+!!****f* cp_matrix_utils/cp_sm_alloc_nonsparse_blocks [1.0] *
+!!
+!!   NAME
+!!     cp_sm_init_nonsparse_blocks
+!!
+!!   SYNOPSIS
+!!     Subroutine cp_sm_set_dist_sparsity_from_sm(m_struct, global_env,&
+!!         sample_matrix, error)
+!!       Type(cp_b_matrix_struct_type), Intent (INOUT):: m_struct
+!!       Type(global_environment_type), Intent (IN), Target:: global_env
+!!       Type(real_matrix_type), Pointer:: sample_matrix
+!!       Type(cp_error_type), Optional, Intent (INOUT):: error
+!!     End Subroutine cp_sm_set_dist_sparsity_from_sm
+!!
+!!   FUNCTION
+!!     Allocate the blocks that are not in the sparsity structure
+!!
+!!   NOTES
+!!     -
+!!
+!!   INPUTS
+!!     - m_struct: the matrix structure to be initialized
+!!     - global_env: the global environment (for mpi)
+!!     - sample_matrix: the matrix you get the info from
+!!     - error: variable to control error logging, stopping,... 
+!!       see module cp_error_handling 
+!!
+!!   AUTHOR
+!!     Fawzi Mohamed
+!!
+!!   MODIFICATION HISTORY
+!!     5.2002 created [fawzi]
+!!
+!!*** **********************************************************************
+subroutine cp_sm_alloc_nonsparse_blocks(matrix, m_struct, global_env,&
+     error)
+  type(cp_b_matrix_struct_type), intent(inout) :: m_struct
+  type(global_environment_type), intent(in), target :: global_env
+  type(real_matrix_type), pointer :: matrix
+  type(cp_error_type), optional, intent(inout) :: error
+  
+  logical :: failure
+  character(len=*), parameter :: routineN='cp_sm_alloc_nonsparse_blocks',&
+        routineP=moduleN//':'//routineN
+  logical, dimension(:,:), pointer :: sparsity
+  integer :: nblock_rows,nblock_cols,i,j
+  integer, dimension(:,:), pointer :: b_owner
+  real(kind=wp), dimension(:,:), pointer :: block_val
+  failure=.false.
+  
+  CPPrecondition(associated(matrix),cp_failure_level,routineP,error,failure)
+  CPPrecondition(m_struct%initialized,cp_failure_level,routineP,error,failure)
+  if (.not.failure)then
+     CPPrecondition(associated(m_struct%distribution),cp_failure_level,routineP,error,failure)
+     CPPrecondition(m_struct%distribution%initialized,cp_failure_level,routineP,error,failure)
+  end if
+  if (.not.failure) then
+     sparsity => m_struct%sparsity
+     b_owner => m_struct%distribution%block_owner
+     call get_matrix_info(matrix,nblock_row=nblock_rows, &
+          nblock_col=nblock_cols)
+     if (.not.associated(sparsity)) then
+        call cp_assert(.false.,cp_warning_level,fromWhere=routineP,&
+             error_nr=cp_postcondition_failed,&
+             message="no sparsity, allocating a full matrix "//&
+             CPSourceFileRef,&
+             error=error)
+        do i=1,nblock_rows
+           do j=1,nblock_cols
+              if (.not.associated(find_block_node(matrix,&
+                   block_row=i,block_col=j))) then
+                 nullify(block_val)
+                 call add_block_node(matrix,block_row=i,&
+                      block_col=j,block=block_val)
+                 block_val=0.0_wp
+              end if
+           end do
+        end do
+        return
+     end if
+  end if
+
+  if (.not.failure) then
+     do i=1,nblock_rows
+        do j=1,nblock_cols
+           if (sparsity(i,j).and.b_owner(i,j)==global_env%mepos.and.&
+                .not.associated(find_block_node(matrix,&
+                block_row=i,block_col=j))) then
+              nullify(block_val)
+              call add_block_node(matrix,block_row=i,&
+                   block_col=j,block=block_val)
+              block_val=0.0_wp
+           end if
+        end do
+     end do
+  end if
+end subroutine cp_sm_alloc_nonsparse_blocks
 !***************************************************************************
 
 end module cp_matrix_utils

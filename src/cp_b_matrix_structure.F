@@ -405,13 +405,13 @@ contains
           d_struct%ref_count=-1
           if (associated(d_struct%block_owner)) then
              deallocate(d_struct%block_owner,stat=stat)
-             CPPostcondition(stat==0,cp_warning_level,routineP,error,failure)
+             CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
           end if
           nullify(d_struct%global_env)
           d_struct%initialized=.false.
        end if
        deallocate(d_struct,stat=stat)
-       CPPostcondition(stat==0,cp_warning_level,routineP,error,failure)
+       CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
     end if
   end subroutine cp_dstruct_dealloc
   !***************************************************************************

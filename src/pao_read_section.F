@@ -77,12 +77,12 @@ contains
 !!     -
 !!
 !!   INPUTS
-!!     pao_env: the environement to be initialized
-!!     global_env: the global environement
-!!     start_section: the string that starts the section
-!!     stop_section: the string that stops the section
-!!     error: variable to control error logging, stopping,... 
-!!            see module cp_error_handling 
+!!     - qs_env: the qs_environement that contains the pao environement
+!!       to be initialized
+!!     - global_env: the global environement
+!!     - section_label: the name of the section (defaults to "PAO")
+!!     - error: variable to control error logging, stopping,... 
+!!       see module cp_error_handling 
 !!
 !!   AUTHOR
 !!     Fawzi Mohamed
@@ -213,8 +213,9 @@ contains
 !!     -
 !!
 !!   INPUTS
-!!     error: variable to control error logging, stopping,... 
-!!            see module cp_error_handling 
+!!     - global_env: the global environement
+!!     - error: variable to control error logging, stopping,... 
+!!       see module cp_error_handling 
 !!
 !!   AUTHOR
 !!     Fawzi Mohamed

@@ -269,6 +269,7 @@ subroutine pao_qs_env_did_change(qs_env,global_env,&
   type(cp_b_dims_type), pointer :: min_dims, full_dims
   type(cp_b_matrix_struct_type), pointer :: old_min_struct, old_full_struct
   failure=.false.
+  s_c=.false.; full_r=.false.
   
   call get_qs_env(qs_env,pao_env=pao_env)
   CPPrecondition(associated(pao_env),cp_failure_level,routineP,error,failure)

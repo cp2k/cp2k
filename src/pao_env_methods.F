@@ -18,11 +18,10 @@
 !!     dependencies in the types
 !!
 !!   AUTHOR
-!!     @author Fawzi Mohamed
-!!     @version 2.2002
+!!     Fawzi Mohamed
 !!
 !!   MODIFICATION HISTORY
-!!     none
+!!     02.2002 created [fawzi]
 !!
 !!   SOURCE
 !*****************************************************************************
@@ -126,24 +125,23 @@ contains
 !!     every environement HAS to be initialized with this routine before 
 !!     using.
 !!     Unless said all arguments are COPIED if nedeed, not shared.
-!!     global_env, is SHARED.
 !!
 !!   INPUTS
-!!     pao_env: the environement that has to be initialized
-!!     projection: the projection, if given, the projection subarrays 
-!!          are shared
-!!     error: variable to control error logging, stopping,... 
-!!            see module cp_error_handling 
-!!
-!!     the other arguments are actually a shortcut not to call
-!!     pao_env_set, for their description see pao_env_set.
+!!     - pao_env: the environement that has to be initialized
+!!     - qs_env: the quickstep environement that contains this pao_env
+!!     - global_env: the global environement
+!!     - wanted_subspace_pos_precision: the wanted precision to find 
+!!       the subspace
+!!     - wanted_in_subspace_precision: the wanted precision in the subspace
+!!     - error: variable to control error logging, stopping,... 
+!!       see module cp_error_handling 
 !!
 !!   AUTHOR
-!!     @author Fawzi Mohamed
-!!     @version 12.2001
+!!     Fawzi Mohamed
 !!
 !!   MODIFICATION HISTORY
-!!     none
+!!     12.2001 created [fawzi]
+!!     05.2002 updated doc [fawzi]
 !!
 !!*** **********************************************************************
   subroutine pao_env_init(pao_env, qs_env, global_env,&
@@ -305,8 +303,10 @@ contains
 !!     -
 !!
 !!   INPUTS
-!!     pao_env: the environement to be deallocated
-!!     error: variable to control error logging, stopping,... 
+!!     - pao_env: the environement to be deallocated
+!!     - qs_env: the quickstep environement that contains this pao_env
+!!     - global_env: the global environement
+!!     - error: variable to control error logging, stopping,... 
 !!            see module cp_error_handling 
 !!
 !!   AUTHOR
@@ -376,11 +376,13 @@ contains
 !!     this behaviour
 !!
 !!   INPUTS
-!!     qs_env: the environement to be tested
-!!     test_pos_att: if it is false does not test the validity of the
-!!          actual angles and unitary transformation. defaults to true
-!!     error: variable to control error logging, stopping,... 
-!!            see module cp_error_handling 
+!!     - pao_env: the environement to be tested
+!!     - qs_env: the quickstep environement that contains this pao_env
+!!     - global_env: the global environement
+!!     - test_pos_att: if it is false does not test the validity of the
+!!       actual angles and unitary transformation. defaults to true
+!!     - error: variable to control error logging, stopping,... 
+!!       see module cp_error_handling 
 !!
 !!   AUTHOR
 !!     @author Fawzi Mohamed
@@ -534,12 +536,9 @@ contains
 !!     arguments, unless otherwise stated are always copied
 !!
 !!   INPUTS
-!!     pao_env: the environement that has to be initialized
-!!     global_env: the global environement (for the future), optional,
-!!                 it is SHARED
-!!     n_atoms: the number of atoms (used to initialize some structures)
-!!              optional, it is inferred from nr_min_bas or nr_full_bas
-!!              they are present
+!!     - pao_env: the environement that has to be initialized
+!!     - qs_env: the quickstep environement where the pao_env lives
+!!     - global_env: the global environement
 !!     min_density_m: the density in the minimal basis (SHARED)
 !!     error: variable to control error logging, stopping,... 
 !!            see module cp_error_handling 

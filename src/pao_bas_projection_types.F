@@ -92,11 +92,11 @@ module pao_bas_projection_types
 !!     -
 !!
 !!   ATTRIBUTES
-!!     initialized: true if initialized (bug catcher)
-!!     proj_indexes: the local indexes of the full basis that are kept
-!!            by the projection
-!!     non_proj_indexes: the local indexes of the full basis that are
-!!            not in the min_bas (i.e. the indexes of the excluded basis)
+!!     - initialized: true if initialized (bug catcher)
+!!     - proj_indexes: the local indexes of the full basis that are kept
+!!       by the projection
+!!     - non_proj_indexes: the local indexes of the full basis that are
+!!       not in the min_bas (i.e. the indexes of the excluded basis)
 !!
 !!   AUTHOR
 !!     @author Fawzi Mohamed
@@ -285,12 +285,12 @@ end subroutine cp_proj_dealloc
 !!     -
 !!
 !!   INPUTS
-!!     proj: the projection to be initialized
-!!     proj_indexes: the indexes of the full basis that are kept
-!!     size_full_bas: the size of the full basis
-!!     non_proj_indexes: the index of the excluded basis
-!!     error: variable to control error logging, stopping,... 
-!!            see module cp_error_handling 
+!!     - proj: the projection to be initialized
+!!     - proj_indexes: the indexes of the full basis that are kept
+!!     - size_full_bas: the size of the full basis
+!!     - non_proj_indexes: the index of the excluded basis
+!!     - error: variable to control error logging, stopping,... 
+!!       see module cp_error_handling 
 !!
 !!   AUTHOR
 !!     @author Fawzi Mohamed
@@ -365,12 +365,12 @@ end subroutine cp_proj_dealloc
 !!     -
 !!
 !!   INPUTS
-!!     proj: the projection to be initialized
-!!     proj_indexes: the indexes of the full basis that are kept
-!!     size_full_bas: the size of the full basis
-!!     non_proj_indexes: the index of the excluded basis
-!!     error: variable to control error logging, stopping,... 
-!!            see module cp_error_handling 
+!!     - proj: the projection to be initialized
+!!     - proj_indexes: the indexes of the full basis that are kept
+!!     - size_full_bas: the size of the full basis
+!!     - non_proj_indexes: the index of the excluded basis
+!!     - error: variable to control error logging, stopping,... 
+!!       see module cp_error_handling 
 !!
 !!   AUTHOR
 !!     @author Fawzi Mohamed
@@ -452,9 +452,9 @@ end subroutine cp_proj_dealloc
 !!     -
 !!
 !!   INPUTS
-!!     proj: the projection to be deallocated
-!!     error: variable to control error logging, stopping,... 
-!!            see module cp_error_handling 
+!!     - proj: the projection to be deallocated
+!!     - error: variable to control error logging, stopping,... 
+!!       see module cp_error_handling 
 !!
 !!   AUTHOR
 !!     @author Fawzi Mohamed
@@ -504,9 +504,9 @@ end subroutine cp_proj_dealloc
 !!     -
 !!
 !!   INPUTS
-!!     proj: the projection to test
-!!     error: variable to control error logging, stopping,... 
-!!            see module cp_error_handling 
+!!     - proj: the projection to test
+!!     - error: variable to control error logging, stopping,... 
+!!       see module cp_error_handling 
 !!
 !!   AUTHOR
 !!     @author Fawzi Mohamed
@@ -556,16 +556,16 @@ end subroutine cp_proj_dealloc
 !!     -
 !!
 !!   INPUTS
-!!     proj: the projection object
-!!     size_min_bas: the size of the minimal basis
-!!     size_full_bas: the size of the full basis
-!!     size_excl_bas: the size of the excluded basis
-!!     proj_indexes: the local indexes of the full basis that are kept
-!!            by the projection
-!!     non_proj_indexes: the local indexes of the full basis that are
-!!            not in the min_bas (i.e. the indexes of the excluded basis)
-!!     error: variable to control error logging, stopping,... 
-!!            see module cp_error_handling 
+!!     - proj: the projection object
+!!     - size_min_bas: the size of the minimal basis
+!!     - size_full_bas: the size of the full basis
+!!     - size_excl_bas: the size of the excluded basis
+!!     - proj_indexes: the local indexes of the full basis that are kept
+!!       by the projection
+!!     - non_proj_indexes: the local indexes of the full basis that are
+!!       not in the min_bas (i.e. the indexes of the excluded basis)
+!!     - error: variable to control error logging, stopping,... 
+!!       see module cp_error_handling 
 !!
 !!   AUTHOR
 !!     @author Fawzi Mohamed
@@ -620,9 +620,9 @@ end subroutine cp_proj_dealloc
 !!     -
 !!
 !!   INPUTS
-!!     proj: the projection to get the info from
-!!     error: variable to control error logging, stopping,... 
-!!            see module cp_error_handling 
+!!     - proj: the projection to get the info from
+!!     - error: variable to control error logging, stopping,... 
+!!       see module cp_error_handling 
 !!
 !!   AUTHOR
 !!     @author Fawzi Mohamed
@@ -672,9 +672,9 @@ end subroutine cp_proj_dealloc
 !!     -
 !!
 !!   INPUTS
-!!     proj: the projection to get the info from
-!!     error: variable to control error logging, stopping,... 
-!!            see module cp_error_handling 
+!!     - proj: the projection to get the info from
+!!     - error: variable to control error logging, stopping,... 
+!!       see module cp_error_handling 
 !!
 !!   AUTHOR
 !!     @author Fawzi Mohamed
@@ -724,10 +724,10 @@ end subroutine cp_proj_dealloc
 !!     -
 !!
 !!   INPUTS
-!!     proj: the projection to output
-!!     unit_nr: the unit number to write to
-!!     error: variable to control error logging, stopping,... 
-!!            see module cp_error_handling 
+!!     - proj: the projection to output
+!!     - unit_nr: the unit number to write to
+!!     - error: variable to control error logging, stopping,... 
+!!       see module cp_error_handling 
 !!
 !!   AUTHOR
 !!     Fawzi Mohamed
