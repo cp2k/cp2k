@@ -244,7 +244,7 @@ CONTAINS
          routineP=moduleN//':'//routineN
     TYPE(cp_logger_type), POINTER :: logger
 
-    CALL timeset(routineN//','//moduleN,'I',"",handle)
+    CALL timeset(routineN,'I',"",handle)
 
     failure=.FALSE.
 
@@ -262,6 +262,7 @@ CONTAINS
        IF (PRESENT(m)) optimizer%m=m
        optimizer%master= 0
        optimizer%para_env => para_env
+       CALL cp_para_env_retain(para_env)
        optimizer%obj_funct => obj_funct
        CALL [type1_retain](obj_funct, error=error)
        optimizer%max_f_per_iter=20
@@ -390,7 +391,7 @@ SUBROUTINE cp_opt_[nametype1]_release(optimizer,error)
   CHARACTER(len=*), PARAMETER :: routineN='cp_opt_[nametype1]_release',&
        routineP=moduleN//':'//routineN
 
-  call timeset(routineN//','//moduleN,'I',"",handle)
+  call timeset(routineN,'I',"",handle)
   failure=.FALSE.
 
   IF (associated(optimizer)) THEN
@@ -499,7 +500,7 @@ END SUBROUTINE cp_opt_[nametype1]_release
          routineP=moduleN//':'//routineN
     failure=.FALSE.
 
-    !  call timeset(routineN//','//moduleN,'I',"",handle)
+    !  call timeset(routineN,'I',"",handle)
     CPPrecondition(ASSOCIATED(optimizer),cp_failure_level,routineP,error,failure)
     CPPrecondition(optimizer%ref_count>0,cp_failure_level,routineP,error,failure)
     IF (.NOT. failure) THEN
@@ -589,7 +590,7 @@ END SUBROUTINE cp_opt_[nametype1]_release
     CHARACTER(len=*), PARAMETER :: routineN='cp_opt_[nametype1]_step',&
          routineP=moduleN//':'//routineN
 
-    CALL timeset(routineN//','//moduleN,'I',"",handle)
+    CALL timeset(routineN,'I',"",handle)
 
     failure=.FALSE.
     justEntred=.TRUE.
@@ -736,10 +737,7 @@ END SUBROUTINE cp_opt_[nametype1]_release
        END DO
        CALL mp_bcast(optimizer%x,optimizer%master,&
             optimizer%para_env%group)
-       CALL cp_opt_[nametype1]_bcast_res(optimizer,&
-            n_iter=optimizer%n_iter,&
-            f=optimizer%f, last_f=optimizer%last_f,&
-            projected_gradient=optimizer%projected_gradient)
+       CALL cp_opt_[nametype1]_bcast_res(optimizer)
     END IF
     IF (PRESENT(f)) f=optimizer%f
     IF (PRESENT(last_f)) last_f=optimizer%last_f
@@ -793,7 +791,7 @@ END SUBROUTINE cp_opt_[nametype1]_release
 
     failure=.FALSE.
 
-    !  call timeset(routineN//','//moduleN,'I',"",handle)
+    !  call timeset(routineN,'I',"",handle)
     CPPrecondition(associated(optimizer),cp_failure_level,routineP,error,failure)
     CPPrecondition(optimizer%ref_count>0,cp_failure_level,routineP,error,failure)
     IF (.NOT. failure) THEN
@@ -803,11 +801,10 @@ END SUBROUTINE cp_opt_[nametype1]_release
        END IF
        CALL mp_bcast(results,optimizer%master, &
             optimizer%para_env%group)
-       IF (PRESENT(n_iter)) n_iter= NINT(results(1))
-       IF (PRESENT(f)) f=results(2)
-       IF (PRESENT(last_f)) last_f=results(3)
-       IF (PRESENT(projected_gradient)) &
-            projected_gradient=results(4)
+       optimizer%n_iter= NINT(results(1))
+       optimizer%f=results(2)
+       optimizer%last_f=results(3)
+       optimizer%projected_gradient=results(4)
     END IF
     !  call timestop(0.0_dp,handle)
   END SUBROUTINE cp_opt_[nametype1]_bcast_res
