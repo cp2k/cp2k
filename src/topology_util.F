@@ -2411,7 +2411,7 @@ SUBROUTINE topology_connectivity_pack(molecule_kind_set,molecule_set,&
       CALL get_molecule(molecule=molecule,first_atom=first,last_atom=last)
       IF(ASSOCIATED(conn_info%bond_a)) nbond = SIZE(conn_info%bond_a)
       IF(ASSOCIATED(conn_info%impr_a)) nimpr = SIZE(conn_info%impr_a)
-      ALLOCATE(checkme(nphi),STAT=istat)
+      ALLOCATE(checkme(nimpr),STAT=istat)
       IF(istat/=0) CALL stop_memory('connectivity_pack','checkme',nimpr)
       checkme(:)=0
       DO j=1,nimpr
