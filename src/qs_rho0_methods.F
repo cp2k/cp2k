@@ -542,7 +542,6 @@ MODULE qs_rho0_methods
        tddft_local_rho_set%rho0_atom_set => rho0_atom_set
        tddft_local_rho_set%rhoz_set => rhoz_set
        tddft_local_rho_set%rhoz_tot = total_rho_core_rspace
-       write (*,*) total_rho_core_rspace
        CALL rho0_s_grid_create(qs_env, tddft_local_rho_set, error)
     END IF
 
