@@ -39,13 +39,15 @@ MODULE pw_pool_types
                                              cp_assert,&
                                              cp_assertion_failed,&
                                              cp_debug,&
-                                             cp_error_dealloc_ref,&
                                              cp_error_get_logger,&
-                                             cp_error_init,&
                                              cp_error_message,&
-                                             cp_error_type,&
-                                             cp_internal_error,&
-                                             cp_unimplemented_error
+                                             cp_error_type
+  USE cp_linked_list_3d_r,             ONLY: cp_sll_3d_r_dealloc,&
+                                             cp_sll_3d_r_get_first_el,&
+                                             cp_sll_3d_r_insert_el,&
+                                             cp_sll_3d_r_next,&
+                                             cp_sll_3d_r_rm_first_el,&
+                                             cp_sll_3d_r_type
   USE cp_linked_list_pw,               ONLY: cp_sll_pw_dealloc,&
                                              cp_sll_pw_get_first_el,&
                                              cp_sll_pw_insert_el,&
@@ -55,11 +57,9 @@ MODULE pw_pool_types
                                              cp_sll_pw_type
   USE cp_log_handling,                 ONLY: cp_failure_level,&
                                              cp_fatal_level,&
-                                             cp_log,&
                                              cp_note_level,&
                                              cp_to_string,&
                                              cp_warning_level
-  USE cp_para_types,                   ONLY: cp_para_env_type
   USE kinds,                           ONLY: dp
   USE pw_grid_types,                   ONLY: pw_grid_type
   USE pw_grids,                        ONLY: pw_grid_release,&
@@ -69,7 +69,7 @@ MODULE pw_pool_types
                                              REALDATA1D,&
                                              REALDATA3D,&
                                              pw_allocate,&
-                                             pw_deallocate,&
+                                             pw_release,&
                                              pw_type
   USE timings,                         ONLY: timeset,&
                                              timestop
@@ -121,6 +121,7 @@ MODULE pw_pool_types
      TYPE(pw_grid_type), POINTER :: pw_grid
      TYPE(cp_sll_pw_type), POINTER :: real1d_pw, real3d_pw,&
           complex1d_pw, complex3d_pw
+     TYPE(cp_sll_3d_r_type), POINTER :: real3d_array
   END TYPE pw_pool_type
 !!***
 !****************************************************************************
@@ -206,7 +207,7 @@ CONTAINS
        pool%id_nr=last_pw_pool_id_nr
        pool%ref_count=1
        NULLIFY(pool%real1d_pw, pool%real3d_pw, &
-            pool%complex1d_pw, pool%complex3d_pw)
+            pool%complex1d_pw, pool%complex3d_pw, pool%real3d_array)
     END IF
   END SUBROUTINE pw_pool_create
 !***************************************************************************
@@ -295,50 +296,54 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN='pw_pool_flush_cache',&
          routineP=moduleN//':'//routineN
     TYPE(cp_sll_pw_type), POINTER :: iterator
+    TYPE(cp_sll_3d_r_type), POINTER :: array_iterator
     TYPE(pw_type), POINTER :: pw_el
+    REAL(kind=dp), DIMENSION(:,:,:), POINTER :: array_att
     INTEGER :: stat
     failure=.FALSE.
  
 
     CPPrecondition(ASSOCIATED(pool),cp_failure_level,routineP,error,failure)
     CPPrecondition(pool%ref_count>0,cp_failure_level,routineP,error,failure)
+    NULLIFY(iterator,array_iterator,pw_el,array_att)
     IF (.NOT.failure) THEN
 
        iterator => pool%real1d_pw
        DO
           IF (.NOT.cp_sll_pw_next(iterator,el_att=pw_el,error=error)) EXIT
-          CALL pw_deallocate(pw_el)
-          DEALLOCATE(pw_el,stat=stat)
-          CPPostcondition(stat==0,cp_warning_level,routineP,error,failure)
+          CALL pw_release(pw_el,error=error)
        END DO
        CALL cp_sll_pw_dealloc(pool%real1d_pw,error=error)
 
        iterator => pool%real3d_pw
        DO
           IF (.NOT.cp_sll_pw_next(iterator,el_att=pw_el,error=error)) EXIT
-          CALL pw_deallocate(pw_el)
-          DEALLOCATE(pw_el,stat=stat)
-          CPPostcondition(stat==0,cp_warning_level,routineP,error,failure)
+          CALL pw_release(pw_el, error=error)
        END DO
        CALL cp_sll_pw_dealloc(pool%real3d_pw,error=error)
 
        iterator => pool%complex1d_pw
        DO
           IF (.NOT.cp_sll_pw_next(iterator,el_att=pw_el,error=error)) EXIT
-          CALL pw_deallocate(pw_el)
-          DEALLOCATE(pw_el,stat=stat)
-          CPPostcondition(stat==0,cp_warning_level,routineP,error,failure)
+          CALL pw_release(pw_el, error=error)
        END DO
        CALL cp_sll_pw_dealloc(pool%complex1d_pw,error=error)
 
        iterator => pool%complex3d_pw
        DO
           IF (.NOT.cp_sll_pw_next(iterator,el_att=pw_el,error=error)) EXIT
-          CALL pw_deallocate(pw_el)
-          DEALLOCATE(pw_el,stat=stat)
-          CPPostcondition(stat==0,cp_warning_level,routineP,error,failure)
+          CALL pw_release(pw_el, error=error)
        END DO
        CALL cp_sll_pw_dealloc(pool%complex3d_pw)
+
+       array_iterator => pool%real3d_array
+       DO
+          IF (.NOT.cp_sll_3d_r_next(array_iterator,el_att=array_att,&
+               error=error)) EXIT
+          DEALLOCATE(array_att,stat=stat)
+          CPPostcondition(stat==0,cp_warning_level,routineP,error,failure)
+       END DO
+       CALL cp_sll_3d_r_dealloc(pool%real3d_array)
 
     END IF
   END SUBROUTINE pw_pool_flush_cache
@@ -489,10 +494,12 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN='pw_pool_create_pw',&
          routineP=moduleN//':'//routineN
     INTEGER :: stat, handle
+    REAL(kind=dp), DIMENSION(:,:,:), POINTER :: cr3d_ptr
     failure=.FALSE.
 
     CALL timeset(routineN,"I","",handle)
     NULLIFY(pw)
+    NULLIFY(cr3d_ptr)
     CPPrecondition(ASSOCIATED(pool),cp_failure_level,routineP,error,failure)
     CPPrecondition(pool%ref_count>0,cp_failure_level,routineP,error,failure)
 
@@ -504,7 +511,13 @@ CONTAINS
     CASE (COMPLEXDATA1D)
        pw => try_pop(pool%complex1d_pw)
     CASE (COMPLEXDATA3D)
-       pw => try_pop(pool%complex3d_pw)   
+       pw => try_pop(pool%complex3d_pw)
+       IF (.NOT.ASSOCIATED(pw)) THEN
+          IF (ASSOCIATED(pool%real3d_array)) THEN
+             cr3d_ptr => cp_sll_3d_r_get_first_el(pool%real3d_array)
+             CALL cp_sll_3d_r_rm_first_el(pool%real3d_array)
+          END IF
+       END IF
     CASE default
 ! unknown use_data
        CPAssert(.FALSE.,cp_failure_level,routineP,error,failure)
@@ -514,7 +527,7 @@ CONTAINS
        ALLOCATE(pw,stat=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
        CALL pw_allocate(pw, pool%pw_grid, use_data=use_data, &
-            mass_flag=mass_flag)
+            mass_flag=mass_flag, cr3d_ptr=cr3d_ptr)
     END IF
 
     IF (PRESENT(mass_flag)) THEN
@@ -554,9 +567,11 @@ CONTAINS
 !!     pw_pool_give_back_pw
 !!
 !!   SYNOPSIS
-!!     Subroutine pw_pool_give_back_pw(pool, pw, error)
+!!     Subroutine pw_pool_give_back_pw(pool, pw, accept_non_compatible,&
+!!         error)
 !!       Type(pw_pool_type), Pointer:: pool
 !!       Type(pw_type), Pointer:: pw
+!!       Logical, Intent (IN), Optional:: accept_non_compatible
 !!       Type(cp_error_type), Optional, Intent (INOUT):: error
 !!     End Subroutine pw_pool_give_back_pw
 !!
@@ -569,6 +584,9 @@ CONTAINS
 !!   INPUTS
 !!     - pool: the pool where to reintegrate the pw
 !!     - pw: the pw to give back
+!!     - accept_non_compatible: if non compatible pw should be accepted
+!!       (they will be destroied). Defaults to false (and thus stops with
+!!       an error)
 !!     - error: variable to control error logging, stopping,... 
 !!       see module cp_error_handling 
 !!
@@ -579,28 +597,39 @@ CONTAINS
 !!     08.2002 created [fawzi]
 !!
 !!*** **********************************************************************
-  SUBROUTINE pw_pool_give_back_pw(pool, pw, error)
+  SUBROUTINE pw_pool_give_back_pw(pool, pw, accept_non_compatible, error)
     TYPE(pw_pool_type), POINTER :: pool
     TYPE(pw_type), POINTER :: pw
-
+    LOGICAL, INTENT(in), OPTIONAL :: accept_non_compatible
     TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
 
-    LOGICAL :: failure, did_insert
+    LOGICAL :: failure, did_insert, my_accept_non_compatible
     CHARACTER(len=*), PARAMETER :: routineN='pw_pool_give_back_pw',&
          routineP=moduleN//':'//routineN
     INTEGER :: stat, handle
+
     failure=.FALSE.
+    my_accept_non_compatible=.FALSE.
+    IF (PRESENT(accept_non_compatible)) my_accept_non_compatible=accept_non_compatible
 
     CALL timeset(routineN,"I","",handle)
     CPPrecondition(ASSOCIATED(pool),cp_failure_level,routineP,error,failure)
     CPPrecondition(pool%ref_count>0,cp_failure_level,routineP,error,failure)
-    CPPrecondition(ASSOCIATED(pw),cp_warning_level,routineP,error,failure)
+    IF (.NOT.ASSOCIATED(pw)) THEN
+       CPPrecondition(my_accept_non_compatible,cp_warning_level,routineP,error,failure)
+       failure=.TRUE.
+    END IF
     IF (.NOT. failure) THEN
-       CALL cp_assert(pw%pw_grid%identifier==pool%pw_grid%identifier,&
-            cp_failure_level, cp_assertion_failed, routineP,&
-            "pool cannot reuse pw of another grid "//&
-            CPSourceFileRef,&
-            error=error,failure=failure)
+       CPPrecondition(pw%ref_count==1,cp_failure_level,routineP,error,failure)
+       IF (pw%pw_grid%identifier/=pool%pw_grid%identifier) THEN
+          CALL cp_assert(my_accept_non_compatible,&
+               cp_failure_level, cp_assertion_failed, routineP,&
+               "pool cannot reuse pw of another grid "//&
+               CPSourceFileRef,&
+               error=error,failure=failure)
+          CALL pw_release(pw,error=error)
+          failure=.TRUE.
+       END IF
     END IF
 
     IF (.NOT. failure) THEN
@@ -625,12 +654,17 @@ CONTAINS
              CALL cp_sll_pw_insert_el(pool%real1d_pw, el=pw)
           END IF
        CASE(REALDATA3D)
-          IF (cp_debug) THEN
-             CALL cp_sll_pw_insert_ordered(pool%real3d_pw, el=pw,&
-                  insert_equals=.FALSE., did_insert=did_insert)
-             CPAssert(did_insert,cp_failure_level,routineP,error,failure)
+          IF (ASSOCIATED(pw%cr3d)) THEN
+             IF (cp_debug) THEN
+                CALL cp_sll_pw_insert_ordered(pool%real3d_pw, el=pw,&
+                     insert_equals=.FALSE., did_insert=did_insert)
+                CPAssert(did_insert,cp_failure_level,routineP,error,failure)
+             ELSE
+                CALL cp_sll_pw_insert_el(pool%real3d_pw, el=pw, error=error)
+             END IF
           ELSE
-             CALL cp_sll_pw_insert_el(pool%real3d_pw, el=pw)
+             CPAssert(my_accept_non_compatible,cp_failure_level,routineP,error,failure)
+             CALL pw_release(pw, error=error)
           END IF
        CASE(COMPLEXDATA1D)
           IF (cp_debug) THEN
@@ -657,6 +691,134 @@ CONTAINS
     NULLIFY(pw)
     CALL timestop(0.0_dp, handle)
   END SUBROUTINE pw_pool_give_back_pw
+!***************************************************************************
+
+!!****f* pw_pool_types/pw_pool_create_cr3d [1.0] *
+!!
+!!   NAME
+!!     pw_pool_create_cr3d
+!!
+!!   FUNCTION
+!!     returns a 3d real array of coefficents as the one used by pw with
+!!     REALDATA3D, allocating it if none is present in the pool
+!!
+!!   NOTES
+!!     -
+!!
+!!   ARGUMENTS
+!!     - pw_pool: the pool that caches the cr3d
+!!     - cr3d: the pointer that will contain the array
+!!     - error: variable to control error logging, stopping,... 
+!!       see module cp_error_handling 
+!!
+!!   AUTHOR
+!!     fawzi
+!!
+!!   MODIFICATION HISTORY
+!!     11.2003 created [fawzi]
+!!
+!!*** **********************************************************************
+SUBROUTINE pw_pool_create_cr3d(pw_pool,cr3d,error)
+  TYPE(pw_pool_type), POINTER :: pw_pool
+  REAL(kind=dp), DIMENSION(:,:,:), POINTER :: cr3d
+  TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
+  
+  LOGICAL :: failure
+  CHARACTER(len=*), PARAMETER :: routineN='pw_pool_create_cr3d',&
+        routineP=moduleN//':'//routineN
+  INTEGER :: stat
+  TYPE(pw_type), POINTER :: pw
+
+  failure=.FALSE.
+  NULLIFY(pw)
+  
+  CPPrecondition(ASSOCIATED(pw_pool),cp_failure_level,routineP,error,failure)
+  CPPrecondition(pw_pool%ref_count>0,cp_failure_level,routineP,error,failure)
+  CPPrecondition(.NOT.ASSOCIATED(cr3d),cp_failure_level,routineP,error,failure)
+  IF (.NOT. failure) THEN
+     IF (ASSOCIATED(pw_pool%real3d_array)) THEN
+        cr3d => cp_sll_3d_r_get_first_el(pw_pool%real3d_array)
+        CALL cp_sll_3d_r_rm_first_el(pw_pool%real3d_array)
+     ELSE
+        pw => try_pop(pw_pool%complex3d_pw)
+        IF (ASSOCIATED(pw)) THEN
+           cr3d => pw%cr3d
+           NULLIFY(pw%cr3d)
+           CALL pw_release(pw, error=error)
+        END IF
+     END IF
+     IF (.NOT.ASSOCIATED(cr3d)) THEN
+        ALLOCATE(cr3d(pw_pool%pw_grid%bounds_local(1,1):pw_pool%pw_grid%bounds_local(2,1),&
+             pw_pool%pw_grid%bounds_local(1,2):pw_pool%pw_grid%bounds_local(2,2),&
+             pw_pool%pw_grid%bounds_local(1,3):pw_pool%pw_grid%bounds_local(2,3)),&
+             stat=stat)
+        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+     END IF
+  END IF
+END SUBROUTINE pw_pool_create_cr3d
+!***************************************************************************
+
+!!****f* pw_pool_types/pw_pool_give_back_cr3d [1.0] *
+!!
+!!   NAME
+!!     pw_pool_give_back_cr3d
+!!
+!!   FUNCTION
+!!     returns a 3d real array of coefficents as the one used by pw with
+!!     REALDATA3D, allocating it if none is present in the pool
+!!
+!!   NOTES
+!!     -
+!!
+!!   ARGUMENTS
+!!     - pw_pool: the pool that caches the cr3d
+!!     - cr3d: the pointer that will contain the array
+!!     - accept_non_compatible: if true deallocates the non compatible
+!!       arrays passed in, if false (the default) stops with an error
+!!     - error: variable to control error logging, stopping,... 
+!!       see module cp_error_handling 
+!!
+!!   AUTHOR
+!!     fawzi
+!!
+!!   MODIFICATION HISTORY
+!!     11.2003 created [fawzi]
+!!
+!!*** **********************************************************************
+SUBROUTINE pw_pool_give_back_cr3d(pw_pool,cr3d,accept_non_compatible,error)
+  TYPE(pw_pool_type), POINTER :: pw_pool
+  REAL(kind=dp), DIMENSION(:,:,:), POINTER :: cr3d
+  LOGICAL, INTENT(in), OPTIONAL :: accept_non_compatible
+  TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
+  
+  LOGICAL :: failure, compatible, my_accept_non_compatible
+  CHARACTER(len=*), PARAMETER :: routineN='pw_pool_give_back_cr3d',&
+        routineP=moduleN//':'//routineN
+  INTEGER :: stat
+
+  failure=.FALSE.
+  my_accept_non_compatible=.FALSE.
+  IF (PRESENT(accept_non_compatible)) my_accept_non_compatible=accept_non_compatible
+
+  CPPrecondition(ASSOCIATED(pw_pool),cp_failure_level,routineP,error,failure)
+  CPPrecondition(pw_pool%ref_count>0,cp_failure_level,routineP,error,failure)
+  IF (.NOT. failure) THEN
+     IF (ASSOCIATED(cr3d)) THEN
+        compatible=ALL(LBOUND(cr3d)==pw_pool%pw_grid%bounds_local(1,:)).AND.&
+             ALL(UBOUND(cr3d)==pw_pool%pw_grid%bounds_local(2,:))
+        CPPrecondition(compatible.OR.my_accept_non_compatible,cp_failure_level,routineP,error,failure)
+        IF (compatible) THEN
+           CALL cp_sll_3d_r_insert_el(pw_pool%real3d_array, el=cr3d, error=error)
+        ELSE
+           DEALLOCATE(cr3d, stat=stat)
+           CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+        END IF
+     ELSE
+        CPPrecondition(my_accept_non_compatible,cp_failure_level,routineP,error,failure)
+     END IF
+  END IF
+  NULLIFY(cr3d)
+END SUBROUTINE pw_pool_give_back_cr3d
 !***************************************************************************
 
 !!****f* pw_pool_types/pw_pool_init_coeff [1.0] *

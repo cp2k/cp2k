@@ -32,19 +32,11 @@
 MODULE pw_types
   USE cp_error_handling,               ONLY: cp_a_l,&
                                              cp_assert,&
-                                             cp_assertion_failed,&
-                                             cp_debug,&
-                                             cp_error_dealloc_ref,&
                                              cp_error_get_logger,&
-                                             cp_error_init,&
                                              cp_error_message,&
-                                             cp_error_type,&
-                                             cp_internal_error,&
-                                             cp_unimplemented_error
+                                             cp_error_type
   USE cp_log_handling,                 ONLY: cp_failure_level,&
                                              cp_fatal_level,&
-                                             cp_log,&
-                                             cp_logger_get_unit_nr,&
                                              cp_logger_type,&
                                              cp_note_level,&
                                              cp_to_string,&
@@ -53,8 +45,7 @@ MODULE pw_types
                                              FWFFT,&
                                              fft3d
   USE kinds,                           ONLY: dbl
-  USE pw_grid_types,                   ONLY: FULLSPACE,&
-                                             HALFSPACE,&
+  USE pw_grid_types,                   ONLY: HALFSPACE,&
                                              pw_grid_type
   USE termination,                     ONLY: stop_memory,&
                                              stop_program
@@ -64,11 +55,11 @@ MODULE pw_types
 
   PRIVATE
   PUBLIC :: pw_type, pw_p_type
-  PUBLIC :: pw_allocate, pw_deallocate
+  PUBLIC :: pw_allocate, pw_deallocate, pw_retain, pw_release
   PUBLIC :: pw_zero, pw_gather, pw_scatter
   PUBLIC :: pw_copy, pw_add, pw_sumup, pw_subtract, pw_reduce, pw_transfer
   PUBLIC :: pw_derive, pw_sumup_square, pw_fft_wrap, pw_write
-  PUBLIC :: REALDATA1D, COMPLEXDATA1D, REALDATA3D, COMPLEXDATA3D
+  PUBLIC :: REALDATA1D, COMPLEXDATA1D, REALDATA3D, COMPLEXDATA3D, NODATA
   PUBLIC :: NOSPACE, REALSPACE, RECIPROCALSPACE
 
   TYPE pw_type
@@ -91,7 +82,7 @@ MODULE pw_types
 
   ! Flags for the structure member 'in_use'
   INTEGER, PARAMETER :: REALDATA1D = 301, COMPLEXDATA1D = 302
-  INTEGER, PARAMETER :: REALDATA3D = 303, COMPLEXDATA3D = 304
+  INTEGER, PARAMETER :: REALDATA3D = 303, COMPLEXDATA3D = 304, NODATA = 305
 
   ! Flags for the structure member 'in_space'
   INTEGER, PARAMETER :: NOSPACE = 371, REALSPACE = 372, RECIPROCALSPACE = 373
@@ -126,12 +117,15 @@ CONTAINS
 !!     pw_allocate
 !!
 !!   SYNOPSIS
-!!     Subroutine pw_allocate(pw, pw_grid, use_data, mass_flag)
+!!     Subroutine pw_allocate(pw, pw_grid, use_data, mass_flag, cr3d_ptr,&
+!!         error)
 !!       Implicit None
 !!       Integer, Intent (IN):: use_data
 !!       Type(pw_grid_type), Intent (IN), Target:: pw_grid
 !!       Type(pw_type), Intent (INOUT), Target:: pw
 !!       Logical, Intent (IN), Optional:: mass_flag
+!!       Real(Kind=dbl), Optional, Pointer, Dimension(:,:,:):: cr3d_ptr
+!!       Type(cp_error_type), Intent (INOUT), Optional:: error
 !!     End Subroutine pw_allocate
 !!
 !!   FUNCTION
@@ -146,7 +140,7 @@ CONTAINS
 !!   SOURCE
 !******************************************************************************
 
-SUBROUTINE pw_allocate ( pw, pw_grid, use_data, mass_flag )
+SUBROUTINE pw_allocate ( pw, pw_grid, use_data, mass_flag, cr3d_ptr, error )
 
   IMPLICIT NONE
 
@@ -155,6 +149,8 @@ SUBROUTINE pw_allocate ( pw, pw_grid, use_data, mass_flag )
   TYPE ( pw_grid_type ), INTENT ( IN ), TARGET :: pw_grid
   TYPE ( pw_type ), INTENT ( INOUT ), TARGET :: pw
   LOGICAL, INTENT ( IN ), OPTIONAL :: mass_flag
+  REAL(kind=dbl), OPTIONAL, POINTER, DIMENSION(:,:,:) :: cr3d_ptr
+  TYPE(cp_error_type), INTENT(inout), OPTIONAL :: error
 
 ! Locals
   INTEGER :: allocstat, handle
@@ -167,6 +163,12 @@ SUBROUTINE pw_allocate ( pw, pw_grid, use_data, mass_flag )
   CALL timeset(routineN,"I","",handle)
   mass_flag_local = .FALSE.
   IF ( PRESENT ( mass_flag ) ) mass_flag_local = mass_flag
+
+  IF (PRESENT(cr3d_ptr)) THEN
+     IF (ASSOCIATED(cr3d_ptr)) THEN
+        CPAssertNoFail(use_data==REALDATA3D,cp_failure_level,routineP,error)
+     END IF
+  END IF
 
   last_pw_id_nr=last_pw_id_nr+1
   pw % id_nr = last_pw_id_nr
@@ -204,11 +206,20 @@ SUBROUTINE pw_allocate ( pw, pw_grid, use_data, mass_flag )
      ENDIF
 
   ELSE IF ( use_data == REALDATA3D ) THEN
-     ALLOCATE ( pw % cr3d ( &
-          bounds ( 1, 1 ) : bounds ( 2, 1 ), &
-          bounds ( 1, 2 ) : bounds ( 2, 2 ), &
-          bounds ( 1, 3 ) : bounds ( 2, 3 ) ), STAT = allocstat )
-     IF ( allocstat /= 0 ) CALL stop_memory ( "pw_allocate", "cr3d", 0 )
+     IF (PRESENT(cr3d_ptr)) THEN
+        IF (ASSOCIATED(cr3d_ptr)) THEN
+           CPPreconditionNoFail(ALL(LBOUND(cr3d_ptr)==bounds(1,:)),cp_failure_level,routineP,error)
+           CPPreconditionNoFail(ALL(UBOUND(cr3d_ptr)==bounds(2,:)),cp_failure_level,routineP,error)
+           pw%cr3d => cr3d_ptr
+        END IF
+     END IF
+     IF (.NOT.ASSOCIATED(pw%cr3d)) THEN
+        ALLOCATE ( pw % cr3d ( &
+             bounds ( 1, 1 ) : bounds ( 2, 1 ), &
+             bounds ( 1, 2 ) : bounds ( 2, 2 ), &
+             bounds ( 1, 3 ) : bounds ( 2, 3 ) ), STAT = allocstat )
+        IF ( allocstat /= 0 ) CALL stop_memory ( "pw_allocate", "cr3d", 0 )
+     END IF
 
   ELSE IF ( use_data == COMPLEXDATA3D ) THEN
      ALLOCATE ( pw % cc3d ( &
@@ -277,7 +288,7 @@ SUBROUTINE pw_deallocate ( pw )
   ELSE IF ( pw % in_use == COMPLEXDATA3D ) THEN
      DEALLOCATE ( pw % cc3d, STAT = allocstat )
      IF ( allocstat /= 0 ) CALL stop_memory ( "pw_deallocate", "cc3d" )
-  ELSE
+  ELSE IF ( pw % in_use /= NODATA ) THEN
      CALL stop_program ( "pw_deallocate", "no possible data field" )
   END IF
   CALL timestop(0.0_dbl,handle)
@@ -2291,6 +2302,12 @@ END FUNCTION pw_compatible
 !!   NAME
 !!     pw_retain
 !!
+!!   SYNOPSIS
+!!     Subroutine pw_retain(pw, error)
+!!       Type(pw_type), Pointer:: pw
+!!       Type(cp_error_type), Optional, Intent (INOUT):: error
+!!     End Subroutine pw_retain
+!!
 !!   FUNCTION
 !!     retains a pw type
 !!
@@ -2331,6 +2348,12 @@ END SUBROUTINE pw_retain
 !!
 !!   NAME
 !!     pw_release
+!!
+!!   SYNOPSIS
+!!     Subroutine pw_release(pw, error)
+!!       Type(pw_type), Pointer:: pw
+!!       Type(cp_error_type), Optional, Intent (INOUT):: error
+!!     End Subroutine pw_release
 !!
 !!   FUNCTION
 !!     releases the given pw
