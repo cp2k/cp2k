@@ -77,6 +77,7 @@ MODULE force_env_methods
   USE particle_list_types,             ONLY: particle_list_type
   USE particle_types,                  ONLY: particle_type
   USE qmmm_electrostatic_methods,      ONLY: qmmm_el_coupling
+  USE qmmm_methods,                    ONLY: qmmm_forces
   USE qmmm_types,                      ONLY: qmmm_env_type, qmmm_env_retain
   USE qs_energy,                       ONLY: qs_energies
   USE qs_environment_methods,          ONLY: qs_env_rebuild_pw_env
@@ -625,7 +626,7 @@ RECURSIVE SUBROUTINE qmmm_energy_and_forces(force_env,box_change,calculate_force
   REAL(dbl), DIMENSION(3) :: min_coord,max_coord,transl_v
   TYPE(cell_type), POINTER :: cell_loc
 
-  min_coord=huge(0.0_dbl)
+  min_coord=HUGE(0.0_dbl)
   max_coord=-HUGE(0.0_dbl)
   failure=.false.
   NULLIFY(subsys_mm, subsys_qm, qm_atom_index,particles_mm,particles_qm)
@@ -682,11 +683,11 @@ RECURSIVE SUBROUTINE qmmm_energy_and_forces(force_env,box_change,calculate_force
   ! Initialize ks_qmmm_env
   CALL init_ks_qmmm_env(qs_env=force_env%sub_force_env(2)%force_env%qs_env,error=error)
 
-  ! Compute the QM/MM Electrostatic Potential
+  ! Compute the short range QM/MM Electrostatic Potential
   CALL qmmm_el_coupling(force_env%sub_force_env(2)%force_env%qs_env,&
                         force_env%qmmm_env,particles_mm,error)
 
-  IF (calculate_force) THEN
+  IF (PRESENT(calculate_force).and.calculate_force) THEN
      !TL
      ! Fist: isubsys = 1
      !  isubsys = 1
@@ -695,14 +696,20 @@ RECURSIVE SUBROUTINE qmmm_energy_and_forces(force_env,box_change,calculate_force
      isubsys = 2
      CALL force_env_calculate_force(force_env%sub_force_env(isubsys)%force_env,&
           box_change=box_change,error=error)
-     ! TL
+     !
+     ! QM/MM Interaction Potential forces
+     !
+     CALL qmmm_forces(force_env%sub_force_env(2)%force_env%qs_env,&
+                        force_env%qmmm_env,particles_mm,error)
+
      isubsys=-1
      DO ip=1,SIZE(qm_atom_index)
         IF (isubsys/=qm_subsys_index(ip)) THEN
            isubsys=qm_subsys_index(ip)
            particles_mm => subsys_mm(isubsys)%subsys%particles%els
         END IF
-        particles_mm(qm_atom_index(ip))%f=particles_qm(ip)%f
+        particles_mm(qm_atom_index(ip))%f=particles_mm(qm_atom_index(ip))%f+&
+                                          particles_qm(ip)%f
      END DO
   ELSE
      !TL
