@@ -328,10 +328,8 @@ CONTAINS
       IF (logger%print_keys%level > LOW) THEN
         DO ipe=1,npe
           IF (ipe == mype) THEN
-            IF (ipe == 1) THEN
-              WRITE (UNIT=output_unit,FMT="(/,T3,A)")&
+            WRITE (UNIT=output_unit,FMT="(/,T3,A)")&
                 "Process   Kind   Local molecules (global indices)"
-            END IF
             DO imolecule_kind=1,nmolecule_kind
               IF (imolecule_kind == 1) THEN
                 WRITE (UNIT=output_unit,FMT="(/,T4,I6,2X,I5,(T20,10I6))")&
@@ -374,10 +372,8 @@ CONTAINS
       IF (logger%print_keys%level > LOW) THEN
         DO ipe=1,npe
           IF (ipe == mype) THEN
-            IF (ipe == 1) THEN
-              WRITE (UNIT=output_unit,FMT="(/,T3,A)")&
+            WRITE (UNIT=output_unit,FMT="(/,T3,A)")&
                 "Process   Kind   Local particles (global indices)"
-            END IF
             DO iparticle_kind=1,nparticle_kind
               IF (iparticle_kind == 1) THEN
                 WRITE (UNIT=output_unit,FMT="(/,T4,I6,2X,I5,(T20,10I6))")&
