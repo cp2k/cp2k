@@ -492,16 +492,16 @@ CONTAINS
       routineP = module_name//":"//routineN
 
     INTEGER                                  :: col_first, col_last, &
-                                                handle, iat, iatom,&
+                                                iat, iatom,&
                                                 icol, icol_mol_s, irow, &
-                                                irow_mol_s, istat, & 
+                                                irow_mol_s, & 
                                                 jat, jatom, ldb, ldc, nrow, &
                                                 row_first, row_last , i
 
     INTEGER, DIMENSION(:), POINTER           :: i_atom,ifirst_ao,ilast_ao
     REAL(dp), DIMENSION(:,:),  POINTER       :: s_block
     REAL(dp), DIMENSION(:,:), POINTER        :: mol_s
-    LOGICAL :: failure
+    LOGICAL                                  :: failure
 
 !   ---------------------------------------------------------------------------
 

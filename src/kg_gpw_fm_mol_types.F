@@ -112,7 +112,7 @@ MODULE kg_gpw_fm_mol_types
              get_fm_mol_block, get_kg_fm_mol_set,&
              get_mol_mo_set,init_mol_mo_set, &
              kg_fm_mol_set_create, kg_fm_mol_set_release, &
-             kg_fm_mol_set_retain, set_kg_fm_mol_set
+             kg_fm_mol_set_retain, set_kg_fm_mol_set, set_mol_mo_set
 
 ! *** Public data types ***
 
@@ -198,11 +198,11 @@ CONTAINS
 
 ! *****************************************************************************
 
-  SUBROUTINE get_mol_mo_set(mo_set,homo,lfomo,maxocc,nmo,&
+  SUBROUTINE get_mol_mo_set(mo_set,homo,lfomo,maxocc,nmo,nelectron,&
                             mo,eigenvalues,occupation_numbers)
 
     TYPE(mol_mo_set_type), POINTER            :: mo_set
-    INTEGER, INTENT(OUT), OPTIONAL            :: homo,lfomo,nmo
+    INTEGER, INTENT(OUT), OPTIONAL            :: homo,lfomo,nmo,nelectron
     REAL(dp), INTENT(OUT), OPTIONAL           :: maxocc
     REAL(dp), DIMENSION(:,:), POINTER,&
       OPTIONAL                                :: mo
@@ -216,8 +216,51 @@ CONTAINS
     IF(PRESENT(homo)) homo = mo_set%homo
     IF(PRESENT(lfomo)) lfomo = mo_set%lfomo
     IF(PRESENT(nmo)) nmo = mo_set%nmo
+    IF(PRESENT(nelectron)) nelectron = mo_set%nelectron
 
   END SUBROUTINE get_mol_mo_set 
+
+! *****************************************************************************
+ 
+  SUBROUTINE set_mol_mo_set(mo_set,homo,lfomo,maxocc,nmo,nelectron,&
+                            mo,eigenvalues,occupation_numbers)
+
+    TYPE(mol_mo_set_type), POINTER            :: mo_set
+    INTEGER, INTENT(IN), OPTIONAL             :: homo,lfomo,nmo,nelectron
+    REAL(dp), INTENT(In), OPTIONAL            :: maxocc
+    REAL(dp), DIMENSION(:,:), POINTER,&
+      OPTIONAL                                :: mo
+    REAL(dp), DIMENSION(:), POINTER, OPTIONAL :: eigenvalues,&
+                                                 occupation_numbers
+    CHARACTER(len=*), PARAMETER :: routineN = 'set_mol_mo_set'
+
+    INTEGER                     :: istat
+
+    IF(PRESENT(maxocc)) mo_set%maxocc = maxocc 
+    IF(PRESENT(homo)) mo_set%homo = homo
+    IF(PRESENT(lfomo)) mo_set%lfomo = lfomo
+    IF(PRESENT(nmo)) mo_set%nmo = nmo
+    IF(PRESENT(nelectron)) mo_set%nelectron = nelectron
+    IF(PRESENT(eigenvalues)) THEN
+      IF(ASSOCIATED(mo_set%eigenvalues)) THEN
+        DEALLOCATE(mo_set%eigenvalues, STAT =istat)
+        IF (istat /= 0) THEN
+          CALL stop_memory(routineN,"dealloc. mo_set%eigenvalues")
+        END IF
+      END IF
+      mo_set%eigenvalues => eigenvalues
+    END IF
+    IF(PRESENT(occupation_numbers)) THEN
+      IF(ASSOCIATED(mo_set%occupation_numbers)) THEN
+        DEALLOCATE(mo_set%occupation_numbers, STAT =istat)
+        IF (istat /= 0) THEN
+          CALL stop_memory(routineN,"dealloc. mo_set%occupation_numbers")
+        END IF
+      END IF
+      mo_set%occupation_numbers => occupation_numbers
+    END IF
+
+  END SUBROUTINE set_mol_mo_set
 
 ! *****************************************************************************
   SUBROUTINE init_mol_mo_set(mo_set,n_ao,nmo,error)

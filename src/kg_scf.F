@@ -66,7 +66,10 @@ MODULE kg_scf
                                              kg_fm_p_type,&
                                              mol_mo_set_p_type,&
                                              mol_mo_set_type
-  USE kg_gpw_fm_mol_utils,             ONLY: fm_mol_power,mol_mo_random
+  USE kg_gpw_fm_mol_utils,             ONLY: copy_sparse2mol_block,&
+                                             fm_mol_cholesky_restore,&
+                                             fm_mol_power,&
+                                             mol_mo_random
   USE kg_environment_types,            ONLY: kg_environment_type,&
                                              get_kg_env,&
                                              set_kg_env
@@ -102,8 +105,8 @@ MODULE kg_scf
   USE qs_ks_types,                     ONLY: qs_ks_env_type,&
                                              qs_ks_release
   USE qs_matrix_pools,                 ONLY: mpools_get
-!  USE qs_mo_types,                     ONLY: correct_mo_eigenvalues,&
-!                                             set_mo_occupation,&
+  USE qs_mo_types,                     ONLY: correct_mo_eigenvalues,&
+                                             set_mo_occupation
   USE qs_overlap,                      ONLY: write_fm_with_basis_info,&
                                              write_sparse_matrix
   USE qs_ot,                           ONLY: qs_ot_new_preconditioner, &
@@ -1046,72 +1049,101 @@ CONTAINS
 !
 !! *****************************************************************************
 !
-!  SUBROUTINE eigensolver(ks,mo_set,ortho,work,do_level_shift,level_shift,&
-!       use_cholesky, work_syevx, use_jacobi,jacobi_threshold,smear,&
-!       error)
+   SUBROUTINE fm_mol_eigensolver(ks_mol_block, mo_set, ortho, aux_nxn,&
+                                 do_level_shift, level_shift, use_cholesky, &
+                                 use_jacobi, jacobi_threshold ,&
+                                 smear, error)
 !
-!!   Purpose: Diagonalise the Kohn-Sham matrix to get a new set of MO eigen-
-!!            vectors and MO eigenvalues.
-!!   ks will be modified
-!
-!!   History: - Creation (01.05.2001, Matthias Krack)
+!   Purpose: Diagonalise the Kohn-Sham matrix to get a new set of MO eigen-
+!            vectors and MO eigenvalues.
+!   ks will be modified
+
+!   History: - Creation (01.12.2004, Matthias Krack)
 !
 !!   ***************************************************************************
-!
-!    TYPE(cp_fm_type), POINTER                :: ks
-!    TYPE(mo_set_type), POINTER               :: mo_set
-!    TYPE(cp_fm_type), POINTER                :: ortho, work
-!    LOGICAL, INTENT(IN)                      :: do_level_shift
-!    REAL(KIND=dp), INTENT(IN)                :: level_shift
-!    LOGICAL, INTENT(INOUT)                   :: use_cholesky
-!    REAL(KIND=dp), INTENT(IN)                :: work_syevx
-!    LOGICAL, INTENT(IN)                      :: use_jacobi
-!    REAL(KIND=dp), INTENT(IN)                :: jacobi_threshold, smear
-!    TYPE(cp_error_type), INTENT(inout), &
-!      OPTIONAL                               :: error
-!
-!    INTEGER                                  :: handle, homo, imo, nao, nmo
-!    REAL(KIND=dp)                            :: alpha
-!    REAL(KIND=dp), DIMENSION(:), POINTER     :: mo_eigenvalues
-!    TYPE(cp_fm_type), POINTER                :: mo_coeff
-!
-!!   ---------------------------------------------------------------------------
-!
-!    CALL timeset("eigensolver","I"," ",handle)
-!
-!!   *** Diagonalise the Kohn-Sham matrix ***
-!
-!    CALL get_mo_set(mo_set=mo_set,&
-!         nao=nao,&
-!         nmo=nmo,&
-!         homo=homo, &
-!         eigenvalues=mo_eigenvalues,&
-!         mo_coeff=mo_coeff)
-!
-!    IF (do_level_shift) THEN
-!       IF (use_cholesky) THEN
-!          CALL stop_program("eigensolver","level shift not implemented")
-!       ENDIF
-!    ENDIF
-!
-!    IF (use_cholesky) THEN
-!       ! CALL cp_fm_write(ks,6,long_description=.true.)
-!       CALL cp_fm_cholesky_reduce(ks,ortho)
-!
-!       IF (use_jacobi) THEN
-!          CALL cp_fm_syevd(ks,work,mo_eigenvalues)
-!          use_cholesky = .FALSE.
-!          CALL cp_fm_cholesky_restore(work,nmo,ortho,mo_coeff,"SOLVE")
-!          CALL cp_fm_to_fm(mo_coeff,ortho)
-!       ELSE IF (smear /= 0.0_dp) THEN
-!          CALL cp_fm_syevd(ks,work,mo_eigenvalues)
-!          CALL cp_fm_cholesky_restore(work,nmo,ortho,mo_coeff,"SOLVE")
-!       ELSE
+
+    REAL(dp), DIMENSION(:,:), POINTER        :: ks_mol_block
+    TYPE(mol_mo_set_type), POINTER           :: mo_set
+    REAL(dp), DIMENSION(:,:), POINTER        :: ortho, aux_nxn
+    LOGICAL, INTENT(IN)                      :: do_level_shift
+    REAL(KIND=dp), INTENT(IN)                :: level_shift
+    LOGICAL, INTENT(INOUT)                   :: use_cholesky
+    LOGICAL, INTENT(IN)                      :: use_jacobi
+    REAL(KIND=dp), INTENT(IN)                :: jacobi_threshold, smear
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
+
+    CHARACTER(LEN=*), PARAMETER :: routineN = "fm_mol_eigensolver", &
+      routineP = moduleN//":"//routineN
+
+    INTEGER                                  :: handle, homo, info, imo, &
+                                                itype, istat, lfomo, liwork, lwork,&
+                                                mo_ncol, nao, nelectron, nmo
+    INTEGER, DIMENSION(:), POINTER           :: iwork
+    LOGICAL                                  :: failure
+    REAL(KIND=dp)                            :: alpha, maxocc
+    REAL(dp), DIMENSION(:), POINTER          :: mo_eigenvalues,&
+                                                mo_occupation
+    REAL(dp), DIMENSION(:,:), POINTER        :: mo_coeff
+    REAL(KIND=dp), DIMENSION(:), POINTER     :: work
+
+!   ---------------------------------------------------------------------------
+
+    CALL timeset(routineN,"I"," ",handle)
+
+    failure = .FALSE.
+
+!   *** Diagonalise the Kohn-Sham matrix ***
+    NULLIFY (mo_coeff,mo_eigenvalues,mo_occupation)
+    CALL get_mol_mo_set(mo_set=mo_set, mo = mo_coeff,&
+                        eigenvalues = mo_eigenvalues,&
+                        occupation_numbers = mo_occupation,&
+                        nmo=mo_ncol)
+
+    nao = SIZE(ks_mol_block,1)
+
+    IF (do_level_shift) THEN
+       IF (use_cholesky) THEN
+          CALL stop_program("eigensolver","level shift not implemented")
+       ENDIF
+    ENDIF
+
+    IF (use_cholesky) THEN
+       ! Transform the generalized eigenvalue problem into a simple one
+       itype = 1
+       CALL DSYGST(itype,'U',nao,ks_mol_block(1,1),nao,ortho(1,1),nao,info)
+       CPPostcondition(info==0,cp_failure_level,routineP,error,failure)
+
+       IF (use_jacobi .OR. smear /= 0.0_dp) THEN
+         ! Find eigenvalues and eigenvectors
+         lwork=1+6*nao+2*nao**2+5000
+         liwork=5*nao+3
+         ALLOCATE(work(lwork),STAT=istat)
+         IF (istat.NE.0) CALL stop_memory("eigensolver","work",lwork*dp_size)
+         ALLOCATE(iwork(liwork),STAT=istat)
+         IF (istat.NE.0) CALL stop_memory("eigensolver","iwork",liwork*int_size)
+         CALL DSYEVD('V','U', nao, ks_mol_block(1,1), nao, mo_eigenvalues(1),&
+                     work(1), lwork, iwork(1), liwork, info)
+
+         !   *** Error handling ***
+         IF (info /= 0) CALL stop_program(routineP,"Error in dsyevd")
+
+         CALL DCOPY (nao*nao,ks_mol_block,1,aux_nxn,1)
+
+         ! Transform the UC coefficients into the C coefficients 
+         ! (U cholesky decomposition of the overlap matrix)
+         CALL fm_mol_cholesky_restore(aux_nxn,nmo,ortho,mo_coeff,"SOLVE")
+
+         IF (use_jacobi ) THEN
+           use_cholesky = .FALSE.
+           CALL dcopy(nao*nao,mo_coeff,1,ortho,1)
+         END IF
+       ELSE
 !          CALL cp_fm_syevx(ks,work,mo_eigenvalues,homo,work_syevx)
 !          CALL cp_fm_cholesky_restore(work,homo,ortho,mo_coeff,"SOLVE")
-!       END IF
+       END IF
 !
-!    ELSE IF (use_jacobi) THEN
+    ELSE IF (use_jacobi) THEN
 !
 !       CALL cp_fm_symm("L","U",nao,homo,1.0_dp,ks,mo_coeff,0.0_dp,work)
 !       CALL cp_fm_gemm("T","N",homo,nao-homo,nao,1.0_dp,work,mo_coeff,&
@@ -1133,8 +1165,8 @@ CONTAINS
 !       CALL cp_fm_block_jacobi_classic(ks,mo_coeff,mo_eigenvalues,&
 !            jacobi_threshold,homo+1)
 !
-!    ELSE
-!
+    ELSE
+
 !       CALL cp_fm_symm("L","U",nao,nao,1.0_dp,ks,ortho,0.0_dp,work)
 !       CALL cp_fm_gemm("T","N",nao,nao,nao,1.0_dp,ortho,work,0.0_dp,ks)
 !
@@ -1162,14 +1194,20 @@ CONTAINS
 !
 !       END IF
 !
-!    END IF
-!
-!    IF (smear /= 0.0_dp) CALL set_mo_occupation(mo_set,smear)
-!
-!    CALL timestop(0.0_dp,handle)
-!
-!  END SUBROUTINE eigensolver
-!
+    END IF
+
+    IF (smear /= 0.0_dp) THEN
+     CALL get_mol_mo_set(mo_set=mo_set,lfomo=lfomo,homo=homo,&
+                         maxocc=maxocc, nelectron=nelectron)
+     CALL set_mo_occupation(mo_occupation,mo_eigenvalues,&
+                          homo,lfomo,maxocc,nelectron,smear)
+!     CALL 
+    END IF
+
+    CALL timestop(0.0_dp,handle)
+
+  END SUBROUTINE fm_mol_eigensolver
+
 !! *****************************************************************************
 !
 !!!****f* qs_scf/cp_sm_mix [1.0] *
@@ -1297,6 +1335,9 @@ CONTAINS
 !    TYPE(gth_potential_type), POINTER        :: gth_potential
 !    TYPE(gto_basis_set_type), POINTER        :: orb_basis_set
     REAL(dp), DIMENSION(:,:), POINTER         :: mo_coeff
+    REAL(dp), DIMENSION(:,:), POINTER         :: aux_matrix
+    REAL(dp), DIMENSION(:,:), POINTER         :: ortho
+    REAL(dp), DIMENSION(:,:), POINTER         :: work
     REAL(dp), DIMENSION(:,:), POINTER         :: s_mo
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
@@ -1312,10 +1353,12 @@ CONTAINS
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
     TYPE(real_matrix_p_type), DIMENSION(:), &
-      POINTER                                 :: matrix_p, matrix_s
+      POINTER                                :: matrix_h,&
+                                                matrix_p,&
+                                                matrix_s
     TYPE(scf_control_type), POINTER          :: scf_control
 !
-!!   ---------------------------------------------------------------------------
+!   ---------------------------------------------------------------------------
 !
 !    NULLIFY(all_potential,atomic_kind, atomic_kind_set, mo_coeff, sv,&
 !            gth_potential, orb_basis_set, para_env, particle_set,&
@@ -1415,36 +1458,60 @@ CONTAINS
         IF (istat /= 0) CALL stop_memory(routineP,"s_mo")
 
       END DO  ! imolecule_kind
-!
-!    ELSE IF (scf_control%density_guess == "CORE") THEN
-!
-!! work1(1) should contain the core hamiltonian
-!! we need a copy the core matrix for every spin (the dumbest solution,
-!! we should copy the mos)..
-!       IF (dft_control%nspins.eq.2) THEN
-!          IF (.NOT. scf_control%use_ot) THEN
-!             CALL cp_fm_to_fm(work1(1)%matrix,&
-!                  work1(2)%matrix)
-!          ENDIF
-!       ENDIF
-!       DO ispin=1,nspin
-!          CALL eigensolver(work1(ispin)%matrix,mo_array(ispin)%mo_set,ortho,work2, &
-!               .FALSE.,0.0_dp,&
-!               use_cholesky=scf_control%use_cholesky, &
-!               work_syevx=scf_control%work_syevx,&
-!               use_jacobi=.FALSE.,&
-!               jacobi_threshold=scf_control%jacobi_threshold,&
-!               smear=0.0_dp,&
-!               error=error)
+
+    ELSE IF (scf_control%density_guess == "CORE") THEN
+
+      DO imolecule_kind = 1,nmolecule_kind
+        NULLIFY(fm_mol_set,fm_mol_blocks)
+        fm_mol_set => kg_fm_mol_set(imolecule_kind)
+        CALL get_kg_fm_mol_set(kg_fm_mol_set=fm_mol_set, &
+                              natom = nat_mol, &
+                              n_ao = n_ao_kind , n_mo = nmo_kind, &
+                              fm_mol_blocks = fm_mol_blocks,&
+                              nmolecule_local = nmol_local)
+
+        ALLOCATE(aux_matrix(n_ao_kind,n_ao_kind), STAT = istat)
+        IF (istat /= 0) CALL stop_memory(routineP,"aux_matrix",&
+                                         n_ao_kind*n_ao_kind*dp_size)
+
+        DO imol = 1, nmol_local
+          NULLIFY(mol_block,mos)
+          mol_block => fm_mol_blocks(imol)
+          CALL get_fm_mol_block(fm_mol_block = mol_block,&
+                                ortho = ortho,&
+                                work = work,&
+                                mos = mos)
+
+          ! Copy the core hamiltonia of this molecule in the aux_matrix
+          CALL copy_sparse2mol_block(matrix_h(1)%matrix, mol_block,&
+                               aux_matrix, nat_mol, n_ao_kind,n_ao_kind, error)
+
+          DO ispin=1,nspin
+            NULLIFY(mo_set,mo_coeff)
+            mo_set => mos(ispin)%mo_set
+
+            ! Diagonalize the core hamiltonian and copy the eigenvectors in mo_set 
+            CALL fm_mol_eigensolver(aux_matrix,mo_set,ortho,work,.FALSE.,0.0_dp,&
+                                    use_cholesky=scf_control%use_cholesky, &
+                                    use_jacobi=.FALSE.,&
+                                    jacobi_threshold=scf_control%jacobi_threshold,&
+                                    smear=0.0_dp, error=error)
 !          IF (scf_control%level_shift /= 0.0_dp) THEN
 !             CALL get_mo_set(mo_set=mo_array(ispin)%mo_set,&
 !                  mo_coeff=mo_coeff)
 !             CALL cp_fm_to_fm(mo_coeff,ortho)
 !          END IF
-!          CALL calculate_density_matrix(mo_array(ispin)%mo_set,&
-!               p_rmpv(ispin)%matrix,error=error)
-!       ENDDO
-!
+
+            CALL calculate_mol_density_matrix(mo_set,mol_block,&
+                             nat_mol,matrix_p(ispin)%matrix,error=error)
+          ENDDO  ! ispin
+        END DO  ! imol
+
+        DEALLOCATE(aux_matrix,STAT = istat)
+        IF (istat /= 0) CALL stop_memory(routineP,"aux_matrix")
+
+      END DO  ! imolecule_kind
+
 !    ELSE IF (scf_control%density_guess == "ATOMIC") THEN
 !
 !      group = qs_env%para_env%group

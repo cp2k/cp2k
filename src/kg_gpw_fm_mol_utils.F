@@ -58,13 +58,76 @@ MODULE kg_gpw_fm_mol_utils
 
 ! *** Public subroutines ***
 
-  PUBLIC :: fm_mol_power, mol_mo_random
+  PUBLIC :: copy_sparse2mol_block, fm_mol_cholesky_restore, &
+            fm_mol_power, mol_mo_random
 
 ! *****************************************************************************
 
 CONTAINS
 
-! *****************************************************************************
+!***************************************************************************
+  SUBROUTINE fm_mol_cholesky_restore(vectors_in,nmo,upper_dec,vectors_out,&
+                                     op,pos,error)
+
+! vectors_in is the set of molecular orbitals as input
+! nmo is the number of molecular orbitals we need
+! upper_dec is the cholesky decomposition of the overlap matrix
+! vectors_out is the set of molecular orbitals as output
+!
+! op can be "SOLVE" (out = U^-1 * in ) or "MULTIPLY"   (out = U * in )
+! pos can be "LEFT" or "RIGHT" (U at the left or at the right)
+!
+!******************************************************************
+
+    REAL(dp), DIMENSION(:,:), POINTER              :: vectors_in
+    INTEGER, INTENT(IN)                            :: nmo
+    REAL(dp), DIMENSION(:,:), POINTER              :: upper_dec
+    REAL(dp), DIMENSION(:,:), POINTER              :: vectors_out
+    CHARACTER ( LEN = * ), INTENT ( IN )           :: op
+    CHARACTER ( LEN = * ), INTENT ( IN ), OPTIONAL :: pos
+    TYPE(cp_error_type), INTENT(inout), OPTIONAL   :: error
+
+    CHARACTER(LEN=*), PARAMETER :: routineN = "fm_mol_cholesky_restore",&
+      routineP = module_name//":"//routineN
+
+    CHARACTER                                      :: my_pos
+    INTEGER                                        :: nao
+    LOGICAL                                        :: failure
+    REAL(dp)                                       :: alpha
+
+   CALL cp_assert(op == "SOLVE" .OR. op == "MULTIPLY",&
+         cp_failure_level,cp_assertion_failed,routineP,&
+         "wrong argument op"//CPSourceFileRef, error,failure)
+
+    IF (PRESENT(pos)) THEN
+       SELECT CASE(pos)
+       CASE("LEFT")
+         my_pos='L'
+       CASE("RIGHT")
+         my_pos='R'
+       CASE DEFAULT
+          CALL cp_assert(.FALSE.,&
+               cp_failure_level,cp_assertion_failed,routineP,&
+               "wrong argument pos"//CPSourceFileRef, error,failure)
+       END SELECT
+    ELSE
+       my_pos='L'
+    ENDIF
+
+    nao = SIZE(upper_dec,1)
+    CPPostcondition(SIZE(vectors_out,1)==nao,cp_failure_level,routineP,error,failure)
+    CPPostcondition(SIZE(vectors_out,2)>=nmo,cp_failure_level,routineP,error,failure)
+    alpha = 1.0_dp
+    CALL dcopy(nmo*nao,vectors_in(1,1),1,vectors_out(1,1),1)
+    IF (op.EQ."SOLVE") THEN
+      CALL dtrsm(my_pos,'U','N','N',nao,nmo,alpha,upper_dec(1,1),nao,&
+                 vectors_out(1,1),nao)
+    ELSE
+      CALL dtrmm(my_pos,'U','N','N',nao,nmo,alpha,upper_dec(1,1),nao,&
+                 vectors_out(1,1),nao)
+    ENDIF
+
+  END SUBROUTINE fm_mol_cholesky_restore
 
 !***************************************************************************
 
@@ -232,6 +295,92 @@ CONTAINS
     END DO 
 
   END SUBROUTINE mol_mo_random
+
+!***************************************************************************
+
+  SUBROUTINE copy_sparse2mol_block(matrix, mol_block, matrix_mol_block, &
+                                   natom, nrow, ncol, error)
+
+    TYPE(real_matrix_type), POINTER          :: matrix
+    TYPE(fm_mol_blocks_type), POINTER        :: mol_block
+    REAL(dp), DIMENSION(:,:), POINTER        :: matrix_mol_block
+    INTEGER, INTENT(IN)                      :: natom, nrow, ncol
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
+
+    CHARACTER(LEN=*), PARAMETER :: routineN = "copy_sparse2mol_block",&
+      routineP = module_name//":"//routineN
+
+    INTEGER                                  :: col_first, col_last, &
+                                                iat, iatom,&
+                                                icol, icol_mol_s, irow, &
+                                                irow_mol_s, & 
+                                                jat, jatom, &
+                                                row_first, row_last , i
+    INTEGER, DIMENSION(:), POINTER           :: i_atom,ifirst_ao,ilast_ao
+    REAL(dp), DIMENSION(:,:),  POINTER       :: s_block
+    LOGICAL                                  :: failure
+
+!   ---------------------------------------------------------------------------
+
+    failure = .FALSE.
+
+    NULLIFY(i_atom,ifirst_ao,ilast_ao)
+
+    CALL get_fm_mol_block(fm_mol_block = mol_block,&
+                          index_atom = i_atom,&
+                          ifirst_ao = ifirst_ao,&
+                          ilast_ao = ilast_ao )
+
+    CPPrecondition(ASSOCIATED(matrix_mol_block),cp_failure_level,routineP,error,failure)
+    CPPrecondition(SIZE(matrix_mol_block,1)>=nrow,cp_failure_level,routineP,error,failure)
+    CPPrecondition(SIZE(matrix_mol_block,2)>=ncol,cp_failure_level,routineP,error,failure)
+
+ ! Transfer the sparse matrix in the molecular block
+    DO iat = 1,natom
+      iatom = i_atom(iat)
+      row_first = ifirst_ao(iat)
+      row_last  = ilast_ao(iat)
+      DO jat = 1 , natom
+        jatom = i_atom(jat)
+        col_first = ifirst_ao(jat)
+        col_last  = ilast_ao(jat)
+
+        NULLIFY(s_block)
+        IF (iatom <= jatom) THEN
+          CALL get_block_node(matrix=matrix,&
+                              block_row=iatom,&
+                              block_col=jatom,&
+                              BLOCK=s_block)
+          icol =  1 
+          DO icol_mol_s = col_first, col_last
+            irow = 1
+            DO irow_mol_s = row_first, row_last
+              matrix_mol_block(irow_mol_s,icol_mol_s) = s_block(irow,icol)
+              irow = irow + 1
+            END DO  ! irow_mol_s 
+            icol = icol + 1
+          END DO   ! icol_mol_s
+        ELSE
+          CALL get_block_node(matrix=matrix,&
+                              block_row=jatom,&
+                              block_col=iatom,&
+                              BLOCK=s_block)
+          icol =  1 
+          DO icol_mol_s = col_first, col_last
+            irow = 1
+            DO irow_mol_s = row_first, row_last
+              matrix_mol_block(irow_mol_s,icol_mol_s) = s_block(icol,irow)
+              irow = irow + 1
+            END DO  ! irow_mol_s 
+            icol = icol + 1
+          END DO  ! icol_mol_s
+        END IF      
+      END DO  ! jat
+    END DO  ! iat
+
+  END SUBROUTINE copy_sparse2mol_block
+
 
 !***************************************************************************
 END MODULE  kg_gpw_fm_mol_utils
