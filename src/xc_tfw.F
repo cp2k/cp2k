@@ -15,7 +15,7 @@
 !!     JGH (18.02.2002)
 !!
 !!   MODIFICATION HISTORY
-!!     none
+!!     JGH (26.02.2003) : OpenMP enabled
 !!
 !!*** *************************************************************************
 
@@ -190,6 +190,7 @@ CONTAINS
 
     CALL calc_rho13 ( rhoa, r13a )
     CALL calc_rho13 ( rhob, r13b )
+!$omp parallel do private(ip)
     DO ip = 1, n
       IF ( rhoa(ip) < eps_rho ) THEN
          sa(ip) = 0.0_dbl
@@ -197,6 +198,7 @@ CONTAINS
          sa(ip) = grhoa(ip)*grhoa(ip) / rhoa(ip)
       END IF
     END DO
+!$omp parallel do private(ip)
     DO ip = 1, n
       IF ( rhob(ip) < eps_rho ) THEN
          sb(ip) = 0.0_dbl
@@ -248,6 +250,7 @@ CONTAINS
     IF ( npoints > SIZE(pot) ) &
        CALL stop_program ( "tfw_u_0", "Inconsistent array sizes" )
 
+!$omp parallel do private(ip)
     DO ip = 1, npoints
 
       IF ( rho(ip) > eps_rho ) THEN
@@ -277,6 +280,7 @@ CONTAINS
 
     f = f53 * flda
 
+!$omp parallel do private(ip)
     DO ip = 1, npoints
 
       IF ( rho(ip) > eps_rho ) THEN
@@ -307,6 +311,7 @@ CONTAINS
 
     f = f23 * f53 * flda
 
+!$omp parallel do private(ip)
     DO ip = 1, npoints
 
       IF ( rho(ip) > eps_rho ) THEN
@@ -338,6 +343,7 @@ CONTAINS
 
     f = -f13 * f23 * f53 * flda
 
+!$omp parallel do private(ip)
     DO ip = 1, npoints
 
       IF ( rho(ip) > eps_rho ) THEN
@@ -370,6 +376,7 @@ CONTAINS
     IF ( npoints > SIZE(pot,1) ) &
        CALL stop_program ( "tfw_p_0", "Inconsistent array sizes" )
 
+!$omp parallel do private(ip)
     DO ip = 1, npoints
 
       IF ( rhoa(ip) > eps_rho ) THEN
@@ -401,6 +408,7 @@ CONTAINS
 
     f = f53 * flsd
 
+!$omp parallel do private(ip)
     DO ip = 1, npoints
 
       IF ( rhoa(ip) > eps_rho ) THEN
@@ -434,6 +442,7 @@ CONTAINS
 
     f = f23 * f53 * flsd
 
+!$omp parallel do private(ip)
     DO ip = 1, npoints
 
       IF ( rhoa(ip) > eps_rho ) THEN
@@ -469,6 +478,7 @@ CONTAINS
 
     f = -f13 * f23 * f53 * flsd
 
+!$omp parallel do private(ip)
     DO ip = 1, npoints
 
       IF ( rhoa(ip) > eps_rho ) THEN

@@ -593,8 +593,9 @@ CONTAINS
 
        ! set rgrid
        DO ispin=1,nspins
-          ii=0
+!$omp parallel do private(k,j,i,ii)
           DO k = bo(1,3), bo(2,3)
+             ii = (k-bo(1,3))*n(1)*n(2)
              DO j = bo(1,2), bo(2,2)
                 DO i = bo(1,1), bo(2,1)
                    ii = ii + 1
@@ -626,8 +627,9 @@ CONTAINS
           CPAssert(.not.tot_grad,cp_failure_level,routineP,error,failure)
           DO ispin=1,nspins
              ! calc drgrid(:,ispin)=||grad rho_ispin||
-             ii = 0
+!$omp parallel do private(k,j,i,ii)
              DO k = bo(1,3), bo(2,3)
+                ii = (k-bo(1,3))*n(1)*n(2)
                 DO j = bo(1,2), bo(2,2)
                    DO i = bo(1,1), bo(2,1)
                       ii = ii + 1
@@ -702,8 +704,9 @@ CONTAINS
        ! compose vxc
        ! IF (spezgrid ) THEN should transform to lower cutoff
        DO ispin=1,nspins
-          ii = 0
+!$omp parallel do private(k,j,i,ii)
           DO k = bo(1,3), bo(2,3)
+             ii = (k-bo(1,3))*n(1)*n(2)
              DO j = bo(1,2), bo(2,2)
                 DO i = bo(1,1), bo(2,1)
                    ii = ii + 1
@@ -724,6 +727,7 @@ CONTAINS
 
              ipot=nspins+ispin
 
+!$omp parallel do private(i)
              DO i = 1, ntot
                 IF ( drgrid(i,ispin) > dft_control%gradient_cut ) THEN
                    pot(i,ipot) = -pot(i,ipot) / drgrid(i,ispin)
@@ -733,8 +737,9 @@ CONTAINS
              END DO
 
              DO idir = 1, 3
-                ii = 0
+!$omp parallel do private(k,j,i,ii)
                 DO k = bo(1,3), bo(2,3)
+                   ii = (k-bo(1,3))*n(1)*n(2)
                    DO j = bo(1,2), bo(2,2)
                       DO i = bo(1,1), bo(2,1)
                          ii = ii + 1
@@ -976,9 +981,10 @@ END SUBROUTINE xc_prep_2nd_deriv1
     IF (.NOT.failure) THEN
 
 ! set rgrid
-       ii=0
        DO spin=1,nspins
+!$omp parallel do private(k,j,i,ii)
           DO k = bo(1,3), bo(2,3)
+             ii = (k-bo(1,3))*n(1)*n(2)
              DO j = bo(1,2), bo(2,2)
                 DO i = bo(1,1), bo(2,1)
                    ii = ii + 1
@@ -1009,8 +1015,9 @@ END SUBROUTINE xc_prep_2nd_deriv1
 
 ! calc drgrid=||grad rho||
           DO spin=1,nspins
-             ii = 0
+!$omp parallel do private(k,j,i,ii)
              DO k = bo(1,3), bo(2,3)
+                ii = (k-bo(1,3))*n(1)*n(2)
                 DO j = bo(1,2), bo(2,2)
                    DO i = bo(1,1), bo(2,1)
                       ii = ii + 1
@@ -1084,6 +1091,7 @@ END SUBROUTINE xc_prep_2nd_deriv1
                      CPSourceFileRef,&
                      error,failure)
 
+!$omp parallel do private(ii)
                 DO ii=1,ntot
                    IF (drgrid(ii,spin_pot(1,ipot))<dft_control%gradient_cut.or.&
                         drgrid(ii,spin_pot(2,ipot))<dft_control%gradient_cut) THEN
@@ -1100,6 +1108,7 @@ END SUBROUTINE xc_prep_2nd_deriv1
                      CPSourceFileRef,&
                      error,failure)
 
+!$omp parallel do private(ii)
                 DO ii=1,ntot
                    IF (drgrid(ii,spin_pot(1,ipot))<dft_control%gradient_cut) THEN
                       pot(ii,ipot)=0.0_wp
@@ -1111,6 +1120,7 @@ END SUBROUTINE xc_prep_2nd_deriv1
           ELSE IF (grad_pot(1,ipot)) THEN
              CPPrecondition(gradient_f,cp_failure_level,routineP,error,failure)
              CPPrecondition(ndiag_term(ipot),cp_failure_level,routineP,error,failure)
+!$omp parallel do private(ii)
              DO ii=1,ntot
                 IF (drgrid(ii,spin_pot(1,ipot))<dft_control%gradient_cut.or.&
                      drgrid(ii,spin_pot(2,ipot))<dft_control%gradient_cut) THEN
@@ -1124,6 +1134,7 @@ END SUBROUTINE xc_prep_2nd_deriv1
              CPPrecondition(gradient_f,cp_failure_level,routineP,error,failure)
              CPPrecondition(ndiag_term(ipot),cp_failure_level,routineP,error,failure)
 
+!$omp parallel do private(ii)
              DO ii=1,ntot
                 IF (drgrid(ii,spin_pot(1,ipot))<dft_control%gradient_cut) THEN
                    pot(ii,ipot)=0.0_wp
@@ -1429,6 +1440,7 @@ END SUBROUTINE xc_calc_2nd_deriv1
                 CALL pw_transfer ( tmp_g, tmp_r )
 
                 IF (idir==1) THEN
+!$omp parallel do private(k,j,i)
                    DO k = bo(1,3), bo(2,3)
                       DO j = bo(1,2), bo(2,2)
                          DO i = bo(1,1), bo(2,1)
@@ -1439,6 +1451,7 @@ END SUBROUTINE xc_calc_2nd_deriv1
                       END DO
                    END DO
                 ELSE
+!$omp parallel do private(k,j,i)
                    DO k = bo(1,3), bo(2,3)
                       DO j = bo(1,2), bo(2,2)
                          DO i = bo(1,1), bo(2,1)
@@ -1485,8 +1498,9 @@ END SUBROUTINE xc_calc_2nd_deriv1
                      CPSourceFileRef,&
                      error,failure)
 
-                ii=0
+!$omp parallel do private(k,j,i,ii)
                 DO k = bo(1,3), bo(2,3)
+                   ii = (k-bo(1,3))*n(1)*n(2)
                    DO j = bo(1,2), bo(2,2)
                       DO i = bo(1,1), bo(2,1)
                          ii=ii+1
@@ -1498,8 +1512,9 @@ END SUBROUTINE xc_calc_2nd_deriv1
                    END DO
                 END DO
 
-                ii=0
+!$omp parallel do private(k,j,i,ii)
                 DO k = bo(1,3), bo(2,3)
+                   ii = (k-bo(1,3))*n(1)*n(2)
                    DO j = bo(1,2), bo(2,2)
                       DO i = bo(1,1), bo(2,1)
                          ii=ii+1
@@ -1517,8 +1532,9 @@ END SUBROUTINE xc_calc_2nd_deriv1
                      CPSourceFileRef,&
                      error,failure)
 
-                ii=0
+!$omp parallel do private(k,j,i,ii)
                 DO k = bo(1,3), bo(2,3)
+                   ii = (k-bo(1,3))*n(1)*n(2)
                    DO j = bo(1,2), bo(2,2)
                       DO i = bo(1,1), bo(2,1)
                          ii=ii+1
@@ -1533,8 +1549,9 @@ END SUBROUTINE xc_calc_2nd_deriv1
           ELSE IF (grad_pot(1,ipot)) THEN
              CPPrecondition(ndiag_term(ipot),cp_failure_level,routineP,error,failure)
 
-             ii=0
+!$omp parallel do private(k,j,i,ii)
              DO k = bo(1,3), bo(2,3)
+                ii = (k-bo(1,3))*n(1)*n(2)
                 DO j = bo(1,2), bo(2,2)
                    DO i = bo(1,1), bo(2,1)
                       ii=ii+1
@@ -1546,8 +1563,9 @@ END SUBROUTINE xc_calc_2nd_deriv1
                 END DO
              END DO
 
-             ii=0
+!$omp parallel do private(k,j,i,ii)
              DO k = bo(1,3), bo(2,3)
+                ii = (k-bo(1,3))*n(1)*n(2)
                 DO j = bo(1,2), bo(2,2)
                    DO i = bo(1,1), bo(2,1)
                       ii=ii+1
@@ -1561,8 +1579,9 @@ END SUBROUTINE xc_calc_2nd_deriv1
           ELSE IF (grad_pot(2,ipot)) THEN
              CPPrecondition(ndiag_term(ipot),cp_failure_level,routineP,error,failure)
 
-             ii=0
+!$omp parallel do private(k,j,i,ii)
              DO k = bo(1,3), bo(2,3)
+                ii = (k-bo(1,3))*n(1)*n(2)
                 DO j = bo(1,2), bo(2,2)
                    DO i = bo(1,1), bo(2,1)
                       ii=ii+1
@@ -1574,8 +1593,9 @@ END SUBROUTINE xc_calc_2nd_deriv1
                 END DO
              END DO
 
-             ii=0
+!$omp parallel do private(k,j,i,ii)
              DO k = bo(1,3), bo(2,3)
+                ii = (k-bo(1,3))*n(1)*n(2)
                 DO j = bo(1,2), bo(2,2)
                    DO i = bo(1,1), bo(2,1)
                       ii=ii+1
@@ -1595,8 +1615,9 @@ END SUBROUTINE xc_calc_2nd_deriv1
                      CPSourceFileRef,&
                      error,failure)
 
-                ii=0
+!$omp parallel do private(k,j,i,ii)
                 DO k = bo(1,3), bo(2,3)
+                   ii = (k-bo(1,3))*n(1)*n(2)
                    DO j = bo(1,2), bo(2,2)
                       DO i = bo(1,1), bo(2,1)
                          ii=ii+1
@@ -1608,8 +1629,9 @@ END SUBROUTINE xc_calc_2nd_deriv1
                    END DO
                 END DO
 
-                ii=0
+!$omp parallel do private(k,j,i,ii)
                 DO k = bo(1,3), bo(2,3)
+                   ii = (k-bo(1,3))*n(1)*n(2)
                    DO j = bo(1,2), bo(2,2)
                       DO i = bo(1,1), bo(2,1)
                          ii=ii+1
@@ -1626,8 +1648,9 @@ END SUBROUTINE xc_calc_2nd_deriv1
                      "error inconsistent spin_pot info "//&
                      CPSourceFileRef,&
                      error,failure)
-                ii=0
+!$omp parallel do private(k,j,i,ii)
                 DO k = bo(1,3), bo(2,3)
+                   ii = (k-bo(1,3))*n(1)*n(2)
                    DO j = bo(1,2), bo(2,2)
                       DO i = bo(1,1), bo(2,1)
                          ii=ii+1
@@ -1672,6 +1695,7 @@ END SUBROUTINE xc_calc_2nd_deriv1
           IF (gradient_f) THEN
              DO idir=1,3
                 
+!$omp parallel do private(k,j,i)
                 DO k = bo(1,3), bo(2,3)
                    DO j = bo(1,2), bo(2,2)
                       DO i = bo(1,1), bo(2,1)

@@ -649,7 +649,7 @@ CONTAINS
     LOGICAL           :: section_found
 
     INTEGER, DIMENSION(3) :: n
-    INTEGER :: omp_get_num_threads,num_threads
+    INTEGER :: omp_get_num_threads, num_threads
 
     COMPLEX(wp), DIMENSION(4,4,4) :: zz
 
@@ -789,9 +789,9 @@ CONTAINS
         ADJUSTR(globenv%run_type(:40))
       WRITE (UNIT=output_unit,FMT="(T2,A,T75,I6)")&
         start_section_label//"| Global print level",globenv%print_level,&
-        start_section_label//"| Total number of processes",globenv%num_pe,&
-        start_section_label//"| This output is from process",globenv%mepos, &
-        start_section_label//"| number of threads for this process",num_threads
+        start_section_label//"| Total number of message passing processes",globenv%num_pe,&
+        start_section_label//"| Number of threads for this process",num_threads,&
+        start_section_label//"| This output is from process",globenv%mepos
     END IF
 
   END SUBROUTINE read_cp2k_section

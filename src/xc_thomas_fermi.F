@@ -18,7 +18,7 @@
 !!     JGH (18.02.2002)
 !!
 !!   MODIFICATION HISTORY
-!!     none
+!!     JGH (26.02.2003) : OpenMP enabled
 !!
 !!*** *************************************************************************
 
@@ -213,6 +213,7 @@ CONTAINS
     IF ( npoints > SIZE(pot) ) &
        CALL stop_program ( "thomas_fermi_lda_0", "Inconsistent array sizes" )
 
+!$omp parallel do private(ip)
     DO ip = 1, npoints
 
       IF ( rho(ip) > eps_rho ) THEN
@@ -242,6 +243,7 @@ CONTAINS
 
     f = f53 * flda
 
+!$omp parallel do private(ip)
     DO ip = 1, npoints
 
       IF ( rho(ip) > eps_rho ) THEN
@@ -271,6 +273,7 @@ CONTAINS
 
     f = f23 * f53 * flda
 
+!$omp parallel do private(ip)
     DO ip = 1, npoints
 
       IF ( rho(ip) > eps_rho ) THEN
@@ -300,6 +303,7 @@ CONTAINS
 
     f = -f13 * f23 * f53 * flda
 
+!$omp parallel do private(ip)
     DO ip = 1, npoints
 
       IF ( rho(ip) > eps_rho ) THEN
@@ -327,6 +331,7 @@ CONTAINS
     IF ( npoints > SIZE(pot,1) ) &
        CALL stop_program ( "thomas_fermi_lsd_0", "Inconsistent array sizes" )
 
+!$omp parallel do private(ip)
     DO ip = 1, npoints
 
       IF ( rhoa(ip) > eps_rho ) THEN
@@ -357,6 +362,7 @@ CONTAINS
 
     f = f53 * flsd
 
+!$omp parallel do private(ip)
     DO ip = 1, npoints
 
       IF ( rhoa(ip) > eps_rho ) THEN
@@ -387,6 +393,7 @@ CONTAINS
 
     f = f23 * f53 * flsd
 
+!$omp parallel do private(ip)
     DO ip = 1, npoints
 
       IF ( rhoa(ip) > eps_rho ) THEN
@@ -417,6 +424,7 @@ CONTAINS
 
     f = -f13 * f23 * f53 * flsd
 
+!$omp parallel do private(ip)
     DO ip = 1, npoints
 
       IF ( rhoa(ip) > eps_rho ) THEN

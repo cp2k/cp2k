@@ -15,6 +15,7 @@
 !!
 !!   MODIFICATION HISTORY
 !!     JGH (20.02.2001) : Added setup routine
+!!     JGH (26.02.2003) : OpenMP enabled
 !!
 !!   SOURCE
 !******************************************************************************
@@ -190,6 +191,7 @@ CONTAINS
        CALL stop_program("functionals_utilities/calc_rs_array","size of array rs too small")
     END IF
 
+!$omp parallel do private(k)
     DO k=1, SIZE(rs)
        IF ( rho(k) < eps_rho ) THEN
           rs(k) = 0.0_dbl
@@ -221,6 +223,7 @@ CONTAINS
     CALL calc_rs ( rho, x )
     n = SIZE ( rho )
 
+!$omp parallel do private(ip)
     DO ip = 1, n
       x(ip) = sqrt(x(ip))
     END DO
@@ -246,6 +249,7 @@ CONTAINS
     IF ( n > SIZE(r13) ) &
       CALL stop_program ( "calc_rho13", "Incompatible array sizes" )
 
+!$omp parallel do private(ip)
     DO ip = 1, n
       IF ( rho(ip) < eps_rho ) THEN
          r13(ip) = 0.0_dbl
@@ -288,6 +292,7 @@ CONTAINS
     IF ( n > SIZE(grho) ) &
       CALL stop_program ( "calc_wave_vector", "Incompatible array sizes" )
 
+!$omp parallel do private(ip)
     DO ip = 1, n
       IF ( rho(ip) < eps_rho ) THEN
          s(ip) = 0.0_dbl
@@ -332,6 +337,7 @@ CONTAINS
       CALL stop_program ( "calc_fx", "Incompatible array sizes" )
     IF ( m > 3 ) CALL stop_program ( "calc_fx", "Order too high" )
 
+!$omp parallel do private(ip,x)
     DO ip = 1, n
       rhoab = rhoa(ip) + rhob(ip)
       IF ( rhoab < eps_rho ) THEN

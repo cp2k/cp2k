@@ -15,7 +15,7 @@
 !!     JGH (27.02.2002)
 !!
 !!   MODIFICATION HISTORY
-!!     none
+!!     JGH (26.02.2003) : OpenMP enabled
 !!
 !!*** *************************************************************************
 
@@ -534,6 +534,7 @@ CONTAINS
     IF ( npoints > SIZE(pot) ) &
        CALL stop_program ( "x_p_0", "Inconsistent array sizes" )
 
+!$omp parallel do private(ip)
     DO ip = 1, npoints
 
       IF ( rho(ip) > eps_rho ) THEN
@@ -561,6 +562,7 @@ CONTAINS
     IF ( npoints > SIZE(pot) ) &
        CALL stop_program ( "x_p_1", "Inconsistent array sizes" )
 
+!$omp parallel do private(ip,a0,a1,sx,sy)
     DO ip = 1, npoints
 
       IF ( rho(ip) > eps_rho ) THEN
@@ -595,6 +597,7 @@ CONTAINS
     IF ( npoints > SIZE(pot) ) &
        CALL stop_program ( "x_p_2", "Inconsistent array sizes" )
 
+!$omp parallel do private(ip,a0,a1,a2,sx,sy,sxx,sxy)
     DO ip = 1, npoints
 
       IF ( rho(ip) > eps_rho ) THEN
@@ -635,6 +638,7 @@ CONTAINS
     IF ( npoints > SIZE(pot) ) &
        CALL stop_program ( "x_u_3", "Inconsistent array sizes" )
 
+!$omp parallel do private(ip,a0,a1,a2,a3,sx,sy,sxx,sxy,sxx,sxxy)
     DO ip = 1, npoints
 
       IF ( rho(ip) > eps_rho ) THEN
@@ -686,6 +690,9 @@ CONTAINS
     f0 = 1._dbl/sfac
     p = -beta/flsd
     q = 6._dbl*beta
+!$omp parallel do private(ip,x,bs,sbs,as,sas,ys,asp,sbs3) &
+!$omp   private(t1,t2,t4,t5,t6,t8,t9,t10,t13,t15,t16,t19,t22,t24,t25,t32,t34) &
+!$omp   private(t36,t39,t40,t41,t44,t48,t49,t65,t87)
     DO ip=1,SIZE(s)
       x = s(ip) * f0
       bs = beta*x
@@ -771,6 +778,8 @@ CONTAINS
     t2 = 14._dbl
     t3 = 0.2_dbl
     f15 = 1._dbl/15._dbl
+!$omp parallel do private(ip,s2,s4,s6,p0,p1,p2,p3,p15,f15)&
+!$omp  private( t1, t2, t3, t8, t9, t10, t12, t13, t14, t19, t25)
     DO ip=1,SIZE(s)
       s2 = s(ip)*s(ip)
       s4 = s2*s2
@@ -828,6 +837,7 @@ CONTAINS
 
     f0 = 1._dbl/sfac
     b = -a2/flsd
+!$omp parallel do private(ip,x,a,y)
     DO ip=1,SIZE(s)
       x = s(ip) * f0
       a = gamma*x*x
@@ -872,6 +882,7 @@ CONTAINS
     a  = 0.8145161_dbl
     b1 = 0.004_dbl
     IF ( m >= 0 ) THEN
+!$omp parallel do private(ip,x)
       DO ip=1,SIZE(s)
         x = s(ip)
         fs(ip,1) = (o+a1*x*log(a*x+sqrt(o+a**2*x**2))+a2-a3*exp(-a4*x**2)*x**2)&
@@ -879,6 +890,7 @@ CONTAINS
       END DO
     END IF
     IF ( m >= 1 ) THEN
+!$omp parallel do private(ip,x)
       DO ip=1,SIZE(s)
         x = s(ip)
         fs(ip,2) =&
@@ -890,6 +902,7 @@ CONTAINS
       END DO
     END IF
     IF ( m >= 2 ) THEN
+!$omp parallel do private(ip,x)
       DO ip=1,SIZE(s)
         x = s(ip)
         s1 = (2*a1*a/sqrt(1+a**2*x**2)-a1*x**2*a**3/sqrt(1+a**2*x**2)**3+  &
@@ -909,6 +922,7 @@ CONTAINS
       END DO
     END IF
     IF ( m >= 3 ) THEN
+!$omp parallel do private(ip,x)
       DO ip=1,SIZE(s)
         x = s(ip)
         s2 = (-4*a1*a**3/sqrt(1+a**2*x**2)**3*x+3*a1*x**3*a**5/         &
@@ -961,6 +975,7 @@ CONTAINS
     IF( pset==2 ) mk=mu/kappa2
 
     f0 = 1._dbl/tact
+!$omp parallel do private(ip,x,x2,y)
     DO ip=1,SIZE(s)
       x = s(ip)*f0
       x2 = x*x

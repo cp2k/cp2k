@@ -20,7 +20,7 @@
 !!     JGH (26.02.2002)
 !!
 !!   MODIFICATION HISTORY
-!!     none
+!!     JGH (26.02.2003) : OpenMP enabled
 !!
 !!*** *************************************************************************
 
@@ -226,6 +226,7 @@ CONTAINS
     q = SQRT ( 4._dbl*c - b*b )
     xb = 2._dbl*x0+b
 
+!$omp parallel do private(ip,px,dpx,at,ln1,ln2)
     DO ip = 1, npoints
 
       IF ( rho(ip) > eps_rho ) THEN
@@ -258,6 +259,7 @@ CONTAINS
 
     q = SQRT ( 4._dbl*c - b*b )
     xb = 2._dbl*x0+b
+!$omp parallel do private(ip,px,dpx,at,pa,dat,ln1,dln1,ln2,dln2,ex,dex)
     DO ip = 1, npoints
 
       IF ( rho(ip) > eps_rho ) THEN
@@ -297,6 +299,7 @@ CONTAINS
 
     q = SQRT ( 4._dbl*c - b*b )
     xb = 2._dbl*x0+b
+!$omp parallel do private(ip,px,dpx,at,pa,dat,ln1,dln1,ln2,dln2,ex,dex)
     DO ip = 1, npoints
 
       IF ( rho(ip) > eps_rho ) THEN
@@ -340,11 +343,11 @@ CONTAINS
     q = SQRT ( 4._dbl*c - b*b )
     xb = 2._dbl*x0+b
 
+!$omp parallel do private(ip,px,dpx,at,pa,dat,d2at,ln1,dln1,d2ln1) &
+!$omp             private(ln2,dln2,d2ln2,fp,dfp,d2fp,dex,d2ex)
     DO ip = 1, npoints
 
       IF ( rho(ip) > eps_rho ) THEN
-         px = x(ip)*x(ip)+b*x(ip)+c
-         dpx = 2._dbl*x(ip)+b
          px = x(ip)*x(ip)+b*x(ip)+c
          dpx = 2._dbl*x(ip)+b
          at = 2._dbl/q*ATAN(q/dpx)
@@ -391,11 +394,12 @@ CONTAINS
     q = SQRT ( 4._dbl*c - b*b )
     xb = 2._dbl*x0+b
 
+!$omp parallel do private(ip,px,dpx,at,pa,dat,d2at,d3at,ln1,ax,bx) &
+!$omp             private(dbx,d2bx,dln1,d2ln1,d3ln1,ln2,cx,dx,ddx,d2dx,dln2,d2ln2,d3ln2) &
+!$omp             private(fp,dfp,d2fp,d3fp,dex,d2ex,d3ex)
     DO ip = 1, npoints
 
       IF ( rho(ip) > eps_rho ) THEN
-         px = x(ip)*x(ip)+b*x(ip)+c
-         dpx = 2._dbl*x(ip)+b
          px = x(ip)*x(ip)+b*x(ip)+c
          dpx = 2._dbl*x(ip)+b
          at = 2._dbl/q*ATAN(q/dpx)

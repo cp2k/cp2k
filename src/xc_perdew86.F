@@ -14,7 +14,7 @@
 !!     JGH (03.03.2002)
 !!
 !!   MODIFICATION HISTORY
-!!     none
+!!     JGH (26.02.2003) : OpenMP enabled
 !!
 !******************************************************************************
 
@@ -237,6 +237,7 @@ CONTAINS
        CALL stop_program ( "p86_u_0", "Inconsistent array sizes" )
 
 
+!$omp parallel do private(ip,g,r,x,or,cr,phi,ep)
     DO ip = 1, npoints
 
       IF ( rho(ip) > eps_rho ) THEN
@@ -269,6 +270,7 @@ CONTAINS
     IF ( npoints > SIZE(pot) ) &
        CALL stop_program ( "p86_u_1", "Inconsistent array sizes" )
 
+!$omp parallel do private(ip,g,r,x,or,p,dp,q,dq,cr,dcr,dphig,phi,dphir,ep,ff)
     DO ip = 1, npoints
 
       IF ( rho(ip) > eps_rho ) THEN
@@ -311,6 +313,8 @@ CONTAINS
     IF ( npoints > SIZE(pot) ) &
        CALL stop_program ( "p86_u_2", "Inconsistent array sizes" )
 
+!$omp parallel do private(ip,x,r,cr,phi,ep,g,or,p,q,dp,dq,dphir,dcr) &
+!$omp             private(dphig,dphigr,d2phir,d2cr,d2p,d2q)
     DO ip = 1, npoints
 
       IF ( rho(ip) > eps_rho ) THEN
@@ -364,6 +368,9 @@ CONTAINS
     IF ( npoints > SIZE(pot) ) &
        CALL stop_program ( "p86_u_3", "Inconsistent array sizes" )
 
+!$omp parallel do private(ip,x, r, cr, phi, ep, g, or, p, q, dp, dq, dphir, dcr, dphig) &
+!$omp             private(dphigr, d2phir, d3phir, d2cr, d3cr, d2p, d2q, d2phirg, d3q) &
+!$omp             private(pq, dpq, d2pq, d3pq, oz, dz, d2z, d3z)
     DO ip = 1, npoints
 
       IF ( rho(ip) > eps_rho ) THEN

@@ -14,7 +14,7 @@
 !!     JGH (27.02.2002)
 !!
 !!   MODIFICATION HISTORY
-!!     none
+!!     JGH (26.02.2003) : OpenMP enabled
 !!
 !******************************************************************************
 
@@ -228,6 +228,7 @@ CONTAINS
 
     f24 = 1._dbl/24._dbl
 
+!$omp parallel do private(ip,x,g,odx,ecx,lda,ax,bx)
     DO ip = 1, npoints
 
       IF ( rho(ip) > eps_rho ) THEN
@@ -262,6 +263,7 @@ CONTAINS
 
     f24 = 1._dbl/24._dbl
 
+!$omp parallel do private(ip,x,g,odx,ecx,lda,dlda,ax,dax,bx,dbx)
     DO ip = 1, npoints
 
       IF ( rho(ip) > eps_rho ) THEN
@@ -302,6 +304,7 @@ CONTAINS
 
     f24 = 1._dbl/24._dbl
 
+!$omp parallel do private(ip,odx,ecx,x,g,lda,dlda,ax,bx,dax,dbx,dab,d2ab,d2lda,d2ax,d2bx)
     DO ip = 1, npoints
 
       IF ( rho(ip) > eps_rho ) THEN
@@ -352,6 +355,8 @@ CONTAINS
 
     f24 = 1._dbl/24._dbl
 
+!$omp parallel do private(ip,odx,ecx,x,g,lda,dlda,ax,bx,dax,dbx,dab,d2ab,d3ab) &
+!$omp             private(d2lda,d2ax,d2bx,d3lda,d3ax,d3bx)
     DO ip = 1, npoints
 
       IF ( rho(ip) > eps_rho ) THEN

@@ -20,7 +20,7 @@
 !!     JGH (15.02.2002)
 !!
 !!   MODIFICATION HISTORY
-!!     none
+!!     JGH (26.02.2003) : OpenMP enabled
 !!
 !******************************************************************************
 
@@ -247,6 +247,7 @@ CONTAINS
     IF ( npoints > SIZE(pot) ) &
        CALL stop_program ( "pade_lda_0", "Inconsistent array sizes" )
 
+!$omp parallel do private(ip,p,q,epade)
     DO ip = 1, npoints
 
       IF ( rho(ip) > eps_rho ) THEN
@@ -277,6 +278,7 @@ CONTAINS
     IF ( npoints > SIZE(pot) ) &
        CALL stop_program ( "pade_lda_1", "Inconsistent array sizes" )
 
+!$omp parallel do private(ip,p,q,epade,dp,dq,depade)
     DO ip = 1, npoints
 
       IF ( rho(ip) > eps_rho ) THEN
@@ -312,6 +314,7 @@ CONTAINS
     IF ( npoints > SIZE(pot,1) ) &
        CALL stop_program ( "pade_lda_01", "Inconsistent array sizes" )
 
+!$omp parallel do private(ip,p,q,epade,dp,dq,depade)
     DO ip = 1, npoints
 
       IF ( rho(ip) > eps_rho ) THEN
@@ -348,6 +351,7 @@ CONTAINS
     IF ( npoints > SIZE(pot) ) &
        CALL stop_program ( "pade_lda_2", "Inconsistent array sizes" )
 
+!$omp parallel do private(ip,p,q,dp,dq,d2p,d2q,rsr,t1,t2,t3)
     DO ip = 1, npoints
 
       IF ( rho(ip) > eps_rho ) THEN
@@ -390,6 +394,7 @@ CONTAINS
     IF ( npoints > SIZE(pot) ) &
        CALL stop_program ( "pade_lda_2", "Inconsistent array sizes" )
 
+!$omp parallel do private(ip,p,q,dp,dq,d2p,d2q,d3p,d3q,ab1,ab2,ab3,rsr1,rsr2,rsr3)
     DO ip = 1, npoints
 
       IF ( rho(ip) > eps_rho ) THEN
@@ -439,6 +444,8 @@ CONTAINS
     IF ( npoints > SIZE(pot,1) ) &
        CALL stop_program ( "pade_lsd_0", "Inconsistent array sizes" )
 
+!$omp parallel do private(ip,rhoab,p,q) &
+!$omp private(fa0,fa1,fa2,fa3,fb1,fb2,fb3,fb4)
     DO ip = 1, npoints
 
       rhoab = rhoa(ip) + rhob(ip)
@@ -482,6 +489,8 @@ CONTAINS
     IF ( npoints > SIZE(pot,1) ) &
        CALL stop_program ( "pade_lsd_1", "Inconsistent array sizes" )
 
+!$omp parallel do private(ip,rhoab,p,q,dp,dq,xp,xq,dr,dx,dc) &
+!$omp private(fa0,fa1,fa2,fa3,fb1,fb2,fb3,fb4)
     DO ip = 1, npoints
 
       rhoab = rhoa(ip) + rhob(ip)
@@ -535,6 +544,8 @@ CONTAINS
     IF ( npoints > SIZE(pot,1) ) &
        CALL stop_program ( "pade_lsd_01", "Inconsistent array sizes" )
 
+!$omp parallel do private(ip,rhoab,p,q,dp,dq,xp,xq,dr,dx,dc) &
+!$omp private(fa0,fa1,fa2,fa3,fb1,fb2,fb3,fb4)
     DO ip = 1, npoints
 
       rhoab = rhoa(ip) + rhob(ip)
@@ -590,6 +601,9 @@ CONTAINS
     IF ( npoints > SIZE(pot,1) ) &
        CALL stop_program ( "pade_lsd_2", "Inconsistent array sizes" )
 
+!$omp parallel do private(ip,rhoab,p,q,dp,dq,d2p,d2q,xp,xq,dxp,dxq,dr,drr) &
+!$omp private(dx,dxx,dxr,or,xt,yt) &
+!$omp private(fa0,fa1,fa2,fa3,fb1,fb2,fb3,fb4)
     DO ip = 1, npoints
 
       rhoab = rhoa(ip) + rhob(ip)
@@ -673,6 +687,7 @@ CONTAINS
 
     IF ( .NOT. debug_flag ) CALL stop_program("pade_lsd_3","Routine not tested")
 
+!$omp parallel do private(ip)
     DO ip = 1, npoints
 
       rhoab = rhoa(ip) + rhob(ip)

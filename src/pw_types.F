@@ -15,6 +15,7 @@
 !!   MODIFICATION HISTORY
 !!     JGH (29-Dec-2000) : Changes for parallel use
 !!     JGH (13-Mar-2001) : added timing calls
+!!     JGH (26-feb-2003) : OpenMP enabled
 !!
 !!   NOTES
 !!     If parallel mode is distributed certain combination of
@@ -308,7 +309,7 @@ SUBROUTINE pw_zero ( pw )
   TYPE ( pw_type ), INTENT ( INOUT ) :: pw
 
 ! Local
-  INTEGER :: ns, handle
+  INTEGER :: i, ns, handle
   REAL ( dbl ) :: zr
 
 !------------------------------------------------------------------------------
@@ -317,10 +318,16 @@ SUBROUTINE pw_zero ( pw )
 
   IF ( pw % in_use == REALDATA1D ) THEN
      ns = SIZE ( pw % cr  )
-     CALL DCOPY(ns,0.0_dbl,0,pw % cr,1) 
+!$omp parallel do private(i)
+     DO i = 1, ns
+        pw % cr ( i ) = 0.0_dbl
+     END DO
   ELSE IF ( pw % in_use == COMPLEXDATA1D ) THEN
      ns = 2 * SIZE ( pw % cc  )
-     CALL DCOPY(ns,0.0_dbl,0,pw % cc,1) 
+!$omp parallel do private(i)
+     DO i = 1, ns/2
+        pw % cc ( i ) = CMPLX ( 0.0_dbl, 0.0_dbl, dbl )
+     END DO
   ELSE IF ( pw % in_use == REALDATA3D ) THEN
      ns = SIZE ( pw % cr3d  )
      CALL DCOPY(ns,0.0_dbl,0,pw % cr3d,1) 
@@ -396,8 +403,16 @@ SUBROUTINE pw_copy ( pw1, pw2 )
            ng1 = SIZE ( pw1 % cc )
            ng2 = SIZE ( pw2 % cc )
            ng = MIN ( ng1, ng2 )
-           CALL DCOPY(2*ng,pw1%cc,1,pw2%cc,1)
-           IF ( ng2 > ng ) CALL DCOPY(2*(ng2-ng),0.0_dbl,0,pw2%cc(ng+1),1)
+!$omp parallel do private(i)
+           DO i = 1, ng
+              pw2%cc(i) = pw1%cc(i)
+           END DO
+           IF ( ng2 > ng ) THEN
+!$omp parallel do private(i)
+              DO i = ng+1, ng2
+                 pw2%cc(i) = CMPLX ( 0.0_dbl, 0.0_dbl, dbl )
+              END DO
+           END IF
            ns = 2 * MAX ( ng1, ng2 )
         ELSE
            CALL stop_program ( "pw_copy", "no suitable data field" )
@@ -428,12 +443,14 @@ SUBROUTINE pw_copy ( pw1, pw2 )
 
         IF ( ( pw1 % pw_grid % identifier == pw2 % pw_grid % reference ) ) THEN
           IF( ng1 >= ng2 ) THEN
+!$omp parallel do private(i,j)
             DO i = 1, ng2
               j = pw2 % pw_grid % gidx ( i )
               pw2 % cc ( i ) = pw1 % cc ( j )
             END DO
           ELSE
             CALL pw_zero ( pw2 )
+!$omp parallel do private(i,j)
             DO i = 1, ng1
               j = pw2 % pw_grid % gidx ( i )
               pw2 % cc ( j ) = pw1 % cc ( i )
@@ -441,12 +458,14 @@ SUBROUTINE pw_copy ( pw1, pw2 )
           END IF
         ELSE IF ( ( pw2 % pw_grid % identifier == pw1 % pw_grid % reference ) ) THEN
           IF( ng1 >= ng2 ) THEN
+!$omp parallel do private(i,j)
             DO i = 1, ng2
               j = pw1 % pw_grid % gidx ( i )
               pw2 % cc ( i ) = pw1 % cc ( j )
             END DO
           ELSE
             CALL pw_zero ( pw2 )
+!$omp parallel do private(i,j)
             DO i = 1, ng1
               j = pw1 % pw_grid % gidx ( i )
               pw2 % cc ( j ) = pw1 % cc ( i )
@@ -486,11 +505,17 @@ SUBROUTINE pw_copy ( pw1, pw2 )
 
     IF ( pw1 % in_use == REALDATA1D .AND. pw2 % in_use == REALDATA1D ) THEN
        ns = SIZE ( pw1 % cr )
-       CALL DCOPY(ns, pw1 % cr, 1, pw2 % cr, 1)
+!$omp parallel do private(i)
+       DO i = 1, ns
+          pw2 % cr(i) = pw1 % cr(i)
+       END DO
     ELSE IF ( pw1 % in_use == COMPLEXDATA1D .AND. &
          pw2 % in_use == COMPLEXDATA1D ) THEN
        ns = 2 * SIZE ( pw1 % cc )
-       CALL DCOPY(ns, pw1 % cc, 1, pw2 % cc, 1)
+!$omp parallel do private(i)
+       DO i = 1, ns/2
+          pw2 % cc(i) = pw1 % cc(i)
+       END DO
     ELSE IF ( pw1 % in_use == REALDATA3D .AND. pw2 % in_use == REALDATA3D ) THEN
        ns = SIZE ( pw1 % cr3d )
        CALL DCOPY(ns, pw1 % cr3d, 1, pw2 % cr3d, 1)
@@ -550,7 +575,7 @@ SUBROUTINE pw_derive ( pw, n )
   INTEGER, DIMENSION ( 3 ), INTENT ( IN ) :: n
 
 ! Local
-  INTEGER :: m, handle, ierr, cnt
+  INTEGER :: i, m, handle, ierr, cnt
   COMPLEX ( dbl ) :: im
   COMPLEX ( dbl ), ALLOCATABLE, DIMENSION ( : ) :: cc
   REAL ( dbl ) :: flop
@@ -572,31 +597,52 @@ SUBROUTINE pw_derive ( pw, n )
     cnt = REAL ( SIZE ( pw % cc ), dbl )
 
     IF ( n ( 1 ) == 1 ) THEN
-      pw % cc ( : ) = pw % cc ( : ) * pw % pw_grid % g ( 1, : )
+!$omp parallel do private (i)
+      DO i = 1, cnt
+         pw % cc ( i ) = pw % cc ( i ) * pw % pw_grid % g ( 1, i )
+      END DO
       flop = flop + 6 * cnt
     ELSE IF ( n ( 1 ) > 1 ) THEN
-      pw % cc ( : ) = pw % cc ( : ) * ( pw % pw_grid % g ( 1, : ) ** n ( 1 ) )
+!$omp parallel do private (i)
+      DO i = 1, cnt
+         pw % cc ( i ) = pw % cc ( i ) * ( pw % pw_grid % g ( 1, i ) ** n ( 1 ) )
+      END DO
       flop = flop + 7 * cnt
     END IF
     IF ( n ( 2 ) == 1 ) THEN
-      pw % cc ( : ) = pw % cc ( : ) * pw % pw_grid % g ( 2, : )
+!$omp parallel do private (i)
+      DO i = 1, cnt
+         pw % cc ( i ) = pw % cc ( i ) * pw % pw_grid % g ( 2, i )
+      END DO
       flop = flop + 6 * cnt
     ELSE IF ( n ( 2 ) > 1 ) THEN
-      pw % cc ( : ) = pw % cc ( : ) * ( pw % pw_grid % g ( 2, : ) ** n ( 2 ) )
+!$omp parallel do private (i)
+      DO i = 1, cnt
+         pw % cc ( i ) = pw % cc ( i ) * ( pw % pw_grid % g ( 2, i ) ** n ( 2 ) )
+      END DO
       flop = flop + 7 * cnt
     END IF
     IF ( n ( 3 ) == 1 ) THEN
-      pw % cc ( : ) = pw % cc ( : ) * pw % pw_grid % g ( 3, : )
+!$omp parallel do private (i)
+      DO i = 1, cnt
+         pw % cc ( i ) = pw % cc ( i ) * pw % pw_grid % g ( 3, i )
+      END DO
       flop = flop + 6 * cnt
     ELSE IF ( n ( 3 ) > 1 ) THEN
-      pw % cc ( : ) = pw % cc ( : ) * ( pw % pw_grid % g ( 3, : ) ** n ( 3 ) )
+!$omp parallel do private (i)
+      DO i = 1, cnt
+         pw % cc ( i ) = pw % cc ( i ) * ( pw % pw_grid % g ( 3, i ) ** n ( 3 ) )
+      END DO
       flop = flop + 7 * cnt
     END IF
 
     ! im can take the values 1, -1, i, -i
     ! skip this if im == 1
     IF ( ABS ( REAL ( im, dbl ) - 1._dbl ) > 1.e-10 ) THEN
-      pw % cc ( : ) = im * pw % cc ( : )
+!$omp parallel do private (i)
+      DO i = 1, cnt
+         pw % cc ( i ) = im * pw % cc ( i )
+      END DO
       flop = flop + 6 * cnt
     END IF
 
@@ -755,16 +801,28 @@ SUBROUTINE pw_add ( pw1, pw2, pw3 )
               pw_compatible ( pw2 % pw_grid, pw3 % pw_grid ) ) THEN
 
             ng = MIN ( ng1, ng2, ng3 )
-            pw3 % cc ( 1:ng ) = pw2 % cc ( 1:ng ) + pw1 % cc ( 1:ng )
+!$omp parallel do private(i)
+            DO i = 1,ng
+               pw3 % cc ( i ) = pw2 % cc ( i ) + pw1 % cc ( i )
+            END DO
             IF ( ng3 > ng ) THEN
-               pw3 % cc ( ng+1:ng3 ) = CMPLX ( 0._dbl, 0._dbl, dbl )
+!$omp parallel do private(i)
+               DO i = ng+1, ng3
+                  pw3 % cc ( i ) = CMPLX ( 0._dbl, 0._dbl, dbl )
+               END DO
                IF ( ng1 > ng ) THEN
                   ngm = MIN ( ng3, ng1 )
-                  pw3 % cc ( ng+1:ngm ) = pw1 % cc ( ng+1:ngm )
+!$omp parallel do private(i)
+                  DO i = ng+1, ngm
+                     pw3 % cc ( i ) = pw1 % cc ( i )
+                  END DO
                END IF
                IF ( ng2 > ng ) THEN
                   ngm = MIN ( ng3, ng2 )
-                  pw3 % cc ( ng+1:ngm ) = pw2 % cc ( ng+1:ngm )
+!$omp parallel do private(i)
+                  DO i = ng+1, ngm
+                     pw3 % cc ( i ) = pw2 % cc ( i )
+                  END DO
                END IF
             END IF
 
@@ -794,16 +852,21 @@ SUBROUTINE pw_add ( pw1, pw2, pw3 )
 
            IF ( pw2 % pw_grid % identifier == pw3 % pw_grid % identifier ) THEN
 
-             pw3 % cc ( 1:ng3 ) = pw3 % cc ( 1:ng3 ) + pw2 % cc ( 1:ng3 )
+!$omp parallel do private(i)
+             DO i = 1, ng3
+                pw3 % cc ( i ) = pw3 % cc ( i ) + pw2 % cc ( i )
+             END DO
 
            ELSEIF ( ( pw2 % pw_grid % identifier == pw3 % pw_grid % reference ) ) THEN
 
              IF( ng2 >= ng3 ) THEN
+!$omp parallel do private(i,j)
                DO i = 1, ng3
                  j = pw3 % pw_grid % gidx ( i )
                  pw3 % cc ( i ) = pw3 % cc ( i ) + pw2 % cc ( j )
                END DO
              ELSE
+!$omp parallel do private(i,j)
                DO i = 1, ng2
                  j = pw3 % pw_grid % gidx ( i )
                  pw3 % cc ( j ) = pw3 % cc ( j ) + pw2 % cc ( i )
@@ -813,11 +876,13 @@ SUBROUTINE pw_add ( pw1, pw2, pw3 )
            ELSEIF ( ( pw3 % pw_grid % identifier == pw2 % pw_grid % reference ) ) THEN
 
              IF( ng2 >= ng3 ) THEN
+!$omp parallel do private(i,j)
                DO i = 1, ng3
                  j = pw2 % pw_grid % gidx ( i )
                  pw3 % cc ( i ) = pw3 % cc ( i ) + pw2 % cc ( j )
                END DO
              ELSE
+!$omp parallel do private(i,j)
                DO i = 1, ng2
                  j = pw2 % pw_grid % gidx ( i )
                  pw3 % cc ( j ) = pw3 % cc ( j ) + pw2 % cc ( i )
@@ -871,11 +936,17 @@ SUBROUTINE pw_add ( pw1, pw2, pw3 )
 
     IF ( pw1 % in_use == REALDATA1D .AND. pw2 % in_use == REALDATA1D .AND. &
          pw3 % in_use == REALDATA1D ) THEN
-       pw3 % cr = pw1 % cr + pw2 % cr
+!$omp parallel do private(i)
+       DO i = 1, SIZE ( pw3 % cr )
+          pw3 % cr ( i ) = pw1 % cr ( i ) + pw2 % cr ( i )
+       END DO
        flop = REAL ( SIZE ( pw2 % cr ), dbl )
     ELSE IF ( pw1 % in_use == COMPLEXDATA1D .AND. &
          pw2 % in_use == COMPLEXDATA1D .AND. pw3 % in_use == COMPLEXDATA1D ) THEN
-       pw3 % cc = pw1 % cc + pw2 % cc
+!$omp parallel do private(i)
+       DO i = 1, SIZE ( pw3 % cc )
+          pw3 % cc ( i ) = pw1 % cc ( i ) + pw2 % cc ( i )
+       END DO
        flop = REAL ( 2 * SIZE ( pw2 % cc ), dbl )
     ELSE IF ( pw1 % in_use == REALDATA3D .AND. pw2 % in_use == REALDATA3D .AND. &
          pw3 % in_use == REALDATA3D ) THEN
@@ -931,7 +1002,7 @@ SUBROUTINE pw_sumup_square ( pw1, pw2 )
   TYPE ( pw_type ), INTENT ( IN ) :: pw2
   
 ! Local
-  INTEGER :: handle
+  INTEGER :: i, handle
   REAL ( dbl ) :: flop
   
 !------------------------------------------------------------------------------
@@ -943,17 +1014,26 @@ SUBROUTINE pw_sumup_square ( pw1, pw2 )
 
   IF ( pw1 % in_use == REALDATA1D ) THEN
      IF ( pw2 % in_use == REALDATA1D ) THEN
-        pw1 % cr = pw1 % cr + pw2 % cr * pw2 % cr
+!$omp parallel do private(i)
+        DO i = 1, SIZE ( pw2 % cr )
+           pw1 % cr(i) = pw1 % cr(i) + pw2 % cr(i) * pw2 % cr(i)
+        END DO
         flop = REAL ( 2 * SIZE ( pw2 % cr ), dbl )
      ELSE IF ( pw2 % in_use == COMPLEXDATA1D ) THEN
-        pw1 % cr = pw1 % cr + REAL ( pw2 % cc * CONJG ( pw2 % cc ), dbl )
+!$omp parallel do private(i)
+        DO i = 1, SIZE ( pw2 % cc )
+           pw1 % cr(i) = pw1 % cr(i) + REAL ( pw2 % cc(i) * CONJG ( pw2 % cc(i) ), dbl )
+        END DO
         flop = REAL ( 7 * SIZE ( pw2 % cc ), dbl )
      ELSE
         CALL stop_program ( "pw_sumup_square", "no suitable data fields" )
      END IF
   ELSE IF ( pw1 % in_use == COMPLEXDATA1D ) THEN
      IF ( pw2 % in_use == COMPLEXDATA1D ) THEN
-        pw1 % cc = pw1 % cc + pw2 % cc * CONJG ( pw2 % cc )
+!$omp parallel do private(i)
+        DO i = 1, SIZE ( pw2 % cc )
+           pw1 % cc(i) = pw1 % cc(i) + pw2 % cc(i) * CONJG ( pw2 % cc(i) )
+        END DO
         flop = REAL ( 8 * SIZE ( pw2 % cc ), dbl )
      ELSE
         CALL stop_program ( "pw_sumup_square", "no suitable data fields" )
@@ -1031,11 +1111,17 @@ SUBROUTINE pw_sumup ( pw1, pw2 )
   IF ( pw1 % pw_grid % identifier == pw2 % pw_grid % identifier ) THEN
 
      IF ( pw1 % in_use == REALDATA1D .AND. pw2 % in_use == REALDATA1D ) THEN
-        pw2 % cr = pw2 % cr + pw1 % cr
+!$omp parallel do private(i)
+        DO i = 1, SIZE ( pw2 % cr )
+           pw2 % cr(i) = pw2 % cr(i) + pw1 % cr(i)
+        END DO
         flop = REAL ( SIZE ( pw2 % cr ), dbl )
      ELSE IF ( pw1 % in_use == COMPLEXDATA1D .AND. &
           pw2 % in_use == COMPLEXDATA1D ) THEN
-        pw2 % cc = pw2 % cc + pw1 % cc
+!$omp parallel do private(i)
+        DO i = 1, SIZE ( pw2 % cc )
+           pw2 % cc(i) = pw2 % cc(i) + pw1 % cc(i)
+        END DO
         flop = REAL ( 2 * SIZE ( pw2 % cc ), dbl )
      ELSE IF ( pw1 % in_use == REALDATA3D .AND. pw2 % in_use == REALDATA3D ) THEN
         pw2 % cr3d = pw2 % cr3d + pw1 % cr3d
@@ -1062,16 +1148,21 @@ SUBROUTINE pw_sumup ( pw1, pw2 )
 
         IF ( pw1 % pw_grid % spherical ) THEN
 
-          pw2 % cc (1:ng) = pw2 % cc (1:ng) + pw1 % cc (1:ng)
+!$omp parallel do private(i)
+          DO i = 1, ng
+             pw2 % cc (i) = pw2 % cc (i) + pw1 % cc (i)
+          END DO
 
         ELSEIF ( ( pw1 % pw_grid % identifier == pw1 % pw_grid % reference ) ) THEN
 
           IF( ng1 >= ng2 ) THEN
+!$omp parallel do private(i,j)
             DO i = 1, ng2
               j = pw2 % pw_grid % gidx ( i )
               pw2 % cc ( i ) = pw2 % cc ( i ) + pw1 % cc ( j )
             END DO
           ELSE
+!$omp parallel do private(i,j)
             DO i = 1, ng1
               j = pw2 % pw_grid % gidx ( i )
               pw2 % cc ( j ) = pw2 % cc ( j ) + pw1 % cc ( i )
@@ -1081,11 +1172,13 @@ SUBROUTINE pw_sumup ( pw1, pw2 )
        ELSEIF ( ( pw2 % pw_grid % identifier == pw1 % pw_grid % reference ) ) THEN
 
           IF( ng1 >= ng2 ) THEN
+!$omp parallel do private(i,j)
             DO i = 1, ng2
               j = pw1 % pw_grid % gidx ( i )
               pw2 % cc ( i ) = pw2 % cc ( i ) + pw1 % cc ( j )
             END DO
           ELSE
+!$omp parallel do private(i,j)
             DO i = 1, ng1
               j = pw1 % pw_grid % gidx ( i )
               pw2 % cc ( j ) = pw2 % cc ( j ) + pw1 % cc ( i )
@@ -1330,6 +1423,7 @@ SUBROUTINE pw_gather_s ( pw, c, scale )
 
   IF ( PRESENT ( scale ) ) THEN
 
+!$omp parallel do private(gpt,l,m,n)
     DO gpt = 1, ngpts
 
       l = mapl ( ghat ( 1, gpt ) ) + 1
@@ -1341,6 +1435,7 @@ SUBROUTINE pw_gather_s ( pw, c, scale )
 
   ELSE
 
+!$omp parallel do private(gpt,l,m,n)
     DO gpt = 1, ngpts
 
       l = mapl ( ghat ( 1, gpt ) ) + 1
@@ -1401,6 +1496,7 @@ SUBROUTINE pw_gather_p ( pw, c, scale )
 
   IF ( PRESENT ( scale ) ) THEN
 
+!$omp parallel do private(gpt,l,m,n,mn)
     DO gpt = 1, ngpts
 
       l = mapl ( ghat ( 1, gpt ) ) + 1
@@ -1413,6 +1509,7 @@ SUBROUTINE pw_gather_p ( pw, c, scale )
 
   ELSE
 
+!$omp parallel do private(gpt,l,m,n,mn)
     DO gpt = 1, ngpts
 
       l = mapl ( ghat ( 1, gpt ) ) + 1
@@ -1488,6 +1585,7 @@ SUBROUTINE pw_scatter_s ( pw, c, scale )
 
   IF ( PRESENT ( scale ) ) THEN
 
+!$omp parallel do private(gpt,l,m,n)
     DO gpt = 1, ngpts
 
       l = mapl ( ghat ( 1, gpt ) ) + 1
@@ -1499,6 +1597,7 @@ SUBROUTINE pw_scatter_s ( pw, c, scale )
 
   ELSE
 
+!$omp parallel do private(gpt,l,m,n)
     DO gpt = 1, ngpts
 
       l = mapl ( ghat ( 1, gpt ) ) + 1
@@ -1518,6 +1617,7 @@ SUBROUTINE pw_scatter_s ( pw, c, scale )
 
     IF ( PRESENT ( scale ) ) THEN
 
+!$omp parallel do private(gpt,l,m,n)
       DO gpt = 1, ngpts
 
         l = mapl ( ghat ( 1, gpt ) ) + 1
@@ -1529,6 +1629,7 @@ SUBROUTINE pw_scatter_s ( pw, c, scale )
 
     ELSE
 
+!$omp parallel do private(gpt,l,m,n)
       DO gpt = 1, ngpts
 
         l = mapl ( ghat ( 1, gpt ) ) + 1
@@ -1594,6 +1695,7 @@ SUBROUTINE pw_scatter_p ( pw, c, scale )
 
   IF ( PRESENT ( scale ) ) THEN
 
+!$omp parallel do private(gpt,l,m,n,mn)
     DO gpt = 1, ngpts
 
       l = mapl ( ghat ( 1, gpt ) ) + 1
@@ -1606,6 +1708,7 @@ SUBROUTINE pw_scatter_p ( pw, c, scale )
 
   ELSE
 
+!$omp parallel do private(gpt,l,m,n,mn)
     DO gpt = 1, ngpts
 
       l = mapl ( ghat ( 1, gpt ) ) + 1
@@ -1626,6 +1729,7 @@ SUBROUTINE pw_scatter_p ( pw, c, scale )
 
     IF ( PRESENT ( scale ) ) THEN
 
+!$omp parallel do private(gpt,l,m,n,mn)
       DO gpt = 1, ngpts
 
         l = mapl ( ghat ( 1, gpt ) ) + 1
@@ -1638,6 +1742,7 @@ SUBROUTINE pw_scatter_p ( pw, c, scale )
 
     ELSE
 
+!$omp parallel do private(gpt,l,m,n,mn)
       DO gpt = 1, ngpts
 
         l = mapl ( ghat ( 1, gpt ) ) + 1

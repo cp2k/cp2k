@@ -14,7 +14,7 @@
 !!     JGH (16.03.2002)
 !!
 !!   MODIFICATION HISTORY
-!!     none
+!!     JGH (26.02.2003) : OpenMP enabled
 !!
 !******************************************************************************
 
@@ -239,6 +239,7 @@ CONTAINS
     c3p = -c3*0.25_dbl
     c4p = -c4*0.25_dbl
 
+!$omp parallel do private(ip,r,r3,g,x,odp,ocp,od,oc,f1,f2,f3,f4)
     DO ip = 1, npoints
 
       IF ( rho(ip) > eps_rho ) THEN
@@ -283,6 +284,7 @@ CONTAINS
     c3p = -c3*0.25_dbl
     c4p = -c4*0.25_dbl
 
+!$omp parallel do private(ip,r,r3,g,odp,ocp,od,oc,df1,drf2,dgf2,df3,drf4,dgf4)
     DO ip = 1, npoints
 
       IF ( rho(ip) > eps_rho ) THEN
@@ -331,6 +333,8 @@ CONTAINS
     c3p = -c3*0.25_dbl
     c4p = -c4*0.25_dbl
 
+!$omp parallel do private(ip,r,r3,g,odp,ocp,od,oc,d2f1,d2rf2,drgf2,d2f3) &
+!$omp             private(d2rf4,drgf4,d2gf4)
     DO ip = 1, npoints
 
       IF ( rho(ip) > eps_rho ) THEN
@@ -392,6 +396,11 @@ CONTAINS
     c3p = -c3*0.25_dbl
     c4p = -c4*0.25_dbl
 
+!$omp parallel do private(ip,r,r3,g,odp,ocp,od,oc,d3f1,d3rF2,d2rgF2,dr2gF2,d3gF2,d3F3) &
+!$omp             private(d3rF4,d2rgF4,dr2gF4,d3gF4) &
+!$omp             private( t1, t2, t3, t4, t6, t7, t8, t9, t10, t11, t13, t15, t16) &
+!$omp             private( t17, t19, t22, t23, t26, t29, t32, t33, t37, t44, t45, t50) &
+!$omp             private( t51, t52, t58, t61, t74, t76, t77, t80, t81, t82)
     DO ip = 1, npoints
 
       IF ( rho(ip) > eps_rho ) THEN

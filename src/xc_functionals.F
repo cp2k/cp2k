@@ -17,7 +17,7 @@
 !!     JGH (29-May-2002)
 !!
 !!   MODIFICATION HISTORY
-!!     none
+!!     JGH (26.02.2003) : OpenMP enabled
 !!
 !!   SOURCE
 !******************************************************************************
@@ -747,7 +747,7 @@ CONTAINS
       CALL thomas_fermi ( reference(3), shortform(3) )
     CASE ( "TFW" )
       CALL tfw ( reference(3), shortform(3) )
-    CASE ( "PL1" )
+    CASE ( "OL1" )
       CALL ol1 ( reference(3), shortform(3) )
     CASE ( "OL2" )
       CALL ol2 ( reference(3), shortform(3) )

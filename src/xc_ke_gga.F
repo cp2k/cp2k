@@ -15,7 +15,7 @@
 !!     JGH (20.02.2002)
 !!
 !!   MODIFICATION HISTORY
-!!     none
+!!     JGH (26.02.2003) : OpenMP enabled
 !!
 !******************************************************************************
 
@@ -598,6 +598,7 @@ CONTAINS
     IF ( npoints > SIZE(pot) ) &
        CALL stop_program ( "kex_p_1", "Inconsistent array sizes" )
 
+!$omp parallel do private(ip,a0,a1,sx,sy)
     DO ip = 1, npoints
 
       IF ( rho(ip) > eps_rho ) THEN
@@ -632,6 +633,7 @@ CONTAINS
     IF ( npoints > SIZE(pot) ) &
        CALL stop_program ( "kex_p_2", "Inconsistent array sizes" )
 
+!$omp parallel do private(ip,a0,a1,a2,sx,sy,sxx,sxy)
     DO ip = 1, npoints
 
       IF ( rho(ip) > eps_rho ) THEN
@@ -672,6 +674,7 @@ CONTAINS
     IF ( npoints > SIZE(pot) ) &
        CALL stop_program ( "kex_u_3", "Inconsistent array sizes" )
 
+!$omp parallel do private(ip,a0,a1,a2,a3,sx,sy,sxx,sxy,sxxy,sxxy)
     DO ip = 1, npoints
 
       IF ( rho(ip) > eps_rho ) THEN
@@ -718,6 +721,7 @@ CONTAINS
 
     t1 = b*b/(72._dbl*cf)
     t2 = 0.001878_dbl*b
+!$omp parallel do private(ip)
     DO ip=1,SIZE(s)
       SELECT CASE (m)
       CASE (0)
@@ -749,6 +753,7 @@ CONTAINS
     t1 = b*b/(72._dbl*cf)
     t2 = 0.0245_dbl*b
     t3 = 2._dbl**f53*b
+!$omp parallel do private(ip)
     DO ip=1,SIZE(s)
       y = 1._dbl/(1._dbl+t3*s(ip))
       SELECT CASE (m)
@@ -787,6 +792,9 @@ CONTAINS
 
     p = 0.0045_dbl*b*b
     q = 0.0253_dbl*b
+!$omp parallel do private(ip,x,bs,sbs,as,sas,ys,asp,sbs3,asp2,sbs5,w1,w2) &
+!$omp             private(t1,t3,t4,t11,t12,t13,t16,t19,t22,t24,t25,t33,t34,t36,t39) &
+!$omp             private(t43,t44,t60,t62)
     DO ip=1,SIZE(s)
       x = s(ip)
       bs = b*x
@@ -850,6 +858,7 @@ CONTAINS
     t2 = 14._dbl
     t3 = 0.2_dbl
     f15 = 1._dbl/15._dbl
+!$omp parallel do private(ip,s2,s4,s6,p0,p1,p15,t8,t9,t10,t12,t13,t14,t19,t25)
     DO ip=1,SIZE(s)
       s2 = s(ip)*s(ip)
       s4 = s2*s2
@@ -910,6 +919,7 @@ CONTAINS
     q = 0.0253_dbl*b
     a1 = 0.072 * b
     a2 = 2._dbl**f53 * b
+!$omp parallel do private(ip,x,as,sas,asp,asp2,asp3,bs,ys,sbs,sbs3,sbs5,w1,w2,t0,s1,s2)
     DO ip=1,SIZE(s)
       x = s(ip)
       bs = b*x
@@ -1003,6 +1013,7 @@ CONTAINS
     a  = pa(5,pset)
     b1 = pa(6,pset)
     IF ( m >= 0 ) THEN
+!$omp parallel do private(ip,x)
       DO ip=1,SIZE(s)
         x = s(ip)
         fs(ip,1) = (o+a1*x*log(a*x+sqrt(o+a**2*x**2))+a2-a3*exp(-a4*x**2)*x**2)&
@@ -1010,6 +1021,7 @@ CONTAINS
       END DO
     END IF
     IF ( m >= 1 ) THEN
+!$omp parallel do private(ip,x)
       DO ip=1,SIZE(s)
         x = s(ip)
         fs(ip,2) =&
@@ -1021,6 +1033,7 @@ CONTAINS
       END DO
     END IF
     IF ( m >= 2 ) THEN
+!$omp parallel do private(ip,x,s1)
       DO ip=1,SIZE(s)
         x = s(ip)
         s1 = (2*a1*a/sqrt(1+a**2*x**2)-a1*x**2*a**3/sqrt(1+a**2*x**2)**3+  &
@@ -1040,6 +1053,7 @@ CONTAINS
       END DO
     END IF
     IF ( m >= 2 ) THEN
+!$omp parallel do private(ip,x,s1,s2,s3)
       DO ip=1,SIZE(s)
         x = s(ip)
         s2 = (-4*a1*a**3/sqrt(1+a**2*x**2)**3*x+3*a1*x**3*a**5/         &

@@ -43,7 +43,7 @@ SUBROUTINE mltfftsg ( transa, transb, a, ldax, lday, b, ldbx, ldby, &
   ! initializations for serial mode
   id = 0; num_threads = 1
 
-!$omp parallel if (m/lot > 50) &
+!$omp parallel &
 !$omp private ( id, istart, iend, nfft, i, inzee, itr ) 
 
 !$omp single
