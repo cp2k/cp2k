@@ -53,6 +53,7 @@ module qs_p_types
   use cp_b_matrix_structure, only: cp_b_matrix_struct_type
   implicit none
   private
+  public :: qs_p_env_type, p_env_init
 
   logical, private, parameter :: debug_this_module=.true.
   character(len=*), private, parameter :: moduleN='qs_p_types'

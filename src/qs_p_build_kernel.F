@@ -114,7 +114,7 @@ subroutine kpp1_init(kpp1_env,qs_env,ks_env,global_env,error)
   failure=.false.
   
   if (.not. failure) then
-     call cp_unimplemented_error(routineP,error=error)
+     call cp_unimplemented_error(routineP, error=error, error_level=cp_warning_level)
   end if
 end subroutine kpp1_init
 !***************************************************************************
