@@ -1538,7 +1538,7 @@ SUBROUTINE pme_force_numer ( delta, f_part, dg, part, box, grid_s, grid_b,  &
       CALL pme_energy_numer ( dg, part, box, grid_s, grid_b, ewald_param, eplus )
       part ( i ) % r ( id ) = part ( i ) % r ( id ) - 2._dbl * delta 
       CALL pme_energy_numer ( dg, part, box, grid_s, grid_b, ewald_param, eminus )
-      f_part ( id, i ) = eplus - eminus 
+      f_part ( id, i ) = eminus - eplus
       part ( i ) % r ( id ) = part ( i ) % r ( id ) + delta 
     ENDDO
   ENDDO
