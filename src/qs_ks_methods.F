@@ -456,17 +456,24 @@ CONTAINS
 ! ***  Single atom contributions ***
        IF(dft_control%qs_control%gapw) THEN
          CALL calculate_vxc_atom(qs_env,error)
-         CALL Vh_1c_gg_integrals(qs_env)
+         CALL Vh_1c_gg_integrals(qs_env,energy)
        ENDIF
 
        energy%total = energy%core_overlap + energy%core_self + &
-            energy%core + energy%hartree + energy%exc + energy%qmmm_el
+            energy%core + energy%hartree + energy%hartree_1c +&
+            energy%exc + energy%exc1 + &
+            energy%qmmm_el
 
        IF (ionode.AND.logger%print_keys%scf_energies) THEN
           WRITE (UNIT=output_unit,FMT="(/,(T3,A,T60,F20.10))")&
                "Core Hamiltonian energy:                       ",energy%core,&
                "Hartree energy:                                ",energy%hartree,&
                "Exchange-correlation energy:                   ",energy%exc
+          IF(dft_control%qs_control%gapw) THEN
+             WRITE (UNIT=output_unit,FMT="(/,(T3,A,T60,F20.10))")&
+                "GAPW| Exc from hard and soft atomic rho1:      ",energy%exc1,&
+                "GAPW| local Eh = 1 center integrals:           ",energy%hartree_1c
+          END IF
           If  (qs_env%qmmm) Then
              WRITE (UNIT=output_unit,FMT="(T3,A,T60,F20.10)")&
                "QM/MM Electrostatic energy:                    ",energy%qmmm_el

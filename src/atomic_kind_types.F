@@ -564,6 +564,7 @@ CONTAINS
       IF (PRESENT(maxcgf)) maxcgf = 0
       IF (PRESENT(maxco)) maxco = 0
       IF (PRESENT(maxco_proj)) maxco_proj = 0
+      IF (PRESENT(maxg_iso_not0)) maxg_iso_not0 = 0
       IF (PRESENT(maxgtop))  maxgtop = 0
       IF (PRESENT(maxgtops)) maxgtops = 0
       IF (PRESENT(maxlgto)) maxlgto = -1

@@ -26,7 +26,9 @@ MODULE  hartree_local_methods
   USE cp_error_handling,               ONLY: cp_error_type
   USE global_types,                    ONLY: global_environment_type
   USE hartree_local_types,             ONLY: allocate_ecoul_1center,&
-                                             ecoul_1center_type
+                                             ecoul_1center_type,&
+                                             get_ecoul_1c,&
+                                             set_ecoul_1c
   USE kinds,                           ONLY: default_string_length,&
                                              dp,&
                                              int_size
@@ -34,6 +36,7 @@ MODULE  hartree_local_methods
   USE memory_utilities,                ONLY: reallocate
   USE orbital_pointers,                ONLY: indso,&
                                              nsoset
+  USE qs_energy_types,                 ONLY: qs_energy_type
   USE qs_environment_types,            ONLY: get_qs_env,&
                                              qs_environment_type,&
                                              set_qs_env
@@ -46,6 +49,7 @@ MODULE  hartree_local_methods
                                              rho0_mpole_type, &
                                              rho0_atom_type
   USE qs_local_rho_types,              ONLY: rhoz_type
+  USE qs_util,                         ONLY: trace_r_AxB
   USE termination,                     ONLY: stop_memory,&
                                              stop_program
   IMPLICIT NONE
@@ -185,13 +189,6 @@ MODULE  hartree_local_methods
        END DO
 
        l_ang = indso(1,iso)
-!  sum = 0.0_dp
-!  DO ir = 1,nr
-!   sum = sum + (rho_1(ir,iso) - rho_2(ir,iso))*r2l(ir,l_ang)*wr(ir)
-!   WRITE(*,'(2i4,2E15.4)') iso,ir,rho_1(ir,iso),rho_2(ir,iso)
-!  enddo
-!    WRITE(*,*) 'multipole ', iso, sum
-
        prefactor = fourpi/(2._dp*l_ang+1._dp)
 
        rho_1(:,iso) = rho_1(:,iso)*wr(:)
@@ -208,7 +205,6 @@ MODULE  hartree_local_methods
        DO ir = nr-1,1,-1
          I1_down = I1_down + oor2l(ir,l_ang+1)*rho_1(ir,iso)
          I2_down = I2_down + oor2l(ir,l_ang+1)*rho_2(ir,iso)
-!    WRITE(*,'(2I4,3E15.4)') iso, ir,  oor2l(ir,l_ang+1), rho_1(ir,iso),wr(ir) 
        END DO
 
        vrad_h(nr,iso) = prefactor*&
@@ -216,7 +212,6 @@ MODULE  hartree_local_methods
        vrad_s(nr,iso) = prefactor*&
                        (oor2l(nr,l_ang+1)*I2_up + r2l(nr,l_ang)*I2_down)
 
-!       WRITE(*,*) nr,iso,vrad_h(nr,iso),vrad_s(nr,iso)
        DO ir = nr-1,1,-1
 
          vrad_h(ir,iso) = prefactor*&
@@ -228,20 +223,21 @@ MODULE  hartree_local_methods
          I1_down = I1_down -oor2l(ir,l_ang+1)*rho_1(ir,iso)
          I2_up = I2_up + r2l(ir,l_ang)*rho_2(ir,iso)
          I2_down = I2_down -oor2l(ir,l_ang+1)*rho_2(ir,iso)
-!       WRITE(*,'(2I4,3(E15.3))') ir,iso,vrad_h(ir,iso),rho_1(ir,iso)
+
        END DO
 
     END DO
-!  stop 'rho'
+
     DEALLOCATE(rho_1,rho_2)
 
   END SUBROUTINE calculate_Vh_1center
 
 !******************************************************************************
 
-  SUBROUTINE Vh_1c_gg_integrals(qs_env       )
+  SUBROUTINE Vh_1c_gg_integrals(qs_env,energy)
 
     TYPE(qs_environment_type), INTENT(INOUT)   :: qs_env
+    TYPE(qs_energy_type), INTENT(INOUT)        :: energy
 !   TYPE(cp_error_type), INTENT(inout)         :: error
 
     CHARACTER(LEN=*), PARAMETER         :: routine_name = "Vh_1c_gg_integrals",&
@@ -265,9 +261,15 @@ MODULE  hartree_local_methods
     TYPE(rhoz_type), DIMENSION(:), POINTER     :: rhoz_set
     TYPE(rho_atom_coeff),DIMENSION(:),&
                                  POINTER       :: r_h,r_s
+    TYPE(rho_atom_coeff), DIMENSION(:),&
+                                      POINTER  :: cpc_h, cpc_s
     REAL(dp)                                   :: ec_tmp,&
                                                   gVg_h, gVg_s,&
-                                                  gVg_0
+                                                  gVg_0,&
+                                                  ecoul_1_0,&
+                                                  ecoul_1_z,&
+                                                  ecoul_1_h,&
+                                                  ecoul_1_s
     REAL(dp), DIMENSION(:),      POINTER       :: rrad_z
     REAL(dp), DIMENSION(:),  ALLOCATABLE       :: gexp, sqrtwr
     REAL(dp), DIMENSION(:,:), ALLOCATABLE      :: gsph, g0_h_w
@@ -281,10 +283,11 @@ MODULE  hartree_local_methods
 
     INTEGER                                    :: iat, iatom, icg, ikind, &
                                                   ipgf1, ipgf2, ir, iset1, iset2, &
-                                                  is1, is2, iso, iso1, iso2, &
+                                                  is1, is2, iso, iso1, iso2, ispin,  &
                                                   l_ang, lmax_0, lmax0, m1, m2, max_nr, &
                                                   max_iso, max_iso_not0, maxso, n1,&
-                                                  n2, nat, nchan_0, nkind, nr, nset, nsotot
+                                                  n2, nat, nchan_0, nkind, nr, nset, &
+                                                  nsotot, nspins
     INTEGER, DIMENSION(:),        POINTER      :: atom_list, lmin, lmax, npgf
     LOGICAL                                    :: paw_atom
 !   -----------------------------------------------------------------------------
@@ -307,9 +310,13 @@ MODULE  hartree_local_methods
                              max_ngrid_rad=max_nr,maxg_iso_not0=max_iso)
     CALL get_rho0_mpole(rho0_mpole=rho0_mpole,lmax_0=lmax_0)
     
+    ALLOCATE(gexp(max_nr),gsph(max_nr,max_iso))
+    ALLOCATE(sqrtwr(max_nr),g0_h_w(max_nr,0:lmax_0))
 
-    ALLOCATE(gexp(max_nr),gsph(max_nr,max_iso),sqrtwr(max_nr),g0_h_w(max_nr,0:lmax_0))
+!   Put to 0 the local hartree energy contribution from 1 center integrals
+    energy%hartree_1c = 0.0_dp
 
+!   Here starts the loop over all the atoms
     DO ikind = 1,nkind
 
       atom_kind => atomic_kind_set(ikind)
@@ -340,8 +347,8 @@ MODULE  hartree_local_methods
 !     set to zero temporary arrays
       sqrtwr=0.0_dp
       g0_h_w=0.0_dp
-      gsph=0.0_dp
       gexp=0.0_dp
+      gsph=0.0_dp
 
       sqrtwr(1:nr) = sqrt(grid_atom%wr(1:nr))
       DO l_ang = 0,lmax0
@@ -364,49 +371,47 @@ MODULE  hartree_local_methods
       DO iat = 1,nat
         iatom = atom_list(iat)
 
-        NULLIFY(rho_atom,r_h,r_s)
+        NULLIFY(rho_atom,r_h,r_s,cpc_h,cpc_s)
         rho_atom => rho_atom_set(iatom)
         CALL get_rho_atom(rho_atom=rho_atom,rho_rad_h=r_h,&
-                           rho_rad_s=r_s)
+                           rho_rad_s=r_s,cpc_h=cpc_h,cpc_s=cpc_s)
 
         NULLIFY(Vh1_h,Vh1_s,rrad_0)
-        Vh1_h => ecoul_1c(iatom)%Vh1_h%r_coef
-        Vh1_s => ecoul_1c(iatom)%Vh1_s%r_coef
+        NULLIFY(aVh1b_h,aVh1b_s,aVh1b_0)
+        CALL  get_ecoul_1c(ecoul_1c,iatom=iatom,Vh1_h=Vh1_h,Vh1_s=Vh1_s,&
+                           aVh1b_h=aVh1b_h,aVh1b_s=aVh1b_s,aVh1b_0=aVh1b_0)
+
         rrad_0 => rho0_atom_set(iatom)%rho0_rad_h%r_coef
 
         CALL calculate_Vh_1center(Vh1_h,Vh1_s,r_h,r_s,rrad_0,rrad_z,grid_atom)
 
 !       Calculate the contributions to Ecoul coming from Vh1_h*rhoz and Vh1_s*rho0
 
-        ecoul_1c(iatom)%ecoul_1_z = 0.0_dp
-
+        ecoul_1_z = 0.0_dp
         DO ir = 1,nr
-           ecoul_1c(iatom)%ecoul_1_z = ecoul_1c(iatom)%ecoul_1_z + &
-                                       Vh1_h(ir,1)*rrad_z(ir)*grid_atom%wr(ir)
+           ecoul_1_z = ecoul_1_z + Vh1_h(ir,1)*rrad_z(ir)*grid_atom%wr(ir)
         END DO
-        ecoul_1c(iatom)%ecoul_1_z = 0.5_dp*ecoul_1c(iatom)%ecoul_1_z
+        ecoul_1_z = 0.5_dp*ecoul_1_z
 
-        ecoul_1c(iatom)%ecoul_1_0 = 0.0_dp
+        ecoul_1_0 = 0.0_dp
         DO iso = 1,nchan_0
           ec_tmp = 0.0_dp
           DO ir = 1,nr
             ec_tmp = ec_tmp + Vh1_s(ir,iso)*rrad_0(ir,iso)*&
                               grid_atom%wr(ir)
           END DO  ! ir
-          ecoul_1c(iatom)%ecoul_1_0 = ecoul_1c(iatom)%ecoul_1_0 + &
-                                      ec_tmp
+          ecoul_1_0 = ecoul_1_0 + ec_tmp
         END DO  ! iso
-        ecoul_1c(iatom)%ecoul_1_0 = 0.5_dp*ecoul_1c(iatom)%ecoul_1_0
+        ecoul_1_0 = 0.5_dp*ecoul_1_0
+
+        CALL set_ecoul_1c(ecoul_1c,iatom,ecoul_1_z=ecoul_1_z,ecoul_1_0=ecoul_1_0)
 
         IF(.NOT. paw_atom) CYCLE
 
 !       Calculate the integrals of the potential with 2 primitives
-        NULLIFY(aVh1b_h,aVh1b_s,aVh1b_0)
-        aVh1b_h => ecoul_1c(iatom)%aVh1b_h%r_coef
+
         aVh1b_h = 0.0_dp
-        aVh1b_s => ecoul_1c(iatom)%aVh1b_s%r_coef
         aVh1b_s = 0.0_dp
-        aVh1b_0 => ecoul_1c(iatom)%aVh1b_0%r_coef
         aVh1b_0 = 0.0_dp
 
         m1 = 0
@@ -435,10 +440,13 @@ MODULE  hartree_local_methods
                                        Vh1_s(ir,iso)
                        gVg_0 = gVg_s + Vh1_s(ir,iso)*g0_h_w(ir,l_ang)
                     END DO  ! ir
-    WRITE(*,*)  iso, iso1, iso2
-                    aVh1b_h(iso1,iso2) = aVh1b_h(iso1,iso2) + gVg_h*my_CG(is1,is2,iso)
-                    aVh1b_s(iso1,iso2) = aVh1b_s(iso1,iso2) + gVg_s*my_CG(is1,is2,iso)
-                    aVh1b_0(iso1,iso2) = aVh1b_0(iso1,iso2) + Qlm_gg(iso1,iso2,iso)*gVg_0
+
+                    aVh1b_h(iso1,iso2) = aVh1b_h(iso1,iso2) + &
+                                         gVg_h*my_CG(is1,is2,iso)
+                    aVh1b_s(iso1,iso2) = aVh1b_s(iso1,iso2) + &
+                                         gVg_s*my_CG(is1,is2,iso)
+                    aVh1b_0(iso1,iso2) = aVh1b_0(iso1,iso2) + &
+                                         Qlm_gg(iso1,iso2,iso)*gVg_0
                   END DO  !icg
                 END DO  ! iso
 !               without contributions to  V1_s*rho0
@@ -456,8 +464,10 @@ MODULE  hartree_local_methods
                        gVg_s = gVg_s + gsph(ir,iso1)*gsph(ir,iso2)* &
                                        Vh1_s(ir,iso)
                     END DO  ! ir
-                    aVh1b_h(iso1,iso2) = aVh1b_h(iso1,iso2) + gVg_h*my_CG(is1,is2,iso)
-                    aVh1b_s(iso1,iso2) = aVh1b_s(iso1,iso2) + gVg_s*my_CG(is1,is2,iso)
+                    aVh1b_h(iso1,iso2) = aVh1b_h(iso1,iso2) + &
+                                         gVg_h*my_CG(is1,is2,iso)
+                    aVh1b_s(iso1,iso2) = aVh1b_s(iso1,iso2) + &
+                                         gVg_s*my_CG(is1,is2,iso)
 
                   END DO  !icg
                 END DO  ! iso 
@@ -483,16 +493,37 @@ MODULE  hartree_local_methods
           END DO
         END DO  
 
-    DO iso1 = 1,nsotot
-     WRITE(*,'(i3,16E12.3)') iso1,aVh1b_h(iso1,1:16)
-    enddo
-  stop 'avb'
-   
+!       Calculate the contributions to Ecoul coming from Vh1_h*rho1_h and Vh1_s*rho1_s
+        nspins = SIZE(cpc_h,1)
+        ecoul_1_h = 0.0_dp
+        ecoul_1_s = 0.0_dp
+        DO ispin = 1,nspins
+           ecoul_1_h  =  ecoul_1_h + &
+                      trace_r_AxB(aVh1b_h,nsotot,&
+                          cpc_h(ispin)%r_coef,nsotot,&
+                          nsotot,nsotot)
+
+           ecoul_1_s  =  ecoul_1_s + &
+                      trace_r_AxB(aVh1b_s,nsotot,&
+                          cpc_s(ispin)%r_coef,nsotot,&
+                          nsotot,nsotot)
+        END DO  ! ispin
+ 
+        CALL set_ecoul_1c(ecoul_1c=ecoul_1c,iatom=iatom,&
+                          ecoul_1_h=ecoul_1_h,ecoul_1_s=ecoul_1_s)
+
+        energy%hartree_1c = energy%hartree_1c + ecoul_1_h + ecoul_1_0 -&
+                            (ecoul_1_s + ecoul_1_0)
+!  stop 'avb'
+!  WRITE(*,*) 'iat ',iat ,  ecoul_1_h + ecoul_1_0 -&
+ !                           (ecoul_1_s + ecoul_1_0)
       END DO  ! iat
 
-      DEALLOCATE(gexp,gsph,g0_h_w,sqrtwr)
-
     END DO  ! ikind 
+
+    DEALLOCATE(gexp,gsph,g0_h_w,sqrtwr)
+
+!  WRITE(*,*) energy%hartree_1c
 
   END SUBROUTINE Vh_1c_gg_integrals
 

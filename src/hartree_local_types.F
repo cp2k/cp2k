@@ -60,9 +60,10 @@ MODULE hartree_local_types
 
 ! *** Public subroutines ***
 
-  PUBLIC :: allocate_ecoul_1center, get_hartree_local, &
-            hartree_local_create,&
-            hartree_local_release, set_hartree_local
+  PUBLIC :: allocate_ecoul_1center, get_ecoul_1c,  &
+            get_hartree_local, hartree_local_create,&
+            hartree_local_release, set_ecoul_1c,&
+            set_hartree_local
 
 ! *** Public data types ***
 
@@ -158,18 +159,39 @@ MODULE hartree_local_types
 
 ! *****************************************************************************
 
+  SUBROUTINE get_ecoul_1c(ecoul_1c,iatom,Vh1_h,Vh1_s,aVh1b_h,aVh1b_s,aVh1b_0)
+
+    TYPE(ecoul_1center_type), DIMENSION(:),&
+                              INTENT(IN), TARGET  ::  ecoul_1c
+    REAL(dp), DIMENSION(:,:), OPTIONAL, POINTER   :: Vh1_h, Vh1_s
+    REAL(dp), DIMENSION(:,:), OPTIONAL, POINTER   :: aVh1b_h, aVh1b_s, aVh1b_0
+    INTEGER, INTENT(IN), OPTIONAL                 :: iatom
+
+!   ---------------------------------------------------------------------------
+
+    IF(PRESENT(iatom)) THEN
+      IF(PRESENT(Vh1_h)) Vh1_h => ecoul_1c(iatom)%Vh1_h%r_coef
+      IF(PRESENT(Vh1_s)) Vh1_s => ecoul_1c(iatom)%Vh1_s%r_coef
+      IF(PRESENT(aVh1b_h)) aVh1b_h => ecoul_1c(iatom)%aVh1b_h%r_coef
+      IF(PRESENT(aVh1b_s)) aVh1b_s => ecoul_1c(iatom)%aVh1b_s%r_coef
+      IF(PRESENT(aVh1b_0)) aVh1b_0 => ecoul_1c(iatom)%aVh1b_0%r_coef
+    END IF
+    
+  END SUBROUTINE get_ecoul_1c
+
+! *****************************************************************************
+
   SUBROUTINE get_hartree_local(hartree_local,ecoul_1c)
 
     TYPE(hartree_local_type), INTENT(IN), TARGET  :: hartree_local
     TYPE(ecoul_1center_type), DIMENSION(:), &
-                            OPTIONAL, POINTER    :: ecoul_1c
-
+                            OPTIONAL, POINTER     :: ecoul_1c
     CHARACTER(len=*), PARAMETER :: routineN = 'get_hartree_local'
 
 !   ---------------------------------------------------------------------------
 
     IF(PRESENT(ecoul_1c)) ecoul_1c => hartree_local%ecoul_1c
-    
+
   END SUBROUTINE get_hartree_local
 
 ! *****************************************************************************
@@ -218,6 +240,27 @@ MODULE hartree_local_types
     END IF
 
   END SUBROUTINE hartree_local_release
+
+! *****************************************************************************
+
+  SUBROUTINE set_ecoul_1c(ecoul_1c,iatom,ecoul_1_h,ecoul_1_s,ecoul_1_z,ecoul_1_0)
+
+    TYPE(ecoul_1center_type), DIMENSION(:),&
+                                          TARGET  ::  ecoul_1c
+    INTEGER, INTENT(IN), OPTIONAL                 :: iatom
+    REAL(dp), INTENT(OUT),  OPTIONAL              :: ecoul_1_h, ecoul_1_s, &
+                                                     ecoul_1_z, ecoul_1_0
+
+!   ---------------------------------------------------------------------------
+
+    IF(PRESENT(iatom)) THEN
+      IF(PRESENT(ecoul_1_h)) ecoul_1c(iatom)%ecoul_1_h=ecoul_1_h
+      IF(PRESENT(ecoul_1_s)) ecoul_1c(iatom)%ecoul_1_s=ecoul_1_s
+      IF(PRESENT(ecoul_1_0)) ecoul_1c(iatom)%ecoul_1_0=ecoul_1_0
+      IF(PRESENT(ecoul_1_z)) ecoul_1c(iatom)%ecoul_1_z=ecoul_1_z
+    END IF
+
+   END SUBROUTINE set_ecoul_1c
 
 ! *****************************************************************************
 

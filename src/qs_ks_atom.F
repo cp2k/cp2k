@@ -29,6 +29,8 @@ MODULE qs_ks_atom
                                              gto_basis_set_type
   USE cp_error_handling,               ONLY: cp_error_type
   USE cp_log_handling,                 ONLY: cp_failure_level
+  USE hartree_local_types,             ONLY: ecoul_1center_type,&
+                                             get_ecoul_1c
   USE kinds,                           ONLY: dp
   USE memory_utilities,                ONLY: reallocate
   USE qs_environment_types,            ONLY: get_qs_env,&
@@ -103,6 +105,8 @@ CONTAINS
     TYPE(neighbor_node_type), POINTER        :: sab_orb_neighbor_node, &
                                                 sbc_oce_neighbor_node
     TYPE(oce_matrix_type), POINTER           :: oce
+    TYPE(ecoul_1center_type), DIMENSION(:), & 
+                                 POINTER     :: ecoul_1c
     TYPE(qlist_type), DIMENSION(:, :, :), &
       POINTER                                :: tmp_neigh
     TYPE(qlist_type), POINTER                :: sac_oce_neighbor
@@ -115,7 +119,7 @@ CONTAINS
 !******************************************************************************
 
     NULLIFY(atomic_kind_set,force,oce,rho_atom,sab_orb,sac_oce,sbc_oce)
-    NULLIFY(orb_basis)
+    NULLIFY(orb_basis,ecoul_1c)
 
     CALL get_qs_env(qs_env=qs_env,&
            atomic_kind_set=atomic_kind_set,&
@@ -124,7 +128,8 @@ CONTAINS
            rho_atom_set=rho_atom,&
            sab_orb=sab_orb,&
            sac_oce=sac_oce,&
-           sbc_oce=sbc_oce)
+           sbc_oce=sbc_oce,&
+           ecoul_1c=ecoul_1c)
 
 
     CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,maxsgf=max_nsgf,&
@@ -277,20 +282,20 @@ CONTAINS
                 rho_at => rho_atom(katom)
 !dbg
 !   write(*,*) 'katom ', katom
-                CALL add_vhxca_to_ks(h_block,oce,rho_at,ispin, &
+                CALL add_vhxca_to_ks(h_block,oce,rho_at,ecoul_1c,ispin, &
                                     iatom,nsgfa,jatom,nsgfb,katom,nsoctot,&
                                     C_coeff_h,C_coeff_s,max_gau)
 
                 IF(forces)THEN
                   IF(iatom <= jatom) THEN
                     rho_at => rho_atom(katom)
-                    CALL add_vhxca_forces(p_block,oce,rho_at,force(kkind),ispin,&
-                                    iatom,nsgfa,jatom,nsgfb,katom,nsoctot,&
+                    CALL add_vhxca_forces(p_block,oce,rho_at,force(kkind),ecoul_1c,&
+                                    ispin,iatom,nsgfa,jatom,nsgfb,katom,nsoctot,&
                                     C_coeff_h,C_coeff_s,max_gau)
                   ELSE
                     rho_at => rho_atom(katom)
-                    CALL add_vhxca_forces(p_block,oce,rho_at,force(kkind),ispin,&
-                                    jatom,nsgfb,iatom,nsgfa,katom,nsoctot,&
+                    CALL add_vhxca_forces(p_block,oce,rho_at,force(kkind),ecoul_1c,&
+                                    ispin,jatom,nsgfb,iatom,nsgfa,katom,nsoctot,&
                                     C_coeff_h,C_coeff_s,max_gau)
                   END IF
                 END IF
@@ -317,13 +322,15 @@ CONTAINS
   END SUBROUTINE update_ks_atom
 !******************************************************************************
 
-  SUBROUTINE add_vhxca_to_ks(h_block,oce,rho_atom,ispin,ia,na,ja,nb,&
+  SUBROUTINE add_vhxca_to_ks(h_block,oce,rho_atom,ecoul_1c,ispin,ia,na,ja,nb,&
                              ka,nsp,C_h,C_s,ldc)
 
 
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: h_block
     TYPE(oce_matrix_type), POINTER           :: oce
     TYPE(rho_atom_type), POINTER             :: rho_atom
+    TYPE(ecoul_1center_type), DIMENSION(:), & 
+                                 POINTER     :: ecoul_1c
     INTEGER, INTENT(IN)                      :: ispin, ia, na, ja, nb, ka, &
                                                 nsp, ldc
     REAL(KIND=dp), DIMENSION(ldc, nb)        :: C_s, C_h
@@ -332,25 +339,37 @@ CONTAINS
 
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: c_block, IntC_h, IntC_s
     TYPE(rho_atom_coeff), DIMENSION(:), &
-      POINTER                                :: int_h, int_s
+      POINTER                                :: int_xc_h, int_xc_s
+    REAL(dp), DIMENSION(:,:), POINTER        :: int_h_h, int_h_s, int_h_0
+    REAL(dp), DIMENSION(:,:), POINTER        :: int_h, int_s
+    INTEGER                                  :: is1, is2
 
-! i atom index 
-! spin index
-! # spherical contr. iatom
-! j atom index
-! dimension of work arrays
-! # spherical contr. jatom
-! k atom index 
-! # spherical primitives katom
-! work arrays
 !dbg
 !    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: h_test
 !******************************************************************************
 
     NULLIFY(int_h,int_s,intC_h,intC_s)
+    NULLIFY(int_xc_h, int_xc_s,int_h_h, int_h_s, int_h_0)
+
+    CALL reallocate(int_h,1,nsp,1,nsp)
+    CALL reallocate(int_s,1,nsp,1,nsp)
 
     CALL get_rho_atom(rho_atom=rho_atom,&
-                     ga_Vxc_gb_h=int_h,ga_Vxc_gb_s=int_s)
+                     ga_Vxc_gb_h=int_xc_h,ga_Vxc_gb_s=int_xc_s)
+
+    CALL get_ecoul_1c(ecoul_1c=ecoul_1c,iatom=ka,aVh1b_h=int_h_h,&
+                      aVh1b_s=int_h_s,aVh1b_0=int_h_0)
+
+    DO is1 = 1,nsp
+      DO is2 = is1,nsp
+        int_h(is2,is1) = int_xc_h(ispin)%r_coef(is2,is1) + &
+                         int_h_h(is2,is1) + int_h_0(is2,is1)
+        int_s(is2,is1) = int_xc_s(ispin)%r_coef(is2,is1) + &
+                         int_h_s(is2,is1) + int_h_0(is2,is1)
+        int_h(is1,is2) = int_h(is2,is1)
+        int_s(is1,is2) = int_s(is2,is1)
+      END DO
+    END DO
 
     IF (ia <= ja) THEN
       NULLIFY(c_block)
@@ -385,12 +404,12 @@ CONTAINS
       CALL reallocate(intC_s,1,nsp,1,nb)
 
       CALL dgemm("N","N",nsp,nb,nsp,&
-               1.0_dp,int_h(ispin)%r_coef,nsp,&
+               1.0_dp,int_h,nsp,&
                C_h,ldc,0.0_dp,&
                intC_h,nsp)
 
       CALL dgemm("N","N",nsp,nb,nsp,&
-               1.0_dp,int_s(ispin)%r_coef,nsp,&
+               1.0_dp,int_s,nsp,&
                C_s,ldc,0.0_dp,&
                intC_s,nsp)
 
@@ -456,12 +475,12 @@ CONTAINS
       CALL reallocate(intC_s,1,nsp,1,na)
 
       CALL dgemm("N","N",nsp,na,nsp,&
-               1.0_dp,int_h(ispin)%r_coef,nsp,&
+               1.0_dp,int_h,nsp,&
                C_h,ldc,0.0_dp,&
                intC_h,nsp)
 
       CALL dgemm("N","N",nsp,na,nsp,&
-               1.0_dp,int_s(ispin)%r_coef,nsp,&
+               1.0_dp,int_s,nsp,&
                C_s,ldc,0.0_dp,&
                intC_s,nsp)
 
@@ -497,7 +516,7 @@ CONTAINS
 
 ! *****************************************************************************
 
-  SUBROUTINE add_vhxca_forces(p_block,oce,rho_atom,force,ispin,&
+  SUBROUTINE add_vhxca_forces(p_block,oce,rho_atom,force,ecoul_1c,ispin,&
                             ia,na,ja,nb,ka,nsp,C_h,C_s,ldc)
 
 ! *****************************************************************************
@@ -506,6 +525,8 @@ CONTAINS
     TYPE(oce_matrix_type), POINTER           :: oce
     TYPE(rho_atom_type), POINTER             :: rho_atom
     TYPE(qs_force_type)                      :: force
+    TYPE(ecoul_1center_type), DIMENSION(:), & 
+                                 POINTER     :: ecoul_1c
     INTEGER, INTENT(IN)                      :: ispin, ia, na, ja, nb, ka, &
                                                 nsp, ldc
     REAL(KIND=dp), DIMENSION(ldc, nb)        :: C_s, C_h
@@ -517,15 +538,35 @@ CONTAINS
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: c_block, dCPC_h, dCPC_s, &
                                                 p_blockt, PC_h, PC_s
     TYPE(rho_atom_coeff), DIMENSION(:), &
-      POINTER                                :: int_h, int_s
+      POINTER                                :: int_xc_h, int_xc_s
+    REAL(dp), DIMENSION(:,:), POINTER        :: int_h_h, int_h_s, int_h_0
+    REAL(dp), DIMENSION(:,:), POINTER        :: int_h, int_s
+    INTEGER                                  :: is1, is2
 
 ! *****************************************************************************
 
     NULLIFY(int_h, int_s, PC_h, PC_s, dCPC_h, dCPC_s)
+    NULLIFY(int_xc_h, int_xc_s,int_h_h, int_h_s, int_h_0)
+
+    CALL reallocate(int_h,1,nsp,1,nsp)
+    CALL reallocate(int_s,1,nsp,1,nsp)
 
     CALL get_rho_atom(rho_atom=rho_atom,&
-                     ga_Vxc_gb_h=int_h,ga_Vxc_gb_s=int_s)
+                     ga_Vxc_gb_h=int_xc_h,ga_Vxc_gb_s=int_xc_s)
 
+    CALL get_ecoul_1c(ecoul_1c=ecoul_1c,iatom=ka,aVh1b_h=int_h_h,&
+                      aVh1b_s=int_h_s,aVh1b_0=int_h_0)
+
+    DO is1 = 1,nsp
+      DO is2 = is1,nsp
+        int_h(is2,is1) = int_xc_h(ispin)%r_coef(is2,is1) + &
+                         int_h_h(is2,is1) + int_h_0(is2,is1)
+        int_s(is2,is1) = int_xc_s(ispin)%r_coef(is2,is1) + &
+                         int_h_s(is2,is1) + int_h_0(is2,is1)
+        int_h(is1,is2) = int_h(is2,is1)
+        int_s(is1,is2) = int_s(is2,is1)
+      END DO
+    END DO
 
 ! i-k contributions
 
@@ -584,7 +625,7 @@ CONTAINS
                   PC_h,na,0.0_dp,&
                   dCPC_h,nsp)
 
-       trace = trace_r_AxB(dCPC_h,nsp,int_h(ispin)%r_coef,nsp,nsp,nsp)
+       trace = trace_r_AxB(dCPC_h,nsp,int_h,nsp,nsp,nsp)
 
        force%vxc_atom(dir,ka) = force%vxc_atom(dir,ka) + 2.0_dp * trace
        force%vxc_atom(dir,ia) = force%vxc_atom(dir,ia) - 2.0_dp * trace
@@ -594,7 +635,7 @@ CONTAINS
                   PC_s,na,0.0_dp,&
                   dCPC_s,nsp)
 
-       trace = trace_r_AxB(dCPC_s,nsp,int_s(ispin)%r_coef,nsp,nsp,nsp)
+       trace = trace_r_AxB(dCPC_s,nsp,int_s,nsp,nsp,nsp)
 
        force%vxc_atom(dir,ka) = force%vxc_atom(dir,ka) - 2.0_dp * trace
        force%vxc_atom(dir,ia) = force%vxc_atom(dir,ia) + 2.0_dp * trace
@@ -661,7 +702,7 @@ CONTAINS
                   PC_h,na,0.0_dp,&
                   dCPC_h,nsp)
 
-       trace = trace_r_AxB(dCPC_h,nsp,int_h(ispin)%r_coef,nsp,nsp,nsp)
+       trace = trace_r_AxB(dCPC_h,nsp,int_h,nsp,nsp,nsp)
 
        force%vxc_atom(dir,ka) = force%vxc_atom(dir,ka) + 2.0_dp * trace
        force%vxc_atom(dir,ja) = force%vxc_atom(dir,ja) - 2.0_dp * trace
@@ -671,7 +712,7 @@ CONTAINS
                   PC_s,na,0.0_dp,&
                   dCPC_s,nsp)
 
-       trace = trace_r_AxB(dCPC_s,nsp,int_s(ispin)%r_coef,nsp,nsp,nsp)
+       trace = trace_r_AxB(dCPC_s,nsp,int_s,nsp,nsp,nsp)
 
        force%vxc_atom(dir,ka) = force%vxc_atom(dir,ka) - 2.0_dp * trace
        force%vxc_atom(dir,ja) = force%vxc_atom(dir,ja) + 2.0_dp * trace

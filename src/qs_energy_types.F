@@ -35,9 +35,11 @@ MODULE qs_energy_types
                 core_overlap,&
                 core_self,&
                 exc,&
+                exc1,&
+                hartree,&
+                hartree_1c,&
                 qmmm_el,&
                 qmmm_nu,&
-                hartree,&
                 total
   END TYPE qs_energy_type
 
@@ -137,7 +139,9 @@ CONTAINS
       qs_energy%qmmm_el = 0.0_dp
       qs_energy%qmmm_nu = 0.0_dp
       qs_energy%exc = 0.0_dp
+      qs_energy%exc1 = 0.0_dp
       qs_energy%hartree = 0.0_dp
+      qs_energy%hartree_1c = 0.0_dp
       qs_energy%total = 0.0_dp
     ELSE
       CALL stop_program(routine,"The qs_energy pointer is not associated "//&

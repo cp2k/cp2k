@@ -160,6 +160,10 @@ CONTAINS
 
    nkind = SIZE(atomic_kind_set)
 
+!  Put to 0 the energy contribution from the one center XC terms 
+   energy%exc1 = 0.0_dp
+
+!  Here starts the loop over all the atoms
    DO ikind = 1,nkind
 
      atom_kind => atomic_kind_set(ikind)
@@ -352,12 +356,9 @@ CONTAINS
          END IF
 
        END DO  !nr 
-! dbg
-!        WRITE(*,*) 'iat ', iat
-!       write(*,*) rho_atom%exc_h,rho_atom%exc_s
 
 !      *** Add contributions to the exc energy 
-       energy%exc = energy%exc + rho_atom%exc_h - &
+       energy%exc1 = energy%exc1 + rho_atom%exc_h - &
                                  rho_atom%exc_s
 
 !      *** Integration to get the matrix elements relative to the vxc_atom ***
