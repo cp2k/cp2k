@@ -1690,8 +1690,8 @@ CONTAINS
       routineP = moduleN//":"//routineN
 
     INTEGER :: atom_a, group, handle, homo, iatom, ikind, iset, isgf, isgfa, &
-      ishell, ispin, istat, la, maxl, nao, natom, ncount, nelectron, nmo, &
-      nset, nspin, qs_env_id
+      ishell, ispin, istat, la, maxl, maxll, nao, natom, ncount, nelectron, &
+      nmo, nset, nspin, qs_env_id
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: first_sgf
     INTEGER, DIMENSION(:), POINTER           :: atom_list, elec_conf, nshell
     INTEGER, DIMENSION(:, :), POINTER        :: first_sgfa, l, last_sgfa
@@ -1911,9 +1911,9 @@ CONTAINS
             CYCLE
           END IF
 
-          maxl = MIN(SIZE(elec_conf) - 1,maxl)
+          maxll = MIN(SIZE(elec_conf) - 1,maxl)
           econf(:) = 0.0_dp
-          econf(0:maxl) = 0.5_dp*maxocc*REAL(elec_conf(0:maxl),dp)
+          econf(0:maxll) = 0.5_dp*maxocc*REAL(elec_conf(0:maxll),dp)
 
           CALL get_gto_basis_set(gto_basis_set=orb_basis_set,&
                                  nset=nset,&
