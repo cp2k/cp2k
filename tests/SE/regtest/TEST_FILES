@@ -4,3 +4,13 @@
 #      1 compares the last total energy in the file
 #      for details see cp2k/tools/do_regtest
 H2O-MNDO.inp 3
+c2h4.inp 3
+ch2o.inp 3
+ch4.inp 3
+h2o.inp 3
+h2o_lsd.inp 3  
+h2op.inp 3
+hcn.inp 3
+hf.inp 3
+nh4.inp 3
+st.inp 3
