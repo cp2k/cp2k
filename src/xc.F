@@ -1153,7 +1153,7 @@ CONTAINS
 
     ! divide the potential by the gradient where necessary
     IF (.NOT.failure) THEN
-       DO ipot=1,npot
+       DO ipot=1,size(grad_pot,2)
           IF (grad_pot(1,ipot).AND.grad_pot(2,ipot)) THEN
              CPPrecondition(ANY(xc_control%gradient_functionals),cp_failure_level,routineP,error,failure)
              IF (ndiag_term(ipot)) THEN
