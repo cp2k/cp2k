@@ -50,7 +50,8 @@ MODULE pw_spline_utils
                                              pw_type,&
                                              pw_prolongate,&
                                              pw_inject,&
-                                             pw_zero
+                                             pw_zero,&
+                                             pw_transfer
   USE pw_pool_types, ONLY: pw_pool_type, pw_pool_create_pw,&
        pw_pool_give_back_pw
   USE simulation_cell,                 ONLY: cell_type
