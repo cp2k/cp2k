@@ -1,0 +1,15 @@
+PERL     = perl
+CC       = cc
+CPP      = cpp
+
+FC       = g95 
+LD       = g95
+
+AR       = ar -r
+
+CPPFLAGS = -C -D__G95 -D__FFTSG -traditional -P
+FCFLAGS  = -O0 -g
+LDFLAGS  = $(FCFLAGS) -L/scratch/${USER}/lib
+LIBS     = -llacpack_x86-64_g95 -lblas_x86-64_g95
+
+OBJECTS_ARCHITECTURE = machine_g95.o
