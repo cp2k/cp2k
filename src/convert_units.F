@@ -118,7 +118,7 @@ SUBROUTINE convert_to_cp2k_units ( unit_char, time, temperature, pressure, lengt
   
   IF ( PRESENT ( tau_nhc ) ) THEN
      IF ( unit_char == '1/CM' ) &
-     tau_nhc =  tau_nhc * units % wavenum
+     tau_nhc =  units % wavenum / tau_nhc
      IF ( unit_char == 'FS' ) &
      tau_nhc = tau_nhc * units % fs
      CALL time_convert ( tau_nhc )

@@ -360,6 +360,12 @@ SUBROUTINE fist ( globenv )
                                     rep_env ( ibead ) % molecule, &
                                     globenv, intra_param )
 
+    CALL mol_local_particles_create ( &
+      local_particles=rep_env(ibead)%local_particles,&
+      atomic_kind_set=rep_env(ibead)%atomic_kind_set,&
+      local_molecules=rep_env(ibead)%molecule,&
+      particles=rep_env(ibead)%part,&
+      para_env=globenv%para_env)
 !MK   *** Distribute molecules and atoms using the new data structures ***
 !MK
 !MK    CALL allocate_molecule_kind_set(rep_env(ibead)%molecule_kind_set,&

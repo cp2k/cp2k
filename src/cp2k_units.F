@@ -22,7 +22,8 @@ MODULE cp2k_units
   USE kinds, ONLY : dbl
   USE mathconstants, ONLY : pi
   USE physcon, ONLY : e_charge, angstrom, a_bohr, e_mass, joule, a_mass, &
-       c_light, boltzmann, kcalmol, massunit, bohr, evolt, h_bar, permittivity
+       c_light, boltzmann, kcalmol, massunit, bohr, evolt, h_bar, wavenum, &
+       hz, permittivity
   USE termination, ONLY : stop_memory
 
   PRIVATE
@@ -85,7 +86,7 @@ SUBROUTINE init_cp2k_units ()
 ! fs to time AU
   units % fs = joule / 1.e15_dbl /  h_bar
 ! 1/cm to time AU
-  units % wavenum = 1._dbl / 100._dbl / c_light * h_bar / joule
+  units % wavenum =  joule * wavenum / hz / h_bar
 ! kcal/mole to energy AU
   units % kcal = 1._dbl / kcalmol
 ! kelvin to energy AU
