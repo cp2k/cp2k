@@ -22,8 +22,7 @@
 MODULE qs_ot_eigensolver
 ! *****************************************************************************
   USE global_types,                    ONLY: global_environment_type
-  USE kinds,                           ONLY: int_size,&
-                                             wp => dp
+  USE kinds,                           ONLY: wp => dp
   USE preconditioner,                  ONLY: preconditioner_in_use,&
                                              preconditioner_type
   USE qs_blacs,                        ONLY: blacs_column_copy,&
