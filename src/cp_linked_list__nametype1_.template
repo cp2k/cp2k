@@ -120,8 +120,10 @@ module cp_linked_list_[nametype1]
   end interface
 ! inserts one element call cp_insert(list,element,...)
   interface cp_insert
-     module procedure cp_sll_[nametype1]_insert_el, &
-          cp_sll_[nametype1]_insert_el_at
+     module procedure cp_sll_[nametype1]_insert_el
+  end interface
+  interface cp_insert_at
+     module procedure cp_sll_[nametype1]_insert_el_at
   end interface
 ! removes an element
   interface cp_remove_el
@@ -903,7 +905,7 @@ contains
 !!     none
 !!
 !!*** **********************************************************************
-  subroutine cp_sll_[nametype1]_insert_el_at(sll,index,element,error)
+  subroutine cp_sll_[nametype1]_insert_el_at(sll,element,index,error)
     [type1in] :: element
     integer, intent(in) :: index
     type(cp_sll_[nametype1]_type), pointer :: sll
