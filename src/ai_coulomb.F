@@ -487,7 +487,7 @@ CONTAINS
 
 !   ---------------------------------------------------------------------------
 
-!    CALL timeset(routine_name,"I"," ",handle)
+    CALL timeset(routine_name,"I"," ",handle)
 
     v = 0.0_dp
 
@@ -1031,14 +1031,14 @@ CONTAINS
 
               DO cy=0,lc-1
                 cz = lc - 1 - cy
-                v(1,1,coset(1,cy,cz),n) = rcw(1)*v(1,1,coset(0,cy,cz),n)
+                v(1,1,coset(1,cy,cz),n) = rcw(1)*v(1,1,coset(0,cy,cz),n+1)
               END DO
 
               DO cx=2,lc
                 DO cy=0,lc-cx
                   cz = lc - cx - cy
                   v(1,1,coset(cx,cy,cz),n) =&
-                    rcw(1)*v(1,1,coset(cx-1,cy,cz),n) +&
+                    rcw(1)*v(1,1,coset(cx-1,cy,cz),n+1) +&
                     f7*REAL(cx-1,dp)*(   v(1,1,coset(cx-2,cy,cz),n) +&
                                       f5*v(1,1,coset(cx-2,cy,cz),n+1))
                 END DO
@@ -1616,7 +1616,7 @@ CONTAINS
 
     END DO
 
-!    CALL timestop(0.0_dp,handle)
+    CALL timestop(0.0_dp,handle)
 
   END SUBROUTINE coulomb3
 

@@ -134,7 +134,7 @@ MODULE  hartree_local_3centers
     TYPE(rho_atom_coeff), DIMENSION(:), &
         POINTER                                :: int_local_h,int_local_s
     REAL(dp) :: alpha_core, c1, dab, fac, ieqj, rab(3), rab2, rac(3), rac2, &
-                rbc(3), rbc2, r_V0, trace, z0_h, z0_s, zhard 
+                rbc(3), rbc2, r_V0, trace, z0_h, z0_s, zhard , e3
     REAL(dp), DIMENSION(:),       POINTER      :: ng0_h, ng0_s
     REAL(dp), DIMENSION(:),   ALLOCATABLE      :: normhard, ff
     REAL(dp), DIMENSION(:),   ALLOCATABLE      :: sum_ab_sph
@@ -388,6 +388,8 @@ MODULE  hartree_local_3centers
 !! test
               IF(maxcoa .GT. SIZE(hab,1) .OR. maxcob .GT. SIZE(hab,2)) THEN
                 CALL reallocate(hab,1,maxcoa,1,maxcob)
+              ELSE
+                hab = 0.0_dp
               END IF
 
 !             Build the CPC coefficients that should then multiplied to the 
@@ -439,9 +441,10 @@ MODULE  hartree_local_3centers
                     CALL reallocate(Int_ab_sum,1,maxcoa,1,maxcob)
                     CALL reallocate(Int_dab_sum,1,maxcoa,1,maxcob,1,3)
                     CALL reallocate(Int_adb_sum,1,maxcoa,1,maxcob,1,3)
+                 ELSE
+                   Int_dab_sum=0.0_dp
+                   Int_adb_sum=0.0_dp
                  END IF
-                 Int_dab_sum=0.0_dp
-                 Int_adb_sum=0.0_dp
               ELSE
                  IF(maxcoa .GT. SIZE(Int_ab_sum,1) .OR. maxcob .GT. SIZE(Int_ab_sum,2)) THEN
                     CALL reallocate(Int_ab_sum,1,maxcoa,1,maxcob)
@@ -460,16 +463,18 @@ MODULE  hartree_local_3centers
                                   block_row=jatom,&
                                   block_col=iatom,&
                                   BLOCK=p_block)
-! test
+
 !              IF(ncototb .gt. ncototb_old .OR. ncotota .GT. ncotota_old) then
                 CALL reallocate(CPC_ab,1,ncototb,1,ncotota)
 !                ncotota_old = ncotota
 !                ncototb_old = ncototb
 !              END IF
               CPC_ab = 0.0_dp
-! test
+
               IF(maxcob .GT. SIZE(hab,1) .OR. maxcoa .GT. SIZE(hab,2)) THEN
                 CALL reallocate(hab,1,maxcob,1,maxcoa)
+              ELSE
+                hab = 0.0_dp
               END IF
 
               m1 = 0
@@ -515,10 +520,11 @@ MODULE  hartree_local_3centers
                   CALL reallocate(Int_ab_sum,1,maxcob,1,maxcoa)
                   CALL reallocate(Int_dab_sum,1,maxcob,1,maxcoa,1,3)
                   CALL reallocate(Int_adb_sum,1,maxcob,1,maxcoa,1,3)
+                ELSE
+                  Int_dab_sum=0.0_dp
+                  Int_adb_sum=0.0_dp
                 END IF
 
-                Int_dab_sum=0.0_dp
-                Int_adb_sum=0.0_dp
               ELSE
                 IF(maxcob .GT. SIZE(Int_ab_sum,1) .OR. maxcoa .GT. SIZE(Int_ab_sum,2)) THEN
                   CALL reallocate(Int_ab_sum,1,maxcob,1,maxcoa)
@@ -547,6 +553,7 @@ MODULE  hartree_local_3centers
               ELSE
                 c1 = alpha_core/pi
                 c1 = c1*c1*c1
+                normhard(:) = 0.0_dp
                 normhard(0) = SQRT(c1) 
                 zhard =  alpha_core
               END IF
@@ -574,6 +581,7 @@ MODULE  hartree_local_3centers
                 IF(paw_atom) THEN
                    QN_h_c(1:ncoset(l0_kkind)) = QN_h(1:ncoset(l0_kkind))
                 ELSE
+                  QN_h_c(:) = 0.0_dp
                   QN_h_c(1) = -normhard(0)*zeff
                 ENDIF
 
@@ -621,8 +629,6 @@ MODULE  hartree_local_3centers
 !
                       trace = trace_r_AxB_new(CPC_ab,SIZE(CPC_ab,1),m1,m2,&
                                           Int_ab_sum,SIZE(Int_ab_sum,1),0,0,nco1,nco2)
-!                       hab(1:nco1,1:nco2) = CPC_ab(1+m1:m1+nco1,1+m2:m2+nco2)
-!                       trace = trace_r_AxB(hab,SIZE(hab,1),Int_ab_sum,SIZE(Int_ab_sum,1),nco1,nco2)
                       energy_hartree_3c = energy_hartree_3c + ieqj*trace 
 
                       IF(calculate_forces) THEN
@@ -633,8 +639,6 @@ MODULE  hartree_local_3centers
                         DO idir = 1,3 
                           trace = trace_r_AxB_new(CPC_ab,SIZE(CPC_ab,1),m1,m2,&
                                   Int_dab_sum(:,:,idir),SIZE(Int_dab_sum,1),0,0,nco1,nco2)
-!                          trace = trace_r_AxB_new(CPC_ab,SIZE(CPC_ab,1),m1,m2,&
-!                                   Int_dab_sum(:,:,idir),SIZE(Int_dab_sum,1),0,0,nco1,nco2)
                           force(ikind)%hartree_3c(idir,i_atom) = &
                                   force(ikind)%hartree_3c(idir,i_atom) - ieqj*trace
                           force(kkind)%hartree_3c(idir,k_atom) = &
@@ -642,8 +646,6 @@ MODULE  hartree_local_3centers
 
                           trace = trace_r_AxB_new(CPC_ab,SIZE(CPC_ab,1),m1,m2,&
                                   Int_adb_sum(:,:,idir),SIZE(Int_adb_sum,1),0,0,nco1,nco2)
-!                         trace = trace_r_AxB_new(CPC_ab,SIZE(CPC_ab,1),m1,m2,&
-!                                   Int_adb_sum(:,:,idir),SIZE(Int_adb_sum,1),0,0,nco1,nco2)
                           force(jkind)%hartree_3c(idir,j_atom) = &
                                   force(jkind)%hartree_3c(idir,j_atom) - ieqj*trace
                           force(kkind)%hartree_3c(idir,k_atom) = &
@@ -706,8 +708,6 @@ MODULE  hartree_local_3centers
 
                       trace = trace_r_AxB_new(CPC_ab,SIZE(CPC_ab,1),m1,m2,&
                                           Int_ab_sum,SIZE(Int_ab_sum,1),0,0,nco1,nco2)
-!                      hab(1:nco1,1:nco2) = CPC_ab(1+m1:m1+nco1,1+m2:m2+nco2)  
-!                      trace = trace_r_AxB(hab,SIZE(hab,1),Int_ab_sum,SIZE(Int_ab_sum,1),nco1,nco2)
                       energy_hartree_3c = energy_hartree_3c + 2.0_dp*trace 
 
                       IF(calculate_forces) THEN
@@ -718,8 +718,6 @@ MODULE  hartree_local_3centers
                         DO idir = 1,3 
                           trace = trace_r_AxB_new(CPC_ab,SIZE(CPC_ab,1),m1,m2,&
                                   Int_dab_sum(:,:,idir),SIZE(Int_dab_sum,1),0,0,nco1,nco2)
-!                          trace = trace_r_AxB(hab,SIZE(hab,1),&
-!                                  Int_dab_sum(:,:,idir),SIZE(Int_dab_sum,1),nco1,nco2)
                           force(ikind)%hartree_3c(idir,i_atom) = &
                                   force(ikind)%hartree_3c(idir,i_atom) - 2._dp*trace
                           force(kkind)%hartree_3c(idir,k_atom) = &
@@ -727,8 +725,6 @@ MODULE  hartree_local_3centers
 
                           trace = trace_r_AxB_new(CPC_ab,SIZE(CPC_ab,1),m1,m2,&
                                   Int_adb_sum(:,:,idir),SIZE(Int_adb_sum,1),0,0,nco1,nco2)
-!                          trace = trace_r_AxB(hab,SIZE(hab,1),&
-!                                  Int_adb_sum(:,:,idir),SIZE(Int_adb_sum,1),nco1,nco2)
                           force(jkind)%hartree_3c(idir,j_atom) = &
                                   force(jkind)%hartree_3c(idir,j_atom) - 2._dp*trace
                           force(kkind)%hartree_3c(idir,k_atom) = &
@@ -829,6 +825,7 @@ MODULE  hartree_local_3centers
          END DO  ! lshell
 
          DO iso = 1,nchan0_sph
+
            DO is = 1,nsototc
 
              DO ispin_bis = 1,qs_env%dft_control%nspins
@@ -844,15 +841,16 @@ MODULE  hartree_local_3centers
          END DO 
 
        END DO  ! kat
+ 
 
 !      The Calculation of ga_Vlocal_gp is complete at this point
-       DO kat = 1,nat
-          katom  = atom_list(kat)
-          CALL  mp_sum(rho_atom_set(katom)%ga_Vlocal_gb_h(ispin)%r_coef,&
-                       para_env%group)
-          CALL  mp_sum(rho_atom_set(katom)%ga_Vlocal_gb_s(ispin)%r_coef,&
-                       para_env%group)
-       END DO
+         DO kat = 1,nat
+            katom  = atom_list(kat)
+            CALL  mp_sum(rho_atom_set(katom)%ga_Vlocal_gb_h(ispin)%r_coef,&
+                         para_env%group)
+            CALL  mp_sum(rho_atom_set(katom)%ga_Vlocal_gb_s(ispin)%r_coef,&
+                         para_env%group)
+         END DO
     END DO  ! kkind
 
 100 CONTINUE
