@@ -7,6 +7,7 @@
 !!   NAME
 !!     qs_init
 !!
+
 !!   FUNCTION
 !!
 !!   AUTHOR
@@ -52,6 +53,8 @@ MODULE qs_init
                                              write_cell
   USE timings,                         ONLY: timeset,&
                                              timestop
+  USE pao_types,                       ONLY: pao_env_type
+  USE pao_read_section,                ONLY: pao_env_init_from_file
 
   IMPLICIT NONE
 
@@ -85,6 +88,7 @@ CONTAINS
     TYPE(dft_control_type), POINTER               :: dft_control
     TYPE(atomic_kind_type), DIMENSION(:), POINTER :: atomic_kind_set
     TYPE(particle_type), DIMENSION(:), POINTER    :: particle_set
+    TYPE(pao_env_type), POINTER                   :: pao_env
 
     INTEGER :: handle,lmax,maxl,maxlppl,maxlppnl
 
@@ -194,13 +198,23 @@ CONTAINS
 
     CALL write_scf_parameters(globenv)
 
+!   *** Read the pao section ***
+    if (dft_control%qs_control%pao) then
+       allocate(pao_env) ! check status ?
+       call pao_env_init_from_file(pao_env,globenv)
+       !call cp_write_description(pao_env, unit_nr=globenv%scr)
+    else
+       nullify(pao_env)
+    end if
+
 !   *** Get the current QUICKSTEP environment ***
 
     CALL set_qs_env(qs_env=qs_env,&
                     dft_control=dft_control,&
                     atomic_kind_set=atomic_kind_set,&
                     cell=cell,&
-                    particle_set=particle_set)
+                    particle_set=particle_set,&
+                    pao_env=pao_env)
 
     CALL timestop(0.0_wp,handle)
 

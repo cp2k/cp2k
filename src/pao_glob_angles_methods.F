@@ -5,10 +5,10 @@
 
 #include "cp_prep_globals.h"
 
-!!****h* cp2k/cp_pao_glob_angles_methods [1.0] *
+!!****h* cp2k/pao_glob_angles_methods [1.0] *
 !!
 !!   NAME
-!!     cp_pao_glob_angles_methods
+!!     pao_glob_angles_methods
 !!
 !!   FUNCTION
 !!     metodhs to access and modify the angles that define the unitary
@@ -26,20 +26,20 @@
 !!
 !!   SOURCE
 !****************************************************************************
-module cp_pao_glob_angles_methods
+module pao_glob_angles_methods
   use cp_log_handling
   use cp_error_handling
   use kinds, only: wp=>dp
   use global_types, only: global_environment_type
   use timings, only: timeset, timestop
-  use cp_pao_types
-  use cp_pao_matrix_methods
-  use cp_pao_utils
+  use pao_types
+  use pao_matrix_methods
+  use pao_utils
   implicit none
   private
 
   logical, private, parameter :: debug_this_module=.true.
-  character(len=*), private, parameter :: moduleN='cp_pao_glob_angles_methods'
+  character(len=*), private, parameter :: moduleN='pao_glob_angles_methods'
 
 ! core procedures
   public :: cp_init, cp_dealloc_ref, cp_set, cp_get, cp_create, cp_dealloc,&
@@ -52,11 +52,11 @@ module cp_pao_glob_angles_methods
   public :: cp_get_pao_env
 
 ! the underlying functions
-  public :: cp_pao_g_ang_init, cp_pao_g_ang_dealloc_ref, &
-       cp_pao_g_ang_create, cp_pao_g_ang_dealloc,&
-       cp_pao_g_ang_validate, cp_pao_g_ang_valid,&
-       cp_pao_g_ang_set, cp_pao_g_ang_get, cp_pao_g_ang_did_change,&
-       cp_pao_g_ang_get_pao_env
+  public :: pao_g_ang_init, pao_g_ang_dealloc_ref, &
+       pao_g_ang_create, pao_g_ang_dealloc,&
+       pao_g_ang_validate, pao_g_ang_valid,&
+       pao_g_ang_set, pao_g_ang_get, pao_g_ang_did_change,&
+       pao_g_ang_get_pao_env
 
 ! ============== interfaces ===========
 
@@ -66,62 +66,62 @@ module cp_pao_glob_angles_methods
 !! Support optional initial values that depend on the 
 !! first argument 
   interface cp_init
-     module procedure cp_pao_g_ang_init
+     module procedure pao_g_ang_init
   end interface
 
 !! Deallocates the memory allocated by the first argument.
 !! Supports error=error
   interface cp_dealloc_ref
-     module procedure cp_pao_g_ang_dealloc_ref
+     module procedure pao_g_ang_dealloc_ref
   end interface
 
 !! Allocates and initialize a new object returning a pointer to it in 
 !! the first argument
   interface cp_create
-     module procedure cp_pao_g_ang_create
+     module procedure pao_g_ang_create
   end interface
 
 !! Deallocates the memory used by the first argument, and the object
 !! itself
   interface cp_dealloc
-     module procedure cp_pao_g_ang_dealloc
+     module procedure pao_g_ang_dealloc
   end interface
 
 !! returns true if the content of the first argumenst is valid.
 !! writes the errors ar warnings, full validation (long)
   interface cp_validate
-     module procedure cp_pao_g_ang_validate
+     module procedure pao_g_ang_validate
   end interface
 
 !! returns true if the first argument is valid. Only a fast minimal 
 !! validation is performed (no dangling pointers)
   interface cp_valid
-     module procedure cp_pao_g_ang_valid
+     module procedure pao_g_ang_valid
   end interface
 
 !! sets the value of various optonal attributes of the firs argument.
 !! the optional attributes depend on the type of the first
   interface cp_set
-     module procedure cp_pao_g_ang_set
+     module procedure pao_g_ang_set
   end interface
 
 !! gets values from the first argument via optional keyword arguments
 !! that depend on the type of the first argument
   interface cp_get
-     module procedure cp_pao_g_ang_get
+     module procedure pao_g_ang_get
   end interface
 
 !! tells the object that its internal values have changes and its cached
 !! values may be invalid
   interface cp_did_change
-     module procedure cp_pao_g_ang_did_change
+     module procedure pao_g_ang_did_change
   end interface
 
 ! +++ end of the core methods +++
 
 !! returns the pao environement the first object lives in
   interface cp_get_pao_env
-     module procedure cp_pao_g_ang_get_pao_env
+     module procedure pao_g_ang_get_pao_env
   end interface
 
 !!***
@@ -131,24 +131,24 @@ contains
 
 ! ======= core methods ======
 
-!!****f* cp_pao_glob_angles_methods/cp_pao_g_ang_init [1.0] *
+!!****f* pao_glob_angles_methods/pao_g_ang_init [1.0] *
 !!
 !!   NAME
-!!     cp_pao_g_ang_init
+!!     pao_g_ang_init
 !!
 !!   SYNOPSIS
-!!     Subroutine cp_pao_g_ang_init(glob_angles, pao_env, angles, source,&
+!!     Subroutine pao_g_ang_init(glob_angles, pao_env, angles, source,&
 !!         ut_calculated, unitary_t, min_overlap_m, min_hamiltonian_m,&
 !!         error)
-!!       Type(cp_pao_glob_angles_type), Intent (OUT):: glob_angles
-!!       Type(cp_pao_env_type), Intent (IN), Target:: pao_env
+!!       Type(pao_glob_angles_type), Intent (OUT):: glob_angles
+!!       Type(pao_env_type), Intent (IN), Target:: pao_env
 !!       Real(Kind=wp), Optional, Dimension(:), Intent (IN):: angles
-!!       Type(cp_pao_glob_angles_type), Intent (IN), Optional:: source
+!!       Type(pao_glob_angles_type), Intent (IN), Optional:: source
 !!       Logical, Dimension(:), Intent (IN), Optional:: ut_calculated
-!!       Type(cp_pao_matrix_type), Intent (IN), Optional:: unitary_t,&
+!!       Type(pao_matrix_type), Intent (IN), Optional:: unitary_t,&
 !!         min_hamiltonian_m, min_overlap_m
 !!       Type(cp_error_type), Optional, Intent (INOUT):: error
-!!     End Subroutine cp_pao_g_ang_init
+!!     End Subroutine pao_g_ang_init
 !!
 !!   FUNCTION
 !!     initializes the global angles
@@ -169,19 +169,19 @@ contains
 !!     none
 !!
 !!*** **********************************************************************
-  subroutine cp_pao_g_ang_init(glob_angles, pao_env, angles, source,&
+  subroutine pao_g_ang_init(glob_angles, pao_env, angles, source,&
        ut_calculated, unitary_t, min_overlap_m, min_hamiltonian_m, error)
-    type(cp_pao_glob_angles_type), intent(out) :: glob_angles
-    type(cp_pao_env_type), intent(in), target :: pao_env
+    type(pao_glob_angles_type), intent(out) :: glob_angles
+    type(pao_env_type), intent(in), target :: pao_env
     real(kind=wp), optional, dimension(:), intent(in) :: angles
-    type(cp_pao_glob_angles_type), intent(in), optional :: source
+    type(pao_glob_angles_type), intent(in), optional :: source
     logical, dimension(:), intent(in), optional :: ut_calculated
-    type(cp_pao_matrix_type), intent(in), optional :: unitary_t,&
+    type(pao_matrix_type), intent(in), optional :: unitary_t,&
          min_hamiltonian_m, min_overlap_m
     type(cp_error_type), optional, intent(inout) :: error
 
     logical :: failure
-    character(len=*), parameter :: routineP='cp_pao_glob_angles_methods:cp_pao_g_ang_init'
+    character(len=*), parameter :: routineP='pao_glob_angles_methods:pao_g_ang_init'
     failure=.false.
 
     nullify(glob_angles%pao_env, glob_angles%angles, glob_angles%unitary_t,&
@@ -193,24 +193,24 @@ contains
     glob_angles%initialized = .true.
     CPPrecondition(associated(glob_angles%pao_env),cp_failure_level,routineP,error,failure)
     if (.not.failure) then
-       call cp_pao_g_ang_set(glob_angles, angles=angles,&
+       call pao_g_ang_set(glob_angles, angles=angles,&
             source=source, ut_calculated=ut_calculated,&
             unitary_t=unitary_t,min_hamiltonian_m=min_hamiltonian_m,&
             min_overlap_m=min_overlap_m, error=error)
     end if
-  end subroutine cp_pao_g_ang_init
+  end subroutine pao_g_ang_init
 !***************************************************************************
 
-!!****f* cp_pao_glob_angles_methods/cp_pao_g_ang_dealloc_ref [1.0] *
+!!****f* pao_glob_angles_methods/pao_g_ang_dealloc_ref [1.0] *
 !!
 !!   NAME
-!!     cp_pao_g_ang_dealloc_ref
+!!     pao_g_ang_dealloc_ref
 !!
 !!   SYNOPSIS
-!!     Subroutine cp_pao_g_ang_dealloc_ref(glob_angles, error)
-!!       Type(cp_pao_glob_angles_type), Intent (INOUT):: glob_angles
+!!     Subroutine pao_g_ang_dealloc_ref(glob_angles, error)
+!!       Type(pao_glob_angles_type), Intent (INOUT):: glob_angles
 !!       Type(cp_error_type), Optional, Intent (INOUT):: error
-!!     End Subroutine cp_pao_g_ang_dealloc_ref
+!!     End Subroutine pao_g_ang_dealloc_ref
 !!
 !!   FUNCTION
 !!     deallocates the memory allocated by a glob_angles object.
@@ -232,12 +232,12 @@ contains
 !!     none
 !!
 !!*** **********************************************************************
-  subroutine cp_pao_g_ang_dealloc_ref(glob_angles, error)
-    type(cp_pao_glob_angles_type), intent(inout) :: glob_angles
+  subroutine pao_g_ang_dealloc_ref(glob_angles, error)
+    type(pao_glob_angles_type), intent(inout) :: glob_angles
     type(cp_error_type), optional, intent(inout) :: error
 
     logical :: failure
-    character(len=*), parameter :: routineP='cp_pao_glob_angles_methods:cp_pao_g_ang_dealloc_ref'
+    character(len=*), parameter :: routineP='pao_glob_angles_methods:pao_g_ang_dealloc_ref'
     integer ::stat
     failure=.false.
 
@@ -256,19 +256,19 @@ contains
        call cp_dealloc(glob_angles%min_hamiltonian_m,error=error)
        call cp_dealloc(glob_angles%min_overlap_m,error=error)
     end if failureIf
-  end subroutine cp_pao_g_ang_dealloc_ref
+  end subroutine pao_g_ang_dealloc_ref
 !***************************************************************************
 
-!!****f* cp_pao_glob_angles_methods/cp_pao_g_ang_dealloc [1.0] *
+!!****f* pao_glob_angles_methods/pao_g_ang_dealloc [1.0] *
 !!
 !!   NAME
-!!     cp_pao_g_ang_dealloc
+!!     pao_g_ang_dealloc
 !!
 !!   SYNOPSIS
-!!     Subroutine cp_pao_g_ang_dealloc(glob_angles, error)
-!!       Type(cp_pao_glob_angles_type), Pointer:: glob_angles
+!!     Subroutine pao_g_ang_dealloc(glob_angles, error)
+!!       Type(pao_glob_angles_type), Pointer:: glob_angles
 !!       Type(cp_error_type), Optional, Intent (INOUT):: error
-!!     End Subroutine cp_pao_g_ang_dealloc
+!!     End Subroutine pao_g_ang_dealloc
 !!
 !!   FUNCTION
 !!     deallocated the memory allocated by this object and the oject itself
@@ -289,44 +289,44 @@ contains
 !!     none
 !!
 !!*** **********************************************************************
-  subroutine cp_pao_g_ang_dealloc(glob_angles,error)
-    type(cp_pao_glob_angles_type), pointer :: glob_angles
+  subroutine pao_g_ang_dealloc(glob_angles,error)
+    type(pao_glob_angles_type), pointer :: glob_angles
     type(cp_error_type), optional, intent(inout) :: error
 
     logical :: failure
-    character(len=*), parameter :: routineP='cp_pao_glob_angles_methods:cp_pao_g_ang_dealloc'
+    character(len=*), parameter :: routineP='pao_glob_angles_methods:pao_g_ang_dealloc'
     integer :: stat
     failure=.false.
 
     if (associated(glob_angles)) then
        CPPrecondition(glob_angles%initialized,cp_failure_level,routineP,error,failure)
        if (.not. failure) then
-          call cp_pao_g_ang_dealloc_ref(glob_angles,error=error)
+          call pao_g_ang_dealloc_ref(glob_angles,error=error)
        end if
        deallocate(glob_angles,stat=stat)
        CPPostcondition(stat==0,cp_warning_level,routineP,error,failure)
     end if
-  end subroutine cp_pao_g_ang_dealloc
+  end subroutine pao_g_ang_dealloc
 !***************************************************************************
 
-!!****f* cp_pao_glob_angles_methods/cp_pao_g_ang_create [1.0] *
+!!****f* pao_glob_angles_methods/pao_g_ang_create [1.0] *
 !!
 !!   NAME
-!!     cp_pao_g_ang_create
+!!     pao_g_ang_create
 !!
 !!   SYNOPSIS
-!!     Subroutine cp_pao_g_ang_create(glob_angles, pao_env, angles, source,&
+!!     Subroutine pao_g_ang_create(glob_angles, pao_env, angles, source,&
 !!         ut_calculated, unitary_t, min_overlap_m, min_hamiltonian_m,&
 !!         error)
-!!       Type(cp_pao_glob_angles_type), Pointer:: glob_angles
-!!       Type(cp_pao_env_type), Intent (IN), Target:: pao_env
+!!       Type(pao_glob_angles_type), Pointer:: glob_angles
+!!       Type(pao_env_type), Intent (IN), Target:: pao_env
 !!       Real(Kind=wp), Optional, Dimension(:), Intent (IN):: angles
-!!       Type(cp_pao_glob_angles_type), Intent (IN), Optional:: source
+!!       Type(pao_glob_angles_type), Intent (IN), Optional:: source
 !!       Logical, Dimension(:), Intent (IN):: ut_calculated
-!!       Type(cp_pao_matrix_type), Intent (IN):: unitary_t,&
+!!       Type(pao_matrix_type), Intent (IN):: unitary_t,&
 !!         min_hamiltonian_m, min_overlap_m
 !!       Type(cp_error_type), Optional, Intent (INOUT):: error
-!!     End Subroutine cp_pao_g_ang_create
+!!     End Subroutine pao_g_ang_create
 !!
 !!   FUNCTION
 !!     creates a new glob_angles object
@@ -339,7 +339,7 @@ contains
 !!     error: variable to control error logging, stopping,... 
 !!            see module cp_error_handling 
 !!
-!!     for the others inputs see cp_pao_g_ang_init
+!!     for the others inputs see pao_g_ang_init
 !!
 !!   AUTHOR
 !!     @author Fawzi Mohamed
@@ -349,42 +349,42 @@ contains
 !!     none
 !!
 !!*** **********************************************************************
-  subroutine cp_pao_g_ang_create(glob_angles, pao_env, angles, source,&
+  subroutine pao_g_ang_create(glob_angles, pao_env, angles, source,&
        ut_calculated, unitary_t, min_overlap_m, min_hamiltonian_m, error)
-    type(cp_pao_glob_angles_type), pointer :: glob_angles
-    type(cp_pao_env_type), intent(in), target :: pao_env
+    type(pao_glob_angles_type), pointer :: glob_angles
+    type(pao_env_type), intent(in), target :: pao_env
     real(kind=wp), optional, dimension(:), intent(in) :: angles
-    type(cp_pao_glob_angles_type), intent(in), optional :: source
+    type(pao_glob_angles_type), intent(in), optional :: source
     logical, dimension(:), intent(in) :: ut_calculated
-    type(cp_pao_matrix_type), intent(in) :: unitary_t, min_hamiltonian_m,&
+    type(pao_matrix_type), intent(in) :: unitary_t, min_hamiltonian_m,&
          min_overlap_m
     type(cp_error_type), optional, intent(inout) :: error
 
     logical :: failure
-    character(len=*), parameter :: routineP='cp_pao_glob_angles_methods:cp_pao_g_ang_create'
+    character(len=*), parameter :: routineP='pao_glob_angles_methods:pao_g_ang_create'
     integer :: stat
     failure=.false.
 
     allocate(glob_angles, stat=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     if (.not. failure) then
-       call cp_pao_g_ang_init(glob_angles, pao_env, angles, source,&
+       call pao_g_ang_init(glob_angles, pao_env, angles, source,&
             ut_calculated, unitary_t, min_overlap_m, min_hamiltonian_m, error)
     end if
-  end subroutine cp_pao_g_ang_create
+  end subroutine pao_g_ang_create
 !***************************************************************************
 
-!!****f* cp_pao_glob_angles_methods/cp_pao_g_ang_validate [1.0] *
+!!****f* pao_glob_angles_methods/pao_g_ang_validate [1.0] *
 !!
 !!   NAME
-!!     cp_pao_g_ang_validate
+!!     pao_g_ang_validate
 !!
 !!   SYNOPSIS
-!!     Function cp_pao_g_ang_validate(glob_angles, error) Result(res)
+!!     Function pao_g_ang_validate(glob_angles, error) Result(res)
 !!       Logical:: res
-!!       Type(cp_pao_glob_angles_type), Intent (IN):: glob_angles
+!!       Type(pao_glob_angles_type), Intent (IN):: glob_angles
 !!       Type(cp_error_type), Optional, Intent (INOUT):: error
-!!     End Function cp_pao_g_ang_validate
+!!     End Function pao_g_ang_validate
 !!
 !!   FUNCTION
 !!     returns true if the angles are valid
@@ -406,13 +406,13 @@ contains
 !!     none
 !!
 !!*** **********************************************************************
-  function cp_pao_g_ang_validate(glob_angles,error) result(res)
+  function pao_g_ang_validate(glob_angles,error) result(res)
     logical ::res
-    type(cp_pao_glob_angles_type), intent(in) :: glob_angles
+    type(pao_glob_angles_type), intent(in) :: glob_angles
     type(cp_error_type), optional, intent(inout) :: error
 
     logical :: failure
-    character(len=*), parameter :: routineP='cp_pao_glob_angles_methods:cp_pao_g_ang_validate'
+    character(len=*), parameter :: routineP='pao_glob_angles_methods:pao_g_ang_validate'
     failure=.false.
     CPPrecondition(glob_angles%initialized,cp_failure_level,routineP,error,failure)
     failureIf: if (.not. failure) then
@@ -438,7 +438,7 @@ contains
                glob_angles%pao_env%nr_full_bas-glob_angles%pao_env%nr_min_bas)&
                /= size(glob_angles%angles)) then
              call cp_assert(.false., cp_warning_level, cp_assertion_failed,&
-                  routineP,'wrong number of angles in cp_pao_glob_angles_type',&
+                  routineP,'wrong number of angles in pao_glob_angles_type',&
                   error,failure)
           end if
        end if
@@ -481,28 +481,28 @@ contains
        end if
     end if failureIf
     res=.not.failure
-  end function cp_pao_g_ang_validate
+  end function pao_g_ang_validate
 !***************************************************************************
 
-!!****f* cp_pao_glob_angles_methods/cp_pao_g_ang_set [1.0] *
+!!****f* pao_glob_angles_methods/pao_g_ang_set [1.0] *
 !!
 !!   NAME
-!!     cp_pao_g_ang_set
+!!     pao_g_ang_set
 !!
 !!   SYNOPSIS
-!!     Subroutine cp_pao_g_ang_set(glob_angles, pao_env, angles, source,&
+!!     Subroutine pao_g_ang_set(glob_angles, pao_env, angles, source,&
 !!         ut_calculated, unitary_t, min_overlap_m, min_hamiltonian_m,&
 !!         m_s_m_valid, m_h_m_valid, error)
-!!       Type(cp_pao_glob_angles_type), Intent (INOUT):: glob_angles
-!!       Type(cp_pao_env_type), Optional, Intent (IN), Target:: pao_env
+!!       Type(pao_glob_angles_type), Intent (INOUT):: glob_angles
+!!       Type(pao_env_type), Optional, Intent (IN), Target:: pao_env
 !!       Real(Kind=wp), Optional, Dimension(:), Intent (IN):: angles
-!!       Type(cp_pao_glob_angles_type), Optional, Intent (IN):: source
-!!       Type(cp_pao_matrix_type), Optional, Intent (IN)::&
+!!       Type(pao_glob_angles_type), Optional, Intent (IN):: source
+!!       Type(pao_matrix_type), Optional, Intent (IN)::&
 !!         min_hamiltonian_m, min_overlap_m, unitary_t
 !!       Logical, Dimension(:), Optional, Intent (IN):: ut_calculated
 !!       Logical, Intent (IN), Optional:: m_h_m_valid, m_s_m_valid
 !!       Type(cp_error_type), Optional, Intent (INOUT):: error
-!!     End Subroutine cp_pao_g_ang_set
+!!     End Subroutine pao_g_ang_set
 !!
 !!   FUNCTION
 !!     can change the value of the various components of pao_glob_angles
@@ -533,21 +533,21 @@ contains
 !!     none
 !!
 !!*** **********************************************************************
-  subroutine cp_pao_g_ang_set(glob_angles, pao_env, angles,source,&
+  subroutine pao_g_ang_set(glob_angles, pao_env, angles,source,&
        ut_calculated, unitary_t,min_overlap_m, min_hamiltonian_m,&
        m_s_m_valid, m_h_m_valid, error)
-    type(cp_pao_glob_angles_type), intent(inout) :: glob_angles
-    type(cp_pao_env_type), optional, intent(in), target :: pao_env
+    type(pao_glob_angles_type), intent(inout) :: glob_angles
+    type(pao_env_type), optional, intent(in), target :: pao_env
     real(kind=wp), optional, dimension(:), intent(in) :: angles
-    type(cp_pao_glob_angles_type), optional, intent(in) :: source
-    type(cp_pao_matrix_type), optional, intent(in) :: min_hamiltonian_m,&
+    type(pao_glob_angles_type), optional, intent(in) :: source
+    type(pao_matrix_type), optional, intent(in) :: min_hamiltonian_m,&
          min_overlap_m, unitary_t
     logical, dimension(:), optional, intent(in) :: ut_calculated
     logical, intent(in), optional :: m_h_m_valid, m_s_m_valid
     type(cp_error_type), optional, intent(inout) :: error
 
     logical :: failure
-    character(len=*), parameter :: routineP='cp_pao_glob_angles_methods:cp_pao_g_ang_set'
+    character(len=*), parameter :: routineP='pao_glob_angles_methods:pao_g_ang_set'
     integer :: stat
     type(cp_error_type) :: iError
     call cp_error_init(iError,template_error=error)
@@ -576,14 +576,14 @@ contains
                 deallocate(glob_angles%angles, stat=stat)
                 CPPostcondition(stat==0,cp_warning_level,routineP,error,failure)
              end if
-             call cp_pao_g_angles_set_unitary_t(glob_angles,&
+             call pao_g_angles_set_unitary_t(glob_angles,&
                   ut_calculated=source%ut_calculated,&
                   new_value=source%unitary_t,&
                   error=error)
-             call cp_pao_g_angles_set_min_s_m(glob_angles,&
+             call pao_g_angles_set_min_s_m(glob_angles,&
                   new_value=source%min_overlap_m,&
                   error=error)
-             call cp_pao_g_angles_set_min_h_m(glob_angles,&
+             call pao_g_angles_set_min_h_m(glob_angles,&
                   new_value=source%min_hamiltonian_m,&
                   error=error)
              glob_angles%m_h_m_valid=source%m_h_m_valid
@@ -606,17 +606,17 @@ contains
              glob_angles%angles = angles
           end if
        end if
-       call cp_pao_g_angles_set_unitary_t(glob_angles,&
+       call pao_g_angles_set_unitary_t(glob_angles,&
             ut_calculated=ut_calculated,&
             new_value=unitary_t,&
             error=error)
        if (present(min_overlap_m)) then
-          call cp_pao_g_angles_set_min_s_m(glob_angles,&
+          call pao_g_angles_set_min_s_m(glob_angles,&
                new_value=min_overlap_m,&
                error=error)
        end if
        if (present(min_hamiltonian_m)) then
-          call cp_pao_g_angles_set_min_h_m(glob_angles,&
+          call pao_g_angles_set_min_h_m(glob_angles,&
                new_value=min_hamiltonian_m,&
                error=error)
        end if
@@ -639,25 +639,25 @@ contains
        end if
     end if failureIf
     call cp_dealloc_ref(iError,error=error)
-  end subroutine cp_pao_g_ang_set
+  end subroutine pao_g_ang_set
 !***************************************************************************
 
-!!****f* cp_pao_glob_angles_methods/cp_pao_g_ang_get [1.0] *
+!!****f* pao_glob_angles_methods/pao_g_ang_get [1.0] *
 !!
 !!   NAME
-!!     cp_pao_g_ang_get
+!!     pao_g_ang_get
 !!
 !!   SYNOPSIS
-!!     Subroutine cp_pao_g_ang_get(glob_angles, pao_env, angles,&
+!!     Subroutine pao_g_ang_get(glob_angles, pao_env, angles,&
 !!         m_s_m_valid, m_h_m_valid, ut_calculated, unitary_t, error)
-!!       Type(cp_pao_glob_angles_type), Intent (INOUT):: glob_angles
-!!       Type(cp_pao_env_type), Optional, Pointer:: pao_env
+!!       Type(pao_glob_angles_type), Intent (INOUT):: glob_angles
+!!       Type(pao_env_type), Optional, Pointer:: pao_env
 !!       Real(Kind=wp), Optional, Dimension(:), Pointer:: angles
 !!       Logical, Intent (OUT), Optional:: m_h_m_valid, m_s_m_valid
 !!       Logical, Dimension(:), Pointer, Optional:: ut_calculated
-!!       Type(cp_pao_matrix_type), Pointer, Optional:: unitary_t
+!!       Type(pao_matrix_type), Pointer, Optional:: unitary_t
 !!       Type(cp_error_type), Optional, Intent (INOUT):: error
-!!     End Subroutine cp_pao_g_ang_get
+!!     End Subroutine pao_g_ang_get
 !!
 !!   FUNCTION
 !!     retrive the various attributes of the glob angles object
@@ -685,19 +685,19 @@ contains
 !!     none
 !!
 !!*** **********************************************************************
-  subroutine cp_pao_g_ang_get(glob_angles, pao_env, angles,&
+  subroutine pao_g_ang_get(glob_angles, pao_env, angles,&
        m_s_m_valid, m_h_m_valid, ut_calculated, unitary_t, &
        error)
-    type(cp_pao_glob_angles_type), intent(inout) :: glob_angles
-    type(cp_pao_env_type), optional, pointer :: pao_env
+    type(pao_glob_angles_type), intent(inout) :: glob_angles
+    type(pao_env_type), optional, pointer :: pao_env
     real(kind=wp), optional, dimension(:), pointer :: angles
     logical, intent(out), optional :: m_h_m_valid, m_s_m_valid
     logical, dimension(:), pointer, optional :: ut_calculated
-    type(cp_pao_matrix_type), pointer, optional :: unitary_t
+    type(pao_matrix_type), pointer, optional :: unitary_t
     type(cp_error_type), optional, intent(inout) :: error
 
     logical :: failure
-    character(len=*), parameter :: routineP='cp_pao_glob_angles_methods:cp_pao_g_ang_get'
+    character(len=*), parameter :: routineP='pao_glob_angles_methods:pao_g_ang_get'
     type(cp_error_type) :: iError
     integer :: stat
     call cp_init(iError,template_error=error)
@@ -730,20 +730,20 @@ contains
           if (stat==0) glob_angles%ut_calculated=.false.
        end if
     end if failureIf
-  end subroutine cp_pao_g_ang_get
+  end subroutine pao_g_ang_get
 !***************************************************************************
 
-!!****f* cp_pao_glob_angles_methods/cp_pao_g_ang_valid [1.0] *
+!!****f* pao_glob_angles_methods/pao_g_ang_valid [1.0] *
 !!
 !!   NAME
-!!     cp_pao_g_ang_valid
+!!     pao_g_ang_valid
 !!
 !!   SYNOPSIS
-!!     Function cp_pao_g_ang_valid(glob_angles, error) Result(res)
+!!     Function pao_g_ang_valid(glob_angles, error) Result(res)
 !!       Logical:: res
-!!       Type(cp_pao_glob_angles_type), Intent (IN):: glob_angles
+!!       Type(pao_glob_angles_type), Intent (IN):: glob_angles
 !!       Type(cp_error_type), Optional, Intent (INOUT):: error
-!!     End Function cp_pao_g_ang_valid
+!!     End Function pao_g_ang_valid
 !!
 !!   FUNCTION
 !!     minimal validation on the glob angles object (no dangling pointers)
@@ -764,13 +764,13 @@ contains
 !!     none
 !!
 !!*** **********************************************************************
-  function cp_pao_g_ang_valid(glob_angles, error) result(res)
+  function pao_g_ang_valid(glob_angles, error) result(res)
     logical ::res
-    type(cp_pao_glob_angles_type), intent(in) :: glob_angles
+    type(pao_glob_angles_type), intent(in) :: glob_angles
     type(cp_error_type), optional, intent(inout) :: error
 
     logical :: failure
-    character(len=*), parameter :: routineP='cp_pao_glob_angles_methods:cp_pao_g_ang_valid'
+    character(len=*), parameter :: routineP='pao_glob_angles_methods:pao_g_ang_valid'
     failure=.false.
 
     CPPrecondition(glob_angles%initialized,cp_failure_level,routineP,error,failure)
@@ -803,15 +803,15 @@ contains
        end if
     end if
     res=.not.failure
-  end function cp_pao_g_ang_valid
+  end function pao_g_ang_valid
 !***************************************************************************
 
 ! ===== special methods ====
 
-!!****f* cp_pao_glob_angles_methods/cp_pao_g_angles_set_unitary_t [1.0] *
+!!****f* pao_glob_angles_methods/pao_g_angles_set_unitary_t [1.0] *
 !!
 !!   NAME
-!!     cp_pao_g_angles_set_unitary_t
+!!     pao_g_angles_set_unitary_t
 !!
 !!   FUNCTION
 !!     sets the unitary transformation
@@ -834,17 +834,17 @@ contains
 !!     none
 !!
 !!*** **********************************************************************
-  subroutine cp_pao_g_angles_set_unitary_t(glob_angles, new_value, &
+  subroutine pao_g_angles_set_unitary_t(glob_angles, new_value, &
        ut_calculated,error)
-    type(cp_pao_glob_angles_type), intent(inout) :: glob_angles
-    type(cp_pao_matrix_type), target, optional, intent(in) :: new_value
+    type(pao_glob_angles_type), intent(inout) :: glob_angles
+    type(pao_matrix_type), target, optional, intent(in) :: new_value
     logical, dimension(:), intent(in), optional, target :: ut_calculated
     type(cp_error_type), optional, intent(inout) :: error
 
     logical :: failure
-    character(len=*), parameter :: routineP='cp_pao_glob_angles_methods:cp_pao_g_angles_set_unitary_t'
+    character(len=*), parameter :: routineP='pao_glob_angles_methods:pao_g_angles_set_unitary_t'
     logical, dimension(:),pointer :: ut_c
-    type(cp_pao_matrix_type), pointer :: n_value
+    type(pao_matrix_type), pointer :: n_value
     type (cp_error_type) :: iError
     call cp_init(iError, template_error=error, &
          print_level=max(cp_failure_level, cp_error_get_print_level(error)))
@@ -881,13 +881,13 @@ contains
           call cp_dealloc(glob_angles%unitary_t,error=error)
        end if
     end if
-  end subroutine cp_pao_g_angles_set_unitary_t
+  end subroutine pao_g_angles_set_unitary_t
 !***************************************************************************
 
-!!****f* cp_pao_glob_angles_methods/cp_pao_g_angles_set_min_s_m [1.0] *
+!!****f* pao_glob_angles_methods/pao_g_angles_set_min_s_m [1.0] *
 !!
 !!   NAME
-!!     cp_pao_g_angles_set_min_s_m
+!!     pao_g_angles_set_min_s_m
 !!
 !!   FUNCTION
 !!     sets the unitary transformation
@@ -909,14 +909,14 @@ contains
 !!     none
 !!
 !!*** **********************************************************************
-  subroutine cp_pao_g_angles_set_min_s_m(glob_angles, new_value,error)
-    type(cp_pao_glob_angles_type), intent(inout) :: glob_angles
-    type(cp_pao_matrix_type), target :: new_value
+  subroutine pao_g_angles_set_min_s_m(glob_angles, new_value,error)
+    type(pao_glob_angles_type), intent(inout) :: glob_angles
+    type(pao_matrix_type), target :: new_value
     type(cp_error_type), optional, intent(inout) :: error
 
     logical :: failure
-    character(len=*), parameter :: routineP='cp_pao_glob_angles_methods:cp_pao_g_angles_set_min_s_m'
-    type(cp_pao_matrix_type), pointer :: n_value
+    character(len=*), parameter :: routineP='pao_glob_angles_methods:pao_g_angles_set_min_s_m'
+    type(pao_matrix_type), pointer :: n_value
     failure=.false.
     n_value => new_value
 
@@ -936,13 +936,13 @@ contains
 ! do not dealloc ??
        call cp_dealloc(glob_angles%min_overlap_m,error=error)
     end if
-  end subroutine cp_pao_g_angles_set_min_s_m
+  end subroutine pao_g_angles_set_min_s_m
 !***************************************************************************
 
-!!****f* cp_pao_glob_angles_methods/cp_pao_g_angles_set_min_h_m [1.0] *
+!!****f* pao_glob_angles_methods/pao_g_angles_set_min_h_m [1.0] *
 !!
 !!   NAME
-!!     cp_pao_g_angles_set_min_h_m
+!!     pao_g_angles_set_min_h_m
 !!
 !!   FUNCTION
 !!     sets the unitary transformation
@@ -964,14 +964,14 @@ contains
 !!     none
 !!
 !!*** **********************************************************************
-  subroutine cp_pao_g_angles_set_min_h_m(glob_angles, new_value,error)
-    type(cp_pao_glob_angles_type), intent(inout) :: glob_angles
-    type(cp_pao_matrix_type), target :: new_value
+  subroutine pao_g_angles_set_min_h_m(glob_angles, new_value,error)
+    type(pao_glob_angles_type), intent(inout) :: glob_angles
+    type(pao_matrix_type), target :: new_value
     type(cp_error_type), optional, intent(inout) :: error
 
     logical :: failure
-    character(len=*), parameter :: routineP='cp_pao_glob_angles_methods:cp_pao_g_angles_set_min_h_m'
-    type(cp_pao_matrix_type), pointer :: n_value
+    character(len=*), parameter :: routineP='pao_glob_angles_methods:pao_g_angles_set_min_h_m'
+    type(pao_matrix_type), pointer :: n_value
     failure=.false.
     n_value => new_value
 
@@ -991,20 +991,20 @@ contains
 ! do not dealloc ??
        call cp_dealloc(glob_angles%min_hamiltonian_m,error=error)
     end if
-  end subroutine cp_pao_g_angles_set_min_h_m
+  end subroutine pao_g_angles_set_min_h_m
 !***************************************************************************
 
-!!****f* cp_pao_glob_angles_methods/cp_pao_g_ang_get_pao_env [1.0] *
+!!****f* pao_glob_angles_methods/pao_g_ang_get_pao_env [1.0] *
 !!
 !!   NAME
-!!     cp_pao_g_ang_get_pao_env
+!!     pao_g_ang_get_pao_env
 !!
 !!   SYNOPSIS
-!!     Function cp_pao_g_ang_get_pao_env(glob_angles, error) Result(res)
-!!       Type(cp_pao_env_type), Pointer:: res
-!!       Type(cp_pao_glob_angles_type), Intent (IN):: glob_angles
+!!     Function pao_g_ang_get_pao_env(glob_angles, error) Result(res)
+!!       Type(pao_env_type), Pointer:: res
+!!       Type(pao_glob_angles_type), Intent (IN):: glob_angles
 !!       Type(cp_error_type), Optional, Intent (INOUT):: error
-!!     End Function cp_pao_g_ang_get_pao_env
+!!     End Function pao_g_ang_get_pao_env
 !!
 !!   FUNCTION
 !!     returns the global environement the global angles object lives in
@@ -1025,13 +1025,13 @@ contains
 !!     none
 !!
 !!*** **********************************************************************
-  function cp_pao_g_ang_get_pao_env(glob_angles, error) result(res)
-    type(cp_pao_env_type), pointer ::res
-    type(cp_pao_glob_angles_type), intent(in) :: glob_angles
+  function pao_g_ang_get_pao_env(glob_angles, error) result(res)
+    type(pao_env_type), pointer ::res
+    type(pao_glob_angles_type), intent(in) :: glob_angles
     type(cp_error_type), optional, intent(inout) :: error
 
     logical :: failure
-    character(len=*), parameter :: routineP='cp_pao_glob_angles_methods:cp_pao_g_ang_get_pao_env'
+    character(len=*), parameter :: routineP='pao_glob_angles_methods:pao_g_ang_get_pao_env'
     failure=.false.
     CPPrecondition(glob_angles%initialized, cp_failure_level,routineP,error,failure)
     failureIf: if (.not. failure) then
@@ -1039,22 +1039,22 @@ contains
     else failureIf
        nullify(res)
     end if failureIf
-  end function cp_pao_g_ang_get_pao_env
+  end function pao_g_ang_get_pao_env
 !***************************************************************************
 
-!!****f* cp_pao_glob_angles_methods/cp_pao_g_ang_did_change [1.0] *
+!!****f* pao_glob_angles_methods/pao_g_ang_did_change [1.0] *
 !!
 !!   NAME
-!!     cp_pao_g_ang_did_change
+!!     pao_g_ang_did_change
 !!
 !!   SYNOPSIS
-!!     Subroutine cp_pao_g_ang_did_change(glob_angles, h_changed, s_changed,&
+!!     Subroutine pao_g_ang_did_change(glob_angles, h_changed, s_changed,&
 !!         angles_changed, full_reset, error)
-!!       Type(cp_pao_glob_angles_type), Intent (INOUT):: glob_angles
+!!       Type(pao_glob_angles_type), Intent (INOUT):: glob_angles
 !!       Logical, Intent (IN), Optional:: h_changed, s_changed,&
 !!         angles_changed, full_reset
 !!       Type(cp_error_type), Optional, Intent (INOUT):: error
-!!     End Subroutine cp_pao_g_ang_did_change
+!!     End Subroutine pao_g_ang_did_change
 !!
 !!   FUNCTION
 !!     Invalidate all the cached values.
@@ -1079,16 +1079,16 @@ contains
 !!     none
 !!
 !!*** **********************************************************************
-  subroutine cp_pao_g_ang_did_change(glob_angles,h_changed, s_changed,&
+  subroutine pao_g_ang_did_change(glob_angles,h_changed, s_changed,&
        angles_changed, full_reset, error)
-    type(cp_pao_glob_angles_type), intent(inout) :: glob_angles
+    type(pao_glob_angles_type), intent(inout) :: glob_angles
     logical, intent(in), optional :: h_changed, s_changed, &
          angles_changed, full_reset
     type(cp_error_type), optional, intent(inout) :: error
 
     logical :: failure
     integer :: handle, stat
-    character(len=*), parameter :: routineN='cp_pao_g_ang_did_change',&
+    character(len=*), parameter :: routineN='pao_g_ang_did_change',&
          routineP=moduleN//':'//routineN
     logical :: h_c, s_c, a_c, full_r
     !call timeset(routineN,'I',moduleN,handle)
@@ -1121,7 +1121,7 @@ contains
        end if
     end if
     !call timestop(0.0_wp,handle)
-  end subroutine cp_pao_g_ang_did_change
+  end subroutine pao_g_ang_did_change
 !***************************************************************************
 
-end module cp_pao_glob_angles_methods
+end module pao_glob_angles_methods

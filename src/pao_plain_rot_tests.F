@@ -25,45 +25,45 @@
 !!
 !!   SOURCE
 !*****************************************************************************
-module cp_pao_plain_rot_tests
+module pao_plain_rot_tests
   use cp_log_handling
   use cp_error_handling
   use cp_output_handling
   use kinds, only: wp=>dp
-  use cp_pao_utils, only:  cp_get_random_integer
+  use pao_utils, only:  cp_get_random_integer
   use cp_matrix_utils, only: cp_sup_norm_matrix
   use mathconstants, only: pi
   use global_types, only: global_environment_type
-  use cp_pao_plain_rot
-  use cp_pao_types
-  use cp_pao_types_tests, only: cp_init_test_pao_env
-  use cp_pao_proj_methods
-  use cp_pao_env_methods
-  use cp_pao_glob_angles_methods
-  use cp_pao_l_angles_methods
+  use pao_plain_rot
+  use pao_types
+  use pao_types_tests, only: cp_init_test_pao_env
+  use pao_proj_methods
+  use pao_env_methods
+  use pao_glob_angles_methods
+  use pao_l_angles_methods
   use cp_array_utils
-  !use cp_pao_matrix_methods
+  !use pao_matrix_methods
   implicit none
   private
 
   logical, private, parameter :: debug_this_module=.true.
 
-  public :: cp_pao_test_plain_rot, cp_pao_test_u_du
+  public :: pao_test_plain_rot, pao_test_u_du
 !!***
 !******************************************************************************
 contains
 
-!!****f* cp_pao_plain_rot_tests/cp_pao_test_plain_rot [1.0] *
+!!****f* pao_plain_rot_tests/pao_test_plain_rot [1.0] *
 !!
 !!   NAME
-!!     cp_pao_test_plain_rot
+!!     pao_test_plain_rot
 !!
 !!   SYNOPSIS
-!!     Subroutine cp_pao_test_plain_rot(g_env, failed, error)
+!!     Subroutine pao_test_plain_rot(g_env, failed, error)
 !!       Type(global_environment_type), Intent (IN), Target:: g_env
 !!       Logical, Intent (INOUT):: failed
 !!       Type(cp_error_type), Optional, Intent (INOUT):: error
-!!     End Subroutine cp_pao_test_plain_rot
+!!     End Subroutine pao_test_plain_rot
 !!
 !!   FUNCTION
 !!     testing the plain rotation module
@@ -85,7 +85,7 @@ contains
 !!     none
 !!
 !!*** ************************************************************************
-  subroutine cp_pao_test_plain_rot(g_env, failed, error)
+  subroutine pao_test_plain_rot(g_env, failed, error)
     type(global_environment_type), intent(in), target ::g_env
     logical, intent(inout) :: failed
     type(cp_error_type), optional, intent(inout):: error
@@ -288,7 +288,7 @@ contains
        end if
 
        ! u_du tests
-       if (.not.cp_pao_test_u_du(g_env,error=error)) then
+       if (.not.pao_test_u_du(g_env,error=error)) then
           failure=.true.
        end if
 
@@ -297,20 +297,20 @@ contains
                'cp_test_plain_rot: all tests succeded, SUCCESS')
        end if
     end if
-  end subroutine cp_pao_test_plain_rot
+  end subroutine pao_test_plain_rot
   !******************************************************************************
 
-!!****f* cp_pao_test_plain_rot/cp_pao_test_u_du [1.0] *
+!!****f* pao_test_plain_rot/pao_test_u_du [1.0] *
 !!
 !!   NAME
-!!     cp_pao_test_u_du
+!!     pao_test_u_du
 !!
 !!   SYNOPSIS
-!!     Function cp_pao_test_u_du(glob_env, error) Result(res)
+!!     Function pao_test_u_du(glob_env, error) Result(res)
 !!       Logical:: res
 !!       Type(global_environment_type), Target:: glob_env
 !!       Type(cp_error_type), Optional, Intent (INOUT):: error
-!!     End Function cp_pao_test_u_du
+!!     End Function pao_test_u_du
 !!
 !!   FUNCTION
 !!     tests u generation and du
@@ -331,17 +331,17 @@ contains
 !!     none
 !!
 !!*** **********************************************************************
-  function cp_pao_test_u_du(glob_env,error) result(res)
+  function pao_test_u_du(glob_env,error) result(res)
     logical ::res
     type(global_environment_type), target :: glob_env
     type(cp_error_type), optional, intent(inout) :: error
 
     logical :: failure
-    character(len=*), parameter :: routineP='cp_pao_plain_rot_tests:cp_pao_test_u_du'
+    character(len=*), parameter :: routineP='pao_plain_rot_tests:pao_test_u_du'
     integer, parameter :: n_atom=3, atom_nr=1
-    type(cp_pao_env_type) :: pao_env
-    type(cp_pao_glob_angles_type), pointer :: g_angles
-    type(cp_pao_local_angles_type) :: l_angles
+    type(pao_env_type) :: pao_env
+    type(pao_glob_angles_type), pointer :: g_angles
+    type(pao_local_angles_type) :: l_angles
     real(kind=wp), dimension(:), pointer :: angles
     real(kind=wp),dimension(:,:), allocatable :: m1,m2,m3
     real(kind=wp) :: err
@@ -368,7 +368,7 @@ contains
        end if
        m1=0.0_wp
        forall (i=1:size(m1,1)) m1(i,i)=1.0_wp
-       call cp_pao_l_compose_u(m1,l_angles,error=error)
+       call pao_l_compose_u(m1,l_angles,error=error)
        m3=m1
        call dgemm('T','N',full_bas_size,full_bas_size,full_bas_size,&
             1.0_wp,m1,full_bas_size,m3,full_bas_size,&
@@ -395,8 +395,8 @@ contains
     call cp_dealloc_ref(l_angles,error=error)
     call cp_dealloc_ref(pao_env,error=error)
     res=failure
-  end function cp_pao_test_u_du
+  end function pao_test_u_du
   !***************************************************************************
 
-end module cp_pao_plain_rot_tests
+end module pao_plain_rot_tests
 

@@ -26,6 +26,7 @@ MODULE qs_environment_types
   USE qs_neighbor_list_types, ONLY: neighbor_list_set_p_type
   USE simulation_cell,        ONLY: cell_type
   USE sparse_matrix_types,    ONLY: real_matrix_p_type
+  USE pao_types,              ONLY: pao_env_type
 
   IMPLICIT NONE
 
@@ -42,6 +43,7 @@ MODULE qs_environment_types
     TYPE(neighbor_list_set_p_type), DIMENSION(:), POINTER :: sab_orb,sac_erfc,&
                                                              sac_ppl,sca_ppnl,&
                                                              scb_ppnl
+    TYPE(pao_env_type), POINTER                           :: pao_env
   END TYPE qs_environment_type
 
 ! *** Public data types ***
@@ -62,7 +64,7 @@ CONTAINS
 
   SUBROUTINE get_qs_env(qs_env,cell,dft_control,h,k,p,s,atomic_kind_set,&
                         particle_set,sab_orb,sac_erfc,sac_ppl,sca_ppnl,&
-                        scb_ppnl)
+                        scb_ppnl,pao_env)
 
 !   Purpose: Get the QUICKSTEP environment.
 
@@ -83,6 +85,7 @@ CONTAINS
     TYPE(neighbor_list_set_p_type),&
       DIMENSION(:), OPTIONAL, POINTER             :: sab_orb,sac_erfc,sac_ppl,&
                                                      sca_ppnl,scb_ppnl
+    TYPE(pao_env_type), OPTIONAL, POINTER         :: pao_env
 
 !   ---------------------------------------------------------------------------
 
@@ -99,6 +102,7 @@ CONTAINS
     IF (PRESENT(sac_ppl)) sac_ppl => qs_env%sac_ppl
     IF (PRESENT(sca_ppnl)) sca_ppnl => qs_env%sca_ppnl
     IF (PRESENT(scb_ppnl)) scb_ppnl => qs_env%scb_ppnl
+    IF (PRESENT(pao_env)) pao_env => qs_env%pao_env
 
   END SUBROUTINE get_qs_env
 
@@ -129,6 +133,7 @@ CONTAINS
     NULLIFY (qs_env%sac_ppl)
     NULLIFY (qs_env%sca_ppnl)
     NULLIFY (qs_env%scb_ppnl)
+    NULLIFY (qs_env%pao_env)
 
   END SUBROUTINE init_qs_env
 
@@ -136,7 +141,7 @@ CONTAINS
 
   SUBROUTINE set_qs_env(qs_env,cell,dft_control,h,k,p,s,atomic_kind_set,&
                         particle_set,sab_orb,sac_erfc,sac_ppl,sca_ppnl,&
-                        scb_ppnl)
+                        scb_ppnl, pao_env)
 
 !   Purpose: Set the QUICKSTEP environment.
 
@@ -157,6 +162,7 @@ CONTAINS
     TYPE(neighbor_list_set_p_type),&
       DIMENSION(:), OPTIONAL, POINTER             :: sab_orb,sac_erfc,sac_ppl,&
                                                      sca_ppnl,scb_ppnl
+    TYPE(pao_env_type), OPTIONAL, POINTER         :: pao_env
 
 !   ---------------------------------------------------------------------------
 
@@ -173,6 +179,7 @@ CONTAINS
     IF (PRESENT(sac_ppl)) qs_env%sac_ppl => sac_ppl
     IF (PRESENT(sca_ppnl)) qs_env%sca_ppnl => sca_ppnl
     IF (PRESENT(scb_ppnl)) qs_env%scb_ppnl => scb_ppnl
+    IF (PRESENT(pao_env)) qs_env%pao_env => pao_env
 
   END SUBROUTINE set_qs_env
 

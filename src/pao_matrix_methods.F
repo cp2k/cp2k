@@ -5,16 +5,16 @@
 
 #include "cp_prep_globals.h"
 
-!!****h* cp2k/cp_pao_matrix_methods [1.0] *
+!!****h* cp2k/pao_matrix_methods [1.0] *
 !!
 !!   NAME
-!!     cp_pao_matrix_methods
+!!     pao_matrix_methods
 !!
 !!   FUNCTION
 !!     methods to access and modify the pao matrices
 !!
 !!   NOTES
-!!     type defined in cp_pao_types
+!!     type defined in pao_types
 !!     to do : renaming and public underlying functions
 !!
 !!   AUTHOR
@@ -26,21 +26,21 @@
 !!
 !!   SOURCE
 !*****************************************************************************
-module cp_pao_matrix_methods
+module pao_matrix_methods
   use cp_log_handling
   use cp_error_handling
   use kinds, only: wp=>dp
   use global_types, only: global_environment_type
   use timings, only: timeset, timestop
-  use cp_pao_types
-  use cp_pao_utils
+  use pao_types
+  use pao_utils
   use sparse_matrix_types
-  use cp_pao_plain_rot, only: cp_left_compose_p_rot
+  use pao_plain_rot, only: cp_left_compose_p_rot
   implicit none
   private
 
   logical, private, parameter :: debug_this_module=.true.
-  character(len=*), private, parameter :: moduleN='cp_pao_matrix_methods'
+  character(len=*), private, parameter :: moduleN='pao_matrix_methods'
 
 ! core procedures
   public :: cp_init, cp_dealloc_ref, cp_set, cp_get, cp_create, cp_dealloc
@@ -55,12 +55,12 @@ module cp_pao_matrix_methods
   public :: cp_get_pao_env, cp_get_matrix
 
 ! underlying functions
-  public :: cp_pao_matrix_init, cp_pao_matrix_dealloc_ref,&
-       cp_pao_matrix_create, cp_pao_matrix_dealloc,&
-       cp_pao_matrix_validate, cp_pao_matrix_valid,&
-       cp_pao_matrix_set, cp_pao_matrix_get,&
-       cp_pao_matrix_get_pao_env,cp_pao_matrix_set_to_unity,&
-       cp_pao_matrix_get_matrix
+  public :: pao_matrix_init, pao_matrix_dealloc_ref,&
+       pao_matrix_create, pao_matrix_dealloc,&
+       pao_matrix_validate, pao_matrix_valid,&
+       pao_matrix_set, pao_matrix_get,&
+       pao_matrix_get_pao_env,pao_matrix_set_to_unity,&
+       pao_matrix_get_matrix
 
 ! ============ interfaces ===========
 
@@ -70,67 +70,67 @@ module cp_pao_matrix_methods
 !! Support optional initial values that depend on the 
 !! first argument 
   interface cp_init
-     module procedure cp_pao_matrix_init
+     module procedure pao_matrix_init
   end interface
 
 !! Deallocates the memory allocated by the first argument.
 !! Supports error=error
   interface cp_dealloc_ref
-     module procedure cp_pao_matrix_dealloc_ref
+     module procedure pao_matrix_dealloc_ref
   end interface
 
 !! Allocates and initialize a new object returning a pointer to it in 
 !! the first argument
   interface cp_create
-     module procedure cp_pao_matrix_create
+     module procedure pao_matrix_create
   end interface
 
 !! Deallocates the memory used by the first argument, and the object
 !! itself
   interface cp_dealloc
-     module procedure cp_pao_matrix_dealloc
+     module procedure pao_matrix_dealloc
   end interface
 
 !! returns true if the content of the first argumenst is valid.
 !! writes the errors ar warnings, full validation (long)
   interface cp_validate
-     module procedure cp_pao_matrix_validate
+     module procedure pao_matrix_validate
   end interface
 
 !! returns true if the first argument is valid. Only a fast minimal 
 !! validation is performed (no dangling pointers)
   interface cp_valid
-     module procedure cp_pao_matrix_valid
+     module procedure pao_matrix_valid
   end interface
 
 !! sets the value of various optonal attributes of the firs argument.
 !! the optional attributes depend on the type of the first
   interface cp_set
-     module procedure cp_pao_matrix_set
+     module procedure pao_matrix_set
   end interface
 
 !! gets values from the first argument via optional keyword arguments
 !! that depend on the type of the first argument
   interface cp_get
-     module procedure cp_pao_matrix_get
+     module procedure pao_matrix_get
   end interface
 
 ! +++ end of the core methods +++
 
 !! returns the pao environement the first object lives in
   interface cp_get_pao_env
-     module procedure cp_pao_matrix_get_pao_env
+     module procedure pao_matrix_get_pao_env
   end interface
 
 !! sets the matrix to a unit matrix (and thus also guarantee that 
 !! the diagonal blocks are present)
   interface cp_set_to_identity
-     module procedure cp_pao_matrix_set_to_unity
+     module procedure pao_matrix_set_to_unity
   end interface
 
 !! gets the underlying real matrix
   interface cp_get_matrix
-     module procedure cp_pao_matrix_get_matrix
+     module procedure pao_matrix_get_matrix
   end interface
 
 !!***
@@ -140,22 +140,22 @@ contains
 
 ! ====== core methods ======
 
-!!****f* cp_pao_matrix_methods/cp_pao_matrix_init [1.0] *
+!!****f* pao_matrix_methods/pao_matrix_init [1.0] *
 !!
 !!   NAME
-!!     cp_pao_matrix_init
+!!     pao_matrix_init
 !!
 !!   SYNOPSIS
-!!     Subroutine cp_pao_matrix_init(pao_matrix, pao_env, matrix, source,&
+!!     Subroutine pao_matrix_init(pao_matrix, pao_env, matrix, source,&
 !!         min_bas_rows, min_bas_cols, should_dealloc_matrix, error)
-!!       Type(cp_pao_matrix_type), Intent (OUT):: pao_matrix
-!!       Type(cp_pao_env_type), Target:: pao_env
+!!       Type(pao_matrix_type), Intent (OUT):: pao_matrix
+!!       Type(pao_env_type), Target:: pao_env
 !!       Type(real_matrix_type), Optional, Target:: matrix
-!!       Type(cp_pao_matrix_type), Intent (IN), Optional:: source
+!!       Type(pao_matrix_type), Intent (IN), Optional:: source
 !!       Logical, Intent (IN), Optional:: min_bas_cols, min_bas_rows,&
 !!         should_dealloc_matrix
 !!       Type(cp_error_type), Optional, Intent (INOUT):: error
-!!     End Subroutine cp_pao_matrix_init
+!!     End Subroutine pao_matrix_init
 !!
 !!   FUNCTION
 !!     initializes a pao matrix. If no matrix is given allocates a block
@@ -169,7 +169,7 @@ contains
 !!     error: variable to control error logging, stopping,... 
 !!            see module cp_error_handling 
 !!
-!!     For the others see cp_pao_matrix_set (that is called
+!!     For the others see pao_matrix_set (that is called
 !!     by this routine).
 !!
 !!   AUTHOR
@@ -180,19 +180,19 @@ contains
 !!     none
 !!
 !!*** *********************************************************************
-  subroutine cp_pao_matrix_init(pao_matrix, pao_env,&
+  subroutine pao_matrix_init(pao_matrix, pao_env,&
        matrix, source, min_bas_rows, min_bas_cols,&
        should_dealloc_matrix, error)
-    type(cp_pao_matrix_type), intent(out) :: pao_matrix
-    type(cp_pao_env_type), target :: pao_env
+    type(pao_matrix_type), intent(out) :: pao_matrix
+    type(pao_env_type), target :: pao_env
     type(real_matrix_type), optional, target :: matrix
-    type(cp_pao_matrix_type), intent(in), optional :: source
+    type(pao_matrix_type), intent(in), optional :: source
     logical, intent(in), optional :: min_bas_cols, min_bas_rows, &
          should_dealloc_matrix
     type(cp_error_type), optional, intent(inout) :: error
 
     logical :: failure
-    character(len=*), parameter :: routineP='cp_pao_matrix_methods:cp_pao_matrix_init'
+    character(len=*), parameter :: routineP='pao_matrix_methods:pao_matrix_init'
     failure=.false.
 
     pao_matrix%initialized=.true.
@@ -202,22 +202,22 @@ contains
     pao_matrix%pao_env => pao_env
     pao_matrix%min_bas_rows=.true.
     pao_matrix%min_bas_rows=.true.
-    call cp_pao_matrix_set(pao_matrix,pao_env,&
+    call pao_matrix_set(pao_matrix,pao_env,&
          matrix, source, min_bas_rows, min_bas_cols,&
          should_dealloc_matrix, error)
-  end subroutine cp_pao_matrix_init
+  end subroutine pao_matrix_init
 !***************************************************************************
 
-!!****f* cp_pao_matrix_methods/cp_pao_matrix_dealloc_ref [1.0] *
+!!****f* pao_matrix_methods/pao_matrix_dealloc_ref [1.0] *
 !!
 !!   NAME
-!!     cp_pao_matrix_dealloc_ref
+!!     pao_matrix_dealloc_ref
 !!
 !!   SYNOPSIS
-!!     Subroutine cp_pao_matrix_dealloc_ref(pao_matrix, error)
-!!       Type(cp_pao_matrix_type), Intent (INOUT):: pao_matrix
+!!     Subroutine pao_matrix_dealloc_ref(pao_matrix, error)
+!!       Type(pao_matrix_type), Intent (INOUT):: pao_matrix
 !!       Type(cp_error_type), Optional, Intent (INOUT):: error
-!!     End Subroutine cp_pao_matrix_dealloc_ref
+!!     End Subroutine pao_matrix_dealloc_ref
 !!
 !!   FUNCTION
 !!     Dealloc the memory that the matrix has allocated
@@ -239,12 +239,12 @@ contains
 !!
 !!   SOURCE
 !!*** **********************************************************************
-  subroutine cp_pao_matrix_dealloc_ref(pao_matrix, error)
-    type(cp_pao_matrix_type), intent(inout) :: pao_matrix
+  subroutine pao_matrix_dealloc_ref(pao_matrix, error)
+    type(pao_matrix_type), intent(inout) :: pao_matrix
     type(cp_error_type), optional, intent(inout) :: error
 
     logical :: failure
-    character(len=*), parameter :: routineP='cp_pao_matrix_methods:cp_pao_matrix_dealloc_ref'
+    character(len=*), parameter :: routineP='pao_matrix_methods:pao_matrix_dealloc_ref'
     failure=.false.
 
     CPPrecondition(pao_matrix%initialized,cp_failure_level,routineP,error,failure)
@@ -258,25 +258,25 @@ contains
           nullify(pao_matrix%matrix)
        end if
     end if failureIf
-  end subroutine cp_pao_matrix_dealloc_ref
+  end subroutine pao_matrix_dealloc_ref
 !***************************************************************************
 
-!!****f* cp_pao_matrix_methods/cp_pao_matrix_create [1.0] *
+!!****f* pao_matrix_methods/pao_matrix_create [1.0] *
 !!
 !!   NAME
-!!     cp_pao_matrix_create
+!!     pao_matrix_create
 !!
 !!   SYNOPSIS
-!!     Subroutine cp_pao_matrix_create(pao_matrix, pao_env, matrix, source,&
+!!     Subroutine pao_matrix_create(pao_matrix, pao_env, matrix, source,&
 !!         min_bas_rows, min_bas_cols, should_dealloc_matrix, error)
-!!       Type(cp_pao_matrix_type), Pointer:: pao_matrix
-!!       Type(cp_pao_env_type), Target:: pao_env
+!!       Type(pao_matrix_type), Pointer:: pao_matrix
+!!       Type(pao_env_type), Target:: pao_env
 !!       Type(real_matrix_type), Optional, Target:: matrix
-!!       Type(cp_pao_matrix_type), Intent (IN), Optional:: source
+!!       Type(pao_matrix_type), Intent (IN), Optional:: source
 !!       Logical, Intent (IN), Optional:: min_bas_cols, min_bas_rows,&
 !!         should_dealloc_matrix
 !!       Type(cp_error_type), Optional, Intent (INOUT):: error
-!!     End Subroutine cp_pao_matrix_create
+!!     End Subroutine pao_matrix_create
 !!
 !!   FUNCTION
 !!     allocates the matrix and initializes it
@@ -299,42 +299,42 @@ contains
 !!     none
 !!
 !!*** **********************************************************************
-  subroutine cp_pao_matrix_create(pao_matrix, pao_env,&
+  subroutine pao_matrix_create(pao_matrix, pao_env,&
        matrix, source, min_bas_rows, min_bas_cols,&
        should_dealloc_matrix, error)
-    type(cp_pao_matrix_type), pointer :: pao_matrix
-    type(cp_pao_env_type), target :: pao_env
+    type(pao_matrix_type), pointer :: pao_matrix
+    type(pao_env_type), target :: pao_env
     type(real_matrix_type), optional, target :: matrix
-    type(cp_pao_matrix_type), intent(in), optional :: source
+    type(pao_matrix_type), intent(in), optional :: source
     logical, intent(in), optional :: min_bas_cols, min_bas_rows, &
          should_dealloc_matrix
     type(cp_error_type), optional, intent(inout) :: error
 
     logical :: failure
-    character(len=*), parameter :: routineP='cp_pao_matrix_methods:cp_pao_matrix_create'
+    character(len=*), parameter :: routineP='pao_matrix_methods:pao_matrix_create'
     integer :: stat
     failure=.false.
 
     allocate(pao_matrix, stat=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     if (.not. failure) then
-       call cp_pao_matrix_init(pao_matrix, pao_env,&
+       call pao_matrix_init(pao_matrix, pao_env,&
             matrix, source, min_bas_rows, min_bas_cols,&
             should_dealloc_matrix, error)
     end if
-  end subroutine cp_pao_matrix_create
+  end subroutine pao_matrix_create
 !***************************************************************************
 
-!!****f* cp_pao_matrix_methods/cp_pao_matrix_dealloc [1.0] *
+!!****f* pao_matrix_methods/pao_matrix_dealloc [1.0] *
 !!
 !!   NAME
-!!     cp_pao_matrix_dealloc
+!!     pao_matrix_dealloc
 !!
 !!   SYNOPSIS
-!!     Subroutine cp_pao_matrix_dealloc(pao_matrix, error)
-!!       Type(cp_pao_matrix_type), Pointer:: pao_matrix
+!!     Subroutine pao_matrix_dealloc(pao_matrix, error)
+!!       Type(pao_matrix_type), Pointer:: pao_matrix
 !!       Type(cp_error_type), Optional, Intent (INOUT):: error
-!!     End Subroutine cp_pao_matrix_dealloc
+!!     End Subroutine pao_matrix_dealloc
 !!
 !!   FUNCTION
 !!     deallocates the memory allocated by the matrix ans the matrix
@@ -356,35 +356,35 @@ contains
 !!     none
 !!
 !!*** **********************************************************************
-  subroutine cp_pao_matrix_dealloc(pao_matrix, error)
-    type(cp_pao_matrix_type), pointer :: pao_matrix
+  subroutine pao_matrix_dealloc(pao_matrix, error)
+    type(pao_matrix_type), pointer :: pao_matrix
     type(cp_error_type), optional, intent(inout) :: error
 
     logical :: failure
-    character(len=*), parameter :: routineP='cp_pao_matrix_methods:cp_pao_matrix_dealloc'
+    character(len=*), parameter :: routineP='pao_matrix_methods:pao_matrix_dealloc'
     integer :: stat
     failure=.false.
 
     if (associated(pao_matrix)) then
-       call cp_pao_matrix_dealloc_ref(pao_matrix,error=error)
+       call pao_matrix_dealloc_ref(pao_matrix,error=error)
        deallocate(pao_matrix,stat=stat)
        CPPostcondition(stat==0,cp_warning_level,routineP,error,failure)
     end if
-  end subroutine cp_pao_matrix_dealloc
+  end subroutine pao_matrix_dealloc
 !***************************************************************************
 
 
-!!****f* cp_pao_matrix_methods/cp_pao_matrix_validate [1.0] *
+!!****f* pao_matrix_methods/pao_matrix_validate [1.0] *
 !!
 !!   NAME
-!!     cp_pao_matrix_validate
+!!     pao_matrix_validate
 !!
 !!   SYNOPSIS
-!!     Function cp_pao_matrix_validate(pao_matrix, error) Result(res)
+!!     Function pao_matrix_validate(pao_matrix, error) Result(res)
 !!       Logical:: res
-!!       Type(cp_pao_matrix_type), Intent (IN):: pao_matrix
+!!       Type(pao_matrix_type), Intent (IN):: pao_matrix
 !!       Type(cp_error_type), Optional, Intent (INOUT):: error
-!!     End Function cp_pao_matrix_validate
+!!     End Function pao_matrix_validate
 !!
 !!   FUNCTION
 !!     controls if the matrix  has the right size, returns true
@@ -406,13 +406,13 @@ contains
 !!     none
 !!
 !!*** **********************************************************************
-  function cp_pao_matrix_validate(pao_matrix, error) result(res)
+  function pao_matrix_validate(pao_matrix, error) result(res)
     logical ::res
-    type(cp_pao_matrix_type), intent(in) :: pao_matrix
+    type(pao_matrix_type), intent(in) :: pao_matrix
     type(cp_error_type), optional, intent(inout) :: error
 
     logical :: failure
-    character(len=*), parameter :: routineP='cp_pao_matrix_methods:cp_pao_matrix_validate'
+    character(len=*), parameter :: routineP='pao_matrix_methods:pao_matrix_validate'
     integer, dimension(:), pointer :: cols_size, rows_size
     failure=.false.
     nullify(cols_size,rows_size)
@@ -426,7 +426,7 @@ contains
           CPAssert(associated(pao_matrix%pao_env%nr_min_bas),cp_warning_level,routineP,error,failure)
        end if
        if (.not.failure) then
-          call cp_pao_matrix_get(pao_matrix, cols_size=cols_size,&
+          call pao_matrix_get(pao_matrix, cols_size=cols_size,&
                rows_size=rows_size)
           call cp_assert(cp_consistent_matrix(matrix=pao_matrix%matrix,&
                rows_size=rows_size, cols_size=cols_size,error=error),&
@@ -437,25 +437,25 @@ contains
        end if
     end if failureIf
     res = .not.failure
-  end function cp_pao_matrix_validate
+  end function pao_matrix_validate
 !***************************************************************************
 
-!!****f* cp_pao_matrix_methods/cp_pao_matrix_set [1.0] *
+!!****f* pao_matrix_methods/pao_matrix_set [1.0] *
 !!
 !!   NAME
-!!     cp_pao_matrix_set
+!!     pao_matrix_set
 !!
 !!   SYNOPSIS
-!!     Subroutine cp_pao_matrix_set(pao_matrix, pao_env, matrix, source,&
+!!     Subroutine pao_matrix_set(pao_matrix, pao_env, matrix, source,&
 !!         min_bas_rows, min_bas_cols, should_dealloc_matrix, error)
-!!       Type(cp_pao_matrix_type), Intent (INOUT):: pao_matrix
-!!       Type(cp_pao_env_type), Optional, Target:: pao_env
+!!       Type(pao_matrix_type), Intent (INOUT):: pao_matrix
+!!       Type(pao_env_type), Optional, Target:: pao_env
 !!       Type(real_matrix_type), Optional, Target:: matrix
-!!       Type(cp_pao_matrix_type), Intent (IN), Optional:: source
+!!       Type(pao_matrix_type), Intent (IN), Optional:: source
 !!       Logical, Intent (IN), Optional:: min_bas_cols, min_bas_rows,&
 !!         should_dealloc_matrix
 !!       Type(cp_error_type), Optional, Intent (INOUT):: error
-!!     End Subroutine cp_pao_matrix_set
+!!     End Subroutine pao_matrix_set
 !!
 !!   FUNCTION
 !!     sets the values of the various elements of the stucture
@@ -491,19 +491,19 @@ contains
 !!     none
 !!
 !!*** **********************************************************************
-  subroutine cp_pao_matrix_set(pao_matrix, pao_env,&
+  subroutine pao_matrix_set(pao_matrix, pao_env,&
        matrix, source, min_bas_rows, min_bas_cols,&
        should_dealloc_matrix, error)
-    type(cp_pao_matrix_type), intent(inout) :: pao_matrix
-    type(cp_pao_env_type), optional, target :: pao_env
+    type(pao_matrix_type), intent(inout) :: pao_matrix
+    type(pao_env_type), optional, target :: pao_env
     type(real_matrix_type), optional, target :: matrix
-    type(cp_pao_matrix_type), intent(in), optional :: source
+    type(pao_matrix_type), intent(in), optional :: source
     logical, intent(in), optional :: min_bas_cols, min_bas_rows,&
          should_dealloc_matrix
     type(cp_error_type), optional, intent(inout) :: error
 
     logical :: failure, should_share_matrix
-    character(len=*), parameter :: routineP='cp_pao_matrix_methods:cp_pao_matrix_set'
+    character(len=*), parameter :: routineP='pao_matrix_methods:pao_matrix_set'
     integer :: stat
     character (len=60) :: matrix_name
     type(real_matrix_type), pointer :: tmp_ptr
@@ -580,26 +580,26 @@ contains
           call cp_init_block_pao_matrix(pao_matrix, error=error)
        end if
     end if failureIf
-  end subroutine cp_pao_matrix_set
+  end subroutine pao_matrix_set
 !***************************************************************************
 
-!!****f* cp_pao_matrix_methods/cp_pao_matrix_get [1.0] *
+!!****f* pao_matrix_methods/pao_matrix_get [1.0] *
 !!
 !!   NAME
-!!     cp_pao_matrix_get
+!!     pao_matrix_get
 !!
 !!   SYNOPSIS
-!!     Subroutine cp_pao_matrix_get(pao_matrix, pao_env, matrix,&
+!!     Subroutine pao_matrix_get(pao_matrix, pao_env, matrix,&
 !!         min_bas_cols, min_bas_rows, cols_size, rows_size,&
 !!         should_dealloc_matrix, error)
-!!       Type(cp_pao_matrix_type), Intent (IN):: pao_matrix
-!!       Type(cp_pao_env_type), Optional, Pointer:: pao_env
+!!       Type(pao_matrix_type), Intent (IN):: pao_matrix
+!!       Type(pao_env_type), Optional, Pointer:: pao_env
 !!       Type(real_matrix_type), Optional, Pointer:: matrix
 !!       Logical, Optional, Intent (OUT):: min_bas_rows, min_bas_cols,&
 !!         should_dealloc_matrix
 !!       Integer, Dimension(:), Pointer, Optional:: cols_size, rows_size
 !!       Type(cp_error_type), Optional, Intent (INOUT):: error
-!!     End Subroutine cp_pao_matrix_get
+!!     End Subroutine pao_matrix_get
 !!
 !!   FUNCTION
 !!     Get the attributes of the given matrix
@@ -612,7 +612,7 @@ contains
 !!     error: variable to control error logging, stopping,... 
 !!            see module cp_error_handling 
 !!
-!!     For the other arguments see the attributes of cp_pao_matrix_type
+!!     For the other arguments see the attributes of pao_matrix_type
 !!
 !!   AUTHOR
 !!     @author Fawzi Mohamed
@@ -622,10 +622,10 @@ contains
 !!     none
 !!
 !!*** **********************************************************************
-  subroutine cp_pao_matrix_get(pao_matrix,pao_env,matrix,min_bas_cols,&
+  subroutine pao_matrix_get(pao_matrix,pao_env,matrix,min_bas_cols,&
        min_bas_rows, cols_size, rows_size, should_dealloc_matrix, error)
-    type(cp_pao_matrix_type), intent(in) :: pao_matrix
-    type(cp_pao_env_type), optional, pointer :: pao_env
+    type(pao_matrix_type), intent(in) :: pao_matrix
+    type(pao_env_type), optional, pointer :: pao_env
     type(real_matrix_type), optional, pointer :: matrix
     logical, optional, intent(out) :: min_bas_rows, min_bas_cols, &
          should_dealloc_matrix
@@ -633,7 +633,7 @@ contains
     type(cp_error_type), optional, intent(inout) :: error
 
     logical :: failure
-    character(len=*), parameter :: routineP='cp_pao_matrix_methods:cp_pao_matrix_get'
+    character(len=*), parameter :: routineP='pao_matrix_methods:pao_matrix_get'
     failure=.false.
 
     CPPrecondition(pao_matrix%initialized,cp_failure_level,routineP,error,failure)
@@ -669,20 +669,20 @@ contains
           end if
        end if
     end if failureIf
-  end subroutine cp_pao_matrix_get
+  end subroutine pao_matrix_get
 !***************************************************************************
 
-!!****f* cp_pao_matrix_methods/cp_pao_matrix_valid [1.0] *
+!!****f* pao_matrix_methods/pao_matrix_valid [1.0] *
 !!
 !!   NAME
-!!     cp_pao_matrix_valid
+!!     pao_matrix_valid
 !!
 !!   SYNOPSIS
-!!     Function cp_pao_matrix_valid(pao_matrix, error) Result(res)
+!!     Function pao_matrix_valid(pao_matrix, error) Result(res)
 !!       Logical:: res
-!!       Type(cp_pao_matrix_type), Intent (IN):: pao_matrix
+!!       Type(pao_matrix_type), Intent (IN):: pao_matrix
 !!       Type(cp_error_type), Optional, Intent (INOUT):: error
-!!     End Function cp_pao_matrix_valid
+!!     End Function pao_matrix_valid
 !!
 !!   FUNCTION
 !!     performs minimal validadion (no dangling pointers)
@@ -703,13 +703,13 @@ contains
 !!     none
 !!
 !!*** **********************************************************************
-  function cp_pao_matrix_valid(pao_matrix, error) result(res)
+  function pao_matrix_valid(pao_matrix, error) result(res)
     logical ::res
-    type(cp_pao_matrix_type), intent(in) :: pao_matrix
+    type(pao_matrix_type), intent(in) :: pao_matrix
     type(cp_error_type), optional, intent(inout) :: error
 
     logical :: failure
-    character(len=*), parameter :: routineP='cp_pao_matrix_methods:cp_pao_matrix_valid'
+    character(len=*), parameter :: routineP='pao_matrix_methods:pao_matrix_valid'
     failure=.false.
 
     CPPrecondition(pao_matrix%initialized,cp_failure_level,routineP,error,failure)
@@ -721,21 +721,21 @@ contains
        end if
     end if
     res=.not.failure
-  end function cp_pao_matrix_valid
+  end function pao_matrix_valid
 !***************************************************************************
 
 ! ===== special methods =====
 
-!!****f* cp_pao_matrix_methods/cp_pao_matrix_set_to_unity [1.0] *
+!!****f* pao_matrix_methods/pao_matrix_set_to_unity [1.0] *
 !!
 !!   NAME
-!!     cp_pao_matrix_set_to_unity
+!!     pao_matrix_set_to_unity
 !!
 !!   SYNOPSIS
-!!     Subroutine cp_pao_matrix_set_to_unity(pao_matrix, error)
-!!       Type(cp_pao_matrix_type), Intent (INOUT):: pao_matrix
+!!     Subroutine pao_matrix_set_to_unity(pao_matrix, error)
+!!       Type(pao_matrix_type), Intent (INOUT):: pao_matrix
 !!       Type(cp_error_type), Optional, Intent (INOUT):: error
-!!     End Subroutine cp_pao_matrix_set_to_unity
+!!     End Subroutine pao_matrix_set_to_unity
 !!
 !!   FUNCTION
 !!     sets the matrix to the unit matrix
@@ -756,12 +756,12 @@ contains
 !!     none
 !!
 !!*** **********************************************************************
-  subroutine cp_pao_matrix_set_to_unity(pao_matrix, error)
-    type(cp_pao_matrix_type), intent(inout) :: pao_matrix
+  subroutine pao_matrix_set_to_unity(pao_matrix, error)
+    type(pao_matrix_type), intent(inout) :: pao_matrix
     type(cp_error_type), optional, intent(inout) :: error
 
     logical :: failure
-    character(len=*), parameter :: routineP='cp_pao_matrix_methods:cp_pao_matrix_set_to_unity'
+    character(len=*), parameter :: routineP='pao_matrix_methods:pao_matrix_set_to_unity'
     type(cp_error_type) :: iError
     failure=.false.
     call cp_init(iError,template_error=error)
@@ -780,20 +780,20 @@ contains
        ! to do
     end if
     call cp_dealloc_ref(iError,error=error)
-  end subroutine cp_pao_matrix_set_to_unity
+  end subroutine pao_matrix_set_to_unity
 !***************************************************************************
 
-!!****f* cp_pao_matrix_methods/cp_pao_matrix_get_pao_env [1.0] *
+!!****f* pao_matrix_methods/pao_matrix_get_pao_env [1.0] *
 !!
 !!   NAME
-!!     cp_pao_matrix_get_pao_env
+!!     pao_matrix_get_pao_env
 !!
 !!   SYNOPSIS
-!!     Function cp_pao_matrix_get_pao_env(pao_matrix, error) Result(res)
-!!       Type(cp_pao_env_type), Pointer:: res
-!!       Type(cp_pao_matrix_type), Intent (IN):: pao_matrix
+!!     Function pao_matrix_get_pao_env(pao_matrix, error) Result(res)
+!!       Type(pao_env_type), Pointer:: res
+!!       Type(pao_matrix_type), Intent (IN):: pao_matrix
 !!       Type(cp_error_type), Optional, Intent (INOUT):: error
-!!     End Function cp_pao_matrix_get_pao_env
+!!     End Function pao_matrix_get_pao_env
 !!
 !!   FUNCTION
 !!     returns the global environement the matrix object lives in
@@ -814,13 +814,13 @@ contains
 !!     none
 !!
 !!*** **********************************************************************
-  function cp_pao_matrix_get_pao_env(pao_matrix, error) result(res)
-    type(cp_pao_env_type), pointer ::res
-    type(cp_pao_matrix_type), intent(in) :: pao_matrix
+  function pao_matrix_get_pao_env(pao_matrix, error) result(res)
+    type(pao_env_type), pointer ::res
+    type(pao_matrix_type), intent(in) :: pao_matrix
     type(cp_error_type), optional, intent(inout) :: error
 
     logical :: failure
-    character(len=*), parameter :: routineP='cp_pao_matrix_methods:cp_pao_matrix_get_pao_env'
+    character(len=*), parameter :: routineP='pao_matrix_methods:pao_matrix_get_pao_env'
     failure=.false.
     CPPrecondition(pao_matrix%initialized, cp_failure_level,routineP,error,failure)
     failureIf: if (.not. failure) then
@@ -828,20 +828,20 @@ contains
     else failureIf
        nullify(res)
     end if failureIf
-  end function cp_pao_matrix_get_pao_env
+  end function pao_matrix_get_pao_env
 !***************************************************************************
 
-!!****f* cp_pao_matrix_methods/cp_pao_matrix_get_matrix [1.0] *
+!!****f* pao_matrix_methods/pao_matrix_get_matrix [1.0] *
 !!
 !!   NAME
-!!     cp_pao_matrix_get_matrix
+!!     pao_matrix_get_matrix
 !!
 !!   SYNOPSIS
-!!     Function cp_pao_matrix_get_matrix(pao_matrix, error) Result(res)
+!!     Function pao_matrix_get_matrix(pao_matrix, error) Result(res)
 !!       Type(real_matrix_type), Pointer:: res
-!!       Type(cp_pao_matrix_type), Intent (IN):: pao_matrix
+!!       Type(pao_matrix_type), Intent (IN):: pao_matrix
 !!       Type(cp_error_type), Optional, Intent (INOUT):: error
-!!     End Function cp_pao_matrix_get_matrix
+!!     End Function pao_matrix_get_matrix
 !!
 !!   FUNCTION
 !!     returns the undelying matrix
@@ -862,13 +862,13 @@ contains
 !!     none
 !!
 !!*** **********************************************************************
-  function cp_pao_matrix_get_matrix(pao_matrix, error) result(res)
+  function pao_matrix_get_matrix(pao_matrix, error) result(res)
     type(real_matrix_type), pointer ::res
-    type(cp_pao_matrix_type), intent(in) :: pao_matrix
+    type(pao_matrix_type), intent(in) :: pao_matrix
     type(cp_error_type), optional, intent(inout) :: error
 
     logical :: failure
-    character(len=*), parameter :: routineP='cp_pao_matrix_methods:cp_pao_matrix_get_matrix'
+    character(len=*), parameter :: routineP='pao_matrix_methods:pao_matrix_get_matrix'
     failure=.false.
     CPPrecondition(pao_matrix%initialized,cp_failure_level,routineP,error,failure)
     if (.not. failure) then
@@ -876,13 +876,13 @@ contains
     else
        nullify(res)
     end if
-  end function cp_pao_matrix_get_matrix
+  end function pao_matrix_get_matrix
 !***************************************************************************
 
 
 ! ===== private utilities =====
 
-!!****f* cp_pao_matrix_methods/cp_init_block_pao_matrix [1.0] *
+!!****f* pao_matrix_methods/cp_init_block_pao_matrix [1.0] *
 !!
 !!   NAME
 !!     cp_init_block_pao_matrix
@@ -911,11 +911,11 @@ contains
 !!
 !!*** **********************************************************************
   subroutine cp_init_block_pao_matrix(pao_matrix, error)
-    type(cp_pao_matrix_type), intent(inout) :: pao_matrix
+    type(pao_matrix_type), intent(inout) :: pao_matrix
     type(cp_error_type), optional, intent(inout) :: error
 
     logical :: failure
-    character(len=*), parameter :: routineP='cp_pao_matrix_methods:cp_init_block_pao_matrix'
+    character(len=*), parameter :: routineP='pao_matrix_methods:cp_init_block_pao_matrix'
     integer :: n_atom, i, stat
     integer, dimension(:), allocatable :: firstRow, lastRow, firstCol, lastCol
     integer, dimension(:), pointer :: cols_size, rows_size
@@ -986,7 +986,7 @@ contains
   end subroutine cp_init_block_pao_matrix
 !***************************************************************************
 
-!!****f* cp_pao_matrix_methods/cp_first_last_from_size [1.0] *
+!!****f* pao_matrix_methods/cp_first_last_from_size [1.0] *
 !!
 !!   NAME
 !!     cp_first_last_from_size
@@ -1014,7 +1014,7 @@ contains
     integer, dimension(:), intent(out) :: first_index, last_index
     integer, dimension(:), intent(in) :: block_size
     logical :: failure
-    character(len=*), parameter :: routineP='cp_pao_matrix_methods:cp_first_last_from_size'
+    character(len=*), parameter :: routineP='pao_matrix_methods:cp_first_last_from_size'
     integer :: n_blocks, i
     failure=.false.
     n_blocks=size(block_size)
@@ -1036,7 +1036,7 @@ contains
   end subroutine cp_first_last_from_size
 !***************************************************************************
 
-!!****f* cp_pao_matrix_methods/cp_consistent_matrix [1.0] *
+!!****f* pao_matrix_methods/cp_consistent_matrix [1.0] *
 !!
 !!   NAME
 !!     cp_consistent_matrix
@@ -1070,7 +1070,7 @@ contains
     type(cp_error_type), optional, intent(inout) :: error
 
     logical :: failure
-    character(len=*), parameter :: routineP='cp_pao_matrix_methods:cp_consistent_matrix'
+    character(len=*), parameter :: routineP='pao_matrix_methods:cp_consistent_matrix'
     integer :: n_atom, i, stat
     integer, dimension(size(cols_size)) :: firstRow, lastRow,&
          firstCol,lastCol
@@ -1114,4 +1114,4 @@ contains
   end function cp_consistent_matrix
 !***************************************************************************
   
-end module cp_pao_matrix_methods
+end module pao_matrix_methods

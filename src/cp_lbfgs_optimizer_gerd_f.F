@@ -39,7 +39,7 @@ module cp_lbfgs_optimizer_gerd_f
   use global_types, only: global_environment_type
   use timings, only: timeset, timestop
   use message_passing, only: mp_bcast
-  use cp_pao_obj_function, only: cp_pao_gerd_functional_type, cp_eval_at
+  use pao_obj_function, only: pao_gerd_functional_type, cp_eval_at
   implicit none
   private
 
@@ -146,7 +146,7 @@ module cp_lbfgs_optimizer_gerd_f
 !!   real(kind=wp), dimension(:), pointer :: x,lower_bound,upper_bound,&
   !        gradient,dsave,work_array
   !   type(global_environment_type), pointer :: global_env
-  !   type(cp_pao_gerd_functional_type), pointer :: obj_funct
+  !   type(pao_gerd_functional_type), pointer :: obj_funct
 
 !!
 !!   AUTHOR
@@ -169,7 +169,7 @@ module cp_lbfgs_optimizer_gerd_f
      real(kind=wp), dimension(:), pointer :: x,lower_bound,upper_bound,&
           gradient,dsave,work_array
      type(global_environment_type), pointer :: global_env
-     type(cp_pao_gerd_functional_type), pointer :: obj_funct
+     type(pao_gerd_functional_type), pointer :: obj_funct
   end type cp_lbfgs_opt_gerd_f_type
 !!***
   !****************************************************************************
@@ -188,7 +188,7 @@ contains
 !!         kind_of_bound, master, max_f_per_iter, error)
 !!       Type(cp_lbfgs_opt_gerd_f_type), Intent (OUT):: optimizer
 !!       Type(global_environment_type), Intent (IN), Target:: global_env
-!!       Type(cp_pao_gerd_functional_type), Intent (IN), Target:: obj_funct
+!!       Type(pao_gerd_functional_type), Intent (IN), Target:: obj_funct
 !!       Real(Kind=wp), Dimension(:), Intent (IN):: x0
 !!       Integer, Intent (IN), Optional:: m, print_every, master,&
 !!         max_f_per_iter
@@ -225,7 +225,7 @@ contains
        lower_bound,upper_bound, kind_of_bound, master, max_f_per_iter, error)
     type(cp_lbfgs_opt_gerd_f_type), intent(out) :: optimizer
     type(global_environment_type), intent(in), target :: global_env
-    type(cp_pao_gerd_functional_type), intent(in), target :: obj_funct
+    type(pao_gerd_functional_type), intent(in), target :: obj_funct
     real(kind=wp), dimension(:), intent(in) :: x0
     integer, intent(in), optional :: m,print_every, master, max_f_per_iter
     real(kind=wp), intent(in), optional ::wanted_projected_gradient,&
@@ -411,7 +411,7 @@ contains
 !!         at_end, is_master, last_f, f, error)
 !!       Type(cp_lbfgs_opt_gerd_f_type), Intent (IN):: optimizer
 !!       Type(global_environment_type), Pointer, Optional:: global_env
-!!       Type(cp_pao_gerd_functional_type), Pointer, Optional:: obj_funct
+!!       Type(pao_gerd_functional_type), Pointer, Optional:: obj_funct
 !!       Real(Kind=wp), Dimension(:), Pointer, Optional:: x
 !!       Integer, Intent (OUT), Optional:: m, print_every, n_var, n_iter,&
 !!         master, status, max_f_per_iter
@@ -451,7 +451,7 @@ contains
        is_master, last_f, f, error)
     type(cp_lbfgs_opt_gerd_f_type), intent(in) :: optimizer
     type(global_environment_type), pointer, optional :: global_env
-    type(cp_pao_gerd_functional_type), pointer, optional :: obj_funct
+    type(pao_gerd_functional_type), pointer, optional :: obj_funct
     real(kind=wp), dimension(:), pointer, optional :: x
     integer, intent(out), optional :: m, print_every, n_var, n_iter, master,&
          status, max_f_per_iter
@@ -869,9 +869,9 @@ contains
   ! files are almost the same (multi-line use change it a bit)
   ! [template(type1,nametype1,use)]
 ! ARGS:
-!  type1 = "type(cp_pao_gerd_functional_type)"
+!  type1 = "type(pao_gerd_functional_type)"
 !  nametype1 = "gerd_f"
-!  use = "use cp_pao_obj_function, only: cp_pao_gerd_functional_type, cp_eval_at"
+!  use = "use pao_obj_function, only: pao_gerd_functional_type, cp_eval_at"
 
 
   !                            INFO FROM:

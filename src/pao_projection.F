@@ -5,10 +5,10 @@
 
 #include "cp_prep_globals.h"
 
-!!****h* cp2k/cp_pao_projection [1.0] *
+!!****h* cp2k/pao_projection [1.0] *
 !!
 !!   NAME
-!!     cp_pao_projection
+!!     pao_projection
 !!
 !!   FUNCTION
 !!     represent a simple projection (simply keeps some indices)
@@ -25,7 +25,7 @@
 !!
 !!   SOURCE
 !****************************************************************************
-module cp_pao_projection
+module pao_projection
   use cp_log_handling
   use cp_error_handling
   use kinds, only: wp=>dp
@@ -35,15 +35,15 @@ module cp_pao_projection
   private
 
   logical, private, parameter :: debug_this_module=.true.
-  character(len=*), private, parameter :: moduleN='cp_pao_projection'
+  character(len=*), private, parameter :: moduleN='pao_projection'
 
   !***
   !****************************************************************************
 
-!!****s* cp_pao_types/cp_pao_projection_type [1.0] *
+!!****s* pao_types/pao_projection_type [1.0] *
 !!
 !!   NAME
-!!     cp_pao_projection_type
+!!     pao_projection_type
 !!
 !!   FUNCTION
 !!     represent a simple projection (ie a subset of indices)
@@ -67,18 +67,18 @@ module cp_pao_projection
 !!
 !!   SOURCE
   !***************************************************************************
-  type cp_pao_projection_type
+  type pao_projection_type
      logical :: initialized
      integer, dimension(:), pointer :: proj_indices
      integer, dimension(:), pointer :: non_proj_indices
-  end type cp_pao_projection_type
+  end type pao_projection_type
 !!***
   !****************************************************************************
 
 contains
 
 
-!!****f* cp_pao_projection/cp_proj_init [1.0] *
+!!****f* pao_projection/cp_proj_init [1.0] *
 !!
 !!   NAME
 !!     cp_proj_init
@@ -107,7 +107,7 @@ contains
 !!*** **********************************************************************
   subroutine cp_proj_init(proj, proj_indices, size_full_bas, &
        error)
-    type(cp_pao_projection_type), intent(out) :: proj
+    type(pao_projection_type), intent(out) :: proj
     integer, dimension(:), intent(in) ::proj_indices
     integer, intent(in) :: size_full_bas
     type(cp_error_type), optional, intent(inout) :: error
@@ -152,7 +152,7 @@ contains
   end subroutine cp_proj_init
   !***************************************************************************
 
-!!****f* cp_pao_projection/cp_proj_dealloc_ref [1.0] *
+!!****f* pao_projection/cp_proj_dealloc_ref [1.0] *
 !!
 !!   NAME
 !!     cp_proj_dealloc_ref
@@ -177,7 +177,7 @@ contains
 !!
 !!*** **********************************************************************
   subroutine cp_proj_dealloc_ref(proj, error)
-    type(cp_pao_projection_type), intent(inout) :: proj
+    type(pao_projection_type), intent(inout) :: proj
     type(cp_error_type), optional, intent(inout) :: error
 
     logical :: failure
@@ -197,7 +197,7 @@ contains
   end subroutine cp_proj_dealloc_ref
   !***************************************************************************
 
-!!****f* cp_pao_projection/cp_proj_valid [1.0] *
+!!****f* pao_projection/cp_proj_valid [1.0] *
 !!
 !!   NAME
 !!     cp_proj_valid
@@ -222,7 +222,7 @@ contains
 !!
 !!*** **********************************************************************
   function cp_proj_valid(proj,error) result(res)
-    type(cp_pao_projection_type), intent(in) :: proj
+    type(pao_projection_type), intent(in) :: proj
     logical ::res
     type(cp_error_type), optional, intent(inout) :: error
 
@@ -238,7 +238,7 @@ contains
   end function cp_proj_valid
   !***************************************************************************
 
-!!****f* cp_pao_projection/cp_proj_get [1.0] *
+!!****f* pao_projection/cp_proj_get [1.0] *
 !!
 !!   NAME
 !!     cp_proj_get
@@ -271,7 +271,7 @@ contains
 !!*** **********************************************************************
   subroutine cp_proj_get(proj, size_min_bas, size_full_bas, &
        size_excl_bas, proj_indices, non_proj_indices, error)
-    type(cp_pao_projection_type), optional, intent(in) :: proj
+    type(pao_projection_type), optional, intent(in) :: proj
     integer, optional, intent(out) :: size_excl_bas,size_full_bas,&
          size_min_bas
     integer, optional, dimension(:), pointer :: proj_indices,&
@@ -298,7 +298,7 @@ contains
   end subroutine cp_proj_get
   !***************************************************************************
 
-!!****f* cp_pao_projection/cp_proj_get_proj_index [1.0] *
+!!****f* pao_projection/cp_proj_get_proj_index [1.0] *
 !!
 !!   NAME
 !!     cp_proj_get_proj_index
@@ -324,7 +324,7 @@ contains
 !!
 !!*** **********************************************************************
   function cp_proj_get_proj_index(proj, i, error) result(res)
-    type(cp_pao_projection_type), intent(in) :: proj
+    type(pao_projection_type), intent(in) :: proj
     integer, intent(in):: i
     integer :: res
     type(cp_error_type), optional, intent(inout) :: error
@@ -352,7 +352,7 @@ contains
   end function cp_proj_get_proj_index
   !***************************************************************************
 
-!!****f* cp_pao_projection/cp_proj_get_proj_index [1.0] *
+!!****f* pao_projection/cp_proj_get_proj_index [1.0] *
 !!
 !!   NAME
 !!     cp_proj_get_proj_index
@@ -378,7 +378,7 @@ contains
 !!
 !!*** **********************************************************************
   function cp_proj_get_non_proj_index(proj, i, error) result(res)
-    type(cp_pao_projection_type), intent(in) :: proj
+    type(pao_projection_type), intent(in) :: proj
     integer, intent(in):: i
     integer :: res
     type(cp_error_type), optional, intent(inout) :: error
@@ -406,4 +406,4 @@ contains
   end function cp_proj_get_non_proj_index
   !***************************************************************************
 
-end module cp_pao_projection
+end module pao_projection

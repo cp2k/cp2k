@@ -5,10 +5,10 @@
 
 #include "cp_prep_globals.h"
 
-!!****h* cp2k/cp_pao_plain_rot [1.0] *
+!!****h* cp2k/pao_plain_rot [1.0] *
 !!
 !!   NAME
-!!     cp_pao_plain_rot
+!!     pao_plain_rot
 !!
 !!   FUNCTION
 !!     various function to perform plain rotations, like jacobi,...
@@ -26,7 +26,7 @@
 !!   SOURCE
 !******************************************************************************
 
-module cp_pao_plain_rot
+module pao_plain_rot
   use cp_log_handling
   use cp_error_handling
   use kinds, only: wp=>dp
@@ -35,7 +35,7 @@ module cp_pao_plain_rot
   private
 
   logical, parameter, private :: debug_this_module=.true.
-  character(len=*), parameter, private :: moduleN='cp_pao_plain_rot'
+  character(len=*), parameter, private :: moduleN='pao_plain_rot'
 
   public :: cp_left_compose_p_rot, cp_right_compose_p_rot,&
        cp_right_compose_p_rot_deriv, cp_left_compose_p_rot_deriv
@@ -46,7 +46,7 @@ module cp_pao_plain_rot
 contains
 
 
-!!****f* cp_pao_plain_rot/cp_right_compose_p_rot [1.0] *
+!!****f* pao_plain_rot/cp_right_compose_p_rot [1.0] *
 !!
 !!   NAME
 !!     cp_right_compose_p_rot
@@ -119,7 +119,7 @@ contains
 !***************************************************************************
 
 
-!!****f* cp_pao_plain_rot/cp_left_compose_p_rot [1.0] *
+!!****f* pao_plain_rot/cp_left_compose_p_rot [1.0] *
 !!
 !!   NAME
 !!     cp_left_compose_p_rot
@@ -192,7 +192,7 @@ contains
   end subroutine cp_left_compose_p_rot
 !***************************************************************************
 
-!!****f* cp_pao_plain_rot/cp_right_compose_p_rot_deriv [1.0] *
+!!****f* pao_plain_rot/cp_right_compose_p_rot_deriv [1.0] *
 !!
 !!   NAME
 !!     cp_right_compose_p_rot_deriv
@@ -255,7 +255,7 @@ contains
   end subroutine cp_right_compose_p_rot_deriv
 !***************************************************************************
 
-!!****f* cp_pao_plain_rot/cp_left_compose_p_rot_deriv [1.0] *
+!!****f* pao_plain_rot/cp_left_compose_p_rot_deriv [1.0] *
 !!
 !!   NAME
 !!     cp_left_compose_p_rot_deriv
@@ -318,7 +318,7 @@ contains
   end subroutine cp_left_compose_p_rot_deriv
 !***************************************************************************
 
-end module cp_pao_plain_rot
+end module pao_plain_rot
 
 
 

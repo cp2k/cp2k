@@ -5,10 +5,10 @@
 
 #include "cp_prep_globals.h"
 
-!!****h* cp2k/cp_pao_types_tests [1.0] *
+!!****h* cp2k/pao_types_tests [1.0] *
 !!
 !!   NAME
-!!     cp_pao_types_tests
+!!     pao_types_tests
 !!
 !!   FUNCTION
 !!     tests the pao types
@@ -25,19 +25,19 @@
 !!
 !!   SOURCE
 !*****************************************************************************
-module cp_pao_types_tests
+module pao_types_tests
   use cp_log_handling
   use cp_error_handling
   use kinds, only: wp=>dp
   use global_types, only: global_environment_type
-  use cp_pao_utils, only:  cp_get_random_integer
+  use pao_utils, only:  cp_get_random_integer
   use cp_matrix_utils, only: cp_sup_norm_matrix
-  use cp_pao_types
-  use cp_pao_proj_methods
-  use cp_pao_env_methods
-  use cp_pao_matrix_methods
-  use cp_pao_l_angles_methods
-  use cp_pao_glob_angles_methods
+  use pao_types
+  use pao_proj_methods
+  use pao_env_methods
+  use pao_matrix_methods
+  use pao_l_angles_methods
+  use pao_glob_angles_methods
   implicit none
 
   logical, private, parameter :: debug_this_module=.true.
@@ -46,7 +46,7 @@ module cp_pao_types_tests
 !****************************************************************************
 contains
 
-!!****f* cp_pao_types_tests/cp_test_pao_types [1.0] *
+!!****f* pao_types_tests/cp_test_pao_types [1.0] *
 !!
 !!   NAME
 !!     cp_test_pao_types
@@ -84,11 +84,11 @@ contains
     type(cp_error_type), optional, intent(inout) :: error
 
     logical :: failure
-    character(len=*), parameter :: routineP='cp_pao_types_tests:cp_test_pao_types'
-    type(cp_pao_env_type) :: pao_env
-    type(cp_pao_glob_angles_type) :: glob_angles
-    type(cp_pao_local_angles_type) :: local_angles
-    type(cp_pao_matrix_type) :: pao_t
+    character(len=*), parameter :: routineP='pao_types_tests:cp_test_pao_types'
+    type(pao_env_type) :: pao_env
+    type(pao_glob_angles_type) :: glob_angles
+    type(pao_local_angles_type) :: local_angles
+    type(pao_matrix_type) :: pao_t
     integer, parameter :: atomNr=3
     integer, dimension(atomNr) :: minB, fullB
     integer :: i
@@ -132,14 +132,14 @@ contains
   end subroutine cp_test_pao_types
   !***************************************************************************
 
-!!****f* cp_pao_types_tests/cp_init_test_pao_env [1.0] *
+!!****f* pao_types_tests/cp_init_test_pao_env [1.0] *
 !!
 !!   NAME
 !!     cp_init_test_pao_env
 !!
 !!   SYNOPSIS
 !!     Subroutine cp_init_test_pao_env(pao_env, glob_env, atom_nr, error)
-!!       Type(cp_pao_env_type), Intent (OUT):: pao_env
+!!       Type(pao_env_type), Intent (OUT):: pao_env
 !!       Type(global_environment_type), Target, Intent (IN):: glob_env
 !!       Integer, Optional:: atom_nr
 !!       Type(cp_error_type), Optional, Intent (INOUT):: error
@@ -167,16 +167,16 @@ contains
 !!
 !!*** **********************************************************************
   subroutine cp_init_test_pao_env(pao_env, glob_env, atom_nr, error)
-    type(cp_pao_env_type), intent(out) :: pao_env
+    type(pao_env_type), intent(out) :: pao_env
     type(global_environment_type), target, intent(in) :: glob_env
     integer, optional :: atom_nr
     type(cp_error_type), optional, intent(inout) :: error
 
     logical :: failure
-    character(len=*), parameter :: routineP='cp_pao_types_tests:cp_init_test_pao_env'
+    character(len=*), parameter :: routineP='pao_types_tests:cp_init_test_pao_env'
     integer, dimension(:), allocatable :: minB, fullB
     integer :: n_atom,i, stat
-    type(cp_pao_matrix_type), pointer :: u
+    type(pao_matrix_type), pointer :: u
     nullify(u)
     failure=.false.
 
@@ -204,5 +204,5 @@ contains
   end subroutine cp_init_test_pao_env
   !***************************************************************************
 
-end module cp_pao_types_tests
+end module pao_types_tests
 

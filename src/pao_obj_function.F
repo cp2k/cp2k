@@ -5,10 +5,10 @@
 
 #include "cp_prep_globals.h"
 
-!!****h* cp2k/cp_pao_obj_function [1.0] *
+!!****h* cp2k/pao_obj_function [1.0] *
 !!
 !!   NAME
-!!     cp_pao_obj_function
+!!     pao_obj_function
 !!
 !!   FUNCTION
 !!     contain the objective function to be optimized from the pao procedure
@@ -25,17 +25,17 @@
 !!
 !!   SOURCE
 !*****************************************************************************
-module cp_pao_obj_function
+module pao_obj_function
   use cp_log_handling
   use cp_error_handling
   use kinds, only: wp=>dp
   use global_types, only: global_environment_type
-  use cp_pao_types
-  use cp_pao_env_methods
-  use cp_pao_matrix_methods
-  use cp_pao_glob_angles_methods
-  use cp_pao_l_angles_methods
-  use cp_pao_proj_methods
+  use pao_types
+  use pao_env_methods
+  use pao_matrix_methods
+  use pao_glob_angles_methods
+  use pao_l_angles_methods
+  use pao_proj_methods
   use qs_blacs, only: blacs_matrix_type,allocate_blacs_matrix,&
        copy_sparse_to_blacs_matrix,deallocate_blacs_matrix,&
        blacs_trace, add_blacs_to_block_diag_sm, blacs_diag_mult,&
@@ -45,11 +45,11 @@ module cp_pao_obj_function
   use timings, only: timeset, timestop
   use qs_mo_types, only: mo_set_type
   use message_passing, only: mp_sum
-  use cp_pao_unitary_t
+  use pao_unitary_t
   use cp_matrix_utils
   use sparse_matrix_types, only: real_matrix_type
-  use cp_pao_unitary_t
-  use cp_pao_utils
+  use pao_unitary_t
+  use pao_utils
   implicit none
   private
   
@@ -57,35 +57,35 @@ module cp_pao_obj_function
   integer, parameter :: cp_optimal_blacs_block_size=32
   
   ! type
-  public :: cp_pao_gerd_functional_type
+  public :: pao_gerd_functional_type
 
   ! generic functions
   public :: cp_init, cp_dealloc_ref, cp_eval_at, cp_valid
 
   ! underlying routines
-  public :: cp_pao_gerd_f_eval_at, cp_pao_gerd_f_valid,&
-       cp_pao_gerd_f_init, cp_pao_gerd_f_dealloc_ref
+  public :: pao_gerd_f_eval_at, pao_gerd_f_valid,&
+       pao_gerd_f_init, pao_gerd_f_dealloc_ref
   
   interface cp_init
-     module procedure cp_pao_gerd_f_init
+     module procedure pao_gerd_f_init
   end interface
   interface cp_dealloc_ref
-     module procedure cp_pao_gerd_f_dealloc_ref
+     module procedure pao_gerd_f_dealloc_ref
   end interface
   interface cp_valid
-     module procedure cp_pao_gerd_f_valid
+     module procedure pao_gerd_f_valid
   end interface
   interface cp_eval_at
-     module procedure cp_pao_gerd_f_eval_at
+     module procedure pao_gerd_f_eval_at
   end interface
 
 !!***
 !****************************************************************************
 
-!!****s* cp_pao_obj_function/cp_pao_gerd_functional_type [1.0] *
+!!****s* pao_obj_function/pao_gerd_functional_type [1.0] *
 !!
 !!   NAME
-!!     cp_pao_gerd_functional_type
+!!     pao_gerd_functional_type
 !!
 !!   FUNCTION
 !!     the environement for the gert functional, basically all the
@@ -134,36 +134,36 @@ module cp_pao_obj_function
 !!
 !!   SOURCE
 !***************************************************************************
-  type cp_pao_gerd_functional_type
+  type pao_gerd_functional_type
      logical :: initialized
-     type(cp_pao_env_type), pointer :: pao_env
+     type(pao_env_type), pointer :: pao_env
      type(blacs_matrix_type) :: min_hamiltonian_m, min_overlap_m,&
           min_density_m, work_m
      type(blacs_matrix_type), pointer :: scf_work1, scf_work2, scf_work3
      integer :: blacs_context
      type(mo_set_type), pointer :: alpha_mo
-     type(cp_pao_matrix_type), pointer :: diag_matrix, full_work_m, min_work_m
+     type(pao_matrix_type), pointer :: diag_matrix, full_work_m, min_work_m
      integer, dimension(:), pointer :: d_struct
-  end type cp_pao_gerd_functional_type
+  end type pao_gerd_functional_type
 !!***
 !****************************************************************************
 contains
 
-!!****f* cp_pao_obj_function/cp_pao_gerd_f_init [1.0] *
+!!****f* pao_obj_function/pao_gerd_f_init [1.0] *
 !!
 !!   NAME
-!!     cp_pao_gerd_f_init
+!!     pao_gerd_f_init
 !!
 !!   SYNOPSIS
-!!     Subroutine cp_pao_gerd_f_init(gf_env, pao_env, scf_work1, scf_work2,&
+!!     Subroutine pao_gerd_f_init(gf_env, pao_env, scf_work1, scf_work2,&
 !!         scf_work3, mo_orbital, error)
-!!       Type(cp_pao_gerd_functional_type), Intent (OUT):: gf_env
-!!       Type(cp_pao_env_type), Intent (INOUT), Target:: pao_env
+!!       Type(pao_gerd_functional_type), Intent (OUT):: gf_env
+!!       Type(pao_env_type), Intent (INOUT), Target:: pao_env
 !!       Type(blacs_matrix_type), Intent (IN), Target:: scf_work1,&
 !!         scf_work2, scf_work3
 !!       Type(mo_set_type), Target, Intent (IN):: mo_orbital
 !!       Type(cp_error_type), Optional, Intent (INOUT):: error
-!!     End Subroutine cp_pao_gerd_f_init
+!!     End Subroutine pao_gerd_f_init
 !!
 !!   FUNCTION
 !!     initializes gerd s functional
@@ -177,7 +177,7 @@ contains
 !!     error: variable to control error logging, stopping,... 
 !!            see module cp_error_handling.
 !!
-!!     see cp_pao_gerd_functional_type for the other variables
+!!     see pao_gerd_functional_type for the other variables
 !!
 !!   AUTHOR
 !!     @author Fawzi Mohamed
@@ -187,19 +187,19 @@ contains
 !!     none
 !!
 !!*** **********************************************************************
-  subroutine cp_pao_gerd_f_init(gf_env,pao_env, scf_work1,scf_work2,&
+  subroutine pao_gerd_f_init(gf_env,pao_env, scf_work1,scf_work2,&
        scf_work3, mo_orbital, error)
-    type(cp_pao_gerd_functional_type), intent(out) :: gf_env
-    type(cp_pao_env_type), intent(inout), target :: pao_env
+    type(pao_gerd_functional_type), intent(out) :: gf_env
+    type(pao_env_type), intent(inout), target :: pao_env
     type(blacs_matrix_type), intent(in), target :: scf_work1, scf_work2,&
          scf_work3
     type(mo_set_type), target, intent(in) :: mo_orbital
     type(cp_error_type), optional, intent(inout) :: error
 
     logical :: failure
-    character(len=*), parameter :: routineP='cp_pao_obj_function:cp_pao_gerd_f_init'
+    character(len=*), parameter :: routineP='pao_obj_function:pao_gerd_f_init'
     integer :: ntot_min_bas, ntot_full_bas
-    type(cp_pao_matrix_type), pointer :: full_overlap_m
+    type(pao_matrix_type), pointer :: full_overlap_m
     type(real_matrix_type), pointer:: diagMatrix !dbg
     failure=.false.
 
@@ -269,20 +269,20 @@ contains
             should_dealloc_matrix=.false.)
        gf_env%initialized=.true.
     end if
-  end subroutine cp_pao_gerd_f_init
+  end subroutine pao_gerd_f_init
 !***************************************************************************
 
-!!****f* cp_pao_obj_function/cp_pao_gerd_f_dealloc_ref [1.0] *
+!!****f* pao_obj_function/pao_gerd_f_dealloc_ref [1.0] *
 !!
 !!   NAME
-!!     cp_pao_gerd_f_dealloc_ref
+!!     pao_gerd_f_dealloc_ref
 !!
 !!   SYNOPSIS
-!!     Subroutine cp_pao_gerd_f_dealloc_ref(gf_env, error)
-!!       Type(cp_pao_gerd_functional_type), Optional, Intent (INOUT)::&
+!!     Subroutine pao_gerd_f_dealloc_ref(gf_env, error)
+!!       Type(pao_gerd_functional_type), Optional, Intent (INOUT)::&
 !!         gf_env
 !!       Type(cp_error_type), Optional, Intent (INOUT):: error
-!!     End Subroutine cp_pao_gerd_f_dealloc_ref
+!!     End Subroutine pao_gerd_f_dealloc_ref
 !!
 !!   FUNCTION
 !!     releases the memory that has been allocated by the functional
@@ -303,12 +303,12 @@ contains
 !!     none
 !!
 !!*** **********************************************************************
-  subroutine cp_pao_gerd_f_dealloc_ref(gf_env, error)
-    type(cp_pao_gerd_functional_type), optional, intent(inout) :: gf_env
+  subroutine pao_gerd_f_dealloc_ref(gf_env, error)
+    type(pao_gerd_functional_type), optional, intent(inout) :: gf_env
     type(cp_error_type), optional, intent(inout) :: error
 
     logical :: failure
-    character(len=*), parameter :: routineP='cp_pao_obj_function:cp_pao_gerd_f_dealloc_ref'
+    character(len=*), parameter :: routineP='pao_obj_function:pao_gerd_f_dealloc_ref'
     integer :: stat
     failure=.false.
 
@@ -326,20 +326,20 @@ contains
        CPPostcondition(stat==0,cp_warning_level,routineP,error,failure)
        gf_env%initialized=.false.
     end if
-  end subroutine cp_pao_gerd_f_dealloc_ref
+  end subroutine pao_gerd_f_dealloc_ref
 !***************************************************************************
 
-!!****f* cp_pao_obj_function/cp_pao_gerd_f_valid [1.0] *
+!!****f* pao_obj_function/pao_gerd_f_valid [1.0] *
 !!
 !!   NAME
-!!     cp_pao_gerd_f_valid
+!!     pao_gerd_f_valid
 !!
 !!   SYNOPSIS
-!!     Function cp_pao_gerd_f_valid(gf_env, error) Result(res)
+!!     Function pao_gerd_f_valid(gf_env, error) Result(res)
 !!       Logical:: res
-!!       Type(cp_pao_gerd_functional_type), Intent (IN):: gf_env
+!!       Type(pao_gerd_functional_type), Intent (IN):: gf_env
 !!       Type(cp_error_type), Optional, Intent (INOUT):: error
-!!     End Function cp_pao_gerd_f_valid
+!!     End Function pao_gerd_f_valid
 !!
 !!   FUNCTION
 !!     returns true if the functional object is valid (minimal testing)
@@ -360,13 +360,13 @@ contains
 !!     none
 !!
 !!*** **********************************************************************
-  function cp_pao_gerd_f_valid(gf_env, error) result(res)
+  function pao_gerd_f_valid(gf_env, error) result(res)
     logical ::res
-    type(cp_pao_gerd_functional_type), intent(in) :: gf_env
+    type(pao_gerd_functional_type), intent(in) :: gf_env
     type(cp_error_type), optional, intent(inout) :: error
 
     logical :: failure
-    character(len=*), parameter :: routineP='cp_pao_obj_function:cp_pao_gerd_f_valid'
+    character(len=*), parameter :: routineP='pao_obj_function:pao_gerd_f_valid'
     failure=.false.
 
     CPPrecondition(gf_env%initialized,cp_failure_level,routineP,error,failure)
@@ -386,22 +386,22 @@ contains
        CPPrecondition(associated(gf_env%min_work_m),cp_warning_level,routineP,error,failure)
     end if
     res=.not.failure
-  end function cp_pao_gerd_f_valid
+  end function pao_gerd_f_valid
 !***************************************************************************
 
-!!****f* cp_pao_obj_function/cp_pao_gerd_f_eval_at [1.0] *
+!!****f* pao_obj_function/pao_gerd_f_eval_at [1.0] *
 !!
 !!   NAME
-!!     cp_pao_gerd_f_eval_at
+!!     pao_gerd_f_eval_at
 !!
 !!   SYNOPSIS
-!!     Subroutine cp_pao_gerd_f_eval_at(gf_env, x, f, gradient, error)
-!!       Type(cp_pao_gerd_functional_type), Intent (INOUT), Target:: gf_env
+!!     Subroutine pao_gerd_f_eval_at(gf_env, x, f, gradient, error)
+!!       Type(pao_gerd_functional_type), Intent (INOUT), Target:: gf_env
 !!       Real(Kind=wp), Intent (IN), Dimension(:):: x
 !!       Real(Kind=wp), Intent (OUT), Optional:: f
 !!       Real(Kind=wp), Intent (OUT), Optional, Dimension(:):: gradient
 !!       Type(cp_error_type), Optional, Intent (INOUT):: error
-!!     End Subroutine cp_pao_gerd_f_eval_at
+!!     End Subroutine pao_gerd_f_eval_at
 !!
 !!   FUNCTION
 !!     evaluates the functional at one point (i.e. for the given angles
@@ -427,28 +427,28 @@ contains
 !!     none
 !!
 !!*** **********************************************************************
-  subroutine cp_pao_gerd_f_eval_at(gf_env,x, f, gradient , error)
-    type(cp_pao_gerd_functional_type), intent(inout), target :: gf_env
+  subroutine pao_gerd_f_eval_at(gf_env,x, f, gradient , error)
+    type(pao_gerd_functional_type), intent(inout), target :: gf_env
     real(kind=wp), intent(in), dimension(:) :: x
     real(kind=wp), intent(out), optional :: f
     real(kind=wp), intent(out), optional, dimension(:) :: gradient
     type(cp_error_type), optional, intent(inout) :: error
 
     logical :: failure
-    character(len=*), parameter :: routineP='cp_pao_obj_function:cp_pao_gerd_f_eval_at'
-    type(cp_pao_glob_angles_type), pointer :: angles
-    type(cp_pao_matrix_type), pointer :: d_matrix, h_matrix, s_matrix, &
+    character(len=*), parameter :: routineP='pao_obj_function:pao_gerd_f_eval_at'
+    type(pao_glob_angles_type), pointer :: angles
+    type(pao_matrix_type), pointer :: d_matrix, h_matrix, s_matrix, &
          full_hamiltonian_m
     type(cp_error_type) :: iError
     type(global_environment_type), pointer :: g_env
-    type(cp_pao_calc_u_du_type) :: calc_u_du
+    type(pao_calc_u_du_type) :: calc_u_du
     type(cp_matrix_block_iterator) :: block_iterator
-    type(cp_pao_matrix_type) :: full_pao_m, min_pao_m
+    type(pao_matrix_type) :: full_pao_m, min_pao_m
     integer :: n_atom, min_bas_size, full_bas_size, block_row, block_col,&
          min_bas, excl_bas
     real(kind=wp) :: f1,f2,f3
     real(kind=wp), dimension(:,:), pointer :: du, block_val
-    type(cp_pao_local_angles_type) :: local_angles
+    type(pao_local_angles_type) :: local_angles
     type(real_matrix_type), pointer :: diagMatrix
     call cp_init(iError, template_error=error)
     nullify(diagMatrix)
@@ -595,7 +595,7 @@ contains
           call mp_sum(gradient,g_env%group)
        end if
     end if
-  end subroutine cp_pao_gerd_f_eval_at
+  end subroutine pao_gerd_f_eval_at
 !***************************************************************************
 
 
@@ -697,12 +697,12 @@ contains
     CALL timeset("calculate_density_matrix","I","",handle)
 
     CALL blacs_syrk("U","N",mo%homo,2.0_wp,mo%eigenvectors,1,1,0.0_wp,density,&
-                    context,globenv)
+         context,globenv)
 
     CALL timestop(0.0_wp,handle)
 
   END SUBROUTINE calculate_density_matrix
 
 
-end module cp_pao_obj_function
+end module pao_obj_function
 

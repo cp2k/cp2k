@@ -5,16 +5,16 @@
 
 #include "cp_prep_globals.h"
 
-!!****h* cp2k/cp_pao_env_methods [1.0] *
+!!****h* cp2k/pao_env_methods [1.0] *
 !!
 !!   NAME
-!!     cp_pao_env_methods
+!!     pao_env_methods
 !!
 !!   FUNCTION
 !!     methods to access and modify the pao environement
 !!
 !!   NOTES
-!!     the get methods are defined in cp_pao_types, because of the circular
+!!     the get methods are defined in pao_types, because of the circular
 !!     dependencies in the types
 !!
 !!   AUTHOR
@@ -26,7 +26,7 @@
 !!
 !!   SOURCE
 !*****************************************************************************
-module cp_pao_env_methods
+module pao_env_methods
   use cp_log_handling
   use cp_error_handling
   use kinds, only: wp=>dp
@@ -34,17 +34,17 @@ module cp_pao_env_methods
   use timings, only: timeset, timestop
 !  use atomic_kind_types!, only: atom_info, atom_info_type
 !  use atomic_kinds, only: kind_info,nkind
-  use cp_pao_types
-  use cp_pao_utils
-  use cp_pao_matrix_methods
-  use cp_pao_glob_angles_methods
+  use pao_types
+  use pao_utils
+  use pao_matrix_methods
+  use pao_glob_angles_methods
   use sparse_matrix_types
   implicit none
   private
 
   logical, private, parameter :: debug_this_module=.true.
   logical, private, parameter :: standalone=.true.
-  character(len=*), private, parameter :: moduleN='cp_pao_env_methods'
+  character(len=*), private, parameter :: moduleN='pao_env_methods'
 
 ! core procedures
   public :: cp_init, cp_dealloc_ref, cp_set, cp_did_change
@@ -53,8 +53,8 @@ module cp_pao_env_methods
   public :: cp_validate
 
 ! underlying routines
-  public :: cp_pao_env_init, cp_pao_env_dealloc_ref, cp_pao_env_validate,&
-       cp_pao_env_set, cp_pao_env_did_change
+  public :: pao_env_init, pao_env_dealloc_ref, pao_env_validate,&
+       pao_env_set, pao_env_did_change
 
 ! ============== interfaces ===========
 
@@ -64,31 +64,31 @@ module cp_pao_env_methods
 !! Support optional initial values that depend on the 
 !! first argument 
   interface cp_init
-     module procedure cp_pao_env_init
+     module procedure pao_env_init
   end interface
 
 !! Deallocates the memory allocated by the first argument.
 !! Supports error=error
   interface cp_dealloc_ref
-     module procedure cp_pao_env_dealloc_ref
+     module procedure pao_env_dealloc_ref
   end interface
 
 !! returns true if the content of the first argumenst is valid.
 !! writes the errors ar warnings, full validation (long)
   interface cp_validate
-     module procedure cp_pao_env_validate
+     module procedure pao_env_validate
   end interface
 
 !! sets the value of various optonal attributes of the firs argument.
 !! the optional attributes depend on the type of the first
   interface cp_set
-     module procedure cp_pao_env_set
+     module procedure pao_env_set
   end interface
 
 !! tells the object that its internal values have changes and its cached
 !! values may be invalid
   interface cp_did_change
-     module procedure cp_pao_env_did_change
+     module procedure pao_env_did_change
   end interface
 
 ! +++ end of the core methods +++
@@ -100,17 +100,17 @@ contains
 
 ! ====== core methods =====
 
-!!****f* cp_pao_env_methods/cp_pao_env_init [1.0] *
+!!****f* pao_env_methods/pao_env_init [1.0] *
 !!
 !!   NAME
-!!     cp_pao_env_init
+!!     pao_env_init
 !!
 !!   SYNOPSIS
-!!     Subroutine cp_pao_env_init(pao_env, nr_min_bas, nr_full_bas,&
+!!     Subroutine pao_env_init(pao_env, nr_min_bas, nr_full_bas,&
 !!         global_env, full_overlap_sm, full_hamiltonian_sm,&
 !!         wanted_subspace_pos_precision, wanted_in_subspace_precision,&
 !!         projection, error)
-!!       Type(cp_pao_env_type), Intent (OUT):: pao_env
+!!       Type(pao_env_type), Intent (OUT):: pao_env
 !!       Type(global_environment_type), Intent (IN), Target:: global_env
 !!       Integer, Dimension(:), Intent (IN):: nr_min_bas, nr_full_bas
 !!       Type(real_matrix_type), Target, Intent (IN), Optional::&
@@ -120,7 +120,7 @@ contains
 !!       Type(cp_1d_i_array), Dimension(:), Optional, Intent (IN)::&
 !!         projection
 !!       Type(cp_error_type), Optional, Intent (INOUT):: error
-!!     End Subroutine cp_pao_env_init
+!!     End Subroutine pao_env_init
 !!
 !!   FUNCTION
 !!     initialize the pao environement
@@ -139,7 +139,7 @@ contains
 !!            see module cp_error_handling 
 !!
 !!     the other arguments are actually a shortcut not to call
-!!     cp_pao_env_set, for their description see cp_pao_env_set.
+!!     pao_env_set, for their description see pao_env_set.
 !!
 !!   AUTHOR
 !!     @author Fawzi Mohamed
@@ -149,12 +149,12 @@ contains
 !!     none
 !!
 !!*** **********************************************************************
-  subroutine cp_pao_env_init(pao_env,nr_min_bas, nr_full_bas,global_env,&
+  subroutine pao_env_init(pao_env,nr_min_bas, nr_full_bas,global_env,&
        full_overlap_sm, full_hamiltonian_sm,&
        wanted_subspace_pos_precision,&
        wanted_in_subspace_precision,&
        projection, error)
-    type(cp_pao_env_type), intent(out) :: pao_env
+    type(pao_env_type), intent(out) :: pao_env
     type(global_environment_type), intent(in), target :: global_env
     integer, dimension(:), intent(in) :: nr_min_bas, nr_full_bas
     type(real_matrix_type), target, intent(in), optional :: &
@@ -165,7 +165,7 @@ contains
     type(cp_error_type), optional, intent(inout) :: error
 
     logical :: failure
-    character(len=*), parameter :: routineP='cp_pao_env_methods:cp_pao_env_init'
+    character(len=*), parameter :: routineP='pao_env_methods:pao_env_init'
     type(cp_error_type) :: iError
     integer :: stat, i
     failure=.false.
@@ -235,10 +235,10 @@ contains
        pao_env%dealloc_projections=.false.
     else
        pao_env%dealloc_projections=.true.
-       call cp_pao_env_init_projection(pao_env,error)
+       call pao_env_init_projection(pao_env,error)
     end if
 ! n_projection
-! call cp_pao_env_init_n_projection(pao_env,error)
+! call pao_env_init_n_projection(pao_env,error)
     allocate(pao_env%min_density_m,stat=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     allocate(pao_env%full_overlap_m,stat=stat)
@@ -270,7 +270,7 @@ contains
        call cp_init(pao_env%angles_att, pao_env=pao_env,&
             error=error)
     end if
-    call cp_pao_env_set(pao_env,&
+    call pao_env_set(pao_env,&
          wanted_subspace_pos_precision=wanted_subspace_pos_precision,&
          wanted_in_subspace_precision=wanted_in_subspace_precision,&
          error=error)
@@ -287,19 +287,19 @@ contains
             error,failure)
     end if
     call cp_dealloc_ref(iError,error)
-  end subroutine cp_pao_env_init
+  end subroutine pao_env_init
 !***************************************************************************
 
-!!****f* cp_pao_env_methods/cp_pao_env_dealloc_ref [1.0] *
+!!****f* pao_env_methods/pao_env_dealloc_ref [1.0] *
 !!
 !!   NAME
-!!     cp_pao_env_dealloc_ref
+!!     pao_env_dealloc_ref
 !!
 !!   SYNOPSIS
-!!     Subroutine cp_pao_env_dealloc_ref(pao_env, error)
-!!       Type(cp_pao_env_type), Intent (INOUT):: pao_env
+!!     Subroutine pao_env_dealloc_ref(pao_env, error)
+!!       Type(pao_env_type), Intent (INOUT):: pao_env
 !!       Type(cp_error_type), Optional, Intent (INOUT):: error
-!!     End Subroutine cp_pao_env_dealloc_ref
+!!     End Subroutine pao_env_dealloc_ref
 !!
 !!   FUNCTION
 !!     deallocate the memory that the pao environement has allocated,
@@ -321,12 +321,12 @@ contains
 !!     none
 !!
 !!*** **********************************************************************
-  subroutine cp_pao_env_dealloc_ref(pao_env, error)
-    type(cp_pao_env_type), intent(inout) :: pao_env
+  subroutine pao_env_dealloc_ref(pao_env, error)
+    type(pao_env_type), intent(inout) :: pao_env
     type(cp_error_type), optional, intent(inout) :: error
 
     logical :: failure
-    character(len=*), parameter :: routineP='cp_pao_env_methods:cp_pao_env_dealloc_ref'
+    character(len=*), parameter :: routineP='pao_env_methods:pao_env_dealloc_ref'
     integer :: stat,i
     failure=.false.
 
@@ -368,23 +368,23 @@ contains
        end if
        pao_env%initialized=.false.
     end if failureIf
-  end subroutine cp_pao_env_dealloc_ref
+  end subroutine pao_env_dealloc_ref
 !***************************************************************************
 
 
-!!****f* cp_pao_env_methods/cp_pao_env_validate [1.0] *
+!!****f* pao_env_methods/pao_env_validate [1.0] *
 !!
 !!   NAME
-!!     cp_pao_env_validate
+!!     pao_env_validate
 !!
 !!   SYNOPSIS
-!!     Function cp_pao_env_validate(pao_env, test_pos_att, error)&
+!!     Function pao_env_validate(pao_env, test_pos_att, error)&
 !!         Result(res)
 !!       Logical:: res
-!!       Type(cp_pao_env_type), Intent (IN):: pao_env
+!!       Type(pao_env_type), Intent (IN):: pao_env
 !!       Logical, Optional:: test_pos_att
 !!       Type(cp_error_type), Optional, Intent (INOUT):: error
-!!     End Function cp_pao_env_validate
+!!     End Function pao_env_validate
 !!
 !!   FUNCTION
 !!     returns true if the pao environement is valid
@@ -408,14 +408,14 @@ contains
 !!     none
 !!
 !!*** **********************************************************************
-  function cp_pao_env_validate(pao_env, test_pos_att, error) result(res)
+  function pao_env_validate(pao_env, test_pos_att, error) result(res)
     logical ::res
-    type(cp_pao_env_type), intent(in) :: pao_env
+    type(pao_env_type), intent(in) :: pao_env
     logical ,optional ::test_pos_att
     type(cp_error_type), optional, intent(inout) :: error
 
     logical :: failure, test_pos
-    character(len=*), parameter :: routineP='cp_pao_env_methods:cp_pao_env_validate'
+    character(len=*), parameter :: routineP='pao_env_methods:pao_env_validate'
     type(cp_logger_type), pointer :: logger
     integer :: i,m_bas_att,f_bas_att,j
     failure=.false.
@@ -517,27 +517,27 @@ contains
        end if
     end if failureIf
     res=.not.failure
-  end function cp_pao_env_validate
+  end function pao_env_validate
 !***************************************************************************
 
-!!****f* cp_pao_env_methods/cp_pao_env_set [1.0] *
+!!****f* pao_env_methods/pao_env_set [1.0] *
 !!
 !!   NAME
-!!     cp_pao_env_set
+!!     pao_env_set
 !!
 !!   SYNOPSIS
-!!     Subroutine cp_pao_env_set(pao_env, wanted_subspace_pos_precision,&
+!!     Subroutine pao_env_set(pao_env, wanted_subspace_pos_precision,&
 !!         wanted_in_subspace_precision, angles_att, min_density_m,&
 !!         full_overlap_m, full_hamiltonian_m, min_d_valid, error)
-!!       Type(cp_pao_env_type), Target, Intent (INOUT):: pao_env
+!!       Type(pao_env_type), Target, Intent (INOUT):: pao_env
 !!       Real(Kind=wp), Optional, Intent (IN)::&
 !!         wanted_in_subspace_precision, wanted_subspace_pos_precision
-!!       Type(cp_pao_glob_angles_type), Optional, Intent (IN):: angles_att
-!!       Type(cp_pao_matrix_type), Optional, Intent (IN):: min_density_m,&
+!!       Type(pao_glob_angles_type), Optional, Intent (IN):: angles_att
+!!       Type(pao_matrix_type), Optional, Intent (IN):: min_density_m,&
 !!         full_hamiltonian_m, full_overlap_m
 !!       Logical, Optional:: min_d_valid
 !!       Type(cp_error_type), Optional, Intent (INOUT):: error
-!!     End Subroutine cp_pao_env_set
+!!     End Subroutine pao_env_set
 !!
 !!   FUNCTION
 !!     changes some of the parameters of the environement
@@ -556,7 +556,7 @@ contains
 !!            see module cp_error_handling 
 !!
 !!     for the description of the other variables see the attributes 
-!!     of cp_pao_env_type
+!!     of pao_env_type
 !!
 !!   AUTHOR
 !!     @author Fawzi Mohamed
@@ -566,21 +566,21 @@ contains
 !!     none
 !!
 !!*** **********************************************************************
-  subroutine cp_pao_env_set(pao_env, wanted_subspace_pos_precision,&
+  subroutine pao_env_set(pao_env, wanted_subspace_pos_precision,&
        wanted_in_subspace_precision, angles_att, &
        min_density_m,full_overlap_m, full_hamiltonian_m,&
        min_d_valid,error)
-    type(cp_pao_env_type), target, intent(inout) :: pao_env
+    type(pao_env_type), target, intent(inout) :: pao_env
     real(kind=wp), optional, intent(in) :: wanted_in_subspace_precision, &
          wanted_subspace_pos_precision
-    type(cp_pao_glob_angles_type),optional, intent(in) :: angles_att
-    type(cp_pao_matrix_type),optional, intent(in) :: &
+    type(pao_glob_angles_type),optional, intent(in) :: angles_att
+    type(pao_matrix_type),optional, intent(in) :: &
          min_density_m, full_hamiltonian_m, full_overlap_m
     logical, optional :: min_d_valid
     type(cp_error_type), optional, intent(inout) :: error
 
     logical :: failure
-    character(len=*), parameter :: routineP='cp_pao_env_methods:cp_pao_env_set'
+    character(len=*), parameter :: routineP='pao_env_methods:pao_env_set'
     integer :: stat
     type(cp_error_type) :: iError
     failure=.false.
@@ -612,22 +612,22 @@ contains
        pao_env%min_d_m_valid=min_d_valid
     end if
     call cp_dealloc_ref(iError,error=error)
-  end subroutine cp_pao_env_set
+  end subroutine pao_env_set
 !***************************************************************************
 
-!!****f* cp_pao_env_methods/cp_pao_env_did_change [1.0] *
+!!****f* pao_env_methods/pao_env_did_change [1.0] *
 !!
 !!   NAME
-!!     cp_pao_env_did_change
+!!     pao_env_did_change
 !!
 !!   SYNOPSIS
-!!     Subroutine cp_pao_env_did_change(pao_env, h_changed, s_changed,&
+!!     Subroutine pao_env_did_change(pao_env, h_changed, s_changed,&
 !!         angles_changed, full_reset, error)
-!!       Type(cp_pao_env_type), Intent (INOUT):: pao_env
+!!       Type(pao_env_type), Intent (INOUT):: pao_env
 !!       Logical, Intent (IN), Optional:: h_changed, s_changed,&
 !!         angles_changed, full_reset
 !!       Type(cp_error_type), Optional, Intent (INOUT):: error
-!!     End Subroutine cp_pao_env_did_change
+!!     End Subroutine pao_env_did_change
 !!
 !!   FUNCTION
 !!     invalidates the cache when some data changes
@@ -647,16 +647,16 @@ contains
 !!     none
 !!
 !!*** **********************************************************************
-subroutine cp_pao_env_did_change(pao_env,h_changed, s_changed,&
+subroutine pao_env_did_change(pao_env,h_changed, s_changed,&
      angles_changed, full_reset, error)
-  type (cp_pao_env_type), intent(inout) :: pao_env
+  type (pao_env_type), intent(inout) :: pao_env
   logical, intent(in), optional :: h_changed, s_changed, &
        angles_changed, full_reset
   type(cp_error_type), optional, intent(inout) :: error
   
   logical :: failure
   integer :: handle
-  character(len=*), parameter :: routineN='cp_pao_env_did_change',&
+  character(len=*), parameter :: routineN='pao_env_did_change',&
        routineP=moduleN//':'//routineN
   logical :: h_c, s_c, a_c, full_r
   !call timeset(routineN,'I',moduleN,handle)
@@ -674,7 +674,7 @@ subroutine cp_pao_env_did_change(pao_env,h_changed, s_changed,&
      
   end if
   !call timestop(0.0_wp,handle)
-end subroutine cp_pao_env_did_change
+end subroutine pao_env_did_change
 !***************************************************************************
 
 ! ====== special methods ======
@@ -682,10 +682,10 @@ end subroutine cp_pao_env_did_change
 
 ! ========= private methods ========
 
-!!****f* cp_pao_env_methods/cp_pao_env_init_projection [1.0] *
+!!****f* pao_env_methods/pao_env_init_projection [1.0] *
 !!
 !!   NAME
-!!     cp_pao_env_init_projection
+!!     pao_env_init_projection
 !!
 !!   FUNCTION
 !!     checks the pao_env projection and if not valid initializes it
@@ -706,12 +706,12 @@ end subroutine cp_pao_env_did_change
 !!     none
 !!
 !!*** **********************************************************************
-  subroutine cp_pao_env_init_projection(pao_env, error)
-    type(cp_pao_env_type), intent(inout) :: pao_env
+  subroutine pao_env_init_projection(pao_env, error)
+    type(pao_env_type), intent(inout) :: pao_env
     type(cp_error_type), optional, intent(inout) :: error
 
     logical :: failure
-    character(len=*), parameter :: routineP='cp_pao_env_methods:cp_pao_env_init_projection'
+    character(len=*), parameter :: routineP='pao_env_methods:pao_env_init_projection'
     integer :: natom, i,stat,j
     failure=.false.
     natom=cp_get_n_atom(pao_env)
@@ -758,7 +758,7 @@ end subroutine cp_pao_env_did_change
           end do
        end if
     end if failureIf
-  end subroutine cp_pao_env_init_projection
+  end subroutine pao_env_init_projection
 !***************************************************************************
 
-end module cp_pao_env_methods
+end module pao_env_methods

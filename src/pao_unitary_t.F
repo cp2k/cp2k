@@ -5,10 +5,10 @@
 
 #include "cp_prep_globals.h"
 
-!!****h* cp2k/cp_pao_unitary_t [1.0] *
+!!****h* cp2k/pao_unitary_t [1.0] *
 !!
 !!   NAME
-!!     cp_pao_unitary_t
+!!     pao_unitary_t
 !!
 !!   FUNCTION
 !!     
@@ -25,54 +25,54 @@
 !!
 !!   SOURCE
 !*****************************************************************************
-module cp_pao_unitary_t
+module pao_unitary_t
   use cp_log_handling
   use cp_error_handling
   use kinds, only: wp=>dp
-  use cp_pao_plain_rot
-  use cp_pao_types
-  use cp_pao_l_angles_methods
+  use pao_plain_rot
+  use pao_types
+  use pao_l_angles_methods
   use cp_matrix_utils, only: cp_sup_norm_matrix
   implicit none
   private
 
   logical, private, parameter :: debug_this_module=.true.
 
-  public :: cp_pao_calc_u_du_type
+  public :: pao_calc_u_du_type
 
   public :: cp_init, cp_dealloc_ref, cp_get, cp_next
 
-  public :: cp_pao_calc_u_du_init, cp_pao_calc_u_du_dealloc_ref,&
-       cp_pao_calc_u_du_get, cp_pao_calc_u_du_next
+  public :: pao_calc_u_du_init, pao_calc_u_du_dealloc_ref,&
+       pao_calc_u_du_get, pao_calc_u_du_next
 
 ! == core methods ==
 !! initializes the object
   interface cp_init
-     module procedure cp_pao_calc_u_du_init
+     module procedure pao_calc_u_du_init
   end interface
 
 !! deallocates the memory used by the first argument
   interface cp_dealloc_ref
-     module procedure cp_pao_calc_u_du_dealloc_ref
+     module procedure pao_calc_u_du_dealloc_ref
   end interface
 
 !! returns various attributes of the first argument 
   interface cp_get
-     module procedure cp_pao_calc_u_du_get
+     module procedure pao_calc_u_du_get
   end interface
 
 !! iterator interface: returns true if there is a next element
   interface cp_next
-     module procedure cp_pao_calc_u_du_next
+     module procedure pao_calc_u_du_next
   end interface
 
 !!***
 !***************************************************************************
 
-!!****s* cp_pao_plain_rot/cp_pao_calc_u_du_type [1.0] *
+!!****s* pao_plain_rot/pao_calc_u_du_type [1.0] *
 !!
 !!   NAME
-!!     cp_pao_calc_u_du_type
+!!     pao_calc_u_du_type
 !!
 !!   FUNCTION
 !!     stores the parameters that should be bassed between the functions
@@ -112,13 +112,13 @@ module cp_pao_unitary_t
 !!
 !!   SOURCE
 !***************************************************************************
-  type cp_pao_calc_u_du_type
+  type pao_calc_u_du_type
      private
      logical :: initialized
      real(kind=wp), dimension(:,:), pointer :: L,R,tmp_m
      integer :: min_bas, excl_bas, status
-     type(cp_pao_local_angles_type), pointer :: local_angles
-  end type cp_pao_calc_u_du_type
+     type(pao_local_angles_type), pointer :: local_angles
+  end type pao_calc_u_du_type
 !!***
 !****************************************************************************
 
@@ -127,21 +127,21 @@ contains
 
 ! ============== pao_calc_u_du ============
 
-!!****f* cp_pao_plain_rot/cp_pao_calc_u_du_init [1.0] *
+!!****f* pao_plain_rot/pao_calc_u_du_init [1.0] *
 !!
 !!   NAME
-!!     cp_pao_calc_u_du_init
+!!     pao_calc_u_du_init
 !!
 !!   SYNOPSIS
-!!     Subroutine cp_pao_calc_u_du_init(c_env, local_angles, min_bas,&
+!!     Subroutine pao_calc_u_du_init(c_env, local_angles, min_bas,&
 !!         excl_bas, u, error)
-!!       Type(cp_pao_calc_u_du_type), Intent (OUT):: c_env
-!!       Type(cp_pao_local_angles_type), Intent (INOUT), Target::&
+!!       Type(pao_calc_u_du_type), Intent (OUT):: c_env
+!!       Type(pao_local_angles_type), Intent (INOUT), Target::&
 !!         local_angles
 !!       Integer, Optional, Intent (IN):: min_bas, excl_bas
 !!       Real(Kind=wp), Dimension(:,:), Optional, Intent (IN):: u
 !!       Type(cp_error_type), Optional, Intent (INOUT):: error
-!!     End Subroutine cp_pao_calc_u_du_init
+!!     End Subroutine pao_calc_u_du_init
 !!
 !!   FUNCTION
 !!     calculates the orthonormal matrix u and its derivative with respect 
@@ -173,16 +173,16 @@ contains
 !!
 !!   SOURCE
 !***************************************************************************
-  subroutine cp_pao_calc_u_du_init(c_env,local_angles, min_bas, excl_bas,&
+  subroutine pao_calc_u_du_init(c_env,local_angles, min_bas, excl_bas,&
        u, error) !to do (correct full to excl)
-    type(cp_pao_calc_u_du_type), intent(out) :: c_env
-    type(cp_pao_local_angles_type), intent(inout), target :: local_angles
+    type(pao_calc_u_du_type), intent(out) :: c_env
+    type(pao_local_angles_type), intent(inout), target :: local_angles
     integer, optional, intent(in) :: min_bas,excl_bas
     real(kind=wp), dimension(:,:), optional, intent(in):: u
     type(cp_error_type), optional, intent(inout) :: error
 
     logical :: failure
-    character(len=*), parameter :: routineP='cp_pao_plain_rot:cp_pao_calc_u_du_init'
+    character(len=*), parameter :: routineP='pao_plain_rot:pao_calc_u_du_init'
     integer :: n_excl_bas,n_min_bas, stat, i_excl_bas, i_min_bas, i, n_full_bas
     failure=.false.
     c_env%initialized=.true.
@@ -281,21 +281,21 @@ contains
     if (failure) then
        c_env%status=-1
     end if
-  end subroutine cp_pao_calc_u_du_init
+  end subroutine pao_calc_u_du_init
 !!***
 !***************************************************************************
 
-!!****f* cp_pao_plain_rot/cp_pao_calc_u_du_next [1.0] *
+!!****f* pao_plain_rot/pao_calc_u_du_next [1.0] *
 !!
 !!   NAME
-!!     cp_pao_calc_u_du_next
+!!     pao_calc_u_du_next
 !!
 !!   SYNOPSIS
-!!     Function cp_pao_calc_u_du_next(c_env, error) Result(res)
+!!     Function pao_calc_u_du_next(c_env, error) Result(res)
 !!       Logical:: res
-!!       Type(cp_pao_calc_u_du_type), Intent (INOUT):: c_env
+!!       Type(pao_calc_u_du_type), Intent (INOUT):: c_env
 !!       Type(cp_error_type), Optional, Intent (INOUT):: error
-!!     End Function cp_pao_calc_u_du_next
+!!     End Function pao_calc_u_du_next
 !!
 !!   FUNCTION
 !!     calculates the next du, returns .true. if there is a next du
@@ -317,13 +317,13 @@ contains
 !!
 !!   SOURCE
 !***************************************************************************
-  function cp_pao_calc_u_du_next(c_env,error) result(res)
+  function pao_calc_u_du_next(c_env,error) result(res)
     logical :: res
-    type(cp_pao_calc_u_du_type), intent(inout) :: c_env
+    type(pao_calc_u_du_type), intent(inout) :: c_env
     type(cp_error_type), optional, intent(inout) :: error
 
     logical :: failure
-    character(len=*), parameter :: routineP='cp_pao_plain_rot:cp_pao_calc_u_du_next'
+    character(len=*), parameter :: routineP='pao_plain_rot:pao_calc_u_du_next'
     real(kind=wp) :: err
     integer :: old_min_bas,old_excl_bas, i
     failure=.false.
@@ -397,25 +397,25 @@ contains
           c_env%status=-1
        end select
     end if
-  end function cp_pao_calc_u_du_next
+  end function pao_calc_u_du_next
 !!***
 !***************************************************************************
 
-!!****f* cp_pao_plain_rot/cp_pao_calc_u_du_get [1.0] *
+!!****f* pao_plain_rot/pao_calc_u_du_get [1.0] *
 !!
 !!   NAME
-!!     cp_pao_calc_u_du_get
+!!     pao_calc_u_du_get
 !!
 !!   SYNOPSIS
-!!     Subroutine cp_pao_calc_u_du_get(c_env, u, du, min_bas, excl_bas,&
+!!     Subroutine pao_calc_u_du_get(c_env, u, du, min_bas, excl_bas,&
 !!         local_angles, finished, error)
-!!       Type(cp_pao_calc_u_du_type), Intent (INOUT):: c_env
-!!       Type(cp_pao_local_angles_type), Optional, Pointer:: local_angles
+!!       Type(pao_calc_u_du_type), Intent (INOUT):: c_env
+!!       Type(pao_local_angles_type), Optional, Pointer:: local_angles
 !!       Integer, Optional, Intent (OUT):: min_bas, excl_bas
 !!       Logical, Optional, Intent (OUT):: finished
 !!       Real(Kind=wp), Optional, Intent (OUT), Dimension(:,:):: u, du
 !!       Type(cp_error_type), Optional, Intent (INOUT):: error
-!!     End Subroutine cp_pao_calc_u_du_get
+!!     End Subroutine pao_calc_u_du_get
 !!
 !!   FUNCTION
 !!     returns various attributes of the calculation
@@ -444,17 +444,17 @@ contains
 !!
 !!   SOURCE
 !***************************************************************************
-  subroutine cp_pao_calc_u_du_get(c_env,u,du,min_bas,excl_bas,local_angles,&
+  subroutine pao_calc_u_du_get(c_env,u,du,min_bas,excl_bas,local_angles,&
        finished,error)
-    type(cp_pao_calc_u_du_type), intent(inout) :: c_env
-    type(cp_pao_local_angles_type), optional, pointer :: local_angles
+    type(pao_calc_u_du_type), intent(inout) :: c_env
+    type(pao_local_angles_type), optional, pointer :: local_angles
     integer, optional, intent(out) :: min_bas,excl_bas
     logical,optional, intent(out) :: finished
     real(kind=wp), optional, intent(out), dimension(:,:) :: u,du
     type(cp_error_type), optional, intent(inout) :: error
 
     logical :: failure
-    character(len=*), parameter :: routineP='cp_pao_plain_rot:cp_pao_calc_u_du_get'
+    character(len=*), parameter :: routineP='pao_plain_rot:pao_calc_u_du_get'
     integer :: n_excl_bas, n_full_bas
     real(kind=wp) :: angle
     failure=.false.
@@ -501,20 +501,20 @@ contains
 ! catch also status=0 and past end?
        end if
     end if
-  end subroutine cp_pao_calc_u_du_get
+  end subroutine pao_calc_u_du_get
 !!***
 !***************************************************************************
 
-!!****f* cp_pao_plain_rot/cp_pao_calc_u_du_dealloc_ref [1.0] *
+!!****f* pao_plain_rot/pao_calc_u_du_dealloc_ref [1.0] *
 !!
 !!   NAME
-!!     cp_pao_calc_u_du_dealloc_ref
+!!     pao_calc_u_du_dealloc_ref
 !!
 !!   SYNOPSIS
-!!     Subroutine cp_pao_calc_u_du_dealloc_ref(c_env, error)
-!!       Type(cp_pao_calc_u_du_type), Intent (INOUT):: c_env
+!!     Subroutine pao_calc_u_du_dealloc_ref(c_env, error)
+!!       Type(pao_calc_u_du_type), Intent (INOUT):: c_env
 !!       Type(cp_error_type), Optional, Intent (INOUT):: error
-!!     End Subroutine cp_pao_calc_u_du_dealloc_ref
+!!     End Subroutine pao_calc_u_du_dealloc_ref
 !!
 !!   FUNCTION
 !!     deallocates the memory allocated by calc_u_du
@@ -536,12 +536,12 @@ contains
 !!
 !!   SOURCE
 !***************************************************************************
-  subroutine cp_pao_calc_u_du_dealloc_ref(c_env, error)
-    type(cp_pao_calc_u_du_type), intent(inout) :: c_env
+  subroutine pao_calc_u_du_dealloc_ref(c_env, error)
+    type(pao_calc_u_du_type), intent(inout) :: c_env
     type(cp_error_type), optional, intent(inout) :: error
 
     logical :: failure
-    character(len=*), parameter :: routineP='cp_pao_plain_rot:cp_pao_calc_u_du_dealloc_ref'
+    character(len=*), parameter :: routineP='pao_plain_rot:pao_calc_u_du_dealloc_ref'
     integer :: stat
     failure=.false.
     CPAssert(c_env%initialized,cp_failure_level,routineP,error,failure)
@@ -561,9 +561,9 @@ contains
        nullify(c_env%local_angles)
        c_env%status=-2
     end if
-  end subroutine cp_pao_calc_u_du_dealloc_ref
+  end subroutine pao_calc_u_du_dealloc_ref
 !!***
 !***************************************************************************
 
 
-end module cp_pao_unitary_t
+end module pao_unitary_t

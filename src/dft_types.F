@@ -14,6 +14,7 @@
 !!
 !!   MODIFICATION HISTORY
 !!     - qs_control_type extended (18.01.2002,MK)
+!!     - added pao (18.04.02,fawzi)
 !!
 !!   SOURCE
 !******************************************************************************
@@ -55,7 +56,7 @@ MODULE dft_types
                                        eps_gvg_rspace,&
                                        progression_factor,&
                                        relative_cutoff
-    LOGICAL                         :: gapw,gpw
+    LOGICAL                         :: gapw,gpw,pao
     REAL(wp), DIMENSION(:), POINTER :: e_cutoff
   END TYPE qs_control_type
 
@@ -340,6 +341,7 @@ CONTAINS
     qs_control%relative_cutoff = 25.0_wp
     qs_control%gapw = .FALSE.
     qs_control%gpw = .TRUE.
+    qs_control%pao = .FALSE.
     ngrid_level = 4
     ALLOCATE (qs_control%e_cutoff(ngrid_level),STAT=istat)
     IF (istat /= 0) CALL stop_memory(routine,"qs_control%e_cutoff",&
@@ -436,6 +438,8 @@ CONTAINS
                            "Invalid method <"//TRIM(keyword)//&
                            "> specified for QUICKSTEP")
         END SELECT
+      CASE ("PAO")
+        qs_control%pao=.TRUE.
       END SELECT
     END DO
 
@@ -574,6 +578,9 @@ CONTAINS
           ("QS|                      ",igrid_level,") grid level",&
            qs_control%e_cutoff(igrid_level),&
            igrid_level=2,SIZE(qs_control%e_cutoff))
+      END IF
+      IF (qs_control%pao) THEN
+         WRITE (UNIT=output_unit,FMT="(T2,A)") "QS| PAO active"
       END IF
       WRITE (UNIT=output_unit,FMT="(T2,A,T70,F10.1)")&
         "QS| Grid level progression factor:",qs_control%progression_factor

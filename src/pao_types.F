@@ -5,10 +5,10 @@
 
 #include "cp_prep_globals.h"
 
-!!****h* cp2k/cp_pao_types [1.0] *
+!!****h* cp2k/pao_types [1.0] *
 !!
 !!   NAME
-!!     cp_pao_types
+!!     pao_types
 !!
 !!   FUNCTION
 !!     definition of most pao related types (and get methods for the 
@@ -26,7 +26,7 @@
 !!
 !!   SOURCE
 !*****************************************************************************
-module cp_pao_types
+module pao_types
   use cp_log_handling
   use cp_error_handling
   use kinds, only: wp=>dp
@@ -34,20 +34,20 @@ module cp_pao_types
        allocate_matrix, deallocate_matrix, get_matrix_info, get_block_node,&
        add_block_node, put_block_node
   use global_types, only: global_environment_type
-  use cp_pao_utils, only: cp_1d_i_array
+  use pao_utils, only: cp_1d_i_array
   implicit none
   private
 
   logical, private, parameter :: debug_this_module=.true.
-  character(len=*), private, parameter :: moduleN='cp_pao_types'
+  character(len=*), private, parameter :: moduleN='pao_types'
 
 ! =========== public objects ==========
 ! global var (not nice, to remove!)
   public :: cp_global_pao_env
 
 ! types
-  public :: cp_pao_env_type, cp_pao_glob_angles_type, &
-       cp_pao_local_angles_type, cp_pao_matrix_type
+  public :: pao_env_type, pao_glob_angles_type, &
+       pao_local_angles_type, pao_matrix_type
 
 ! pao_env procedures
   public :: cp_get, cp_valid
@@ -59,72 +59,72 @@ module cp_pao_types
        cp_get_non_p_index, cp_get_global_env
 
 ! underlying functions
-  public :: cp_pao_env_get,&
-       cp_pao_env_valid, cp_pao_env_get_n_atom,&
-       cp_pao_env_get_min_bas_size, cp_pao_env_get_full_bas_size,&
-       cp_pao_env_get_excl_bas_size, cp_pao_env_get_p_index,&
-       cp_pao_env_set_p_index, cp_pao_env_get_non_p_index,&
-       cp_pao_env_get_global_env
+  public :: pao_env_get,&
+       pao_env_valid, pao_env_get_n_atom,&
+       pao_env_get_min_bas_size, pao_env_get_full_bas_size,&
+       pao_env_get_excl_bas_size, pao_env_get_p_index,&
+       pao_env_set_p_index, pao_env_get_non_p_index,&
+       pao_env_get_global_env
 
 !! gets values from the first argument via optional keyword arguments
 !! that depend on the type of the first argument
   interface cp_get
-     module procedure cp_pao_env_get
+     module procedure pao_env_get
   end interface
 
 !! returns true if the first argument is valid. Only a fast minimal 
 !! validation is performed (no dangling pointers)
   interface cp_valid
-     module procedure cp_pao_env_valid
+     module procedure pao_env_valid
   end interface
 
 !! returns the number of atoms
   interface cp_get_n_atom
-     module procedure cp_pao_env_get_n_atom
+     module procedure pao_env_get_n_atom
   end interface
 
 !! returns the size of the minimal basis
   interface cp_get_min_bas_size
-     module procedure cp_pao_env_get_min_bas_size
+     module procedure pao_env_get_min_bas_size
   end interface
 
 !! returns the size of the full basis
   interface cp_get_full_bas_size
-     module procedure cp_pao_env_get_full_bas_size
+     module procedure pao_env_get_full_bas_size
   end interface
 
 !! returns the size of the excluded basis
   interface cp_get_excl_bas_size
-     module procedure cp_pao_env_get_excl_bas_size
+     module procedure pao_env_get_excl_bas_size
   end interface
 
 !! returns the projection index
   interface cp_get_p_index
-     module procedure cp_pao_env_get_p_index
+     module procedure pao_env_get_p_index
   end interface
 
 !! sets the projection index
   interface cp_set_p_index
-     module procedure cp_pao_env_set_p_index
+     module procedure pao_env_set_p_index
   end interface
 
 !! returns the index of the excluded basis
   interface cp_get_non_p_index
-     module procedure cp_pao_env_get_non_p_index
+     module procedure pao_env_get_non_p_index
   end interface
 
 !! returns the global environement
   interface cp_get_global_env
-     module procedure cp_pao_env_get_global_env
+     module procedure pao_env_get_global_env
   end interface
 
 !!***
 !****************************************************************************
 
-!!****s* cp_pao_types/cp_pao_glob_angles_type [1.0] *
+!!****s* pao_types/pao_glob_angles_type [1.0] *
 !!
 !!   NAME
-!!     cp_pao_glob_angles_type
+!!     pao_glob_angles_type
 !!
 !!   FUNCTION
 !!     this is the global structure that holds all the angles 
@@ -163,23 +163,23 @@ module cp_pao_types
 !!
 !!   SOURCE
 !***************************************************************************
-  type cp_pao_glob_angles_type
+  type pao_glob_angles_type
      !private
      logical :: initialized, m_s_m_valid, m_h_m_valid
-     type(cp_pao_env_type), pointer :: pao_env
+     type(pao_env_type), pointer :: pao_env
      real(kind=wp), dimension(:), pointer :: angles
      logical, dimension(:), pointer :: ut_calculated
-     type(cp_pao_matrix_type), pointer :: unitary_t
-     type(cp_pao_matrix_type), pointer :: min_overlap_m
-     type(cp_pao_matrix_type), pointer :: min_hamiltonian_m
-  end type cp_pao_glob_angles_type
+     type(pao_matrix_type), pointer :: unitary_t
+     type(pao_matrix_type), pointer :: min_overlap_m
+     type(pao_matrix_type), pointer :: min_hamiltonian_m
+  end type pao_glob_angles_type
 !!***
 !****************************************************************************
 
-!!****s* cp_pao_types/cp_pao_local_angles_type [1.0] *
+!!****s* pao_types/pao_local_angles_type [1.0] *
 !!
 !!   NAME
-!!     cp_pao_local_angles_type
+!!     pao_local_angles_type
 !!
 !!   FUNCTION
 !!     This structure hold the angles that regard one atom.
@@ -213,19 +213,19 @@ module cp_pao_types
 !!
 !!   SOURCE
 !***************************************************************************
-  type cp_pao_local_angles_type
+  type pao_local_angles_type
      !private
      logical :: initialized
      integer :: atom_nr, begins_at
-     type(cp_pao_glob_angles_type), pointer :: glob_angles
-  end type cp_pao_local_angles_type
+     type(pao_glob_angles_type), pointer :: glob_angles
+  end type pao_local_angles_type
 !!***
 !****************************************************************************
 
-!!****s* cp_pao_types/cp_pao_matrix_type [1.0] *
+!!****s* pao_types/pao_matrix_type [1.0] *
 !!
 !!   NAME
-!!     cp_pao_matrix_type
+!!     pao_matrix_type
 !!
 !!   FUNCTION
 !!     This objects hold a matrix in the full or minimal basis, 
@@ -269,19 +269,19 @@ module cp_pao_types
 !!
 !!   SOURCE
 !***************************************************************************
-  type cp_pao_matrix_type
+  type pao_matrix_type
      !private
      logical :: initialized, min_bas_rows, min_bas_cols, should_dealloc_matrix
-     type(cp_pao_env_type), pointer :: pao_env
+     type(pao_env_type), pointer :: pao_env
      type(real_matrix_type), pointer ::  matrix
-  end type cp_pao_matrix_type
+  end type pao_matrix_type
 !!***
 !****************************************************************************
 
-!!****s* cp_pao_types/cp_pao_env_type [1.0] *
+!!****s* pao_types/pao_env_type [1.0] *
 !!
 !!   NAME
-!!     cp_pao_env_type
+!!     pao_env_type
 !!
 !!   FUNCTION
 !!     global environement where the info about the various parameters
@@ -330,7 +330,7 @@ module cp_pao_types
 !!
 !!   SOURCE
 !***************************************************************************
-  type cp_pao_env_type
+  type pao_env_type
      !private
      logical :: initialized ! =.false.
      logical :: min_d_m_valid, dealloc_projections
@@ -342,32 +342,32 @@ module cp_pao_types
      integer, dimension(:), pointer :: angles_begin_at ! private
      integer :: n_atoms
      type(cp_1d_i_array), dimension(:), pointer :: projection
-     type(cp_pao_glob_angles_type), pointer :: angles_att
-     type(cp_pao_matrix_type), pointer :: full_overlap_m
-     type(cp_pao_matrix_type), pointer :: full_hamiltonian_m
-     type(cp_pao_matrix_type), pointer :: min_density_m
-  end type cp_pao_env_type
+     type(pao_glob_angles_type), pointer :: angles_att
+     type(pao_matrix_type), pointer :: full_overlap_m
+     type(pao_matrix_type), pointer :: full_hamiltonian_m
+     type(pao_matrix_type), pointer :: min_density_m
+  end type pao_env_type
 !!***
 !***************************************************************************
 
-  type(cp_pao_env_type), pointer :: cp_global_pao_env
+  type(pao_env_type), pointer :: cp_global_pao_env
 
 contains
 
-! ================== cp_pao_env_type === get methods ===================
+! ================== pao_env_type === get methods ===================
 
-!!****f* cp_pao_env_methods/cp_pao_env_get [1.0] *
+!!****f* pao_env_methods/pao_env_get [1.0] *
 !!
 !!   NAME
-!!     cp_pao_env_get
+!!     pao_env_get
 !!
 !!   SYNOPSIS
-!!     Subroutine cp_pao_env_get(pao_env, global_env,&
+!!     Subroutine pao_env_get(pao_env, global_env,&
 !!         wanted_subspace_pos_precision, wanted_in_subspace_precision,&
 !!         nr_min_bas, nr_full_bas, angles_att, subspace_att, n_atom,&
 !!         ntot_full_bas, ntot_min_bas, projection, min_density_m,&
 !!         full_overlap_m, full_hamiltonian_m, error)
-!!       Type(cp_pao_env_type), Target, Intent (IN):: pao_env
+!!       Type(pao_env_type), Target, Intent (IN):: pao_env
 !!       Type(global_environment_type), Optional, Pointer:: global_env
 !!       Real(Kind=wp), Optional, Intent (OUT)::&
 !!         wanted_subspace_pos_precision
@@ -375,14 +375,14 @@ contains
 !!         wanted_in_subspace_precision
 !!       Integer, Optional, Dimension(:), Pointer:: nr_min_bas
 !!       Integer, Optional, Dimension(:), Pointer:: nr_full_bas
-!!       Type(cp_pao_glob_angles_type), Optional, Pointer:: angles_att
-!!       Type(cp_pao_matrix_type), Optional, Pointer:: subspace_att,&
+!!       Type(pao_glob_angles_type), Optional, Pointer:: angles_att
+!!       Type(pao_matrix_type), Optional, Pointer:: subspace_att,&
 !!         min_density_m, full_hamiltonian_m, full_overlap_m
 !!       Integer, Optional, Intent (OUT):: n_atom, ntot_min_bas,&
 !!         ntot_full_bas
 !!       Type(cp_1d_i_array), Dimension(:), Pointer, Optional:: projection
 !!       Type(cp_error_type), Optional, Intent (INOUT):: error
-!!     End Subroutine cp_pao_env_get
+!!     End Subroutine pao_env_get
 !!
 !!   FUNCTION
 !!     extracting values from the the pao environement
@@ -401,7 +401,7 @@ contains
 !!     error: variable to control error logging, stopping,... 
 !!            see module cp_error_handling 
 !!
-!!     The other variable are described in the cp_pao_env_type type
+!!     The other variable are described in the pao_env_type type
 !!
 !!   AUTHOR
 !!     @author Fawzi Mohamed
@@ -412,19 +412,19 @@ contains
 !!
 !!   SOURCE
 !!*** **********************************************************************
-  subroutine cp_pao_env_get(pao_env,global_env, wanted_subspace_pos_precision,&
+  subroutine pao_env_get(pao_env,global_env, wanted_subspace_pos_precision,&
        wanted_in_subspace_precision, nr_min_bas,nr_full_bas, angles_att, &
        subspace_att, n_atom, ntot_full_bas, ntot_min_bas, projection,&
        min_density_m, full_overlap_m, full_hamiltonian_m, &
        error)
-    type(cp_pao_env_type), target, intent(in) :: pao_env
+    type(pao_env_type), target, intent(in) :: pao_env
     type(global_environment_type), optional, pointer :: global_env
     real(kind=wp), optional, intent(out) :: wanted_subspace_pos_precision
     real(kind=wp), optional, intent(out) :: wanted_in_subspace_precision
     integer, optional, dimension(:), pointer :: nr_min_bas
     integer, optional, dimension(:), pointer :: nr_full_bas
-    type(cp_pao_glob_angles_type), optional, pointer :: angles_att
-    type(cp_pao_matrix_type), optional, pointer :: subspace_att, &
+    type(pao_glob_angles_type), optional, pointer :: angles_att
+    type(pao_matrix_type), optional, pointer :: subspace_att, &
          min_density_m, full_hamiltonian_m, full_overlap_m
     integer, optional, intent(out) :: n_atom, ntot_min_bas, ntot_full_bas
     type(cp_1d_i_array), dimension(:), pointer, optional :: projection
@@ -432,7 +432,7 @@ contains
     type(cp_error_type), optional, intent(inout) :: error
 
     logical :: failure
-    character(len=*), parameter :: routineN='cp_pao_env_get',&
+    character(len=*), parameter :: routineN='pao_env_get',&
         routineP=moduleN//':'//routineN
     failure=.false.
 
@@ -477,22 +477,22 @@ contains
           end if
        end if
     end if failureIf
-  end subroutine cp_pao_env_get
+  end subroutine pao_env_get
 !***************************************************************************
 
-!!****f* cp_pao_env_methods/cp_pao_env_get_p_index [1.0] *
+!!****f* pao_env_methods/pao_env_get_p_index [1.0] *
 !!
 !!   NAME
-!!     cp_pao_env_get_p_index
+!!     pao_env_get_p_index
 !!
 !!   SYNOPSIS
-!!     Function cp_pao_env_get_p_index(pao_env, atom_nr, i, error)&
+!!     Function pao_env_get_p_index(pao_env, atom_nr, i, error)&
 !!         Result(res)
 !!       Integer:: res
-!!       Type(cp_pao_env_type), Intent (IN):: pao_env
+!!       Type(pao_env_type), Intent (IN):: pao_env
 !!       Integer, Intent (IN):: atom_nr, i
 !!       Type(cp_error_type), Optional, Intent (INOUT):: error
-!!     End Function cp_pao_env_get_p_index
+!!     End Function pao_env_get_p_index
 !!
 !!   FUNCTION
 !!     returns the i index of the projection on atom_nr
@@ -515,14 +515,14 @@ contains
 !!     none
 !!
 !!*** **********************************************************************
-  function cp_pao_env_get_p_index(pao_env, atom_nr, i,error) result(res)
+  function pao_env_get_p_index(pao_env, atom_nr, i,error) result(res)
     integer ::res
-    type(cp_pao_env_type), intent(in) :: pao_env
+    type(pao_env_type), intent(in) :: pao_env
     integer, intent(in) :: atom_nr, i
     type(cp_error_type), optional, intent(inout) :: error
 
     logical :: failure
-    character(len=*), parameter :: routineN='cp_pao_env_get_p_index',&
+    character(len=*), parameter :: routineN='pao_env_get_p_index',&
         routineP=moduleN//':'//routineN
     failure=.false.
 
@@ -555,22 +555,22 @@ contains
     else failureIf
        res=-1
     end if failureIf
-  end function cp_pao_env_get_p_index
+  end function pao_env_get_p_index
 !***************************************************************************
 
-!!****f* cp_pao_env_methods/cp_pao_env_get_non_p_index [1.0] *
+!!****f* pao_env_methods/pao_env_get_non_p_index [1.0] *
 !!
 !!   NAME
-!!     cp_pao_env_get_non_p_index
+!!     pao_env_get_non_p_index
 !!
 !!   SYNOPSIS
-!!     Function cp_pao_env_get_non_p_index(pao_env, atom_nr, i, error)&
+!!     Function pao_env_get_non_p_index(pao_env, atom_nr, i, error)&
 !!         Result(res)
 !!       Integer:: res
-!!       Type(cp_pao_env_type), Intent (IN):: pao_env
+!!       Type(pao_env_type), Intent (IN):: pao_env
 !!       Integer, Intent (IN):: atom_nr, i
 !!       Type(cp_error_type), Optional, Intent (INOUT):: error
-!!     End Function cp_pao_env_get_non_p_index
+!!     End Function pao_env_get_non_p_index
 !!
 !!   FUNCTION
 !!     returns the i index of the excluded basis on atom_nr
@@ -593,14 +593,14 @@ contains
 !!     none
 !!
 !!*** **********************************************************************
-  function cp_pao_env_get_non_p_index(pao_env, atom_nr, i,error) result(res)
+  function pao_env_get_non_p_index(pao_env, atom_nr, i,error) result(res)
     integer ::res
-    type(cp_pao_env_type), intent(in) :: pao_env
+    type(pao_env_type), intent(in) :: pao_env
     integer, intent(in) :: atom_nr, i
     type(cp_error_type), optional, intent(inout) :: error
 
     logical :: failure
-    character(len=*), parameter :: routineN='cp_pao_env_get_p_index',&
+    character(len=*), parameter :: routineN='pao_env_get_p_index',&
         routineP=moduleN//':'//routineN
     integer :: j,k
     failure=.false.
@@ -652,20 +652,20 @@ contains
     else failureIf
        res=-1
     end if failureIf
-  end function cp_pao_env_get_non_p_index
+  end function pao_env_get_non_p_index
 !***************************************************************************
 
-!!****f* cp_pao_env_methods/cp_pao_env_set_p_index [1.0] *
+!!****f* pao_env_methods/pao_env_set_p_index [1.0] *
 !!
 !!   NAME
-!!     cp_pao_env_set_p_index
+!!     pao_env_set_p_index
 !!
 !!   SYNOPSIS
-!!     Subroutine cp_pao_env_set_p_index(pao_env, atom_nr, i, value, error)
-!!       Type(cp_pao_env_type), Intent (INOUT):: pao_env
+!!     Subroutine pao_env_set_p_index(pao_env, atom_nr, i, value, error)
+!!       Type(pao_env_type), Intent (INOUT):: pao_env
 !!       Integer, Intent (IN):: atom_nr, i, value
 !!       Type(cp_error_type), Optional, Intent (INOUT):: error
-!!     End Subroutine cp_pao_env_set_p_index
+!!     End Subroutine pao_env_set_p_index
 !!
 !!   FUNCTION
 !!     sets the index of the i value of the projection
@@ -689,13 +689,13 @@ contains
 !!     none
 !!
 !!*** **********************************************************************
-  subroutine cp_pao_env_set_p_index(pao_env,atom_nr,i, value,error)
-    type(cp_pao_env_type), intent(inout) :: pao_env
+  subroutine pao_env_set_p_index(pao_env,atom_nr,i, value,error)
+    type(pao_env_type), intent(inout) :: pao_env
     integer, intent(in) :: atom_nr, i, value
     type(cp_error_type), optional, intent(inout) :: error
 
     logical :: failure
-    character(len=*), parameter :: routineN='cp_pao_env_set_p_index',&
+    character(len=*), parameter :: routineN='pao_env_set_p_index',&
         routineP=moduleN//':'//routineN
     failure=.false.
 
@@ -726,21 +726,21 @@ contains
     failureIf: if (.not. failure) then
        pao_env%projection(atom_nr)%array(i)=value
     end if failureIf
-  end subroutine cp_pao_env_set_p_index
+  end subroutine pao_env_set_p_index
 !***************************************************************************
 
 
-!!****f* cp_pao_env_methods/cp_pao_env_get_n_atom [1.0] *
+!!****f* pao_env_methods/pao_env_get_n_atom [1.0] *
 !!
 !!   NAME
-!!     cp_pao_env_get_n_atom
+!!     pao_env_get_n_atom
 !!
 !!   SYNOPSIS
-!!     Function cp_pao_env_get_n_atom(pao_env, error) Result(res)
+!!     Function pao_env_get_n_atom(pao_env, error) Result(res)
 !!       Integer:: res
-!!       Type(cp_pao_env_type), Intent (IN):: pao_env
+!!       Type(pao_env_type), Intent (IN):: pao_env
 !!       Type(cp_error_type), Optional, Intent (INOUT):: error
-!!     End Function cp_pao_env_get_n_atom
+!!     End Function pao_env_get_n_atom
 !!
 !!   FUNCTION
 !!     returns the numer of atoms
@@ -760,13 +760,13 @@ contains
 !!     none
 !!
 !!*** **********************************************************************
-  function cp_pao_env_get_n_atom(pao_env, error) result(res)
+  function pao_env_get_n_atom(pao_env, error) result(res)
     integer ::res
-    type(cp_pao_env_type), intent(in) :: pao_env
+    type(pao_env_type), intent(in) :: pao_env
     type(cp_error_type), optional, intent(inout) :: error
 
     logical :: failure
-    character(len=*), parameter :: routineN='cp_pao_env_get_n_atom',&
+    character(len=*), parameter :: routineN='pao_env_get_n_atom',&
         routineP=moduleN//':'//routineN
     failure=.false.
 
@@ -777,22 +777,22 @@ contains
     else failureIf
        res=-1 ! use 0?
     end if failureIf
-  end function cp_pao_env_get_n_atom
+  end function pao_env_get_n_atom
 !***************************************************************************
 
-!!****f* cp_pao_env_methods/cp_pao_env_get_min_bas_size [1.0] *
+!!****f* pao_env_methods/pao_env_get_min_bas_size [1.0] *
 !!
 !!   NAME
-!!     cp_pao_env_get_min_bas_size
+!!     pao_env_get_min_bas_size
 !!
 !!   SYNOPSIS
-!!     Function cp_pao_env_get_min_bas_size(pao_env, atom_nr, error)&
+!!     Function pao_env_get_min_bas_size(pao_env, atom_nr, error)&
 !!         Result(res)
 !!       Integer:: res
-!!       Type(cp_pao_env_type), Intent (IN):: pao_env
+!!       Type(pao_env_type), Intent (IN):: pao_env
 !!       Integer, Intent (IN):: atom_nr
 !!       Type(cp_error_type), Optional, Intent (INOUT):: error
-!!     End Function cp_pao_env_get_min_bas_size
+!!     End Function pao_env_get_min_bas_size
 !!
 !!   FUNCTION
 !!     returns the size of the minimal basis on atom atom_nr
@@ -814,14 +814,14 @@ contains
 !!     none
 !!
 !!*** **********************************************************************
-  function cp_pao_env_get_min_bas_size(pao_env, atom_nr, error) result(res)
+  function pao_env_get_min_bas_size(pao_env, atom_nr, error) result(res)
     integer ::res
-    type(cp_pao_env_type), intent(in) :: pao_env
+    type(pao_env_type), intent(in) :: pao_env
     integer, intent(in) :: atom_nr
     type(cp_error_type), optional, intent(inout) :: error
 
     logical :: failure
-    character(len=*), parameter :: routineN='cp_pao_env_get_min_bas_size',&
+    character(len=*), parameter :: routineN='pao_env_get_min_bas_size',&
         routineP=moduleN//':'//routineN
     failure=.false.
 
@@ -836,22 +836,22 @@ contains
     else failureIf
        res=-1
     end if failureIf
-  end function cp_pao_env_get_min_bas_size
+  end function pao_env_get_min_bas_size
 !***************************************************************************
 
-!!****f* cp_pao_env_methods/cp_pao_env_get_full_bas_size [1.0] *
+!!****f* pao_env_methods/pao_env_get_full_bas_size [1.0] *
 !!
 !!   NAME
-!!     cp_pao_env_get_full_bas_size
+!!     pao_env_get_full_bas_size
 !!
 !!   SYNOPSIS
-!!     Function cp_pao_env_get_full_bas_size(pao_env, atom_nr, error)&
+!!     Function pao_env_get_full_bas_size(pao_env, atom_nr, error)&
 !!         Result(res)
 !!       Integer:: res
-!!       Type(cp_pao_env_type), Intent (IN):: pao_env
+!!       Type(pao_env_type), Intent (IN):: pao_env
 !!       Integer, Intent (IN):: atom_nr
 !!       Type(cp_error_type), Optional, Intent (INOUT):: error
-!!     End Function cp_pao_env_get_full_bas_size
+!!     End Function pao_env_get_full_bas_size
 !!
 !!   FUNCTION
 !!     returns the size of the full basis on atom atom_nr
@@ -873,14 +873,14 @@ contains
 !!     none
 !!
 !!*** **********************************************************************
-  function cp_pao_env_get_full_bas_size(pao_env, atom_nr, error) result(res)
+  function pao_env_get_full_bas_size(pao_env, atom_nr, error) result(res)
     integer ::res
-    type(cp_pao_env_type), intent(in) :: pao_env
+    type(pao_env_type), intent(in) :: pao_env
     integer, intent(in) :: atom_nr
     type(cp_error_type), optional, intent(inout) :: error
 
     logical :: failure
-    character(len=*), parameter :: routineN='cp_pao_env_get_full_bas_size',&
+    character(len=*), parameter :: routineN='pao_env_get_full_bas_size',&
         routineP=moduleN//':'//routineN
     failure=.false.
 
@@ -895,22 +895,22 @@ contains
     else failureIf
        res=-1
     end if failureIf
-  end function cp_pao_env_get_full_bas_size
+  end function pao_env_get_full_bas_size
 !***************************************************************************
 
-!!****f* cp_pao_env_methods/cp_pao_env_get_excl_bas_size [1.0] *
+!!****f* pao_env_methods/pao_env_get_excl_bas_size [1.0] *
 !!
 !!   NAME
-!!     cp_pao_env_get_excl_bas_size
+!!     pao_env_get_excl_bas_size
 !!
 !!   SYNOPSIS
-!!     Function cp_pao_env_get_excl_bas_size(pao_env, atom_nr, error)&
+!!     Function pao_env_get_excl_bas_size(pao_env, atom_nr, error)&
 !!         Result(res)
 !!       Integer:: res
-!!       Type(cp_pao_env_type), Intent (IN):: pao_env
+!!       Type(pao_env_type), Intent (IN):: pao_env
 !!       Integer, Intent (IN):: atom_nr
 !!       Type(cp_error_type), Optional, Intent (INOUT):: error
-!!     End Function cp_pao_env_get_excl_bas_size
+!!     End Function pao_env_get_excl_bas_size
 !!
 !!   FUNCTION
 !!     returns the size of the excluded basis on atom atom_nr
@@ -933,14 +933,14 @@ contains
 !!     none
 !!
 !!*** **********************************************************************
-  function cp_pao_env_get_excl_bas_size(pao_env, atom_nr, error) result(res)
+  function pao_env_get_excl_bas_size(pao_env, atom_nr, error) result(res)
     integer ::res
-    type(cp_pao_env_type), intent(in) :: pao_env
+    type(pao_env_type), intent(in) :: pao_env
     integer, intent(in) :: atom_nr
     type(cp_error_type), optional, intent(inout) :: error
 
     logical :: failure
-    character(len=*), parameter :: routineN='cp_pao_env_get_excl_bas_size',&
+    character(len=*), parameter :: routineN='pao_env_get_excl_bas_size',&
         routineP=moduleN//':'//routineN
     failure=.false.
 
@@ -958,20 +958,20 @@ contains
     else failureIf
        res=-1
     end if failureIf
-  end function cp_pao_env_get_excl_bas_size
+  end function pao_env_get_excl_bas_size
 !***************************************************************************
 
-!!****f* cp_pao_env_methods/cp_pao_env_get_global_env [1.0] *
+!!****f* pao_env_methods/pao_env_get_global_env [1.0] *
 !!
 !!   NAME
-!!     cp_pao_env_get_global_env
+!!     pao_env_get_global_env
 !!
 !!   SYNOPSIS
-!!     Function cp_pao_env_get_global_env(pao_env, error) Result(res)
-!!       Type(cp_pao_env_type), Intent (IN):: pao_env
+!!     Function pao_env_get_global_env(pao_env, error) Result(res)
+!!       Type(pao_env_type), Intent (IN):: pao_env
 !!       Type(cp_error_type), Optional, Intent (INOUT):: error
 !!       Type(global_environment_type), Pointer:: res
-!!     End Function cp_pao_env_get_global_env
+!!     End Function pao_env_get_global_env
 !!
 !!   FUNCTION
 !!     returns the global environement
@@ -992,13 +992,13 @@ contains
 !!     none
 !!
 !!*** **********************************************************************
-function cp_pao_env_get_global_env(pao_env,error) result(res)
-  type(cp_pao_env_type), intent(in) :: pao_env
+function pao_env_get_global_env(pao_env,error) result(res)
+  type(pao_env_type), intent(in) :: pao_env
   type(cp_error_type), optional, intent(inout) :: error
   type(global_environment_type), pointer :: res
   
   logical :: failure
-  character(len=*), parameter :: routineN='cp_pao_env_get_global_env',&
+  character(len=*), parameter :: routineN='pao_env_get_global_env',&
         routineP=moduleN//':'//routineN
   failure=.false.
   CPPrecondition(pao_env%initialized,cp_failure_level,routineP,error,failure)
@@ -1007,20 +1007,20 @@ function cp_pao_env_get_global_env(pao_env,error) result(res)
   else
      nullify(res)
   end if
-end function cp_pao_env_get_global_env
+end function pao_env_get_global_env
 !***************************************************************************
 
-!!****f* cp_pao_env_methods/cp_pao_env_valid [1.0] *
+!!****f* pao_env_methods/pao_env_valid [1.0] *
 !!
 !!   NAME
-!!     cp_pao_env_valid
+!!     pao_env_valid
 !!
 !!   SYNOPSIS
-!!     Function cp_pao_env_valid(pao_env, error) Result(res)
+!!     Function pao_env_valid(pao_env, error) Result(res)
 !!       Logical:: res
-!!       Type(cp_pao_env_type), Intent (IN):: pao_env
+!!       Type(pao_env_type), Intent (IN):: pao_env
 !!       Type(cp_error_type), Optional, Intent (INOUT):: error
-!!     End Function cp_pao_env_valid
+!!     End Function pao_env_valid
 !!
 !!   FUNCTION
 !!     perform minimal validation (initialized no dangling pointers)
@@ -1042,13 +1042,13 @@ end function cp_pao_env_get_global_env
 !!     none
 !!
 !!*** **********************************************************************
-  function cp_pao_env_valid(pao_env,error) result(res)
+  function pao_env_valid(pao_env,error) result(res)
     logical ::res
-    type(cp_pao_env_type), intent(in) :: pao_env
+    type(pao_env_type), intent(in) :: pao_env
     type(cp_error_type), optional, intent(inout) :: error
 
     logical :: failure
-    character(len=*), parameter :: routineN='cp_pao_env_valid',&
+    character(len=*), parameter :: routineN='pao_env_valid',&
         routineP=moduleN//':'//routineN
     failure=.false.
 
@@ -1071,16 +1071,16 @@ end function cp_pao_env_get_global_env
        end if
     end if
     res=.not.failure
-  end function cp_pao_env_valid
+  end function pao_env_valid
 !***************************************************************************
 
-! ==================== cp_pao_glob_angles_type ====================
+! ==================== pao_glob_angles_type ====================
 
-! ==================== cp_pao_local_angles_type ====================
+! ==================== pao_local_angles_type ====================
 
-! ==================== cp_pao_matrix_type ====================
+! ==================== pao_matrix_type ====================
 
-! ======================= cp_pao_projection =====================
+! ======================= pao_projection =====================
 
-end module cp_pao_types
+end module pao_types
 

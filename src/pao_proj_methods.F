@@ -5,10 +5,10 @@
 
 #include "cp_prep_globals.h"
 
-!!****h* cp2k/cp_pao_proj_methods [1.0] *
+!!****h* cp2k/pao_proj_methods [1.0] *
 !!
 !!   NAME
-!!     cp_pao_proj_methods
+!!     pao_proj_methods
 !!
 !!   FUNCTION
 !!     projection and injection between min bas and full bas
@@ -25,24 +25,24 @@
 !!
 !!   SOURCE
 !*****************************************************************************
-module cp_pao_proj_methods
+module pao_proj_methods
   use cp_log_handling
   use cp_error_handling
   use kinds, only: wp=>dp
   use global_types, only: global_environment_type
   use timings, only: timeset, timestop
-  use cp_pao_types
+  use pao_types
   use cp_matrix_utils 
-  use cp_pao_utils
-  use cp_pao_matrix_methods
-  use cp_pao_l_angles_methods
+  use pao_utils
+  use pao_matrix_methods
+  use pao_l_angles_methods
   use sparse_matrix_types
   use message_passing, only: mp_sum
   implicit none
   private
 
   logical, private, parameter :: debug_this_module=.true.
-  character(len=*), private, parameter :: moduleN='cp_pao_proj_methods'
+  character(len=*), private, parameter :: moduleN='pao_proj_methods'
 
   public :: cp_get
 
@@ -53,31 +53,31 @@ module cp_pao_proj_methods
 !  public :: cp_validate, cp_valid
 
 ! projection - injection
-  public :: cp_pao_l_atom_projection, cp_pao_l_atom_injection, &
-       cp_pao_r_atom_projection, cp_pao_r_atom_injection, &
-       cp_pao_atom_m_to_f_matrix, cp_pao_atom_f_to_m_matrix, &
+  public :: pao_l_atom_projection, pao_l_atom_injection, &
+       pao_r_atom_projection, pao_r_atom_injection, &
+       pao_atom_m_to_f_matrix, pao_atom_f_to_m_matrix, &
        cp_m2f, cp_f2m, cp_m2f_with_B_M_pi
 
-  public :: cp_pao_g_ang_get_min_m, cp_pao_matrix_transf_to_m,&
-       cp_pao_matrix_transf_to_f, cp_pao_m_m2f_with_b_m_pi
+  public :: pao_g_ang_get_min_m, pao_matrix_transf_to_m,&
+       pao_matrix_transf_to_f, pao_m_m2f_with_b_m_pi
 
   interface cp_get
-     module procedure cp_pao_g_ang_get_min_m
+     module procedure pao_g_ang_get_min_m
   end interface
 
   ! transfer from full basis to min basis
   interface cp_f2m
-     module procedure cp_pao_matrix_transf_to_m
+     module procedure pao_matrix_transf_to_m
   end interface
 
   !transfer from min basis to full basis
   interface cp_m2f
-     module procedure cp_pao_matrix_transf_to_f
+     module procedure pao_matrix_transf_to_f
   end interface
   
   ! tranfser to full basis with B matrix pi
   interface cp_m2f_with_B_M_pi
-     module procedure cp_pao_m_m2f_with_b_m_pi
+     module procedure pao_m_m2f_with_b_m_pi
   end interface
 !!***
 !****************************************************************************
@@ -88,20 +88,20 @@ contains
 ! I will come back to them as soo as the programs works
 ! to do
 
-!!****f* cp_pao_projection/cp_pao_l_atom_projection [1.0] *
+!!****f* pao_projection/pao_l_atom_projection [1.0] *
 !!
 !!   NAME
-!!     cp_pao_l_atom_projection
+!!     pao_l_atom_projection
 !!
 !!   SYNOPSIS
-!!     Subroutine cp_pao_l_atom_projection(pao_env, atom_nr, source_m,&
+!!     Subroutine pao_l_atom_projection(pao_env, atom_nr, source_m,&
 !!         target_m, error)
-!!       Type(cp_pao_env_type), Intent (IN):: pao_env
+!!       Type(pao_env_type), Intent (IN):: pao_env
 !!       Integer, Intent (IN):: atom_nr
 !!       Real(Kind=wp), Dimension(:,:), Intent (IN):: source_m
 !!       Real(Kind=wp), Dimension(:,:), Intent (OUT):: target_m
 !!       Type(cp_error_type), Optional, Intent (INOUT):: error
-!!     End Subroutine cp_pao_l_atom_projection
+!!     End Subroutine pao_l_atom_projection
 !!
 !!   FUNCTION
 !!     Left multiplication with the projection in the small basis
@@ -128,16 +128,16 @@ contains
 !!     none
 !!
 !!*** **********************************************************************
-  subroutine cp_pao_l_atom_projection(pao_env, atom_nr, source_m,&
+  subroutine pao_l_atom_projection(pao_env, atom_nr, source_m,&
        target_m, error)
-    type(cp_pao_env_type), intent(in) :: pao_env
+    type(pao_env_type), intent(in) :: pao_env
     integer, intent(in) :: atom_nr
     real(kind=wp), dimension(:,:), intent(in) :: source_m
     real(kind=wp), dimension(:,:), intent(out) :: target_m
     type(cp_error_type), optional, intent(inout) :: error
 
     logical :: failure
-    character(len=*), parameter :: routineP='cp_pao_types:cp_pao_l_atom_projection'
+    character(len=*), parameter :: routineP='pao_types:pao_l_atom_projection'
     integer :: size_min_bas, size_full_bas, i
     failure=.false.
 
@@ -155,23 +155,23 @@ contains
 ! reorganization of the operations could probabily make it faster
        end do
     end if
-  end subroutine cp_pao_l_atom_projection
+  end subroutine pao_l_atom_projection
 !***************************************************************************
 
-!!****f* cp_pao_projection/cp_pao_l_atom_injection [1.0] *
+!!****f* pao_projection/pao_l_atom_injection [1.0] *
 !!
 !!   NAME
-!!     cp_pao_l_atom_injection
+!!     pao_l_atom_injection
 !!
 !!   SYNOPSIS
-!!     Subroutine cp_pao_l_atom_injection(pao_env, atom_nr, source_m,&
+!!     Subroutine pao_l_atom_injection(pao_env, atom_nr, source_m,&
 !!         target_m, error)
-!!       Type(cp_pao_env_type), Intent (IN):: pao_env
+!!       Type(pao_env_type), Intent (IN):: pao_env
 !!       Integer, Intent (IN):: atom_nr
 !!       Real(Kind=wp), Dimension(:,:), Intent (IN):: source_m
 !!       Real(Kind=wp), Dimension(:,:), Intent (OUT):: target_m
 !!       Type(cp_error_type), Optional, Intent (INOUT):: error
-!!     End Subroutine cp_pao_l_atom_injection
+!!     End Subroutine pao_l_atom_injection
 !!
 !!   FUNCTION
 !!     Left multiplication with the injection in the full basis
@@ -198,16 +198,16 @@ contains
 !!     none
 !!
 !!*** **********************************************************************
-  subroutine cp_pao_l_atom_injection(pao_env, atom_nr, source_m,&
+  subroutine pao_l_atom_injection(pao_env, atom_nr, source_m,&
        target_m, error)
-    type(cp_pao_env_type), intent(in) :: pao_env
+    type(pao_env_type), intent(in) :: pao_env
     integer, intent(in) :: atom_nr
     real(kind=wp), dimension(:,:), intent(in) :: source_m
     real(kind=wp), dimension(:,:), intent(out) :: target_m
     type(cp_error_type), optional, intent(inout) :: error
 
     logical :: failure
-    character(len=*), parameter :: routineP='cp_pao_types:cp_pao_l_atom_injection'
+    character(len=*), parameter :: routineP='pao_types:pao_l_atom_injection'
     integer :: size_min_bas, size_full_bas, i
     failure=.false.
 
@@ -228,23 +228,23 @@ contains
 ! and do not set target_m to 0 if it gets overwritten
        end do
     end if
-  end subroutine cp_pao_l_atom_injection
+  end subroutine pao_l_atom_injection
 !***************************************************************************
 
-!!****f* cp_pao_projection/cp_pao_r_atom_projection [1.0] *
+!!****f* pao_projection/pao_r_atom_projection [1.0] *
 !!
 !!   NAME
-!!     cp_pao_r_atom_projection
+!!     pao_r_atom_projection
 !!
 !!   SYNOPSIS
-!!     Subroutine cp_pao_r_atom_projection(pao_env, atom_nr, source_m,&
+!!     Subroutine pao_r_atom_projection(pao_env, atom_nr, source_m,&
 !!         target_m, error)
-!!       Type(cp_pao_env_type), Intent (IN):: pao_env
+!!       Type(pao_env_type), Intent (IN):: pao_env
 !!       Integer, Intent (IN):: atom_nr
 !!       Real(Kind=wp), Dimension(:,:), Intent (IN):: source_m
 !!       Real(Kind=wp), Dimension(:,:), Intent (OUT):: target_m
 !!       Type(cp_error_type), Optional, Intent (INOUT):: error
-!!     End Subroutine cp_pao_r_atom_projection
+!!     End Subroutine pao_r_atom_projection
 !!
 !!   FUNCTION
 !!     Right multiplication with the projection in the small basis
@@ -271,16 +271,16 @@ contains
 !!     none
 !!
 !!*** **********************************************************************
-  subroutine cp_pao_r_atom_projection(pao_env, atom_nr, source_m,&
+  subroutine pao_r_atom_projection(pao_env, atom_nr, source_m,&
        target_m, error)
-    type(cp_pao_env_type), intent(in) :: pao_env
+    type(pao_env_type), intent(in) :: pao_env
     integer, intent(in) :: atom_nr
     real(kind=wp), dimension(:,:), intent(in) :: source_m
     real(kind=wp), dimension(:,:), intent(out) :: target_m
     type(cp_error_type), optional, intent(inout) :: error
 
     logical :: failure
-    character(len=*), parameter :: routineP='cp_pao_types:cp_pao_r_atom_projection'
+    character(len=*), parameter :: routineP='pao_types:pao_r_atom_projection'
     integer :: size_min_bas, size_full_bas, i
     failure=.false.
 
@@ -300,23 +300,23 @@ contains
 ! reorganization of the operations could probabily make it faster
        end do
     end if
-  end subroutine cp_pao_r_atom_projection
+  end subroutine pao_r_atom_projection
 !***************************************************************************
 
-!!****f* cp_pao_projection/cp_pao_r_atom_injection [1.0] *
+!!****f* pao_projection/pao_r_atom_injection [1.0] *
 !!
 !!   NAME
-!!     cp_pao_r_atom_injection
+!!     pao_r_atom_injection
 !!
 !!   SYNOPSIS
-!!     Subroutine cp_pao_r_atom_injection(pao_env, atom_nr, source_m,&
+!!     Subroutine pao_r_atom_injection(pao_env, atom_nr, source_m,&
 !!         target_m, error)
-!!       Type(cp_pao_env_type), Intent (IN):: pao_env
+!!       Type(pao_env_type), Intent (IN):: pao_env
 !!       Integer, Intent (IN):: atom_nr
 !!       Real(Kind=wp), Dimension(:,:), Intent (IN):: source_m
 !!       Real(Kind=wp), Dimension(:,:), Intent (OUT):: target_m
 !!       Type(cp_error_type), Optional, Intent (INOUT):: error
-!!     End Subroutine cp_pao_r_atom_injection
+!!     End Subroutine pao_r_atom_injection
 !!
 !!   FUNCTION
 !!     Right multiplication with the injection in the full basis
@@ -343,16 +343,16 @@ contains
 !!     none
 !!
 !!*** **********************************************************************
-  subroutine cp_pao_r_atom_injection(pao_env, atom_nr, source_m,&
+  subroutine pao_r_atom_injection(pao_env, atom_nr, source_m,&
        target_m, error)
-    type(cp_pao_env_type), intent(in) :: pao_env
+    type(pao_env_type), intent(in) :: pao_env
     integer, intent(in) :: atom_nr
     real(kind=wp), dimension(:,:), intent(in) :: source_m
     real(kind=wp), dimension(:,:), intent(out) :: target_m
     type(cp_error_type), optional, intent(inout) :: error
 
     logical :: failure
-    character(len=*), parameter :: routineP='cp_pao_types:cp_pao_r_atom_injection'
+    character(len=*), parameter :: routineP='pao_types:pao_r_atom_injection'
     integer :: size_min_bas, size_full_bas, i
     type(cp_error_type) :: iError
     failure=.false.
@@ -376,23 +376,23 @@ contains
        end do
     end if
     call cp_dealloc_ref(iError,error=error)
-  end subroutine cp_pao_r_atom_injection
+  end subroutine pao_r_atom_injection
 !***************************************************************************
 
-!!****f* cp_pao_types/cp_pao_atom_m_to_f_matrix [1.0] *
+!!****f* pao_types/pao_atom_m_to_f_matrix [1.0] *
 !!
 !!   NAME
-!!     cp_pao_atom_m_to_f_matrix
+!!     pao_atom_m_to_f_matrix
 !!
 !!   SYNOPSIS
-!!     Subroutine cp_pao_atom_m_to_f_matrix(pao_env, l_atom_nr, r_atom_nr,&
+!!     Subroutine pao_atom_m_to_f_matrix(pao_env, l_atom_nr, r_atom_nr,&
 !!         source_m, target_m, error)
-!!       Type(cp_pao_env_type), Intent (IN):: pao_env
+!!       Type(pao_env_type), Intent (IN):: pao_env
 !!       Integer, Intent (IN):: r_atom_nr, l_atom_nr
 !!       Real(Kind=wp), Dimension(:,:), Intent (IN):: source_m
 !!       Real(Kind=wp), Dimension(:,:), Intent (OUT):: target_m
 !!       Type(cp_error_type), Optional, Intent (INOUT):: error
-!!     End Subroutine cp_pao_atom_m_to_f_matrix
+!!     End Subroutine pao_atom_m_to_f_matrix
 !!
 !!   FUNCTION
 !!     inject an atomic matrix block into the full basis:
@@ -421,16 +421,16 @@ contains
 !!     none
 !!
 !!*** **********************************************************************
-  subroutine cp_pao_atom_m_to_f_matrix(pao_env,l_atom_nr,r_atom_nr,&
+  subroutine pao_atom_m_to_f_matrix(pao_env,l_atom_nr,r_atom_nr,&
        source_m, target_m, error)
-    type(cp_pao_env_type), intent(in) :: pao_env
+    type(pao_env_type), intent(in) :: pao_env
     integer, intent(in) :: r_atom_nr, l_atom_nr
     real(kind=wp), dimension(:,:), intent(in) :: source_m
     real(kind=wp), dimension(:,:), intent(out) :: target_m
     type(cp_error_type), optional, intent(inout) :: error
 
     logical :: failure
-    character(len=*), parameter :: routineP='cp_pao_types:cp_pao_atom_m_to_f_matrix'
+    character(len=*), parameter :: routineP='pao_types:pao_atom_m_to_f_matrix'
     integer :: size_l_min_bas, size_l_full_bas, size_r_min_bas, size_r_full_bas,&
          i,j
     integer, dimension(:), pointer :: l_index, r_index
@@ -469,23 +469,23 @@ contains
        end do
     end if
     call cp_dealloc_ref(iError,error=error)
-  end subroutine cp_pao_atom_m_to_f_matrix
+  end subroutine pao_atom_m_to_f_matrix
 !***************************************************************************
 
-!!****f* cp_pao_types/cp_pao_atom_f_to_m_matrix [1.0] *
+!!****f* pao_types/pao_atom_f_to_m_matrix [1.0] *
 !!
 !!   NAME
-!!     cp_pao_atom_f_to_m_matrix
+!!     pao_atom_f_to_m_matrix
 !!
 !!   SYNOPSIS
-!!     Subroutine cp_pao_atom_f_to_m_matrix(pao_env, l_atom_nr, r_atom_nr,&
+!!     Subroutine pao_atom_f_to_m_matrix(pao_env, l_atom_nr, r_atom_nr,&
 !!         source_m, target_m, error)
-!!       Type(cp_pao_env_type), Intent (IN):: pao_env
+!!       Type(pao_env_type), Intent (IN):: pao_env
 !!       Integer, Intent (IN):: r_atom_nr, l_atom_nr
 !!       Real(Kind=wp), Dimension(:,:), Intent (IN):: source_m
 !!       Real(Kind=wp), Dimension(:,:), Intent (OUT):: target_m
 !!       Type(cp_error_type), Optional, Intent (INOUT):: error
-!!     End Subroutine cp_pao_atom_f_to_m_matrix
+!!     End Subroutine pao_atom_f_to_m_matrix
 !!
 !!   FUNCTION
 !!     project an atomic matrix block into the minimal basis:
@@ -514,16 +514,16 @@ contains
 !!     none
 !!
 !!*** **********************************************************************
-  subroutine cp_pao_atom_f_to_m_matrix(pao_env,l_atom_nr,r_atom_nr,&
+  subroutine pao_atom_f_to_m_matrix(pao_env,l_atom_nr,r_atom_nr,&
        source_m, target_m, error)
-    type(cp_pao_env_type), intent(in) :: pao_env
+    type(pao_env_type), intent(in) :: pao_env
     integer, intent(in) :: r_atom_nr, l_atom_nr
     real(kind=wp), dimension(:,:), intent(in) :: source_m
     real(kind=wp), dimension(:,:), intent(out) :: target_m
     type(cp_error_type), optional, intent(inout) :: error
 
     logical :: failure
-    character(len=*), parameter :: routineP='cp_pao_types:cp_pao_atom_f_to_m_matrix'
+    character(len=*), parameter :: routineP='pao_types:pao_atom_f_to_m_matrix'
     integer :: size_l_min_bas, size_l_full_bas, size_r_min_bas, size_r_full_bas,&
          i,j
     integer, dimension(:), pointer :: l_index, r_index
@@ -561,22 +561,22 @@ contains
        end do
     end if
     call cp_dealloc_ref(iError,error=error)
-  end subroutine cp_pao_atom_f_to_m_matrix
+  end subroutine pao_atom_f_to_m_matrix
 !***************************************************************************
 
-!!****f* cp_pao_types/cp_pao_m_m2f_with_b_m_pi [1.0] *
+!!****f* pao_types/pao_m_m2f_with_b_m_pi [1.0] *
 !!
 !!   NAME
-!!     cp_pao_m_m2f_with_b_m_pi
+!!     pao_m_m2f_with_b_m_pi
 !!
 !!   SYNOPSIS
-!!     Subroutine cp_pao_m_m2f_with_b_m_pi(source_m, target_m, glob_angles,&
+!!     Subroutine pao_m_m2f_with_b_m_pi(source_m, target_m, glob_angles,&
 !!         error)
-!!       Type(cp_pao_matrix_type), Intent (IN):: source_m
-!!       Type(cp_pao_matrix_type), Intent (INOUT):: target_m
-!!       Type(cp_pao_glob_angles_type), Intent (IN):: glob_angles
+!!       Type(pao_matrix_type), Intent (IN):: source_m
+!!       Type(pao_matrix_type), Intent (INOUT):: target_m
+!!       Type(pao_glob_angles_type), Intent (IN):: glob_angles
 !!       Type(cp_error_type), Optional, Intent (INOUT):: error
-!!     End Subroutine cp_pao_m_m2f_with_b_m_pi
+!!     End Subroutine pao_m_m2f_with_b_m_pi
 !!
 !!   FUNCTION
 !!     Transform the given matrix to the full basis with B=i U and pi=i^*
@@ -599,22 +599,22 @@ contains
 !!     none
 !!
 !!*** **********************************************************************
-  subroutine cp_pao_m_m2f_with_b_m_pi(source_m, target_m, glob_angles, error)
-    type(cp_pao_matrix_type), intent(in) :: source_m
-    type(cp_pao_matrix_type), intent(inout) :: target_m
-    type(cp_pao_glob_angles_type), intent(in) :: glob_angles
+  subroutine pao_m_m2f_with_b_m_pi(source_m, target_m, glob_angles, error)
+    type(pao_matrix_type), intent(in) :: source_m
+    type(pao_matrix_type), intent(inout) :: target_m
+    type(pao_glob_angles_type), intent(in) :: glob_angles
     type(cp_error_type), optional, intent(inout) :: error
 
     logical :: failure
-    character(len=*), parameter :: routineP='cp_pao_types:cp_pao_m_m2f_with_b_m_pi'
+    character(len=*), parameter :: routineP='pao_types:pao_m_m2f_with_b_m_pi'
     type(cp_matrix_block_iterator) :: iterator
     integer :: brow,bcol, stat, max_bsize,i,j
     integer, dimension(:), pointer :: l_index,r_index
     real(kind=wp), dimension(:,:), pointer :: block_val, u_col, u_row
     real(kind=wp),allocatable, dimension(:,:) :: t1_m
-    type(cp_pao_local_angles_type) :: l_angles
+    type(pao_local_angles_type) :: l_angles
     type(cp_error_type) :: iError
-    type(cp_pao_env_type), pointer :: pao_env
+    type(pao_env_type), pointer :: pao_env
     call cp_init(iError,template_error=error)
     nullify(block_val)
     failure=.false.
@@ -711,23 +711,23 @@ contains
        CPPostcondition(stat==0,cp_warning_level,routineP,error,failure)
     end if
     call cp_dealloc_ref(iError,error=error)
-  end subroutine cp_pao_m_m2f_with_b_m_pi
+  end subroutine pao_m_m2f_with_b_m_pi
 !***************************************************************************
 
 
-!!****f* cp_pao_types/cp_pao_matrix_transf_to_f [1.0] *
+!!****f* pao_types/pao_matrix_transf_to_f [1.0] *
 !!
 !!   NAME
-!!     cp_pao_matrix_transf_to_f
+!!     pao_matrix_transf_to_f
 !!
 !!   SYNOPSIS
-!!     Subroutine cp_pao_matrix_transf_to_f(source_m, target_m, glob_angles,&
+!!     Subroutine pao_matrix_transf_to_f(source_m, target_m, glob_angles,&
 !!         error)
-!!       Type(cp_pao_matrix_type), Intent (IN):: source_m
-!!       Type(cp_pao_matrix_type), Intent (INOUT):: target_m
-!!       Type(cp_pao_glob_angles_type), Intent (IN):: glob_angles
+!!       Type(pao_matrix_type), Intent (IN):: source_m
+!!       Type(pao_matrix_type), Intent (INOUT):: target_m
+!!       Type(pao_glob_angles_type), Intent (IN):: glob_angles
 !!       Type(cp_error_type), Optional, Intent (INOUT):: error
-!!     End Subroutine cp_pao_matrix_transf_to_f
+!!     End Subroutine pao_matrix_transf_to_f
 !!
 !!   FUNCTION
 !!     Transform the given matrix to the full basis.
@@ -750,22 +750,22 @@ contains
 !!     none
 !!
 !!*** **********************************************************************
-  subroutine cp_pao_matrix_transf_to_f(source_m, target_m, glob_angles, error)
-    type(cp_pao_matrix_type), intent(in) :: source_m
-    type(cp_pao_matrix_type), intent(inout) :: target_m
-    type(cp_pao_glob_angles_type), intent(in) :: glob_angles
+  subroutine pao_matrix_transf_to_f(source_m, target_m, glob_angles, error)
+    type(pao_matrix_type), intent(in) :: source_m
+    type(pao_matrix_type), intent(inout) :: target_m
+    type(pao_glob_angles_type), intent(in) :: glob_angles
     type(cp_error_type), optional, intent(inout) :: error
 
     logical :: failure
-    character(len=*), parameter :: routineP='cp_pao_types:cp_pao_matrix_transf_to_f'
+    character(len=*), parameter :: routineP='pao_types:pao_matrix_transf_to_f'
     type(cp_matrix_block_iterator) :: iterator
     integer :: brow,bcol, stat, max_bsize,i,j
     integer, dimension(:), pointer :: l_index,r_index
     real(kind=wp), dimension(:,:), pointer :: block_val, u_col, u_row
     real(kind=wp),allocatable, dimension(:,:) :: t1_m,t2_m
-    type(cp_pao_local_angles_type) :: l_angles
+    type(pao_local_angles_type) :: l_angles
     type(cp_error_type) :: iError
-    type(cp_pao_env_type), pointer :: pao_env
+    type(pao_env_type), pointer :: pao_env
     call cp_init(iError,template_error=error)
     nullify(block_val)
     failure=.false.
@@ -868,22 +868,22 @@ contains
        CPPostcondition(stat==0,cp_warning_level,routineP,error,failure)
     end if
     call cp_dealloc_ref(iError,error=error)
-  end subroutine cp_pao_matrix_transf_to_f
+  end subroutine pao_matrix_transf_to_f
 !***************************************************************************
 
-!!****f* cp_pao_types/cp_pao_matrix_transf_to_m [1.0] *
+!!****f* pao_types/pao_matrix_transf_to_m [1.0] *
 !!
 !!   NAME
-!!     cp_pao_matrix_transf_to_m
+!!     pao_matrix_transf_to_m
 !!
 !!   SYNOPSIS
-!!     Subroutine cp_pao_matrix_transf_to_m(source_m, target_m, glob_angles,&
+!!     Subroutine pao_matrix_transf_to_m(source_m, target_m, glob_angles,&
 !!         error)
-!!       Type(cp_pao_matrix_type), Intent (IN):: source_m
-!!       Type(cp_pao_matrix_type), Intent (INOUT):: target_m
-!!       Type(cp_pao_glob_angles_type), Intent (IN):: glob_angles
+!!       Type(pao_matrix_type), Intent (IN):: source_m
+!!       Type(pao_matrix_type), Intent (INOUT):: target_m
+!!       Type(pao_glob_angles_type), Intent (IN):: glob_angles
 !!       Type(cp_error_type), Optional, Intent (INOUT):: error
-!!     End Subroutine cp_pao_matrix_transf_to_m
+!!     End Subroutine pao_matrix_transf_to_m
 !!
 !!   FUNCTION
 !!     Transform the given matrix to the minimal basis.
@@ -906,22 +906,22 @@ contains
 !!     none
 !!
 !!*** **********************************************************************
-  subroutine cp_pao_matrix_transf_to_m(source_m, target_m, glob_angles, error)
-    type(cp_pao_matrix_type), intent(in) :: source_m
-    type(cp_pao_matrix_type), intent(inout) :: target_m
-    type(cp_pao_glob_angles_type), intent(in) :: glob_angles
+  subroutine pao_matrix_transf_to_m(source_m, target_m, glob_angles, error)
+    type(pao_matrix_type), intent(in) :: source_m
+    type(pao_matrix_type), intent(inout) :: target_m
+    type(pao_glob_angles_type), intent(in) :: glob_angles
     type(cp_error_type), optional, intent(inout) :: error
 
     logical :: failure
-    character(len=*), parameter :: routineP='cp_pao_types:cp_pao_matrix_transf_to_m'
+    character(len=*), parameter :: routineP='pao_types:pao_matrix_transf_to_m'
     type(cp_matrix_block_iterator) :: iterator
     integer :: brow,bcol, stat, max_bsize,i,j
     integer, dimension(:), pointer :: l_index,r_index
     real(kind=wp), dimension(:,:), pointer :: block_val, u_col, u_row
     real(kind=wp),allocatable, dimension(:,:) :: t1_m,t2_m
-    type(cp_pao_local_angles_type) :: l_angles
+    type(pao_local_angles_type) :: l_angles
     type(cp_error_type) :: iError
-    type(cp_pao_env_type), pointer :: pao_env
+    type(pao_env_type), pointer :: pao_env
     call cp_init(iError,template_error=error)
     nullify(block_val)
     failure=.false.
@@ -1021,22 +1021,22 @@ contains
        CPPostcondition(stat==0,cp_warning_level,routineP,error,failure)
     end if
     call cp_dealloc_ref(iError,error=error)
-  end subroutine cp_pao_matrix_transf_to_m
+  end subroutine pao_matrix_transf_to_m
 !***************************************************************************
 
-!!****f* cp_pao_proj_methods/cp_pao_g_ang_get_min_m [1.0] *
+!!****f* pao_proj_methods/pao_g_ang_get_min_m [1.0] *
 !!
 !!   NAME
-!!     cp_pao_g_ang_get_min_m
+!!     pao_g_ang_get_min_m
 !!
 !!   SYNOPSIS
-!!     Subroutine cp_pao_g_ang_get_min_m(glob_angles, min_overlap_m,&
+!!     Subroutine pao_g_ang_get_min_m(glob_angles, min_overlap_m,&
 !!         min_hamiltonian_m, error)
-!!       Type(cp_pao_glob_angles_type), Intent (INOUT):: glob_angles
-!!       Type(cp_pao_matrix_type), Pointer, Optional:: min_hamiltonian_m
-!!       Type(cp_pao_matrix_type), Pointer:: min_overlap_m
+!!       Type(pao_glob_angles_type), Intent (INOUT):: glob_angles
+!!       Type(pao_matrix_type), Pointer, Optional:: min_hamiltonian_m
+!!       Type(pao_matrix_type), Pointer:: min_overlap_m
 !!       Type(cp_error_type), Optional, Intent (INOUT):: error
-!!     End Subroutine cp_pao_g_ang_get_min_m
+!!     End Subroutine pao_g_ang_get_min_m
 !!
 !!   FUNCTION
 !!     returns the minimal matrices
@@ -1062,16 +1062,16 @@ contains
 !!     none
 !!
 !!*** **********************************************************************
-subroutine cp_pao_g_ang_get_min_m(glob_angles,&
+subroutine pao_g_ang_get_min_m(glob_angles,&
      min_overlap_m,  min_hamiltonian_m, error)
-  type(cp_pao_glob_angles_type), intent(inout) :: glob_angles
-  type(cp_pao_matrix_type), pointer, optional :: min_hamiltonian_m
-  type(cp_pao_matrix_type), pointer ::  min_overlap_m
+  type(pao_glob_angles_type), intent(inout) :: glob_angles
+  type(pao_matrix_type), pointer, optional :: min_hamiltonian_m
+  type(pao_matrix_type), pointer ::  min_overlap_m
   type(cp_error_type), optional, intent(inout) :: error
   
   logical :: failure
   integer :: handle
-  character(len=*), parameter :: routineN='cp_pao_g_ang_get_min_m',&
+  character(len=*), parameter :: routineN='pao_g_ang_get_min_m',&
        routineP=moduleN//':'//routineN
   type(cp_error_type) :: iError
   call cp_init(iError, template_error=error)
@@ -1087,7 +1087,7 @@ subroutine cp_pao_g_ang_get_min_m(glob_angles,&
                      min_bas_cols=.true., min_bas_rows=.true.,&
                      pao_env=glob_angles%pao_env)
              end if
-             call cp_pao_matrix_transf_to_m(source_m=&
+             call pao_matrix_transf_to_m(source_m=&
                   glob_angles%pao_env%full_overlap_m, &
                   target_m=glob_angles%min_overlap_m,&
                   glob_angles=glob_angles,error=error)
@@ -1111,7 +1111,7 @@ subroutine cp_pao_g_ang_get_min_m(glob_angles,&
                      error,failure)
              end if
              if (.not.failure) then
-                call cp_pao_matrix_transf_to_m(source_m=&
+                call pao_matrix_transf_to_m(source_m=&
                      glob_angles%pao_env%full_hamiltonian_m, &
                      target_m=glob_angles%min_hamiltonian_m,&
                      glob_angles=glob_angles,error=error)
@@ -1128,7 +1128,7 @@ subroutine cp_pao_g_ang_get_min_m(glob_angles,&
      
   end if
   !call timestop(0.0_wp,handle)
-end subroutine cp_pao_g_ang_get_min_m
+end subroutine pao_g_ang_get_min_m
 !***************************************************************************
 
-end module cp_pao_proj_methods
+end module pao_proj_methods

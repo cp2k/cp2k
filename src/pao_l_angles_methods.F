@@ -5,10 +5,10 @@
 
 #include "cp_prep_globals.h"
 
-!!****h* cp2k/cp_pao_l_angles_methods [1.0] *
+!!****h* cp2k/pao_l_angles_methods [1.0] *
 !!
 !!   NAME
-!!     cp_pao_l_angles_methods
+!!     pao_l_angles_methods
 !!
 !!   FUNCTION
 !!     methods to access and modify the handle to the local angles
@@ -26,25 +26,25 @@
 !!
 !!   SOURCE
 !*****************************************************************************
-module cp_pao_l_angles_methods
+module pao_l_angles_methods
   use cp_log_handling
   use cp_error_handling
   use kinds, only: wp=>dp
   use global_types, only: global_environment_type
   use timings, only: timeset, timestop
-  use cp_pao_types
-  use cp_pao_glob_angles_methods
-  use cp_pao_env_methods
+  use pao_types
+  use pao_glob_angles_methods
+  use pao_env_methods
   use sparse_matrix_types, only: real_matrix_type, replicate_matrix, copy_matrix,&
        allocate_matrix, deallocate_matrix, get_matrix_info, get_block_node,&
        add_block_node, put_block_node
-  use cp_pao_matrix_methods
-  use cp_pao_plain_rot
+  use pao_matrix_methods
+  use pao_plain_rot
   implicit none
   private
 
   logical, private, parameter :: debug_this_module=.true.
-  character(len=*), private, parameter :: moduleN='cp_pao_env_methods'
+  character(len=*), private, parameter :: moduleN='pao_env_methods'
 
 ! core procedures
   public :: cp_init, cp_dealloc_ref, cp_set, cp_get, &
@@ -63,19 +63,19 @@ module cp_pao_l_angles_methods
        cp_get_non_p_index, cp_get_unitary_t,cp_get_glob_angles,&
        cp_get_g_index
 
-  public :: cp_pao_l_compose_u ! to do remove from here and plain rot tests
+  public :: pao_l_compose_u ! to do remove from here and plain rot tests
 
 ! underlying functions
-  public :: cp_pao_l_ang_init, cp_pao_l_ang_dealloc_ref,&
-       cp_pao_l_ang_validate, cp_pao_l_ang_set,&
-       cp_pao_l_ang_get, cp_pao_l_ang_did_change,&
-       cp_pao_l_ang_get_pao_env, cp_pao_l_ang_get_angle,&
-       cp_pao_l_ang_set_angle, cp_pao_l_ang_get_min_bas_size,&
-       cp_pao_l_ang_get_full_bas_size, cp_pao_l_ang_get_excl_bas_size,&
-       cp_pao_l_ang_get_p_index, cp_pao_l_ang_set_p_index,&
-       cp_pao_l_ang_get_non_p_index,cp_pao_l_ang_get_unitary_t,&
-       cp_pao_l_ang_set_unitary_t, cp_pao_l_ang_get_glob_angles,&
-       cp_pao_l_ang_get_g_index
+  public :: pao_l_ang_init, pao_l_ang_dealloc_ref,&
+       pao_l_ang_validate, pao_l_ang_set,&
+       pao_l_ang_get, pao_l_ang_did_change,&
+       pao_l_ang_get_pao_env, pao_l_ang_get_angle,&
+       pao_l_ang_set_angle, pao_l_ang_get_min_bas_size,&
+       pao_l_ang_get_full_bas_size, pao_l_ang_get_excl_bas_size,&
+       pao_l_ang_get_p_index, pao_l_ang_set_p_index,&
+       pao_l_ang_get_non_p_index,pao_l_ang_get_unitary_t,&
+       pao_l_ang_set_unitary_t, pao_l_ang_get_glob_angles,&
+       pao_l_ang_get_g_index
 
 ! ============== interfaces ===========
 
@@ -85,112 +85,112 @@ module cp_pao_l_angles_methods
 !! Support optional initial values that depend on the 
 !! first argument 
   interface cp_init
-     module procedure cp_pao_l_ang_init
+     module procedure pao_l_ang_init
   end interface
 
 !! Deallocates the memory allocated by the first argument.
 !! Supports error=error
   interface cp_dealloc_ref
-     module procedure cp_pao_l_ang_dealloc_ref
+     module procedure pao_l_ang_dealloc_ref
   end interface
 
 !! returns true if the content of the first argumenst is valid.
 !! writes the errors ar warnings, full validation (long)
   interface cp_validate
-     module procedure cp_pao_l_ang_validate
+     module procedure pao_l_ang_validate
   end interface
 
 !! returns true if the first argument is valid. Only a fast minimal 
 !! validation is performed (no dangling pointers)
   interface cp_valid
-     module procedure cp_pao_l_angles_valid
+     module procedure pao_l_angles_valid
   end interface
 
 !! sets the value of various optonal attributes of the firs argument.
 !! the optional attributes depend on the type of the first
   interface cp_set
-     module procedure cp_pao_l_ang_set
+     module procedure pao_l_ang_set
   end interface
 
 !! gets values from the first argument via optional keyword arguments
 !! that depend on the type of the first argument
   interface cp_get
-     module procedure cp_pao_l_ang_get
+     module procedure pao_l_ang_get
   end interface
 
 !! tells the object that its internal values have changes and its cached
 !! values may be invalid
   interface cp_did_change
-     module procedure cp_pao_l_ang_did_change
+     module procedure pao_l_ang_did_change
   end interface
 
 ! +++ end of the core methods +++
 
 !! returns the pao environement the first object lives in
   interface cp_get_pao_env
-     module procedure cp_pao_l_ang_get_pao_env
+     module procedure pao_l_ang_get_pao_env
   end interface
 
 !! returns the angle in the first arg identified by the second (min_bas)
 !! and the third arg (full_bas) 
   interface cp_get_angle
-     module procedure cp_pao_l_ang_get_angle
+     module procedure pao_l_ang_get_angle
   end interface
 
 !! sets the angle in the first arg identified by the second (min_bas)
 !! and the third arg (full_bas) to the value in the fourth (value)
   interface cp_set_angle
-     module procedure cp_pao_l_ang_set_angle
+     module procedure pao_l_ang_set_angle
   end interface
 
 !! returns the size of the minimal basis
   interface cp_get_min_bas_size
-     module procedure cp_pao_l_ang_get_min_bas_size
+     module procedure pao_l_ang_get_min_bas_size
   end interface
 
 !! returns the size of the full basis
   interface cp_get_full_bas_size
-     module procedure cp_pao_l_ang_get_full_bas_size
+     module procedure pao_l_ang_get_full_bas_size
   end interface
 
 !! returns the size of the excluded basis
   interface cp_get_excl_bas_size
-     module procedure cp_pao_l_ang_get_excl_bas_size
+     module procedure pao_l_ang_get_excl_bas_size
   end interface
 
 !! returns the projection index
   interface cp_get_p_index
-     module procedure cp_pao_l_ang_get_p_index
+     module procedure pao_l_ang_get_p_index
   end interface
 
 !! sets the projection index
   interface cp_set_p_index
-     module procedure cp_pao_l_ang_set_p_index
+     module procedure pao_l_ang_set_p_index
   end interface
 
 !! returns the index of the excluded basis
   interface cp_get_non_p_index
-     module procedure cp_pao_l_ang_get_non_p_index
+     module procedure pao_l_ang_get_non_p_index
   end interface
 
 !! gets the unitary transformation
   interface cp_get_unitary_t
-     module procedure cp_pao_l_ang_get_unitary_t
+     module procedure pao_l_ang_get_unitary_t
   end interface
 
 !! sets the unitary transformation
   interface cp_set_unitary_t
-     module procedure cp_pao_l_ang_set_unitary_t
+     module procedure pao_l_ang_set_unitary_t
   end interface
 
 !! gets the undelying glob_angles object
   interface cp_get_glob_angles
-     module procedure cp_pao_l_ang_get_glob_angles
+     module procedure pao_l_ang_get_glob_angles
   end interface
 
 !! returns the global index
 interface cp_get_g_index
-   module procedure cp_pao_l_ang_get_g_index
+   module procedure pao_l_ang_get_g_index
 end interface
 
 !!***
@@ -200,20 +200,20 @@ contains
 
 ! ====== core methods ======
 
-!!****f* cp_pao_l_angles_methods/cp_pao_l_ang_init [1.0] *
+!!****f* pao_l_angles_methods/pao_l_ang_init [1.0] *
 !!
 !!   NAME
-!!     cp_pao_l_ang_init
+!!     pao_l_ang_init
 !!
 !!   SYNOPSIS
-!!     Subroutine cp_pao_l_ang_init(local_angles, atom_nr, glob_angles,&
+!!     Subroutine pao_l_ang_init(local_angles, atom_nr, glob_angles,&
 !!         source, error)
-!!       Type(cp_pao_local_angles_type), Intent (OUT):: local_angles
+!!       Type(pao_local_angles_type), Intent (OUT):: local_angles
 !!       Integer, Optional, Intent (IN):: atom_nr
-!!       Type(cp_pao_glob_angles_type), Optional, Target:: glob_angles
-!!       Type(cp_pao_local_angles_type), Intent (IN), Optional:: source
+!!       Type(pao_glob_angles_type), Optional, Target:: glob_angles
+!!       Type(pao_local_angles_type), Intent (IN), Optional:: source
 !!       Type(cp_error_type), Optional, Intent (INOUT):: error
-!!     End Subroutine cp_pao_l_ang_init
+!!     End Subroutine pao_l_ang_init
 !!
 !!   FUNCTION
 !!     Initializes the pao angles structure
@@ -226,7 +226,7 @@ contains
 !!     error: variable to control error logging, stopping,... 
 !!            see module cp_error_handling
 !!
-!!     For the other arguments see cp_pao_l_ang_set
+!!     For the other arguments see pao_l_ang_set
 !!
 !!   AUTHOR
 !!     @author Fawzi Mohamed
@@ -236,16 +236,16 @@ contains
 !!     none
 !!
 !!*** **********************************************************************
-  subroutine cp_pao_l_ang_init(local_angles, atom_nr, glob_angles, &
+  subroutine pao_l_ang_init(local_angles, atom_nr, glob_angles, &
        source, error)
-    type(cp_pao_local_angles_type), intent(out):: local_angles
+    type(pao_local_angles_type), intent(out):: local_angles
     integer, optional, intent(in) :: atom_nr
-    type(cp_pao_glob_angles_type), optional, target :: glob_angles
-    type(cp_pao_local_angles_type), intent(in), optional :: source
+    type(pao_glob_angles_type), optional, target :: glob_angles
+    type(pao_local_angles_type), intent(in), optional :: source
     type(cp_error_type), optional, intent(inout) :: error
 
     logical :: failure
-    character(len=*), parameter :: routineP='cp_pao_l_angles_methods:cp_pao_l_ang_init'
+    character(len=*), parameter :: routineP='pao_l_angles_methods:pao_l_ang_init'
     failure=.false.
 
     local_angles%initialized=.true.
@@ -255,21 +255,21 @@ contains
          present(source), cp_warning_level, cp_precondition_failed,&
          routineP,"You did not fully initialize the local_angles",&
          error,failure)
-    call cp_pao_l_ang_set(local_angles, atom_nr, glob_angles, &
+    call pao_l_ang_set(local_angles, atom_nr, glob_angles, &
          source, error=error)
-  end subroutine cp_pao_l_ang_init
+  end subroutine pao_l_ang_init
 !***************************************************************************
 
-!!****f* cp_pao_l_angles_methods/cp_pao_l_ang_dealloc_ref [1.0] *
+!!****f* pao_l_angles_methods/pao_l_ang_dealloc_ref [1.0] *
 !!
 !!   NAME
-!!     cp_pao_l_ang_dealloc_ref
+!!     pao_l_ang_dealloc_ref
 !!
 !!   SYNOPSIS
-!!     Subroutine cp_pao_l_ang_dealloc_ref(local_angles, error)
-!!       Type(cp_pao_local_angles_type), Intent (INOUT):: local_angles
+!!     Subroutine pao_l_ang_dealloc_ref(local_angles, error)
+!!       Type(pao_local_angles_type), Intent (INOUT):: local_angles
 !!       Type(cp_error_type), Optional, Intent (INOUT):: error
-!!     End Subroutine cp_pao_l_ang_dealloc_ref
+!!     End Subroutine pao_l_ang_dealloc_ref
 !!
 !!   FUNCTION
 !!     deallocates the memory that the given local angles structure
@@ -291,33 +291,33 @@ contains
 !!     none
 !!
 !!*** **********************************************************************
-  subroutine cp_pao_l_ang_dealloc_ref(local_angles, error)
+  subroutine pao_l_ang_dealloc_ref(local_angles, error)
     real(kind=wp) ::res
-    type(cp_pao_local_angles_type), intent(inout) :: local_angles
+    type(pao_local_angles_type), intent(inout) :: local_angles
     type(cp_error_type), optional, intent(inout) :: error
 
     logical :: failure
-    character(len=*), parameter :: routineP='cp_pao_l_angles_methods:cp_pao_l_ang_dealloc_ref'
+    character(len=*), parameter :: routineP='pao_l_angles_methods:pao_l_ang_dealloc_ref'
     failure=.false.
 
     CPPrecondition(local_angles%initialized,cp_failure_level,routineP,error,failure)
     failureIf: if (.not. failure) then
        nullify(local_angles%glob_angles)
     end if failureIf
-  end subroutine cp_pao_l_ang_dealloc_ref
+  end subroutine pao_l_ang_dealloc_ref
 !***************************************************************************
 
-!!****f* cp_pao_l_angles_methods/cp_pao_l_ang_validate [1.0] *
+!!****f* pao_l_angles_methods/pao_l_ang_validate [1.0] *
 !!
 !!   NAME
-!!     cp_pao_l_ang_validate
+!!     pao_l_ang_validate
 !!
 !!   SYNOPSIS
-!!     Function cp_pao_l_ang_validate(local_angles, error) Result(res)
+!!     Function pao_l_ang_validate(local_angles, error) Result(res)
 !!       Logical:: res
-!!       Type(cp_pao_local_angles_type), Intent (IN):: local_angles
+!!       Type(pao_local_angles_type), Intent (IN):: local_angles
 !!       Type(cp_error_type), Optional, Intent (INOUT):: error
-!!     End Function cp_pao_l_ang_validate
+!!     End Function pao_l_ang_validate
 !!
 !!   FUNCTION
 !!     checks if the local angles object is valid (returns .true. if it is)
@@ -338,14 +338,14 @@ contains
 !!     none
 !!
 !!*** **********************************************************************
-  function cp_pao_l_ang_validate(local_angles, error) result(res)
+  function pao_l_ang_validate(local_angles, error) result(res)
     logical ::res
-    type(cp_pao_local_angles_type), intent(in) :: local_angles
+    type(pao_local_angles_type), intent(in) :: local_angles
     type(cp_error_type), optional, intent(inout) :: error
 
     logical :: failure
-    character(len=*), parameter :: routineP='cp_pao_l_angles_methods:cp_pao_l_ang_validate'
-    type(cp_pao_env_type), pointer :: pao_env
+    character(len=*), parameter :: routineP='pao_l_angles_methods:pao_l_ang_validate'
+    type(pao_env_type), pointer :: pao_env
     integer :: i, beginAt
     failure=.false.
     nullify(pao_env)
@@ -379,24 +379,24 @@ contains
        end if
     end if
     res=.not.failure
-  end function cp_pao_l_ang_validate
+  end function pao_l_ang_validate
 !***************************************************************************
 
 
-!!****f* cp_pao_l_angles_methods/cp_pao_l_ang_set [1.0] *
+!!****f* pao_l_angles_methods/pao_l_ang_set [1.0] *
 !!
 !!   NAME
-!!     cp_pao_l_ang_set
+!!     pao_l_ang_set
 !!
 !!   SYNOPSIS
-!!     Subroutine cp_pao_l_ang_set(local_angles, atom_nr, glob_angles,&
+!!     Subroutine pao_l_ang_set(local_angles, atom_nr, glob_angles,&
 !!         source, error)
-!!       Type(cp_pao_local_angles_type), Intent (INOUT):: local_angles
+!!       Type(pao_local_angles_type), Intent (INOUT):: local_angles
 !!       Integer, Optional, Intent (IN):: atom_nr
-!!       Type(cp_pao_glob_angles_type), Optional, Target:: glob_angles
-!!       Type(cp_pao_local_angles_type), Intent (IN), Optional:: source
+!!       Type(pao_glob_angles_type), Optional, Target:: glob_angles
+!!       Type(pao_local_angles_type), Intent (IN), Optional:: source
 !!       Type(cp_error_type), Optional, Intent (INOUT):: error
-!!     End Subroutine cp_pao_l_ang_set
+!!     End Subroutine pao_l_ang_set
 !!
 !!   FUNCTION
 !!     sets the values of the various attributes of the local angles
@@ -425,17 +425,17 @@ contains
 !!     none
 !!
 !!*** **********************************************************************
-  subroutine cp_pao_l_ang_set(local_angles, atom_nr, glob_angles,&
+  subroutine pao_l_ang_set(local_angles, atom_nr, glob_angles,&
        source,error)
-    type(cp_pao_local_angles_type), intent(inout):: local_angles
+    type(pao_local_angles_type), intent(inout):: local_angles
     integer, optional, intent(in) :: atom_nr
-    type(cp_pao_glob_angles_type), optional, target :: glob_angles 
-    type(cp_pao_local_angles_type), intent(in), optional :: source
+    type(pao_glob_angles_type), optional, target :: glob_angles 
+    type(pao_local_angles_type), intent(in), optional :: source
     type(cp_error_type), optional, intent(inout) :: error
 
     logical :: failure
-    character(len=*), parameter :: routineP='cp_pao_l_angles_methods:cp_pao_l_ang_set'
-    type(cp_pao_env_type), pointer :: pao_env
+    character(len=*), parameter :: routineP='pao_l_angles_methods:pao_l_ang_set'
+    type(pao_env_type), pointer :: pao_env
     type(cp_error_type) :: iError
     failure=.false.
     nullify(pao_env)
@@ -498,25 +498,25 @@ contains
        end if
     end if failureIf
     call cp_dealloc_ref(iError,error=error)
-  end subroutine cp_pao_l_ang_set
+  end subroutine pao_l_ang_set
 !***************************************************************************
 
-!!****f* cp_pao_l_angles_methods/cp_pao_l_ang_get [1.0] *
+!!****f* pao_l_angles_methods/pao_l_ang_get [1.0] *
 !!
 !!   NAME
-!!     cp_pao_l_ang_get
+!!     pao_l_ang_get
 !!
 !!   SYNOPSIS
-!!     Subroutine cp_pao_l_ang_get(local_angles, atom_nr, n_min_bas,&
+!!     Subroutine pao_l_ang_get(local_angles, atom_nr, n_min_bas,&
 !!         n_full_bas, pao_env, n_excl_bas, unitary_t, cache_valid, error)
-!!       Type(cp_pao_local_angles_type), Intent (INOUT):: local_angles
+!!       Type(pao_local_angles_type), Intent (INOUT):: local_angles
 !!       Integer, Optional, Intent (OUT):: atom_nr, n_min_bas, n_full_bas,&
 !!         n_excl_bas
-!!       Type(cp_pao_env_type), Optional, Pointer:: pao_env
+!!       Type(pao_env_type), Optional, Pointer:: pao_env
 !!       Type(cp_error_type), Optional, Intent (INOUT):: error
 !!       Real(Kind=wp), Dimension(:,:), Pointer, Optional:: unitary_t
 !!       Logical, Intent (OUT), Optional:: cache_valid
-!!     End Subroutine cp_pao_l_ang_get
+!!     End Subroutine pao_l_ang_get
 !!
 !!   FUNCTION
 !!     gets various attributes of the pao local angles structure
@@ -544,19 +544,19 @@ contains
 !!     none
 !!
 !!*** **********************************************************************
-  subroutine cp_pao_l_ang_get(local_angles, atom_nr, n_min_bas, &
+  subroutine pao_l_ang_get(local_angles, atom_nr, n_min_bas, &
        n_full_bas, pao_env, n_excl_bas,unitary_t,cache_valid, error)
-    type(cp_pao_local_angles_type), intent(inout) :: local_angles
+    type(pao_local_angles_type), intent(inout) :: local_angles
     integer, optional, intent(out) :: atom_nr, n_min_bas, n_full_bas,&
          n_excl_bas
-    type(cp_pao_env_type), optional, pointer :: pao_env
+    type(pao_env_type), optional, pointer :: pao_env
     type(cp_error_type), optional, intent(inout) :: error
     real(kind=wp), dimension(:,:), pointer, optional :: unitary_t
     logical, intent(out), optional :: cache_valid
 
     logical :: failure
-    character(len=*), parameter :: routineP='cp_pao_l_angles_methods:cp_pao_l_ang_get'
-    type(cp_pao_env_type), pointer :: my_pao_env
+    character(len=*), parameter :: routineP='pao_l_angles_methods:pao_l_ang_get'
+    type(pao_env_type), pointer :: my_pao_env
     failure=.false.
     nullify(my_pao_env)
 
@@ -586,7 +586,7 @@ contains
                my_pao_env%nr_min_bas(local_angles%atom_nr)
        end if
        if (present(unitary_t)) then
-          unitary_t => cp_pao_l_ang_get_unitary_t(local_angles,error=error)
+          unitary_t => pao_l_ang_get_unitary_t(local_angles,error=error)
        end if
        if (present(cache_valid)) then
           if (associated(local_angles%glob_angles%ut_calculated).and.&
@@ -599,13 +599,13 @@ contains
        end if
        nullify(my_pao_env)
     end if failureIf
-  end subroutine cp_pao_l_ang_get
+  end subroutine pao_l_ang_get
 !***************************************************************************
 
-!!****f* cp_pao_l_angles_methods/cp_pao_l_angles_valid [1.0] *
+!!****f* pao_l_angles_methods/pao_l_angles_valid [1.0] *
 !!
 !!   NAME
-!!     cp_pao_l_angles_valid
+!!     pao_l_angles_valid
 !!
 !!   FUNCTION
 !!     performs minimal validation on the object
@@ -626,13 +626,13 @@ contains
 !!     none
 !!
 !!*** **********************************************************************
-  function cp_pao_l_angles_valid(local_angles, error) result(res)
+  function pao_l_angles_valid(local_angles, error) result(res)
     logical ::res
-    type(cp_pao_local_angles_type), intent(in) :: local_angles
+    type(pao_local_angles_type), intent(in) :: local_angles
     type(cp_error_type), optional, intent(inout) :: error
 
     logical :: failure
-    character(len=*), parameter :: routineP='cp_pao_l_angles_methods:cp_pao_l_angles_valid'
+    character(len=*), parameter :: routineP='pao_l_angles_methods:pao_l_angles_valid'
     failure=.false.
 
     CPPrecondition(local_angles%initialized,cp_failure_level,routineP,error,failure)
@@ -648,22 +648,22 @@ contains
        end if
     end if
     res=.not.failure
-  end function cp_pao_l_angles_valid
+  end function pao_l_angles_valid
 !***************************************************************************
 
 ! ====== special methods =====
 
-!!****f* cp_pao_l_angles_methods/cp_pao_l_ang_get_pao_env [1.0] *
+!!****f* pao_l_angles_methods/pao_l_ang_get_pao_env [1.0] *
 !!
 !!   NAME
-!!     cp_pao_l_ang_get_pao_env
+!!     pao_l_ang_get_pao_env
 !!
 !!   SYNOPSIS
-!!     Function cp_pao_l_ang_get_pao_env(local_angles, error) Result(res)
-!!       Type(cp_pao_env_type), Pointer:: res
-!!       Type(cp_pao_local_angles_type), Intent (IN):: local_angles
+!!     Function pao_l_ang_get_pao_env(local_angles, error) Result(res)
+!!       Type(pao_env_type), Pointer:: res
+!!       Type(pao_local_angles_type), Intent (IN):: local_angles
 !!       Type(cp_error_type), Optional, Intent (INOUT):: error
-!!     End Function cp_pao_l_ang_get_pao_env
+!!     End Function pao_l_ang_get_pao_env
 !!
 !!   FUNCTION
 !!     returns the global environement the local angles object lives in
@@ -684,13 +684,13 @@ contains
 !!     none
 !!
 !!*** **********************************************************************
-  function cp_pao_l_ang_get_pao_env(local_angles, error) result(res)
-    type(cp_pao_env_type), pointer ::res
-    type(cp_pao_local_angles_type), intent(in) :: local_angles
+  function pao_l_ang_get_pao_env(local_angles, error) result(res)
+    type(pao_env_type), pointer ::res
+    type(pao_local_angles_type), intent(in) :: local_angles
     type(cp_error_type), optional, intent(inout) :: error
 
     logical :: failure
-    character(len=*), parameter :: routineP='cp_pao_l_angles_methods:cp_pao_l_ang_get_pao_env'
+    character(len=*), parameter :: routineP='pao_l_angles_methods:pao_l_ang_get_pao_env'
     failure=.false.
     CPPrecondition(local_angles%initialized, cp_failure_level,routineP,error,failure)
     CPPrecondition(associated(local_angles%glob_angles),cp_warning_level,routineP,error,failure)
@@ -699,22 +699,22 @@ contains
     else failureIf
        nullify(res)
     end if failureIf
-  end function cp_pao_l_ang_get_pao_env
+  end function pao_l_ang_get_pao_env
 !***************************************************************************
 
-!!****f* cp_pao_l_angles_methods/cp_pao_l_ang_get_p_index [1.0] *
+!!****f* pao_l_angles_methods/pao_l_ang_get_p_index [1.0] *
 !!
 !!   NAME
-!!     cp_pao_l_ang_get_p_index
+!!     pao_l_ang_get_p_index
 !!
 !!   SYNOPSIS
-!!     Function cp_pao_l_ang_get_p_index(local_angles, i, error)&
+!!     Function pao_l_ang_get_p_index(local_angles, i, error)&
 !!         Result(res)
 !!       Integer:: res
-!!       Type(cp_pao_local_angles_type), Intent (IN):: local_angles
+!!       Type(pao_local_angles_type), Intent (IN):: local_angles
 !!       Integer, Intent (IN):: i
 !!       Type(cp_error_type), Optional, Intent (INOUT):: error
-!!     End Function cp_pao_l_ang_get_p_index
+!!     End Function pao_l_ang_get_p_index
 !!
 !!   FUNCTION
 !!     returns the i-te index of the projection
@@ -736,15 +736,15 @@ contains
 !!     none
 !!
 !!*** **********************************************************************
-  function cp_pao_l_ang_get_p_index(local_angles, i,error) result(res)
+  function pao_l_ang_get_p_index(local_angles, i,error) result(res)
     integer ::res
-    type(cp_pao_local_angles_type), intent(in) :: local_angles
+    type(pao_local_angles_type), intent(in) :: local_angles
     integer, intent(in) :: i
     type(cp_error_type), optional, intent(inout) :: error
 
     logical :: failure
-    character(len=*), parameter :: routineP='cp_pao_l_angles_methods:cp_pao_l_ang_get_p_index'
-    type(cp_pao_env_type), pointer :: pao_env
+    character(len=*), parameter :: routineP='pao_l_angles_methods:pao_l_ang_get_p_index'
+    type(pao_env_type), pointer :: pao_env
     failure=.false.
     pao_env => cp_get_pao_env(local_angles)
     if (cp_debug .or. debug_this_module) then
@@ -758,20 +758,20 @@ contains
     else failureIf
        res=-1
     end if failureIf
-  end function cp_pao_l_ang_get_p_index
+  end function pao_l_ang_get_p_index
 !***************************************************************************
 
-!!****f* cp_pao_l_angles_methods/cp_pao_l_ang_set_p_index [1.0] *
+!!****f* pao_l_angles_methods/pao_l_ang_set_p_index [1.0] *
 !!
 !!   NAME
-!!     cp_pao_l_ang_set_p_index
+!!     pao_l_ang_set_p_index
 !!
 !!   SYNOPSIS
-!!     Subroutine cp_pao_l_ang_set_p_index(local_angles, i, value, error)
-!!       Type(cp_pao_local_angles_type), Intent (INOUT):: local_angles
+!!     Subroutine pao_l_ang_set_p_index(local_angles, i, value, error)
+!!       Type(pao_local_angles_type), Intent (INOUT):: local_angles
 !!       Integer, Intent (IN):: i, value
 !!       Type(cp_error_type), Optional, Intent (INOUT):: error
-!!     End Subroutine cp_pao_l_ang_set_p_index
+!!     End Subroutine pao_l_ang_set_p_index
 !!
 !!   FUNCTION
 !!     set the value of the i-te index of the projection
@@ -794,14 +794,14 @@ contains
 !!     none
 !!
 !!*** **********************************************************************
-  subroutine cp_pao_l_ang_set_p_index(local_angles,i,value,error)
-    type(cp_pao_local_angles_type), intent(inout) :: local_angles ! actually only pao_env is changed
+  subroutine pao_l_ang_set_p_index(local_angles,i,value,error)
+    type(pao_local_angles_type), intent(inout) :: local_angles ! actually only pao_env is changed
     integer, intent(in) :: i,value
     type(cp_error_type), optional, intent(inout) :: error
 
     logical :: failure
-    character(len=*), parameter :: routineP='cp_pao_l_angles_methods:cp_pao_l_ang_set_p_index'
-    type(cp_pao_env_type), pointer :: pao_env
+    character(len=*), parameter :: routineP='pao_l_angles_methods:pao_l_ang_set_p_index'
+    type(pao_env_type), pointer :: pao_env
     failure=.false.
     pao_env => cp_get_pao_env(local_angles)
     if (cp_debug .or. debug_this_module) then
@@ -813,22 +813,22 @@ contains
        call cp_set_p_index(pao_env,atom_nr=local_angles%atom_nr,&
             i=i,value=value,error=error)
     end if failureIf
-  end subroutine cp_pao_l_ang_set_p_index
+  end subroutine pao_l_ang_set_p_index
 !***************************************************************************
 
-!!****f* cp_pao_l_angles_methods/cp_pao_l_ang_get_non_p_index [1.0] *
+!!****f* pao_l_angles_methods/pao_l_ang_get_non_p_index [1.0] *
 !!
 !!   NAME
-!!     cp_pao_l_ang_get_non_p_index
+!!     pao_l_ang_get_non_p_index
 !!
 !!   SYNOPSIS
-!!     Function cp_pao_l_ang_get_non_p_index(local_angles, i, error)&
+!!     Function pao_l_ang_get_non_p_index(local_angles, i, error)&
 !!         Result(res)
 !!       Integer:: res
-!!       Type(cp_pao_local_angles_type), Intent (IN):: local_angles
+!!       Type(pao_local_angles_type), Intent (IN):: local_angles
 !!       Integer, Intent (IN):: i
 !!       Type(cp_error_type), Optional, Intent (INOUT):: error
-!!     End Function cp_pao_l_ang_get_non_p_index
+!!     End Function pao_l_ang_get_non_p_index
 !!
 !!   FUNCTION
 !!     returns the i-te index of the excluded basis
@@ -850,15 +850,15 @@ contains
 !!     none
 !!
 !!*** **********************************************************************
-  function cp_pao_l_ang_get_non_p_index(local_angles, i,error) result(res)
+  function pao_l_ang_get_non_p_index(local_angles, i,error) result(res)
     integer ::res
-    type(cp_pao_local_angles_type), intent(in) :: local_angles
+    type(pao_local_angles_type), intent(in) :: local_angles
     integer, intent(in) :: i
     type(cp_error_type), optional, intent(inout) :: error
 
     logical :: failure
-    character(len=*), parameter :: routineP='cp_pao_l_angles_methods:cp_pao_l_ang_get_non_p_index'
-    type(cp_pao_env_type), pointer :: pao_env
+    character(len=*), parameter :: routineP='pao_l_angles_methods:pao_l_ang_get_non_p_index'
+    type(pao_env_type), pointer :: pao_env
     failure=.false.
     pao_env => cp_get_pao_env(local_angles)
     if (cp_debug .or. debug_this_module) then
@@ -872,22 +872,22 @@ contains
     else failureIf
        res=-1
     end if failureIf
-  end function cp_pao_l_ang_get_non_p_index
+  end function pao_l_ang_get_non_p_index
 !***************************************************************************
 
-!!****f* cp_pao_l_angles_methods/cp_pao_l_ang_get_angle [1.0] *
+!!****f* pao_l_angles_methods/pao_l_ang_get_angle [1.0] *
 !!
 !!   NAME
-!!     cp_pao_l_ang_get_angle
+!!     pao_l_ang_get_angle
 !!
 !!   SYNOPSIS
-!!     Function cp_pao_l_ang_get_angle(local_angles, min_bas, excl_bas,&
+!!     Function pao_l_ang_get_angle(local_angles, min_bas, excl_bas,&
 !!         error) Result(res)
 !!       Real(Kind=wp):: res
-!!       Type(cp_pao_local_angles_type), Intent (IN):: local_angles
+!!       Type(pao_local_angles_type), Intent (IN):: local_angles
 !!       Integer, Intent (IN):: min_bas, excl_bas
 !!       Type(cp_error_type), Optional, Intent (INOUT):: error
-!!     End Function cp_pao_l_ang_get_angle
+!!     End Function pao_l_ang_get_angle
 !!
 !!   FUNCTION
 !!     returns the requested angle
@@ -912,16 +912,16 @@ contains
 !!     none
 !!
 !!*** **********************************************************************
-  function cp_pao_l_ang_get_angle(local_angles, min_bas, excl_bas, &
+  function pao_l_ang_get_angle(local_angles, min_bas, excl_bas, &
        error) result(res)
     real(kind=wp) ::res
-    type(cp_pao_local_angles_type), intent(in) :: local_angles
+    type(pao_local_angles_type), intent(in) :: local_angles
     integer, intent(in) :: min_bas, excl_bas
     type(cp_error_type), optional, intent(inout) :: error
 
     logical :: failure
-    character(len=*), parameter :: routineP='cp_pao_l_angles_methods:cp_pao_l_ang_get_angle'
-    type(cp_pao_glob_angles_type), pointer :: glob_angles
+    character(len=*), parameter :: routineP='pao_l_angles_methods:pao_l_ang_get_angle'
+    type(pao_glob_angles_type), pointer :: glob_angles
     failure=.false.
     glob_angles => local_angles%glob_angles
 
@@ -967,22 +967,22 @@ contains
     else failureIf
        res=-1
     end if failureIf
-  end function cp_pao_l_ang_get_angle
+  end function pao_l_ang_get_angle
 !***************************************************************************
 
-!!****f* cp_pao_l_angles_methods/cp_pao_l_ang_set_angle [1.0] *
+!!****f* pao_l_angles_methods/pao_l_ang_set_angle [1.0] *
 !!
 !!   NAME
-!!     cp_pao_l_ang_set_angle
+!!     pao_l_ang_set_angle
 !!
 !!   SYNOPSIS
-!!     Subroutine cp_pao_l_ang_set_angle(local_angles, min_bas, excl_bas,&
+!!     Subroutine pao_l_ang_set_angle(local_angles, min_bas, excl_bas,&
 !!         value, error)
-!!       Type(cp_pao_local_angles_type), Intent (IN):: local_angles
+!!       Type(pao_local_angles_type), Intent (IN):: local_angles
 !!       Integer, Intent (IN):: min_bas, excl_bas
 !!       Real(Kind=wp), Intent (IN):: value
 !!       Type(cp_error_type), Optional, Intent (INOUT):: error
-!!     End Subroutine cp_pao_l_ang_set_angle
+!!     End Subroutine pao_l_ang_set_angle
 !!
 !!   FUNCTION
 !!     returns the requested angle
@@ -1007,16 +1007,16 @@ contains
 !!     none
 !!
 !!*** **********************************************************************
-  subroutine cp_pao_l_ang_set_angle(local_angles, min_bas, excl_bas, &
+  subroutine pao_l_ang_set_angle(local_angles, min_bas, excl_bas, &
        value,error)
-    type(cp_pao_local_angles_type), intent(in) :: local_angles !actually the substructure globalangles is modifed
+    type(pao_local_angles_type), intent(in) :: local_angles !actually the substructure globalangles is modifed
     integer, intent(in) :: min_bas, excl_bas
     real(kind=wp), intent(in) :: value
     type(cp_error_type), optional, intent(inout) :: error
 
     logical :: failure
-    character(len=*), parameter :: routineP='cp_pao_l_angles_methods:cp_pao_l_ang_set_angle'
-    type(cp_pao_glob_angles_type), pointer :: glob_angles
+    character(len=*), parameter :: routineP='pao_l_angles_methods:pao_l_ang_set_angle'
+    type(pao_glob_angles_type), pointer :: glob_angles
     failure=.false.
     glob_angles => local_angles%glob_angles
 
@@ -1061,21 +1061,21 @@ contains
             excl_bas) = value
     end if failureIf
     nullify(glob_angles)
-  end subroutine cp_pao_l_ang_set_angle
+  end subroutine pao_l_ang_set_angle
 !***************************************************************************
 
-!!****f* cp_pao_l_angles_methods/cp_pao_l_ang_get_excl_bas_size [1.0] *
+!!****f* pao_l_angles_methods/pao_l_ang_get_excl_bas_size [1.0] *
 !!
 !!   NAME
-!!     cp_pao_l_ang_get_excl_bas_size
+!!     pao_l_ang_get_excl_bas_size
 !!
 !!   SYNOPSIS
-!!     Function cp_pao_l_ang_get_excl_bas_size(local_angles, error)&
+!!     Function pao_l_ang_get_excl_bas_size(local_angles, error)&
 !!         Result(res)
 !!       Integer:: res
-!!       Type(cp_pao_local_angles_type), Intent (IN):: local_angles
+!!       Type(pao_local_angles_type), Intent (IN):: local_angles
 !!       Type(cp_error_type), Optional, Intent (INOUT):: error
-!!     End Function cp_pao_l_ang_get_excl_bas_size
+!!     End Function pao_l_ang_get_excl_bas_size
 !!
 !!   FUNCTION
 !!     returns the size of the excluded basis
@@ -1096,40 +1096,40 @@ contains
 !!     none
 !!
 !!*** **********************************************************************
-  function cp_pao_l_ang_get_excl_bas_size(local_angles, error) result(res)
+  function pao_l_ang_get_excl_bas_size(local_angles, error) result(res)
     integer ::res
-    type(cp_pao_local_angles_type), intent(in) :: local_angles
+    type(pao_local_angles_type), intent(in) :: local_angles
     type(cp_error_type), optional, intent(inout) :: error
 
     logical :: failure
-    character(len=*), parameter :: routineP='cp_pao_l_angles_methods:cp_pao_l_ang_get_excl_bas_size'
-    type(cp_pao_env_type), pointer :: pao_env
+    character(len=*), parameter :: routineP='pao_l_angles_methods:pao_l_ang_get_excl_bas_size'
+    type(pao_env_type), pointer :: pao_env
     failure=.false.
 
     CPPrecondition(local_angles%initialized, cp_failure_level,routineP,error,failure)
     pao_env => cp_get_pao_env(local_angles)
     CPPrecondition(associated(pao_env),cp_failure_level,routineP,error,failure)
     if (.not.failure) then
-       res=cp_pao_env_get_excl_bas_size(pao_env,atom_nr=local_angles%atom_nr,&
+       res=pao_env_get_excl_bas_size(pao_env,atom_nr=local_angles%atom_nr,&
             error=error)
     else
        res=-1
     end if
-  end function cp_pao_l_ang_get_excl_bas_size
+  end function pao_l_ang_get_excl_bas_size
 !***************************************************************************
 
-!!****f* cp_pao_l_angles_methods/cp_pao_l_ang_get_min_bas_size [1.0] *
+!!****f* pao_l_angles_methods/pao_l_ang_get_min_bas_size [1.0] *
 !!
 !!   NAME
-!!     cp_pao_l_ang_get_min_bas_size
+!!     pao_l_ang_get_min_bas_size
 !!
 !!   SYNOPSIS
-!!     Function cp_pao_l_ang_get_min_bas_size(local_angles, error)&
+!!     Function pao_l_ang_get_min_bas_size(local_angles, error)&
 !!         Result(res)
 !!       Integer:: res
-!!       Type(cp_pao_local_angles_type), Intent (IN):: local_angles
+!!       Type(pao_local_angles_type), Intent (IN):: local_angles
 !!       Type(cp_error_type), Optional, Intent (INOUT):: error
-!!     End Function cp_pao_l_ang_get_min_bas_size
+!!     End Function pao_l_ang_get_min_bas_size
 !!
 !!   FUNCTION
 !!     returns the size of the minimal basis
@@ -1150,14 +1150,14 @@ contains
 !!     none
 !!
 !!*** **********************************************************************
-  function cp_pao_l_ang_get_min_bas_size(local_angles, error) result(res)
+  function pao_l_ang_get_min_bas_size(local_angles, error) result(res)
     integer ::res
-    type(cp_pao_local_angles_type), intent(in) :: local_angles
+    type(pao_local_angles_type), intent(in) :: local_angles
     type(cp_error_type), optional, intent(inout) :: error
 
     logical :: failure
-    character(len=*), parameter :: routineP='cp_pao_l_angles_methods:cp_pao_l_ang_get_min_bas_size'
-    type(cp_pao_env_type), pointer :: pao_env
+    character(len=*), parameter :: routineP='pao_l_angles_methods:pao_l_ang_get_min_bas_size'
+    type(pao_env_type), pointer :: pao_env
     failure=.false.
 
     CPPrecondition(local_angles%initialized, cp_failure_level,routineP,error,failure)
@@ -1169,21 +1169,21 @@ contains
     else
        res=-1
     end if
-  end function cp_pao_l_ang_get_min_bas_size
+  end function pao_l_ang_get_min_bas_size
 !***************************************************************************
 
-!!****f* cp_pao_l_angles_methods/cp_pao_l_ang_get_full_bas_size [1.0] *
+!!****f* pao_l_angles_methods/pao_l_ang_get_full_bas_size [1.0] *
 !!
 !!   NAME
-!!     cp_pao_l_ang_get_full_bas_size
+!!     pao_l_ang_get_full_bas_size
 !!
 !!   SYNOPSIS
-!!     Function cp_pao_l_ang_get_full_bas_size(local_angles, error)&
+!!     Function pao_l_ang_get_full_bas_size(local_angles, error)&
 !!         Result(res)
 !!       Integer:: res
-!!       Type(cp_pao_local_angles_type), Intent (IN):: local_angles
+!!       Type(pao_local_angles_type), Intent (IN):: local_angles
 !!       Type(cp_error_type), Optional, Intent (INOUT):: error
-!!     End Function cp_pao_l_ang_get_full_bas_size
+!!     End Function pao_l_ang_get_full_bas_size
 !!
 !!   FUNCTION
 !!     returns the size of the full basis
@@ -1204,14 +1204,14 @@ contains
 !!     none
 !!
 !!*** **********************************************************************
-  function cp_pao_l_ang_get_full_bas_size(local_angles, error) result(res)
+  function pao_l_ang_get_full_bas_size(local_angles, error) result(res)
     integer ::res
-    type(cp_pao_local_angles_type), intent(in) :: local_angles
+    type(pao_local_angles_type), intent(in) :: local_angles
     type(cp_error_type), optional, intent(inout) :: error
 
     logical :: failure
-    character(len=*), parameter :: routineP='cp_pao_l_angles_methods:cp_pao_l_ang_get_full_bas_size'
-    type(cp_pao_env_type), pointer :: pao_env
+    character(len=*), parameter :: routineP='pao_l_angles_methods:pao_l_ang_get_full_bas_size'
+    type(pao_env_type), pointer :: pao_env
     failure=.false.
 
     CPPrecondition(local_angles%initialized, cp_failure_level,routineP,error,failure)
@@ -1223,21 +1223,21 @@ contains
     else
        res=-1
     end if
-  end function cp_pao_l_ang_get_full_bas_size
+  end function pao_l_ang_get_full_bas_size
 !***************************************************************************
 
-!!****f* cp_pao_l_angles_methods/cp_pao_l_ang_get_glob_angles [1.0] *
+!!****f* pao_l_angles_methods/pao_l_ang_get_glob_angles [1.0] *
 !!
 !!   NAME
-!!     cp_pao_l_ang_get_glob_angles
+!!     pao_l_ang_get_glob_angles
 !!
 !!   SYNOPSIS
-!!     Function cp_pao_l_ang_get_glob_angles(local_angles, error)&
+!!     Function pao_l_ang_get_glob_angles(local_angles, error)&
 !!         Result(res)
-!!       Type(cp_pao_local_angles_type), Intent (IN):: local_angles
-!!       Type(cp_pao_glob_angles_type), Pointer:: res
+!!       Type(pao_local_angles_type), Intent (IN):: local_angles
+!!       Type(pao_glob_angles_type), Pointer:: res
 !!       Type(cp_error_type), Optional, Intent (INOUT):: error
-!!     End Function cp_pao_l_ang_get_glob_angles
+!!     End Function pao_l_ang_get_glob_angles
 !!
 !!   FUNCTION
 !!     returns the global angles object that this object accesses
@@ -1258,13 +1258,13 @@ contains
 !!     none
 !!
 !!*** **********************************************************************
-  function cp_pao_l_ang_get_glob_angles(local_angles,error) result(res)
-    type(cp_pao_local_angles_type), intent(in) :: local_angles
-    type(cp_pao_glob_angles_type), pointer ::res
+  function pao_l_ang_get_glob_angles(local_angles,error) result(res)
+    type(pao_local_angles_type), intent(in) :: local_angles
+    type(pao_glob_angles_type), pointer ::res
     type(cp_error_type), optional, intent(inout) :: error
 
     logical :: failure
-    character(len=*), parameter :: routineP='cp_pao_l_angles_methods:cp_pao_l_ang_get_glob_angles'
+    character(len=*), parameter :: routineP='pao_l_angles_methods:pao_l_ang_get_glob_angles'
     failure=.false.
 
     CPPrecondition(cp_valid(local_angles),cp_failure_level,routineP,error,failure)
@@ -1273,20 +1273,20 @@ contains
     else
        nullify(res)
     end if
-  end function cp_pao_l_ang_get_glob_angles
+  end function pao_l_ang_get_glob_angles
 !***************************************************************************
 
 
-!!****f* cp_pao_l_angles_methods/cp_pao_l_ang_did_change [1.0] *
+!!****f* pao_l_angles_methods/pao_l_ang_did_change [1.0] *
 !!
 !!   NAME
-!!     cp_pao_l_ang_did_change
+!!     pao_l_ang_did_change
 !!
 !!   SYNOPSIS
-!!     Subroutine cp_pao_l_ang_did_change(local_angles, error)
-!!       Type(cp_pao_local_angles_type), Intent (INOUT):: local_angles
+!!     Subroutine pao_l_ang_did_change(local_angles, error)
+!!       Type(pao_local_angles_type), Intent (INOUT):: local_angles
 !!       Type(cp_error_type), Optional, Intent (INOUT):: error
-!!     End Subroutine cp_pao_l_ang_did_change
+!!     End Subroutine pao_l_ang_did_change
 !!
 !!   FUNCTION
 !!     invalidate the cached unitary transformation of this atom.
@@ -1308,13 +1308,13 @@ contains
 !!     none
 !!
 !!*** **********************************************************************
-  subroutine cp_pao_l_ang_did_change(local_angles,error)
+  subroutine pao_l_ang_did_change(local_angles,error)
 ! changes in local_angles%glob_angles
-    type(cp_pao_local_angles_type), intent(inout) :: local_angles
+    type(pao_local_angles_type), intent(inout) :: local_angles
     type(cp_error_type), optional, intent(inout) :: error
 
     logical :: failure
-    character(len=*), parameter :: routineP='cp_pao_l_angles_methods:cp_pao_l_ang_did_change'
+    character(len=*), parameter :: routineP='pao_l_angles_methods:pao_l_ang_did_change'
     logical, dimension(:), pointer :: ut_calculated
     failure=.false.
 
@@ -1325,21 +1325,21 @@ contains
           local_angles%glob_angles%ut_calculated(local_angles%atom_nr)=.false.
        end if
     end if
-  end subroutine cp_pao_l_ang_did_change
+  end subroutine pao_l_ang_did_change
 !***************************************************************************
 
-!!****f* cp_pao_l_angles_methods/cp_pao_l_ang_set_unitary_t [1.0] *
+!!****f* pao_l_angles_methods/pao_l_ang_set_unitary_t [1.0] *
 !!
 !!   NAME
-!!     cp_pao_l_ang_set_unitary_t
+!!     pao_l_ang_set_unitary_t
 !!
 !!   SYNOPSIS
-!!     Subroutine cp_pao_l_ang_set_unitary_t(local_angles, unitary_t,&
+!!     Subroutine pao_l_ang_set_unitary_t(local_angles, unitary_t,&
 !!         error)
-!!       Type(cp_pao_local_angles_type), Intent (INOUT):: local_angles
+!!       Type(pao_local_angles_type), Intent (INOUT):: local_angles
 !!       Real(Kind=wp), Dimension(:,:), Intent (IN), Target:: unitary_t
 !!       Type(cp_error_type), Optional, Intent (INOUT):: error
-!!     End Subroutine cp_pao_l_ang_set_unitary_t
+!!     End Subroutine pao_l_ang_set_unitary_t
 !!
 !!   FUNCTION
 !!     changes the cached unitary transformation
@@ -1361,15 +1361,15 @@ contains
 !!     none
 !!
 !!*** **********************************************************************
-  subroutine cp_pao_l_ang_set_unitary_t(local_angles,unitary_t,error)
+  subroutine pao_l_ang_set_unitary_t(local_angles,unitary_t,error)
 ! changes in glob_angles
-    type(cp_pao_local_angles_type), intent(inout) :: local_angles
+    type(pao_local_angles_type), intent(inout) :: local_angles
     real(kind=wp), dimension(:,:), intent(in), target :: unitary_t
     type(cp_error_type), optional, intent(inout) :: error
 
     logical :: failure
-    character(len=*), parameter :: routineP='cp_pao_l_angles_methods:cp_pao_l_ang_set_unitary_t'
-    type(cp_pao_matrix_type), pointer :: full_u_t
+    character(len=*), parameter :: routineP='pao_l_angles_methods:pao_l_ang_set_unitary_t'
+    type(pao_matrix_type), pointer :: full_u_t
     real(kind=wp), dimension(:,:), pointer :: unitary_t_ptr
     failure=.false.
 
@@ -1392,20 +1392,20 @@ contains
                block_col=local_angles%atom_nr, block=unitary_t_ptr)
        end if
     end if
-  end subroutine cp_pao_l_ang_set_unitary_t
+  end subroutine pao_l_ang_set_unitary_t
 !***************************************************************************
 
-!!****f* cp_pao_plain_rot/cp_pao_l_compose_u [1.0] *
+!!****f* pao_plain_rot/pao_l_compose_u [1.0] *
 !!
 !!   NAME
-!!     cp_pao_l_compose_u
+!!     pao_l_compose_u
 !!
 !!   SYNOPSIS
-!!     Subroutine cp_pao_l_compose_u(matrix, local_angles, error)
+!!     Subroutine pao_l_compose_u(matrix, local_angles, error)
 !!       Real(Kind=wp), Dimension(:,:), Intent (INOUT):: matrix
-!!       Type(cp_pao_local_angles_type), Intent (INOUT):: local_angles
+!!       Type(pao_local_angles_type), Intent (INOUT):: local_angles
 !!       Type(cp_error_type), Optional, Intent (INOUT):: error
-!!     End Subroutine cp_pao_l_compose_u
+!!     End Subroutine pao_l_compose_u
 !!
 !!   FUNCTION
 !!     calculates U*matrix where U is the unitary transformation defined by
@@ -1430,13 +1430,13 @@ contains
 !!     none
 !!
 !!*** **********************************************************************
-  subroutine cp_pao_l_compose_u(matrix,local_angles,error)
+  subroutine pao_l_compose_u(matrix,local_angles,error)
     real(kind=wp), dimension(:,:), intent(inout) :: matrix
-    type(cp_pao_local_angles_type), intent(inout) :: local_angles
+    type(pao_local_angles_type), intent(inout) :: local_angles
     type(cp_error_type), optional, intent(inout) :: error
 
     logical :: failure
-    character(len=*), parameter :: routineP='cp_pao_plain_rot:cp_pao_l_compose_u'
+    character(len=*), parameter :: routineP='pao_plain_rot:pao_l_compose_u'
     integer :: n_min_bas, n_excl_bas, i_min_bas,i_excl_bas,n_full_bas
     failure=.false.
 
@@ -1458,20 +1458,20 @@ contains
           end do
        end do
     end if failureIf
-  end subroutine cp_pao_l_compose_u
+  end subroutine pao_l_compose_u
 !***************************************************************************
 
-!!****f* cp_pao_l_angles_methods/cp_pao_l_ang_get_unitary_t [1.0] *
+!!****f* pao_l_angles_methods/pao_l_ang_get_unitary_t [1.0] *
 !!
 !!   NAME
-!!     cp_pao_l_ang_get_unitary_t
+!!     pao_l_ang_get_unitary_t
 !!
 !!   SYNOPSIS
-!!     Function cp_pao_l_ang_get_unitary_t(local_angles, error) Result(res)
-!!       Type(cp_pao_local_angles_type), Intent (INOUT):: local_angles
+!!     Function pao_l_ang_get_unitary_t(local_angles, error) Result(res)
+!!       Type(pao_local_angles_type), Intent (INOUT):: local_angles
 !!       Type(cp_error_type), Optional, Intent (INOUT):: error
 !!       Real(Kind=wp), Dimension(:,:), Pointer:: res
-!!     End Function cp_pao_l_ang_get_unitary_t
+!!     End Function pao_l_ang_get_unitary_t
 !!
 !!   FUNCTION
 !!     returns the unitary trasformation defined by these angles
@@ -1492,15 +1492,15 @@ contains
 !!     none
 !!
 !!*** **********************************************************************
-  function cp_pao_l_ang_get_unitary_t(local_angles,error) result(res)
-    type(cp_pao_local_angles_type), intent(inout) :: local_angles
+  function pao_l_ang_get_unitary_t(local_angles,error) result(res)
+    type(pao_local_angles_type), intent(inout) :: local_angles
     type(cp_error_type), optional, intent(inout) :: error
     real(kind=wp), dimension(:,:), pointer :: res
 
     logical :: failure
-    character(len=*), parameter :: routineP='cp_pao_l_angles_methods:cp_pao_l_ang_get_unitary_t'
+    character(len=*), parameter :: routineP='pao_l_angles_methods:pao_l_ang_get_unitary_t'
     integer :: i
-    type(cp_pao_matrix_type), pointer :: unitary_t
+    type(pao_matrix_type), pointer :: unitary_t
     failure=.false.
     nullify(res)
 
@@ -1535,29 +1535,29 @@ contains
              if (.not.failure) then
                 res=0.0_wp
                 forall (i=1:size(res,1)) res(i,i)=1.0_wp
-                call cp_pao_l_compose_u(res,local_angles,error=error)
+                call pao_l_compose_u(res,local_angles,error=error)
                 local_angles%glob_angles%ut_calculated(local_angles%atom_nr)=.true.
              end if
           end if
        end if
     end if
     if (failure) nullify(res)
-  end function cp_pao_l_ang_get_unitary_t
+  end function pao_l_ang_get_unitary_t
 !***************************************************************************
 
-!!****f* cp_pao_l_angles_methods/cp_pao_l_ang_get_g_index [1.0] *
+!!****f* pao_l_angles_methods/pao_l_ang_get_g_index [1.0] *
 !!
 !!   NAME
-!!     cp_pao_l_ang_get_g_index
+!!     pao_l_ang_get_g_index
 !!
 !!   SYNOPSIS
-!!     Function cp_pao_l_ang_get_g_index(local_angles, min_bas, excl_bas,&
+!!     Function pao_l_ang_get_g_index(local_angles, min_bas, excl_bas,&
 !!         error) Result(res)
 !!       Integer:: res
-!!       Type(cp_pao_local_angles_type), Intent (INOUT):: local_angles
+!!       Type(pao_local_angles_type), Intent (INOUT):: local_angles
 !!       Integer, Intent (IN):: min_bas, excl_bas
 !!       Type(cp_error_type), Optional, Intent (INOUT):: error
-!!     End Function cp_pao_l_ang_get_g_index
+!!     End Function pao_l_ang_get_g_index
 !!
 !!   FUNCTION
 !!     returns the global angles index for the angle described with
@@ -1581,16 +1581,16 @@ contains
 !!     none
 !!
 !!*** **********************************************************************
-function cp_pao_l_ang_get_g_index(local_angles, min_bas, excl_bas, error)&
+function pao_l_ang_get_g_index(local_angles, min_bas, excl_bas, error)&
      result(res)
   integer :: res
-  type(cp_pao_local_angles_type), intent(inout) :: local_angles
+  type(pao_local_angles_type), intent(inout) :: local_angles
   integer, intent(in) :: min_bas, excl_bas
   type(cp_error_type), optional, intent(inout) :: error
   
   logical :: failure
   integer :: handle
-  character(len=*), parameter :: routineN='cp_pao_l_ang_get_g_index',&
+  character(len=*), parameter :: routineN='pao_l_ang_get_g_index',&
        routineP=moduleN//':'//routineN
   failure=.false.
   
@@ -1608,7 +1608,7 @@ function cp_pao_l_ang_get_g_index(local_angles, min_bas, excl_bas, error)&
      res=-1
   end if
   !call timestop(0.0_wp,handle)
-end function cp_pao_l_ang_get_g_index
+end function pao_l_ang_get_g_index
 !***************************************************************************
 
-end module cp_pao_l_angles_methods
+end module pao_l_angles_methods

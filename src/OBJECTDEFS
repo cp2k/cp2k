@@ -46,20 +46,6 @@ OBJECTS_GENERIC =\
  cp_log_handling.o\
  cp_matrix_utils.o\
  cp_output_handling.o\
- cp_pao_env_methods.o\
- cp_pao_glob_angles_methods.o\
- cp_pao_l_angles_methods.o\
- cp_pao_matrix_methods.o\
- cp_pao_obj_function.o\
- cp_pao_plain_rot.o\
- cp_pao_plain_rot_tests.o\
- cp_pao_proj_methods.o\
- cp_pao_projection.o\
- cp_pao_read_section.o\
- cp_pao_types.o\
- cp_pao_types_tests.o\
- cp_pao_unitary_t.o\
- cp_pao_utils.o\
  cp_sll_int_ptr_tests.o\
  cp_sll_int_tests.o\
  cs1_functional.o\
@@ -157,6 +143,20 @@ OBJECTS_GENERIC =\
  output_utilities.o\
  pade_functional.o\
  pair_potential.o\
+ pao_env_methods.o\
+ pao_glob_angles_methods.o\
+ pao_l_angles_methods.o\
+ pao_matrix_methods.o\
+ pao_obj_function.o\
+ pao_plain_rot.o\
+ pao_plain_rot_tests.o\
+ pao_proj_methods.o\
+ pao_projection.o\
+ pao_read_section.o\
+ pao_types.o\
+ pao_types_tests.o\
+ pao_unitary_t.o\
+ pao_utils.o\
  parallel.o\
  parallel_include.o\
  parser.o\

@@ -5,10 +5,10 @@
 
 #include "cp_prep_globals.h"
 
-!!****h* cp2k/cp_pao_utils [1.0] *
+!!****h* cp2k/pao_utils [1.0] *
 !!
 !!   NAME
-!!     cp_pao_utils
+!!     pao_utils
 !!
 !!   FUNCTION
 !!     all kinds of utilities
@@ -25,7 +25,7 @@
 !!
 !!   SOURCE
 !*****************************************************************************
-module cp_pao_utils
+module pao_utils
   use cp_log_handling
   use cp_error_handling
   use kinds, only: wp => dp
@@ -35,7 +35,7 @@ module cp_pao_utils
   implicit none
   private
   logical, private, parameter :: debug_this_module=.true.
-  character(len=*), parameter :: moduleN='cp_pao_utils'
+  character(len=*), parameter :: moduleN='pao_utils'
 
 ! =========== public objects ==========
 ! types
@@ -66,7 +66,7 @@ module cp_pao_utils
 
 contains
 
-!!****f* cp_pao_utils/cp_get_random_integer [1.0] *
+!!****f* pao_utils/cp_get_random_integer [1.0] *
 !!
 !!   NAME
 !!     cp_get_random_integer
@@ -142,7 +142,7 @@ contains
 
 ! ========== memory utilities =========
 
-!!****f* cp_pao_utils/cp_guarantee_size_1d_int [1.0] *
+!!****f* pao_utils/cp_guarantee_size_1d_int [1.0] *
 !!
 !!   NAME
 !!     cp_guarantee_size_1d_int
@@ -183,7 +183,7 @@ contains
 
     logical :: failure
     integer :: stat
-    character(len=*), parameter :: routineP='cp_pao_utils:cp_guarantee_size_1d_int'
+    character(len=*), parameter :: routineP='pao_utils:cp_guarantee_size_1d_int'
     failure=.false.
 
     CPPrecondition(n>=0,cp_failure_level,routineP,error,failure)
@@ -205,7 +205,7 @@ contains
 !!***
 !***************************************************************************
 
-!!****f* cp_pao_utils/cp_guarantee_size_1d_logical [1.0] *
+!!****f* pao_utils/cp_guarantee_size_1d_logical [1.0] *
 !!
 !!   NAME
 !!     cp_guarantee_size_1d_logical
@@ -246,7 +246,7 @@ contains
 
     logical :: failure
     integer :: stat
-    character(len=*), parameter :: routineP='cp_pao_utils:cp_guarantee_size_1d_logical'
+    character(len=*), parameter :: routineP='pao_utils:cp_guarantee_size_1d_logical'
     failure=.false.
 
     CPPrecondition(n>=0,cp_failure_level,routineP,error,failure)
@@ -268,7 +268,7 @@ contains
 !!***
 !***************************************************************************
 
-!!****f* cp_pao_utils/cp_guarantee_size_1d_real [1.0] *
+!!****f* pao_utils/cp_guarantee_size_1d_real [1.0] *
 !!
 !!   NAME
 !!     cp_guarantee_size_1d_real
@@ -309,7 +309,7 @@ contains
 
     logical :: failure
     integer :: stat
-    character(len=*), parameter :: routineP='cp_pao_utils:cp_guarantee_size_1d_real'
+    character(len=*), parameter :: routineP='pao_utils:cp_guarantee_size_1d_real'
     failure=.false.
 
     CPPrecondition(n>=0,cp_failure_level,routineP,error,failure)
@@ -331,5 +331,5 @@ contains
 !!***
 !***************************************************************************
 
-end module cp_pao_utils
+end module pao_utils
 
