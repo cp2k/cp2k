@@ -27,11 +27,11 @@
 !!   SOURCE
 !*****************************************************************************
 module cp_matrix_utils
-  use cp_log_handling, only : cp_to_string, cp_note_level, cp_warning_level,&
-       cp_failure_level, cp_fatal_level
-  use cp_error_handling, only : cp_assert, cp_error_type, cp_init,&
-       cp_dealloc_ref, cp_error_propagate_error, cp_debug, cp_assertion_failed,&
-       cp_error_message
+  use cp_log_handling!, only : cp_to_string, cp_note_level, cp_warning_level,&
+       !cp_failure_level, cp_fatal_level
+  use cp_error_handling!, only : cp_assert, cp_error_type, cp_init,&
+       !cp_dealloc_ref, cp_error_propagate_error, cp_debug, cp_assertion_failed,&
+       !cp_error_message
   use kinds, only: wp=>dp
   use global_types, only: global_environment_type
   use timings, only: timeset, timestop
