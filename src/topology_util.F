@@ -1124,7 +1124,7 @@ SUBROUTINE topology_coord_pack (r,label_atmname,particle_set, &
     new_kind = .TRUE.
     DO ikind=1,nkind
       CALL integer_to_string(kind_label(:,ikind),string)
-      IF(string==label_atmname(iatom)) THEN
+      IF(string(1:20)==label_atmname(iatom)) THEN
         new_kind = .FALSE.
         kind_of(iatom)=ikind
         natom_of_kind(ikind) = natom_of_kind(ikind)+1
@@ -1171,8 +1171,8 @@ SUBROUTINE topology_coord_pack (r,label_atmname,particle_set, &
 
   DO ikind=1,nkind
     atomic_kind => atomic_kind_set(ikind)
-    CALL integer_to_string(kind_label(:,ikind),string)
-    WRITE(*,*) "kind_label ",string
+    CALL integer_to_string(kind_label(1:20,ikind),string)
+    WRITE(*,*) "kind_label ",string(1:20)
     CALL set_atomic_kind(atomic_kind=atomic_kind,&
                          kind_number=ikind,&
                          name=string,&
@@ -1227,8 +1227,8 @@ SUBROUTINE topology_coord_pack (r,label_atmname,particle_set, &
         ikind = particle_set ( iat) % kind        
         IF (ikind/=n) CALL stop_program ( 'topology_coord_pack', &
              'kind label ordering in coord and mol dont match ')
-        CALL integer_to_string(kind_label(:,ikind),string)
-        IF (string/=mol_setup(i)%molpar%aname(j)) CALL stop_program ( &
+        CALL integer_to_string(kind_label(1:20,ikind),string)
+        IF (string(1:20)/=mol_setup(i)%molpar%aname(j)) CALL stop_program ( &
              'topology_coord_pack', &
              'inconsistent kind labels in coord and mol')
         natom_of_kind_check(ikind) = natom_of_kind_check(ikind) + 1
