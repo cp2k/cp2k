@@ -81,7 +81,8 @@ MODULE qs_scf_post
   USE qs_conductivity,                 ONLY: optical_conductivity
   USE qs_environment_types,            ONLY: get_qs_env,&
                                              qs_environment_type
-  USE qs_ks_methods,                   ONLY: qs_ks_update_qs_env
+  USE qs_ks_methods,                   ONLY: qs_ks_update_qs_env,&
+                                             qs_ks_did_change
   USE qs_localization,                 ONLY: qs_loc_compute_properties,&
                                              qs_loc_destroy,&
                                              qs_loc_env_type,&
@@ -347,7 +348,7 @@ CONTAINS
                                                     ks_rmpv ( ispin ) % matrix, &
                                                     matrix_s(1)%matrix, &
                                                     globenv, qs_env,    &
-                                                    wf_r, wf_g)
+                                                    wf_r, wf_g, error)
              ENDIF
              CALL cp_fm_release(mo_localized)
 
@@ -663,6 +664,7 @@ CONTAINS
           CALL qs_ks_update_qs_env(qs_env%ks_env,qs_env=qs_env,&
                error=error,&
                calculate_forces=.FALSE.,just_energy=.FALSE.)
+          CALL qs_ks_did_change(qs_env%ks_env,rho_changed=.TRUE.)
           CALL Write_sparse_matrix(ks_rmpv(1)%matrix,4,6,Qs_env,Globenv)
        END IF
     END IF

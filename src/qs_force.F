@@ -167,6 +167,7 @@ CONTAINS
     CALL get_qs_env(qs_env=qs_env,mos=mos,mo_derivs=mo_derivs, &
                     matrix_ks=matrix_ks, ks_env=ks_env, matrix_s=matrix_s, rho=rho)
 
+
     IF ( .NOT. obasis ) THEN
       !   *** Build W matrix ***
       !   *** (from the orthonormality constraint lambda C^T S C)
@@ -213,7 +214,6 @@ CONTAINS
     END IF
 
 !   *** compute grid-based forces ***
-!FM CALL qs_ks_did_change(ks_env,rho_changed=.TRUE.)
     CALL qs_ks_update_qs_env(ks_env=ks_env,&
                              qs_env=qs_env,&
                              calculate_forces=.TRUE.)

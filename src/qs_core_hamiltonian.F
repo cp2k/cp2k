@@ -346,6 +346,7 @@ CONTAINS
     NULLIFY (sdabt)
     NULLIFY (matrix_t)
     NULLIFY (matrix_w)
+    NULLIFY (matrix_v)
     NULLIFY (workt)
 ! Default
     oce_present = .FALSE.

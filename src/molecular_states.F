@@ -75,7 +75,8 @@ CONTAINS
 
 SUBROUTINE construct_molecular_states(molecule_set, mo_localized, &
                                    mo_coeff, mo_eigenvalues, &
-                                   Hks,matrix_S,globenv,qs_env,wf_r,wf_g)
+                                   Hks,matrix_S,globenv,qs_env,wf_r,wf_g,&
+                                   error)
 
 
     TYPE(molecule_type), DIMENSION(:), &
@@ -96,7 +97,7 @@ SUBROUTINE construct_molecular_states(molecule_set, mo_localized, &
     INTEGER, POINTER                         :: nstates(:), states(:)
     REAL(KIND=dp)                            :: tmp
     REAL(KIND=dp), ALLOCATABLE               :: evals( : )
-    TYPE(cp_error_type)                      :: error
+    TYPE(cp_error_type), OPTIONAL, INTENT(INOUT) :: error
     TYPE(cp_fm_struct_type), POINTER         :: fm_struct_tmp
     TYPE(cp_fm_type), POINTER                :: b, c, d, D_igk, e_vectors, &
                                                 rot_e_vectors, smo

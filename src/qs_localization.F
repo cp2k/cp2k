@@ -639,6 +639,7 @@ SUBROUTINE wfc_to_molecule ( qs_loc_env, center, molecule_set )
      nmol = SIZE ( local_molecules%list(ikind)%array )
      DO imol=1,nmol ! all the molecules of the kind
         imol_now = local_molecules%list(ikind)%array(imol) ! index in the global array
+        IF (.NOT.ASSOCIATED(molecule_set(imol_now)%lmi%states)) CYCLE
         molecule_kind => molecule_set(imol_now)%molecule_kind
         first_atom = molecule_set(imol_now)%first_atom
         CALL get_molecule_kind(molecule_kind=molecule_kind,&
