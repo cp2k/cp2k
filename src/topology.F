@@ -176,8 +176,10 @@ SUBROUTINE topology_control (atomic_kind_set,particle_set,&
   !-----------------------------------------------------------------------------
   ! 9. Pack everything into the atomic types
   !-----------------------------------------------------------------------------
-  CALL topology_force_field_pack(molecule_kind_set,molecule_set,&
-                                 topology,globenv)
+  IF(topology%ff) THEN
+    CALL topology_force_field_pack(molecule_kind_set,molecule_set,&
+                                   topology,globenv)
+  END IF
 
 
   !-----------------------------------------------------------------------------
