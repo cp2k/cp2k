@@ -21,7 +21,7 @@ MODULE constraint
 
   USE global_types, ONLY : global_environment_type
   USE kinds, ONLY : dbl
-  USE md, ONLY : simulation_parameters_type, thermodynamic_type
+  USE md, ONLY : simulation_parameters_type, virial_type
   USE molecule_types, ONLY : molecule_structure_type, &
        linklist_dist_constraints, linklist_g3x3_constraints
   USE message_passing, ONLY : mp_sum
@@ -139,7 +139,7 @@ SUBROUTINE shake_roll_control ( molecule, simpar, thermo, roll_tol, iroll, &
   TYPE ( molecule_structure_type ), INTENT ( INOUT ), DIMENSION ( : ) :: &
        molecule
   TYPE ( simulation_parameters_type ), INTENT ( IN ) :: simpar
-  TYPE ( thermodynamic_type ), INTENT ( INOUT ), OPTIONAL :: thermo
+  TYPE ( virial_type ), INTENT ( INOUT ), OPTIONAL :: thermo
   REAL ( dbl ), INTENT ( IN ), DIMENSION ( : ) :: vector_r, vector_v
   REAL ( dbl ), INTENT ( OUT ) :: roll_tol
   INTEGER, INTENT ( INOUT ) :: iroll
@@ -200,7 +200,7 @@ SUBROUTINE rattle_roll_control ( molecule, simpar, thermo, veps, mass, &
   TYPE ( molecule_structure_type ), INTENT ( INOUT ), DIMENSION ( : ) :: &
        molecule
   TYPE ( simulation_parameters_type ), INTENT ( IN ) :: simpar
-  TYPE ( thermodynamic_type ), INTENT ( INOUT ) :: thermo
+  TYPE ( virial_type ), INTENT ( INOUT ) :: thermo
   REAL ( dbl ), DIMENSION ( :, : ), INTENT ( INOUT ) :: veps
   REAL ( dbl ), DIMENSION ( :, : ), INTENT ( IN ) :: mass
   REAL ( dbl ), INTENT ( OUT ) :: roll_tol
@@ -1023,7 +1023,7 @@ SUBROUTINE pv_constraint ( molecule, thermo, char, group )
 
 ! Arguments
   TYPE ( molecule_structure_type ), DIMENSION ( : ), INTENT ( IN ) :: molecule
-  TYPE ( thermodynamic_type ), INTENT ( INOUT ) :: thermo
+  TYPE ( virial_type ), INTENT ( INOUT ) :: thermo
   CHARACTER ( LEN = * ), INTENT ( IN ) :: char
   INTEGER, INTENT ( IN ) :: group
 
@@ -1150,7 +1150,7 @@ SUBROUTINE pv_constraint ( molecule, thermo, char, group )
   CALL mp_sum ( pv, group )
 #endif
 
-  thermo % pv_const = pv
+  thermo % pv_constraint = pv
 
 END SUBROUTINE pv_constraint
 
@@ -1380,7 +1380,7 @@ SUBROUTINE update_veps ( molecule, veps, mass, thermo, ensemble, dt, group )
   REAL ( dbl ), DIMENSION ( :, : ), INTENT ( INOUT ) :: veps
   REAL ( dbl ), DIMENSION ( :, : ), INTENT ( IN ) :: mass
   REAL ( dbl ), INTENT ( IN ) :: dt
-  TYPE ( thermodynamic_type ), INTENT ( INOUT ) :: thermo
+  TYPE ( virial_type ), INTENT ( INOUT ) :: thermo
   TYPE ( molecule_structure_type ), DIMENSION ( : ), INTENT ( IN ) :: molecule
   CHARACTER ( LEN = * ), INTENT ( IN ) :: ensemble
   INTEGER, INTENT ( IN ) :: group
@@ -1394,15 +1394,15 @@ SUBROUTINE update_veps ( molecule, veps, mass, thermo, ensemble, dt, group )
   CALL pv_constraint ( molecule, thermo, 'DEL', group )
 
   IF ( ensemble == 'NPT_I' ) THEN
-     feps = thermo%pv_const(1,1) &
-          + thermo%pv_const(2,2) &
-          + thermo%pv_const(3,3)
+     feps = thermo%pv_constraint(1,1) &
+          + thermo%pv_constraint(2,2) &
+          + thermo%pv_constraint(3,3)
      veps(1,1) = veps(1,1) + feps * 0.5_dbl * dt / mass ( 1, 1 )
      veps(2,2) = veps(1,1)
      veps(3,3) = veps(1,1)
   ELSE IF ( ensemble == 'NPT_F' ) THEN
      veps ( :, : ) = veps ( :, : ) +  0.5_dbl *  dt *  &
-                     thermo % pv_const ( :, : ) / mass ( :, : )
+                     thermo % pv_constraint ( :, : ) / mass ( :, : )
   END IF
 
 END SUBROUTINE update_veps

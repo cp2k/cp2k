@@ -22,6 +22,8 @@ MODULE fist_debug
 
   USE dg_types, ONLY : dg_type
   USE ewald_parameters_types, ONLY : ewald_parameters_type
+  USE fist_environment_types, ONLY : replica_environment_type, &
+                                     fist_thermodynamic_type
   USE fist_force_numer, ONLY : force_bond_numer, force_bend_numer, &
        force_torsion_numer, force_nonbond_numer, ewald_energy_numer, &
        pv_bond_numer, pv_bend_numer, pv_torsion_numer, ptens_numer, &
@@ -32,14 +34,12 @@ MODULE fist_debug
   USE kinds, ONLY : dbl
   USE linklists, ONLY : bonds, bends, torsions, dist_constraints, &
        g3x3_constraints
-  USE md, ONLY : thermodynamic_type
   USE molecule_types, ONLY : molecule_structure_type, particle_node_type
   USE particle_types, ONLY : particle_type
   USE pair_potential, ONLY : potentialparm_type
   USE pw_grid_types, ONLY : pw_grid_type
   USE simulation_cell, ONLY : cell_type
   USE termination, ONLY : stop_memory, stop_program
-  USE linklist_types, ONLY : linklist_internal_data_type
 
   IMPLICIT NONE
 
@@ -72,25 +72,26 @@ CONTAINS
 !!   SOURCE
 !******************************************************************************
 
-SUBROUTINE debug_control ( globenv, ewald_param, part, pnode, molecule, box, &
-     box_ref, thermo, potparm, lldata )
+SUBROUTINE  debug_control ( globenv, rep_env, ewald_param, potparm, thermo )
 
   IMPLICIT NONE
 
 ! Arguments
-  TYPE ( global_environment_type ), INTENT ( INOUT ) :: globenv
+  TYPE ( replica_environment_type ), INTENT ( INOUT ) :: rep_env
   TYPE ( ewald_parameters_type ), INTENT ( INOUT ) :: ewald_param
-  TYPE ( particle_type ), INTENT ( INOUT ), DIMENSION ( : ) :: part
-  TYPE ( particle_node_type ), INTENT ( INOUT ), DIMENSION ( : ) :: pnode
-  TYPE ( potentialparm_type ), INTENT ( IN ), DIMENSION ( :, : ) :: potparm
-  TYPE ( molecule_structure_type ), INTENT ( IN ), DIMENSION ( : ) :: molecule
-  TYPE ( cell_type ), INTENT ( INOUT ) :: box
-  TYPE ( cell_type ), INTENT ( INOUT ) :: box_ref
-  TYPE ( thermodynamic_type ), INTENT ( INOUT ) :: thermo
-  TYPE ( linklist_internal_data_type ) :: lldata
+  TYPE ( potentialparm_type ), INTENT ( IN )  :: potparm ( :, : )
+  TYPE ( fist_thermodynamic_type ), INTENT ( INOUT ) :: thermo
+  TYPE ( global_environment_type ), INTENT ( INOUT ) :: globenv
 
 ! Locals
+  TYPE ( cell_type ), POINTER :: box
+  TYPE ( cell_type ), POINTER  :: box_ref
+  TYPE ( particle_type ), POINTER  :: part ( : )
+  TYPE ( particle_node_type ), POINTER  :: pnode ( : )
+  TYPE ( molecule_structure_type ), POINTER :: molecule ( : )
   TYPE ( debug_variables_type ) :: dbg
+  TYPE ( pw_grid_type ), POINTER :: pw_big, pw_small, pw_ewald, pw_spme
+  TYPE ( dg_type ), POINTER :: dg
   INTEGER :: iflag, i, natoms, isos, iatom, iw, iwf, ir, npts_s(3), gmax
   INTEGER, DIMENSION ( 2 ) :: dum
   REAL ( dbl ) :: delta, energy_numer, cutoff, ecut
@@ -101,10 +102,15 @@ SUBROUTINE debug_control ( globenv, ewald_param, part, pnode, molecule, box, &
   REAL ( dbl ), DIMENSION ( :, : ), ALLOCATABLE :: f_numer
   REAL ( dbl ), DIMENSION ( :, : ), ALLOCATABLE :: rel, diff
   LOGICAL, PARAMETER :: box_change = .FALSE.
-  TYPE ( pw_grid_type ), POINTER :: pw_big, pw_small, pw_ewald, pw_spme
-  TYPE ( dg_type ), POINTER :: dg
 
 !------------------------------------------------------------------------------
+
+! Assigning local pointers
+  pnode => rep_env % pnode
+  part => rep_env % part
+  molecule => rep_env % molecule
+  box_ref => rep_env % box_ref
+  box => rep_env % box
 
   iw = globenv % scr
   iwf = 7
@@ -137,8 +143,8 @@ SUBROUTINE debug_control ( globenv, ewald_param, part, pnode, molecule, box, &
   IF ( isos /= 0 ) CALL stop_memory ( "debug_control", "f_torsion", 3 * natoms )
 
 ! Call to analytical force routine:
-  CALL force_control ( molecule, pnode, part, box, box_ref, thermo, &
-       potparm, ewald_param, box_change, globenv, lldata, dbg )
+  CALL force_control ( rep_env, ewald_param, potparm, thermo, &
+                       box_change, globenv, dbg )
 
 ! Debug real-space non-bonded interactions
   WRITE ( iw, '( A )' ) &

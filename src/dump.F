@@ -20,10 +20,11 @@
 
 MODULE dump
 
-  USE kinds, ONLY : dbl
+  USE fist_environment_types, ONLY : replica_environment_type
   USE global_types, ONLY : global_environment_type
+  USE kinds, ONLY : dbl
+  USE md_environment_types, ONLY : md_environment_type
   USE nose, ONLY : lnhc_parameters_type, npt_info_type
-  USE structure_types, ONLY : structure_type
   USE util, ONLY : get_unit
   USE string_utilities, ONLY : xstring, integer_to_string
 
@@ -51,29 +52,34 @@ CONTAINS
 !!   SOURCE
 !******************************************************************************
 
-SUBROUTINE dump_variables ( struc, nhc_part, nhc_baro, npt_info,  &
-                            dump_file_name, globenv, is_pimd )
+SUBROUTINE dump_variables ( int_env, rep_env, dump_file_name, globenv, is_pimd )
 
 ! routine to dump all simulation variables periodically and at the last step.
 
   IMPLICIT NONE
 
 ! Arguments
-  TYPE ( structure_type ), DIMENSION ( : ), INTENT ( IN ) :: struc
+  TYPE ( md_environment_type ), INTENT ( IN ) :: int_env
+  TYPE ( replica_environment_type ), INTENT ( IN ) :: rep_env ( : )
   CHARACTER ( LEN = * ), INTENT ( IN ) :: dump_file_name
   TYPE ( global_environment_type ), INTENT ( IN ) :: globenv
-  TYPE ( lnhc_parameters_type ), DIMENSION ( : ), INTENT ( IN ) :: nhc_part, nhc_baro
-  TYPE ( npt_info_type ), DIMENSION ( :, : ), INTENT ( IN ) :: npt_info
   LOGICAL, INTENT ( IN ) :: is_pimd
 
 ! Locals
+  TYPE ( lnhc_parameters_type ), POINTER :: nhc_part ( : )
+  TYPE ( lnhc_parameters_type ), POINTER :: nhc_baro ( : )
+  TYPE ( npt_info_type ), POINTER  :: npt_info ( :, : )
   INTEGER :: i, j, size1, size2, natoms, dmp, ibead, beads, ia, ib
   CHARACTER ( LEN = 80 ) :: file_name
   CHARACTER ( LEN = 5 ) :: tag
 
 !------------------------------------------------------------------------------
+! Assigning local pointers
+  nhc_part => int_env % nhc_part
+  nhc_baro => int_env % nhc_baro
+  npt_info => int_env % npt
 
-  beads = SIZE ( struc )
+  beads = SIZE ( rep_env )
 
   DO ibead = 1, beads
     IF ( globenv % ionode ) THEN
@@ -91,23 +97,23 @@ SUBROUTINE dump_variables ( struc, nhc_part, nhc_baro, npt_info,  &
     END IF
 
     IF (globenv % ionode) THEN
-       natoms = size(struc(ibead) % part)
+       natoms = size(rep_env(ibead) % part)
        WRITE (dmp,*) natoms
 ! position
        DO i = 1, natoms
-          WRITE (dmp,*) struc(ibead) % part(i) %r
+          WRITE (dmp,*) rep_env(ibead) % part(i) %r
        END DO
 ! hmat
        DO i = 1, 3
-          WRITE (dmp,*) struc(ibead) % box % hmat(i,:)
+          WRITE (dmp,*) rep_env(ibead) % box % hmat(i,:)
        END DO
 ! hmat_ref
        DO i = 1, 3
-          WRITE (dmp,*) struc(ibead) % box_ref % hmat(i,:)
+          WRITE (dmp,*) rep_env(ibead) % box_ref % hmat(i,:)
        END DO
 ! velocities
        DO i = 1, natoms
-          WRITE (dmp,*) struc(ibead) % part(i) % v
+          WRITE (dmp,*) rep_env(ibead) % part(i) % v
        END DO
 ! particle thermostat postions, velocities, masses
        size1 = SIZE ( nhc_part(ibead) % nvt, 1 )

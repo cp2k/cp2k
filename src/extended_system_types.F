@@ -29,13 +29,13 @@ MODULE extended_system_types
   PRIVATE
   PUBLIC :: extended_system_type
 
-!  PUBLIC :: npt_info, nhc_part, nhc_baro, nhc_pol
+!  PUBLIC :: npt_info, nhc_part, nhc_baro, nhc_coef
 
   TYPE extended_system_type
      TYPE ( lnhc_parameters_type ), POINTER :: nhc_part  ( : )
      TYPE ( lnhc_parameters_type ), POINTER :: nhc_baro ( : )
-     TYPE ( lnhc_parameters_type ) :: nhc_pol
-     TYPE ( npt_info_type ), DIMENSION ( :, : ), POINTER :: npt_info
+     TYPE ( lnhc_parameters_type ), POINTER :: nhc_coef 
+     TYPE ( npt_info_type ), POINTER :: npt_info ( :, : )
   END TYPE extended_system_type
 
 END MODULE extended_system_types

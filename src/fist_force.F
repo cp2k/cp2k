@@ -15,6 +15,7 @@
 !!   MODIFICATION HISTORY
 !!     Torsions added (DG) 05-Dec-2000
 !!     Variable names changed (DG) 05-Dec-2000
+!!     CJM SEPT-12-2002: int_env is now passed
 !!
 !!   SOURCE
 !******************************************************************************
@@ -25,6 +26,8 @@ MODULE fist_force
   USE dgs, ONLY : dg_grid_change
   USE ewald_parameters_types, ONLY : ewald_parameters_type
   USE ewalds, ONLY : ewald_evaluate, ewald_initialize, ewald_setup
+  USE fist_environment_types, ONLY : replica_environment_type, &
+                                     fist_thermodynamic_type
   USE fist_intra_force, ONLY : force_intra_control
   USE fist_nonbond_force, ONLY : force_nonbond, bonded_correct_gaussian
   USE global_types, ONLY : global_environment_type
@@ -32,7 +35,6 @@ MODULE fist_force
   USE kinds, ONLY : dbl
   USE linklist_control, ONLY : list_control
   USE mathconstants, ONLY : pi, zero
-  USE md, ONLY : thermodynamic_type
   USE molecule_types, ONLY : molecule_structure_type, particle_node_type, &
        linklist_neighbor, linklist_exclusion, linklist_bonds, &
        linklist_bends, linklist_torsions
@@ -62,7 +64,7 @@ MODULE fist_force
   REAL ( dbl ), DIMENSION ( :,: ), ALLOCATABLE :: f_nonbond
   TYPE ( pw_grid_type ), TARGET :: grid_s, grid_b, grid_ewald, grid_spme
   TYPE ( dg_type ), TARGET :: dg
-!!*****
+
 !******************************************************************************
 
 CONTAINS
@@ -91,26 +93,27 @@ CONTAINS
 !!   SOURCE
 !******************************************************************************
 
-SUBROUTINE force_control ( molecule, pnode, part, box, box_ref, thermo, &
-     potparm, ewald_param, box_change, fc_global, lldata,  debug)
+SUBROUTINE force_control ( rep_env, ewald_param, potparm, thermo, &
+                           box_change, globenv, debug )
 
   IMPLICIT NONE
 
 ! Arguments
-  TYPE ( particle_type ), DIMENSION ( : ), INTENT ( INOUT ) :: part
-  TYPE ( particle_node_type ), DIMENSION ( : ), INTENT ( INOUT ) :: pnode
-  TYPE ( molecule_structure_type ), DIMENSION ( : ), INTENT ( IN ) :: molecule
-  TYPE ( cell_type ), INTENT ( INOUT ) :: box
-  TYPE ( cell_type ), INTENT ( INOUT ) :: box_ref
-  TYPE ( thermodynamic_type ), INTENT ( INOUT ) :: thermo
-  TYPE ( potentialparm_type ), DIMENSION ( :,: ), INTENT ( IN ) :: potparm
+  TYPE ( replica_environment_type ), INTENT ( INOUT ):: rep_env
   TYPE ( ewald_parameters_type ), INTENT ( INOUT ) :: ewald_param
+  TYPE ( potentialparm_type ), INTENT ( IN )  :: potparm ( :, : )
+  TYPE ( fist_thermodynamic_type ), INTENT ( INOUT ) :: thermo
   LOGICAL, INTENT ( IN ) :: box_change
-  TYPE ( global_environment_type ), INTENT ( IN ) :: fc_global
-  TYPE ( linklist_internal_data_type), INTENT (INOUT) :: lldata
+  TYPE ( global_environment_type ), INTENT ( IN ) :: globenv
   TYPE ( debug_variables_type ), INTENT ( OUT ), OPTIONAL :: debug
 
 ! Locals
+  TYPE ( cell_type ), POINTER :: box
+  TYPE ( cell_type ), POINTER :: box_ref
+  TYPE ( linklist_internal_data_type), POINTER :: ll_data
+  TYPE ( molecule_structure_type ), POINTER :: molecule ( : )
+  TYPE ( particle_type ), POINTER :: part ( : )
+  TYPE ( particle_node_type ), POINTER :: pnode ( : )
   INTEGER :: id, i, ii, natoms, nnodes, handle, isos, n
   REAL ( dbl ) :: pot_nonbond, pot_bond, pot_bend, pot_torsion, vg_coulomb
   REAL ( dbl ), DIMENSION ( 3,3 ) :: pv_nonbond, pv_bond, pv_bend, pv_torsion
@@ -119,6 +122,14 @@ SUBROUTINE force_control ( molecule, pnode, part, box, box_ref, thermo, &
   REAL ( dbl ), DIMENSION ( 3,3 ) :: pv_g, ident
   REAL ( dbl ), DIMENSION ( 3,3 ) :: pv_bc
   LOGICAL :: first_time
+
+! associcating local pointers
+  ll_data =>  rep_env % ll_data ( 1 )
+  molecule => rep_env % molecule
+  part => rep_env % part
+  pnode => rep_env % pnode
+  box => rep_env % box
+  box_ref => rep_env % box_ref
 
 !------------------------------------------------------------------------------
 
@@ -149,15 +160,16 @@ SUBROUTINE force_control ( molecule, pnode, part, box, box_ref, thermo, &
 
      SELECT CASE ( ewald_param % ewald_type )
      CASE ( 'EWALD' )
-        CALL ewald_initialize ( dg, part, pnode, fc_global, &
-             ewald_param, box_ref, thermo, ewald_grid = grid_ewald )
+        CALL ewald_initialize ( dg, part, pnode, globenv, &
+             ewald_param, box_ref, thermo % e_self, thermo % e_neut,  &
+             ewald_grid = grid_ewald )
      CASE ( 'PME' )
-        CALL ewald_initialize ( dg, part, pnode, fc_global, &
-             ewald_param, box_ref, thermo, &
+        CALL ewald_initialize ( dg, part, pnode, globenv, &
+             ewald_param, box_ref, thermo % e_self, thermo % e_neut, &
              pme_small_grid = grid_s, pme_big_grid = grid_b )
      CASE ( 'SPME' )
-        CALL ewald_initialize ( dg, part, pnode, fc_global, &
-             ewald_param, box_ref, thermo, &
+        CALL ewald_initialize ( dg, part, pnode, globenv, &
+             ewald_param, box_ref, thermo % e_self, thermo % e_neut, &
              spme_grid = grid_spme )
         n = ewald_param%o_spline
         ALLOCATE ( box % green % p3m_coeff ( -(n-1):n-1, 0:n-1 ), STAT = isos )
@@ -192,7 +204,7 @@ SUBROUTINE force_control ( molecule, pnode, part, box, box_ref, thermo, &
 !
 ! first check with list_control to update neighbor lists
 !
-  CALL list_control ( lldata, pnode, part, box )
+  CALL list_control ( ll_data, pnode, part, box )
 !
 ! initial force, energy and pressure tensor arrays
 !
@@ -205,7 +217,7 @@ SUBROUTINE force_control ( molecule, pnode, part, box, box_ref, thermo, &
   pv_bend = 0.0_dbl
   pv_torsion = 0.0_dbl
   thermo % pot = 0.0_dbl
-  thermo % pv = 0.0_dbl
+  thermo % virial % pv_virial = 0.0_dbl
 !
 ! get real-space non-bonded forces:
 !
@@ -250,7 +262,7 @@ SUBROUTINE force_control ( molecule, pnode, part, box, box_ref, thermo, &
      END SELECT
 
      CALL bonded_correct_gaussian ( ewald_param, molecule, &
-          thermo % e_bonded, pv_bc )
+                                    thermo % e_bonded, pv_bc )
 
   END IF
 
@@ -272,14 +284,14 @@ SUBROUTINE force_control ( molecule, pnode, part, box, box_ref, thermo, &
   IF ( ewald_param % ewald_type == 'NONE' ) THEN
      thermo % pot = pot_nonbond + pot_bond + pot_bend + pot_torsion
 #if defined ( __parallel )
-     CALL mp_sum ( thermo % pot,fc_global % group )
+     CALL mp_sum ( thermo % pot,globenv % group )
 #endif
   ELSE
      thermo % pot = pot_nonbond + pot_bond + pot_bend + pot_torsion + thermo % e_bonded
-     thermo % gspace = vg_coulomb
+     thermo % e_gspace = vg_coulomb
 #if defined ( __parallel )
-     CALL mp_sum ( thermo % pot,fc_global % group )
-     CALL mp_sum ( thermo % e_bonded,fc_global % group )
+     CALL mp_sum ( thermo % pot,globenv % group )
+     CALL mp_sum ( thermo % e_bonded,globenv % group )
 #endif
 ! e_self and e_neut are already summed over all processors
 ! vg_coulomb is not calculated in parallel
@@ -320,9 +332,9 @@ SUBROUTINE force_control ( molecule, pnode, part, box, box_ref, thermo, &
 
 ! add up all the pressure tensors
   IF ( ewald_param % ewald_type == 'NONE' ) THEN
-     thermo % pv = pv_nonbond + pv_bond + pv_bend + pv_torsion
+     thermo % virial % pv_virial = pv_nonbond + pv_bond + pv_bend + pv_torsion
 #if defined ( __parallel )
-     CALL mp_sum ( thermo % pv, fc_global % group )
+     CALL mp_sum ( thermo % virial % pv_virial, globenv % group )
 #endif
   ELSE
      ident = 0.0_dbl
@@ -330,13 +342,14 @@ SUBROUTINE force_control ( molecule, pnode, part, box, box_ref, thermo, &
         ident ( i, i ) = 1.0_dbl
      END DO
 
-     thermo % pv = pv_nonbond + pv_bond + pv_bend + pv_torsion + pv_bc
+     thermo % virial % pv_virial = pv_nonbond + pv_bond + pv_bend + pv_torsion + pv_bc
 #if defined ( __parallel )
-     CALL mp_sum ( thermo % pv,fc_global % group )
+     CALL mp_sum ( thermo % virial % pv_virial, globenv % group )
 #endif
 
-     thermo % pv = thermo % pv + ident * thermo % e_neut / box % deth
-     thermo % pv = thermo % pv + pv_g
+     thermo % virial % pv_virial = thermo % virial % pv_virial + &
+                                      ident * thermo % e_neut / box % deth
+     thermo % virial % pv_virial = thermo % virial % pv_virial + pv_g
   END IF
 
 !
@@ -364,7 +377,7 @@ SUBROUTINE force_control ( molecule, pnode, part, box, box_ref, thermo, &
   END IF
 
 #if defined ( __parallel )
-  CALL mp_sum ( f_total, fc_global % group )
+  CALL mp_sum ( f_total, globenv % group )
 #endif
 
   DO i = 1, natoms
@@ -386,6 +399,7 @@ SUBROUTINE force_control ( molecule, pnode, part, box, box_ref, thermo, &
   CALL timestop ( zero, handle )
 
 END SUBROUTINE force_control
+
 !******************************************************************************
 
 SUBROUTINE get_ewald_grids ( pw_big, pw_small, pw_ewald, pw_spme, dblgrd )
@@ -401,9 +415,6 @@ SUBROUTINE get_ewald_grids ( pw_big, pw_small, pw_ewald, pw_spme, dblgrd )
 
 END SUBROUTINE get_ewald_grids
 
-!******************************************************************************
-
-!!*****
 !******************************************************************************
 
 END MODULE fist_force

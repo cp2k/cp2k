@@ -348,7 +348,7 @@ SUBROUTINE r2u( struc, simpar )
   DO j= 1, beads
      DO k=1, natoms
         DO i= 1, 3
-           struc(j)%pimd_data%u(i,k)=rtmp(3*k+i-3,j)
+           struc(j)%pimd_env%u(i,k)=rtmp(3*k+i-3,j)
         END DO
      END DO
   END DO
@@ -398,7 +398,7 @@ SUBROUTINE u2r( struc, simpar )
   DO j= 1, beads
      DO k=1, natoms
         DO i= 1, 3
-           utmp(3*k+i-3,j) = struc(j)%pimd_data%u(i,k)
+           utmp(3*k+i-3,j) = struc(j)%pimd_env%u(i,k)
         END DO
      END DO
   END DO
@@ -529,7 +529,7 @@ SUBROUTINE v2ud( struc, simpar )
   CALL transform( simpar%pimd_params%transformation, 3*natoms, beads, rtmp)
 
   DO j= 1, beads
-     factor = 1.0_dbl/struc(j)%pimd_data%ismeff
+     factor = 1.0_dbl/struc(j)%pimd_env%ismeff
      DO k=1, natoms
         DO i= 1, 3
            struc(j)%part(k)%v(i)=factor*rtmp(3*k+i-3,j)
@@ -582,7 +582,7 @@ SUBROUTINE ud2v( struc, simpar )
   DO j= 1, beads
      DO k=1, natoms
         DO i= 1, 3
-           utmp(3*k+i-3,j) = struc(j)%part(k)%v(i)*struc(j)%pimd_data%ismeff
+           utmp(3*k+i-3,j) = struc(j)%part(k)%v(i)*struc(j)%pimd_env%ismeff
         END DO
      END DO
   END DO

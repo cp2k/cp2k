@@ -43,7 +43,6 @@
 PROGRAM cp2k
 
   USE atom_module,ONLY : atomic_code
-  USE control_module, ONLY : control
   USE cp2k_input, ONLY : read_cp2k_section
   USE environment, ONLY : initialisation, trailer
   USE global_types, ONLY : global_environment_type
@@ -51,9 +50,7 @@ PROGRAM cp2k
   USE library_tests,ONLY : lib_test
   USE parallel, ONLY : start_parallel, end_parallel
   USE physcon, ONLY : write_physcon
-  USE tbmd_module, ONLY : tbmd
-  USE wave_module, ONLY : wave
-  USE fit_module, ONLY : fit
+  USE fist_main, ONLY : fist
   USE qs_main, ONLY : quickstep
   USE termination,  ONLY: stop_program
   USE timings, ONLY: trace_debug
@@ -86,21 +83,9 @@ PROGRAM cp2k
      CALL stop_program ( "cp2k", "No valid program name given "&
                          //globenv % program_name )
 
-  CASE ( "FIST", "POL" )
+  CASE ( "FIST" )
 
-     CALL control ( globenv )
-
-  CASE ( "FIT" )
-
-     CALL fit ( globenv )
-
-  CASE ( "WAVE" )
-
-     CALL wave ( globenv )
-
-  CASE ( "TBMD" )
-
-     CALL tbmd ( globenv )
+     CALL fist ( globenv )
 
   CASE ( "QUICKSTEP", "QS" )
 

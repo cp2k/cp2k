@@ -15,36 +15,33 @@
 !!
 !!   MODIFICATION HISTORY
 !!     cjm, FEB-20-2001: pass variable box_ref
+!!     cjm, SEPT-12-2002: major reorganization
 !!
 !!   SOURCE
 !******************************************************************************
 
 MODULE force_control
 
-  USE coefficient_types, ONLY : coeff_type, PLANEWAVES, ATOMICORBITALS
-  USE brillouin, ONLY : kpoint_type
-  USE ewald_parameters_types, ONLY : ewald_parameters_type
-!!!!  USE dft_structure_control, ONLY : dft_force_control
-  USE dft_types, ONLY : dft_control_type
+  USE fist_environment_types, ONLY : fist_environment_type
   USE fist_force, ONLY : fist_force_control => force_control
-  USE pol_force_ao, ONLY : pol_force_control_ao => force_control
-  USE pol_force_pw, ONLY : pol_force_control_pw => force_control
   USE global_types, ONLY : global_environment_type
-  USE tbmd_force, ONLY : tbmd_force_control => force_control
   USE kinds, ONLY : dbl
-  USE md, ONLY : simulation_parameters_type, thermodynamic_type
-  USE structure_types, ONLY : structure_type, interaction_type
+  USE qs_build_ks_matrix, ONLY : qs_ks_env_type
+  USE qs_environment_types, ONLY : qs_environment_type
   USE termination, ONLY : stop_program
 
   IMPLICIT NONE
 
-  PRIVATE
-  PUBLIC :: force
+  TYPE ( fist_environment_type ), POINTER :: fist_env 
+  TYPE ( qs_environment_type ), POINTER :: qs_env
+  TYPE ( qs_ks_env_type ), POINTER :: ks_env
 
-  INTERFACE force
-     MODULE PROCEDURE force_1, force_n
-  END INTERFACE
-!!*****
+  INTEGER, PARAMETER :: FIST=501, QUICKSTEP=502, POL=503, KIM_GORDON=504 
+  INTEGER :: in_use
+
+  PRIVATE
+  PUBLIC :: force, set_force_env, get_force_env, FIST, QUICKSTEP, POL, KIM_GORDON
+  
 !******************************************************************************
 
 CONTAINS
@@ -59,137 +56,98 @@ CONTAINS
 !!     Interface routine for force calculations
 !!
 !!   AUTHOR
-!!     CJM & JGH
+!!     CJM
 !!
 !!   MODIFICATION HISTORY
-!!     Harald Forbert (Dec-2000): Changes for multiple linked lists
-!!     JGH (21-12-2000): Flag to test if pressure is available
 !!
 !!   SOURCE
 !******************************************************************************
 
-SUBROUTINE force_1 ( struc, inter, thermo, simpar, ewald_param, box_change, &
-     globenv, dft_control, kp )
+SUBROUTINE force ( globenv, box_change )
   
   IMPLICIT NONE
 
 ! Arguments
-  TYPE ( structure_type ), INTENT ( INOUT ) :: struc
-  TYPE ( thermodynamic_type ), INTENT ( INOUT ) :: thermo
-  TYPE ( simulation_parameters_type ), INTENT ( IN ) :: simpar
-  TYPE ( ewald_parameters_type ), INTENT ( INOUT ) :: ewald_param
+  TYPE ( global_environment_type ), INTENT ( IN ) :: globenv
   LOGICAL, INTENT ( IN ) :: box_change
-  TYPE ( interaction_type ), INTENT ( IN ) :: inter
-  TYPE ( global_environment_type), INTENT ( IN ) :: globenv
-  TYPE ( dft_control_type ), INTENT ( IN ) :: dft_control
-  TYPE ( kpoint_type ), INTENT ( IN ) :: kp
+
+! local
+  REAL ( dbl ) :: e_pot
+  INTEGER :: beads, i
   
 !------------------------------------------------------------------------------
-
-  thermo % ptens_aval = .FALSE.
-
-  SELECT CASE ( simpar % program )
-  CASE DEFAULT
-     CALL stop_program ( 'force', 'not implemented' )
-
-  CASE ( 'FIST' )
-     CALL fist_force_control ( struc % molecule, struc % pnode, struc % part, &
-          struc % box, struc % box_ref, thermo, inter%potparm, ewald_param,  &
-          box_change, globenv, struc%ll_data (1) )
-
-  CASE ( 'POL' )
-     SELECT CASE ( struc % coef_pos ( 1 ) % in_use )
-     CASE ( ATOMICORBITALS )
-       CALL pol_force_control_ao ( struc % molecule, struc % pnode, struc % part, &
-          struc % box, struc % box_ref, struc % drho_basis_info, &
-          struc % rho0_basis_info, struc % coef_pos (1), struc % coef_vel (1), &
-          struc % coef_force (1), thermo, inter%potparm, inter%empparm,  &
-          ewald_param, box_change, globenv, struc%ll_data )
-     CASE ( PLANEWAVES )
-       CALL pol_force_control_pw ( struc % molecule, struc % pnode, struc % part, &
-          struc % box, struc % box_ref, struc % drho_basis_info, &
-          struc % rho0_basis_info, struc % coef_pos (1), struc % coef_vel (1), &
-          struc % coef_force (1), struc % projector ( 1 ), struc % pw_grid ( 1 ), &
-          thermo, inter%potparm, inter%empparm, ewald_param, box_change, globenv, &
-          struc%ll_data, simpar )
-     END SELECT 
-
-  CASE ( 'TBMD' )
-     CALL tbmd_force_control ( struc % molecule, struc % pnode, struc % part, &
-          struc % box, struc % box_ref, thermo, inter%potparm, ewald_param, &
-          box_change, globenv , struc%ll_data (1) )
-     
-  CASE ( 'WAVE' )
-!!!! CALL dft_force_control ( struc % molecule, struc % pnode, struc % part, &
-!!!!      struc % box, thermo, inter % potparm, ewald_param, &
-!!!!      box_change, struc % ll_data (1), dft_control, kp, &
-!!!!      dftpar = globenv, wavepar = globenv )
-     
+  SELECT CASE ( in_use )
+    CASE ( FIST )
+      SELECT CASE ( fist_env % pimd )
+      CASE ( .TRUE. )
+        beads = SIZE ( fist_env % rep_env )
+        e_pot = 0._dbl
+        DO i = 1, beads
+          CALL fist_force_control ( fist_env % rep_env ( i ), &
+                                    fist_env % ewald_param, &
+                                    fist_env % potparm, fist_env % thermo, &
+                                    box_change, globenv )
+          e_pot = e_pot + fist_env % thermo % pot
+        ENDDO
+        fist_env % thermo % pot = e_pot
+      CASE ( .FALSE. )
+          CALL fist_force_control ( fist_env % rep_env ( 1 ), &
+                                    fist_env % ewald_param, &
+                                    fist_env % potparm, fist_env % thermo, &
+                                    box_change, globenv )
+      END SELECT 
+    CASE ( QUICKSTEP )
+    CASE ( POL )
+    CASE ( KIM_GORDON )
   END SELECT
 
-END SUBROUTINE force_1
+END SUBROUTINE force
 
-!!*****
 !******************************************************************************
+!!****** force_control/set_force_env [1.0] *
+!!
+!!   NAME
+!!     set_force_env
+!!
+!!   FUNCTION
+!!     sets the globals for the force routine
+!!
+!!   AUTHOR
+!!     CJM
+!!
+!!   MODIFICATION HISTORY
+!!
+!!   SOURCE
+!******************************************************************************
+SUBROUTINE set_force_env ( fist_env_type, qs_env_type, ks_env_type )
+  IMPLICIT NONE
+  TYPE ( fist_environment_type ), TARGET, OPTIONAL :: fist_env_type
+  TYPE ( qs_environment_type ), TARGET, OPTIONAL :: qs_env_type
+  TYPE ( qs_ks_env_type ), TARGET, OPTIONAL :: ks_env_type
 
-SUBROUTINE force_n ( struc, inter, thermo, simpar, ewald_param, box_change, &
-     globenv, dft_control, kp )
-  
+
+! Classical MD
+  IF ( PRESENT ( fist_env_type ) ) THEN
+     fist_env => fist_env_type
+     in_use = FIST
+  ENDIF
+
+! Quickstep
+  IF ( PRESENT ( qs_env_type ) .AND. PRESENT ( ks_env_type ) ) THEN
+     qs_env => qs_env_type
+     ks_env => ks_env_type
+     in_use = QUICKSTEP
+  ENDIF
+
+END SUBROUTINE set_force_env 
+!******************************************************************************
+SUBROUTINE get_force_env ( inuse )
   IMPLICIT NONE
 
-! Arguments
-  TYPE ( structure_type ), DIMENSION ( : ), INTENT ( INOUT ) :: struc
-  TYPE ( thermodynamic_type ), INTENT ( INOUT ) :: thermo
-  TYPE ( simulation_parameters_type ), INTENT ( IN ) :: simpar
-  TYPE ( ewald_parameters_type ), INTENT ( INOUT ) :: ewald_param
-  LOGICAL, INTENT ( IN ) :: box_change
-  TYPE ( interaction_type ), INTENT ( IN ) :: inter
-  TYPE ( global_environment_type), INTENT ( IN ) :: globenv
-  TYPE ( dft_control_type ), INTENT ( IN ) :: dft_control
-  TYPE ( kpoint_type ), INTENT ( IN ) :: kp
-  
-!------------------------------------------------------------------------------
-! Local
-  INTEGER :: i, n
-  REAL (dbl) :: e_pot
-  
-!------------------------------------------------------------------------------
+  INTEGER, INTENT ( OUT ) :: inuse
+  inuse = in_use
 
-  thermo % ptens_aval = .FALSE.
-
-  n = SIZE ( struc )
-
-  e_pot = 0.0_dbl
-  
-  DO i = 1, n
-    SELECT CASE ( simpar % program )
-    CASE DEFAULT
-       CALL stop_program ( 'force', 'not implemented' )
-
-    CASE ( 'FIST' )
-       CALL fist_force_control ( struc ( i ) % molecule, struc ( i ) % pnode,  &
-         struc ( i ) % part, struc ( i ) % box, struc ( i ) % box_ref,  &
-         thermo, inter%potparm, ewald_param,  box_change, globenv,  &
-         struc ( i ) % ll_data ( 1 ) )
-
-    CASE ( 'POL' )
-       CALL stop_program ( 'force', 'POL PIMD not implemented' )
-
-    CASE ( 'TBMD' )
-       CALL stop_program ( 'force', 'TBMD PIMD not implemented' )
-
-    CASE ( 'WAVE' )
-       CALL stop_program ( 'force', 'WAVE PIMD not implemented' )
-     
-    END SELECT
-
-    e_pot = e_pot + thermo % pot
-
-  END DO
-
-  thermo % pot = e_pot
-
-END SUBROUTINE force_n
+END SUBROUTINE get_force_env 
 !******************************************************************************
 END MODULE force_control
 !******************************************************************************

@@ -72,7 +72,6 @@ SUBROUTINE convert ( units, simpar, part, pstat, box, potparm, &
      simpar%dt = simpar%dt*units%tconv
 ! convert temperature
      simpar%temp_ext = simpar%temp_ext*units%econv
-     simpar%pol_temp = simpar%pol_temp*units%econv
 ! convert pressure
      simpar%p_ext = simpar%p_ext/units%pconv
 ! convert verlet skin
@@ -81,8 +80,6 @@ SUBROUTINE convert ( units, simpar, part, pstat, box, potparm, &
 ! convert omega_p (wp) of PIMD
      simpar%pimd_params%wp = simpar%pimd_params%wp * units%econv / units%tconv
      
-! convert coefficent mass (NB: FIX THESE UNITS)
-     simpar % pol_mass = simpar % pol_mass * units%mconv
 ! converting extended system time constants
      SELECT CASE (simpar%ensemble)
      CASE ( 'NVT')
@@ -94,9 +91,6 @@ SUBROUTINE convert ( units, simpar, part, pstat, box, potparm, &
         simpar%tau_cell = simpar%tau_cell*units%tconv
         simpar%tau_nhc = simpar%tau_nhc*units%tconv
      END SELECT
-     IF (simpar % pol_ensemble =='NVT') THEN
-        simpar%pol_tau_nhc = simpar%pol_tau_nhc*units%tconv
-     END IF
   END IF
 
   IF ( PRESENT ( pstat)) THEN
@@ -161,30 +155,32 @@ SUBROUTINE convert ( units, simpar, part, pstat, box, potparm, &
      ewald_param % alpha = ewald_param % alpha/units % lconv
   END IF
 
-  IF ( ASSOCIATED ( intra_param % bond_param )) THEN
 ! converting bond, bends and torsion and constraint parameters
-     intra_param % bond_param ( : ) % r0 = intra_param % bond_param ( : ) % r0 &
-          *units%lconv
-     intra_param % bond_param ( : ) % k = intra_param % bond_param ( : ) % k &
-          * units%econv/units%lconv/units%lconv
-  END IF
+  IF ( PRESENT ( intra_param ) ) THEN
+    IF ( ASSOCIATED ( intra_param % bond_param )) THEN
+       intra_param % bond_param ( : ) % r0 = intra_param % bond_param ( : ) % r0 &
+            *units%lconv
+       intra_param % bond_param ( : ) % k = intra_param % bond_param ( : ) % k &
+            * units%econv/units%lconv/units%lconv
+    END IF
 
-  IF ( ASSOCIATED ( intra_param % bend_param )) THEN
-     intra_param % bend_param( : ) % k &
-          = intra_param % bend_param( : ) % k * units%econv
-  END IF
+    IF ( ASSOCIATED ( intra_param % bend_param )) THEN
+       intra_param % bend_param( : ) % k &
+            = intra_param % bend_param( : ) % k * units%econv
+    END IF
 
-  IF ( ASSOCIATED ( intra_param % torsion_param )) THEN
-     DO i = 0, SIZE ( intra_param % torsion_param(1) % a ) - 1
-        intra_param % torsion_param( : ) % a(i) =  &
-             intra_param % torsion_param( : ) % a(i)*units%econv
-     END DO
-  END IF
+    IF ( ASSOCIATED ( intra_param % torsion_param )) THEN
+       DO i = 0, SIZE ( intra_param % torsion_param(1) % a ) - 1
+          intra_param % torsion_param( : ) % a(i) =  &
+               intra_param % torsion_param( : ) % a(i)*units%econv
+       END DO
+    END IF
 
-  IF ( ASSOCIATED ( intra_param % constraint_distance )) THEN
-     intra_param % constraint_distance ( : ) &
-          = intra_param % constraint_distance ( : ) * units%lconv
-  END IF
+    IF ( ASSOCIATED ( intra_param % constraint_distance )) THEN
+       intra_param % constraint_distance ( : ) &
+            = intra_param % constraint_distance ( : ) * units%lconv
+    END IF
+  ENDIF
 
 END SUBROUTINE convert
 

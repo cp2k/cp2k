@@ -29,7 +29,6 @@ MODULE ewalds
   USE qs_interactions, ONLY :  exp_radius
   USE kinds, ONLY : dbl
   USE mathconstants, ONLY : pi, zero
-  USE md, ONLY : thermodynamic_type
   USE molecule_types, ONLY : particle_node_type
   USE message_passing, ONLY : mp_sum
   USE particle_types, ONLY : particle_type
@@ -264,12 +263,12 @@ END SUBROUTINE ewald_evaluate
 !!   SOURCE
 !******************************************************************************
 
-SUBROUTINE ewald_self ( ewald_param, thermo, pnode )
+SUBROUTINE ewald_self ( ewald_param, pnode, e_self, e_neut  )
 
 ! Arguments
-  TYPE ( thermodynamic_type ), INTENT ( INOUT ) :: thermo
-  TYPE ( particle_node_type ), DIMENSION ( : ), INTENT ( IN ) :: pnode
   TYPE ( ewald_parameters_type ), INTENT ( IN ) :: ewald_param
+  TYPE ( particle_node_type ), DIMENSION ( : ), INTENT ( IN ) :: pnode
+  REAL ( dbl ), INTENT ( OUT ) :: e_self, e_neut 
 
 ! Locals
   INTEGER :: nnodes, i
@@ -295,10 +294,10 @@ SUBROUTINE ewald_self ( ewald_param, thermo, pnode )
        ewald_param % ewald_type == 'PME' .OR. &
        ewald_param % ewald_type == 'SPME' ) THEN
 
-     thermo % e_self = -q_self * ewald_param % alpha &
+     e_self = -q_self * ewald_param % alpha &
           / ( 4.0_dbl * ewald_param % eps0 * pi * SQRT ( pi ) )
 
-     thermo % e_neut = -q_sum ** 2 / ( 8.0_dbl * ewald_param % eps0 &
+     e_neut = -q_sum ** 2 / ( 8.0_dbl * ewald_param % eps0 &
           * ewald_param % alpha ** 2 )
   END IF
 
@@ -372,28 +371,28 @@ END FUNCTION ewald_correction
 !!   SOURCE
 !******************************************************************************
 
-SUBROUTINE ewald_print ( iw, thermo, box, e_label )
+SUBROUTINE ewald_print ( iw, box, e_gspace, e_self, e_neut, e_bonded, e_label )
 
   IMPLICIT NONE
 
 ! Arguments
   INTEGER, INTENT ( IN ) :: iw
-  TYPE ( thermodynamic_type ), INTENT ( IN ) :: thermo
   TYPE ( cell_type ), INTENT ( IN ) :: box
   CHARACTER ( LEN = * ), INTENT ( IN ) :: e_label
+  REAL ( dbl ), INTENT ( IN ) :: e_gspace, e_self, e_neut, e_bonded
 
 !------------------------------------------------------------------------------
 
   WRITE ( iw, '( A, A )' ) ' *********************************', &
        '**********************************************'
   WRITE ( iw, '( A, A, T35, A, T66, E15.7 )' ) ' INITIAL GSPACE ENERGY', &
-       e_label, '= ', thermo%gspace
+       e_label, '= ', e_gspace
   WRITE ( iw, '( A, A, T35, A, T66, E15.7 )' ) ' SELF ENERGY CORRECTION', &
-       e_label, '= ', thermo%e_self
+       e_label, '= ', e_self
   WRITE ( iw, '( A, A, T35, A, T66, E15.7 )' ) ' NEUT. BACKGROUND', e_label, &
-       '= ', thermo%e_neut/box%deth
+       '= ', e_neut / box % deth
   WRITE ( iw, '( A, A, T35, A, T66, E15.7 )' ) ' BONDED CORRECTION', e_label, &
-       '= ', thermo%e_bonded
+       '= ', e_bonded
   WRITE ( iw, '( A, A )' ) ' *********************************', &
        '**********************************************'
 
@@ -420,7 +419,7 @@ END SUBROUTINE ewald_print
 !******************************************************************************
 
 SUBROUTINE ewald_initialize ( dg, part, pnode, pnode_grp, ewald_param, box, &
-     thermo, ewald_grid, pme_small_grid, pme_big_grid, spme_grid )
+          e_self, e_neut, ewald_grid, pme_small_grid, pme_big_grid, spme_grid )
   
   IMPLICIT NONE
 
@@ -431,7 +430,7 @@ SUBROUTINE ewald_initialize ( dg, part, pnode, pnode_grp, ewald_param, box, &
   TYPE ( particle_node_type ), DIMENSION ( : ), INTENT ( IN ) :: pnode
   TYPE ( global_environment_type ), INTENT ( IN ) :: pnode_grp
   TYPE ( cell_type ), INTENT ( INOUT ) :: box
-  TYPE ( thermodynamic_type ), INTENT ( INOUT ) :: thermo
+  REAL ( dbl ), INTENT ( OUT ) :: e_self, e_neut
   TYPE ( pw_grid_type ), INTENT ( OUT ), OPTIONAL :: ewald_grid
   TYPE ( pw_grid_type ), INTENT ( OUT ), OPTIONAL :: pme_small_grid
   TYPE ( pw_grid_type ), INTENT ( OUT ), OPTIONAL :: pme_big_grid
@@ -491,7 +490,7 @@ SUBROUTINE ewald_initialize ( dg, part, pnode, pnode_grp, ewald_param, box, &
 
   IF ( ewald_param % ewald_type /= 'NONE' ) THEN
 
-     CALL ewald_self ( ewald_param, thermo, pnode )
+     CALL ewald_self ( ewald_param, pnode, e_self, e_neut )
      
      IF ( PRESENT ( ewald_grid ) ) THEN
         ! set up EWALD "Classic"
