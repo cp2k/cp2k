@@ -264,7 +264,7 @@ CONTAINS
 
 !   ---------------------------------------------------------------------------
 
-    CALL timeset("calculate_rho_elec","I","",handle)
+
 
     allocate(rs_rho(gridlevel_info%ngrid_levels),STAT=istat)
     if (istat.ne.0) then
@@ -281,6 +281,7 @@ CONTAINS
        call rs_grid_allocate(rs_rho(igrid_level))
        call rs_grid_zero(rs_rho(igrid_level))
     ENDDO
+    CALL timeset("calculate_rho_elec","I","",handle)
 
     CALL get_qs_env(qs_env=qs_env,&
                     atomic_kind_set=atomic_kind_set,&
@@ -307,6 +308,7 @@ CONTAINS
       ALLOCATE (pab_old(maxco,maxco),STAT=istat)
       IF (istat /= 0) CALL stop_memory(routine,"pab_old",maxco*maxco*wp_size)
     END IF
+
 
     nkind = SIZE(atomic_kind_set)
 
@@ -579,6 +581,7 @@ CONTAINS
 
     END DO
 
+
     DO igrid_level=1,gridlevel_info%ngrid_levels
        call rs_pw_transfer(rs_rho(igrid_level),rho(igrid_level)%pw,"FORWARD")
        call rs_grid_deallocate(rs_rho(igrid_level))
@@ -630,8 +633,8 @@ CONTAINS
     END IF
 
     total_rho = calculate_total_rho(rho(1))
-
     CALL timestop(0.0_wp,handle)
+
 
   END SUBROUTINE calculate_rho_elec
 
@@ -915,8 +918,10 @@ CONTAINS
     INTEGER, pointer, dimension(:)  :: sphere_bounds
     REAL(wp)  :: xa,xb,xap,xbp,polypart,cutoff
     INTEGER  :: start,length,offset,cmax
+    integer  handle
 
 !   ---------------------------------------------------------------------------
+
 
     coef_max=la_max+lb_max+1
 
@@ -1127,6 +1132,7 @@ CONTAINS
     real(wp) s1,s2,s3,s4,s5,s6,s7,s8,s9,sa,g1,g2,g3
     real(wp) s1k,s2k,s3k,s4k,s5k,s6k,s7k,s8k,s9k,sak,g1k,g2k
     real(wp) r1,r2,r3,r4,r5,r6,r7,r8
+
 
     sci=1
     kgmin=sphere_bounds(sci)
@@ -1603,6 +1609,7 @@ CONTAINS
           END SELECT
        END DO
     END DO
+  
 
   END SUBROUTINE
 

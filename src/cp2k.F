@@ -55,6 +55,7 @@ PROGRAM cp2k
   USE wave_module, ONLY : wave
   USE qs_main, ONLY : quickstep
   USE termination,  ONLY: stop_program
+  USE timings, ONLY: trace_debug
 
   IMPLICIT NONE
 
@@ -62,6 +63,7 @@ PROGRAM cp2k
 
 !------------------------------------------------------------------------------
   print*
+  !CALL trace_debug("START")
   CALL start_parallel ( globenv )
 
   CALL initialisation ( globenv )

@@ -256,16 +256,16 @@ SUBROUTINE pw_zero ( pw )
 
   IF ( pw % in_use == REALDATA1D ) THEN
      ns = SIZE ( pw % cr ( : ) )
-     pw % cr = 0.0_dbl
+     CALL DCOPY(ns,0.0_dbl,0,pw % cr,1) 
   ELSE IF ( pw % in_use == COMPLEXDATA1D ) THEN
      ns = 2 * SIZE ( pw % cc ( : ) )
-     pw % cc = 0.0_dbl
+     CALL DCOPY(ns,0.0_dbl,0,pw % cc,1) 
   ELSE IF ( pw % in_use == REALDATA3D ) THEN
      ns = SIZE ( pw % cr3d ( :, :, : ) )
-     pw % cr3d = 0.0_dbl
+     CALL DCOPY(ns,0.0_dbl,0,pw % cr3d,1) 
   ELSE IF ( pw % in_use == COMPLEXDATA3D ) THEN
      ns = 2 * SIZE ( pw % cc3d ( :, :, : ) )
-     pw % cc3d = 0.0_dbl
+     CALL DCOPY(ns,0.0_dbl,0,pw % cc3d,1) 
   ELSE
      CALL stop_program ( "pw_zero", "no possible data field" )
   END IF

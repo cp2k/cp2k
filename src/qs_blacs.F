@@ -130,7 +130,8 @@ MODULE qs_blacs
             add_blacs_to_block_diag_sm, &
             blacs_cholesky_decompose, &
             blacs_cholesky_reduce, &
-            blacs_cholesky_restore
+            blacs_cholesky_restore, &
+            blacs_test_it
 
 ! *****************************************************************************
 
@@ -218,7 +219,7 @@ CONTAINS
     CALL mp_sum(prow,group)
     CALL mp_sum(pcol,group)
 
-    IF (ionode) THEN
+    IF (ionode .and. .false.) THEN
       WRITE (UNIT=output_unit,FMT="(/,/,T2,A,/,/,T3,A,/,/,(T3,A,I6))")&
         "BLACS INFORMATION (BLACS matrix allocation)",&
         "Matrix name: "//TRIM(name),&
@@ -251,7 +252,8 @@ CONTAINS
       CALL stop_memory(routine,"new_matrix%p(myprow,mypcol)%block",&
                        nrow_local*ncol_local*wp_size)
     END IF
-    new_matrix%p(myprow,mypcol)%block(:,:) = 0.0_wp
+    CALL DSCAL(nrow_local*ncol_local,0.0_wp,new_matrix%p(myprow,mypcol)%block,1)
+    !new_matrix%p(myprow,mypcol)%block(:,:) = 0.0_wp
 
     new_matrix%descriptor(:) = 0
     CALL descinit(new_matrix%descriptor,new_matrix%nrow_global,&
@@ -287,7 +289,8 @@ CONTAINS
       CALL stop_memory(routine,"new_matrix%p(source,source)%block",&
                        nrow_global*ncol_global*wp_size)
     END IF
-    new_matrix%p(source,source)%block(:,:) = 0.0_wp
+    CALL DSCAL(nrow_global*ncol_global,0.0_wp,new_matrix%p(source,source)%block,1)
+    !new_matrix%p(source,source)%block(:,:) = 0.0_wp
 
 #endif
   END SUBROUTINE allocate_blacs_matrix
@@ -413,6 +416,307 @@ CONTAINS
 
 #endif
   END SUBROUTINE blacs_add_to_element
+! *****************************************************************************
+
+  SUBROUTINE blacs_test_it(matrix_a,matrix_v,evals,neig,matrix_work,context,globenv)
+
+! ***************************************************************************
+
+    TYPE(blacs_matrix_type), POINTER          :: matrix_a, matrix_v, matrix_work
+    TYPE(global_environment_type), INTENT(IN) :: globenv
+    INTEGER, INTENT(IN)                       :: context
+    REAL(wp), DIMENSION(:)                    :: evals
+    INTEGER, INTENT(IN)                       :: neig
+    
+
+!   *** Local variables ***
+
+    INTEGER :: mypcol,myprow,npcol,nprow,source,n
+    INTEGER :: nrow_block,ncol_block,ncol
+
+    INTEGER, DIMENSION(9) :: desca,descv,descwork,descvecbuf,deschh,descvh,descvv
+    INTEGER, DIMENSION(:), POINTER :: ipivot,iwork
+    INTEGER :: n, lipivot, istat, info, i
+
+    TYPE(blacs_matrix_type), POINTER          ::  vecbuffer,matrix_overlap_hh
+    TYPE(blacs_matrix_type), POINTER          ::  matrix_overlap_vh,matrix_overlap_vv
+
+    REAL(wp), DIMENSION(:,:), POINTER :: a,v,work,vecbuf,overlap_hh,overlap_vh
+    REAL(wp), DIMENSION(:,:), POINTER :: overlap_vv
+    REAL(wp), DIMENSION(:), POINTER :: evwork,evalsl
+    INTEGER, DIMENSION(:), POINTER :: iwork
+    REAL(wp) :: rone,rzero
+    INTEGER  :: nhigh,nvec,nlow,levwork,liwork,iter,iter_inner
+    INTEGER  :: handle,handle_lu,handle_av,handle_trs
+
+!   ---------------------------------------------------------------------------
+    CALL timeset("blacs_test_it","I","",handle)
+    CALL timeset("blacs_test_it_allo","I","",handle_av)
+    rone=1.0_wp
+    rzero=0.0_wp
+
+    source = globenv%source
+    n = matrix_a%nrow_global ! matrix dimension
+    nhigh=MAX(neig/5,2)      ! the upper part of the spectrum, used for iterating
+    nlow=neig-nhigh          ! the lower part of the spectrum
+    nvec=neig+nhigh          ! the number of vectors used is subspace diag
+    if (nhigh.lt.1 .or. nlow.lt.1 ) call stop_program("test_it","nhigh, nlow, too small")
+    levwork=1+6*nvec+2*nvec**2
+    liwork=5*nvec+3
+    allocate(evwork(levwork))
+    allocate(iwork(liwork))
+    allocate(evalsl(nvec))
+
+
+    CALL get_blacs_matrix_info(matrix=matrix_a,&
+                               nrow_block=nrow_block,&
+                               ncol_block=ncol_block)
+    ncol = 2*nvec
+    ! some buffer space
+    CALL allocate_blacs_matrix(new_matrix=vecbuffer,&
+                               nrow_global=n,&
+                               ncol_global=ncol,&
+                               nrow_block=nrow_block,&
+                               ncol_block=ncol_block,&
+                               name="VEC BUFFER",&
+                               context=context,&
+                               globenv=globenv)
+    CALL allocate_blacs_matrix(new_matrix=matrix_overlap_vh,&
+                               nrow_global=neig,&
+                               ncol_global=nhigh,&
+                               nrow_block=nrow_block,&
+                               ncol_block=ncol_block,&
+                               name="overlap_vh",&
+                               context=context,&
+                               globenv=globenv)
+    CALL allocate_blacs_matrix(new_matrix=matrix_overlap_hh,&
+                               nrow_global=nhigh,&
+                               ncol_global=nhigh,&
+                               nrow_block=nrow_block,&
+                               ncol_block=ncol_block,&
+                               name="overlap_hh",&
+                               context=context,&
+                               globenv=globenv)
+    CALL allocate_blacs_matrix(new_matrix=matrix_overlap_vv,&
+                               nrow_global=nvec,&
+                               ncol_global=nvec,&
+                               nrow_block=nrow_block,&
+                               ncol_block=ncol_block,&
+                               name="overlap_vv",&
+                               context=context,&
+                               globenv=globenv)
+    CALL timestop(0.0_wp,handle_av)
+    CALL timeset("blacs_test_it_b2b","I","",handle_lu)
+
+! put the right pointers in place
+#if defined(__parallel)
+    CALL blacs_gridinfo(context,nprow,npcol,myprow,mypcol)
+    a => matrix_a%p(myprow,mypcol)%block
+    desca(:) = matrix_a%descriptor(:)
+
+    v => matrix_v%p(myprow,mypcol)%block
+    descv(:) = matrix_v%descriptor(:)
+
+    work => matrix_work%p(myprow,mypcol)%block
+    descwork(:) = matrix_work%descriptor(:)
+
+    vecbuf => vecbuffer%p(myprow,mypcol)%block
+    descvecbuf(:) = vecbuffer%descriptor(:)
+
+    overlap_vh => matrix_overlap_vh%p(myprow,mypcol)%block
+    descvh(:) = matrix_overlap_vh%descriptor(:)
+
+    overlap_hh => matrix_overlap_hh%p(myprow,mypcol)%block
+    deschh(:) = matrix_overlap_hh%descriptor(:)
+
+    overlap_vv => matrix_overlap_vv%p(myprow,mypcol)%block
+    descvv(:) = matrix_overlap_vv%descriptor(:)
+#else 
+    a => matrix_a%p(source,source)%block
+    v => matrix_v%p(source,source)%block
+    work => matrix_work%p(source,source)%block
+    vecbuf => vecbuffer%p(source,source)%block
+    overlap_vh => matrix_overlap_vh%p(source,source)%block
+    overlap_hh => matrix_overlap_hh%p(source,source)%block
+    overlap_vv => matrix_overlap_vv%p(source,source)%block
+#endif
+
+!
+! first we LU decompose the matrix a
+!
+! ---- (1/3)*n^3
+!
+    CALL timestop(0.0_wp,handle_lu)
+    call symmetrise_blacs_matrix(matrix_a,matrix_work,context,globenv)
+    call copy_blacs_to_blacs_matrix(matrix_a,matrix_work)
+
+    CALL timeset("blacs_test_it_getrf","I","",handle_lu)
+
+    lipivot = MAX(n,128) ! somehow too long ...
+    allocate (ipivot(lipivot),stat=istat)
+    if (istat.ne.0) call stop_memory("blacs_test_it","ipivot")
+
+#if defined(__parallel)
+    CALL pdgetrf(n,n,work,1,1,descwork,ipivot,info)
+#else 
+    CALL dgetrf(n,n,work,n,ipivot,info)
+#endif
+    if (info.ne.0) call stop_program("blacs_test_it","problems in getrf")
+    CALL timestop(0.0_wp,handle_lu)
+
+!
+! set an initial orthonormal basis .... XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+!
+    call dscal(n*neig,rzero,v,1)
+    do i=1,neig
+       v(i,i)=sqrt(1.0_wp/2.0_wp)
+       if (i+neig.le.n) v(i+neig,i)=sqrt(1.0_wp/2.0_wp)
+    enddo
+
+!
+! move initial vectors to vecbuff
+!
+
+#if defined(__parallel)
+
+#else
+    call dcopy(n*neig,v,1,vecbuf,1) 
+#endif
+
+!
+! get the A*V for the occupied orbitals
+! they are the first neig orbs in vecbuf
+!
+! ---- n^2*neig
+!
+
+    CALL timeset("blacs_test_it_av","I","",handle_av)
+#if defined(__parallel)
+
+#else
+    CALL dgemm('N','N',n,neig,n,rone,a,n,vecbuf(1,1),n,rzero,vecbuf(1,nvec+1),n)
+#endif
+    CALL timestop(0.0_wp,handle_av)
+
+    DO iter=1,10
+
+!
+! extend the space of orbitals by computing (LU)^-1 * vec and ortho these
+!
+#if defined(__parallel)
+
+#else
+    CALL DCOPY(nhigh*n,vecbuf(1,nlow+1),1,vecbuf(1,neig+1),1) ! get the upper part of neig in place
+#endif
+
+!
+! solve the system of equations
+! vec are the highest energy states of the current 1...neig basis vectors
+!
+  DO iter_inner=1,14
+    CALL timeset("blacs_test_it_trs","I","",handle_trs)
+#if defined(__parallel)
+
+#else
+    CALL DGETRS('N',n,nhigh,work,n,ipivot,vecbuf(1,neig+1),n,info) ! replace it with (LU^-1)*v
+#endif
+    if (info.ne.0) then
+       call stop_program("test_it","Dgetrs")
+    endif
+    CALL timestop(0.0_wp,handle_trs)
+!
+! ortho these new vectors
+!
+    CALL timeset("blacs_test_it_ortho","I","",handle_trs)
+#if defined(__parallel)
+
+#else
+    ! ortho to the existing basis vectors
+    CALL DGEMM('T','N',neig,nhigh,n,rone,vecbuf(1,1),n,vecbuf(1,neig+1),n,rzero,overlap_vh,neig)
+    CALL DGEMM('N','N',n,nhigh,neig,-rone,vecbuf(1,1),n,overlap_vh,neig,rone,vecbuf(1,neig+1),n)
+    ! and ortho within the new set
+    CALL DSYRK('U','T',nhigh,n,rone,vecbuf(1,neig+1),n,rzero,overlap_hh,nhigh)
+    CALL DPOTRF('U',nhigh,overlap_hh,nhigh,info)
+    ! in this case the vectors are exactly degenerate
+    if (info.ne.0) call stop_program("test_it","DPOTRF overlap_hh")  
+    CALL DTRSM('R','U','N','N',n,nhigh,rone,overlap_hh,nhigh,vecbuf(1,neig+1),n)
+
+!   this should be an orthonormal basis
+!
+!   CALL DSYRK('U','T',nvec,n,rone,vecbuf(1,1),n,rzero,overlap_vv,nvec)
+!   write(6,*) "overlap_vv",overlap_vv
+
+#endif
+    CALL timestop(0.0_wp,handle_trs)
+  ENDDO
+!
+! get (A*V) for these
+! nhigh*n^2
+!
+    CALL timeset("blacs_test_it_av","I","",handle_av)
+#if defined(__parallel)
+
+#else
+    CALL dgemm('N','N',n,nhigh,n,rone,a,n,vecbuf(1,neig+1),n,rzero,vecbuf(1,nvec+neig+1),n)
+#endif
+    CALL timestop(0.0_wp,handle_av)
+
+!
+! get V^T*(A*V)
+! ---- n*nvec^2
+!
+    CALL timeset("blacs_test_sub_a","I","",handle_av)
+#if defined(__parallel)
+
+#else
+    CALL DGEMM('T','N',nvec,nvec,n,rone,vecbuf(1,1),n,vecbuf(1,nvec+1),n,rzero,overlap_vv,nvec)
+#endif
+    CALL timestop(0.0_wp,handle_av)
+
+!
+! diag the subblock
+!
+    CALL timeset("blacs_test_diag_sub","I","",handle_av)
+#if defined(__parallel)
+
+#else
+    CALL DSYEVD('V','U',nvec,overlap_vv,nvec,evalsl,evwork,levwork,iwork,liwork,info)
+#endif
+    if (info.ne.0) call stop_program("test_it","dsyevd overlap_vv")  
+    CALL timestop(0.0_wp,handle_av)
+!
+! rotate the vectors, only first neig, put them in v temporarily
+!
+    write(6,*) "evalsl",evalsl(1:neig)
+    CALL timeset("blacs_test_rotate","I","",handle_av)
+#if defined(__parallel)
+
+#else
+    ! this is av
+    CALL DGEMM('N','N',n,neig,nvec,rone,vecbuf(1,nvec+1),n,overlap_vv,nvec,rzero,v,n)
+    CALL DCOPY(neig*n,v,1,vecbuf(1,nvec+1),1)
+    ! this is v
+    CALL DGEMM('N','N',n,neig,nvec,rone,vecbuf(1,     1),n,overlap_vv,nvec,rzero,v,n)
+    CALL DCOPY(neig*n,v,1,vecbuf(1,1),1)
+!
+!    overlap should be diagonal
+!    CALL DGEMM('T','N',neig,neig,n,rone,vecbuf(1,1),n,vecbuf(1,nvec+1),n,rzero,overlap_vv,nvec)
+!    write(6,*) "overlap",overlap_vv(1:neig,1:neig)
+#endif
+    CALL timestop(0.0_wp,handle_av)
+
+    ENDDO
+
+    CALL deallocate_blacs_matrix(vecbuffer)
+    CALL deallocate_blacs_matrix(matrix_overlap_vh)
+    CALL deallocate_blacs_matrix(matrix_overlap_hh)
+    deallocate(ipivot)
+    deallocate(evwork)
+    deallocate(iwork)
+    deallocate(evalsl)
+    CALL timestop(0.0_wp,handle)
+
+  END SUBROUTINE blacs_test_it
 
 ! *****************************************************************************
 
@@ -1016,19 +1320,19 @@ CONTAINS
 ! restore after blacs_cholesky_reduce
 ! matrix should be the eigenvectors
 !******************************************************************
-  SUBROUTINE blacs_cholesky_restore(matrix,neig,matrixb,context,globenv)
-    TYPE(blacs_matrix_type), POINTER          :: matrix,matrixb
+  SUBROUTINE blacs_cholesky_restore(matrix,neig,matrixb,matrixout,context,globenv)
+    TYPE(blacs_matrix_type), POINTER          :: matrix,matrixb,matrixout
     INTEGER, INTENT(IN)                       :: neig
     TYPE(global_environment_type), INTENT(IN) :: globenv
     INTEGER, INTENT(IN)                       :: context
 
-    REAL(wp), DIMENSION(:,:), POINTER         :: a,b
+    REAL(wp), DIMENSION(:,:), POINTER         :: a,b,out
     integer                                   :: info,itype,handle
     INTEGER                                   :: output_unit,source,n
     LOGICAL                                   :: ionode
     REAL(wp)                                  :: alfa
-    integer                                   :: nprow,npcol,myprow,mypcol
-    INTEGER, DIMENSION(9)                     :: desca,descb
+    integer                                   :: nprow,npcol,myprow,mypcol,i
+    INTEGER, DIMENSION(9)                     :: desca,descb,descout
 
     CALL timeset("blacs_cholesky_restore","I","",handle)
 
@@ -1045,16 +1349,22 @@ CONTAINS
     desca(:) = matrix%descriptor(:)
     b => matrixb%p(myprow,mypcol)%block
     descb(:) = matrixb%descriptor(:)
+    out => matrixout%p(myprow,mypcol)%block
+    descout(:) = matrixout%descriptor(:)
     alfa=1.0_wp
-    CALL pdtrsm('L','U','N','N',n,neig,alfa,b,1,1,descb,a,1,1,desca)
-
+    do i=1,neig
+      CALL pdcopy(n,a,1,i,desca,1,out,1,i,descout,1)
+    enddo
+    CALL pdtrsm('L','U','N','N',n,neig,alfa,b,1,1,descb,out,1,1,descout)
 #else
 
     ! notice b is the cholesky guy
     a => matrix%p(source,source)%block
     b => matrixb%p(source,source)%block
+    out => matrixout%p(source,source)%block
     alfa=1.0_wp
-    CALL dtrsm('L','U','N','N',n,neig,alfa,b,n,a,n)
+    CALL dcopy(neig*n,a,1,out,1)
+    CALL dtrsm('L','U','N','N',n,neig,alfa,b,n,out,n)
 
 #endif
 
@@ -1472,7 +1782,8 @@ CONTAINS
 
 !   *** Local variables ***
 
-    INTEGER :: ipcol,iprow,istat,npcol,nprow,ncol_local,nrow_local
+    INTEGER :: ipcol,iprow,istat,npcol,nprow,ncol_local,nrow_local,msize1,msize2
+    REAL(wp), DIMENSION(:,:), POINTER :: a,b
 
 !   ---------------------------------------------------------------------------
 
@@ -1492,7 +1803,15 @@ CONTAINS
                                nrow_local*ncol_local*wp_size)
             END IF
           END IF
-          target%p(iprow,ipcol)%block(:,:) = source%p(iprow,ipcol)%block(:,:)
+          msize1=SIZE(source%p(iprow,ipcol)%block,1)*SIZE(source%p(iprow,ipcol)%block,2)
+          msize2=SIZE(target%p(iprow,ipcol)%block,1)*SIZE(target%p(iprow,ipcol)%block,2)
+          if (msize1.ne.msize2) then
+             CALL stop_program("copy_blacs_to_blacs_matrix","no identical sizes")
+          endif
+          a => source%p(iprow,ipcol)%block
+          b => target%p(iprow,ipcol)%block
+          CALL DCOPY(msize1,a,1,b,1)
+          !target%p(iprow,ipcol)%block(:,:) = source%p(iprow,ipcol)%block(:,:)
         ELSE
           IF (ASSOCIATED(target%p(iprow,ipcol)%block)) THEN
             DEALLOCATE (target%p(iprow,ipcol)%block,STAT=istat)

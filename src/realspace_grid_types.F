@@ -784,7 +784,7 @@ SUBROUTINE send_backward ( rs, pw )
 !-----------------------------------------------------------------------------!
 
    ! initialize the rs grid to zero
-   rs % r = 0._dbl
+   call rs_grid_zero( rs )
    lbp ( : ) = pw % pw_grid % bounds_local ( 1, : )
    ubp ( : ) = pw % pw_grid % bounds_local ( 2, : )
    ! We only have to do the communication within the subgroups along cartesian

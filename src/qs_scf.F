@@ -115,7 +115,8 @@ MODULE qs_scf
                                       symmetrise_blacs_matrix, &
                                       blacs_cholesky_decompose, &
                                       blacs_cholesky_reduce, &
-                                      blacs_cholesky_restore
+                                      blacs_cholesky_restore, &
+                                      blacs_test_it
   USE qs_collocate_density,     ONLY: calculate_rho_core,&
                                       calculate_rho_elec,&
                                       calculate_total_rho
@@ -596,8 +597,8 @@ CONTAINS
 
     CALL calculate_xc_potential(globenv)
 
-    CALL pw_fft_wrap(rho_rspace(1)%pw,rho_gspace(1)%pw,&
-                     debug=(globenv%print%level == DEBUG))
+    !CALL pw_fft_wrap(rho_rspace(1)%pw,rho_gspace(1)%pw,&
+    !                 debug=(globenv%print%level == DEBUG))
 
 ! add the core density to the electronic density
     CALL coeff_sumup(rho_core,rho_gspace(1))
@@ -1032,20 +1033,20 @@ CONTAINS
 
 !   *** Diagonalise the Kohn-Sham matrix ***
 
-    IF (use_cholesky) THEN
+    ! CALL blacs_test_it(ks,mo_eigenvectors,mo_eigenvalues,nmo,work,context,globenv)
 
+    IF (use_cholesky) THEN
        CALL blacs_syevx(ks,work,mo_eigenvalues,nmo,work_syevx,context,globenv)
-       CALL blacs_cholesky_restore(work,nmo,ortho,context,globenv)
-       CALL copy_blacs_to_blacs_matrix(work,mo_eigenvectors)
+       CALL blacs_cholesky_restore(work,nmo,ortho,mo_eigenvectors,context,globenv)
 
     ELSE
 
        CALL blacs_syevx(ks,work,mo_eigenvalues,nmo,work_syevx,context,globenv)
-
        CALL blacs_gemm("N","N",nao,nmo,nao,1.0_wp,ortho,work,0.0_wp,&
-                    mo_eigenvectors,context,globenv)
+                        mo_eigenvectors,context,globenv)
    
     ENDIF
+    ! write(6,*) "evals syevx",mo_eigenvalues(1:nmo)
 
     CALL timestop(0.0_wp,handle)
 
