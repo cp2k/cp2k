@@ -34,14 +34,14 @@ MODULE timings
   PUBLIC :: timeset, timestop, timeprint, trace_debug, print_stack
 
 ! subroutine calling stack
-  INTEGER, PARAMETER :: max_stack = 10000
+  INTEGER, PARAMETER :: max_stack = 5000
   INTEGER :: stack_size
-  CHARACTER ( LEN = 31 ) :: routine_stack ( max_stack ), routine_name
+  CHARACTER ( LEN = 80 ) :: routine_stack ( max_stack ), routine_name
 
 ! subroutine timing and performance information
-  INTEGER, PARAMETER :: max_timer = 200
+  INTEGER, PARAMETER :: max_timer = 5000
 
-  CHARACTER ( LEN = 31 ) :: clock_name ( max_timer )
+  CHARACTER ( LEN = 80 ) :: clock_name ( max_timer )
   INTEGER :: routine_calls ( max_timer )
   INTEGER :: clock_status ( max_timer )
   REAL ( dbl ) :: clock_start ( max_timer )
@@ -92,6 +92,7 @@ SUBROUTINE timeset ( name, ct, pu, handle )
 
 ! Locals
   INTEGER :: i
+  CHARACTER ( LEN = 40 )  :: sformat
 
 !------------------------------------------------------------------------------
 
@@ -100,8 +101,9 @@ SUBROUTINE timeset ( name, ct, pu, handle )
   routine_stack ( stack_size ) = name
 
 !..if debug mode echo the subroutine name
-  IF ( trace ) write ( iod, '(A,A,A)') &
-     astring,TRIM(name)," started ..."
+  write(sformat,*) "(A,",MAX(1,3*stack_size-9),"X,I,1X,A,A)"
+  IF ( trace ) write ( iod, sformat) &
+     astring,stack_size,TRIM( routine_stack ( stack_size ))," start"
 
 !..is this a new timer or has this routine been called before
   handle = 0
@@ -166,6 +168,7 @@ SUBROUTINE timestop ( perf, handle )
 ! Locals
   REAL ( dbl ) :: cpt, wt
   INTEGER :: i
+  CHARACTER ( LEN = 40 )  :: sformat
 
 !------------------------------------------------------------------------------
 
@@ -187,8 +190,9 @@ SUBROUTINE timestop ( perf, handle )
      END DO
 
 !..if debug mode echo the subroutine name
-  IF ( trace ) write ( iod, '(A,A,A)') &
-     bstring,TRIM(routine_stack(stack_size))," ... ended"
+  write(sformat,*) "(A,",MAX(1,3*stack_size-9),"X,I,1X,A,F8.3)"
+  IF ( trace ) write ( iod, sformat) &
+     bstring,stack_size,TRIM(routine_stack(stack_size)),cpt
 
 !..remove name from subroutine stack
      stack_size = stack_size - 1
