@@ -298,17 +298,13 @@ CONTAINS
     INTEGER                                  :: i, j, n_cols, n_ev, n_lumos, &
                                                 n_orbits, n_rows, n_spins, &
                                                 spin, stat
-    REAL(KIND=DBL)                           :: scale_factor, sorter_sum
+    REAL(KIND=DBL)                           :: scale_factor, evd
     REAL(KIND=DBL), ALLOCATABLE, &
       DIMENSION(:, :)                        :: lumos, tmp_guess
     REAL(KIND=DBL), DIMENSION(:), POINTER    :: orbital_eigenvalues
     TYPE(simple_solution_sorter), POINTER    :: sorter_iterator, &
                                                 sorter_pointer, sorter_start
     TYPE(tddfpt_control_type), POINTER       :: tddfpt_control
-
-! of the matrices
-! error flags and such
-! loop indices
 
     tddfpt_control => qs_env%dft_control%tddfpt_control
     n_spins = qs_env%dft_control%nspins
@@ -327,40 +323,42 @@ CONTAINS
 
           n_lumos = tddfpt_control%lumos(spin)%matrix%matrix_struct%ncol_global
 
-          ! calculate the first n_ev solutions to the kernel-less problem
-          NULLIFY(sorter_start);
           n_orbits = SIZE(orbital_eigenvalues)
+
+          ! first element
+          evd = tddfpt_control%lumos_eigenvalues(1,spin)-orbital_eigenvalues(n_orbits)
+          ALLOCATE(sorter_start)
+          sorter_start%orbit=n_orbits
+          sorter_start%lumo=1
+          sorter_start%value=evd
+          NULLIFY(sorter_start%next)
+         
           DO i=n_orbits, 1, -1
              DO j=1, n_ev
-                sorter_sum = &
-                     tddfpt_control%lumos_eigenvalues(j,spin)-orbital_eigenvalues(i)
-                IF (.NOT.ASSOCIATED(sorter_start).OR.sorter_sum<sorter_start%value) THEN
-                  ALLOCATE(sorter_pointer)
-                  sorter_pointer%orbit=i
-                  sorter_pointer%lumo=j
-                  sorter_pointer%value=sorter_sum
-                  sorter_pointer%next=>sorter_start
-                  sorter_start=>sorter_pointer
-                  NULLIFY(sorter_pointer)
-               ELSE
-                  sorter_iterator=>sorter_start
-                  DO 
-                     IF (.NOT.ASSOCIATED(sorter_iterator%next).OR.&
-                          sorter_iterator%next%value>sorter_sum) THEN
-                        ALLOCATE(sorter_pointer)
-                        sorter_pointer%orbit=i
-                        sorter_pointer%lumo=j
-                        sorter_pointer%value=sorter_sum
-                        sorter_pointer%next=>sorter_iterator%next
-                        sorter_iterator%next=>sorter_pointer
-                        NULLIFY(sorter_pointer)
-                        EXIT
-                     END IF
-                     sorter_iterator=>sorter_iterator%next
-                  END DO                        
-               END IF
-            END DO
+
+                IF (i==n_orbits .AND. j==1) CYCLE ! already in list
+
+                evd = tddfpt_control%lumos_eigenvalues(j,spin)-orbital_eigenvalues(i)
+
+                sorter_iterator => sorter_start
+                NULLIFY(sorter_pointer)
+                DO WHILE (ASSOCIATED(sorter_iterator%next))
+                   IF (sorter_iterator%next%value > evd) THEN
+                      sorter_pointer => sorter_iterator%next
+                      EXIT
+                   END IF
+                   sorter_iterator => sorter_iterator%next
+                END DO
+
+                ALLOCATE(sorter_iterator%next)
+                sorter_iterator%next%orbit = i
+                sorter_iterator%next%lumo  = j
+                sorter_iterator%next%value = evd
+                sorter_iterator%next%next  => sorter_pointer
+
+             END DO
           END DO
+
           ALLOCATE(lumos(n_rows, n_lumos), tmp_guess(n_rows, n_orbits), stat=stat)
 
           CALL cp_fm_get_submatrix(tddfpt_control%lumos(spin)%matrix, lumos, &
