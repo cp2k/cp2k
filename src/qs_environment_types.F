@@ -21,12 +21,8 @@
 !******************************************************************************
 
 MODULE qs_environment_types
-  !USE cp_matrix_utils,        ONLY: cp_sm_set_dist_sparsity_from_sm
-  !USE pw_grid_types,          ONLY: HALFSPACE,&
-  !                                  pw_grid_type
-  !USE pw_grids,               ONLY: pw_grid_construct,&
-  !                                  pw_grid_setup
   USE atomic_kind_types,               ONLY: atomic_kind_type
+  USE coefficient_types,               ONLY: coeff_type
   USE cp_b_matrix_structure,           ONLY: cp_b_matrix_struct_type,&
                                              cp_bmstruct_create,&
                                              cp_bmstruct_release
@@ -64,13 +60,13 @@ MODULE qs_environment_types
   USE kinds,                           ONLY: wp => dp
   USE pao_types,                       ONLY: pao_env_type
   USE particle_types,                  ONLY: particle_type
-  USE pw_pool,                         ONLY: pw_pool_create,&
-                                             pw_pool_p_type,&
-                                             pw_pool_release,&
-                                             pw_pool_retain,&
-                                             pw_pool_type,&
-                                             pw_pools_copy,&
-                                             pw_pools_dealloc
+  USE pw_env_types,                    ONLY: pw_env_release,&
+                                             pw_env_retain,&
+                                             pw_env_type
+  USE qs_charges_types,                ONLY: qs_charges_create,&
+                                             qs_charges_release,&
+                                             qs_charges_retain,&
+                                             qs_charges_type
   USE qs_energy_types,                 ONLY: qs_energy_type
   USE qs_force_types,                  ONLY: qs_force_type
   USE qs_mo_types,                     ONLY: mo_set_p_type
@@ -106,15 +102,17 @@ MODULE qs_environment_types
     TYPE(particle_type), DIMENSION(:), POINTER            :: particle_set
     TYPE(qs_energy_type), POINTER                         :: energy
     TYPE(qs_force_type), DIMENSION(:), POINTER            :: force
-    TYPE(real_matrix_p_type), DIMENSION(:), POINTER       :: h,k,p,p_old,s,kinetic
+    TYPE(real_matrix_p_type), DIMENSION(:), POINTER       :: h,k,p,s,kinetic
     TYPE(cp_b_matrix_struct_type), POINTER                :: s_mstruct
     TYPE(qs_rho_type), POINTER                            :: rho
     TYPE(scf_control_type), POINTER                       :: scf_control
 
     TYPE(cp_fm_pool_type), POINTER                        :: ao_mo_fm_pool
-    TYPE(pw_pool_p_type), DIMENSION(:), POINTER           :: pw_pools
+    TYPE(pw_env_type), POINTER                            :: pw_env
 
     TYPE(cp_para_env_type), POINTER                       :: para_env
+    TYPE(coeff_type), POINTER                             :: rho_core
+    TYPE(qs_charges_type), POINTER                        :: qs_charges
   END TYPE qs_environment_type
 
 ! *** Public data types ***
@@ -135,9 +133,9 @@ CONTAINS
 
   SUBROUTINE get_qs_env(qs_env,atomic_kind_set,cell,dft_control,c,sab_orb,&
                         sac_erfc,sac_ppl,sca_ppnl,scb_ppnl,pao_env,&
-                        particle_set,energy,force,h,k,p,p_old,s, s_mstruct,&
-                        rho, ao_mo_fm_pool, pw_pools, para_env, scf_control,&
-                        kinetic,error)
+                        particle_set,energy,force,h,k,p,s, s_mstruct,&
+                        rho, ao_mo_fm_pool, pw_env, para_env, scf_control,&
+                        kinetic,qs_charges, rho_core, error)
 
 !   Purpose: Get the QUICKSTEP environment.
 
@@ -162,15 +160,16 @@ CONTAINS
     TYPE(qs_force_type), DIMENSION(:),&
       OPTIONAL, POINTER                         :: force
     TYPE(real_matrix_p_type), DIMENSION(:),&
-      OPTIONAL, POINTER                         :: h,k,p,p_old,s,kinetic
+      OPTIONAL, POINTER                         :: h,k,p,s,kinetic
     TYPE(cp_b_matrix_struct_type), OPTIONAL,&
          POINTER                                :: s_mstruct
     TYPE(qs_rho_type), OPTIONAL, POINTER        :: rho
     TYPE(cp_fm_pool_type), OPTIONAL, POINTER    :: ao_mo_fm_pool
-    TYPE(pw_pool_p_type), OPTIONAL, &
-         DIMENSION(:), POINTER                  :: pw_pools
+    TYPE(pw_env_type), OPTIONAL, POINTER        :: pw_env
     TYPE(cp_para_env_type), OPTIONAL, POINTER   :: para_env
     TYPE(scf_control_type), OPTIONAL, POINTER   :: scf_control
+    TYPE(qs_charges_type), OPTIONAL, POINTER    :: qs_charges
+    TYPE(coeff_type), OPTIONAL, POINTER         :: rho_core
     TYPE(cp_error_type), OPTIONAL,INTENT(inout) :: error
 !   ---------------------------------------------------------------------------
 
@@ -191,14 +190,15 @@ CONTAINS
     IF (PRESENT(k)) k => qs_env%k
     IF (PRESENT(p)) p => qs_env%p
     IF (PRESENT(kinetic)) kinetic => qs_env%kinetic
-    IF (PRESENT(p_old)) p_old => qs_env%p_old
     IF (PRESENT(s)) s => qs_env%s
     IF (PRESENT(s_mstruct)) s_mstruct => qs_env%s_mstruct
     IF (PRESENT(rho)) rho => qs_env%rho
-    IF (PRESENT(pw_pools)) pw_pools => qs_env%pw_pools
+    IF (PRESENT(pw_env)) pw_env => qs_env%pw_env
     IF (PRESENT(ao_mo_fm_pool)) ao_mo_fm_pool => qs_env%ao_mo_fm_pool
     IF (PRESENT(para_env)) para_env => qs_env%para_env
     IF (PRESENT(scf_control)) scf_control => qs_env%scf_control
+    IF (PRESENT(rho_core)) rho_core => qs_env%rho_core
+    IF (PRESENT(qs_charges)) qs_charges => qs_env%qs_charges
 
   END SUBROUTINE get_qs_env
 
@@ -235,13 +235,15 @@ CONTAINS
     NULLIFY (qs_env%k)
     NULLIFY (qs_env%p)
     NULLIFY (qs_env%kinetic)
-    NULLIFY (qs_env%p_old)
     NULLIFY (qs_env%s)
     NULLIFY (qs_env%s_mstruct)
     NULLIFY (qs_env%rho)
     NULLIFY (qs_env%ao_mo_fm_pool)
-    NULLIFY (qs_env%pw_pools)
+    NULLIFY (qs_env%pw_env)
     NULLIFY (qs_env%scf_control)
+    NULLIFY (qs_env%qs_charges)
+    CALL qs_charges_create(qs_env%qs_charges)
+    NULLIFY (qs_env%rho_core)
 
     CALL cp_para_env_retain(para_env,error=error)
     qs_env%para_env => para_env
@@ -252,9 +254,9 @@ CONTAINS
 
   SUBROUTINE set_qs_env(qs_env,atomic_kind_set,cell,dft_control,c,sab_orb,&
                         sac_erfc,sac_ppl,sca_ppnl,scb_ppnl,pao_env,&
-                        particle_set,energy,force,h,k,p,p_old,s,&
-                        pw_pools,ao_mo_fm_pool,rho,kinetic,&
-                        scf_control,error)
+                        particle_set,energy,force,h,k,p,s,&
+                        pw_env,ao_mo_fm_pool,rho,kinetic,&
+                        scf_control,qs_charges,rho_core,error)
 
 !   Purpose: Set the QUICKSTEP environment.
 
@@ -279,17 +281,16 @@ CONTAINS
     TYPE(qs_force_type), DIMENSION(:),&
       OPTIONAL, POINTER                       :: force
     TYPE(real_matrix_p_type), DIMENSION(:),&
-         OPTIONAL, POINTER                    :: h,k,p,p_old,s,kinetic
+         OPTIONAL, POINTER                    :: h,k,p,s,kinetic
     TYPE(qs_rho_type), POINTER,OPTIONAL       :: rho
     TYPE(cp_fm_pool_type), OPTIONAL, POINTER  :: ao_mo_fm_pool
-    TYPE(pw_pool_p_type), OPTIONAL, &
-         DIMENSION(:), POINTER                :: pw_pools
+    TYPE(pw_env_type), OPTIONAL, POINTER      :: pw_env
     TYPE(scf_control_type), OPTIONAL, POINTER :: scf_control
+    TYPE(qs_charges_type), OPTIONAL, POINTER  :: qs_charges
+    TYPE(coeff_type), POINTER, OPTIONAL       :: rho_core
     TYPE(cp_error_type),INTENT(inout),OPTIONAL:: error
 
 !   ---------------------------------------------------------------------------
-    TYPE(pw_pool_p_type), DIMENSION(:), POINTER :: new_pools
-    NULLIFY(new_pools)
 
     IF (PRESENT(atomic_kind_set)) qs_env%atomic_kind_set => atomic_kind_set
     IF (PRESENT(cell)) qs_env%cell => cell
@@ -307,30 +308,34 @@ CONTAINS
     IF (PRESENT(h)) qs_env%h => h
     IF (PRESENT(k)) qs_env%k => k
     IF (PRESENT(p)) qs_env%p => p
-    IF (PRESENT(p_old)) qs_env%p_old => p_old
     IF (PRESENT(s)) qs_env%s => s
-    IF (PRESENT(rho)) THEN ! accept also null pointers?
-      CALL qs_rho_retain(rho,error=error)
+    IF (PRESENT(rho)) THEN ! accepts also null pointers !
+      IF (ASSOCIATED(rho)) CALL qs_rho_retain(rho,error=error)
       CALL qs_rho_release(qs_env%rho,error=error)
       qs_env%rho => rho
     END IF
-    IF (PRESENT(pw_pools)) THEN
-      CALL pw_pools_copy(pw_pools,new_pools,error=error)
-      CALL pw_pools_dealloc(qs_env%pw_pools,error=error)
-      qs_env%pw_pools => new_pools
+    IF (PRESENT(pw_env)) THEN ! accept also null pointers?
+      CALL pw_env_retain(pw_env,error=error)
+      CALL pw_env_release(qs_env%pw_env,error=error)
+      qs_env%pw_env => pw_env
     END IF
     IF (PRESENT(ao_mo_fm_pool)) THEN ! accept also null pointers?
       CALL fm_pool_retain(ao_mo_fm_pool,error=error)
       CALL fm_pool_release(qs_env%ao_mo_fm_pool,error=error)
       qs_env%ao_mo_fm_pool => ao_mo_fm_pool
     END IF
-    IF (PRESENT(scf_control)) THEN
+    IF (PRESENT(scf_control)) THEN ! accept also null pointers?
        CALL scf_c_retain(scf_control,error=error)
        CALL scf_c_release(qs_env%scf_control,error=error)
        qs_env%scf_control => scf_control
     END IF
     IF (PRESENT(kinetic)) qs_env%kinetic => kinetic
-
+    IF (PRESENT(rho_core)) qs_env%rho_core => rho_core
+    IF (PRESENT(qs_charges)) THEN
+       CALL qs_charges_retain(qs_charges,error=error)
+       CALL qs_charges_release(qs_env%qs_charges,error=error)
+       qs_env%qs_charges => qs_charges
+    END IF
   END SUBROUTINE set_qs_env
 
 ! *****************************************************************************
