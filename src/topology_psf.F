@@ -44,7 +44,11 @@ MODULE topology_psf
                                                stop_memory
   USE topology_util,                    ONLY : azero,&
                                                find_boundary,&
-                                               topology_generate_molecule
+                                               sort_bond,&
+                                               sort_bend,&
+                                               sort_dihe,&
+                                               topology_generate_molecule,&
+                                               topology_pack
   USE string_utilities,                 ONLY : integer_to_string
 
 
@@ -304,252 +308,21 @@ SUBROUTINE read_topology_psf (mol_setup,setup,globenv)
       ('read_topology_psf','map_mol_num',nphi)
   !----------------------------------------------------------------------------
   !----------------------------------------------------------------------------
-  !Sort the bonds
-  DO ibond=1,nbond
-    IF(bond_a(ibond)>bond_b(ibond)) THEN 
-      CALL swap(bond_a(ibond),bond_b(ibond))
-    END IF
-  END DO
-  !Need to update this to quicksort for systems greater then 20000 atoms
-  DO i=1,nbond
-    DO j=1,nbond
-      IF(bond_a(i)<bond_a(j)) THEN
-        CALL swap(bond_a(i),bond_a(j))
-        CALL swap(bond_b(i),bond_b(j))
-      END IF
-    END DO
-  END DO
-  i=1
-  DO WHILE (i<nbond)
-    search = bond_a(i)
-    CALL find_boundary(bond_a,nbond,first,last,search)
-    IF(.NOT.(first==last)) THEN
-      DO j=first,last
-        DO k=first,last
-          IF(bond_b(j)<bond_b(k)) THEN
-            CALL swap(bond_a(j),bond_a(k))
-            CALL swap(bond_b(j),bond_b(k))
-          END IF
-        END DO
-      END DO
-      i=last+1
-    ELSE
-      i=i+1
-    END IF
-  END DO
-  !----------------------------------------------------------------------------
-  !----------------------------------------------------------------------------
-  !Sort the angles
-  !----------------------------------------------------------------------------
-  !----------------------------------------------------------------------------
-  !Sort the dihedrals
-  !----------------------------------------------------------------------------
-  !----------------------------------------------------------------------------
+  !Sort the bonds, bends, and dihes
+  CALL sort_bond(nbond,bond_a,bond_b)
+  CALL sort_bend(ntheta,theta_a,theta_b,theta_c)
+  CALL sort_dihe(nphi,phi_a,phi_b,phi_c,phi_d)
 !------------------------------------------------------------------------------
 !------------------------------------------------------------------------------
 !------------------------------------------------------------------------------
 !Everything down here should be generic----------------------------------------
   CALL topology_generate_molecule(natom,atm_res_name,nbond,bond_a,bond_b,&
                                   map_mol_typ,map_mol_num)
-!------------------------------------------------------------------------------
-  nmol_typ = map_mol_typ(natom)
-  IF(nmol_typ < 0) THEN
-    CALL stop_program ( "read_topology_psf", "no moleculular type defined")
-  ELSE
-    !Allocate space for the molecules
-    ALLOCATE(mol_setup(nmol_typ),STAT=ierror)
-    IF(ierror/=0) CALL stop_memory("read_topology_psf","mol_setup",nmol_typ)
-  END IF
-!------------------------------------------------------------------------------
-  DO i=1,nmol_typ
-    CALL init_molecule_type(mol_setup(i))
-    CALL find_boundary(map_mol_typ,natom,first,last,i)
-    mol_setup(i)%molpar%name = atm_res_name(first)
-    mol_setup(i)%num_mol=MAXVAL(map_mol_num)
-    !--------------------------------------------------------------------------
-    !set nhcopt
-    mol_setup(i)%nhcopt = "GLOBAL"
-    !--------------------------------------------------------------------------
-    !Need to be generalized!!!
-    !Figure out the number of atoms and atom types-----------------------------
-    j = last - first + 1
-    j = j / map_mol_num(last)
-    mol_setup(i)%molpar%natom=j
-
-    mol_setup(i)%molpar%natom_type=1
-    DO j=2,mol_setup(i)%molpar%natom
-      IF(.NOT.(atm_name2(j-1)==atm_name2(j))) THEN
-        mol_setup(i)%molpar%natom_type = mol_setup(i)%molpar%natom_type + 1
-      END IF
-    END DO
-    !---------------------------------------------------------------------------
-    !---------------------------------------------------------------------------
-    !get the memory first
-    ALLOCATE(mol_setup(i)%molpar%aname(mol_setup(i)%molpar%natom),STAT=ierror)
-    IF(ierror/=0) CALL stop_memory &
-      ('read_topology_psf','aname',mol_setup(i)%molpar%natom)
-    ALLOCATE(mol_setup(i)%molpar%alabel(mol_setup(i)%molpar%natom),STAT=ierror)
-    IF(ierror/=0) CALL stop_memory &
-      ('read_topology_psf','alabel',mol_setup(i)%molpar%natom)
-    ALLOCATE(mol_setup(i)%molpar%aweight(mol_setup(i)%molpar%natom),STAT=ierror)
-    IF(ierror/=0) CALL stop_memory &
-      ('read_topology_psf','aweight',mol_setup(i)%molpar%natom)
-    ALLOCATE(mol_setup(i)%molpar%acharge(mol_setup(i)%molpar%natom),STAT=ierror)
-    IF(ierror/=0) CALL stop_memory &
-      ('read_topology_psf','acharge',mol_setup(i)%molpar%natom)
-    DO j=1,mol_setup(i)%molpar%natom
-      mol_setup(i)%molpar%aname(j)   = ''
-      mol_setup(i)%molpar%aweight(j) = 0.0
-      mol_setup(i)%molpar%acharge(j) = 0.0
-      !Stuff the aname,alabel,aweight,acharge
-      mol_setup(i)%molpar%aname(j)   = atm_name2(first+j-1)
-      mol_setup(i)%molpar%aweight(j) = atm_mass(first+j-1)
-      mol_setup(i)%molpar%acharge(j) = atm_charge(first+j-1)
-    END DO
-    !---------------------------------------------------------------------------
-    !---------------------------------------------------------------------------
-    !Stuff the bond info
-    ALLOCATE(checkme(nbond),STAT=ierror)
-    IF(ierror/=0) CALL stop_memory &
-      ('read_topology_psf','checkme',nbond)
-    CALL azero(checkme,nbond)
-    DO j=1,natom
-      IF ((map_mol_num(j)==1).AND.(map_mol_typ(j)==i)) THEN
-        DO k=1,nbond
-          IF ((bond_a(k)==j).OR.(bond_b(k)==j)) THEN
-            checkme(k)=1
-          END IF
-        END DO
-      END IF
-    END DO
-    mol_setup(i)%molpar%nbonds = SUM(checkme)
-    WRITE(iw,*) "moltype = ",i,"nbonds = ",mol_setup(i)%molpar%nbonds
-    ALLOCATE(mol_setup(i)%molpar%bonds(3,mol_setup(i)%molpar%nbonds),STAT=ierror)
-    IF(ierror/=0) CALL stop_memory &
-      ('read_topology_psf','mol_setup(i)%molpar%bonds',nbond)
-    k=0
-    DO j=1,nbond
-      IF (checkme(j)==1) THEN
-        k=k+1
-        !-------------------------------------------------------------------
-        !Check and make sure
-        mol_setup(i)%molpar%bonds(1,k) = bond_a(j)
-        mol_setup(i)%molpar%bonds(2,k) = bond_b(j)
-        mol_setup(i)%molpar%bonds(3,k) = 0
-        !-------------------------------------------------------------------
-      END IF
-    END DO
-    IF (k /= mol_setup(i)%molpar%nbonds) THEN
-      !ERROR STOP PROGRAM
-      CALL stop_program ( "read_topology_psf", "nbonds counting error")
-    END IF
-    DEALLOCATE(checkme,STAT=ierror)
-    IF (ierror /= 0) CALL stop_memory ('read_molecule_section','checkme')
-    !---------------------------------------------------------------------------
-    !---------------------------------------------------------------------------
-    !Stuff the theata info
-    ALLOCATE(checkme(ntheta),STAT=ierror)
-    IF(ierror/=0) CALL stop_memory &
-      ('read_topology_psf','checkme',ntheta)
-    CALL azero(checkme,ntheta)
-    DO j=1,natom
-      IF ((map_mol_num(j)==1).AND.(map_mol_typ(j)==i)) THEN
-        DO k=1,ntheta
-          IF ((theta_a(k)==j).OR.(theta_b(k)==j).OR.(theta_c(k)==j)) THEN
-            checkme(k)=1
-          END IF
-        END DO
-      END IF
-    END DO
-    mol_setup(i)%molpar%nbends = SUM(checkme)
-    WRITE(iw,*) "moltype = ",i,"nbends = ",mol_setup(i)%molpar%nbends
-    ALLOCATE(mol_setup(i)%molpar%bends(4,mol_setup(i)%molpar%nbends))
-    IF(ierror/=0) CALL stop_memory &
-      ('read_topology_psf','mol_setup(i)%molpar%bends',&
-       mol_setup(i)%molpar%nbends)
-    k=0
-    DO j=1,ntheta
-      IF (checkme(j)==1) THEN
-        k=k+1
-        !-------------------------------------------------------------------
-        !Check and make sure
-        mol_setup(i)%molpar%bends(1,k) = theta_a(j)
-        mol_setup(i)%molpar%bends(2,k) = theta_b(j)
-        mol_setup(i)%molpar%bends(3,k) = theta_c(j)
-        mol_setup(i)%molpar%bends(4,k) = 0
-        !-------------------------------------------------------------------
-      END IF
-    END DO
-    IF (k /= mol_setup(i)%molpar%nbends) THEN
-      !ERROR STOP PROGRAM
-      CALL stop_program ( "read_topology_psf", "nbends counting error")
-    END IF
-    DEALLOCATE(checkme,STAT=ierror)
-    IF (ierror /= 0) CALL stop_memory ('read_molecule_section','checkme')
-    !---------------------------------------------------------------------------
-    !---------------------------------------------------------------------------
-    !Stuff the torsion info
-    ALLOCATE(checkme(nphi),STAT=ierror)
-    IF(ierror/=0) CALL stop_memory &
-      ('read_topology_psf','checkme',nphi)
-    CALL azero(checkme,nphi)
-    DO j=1,natom
-      IF ((map_mol_num(j)==1).AND.(map_mol_typ(j)==i)) THEN
-        DO k=1,nphi
-          IF ((phi_a(k)==j).OR.(phi_b(k)==j).OR.(phi_c(k)==j)&
-              .OR.(phi_d(k)==j)) THEN
-            checkme(k)=1
-          END IF
-        END DO
-      END IF
-    END DO
-    mol_setup(i)%molpar%ntorsions = SUM(checkme)
-    WRITE(iw,*) "moltype = ",i,"ntorsions = ",mol_setup(i)%molpar%ntorsions
-    ALLOCATE(mol_setup(i)%molpar%torsions(5,mol_setup(i)%molpar%ntorsions))
-    k=0
-    DO j=1,nphi
-      IF (checkme(j)==1) THEN
-        k=k+1
-        !-------------------------------------------------------------------
-        !Check and make sure
-        mol_setup(i)%molpar%torsions(1,k) = phi_a(j)
-        mol_setup(i)%molpar%torsions(2,k) = phi_b(j)
-        mol_setup(i)%molpar%torsions(3,k) = phi_c(j)
-        mol_setup(i)%molpar%torsions(4,k) = phi_d(j)
-        mol_setup(i)%molpar%torsions(5,k) = 0
-        !-------------------------------------------------------------------
-      END IF
-    END DO
-    IF (k /= mol_setup(i)%molpar%ntorsions) THEN
-      !ERROR STOP PROGRAM
-      CALL stop_program ( "read_topology_psf", "ntorsions counting error")
-    END IF
-    DEALLOCATE(checkme,STAT=ierror)
-    IF (ierror /= 0) CALL stop_memory ('read_molecule_section','checkme')
-    !---------------------------------------------------------------------------
-    !---------------------------------------------------------------------------
-    !Stuff the ndc info
-    mol_setup(i)%molpar%ndcon = 0
-    !---------------------------------------------------------------------------
-    !---------------------------------------------------------------------------
-    !Stuff the n3x3c info
-    mol_setup(i)%molpar%n3x3con = 0
-    !---------------------------------------------------------------------------
-    !---------------------------------------------------------------------------
-  END DO
-
-  DEALLOCATE(atm_mol_name,atm_res_num,atm_res_name,STAT=ierror)
-  IF ( ierror /= 0 ) CALL stop_memory ('read_molecule_section','atm1')
-  DEALLOCATE(atm_name1,atm_name2,atm_charge,atm_mass,STAT=ierror)
-  IF ( ierror /= 0 ) CALL stop_memory ('read_molecule_section','atm2')
-  DEALLOCATE(map_mol_typ,map_mol_num,STAT=ierror)
-  IF ( ierror /= 0 ) CALL stop_memory ('read_molecule_section','map_mol_')
-  DEALLOCATE(bond_a,bond_b,STAT=ierror)
-  IF ( ierror /= 0 ) CALL stop_memory ('read_molecule_section','bond_')
-  DEALLOCATE(theta_a,theta_b,theta_c,STAT=ierror)
-  IF ( ierror /= 0 ) CALL stop_memory ('read_molecule_section','theta_')
-  DEALLOCATE(phi_a,phi_b,phi_c,phi_d,STAT=ierror)
-  IF ( ierror /= 0 ) CALL stop_memory ('read_molecule_section','phi_')
+  CALL topology_pack(bond_a,bond_b,theta_a,theta_b,theta_c,&
+                     phi_a,phi_b,phi_c,phi_d,&
+                     atm_name2,atm_res_name,atm_mass,atm_charge,&
+                     map_mol_typ,map_mol_num,&
+                     mol_setup,setup,globenv)
 
 END SUBROUTINE read_topology_psf
 

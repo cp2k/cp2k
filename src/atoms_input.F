@@ -156,7 +156,7 @@ SUBROUTINE read_atoms_input ( particle_set, atomic_kind_set, &
      WRITE(iw,*) "Calling coorindate_control"
      IF (setup%coordinate) THEN
        CALL read_coordinate_control(particle_set,atomic_kind_set,&
-                                    mol_setup,atom_names,setup,globenv)
+                                    mol_setup,setup,globenv)
      ELSE IF( globenv % ionode) THEN 
        CALL stop_program ( 'read_atoms_input','No &COORD section found')
      END IF

@@ -58,10 +58,10 @@ CONTAINS
 !!I Ewald_type       [ewald,pme,spme]                                         I
 !!I Ewald_param      alpha[,gmax,ns_max,epsilon]                              I
 !!I set_file         "filename"                                               I
-!!I coord_file       "filename"                                               I
-!!I COORDINATE       [PDB,CHM,...]
+!!I coord_file       "filename"                                               I 
+!!I COORDINATE       [PDB,CHM,...]                                            I
 !!I topo_file        "filename"                                               I
-!!I TOPOLOGY         [PSF,GROMOS,OFF,...]                                I
+!!I TOPOLOGY         [PSF,GROMOS,GENERATE,OFF,...]                            I
 !!I symmetry         [on,off]                                                 I
 !!I path_integrals   [on,off]                                                 I
 !!I                                                                           I
@@ -229,6 +229,9 @@ SUBROUTINE read_cntl_section ( setup, globenv, ewald_param )
            ELSE IF (str2 == "GROMOS") THEN
               setup % topology = .TRUE.
               setup % topology_type = "GROMOS"
+           ELSE IF (str2 == "GENERATE") THEN
+              setup % topology = .TRUE.
+              setup % topology_type = "GENERATE"
            ELSE IF (str2 == "OFF") THEN
               setup % topology = .FALSE.
            ELSE

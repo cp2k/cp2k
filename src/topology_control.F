@@ -33,6 +33,12 @@ MODULE topology_control
   USE topology_gromos,                  ONLY : read_topology_gromos
   USE topology_pdb,                     ONLY : read_coordinate_pdb
   USE topology_psf,                     ONLY : read_topology_psf
+  USE topology_util,                    ONLY : topology_coord_pack,&
+                                               topology_generate_bond,&
+                                               topology_generate_bend,&
+                                               topology_generate_dihe,&
+                                               topology_generate_molecule,&
+                                               topology_pack
 
   PRIVATE
   PUBLIC :: read_coordinate_control,read_topology_control
@@ -69,36 +75,87 @@ SUBROUTINE read_topology_control (mol_setup,setup,globenv)
   TYPE ( global_environment_type ), INTENT ( IN ) :: globenv
 
 ! Locals
+  CHARACTER (LEN=20), POINTER :: label_resname(:),label_atmname(:)
+  REAL(dbl), DIMENSION(:,:), POINTER :: r
   LOGICAL found
   INTEGER :: iw, ierr
+  INTEGER :: natom,nbond
+  INTEGER, POINTER :: map_mol_typ(:) !map_mol_typ(iatom)= mol_typ number
+  INTEGER, POINTER :: map_mol_num(:) !map_mol_num(iatom)= mol number
+  INTEGER, POINTER :: bond_a(:),bond_b(:)
+  INTEGER, POINTER :: theta_a(:),theta_b(:),theta_c(:)
+  INTEGER, POINTER :: phi_a(:),phi_b(:),phi_c(:),phi_d(:)
+  REAL (dbl), POINTER :: atm_charge(:)
+  REAL (dbl), POINTER :: atm_mass(:)
 
   iw = globenv%scr
 
   IF(setup%topology) THEN
-    !Make sure the topology file is there
-    IF(globenv%ionode) THEN
-      INQUIRE(FILE=setup%topology_file_name,EXIST=found)
-      IF(found) THEN
-        WRITE(iw,*) 'Using topology file ',setup%topology_file_name
-      ELSE
-        CALL stop_program ("read_topology_control ","topology file missing")
-      END IF
-    END IF
 
     !Determine which type of topology file to readin
     SELECT CASE (setup%topology_type)
     CASE ('PSF')
-      CALL read_topology_psf(mol_setup,setup,globenv)
+      !-----------------------------------------------------------------------
+      !Make sure the topology file is there
+      IF(globenv%ionode) THEN
+        INQUIRE(FILE=setup%topology_file_name,EXIST=found)
+        IF(found) THEN
+          WRITE(iw,*) 'Using topology file ',setup%topology_file_name
+          CALL read_topology_psf(mol_setup,setup,globenv)
+        ELSE
+          CALL stop_program ("read_topology_control","topology file missing")
+        END IF
+      END IF
+      !-----------------------------------------------------------------------
 !   CASE ('GROMOS')
-!     CALL read_topology_gromos(mol_setup,setup,globenv)
-!   CASE ('GENERATE')
-!     !Later on, in case of reading something in like a PDB
-!     CALL topology_generate_bonds()
-!     CALL topology_generate_molecule()
-!     CALL topology_generate_bends()
-!     CALL topology_generate_dihe()
+!     !-----------------------------------------------------------------------
+!     !Make sure the topology file is there
+!     IF(globenv%ionode) THEN
+!       INQUIRE(FILE=setup%topology_file_name,EXIST=found)
+!       IF(found) THEN
+!         WRITE(iw,*) 'Using topology file ',setup%topology_file_name
+!         CALL read_topology_gromos(mol_setup,setup,globenv)
+!       ELSE
+!         CALL stop_program ("read_topology_control","topology file missing")
+!       END IF
+!     END IF
+!     !-----------------------------------------------------------------------
+    CASE ('GENERATE')
+      !-----------------------------------------------------------------------
+      !Read in the coordinates first PDB
+      IF(setup%coordinate) THEN
+        CALL read_coordinate_pdb (r,label_resname,label_atmname,&
+                                  setup,globenv)
+        CALL topology_generate_bond(r,label_atmname,bond_a,bond_b,&
+                                    atm_mass,atm_charge)
+        CALL topology_generate_bend(bond_a,bond_b,theta_a,theta_b,theta_c)
+        CALL topology_generate_dihe(theta_a,theta_b,theta_c,&
+                                    phi_a,phi_b,phi_c,phi_d)
+        natom = SIZE(r(1,:))
+        nbond = SIZE(bond_a)
+        ALLOCATE (map_mol_typ(natom),STAT=ierr)
+          IF(ierr/=0) CALL stop_memory &
+            ('read_topology_psf','map_mol_typ',natom)
+        ALLOCATE (map_mol_num(natom),STAT=ierr)
+          IF(ierr/=0) CALL stop_memory &
+            ('read_topology_psf','map_mol_num',natom)
+        CALL topology_generate_molecule(natom,label_resname,nbond,&
+                                        bond_a,bond_b,&
+                                        map_mol_typ,map_mol_num)
+        CALL topology_pack(bond_a,bond_b,theta_a,theta_b,theta_c,&
+                           phi_a,phi_b,phi_c,phi_d,&
+                           label_atmname,label_resname,atm_mass,atm_charge,&
+                           map_mol_typ,map_mol_num,&
+                           mol_setup,setup,globenv)
+      ELSE
+        CALL stop_program ("read_topology_control",&
+                           "setup%coordinate is .FALSE.")
+      END IF
+      !CALL stop_program ("read_topology_control ","checkpointfile")
+      !-----------------------------------------------------------------------
     CASE DEFAULT
-      CALL stop_program (" read_topology_file ","Unknown type of topology file")
+      CALL stop_program ("read_topology_control ",&
+                         "Unknown type of topology file")
     END SELECT
   END IF
 
@@ -126,7 +183,7 @@ END SUBROUTINE read_topology_control
 !!   SOURCE
 !******************************************************************************
 SUBROUTINE read_coordinate_control (particle_set,atomic_kind_set,mol_setup,&
-                                    atom_names,setup,globenv)
+                                    setup,globenv)
 
   IMPLICIT NONE
 
@@ -136,10 +193,11 @@ SUBROUTINE read_coordinate_control (particle_set,atomic_kind_set,mol_setup,&
   TYPE ( global_environment_type ), INTENT ( IN ) :: globenv
   TYPE(atomic_kind_type), DIMENSION(:), POINTER :: atomic_kind_set
   TYPE(particle_type), DIMENSION(:), POINTER    :: particle_set
-  CHARACTER ( len = * ), DIMENSION ( : ), INTENT ( IN ) :: atom_names
 
 ! Locals
   LOGICAL found
+  CHARACTER (LEN=20), POINTER :: label_resname(:),label_atmname(:)
+  REAL(dbl), DIMENSION(:,:), POINTER :: r
   INTEGER :: iw, ierr
 
   iw = globenv%scr
@@ -158,24 +216,15 @@ SUBROUTINE read_coordinate_control (particle_set,atomic_kind_set,mol_setup,&
     !Determine which type of topology file to readin
     SELECT CASE (setup%coordinate_type)
     CASE ('PDB')
-      CALL read_coordinate_pdb (particle_set,atomic_kind_set,mol_setup,&
-                                atom_names,setup,globenv)
-      !IF((setup%topology==.TRUE).AND.(setup%topology_type="GENERATE"))THEN
-      !  WRITE(iw,*) "GENERATE TOPOLOGY FROM COORDINATES"
-      !  CALL topology_generate_bonds()
-      !  CALL topology_generate_molecule()
-      !  CALL topology_generate_bends()
-      !  CALL topology_generate_dihe()
-      !END IF
+      CALL read_coordinate_pdb (r,label_resname,label_atmname,&
+                                setup,globenv)
+      CALL topology_coord_pack (r,label_atmname,particle_set,&
+                                atomic_kind_set,mol_setup,setup,globenv)
     CASE ('CHM')
-      !CALL read_coordinate_chm(mol_setup,setup,globenv)
-      !IF((setup%topology==.TRUE).AND.(setup%topology_type="GENERATE"))THEN
-      !  WRITE(iw,*) "GENERATE TOPOLOGY FROM COORDINATES"
-      !  CALL topology_generate_bonds()
-      !  CALL topology_generate_molecule()
-      !  CALL topology_generate_bends()
-      !  CALL topology_generate_dihe()
-      !END IF
+      !CALL read_coordinate_chm (r,label_resname,label_atmname,&
+      !                          setup,globenv)
+      !CALL topology_coord_pack (r,label_atmname,particle_set,&
+      !                          atomic_kind_set,mol_setup,setup,globenv)
     CASE DEFAULT
       CALL stop_program (" read_coordinate_file ",&
                          "Unknown type of coordinate file")
