@@ -263,7 +263,7 @@ CONTAINS
     CALL cp_fm_create ( wf, vectors % matrix_struct, error = error  )
     NULLIFY ( wf )
     CALL cp_fm_get_info ( vectors, nrow_global = n, ncol_global=k )
-    CALL cp_fm_gemm("N", "N", n, k, 1.0_wp, vectors, rmat, 0.0_wp, wf )
+    CALL cp_fm_gemm("N", "N", n, k, k, 1.0_wp, vectors, rmat, 0.0_wp, wf )
     CALL cp_fm_release ( wf )
   END SUBROUTINE rotate_orbitals 
 ! *****************************************************************************
