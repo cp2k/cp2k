@@ -944,8 +944,8 @@ SUBROUTINE create_tddfpt_section(section,error)
      CALL keyword_create(keyword, name="NEV",&
           variants=(/"N_EV",&
                      "EV  "/),&
-          description=" number of electrons",&
-          usage="NEV integer",&
+          description=" number of excitations to calculate",&
+          usage="NEV someInteger>0",&
           n_var=1,type_of_var=integer_t,&
           required=.TRUE., error=error)
      CALL section_add_keyword(section,keyword,error=error)
@@ -956,7 +956,7 @@ SUBROUTINE create_tddfpt_section(section,error)
                      "REORTHO             ",&
                      "REORTHOGONALITAZIONS"/),&
           description=" number of reorthogonalization steps",&
-          usage="NREORTHO integer",&
+          usage="NREORTHO someInteger>0",&
           n_var=1,type_of_var=integer_t,&
           required=.TRUE., error=error)
      CALL section_add_keyword(section,keyword,error=error)
@@ -992,7 +992,7 @@ SUBROUTINE create_tddfpt_section(section,error)
      CALL keyword_create(keyword, name="DIAG_METHOD",&
           variants=(/"DIAGONALIZATION_METHOD"/),& 
           description="Diagonalization method used in tddfpt.",&
-          usage="RES_ETYPE {SINGLET[S]|TRIPLET[S]|S|T}",&
+          usage="DIAG_METHOD LANCZOS|DAVIDSON",&
           enum_c_vals=(/&
           "DAVIDSON ",&
           "LANCZOS  "/),&
