@@ -139,7 +139,7 @@ CONTAINS
 
   SUBROUTINE cp2k_init(globenv)
 
-    TYPE(global_environment_type), INTENT(INOUT) :: globenv
+    TYPE(global_environment_type), POINTER :: globenv
 
     CHARACTER(LEN=*), PARAMETER :: routine_name = "cp2k_init"
 
