@@ -228,6 +228,7 @@ CONTAINS
        ALLOCATE (diis_buffer%b_matrix(nbuffer+1,nbuffer+1),STAT=istat)
        IF (istat /= 0) CALL stop_memory(routineP,"diis_buffer%b_matrix",&
             (nbuffer + 1)**2*dp_size)
+       diis_buffer%b_matrix=0.0_dp
        IF (logger%para_env%source==logger%para_env%mepos.AND.&
             logger%print_keys%diis_information) THEN
           WRITE (UNIT=cp_logger_get_default_unit_nr(logger),FMT="(/,T2,A)")&
