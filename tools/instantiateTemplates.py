@@ -62,13 +62,14 @@ def instantiateTemplate(infile,outfile,subs,logFile=sys.stdout):
                             (match.groups()[1],lineNr))
 	    outfile.write(line[:match.end()])
 	    line=line[match.end():]
+      outfile.close()
+      infile.close()
     except:
-      import sys
-      import traceback
       logFile.write("error in '%s' at line %d\n"%(infile.name,lineNr))
-      traceback.print_exc(file=logFile)
-  outfile.close()
-  infile.close()
+      outfile.close()
+      infile.close()
+      os.rename(outfile.name,outfile.name+".err")
+      raise
 
 def evaluateInstantiationFile(instantiationFile,logFile=sys.stdout,outDir=None):
     import os
@@ -76,6 +77,7 @@ def evaluateInstantiationFile(instantiationFile,logFile=sys.stdout,outDir=None):
     try:
       input = open(instantiationFile,'r')
       subst = eval(input.read())
+      errors=0
       for substitution in subst:
         extension=".instantiation"
         if not instantiationFile[-len(extension):]==extension :
