@@ -40,6 +40,7 @@ MODULE metadynamics
                                              stop_parser,&
                                              test_object
 
+  IMPLICIT NONE
   PRIVATE 
 
   CHARACTER(len=*), PARAMETER, PRIVATE :: modulen='metadynamics'
@@ -87,7 +88,7 @@ SUBROUTINE metadyn_create(meta_env,n_colvar,dt,para_env,error)
     CHARACTER(len=*), PARAMETER :: routinen = 'metadyn_create', &
       routinep = modulen//':'//routinen
 
-    INTEGER                                  :: stat
+    INTEGER                                  :: stat,i
     LOGICAL                                  :: failure
 
   failure=.FALSE.
@@ -139,7 +140,7 @@ SUBROUTINE metadyn_read(meta_env,globenv,error)
 
     CHARACTER(len=3)                         :: test_result
     CHARACTER(len=default_string_length)     :: keyword, time_units
-    INTEGER                                  :: n_colvar
+    INTEGER                                  :: n_colvar,i
     LOGICAL                                  :: do_hills, failure, &
                                                 section_found
     REAL(kind=dp)                            :: dt
@@ -272,7 +273,7 @@ SUBROUTINE metadyn_add_forces(meta_env,force_env,error)
     CHARACTER(len=*), PARAMETER :: routinen = 'metadyn_add_forces', &
       routinep = modulen//':'//routinen
 
-    INTEGER                                  :: i_c, np, stat
+    INTEGER                                  :: i_c, np, stat, ii, i
     LOGICAL                                  :: failure
     REAL(kind=dp)                            :: dt, fft, ekin_w,tol_ekin,fac_t, ss0_test
     TYPE(colvar_type), DIMENSION(:), POINTER :: colvars
