@@ -35,11 +35,16 @@ MODULE qs_ks_methods
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                              get_atomic_kind_set
   USE coefficient_types,               ONLY: coeff_add,&
+                                             coeff_subtract,&
                                              coeff_init,&
+                                             coeff_zero,&
                                              coeff_sumup,&
                                              coeff_transform_space,&
                                              coeff_type
-  USE cp_control_types,                ONLY: dft_control_type
+  USE cp_control_types,                ONLY: dft_control_type, & 
+                                             sic_none, &
+                                             sic_mauri_us, &
+                                             sic_mauri_spz
   USE cp_error_handling,               ONLY: cp_a_l,&
                                              cp_assert,&
                                              cp_assertion_failed,&
@@ -91,7 +96,8 @@ MODULE qs_ks_methods
                                              REALDATA3D,&
                                              REALSPACE,&
                                              RECIPROCALSPACE,&
-                                             pw_p_type
+                                             pw_p_type, &
+                                             pw_release
   USE pws,                             ONLY: cleanup_pw_poisson_solver,&
                                              init_pw_poisson_solver
   USE qs_charges_types,                ONLY: qs_charges_type
@@ -286,7 +292,7 @@ CONTAINS
     LOGICAL                                  :: failure, gapw, ionode
     TYPE(cell_type), POINTER                 :: cell
     TYPE(coeff_type)                         :: rho_tot_gspace, &
-                                                v_hartree_gspace
+                                                v_hartree_gspace, v_sic_rspace
     TYPE(coeff_type), DIMENSION(:), POINTER  :: v_rspace_new, v_tau_rspace
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(dft_control_type), POINTER          :: dft_control
@@ -304,12 +310,13 @@ CONTAINS
     INTEGER :: n,k,k2
     REAL(KIND=dp), DIMENSION(:), POINTER :: scaling_factor,occupation_numbers
     TYPE(cp_fm_type), POINTER            :: mo_coeff,hc_tmp
+    REAL(KIND=dp)                        :: ener
 
 ! shorter for output
 
     failure=.FALSE.
     NULLIFY(matrix_h,matrix_s,dft_control,auxbas_pw_pool, pw_pools,&
-         pw_env, cell, logger, v_rspace_new, v_tau_rspace)
+         pw_env, cell, logger, v_rspace_new, v_tau_rspace )
 
     !   -----------------------------------------------------------------------
 
@@ -347,22 +354,24 @@ CONTAINS
        CALL pw_env_get(pw_env, auxbas_pw_pool=auxbas_pw_pool,&
                        pw_pools=pw_pools)
     END IF
-    IF (.NOT.failure) THEN
-       CALL pw_pool_init_coeff(auxbas_pw_pool, v_hartree_gspace, &
-                               use_data = COMPLEXDATA1D,&
-                               in_space = RECIPROCALSPACE, error=error)
-       CALL pw_pool_init_coeff(auxbas_pw_pool, rho_tot_gspace,&
-                               use_data = COMPLEXDATA1D,&
-                               in_space = RECIPROCALSPACE, error=error)
-    END IF
 
 ! ***  Prepare densities for gapw ***
     IF(gapw) THEN
       CALL prepare_gapw_den(qs_env,error=error)
     ENDIF
 
-! *** calculate the hartree potential on the pw density ***
     IF (.NOT. failure) THEN
+
+       ! *** calculate the hartree potential on the pw density ***
+       ! *** Hartree contributions ***
+       IF (.NOT.failure) THEN
+           CALL pw_pool_init_coeff(auxbas_pw_pool, v_hartree_gspace, &
+                                   use_data = COMPLEXDATA1D,&
+                                   in_space = RECIPROCALSPACE, error=error)
+           CALL pw_pool_init_coeff(auxbas_pw_pool, rho_tot_gspace,&
+                                   use_data = COMPLEXDATA1D,&
+                                   in_space = RECIPROCALSPACE, error=error)
+       END IF
 
        CALL calc_rho_tot_gspace(rho_tot_gspace, qs_env, rho)
        IF (ionode) CALL print_densities(qs_env, rho_tot_gspace, rho)
@@ -371,8 +380,7 @@ CONTAINS
        CALL calculate_hartree(rho_tot_gspace,energy%hartree,&
             v_hartree_gspace)
        CALL cleanup_pw_poisson_solver(cell%green,error=error)
-       CALL pw_pool_give_back_coeff(auxbas_pw_pool,rho_tot_gspace,&
-            error=error)
+
        IF (.NOT. just_energy) THEN
           CALL coeff_transform_space(v_hartree_gspace,&
                ks_env%v_hartree_rspace)
@@ -382,6 +390,35 @@ CONTAINS
                      ks_env%v_hartree_rspace%pw%pw_grid%dvol, &
                      ks_env%v_hartree_rspace%pw%cr3d, 1)
        ENDIF
+
+       ! *** compute first SIC term (minus the hartree energy of the spin density m)
+       SELECT CASE ( dft_control%sic_method_id )
+       CASE ( sic_none )
+       CASE ( sic_mauri_us, sic_mauri_spz )
+          CALL coeff_subtract(rho%rho_g(1),rho%rho_g(2),rho_tot_gspace)
+          CALL init_pw_poisson_solver(cell%green,error=error)
+          CALL calculate_hartree(rho_tot_gspace, ener, v_hartree_gspace)
+          energy%hartree=energy%hartree - dft_control % sic_scaling_a * ener
+          CALL cleanup_pw_poisson_solver(cell%green,error=error)
+          IF (.NOT. just_energy) THEN
+             CALL pw_pool_init_coeff(auxbas_pw_pool,v_sic_rspace,&
+                                     use_data=REALDATA3D, in_space=REALSPACE)
+             CALL coeff_transform_space(v_hartree_gspace, v_sic_rspace)
+             ! also take into account the scaling (in addition to the volume element)
+             CALL dscal(size(v_sic_rspace%pw%cr3d,1) *  size(v_sic_rspace%pw%cr3d,2) * &
+                        size(v_sic_rspace%pw%cr3d,3), &
+                        dft_control % sic_scaling_a * v_sic_rspace%pw%pw_grid%dvol, &
+                        v_sic_rspace%pw%cr3d, 1)
+          ENDIF
+          CALL cp_assert( .NOT. gapw , cp_failure_level,cp_assertion_failed,routineP,&
+                          "sic and GAPW not yet compatible",error,failure)
+       CASE DEFAULT
+          CALL cp_assert( .FALSE., cp_failure_level,cp_assertion_failed,routineP,&
+                          "Unknown sic method id",error,failure)
+       END SELECT
+
+       CALL pw_pool_give_back_coeff(auxbas_pw_pool,rho_tot_gspace,&
+            error=error)
        CALL pw_pool_give_back_coeff(auxbas_pw_pool,v_hartree_gspace,&
             error=error)
 
@@ -395,22 +432,23 @@ CONTAINS
                                        rho=rho%rho_r,&
                                        v_qmmm=qs_env%ks_qmmm_env%v_qmmm_rspace,&
                                        qmmm_energy=energy%qmmm_el,&
+             ! also take into account the scaling (in addition to the volume element)
                                        error=error)
            CALL qmmm_modify_hartree_pot(v_hartree=ks_env%v_hartree_rspace,&
                                         v_qmmm=qs_env%ks_qmmm_env%v_qmmm_rspace,&
                                         error=error)
        End If
 
-! *** calculate the xc potential on the pw density ***       
-
+       ! *** calculate the xc potential on the pw density ***       
+       ! *** associates v_rspace_new if the xc potential needs to be computed.
        CALL qs_vxc_create(qs_env=qs_env,&
-            vxc_rho=v_rspace_new, vxc_tau=v_tau_rspace, &
+            vxc_rho=v_rspace_new, vxc_tau=v_tau_rspace, exc=energy%exc, &
             calculate_forces=calculate_forces, &
             just_energy=just_energy, error=error)
        IF (gapw) CALL calculate_vxc_atom(qs_env,error)
 
 
-! ***  Single atom contributions ***
+       ! ***  Single atom contributions ***
        IF (.NOT. just_energy) THEN
           IF (calculate_forces .AND. .NOT. gapw) THEN
              CALL integrate_v_core_rspace(ks_env%v_hartree_rspace, qs_env)
@@ -427,6 +465,20 @@ CONTAINS
                      v_rspace_new(ispin)%pw%pw_grid%dvol * &
                      v_rspace_new(ispin)%pw%cr3d + &
                      ks_env%v_hartree_rspace%pw%cr3d
+ 
+                ! the electrostatic sic contribution
+                SELECT CASE (dft_control%sic_method_id) 
+                CASE (sic_none)
+                   !
+                CASE (sic_mauri_us,sic_mauri_spz )
+                   IF (ispin==1) THEN
+                      v_rspace_new(ispin)%pw%cr3d=v_rspace_new(ispin)%pw%cr3d &
+                                                 -v_sic_rspace%pw%cr3d
+                   ELSE
+                      v_rspace_new(ispin)%pw%cr3d=v_rspace_new(ispin)%pw%cr3d &
+                                                 +v_sic_rspace%pw%cr3d
+                   ENDIF
+                END SELECT 
 
                 ! add the part due to v_rspace
                 CALL integrate_v_rspace(v_rspace=v_rspace_new(ispin),&
@@ -438,10 +490,17 @@ CONTAINS
                 CALL pw_pool_give_back_coeff(auxbas_pw_pool,v_rspace_new(ispin),&
                      error=error)
              END DO
+             SELECT CASE (dft_control%sic_method_id) 
+             CASE (sic_none)
+             CASE (sic_mauri_us,sic_mauri_spz )
+                CALL pw_pool_give_back_coeff(auxbas_pw_pool,v_sic_rspace,error=error)
+             END SELECT 
              DEALLOCATE(v_rspace_new,stat=stat)
              CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
-             
           ELSE
+             IF (dft_control%sic_method_id .NE. sic_none) THEN
+                STOP "Nope"
+             ENDIF
              DO ispin=1,nspins
                 ! add only v_hartree
                 CALL integrate_v_rspace(v_rspace=ks_env%v_hartree_rspace,&
@@ -620,7 +679,6 @@ CONTAINS
     IF(qs_env%dft_control%qs_control%gapw) THEN
        CPPrecondition(ASSOCIATED(rho0_s_gs), cp_failure_level, routineP, error, failure)
        CALL coeff_add(rho0_s_gs, rho%rho_g(1), rho_tot_gspace)
-!       WRITE(*,*) ' rho0_soft ' ,calculate_total_rho(rho0_s_gs) 
     ELSE
        CALL coeff_add(rho_core, rho%rho_g(1), rho_tot_gspace)
     END IF
@@ -928,12 +986,14 @@ END SUBROUTINE qs_ks_did_change
 !!       This scales significantly better (e.g. factor 3 on 12 cpus
 !!       32 H2O) [Joost VdV]
 !!     - moved to qs_ks_methods [fawzi]
+!!     - sic alterations [Joost VandeVondele]
 !!
 !!*** *********************************************************************
-SUBROUTINE qs_vxc_create(vxc_rho,vxc_tau,qs_env,&
+SUBROUTINE qs_vxc_create(vxc_rho,vxc_tau, exc, qs_env,&
      calculate_forces, just_energy, error)
     TYPE(coeff_type), DIMENSION(:), POINTER  :: vxc_rho, vxc_tau
     TYPE(qs_environment_type), POINTER       :: qs_env
+    REAL(KIND=dp)                            :: exc
     LOGICAL, INTENT(in), OPTIONAL            :: calculate_forces, just_energy
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
@@ -950,8 +1010,10 @@ SUBROUTINE qs_vxc_create(vxc_rho,vxc_tau,qs_env,&
     TYPE(pw_p_type), DIMENSION(:), POINTER   :: my_vxc_rho, my_vxc_tau, &
                                                 rho_g, rho_r, tau
     TYPE(pw_pool_type), POINTER              :: auxbas_pw_pool
-    TYPE(qs_energy_type), POINTER            :: energy
     TYPE(qs_rho_type), POINTER               :: rho_struct
+    TYPE(coeff_type), DIMENSION(:), POINTER  :: rho_m_rspace,rho_m_gspace
+    REAL(KIND=dp)                            :: exc_m
+    REAL(KIND=dp)                            :: my_scaling
 
 !   ---------------------------------------------------------------------------
 
@@ -960,16 +1022,16 @@ SUBROUTINE qs_vxc_create(vxc_rho,vxc_tau,qs_env,&
   failure=.FALSE.
   CPPrecondition(.NOT.ASSOCIATED(vxc_rho),cp_failure_level,routineP,error,failure)
   CPPrecondition(.NOT.ASSOCIATED(vxc_tau),cp_failure_level,routineP,error,failure)
-  NULLIFY(dft_control,rho_struct,energy,pw_env,auxbas_pw_pool,&
-       cell, subsys(1)%subsys,my_vxc_rho, my_vxc_tau, rho_g, rho_r, tau)
+  NULLIFY(dft_control,rho_struct,pw_env,auxbas_pw_pool,&
+       cell, subsys(1)%subsys,my_vxc_rho, my_vxc_tau, rho_g, rho_r, tau, rho_m_rspace,rho_m_gspace)
   my_just_energy=.FALSE.
   IF (PRESENT(just_energy)) my_just_energy=just_energy
 
+  ! would be better to pass these as arguments
   CALL get_qs_env(qs_env=qs_env,&
        dft_control=dft_control,&
        rho=rho_struct,&
        pw_env=pw_env,&
-       energy=energy,&
        subsys=subsys(1)%subsys,&
        cell=cell)
 
@@ -981,12 +1043,38 @@ SUBROUTINE qs_vxc_create(vxc_rho,vxc_tau,qs_env,&
        cp_failure_level,cp_assertion_failed,routineP,&
        "nspins must be 1 or 2",error,failure)
 
+  ! there are some options related to SIC here. 
+  ! Normal DFT computes E(rho_alpha,rho_beta) (or its variant E(2*rho_alpha) for non-LSD)
+  ! SIC can             E(rho_alpha,rho_beta)-b*(E(rho_alpha,rho_beta)-E(rho_beta,rho_beta)) 
+  ! or compute          E(rho_alpha,rho_beta)-b*E(rho_alpha-rho_beta,0) 
+
+  ! my_scaling is the scaling needed of the standard E(rho_alpha,rho_beta) term
+  my_scaling=1.0_dp
+  SELECT CASE (dft_control%sic_method_id)
+  CASE ( sic_none )
+    ! all fine
+  CASE ( sic_mauri_spz )
+    ! no idea yet what to do here in that case
+    CPPrecondition(.NOT.rho_struct%tau_r_valid ,cp_failure_level,routineP,error,failure)
+  CASE ( sic_mauri_us )
+    my_scaling=1.0_dp-dft_control % sic_scaling_b
+    ! no idea yet what to do here in that case
+    CPPrecondition(.NOT.rho_struct%tau_r_valid ,cp_failure_level,routineP,error,failure)
+  CASE DEFAULT
+    ! this case has not yet been treated here
+    CALL cp_assert(.FALSE., cp_failure_level,cp_assertion_failed,routineP,"NYI",error,failure)
+  END SELECT
+
   IF ( .NOT. failure ) THEN
+     CALL pw_env_get(pw_env,auxbas_pw_pool=auxbas_pw_pool,error=error)
+
      ALLOCATE(rho_r(dft_control%nspins),stat=stat)
      CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+
      DO ispin=1,dft_control%nspins
         rho_r(ispin)%pw => rho_struct%rho_r(ispin)%pw
      END DO
+
      IF (rho_struct%tau_r_valid) THEN
         ALLOCATE(tau(dft_control%nspins),stat=stat)
         CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
@@ -994,6 +1082,7 @@ SUBROUTINE qs_vxc_create(vxc_rho,vxc_tau,qs_env,&
            tau(ispin)%pw => rho_struct%tau_r(ispin)%pw
         END DO
      END IF
+
      ! for gradient corrected functional the density in g space might
      ! be useful so if we have it, we pass it in
      IF ( rho_struct%rho_g_valid ) THEN
@@ -1004,31 +1093,38 @@ SUBROUTINE qs_vxc_create(vxc_rho,vxc_tau,qs_env,&
         END DO
      END IF
 
-     CALL pw_env_get(pw_env,auxbas_pw_pool=auxbas_pw_pool,error=error)
-
+     !
+     ! here the rho_r, rho_g, tau is what it should be
+     ! we get back the right my_vxc_rho and my_vxc_tau as required
+     !
      IF (my_just_energy) THEN
-        energy%exc=xc_exc_calc(rho_r=rho_r,tau=tau,&
+        exc=xc_exc_calc(rho_r=rho_r,tau=tau,&
              rho_g=rho_g, dft_control=dft_control,&
              cell=cell, pw_pool=auxbas_pw_pool,atoms=subsys,&
              error=error)
      ELSE
         CALL xc_vxc_pw_create1(vxc_rho=my_vxc_rho,vxc_tau=my_vxc_tau, rho_r=rho_r,&
-             rho_g=rho_g,tau=tau,exc=energy%exc,&
+             rho_g=rho_g,tau=tau,exc=exc,&
              dft_control=dft_control,&
              cell=cell, pw_pool=auxbas_pw_pool,atoms=subsys,&
              calculate_forces=calculate_forces,error=error)
      END IF
-     DEALLOCATE(rho_r,stat=stat)
-     CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
-     IF (ASSOCIATED(rho_g)) THEN
-        DEALLOCATE(rho_g,stat=stat)
-        CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
-     END IF
-     IF (ASSOCIATED(tau)) THEN
-        DEALLOCATE(tau,stat=stat)
-        CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
-     END IF
 
+     IF (my_scaling .NE. 1.0_dp) THEN
+        exc=exc * my_scaling
+        IF (ASSOCIATED(my_vxc_rho)) THEN
+           DO ispin=1,SIZE(my_vxc_rho)
+              my_vxc_rho(ispin)%pw%cr3d=my_vxc_rho(ispin)%pw%cr3d*my_scaling
+           ENDDO
+        ENDIF
+        IF (ASSOCIATED(my_vxc_tau)) THEN
+           DO ispin=1,SIZE(my_vxc_tau)
+              my_vxc_tau(ispin)%pw%cr3d=my_vxc_tau(ispin)%pw%cr3d*my_scaling
+           ENDDO
+        ENDIF
+     ENDIF
+
+     ! we have pw data for the xc, qs_ks requests coeff structure, here we transfer
      ! pw -> coeff
      IF (ASSOCIATED(my_vxc_rho)) THEN
         ALLOCATE(vxc_rho(dft_control%nspins),stat=stat)
@@ -1047,6 +1143,119 @@ SUBROUTINE qs_vxc_create(vxc_rho,vxc_tau,qs_env,&
                 error=error)
         END DO
         DEALLOCATE(my_vxc_tau,stat=stat)
+        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+     END IF
+
+     ! compute again the xc but now for Exc(m,o) and the opposite sign
+     IF (dft_control%sic_method_id .EQ. sic_mauri_spz) THEN
+        ALLOCATE(rho_m_rspace(2),rho_m_gspace(2))
+        CALL pw_pool_init_coeff(auxbas_pw_pool, rho_m_gspace(1),&
+                                   use_data = COMPLEXDATA1D,&
+                                   in_space = RECIPROCALSPACE, error=error)
+        CALL pw_pool_init_coeff(auxbas_pw_pool, rho_m_rspace(1),&
+                                   use_data = REALDATA3D,&
+                                   in_space = REALSPACE, error=error)
+        CALL coeff_subtract(rho_struct%rho_r(1),rho_struct%rho_r(2),rho_m_rspace(1))
+        CALL coeff_subtract(rho_struct%rho_g(1),rho_struct%rho_g(2),rho_m_gspace(1))
+        ! bit sad, these will be just zero...
+        CALL pw_pool_init_coeff(auxbas_pw_pool, rho_m_gspace(2),&
+                                   use_data = COMPLEXDATA1D,&
+                                   in_space = RECIPROCALSPACE, error=error)
+        CALL pw_pool_init_coeff(auxbas_pw_pool, rho_m_rspace(2),&
+                                   use_data = REALDATA3D,&
+                                   in_space = REALSPACE, error=error)
+        CALL coeff_zero(rho_m_rspace(2))
+        CALL coeff_zero(rho_m_gspace(2))
+
+        rho_g(1)%pw => rho_m_gspace(1)%pw
+        rho_g(2)%pw => rho_m_gspace(2)%pw
+        rho_r(1)%pw => rho_m_rspace(1)%pw
+        rho_r(2)%pw => rho_m_rspace(2)%pw
+        
+        IF (my_just_energy) THEN
+           exc_m=xc_exc_calc(rho_r=rho_r,tau=tau,&
+                rho_g=rho_g, dft_control=dft_control,&
+                cell=cell, pw_pool=auxbas_pw_pool,atoms=subsys,&
+                error=error)
+        ELSE
+           CALL xc_vxc_pw_create1(vxc_rho=my_vxc_rho,vxc_tau=my_vxc_tau, rho_r=rho_r,&
+                rho_g=rho_g,tau=tau,exc=exc_m,&
+                dft_control=dft_control,&
+                cell=cell, pw_pool=auxbas_pw_pool,atoms=subsys,&
+                calculate_forces=calculate_forces,error=error)
+        END IF
+ 
+        exc = exc - dft_control % sic_scaling_b * exc_m
+  
+        ! and take care of the potential only vxc_rho is taken into account
+        IF (.NOT. my_just_energy) THEN
+           vxc_rho(1)%pw%cr3d=vxc_rho(1)%pw%cr3d-dft_control % sic_scaling_b * my_vxc_rho(1)%pw%cr3d
+           vxc_rho(2)%pw%cr3d=vxc_rho(2)%pw%cr3d+dft_control % sic_scaling_b * my_vxc_rho(1)%pw%cr3d ! 1=m
+           CALL pw_release(my_vxc_rho(1)%pw) 
+           CALL pw_release(my_vxc_rho(2)%pw) 
+           DEALLOCATE(my_vxc_rho)
+           CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+        ENDIF
+
+        DO ispin=1,2
+           CALL pw_pool_give_back_coeff(auxbas_pw_pool,rho_m_rspace(ispin),&
+                                        error=error)                 
+           CALL pw_pool_give_back_coeff(auxbas_pw_pool,rho_m_gspace(ispin),&
+                                        error=error)                 
+        ENDDO
+        
+     ENDIF
+
+
+     ! compute again the xc but now for Exc(n_down,n_down) 
+     IF (dft_control%sic_method_id .EQ. sic_mauri_us) THEN
+        rho_r(1)%pw => rho_struct%rho_r(2)%pw
+        rho_r(2)%pw => rho_struct%rho_r(2)%pw
+        IF ( rho_struct%rho_g_valid ) THEN
+           rho_g(1)%pw => rho_struct%rho_g(2)%pw
+           rho_g(2)%pw => rho_struct%rho_g(2)%pw
+        ENDIF
+        
+        IF (my_just_energy) THEN
+           exc_m=xc_exc_calc(rho_r=rho_r,tau=tau,&
+                rho_g=rho_g, dft_control=dft_control,&
+                cell=cell, pw_pool=auxbas_pw_pool,atoms=subsys,&
+                error=error)
+        ELSE
+           CALL xc_vxc_pw_create1(vxc_rho=my_vxc_rho,vxc_tau=my_vxc_tau, rho_r=rho_r,&
+                rho_g=rho_g,tau=tau,exc=exc_m,&
+                dft_control=dft_control,&
+                cell=cell, pw_pool=auxbas_pw_pool,atoms=subsys,&
+                calculate_forces=calculate_forces,error=error)
+        END IF
+ 
+        exc = exc + dft_control % sic_scaling_b * exc_m
+  
+        ! and take care of the potential 
+        IF (.NOT. my_just_energy) THEN
+           ! both go to minority spin
+           vxc_rho(2)%pw%cr3d = vxc_rho(2)%pw%cr3d + & 
+                                2.0_dp * dft_control % sic_scaling_b * my_vxc_rho(1)%pw%cr3d 
+           CALL pw_release(my_vxc_rho(1)%pw) 
+           CALL pw_release(my_vxc_rho(2)%pw) 
+           DEALLOCATE(my_vxc_rho)
+           CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+        ENDIF
+
+     ENDIF
+
+     !
+     ! cleanups
+     !
+     DEALLOCATE(rho_r,stat=stat)
+     CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+     IF (ASSOCIATED(rho_g)) THEN
+        DEALLOCATE(rho_g,stat=stat)
+        CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+     END IF
+     IF (ASSOCIATED(tau)) THEN
+        DEALLOCATE(tau,stat=stat)
+        CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
      END IF
 
   END IF

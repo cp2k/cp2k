@@ -191,8 +191,10 @@ MODULE cp_control_types
                                         multiplicity,&
                                         xc_rho_smooth_id,&
                                         xc_deriv_method_id,&
+                                        sic_method_id,&
                                         ref_count,&
                                         id_nr
+     REAL(KIND=dp)                   :: sic_scaling_a,sic_scaling_b
      LOGICAL                         :: forces,&
                                         do_tddfpt_calculation, &
                                         derive_function_rho, &
@@ -223,6 +225,7 @@ MODULE cp_control_types
        xc_deriv_fd=6, xc_deriv_nn50_smooth=7
   INTEGER, PARAMETER, PUBLIC :: xc_old_f_routine=0, xc_new_f_routine=1,&
        xc_test_f_routine=2, xc_test_lsd_f_routine=3, xc_debug_new_routine=4
+  INTEGER, PARAMETER, PUBLIC :: sic_none=0, sic_mauri_us=1, sic_mauri_spz=2
 
 ! *** Public subroutines ***
 

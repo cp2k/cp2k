@@ -38,7 +38,10 @@ MODULE cp_control_utils
                                              xc_rho_spline2_smooth,&
                                              xc_rho_spline3_smooth,&
                                              xc_test_f_routine,&
-                                             xc_test_lsd_f_routine
+                                             xc_test_lsd_f_routine, &
+                                             sic_none,&
+                                             sic_mauri_us,&
+                                             sic_mauri_spz
   USE cp_error_handling,               ONLY: cp_a_l,&
                                              cp_assert,&
                                              cp_error_check,&
@@ -352,6 +355,9 @@ CONTAINS
     dft_control % multiplicity = 0
     dft_control % use_kinetic_energy_density = .FALSE.
     dft_control % restricted = .FALSE.
+    dft_control % sic_method_id = sic_none
+    dft_control % sic_scaling_a = 1.0_dp
+    dft_control % sic_scaling_b = 1.0_dp
 
     DO i=1,SIZE(dft_control % xc_control % functionals)
        dft_control % xc_control % functionals ( i ) = ""
@@ -447,6 +453,23 @@ CONTAINS
             dft_control%nspins = 2
           CASE ("RESTRICTED")
             dft_control%restricted = .TRUE.
+          CASE ("SIC")
+              CALL read_object(str2,lower_to_upper=.TRUE.)
+              SELECT CASE (TRIM(str2))
+              CASE ("NONE")
+                 dft_control%sic_method_id=sic_none
+              CASE ("MAURI_US")
+                 dft_control%sic_method_id=sic_mauri_us
+              CASE ("MAURI_SPZ")
+                 dft_control%sic_method_id=sic_mauri_spz
+              CASE DEFAULT
+                CALL stop_program(routine,"UNKNOWN SIC KEYWORD "//&
+                     TRIM(str2))
+              END SELECT
+          CASE ("SIC_SCALING_A")
+              CALL read_object(dft_control%sic_scaling_a)
+          CASE ("SIC_SCALING_B")
+              CALL read_object(dft_control%sic_scaling_b)
           CASE ("CHARGE")
              CALL read_object(dft_control%charge)
           CASE ("KINETIC_ENERGY_DENSITY","TAU")
@@ -1260,6 +1283,7 @@ CONTAINS
     INTEGER                                  :: i, output_unit
     LOGICAL                                  :: failure
     TYPE(cp_error_type)                      :: sub_error
+    CHARACTER(LEN=*), PARAMETER              :: routineN="write_dft_control"
 
 !   ---------------------------------------------------------------------------
 
@@ -1289,6 +1313,23 @@ CONTAINS
 
        IF ( dft_control % restricted ) THEN
           WRITE ( output_unit, '( A, T60, A )' ) " DFT| ","      spin restricted"
+       ENDIF
+       
+       SELECT CASE ( dft_control%sic_method_id )
+       CASE ( sic_none )
+          WRITE ( output_unit, '( A, T60, A )' ) " DFT| ","               NO SIC"
+       CASE ( sic_mauri_spz )
+          WRITE ( output_unit, '( A, T60, A )' ) " DFT| ","        SPZ/MAURI SIC"
+       CASE ( sic_mauri_us )
+          WRITE ( output_unit, '( A, T60, A )' ) " DFT| ","         US/MAURI SIC"
+       CASE DEFAULT
+            ! fix throughout the cp2k for this option
+            CALL stop_program(routineN,"SIC option unknown")
+       END SELECT
+
+       IF ( dft_control%sic_method_id .NE. sic_none) THEN
+          WRITE ( output_unit, '( A, T50, A, F17.12 )' ) " DFT| ","SIC SCALING A",dft_control%sic_scaling_a
+          WRITE ( output_unit, '( A, T50, A, F17.12 )' ) " DFT| ","SIC SCALING B",dft_control%sic_scaling_b
        ENDIF
 
        IF ( dft_control % charge /= 0 ) THEN
