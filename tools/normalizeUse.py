@@ -20,7 +20,7 @@ def parseUse(inFile):
     contLineRe=re.compile(
         r"(?P<contLine>[^&!]*)(?P<continue>&?) *(?P<comment>!.*)?$")
     useParseRe=re.compile(
-        r" *use +(?P<module>[a-zA-Z_][a-zA-Z_0-9]*)(?P<only> *, *only:)? *(?P<imports>.*)$",
+        r" *use +(?P<module>[a-zA-Z_][a-zA-Z_0-9]*)(?P<only> *, *only *:)? *(?P<imports>.*)$",
         flags=re.IGNORECASE)
     lineNr=0
     comments=""
@@ -56,6 +56,7 @@ def parseUse(inFile):
             else:
                 useAtt['renames']=map(string.strip,
                                       string.split(m.group('imports'),','))
+		if useAtt['renames']==[""]: del useAtt['renames']
             if useComments : useAtt['comments']=useComments
             # add use to modules
             modules.append(useAtt)
@@ -94,12 +95,13 @@ def writeUseLong(modules,outFile):
             if m['only']: outFile.write(m['only'][0])
             for i in range(1,len(m['only'])):
                 outFile.write(",&\n"+string.ljust("",45)+m['only'][i])
-        elif m.has_key('renames'):
-            outFile.write("  USE "+m['module']+","+
-                          string.ljust("",38))
-            if m['renames']: outFile.write(m['renames'][0])
-            for i in range(1,len(m['renames'])):
-                write(",&\n"+string.ljust("",45)+m['renames'][i])
+        else:
+            outFile.write("  USE "+m['module'])
+            if m.has_key('renames') and m['renames']:
+                outFile.write(","+string.ljust("",38)+
+                              m['renames'][0])
+                for i in range(1,len(m['renames'])):
+                    outFile.write(",&\n"+string.ljust("",45)+m['renames'][i])
         if m.has_key('comments'):
             for commt in m['comments']:
                 outfile.write("&\n"+m['comments'][i])
