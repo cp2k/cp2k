@@ -2,6 +2,9 @@
 {'nametype1':'gerd_f',
 'type1':'type(pao_gerd_functional_type)', 
 'USE':'USE pao_obj_function, ONLY: pao_gerd_functional_type, cp_eval_at'},
+{'nametype1':'gopt',
+'type1':'type(gopt_f_type)', 
+'USE':'USE gopt_f_types, ONLY: gopt_f_type, cp_eval_at'},
 {'nametype1':'e_rosen',
 'type1':'type(cp_e_rosenbrok_f_type)', 
 'USE':'USE cp_e_rosenbrok_function, ONLY: cp_e_rosenbrok_f_type, cp_eval_at'}

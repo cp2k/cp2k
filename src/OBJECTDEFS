@@ -46,6 +46,8 @@ OBJECTS_GENERIC =\
  cp_fm_pool_types.o\
  cp_fm_struct.o\
  cp_fm_types.o\
+ gopt_f_types.o\
+ cp_lbfgs_optimizer_gopt.o\
  cp_cfm_types.o\
  cp_fm_vect.o\
  cp_fragment_types.o\
@@ -58,7 +60,6 @@ OBJECTS_GENERIC =\
  cp_linked_list_pw.o\
  cp_linked_list_rs.o\
  cp_linked_list_sm.o\
- cp_local_lists_types.o\
  cp_log_handling.o\
  cp_matrix_utils.o\
  cp_output_handling.o\
@@ -76,6 +77,7 @@ OBJECTS_GENERIC =\
  dg_rho0s.o\
  dg_types.o\
  dgs.o\
+ distribution_1d_types.o\
  distribution_2d_types.o\
  distribution_methods.o\
  dump.o\
@@ -225,6 +227,7 @@ OBJECTS_GENERIC =\
  qs_ep_types.o\
  qs_force.o\
  qs_force_types.o\
+ qs_geoopt.o\
  qs_integrate_potential.o\
  qs_interactions.o\
  qs_kpp1_env_methods.o\

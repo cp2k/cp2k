@@ -1,0 +1,726 @@
+!-----------------------------------------------------------------------------!
+!   CP2K: A general program to perform molecular dynamics simulations         !
+!   Copyright (C) 2001  CP2K developers group                                 !
+!-----------------------------------------------------------------------------!
+
+#include "cp_prep_globals.h"
+
+!!****h* cp2k/gopt_f_types [1.0] *
+!!
+!!   NAME
+!!     gopt_f_types
+!!
+!!   FUNCTION
+!!     contains a functional that calculates the energy and its derivatives
+!!     for the geometry optimizer
+!!
+!!   NOTES
+!!     -
+!!
+!!   AUTHOR
+!!     -
+!!
+!!   MODIFICATION HISTORY
+!!     none
+!!
+!!   SOURCE
+!*****************************************************************************
+MODULE gopt_f_types
+  USE cp_error_handling,               ONLY: cp_a_l,&
+                                             cp_assert,&
+                                             cp_assertion_failed,&
+                                             cp_debug,&
+                                             cp_error_dealloc_ref,&
+                                             cp_error_get_logger,&
+                                             cp_error_init,&
+                                             cp_error_message,&
+                                             cp_error_type,&
+                                             cp_internal_error,&
+                                             cp_unimplemented_error
+  USE cp_fragment_types,               ONLY: cp_fragment_p_type,&
+                                             cp_fragment_type
+  USE cp_log_handling,                 ONLY: cp_failure_level,&
+                                             cp_fatal_level,&
+                                             cp_log,&
+                                             cp_logger_get_default_unit_nr,&
+                                             cp_logger_type,&
+                                             cp_note_level,&
+                                             cp_to_string,&
+                                             cp_warning_level
+  USE force_control,                   ONLY: force_env_calculate_force,&
+                                             force_env_get,&
+                                             force_env_release,&
+                                             force_env_retain,&
+                                             force_env_type
+  USE global_types,                    ONLY: global_environment_type
+  USE kinds,                           ONLY: wp=>dp
+  USE particle_types,                  ONLY: particle_type,&
+                                             write_qs_particle_coordinates
+  USE qs_energy_types,                 ONLY: qs_energy_type
+  USE qs_environment_types,            ONLY: get_qs_env,&
+                                             qs_environment_type,&
+                                             set_qs_env
+  USE qs_parser,                       ONLY: finish_parser,&
+                                             read_object,&
+                                             start_parser,&
+                                             stop_parser,&
+                                             test_object
+  USE simulation_cell,                 ONLY: cell_type
+  USE termination,                     ONLY: stop_memory,&
+                                             stop_program
+  USE timings,                         ONLY: timeset,&
+                                             timestop
+  IMPLICIT NONE
+  PRIVATE
+
+  LOGICAL, PRIVATE, PARAMETER :: debug_this_module=.TRUE.
+  CHARACTER(len=*), PRIVATE, PARAMETER :: moduleN='gopt_f_types'
+  INTEGER, PRIVATE, SAVE :: last_gopt_f_id=0, last_gopt_param_id=0
+  INTEGER, PUBLIC, PARAMETER :: default_lbfgs_method_id=1
+  PUBLIC :: gopt_f_type
+  PUBLIC :: cp_eval_at, gopt_f_eval_at, gopt_f_create, gopt_f_retain,&
+       gopt_f_release, gopt_f_create_x0
+
+  PUBLIC :: gopt_param_type
+  PUBLIC :: gopt_param_create, gopt_param_read, gopt_param_retain, &
+       gopt_param_release
+
+  INTERFACE cp_eval_at
+     MODULE PROCEDURE gopt_f_eval_at
+  END INTERFACE
+
+!!***
+!****************************************************************************
+  
+!!****s* gopt_f_types/gopt_f_type [1.0] *
+!!
+!!   NAME
+!!     gopt_f_type
+!!
+!!   FUNCTION
+!!     calculates the potential energy of a system, and its derivatives
+!!
+!!   NOTES
+!!     -
+!!
+!!   ATTRIBUTES
+!!     -
+!!
+!!   AUTHOR
+!!
+!!   MODIFICATION HISTORY
+!!     none
+!!
+!!   SOURCE
+  !***************************************************************************
+  TYPE gopt_f_type
+     INTEGER :: ref_count, id_nr
+     TYPE(force_env_type), POINTER :: force_env
+     TYPE(global_environment_type), POINTER :: globenv
+  END TYPE gopt_f_type
+!!***
+  !****************************************************************************
+
+!!****s* gopt_f_types/gopt_param_type [1.0] *
+!!
+!!   NAME
+!!     gopt_param_type
+!!
+!!   FUNCTION
+!!     stores the parameters nedeed for a geometry optimization
+!!
+!!   NOTES
+!!     -
+!!
+!!   ATTRIBUTES
+!!     - method_id: the optimization method
+!!     - wanted_proj_gradient: the wanted accuracy on the projected gradient
+!!     - wanted_rel_f_error:
+!!     - max_h_rank: maximum rank of the hessian approximation
+!!     - max_f_per_iter: maximum number of function evaluations per iteration
+!!     - max_iter: maximum number of iterations
+!!
+!!   AUTHOR
+!!     Fawzi Mohamed
+!!
+!!   MODIFICATION HISTORY
+!!     08.2003 created [fawzi]
+!!
+!!   SOURCE
+  !***************************************************************************
+  TYPE gopt_param_type
+     INTEGER :: id_nr,ref_count,method_id,max_h_rank, max_f_per_iter, max_iter
+     REAL(kind=wp) :: wanted_proj_gradient, wanted_rel_f_error
+  END TYPE gopt_param_type
+!!***
+  !****************************************************************************
+
+CONTAINS
+  
+!!****f* gopt_f_types/gopt_f_create [1.0] *
+!!
+!!   NAME
+!!     gopt_f_create
+!!
+!!   SYNOPSIS
+!!     Subroutine gopt_f_create(gopt_env, force_env, globenv, error)
+!!       Type(gopt_f_type), Pointer:: gopt_env
+!!       Type(force_env_type), Pointer:: force_env
+!!       Type(global_environment_type), Intent (INOUT), Target:: globenv
+!!       Type(cp_error_type), Optional, Intent (INOUT):: error
+!!     End Subroutine gopt_f_create
+!!
+!!   FUNCTION
+!!     -
+!!
+!!   NOTES
+!!     -
+!!
+!!   INPUTS
+!!     gopt_env: the geometry optimization environment to be created
+!!     force_env:
+!!     globenv:
+!!     error: variable to control error logging, stopping,... 
+!!            see module cp_error_handling 
+!!
+!!   AUTHOR
+!!
+!!   MODIFICATION HISTORY
+!!     none
+!!
+!!*** **********************************************************************
+SUBROUTINE gopt_f_create(gopt_env, force_env, globenv, error)
+  TYPE(gopt_f_type), POINTER :: gopt_env
+  TYPE(force_env_type), POINTER :: force_env
+  TYPE(global_environment_type), INTENT(inout), TARGET :: globenv
+  TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
+  
+  LOGICAL :: failure
+  CHARACTER(len=*), PARAMETER :: routineN='gopt_f_create',&
+       routineP=moduleN//':'//routineN
+  INTEGER :: stat
+
+  failure=.FALSE.
+  
+  ALLOCATE(gopt_env, stat=stat)
+  CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+  IF (.NOT.failure) THEN
+     gopt_env%ref_count=1
+     last_gopt_f_id=last_gopt_f_id+1
+     gopt_env%id_nr=last_gopt_f_id
+     CALL force_env_retain(force_env, error=error)
+     gopt_env%force_env => force_env
+     gopt_env%globenv => globenv
+  END IF
+END SUBROUTINE gopt_f_create
+!***************************************************************************
+
+!!****f* gopt_f_types/gopt_f_retain [1.0] *
+!!
+!!   NAME
+!!     gopt_f_retain
+!!
+!!   SYNOPSIS
+!!     Subroutine gopt_f_retain(gopt_env, error)
+!!       Type(gopt_f_type), Pointer:: gopt_env
+!!       Type(cp_error_type), Optional, Intent (INOUT):: error
+!!     End Subroutine gopt_f_retain
+!!
+!!   FUNCTION
+!!     -
+!!
+!!   NOTES
+!!     -
+!!
+!!   INPUTS
+!!     gopt_env: the geometry optimization environment to retain
+!!     error: variable to control error logging, stopping,... 
+!!            see module cp_error_handling 
+!!
+!!   AUTHOR
+!!
+!!   MODIFICATION HISTORY
+!!     none
+!!
+!!*** **********************************************************************
+SUBROUTINE gopt_f_retain(gopt_env, error)
+  TYPE(gopt_f_type), POINTER :: gopt_env
+  TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
+  
+  LOGICAL :: failure
+  CHARACTER(len=*), PARAMETER :: routineN='gopt_f_retain',&
+       routineP=moduleN//':'//routineN
+
+  failure=.FALSE.
+  
+  CPPrecondition(ASSOCIATED(gopt_env),cp_failure_level,routineP,error,failure)
+  IF (.NOT.failure) THEN
+     CPPreconditionNoFail(gopt_env%ref_count>0,cp_failure_level,routineP,error)
+     gopt_env%ref_count=gopt_env%ref_count+1
+  END IF
+END SUBROUTINE gopt_f_retain
+!***************************************************************************
+
+
+!!****f* gopt_f_types/gopt_f_release [1.0] *
+!!
+!!   NAME
+!!     gopt_f_release
+!!
+!!   SYNOPSIS
+!!     Subroutine gopt_f_release(gopt_env, error)
+!!       Type(gopt_f_type), Pointer:: gopt_env
+!!       Type(cp_error_type), Optional, Intent (INOUT):: error
+!!     End Subroutine gopt_f_release
+!!
+!!   FUNCTION
+!!     -
+!!
+!!   NOTES
+!!     -
+!!
+!!   INPUTS
+!!     gopt_env: the geometry optimization environment to release
+!!     error: variable to control error logging, stopping,... 
+!!            see module cp_error_handling 
+!!
+!!   AUTHOR
+!!
+!!   MODIFICATION HISTORY
+!!     none
+!!
+!!*** **********************************************************************
+SUBROUTINE gopt_f_release(gopt_env, error)
+  TYPE(gopt_f_type), POINTER :: gopt_env
+  TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
+  
+  LOGICAL :: failure
+  CHARACTER(len=*), PARAMETER :: routineN='gopt_f_release',&
+       routineP=moduleN//':'//routineN
+  INTEGER :: stat
+
+  failure=.FALSE.
+  
+  IF (ASSOCIATED(gopt_env)) THEN
+     CPPreconditionNoFail(gopt_env%ref_count>0,cp_failure_level,routineP,error)
+     gopt_env%ref_count=gopt_env%ref_count-1
+     IF (gopt_env%ref_count==0) THEN
+        CALL force_env_release(gopt_env%force_env,error=error)
+        NULLIFY(gopt_env%force_env, gopt_env%globenv)
+        DEALLOCATE(gopt_env, stat=stat)
+        CPPostcondition(stat==0,cp_warning_level,routineP,error,failure)
+     END IF
+  END IF
+END SUBROUTINE gopt_f_release
+!***************************************************************************
+
+!!****f* gopt_f_types/gopt_f_eval_at [1.0] *
+!!
+!!   NAME
+!!     gopt_f_eval_at
+!!
+!!   SYNOPSIS
+!!     Subroutine gopt_f_eval_at(gopt_env, x, f, gradient, error)
+!!       Type(gopt_f_type), Pointer:: gopt_env
+!!       Real(Kind=wp), Dimension(:), Intent (IN):: x
+!!       Real(Kind=wp), Intent (OUT), Optional:: f
+!!       Real(Kind=wp), Intent (OUT), Dimension(:), Optional:: gradient
+!!       Type(cp_error_type), Optional, Intent (INOUT):: error
+!!     End Subroutine gopt_f_eval_at
+!!
+!!   FUNCTION
+!!     evaluete the potential energy and its gradients
+!!
+!!   NOTES
+!!     -
+!!
+!!   INPUTS
+!!     gopt_env: the geometry optimization environment
+!!     x: the position where the function should be evaluated
+!!     f: the function value
+!!     gradient: the value of its gradient
+!!     error: variable to control error logging, stopping,... 
+!!            see module cp_error_handling 
+!!
+!!   AUTHOR
+!!     @author Fawzi Mohamed
+!!     @version 3.2002
+!!
+!!   MODIFICATION HISTORY
+!!     none
+!!
+!!*** **********************************************************************
+SUBROUTINE gopt_f_eval_at(gopt_env, x, f, gradient, error)
+  TYPE(gopt_f_type), POINTER :: gopt_env
+  REAL(kind=wp), DIMENSION(:), INTENT(in) :: x
+  REAL(kind=wp), INTENT(out), OPTIONAL :: f
+  REAL(kind=wp), INTENT(out), DIMENSION(:), OPTIONAL :: gradient
+  TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
+  
+  LOGICAL :: failure
+  INTEGER :: handle,idg,isubsys,idir,ip
+  CHARACTER(len=*), PARAMETER :: routineN='gopt_f_eval_at',&
+       routineP=moduleN//':'//routineN
+  TYPE(particle_type), DIMENSION(:), POINTER :: particles
+  TYPE(cp_fragment_p_type), DIMENSION(:), POINTER :: subsys
+
+  failure=.FALSE.
+  NULLIFY(particles, subsys)
+  
+  CALL timeset(routineN,"I","",handle)
+  
+  CALL force_env_get(gopt_env%force_env, subsys=subsys,&
+       error=error)
+  idg=0
+  DO isubsys=1,SIZE(subsys)
+     particles => subsys(isubsys)%fragment%particles%els
+     DO ip=1,subsys(isubsys)%fragment%particles%n_els
+        DO idir=1,3
+           idg=idg+1
+           CPInvariant(SIZE(gradient)>=idg,cp_failure_level,routineP,error,failure)
+           particles(ip)%r(idir)=x(idg)
+        END DO
+     END DO
+     IF (gopt_env%globenv%print%atomic_coordinates) &
+          CALL write_qs_particle_coordinates(particles,&
+          gopt_env%force_env%qs_env%cell,gopt_env%globenv)
+  END DO
+
+  CALL force_env_calculate_force(gopt_env%force_env,&
+       globenv=gopt_env%globenv,box_change=.FALSE.,&
+       error=error)
+  IF (PRESENT(f)) THEN
+     f=gopt_env%force_env%qs_env%energy%total
+  END IF
+  IF (PRESENT(gradient)) THEN
+     CALL force_env_get(gopt_env%force_env, subsys=subsys,&
+          error=error)
+     idg=0
+     DO isubsys=1,SIZE(subsys)
+        particles => subsys(isubsys)%fragment%particles%els
+        DO ip=1,subsys(isubsys)%fragment%particles%n_els
+           DO idir=1,3
+              idg=idg+1
+              CPInvariant(SIZE(gradient)>=idg,cp_failure_level,routineP,error,failure)
+              gradient(idg)=-particles(ip)%f(idir)
+           END DO
+        END DO
+     END DO
+  END IF
+  CALL timestop(0.0_wp,handle)
+END SUBROUTINE gopt_f_eval_at
+!***************************************************************************
+
+!!****f* gopt_f_types/gopt_f_create_x0 [1.0] *
+!!
+!!   NAME
+!!     gopt_f_create_x0
+!!
+!!   SYNOPSIS
+!!     Subroutine gopt_f_create_x0(gopt_env, x0, error)
+!!       Type(gopt_f_type), Pointer:: gopt_env
+!!       Type(cp_error_type), Optional, Intent (INOUT):: error
+!!       Real(Kind=wp), Dimension(:), Pointer:: x0
+!!     End Subroutine gopt_f_create_x0
+!!
+!!   FUNCTION
+!!     returns the value of the parameters for the actual configuration
+!!
+!!   NOTES
+!!     -
+!!
+!!   INPUTS
+!!     gopt_env: the geometry optimization environment you want the info about
+!!     x0: the parameter vector (is allocated by this routine)
+!!     error: variable to control error logging, stopping,... 
+!!            see module cp_error_handling 
+!!
+!!   AUTHOR
+!!
+!!   MODIFICATION HISTORY
+!!     none
+!!
+!!*** **********************************************************************
+SUBROUTINE gopt_f_create_x0(gopt_env, x0, error)
+  TYPE(gopt_f_type), POINTER :: gopt_env
+  TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
+  REAL(kind=wp), DIMENSION(:), POINTER :: x0
+  
+  LOGICAL :: failure
+  CHARACTER(len=*), PARAMETER :: routineN='gopt_f_create_x0',&
+       routineP=moduleN//':'//routineN
+  INTEGER :: stat, idg, ndg, idir, isubsys, ip
+  TYPE(particle_type), DIMENSION(:), POINTER :: particle_set
+  TYPE(cp_fragment_p_type), DIMENSION(:), POINTER :: subsys
+
+  failure=.FALSE.
+  
+  CALL force_env_get(gopt_env%force_env, subsys=subsys,&
+       error=error)
+  ndg=0
+  DO isubsys=1,SIZE(subsys)
+     ndg=ndg+subsys(isubsys)%fragment%particles%n_els*3
+  END DO
+  
+  ALLOCATE(x0(ndg),stat=stat)
+  CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+  
+  idg=0
+  DO isubsys=1,SIZE(subsys)
+     particle_set => subsys(isubsys)%fragment%particles%els
+     DO ip=1,subsys(isubsys)%fragment%particles%n_els
+        DO idir=1,3
+           idg=idg+1
+           CPInvariant(SIZE(x0)>=idg,cp_failure_level,routineP,error,failure)
+           x0(idg)=particle_set(ip)%r(idir)
+        END DO
+     END DO
+  END DO
+END SUBROUTINE gopt_f_create_x0
+!***************************************************************************
+
+!!****f* gopt_f_types/gopt_param_create [1.0] *
+!!
+!!   NAME
+!!     gopt_param_create
+!!
+!!   SYNOPSIS
+!!     Subroutine gopt_param_create(gopt_param, error)
+!!       Type(gopt_param_type), Pointer:: gopt_param
+!!       Type(cp_error_type), Optional, Intent (INOUT):: error
+!!     End Subroutine gopt_param_create
+!!
+!!   FUNCTION
+!!     creates a new gopt_param object
+!!
+!!   NOTES
+!!     -
+!!
+!!   INPUTS
+!!     - gopt_param: the object to create
+!!     - error: variable to control error logging, stopping,... 
+!!       see module cp_error_handling 
+!!
+!!   AUTHOR
+!!     Fawzi Mohamed
+!!
+!!   MODIFICATION HISTORY
+!!     08.2003 created [fawzi]
+!!
+!!*** **********************************************************************
+SUBROUTINE gopt_param_create(gopt_param,error)
+  TYPE(gopt_param_type), POINTER :: gopt_param
+  TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
+  
+  LOGICAL :: failure
+  CHARACTER(len=*), PARAMETER :: routineN='gopt_param_create',&
+        routineP=moduleN//':'//routineN
+  INTEGER :: stat
+
+  failure=.FALSE.
+  
+  ALLOCATE(gopt_param, stat=stat)
+  CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+  
+  IF (.NOT. failure) THEN
+     last_gopt_param_id=last_gopt_param_id+1
+     gopt_param%id_nr=last_gopt_param_id
+     gopt_param%ref_count=1
+     gopt_param%method_id=default_lbfgs_method_id
+     gopt_param%max_h_rank=5
+     gopt_param%max_f_per_iter=20
+     gopt_param%max_iter=200
+     gopt_param%wanted_proj_gradient=1.0e-5
+     gopt_param%wanted_rel_f_error=1.0e8
+  END IF
+END SUBROUTINE gopt_param_create
+!***************************************************************************
+
+!!****f* gopt_f_types/gopt_param_read [1.0] *
+!!
+!!   NAME
+!!     gopt_param_read
+!!
+!!   SYNOPSIS
+!!     Subroutine gopt_param_read(gopt_param, globenv, error)
+!!       Type(gopt_param_type), Pointer:: gopt_param
+!!       Type(global_environment_type), Target, Intent (INOUT):: globenv
+!!       Type(cp_error_type), Optional, Intent (INOUT):: error
+!!     End Subroutine gopt_param_read
+!!
+!!   FUNCTION
+!!     reads the parameters of the geopmetry optimizer
+!!
+!!   NOTES
+!!     -
+!!
+!!   INPUTS
+!!     - 
+!!     - error: variable to control error logging, stopping,... 
+!!       see module cp_error_handling 
+!!
+!!   AUTHOR
+!!     Fawzi Mohamed
+!!
+!!   MODIFICATION HISTORY
+!!     08.2003 created [fawzi]
+!!
+!!*** **********************************************************************
+SUBROUTINE gopt_param_read(gopt_param, globenv, error)
+  TYPE(gopt_param_type), POINTER :: gopt_param
+  TYPE(global_environment_type), TARGET, INTENT(inout) :: globenv
+  TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
+  
+  LOGICAL :: failure, section_found
+  CHARACTER(len=*), PARAMETER :: routineN='gopt_param_read',&
+        routineP=moduleN//':'//routineN
+  CHARACTER(LEN=60) :: keyword
+  CHARACTER(LEN=3)  :: test_result
+
+  failure=.FALSE.
+  
+  IF (.NOT.ASSOCIATED(gopt_param)) THEN
+     CALL gopt_param_create(gopt_param, error=error)
+  END IF
+
+  CALL start_parser(file_name=globenv%input_file_name,&
+       globenv=globenv,&
+       start_section_label="GEOOPT",&
+       section_found=section_found)
+  
+  IF (section_found) THEN
+     DO
+        test_result = test_object()
+        IF (test_result /= "EOL") THEN
+           CALL read_object(keyword)
+           CALL stop_parser(routine=routineP,message="INVALID_KEYWORD")
+        END IF
+        test_result = test_object(newline=.TRUE.)
+        IF (test_result == "EOS") THEN
+           EXIT
+        ELSE IF (test_result == "EOF") THEN
+           CALL stop_parser(routine=routineP,message="EOF")
+        ELSE
+           CALL read_object(keyword,lower_to_upper=.TRUE.,newline=.TRUE.)
+           SELECT CASE (TRIM(keyword))
+           CASE ('MAX_ITER')
+              CALL read_object(gopt_param%max_iter)
+           CASE ('MAX_H_RANK')
+              CALL read_object(gopt_param%max_h_rank)
+           CASE ('MAX_F_PER_ITER')
+              CALL read_object(gopt_param%max_f_per_iter)
+           CASE ('WANTED_PROJ_GRADIENT')
+              CALL read_object(gopt_param%wanted_proj_gradient)
+           CASE ('WANTED_REL_F_ERROR')
+              CALL read_object(gopt_param%wanted_rel_f_error)
+           CASE DEFAULT
+              CALL stop_parser(routine=routineP,message="INVALID_KEYWORD")
+           END SELECT
+        END IF
+     END DO
+  END IF
+
+  CALL finish_parser()
+
+END SUBROUTINE gopt_param_read
+!***************************************************************************
+
+
+!!****f* gopt_f_types/gopt_param_retain [1.0] *
+!!
+!!   NAME
+!!     gopt_param_retain
+!!
+!!   SYNOPSIS
+!!     Subroutine gopt_param_retain(gopt_param, error)
+!!       Type(gopt_param_type), Pointer:: gopt_param
+!!       Type(cp_error_type), Optional, Intent (INOUT):: error
+!!     End Subroutine gopt_param_retain
+!!
+!!   FUNCTION
+!!     -
+!!
+!!   NOTES
+!!     -
+!!
+!!   INPUTS
+!!     gopt_param: the geometry optimization environment to retain
+!!     error: variable to control error logging, stopping,... 
+!!            see module cp_error_handling 
+!!
+!!   AUTHOR
+!!
+!!   MODIFICATION HISTORY
+!!     none
+!!
+!!*** **********************************************************************
+SUBROUTINE gopt_param_retain(gopt_param, error)
+  TYPE(gopt_param_type), POINTER :: gopt_param
+  TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
+  
+  LOGICAL :: failure
+  CHARACTER(len=*), PARAMETER :: routineN='gopt_param_retain',&
+       routineP=moduleN//':'//routineN
+
+  failure=.FALSE.
+  
+  CPPrecondition(ASSOCIATED(gopt_param),cp_failure_level,routineP,error,failure)
+  IF (.NOT.failure) THEN
+     CPPreconditionNoFail(gopt_param%ref_count>0,cp_failure_level,routineP,error)
+     gopt_param%ref_count=gopt_param%ref_count+1
+  END IF
+END SUBROUTINE gopt_param_retain
+!***************************************************************************
+
+
+!!****f* gopt_f_types/gopt_param_release [1.0] *
+!!
+!!   NAME
+!!     gopt_param_release
+!!
+!!   SYNOPSIS
+!!     Subroutine gopt_param_release(gopt_param, error)
+!!       Type(gopt_param_type), Pointer:: gopt_param
+!!       Type(cp_error_type), Optional, Intent (INOUT):: error
+!!     End Subroutine gopt_param_release
+!!
+!!   FUNCTION
+!!     -
+!!
+!!   NOTES
+!!     -
+!!
+!!   INPUTS
+!!     gopt_param: the geometry optimization environment to release
+!!     error: variable to control error logging, stopping,... 
+!!            see module cp_error_handling 
+!!
+!!   AUTHOR
+!!
+!!   MODIFICATION HISTORY
+!!     none
+!!
+!!*** **********************************************************************
+SUBROUTINE gopt_param_release(gopt_param, error)
+  TYPE(gopt_param_type), POINTER :: gopt_param
+  TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
+  
+  LOGICAL :: failure
+  CHARACTER(len=*), PARAMETER :: routineN='gopt_param_release',&
+       routineP=moduleN//':'//routineN
+  INTEGER :: stat
+
+  failure=.FALSE.
+  
+  IF (ASSOCIATED(gopt_param)) THEN
+     CPPreconditionNoFail(gopt_param%ref_count>0,cp_failure_level,routineP,error)
+     gopt_param%ref_count=gopt_param%ref_count-1
+     IF (gopt_param%ref_count==0) THEN
+        DEALLOCATE(gopt_param, stat=stat)
+        CPPostcondition(stat==0,cp_warning_level,routineP,error,failure)
+     END IF
+  END IF
+END SUBROUTINE gopt_param_release
+!***************************************************************************
+
+END MODULE gopt_f_types
