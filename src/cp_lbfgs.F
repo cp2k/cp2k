@@ -808,14 +808,20 @@ subroutine mainlb (n, m, x, l, u, nbd, f, g, factr, pgtol, ws, wy, &
 
   endif
   ddum = max (abs (fold), abs (f), one)  
-  if ( abs (fold-f) .le.tol * ddum) then  
-     !                                        terminate the algorithm.
-     task = 'CONVERGENCE: REL_REDUCTION_OF_F <= FACTR*EPSMCH'  
-     if (iback.ge.10) info = - 5  
-     !           i.e., to issue a warning if iback>10 in the line search.
-     goto 999  
-
-
+  if ( (fold-f) .le.tol * ddum) then  
+     if ( abs (fold-f) .le.tol * ddum) then ! added [fawzi]
+        !                                        terminate the algorithm.
+        task = 'CONVERGENCE: REL_REDUCTION_OF_F <= FACTR*EPSMCH'  
+        if(iback.ge.10) info = - 5  
+        !           i.e., to issue a warning if iback>10 in the line search.
+        goto 999  
+     else
+!!FM        task = 'RESTART: F>F_OLD'
+!!FM        if(iback.ge.10) info = - 5  
+!!FM        !           i.e., to issue a warning if iback>10 in the line search.
+!!FM        goto 999
+     end if
+     
   endif
   !     Compute d=newx-oldx, r=newg-oldg, rr=y'y and dr=y's.
   do 42 i = 1, n  
