@@ -72,7 +72,7 @@ CONTAINS
 ! *****************************************************************************
 
   SUBROUTINE force_overlap ( ao, kind_info, part, pnode, box, empparm, &
-                           energy, fo_coef, fo_part )
+                           energy, fo_coef, fo_part, e_ovl_ii, e_ovl_ij )
 
 ! ***************************************************************************
 
@@ -86,6 +86,8 @@ CONTAINS
   REAL ( dbl ), INTENT(OUT) :: energy
   REAL ( dbl ), DIMENSION (:), INTENT(INOUT) :: fo_coef
   REAL ( dbl ), DIMENSION (:,:), INTENT(INOUT), OPTIONAL :: fo_part
+  REAL ( dbl ), INTENT ( OUT ), OPTIONAL :: e_ovl_ii
+  REAL ( dbl ), INTENT ( OUT ), OPTIONAL  :: e_ovl_ij
 
 ! locals
 
@@ -126,11 +128,12 @@ CONTAINS
   hmat = box % hmat 
   h_inv = box % h_inv
   perd = box % perd      
-  energy = 0._dbl
   deriv = .FALSE.
 
 ! initialize energy
   energy=0._dbl
+  e_ovl_ii=0._dbl
+  e_ovl_ij=0._dbl
 
   DO ikind = 1, nkind
      nat = nat + size (kind_info(ikind) % atom_list)
@@ -395,7 +398,8 @@ CONTAINS
 !         from each atom_block is calculated
 
           CALL energy_evaluate ( ao, kind_info, empparm, atom_block, &
-                                 part, ipart, jpart, iset, jset, energy, fo_coef )
+                                 part, ipart, jpart, iset, jset, energy, fo_coef, & 
+                                 e_ovl_ii, e_ovl_ij )
 
           IF ( ( PRESENT ( fo_part ) ) .AND. forces .AND. (iatom /= jatom) )  THEN
              CALL fpart_evaluate ( ao, kind_info, empparm, atom_block, part,  &
@@ -647,7 +651,7 @@ CONTAINS
 
 !--------------------------------------------------------------------------------------
   SUBROUTINE energy_evaluate ( ao, kind_info, empparm, atom_block, &
-                             part, ipart, jpart, iset, jset, energy, fo_coef )
+                      part, ipart, jpart, iset, jset, energy, fo_coef, e_ovl_ii, e_ovl_ij )
 !--------------------------------------------------------------------------------------
 
   IMPLICIT NONE
@@ -660,6 +664,9 @@ CONTAINS
   TYPE (particle_type), dimension (:), intent (in) :: part
   INTEGER, intent (in) :: ipart,jpart 
   INTEGER, intent (in) :: iset,jset 
+  REAL ( dbl ), INTENT ( INOUT ) :: e_ovl_ii
+  REAL ( dbl ), INTENT ( INOUT ) :: e_ovl_ij
+ 
 
 ! locals
 
@@ -700,6 +707,13 @@ CONTAINS
                             atom_block (ic,jc,1)
           energy = energy + 0.25_dbl * (hpi + hpj) * ao % cr (icoef) * &
                             ao % cr (jcoef) * atom_block (ic, jc, 1)
+        END IF
+        IF ( ipart /= jpart ) THEN
+           e_ovl_ij = e_ovl_ij + 0.5_dbl * (hpi + hpj) * ao % cr (icoef) * &
+                                  ao % cr (jcoef) * atom_block (ic, jc, 1)
+        ELSE
+           e_ovl_ii = e_ovl_ii + 0.25_dbl * (hpi + hpj) * ao % cr (icoef) * &
+                                 ao % cr (jcoef) * atom_block (ic, jc, 1)
         END IF
      END DO
   END DO
