@@ -76,7 +76,7 @@ CONTAINS
 SUBROUTINE force_intra_control ( molecule_set, molecule_kind_set, local_molecules, &
                                particle_set, pot_bond, pot_bend, pot_urey_bradley, &
                                pot_torsion, pot_imp_torsion, pv_bond, pv_bend, pv_urey_bradley, &
-                               pv_torsion, pv_imp_torsion, f_bond, f_bend, f_torsion )
+                               pv_torsion, pv_imp_torsion, f_bond, f_bend, f_torsion, f_ub, f_imptor )
 
 ! parses up intramolecular properties
 
@@ -93,7 +93,7 @@ SUBROUTINE force_intra_control ( molecule_set, molecule_kind_set, local_molecule
     INTENT(INOUT)                          :: pv_bond, pv_bend, pv_torsion, &
                                               pv_urey_bradley, pv_imp_torsion
   REAL(dbl), DIMENSION(:, :), &
-    INTENT(OUT), OPTIONAL                  :: f_bond, f_bend, f_torsion
+    INTENT(OUT), OPTIONAL                  :: f_bond, f_bend, f_torsion, f_ub, f_imptor
  
   INTEGER                                  :: handle, ibend, ibond, imol, &
                                              itorsion, ikind, nkind, index_a,&
@@ -122,6 +122,8 @@ SUBROUTINE force_intra_control ( molecule_set, molecule_kind_set, local_molecule
   IF ( PRESENT ( f_bond)) f_bond = 0._dbl
   IF ( PRESENT ( f_bend)) f_bend = 0._dbl
   IF ( PRESENT ( f_torsion)) f_torsion = 0._dbl
+  IF ( PRESENT ( f_imptor)) f_imptor = 0._dbl
+  IF ( PRESENT ( f_ub)) f_ub = 0._dbl
   pot_bond =  0._dbl
   pot_bend =  0._dbl
   pot_urey_bradley =  0._dbl
@@ -161,12 +163,12 @@ SUBROUTINE force_intra_control ( molecule_set, molecule_kind_set, local_molecule
                            pv_bond )
 
 ! the contribution from the bonds. ONLY FOR DEBUG
-!        IF ( PRESENT ( f_bond ) ) THEN
-!           f_bond(:,llbond%index(1)) = f_bond(:,llbond%index(1)) - &
-!                rij*fscalar
-!           f_bond(:,llbond%index(2)) = f_bond(:,llbond%index(2)) + &
-!                rij*fscalar
-!        END IF
+       IF ( PRESENT ( f_bond ) ) THEN
+           f_bond(:,index_a) = f_bond(:,index_a) - &
+                rij*fscalar
+           f_bond(:,index_b) = f_bond(:,index_b) + &
+                rij*fscalar
+        END IF
 
      END DO BOND
 
@@ -192,12 +194,13 @@ SUBROUTINE force_intra_control ( molecule_set, molecule_kind_set, local_molecule
                            pv_urey_bradley )
 
 ! the contribution from the bonds. ONLY FOR DEBUG
-!        IF ( PRESENT ( f_bond ) ) THEN
-!           f_bond(:,llbond%index(1)) = f_bond(:,llbond%index(1)) - &
-!                rij*fscalar
-!           f_bond(:,llbond%index(2)) = f_bond(:,llbond%index(2)) + &
-!                rij*fscalar
-!        END IF
+       IF ( PRESENT ( f_ub ) ) THEN
+           f_ub(:,index_a) = f_ub(:,index_a) - &
+                rij*fscalar
+           f_ub(:,index_c) = f_ub(:,index_c) + &
+                rij*fscalar
+           f_ub ( :, index_b ) = 0._dbl
+        END IF
 
      END DO UREY_BRADLEY
 
@@ -235,14 +238,14 @@ SUBROUTINE force_intra_control ( molecule_set, molecule_kind_set, local_molecule
                          pv_bend)
 
 ! the contribution from the bends. ONLY FOR DEBUG
-!        IF ( PRESENT ( f_bend)) THEN
-!           f_bend(:,llbend%index(1)) = f_bend(:,llbend%index(1)) + &
-!                fscalar*g1
-!           f_bend(:,llbend%index(2)) = f_bend(:,llbend%index(2)) + &
-!                fscalar*g2
-!           f_bend(:,llbend%index(3)) = f_bend(:,llbend%index(3)) + &
-!                fscalar*g3
-!        END IF
+        IF ( PRESENT ( f_bend)) THEN
+           f_bend(:,index_a) = f_bend(:,index_a) + &
+                fscalar*g1
+           f_bend(:,index_b) = f_bend(:,index_b) + &
+                fscalar*g2
+           f_bend(:,index_c) = f_bend(:,index_c) + &
+                fscalar*g3
+        END IF
 
      END DO BEND
 
@@ -287,16 +290,16 @@ SUBROUTINE force_intra_control ( molecule_set, molecule_kind_set, local_molecule
                          pv_torsion)
 
 ! the contribution from the torsions. ONLY FOR DEBUG
-!        IF ( PRESENT ( f_torsion)) THEN
-!           f_torsion(:,lltorsion%index(1)) = f_torsion(:,lltorsion%index(1)) + &
-!                fscalar*gt1
-!           f_torsion(:,lltorsion%index(2)) = f_torsion(:,lltorsion%index(2)) + &
-!                fscalar*gt2
-!           f_torsion(:,lltorsion%index(3)) = f_torsion(:,lltorsion%index(3)) + &
-!                fscalar*gt3
-!           f_torsion(:,lltorsion%index(4)) = f_torsion(:,lltorsion%index(4)) + &
-!                fscalar*gt4
-!        END IF
+       IF ( PRESENT ( f_torsion)) THEN
+           f_torsion(:,index_a) = f_torsion(:,index_a) + &
+                fscalar*gt1
+           f_torsion(:,index_b) = f_torsion(:,index_b) + &
+                fscalar*gt2
+           f_torsion(:,index_c) = f_torsion(:,index_c) + &
+                fscalar*gt3
+          f_torsion(:,index_d) = f_torsion(:,index_d) + &
+                fscalar*gt4
+        END IF
 
      END DO TORSION
 
@@ -342,16 +345,16 @@ SUBROUTINE force_intra_control ( molecule_set, molecule_kind_set, local_molecule
                          pv_imp_torsion)
 
 ! the contribution from the torsions. ONLY FOR DEBUG
-!        IF ( PRESENT ( f_torsion)) THEN
-!           f_torsion(:,lltorsion%index(1)) = f_torsion(:,lltorsion%index(1)) + &
-!                fscalar*gt1
-!           f_torsion(:,lltorsion%index(2)) = f_torsion(:,lltorsion%index(2)) + &
-!                fscalar*gt2
-!           f_torsion(:,lltorsion%index(3)) = f_torsion(:,lltorsion%index(3)) + &
-!                fscalar*gt3
-!           f_torsion(:,lltorsion%index(4)) = f_torsion(:,lltorsion%index(4)) + &
-!                fscalar*gt4
-!        END IF
+        IF ( PRESENT ( f_imptor)) THEN
+           f_imptor(:,index_a) = f_imptor(:,index_a) + &
+                fscalar*gt1
+           f_imptor(:,index_b) = f_imptor(:,index_b) + &
+                fscalar*gt2
+           f_imptor(:,index_c) = f_imptor(:,index_c) + &
+                fscalar*gt3
+           f_imptor(:,index_d) = f_imptor(:,index_d) + &
+                fscalar*gt4
+        END IF
      END DO IMP_TORSION
     END DO
   END DO MOL

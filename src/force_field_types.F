@@ -59,6 +59,7 @@ MODULE force_field_types
 
   TYPE torsion_kind_type
     CHARACTER(LEN=max_name_length) :: name
+    INTEGER ( KIND = dp )          :: m
     REAL(KIND = dp)                :: k,phi0
     REAL(KIND = dp), DIMENSION ( 0:3 ) :: a
     INTEGER                        :: kind_number
