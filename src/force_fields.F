@@ -112,6 +112,7 @@ MODULE force_fields
   USE qmmm_ff_fist,                    ONLY: qmmm_ff_precond_only_qm
   USE qmmm_types,                      ONLY: qmmm_env_mm_type
   USE input_cp2k,                      ONLY: do_qmmm_none
+  USE physcon,                         ONLY: bohr
 
   IMPLICIT NONE
 
@@ -1652,7 +1653,7 @@ SUBROUTINE force_field_pack (particle_set,atomic_kind_set,&
   TYPE(impr_kind_type), DIMENSION(:), POINTER       :: impr_kind_set
   TYPE(torsion_kind_type), DIMENSION(:), POINTER    :: torsion_kind_set
 
-  REAL(KIND=dp)                                :: rmin,epsilon
+  REAL(KIND=dp)                                :: rmin,epsilon, default_rcutsq
   INTEGER                                  :: ii, jj, imul
   LOGICAL :: only_qm, my_qmmm
 
@@ -1673,6 +1674,7 @@ SUBROUTINE force_field_pack (particle_set,atomic_kind_set,&
   PM4 = .FALSE.
   only_qm = .FALSE.
   my_qmmm = .FALSE.
+  default_rcutsq = (10.0_dp*bohr)*(10.0_dp*bohr)
   IF (PRESENT(qmmm).AND.PRESENT(qmmm_env)) my_qmmm = qmmm
   IF(PRESENT(globenv)) THEN
     CALL write_checkpoint_information("entering "//routineN,globenv)
@@ -2704,7 +2706,7 @@ SUBROUTINE force_field_pack (particle_set,atomic_kind_set,&
             potparm_bond(i,j)%rcutsq     = ff_type%rcut_nb*ff_type%rcut_nb
           ELSE
             !Corresponds to an cutoff of 10A
-            potparm_nonbond(i,j)%rcutsq     = 357.106767_dp
+            potparm_bond(i,j)%rcutsq     = default_rcutsq
           END IF
 
           IF(found .AND. PM1) &
@@ -2746,7 +2748,7 @@ SUBROUTINE force_field_pack (particle_set,atomic_kind_set,&
         potparm_bond(i,j)%lj%epsilon = 0.0_dp
         potparm_bond(i,j)%lj%sigma6  = 0.0_dp
         potparm_bond(i,j)%lj%sigma12 = 0.0_dp
-        potparm_bond(i,j)%rcutsq     = 100.0_dp
+        potparm_bond(i,j)%rcutsq     = default_rcutsq
       END IF
 
       IF (only_qm) THEN
@@ -2756,7 +2758,7 @@ SUBROUTINE force_field_pack (particle_set,atomic_kind_set,&
         potparm_bond(i,j)%lj%epsilon = 0.0_dp
         potparm_bond(i,j)%lj%sigma6  = 0.0_dp
         potparm_bond(i,j)%lj%sigma12 = 0.0_dp
-        potparm_bond(i,j)%rcutsq     = 100.0_dp
+        potparm_bond(i,j)%rcutsq     = default_rcutsq
       END IF
 
     END DO
@@ -2978,12 +2980,12 @@ SUBROUTINE force_field_pack (particle_set,atomic_kind_set,&
             potparm_nonbond(i,j)%rcutsq     = ff_type%rcut_nb*ff_type%rcut_nb
           ELSE
             !Corresponds to an cutoff of 10A
-            potparm_nonbond(i,j)%rcutsq     = 357.106767_dp
+            potparm_nonbond(i,j)%rcutsq     = default_rcutsq
           END IF
 
-          WRITE(*,*) potparm_nonbond(i,j)%lj%epsilon,rmin
           IF(found .AND. PM1) &
              WRITE(iw,*) "    Multiple LJ-POT declarations: overwriting"
+             WRITE(iw,*) potparm_nonbond(i,j)%lj%epsilon,rmin
           found = .TRUE.
         END IF
       END IF
@@ -3023,7 +3025,7 @@ SUBROUTINE force_field_pack (particle_set,atomic_kind_set,&
          potparm_nonbond(i,j)%lj%epsilon = 0.0_dp
          potparm_nonbond(i,j)%lj%sigma6  = 0.0_dp
          potparm_nonbond(i,j)%lj%sigma12 = 0.0_dp
-         potparm_nonbond(i,j)%rcutsq     = 100.0_dp
+         potparm_nonbond(i,j)%rcutsq     = default_rcutsq
       END IF
     END DO
   END DO
