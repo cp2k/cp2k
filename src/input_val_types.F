@@ -54,7 +54,8 @@ MODULE input_val_types
   INTEGER, SAVE, PRIVATE :: last_val_id=0
 
   PUBLIC :: val_p_type, val_type
-  PUBLIC :: val_create, val_retain, val_release, val_get, val_write
+  PUBLIC :: val_create, val_retain, val_release, val_get, val_write,&
+            val_write_internal
 !***
 !****************************************************************************
 
@@ -634,6 +635,82 @@ SUBROUTINE val_write(val,unit_nr,error)
   END IF
   WRITE(unit=unit_nr,fmt="()")
 END SUBROUTINE val_write
-!***************************************************************************
-  
+
+! *****************************************************************************
+
+  SUBROUTINE val_write_internal(val,string,error)
+
+!   Purpose: Write values to an internal file, i.e. string variable.
+
+!   History: - Creation (10.03.2005,MK)
+
+!   ***************************************************************************
+
+    TYPE(val_type), POINTER                  :: val
+    CHARACTER(LEN=*), INTENT(OUT)            :: string
+    TYPE(cp_error_type), INTENT(INOUT),&
+      OPTIONAL                               :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = "val_write_internal", &
+                                   routineP = moduleN//":"//routineN
+
+    CHARACTER(LEN=default_string_length) :: enum_string
+    INTEGER                              :: i
+    LOGICAL                              :: failure
+
+!   ---------------------------------------------------------------------------
+
+    failure = .FALSE.
+
+    string = ""
+
+    IF (ASSOCIATED(val)) THEN
+
+      SELECT CASE(val%type_of_var)
+      CASE (logical_t)
+        IF (ASSOCIATED(val%l_val)) THEN
+          WRITE (UNIT=string,FMT="(L2)") (val%l_val(i),i=1,SIZE(val%l_val))
+        ELSE
+          CPAssert(.FALSE.,cp_failure_level,routineP,error,failure)
+        END IF
+      CASE (integer_t)
+        IF (ASSOCIATED(val%i_val)) THEN
+          WRITE (UNIT=string,FMT="(I12)") (val%i_val(i),i=1,SIZE(val%i_val))
+        ELSE
+          CPAssert(.FALSE.,cp_failure_level,routineP,error,failure)
+        END IF
+      CASE (real_t)
+        IF (ASSOCIATED(val%r_val)) THEN
+          WRITE (UNIT=string,FMT="(ES16.8)") (val%r_val(i),i=1,SIZE(val%r_val))
+        ELSE
+          CPAssert(.FALSE.,cp_failure_level,routineP,error,failure)
+        END IF
+      CASE (char_t)
+        IF (ASSOCIATED(val%c_val)) THEN
+          WRITE (UNIT=string,FMT="(A)")&
+            (TRIM(ADJUSTL(val%c_val(i))),i=1,SIZE(val%c_val))
+        ELSE
+          CPAssert(.FALSE.,cp_failure_level,routineP,error,failure)
+        END IF
+      CASE (enum_t)
+        IF (ASSOCIATED(val%i_val)) THEN
+          DO i=1,SIZE(val%i_val)
+            enum_string = enum_i2c(val%enum,val%i_val(i),error)
+            WRITE (UNIT=string,FMT="(A)") TRIM(ADJUSTL(enum_string))
+          END DO
+        ELSE
+          CPAssert(.FALSE.,cp_failure_level,routineP,error,failure)
+        END IF
+      CASE default
+        CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,&
+                       routineP,"unexpected type_of_var for val ",error,&
+                       failure)
+      END SELECT
+
+    END IF
+
+  END SUBROUTINE val_write_internal
+
+! *****************************************************************************
+
 END MODULE input_val_types

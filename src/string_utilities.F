@@ -33,6 +33,7 @@ MODULE string_utilities
             make_tuple,&
             str_comp,&
             string_to_ascii,&
+            substitute_special_xml_tokens,&
             uppercase,&
             xstring,str_search, s2a
 
@@ -248,6 +249,56 @@ END FUNCTION
     END DO
 
   END SUBROUTINE string_to_ascii
+
+! *****************************************************************************
+
+  SUBROUTINE substitute_special_xml_tokens(inp_string,out_string,ltu)
+
+!   Purpose: Substitute special XML tokens like "<" or ">" in inp_string.
+!            Optionally convert also all lowercase characters to uppercase, if
+!            ltu is true.
+
+!   History: - Creation (10.03.2005,MK)
+
+!   ***************************************************************************
+
+    CHARACTER(LEN=*), INTENT(IN)  :: inp_string
+    CHARACTER(LEN=*), INTENT(OUT) :: out_string
+    LOGICAL, OPTIONAL, INTENT(IN) :: ltu
+
+    CHARACTER(LEN=LEN(inp_string)) :: string
+    INTEGER :: i,j
+
+!   ---------------------------------------------------------------------------
+
+    string = inp_string
+    out_string = ""
+
+    IF (PRESENT(ltu)) THEN
+      IF (ltu) CALL uppercase(string)
+    END IF
+
+    j = 1
+    DO i=1,LEN_TRIM(string)
+      IF (string(i:i) == "<") THEN
+        out_string(j:j+3) = "&lt;"
+        j = j + 4
+      ELSE IF (string(i:i) == ">") THEN
+        out_string(j:j+3) = "&gt;"
+        j = j + 4
+      ELSE IF (string(i:i) == "&") THEN
+        out_string(j:j+4) = "&amp;"
+        j = j + 5
+      ELSE IF (string(i:i) == """") THEN
+        out_string(j:j+5) = "&quot;"
+        j = j + 6
+      ELSE
+        out_string(j:j) = string(i:i)
+        j = j + 1
+      END IF
+    END DO
+
+  END SUBROUTINE substitute_special_xml_tokens
 
 ! *****************************************************************************
 

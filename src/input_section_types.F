@@ -39,7 +39,7 @@ MODULE input_section_types
        val_write,val_get,no_t
   USE input_keyword_types, ONLY: keyword_type, keyword_create, keyword_retain,&
        keyword_release, description_string_length, keyword_p_type,&
-       keyword_describe, keyword_describe_html
+       keyword_describe, keyword_describe_html, write_keyword_xml
   USE cp_linked_list_val, ONLY: cp_sll_val_type, cp_sll_val_create,&
        cp_sll_val_next, cp_sll_val_dealloc, cp_sll_val_get_length,&
        cp_sll_val_get_el_at, cp_sll_val_p_type
@@ -63,6 +63,7 @@ MODULE input_section_types
   PUBLIC :: section_vals_create, section_vals_retain, section_vals_release,&
        section_vals_get, section_vals_get_subs_vals, section_vals_val_get,&
        section_vals_write, section_vals_add_values, section_vals_get_subs_vals2
+  PUBLIC :: write_section_xml
 
 !!***
 !****************************************************************************
@@ -1617,6 +1618,64 @@ RECURSIVE SUBROUTINE section_vals_write(section_vals,unit_nr,hide_root,error)
   END IF
   CALL cp_error_dealloc_ref(suberror)
 END SUBROUTINE section_vals_write
-!***************************************************************************
+
+! *****************************************************************************
+
+  RECURSIVE SUBROUTINE write_section_xml(section,level,unit_number,error)
+
+    TYPE(section_type), POINTER                  :: section
+    INTEGER, INTENT(IN)                          :: level,unit_number
+    TYPE(cp_error_type), INTENT(INOUT), OPTIONAL :: error
+
+    CHARACTER(LEN=*), PARAMETER :: routineN = "write_section_xml",&
+                                   routineP=moduleN//':'//routineN
+
+    INTEGER          :: i,l0,l1
+    LOGICAL          :: failure
+
+!   ---------------------------------------------------------------------------
+
+    failure = .FALSE.
+
+    IF (ASSOCIATED(section)) THEN
+
+      CPPrecondition(section%ref_count>0,cp_failure_level,routineP,error,failure)
+
+!     *** Indentation for current level, next level, etc. ***
+
+      l0 = level
+      l1 = level + 1
+
+      WRITE (UNIT=unit_number,FMT="(A)")&
+        REPEAT(" ",l0)//"<SECTION>",&
+        REPEAT(" ",l1)//"<NAME>"//TRIM(section%name)//"</NAME>",&
+        REPEAT(" ",l1)//"<DESCRIPTION>"//TRIM(section%description)//&
+        "</DESCRIPTION>"
+
+      IF (section%required) THEN
+        WRITE (UNIT=unit_number,FMT="(A)") REPEAT(" ",l1)//"<REQUIRED/>"
+      END IF
+
+      IF (section%repeats) THEN
+        WRITE (UNIT=unit_number,FMT="(A)") REPEAT(" ",l1)//"<REPEATS/>"
+      END IF
+
+      DO i=1,section%n_keywords
+        CALL write_keyword_xml(section%keywords(i)%keyword,l1,unit_number,&
+                               error)
+      END DO
+
+      DO i=1,section%n_subsections
+        CALL write_section_xml(section%subsections(i)%section,l1,unit_number,&
+                               error)
+      END DO
+
+      WRITE (UNIT=unit_number,FMT="(A)") REPEAT(" ",l0)//"</SECTION>"
+
+    END IF
+
+  END SUBROUTINE write_section_xml
+
+! *****************************************************************************
 
 END MODULE input_section_types

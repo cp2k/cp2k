@@ -37,7 +37,7 @@
 !!
 !------------------------------------------------------------------------------
 PROGRAM cp2k
-  USE cp2k_runs,         ONLY : write_cp2k_html_manual
+  USE cp2k_runs,         ONLY : write_cp2k_html_manual, write_xml_file
   USE machine,           ONLY : m_iargc,m_getarg
   USE message_passing,   ONLY : mp_sync
   USE kinds,             ONLY : default_string_length
@@ -49,7 +49,7 @@ PROGRAM cp2k
   INTEGER                              :: output_unit
   INTEGER                              :: ierr, i, n_arg, i_arg
   LOGICAL                              :: check, manual, usage, echo_input, command_line_error
-  LOGICAL                              :: run_it, force_run, has_input
+  LOGICAL                              :: run_it, force_run, has_input, xml
   ! this is the only place that should need unit 6 all others will get 
   ! something reasonable from the cp_logger
   INTEGER, PARAMETER                   :: default_output_unit = 6 
@@ -80,6 +80,7 @@ PROGRAM cp2k
      run_it     =.TRUE.
      force_run  =.FALSE.
      command_line_error=.FALSE.
+     xml = .FALSE.
      input_file_name  = "Missing input file name"   ! no default
      output_file_name = "__STD_OUT__"               ! by default we go to std_out
 
@@ -139,6 +140,9 @@ arg_loop: DO WHILE (i_arg<n_arg)
               command_line_error=.TRUE.
               EXIT arg_loop
            ENDIF
+        CASE("--xml")
+           xml = .TRUE.
+           run_it = .FALSE.
         CASE default
            ! if the last argument does not start with a - it is an input filename
 !MK in order to digest the additional flags of mpirun
@@ -207,6 +211,12 @@ arg_loop: DO WHILE (i_arg<n_arg)
               CALL write_cp2k_html_manual()
            END IF
         ENDIF
+
+        IF (xml) THEN
+          IF (default_para_env%mepos == default_para_env%source) THEN
+            CALL write_xml_file()
+          END IF
+        END IF
 
         IF (check) then
            CALL check_input(input_file_name,output_file_name,echo_input=echo_input,&

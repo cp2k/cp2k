@@ -74,7 +74,7 @@ MODULE cp2k_runs
   USE input_section_types, ONLY: section_type, section_release,&
        section_vals_type, section_vals_release, section_vals_create,&
        section_vals_write, section_vals_get_subs_vals, section_describe_html,&
-       section_vals_val_get, section_describe_index_html
+       section_vals_val_get, section_describe_index_html, write_section_xml
   USE input_keyword_types, only: keyword_release
   USE input_cp2k,                      ONLY: create_cp2k_root_section,&
        check_cp2k_input, parsed_cp2k_input
@@ -84,7 +84,7 @@ MODULE cp2k_runs
   IMPLICIT NONE
 
   PRIVATE
-  PUBLIC  :: cp2k_run, write_cp2k_html_manual
+  PUBLIC  :: cp2k_run, write_cp2k_html_manual, write_xml_file
   CHARACTER(LEN=*), PARAMETER :: moduleN = "cp2k_run"
 CONTAINS
 
@@ -560,7 +560,53 @@ CONTAINS
        call close_file(unit_nr)
     END IF
   END SUBROUTINE write_cp2k_html_manual
-!***************************************************************************
+
+! *****************************************************************************
+
+  SUBROUTINE write_xml_file(error)
+
+    TYPE(cp_error_type), OPTIONAL, INTENT(INOUT) :: error
+
+    CHARACTER(LEN=*), PARAMETER :: routineN = "write_xml_file",&
+                                   routineP=moduleN//":"//routineN
+
+    TYPE(section_type), POINTER :: root_section
+    INTEGER                     :: unit_number
+    LOGICAL                     :: failure
+
+!   ---------------------------------------------------------------------------
+
+    failure = .FALSE.
+
+    IF (.NOT.failure) THEN
+
+      NULLIFY(root_section)
+
+      CALL create_cp2k_root_section(root_section,error=error)
+
+      CALL keyword_release(root_section%keywords(0)%keyword,error)
+
+      CALL open_file(unit_number=unit_number,&
+                     file_name="cp2k_input.xml",&
+                     file_action="WRITE",&
+                     file_status="REPLACE")
+
+      WRITE (UNIT=unit_number,FMT="(A)")&
+        "<?xml version=""1.0"" encoding=""ISO-8859-1""?>",&
+        "<?xml-stylesheet type=""text/xsl"" href=""cp2k_input.xsl""?>",&
+        "<INPUT>"
+
+      CALL write_section_xml(root_section,0,unit_number,error)
+
+      WRITE (UNIT=unit_number,FMT="(A)") "</INPUT>"
+
+      CALL close_file(unit_number)
+
+    END IF
+
+  END SUBROUTINE write_xml_file
+
+! *****************************************************************************
 
 END MODULE cp2k_runs
 !!*****

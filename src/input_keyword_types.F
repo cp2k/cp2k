@@ -50,11 +50,13 @@ MODULE input_keyword_types
                                              val_release,&
                                              val_retain,&
                                              val_type,&
-                                             val_write
+                                             val_write,&
+                                             val_write_internal
   USE kinds,                           ONLY: default_string_length,&
                                              dp
   USE output_utilities,                ONLY: print_message
-  USE string_utilities,                ONLY: uppercase
+  USE string_utilities,                ONLY: substitute_special_xml_tokens,&
+                                             uppercase
   USE timings,                         ONLY: timeset,&
                                              timestop
 
@@ -69,7 +71,8 @@ MODULE input_keyword_types
   INTEGER, SAVE, PRIVATE :: last_keyword_id=0
   
   PUBLIC :: keyword_p_type, keyword_type, keyword_create, keyword_retain,&
-       keyword_release, keyword_get, keyword_describe, keyword_describe_html
+       keyword_release, keyword_get, keyword_describe,&
+       keyword_describe_html, write_keyword_xml
 
 !!***
 !****************************************************************************
@@ -663,7 +666,7 @@ SUBROUTINE keyword_describe(keyword, unit_nr, level,error)
                  WRITE(unit_nr,"(i6,' keywords are expected')") keyword%n_var
               END IF
            CASE (no_t)
-              WRITE(unit_nr,"('  Nonstadard type.')")
+              WRITE(unit_nr,"('  Non-standard type.')")
            CASE default
               CPAssert(.FALSE.,cp_warning_level,routineP,error,failure)           
            END SELECT
@@ -861,12 +864,137 @@ SUBROUTINE keyword_describe_html(keyword, unit_nr, error)
           WRITE(unit_nr,"(a)",advance="NO") '<TR><TD WIDTH="10%"><TD>variants: '
           DO i=2,SIZE(keyword%names)
              WRITE(unit_nr,"(a)",advance="NO") TRIM(keyword%names(i))
-             IF (i .NE. SIZE(keyword%names)) THEN 
+             IF (i .NE. SIZE(keyword%names)) THEN
                  WRITE (unit_nr,'(a)',advance='NO') ', '
              ENDIF
           END DO
       ENDIF
     ENDIF
 END SUBROUTINE keyword_describe_html
-!***************************************************************************
+
+! *****************************************************************************
+
+  SUBROUTINE write_keyword_xml(keyword,level,unit_number,error)
+
+    TYPE(keyword_type), POINTER              :: keyword
+    INTEGER, INTENT(IN)                      :: level,unit_number
+    TYPE(cp_error_type), OPTIONAL,&
+      INTENT(INOUT)                          :: error
+
+    CHARACTER(LEN=*), PARAMETER :: routineN = "write_keyword_xml",&
+                                   routineP = moduleN//':'//routineN
+
+    CHARACTER(LEN=1000) :: string
+    CHARACTER(LEN=5)    :: keyword_n_var
+    INTEGER             :: i,j,l0,l1,l2,l3,l4
+    LOGICAL             :: failure
+
+!   ---------------------------------------------------------------------------
+
+    failure = .FALSE.
+
+    CPPrecondition(ASSOCIATED(keyword),cp_failure_level,routineP,error,failure)
+    CPPrecondition(keyword%ref_count>0,cp_failure_level,routineP,error,failure)
+
+    IF (.NOT.failure) THEN
+
+!     *** Indentation for current level, next level, etc. ***
+
+      l0 = level
+      l1 = level + 1
+      l2 = level + 2
+      l3 = level + 3
+      l4 = level + 4
+
+!     *** Write keyword element ***
+
+      WRITE (UNIT=unit_number,FMT="(A)")&
+        REPEAT(" ",l0)//"<KEYWORD>",&
+        REPEAT(" ",l1)//"<NAME type=""default"">"//&
+        TRIM(keyword%names(1))//"</NAME>"
+
+      DO i=2,SIZE(keyword%names)
+        WRITE (UNIT=unit_number,FMT="(A)")&
+          REPEAT(" ",l1)//"<NAME type=""alias"">"//&
+          TRIM(keyword%names(i))//"</NAME>"
+      END DO
+
+      IF (keyword%required) THEN
+        WRITE (UNIT=unit_number,FMT="(A)") REPEAT(" ",l1)//"<REQUIRED/>"
+      END IF
+
+      IF (keyword%repeats) THEN
+        WRITE (UNIT=unit_number,FMT="(A)") REPEAT(" ",l1)//"<REPEATS/>"
+      END IF
+
+      keyword_n_var = ""
+      WRITE (UNIT=keyword_n_var,FMT="(I5)") keyword%n_var
+
+      WRITE (UNIT=unit_number,FMT="(A)")&
+        REPEAT(" ",l1)//"<DATA_TYPE>",&
+        REPEAT(" ",l2)//"<N_VAR>"//TRIM(ADJUSTL(keyword_n_var))//"</N_VAR>"
+
+      SELECT CASE(keyword%type_of_var)
+      CASE (logical_t)
+        WRITE (UNIT=unit_number,FMT="(A)") REPEAT(" ",l2)//"<BOOLEAN/>"
+      CASE (integer_t)
+        WRITE (UNIT=unit_number,FMT="(A)") REPEAT(" ",l2)//"<INTEGER/>"
+      CASE (real_t)
+        WRITE (UNIT=unit_number,FMT="(A)") REPEAT(" ",l2)//"<FLOAT/>"
+      CASE (char_t)
+        WRITE (UNIT=unit_number,FMT="(A)") REPEAT(" ",l2)//"<STRING/>"
+      CASE (enum_t)
+        WRITE (UNIT=unit_number,FMT="(A)") REPEAT(" ",l2)//"<ENUMERATION>"
+        DO i=1,SIZE(keyword%enum%c_vals)
+          WRITE (UNIT=unit_number,FMT="(A)")&
+            REPEAT(" ",l3)//"<ITEM>",&
+            REPEAT(" ",l4)//"<NAME>"//&
+            TRIM(ADJUSTL(keyword%enum%c_vals(i)))//"</NAME>",&
+            REPEAT(" ",l4)//"<DESCRIPTION>"//&
+            TRIM(ADJUSTL(keyword%enum%desc(i)))//"</DESCRIPTION>",&
+            REPEAT(" ",l3)//"</ITEM>"
+        END DO
+        IF (keyword%enum%strict) THEN
+          WRITE (UNIT=unit_number,FMT="(A)") REPEAT(" ",l3)//"<STRICT/>"
+        END IF
+        WRITE (UNIT=unit_number,FMT="(A)") REPEAT(" ",l2)//"</ENUMERATION>"
+!MK   CASE (no_t)
+!MK     no standard type, no action?
+      CASE DEFAULT
+        CPAssert(.FALSE.,cp_warning_level,routineP,error,failure)
+      END SELECT
+
+      WRITE (UNIT=unit_number,FMT="(A)") REPEAT(" ",l1)//"</DATA_TYPE>"
+
+      CALL substitute_special_xml_tokens(keyword%usage,string,ltu=.TRUE.)
+
+      WRITE (UNIT=unit_number,FMT="(A)")&
+        REPEAT(" ",l1)//"<USAGE>"//TRIM(string)//"</USAGE>",&
+        REPEAT(" ",l1)//"<DESCRIPTION>"//&
+        TRIM(keyword%description)//"</DESCRIPTION>"
+
+      IF (ASSOCIATED(keyword%default_value).AND.&
+          (keyword%type_of_var /= no_t)) THEN
+        CALL val_write_internal(keyword%default_value,string,error)
+        WRITE (UNIT=unit_number,FMT="(A)")&
+          REPEAT(" ",l1)//"<DEFAULT_VALUE>"//&
+          TRIM(ADJUSTL(string))//"</DEFAULT_VALUE>"
+      END IF
+
+      IF (ASSOCIATED(keyword%lone_keyword_value).AND.&
+          (keyword%type_of_var /= no_t)) THEN
+        CALL val_write_internal(keyword%lone_keyword_value,string,error)
+        WRITE (UNIT=unit_number,FMT="(A)")&
+          REPEAT(" ",l1)//"<LONE_KEYWORD_VALUE>"//&
+          TRIM(ADJUSTL(string))//"</LONE_KEYWORD_VALUE>"
+      END IF
+
+      WRITE (UNIT=unit_number,FMT="(A)") REPEAT(" ",l0)//"</KEYWORD>"
+
+    END IF
+
+  END SUBROUTINE write_keyword_xml
+
+! *****************************************************************************
+
 END MODULE input_keyword_types
