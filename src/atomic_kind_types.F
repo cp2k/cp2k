@@ -214,6 +214,9 @@ CONTAINS
       atomic_kind_set(ikind)%natom = 0
       atomic_kind_set(ikind)%number_of_grid_points = 0
       atomic_kind_set(ikind)%ldaCoreRadius = 0.0_dp
+      atomic_kind_set(ikind)%paw_atom = .FALSE.
+      atomic_kind_set(ikind)%ngrid_rad = 40 
+      atomic_kind_set(ikind)%ngrid_ang = 50 
     END DO
 
   END SUBROUTINE allocate_atomic_kind_set
@@ -263,11 +266,9 @@ CONTAINS
 !        IF (ASSOCIATED(atomic_kind_set(ikind)%hard_basis_set)) THEN
 !          CALL deallocate_gto_basis_set(atomic_kind_set(ikind)%hard_basis_set)
 !        END IF
-  WRITE(*,*) 'af de hard'
         IF (ASSOCIATED(atomic_kind_set(ikind)%soft_basis_set)) THEN
           CALL deallocate_gto_basis_set(atomic_kind_set(ikind)%soft_basis_set)
         END IF
-   WRITE(*,*) 'af de soft'
         IF (ASSOCIATED(atomic_kind_set(ikind)%paw_proj_set)) THEN
           CALL deallocate_paw_proj_set(atomic_kind_set(ikind)%paw_proj_set)
         END IF
@@ -1055,9 +1056,6 @@ CONTAINS
     potential_type = ""
     z = -1
 
-    ngrid_rad = 40
-    ngrid_ang = 50
-
     CALL cp_sll_int_create(min_bas_sll)
     CALL cp_error_init(error)
 
@@ -1159,6 +1157,16 @@ CONTAINS
                       cp_assertion_failed,routineP,&
                       "internal ldaCoreRadius> ldaCoreRadius",error,failure)
               END IF
+          CASE ("LEBEDEV_GRID")
+             CALL read_object(atomic_kind%ngrid_ang)
+             CALL cp_assert(atomic_kind%ngrid_ang > 0,&
+                      cp_failure_level,cp_assertion_failed,routineP,&
+                      "# point lebedev grid < 0",error,failure)
+          CASE ("RADIAL_GRID")
+             CALL read_object(atomic_kind%ngrid_rad)
+             CALL cp_assert(atomic_kind%ngrid_rad > 0,&
+                      cp_failure_level,cp_assertion_failed,routineP,&
+                      "# point radial grid < 0",error,failure)
           CASE DEFAULT
             CALL stop_parser(routine_name,module_name,__LINE__,"INVALID_KEYWORD")
           END SELECT
@@ -1237,9 +1245,6 @@ CONTAINS
       CALL set_gto_basis_set(gto_basis_set=atomic_kind%orb_basis_set,&
                              norm_type=norb)
     END IF
-
-    atomic_kind%ngrid_rad = ngrid_rad
-    atomic_kind%ngrid_ang = ngrid_ang
 
 !   *** Allocate and initialise the auxiliary basis set data set structure ***
 
@@ -1337,7 +1342,6 @@ CONTAINS
         atomic_kind => atomic_kind_set(ikind)
         CALL read_atomic_kind(atomic_kind,globenv)
       END DO
-
     ELSE
 
       CALL stop_program(routine_name,module_name,__LINE__,&
