@@ -1,5 +1,5 @@
 .SUFFIXES: .F .dep .o .f90 .for
-
+SHELL = /bin/sh
 # the home dir is taken from the current directory: you must cd to the makefiles
 # directory before executing make
 CP2KHOME  := $(PWD)/..
