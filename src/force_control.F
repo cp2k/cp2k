@@ -356,7 +356,7 @@ SUBROUTINE force_env_create(force_env,fist_env,qs_env,kg_env,error)
              sab_orb=sab_orb,&
              error=error)
         CALL neigh_group_create(&
-             force_env%local_particles(i)%neigh_group,&
+             force_env%local_particles(1)%neigh_group,&
              n_kinds=SIZE(force_env%atomic_kind_sets(1)%atomic_kind_set),&
              neigh_sets_ptr=sab_orb,&
              error=error)
