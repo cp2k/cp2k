@@ -1,0 +1,948 @@
+!-----------------------------------------------------------------------------!
+!   CP2K: A general program to perform molecular dynamics simulations         !
+!   Copyright (C) 2000  CP2K developers group                                 !
+!-----------------------------------------------------------------------------!
+!!****** cp2k/atomic_kind_types [1.0] *
+!!
+!!   NAME
+!!     atomic_kind_types
+!!
+!!   FUNCTION
+!!
+!!   AUTHOR
+!!     MK (02.01.2002)
+!!
+!!   MODIFICATION HISTORY
+!!     none
+!!
+!!   SOURCE
+!******************************************************************************
+
+MODULE atomic_kind_types
+
+  USE kinds, ONLY: wp => dp
+
+  USE basis_set_types,          ONLY: allocate_gto_basis_set,&
+                                      deallocate_gto_basis_set,&
+                                      get_gto_basis_set,&
+                                      gto_basis_set_type,&
+                                      init_aux_basis_set,&
+                                      init_orb_basis_set,&
+                                      read_gto_basis_set,&
+                                      write_aux_basis_set,&
+                                      write_gto_basis_set,&
+                                      write_orb_basis_set
+  USE external_potential_types, ONLY: all_potential_type,&
+                                      allocate_potential,&
+                                      deallocate_potential,&
+                                      get_potential,&
+                                      gth_potential_type,&
+                                      init_potential,&
+                                      read_potential,&
+                                      write_potential
+  USE global_types,             ONLY: global_environment_type
+  USE memory_utilities,         ONLY: reallocate
+  USE periodic_table,           ONLY: ptable
+  USE qs_parser,                ONLY: finish_parser,&
+                                      read_object,&
+                                      start_parser,&
+                                      test_object
+  USE string_utilities,         ONLY: integer_to_string,&
+                                      uppercase
+  USE termination,              ONLY: stop_memory,&
+                                      stop_program
+
+  IMPLICIT NONE
+
+  PRIVATE
+
+  INTEGER, PARAMETER :: max_name_length = 60
+
+! *** Define the atomic kind types ***
+
+  TYPE atomic_kind_type
+    PRIVATE
+    TYPE(all_potential_type), POINTER :: all_potential
+    TYPE(gth_potential_type), POINTER :: gth_potential
+    TYPE(gto_basis_set_type), POINTER :: aux_basis_set
+    TYPE(gto_basis_set_type), POINTER :: orb_basis_set
+    CHARACTER(LEN=max_name_length)    :: name
+    CHARACTER(LEN=2)                  :: element_symbol
+    REAL(wp)                          :: mass
+    INTEGER                           :: kind_number,natom,&
+                                         number_of_grid_points
+    INTEGER, DIMENSION(:), POINTER    :: atom_list
+  END TYPE atomic_kind_type
+
+! *** Public subroutines ***
+
+  PUBLIC :: allocate_atomic_kind_set,&
+            deallocate_atomic_kind_set,&
+            get_atomic_kind,&
+            get_atomic_kind_set,&
+            init_atomic_kind_set,&
+            read_atomic_kind_set,&
+            set_atomic_kind,&
+            write_atomic_kind,&
+            write_atomic_kind_set,&
+            write_gto_basis_sets
+
+! *** Public data types ***
+
+  PUBLIC :: atomic_kind_type
+
+! *****************************************************************************
+
+CONTAINS
+
+! *****************************************************************************
+
+  SUBROUTINE allocate_atomic_kind_set(atomic_kind_set,nkind)
+
+!   Purpose: Allocate an atomic kind set.
+
+!   History: - Creation (08.01.2002, Matthias Krack)
+
+!   ***************************************************************************
+
+    TYPE(atomic_kind_type), DIMENSION(:), POINTER :: atomic_kind_set
+    INTEGER, INTENT(IN)                           :: nkind
+
+!   *** Local parameters ***
+
+    CHARACTER(LEN=*), PARAMETER :: routine =&
+      "SUBROUTINE allocate_atomic_kind_set (MODULE atomic_kind_types)"
+
+!   *** Local variables ***
+
+    INTEGER :: ikind,istat
+
+!   ---------------------------------------------------------------------------
+
+    IF (ASSOCIATED(atomic_kind_set)) THEN
+      CALL deallocate_atomic_kind_set(atomic_kind_set)
+    END IF
+
+    ALLOCATE (atomic_kind_set(nkind),STAT=istat)
+    IF (istat /= 0) CALL stop_memory(routine,"atomic_kind_set(nkind)",0)
+
+    DO ikind=1,nkind
+      NULLIFY (atomic_kind_set(ikind)%all_potential)
+      NULLIFY (atomic_kind_set(ikind)%gth_potential)
+      NULLIFY (atomic_kind_set(ikind)%aux_basis_set)
+      NULLIFY (atomic_kind_set(ikind)%orb_basis_set)
+      NULLIFY (atomic_kind_set(ikind)%atom_list)
+    END DO
+
+  END SUBROUTINE allocate_atomic_kind_set
+
+! *****************************************************************************
+
+  SUBROUTINE deallocate_atomic_kind_set(atomic_kind_set)
+
+!   Purpose: Deallocate an atomic kind set.
+
+!   History: - Creation (09.01.2002, Matthias Krack)
+
+!   ***************************************************************************
+
+    TYPE(atomic_kind_type), DIMENSION(:), POINTER :: atomic_kind_set
+
+!   *** Local parameters ***
+
+    CHARACTER(LEN=*), PARAMETER :: routine =&
+      "SUBROUTINE deallocate_atomic_kind_set (MODULE atomic_kind_types)"
+
+!   *** Local variables ***
+
+    INTEGER :: ikind,istat,nkind
+
+!   ---------------------------------------------------------------------------
+
+    IF (ASSOCIATED(atomic_kind_set)) THEN
+      nkind = SIZE(atomic_kind_set)
+      DO ikind=1,nkind
+        IF (ASSOCIATED(atomic_kind_set(ikind)%all_potential)) THEN
+          CALL deallocate_potential(atomic_kind_set(ikind)%all_potential)
+        END IF
+        IF (ASSOCIATED(atomic_kind_set(ikind)%gth_potential)) THEN
+          CALL deallocate_potential(atomic_kind_set(ikind)%gth_potential)
+        END IF
+        IF (ASSOCIATED(atomic_kind_set(ikind)%aux_basis_set)) THEN
+          CALL deallocate_gto_basis_set(atomic_kind_set(ikind)%aux_basis_set)
+        END IF
+        IF (ASSOCIATED(atomic_kind_set(ikind)%orb_basis_set)) THEN
+          CALL deallocate_gto_basis_set(atomic_kind_set(ikind)%orb_basis_set)
+        END IF
+        DEALLOCATE (atomic_kind_set(ikind)%atom_list,STAT=istat)
+        IF (istat /= 0) THEN
+          CALL stop_memory(routine,"atomic_kind_set(ikind)%atom_list")
+        END IF
+      END DO
+      DEALLOCATE (atomic_kind_set,STAT=istat)
+      IF (istat /= 0) CALL stop_memory(routine,"atomic_kind_set")
+    ELSE
+      CALL stop_program(routine,&
+                        "The pointer atomic_kind_set is not associated and "//&
+                        "cannot be deallocated")
+    END IF
+
+  END SUBROUTINE deallocate_atomic_kind_set
+
+! *****************************************************************************
+
+  SUBROUTINE get_atomic_kind(atomic_kind,all_potential,gth_potential,&
+                             aux_basis_set,orb_basis_set,element_symbol,name,&
+                             mass,kind_number,natom,atom_list,&
+                             alpha_core_charge,ccore_charge,&
+                             core_charge_radius,z,zeff)
+
+!   Purpose: Get informations about an atomic kind.
+
+!   History: - Creation (10.01.2002, Matthias Krack)
+
+!   ***************************************************************************
+
+    TYPE(atomic_kind_type), POINTER             :: atomic_kind
+    TYPE(all_potential_type), OPTIONAL, POINTER :: all_potential
+    TYPE(gth_potential_type), OPTIONAL, POINTER :: gth_potential
+    TYPE(gto_basis_set_type), OPTIONAL, POINTER :: aux_basis_set,&
+                                                   orb_basis_set
+    CHARACTER(LEN=2), OPTIONAL, INTENT(OUT)     :: element_symbol
+    CHARACTER(LEN=max_name_length), OPTIONAL,&
+      INTENT(OUT)                               :: name
+    REAL(wp), OPTIONAL, INTENT(OUT)             :: alpha_core_charge,&
+                                                   ccore_charge,&
+                                                   core_charge_radius,mass
+    INTEGER, OPTIONAL, INTENT(OUT)              :: kind_number,natom,z,zeff
+    INTEGER, DIMENSION(:), OPTIONAL, POINTER    :: atom_list
+
+!   ---------------------------------------------------------------------------
+
+    IF (PRESENT(all_potential)) all_potential => atomic_kind%all_potential
+    IF (PRESENT(gth_potential)) gth_potential => atomic_kind%gth_potential
+    IF (PRESENT(aux_basis_set)) aux_basis_set => atomic_kind%aux_basis_set
+    IF (PRESENT(orb_basis_set)) orb_basis_set => atomic_kind%orb_basis_set
+    IF (PRESENT(element_symbol)) element_symbol = atomic_kind%element_symbol
+    IF (PRESENT(name)) name = atomic_kind%name
+    IF (PRESENT(mass)) mass = atomic_kind%mass
+    IF (PRESENT(kind_number)) kind_number = atomic_kind%kind_number
+    IF (PRESENT(natom)) natom = atomic_kind%natom
+    IF (PRESENT(atom_list)) atom_list => atomic_kind%atom_list
+    IF (PRESENT(alpha_core_charge)) THEN
+      IF (ASSOCIATED(atomic_kind%all_potential)) THEN
+        CALL get_potential(potential=atomic_kind%all_potential,&
+                           alpha_core_charge=alpha_core_charge)
+      ELSE IF (ASSOCIATED(atomic_kind%gth_potential)) THEN
+        CALL get_potential(potential=atomic_kind%gth_potential,&
+                           alpha_core_charge=alpha_core_charge)
+      ELSE
+        alpha_core_charge = 0.0_wp
+      END IF
+    END IF
+    IF (PRESENT(ccore_charge)) THEN
+      IF (ASSOCIATED(atomic_kind%all_potential)) THEN
+        CALL get_potential(potential=atomic_kind%all_potential,&
+                           ccore_charge=ccore_charge)
+      ELSE IF (ASSOCIATED(atomic_kind%gth_potential)) THEN
+        CALL get_potential(potential=atomic_kind%gth_potential,&
+                           ccore_charge=ccore_charge)
+      ELSE
+        ccore_charge = 0.0_wp
+      END IF
+    END IF
+    IF (PRESENT(core_charge_radius)) THEN
+      IF (ASSOCIATED(atomic_kind%all_potential)) THEN
+        CALL get_potential(potential=atomic_kind%all_potential,&
+                           core_charge_radius=core_charge_radius)
+      ELSE IF (ASSOCIATED(atomic_kind%gth_potential)) THEN
+        CALL get_potential(potential=atomic_kind%gth_potential,&
+                           core_charge_radius=core_charge_radius)
+      ELSE
+        core_charge_radius = 0.0_wp
+      END IF
+    END IF
+    IF (PRESENT(z)) THEN
+      IF (ASSOCIATED(atomic_kind%all_potential)) THEN
+        CALL get_potential(potential=atomic_kind%all_potential,z=z)
+      ELSE IF (ASSOCIATED(atomic_kind%gth_potential)) THEN
+        CALL get_potential(potential=atomic_kind%gth_potential,z=z)
+      ELSE
+        z = 0
+      END IF
+    END IF
+    IF (PRESENT(zeff)) THEN
+      IF (ASSOCIATED(atomic_kind%all_potential)) THEN
+        CALL get_potential(potential=atomic_kind%all_potential,zeff=zeff)
+      ELSE IF (ASSOCIATED(atomic_kind%gth_potential)) THEN
+        CALL get_potential(potential=atomic_kind%gth_potential,zeff=zeff)
+      ELSE
+        zeff = 0
+      END IF
+    END IF
+
+  END SUBROUTINE get_atomic_kind
+
+! *****************************************************************************
+
+  SUBROUTINE get_atomic_kind_set(atomic_kind_set,maxatom,maxcgf,maxco,maxl,&
+                                 maxlppl,maxlppnl,maxpgf,maxppnl,maxsgf,&
+                                 maxsgf_set,maxshell,&
+                                 natom,nelectron,ncgf,npgf,nset,nsgf,nshell,&
+                                 all_potential_present,gth_potential_present,&
+                                 kind_of)
+
+!   Purpose: Get informations about an atomic kind set.
+
+!   History: - Creation (14.01.2002, Matthias Krack)
+
+!   ***************************************************************************
+
+    TYPE(atomic_kind_type), DIMENSION(:), POINTER :: atomic_kind_set
+    INTEGER, OPTIONAL, INTENT(OUT)                :: maxatom,maxcgf,maxco,&
+                                                     maxl,maxlppl,maxlppnl,&
+                                                     maxpgf,maxppnl,maxsgf,&
+                                                     maxsgf_set,maxshell,&
+                                                     natom,ncgf,nelectron,&
+                                                     npgf,nset,nsgf,nshell
+    LOGICAL, OPTIONAL, INTENT(OUT)                :: all_potential_present,&
+                                                     gth_potential_present
+    INTEGER, DIMENSION(:), OPTIONAL, INTENT(OUT)  :: kind_of
+
+!   *** Local parameters ***
+
+    CHARACTER(LEN=*), PARAMETER :: routine =&
+      "SUBROUTINE get_atomic_kind_set (MODULE atomic_kind_types)"
+
+!   *** Local variables ***
+
+    TYPE(atomic_kind_type), POINTER   :: atomic_kind
+    TYPE(all_potential_type), POINTER :: all_potential
+    TYPE(gth_potential_type), POINTER :: gth_potential
+    TYPE(gto_basis_set_type), POINTER :: aux_basis_set,orb_basis_set
+    INTEGER                           :: atom_a,iatom,ikind,imax,n,nkind,zeff
+
+    REAL(wp), DIMENSION(:,:), POINTER :: zet
+
+!   ---------------------------------------------------------------------------
+
+    IF (ASSOCIATED(atomic_kind_set)) THEN
+      IF (PRESENT(maxatom)) maxatom = 0
+      IF (PRESENT(maxcgf)) maxcgf = 0
+      IF (PRESENT(maxco)) maxco = 0
+      IF (PRESENT(maxl)) maxl = -1
+      IF (PRESENT(maxlppl)) maxlppl = -1
+      IF (PRESENT(maxlppnl)) maxlppnl = -1
+      IF (PRESENT(maxpgf)) maxpgf = 0
+      IF (PRESENT(maxppnl)) maxppnl = 0
+      IF (PRESENT(maxsgf)) maxsgf = 0
+      IF (PRESENT(maxsgf_set)) maxsgf_set = 0
+      IF (PRESENT(maxshell)) maxshell = 0
+      IF (PRESENT(natom)) natom = 0
+      IF (PRESENT(ncgf)) ncgf = 0
+      IF (PRESENT(nelectron)) nelectron = 0
+      IF (PRESENT(npgf)) npgf = 0
+      IF (PRESENT(nset)) nset = 0
+      IF (PRESENT(nsgf)) nsgf = 0
+      IF (PRESENT(nshell)) nshell = 0
+      IF (PRESENT(all_potential_present)) all_potential_present = .FALSE.
+      IF (PRESENT(gth_potential_present)) gth_potential_present = .FALSE.
+      nkind = SIZE(atomic_kind_set)
+      DO ikind=1,nkind
+        atomic_kind => atomic_kind_set(ikind)
+        CALL get_atomic_kind(atomic_kind=atomic_kind,&
+                             all_potential=all_potential,&
+                             gth_potential=gth_potential,&
+                             aux_basis_set=aux_basis_set,&
+                             orb_basis_set=orb_basis_set)
+        IF (PRESENT(maxatom)) THEN
+          maxatom = MAX(maxatom,atomic_kind%natom)
+        END IF
+        IF (PRESENT(maxlppl).AND.ASSOCIATED(gth_potential)) THEN
+          CALL get_potential(potential=gth_potential,nexp_ppl=n)
+          maxlppl = MAX(maxlppl,2*(n - 1))
+        END IF
+        IF (PRESENT(maxlppnl).AND.ASSOCIATED(gth_potential)) THEN
+          CALL get_potential(potential=gth_potential,lprj_ppnl_max=imax)
+          maxlppnl = MAX(maxlppnl,imax)
+        END IF
+        IF (PRESENT(maxcgf)) THEN
+          IF (ASSOCIATED(aux_basis_set)) THEN
+            CALL get_gto_basis_set(gto_basis_set=aux_basis_set,ncgf=imax)
+            maxcgf = MAX(maxcgf,imax)
+          END IF
+          IF (ASSOCIATED(orb_basis_set)) THEN
+            CALL get_gto_basis_set(gto_basis_set=orb_basis_set,ncgf=imax)
+            maxcgf = MAX(maxcgf,imax)
+          END IF
+        END IF
+        IF (PRESENT(maxco)) THEN
+          IF (ASSOCIATED(aux_basis_set)) THEN
+            CALL get_gto_basis_set(gto_basis_set=aux_basis_set,maxco=imax)
+            maxco = MAX(maxco,imax)
+          END IF
+          IF (ASSOCIATED(orb_basis_set)) THEN
+            CALL get_gto_basis_set(gto_basis_set=orb_basis_set,maxco=imax)
+            maxco = MAX(maxco,imax)
+          END IF
+        END IF
+        IF (PRESENT(maxl)) THEN
+          IF (ASSOCIATED(aux_basis_set)) THEN
+            CALL get_gto_basis_set(gto_basis_set=aux_basis_set,maxl=imax)
+            maxl = MAX(maxl,imax)
+          END IF
+          IF (ASSOCIATED(orb_basis_set)) THEN
+            CALL get_gto_basis_set(gto_basis_set=orb_basis_set,maxl=imax)
+            maxl = MAX(maxl,imax)
+          END IF
+        END IF
+        IF (PRESENT(maxpgf)) THEN
+          IF (ASSOCIATED(aux_basis_set)) THEN
+            CALL get_gto_basis_set(gto_basis_set=aux_basis_set,maxpgf=imax)
+            maxpgf = MAX(maxpgf,imax)
+          END IF
+          IF (ASSOCIATED(orb_basis_set)) THEN
+            CALL get_gto_basis_set(gto_basis_set=orb_basis_set,maxpgf=imax)
+            maxpgf = MAX(maxpgf,imax)
+          END IF
+        END IF
+        IF (PRESENT(maxppnl).AND.ASSOCIATED(gth_potential)) THEN
+          CALL get_potential(potential=gth_potential,nppnl=imax)
+          maxppnl = MAX(maxppnl,imax)
+        END IF
+        IF (PRESENT(maxsgf)) THEN
+          IF (ASSOCIATED(aux_basis_set)) THEN
+            CALL get_gto_basis_set(gto_basis_set=aux_basis_set,nsgf=imax)
+            maxsgf = MAX(maxsgf,imax)
+          END IF
+          IF (ASSOCIATED(orb_basis_set)) THEN
+            CALL get_gto_basis_set(gto_basis_set=orb_basis_set,nsgf=imax)
+            maxsgf = MAX(maxsgf,imax)
+          END IF
+        END IF
+        IF (PRESENT(maxsgf_set)) THEN
+          IF (ASSOCIATED(aux_basis_set)) THEN
+            CALL get_gto_basis_set(gto_basis_set=aux_basis_set,maxsgf_set=imax)
+            maxsgf_set = MAX(maxsgf_set,imax)
+          END IF
+          IF (ASSOCIATED(orb_basis_set)) THEN
+            CALL get_gto_basis_set(gto_basis_set=orb_basis_set,maxsgf_set=imax)
+            maxsgf_set = MAX(maxsgf_set,imax)
+          END IF
+        END IF
+        IF (PRESENT(maxshell)) THEN
+          IF (ASSOCIATED(aux_basis_set)) THEN
+            CALL get_gto_basis_set(gto_basis_set=aux_basis_set,maxshell=imax)
+            maxshell = MAX(maxshell,imax)
+          END IF
+          IF (ASSOCIATED(orb_basis_set)) THEN
+            CALL get_gto_basis_set(gto_basis_set=orb_basis_set,maxshell=imax)
+            maxshell = MAX(maxshell,imax)
+          END IF
+        END IF
+        IF (PRESENT(natom)) THEN
+          natom = natom + atomic_kind_set(ikind)%natom
+        END IF
+        IF (PRESENT(ncgf)) THEN
+          IF (ASSOCIATED(orb_basis_set)) THEN
+            CALL get_gto_basis_set(gto_basis_set=orb_basis_set,ncgf=n)
+            ncgf = ncgf + n*atomic_kind_set(ikind)%natom
+          END IF
+        END IF
+        IF (PRESENT(nelectron)) THEN
+          IF (ASSOCIATED(atomic_kind%all_potential)) THEN
+            CALL get_potential(potential=atomic_kind%all_potential,zeff=zeff)
+          ELSE IF (ASSOCIATED(atomic_kind%gth_potential)) THEN
+            CALL get_potential(potential=atomic_kind%gth_potential,zeff=zeff)
+          ELSE
+            zeff = 0
+          END IF
+          nelectron = nelectron + atomic_kind_set(ikind)%natom*zeff
+        END IF
+        IF (PRESENT(npgf)) THEN
+          IF (ASSOCIATED(orb_basis_set)) THEN
+            CALL get_gto_basis_set(gto_basis_set=orb_basis_set,npgf_sum=n)
+            npgf = npgf + n*atomic_kind_set(ikind)%natom
+          END IF
+        END IF
+        IF (PRESENT(nset)) THEN
+          IF (ASSOCIATED(orb_basis_set)) THEN
+            CALL get_gto_basis_set(gto_basis_set=orb_basis_set,nset=n)
+            nset = nset + n*atomic_kind_set(ikind)%natom
+          END IF
+        END IF
+        IF (PRESENT(nsgf)) THEN
+          IF (ASSOCIATED(orb_basis_set)) THEN
+            CALL get_gto_basis_set(gto_basis_set=orb_basis_set,nsgf=n)
+            nsgf = nsgf + n*atomic_kind_set(ikind)%natom
+          END IF
+        END IF
+        IF (PRESENT(nshell)) THEN
+          IF (ASSOCIATED(orb_basis_set)) THEN
+            CALL get_gto_basis_set(gto_basis_set=orb_basis_set,nshell_sum=n)
+            nshell = nshell + n*atomic_kind_set(ikind)%natom
+          END IF
+        END IF
+        IF (PRESENT(all_potential_present)) THEN
+          IF (ASSOCIATED(all_potential)) THEN
+            all_potential_present = .TRUE.
+          END IF
+        END IF
+        IF (PRESENT(gth_potential_present)) THEN
+          IF (ASSOCIATED(gth_potential)) THEN
+            gth_potential_present = .TRUE.
+          END IF
+        END IF
+        IF (PRESENT(kind_of)) THEN
+          DO iatom=1,atomic_kind%natom
+            atom_a = atomic_kind%atom_list(iatom)
+            kind_of(atom_a) = ikind
+          END DO
+        END IF
+      END DO
+    ELSE
+      CALL stop_program(routine,&
+                        "The pointer atomic_kind_set is not associated")
+    END IF
+
+  END SUBROUTINE get_atomic_kind_set
+
+! *****************************************************************************
+
+  SUBROUTINE init_atomic_kind(atomic_kind)
+
+!   Purpose: Initialise an atomic kind data set.
+
+!   History: - Creation (11.01.2002, Matthias Krack)
+
+!   ***************************************************************************
+
+    TYPE(atomic_kind_type), POINTER :: atomic_kind
+
+!   ---------------------------------------------------------------------------
+
+    CALL init_potential(atomic_kind%gth_potential)
+!MK CALL init_aux_basis_set(atomic_kind%aux_basis_set)
+    CALL init_orb_basis_set(atomic_kind%orb_basis_set)
+
+  END SUBROUTINE init_atomic_kind
+
+! *****************************************************************************
+
+  SUBROUTINE init_atomic_kind_set(atomic_kind_set)
+
+!   Purpose: Initialise an atomic kind set data set.
+
+!   History: - Creation (17.01.2002, Matthias Krack)
+
+!   ***************************************************************************
+
+    TYPE(atomic_kind_type), DIMENSION(:), POINTER :: atomic_kind_set
+
+!   *** Local parameters ***
+
+    CHARACTER(LEN=*), PARAMETER :: routine =&
+      "SUBROUTINE init_atomic_kind_set (MODULE atomic_kind_types)"
+
+!   *** Local variables ***
+
+    TYPE(atomic_kind_type), POINTER :: atomic_kind
+    INTEGER                         :: ikind,nkind
+
+!   ---------------------------------------------------------------------------
+
+    IF (ASSOCIATED(atomic_kind_set)) THEN
+      nkind = SIZE(atomic_kind_set)
+      DO ikind=1,nkind
+        atomic_kind => atomic_kind_set(ikind)
+        CALL init_atomic_kind(atomic_kind)
+      END DO
+    ELSE
+      CALL stop_program(routine,&
+                        "The pointer atomic_kind_set is not associated")
+    END IF
+
+  END SUBROUTINE init_atomic_kind_set
+
+! *****************************************************************************
+
+  SUBROUTINE read_atomic_kind(atomic_kind,globenv)
+
+!   Purpose: Read an atomic kind data set from the input file.
+
+!   History: - Creation (09.02.2002, Matthias Krack)
+
+!   ***************************************************************************
+
+    TYPE(atomic_kind_type), POINTER           :: atomic_kind
+    TYPE(global_environment_type), INTENT(IN) :: globenv
+
+!   *** Local parameters ***
+
+    CHARACTER(LEN=*), PARAMETER :: routine =&
+      "SUBROUTINE read_atomic_kind (MODULE atomic_kind_types)"
+
+!   *** Local variables ***
+
+    CHARACTER(LEN=max_name_length) :: aux_basis_set_name,keyword,&
+                                      orb_basis_set_name,potential_name
+    CHARACTER(LEN=2)               :: current_symbol,element_symbol
+    INTEGER                        :: i,ikind,ipos,istat,z
+    LOGICAL                        :: found,section_found
+
+!   ---------------------------------------------------------------------------
+
+    aux_basis_set_name = ""
+    orb_basis_set_name = ""
+    potential_name = "ALL"
+    z = -1
+
+    CALL start_parser(file_name=globenv%input_file_name,&
+                      globenv=globenv,&
+                      start_section_label="KIND",&
+                      start_section_name=atomic_kind%name,&
+                      section_found=section_found)
+
+    IF (.NOT.section_found) CALL stop_program(routine,&
+                                              "A KIND section is missing.")
+
+    DO WHILE (section_found.AND.(test_object(newline=.TRUE.) /= "EOS"))
+      CALL read_object(keyword,lower_to_upper=.TRUE.,newline=.TRUE.)
+      SELECT CASE (TRIM(keyword))
+      CASE ("AUXILIARY_BASIS_SET","AUX_BASIS_SET","AUX_BASIS")
+        CALL read_object(aux_basis_set_name)
+      CASE ("ORBITAL_BASIS_SET","ORB_BASIS_SET","ORB_BASIS","BASIS_SET","BAS")
+        CALL read_object(orb_basis_set_name)
+      CASE ("ELEMENT_SYMBOL","ELEMENT")
+        CALL read_object(element_symbol,lower_to_upper=.TRUE.)
+        DO i=LBOUND(ptable,1),UBOUND(ptable,1)
+          current_symbol = ptable(i)%symbol
+          CALL uppercase(current_symbol)
+          IF (current_symbol == element_symbol) THEN
+            atomic_kind%element_symbol = ptable(i)%symbol
+            atomic_kind%mass = ptable(i)%amass
+            z = i
+            EXIT
+          END IF
+        END DO
+      CASE ("ATOMIC_MASS","ATOMIC_WEIGHT","MASS","WEIGHT")
+        CALL read_object(atomic_kind%mass)
+      CASE ("POTENTIAL","POT")
+        CALL read_object(potential_name)
+      END SELECT
+    END DO
+
+    CALL finish_parser()
+
+!   *** The corresponding element of the current atomic kind is still   ***
+!   *** undefined. Try the head first two characters of the kind name itself ***
+
+    IF (z == -1) THEN
+      ipos = INDEX(atomic_kind%name,"_")
+      IF ((ipos == 2).OR.(ipos == 3)) THEN
+        element_symbol = atomic_kind%name(1:ipos-1)
+      ELSE
+        element_symbol = atomic_kind%name
+      END IF
+      CALL uppercase(element_symbol)
+      DO i=LBOUND(ptable,1),UBOUND(ptable,1)
+        current_symbol = ptable(i)%symbol
+        CALL uppercase(current_symbol)
+        IF (current_symbol == element_symbol) THEN
+          atomic_kind%element_symbol = ptable(i)%symbol
+          atomic_kind%mass = ptable(i)%amass
+          z = i
+          EXIT
+        END IF
+      END DO
+    END IF
+
+    IF (z == -1) THEN
+      CALL stop_program(routine,&
+                        "No element could be assign to the atomic kind <"//&
+                        TRIM(atomic_kind%name)//">. Specify a valid "//&
+                        "element symbol in the input section <KIND "//&
+                        TRIM(atomic_kind%name)//"> or select a valid "//&
+                        "element symbol for the atomic kind name")
+    END IF
+
+    IF (globenv%program_name == "QS") THEN
+      IF (orb_basis_set_name == "") THEN
+        CALL stop_program(routine,&
+                          "No orbital basis set was defined for the atomic "//&
+                          "kind <"//TRIM(atomic_kind%name)//">. Specify a "//&
+                          "valid orbital basis set name in the input "//&
+                          "section <KIND "//TRIM(atomic_kind%name)//">")
+      END IF
+      IF (potential_name == "") THEN
+        CALL stop_program(routine,&
+                          "No atomic potential type was defined for the "//&
+                          "atomic kind <"//TRIM(atomic_kind%name)//">. "//&
+                          "Specify a valid potential type in the input "//&
+                          "section <KIND "//TRIM(atomic_kind%name)//">")
+      END IF
+    END IF
+
+!   *** Allocate and initialise the orbital basis set data set structure ***
+
+    IF (orb_basis_set_name /= "") THEN
+      CALL allocate_gto_basis_set(atomic_kind%orb_basis_set)
+      CALL read_gto_basis_set(atomic_kind%element_symbol,orb_basis_set_name,&
+                              atomic_kind%orb_basis_set,globenv)
+    END IF
+
+!   *** Allocate and initialise the auxiliary basis set data set structure ***
+
+    IF (aux_basis_set_name /= "") THEN
+      CALL allocate_gto_basis_set(atomic_kind%aux_basis_set)
+      CALL read_gto_basis_set(atomic_kind%element_symbol,aux_basis_set_name,&
+                              atomic_kind%aux_basis_set,globenv)
+    END IF
+
+!   *** Allocate and initialise the potential data set structure ***
+
+    IF (potential_name /= "") THEN
+
+!     *** Remove the appendix of the potential name ***
+!     *** (e.g. remove "-PADE" from  GTH-PADE)      ***
+
+      ipos = INDEX(potential_name,"-")
+      IF (ipos > 0) potential_name(ipos:) = " "
+
+      CALL uppercase(potential_name)
+
+      IF (potential_name == "ALL") THEN
+        CALL allocate_potential(atomic_kind%all_potential)
+        CALL read_potential(atomic_kind%element_symbol,potential_name,&
+                            atomic_kind%all_potential,globenv)
+      ELSE IF (potential_name == "GTH") THEN
+        CALL allocate_potential(atomic_kind%gth_potential)
+        CALL read_potential(atomic_kind%element_symbol,potential_name,&
+                            atomic_kind%gth_potential,globenv)
+      ELSE
+        CALL stop_program(routine,&
+                          "An invalid potential type <"//&
+                          TRIM(potential_name)//"> was specified "//&
+                          "for the atomic kind <"//&
+                          TRIM(atomic_kind%name)//&
+                          "> in the input file <"//&
+                          TRIM(globenv%input_file_name)//">")
+      END IF
+
+    END IF
+
+  END SUBROUTINE read_atomic_kind
+
+! *****************************************************************************
+
+  SUBROUTINE read_atomic_kind_set(atomic_kind_set,globenv)
+
+!   Purpose: Read an atomic kind set data set from the input file.
+
+!   History: - Creation (09.02.2002, Matthias Krack)
+
+!   ***************************************************************************
+
+    TYPE(atomic_kind_type), DIMENSION(:), POINTER :: atomic_kind_set
+    TYPE(global_environment_type), INTENT(IN)     :: globenv
+
+!   *** Local parameters ***
+
+    CHARACTER(LEN=*), PARAMETER :: routine =&
+      "SUBROUTINE read_atomic_kind_set (MODULE atomic_kind_types)"
+
+!   *** Local variables ***
+
+    TYPE(atomic_kind_type), POINTER :: atomic_kind
+    INTEGER                         :: ikind,nkind
+
+!   ---------------------------------------------------------------------------
+
+    IF (ASSOCIATED(atomic_kind_set)) THEN
+      nkind = SIZE(atomic_kind_set)
+      DO ikind=1,nkind
+        atomic_kind => atomic_kind_set(ikind)
+        CALL read_atomic_kind(atomic_kind,globenv)
+      END DO
+    ELSE
+      CALL stop_program(routine,&
+                        "The pointer atomic_kind_set is not associated")
+    END IF
+
+  END SUBROUTINE read_atomic_kind_set
+
+! *****************************************************************************
+
+  SUBROUTINE set_atomic_kind(atomic_kind,element_symbol,name,mass,kind_number,&
+                             atom_list)
+
+!   Purpose: Set the components of an atomic kind data set.
+
+!   History: - Creation (11.01.2002, Matthias Krack)
+
+!   ***************************************************************************
+
+    TYPE(atomic_kind_type), POINTER                      :: atomic_kind
+    CHARACTER(LEN=2), OPTIONAL, INTENT(IN)               :: element_symbol
+    CHARACTER(LEN=max_name_length), OPTIONAL, INTENT(IN) :: name
+    REAL(wp), OPTIONAL, INTENT(IN)                       :: mass
+    INTEGER, OPTIONAL, INTENT(IN)                        :: kind_number
+    INTEGER, DIMENSION(:), OPTIONAL, INTENT(IN), TARGET  :: atom_list
+
+!   ---------------------------------------------------------------------------
+
+    IF (PRESENT(element_symbol)) atomic_kind%element_symbol = element_symbol
+    IF (PRESENT(name)) atomic_kind%name = name
+    IF (PRESENT(mass)) atomic_kind%mass = mass
+    IF (PRESENT(kind_number)) atomic_kind%kind_number = kind_number
+    IF (PRESENT(atom_list)) THEN
+      atomic_kind%natom = SIZE(atom_list)
+      atomic_kind%atom_list => reallocate(atomic_kind%atom_list,&
+                                          1,atomic_kind%natom)
+      atomic_kind%atom_list(:) = atom_list(:)
+    END IF
+
+  END SUBROUTINE set_atomic_kind
+
+! *****************************************************************************
+
+  SUBROUTINE write_atomic_kind(atomic_kind,globenv)
+
+!   Purpose: Write an atomic kind data set to the output unit.
+
+!   History: - Creation (09.02.2002, Matthias Krack)
+
+!   ***************************************************************************
+
+    TYPE(atomic_kind_type), POINTER           :: atomic_kind
+    TYPE(global_environment_type), INTENT(IN) :: globenv
+
+!   *** Local variables ***
+
+    INTEGER :: output_unit
+
+!   ---------------------------------------------------------------------------
+
+    IF (.NOT.globenv%ionode) RETURN
+
+    IF (globenv%print%basis_set.OR.globenv%print%potential) THEN
+      output_unit = globenv%scr
+      WRITE (UNIT=output_unit,FMT="(/,T2,I2,A,/,/,T6,A,I6)")&
+        atomic_kind%kind_number,". Atomic kind: "//TRIM(atomic_kind%name),&
+        "Number of atoms of this atomic kind in the cell: ",atomic_kind%natom
+      CALL write_orb_basis_set(atomic_kind%orb_basis_set,globenv)
+      CALL write_aux_basis_set(atomic_kind%aux_basis_set,globenv)
+      CALL write_potential(atomic_kind%all_potential,globenv)
+      CALL write_potential(atomic_kind%gth_potential,globenv)
+    END IF
+
+  END SUBROUTINE write_atomic_kind
+
+! *****************************************************************************
+
+  SUBROUTINE write_atomic_kind_set(atomic_kind_set,globenv)
+
+!   Purpose: Write an atomic kind set data set to the output unit.
+
+!   History: - Creation (09.02.2002, Matthias Krack)
+
+!   ***************************************************************************
+
+    TYPE(atomic_kind_type), DIMENSION(:), POINTER :: atomic_kind_set
+    TYPE(global_environment_type), INTENT(IN)     :: globenv
+
+!   *** Local parameters ***
+
+    CHARACTER(LEN=*), PARAMETER :: routine =&
+      "SUBROUTINE write_atomic_kind_set (MODULE atomic_kind_types)"
+
+!   *** Local variables ***
+
+    TYPE(atomic_kind_type), POINTER :: atomic_kind
+    INTEGER                         :: ikind,nkind,output_unit
+
+!   ---------------------------------------------------------------------------
+
+    IF (.NOT.globenv%ionode) RETURN
+
+    IF (globenv%print%basis_set.OR.globenv%print%potential) THEN
+      IF (ASSOCIATED(atomic_kind_set)) THEN
+        output_unit = globenv%scr
+        WRITE (UNIT=output_unit,FMT="(/,/,T2,A)") "ATOMIC KIND INFORMATION"
+        nkind = SIZE(atomic_kind_set)
+        DO ikind=1,nkind
+          atomic_kind => atomic_kind_set(ikind)
+          CALL write_atomic_kind(atomic_kind,globenv)
+        END DO
+      ELSE
+        CALL stop_program(routine,&
+                          "The pointer atomic_kind_set is not associated")
+      END IF
+    END IF
+
+  END SUBROUTINE write_atomic_kind_set
+
+! *****************************************************************************
+
+  SUBROUTINE write_gto_basis_sets(atomic_kind_set,globenv)
+
+!   Purpose: Write all the GTO basis sets of an atomic kind set to the output
+!            unit (for the printing of the unnormalised basis sets as read from
+!            database).
+
+!   History: - Creation (17.01.2002, Matthias Krack)
+
+!   ***************************************************************************
+
+    TYPE(atomic_kind_type), DIMENSION(:), POINTER :: atomic_kind_set
+    TYPE(global_environment_type), INTENT(IN)     :: globenv
+
+!   *** Local parameters ***
+
+    CHARACTER(LEN=*), PARAMETER :: routine =&
+      "SUBROUTINE write_gto_basis_sets (MODULE atomic_kind_types)"
+
+!   *** Local variables ***
+
+    TYPE(atomic_kind_type), POINTER :: atomic_kind
+    INTEGER                         :: ikind,nkind,output_unit
+
+!   ---------------------------------------------------------------------------
+
+    IF (.NOT.globenv%ionode) RETURN
+
+    IF (globenv%print%basis_set) THEN
+
+      IF (ASSOCIATED(atomic_kind_set)) THEN
+
+        output_unit = globenv%scr
+
+        WRITE (UNIT=output_unit,FMT="(/,/,T2,A)")&
+          "BASIS SET INFORMATION (Unnormalised Gaussian-type functions)"
+
+        nkind = SIZE(atomic_kind_set)
+
+        DO ikind=1,nkind
+          atomic_kind => atomic_kind_set(ikind)
+          WRITE (UNIT=output_unit,FMT="(/,T2,I2,A)")&
+            atomic_kind%kind_number,". Atomic kind: "//TRIM(atomic_kind%name)
+          CALL write_gto_basis_set(atomic_kind_set(ikind)%orb_basis_set,&
+                                   globenv)
+          CALL write_gto_basis_set(atomic_kind_set(ikind)%aux_basis_set,&
+                                   globenv)
+        END DO
+
+      ELSE
+
+        CALL stop_program(routine,&
+                          "The pointer atomic_kind_set is not associated")
+
+      END IF
+
+    END IF
+
+  END SUBROUTINE write_gto_basis_sets
+
+! *****************************************************************************
+
+END MODULE atomic_kind_types

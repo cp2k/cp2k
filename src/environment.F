@@ -11,39 +11,60 @@
 !!     Sets up and terminates the global environment variables
 !!
 !!   AUTHOR
-!!     JGH
+!!     JGH,MK
 !!
 !!   MODIFICATION HISTORY
 !!     - init_mathcon is now called (27.02.2001, MK)
+!!     - Merged with Quickstep MODULE start_program_run (17.01.2002, MK)
 !!
 !!   SOURCE
 !******************************************************************************
 
 MODULE environment
 
-  USE global_types, ONLY : global_environment_type
-  USE kinds, ONLY : dbl
-  USE machine, ONLY : m_hostnm, m_getcwd, m_getlog, &
-       m_getuid, m_getpid, m_getarg
-  USE mathconstants, ONLY : init_mathcon, zero
-  USE physcon, ONLY : init_physcon
-  USE print_keys, ONLY : init_print_keys
-  USE termination, ONLY : set_error_unit, stop_program
-  USE timesl, ONLY : walltime, cputime, datum
-  USE timings, ONLY : timeprint, timeset, timestop
-  USE util, ONLY : ran2
+  USE global_types,     ONLY: global_environment_type,&
+                              init_print_keys,&
+                              DEBUG,HIGH,LOW,MEDIUM,SILENT
+  USE machine,          ONLY: m_hostnm,&
+                              m_getcwd,&
+                              m_getlog,&
+                              m_getuid,&
+                              m_getpid,&
+                              m_getarg
+  USE mathconstants,    ONLY: init_mathcon,zero
+  USE physcon,          ONLY: init_physcon
+  USE qs_parser,        ONLY: finish_parser,&
+                              read_object,&
+                              search_object,&
+                              start_parser,&
+                              stop_parser,&
+                              test_object
+  USE string_utilities, ONLY: uppercase
+  USE termination,      ONLY: set_error_unit,&
+                              stop_program
+  USE timesl,           ONLY: cputime,&
+                              datum,&
+                              walltime
+  USE timings,          ONLY: timeprint,&
+                              timeset,&
+                              timestop
+  USE util,             ONLY: ran2
 
   IMPLICIT NONE
 
   PRIVATE
-  PUBLIC :: initialisation, trailer
 
-  CHARACTER ( LEN = 32 ) :: hname = ' ' !! name of the computer
-  CHARACTER ( LEN = 60 ) :: curdir = ' ' !! current directory name
-  CHARACTER ( LEN = 10 ) :: user = ' ' !! user name
-  INTEGER :: my_pid = 0 !! process ID
-  INTEGER :: my_uid = 0 !! user ID
-  INTEGER :: handle
+  CHARACTER(LEN=60) :: curdir = " " !! current directory name
+  CHARACTER(LEN=32) :: hname = " "  !! name of the computer
+  CHARACTER(LEN=10) :: user = " "   !! user name
+  INTEGER           :: handle
+  INTEGER           :: my_pid = 0   !! process ID
+  INTEGER           :: my_uid = 0   !! user ID
+
+! *** Public subroutines ***
+
+  PUBLIC :: initialisation,&
+            trailer
 
 !!*****
 !******************************************************************************
@@ -57,150 +78,342 @@ CONTAINS
 !!     initialisation
 !!
 !!   FUNCTION
-!!     Initializes global environment vaiables
+!!     Initialises global environment variables
 !!
 !!   AUTHOR
 !!     JGH
 !!
 !!   MODIFICATION HISTORY
 !!     JGH (28.11.2001) : default for pp_library_path
+!!     - print keys added (17.01.2002, MK)
 !!
 !!   SOURCE
 !******************************************************************************
 
-SUBROUTINE initialisation ( globenv )
+  SUBROUTINE initialisation(globenv)
 
-  IMPLICIT NONE
+    TYPE(global_environment_type), INTENT(INOUT) :: globenv
 
-! Arguments
-  TYPE ( global_environment_type ), INTENT ( INOUT ) :: globenv ! check intent
+!   *** Local variables ***
 
-! Locals
-  CHARACTER ( LEN = 26 ) :: datx
-  INTEGER :: iw, l, initial_random, i1, i2
+    CHARACTER(LEN=26) :: datx
+    CHARACTER(LEN=4)  :: end_section
+    CHARACTER(LEN=1)  :: section_character
+    INTEGER           :: i1,i2,initial_random,l,output_unit
+    LOGICAL           :: ionode
 
-!------------------------------------------------------------------------------
+!   ---------------------------------------------------------------------------
 
-  globenv % scr = 6
+!   *** Set the default logical output unit number ***
 
-  CALL set_error_unit ( globenv % scr )
+    globenv%scr = 6
+    CALL set_error_unit(globenv%scr)
 
-! initialize print keys (the default print level is 1 or LOW)
-  ALLOCATE (globenv%print)
+    globenv%pp_library_path     = "./"
 
-  CALL init_print_keys(globenv%print,1)
+    output_unit = globenv%scr
+    ionode = globenv%ionode
 
-  globenv%basis_set_file_name = "BASIS_SET"
-  globenv%potential_file_name = "POTENTIAL"
-  globenv%pp_library_path     = "./"
+    IF (ionode) CALL set_environment(globenv)
 
-  IF ( globenv % ionode ) THEN
-     iw = globenv % scr
+!   *** Initialise timing ***
 
-     CALL set_environment ( globenv )
+    CALL timeset ("CP2K","I"," ",handle)
 
-     CALL datum ( datx )
+!   *** Initialise random number generator ***
 
-     WRITE ( iw, &
-          '( A, T55, A26, /, A, T49, A32, /, A, T71, A10, /, A, T71, I10 )' ) &
-          '  **** **** ******  **  PROGRAM STARTED AT ', ADJUSTR ( datx ), &
-          ' ***** ** ***  *** **   PROGRAM STARTED ON ', ADJUSTR ( hname ), &
-          ' **    ****   ******    PROGRAM STARTED BY ', ADJUSTR ( user ), &
-          ' ***** **    ** ** **   PROGRAM PROCESS ID ', my_pid
+    globenv%idum = -1
+    initial_random = ran2(globenv%idum)
 
-     l = LEN_TRIM ( curdir )
-     IF ( l <= 38 ) THEN
-        WRITE ( iw, '( A, T43, A38 )' ) &
-             '  **** **  *******  **  PROGRAM STARTED IN ', &
-             ADJUSTR ( curdir ( 1 : l ) )
-     ELSE
-        WRITE ( iw, '( A )' ) &
-             '  **** **  *******  **  PROGRAM STARTED IN '
-        WRITE ( iw, '( T21, A60 )' ) ADJUSTR ( curdir )
-     END IF
+!   *** Initialise mathematical constants ***
 
-     WRITE ( iw, '( )' )
-  END IF
+    CALL init_mathcon()
 
-! initialize timing
-  CALL timeset ( 'CP2K', 'I', ' ', handle )
+!   *** Initialise physical constants ***
 
-! initialize random number generator
-  globenv % idum = -1
-  initial_random = ran2 ( globenv % idum )
+    CALL init_physcon()
 
-! initialize mathematical constants
-  CALL init_mathcon()
+!   *** Read the input section with the print keys ***
 
-! initialize physical constants
-  CALL init_physcon()
+    CALL read_print_keys(globenv)
 
-END SUBROUTINE initialisation
+    IF (ionode.AND.globenv%print%program_banner) THEN
+      CALL datum(datx)
+      WRITE (UNIT=output_unit,&
+             FMT="(A,T55,A26,/,A,T49,A32,/,A,T71,A10,/,A,T71,I10)")&
+        '  **** **** ******  **  PROGRAM STARTED AT ', ADJUSTR ( datx ), &
+        ' ***** ** ***  *** **   PROGRAM STARTED ON ', ADJUSTR ( hname ), &
+        ' **    ****   ******    PROGRAM STARTED BY ', ADJUSTR ( user ), &
+        ' ***** **    ** ** **   PROGRAM PROCESS ID ', my_pid
+      l = LEN_TRIM(curdir)
+      IF ( l <= 38 ) THEN
+        WRITE (UNIT=output_unit,FMT="(A,T43,A38)") &
+          '  **** **  *******  **  PROGRAM STARTED IN ', &
+          ADJUSTR(curdir(1:l))
+      ELSE
+        WRITE (UNIT=output_unit,FMT="(A)") &
+          '  **** **  *******  **  PROGRAM STARTED IN '
+        WRITE (UNIT=output_unit,FMT="(T21,A60)") ADJUSTR(curdir)
+      END IF
+      WRITE (UNIT=output_unit,FMT=*)
+    END IF
 
-!!*****
-!******************************************************************************
-!!****** environment/trailer [1.0] *
-!!
-!!   NAME
-!!     trailer
-!!
-!!   FUNCTION
-!!     Writes final timings and banner
-!!
-!!   AUTHOR
-!!     JGH
-!!
-!!   MODIFICATION HISTORY
-!!     none
-!!
-!!   SOURCE
-!******************************************************************************
+!   *** Read the input section with the input/output parameters ***
 
-SUBROUTINE trailer ( globenv )
+    CALL read_io_parameters(globenv)
 
-  IMPLICIT NONE
+  END SUBROUTINE initialisation
 
-! Arguments
-  TYPE ( global_environment_type ), INTENT ( INOUT ) :: globenv ! check intent
+! *****************************************************************************
 
-! Locals
-  CHARACTER ( LEN = 26 ) :: datx
-  INTEGER :: iw, l
+  SUBROUTINE read_io_parameters(globenv)
 
-!------------------------------------------------------------------------------
+!   Purpose: Read the input/output parameters (file names).
 
-  CALL timestop ( zero, handle )
+!   History: - Creation (13.07.2000, Matthias Krack)
 
-  IF ( globenv % ionode ) THEN
-     iw = globenv % scr
+!   ***************************************************************************
 
-     CALL timeprint ( iw, globenv % print_level )
+    TYPE(global_environment_type), INTENT(INOUT) :: globenv
 
-     WRITE ( iw, '( )' )
+!   *** Local parameters ***
 
-     CALL datum ( datx )
-     WRITE ( iw, &
-          '( A, T55, A26, /, A, T49, A32, /, A, T71, A10, /, A, T71, I10 )' ) &
-          '  **** **** ******  **  PROGRAM ENDED AT   ', ADJUSTR ( datx ), &
-          ' ***** ** ***  *** **   PROGRAM RAN ON     ', ADJUSTR ( hname ), &
-          ' **    ****   ******    PROGRAM RAN BY     ', ADJUSTR ( user ), &
-          ' ***** **    ** ** **   PROGRAM PROCESS ID ', my_pid
+    CHARACTER(LEN=*), PARAMETER :: routine =&
+      "SUBROUTINE read_io_parameters (MODULE environment)"
 
-     l = LEN_TRIM ( curdir )
-     IF ( l <= 38 ) THEN
-        WRITE ( iw, '( A, T43, A38 )' ) &
-             '  **** **  *******  **  PROGRAM RAN IN     ', &
-             ADJUSTR ( curdir ( 1 : l ) )
-     ELSE
-        WRITE ( iw, '( A )' ) &
-             '  **** **  *******  **  PROGRAM RAN IN     '
-        WRITE ( iw, '( T21, A60 )' ) ADJUSTR ( curdir )
-     END IF
-  END IF
+!   *** Local variables ***
 
-END SUBROUTINE trailer
+    CHARACTER(LEN=60) :: keyword
+    LOGICAL           :: section_found
 
-!!*****
+!   ---------------------------------------------------------------------------
+
+    globenv%basis_set_file_name = "BASIS_SET"
+    globenv%potential_file_name = "POTENTIAL"
+    globenv%restart_file_name = "RESTART"
+
+    CALL start_parser(file_name=globenv%input_file_name,&
+                      globenv=globenv,&
+                      start_section_label="IO",&
+                      section_found=section_found)
+
+    DO WHILE (section_found.AND.(test_object(newline=.TRUE.) /= "EOS"))
+      CALL read_object(keyword,lower_to_upper=.TRUE.,newline=.TRUE.)
+      SELECT CASE (TRIM(keyword))
+      CASE ("BASIS_SET_FILE_NAME","BASIS_SET_FILE","BASIS_SET","BSF")
+        CALL read_object(globenv%basis_set_file_name)
+      CASE ("POTENTIAL_FILE_NAME","POTENTIAL_FILE","POTENTIAL","PPF")
+        CALL read_object(globenv%potential_file_name)
+      CASE ("RESTART_FILE_NAME","RESTART_FILE")
+        CALL read_object(globenv%restart_file_name)
+      END SELECT
+    END DO
+
+    CALL finish_parser()
+
+  END SUBROUTINE read_io_parameters
+
+! *****************************************************************************
+
+  SUBROUTINE read_print_keys(globenv)
+
+!   Purpose: Read the print keys.
+
+!   History: - Creation (13.07.2000, Matthias Krack)
+
+!   ***************************************************************************
+
+    TYPE(global_environment_type), INTENT(INOUT) :: globenv
+
+!   *** Local parameters ***
+
+    CHARACTER(LEN=*), PARAMETER :: routine =&
+      "SUBROUTINE read_print_keys (MODULE environment)"
+
+!   *** Local variables ***
+
+    CHARACTER(LEN=60) :: keyword
+    CHARACTER(LEN=3)  :: test_result
+    INTEGER           :: ipos1,ipos2
+    LOGICAL           :: print_request,section_found
+
+!   ---------------------------------------------------------------------------
+
+!   *** Initialise print keys (the default print level is LOW) ***
+
+    globenv%print%level = LOW
+
+    CALL start_parser(file_name=globenv%input_file_name,&
+                      globenv=globenv,&
+                      start_section_label="PRINT",&
+                      section_found=section_found)
+
+!   *** Check for print level specification ***
+
+    IF (section_found) THEN
+      test_result = test_object()
+      IF (test_result == "EOL") THEN
+        globenv%print%level = LOW
+      ELSE IF (test_result == "INT") THEN
+        CALL read_object(globenv%print%level)
+      ELSE IF (test_result == "STR") THEN
+        CALL read_object(keyword,lower_to_upper=.TRUE.)
+        SELECT CASE (TRIM(keyword))
+        CASE ("SILENT")
+          globenv%print%level = SILENT
+        CASE ("LOW","DEFAULT")
+          globenv%print%level = LOW
+        CASE ("MEDIUM")
+          globenv%print%level = MEDIUM
+        CASE ("HIGH")
+          globenv%print%level = HIGH
+        CASE ("DEBUG","ALL","FULL")
+          globenv%print%level = DEBUG
+        CASE DEFAULT
+          CALL stop_parser(routine,&
+                           "Invalid keyword <"//TRIM(keyword)//&
+                           "> found for the default print level")
+        END SELECT
+      END IF
+    END IF
+
+    CALL init_print_keys(globenv%print,globenv%print%level)
+
+    DO WHILE (section_found.AND.(test_object(newline=.TRUE.) /= "EOS"))
+
+      CALL read_object(keyword,lower_to_upper=.TRUE.,newline=.TRUE.)
+
+      IF (keyword(1:3) == "NO_") THEN
+        ipos1= 4
+        print_request = .FALSE.
+      ELSE
+        ipos1= 1
+        print_request = .TRUE.
+      END IF
+
+      ipos2 = LEN_TRIM(keyword)
+
+      SELECT CASE (keyword(ipos1:ipos2))
+      CASE ("ANGLES")
+        globenv%print%angles = print_request
+      CASE ("ATOMIC_COORDINATES","COORDINATES","COORD")
+        globenv%print%atomic_coordinates = print_request
+      CASE ("BASIC_DATA_TYPES")
+        globenv%print%basic_data_types = print_request
+      CASE ("BASIS_SETS","BASIS_SET","BASIS")
+        globenv%print%basis_set = print_request
+      CASE ("BLACS_INFORMATION","BLACS_INFO")
+        globenv%print%blacs_info = print_request
+      CASE ("CARTESIAN_OPERATOR_MATRICES","CARTESIAN_MATRICES")
+        globenv%print%cartesian_om = print_request
+      CASE ("CELL_PARAMETERS","CELL")
+        globenv%print%cell_parameters = print_request
+      CASE ("CHARGE_DENSITY_MATRIX","G_MATRIX")
+        globenv%print%charge_density_matrix = print_request
+      CASE ("CORE_HAMILTONIAN_MATRIX","H_MATRIX")
+        globenv%print%core_hamiltonian_matrix = print_request
+      CASE ("CORE_CHARGE_RADII","CORE_RADII")
+        globenv%print%core_charge_radii = print_request
+      CASE ("DENSITY_MATRIX","P_MATRIX")
+        globenv%print%density_matrix = print_request
+      CASE ("DIIS_INFORMATION","DIIS_INFO","DIIS")
+        globenv%print%diis_information = print_request
+      CASE ("DISTRIBUTION")
+        globenv%print%distribution = print_request
+      CASE ("EACH_SCF_STEP")
+        globenv%print%each_scf_step = print_request
+      CASE ("HARTREE_MATRIX")
+        globenv%print%hartree_matrix = print_request
+      CASE ("INTERATOMIC_DISTANCES","DISTANCES")
+        globenv%print%interatomic_distances = print_request
+      CASE ("KIND_INFORMATION","KIND_INFO","KINDS")
+        globenv%print%basis_set = print_request
+        globenv%print%potential = print_request
+      CASE ("KIND_RADII")
+        globenv%print%kind_radii = print_request
+      CASE ("KINETIC_ENERGY_MATRIX","KINETIC_ENERGY","KINETIC","T_MATRIX")
+        globenv%print%kinetic_energy_matrix = print_request
+      CASE ("KOHN_SHAM_MATRIX","KS_MATRIX")
+        globenv%print%kohn_sham_matrix = print_request
+      CASE ("MEMORY")
+        globenv%print%memory = print_request
+      CASE ("MO_EIGENVALUES")
+        globenv%print%mo_eigenvalues = print_request
+      CASE ("MO_EIGENVECTORS","MOS")
+        globenv%print%mo_eigenvalues = print_request
+        globenv%print%mo_eigenvectors = print_request
+        globenv%print%mo_occupation_numbers = print_request
+      CASE ("MO_OCCUPATION_NUMBERS")
+        globenv%print%mo_eigenvalues = print_request
+        globenv%print%mo_occupation_numbers = print_request
+      CASE ("NEIGHBOR_LISTS")
+        globenv%print%sab_orb_neighbor_lists = print_request
+        globenv%print%sac_ppl_neighbor_lists = print_request
+        globenv%print%sca_ppnl_neighbor_lists = print_request
+        globenv%print%scb_ppnl_neighbor_lists = print_request
+      CASE ("ORTHOGONALISATION_MATRIX","ORTHO_MATRIX")
+        globenv%print%ortho_matrix = print_request
+      CASE ("OVERLAP_MATRIX","OVERLAP","S_MATRIX")
+        globenv%print%overlap_matrix = print_request
+      CASE ("PGF_RADII")
+        globenv%print%pgf_radii = print_request
+      CASE ("PHYSICAL_CONSTANTS","PHYSCON")
+        globenv%print%physcon = print_request
+      CASE ("POTENTIALS","POTENTIAL")
+        globenv%print%potential = print_request
+      CASE ("PPL_RADII")
+        globenv%print%ppl_radii = print_request
+      CASE ("PPNL_RADII")
+        globenv%print%ppnl_radii = print_request
+      CASE ("PROGRAM_BANNER","BANNER")
+        globenv%print%program_banner = print_request
+      CASE ("PROGRAM_RUN_INFORMATION","PROGRAM_RUN_INFO","RUN_INFO")
+        globenv%print%program_run_information = print_request
+      CASE ("PROJECTORS")
+        globenv%print%projectors = print_request
+      CASE ("RADII")
+        globenv%print%core_charge_radii = print_request
+        globenv%print%kind_radii = print_request
+        globenv%print%ppl_radii = print_request
+        globenv%print%ppnl_radii = print_request
+        globenv%print%set_radii = print_request
+        globenv%print%pgf_radii = print_request
+      CASE ("PW_GRID_INFORMATION","PW_GRID_INFO","GRID_INFO")
+        globenv%print%pw_grid_information = print_request
+      CASE ("SAB_ORB_NEIGHBOR_LIST")
+        globenv%print%sab_orb_neighbor_lists = print_request
+      CASE ("SAC_PPL_NEIGHBOR_LIST")
+        globenv%print%sac_ppl_neighbor_lists = print_request
+      CASE ("SCA_PPNL_NEIGHBOR_LIST")
+        globenv%print%sca_ppnl_neighbor_lists = print_request
+      CASE ("SCB_PPNL_NEIGHBOR_LIST")
+        globenv%print%scb_ppnl_neighbor_lists = print_request
+      CASE ("SCF")
+        globenv%print%scf = print_request
+      CASE ("SCF_ENERGIES")
+        globenv%print%scf = print_request
+        globenv%print%scf_energies = print_request
+      CASE ("SET_RADII")
+        globenv%print%set_radii = print_request
+      CASE ("SPHERICAL_HARMONICS")
+        globenv%print%spherical_harmonics = print_request
+      CASE ("TIMING_INFORMATION","TIMING")
+        globenv%print%timing_information = print_request
+      CASE ("TITLE")
+        globenv%print%title = print_request
+      CASE ("TOTAL_NUMBERS")
+        globenv%print%total_numbers = print_request
+      CASE ("TOTAL_DENSITIES")
+        globenv%print%total_densities = print_request
+      END SELECT
+
+    END DO
+
+    CALL finish_parser()
+
+  END SUBROUTINE read_print_keys
+
+!!******
 !******************************************************************************
 !!****** environment/set_environment [1.0] *
 !!
@@ -242,17 +455,82 @@ SUBROUTINE set_environment ( globenv )
   narg = iargc()
 
   SELECT CASE ( narg )
-  CASE ( 0 )
-    globenv % input_file_name = 'input'
+  CASE (0)
+    globenv%input_file_name = "input"
   CASE DEFAULT
-    CALL m_getarg ( 1, globenv % input_file_name )
+    CALL m_getarg (1,globenv%input_file_name)
   END SELECT
 
-END SUBROUTINE set_environment
+  END SUBROUTINE set_environment
+
+!!*****
+!******************************************************************************
+!!****** environment/trailer [1.0] *
+!!
+!!   NAME
+!!     trailer
+!!
+!!   FUNCTION
+!!     Writes final timings and banner
+!!
+!!   AUTHOR
+!!     JGH
+!!
+!!   MODIFICATION HISTORY
+!!     none
+!!
+!!   SOURCE
+!******************************************************************************
+
+SUBROUTINE trailer ( globenv )
+
+  IMPLICIT NONE
+
+! Arguments
+  TYPE ( global_environment_type ), INTENT ( INOUT ) :: globenv ! check intent
+
+! Locals
+  CHARACTER ( LEN = 26 ) :: datx
+  INTEGER :: iw, l
+
+!------------------------------------------------------------------------------
+
+  CALL timestop ( zero, handle )
+
+  IF ( globenv % ionode ) THEN
+
+     iw = globenv % scr
+
+     CALL timeprint ( iw, globenv % print_level )
+
+     WRITE ( iw, '( )' )
+
+     CALL datum ( datx )
+
+     IF (globenv%print%program_banner) THEN
+       WRITE ( iw, &
+          '( A, T55, A26, /, A, T49, A32, /, A, T71, A10, /, A, T71, I10 )' ) &
+          '  **** **** ******  **  PROGRAM ENDED AT   ', ADJUSTR ( datx ), &
+          ' ***** ** ***  *** **   PROGRAM RAN ON     ', ADJUSTR ( hname ), &
+          ' **    ****   ******    PROGRAM RAN BY     ', ADJUSTR ( user ), &
+          ' ***** **    ** ** **   PROGRAM PROCESS ID ', my_pid
+
+       l = LEN_TRIM ( curdir )
+       IF ( l <= 38 ) THEN
+          WRITE ( iw, '( A, T43, A38 )' ) &
+               '  **** **  *******  **  PROGRAM RAN IN     ', &
+               ADJUSTR ( curdir ( 1 : l ) )
+       ELSE
+          WRITE ( iw, '( A )' ) &
+            '  **** **  *******  **  PROGRAM RAN IN     '
+          WRITE ( iw, '( T21, A60 )' ) ADJUSTR ( curdir )
+       END IF
+      END IF
+    END IF
+
+  END SUBROUTINE trailer
 
 !!*****
 !******************************************************************************
 
 END MODULE environment
-
-!******************************************************************************

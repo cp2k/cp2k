@@ -35,7 +35,7 @@ MODULE pol_overlap
   USE fist_nonbond_force,       ONLY : find_image
   USE global_types,             ONLY: global_environment_type
   USE mathlib,                  ONLY: symmetrize_matrix
-  USE matrix_types,             ONLY: add_block_node,&
+  USE sparse_matrix_types,      ONLY: add_block_node,&
                                       allocate_matrix,&
                                       deallocate_matrix,&
                                       deallocate_matrix_row,&
@@ -43,7 +43,7 @@ MODULE pol_overlap
                                       get_block_node,&
                                       next_block_node,&
                                       real_block_node_type,&
-                                      real_matrix_set_type
+                                      real_matrix_p_type
   USE memory_utilities,         ONLY: reallocate
   USE method_specifications,    ONLY: maxder
   USE molecule_types,           ONLY : particle_node_type, &
@@ -101,7 +101,7 @@ CONTAINS
                 ncgf,natom,nat,npart,nkind
   REAL (dbl), DIMENSION (:,:), POINTER :: s_block
   REAL (dbl), DIMENSION (:), POINTER :: zeta, zetb, rpgfa, rpgfb
-  TYPE (real_matrix_set_type) :: smat
+  TYPE (real_matrix_p_type) :: smat
   REAL ( dbl ), DIMENSION (3) :: ri, rij, s, perd, &
        vec, quotient, cell_lengths
   REAL ( dbl ), DIMENSION (3,3) :: hmat, h_inv                                                  
@@ -590,7 +590,7 @@ CONTAINS
   TYPE (particle_node_type), dimension (:), intent (in) :: pnode
   TYPE (particle_type), dimension (:), intent (in) :: part
   TYPE (atom_basis_info_type), DIMENSION (:) , INTENT (IN) :: ainfo
-  TYPE (real_matrix_set_type), intent (out) :: smat
+  TYPE (real_matrix_p_type), intent (out) :: smat
   INTEGER, intent (in) :: natom
   INTEGER, intent (in) :: ncgf
 

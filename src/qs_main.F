@@ -8,13 +8,16 @@
 !!     qs_main
 !!
 !!   FUNCTION
-!!     Perform a LCGTO-SCF-DF calculation using the Gaussian and plane wave
-!!     (GPW) method
+!!     Perform a LCGTO-SCF-DF calculation using the Gaussian plane wave (GPW)
+!!     method
 !!
 !!   AUTHOR
 !!     Matthias Krack (03.04.2001)
 !!
 !!   LITERATURE
+!!     G. Lippert, J. Hutter, M. Parrinello, Mol. Phys. 92, 477 (1997)
+!!     G. Lippert, J. Hutter, M. Parrinello, Theor. Chem. Acc. 103, 124 (1999)
+!!     M. Krack, M. Parrinello, Phys. Chem. Chem. Phys. 2, 2105 (2000)
 !!
 !!   MODIFICATION HISTORY
 !!     none
@@ -24,21 +27,24 @@
 
 MODULE qs_main
 
-! *****************************************************************************
-
-! Index:
-
-! SUBROUTINE qs_main
-
-! *****************************************************************************
-
   USE kinds, ONLY: wp => dp
 
-  USE global_types, ONLY: global_environment_type
+  USE global_types,         ONLY: global_environment_type
+  USE qs_core_hamiltonian,  ONLY: build_core_hamiltonian_matrix
+  USE qs_environment_types, ONLY: qs_environment_type
+  USE qs_init,              ONLY: read_qs_env
+  USE qs_neighbor_lists,    ONLY: build_qs_neighbor_lists
+  USE qs_overlap,           ONLY: build_overlap_matrix,&
+                                  distribute_overlap_matrix
+  USE qs_scf,               ONLY: scf
+  USE timings,              ONLY: timeset,&
+                                  timestop
 
   IMPLICIT NONE
 
   PRIVATE
+
+  TYPE(qs_environment_type) :: qs_env
 
   PUBLIC :: quickstep
 
@@ -52,52 +58,40 @@ CONTAINS
 
 !   Purpose: Main driver routine for a Quickstep calculation.
 
-!   History: - Creation (04.00.2001, Matthias Krack)
+!   History: - Creation (23.01.2002, MK)
 
 !   ***************************************************************************
 
-    USE core_hamiltonian,      ONLY: build_core_hamiltonian_matrix
-    USE nl,                    ONLY: build_neighbor_list_sets
-    USE qs_scf,                ONLY: scf
-    USE readin,                ONLY: read_files
-    USE start_program_run,     ONLY: start_qs_program_run
-    USE timings,               ONLY: timeset,timestop
-
-    TYPE(global_environment_type), INTENT(INOUT) :: globenv
-
-!   *** Local parameters ***
-
-    CHARACTER(LEN=*), PARAMETER :: routine =&
-      "SUBROUTINE quickstep (MODULE qs_main)"
+    TYPE(global_environment_type), INTENT(IN) :: globenv
 
 !   *** Local variables ***
 
-    INTEGER  :: handle
+    INTEGER :: handle
 
 !   ---------------------------------------------------------------------------
 
     CALL timeset("Quickstep","I","",handle)
 
-!   *** Initialize the Quickstep program run ***
+!   *** Read the input and the database files and perform further  ***
+!   *** initializations for the setup of the QUICKSTEP environment ***
 
-    CALL start_qs_program_run(globenv)
-
-!   *** Read the input and the database files ***
-!   *** and perform further initializations   ***
-
-    CALL read_files(globenv)
+    CALL read_qs_env(qs_env,globenv)
 
 !   *** Build neighbor list sets ***
 
-    CALL build_neighbor_list_sets(globenv)
+    CALL build_qs_neighbor_lists(qs_env,globenv)
 
-!   *** Calculate the core Hamiltonian integral matrix ***
+!   *** Allocate the overlap matrix and distribute the atomic blocks ***
 
-    CALL build_core_hamiltonian_matrix(globenv)
+    CALL distribute_overlap_matrix(qs_env,globenv)
 
-!   *** Perform SCF run ***
+!   *** Calculate the overlap and the core Hamiltonian integral matrix ***
 
-    CALL scf(globenv)
+    CALL build_core_hamiltonian_matrix(qs_env,globenv)
+
+!   *** Perform a SCF run ***
+
+    CALL scf(qs_env,globenv)
 
     CALL timestop(0.0_wp,handle)
 

@@ -14,17 +14,20 @@
 !!     Matthias Krack (30.04.2001)
 !!
 !!   MODIFICATION HISTORY
-!!     1) Joost VandeVondele (02.2002)
-!!           added code for : incremental (pab and gvg) update
-!!                            initialisation (init_cube, l_info)
-!!     2) Joost VandeVondele (02.2002)
-!!           called the poisson code of the classical part
-!!           this takes into account the spherical cutoff and allows for
-!!           isolated systems
-!!     3) Joost VandeVondele (02.2002)
-!!           added multiple grid feature
-!!           changed to spherical cutoff consistently (?)
-!!           therefore removed the gradient correct functionals
+!!     - Joost VandeVondele (02.2002)
+!!          added code for: incremental (pab and gvg) update
+!!                           initialisation (init_cube, l_info)
+!!     - Joost VandeVondele (02.2002)
+!!          called the poisson code of the classical part
+!!          this takes into account the spherical cutoff and allows for
+!!          isolated systems
+!!     - Joost VandeVondele (02.2002)
+!!          added multiple grid feature
+!!          changed to spherical cutoff consistently (?)
+!!          therefore removed the gradient correct functionals
+!!     - updated with the new QS data structures (10.04.02, MK)
+!!     - copy_matrix replaced by transfer_matrix (11.04.02, MK)
+!!     - nrebuild_rho and nrebuild_gvg unified (12.04.02, MK)
 !!
 !!   SOURCE
 !******************************************************************************
@@ -33,137 +36,147 @@ MODULE qs_scf
 
 ! *****************************************************************************
 
-  USE kinds, ONLY: wp => dp
+  USE kinds, ONLY: int_size,&
+                   wp => dp
 
-  USE cell_parameters,       ONLY: abc,cell,cutoff,ngrid_levels,rel_cutoff
-  USE atomic_kinds,          ONLY: gth_potential_present,kind_info,nkind
-  USE atoms,                 ONLY: atom_info
-  USE basis_set_types,       ONLY: gto_basis_set_type,maxlcgf
-  USE blacs,                 ONLY: allocate_blacs_matrix,&
-                                   blacs_gemm,&
-                                   blacs_matrix_type,&
-                                   blacs_set_all,&
-                                   blacs_set_element,&
-                                   blacs_get_element,&
-                                   blacs_syevx,&
-                                   blacs_symm,&
-                                   blacs_syrk,&
-                                   copy_blacs_to_sparse_matrix,&
-                                   copy_sparse_to_blacs_matrix,&
-                                   finish_blacs,&
-                                   get_blacs_matrix_info,&
-                                   power_blacs_matrix,&
-                                   replicate_blacs_matrix,&
-                                   start_blacs,&
-                                   symmetrise_blacs_matrix
-  USE coefficient_types,     ONLY: coeff_allocate,&
-                                   coeff_type,&
-                                   coeff_zero,&
-                                   coeff_copy
-  USE core_energies,         ONLY: calculate_ecore,&
-                                   calculate_ecore_overlap,&
-                                   calculate_ecore_self
-  USE core_hamiltonian,      ONLY: build_core_hamiltonian_matrix,h,s
-  USE diis,                  ONLY: eps_diis,max_diis,scf_diis
+  USE atomic_kind_types,        ONLY: atomic_kind_type,&
+                                      get_atomic_kind,&
+                                      get_atomic_kind_set
+  USE basis_set_types,          ONLY: get_gto_basis_set,&
+                                      gto_basis_set_type
+  USE coefficient_types,        ONLY: coeff_allocate,&
+                                      coeff_copy,&
+                                      coeff_transform_space,&
+                                      coeff_type,&
+                                      coeff_zero
+  USE cube_utils,               ONLY: cube_info_type,&
+                                      destroy_cube_info,&
+                                      init_cube_info
+  USE dft_types,                ONLY: dft_control_type
+  USE external_potential_types, ONLY: all_potential_type,&
+                                      get_potential,&
+                                      gth_potential_type
   USE functionals
-  USE global_types,          ONLY: global_environment_type
-  USE gaussian_gridlevels,   ONLY: gridlevel_info_type,&
-                                   init_gaussian_gridlevel,&
-                                   destroy_gaussian_gridlevel
-  USE input_utilities,       ONLY: finish_input_session,&
-                                   read_object,&
-                                   search,&
-                                   start_input_session
-  USE matrix_types,          ONLY: allocate_matrix,&
-                                   copy_matrix,&
-                                   deallocate_matrix,&
-                                   first_block_node,&
-                                   get_block_node,&
-                                   get_matrix_info,&
-                                   next_block_node,&
-                                   real_block_node_type,&
-                                   real_matrix_set_type,&
-                                   replicate_matrix_structure,&
-                                   symmetrise_diagonal_blocks
-  USE memory_utilities,      ONLY: reallocate
-  USE message_passing,       ONLY: mp_max,mp_sum,mp_sync
-  USE method_specifications, ONLY: xc_info
-  USE mo_types,              ONLY: allocate_mo_set,&
-                                   mo_set_type,&
-                                   read_mo_set,&
-                                   write_mo_set
-  USE om_utilities,          ONLY: write_blacs_matrix,&
-                                   write_spherical_matrix
-  USE pw_grid_types,         ONLY: HALFSPACE,pw_grid_type
-  USE pw_grids,              ONLY: pw_find_cutoff,&
-                                   pw_grid_construct,&
-                                   pw_grid_setup
-  USE pws,                   ONLY: init_pw_poisson_solver,pw_poisson_solver
-  USE greens_fn,             ONLY: pw_green_fn_init 
-  USE hartree,               ONLY: calculate_hartree
-  USE pw_types,              ONLY: COMPLEXDATA1D,REALDATA3D,REALSPACE,&
-                                   RECIPROCALSPACE,pw_fft_wrap,pw_type
-  USE string_utilities,      ONLY: uppercase
-  USE termination,           ONLY: stop_program
-  USE timings,               ONLY: timeset,timestop
-  USE timesl,                ONLY: cputime
-  USE cube_utils,            ONLY: cube_info_type,init_cube_info, & 
-                                   destroy_cube_info
-  USE l_utils,               ONLY: l_info_type,init_l_info, & 
-                                   destroy_l_info
+  USE gaussian_gridlevels,      ONLY: gridlevel_info_type,&
+                                      init_gaussian_gridlevel,& 
+                                      destroy_gaussian_gridlevel
+  USE global_types,             ONLY: DEBUG,&
+                                      global_environment_type
+  USE greens_fn,                ONLY: pw_green_fn_init
+  USE hartree,                  ONLY: calculate_hartree
+  USE l_utils,                  ONLY: destroy_l_info,&
+                                      init_l_info,&
+                                      l_info_type
+  USE mathconstants,            ONLY: fourpi,twopi
+  USE memory_utilities,         ONLY: reallocate
+  USE message_passing,          ONLY: mp_max,mp_sum,mp_sync
+  USE particle_types,           ONLY: particle_type
+  USE pw_grid_types,            ONLY: HALFSPACE,pw_grid_type
+  USE pw_grids,                 ONLY: pw_find_cutoff,&
+                                      pw_grid_construct,&
+                                      pw_grid_setup
+  USE pw_types,                 ONLY: COMPLEXDATA1D,COMPLEXDATA3D,&
+                                      REALDATA3D,REALSPACE,&
+                                      RECIPROCALSPACE,&
+                                      pw_fft_wrap,pw_type
+  USE pws,                      ONLY: init_pw_poisson_solver,&
+                                      pw_poisson_solver
+  USE qs_blacs,                 ONLY: allocate_blacs_matrix,&
+                                      blacs_gemm,&
+                                      blacs_get_element,&
+                                      blacs_matrix_type,&
+                                      blacs_set_all,&
+                                      blacs_set_element,&
+                                      blacs_syevx,&
+                                      blacs_symm,&
+                                      blacs_syrk,&
+                                      copy_blacs_to_sparse_matrix,&
+                                      copy_sparse_to_blacs_matrix,&
+                                      finish_blacs,&
+                                      get_blacs_matrix_info,&
+                                      power_blacs_matrix,&
+                                      replicate_blacs_matrix,&
+                                      start_blacs,&
+                                      symmetrise_blacs_matrix
+  USE qs_collocate_density,     ONLY: calculate_rho_core,&
+                                      calculate_rho_elec,&
+                                      calculate_total_rho
+  USE qs_core_energies,         ONLY: calculate_ecore,&
+                                      calculate_ecore_overlap,&
+                                      calculate_ecore_self
+  USE qs_diis,                  ONLY: eps_diis,max_diis,scf_diis
+  USE qs_environment_types,     ONLY: get_qs_env,&
+                                      qs_environment_type
+  USE qs_integrate_potential,   ONLY: integrate_v_rspace
+  USE qs_mo_types,              ONLY: allocate_mo_set,&
+                                      mo_set_type,&
+                                      read_mo_set,&
+                                      write_mo_set
+  USE qs_overlap,               ONLY: write_blacs_matrix,&
+                                      write_sparse_matrix
+  USE qs_parser,                ONLY: finish_parser,&
+                                      read_object,&
+                                      start_parser,&
+                                      test_object
+  USE simulation_cell,          ONLY: cell_type,&
+                                      get_cell
+  USE sparse_matrix_types,      ONLY: add_matrices,&
+                                      allocate_matrix,&
+                                      deallocate_matrix,&
+                                      first_block_node,&
+                                      get_block_node,&
+                                      get_matrix_info,&
+                                      next_block_node,&
+                                      real_block_node_type,&
+                                      real_matrix_p_type,&
+                                      replicate_matrix_structure,&
+                                      set_matrix,&
+                                      symmetrise_diagonal_blocks,&
+                                      transfer_matrix
+  USE termination,              ONLY: stop_memory,&
+                                      stop_program
+  USE timings,                  ONLY: timeset,&
+                                      timestop
+  USE timesl,                   ONLY: cputime
 
   IMPLICIT NONE
 
   PRIVATE
 
-  TYPE(blacs_matrix_type)    :: ortho,scf_work1,scf_work2
+  TYPE(cell_type), POINTER          :: cell
+  TYPE(dft_control_type), POINTER   :: dft_control
+  TYPE(real_matrix_p_type), POINTER :: h,s
+
+  TYPE(atomic_kind_type), DIMENSION(:), POINTER :: atomic_kind_set
+  TYPE(coeff_type), DIMENSION(:), POINTER       :: rho_gspace,rho_rspace,&
+                                                   rho_rspace_old,v_gspace,&
+                                                   v_rspace
+  TYPE(particle_type), DIMENSION(:), POINTER    :: particle_set
+  TYPE(pw_grid_type), DIMENSION(:), POINTER     :: pw_grid
+
+  TYPE(blacs_matrix_type)   :: ortho,scf_work1,scf_work2
+  TYPE(coeff_type)          :: drho_rspace,v_rspace_old,vxcg_rspace,&
+                               work_gspace,work_rspace
+  TYPE(gridlevel_info_type) :: gridlevel_info
+  TYPE(l_info_type)         :: l_info
+  TYPE(mo_set_type)         :: alpha_mo
+  TYPE(real_matrix_p_type)  :: ks,p,p_old,v
+
+  CHARACTER(LEN=60) :: c_fun,x_fun,xc_fun
+  CHARACTER(LEN=10) :: density_guess
+  REAL(wp)          :: rel_cutoff,ec,ecore,ecore_overlap,ecore_self,ehartree,&
+                       eps_eigval,eps_scf,etotal,ex,p_mix,&
+                       total_rho_core_rspace,total_rho_elec_rspace,&
+                       total_rho_gspace,total_rho_rspace,work_syevx
+  INTEGER           :: max_scf,nelectron,nrebuild,nrow_block,ncol_block,&
+                       nprow,npcol,maxl,ngrid_level,nkind
+  LOGICAL           :: gradient_functional,gth_potential_present,orthorhombic,&
+                       rebuild
+
   TYPE(coeff_type), DIMENSION(3) :: nabla_rho_rspace
-  TYPE(coeff_type)           :: drho_rspace,&
-                                v_rspace_old,&
-                                vxcg_rspace,work_gspace,work_rspace
 
-! allow for multiple grids
-  TYPE(coeff_type), DIMENSION(:), pointer   :: rho_gspace,rho_rspace, &
-                                      v_rspace,v_gspace,rho_rspace_old
-  TYPE(pw_grid_type), DIMENSION(:), pointer :: pw_grid
-  TYPE(cube_info_type), DIMENSION(:), pointer  :: cube_info
-
-  TYPE(mo_set_type)          :: alpha_mo
-  TYPE(real_matrix_set_type) :: ks,p,p_old,gvg
-  TYPE(l_info_type)          :: l_info
-  TYPE(gridlevel_info_type)  :: gridlevel_info
-
-  CHARACTER(LEN=10) :: density_guess = "CORE"
-  REAL(wp)          :: ec = 0.0_wp,&
-                       ecore = 0.0_wp,&
-                       ecore_overlap = 0.0_wp,&
-                       ecore_self = 0.0_wp,&
-                       ehartree = 0.0_wp,&
-                       eps_eigval = 1.0E-5_wp,&
-                       eps_scf = 1.0E-5_wp,&
-                       etotal = 0.0_wp,&
-                       ex = 0.0_wp,&
-                       p_mix = 0.4_wp,&
-                       total_rho_core_rspace = 0.0_wp,&
-                       total_rho_elec_rspace = 0.0_wp,&
-                       total_rho_gspace = 0.0_wp,&
-                       total_rho_rspace = 0.0_wp,&
-                       work_syevx = 0.0_wp
-  INTEGER           :: max_scf = 50,&
-                       nrebuild_rho = 5, &
-                       nrebuild_gvg = 5, &
-                       nelectron = 0,&
-                       nrow_block = 32,&
-                       ncol_block = 32,&
-                       nprow = 0,&
-                       npcol = 0,&
-                       additional_charge = 0
-
-  logical           :: rebuild_rho = .true.
-  logical           :: rebuild_gvg = .true.
-
-
-  REAL(wp), DIMENSION(:,:), POINTER :: g_vector
+  TYPE(cube_info_type), DIMENSION(:), POINTER :: cube_info
+  REAL(wp), DIMENSION(:), POINTER             :: cutoff
 
 ! *** Public variables ***
 
@@ -181,24 +194,24 @@ CONTAINS
 
 ! *****************************************************************************
 
-  SUBROUTINE scf(globenv)
+  SUBROUTINE scf(qs_env,globenv)
 
     TYPE(global_environment_type), INTENT(IN) :: globenv
+    TYPE(qs_environment_type), INTENT(INOUT)  :: qs_env
 
 !   *** Local parameters ***
 
     CHARACTER(LEN=*), PARAMETER :: routine =&
       "SUBROUTINE scf (MODULE qs_scf)"
 
+!   *** Local parameters ***
+
+    INTEGER, PARAMETER :: maxgridpoints = 100
+
 !   *** Local variables ***
 
-    REAL(wp) :: delta,diis_error,t1,t2
-    REAL(wp) :: maxradius
-    integer  :: maxgridpoints
-    PARAMETER (maxgridpoints=40)
-    integer  :: maxl
-    PARAMETER (maxl=4)
-    INTEGER  :: context,handle,iscf,output_unit,igrid_level,cmax,cmaxl
+    REAL(wp) :: delta,diis_error,maxradius,t1,t2
+    INTEGER  :: cmax,cmaxl,context,handle,igrid_level,iscf,istat,output_unit
     LOGICAL  :: diis_step,ionode
 
 !   ---------------------------------------------------------------------------
@@ -212,37 +225,63 @@ CONTAINS
     ionode = globenv%ionode
     output_unit = globenv%scr
 
+    CALL get_qs_env(qs_env=qs_env,&
+                    atomic_kind_set=atomic_kind_set,&
+                    cell=cell,&
+                    dft_control=dft_control,&
+                    h=h,&
+                    s=s,&
+                    particle_set=particle_set)
+
+    CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,&
+                             gth_potential_present=gth_potential_present,&
+                             maxl=maxl,&
+                             nelectron=nelectron)
+
+    CALL get_cell(cell=cell,orthorhombic=orthorhombic)
+
+    gradient_functional = dft_control%gradient_functional
+    rel_cutoff = dft_control%qs_control%relative_cutoff
+    cutoff => dft_control%qs_control%e_cutoff
+    ngrid_level = SIZE(cutoff)
+
+    x_fun = dft_control%exchange_functional
+    c_fun = dft_control%correlation_functional
+    xc_fun = dft_control%functional
+
+    nkind = SIZE(atomic_kind_set)
+
     CALL init_functionals()
 
-
-    CALL init_gaussian_gridlevel(gridlevel_info,ngrid_levels,cutoff,rel_cutoff)
+    CALL init_gaussian_gridlevel(gridlevel_info,ngrid_level,cutoff,rel_cutoff)
 
     CALL init_grid(globenv)
-    
-    allocate(cube_info(ngrid_levels)) 
-    cmax=0
-    do igrid_level=1,ngrid_levels
-      maxradius=maxgridpoints*MAXVAL(rho_rspace(igrid_level)%pw%pw_grid%dr)
-      CALL init_cube_info(cube_info(igrid_level), &
-           rho_rspace(igrid_level)%pw%pw_grid%dr(:),maxradius,cmaxl)
-      cmax=MAX(cmax,cmaxl)
-    enddo
+
+    ALLOCATE (cube_info(ngrid_level),STAT=istat)
+    IF (istat /= 0) CALL stop_memory(routine,"cube_info",0)
+
+    cmax = 0
+    DO igrid_level=1,ngrid_level
+      maxradius = maxgridpoints*MAXVAL(rho_rspace(igrid_level)%pw%pw_grid%dr)
+      CALL init_cube_info(cube_info(igrid_level),&
+                          rho_rspace(igrid_level)%pw%pw_grid%dr(:),&
+                          maxradius,cmaxl)
+      cmax = MAX(cmax,cmaxl)
+    END DO
 
     CALL init_l_info(l_info,maxl,cmax)
-
 
     IF (ionode.AND.globenv%print%scf) THEN
       WRITE (UNIT=output_unit,FMT="(/,/,T2,A)")&
         "SCF WAVEFUNCTION OPTIMIZATION"
     END IF
 
-    CALL init_scf_run(alpha_mo,context,globenv)
+    CALL init_scf_run(alpha_mo,context,qs_env,globenv)
 
     etotal = 0.0_wp
     iscf = 0
     diis_step = .FALSE.
-    rebuild_rho = .true.
-    rebuild_gvg = .true.
+    rebuild = .TRUE.
 
     IF (ionode.AND.globenv%print%scf) THEN
       WRITE (UNIT=output_unit,&
@@ -258,24 +297,15 @@ CONTAINS
       t1 = cputime()
 
       IF (globenv%print%density_matrix.AND.globenv%print%each_scf_step) THEN
-        CALL write_spherical_matrix(p%matrix,4,6,globenv)
+        CALL write_sparse_matrix(p%matrix,4,6,qs_env,globenv)
       END IF
 
-      CALL build_kohn_sham_matrix(globenv)
+      CALL build_kohn_sham_matrix(qs_env,globenv)
 
-      if (MODULO(iscf,nrebuild_rho).eq.0) then
-         rebuild_rho=.true.
-      else
-         rebuild_rho=.false.
-      endif
-      if (MODULO(iscf,nrebuild_gvg).eq.0) then
-         rebuild_gvg=.true.
-      else
-         rebuild_gvg=.false.
-      endif
+      rebuild = (MODULO(iscf,nrebuild) == 0)
 
       IF (globenv%print%kohn_sham_matrix.AND.globenv%print%each_scf_step) THEN
-        CALL write_spherical_matrix(ks%matrix,4,6,globenv)
+        CALL write_sparse_matrix(ks%matrix,4,6,qs_env,globenv)
       END IF
 
       CALL copy_sparse_to_blacs_matrix(ks%matrix,scf_work1,context,globenv)
@@ -284,7 +314,7 @@ CONTAINS
 
       IF (iscf > 1) THEN
         CALL scf_diis(alpha_mo,scf_work1,scf_work2,delta,diis_error,diis_step,&
-                      context,globenv)
+                      context,qs_env,globenv)
       END IF
 
       CALL orthogonalise_matrix(ortho,scf_work1,scf_work2,context,globenv)
@@ -292,7 +322,7 @@ CONTAINS
       CALL eigensolver(scf_work1,alpha_mo,ortho,scf_work2,context,globenv)
 
       IF (globenv%print%each_scf_step) THEN
-        CALL write_mo_set(alpha_mo,4,6,context,globenv)
+        CALL write_mo_set(alpha_mo,4,6,context,qs_env,globenv)
       END IF
 
       CALL calculate_density_matrix(alpha_mo,scf_work1,context,globenv)
@@ -354,29 +384,32 @@ CONTAINS
 
 !   *** Undo mixing of the density matrix (restore original density) ***
 
-    IF (.NOT.diis_step) CALL copy_matrix(ks%matrix,p%matrix)
+    IF (.NOT.diis_step) CALL transfer_matrix(ks%matrix,p%matrix)
 
-    CALL write_mo_set(alpha_mo,4,6,context,globenv)
+    CALL write_mo_set(alpha_mo,4,6,context,qs_env,globenv)
 
     IF (globenv%print%density_matrix) THEN
-      CALL write_spherical_matrix(p%matrix,4,6,globenv)
+      CALL write_sparse_matrix(p%matrix,4,6,qs_env,globenv)
     END IF
 
     IF (globenv%print%kohn_sham_matrix) THEN
-      CALL build_kohn_sham_matrix(globenv)
-      CALL write_spherical_matrix(ks%matrix,4,6,globenv)
+      CALL build_kohn_sham_matrix(qs_env,globenv)
+      CALL write_sparse_matrix(ks%matrix,4,6,qs_env,globenv)
     END IF
 
 !   *** Write restart file ***
 
     CALL write_mo_set(alpha_mo,context,globenv)
-    DO igrid_level=1,ngrid_levels
-       CALL destroy_cube_info(cube_info(igrid_level))
-    ENDDO
-    deallocate(cube_info)
+
+    DO igrid_level=1,ngrid_level
+      CALL destroy_cube_info(cube_info(igrid_level))
+    END DO
+
+    DEALLOCATE (cube_info,STAT=istat)
+    IF (istat /= 0) CALL stop_memory(routine,"cube_info")
 
     CALL destroy_l_info(l_info)
-    CALL destroy_gaussian_gridlevel(gridlevel_info) 
+    CALL destroy_gaussian_gridlevel(gridlevel_info,globenv)
 
     CALL finish_blacs(context,globenv)
 
@@ -386,19 +419,14 @@ CONTAINS
 
 ! *****************************************************************************
 
-  SUBROUTINE build_kohn_sham_matrix(globenv)
-
-    USE collocate_density,   ONLY: calculate_rho_core,&
-                                   calculate_rho_elec,&
-                                   calculate_total_rho
-    USE integrate_potential, ONLY: integrate_v_rspace
-    USE print_keys,          ONLY: DEBUG
+  SUBROUTINE build_kohn_sham_matrix(qs_env,globenv)
 
     TYPE(global_environment_type), INTENT(IN) :: globenv
+    TYPE(qs_environment_type), INTENT(INOUT)  :: qs_env
 
 !   *** Local variables ***
 
-    INTEGER :: handle,handle2,nproduct,output_unit,igrid_level
+    INTEGER :: handle,output_unit
     LOGICAL :: ionode
 
 !   ---------------------------------------------------------------------------
@@ -410,33 +438,24 @@ CONTAINS
 
     CALL calculate_ecore(h,p,ecore,globenv)
 
-    CALL calculate_rho_elec(p,p_old,rebuild_rho,rho_rspace,&
-                  rho_rspace_old,rho_gspace,&
-                  gridlevel_info,&
-                  cube_info,l_info, &
-                  total_rho_elec_rspace,nproduct,globenv)
+    CALL calculate_rho_elec(p,p_old,rebuild,rho_rspace,rho_rspace_old,&
+                            rho_gspace,gridlevel_info,cube_info,l_info,&
+                            total_rho_elec_rspace,qs_env,globenv)
 
-    IF (ionode.AND.globenv%print%total_densities) THEN
-      WRITE (UNIT=output_unit,FMT="(/,T3,A,I10)")&
-        "Number of collocated products (r-space):",nproduct
-    END IF
     CALL coeff_zero(v_rspace(1))
-  
-    CALL timeset("total_xc","I","",handle2)
 
-    IF (xc_info%gradient_functional) THEN
-! we have to wait for the general xc functions since we changed to a complex1D data structure
-! for the density
+    IF (gradient_functional) THEN
+! we have to wait for the general xc functions since we changed
+! to a complex1D data structure for the density
       CALL stop_program("build_kohn","feature has been removed")
-      CALL calculate_nabla_rho_elec(globenv)
-      CALL coeff_zero(vxcg_rspace)
+!MK      CALL calculate_nabla_rho_elec(globenv)
+!MK      CALL coeff_zero(vxcg_rspace)
     END IF
+
     CALL calculate_xc_potential(globenv)
 
-
-    CALL timestop(0.0_wp,handle2)
-
-    CALL calculate_rho_core(rho_rspace(1),cube_info(1),l_info,total_rho_rspace,globenv)
+    CALL calculate_rho_core(rho_rspace(1),cube_info(1),l_info,&
+                            total_rho_rspace,qs_env,globenv)
 
     total_rho_core_rspace = total_rho_rspace - total_rho_elec_rspace
 
@@ -450,7 +469,7 @@ CONTAINS
         "Total electronic density (r-space): ",&
         total_rho_elec_rspace,total_rho_elec_rspace + REAL(nelectron,wp),&
         "Total core charge density (r-space):",&
-        total_rho_core_rspace,total_rho_core_rspace - REAL(nelectron+additional_charge,wp)
+        total_rho_core_rspace,total_rho_core_rspace - REAL(nelectron,wp)
       WRITE (UNIT=output_unit,FMT="(T3,A,T60,F20.10)")&
         "Total charge density (r-space):     ",total_rho_rspace,&
         "Total charge density (g-space):     ",total_rho_gspace
@@ -462,8 +481,6 @@ CONTAINS
 
     IF (ionode.AND.globenv%print%scf_energies) THEN
       WRITE (UNIT=output_unit,FMT="(/,(T3,A,T60,F20.10))")&
-        "Overlap energy of the core charge distribution:",ecore_overlap,&
-        "Self energy of the core charge distribution:   ",ecore_self,&
         "Core Hamiltonian energy:                       ",ecore,&
         "Hartree energy:                                ",ehartree,&
         "Exchange-correlation energy:                   ",ex + ec
@@ -473,22 +490,23 @@ CONTAINS
                      debug=(globenv%print%level == DEBUG))
 
     v_rspace(1)%pw%cr3d(:,:,:) = v_rspace(1)%pw%pw_grid%dvol*&
-                              (v_rspace(1)%pw%cr3d(:,:,:) +&
-                               work_rspace%pw%cr3d(:,:,:))
+                                 (v_rspace(1)%pw%cr3d(:,:,:) +&
+                                  work_rspace%pw%cr3d(:,:,:))
 
-    CALL copy_matrix(h%matrix,ks%matrix)
-
-    CALL integrate_v_rspace(p,v_rspace,v_gspace,gridlevel_info,&
-                             v_rspace_old,cube_info,&
-                             l_info,rebuild_gvg,&
-                             gvg,ks,nproduct,globenv)
-
-    IF (ionode.AND.globenv%print%total_densities) THEN
-      WRITE (UNIT=output_unit,FMT="(/,T3,A,I10)")&
-        "Number of integrated products (r-space):",nproduct
+    IF (nrebuild == 1) THEN
+      CALL transfer_matrix(h%matrix,ks%matrix)
+      CALL integrate_v_rspace(v_rspace,v_gspace,gridlevel_info,v_rspace_old,&
+                              cube_info,l_info,rebuild,p,ks,qs_env,globenv)
+    ELSE
+      IF (rebuild) CALL set_matrix(v%matrix,0.0_wp)
+      CALL integrate_v_rspace(v_rspace,v_gspace,gridlevel_info,v_rspace_old,&
+                              cube_info,l_info,rebuild,p,v,qs_env,globenv)
+      CALL add_matrices(ks%matrix,1.0_wp,h%matrix,1.0_wp,v%matrix)
     END IF
 
-    CALL copy_matrix(p%matrix,p_old%matrix) ! keep a copy of the old density matrix
+!   *** Keep a copy of the old density matrix ***
+
+    CALL transfer_matrix(p%matrix,p_old%matrix)
 
     CALL timestop(0.0_wp,handle)
 
@@ -498,17 +516,17 @@ CONTAINS
 
   SUBROUTINE init_grid(globenv)
 
-    USE mathconstants,   ONLY: twopi
-
     TYPE(global_environment_type), INTENT(IN) :: globenv
+
+!   *** Local parameters ***
+
+    CHARACTER(LEN=*), PARAMETER :: routine =&
+      "SUBROUTINE init_grid (MODULE qs_scf)"
 
 !   *** Local variables ***
 
-    INTEGER :: handle,i,ig,jg,output_unit,igrid_level
+    INTEGER :: handle,i,igrid_level,istat,output_unit
     LOGICAL :: ionode
-
-    REAL(wp), DIMENSION(3) :: dg,dr
-    INTEGER, DIMENSION(3)  :: lb_grid,ng,ub_grid
 
 !   ---------------------------------------------------------------------------
 
@@ -517,57 +535,73 @@ CONTAINS
     ionode = globenv%ionode
     output_unit = globenv%scr
 
-! *** allocate the multigrid arrays ***
+!   *** Allocate the multi-grid arrays ***
 
-    allocate(pw_grid(ngrid_levels))
-    allocate(rho_rspace(ngrid_levels))
-    allocate(rho_rspace_old(ngrid_levels))
-    allocate(rho_gspace(ngrid_levels))
-    allocate(v_rspace(ngrid_levels))
-    allocate(v_gspace(ngrid_levels))
+    ALLOCATE (pw_grid(ngrid_level),STAT=istat)
+    IF (istat /= 0) CALL stop_memory(routine,"pw_grid",0)
+    ALLOCATE (rho_rspace(ngrid_level),STAT=istat)
+    IF (istat /= 0) CALL stop_memory(routine,"rho_rspace",0)
+    ALLOCATE (rho_gspace(ngrid_level),STAT=istat)
+    IF (istat /= 0) CALL stop_memory(routine,"rho_gspace",0)
+    ALLOCATE (v_rspace(ngrid_level),STAT=istat)
+    IF (istat /= 0) CALL stop_memory(routine,"v_rspace",0)
+    ALLOCATE (v_gspace(ngrid_level),STAT=istat)
+    IF (istat /= 0) CALL stop_memory(routine,"v_gspace",0)
 
-! *** construct the various coeff_type grids
+    ALLOCATE (rho_rspace_old(ngrid_level),STAT=istat)
+    IF (istat /= 0) CALL stop_memory(routine,"rho_rspace_old",0)
 
-    do igrid_level=1,ngrid_levels
+!   *** Construct the various coeff_type grids ***
 
-       CALL pw_grid_construct(pw_grid(igrid_level))
-       pw_grid(igrid_level)%grid_span = HALFSPACE
-       if (igrid_level.eq.1) then
-           IF (ionode.AND.globenv%print%pw_grid_information) THEN
-             CALL pw_grid_setup(cell,pw_grid(1),cutoff(1),&
-                                info=output_unit,&
-                                orthorhombic=.TRUE.)
-           ELSE
-             CALL pw_grid_setup(cell,pw_grid(1),cutoff(1),&
-                             orthorhombic=.TRUE.)
+    DO igrid_level=1,ngrid_level
+      CALL pw_grid_construct(pw_grid(igrid_level))
+      pw_grid(igrid_level)%grid_span = HALFSPACE
+      IF (igrid_level == 1) THEN
+        IF (ionode.AND.globenv%print%pw_grid_information) THEN
+          CALL pw_grid_setup(cell,pw_grid(1),cutoff(1),&
+                             info=output_unit,&
+                             orthorhombic=orthorhombic)
+         ELSE
+           CALL pw_grid_setup(cell,pw_grid(1),cutoff(1),&
+                              orthorhombic=orthorhombic)
+         END IF
+      ELSE
+         IF (ionode.AND.globenv%print%pw_grid_information) THEN
+           CALL pw_grid_setup(cell,pw_grid(igrid_level),cutoff(igrid_level),&
+                              info=output_unit,&
+                              orthorhombic=orthorhombic,&
+                              ref_grid=pw_grid(1))
+         ELSE
+           CALL pw_grid_setup(cell,pw_grid(igrid_level),cutoff(igrid_level),&
+                              orthorhombic=orthorhombic,&
+                              ref_grid=pw_grid(1))
            END IF
-       else
-           IF (ionode.AND.globenv%print%pw_grid_information) THEN
-             CALL pw_grid_setup(cell,pw_grid(igrid_level),cutoff(igrid_level),&
-                                info=output_unit,&
-                                orthorhombic=.TRUE.,ref_grid=pw_grid(1))
-           ELSE
-             CALL pw_grid_setup(cell,pw_grid(igrid_level),cutoff(igrid_level),&
-                             orthorhombic=.TRUE.,ref_grid=pw_grid(1))
-           END IF
-       endif
+       END IF
 
-       CALL coeff_allocate(rho_rspace(igrid_level),pw_grid(igrid_level),REALDATA3D)
+       CALL coeff_allocate(rho_rspace(igrid_level),pw_grid(igrid_level),&
+                           REALDATA3D)
        rho_rspace(igrid_level)%pw%in_space = REALSPACE
-       CALL coeff_allocate(rho_gspace(igrid_level),pw_grid(igrid_level),COMPLEXDATA1D)
+       CALL coeff_allocate(rho_gspace(igrid_level),pw_grid(igrid_level),&
+                           COMPLEXDATA1D)
        rho_gspace(igrid_level)%pw%in_space = RECIPROCALSPACE
-       CALL coeff_allocate(rho_rspace_old(igrid_level),pw_grid(igrid_level),REALDATA3D)
+       CALL coeff_allocate(rho_rspace_old(igrid_level),pw_grid(igrid_level),&
+                           REALDATA3D)
        rho_rspace_old%pw%in_space = REALSPACE
-       CALL coeff_allocate(v_rspace(igrid_level),pw_grid(igrid_level),REALDATA3D)
+       CALL coeff_allocate(v_rspace(igrid_level),pw_grid(igrid_level),&
+                           REALDATA3D)
        v_rspace(igrid_level)%pw%in_space = REALSPACE
-       CALL coeff_allocate(v_gspace(igrid_level),pw_grid(igrid_level),COMPLEXDATA1D)
+       CALL coeff_allocate(v_gspace(igrid_level),pw_grid(igrid_level),&
+                           COMPLEXDATA1D)
        v_gspace(igrid_level)%pw%in_space = RECIPROCALSPACE
 
-    end do
+    END DO
 
-! *** following quantities are only needed for the highest cutoff grid
-    CALL pw_green_fn_init ( cell % green, pw_grid(1)  )
-    CALL init_pw_poisson_solver ( cell % green )
+!   *** Following quantities are only needed for the highest cutoff grid ***
+
+    CALL pw_green_fn_init(cell%green,pw_grid(1))
+
+    CALL init_pw_poisson_solver(cell%green)
+
     CALL coeff_allocate(work_rspace,pw_grid(1),REALDATA3D)
     work_rspace%pw%in_space = REALSPACE
     CALL coeff_allocate(work_gspace,pw_grid(1),COMPLEXDATA1D)
@@ -575,8 +609,7 @@ CONTAINS
     CALL coeff_allocate(v_rspace_old,pw_grid(1),REALDATA3D)
     v_rspace_old%pw%in_space = REALSPACE
 
-! *** xc
-    IF (xc_info%gradient_functional) THEN
+    IF (gradient_functional) THEN
       DO i=1,3
         CALL coeff_allocate(nabla_rho_rspace(i),pw_grid(1),REALDATA3D)
         nabla_rho_rspace(i)%pw%in_space = REALSPACE
@@ -587,32 +620,13 @@ CONTAINS
       vxcg_rspace%pw%in_space = REALSPACE
     END IF
 
-!   *** Build g vectors for the highest cutoff grid
-
-    dr(:) = rho_rspace(1)%pw%pw_grid%dr(:)
-    ng(:) = rho_rspace(1)%pw%pw_grid%npts(:)
-    dg(:) = twopi/(ng(:)*dr(:))
-    lb_grid(:) = rho_rspace(1)%pw%pw_grid%bounds(1,:)
-    ub_grid(:) = rho_rspace(1)%pw%pw_grid%bounds(2,:)
-    g_vector => reallocate(g_vector,1,MAXVAL(ng(:)),1,3)
-    DO i=1,3
-      DO ig=lb_grid(i),ub_grid(i)
-        IF (ig < 0) THEN
-          jg = ig + 1 + ng(i)
-        ELSE
-          jg = ig + 1
-        END IF
-        g_vector(jg,i) = REAL(ig,wp)*dg(i)
-      END DO
-    END DO
-
     CALL timestop(0.0_wp,handle)
 
   END SUBROUTINE init_grid
 
 ! *****************************************************************************
 
-  SUBROUTINE init_scf_run(mo,context,globenv)
+  SUBROUTINE init_scf_run(mo,context,qs_env,globenv)
 
 !   Purpose: Initialise a SCF run.
 
@@ -622,6 +636,7 @@ CONTAINS
 
     TYPE(global_environment_type), INTENT(IN) :: globenv
     TYPE(mo_set_type), INTENT(OUT)            :: mo
+    TYPE(qs_environment_type), INTENT(INOUT)  :: qs_env
     INTEGER, INTENT(OUT)                      :: context
 
 !   *** Local parameters ***
@@ -649,16 +664,6 @@ CONTAINS
 
 !   *** Calculate the number of electrons ***
 
-    nelectron = - additional_charge
-
-    DO ikind=1,nkind
-      nelectron = nelectron + kind_info(ikind)%natom*kind_info(ikind)%zeff
-    END DO
-
-    IF (nelectron.lt.1) THEN
-      CALL stop_program(routine,"too few electrons hanging around")
-    ENDIF
-
     IF (MODULO(nelectron,2) == 0) THEN
       homo = nelectron/2
     ELSE
@@ -670,7 +675,7 @@ CONTAINS
 
     CALL get_matrix_info(matrix=h%matrix,nrow=nao)
 
-    IF (globenv%print%mo_eigenvectors) THEN
+    IF (globenv%print%mo_eigenvalues) THEN
       nmo = nao
     ELSE
       nmo = homo
@@ -729,16 +734,17 @@ CONTAINS
 
     NULLIFY (p_old%matrix)
     CALL replicate_matrix_structure(h%matrix,p_old%matrix,"OLD DENSITY MATRIX")
-    NULLIFY (gvg%matrix)
-    CALL replicate_matrix_structure(h%matrix,gvg%matrix,"POTENTIAL MATRIX")
 
-    CALL calculate_ecore_self(ecore_self)
-    CALL calculate_ecore_overlap(ecore_overlap,globenv)
+    NULLIFY (v%matrix)
+    CALL replicate_matrix_structure(h%matrix,v%matrix,"POTENTIAL MATRIX")
+
+    CALL calculate_ecore_self(ecore_self,qs_env)
+    CALL calculate_ecore_overlap(ecore_overlap,qs_env,globenv)
 
     IF (ionode.AND.globenv%print%scf_energies) THEN
       WRITE (UNIT=output_unit,FMT="(/,(T3,A,T60,F20.10))")&
-        "Self energy of the core charge distribution:   ",ecore_self,&
-        "Overlap energy of the core charge distribution:",ecore_overlap
+        "Overlap energy of the core charge distribution:",ecore_overlap,&
+        "Self energy of the core charge distribution:   ",ecore_self
     END IF
 
     CALL calculate_ortho_matrix(ortho,scf_work2,ndep,context,globenv)
@@ -752,7 +758,7 @@ CONTAINS
     END IF
 
     IF (globenv%print%ortho_matrix) THEN
-      CALL write_blacs_matrix(ortho,4,6,context,globenv)
+      CALL write_blacs_matrix(ortho,4,6,context,qs_env,globenv)
     END IF
 
     CALL calculate_first_density_matrix(ortho,mo,p,scf_work1,scf_work2,&
@@ -913,17 +919,18 @@ CONTAINS
 !   ***************************************************************************
 
     TYPE(global_environment_type), INTENT(IN) :: globenv
-    TYPE(real_matrix_set_type), INTENT(INOUT) :: new_density,old_density
+    TYPE(real_matrix_p_type), INTENT(INOUT)   :: new_density,old_density
     REAL(wp), INTENT(IN)                      :: p_mix
     REAL(wp), INTENT(OUT)                     :: delta
 
 !   *** Local variables ***
 
-    TYPE(real_block_node_type), POINTER :: new_p_block_node,old_p_block_node
-    REAL(wp)                            :: r_mix
-    INTEGER                             :: handle,i,iblock_row,j,nblock_row
+    TYPE(real_block_node_type), POINTER :: block_node
 
-    REAL(wp), DIMENSION(:,:), POINTER :: new_p_block,old_p_block
+    REAL(wp) :: r_mix
+    INTEGER  :: handle,i,iblock_col,iblock_row,j,nblock_row
+
+    REAL(wp), DIMENSION(:,:), POINTER :: p_new_block,p_old_block
 
 !   ---------------------------------------------------------------------------
 
@@ -937,29 +944,30 @@ CONTAINS
 
     DO iblock_row=1,nblock_row
 
-      new_p_block_node => first_block_node(matrix=new_density%matrix,&
-                                           block_row=iblock_row)
-      old_p_block_node => first_block_node(matrix=old_density%matrix,&
-                                           block_row=iblock_row)
+      block_node => first_block_node(matrix=new_density%matrix,&
+                                     block_row=iblock_row)
 
-      DO WHILE (ASSOCIATED(old_p_block_node))
+      DO WHILE (ASSOCIATED(block_node))
 
-        CALL get_block_node(block_node=new_p_block_node,&
-                            block=new_p_block)
-        CALL get_block_node(block_node=old_p_block_node,&
-                            block=old_p_block)
+        CALL get_block_node(block_node=block_node,&
+                            block_col=iblock_col,&
+                            block=p_new_block)
 
-        DO j=1,SIZE(new_p_block,2)
-          DO i=1,SIZE(new_p_block,1)
-            new_p_block(i,j) = new_p_block(i,j) - old_p_block(i,j)
-            delta = MAX(delta,ABS(new_p_block(i,j)))
-            old_p_block(i,j) = old_p_block(i,j) + p_mix*new_p_block(i,j)
-            new_p_block(i,j) = old_p_block(i,j) + r_mix*new_p_block(i,j)
+        CALL get_block_node(matrix=old_density%matrix,&
+                            block_row=iblock_row,&
+                            block_col=iblock_col,&
+                            block=p_old_block)
+
+        DO j=1,SIZE(p_new_block,2)
+          DO i=1,SIZE(p_new_block,1)
+            p_new_block(i,j) = p_new_block(i,j) - p_old_block(i,j)
+            delta = MAX(delta,ABS(p_new_block(i,j)))
+            p_old_block(i,j) = p_old_block(i,j) + p_mix*p_new_block(i,j)
+            p_new_block(i,j) = p_old_block(i,j) + r_mix*p_new_block(i,j)
           END DO
         END DO
 
-        new_p_block_node => next_block_node(new_p_block_node)
-        old_p_block_node => next_block_node(old_p_block_node)
+        block_node => next_block_node(block_node)
 
       END DO
 
@@ -970,33 +978,6 @@ CONTAINS
     CALL timestop(0.0_wp,handle)
 
   END SUBROUTINE density_mixing
-
-! *****************************************************************************
-
-  SUBROUTINE calculate_nabla_rho_elec(globenv)
-
-    USE print_keys, ONLY: DEBUG
-
-    TYPE(global_environment_type), INTENT(IN) :: globenv
-
-!   *** Local variables ***
-
-    COMPLEX(wp) :: c
-    INTEGER     :: handle,i,ig,jg,kg
-
-    INTEGER, DIMENSION(3) :: ng
-
-    COMPLEX(wp), DIMENSION(:,:,:), POINTER :: rho,work
-
-!   ---------------------------------------------------------------------------
-
-    CALL timeset("calculate_drho_elec","I","",handle)
-
-    CALL stop_program(" calculate_nabla_rho_elec", "coded away")
-
-    CALL timestop(0.0_wp,handle)
-
-  END SUBROUTINE calculate_nabla_rho_elec
 
 ! *****************************************************************************
 
@@ -1021,7 +1002,7 @@ CONTAINS
     rho => rho_rspace(1)%pw%cr3d(:,:,:)
     vxc => v_rspace(1)%pw%cr3d(:,:,:)
 
-    IF (xc_info%gradient_functional) THEN
+    IF (gradient_functional) THEN
       drho => drho_rspace%pw%cr3d(:,:,:)
       vxcg => vxcg_rspace%pw%cr3d(:,:,:)
     END IF
@@ -1035,7 +1016,7 @@ CONTAINS
 
 !     *** Exchange functionals ***
 
-      SELECT CASE (xc_info%x_functional)
+      SELECT CASE (TRIM(x_fun))
       CASE ("Becke88")
         CALL becke88(rho(:,:,kg),drho(:,:,kg),ex,vxc(:,:,kg),vxcg(:,:,kg))
       CASE ("PBE")
@@ -1050,7 +1031,7 @@ CONTAINS
 
 !     *** Correlation functionals ***
 
-      SELECT CASE (xc_info%c_functional)
+      SELECT CASE (TRIM(c_fun))
       CASE ("LYP")
         CALL lyp(rho(:,:,kg),drho(:,:,kg),ec,vxc(:,:,kg),vxcg(:,:,kg))
       CASE ("PBE")
@@ -1063,7 +1044,7 @@ CONTAINS
 
 !     *** Combined exchange-correlation functionals ***
 
-      SELECT CASE (xc_info%x_functional)
+      SELECT CASE (TRIM(xc_fun))
       CASE ("HCTH/93")
         CALL hcth(93,rho(:,:,kg),drho(:,:,kg),ex,vxc(:,:,kg),vxcg(:,:,kg))
       CASE ("HCTH/120")
@@ -1079,7 +1060,7 @@ CONTAINS
     END DO
 
     CALL mp_sum(vxc,globenv%group)
-    IF (xc_info%gradient_functional) CALL mp_sum(vxcg,globenv%group)
+    IF (gradient_functional) CALL mp_sum(vxcg,globenv%group)
 
     CALL mp_sum(ex,globenv%group)
     CALL mp_sum(ec,globenv%group)
@@ -1087,9 +1068,7 @@ CONTAINS
     ex = rho_rspace(1)%pw%pw_grid%dvol*ex
     ec = rho_rspace(1)%pw%pw_grid%dvol*ec
 
-    IF (xc_info%gradient_functional) THEN
-      CALL calculate_nabla_vxcg(globenv)
-    END IF
+!MK IF (gradient_functional) CALL calculate_nabla_vxcg(globenv)
 
     CALL timestop(0.0_wp,handle)
 
@@ -1097,168 +1076,189 @@ CONTAINS
 
 ! *****************************************************************************
 
-  SUBROUTINE calculate_nabla_vxcg(globenv)
+  SUBROUTINE calculate_first_density_matrix(ortho,mo,p,work1,work2,context,&
+                                            globenv)
 
-    USE print_keys, ONLY: DEBUG
-
+    TYPE(blacs_matrix_type), INTENT(IN)       :: ortho
+    TYPE(blacs_matrix_type), INTENT(INOUT)    :: work1,work2
     TYPE(global_environment_type), INTENT(IN) :: globenv
+    TYPE(mo_set_type), INTENT(INOUT)          :: mo
+    TYPE(real_matrix_p_type), INTENT(INOUT)   :: p
+    INTEGER, INTENT(IN)                       :: context
+
+!   *** Local parameters ***
+
+    CHARACTER(LEN=*), PARAMETER :: routine =&
+      "SUBROUTINE calculate_first_density_matrix (MODULE qs_scf)"
 
 !   *** Local variables ***
 
-    COMPLEX(wp) :: c
-    INTEGER     :: handle,i,ig,jg,kg
+    TYPE(all_potential_type), POINTER :: all_potential
+    TYPE(atomic_kind_type), POINTER   :: atomic_kind
+    TYPE(gth_potential_type), POINTER :: gth_potential
+    TYPE(gto_basis_set_type), POINTER :: orb_basis_set
 
-    INTEGER, DIMENSION(3) :: ng
+    REAL(wp) :: paa,saa,sum
+    INTEGER  :: atom_a,first_sgfa,handle,iatom,ikind,iset,isgf,isgfa,ishell,&
+                istat,la,last_sgfa,maxl,natom,nelec,nset,restart_unit
 
-    COMPLEX(wp), DIMENSION(:,:,:), POINTER :: work
+    INTEGER, DIMENSION(:), ALLOCATABLE :: econf
+
+    INTEGER, DIMENSION(:), POINTER   :: atom_list,elec_conf,nshell
+    INTEGER, DIMENSION(:,:), POINTER :: first_sgf,l,last_sgf
 
 !   ---------------------------------------------------------------------------
 
-    CALL timeset("calculate_nabla_vxcg","I","",handle)
+    CALL timeset("calculate_first_density_matrix","I","",handle)
 
-    CALL stop_program(" calculate_nabla_vxcg"," coded away")
+    IF (density_guess == "RESTART") THEN
 
-    CALL timestop(0.0_wp,handle)
+      CALL read_mo_set(mo,context,globenv)
+      CALL calculate_density_matrix(mo,work1,context,globenv)
+      CALL copy_blacs_to_sparse_matrix(work1,p%matrix,context,globenv)
+      CALL symmetrise_diagonal_blocks(p%matrix)
 
-  END SUBROUTINE calculate_nabla_vxcg
+    ELSE IF (density_guess == "CORE") THEN
+
+!     *** It is assumed that work1 holds the upper     ***
+!     *** triangle part of the core Hamiltonian matrix ***
+
+!MK if only gemm is used
+!     CALL symmetrise_blacs_matrix(work1,work2,context,globenv)
+      CALL orthogonalise_matrix(ortho,work1,work2,context,globenv)
+      CALL eigensolver(work1,mo,ortho,work2,context,globenv)
+      CALL calculate_density_matrix(mo,work1,context,globenv)
+      CALL copy_blacs_to_sparse_matrix(work1,p%matrix,context,globenv)
+      CALL symmetrise_diagonal_blocks(p%matrix)
+
+    ELSE IF (density_guess == "ATOMIC") THEN
+
+      CALL blacs_set_all(work1,0.0_wp,context,globenv)
+
+      sum = 0.0_wp
+
+      CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,maxl=maxl)
+
+      ALLOCATE (econf(0:maxl),STAT=istat)
+      IF (istat /= 0) CALL stop_memory(routine,"econf",(maxl + 1)*int_size)
+
+      CALL copy_sparse_to_blacs_matrix(s%matrix,work2,context,globenv)
+
+      DO ikind=1,nkind
+
+        atomic_kind => atomic_kind_set(ikind)
+
+        CALL get_atomic_kind(atomic_kind=atomic_kind,&
+                             natom=natom,&
+                             atom_list=atom_list,&
+                             all_potential=all_potential,&
+                             gth_potential=gth_potential,&
+                             orb_basis_set=orb_basis_set)
+
+        IF (ASSOCIATED(all_potential)) THEN
+          CALL get_potential(potential=all_potential,elec_conf=elec_conf)
+        ELSE IF (ASSOCIATED(gth_potential)) THEN
+          CALL get_potential(potential=gth_potential,elec_conf=elec_conf)
+        ELSE
+          CYCLE
+        END IF
+
+        maxl = SIZE(elec_conf) - 1
+        econf(:) = 0
+        econf(0:maxl) = elec_conf(0:maxl)
+
+        CALL get_gto_basis_set(gto_basis_set=orb_basis_set,&
+                               nset=nset,&
+                               nshell=nshell,&
+                               l=l,&
+                               first_sgf=first_sgf,&
+                               last_sgf=last_sgf)
+
+        DO iset=1,nset
+          DO ishell=1,nshell(iset)
+            la = l(ishell,iset)
+            nelec = 4*la + 2
+            IF (econf(la) > 0) THEN
+              IF (econf(la) >= nelec) THEN
+                paa = 2.0_wp
+                econf(la) = econf(la) - nelec
+              ELSE
+                paa = REAL(2*econf(la),wp)/REAL(nelec,wp)
+                econf(la) = 0
+              END IF
+              first_sgfa = first_sgf(ishell,iset)
+              last_sgfa = last_sgf(ishell,iset)
+              DO isgfa=first_sgfa,last_sgfa
+                DO iatom=1,natom
+                  atom_a = atom_list(iatom)
+                  isgf = particle_set(atom_a)%first_sgf + isgfa - 1
+                  CALL blacs_set_element(work1,isgf,isgf,paa,context,globenv)
+                  CALL blacs_get_element(work2,isgf,isgf,saa,context,globenv)
+                  sum = sum + paa*saa
+                END DO
+              END DO
+            END IF
+          END DO
+        END DO
+
+      END DO
+
+      DEALLOCATE (econf,STAT=istat)
+      IF (istat /= 0) CALL stop_memory(routine,"econf")
+
+      CALL mp_sum(sum,globenv%group)
+
+      saa = REAL(nelectron,wp)/sum
+
+      DO ikind=1,nkind
+
+        atomic_kind => atomic_kind_set(ikind)
+
+        CALL get_atomic_kind(atomic_kind=atomic_kind,&
+                             natom=natom,&
+                             atom_list=atom_list,&
+                             orb_basis_set=orb_basis_set)
+
+        CALL get_gto_basis_set(gto_basis_set=orb_basis_set,&
+                               nset=nset,&
+                               nshell=nshell,&
+                               l=l,&
+                               first_sgf=first_sgf,&
+                               last_sgf=last_sgf)
+
+        DO iset=1,nset
+          DO ishell=1,nshell(iset)
+            first_sgfa = first_sgf(ishell,iset)
+            last_sgfa = last_sgf(ishell,iset)
+            DO isgfa=first_sgfa,last_sgfa
+              DO iatom=1,natom
+                atom_a = atom_list(iatom)
+                isgf = particle_set(atom_a)%first_sgf + isgfa - 1
+                CALL blacs_get_element(work1,isgf,isgf,paa,context,globenv)
+                paa = paa*saa
+                CALL blacs_set_element(work1,isgf,isgf,paa,context,globenv)
+              END DO
+            END DO
+          END DO
+        END DO
+      END DO
+
+      CALL copy_blacs_to_sparse_matrix(work1,p%matrix,context,globenv)
+
+    ELSE
+
+      CALL stop_program("SUBROUTINE calculate_first_density_matrix "//&
+                        "(MODULE qs_scf)",&
+                        "An invalid keyword for the initial density "//&
+                        "guess was specified")
+
+    END IF
+
+  END SUBROUTINE calculate_first_density_matrix
 
 ! *****************************************************************************
 
-  SUBROUTINE calculate_first_density_matrix(ortho,mo,p,work1,work2,context,& 
-                                            globenv) 
- 
-    TYPE(blacs_matrix_type), INTENT(IN)       :: ortho 
-    TYPE(blacs_matrix_type), INTENT(INOUT)    :: work1,work2 
-    TYPE(global_environment_type), INTENT(IN) :: globenv 
-    TYPE(mo_set_type), INTENT(INOUT)          :: mo 
-    TYPE(real_matrix_set_type), INTENT(INOUT) :: p 
-    INTEGER, INTENT(IN)                       :: context 
- 
-!   *** Local variables *** 
- 
-    TYPE(gto_basis_set_type), POINTER :: basis_set_a 
- 
-    REAL(wp) :: paa,saa,sum 
-    INTEGER  :: atoma,first_sgfa,handle,iatom,ikind,iset,isgf,isgfa,ishell,la,& 
-                last_sgfa,nelec,restart_unit 
- 
-    INTEGER, DIMENSION(:), POINTER :: elec_conf 
- 
-!   --------------------------------------------------------------------------- 
- 
-    CALL timeset("calculate_first_density_matrix","I","",handle) 
- 
-    CALL blacs_set_all(work1,0.0_wp,context,globenv) 
- 
-    IF (density_guess == "RESTART") THEN 
- 
-      CALL read_mo_set(mo,context,globenv) 
-      CALL calculate_density_matrix(mo,work1,context,globenv) 
-      CALL copy_blacs_to_sparse_matrix(work1,p%matrix,context,globenv) 
-      CALL symmetrise_diagonal_blocks(p%matrix) 
- 
-    ELSE IF (density_guess == "CORE") THEN 
- 
-!     *** It is assumed that work1 holds the upper     *** 
-!     *** triangle part of the core Hamiltonian matrix *** 
- 
-!MK if only gemm is used 
-!     CALL symmetrise_blacs_matrix(work1,work2,context,globenv) 
-      CALL orthogonalise_matrix(ortho,work1,work2,context,globenv) 
-      CALL eigensolver(work1,mo,ortho,work2,context,globenv) 
-      CALL calculate_density_matrix(mo,work1,context,globenv) 
-      CALL copy_blacs_to_sparse_matrix(work1,p%matrix,context,globenv) 
-      CALL symmetrise_diagonal_blocks(p%matrix) 
- 
-    ELSE IF (density_guess == "ATOMIC") THEN 
- 
-      sum = 0.0_wp 
- 
-      CALL copy_sparse_to_blacs_matrix(s%matrix,work2,context,globenv) 
- 
-      NULLIFY (elec_conf) 
-      elec_conf => reallocate(elec_conf,0,maxlcgf) 
- 
-      DO ikind=1,nkind 
- 
-        IF (ASSOCIATED(kind_info(ikind)%all_potential)) THEN 
-          DO la=0,SIZE(kind_info(ikind)%elec_conf)-1 
-            elec_conf(la) = kind_info(ikind)%elec_conf(la) 
-          END DO 
-        ELSE IF (ASSOCIATED(kind_info(ikind)%gth_potential)) THEN 
-          DO la=0,SIZE(kind_info(ikind)%gth_potential%elec_conf)-1 
-            elec_conf(la) = kind_info(ikind)%gth_potential%elec_conf(la) 
-          END DO 
-        END IF 
- 
-        basis_set_a => kind_info(ikind)%orb_basis_set 
- 
-        DO iset=1,basis_set_a%nset 
-          DO ishell=1,basis_set_a%nshell(iset) 
-            la = basis_set_a%l(ishell,iset) 
-            nelec = 4*la + 2 
-            IF (elec_conf(la) > 0) THEN 
-              IF (elec_conf(la) >= nelec) THEN 
-                paa = 2.0_wp 
-                elec_conf(la) = elec_conf(la) - nelec 
-              ELSE 
-                paa = REAL(2*elec_conf(la),wp)/REAL(nelec,wp) 
-                elec_conf(la) = 0 
-              END IF 
-              first_sgfa = basis_set_a%first_sgf(ishell,iset) 
-              last_sgfa = basis_set_a%last_sgf(ishell,iset) 
-              DO isgfa=first_sgfa,last_sgfa 
-                DO iatom=1,kind_info(ikind)%natom 
-                  atoma = kind_info(ikind)%atom_list(iatom) 
-                  isgf = atom_info(atoma)%first_sgf + isgfa - 1 
-                  CALL blacs_set_element(work1,isgf,isgf,paa,context,globenv) 
-                  CALL blacs_get_element(work2,isgf,isgf,saa,context,globenv) 
-                  sum = sum + paa*saa 
-                END DO 
-              END DO 
-            END IF 
-          END DO 
-        END DO 
- 
-      END DO 
- 
-      saa = REAL(nelectron,wp)/sum 
- 
-      DO ikind=1,nkind 
-        basis_set_a => kind_info(ikind)%orb_basis_set 
-        DO iset=1,basis_set_a%nset 
-          DO ishell=1,basis_set_a%nshell(iset) 
-            first_sgfa = basis_set_a%first_sgf(ishell,iset) 
-            last_sgfa = basis_set_a%last_sgf(ishell,iset) 
-            DO isgfa=first_sgfa,last_sgfa 
-              DO iatom=1,kind_info(ikind)%natom 
-                atoma = kind_info(ikind)%atom_list(iatom) 
-                isgf = atom_info(atoma)%first_sgf + isgfa - 1 
-                CALL blacs_get_element(work1,isgf,isgf,paa,context,globenv) 
-                paa = paa*saa 
-                CALL blacs_set_element(work1,isgf,isgf,paa,context,globenv) 
-              END DO 
-            END DO 
-          END DO 
-        END DO 
-      END DO 
- 
-      CALL copy_blacs_to_sparse_matrix(work1,p%matrix,context,globenv) 
- 
-    ELSE 
- 
-      CALL stop_program("SUBROUTINE calculate_first_density_matrix "//& 
-                        "(MODULE qs_scf)",& 
-                        "An invalid keyword for the initial density "//& 
-                        "guess was specified") 
- 
-    END IF 
- 
-  END SUBROUTINE calculate_first_density_matrix 
- 
-! *****************************************************************************
-
-  SUBROUTINE read_scf_parameters(start_section,end_section,globenv)
+  SUBROUTINE read_scf_parameters(globenv)
 
 !   Purpose: Read the parameters for the SCF run.
 
@@ -1266,139 +1266,107 @@ CONTAINS
 
 !   ***************************************************************************
 
-    TYPE(global_environment_type), INTENT(INOUT) :: globenv
-    CHARACTER(LEN=*), INTENT(IN)                 :: start_section,end_section
-
-!   *** Local parameters ***
-
-    CHARACTER(LEN=*), PARAMETER :: routine =&
-      "SUBROUTINE read_scf_parameters (MODULE qs_scf)"
+    TYPE(global_environment_type), INTENT(IN) :: globenv
 
 !   *** Local variables ***
 
     CHARACTER(LEN=40) :: keyword
-    LOGICAL           :: found
 
 !   ---------------------------------------------------------------------------
 
 !   *** Load the default values ***
 
-    density_guess = "CORE"
+    density_guess = "ATOMIC"
     eps_eigval = 1.0E-5_wp
     eps_scf = 1.0E-5_wp
     eps_diis = 0.1_wp
     max_diis = 4
     max_scf = 50
-    nrebuild_rho = 5
-    nrebuild_gvg = 5
     nprow = 0
     npcol = 0
+    nrebuild = 1
     nrow_block = 32
     ncol_block = 32
     p_mix = 0.4_wp
-    work_syevx = 0.0_wp
-    additional_charge = 0
+    work_syevx = 1.0_wp
 
-    globenv%restart_file_name = "RESTART"
+    CALL start_parser(file_name=globenv%input_file_name,&
+                      globenv=globenv,&
+                      start_section_label="SCF")
 
-    CALL start_input_session(globenv%input_file_name,globenv)
+    DO WHILE (test_object(newline=.TRUE.) /= "EOS")
+      CALL read_object(keyword,lower_to_upper=.TRUE.,newline=.TRUE.)
+      SELECT CASE (TRIM(keyword))
+      CASE ("DENSITY_GUESS","SCF_GUESS","GUESS")
+        CALL read_object(density_guess,lower_to_upper=.TRUE.)
+      CASE ("DENSITY_MIXING","MIXING")
+        CALL read_object(p_mix)
+      CASE ("EPS_DIIS")
+        CALL read_object(eps_diis)
+      CASE ("EPS_EIGVAL")
+        CALL read_object(eps_eigval)
+      CASE ("EPS_SCF")
+        CALL read_object(eps_scf)
+      CASE ("MAX_DIIS")
+        CALL read_object(max_diis)
+      CASE ("MAX_SCF")
+        CALL read_object(max_scf)
+      CASE ("NREBUILD")
+        CALL read_object(nrebuild)
+        nrebuild = MAX(1,nrebuild)
+      CASE ("BLOCKSIZE")
+        CALL read_object(nrow_block)
+        ncol_block = nrow_block
+      CASE ("PROCESS_GRID")
+        CALL read_object(nprow)
+        CALL read_object(npcol)
+      CASE ("WORK_SYEVX")
+        CALL read_object(work_syevx)
+        work_syevx = MIN(MAX(0.0_wp,work_syevx),1.0_wp)
+      END SELECT
+    END DO
 
-!   *** Search for the requested input section ***
-
-    CALL search(start_section,.TRUE.,found)
-
-    IF (found) THEN
-
-      DO
-
-        CALL read_object(keyword,skip_lines=1)
-
-        CALL uppercase(keyword)
-
-        SELECT CASE (TRIM(keyword))
-        CASE ("CHARGE")
-          CALL read_object(additional_charge)
-        CASE ("DENSITY_GUESS","SCF_GUESS","GUESS")
-          CALL read_object(density_guess)
-          CALL uppercase(density_guess)
-        CASE ("DENSITY_MIXING","MIXING")
-          CALL read_object(p_mix)
-        CASE ("EPS_DIIS")
-          CALL read_object(eps_diis)
-        CASE ("EPS_EIGVAL")
-          CALL read_object(eps_eigval)
-        CASE ("EPS_SCF")
-          CALL read_object(eps_scf)
-        CASE ("MAX_DIIS")
-          CALL read_object(max_diis)
-        CASE ("MAX_SCF")
-          CALL read_object(max_scf)
-        CASE ("NREBUILD_RHO")
-          CALL read_object(nrebuild_rho)
-        CASE ("NREBUILD_GVG")
-          CALL read_object(nrebuild_gvg)
-        CASE ("BLOCKSIZE")
-          CALL read_object(nrow_block)
-          ncol_block = nrow_block
-        CASE ("PROCESS_GRID")
-          CALL read_object(nprow)
-          CALL read_object(npcol)
-        CASE ("RESTART_FILE_NAME","RESTART_FILE","RESTART")
-          CALL read_object(globenv%restart_file_name)
-        CASE ("WORK_SYEVX")
-          CALL read_object(work_syevx)
-          work_syevx = MIN(MAX(0.0_wp,work_syevx),1.0_wp)
-        CASE DEFAULT
-          IF (keyword == end_section) THEN
-            EXIT
-          ELSE
-            CALL stop_program(routine,&
-                              "Invalid keyword <"//TRIM(keyword)//&
-                              "> found in the input section <"//&
-                              TRIM(start_section)//">")
-          END IF
-        END SELECT
-
-      END DO
-
-    END IF
-
-    CALL finish_input_session
+    CALL finish_parser()
 
   END SUBROUTINE read_scf_parameters
 
 ! *****************************************************************************
 
-  SUBROUTINE write_scf_parameters(lunit)
+  SUBROUTINE write_scf_parameters(globenv)
 
-!   Purpose: Write the parameters for the SCF run to the logical unit number
-!            "lunit".
+!   Purpose: Write the parameters for the SCF run to the output unit.
 
 !   ***************************************************************************
 
-    INTEGER, INTENT(IN) :: lunit
+    TYPE(global_environment_type), INTENT(IN) :: globenv
+
+!   *** Local variables ***
+
+    INTEGER :: output_unit
 
 !   ---------------------------------------------------------------------------
 
+    IF (.NOT.globenv%ionode) RETURN
+
     IF (max_scf < 1) RETURN
 
-    WRITE (UNIT=lunit,FMT="(/,/,T2,A,/)") "SCF PARAMETERS"
-
-    WRITE (UNIT=lunit,FMT="(T3,A,/,T3,A,I5,2(/,T3,A,ES9.2),/,T3,A,F5.2,/,T3,A,I5,/,T3,A,I5)")&
-      "density guess: "//TRIM(density_guess),&
-      "max_scf:      ",max_scf,&
-      "eps_scf:      ",eps_scf,&
-      "eps_eigval:   ",eps_eigval,&
-      "p_mix:        ",p_mix,&
-      "nrebuild_rho: ",nrebuild_rho,&
-      "nrebuild_gvg: ",nrebuild_gvg
-
-    WRITE(UNIT=lunit,FMT="(T3,A,I5)") "CHARGE:     ",additional_charge
-
-    IF (max_diis > 0) THEN
-      WRITE (UNIT=lunit,FMT="(T3,A,I5,/,T3,A,ES9.2)")&
-        "max_diis:     ",max_diis,&
-        "eps_diis:     ",eps_diis
+    IF (globenv%print%scf) THEN
+      output_unit = globenv%scr
+      WRITE (UNIT=output_unit,FMT="(/,/,T2,A,/)") "SCF PARAMETERS"
+      WRITE (UNIT=output_unit,&
+             FMT="(T3,A,2(/,T3,A,I5),2(/,T3,A,ES9.2),2(/,T3,A,F5.2))")&
+        "density guess: "//TRIM(density_guess),&
+        "max_scf:      ",max_scf,&
+        "nrebuild:     ",nrebuild,&
+        "eps_scf:      ",eps_scf,&
+        "eps_eigval:   ",eps_eigval,&
+        "p_mix:        ",p_mix,&
+        "work_syevx:   ",work_syevx
+      IF (max_diis > 0) THEN
+        WRITE (UNIT=output_unit,FMT="(T3,A,I5,/,T3,A,ES9.2)")&
+          "max_diis:     ",max_diis,&
+          "eps_diis:     ",eps_diis
+      END IF
     END IF
 
   END SUBROUTINE write_scf_parameters

@@ -61,17 +61,19 @@ PROGRAM cp2k
   TYPE ( global_environment_type ) :: globenv
 
 !------------------------------------------------------------------------------
-
+  print*
   CALL start_parallel ( globenv )
 
   CALL initialisation ( globenv )
 
   CALL read_cp2k_section ( globenv )
 
-  IF ( globenv % ionode .AND. globenv % print_level > 9 ) &
-       CALL print_kind_info ( globenv % scr )
-  IF ( globenv % ionode .AND. globenv % print_level > 4 ) &
-       CALL write_physcon ( globenv % scr )
+  IF (globenv%ionode.AND.globenv%print%basic_data_types) THEN
+    CALL print_kind_info(globenv%scr)
+  END IF
+  IF (globenv%ionode.AND.globenv%print%physcon) THEN
+    CALL write_physcon(globenv%scr)
+  END IF
 
   SELECT CASE ( globenv % program_name )
 

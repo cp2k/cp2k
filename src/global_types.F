@@ -10,49 +10,205 @@
 !!   FUNCTION
 !!
 !!   AUTHOR
-!!     JGH
+!!     JGH,MK
 !!
 !!   MODIFICATION HISTORY
 !!     - print keys, basis_set_file name and potential_file_name added to the
 !!       global type (27.02.2001, MK)
-!!     JGH (28.11.2001) : added pp_library_path to type
+!!     - JGH (28.11.2001) : added pp_library_path to type
+!!     - Merged with MODULE print_keys (17.01.2002, MK)
 !!
 !!   SOURCE
 !******************************************************************************
 
 MODULE global_types
 
-  USE kinds, ONLY : dbl
-
-  USE print_keys, ONLY: print_key_type
-
   IMPLICIT NONE
 
   PRIVATE
 
+! *** Print level parameters ***
+
+  INTEGER, PARAMETER :: SILENT = 0,&
+                        LOW = 1,&
+                        MEDIUM = 2,&
+                        HIGH = 3,&
+                        DEBUG = 4
+
+  TYPE print_key_type
+    INTEGER :: level
+    LOGICAL :: angles,&
+               atomic_coordinates,&
+               basic_data_types,&
+               basis_set,&
+               blacs_info,&
+               cartesian_om,&
+               cell_parameters,&
+               charge_density_matrix,&
+               core_hamiltonian_matrix,&
+               core_charge_radii,&
+               density_matrix,&
+               dft_control_parameters,&
+               diis_information,&
+               distribution,&
+               each_scf_step,&
+               hartree_matrix,&
+               interatomic_distances,&
+               kind_radii,&
+               kinetic_energy_matrix,&
+               kohn_sham_matrix,&
+               memory,&
+               mo_eigenvalues,&
+               mo_eigenvectors,&
+               mo_occupation_numbers
+    LOGICAL :: ortho_matrix,&
+               overlap_matrix,&
+               pgf_radii,&
+               physcon,&
+               potential,&
+               ppl_radii,&
+               ppnl_radii,&
+               program_banner,&
+               program_run_information,&
+               projectors,&
+               pw_grid_information,&
+               sab_orb_neighbor_lists,&
+               sac_ppl_neighbor_lists,&
+               sca_ppnl_neighbor_lists,&
+               scb_ppnl_neighbor_lists,&
+               scf,&
+               scf_energies,&
+               set_radii,&
+               spherical_harmonics,&
+               timing_information,&
+               title,&
+               total_densities,&
+               total_numbers
+  END TYPE print_key_type
+
   TYPE global_environment_type
-     TYPE(print_key_type), POINTER :: print
-     CHARACTER ( LEN = 200 ) :: basis_set_file_name,&
-                                input_file_name,&
-                                potential_file_name,&
-                                restart_file_name,&
-                                pp_library_path
-     CHARACTER ( LEN = 200 ) :: program_name
-     CHARACTER ( LEN = 200 ) :: project_name
-     CHARACTER ( LEN = 200 ) :: default_fft_library
-     LOGICAL :: ionode        !! this processor performs global output
-     INTEGER :: group         !! group handle for all processors
-     INTEGER :: source        !! processor id for global output node
-     INTEGER :: num_pe        !! total number of processors
-     INTEGER :: mepos         !! position number for local processor
-     INTEGER :: print_level   !! how much information is written
-     INTEGER :: idum          !! random number seed
-     INTEGER :: scr           !! output unit
+     TYPE(print_key_type) :: print
+     CHARACTER(LEN=200)   :: basis_set_file_name,&
+                             default_fft_library,&
+                             input_file_name,&
+                             potential_file_name,&
+                             restart_file_name,&
+                             pp_library_path,&
+                             program_name,&
+                             project_name
+     INTEGER :: group        !! group handle for all processors
+     INTEGER :: idum         !! random number seed
+     INTEGER :: mepos        !! position number for local processor
+     INTEGER :: num_pe       !! total number of processors
+     INTEGER :: print_level  !! how much information is written
+     INTEGER :: scr          !! output unit
+     INTEGER :: source       !! processor id for global output node
+     LOGICAL :: ionode       !! this processor performs global output
   END TYPE global_environment_type
 
-  PUBLIC :: global_environment_type
+! *** Public parameters ***
+
+  PUBLIC :: DEBUG,HIGH,LOW,MEDIUM,SILENT
+
+! *** Public data types
+
+  PUBLIC :: global_environment_type,&
+            print_key_type
+
+! *** Public subroutines ***
+
+  PUBLIC :: init_print_keys
+
+! *****************************************************************************
+
+CONTAINS
+
+! *****************************************************************************
+
+  SUBROUTINE init_print_keys(print_key,level)
+
+    TYPE(print_key_type) :: print_key
+    INTEGER, INTENT(IN)  :: level
+
+!   *** Local parameters ***
+
+    LOGICAL, PARAMETER :: f = .FALSE.,&
+                          t = .TRUE.
+
+!   ---------------------------------------------------------------------------
+
+    print_key%angles = key_value(level,(/f,f,t/))
+    print_key%atomic_coordinates = key_value(level,(/t,t,t/))
+    print_key%basic_data_types = key_value(level,(/f,f,f/))
+    print_key%basis_set = key_value(level,(/f,t,t/))
+    print_key%blacs_info = key_value(level,(/f,t,t/))
+    print_key%cartesian_om = key_value(level,(/f,f,f/))
+    print_key%cell_parameters = key_value(level,(/t,t,t/))
+    print_key%charge_density_matrix = key_value(level,(/f,f,t/))
+    print_key%core_hamiltonian_matrix = key_value(level,(/f,f,t/))
+    print_key%core_charge_radii = key_value(level,(/f,t,t/))
+    print_key%dft_control_parameters = key_value(level,(/t,t,t/))
+    print_key%density_matrix = key_value(level,(/f,f,t/))
+    print_key%diis_information = key_value(level,(/f,f,t/))
+    print_key%distribution = key_value(level,(/f,t,t/))
+    print_key%each_scf_step = key_value(level,(/f,f,t/))
+    print_key%hartree_matrix = key_value(level,(/f,t,t/))
+    print_key%interatomic_distances = key_value(level,(/f,f,t/))
+    print_key%kind_radii = key_value(level,(/f,t,t/))
+    print_key%kinetic_energy_matrix = key_value(level,(/f,f,t/))
+    print_key%kohn_sham_matrix = key_value(level,(/f,f,t/))
+    print_key%memory = key_value(level,(/f,t,t/))
+    print_key%mo_eigenvalues = key_value(level,(/f,t,t/))
+    print_key%mo_eigenvectors = key_value(level,(/f,f,t/))
+    print_key%mo_occupation_numbers = key_value(level,(/f,t,t/))
+    print_key%ortho_matrix = key_value(level,(/f,f,t/))
+    print_key%overlap_matrix = key_value(level,(/f,f,t/))
+    print_key%pgf_radii = key_value(level,(/f,f,t/))
+    print_key%physcon = key_value(level,(/f,f,t/))
+    print_key%potential = key_value(level,(/f,f,t/))
+    print_key%ppl_radii = key_value(level,(/f,t,t/))
+    print_key%ppnl_radii = key_value(level,(/f,f,t/))
+    print_key%program_banner = key_value(level,(/t,t,t/))
+    print_key%program_run_information = key_value(level,(/t,t,t/))
+    print_key%projectors = key_value(level,(/f,t,t/))
+    print_key%pw_grid_information = key_value(level,(/f,t,t/))
+    print_key%sab_orb_neighbor_lists = key_value(level,(/f,f,t/))
+    print_key%sac_ppl_neighbor_lists = key_value(level,(/f,f,t/))
+    print_key%sca_ppnl_neighbor_lists = key_value(level,(/f,f,t/))
+    print_key%scb_ppnl_neighbor_lists = key_value(level,(/f,f,t/))
+    print_key%scf = key_value(level,(/t,t,t/))
+    print_key%scf_energies = key_value(level,(/f,t,t/))
+    print_key%set_radii = key_value(level,(/f,f,t/))
+    print_key%spherical_harmonics = key_value(level,(/f,f,t/))
+    print_key%timing_information = key_value(level,(/t,t,t/))
+    print_key%title = key_value(level,(/t,t,t/))
+    print_key%total_densities = key_value(level,(/f,f,t/))
+    print_key%total_numbers = key_value(level,(/t,t,t/))
+
+  END SUBROUTINE init_print_keys
+
+! *****************************************************************************
+
+  FUNCTION key_value(level,level_values) RESULT(value)
+
+    INTEGER, INTENT(IN)               :: level
+    LOGICAL, DIMENSION(3), INTENT(IN) :: level_values
+
+    LOGICAL :: value
+
+!   ---------------------------------------------------------------------------
+
+    SELECT CASE (level)
+    CASE (:SILENT)
+      value = .FALSE.
+    CASE (LOW:HIGH)
+      value = level_values(level)
+    CASE (DEBUG:)
+      value = .TRUE.
+    END SELECT
+
+  END FUNCTION key_value
+
+! *****************************************************************************
 
 END MODULE global_types
-
-!!*****
-!******************************************************************************

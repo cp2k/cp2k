@@ -11,7 +11,7 @@
 !!     Definition of the atomic potential types.
 !!
 !!   AUTHOR
-!!     Matthias Krack (04.07.2000)
+!!     MK (04.07.2000)
 !!
 !!   MODIFICATION HISTORY
 !!     none
@@ -23,29 +23,29 @@ MODULE external_potential_types
 
 ! *****************************************************************************
 
-! Index:
-
-! SUBROUTINE allocate_all_potential(all_potential)
-! SUBROUTINE allocate_gth_potential(gth_potential)
-! SUBROUTINE deallocate_all_potential(all_potential)
-! SUBROUTINE deallocate_gth_potential(gth_potential)
-! SUBROUTINE init_cprj_ppnl(gth_potential)
-! SUBROUTINE init_gth_potential(gth_potential)
-! SUBROUTINE init_vprj_ppnl(gth_potential)
-! SUBROUTINE read_all_potential(element_symbol,potential_name,&
-!                               alpha_core_charge,elec_conf,zeff,&
-!                               all_potential,globenv)
-! SUBROUTINE read_gth_potential(element_symbol,potential_name,&
-!                               alpha_core_charge,elec_conf,zeff,&
-!                               gth_potential,globenv)
-
-! *****************************************************************************
-
   USE kinds, ONLY: wp => dp
+
+  USE global_types,                    ONLY: global_environment_type
+  USE mathconstants,                   ONLY: dfac,fac,pi
+  USE mathlib,                         ONLY: symmetrize_matrix
+  USE memory_utilities,                ONLY: reallocate
+  USE orbital_pointers,                ONLY: co,coset,init_orbital_pointers,&
+                                             nco,ncoset,nso
+  USE orbital_transformation_matrices, ONLY: orbtramat
+  USE qs_parser,                       ONLY: finish_parser,&
+                                             read_object,&
+                                             search_object,&
+                                             start_parser,&
+                                             test_object
+  USE string_utilities,                ONLY: uppercase
+  USE termination,                     ONLY: stop_memory,&
+                                             stop_program
 
   IMPLICIT NONE
 
   PRIVATE
+
+  INTEGER, PARAMETER :: max_name_length = 60
 
 ! *** Define the all-electron potential type ***
 
@@ -53,7 +53,14 @@ MODULE external_potential_types
 !                 Phys. Chem. Chem. Phys. 2, 2105 (2000)
 
   TYPE all_potential_type
-    CHARACTER(LEN=60), DIMENSION(2) :: description
+    PRIVATE
+    CHARACTER(LEN=max_name_length)               :: name
+    CHARACTER(LEN=max_name_length), DIMENSION(2) :: description
+    REAL(wp)                                     :: alpha_core_charge,&
+                                                    ccore_charge,&
+                                                    core_charge_radius
+    INTEGER                                      :: z,zeff
+    INTEGER, DIMENSION(:), POINTER               :: elec_conf
   END TYPE all_potential_type
 
 ! *** Define the GTH potential type ***
@@ -64,36 +71,38 @@ MODULE external_potential_types
 !                   Phys. Rev. B 58, 3641 (1998)
 
   TYPE gth_potential_type
-    CHARACTER(LEN=60), DIMENSION(3)     :: description
-    REAL(wp)                            :: alpha_ppl,cerf_ppl,ppl_radius,&
-                                           ppnl_radius
-    INTEGER                             :: lppnl,lprj_ppnl_max,nexp_ppl,&
-                                           nppnl,nprj_ppnl_max
-    REAL(wp), DIMENSION(:), POINTER     :: alpha_ppnl,cexp_ppl
-    INTEGER, DIMENSION(:), POINTER      :: elec_conf,nprj_ppnl
-    REAL(wp), DIMENSION(:,:), POINTER   :: cprj,cprj_ppnl,vprj_ppnl
-    REAL(wp), DIMENSION(:,:,:), POINTER :: hprj_ppnl
+    PRIVATE
+    CHARACTER(LEN=max_name_length)               :: name
+    CHARACTER(LEN=max_name_length), DIMENSION(3) :: description
+    REAL(wp)                                     :: alpha_core_charge,&
+                                                    alpha_ppl,ccore_charge,&
+                                                    cerf_ppl,&
+                                                    core_charge_radius,&
+                                                    ppl_radius,ppnl_radius
+    INTEGER                                      :: lppnl,lprj_ppnl_max,&
+                                                    nexp_ppl,nppnl,&
+                                                    nprj_ppnl_max,z,zeff
+    REAL(wp), DIMENSION(:), POINTER              :: alpha_ppnl,cexp_ppl
+    INTEGER, DIMENSION(:), POINTER               :: all_elec_conf,&
+                                                    elec_conf,nprj_ppnl
+    REAL(wp), DIMENSION(:,:), POINTER            :: cprj,cprj_ppnl,vprj_ppnl
+    REAL(wp), DIMENSION(:,:,:), POINTER          :: hprj_ppnl
   END TYPE gth_potential_type
-
-  INTEGER :: maxlppl = 0,&
-             maxlppnl = 0
 
 ! *** Public subroutines ***
 
   PUBLIC :: allocate_potential,&
             deallocate_potential,&
+            get_potential,&
             init_potential,&
-            read_potential
+            read_potential,&
+            set_potential,&
+            write_potential
 
 ! *** Public data types ***
 
   PUBLIC :: all_potential_type,&
             gth_potential_type
-
-! *** Public variables ***
-
-  PUBLIC :: maxlppl,&
-            maxlppnl
 
 ! *****************************************************************************
 
@@ -105,6 +114,10 @@ MODULE external_potential_types
     MODULE PROCEDURE deallocate_all_potential,deallocate_gth_potential
   END INTERFACE
 
+  INTERFACE get_potential
+    MODULE PROCEDURE get_all_potential,get_gth_potential
+  END INTERFACE
+
   INTERFACE init_potential
     MODULE PROCEDURE init_gth_potential
   END INTERFACE
@@ -113,23 +126,29 @@ MODULE external_potential_types
     MODULE PROCEDURE read_all_potential,read_gth_potential
   END INTERFACE
 
+  INTERFACE set_potential
+    MODULE PROCEDURE set_all_potential,set_gth_potential
+  END INTERFACE
+
+  INTERFACE write_potential
+    MODULE PROCEDURE write_all_potential,write_gth_potential
+  END INTERFACE
+
 ! *****************************************************************************
 
 CONTAINS
 
 ! *****************************************************************************
 
-  SUBROUTINE allocate_all_potential(all_potential)
+  SUBROUTINE allocate_all_potential(potential)
 
-!   Purpose: Allocate an atomic all-electron potential data structure.
+!   Purpose: Allocate an atomic all-electron potential data set.
 
 !   History: Creation (25.07.2000, Matthias Krack)
 
 !   ***************************************************************************
 
-    USE termination, ONLY: stop_memory
-
-    TYPE(all_potential_type), POINTER :: all_potential
+    TYPE(all_potential_type), POINTER :: potential
 
 !   *** Local parameters ***
 
@@ -142,31 +161,30 @@ CONTAINS
 
 !   ---------------------------------------------------------------------------
 
-    IF (ASSOCIATED(all_potential)) CALL deallocate_all_potential(all_potential)
+    IF (ASSOCIATED(potential)) CALL deallocate_potential(potential)
 
-    ALLOCATE (all_potential,STAT=istat)
+    ALLOCATE (potential,STAT=istat)
+    IF (istat /= 0) CALL stop_memory(routine,"potential",0)
 
-    IF (istat /= 0) CALL stop_memory(routine,"all_potential",0)
+    NULLIFY (potential%elec_conf)
 
-    all_potential%description(1) = "All-Electron potential"
-    all_potential%description(2) =&
+    potential%description(1) = "All-Electron potential"
+    potential%description(2) =&
       "- Krack, Parrinello, Phys. Chem. Chem. Phys. 2, 2105 (2000)"
 
   END SUBROUTINE allocate_all_potential
 
 ! *****************************************************************************
 
-  SUBROUTINE allocate_gth_potential(gth_potential)
+  SUBROUTINE allocate_gth_potential(potential)
 
-!   Purpose: Allocate an atomic GTH potential data structure.
+!   Purpose: Allocate an atomic GTH potential data set.
 
 !   History: Creation (25.07.2000, Matthias Krack)
 
 !   ***************************************************************************
 
-    USE termination, ONLY: stop_memory
-
-    TYPE(gth_potential_type), POINTER :: gth_potential
+    TYPE(gth_potential_type), POINTER :: potential
 
 !   *** Local parameters ***
 
@@ -179,42 +197,40 @@ CONTAINS
 
 !   ---------------------------------------------------------------------------
 
-    IF (ASSOCIATED(gth_potential)) CALL deallocate_gth_potential(gth_potential)
+    IF (ASSOCIATED(potential)) CALL deallocate_potential(potential)
 
-    ALLOCATE (gth_potential,STAT=istat)
+    ALLOCATE (potential,STAT=istat)
+    IF (istat /= 0) CALL stop_memory(routine,"potential",0)
 
-    IF (istat /= 0) CALL stop_memory(routine,"gth_potential",0)
+    NULLIFY (potential%alpha_ppnl)
+    NULLIFY (potential%cexp_ppl)
+    NULLIFY (potential%all_elec_conf)
+    NULLIFY (potential%elec_conf)
+    NULLIFY (potential%nprj_ppnl)
+    NULLIFY (potential%cprj)
+    NULLIFY (potential%cprj_ppnl)
+    NULLIFY (potential%vprj_ppnl)
+    NULLIFY (potential%hprj_ppnl)
 
-    NULLIFY (gth_potential%alpha_ppnl)
-    NULLIFY (gth_potential%cexp_ppl)
-    NULLIFY (gth_potential%elec_conf)
-    NULLIFY (gth_potential%cprj)
-    NULLIFY (gth_potential%cprj_ppnl)
-    NULLIFY (gth_potential%hprj_ppnl)
-    NULLIFY (gth_potential%nprj_ppnl)
-    NULLIFY (gth_potential%vprj_ppnl)
-
-    gth_potential%description(1) = "Goedecker-Teter-Hutter pseudopotential"
-    gth_potential%description(2) =&
+    potential%description(1) = "Goedecker-Teter-Hutter pseudopotential"
+    potential%description(2) =&
       "- Goedecker, Teter, Hutter, PRB 54, 1703 (1996)"
-    gth_potential%description(3) =&
+    potential%description(3) =&
       "- Hartwigsen, Goedecker, Hutter, PRB 58, 3641 (1998)"
 
   END SUBROUTINE allocate_gth_potential
 
 ! *****************************************************************************
 
-  SUBROUTINE deallocate_all_potential(all_potential)
+  SUBROUTINE deallocate_all_potential(potential)
 
-!   Purpose: Deallocate an atomic all-electron potential data structure.
+!   Purpose: Deallocate an atomic all-electron potential data set.
 
 !   History: Creation (03.11.2000, Matthias Krack)
 
 !   ***************************************************************************
 
-    USE termination, ONLY: stop_memory
-
-    TYPE(all_potential_type), POINTER :: all_potential
+    TYPE(all_potential_type), POINTER :: potential
 
 !   *** Local parameters ***
 
@@ -227,24 +243,25 @@ CONTAINS
 
 !   ---------------------------------------------------------------------------
 
-    DEALLOCATE (all_potential,STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routine,"all_potential")
+    DEALLOCATE (potential%elec_conf,STAT=istat)
+    IF (istat /= 0) CALL stop_memory(routine,"potential%elec_conf")
+
+    DEALLOCATE (potential,STAT=istat)
+    IF (istat /= 0) CALL stop_memory(routine,"potential")
 
   END SUBROUTINE deallocate_all_potential
 
 ! *****************************************************************************
 
-  SUBROUTINE deallocate_gth_potential(gth_potential)
+  SUBROUTINE deallocate_gth_potential(potential)
 
-!   Purpose: Deallocate an atomic GTH potential data structure.
+!   Purpose: Deallocate an atomic GTH potential data set.
 
 !   History: Creation (03.11.2000, Matthias Krack)
 
 !   ***************************************************************************
 
-    USE termination, ONLY: stop_memory
-
-    TYPE(gth_potential_type), POINTER :: gth_potential
+    TYPE(gth_potential_type), POINTER :: potential
 
 !   *** Local parameters ***
 
@@ -257,43 +274,166 @@ CONTAINS
 
 !   ---------------------------------------------------------------------------
 
-    DEALLOCATE (gth_potential%elec_conf,STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routine,"gth_potential%elec_conf")
+    DEALLOCATE (potential%elec_conf,STAT=istat)
+    IF (istat /= 0) CALL stop_memory(routine,"potential%elec_conf")
+
+    DEALLOCATE (potential%all_elec_conf,STAT=istat)
+    IF (istat /= 0) CALL stop_memory(routine,"potential%all_elec_conf")
 
 !   *** Deallocate the parameters of the local part ***
 
-    IF (gth_potential%nexp_ppl > 0) THEN
-      DEALLOCATE (gth_potential%cexp_ppl,STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routine,"gth_potential%cexp_ppl")
+    IF (potential%nexp_ppl > 0) THEN
+      DEALLOCATE (potential%cexp_ppl,STAT=istat)
+      IF (istat /= 0) CALL stop_memory(routine,"potential%cexp_ppl")
     END IF
 
 !   *** Deallocate the parameters of the non-local part ***
 
-    IF (gth_potential%nppnl > 0) THEN
-      DEALLOCATE (gth_potential%alpha_ppnl,STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routine,"gth_potential%alpha_ppnl")
-      DEALLOCATE (gth_potential%cprj,STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routine,"gth_potential%cprj")
-      DEALLOCATE (gth_potential%cprj_ppnl,STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routine,"gth_potential%cprj_ppnl")
-      DEALLOCATE (gth_potential%hprj_ppnl,STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routine,"gth_potential%hprj_ppnl")
-      DEALLOCATE (gth_potential%nprj_ppnl,STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routine,"gth_potential%nprj_ppnl")
-      DEALLOCATE (gth_potential%vprj_ppnl,STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routine,"gth_potential%vprj_ppnl")
+    IF (potential%nppnl > 0) THEN
+      DEALLOCATE (potential%alpha_ppnl,STAT=istat)
+      IF (istat /= 0) CALL stop_memory(routine,"potential%alpha_ppnl")
+      DEALLOCATE (potential%cprj,STAT=istat)
+      IF (istat /= 0) CALL stop_memory(routine,"potential%cprj")
+      DEALLOCATE (potential%cprj_ppnl,STAT=istat)
+      IF (istat /= 0) CALL stop_memory(routine,"potential%cprj_ppnl")
+      DEALLOCATE (potential%hprj_ppnl,STAT=istat)
+      IF (istat /= 0) CALL stop_memory(routine,"potential%hprj_ppnl")
+      DEALLOCATE (potential%nprj_ppnl,STAT=istat)
+      IF (istat /= 0) CALL stop_memory(routine,"potential%nprj_ppnl")
+      DEALLOCATE (potential%vprj_ppnl,STAT=istat)
+      IF (istat /= 0) CALL stop_memory(routine,"potential%vprj_ppnl")
     END IF
 
-    DEALLOCATE (gth_potential,STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routine,"gth_potential")
+    DEALLOCATE (potential,STAT=istat)
+    IF (istat /= 0) CALL stop_memory(routine,"potential")
 
   END SUBROUTINE deallocate_gth_potential
 
 ! *****************************************************************************
 
-  SUBROUTINE init_cprj_ppnl(gth_potential)
+  SUBROUTINE get_all_potential(potential,name,alpha_core_charge,&
+                               ccore_charge,core_charge_radius,z,zeff,&
+                               elec_conf)
 
-!   Purpose: Initialize the coefficients of the projectors of the non-local
+!   Purpose: Get informations about an all-electron potential data set.
+
+!   History: Creation (11.01.2002, Matthias Krack)
+
+!   ***************************************************************************
+
+    TYPE(all_potential_type), POINTER        :: potential
+    CHARACTER(LEN=max_name_length),&
+      OPTIONAL, INTENT(OUT)                  :: name
+    REAL(wp), OPTIONAL, INTENT(OUT)          :: alpha_core_charge,&
+                                                ccore_charge,&
+                                                core_charge_radius
+    INTEGER, OPTIONAL, INTENT(OUT)           :: z,zeff
+    INTEGER, DIMENSION(:), OPTIONAL, POINTER :: elec_conf
+
+!   *** Local parameters ***
+
+    CHARACTER(LEN=*), PARAMETER :: routine =&
+      "SUBROUTINE get_all_potential (MODULE external_potential_types)"
+
+!   ---------------------------------------------------------------------------
+
+    IF (ASSOCIATED(potential)) THEN
+      IF (PRESENT(name)) name = potential%name
+      IF (PRESENT(alpha_core_charge))&
+        alpha_core_charge = potential%alpha_core_charge
+      IF (PRESENT(ccore_charge)) ccore_charge = potential%ccore_charge
+      IF (PRESENT(core_charge_radius))&
+        core_charge_radius = potential%core_charge_radius
+      IF (PRESENT(z)) z = potential%z
+      IF (PRESENT(zeff)) zeff = potential%zeff
+      IF (PRESENT(elec_conf)) elec_conf => potential%elec_conf
+    ELSE
+      CALL stop_program(routine,"The pointer potential is not associated")
+    END IF
+
+  END SUBROUTINE get_all_potential
+
+! *****************************************************************************
+
+  SUBROUTINE get_gth_potential(potential,name,alpha_core_charge,&
+                               alpha_ppl,ccore_charge,cerf_ppl,&
+                               core_charge_radius,ppl_radius,ppnl_radius,&
+                               lppnl,lprj_ppnl_max,nexp_ppl,nppnl,&
+                               nprj_ppnl_max,z,zeff,ppl_present,ppnl_present,&
+                               alpha_ppnl,cexp_ppl,all_elec_conf,elec_conf,&
+                               nprj_ppnl,cprj,cprj_ppnl,vprj_ppnl,hprj_ppnl)
+
+!   Purpose: Get informations about a GTH potential data set.
+
+!   History: Creation (11.01.2002, Matthias Krack)
+
+!   ***************************************************************************
+
+    TYPE(gth_potential_type), POINTER             :: potential
+    CHARACTER(LEN=max_name_length), OPTIONAL,&
+      INTENT(OUT)                                 :: name
+    REAL(wp), OPTIONAL, INTENT(OUT)               :: alpha_core_charge,&
+                                                     alpha_ppl,ccore_charge,&
+                                                     cerf_ppl,&
+                                                     core_charge_radius,&
+                                                     ppl_radius,ppnl_radius
+    INTEGER, OPTIONAL, INTENT(OUT)                :: lppnl,lprj_ppnl_max,&
+                                                     nexp_ppl,nppnl,&
+                                                     nprj_ppnl_max,z,zeff
+    LOGICAL, OPTIONAL, INTENT(OUT)                :: ppl_present,ppnl_present
+    REAL(wp), DIMENSION(:), OPTIONAL, POINTER     :: alpha_ppnl,cexp_ppl
+    INTEGER, DIMENSION(:), OPTIONAL, POINTER      :: all_elec_conf,&
+                                                     elec_conf,nprj_ppnl
+    REAL(wp), DIMENSION(:,:), OPTIONAL, POINTER   :: cprj,cprj_ppnl,vprj_ppnl
+    REAL(wp), DIMENSION(:,:,:), OPTIONAL, POINTER :: hprj_ppnl
+
+!   *** Local parameters ***
+
+    CHARACTER(LEN=*), PARAMETER :: routine =&
+      "SUBROUTINE get_gth_potential (MODULE external_potential_types)"
+
+!   ---------------------------------------------------------------------------
+
+    IF (ASSOCIATED(potential)) THEN
+      IF (PRESENT(name)) name = potential%name
+      IF (PRESENT(alpha_core_charge))&
+        alpha_core_charge = potential%alpha_core_charge
+      IF (PRESENT(alpha_ppl)) alpha_ppl = potential%alpha_ppl
+      IF (PRESENT(ccore_charge)) ccore_charge = potential%ccore_charge
+      IF (PRESENT(cerf_ppl)) cerf_ppl = potential%cerf_ppl
+      IF (PRESENT(core_charge_radius))&
+        core_charge_radius = potential%core_charge_radius
+      IF (PRESENT(ppl_radius)) ppl_radius = potential%ppl_radius
+      IF (PRESENT(ppnl_radius)) ppnl_radius = potential%ppnl_radius
+      IF (PRESENT(lppnl)) lppnl = potential%lppnl
+      IF (PRESENT(lprj_ppnl_max)) lprj_ppnl_max = potential%lprj_ppnl_max
+      IF (PRESENT(nexp_ppl)) nexp_ppl = potential%nexp_ppl
+      IF (PRESENT(nppnl)) nppnl = potential%nppnl
+      IF (PRESENT(nprj_ppnl_max)) nprj_ppnl_max = potential%nprj_ppnl_max
+      IF (PRESENT(z)) z = potential%z
+      IF (PRESENT(zeff)) zeff = potential%zeff
+      IF (PRESENT(ppl_present)) ppl_present = (potential%nexp_ppl > 0)
+      IF (PRESENT(ppnl_present)) ppnl_present = (potential%nppnl > 0)
+      IF (PRESENT(alpha_ppnl)) alpha_ppnl => potential%alpha_ppnl
+      IF (PRESENT(cexp_ppl)) cexp_ppl => potential%cexp_ppl
+      IF (PRESENT(all_elec_conf)) all_elec_conf => potential%all_elec_conf
+      IF (PRESENT(elec_conf)) elec_conf => potential%elec_conf
+      IF (PRESENT(nprj_ppnl)) nprj_ppnl => potential%nprj_ppnl
+      IF (PRESENT(cprj)) cprj => potential%cprj
+      IF (PRESENT(cprj_ppnl)) cprj_ppnl => potential%cprj_ppnl
+      IF (PRESENT(vprj_ppnl)) vprj_ppnl => potential%vprj_ppnl
+      IF (PRESENT(hprj_ppnl)) hprj_ppnl => potential%hprj_ppnl
+    ELSE
+      CALL stop_program(routine,"The pointer potential is not associated")
+    END IF
+
+  END SUBROUTINE get_gth_potential
+
+! *****************************************************************************
+
+  SUBROUTINE init_cprj_ppnl(potential)
+
+!   Purpose: Initialise the coefficients of the projectors of the non-local
 !            part of the GTH pseudopotential and the transformation matrices
 !            for Cartesian overlap integrals between the orbital basis
 !            functions and the projector functions.
@@ -302,10 +442,7 @@ CONTAINS
 
 !   ***************************************************************************
 
-    USE mathconstants,    ONLY: dfac,fac,pi
-    USE orbital_pointers, ONLY: co,coset,nco
-
-    TYPE(gth_potential_type), POINTER :: gth_potential
+    TYPE(gth_potential_type), POINTER :: potential
 
 !   *** Local variables ***
 
@@ -317,15 +454,15 @@ CONTAINS
 
     nprj = 0
 
-    DO l=0,gth_potential%lppnl
-      alpha_ppnl = gth_potential%alpha_ppnl(l)
-      DO iprj_ppnl=1,gth_potential%nprj_ppnl(l)
+    DO l=0,potential%lppnl
+      alpha_ppnl = potential%alpha_ppnl(l)
+      DO iprj_ppnl=1,potential%nprj_ppnl(l)
         lp = iprj_ppnl - 1
         lprj_ppnl = l + 2*lp
         cp = SQRT(2.0_wp**(2.0_wp*REAL(lprj_ppnl,wp) + 3.5_wp)*&
                   alpha_ppnl**(REAL(lprj_ppnl,wp) + 1.5_wp)/&
                   (SQRT(pi)*dfac(2*lprj_ppnl + 1)))
-        gth_potential%cprj_ppnl(iprj_ppnl,l) = cp
+        potential%cprj_ppnl(iprj_ppnl,l) = cp
         DO cx=0,l
           DO cy=0,l-cx
             cz = l - cx - cy
@@ -337,8 +474,7 @@ CONTAINS
                 cpy = cy + 2*py
                 cpz = cz + 2*pz
                 ico = coset(cpx,cpy,cpz)
-                gth_potential%cprj(ico,iprj) =&
-                  cp*fac(lp)/(fac(px)*fac(py)*fac(pz))
+                potential%cprj(ico,iprj) = cp*fac(lp)/(fac(px)*fac(py)*fac(pz))
               END DO
             END DO
           END DO
@@ -351,46 +487,45 @@ CONTAINS
 
 ! *****************************************************************************
 
-  SUBROUTINE init_gth_potential(gth_potential)
+  SUBROUTINE init_gth_potential(potential)
 
-!   Purpose: Initialize a GTH potential data structure.
+!   Purpose: Initialise a GTH potential data set structure.
 
 !   History: Creation (27.10.2000, Matthias Krack)
 
 !   ***************************************************************************
 
-    TYPE(gth_potential_type), POINTER :: gth_potential
+    TYPE(gth_potential_type), POINTER :: potential
 
 !   ---------------------------------------------------------------------------
 
-!   *** Initialize the projector coefficients of the    ***
+    IF (.NOT.ASSOCIATED(potential)) RETURN
+
+!   *** Initialise the projector coefficients of the    ***
 !   *** non-local part of the GTH pseudopotential and   ***
 !   *** the transformation matrices "pgf" -> "prj_ppnl" ***
 
-    CALL init_cprj_ppnl(gth_potential)
+    CALL init_cprj_ppnl(potential)
 
-!   *** Initialize the h(i,j) projector coefficients of ***
+!   *** Initialise the h(i,j) projector coefficients of ***
 !   *** the non-local part of the GTH pseudopotential   ***
 
-    CALL init_vprj_ppnl(gth_potential)
+    CALL init_vprj_ppnl(potential)
 
   END SUBROUTINE init_gth_potential
 
 ! *****************************************************************************
 
-  SUBROUTINE init_vprj_ppnl(gth_potential)
+  SUBROUTINE init_vprj_ppnl(potential)
 
-!   Purpose: Initialize the h(i,j) projector coefficients of the non-local part
+!   Purpose: Initialise the h(i,j) projector coefficients of the non-local part
 !            of the GTH pseudopotential.
 
 !   History: - Creation (24.10.2000, Matthias Krack)
 
 !   ***************************************************************************
 
-    USE orbital_pointers,                ONLY: nco,nso
-    USE orbital_transformation_matrices, ONLY: orbtramat
-
-    TYPE(gth_potential_type), POINTER :: gth_potential
+    TYPE(gth_potential_type), POINTER :: potential
 
 !   *** Local variables ***
 
@@ -400,60 +535,45 @@ CONTAINS
 
     nprj = 0
 
-    DO l=0,gth_potential%lppnl
-      DO iprj_ppnl=1,gth_potential%nprj_ppnl(l)
+    DO l=0,potential%lppnl
+      DO iprj_ppnl=1,potential%nprj_ppnl(l)
         iprj = nprj + (iprj_ppnl - 1)*nco(l)
-        DO jprj_ppnl=1,gth_potential%nprj_ppnl(l)
+        DO jprj_ppnl=1,potential%nprj_ppnl(l)
           jprj = nprj + (jprj_ppnl - 1)*nco(l)
           DO ico=1,nco(l)
             i = iprj + ico
             DO jco=1,nco(l)
               j = jprj + jco
               DO iso=1,nso(l)
-                gth_potential%vprj_ppnl(i,j) =&
-                  gth_potential%vprj_ppnl(i,j) +&
-                  orbtramat(l)%slm(iso,ico)*&
-                  gth_potential%hprj_ppnl(iprj_ppnl,jprj_ppnl,l)*&
-                  orbtramat(l)%slm(iso,jco)
+                potential%vprj_ppnl(i,j) = potential%vprj_ppnl(i,j) +&
+                                           orbtramat(l)%slm(iso,ico)*&
+                                           potential%hprj_ppnl(iprj_ppnl,&
+                                                               jprj_ppnl,l)*&
+                                           orbtramat(l)%slm(iso,jco)
               END DO
             END DO
           END DO
         END DO
       END DO
-      nprj = nprj + gth_potential%nprj_ppnl(l)*nco(l)
+      nprj = nprj + potential%nprj_ppnl(l)*nco(l)
     END DO
 
   END SUBROUTINE init_vprj_ppnl
 
 ! *****************************************************************************
 
-  SUBROUTINE read_all_potential(element_symbol,potential_name,&
-                                alpha_core_charge,elec_conf,zeff,&
-                                all_potential,globenv)
+  SUBROUTINE read_all_potential(element_symbol,potential_name,potential,&
+                                globenv)
 
-!   Purpose: Read an atomic all-electron potential data structure from the
-!            database file.
+!   Purpose: Read an atomic all-electron potential data set.
 
 !   History: - Creation (14.05.2000, Matthias Krack)
 
 !   ***************************************************************************
 
-    USE global_types,     ONLY: global_environment_type
-    USE input_utilities,  ONLY: finish_input_session,&
-                                read_object,&
-                                search,&
-                                start_input_session,&
-                                test_object
-    USE memory_utilities, ONLY: reallocate
-    USE string_utilities, ONLY: uppercase
-    USE termination,      ONLY: stop_program
-
-    TYPE(all_potential_type), POINTER         :: all_potential
+    TYPE(all_potential_type), POINTER         :: potential
     TYPE(global_environment_type), INTENT(IN) :: globenv
     CHARACTER(LEN=*), INTENT(IN)              :: element_symbol,potential_name
-    REAL(wp), INTENT(OUT)                     :: alpha_core_charge
-    INTEGER, INTENT(OUT)                      :: zeff
-    INTEGER, DIMENSION(:), POINTER            :: elec_conf
 
 !   *** Local parameters ***
 
@@ -465,14 +585,17 @@ CONTAINS
     CHARACTER(LEN=LEN(potential_name)) :: apname
     CHARACTER(LEN=240)                 :: line
     CHARACTER(LEN=LEN(element_symbol)) :: symbol
-    CHARACTER(LEN=11)                  :: test_result
-    REAL(wp)                           :: r
-    INTEGER                            :: l
+    REAL(wp)                           :: alpha,r
+    INTEGER                            :: istat,l
     LOGICAL                            :: found
+
+    INTEGER, DIMENSION(:), POINTER :: elec_conf
 
 !   ---------------------------------------------------------------------------
 
-    CALL start_input_session(globenv%potential_file_name,globenv)
+    potential%name = potential_name
+
+    CALL start_parser(globenv%potential_file_name,globenv)
 
 !   *** Search for the requested potential in the potential file   ***
 !   *** until the potential is found or the end of file is reached ***
@@ -482,13 +605,15 @@ CONTAINS
 
     search_loop: DO
 
-      CALL search(apname,.TRUE.,found,line)
+      CALL search_object(apname,.TRUE.,found,line)
 
       IF (found) THEN
 
         CALL uppercase(line)
         CALL uppercase(symbol)
         CALL uppercase(apname)
+
+!       *** Check both the element symbol and the atomic potential name ***
 
         IF ((INDEX(" "//line//" "," "//TRIM(apname)//" ") > 0).AND.&
             (INDEX(" "//line//" "," "//TRIM(symbol)//" ") > 0)) THEN
@@ -499,24 +624,31 @@ CONTAINS
 
           l = 0
           elec_conf => reallocate(elec_conf,0,l)
-          CALL read_object(elec_conf(l),skip_lines=1)
-          CALL test_object(test_result)
-
-          DO WHILE (test_result == "integer")
+          CALL read_object(elec_conf(l),newline=.TRUE.)
+          DO WHILE (test_object() == "INT")
             l = l + 1
             elec_conf => reallocate(elec_conf,0,l)
             CALL read_object(elec_conf(l))
-            CALL test_object(test_result)
           END DO
 
-          zeff = SUM(elec_conf)
+          potential%elec_conf => reallocate(potential%elec_conf,0,l)
+          potential%elec_conf(:) = elec_conf(:)
 
-!         *** Read r(loc) to define the exponent ***
-!         *** of the core charge distribution    ***
+          potential%z = SUM(elec_conf)
+          potential%zeff = potential%z
 
-          CALL read_object(r,skip_lines=1)
+          DEALLOCATE (elec_conf,STAT=istat)
+          IF (istat /= 0) CALL stop_memory(routine,"elec_conf")
 
-          alpha_core_charge = 1.0_wp/(2.0_wp*r**2)
+!         *** Read r(loc) to define the exponent of the core charge    ***
+!         *** distribution and calculate the corresponding coefficient ***
+
+          CALL read_object(r,newline=.TRUE.)
+
+          alpha = 1.0_wp/(2.0_wp*r**2)
+
+          potential%alpha_core_charge = alpha
+          potential%ccore_charge = REAL(potential%zeff,wp)*SQRT((alpha/pi)**3)
 
           EXIT search_loop
 
@@ -536,18 +668,16 @@ CONTAINS
 
     END DO search_loop
 
-    CALL finish_input_session
+    CALL finish_parser()
 
   END SUBROUTINE read_all_potential
 
 ! *****************************************************************************
 
-  SUBROUTINE read_gth_potential(element_symbol,potential_name,&
-                                alpha_core_charge,elec_conf,zeff,&
-                                gth_potential,globenv)
+  SUBROUTINE read_gth_potential(element_symbol,potential_name,potential,&
+                                globenv)
 
-!   Purpose: Read an atomic GTH potential data structure from the database
-!            file.
+!   Purpose: Read an atomic GTH potential data set.
 
 !   Literature: - S. Goedecker, M. Teter and J. Hutter,
 !                 Phys. Rev. B 54, 1703 (1996)
@@ -558,25 +688,9 @@ CONTAINS
 
 !   ***************************************************************************
 
-    USE global_types,     ONLY: global_environment_type
-    USE input_utilities,  ONLY: finish_input_session,&
-                                read_object,&
-                                search,&
-                                start_input_session,&
-                                test_object
-    USE mathconstants,    ONLY: pi
-    USE mathlib,          ONLY: symmetrize_matrix
-    USE memory_utilities, ONLY: reallocate
-    USE orbital_pointers, ONLY: init_orbital_pointers,nco,ncoset
-    USE string_utilities, ONLY: uppercase
-    USE termination,      ONLY: stop_memory,stop_program
-
     TYPE(global_environment_type), INTENT(IN) :: globenv
-    TYPE(gth_potential_type), POINTER         :: gth_potential
+    TYPE(gth_potential_type), POINTER         :: potential
     CHARACTER(LEN=*), INTENT(IN)              :: element_symbol,potential_name
-    REAL(wp), INTENT(OUT)                     :: alpha_core_charge
-    INTEGER, INTENT(OUT)                      :: zeff
-    INTEGER, DIMENSION(:), POINTER            :: elec_conf
 
 !   *** Local parameters ***
 
@@ -588,19 +702,20 @@ CONTAINS
     CHARACTER(LEN=LEN(potential_name)) :: apname
     CHARACTER(LEN=240)                 :: line
     CHARACTER(LEN=LEN(element_symbol)) :: symbol
-    CHARACTER(LEN=11)                  :: test_result
     REAL(wp)                           :: alpha,r
     INTEGER                            :: i,istat,j,l,lppnl,lprj_ppnl,&
-                                          lprj_ppnl_max,n,nppnl,nprj_ppnl,&
-                                          nprj_ppnl_max
+                                          lprj_ppnl_max,n,maxlppl,nppnl,&
+                                          nprj_ppnl,nprj_ppnl_max
     LOGICAL                            :: found
 
-    INTEGER, DIMENSION(:), POINTER      :: all_elec_conf,gth_elec_conf
+    INTEGER, DIMENSION(:), POINTER      :: elec_conf
     REAL(wp), DIMENSION(:,:,:), POINTER :: hprj_ppnl
 
 !   ---------------------------------------------------------------------------
 
-    CALL start_input_session(globenv%potential_file_name,globenv)
+    potential%name = potential_name
+
+    CALL start_parser(globenv%potential_file_name,globenv)
 
 !   *** Search for the requested potential in the potential file   ***
 !   *** until the potential is found or the end of file is reached ***
@@ -610,7 +725,7 @@ CONTAINS
 
     search_loop: DO
 
-      CALL search(apname,.TRUE.,found,line)
+      CALL search_object(apname,.TRUE.,found,line)
 
       IF (found) THEN
 
@@ -618,98 +733,97 @@ CONTAINS
         CALL uppercase(symbol)
         CALL uppercase(apname)
 
+!       *** Check both the element symbol and the atomic potential name ***
+
         IF ((INDEX(" "//line//" "," "//TRIM(apname)//" ") > 0).AND.&
             (INDEX(" "//line//" "," "//TRIM(symbol)//" ") > 0)) THEN
 
-!         *** Read the electronic configuration (core and valence part) ***
+!         *** Read the all-electron configuration ***
 
-          NULLIFY (all_elec_conf)
+          NULLIFY (elec_conf)
 
           l = 0
-          all_elec_conf => reallocate(all_elec_conf,0,l)
-          CALL read_object(all_elec_conf(l),skip_lines=1)
-          CALL test_object(test_result)
-
-          DO WHILE (test_result == "integer")
-            l = l + 1
-            all_elec_conf => reallocate(all_elec_conf,0,l)
-            CALL read_object(all_elec_conf(l))
-            CALL test_object(test_result)
-          END DO
-
           elec_conf => reallocate(elec_conf,0,l)
-          elec_conf(:) = all_elec_conf(:)
-
-          DEALLOCATE (all_elec_conf)
-
-!         *** Read the electronic configuration of    ***
-!         *** the GTH-pseudo atom (valence part only) ***
-
-          NULLIFY (gth_elec_conf)
-
-          l = 0
-          gth_elec_conf => reallocate(gth_elec_conf,0,l)
-          CALL read_object(gth_elec_conf(l),skip_lines=1)
-          CALL test_object(test_result)
-
-          DO WHILE (test_result == "integer")
+          CALL read_object(elec_conf(l),newline=.TRUE.)
+          DO WHILE (test_object() == "INT")
             l = l + 1
-            gth_elec_conf => reallocate(gth_elec_conf,0,l)
-            CALL read_object(gth_elec_conf(l))
-            CALL test_object(test_result)
+            elec_conf => reallocate(elec_conf,0,l)
+            CALL read_object(elec_conf(l))
           END DO
 
-          gth_potential%elec_conf => reallocate(gth_potential%elec_conf,0,l)
-          gth_potential%elec_conf(:) = gth_elec_conf(:)
+          potential%all_elec_conf =>&
+            reallocate(potential%all_elec_conf,0,l)
+          potential%all_elec_conf(:) = elec_conf(:)
 
-          DEALLOCATE (gth_elec_conf)
+          potential%z = SUM(elec_conf)
 
-          zeff = SUM(gth_potential%elec_conf)
+          DEALLOCATE (elec_conf,STAT=istat)
+          IF (istat /= 0) CALL stop_memory(routine,"elec_conf (1)")
 
-!         *** Read r(loc) to define the exponent ***
-!         *** of the core charge distribution    ***
+!         *** Read the electronic configuration of the GTH-pseudo atom ***
 
-          CALL read_object(r,skip_lines=1)
+          l = 0
+          elec_conf => reallocate(elec_conf,0,l)
+          CALL read_object(elec_conf(l),newline=.TRUE.)
+          DO WHILE (test_object() == "INT")
+            l = l + 1
+            elec_conf => reallocate(elec_conf,0,l)
+            CALL read_object(elec_conf(l))
+          END DO
 
-          alpha_core_charge = 1.0_wp/(2.0_wp*r**2)
+          potential%elec_conf => reallocate(potential%elec_conf,0,l)
+          potential%elec_conf(:) = elec_conf(:)
 
-          gth_potential%alpha_ppl = alpha_core_charge
-          gth_potential%cerf_ppl = REAL(zeff,wp)*&
-                                   SQRT((alpha_core_charge/pi)**3)
+          potential%zeff = SUM(elec_conf)
+
+          DEALLOCATE (elec_conf,STAT=istat)
+          IF (istat /= 0) CALL stop_memory(routine,"elec_conf (2)")
+
+!         *** Read r(loc) to define the exponent of the core charge    ***
+!         *** distribution and calculate the corresponding coefficient ***
+
+          CALL read_object(r,newline=.TRUE.)
+
+          alpha = 1.0_wp/(2.0_wp*r**2)
+
+          potential%alpha_core_charge = alpha
+          potential%ccore_charge = REAL(potential%zeff,wp)*SQRT((alpha/pi)**3)
+
+          potential%alpha_ppl = alpha
+          potential%cerf_ppl = REAL(potential%zeff,wp)*SQRT((alpha/pi)**3)
 
 !         *** Read the parameters for the local part ***
 !         *** of the GTH pseudopotential (ppl)       ***
 
           CALL read_object(n)
-          gth_potential%nexp_ppl = n
-          gth_potential%cexp_ppl => reallocate(gth_potential%cexp_ppl,1,n)
+          potential%nexp_ppl = n
+          potential%cexp_ppl => reallocate(potential%cexp_ppl,1,n)
 
           DO i=1,n
-            CALL read_object(gth_potential%cexp_ppl(i))
-            gth_potential%cexp_ppl(i) =&
-              (2.0_wp*gth_potential%alpha_ppl)**(i - 1)*&
-              gth_potential%cexp_ppl(i)
+            CALL read_object(potential%cexp_ppl(i))
+            potential%cexp_ppl(i) = (2.0_wp*potential%alpha_ppl)**(i - 1)*&
+                                    potential%cexp_ppl(i)
           END DO
 
-          maxlppl = MAX(maxlppl,2*(n - 1))
+          maxlppl = 2*(n - 1)
 
           CALL init_orbital_pointers(maxlppl)
 
 !         *** Read the parameters for the non-local  ***
 !         *** part of the GTH pseudopotential (ppnl) ***
 
-          CALL read_object(n,skip_lines=1)
+          CALL read_object(n,newline=.TRUE.)
 
-          gth_potential%lppnl = n - 1
-          gth_potential%nppnl = 0
+          potential%lppnl = n - 1
+          potential%nppnl = 0
 
-          gth_potential%lprj_ppnl_max = n - 1
-          gth_potential%nprj_ppnl_max = 0
+          potential%lprj_ppnl_max = n - 1
+          potential%nprj_ppnl_max = 0
 
           IF (n > 0) THEN
 
-            lppnl = gth_potential%lppnl
-            nppnl = gth_potential%nppnl
+            lppnl = potential%lppnl
+            nppnl = potential%nppnl
 
             CALL init_orbital_pointers(lppnl)
 
@@ -717,19 +831,17 @@ CONTAINS
 
 !           *** Load the parameter for n non-local projectors ***
 
-            gth_potential%alpha_ppnl =>&
-              reallocate(gth_potential%alpha_ppnl,0,lppnl)
-            gth_potential%nprj_ppnl =>&
-              reallocate(gth_potential%nprj_ppnl,0,lppnl)
+            potential%alpha_ppnl => reallocate(potential%alpha_ppnl,0,lppnl)
+            potential%nprj_ppnl => reallocate(potential%nprj_ppnl,0,lppnl)
 
             lprj_ppnl_max = -1
             nprj_ppnl_max = 0
 
             DO l=0,lppnl
-              CALL read_object(r,skip_lines=1)
-              gth_potential%alpha_ppnl(l) = 1.0_wp/(2.0_wp*r**2)
+              CALL read_object(r,newline=.TRUE.)
+              potential%alpha_ppnl(l) = 1.0_wp/(2.0_wp*r**2)
               CALL read_object(nprj_ppnl)
-              gth_potential%nprj_ppnl(l) = nprj_ppnl
+              potential%nprj_ppnl(l) = nprj_ppnl
               nppnl = nppnl + nprj_ppnl*nco(l)
               IF (nprj_ppnl > nprj_ppnl_max) THEN
                 nprj_ppnl_max = nprj_ppnl
@@ -740,7 +852,7 @@ CONTAINS
                 IF (i == 1) THEN
                   CALL read_object(hprj_ppnl(i,i,l))
                 ELSE
-                  CALL read_object(hprj_ppnl(i,i,l),skip_lines=1)
+                  CALL read_object(hprj_ppnl(i,i,l),newline=.TRUE.)
                 END IF
                 DO j=i+1,nprj_ppnl
                   CALL read_object(hprj_ppnl(i,j,l))
@@ -752,28 +864,31 @@ CONTAINS
               lprj_ppnl_max = MAX(lprj_ppnl_max,l + 2*(nprj_ppnl - 1))
             END DO
 
-            gth_potential%nppnl = nppnl
+            potential%nppnl = nppnl
 
-            maxlppnl = MAX(maxlppnl,lprj_ppnl_max)
+            CALL init_orbital_pointers(lprj_ppnl_max)
 
-            CALL init_orbital_pointers(maxlppnl)
+            potential%lprj_ppnl_max = lprj_ppnl_max
+            potential%nprj_ppnl_max = nprj_ppnl_max
 
-            gth_potential%lprj_ppnl_max = lprj_ppnl_max
-            gth_potential%nprj_ppnl_max = nprj_ppnl_max
+            potential%hprj_ppnl => reallocate(potential%hprj_ppnl,&
+                                              1,nprj_ppnl_max,&
+                                              1,nprj_ppnl_max,&
+                                              0,lppnl)
+            potential%hprj_ppnl(:,:,:) = hprj_ppnl(:,:,:)
 
-            gth_potential%hprj_ppnl =>&
-              reallocate(gth_potential%hprj_ppnl,1,nprj_ppnl_max,&
-                         1,nprj_ppnl_max,0,lppnl)
-            gth_potential%hprj_ppnl(:,:,:) = hprj_ppnl(:,:,:)
+            potential%cprj => reallocate(potential%cprj,&
+                                         1,ncoset(lprj_ppnl_max),&
+                                         1,nppnl)
+            potential%cprj_ppnl => reallocate(potential%cprj_ppnl,&
+                                              1,nprj_ppnl_max,&
+                                              0,lppnl)
+            potential%vprj_ppnl => reallocate(potential%vprj_ppnl,&
+                                              1,nppnl,&
+                                              1,nppnl)
 
-            gth_potential%cprj =>&
-              reallocate(gth_potential%cprj,1,ncoset(lprj_ppnl_max),1,nppnl)
-            gth_potential%cprj_ppnl =>&
-              reallocate(gth_potential%cprj_ppnl,1,nprj_ppnl_max,0,lppnl)
-            gth_potential%vprj_ppnl =>&
-              reallocate(gth_potential%vprj_ppnl,1,nppnl,1,nppnl)
-
-            DEALLOCATE (hprj_ppnl)
+            DEALLOCATE (hprj_ppnl,STAT=istat)
+            IF (istat /= 0) CALL stop_memory(routine,"hprj_ppnl")
 
           END IF
 
@@ -795,9 +910,233 @@ CONTAINS
 
     END DO search_loop
 
-    CALL finish_input_session
+    CALL finish_parser()
 
   END SUBROUTINE read_gth_potential
+
+! *****************************************************************************
+
+  SUBROUTINE set_all_potential(potential,name,alpha_core_charge,&
+                               ccore_charge,core_charge_radius,z,zeff,&
+                               elec_conf)
+
+!   Purpose: Set the components of an all-electron potential data set.
+
+!   History: Creation (11.01.2002, Matthias Krack)
+
+!   ***************************************************************************
+
+    TYPE(all_potential_type), POINTER        :: potential
+    CHARACTER(LEN=max_name_length),&
+      OPTIONAL, INTENT(IN)                   :: name
+    REAL(wp), OPTIONAL, INTENT(IN)           :: alpha_core_charge,&
+                                                ccore_charge,&
+                                                core_charge_radius
+    INTEGER, OPTIONAL, INTENT(IN)            :: z,zeff
+    INTEGER, DIMENSION(:), OPTIONAL, POINTER :: elec_conf
+
+!   *** Local parameters ***
+
+    CHARACTER(LEN=*), PARAMETER :: routine =&
+      "SUBROUTINE set_all_potential (MODULE external_potential_types)"
+
+!   ---------------------------------------------------------------------------
+
+    IF (ASSOCIATED(potential)) THEN
+      IF (PRESENT(name)) potential%name = name
+      IF (PRESENT(alpha_core_charge))&
+        potential%alpha_core_charge = alpha_core_charge
+      IF (PRESENT(ccore_charge)) potential%ccore_charge = ccore_charge
+      IF (PRESENT(core_charge_radius))&
+        potential%core_charge_radius = core_charge_radius
+      IF (PRESENT(z)) potential%z = z
+      IF (PRESENT(zeff)) potential%zeff = zeff
+      IF (PRESENT(elec_conf)) potential%elec_conf(:) = elec_conf(:)
+    ELSE
+      CALL stop_program(routine,"The pointer potential is not associated")
+    END IF
+
+  END SUBROUTINE set_all_potential
+
+! *****************************************************************************
+
+  SUBROUTINE set_gth_potential(potential,name,alpha_core_charge,alpha_ppl,&
+                               ccore_charge,cerf_ppl,core_charge_radius,&
+                               ppl_radius,ppnl_radius,lppnl,lprj_ppnl_max,&
+                               nexp_ppl,nppnl,nprj_ppnl_max,z,zeff,alpha_ppnl,&
+                               cexp_ppl,all_elec_conf,elec_conf,nprj_ppnl,&
+                               cprj,cprj_ppnl,vprj_ppnl,hprj_ppnl)
+
+!   Purpose: Get the components of a GTH potential data set.
+
+!   History: Creation (11.01.2002, Matthias Krack)
+
+!   ***************************************************************************
+
+    TYPE(gth_potential_type), POINTER             :: potential
+    CHARACTER(LEN=max_name_length), OPTIONAL,&
+      INTENT(IN)                                  :: name
+    REAL(wp), OPTIONAL, INTENT(IN)                :: alpha_core_charge,&
+                                                     alpha_ppl,ccore_charge,&
+                                                     cerf_ppl,&
+                                                     core_charge_radius,&
+                                                     ppl_radius,ppnl_radius
+    INTEGER, OPTIONAL, INTENT(IN)                 :: lppnl,lprj_ppnl_max,&
+                                                     nexp_ppl,nppnl,&
+                                                     nprj_ppnl_max,z,zeff
+    REAL(wp), DIMENSION(:), OPTIONAL, POINTER     :: alpha_ppnl,cexp_ppl
+    INTEGER, DIMENSION(:), OPTIONAL, POINTER      :: all_elec_conf,&
+                                                     elec_conf,nprj_ppnl
+    REAL(wp), DIMENSION(:,:), OPTIONAL, POINTER   :: cprj,cprj_ppnl,vprj_ppnl
+    REAL(wp), DIMENSION(:,:,:), OPTIONAL, POINTER :: hprj_ppnl
+
+!   *** Local parameters ***
+
+    CHARACTER(LEN=*), PARAMETER :: routine =&
+      "SUBROUTINE set_gth_potential (MODULE external_potential_types)"
+
+!   ---------------------------------------------------------------------------
+
+    IF (ASSOCIATED(potential)) THEN
+      IF (PRESENT(name)) potential%name = name
+      IF (PRESENT(alpha_core_charge))&
+        potential%alpha_core_charge = alpha_core_charge
+      IF (PRESENT(alpha_ppl)) potential%alpha_ppl = alpha_ppl
+      IF (PRESENT(ccore_charge)) potential%ccore_charge = ccore_charge
+      IF (PRESENT(cerf_ppl)) potential%cerf_ppl = cerf_ppl
+      IF (PRESENT(core_charge_radius))&
+        potential%core_charge_radius = core_charge_radius
+      IF (PRESENT(ppl_radius)) potential%ppl_radius = ppl_radius
+      IF (PRESENT(ppnl_radius)) potential%ppnl_radius = ppnl_radius
+      IF (PRESENT(lppnl)) potential%lppnl = lppnl
+      IF (PRESENT(lprj_ppnl_max)) potential%lprj_ppnl_max = lprj_ppnl_max
+      IF (PRESENT(nexp_ppl)) potential%nexp_ppl = nexp_ppl
+      IF (PRESENT(nppnl)) potential%nppnl = nppnl
+      IF (PRESENT(nprj_ppnl_max)) potential%nprj_ppnl_max = nprj_ppnl_max
+      IF (PRESENT(z)) potential%z = z
+      IF (PRESENT(zeff)) potential%zeff = zeff
+      IF (PRESENT(alpha_ppnl)) potential%alpha_ppnl => alpha_ppnl
+      IF (PRESENT(cexp_ppl)) potential%cexp_ppl => cexp_ppl
+      IF (PRESENT(all_elec_conf)) potential%all_elec_conf => all_elec_conf
+      IF (PRESENT(elec_conf)) potential%elec_conf => elec_conf
+      IF (PRESENT(nprj_ppnl)) potential%nprj_ppnl => nprj_ppnl
+      IF (PRESENT(cprj)) potential%cprj => cprj
+      IF (PRESENT(cprj_ppnl)) potential%cprj_ppnl => cprj_ppnl
+      IF (PRESENT(vprj_ppnl)) potential%vprj_ppnl => vprj_ppnl
+      IF (PRESENT(hprj_ppnl)) potential%hprj_ppnl => hprj_ppnl
+    ELSE
+      CALL stop_program(routine,"The pointer potential is not associated")
+    END IF
+
+  END SUBROUTINE set_gth_potential
+
+! *****************************************************************************
+
+  SUBROUTINE write_all_potential(potential,globenv)
+
+!   Purpose: Write an atomic all-electron potential data set to the output
+!            unit.
+
+!   History: - Creation (09.02.2002, Matthias Krack)
+
+!   ***************************************************************************
+
+    TYPE(all_potential_type), POINTER         :: potential
+    TYPE(global_environment_type), INTENT(IN) :: globenv
+
+!   *** Local variables ***
+
+    INTEGER :: output_unit
+
+!   ---------------------------------------------------------------------------
+
+    IF (.NOT.globenv%ionode) RETURN
+
+    IF (ASSOCIATED(potential).AND.globenv%print%potential) THEN
+
+      output_unit = globenv%scr
+
+      WRITE (UNIT=output_unit,FMT="(/,/,T4,A,/,/,T6,A)")&
+        "- Potential information",&
+        "Potential name: "//TRIM(potential%name)
+
+      WRITE (UNIT=output_unit,FMT="(/,(T6,A))")&
+        "Description: "//TRIM(potential%description(1)),&
+        "             "//TRIM(potential%description(2))
+      WRITE (UNIT=output_unit,FMT="(/,T6,A,F12.6)")&
+        "Gaussian exponent of the core charge distribution: ",&
+        potential%alpha_core_charge
+      WRITE (UNIT=output_unit,FMT="(/,T6,A,10I3)")&
+        "Electronic configuration (s p d ...):",potential%elec_conf
+
+    END IF
+
+  END SUBROUTINE write_all_potential
+
+! *****************************************************************************
+
+  SUBROUTINE write_gth_potential(potential,globenv)
+
+!   Purpose: Write an atomic GTH potential data set to the output unit.
+
+!   History: - Creation (09.02.2002, Matthias Krack)
+
+!   ***************************************************************************
+
+    TYPE(gth_potential_type), POINTER         :: potential
+    TYPE(global_environment_type), INTENT(IN) :: globenv
+
+!   *** Local variables ***
+
+    REAL(wp) :: r
+    INTEGER  :: i,j,l,output_unit
+
+!   ---------------------------------------------------------------------------
+
+    IF (.NOT.globenv%ionode) RETURN
+
+    IF (ASSOCIATED(potential).AND.globenv%print%potential) THEN
+
+      output_unit = globenv%scr
+
+      WRITE (UNIT=output_unit,FMT="(/,/,T4,A,/,/,T6,A)")&
+        "- Potential information",&
+        "Potential name: "//TRIM(potential%name)
+
+      WRITE (UNIT=output_unit,FMT="(/,(T6,A))")&
+        "Description: "//TRIM(potential%description(1)),&
+        "             "//TRIM(potential%description(2)),&
+        "             "//TRIM(potential%description(3))
+      WRITE (UNIT=output_unit,FMT="(/,T6,A,F12.6)")&
+        "Gaussian exponent of the core charge distribution: ",&
+        potential%alpha_core_charge
+      WRITE (UNIT=output_unit,FMT="(/,T6,A,10I3)")&
+        "Electronic configuration (s p d ...):",potential%elec_conf
+        r = 1.0_wp/SQRT(2.0_wp*potential%alpha_ppl)
+
+      WRITE (UNIT=output_unit,FMT="(/,T6,A,/,/,T8,A,/,T8,4F12.6)")&
+        "Parameters of the local part of the GTH pseudopotential:",&
+        "      rloc        C1          C2          C3          C4",&
+        r,(potential%cexp_ppl(i)*r**(2*(i-1)),i=1,potential%nexp_ppl)
+
+      IF (potential%lppnl > -1) THEN
+        WRITE (UNIT=output_unit,FMT="(/,T6,A,/,/,T6,A,/)")&
+          "Parameters of the non-local part of the GTH pseudopotential:",&
+          " l      r(l)      h(i,j,l)"
+        DO l=0,potential%lppnl
+          r = SQRT(0.5_wp/potential%alpha_ppnl(l))
+          WRITE (UNIT=output_unit,FMT="(T6,I2,F12.6,4F12.6)")&
+            l,r,(potential%hprj_ppnl(1,j,l),j=1,potential%nprj_ppnl(l))
+          DO i=2,potential%nprj_ppnl(l)
+            WRITE (UNIT=output_unit,FMT="(T20,4F12.6)")&
+              (potential%hprj_ppnl(i,j,l),j=1,potential%nprj_ppnl(l))
+          END DO
+        END DO
+      END IF
+
+    END IF
+
+  END SUBROUTINE write_gth_potential
 
 ! *****************************************************************************
 

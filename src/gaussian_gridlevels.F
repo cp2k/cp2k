@@ -6,6 +6,8 @@
   MODULE gaussian_gridlevels
 
   USE kinds, ONLY: wp => dp
+  USE global_types, ONLY: global_environment_type
+  USE message_passing, ONLY: mp_sum
   USE termination, ONLY: stop_program
 
   IMPLICIT NONE
@@ -26,9 +28,8 @@
 CONTAINS
 
   SUBROUTINE init_gaussian_gridlevel(gridlevel_info,ngrid_levels,cutoff,rel_cutoff)
-  IMPLICIT NONE
        integer                :: ngrid_levels,i
-       real(wp), dimension(:) :: cutoff
+       real(wp), dimension(:), POINTER :: cutoff
        real(wp)               :: rel_cutoff
        TYPE(gridlevel_info_type) :: gridlevel_info
        allocate(gridlevel_info%cutoff(ngrid_levels))
@@ -42,19 +43,24 @@ CONTAINS
        enddo
   END SUBROUTINE
  
-  SUBROUTINE destroy_gaussian_gridlevel(gridlevel_info)
-  IMPLICIT NONE
+  SUBROUTINE destroy_gaussian_gridlevel(gridlevel_info,globenv)
+  TYPE(global_environment_type), INTENT(IN) :: globenv
   TYPE(gridlevel_info_type) :: gridlevel_info
   integer i
   deallocate(gridlevel_info%cutoff)
-  write(6,'(T3,A)')           " "
-  write(6,'(T3,A)')           "---------------------------------"
-  write(6,'(T3,A)')           "--        MULTIGRID INFO       --"
-  write(6,'(T3,A)')           "---------------------------------"
-  write(6,'(T3,A,I8)')        "total gridlevel count  : ",gridlevel_info%total_count
-  DO i=1,gridlevel_info%ngrid_levels
-    write(6,'(T3,A,I3,A,I8)') "count for grid     ",i," : ",gridlevel_info%count(i)
-  ENDDO
+  CALL mp_sum(gridlevel_info%total_count,globenv%group)
+  CALL mp_sum(gridlevel_info%count,globenv%group)
+  IF (globenv%ionode.AND.globenv%print%pw_grid_information) THEN
+    write(6,'(/,T3,A)')           "---------------------------------"
+    write(6,'(T3,A)')           "--        MULTIGRID INFO       --"
+    write(6,'(T3,A)')           "---------------------------------"
+    write(6,'(T3,A,I8)')        "total gridlevel count  : ",&
+      gridlevel_info%total_count
+    DO i=1,gridlevel_info%ngrid_levels
+      write(6,'(T3,A,I3,A,I8)') "count for grid     ",i,": ",&
+       gridlevel_info%count(i)
+    END DO
+  END IF
   deallocate(gridlevel_info%count)
   END SUBROUTINE
 

@@ -80,7 +80,7 @@ CONTAINS
   SUBROUTINE overlap_ppl(la_max,zeta,rpgfa,la_min,&
                          lb_max,zetb,rpgfb,lb_min,&
                          cexp_ppl,zetc,rpgfc,&
-                         rab,rab2,rac,rac2,rbc,rbc2,vab)
+                         rab,rab2,dab,rac,rac2,dac,rbc,rbc2,dbc,vab)
 
 !   Purpose: Calculation of three-center overlap integrals <a|c|b> over
 !            Cartesian Gaussian functions for the local part of the Goedecker
@@ -94,7 +94,8 @@ CONTAINS
 
 !   ***************************************************************************
 
-    REAL(wp), INTENT(IN)                      :: rab2,rac2,rbc2,rpgfc,zetc
+    REAL(wp), INTENT(IN)                      :: dab,dac,dbc,rab2,rac2,rbc2,&
+                                                 rpgfc,zetc
     INTEGER, INTENT(IN)                       :: la_max,la_min,lb_max,lb_min
     REAL(wp), DIMENSION(3), INTENT(IN)        :: rab,rac,rbc
     REAL(wp), DIMENSION(:), INTENT(IN)        :: cexp_ppl,rpgfa,rpgfb,zeta,zetb
@@ -102,8 +103,9 @@ CONTAINS
 
 !   *** Local variables ***
 
-    REAL(wp) :: dab,dac,dbc,f0,f1,f2,f3,fc,fx,fy,fz,rcg2,rcp2,zetg,zetp
-    INTEGER  :: ax,ay,az,bx,by,bz,c,i,ipgf,j,jpgf,la,la_start,lb,lc,na,nb
+    REAL(wp) :: f0,f1,f2,f3,fc,fx,fy,fz,rcg2,rcp2,zetg,zetp
+    INTEGER  :: ax,ay,az,bx,by,bz,c,coa,coax,coay,coaz,i,ipgf,j,jpgf,la,&
+                la_start,lb,lc,na,nb,nexp_ppl,npgfa,npgfb
 
     REAL(wp), DIMENSION(3) :: rag,rbg,rcg,rcp
 
@@ -111,17 +113,15 @@ CONTAINS
 
 !   ---------------------------------------------------------------------------
 
-!   *** Calculate the distances of the centers a, b and c ***
-
-    dab = SQRT(rab2)
-    dac = SQRT(rac2)
-    dbc = SQRT(rbc2)
+    nexp_ppl = SIZE(cexp_ppl)
+    npgfa = SIZE(zeta)
+    npgfb = SIZE(zetb)
 
 !   *** Loop over all pairs of primitive Gaussian-type functions ***
 
     na = 0
 
-    DO ipgf=1,SIZE(zeta)
+    DO ipgf=1,npgfa
 
 !     *** Screening ***
 
@@ -132,7 +132,7 @@ CONTAINS
 
       nb = 0
 
-      DO jpgf=1,SIZE(zetb)
+      DO jpgf=1,npgfb
 
 !       *** Screening ***
 
@@ -234,15 +234,13 @@ CONTAINS
               DO ax=0,la
                 DO ay=0,la-ax
                   az = la - ax - ay
-                  sabc(coset(ax,ay,az),2,1) =&
-                    sabc(coset(ax+1,ay,az),1,1) -&
-                    rab(1)*sabc(coset(ax,ay,az),1,1)
-                  sabc(coset(ax,ay,az),3,1) =&
-                    sabc(coset(ax,ay+1,az),1,1) -&
-                    rab(2)*sabc(coset(ax,ay,az),1,1)
-                  sabc(coset(ax,ay,az),4,1) =&
-                    sabc(coset(ax,ay,az+1),1,1) -&
-                    rab(3)*sabc(coset(ax,ay,az),1,1)
+                  coa = coset(ax,ay,az)
+                  coax = coset(ax+1,ay,az)
+                  coay = coset(ax,ay+1,az)
+                  coaz = coset(ax,ay,az+1)
+                  sabc(coa,2,1) = sabc(coax,1,1) - rab(1)*sabc(coa,1,1)
+                  sabc(coa,3,1) = sabc(coay,1,1) - rab(2)*sabc(coa,1,1)
+                  sabc(coa,4,1) = sabc(coaz,1,1) - rab(3)*sabc(coa,1,1)
                 END DO
               END DO
             END DO
@@ -257,29 +255,24 @@ CONTAINS
                 fy = f2*REAL(ay,wp)
                 az = la_max - ax - ay
                 fz = f2*REAL(az,wp)
+                coa = coset(ax,ay,az)
                 IF (ax == 0) THEN
-                  sabc(coset(ax,ay,az),2,1) =&
-                    rbg(1)*sabc(coset(ax,ay,az),1,1)
+                  sabc(coa,2,1) = rbg(1)*sabc(coa,1,1)
                 ELSE
-                  sabc(coset(ax,ay,az),2,1) =&
-                    rbg(1)*sabc(coset(ax,ay,az),1,1) +&
-                    fx*sabc(coset(ax-1,ay,az),1,1)
+                  coax = coset(ax-1,ay,az)
+                  sabc(coa,2,1) = rbg(1)*sabc(coa,1,1) + fx*sabc(coax,1,1)
                 END IF
                 IF (ay == 0) THEN
-                  sabc(coset(ax,ay,az),3,1) =&
-                    rbg(2)*sabc(coset(ax,ay,az),1,1)
+                  sabc(coa,3,1) = rbg(2)*sabc(coa,1,1)
                 ELSE
-                  sabc(coset(ax,ay,az),3,1) =&
-                    rbg(2)*sabc(coset(ax,ay,az),1,1) +&
-                    fy*sabc(coset(ax,ay-1,az),1,1)
+                  coay = coset(ax,ay-1,az)
+                  sabc(coa,3,1) = rbg(2)*sabc(coa,1,1) + fy*sabc(coay,1,1)
                 END IF
                 IF (az == 0) THEN
-                  sabc(coset(ax,ay,az),4,1) =&
-                    rbg(3)*sabc(coset(ax,ay,az),1,1)
+                  sabc(coa,4,1) = rbg(3)*sabc(coa,1,1)
                 ELSE
-                  sabc(coset(ax,ay,az),4,1) =&
-                    rbg(3)*sabc(coset(ax,ay,az),1,1) +&
-                    fz*sabc(coset(ax,ay,az-1),1,1)
+                  coaz = coset(ax,ay,az-1)
+                  sabc(coa,4,1) = rbg(3)*sabc(coa,1,1) + fz*sabc(coaz,1,1)
                 END IF
               END DO
             END DO
@@ -493,7 +486,7 @@ CONTAINS
 
 !       *** Calculate the contributions for lc > 0 ***
 
-        DO c=2,SIZE(cexp_ppl)
+        DO c=2,nexp_ppl
 
           lc = 2*(c - 1)
           fc = f2*REAL(lc,wp)
@@ -921,7 +914,7 @@ CONTAINS
 !       *** Add the contribution of the current pair ***
 !       *** of primitive Gaussian-type functions     ***
 
-        DO c=1,SIZE(cexp_ppl)
+        DO c=1,nexp_ppl
           DO j=ncoset(lb_min-1)+1,ncoset(lb_max)
             DO i=ncoset(la_min-1)+1,ncoset(la_max)
               vab(na+i,nb+j) = vab(na+i,nb+j) + cexp_ppl(c)*sabc(i,j,c)

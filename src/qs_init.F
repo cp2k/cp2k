@@ -1,0 +1,333 @@
+!-----------------------------------------------------------------------------!
+!   CP2K: A general program to perform molecular dynamics simulations         !
+!   Copyright (C) 1999  MPI fuer Festkoerperforschung, Stuttgart              !
+!-----------------------------------------------------------------------------!
+!!****** cp2k/qs_init [1.0] *
+!!
+!!   NAME
+!!     qs_init
+!!
+!!   FUNCTION
+!!
+!!   AUTHOR
+!!     MK (18.05.2000)
+!!
+!!   MODIFICATION HISTORY
+!!     - Merged with the Quickstep MODULE method_specification (17.01.2002, MK)
+!!
+!!   SOURCE
+!******************************************************************************
+
+MODULE qs_init
+
+  USE kinds, ONLY: wp => dp
+
+  USE atomic_kind_types,               ONLY: atomic_kind_type,&
+                                             get_atomic_kind_set,&
+                                             init_atomic_kind_set,&
+                                             read_atomic_kind_set,&
+                                             write_atomic_kind_set,&
+                                             write_gto_basis_sets
+  USE dft_types,                       ONLY: dft_control_type,&
+                                             read_dft_control,&
+                                             read_qs_control,&
+                                             write_dft_control,&
+                                             write_qs_control
+  USE gamma,                           ONLY: init_md_ftable
+  USE global_types,                    ONLY: global_environment_type
+  USE orbital_transformation_matrices, ONLY: init_spherical_harmonics
+  USE particle_types,                  ONLY: particle_type,&
+                                             init_particle_set,&
+                                             read_particle_set,&
+                                             write_particle_coordinates,&
+                                             write_particle_distances
+  USE qs_environment_types,            ONLY: init_qs_env,&
+                                             qs_environment_type,&
+                                             set_qs_env
+  USE qs_interactions,                 ONLY: init_interaction_radii
+  USE qs_scf,                          ONLY: read_scf_parameters,&
+                                             write_scf_parameters
+  USE simulation_cell,                 ONLY: cell_type,&
+                                             read_cell,&
+                                             write_cell
+  USE timings,                         ONLY: timeset,&
+                                             timestop
+
+  IMPLICIT NONE
+
+  PRIVATE
+
+! *** Public subroutines ***
+
+  PUBLIC :: read_qs_env
+
+! *****************************************************************************
+
+CONTAINS
+
+! *****************************************************************************
+
+  SUBROUTINE read_qs_env(qs_env,globenv)
+
+!   Purpose: Read the input and the database files for the setup of the
+!            QUICKSTEP environment.
+
+!   History: - Creation (22.05.2000, Matthias Krack)
+
+!   ***************************************************************************
+
+    TYPE(qs_environment_type), INTENT(OUT)    :: qs_env
+    TYPE(global_environment_type), INTENT(IN) :: globenv
+
+!   *** Local variables ***
+
+    TYPE(cell_type), POINTER                      :: cell
+    TYPE(dft_control_type), POINTER               :: dft_control
+    TYPE(atomic_kind_type), DIMENSION(:), POINTER :: atomic_kind_set
+    TYPE(particle_type), DIMENSION(:), POINTER    :: particle_set
+
+    INTEGER :: handle,lmax,maxl,maxlppl,maxlppnl
+
+!   ---------------------------------------------------------------------------
+
+    CALL timeset("read_qs_env","I","",handle)
+
+!   *** Initialise the QUICKSTEP environment ***
+
+    NULLIFY (cell,dft_control,atomic_kind_set,particle_set)
+
+    CALL init_qs_env(qs_env)
+
+!   *** Print the Quickstep program banner (copyright and version number) ***
+
+    CALL write_qs_program_banner(globenv)
+
+!   *** Read the input section with the DFT control parameters ***
+
+    CALL read_dft_control(dft_control,globenv)
+
+!   *** Print the DFT control parameters ***
+
+    CALL write_dft_control(dft_control,globenv)
+
+!   *** Read the input section with the QUICKSTEP control parameters ***
+
+    CALL read_qs_control(dft_control%qs_control,globenv)
+
+!   *** Print the QUICKSTEP control parameters ***
+
+    CALL write_qs_control(dft_control%qs_control,globenv)
+
+!   *** Read the input section with the cell parameters ***
+
+    CALL read_cell(cell,globenv)
+
+!   *** Print the cell parameters ***
+
+    CALL write_cell(cell,globenv)
+
+!   *** Read the input section with the atomic coordinates ***
+
+    CALL read_particle_set(particle_set,atomic_kind_set,cell,globenv)
+
+!   *** Read the atomic kind information ***
+
+    CALL read_atomic_kind_set(atomic_kind_set,globenv)
+
+!   *** Print the unnormalized basis set information (input data) ***
+
+    CALL write_gto_basis_sets(atomic_kind_set,globenv)
+
+!   *** Initialize the spherical harmonics and ***
+!   *** the orbital transformation matrices    ***
+
+    CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,&
+                             maxl=maxl,&
+                             maxlppl=maxlppl,&
+                             maxlppnl=maxlppnl)
+
+    lmax = MAX(maxl,maxlppl,maxlppnl)
+
+    CALL init_spherical_harmonics(lmax,globenv)
+
+!   *** Initialize the pretabulation for the calculation of the   ***
+!   *** incomplete Gamma function F_n(t) after McMurchie-Davidson ***
+
+    lmax = 3*maxl + 1
+
+    CALL init_md_ftable(lmax)
+
+!   *** Initialise the atomic kind set ***
+
+    CALL init_atomic_kind_set(atomic_kind_set)
+
+!   *** Print the atomic kind set ***
+
+    CALL write_atomic_kind_set(atomic_kind_set,globenv)
+
+!   *** Initialize the atomic data sets completely ***
+
+    CALL init_particle_set(particle_set)
+
+!   *** Print the total number of kinds, atoms, basis functions etc. ***
+
+    CALL write_total_numbers(atomic_kind_set,particle_set,globenv)
+
+!   *** Print the atomic coordinates ***
+
+    CALL write_particle_coordinates(particle_set,cell,globenv)
+
+!   *** Print the interatomic distances ***
+
+    CALL write_particle_distances(particle_set,cell,globenv)
+
+!   *** Initialize the atomic interaction radii ***
+
+    CALL init_interaction_radii(dft_control%qs_control,cell,atomic_kind_set,&
+                                globenv)
+
+!   *** Read SCF parameters ***
+
+    CALL read_scf_parameters(globenv)
+
+!   *** Print the SCF parameters ***
+
+    CALL write_scf_parameters(globenv)
+
+!   *** Get the current QUICKSTEP environment ***
+
+    CALL set_qs_env(qs_env=qs_env,&
+                    dft_control=dft_control,&
+                    atomic_kind_set=atomic_kind_set,&
+                    cell=cell,&
+                    particle_set=particle_set)
+
+    CALL timestop(0.0_wp,handle)
+
+  END SUBROUTINE read_qs_env
+
+! *****************************************************************************
+
+  SUBROUTINE write_qs_program_banner(globenv)
+
+!   Purpose: Write the Quickstep program banner with the copyright and the
+!            program version information to the output unit.
+
+!   History: - Creation (15.06.2000, Matthias Krack)
+
+!   ***************************************************************************
+
+    TYPE(global_environment_type), INTENT(IN) :: globenv
+
+!   *** Local variables ***
+
+    INTEGER :: output_unit
+
+!   ---------------------------------------------------------------------------
+
+    IF (.NOT.globenv%ionode) RETURN
+
+    IF (globenv%print%program_banner) THEN
+
+      output_unit = globenv%scr
+
+      WRITE (UNIT=output_unit,FMT="(T2,A78)")&
+        "******************************************************************************",&
+        "******************************************************************************",&
+        "**                                                                          **",&
+        "**     #####                         ##              ##                     **",&
+        "**    ##   ##            ##          ##              ##                     **",&
+        "**   ##     ##                       ##            ######                   **",&
+        "**   ##     ##  ##   ##  ##   #####  ##  ##   ####   ##    #####    #####   **",&
+        "**   ##     ##  ##   ##  ##  ##      ## ##   ##      ##   ##   ##  ##   ##  **",&
+        "**   ##  ## ##  ##   ##  ##  ##      ####     ###    ##   ######   ######   **",&
+        "**    ##  ###   ##   ##  ##  ##      ## ##      ##   ##   ##       ##       **",&
+        "**     #######   #####   ##   #####  ##  ##  ####    ##    #####   ##       **",&
+        "**           ##                                                    ##       **",&
+        "**                                                                          **",&
+        "**                                                ... make the atoms dance  **",&
+        "**                                                                          **",&
+        "**                         Version 3.0 (June 2001)                          **",&
+        "**                                                                          **",&
+        "**     Copyright (C) by MPI fuer Festkoerperforschung, Stuttgart (2000)     **",&
+        "**                                                                          **",&
+        "******************************************************************************",&
+        "******************************************************************************"
+
+    END IF
+
+  END SUBROUTINE write_qs_program_banner
+
+! *****************************************************************************
+
+  SUBROUTINE write_total_numbers(atomic_kind_set,particle_set,globenv)
+
+!   Purpose: Write the total number of kinds, atoms, etc. to the logical unit
+!            number lunit.
+
+!   History: - Creation (06.10.2000, Matthias Krack)
+
+!   ***************************************************************************
+
+    TYPE(atomic_kind_type), DIMENSION(:), POINTER :: atomic_kind_set
+    TYPE(global_environment_type), INTENT(IN)     :: globenv
+    TYPE(particle_type), DIMENSION(:), POINTER    :: particle_set
+
+!   *** Local variables ***
+
+    INTEGER :: iatom,maxl,maxlppl,maxlppnl,natom,ncgf,nkind,npgf,nset,nsgf,&
+               nshell,output_unit
+
+!   ---------------------------------------------------------------------------
+
+    IF (.NOT.globenv%ionode) RETURN
+
+    IF (globenv%print%total_numbers) THEN
+
+      output_unit = globenv%scr
+
+      natom = SIZE(particle_set)
+      nkind = SIZE(atomic_kind_set)
+
+      CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,&
+                               maxl=maxl,&
+                               maxlppl=maxlppl,&
+                               maxlppnl=maxlppnl,&
+                               ncgf=ncgf,&
+                               npgf=npgf,&
+                               nset=nset,&
+                               nsgf=nsgf,&
+                               nshell=nshell)
+
+      WRITE (UNIT=output_unit,FMT="(/,/,T2,A)")&
+        "TOTAL NUMBERS AND MAXIMUM NUMBERS"
+
+      WRITE (UNIT=output_unit,FMT="(/,T3,A,/,/,(T3,A,I6))")&
+        "Total number of",&
+        "- Atomic kinds:                  ",nkind,&
+        "- Atoms:                         ",natom,&
+        "- Shell sets:                    ",nset,&
+        "- Shells:                        ",nshell,&
+        "- Primitive Cartesian functions: ",npgf,&
+        "- Cartesian basis functions:     ",ncgf,&
+        "- Spherical basis functions:     ",nsgf
+
+      IF ((maxlppl > -1).OR.(maxlppnl > -1)) THEN
+        WRITE (UNIT=output_unit,FMT="(/,T3,A,/,/,(T3,A,I6))")&
+          "Maximum angular momentum quantum number of the",&
+          "- Orbital basis functions:                   ",maxl,&
+          "- Local part of the GTH pseudopotential:     ",maxlppl,&
+          "- Non-local part of the GTH pseudopotential: ",maxlppnl
+      ELSE
+        WRITE (UNIT=output_unit,FMT="(/,T3,A,/,/,(T3,A,I6))")&
+          "Maximum angular momentum quantum number of the",&
+          "- Orbital basis functions: ",maxl
+      END IF
+
+    END IF
+
+  END SUBROUTINE write_total_numbers
+
+! *****************************************************************************
+
+END MODULE qs_init

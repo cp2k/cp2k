@@ -1,0 +1,706 @@
+!-----------------------------------------------------------------------------!
+!   CP2K: A general program to perform molecular dynamics simulations         !
+!   Copyright (C) 1999  MPI fuer Festkoerperforschung, Stuttgart              !
+!-----------------------------------------------------------------------------!
+!!****** cp2k/qs_interactions [1.0] *
+!!
+!!   NAME
+!!     qs_interactions
+!!
+!!   FUNCTION
+!!     Calculate the interaction radii for the operator matrix calculation.
+!!
+!!   AUTHOR
+!!     MK (12.07.2000)
+!!
+!!   MODIFICATION HISTORY
+!!     Joost VandeVondele : added exp_radius_very_extended
+!!
+!!   SOURCE
+!******************************************************************************
+
+MODULE qs_interactions
+
+  USE kinds, ONLY: wp => dp
+
+  USE atomic_kind_types,        ONLY: atomic_kind_type,&
+                                      get_atomic_kind
+  USE basis_set_types,          ONLY: gto_basis_set_type,&
+                                      get_gto_basis_set,&
+                                      set_gto_basis_set
+  USE dft_types,                ONLY: qs_control_type
+  USE external_potential_types, ONLY: all_potential_type,&
+                                      get_potential,&
+                                      gth_potential_type,&
+                                      set_potential
+  USE global_types,             ONLY: global_environment_type
+  USE orbital_pointers,         ONLY: coset,ncoset
+  USE simulation_cell,          ONLY: cell_type,&
+                                      get_cell
+  USE termination,              ONLY: stop_program
+
+
+
+  IMPLICIT NONE
+
+  PRIVATE
+
+! *** Public subroutines ***
+
+  PUBLIC :: init_interaction_radii
+
+! *** Public functions ***
+
+  PUBLIC :: exp_radius,&
+            exp_radius_very_extended
+
+! *****************************************************************************
+
+CONTAINS
+
+! *****************************************************************************
+
+  SUBROUTINE init_interaction_radii(qs_control,cell,atomic_kind_set,globenv)
+
+!   Purpose: Initialize all the atomic kind radii for a given threshold value.
+
+!   History: - Creation (24.06.1999, Matthias Krack)
+
+!   ***************************************************************************
+
+    TYPE(atomic_kind_type), DIMENSION(:), POINTER :: atomic_kind_set
+    TYPE(cell_type), POINTER                      :: cell
+    TYPE(global_environment_type), INTENT(IN)     :: globenv
+    TYPE(qs_control_type)                         :: qs_control
+
+!   *** Local variables ***
+
+    TYPE(atomic_kind_type), POINTER   :: atomic_kind
+    TYPE(all_potential_type), POINTER :: all_potential
+    TYPE(gth_potential_type), POINTER :: gth_potential
+    TYPE(gto_basis_set_type), POINTER :: orb_basis_set
+
+    REAL(wp) :: alpha_core_charge,alpha_ppl,ccore_charge,cerf_ppl,&
+                core_charge_radius,gcca,kind_radius,ppl_radius,ppnl_radius,zeta
+    INTEGER  :: iexp_ppl,ikind,ipgf,iprj_ppnl,iset,ishell,l,lppl,lppnl,&
+                lprj_ppnl,nexp_ppl,nkind,nset
+
+    REAL(wp), DIMENSION(:), POINTER     :: alpha_ppnl,cexp_ppl,set_radius
+    INTEGER, DIMENSION(:), POINTER      :: npgf,nprj_ppnl,nshell
+    REAL(wp), DIMENSION(:,:), POINTER   :: cprj_ppnl,pgf_radius,zet
+    INTEGER, DIMENSION(:,:), POINTER    :: lshell
+    REAL(wp), DIMENSION(:,:,:), POINTER :: gcc
+
+!   ---------------------------------------------------------------------------
+
+    nkind = SIZE(atomic_kind_set)
+
+    nexp_ppl = 0
+    lppnl = -1
+
+    DO ikind=1,nkind
+
+      atomic_kind => atomic_kind_set(ikind)
+
+      CALL get_atomic_kind(atomic_kind=atomic_kind,&
+                           all_potential=all_potential,&
+                           gth_potential=gth_potential,&
+                           orb_basis_set=orb_basis_set)
+
+      IF (ASSOCIATED(all_potential)) THEN
+
+        CALL get_potential(potential=all_potential,&
+                           alpha_core_charge=alpha_core_charge,&
+                           ccore_charge=ccore_charge)
+
+!       *** Calculate the radius of the core charge distribution ***
+
+        core_charge_radius = exp_radius(0,alpha_core_charge,&
+                                        qs_control%eps_core_charge,&
+                                        ccore_charge)
+
+        CALL set_potential(potential=all_potential,&
+                           core_charge_radius=core_charge_radius)
+
+      ELSE IF (ASSOCIATED(gth_potential)) THEN
+
+        CALL get_potential(potential=gth_potential,&
+                           alpha_core_charge=alpha_core_charge,&
+                           ccore_charge=ccore_charge,&
+                           alpha_ppl=alpha_ppl,&
+                           cerf_ppl=cerf_ppl,&
+                           nexp_ppl=nexp_ppl,&
+                           cexp_ppl=cexp_ppl,&
+                           lppnl=lppnl,&
+                           alpha_ppnl=alpha_ppnl,&
+                           nprj_ppnl=nprj_ppnl,&
+                           cprj_ppnl=cprj_ppnl)
+
+!       *** Calculate the radius of the core charge distribution ***
+
+        core_charge_radius = exp_radius(0,alpha_core_charge,&
+                                        qs_control%eps_core_charge,&
+                                        ccore_charge)
+
+!       *** Calculate the radii of the local part  ***
+!       *** of the Goedecker pseudopotential (GTH) ***
+
+        ppl_radius = exp_radius(0,alpha_ppl,qs_control%eps_ppl,cerf_ppl)
+
+        DO iexp_ppl=1,nexp_ppl
+          lppl = 2*(iexp_ppl - 1)
+          ppl_radius = MAX(ppl_radius,&
+                           exp_radius(lppl,alpha_ppl,&
+                                      qs_control%eps_ppl,&
+                                      cexp_ppl(iexp_ppl)))
+        END DO
+
+!       *** Calculate the radii of the non-local part ***
+!       *** of the Goedecker pseudopotential (GTH)    ***
+
+        ppnl_radius = 0.0_wp
+
+        DO l=0,lppnl
+          DO iprj_ppnl=1,nprj_ppnl(l)
+            lprj_ppnl = l + 2*(iprj_ppnl - 1)
+            ppnl_radius = MAX(ppnl_radius,&
+                              exp_radius(lprj_ppnl,alpha_ppnl(l),&
+                                         qs_control%eps_ppnl,&
+                                         cprj_ppnl(iprj_ppnl,l)))
+          END DO
+        END DO
+
+        CALL set_potential(potential=gth_potential,&
+                           core_charge_radius=core_charge_radius,&
+                           ppl_radius=ppl_radius,&
+                           ppnl_radius=ppnl_radius)
+      END IF
+
+!     *** Calculate the orbital basis function radii ***
+
+      IF (ASSOCIATED(orb_basis_set)) THEN
+
+        CALL get_gto_basis_set(gto_basis_set=orb_basis_set,&
+                               nset=nset,&
+                               nshell=nshell,&
+                               npgf=npgf,&
+                               l=lshell,&
+                               zet=zet,&
+                               gcc=gcc,&
+                               pgf_radius=pgf_radius,&
+                               set_radius=set_radius)
+
+        kind_radius = 0.0_wp
+
+        DO iset=1,nset
+          set_radius(iset) = 0.0_wp
+          DO ipgf=1,npgf(iset)
+            pgf_radius(ipgf,iset) = 0.0_wp
+            DO ishell=1,nshell(iset)
+              l = lshell(ishell,iset)
+              gcca = gcc(ipgf,ishell,iset)
+              zeta = zet(ipgf,iset)
+              pgf_radius(ipgf,iset) = MAX(pgf_radius(ipgf,iset),&
+                                          exp_radius(l,zeta,&
+                                                     qs_control%eps_pgf_orb,&
+                                                     gcca))
+            END DO
+            set_radius(iset) = MAX(set_radius(iset),pgf_radius(ipgf,iset))
+          END DO
+          kind_radius = MAX(kind_radius,set_radius(iset))
+        END DO
+
+        CALL set_gto_basis_set(gto_basis_set=orb_basis_set,&
+                               pgf_radius=pgf_radius,&
+                               set_radius=set_radius,&
+                               kind_radius=kind_radius)
+
+      END IF
+
+    END DO
+
+    CALL write_pgf_orb_radii(cell,atomic_kind_set,globenv)
+    CALL write_core_charge_radii(cell,atomic_kind_set,globenv)
+    IF (nexp_ppl > 0) CALL write_ppl_radii(cell,atomic_kind_set,globenv)
+    IF (lppnl > -1) CALL write_ppnl_radii(cell,atomic_kind_set,globenv)
+
+  END SUBROUTINE init_interaction_radii
+
+! *****************************************************************************
+
+  SUBROUTINE write_core_charge_radii(cell,atomic_kind_set,globenv)
+
+!   Purpose: Write the radii of the core charge distributions to the output
+!            unit.
+
+!   History: - Creation (15.09.2000, Matthias Krack)
+
+!   ***************************************************************************
+
+    TYPE(atomic_kind_type), DIMENSION(:), POINTER :: atomic_kind_set
+    TYPE(cell_type), POINTER                      :: cell
+    TYPE(global_environment_type), INTENT(IN)     :: globenv
+
+!   *** Local variables ***
+
+    TYPE(atomic_kind_type), POINTER   :: atomic_kind
+    TYPE(all_potential_type), POINTER :: all_potential
+    TYPE(gth_potential_type), POINTER :: gth_potential
+    CHARACTER(LEN=60)                 :: name
+    CHARACTER(LEN=8)                  :: unit_of_length_name
+    REAL(wp)                          :: core_charge_radius,unit_of_length
+    INTEGER                           :: ikind,nkind,output_unit
+
+!   ---------------------------------------------------------------------------
+
+    IF (.NOT.globenv%ionode) RETURN
+
+    CALL get_cell(cell=cell,&
+                  unit_of_length=unit_of_length,&
+                  unit_of_length_name=unit_of_length_name)
+
+    output_unit = globenv%scr
+
+    nkind = SIZE(atomic_kind_set)
+
+    IF (globenv%print%core_charge_radii) THEN
+      WRITE (UNIT=output_unit,FMT="(/,/,T2,A,/,/,T3,A,T10,A,T22,A,/)")&
+        "RADII OF THE CORE CHARGE DISTRIBUTIONS IN "//&
+        TRIM(unit_of_length_name),"Kind","Label","Radius"
+      DO ikind=1,nkind
+        atomic_kind => atomic_kind_set(ikind)
+        CALL get_atomic_kind(atomic_kind=atomic_kind,&
+                             name=name,&
+                             all_potential=all_potential,&
+                             gth_potential=gth_potential)
+        IF (ASSOCIATED(all_potential)) THEN
+          CALL get_potential(potential=all_potential,&
+                             core_charge_radius=core_charge_radius)
+          WRITE (UNIT=output_unit,FMT="(T2,I5,3X,A5,2X,F12.6)")&
+            ikind,name,core_charge_radius/unit_of_length
+        ELSE IF (ASSOCIATED(gth_potential)) THEN
+          CALL get_potential(potential=gth_potential,&
+                             core_charge_radius=core_charge_radius)
+          WRITE (UNIT=output_unit,FMT="(T2,I5,3X,A5,2X,F12.6)")&
+            ikind,name,core_charge_radius/unit_of_length
+        END IF
+      END DO
+    END IF
+
+  END SUBROUTINE write_core_charge_radii
+
+! *****************************************************************************
+
+  SUBROUTINE write_pgf_orb_radii(cell,atomic_kind_set,globenv)
+
+!   Purpose: Write the orbital basis function radii to the output unit.
+
+!   History: - Creation (05.06.2000, Matthias Krack)
+
+!   ***************************************************************************
+
+    TYPE(atomic_kind_type), DIMENSION(:), POINTER :: atomic_kind_set
+    TYPE(cell_type), POINTER                      :: cell
+    TYPE(global_environment_type), INTENT(IN)     :: globenv
+
+!   *** Local variables ***
+
+    TYPE(atomic_kind_type), POINTER   :: atomic_kind
+    TYPE(gto_basis_set_type), POINTER :: orb_basis_set
+    CHARACTER(LEN=60)                 :: name
+    CHARACTER(LEN=8)                  :: unit_of_length_name
+    REAL(wp)                          :: kind_radius,unit_of_length
+    INTEGER                           :: ikind,ipgf,iset,nkind,nset,output_unit
+    REAL(wp), DIMENSION(:), POINTER   :: set_radius
+    INTEGER, DIMENSION(:), POINTER    :: npgf
+    REAL(wp), DIMENSION(:,:), POINTER :: pgf_radius
+
+!   ---------------------------------------------------------------------------
+
+    IF (.NOT.globenv%ionode) RETURN
+
+    CALL get_cell(cell=cell,&
+                  unit_of_length=unit_of_length,&
+                  unit_of_length_name=unit_of_length_name)
+
+    output_unit = globenv%scr
+
+    nkind = SIZE(atomic_kind_set)
+
+!   *** Print the kind radii ***
+
+    IF (globenv%print%kind_radii) THEN
+      WRITE (UNIT=output_unit,FMT="(/,/,T2,A,/,/,T3,A,T10,A,T22,A,/)")&
+        "RADII OF THE ORBITAL BASIS IN "//TRIM(unit_of_length_name),&
+        "Kind","Label","Radius"
+      DO ikind=1,nkind
+        atomic_kind => atomic_kind_set(ikind)
+        CALL get_atomic_kind(atomic_kind=atomic_kind,&
+                             name=name,&
+                             orb_basis_set=orb_basis_set)
+        CALL get_gto_basis_set(gto_basis_set=orb_basis_set,&
+                               kind_radius=kind_radius)
+        WRITE (UNIT=output_unit,FMT="(T2,I5,3X,A5,2X,F12.6)")&
+          ikind,name,kind_radius/unit_of_length
+      END DO
+    END IF
+
+!   *** Print the shell set radii ***
+
+    IF (globenv%print%set_radii) THEN
+      WRITE (UNIT=output_unit,FMT="(/,/,T2,A,/,/,T3,A,T10,A,T18,A,T28,A)")&
+        "RADII OF THE SHELL SETS OF THE ORBITAL BASIS IN "//&
+        TRIM(unit_of_length_name),"Kind","Label","Set","Radius"
+      DO ikind=1,nkind
+        atomic_kind => atomic_kind_set(ikind)
+        CALL get_atomic_kind(atomic_kind=atomic_kind,&
+                             name=name,&
+                             orb_basis_set=orb_basis_set)
+        CALL get_gto_basis_set(gto_basis_set=orb_basis_set,&
+                               nset=nset,&
+                               set_radius=set_radius)
+        WRITE (UNIT=output_unit,FMT="(/,T2,I5,3X,A5,(T16,I5,T23,F12.6))")&
+          ikind,name,(iset,set_radius(iset)/unit_of_length,iset=1,nset)
+      END DO
+    END IF
+
+!   *** Print the primitive Gaussian function radii ***
+
+    IF (globenv%print%pgf_radii) THEN
+      WRITE (UNIT=output_unit,FMT="(/,/,T2,A,/,/,T3,A,T10,A,T18,A,T28,A)")&
+        "RADII OF THE PRIMITIVE GAUSSIAN FUNCTIONS OF THE ORBITAL BASIS IN "//&
+        TRIM(unit_of_length_name),"Kind","Label","Set","Radius"
+      DO ikind=1,nkind
+        atomic_kind => atomic_kind_set(ikind)
+        CALL get_atomic_kind(atomic_kind=atomic_kind,&
+                             name=name,&
+                             orb_basis_set=orb_basis_set)
+        CALL get_gto_basis_set(gto_basis_set=orb_basis_set,&
+                               nset=nset,&
+                               npgf=npgf,&
+                               pgf_radius=pgf_radius)
+        DO iset=1,nset
+          WRITE (UNIT=output_unit,FMT="(/,T2,I5,3X,A5,T16,I5,(T23,F12.6))")&
+            ikind,name,iset,&
+            (pgf_radius(ipgf,iset)/unit_of_length,ipgf=1,npgf(iset))
+        END DO
+      END DO
+    END IF
+
+  END SUBROUTINE write_pgf_orb_radii
+
+! *****************************************************************************
+
+  SUBROUTINE write_ppl_radii(cell,atomic_kind_set,globenv)
+
+!   Purpose: Write the radii of the exponential functions of the Goedecker
+!            pseudopotential (GTH, local part) to the logical unit number
+!            "output_unit".
+
+!   History: - Creation (06.10.2000, Matthias Krack)
+
+!   ***************************************************************************
+
+    TYPE(atomic_kind_type), DIMENSION(:), POINTER :: atomic_kind_set
+    TYPE(cell_type), POINTER                      :: cell
+    TYPE(global_environment_type), INTENT(IN)     :: globenv
+
+!   *** Local variables ***
+
+    TYPE(atomic_kind_type), POINTER   :: atomic_kind
+    TYPE(gth_potential_type), POINTER :: gth_potential
+    CHARACTER(LEN=60)                 :: name
+    CHARACTER(LEN=8)                  :: unit_of_length_name
+    REAL(wp)                          :: ppl_radius,unit_of_length
+    INTEGER                           :: ikind,nkind,output_unit
+
+!   ---------------------------------------------------------------------------
+
+    IF (.NOT.globenv%ionode) RETURN
+
+    IF (globenv%print%ppl_radii) THEN
+      CALL get_cell(cell=cell,&
+                    unit_of_length=unit_of_length,&
+                    unit_of_length_name=unit_of_length_name)
+      output_unit = globenv%scr
+      nkind = SIZE(atomic_kind_set)
+      WRITE (UNIT=output_unit,FMT="(/,/,T2,A,/,/,T3,A,T10,A,T22,A,/)")&
+        "RADII OF THE LOCAL PART OF THE GTH PSEUDOPOTENTIAL IN "//&
+        TRIM(unit_of_length_name),"Kind","Label","Radius"
+      DO ikind=1,nkind
+        atomic_kind => atomic_kind_set(ikind)
+        CALL get_atomic_kind(atomic_kind=atomic_kind,&
+                             name=name,&
+                             gth_potential=gth_potential)
+        IF (ASSOCIATED(gth_potential)) THEN
+          CALL get_potential(potential=gth_potential,&
+                             ppl_radius=ppl_radius)
+          WRITE (UNIT=output_unit,FMT="(T2,I5,3X,A5,2X,F12.6)")&
+            ikind,name,ppl_radius/unit_of_length
+        END IF
+      END DO
+    END IF
+
+  END SUBROUTINE write_ppl_radii
+
+! *****************************************************************************
+
+  SUBROUTINE write_ppnl_radii(cell,atomic_kind_set,globenv)
+
+!   Purpose: Write the radii of the projector functions of the Goedecker
+!            pseudopotential (GTH, non-local part) to the logical unit number
+!            "output_unit".
+
+!   History: - Creation (06.10.2000, Matthias Krack)
+
+!   ***************************************************************************
+
+    TYPE(atomic_kind_type), DIMENSION(:), POINTER :: atomic_kind_set
+    TYPE(cell_type), POINTER                      :: cell
+    TYPE(global_environment_type), INTENT(IN)     :: globenv
+
+!   *** Local variables ***
+
+    TYPE(atomic_kind_type), POINTER   :: atomic_kind
+    TYPE(gth_potential_type), POINTER :: gth_potential
+    CHARACTER(LEN=60)                 :: name
+    CHARACTER(LEN=8)                  :: unit_of_length_name
+    REAL(wp)                          :: ppnl_radius,unit_of_length
+    INTEGER                           :: ikind,nkind,output_unit
+
+!   ---------------------------------------------------------------------------
+
+    IF (.NOT.globenv%ionode) RETURN
+
+    IF (globenv%print%ppnl_radii) THEN
+      CALL get_cell(cell=cell,&
+                    unit_of_length=unit_of_length,&
+                    unit_of_length_name=unit_of_length_name)
+      output_unit = globenv%scr
+      nkind = SIZE(atomic_kind_set)
+      WRITE (UNIT=output_unit,FMT="(/,/,T2,A,/,/,T3,A,T10,A,T22,A,/)")&
+        "RADII OF THE NON-LOCAL PART OF THE GTH PSEUDOPOTENTIAL IN "//&
+        TRIM(unit_of_length_name),"Kind","Label","Radius"
+      DO ikind=1,nkind
+        atomic_kind => atomic_kind_set(ikind)
+        CALL get_atomic_kind(atomic_kind=atomic_kind,&
+                             name=name,&
+                             gth_potential=gth_potential)
+        IF (ASSOCIATED(gth_potential)) THEN
+          CALL get_potential(potential=gth_potential,&
+                             ppnl_radius=ppnl_radius)
+          WRITE (UNIT=output_unit,FMT="(T2,I5,3X,A5,2X,F12.6)")&
+            ikind,name,ppnl_radius/unit_of_length
+        END IF
+      END DO
+    END IF
+
+  END SUBROUTINE write_ppnl_radii
+
+! *****************************************************************************
+
+  FUNCTION exp_radius(l,alpha,threshold,prefactor) RESULT(radius)
+
+!   Purpose: The radius of a primitive Gaussian function for a given threshold
+!            is calculated.
+
+!            g(r) = prefactor*r**l*exp(-alpha*r**2) - threshold = 0
+
+!   History: - Creation (26.02.1999, Matthias Krack)
+
+!   ***************************************************************************
+
+!   alpha    : Exponent of the primitive Gaussian function.
+!   l        : Angular momentum quantum number l.
+!   prefactor: Prefactor of the Gaussian function (e.g. a contraction
+!              coefficient).
+!   radius   : Calculated radius of the Gaussian function.
+!   threshold: Threshold for radius.
+
+!   delta  : Newton-Raphson step length.
+!   dg     : Derivative of g.
+!   epsiter: Convergence criterion of the Newton-Raphson iteration.
+!   g      : The function g(r).
+!   maxiter: Maximum number of Newton-Raphson iterations.
+
+!   ***************************************************************************
+
+    REAL(wp), INTENT(IN) :: alpha,prefactor,threshold
+    INTEGER, INTENT(IN)  :: l
+
+    REAL(wp) :: radius
+
+!   *** Local parameters ***
+
+    CHARACTER(LEN=*), PARAMETER :: routine =&
+      "FUNCTION exp_radius (MODULE qs_interactions)"
+
+    REAL(wp), PARAMETER :: epsiter = 1.0E-12_wp
+    INTEGER, PARAMETER  :: maxiter = 50
+
+!   *** Local variables ***
+
+    REAL(wp) :: a,ar2,d,delta,dg,g,r,t
+    INTEGER  :: iter
+
+!   ---------------------------------------------------------------------------
+
+!   *** Initialize function value ***
+
+    radius = 0.0_wp
+
+!   *** Load and check parameter values ***
+
+    IF (l < 0) THEN
+      CALL stop_program(routine,"The angular momentum quantum number is "//&
+                                "negative")
+    END IF
+
+    IF (alpha == 0.0_wp) THEN
+      CALL stop_program(routine,"The Gaussian function exponent is zero")
+    ELSE
+      a = ABS(alpha)
+    END IF
+
+    IF (threshold == 0.0_wp) THEN
+      CALL stop_program(routine,"The requested threshold is zero")
+    ELSE
+      t = ABS(threshold)
+    END IF
+
+    IF (prefactor == 0.0_wp) THEN
+      RETURN
+    ELSE
+      d = ABS(prefactor)
+    END IF
+
+!   *** Calculate the Maximum g(r) ***
+
+    r = SQRT(0.5_wp*REAL(l,wp)/a)
+
+    ar2 = a*r*r
+
+    IF (l == 0) THEN
+      g = d
+    ELSE
+      g = d*r**l*EXP(-ar2)
+    END IF
+
+    IF (t < g) THEN
+
+!     *** Ensure that the iteration starts on ***
+!     *** the right-hand side of the maximum  ***
+
+      r = 2.0_wp*r
+
+    ELSE
+
+!     *** The radius is zero, if threshold >= Maximum g(r) ***
+
+      RETURN
+
+    END IF
+
+    t = t/d
+
+    IF (l == 0) THEN
+
+!     *** Analytical expression for l = 0 ***
+
+      radius = SQRT(-LOG(t)/a)
+
+    ELSE
+
+!     *** Find outer radius for l > 0 by Newton-Raphson procedure ***
+
+      DO iter=1,maxiter
+        ar2 = a*r*r
+        g = r**l*EXP(-ar2) - t
+        dg = (REAL(l,wp) - 2.0_wp*ar2)*r**(l-1)*EXP(-ar2)
+        delta = g/dg
+        r = r - SIGN(MIN(ABS(delta),0.5_wp*r),delta)
+        IF (ABS(delta) < epsiter) THEN
+          radius = r
+          RETURN
+        END IF
+      END DO
+
+      CALL stop_program(routine,"Maximum number of iterations exceeded")
+
+    END IF
+
+  END FUNCTION exp_radius
+
+! *****************************************************************************
+
+! provides a radius that is keeping into account all the angular momentum
+! components given the product of the two gaussians, and their original
+! centers
+!******
+  FUNCTION exp_radius_very_extended(la_min,la_max,lb_min,lb_max,pab,ra,rb,rp,&
+                          zetp,eps,prefactor,cutoff) result(radius)
+
+    integer ,INTENT(IN)     :: la_min,la_max,lb_min,lb_max
+    real(wp) ,INTENT(IN)    :: ra(3),rb(3),rp(3),zetp,eps,prefactor
+    real(wp) ,INTENT(IN)    :: cutoff,pab(ncoset(la_max),ncoset(lb_max))
+    real(wp)    :: radius
+    integer     :: lxa,lxb,lya,lyb,lza,lzb,la(3),lb(3),ico,jco,handle
+    real(wp)    :: prefactor_local
+    real(wp) polycoef(0:60),coef(0:20,3),bini,binj,s1,s2
+    integer :: d,i,j,k
+
+    radius=0.0_wp
+    polycoef(:)=0.0_wp
+    DO lxa=0,la_max
+    DO lxb=0,lb_max
+       DO lya=0,la_max-lxa
+       DO lyb=0,lb_max-lxb
+          DO lza=max(la_min-lxa-lya,0),la_max-lxa-lya
+          DO lzb=max(lb_min-lxb-lyb,0),lb_max-lxb-lyb
+             la=(/lxa,lya,lza/)
+             lb=(/lxb,lyb,lzb/)
+             ico=coset(lxa,lya,lza)
+             jco=coset(lxb,lyb,lzb)
+             prefactor_local=prefactor*MAX(ABS(pab(ico,jco)),cutoff)
+             coef(:,:)=0.0_wp
+             DO d=1,3
+               bini=1.0_wp
+               s1=1.0_wp
+               DO i=0,la(d)
+                  binj=1.0_wp
+                  s2=1.0_wp
+                  DO j=0,lb(d)
+                    coef(la(d)+lb(d)-i-j,d)=coef(la(d)+lb(d)-i-j,d) +&
+                                            bini*binj*s1*s2
+                    binj=(binj*(lb(d)-j))/(j+1)
+                    s2=s2*(rb(d)-rp(d))
+                  ENDDO
+                  bini=(bini*(la(d)-i))/(i+1)
+                  s1=s1*(ra(d)-rp(d))
+                ENDDO
+             ENDDO
+             DO i=0,la(1)+lb(1)
+             DO j=0,la(2)+lb(2)
+             DO k=0,la(3)+lb(3)
+                polycoef(i+j+k)=max(polycoef(i+j+k),&
+                                    abs(prefactor_local*&
+                                        coef(i,1)*coef(j,2)*coef(k,3)))
+             ENDDO
+             ENDDO
+             ENDDO
+  
+          ENDDO
+          ENDDO
+       ENDDO
+       ENDDO
+    ENDDO
+    ENDDO
+    DO i=0,la_max+lb_max
+          radius=max(radius,exp_radius(i,zetp,eps,polycoef(i)) )
+    ENDDO
+
+  END FUNCTION exp_radius_very_extended
+
+! *****************************************************************************
+
+END MODULE qs_interactions

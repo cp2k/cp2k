@@ -23,11 +23,11 @@
 MODULE pol_setup
   
   USE atomic_kinds, ONLY :  kind_info_type
-  USE basis_set_types, ONLY : read_basis_set, allocate_basis_set, &
-                              deallocate_basis_set, gto_basis_set_type
+  USE basis_set_types, ONLY : read_gto_basis_set, allocate_gto_basis_set, &
+                              deallocate_gto_basis_set, gto_basis_set_type
   USE global_types,             ONLY: global_environment_type
   USE kinds, ONLY : dbl
-  USE interactions, ONLY :  exp_radius
+  USE qs_interactions, ONLY :  exp_radius
   USE molecule_types , ONLY : molecule_type, read_basis_type 
   USE orbital_pointers,  ONLY: coset,nco,ncoset,nso
   USE particle_types, ONLY : particle_type
@@ -144,10 +144,10 @@ MODULE pol_setup
       nkind = size(ki)
       DO ikind=1,nkind
         IF (ASSOCIATED(ki(ikind)%aux_basis_set)) THEN
-          CALL deallocate_basis_set(ki(ikind)%aux_basis_set)
+          CALL deallocate_gto_basis_set(ki(ikind)%aux_basis_set)
         END IF
         IF (ASSOCIATED(ki(ikind)%orb_basis_set)) THEN
-          CALL deallocate_basis_set(ki(ikind)%orb_basis_set)
+          CALL deallocate_gto_basis_set(ki(ikind)%orb_basis_set)
         END IF
         DEALLOCATE (ki(ikind)%atom_list,STAT=istat)
         IF (istat /= 0) CALL stop_memory("allocate_pol_basis_info", &
@@ -210,9 +210,9 @@ MODULE pol_setup
  
       CALL get_atom_list(ki(ikind),part,itype,ikind,flag)
 
-      CALL allocate_basis_set(ki(ikind)%orb_basis_set)
+      CALL allocate_gto_basis_set(ki(ikind)%orb_basis_set)
  
-      CALL read_basis_set(ki(ikind)%element_symbol,ki(ikind)%orb_basis_set_name, &
+      CALL read_gto_basis_set(ki(ikind)%element_symbol,ki(ikind)%orb_basis_set_name, &
                         ki(ikind)%orb_basis_set, globenv)
 
       CALL init_cphi(ki(ikind)% orb_basis_set)

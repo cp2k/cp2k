@@ -26,7 +26,7 @@ MODULE ewalds
   USE dg_rho0s, ONLY : dg_rho0_setup
   USE ewald_parameters_types, ONLY : ewald_parameters_type
   USE global_types, ONLY : global_environment_type
-  USE interactions, ONLY :  exp_radius
+  USE qs_interactions, ONLY :  exp_radius
   USE kinds, ONLY : dbl
   USE mathconstants, ONLY : pi, zero
   USE md, ONLY : thermodynamic_type

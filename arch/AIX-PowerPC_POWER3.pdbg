@@ -1,0 +1,18 @@
+PERL     = perl
+CC       = cc
+CPP      = /usr/ccs/lib/cpp
+FC       = mpxlf95_r
+FC_fixed = mpxlf95_r -qfixed
+LD       = mpxlf95_r
+AR       = ar -r
+DFLAGS   = -D__AIX -D__ESSL -D__FFTSG -D__FFTESSL -D__parallel
+CPPFLAGS = -C $(DFLAGS) -P
+FCFLAGS  = -C -WF,-C,-D__AIX,-D__ESSL,-D__FFTSG,-D__FFTESSL,-D__parallel,-P\
+           -d -g -qarch=pwr3 -qfullpath\
+           -qflttrap=overflow:zerodivide:enable -qinitauto=FF\
+           -qnointlog -qnosave -qsigtrap -qtune=pwr3
+LDFLAGS  = $(FCFLAGS) -L/users/krack/lib/SP3 -bmaxdata:0x40000000 -bnoquiet
+LIBS     = -lscalapack_32 -lpessl -lblacsF77init -lblacs\
+           -llapack3_32 -lessl -lhmd
+
+OBJECTS_ARCHITECTURE = machine_aix.o
