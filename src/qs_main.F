@@ -43,7 +43,6 @@ MODULE qs_main
   USE qs_force,                        ONLY: qs_forces
   USE qs_geoopt,                       ONLY: qs_geo_opt
   USE qs_md,                           ONLY: qs_mol_dyn
-  USE qs_simple_md,                    ONLY: simple_md
   USE qs_tddfpt_module,                ONLY: tddfpt_calculation
   USE termination,                     ONLY: stop_program
   USE timings,                         ONLY: timeset,&
@@ -117,8 +116,6 @@ CONTAINS
 !     CALL qs_forces(qs_env,globenv)
     CASE ("MOLECULAR DYNAMICS")
       CALL qs_mol_dyn(qs_env,mol_setup,globenv)
-    CASE ("SIMPLE_MD")
-      CALL simple_md(qs_env,globenv)
     CASE ("WAVEFUNCTION OPTIMIZATION")
       CALL qs_energies(qs_env,globenv)
       CALL tddfpt_calculation(qs_env, globenv) ! should possibly go in qs_scf/scf_env_post_calc

@@ -775,8 +775,6 @@ CONTAINS
       globenv%run_type = "GEOMETRY OPTIMIZATION"
     CASE ("MOLECULAR_DYNAMICS","MD")
       globenv%run_type = "MOLECULAR DYNAMICS"
-    CASE ("SIMPLE_MD")
-      globenv%run_type = "SIMPLE_MD"
     CASE ("WAVEFUNCTION_OPTIMIZATION","WFN_OPT")
       globenv%run_type = "WAVEFUNCTION OPTIMIZATION"
     CASE ("EP")
