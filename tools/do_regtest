@@ -390,10 +390,10 @@ do
   # 
   # first reset reference outputs that have become out-dated since the last run
   #
-  diff TEST_FILES_RESET ${dir_last}/${dir}/TEST_FILES_RESET > ${dir_out}/${dir}/TEST_FILES_RESET.diff
-  cp TEST_FILES_RESET ${dir_last}/${dir}/TEST_FILES_RESET
-  nreset=`grep '<' ${dir_out}/${dir}/TEST_FILES_RESET.diff | grep -v '#' |  ${awk} '{c=c+1}END{print c}'`
   if [[ ${noreset} != "noreset" ]]; then
+     diff TEST_FILES_RESET ${dir_last}/${dir}/TEST_FILES_RESET > ${dir_out}/${dir}/TEST_FILES_RESET.diff
+     cp TEST_FILES_RESET ${dir_last}/${dir}/TEST_FILES_RESET
+     nreset=`grep '<' ${dir_out}/${dir}/TEST_FILES_RESET.diff | grep -v '#' |  ${awk} '{c=c+1}END{print c}'`
      for ((itest=1;itest<=nreset;itest++));
      do
         reset_file=`grep '<' ${dir_out}/${dir}/TEST_FILES_RESET.diff | grep -v '#' | ${awk} -v itest=$itest '{c=c+1;if (c==itest) print $2}'`
@@ -462,8 +462,11 @@ do
      fi
      # Keep the output up-to-date
      case ${this_test} in
-     "OK" | "NEW" )
+     "NEW" )
         cp ${output_file} ${output_last} 
+        timing=`grep "CP2K   " ${output_file} | ${awk} '{printf("%6.2f",$4)}'`
+        this_test="${this_test} (${timing} sec)" ;;
+     "OK" )
         timing=`grep "CP2K   " ${output_file} | ${awk} '{printf("%6.2f",$4)}'`
         this_test="${this_test} (${timing} sec)" ;;
      esac
