@@ -56,6 +56,7 @@ MODULE qs_scf
   USE coefficient_types,               ONLY: coeff_allocate,&
                                              coeff_copy,&
                                              coeff_sumup,&
+                                             coeff_reduce,&
                                              coeff_transform_space,&
                                              coeff_type,&
                                              coeff_zero
@@ -177,6 +178,7 @@ MODULE qs_scf
   USE qs_charges_types,                ONLY: qs_charges_type
   USE qs_collocate_density,            ONLY: calculate_rho_core,&
                                              calculate_total_rho,&
+                                             calculate_total_abs_rho,&
                                              calculate_wavefunction
   USE qs_core_energies,                ONLY: calculate_ecore,&
                                              calculate_ecore_overlap,&
@@ -335,6 +337,7 @@ CONTAINS
     INTEGER :: ispin
     TYPE(mo_set_p_type), DIMENSION(:), POINTER    :: c
     INTEGER :: nelectron
+    REAL(wp) :: total_abs_spin_dens
 
 !   ---------------------------------------------------------------------------
 
@@ -741,12 +744,47 @@ CONTAINS
        CALL write_mo_set(c(ispin)%mo_set,atomic_kind_set,particle_set,4,6,globenv)
     ENDDO
 
+!   *** Integrated absolute spin density ***
+    IF (dft_control%nspins.eq.2) THEN
+           CALL get_qs_env(qs_env=qs_env,pw_env=pw_env)
+           CALL pw_env_get(pw_env, auxbas_pw_pool=auxbas_pw_pool,&
+                pw_pools=pw_pools)
+            CALL pw_pool_init_coeff(auxbas_pw_pool,wf_r,&
+                use_data = REALDATA3D,&
+                in_space = REALSPACE, error=error)
+            CALL coeff_copy(rho%rho_r(1),wf_r)
+            CALL coeff_reduce(rho%rho_r(2),wf_r)
+            total_abs_spin_dens=calculate_total_abs_rho(wf_r)
+            IF (globenv%ionode) WRITE(UNIT=output_unit,'(/,(T3,A,T60,F20.10))') &
+                   "Integrated absolute spin density : ",total_abs_spin_dens
+            CALL pw_pool_give_back_coeff(auxbas_pw_pool,wf_r, error=error)
+    ENDIF
+
 !   *** write additional information about the converged system
-    IF (globenv%print%e_density_cube) THEN
-      ! write the electron density
-      IF (globenv%ionode) OPEN(UNIT=21,FILE="E_DENSITY.cube")
-      CALL rs_pw_to_cube(rho%rho_r(1)%pw,21,globenv%ionode,"ELECTRON DENSITY")
-      IF (globenv%ionode) CLOSE(21)
+    IF (globenv%print%e_density_cube) THEN ! write the electron density
+       IF (dft_control%nspins.ne.1) THEN
+           CALL get_qs_env(qs_env=qs_env,pw_env=pw_env)
+           CALL pw_env_get(pw_env, auxbas_pw_pool=auxbas_pw_pool,&
+                pw_pools=pw_pools)
+            CALL pw_pool_init_coeff(auxbas_pw_pool,wf_r,&
+                use_data = REALDATA3D,&
+                in_space = REALSPACE, error=error)
+            CALL coeff_copy(rho%rho_r(1),wf_r)
+            CALL coeff_sumup(rho%rho_r(2),wf_r)
+            IF (globenv%ionode) OPEN(UNIT=21,FILE="ELECTRON_DENSITY.cube")
+            CALL rs_pw_to_cube(wf_r%pw,21,globenv%ionode,"SPIN 1 + SPIN 2 ELECTRON DENSITY")
+            IF (globenv%ionode) CLOSE(21)
+            CALL coeff_copy(rho%rho_r(1),wf_r)
+            CALL coeff_reduce(rho%rho_r(2),wf_r)
+            IF (globenv%ionode) OPEN(UNIT=21,FILE="SPIN_DENSITY.cube")
+            CALL rs_pw_to_cube(wf_r%pw,21,globenv%ionode,"SPIN 1 DENSITY - SPIN 2 DENSITY")
+            IF (globenv%ionode) CLOSE(21)
+            CALL pw_pool_give_back_coeff(auxbas_pw_pool,wf_r, error=error)
+       ELSE
+            IF (globenv%ionode) OPEN(UNIT=21,FILE="ELECTRON_DENSITY.cube")
+            CALL rs_pw_to_cube(rho%rho_r(1)%pw,21,globenv%ionode,"ELECTRON DENSITY")
+            IF (globenv%ionode) CLOSE(21)
+       ENDIF
     ENDIF
 
     IF (globenv%print%v_hartree_cube) THEN

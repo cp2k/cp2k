@@ -131,7 +131,7 @@ MODULE qs_collocate_density
 
 ! *** Public functions ***
 
-  PUBLIC :: calculate_total_rho
+  PUBLIC :: calculate_total_rho,calculate_total_abs_rho
 
 !!***
 ! *****************************************************************************
@@ -896,6 +896,37 @@ CONTAINS
     END IF
 
   END FUNCTION calculate_total_rho
+! *****************************************************************************
+
+  FUNCTION calculate_total_abs_rho(rho) RESULT(total_abs_rho)
+
+    TYPE(coeff_type), INTENT(IN), TARGET :: rho
+
+    REAL(wp) :: total_abs_rho
+
+!   *** Local variables ***
+
+    CHARACTER(LEN=*), PARAMETER :: routine =&
+      "FUNCTION calculate_total_rho (MODULE qs_collocate_density)"
+
+!   *** Local variables ***
+
+    INTEGER, DIMENSION(:), POINTER :: lb_grid
+
+!   ---------------------------------------------------------------------------
+    total_abs_rho = 0.0_wp
+    IF (ASSOCIATED(rho%pw%cr3d)) THEN
+      total_abs_rho = rho%pw%pw_grid%dvol*SUM(ABS(rho%pw%cr3d))
+    ELSE
+      CALL stop_program(routine,"Need density coefficients in real space !")
+    END IF
+    IF (rho%pw%pw_grid%para%mode.NE.0) THEN
+       CALL mp_sum(total_abs_rho,rho%pw%pw_grid%para%group)
+    END IF
+
+  END FUNCTION calculate_total_abs_rho
+
+! *****************************************************************************
 
 ! *****************************************************************************
 !MK
