@@ -331,7 +331,7 @@ SUBROUTINE ot_scf_init(mo_array,matrix_s,qs_ot_env)
     TYPE(qs_ot_type), DIMENSION(:), POINTER  :: qs_ot_env
 
     INTEGER                                  :: handle, ispin, k, n, &
-                                                ncol_block, nrow_block, nspin
+                                                nspin
     TYPE(cp_fm_type), POINTER                :: mo_coeff
 
 ! executable
@@ -344,17 +344,12 @@ SUBROUTINE ot_scf_init(mo_array,matrix_s,qs_ot_env)
     DO ispin=1,nspin
        CALL get_mo_set(mo_set=mo_array(ispin)%mo_set,mo_coeff=mo_coeff)
        
-       CALL cp_fm_get_info(mo_coeff,nrow_block=nrow_block, &
-                                           ncol_block=ncol_block, &
-                                                   nrow_global=n, &
-                                                     ncol_global=k)
+       CALL cp_fm_get_info(mo_coeff, nrow_global=n, ncol_global=k)
    
 
        qs_ot_env(ispin)%settings%n=n
        qs_ot_env(ispin)%settings%k=k
        qs_ot_env(ispin)%settings%ortho_k=k
-       qs_ot_env(ispin)%settings%nrow_block=nrow_block
-       qs_ot_env(ispin)%settings%ncol_block=ncol_block
 
        ! allocate
        CALL qs_ot_allocate(qs_ot_env(ispin),mo_coeff%matrix_struct%para_env, &

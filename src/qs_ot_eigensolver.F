@@ -89,7 +89,6 @@ CONTAINS
     REAL(KIND=dp), PARAMETER                 :: rone = 1.0_dp, rzero = 0.0_dp
 
     INTEGER                                  :: handle, ieigensolver, k, n, &
-                                                ncol_block, nrow_block, &
                                                 ortho_space_k
     LOGICAL                                  :: energy_only, ortho
     REAL(KIND=dp)                            :: delta, energy
@@ -111,10 +110,7 @@ CONTAINS
     ALLOCATE(matrix_hc(1))
     CALL cp_fm_create(matrix_hc(1)%matrix,matrix_c%matrix_struct)
 
-    CALL cp_fm_get_info(matrix_c,nrow_block=nrow_block, &
-                                               ncol_block=ncol_block, &
-                                               nrow_global=n, &
-                                               ncol_global=k)
+    CALL cp_fm_get_info(matrix_c, nrow_global=n, ncol_global=k)
 
     ortho=.FALSE.
     IF (PRESENT(matrix_orthogonal_space)) ortho=.TRUE.
@@ -134,8 +130,6 @@ CONTAINS
     ELSE
        qs_ot_env(1)%settings%ortho_k=k
     ENDIF
-    qs_ot_env(1)%settings%nrow_block=nrow_block
-    qs_ot_env(1)%settings%ncol_block=ncol_block
 
     ! allocate
     CALL qs_ot_allocate(qs_ot_env(1),matrix_c%matrix_struct%para_env,matrix_c%matrix_struct%context)

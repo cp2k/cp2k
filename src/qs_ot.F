@@ -89,7 +89,7 @@ MODULE qs_ot
        REAL(KIND = dp)   :: energy_gap
        INTEGER           :: diis_m
        REAL(KIND = dp)   :: gold_target
-       INTEGER           :: n,k,nrow_block,ncol_block
+       INTEGER           :: n,k
        INTEGER           :: ortho_k
        REAL(KIND = dp)   :: eps_taylor ! minimum accuracy of the taylor expansion
        INTEGER           :: max_taylor ! maximum order of the taylor expansion before switching to diagonalization
@@ -217,8 +217,6 @@ CONTAINS
     settings%do_rotation=.FALSE.
     settings%n=0
     settings%k=0
-    settings%nrow_block=0
-    settings%ncol_block=0
     settings%ortho_k=0
   END SUBROUTINE qs_ot_settings_init
 
@@ -260,8 +258,8 @@ SUBROUTINE qs_ot_allocate(qs_ot_env,para_env,context)
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(cp_blacs_env_type), POINTER         :: context
 
-    INTEGER                                  :: i, k, m_diis, n, ncol_block, &
-                                                nrow_block, ortho_k
+    INTEGER                                  :: i, k, m_diis, n, &
+                                                ortho_k
     TYPE(cp_fm_struct_type), POINTER         :: fm_struct_k_k, fm_struct_n_k, &
                                                 fm_struct_n_o, fm_struct_o_k, &
                                                 fm_struct_o_o
@@ -277,8 +275,6 @@ SUBROUTINE qs_ot_allocate(qs_ot_env,para_env,context)
    ortho_k=qs_ot_env%settings%ortho_k
    m_diis =qs_ot_env%settings%diis_m
 
-   nrow_block=qs_ot_env%settings%nrow_block
-   ncol_block=qs_ot_env%settings%ncol_block
    qs_ot_env%use_gx_old=.FALSE. 
    qs_ot_env%use_dx=.FALSE.
 
