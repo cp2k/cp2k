@@ -132,14 +132,17 @@ CONTAINS
       IF (istat /= 0) THEN
         CALL stop_memory(routine,"orbtramat(l)%s2c",ns*nc*wp_size)
       END IF
+      orbtramat(l)%c2s(:,:) = 0.0_wp
       ALLOCATE (orbtramat(l)%slm(ns,nc),STAT=istat)
       IF (istat /= 0) THEN
         CALL stop_memory(routine,"orbtramat(l)%s2c",ns*nc*wp_size)
       END IF
+      orbtramat(l)%slm(:,:) = 0.0_wp
       ALLOCATE (orbtramat(l)%s2c(ns,nc),STAT=istat)
       IF (istat /= 0) THEN
         CALL stop_memory(routine,"orbtramat(l)%s2c",ns*nc*wp_size)
       END IF
+      orbtramat(l)%s2c(:,:) = 0.0_wp
     END DO
 
 !   *** Loop over all angular momentum quantum numbers l ***
