@@ -1,0 +1,26 @@
+# The following settings worked for:
+# SUSE Linux 9.1 (x86_64) including the precompiled FFTW library 
+# Intel(R) Fortran Compiler for Intel(R) EM64T-based applications, Version 8.1
+# Build 20040812 Package ID: l_fce_pc_8.1.022
+# ATLAS 3.6
+# MPICH 1.2.6 compiled with/for gcc 3.3.3 and ifort 8.1
+# BLACS and SCALAPACK compiled without optimization
+#
+PERL     = perl
+CC       = cc
+CPP      = cpp
+FC       = mpif90 -FR
+FC_fixed = mpif90 -FI
+LD       = mpif90
+AR       = ar -r
+DFLAGS   = -D__INTEL -D__FFTSG -D__FFTW\
+           -D__parallel -D__BLACS -D__SCALAPACK
+CPPFLAGS = -traditional -C $(DFLAGS) -P
+FCFLAGS  = $(DFLAGS) -O2 -pc64
+LDFLAGS  = $(FCFLAGS) -static-libcxa -L/apps/suse64/lib
+LIBS     = -ldfftw -lscalapack -lblacsF77init -lblacs\
+           -llapack-atlas -llapack -lf77blas -lcblas -latlas -lf2c
+#          -L/apps/suse64/intel/mkl701/lib/em64t\
+#          -lmkl_lapack -lmkl_em64t -lguide -lpthread -lf2c
+
+OBJECTS_ARCHITECTURE = machine_intel.o
