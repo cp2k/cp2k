@@ -421,42 +421,15 @@ CONTAINS
     TYPE(cp_error_type), INTENT(inout), OPTIONAL :: error
 
     INTEGER :: handle,n,i
-    REAL(wp), DIMENSION(:,:), POINTER :: a
+    REAL(wp), DIMENSION(:,:), POINTER :: a,buff
     INTEGER :: nprow,npcol,myprow,mypcol,nrow_block,ncol_block
     INTEGER, DIMENSION(9) :: desca
     INTEGER, DIMENSION(4),SAVE :: ISEED
     LOGICAL, SAVE :: FIRST = .TRUE.
-    INTEGER :: irow_global,icol_global,irow_local,icol_local,iprow,ipcol
+    INTEGER :: icol
     TYPE(cp_blacs_env_type), POINTER :: context
 
     CALL timeset("cp_fm_init_random","I","",handle)
-
-    context => matrix%matrix_struct%context
-    myprow=context%mepos(1)
-    mypcol=context%mepos(2)
-    nprow=context%num_pe(1)
-    npcol=context%num_pe(2)
-    n = matrix%matrix_struct%nrow_global
-
-    a => matrix%local_data
-
-#if defined(__SCALAPACK)
-    IF (FIRST) THEN
-       ISEED(1)=myprow
-       ISEED(2)=mypcol
-       ISEED(3)=2
-       ISEED(4)=1 ! last one has to be odd
-       FIRST=.FALSE.
-    ENDIF
-    desca(:)=matrix%matrix_struct%descriptor(:)
-    DO i=1,ncol
-       CALL infog2l(1,i,desca,nprow,npcol,myprow,mypcol,&
-            irow_local,icol_local,iprow,ipcol)
-       IF (ipcol == mypcol) THEN
-          CALL dlarnv(1,iseed,SIZE(a,1),a(1,icol_local))
-       ENDIF
-    ENDDO
-#else
     IF (FIRST) THEN
        ISEED(1)=4
        ISEED(2)=3
@@ -464,8 +437,20 @@ CONTAINS
        ISEED(4)=1 ! last one has to be odd
        FIRST=.FALSE.
     ENDIF
-    CALL dlarnv(1,iseed,n*ncol,a(1,1))
-#endif
+
+    n = matrix%matrix_struct%nrow_global
+    ALLOCATE(buff(n,1))
+    DO icol=1,ncol
+       IF (matrix%matrix_struct%para_env%mepos.eq.0) THEN
+          CALL dlarnv(1,iseed,n,buff(1,1))
+       ENDIF
+       CALL mp_bcast(buff,0,matrix%matrix_struct%para_env%group) 
+       ! write(6,*) buff
+       CALL cp_fm_set_submatrix(matrix,buff,start_col=icol)
+
+    ENDDO
+    ! write(6,*) matrix%local_data
+    DEALLOCATE(buff)
 
     CALL timestop(0.0_wp,handle)
 
