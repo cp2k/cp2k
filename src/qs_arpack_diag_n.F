@@ -24,23 +24,22 @@
 !!
 !!****
 MODULE qs_arpack_diag_n
-
-  USE cp_error_handling, ONLY : cp_simple_assert
-  USE cp_fm_utils,       ONLY : copy_rep_vec_to_fm_col
-  USE global_types,      ONLY : global_environment_type
-  USE kinds,             ONLY : dbl
-  USE qs_arpack_utils,   ONLY : arpack_confirm
-  USE qs_blacs,          ONLY : cp_full_matrix_type, cp_fm_get_info, &
-                                blacs_find_vector_distribution
-  USE termination,       ONLY : stop_program
-
   ! the operator environments and operators
-  USE qs_p_types,        ONLY : qs_p_env_type
-  USE qs_arpack_tddfpt,  ONLY : arpack_op_tddfpt, op_tddfpt_type
-
+  USE cp_error_handling,               ONLY: cp_simple_assert
+  USE cp_fm_utils,                     ONLY: copy_rep_vec_to_fm_col
+  USE global_types,                    ONLY: global_environment_type
+  USE kinds,                           ONLY: dbl
+  USE qs_arpack_tddfpt,                ONLY: arpack_op_tddfpt,&
+                                             op_tddfpt_type
+  USE qs_arpack_utils,                 ONLY: arpack_confirm
+  USE qs_blacs,                        ONLY: blacs_find_vector_distribution,&
+                                             cp_fm_get_info,&
+                                             cp_full_matrix_type
+  USE qs_p_env_types,                  ONLY: qs_p_env_type
+  USE termination,                     ONLY: stop_program
   IMPLICIT NONE
   
-  LOGICAL, PARAMETER :: DEBUG_THIS_MODULE = .false.
+  LOGICAL, PARAMETER :: DEBUG_THIS_MODULE = .FALSE.
 
   CHARACTER(len=*), PARAMETER :: moduleN = "qs_arpack_diag_n"
 
@@ -56,10 +55,6 @@ CONTAINS
 !!   NAME
 !!     arpack_diag_n
 !!
-!!   FUNCTION
-!!     Given action of an general (non-symmetric) operator A on a vector v,
-!!     computes the eigenvalues and eigenvectors of A.
-!!
 !!   SYNOPSIS
 !!     Subroutine arpack_diag_n(n_ev, eval, evec, glob_env, op_tddfpt)
 !!       Implicit None
@@ -69,6 +64,10 @@ CONTAINS
 !!       Type(global_environment_type), Intent (IN):: glob_env
 !!       Type(op_tddfpt_type), Intent (INOUT), Optional:: op_tddfpt
 !!     End Subroutine arpack_diag_n
+!!
+!!   FUNCTION
+!!     Given action of an general (non-symmetric) operator A on a vector v,
+!!     computes the eigenvalues and eigenvectors of A.
 !!
 !!   ARGUMENTS
 !!     - n_ev      : number of eigenvalues and eigenvectors to calculate

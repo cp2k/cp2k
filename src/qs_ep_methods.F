@@ -136,20 +136,20 @@ MODULE qs_ep_methods
                                              write_mo_set
   USE qs_neighbor_lists,               ONLY: build_neighbor_lists
   USE qs_overlap,                      ONLY: distribute_overlap_matrix
+  USE qs_p_env_methods,                ONLY: p_env_create,&
+                                             p_env_psi0_changed,&
+                                             p_op_l1,&
+                                             p_op_l2,&
+                                             p_postortho,&
+                                             p_preortho
+  USE qs_p_env_types,                  ONLY: p_env_write,&
+                                             qs_p_env_type
   USE qs_p_sparse_psi,                 ONLY: p_proj_create,&
                                              p_proj_release,&
                                              p_proj_retain,&
                                              p_proj_transfer_blacs_to_f,&
                                              qs_p_projection_p_type,&
                                              qs_p_projection_type
-  USE qs_p_types,                      ONLY: p_env_write,&
-                                             qs_p_env_type
-  USE qs_p_utils,                      ONLY: p_env_create,&
-                                             p_env_psi0_changed,&
-                                             p_op_l1,&
-                                             p_op_l2,&
-                                             p_postortho,&
-                                             p_preortho
   USE scf_control_types,               ONLY: scf_c_release,&
                                              scf_c_retain,&
                                              scf_control_type
@@ -302,9 +302,14 @@ SUBROUTINE qs_ep_calculation(qs_env,globenv, error)
   CALL p_env_psi0_changed(ep_env%main_p_env, qs_env=ep_env%main_qs_env,&
        Hrho_psi0d=ep_env%pi_Hrho_psi0d, error=error)
 
+  CALL cp_fm_vect_write(matrixes=ep_env%pi_Hrho_psi0d, &
+       unit_nr=cp_logger_get_default_unit_nr(logger), &
+       long_description=.TRUE.,&
+       local=.FALSE., error=error)
+  
   CALL p_env_write(ep_env%main_p_env,unit_nr=unit_nr,&
-            long_description=debug_this_module, local=.FALSE.,&
-            error=error)
+       long_description=debug_this_module, local=.FALSE.,&
+       error=error)
 
   IF (cp_debug .AND. debug_this_module) THEN
      IF (.not.failure) THEN
@@ -322,6 +327,11 @@ SUBROUTINE qs_ep_calculation(qs_env,globenv, error)
           v=ep_env%pi_Hrho_psi0d, &
           n_cols=ep_env%main_p_env%n_mo,&
           error=error)
+
+  CALL cp_fm_vect_write(matrixes=ep_env%pi_Hrho_psi0d, &
+       unit_nr=cp_logger_get_default_unit_nr(logger), &
+       long_description=.TRUE.,&
+       local=.FALSE., error=error)
  
   CALL get_qs_env(ep_env%main_qs_env, ao_mo_fm_pools=ao_mo_fm_pools,&
        error=error)

@@ -5,18 +5,16 @@
 
 #include "cp_prep_globals.h"
 
-!!****h* cp2k/qs_p_types [1.0] *
+!!****h* cp2k/qs_kpp1_env_types [1.0] *
 !!
 !!   NAME
-!!     qs_p_types
+!!     qs_kpp1_env_types
 !!
 !!   FUNCTION
 !!     basis types for the calculation of the perturbation of density theory.
 !!
 !!   NOTES
-!!     Split and rename the modules qs_p_types,qs_p_build_kernel and
-!!     qs_p_utils to qs_p_env_types, qs_p_env_methods and qs_kpp1_types,
-!!     qs_kpp1_methods?
+!!     -
 !!
 !!   AUTHOR
 !!     Fawzi Mohamed
@@ -26,7 +24,7 @@
 !!
 !!   SOURCE
 ! ****************************************************************************
-MODULE qs_p_types
+MODULE qs_kpp1_env_types
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                              get_atomic_kind_set
   USE coefficient_types,               ONLY: coeff_deallocate,&
@@ -92,85 +90,14 @@ MODULE qs_p_types
                                              timestop
   IMPLICIT NONE
   PRIVATE
-  PUBLIC :: qs_p_env_type, qs_p_env_p_type, &
-       qs_kpp1_env_type, qs_kpp1_env_p_type, p_env_write
-  PUBLIC :: p_env_retain, p_env_release, kpp1_release, kpp1_retain
+  PUBLIC :: qs_kpp1_env_type, qs_kpp1_env_p_type
+  PUBLIC :: kpp1_release, kpp1_retain, kpp1_write
 
   LOGICAL, PRIVATE, PARAMETER :: debug_this_module=.TRUE.
-  CHARACTER(len=*), PRIVATE, PARAMETER :: moduleN='qs_p_types'
+  CHARACTER(len=*), PRIVATE, PARAMETER :: moduleN='qs_kpp1_env_types'
 
 !!***
 !****************************************************************************
-
-
-!!****s* qs_p_types/qs_p_env_type [1.0] *
-!!
-!!   NAME
-!!     qs_p_env_type
-!!
-!!   FUNCTION
-!!     Represent a qs system that is perturbed.
-!!     Can calculate the linear operator and the rhs of the system 
-!!     of equations that needs to be solved for the perturbation.
-!!
-!!   NOTES
-!!     for the moment no smearing of the orbitals.
-!!
-!!   ATTRIBUTES
-!!     -
-!!
-!!   AUTHOR
-!!     Fawzi Mohamed
-!!
-!!   MODIFICATION HISTORY
-!!     7.2002 created [fawzi]
-!!
-!!   SOURCE
-!***************************************************************************
-
-  TYPE qs_p_env_type
-     LOGICAL :: orthogonal_orbitals
-     INTEGER :: id_nr, ref_count, iter
-     TYPE(real_matrix_p_type), DIMENSION(:), POINTER :: &
-          kpp1
-     TYPE(cp_full_matrix_p_type), DIMENSION(:), POINTER :: m_epsilon,&
-          psi0d, S_psi0
-     TYPE(qs_kpp1_env_type), POINTER :: kpp1_env
-     TYPE(qs_rho_type), POINTER :: rho1
-     INTEGER, DIMENSION(2) :: n_mo, & ! no of molecular orbitals
-                              n_ao    ! no of basis functions
-  END TYPE qs_p_env_type
-
-!!***
-!****************************************************************************
-
-!!****s* qs_p_types/qs_p_env_p_type [1.0] *
-!!
-!!   NAME
-!!     qs_p_env_p_type
-!!
-!!   FUNCTION
-!!     to have arrays of pointers
-!!
-!!   NOTES
-!!     -
-!!
-!!   ATTRIBUTES
-!!     p_env: the pointer to the p_env
-!!
-!!   AUTHOR
-!!     Fawzi Mohamed
-!!
-!!   MODIFICATION HISTORY
-!!     12.2002 created [fawzi]
-!!
-!!   SOURCE
-  !***************************************************************************
-  TYPE qs_p_env_p_type
-     TYPE(qs_p_env_type), POINTER :: p_env
-  END TYPE qs_p_env_p_type
-!!***
-  !****************************************************************************
 
 !!****s* qs_p_build_kernel/qs_kpp1_env_type [1.0] *
 !!
@@ -197,6 +124,15 @@ MODULE qs_p_types
 !!       last rebuild (if -1, forcces the rebuild)
 !!     - id_nr: identification number, unique for each kpp1 env
 !!     - iter: counter for the iteration number
+!!     - deriv_xc: the second derivative of the xc potential at psi0 
+!!       (qs_env%c), if grad pot is true it should already be divised
+!!       by the gradient
+!!     - spin_pot: information about wrt. to which spins the corresponding
+!!       component of deriv_xc was derived (see xc_create_2nd_deriv_info)
+!!     - grad_pot: if the derivative spin_pot was wrt. to the gradient,
+!!       (see xc_create_2nd_deriv_info)
+!!     - ndiag_term: it the term is an off diagonal term (see 
+!!       xc_create_2nd_deriv_info)
 !!
 !!   AUTHOR
 !!     Fawzi Mohamed
@@ -204,6 +140,7 @@ MODULE qs_p_types
 !!   MODIFICATION HISTORY
 !!     07.2002 created [fawzi]
 !!     11.2002 ref-count, actually used to calculate [fawzi]
+!!     12.2002 cached pot [fawzi]
 !!
 !!   SOURCE
   !***************************************************************************
@@ -212,6 +149,10 @@ MODULE qs_p_types
           iter
      TYPE(coeff_type), DIMENSION(:), POINTER :: v_rspace
      TYPE(real_matrix_p_type), DIMENSION(:), POINTER :: v_ao
+     REAL ( kind=wp ) , DIMENSION (:,:), pointer :: deriv_xc
+     INTEGER, DIMENSION(:,:), POINTER :: spin_pot
+     LOGICAL, DIMENSION(:,:), POINTER :: grad_pot
+     LOGICAL, DIMENSION(:), POINTER :: ndiag_term
   END TYPE qs_kpp1_env_type
 !!***
   !****************************************************************************
@@ -246,111 +187,7 @@ MODULE qs_p_types
 
 CONTAINS
 
-!!****f* qs_p_types/p_env_retain [1.0] *
-!!
-!!   NAME
-!!     p_env_retain
-!!
-!!   SYNOPSIS
-!!     Subroutine p_env_retain(p_env, error)
-!!       Type(qs_p_env_type), Pointer:: p_env
-!!       Type(cp_error_type), Optional, Intent (INOUT):: error
-!!     End Subroutine p_env_retain
-!!
-!!   FUNCTION
-!!     retains the given p_env (see doc/ReferenceCounting.html)
-!!
-!!   NOTES
-!!     -
-!!
-!!   INPUTS
-!!     - p_env: the p_env to retain
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
-!!
-!!   AUTHOR
-!!     Fawzi Mohamed
-!!
-!!   MODIFICATION HISTORY
-!!     12.2002 created [fawzi]
-!!
-!!*** **********************************************************************
-SUBROUTINE p_env_retain(p_env,error)
-  TYPE(qs_p_env_type), POINTER :: p_env
-  TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
-  
-  LOGICAL :: failure
-  CHARACTER(len=*), PARAMETER :: routineN='p_env_retain',&
-        routineP=moduleN//':'//routineN
-  failure=.FALSE.
-  
-  CPPrecondition(ASSOCIATED(p_env),cp_failure_level,routineP,error,failure)
-  IF (.NOT. failure) THEN
-     CPPrecondition(p_env%ref_count>0,cp_failure_level,routineP,error,failure)
-     p_env%ref_count=p_env%ref_count+1
-  END IF
-END SUBROUTINE p_env_retain
-!***************************************************************************
-
-!!****f* qs_p_types/p_env_release [1.0] *
-!!
-!!   NAME
-!!     p_env_release
-!!
-!!   SYNOPSIS
-!!     Subroutine p_env_release(p_env, error)
-!!       Type(qs_p_env_type), Pointer:: p_env
-!!       Type(cp_error_type), Optional, Intent (INOUT):: error
-!!     End Subroutine p_env_release
-!!
-!!   FUNCTION
-!!     relases the given p_env (see doc/ReferenceCounting.html)
-!!
-!!   NOTES
-!!     -
-!!
-!!   INPUTS
-!!     - p_env: the environment to release
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
-!!
-!!   AUTHOR
-!!     Fawzi Mohamed
-!!
-!!   MODIFICATION HISTORY
-!!     07.2002 created [fawzi]
-!!
-!!*** **********************************************************************
-  SUBROUTINE p_env_release(p_env, error)
-
-    ! arguments
-    TYPE(qs_p_env_type), POINTER                 :: p_env
-    TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
-
-    ! locals
-    LOGICAL                     :: failure
-    CHARACTER(len=*), PARAMETER :: routineN = 'p_env_release',&
-                                   routineP = moduleN//':'//routineN
-
-    failure=.FALSE.
-
-    IF (ASSOCIATED(p_env)) THEN
-       CPPrecondition(p_env%ref_count>0,cp_failure_level,routineP,error,failure)
-       p_env%ref_count=p_env%ref_count-1
-       IF (p_env%ref_count<1) THEN
-          NULLIFY(p_env%kpp1_env)
-          CALL kpp1_release(p_env%kpp1_env, error)
-          CALL cp_fm_vect_dealloc(p_env%S_psi0, error=error)
-          CALL cp_fm_vect_dealloc(p_env%m_epsilon, error=error)
-          CALL cp_fm_vect_dealloc(p_env%psi0d, error=error)
-          CALL deallocate_matrix_set(p_env%kpp1)
-       END IF
-    END IF
-    NULLIFY(p_env)
-  END SUBROUTINE p_env_release
-!***************************************************************************
-
-!!****f* qs_p_types/kpp1_release [1.0] *
+!!****f* qs_kpp1_env_types/kpp1_release [1.0] *
 !!
 !!   NAME
 !!     kpp1_release
@@ -409,13 +246,28 @@ END SUBROUTINE p_env_retain
              DEALLOCATE(kpp1_env%v_ao, stat=stat)
              CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
           END IF
+          if (associated(kpp1_env%deriv_xc)) then
+             deallocate(kpp1_env%deriv_xc,stat=stat)
+             CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+          end if
+          if (associated(kpp1_env%spin_pot)) then
+             deallocate(kpp1_env%spin_pot, stat=stat)
+          end if
+          if (associated(kpp1_env%grad_pot)) then
+             deallocate(kpp1_env%grad_pot, stat=stat)
+          end if
+          if (associated(kpp1_env%ndiag_term)) then
+             deallocate(kpp1_env%ndiag_term, stat=stat)
+             CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+          end if
+          deallocate(kpp1_env, stat=stat)
        END IF
     END IF
     NULLIFY(kpp1_env)
   END SUBROUTINE kpp1_release
 !***************************************************************************
 
-!!****f* qs_p_types/kpp1_retain [1.0] *
+!!****f* qs_kpp1_env_types/kpp1_retain [1.0] *
 !!
 !!   NAME
 !!     kpp1_retain
@@ -461,28 +313,19 @@ END SUBROUTINE p_env_retain
   END SUBROUTINE kpp1_retain
 !***************************************************************************
 
-!!****f* qs_p_types/p_env_write [1.0] *
+!!****f* qs_kpp1_env_types/kpp1_write [1.0] *
 !!
 !!   NAME
-!!     p_env_write
-!!
-!!   SYNOPSIS
-!!     Subroutine p_env_write(p_env, unit_nr, long_description, local,&
-!!         error)
-!!       Type(qs_p_env_type), Pointer:: p_env
-!!       Integer, Intent (IN):: unit_nr
-!!       Logical, Optional, Intent (IN):: long_description, local
-!!       Type(cp_error_type), Optional, Intent (INOUT):: error
-!!     End Subroutine p_env_write
+!!     kpp1_write
 !!
 !!   FUNCTION
-!!     writes the content of the p_env to the given output unit
+!!     writes the content of the kpp1_env to the given output unit
 !!
 !!   NOTES
-!!     remove all iostat checks??
+!!     to do
 !!
 !!   ARGUMENTS
-!!     - p_env: the p_env to output
+!!     - kpp1_env: the kpp1_env to output
 !!     - unit_nr: the unit where to output
 !!     - long_description: if a long description should be written
 !!       (defaults to false)
@@ -498,22 +341,19 @@ END SUBROUTINE p_env_retain
 !!     12.2002 created [fawzi]
 !!
 !!*** **********************************************************************
-  SUBROUTINE p_env_write(p_env, unit_nr, long_description, local, error)
-    TYPE(qs_p_env_type), POINTER :: p_env
+  SUBROUTINE kpp1_write(kpp1_env, unit_nr, long_description, local, error)
+    TYPE(qs_kpp1_env_type), POINTER :: kpp1_env
     INTEGER, INTENT(in) :: unit_nr
     LOGICAL, OPTIONAL, INTENT(in) :: long_description, local
     TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
 
     LOGICAL :: failure, my_local, my_long_description, should_w
-    CHARACTER(len=*), PARAMETER :: routineN='p_env_write',&
+    CHARACTER(len=*), PARAMETER :: routineN='kpp1_write',&
          routineP=moduleN//':'//routineN
-    INTEGER, SAVE :: uniquing_nr=0
-    INTEGER :: iostat, i
     TYPE(cp_logger_type), POINTER :: logger
     TYPE(cp_para_env_type), POINTER :: para_env
 
     failure=.FALSE.; my_local=.FALSE.; my_long_description=.FALSE.
-    iostat=0
 
     IF (PRESENT(local)) my_local=local
     IF (PRESENT(long_description)) my_long_description=long_description
@@ -521,87 +361,18 @@ END SUBROUTINE p_env_retain
     para_env=>logger%para_env
     should_w=my_local .OR. para_env%mepos==para_env%source
 
-    IF (ASSOCIATED(p_env)) THEN
+    IF (ASSOCIATED(kpp1_env)) THEN
        IF (should_w) THEN
           WRITE (unit=unit_nr,&
-               fmt="(' <p_env>:{ id_nr=',i10,' ref_count=',i10,',')",&
-               iostat=iostat) p_env%id_nr, p_env%ref_count
-          CPInvariantNoFail(iostat==0,cp_warning_level,routineP,error)
-          WRITE (unit=unit_nr,&
-               fmt="(' iter=',i10,', orthogonal_orbitals=',l1,',')",&
-               iostat=iostat) p_env%iter,p_env%orthogonal_orbitals
-          CPInvariantNoFail(iostat==0,cp_warning_level,routineP,error)
-          WRITE (unit=unit_nr,&
-               fmt="(' n_mo=',2i10,', n_ao=',2i10,',')",&
-               iostat=iostat) p_env%n_mo, p_env%n_ao
-          CPInvariantNoFail(iostat==0,cp_warning_level,routineP,error)
-          WRITE (unit=unit_nr,fmt="(a)",iostat=iostat) " m_epsilon="
-          CPInvariantNoFail(iostat==0,cp_warning_level,routineP,error)
-       END IF
-       CALL cp_fm_vect_write(p_env%m_epsilon,unit_nr=unit_nr,&
-            long_description=my_long_description, local=my_local,&
-            error=error)
-       IF (should_w) WRITE(unit=unit_nr,fmt="(a)",iostat=iostat)" , psi0d="
-       CPInvariantNoFail(iostat==0,cp_warning_level,routineP,error)
-       CALL cp_fm_vect_write(p_env%psi0d,unit_nr=unit_nr,&
-            long_description=my_long_description, local=my_local,&
-           error=error)
-       IF (should_w) WRITE(unit=unit_nr,fmt="(a)",iostat=iostat)" , S_psi0="
-       CPInvariantNoFail(iostat==0,cp_warning_level,routineP,error)
-       CALL cp_fm_vect_write(p_env%S_psi0,unit_nr=unit_nr,&
-            long_description=my_long_description, local=my_local,&
-            error=error)
-       IF (should_w) WRITE(unit=unit_nr,fmt="(a)",iostat=iostat, advance='no')&
-            " , kpp1="
-       CPInvariantNoFail(iostat==0,cp_warning_level,routineP,error)
-       IF (ASSOCIATED(p_env%kpp1)) THEN
-          IF (my_long_description) THEN
-             IF (should_w) WRITE(unit=unit_nr,fmt="(a)",iostat=iostat) " ("
-             CPInvariantNoFail(iostat==0,cp_warning_level,routineP,error)
-             uniquing_nr=uniquing_nr+1
-             DO i=1,SIZE(p_env%kpp1)
-                CALL cp_sm_output(logger,&
-                     outputName="p_env"//cp_to_string(p_env%id_nr)//'kpp1-'//&
-                     cp_to_string(i),&
-                     fromWhere=routineP,iter=uniquing_nr,&
-                     matrix=p_env%kpp1(i)%matrix,&
-                     para_env=para_env, comment='kpp1 matrix',error=error)
-                IF (should_w.and.i/=SIZE(p_env%kpp1)) THEN
-                   WRITE(unit=unit_nr,fmt="(a)",iostat=iostat)" ,"
-                   CPInvariantNoFail(iostat==0,cp_warning_level,routineP,error)
-                END IF
-             END DO
-             IF (should_w) WRITE(unit=unit_nr,fmt="(a)",iostat=iostat) " ),"
-             CPInvariantNoFail(iostat==0,cp_warning_level,routineP,error)
-          ELSE
-             IF (should_w) THEN
-                WRITE(unit=unit_nr, fmt="(a)") '*associated*,'
-             END IF
-          END IF
-       ELSE
-          WRITE(unit=unit_nr, fmt="(a)") '*null*,'
-       END IF
-       IF (should_w) THEN
-          WRITE(unit=unit_nr,fmt="(a)",iostat=iostat, advance='no')" kpp1_env="
-          CPInvariantNoFail(iostat==0,cp_warning_level,routineP,error)
-          IF (ASSOCIATED(p_env%kpp1_env)) THEN
-             WRITE(unit=unit_nr,fmt="(a)",iostat=iostat)" *associated*"
-          ELSE
-             WRITE(unit=unit_nr,fmt="(a)",iostat=iostat)" *null*"
-          END IF
-!FM       call kpp1_env_write(p_env%kpp1_env,unit_nr=unit_nr,&
-!FM            long_description=my_long_description, local=my_local,&
-!FM            error=error)
-       END IF
-       IF (should_w) WRITE(unit=unit_nr,fmt="(a)",iostat=iostat)" }"
-       CPInvariantNoFail(iostat==0,cp_warning_level,routineP,error)
+               fmt="(' <kpp1_env>:{ id_nr=',i10,' ref_count=',i10,',')")&
+               kpp1_env%id_nr, kpp1_env%ref_count
+       end IF
     ELSE
        IF (should_w) THEN
-          WRITE (unit=unit_nr,fmt="(a)",iostat=iostat) " <p_env>:*null*"
-          CPInvariantNoFail(iostat==0,cp_warning_level,routineP,error)
+          WRITE (unit=unit_nr,fmt="(a)") " <kpp1_env>:*null*"
        END IF
     END IF
-  END SUBROUTINE p_env_write
+  END SUBROUTINE kpp1_write
 !***************************************************************************
 
-END MODULE qs_p_types
+END MODULE qs_kpp1_env_types

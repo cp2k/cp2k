@@ -39,10 +39,10 @@ MODULE qs_arpack_tddfpt
   USE qs_blacs,                        ONLY: cp_fm_release,&
                                              replicate_blacs_matrix
   USE qs_environment_types,            ONLY: qs_environment_type
-  USE qs_p_types,                      ONLY: qs_p_env_type
-  USE qs_p_utils,                      ONLY: p_op_l1,&
+  USE qs_p_env_methods,                ONLY: p_op_l1,&
                                              p_op_l1_spin,&
                                              p_op_l2
+  USE qs_p_env_types,                  ONLY: qs_p_env_type
   USE sparse_matrix_types,             ONLY: copy_sparse_to_full_matrix,&
                                              real_matrix_type
   IMPLICIT NONE

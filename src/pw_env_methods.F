@@ -296,7 +296,7 @@ SUBROUTINE pw_env_rebuild(pw_env, qs_env, error)
 
      cmax = 0
      DO igrid_level=1,ngrid_level
-        maxradius = maxgridpoints*MAXVAL(pw_pools(igrid_level)%pool%pw_grid%dr)
+        maxradius = 2*maxgridpoints*MAXVAL(pw_pools(igrid_level)%pool%pw_grid%dr)
         CALL init_cube_info(pw_env%cube_info(igrid_level),&
              pw_pools(igrid_level)%pool%pw_grid%dr(:),&
              maxradius,cmaxl)

@@ -35,9 +35,10 @@ MODULE qs_tddfpt_types
                                              cp_full_matrix_p_type,&
                                              replicate_blacs_matrix
   USE qs_environment_types,            ONLY: qs_environment_type
-  USE qs_p_types,                      ONLY: qs_p_env_type
-  USE qs_p_utils,                      ONLY: p_preortho
-  USE termination,                     ONLY: stop_memory, stop_program
+  USE qs_p_env_methods,                ONLY: p_preortho
+  USE qs_p_env_types,                  ONLY: qs_p_env_type
+  USE termination,                     ONLY: stop_memory,&
+                                             stop_program
   IMPLICIT NONE
 
   TYPE real_2d_array_p_type

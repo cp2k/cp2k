@@ -40,17 +40,17 @@ OBJECTS_GENERIC =\
  cp_fm_basic_linalg.o\
  cp_fm_cholesky.o\
  cp_fm_pool_types.o\
- cp_fm_vect.o\
- cp_fm_utils.o\
- cp_fm_types.o\
  cp_fm_struct.o\
+ cp_fm_types.o\
+ cp_fm_utils.o\
+ cp_fm_vect.o\
  cp_lbfgs.o\
  cp_lbfgs_optimizer_e_rosen.o\
  cp_lbfgs_optimizer_gerd_f.o\
  cp_lbfgs_optimizer_tests.o\
+ cp_linked_list_fm.o\
  cp_linked_list_int.o\
  cp_linked_list_pw.o\
- cp_linked_list_fm.o\
  cp_log_handling.o\
  cp_matrix_utils.o\
  cp_output_handling.o\
@@ -106,12 +106,12 @@ OBJECTS_GENERIC =\
  kg_core.o\
  kg_debug.o\
  kg_density.o\
+ kg_environment_types.o\
  kg_force.o\
  kg_force_numer.o\
  kg_force_types.o\
- kg_main.o\
- kg_environment_types.o\
  kg_kxc.o\
+ kg_main.o\
  kinds.o\
  kinetic.o\
  kpoint_initialization.o\
@@ -170,6 +170,7 @@ OBJECTS_GENERIC =\
  pme.o\
  potential_types.o\
  potentials.o\
+ preconditioner.o\
  pw_env_methods.o\
  pw_env_types.o\
  pw_grid_types.o\
@@ -201,8 +202,10 @@ OBJECTS_GENERIC =\
  qs_force_types.o\
  qs_integrate_potential.o\
  qs_interactions.o\
- qs_ks_types.o\
+ qs_kpp1_env_methods.o\
+ qs_kpp1_env_types.o\
  qs_ks_methods.o\
+ qs_ks_types.o\
  qs_main.o\
  qs_md.o\
  qs_mo_types.o\
@@ -210,21 +213,19 @@ OBJECTS_GENERIC =\
  qs_neighbor_lists.o\
  qs_ot.o\
  qs_ot_eigensolver.o\
- qs_ot_scf.o\
  qs_ot_minimizer.o\
- preconditioner.o\
+ qs_ot_scf.o\
  qs_overlap.o\
- qs_p_build_kernel.o\
+ qs_p_env_methods.o\
+ qs_p_env_types.o\
  qs_p_sparse_psi.o\
- qs_p_types.o\
- qs_p_utils.o\
  qs_parser.o\
  qs_rho_methods.o\
  qs_rho_types.o\
  qs_scf.o\
  qs_tddfpt_module.o\
- qs_tddfpt_utils.o\
  qs_tddfpt_types.o\
+ qs_tddfpt_utils.o\
  radial_grids.o\
  radial_operators.o\
  radial_poisson.o\
@@ -270,4 +271,3 @@ OBJECTS_GENERIC =\
  xc_thomas_fermi.o\
  xc_vwn.o\
  xc_xalpha.o
-

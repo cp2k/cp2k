@@ -1,4 +1,3 @@
-
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
 !   Copyright (C) 2002  CP2K developers group                                 !
@@ -6,10 +5,10 @@
 
 #include "cp_prep_globals.h"
 
-!!****h* cp2k/qs_p_build_kernel [1.0] *
+!!****h* cp2k/qs_kpp1_env_methods [1.0] *
 !!
 !!   NAME
-!!     qs_p_build_kernel
+!!     qs_kpp1_env_methods
 !!
 !!   FUNCTION
 !!     module that builds the second order perturbation kernel
@@ -26,7 +25,7 @@
 !!
 !!   SOURCE
 !****************************************************************************
-MODULE qs_p_build_kernel
+MODULE qs_kpp1_env_methods
   USE coefficient_types,               ONLY: coeff_add,&
                                              coeff_allocate,&
                                              coeff_copy,&
@@ -112,7 +111,7 @@ MODULE qs_p_build_kernel
                                              integrate_v_rspace
   USE qs_overlap,                      ONLY: write_blacs_matrix,&
                                              write_sparse_matrix
-  USE qs_p_types,                      ONLY: kpp1_release,&
+  USE qs_kpp1_env_types,                      ONLY: kpp1_release,&
                                              kpp1_retain,&
                                              qs_kpp1_env_p_type,&
                                              qs_kpp1_env_type
@@ -146,7 +145,7 @@ MODULE qs_p_build_kernel
   PRIVATE
 
   LOGICAL, PRIVATE, PARAMETER :: debug_this_module=.TRUE.
-  CHARACTER(len=*), PRIVATE, PARAMETER :: moduleN='qs_p_build_kernel'
+  CHARACTER(len=*), PRIVATE, PARAMETER :: moduleN='qs_kpp1_env_methods'
   INTEGER, PRIVATE, SAVE :: last_kpp1_id_nr=0
 
   PUBLIC :: kpp1_create, &
@@ -156,7 +155,7 @@ MODULE qs_p_build_kernel
 
 CONTAINS
 
-!!****f* qs_p_build_kernel/kpp1_create [1.0] *
+!!****f* qs_kpp1_env_methods/kpp1_create [1.0] *
 !!
 !!   NAME
 !!     kpp1_create
@@ -471,7 +470,7 @@ CONTAINS
   END SUBROUTINE kpp1_calc_k_p_p1
 !***************************************************************************
 
-!!****f* qs_p_build_kernel/kpp1_check_i_alloc [1.0] *
+!!****f* qs_kpp1_env_methods/kpp1_check_i_alloc [1.0] *
 !!
 !!   NAME
 !!     kpp1_check_i_alloc
@@ -554,7 +553,7 @@ CONTAINS
   END SUBROUTINE kpp1_check_i_alloc
 !***************************************************************************
 
-!!****f* qs_p_build_kernel/kpp1_did_change [1.0] *
+!!****f* qs_kpp1_env_methods/kpp1_did_change [1.0] *
 !!
 !!   NAME
 !!     kpp1_did_change
@@ -629,4 +628,4 @@ SUBROUTINE kpp1_did_change(kpp1_env, s_struct_changed, grid_changed,error)
 END SUBROUTINE kpp1_did_change
 !***************************************************************************
 
-END MODULE qs_p_build_kernel
+END MODULE qs_kpp1_env_methods

@@ -5,10 +5,10 @@
 
 #include "cp_prep_globals.h"
 
-!!****m* cp2k/qs_p_utils *
+!!****m* cp2k/qs_p_env_methods *
 !!
 !!   NAME
-!!     qs_p_utils
+!!     qs_p_env_methods
 !!
 !!   NOTES
 !!     - routines are programmed with spins in mind
@@ -24,7 +24,7 @@
 !!     22-08-2002, TCH, started development
 !!
 !!****
-MODULE qs_p_utils
+MODULE qs_p_env_methods
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                              get_atomic_kind_set
   USE cp_b_matrix_structure,           ONLY: cp_b_matrix_struct_type
@@ -99,20 +99,20 @@ MODULE qs_p_utils
                                              replicate_blacs_matrix
   USE qs_environment_types,            ONLY: get_qs_env,&
                                              qs_environment_type
+  USE qs_kpp1_env_methods,             ONLY: kpp1_calc_k_p_p1,&
+                                             kpp1_create,&
+                                             kpp1_did_change
+  USE qs_kpp1_env_types,               ONLY: kpp1_release,&
+                                             kpp1_retain,&
+                                             qs_kpp1_env_type
   USE qs_ks_methods,                   ONLY: qs_ks_did_change,&
                                              qs_ks_update_qs_env
   USE qs_ks_types,                     ONLY: qs_ks_env_type
   USE qs_mo_types,                     ONLY: get_mo_set,&
                                              mo_set_p_type,&
                                              mo_set_type
-  USE qs_p_build_kernel,               ONLY: kpp1_calc_k_p_p1,&
-                                             kpp1_create,&
-                                             kpp1_did_change
-  USE qs_p_types,                      ONLY: kpp1_release,&
-                                             kpp1_retain,&
-                                             p_env_release,&
+  USE qs_p_env_types,                  ONLY: p_env_release,&
                                              p_env_retain,&
-                                             qs_kpp1_env_type,&
                                              qs_p_env_type
   USE qs_rho_methods,                  ONLY: qs_rho_rebuild,&
                                              qs_rho_update_rho
@@ -129,7 +129,7 @@ MODULE qs_p_utils
                                              timestop
   IMPLICIT NONE
 
-  CHARACTER(len=*), PRIVATE, PARAMETER :: moduleN='qs_p_utils'
+  CHARACTER(len=*), PRIVATE, PARAMETER :: moduleN='qs_p_env_methods'
   INTEGER, PRIVATE, SAVE :: last_p_env_id=0
 
   PRIVATE
@@ -291,7 +291,7 @@ CONTAINS
   END SUBROUTINE p_env_create
 !***************************************************************************
 
-!!****f* qs_p_utils/p_env_check_i_alloc [1.0] *
+!!****f* qs_p_env_methods/p_env_check_i_alloc [1.0] *
 !!
 !!   NAME
 !!     p_env_check_i_alloc
@@ -603,7 +603,12 @@ END SUBROUTINE p_env_did_change
           CALL cp_sm_fm_multiply(qs_env%k(spin)%matrix, &
                p_env%psi0d(spin)%matrix, &
                p_env%S_psi0(spin)%matrix, p_env%n_ao(spin), &
-               para_env)            
+               para_env)
+          IF (PRESENT(Hrho_psi0d)) THEN
+             CALL cp_fm_add(alpha=0.0_wp,matrix_a=Hrho_psi0d(spin)%matrix,&
+                  beta=1.0_wp,matrix_b=p_env%S_psi0(spin)%matrix,&
+                  error=error)
+          END IF
           ! m_epsilon = -1 times S_psi0^T times psi0d
           CALL cp_fm_gemm('T', 'N', &
                p_env%n_mo(spin), p_env%n_mo(spin), p_env%n_ao(spin), &
@@ -637,7 +642,7 @@ END SUBROUTINE p_env_did_change
   END SUBROUTINE p_env_psi0_changed
 !***************************************************************************
 
-!!****f* cp2k/qs_p_utils/p_op_l1 *
+!!****f* cp2k/qs_p_env_methods/p_op_l1 *
 !!
 !!   NAME
 !!     p_op_l1
@@ -710,7 +715,7 @@ END SUBROUTINE p_env_did_change
 
 ! *****************************************************************************
 
-!!****f* cp2k/qs_p_utils/p_op_l1 *
+!!****f* cp2k/qs_p_env_methods/p_op_l1 *
 !!
 !!   NAME
 !!     p_op_l1_spin
@@ -795,7 +800,7 @@ END SUBROUTINE p_env_did_change
 
 ! *****************************************************************************
 
-!!****f* qs_p_utils/p_op_l2 [1.0] *
+!!****f* qs_p_env_methods/p_op_l2 [1.0] *
 !!
 !!   NAME
 !!     p_op_l2
@@ -894,10 +899,10 @@ END SUBROUTINE p_env_did_change
        END DO
        CALL qs_rho_update_rho(rho_struct=p_env%rho1, &
             rho_ao_new=p1_new,qs_env=qs_env,&
-            error=error)
+            rebuild=.TRUE.,error=error)
        CALL kpp1_calc_k_p_p1(kpp1_env=p_env%kpp1_env,qs_env=qs_env,&
             k_p_p1=p_env%kpp1, rho=rho ,rho1=p_env%rho1,&
-            error=error)
+            rebuild=.TRUE.,error=error)
        DO ispin=1,n_spins
           CALL cp_sm_fm_multiply(sparse_matrix=p_env%kpp1(ispin)%matrix,&
                v_in=v(ispin)%matrix,v_out=res(ispin)%matrix,&
@@ -1183,4 +1188,4 @@ END SUBROUTINE p_env_did_change
 
 !***************************************************************************
 
-END MODULE qs_p_utils
+END MODULE qs_p_env_methods

@@ -28,25 +28,31 @@ MODULE qs_tddfpt_utils
   USE cp_log_handling,                 ONLY: cp_failure_level
   USE global_types,                    ONLY: global_environment_type
   USE kinds,                           ONLY: dbl
-  USE parser,                          ONLY: p_error, parser_end, parser_init, get_next, &
-                                             test_next, read_line, stop_parser, search_label
+  USE parser,                          ONLY: get_next,&
+                                             p_error,&
+                                             parser_end,&
+                                             parser_init,&
+                                             read_line,&
+                                             search_label,&
+                                             stop_parser,&
+                                             test_next
   USE qs_blacs,                        ONLY: cp_full_matrix_p_type,&
                                              cp_full_matrix_type,&
                                              replicate_blacs_matrix
   USE qs_environment_types,            ONLY: get_qs_env,&
                                              qs_environment_type
+  USE qs_kpp1_env_methods,             ONLY: kpp1_create
+  USE qs_kpp1_env_types,               ONLY: qs_kpp1_env_type
   USE qs_mo_types,                     ONLY: get_mo_set
-  USE qs_p_build_kernel,               ONLY: kpp1_create
-  USE qs_p_types,                      ONLY: qs_kpp1_env_type,&
-                                             qs_p_env_type
-  USE qs_p_utils,                      ONLY: p_env_create,&
+  USE qs_p_env_methods,                ONLY: p_env_create,&
                                              p_op_l1
-  USE qs_tddfpt_types,                 ONLY: tddfpt_env_allocate,&
+  USE qs_p_env_types,                  ONLY: qs_p_env_type
+  USE qs_tddfpt_types,                 ONLY: tddfpt_control_type,&
+                                             tddfpt_env_allocate,&
                                              tddfpt_env_init,&
-                                             tddfpt_env_type, &
-                                             tddfpt_control_type
-  USE termination,                     ONLY: stop_memory
+                                             tddfpt_env_type
   USE string_utilities,                ONLY: uppercase
+  USE termination,                     ONLY: stop_memory
   IMPLICIT NONE
 
   CHARACTER(LEN=*), PARAMETER :: moduleN="qs_tddfpt_utils"
@@ -77,7 +83,7 @@ CONTAINS
 !!       Type(qs_p_env_type), Pointer:: p_env
 !!       Type(tddfpt_env_type), Intent (OUT):: t_env
 !!       Type(qs_environment_type), Intent (INOUT), Target:: qs_env
-!!       Integer:: n_ev
+!!       Integer, Intent (IN):: n_ev
 !!       Type(global_environment_type), Intent (IN):: glob_env
 !!     End Subroutine tddfpt_init
 !!

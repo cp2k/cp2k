@@ -44,14 +44,16 @@ MODULE qs_tddfpt_module
   USE qs_arpack_tddfpt,                ONLY: op_tddfpt_type,&
                                              setup_op_tddfpt
   USE qs_environment_types,            ONLY: qs_environment_type
-  USE qs_p_types,                      ONLY: qs_p_env_type, p_env_release
+  USE qs_p_env_types,                  ONLY: p_env_release,&
+                                             qs_p_env_type
   USE qs_tddfpt_types,                 ONLY: real_2d_array_p_type,&
+                                             tddfpt_control_type,&
                                              tddfpt_env_allocate,&
                                              tddfpt_env_deallocate,&
-                                             tddfpt_env_type, &
-                                             tddfpt_control_type
+                                             tddfpt_env_type
   USE qs_tddfpt_utils
-  USE termination,                     ONLY: stop_memory, stop_program
+  USE termination,                     ONLY: stop_memory,&
+                                             stop_program
   IMPLICIT NONE
 
   INTEGER, PARAMETER :: DEFAULT_N_EV = 1 ! default number of eigenvalues to calculate

@@ -54,13 +54,13 @@ MODULE qs_ep_types
                                              qs_environment_p_type,&
                                              qs_environment_type,&
                                              set_qs_env
+  USE qs_p_env_types,                  ONLY: p_env_release,&
+                                             p_env_retain,&
+                                             qs_p_env_type
   USE qs_p_sparse_psi,                 ONLY: p_proj_release,&
                                              p_proj_retain,&
                                              qs_p_projection_p_type,&
                                              qs_p_projection_type
-  USE qs_p_types,                      ONLY: p_env_release,&
-                                             p_env_retain,&
-                                             qs_p_env_type
   USE timings,                         ONLY: timeset,&
                                              timestop
   IMPLICIT NONE
