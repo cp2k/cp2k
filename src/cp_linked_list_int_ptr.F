@@ -52,9 +52,6 @@ MODULE cp_linked_list_int_ptr
                                              cp_note_level,&
                                              cp_to_string,&
                                              cp_warning_level
-  USE cp_output_handling,              ONLY: cp_finished_output,&
-                                             cp_unitnr_for_output,&
-                                             cp_would_output
   USE kinds,                           ONLY: dp
 
   IMPLICIT NONE
@@ -66,7 +63,7 @@ MODULE cp_linked_list_int_ptr
 ! type
   PUBLIC :: cp_sll_int_ptr_type, cp_sll_int_ptr_p_type
 ! common methods
-  PUBLIC :: cp_create, cp_dealloc, cp_get, cp_set, cp_next, cp_output
+  PUBLIC :: cp_create, cp_dealloc, cp_get, cp_set, cp_next
 ! special get
   PUBLIC :: cp_get_first_el, cp_get_rest, cp_get_empty, cp_get_length,&
        cp_get_element_at, cp_to_array
@@ -86,7 +83,7 @@ MODULE cp_linked_list_int_ptr
        cp_sll_int_ptr_get_el_at, cp_sll_int_ptr_set_el_at,&
        cp_sll_int_ptr_insert_el, cp_sll_int_ptr_insert_el_at,&
        cp_sll_int_ptr_rm_first_el, cp_sll_int_ptr_rm_el_at,&
-       cp_sll_int_ptr_rm_all_el, cp_sll_int_ptr_output,&
+       cp_sll_int_ptr_rm_all_el, &
        cp_sll_int_ptr_write, cp_sll_int_ptr_to_array,&
        cp_sll_int_ptr_from_array, cp_sll_int_ptr_insert_ordered,&
        cp_sll_int_ptr_insert_ordered2
@@ -162,10 +159,6 @@ MODULE cp_linked_list_int_ptr
 ! remove all the elments
   INTERFACE cp_remove_all
      MODULE PROCEDURE cp_sll_int_ptr_rm_all_el
-  END INTERFACE
-! outputs the list
-  INTERFACE cp_output
-     MODULE PROCEDURE cp_sll_int_ptr_output
   END INTERFACE
 ! writes the list (low-level)
   INTERFACE cp_write
@@ -1134,85 +1127,6 @@ CPSourceFileRef,&
     END DO
     NULLIFY(sll)
   END SUBROUTINE cp_sll_int_ptr_rm_all_el
-!***************************************************************************
-
-! ========= output =========
-
-!!****f* cp_linked_list_int_ptr/cp_sll_int_ptr_output [1.0] *
-!!
-!!   NAME
-!!     cp_sll_int_ptr_output
-!!
-!!   FUNCTION
-!!     outputs the contents of the list as a comma separated parentized list
-!!
-!!   NOTES
-!!     -
-!!
-!!   INPUTS
-!!     logger: the logger that decides where the logging should go
-!!     outputName: the name of the output, for example 'hamiltonian'
-!!     fromWhere: string of the form module:function or file:lineNr
-!!                that says where the error happend
-!!     iter: the iteration number, or some other number that permit to 
-!!           differentiate between different instances of the same object
-!!     sll: the list to output
-!!     comment: an (optional) comment that is written before the list
-!!     local: it the output is local to this task. Defaults to false
-!!     finish: if true (the default) calls cp_finished_output
-!!     error: variable to control error logging, stopping,... 
-!!            see module cp_error_handling 
-!!
-!!   AUTHOR
-!!     Fawzi Mohamed
-!!
-!!   MODIFICATION HISTORY
-!!     04.2002 created [fawzi]
-!!     08.2002 added local/global output [fawzi]
-!!
-!!*** **********************************************************************
-  SUBROUTINE cp_sll_int_ptr_output(logger, outputName,&
-       fromWhere, iter, sll,comment,local, finish, error)
-    TYPE(cp_logger_type), POINTER            :: logger
-    CHARACTER(len=*), INTENT(in)             :: outputName, fromWhere
-    INTEGER, INTENT(in)                      :: iter
-    TYPE(cp_sll_int_ptr_type), POINTER       :: sll
-    CHARACTER(len=*), INTENT(in), OPTIONAL   :: comment
-    LOGICAL, INTENT(in), OPTIONAL            :: local, finish
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
-
-    CHARACTER(len=*), PARAMETER :: routineN = 'cp_sll_int_ptr_output', &
-      routineP = moduleN//':'//routineN
-
-    INTEGER                                  :: iostat, unitNr
-    LOGICAL                                  :: failure, fin, loc
-
-    failure=.FALSE.; loc=.FALSE.; fin=.TRUE.
-  
-    IF (PRESENT(local)) loc=local
-    IF (PRESENT(finish)) fin=finish
-
-    IF (loc .OR. logger%para_env%mepos==logger%para_env%source) THEN
-       IF (cp_would_output(logger, outputName , fromWhere, iter,&
-            local=loc,error=error)) THEN
-
-          unitNr=cp_unitnr_for_output(logger, outputName, fromWhere, iter,&
-               local=loc,error=error)
-          
-          IF (PRESENT(comment)) THEN
-             WRITE(unit=unitNr,fmt='(" ",a,a)',iostat=iostat) '# ',comment
-             CPInvariant(iostat==0,cp_failure_level,routineP,error,failure)
-          END IF
-          CALL cp_sll_int_ptr_write(sll,unit_nr=unitNr,error=error)
-
-          IF (fin) THEN
-             CALL cp_finished_output(logger, outputName, fromWhere, iter,&
-                  unit_nr=unitNr,local=local,error=error)
-          END IF
-       END IF
-    END IF
-  END SUBROUTINE cp_sll_int_ptr_output
 !***************************************************************************
 
 !!****f* cp_linked_list_int_ptr/cp_sll_int_ptr_write [1.0] *
