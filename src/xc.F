@@ -1004,7 +1004,7 @@ END SUBROUTINE xc_prep_2nd_deriv1
     TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
 
     ! locals
-    LOGICAL :: failure, gradient_f, crossterms, do_lsd, do_tddfpt
+    LOGICAL :: failure, gradient_f, crossterms, do_lsd, do_restricted_tddfpt
     CHARACTER(len=*), PARAMETER :: routineN='xc_prep_2nd_deriv',&
          routineP=moduleN//':'//routineN
     INTEGER :: handle, nspins, spin, ii, i,j,k, n(3), n_tot, idir, ipot,ntot,&
@@ -1015,6 +1015,8 @@ END SUBROUTINE xc_prep_2nd_deriv1
     INTEGER, DIMENSION (2,3) :: bo
     TYPE(cp_logger_type), POINTER :: logger
 
+    REAL(KIND=wp) :: rgrid_sum
+    
     ! ------------------------------------------------------------------------
 
     CALL timeset(routineN,"I","",handle)
@@ -1032,10 +1034,9 @@ END SUBROUTINE xc_prep_2nd_deriv1
     IF (.NOT. failure) THEN
 
        nspins     = dft_control%nspins
-!       do_tddfpt  = dft_control%do_tddfpt_calculation .AND. (nspins==1)
-       do_tddfpt = .FALSE.
+       do_restricted_tddfpt  = .NOT.(dft_control%do_tddfpt_calculation .AND. (nspins==1))
        gradient_f = ANY(dft_control%ftags(1,:))
-       do_lsd     = (nspins==2) .OR. do_tddfpt
+       do_lsd     = (nspins==2) .OR. do_restricted_tddfpt
        crossterms = do_lsd .AND. ANY(dft_control%ftags(2,:))
 
        IF (gradient_f) THEN
@@ -1127,7 +1128,7 @@ END SUBROUTINE xc_prep_2nd_deriv1
     END IF
 
     IF (.NOT.failure) THEN
-       pot = 0._wp
+
 ! calculate functionals
        CALL xc_set ( dft_control%density_cut, dft_control%gradient_cut )
 
@@ -1137,9 +1138,14 @@ END SUBROUTINE xc_prep_2nd_deriv1
           ! do lsd but with rhoa=1/2*rho and rhob=1/2*rho !
           ! and drhoa=1/2*drho and drhob=1/2*rhob         !
           !-----------------------------------------------!
-          IF (do_tddfpt) THEN
+          IF (do_restricted_tddfpt) THEN
+
+             rgrid_sum = SUM(rgrid(:,1))
+             CALL dscal (ntot, 0.5_wp, rgrid(:,1), 1)
+             IF (SUM(rgrid(:,1)) - 0.5_wp*rgrid_sum > 1.0e-6*rgrid_sum) THEN
+                CALL stop_program(routineP, "dscal doesnt work")
+             END IF
              IF (gradient_f) THEN
-                CALL dscal (ntot, 0.5_wp, rgrid(:,1), 1)
                 CALL dscal (ntot, 0.5_wp, drgrid(:,1), 1)
                 CALL xc_lsd ( dft_control%functional,&
                      dft_control%ftags, &
@@ -1148,12 +1154,14 @@ END SUBROUTINE xc_prep_2nd_deriv1
                      drho_a=drgrid(:,1), drho_b=drgrid(:,1), &
                      error=error )
              ELSE
-                CALL dscal (ntot, 0.5_wp, rgrid(:,1), 1)
-                CALL xc_lsd ( dft_control%functional,&
-                     dft_control%ftags, &
-                     rgrid(:,1), rgrid(:,1), &
-                     pot(:,1:npot), order, &
-                     error=error )
+                CALL xc_lsd ( dft_control%functional, &
+                              dft_control%ftags, &
+                              rgrid(:,1), rgrid(:,1), &
+                              pot(:,1:npot), order, &
+                              error=error )
+             IF (SUM(rgrid(:,1)) - 0.5_wp*rgrid_sum > 1.0e-6*rgrid_sum) THEN
+                CALL stop_program(routineP, "xc_lsd changes rgrid")
+             END IF                
              END IF
              
           ELSE
@@ -1176,32 +1184,7 @@ END SUBROUTINE xc_prep_2nd_deriv1
                error=error)
        END IF
 
-!TC       SELECT CASE ( nspins )
-!TC       CASE (1)
-!TC          IF (gradient_f) THEN
-!TC             CALL xc_lda ( functional=dft_control%functional,&
-!TC                  ftags=dft_control%ftags, &
-!TC                  rho=rgrid(:,1), drho=drgrid(:,1), pot=pot, &
-!TC                  order=order, error=error )
-!TC          ELSE
-!TC             CALL xc_lda ( functional=dft_control%functional,&
-!TC                  ftags=dft_control%ftags, &
-!TC                  rho=rgrid(:,1), pot=pot, &
-!TC                  order=order, error=error )
-!TC          END IF
-!TC       CASE (2)
-!TC          CALL cp_unimplemented_error(fromWhere=routineP,&
-!TC               message='lsd not yet implemented '//&
-!TC               CPSourceFileRef,&
-!TC               error=error)
-!TC       CASE default
-!TC          CALL cp_unimplemented_error(fromWhere=routineP,&
-!TC               message='ONLY 1 or 2 spin supported '//&
-!TC               CPSourceFileRef,&
-!TC               error=error)
-!TC       END SELECT
-
-       CALL xc_create_2nd_deriv_info(lsd=do_lsd, gradient=gradient_f,&
+       CALL xc_create_2nd_deriv_info( lsd=do_lsd, gradient=gradient_f,&
             crossterms=crossterms, spin_pot=spin_pot, grad_pot=grad_pot,&
             ndiag_term=ndiag_term, error=error)
 
@@ -1507,7 +1490,7 @@ END SUBROUTINE xc_calc_2nd_deriv1
 
     ! locals
     LOGICAL                                      :: failure, gradient_f, &
-                                                    crossterms, do_tddfpt, do_lsd
+                                                    crossterms, do_restricted_tddfpt, do_lsd
     REAL(kind=wp)                                :: diag_factor
     INTEGER                                      :: handle, &
                                                     nspins, spin, &
@@ -1542,10 +1525,9 @@ END SUBROUTINE xc_calc_2nd_deriv1
     IF (.NOT. failure) THEN
 
        nspins     = dft_control%nspins
-!       do_tddfpt  = dft_control%do_tddfpt_calculation .AND. (nspins==1)
-       do_tddfpt = .FALSE.
+       do_restricted_tddfpt  = .NOT.(dft_control%do_tddfpt_calculation .AND. (nspins==1))
        gradient_f = ANY(dft_control%ftags(1,:))
-       do_lsd     = (nspins==2) .OR. do_tddfpt
+       do_lsd     = (nspins==2) .OR. do_restricted_tddfpt
        crossterms = do_lsd .AND. ANY(dft_control%ftags(2,:))
        IF (dft_control%tddfpt_control%restricted_excitations_type=="SINGLET") THEN
           diag_factor = 1.0_wp
@@ -1782,8 +1764,9 @@ END SUBROUTINE xc_calc_2nd_deriv1
              ! singlet : K(a,a,r) + K(a,b,r)                !
              ! triplet : K(a,a,r) - K(a,b,r)                !
              !----------------------------------------------!
-             IF (do_tddfpt) THEN
-                
+             IF (do_restricted_tddfpt) THEN
+
+                ! case a,a
                 IF (spin_pot(1,ipot)==1 .AND. spin_pot(2,ipot)==1) THEN
                    !$omp parallel do private(k,j,i,ii)
                    DO k = bounds(1,3), bounds(2,3)
@@ -1798,6 +1781,7 @@ END SUBROUTINE xc_calc_2nd_deriv1
                       END DO
                    END DO
 
+                ! case a,b   
                 ELSE IF (spin_pot(1,ipot)==1 .AND. spin_pot(2,ipot)==2) THEN
                    !$omp parallel do private(k,j,i,ii)
                    DO k = bounds(1,3), bounds(2,3)
@@ -1871,7 +1855,7 @@ END SUBROUTINE xc_calc_2nd_deriv1
                    END DO
                 END IF ! (ndiag_term)
 
-             END IF ! (do_tddfpt)
+             END IF ! (do_restricted_tddfpt)
           END IF
        END DO
     END IF
