@@ -133,14 +133,12 @@ CONTAINS
                                          classical_energy,&
                                          classical_energy_new
     REAL(KIND=dp), ALLOCATABLE, &
-      DIMENSION(:, :)                        :: particle_positions
+      DIMENSION(:, :)                        :: particle_positions,r_old
     TYPE(mc_averages_type), POINTER          :: averages
     TYPE(force_env_type), POINTER            :: force_env
     TYPE(cp_subsystem_p_type), &
       DIMENSION(:), POINTER                  :: oldsys
     TYPE(cell_type), POINTER                 :: cell
-    REAL(KIND=dp), DIMENSION(1:3, 1:mc_env%&
-      mc_par%nunits_tot)                     :: r_old
     TYPE(mc_moves_type), POINTER             :: move_updates, moves
     TYPE(mc_simulation_parameters_type), &
       POINTER                                :: mc_par
@@ -161,6 +159,9 @@ CONTAINS
       ALLOCATE (particle_positions(3,mc_par%nunits_tot),STAT=istat)
       IF (istat /= 0) CALL stop_memory(routineN,module_name,__LINE__,&
                        "particle_positions",3*mc_par%nunits_tot*dp_size)
+      ALLOCATE (r_old(3,mc_par%nunits_tot),STAT=istat)
+      IF (istat /= 0) CALL stop_memory(routineN,module_name,__LINE__,&
+                       "r_old",3*mc_par%nunits_tot*dp_size)
 
 ! deal with the different levels of print statements
       PM0 = .FALSE.
@@ -205,7 +206,8 @@ CONTAINS
       ENDIF
 
 ! find the energy of the initial configuration
-      CALL force_env_calculate_energy(force_env)
+!!!!!!!!!!
+!      CALL force_env_calculate_energy(force_env)
 
       CALL force_env_get(force_env,subsys=oldsys,cell=cell,&
          potential_energy=old_energy,error=error)
@@ -217,7 +219,8 @@ CONTAINS
 
          CALL mc_classical_energy(force_env,moves%classical_energy,&
                                mc_par,1,mc_par%nchain,6.211D0/angstrom)
-!         old_energy=moves%classical_energy
+!!!!!!!!!!!
+         old_energy=moves%classical_energy
          classical_energy=moves%classical_energy
 
 ! open the files for writing coordinates, average structural data, and
@@ -273,10 +276,17 @@ CONTAINS
 
          IF (rand .LT. mc_par % pmvolume) THEN
 
+! some memory stuff
+#if defined(__HMD)
+      IF (mc_par%ionode) CALL _dump_allocated(%VAL(0))
+#endif
             CALL mc_volume_move( mc_par,force_env,moves,move_updates,&
                         nnstep,old_energy,globenv,&
                         energy_check,r_old,&
                         error=error)
+#if defined(__HMD)
+      IF (mc_par%ionode) CALL _dump_allocated(%VAL(0))
+#endif
 
         ELSE
             particle_positions(:,:)=0.0d0
@@ -358,6 +368,11 @@ CONTAINS
 !                        crd,'XMOL','POS','POSITIONS')
 
 ! compute some averages
+            averages%molecules=averages%molecules*&
+                     REAL(nnstep-mc_par%nstart-1,dbl)&
+                     /REAL(nnstep-mc_par%nstart,dbl)+mc_par%nchain/&
+                     REAL(nnstep-mc_par%nstart,dbl)
+
             averages%ave_energy=averages%ave_energy*&
                      REAL(nnstep-mc_par%nstart-1,dbl)&
                      /REAL(nnstep-mc_par%nstart,dbl)+old_energy/&
@@ -396,8 +411,8 @@ CONTAINS
 ! update the move displacements, if necessary
             IF (MOD(nnstep-mc_par%nstart,mc_par%iuptrans) == 0) THEN
                CALL mc_move_update(mc_par,move_updates,"trans",nnstep)
-            ELSEIF (MOD(nnstep-mc_par%nstart,mc_par%iupvolume) == 0 &
-                  .AND. mc_par%pmvolume .NE. 0.0D0 ) THEN
+            ENDIF
+            IF (MOD(nnstep-mc_par%nstart,mc_par%iupvolume) == 0  ) THEN
                CALL mc_move_update(mc_par,move_updates,"volume",nnstep)
             ENDIF
 
@@ -411,7 +426,8 @@ CONTAINS
 
 
 ! calculate the final energy
-      CALL force_env_calculate_energy(force_env)
+!!!!!!!!
+!      CALL force_env_calculate_energy(force_env)
 
 ! get the energy
       CALL force_env_get(force_env,potential_energy=final_energy,&
@@ -423,8 +439,9 @@ CONTAINS
          CALL write_particle_coordinates(particles_old%els,cell,&
                         crd,'XMOL','POS','FINAL')
                         
-!         CALL mc_classical_energy(force_env,final_energy,&
-!                               mc_par,1,mc_par%nchain,6.211D0/angstrom)
+!!!!!!!!!!!
+         CALL mc_classical_energy(force_env,final_energy,&
+                               mc_par,1,mc_par%nchain,6.211D0/angstrom)
 
          WRITE(ene,*) 'Final Energy:                        ',&
                   final_energy,energy_check
@@ -447,10 +464,12 @@ CONTAINS
 ! back to parallel
       ENDIF
 
+      should_retain=.FALSE.
       IF (mc_par%ionode)THEN
          IF( moves%volume%successes .GT. 0) &
                should_retain=.TRUE.
       ENDIF
+      CALL mp_bcast(should_retain,mc_par%source,mc_par%group)
 
       IF (should_retain) THEN
          CALL force_env_retain(force_env)
@@ -462,7 +481,10 @@ CONTAINS
 
       DEALLOCATE(particle_positions,STAT=istat)
       IF (istat /= 0) CALL stop_memory(routineN,module_name,__LINE__,&
-                       "particle_positions deallocate")
+                       "particle_positions")
+      DEALLOCATE(r_old,STAT=istat)
+      IF (istat /= 0) CALL stop_memory(routineN,module_name,__LINE__,&
+                       "r_old")
 
 ! end the timing
       CALL timestop(0.0d0,handle)
@@ -626,6 +648,7 @@ CONTAINS
 
       ENDDO
 
+!!!!!!!!!!!!!
 !      CALL force_env_get(force_env(1)%force_env,subsys=oldsys_1,&
 !         cell=cell_1,&
 !         potential_energy=old_energy(1),error=error)
@@ -743,6 +766,7 @@ CONTAINS
 
          IF (rand .LT. mc_par(1)%mc_par % pmvolume) THEN
 !     change the volume of the system
+
             CALL mc_ge_volume_move ( mc_par,force_env, moves,&
                move_updates,nnstep,old_energy,globenv,energy_check,&
                r_old,error)
@@ -891,8 +915,7 @@ CONTAINS
                   mc_par(1)%mc_par%nstart-1,dbl)/&
                   REAL(nnstep-mc_par(1)%mc_par%nstart,dbl)+&
                   old_energy(ibox)/REAL(nnstep,dbl)
-               IF(mc_par(ibox)%mc_par%pmswap .GT. 0.0D0)&
-                  averages(ibox)%averages%molecules=&
+               averages(ibox)%averages%molecules=&
                   averages(ibox)%averages%molecules*REAL(nnstep-&
                   mc_par(1)%mc_par%nstart-1,dbl)/&
                   REAL(nnstep-mc_par(1)%mc_par%nstart,dbl)+&
@@ -929,6 +952,7 @@ CONTAINS
                WRITE(crd(1),*) ' 0 '
                WRITE(crd(1),*) ' POSITIONS BOX 1 '
             ELSE
+!!!!!!!!!!!
 !               CALL write_particle_coordinates(&
 !                  particles_old_1%els,cell_1,com_crd,'XMOL',&
 !                  'POS','POSITIONS BOX 1')
@@ -987,7 +1011,8 @@ CONTAINS
                   move_updates(1)%moves,"trans",nnstep)
                CALL mc_move_update(mc_par(2)%mc_par,&
                   move_updates(2)%moves,"trans",nnstep)
-            ELSEIF (MOD(nnstep-mc_par(1)%mc_par%nstart,&
+            ENDIF
+            IF (MOD(nnstep-mc_par(1)%mc_par%nstart,&
                   mc_par(1)%mc_par%iupvolume) == 0 .AND. &
                   mc_par(1)%mc_par%pmvolume .NE. 0.0D0 ) THEN
                CALL mc_move_update(mc_par(1)%mc_par,&
@@ -1085,7 +1110,8 @@ CONTAINS
                moves(1)%moves%volume%successes .GT. 0) &
                should_retain=.TRUE.
       ENDIF
-
+      CALL mp_bcast(should_retain,mc_par(1)%mc_par%source,&
+            mc_par(1)%mc_par%group)
       IF (should_retain) THEN
          CALL force_env_retain(force_env(1)%force_env)
          CALL force_env_retain(force_env(2)%force_env)
@@ -1186,3 +1212,4 @@ CONTAINS
 END MODULE mc_ensembles
 
 !**********************************************************************
+
