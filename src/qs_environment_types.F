@@ -529,17 +529,17 @@ CONTAINS
     END IF
     IF (PRESENT(mpools)) THEN
        CALL mpools_retain(mpools,error=error)
-       CALL mpools_release(mpools, error=error)
+       CALL mpools_release(qs_env%mpools, error=error)
        qs_env%mpools => mpools
     END IF
     IF (PRESENT(local_rows)) THEN
       CALL cp_ll_retain(local_rows,error=error)
-      CALL cp_ll_release(local_rows,error=error)
+      CALL cp_ll_release(qs_env%local_rows,error=error)
       qs_env%local_rows => local_rows
     END IF
     IF (PRESENT(local_cols)) THEN
       CALL cp_ll_retain(local_cols,error=error)
-      CALL cp_ll_release(local_cols,error=error)
+      CALL cp_ll_release(qs_env%local_cols,error=error)
       qs_env%local_cols => local_cols
     END IF
 
