@@ -37,6 +37,8 @@ MODULE xc_derivatives
   USE xc_functionals,                  ONLY: xc_lda,&
                                              xc_lsd,&
                                              xc_set
+  USE xc_hcth,                         ONLY: hcth_lda_eval,&
+                                             hcth_lda_info
   USE xc_lyp_new,                      ONLY: lyp_lda_eval,&
                                              lyp_lda_info,&
                                              lyp_lsd_eval,&
@@ -285,7 +287,30 @@ SUBROUTINE xc_functional_get_info(functional,lsd,reference,shortform,&
         CALL lyp_lsd_info(reference=reference,shortform=shortform,&
              needs=needs, max_deriv=max_deriv, error=error)
      CASE("PADE")
-           CALL pade(reference, shortform, lsd=lsd, needs=needs, error=error)
+        CALL pade(reference, shortform, lsd=lsd, needs=needs, error=error)
+     CASE("HCTH93_LDA")
+        CALL hcth_lda_info(93,reference, shortform, needs=needs, error=error)
+     CASE("HCTH120_LDA")
+        CALL hcth_lda_info(120,reference, shortform, needs=needs, error=error)
+     CASE("HCTH147_LDA")
+        CALL hcth_lda_info(147,reference, shortform, needs=needs, error=error)
+     CASE("HCTH407_LDA")
+        CALL hcth_lda_info(407,reference, shortform, needs=needs, error=error)
+     CASE("HCTH93")
+        CPPrecondition(.NOT.lsd,cp_warning_level,routineP,error,failure)
+        CALL hcth_lda_info(93,reference, shortform, needs=needs, error=error)
+     CASE("HCTH120_CPMD")
+        CPPrecondition(.NOT.lsd,cp_warning_level,routineP,error,failure)
+        CALL hcth_lda_info(-120,reference, shortform, needs=needs, error=error)
+     CASE("HCTH120")
+        CPPrecondition(.NOT.lsd,cp_warning_level,routineP,error,failure)
+        CALL hcth_lda_info(120,reference, shortform, needs=needs, error=error)
+     CASE("HCTH147")
+        CPPrecondition(.NOT.lsd,cp_warning_level,routineP,error,failure)
+        CALL hcth_lda_info(147,reference, shortform, needs=needs, error=error)
+     CASE("HCTH407")
+        CPPrecondition(.NOT.lsd,cp_warning_level,routineP,error,failure)
+        CALL hcth_lda_info(407,reference, shortform, needs=needs, error=error)
      CASE("NONE")
         IF (PRESENT(reference)) reference=""
         IF (PRESENT(shortform)) shortform=""
@@ -405,6 +430,38 @@ SUBROUTINE xc_functional_eval(functional, lsd, rho_set, deriv_set, &
         ELSE
            CALL pade_lda_pw_eval(deriv_set, rho_set, deriv_order, error=error)
         END IF
+     CASE("HCTH93_LDA")
+        CALL hcth_lda_eval(iparset=93,rho_set=rho_set,deriv_set=deriv_set,&
+                grad_deriv=deriv_order,error=error)
+     CASE("HCTH120_LDA")
+        CALL hcth_lda_eval(iparset=120,rho_set=rho_set,deriv_set=deriv_set,&
+                grad_deriv=deriv_order,error=error)
+     CASE("HCTH147_LDA")
+        CALL hcth_lda_eval(iparset=147,rho_set=rho_set,deriv_set=deriv_set,&
+                grad_deriv=deriv_order,error=error)
+     CASE("HCTH407_LDA")
+        CALL hcth_lda_eval(iparset=407,rho_set=rho_set,deriv_set=deriv_set,&
+                grad_deriv=deriv_order,error=error)
+     CASE("HCTH93")
+        CPPrecondition(.NOT.lsd,cp_warning_level,routineP,error,failure)
+        CALL hcth_lda_eval(iparset=93,rho_set=rho_set,deriv_set=deriv_set,&
+                grad_deriv=deriv_order,error=error)
+     CASE("HCTH120_CPMD")
+        CPPrecondition(.NOT.lsd,cp_warning_level,routineP,error,failure)
+        CALL hcth_lda_eval(iparset=-120,rho_set=rho_set,deriv_set=deriv_set,&
+                grad_deriv=deriv_order,error=error)
+     CASE("HCTH120")
+        CPPrecondition(.NOT.lsd,cp_warning_level,routineP,error,failure)
+        CALL hcth_lda_eval(iparset=120,rho_set=rho_set,deriv_set=deriv_set,&
+                grad_deriv=deriv_order,error=error)
+     CASE("HCTH147")
+        CPPrecondition(.NOT.lsd,cp_warning_level,routineP,error,failure)
+        CALL hcth_lda_eval(iparset=147,rho_set=rho_set,deriv_set=deriv_set,&
+                grad_deriv=deriv_order,error=error)
+     CASE("HCTH407")
+        CPPrecondition(.NOT.lsd,cp_warning_level,routineP,error,failure)
+        CALL hcth_lda_eval(iparset=407,rho_set=rho_set,deriv_set=deriv_set,&
+                grad_deriv=deriv_order,error=error)
      CASE("NONE")
         !
      CASE default

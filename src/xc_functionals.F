@@ -627,6 +627,26 @@ CONTAINS
         CASE ( "NONE" )
            functional ( 1 ) = "NONE"
            functional ( 2 ) = "NONE"
+        CASE ( "HCTH93")
+           functional ( 1 ) = "HCTH93"
+           gradient_functionals ( 1 ) = GRADIENT_FUNCTIONAL
+           functional ( 2 ) = "NONE"
+        CASE ( "HCTH120_CPMD")
+           gradient_functionals ( 1 ) = GRADIENT_FUNCTIONAL
+           functional ( 1 ) = "HCTH120_CPMD"
+           functional ( 2 ) = "NONE"
+        CASE ( "HCTH120")
+           gradient_functionals ( 1 ) = GRADIENT_FUNCTIONAL
+           functional ( 1 ) = "HCTH120"
+           functional ( 2 ) = "NONE"
+        CASE ( "HCTH147")
+           gradient_functionals ( 1 ) = GRADIENT_FUNCTIONAL
+           functional ( 1 ) = "HCTH147"
+           functional ( 2 ) = "NONE"
+        CASE ( "HCTH407")
+           gradient_functionals ( 1 ) = GRADIENT_FUNCTIONAL
+           functional ( 1 ) = "HCTH407"
+           functional ( 2 ) = "NONE"
         CASE ( "XALPHA", "SLATER" )
            functional ( 1 ) = "SLATER"
            functional ( 2 ) = "NONE"
@@ -930,7 +950,7 @@ CONTAINS
 !!       Integer, Dimension(:,:), Pointer:: spin_pot
 !!       Logical, Dimension(:,:), Pointer:: grad_pot
 !!       Logical, Dimension(:), Pointer:: ndiag_term
-!!       Type(cp_error_type), Optional, Intent (INOUT):: error
+!!       Type(cp_error_type), Intent (INOUT), Optional:: error
 !!     End Subroutine xc_create_2nd_deriv_info
 !!
 !!   FUNCTION
