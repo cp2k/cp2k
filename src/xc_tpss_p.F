@@ -277,10 +277,10 @@ END SUBROUTINE tpss_lsd_info
                                                 v2xa, v2xab, v2xb, vttca, &
                                                 vttcb, vttxa, vttxb
 
-    !$omp parallel do default(none) shared(rhoa,rhob,norm_drhoa,&
+    !$omp parallel do default(none) shared(npoints,rhoa,rhob,norm_drhoa,&
     !$omp         norm_drhob,drhoa_drhob, tau_a,tau_b,&
     !$omp         e_0, e_rhoa, e_rhob, e_ndrhoa, e_ndrhob, e_drhoa_drhob,&
-    !$omp         e_tau_a, e_tau_b)
+    !$omp         e_tau_a, e_tau_b,epsilon_rho)&
     !$omp     private(ii,sx,v1xa,v2xa,v1xb,v2xb,vttxa,vttxb,sc,v1ca,v2ca, &
     !$omp         v1cb,v2cb,v2xab,v2cab,vttca,vttcb)
     DO ii=1,npoints

@@ -216,7 +216,7 @@ MODULE qs_rho0_ggrid
 !$OMP default(none) &
 !$OMP private(j,iat,iatom,ra,ithread) &
 !$OMP shared(npme,tasks,atom_list,particle_set,cell,pab,rs_grid) &
-!$OMP shared(cube_info,l_info,eps_rho_rspace,zet0_s)
+!$OMP shared(cube_info,l_info,eps_rho_rspace,zet0_s,rho0,Qlm_c,nch_ik,l0_ikind)
       DO j=1,npme
 
         iat =  tasks(1,j)

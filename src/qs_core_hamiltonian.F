@@ -711,7 +711,7 @@ CONTAINS
 !$OMP private(rab2,dab,sgfa,jset,ncob,sgfb,f,katom,rbc,rbc2,dbc,atom_c,jco,ico,rprjc) &
 !$OMP private(ibc,sbc_ppnl_neighbor_list,nnode_c,sbc_ppnl_neighbor_node,knode) &
 !$OMP private(cell_c,h_block,p_block,w_block,j,force_a,force_b) &
-!$OMP private(sab_orb_neighbor_list_local,sint,tint,vppl,vppnl,ai_work,,oceh,oces) &
+!$OMP private(sab_orb_neighbor_list_local,sint,tint,vppl,vppnl,ai_work,oceh,oces) &
 !$OMP private(icell,jcell,kcell,idx,n,lppnl,nppnl,cell_c_max,cell_c_min,sac_ppnl_neighbor) &
 !$OMP shared(sbc_ppnl,ikind,jkind,force,return_t_derivatives,return_s_derivatives) &
 !$OMP shared(lb_min,rpgfb,zetb,sphi_b,sphi_a,nsgfa,nsgfb,set_radius_b,ldai,maxlppl) &
@@ -719,7 +719,7 @@ CONTAINS
 !$OMP shared(build_kinetic_energy_matrix,s,maxder,nder,la_min,rpgfa,zeta) &
 !$OMP shared(set_radius_a,nco,ncoset,npgfa,nseta,ncoa_sum,vppnlt,sac_ppnl,ppnl_present) &
 !$OMP shared(vpplt,sac_ppl,nkind,ppl_present,atom_of_kind,sab_orb_neighbor_list) &
-!$OMP shared(nlist,calculate_forces,pabt,workt,sdabt,sabt,habt,la_max,sintt,tintt,oceht,ocest)
+!$OMP shared(nlist,calculate_forces,pabt,workt,sdabt,sabt,habt,la_max,sintt,tintt,oceht,ocest,qs_env)
         ithread = 0
 !$      ithread = omp_get_thread_num()
         hab => habt(:,:,ithread)
@@ -1221,7 +1221,7 @@ CONTAINS
 !                 *** Contraction step (overlap matrix and its derivatives) ***
 
                   DO i=1,SIZE(s)
-                    IF ((i > 1).AND.(.NOT.return_s_derivatives)) EXIT
+                    IF ((i > 1).AND.(.NOT.return_s_derivatives)) CYCLE
                     first_col = (i - 1)*SIZE(sab,1) + 1
                     CALL dgemm("N","N",ncoa,nsgfb(jset),ncob,&
                                1.0_dp,sab(1,first_col),SIZE(sab,1),&
@@ -1312,7 +1312,7 @@ CONTAINS
 
                   IF (build_kinetic_energy_matrix) THEN
                     DO i=1,SIZE(t)
-                      IF ((i > 1).AND.(.NOT.return_t_derivatives)) EXIT
+                      IF ((i > 1).AND.(.NOT.return_t_derivatives)) CYCLE
                       first_col = (i - 1)*SIZE(hab,1) + 1
                       CALL dgemm("N","N",ncoa,nsgfb(jset),ncob,&
                                  1.0_dp,hab(1,first_col),SIZE(hab,1),&

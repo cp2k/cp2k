@@ -249,8 +249,8 @@ END SUBROUTINE tpss_lda_info
     REAL(dbl)                                :: sc, sx, v1c, v1x, v2c, v2x, &
                                                 vttc, vttx
 
-    !$omp parallel do default(none) shared(rho,norm_drho,&
-    !$omp          tau,e_0, e_rho, e_ndrho, e_tau) &
+    !$omp parallel do default(none) shared(npoints,rho,norm_drho,&
+    !$omp          tau,e_0, e_rho, e_ndrho, e_tau,epsilon_rho) &
     !$omp      private(ii,sx,v1x,v2x,vttx,sc,v1c,v2c,vttc)
     DO ii=1,npoints
        IF (rho(ii)>epsilon_rho) THEN

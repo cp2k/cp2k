@@ -2327,7 +2327,7 @@ END SUBROUTINE xc_vxc_pw_create_debug
              IF (ASSOCIATED(rho)) THEN
                 !$omp parallel do default(none) shared(bo,e_0,pot,rho,&
                 !$omp             rho_cutoff,rho_smooth_cutoff,rho_smooth_cutoff_2,&
-                !$omp             rho_smooth_cutoff_range_2)&
+                !$omp             rho_smooth_cutoff_range_2,my_e_0_scale_factor)&
                 !$omp       private(k,j,i,my_rho,my_rho_n,my_rho_n2)
                 DO k = bo(1,3), bo(2,3)
                    DO j = bo(1,2), bo(2,2)
@@ -2360,7 +2360,7 @@ END SUBROUTINE xc_vxc_pw_create_debug
              ELSE
                 !$omp parallel do default(none) shared(bo,pot,e_0,rhoa,rhob,&
                 !$omp             rho_cutoff,rho_smooth_cutoff,rho_smooth_cutoff_2,&
-                !$omp             rho_smooth_cutoff_range_2)&
+                !$omp             rho_smooth_cutoff_range_2,my_e_0_scale_factor)&
                 !$omp       private(k,j,i,my_rho,my_rho_n,my_rho_n2)
                 DO k = bo(1,3), bo(2,3)
                    DO j = bo(1,2), bo(2,2)

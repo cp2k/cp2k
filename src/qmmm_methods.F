@@ -398,9 +398,9 @@ CONTAINS
        ft3 =0.0_dbl
        qt=mm_charges(Imm)*dvol
        !$omp parallel do default (none) private( i, j, k, Imm, IndMM,jj,my_k,my_j,&
-       !$omp                            r, r0, qt, rNexp, rNexp1, r0Nexp, r0Nexp1,&
+       !$omp                            r, r0, qt, rNexp, rNexp0, rNexp1, r0Nexp, r0Nexp1,&
        !$omp                   dr1,dr2,dr3, xs1,xs2,xs3, rv1,rv2,rv3, rt1,rt2,rt3,&
-       !$omp                   ft1,ft2,ft3,dvol) shared(Rho)        
+       !$omp                   ft1,ft2,ft3,dvol,dpot,fac) shared(Rho,bo,n1,n2,n3)
        LoopOnGrid: Do k = bo(1,3), bo(2,3)
           my_k=(k+n3/2)
           xs3 = real(my_k,dbl)*dr3
