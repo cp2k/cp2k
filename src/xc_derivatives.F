@@ -332,13 +332,16 @@ END SUBROUTINE xc_functional_get_info
 !!     11.2003 created [fawzi]
 !!
 !!*** **********************************************************************
-SUBROUTINE xc_functional_eval(functional, lsd, rho_set,deriv_set,&
-     deriv_order,error)
-  CHARACTER(len=*),INTENT(in) :: functional
-  LOGICAL, INTENT(in) :: lsd
+SUBROUTINE xc_functional_eval(functional, lsd, rho_set, deriv_set, &
+                              deriv_order, density_cut, gradient_cut, error)
+
+  CHARACTER(len=*), INTENT(in)   :: functional
+  LOGICAL, INTENT(in)            :: lsd
   TYPE(xc_rho_set_type), POINTER :: rho_set
   TYPE(xc_derivative_set_type), POINTER :: deriv_set
-  INTEGER, INTENT(in) :: deriv_order
+  INTEGER, INTENT(IN)            :: deriv_order
+  REAL(KIND=dp), INTENT(IN)      :: density_cut
+  REAL(KIND=dp), INTENT(IN)      :: gradient_cut
   TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
   
   LOGICAL :: failure
@@ -364,6 +367,7 @@ SUBROUTINE xc_functional_eval(functional, lsd, rho_set,deriv_set,&
         CALL xb88_lsd_eval(rho_set=rho_set,deriv_set=deriv_set,&
                 grad_deriv=deriv_order,error=error)
      CASE("PADE")
+        CALL pade(density_cut)
         IF (lsd) THEN
            CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,routineP,&
                 message="not yet implemented", error=error)

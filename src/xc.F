@@ -43,7 +43,7 @@ MODULE xc
                                              cp_note_level,&
                                              cp_to_string,&
                                              cp_warning_level
-  USE cp_control_types,                       ONLY: dft_control_type,&
+  USE cp_control_types,                ONLY: dft_control_type,&
                                              xc_control_type,&
                                              xc_deriv_pw,&
                                              xc_deriv_spline2,&
@@ -1047,9 +1047,14 @@ CONTAINS
 
        ! evaluate the functionals
        DO i=1,SIZE(xc_control%functionals)
-          CALL xc_functional_eval(xc_control%functionals(i),lsd=lsd,&
-               rho_set=rho_set,deriv_set=deriv_set,&
-               deriv_order=1,error=error)
+          CALL xc_functional_eval(xc_control%functionals(i), &
+                                  lsd=lsd,&
+                                  rho_set=rho_set, &
+                                  deriv_set=deriv_set,&
+                                  deriv_order=1, &
+                                  density_cut=xc_control%density_cut, &
+                                  gradient_cut=xc_control%gradient_cut, &
+                                  error=error)
        END DO
     END IF
 
