@@ -321,7 +321,9 @@ CONTAINS
     DO istep=1,simpar%nsteps
       CALL velocity_verlet(md_env)
       itimes = itimes + 1
-!      CALL temperature_control(simpar,force_env,error)
+      do ibead=1,nbeads
+         CALL temperature_control(simpar,force_env_p(ibead)%force_env,error)
+      end do
       time_iter_stop=m_walltime()
       used_time = time_iter_stop - time_iter_start
       time_iter_start=time_iter_stop
