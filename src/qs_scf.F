@@ -126,6 +126,8 @@ MODULE qs_scf
                                              init_preconditioner,&
                                              make_preconditioner,&
                                              preconditioner_type
+  USE pw_env_types,                    ONLY: pw_env_get,&
+                                             pw_env_type
   USE qs_arpack,                       ONLY: arpack_diag_sy
   USE qs_arpack_full,                  ONLY: op_symv_type,&
                                              setup_op_symv
@@ -196,6 +198,9 @@ MODULE qs_scf
                                              write_sparse_matrix
   USE qs_parser,                       ONLY: close_file,&
                                              open_file
+  USE qs_rho_types,                    ONLY: qs_rho_did_change,&
+                                             qs_rho_get,&
+                                             qs_rho_type
   USE realspace_grid_types,            ONLY: rs_pw_to_cube
   USE scf_control_types,               ONLY: scf_control_type
   USE simulation_cell,                 ONLY: cell_type,&
@@ -292,16 +297,18 @@ CONTAINS
     TYPE(cp_full_matrix_type), POINTER :: min_mo,full_mo
     REAL(kind=wp)  ::pao_f,pao_last_f,pao_actual_grad
     
-    TYPE(real_matrix_p_type), POINTER :: ks, p, p_old 
+    TYPE(real_matrix_p_type), POINTER :: ks, p
     TYPE(real_matrix_p_type) :: p_new
     TYPE(real_matrix_p_type), DIMENSION(:), POINTER :: ks_rmpv, p_rmpv,&
-         p_old_rmpv, kinetic
+         kinetic
+    TYPE(qs_rho_type), POINTER :: rho
     TYPE(real_matrix_type), POINTER :: pfull
     TYPE(qs_energy_type), POINTER :: energy
     LOGICAL :: energy_only, rebuild, ot_initialized
     TYPE(cp_full_matrix_type), POINTER :: unoccupied_orbs
     TYPE(scf_control_type), POINTER   :: scf_control
     TYPE(cp_logger_type), POINTER :: logger
+    TYPE(pw_env_type), POINTER :: pw_env
 
     CHARACTER(LEN=6)   :: extension
     CHARACTER(LEN=200) :: file_name
@@ -313,7 +320,7 @@ CONTAINS
 !   ---------------------------------------------------------------------------
 
     NULLIFY(mo_eigenvectors,pao_obj_f,pao_optimizer,pao_env,min_density_m,&
-         min_mo,full_mo, ks, p, p_old, ks_rmpv, p_rmpv, p_old_rmpv, &
+         min_mo,full_mo, ks, p, ks_rmpv, p_rmpv, &
          pfull, energy, unoccupied_orbs,scf_control,kinetic,h,s)
     t1 = m_cputime()
     ot_initialized=.FALSE.
@@ -327,6 +334,7 @@ CONTAINS
          kinetic=kinetic, &
          particle_set=particle_set,&
          pao_env=pao_env,&
+         pw_env=pw_env,&
          scf_control=scf_control)
     
 !   *** Quick return, if no SCF iteration is requested ***
@@ -381,10 +389,9 @@ CONTAINS
        END IF
     END IF
 
-    CALL get_qs_env(qs_env,p=p_rmpv, k=ks_rmpv, p_old=p_old_rmpv )
+    CALL get_qs_env(qs_env,p=p_rmpv, k=ks_rmpv,rho=rho)
     ks => ks_rmpv(1)
     p => p_rmpv(1)
-    p_old => p_old_rmpv(1)
 
     NULLIFY (p_new%matrix)
     CALL replicate_matrix(p%matrix, p_new%matrix,"NEW DENSITY MATRIX")
@@ -653,8 +660,8 @@ CONTAINS
     END SELECT
 
 !   *** Save last density matrix in redundant form for the force calculation ***
-
-    CALL calculate_density_matrix(mo_set,p_old%matrix,globenv)
+    CALL calculate_density_matrix(mo_set,rho%rho_ao(1)%matrix,globenv)
+    CALL qs_rho_did_change(rho,rho_ao_valid=.TRUE.,error=error)
 
 !   *** Write last wavefunction ***
 
@@ -664,7 +671,7 @@ CONTAINS
     IF (globenv%print%e_density_cube) THEN
       ! write the electron density
       IF (globenv%ionode) OPEN(UNIT=21,FILE="E_DENSITY.cube")
-      CALL rs_pw_to_cube(ks_env%rho_elec_rspace(1)%pw,21,globenv%ionode,"ELECTRON DENSITY")
+      CALL rs_pw_to_cube(rho%rho_r(1)%pw,21,globenv%ionode,"ELECTRON DENSITY")
       IF (globenv%ionode) CLOSE(21)
     ENDIF
 
@@ -687,16 +694,17 @@ CONTAINS
 
       DO ivector=MAX(1,homo-globenv%print%nhomos+1),homo
          ! overwrites rho_rspace with a wavefunction !
-         CALL calculate_wavefunction(mo_eigenvectors,ivector,ks_env%rho_elec_rspace(1), &
-                                     ks_env%rho_gspace(1),ks_env%mgrid_rspace,ks_env%mgrid_gspace,&
-                                     ks_env%gridlevel_info,ks_env%cube_info, &
-                                     ks_env%l_info,&
+         CALL calculate_wavefunction(mo_eigenvectors,ivector,rho%rho_r(1), &
+                                     ks_env%rho_gspace(1),ks_env%mgrid_rspace,&
+                                     ks_env%mgrid_gspace,&
+                                     pw_env%gridlevel_info,pw_env%cube_info, &
+                                     pw_env%l_info,&
                                      qs_env,globenv)
 
          WRITE(filename,'(a13,I5.5,a5)') "WAVEFUNCTION_",ivector,".cube"
          IF (globenv%ionode) OPEN(UNIT=21,FILE=filename)
          WRITE(filename,*) "WAVEFUNCTION ",ivector," i.e. HOMO - ",ivector-homo
-         CALL rs_pw_to_cube(ks_env%rho_elec_rspace(1)%pw,21,globenv%ionode,filename)
+         CALL rs_pw_to_cube(rho%rho_r(1)%pw,21,globenv%ionode,filename)
          IF (globenv%ionode) CLOSE(21)
       ENDDO
     ENDIF
@@ -734,16 +742,16 @@ CONTAINS
 
       DO ivector=1,nlumos
          ! overwrites rho_rspace with a wavefunction !
-         CALL calculate_wavefunction(unoccupied_orbs,ivector,ks_env%rho_elec_rspace(1), &
+         CALL calculate_wavefunction(unoccupied_orbs,ivector,rho%rho_r(1), &
                                      ks_env%rho_gspace(1),ks_env%mgrid_rspace,ks_env%mgrid_gspace,&
-                                     ks_env%gridlevel_info,ks_env%cube_info, &
-                                     ks_env%l_info,&
+                                     pw_env%gridlevel_info,pw_env%cube_info, &
+                                     pw_env%l_info,&
                                      qs_env,globenv)
 
          WRITE(filename,'(a13,I5.5,a5)') "WAVEFUNCTION_",homo+ivector,".cube"
          IF (globenv%ionode) OPEN(UNIT=21,FILE=filename)
          WRITE(filename,*) "WAVEFUNCTION ",homo+ivector," i.e. LUMO + ",ivector-1
-         CALL rs_pw_to_cube(ks_env%rho_elec_rspace(1)%pw,21,globenv%ionode,filename)
+         CALL rs_pw_to_cube(rho%rho_r(1)%pw,21,globenv%ionode,filename)
          IF (globenv%ionode) CLOSE(21)
 
       ENDDO
@@ -836,8 +844,7 @@ CONTAINS
     REAL(kind=wp):: ecore_self, ecore_overlap
 
     INTEGER, DIMENSION(0:globenv%num_pe-1) :: nblock_pe,nelement_pe
-    TYPE(real_matrix_p_type), DIMENSION(:), POINTER :: k_rmpv, p_rmpv, &
-         p_old_rmpv
+    TYPE(real_matrix_p_type), DIMENSION(:), POINTER :: k_rmpv, p_rmpv
     TYPE(scf_control_type), POINTER :: scf_control
     TYPE(atomic_kind_type), DIMENSION(:), POINTER :: atomic_kind_set
     TYPE(cp_fm_pool_type), POINTER :: ao_mo_fm_pool
@@ -848,7 +855,7 @@ CONTAINS
 
     CALL timeset("init_scf_run","I","",handle)
 
-    NULLIFY(k_rmpv, p_rmpv, p_old_rmpv, scf_control, atomic_kind_set,&
+    NULLIFY(k_rmpv, p_rmpv, scf_control, atomic_kind_set,&
          ao_mo_fm_pool,h,s)
     CALL get_qs_env(qs_env=qs_env,&
                     scf_control=scf_control,&
@@ -856,7 +863,6 @@ CONTAINS
                     c=c,&
                     k=k_rmpv,&
                     p=p_rmpv,&
-                    p_old=p_old_rmpv,&
                     ao_mo_fm_pool=ao_mo_fm_pool,&
                     h=h,s=s)
 
@@ -949,11 +955,9 @@ CONTAINS
 
     CALL allocate_matrix_set(k_rmpv,1)
     CALL allocate_matrix_set(p_rmpv,1)
-    CALL allocate_matrix_set(p_old_rmpv,1)
     CALL set_qs_env(qs_env=qs_env,&
                     k=k_rmpv,&
-                    p=p_rmpv,&
-                    p_old=p_old_rmpv)
+                    p=p_rmpv)
 
     NULLIFY (k_rmpv(1)%matrix)
     CALL replicate_matrix_structure(s(1)%matrix,k_rmpv(1)%matrix,&
@@ -961,10 +965,6 @@ CONTAINS
     NULLIFY (p_rmpv(1)%matrix)
     CALL replicate_matrix_structure(s(1)%matrix,p_rmpv(1)%matrix,&
                                     "DENSITY MATRIX")
-
-    NULLIFY (p_old_rmpv(1)%matrix)
-    CALL replicate_matrix_structure(h(1)%matrix,p_old_rmpv(1)%matrix,&
-                                   "OLD DENSITY MATRIX (REDUNDANT)")
 
     CALL copy_sparse_to_blacs_matrix(h(1)%matrix,scf_work1)
 
