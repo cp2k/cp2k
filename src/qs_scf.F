@@ -1172,7 +1172,8 @@ CONTAINS
 
     ELSEIF (use_arpack) THEN ! not really recommended, since rather slow, except for huge basis sets
 
-       ncv = nmo + 64
+!TC       ncv = nmo + 64
+       ncv = nmo*2
        CALL cp_fm_cholesky_reduce(ks,ortho)
        
        CALL setup_op_symv(arpack_op, ks, work, .FALSE.)
