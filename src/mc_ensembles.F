@@ -2,7 +2,9 @@
 !   CP2K: A general program to perform molecular dynamics simulations
 !   Copyright (C) 2001 - 2003  CP2K developers group
 !-----------------------------------------------------------------------------!
+
 #include "cp_prep_globals.h"
+
 !!****** cp2k/mc_ensembles [1.0] *
 !!
 !!   NAME
@@ -24,13 +26,11 @@
 MODULE mc_ensembles
   USE checkpoint_handler,              ONLY: write_checkpoint_information
   USE cp_error_handling,               ONLY: cp_a_l,&
-                                             cp_assert,&
                                              cp_error_get_logger,&
                                              cp_error_type
   USE cp_log_handling,                 ONLY: cp_failure_level,&
                                              cp_logger_get_default_unit_nr,&
-                                             cp_logger_type,&
-                                             cp_to_string
+                                             cp_logger_type
   USE cp_para_types,                   ONLY: cp_blacs_env_type
   USE cp_subsystem_types,              ONLY: cp_subsys_get,&
                                              cp_subsys_release,&
@@ -64,11 +64,9 @@ MODULE mc_ensembles
   USE message_passing,                 ONLY: mp_bcast
   USE particle_list_types,             ONLY: particle_list_type
   USE particle_types,                  ONLY: write_particle_coordinates
-  USE qs_main,                         ONLY: quickstep_create_force_env
   USE qs_parser,                       ONLY: close_file,&
                                              open_file
   USE simulation_cell,                 ONLY: cell_type
-  USE termination,                     ONLY: stop_memory
   USE timings,                         ONLY: timeset,&
                                              timestop
 
