@@ -117,7 +117,7 @@ CONTAINS
     !-----------------------------------------!
     ! allocate memory for t_env%x and t_env%y !
     !-----------------------------------------!
-    ALLOCATE(t_env%x(n_ev), t_env%y(n_ev), t_env%eigenvalues(n_ev), stat=stat)
+    ALLOCATE(t_env%x(n_ev), t_env%y(n_ev), stat=stat)
     IF (stat/=0) CALL stop_memory(routineP, "t_env%x/y", n_ev)
     DO ev=1, n_ev
        ALLOCATE(t_env%x(ev)%spins(n_spins), t_env%y(ev)%spins(n_spins), stat=stat)
