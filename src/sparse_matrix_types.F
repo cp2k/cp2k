@@ -929,7 +929,7 @@ END SUBROUTINE cp_sm_scale_and_add
 !   *** Traverse all block nodes of the sparse matrix ***
 !   no simple parallel do because we write both the iblock_row and iblock_col
 
-!$OMP PARALLEL PRIVATE(ithread,nthread,iblock_row,block_node,iblock_col,sparse_block,owner,sbnrow,sbncol), REDUCTION(+:flops)
+!$OMP PARALLEL PRIVATE(ithread,nthread,iblock_row,block_node,iblock_col,sparse_block,owner,sbnrow,sbncol), REDUCTION(+:flops),SHARED(ncol,nblock)
     ithread=0
     nthread=1
 !$  nthread=omp_get_num_threads()
@@ -1045,7 +1045,7 @@ END SUBROUTINE cp_sm_scale_and_add
 
 !   *** Traverse all block nodes of the sparse matrix ***
 ! take into account the triangular schape of the matrix
-!$OMP PARALLEL PRIVATE(ithread,nthread,iblock_row,block_node,iblock_col,sparse_block,icol,irow,sbnrow,sbncol) REDUCTION(+:flops)
+!$OMP PARALLEL PRIVATE(ithread,nthread,iblock_row,block_node,iblock_col,sparse_block,icol,irow,sbnrow,sbncol) REDUCTION(+:flops), SHARED(nblock,ncol,prefactor)
     ithread=0
     nthread=1
 !$  nthread=omp_get_num_threads()
