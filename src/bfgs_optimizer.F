@@ -261,7 +261,7 @@ CONTAINS
          REWIND(hesunit)
          IF(istat /= 0)THEN
            WRITE(UNIT=output_unit,FMT="(/,T2,A)")&
-           "**  Error while reading HESSIEN **"
+           "**  Error while reading HESSIAN **"
            conv = .TRUE.
          ELSE
            WRITE(UNIT=output_unit,FMT="(/,T2,A)")&
