@@ -215,7 +215,7 @@ SUBROUTINE fist_force_control ( fist_env, virial, globenv, box_change, debug )
   CALL force_nonbond ( fist_nonbond_env, particle_set, cell, &
                        pot_nonbond, f_nonbond, pv_nonbond  )
   IF (PM2) THEN
-     WRITE(iw,'(A)')" FIST:: NONBOND LENNARD-JONES FORCES ..."
+     WRITE(iw,'(A)')" FIST:: NONBOND LENNARD-JONES + R-SPACE ELECTROSTATIC FORCES ..."
      WRITE(iw,'(3f15.9)')f_nonbond
   END IF
 
@@ -270,7 +270,7 @@ SUBROUTINE fist_force_control ( fist_env, virial, globenv, box_change, debug )
 
   IF (PM2) THEN
      IF (ALLOCATED(fg_coulomb)) THEN
-        WRITE(iw,'(A)')" FIST:: NONBONDED ELECTROSTATIC FORCES ..."
+        WRITE(iw,'(A)')" FIST:: NONBONDED ELECTROSTATIC FORCES IN G-SPACE..."
         WRITE(iw,'(3f15.9)')((fg_coulomb(j,i) ,j=1,3),i = 1, SIZE(particle_set))
      END IF
   END IF
