@@ -2139,7 +2139,7 @@ CONTAINS
              IF (globenv%print%cubes.AND. .NOT. globenv % print % molecular_states ) THEN
                 ! obviously we need a smarter scheme to select them. 
                 ! i.e. a center - molecule distance would be cool
-                DO ivector=1,1   
+                DO ivector=1,mo_localized%matrix_struct%ncol_global   
                    CALL calculate_wavefunction(mo_localized,ivector,wf_r, &
                         wf_g,mgrid_rspace,&
                         mgrid_gspace,&

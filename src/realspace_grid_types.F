@@ -971,6 +971,8 @@ SUBROUTINE rs_grid_to_cube ( rs, iunit, ionode, title )
    LOGICAL, INTENT(IN) :: ionode
    CHARACTER(*), OPTIONAL :: title
    INTEGER :: I1,I2,I3
+   INTEGER :: S1,S2,S3
+   INTEGER :: L1,L2,L3,U1,U2,U3,N1,N2,N3
 !-----------------------------------------------------------------------------!
    ! not working for distributed grids !
    IF (rs%ngpts.ne.rs%ngpts_local) CALL stop_program("rs_grid_to_cube","NYI")
@@ -982,14 +984,25 @@ SUBROUTINE rs_grid_to_cube ( rs, iunit, ionode, title )
      ELSE
         WRITE(iunit,*) "No Title"
      ENDIF
-     WRITE(iunit,'(I5,3f12.6)') 0,0.0_dbl,0.0_dbl,0.0_dbl
+     ! put 0.0, 0.0 ,0.0 (approx) in the center of the cube
+     S1=rs%npts(1)/2
+     S2=rs%npts(2)/2
+     S3=rs%npts(3)/2
+     WRITE(iunit,'(I5,3f12.6)') 0,0.0_dbl-S1*rs%dr(1),0.0_dbl-S2*rs%dr(2),0.0_dbl-S3*rs%dr(3)
      WRITE(iunit,'(I5,3f12.6)') rs%npts(1),rs%dr(1),0.0_dbl,0.0_dbl
      WRITE(iunit,'(I5,3f12.6)') rs%npts(2),0.0_dbl,rs%dr(2),0.0_dbl
      WRITE(iunit,'(I5,3f12.6)') rs%npts(3),0.0_dbl,0.0_dbl,rs%dr(3)
      ! write(iunit,'(I5,4f12.6)') 1, 0.0,0.0,0.0,0.0
-     DO I1=LBOUND(rs%r,1),UBOUND(rs%r,1)
-       DO I2=LBOUND(rs%r,2),UBOUND(rs%r,2)
-        WRITE(iunit,'(6E13.5)') (rs%r(I1,I2,I3),I3=LBOUND(rs%r,3),UBOUND(rs%r,3))
+     L1=LBOUND(rs%r,1)
+     L2=LBOUND(rs%r,2)
+     L3=LBOUND(rs%r,3)
+     U1=UBOUND(rs%r,1)
+     U2=UBOUND(rs%r,2)
+     U3=UBOUND(rs%r,3)
+     DO I1=L1,U1
+       DO I2=L2,U2
+        WRITE(iunit,'(6E13.5)') (rs%r(MODULO(I1-S1-L1,U1-L1+1)+L1,MODULO(I2-S2-L2,U2-L2+1)+L2, &
+                                      MODULO(I3-S3-L3,U3-L3+1)+L3),I3=L3,U3)
        ENDDO
      ENDDO
    ENDIF
