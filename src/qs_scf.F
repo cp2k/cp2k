@@ -351,17 +351,17 @@ CONTAINS
                                                   ncol_global=k)
 
        ! decide settings
-       qs_ot_env%settings%ot_method="CG"
+       qs_ot_env%settings%ot_method="SD"
        qs_ot_env%settings%ot_linesearch=.true.
-       qs_ot_env%settings%ot_diis=.false.
-       qs_ot_env%settings%ds_min=0.10_wp
+       qs_ot_env%settings%ot_diis=.true.
+       qs_ot_env%settings%ds_min=0.15_wp
        if (qs_ot_env%settings%ot_method.eq."QN") then
-          qs_ot_env%settings%lbfgs_m=5
+          qs_ot_env%settings%lbfgs_m=10
        else
           qs_ot_env%settings%lbfgs_m=0
        endif
        if (qs_ot_env%settings%ot_diis) then
-          qs_ot_env%settings%diis_m=5 
+          qs_ot_env%settings%diis_m=10 
        else
           qs_ot_env%settings%diis_m=0
        endif
@@ -1101,7 +1101,9 @@ CONTAINS
 
     CALL timeset("calculate_first_density_matrix","I","",handle)
 
-    IF (use_ot .and. .not. density_guess == "RANDOM") THEN
+    IF (use_ot .and. .not.  &
+           (density_guess == "RANDOM" .or.  &
+              (density_guess == "RESTART" .and. level_shift == 0.0_wp))) THEN
        call stop_program("calculate_first_density_matrix","NYI")
     ENDIF
 
