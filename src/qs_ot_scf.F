@@ -38,6 +38,11 @@ MODULE qs_ot_scf
                                       qs_ot_destroy,qs_ot_init,qs_ot_get_p, &
                                       qs_ot_get_orbitals
   USE qs_ot_minimizer,               ONLY: ot_mini
+
+  USE qs_parser,         ONLY: close_file,&
+       open_file, finish_parser, read_object, start_parser,&
+       test_object
+
   IMPLICIT NONE
 
 
@@ -56,28 +61,84 @@ SUBROUTINE ot_scf_read_input(qs_ot_env,globenv)
     TYPE(global_environment_type), INTENT(IN)       :: globenv
     TYPE(qs_ot_type)                                :: qs_ot_env
 
-! locals 
-INTEGER :: handle
-! executable
-CALL timeset("ot_scf_read_input","I","",handle)
-
-    ! decide settings
-    qs_ot_env%settings%ot_method="CG"
-    qs_ot_env%settings%ot_linesearch=.TRUE.
-    qs_ot_env%settings%ot_diis=.FALSE.
+    ! locals 
+    INTEGER :: handle
+    CHARACTER(LEN=40) :: keyword
+    CHARACTER(LEN=40) :: value
+    LOGICAL :: found
+    ! executable
+    CALL timeset("ot_scf_read_input","I","",handle)
+    ! decide default settings
+    qs_ot_env%settings%ot_method="DIIS"
+    qs_ot_env%settings%preconditioner_type="FULL_KINETIC"
+    qs_ot_env%settings%line_search_method="2PNT"
     qs_ot_env%settings%ds_min=0.15_wp
-    IF (qs_ot_env%settings%ot_method.EQ."QN") THEN
-       qs_ot_env%settings%lbfgs_m=10
-    ELSE
-       qs_ot_env%settings%lbfgs_m=0
-    ENDIF
-    IF (qs_ot_env%settings%ot_diis) THEN
-       qs_ot_env%settings%diis_m=10
-    ELSE
-       qs_ot_env%settings%diis_m=0
-    ENDIF
+    qs_ot_env%settings%diis_m=7 
 
-CALL timestop(0.0_wp,handle)
+    CALL start_parser(file_name=globenv%input_file_name,&
+                      globenv=globenv,&
+                      start_section_label="OTSCF",section_found=found)
+    if (found) then 
+    DO WHILE (test_object(newline=.TRUE.) /= "EOS")
+          CALL read_object(keyword,lower_to_upper=.TRUE.,newline=.TRUE.)
+          SELECT CASE (TRIM(keyword))
+          CASE ("MINIMIZER")
+               CALL read_object(value,lower_to_upper=.TRUE.)
+               SELECT CASE (TRIM(value))
+               CASE ("SD")
+                    qs_ot_env%settings%ot_method="SD"
+               CASE ("CG")
+                    qs_ot_env%settings%ot_method="CG"
+               CASE ("DIIS")
+                    qs_ot_env%settings%ot_method="DIIS"
+               CASE DEFAULT
+                    IF (globenv%ionode) write(globenv%scr,*) value
+                    CALL stop_program("READ OTSCF MINIMIZER","VALUE UNKNOWN")
+               END SELECT
+          CASE ("LINESEARCH")
+               CALL read_object(value,lower_to_upper=.TRUE.)
+               SELECT CASE (TRIM(value))
+               CASE ("NONE")
+                    qs_ot_env%settings%line_search_method="NONE"
+               CASE ("2PNT")
+                    qs_ot_env%settings%line_search_method="2PNT"
+               CASE ("3PNT")
+                    qs_ot_env%settings%line_search_method="3PNT"
+               CASE DEFAULT
+                    IF (globenv%ionode) write(globenv%scr,*) value
+                    CALL stop_program("READ OTSCF LINESEARCH","VALUE UNKNOWN")
+               END SELECT
+          CASE ("PRECONDITIONER")
+               CALL read_object(value,lower_to_upper=.TRUE.)
+               SELECT CASE (TRIM(value)) ! somehow in order of efficiency
+               CASE ("FULL_SINGLE")
+                    qs_ot_env%settings%preconditioner_type="FULL_SINGLE"
+               CASE ("FULL_KINETIC")
+                    qs_ot_env%settings%preconditioner_type="FULL_KINETIC"
+               CASE ("FULL_S_INVERSE")
+                    qs_ot_env%settings%preconditioner_type="FULL_S_INVERSE"
+               CASE ("SPARSE_DIAG")
+                    qs_ot_env%settings%preconditioner_type="SPARSE_DIAG"
+               CASE ("NONE")
+                    qs_ot_env%settings%preconditioner_type="NONE"
+               CASE DEFAULT ! others are too experimental to be here
+                    IF (globenv%ionode) write(globenv%scr,*) value
+                    CALL stop_program("READ OTSCF PRECONDITIONER","VALUE UNKNOWN")
+               END SELECT
+          CASE ("STEPSIZE")
+               CALL read_object(qs_ot_env%settings%ds_min)
+          CASE ("DIIS_VECTORS")
+               CALL read_object(qs_ot_env%settings%diis_m)
+          CASE DEFAULT
+               IF (globenv%ionode) write(globenv%scr,*) keyword
+               CALL stop_program("READ OTSCF","KEYWORD UNKNOWN")
+          END SELECT 
+    ENDDO
+    endif
+
+    CALL finish_parser()
+
+    CALL timestop(0.0_wp,handle)
 
 END SUBROUTINE
 !

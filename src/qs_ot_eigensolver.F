@@ -115,19 +115,9 @@ CONTAINS
 
     ! decide settings
     qs_ot_env%settings%ot_method="CG"
-    qs_ot_env%settings%ot_linesearch=.true.
-    qs_ot_env%settings%ot_diis=.false.
+    qs_ot_env%settings%line_search_method="2PNT"
     qs_ot_env%settings%ds_min=0.10_wp
-    if (qs_ot_env%settings%ot_method.eq."QN") then
-       qs_ot_env%settings%lbfgs_m=10
-    else
-       qs_ot_env%settings%lbfgs_m=0
-    endif
-    if (qs_ot_env%settings%ot_diis) then
-       qs_ot_env%settings%diis_m=10 
-    else
-       qs_ot_env%settings%diis_m=0
-    endif
+    qs_ot_env%settings%diis_m=7 
     qs_ot_env%settings%n=n 
     qs_ot_env%settings%k=k 
     if (ortho) then
