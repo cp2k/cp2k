@@ -11,6 +11,7 @@ OBJECTS_GENERIC =\
  ao_types.o\
  atom_module.o\
  atomic_kinds.o\
+ atom_parameters_type.o\
  atoms.o\
  atoms_input.o\
  atom_calculations.o\
@@ -73,6 +74,8 @@ OBJECTS_GENERIC =\
  force_control.o\
  force_fields.o\
  functionals.o\
+ functionals_tests.o\
+ functionals_utilities.o\
  function_amoeba.o\
  gamma.o\
  global_types.o\
@@ -126,6 +129,7 @@ OBJECTS_GENERIC =\
  orbital_symbols.o\
  orbital_transformation_matrices.o\
  output_utilities.o\
+ pade_functional.o\
  pair_potential.o\
  parallel.o\
  parallel_include.o\
@@ -153,6 +157,8 @@ OBJECTS_GENERIC =\
  pw_types.o\
  pw_xc.o\
  pws.o\
+ qs_error_handling.o\
+ qs_log_handling.o\
  qs_main.o\
  qs_scf.o\
  radial_grids.o\
@@ -191,4 +197,5 @@ OBJECTS_GENERIC =\
  util.o\
  wave.o\
  wf_types.o\
+ xalpha_functional.o\
  xc.o

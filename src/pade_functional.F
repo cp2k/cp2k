@@ -1,0 +1,804 @@
+!-----------------------------------------------------------------------------!
+!   CP2K: A general program to perform molecular dynamics simulations         !
+!   Copyright (C) 2002  CP2K developers group                                 !
+!-----------------------------------------------------------------------------!
+!!****** cp2k/pade_functional [1.0] *
+!!
+!!   NAME
+!!     pade_functional
+!!
+!!   FUNCTION
+!!     Calculate the LDA functional in the Pade approximation
+!!     Literature: S. Goedecker, M. Teter and J. Hutter,
+!!                 Phys. Rev. B 54, 1703 (1996)
+!!
+!!   AUTHOR
+!!     JGH (15.02.2002)
+!!
+!!   MODIFICATION HISTORY
+!!     - none
+!!
+!!   SOURCE
+!******************************************************************************
+
+MODULE pade_functional
+
+! *****************************************************************************
+
+  USE kinds, ONLY: dbl
+  USE functionals_utilities, ONLY: set_util, calc_rs, calc_fx
+  USE termination, ONLY: stop_memory, stop_program
+
+  IMPLICIT NONE
+
+  PRIVATE
+
+! *** Global parameters ***
+
+  REAL(dbl), PARAMETER :: f13 = 1._dbl/3._dbl, &
+                          f23 = 2._dbl*f13, &
+                          f43 = 4._dbl*f13
+
+  REAL(dbl), PARAMETER :: a0 = 0.4581652932831429E+0_dbl,&
+                          a1 = 0.2217058676663745E+1_dbl,&
+                          a2 = 0.7405551735357053E+0_dbl,&
+                          a3 = 0.1968227878617998E-1_dbl,&
+                          b1 = 1.0000000000000000E+0_dbl,&
+                          b2 = 0.4504130959426697E+1_dbl,&
+                          b3 = 0.1110667363742916E+1_dbl,&
+                          b4 = 0.2359291751427506E-1_dbl
+
+  REAL(dbl), PARAMETER :: da0 = 0.119086804055547E+0_dbl,&
+                          da1 = 0.6157402568883345E+0_dbl,&
+                          da2 = 0.1574201515892867E+0_dbl,&
+                          da3 = 0.3532336663397157E-2_dbl,&
+                          db1 = 0.0000000000000000E+0_dbl,&
+                          db2 = 0.2673612973836267E+0_dbl,&
+                          db3 = 0.2052004607777787E+0_dbl,&
+                          db4 = 0.4200005045691381E-2_dbl
+
+  PUBLIC :: pade
+
+  REAL(dbl) :: eps_rho
+
+! *****************************************************************************
+
+  INTERFACE pade
+    MODULE PROCEDURE pade_lda, pade_lsd, pade_init, pade_info
+  END INTERFACE
+
+! *****************************************************************************
+
+CONTAINS
+
+! *****************************************************************************
+
+  SUBROUTINE pade_init ( cutoff )
+
+    REAL(dbl), INTENT(IN) :: cutoff
+
+    eps_rho = cutoff
+    CALL set_util ( cutoff )
+
+  END SUBROUTINE pade_init
+
+! *****************************************************************************
+
+  SUBROUTINE pade_info ( reference, shortform )
+
+    CHARACTER (LEN=*), INTENT(OUT), OPTIONAL :: reference
+    CHARACTER (LEN=*), INTENT(OUT), OPTIONAL :: shortform
+
+    IF ( PRESENT ( reference ) ) THEN
+       reference = "S. Goedecker, M. Teter and J. Hutter," &
+                   //" Phys. Rev. B 54, 1703 (1996)"
+    END IF
+    IF ( PRESENT ( shortform ) ) THEN
+       shortform = "S. Goedecker et al., PRB 54, 1703 (1996)"
+    END IF
+
+  END SUBROUTINE pade_info
+
+! *****************************************************************************
+
+  SUBROUTINE pade_lda ( rho, pot, order )
+
+!   ---------------------------------------------------------------------------
+
+    REAL(dbl), DIMENSION(:), INTENT(IN)  :: rho
+    REAL(dbl), DIMENSION(:,:), INTENT(OUT) :: pot
+    INTEGER, INTENT(IN), OPTIONAL :: order
+
+!   *** Local variables ***
+
+    LOGICAL   :: calc(0:4), allcalc
+    REAL(dbl), DIMENSION(:), ALLOCATABLE :: rs
+    INTEGER :: n, error, m, mp, mt
+
+!   ---------------------------------------------------------------------------
+
+    calc = .FALSE.
+    mp = SIZE ( pot, 2 )
+    allcalc = .TRUE.
+    IF ( PRESENT ( order ) ) THEN
+      IF ( order >= 0 ) THEN
+        calc(0:order) = .TRUE.
+        mt = order+1
+      ELSE
+        calc(-order) = .TRUE.
+        allcalc = .FALSE.
+        mt = 1
+      END IF
+    ELSE
+       calc(0) = .TRUE.
+       calc(1) = .TRUE.
+       mt = 2
+    END IF
+    IF ( mt > mp ) CALL stop_program ( "pade_lda", &
+       "Size of POT array too small" )
+
+    n = SIZE ( rho )
+    ALLOCATE ( rs(n), STAT=error )
+    IF ( error /= 0 ) CALL stop_memory ( "pade_lda", "rs", n )
+    
+    m = 1
+    CALL calc_rs ( rho, rs )
+    IF ( calc(0) .AND. calc(1) ) THEN
+       CALL pade_lda_01 ( rho, rs, pot(:,:) )
+    ELSE IF ( calc(0) ) THEN
+       CALL pade_lda_0 ( rho, rs, pot(:,1) )
+    ELSE IF ( calc(1) ) THEN
+       IF ( allcalc ) m = 2
+       CALL pade_lda_1 ( rho, rs, pot(:,m) )
+    END IF
+    IF ( calc(2) ) THEN
+       IF ( allcalc ) m = 3
+       CALL pade_lda_2 ( rho, rs, pot(:,m) )
+    END IF
+    IF ( calc(3) ) THEN
+       IF ( allcalc ) m = 4
+       CALL pade_lda_3 ( rho, rs, pot(:,m) )
+    END IF
+
+    DEALLOCATE ( rs, STAT=error )
+    IF ( error /= 0 ) CALL stop_memory ( "pade_lda", "rs" )
+
+  END SUBROUTINE pade_lda
+
+! *****************************************************************************
+
+  SUBROUTINE pade_lsd ( rhoa, rhob, pot, order )
+
+!   ---------------------------------------------------------------------------
+
+    REAL(dbl), DIMENSION(:), INTENT(IN)  :: rhoa, rhob
+    REAL(dbl), DIMENSION(:,:), INTENT(OUT) :: pot
+    INTEGER, INTENT(IN), OPTIONAL :: order
+
+!   *** Local variables ***
+
+    LOGICAL   :: calc(0:4), allcalc
+    REAL(dbl), DIMENSION(:), ALLOCATABLE :: rs
+    REAL(dbl), DIMENSION(:,:), ALLOCATABLE :: fx
+    INTEGER :: n, error, m, mp, mt
+
+!   ---------------------------------------------------------------------------
+
+    calc = .FALSE.
+    mp = SIZE ( pot, 2 )
+    allcalc = .TRUE.
+    IF ( PRESENT ( order ) ) THEN
+      IF ( order >= 0 ) THEN
+        calc(0:order) = .TRUE.
+        SELECT CASE (order)
+        CASE (0)
+          mt = 1
+        CASE (1)
+          mt = 3
+        CASE (2)
+          mt = 6
+        CASE (3)
+          mt = 10
+        CASE DEFAULT
+          mt = mp+100
+        END SELECT
+      ELSE
+        calc(-order) = .TRUE.
+        allcalc = .FALSE.
+        mt = -order+1
+      END IF
+    ELSE
+       calc(0) = .TRUE.
+       calc(1) = .TRUE.
+       mt = 3
+    END IF
+    IF ( mt > mp ) CALL stop_program ( "pade_lsd", &
+       "Size of POT array too small" )
+
+    n = SIZE ( rhoa )
+    ALLOCATE ( rs(n), STAT=error )
+    IF ( error /= 0 ) CALL stop_memory ( "pade_lsd", "rs", n )
+    m = ABS ( order ) + 1
+    ALLOCATE ( fx(n,m), STAT=error )
+    IF ( error /= 0 ) CALL stop_memory ( "pade_lsd", "fx", n*m )
+
+    fx(1:n,1) = rhoa(1:n) + rhob(1:n)
+    CALL calc_rs ( fx(:,1), rs )
+    CALL calc_fx ( rhoa, rhob, fx, m )
+
+    m = 1
+    IF ( calc(0) .AND. calc(1) ) THEN
+       CALL pade_lsd_01 ( rhoa, rhob, rs, fx, pot(:,1:3) )
+    ELSE IF ( calc(0) ) THEN
+       CALL pade_lsd_0 ( rhoa, rhob, rs, fx, pot(:,1) )
+    ELSE IF ( calc(1) ) THEN
+       IF ( allcalc ) m = 2
+       CALL pade_lsd_1 ( rhoa, rhob, rs, fx, pot(:,m:m+1) )
+    END IF
+    IF ( calc(2) ) THEN
+       IF ( allcalc ) m = 4
+       CALL pade_lsd_2 ( rhoa, rhob, rs, fx, pot(:,m:m+2) )
+    END IF
+    IF ( calc(3) ) THEN
+       IF ( allcalc ) m = 7
+       CALL pade_lsd_3 ( rhoa, rhob, rs, fx, pot(:,m:m+3) )
+    END IF
+
+    DEALLOCATE ( fx, STAT=error )
+    IF ( error /= 0 ) CALL stop_memory ( "pade_lsd", "fx" )
+    DEALLOCATE ( rs, STAT=error )
+    IF ( error /= 0 ) CALL stop_memory ( "pade_lsd", "rs" )
+
+  END SUBROUTINE pade_lsd
+
+! *****************************************************************************
+
+  SUBROUTINE pade_lda_0 ( rho, rs, pot )
+
+    REAL(dbl), DIMENSION(:), INTENT(IN)  :: rho, rs
+    REAL(dbl), DIMENSION(:), INTENT(OUT)  :: pot
+
+    INTEGER :: ip, npoints
+    REAL(dbl) :: p, q, epade
+!   ---------------------------------------------------------------------------
+
+    npoints = SIZE ( rho )
+    IF ( npoints > SIZE(pot) ) &
+       CALL stop_program ( "pade_lda_0", "Inconsistent array sizes" )
+
+    DO ip = 1, npoints
+
+      IF ( rho(ip) < eps_rho ) THEN
+
+         pot(ip) = 0.0_dbl
+
+      ELSE
+
+         p = a0 + (a1 + (a2 + a3*rs(ip))*rs(ip))*rs(ip)
+         q = (b1 + (b2 + (b3 + b4*rs(ip))*rs(ip))*rs(ip))*rs(ip)
+         epade = -p/q
+         pot(ip) = epade*rho(ip)
+
+      END IF
+
+    END DO
+
+  END SUBROUTINE pade_lda_0
+
+! *****************************************************************************
+
+  SUBROUTINE pade_lda_1 ( rho, rs, pot )
+
+    REAL(dbl), DIMENSION(:), INTENT(IN)  :: rho, rs
+    REAL(dbl), DIMENSION(:), INTENT(OUT)  :: pot
+
+    INTEGER :: ip, npoints
+    REAL(dbl) :: p, q, dp, dq, epade, depade
+!   ---------------------------------------------------------------------------
+
+    npoints = SIZE ( rho )
+    IF ( npoints > SIZE(pot) ) &
+       CALL stop_program ( "pade_lda_1", "Inconsistent array sizes" )
+
+    DO ip = 1, npoints
+
+      IF ( rho(ip) < eps_rho ) THEN
+
+         pot(ip) = 0.0_dbl
+
+      ELSE
+
+         p = a0 + (a1 + (a2 + a3*rs(ip))*rs(ip))*rs(ip)
+         q = (b1 + (b2 + (b3 + b4*rs(ip))*rs(ip))*rs(ip))*rs(ip)
+         epade = -p/q
+
+         dp = a1 + (2.0_dbl*a2 + 3.0_dbl*a3*rs(ip))*rs(ip)
+         dq = b1 + (2.0_dbl*b2 + (3.0_dbl*b3 + 4.0_dbl*b4*rs(ip))*rs(ip))*rs(ip)
+         depade = f13 * rs(ip) * (dp*q - p*dq) / (q*q)
+
+         pot(ip) = epade + depade
+
+      END IF
+
+    END DO
+
+  END SUBROUTINE pade_lda_1
+
+! *****************************************************************************
+
+  SUBROUTINE pade_lda_01 ( rho, rs, pot )
+
+    REAL(dbl), DIMENSION(:), INTENT(IN)  :: rho, rs
+    REAL(dbl), DIMENSION(:,:), INTENT(OUT)  :: pot
+
+    INTEGER :: ip, npoints
+    REAL(dbl) :: p, q, dp, dq, epade, depade
+!   ---------------------------------------------------------------------------
+
+    npoints = SIZE ( rho )
+    IF ( npoints > SIZE(pot,1) ) &
+       CALL stop_program ( "pade_lda_01", "Inconsistent array sizes" )
+
+    DO ip = 1, npoints
+
+      IF ( rho(ip) < eps_rho ) THEN
+
+         pot(ip,1) = 0.0_dbl
+         pot(ip,2) = 0.0_dbl
+
+      ELSE
+
+         p = a0 + (a1 + (a2 + a3*rs(ip))*rs(ip))*rs(ip)
+         q = (b1 + (b2 + (b3 + b4*rs(ip))*rs(ip))*rs(ip))*rs(ip)
+         epade = -p/q
+
+         dp = a1 + (2.0_dbl*a2 + 3.0_dbl*a3*rs(ip))*rs(ip)
+         dq = b1 + (2.0_dbl*b2 + (3.0_dbl*b3 + 4.0_dbl*b4*rs(ip))*rs(ip))*rs(ip)
+         depade = f13 * rs(ip) * (dp*q - p*dq) / (q*q)
+
+         pot(ip,1) = epade * rho(ip)
+         pot(ip,2) = epade + depade
+
+      END IF
+
+    END DO
+
+  END SUBROUTINE pade_lda_01
+
+! *****************************************************************************
+
+  SUBROUTINE pade_lda_2 ( rho, rs, pot )
+
+    REAL(dbl), DIMENSION(:), INTENT(IN)  :: rho, rs
+    REAL(dbl), DIMENSION(:), INTENT(OUT)  :: pot
+
+    INTEGER :: ip, npoints
+    REAL(dbl) :: p, q, dp, dq, d2p, d2q, rsr, t1, t2, t3
+!   ---------------------------------------------------------------------------
+
+    npoints = SIZE ( rho )
+    IF ( npoints > SIZE(pot) ) &
+       CALL stop_program ( "pade_lda_2", "Inconsistent array sizes" )
+
+    DO ip = 1, npoints
+
+      IF ( rho(ip) < eps_rho ) THEN
+
+         pot(ip) = 0.0_dbl
+
+      ELSE
+
+         p = a0 + (a1 + (a2 + a3*rs(ip))*rs(ip))*rs(ip)
+         q = (b1 + (b2 + (b3 + b4*rs(ip))*rs(ip))*rs(ip))*rs(ip)
+
+         dp = a1 + (2.0_dbl*a2 + 3.0_dbl*a3*rs(ip))*rs(ip)
+         dq = b1 + (2.0_dbl*b2 + (3.0_dbl*b3 + 4.0_dbl*b4*rs(ip))*rs(ip))*rs(ip)
+
+         d2p = 2.0_dbl*a2 + 6.0_dbl*a3*rs(ip)
+         d2q = 2.0_dbl*b2 + (6.0_dbl*b3 + 12.0_dbl*b4*rs(ip))*rs(ip)
+
+         rsr = rs(ip)/rho(ip)
+         t1 = (p*dq - dp*q)/(q*q)
+         t2 = (d2p*q - p*d2q)/(q*q)
+         t3 = (p*dq*dq - dp*q*dq)/(q*q*q)
+
+         pot(ip) = -f13 * ( f23*t1 + f13*t2*rs(ip) + f23*t3*rs(ip) ) * rsr
+
+      END IF
+
+    END DO
+
+  END SUBROUTINE pade_lda_2
+
+! *****************************************************************************
+
+  SUBROUTINE pade_lda_3 ( rho, rs, pot )
+
+    REAL(dbl), DIMENSION(:), INTENT(IN)  :: rho, rs
+    REAL(dbl), DIMENSION(:), INTENT(OUT)  :: pot
+
+    INTEGER :: ip, npoints
+    REAL(dbl) :: ab1, ab2, ab3, rsr1, rsr2, rsr3
+    REAL(dbl) :: p, q, dp, dq, d2p, d2q, d3p, d3q
+!   ---------------------------------------------------------------------------
+
+    npoints = SIZE ( rho )
+    IF ( npoints > SIZE(pot) ) &
+       CALL stop_program ( "pade_lda_2", "Inconsistent array sizes" )
+
+    DO ip = 1, npoints
+
+      IF ( rho(ip) < eps_rho ) THEN
+
+         pot(ip) = 0.0_dbl
+
+      ELSE
+
+         p = a0 + (a1 + (a2 + a3*rs(ip))*rs(ip))*rs(ip)
+         q = (b1 + (b2 + (b3 + b4*rs(ip))*rs(ip))*rs(ip))*rs(ip)
+
+         dp = a1 + (2.0_dbl*a2 + 3.0_dbl*a3*rs(ip))*rs(ip)
+         dq = b1 + (2.0_dbl*b2 + (3.0_dbl*b3 + 4.0_dbl*b4*rs(ip))*rs(ip))*rs(ip)
+
+         d2p = 2.0_dbl*a2 + 6.0_dbl*a3*rs(ip)
+         d2q = 2.0_dbl*b2 + (6.0_dbl*b3 + 12.0_dbl*b4*rs(ip))*rs(ip)
+
+         d3p = 6.0_dbl*a3
+         d3q = 6.0_dbl*b3 + 24.0_dbl*b4*rs(ip)
+
+         ab1 = (dp*q - p*dq)/(q*q)
+         ab2 = (d2p*q*q - p*q*d2q - 2._dbl*dp*q*dq + 2._dbl*p*dq*dq)/(q*q*q)
+         ab3 = (d3p*q*q - p*q*d3q - 3._dbl*dp*q*d2q + 3._dbl*p*dq*d2q)/(q*q*q)
+         ab3 = ab3 - 3._dbl*ab2*dq/q
+         rsr1 = rs(ip) / (rho(ip)*rho(ip))
+         rsr2 = f13*f13*rs(ip) * rsr1
+         rsr3 = f13*rs(ip) * rsr2
+         rsr1 = -f23*f23*f23*rsr1
+         pot(ip) = rsr1*ab1 + rsr2*ab2 + rsr3*ab3
+
+      END IF
+
+    END DO
+
+  END SUBROUTINE pade_lda_3
+
+! *****************************************************************************
+
+  SUBROUTINE pade_lsd_0 ( rhoa, rhob, rs, fx, pot )
+
+    REAL(dbl), DIMENSION(:), INTENT(IN)  :: rhoa, rhob, rs
+    REAL(dbl), DIMENSION(:,:), INTENT(IN)  :: fx
+    REAL(dbl), DIMENSION(:), INTENT(OUT)  :: pot
+
+    INTEGER :: ip, npoints
+    REAL(dbl) :: fa0, fa1, fa2, fa3, fb1, fb2, fb3, fb4
+    REAL(dbl) :: p, q, rhoab
+!   ---------------------------------------------------------------------------
+
+    npoints = SIZE ( rhoa )
+    IF ( npoints > SIZE(pot,1) ) &
+       CALL stop_program ( "pade_lsd_0", "Inconsistent array sizes" )
+
+    DO ip = 1, npoints
+
+      rhoab = rhoa(ip) + rhob(ip)
+
+      IF ( rhoab < eps_rho ) THEN
+
+         pot(ip) = 0.0_dbl
+
+      ELSE
+
+         fa0 = a0 + fx(ip,1)*da0
+         fa1 = a1 + fx(ip,1)*da1
+         fa2 = a2 + fx(ip,1)*da2
+         fa3 = a3 + fx(ip,1)*da3
+         fb1 = b1 + fx(ip,1)*db1
+         fb2 = b2 + fx(ip,1)*db2
+         fb3 = b3 + fx(ip,1)*db3
+         fb4 = b4 + fx(ip,1)*db4
+
+         p = fa0 + (fa1 + (fa2 + fa3*rs(ip))*rs(ip))*rs(ip)
+         q = (fb1 + (fb2 + (fb3 + fb4*rs(ip))*rs(ip))*rs(ip))*rs(ip)
+
+         pot(ip) = -p/q*rhoab
+
+      END IF
+
+    END DO
+
+  END SUBROUTINE pade_lsd_0
+
+! *****************************************************************************
+
+  SUBROUTINE pade_lsd_1 ( rhoa, rhob, rs, fx, pot )
+
+    REAL(dbl), DIMENSION(:), INTENT(IN)  :: rhoa, rhob, rs
+    REAL(dbl), DIMENSION(:,:), INTENT(IN)  :: fx
+    REAL(dbl), DIMENSION(:,:), INTENT(OUT)  :: pot
+
+    INTEGER :: ip, npoints
+    REAL(dbl) :: fa0, fa1, fa2, fa3, fb1, fb2, fb3, fb4
+    REAL(dbl) :: p, q, dp, dq, xp, xq, rhoab, dr, dx, dc
+!   ---------------------------------------------------------------------------
+
+    npoints = SIZE ( rhoa )
+    IF ( npoints > SIZE(pot,1) ) &
+       CALL stop_program ( "pade_lsd_1", "Inconsistent array sizes" )
+
+    DO ip = 1, npoints
+
+      rhoab = rhoa(ip) + rhob(ip)
+
+      IF ( rhoab < eps_rho ) THEN
+
+         pot(ip,1) = 0.0_dbl
+         pot(ip,2) = 0.0_dbl
+
+      ELSE
+
+         fa0 = a0 + fx(ip,1)*da0
+         fa1 = a1 + fx(ip,1)*da1
+         fa2 = a2 + fx(ip,1)*da2
+         fa3 = a3 + fx(ip,1)*da3
+         fb1 = b1 + fx(ip,1)*db1
+         fb2 = b2 + fx(ip,1)*db2
+         fb3 = b3 + fx(ip,1)*db3
+         fb4 = b4 + fx(ip,1)*db4
+
+         p = fa0 + (fa1 + (fa2 + fa3*rs(ip))*rs(ip))*rs(ip)
+         q = (fb1 + (fb2 + (fb3 + fb4*rs(ip))*rs(ip))*rs(ip))*rs(ip)
+         dp = fa1 + (2.0_dbl*fa2 + 3.0_dbl*fa3*rs(ip))*rs(ip)
+         dq = fb1 + (2.0_dbl*fb2 + (3.0_dbl*fb3 + &
+                     4.0_dbl*fb4*rs(ip))*rs(ip))*rs(ip)
+         xp = da0 + (da1 + (da2 + da3*rs(ip))*rs(ip))*rs(ip)
+         xq = (db1 + (db2 + (db3 + db4*rs(ip))*rs(ip))*rs(ip))*rs(ip)
+
+         dr = (dp*q - p*dq)/(q*q)
+         dx = 2._dbl*(xp*q - p*xq)/(q*q)*fx(ip,2)/rhoab
+         dc = f13*rs(ip)*dr - p/q
+
+         pot(ip,1) = dc - dx*rhob(ip)
+         pot(ip,2) = dc + dx*rhoa(ip)
+
+      END IF
+
+    END DO
+
+  END SUBROUTINE pade_lsd_1
+
+! *****************************************************************************
+
+  SUBROUTINE pade_lsd_01 ( rhoa, rhob, rs, fx, pot )
+
+    REAL(dbl), DIMENSION(:), INTENT(IN)  :: rhoa, rhob, rs
+    REAL(dbl), DIMENSION(:,:), INTENT(IN)  :: fx
+    REAL(dbl), DIMENSION(:,:), INTENT(OUT)  :: pot
+
+    INTEGER :: ip, npoints
+    REAL(dbl) :: fa0, fa1, fa2, fa3, fb1, fb2, fb3, fb4
+    REAL(dbl) :: p, q, dp, dq, xp, xq, rhoab, dr, dx, dc
+!   ---------------------------------------------------------------------------
+
+    npoints = SIZE ( rhoa )
+    IF ( npoints > SIZE(pot,1) ) &
+       CALL stop_program ( "pade_lsd_01", "Inconsistent array sizes" )
+
+    DO ip = 1, npoints
+
+      rhoab = rhoa(ip) + rhob(ip)
+
+      IF ( rhoab < eps_rho ) THEN
+
+         pot(ip,1) = 0.0_dbl
+         pot(ip,2) = 0.0_dbl
+         pot(ip,3) = 0.0_dbl
+
+      ELSE
+
+         fa0 = a0 + fx(ip,1)*da0
+         fa1 = a1 + fx(ip,1)*da1
+         fa2 = a2 + fx(ip,1)*da2
+         fa3 = a3 + fx(ip,1)*da3
+         fb1 = b1 + fx(ip,1)*db1
+         fb2 = b2 + fx(ip,1)*db2
+         fb3 = b3 + fx(ip,1)*db3
+         fb4 = b4 + fx(ip,1)*db4
+
+         p = fa0 + (fa1 + (fa2 + fa3*rs(ip))*rs(ip))*rs(ip)
+         q = (fb1 + (fb2 + (fb3 + fb4*rs(ip))*rs(ip))*rs(ip))*rs(ip)
+         dp = fa1 + (2.0_dbl*fa2 + 3.0_dbl*fa3*rs(ip))*rs(ip)
+         dq = fb1 + (2.0_dbl*fb2 + (3.0_dbl*fb3 + &
+                     4.0_dbl*fb4*rs(ip))*rs(ip))*rs(ip)
+         xp = da0 + (da1 + (da2 + da3*rs(ip))*rs(ip))*rs(ip)
+         xq = (db1 + (db2 + (db3 + db4*rs(ip))*rs(ip))*rs(ip))*rs(ip)
+
+         dr = (dp*q - p*dq)/(q*q)
+         dx = 2._dbl*(xp*q - p*xq)/(q*q)*fx(ip,2)/rhoab
+         dc = f13*rs(ip)*dr - p/q
+
+         pot(ip,1) = -p/q*rhoab
+         pot(ip,2) = dc - dx*rhob(ip)
+         pot(ip,3) = dc + dx*rhoa(ip)
+
+      END IF
+
+    END DO
+
+  END SUBROUTINE pade_lsd_01
+
+! *****************************************************************************
+
+  SUBROUTINE pade_lsd_2 ( rhoa, rhob, rs, fx, pot )
+
+    REAL(dbl), DIMENSION(:), INTENT(IN)  :: rhoa, rhob, rs
+    REAL(dbl), DIMENSION(:,:), INTENT(IN)  :: fx
+    REAL(dbl), DIMENSION(:,:), INTENT(OUT)  :: pot
+
+    INTEGER :: ip, npoints
+    REAL(dbl) :: fa0, fa1, fa2, fa3, fb1, fb2, fb3, fb4
+    REAL(dbl) :: p, q, dp, dq, xp, xq, rhoab, dr, dx, dc
+    REAL(dbl) :: d2p, d2q, dxp, dxq, drr, dxr, dxx, xt, yt, or
+!   ---------------------------------------------------------------------------
+
+    npoints = SIZE ( rhoa )
+    IF ( npoints > SIZE(pot,1) ) &
+       CALL stop_program ( "pade_lsd_2", "Inconsistent array sizes" )
+
+    DO ip = 1, npoints
+
+      rhoab = rhoa(ip) + rhob(ip)
+
+      IF ( rhoab < eps_rho ) THEN
+
+         pot(ip,1) = 0.0_dbl
+         pot(ip,2) = 0.0_dbl
+         pot(ip,3) = 0.0_dbl
+
+      ELSE
+
+         fa0 = a0 + fx(ip,1)*da0
+         fa1 = a1 + fx(ip,1)*da1
+         fa2 = a2 + fx(ip,1)*da2
+         fa3 = a3 + fx(ip,1)*da3
+         fb1 = b1 + fx(ip,1)*db1
+         fb2 = b2 + fx(ip,1)*db2
+         fb3 = b3 + fx(ip,1)*db3
+         fb4 = b4 + fx(ip,1)*db4
+
+         p = fa0 + (fa1 + (fa2 + fa3*rs(ip))*rs(ip))*rs(ip)
+         q = (fb1 + (fb2 + (fb3 + fb4*rs(ip))*rs(ip))*rs(ip))*rs(ip)
+
+         dp = fa1 + (2.0_dbl*fa2 + 3.0_dbl*fa3*rs(ip))*rs(ip)
+         dq = fb1 + (2.0_dbl*fb2 + (3.0_dbl*fb3 + &
+                     4.0_dbl*fb4*rs(ip))*rs(ip))*rs(ip)
+
+         d2p = 2.0_dbl*fa2 + 6.0_dbl*fa3*rs(ip)
+         d2q = 2.0_dbl*fb2 + (6.0_dbl*fb3 + 12.0_dbl*fb4*rs(ip))*rs(ip)
+
+         xp = da0 + (da1 + (da2 + da3*rs(ip))*rs(ip))*rs(ip)
+         xq = (db1 + (db2 + (db3 + db4*rs(ip))*rs(ip))*rs(ip))*rs(ip)
+
+         dxp = da1 + (2.0_dbl*da2 + 3.0_dbl*da3*rs(ip))*rs(ip)
+         dxq = db1 + (2.0_dbl*db2 + (3.0_dbl*db3 + &
+                     4.0_dbl*db4*rs(ip))*rs(ip))*rs(ip)
+
+         dr = (dp*q - p*dq)/(q*q)
+         drr = (d2p*q*q-p*q*d2q-2._dbl*dp*q*dq+2._dbl*p*dq*dq)/(q*q*q)
+         dx = (xp*q - p*xq)/(q*q)
+         dxx = 2._dbl*xq*(p*xq - xp*q)/(q*q*q)
+         dxr = (dxp*q*q+dp*xq*q-xp*dq*q-p*dxq*q-2._dbl*dp*q*xq+2._dbl*p*dq*xq)/(q*q*q)
+
+         or = 1._dbl/rhoab
+         yt = rhob(ip)*or
+         xt = rhoa(ip)*or
+
+         pot(ip,1) = f23*f13*dr*rs(ip)*or - f13*f13*drr*rs(ip)*rs(ip)*or &
+                     + f43*rs(ip)*fx(ip,2)*dxr*yt*or &
+                     - 4._dbl*fx(ip,2)*fx(ip,2)*dxx*yt*yt*or &
+                     - 4._dbl*dx*fx(ip,3)*yt*yt*or
+         pot(ip,2) = f23*f13*dr*rs(ip)*or - f13*f13*drr*rs(ip)*rs(ip)*or &
+                     + f23*rs(ip)*fx(ip,2)*dxr*(yt-xt)*or &
+                     + 4._dbl*fx(ip,2)*fx(ip,2)*dxx*xt*yt*or &
+                     + 4._dbl*dx*fx(ip,3)*xt*yt*or
+         pot(ip,3) = f23*f13*dr*rs(ip)*or - f13*f13*drr*rs(ip)*rs(ip)*or &
+                     - f43*rs(ip)*fx(ip,2)*dxr*xt*or &
+                     - 4._dbl*fx(ip,2)*fx(ip,2)*dxx*xt*xt*or &
+                     - 4._dbl*dx*fx(ip,3)*xt*xt*or
+
+      END IF
+
+    END DO
+
+  END SUBROUTINE pade_lsd_2
+
+! *****************************************************************************
+
+  SUBROUTINE pade_lsd_3 ( rhoa, rhob, rs, fx, pot )
+
+    REAL(dbl), DIMENSION(:), INTENT(IN)  :: rhoa, rhob, rs
+    REAL(dbl), DIMENSION(:,:), INTENT(IN)  :: fx
+    REAL(dbl), DIMENSION(:,:), INTENT(OUT)  :: pot
+
+    INTEGER :: ip, npoints
+    REAL(dbl) :: fa0, fa1, fa2, fa3, fb1, fb2, fb3, fb4
+    REAL(dbl) :: p, q, dp, dq, xp, xq, rhoab, dr, dx, dc
+    REAL(dbl) :: d2p, d2q, dxp, dxq, drr, dxr, dxx, xt, yt, or
+    REAL(dbl) :: d3p, d3q, d2xp, d2xq
+!   ---------------------------------------------------------------------------
+
+    npoints = SIZE ( rhoa )
+    IF ( npoints > SIZE(pot,1) ) &
+       CALL stop_program ( "pade_lsd_3", "Inconsistent array sizes" )
+
+    DO ip = 1, npoints
+
+      rhoab = rhoa(ip) + rhob(ip)
+
+      IF ( rhoab < eps_rho ) THEN
+
+         pot(ip,1) = 0.0_dbl
+         pot(ip,2) = 0.0_dbl
+         pot(ip,3) = 0.0_dbl
+         pot(ip,4) = 0.0_dbl
+
+      ELSE
+
+         fa0 = a0 + fx(ip,1)*da0
+         fa1 = a1 + fx(ip,1)*da1
+         fa2 = a2 + fx(ip,1)*da2
+         fa3 = a3 + fx(ip,1)*da3
+         fb1 = b1 + fx(ip,1)*db1
+         fb2 = b2 + fx(ip,1)*db2
+         fb3 = b3 + fx(ip,1)*db3
+         fb4 = b4 + fx(ip,1)*db4
+
+         p = fa0 + (fa1 + (fa2 + fa3*rs(ip))*rs(ip))*rs(ip)
+         q = (fb1 + (fb2 + (fb3 + fb4*rs(ip))*rs(ip))*rs(ip))*rs(ip)
+
+         dp = fa1 + (2.0_dbl*fa2 + 3.0_dbl*fa3*rs(ip))*rs(ip)
+         dq = fb1 + (2.0_dbl*fb2 + (3.0_dbl*fb3 + &
+                     4.0_dbl*fb4*rs(ip))*rs(ip))*rs(ip)
+
+         d2p = 2.0_dbl*fa2 + 6.0_dbl*fa3*rs(ip)
+         d2q = 2.0_dbl*fb2 + (6.0_dbl*fb3 + 12.0_dbl*fb4*rs(ip))*rs(ip)
+
+         d3p = 6.0_dbl*fa3
+         d3q = 6.0_dbl*fb3 + 24.0_dbl*fb4*rs(ip)
+
+         xp = da0 + (da1 + (da2 + da3*rs(ip))*rs(ip))*rs(ip)
+         xq = (db1 + (db2 + (db3 + db4*rs(ip))*rs(ip))*rs(ip))*rs(ip)
+
+         dxp = da1 + (2.0_dbl*da2 + 3.0_dbl*da3*rs(ip))*rs(ip)
+         dxq = db1 + (2.0_dbl*db2 + (3.0_dbl*db3 + &
+                     4.0_dbl*db4*rs(ip))*rs(ip))*rs(ip)
+
+         d2xp = 2.0_dbl*da2 + 6.0_dbl*da3*rs(ip)
+         d2xq = 2.0_dbl*db2 + (6.0_dbl*db3 + 12.0_dbl*db4*rs(ip))*rs(ip)
+
+         dr = (dp*q - p*dq)/(q*q)
+         drr = (d2p*q*q-p*q*d2q-2._dbl*dp*q*dq+2._dbl*p*dq*dq)/(q*q*q)
+         dx = (xp*q - p*xq)/(q*q)
+         dxx = 2._dbl*xq*(p*xq - xp*q)/(q*q*q)
+         dxr = (dxp*q*q+dp*xq*q-xp*dq*q-p*dxq*q-2._dbl*dp*q*xq+2._dbl*p*dq*xq)/(q*q*q)
+
+         or = 1._dbl/rhoab
+         yt = rhob(ip)*or
+         xt = rhoa(ip)*or
+
+         pot(ip,1) = 0._dbl
+         pot(ip,2) = 0._dbl
+         pot(ip,3) = 0._dbl
+         pot(ip,4) = 0._dbl
+
+      END IF
+
+    END DO
+
+  END SUBROUTINE pade_lsd_3
+
+! *****************************************************************************
+
+END MODULE pade_functional
+
+! *****************************************************************************

@@ -16,6 +16,7 @@
 !!   MODIFICATION HISTORY
 !!     30-Nov-2000 (JGH) added input 
 !!     02-Jan-2001 (JGH) Parallel FFT
+!!     15-Feb-2002 (JGH) XC-Functionals
 !!
 !!   SOURCE
 !******************************************************************************
@@ -27,6 +28,7 @@ MODULE library_tests
   USE fft_tools, ONLY : init_fft, get_fft_library, fft1dm, fft2dm, fft3d, &
                  fft_radix_operations, FWFFT, BWFFT, FFT_RADIX_CLOSEST, &
                  FFT_RADIX_NEXT, FFT_RADIX_NEXT_ODD
+  USE functionals_tests, ONLY : functional_test
   USE global_types, ONLY : global_environment_type
   USE kinds, ONLY : dbl
   USE machine, ONLY : m_cputime
@@ -95,6 +97,8 @@ SUBROUTINE lib_test ( globenv )
   IF ( runtest ( 3 ) /= 0 ) CALL fft_test ( globenv )
 !
   IF ( runtest ( 4 ) /= 0 ) CALL pw_fft_test ( globenv )
+!
+  IF ( runtest ( 5 ) /= 0 ) CALL functional_test ( globenv )
 
 END SUBROUTINE lib_test
 
@@ -112,7 +116,7 @@ END SUBROUTINE lib_test
 !!     JGH 30-NOV-2000
 !!
 !!   MODIFICATION HISTORY
-!!     none
+!!     JGH (15-02-2002) Added functionals keyword
 !!
 !!   NOTES
 !!I---------------------------------------------------------------------------I
@@ -123,6 +127,7 @@ END SUBROUTINE lib_test
 !!I    MATMUL   n                                                             I
 !!I    FFT      n                                                             I
 !!I    PW_FFT   n                                                             I
+!!I    FUNCTIONALS n                                                          I
 !!I                                                                           I
 !!I---------------------------------------------------------------------------I
 !!
@@ -169,6 +174,8 @@ SUBROUTINE test_input ( globenv )
            CALL get_next ( runtest ( 3 ) )
         CASE ( 'PW_FFT' )
            CALL get_next ( runtest ( 4 ) )
+        CASE ( 'FUNCTI' )
+           CALL get_next ( runtest ( 5 ) )
         END SELECT
         CALL read_line
      END DO
