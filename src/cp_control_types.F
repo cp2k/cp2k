@@ -61,7 +61,7 @@ MODULE cp_control_types
                                              wfi_use_prev_wf_method_nr
   USE termination,                     ONLY: stop_memory,&
                                              stop_program
-  USE xc_functionals,                  ONLY: xc_print_info
+!  USE xc_functionals,                  ONLY: xc_print_info
 
   IMPLICIT NONE
 
@@ -320,8 +320,8 @@ CONTAINS
       END IF
 
 !TC      CALL xc_set(dft_control%xc_control%density_cut, dft_control%xc_control%gradient_cut)
-      CALL xc_print_info ( output_unit, dft_control % xc_control % functionals, &
-                           dft_control % nspins /= 1 )
+!TC      CALL xc_print_info ( output_unit, dft_control % xc_control % functionals, &
+!TC                           dft_control % nspins /= 1 )
 
     END IF
 
