@@ -163,8 +163,9 @@ CONTAINS
     TYPE(cp_fm_struct_type), POINTER              :: fmstruct
     TYPE(mo_set_p_type), DIMENSION(:), POINTER    :: c
 
-    INTEGER :: handle,ikind,istat,lmax,maxl,maxlppl,maxlppnl,nkind,&
-         output_unit, n_mo(2), n_ao, nelectron, ispin, nelectron_spin(2)
+    INTEGER :: handle,ikind,istat,lmax,maxl,maxlppl,maxlppnl,&
+               nkind,multiplicity,output_unit,&
+               n_mo(2), n_ao, nelectron, ispin, nelectron_spin(2)
     LOGICAL :: ionode, failure
     REAL(KIND=wp) :: maxocc
 
@@ -334,6 +335,16 @@ CONTAINS
 
      nelectron = nelectron-dft_control%charge ! is the total number of electrons 
 
+     IF (dft_control%multiplicity == 0) THEN
+       IF (MODULO(nelectron,2) == 0) THEN
+         dft_control%multiplicity = 1
+       ELSE
+         dft_control%multiplicity = 2
+       END IF
+     END IF
+
+     multiplicity = dft_control%multiplicity
+
      IF (.not.(dft_control%nspins.eq.1 .or. dft_control%nspins.eq.2)) THEN
         CALL stop_program(routine,"nspins should be 1 or 2 for the time being...")
      ENDIF
@@ -359,8 +370,10 @@ CONTAINS
      ELSE
         maxocc=1.0_wp
         ! the simplist spin distribution is written here. Special cases will need additional user input
-        nelectron_spin(1)=nelectron-nelectron/2
-        nelectron_spin(2)=nelectron/2
+        nelectron_spin(1) = (nelectron + multiplicity - 1)/2
+        nelectron_spin(2) = (nelectron - multiplicity + 1)/2
+!MK        nelectron_spin(1)=nelectron-nelectron/2
+!MK        nelectron_spin(2)=nelectron/2
         n_mo(1) = nelectron_spin(1)
         n_mo(2) = nelectron_spin(2)
      ENDIF

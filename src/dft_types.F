@@ -110,7 +110,8 @@ MODULE dft_types
      REAL(wp)                        :: density_cut,&
                                         gradient_cut
      INTEGER                         :: nspins,&
-                                        charge
+                                        charge,&
+                                        multiplicity
      LOGICAL                         :: forces,&
                                         gradient_functional,&
                                         smooth_gradient, &
@@ -203,6 +204,7 @@ CONTAINS
     dft_control % integration_grid % pw_mesh    = -1_wp
     dft_control % do_tddfpt_calculation = .FALSE.
     dft_control % charge = 0
+    dft_control % multiplicity = 0
 
     SELECT CASE (globenv%run_type)
     CASE ("WAVEFUNCTION OPTIMIZATION")
@@ -259,6 +261,8 @@ CONTAINS
             CALL read_object(dft_control % integration_grid % pw_cutoff)
           END SELECT
         END SELECT
+      CASE ("MULTIPLICITY","MULTIP")
+         CALL read_object(dft_control%multiplicity)
       CASE ("NSPINS","SPINS","SPIN")
         CALL read_object(dft_control%nspins)
       CASE ("SPIN_POLARISATION","SPIN_POLARIZATION","LSD")
