@@ -140,7 +140,8 @@ MODULE qs_scf
                                              global_environment_type
   USE hartree,                         ONLY: calculate_hartree
   USE kinds,                           ONLY: int_size,&
-                                             dp
+                                             dp,&
+                                             dp_size
   USE l_utils,                         ONLY: destroy_l_info,&
                                              init_l_info,&
                                              l_info_type
@@ -278,6 +279,7 @@ MODULE qs_scf
                                              first_block_node,&
                                              get_block_node,&
                                              get_matrix_info,&
+                                             get_matrix_diagonal,&
                                              next_block_node,&
                                              real_block_node_type,&
                                              real_matrix_p_type,&
@@ -285,6 +287,7 @@ MODULE qs_scf
                                              replicate_matrix,&
                                              replicate_matrix_structure,&
                                              set_matrix,&
+                                             set_matrix_diagonal,&
                                              symmetrise_diagonal_blocks,&
                                              transfer_matrix,&
                                              write_blocks_maxabsval
@@ -1563,16 +1566,17 @@ CONTAINS
     TYPE(scf_control_type), POINTER           :: scf_control
     TYPE(dft_control_type), POINTER :: dft_control
 
-    REAL(KIND = dp) :: paa,saa,sum
+    REAL(KIND = dp) :: maxocc,nelec,paa,saa,scale,trps1,trps2
     INTEGER  :: atom_a,handle,homo,iatom,ikind,iset,isgf,isgfa,&
-                ishell,istat,la,maxl,natom,nelec,nmo,nset,&
+                ishell,istat,la,maxl,nao,natom,ncount,nmo,nset,&
                 qs_env_id,restart_unit
 
-    INTEGER, DIMENSION(:), ALLOCATABLE :: econf,first_sgf
+    REAL(KIND = dp), DIMENSION(:), ALLOCATABLE :: econf,pdiag,sdiag
+    INTEGER, DIMENSION(:), ALLOCATABLE :: first_sgf
 
     INTEGER, DIMENSION(:), POINTER   :: atom_list,elec_conf,nshell
     INTEGER, DIMENSION(:,:), POINTER :: first_sgfa,l,last_sgfa
-    INTEGER :: nspin,ispin,nelectron
+    INTEGER :: group,nspin,ispin,nelectron
     LOGICAL :: local
 
 !   ---------------------------------------------------------------------------
@@ -1677,146 +1681,129 @@ CONTAINS
        ENDDO
 
     ELSE IF (scf_control%density_guess == "ATOMIC") THEN
-       ! this routine should preferably learn to work with the sparse matrix types
 
-       DO ispin=1,nspin
-          CALL get_mo_set(mo_array(ispin)%mo_set,nelectron=nelectron)
-          CALL cp_fm_set_all(work1(ispin)%matrix,0.0_dp)
+      group = qs_env%para_env%group
 
-          sum = 0.0_dp
+      natom = SIZE(particle_set)
+      ALLOCATE (first_sgf(natom),STAT=istat)
+      IF (istat /= 0) CALL stop_memory(routineP,"first_sgf",natom*int_size)
+      CALL get_particle_set(particle_set=particle_set,&
+                            first_sgf=first_sgf)
 
-          CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,maxlgto=maxl)
+      CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,maxlgto=maxl)
+      ALLOCATE (econf(0:maxl),STAT=istat)
+      IF (istat /= 0) CALL stop_memory(routineP,"econf",(maxl + 1)*int_size)
 
-          natom = SIZE(particle_set)
+      CALL get_mo_set(mo_array(1)%mo_set,nao=nao)
+      ALLOCATE (pdiag(nao),STAT=istat)
+      IF (istat /= 0) CALL stop_memory(routineP,"pdiag",nao*dp_size)
+      pdiag(:) = 0.0_dp
 
-          ALLOCATE (first_sgf(natom),STAT=istat)
-          IF (istat /= 0) CALL stop_memory(routineP,"first_sgf",natom*int_size)
+      ALLOCATE (sdiag(nao),STAT=istat)
+      IF (istat /= 0) CALL stop_memory(routineP,"sdiag",nao*dp_size)
+      CALL get_matrix_diagonal(s_sparse(1)%matrix,sdiag)
+      CALL mp_sum(sdiag,group)
 
-          CALL get_particle_set(particle_set=particle_set,first_sgf=first_sgf)
- 
-          ALLOCATE (econf(0:maxl),STAT=istat)
-          IF (istat /= 0) CALL stop_memory(routineP,"econf",(maxl + 1)*int_size)
+      DO ispin=1,nspin
 
-          CALL copy_sm_to_fm(s_sparse(1)%matrix,work2)
+        CALL get_mo_set(mo_set=mo_array(ispin)%mo_set,&
+                        maxocc=maxocc,&
+                        nelectron=nelectron)
 
-          DO ikind=1,SIZE(atomic_kind_set)
+        ncount = 0
+        trps1 = 0.0_dp
+        trps2 = 0.0_dp
+        pdiag(:) = 0.0_dp
 
-             atomic_kind => atomic_kind_set(ikind)
+        DO ikind=1,SIZE(atomic_kind_set)
 
-             CALL get_atomic_kind(atomic_kind=atomic_kind,&
-                  natom=natom,&
-                  atom_list=atom_list,&
-                  all_potential=all_potential,&
-                  gth_potential=gth_potential,&
-                  orb_basis_set=orb_basis_set)
+          atomic_kind => atomic_kind_set(ikind)
 
-             IF (ASSOCIATED(all_potential)) THEN
-                CALL get_potential(potential=all_potential,elec_conf=elec_conf)
-             ELSE IF (ASSOCIATED(gth_potential)) THEN
-                CALL get_potential(potential=gth_potential,elec_conf=elec_conf)
-             ELSE
-                CYCLE
-             END IF
+          CALL get_atomic_kind(atomic_kind=atomic_kind,&
+                               natom=natom,&
+                               atom_list=atom_list,&
+                               all_potential=all_potential,&
+                               gth_potential=gth_potential,&
+                               orb_basis_set=orb_basis_set)
 
-!MK          *** More checking is needed here (preferibly early!) ***
-!
-!            IF (SIZE(econf) < SIZE(elec_conf)) THEN
-!              CALL stop_program(routineP,"The orbital basis set does not "//&
-!                                         "provide enough functions for the "//&
-!                                         "electron configuration",globenv)
-!            END IF
+          IF (ASSOCIATED(all_potential)) THEN
+            CALL get_potential(potential=all_potential,elec_conf=elec_conf)
+          ELSE IF (ASSOCIATED(gth_potential)) THEN
+            CALL get_potential(potential=gth_potential,elec_conf=elec_conf)
+          ELSE
+            CYCLE
+          END IF
 
-             maxl = SIZE(elec_conf) - 1
-             econf(:) = 0
-             econf(0:maxl) = elec_conf(0:maxl)
+          maxl = SIZE(elec_conf) - 1
+          econf(:) = 0.0_dp
+          econf(0:maxl) = 0.5_dp*maxocc*REAL(elec_conf(0:maxl),dp)
 
-             CALL get_gto_basis_set(gto_basis_set=orb_basis_set,&
-                                    nset=nset,&
-                                    nshell=nshell,&
-                                    l=l,&
-                                    first_sgf=first_sgfa,&
-                                    last_sgf=last_sgfa)
+          CALL get_gto_basis_set(gto_basis_set=orb_basis_set,&
+                                 nset=nset,&
+                                 nshell=nshell,&
+                                 l=l,&
+                                 first_sgf=first_sgfa,&
+                                 last_sgf=last_sgfa)
 
-             DO iset=1,nset
-                DO ishell=1,nshell(iset)
-                   la = l(ishell,iset)
-                   nelec = 4*la + 2
-                   IF (econf(la) > 0) THEN
-                      IF (econf(la) >= nelec) THEN
-                         paa = 2.0_dp
-                         econf(la) = econf(la) - nelec
-                      ELSE
-                         paa = REAL(2*econf(la),dp)/REAL(nelec,dp)
-                         econf(la) = 0
-                      END IF
-                      DO isgfa=first_sgfa(ishell,iset),last_sgfa(ishell,iset)
-                         DO iatom=1,natom
-                            atom_a = atom_list(iatom)
-                            isgf = first_sgf(atom_a) + isgfa - 1
-                            CALL cp_fm_set_element(work1(ispin)%matrix,isgf,isgf,paa)
-                            ! not so efficient anymore, but then, this should move to sparse matrices at a give point
-                            CALL cp_fm_get_element(work2,isgf,isgf,saa,local)
-                            IF (.NOT.local) saa = 0.0_dp
-                            sum = sum + paa*saa
-                         END DO
-                      END DO
-                   END IF
+          DO iset=1,nset
+            DO ishell=1,nshell(iset)
+              la = l(ishell,iset)
+              nelec = maxocc*REAL(2*la + 1,dp)
+              IF (econf(la) > 0.0_dp) THEN
+                IF (econf(la) >= nelec) THEN
+                  paa = maxocc
+                  econf(la) = econf(la) - nelec
+                ELSE
+                  paa = maxocc*econf(la)/nelec
+                  econf(la) = 0.0_dp
+                  ncount = ncount + NINT(nelec/maxocc)
+                END IF
+                DO isgfa=first_sgfa(ishell,iset),last_sgfa(ishell,iset)
+                  DO iatom=1,natom
+                    atom_a = atom_list(iatom)
+                    isgf = first_sgf(atom_a) + isgfa - 1
+                    pdiag(isgf) = paa
+                    IF (paa == maxocc) THEN
+                      trps1 = trps1 + paa*sdiag(isgf)
+                    ELSE
+                      trps2 = trps2 + paa*sdiag(isgf)
+                    END IF
+                  END DO
                 END DO
-             END DO
-
+              END IF
+            END DO
           END DO
 
-          DEALLOCATE (econf,STAT=istat)
-          IF (istat /= 0) CALL stop_memory(routineP,"econf")
+        END DO
 
-          CALL mp_sum(sum,qs_env%para_env%group)
+        scale = (REAL(nelectron,dp) - trps1)/trps2
 
-          saa = REAL(nelectron,dp)/sum
+        DO isgf=1,nao
+          IF (pdiag(isgf) < maxocc) pdiag(isgf) = scale*pdiag(isgf)
+          trps1 = trps1 + pdiag(isgf)
+        END DO
 
-          DO ikind=1,SIZE(atomic_kind_set)
+        CALL set_matrix_diagonal(p_rmpv(ispin)%matrix,pdiag)
 
-             atomic_kind => atomic_kind_set(ikind)
+      END DO
 
-             CALL get_atomic_kind(atomic_kind=atomic_kind,&
-                  natom=natom,&
-                  atom_list=atom_list,&
-                  orb_basis_set=orb_basis_set)
+      DEALLOCATE (econf,STAT=istat)
+      IF (istat /= 0) CALL stop_memory(routineP,"econf")
 
-             CALL get_gto_basis_set(gto_basis_set=orb_basis_set,&
-                  nset=nset,&
-                  nshell=nshell,&
-                  l=l,&
-                  first_sgf=first_sgfa,&
-                  last_sgf=last_sgfa)
+      DEALLOCATE (first_sgf,STAT=istat)
+      IF (istat /= 0) CALL stop_memory(routineP,"first_sgf")
 
-             DO iset=1,nset
-                DO ishell=1,nshell(iset)
-                   DO isgfa=first_sgfa(ishell,iset),last_sgfa(ishell,iset)
-                      DO iatom=1,natom
-                         atom_a = atom_list(iatom)
-                         isgf = first_sgf(atom_a) + isgfa - 1
-                         CALL cp_fm_get_element(work1(ispin)%matrix,isgf,isgf,paa,local)
-                         IF (.NOT.local) paa = 0.0_dp
-                         paa = paa*saa
-                         CALL cp_fm_set_element(work1(ispin)%matrix,isgf,isgf,paa)
-                      END DO
-                   END DO
-                END DO
-             END DO
-          END DO
+      DEALLOCATE (pdiag,STAT=istat)
+      IF (istat /= 0) CALL stop_memory(routineP,"pdiag")
 
-          CALL copy_fm_to_sm(work1(ispin)%matrix,p_rmpv(ispin)%matrix)
-
-          DEALLOCATE (first_sgf,STAT=istat)
-          IF (istat /= 0) CALL stop_memory(routineP,"first_sgf")
-
-       END DO
+      DEALLOCATE (sdiag,STAT=istat)
+      IF (istat /= 0) CALL stop_memory(routineP,"sdiag")
 
     ELSE
 
-       CALL stop_program(routineP,&
-            "An invalid keyword for the initial density "//&
-            "guess was specified")
+      CALL stop_program(routineP,&
+                        "An invalid keyword for the initial density "//&
+                        "guess was specified")
 
     END IF
 

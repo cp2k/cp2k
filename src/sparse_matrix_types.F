@@ -112,6 +112,7 @@ MODULE sparse_matrix_types
             deallocate_matrix_row,&
             deallocate_matrix_set,&
             get_block_node,&
+            get_matrix_diagonal,&
             get_matrix_info,&
             merge_matrices,&
             put_block_node,&
@@ -119,6 +120,7 @@ MODULE sparse_matrix_types
             replicate_matrix_structure,&
             scale_matrix,&
             set_matrix,&
+            set_matrix_diagonal,&
             symmetrise_diagonal_blocks,&
             transfer_matrix, &
             sparse_times_local, &
@@ -185,6 +187,10 @@ MODULE sparse_matrix_types
     MODULE PROCEDURE get_real_block_node,get_real_matrix_block
   END INTERFACE
 
+  INTERFACE get_matrix_diagonal
+    MODULE PROCEDURE get_real_matrix_diagonal
+  END INTERFACE
+
   INTERFACE merge_matrices
     MODULE PROCEDURE merge_real_matrices
   END INTERFACE
@@ -211,6 +217,10 @@ MODULE sparse_matrix_types
 
   INTERFACE set_matrix
     MODULE PROCEDURE set_real_matrix
+  END INTERFACE
+
+  INTERFACE set_matrix_diagonal
+    MODULE PROCEDURE set_real_matrix_diagonal
   END INTERFACE
 
   INTERFACE transfer_matrix
@@ -1550,6 +1560,69 @@ END SUBROUTINE cp_sm_scale_and_add
 
 ! *****************************************************************************
 
+  SUBROUTINE get_real_matrix_diagonal(matrix,vector)
+
+!   Purpose: Set the diagonal elements of matrix to the values of vector.
+
+!   History: - Creation (06.11.2003,MK)
+
+!   ***************************************************************************
+
+    TYPE(real_matrix_type), POINTER            :: matrix
+    REAL(KIND = dp), DIMENSION(:), INTENT(OUT) :: vector
+
+!   *** Local parameters ***
+
+    CHARACTER(LEN=*), PARAMETER :: routine =&
+      "SUBROUTINE get_real_matrix_diagonal (MODULE sparse_matrix_types)"
+
+!   *** Local variables ***
+
+    TYPE(real_block_node_type), POINTER :: block_node
+
+    INTEGER :: first_row,i,iblock_col,iblock_row,irow
+
+    REAL(KIND = dp), DIMENSION(:,:), POINTER :: block
+
+!   ---------------------------------------------------------------------------
+
+!   *** Check the association status of the source matrix ***
+
+    IF (.NOT.ASSOCIATED(matrix)) THEN
+      CALL stop_program(routine,"The matrix pointer is not associated")
+    END IF
+
+    vector(:) = 0.0_dp
+
+    DO iblock_row=1,matrix%nblock_row
+
+      first_row = matrix%first_row(iblock_row)
+
+      block_node => first_block_node(matrix,iblock_row)
+
+      DO WHILE (ASSOCIATED(block_node))
+
+        CALL get_block_node(block_node=block_node,&
+                            block_col=iblock_col,&
+                            block=block)
+
+        IF (iblock_row == iblock_col) THEN
+          DO i=1,SIZE(block,1)
+            irow = first_row + i - 1
+            vector(irow) = block(i,i)
+          END DO
+        END IF
+
+        block_node => next_block_node(block_node)
+
+      END DO
+
+    END DO
+
+  END SUBROUTINE get_real_matrix_diagonal
+
+! *****************************************************************************
+
   SUBROUTINE merge_real_matrices(a,b)
 
 !   Purpose: Merge two sparse matrices a and b which have the same structure,
@@ -2062,6 +2135,67 @@ END SUBROUTINE cp_sm_scale_and_add
     END DO
 
   END SUBROUTINE set_real_matrix
+
+! *****************************************************************************
+
+  SUBROUTINE set_real_matrix_diagonal(matrix,vector)
+
+!   Purpose: Set the diagonal elements of matrix to the values of vector.
+
+!   History: - Creation (06.11.2003,MK)
+
+!   ***************************************************************************
+
+    TYPE(real_matrix_type), POINTER           :: matrix
+    REAL(KIND = dp), DIMENSION(:), INTENT(IN) :: vector
+
+!   *** Local parameters ***
+
+    CHARACTER(LEN=*), PARAMETER :: routine =&
+      "SUBROUTINE set_real_matrix_diagonal (MODULE sparse_matrix_types)"
+
+!   *** Local variables ***
+
+    TYPE(real_block_node_type), POINTER :: block_node
+
+    INTEGER :: first_row,i,iblock_col,iblock_row,irow
+
+    REAL(KIND = dp), DIMENSION(:,:), POINTER :: block
+
+!   ---------------------------------------------------------------------------
+
+!   *** Check the association status of the source matrix ***
+
+    IF (.NOT.ASSOCIATED(matrix)) THEN
+      CALL stop_program(routine,"The matrix pointer is not associated")
+    END IF
+
+    DO iblock_row=1,matrix%nblock_row
+
+      first_row = matrix%first_row(iblock_row)
+
+      block_node => first_block_node(matrix,iblock_row)
+
+      DO WHILE (ASSOCIATED(block_node))
+
+        CALL get_block_node(block_node=block_node,&
+                            block_col=iblock_col,&
+                            block=block)
+
+        IF (iblock_row == iblock_col) THEN
+          DO i=1,SIZE(block,1)
+            irow = first_row + i - 1
+            block(i,i) = vector(irow)
+          END DO
+        END IF
+
+        block_node => next_block_node(block_node)
+
+      END DO
+
+    END DO
+
+  END SUBROUTINE set_real_matrix_diagonal
 
 ! *****************************************************************************
 
