@@ -1100,8 +1100,8 @@ CONTAINS
       WRITE (UNIT=output_unit,FMT="(/,/,T2,A)")&
         "ATOMIC COORDINATES IN "//TRIM(unit_of_length_name)
       WRITE (UNIT=output_unit,&
-           FMT="(/,T3,A,'       ',2(A1,11X),A1,'       ',A6,'    ',A4,/)")&
-        "Atom  Kind  Element","X","Y","Z","Z(eff)","Mass"
+           FMT="(/,T3,A,'       ',2(A1,11X),A1,'        ',A8,'     ',A6,/)")&
+        "Atom  Kind  Element","X","Y","Z","  Z(eff)","  Mass"
 
       natom = SIZE(particle_set)
       DO iatom=1,natom
@@ -1112,7 +1112,7 @@ CONTAINS
                              z=z,&
                              zeff=zeff)
         WRITE (output_unit,&
-             "(T2,I5,' ',I4,'   ',A2,'  ',I3,3F12.6,'    ',I3,'   ',F8.4)")&
+             "(T2,I5,' ',I4,'   ',A2,'  ',I3,3F12.6,'    ',I5,'   ',F11.4)")&
           iatom,ikind,element_symbol,z,&
           particle_set(iatom)%r(1:3)/unit_of_length,zeff,mass/massunit
       END DO

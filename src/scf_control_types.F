@@ -469,10 +469,11 @@ CONTAINS
 
        IF (globenv%print%scf) THEN
           output_unit = globenv%scr
-          WRITE (UNIT=output_unit,FMT="(/,/,T2,A,/)") "SCF PARAMETERS"
           WRITE (UNIT=output_unit,&
-               FMT="(T3,A,/,3(/,T3,A,I5),5(/,T3,A,ES9.2),4(/,T3,A,F5.2))")&
-               "Density guess: "//TRIM(scf_control%density_guess),&
+           FMT="(/,/,T2,A,T25,A,T71,A10,/,T25,56('-'),3(/,T25,A,T76,I5),&
+           &T25,56('-'),5(/,T25,A,T72,ES9.2),T25,56('-'),4(/,T25,A,T76,F5.2))")&
+               "SCF PARAMETERS",&
+               "Density guess:     ",ADJUSTR(TRIM(scf_control%density_guess)),&
                "max_scf:           ",scf_control%max_scf,&
                "max_diis:          ",scf_control%max_diis,&
                "write_restart_each:",scf_control%write_restart_each,&
@@ -488,6 +489,9 @@ CONTAINS
        END IF
     END IF
   END SUBROUTINE scf_c_write_parameters
+
 ! **************************************************************************
 
 END MODULE scf_control_types
+
+! **************************************************************************
