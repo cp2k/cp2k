@@ -172,19 +172,19 @@ CONTAINS
        zap = EXP(-zetp*rpg**2)
        zdat(ig)=scale*W*zap
     ENDDO
-    
+    IF (zlb.GT.zub) RETURN
     DO ig=ylb,yub
        rpg = REAL(ig,dp)*dr(2) - rp(2)
        yap = EXP(-zetp*rpg**2)
        ydat(ig)=yap
     ENDDO
-    
+    IF (ylb.GT.yub) RETURN
     DO ig=xlb,xub
        rpg = REAL(ig,dp)*dr(1) - rp(1)
        xap  = EXP(-zetp*rpg**2)
        xdat(ig)=xap
     ENDDO
-    
+    IF (xlb.GT.xub) RETURN
     CALL collocate_gf_npbc(grid,xdat,ydat,zdat,gridbounds,zlb,zub,ylb,yub,xlb,xub)
 
   END SUBROUTINE collocate_gf_rspace_NoPBC
@@ -248,6 +248,7 @@ CONTAINS
        ithread_l=0
     ENDIF
         
+    force  = 0.0_dbl
     radius = exp_radius( 0, zetp, eps_mm_rspace, scale*W)
     IF (radius .EQ. 0.0_dp ) THEN
        RETURN
@@ -284,21 +285,22 @@ CONTAINS
        zder(ig) = rpg
        zdat(ig) = scale*W*zap
     ENDDO
-    
+    IF (zlb.GT.zub) RETURN
     DO ig=ylb,yub
        rpg      = REAL(ig,dp)*dr(2) - rp(2)
        yap      = EXP(-zetp*rpg**2)
        yder(ig) = rpg
        ydat(ig) = yap
     ENDDO
-    
+    IF (ylb.GT.yub) RETURN
     DO ig=xlb,xub
        rpg      = REAL(ig,dp)*dr(1) - rp(1)
        xap      = EXP(-zetp*rpg**2)
        xder(ig) = rpg
        xdat(ig) = xap
     ENDDO
-
+    IF (xlb.GT.xub) RETURN
+ 
     ! z derivative
     DO ig=zlb,zub
        wrk(ig)  = - zder(ig)*zdat(ig)*zetp*2.0_dbl
