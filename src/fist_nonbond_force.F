@@ -122,9 +122,9 @@ SUBROUTINE force_nonbond ( fist_nonbond_env, particle_set, cell,  &
 ! starting the force loop
 !
     DO ikind=1,nkinds
-      DO jkind=ikind,nkinds
+      DO jkind=1,nkinds
 
-        ab = ikind + jkind*(jkind - 1)/2
+        ab = ikind + nkinds*(jkind - 1)
 
         neighbor_list_set => nonbonded(ab)%neighbor_list_set
 
