@@ -267,7 +267,7 @@ SUBROUTINE arpack_diag_blacs(amatrix,vmatrix,eval,neig,ncv,use_vectors,context,g
          call arpack_op(amatrix,vin,vout,vmatrix,context,globenv)
        ENDIF
      else
-	exit
+       exit
      endif
      if (info.lt.0) then
         call stop_program("arpack_diag","error in dsaupd",globenv) 
