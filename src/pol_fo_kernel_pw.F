@@ -494,9 +494,9 @@ SUBROUTINE calc_tfx_pot ( rho, pot, dpot )
   IMPLICIT NONE
 
 ! Arguments
-  TYPE ( coeff_type ) , INTENT(IN)  :: rho
-  TYPE ( coeff_type ) , INTENT(INOUT)  :: pot
-  TYPE ( coeff_type ) , INTENT(INOUT)  :: dpot
+  TYPE ( coeff_type ) , INTENT(IN), TARGET :: rho
+  TYPE ( coeff_type ) , INTENT(INOUT)      :: pot
+  TYPE ( coeff_type ) , INTENT(INOUT)      :: dpot
 
 ! *** Local variables ***
   INTEGER, DIMENSION ( :, : ), POINTER :: bs
