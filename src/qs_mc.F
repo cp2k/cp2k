@@ -32,8 +32,8 @@ MODULE qs_mc
                                              read_mc_section
   USE mc_ensembles,                    ONLY: gemc_nvt,&
                                              mc_traditional_ensemble
-  USE mc_environment_types,            ONLY: destroy_mc_env,&
-                                             init_mc_env,&
+  USE mc_environment_types,            ONLY: mc_env_release,&
+                                             mc_env_create,&
                                              mc_environment_type,&
                                              set_mc_env
   USE mol_kind_new_list_types,         ONLY: mol_kind_new_list_type
@@ -107,16 +107,17 @@ CONTAINS
 
 !------------------------------------------------------------------------------
 ! begin the timing of the subroutine
-
   CALL timeset(routineN,'I','',handle)
+
+  NULLIFY(mc_env)
 
   CALL init_cp2k_units ()
   iw = globenv % scr
 
 ! initialize mc_env
-  ALLOCATE(mc_env,stat=isos)
-  IF ( isos /= 0 ) CALL stop_memory ( 'allocstruc', 'mc_env', 0 )
-  CALL init_mc_env ( mc_env )
+!  ALLOCATE(mc_env,stat=isos)
+!  IF ( isos /= 0 ) CALL stop_memory ( 'allocstruc', 'mc_env', 0 )
+  CALL mc_env_create ( mc_env, globenv % para_env, error = error )
 
 ! allocating or nullifying local pointers
   ALLOCATE ( mc_par, STAT = isos )
@@ -164,9 +165,9 @@ CONTAINS
 
 ! prepare the second box
 ! initialize mc_env
-      ALLOCATE(mc_env_2,stat=isos)
-      IF ( isos /= 0 ) CALL stop_memory ( 'allocstruc', 'mc_env_2', 0 )
-      CALL init_mc_env ( mc_env_2 )
+      NULLIFY(mc_env_2)
+      CALL mc_env_create ( mc_env_2,globenv % para_env,error = error )
+
 
 ! allocating or nullifying local pointers
       ALLOCATE ( mc_par_2, STAT = isos )
@@ -228,13 +229,13 @@ CONTAINS
       globenv%input_file_name=mc_env%mc_par%box2_file
       CALL end_blacs( blacs_env_2,globenv )
       globenv%input_file_name=mc_env_2%mc_par%box2_file
-      CALL destroy_mc_env( mc_env_2 )
+      CALL mc_env_release ( mc_env, error )
                    
   CASE DEFAULT
      WRITE(6,*) "Don't recognize the ensemble ",mc_par%ensemble
   END SELECT
 
-  CALL destroy_mc_env( mc_env )
+  CALL mc_env_release ( mc_env, error )
 
 ! end the timing
   CALL timestop(0.0d0,handle)

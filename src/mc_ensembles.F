@@ -45,6 +45,7 @@ MODULE mc_ensembles
                                              read_mc_section,&
                                              write_mc_restart
   USE mc_environment_types,            ONLY: get_mc_env,&
+                                             set_mc_env,&
                                              mc_environment_type
   USE mc_misc,                         ONLY: final_mc_write,&
                                              get_water_data,&
@@ -321,10 +322,14 @@ CONTAINS
                          initial_energy,old_energy,averages)
    ENDIF
 
+
+! recombine the mc_env
+   CALL set_mc_env( mc_env, mc_par = mc_par, force_env=force_env,&
+                   blacs_env=blacs_env)
+
 ! deallocate some stuff
-    CALL force_env_release(force_env,error=error)
-    CALL cp_subsys_release(oldsys(1)%subsys)
-    NULLIFY(moves,move_updates,averages,particles_old)
+   CALL cp_subsys_release(oldsys(1)%subsys)
+   NULLIFY(moves,move_updates,averages,particles_old)
 
 ! end the timing
   CALL timestop(0.0d0,handle)
@@ -729,10 +734,14 @@ CONTAINS
    ENDIF
  
 ! deallocate some stuff
-    CALL force_env_release(force_env_1,error=error)
+   CALL set_mc_env ( mc_env_1, mc_par = mc_par_1,&
+                     force_env=force_env_1,&
+                     blacs_env=blacs_env_1)
+   CALL set_mc_env ( mc_env_2, mc_par = mc_par_2,&
+                     force_env=force_env_2,&
+                     blacs_env=blacs_env_2)
     CALL cp_subsys_release(oldsys_1(1)%subsys)
     NULLIFY(moves_1,move_updates_1,averages_1,particles_old_1)
-    CALL force_env_release(force_env_2,error=error)
     CALL cp_subsys_release(oldsys_2(1)%subsys)
     NULLIFY(moves_2,move_updates_2,averages_2,particles_old_2)
 
