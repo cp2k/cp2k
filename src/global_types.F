@@ -140,6 +140,7 @@ MODULE global_types
     INTEGER    nlumos,nhomos
     LOGICAL :: localization
     INTEGER :: localization_method
+    LOGICAL :: HPM
   END TYPE print_key_type
 
 !!*****
@@ -282,6 +283,7 @@ CONTAINS
     print_key%localization_method = WANNIER_CRAZY
     print_key%mulliken_analysis = key_value(level,(/f,t,t/))
     print_key%molecular_states = key_value(level,(/f,f,f/))
+    print_key%HPM = key_value(level,(/f,f,f/))
 
   END SUBROUTINE init_print_keys
 

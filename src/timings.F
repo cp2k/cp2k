@@ -40,8 +40,10 @@ MODULE timings
   PRIVATE
 
   PUBLIC :: timeset, timestop, timeprint, trace_debug, print_stack,&
-            write_cputime
+            write_cputime, use_HPM
 
+! want to use HPM if available ? needs care switching true/false (i.e. use_HPM=.true. timeset ... timestop use_HPM=false)
+  LOGICAL :: use_HPM = .FALSE.
 ! subroutine calling stack
   INTEGER, PARAMETER :: max_stack = 5000
   INTEGER :: stack_size = 0
@@ -150,9 +152,11 @@ SUBROUTINE timeset ( name, ct, pu, handle )
   END IF
 
 #if defined(__HPM)
-  mytag=TRIM(routine_name)
-  mytag(20:20)=CHAR(0)
-  CALL f_hpmstart(handle,mytag)
+  IF (use_HPM) THEN
+      mytag=TRIM(routine_name)
+      mytag(20:20)=CHAR(0)
+      CALL f_hpmstart(handle,mytag)
+  ENDIF
 #endif
  
 !..start clock (if not yet started, i.e. recursive calls)
@@ -239,7 +243,9 @@ SUBROUTINE timestop ( perf, handle )
      CALL mp_abort()
   ELSE
 #if defined(__HPM)
-     CALL f_hpmstop(handle)
+     IF (use_HPM) THEN
+         CALL f_hpmstop(handle)
+     ENDIF
 #endif
      cpt = m_cputime ( ) - clock_start ( handle )
      wt = m_walltime ( ) - wallclock_start ( handle )

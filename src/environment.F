@@ -71,7 +71,8 @@ MODULE environment
   USE timings,                         ONLY: timeprint,&
                                              timeset,&
                                              timestop,&
-                                             trace_debug
+                                             trace_debug, &
+                                             use_HPM
   USE util,                            ONLY: ran2
   IMPLICIT NONE
 
@@ -159,9 +160,6 @@ CONTAINS
 
     CALL start_parallel(globenv)
 
-#if defined(__HPM)
-    CALL f_hpminit(globenv%para_env%mepos,"CP2K") 
-#endif
 
 !   *** Set the default logical output and error unit number ***
 
@@ -221,6 +219,13 @@ CONTAINS
     CALL read_io_section(globenv)
 
     output_unit = globenv%scr
+
+#if defined(__HPM)
+    IF (globenv%print%HPM) THEN
+        CALL f_hpminit(globenv%para_env%mepos,"CP2K") 
+        use_HPM = .TRUE.
+    ENDIF
+#endif
 
     IF (ionode.AND.globenv%print%program_banner) THEN
       WRITE (UNIT=output_unit,&
@@ -537,6 +542,8 @@ CONTAINS
             globenv%print%molecular_states = print_request
           CASE ("TIMECUMUL")
             globenv%print%timecumul = print_request
+          CASE ("HPM")
+            globenv%print%HPM = print_request
 !MK
           CASE ("EP_MATRIXES")
              globenv%print%ep_matrixes = print_request
@@ -971,11 +978,14 @@ CONTAINS
     dum = globenv%para_env%mepos
     CALL end_parallel(globenv)
 
-    CALL timestop(0.0_dp,handle)
-
 #if defined(__HPM)
-    CALL f_hpmterminate(dum) 
+    IF (globenv%print%HPM) THEN
+        CALL f_hpmterminate(dum) 
+        use_HPM=.FALSE.
+    ENDIF
 #endif
+
+    CALL timestop(0.0_dp,handle) ! corresponding the "CP2K" in cp2k_init
 
     IF (globenv%ionode) THEN
 
