@@ -196,7 +196,7 @@ SUBROUTINE read_coordinate_pdb (topology,globenv)
       READ(line(55:60),*,IOSTAT=istat) atom_info%occup(natom)
       READ(line(61:66),*,IOSTAT=istat) atom_info%beta(natom)
       READ(line(77:78),*,IOSTAT=istat) atom_info%element(natom)
-      WRITE(*,*) natom,line(13:16),line(77:78)
+      IF(PM2) WRITE(iw,*) natom,line(13:16),line(77:78)
       atom_info%atm_mass(natom)  =0.0_dbl
       atom_info%atm_charge(natom)=0.0_dbl
       IF(PM2) WRITE(iw,'(5X,A4,3F8.3,A4)') &

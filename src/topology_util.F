@@ -887,7 +887,6 @@ SUBROUTINE topology_generate_bend(topology,globenv)
         conn_info%theta_a(ntheta) =  conn_info%bond_a(ibond)
         conn_info%theta_b(ntheta) =  conn_info%bond_b(ibond)
         conn_info%theta_c(ntheta) =  conn_info%bond_b(jbond)
-        WRITE(*,*) "BBB ",ntheta,"A"
         CYCLE
       END IF
       !Test case B
@@ -901,7 +900,6 @@ SUBROUTINE topology_generate_bend(topology,globenv)
         conn_info%theta_a(ntheta) =  conn_info%bond_a(ibond)
         conn_info%theta_b(ntheta) =  conn_info%bond_b(ibond)
         conn_info%theta_c(ntheta) =  conn_info%bond_a(jbond)
-        WRITE(*,*) "BBB ",ntheta,"B"
         CYCLE
       END IF
       !Test case c
@@ -915,7 +913,6 @@ SUBROUTINE topology_generate_bend(topology,globenv)
         conn_info%theta_a(ntheta) =  conn_info%bond_b(ibond)
         conn_info%theta_b(ntheta) =  conn_info%bond_a(ibond)
         conn_info%theta_c(ntheta) =  conn_info%bond_b(jbond)
-        WRITE(*,*) "BBB ",ntheta,"C"
         CYCLE
       END IF
       !Test case A
@@ -929,7 +926,6 @@ SUBROUTINE topology_generate_bend(topology,globenv)
         conn_info%theta_a(ntheta) =  conn_info%bond_b(ibond)
         conn_info%theta_b(ntheta) =  conn_info%bond_a(ibond)
         conn_info%theta_c(ntheta) =  conn_info%bond_a(jbond)
-        WRITE(*,*) "BBB ",ntheta,"D"
         CYCLE
       END IF
     END DO
@@ -2418,8 +2414,7 @@ SUBROUTINE topology_force_field_pack (particle_set,atomic_kind_set,&
     IF(nbond>0) THEN
       ALLOCATE(map_bond_kind(nbond),STAT=istat)
       IF (istat /= 0) CALL stop_memory('force_field_pack','map_bond_kind')
-      counter=1
-      map_bond_kind(1) = 1
+      counter=0
       DO j=1,nbond
         atm_a = bond_list(j)%a
         atomic_kind => atom_list(atm_a)%atomic_kind
@@ -2430,7 +2425,7 @@ SUBROUTINE topology_force_field_pack (particle_set,atomic_kind_set,&
         CALL get_atomic_kind(atomic_kind=atomic_kind,&
                              name=name_atm_b)
         found = .FALSE.
-        DO k=1,j
+        DO k=1,j-1
           atm_a = bond_list(k)%a
           atomic_kind => atom_list(atm_a)%atomic_kind
           CALL get_atomic_kind(atomic_kind=atomic_kind,&
@@ -2477,8 +2472,7 @@ SUBROUTINE topology_force_field_pack (particle_set,atomic_kind_set,&
     IF(nbend>0) THEN
       ALLOCATE(map_bend_kind(nbend),STAT=istat)
       IF (istat /= 0) CALL stop_memory('force_field_pack','map_bend_kind')
-      counter=1
-      map_bend_kind(1) = 1
+      counter=0
       DO j=1,nbend
         atm_a = bend_list(j)%a
         atomic_kind => atom_list(atm_a)%atomic_kind
@@ -2493,7 +2487,7 @@ SUBROUTINE topology_force_field_pack (particle_set,atomic_kind_set,&
         CALL get_atomic_kind(atomic_kind=atomic_kind,&
                              name=name_atm_c)
         found = .FALSE.
-        DO k=1,j
+        DO k=1,j-1
           atm_a = bend_list(k)%a
           atomic_kind => atom_list(atm_a)%atomic_kind
           CALL get_atomic_kind(atomic_kind=atomic_kind,&
@@ -2503,7 +2497,7 @@ SUBROUTINE topology_force_field_pack (particle_set,atomic_kind_set,&
           CALL get_atomic_kind(atomic_kind=atomic_kind,&
                                name=name_atm_b2)
           atm_c = bend_list(k)%c
-          atomic_kind => atom_list(atm_b)%atomic_kind
+          atomic_kind => atom_list(atm_c)%atomic_kind
           CALL get_atomic_kind(atomic_kind=atomic_kind,&
                                name=name_atm_c2)
           IF( ((TRIM(name_atm_a)==TRIM(name_atm_a2)) .AND. &
@@ -2539,7 +2533,6 @@ SUBROUTINE topology_force_field_pack (particle_set,atomic_kind_set,&
   ! 3. Determine the number of unique torsion kind and allocate torsion_kind_set
   !-----------------------------------------------------------------------------
   DO i=1,SIZE(molecule_kind_set)
-    counter=0
     molecule_kind => molecule_kind_set(i)
     CALL get_molecule_kind(molecule_kind=molecule_kind,&
                            natom=natom,atom_list=atom_list,&
@@ -2547,7 +2540,16 @@ SUBROUTINE topology_force_field_pack (particle_set,atomic_kind_set,&
     IF(ntorsion>0) THEN
       ALLOCATE(map_torsion_kind(ntorsion),STAT=istat)
       IF (istat /= 0) CALL stop_memory('force_field_pack','map_torsion_kind')
+      counter=0
       DO j=1,ntorsion
+        name_atm_a = ''
+        name_atm_b = ''
+        name_atm_c = ''
+        name_atm_d = ''
+        name_atm_a2 = ''
+        name_atm_b2 = ''
+        name_atm_c2 = ''
+        name_atm_d2 = ''
         atm_a = torsion_list(j)%a
         atomic_kind => atom_list(atm_a)%atomic_kind
         CALL get_atomic_kind(atomic_kind=atomic_kind,&
@@ -2565,7 +2567,7 @@ SUBROUTINE topology_force_field_pack (particle_set,atomic_kind_set,&
         CALL get_atomic_kind(atomic_kind=atomic_kind,&
                              name=name_atm_d)
         found = .FALSE.
-        DO k=1,j
+        DO k=1,j-1
           atm_a = torsion_list(k)%a
           atomic_kind => atom_list(atm_a)%atomic_kind
           CALL get_atomic_kind(atomic_kind=atomic_kind,&
@@ -2683,7 +2685,12 @@ SUBROUTINE topology_force_field_pack (particle_set,atomic_kind_set,&
         END DO
       END IF
 
-      IF(.NOT.found) CALL stop_program("FF_pack","missing bond parm")
+      IF(.NOT.found) THEN
+        IF(PM1) WRITE(iw,*) "    Bond ",j," : ",&
+                            TRIM(name_atm_a)," ",&
+                            TRIM(name_atm_b)
+        CALL stop_program("FF_pack","missing bond parm")
+      END IF
 
     END DO
     CALL set_molecule_kind(molecule_kind=molecule_kind,&
@@ -2772,7 +2779,13 @@ SUBROUTINE topology_force_field_pack (particle_set,atomic_kind_set,&
         END DO
       END IF
 
-      IF(.NOT.found) CALL stop_program("FF_pack","missing bend parm")
+      IF(.NOT.found) THEN
+        IF(PM1) WRITE(iw,*) "    Bend ",j," : ",&
+                            TRIM(name_atm_a)," ",&
+                            TRIM(name_atm_b)," ",&
+                            TRIM(name_atm_c)
+        CALL stop_program("FF_pack","missing bend parm")
+      END IF
 
     END DO
     CALL set_molecule_kind(molecule_kind=molecule_kind,&
@@ -2871,8 +2884,15 @@ SUBROUTINE topology_force_field_pack (particle_set,atomic_kind_set,&
         END DO
       END IF
 
-      IF(.NOT.found) CALL stop_program("FF_pack","missing torsion parm")
+      IF(.NOT.found) THEN
+        IF(PM1) WRITE(iw,*) "    Torsion ",j," : ",&
+                            TRIM(name_atm_a)," ",&
+                            TRIM(name_atm_b)," ",&
+                            TRIM(name_atm_c)," ",&
+                            TRIM(name_atm_d)
+        CALL stop_program("FF_pack","missing torsion parm")
 
+      END IF
     END DO
     CALL set_molecule_kind(molecule_kind=molecule_kind,&
                            torsion_list=torsion_list)
@@ -2953,7 +2973,12 @@ SUBROUTINE topology_force_field_pack (particle_set,atomic_kind_set,&
         END DO
       END IF
 
-      IF(.NOT.found) CALL stop_program("FF_pack","missing pair pot")
+      IF(.NOT.found) THEN
+        IF(PM1) WRITE(iw,*) "    POTPARM ",j," : ",&
+                            TRIM(name_atm_a)," ",&
+                            TRIM(name_atm_b)
+        CALL stop_program("FF_pack","missing pair pot")
+      END IF
 
     END DO
   END DO

@@ -108,7 +108,12 @@ MODULE topology_types
     CHARACTER (LEN=default_string_length), POINTER :: ff_torsion_d(:)
     REAL (dbl), POINTER                            :: ff_torsion_k(:)
     REAL (dbl), POINTER                            :: ff_torsion_phi0(:)
-
+    CHARACTER (LEN=default_string_length), POINTER :: ff_impr_a(:)
+    CHARACTER (LEN=default_string_length), POINTER :: ff_impr_b(:)
+    CHARACTER (LEN=default_string_length), POINTER :: ff_impr_c(:)
+    CHARACTER (LEN=default_string_length), POINTER :: ff_impr_d(:)
+    REAL (dbl), POINTER                            :: ff_impr_k(:)
+    REAL (dbl), POINTER                            :: ff_impr_psi0(:)
     CHARACTER (LEN=default_string_length), POINTER :: ff_nonbond_a(:)
     REAL (dbl), POINTER                            :: ff_nonbond_eps(:)
     REAL (dbl), POINTER                            :: ff_nonbond_rmin2(:)
@@ -347,6 +352,12 @@ SUBROUTINE init_topology (topology)
   NULLIFY(topology%ffch_info%ff_torsion_d)
   NULLIFY(topology%ffch_info%ff_torsion_k)
   NULLIFY(topology%ffch_info%ff_torsion_phi0)
+  NULLIFY(topology%ffch_info%ff_impr_a)
+  NULLIFY(topology%ffch_info%ff_impr_b)
+  NULLIFY(topology%ffch_info%ff_impr_c)
+  NULLIFY(topology%ffch_info%ff_impr_d)
+  NULLIFY(topology%ffch_info%ff_impr_k)
+  NULLIFY(topology%ffch_info%ff_impr_psi0)
   NULLIFY(topology%ffch_info%ff_nonbond_a)
   NULLIFY(topology%ffch_info%ff_nonbond_eps)
   NULLIFY(topology%ffch_info%ff_nonbond_rmin2)
@@ -687,6 +698,30 @@ SUBROUTINE deallocate_topology (topology)
   IF(ASSOCIATED(topology%ffch_info%ff_torsion_phi0)) THEN
     DEALLOCATE(topology%ffch_info%ff_torsion_phi0,STAT=istat)
     IF (istat /= 0) CALL stop_memory('deallocate_topology','ff_torsion_phi0')
+  END IF
+  IF(ASSOCIATED(topology%ffch_info%ff_impr_a)) THEN
+    DEALLOCATE(topology%ffch_info%ff_impr_a,STAT=istat)
+    IF (istat /= 0) CALL stop_memory('deallocate_topology','ff_impr_a')
+  END IF
+  IF(ASSOCIATED(topology%ffch_info%ff_impr_b)) THEN
+    DEALLOCATE(topology%ffch_info%ff_impr_b,STAT=istat)
+    IF (istat /= 0) CALL stop_memory('deallocate_topology','ff_impr_b')
+  END IF
+  IF(ASSOCIATED(topology%ffch_info%ff_impr_c)) THEN
+    DEALLOCATE(topology%ffch_info%ff_impr_c,STAT=istat)
+    IF (istat /= 0) CALL stop_memory('deallocate_topology','ff_impr_c')
+  END IF
+  IF(ASSOCIATED(topology%ffch_info%ff_impr_d)) THEN
+    DEALLOCATE(topology%ffch_info%ff_impr_d,STAT=istat)
+    IF (istat /= 0) CALL stop_memory('deallocate_topology','ff_impr_d')
+  END IF
+  IF(ASSOCIATED(topology%ffch_info%ff_impr_k)) THEN
+    DEALLOCATE(topology%ffch_info%ff_impr_k,STAT=istat)
+    IF (istat /= 0) CALL stop_memory('deallocate_topology','ff_impr_k')
+  END IF
+  IF(ASSOCIATED(topology%ffch_info%ff_impr_psi0)) THEN
+    DEALLOCATE(topology%ffch_info%ff_impr_psi0,STAT=istat)
+    IF (istat /= 0) CALL stop_memory('deallocate_topology','ff_impr_psi0')
   END IF
   IF(ASSOCIATED(topology%ffch_info%ff_nonbond_a)) THEN
     DEALLOCATE(topology%ffch_info%ff_nonbond_a,STAT=istat)

@@ -368,7 +368,6 @@ SUBROUTINE input_charges(topology,globenv)
               ilen = 0
               CALL get_next(string2,ilen)
               CALL uppercase(string2)
-              WRITE(*,*) "string2 ",string2
               IF(string2=="END") EXIT
 
               i = i + 1
@@ -377,9 +376,6 @@ SUBROUTINE input_charges(topology,globenv)
 
               READ(string2(:),*) ffin_info%ff_charge_atm(i)
               CALL get_next ( ffin_info%ff_charge(i) )
-
-              WRITE(*,*) "CCCCHARGE ",ffin_info%ff_charge_atm(i)," ",ffin_info%ff_charge(i)
-
            END DO
         END IF
         CALL read_line
@@ -895,7 +891,8 @@ SUBROUTINE read_force_field_charmm ( topology , globenv )
 
   LOGICAL                                  :: PM1, PM2, PM3, PM4
     INTEGER                                  :: i, istat, ilen, iw
-    INTEGER                                  :: nbond,nbend,ntorsion,nnonbond
+    INTEGER                                  :: nbond,nbend,ntorsion,&
+                                                nimpr,nnonbond
 
     CHARACTER(LEN=default_string_length)     :: label
     CHARACTER(LEN=default_string_length)     :: string,string2,string3,string4
@@ -928,7 +925,7 @@ SUBROUTINE read_force_field_charmm ( topology , globenv )
   CALL search_label ( label, istat, ignore_case=.TRUE. )
   IF (istat == 0) THEN
      CALL read_line
-     DO WHILE (test_next()/='X')
+     DO WHILE (test_next()/='S')
        ilen = 7
        CALL get_next(string,ilen)
        CALL uppercase ( string )
@@ -943,7 +940,7 @@ SUBROUTINE read_force_field_charmm ( topology , globenv )
        ffch_info%ff_bond_b(nbond) = string2
        CALL get_next(ffch_info%ff_bond_k(nbond))
        CALL get_next(ffch_info%ff_bond_r0(nbond))
-       IF(PM1) WRITE(iw,*) "    CHM BOND ",nbond,&
+       IF(PM2) WRITE(iw,*) "    CHM BOND ",nbond,&
                            TRIM(ffch_info%ff_bond_a(nbond))," ",&
                            TRIM(ffch_info%ff_bond_b(nbond))," ",&
                            ffch_info%ff_bond_k(nbond),&
@@ -965,7 +962,7 @@ SUBROUTINE read_force_field_charmm ( topology , globenv )
        ilen = 7
        CALL get_next(string,ilen)
        CALL uppercase ( string )
-       IF(string == "DIHEDRALS") EXIT
+       IF(string == "DIHEDRA") EXIT
        CALL get_next(string2,ilen)
        CALL get_next(string3,ilen)
        nbend = nbend + 1
@@ -979,7 +976,7 @@ SUBROUTINE read_force_field_charmm ( topology , globenv )
        ffch_info%ff_bend_c(nbend) = string3
        CALL get_next(ffch_info%ff_bend_k(nbend))
        CALL get_next(ffch_info%ff_bend_theta0(nbend))
-       IF(PM1) WRITE(iw,*) "    CHM BEND ",nbend,&
+       IF(PM2) WRITE(iw,*) "    CHM BEND ",nbend,&
                            TRIM(ffch_info%ff_bend_a(nbend))," ",&
                            TRIM(ffch_info%ff_bend_b(nbend))," ",&
                            TRIM(ffch_info%ff_bend_c(nbend))," ",&
@@ -1003,7 +1000,7 @@ SUBROUTINE read_force_field_charmm ( topology , globenv )
        ilen = 7
        CALL get_next(string,ilen)
        CALL uppercase ( string )
-       IF(string == "NONBONDED") EXIT
+       IF(string == "IMPROPE") EXIT
        CALL get_next(string2,ilen)
        CALL get_next(string3,ilen)
        CALL get_next(string4,ilen)
@@ -1011,7 +1008,7 @@ SUBROUTINE read_force_field_charmm ( topology , globenv )
        CALL reallocate(ffch_info%ff_torsion_a,1,ntorsion)
        CALL reallocate(ffch_info%ff_torsion_b,1,ntorsion)
        CALL reallocate(ffch_info%ff_torsion_c,1,ntorsion)
-       CALL reallocate(ffch_info%ff_torsion_c,1,ntorsion)
+       CALL reallocate(ffch_info%ff_torsion_d,1,ntorsion)
        CALL reallocate(ffch_info%ff_torsion_k,1,ntorsion)
        CALL reallocate(ffch_info%ff_torsion_phi0,1,ntorsion)
        ffch_info%ff_torsion_a(ntorsion) = string
@@ -1020,7 +1017,7 @@ SUBROUTINE read_force_field_charmm ( topology , globenv )
        ffch_info%ff_torsion_d(ntorsion) = string4
        CALL get_next(ffch_info%ff_torsion_k(ntorsion))
        CALL get_next(ffch_info%ff_torsion_phi0(ntorsion))
-       IF(PM1) WRITE(iw,*) "    CHM TORSION ",ntorsion,&
+       IF(PM2) WRITE(iw,*) "    CHM TORSION ",ntorsion,&
                            TRIM(ffch_info%ff_torsion_a(ntorsion))," ",&
                            TRIM(ffch_info%ff_torsion_b(ntorsion))," ",&
                            TRIM(ffch_info%ff_torsion_c(ntorsion))," ",&
@@ -1034,11 +1031,53 @@ SUBROUTINE read_force_field_charmm ( topology , globenv )
 
   !-----------------------------------------------------------------------------
   !-----------------------------------------------------------------------------
-  ! 4. Read in all the Nonbonded info from the param file here
+  ! 4. Read in all the Improper info from the param file here
+  !-----------------------------------------------------------------------------
+  nimpr = 0
+  label = 'IMPROPER'
+  CALL search_label ( label, istat, ignore_case=.TRUE. )
+  IF (istat == 0) THEN
+     CALL read_line
+     DO WHILE (test_next()/='X')
+       ilen = 7
+       CALL get_next(string,ilen)
+       CALL uppercase ( string )
+       IF(string == "NONBOND") EXIT
+       CALL get_next(string2,ilen)
+       CALL get_next(string3,ilen)
+       CALL get_next(string4,ilen)
+       nimpr = nimpr + 1
+       CALL reallocate(ffch_info%ff_impr_a,1,nimpr)
+       CALL reallocate(ffch_info%ff_impr_b,1,nimpr)
+       CALL reallocate(ffch_info%ff_impr_c,1,nimpr)
+       CALL reallocate(ffch_info%ff_impr_d,1,nimpr)
+       CALL reallocate(ffch_info%ff_impr_k,1,nimpr)
+       CALL reallocate(ffch_info%ff_impr_psi0,1,nimpr)
+       ffch_info%ff_impr_a(nimpr) = string
+       ffch_info%ff_impr_b(nimpr) = string2
+       ffch_info%ff_impr_c(nimpr) = string3
+       ffch_info%ff_impr_d(nimpr) = string4
+       CALL get_next(ffch_info%ff_impr_k(nimpr))
+       CALL get_next(ffch_info%ff_impr_psi0(nimpr))
+       IF(PM2) WRITE(iw,*) "    CHM TORSION ",nimpr,&
+                           TRIM(ffch_info%ff_impr_a(nimpr))," ",&
+                           TRIM(ffch_info%ff_impr_b(nimpr))," ",&
+                           TRIM(ffch_info%ff_impr_c(nimpr))," ",&
+                           TRIM(ffch_info%ff_impr_d(nimpr))," ",&
+                           ffch_info%ff_impr_k(nimpr),&
+                           ffch_info%ff_impr_psi0(nimpr)
+       CALL read_line
+     END DO
+  END IF
+
+
+  !-----------------------------------------------------------------------------
+  !-----------------------------------------------------------------------------
+  ! 5. Read in all the Nonbonded info from the param file here
   !-----------------------------------------------------------------------------
   nnonbond = 0
   label = 'NONBONDED'
-  CALL search_label ( label, istat, ignore_case=.TRUE. )
+  CALL search_label ( label, istat )
   IF (istat == 0) THEN
      CALL read_line
      DO WHILE (test_next()/='X')
@@ -1053,11 +1092,18 @@ SUBROUTINE read_force_field_charmm ( topology , globenv )
        CALL reallocate(ffch_info%ff_nonbond_eps_14,1,nnonbond)
        CALL reallocate(ffch_info%ff_nonbond_rmin2_14,1,nnonbond)
        ffch_info%ff_nonbond_a(nnonbond) = string
+       WRITE(*,*) "DDDDD ",nnonbond,TRIM(string)
+       CALL get_next(ffch_info%ff_nonbond_eps(nnonbond))
        CALL get_next(ffch_info%ff_nonbond_eps(nnonbond))
        CALL get_next(ffch_info%ff_nonbond_rmin2(nnonbond))
-       CALL get_next(ffch_info%ff_nonbond_eps_14(nnonbond))
-       CALL get_next(ffch_info%ff_nonbond_rmin2_14(nnonbond))
-       IF(PM1) WRITE(iw,*) "    CHM NONBOND ",nnonbond,&
+       IF (test_next()=='C') THEN
+         CALL get_next(ffch_info%ff_nonbond_eps_14(nnonbond))
+         CALL get_next(ffch_info%ff_nonbond_rmin2_14(nnonbond))
+       ELSE
+         ffch_info%ff_nonbond_eps_14   = 0.0_dbl
+         ffch_info%ff_nonbond_rmin2_14  = 0.0_dbl
+       END IF
+       IF(PM2) WRITE(iw,*) "    CHM NONBOND ",nnonbond,&
                            TRIM(ffch_info%ff_nonbond_a(nnonbond))," ",&
                            ffch_info%ff_nonbond_eps(nnonbond),&
                            ffch_info%ff_nonbond_rmin2(nnonbond),&
