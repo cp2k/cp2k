@@ -72,7 +72,8 @@ MODULE input_cp2k
 
   INTEGER, PARAMETER, public :: do_qs=1,do_fist=2,do_kg=3,do_qmmm=4,do_atom=5,&
        do_farming=6,do_test=8
-  REAL(KIND=dp), PARAMETER, public :: RADIUS_QMMM_DEFAULT = 0.8_dp
+  REAL(KIND=dp), PARAMETER, PUBLIC :: RADIUS_QMMM_DEFAULT = 0.80_dp,&
+                                      ALPHA_IMOMM_DEFAULT = 1.38_dp  
   INTEGER, PARAMETER, PUBLIC :: nve_ensemble=101,nvt_ensemble=102,&
        npt_i_ensemble=103, npt_f_ensemble=104
   INTEGER, PARAMETER, PUBLIC :: md_init_start=101,md_pos_restart=102,&
@@ -126,7 +127,9 @@ MODULE input_cp2k
        do_extrpl_linear_ps=7
   integer, parameter, public :: do_qmmm_none=0,&
                                 do_qmmm_grid=1,&
-                                do_qmmm_gauss=2
+                                do_qmmm_gauss=2,&
+                                do_qmmm_link_imomm=1,&
+                                do_qmmm_link_gho=2
 
   integer, parameter, public :: do_ewald=0,&
                                 do_pme=1,&
@@ -1950,7 +1953,7 @@ END SUBROUTINE create_ewald_section
 
        CALL keyword_create(keyword, name="SUBSYS",&
             description="Specifies which subsystem the qm atom belongs to.",&
-            usage="SUBSYS ",n_var=1,type_of_var=integer_t,&
+            usage="SUBSYS integer",n_var=1,type_of_var=integer_t,&
             default_i_val=1,error=error)
        CALL section_add_keyword(subsection,keyword,error=error)
        CALL keyword_release(keyword,error=error)
@@ -1972,13 +1975,62 @@ END SUBROUTINE create_ewald_section
 
        CALL keyword_create(keyword, name="RADIUS",&
             description="Specifies the radius of the atomic kinds [angstrom]",&
-            usage="RADIUS ",n_var=1,type_of_var=real_t,&
+            usage="RADIUS real",n_var=1,type_of_var=real_t,&
             default_r_val=RADIUS_QMMM_DEFAULT,error=error)
        CALL section_add_keyword(subsection,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
        CALL section_add_subsection(section,subsection,error=error)
        CALL section_release(subsection,error=error)    
+
+       CALL section_create(subsection,name="LINK",&
+            description="Specify information on the QM/MM link treatment",&
+            n_keywords=4, n_subsections=0, repeats=.true., required=.false.,&
+            error=error)    
+       
+       CALL keyword_create(keyword, name="QM_INDEX",&
+            variants=(/ "QM" /),&
+            description="Specifies the index of the QM atom involved in the QM/MM link",&
+            usage="QM_INDEX integer",n_var=1,type_of_var=integer_t,&
+            error=error)
+       CALL section_add_keyword(subsection,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="MM_INDEX",&
+            variants=(/ "MM" /),&
+            description="Specifies the index of the MM atom involved in the QM/MM link",&
+            usage="MM_INDEX integer",n_var=1,type_of_var=integer_t,&
+            error=error)
+       CALL section_add_keyword(subsection,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+        CALL keyword_create(keyword, name="LINK_TYPE",&
+            variants=(/ "LINK ","TYPE ","LTYPE" /),&
+            description="Specifies the method to use to treat the defined QM/MM link",&
+            usage="LINK_TYPE char",&
+            enum_c_vals=s2a( "IMOMM","GHO"),&
+            enum_i_vals=(/ do_qmmm_link_imomm, do_qmmm_link_gho /),&
+            default_i_val=do_qmmm_link_imomm, error=error)
+       CALL section_add_keyword(subsection,keyword,error=error)
+       CALL keyword_release(keyword,error=error)      
+
+       CALL keyword_create(keyword, name="ALPHA_IMOMM",&
+            variants=(/ "ALPHA" /),&
+            description="Specifies the scaling factor to be used in the IMOMM QM/MM link scheme",&
+            usage="ALPHA_IMOMM real",n_var=1,type_of_var=real_t,&
+            default_r_val=ALPHA_IMOMM_DEFAULT,error=error)
+       CALL section_add_keyword(subsection,keyword,error=error)
+       CALL keyword_release(keyword,error=error)      
+
+       CALL keyword_create(keyword, name="SUBSYS",&
+            description="Specifies which subsystem the qm/mm link atoms belong to.",&
+            usage="SUBSYS integer",n_var=1,type_of_var=integer_t,&
+            default_i_val=1,error=error)
+       CALL section_add_keyword(subsection,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL section_add_subsection(section,subsection,error=error)
+       CALL section_release(subsection,error=error)
 
        NULLIFY(print_key)
        CALL cp_print_key_section_create(print_key,"fist_derivatives",&
@@ -1999,6 +2051,12 @@ END SUBROUTINE create_ewald_section
             error=error)
        CALL section_add_subsection(section,print_key,error=error)
        CALL section_release(print_key,error=error)
+       CALL cp_print_key_section_create(print_key,"qmmm_link_info",&
+            description="Print all information on QM/MM links", &
+            print_level=medium_print_level,each=(/1/),filename="__STD_OUT__",&
+            error=error)
+       CALL section_add_subsection(section,print_key,error=error)
+       CALL section_release(print_key,error=error)       
 
     END IF
 

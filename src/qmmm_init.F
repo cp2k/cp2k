@@ -75,7 +75,8 @@ MODULE qmmm_init
                                              qmmm_env_qm_type,&
                                              qmmm_env_mm_type,&
                                              qmmm_env_mm_create,&
-                                             qmmm_env_mm_release
+                                             qmmm_env_mm_release,&
+                                             qmmm_links_type
   USE qmmm_gaussian_types,             ONLY: qmmm_gaussian_p_type
   USE qmmm_gaussian_init,              ONLY: qmmm_gaussian_initialize
   USE qmmm_pw_grid,                    ONLY: qmmm_pw_grid_init
@@ -120,7 +121,7 @@ MODULE qmmm_init
        section_add_keyword, section_add_subsection, section_release,&
        section_describe_html, section_describe_index_html, section_vals_type,&
        section_vals_get_subs_vals, section_vals_get, section_vals_val_get
-  USE input_cp2k, ONLY: RADIUS_QMMM_DEFAULT
+  USE input_cp2k, ONLY: RADIUS_QMMM_DEFAULT, do_qmmm_link_imomm, do_qmmm_link_gho
   USE fist_environment_types, ONLY: set_fist_env
   
   IMPLICIT NONE
@@ -170,7 +171,7 @@ CONTAINS
     INTEGER                                  :: handle, isubf, stat
     INTEGER                                  :: iw
     INTEGER, DIMENSION(:), POINTER           :: qm_atom_index, mm_atom_index, qm_subsys_index
-    LOGICAL                                  :: failure
+    LOGICAL                                  :: failure, qmmm_link
     TYPE(cell_type), POINTER                 :: mm_cell, qm_cell_small
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(cp_subsystem_p_type), &
@@ -185,13 +186,14 @@ CONTAINS
     REAL(KIND=dp)                            :: eps_mm_rspace
     INTEGER                                  :: qmmm_coupl_type
     TYPE(section_vals_type), POINTER         :: force_env_section, qmmm_section
+    TYPE(qmmm_links_type), pointer           :: qmmm_links
     
     CALL timeset(routineN,"I","",handle)
     failure=.FALSE.
 
     NULLIFY(sub_force_env, qm_atom_index, mm_atom_index, qm_atom_type,qmmm_env_qm, subsys_mm,&
          subsys_qm, mm_cell, qm_cell_small, qs_env, para_env, mm_atom_chrg,&
-         mm_el_pot_radius, qmmm_env_mm)
+         mm_el_pot_radius, qmmm_env_mm, qmmm_links)
     para_env => globenv%para_env
     iw = globenv%scr
     IF (.NOT. failure) THEN
@@ -213,10 +215,12 @@ CONTAINS
                                qmmm_env_mm,&
                                qm_atom_index,&
                                qmmm_coupl_type,&
+                               qmmm_link,&
                                error=error)
 
        qmmm_env_mm%qm_atom_index       => qm_atom_index       
        qmmm_env_mm%qmmm_coupl_type     =  qmmm_coupl_type
+       qmmm_env_mm%qmmm_link           =  qmmm_link
 
        ! Center the qm subsys into the qm box
        IF (globenv%run_type == "DEBUG") qmmm_env_qm%center_qm_subsys = .FALSE.
@@ -247,6 +251,7 @@ CONTAINS
                                 qm_cell_small,&
                                 qmmm_coupl_type,&
                                 eps_mm_rspace,&
+                                qmmm_link,&
                                 error)
                                
        qmmm_env_qm%qm_atom_index   => qm_atom_index
@@ -254,6 +259,7 @@ CONTAINS
        qmmm_env_qm%qm_subsys_index => qm_subsys_index
        qmmm_env_qm%eps_mm_rspace   = eps_mm_rspace
        qmmm_env_qm%qmmm_coupl_type = qmmm_coupl_type
+       qmmm_env_qm%qmmm_link       = qmmm_link
        qmmm_env_qm%num_qm_atoms = size(qm_atom_index)
        qmmm_env_qm%num_mm_atoms = size(mm_atom_index)
        WRITE(iw,'(A,I6)')" Number of QM atoms: ",qmmm_env_qm%num_qm_atoms 
@@ -278,6 +284,11 @@ CONTAINS
 
        qmmm_env_qm%mm_atom_chrg     => mm_atom_chrg
        qmmm_env_qm%mm_el_pot_radius => mm_el_pot_radius
+
+       IF (qmmm_link) THEN 
+          CALL setup_qmmm_links(qmmm_section, qmmm_links, error=error)
+          qmmm_env_qm%qmmm_links    => qmmm_links
+       END IF
 
        globenv%program_name="QS"
        CALL create_small_subsystem(subsys_qm,&
@@ -621,7 +632,8 @@ CONTAINS
   !!*************************************************************************
   SUBROUTINE setup_qmmm_vars_qm( qmmm_section, qmmm_env, subsys_mm, qm_atom_type,&
                               qm_atom_index, mm_atom_index, qm_subsys_index,&
-                              qm_cell_small, qmmm_coupl_type, eps_mm_rspace, error)
+                              qm_cell_small, qmmm_coupl_type, eps_mm_rspace, qmmm_link,&
+                              error)
     IMPLICIT NONE
     ! Arguments
     TYPE(section_vals_type), POINTER         :: qmmm_section
@@ -636,12 +648,13 @@ CONTAINS
     REAL(KIND=dp), INTENT(OUT)              :: eps_mm_rspace
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
+    LOGICAL, INTENT(OUT)                     :: qmmm_link
     ! Local Variables
     CHARACTER(len=*), PARAMETER :: routineN = 'setup_qmmm_vars_qm',&
          routineP = moduleN//':'//routineN
     INTEGER :: i, j, icount, size_mm_system, stat, ikind, ikindr, nkind, n_rep, iatm
     LOGICAL :: is_mm
-    INTEGER                                  :: num_qm_atom_tot, qm_subsys_type
+    INTEGER                                  :: num_qm_atom_tot, qm_subsys_type, mm_index, nlinks
     LOGICAL                                  :: failure
     CHARACTER(len=default_string_length)     :: qm_atom_kind, mm_atom_kind
     TYPE(atomic_kind_list_type), POINTER     :: atomic_kinds
@@ -649,11 +662,12 @@ CONTAINS
     CHARACTER(LEN=default_string_length)     :: atmname
     REAL(KIND=dp)                                :: tmp_radius
     TYPE(elp_potential_type), POINTER        :: elp_potential
-    TYPE(section_vals_type), POINTER         :: qm_kinds, mm_kinds
+    TYPE(section_vals_type), POINTER         :: qm_kinds, mm_kinds, qmmm_links
     LOGICAL :: explicit
     INTEGER , DIMENSION(:), POINTER :: mm_indexes
     REAL(KIND=dp), DIMENSION(:), POINTER :: cell_par
 
+    qmmm_link = .FALSE.
     CALL section_vals_get(qmmm_section,explicit=explicit,error=error)
     IF (explicit) THEN
        CALL section_vals_val_get(qmmm_section,"E_COUPL",i_val=qmmm_coupl_type,error=error)
@@ -684,6 +698,16 @@ CONTAINS
           CALL section_vals_val_get(qm_kinds,"MM_INDEX",i_rep_section=ikind,i_vals=mm_indexes,error=error)
           num_qm_atom_tot = num_qm_atom_tot + SIZE(mm_indexes)             
        END DO
+       !
+       ! QM/MM LINKS
+       !
+       qmmm_links => section_vals_get_subs_vals(qmmm_section,"LINK",error=error)
+       CALL section_vals_get(qmmm_links,explicit=explicit,error=error)
+       IF (explicit) THEN
+          qmmm_link = .TRUE.
+          CALL section_vals_get(qmmm_links,n_repetition=nlinks,error=error)
+          num_qm_atom_tot = num_qm_atom_tot + nlinks
+       END IF       
        ALLOCATE(qm_atom_index(num_qm_atom_tot),& 
                 qm_atom_type(num_qm_atom_tot),&
                 qm_subsys_index(num_qm_atom_tot),&
@@ -700,6 +724,17 @@ CONTAINS
           qm_subsys_index(num_qm_atom_tot:num_qm_atom_tot + SIZE(mm_indexes)-1) = qm_subsys_type
           num_qm_atom_tot = num_qm_atom_tot + SIZE(mm_indexes)
        END DO
+       IF (explicit) THEN
+          DO ikind = 1, nlinks
+             CALL section_vals_val_get(qmmm_links,"MM_INDEX",i_rep_section=ikind,i_val=mm_index,error=error)
+             CALL section_vals_val_get(qmmm_links,"SUBSYS",i_rep_section=ikind,i_val=qm_subsys_type,error=error)
+             qm_atom_index(num_qm_atom_tot:num_qm_atom_tot )  = mm_index
+             qm_atom_type (num_qm_atom_tot:num_qm_atom_tot)   = "H"
+             qm_subsys_index(num_qm_atom_tot:num_qm_atom_tot) = qm_subsys_type
+             num_qm_atom_tot = num_qm_atom_tot + 1           
+          END DO
+       END IF       
+       CPPostcondition(num_qm_atom_tot-1==SIZE(qm_atom_index),cp_failure_level,routineP,error,failure)
        !
        ! MM_KINDS
        !
@@ -824,26 +859,28 @@ CONTAINS
   !!
   !!*************************************************************************
   SUBROUTINE setup_qmmm_vars_mm( qmmm_section, qmmm_env, qm_atom_index, qmmm_coupl_type,&
-       error)
+       qmmm_link, error)
     IMPLICIT NONE
     ! Arguments
     TYPE(section_vals_type), POINTER         :: qmmm_section
     TYPE(qmmm_env_mm_type), POINTER          :: qmmm_env
     INTEGER, DIMENSION(:), POINTER           :: qm_atom_index
     INTEGER, INTENT(OUT)                     :: qmmm_coupl_type
+    LOGICAL, INTENT(OUT)                     :: qmmm_link
     TYPE(cp_error_type), INTENT(inout), &
          OPTIONAL                               :: error
     ! Local Variables
     CHARACTER(len=*), PARAMETER :: routineN = 'setup_qmmm_vars_mm',&
          routineP = moduleN//':'//routineN
-    INTEGER :: stat, ikind, nkind, n_rep
-    INTEGER                                  :: num_qm_atom_tot
+    INTEGER :: stat, ikind, nkind, n_rep, mm_index
+    INTEGER                                  :: num_qm_atom_tot, nlinks
     LOGICAL                                  :: failure
-    CHARACTER(len=default_string_length)     :: qm_atom_kind
-    TYPE(section_vals_type), POINTER         :: qm_kinds
+    TYPE(section_vals_type), POINTER         :: qm_kinds, qmmm_links
     LOGICAL :: explicit
     INTEGER , DIMENSION(:), POINTER :: mm_indexes
     
+    qmmm_link = .FALSE.
+    NULLIFY(qm_kinds, qmmm_links, mm_indexes)
     CALL section_vals_get(qmmm_section,explicit=explicit,error=error)
     IF (explicit) THEN
        CALL section_vals_val_get(qmmm_section,"E_COUPL",i_val=qmmm_coupl_type,error=error)
@@ -857,19 +894,111 @@ CONTAINS
           CALL section_vals_val_get(qm_kinds,"MM_INDEX",i_rep_section=ikind,i_vals=mm_indexes,error=error)
           num_qm_atom_tot = num_qm_atom_tot + SIZE(mm_indexes)             
        END DO
+       !
+       ! QM/MM LINKS
+       !
+       qmmm_links => section_vals_get_subs_vals(qmmm_section,"LINK",error=error)
+       CALL section_vals_get(qmmm_links,explicit=explicit,error=error)
+       IF (explicit) THEN
+          qmmm_link = .TRUE.
+          CALL section_vals_get(qmmm_links,n_repetition=nlinks,error=error)
+          num_qm_atom_tot = num_qm_atom_tot + nlinks
+       END IF
        ALLOCATE(qm_atom_index(num_qm_atom_tot),&
             stat=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
        num_qm_atom_tot = 1
        DO ikind=1,nkind
-          CALL section_vals_val_get(qm_kinds,"_SECTION_PARAMETERS_",i_rep_section=ikind,&
-               c_val=qm_atom_kind,error=error)
           CALL section_vals_val_get(qm_kinds,"MM_INDEX",i_rep_section=ikind,i_vals=mm_indexes,error=error)
           qm_atom_index(num_qm_atom_tot:num_qm_atom_tot + SIZE(mm_indexes)-1)   = mm_indexes(:)
           num_qm_atom_tot = num_qm_atom_tot + SIZE(mm_indexes)
        END DO
+       IF (explicit) THEN
+          DO ikind = 1, nlinks
+             CALL section_vals_val_get(qmmm_links,"MM_INDEX",i_rep_section=ikind,i_val=mm_index,error=error)
+             qm_atom_index(num_qm_atom_tot:num_qm_atom_tot ) = mm_index
+             num_qm_atom_tot = num_qm_atom_tot + 1           
+          END DO
+       END IF
        CPPostcondition(num_qm_atom_tot-1==SIZE(qm_atom_index),cp_failure_level,routineP,error,failure)
     END IF
   END SUBROUTINE setup_qmmm_vars_mm
      
+
+  !!****f* qmmm_init/setup_qmmm_links [1.0] *
+  !!
+  !!   NAME
+  !!     setup_qmmm_links
+  !!
+  !!   FUNCTION
+  !!     this routine sets up all variables to treat qmmm links
+  !!
+  !!   NOTES
+  !!
+  !!
+  !!   INPUTS
+  !!     - error: variable to control error logging, stopping,... 
+  !!       see module cp_error_handling 
+  !!
+  !!   AUTHOR
+  !!     Teodoro Laino
+  !!
+  !!   MODIFICATION HISTORY
+  !!     12.2004 created [tlaino]
+  !!
+  !!*************************************************************************
+  SUBROUTINE  setup_qmmm_links(qmmm_section, qmmm_links, error)
+    IMPLICIT NONE
+    ! Arguments
+    TYPE(section_vals_type), POINTER         :: qmmm_section, qmmm_link_section
+    TYPE(qmmm_links_type), POINTER           :: qmmm_links
+    TYPE(cp_error_type), INTENT(inout), &
+         OPTIONAL                               :: error
+    ! Local variables
+    CHARACTER(len=*), PARAMETER :: routineN = 'setup_qmmm_links',&
+         routineP = moduleN//':'//routineN
+    INTEGER  :: ikind, nlinks, n_imomm, n_gho, link_type, qm_index, mm_index, stat
+    logical  :: failure
+    REAL(KIND=dp) :: alpha
+
+    failure = .FALSE.
+    n_imomm = 0
+    qmmm_link_section => section_vals_get_subs_vals(qmmm_section,"LINK",error=error)
+    CALL section_vals_get(qmmm_link_section,n_repetition=nlinks,error=error)    
+    CPPostcondition(nlinks /= 0,cp_failure_level,routineP,error,failure)
+    DO ikind= 1, nlinks
+       CALL section_vals_val_get(qmmm_link_section,"LINK_TYPE",i_rep_section=ikind,i_val=link_type,error=error)
+       IF (link_type ==  do_qmmm_link_imomm) n_imomm = n_imomm + 1
+       IF (link_type ==  do_qmmm_link_gho  ) n_gho   = n_gho   + 1
+    END DO
+    CPPostcondition(n_imomm + n_gho /= 0,cp_failure_level,routineP,error,failure)
+    ALLOCATE(qmmm_links, stat=stat)
+    CPPostcondition(stat == 0,cp_failure_level,routineP,error,failure)
+    IF ( n_imomm /= 0 ) THEN
+       ALLOCATE(qmmm_links%imomm(n_imomm), stat=stat)
+       CPPostcondition(stat == 0,cp_failure_level,routineP,error,failure)
+       DO ikind = 1, n_imomm
+          NULLIFY(qmmm_links%imomm(ikind)%link)          
+       END DO
+       n_imomm = 0
+       DO ikind = 1, nlinks
+          CALL section_vals_val_get(qmmm_link_section,"LINK_TYPE",i_rep_section=ikind,i_val=link_type,error=error)
+          IF (link_type ==  do_qmmm_link_imomm) THEN
+             n_imomm = n_imomm + 1
+             CALL section_vals_val_get(qmmm_link_section,"QM_INDEX",i_rep_section=ikind,i_val=qm_index,error=error)
+             CALL section_vals_val_get(qmmm_link_section,"MM_INDEX",i_rep_section=ikind,i_val=mm_index,error=error)
+             CALL section_vals_val_get(qmmm_link_section,"ALPHA_IMOMM",i_rep_section=ikind,r_val=alpha,error=error)
+             qmmm_links%imomm(n_imomm)%link%qm_index = qm_index
+             qmmm_links%imomm(n_imomm)%link%mm_index = mm_index
+             qmmm_links%imomm(n_imomm)%link%alpha    = alpha
+          END IF
+       END DO
+    END IF
+    IF ( n_gho /= 0) THEN
+       ! not yet implemented
+       ! still to define : type, implementation into QS
+       CPPostcondition(.FALSE.,cp_failure_level,routineP,error,failure) 
+    END IF
+  END SUBROUTINE setup_qmmm_links
+
 END MODULE qmmm_init

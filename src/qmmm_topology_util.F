@@ -87,6 +87,7 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'qmmm_coordinate_control', &
          routineP = moduleN//':'//routineN
     INTEGER                                  :: handle, iw, iatm
+    INTEGER                                  :: ifirst, ilast, myind
     
     failure = .FALSE.
     iw = globenv%scr
@@ -95,13 +96,33 @@ CONTAINS
     IF((globenv%ionode).AND.(globenv%print%level>0))THEN
        WRITE(iw,*) "  Entering qmmm_coordinate_control"
     END IF
-
+    !
+    ! setting ilast and ifirst for QM molecule
+    !
     CPPostcondition(SIZE(qmmm_env%qm_atom_index) /= 0,cp_failure_level,routineP,error,failure)
+    DO myind = 1, SIZE(qmmm_env%qm_atom_index)
+       ifirst = qmmm_env%qm_atom_index(myind)
+       ilast  = ifirst
+       DO WHILE (topology%atom_info%label_molname(ifirst) == topology%atom_info%label_molname(ilast)&
+            .AND.ifirst >= 2)
+          ifirst = ifirst - 1
+       END DO
+       IF (topology%atom_info%label_molname(ifirst) /= topology%atom_info%label_molname(ilast))&
+            ifirst = ifirst + 1
+       DO WHILE (topology%atom_info%label_molname(ifirst) == topology%atom_info%label_molname(ilast)&
+            .AND.ilast <= SIZE(topology%atom_info%label_molname)-1)
+          ilast = ilast + 1
+       END DO
+       IF (topology%atom_info%label_molname(ifirst) /= topology%atom_info%label_molname(ilast))&        
+            ilast = ilast - 1
+       DO iatm = ifirst, ilast
+          topology%atom_info%label_molname(iatm) = "_QM_"//&
+               TRIM(topology%atom_info%label_molname(iatm))
+       END DO
+    END DO
     DO iatm = 1, SIZE(qmmm_env%qm_atom_index)
        topology%atom_info%label_atmname(qmmm_env%qm_atom_index(iatm)) = "_QM_"//&
             TRIM(topology%atom_info%label_atmname(qmmm_env%qm_atom_index(iatm)))
-       topology%atom_info%label_molname(qmmm_env%qm_atom_index(iatm)) = "_QM_"//&
-            TRIM(topology%atom_info%label_molname(qmmm_env%qm_atom_index(iatm)))
        topology%atom_info%label_resname(qmmm_env%qm_atom_index(iatm)) = "_QM_"//&
             TRIM(topology%atom_info%label_resname(qmmm_env%qm_atom_index(iatm)))
     END DO

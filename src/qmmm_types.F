@@ -55,6 +55,7 @@ MODULE qmmm_types
   PUBLIC :: qmmm_env_qm_type, gridlevel_info_type, qmmm_pot_type, qmmm_pot_p_type
   PUBLIC :: qmmm_env_qm_retain, qmmm_env_qm_release, qmmm_env_qm_create
   PUBLIC :: qmmm_env_mm_type, qmmm_env_mm_create, qmmm_env_mm_retain, qmmm_env_mm_release
+  PUBLIC :: qmmm_imomm_link_type, qmmm_imomm_link_p_type, qmmm_links_type 
 
 !***
 !****************************************************************************
@@ -98,9 +99,23 @@ MODULE qmmm_types
       TYPE(qmmm_pot_type), POINTER :: pot
   END TYPE qmmm_pot_p_type
 
+  TYPE qmmm_imomm_link_type
+     INTEGER  :: qm_index, mm_index
+     REAL(KIND=dp) :: alpha
+  END TYPE qmmm_imomm_link_type
+  
+  TYPE qmmm_imomm_link_p_type
+     TYPE(qmmm_imomm_link_type), POINTER :: link
+  END TYPE qmmm_imomm_link_p_type
+
+  TYPE qmmm_links_type
+     TYPE(qmmm_imomm_link_p_type), DIMENSION(:), POINTER :: imomm
+  END TYPE qmmm_links_type
+
   TYPE qmmm_env_qm_type
      INTEGER :: ref_count, id_nr
      LOGICAL                                                 :: center_qm_subsys
+     LOGICAL                                                 :: qmmm_link
      INTEGER                                                 :: qmmm_coupl_type
      INTEGER                                                 :: num_qm_atoms
      INTEGER                                                 :: num_mm_atoms
@@ -115,10 +130,12 @@ MODULE qmmm_types
      TYPE(gridlevel_info_type)                               :: gridlevel_info
      TYPE(qmmm_gaussian_p_type), DIMENSION(:),POINTER        :: pgfs
      TYPE(pw_pool_p_type), DIMENSION(:), POINTER             :: aug_pools
+     TYPE(qmmm_links_type), POINTER                          :: qmmm_links
   END TYPE qmmm_env_qm_type
 
   TYPE qmmm_env_mm_type
      INTEGER :: ref_count, id_nr
+     LOGICAL                                                 :: qmmm_link
      INTEGER                                                 :: qmmm_coupl_type
      INTEGER,        DIMENSION(:), POINTER                   :: qm_atom_index
      INTEGER,        DIMENSION(:), POINTER                   :: qm_molecule_index
@@ -299,7 +316,8 @@ SUBROUTINE qmmm_env_qm_create(qmmm_env, error)
      NULLIFY(qmmm_env%qm_atom_index,qmmm_env%qm_subsys_index,&
              qmmm_env%mm_atom_index,qmmm_env%mm_atom_chrg,&
              qmmm_env%pgfs, qmmm_env%maxradius,&
-             qmmm_env%aug_pools, qmmm_env%potentials )
+             qmmm_env%aug_pools, qmmm_env%potentials,&
+             qmmm_env%qmmm_links)
      qmmm_env%center_qm_subsys = .TRUE.
      qmmm_env%qmmm_coupl_type=do_qmmm_none
      qmmm_env%num_qm_atoms=0
@@ -442,12 +460,59 @@ SUBROUTINE qmmm_env_qm_release(qmmm_env,error)
         IF (ASSOCIATED(qmmm_env%aug_pools)) THEN
            CALL pw_pools_dealloc(qmmm_env%aug_pools,error=error)
         END IF
+        IF (ASSOCIATED(qmmm_env%qmmm_links)) THEN
+           CALL qmmm_links_dealloc(qmmm_env%qmmm_links, error=error)
+        END IF
         DEALLOCATE(qmmm_env, stat=stat)
         CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
      END IF
   END IF
   NULLIFY(qmmm_env)
 END SUBROUTINE qmmm_env_qm_release
+
+!!****f* qmmm_types/qmmm_links_dealloc [1.0] *
+!!
+!!   NAME
+!!     qmmm_links_dealloc
+!!
+!!   FUNCTION
+!!     deallocates the qmmm_links structure
+!!
+!!   NOTES
+!!     -
+!!
+!!   INPUTS
+!!     - error: variable to control error logging, stopping,... 
+!!       see module cp_error_handling 
+!!
+!!   AUTHOR
+!!     Teodoro Laino
+!!
+!!*** **********************************************************************
+SUBROUTINE qmmm_links_dealloc(qmmm_links, error)
+  IMPLICIT NONE
+  ! Arguments
+  TYPE(qmmm_links_type), POINTER :: qmmm_links
+  TYPE(cp_error_type), INTENT(inout), &
+       OPTIONAL                               :: error
+  ! Local Variables
+  CHARACTER(len=*), PARAMETER :: routineN = 'qmmm_links_dealloc', &
+       routineP = moduleN//':'//routineN
+  INTEGER :: I, stat
+  
+  IF (ASSOCIATED(qmmm_links%imomm)) THEN
+     DO i = 1, SIZE(qmmm_links%imomm)
+        IF (ASSOCIATED(qmmm_links%imomm(i)%link)) DEALLOCATE(qmmm_links%imomm(i)%link, stat=stat)
+        CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error) 
+     END DO
+     DEALLOCATE(qmmm_links%imomm, stat=stat)
+     CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error) 
+  END IF
+  DEALLOCATE(qmmm_links, stat=stat)
+  CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error) 
+END SUBROUTINE qmmm_links_dealloc
+
+
 
 !!****f* qmmm_types/qmmm_pot_type_dealloc [1.0] *
 !!
