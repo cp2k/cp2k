@@ -67,7 +67,6 @@ MODULE mm_collocate_potential
                                              rs_pool_give_back_rs,&
                                              rs_pools_create_rs_vect,&
                                              rs_pools_give_back_rs_vect
-  USE cube_utils,                      ONLY: cube_info_type
   USE qs_util,                         ONLY: exp_radius
 
   IMPLICIT NONE

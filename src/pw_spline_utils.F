@@ -1618,7 +1618,7 @@ SUBROUTINE pw_nn_compose_r_work(weights,in_val,out_val,pw_in,bo,pbc,error)
 
      IF (method_rs<3) THEN
         !$omp parallel do default(none) private(k,kw,myk,j,jw,myj,in_val_f,&
-        !$omp     in_val_l) shared(zderiv,yderiv,bo,in_val,out_val,s,l_boundary,&
+        !$omp     in_val_l) shared(my_pbc,zderiv,yderiv,bo,in_val,out_val,s,l_boundary,&
         !$omp     u_boundary,weights,has_boundary)
         DO k=0,s(3)-1
            DO kw=0,2
