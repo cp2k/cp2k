@@ -676,6 +676,7 @@ CONTAINS
 
     NULLIFY(mm_link_atoms)
     qmmm_link = .FALSE.
+    failure   = .FALSE.
     CALL section_vals_get(qmmm_section,explicit=explicit,error=error)
     IF (explicit) THEN
        CALL section_vals_val_get(qmmm_section,"E_COUPL",i_val=qmmm_coupl_type,error=error)
@@ -804,6 +805,10 @@ CONTAINS
        END IF
     END DO
     CPPostcondition(icount==size_mm_system,cp_failure_level,routineP,error,failure)
+    IF (ASSOCIATED(mm_link_atoms)) THEN 
+       DEALLOCATE(mm_link_atoms, stat=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    END IF
   END SUBROUTINE setup_qmmm_vars_qm
 
 
