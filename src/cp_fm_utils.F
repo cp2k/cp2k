@@ -25,7 +25,6 @@ MODULE cp_fm_utils
   USE kinds,                           ONLY: dbl,&
                                              dp_size
   USE message_passing,                 ONLY: mp_sum
-  USE qs_blacs,                        ONLY: blacs_get_element
   USE termination,                     ONLY: stop_memory
   IMPLICIT NONE
 
@@ -86,10 +85,7 @@ CONTAINS
 
     IF (DEBUG_THIS_MODULE) THEN
        DO row=1, a_row_global
-          CALL blacs_get_element(mat_a, row, col_a, element)
-#if defined(__SCALAPACK)
-          CALL mp_sum(element, mat_a%matrix_struct%para_env%group)
-#endif
+          CALL cp_fm_get_element(mat_a, row, col_a, element)
           IF (element/=vec_b(row)) THEN
              WRITE (*,*) routineP//': inconsistent DATA'
              STOP 1
@@ -141,10 +137,7 @@ CONTAINS
 
     IF (DEBUG_THIS_MODULE) THEN
           DO row=1, b_row_global 
-             CALL blacs_get_element(mat_b, row, col_b, element)
-#if defined(__SCALAPACK)
-             CALL mp_sum(element, mat_b%matrix_struct%para_env%group)
-#endif
+             CALL cp_fm_get_element(mat_b, row, col_b, element)
              IF (element/=vec_a(row)) THEN
                 WRITE (*,*) routineP//': Inconsistent DATA'
                 STOP 1
@@ -200,10 +193,7 @@ CONTAINS
     IF (DEBUG_THIS_MODULE) THEN
        DO col=1, a_col_global
           DO row=1, a_row_global
-             CALL blacs_get_element(mat_a, row, col, element)
-#if defined(__SCALAPACK)
-             CALL mp_sum(element, mat_a%matrix_struct%para_env%group)
-#endif
+             CALL cp_fm_get_element(mat_a, row, col, element)
              IF (element/=vec_b(((col-1)*a_row_global)+row)) THEN
                 WRITE (*,*) routineP//': Inconsistent DATA'
                 STOP 1
@@ -257,10 +247,7 @@ CONTAINS
     IF (DEBUG_THIS_MODULE) THEN
        DO col=1, b_col_global
           DO row=1, b_row_global 
-             CALL blacs_get_element(mat_b, row, col, element)
-#if defined(__SCALAPACK)
-             CALL mp_sum(element, mat_b%matrix_struct%para_env%group)
-#endif
+             CALL cp_fm_get_element(mat_b, row, col, element)
              IF (element/=vec_a(((col-1)*b_row_global)+row)) THEN
                 WRITE (*,*) routineP//': Inconsistent DATA'
                 STOP 1

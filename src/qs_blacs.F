@@ -98,8 +98,7 @@ MODULE qs_blacs
   PUBLIC :: copy_blacs_to_ionode_matrix,&
             blacs_column_copy,&
             write_blacs_matrix, &
-            blacs_make_basis, &
-            blacs_get_element
+            blacs_make_basis
 
 ! *****************************************************************************
 
@@ -287,57 +286,6 @@ CONTAINS
     END SUBROUTINE blacs_make_basis
 
 ! *****************************************************************************
-
-  SUBROUTINE blacs_get_element(matrix,irow_global,icol_global,alpha)
-
-!   Purpose: Get the BLACS matrix element (irow_global,icol_global).
-
-!   History: - Creation (22.01.2002, Matthias Krack)
-!   ***************************************************************************
-
-    TYPE(cp_fm_type), POINTER          :: matrix
-    REAL(wp), INTENT(OUT)                     :: alpha
-    INTEGER, INTENT(IN)                       :: icol_global,&
-                                                 irow_global
-
-!   *** Local variables ***
-
-    INTEGER :: icol_local,ipcol,iprow,irow_local,mypcol,myprow,npcol,&
-               nprow
-
-    INTEGER, DIMENSION(9) :: desca
-
-    REAL(wp), DIMENSION(:,:), POINTER :: a
-    TYPE(cp_blacs_env_type), POINTER :: context
-
-!   ---------------------------------------------------------------------------
-
-    context => matrix%matrix_struct%context
-    myprow=context%mepos(1)
-    mypcol=context%mepos(2)
-    nprow=context%num_pe(1)
-    npcol=context%num_pe(2)
-
-#if defined(__SCALAPACK)
-
-    a => matrix%local_data
-    desca(:) = matrix%matrix_struct%descriptor(:)
-
-    CALL infog2l(irow_global,icol_global,desca,nprow,npcol,myprow,mypcol,&
-                 irow_local,icol_local,iprow,ipcol)
-
-    IF ((iprow == myprow).AND.(ipcol == mypcol)) THEN
-      alpha = a(irow_local,icol_local)
-    ELSE
-      alpha = 0.0_wp
-    END IF
-
-#else
-
-    alpha = matrix%local_data(irow_global,icol_global)
-
-#endif
-  END SUBROUTINE blacs_get_element
 
   SUBROUTINE blacs_column_copy(msource,mtarget,ncol,source_start,target_start)
     TYPE(cp_fm_type), POINTER          :: msource,mtarget

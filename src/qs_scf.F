@@ -106,8 +106,7 @@ MODULE qs_scf
                                              cp_fm_syevd, &
                                              cp_fm_power, &
                                              cp_fm_block_jacobi_classic
-  USE qs_blacs,                        ONLY: blacs_get_element,&
-                                             blacs_make_basis,&
+  USE qs_blacs,                        ONLY: blacs_make_basis,&
                                              w_blacs_matrix => write_blacs_matrix
   USE cp_lbfgs_optimizer_gerd_f,       ONLY: cp_lbfgs_opt_gerd_f_type,&
                                              cp_opt_gerd_f_dealloc_ref,&
@@ -1551,6 +1550,7 @@ CONTAINS
     INTEGER, DIMENSION(:), POINTER   :: atom_list,elec_conf,nshell
     INTEGER, DIMENSION(:,:), POINTER :: first_sgf,l,last_sgf
     INTEGER :: nspin,ispin,nelectron
+    LOGICAL :: local
 
 !   ---------------------------------------------------------------------------
 
@@ -1726,7 +1726,9 @@ CONTAINS
                             atom_a = atom_list(iatom)
                             isgf = particle_set(atom_a)%first_sgf + isgfa - 1
                             CALL cp_fm_set_element(work1(ispin)%matrix,isgf,isgf,paa)
-                            CALL blacs_get_element(work2,isgf,isgf,saa)
+                            ! not so efficient anymore, but then, this should move to sparse matrices at a give point
+                            CALL cp_fm_get_element(work2,isgf,isgf,saa,local)
+                            IF (.NOT. local) saa = 0.0_wp
                             sum = sum + paa*saa
                          END DO
                       END DO
@@ -1767,7 +1769,8 @@ CONTAINS
                       DO iatom=1,natom
                          atom_a = atom_list(iatom)
                          isgf = particle_set(atom_a)%first_sgf + isgfa - 1
-                         CALL blacs_get_element(work1(ispin)%matrix,isgf,isgf,paa)
+                         CALL cp_fm_get_element(work1(ispin)%matrix,isgf,isgf,paa,local)
+                         IF (.NOT. local) paa=0.0_wp
                          paa = paa*saa
                          CALL cp_fm_set_element(work1(ispin)%matrix,isgf,isgf,paa)
                       END DO
