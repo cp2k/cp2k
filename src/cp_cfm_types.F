@@ -26,8 +26,7 @@
 MODULE cp_cfm_types
   USE cp_array_utils,                  ONLY: cp_2d_r_output,&
                                              cp_2d_r_write
-  USE cp_blacs_env,                    ONLY: cp_blacs_env_create,&
-                                             cp_blacs_env_from_globenv,&
+  USE cp_blacs_env,                    ONLY: cp_blacs_env_from_globenv,&
                                              cp_blacs_env_release,&
                                              cp_blacs_env_retain
   USE cp_error_handling,               ONLY: cp_a_l,&

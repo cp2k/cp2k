@@ -25,8 +25,7 @@
 !!   SOURCE
 !****************************************************************************
 MODULE cp_fm_vect
-  USE cp_blacs_env,                    ONLY: cp_blacs_env_create,&
-                                             cp_blacs_env_from_globenv,&
+  USE cp_blacs_env,                    ONLY: cp_blacs_env_from_globenv,&
                                              cp_blacs_env_release,&
                                              cp_blacs_env_retain
   USE cp_error_handling,               ONLY: cp_a_l,&

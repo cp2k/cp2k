@@ -26,8 +26,7 @@
 
 MODULE qs_blacs
 ! *****************************************************************************
-  USE cp_blacs_env,                    ONLY: cp_blacs_env_create,&
-                                             cp_blacs_env_from_globenv,&
+  USE cp_blacs_env,                    ONLY: cp_blacs_env_from_globenv,&
                                              cp_blacs_env_release,&
                                              cp_blacs_env_retain,&
                                              end_blacs,&
