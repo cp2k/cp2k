@@ -56,6 +56,10 @@ H2O-qmmm-gauss-5.inp  1
 H2O-qmmm-grid-1.inp   1
 H2O-qmmm-grid-2.inp   1
 H2O-qmmm-none-1.inp   1
+# QM/MM links
+C4H10-qmmm-gauss-0.inp 1
+C4H10-qmmm-gauss-1.inp 1
+C4H10-qmmm-gauss-2.inp 1
 # tpss
 H2O-tpss.inp       1
 # farming

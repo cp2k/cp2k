@@ -1,0 +1,95 @@
+&CP2K  
+  PROGRAM   QMMM
+  PROJECT   butane
+  IOLEVEL   1
+  FFTLIB    FFTSG
+  RUN_TYPE  GEO_OPT
+&END
+
+&PRINT MEDIUM
+&END
+
+&GEOOPT
+ OPTIMIZER BFGS
+ MAX_ITER  0
+&END
+
+&FORCE_EVAL
+        &QMMM
+         ECOUPL GAUSS
+         ABC_QM  7.0 7.0 7.0
+         #
+         # QM_KINDS
+         #
+         &QM_KIND C
+          mm_index  1 5 8 11
+         &END QM_KIND
+         &QM_KIND H
+          mm_index 2 3 4 6 7 9 10 12 13 14
+         &END QM_KIND
+         #
+         # MM_KINDS
+         #
+         &MM_KIND CTL3
+          radius 0.78
+         &END MM_KIND
+         &MM_KIND HAL3
+          radius 0.78
+         &END MM_KIND
+         #
+         # LINKS
+         # 
+         #
+        &END QMMM
+&END FORCE_EVAL
+
+&TOPOLOGY
+ coord_file     ../../Fist/sample_pdb/butane.pdb
+ coordinate     pdb
+ CHARGE_BETA
+&END
+
+&EWALD
+ units angstrom
+ ewald_type spme
+ ewald_param .44 24 6
+&END
+
+&FORCE_FIELD
+ PARMFILE CHM ../../Fist/sample_pot/butane.pot
+&END
+FIXME CHECK CHARGE
+
+&CELL
+ UNIT         ANGSTROM
+ ABC          24.955 24.955 24.955
+&END
+
+&IO
+ BASIS_SET_FILE GTH_BASIS_SETS
+ POTENTIAL_FILE POTENTIAL
+&END
+
+&DFT
+ FUNCTIONAL  pade
+&END
+
+&QS
+ CUTOFF       50
+ COMMENSURATE
+&END
+
+&SCF
+ GUESS        atomic
+&END
+
+&KIND H
+ BASIS_SET    SZV-GTH
+ POTENTIAL    GTH-PADE-q1
+&END
+
+&KIND C
+ BASIS_SET    SZV-GTH
+ POTENTIAL    GTH-PADE-q4
+&END
+
