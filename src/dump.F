@@ -14,27 +14,38 @@
 !!   MODIFICATION HISTORY
 !!     CJM 2/01:  Now dumps out all extended_system variables
 !!     and the box_ref
+!!     - Simple dump for QS without extended variables (MK,15.09.2003)
 !!
 !!   SOURCE
 !******************************************************************************
 
 MODULE dump
 
-  USE fist_environment_types, ONLY : replica_environment_type
-  USE extended_system_dynamics, ONLY : lnhc_parameters_type, npt_info_type
-  USE global_types, ONLY : global_environment_type
-  USE kinds, ONLY : dbl
-  USE kg_environment_types, ONLY : kg_environment_type
-  USE md_environment_types, ONLY : md_environment_type
-  USE util, ONLY : get_unit
-  USE string_utilities, ONLY : xstring, integer_to_string
+  USE extended_system_dynamics,        ONLY: lnhc_parameters_type, npt_info_type
+  USE fist_environment_types,          ONLY: replica_environment_type
+  USE global_types,                    ONLY: global_environment_type
+  USE kg_environment_types,            ONLY: kg_environment_type
+  USE kinds,                           ONLY: dbl
+  USE md_environment_types,            ONLY: md_environment_type
+  USE particle_types,                  ONLY: particle_type
+  USE qs_environment_types,            ONLY: get_qs_env,&
+                                             qs_environment_type
+  USE qs_parser,                       ONLY: close_file,&
+                                             open_file
+  USE simulation_cell,                 ONLY: cell_type
+  USE string_utilities,                ONLY: xstring,integer_to_string
+  USE util,                            ONLY: get_unit
+
+  IMPLICIT NONE
 
   PRIVATE
 
   PUBLIC :: dump_variables
 
   INTERFACE dump_variables
-   MODULE PROCEDURE dump_fist_variables, dump_kg_variables
+    MODULE PROCEDURE dump_fist_variables,&
+                     dump_kg_variables,&
+                     dump_qs_variables
   END INTERFACE
 
 !!*****
@@ -266,6 +277,120 @@ SUBROUTINE dump_kg_variables ( int_env, kg_env, dump_file_name, globenv )
   END IF
 
 END SUBROUTINE dump_kg_variables
-!------------------------------------------------------------------------------
+
+!******************************************************************************
+!!****** dump/dump_qs_variables [1.0] *
+!!
+!!   NAME
+!!     dump_qs_variables
+!!
+!!   FUNCTION
+!!     Dump all simulation variables periodically and at the last step for QS.
+!!
+!!   AUTHOR
+!!     MK (15.09.2003)
+!!
+!!   MODIFICATION HISTORY
+!!     none
+!!
+!!*****************************************************************************
+
+  SUBROUTINE dump_qs_variables (md_env,qs_env,dump_file_name,globenv)
+
+    TYPE(md_environment_type), INTENT(IN)     :: md_env
+    TYPE(qs_environment_type), INTENT(IN)     :: qs_env
+    CHARACTER(LEN=*), INTENT(IN)              :: dump_file_name
+    TYPE(global_environment_type), INTENT(IN) :: globenv
+
+!   *** Local variables ***
+
+    TYPE(cell_type), POINTER :: cell
+
+    INTEGER :: dump_unit,i,j,natom,size1,size2
+
+    TYPE(lnhc_parameters_type), DIMENSION(:), POINTER :: nhc_part
+    TYPE(particle_type), DIMENSION(:), POINTER        :: particle_set
+
+    TYPE(npt_info_type ), DIMENSION(:,:), POINTER :: npt_info
+
+!   ---------------------------------------------------------------------------
+
+    IF (globenv%ionode) THEN
+
+      CALL open_file(file_name=dump_file_name,&
+                     file_action="WRITE",&
+                     file_form="FORMATTED",&
+                     file_status="REPLACE",&
+                     unit_number=dump_unit)
+
+      CALL get_qs_env(qs_env=qs_env,&
+                      cell=cell,&
+                      particle_set=particle_set)
+
+      natom = SIZE(particle_set)
+
+!MK   WRITE (UNIT=dump_unit,FMT=*) natom
+
+!     *** Coordinates (a.u.) ***
+
+      DO i=1,natom
+        WRITE (UNIT=dump_unit,FMT=*) particle_set(i)%r(1:3)
+      END DO
+
+!     *** Cell vectors (a.u.) ***
+
+      DO i=1,3
+        WRITE (UNIT=dump_unit,FMT=*) cell%hmat(i,1:3)
+      END DO
+
+!     *** Reference cell vectors (NYI for QS) ***
+
+      DO i=1,3
+        WRITE (UNIT=dump_unit,FMT=*) cell%hmat(i,1:3)
+      END DO
+
+!     *** Velocities ***
+
+      DO i=1,natom
+        WRITE (UNIT=dump_unit,FMT=*) particle_set(i)%v(1:3)
+      END DO
+
+!     *** Particle thermostat positions, velocities, masses ***
+
+      nhc_part => md_env%nhc_part
+      npt_info => md_env%npt
+
+      size1 = SIZE(nhc_part(1)%nvt,1)
+      size2 = SIZE(nhc_part(1)%nvt,2)
+
+      WRITE (UNIT=dump_unit,FMT=*) size1,size2
+
+      DO i=1,size1
+        DO j=1,size2
+          WRITE (UNIT=dump_unit,FMT=*) nhc_part(1)%nvt(i,j)%eta
+        END DO
+      END DO
+
+      DO i=1,size1
+        DO j=1,size2
+          WRITE (UNIT=dump_unit,FMT=*) nhc_part(1)%nvt(i,j)%v
+        ENDDO
+      ENDDO
+
+      DO i=1,size1
+        DO j=1,size2
+          WRITE (UNIT=dump_unit,FMT=*) nhc_part(1)%nvt(i,j)%mass
+        END DO
+      END DO
+
+!     *** Close dump unit and keep it ***
+
+      CALL close_file (unit_number=dump_unit)
+
+    END IF
+
+  END SUBROUTINE dump_qs_variables
+
+! *****************************************************************************
 
 END MODULE dump
