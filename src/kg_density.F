@@ -929,8 +929,6 @@ CONTAINS
         IF (PRESENT (force_type)) THEN
           IF (force_type=='hartree') THEN
             force(ikind)%f_hartree(:,iatom) =  - 1.0_wp*force_a(:)
-          ELSE IF (force_type=='tf') THEN
-            force(ikind)%f_tf(:,iatom) =  - 1.0_wp*force_a(:)
           ELSE IF (force_type=='xc') THEN
             force(ikind)%f_xc(:,iatom) =  - 1.0_wp*force_a(:)
           END IF
