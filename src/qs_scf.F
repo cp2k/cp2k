@@ -204,9 +204,8 @@ MODULE qs_scf
                                              no_mixing_nr,&
                                              ot_method_nr,&
                                              pao_mehod_nr,&
-                                             qs_scf_env_type,&
-                                             scf_env_release,&
-                                             scf_env_retain
+                                             qs_scf_env_type, &
+                                             scf_env_release
   USE qs_scf_post,                     ONLY: scf_post_calculation
   USE qs_wf_history_methods,           ONLY: wfi_extrapolate,&
                                              wfi_get_method_label,&
@@ -394,19 +393,19 @@ CONTAINS
          routineP=moduleN//':'//routineN
     TYPE(qs_scf_env_type), POINTER :: scf_env
     TYPE(qs_environment_type), POINTER :: my_qs_env
-
-
-    failure=.FALSE.
     NULLIFY(scf_env,my_qs_env)
-
-!CPPrecondition(associated(qs_env),cp_failure_level,routineP,error,failure)
+    my_qs_env => qs_env
+    failure=.FALSE.
+    ! CPPrecondition(associated(qs_env),cp_failure_level,routineP,error,failure)
+    NULLIFY(scf_env)
     IF (.NOT. failure) THEN
        CALL get_qs_env(qs_env,scf_env=scf_env,error=error)
        IF (.not.ASSOCIATED(scf_env)) THEN
           CALL scf_env_create(scf_env, qs_env=qs_env, error=error)
           CALL set_qs_env(qs_env,scf_env=scf_env,error=error)
+          CALL scf_env_release(scf_env)
+          CALL get_qs_env(qs_env,scf_env=scf_env,error=error)
        END IF
-       my_qs_env => qs_env
        CALL scf_env_do_scf(scf_env,my_qs_env,globenv,error=error)
     END IF
   END SUBROUTINE scf

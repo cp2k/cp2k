@@ -1364,12 +1364,9 @@ END SUBROUTINE cp_sm_scale_and_add
       DO imatrix=1,SIZE(matrix_set)
         CALL deallocate_matrix(matrix_set(imatrix)%matrix)
       END DO
-    ELSE
-      CALL stop_program(routine,"The matrix_set pointer is not associated")
+      DEALLOCATE (matrix_set,STAT=istat)
+      IF (istat /= 0) CALL stop_memory(routine,"matrix_set")
     END IF
-
-    DEALLOCATE (matrix_set,STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routine,"matrix_set")
 
   END SUBROUTINE deallocate_real_matrix_set
 
