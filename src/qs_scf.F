@@ -362,9 +362,9 @@ CONTAINS
                                                   ncol_global=k)
 
        ! decide settings
-       qs_ot_env%settings%ot_method="SD"
+       qs_ot_env%settings%ot_method="CG"
        qs_ot_env%settings%ot_linesearch=.true.
-       qs_ot_env%settings%ot_diis=.true.
+       qs_ot_env%settings%ot_diis=.false.
        qs_ot_env%settings%ds_min=0.15_wp
        if (qs_ot_env%settings%ot_method.eq."QN") then
           qs_ot_env%settings%lbfgs_m=10
@@ -657,7 +657,8 @@ CONTAINS
                        file_form="FORMATTED",&
                        file_status="REPLACE",&
                        unit_number=file_unit)
-
+      
+       NULLIFY(pfull) 
        CALL replicate_matrix(s(1)%matrix,pfull,"FULL DENSITY MATRIX",.false.)
        CALL add_all_real_matrix_blocks(pfull,globenv)
        CALL calculate_density_matrix(mo_set,pfull,globenv)
