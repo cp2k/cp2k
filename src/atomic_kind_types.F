@@ -13,7 +13,8 @@
 !!     MK (02.01.2002)
 !!
 !!   MODIFICATION HISTORY
-!!     none
+!!     - 01.2002 creation [MK]
+!!     - 04.2002 added pao [fawzi]
 !!
 !!   SOURCE
 !******************************************************************************
@@ -51,6 +52,10 @@ MODULE atomic_kind_types
                                       uppercase
   USE termination,              ONLY: stop_memory,&
                                       stop_program
+  USE pao_bas_projection_types
+  USE cp_array_utils, only: cp_write
+  USE cp_error_handling
+  USE cp_log_handling
 
   IMPLICIT NONE
 
@@ -66,10 +71,11 @@ MODULE atomic_kind_types
     TYPE(gth_potential_type), POINTER :: gth_potential
     TYPE(gto_basis_set_type), POINTER :: aux_basis_set
     TYPE(gto_basis_set_type), POINTER :: orb_basis_set
+    TYPE(pao_bas_projection_type), POINTER  :: pao_bas_proj
     CHARACTER(LEN=max_name_length)    :: name
     CHARACTER(LEN=2)                  :: element_symbol
     REAL(wp)                          :: mass
-    INTEGER                           :: kind_number,natom,&
+    INTEGER                           :: kind_number, natom,&
                                          number_of_grid_points
     INTEGER, DIMENSION(:), POINTER    :: atom_list
   END TYPE atomic_kind_type
@@ -132,6 +138,7 @@ CONTAINS
       NULLIFY (atomic_kind_set(ikind)%aux_basis_set)
       NULLIFY (atomic_kind_set(ikind)%orb_basis_set)
       NULLIFY (atomic_kind_set(ikind)%atom_list)
+      NULLIFY (atomic_kind_set(ikind)%pao_bas_proj)
     END DO
 
   END SUBROUTINE allocate_atomic_kind_set
@@ -174,6 +181,9 @@ CONTAINS
         IF (ASSOCIATED(atomic_kind_set(ikind)%orb_basis_set)) THEN
           CALL deallocate_gto_basis_set(atomic_kind_set(ikind)%orb_basis_set)
         END IF
+        IF (ASSOCIATED(atomic_kind_set(ikind)%pao_bas_proj)) THEN
+           CALL cp_dealloc(atomic_kind_set(ikind)%pao_bas_proj)
+        END IF
         DEALLOCATE (atomic_kind_set(ikind)%atom_list,STAT=istat)
         IF (istat /= 0) THEN
           CALL stop_memory(routine,"atomic_kind_set(ikind)%atom_list")
@@ -195,7 +205,7 @@ CONTAINS
                              aux_basis_set,orb_basis_set,element_symbol,name,&
                              mass,kind_number,natom,atom_list,&
                              alpha_core_charge,ccore_charge,&
-                             core_charge_radius,z,zeff)
+                             core_charge_radius,z,zeff, pao_bas_proj)
 
 !   Purpose: Get informations about an atomic kind.
 
@@ -216,6 +226,7 @@ CONTAINS
                                                    core_charge_radius,mass
     INTEGER, OPTIONAL, INTENT(OUT)              :: kind_number,natom,z,zeff
     INTEGER, DIMENSION(:), OPTIONAL, POINTER    :: atom_list
+    type(pao_bas_projection_type), pointer, optional :: pao_bas_proj
 
 !   ---------------------------------------------------------------------------
 
@@ -280,6 +291,7 @@ CONTAINS
         zeff = 0
       END IF
     END IF
+    IF (PRESENT(pao_bas_proj)) pao_bas_proj => atomic_kind%pao_bas_proj
 
   END SUBROUTINE get_atomic_kind
 
@@ -287,7 +299,10 @@ CONTAINS
 
   SUBROUTINE get_atomic_kind_set(atomic_kind_set,maxatom,maxcgf,maxco,maxl,&
                                  maxlppl,maxlppnl,maxpgf,maxppnl,maxsgf,&
-                                 maxsgf_set,maxshell,&
+                                 maxsgf_set,maxshell,pao_max_min_bas,&
+                                 pao_max_full_bas, pao_max_excl_bas,&
+                                 pao_tot_min_bas, pao_tot_full_bas,&
+                                 pao_tot_excl_bas, pao_max_l_angles,&
                                  natom,nelectron,ncgf,npgf,nset,nsgf,nshell,&
                                  all_potential_present,gth_potential_present,&
                                  kind_of)
@@ -303,6 +318,13 @@ CONTAINS
                                                      maxl,maxlppl,maxlppnl,&
                                                      maxpgf,maxppnl,maxsgf,&
                                                      maxsgf_set,maxshell,&
+                                                     pao_max_min_bas,&
+                                                     pao_max_full_bas,&
+                                                     pao_max_excl_bas,&
+                                                     pao_tot_min_bas,&
+                                                     pao_tot_full_bas,&
+                                                     pao_tot_excl_bas,&
+                                                     pao_max_l_angles,&
                                                      natom,ncgf,nelectron,&
                                                      npgf,nset,nsgf,nshell
     LOGICAL, OPTIONAL, INTENT(OUT)                :: all_potential_present,&
@@ -320,7 +342,10 @@ CONTAINS
     TYPE(all_potential_type), POINTER :: all_potential
     TYPE(gth_potential_type), POINTER :: gth_potential
     TYPE(gto_basis_set_type), POINTER :: aux_basis_set,orb_basis_set
-    INTEGER                           :: atom_a,iatom,ikind,imax,n,nkind,zeff
+    INTEGER                           :: atom_a,iatom,ikind,imax,n,nkind,zeff,&
+         p_min_bas, p_min_bas_max, p_excl_bas, p_excl_bas_max, p_full_bas,&
+         p_full_bas_max, p_min_bas_tot, p_full_bas_tot, p_l_angles_max
+    logical                           :: pao
 
     REAL(wp), DIMENSION(:,:), POINTER :: zet
 
@@ -347,6 +372,25 @@ CONTAINS
       IF (PRESENT(nshell)) nshell = 0
       IF (PRESENT(all_potential_present)) all_potential_present = .FALSE.
       IF (PRESENT(gth_potential_present)) gth_potential_present = .FALSE.
+      pao=.FALSE.
+      IF (PRESENT(pao_max_excl_bas) .OR. PRESENT(pao_max_full_bas) .OR.&
+           PRESENT(pao_max_min_bas).OR. PRESENT(pao_tot_min_bas).OR.&
+           PRESENT(pao_tot_full_bas) .OR. PRESENT(pao_tot_excl_bas).OR.&
+           PRESENT(pao_max_l_angles)) THEN
+         IF (SIZE(atomic_kind_set)>0) THEN
+            IF (ASSOCIATED(atomic_kind_set(1)%pao_bas_proj)) pao=.TRUE.
+         END IF
+         IF (.NOT. pao) THEN
+            CALL cp_error_message(cp_warning_level,routine,&
+                 "requested pao_bas_proj info, and pao_bas_proj is not allocated")
+         END IF
+         p_min_bas_max=0
+         p_excl_bas_max=0
+         p_full_bas_max=0
+         p_min_bas_tot=0
+         p_full_bas_tot=0
+         p_l_angles_max=0
+      END IF
       nkind = SIZE(atomic_kind_set)
       DO ikind=1,nkind
         atomic_kind => atomic_kind_set(ikind)
@@ -499,7 +543,26 @@ CONTAINS
             kind_of(atom_a) = ikind
           END DO
         END IF
+        IF (pao) THEN
+           CALL cp_get(atomic_kind%pao_bas_proj,&
+                size_min_bas=p_min_bas,&
+                size_excl_bas=p_excl_bas, size_full_bas=p_full_bas)
+           p_min_bas_max=MAX(p_min_bas_max,p_min_bas)
+           p_excl_bas_max=MAX(p_excl_bas_max,p_excl_bas)
+           p_full_bas_max=MAX(p_full_bas_max,p_full_bas)
+           p_l_angles_max=MAX(p_l_angles_max,p_min_bas*p_excl_bas)
+           p_min_bas_tot=p_min_bas_tot+p_min_bas*size(atomic_kind%atom_list)
+           p_full_bas_tot=p_full_bas_tot+p_full_bas*size(atomic_kind%atom_list)
+        END IF
       END DO
+      IF (PRESENT(pao_max_excl_bas)) pao_max_excl_bas=p_excl_bas_max
+      IF (PRESENT(pao_max_full_bas)) pao_max_full_bas=p_full_bas_max
+      IF (PRESENT(pao_max_min_bas)) pao_max_min_bas=p_min_bas_max
+      IF (PRESENT(pao_tot_excl_bas)) &
+           pao_tot_excl_bas=p_full_bas_tot-p_min_bas_tot
+      IF (PRESENT(pao_tot_full_bas)) pao_tot_full_bas=p_full_bas_tot
+      IF (PRESENT(pao_tot_min_bas)) pao_tot_min_bas=p_min_bas_tot
+      IF (PRESENT(pao_max_l_angles)) pao_max_l_angles=p_l_angles_max
     ELSE
       CALL stop_program(routine,&
                         "The pointer atomic_kind_set is not associated")
@@ -524,6 +587,7 @@ CONTAINS
     CALL init_potential(atomic_kind%gth_potential)
 !MK CALL init_aux_basis_set(atomic_kind%aux_basis_set)
     CALL init_orb_basis_set(atomic_kind%orb_basis_set)
+    NULLIFY(atomic_kind%pao_bas_proj)
 
   END SUBROUTINE init_atomic_kind
 
@@ -731,6 +795,9 @@ CONTAINS
 
     END IF
 
+!   pao proj is not yet initianized (done in pao section)
+    NULLIFY(atomic_kind%pao_bas_proj)
+
   END SUBROUTINE read_atomic_kind
 
 ! *****************************************************************************
@@ -774,7 +841,7 @@ CONTAINS
 ! *****************************************************************************
 
   SUBROUTINE set_atomic_kind(atomic_kind,element_symbol,name,mass,kind_number,&
-                             atom_list)
+                             atom_list, pao_bas_proj)
 
 !   Purpose: Set the components of an atomic kind data set.
 
@@ -788,6 +855,7 @@ CONTAINS
     REAL(wp), OPTIONAL, INTENT(IN)                       :: mass
     INTEGER, OPTIONAL, INTENT(IN)                        :: kind_number
     INTEGER, DIMENSION(:), OPTIONAL, INTENT(IN), TARGET  :: atom_list
+    TYPE(pao_bas_projection_type), TARGET, INTENT(in),optional :: pao_bas_proj
 
 !   ---------------------------------------------------------------------------
 
@@ -801,6 +869,7 @@ CONTAINS
                                           1,atomic_kind%natom)
       atomic_kind%atom_list(:) = atom_list(:)
     END IF
+    IF (PRESENT(pao_bas_proj)) atomic_kind%pao_bas_proj => pao_bas_proj
 
   END SUBROUTINE set_atomic_kind
 
@@ -834,8 +903,11 @@ CONTAINS
       CALL write_aux_basis_set(atomic_kind%aux_basis_set,globenv)
       CALL write_potential(atomic_kind%all_potential,globenv)
       CALL write_potential(atomic_kind%gth_potential,globenv)
+      IF (ASSOCIATED(atomic_kind%pao_bas_proj).AND.globenv%ionode) THEN
+         CALL cp_write(atomic_kind%pao_bas_proj, unit_nr=globenv%scr)
+      END IF
     END IF
-
+    
   END SUBROUTINE write_atomic_kind
 
 ! *****************************************************************************
@@ -887,7 +959,7 @@ CONTAINS
   SUBROUTINE write_gto_basis_sets(atomic_kind_set,globenv)
 
 !   Purpose: Write all the GTO basis sets of an atomic kind set to the output
-!            unit (for the printing of the unnormalised basis sets as read from
+!            unit (for the printing of the unnormalized basis sets as read from
 !            database).
 
 !   History: - Creation (17.01.2002, Matthias Krack)
