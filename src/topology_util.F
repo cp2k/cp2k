@@ -675,6 +675,7 @@ END SUBROUTINE sort_dihe
 !!
 !!
 !!   SOURCE
+!******************************************************************************
 SUBROUTINE topology_generate_bond(topology,globenv)
     TYPE(topology_parameters_type), &
       INTENT(INOUT)                          :: topology
@@ -796,6 +797,14 @@ SUBROUTINE topology_generate_bond(topology,globenv)
         tbond_a(nbond)=iatom
         tbond_b(nbond)=jatom
         IF(PM2) WRITE(iw,'(7X,A,I5,I5,I5)') "bond ",nbond,iatom,jatom
+
+        !Check to make sure no bonds are allowed between two different types
+        !of molecules specified in the input file
+        IF(topology%label_resname(iatom) /= topology%label_resname(jatom)) THEN
+          CALL stop_program ("topology_generate_bond",&
+                             "bonds between different molecule types??? ")
+        END IF
+
       END IF
     END DO
   END DO

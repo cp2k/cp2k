@@ -122,7 +122,7 @@ SUBROUTINE read_atoms_input ( topology, globenv )
 
        natom = natom + 1
 
-       IF (natom > SIZE(topology%r)) THEN
+       IF (natom > SIZE(topology%label_resname)) THEN
         CALL reallocate(topology%label_resname,1,natom+nblock_atom)
         CALL reallocate(topology%label_atmname,1,natom+nblock_atom)
         CALL reallocate(topology%r,1,3,1,natom+nblock_atom)
