@@ -28,7 +28,6 @@ MODULE cp2k_runs
   USE cp_log_handling,                 ONLY: cp_logger_type, &
                                              cp_failure_level, &
                                              cp_logger_create, &
-                                             cp_logger_release, &
                                              cp_to_string
   USE cp_error_handling,               ONLY: cp_error_type, &
                                              cp_a_l, &
@@ -39,6 +38,7 @@ MODULE cp2k_runs
   USE geo_opt,                         ONLY: qs_geo_opt
   USE md_run,                          ONLY: qs_mol_dyn 
   USE machine,                         ONLY: print_memory,m_chdir,m_getcwd
+  USE message_passing,                 ONLY: mp_sync
   USE qs_mc,                           ONLY: qs_mon_car
   USE qs_parser,                       ONLY: open_file,close_file
   USE trajana_methods,                 ONLY: trajana
@@ -279,6 +279,8 @@ CONTAINS
        ENDIF
 
     ENDDO
+
+    CALL mp_sync(globenv%group)
 
     CALL timestop(0.0_dbl,handle)
 

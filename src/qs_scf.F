@@ -467,10 +467,8 @@ CONTAINS
 
     CALL timeset(routineN,"I","",handle)
 
-    ! ionode = logger%para_env%source==logger%para_env%mepos
-    ! output_unit = cp_logger_get_default_unit_nr(logger)
-    ionode      = globenv%ionode
-    output_unit = globenv%scr
+    ionode = logger%para_env%source==logger%para_env%mepos
+    output_unit = cp_logger_get_default_unit_nr(logger)
     energy_only = .FALSE.
 
     IF (ionode.AND.logger%print_keys%scf) THEN
@@ -914,10 +912,8 @@ CONTAINS
     CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,&
          gth_potential_present=gth_potential_present)
 
-    !ionode = logger%para_env%source == logger%para_env%mepos
-    !output_unit = cp_logger_get_default_unit_nr(logger,local=.FALSE.)
-    ionode = globenv%ionode
-    output_unit = globenv%scr
+    ionode = logger%para_env%source == logger%para_env%mepos
+    output_unit = cp_logger_get_default_unit_nr(logger,local=.FALSE.)
 
     scf_work2 => scf_env%scf_work2
     ortho => scf_env%ortho
@@ -1809,7 +1805,7 @@ CONTAINS
           END IF
        END IF
        IF (ionode) &
-       WRITE (unit=globenv%scr, &
+       WRITE (unit=cp_logger_get_default_unit_nr(logger), &
             fmt="(t3,'extrapolation method:',a)")&
             wfi_get_method_label(extrapolation_method_nr,error=error)
        IF (extrapolation_method_nr==wfi_use_guess_method_nr) THEN

@@ -1,6 +1,6 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations
-!   Copyright (C) 2001 - 2002  CP2K developers group
+!   Copyright (C) 2001 - 2002,2004  CP2K developers group
 !-----------------------------------------------------------------------------!
 !!****h* cp2k/cp_log_handling [1.0] *
 !!
@@ -40,6 +40,7 @@
 !!   MODIFICATION HISTORY
 !!     08.2002 major update: retain, release, printkeys, para_env, 
 !!             local logging [fawzi]
+!!     02.2004 made a stack of default loggers [Joost VandeVondele]
 !!
 !!     @see cp_error_handling
 !!
@@ -72,9 +73,9 @@ MODULE cp_log_handling
   PUBLIC :: cp_logger_type
 ! parameter vars
   PUBLIC :: cp_note_level, cp_warning_level, cp_failure_level,&
-       cp_fatal_level, cp_std_in_unit_nr, cp_std_out_unit_nr
+       cp_fatal_level, cp_std_out_unit_nr
 ! default loggers
-  PUBLIC :: cp_get_default_logger, cp_init_default_logger
+  PUBLIC :: cp_get_default_logger, cp_init_default_logger, cp_destroy_default_logger
 ! logger routines
   PUBLIC :: cp_logger_create, cp_logger_retain, cp_logger_release,&
        cp_logger_would_log,&
@@ -86,7 +87,8 @@ MODULE cp_log_handling
 
   CHARACTER(len=*), PRIVATE, PARAMETER :: moduleN='cp_log_handling'
   LOGICAL, PRIVATE, PARAMETER :: debug_this_module=.TRUE.
-  INTEGER, PARAMETER :: cp_std_in_unit_nr=5
+
+! these should be avoided, nearly always wrong with farming
   INTEGER, PARAMETER :: cp_std_out_unit_nr=6
 
 !! level of an error
@@ -106,11 +108,6 @@ MODULE cp_log_handling
      MODULE PROCEDURE cp_logger_log
   END INTERFACE
 
-  LOGICAL, SAVE, PRIVATE :: default_logger_initialized=.FALSE.
-  INTEGER, SAVE, PRIVATE :: last_logger_id_nr=0
-
-!!***
-!****************************************************************************
 
 !!****s* cp_log_handling/cp_logger_type [1.0] *
 !!
@@ -182,8 +179,15 @@ MODULE cp_log_handling
 !!***
 !****************************************************************************
 
-! the default logger
-  TYPE(cp_logger_type), POINTER, PRIVATE ::cp_default_logger ! => null()
+  TYPE default_logger_stack_type
+      TYPE(cp_logger_type), POINTER :: cp_default_logger 
+  END TYPE default_logger_stack_type
+
+  INTEGER, PRIVATE            :: stack_pointer=0
+  INTEGER, PARAMETER, PRIVATE :: max_stack_pointer=10
+  TYPE(default_logger_stack_type), DIMENSION(max_stack_pointer) ::  default_logger_stack
+
+  INTEGER, SAVE, PRIVATE :: last_logger_id_nr=0
 
 CONTAINS
 
@@ -197,7 +201,7 @@ CONTAINS
 !!     MUST be called before logging occours
 !!
 !!   NOTES
-!!     initializes only if necessary
+!!     increments a stack of default loggers the latest one will be available within the program
 !!
 !!   INPUTS
 !!     -
@@ -216,8 +220,8 @@ CONTAINS
        template_logger)
     TYPE(cp_para_env_type), OPTIONAL, &
       POINTER                                :: para_env
+    INTEGER, INTENT(in)                      :: default_global_unit_nr  ! at least this one must be present (farming)
     INTEGER, INTENT(in), OPTIONAL            :: print_level, &
-                                                default_global_unit_nr, &
                                                 default_local_unit_nr
     CHARACTER(len=*), INTENT(in), OPTIONAL   :: global_filename, &
                                                 local_filename
@@ -230,16 +234,16 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_init_default_logger', &
       routineP = moduleN//':'//routineN
 
-    IF (default_logger_initialized) THEN
-       PRINT *,routineP," WARNING called more than once"
-       RETURN
-       CALL cp_logger_release(cp_default_logger)
-    ELSE
-       NULLIFY(cp_default_logger)
-    END IF
-    ! cases because of bug with optional pointers arg in pgf90 3.3
-    IF (PRESENT(para_env)) THEN
-       CALL cp_logger_create(cp_default_logger,&
+
+    IF (stack_pointer+1>max_stack_pointer) THEN
+       CALL stop_program("cp_log_handling:cp_init_default_logger",&
+            "too many default loggers, increase max_stack_pointer in "//moduleN)
+    ENDIF
+
+    stack_pointer=stack_pointer+1
+    NULLIFY(default_logger_stack(stack_pointer)%cp_default_logger)
+
+    CALL cp_logger_create(default_logger_stack(stack_pointer)%cp_default_logger,&
             para_env=para_env,print_level=print_level,&
             default_global_unit_nr=default_global_unit_nr,&
             default_local_unit_nr=default_local_unit_nr,&
@@ -249,21 +253,40 @@ CONTAINS
             close_local_unit_on_dealloc=close_local_unit_on_dealloc,&
             suffix=suffix, print_keys=print_keys,&
             template_logger=template_logger)
-    ELSE
-       CALL cp_logger_create(cp_default_logger,&
-            print_level=print_level,&
-            default_global_unit_nr=default_global_unit_nr,&
-            default_local_unit_nr=default_local_unit_nr,&
-            global_filename=global_filename,&
-            local_filename=local_filename,&
-            close_global_unit_on_dealloc=close_global_unit_on_dealloc,&
-            close_local_unit_on_dealloc=close_local_unit_on_dealloc,&
-            suffix=suffix, print_keys=print_keys,&
-            template_logger=template_logger)
-    END IF
-    default_logger_initialized=.TRUE.
+
   END SUBROUTINE cp_init_default_logger
 !**************************************************************************
+
+!!****f* cp_log_handling/cp_destroy_default_logger [1.0] *
+!!
+!!   NAME
+!!     cp_destroy_default_logger
+!!
+!!   FUNCTION
+!!     the cousing of cp_init_default_logger, decrements the stack, so that the default logger is what it has
+!!     been
+!!
+!!   NOTES
+!!
+!!   INPUTS
+!!
+!!   AUTHOR
+!!
+!!   MODIFICATION HISTORY
+!!     2.2004 created [Joost VandeVondele]
+!!
+!!*** *********************************************************************
+  SUBROUTINE cp_destroy_default_logger()
+    IF (stack_pointer-1<0) THEN
+       CALL stop_program("cp_log_handling:cp_destroy_default_logger",&
+            "can not destroy default logger "//moduleN)
+    ENDIF
+
+    CALL cp_logger_release(default_logger_stack(stack_pointer)%cp_default_logger)
+    NULLIFY(default_logger_stack(stack_pointer)%cp_default_logger)
+    stack_pointer=stack_pointer-1
+
+  END SUBROUTINE
 
 !!****f* cp_log_handling/cp_get_default_logger [1.0] *
 !!
@@ -294,15 +317,11 @@ CONTAINS
   FUNCTION cp_get_default_logger() RESULT(res)
     TYPE(cp_logger_type), POINTER            :: res
 
-    IF (.NOT. default_logger_initialized) THEN
+    IF ( .NOT. stack_pointer>0 ) THEN
        CALL stop_program("cp_log_handling:cp_get_default_logger",&
             "default logger not yet initialized (CALL cp_init_default_logger")
     END IF
-    IF (.NOT.ASSOCIATED(cp_default_logger)) THEN
-       CALL stop_program("cp_log_handling:cp_get_default_logger",&
-            "default logger was null (released one time too much??)")
-    END IF
-    res => cp_default_logger
+    res => default_logger_stack(stack_pointer)%cp_default_logger
   END FUNCTION cp_get_default_logger
 !***************************************************************************
 
@@ -603,10 +622,10 @@ CONTAINS
              END IF
              logger%print_keys%ref_count=logger%print_keys%ref_count-1
              IF (logger%print_keys%ref_count==0) THEN
-                CALL m_abort()
-                DEALLOCATE(logger%print_keys,stat=stat)
-                IF (stat/=0) PRINT *, routineP,&
-                     " WARNING print_keys dealloc stat=",stat
+                ! CALL m_abort()
+                ! DEALLOCATE(logger%print_keys,stat=stat) ! the print keys passed are not a pointer
+                ! IF (stat/=0) PRINT *, routineP,&
+                !      " WARNING print_keys dealloc stat=",stat
              END IF
           END IF
           CALL my_cp_para_env_release(logger%para_env)

@@ -24,7 +24,8 @@
 
 MODULE environment
   USE cp2k_units,                      ONLY: init_cp2k_units
-  USE cp_log_handling,                 ONLY: cp_init_default_logger
+  USE cp_log_handling,                 ONLY: cp_init_default_logger, &
+                                             cp_destroy_default_logger
   USE fft_tools,                       ONLY: fft3d,&
                                              init_fft
   USE global_types,                    ONLY: BLACS_GRID_COL,&
@@ -164,7 +165,9 @@ CONTAINS
 
     globenv%print%ref_count=1 ! ugly
     CALL cp_init_default_logger(para_env=globenv%para_env,&
-         print_keys=globenv%print)
+         print_keys=globenv%print, &
+         default_global_unit_nr=globenv%scr, &
+         close_global_unit_on_dealloc=.FALSE.)
 
     ionode = globenv%ionode
 
@@ -955,6 +958,8 @@ CONTAINS
 #endif
 
 !   ---------------------------------------------------------------------------
+
+    CALL cp_destroy_default_logger()
 
 !   *** Release message passing environment ***
     dum = globenv%para_env%mepos

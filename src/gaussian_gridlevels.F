@@ -2,7 +2,6 @@
   ! Code to return a gridlevel associated with a given gaussian exponent
 
 
-
   MODULE gaussian_gridlevels
   USE cp_error_handling,               ONLY: cp_a_l,&
                                              cp_assert,&
@@ -14,7 +13,8 @@
                                              cp_logger_type,&
                                              cp_note_level,&
                                              cp_to_string,&
-                                             cp_warning_level
+                                             cp_warning_level,&
+                                             cp_logger_get_default_unit_nr
   USE global_types,                    ONLY: global_environment_type
   USE kinds,                           ONLY: dp
   USE message_passing,                 ONLY: mp_sum
@@ -66,7 +66,7 @@ SUBROUTINE destroy_gaussian_gridlevel(gridlevel_info,globenv,error)
     CHARACTER(LEN=*), PARAMETER :: routine = &
       "SUBROUTINE destroy_gaussian_gridlevel (MODULE gaussian_gridlevels)"
 
-    INTEGER                                  :: group, i, istat
+    INTEGER                                  :: group, i, istat,scr
     LOGICAL                                  :: ionode, pw_grid_information
     TYPE(cp_logger_type), POINTER            :: logger
 
@@ -75,11 +75,13 @@ SUBROUTINE destroy_gaussian_gridlevel(gridlevel_info,globenv,error)
      group=globenv%group
      ionode=globenv%ionode
      pw_grid_information=globenv%print%pw_grid_information
+     scr=globenv%scr
   ELSE
      logger => cp_error_get_logger(error)
      group=logger%para_env%group
      pw_grid_information=logger%print_keys%pw_grid_information
      ionode=logger%para_env%source==logger%para_env%mepos
+     IF (ionode) scr=cp_logger_get_default_unit_nr(logger)
   END IF
 
   DEALLOCATE (gridlevel_info%cutoff,STAT=istat)
@@ -87,13 +89,13 @@ SUBROUTINE destroy_gaussian_gridlevel(gridlevel_info,globenv,error)
   CALL mp_sum(gridlevel_info%total_count,group)
   CALL mp_sum(gridlevel_info%count,group)
   IF (ionode.AND.pw_grid_information) THEN
-    WRITE(6,'(/,T3,A)')           "---------------------------------"
-    WRITE(6,'(T3,A)')           "--        MULTIGRID INFO       --"
-    WRITE(6,'(T3,A)')           "---------------------------------"
-    WRITE(6,'(T3,A,I8)')        "total gridlevel count  : ",&
+    WRITE(scr,'(/,T3,A)')           "---------------------------------"
+    WRITE(scr,'(T3,A)')           "--        MULTIGRID INFO       --"
+    WRITE(scr,'(T3,A)')           "---------------------------------"
+    WRITE(scr,'(T3,A,I8)')        "total gridlevel count  : ",&
       gridlevel_info%total_count
     DO i=1,gridlevel_info%ngrid_levels
-      WRITE(6,'(T3,A,I3,A,I8)') "count for grid     ",i,": ",&
+      WRITE(scr,'(T3,A,I3,A,I8)') "count for grid     ",i,": ",&
        gridlevel_info%count(i)
     END DO
   END IF
