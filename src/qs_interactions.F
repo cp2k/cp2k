@@ -89,6 +89,7 @@ CONTAINS
     TYPE(atomic_kind_type), POINTER   :: atomic_kind
     TYPE(epc_potential_type), POINTER :: epc_potential
     TYPE(gto_basis_set_type), POINTER :: orb_basis_set
+    TYPE(gto_basis_set_type), POINTER :: aux_basis_set
 
     REAL(wp) :: alpha_core_charge,ccore_charge,&
                 core_charge_radius,gcca,kind_radius,zeta
@@ -110,6 +111,7 @@ CONTAINS
 
       CALL get_atomic_kind(atomic_kind=atomic_kind,&
                            epc_potential=epc_potential,&
+                           aux_basis_set=aux_basis_set,&
                            orb_basis_set=orb_basis_set)
 
       IF (ASSOCIATED(epc_potential)) THEN
@@ -129,7 +131,7 @@ CONTAINS
 
       END IF
 
-!     *** Calculate the orbital basis function radii ***
+!     *** Calculate the orbital basis function radii (frozen density)***
 
       IF (ASSOCIATED(orb_basis_set)) THEN
 
@@ -169,6 +171,49 @@ CONTAINS
                                kind_radius=kind_radius)
 
       END IF
+
+!     *** Calculate the orbital basis function radii (pol density) ***
+
+      IF (ASSOCIATED(aux_basis_set)) THEN
+
+        CALL get_gto_basis_set(gto_basis_set=aux_basis_set,&
+                               nset=nset,&
+                               nshell=nshell,&
+                               npgf=npgf,&
+                               l=lshell,&
+                               zet=zet,&
+                               gcc=gcc,&
+                               pgf_radius=pgf_radius,&
+                               set_radius=set_radius)
+
+        kind_radius = 0.0_wp
+
+        DO iset=1,nset
+          set_radius(iset) = 0.0_wp
+          DO ipgf=1,npgf(iset)
+            pgf_radius(ipgf,iset) = 0.0_wp
+            DO ishell=1,nshell(iset)
+              l = lshell(ishell,iset)
+              gcca = gcc(ipgf,ishell,iset)
+              zeta = zet(ipgf,iset)
+              pgf_radius(ipgf,iset) = MAX(pgf_radius(ipgf,iset),&
+                                          exp_radius(l,zeta,&
+                                                     kg_control%eps_pgf_orb,&
+                                                     gcca))
+            END DO
+            set_radius(iset) = MAX(set_radius(iset),pgf_radius(ipgf,iset))
+          END DO
+          kind_radius = MAX(kind_radius,set_radius(iset))
+        END DO
+
+        CALL set_gto_basis_set(gto_basis_set=aux_basis_set,&
+                               pgf_radius=pgf_radius,&
+                               set_radius=set_radius,&
+                               kind_radius=kind_radius)
+
+      END IF
+
+
 
     END DO
 
