@@ -938,7 +938,7 @@ CONTAINS
                      functional=dft_control % xc_control % functionals(i),&
                      lsd=(dft_control % nspins /= 1),&
                      reference=reference, error=sub_error)
-                CALL cp_error_check(error,failure)
+                CALL cp_error_check(sub_error,failure)
 
                 WRITE (output_unit, fmt="(' FUNCTIONAL| ',a,':')")&
                      TRIM(dft_control % xc_control % functionals(i))
