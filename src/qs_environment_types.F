@@ -95,7 +95,7 @@ MODULE qs_environment_types
   USE pw_env_types,                    ONLY: pw_env_release,&
                                              pw_env_retain,&
                                              pw_env_type
-  USE qs_blacs,                        ONLY: blacs_make_basis, write_blacs_matrix
+  USE qs_blacs,                        ONLY: blacs_make_basis 
   USE qs_charges_types,                ONLY: qs_charges_create,&
                                              qs_charges_release,&
                                              qs_charges_retain,&

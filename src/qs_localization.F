@@ -39,7 +39,8 @@ MODULE qs_localization
                                              cp_fm_get_info,&
                                              cp_fm_release,&
                                              cp_fm_p_type,&
-                                             cp_fm_type
+                                             cp_fm_type, & 
+                                             cp_fm_write
   USE cp_para_env,                     ONLY: cp_para_env_release,&
                                              cp_para_env_retain
   USE cp_para_types,                   ONLY: cp_para_env_type
@@ -54,7 +55,6 @@ MODULE qs_localization
                                              pw_pool_type
   USE pw_types,                        ONLY: REALDATA3D,&
                                              REALSPACE
-  USE qs_blacs,                        ONLY: write_blacs_matrix
   USE qs_environment_types,            ONLY: get_qs_env,&
                                              qs_environment_type
   USE qs_integrate_potential,          ONLY: integrate_v_rspace
@@ -297,7 +297,7 @@ SUBROUTINE qs_loc_compute_properties(qs_loc_env,vectors,ionode,iunit)
        CALL cp_sm_fm_multiply(qs_loc_env%operator(j,i)%matrix, &
                             vectors,opvec,ncol=k,para_env=qs_loc_env%para_env)
        CALL cp_fm_gemm("T","N",k,k,n,1.0_wp,vectors,opvec,0.0_wp,ZIJ(j,i)%matrix)
-!       CALL write_blacs_matrix(ZIJ(j,i)%matrix,6,formatted=.true.)
+!       CALL cp_fm_write(ZIJ(j,i)%matrix,6)
     ENDDO
   ENDDO
 

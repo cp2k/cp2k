@@ -35,10 +35,10 @@ MODULE qs_localization_methods
                                              cp_fm_set_all,&
                                              cp_fm_maxval,&
                                              cp_fm_p_type,&
+                                             cp_fm_write, &
                                              cp_fm_type
   USE kinds,                           ONLY: wp => dp
   USE mathconstants,                   ONLY: pi
-  USE qs_blacs,                        ONLY: write_blacs_matrix
   USE qs_environment_types,            ONLY: get_qs_env, qs_environment_type
   USE simulation_cell,                 ONLY: cell_type
   USE termination,                     ONLY: stop_memory,&
@@ -295,7 +295,7 @@ CONTAINS
       END DO
     END DO
     DEALLOCATE(diag)
-!    CALL write_blacs_matrix(matrix,6,formatted=.true.)
+!    CALL cp_fm_write(matrix,formatted=.true.)
 !    stop
   END SUBROUTINE grad_at_0
 ! *****************************************************************************

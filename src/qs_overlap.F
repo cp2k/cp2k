@@ -88,7 +88,7 @@ MODULE qs_overlap
 ! *** Public subroutines ***
 
   PUBLIC :: build_overlap_matrix,&
-            write_blacs_matrix,&
+            write_fm_with_basis_info,&
             write_matrix_distribution,&
             write_sparse_matrix
 
@@ -444,7 +444,7 @@ CONTAINS
 
 ! *****************************************************************************
 
-  SUBROUTINE write_blacs_matrix(blacs_matrix,before,after,qs_env,globenv,&
+  SUBROUTINE write_fm_with_basis_info(blacs_matrix,before,after,qs_env,globenv,&
                                 first_row,last_row,first_col,last_col)
 
 !   Purpose: Print a spherical matrix of blacs type.
@@ -463,7 +463,7 @@ CONTAINS
 
 !   *** Local parameters ***
 
-    CHARACTER(LEN=*), PARAMETER :: routine_name = "write_blacs_matrix"
+    CHARACTER(LEN=*), PARAMETER :: routine_name = "write_fm_with_basis_info"
     CHARACTER(LEN=*), PARAMETER :: routine =&
       "SUBROUTINE "//routine_name//" (MODULE "//module_name//")"
 
@@ -527,7 +527,7 @@ CONTAINS
       IF (istat /= 0) CALL stop_memory(routine,"matrix")
     END IF
 
-  END SUBROUTINE write_blacs_matrix
+  END SUBROUTINE write_fm_with_basis_info
 
 ! *****************************************************************************
 

@@ -90,6 +90,7 @@ MODULE qs_scf
                                              cp_fm_init_random,&
                                              cp_fm_set_element,&
                                              cp_fm_get_element,&
+                                             cp_fm_write, &
                                              cp_fm_p_type
   USE cp_fm_basic_linalg,              ONLY: cp_fm_gemm,&
                                              cp_fm_scale_and_add,&
@@ -106,8 +107,7 @@ MODULE qs_scf
                                              cp_fm_syevd, &
                                              cp_fm_power, &
                                              cp_fm_block_jacobi_classic
-  USE qs_blacs,                        ONLY: blacs_make_basis,&
-                                             w_blacs_matrix => write_blacs_matrix
+  USE qs_blacs,                        ONLY: blacs_make_basis
   USE cp_lbfgs_optimizer_gerd_f,       ONLY: cp_lbfgs_opt_gerd_f_type,&
                                              cp_opt_gerd_f_dealloc_ref,&
                                              cp_opt_gerd_f_init,&
@@ -237,7 +237,7 @@ MODULE qs_scf
                                              ot_scf_init,&
                                              ot_scf_mini,&
                                              ot_scf_read_input
-  USE qs_overlap,                      ONLY: write_blacs_matrix,&
+  USE qs_overlap,                      ONLY: write_fm_with_basis_info,&
                                              write_sparse_matrix
   USE qs_parser,                       ONLY: close_file,&
                                              open_file
@@ -1018,7 +1018,7 @@ CONTAINS
        ENDIF
     ENDIF
     IF (logger%print_keys%ortho_matrix) THEN
-       CALL write_blacs_matrix(ortho,4,6,qs_env,globenv)
+       CALL write_fm_with_basis_info(ortho,4,6,qs_env,globenv)
     END IF
 
 ! initializes rho and the mos
@@ -1336,7 +1336,7 @@ CONTAINS
     ENDIF
 
     IF (use_cholesky) THEN
-
+       ! CALL cp_fm_write(ks,6,long_description=.true.)
        CALL cp_fm_cholesky_reduce(ks,ortho)
 
        IF (use_jacobi) THEN

@@ -97,7 +97,7 @@ MODULE cp_fm_types
             cp_fm_get_submatrix, &     ! get a submatrix of given values
             cp_fm_init_random, &         
             cp_fm_maxval, &            ! find the maximum value
-            cp_fm_write, &             
+            cp_fm_write, &             ! writes lots of information and data (might need further development) 
             cp_fm_to_fm                ! copy (parts of) a fm to a fm
 
 
@@ -1018,7 +1018,7 @@ CONTAINS
 !!     End Subroutine cp_fm_write
 !!
 !!   FUNCTION
-!!     writes out the matrix
+!!     writes out the matrix (if long description, might need some refactoring)
 !!
 !!   NOTES
 !!     uniquing_nr should be smartened: don't add if no file exist, else
@@ -1027,7 +1027,7 @@ CONTAINS
 !!   INPUTS
 !!     - matrix: the matrix to output
 !!     - unit_nr: the unit where to output
-!!     - long_description: if a long description should be written
+!!     - long_description: if a long description should be written (is needed to see the content of the matrix)
 !!       (defaults to false)
 !!     - local: if the unit is a local unit or a global unit 
 !!       (defaults to false, i.e. global)

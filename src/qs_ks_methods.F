@@ -110,8 +110,6 @@ MODULE qs_ks_methods
                                              qs_ks_env_type,&
                                              qs_ks_release,&
                                              qs_ks_retain
-  USE qs_overlap,                      ONLY: write_blacs_matrix,&
-                                             write_sparse_matrix
   USE qs_rho_methods,                  ONLY: qs_rho_update_rho
   USE qs_rho_types,                    ONLY: qs_rho_did_change,&
                                              qs_rho_type

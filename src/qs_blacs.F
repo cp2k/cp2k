@@ -95,8 +95,7 @@ MODULE qs_blacs
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN='qs_blacs'
 
 ! *** Public subroutines ***
-  PUBLIC :: write_blacs_matrix, &
-            blacs_make_basis
+  PUBLIC :: blacs_make_basis
 
 ! *****************************************************************************
 
@@ -282,60 +281,5 @@ CONTAINS
     CALL timestop(0.0_wp,handle)
 
     END SUBROUTINE blacs_make_basis
-
-! *****************************************************************************
-
-  SUBROUTINE write_blacs_matrix(matrix,lunit,globenv,formatted)
-
-!   Purpose: Write a BLACS matrix to the logical unit number "lunit".
-
-!   History: - Creation (19.06.2001, Matthias Krack)
-
-!   ***************************************************************************
-
-    TYPE(cp_fm_type), POINTER          :: matrix
-    TYPE(global_environment_type), INTENT(IN), OPTIONAL :: globenv
-    INTEGER, INTENT(IN)                       :: lunit
-    LOGICAL, INTENT(IN), OPTIONAL             :: formatted
-
-!   *** Local variables ***
-
-    INTEGER :: i,j,mypcol,myprow,ncol_local,npcol,nprow,nrow_local
-    TYPE(cp_blacs_env_type), POINTER :: context
-
-!   ---------------------------------------------------------------------------
-
-    context => matrix%matrix_struct%context
-    myprow=context%mepos(1)
-    mypcol=context%mepos(2)
-    nprow=context%num_pe(1)
-    npcol=context%num_pe(2)
-
-    nrow_local = matrix%matrix_struct%nrow_locals(myprow)
-    ncol_local = matrix%matrix_struct%ncol_locals(mypcol)
-
-    IF (PRESENT(formatted)) THEN
-       IF (formatted) THEN
-         WRITE(6,*) matrix%name
-         WRITE(6,*) "row ,col ,value"
-         DO j=1,ncol_local
-         DO i=1,nrow_local
-         WRITE (UNIT=lunit,FMT='(I5,I5,E16.8)') i,j,matrix%local_data(i,j)
-         ENDDO
-         ENDDO
-       ELSE
-          WRITE (UNIT=lunit)&
-            ((matrix%local_data(i,j),i=1,nrow_local),&
-                                                 j=1,ncol_local)
-       ENDIF
-    ELSE
-          WRITE (UNIT=lunit) ((matrix%local_data(i,j),i=1,nrow_local),&
-                                                            j=1,ncol_local)
-
-    ENDIF
-
-  END SUBROUTINE write_blacs_matrix
-!!***
-! *****************************************************************************
 
 END MODULE qs_blacs

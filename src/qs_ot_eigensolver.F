@@ -41,8 +41,7 @@ MODULE qs_ot_eigensolver
   USE kinds,                           ONLY: wp => dp
   USE preconditioner,                  ONLY: preconditioner_in_use,&
                                              preconditioner_type
-  USE qs_blacs,                        ONLY: blacs_make_basis,&
-                                             write_blacs_matrix
+  USE qs_blacs,                        ONLY: blacs_make_basis
   USE qs_ot,                           ONLY: qs_ot_allocate,&
                                              qs_ot_destroy,&
                                              qs_ot_get_derivative,&

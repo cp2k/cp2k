@@ -107,8 +107,6 @@ MODULE qs_kpp1_env_methods
                                              set_qs_env
   USE qs_integrate_potential,          ONLY: integrate_v_core_rspace,&
                                              integrate_v_rspace
-  USE qs_overlap,                      ONLY: write_blacs_matrix,&
-                                             write_sparse_matrix
   USE qs_kpp1_env_types,               ONLY: kpp1_release,&
                                              kpp1_retain,&
                                              qs_kpp1_env_p_type,&
