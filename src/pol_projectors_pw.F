@@ -143,6 +143,7 @@ SUBROUTINE projectors ( dg_proj, ao, pw, part, box, grid_s,  &
 
 ! Allocate 1D COMPLEX coefficient type 
           CALL coeff_allocate ( coeff_dummy, grid_b ( gt ), use_data = PW_COMPLEXDATA1D )
+           coeff_dummy % pw % in_space = PW_RECIPROCALSPACE
 ! Copy the PW-coefficients to coeff_dummy
           CALL pw_copy ( pw, coeff_dummy % pw )
 ! DO FFT from coeff_dummy => rhob_r 
@@ -195,7 +196,7 @@ SUBROUTINE projectors ( dg_proj, ao, pw, part, box, grid_s,  &
 ! Get projector
         CALL proj_evaluate ( dg_proj ( ig ), drho_rs, part, ao, box,  &
                exp_igr_proj ( ig ), grid_s ( gt ), grid_b ( gt ), rhos1, &
-               rhos2, fproj_part ) 
+               rhos2, fproj_part, drpot1 ) 
         CALL structure_factor_deallocate ( exp_igr_proj ( ig ) )
       ELSE
         CYCLE
