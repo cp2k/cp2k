@@ -83,6 +83,7 @@ OBJECTS_GENERIC =\
  distribution_methods.o\
  dump.o\
  dynamical_coeff_types.o\
+ eigenvalueproblems.o\
  environment.o\
  erf_fn.o\
  ewald_environment_types.o\

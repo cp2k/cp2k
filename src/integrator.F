@@ -45,6 +45,7 @@ MODULE integrator
                                              dyn_coeff_set_p_type,&
                                              dyn_coeff_type,&
                                              get_dyn_coeff_set
+  USE eigenvalueproblems,              ONLY: diagonalise
   USE extended_system_dynamics,        ONLY: lnhc
   USE extended_system_types,           ONLY: lnhc_parameters_type, npt_info_type
   USE force_env_methods,               ONLY: force_env_calc_energy_force
@@ -67,7 +68,6 @@ MODULE integrator
   USE particle_types,                  ONLY: particle_type
   USE simulation_cell,                 ONLY: cell_type, get_hinv
   USE termination,                     ONLY: stop_memory, stop_program
-  USE mathlib,                         ONLY: diamat
 !  USE transformations,                 ONLY: fr2fu,&
 !                                             u2r
 
@@ -2053,7 +2053,9 @@ END SUBROUTINE deallocate_old
 !     
 ! find eigenvalues and eigenvectors of npt ( :, : ) % v
 !
-          CALL diamat( npt(:,:)%v, u, e_val)
+
+          CALL diagonalise ( matrix = npt(:,:)%v, mysize = 3, &
+          storageform = "UPPER", eigenvalues = e_val, eigenvectors = u )
 !
 ! first half of velocity verlet
 !
