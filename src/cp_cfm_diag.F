@@ -95,7 +95,7 @@ CONTAINS
     CALL PZHEEVD('V','U',n,m(1,1),1,1,descm,eigenvalues(1),v(1,1),1,1,descv, &
                   work(1),lwork,rwork(1),lrwork,iwork(1),liwork,info)
     lwork=work(1)
-    lrwork=rwork(1)+100000 ! needed to correct for a bug in scalapack, unclear how much the right number is
+    lrwork=rwork(1)+1000000 ! needed to correct for a bug in scalapack, unclear how much the right number is
     liwork=iwork(1)
     DEALLOCATE(work,iwork,rwork)
     ALLOCATE(iwork(liwork),work(lwork),rwork(lrwork),STAT=istat)
