@@ -1032,6 +1032,7 @@ CONTAINS
       lclassical_run
     LOGICAL,DIMENSION(:),ALLOCATABLE         :: loverlap
     CHARACTER(LEN=40)                        :: dat_file
+    CHARACTER(LEN=200)                       :: fft_lib
 !   ---------------------------------------------------------------------------
 ! begin the timing of the subroutine
 
@@ -1042,7 +1043,7 @@ CONTAINS
          nchain=nchain,BETA=BETA,source=source,group=group,&
          nunits_tot=nunits_tot,nvolmoves=nvolmoves,dat_file=dat_file,&
          rmvolume=rmvolume,nunits=nunits,pressure=pressure,cl=cl,&
-         lclassical_run=lclassical_run,cutoff=cutoff)
+         lclassical_run=lclassical_run,cutoff=cutoff,fft_lib=fft_lib)
 
 ! nullify some pointers
       NULLIFY(particles_old,particles_test,cell_old,oldsys,&
@@ -1104,7 +1105,7 @@ CONTAINS
 
 ! make the new dat file
          CALL mc_make_dat_file(r(:,:),nunits_tot,&
-            test_cell_length*angstrom,dat_file,force_env)
+            test_cell_length*angstrom,dat_file,force_env,TRIM(fft_lib))
       ENDIF
 
 ! make a test environment that we can alter to calculate the energy
@@ -1126,8 +1127,8 @@ CONTAINS
 ! call a random number to figure out how far we're moving
             CALL RANDOM_NUMBER(rand)
 !!!!!!!!!!!!
-            vol_dis=rmvolume*(rand-0.5d0)*2.0d0
-!            vol_dis=5.0d0/angstrom**3
+!            vol_dis=rmvolume*(rand-0.5d0)*2.0d0
+            vol_dis=5.0d0/angstrom**3
 
             new_cell_length=(vol_dis+&
                test_cell_length**3)**(1.0d0/3.0d0)
@@ -1242,7 +1243,7 @@ CONTAINS
          ENDDO
 
          CALL mc_make_dat_file(r(:,:),nunits_tot,&
-            test_cell_length*angstrom,dat_file,force_env)
+            test_cell_length*angstrom,dat_file,force_env,TRIM(fft_lib))
 
 !         loverlap=.FALSE.
 !         CALL check_for_overlap(r(:,:),&
@@ -1303,7 +1304,7 @@ CONTAINS
          ENDIF
 
 !!!!!!!!!!!
-!         w=1.0D0
+         w=1.0D0
 !         w=0.0D0
 !!!!!!!!!!!
          IF ( w .GE. 1.0d0 ) THEN
@@ -1323,8 +1324,7 @@ CONTAINS
 
 ! write cell length, volume, density, and trial displacement to a file
          IF(ionode) THEN
-!!!!!!!!!!!!
-!            WRITE(cl,*) (test_cell_length*angstrom)**3,new_energy
+
             WRITE(cl,*) nnstep,test_cell_length*angstrom,&
                (new_energy-old_energy)/3.16682968d-6,classical_energy_diff/3.16682968d-6,&
                -REAL(nchain,dbl)/&

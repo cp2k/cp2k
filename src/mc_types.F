@@ -89,6 +89,7 @@ MODULE mc_types
       CHARACTER ( LEN = 40 ) :: dat_file
       CHARACTER ( LEN = 40 ) :: data_file
       CHARACTER ( LEN = 200 ) :: box2_file
+      CHARACTER ( LEN = 200 ) :: fft_lib
       CHARACTER ( LEN = 50 ) :: program
       REAL ( dp ) :: rmvolume
       REAL ( dp ) :: rmbond
@@ -160,7 +161,7 @@ CONTAINS
        rmrot,rmtrans,temp,pressure,BETA,pmswap,pmvolume,pmtraion,pmtrans,&
        ensemble,program,restart_file,molecules_file,moves_file,coords_file,&
        energy_file,displacement_file,cell_file,dat_file,data_file,box2_file,&
-       lclassical_run,cutoff,inner_cutoff)
+       lclassical_run,cutoff,inner_cutoff,fft_lib)
 
 ! *****************************************************************************
 !!****s* mc_types.F/get_mc_par
@@ -193,7 +194,8 @@ CONTAINS
 
     CHARACTER(LEN=*),INTENT(OUT),OPTIONAL :: ensemble,program,restart_file,&
        molecules_file,moves_file,coords_file,&
-       energy_file,displacement_file,cell_file,dat_file,data_file,box2_file
+       energy_file,displacement_file,cell_file,dat_file,data_file,box2_file,&
+       fft_lib
 
     CHARACTER(LEN=*), PARAMETER :: routine_name = "get_mc_par", &
       routineP = module_name//':'//routine_name
@@ -250,6 +252,7 @@ CONTAINS
     IF ( PRESENT ( dat_file ) ) dat_file = mc_par % dat_file
     IF ( PRESENT ( data_file ) ) data_file = mc_par % data_file
     IF ( PRESENT ( box2_file ) ) box2_file = mc_par % box2_file
+    IF ( PRESENT ( fft_lib ) ) fft_lib = mc_par % fft_lib
 
 
   END SUBROUTINE get_mc_par
@@ -471,6 +474,10 @@ SUBROUTINE read_mc_section ( mc_par, globenv )
   mc_par%data_file = mc_par % program(ia:ie) // '.data'
   stop_num=ie-3
   mc_par%dat_file = mc_par % program(ia:stop_num) // 'dat'
+
+! grab the FFT library name...this is used for writing the dat file
+! and hopefully will be changed
+  mc_par % fft_lib = globenv % default_fft_library
 
 !..parse the input section
   label = '&MC'

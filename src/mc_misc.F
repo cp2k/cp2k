@@ -521,13 +521,15 @@ END SUBROUTINE final_mc_write
 !!     MJM
 !!
 !!*****************************************************************************
-SUBROUTINE mc_make_dat_file(coordinates,natoms,box_length,filename,force_env)
+SUBROUTINE mc_make_dat_file(coordinates,natoms,box_length,filename,force_env,&
+                            fft_lib)
 
     REAL(KIND=dp), DIMENSION(:, :), &
       INTENT(INOUT)                          :: coordinates
     INTEGER, INTENT(IN)                      :: natoms
     REAL(KIND=dp), INTENT(IN)                :: box_length
     CHARACTER(LEN=*), INTENT(IN)             :: filename
+    CHARACTER(LEN=*), INTENT(IN)             :: fft_lib
     TYPE(force_env_type),POINTER             :: force_env
 
     CHARACTER(LEN=*), PARAMETER :: routineN = "mc_make_dat_file"
@@ -559,7 +561,7 @@ SUBROUTINE mc_make_dat_file(coordinates,natoms,box_length,filename,force_env)
       WRITE(unit,10000) ' PROGRAM      Quickstep'
       WRITE(unit,10000) ' PROJECT      H2O_MC'
       WRITE(unit,10000) ' IOLEVEL      0'
-      WRITE(unit,10000) ' FFTLIB       FFTSG'
+      WRITE(unit,20001) ' FFTLIB       ',fft_lib
       WRITE(unit,10000) ' RUN_TYPE     MC'
       WRITE(unit,10000) "&END"
       WRITE(unit,*) 
@@ -665,6 +667,7 @@ SUBROUTINE mc_make_dat_file(coordinates,natoms,box_length,filename,force_env)
 ! specify some formats
 10000 FORMAT(A)
 20000 FORMAT(A,F8.2)
+20001 FORMAT(A,A)
 40000 FORMAT(A,3(F12.8,2X))
 50000 FORMAT(A,3(F18.12,2X),A)
 

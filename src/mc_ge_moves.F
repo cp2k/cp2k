@@ -520,6 +520,7 @@ CONTAINS
     TYPE(particle_list_type),POINTER         :: particles_insert,&
       particles_remove
     CHARACTER(LEN=40),DIMENSION(1:2)         :: dat_file
+    CHARACTER(LEN=200)                       :: fft_lib
 
 !   ---------------------------------------------------------------------------
 ! begin the timing of the subroutine
@@ -538,7 +539,7 @@ CONTAINS
          nswapmoves=nswapmoves,group=group,source=source,&
          lclassical=lclassical,nchain=nchain(1),nunits_tot=nunits_tot(1),&
          dat_file=dat_file(1),nunits=natom,lclassical_run=lclassical_run,&
-         cutoff=cutoff,inner_cutoff=inner_cutoff)
+         cutoff=cutoff,inner_cutoff=inner_cutoff,fft_lib=fft_lib)
       CALL get_mc_par(mc_par(2)%mc_par,nchain=nchain(2),&
          nunits_tot=nunits_tot(2),dat_file=dat_file(2))
 
@@ -720,7 +721,7 @@ CONTAINS
 
          CALL mc_make_dat_file(r_insert(:,:),ins_atoms,&
             abc_insert(1)*angstrom,dat_file(insert_box),&
-            force_env(insert_box)%force_env)
+            force_env(insert_box)%force_env,TRIM(fft_lib))
          
 ! now do the same for the removal box...be careful not to make an empty box
          IF (rem_atoms == 0) THEN
@@ -731,7 +732,7 @@ CONTAINS
             IF (ionode) &
             CALL mc_make_dat_file(r_remove(:,:),3,&
                abc_remove(1)*angstrom,dat_file(remove_box),&
-               force_env(remove_box)%force_env)
+               force_env(remove_box)%force_env,TRIM(fft_lib))
          ELSE
             IF(imolecule == 1) THEN
                DO iatom=natom+1,rem_atoms+natom
@@ -755,7 +756,7 @@ CONTAINS
             IF (ionode) &
                CALL mc_make_dat_file(r_remove(:,:),rem_atoms,&
                 abc_remove(1)*angstrom,dat_file(remove_box),&
-                force_env(remove_box)%force_env)
+                force_env(remove_box)%force_env,TRIM(fft_lib))
          ENDIF
       ENDIF
 
@@ -1139,6 +1140,7 @@ CONTAINS
     LOGICAL                                  :: ionode,lclassical_run,ldum
     LOGICAL,DIMENSION(:,:),ALLOCATABLE       :: loverlap
     CHARACTER(LEN=40),DIMENSION(1:2)         :: dat_file
+    CHARACTER(LEN=200)                       :: fft_lib
 !   ---------------------------------------------------------------------------
       
 ! begin the timing of the subroutine
@@ -1154,7 +1156,7 @@ CONTAINS
          group=group,nchain=nchain(1),nunits_tot=nunits_tot(1),&
          nvolmoves=nvolmoves,dat_file=dat_file(1),rmvolume=rmvolume,&
          nunits=nunits,BETA=BETA,cl=cl,lclassical_run=lclassical_run,&
-         cutoff=cutoff)
+         cutoff=cutoff,fft_lib=fft_lib)
       CALL get_mc_par(mc_par(2)%mc_par,nchain=nchain(2),&
          nunits_tot=nunits_tot(2),dat_file=dat_file(2))
 
@@ -1243,7 +1245,7 @@ CONTAINS
 ! make the new dat file
                CALL mc_make_dat_file(r(:,:,i),3,&
                   test_cell_length(i)*angstrom,dat_file(i),&
-                  force_env(i)%force_env)
+                  force_env(i)%force_env,TRIM(fft_lib))
 
             ELSE
 
@@ -1267,7 +1269,7 @@ CONTAINS
 ! make the new dat file
                CALL mc_make_dat_file(r(:,:,i),nunits_tot(i),&
                   test_cell_length(i)*angstrom,dat_file(i),&
-                  force_env(i)%force_env)
+                  force_env(i)%force_env,TRIM(fft_lib))
 
             ENDIF
 
@@ -1449,7 +1451,7 @@ CONTAINS
 ! make the new dat file
                CALL mc_make_dat_file(r(:,:,i),3,&
                   test_cell_length(i)*angstrom,dat_file(i),&
-                  force_env(i)%force_env)
+                  force_env(i)%force_env,TRIM(fft_lib))
 
             ELSE
 
@@ -1460,7 +1462,7 @@ CONTAINS
                
                CALL mc_make_dat_file(r(:,:,i),&
                   nunits_tot(i),test_cell_length(i)*angstrom,&
-                  dat_file(i),force_env(i)%force_env)
+                  dat_file(i),force_env(i)%force_env,TRIM(fft_lib))
             ENDIF
          ENDDO
 ! back to parallel

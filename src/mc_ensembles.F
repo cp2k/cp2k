@@ -271,8 +271,11 @@ CONTAINS
          CALL open_file(file_name='cell_length',&
                  unit_number=cell_unit,&
                  file_action='WRITE',file_status='REPLACE')
-         WRITE(cell_unit,*) 'Initial Cell Length:       ',&
-               abc(1)*angstrom
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+         WRITE(cell_unit,*) (abc(1)*angstrom)**3,old_energy
+!         WRITE(cell_unit,*) 'Initial Cell Length:       ',&
+!               abc(1)*angstrom
+
          CALL open_file(file_name=cell_file,&
                  unit_number=cl,&
                  file_action='WRITE',file_status='REPLACE')
@@ -427,7 +430,9 @@ CONTAINS
                      /REAL(nnstep-nstart,dbl)+abc(1)/&
                      REAL(nnstep-nstart,dbl)
 
-            WRITE(cell_unit,*) nnstep,abc(1)*angstrom
+!!!!!!!!!!!!!!!!!!!!!!!
+            WRITE(cell_unit,*) (abc(1)*angstrom)**3,old_energy
+!            WRITE(cell_unit,*) nnstep,abc(1)*angstrom
 
 ! find bond lengths and angle for current water config
             CALL get_water_data(force_env,averages,&

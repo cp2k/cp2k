@@ -171,6 +171,7 @@ SUBROUTINE read_mc_restart ( mc_par, force_env ,iw )
       :: routineN = "read_mc_restart"
 
     CHARACTER(LEN=40)                        :: restart_file,dat_file
+    CHARACTER(LEN=200)                       :: fft_lib
     CHARACTER(LEN=20)                        :: chardum, ensemble,&
       mc_ensemble
     INTEGER                                  :: handle, ipart, istat, &
@@ -196,7 +197,7 @@ SUBROUTINE read_mc_restart ( mc_par, force_env ,iw )
 ! get some stuff from the mc_par
   CALL get_mc_par(mc_par,restart_file=restart_file,temp=mc_temp,&
       nunits_tot=mc_nunits_tot,ensemble=mc_ensemble,nunits=mc_nunits,&
-      ionode=ionode,dat_file=dat_file,nchain=mc_nchain)
+      ionode=ionode,dat_file=dat_file,nchain=mc_nchain,fft_lib=fft_lib)
 
 ! open the file and read some simulation parameters
       CALL open_file(file_name=restart_file,unit_number=unit,&
@@ -269,7 +270,8 @@ SUBROUTINE read_mc_restart ( mc_par, force_env ,iw )
          CALL close_file(unit_number=unit)
 
          IF(ionode) &
-            CALL mc_make_dat_file(r(:,:),3,box_length,dat_file,force_env)
+            CALL mc_make_dat_file(r(:,:),3,box_length,dat_file,force_env,&
+               TRIM(fft_lib))
 
       ELSE
          ALLOCATE (r(3,nunits_tot),STAT=istat)
@@ -284,7 +286,7 @@ SUBROUTINE read_mc_restart ( mc_par, force_env ,iw )
 
          IF(ionode) &
             CALL mc_make_dat_file(r(:,:),mc_nunits_tot,&
-            box_length,dat_file,force_env)
+            box_length,dat_file,force_env,TRIM(fft_lib))
 
       ENDIF
 
