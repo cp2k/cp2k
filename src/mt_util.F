@@ -38,7 +38,7 @@ MODULE mt_util
                                              timestop
   USE simulation_cell,                 ONLY: cell_type
   USE cp_para_types,                   ONLY: cp_para_env_type
-  USE pw_grids, ONLY: pw_grid_setup, pw_grid_construct, pw_grid_destruct
+  USE pw_grids, ONLY: pw_grid_setup, pw_grid_construct, pw_grid_release
   USE pw_pool_types, ONLY: pw_pool_create, pw_pool_release
 
   IMPLICIT NONE
@@ -67,9 +67,10 @@ CONTAINS
 !!   SOURCE
 !******************************************************************************
   SUBROUTINE MTin_create_screen_fn(screen_function, pw_pool, method, alpha, rel_cutoff, cell, &
-       special_dimension, slab_size, para_env, error)
+       special_dimension, slab_size, para_env, super_ref_pw_grid, error)
     TYPE(pw_type), POINTER                   :: screen_function
     TYPE(pw_pool_type), POINTER              :: pw_pool
+    TYPE (pw_grid_type), POINTER             :: super_ref_pw_grid
     INTEGER, INTENT(IN)                      :: method, special_dimension
     REAL(KIND=dp), INTENT(in)                :: alpha, rel_cutoff, slab_size
     TYPE(cell_type), POINTER                 :: cell
@@ -84,43 +85,45 @@ CONTAINS
     LOGICAL                                  :: failure
     TYPE(pw_type), POINTER                   :: Vloc, Vlocg
     TYPE(pw_pool_type), POINTER              :: pw_pool_aux
-    TYPE (pw_grid_type), POINTER             :: pw_grid
     REAL(KIND=dp) :: ecut, alpha2
     INTEGER                                  :: ig, iz
     REAL(KIND=dp)                            :: g2, g3d, zlength, gz, gxy
 
     CALL timeset(routineN,"I","",handle)
     failure=.FALSE.
-    NULLIFY(Vloc, Vlocg, pw_pool_aux, pw_grid)
+    NULLIFY(Vloc, Vlocg, pw_pool_aux)
     !
     ! For Martyna-Tuckerman we set up an auxiliary pw_pool at an higher cutoff
     !
-    ecut = - pw_pool%pw_grid%cutoff * rel_cutoff
-    ALLOCATE(pw_grid, stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-    CALL pw_grid_construct(pw_grid)
-    pw_grid%para%rs_dims ( 1 ) = para_env%num_pe
-    pw_grid%para%rs_dims ( 2 ) = 1
-    pw_grid%grid_span = pw_pool%pw_grid%grid_span
-
-    CALL pw_grid_setup ( cell, pw_grid, cutoff = ecut, &
-         ref_grid=pw_pool%pw_grid, pe_group= para_env % group, blocked=.FALSE., &
-         fft_usage = .TRUE. )
-    CALL pw_pool_create ( pw_pool_aux, pw_grid = pw_grid )
+    IF (ASSOCIATED(super_ref_pw_grid)) THEN
+       CALL pw_pool_create ( pw_pool_aux, pw_grid = super_ref_pw_grid )
+    END IF       
     CALL pw_pool_create_pw(pw_pool, screen_function, use_data=COMPLEXDATA1D,&
          in_space=RECIPROCALSPACE,error=error)
     SELECT CASE( method )
     CASE(MT0D)
-       CALL pw_pool_create_pw(pw_pool_aux, Vloc, use_data=REALDATA3D, in_space=REALSPACE,&
-            error=error)
-       CALL pw_pool_create_pw(pw_pool_aux, Vlocg, use_data=COMPLEXDATA1D, in_space=RECIPROCALSPACE,&
-            error=error)
+       IF (ASSOCIATED(pw_pool_aux)) THEN
+          CALL pw_pool_create_pw(pw_pool_aux, Vloc, use_data=REALDATA3D, in_space=REALSPACE,&
+               error=error)
+          CALL pw_pool_create_pw(pw_pool_aux, Vlocg, use_data=COMPLEXDATA1D, in_space=RECIPROCALSPACE,&
+               error=error)
+       ELSE
+          CALL pw_pool_create_pw(pw_pool, Vloc, use_data=REALDATA3D, in_space=REALSPACE,&
+               error=error)
+          CALL pw_pool_create_pw(pw_pool, Vlocg, use_data=COMPLEXDATA1D, in_space=RECIPROCALSPACE,&
+               error=error)
+       END IF
        CALL mt0din( Vloc, alpha)
        CALL pw_transfer ( Vloc,  Vlocg )
        CALL pw_zero( screen_function )
        CALL pw_sumup(Vlocg, screen_function )
-       CALL pw_pool_give_back_pw(pw_pool_aux, Vloc,  error=error)
-       CALL pw_pool_give_back_pw(pw_pool_aux, Vlocg, error=error)
+       IF (ASSOCIATED(pw_pool_aux)) THEN
+          CALL pw_pool_give_back_pw(pw_pool_aux, Vloc,  error=error)
+          CALL pw_pool_give_back_pw(pw_pool_aux, Vlocg, error=error)
+       ELSE
+          CALL pw_pool_give_back_pw(pw_pool, Vloc,  error=error)
+          CALL pw_pool_give_back_pw(pw_pool, Vlocg, error=error)
+       END IF
        !
        ! Get rid of the analytical FT of the erf(a*r)/r 
        !
@@ -147,9 +150,6 @@ CONTAINS
        CALL cp_unimplemented_error(routineP, "MT2D unimplemented", error, cp_failure_level)
     END SELECT
     CALL pw_pool_release ( pw_pool_aux, error=error )
-    CALL pw_grid_destruct( pw_grid, error=error)
-    DEALLOCATE(pw_grid, stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     CALL timestop(0.0_dp,handle) 
   END SUBROUTINE MTin_create_screen_fn
 !!*****

@@ -42,6 +42,7 @@ MODULE green_types
   USE mathconstants,                   ONLY: fourpi,&
                                              twopi
   USE pw_grid_types,                   ONLY: pw_grid_type
+  USE pw_grids,                        ONLY: pw_grid_release
   USE pw_types,                        ONLY: REALDATA1D,&
                                              RECIPROCALSPACE,&
                                              COMPLEXDATA1D,&
@@ -60,7 +61,6 @@ MODULE green_types
                                              hockney2d,&
                                              hockney1d,&
                                              hockney0d 
-
   IMPLICIT NONE
   
   PRIVATE
@@ -89,6 +89,7 @@ MODULE green_types
     TYPE ( pw_type ), POINTER :: influence_function
     TYPE ( pw_type ), POINTER :: screen_function
     TYPE ( pw_type ), POINTER :: p3m_charge
+    TYPE ( pw_grid_type), POINTER :: super_ref_pw_grid
   END TYPE greens_function_type
 
 
@@ -176,10 +177,9 @@ CONTAINS
                 CALL pw_deallocate(gftype%influence_function)
                 DEALLOCATE(gftype%influence_function, stat=stat)
                 CPPostcondition(stat == 0,cp_failure_level,routineP,error,failure)
-             ENDIF
-             
+             ENDIF             
              CALL pw_release(gftype%screen_function)
-             
+             CALL pw_grid_release(gftype%super_ref_pw_grid)
              IF (gftype % p3m) THEN
                 IF (ASSOCIATED(gftype % p3m_charge)) &
                      CALL pw_deallocate(gftype % p3m_charge)
@@ -256,6 +256,7 @@ CONTAINS
        NULLIFY (green%influence_function,green%p3m_charge)
        NULLIFY (green%p3m_coeff,green%p3m_bm2)
        NULLIFY (green%screen_function)
+       NULLIFY (green%super_ref_pw_grid)
     END IF
   END SUBROUTINE pw_green_create
   !***************************************************************************

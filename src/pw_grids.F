@@ -90,7 +90,7 @@ MODULE pw_grids
 
   PRIVATE
   PUBLIC :: pw_grid_construct, pw_grid_destruct, pw_grid_compare
-  PUBLIC :: pw_grid_setup, pw_grid_change, pw_find_cutoff
+  PUBLIC :: pw_grid_setup, pw_grid_change, pw_find_cutoff, pw_grid_find_bounds
   PUBLIC :: pw_grid_retain, pw_grid_release, pw_grid_duplicate
   PUBLIC :: create_gvectors
 

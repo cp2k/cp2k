@@ -480,7 +480,8 @@ CONTAINS
     TYPE(scf_control_type), POINTER          :: scf_control
     INTEGER, DIMENSION(2)                    :: added_mos
     TYPE(greens_function_type), POINTER                   :: green
-    TYPE(section_vals_type), POINTER         :: poisson_section
+    TYPE(section_vals_type), POINTER         :: poisson_section,&
+                                                force_env_section
 !   ---------------------------------------------------------------------------
 
     failure=.FALSE.
@@ -493,6 +494,8 @@ CONTAINS
 
     poisson_section => section_vals_get_subs_vals(globenv%input_file,&
          "FORCE_EVAL%DFT%POISSON_DFT",error=error)
+    force_env_section => section_vals_get_subs_vals(globenv%input_file,&
+         "FORCE_EVAL",error=error)
 
     CALL get_kg_env(kg_env=kg_env,&
                     dft_control=dft_control,&
@@ -540,6 +543,7 @@ CONTAINS
     CALL set_qs_env(qs_env=qs_env,&
                     green=green               ,&
                     cell=cell                 ,&
+                    input=force_env_section   ,&
                     cell_ref=cell_ref         ,&
                     use_ref_cell=use_ref_cell ,&
                     dft_control=dft_control   ,&

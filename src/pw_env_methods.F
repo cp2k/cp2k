@@ -55,7 +55,8 @@ MODULE pw_env_methods
   USE gaussian_gridlevels,             ONLY: destroy_gaussian_gridlevel,&
                                              gaussian_gridlevel,&
                                              init_gaussian_gridlevel
-  USE green_methods,                   ONLY: pw_green_fn_rebuild
+  USE green_methods,                   ONLY: pw_green_fn_rebuild,&
+                                             setup_MT_ref_grid
   USE kinds,                           ONLY: dp
   USE l_utils,                         ONLY: init_l_info,&
                                              l_info_retain,&
@@ -183,7 +184,8 @@ SUBROUTINE pw_env_rebuild(pw_env, qs_env, error)
 
     INTEGER :: cmax, cmaxl, handle, i, igrid_level, ikind, ipgf, iset, &
       ishell, istat, jkind, jpgf, jset, jshell, la, lb, lgrid_level, igrid_zet0_s,&
-      lmax_rho0, maxlgto, ncommensurate, ngrid_level, nkind, nseta, nsetb, nsmax, stat
+      lmax_rho0, maxlgto, ncommensurate, ngrid_level, nkind, nseta, nsetb, nsmax, stat,&
+      grid_span
     INTEGER, DIMENSION(:), POINTER           :: npgfa, npgfb, nshella, nshellb
     INTEGER, DIMENSION(:, :), POINTER        :: lshella, lshellb
     LOGICAL                                  :: failure, pw_grid_information, &
@@ -300,8 +302,25 @@ SUBROUTINE pw_env_rebuild(pw_env, qs_env, error)
      ELSE 
         ncommensurate=0
      ENDIF
-     DO igrid_level=1,ngrid_level ! keep the pw_grids in a separate array?
-! Start from scratch
+     !
+     ! If Tuckerman is present let's perform the set-up of the super-reference-grid 
+     !
+     IF ( dft_control % qs_control % pw_grid_opt % spherical ) THEN
+        cutilev = cutoff(1)
+        grid_span = HALFSPACE
+     ELSE IF ( dft_control % qs_control % pw_grid_opt % fullspace ) THEN
+        cutilev = -cutoff(1)
+        grid_span = FULLSPACE
+     ELSE
+        cutilev = -cutoff(1)
+        grid_span = HALFSPACE
+     END IF
+     CALL setup_MT_ref_grid(green, cutilev, grid_span, cell_ref, para_env, &
+          old_pw_grid, qs_env%input, error) 
+     !
+     ! Setup od the multi-grid pw_grid and pw_pools
+     !
+     DO igrid_level=1,ngrid_level 
         ALLOCATE(pw_grid,stat=stat)
         CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
         CALL pw_grid_construct(pw_grid)
@@ -320,16 +339,31 @@ SUBROUTINE pw_env_rebuild(pw_env, qs_env, error)
         END IF
 
         IF (igrid_level == 1) THEN
-           IF (pw_grid_information) THEN
-              CALL pw_grid_setup(cell_ref,pw_grid,cutilev,&
-                   pe_group=para_env%group,&
-                   info= cp_logger_get_default_unit_nr(logger,&
-                   local=.FALSE.), blocked=.FALSE.,ncommensurate=ncommensurate,icommensurate=igrid_level)
+           IF (ASSOCIATED(old_pw_grid)) THEN
+              IF (pw_grid_information) THEN
+                 CALL pw_grid_setup(cell_ref,pw_grid,cutilev,&
+                      pe_group=para_env%group,&
+                      ref_grid=old_pw_grid,&
+                      info= cp_logger_get_default_unit_nr(logger,local=.FALSE.), &
+                      blocked=.FALSE.,ncommensurate=ncommensurate,icommensurate=igrid_level)
+              ELSE
+                 CALL pw_grid_setup(cell_ref,pw_grid,cutilev,ref_grid=old_pw_grid,&
+                      pe_group=para_env%group, blocked=.FALSE.,ncommensurate=ncommensurate,&
+                      icommensurate=igrid_level)
+              END IF
+              old_pw_grid => pw_grid
            ELSE
-              CALL pw_grid_setup(cell_ref,pw_grid,cutilev,&
-                   pe_group=para_env%group, blocked=.FALSE.,ncommensurate=ncommensurate,icommensurate=igrid_level)
+              IF (pw_grid_information) THEN
+                 CALL pw_grid_setup(cell_ref,pw_grid,cutilev,&
+                      pe_group=para_env%group,&
+                      info= cp_logger_get_default_unit_nr(logger,local=.FALSE.),&
+                      blocked=.FALSE.,ncommensurate=ncommensurate,icommensurate=igrid_level)
+              ELSE
+                 CALL pw_grid_setup(cell_ref,pw_grid,cutilev,pe_group=para_env%group,&
+                      blocked=.FALSE.,ncommensurate=ncommensurate,icommensurate=igrid_level)
+              END IF
+              old_pw_grid => pw_grid
            END IF
-           old_pw_grid => pw_grid
         ELSE
            IF (pw_grid_information) THEN
               CALL pw_grid_setup(cell_ref,pw_grid,cutilev,&
@@ -508,6 +542,7 @@ SUBROUTINE pw_env_rebuild(pw_env, qs_env, error)
       CALL pw_green_fn_rebuild(green,&
           pw_env%pw_pools(pw_env%auxbas_grid)%pool, cell=cell, para_env=para_env)
   ENDIF
+  CALL pw_grid_release ( green%super_ref_pw_grid, error=error)     
   CALL timestop(0.0_dp,handle)
 END SUBROUTINE pw_env_rebuild
 
