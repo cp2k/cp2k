@@ -172,7 +172,7 @@ CONTAINS
     IMPLICIT NONE
   
   ! ARGUMENTS
-    TYPE(tddfpt_env_type), INTENT(out)        :: t_env
+    TYPE(tddfpt_env_type), INTENT(inout)        :: t_env
     TYPE(qs_p_env_type),POINTER               :: p_env
     TYPE(qs_environment_type), INTENT(inout), TARGET :: qs_env
     TYPE(global_environment_type), INTENT(in) :: glob_env

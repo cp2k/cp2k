@@ -83,7 +83,7 @@ CONTAINS
   TYPE ( pw_pool_type ), POINTER :: pw_pool
   TYPE ( coeff_type ), INTENT (in) :: rho_r
   TYPE ( coeff_type ), INTENT (in) :: rho_g
-  TYPE ( coeff_type ), INTENT (out) :: v_r
+  TYPE ( coeff_type ), INTENT (inout) :: v_r
   REAL ( dbl ), INTENT (out) :: e_xc
   TYPE ( dft_control_type ), INTENT ( IN ), TARGET :: dft_control
 
@@ -140,9 +140,9 @@ CONTAINS
   TYPE ( coeff_type ), INTENT (in) :: rho_r
   TYPE ( coeff_type ), INTENT (in) :: rho_g
   TYPE ( coeff_type ), INTENT (in) :: rhop_r
-  TYPE ( coeff_type ), INTENT (out) :: v_r
-  TYPE ( coeff_type ), INTENT (out) :: v1_r
-  TYPE ( coeff_type ), INTENT (out) :: v2_r
+  TYPE ( coeff_type ), INTENT (inout) :: v_r
+  TYPE ( coeff_type ), INTENT (inout) :: v1_r
+  TYPE ( coeff_type ), INTENT (inout) :: v2_r
   REAL ( dbl ), INTENT (out) :: e_xc
   REAL ( dbl ), INTENT (out) :: e1_xc
   REAL ( dbl ), INTENT (out) :: e2_xc

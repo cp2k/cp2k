@@ -51,7 +51,7 @@ SUBROUTINE potential_update ( n, vloc, dft_control, tprint )
   TYPE ( density_type ), DIMENSION ( : ), INTENT ( IN ) :: n
   TYPE ( dft_control_type ), INTENT ( IN ) :: dft_control
   LOGICAL, INTENT ( IN ) :: tprint
-  TYPE ( potential_type ), DIMENSION ( : ), INTENT ( OUT ), TARGET :: vloc
+  TYPE ( potential_type ), DIMENSION ( : ), INTENT ( INOUT ), TARGET :: vloc
   
 ! Local
   INTEGER :: densityset, ndensitysets, spin, nspins
@@ -114,7 +114,7 @@ SUBROUTINE potential_set_zero ( vloc )
   IMPLICIT NONE
   
 ! Arguments
-  TYPE ( potential_type ), DIMENSION ( : ), INTENT ( OUT ) :: vloc
+  TYPE ( potential_type ), DIMENSION ( : ), INTENT ( INOUT ) :: vloc
   
 ! Locals
   INTEGER :: spin, nspins, potset, npotsets
@@ -140,7 +140,7 @@ SUBROUTINE potential_zero ( vloc )
   IMPLICIT NONE
   
 ! Arguments
-  TYPE ( potential_type ), INTENT ( OUT ) :: vloc
+  TYPE ( potential_type ), INTENT ( INOUT ) :: vloc
   
 ! Locals
   INTEGER :: spin, nspins
@@ -162,7 +162,7 @@ SUBROUTINE potential_zero_spinset ( vloc_s )
   IMPLICIT NONE
   
 ! Arguments
-  TYPE ( coeff_type ), INTENT ( OUT ) :: vloc_s
+  TYPE ( coeff_type ), INTENT ( INOUT ) :: vloc_s
   
 !------------------------------------------------------------------------------
   
