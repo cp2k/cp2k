@@ -794,7 +794,7 @@ CONTAINS
     nb = MAX(ilaenv(1,"DSYTRD","U",n,-1,-1,-1),&
              ilaenv(1,"DORMTR","U",n,-1,-1,-1))
 
-    lwork = MAX((nb + 3)*n,8*n)
+    lwork = MAX((nb + 3)*n,8*n)+n ! sun bug fix
     liwork = 5*n
 
     ALLOCATE (ifail(n),STAT=istat)
