@@ -4,20 +4,36 @@
 
 
   MODULE gaussian_gridlevels
-
-  USE kinds, ONLY: wp => dp
-  USE global_types, ONLY: global_environment_type
-  USE message_passing, ONLY: mp_sum
-  USE termination, ONLY: stop_memory,stop_program
-
+  USE cp_error_handling,               ONLY: cp_assert,&
+                                             cp_assertion_failed,&
+                                             cp_debug,&
+                                             cp_error_dealloc_ref,&
+                                             cp_error_get_logger,&
+                                             cp_error_init,&
+                                             cp_error_message,&
+                                             cp_error_type,&
+                                             cp_internal_error,&
+                                             cp_unimplemented_error
+  USE cp_log_handling,                 ONLY: cp_failure_level,&
+                                             cp_fatal_level,&
+                                             cp_log,&
+                                             cp_logger_type,&
+                                             cp_note_level,&
+                                             cp_to_string,&
+                                             cp_warning_level
+  USE global_types,                    ONLY: global_environment_type
+  USE kinds,                           ONLY: wp => dp
+  USE message_passing,                 ONLY: mp_sum
+  USE termination,                     ONLY: stop_memory,&
+                                             stop_program
   IMPLICIT NONE
 
   TYPE gridlevel_info_type
-       integer                         :: ngrid_levels
-       real(wp), pointer, dimension(:) :: cutoff
-       integer , pointer, dimension(:) :: count
-       integer                         :: total_count
-       real(wp)                        :: rel_cutoff
+       INTEGER                         :: ngrid_levels
+       REAL(wp), POINTER, DIMENSION(:) :: cutoff
+       INTEGER , POINTER, DIMENSION(:) :: count
+       INTEGER                         :: total_count
+       REAL(wp)                        :: rel_cutoff
   END TYPE
 
   PUBLIC :: gridlevel_info_type
@@ -28,39 +44,55 @@
 CONTAINS
 
   SUBROUTINE init_gaussian_gridlevel(gridlevel_info,ngrid_levels,cutoff,rel_cutoff)
-       integer                :: ngrid_levels,i
-       real(wp), dimension(:), POINTER :: cutoff
-       real(wp)               :: rel_cutoff
+       INTEGER                :: ngrid_levels,i
+       REAL(wp), DIMENSION(:), POINTER :: cutoff
+       REAL(wp)               :: rel_cutoff
        TYPE(gridlevel_info_type) :: gridlevel_info
-       allocate(gridlevel_info%cutoff(ngrid_levels))
-       allocate(gridlevel_info%count(ngrid_levels))
+       ALLOCATE(gridlevel_info%cutoff(ngrid_levels))
+       ALLOCATE(gridlevel_info%count(ngrid_levels))
        gridlevel_info%ngrid_levels=ngrid_levels
        gridlevel_info%rel_cutoff=rel_cutoff
        gridlevel_info%total_count=0
-       do i=1,ngrid_levels
+       DO i=1,ngrid_levels
           gridlevel_info%cutoff(i)=cutoff(i)
           gridlevel_info%count(i)=0
-       enddo
+       ENDDO
   END SUBROUTINE
  
-  SUBROUTINE destroy_gaussian_gridlevel(gridlevel_info,globenv)
-  TYPE(global_environment_type), INTENT(IN) :: globenv
+SUBROUTINE destroy_gaussian_gridlevel(gridlevel_info,globenv,error)
   TYPE(gridlevel_info_type) :: gridlevel_info
-    CHARACTER(LEN=*), PARAMETER :: routine =&
-      "SUBROUTINE destroy_gaussian_gridlevel (MODULE gaussian_gridlevels)"
-  INTEGER :: i,istat
+  type(global_environment_type), intent(in), target, optional :: globenv
+  TYPE(cp_error_type), INTENT(inout), OPTIONAL :: error
+  CHARACTER(LEN=*), PARAMETER :: routine =&
+       "SUBROUTINE destroy_gaussian_gridlevel (MODULE gaussian_gridlevels)"
+  INTEGER :: i,istat, group
+  logical :: pw_grid_information, ionode
+  TYPE(cp_logger_type), POINTER :: logger
+
+  nullify(logger)
+  if (present(globenv)) then
+     group=globenv%group
+     ionode=globenv%ionode
+     pw_grid_information=globenv%print%pw_grid_information
+  else
+     logger => cp_error_get_logger(error)
+     group=logger%para_env%group
+     pw_grid_information=logger%print_keys%pw_grid_information
+     ionode=logger%para_env%source==logger%para_env%mepos
+  end if
+
   DEALLOCATE (gridlevel_info%cutoff,STAT=istat)
   IF (istat /= 0) CALL stop_memory(routine,"gridlevel_info%cutoff")
-  CALL mp_sum(gridlevel_info%total_count,globenv%group)
-  CALL mp_sum(gridlevel_info%count,globenv%group)
-  IF (globenv%ionode.AND.globenv%print%pw_grid_information) THEN
-    write(6,'(/,T3,A)')           "---------------------------------"
-    write(6,'(T3,A)')           "--        MULTIGRID INFO       --"
-    write(6,'(T3,A)')           "---------------------------------"
-    write(6,'(T3,A,I8)')        "total gridlevel count  : ",&
+  CALL mp_sum(gridlevel_info%total_count,group)
+  CALL mp_sum(gridlevel_info%count,group)
+  IF (ionode.AND.pw_grid_information) THEN
+    WRITE(6,'(/,T3,A)')           "---------------------------------"
+    WRITE(6,'(T3,A)')           "--        MULTIGRID INFO       --"
+    WRITE(6,'(T3,A)')           "---------------------------------"
+    WRITE(6,'(T3,A,I8)')        "total gridlevel count  : ",&
       gridlevel_info%total_count
     DO i=1,gridlevel_info%ngrid_levels
-      write(6,'(T3,A,I3,A,I8)') "count for grid     ",i,": ",&
+      WRITE(6,'(T3,A,I3,A,I8)') "count for grid     ",i,": ",&
        gridlevel_info%count(i)
     END DO
   END IF
@@ -69,19 +101,19 @@ CONTAINS
   END SUBROUTINE
 
 ! ***************************************************************
-  FUNCTION gaussian_gridlevel(gridlevel_info,exponent) result(gridlevel)
-  real(wp) :: exponent
-  integer  :: gridlevel,i
+  FUNCTION gaussian_gridlevel(gridlevel_info,exponent) RESULT(gridlevel)
+  REAL(wp) :: exponent
+  INTEGER  :: gridlevel,i
   TYPE(gridlevel_info_type) :: gridlevel_info
-  real :: needed_cutoff
+  REAL :: needed_cutoff
 
   gridlevel=1 
-  needed_cutoff=abs(exponent)*gridlevel_info%rel_cutoff
-  do i=1,gridlevel_info%ngrid_levels
-     if ((gridlevel_info%cutoff(i)+1D-6).ge.needed_cutoff) then
+  needed_cutoff=ABS(exponent)*gridlevel_info%rel_cutoff
+  DO i=1,gridlevel_info%ngrid_levels
+     IF ((gridlevel_info%cutoff(i)+1D-6).GE.needed_cutoff) THEN
         gridlevel=i
-     endif
-  enddo
+     ENDIF
+  ENDDO
   gridlevel_info%total_count=gridlevel_info%total_count+1
   gridlevel_info%count(gridlevel)= gridlevel_info%count(gridlevel)+1
 
