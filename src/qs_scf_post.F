@@ -890,15 +890,18 @@ SUBROUTINE calc_stupid_dipole(subsystem, rho_r, rho_core_g,aux_bas_pool,&
 
   dipole_center=dipole_center*total_charge%pw_grid%dvol
   dipole_com=dipole_com*total_charge%pw_grid%dvol
-  
+
+  CALL mp_sum(dipole_center,total_charge%pw_grid%para%group)
+  CALL mp_sum(dipole_com,total_charge%pw_grid%para%group)
+
   IF (unit_nr>0) THEN
      IF (my_print_header) THEN
         WRITE(unit=unit_nr,fmt="('# iteration com(x,y,z)[Angstrom]"//&
              " dipole_com(x,y,z)[au] dipole_cell_center(x,y,z)[au]')")
      END IF
      iter=cp_iter_string(logger%iter_info,error=error)
-     WRITE(unit=unit_nr,fmt="(a,9(f12.8))")&
-          TRIM(iter),&
+     WRITE(unit=unit_nr,fmt="(a,9(es18.8))")&
+          iter(1:15),&
           com*angstrom,-dipole_com,-dipole_center
   END IF
   CALL pw_pool_give_back_pw(aux_bas_pool,total_charge,error=error)
