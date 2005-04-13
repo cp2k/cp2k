@@ -285,7 +285,7 @@ END SUBROUTINE set_energies
         CALL open_md_file(ener_file_name,ene,replace_file)
         WRITE (iw,*) "Format of the energy file"
         WRITE (iw,*) "Step Nr.    Time[fs]  Kin.[a.u.]     Temp[K]  Pot.[a.u.]    Cons Qty UsedTime[s]"
-        IF (.NOT.replace_file.AND.file_exists) THEN
+        IF ((.NOT.replace_file).AND.file_exists) THEN
           BACKSPACE (UNIT=ene,IOSTAT=istat)
           IF (istat /= 0) THEN
             CALL stop_program(routine_name,module_name,__LINE__,&
