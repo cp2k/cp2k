@@ -389,7 +389,8 @@ END SUBROUTINE rf_deriv_check
 !!
 !!   SOURCE
 !!*** **********************************************************************
-  SUBROUTINE mulliken_charges(p_matrix,s_matrix,para_env,particle_set,scr,ionode)
+  SUBROUTINE mulliken_charges(p_matrix,s_matrix,para_env,particle_set, &
+                              scr,ionode,title)
 
     TYPE(real_matrix_p_type), DIMENSION(:), &
                               POINTER        :: p_matrix
@@ -399,6 +400,7 @@ END SUBROUTINE rf_deriv_check
       POINTER                                :: particle_set
     INTEGER                                  :: scr
     LOGICAL                                  :: ionode
+    CHARACTER(LEN=*)                         :: title
 
     CHARACTER(LEN=2)                         :: element_symbol
     INTEGER                                  :: handle, i, iblock, &
@@ -419,8 +421,7 @@ END SUBROUTINE rf_deriv_check
 
     ! obviously output is not yet very nice
     IF (ionode) THEN
-       WRITE(scr,'(A)') ""
-       WRITE(scr,'(A)') "  Mulliken charges "
+       WRITE(scr,'(A)') title
        SELECT CASE (nspin)
        CASE(1)
        WRITE(scr,'(A)') "  Atom     |    Charge"
@@ -430,6 +431,7 @@ END SUBROUTINE rf_deriv_check
        total_charge = 0.0_dp
        IF (SIZE(particle_set) .NE. nblock) &
            CALL stop_program("Mulliken","unexpected number of atoms")
+       WRITE(scr,'(A)') ""
        DO iblock=1,nblock
           CALL get_atomic_kind(atomic_kind=particle_set(iblock)%atomic_kind,&
                              element_symbol=element_symbol,&
@@ -446,7 +448,7 @@ END SUBROUTINE rf_deriv_check
           END SELECT
        ENDDO
        WRITE(scr,'(A,F10.6)') "  Total     ",total_charge
-
+       WRITE(scr,'(A)') ""
     ENDIF
     DEALLOCATE(charges)
     CALL timestop(0.0_dp,handle)

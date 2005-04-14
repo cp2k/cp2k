@@ -216,11 +216,13 @@ CONTAINS
     TYPE (evals_p_type), DIMENSION(:), POINTER :: unoccupied_evals
     INTEGER :: ispin,n, output_unit, nmo,handle
     CHARACTER(LEN=200) :: file_name
-    INTEGER            :: file_unit,ivector,nao,nlumos, homo
+    INTEGER            :: file_unit,ivector,nao,nlumos, homo,unit_nr
     CHARACTER(LEN=80)  :: filename
     CHARACTER(LEN=80) :: title
+    CHARACTER(LEN=default_string_length) :: mulliken_title
     REAL(KIND = dp)           :: volume
     REAL(KIND = dp), POINTER, DIMENSION(:,:) :: center
+    TYPE(section_vals_type), POINTER :: print_key, input
  
     CALL timeset(routineN,"I",'',handle)
 
@@ -232,7 +234,7 @@ CONTAINS
             mos,atomic_kind_set,particle_set,rho,mo_coeff,&
             ks_rmpv,matrix_s,qs_loc_env,scf_control,unoccupied_orbs,&
             mo_eigenvalues,unoccupied_evals,fm_struct_tmp,molecule_set,&
-            center,rho_core,tddfpt_control)
+            center,rho_core,tddfpt_control,input,print_key)
     logger => cp_error_get_logger(error)
     ionode = logger%para_env%mepos==logger%para_env%source
     IF (ionode) output_unit= cp_logger_get_default_unit_nr(logger)
@@ -244,13 +246,28 @@ CONTAINS
        CALL get_qs_env(qs_env,dft_control=dft_control,molecule_set=molecule_set, &
             mos=mos,atomic_kind_set=atomic_kind_set,particle_set=particle_set,&
             rho=rho,matrix_ks=ks_rmpv,scf_control=scf_control,matrix_s=matrix_s, &
+            input=input, &
             cell=cell,rho_core=rho_core,tddfpt_control=tddfpt_control,error=error)
        CALL get_qs_env(qs_env=qs_env,pw_env=pw_env)
 
 !    *** compute the mulliken charges ***
-       IF (globenv%print%mulliken_analysis)  &
+       print_key => section_vals_get_subs_vals(input,"DFT%QS%MULLIKEN", error=error)
+       IF (cp_should_output(logger%iter_info,print_key,error=error)) THEN
+          unit_nr=cp_unitnr_for_output(logger, print_key, extension=".mulliken", &
+               local=.FALSE., log_filename=.FALSE., error=error)
+          mulliken_title="  Mulliken charges : iteration level: " &
+                                //cp_iter_string(logger%iter_info, print_key)
+          CALL mulliken_charges(rho%rho_ao,matrix_s(1)%matrix,globenv%para_env,particle_set, &
+                                  unit_nr,ionode,mulliken_title)
+          CALL cp_finished_output(unit_nr, logger, print_key, local=.FALSE.,&
+               error=error)
+       END IF
+
+       ! XXX Joost : should go as soon as the default printing within the new scheme is clear
+       IF (globenv%print%mulliken_analysis) THEN
             CALL mulliken_charges(rho%rho_ao,matrix_s(1)%matrix,globenv%para_env,particle_set, &
-                                  globenv%scr,globenv%ionode)
+                                  globenv%scr,globenv%ionode,"")
+       ENDIF
 
 !    *** setup the grids needed to compute a wavefunction given a vector
        IF ((globenv%print%homos .OR. globenv%print%lumos .OR. globenv%print%localization) &

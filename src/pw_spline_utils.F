@@ -3017,7 +3017,7 @@ FUNCTION find_coeffs(values,coeffs,linOp,preconditioner, pool, &
         END IF
      END IF
 
-     CALL cp_add_iter_level(logger%iter_info,n_rlevel_new=n_rlevel,error=error)
+     CALL cp_add_iter_level(logger%iter_info,level_name="findcoef",n_rlevel_new=n_rlevel,error=error)
      ext_do:DO iiter=1,max_iter,10
         CALL pw_zero(r)
         CALL linOp(pw_in=coeffs,pw_out=r,error=error)

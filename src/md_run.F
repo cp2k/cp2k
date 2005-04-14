@@ -338,7 +338,7 @@ CONTAINS
     END DO
     CALL md_energy ( md_env ) ! inits the print env at itimes == 0
     
-    CALL cp_add_iter_level(logger%iter_info,n_rlevel_new=iter_level,&
+    CALL cp_add_iter_level(logger%iter_info,"MD",n_rlevel_new=iter_level,&
          error=error)
     DO istep=1,simpar%nsteps
       itimes = itimes + 1

@@ -136,6 +136,8 @@ MODULE cp_log_handling
      INTEGER :: print_level, n_rlevel
      INTEGER, DIMENSION(max_iter_r_level) :: iteration
      LOGICAL, dimension(max_iter_r_level) :: last_iter
+     CHARACTER(LEN=default_string_length), &
+              DIMENSION(max_iter_r_level) :: level_name
   END TYPE cp_iteration_info_type
   !!***
   !****************************************************************************
@@ -1252,6 +1254,7 @@ SUBROUTINE cp_iteration_info_create(iteration_info,project_name)
   iteration_info%n_rlevel=1
   iteration_info%iteration=0
   iteration_info%iteration(1)=1
+  iteration_info%level_name(1)="Global"
   iteration_info%last_iter=.FALSE.
 END SUBROUTINE cp_iteration_info_create
 !***************************************************************************

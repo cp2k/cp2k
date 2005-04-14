@@ -122,7 +122,7 @@ CONTAINS
     INTEGER, INTENT(in), OPTIONAL            :: print_level
     INTEGER, DIMENSION(:), INTENT(in), &
       OPTIONAL                               :: each, add_last
-    CHARACTER, INTENT(in), OPTIONAL          :: filename
+    CHARACTER(LEN=*), INTENT(in), OPTIONAL          :: filename
     INTEGER, INTENT(in), OPTIONAL            :: common_iter_levels
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
@@ -216,12 +216,11 @@ CONTAINS
        my_filename=" "
        IF (PRESENT(filename)) my_filename=filename
        CALL keyword_create(keyword, name="FILENAME",&
-            description="Root of the filename used for the output."//&
-            ' If not given uses the project name + "'//TRIM(name)//&
-            '"; "__STD_OUT__" (case sensitive, and spelled exactly as here)'//&
-            ' directs the output to the standard log (normally the standard '//&
-            'out).',&
-            usage="FILENAME somwhere/nice",&
+            description=' controls part of the filename for output. '//&
+                        ' use __STD_OUT__ (exactly as written here) for the screen or standard logger. '//&
+                        ' use filename to obtain projectname-filename. '//&
+                        ' use ./filename to get filename ',&
+            usage="FILENAME ./filname ",&
             default_c_val=my_filename, error=error)
        CALL section_add_keyword(print_key_section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
@@ -299,8 +298,9 @@ CONTAINS
                 DO ilevel=1,SIZE(each)
                    level_passed=.FALSE.
                    ival=each(SIZE(each)-ilevel+1)
+                   ! output for ival,2*ival,3*ival ...
                    IF (MODULO(iteration_info%iteration &
-                        (iteration_info%n_rlevel-ilevel+1)-1,ival)==0) THEN
+                        (iteration_info%n_rlevel-ilevel+1),ival)==0) THEN
                       level_passed=.TRUE.
                    END IF
                    IF (SIZE(add_last)>=ilevel) THEN
@@ -561,6 +561,7 @@ END SUBROUTINE cp_iterate
 !!   INPUTS
 !!     - iteration_info: the iteration info to which an iteration level has
 !!       to be added
+!!     - level_name : the name of this level, for pretty printing only, right now
 !!     - n_level_new: number of iteration levels after this call
 !!     - error: variable to control error logging, stopping,... 
 !!       see module cp_error_handling 
@@ -569,8 +570,9 @@ END SUBROUTINE cp_iterate
 !!     fawzi
 !!
 !!*** **********************************************************************
-SUBROUTINE cp_add_iter_level(iteration_info,n_rlevel_new,error)
+SUBROUTINE cp_add_iter_level(iteration_info,level_name,n_rlevel_new,error)
     TYPE(cp_iteration_info_type), POINTER    :: iteration_info
+    CHARACTER(LEN=*), INTENT(IN)             :: level_name
     INTEGER, INTENT(out), OPTIONAL           :: n_rlevel_new
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
@@ -589,6 +591,7 @@ SUBROUTINE cp_add_iter_level(iteration_info,n_rlevel_new,error)
      iteration_info%n_rlevel=iteration_info%n_rlevel+1
      iteration_info%iteration(iteration_info%n_rlevel)=0
      iteration_info%last_iter(iteration_info%n_rlevel)=.FALSE.
+     iteration_info%level_name(iteration_info%n_rlevel)=level_name
      IF (PRESENT(n_rlevel_new)) n_rlevel_new=iteration_info%n_rlevel
   END IF
 END SUBROUTINE cp_add_iter_level
@@ -637,6 +640,7 @@ SUBROUTINE cp_rm_iter_level(iteration_info,n_rlevel_att,error)
      END IF
      iteration_info%iteration(iteration_info%n_rlevel)=0
      iteration_info%last_iter(iteration_info%n_rlevel)=.FALSE.
+     iteration_info%level_name(iteration_info%n_rlevel)="DELETED"
      iteration_info%n_rlevel=iteration_info%n_rlevel-1
   END IF
 END SUBROUTINE cp_rm_iter_level
@@ -694,7 +698,7 @@ FUNCTION cp_unitnr_for_output(logger, print_key, extension, middle_name,&
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_unitnr_for_output', &
       routineP = moduleN//':'//routineN
 
-    CHARACTER(len=default_path_length)       :: filename
+    CHARACTER(len=default_path_length)       :: filename,root,postfix
     CHARACTER(len=default_string_length)     :: my_middle_name, outPath
     INTEGER                                  :: i
     LOGICAL                                  :: failure, is_path, my_local
@@ -715,28 +719,36 @@ FUNCTION cp_unitnr_for_output(logger, print_key, extension, middle_name,&
         IF (outPath=='__STD_OUT__') THEN
            res=cp_logger_get_default_unit_nr(logger,local=my_local)
         ELSE
-           is_path=.FALSE.
-           DO i=1,LEN_TRIM(outPath)
-              IF (outPath(i:i)=="/") is_path=.TRUE.
-           END DO
-           IF (.not.is_path) THEN
-              if (outPath==' ') my_middle_name=print_key%section%name
-              IF (PRESENT(middle_name)) my_middle_name=middle_name
-              CALL cp_logger_generate_filename(logger,res=filename,&
-                   root=TRIM(logger%iter_info%project_name)//"-"//&
-                   TRIM(outPath)//TRIM(my_middle_name),&
-                   postfix="-"//TRIM(cp_iter_string(logger%iter_info,&
-                   print_key=print_key,for_file=.TRUE.,error=error))//&
-                   extension,local=my_local)
+           !
+           ! complex logic to build filename:
+           !   1)  Try to avoid '--' and '-.'
+           !   2)  If outPath contains '/' (as in ./filename) do not prepend the project_name
+           !
+           ! if it is actually a full path, use it as the root
+           IF (INDEX(outPath,"/").EQ.0) THEN
+              IF (PRESENT(middle_name)) THEN
+                   my_middle_name="-"//middle_name
+              ELSE
+                   IF (outPath.EQ."") THEN
+                      my_middle_name="-"//print_key%section%name
+                   ELSE
+                      my_middle_name="-"//outPath
+                   ENDIF
+              ENDIF
+              IF (my_middle_name.EQ."-") my_middle_name=""
+              root=TRIM(logger%iter_info%project_name)//TRIM(my_middle_name)
            ELSE
-              my_middle_name=' '
-              IF (PRESENT(middle_name)) my_middle_name=middle_name
-              CALL cp_logger_generate_filename(logger,res=filename,&
-                   root=TRIM(outPath)//TRIM(my_middle_name),&
-                   postfix="-"//TRIM(cp_iter_string(logger%iter_info,&
-                   print_key=print_key,for_file=.TRUE.,error=error))//&
-                   extension,local=my_local)
-           END IF
+              root=outPath
+           ENDIF
+           ! use the cp_iter_string as a postfix
+           postfix="-"//TRIM(cp_iter_string(logger%iter_info,&
+                              print_key=print_key,for_file=.TRUE.,error=error))
+           IF (TRIM(postfix)=="-") postfix=""
+           ! and add the extension
+           postfix=TRIM(postfix)//extension
+           ! and let the logger generate the filename
+           CALL cp_logger_generate_filename(logger,res=filename,&
+                   root=root, postfix=postfix,local=my_local)
            CALL open_file(file_name=filename,file_status="UNKNOWN",&
                 file_form="FORMATTED",file_action="WRITE",&
                 file_position="APPEND",unit_number=res)
@@ -768,7 +780,8 @@ END FUNCTION cp_unitnr_for_output
 !!     can be closed.
 !!
 !!   NOTES
-!!     at the moment always closes the unit
+!!     closes if the corresponding filename of the printkey is
+!!      not __STD_OUT__
 !!
 !!   INPUTS
 !!     the inputs should be exactly the same of the corresponding
@@ -794,6 +807,7 @@ END FUNCTION cp_unitnr_for_output
       routineP = moduleN//':'//routineN
 
     LOGICAL                                  :: failure, my_local
+    CHARACTER(len=default_string_length)     :: outPath
 
     failure=.FALSE.
     my_local=.FALSE.
@@ -804,7 +818,10 @@ END FUNCTION cp_unitnr_for_output
     CPPrecondition(logger%ref_count>0,cp_failure_level,routineP,error,failure)
     IF (my_local.OR.&
          logger%para_env%source==logger%para_env%mepos) THEN
-       CALL close_file(unit_nr,"KEEP")
+        CALL section_vals_val_get(print_key,"FILENAME",c_val=outPath,error=error)
+        IF (outPath.NE.'__STD_OUT__') THEN
+           CALL close_file(unit_nr,"KEEP")
+        ENDIF
     END IF
   END SUBROUTINE cp_finished_output
 !***************************************************************************
