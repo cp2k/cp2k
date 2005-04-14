@@ -381,6 +381,7 @@ CONTAINS
     CALL lnhc_dealloc(extended_type%nhc_coef)
     CALL npt_dealloc(extended_type%npt_info)
     DEALLOCATE(simpar,STAT=istat)
+    DEALLOCATE(mdio,STAT=istat)
     CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
 
     CALL timestop(0.0_dp,handle)
