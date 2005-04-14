@@ -40,7 +40,8 @@ MODULE md_environment_types
                                              force_env_retain,&
                                              force_env_p_type
   USE kinds,                           ONLY: dp
-  USE md,                              ONLY: simulation_parameters_type
+  USE md,                              ONLY: simulation_parameters_type, &
+                                             mdio_parameters_type
   USE simulation_cell,                 ONLY: cell_type
 !USE termination,                     ONLY: stop_memory
 
@@ -67,6 +68,7 @@ MODULE md_environment_types
      TYPE ( lnhc_parameters_type ), POINTER :: nhc_baro ( : )
      TYPE ( npt_info_type ), POINTER :: npt ( :, : )
      TYPE ( simulation_parameters_type ), POINTER :: simpar
+     TYPE ( mdio_parameters_type ), POINTER :: mdio
   END TYPE md_environment_type
 
 ! *** Public subroutines and data types ***
@@ -87,7 +89,7 @@ CONTAINS
 ! *****************************************************************************
 
   SUBROUTINE get_md_env ( md_env, itimes, constant, used_time, cell,  &
-                          simpar, nhc_part, nhc_coef, nhc_baro, npt, &
+                          simpar, mdio, nhc_part, nhc_coef, nhc_baro, npt, &
                           force_env_p, para_env )
 
 !   Purpose: Get the integrator environment
@@ -100,6 +102,8 @@ CONTAINS
     TYPE(cell_type), OPTIONAL, POINTER       :: cell
     TYPE(simulation_parameters_type), &
       OPTIONAL, POINTER                      :: simpar
+    TYPE(mdio_parameters_type), &
+      OPTIONAL, POINTER                      :: mdio
     TYPE(lnhc_parameters_type), OPTIONAL, &
       POINTER                                :: nhc_part( : ), nhc_coef( : ), &
                                                 nhc_baro( : )
@@ -118,6 +122,7 @@ CONTAINS
     IF ( PRESENT ( used_time ) ) used_time => md_env % used_time
     IF ( PRESENT ( cell ) ) cell => md_env % cell 
     IF ( PRESENT ( simpar ) ) simpar => md_env % simpar
+    IF ( PRESENT ( mdio ) ) mdio => md_env % mdio
     IF ( PRESENT ( nhc_part ) ) nhc_part => md_env % nhc_part 
     IF ( PRESENT ( nhc_coef ) ) nhc_coef => md_env % nhc_coef
     IF ( PRESENT ( nhc_baro ) ) nhc_baro => md_env % nhc_baro
@@ -159,6 +164,7 @@ CONTAINS
     NULLIFY ( md_env % constant )
     NULLIFY ( md_env % cell )
     NULLIFY ( md_env % simpar )
+    NULLIFY ( md_env % mdio )
     NULLIFY ( md_env % nhc_part )
     NULLIFY ( md_env % nhc_coef )
     NULLIFY ( md_env % nhc_baro )
@@ -271,6 +277,7 @@ SUBROUTINE md_env_release(md_env, error)
         CPPostconditionNoFail(istat==0,cp_warning_level,routineP,error)
         NULLIFY ( md_env % cell )
         NULLIFY ( md_env % simpar )
+        NULLIFY ( md_env % mdio )
         NULLIFY ( md_env % nhc_part )
         NULLIFY ( md_env % nhc_coef )
         NULLIFY ( md_env % nhc_baro )
@@ -292,7 +299,7 @@ END SUBROUTINE md_env_release
 
 ! *****************************************************************************
   SUBROUTINE set_md_env ( md_env, itimes, constant, cell, simpar, &
-                          nhc_part, nhc_coef, nhc_baro, npt, &
+                          mdio, nhc_part, nhc_coef, nhc_baro, npt, &
                           force_env_p, para_env )
 
 !   Purpose: Set the integrator environment to the correct program.
@@ -305,6 +312,8 @@ END SUBROUTINE md_env_release
     TYPE(cell_type), OPTIONAL, POINTER       :: cell
     TYPE(simulation_parameters_type), &
       OPTIONAL, POINTER                      :: simpar
+    TYPE(mdio_parameters_type), &
+      OPTIONAL, POINTER                      :: mdio
     TYPE(lnhc_parameters_type), OPTIONAL, &
       POINTER                                :: nhc_part( : ), nhc_coef( : ), &
                                                 nhc_baro( : )
@@ -321,6 +330,7 @@ END SUBROUTINE md_env_release
 
     IF ( PRESENT ( cell ) ) md_env % cell => cell
     IF ( PRESENT ( simpar ) ) md_env % simpar => simpar
+    IF ( PRESENT ( mdio ) ) md_env % mdio => mdio
     IF ( PRESENT ( nhc_part ) ) md_env % nhc_part => nhc_part
     IF ( PRESENT ( nhc_coef ) ) md_env % nhc_coef => nhc_coef
     IF ( PRESENT ( nhc_baro ) ) md_env % nhc_baro => nhc_baro

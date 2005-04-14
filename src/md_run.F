@@ -71,8 +71,7 @@ MODULE md_run
                                              mdio_parameters_type,&
                                              read_md_section,&
                                              simulation_parameters_type
-  USE md_energies,                     ONLY: md_energy,&
-                                             set_energies
+  USE md_energies,                     ONLY: md_energy
   USE md_environment_types,            ONLY: get_md_env,&
                                              md_env_create,&
                                              md_env_release,&
@@ -170,12 +169,13 @@ CONTAINS
     TYPE(extended_system_type)               :: extended_type
     TYPE(lnhc_parameters_type), POINTER      :: nhc_baro, nhc_part
     TYPE(md_environment_type), POINTER       :: md_env
-    TYPE(mdio_parameters_type)               :: mdio
     TYPE(mol_kind_new_list_type), POINTER    :: molecule_kinds_new
     TYPE(mol_new_list_type), POINTER         :: molecules_new
     TYPE(particle_list_type), POINTER        :: particles
     TYPE(simulation_parameters_type), &
       POINTER                                :: simpar
+    TYPE(mdio_parameters_type), &
+      POINTER                                :: mdio
 
 !   ---------------------------------------------------------------------------
 
@@ -188,7 +188,7 @@ CONTAINS
 
     failure=.FALSE.
     NULLIFY ( particles, local_molecules, cell, cell_ref, dyn_coeff_set,&
-              simpar,itimes,used_time,subsys,nhc_part,nhc_baro)
+              mdio, simpar,itimes,used_time,subsys,nhc_part,nhc_baro)
     NULLIFY (md_env,molecule_kinds_new, molecules_new)
     logger => cp_error_get_logger(error)
 
@@ -202,6 +202,10 @@ CONTAINS
     ALLOCATE (simpar,STAT=istat)
     IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
                                      "simpar",0)
+    ALLOCATE (mdio,STAT=istat)
+    IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+                                     "mdio",0)
+
     CALL read_md_section ( simpar, globenv, mdio )
     simpar%program = globenv%program_name
 
@@ -315,6 +319,7 @@ CONTAINS
 
     CALL set_md_env(md_env=md_env,&
                     simpar=simpar,&
+                    mdio=mdio,&
                     nhc_part=extended_type%nhc_part,&
                     nhc_baro=extended_type%nhc_baro,&
                     npt=extended_type%npt_info,&
@@ -325,9 +330,6 @@ CONTAINS
        CALL set_md_env( md_env, nhc_coef=extended_type%nhc_coef)
     END IF
 
-    CALL set_energies ( globenv, mdio )
-    ! the verlet integrator needs to be started with the correct forces alreay initialized
-
     time_iter_start=m_walltime()
 
     CALL get_md_env ( md_env, force_env_p=force_env_p, itimes = itimes, &
@@ -336,7 +338,7 @@ CONTAINS
        CALL force_env_calc_energy_force ( force_env_p(ibead)%force_env,&
             calc_force=.TRUE.)
     END DO
-    CALL md_energy ( md_env ) ! inits the print env at itimes == 0
+    CALL md_energy ( md_env, globenv ) ! inits the print env at itimes == 0
     
     CALL cp_add_iter_level(logger%iter_info,"MD",n_rlevel_new=iter_level,&
          error=error)
@@ -351,7 +353,7 @@ CONTAINS
       time_iter_stop=m_walltime()
       used_time = time_iter_stop - time_iter_start
       time_iter_start=time_iter_stop
-      CALL md_energy ( md_env )
+      CALL md_energy ( md_env, globenv )
       IF (MODULO(itimes,mdio%idump) == 0) THEN
         CALL dump_variables(md_env,mdio%dump_file_name,error)
       END IF

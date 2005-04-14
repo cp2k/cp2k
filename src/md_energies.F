@@ -76,74 +76,13 @@ MODULE md_energies
      REAL ( dp ) :: aveal, avebe, avega, avepress, avekinc, avetempc, avepxx
   END TYPE average_quantities_type
 
- 
-  TYPE ( unit_convert_type ), POINTER :: unit
 
-  TYPE (average_quantities_type ) :: averages
-  REAL(KIND = dp) :: econs_avg,t_old
+  PUBLIC :: md_energy
 
-  CHARACTER (LEN=50) :: crd_file_name, vel_file_name, ptens_file_name, &
-                        ener_file_name, temp_file_name, dump_file_name
-  INTEGER :: crd, vel, ptn, ene, tem, scr, coe, pol, group, itimes_old, source
-  INTEGER :: icrd, ivel, iptens, iener, itemp, idump, iscreen
-  LOGICAL :: ionode
-
-  PUBLIC :: md_energy,&
-            set_energies
 !!***
 !******************************************************************************
 
 CONTAINS
-
-!******************************************************************************
-!!****** md_energies/set_energies [1.0] *
-!!
-!!   NAME
-!!     set_energies
-!!
-!!   FUNCTION
-!!     setup of parameters for energies
-!!
-!!   AUTHOR
-!!
-!!   MODIFICATION HISTORY
-!!
-!!   NOTES
-!!
-!!*** *************************************************************************
-
-SUBROUTINE set_energies ( globenv, mdio )
-
-
-    TYPE(global_environment_type), &
-      INTENT(IN)                             :: globenv
-    TYPE(mdio_parameters_type), INTENT(IN)   :: mdio
-
-!------------------------------------------------------------------------------
-
-  group = globenv % group
-  source = globenv % source
-  ionode = globenv % ionode
-  scr = globenv % scr
-
-  crd_file_name = mdio % crd_file_name
-  vel_file_name = mdio % vel_file_name
-  ptens_file_name = mdio % ptens_file_name
-  ener_file_name = mdio % ener_file_name
-  temp_file_name = mdio % temp_file_name
-  dump_file_name = mdio % dump_file_name
-
-  icrd = mdio % icrd
-  ivel = mdio % ivel
-  iptens = mdio % iptens
-  iener = mdio % iener
-  itemp = mdio % itemp
-  idump = mdio % idump
-  iscreen = mdio % iscreen
- 
-  CALL get_cp2k_units ( unit )
-
-END SUBROUTINE set_energies
 
 !******************************************************************************
 !!****** md_energies/md_energy [1.0] *
@@ -163,24 +102,36 @@ END SUBROUTINE set_energies
 !!
 !!*****************************************************************************
 
-  SUBROUTINE md_energy(md_env, error)
+  SUBROUTINE md_energy(md_env, globenv, error)
 
-    TYPE(md_environment_type), POINTER       :: md_env
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE ( md_environment_type ), POINTER       :: md_env
+    TYPE ( global_environment_type ), POINTER   :: globenv
+    TYPE ( cp_error_type ), INTENT ( inout ), &
+      OPTIONAL                                  :: error
 
+! locals
     CHARACTER(LEN=*), PARAMETER              :: routine_name = "md_energy"
 
-    CHARACTER(LEN=200)                       :: title
-    CHARACTER(len=50)                        :: filename
-    INTEGER                                  :: handle, istat, isubsys, iw, delta_t
+    CHARACTER (LEN=200)                      :: title
+    CHARACTER (len=50)                       :: filename
+    CHARACTER (LEN=50)                       :: crd_file_name, vel_file_name, ptens_file_name, &
+                                                ener_file_name, temp_file_name, dump_file_name
+    INTEGER, SAVE                             :: crd, vel, ene 
+    INTEGER                                  :: handle, istat, isubsys, iw, delta_t, i
+    INTEGER                                  :: group, source
+    INTEGER                                  :: icrd, ivel, iptens, iener, itemp, idump, iscreen
     INTEGER, POINTER                         :: itimes
     LOGICAL                                  :: file_exists, replace_file
+    LOGICAL                                  :: ionode
+    REAL(KIND = dp), SAVE                    :: econs_avg, t_old, itimes_old
+    REAL ( dp )                              :: abc ( 3 ), cell_angle ( 3 )
+    REAL ( dp )                              :: pv_scalar, econs, pv_xx
     REAL(KIND=dp)                            :: cons, ekin, &
                                                 ekin_coefs, epot, rcons, t, &
                                                 temp, temp_coefs, temp_baro, &
                                                 hugoniot
     REAL(KIND=dp), POINTER                   :: constant, used_time
+    TYPE ( unit_convert_type ), POINTER      :: unit
     TYPE(cell_type), POINTER                 :: cell, cell_ref
     TYPE(cp_subsystem_p_type), &
       DIMENSION(:), POINTER                  :: subsys
@@ -190,28 +141,53 @@ END SUBROUTINE set_energies
     TYPE(particle_list_type), POINTER        :: particles
     TYPE(simulation_parameters_type), &
       POINTER                                :: simpar
+    TYPE(mdio_parameters_type), &
+      POINTER                                :: mdio
     TYPE ( virial_type ), POINTER            :: virial
-    REAL ( dp ) :: abc ( 3 ), cell_angle ( 3 )
-    REAL ( dp ) :: pv_scalar, econs, pv_xx
-    INTEGER :: i
+    TYPE (average_quantities_type ), SAVE    :: averages
 
 !   ---------------------------------------------------------------------------
 
     CALL timeset(routine_name,"E","",handle)
 
+    CALL get_cp2k_units ( unit )
+
 ! Zeroing
     hugoniot = 0._dp
 
-    iw = scr
 
     NULLIFY(dyn_coeff_set)
     CALL get_md_env(md_env=md_env,&
                     itimes=itimes,&
                     constant=constant,&
                     used_time = used_time, &
-                    simpar=simpar,&
+                    simpar=simpar,         &
+                    mdio = mdio,           &
                     force_env_p=force_env_p )
                     
+
+!------------------------------------------------------------------------------
+
+    group = globenv % group
+    source = globenv  % source
+    ionode = globenv % ionode
+    iw = globenv % scr
+
+    crd_file_name = mdio % crd_file_name
+    vel_file_name = mdio % vel_file_name
+    ptens_file_name = mdio % ptens_file_name
+    ener_file_name = mdio % ener_file_name
+    temp_file_name = mdio % temp_file_name
+    dump_file_name = mdio % dump_file_name
+
+    icrd = mdio % icrd
+    ivel = mdio % ivel
+    iptens = mdio % iptens
+    iener = mdio % iener
+    itemp = mdio % itemp
+    idump = mdio % idump
+    iscreen = mdio % iscreen
+ 
 
     CALL force_env_get(force_env=force_env_p(1)%force_env,&
                        cell=cell,&
@@ -271,11 +247,11 @@ END SUBROUTINE set_energies
 
   replace_file = .FALSE.
 
-    IF (itimes == 0) THEN
-      IF ( simpar % ensemble (1:3) == 'NPH' ) THEN
-        IF ( simpar % e0 == 0._dp ) simpar % e0 = epot + ekin
-      ENDIF
-      IF (ionode) THEN
+  IF (itimes == 0) THEN
+    IF ( simpar % ensemble (1:3) == 'NPH' ) THEN
+      IF ( simpar % e0 == 0._dp ) simpar % e0 = epot + ekin
+    ENDIF
+    IF (ionode) THEN
         WRITE (iw,*)
         WRITE ( iw, '( A )' ) ' MD_ENERGIES| Initialization proceeding'
         WRITE (iw,*)
@@ -308,18 +284,18 @@ END SUBROUTINE set_energies
         END IF
         CALL open_md_file(crd_file_name,crd,replace_file)
         CALL open_md_file(vel_file_name,vel,replace_file)
-      END IF
-      CALL mp_bcast(itimes_old,source,group)
-      CALL mp_bcast(t_old,source,group)
-      itimes = itimes_old
-      t = t_old
-      constant = cons
-      CALL set_md_env(md_env=md_env,constant=constant)
-      IF ( simpar % ensemble ( 1 : 3 ) == 'NPH' ) &
-      hugoniot = epot + ekin - simpar % e0 -  &
-                .5_dp * ( pv_xx/unit%bar + simpar % p0 ) * &
-                ( simpar % v0 - cell % deth )
-      IF (ionode) THEN
+    END IF
+    CALL mp_bcast(itimes_old,source,group)
+    CALL mp_bcast(t_old,source,group)
+    itimes = itimes_old
+    t = t_old
+    constant = cons
+    CALL set_md_env(md_env=md_env,constant=constant)
+    IF ( simpar % ensemble ( 1 : 3 ) == 'NPH' ) &
+    hugoniot = epot + ekin - simpar % e0 -  &
+              .5_dp * ( pv_xx/unit%bar + simpar % p0 ) * &
+              ( simpar % v0 - cell % deth )
+    IF (ionode) THEN
         WRITE ( iw, '( )' )
         WRITE ( iw, '( A,A )' ) ' ******************************** ', &
            'GO CP2K GO! **********************************'
@@ -346,9 +322,9 @@ END SUBROUTINE set_energies
            adjustl(unit % angl_label), '= ', cell_angle(3), cell_angle(2), cell_angle(1)
         WRITE ( iw, '( A,A )' ) ' ******************************** ', &
            'GO CP2K GO! **********************************'
-      ENDIF
-    ELSE
-      IF ( simpar % ensemble ( 1 : 3 ) == 'NPH' ) &
+    ENDIF
+  ELSE
+    IF ( simpar % ensemble ( 1 : 3 ) == 'NPH' ) &
       hugoniot = epot + ekin - simpar % e0 -  &
                 .5_dp * ( pv_xx/unit%bar + simpar % p0 ) * &
                 ( simpar % v0 - cell % deth )

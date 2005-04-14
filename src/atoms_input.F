@@ -275,12 +275,21 @@ SUBROUTINE read_md_restart ( rtype, globenv, particle_set, cell, cell_ref,  &
 
     CHARACTER(len=20)                        :: filen
     INTEGER                                  :: i, ia, ie, iunit, iw, j, &
-                                                size1, size2, icount, isos
-    REAL (KIND=dp), POINTER, DIMENSION ( : )        :: eta, veta, fnhc, mnhc
-    REAL (KIND=dp), POINTER, DIMENSION ( :,: )        :: veps, meps
+                                                size_pnhc1, size_pnhc2,  &
+                                                size_bnhc1, size_bnhc2,  &
+                                                size_baro1, size_baro2,  &
+                                                icount, isos
+    REAL (KIND=dp), POINTER, DIMENSION ( : )        :: eta_p, veta_p, fnhc_p, mnhc_p
+    REAL (KIND=dp), POINTER, DIMENSION ( : )        :: eta_b, veta_b, fnhc_b, mnhc_b
+    REAL (KIND=dp), POINTER, DIMENSION ( :,: )      :: veps, meps, h, href, r, v, f
     LOGICAL                                  :: exists
 
   iw = globenv % scr
+
+  NULLIFY ( eta_p, veta_p, fnhc_p, mnhc_p )
+  NULLIFY ( eta_b, veta_b, fnhc_b, mnhc_b )
+  NULLIFY ( r, v, f, h, href )
+  NULLIFY ( veps, meps )
 
   CALL xstring ( globenv % project_name, ia, ie )
   filen = globenv % project_name ( ia:ie ) // '.restart'
@@ -289,288 +298,362 @@ SUBROUTINE read_md_restart ( rtype, globenv, particle_set, cell, cell_ref,  &
     WRITE ( iw, '( A, T61, A )' ) ' READ MD| Read pos/vel/eta from file ', &
            ADJUSTR ( filen ( 1:ia ) )
 
-  INQUIRE ( FILE = filen, EXIST = exists )
-  IF ( exists ) THEN
-     iunit = get_unit()
-     OPEN ( iunit, file = filen )
+  IF ( globenv % ionode ) THEN
+    ALLOCATE ( r ( 3, SIZE ( particle_set ) ), STAT = isos )
+    IF (isos/=0) CALL stop_program('atoms_input', &
+    'failed to allocate r' )
+    ALLOCATE ( v ( 3, SIZE ( particle_set ) ), STAT = isos )
+    IF (isos/=0) CALL stop_program('atoms_input', &
+    'failed to allocate v' )
+    ALLOCATE ( f ( 3, SIZE ( particle_set ) ), STAT = isos )
+    IF (isos/=0) CALL stop_program('atoms_input', &
+    'failed to allocate f' )
+    ALLOCATE ( h ( 3, 3 ), STAT = isos )
+    IF (isos/=0) CALL stop_program('atoms_input', &
+    'failed to allocate h' )
+    ALLOCATE ( href ( 3, 3 ), STAT = isos )
+    IF (isos/=0) CALL stop_program('atoms_input', &
+    'failed to allocate href' )
+    INQUIRE ( FILE = filen, EXIST = exists )
+    IF ( exists ) THEN
+       iunit = get_unit()
+       OPEN ( iunit, file = filen )
+       IF ( rtype == 'INIT' ) THEN
+          DO i = 1, SIZE ( particle_set )
+             READ ( iunit, * ) r ( :, i )
+             f ( :, i ) = 0.0_dp
+          END DO
+          READ ( iunit, * ) h ( 1, 1:3 )
+          READ ( iunit, * ) h ( 2, 1:3 )
+          READ ( iunit, * ) h ( 3, 1:3 )
 
-     IF ( rtype == 'INIT' ) THEN
-        DO i = 1, SIZE ( particle_set )
-           READ ( iunit, * ) particle_set ( i ) % r ( : )
-           particle_set ( i ) % f = 0.0_dp
-        END DO
-        READ ( iunit, * ) cell % hmat ( 1, 1:3 )
-        READ ( iunit, * ) cell % hmat ( 2, 1:3 )
-        READ ( iunit, * ) cell % hmat ( 3, 1:3 )
+       ELSE IF ( rtype == 'POS' )THEN
+          DO i = 1, SIZE ( particle_set )
+             READ ( iunit, * ) r ( :, i )
+             f ( :, i ) = 0.0_dp
+          END DO
+          READ ( iunit, * ) h( 1, 1:3 )
+          READ ( iunit, * ) h( 2, 1:3 )
+          READ ( iunit, * ) h( 3, 1:3 )
 
-     ELSE IF ( rtype == 'POS' )THEN
-        DO i = 1, SIZE ( particle_set )
-           READ ( iunit, * ) particle_set ( i ) % r ( : )
-           particle_set ( i ) % f = 0.0_dp
-        END DO
-        READ ( iunit, * ) cell % hmat( 1, 1:3 )
-        READ ( iunit, * ) cell % hmat( 2, 1:3 )
-        READ ( iunit, * ) cell % hmat( 3, 1:3 )
+          READ ( iunit, * ) href( 1, 1:3 )
+          READ ( iunit, * ) href( 2, 1:3 )
+          READ ( iunit, * ) href( 3, 1:3 )
+       ELSE IF ( rtype == 'POSVEL' ) THEN
 
-        READ ( iunit, * ) cell_ref % hmat( 1, 1:3 )
-        READ ( iunit, * ) cell_ref % hmat( 2, 1:3 )
-        READ ( iunit, * ) cell_ref % hmat( 3, 1:3 )
-     ELSE IF ( rtype == 'POSVEL' ) THEN
+          DO i = 1, SIZE ( particle_set )
+             READ ( iunit, * ) r ( :, i )
+             f ( :, i ) = 0.0_dp
+          END DO
+          READ ( iunit, * ) h( 1, 1:3 )
+          READ ( iunit, * ) h( 2, 1:3 )
+          READ ( iunit, * ) h( 3, 1:3 )
 
-        DO i = 1, SIZE ( particle_set )
-           READ ( iunit, * ) particle_set ( i ) % r ( : )
-        END DO
-        READ ( iunit, * ) cell % hmat( 1, 1:3 )
-        READ ( iunit, * ) cell % hmat( 2, 1:3 )
-        READ ( iunit, * ) cell % hmat( 3, 1:3 )
+          READ ( iunit, * ) href( 1, 1:3 )
+          READ ( iunit, * ) href( 2, 1:3 )
+          READ ( iunit, * ) href( 3, 1:3 )
 
-        READ ( iunit, * ) cell_ref % hmat( 1, 1:3 )
-        READ ( iunit, * ) cell_ref % hmat( 2, 1:3 )
-        READ ( iunit, * ) cell_ref % hmat( 3, 1:3 )
+          DO i = 1, SIZE ( particle_set )
+             READ ( iunit, * ) v ( :, i )
+          END DO
 
-        DO i = 1, SIZE ( particle_set )
-           READ ( iunit, * ) particle_set ( i ) % v ( : )
-        END DO
+       ELSE IF ( rtype == 'ALL' ) THEN
 
-     ELSE IF ( rtype == 'ALL' ) THEN
+          DO i = 1, SIZE ( particle_set )
+             READ ( iunit, * ) r ( :, i )
+             f ( :, i ) = 0.0_dp
+          END DO
 
-        DO i = 1, SIZE ( particle_set )
-           READ ( iunit, * ) particle_set ( i ) % r ( : )
-           particle_set ( i ) % f = 0.0_dp
-        END DO
-        READ ( iunit, * ) cell % hmat( 1, 1:3 )
-        READ ( iunit, * ) cell % hmat( 2, 1:3 )
-        READ ( iunit, * ) cell % hmat( 3, 1:3 )
+          READ ( iunit, * ) h ( 1, 1:3 )
+          READ ( iunit, * ) h ( 2, 1:3 )
+          READ ( iunit, * ) h ( 3, 1:3 )
 
-        READ ( iunit, * ) cell_ref % hmat( 1, 1:3 )
-        READ ( iunit, * ) cell_ref % hmat( 2, 1:3 )
-        READ ( iunit, * ) cell_ref % hmat( 3, 1:3 )
+          READ ( iunit, * ) href ( 1, 1:3 )
+          READ ( iunit, * ) href ( 2, 1:3 )
+          READ ( iunit, * ) href ( 3, 1:3 )
 
-        CALL get_hinv ( cell_ref )
-        CALL get_hinv ( cell )
 
-        DO i = 1, SIZE ( particle_set )
-           READ ( iunit, * ) particle_set ( i ) % v ( : )
-        END DO
+          DO i = 1, SIZE ( particle_set )
+             READ ( iunit, * ) v ( :, i )
+          END DO
 
 ! particle thermostat positions and velocities
-        IF ( globenv % mepos == globenv % source ) THEN
-          READ ( iunit, * ) size1, size2
+          READ ( iunit, * ) size_pnhc1, size_pnhc2
 
-          ALLOCATE ( eta ( size1*size2 ), STAT = isos )
+          ALLOCATE ( eta_p ( size_pnhc1*size_pnhc2 ), STAT = isos )
           IF (isos/=0) CALL stop_program('atoms_input', &
-          'failed to allocate eta' )
+          'failed to allocate eta_p' )
 
-          ALLOCATE ( veta ( size1*size2 ), STAT = isos )
+          ALLOCATE ( veta_p ( size_pnhc1*size_pnhc2 ), STAT = isos )
           IF (isos/=0) CALL stop_program('atoms_input', &
-          'failed to allocate veta' )
+          'failed to allocate veta_p' )
 
-          ALLOCATE ( fnhc ( size1*size2 ), STAT = isos )
+          ALLOCATE ( fnhc_p ( size_pnhc1*size_pnhc2 ), STAT = isos )
           IF (isos/=0) CALL stop_program('atoms_input', &
-          'failed to allocate fnhc' )
+          'failed to allocate fnhc_p' )
 
-          ALLOCATE ( mnhc ( size1*size2 ), STAT = isos )
+          ALLOCATE ( mnhc_p ( size_pnhc1*size_pnhc2 ), STAT = isos )
           IF (isos/=0) CALL stop_program('atoms_input', &
-          'failed to allocate mnhc' )
+          'failed to allocate mnhc_p' )
 
-          DO i = 1, size1*size2
-             READ ( iunit, * ) eta ( i )
+          DO i = 1, size_pnhc1*size_pnhc2
+             READ ( iunit, * ) eta_p ( i )
           END DO
-          DO i = 1, size1*size2
-             READ ( iunit, * ) veta ( i )
+          DO i = 1, size_pnhc1*size_pnhc2
+             READ ( iunit, * ) veta_p ( i )
           END DO
-          DO i = 1, size1*size2
-             READ ( iunit, * ) fnhc ( i )
+          DO i = 1, size_pnhc1*size_pnhc2
+             READ ( iunit, * ) fnhc_p ( i )
           END DO
-          DO i = 1, size1*size2
-             READ ( iunit, * ) mnhc ( i )
+          DO i = 1, size_pnhc1*size_pnhc2
+             READ ( iunit, * ) mnhc_p ( i )
           END DO
-        END IF
-!-----------------------------------------------------------------------------
-       CALL mp_bcast ( size1, globenv % source, globenv % group )
-       CALL mp_bcast ( size2, globenv % source, globenv % group )
-       
-       CALL reallocate ( eta, 1, size1*size2 )
-       CALL mp_bcast ( eta, globenv % source, globenv % group )
-
-       CALL reallocate ( veta, 1, size1*size2 )
-       CALL mp_bcast ( veta, globenv % source, globenv % group )
-
-       CALL reallocate ( fnhc, 1, size1*size2 )
-       CALL mp_bcast ( fnhc, globenv % source, globenv % group )
-
-       CALL reallocate ( mnhc, 1, size1*size2 )
-       CALL mp_bcast ( mnhc, globenv % source, globenv % group )
-
-       DO i = 1, nhc_part % num_nhc
-          icount = nhc_part % index(i)
-          icount = (icount-1) * nhc_part % nhc_len
-          DO j = 1, nhc_part % nhc_len
-             icount = icount + 1
-             nhc_part % nvt(j,i) % eta = eta ( icount )
-             nhc_part % nvt(j,i) % v = veta ( icount )
-             nhc_part % nvt(j,i) % f = fnhc ( icount )
-             nhc_part % nvt(j,i) % mass = mnhc ( icount )
-          END DO
-       END DO
-
-       DEALLOCATE ( eta, STAT = isos )
-       IF (isos/=0) CALL stop_program('atoms_input', &
-       'failed to allocate eta' )
-       DEALLOCATE ( veta, STAT = isos )
-       IF (isos/=0) CALL stop_program('atoms_input', &
-       'failed to allocate veta' )
-       DEALLOCATE ( fnhc, STAT = isos )
-       IF (isos/=0) CALL stop_program('atoms_input', &
-       'failed to allocate fnhc' )
-       DEALLOCATE ( mnhc, STAT = isos )
-       IF (isos/=0) CALL stop_program('atoms_input', &
-       'failed to allocate mnhc' )
-
 ! barostat thermostat positions and velocities
-        IF ( globenv % mepos == globenv % source ) THEN
-          READ ( iunit, * ) size1, size2
+          READ ( iunit, * ) size_bnhc1, size_bnhc2
 
-          ALLOCATE ( eta ( size1*size2 ), STAT = isos )
+          ALLOCATE ( eta_b ( size_bnhc1*size_bnhc2 ), STAT = isos )
           IF (isos/=0) CALL stop_program('atoms_input', &
-          'failed to allocate eta' )
+          'failed to allocate eta_b' )
 
-          ALLOCATE ( veta ( size1*size2 ), STAT = isos )
+          ALLOCATE ( veta_b ( size_bnhc1*size_bnhc2 ), STAT = isos )
           IF (isos/=0) CALL stop_program('atoms_input', &
-          'failed to allocate veta' )
+          'failed to allocate veta_b' )
 
-          ALLOCATE ( fnhc ( size1*size2 ), STAT = isos )
+          ALLOCATE ( fnhc_b ( size_bnhc1*size_bnhc2 ), STAT = isos )
           IF (isos/=0) CALL stop_program('atoms_input', &
-          'failed to allocate fnhc' )
+          'failed to allocate fnhc_b' )
 
-          ALLOCATE ( mnhc ( size1*size2 ), STAT = isos )
+          ALLOCATE ( mnhc_b ( size_bnhc1*size_bnhc2 ), STAT = isos )
           IF (isos/=0) CALL stop_program('atoms_input', &
-          'failed to allocate mnhc' )
+          'failed to allocate mnhc_b' )
 
-          DO i = 1, size1*size2
-             READ ( iunit, * ) eta ( i )
+          DO i = 1, size_bnhc1*size_bnhc2
+             READ ( iunit, * ) eta_b ( i )
           END DO
-          DO i = 1, size1*size2
-             READ ( iunit, * ) veta ( i )
+          DO i = 1, size_bnhc1*size_bnhc2
+             READ ( iunit, * ) veta_b ( i )
           END DO
-          DO i = 1, size1*size2
-             READ ( iunit, * ) fnhc ( i )
+          DO i = 1, size_bnhc1*size_bnhc2
+             READ ( iunit, * ) fnhc_b ( i )
           END DO
-          DO i = 1, size1*size2
-             READ ( iunit, * ) mnhc ( i )
+          DO i = 1, size_bnhc1*size_bnhc2
+             READ ( iunit, * ) mnhc_b ( i )
           END DO
-        END IF
-!-----------------------------------------------------------------------------
-       CALL mp_bcast ( size1, globenv % source, globenv % group )
-       CALL mp_bcast ( size2, globenv % source, globenv % group )
-       
-       CALL reallocate ( eta, 1, size1*size2 )
-       CALL mp_bcast ( eta, globenv % source, globenv % group )
-
-       CALL reallocate ( veta, 1, size1*size2 )
-       CALL mp_bcast ( veta, globenv % source, globenv % group )
-
-       CALL reallocate ( fnhc, 1, size1*size2 )
-       CALL mp_bcast ( fnhc, globenv % source, globenv % group )
-
-       CALL reallocate ( mnhc, 1, size1*size2 )
-       CALL mp_bcast ( mnhc, globenv % source, globenv % group )
-
-       DO i = 1, nhc_baro % num_nhc
-          icount = nhc_part % index(i)
-          icount = (icount-1) * nhc_part % nhc_len
-          DO j = 1, nhc_baro % nhc_len
-             icount = icount + 1
-             nhc_baro % nvt(j,i) % eta = eta ( icount )
-             nhc_baro % nvt(j,i) % v = veta ( icount )
-             nhc_baro % nvt(j,i) % f = fnhc ( icount )
-             nhc_baro % nvt(j,i) % mass = mnhc ( icount )
-          END DO
-       END DO
-
-       DEALLOCATE ( eta, STAT = isos )
-       IF (isos/=0) CALL stop_program('atoms_input', &
-       'failed to allocate eta' )
-       DEALLOCATE ( veta, STAT = isos )
-       IF (isos/=0) CALL stop_program('atoms_input', &
-       'failed to allocate veta' )
-       DEALLOCATE ( fnhc, STAT = isos )
-       IF (isos/=0) CALL stop_program('atoms_input', &
-       'failed to allocate fnhc' )
-       DEALLOCATE ( mnhc, STAT = isos )
-       IF (isos/=0) CALL stop_program('atoms_input', &
-       'failed to allocate mnhc' )
 ! barostat velocities
-       IF ( globenv % mepos == globenv % source ) THEN
-          READ ( iunit, * ) size1, size2
+          READ ( iunit, * ) size_baro1, size_baro2
 
-          ALLOCATE ( veps ( size1, size2 ), STAT = isos )
+          ALLOCATE ( veps ( size_baro1, size_baro2 ), STAT = isos )
           IF (isos/=0) CALL stop_program('atoms_input', &
           'failed to allocate veps' )
 
-          ALLOCATE ( meps ( size1, size2 ), STAT = isos )
+          ALLOCATE ( meps ( size_baro1, size_baro2 ), STAT = isos )
           IF (isos/=0) CALL stop_program('atoms_input', &
           'failed to allocate meps' )
-          DO i = 1, size1
-            DO j = 1, size2
+          DO i = 1, size_baro1
+            DO j = 1, size_baro2
               READ ( iunit, * ) veps ( i, j )
             ENDDO
           ENDDO
-          DO i = 1, size1
-            DO j = 1, size2
+          DO i = 1, size_baro1
+            DO j = 1, size_baro2
               READ ( iunit, * )  meps ( i, j )
             ENDDO
           ENDDO
+       ELSE
+          CALL stop_program ( 'read_md_restart', 'this RESTART type not programmed' )
+       END IF
 
-       ENDIF
-       CALL mp_bcast ( size1, globenv % source, globenv % group )
-       CALL mp_bcast ( size2, globenv % source, globenv % group )
-       
-       CALL reallocate ( veps, 1, size1, 1, size2 )
-       CALL mp_bcast ( veps, globenv % source, globenv % group )
+       CLOSE ( iunit )
 
-       CALL reallocate ( meps, 1, size1, 1, size2 )
-       CALL mp_bcast ( meps, globenv % source, globenv % group )
-
-       IF ( size1 /= SIZE ( npt_info, 1 ) ) &
-       CALL stop_program ( 'read_md_restart', 'memory mismatch for veps' )
-       IF ( size2 /= SIZE ( npt_info, 2 ) ) &
-       CALL stop_program ( 'read_md_restart', 'memory mismatch for veps' )
-
-       DO i = 1, size1
-         DO j = 1, size2
-           npt_info ( i, j ) % v = veps ( i, j )
-         ENDDO
-       ENDDO
-       DO i = 1, size1
-         DO j = 1, size2
-           npt_info ( i, j ) % mass = meps ( i, j )
-         ENDDO
-       ENDDO
-
-       DEALLOCATE ( veps, STAT = isos )
-       IF (isos/=0) CALL stop_program('atoms_input', &
-       'failed to allocate veps' )
-
-       DEALLOCATE ( meps, STAT = isos )
-       IF (isos/=0) CALL stop_program('atoms_input', &
-       'failed to allocate meps' )
-   
     ELSE
-       CALL stop_program ( 'read_md_restart', 'this RESTART type not programmed' )
+
+        CALL stop_program ( 'read_md_restart', 'No MD RESTART file found ' )
+
     END IF
-
-    CLOSE ( iunit )
-
-  ELSE
-
-     CALL stop_program ( 'read_md_restart', 'No MD RESTART file found ' )
-
   END IF
+
+!-----------------------------------------------------------------------------
+! Broadcast data and assign to structures in parallel
+!-----------------------------------------------------------------------------
+
+!-----------------------------------------------------------------------------
+! particles, velocities, forces
+!-----------------------------------------------------------------------------
+  CALL reallocate ( r, 1, 3, 1, SIZE ( particle_set ) )
+  CALL mp_bcast ( r, globenv % source, globenv % group )
+
+  CALL reallocate ( v, 1, 3, 1, SIZE ( particle_set ) )
+  CALL mp_bcast ( v, globenv % source, globenv % group )
+
+  CALL reallocate ( f, 1, 3, 1, SIZE ( particle_set ) )
+  CALL mp_bcast ( f, globenv % source, globenv % group )
+
+  DO i = 1, SIZE ( particle_set )
+    particle_set ( i ) % r ( : ) = r ( :, i )
+    particle_set ( i ) % v ( : ) = v ( :, i )
+    particle_set ( i ) % f ( : ) = f ( :, i )
+  END DO
+
+  DEALLOCATE ( r, STAT = isos )
+  IF (isos/=0) CALL stop_program('atoms_input', &
+  'failed to allocate r' )
+  DEALLOCATE ( v, STAT = isos )
+  IF (isos/=0) CALL stop_program('atoms_input', &
+  'failed to allocate v' )
+  DEALLOCATE ( f, STAT = isos )
+  IF (isos/=0) CALL stop_program('atoms_input', &
+  'failed to allocate f' )
+
+!-----------------------------------------------------------------------------
+! cells
+!-----------------------------------------------------------------------------
+  CALL reallocate ( h, 1, 3, 1, 3 )
+  CALL mp_bcast ( h, globenv % source, globenv % group )
+
+  CALL reallocate ( href, 1, 3, 1, 3 )
+  CALL mp_bcast ( href, globenv % source, globenv % group )
+  DO i = 1, 3
+    DO j = 1, 3
+      cell % hmat ( i, j ) = h ( i, j )
+      cell_ref % hmat ( i, j ) = href ( i, j )
+    END DO
+  END DO
+
+  CALL get_hinv ( cell_ref )
+  CALL get_hinv ( cell )
+
+  DEALLOCATE ( h, STAT = isos )
+  IF (isos/=0) CALL stop_program('atoms_input', &
+  'failed to allocate h' )
+  DEALLOCATE ( href, STAT = isos )
+  IF (isos/=0) CALL stop_program('atoms_input', &
+  'failed to allocate href' )
+
+!-----------------------------------------------------------------------------
+! particle thermostat
+!-----------------------------------------------------------------------------
+  CALL mp_bcast ( size_pnhc1, globenv % source, globenv % group )
+  CALL mp_bcast ( size_pnhc2, globenv % source, globenv % group )
+  
+  CALL reallocate ( eta_p, 1, size_pnhc1*size_pnhc2 )
+  CALL mp_bcast ( eta_p, globenv % source, globenv % group )
+
+  CALL reallocate ( veta_p, 1, size_pnhc1*size_pnhc2 )
+  CALL mp_bcast ( veta_p, globenv % source, globenv % group )
+
+  CALL reallocate ( fnhc_p, 1, size_pnhc1*size_pnhc2 )
+  CALL mp_bcast ( fnhc_p, globenv % source, globenv % group )
+
+  CALL reallocate ( mnhc_p, 1, size_pnhc1*size_pnhc2 )
+  CALL mp_bcast ( mnhc_p, globenv % source, globenv % group )
+
+  DO i = 1, nhc_part % num_nhc
+     icount = nhc_part % index(i)
+     icount = (icount-1) * nhc_part % nhc_len
+     DO j = 1, nhc_part % nhc_len
+        icount = icount + 1
+        nhc_part % nvt(j,i) % eta = eta_p ( icount )
+        nhc_part % nvt(j,i) % v = veta_p ( icount )
+        nhc_part % nvt(j,i) % f = fnhc_p ( icount )
+        nhc_part % nvt(j,i) % mass = mnhc_p ( icount )
+     END DO
+  END DO
+
+  DEALLOCATE ( eta_p, STAT = isos )
+  IF (isos/=0) CALL stop_program('atoms_input', &
+  'failed to allocate eta_p' )
+  DEALLOCATE ( veta_p, STAT = isos )
+  IF (isos/=0) CALL stop_program('atoms_input', &
+  'failed to allocate veta_p' )
+  DEALLOCATE ( fnhc_p, STAT = isos )
+  IF (isos/=0) CALL stop_program('atoms_input', &
+  'failed to allocate fnhc_p' )
+  DEALLOCATE ( mnhc_p, STAT = isos )
+  IF (isos/=0) CALL stop_program('atoms_input', &
+  'failed to allocate mnhc_p' )
+
+!-----------------------------------------------------------------------------
+! baroastat thermostat
+!-----------------------------------------------------------------------------
+  CALL mp_bcast ( size_bnhc1, globenv % source, globenv % group )
+  CALL mp_bcast ( size_bnhc2, globenv % source, globenv % group )
+  
+  CALL reallocate ( eta_b, 1, size_bnhc1*size_bnhc2 )
+  CALL mp_bcast ( eta_b, globenv % source, globenv % group )
+
+  CALL reallocate ( veta_b, 1, size_bnhc1*size_bnhc2 )
+  CALL mp_bcast ( veta_b, globenv % source, globenv % group )
+
+  CALL reallocate ( fnhc_b, 1, size_bnhc1*size_bnhc2 )
+  CALL mp_bcast ( fnhc_b, globenv % source, globenv % group )
+
+  CALL reallocate ( mnhc_b, 1, size_bnhc1*size_bnhc2 )
+  CALL mp_bcast ( mnhc_b, globenv % source, globenv % group )
+
+  DO i = 1, nhc_baro % num_nhc
+     icount = nhc_part % index(i)
+     icount = (icount-1) * nhc_part % nhc_len
+     DO j = 1, nhc_baro % nhc_len
+        icount = icount + 1
+        nhc_baro % nvt(j,i) % eta = eta_b ( icount )
+        nhc_baro % nvt(j,i) % v = veta_b ( icount )
+        nhc_baro % nvt(j,i) % f = fnhc_b ( icount )
+        nhc_baro % nvt(j,i) % mass = mnhc_b ( icount )
+     END DO
+  END DO
+
+  DEALLOCATE ( eta_b, STAT = isos )
+  IF (isos/=0) CALL stop_program('atoms_input', &
+  'failed to allocate eta_b' )
+  DEALLOCATE ( veta_b, STAT = isos )
+  IF (isos/=0) CALL stop_program('atoms_input', &
+  'failed to allocate veta_b' )
+  DEALLOCATE ( fnhc_b, STAT = isos )
+  IF (isos/=0) CALL stop_program('atoms_input', &
+  'failed to allocate fnhc_b' )
+  DEALLOCATE ( mnhc_b, STAT = isos )
+  IF (isos/=0) CALL stop_program('atoms_input', &
+  'failed to allocate mnhc_b' )
+!------------------------------------------------------------------------
+!barostat
+!------------------------------------------------------------------------
+  CALL mp_bcast ( size_baro1, globenv % source, globenv % group )
+  CALL mp_bcast ( size_baro2, globenv % source, globenv % group )
+  
+  CALL reallocate ( veps, 1, size_baro1, 1, size_baro2 )
+  CALL mp_bcast ( veps, globenv % source, globenv % group )
+
+  CALL reallocate ( meps, 1, size_baro1, 1, size_baro2 )
+  CALL mp_bcast ( meps, globenv % source, globenv % group )
+
+  IF ( size_baro1 /= SIZE ( npt_info, 1 ) ) &
+  CALL stop_program ( 'read_md_restart', 'memory mismatch for veps' )
+  IF ( size_baro2 /= SIZE ( npt_info, 2 ) ) &
+  CALL stop_program ( 'read_md_restart', 'memory mismatch for veps' )
+
+  DO i = 1, size_baro1
+    DO j = 1, size_baro2
+      npt_info ( i, j ) % v = veps ( i, j )
+    ENDDO
+  ENDDO
+  DO i = 1, size_baro1
+    DO j = 1, size_baro2
+      npt_info ( i, j ) % mass = meps ( i, j )
+    ENDDO
+  ENDDO
+
+  DEALLOCATE ( veps, STAT = isos )
+  IF (isos/=0) CALL stop_program('atoms_input', &
+  'failed to allocate veps' )
+
+  DEALLOCATE ( meps, STAT = isos )
+  IF (isos/=0) CALL stop_program('atoms_input', &
+  'failed to allocate meps' )
+   
 
 
 !..write some information to output
- IF ( globenv%ionode .AND. globenv%print_level>0 ) THEN
+  IF ( globenv%ionode .AND. globenv%print_level>0 ) THEN
     WRITE ( iw, '( A )' ) ' RESTART MD | Box parameters [Angstrom]'
     WRITE ( iw, '( A, T36, 3F15.5 )' ) &
          ' RESTART MD| ', ( cell % hmat ( 1, i ), i = 1, 3 )
