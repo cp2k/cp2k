@@ -48,6 +48,7 @@ MODULE atoms_input
                                              get_hinv
   USE string_utilities,                ONLY: xstring
   USE termination,                     ONLY: stop_program
+  USE timings,                         ONLY: timeset,timestop
   USE topology_types,                  ONLY: topology_parameters_type,&
                                              atom_info_type
   USE util,                            ONLY: get_unit
@@ -278,11 +279,13 @@ SUBROUTINE read_md_restart ( rtype, globenv, particle_set, cell, cell_ref,  &
                                                 size_pnhc1, size_pnhc2,  &
                                                 size_bnhc1, size_bnhc2,  &
                                                 size_baro1, size_baro2,  &
-                                                icount, isos
+                                                icount, isos, handle
     REAL (KIND=dp), POINTER, DIMENSION ( : )        :: eta_p, veta_p, fnhc_p, mnhc_p
     REAL (KIND=dp), POINTER, DIMENSION ( : )        :: eta_b, veta_b, fnhc_b, mnhc_b
     REAL (KIND=dp), POINTER, DIMENSION ( :,: )      :: veps, meps, h, href, r, v, f
     LOGICAL                                  :: exists
+
+    CALL timeset("read_md_restart",handle)
 
   iw = globenv % scr
 
@@ -672,6 +675,8 @@ SUBROUTINE read_md_restart ( rtype, globenv, particle_set, cell, cell_ref,  &
     END IF
     WRITE ( iw, '()' )
   END IF
+
+  CALL timestop(handle)
 
 END SUBROUTINE read_md_restart
 
