@@ -2399,6 +2399,12 @@ END FUNCTION xc_get_routine_label
         CASE ( "T92", "THAKKAR" )
            functional ( 3 ) = "T92"
            gradient_functionals ( 3 ) = GRADIENT_FUNCTIONAL
+        CASE ("PBE")
+           functional ( 3 ) = "KE_PBE"
+           gradient_functionals ( 3 ) = GRADIENT_FUNCTIONAL
+        CASE ("REVPBE")
+           functional ( 3 ) = "KE_REVPBE"
+           gradient_functionals ( 3 ) = GRADIENT_FUNCTIONAL
         CASE default
            functional (3)=string
         END SELECT

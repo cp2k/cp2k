@@ -54,6 +54,8 @@ MODULE xc_ke_gga_new
                                              ke_ol2,&
                                              ke_pw86,&
                                              ke_pw91,&
+                                             ke_pbe,&
+                                             ke_revpbe,&
                                              ke_t92
 
   IMPLICIT NONE
@@ -132,6 +134,10 @@ CONTAINS
           reference = "A. Lembarki and H. Chermette, Phys. Rev. A, 50, 5328 (1994)"
        CASE(ke_t92)
           reference = "A.J. Thakkar, Phys. Rev. A, 46, 6920 (1992)"
+       CASE(ke_pbe)
+          reference = " "
+       CASE(ke_revpbe)
+          reference = " "
        END SELECT
        IF (.not.lsd) THEN
           IF (LEN_TRIM(reference)+6<LEN(reference)) THEN
@@ -155,6 +161,10 @@ CONTAINS
           shortform = "Lembarki-Chermette kinetic energy functional"
        CASE(ke_t92)
           shortform = "Thakkar 1992 Functional"
+       CASE(ke_pbe)
+          shortform = " "
+       CASE(ke_revpbe)
+          shortform = " "
        END SELECT
        IF (.not.lsd) THEN
           IF (LEN_TRIM(shortform)+6<LEN(shortform)) THEN
@@ -254,6 +264,14 @@ CONTAINS
           CALL efactor_pw91 ( s, fs, m, 2 )
        CASE (ke_t92)
           CALL efactor_t92 ( s, fs, m )
+       CASE (ke_pbe)
+!          tact = t13
+          CALL efactor_pbex (s, fs, m, 1)
+ !         tact = 1.0_dp
+       CASE (ke_revpbe)
+!          tact = t13
+          CALL efactor_pbex (s, fs, m, 2)
+ !         tact = 1.0_dp
        CASE DEFAULT
           CPAssert(.FALSE.,cp_failure_level,routineP,error,failure)
        END SELECT
@@ -947,10 +965,6 @@ CONTAINS
          p15 = p0**f15
          fs(ip,1) = p15
          fs(ip,2) = f15 * p1 * p15/p0
-!         t9 = p15**2; t10 = t9**2; t12 = t10**2; t13 = t12*t10*t9
-!         t25 = p1*p1
-!         fs(ip,3) = -14.0_dp/225.0_dp/t13/p0*t25 + &
-!                     1.0_dp/t13*(2.0_dp*t1+12*t2*s2+30.0_dp*t3*s4)/15.0_dp
           fs(ip,3) = f15*p15/p0*(p2-14.0_dp/15.0_dp*p1*p1/p0)
       CASE (3)
          p0 = 1.0_dp + t1*s2 + t2*s4 + t3*s6
@@ -960,15 +974,7 @@ CONTAINS
          p15 = p0**f15
          fs(ip,1) = p15
          fs(ip,2) = f15 * p1 * p15/p0
-!         t9 = p15**2; t10 = t9**2; t12 = t10**2; t13 = t12*t10*t9
-!         t25 = p1*p1
-!         fs(ip,3) = -14.0_dp/225.0_dp/t13/p0*t25 + &
-!                     1.0_dp/t13*(2.0_dp*t1+12*t2*s2+30.0_dp*t3*s4)/15.0_dp
           fs(ip,3) = f15*p15/p0*(p2-14.0_dp/15.0_dp*p1*p1/p0)
-!         t8 = p0**2; t9 = p0**f15; t14 = p0/t9; t19 = s2*s(ip)
-!         fs(ip,4) = 406.0_dp/3375.0_dp/t14/t8*p1*p1*p1-14.0_dp/&
-!                    75.0_dp/t14/p0*p1*(2*t1+12*t2*s2+30*t3*s4)+&
-!                    1/t14*(24*t2*s(ip)+120*t3*t19)*f15
           fs(ip,4) = f15*p15/p0*(-14.0_dp*f15*p1*p1/p0+14.0_dp*14.0_dp*f15*p1*p1*p1/p0/p0+&
                      p3-14.0_dp*p2*p1/p0+14.0_dp*p1*p1/p0/p0)
       CASE DEFAULT
@@ -1059,6 +1065,49 @@ CONTAINS
     END DO
 
   END SUBROUTINE efactor_t92
+! *****************************************************************************
+  SUBROUTINE efactor_pbex ( s, fs, m, pset )
+    REAL(KIND=dp), DIMENSION(:), INTENT(IN)      :: s
+    REAL(KIND=dp), DIMENSION(:, :), INTENT(OUT)  :: fs
+    INTEGER, INTENT(IN)                      :: m, pset
+
+    REAL(KIND=dp), PARAMETER                     :: kappa1 = 0.804_dp, &
+                                                kappa2 = 1.245_dp, &
+                                                mu = 0.2195149727645171_dp
+
+    INTEGER                                  :: ip
+    REAL(KIND=dp)                                :: f0, mk, x, x2, y
+
+    IF( pset==1 ) mk=mu/kappa1
+    IF( pset==2 ) mk=mu/kappa2
+
+    f0 = 1.0_dp/tact
+!$omp parallel do private(ip,x,x2,y)
+    DO ip=1,SIZE(s)
+      x = s(ip)*f0
+      x2 = x*x
+      y = 1.0_dp/(1.0_dp+mk*x2)
+      SELECT CASE (m)
+      CASE (0)
+         fs(ip,1) = 1.0_dp + mu*x2*y
+      CASE (1)
+         fs(ip,1) = 1.0_dp + mu*x2*y
+         fs(ip,2) = 2.0_dp*mu*x*y*y*f0
+      CASE (2)
+         fs(ip,1) = 1.0_dp + mu*x2*y
+         fs(ip,2) = 2.0_dp*mu*x*y*y*f0
+         fs(ip,3) = -2.0_dp*mu*(3.0_dp*mk*x2-1.0_dp)*y*y*y*f0*f0
+      CASE (3)
+         fs(ip,1) = 1.0_dp + mu*x2*y
+         fs(ip,2) = 2.0_dp*mu*x*y*y*f0
+         fs(ip,3) = -2.0_dp*mu*(3.0_dp*mk*x2-1.0_dp)*y*y*y*f0*f0
+         fs(ip,4) = 24.0_dp*mu*mk*x*(mk*x2-1.0_dp)*y*y*y*y*f0*f0*f0
+      CASE DEFAULT
+         CALL stop_program("efactor_pbex","Illegal order")
+      END SELECT
+    END DO
+
+  END SUBROUTINE efactor_pbex
 ! *****************************************************************************
 
   SUBROUTINE efactor_pw91 ( s, fs, m, pset , f2_lsd)

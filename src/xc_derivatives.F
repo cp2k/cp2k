@@ -67,6 +67,8 @@ MODULE xc_derivatives
                                              ke_ol2,&
                                              ke_pw86,&
                                              ke_pw91,&
+                                             ke_pbe,&
+                                             ke_revpbe,&
                                              ke_t92
   USE xc_lyp_new,                      ONLY: lyp_lda_eval,&
                                              lyp_lda_info,&
@@ -394,6 +396,10 @@ SUBROUTINE xc_functional_get_info(functional,lsd,reference,shortform,&
         CALL ke_gga_info(ke_pw86,lsd,reference,shortform,needs,max_deriv,error=error)
      CASE("KE_PW91")
         CALL ke_gga_info(ke_pw91,lsd,reference,shortform,needs,max_deriv,error=error)
+     CASE("KE_PBE")
+        CALL ke_gga_info(ke_pbe,lsd,reference,shortform,needs,max_deriv,error=error)
+     CASE("KE_REVPBE")
+        CALL ke_gga_info(ke_revpbe,lsd,reference,shortform,needs,max_deriv,error=error)
      CASE("LC","KE_LC")
         CALL ke_gga_info(ke_LC,lsd,reference,shortform,needs,max_deriv,error=error)
      CASE("T92","KE_T92")
@@ -616,6 +622,18 @@ SUBROUTINE xc_functional_eval(functional, lsd, rho_set, deriv_set, &
            CALL ke_gga_lsd_eval(ke_pw91,rho_set,deriv_set,deriv_order,error=error)
         ELSE
            CALL ke_gga_lda_eval(ke_pw91,rho_set,deriv_set,deriv_order,error=error)
+        END IF
+     CASE("KE_PBE")
+        IF (lsd) THEN
+           CALL ke_gga_lsd_eval(ke_pbe,rho_set,deriv_set,deriv_order,error=error)
+        ELSE
+           CALL ke_gga_lda_eval(ke_pbe,rho_set,deriv_set,deriv_order,error=error)
+        END IF
+     CASE("KE_REVPBE")
+        IF (lsd) THEN
+           CALL ke_gga_lsd_eval(ke_revpbe,rho_set,deriv_set,deriv_order,error=error)
+        ELSE
+           CALL ke_gga_lda_eval(ke_revpbe,rho_set,deriv_set,deriv_order,error=error)
         END IF
      CASE("LC","KE_LC")
         IF (lsd) THEN

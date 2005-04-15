@@ -180,7 +180,7 @@ MODULE input_constants
        xgga_revpbe=5, xgga_opt=6
 
   INTEGER, PARAMETER, PUBLIC :: ke_ol1=1, ke_ol2=2,ke_llp=3,ke_pw86=4,&
-       ke_pw91=5, ke_lc=6,ke_t92=7
+       ke_pw91=5, ke_lc=6,ke_t92=7, ke_pbe=8, ke_revpbe=9
 
   INTEGER, PARAMETER, PUBLIC :: pw_orig=1,pw_dmc=2,pw_vmc=3
   
