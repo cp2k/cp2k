@@ -23,15 +23,11 @@
 MODULE qs_ot
 ! *****************************************************************************
   USE cp_cfm_basic_linalg,             ONLY: cp_cfm_column_scale,&
-                                             cp_cfm_gemm,&
-                                             cp_cfm_schur_product
+                                             cp_cfm_gemm
   USE cp_cfm_diag,                     ONLY: cp_cfm_heevd
   USE cp_cfm_types,                    ONLY: cp_cfm_create,&
-                                             cp_cfm_get_element,&
                                              cp_cfm_get_info,&
-                                             cp_cfm_p_type,&
                                              cp_cfm_release,&
-                                             cp_cfm_set_all,&
                                              cp_cfm_to_cfm,&
                                              cp_cfm_type
   USE cp_fm_basic_linalg,              ONLY: cp_fm_column_scale,&
@@ -44,9 +40,9 @@ MODULE qs_ot
                                              cp_fm_cholesky_invert
   USE cp_fm_diag,                      ONLY: cp_fm_syevd
   USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
+                                             cp_fm_struct_get,&
                                              cp_fm_struct_release,&
-                                             cp_fm_struct_type, &
-                                             cp_fm_struct_get
+                                             cp_fm_struct_type
   USE cp_fm_types,                     ONLY: cp_fm_create,&
                                              cp_fm_get_info,&
                                              cp_fm_maxabsrownorm,&
@@ -54,7 +50,6 @@ MODULE qs_ot
                                              cp_fm_release,&
                                              cp_fm_set_all,&
                                              cp_fm_to_fm,&
-                                             cp_fm_set_element,&
                                              cp_fm_type
   USE cp_para_types,                   ONLY: cp_blacs_env_type,&
                                              cp_para_env_type
@@ -202,7 +197,8 @@ CONTAINS
 !!   SOURCE
 !!*** **********************************************************************
   SUBROUTINE qs_ot_settings_init(settings)
-    TYPE(qs_ot_settings_type) :: settings 
+    TYPE(qs_ot_settings_type)                :: settings
+
     settings%ot_method="CG"
     settings%diis_m=7
     settings%preconditioner_type="FULL_KINETIC"
@@ -256,14 +252,11 @@ SUBROUTINE qs_ot_allocate(qs_ot_env,fm_struct_ref,ortho_k)
     TYPE(cp_fm_struct_type), POINTER         :: fm_struct_ref
     INTEGER, OPTIONAL                        :: ortho_k
 
-    INTEGER                                  :: i, k, m_diis, n, &
-                                                my_ortho_k
-    TYPE(cp_fm_struct_type), POINTER         :: fm_struct_k_k, &
-                                                fm_struct_n_o, fm_struct_o_k, &
-                                                fm_struct_o_o
-    TYPE(cp_para_env_type), POINTER          :: para_env
+    INTEGER                                  :: i, k, m_diis, my_ortho_k, n
     TYPE(cp_blacs_env_type), POINTER         :: context
-
+    TYPE(cp_fm_struct_type), POINTER         :: fm_struct_k_k, fm_struct_n_o, &
+                                                fm_struct_o_k, fm_struct_o_o
+    TYPE(cp_para_env_type), POINTER          :: para_env
 
    NULLIFY(fm_struct_o_o, fm_struct_o_k, fm_struct_k_k, fm_struct_n_o)
    NULLIFY(qs_ot_env%preconditioner)
@@ -563,18 +556,20 @@ END SUBROUTINE qs_ot_get_p
 !!*** **********************************************************************
 SUBROUTINE qs_ot_generate_rotation(qs_ot_env)
 
-   TYPE(qs_ot_type)                 :: qs_ot_env
+    TYPE(qs_ot_type)                         :: qs_ot_env
 
-   CHARACTER(LEN=*), PARAMETER      :: RoutineN="qs_ot_generate_rotation"
-   INTEGER                          :: handle
-   TYPE(cp_cfm_type), POINTER       :: cmat_x, cmat_u
-   TYPE(cp_fm_struct_type), POINTER :: fm_struct
-   COMPLEX(KIND=dp), DIMENSION(:,:), POINTER :: local_data_c
-   REAL(KIND=dp), DIMENSION(:,:), POINTER :: local_data_r
-   COMPLEX(KIND=dp), DIMENSION(:), ALLOCATABLE  :: evals_exp
-   INTEGER                          :: k
-   COMPLEX(KIND=dp), PARAMETER      :: cone = (1.0_dp,0.0_dp), &
-                                       czero = (0.0_dp,0.0_dp)
+    CHARACTER(LEN=*), PARAMETER :: RoutineN = "qs_ot_generate_rotation"
+    COMPLEX(KIND=dp), PARAMETER              :: cone = (1.0_dp,0.0_dp), &
+                                                czero = (0.0_dp,0.0_dp)
+
+    COMPLEX(KIND=dp), ALLOCATABLE, &
+      DIMENSION(:)                           :: evals_exp
+    COMPLEX(KIND=dp), DIMENSION(:, :), &
+      POINTER                                :: local_data_c
+    INTEGER                                  :: handle, k
+    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: local_data_r
+    TYPE(cp_cfm_type), POINTER               :: cmat_u, cmat_x
+    TYPE(cp_fm_struct_type), POINTER         :: fm_struct
 
    CALL timeset(RoutineN,"I","",handle)
    CALL cp_fm_get_info(qs_ot_env%rot_mat_x,matrix_struct=fm_struct,nrow_global=k)
@@ -622,19 +617,22 @@ END SUBROUTINE qs_ot_generate_rotation
 !!   SOURCE
 !!*** **********************************************************************
 SUBROUTINE qs_ot_rot_mat_derivative(qs_ot_env)
-    TYPE(qs_ot_type)                 :: qs_ot_env
-    CHARACTER(LEN=*), PARAMETER      :: RoutineN="qs_ot_rot_mat_derivative"
+    TYPE(qs_ot_type)                         :: qs_ot_env
 
-    INTEGER                          :: handle,k,nrow_local,ncol_local,i,j
-    INTEGER, DIMENSION(:), POINTER   :: row_indices,col_indices
-    TYPE(cp_fm_struct_type), POINTER :: fm_struct
-    TYPE(cp_cfm_type), POINTER       :: cmat_buf1,cmat_buf2
-    REAL(KIND=dp), DIMENSION(:,:), POINTER    :: local_data_r
-    COMPLEX(KIND=dp), DIMENSION(:,:), POINTER :: local_data_c
-    COMPLEX(KIND=dp), PARAMETER :: czero=(0.0_dp,0.0_dp), &
-                                   cone =(1.0_dp,0.0_dp), &
-                                   cI   =(0.0_dp,1.0_dp)
-    REAL(KIND=dp) :: e1,e2
+    CHARACTER(LEN=*), PARAMETER :: RoutineN = "qs_ot_rot_mat_derivative"
+    COMPLEX(KIND=dp), PARAMETER              :: cI = (0.0_dp,1.0_dp), &
+                                                cone = (1.0_dp,0.0_dp), &
+                                                czero = (0.0_dp,0.0_dp)
+
+    COMPLEX(KIND=dp), DIMENSION(:, :), &
+      POINTER                                :: local_data_c
+    INTEGER                                  :: handle, i, j, k, ncol_local, &
+                                                nrow_local
+    INTEGER, DIMENSION(:), POINTER           :: col_indices, row_indices
+    REAL(KIND=dp)                            :: e1, e2
+    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: local_data_r
+    TYPE(cp_cfm_type), POINTER               :: cmat_buf1, cmat_buf2
+    TYPE(cp_fm_struct_type), POINTER         :: fm_struct
 
     CALL timeset(RoutineN,"I","",handle)
 
@@ -687,7 +685,7 @@ CONTAINS
       l1=(0.0_dp,-1.0_dp)*e1
       l2=(0.0_dp,-1.0_dp)*e2
       IF (ABS(l1-l2) .GT. 0.5_dp) THEN
-          cint=(exp(l1)-exp(l2))/(l1-l2)
+          cint=(EXP(l1)-EXP(l2))/(l1-l2)
       ELSE
           x=1.0_dp
           cint=0.0_dp
@@ -695,7 +693,7 @@ CONTAINS
              cint=cint+x
              x=x*(l1-l2)/REAL(I+1,KIND=dp)
           ENDDO
-          cint=cint*exp(l2)
+          cint=cint*EXP(l2)
       ENDIF
     END FUNCTION cint
 END SUBROUTINE qs_ot_rot_mat_derivative
@@ -791,8 +789,7 @@ SUBROUTINE qs_ot_get_derivative(matrix_hc,matrix_x,matrix_sx,matrix_gx, &
     REAL(KIND=dp), PARAMETER                 :: rone = 1.0_dp , rzero = 0.0_dp
 
     INTEGER                                  :: handle, k, n, ortho_k
-    TYPE(cp_fm_type), POINTER                :: matrix_target
-    TYPE(cp_fm_type), POINTER                :: matrix_hc_local
+    TYPE(cp_fm_type), POINTER                :: matrix_hc_local, matrix_target
 
   CALL timeset("qs_ot_get_derivative","I","",handle)
 
@@ -942,7 +939,7 @@ SUBROUTINE qs_ot_get_derivative_taylor(matrix_hc,matrix_x,matrix_sx,matrix_gx, &
 
     REAL(KIND=dp), PARAMETER                 :: rone = 1.0_dp , rzero = 0.0_dp
 
-    INTEGER                                  :: handle, i, k, n 
+    INTEGER                                  :: handle, i, k, n
     REAL(KIND=dp)                            :: cosfactor, sinfactor
     TYPE(cp_fm_type), POINTER                :: matrix_left, matrix_right
 
@@ -954,7 +951,7 @@ SUBROUTINE qs_ot_get_derivative_taylor(matrix_hc,matrix_x,matrix_sx,matrix_gx, &
   ! this de/dc*(dX/dx)*sinp i.e. zeroth order
   CALL cp_fm_gemm('N','N',n,k,k,rone,matrix_hc,qs_ot_env%matrix_sinp,rzero,matrix_gx)
 
-  IF (qs_ot_env % taylor_order .le. 0) THEN
+  IF (qs_ot_env % taylor_order .LE. 0) THEN
       CALL timestop(0.0_dp,handle)
       RETURN
   ENDIF
@@ -1035,7 +1032,7 @@ SUBROUTINE qs_ot_p2m_taylor(qs_ot_env)
   ! zeroth order
   CALL cp_fm_set_all(qs_ot_env%matrix_cosp,rzero,rone)
   CALL cp_fm_set_all(qs_ot_env%matrix_sinp,rzero,rone)
-  IF (qs_ot_env% taylor_order .le. 0) THEN
+  IF (qs_ot_env% taylor_order .LE. 0) THEN
       CALL timestop(0.0_dp,handle)
       RETURN
   ENDIF
@@ -1045,7 +1042,7 @@ SUBROUTINE qs_ot_p2m_taylor(qs_ot_env)
   sinfactor=-1.0_dp/(2.0_dp*3.0_dp)
   CALL cp_fm_scale_and_add(1.0_dp,qs_ot_env%matrix_cosp,cosfactor,qs_ot_env%matrix_p)
   CALL cp_fm_scale_and_add(1.0_dp,qs_ot_env%matrix_sinp,sinfactor,qs_ot_env%matrix_p)
-  IF (qs_ot_env% taylor_order .le. 1) THEN
+  IF (qs_ot_env% taylor_order .LE. 1) THEN
       CALL timestop(0.0_dp,handle)
       RETURN
   ENDIF

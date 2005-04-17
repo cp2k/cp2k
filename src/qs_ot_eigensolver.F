@@ -32,11 +32,11 @@ MODULE qs_ot_eigensolver
                                              cp_fm_struct_type
   USE cp_fm_types,                     ONLY: cp_fm_create,&
                                              cp_fm_get_info,&
+                                             cp_fm_p_type,&
                                              cp_fm_release,&
                                              cp_fm_set_all,&
                                              cp_fm_to_fm,&
-                                             cp_fm_type,&
-                                             cp_fm_p_type
+                                             cp_fm_type
   USE cp_sm_fm_interactions,           ONLY: cp_sm_fm_multiply
   USE global_types,                    ONLY: global_environment_type
   USE kinds,                           ONLY: dp
@@ -48,8 +48,8 @@ MODULE qs_ot_eigensolver
                                              qs_ot_get_orbitals,&
                                              qs_ot_get_p,&
                                              qs_ot_init,&
-                                             qs_ot_settings_init, &
                                              qs_ot_new_preconditioner,&
+                                             qs_ot_settings_init,&
                                              qs_ot_type
   USE qs_ot_minimizer,                 ONLY: ot_mini
   USE sparse_matrix_types,             ONLY: real_matrix_type
@@ -89,15 +89,16 @@ CONTAINS
     REAL(KIND=dp), PARAMETER                 :: rone = 1.0_dp, rzero = 0.0_dp
 
     INTEGER                                  :: handle, ieigensolver, k, n, &
-                                                ortho_space_k, ortho_k
+                                                ortho_k, ortho_space_k
     LOGICAL                                  :: energy_only, ortho
     REAL(KIND=dp)                            :: delta, energy
+    TYPE(cp_fm_p_type), DIMENSION(:), &
+      POINTER                                :: matrix_hc
     TYPE(cp_fm_struct_type), POINTER         :: fm_struct_tmp
     TYPE(cp_fm_type), POINTER                :: matrix_buf1_ortho, &
                                                 matrix_buf2_ortho, &
                                                 matrix_os_ortho, &
                                                 matrix_s_ortho
-    TYPE(cp_fm_p_type), DIMENSION(:), POINTER:: matrix_hc
     TYPE(qs_ot_type), DIMENSION(:), POINTER  :: qs_ot_env
 
 !   ---------------------------------------------------------------------------

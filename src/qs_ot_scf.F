@@ -20,31 +20,33 @@
 
 MODULE qs_ot_scf
 ! *****************************************************************************
-  USE cp_fm_basic_linalg,              ONLY: cp_fm_scale_and_add, &
-                                             cp_fm_column_scale, &
-                                             cp_fm_gemm
-  USE cp_fm_types,                     ONLY: cp_fm_create,&
-                                             cp_fm_get_info,&
-                                             cp_fm_release,&
+  USE cp_fm_basic_linalg,              ONLY: cp_fm_gemm
+  USE cp_fm_types,                     ONLY: cp_fm_get_info,&
+                                             cp_fm_p_type,&
                                              cp_fm_set_all,&
-                                             cp_fm_set_element,&
                                              cp_fm_to_fm,&
-                                             cp_fm_type, & 
-                                             cp_fm_p_type, & 
-                                             cp_fm_write
+                                             cp_fm_type
   USE cp_sm_fm_interactions,           ONLY: cp_sm_fm_multiply
   USE global_types,                    ONLY: global_environment_type
-  USE input_constants,                 ONLY: ot_mini_sd,ot_mini_cg,ot_mini_diis, &
-                                             ot_ls_none,ot_ls_2pnt,ot_ls_3pnt,ot_ls_gold, &
-                                             ot_precond_none,ot_precond_full_single,ot_precond_full_kinetic, & 
-                                             ot_precond_s_inverse, ot_precond_sparse_diag
-  USE input_section_types,             ONLY: section_vals_get_subs_vals, &
-                                             section_vals_type, &
-                                             section_vals_val_get, &
-                                             section_vals_get
+  USE input_constants,                 ONLY: ot_ls_2pnt,&
+                                             ot_ls_3pnt,&
+                                             ot_ls_gold,&
+                                             ot_ls_none,&
+                                             ot_mini_cg,&
+                                             ot_mini_diis,&
+                                             ot_mini_sd,&
+                                             ot_precond_full_kinetic,&
+                                             ot_precond_full_single,&
+                                             ot_precond_none,&
+                                             ot_precond_s_inverse,&
+                                             ot_precond_sparse_diag
+  USE input_section_types,             ONLY: section_vals_get,&
+                                             section_vals_get_subs_vals,&
+                                             section_vals_type,&
+                                             section_vals_val_get
   USE kinds,                           ONLY: dp
   USE qs_mo_types,                     ONLY: get_mo_set,&
-                                             mo_set_p_type, &
+                                             mo_set_p_type,&
                                              mo_set_restrict
   USE qs_ot,                           ONLY: qs_ot_allocate,&
                                              qs_ot_destroy,&
@@ -58,8 +60,7 @@ MODULE qs_ot_scf
                                              read_object,&
                                              start_parser,&
                                              test_object
-  USE sparse_matrix_types,             ONLY: real_matrix_p_type,&
-                                             real_matrix_type
+  USE sparse_matrix_types,             ONLY: real_matrix_type
   USE termination,                     ONLY: stop_program
   USE timings,                         ONLY: timeset,&
                                              timestop
@@ -85,10 +86,11 @@ SUBROUTINE ot_scf_read_input(qs_ot_env,globenv)
       INTENT(IN)                             :: globenv
 
     CHARACTER(LEN=40)                        :: keyword, value
-    INTEGER                                  :: handle, ispin, nspin
-    LOGICAL                                  :: found,explicit
+    INTEGER                                  :: handle, ispin, ls_method, &
+                                                nspin, ot_method, &
+                                                preconditioner_method
+    LOGICAL                                  :: explicit, found
     TYPE(section_vals_type), POINTER         :: ot_section
-    INTEGER :: ot_method,ls_method,preconditioner_method
 
 ! executable
 
@@ -334,17 +336,18 @@ SUBROUTINE ot_scf_mini(mo_array,matrix_dedc,matrix_s,energy, &
 
     TYPE(mo_set_p_type), DIMENSION(:), &
       POINTER                                :: mo_array
+    TYPE(cp_fm_p_type), DIMENSION(:), &
+      POINTER                                :: matrix_dedc
     TYPE(real_matrix_type), POINTER          :: matrix_s
     REAL(KIND=dp)                            :: energy
     LOGICAL                                  :: energy_only
     REAL(KIND=dp)                            :: delta
     TYPE(qs_ot_type), DIMENSION(:), POINTER  :: qs_ot_env
-    TYPE(cp_fm_p_type), DIMENSION(:), POINTER:: matrix_dedc
 
-    INTEGER                                  :: handle, ispin, nspin
+    CHARACTER(LEN=*), PARAMETER              :: RoutineN = "ot_scf_mini"
+
+    INTEGER                                  :: handle, ispin, k, n, nspin
     TYPE(cp_fm_type), POINTER                :: mo_coeff
-    INTEGER                                  :: k,n
-    CHARACTER(LEN=*), PARAMETER              :: RoutineN="ot_scf_mini"
 
     CALL timeset("ot_scf_mini","I","",handle)
 
@@ -399,8 +402,7 @@ SUBROUTINE ot_scf_init(mo_array,matrix_s,qs_ot_env)
     TYPE(real_matrix_type), POINTER          :: matrix_s
     TYPE(qs_ot_type), DIMENSION(:), POINTER  :: qs_ot_env
 
-    INTEGER                                  :: handle, ispin, k, n, &
-                                                nspin
+    INTEGER                                  :: handle, ispin, k, n, nspin
     TYPE(cp_fm_type), POINTER                :: mo_coeff
 
 ! executable
