@@ -242,6 +242,7 @@ CONTAINS
       ALLOCATE (symbol(0:3),STAT=istat)
       IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
                                        "symbol",0)
+      symbol=""
       nq=0
       lq=0
       zet=0._dp
