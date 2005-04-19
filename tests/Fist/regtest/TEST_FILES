@@ -21,6 +21,9 @@ pot_onfo.inp             2
 argon.inp                 2
 argon_npt.inp             2 
 water_1.inp               2
+water_1_res_1.inp         2
+water_1_res_2.inp         2
+water_1_res_3.inp         2
 water_2.inp               2
 water_3_g3x3.inp          2
 water_3_dist.inp          2
@@ -34,7 +37,15 @@ argon_nph_plastic.inp     2
 H2O-32_ewald.inp          2
 H2O-32_PME.inp            2
 H2O-32_SPME.inp           2
+H2O-32_SPME_res_1.inp     2
+H2O-32_SPME_res_2.inp     2
+H2O-32_SPME_res_3.inp     2
+H2O-32_SPME_res_4.inp     2
 H2O-32_NPT.inp            2
+H2O-32_NPT_res_1.inp      2
+H2O-32_NPT_res_2.inp      2
+H2O-32_NPT_res_3.inp      2
+H2O-32_NPT_res_4.inp      2
 water_IPBV.inp            2
 silicon_cluster.inp       0
 silicon_cluster_2.inp     2
