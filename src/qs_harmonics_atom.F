@@ -101,6 +101,12 @@ MODULE qs_harmonics_atom
     ALLOCATE (harmonics,STAT=istat)
     IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
                                      "harmonics",0)
+    
+    harmonics%max_s_harm=0
+    harmonics%max_iso_not0=0
+    harmonics%maxcg=0
+    harmonics%maxcg_d=0
+    harmonics%ngrid=0
 
     NULLIFY(harmonics%ind_cg_a)
     NULLIFY(harmonics%ind_cg_b)
