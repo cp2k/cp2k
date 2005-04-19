@@ -294,6 +294,13 @@ SUBROUTINE read_md_restart ( rtype, globenv, particle_set, cell, cell_ref,  &
   NULLIFY ( r, v, f, h, href )
   NULLIFY ( veps, meps )
 
+  size_pnhc1=0
+  size_pnhc2=0
+  size_bnhc1=0
+  size_bnhc2=0
+  size_baro1=0
+  size_baro2=0
+
   CALL xstring ( globenv % project_name, ia, ie )
   filen = globenv % project_name ( ia:ie ) // '.restart'
   ia = MIN ( LEN ( filen ), 20 )
@@ -305,18 +312,23 @@ SUBROUTINE read_md_restart ( rtype, globenv, particle_set, cell, cell_ref,  &
     ALLOCATE ( r ( 3, SIZE ( particle_set ) ), STAT = isos )
     IF (isos/=0) CALL stop_program('atoms_input', &
     'failed to allocate r' )
+    r=0.0_dp
     ALLOCATE ( v ( 3, SIZE ( particle_set ) ), STAT = isos )
     IF (isos/=0) CALL stop_program('atoms_input', &
     'failed to allocate v' )
+    v=0.0_dp
     ALLOCATE ( f ( 3, SIZE ( particle_set ) ), STAT = isos )
     IF (isos/=0) CALL stop_program('atoms_input', &
     'failed to allocate f' )
+    f=0.0_dp
     ALLOCATE ( h ( 3, 3 ), STAT = isos )
     IF (isos/=0) CALL stop_program('atoms_input', &
     'failed to allocate h' )
+    h=0.0_dp
     ALLOCATE ( href ( 3, 3 ), STAT = isos )
     IF (isos/=0) CALL stop_program('atoms_input', &
     'failed to allocate href' )
+    href=0.0_dp
     INQUIRE ( FILE = filen, EXIST = exists )
     IF ( exists ) THEN
        iunit = get_unit()
@@ -550,10 +562,10 @@ SUBROUTINE read_md_restart ( rtype, globenv, particle_set, cell, cell_ref,  &
   CALL reallocate ( mnhc_p, 1, size_pnhc1*size_pnhc2 )
   CALL mp_bcast ( mnhc_p, globenv % source, globenv % group )
 
-  DO i = 1, nhc_part % num_nhc
+  DO i = 1, size_pnhc2
      icount = nhc_part % index(i)
      icount = (icount-1) * nhc_part % nhc_len
-     DO j = 1, nhc_part % nhc_len
+     DO j = 1, size_pnhc1
         icount = icount + 1
         nhc_part % nvt(j,i) % eta = eta_p ( icount )
         nhc_part % nvt(j,i) % v = veta_p ( icount )
@@ -593,10 +605,10 @@ SUBROUTINE read_md_restart ( rtype, globenv, particle_set, cell, cell_ref,  &
   CALL reallocate ( mnhc_b, 1, size_bnhc1*size_bnhc2 )
   CALL mp_bcast ( mnhc_b, globenv % source, globenv % group )
 
-  DO i = 1, nhc_baro % num_nhc
+  DO i = 1, size_bnhc2
      icount = nhc_part % index(i)
      icount = (icount-1) * nhc_part % nhc_len
-     DO j = 1, nhc_baro % nhc_len
+     DO j = 1, size_bnhc1
         icount = icount + 1
         nhc_baro % nvt(j,i) % eta = eta_b ( icount )
         nhc_baro % nvt(j,i) % v = veta_b ( icount )
@@ -628,11 +640,6 @@ SUBROUTINE read_md_restart ( rtype, globenv, particle_set, cell, cell_ref,  &
 
   CALL reallocate ( meps, 1, size_baro1, 1, size_baro2 )
   CALL mp_bcast ( meps, globenv % source, globenv % group )
-
-  IF ( size_baro1 /= SIZE ( npt_info, 1 ) ) &
-  CALL stop_program ( 'read_md_restart', 'memory mismatch for veps' )
-  IF ( size_baro2 /= SIZE ( npt_info, 2 ) ) &
-  CALL stop_program ( 'read_md_restart', 'memory mismatch for veps' )
 
   DO i = 1, size_baro1
     DO j = 1, size_baro2
