@@ -49,9 +49,10 @@ MODULE force_field_types
 
 ! *** Define the derived structure types ***
 
+  ! k(3) ... allow for IPBV bond types sum(i=2,4) k_i (r-r0)**i/i
   TYPE bond_kind_type
     CHARACTER(LEN=default_string_length) :: name
-    REAL(KIND = dp)                :: k,r0
+    REAL(KIND = dp)                :: k(3),r0   
     INTEGER                        :: kind_number
   END TYPE bond_kind_type
 
@@ -93,7 +94,7 @@ MODULE force_field_types
     REAL(KIND=dp), POINTER                            :: charge(:)
     CHARACTER (LEN=default_string_length), POINTER :: bond_a(:)
     CHARACTER (LEN=default_string_length), POINTER :: bond_b(:)
-    REAL(KIND=dp), POINTER                            :: bond_k(:)
+    REAL(KIND=dp), POINTER                            :: bond_k(:,:)
     REAL(KIND=dp), POINTER                            :: bond_r0(:)
     CHARACTER (LEN=default_string_length), POINTER :: bend_a(:)
     CHARACTER (LEN=default_string_length), POINTER :: bend_b(:)
@@ -127,7 +128,7 @@ MODULE force_field_types
     REAL(KIND=dp), POINTER                         :: charge(:)
     CHARACTER (LEN=default_string_length), POINTER :: bond_a(:)
     CHARACTER (LEN=default_string_length), POINTER :: bond_b(:)
-    REAL(KIND=dp), POINTER                         :: bond_k(:)
+    REAL(KIND=dp), POINTER                         :: bond_k(:,:)
     REAL(KIND=dp), POINTER                         :: bond_r0(:)
     CHARACTER (LEN=default_string_length), POINTER :: bend_a(:)
     CHARACTER (LEN=default_string_length), POINTER :: bend_b(:)

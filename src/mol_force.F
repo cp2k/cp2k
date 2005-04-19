@@ -26,6 +26,10 @@ MODULE mol_force
   PUBLIC :: force_bonds, force_bends, force_torsions, force_imp_torsions
   PUBLIC :: get_pv_bond, get_pv_bend, get_pv_torsion
 
+  INTERFACE force_bonds
+    MODULE PROCEDURE force_bonds_1,force_bonds_3
+  END INTERFACE
+
 !!*****
 !******************************************************************************
 
@@ -39,6 +43,8 @@ CONTAINS
 !!
 !!   FUNCTION
 !!     Computes the forces from the bonds
+!!     force_bonds_1 is for purely harmonic bonds
+!!     force_bonds_3 uses a quartic form (i.e. 3 force constants)
 !!
 !!   AUTHOR
 !!     CJM
@@ -48,23 +54,43 @@ CONTAINS
 !!
 !!   SOURCE
 !******************************************************************************
+SUBROUTINE force_bonds_3 ( rij, r0, k, energy, fscalar )
 
-SUBROUTINE force_bonds ( rij, r0, k, energy, fscalar )
+    REAL(KIND=dp), DIMENSION(:), INTENT(IN)      :: rij
+    REAL(KIND=dp), INTENT(IN)                    :: r0, k(3)
+    REAL(KIND=dp), INTENT(OUT)                   :: energy, fscalar
+
+    REAL(KIND=dp)                                :: dij,disp
+    REAL(KIND=dp), PARAMETER                     :: f12=1.0_dp/2.0_dp, &
+                                                    f13=1.0_dp/3.0_dp, &
+                                                    f14=1.0_dp/4.0_dp
+
+!------------------------------------------------------------------------------
+
+  dij = SQRT ( DOT_PRODUCT ( rij, rij ) )
+  disp = dij - r0
+  energy = (f12*k(1) + (f13*k(2)+f14*k(3)*disp)*disp)*disp*disp
+  fscalar = ((k(1) + (k(2) + k(3)*disp)*disp)*disp) / dij
+
+END SUBROUTINE force_bonds_3
+
+SUBROUTINE force_bonds_1 ( rij, r0, k, energy, fscalar )
 
 
     REAL(KIND=dp), DIMENSION(:), INTENT(IN)      :: rij
     REAL(KIND=dp), INTENT(IN)                    :: r0, k
     REAL(KIND=dp), INTENT(OUT)                   :: energy, fscalar
 
-    REAL(KIND=dp)                                :: dij
+    REAL(KIND=dp)                                :: dij,disp
+    REAL(KIND=dp), PARAMETER                     :: f12=1.0_dp/2.0_dp
 
 !------------------------------------------------------------------------------
 
   dij = SQRT ( DOT_PRODUCT ( rij, rij ) )
-  energy = 0.5_dp * k * ( dij - r0 ) ** 2
-  fscalar = k * ( dij - r0 ) / dij
-
-END SUBROUTINE force_bonds
+  disp = dij - r0
+  energy = f12*k*disp*disp
+  fscalar = k*disp / dij
+END SUBROUTINE force_bonds_1
 
 !!*****
 !******************************************************************************

@@ -922,9 +922,8 @@ END SUBROUTINE input_charges
 !!   FUNCTION
 !!     Read all the bond parameters. Put them in the bond_parm table.
 !!     While we read the bond_pot_type,
-!!     we (so far) will do nothing with this information. It appears that
-!!     all major parameters sets, such as CHARMM or AMBER, all have only
-!!     one type of bonded interaction (harmonic).
+!!     The for we allow for is :
+!!     k_2*(r-r0)**2/2+k_3*(r-r0)**3/3+k_4*(r-r0)**4/4
 !!
 !!   AUTHOR
 !!     CJM
@@ -938,7 +937,8 @@ END SUBROUTINE input_charges
 !!I SECTION: &force_field ... &end                                            I
 !!I                                                                           I
 !!I bonds
-!!I    harmonic ATMNAE1 ATMNAME2 k r0
+!!I    harmonic ATMNAE1 ATMNAME2 k1 r0
+!!I    quartic  ATMNAE1 ATMNAME2 k1 k2 k3 r0
 !!I end bonds                                                                 I
 !!I                                                                           I
 !!I---------------------------------------------------------------------------I
@@ -1000,18 +1000,28 @@ SUBROUTINE input_bonds(ff_type,globenv)
                  i = i + 1
                  CALL reallocate(inp_info%bond_a,1,i)
                  CALL reallocate(inp_info%bond_b,1,i)
-                 CALL reallocate(inp_info%bond_k,1,i)
+                 CALL reallocate(inp_info%bond_k,1,3,1,i)
                  CALL reallocate(inp_info%bond_r0,1,i)
-
                  ilen = default_string_length
                  CALL get_next ( inp_info%bond_a(i), ilen )
                  CALL get_next ( inp_info%bond_b(i), ilen )
-                 CALL get_next ( inp_info%bond_k(i) )
+                 CALL get_next ( inp_info%bond_k(1,i) )
+                 inp_info%bond_k(2,i)=0.0_dp
+                 inp_info%bond_k(3,i)=0.0_dp
                  CALL get_next ( inp_info%bond_r0(i) )
-              !   CALL convert_to_cp2k_units ( "ANGSTROM",  &
-              !                  length = inp_info%bond_r0 ( i ) )
-              !   CALL convert_to_cp2k_units ( "KELVIN",    &
-              !                  bond_k = inp_info%bond_k ( i ) )
+              CASE ( 'QUARTIC' )
+                 i = i + 1
+                 CALL reallocate(inp_info%bond_a,1,i)
+                 CALL reallocate(inp_info%bond_b,1,i)
+                 CALL reallocate(inp_info%bond_k,1,3,1,i)
+                 CALL reallocate(inp_info%bond_r0,1,i)
+                 ilen = default_string_length
+                 CALL get_next ( inp_info%bond_a(i), ilen )
+                 CALL get_next ( inp_info%bond_b(i), ilen )
+                 CALL get_next ( inp_info%bond_k(1,i) )
+                 CALL get_next ( inp_info%bond_k(2,i) )
+                 CALL get_next ( inp_info%bond_k(3,i) )
+                 CALL get_next ( inp_info%bond_r0(i) )
               CASE ( 'END')
                  ilen = 0
                  CALL get_next(string2,ilen)
@@ -1345,23 +1355,25 @@ SUBROUTINE read_force_field_charmm ( ff_type , globenv )
        nbond = nbond + 1
        CALL reallocate(chm_info%bond_a,1,nbond)
        CALL reallocate(chm_info%bond_b,1,nbond)
-       CALL reallocate(chm_info%bond_k,1,nbond)
+       CALL reallocate(chm_info%bond_k,1,3,1,nbond)
        CALL reallocate(chm_info%bond_r0,1,nbond)
        chm_info%bond_a(nbond) = string
        chm_info%bond_b(nbond) = string2
-       CALL get_next(chm_info%bond_k(nbond))
+       CALL get_next(chm_info%bond_k(1,nbond))
        CALL get_next(chm_info%bond_r0(nbond))
        IF(PM2) WRITE(iw,*) "    CHM BOND ",nbond,&
                            TRIM(chm_info%bond_a(nbond))," ",&
                            TRIM(chm_info%bond_b(nbond))," ",&
-                           chm_info%bond_k(nbond),&
+                           chm_info%bond_k(1,nbond),&
                            chm_info%bond_r0(nbond)
        ! Do some units conversion into internal atomic units
        CALL convert_to_cp2k_units("ANGSTROM",length=chm_info%bond_r0(nbond))
-       CALL convert_to_cp2k_units("KCAL",energy=chm_info%bond_k(nbond))
-       CALL convert_to_cp2k_units("BOHR",length=chm_info%bond_k(nbond))
-       CALL convert_to_cp2k_units("BOHR",length=chm_info%bond_k(nbond))
-       chm_info%bond_k(nbond) = 2.0_dp * chm_info%bond_k(nbond)
+       CALL convert_to_cp2k_units("KCAL",energy=chm_info%bond_k(1,nbond))
+       CALL convert_to_cp2k_units("BOHR",length=chm_info%bond_k(1,nbond))
+       CALL convert_to_cp2k_units("BOHR",length=chm_info%bond_k(1,nbond))
+       chm_info%bond_k(1,nbond) = 2.0_dp * chm_info%bond_k(1,nbond)
+       chm_info%bond_k(2,nbond) =0.0_dp
+       chm_info%bond_k(3,nbond) =0.0_dp
        CALL read_line
      END DO
   END IF
@@ -2341,7 +2353,7 @@ SUBROUTINE force_field_pack (particle_set,atomic_kind_set,&
               ((TRIM(chm_info%bond_a(k))==TRIM(name_atm_b)) .AND. &
                (TRIM(chm_info%bond_b(k))==TRIM(name_atm_a))) ) THEN
             bond_list(j)%bond_kind%name = "CHARMM"
-            bond_list(j)%bond_kind%k    = chm_info%bond_k(k)
+            bond_list(j)%bond_kind%k    = chm_info%bond_k(:,k)
             bond_list(j)%bond_kind%r0   = chm_info%bond_r0(k)
           IF(found .AND. PM1) &
              WRITE(iw,*) "    Multiple Bond declarations: overwriting"
@@ -2359,7 +2371,7 @@ SUBROUTINE force_field_pack (particle_set,atomic_kind_set,&
               ((TRIM(inp_info%bond_a(k))==TRIM(name_atm_b)) .AND. &
                (TRIM(inp_info%bond_b(k))==TRIM(name_atm_a))) ) THEN
             bond_list(j)%bond_kind%name = "INPUT"
-            bond_list(j)%bond_kind%k    = inp_info%bond_k(k)
+            bond_list(j)%bond_kind%k    = inp_info%bond_k(:,k)
             bond_list(j)%bond_kind%r0   = inp_info%bond_r0(k)
           IF(found .AND. PM1) &
              WRITE(iw,*) "    Multiple Bond declarations: overwriting"
