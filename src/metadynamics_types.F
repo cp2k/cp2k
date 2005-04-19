@@ -185,6 +185,8 @@ SUBROUTINE colvar_init(colvar,index,error)
   colvar%ff_s=0.0_dp
   colvar%vv=0.0_dp
   colvar%vvp=0.0_dp
+  colvar%wall_p=0.0_dp
+  colvar%wall_m=0.0_dp
 END SUBROUTINE colvar_init
 !***************************************************************************
 
