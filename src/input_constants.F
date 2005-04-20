@@ -129,6 +129,16 @@ MODULE input_constants
                                 do_loc_crazy=1,&
                                 do_loc_direct=2,&
                                 do_loc_none=3
+  INTEGER, PARAMETER, public :: do_loc_min=0,&
+                                do_loc_max=1,&
+                                op_loc_berry=0,&
+                                op_loc_boys=1,&
+                                op_loc_pipek=2,&
+                                state_loc_all=0,&
+                                state_loc_upton=1,&
+                                state_loc_fromitoj=2,&
+                                state_loc_list=3,&
+                                state_loc_none=4
 
   INTEGER, PARAMETER, public :: ot_mini_sd=1,ot_mini_cg=2,ot_mini_diis=3
   INTEGER, PARAMETER, public :: ot_ls_none=1,ot_ls_2pnt=2,ot_ls_3pnt=3,ot_ls_gold=4

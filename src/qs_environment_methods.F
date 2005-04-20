@@ -163,6 +163,7 @@ SUBROUTINE qs_env_setup(qs_env,error)
     TYPE(scf_control_type), POINTER          :: scf_control
 
   failure=.FALSE.
+
   NULLIFY(atomic_kind_set, dft_control, scf_control, qs_charges, para_env,&
        distribution_2d, molecule_kind_set, molecule_set, particle_set)
 
@@ -188,11 +189,22 @@ SUBROUTINE qs_env_setup(qs_env,error)
      CALL qs_env_rebuild_pw_env(qs_env, error=error)
 
      ! rebuilds fm_pools
-     CALL mpools_rebuild_fm_pools(qs_env%mpools,mos=qs_env%mos,&
-          blacs_env=qs_env%blacs_env, para_env=para_env,&
-          nrow_block=scf_control%nrow_block,&
-          ncol_block=scf_control%ncol_block,&
-          error=error)
+     IF(dft_control%qs_control%localized_wfn) THEN
+       ! build some additional pools for a subset of mos 
+       CALL mpools_rebuild_fm_pools(qs_env%mpools,mos=qs_env%mos,&
+            blacs_env=qs_env%blacs_env, para_env=para_env,&
+            nrow_block=scf_control%nrow_block,&
+            ncol_block=scf_control%ncol_block,&
+            nmosub=dft_control%qs_control%localized_wfn_control%nloc_states,&
+            error=error)
+
+     ELSE
+       CALL mpools_rebuild_fm_pools(qs_env%mpools,mos=qs_env%mos,&
+            blacs_env=qs_env%blacs_env, para_env=para_env,&
+            nrow_block=scf_control%nrow_block,&
+            ncol_block=scf_control%ncol_block,&
+            error=error)
+     END IF
 
      ! create 2d distribution
 

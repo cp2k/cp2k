@@ -104,6 +104,10 @@ MODULE qs_matrix_pools
 !!       c).
 !!     - mo_mo_fm_pools: pools with (mo x mo) full matrixes (same
 !!       order as c).
+!!     - ao_mosub_fm_pools: pools with (ao x mosub) full matrixes, where mosub
+!!       are a subset of the mos 
+!!     - mosub_mosub_fm_pools: pools with (mosub x mosub) full matrixes, where mosub
+!!       are a subset of the mos 
 !!
 !!     - maxao_maxao_fm_pools: pool of matrixes big enough to accomodate any
 !!       aoxao matrix (useful for temp matrixes)
@@ -125,6 +129,8 @@ MODULE qs_matrix_pools
      TYPE(cp_sm_pool_p_type), DIMENSION(:), POINTER        :: S_sm_pools
      TYPE(cp_fm_pool_p_type), DIMENSION(:), POINTER        :: ao_mo_fm_pools,&
           ao_ao_fm_pools,mo_mo_fm_pools
+     TYPE(cp_fm_pool_p_type), DIMENSION(:), POINTER        :: ao_mosub_fm_pools,&
+                                                              mosub_mosub_fm_pools
   END TYPE qs_matrix_pools_type
 !!***
 !****************************************************************************
@@ -230,6 +236,12 @@ SUBROUTINE mpools_release(mpools,error)
         CALL fm_pools_dealloc(mpools%ao_mo_fm_pools, error=error)
         CALL fm_pools_dealloc(mpools%ao_ao_fm_pools, error=error)
         CALL fm_pools_dealloc(mpools%mo_mo_fm_pools, error=error)
+        IF (ASSOCIATED(mpools%ao_mosub_fm_pools)) THEN
+          CALL fm_pools_dealloc(mpools%ao_mosub_fm_pools,error=error)
+        END IF
+        IF (ASSOCIATED(mpools%mosub_mosub_fm_pools)) THEN
+          CALL fm_pools_dealloc(mpools%mosub_mosub_fm_pools,error=error)
+        END IF
         DEALLOCATE(mpools, stat=stat)
         CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
      END IF
@@ -272,12 +284,13 @@ END SUBROUTINE mpools_release
 !!
 !!*** **********************************************************************
 SUBROUTINE mpools_set(mpools,ao_mo_fm_pools,ao_ao_fm_pools,&
-     mo_mo_fm_pools,&
+     mo_mo_fm_pools,ao_mosub_fm_pools,mosub_mosub_fm_pools,&
      S_sm_pools,error)
     TYPE(qs_matrix_pools_type), POINTER      :: mpools
     TYPE(cp_fm_pool_p_type), DIMENSION(:), &
       OPTIONAL, POINTER                      :: ao_mo_fm_pools, &
-                                                ao_ao_fm_pools, mo_mo_fm_pools
+                                                ao_ao_fm_pools, mo_mo_fm_pools,&
+                                                ao_mosub_fm_pools,mosub_mosub_fm_pools
     TYPE(cp_sm_pool_p_type), DIMENSION(:), &
       OPTIONAL, POINTER                      :: S_sm_pools
     TYPE(cp_error_type), INTENT(inout), &
@@ -317,6 +330,21 @@ SUBROUTINE mpools_set(mpools,ao_mo_fm_pools,ao_ao_fm_pools,&
       CALL fm_pools_dealloc(mpools%mo_mo_fm_pools,error=error)
       mpools%mo_mo_fm_pools => new_fm_pools
     END IF
+    IF (PRESENT(ao_mosub_fm_pools)) THEN
+      IF (ASSOCIATED(ao_mosub_fm_pools)) THEN
+        CALL fm_pools_copy(ao_mosub_fm_pools,new_fm_pools,error=error)
+      END IF
+      CALL fm_pools_dealloc(mpools%ao_mosub_fm_pools,error=error)
+      mpools%ao_mosub_fm_pools => new_fm_pools
+    END IF
+    IF (PRESENT(mosub_mosub_fm_pools)) THEN
+      IF (ASSOCIATED(mosub_mosub_fm_pools)) THEN
+        CALL fm_pools_copy(mosub_mosub_fm_pools,new_fm_pools,error=error)
+      END IF
+      CALL fm_pools_dealloc(mpools%mosub_mosub_fm_pools,error=error)
+      mpools%mosub_mosub_fm_pools => new_fm_pools
+    END IF
+
  END IF
 END SUBROUTINE mpools_set
 !***************************************************************************
@@ -361,13 +389,14 @@ END SUBROUTINE mpools_set
 !!
 !!*** **********************************************************************
 SUBROUTINE mpools_get(mpools,ao_mo_fm_pools,ao_ao_fm_pools,&
-     mo_mo_fm_pools, maxao_maxmo_fm_pool,&
-     maxao_maxao_fm_pool, maxmo_maxmo_fm_pool,&
+     mo_mo_fm_pools, ao_mosub_fm_pools, mosub_mosub_fm_pools,&
+     maxao_maxmo_fm_pool, maxao_maxao_fm_pool, maxmo_maxmo_fm_pool,&
      S_sm_pools,error)
     TYPE(qs_matrix_pools_type), POINTER      :: mpools
     TYPE(cp_fm_pool_p_type), DIMENSION(:), &
       OPTIONAL, POINTER                      :: ao_mo_fm_pools, &
-                                                ao_ao_fm_pools, mo_mo_fm_pools
+                                                ao_ao_fm_pools, mo_mo_fm_pools,&
+                                                ao_mosub_fm_pools, mosub_mosub_fm_pools
     TYPE(cp_fm_pool_type), OPTIONAL, POINTER :: maxao_maxmo_fm_pool, &
                                                 maxao_maxao_fm_pool, &
                                                 maxmo_maxmo_fm_pool
@@ -384,7 +413,7 @@ SUBROUTINE mpools_get(mpools,ao_mo_fm_pools,ao_ao_fm_pools,&
   failure=.FALSE.
   
   IF (.NOT.failure) THEN
-         IF (PRESENT(S_sm_pools)) S_sm_pools => mpools%S_sm_pools
+    IF (PRESENT(S_sm_pools)) S_sm_pools => mpools%S_sm_pools
     IF (PRESENT(ao_mo_fm_pools)) ao_mo_fm_pools => mpools%ao_mo_fm_pools
     IF (PRESENT(maxao_maxmo_fm_pool)) THEN
        IF (ASSOCIATED(mpools%ao_mo_fm_pools)) THEN
@@ -409,6 +438,9 @@ SUBROUTINE mpools_get(mpools,ao_mo_fm_pools,ao_ao_fm_pools,&
           NULLIFY(maxmo_maxmo_fm_pool) ! raise an error?
        END IF
     END IF
+    IF (PRESENT(ao_mosub_fm_pools)) ao_mosub_fm_pools => mpools%ao_mosub_fm_pools
+    IF (PRESENT(mosub_mosub_fm_pools)) mosub_mosub_fm_pools => mpools%mosub_mosub_fm_pools
+
  END IF
 END SUBROUTINE mpools_get
 !***************************************************************************
@@ -459,7 +491,8 @@ SUBROUTINE mpools_create(mpools,error)
   CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
   IF (.NOT.failure) THEN
      NULLIFY(mpools%ao_ao_fm_pools, mpools%ao_mo_fm_pools, &
-          mpools%mo_mo_fm_pools, mpools%S_sm_pools)
+          mpools%mo_mo_fm_pools, mpools%ao_mosub_fm_pools, &
+          mpools%mosub_mosub_fm_pools, mpools%S_sm_pools)
      mpools%ref_count=1
      last_mpools_id=last_mpools_id+1
      mpools%id_nr=last_mpools_id
@@ -499,6 +532,8 @@ END SUBROUTINE mpools_create
 !!       distribution of the elements in parallel
 !!     - ncol_block: number of cols of a block for for the block cyclic
 !!       distribution of the elements in parallel
+!!     - nmosub: number of the orbitals for the creation
+!!       of the pools containing only a subset of mos (OPTIONAL)
 !!     - error: variable to control error logging, stopping,... 
 !!       see module cp_error_handling 
 !!
@@ -507,16 +542,19 @@ END SUBROUTINE mpools_create
 !!
 !!   MODIFICATION HISTORY
 !!     08.2002 created [fawzi]
+!!     04.2005 added pools for a subset of mos [MI]
 !!
 !!*** **********************************************************************
 SUBROUTINE mpools_rebuild_fm_pools(mpools, mos, blacs_env, para_env,&
-     nrow_block,ncol_block,error)
+     nrow_block,ncol_block,nmosub,error)
     TYPE(qs_matrix_pools_type), POINTER      :: mpools
     TYPE(mo_set_p_type), DIMENSION(:), &
       POINTER                                :: mos
     TYPE(cp_blacs_env_type), POINTER         :: blacs_env
     TYPE(cp_para_env_type), POINTER          :: para_env
     INTEGER, INTENT(in)                      :: nrow_block, ncol_block
+    INTEGER, DIMENSION(2), INTENT(IN),&
+      OPTIONAL                               :: nmosub
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
@@ -527,6 +565,7 @@ SUBROUTINE mpools_rebuild_fm_pools(mpools, mos, blacs_env, para_env,&
                                                 min_nmo, nao, ncg, nmo, nrg, &
                                                 nspins, stat
     LOGICAL                                  :: failure, should_rebuild
+    LOGICAL                                  :: prepare_subset
     TYPE(cp_fm_pool_type), POINTER           :: p_att
     TYPE(cp_fm_struct_type), POINTER         :: fmstruct
 
@@ -534,6 +573,10 @@ SUBROUTINE mpools_rebuild_fm_pools(mpools, mos, blacs_env, para_env,&
 
   failure=.FALSE.
   NULLIFY(fmstruct, p_att)
+  prepare_subset = .FALSE.
+  IF(PRESENT(nmosub)) THEN
+     IF(nmosub(1) > 0) prepare_subset = .TRUE.
+  END IF
 
   CPPrecondition(ASSOCIATED(mos),cp_failure_level,routineP,error,failure)
   IF (.NOT.ASSOCIATED(mpools)) THEN
@@ -580,6 +623,37 @@ SUBROUTINE mpools_rebuild_fm_pools(mpools, mos, blacs_env, para_env,&
            NULLIFY(mpools%mo_mo_fm_pools(ispin)%pool)
         END DO
      END IF
+
+     IF(prepare_subset) THEN
+
+       IF (ASSOCIATED(mpools%ao_mosub_fm_pools)) THEN
+          IF (nspins/=SIZE(mpools%ao_mosub_fm_pools)) THEN
+             CALL fm_pools_dealloc(mpools%ao_mosub_fm_pools,error=error)
+          END IF
+       END IF
+       IF (.NOT.ASSOCIATED(mpools%ao_mosub_fm_pools)) THEN
+          ALLOCATE(mpools%ao_mosub_fm_pools(nspins), stat=stat)
+          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+          DO ispin=1,nspins
+             NULLIFY(mpools%ao_mosub_fm_pools(ispin)%pool)
+          END DO
+       END IF
+
+       IF (ASSOCIATED(mpools%mosub_mosub_fm_pools)) THEN
+          IF (nspins/=SIZE(mpools%mosub_mosub_fm_pools)) THEN
+             CALL fm_pools_dealloc(mpools%mosub_mosub_fm_pools,error=error)
+          END IF
+       END IF
+       IF (.NOT.ASSOCIATED(mpools%mosub_mosub_fm_pools)) THEN
+          ALLOCATE(mpools%mosub_mosub_fm_pools(nspins), stat=stat)
+          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+          DO ispin=1,nspins
+             NULLIFY(mpools%mosub_mosub_fm_pools(ispin)%pool)
+          END DO
+       END IF
+
+     END IF  ! prepare_subset
+
   END IF
 
   IF (.NOT.failure) THEN
@@ -724,6 +798,100 @@ SUBROUTINE mpools_rebuild_fm_pools(mpools, mos, blacs_env, para_env,&
            END DO
         END IF
      END IF
+
+     IF(prepare_subset) THEN
+       ! aomosub pools
+       should_rebuild=.FALSE.
+       DO ispin=1,nspins
+          p_att => mpools%ao_mosub_fm_pools(ispin)%pool
+          should_rebuild = (should_rebuild.OR.(.NOT.ASSOCIATED(p_att)))
+          IF (.NOT.should_rebuild) THEN
+             fmstruct => fm_pool_get_el_struct(mpools%ao_mosub_fm_pools(ispin)&
+                  %pool,error=error)
+             CALL cp_fm_struct_get(fmstruct, nrow_global=nrg,&
+                  ncol_global=ncg,error=error)
+             CALL get_mo_set(mos(1)%mo_set,nao=nao)
+             should_rebuild = nao/=nrg .OR. nmosub(ispin)/=ncg
+          END IF
+       END DO
+       IF (should_rebuild) THEN
+          DO ispin=1,nspins
+             CALL fm_pool_release(mpools%ao_mosub_fm_pools(ispin)%pool,error=error)
+          END DO
+  
+          IF (nspins==1 .OR. nmosub(1)==nmosub(2)) THEN
+             CALL cp_fm_struct_create(fmstruct, nrow_global=nao,&
+                  ncol_global=nmosub(1), para_env=para_env,&
+                  context=blacs_env,&
+                  nrow_block=nrow_block,&
+                  ncol_block=ncol_block)
+             CALL fm_pool_create(mpools%ao_mosub_fm_pools(1)%pool,fmstruct,error=error)
+             CALL cp_fm_struct_release(fmstruct,error=error)
+             DO ispin=2,SIZE(mos)
+                mpools%ao_mosub_fm_pools(ispin)%pool => mpools%ao_mosub_fm_pools(1)%pool
+                CALL fm_pool_retain(mpools%ao_mosub_fm_pools(1)%pool,error=error)
+             END DO
+          ELSE
+             DO ispin=1,SIZE(mos)
+                CALL get_mo_set(mos(ispin)%mo_set,nao=nao) 
+                CALL cp_fm_struct_create(fmstruct, nrow_global=nao,&
+                     ncol_global=nmosub(1), para_env=para_env,&
+                     context=blacs_env,&
+                     nrow_block=nrow_block,&
+                     ncol_block=ncol_block)
+                CALL fm_pool_create(mpools%ao_mosub_fm_pools(ispin)%pool,&
+                     fmstruct,error=error)
+                CALL cp_fm_struct_release(fmstruct,error=error)
+             END DO
+          END IF
+       END IF  ! should_rebuild
+
+       ! mosubmosub pools
+       should_rebuild=.FALSE.
+       DO ispin=1,nspins
+          p_att => mpools%mosub_mosub_fm_pools(ispin)%pool
+          should_rebuild = (should_rebuild.OR.(.NOT.ASSOCIATED(p_att)))
+          IF (.NOT.should_rebuild) THEN
+             fmstruct => fm_pool_get_el_struct(p_att,error=error)
+             CALL cp_fm_struct_get(fmstruct, nrow_global=nrg,&
+                  ncol_global=ncg,error=error)
+             should_rebuild = nmosub(ispin)/=nrg .OR. nmosub(ispin)/=ncg
+          END IF
+       END DO
+       IF (should_rebuild) THEN
+          DO ispin=1,nspins
+             CALL fm_pool_release(mpools%mosub_mosub_fm_pools(ispin)%pool,error=error)
+          END DO
+  
+          IF ( nspins ==1 .OR. nmosub(1)==nmosub(2)) THEN
+             CALL cp_fm_struct_create(fmstruct, nrow_global=nmosub(1),&
+                  ncol_global=nmosub(1), para_env=para_env,&
+                  context=blacs_env,&
+                  nrow_block=nrow_block,&
+                  ncol_block=ncol_block)
+             CALL fm_pool_create(mpools%mosub_mosub_fm_pools(1)%pool,&
+                  fmstruct,error=error)
+             CALL cp_fm_struct_release(fmstruct,error=error)
+             DO ispin=2,SIZE(mos)
+                mpools%mosub_mosub_fm_pools(ispin)%pool => mpools%mosub_mosub_fm_pools(1)%pool
+                CALL fm_pool_retain(mpools%mosub_mosub_fm_pools(1)%pool,error=error)
+             END DO
+          ELSE
+             DO ispin=1,SIZE(mos)
+                NULLIFY(mpools%mosub_mosub_fm_pools(ispin)%pool)
+                CALL cp_fm_struct_create(fmstruct, nrow_global=nmosub(ispin),&
+                     ncol_global=nmosub(ispin), para_env=para_env,&
+                     context=blacs_env,&
+                     nrow_block=nrow_block,&
+                     ncol_block=ncol_block)
+                CALL fm_pool_create(mpools%mosub_mosub_fm_pools(ispin)%pool,&
+                     fmstruct,error=error)
+                CALL cp_fm_struct_release(fmstruct,error=error)
+             END DO
+          END IF
+       END IF  ! should_rebuild
+     END IF  ! prepare_subset
+
   END IF
 
   CALL timestop(0.0_dp,handle)

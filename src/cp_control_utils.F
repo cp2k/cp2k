@@ -18,10 +18,25 @@ MODULE cp_control_utils
   USE cp_control_types,                ONLY: dft_control_create,&
                                              dft_control_type,&
                                              gapw_control_create,&
+                                             localized_wfn_control_type,&
                                              qs_control_type,&
                                              tddfpt_control_type,&
                                              wave_control_type
-  USE input_constants,                 ONLY: oe_none,&
+  USE input_constants,                 ONLY: do_loc_min,&
+                                             do_loc_max,&
+                                             do_loc_jacobi,&
+                                             do_loc_crazy,&
+                                             do_loc_direct,&
+                                             do_loc_none,&
+                                             op_loc_berry,&
+                                             op_loc_boys,&
+                                             op_loc_pipek,&
+                                             state_loc_all,&
+                                             state_loc_upton,&
+                                             state_loc_fromitoj,&
+                                             state_loc_list,&
+                                             state_loc_none,&
+                                             oe_none,&
                                              oe_saop,&
                                              oe_sic,&
                                              sic_ad,&
@@ -89,6 +104,7 @@ MODULE cp_control_utils
                                              section_vals_val_get
   USE kinds,                           ONLY: dp,&
                                              dp_size
+  USE memory_utilities,                ONLY: reallocate
   USE qs_parser,                       ONLY: finish_parser,&
                                              read_object,&
                                              start_parser,&
@@ -162,7 +178,8 @@ INTEGER, PARAMETER, PRIVATE :: qs_key_RS_GRID=31
 INTEGER, PARAMETER, PRIVATE :: qs_key_EXTRAPOLATION=32
 INTEGER, PARAMETER, PRIVATE :: qs_key_METHOD=33
 INTEGER, PARAMETER, PRIVATE :: qs_key_MULLIKEN_RESTRAINT=34
-INTEGER, PARAMETER, PRIVATE :: N_qs_keywords = 34
+INTEGER, PARAMETER, PRIVATE :: qs_key_LOCALIZED_WFN=35
+INTEGER, PARAMETER, PRIVATE :: N_qs_keywords = 35
 TYPE(keyword_type), PRIVATE, DIMENSION(1:N_qs_keywords) :: qs_keywords
 
 !!***
@@ -310,6 +327,10 @@ CONTAINS
                                        "MULLIKEN_RESTRAINT",&
                                        "Employ a restraint on the mulliken charges",&
                                        "","","")
+     qs_keywords(qs_key_LOCALIZED_WFN)=keyword_type("LOCALIZED_WFN", &
+                                       "LOCALIZED_WFN {METHOD,OPERATOR,SET_OF_STATES,MIN_OR_MAX}",&
+                                       "Set up the calculation of the localization for a selected set of wfn",&
+                                       "LOC_WFN","","")
   END SUBROUTINE
 
 ! *****************************************************************************
@@ -867,7 +888,7 @@ CONTAINS
     CHARACTER(LEN=3)                         :: test_result
     CHARACTER(LEN=60)                        :: keyword, string, string2
     INTEGER                                  :: igrid_level, istat, ivalue, &
-                                                ngrid_level,i
+                                                ngrid_level, nloc_now, i
     LOGICAL                                  :: cutoff_set, multgrid_set, &
                                                 ngrid_set, progression_set, &
                                                 section_found
@@ -902,6 +923,7 @@ CONTAINS
     qs_control%map_consistent = .FALSE.
     qs_control%polarization = .FALSE.
     qs_control%mulliken_restraint = .FALSE.
+    qs_control%localized_wfn = .FALSE.
     qs_control%wf_extrapolation_order = 0
 
     CALL gapw_control_create(qs_control%gapw_control)
@@ -921,7 +943,6 @@ CONTAINS
     qs_control%gapw_control%alpha0_soft = 0.0_dp
 
 
-!
     cutoff_set = .FALSE.
     multgrid_set = .FALSE.
     ngrid_set = .FALSE.
@@ -1157,6 +1178,106 @@ CONTAINS
             CASE DEFAULT
               CALL stop_parser(routine,"unexpected data following MULLIKEN_RESTRAINT")
             END SELECT
+         CASE (qs_key_LOCALIZED_WFN)
+            qs_control%localized_wfn = .TRUE.
+            SELECT CASE (test_object())
+            CASE ("STR")
+              CALL read_object(string,lower_to_upper=.TRUE.)
+              SELECT CASE (string)
+              CASE ("METHOD")
+                CALL read_object(string2,lower_to_upper=.TRUE.)
+                SELECT CASE (string2)
+                CASE ("JACOBI")
+                   qs_control%localized_wfn_control%localization_method = do_loc_jacobi
+                CASE ("CRAZY")
+                   qs_control%localized_wfn_control%localization_method = do_loc_crazy
+                CASE ("DIRECT")
+                   qs_control%localized_wfn_control%localization_method = do_loc_direct
+                CASE ("NONE")
+                   qs_control%localized_wfn_control%localization_method = do_loc_none
+                CASE DEFAULT
+                   CALL stop_parser(routine,"unexpected data following LOCALIZED_WFN METHOD")
+                END SELECT
+              CASE ("MIN_OR_MAX")
+                CALL read_object(string2,lower_to_upper=.TRUE.)
+                SELECT CASE (string2)
+                CASE ("SPREADMIN")
+                   qs_control%localized_wfn_control%min_or_max = do_loc_min
+                CASE ("SPREADMAX")
+                   qs_control%localized_wfn_control%min_or_max = do_loc_max
+                CASE DEFAULT
+                   CALL stop_parser(routine,"unexpected data following LOCALIZED_WFN MIN_OR_MAX")
+                END SELECT
+              CASE ("OPERATOR")
+                CALL read_object(string2,lower_to_upper=.TRUE.)
+                SELECT CASE (string2)
+                CASE("BERRY")
+                   qs_control%localized_wfn_control%operator_type = op_loc_berry
+                CASE("BOYS")
+                   qs_control%localized_wfn_control%operator_type = op_loc_boys
+                CASE("PIPEK")
+                   qs_control%localized_wfn_control%operator_type = op_loc_pipek
+                CASE DEFAULT
+                   CALL stop_parser(routine,"unexpected data following LOCALIZED_WFN OPERATOR ")
+                END SELECT 
+              CASE ("SET_OF_STATES")
+                CALL read_object(string2,lower_to_upper=.TRUE.)
+                SELECT CASE (string2)
+                CASE("ALL")
+                   qs_control%localized_wfn_control%set_of_states = state_loc_all
+                CASE("NONE")
+                   qs_control%localized_wfn_control%set_of_states = state_loc_none
+                CASE("UPTON")
+                   qs_control%localized_wfn_control%set_of_states = state_loc_upton
+                   CALL read_object(qs_control%localized_wfn_control%lu_bound_states(2,1), &
+                                    lower_to_upper=.TRUE.)    
+                   qs_control%localized_wfn_control%lu_bound_states(1,1) = 1
+                   qs_control%localized_wfn_control%nloc_states(1) = &
+                             qs_control%localized_wfn_control%lu_bound_states(2,1) 
+                CASE("FROMITOJ")
+                   qs_control%localized_wfn_control%set_of_states = state_loc_fromitoj
+                   CALL read_object(qs_control%localized_wfn_control%lu_bound_states(1,1), &
+                                    lower_to_upper=.TRUE.)
+                   CALL read_object(qs_control%localized_wfn_control%lu_bound_states(2,1), &
+                                    lower_to_upper=.TRUE.)
+                   qs_control%localized_wfn_control%nloc_states(1) = &
+                             qs_control%localized_wfn_control%lu_bound_states(2,1)-&
+                             qs_control%localized_wfn_control%lu_bound_states(1,1)+1 
+                CASE("LIST")
+                   qs_control%localized_wfn_control%set_of_states = state_loc_list 
+                   IF(.NOT.ASSOCIATED(qs_control%localized_wfn_control%loc_states)) THEN
+                     ALLOCATE(qs_control%localized_wfn_control%loc_states(50),STAT=istat)
+                     qs_control%localized_wfn_control%loc_states = 0
+                     nloc_now = 0
+                   ELSE
+                     nloc_now = SIZE(qs_control%localized_wfn_control%loc_states,1)
+                     CALL reallocate(qs_control%localized_wfn_control%loc_states,1,50+nloc_now)
+                   ENDIF  
+                   DO 
+                     IF(test_object()=="EOL") THEN
+                         EXIT
+                     ELSE
+                       nloc_now = nloc_now + 1
+                       IF(nloc_now > SIZE(qs_control%localized_wfn_control%loc_states,1))THEN
+                         CALL reallocate(qs_control%localized_wfn_control%loc_states,1,nloc_now)
+                       END IF  
+                       CALL read_object(qs_control%localized_wfn_control%loc_states(nloc_now))
+                     END IF 
+                   END DO 
+                   CALL reallocate(qs_control%localized_wfn_control%loc_states,1,nloc_now)
+                   qs_control%localized_wfn_control%nloc_states(1) = nloc_now
+                CASE DEFAULT
+                   CALL stop_parser(routine,"unexpected data following LOCALIZED_WFN ")
+                END SELECT
+              CASE ("EACH_STEP")
+                CALL read_object(qs_control%localized_wfn_control%each_step,lower_to_upper=.TRUE.)
+              END SELECT
+            CASE ("EOL")
+              ! do nothing
+            CASE DEFAULT
+             CALL stop_parser(routine,"unexpected data following LOCALIZED_WFN") 
+            END SELECT
+
           CASE (qs_key_PW_GRID)
             CALL read_object(string,lower_to_upper=.TRUE.)
             SELECT CASE (string)
@@ -1850,7 +1971,8 @@ CONTAINS
       INTENT(IN)                             :: globenv
 
     INTEGER                                  :: igrid_level, ngrid_level, &
-                                                output_unit
+                                                nstep,output_unit
+    
 
 !   ---------------------------------------------------------------------------
 
@@ -1937,6 +2059,60 @@ CONTAINS
          WRITE (UNIT=output_unit,FMT="(T2,A,T73,I8)")&
            "QS| Mulliken restraint atoms: ", qs_control%mulliken_restraint_control%natoms
          WRITE (UNIT=output_unit,FMT="(5I8)") qs_control%mulliken_restraint_control%atoms
+      END IF
+      IF (qs_control%localized_wfn) THEN
+         nstep = qs_control%localized_wfn_control%each_step
+         WRITE (UNIT=output_unit,FMT="(T2,A)")&
+           "QS| Localization: The spread relative to a set of orbitals is computed"
+         WRITE (UNIT=output_unit,FMT="(T2,A,T55,I5,A)")&
+           "                  at the end of a scf loop every ",nstep," iteration steps"
+         SELECT CASE ( qs_control%localized_wfn_control%set_of_states )
+         CASE(state_loc_all)
+           WRITE (UNIT=output_unit,FMT="(T2,A)")& 
+           "                Set:  All the occupied orbitals"
+         CASE(state_loc_upton)
+           WRITE (UNIT=output_unit,FMT="(T2,A,T73,I8)")& 
+           "                Set:  All the orbital with index lower than ",&
+            qs_control%localized_wfn_control%nloc_states(1)
+         CASE(state_loc_fromitoj)
+           WRITE (UNIT=output_unit,FMT="(T2,A,T73,2I8)")& 
+           "                Set:  All the orbital with index between ",&
+            qs_control%localized_wfn_control%lu_bound_states(1,1),&
+            qs_control%localized_wfn_control%lu_bound_states(2,1)
+         CASE(state_loc_list)
+           WRITE (UNIT=output_unit,FMT="(T2,A)")& 
+           "                Set:  All the orbital with index in the list:"
+           WRITE (UNIT=output_unit,FMT=*) qs_control%localized_wfn_control%loc_states
+         CASE DEFAULT
+           WRITE (UNIT=output_unit,FMT="(T2,A)")& 
+           "                Set:  None"
+         END SELECT
+         SELECT CASE (qs_control%localized_wfn_control%operator_type )
+         CASE(op_loc_berry) 
+           WRITE (UNIT=output_unit,FMT="(T2,A)")&
+           "                Spread: defined by the Berry phase operator "
+         CASE(op_loc_boys) 
+           WRITE (UNIT=output_unit,FMT="(T2,A)")&
+           "                Spread: defined by the Boys operator"
+         CASE DEFAULT
+            WRITE (UNIT=output_unit,FMT="(T2,A)")&
+           "                Spread: defined by the Pipek operator"
+         END SELECT
+         
+         SELECT CASE (qs_control%localized_wfn_control%localization_method)
+         CASE(do_loc_jacobi)
+            WRITE (UNIT=output_unit,FMT="(T2,A)")&
+             "                Optimize  the spread by the jacobi algorithm"
+         CASE(do_loc_crazy)
+            WRITE (UNIT=output_unit,FMT="(T2,A)")&
+             "                Optimize  the spread by the crazy angle algorithm"
+         CASE(do_loc_direct)
+            WRITE (UNIT=output_unit,FMT="(T2,A)")&
+             "                Optimize  the spread by the direct algorithm"
+         CASE(do_loc_none)
+            WRITE (UNIT=output_unit,FMT="(T2,A)")&
+             "                No minimization or maximization is performed "
+         END SELECT
       END IF
     END IF
 
@@ -2399,11 +2575,8 @@ END FUNCTION xc_get_routine_label
         CASE ( "T92", "THAKKAR" )
            functional ( 3 ) = "T92"
            gradient_functionals ( 3 ) = GRADIENT_FUNCTIONAL
-        CASE ("PBE")
+        CASE ( "PBE" )
            functional ( 3 ) = "KE_PBE"
-           gradient_functionals ( 3 ) = GRADIENT_FUNCTIONAL
-        CASE ("REVPBE")
-           functional ( 3 ) = "KE_REVPBE"
            gradient_functionals ( 3 ) = GRADIENT_FUNCTIONAL
         CASE default
            functional (3)=string

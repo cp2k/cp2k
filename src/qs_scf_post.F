@@ -31,6 +31,9 @@ MODULE qs_scf_post
                                              coeff_sumup,&
                                              coeff_type
   USE cp_control_types,                ONLY: dft_control_type,&
+                                             localized_wfn_control_type,&
+                                             localized_wfn_control_release,&
+                                             localized_wfn_control_retain,&
                                              tddfpt_control_type
   USE cp_error_handling,               ONLY: cp_a_l,&
                                              cp_assert,&
@@ -106,6 +109,10 @@ MODULE qs_scf_post
                                              qs_loc_destroy,&
                                              qs_loc_env_type,&
                                              qs_loc_init
+  USE qs_localization_new,             ONLY: qs_loc_env_create,&
+                                             qs_loc_env_destroy,& 
+                                             qs_loc_env_init, &
+                                             qs_loc_env_new_type
   USE qs_mo_methods,                   ONLY: calculate_density_matrix,&
                                              calculate_subspace_eigenvalues
   USE qs_mo_types,                     ONLY: get_mo_set,&
@@ -182,6 +189,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     LOGICAL                                  :: failure, ionode
+    LOGICAL                                  :: my_localized_wfn
     REAL(KIND=dp), DIMENSION(:), POINTER     :: mo_eigenvalues
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
@@ -194,6 +202,7 @@ CONTAINS
     TYPE(cp_fm_type), POINTER                :: mo_coeff, mo_localized
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(dft_control_type), POINTER          :: dft_control
+    TYPE(localized_wfn_control_type), POINTER :: my_localized_wfn_control
     TYPE(mo_set_p_type), DIMENSION(:), &
       POINTER                                :: mos
     TYPE(molecule_type), POINTER             :: molecule_set( : )
@@ -204,6 +213,7 @@ CONTAINS
       POINTER                                :: pw_pools
     TYPE(pw_pool_type), POINTER              :: auxbas_pw_pool
     TYPE(qs_loc_env_type), POINTER           :: qs_loc_env
+    TYPE(qs_loc_env_new_type), POINTER           :: qs_loc_env_new
     TYPE(qs_rho_type), POINTER               :: rho
     TYPE(real_matrix_p_type), DIMENSION(:), &
       POINTER                                :: ks_rmpv, matrix_s
@@ -214,9 +224,9 @@ CONTAINS
          REAL(KIND = dp), DIMENSION(:), POINTER :: evals
     END TYPE
     TYPE (evals_p_type), DIMENSION(:), POINTER :: unoccupied_evals
-    INTEGER :: ispin,n, output_unit, nmo,handle
+    INTEGER ::  handle, ispin, istat, n, nmo, output_unit
     CHARACTER(LEN=200) :: file_name
-    INTEGER            :: file_unit,ivector,nao,nlumos, homo,unit_nr
+    INTEGER            :: file_unit,ivector,nao,nlumos, homo, unit_nr
     CHARACTER(LEN=80)  :: filename
     CHARACTER(LEN=80) :: title
     CHARACTER(LEN=default_string_length) :: mulliken_title
@@ -235,6 +245,8 @@ CONTAINS
             ks_rmpv,matrix_s,qs_loc_env,scf_control,unoccupied_orbs,&
             mo_eigenvalues,unoccupied_evals,fm_struct_tmp,molecule_set,&
             center,rho_core,tddfpt_control,input,print_key)
+    NULLIFY(qs_loc_env_new,my_localized_wfn_control)
+
     logger => cp_error_get_logger(error)
     ionode = logger%para_env%mepos==logger%para_env%source
     IF (ionode) output_unit= cp_logger_get_default_unit_nr(logger)
@@ -316,7 +328,19 @@ CONTAINS
        ENDIF
 
 ! *** init the localization environment, needed e.g. for wannier functions and molecular states
-       IF (globenv%print%localization)THEN
+       IF(dft_control%qs_control%localized_wfn) THEN
+
+          my_localized_wfn_control =>  dft_control%qs_control%localized_wfn_control
+          CALL localized_wfn_control_retain(my_localized_wfn_control,error=error)
+          CPPrecondition(ASSOCIATED(my_localized_wfn_control),cp_failure_level,routineP,error,failure)
+!     this should be done only in the at selected steps of the iter_level we are in (MD or..) 
+!     for this I need to know the niter and the iter_level to refer to
+          my_localized_wfn = (.NOT. failure .AND. .TRUE.)
+          CALL qs_loc_env_create(qs_loc_env_new,error=error)
+          CALL qs_loc_env_init(qs_loc_env_new,my_localized_wfn_control,qs_env,error=error)
+          CALL localized_wfn_control_release(my_localized_wfn_control,error=error)
+
+       ELSEIF (globenv%print%localization)THEN
           NULLIFY(qs_loc_env)
           ALLOCATE(qs_loc_env)
           CALL qs_loc_init(qs_loc_env,qs_env)
@@ -480,7 +504,11 @@ CONTAINS
        END IF
 
 ! *** destroy the localization environment
-       IF (globenv%print%localization) THEN
+       IF(dft_control%qs_control%localized_wfn) THEN
+          CALL qs_loc_env_destroy(qs_loc_env_new, error=error)
+          DEALLOCATE(qs_loc_env_new,STAT=istat)
+          CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+       ELSEIF (globenv%print%localization) THEN
           CALL qs_loc_destroy(qs_loc_env)
           DEALLOCATE(qs_loc_env) 
        ENDIF

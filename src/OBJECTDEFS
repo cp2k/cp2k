@@ -286,6 +286,7 @@ OBJECTS_GENERIC =\
  qs_local_rho_types.o\
  qs_localization.o\
  qs_localization_methods.o\
+ qs_localization_new.o\
  qs_main.o\
  qs_matrix_pools.o\
  qs_mc.o\

@@ -39,6 +39,8 @@ MODULE qs_environment
   USE checkpoint_handler,              ONLY: write_checkpoint_information
   USE cp_control_types,                ONLY: dft_control_release,&
                                              dft_control_type,&
+                                             localized_wfn_control_type,&
+                                             set_loc_wfn_lists,&
                                              gapw_control_type,&
                                              semi_empirical_control_type
   USE cp_control_utils,                ONLY: read_dft_control,&
@@ -58,7 +60,9 @@ MODULE qs_environment
   USE gamma,                           ONLY: init_md_ftable
   USE global_types,                    ONLY: global_environment_type
   USE hartree_local_methods,           ONLY: init_coulomb_local
-  USE input_constants,                 ONLY: xas_tp_hh, xas_tp_fh 
+  USE input_constants,                 ONLY: state_loc_all,&
+                                             state_loc_none,&
+                                             xas_tp_hh, xas_tp_fh 
   USE input_section_types,             ONLY: section_vals_get_subs_vals,&
                                              section_vals_type
   USE input_types,                     ONLY: setup_parameters_type
@@ -262,7 +266,7 @@ CONTAINS
     INTEGER :: handle, ispin, istat, lmax_sphere, maxl, maxlgto, maxlppl, &
       maxlppnl, multiplicity, n_ao, nelectron, nkind, output_unit
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: natom_of_kind
-    INTEGER, DIMENSION(2)                    :: n_mo, nelectron_spin
+    INTEGER, DIMENSION(2)                    :: n_mo, nelectron_spin, nmoloc
     LOGICAL                                  :: all_potential_present, ionode,&
                                                 transition_potential
     REAL(dp)                                 :: maxocc
@@ -272,6 +276,8 @@ CONTAINS
     TYPE(distribution_1d_type), POINTER      :: local_molecules, &
                                                 local_particles
     TYPE(gapw_control_type), POINTER         :: gapw_control
+    TYPE(localized_wfn_control_type), &
+      POINTER                                :: localized_wfn_control
     TYPE(mo_set_p_type), DIMENSION(:), &
       POINTER                                :: mos
     TYPE(molecule_kind_type), DIMENSION(:), &
@@ -308,6 +314,7 @@ CONTAINS
     NULLIFY (local_molecules)
     NULLIFY (local_particles)
     NULLIFY (scf_control)
+    NULLIFY (localized_wfn_control)
     particle_set => subsystem%particles%els
     atomic_kind_set => subsystem%atomic_kinds%els
     molecule_set => subsystem%molecules_new%els
@@ -639,6 +646,27 @@ CONTAINS
     END DO
 
     CALL set_qs_env(qs_env,mos=mos,error=error)
+
+!   *** Some preparetion for the localization of the MOS if required
+    IF (dft_control%qs_control%localized_wfn) THEN
+      NULLIFY (localized_wfn_control)
+      localized_wfn_control =>  dft_control%qs_control%localized_wfn_control
+      nmoloc = 0
+      IF(localized_wfn_control%set_of_states == state_loc_all) THEN
+        DO ispin = 1,dft_control%nspins
+          nmoloc(ispin) = NINT(nelectron_spin(ispin)/maxocc)
+        END DO
+      ELSEIF(localized_wfn_control%set_of_states == state_loc_none) THEN
+      ELSE
+        DO ispin = 1,dft_control%nspins
+          nmoloc(ispin) = MIN(localized_wfn_control%nloc_states(1) ,n_mo(ispin))
+        END DO
+      END IF
+      NULLIFY (localized_wfn_control)
+      CALL set_loc_wfn_lists(dft_control%qs_control%localized_wfn_control,&
+           nmoloc,n_mo,dft_control%nspins,error=error)
+    END IF 
+
 
 !   *** Sets up pw_env, qs_charges, mpools... ***
 

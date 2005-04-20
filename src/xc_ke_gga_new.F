@@ -265,13 +265,9 @@ CONTAINS
        CASE (ke_t92)
           CALL efactor_t92 ( s, fs, m )
        CASE (ke_pbe)
-!          tact = t13
           CALL efactor_pbex (s, fs, m, 1)
- !         tact = 1.0_dp
        CASE (ke_revpbe)
-!          tact = t13
           CALL efactor_pbex (s, fs, m, 2)
- !         tact = 1.0_dp
        CASE DEFAULT
           CPAssert(.FALSE.,cp_failure_level,routineP,error,failure)
        END SELECT
@@ -427,6 +423,14 @@ CONTAINS
           CASE (ke_pw86)
              tact = (1.0_dp/2.0_dp)**(1.0_dp/3.0_dp)
              CALL efactor_pw86 ( s, fs, m, f2_lsd=tact )
+             tact = 1.0_dp
+          CASE (ke_pbe)
+             tact = (1.0_dp/2.0_dp)**(1.0_dp/3.0_dp)
+             CALL efactor_pbex ( s, fs, m, 1, f2_lsd=tact )
+             tact = 1.0_dp
+          CASE (ke_revpbe)
+             tact = (1.0_dp/2.0_dp)**(1.0_dp/3.0_dp)
+             CALL efactor_pbex ( s, fs, m, 2, f2_lsd=tact )
              tact = 1.0_dp
           CASE (ke_pw91)
              tact = (1.0_dp/2.0_dp)**(1.0_dp/3.0_dp)
@@ -746,10 +750,6 @@ CONTAINS
 
     INTEGER                                  :: ip
     REAL(KIND=dp) :: as, asp, asp2, asp3, bs, p, q, sas, sbs, sbs3, sbs5, x, ys
-!, &
-!      t1, &
-!      t11, t12, t13, t16, t19, t22, t24, t25, t3, t33, t34, t36, t39, t4, &
-!      t43, t44, t60, t62, w1, x, ys
     REAL(KIND=dp) t1, t2, t3, t4, t5, t7, t8, t9, t10, t11, t12, t133, t16, t17, &
                   t19, t20, t22, t23, t26, t28, t29, t30, t33, t36, t39, t40, t42,&
                    t43, t45, t46, t47, t49, t50, t54, t55, t71
@@ -768,8 +768,6 @@ CONTAINS
       CASE (0)
          fs(ip,1) = 1.0_dp + p*x*x*ys
       CASE (1)
-!         asp = as + bs / sbs
-!         asp = as + bs /(bs + sbs) *b*(1.0_dp+bs/sbs)
          fs(ip,1) = 1.0_dp + p*x*x*ys
          t2 = q*x
          t4 = b**2
@@ -781,11 +779,7 @@ CONTAINS
          t17 = t12**2
          fs(ip,2) = 2.0_dp*p*x/t12-p*t5/t17*(q*t10+t2*(b+1.0_dp/t8*t4*x)/t9)
 
-!         fs(ip,2) = 2.0_dp*p*x*ys - p*q*x*x*asp*ys*ys
       CASE (2)
-!         asp = as + bs / sbs
-!         sbs3 = sbs*sbs*sbs
-!         asp2 = 2.0_dp*b / sbs - b*bs*bs/ sbs3
          fs(ip,1) = 1.0_dp + p*x*x*ys
          ! first der
          t2 = q*x
@@ -822,20 +816,8 @@ CONTAINS
                t11*t33-t30*t17*(2.0_dp*q*t22*t23+t1*& 
               (-1.0_dp/t40/t7*t43*t4+t20)*t23-t1*t49/t50)
 
-!         fs(ip,2) = 2.0_dp*p*x*ys - p*q*x*x*asp*ys*ys
-!         fs(ip,3) = 2.0_dp*p*ys - p*q*x*(4.0_dp*asp+x*asp2)*ys*ys + &
-!                    2.0_dp*p*q*q*x*x*asp*asp*ys*ys*ys
       CASE (3)
-!         asp = as + bs / sbs
-!         sbs3 = sbs*sbs*sbs
-!         sbs5 = sbs3*sbs*sbs
-!         asp2 = 2.0_dp*b / sbs - b*bs*bs/ sbs3
-!         asp3 = -4.0_dp*b*b*bs / sbs3 + 3.0_dp*b*b*bs*bs*bs/ sbs5
-         fs(ip,1) = 1.0_dp + p*x*x*ys
-!         fs(ip,2) = 2.0_dp*p*x*ys - p*q*x*x*asp*ys*ys
-!         w1 = (4.0_dp*asp+x*asp2)
-!         fs(ip,3) = 2.0_dp*p*ys - p*q*x*w1*ys*ys + &
-!                    2.0_dp*p*q*q*x*x*asp*asp*ys*ys*ys
+
          fs(ip,1) = 1.0_dp + p*x*x*ys
          ! first der
          t2 = q*x
@@ -872,11 +854,6 @@ CONTAINS
                t11*t33-t30*t17*(2.0_dp*q*t22*t23+t1*& 
               (-1.0_dp/t40/t7*t43*t4+t20)*t23-t1*t49/t50)
 
-
-!         t1 = q*x; t3 = b**2; t4 = x**2; t11 = 1+t1*as; t12 = t11**2; t13 = 1/t12
-!         t16 = 1/sbs; t19 = q*as+t1*b*t16; t22 = p*x; t24 = 1/t12/t11; t25 = t19**2
-!         t33 = t3*b; t34 = sbs**2; t36 = 1/t34/sbs; t39 = 2*q*b*t16-q*t4*t33*t36
-!         t43 = p*t4; t44 = t12**2; t60 = t3**2; t62 = t34**2
 
          t1 = q*x 
          t3 = b**2
@@ -913,10 +890,6 @@ CONTAINS
               (1.0_dp/t71/t7*t39*t3*t4*x-t40*x)*t20-&
               3.0_dp*t1*t42*t47*t19+2.0_dp*t1*t45*t19/t46/t8)
 
-
-!         fs(ip,4) = &
-!            -6*p*t133*t19+12*t22*t24*t25-6*t22*t133*t39-6*t43/t44*t25*t19+ &
-!            6*t43*t24*t19*t39-t43*t133*(-4*q*t33*t36*x+3*q*t4*x*t60*b/t62/sbs)
 
       CASE DEFAULT
          CALL stop_program("efactor_llp","Illegal order")
@@ -1054,11 +1027,7 @@ CONTAINS
            b**2*x)**3/(b*x+SQRT(1+b**2*x**2))**3)-6*a1/(1+a2*x)**3*a2**2+6*a1*x/(1+a2*x)**4*a2**3
 
          fs(ip,4) = t0
-!d       fs(ip,4) = -2.0_dp*p*q*asp*ys*ys+p*q*x*(5.0_dp*asp2-x*asp3)*ys*ys - &
-!d                  p*q*w1*ys*ys + 2.0_dp*p*q*q*x*asp*w1*ys*ys*ys - &
-!d                  6.0_dp*p*q*q*q*x*x*asp*asp*asp*ys*ys*ys*ys + &
-!d                  4.0_dp*p*q*q*ys*ys*ys*(x*asp*asp+x*x*asp*asp2) - &
-!d                  6.0_dp * a1*a2*a2/(1+a2*x)**4
+
       CASE DEFAULT
          CALL stop_program("efactor_t92","Illegal order")
       END SELECT
@@ -1066,22 +1035,24 @@ CONTAINS
 
   END SUBROUTINE efactor_t92
 ! *****************************************************************************
-  SUBROUTINE efactor_pbex ( s, fs, m, pset )
+  SUBROUTINE efactor_pbex ( s, fs, m, pset,f2_lsd )
     REAL(KIND=dp), DIMENSION(:), INTENT(IN)      :: s
     REAL(KIND=dp), DIMENSION(:, :), INTENT(OUT)  :: fs
     INTEGER, INTENT(IN)                      :: m, pset
+    REAL(dp), OPTIONAL                       :: f2_lsd
 
     REAL(KIND=dp), PARAMETER                     :: kappa1 = 0.804_dp, &
                                                 kappa2 = 1.245_dp, &
                                                 mu = 0.2195149727645171_dp
 
     INTEGER                                  :: ip
-    REAL(KIND=dp)                                :: f0, mk, x, x2, y
+    REAL(KIND=dp)                            :: f0, mk, x, x2, y
 
     IF( pset==1 ) mk=mu/kappa1
     IF( pset==2 ) mk=mu/kappa2
 
     f0 = 1.0_dp/tact
+    IF(PRESENT(f2_lsd)) f0 = f2_lsd
 !$omp parallel do private(ip,x,x2,y)
     DO ip=1,SIZE(s)
       x = s(ip)*f0

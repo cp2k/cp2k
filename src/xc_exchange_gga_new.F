@@ -295,10 +295,7 @@ CONTAINS
        npoints=(bo(2,1)-bo(1,1)+1)*(bo(2,2)-bo(1,2)+1)*(bo(2,3)-bo(1,3)+1)
        m = ABS(order)
        CALL xgga_init(rho_cutoff)
-!dbg
-write(*,*) 'X order ', order
- write(*,*) 'X cutoff ', rho_cutoff
-!dbg
+
        ALLOCATE ( s(npoints), STAT=stat )
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
        ALLOCATE ( fs(npoints,m+1), STAT=stat )
