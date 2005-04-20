@@ -1,0 +1,63 @@
+&CP2K  
+  PROGRAM   FIST
+  PROJECT   IPBV
+  IOLEVEL   1
+  FFTLIB    FFTW
+  RUN_TYPE  MD
+&END
+
+&MD
+  ensemble:     npt_i                  ensemble type (nve,nvt,npt_i,npt_f)
+  steps:        3                      total number of steps
+  timestep:     0.5 fs                 time step [fs]
+  temperature:  298                    temperature [K]
+  restart:      init                   start type (init,pos,posvel)
+  nose_parameter:   &
+    length:    3        &
+    Yoshida:   3        &
+    timecon:   1000 fs  &
+    mts:       2
+  barostat_parameter:   &
+    pressure: 0.        &
+    timecon: 1000 fs
+  print  files        100
+  print  screen       10
+&END
+
+&TOPOLOGY
+ coord_file     ipbv.pdb
+ coordinate     pdb
+ connectivity   PSF
+ CONN_FILE      ipbv_flex.psf
+&END
+ 
+&EWALD
+ units angstrom
+ ewald_type spme
+ ewald_param .44 25 4
+&END
+
+&FORCE_FIELD
+ charges
+   O -0.7699784
+   H  0.3849892
+ end
+ bonds
+  QUARTIC  O H 0.4015204   0.0       0.0       1.812
+  QUARTIC  H H 0.02384043 -0.0506033 0.0287044 3.0699
+ end 
+ nonbonded
+  IPBV O O 7.8
+  IPBV H O 7.8
+  IPBV H H 7.8
+ end
+&END
+
+&CELL
+ UNIT         ANGSTROM
+ ABC          24.955 24.955 24.955
+&END
+
+&PRINT
+ no_atomic_coordinates
+&END
