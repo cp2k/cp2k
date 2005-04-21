@@ -87,6 +87,7 @@ MODULE print_key_types
                kinetic_energy_matrix,&
                kohn_sham_matrix,&
                memory,&
+               mo_cartesian,&
                mo_eigenvalues,&
                mo_eigenvectors,&
                mo_occupation_numbers
@@ -233,6 +234,7 @@ CONTAINS
     print_keys%kinetic_energy_matrix = key_value(level,(/f,f,t/))
     print_keys%kohn_sham_matrix = key_value(level,(/f,f,t/))
     print_keys%memory = key_value(level,(/f,f,t/))
+    print_keys%mo_cartesian = key_value(level,(/f,f,f/))
     print_keys%mo_eigenvalues = key_value(level,(/f,f,t/))
     print_keys%mo_eigenvectors = key_value(level,(/f,f,t/))
     print_keys%mo_occupation_numbers = key_value(level,(/f,f,t/))

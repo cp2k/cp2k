@@ -525,6 +525,11 @@ SUBROUTINE cp2k_read(globenv)
             globenv%print%kohn_sham_matrix = print_request
           CASE ("MEMORY")
             globenv%print%memory = print_request
+          CASE ("MOS_CARTESIAN","CARTESIAN_MOS")
+            globenv%print%mo_cartesian = print_request
+            globenv%print%mo_eigenvalues = print_request
+            globenv%print%mo_eigenvectors = print_request
+            globenv%print%mo_occupation_numbers = print_request
           CASE ("MO_EIGENVALUES")
             globenv%print%mo_eigenvalues = print_request
           CASE ("MO_EIGENVECTORS","MOS")
