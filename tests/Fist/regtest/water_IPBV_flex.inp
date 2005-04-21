@@ -21,7 +21,7 @@
     pressure: 0.        &
     timecon: 1000 fs
   print  files        100
-  print  screen       10
+  print  screen       1 
 &END
 
 &TOPOLOGY
