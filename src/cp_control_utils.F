@@ -47,8 +47,8 @@ MODULE cp_control_utils
                                              tddfpt_excitations,&
                                              tddfpt_lanczos,&
                                              tddfpt_singlet,&
-                                             tddfpt_triplet,&
-                                             xas_none,&
+                                             tddfpt_triplet
+  USE input_constants,                 ONLY: xas_none,&
                                              xas_tp_hh,&
                                              xas_tp_fh,&
                                              xas_tddft,&
