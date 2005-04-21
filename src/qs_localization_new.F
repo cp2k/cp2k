@@ -281,7 +281,10 @@ CONTAINS
     IF(.NOT. failure) THEN
        IF(ASSOCIATED(qs_loc_env%cell)) CALL cell_release(qs_loc_env%cell,error=error)
        IF(ASSOCIATED(qs_loc_env%local_molecules)) CALL distribution_1d_release(qs_loc_env%local_molecules,error=error)
-       IF(ASSOCIATED(qs_loc_env%localized_wfn_control)) CALL localized_wfn_control_release(qs_loc_env%localized_wfn_control,error=error)
+       IF (ASSOCIATED(qs_loc_env%localized_wfn_control)) THEN
+         CALL localized_wfn_control_release(qs_loc_env%localized_wfn_control,&
+                                            error=error)
+       END IF
        IF(ASSOCIATED(qs_loc_env%para_env)) CALL cp_para_env_release(qs_loc_env%para_env)
        IF(ASSOCIATED(qs_loc_env%particle_set))  NULLIFY(qs_loc_env%particle_set)
 
