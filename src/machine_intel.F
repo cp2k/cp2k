@@ -76,10 +76,16 @@ END FUNCTION m_cputime
 !!  wall clock time in seconds
 FUNCTION m_walltime() RESULT (wt)
     REAL(KIND=dp)                                :: wt
-    INTEGER :: count,count_rate ! use integer*8 with ifort for better res
+#if defined(__IFC)
+    ! this is standard fortran, however results in wraparound of the clock frequently
+    ! leading to negative timings from time to time
+    INTEGER :: count,count_rate 
+#else
+    ! non-standard, but available with ifort, will not wraparound easily
+    INTEGER*8 :: count,count_rate 
+#endif
     CALL system_clock(count=count,count_rate=count_rate) 
     wt=REAL(count,KIND=dp)/REAL(count_rate,KIND=dp)
-
 END FUNCTION m_walltime
 !******************************************************************************
 !!  time and date
