@@ -285,7 +285,7 @@ SUBROUTINE nhc_particle_setup ( simpar, local_molecules, molecule_set, &
   SELECT CASE ( TRIM ( simpar % ensemble ) )
     CASE DEFAULT
       CALL stop_program ( 'nhc_particle_setup', 'unknown ensemble '//TRIM(simpar % ensemble) )
-    CASE ( 'NVE', 'ISOKIN', 'NPH_UNIAXIAL', 'NPH_UNIAXIAL_DAMPED' )
+    CASE ( 'NVE', 'ISOKIN', 'NPH_UNIAXIAL', 'NPH_UNIAXIAL_DAMPED', 'REFTRAJ' )
      ALLOCATE ( nhc % nvt ( 0, 0 ), STAT = isos )
      IF ( isos /= 0 ) CALL stop_memory ( 'nhc_particle_setup', 'nhc%nvt', 0 )
      nhc % nyosh = 0

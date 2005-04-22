@@ -38,7 +38,8 @@ MODULE input_constants
                                 nph_ensemble=105,&
                                 nph_uniaxial=106,&
                                 nph_uniaxial_damped_ensamble=107,&
-                                isokin_ensemble=108
+                                isokin_ensemble=108, &
+                                reftraj=109
   INTEGER, PARAMETER, PUBLIC :: nhc_global=101,nhc_massive=102
   INTEGER, PARAMETER, PUBLIC :: md_init_start=101,md_pos_restart=102,&
        md_pos_vel_restart=103

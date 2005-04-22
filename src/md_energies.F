@@ -291,10 +291,11 @@ CONTAINS
     t = t_old
     constant = cons
     CALL set_md_env(md_env=md_env,constant=constant)
-    IF ( simpar % ensemble ( 1 : 3 ) == 'NPH' ) &
-    hugoniot = epot + ekin - simpar % e0 -  &
-              .5_dp * ( pv_xx/unit%bar + simpar % p0 ) * &
-              ( simpar % v0 - cell % deth )
+    IF ( simpar % ensemble ( 1 : 3 ) == 'NPH' ) THEN
+        hugoniot = epot + ekin - simpar % e0 -  &
+                  .5_dp * ( pv_xx/unit%bar + simpar % p0 ) * &
+                  ( simpar % v0 - cell % deth )
+    ENDIF
     IF (ionode) THEN
         WRITE ( iw, '( )' )
         WRITE ( iw, '( A,A )' ) ' ******************************** ', &

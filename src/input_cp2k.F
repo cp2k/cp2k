@@ -4649,10 +4649,10 @@ SUBROUTINE create_tddfpt_section(section,error)
             usage="ensemble nve",&
             default_i_val=nve_ensemble,&
             enum_c_vals=s2a("nve  ","nvt  ","npt_i","npt_f","nph","nph_uniaxial",&
-            "nph_uniaxial_damped","isokin"),&
+            "nph_uniaxial_damped","isokin","reftraj"),&
             enum_i_vals=(/nve_ensemble,nvt_ensemble,npt_i_ensemble,&
             npt_f_ensemble,nph_ensemble,nph_uniaxial,&
-            nph_uniaxial_damped_ensamble,isokin_ensemble/),error=error)
+            nph_uniaxial_damped_ensamble,isokin_ensemble,reftraj/),error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 

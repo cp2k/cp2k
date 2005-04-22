@@ -151,6 +151,8 @@ SUBROUTINE compute_conserved_quantity (md_env, epot, cons, cons_rel, ekin,&
     CALL stop_program( RoutineN, 'Unknown Ensemble')
   CASE ( 'ISOKIN' )
     cons = md_ener % ekin
+  CASE ( 'REFTRAJ' ) ! no constant of motion available
+    cons = md_ener % epot
   CASE ( 'NVE')
     CALL get_econs_nve (md_env, md_ener, cons, int_grp)
   CASE ( 'NVT')

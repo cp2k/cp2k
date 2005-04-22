@@ -34,9 +34,11 @@ MODULE integrator
                                              shake_roll_control, &
                                              rattle_roll_control, &
                                              pv_constraint
+  USE convert_units,                   ONLY: convert_to_cp2k_units
   USE cp_subsystem_types,              ONLY: cp_subsys_get,&
                                              cp_subsystem_p_type
   USE cp_para_types,                   ONLY: cp_para_env_type
+  USE cp_files,                        ONLY: open_file
   USE distribution_1d_types,           ONLY: distribution_1d_type
   USE dynamical_coeff_types,           ONLY: dyn_coeff_p_type,&
                                              dyn_coeff_set_p_type,&
@@ -58,7 +60,8 @@ MODULE integrator
                                              dp_size
   USE md,                              ONLY: simulation_parameters_type
   USE md_environment_types,            ONLY: get_md_env,&
-                                             md_environment_type
+                                             md_environment_type, &
+                                             reftraj_type
   USE message_passing,                 ONLY: mp_sum
   USE mol_kind_new_list_types,         ONLY: mol_kind_new_list_type
   USE mol_new_list_types,              ONLY: mol_new_list_type
@@ -92,7 +95,7 @@ MODULE integrator
   TYPE ( old_variables_type ) :: old
 
   PUBLIC :: nve, nvt, isokin, npt_i, npt_f, nph_uniaxial
-  PUBLIC :: nph_uniaxial_damped
+  PUBLIC :: nph_uniaxial_damped, reftraj
 
   INTERFACE set
      MODULE PROCEDURE set_particle_set, set_vel
@@ -1075,6 +1078,93 @@ CONTAINS
 
   END SUBROUTINE npt_i
 !!*****
+
+!!****f* integrator/reftraj *
+!!
+!!   NAME
+!!    reftraj
+!!
+!!   FUNCTION
+!!    uses coordinates in a file and generates frame after frame of these
+!!
+!!   NOTES
+!!    this seems like it is a bit of a hack
+!!
+!!   INPUTS
+!!    -
+!!    -
+!!
+!!   MODIFICATION HISTORY
+!!     04.2005 created [Joost VandeVondele]
+!!
+!!*** **********************************************************************
+ SUBROUTINE reftraj ( md_env )
+    TYPE(md_environment_type), POINTER       :: md_env
+
+    REAL(KIND=dp), ALLOCATABLE, &
+      DIMENSION(:, :)                        :: pos
+    TYPE(cp_subsystem_p_type), &
+      DIMENSION(:), POINTER                  :: subsys
+    TYPE(particle_list_type), POINTER        :: particles
+    TYPE(particle_type), DIMENSION(:), &
+      POINTER                                :: particle_set
+   TYPE(force_env_p_type), DIMENSION(:), &
+      POINTER                                :: force_env_p
+    TYPE(cp_para_env_type), POINTER          :: para_env
+    INTEGER                                  :: I,Nread,istat,nparticle
+    CHARACTER(LEN=10)                        :: AA
+    CHARACTER(LEN=80)                        :: title
+    TYPE(reftraj_type), POINTER              :: reftraj_info
+
+    CALL get_md_env(md_env=md_env, reftraj_info=reftraj_info, &
+                    force_env_p=force_env_p,para_env = para_env)
+    IF (SIZE(force_env_p)/=1) THEN
+       CALL stop_program("reftraj","integrator",__LINE__,&
+       "MD_ENV with more than (or less) than one force_env not supported atm!")
+    END IF
+    CALL force_env_get(force_env=force_env_p(1)%force_env,subsys=subsys)
+    IF (SIZE(subsys)/=1) THEN
+       CALL stop_program("reftraj","integrator",__LINE__,&
+       "MD_ENV with more than (or less) than one subsys not supported atm!")
+    END IF
+    CALL cp_subsys_get(subsys=subsys(1)%subsys, particles=particles)
+    nparticle = particles%n_els
+    particle_set => particles%els
+    ALLOCATE (pos(3,nparticle),STAT=istat)
+    IF (istat /= 0) CALL stop_memory("reftraj",module_name,__LINE__,&
+                                              "pos",3*nparticle*dp_size)
+
+    ! read from file
+    IF (para_env%mepos==para_env%source) THEN
+       ! open only the first time, retain the file open for reading the next frame in the file
+       IF (reftraj_info%unit<0) THEN
+          CALL open_file("reftraj.xyz",unit_number=reftraj_info%unit)
+       ENDIF
+       read(reftraj_info%unit,*,ERR=999,END=998) Nread
+       read(reftraj_info%unit,'(A)',ERR=999,END=998) title
+       DO I=1,Nread
+          read(reftraj_info%unit,*,ERR=999,END=998) AA,pos(:,I)
+          CALL convert_to_cp2k_units("ANGSTROM",length=pos(1,I))
+          CALL convert_to_cp2k_units("ANGSTROM",length=pos(2,I))
+          CALL convert_to_cp2k_units("ANGSTROM",length=pos(3,I))
+       ENDDO
+    ELSE
+       pos=0.0_dp
+    ENDIF
+    CALL update_particle_set ( particle_set, para_env % group, pos = pos )
+    DEALLOCATE(pos)
+    CALL force_env_calc_energy_force(force_env_p(1)%force_env)
+
+    RETURN
+998 CONTINUE ! end of file
+    CALL stop_program("reftraj","integrator",__LINE__,&
+       "End of reference trajectory file reached")
+999 CONTINUE ! error
+    CALL stop_program("reftraj","integrator",__LINE__,&
+       "Error reading reference trajectory file")
+
+ END SUBROUTINE reftraj
+
 !******************************************************************************
 !!****** integrator/nph_uniaxial [1.0] *
 !!

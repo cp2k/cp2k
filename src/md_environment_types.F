@@ -69,10 +69,15 @@ MODULE md_environment_types
      TYPE ( npt_info_type ), POINTER :: npt ( :, : )
      TYPE ( simulation_parameters_type ), POINTER :: simpar
      TYPE ( mdio_parameters_type ), POINTER :: mdio
+     TYPE ( reftraj_type ), POINTER :: reftraj_info
   END TYPE md_environment_type
 
+  TYPE reftraj_type
+     INTEGER :: unit=-1
+  END TYPE
+
 ! *** Public subroutines and data types ***
-  PUBLIC :: md_environment_type, set_md_env,   &
+  PUBLIC :: md_environment_type, reftraj_type, set_md_env,   &
             get_md_env, md_env_create,  &
             md_env_release, md_env_retain
 
@@ -90,7 +95,7 @@ CONTAINS
 
   SUBROUTINE get_md_env ( md_env, itimes, constant, used_time, cell,  &
                           simpar, mdio, nhc_part, nhc_coef, nhc_baro, npt, &
-                          force_env_p, para_env )
+                          force_env_p, para_env, reftraj_info )
 
 !   Purpose: Get the integrator environment
 
@@ -111,6 +116,7 @@ CONTAINS
     TYPE(force_env_p_type), OPTIONAL, POINTER  :: force_env_p ( : )
     TYPE(cp_para_env_type), OPTIONAL, &
       POINTER                                :: para_env
+    TYPE(reftraj_type), OPTIONAL, POINTER    :: reftraj_info
 
     CHARACTER(LEN=*), PARAMETER :: routine_name = "get_md_env", &
       routineP = moduleN//':'//routine_name
@@ -129,6 +135,7 @@ CONTAINS
     IF ( PRESENT ( npt ) ) npt => md_env % npt
     IF ( PRESENT ( force_env_p ) ) force_env_p => md_env % force_env_p
     IF ( PRESENT ( para_env ) ) para_env => md_env % para_env
+    IF ( PRESENT ( reftraj_info ) ) reftraj_info => md_env % reftraj_info
 
   END SUBROUTINE get_md_env
 
@@ -181,6 +188,7 @@ CONTAINS
     md_env % itimes    = 0
     md_env % constant  = 0
     md_env % used_time = 0
+    ALLOCATE ( md_env % reftraj_info )
 
   END SUBROUTINE md_env_create
 !***************************************************************************
@@ -274,6 +282,8 @@ SUBROUTINE md_env_release(md_env, error)
         DEALLOCATE( md_env % constant , stat=istat )
         CPPostconditionNoFail(istat==0,cp_warning_level,routineP,error)
         DEALLOCATE( md_env % used_time , stat=istat )
+        CPPostconditionNoFail(istat==0,cp_warning_level,routineP,error)
+        DEALLOCATE( md_env % reftraj_info , stat=istat )
         CPPostconditionNoFail(istat==0,cp_warning_level,routineP,error)
         NULLIFY ( md_env % cell )
         NULLIFY ( md_env % simpar )

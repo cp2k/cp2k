@@ -33,7 +33,8 @@ MODULE velocity_verlet_control
                                              npt_f, &
                                              nph_uniaxial, &
                                              nph_uniaxial_damped, &
-                                             isokin
+                                             isokin,&
+                                             reftraj
   USE mathconstants,                   ONLY: zero
   USE md,                              ONLY: simulation_parameters_type
   USE md_environment_types,            ONLY: get_md_env,&
@@ -106,6 +107,8 @@ SUBROUTINE velocity_verlet ( md_env )
         CALL nph_uniaxial ( md_env )
      CASE ( 'NPH_UNIAXIAL_DAMPED')
         CALL nph_uniaxial_damped ( md_env )
+     CASE ( 'REFTRAJ')
+        CALL reftraj ( md_env )
      END SELECT
  CASE default
     SELECT CASE (TRIM(simpar%ensemble))
@@ -115,6 +118,8 @@ SUBROUTINE velocity_verlet ( md_env )
       CALL nvt(md_env)
      CASE ( 'ISOKIN')
         CALL isokin ( md_env )
+     CASE ( 'REFTRAJ')
+        CALL reftraj ( md_env )
     CASE DEFAULT
       CALL stop_program("velocity_verlet",&
                         "integrator not implemented for a generic force_env")
