@@ -1024,7 +1024,7 @@ SUBROUTINE create_qs_section(section,error)
   character(len=*), parameter :: routineN='create_qs_section',&
         routineP=moduleN//':'//routineN
   TYPE(keyword_type), pointer :: keyword
-  TYPE(section_type), pointer :: print_key
+  TYPE(section_type), pointer :: subsection, print_key
 
   failure=.false.
 
@@ -1035,7 +1035,7 @@ SUBROUTINE create_qs_section(section,error)
           n_keywords=34, n_subsections=2, repeats=.FALSE., required=.FALSE.,&
           error=error)
 
-     NULLIFY(keyword)
+     NULLIFY(keyword, subsection)
     
     CALL keyword_create(keyword, name="RESTART_FILE_NAME",&
          description="The path to the pseudo potential file",&
@@ -1163,6 +1163,86 @@ SUBROUTINE create_qs_section(section,error)
           default_l_val=.FALSE.,lone_keyword_l_val=.TRUE.,error=error)
      CALL section_add_keyword(section,keyword,error=error)
      CALL keyword_release(keyword,error=error)     
+
+     CALL keyword_create(keyword, name="LOCALIZE_WFN",&
+          description="Check and possibly optimize the localization of the wavefunctions",&
+          usage="LOCALIZE_WFN",&
+          default_l_val=.FALSE.,lone_keyword_l_val=.TRUE.,error=error)
+     CALL section_add_keyword(section,keyword,error=error)
+     CALL keyword_release(keyword,error=error) 
+
+     CALL section_create(subsection,name="LOCALIZE",&
+          description="Use one of the available methods to define the localization "//&
+          " and possibly to optimize it to a minimum or a maximum.",&
+          n_keywords=8, n_subsections=0, repeats=.TRUE., required=.TRUE.,&
+          error=error)
+
+     CALL keyword_create(keyword,name="MIN_OR_MAX",&
+          description="Requires the maximization of the spread of the wfn",&
+          usage="MIN_OR_MAX (MINIMIZE|MAXIMIZE)",&
+          enum_c_vals=(/"SPREADMIN","SPREADMAX"/),&
+          enum_i_vals=(/do_loc_min, do_loc_max/),&
+          default_i_val=do_loc_min,error=error)
+     CALL section_add_keyword(subsection,keyword,error=error)
+     CALL keyword_release(keyword,error=error)
+
+
+     CALL keyword_create(keyword,name="METHOD",&
+          description="Method of optimization if any",&
+          usage="METHOD (JACOBI|CRAZY|DIRECT|NONE)",&
+          enum_c_vals=s2a("NONE","JACOBI","CRAZY","DIRECT"),&
+          enum_i_vals=(/do_loc_jacobi, do_loc_crazy, do_loc_direct, do_loc_none/),&
+          default_i_val=do_loc_jacobi,error=error)
+     CALL section_add_keyword(subsection,keyword,error=error)
+     CALL keyword_release(keyword,error=error)
+
+     CALL keyword_create(keyword,name="OPERATOR",&
+          description="Type of opertator which defines the spread functional",&
+          usage="OPERATOR (BERRY|BOYS|PIPEK)",&
+          enum_c_vals=s2a("BERRY","BOYS","PIPEK"),&
+          enum_i_vals=(/op_loc_berry, op_loc_boys, op_loc_pipek/),&
+          default_i_val=op_loc_berry,error=error)
+     CALL section_add_keyword(subsection,keyword,error=error)
+     CALL keyword_release(keyword,error=error)
+
+     CALL keyword_create(keyword,name="SET_OF_STATES",&
+          description="Selected states to be localized",&
+          usage="SET_OF_STATES (ALL|UPTON|FROMITOJ|LIST|NONE)",&
+          enum_c_vals=s2a("ALL","UPTON","FROMITOJ","LIST","NONE"),&
+          enum_i_vals=(/state_loc_all, state_loc_upton, state_loc_fromitoj,& 
+          state_loc_list,state_loc_none/),&
+          default_i_val=state_loc_all,error=error)
+     CALL section_add_keyword(subsection,keyword,error=error)
+     CALL keyword_release(keyword,error=error)
+
+
+     CALL keyword_create(keyword,name="LU_BOUNDS",&
+          description="The lower and upper index of the set of wfn to be localized",&
+          usage="LU_BOUNDS integer integer",&
+          n_var=2,type_of_var=integer_t,error=error)
+     CALL section_add_keyword(subsection,keyword,error=error)
+     CALL keyword_release(keyword,error=error)
+
+     CALL keyword_create(keyword,name="LIST",&
+          description="Indexes of the wfn to be localized"//&
+          "This keyword can be repeated several times"//&
+          "(useful if you have to specify many indexes).",&
+          usage="LIST 1 2",&
+          n_var=-1,type_of_var=integer_t,repeats=.TRUE.,error=error)
+     CALL section_add_keyword(subsection,keyword,error=error)
+     CALL keyword_release(keyword,error=error)
+
+     CALL keyword_create(keyword,name="EACH_STEP",&
+          description="Evry how many steps the localization calculation"//&
+          " is performed  along an iterative procedure (e.g. MD)",&
+          usage="EACH_STEP integer",&
+          default_i_val=1,error=error)
+     CALL section_add_keyword(subsection,keyword,error=error)
+     CALL keyword_release(keyword,error=error)
+
+     CALL section_add_subsection(section,subsection,error=error)
+     CALL section_release(subsection,error=error)
+
 
      ! Integers
      CALL keyword_create(keyword, name="LMAXN1",&

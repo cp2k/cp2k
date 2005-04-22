@@ -33,9 +33,16 @@
 !******************************************************************************
 
 MODULE qs_localization_new
+
 ! *****************************************************************************
+
+  USE ai_moments,                      ONLY: contract_cossin,&
+                                             cossin
   USE atomic_kind_types,               ONLY: atomic_kind_type, &
-                                             get_atomic_kind
+                                             get_atomic_kind,&
+                                             get_atomic_kind_set
+  USE basis_set_types,                 ONLY: get_gto_basis_set,&
+                                             gto_basis_set_type
   USE coefficient_types,               ONLY: coeff_type
   USE cp_control_types,                ONLY: localized_wfn_control_release,&
                                              localized_wfn_control_retain,&
@@ -106,22 +113,29 @@ MODULE qs_localization_new
                                              get_molecule_kind,&
                                              molecule_kind_type
   USE molecule_types_new,              ONLY: molecule_type
+  USE orbital_pointers,                ONLY: nco,&
+                                             ncoset
   USE particle_types,                  ONLY: particle_type
   USE physcon,                         ONLY: angstrom
-  USE pw_env_types,                    ONLY: pw_env_get,&
-                                             pw_env_type
-  USE pw_pool_types,                   ONLY: pw_pool_give_back_coeff,&
-                                             pw_pool_init_coeff,&
-                                             pw_pool_type
-  USE pw_types,                        ONLY: REALDATA3D,&
-                                             REALSPACE
   USE qs_environment_types,            ONLY: get_qs_env,&
                                              qs_environment_type
-  USE qs_integrate_potential,          ONLY: integrate_v_rspace
   USE qs_localization_methods,         ONLY: crazy_rotations,&
                                              direct_mini,&
                                              initialize_weights,&
                                              jacobi_rotations
+  USE qs_neighbor_list_types,          ONLY: find_neighbor_list,&
+                                             first_list,&
+                                             first_node,&
+                                             get_neighbor_list,&
+                                             get_neighbor_list_set,&
+                                             get_neighbor_node,&
+                                             qlist_type,&
+                                             block_p_type,&
+                                             neighbor_list_set_p_type,&
+                                             neighbor_list_type,&
+                                             neighbor_node_type,&
+                                             next, &
+                                             reduced_3c_list_type
   USE qs_matrix_pools,                 ONLY: mpools_get
   USE qs_mo_types,                     ONLY: get_mo_set,&
                                              mo_set_p_type
@@ -131,9 +145,11 @@ MODULE qs_localization_new
                                              cell_type,&
                                              pbc
   USE sparse_matrix_types,             ONLY: deallocate_matrix,&
+                                             get_block_node,&
                                              real_matrix_p_type,&
                                              replicate_matrix_structure,&
-                                             set_matrix
+                                             set_matrix,&
+                                             get_matrix_info
   USE termination,                     ONLY: stop_memory,&
                                              stop_program
   USE timings,                         ONLY: timeset,&
@@ -152,7 +168,6 @@ MODULE qs_localization_new
   PUBLIC :: qs_loc_env_create, qs_loc_env_destroy, qs_loc_env_init
   PUBLIC :: qs_loc_env_new_type
 !!  PUBLIC :: qs_loc_compute_properties
-!!  PUBLIC :: qs_loc_destroy
 
 !****t* qs_localization_new/qs_loc_env_new_type [1.0] *
 !!
@@ -251,6 +266,7 @@ CONTAINS
        NULLIFY(qs_loc_env%cell)
        NULLIFY(qs_loc_env%op_sm_set)
        NULLIFY(qs_loc_env%op_fm_set)
+       NULLIFY(qs_loc_env%local_molecules)
        NULLIFY(qs_loc_env%moloc_coeff)
        NULLIFY(qs_loc_env%particle_set)
        NULLIFY(qs_loc_env%localized_wfn_control)
@@ -261,7 +277,7 @@ CONTAINS
   END SUBROUTINE qs_loc_env_create
 
 !******************************************************************************
-!!****f* qs_localization_new/set_qs_loc_env [1.0] *
+!!****f* qs_localization_new/qs_loc_env_destroy [1.0] *
 
   SUBROUTINE qs_loc_env_destroy(qs_loc_env,error)
 
@@ -280,7 +296,8 @@ CONTAINS
 
     IF(.NOT. failure) THEN
        IF(ASSOCIATED(qs_loc_env%cell)) CALL cell_release(qs_loc_env%cell,error=error)
-       IF(ASSOCIATED(qs_loc_env%local_molecules)) CALL distribution_1d_release(qs_loc_env%local_molecules,error=error)
+       IF(ASSOCIATED(qs_loc_env%local_molecules)) &
+          CALL distribution_1d_release(qs_loc_env%local_molecules,error=error)
        IF (ASSOCIATED(qs_loc_env%localized_wfn_control)) THEN
          CALL localized_wfn_control_release(qs_loc_env%localized_wfn_control,&
                                             error=error)
@@ -320,6 +337,57 @@ CONTAINS
 
   END SUBROUTINE qs_loc_env_destroy
 !******************************************************************************
+!!****f* qs_localization_new/get_qs_loc_env [1.0] *
+
+  SUBROUTINE get_qs_loc_env(qs_loc_env,cell,local_molecules,&
+             localized_wfn_control,moloc_coeff,&
+             op_sm_set,op_fm_set,para_env,particle_set,weights,error)
+
+    TYPE(qs_loc_env_new_type), POINTER         :: qs_loc_env
+    TYPE(cell_type), OPTIONAL, POINTER         :: cell
+    TYPE(cp_fm_p_type), DIMENSION(:),&
+      POINTER, OPTIONAL                        :: moloc_coeff
+    TYPE(cp_fm_p_type), DIMENSION(:,:),&
+      POINTER, OPTIONAL                        :: op_fm_set
+   TYPE(distribution_1d_type), OPTIONAL, &
+      POINTER                                  :: local_molecules
+    TYPE(localized_wfn_control_type), &
+      POINTER, OPTIONAL                        :: localized_wfn_control
+    TYPE (real_matrix_p_type), DIMENSION(:,:),&
+      OPTIONAL, POINTER                        :: op_sm_set
+    TYPE(cp_para_env_type), OPTIONAL, &
+      POINTER                                  :: para_env
+    TYPE(particle_type), DIMENSION(:), &
+      OPTIONAL, POINTER                        :: particle_set
+    REAL(dp), DIMENSION(3), OPTIONAL           :: weights
+    TYPE(cp_error_type), INTENT(inout), &
+       OPTIONAL                                :: error
+
+    CHARACTER(len=*), PARAMETER :: routine_name = 'get_qs_loc_env', &
+      routineP = module_name//':'//routine_name
+
+    INTEGER                                    :: istat
+    LOGICAL                                    :: failure
+
+     failure =.FALSE.
+     CPPrecondition(ASSOCIATED(qs_loc_env),cp_failure_level,routineP,error,failure)
+ 
+     IF(.NOT.failure) THEN
+       IF (PRESENT(cell)) cell =>  qs_loc_env%cell
+       IF (PRESENT(moloc_coeff)) moloc_coeff => qs_loc_env%moloc_coeff
+       IF (PRESENT(local_molecules)) local_molecules => qs_loc_env%local_molecules
+       IF (PRESENT(localized_wfn_control)) &
+          localized_wfn_control => qs_loc_env%localized_wfn_control
+       IF (PRESENT(op_sm_set)) op_sm_set =>  qs_loc_env%op_sm_set
+       IF (PRESENT(op_fm_set)) op_fm_set =>  qs_loc_env%op_fm_set
+       IF (PRESENT(para_env)) para_env =>  qs_loc_env%para_env
+       IF (PRESENT(particle_set)) particle_set =>  qs_loc_env%particle_set
+       IF (PRESENT(weights)) weights(1:3)=  qs_loc_env%weights(1:3)
+     END IF
+ 
+  END SUBROUTINE get_qs_loc_env
+
+!******************************************************************************
 !!****f* qs_localization_new/set_qs_loc_env [1.0] *
 
   SUBROUTINE set_qs_loc_env(qs_loc_env,cell,local_molecules,&
@@ -347,7 +415,7 @@ CONTAINS
        OPTIONAL                                :: error
 
 
-    CHARACTER(len=*), PARAMETER :: routine_name = 'qs_loc_env_create', &
+    CHARACTER(len=*), PARAMETER :: routine_name = 'set_qs_loc_env', &
       routineP = module_name//':'//routine_name
 
     INTEGER                                    :: istat
@@ -362,9 +430,11 @@ CONTAINS
        CALL cell_release(qs_loc_env%cell,error=error)
        qs_loc_env%cell => cell
      END IF
+
      IF (PRESENT(local_molecules)) THEN
         CALL distribution_1d_retain(local_molecules,error=error)
-        CALL distribution_1d_release(qs_loc_env%local_molecules,error=error)
+        IF(ASSOCIATED(qs_loc_env%local_molecules)) &
+             CALL distribution_1d_release(qs_loc_env%local_molecules,error=error)
         qs_loc_env%local_molecules => local_molecules
      END IF
 
@@ -432,7 +502,8 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routine_name = 'qs_loc_env_init', &
       routineP = module_name//':'//routine_name
 
-    INTEGER  :: handle, i, iatom, imo, imoloc, isos, ispin, istat, j, lb, nao, naosub, natoms,  nmo, nmosub, nspins, ub
+    INTEGER  :: handle, i, iatom, imo, imoloc, isos, ispin, istat, j, &
+                lb, nao, naosub, natoms,  nmo, nmosub, nspins, ub
     LOGICAL  :: failure
     REAL(KIND=dp)                               :: my_occ, occ_imo
     REAL(KIND=dp), DIMENSION(:, :), POINTER     :: vecbuffer
@@ -480,6 +551,7 @@ CONTAINS
       CPPostcondition(nao==naosub,cp_failure_level,routineP,error,failure)
       CPPostcondition(nmo>=nmosub,cp_failure_level,routineP,error,failure)
       CALL cp_fm_set_all(moloc_coeff(ispin)%matrix,0.0_dp)
+
     END DO  ! ispin
 
     ! Copy the submatrix
@@ -489,21 +561,24 @@ CONTAINS
            occupation_numbers=occupations, nao=nao, nmo=nmo)
       lb = localized_wfn_control%lu_bound_states(1,ispin)
       ub = localized_wfn_control%lu_bound_states(2,ispin)
-     
+
       IF(localized_wfn_control%set_of_states == state_loc_list) THEN
         ALLOCATE(vecbuffer(1,nao),STAT=istat)
         CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+        nmosub = SIZE(localized_wfn_control%loc_states,1)
+        CPPostcondition(nmosub>0,cp_failure_level,routineP,error,failure)
         imoloc = 0
-        my_occ =  occupations(localized_wfn_control%loc_states(i))
+        my_occ =  occupations(localized_wfn_control%loc_states(1))
         DO i = lb,ub
            ! Get the index in the subset
            imoloc = imoloc + 1
            ! Get the index in the full set
            imo = localized_wfn_control%loc_states(i)
            occ_imo = occupations(imo)
-           IF(occ_imo /= my_occ) THEN
+           IF(ABS(occ_imo-my_occ) > EPSILON(1.0_dp)) THEN
              IF(localized_wfn_control%localization_method /= do_loc_none) &
-               CALL stop_program(routineP,"States with different occupations cannot be rotated together")
+               CALL stop_program(routineP,"States with different occupations"//&
+               " cannot be rotated together")
            END IF
            ! Take the imo vector from the full set and copy in the imoloc vector of the subset
            CALL cp_fm_get_submatrix(mo_coeff,vecbuffer,1,imo,&
@@ -516,21 +591,22 @@ CONTAINS
        ELSE
          my_occ = occupations( lb )
          occ_imo = occupations( ub )
-         IF(occ_imo /= my_occ) THEN
+         IF(ABS(occ_imo-my_occ) >  EPSILON(1.0_dp)) THEN
             IF(localized_wfn_control%localization_method /= do_loc_none) &
-             CALL stop_program(routineP,"States with different occupations cannot be rotated together")
+             CALL stop_program(routineP,"States with different occupations"//&
+             " cannot be rotated together")
          END IF
          nmosub = localized_wfn_control%nloc_states(ispin)
          CALL cp_fm_to_fm(mo_coeff,moloc_coeff(ispin)%matrix,nmosub,lb,1)
        END IF
     END DO
 
-    ! Prepare the operators
-
 
     CALL set_qs_loc_env(qs_loc_env=qs_loc_env, cell=cell, local_molecules=local_molecules,&
                         moloc_coeff=moloc_coeff, particle_set=particle_set,para_env=para_env,&
                         localized_wfn_control=localized_wfn_control)
+
+    ! Prepare the operators
 
     IF ( localized_wfn_control%operator_type==op_loc_berry )  THEN
       ALLOCATE ( qs_loc_env % op_sm_set ( 2, 3 ), STAT = istat )
@@ -539,10 +615,13 @@ CONTAINS
          DO j=1, SIZE ( qs_loc_env % op_sm_set, 1 )
            NULLIFY(qs_loc_env%op_sm_set(j,i)%matrix)
            CALL replicate_matrix_structure(matrix_s(1)%matrix, &
-                qs_loc_env%op_sm_set(j,i)%matrix,"spread_operator")
+                qs_loc_env%op_sm_set(j,i)%matrix,"qs_loc_env%op_sm_"//&
+                TRIM(ADJUSTL(cp_to_string(j)))//"-"//TRIM(ADJUSTL(cp_to_string(i))))
            CALL set_matrix(qs_loc_env%op_sm_set(j,i)%matrix,0.0_dp)
          ENDDO
       END DO
+
+ 
     ELSEIF ( localized_wfn_control%operator_type== op_loc_pipek) THEN
       natoms = SIZE ( qs_loc_env % particle_set, 1 )
       ALLOCATE ( qs_loc_env % op_fm_set ( natoms , nspins ), STAT = istat )
@@ -552,7 +631,7 @@ CONTAINS
         DO iatom = 1,natoms
           CALL fm_pool_create_fm(mosub_mosub_fm_pools(ispin)%pool,&
                qs_loc_env %op_fm_set(iatom,ispin)%matrix,&
-               name="qs_loc_env%op_fm"//TRIM(ADJUSTL(cp_to_string(iatom)))//&
+               name="qs_loc_env%op_fm_"//TRIM(ADJUSTL(cp_to_string(iatom)))//&
                "-"//TRIM(ADJUSTL(cp_to_string(ispin))),error=error)
           CALL cp_fm_get_info(qs_loc_env %op_fm_set(iatom,ispin)%matrix, nrow_global=nmosub, &
                error=error)
@@ -560,15 +639,17 @@ CONTAINS
           CALL cp_fm_set_all(qs_loc_env %op_fm_set(iatom,ispin)%matrix,0.0_dp)
         END DO  ! iatom
       END DO  ! ispin
-
-
+    ELSE
+      CALL stop_program(routineP,"Type of operator not implemented")
     ENDIF
+
 
     IF (  localized_wfn_control%operator_type==op_loc_berry ) THEN 
  
       CALL initialize_weights ( qs_loc_env % cell, qs_loc_env % weights ) 
-!!      CALL get_berry_operator ( qs_loc_env, qs_env )
-
+  
+      CALL get_berry_operator ( qs_loc_env, qs_env , error=error)
+  stop 'loc: only initialization implemented'
     ELSEIF ( localized_wfn_control%operator_type== op_loc_pipek) THEN
 
 !!    CALL get_pipek_mezey_operator ( qs_loc_env, qs_env )
@@ -586,73 +667,369 @@ CONTAINS
 END SUBROUTINE qs_loc_env_init
 
 !******************************************************************************
-!
-! Computes the Boys-Foster operator for periodic systems
-!
-!******************************************************************************
-!!SUBROUTINE get_boys_foster_operator ( qs_loc_env, qs_env ) 
+!!****f* qs_localization_new/get_berry_operator [1.0] *
 !!
-!!!!! globals
-!!    TYPE(qs_loc_env_type), POINTER           :: qs_loc_env
-!!    TYPE(qs_environment_type), POINTER       :: qs_env
+!!   NAME
+!!     get_berry_operator
 !!
-!!    INTEGER                                  :: i, ix, iy, iz, j
-!!    REAL(KIND=dp)                            :: thearg, theval, x, y, z
-!!    TYPE(coeff_type)                         :: op_rspace
-!!    TYPE(pw_env_type), POINTER               :: pw_env
-!!    TYPE(pw_pool_type), POINTER              :: auxbas_pw_pool
+!!   FUNCTION
+!!      Computes the Berry operator for periodic systems
+!!      used to define the spread of the MOS
+!!      Here the matrix elements of the type <mu|cos(kr)|nu> and  <mu|sin(kr)|nu> 
+!!      are computed, where mu and nu are the contracted basis functions.
+!!      Namely the Berry operator is exp(ikr)
+!!      k is defined somewhere
+!!      the pair lists are exploited and sparse matrixes are constructed
 !!
-!!  NULLIFY ( pw_env, auxbas_pw_pool )
-!
-! OK, now we construct these operators the easy way, put them on the pw grid and integrate
-! analytical construction should be faster.
-!
-! get a pw grid
-!!  CALL get_qs_env(qs_env=qs_env,pw_env=pw_env)
-!!  CALL pw_env_get(pw_env=pw_env,auxbas_pw_pool=auxbas_pw_pool)
-!!  CALL pw_pool_init_coeff(auxbas_pw_pool,op_rspace,&
-!!                          use_data=REALDATA3D,in_space=REALSPACE)
+!!   NOTES
+!!     The intgrals are computed analytically  using the primitives GTO
+!!     The contraction is performed block-wise
 !!
-!!  DO i=1,3
-!!   DO j=1,2
-!!      ! CALL coeff_zero(op_rspace) 
-!!      ! the definition of the position on the PW grid has to be 
-!!      ! compatible with the one used in the integration procedure / collocation procedure
-!!      ! integrate_v_rspace calculate_rho_elec
-!!      DO iz=op_rspace%pw%pw_grid%bounds_local(1,3),op_rspace%pw%pw_grid%bounds_local(2,3)
-!!      DO iy=op_rspace%pw%pw_grid%bounds_local(1,2),op_rspace%pw%pw_grid%bounds_local(2,2)
-!!      DO ix=op_rspace%pw%pw_grid%bounds_local(1,1),op_rspace%pw%pw_grid%bounds_local(2,1)
-!!         x=REAL(ix-op_rspace%pw%pw_grid%bounds(1,1),dp)*twopi/REAL(op_rspace%pw%pw_grid%npts(1),dp)
-!!         y=REAL(iy-op_rspace%pw%pw_grid%bounds(1,2),dp)*twopi/REAL(op_rspace%pw%pw_grid%npts(2),dp)
-!!         z=REAL(iz-op_rspace%pw%pw_grid%bounds(1,3),dp)*twopi/REAL(op_rspace%pw%pw_grid%npts(3),dp) 
-!!         SELECT CASE (i)
-!!         CASE (1)
-!!            thearg=x
-!!         CASE (2)
-!!            thearg=y
-!!         CASE (3)
-!!            thearg=z
-!!         END SELECT
-!!         SELECT CASE (j)
-!!         CASE (1)
-!!            theval=COS(thearg)
-!!         CASE (2)
-!!            theval=SIN(thearg)
-!!         END SELECT
-!!         ! notice the volume element, slightly ugly I think
-!!         op_rspace%pw%cr3d(ix,iy,iz)=theval*op_rspace%pw%pw_grid%dvol 
-!!      ENDDO
-!!      ENDDO
-!!      ENDDO
-!!! do the actual integration
-!!      CALL set_matrix(qs_loc_env%operator(j,i)%matrix,0.0_dp)
-!!      CALL integrate_v_rspace(op_rspace,h=qs_loc_env%operator(j,i),qs_env=qs_env,calculate_forces=.FALSE.)
-!!   ENDDO
-!!  ENDDO
+!!   ARGUMENTS
+!!     - qs_loc_env: new environment for the localization calculations
+!!     - qs_env: the qs_env in which the qs_env lives
+!!     - error: variable to control error logging, stopping,... 
+!!       see module cp_error_handling 
 !!
-!!  CALL pw_pool_give_back_coeff ( auxbas_pw_pool, op_rspace )
+!!   AUTHOR
+!!     MI
 !!
-!!END SUBROUTINE get_boys_foster_operator
+!!   MODIFICATION HISTORY
+!!     04.2005 created [MI]
+!!
+!!*** **********************************************************************
+
+  SUBROUTINE get_berry_operator ( qs_loc_env, qs_env, error ) 
+
+! globals
+    TYPE(qs_loc_env_new_type), POINTER         :: qs_loc_env
+    TYPE(qs_environment_type), POINTER         :: qs_env
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                                 :: error
+
+    CHARACTER(len=*), PARAMETER :: routine_name = 'get_berry_operator', &
+      routineP = module_name//':'//routine_name
+
+
+    INTEGER  :: handle, i, iab, iat, iatom, icol, ikind, ilist, inode, irow, &
+                iset, istat, ithread, j, jat, jatom, jkind, jset, last_jatom, &
+                ldab, ldsa, ldsb, ldwork, maxl, ncoa, ncob, nkind, nlist,& 
+                nnode, nrow, nthread, nseta, nsetb, sgfa, sgfb
+    INTEGER, DIMENSION(:), POINTER             :: la_max, la_min, lb_max, lb_min
+    INTEGER, DIMENSION(:), POINTER             :: npgfa, npgfb
+    INTEGER, DIMENSION(:), POINTER             :: nsgfa, nsgfb
+    INTEGER, DIMENSION(:,:), POINTER           :: first_sgfa,first_sgfb
+    LOGICAL :: failure, new_atom_b, ortho
+    REAL(KIND=dp)                              :: ooLx, ooLy, ooLz, rab2, dab
+    REAL(KIND=dp)                              :: twopoLx, twopoLy, twopoLz
+    REAL(KIND=dp), DIMENSION(3)                :: kvec, ra, rb, rab
+    REAL(KIND=dp), DIMENSION(3)                :: weights
+    REAL(KIND = dp), DIMENSION(:), POINTER     :: set_radius_a,set_radius_b
+    REAL(KIND=dp), DIMENSION(:,:), POINTER     :: rpgfa, rpgfb, sphi_a,sphi_b, zeta, zetb 
+    REAL(KIND=dp), DIMENSION(:,:), POINTER     :: cosab,sinab, work 
+    REAL(KIND=dp), DIMENSION(:,:,:), POINTER   :: cosabt,sinabt, workt
+    TYPE(atomic_kind_type), DIMENSION(:),&
+      POINTER                                  :: atomic_kind_set
+    TYPE(atomic_kind_type), POINTER            :: atomic_kind
+    TYPE(block_p_type), DIMENSION(:), &
+          POINTER                             :: op_cos, op_sin
+    TYPE(block_p_type), DIMENSION(:,:), &
+      POINTER                                  :: op_cost, op_sint
+    TYPE(cell_type), POINTER                   :: cell
+    TYPE(gto_basis_set_type), POINTER          :: orb_basis_set
+    TYPE(neighbor_list_set_p_type), &
+      DIMENSION(:),           POINTER          :: sab_orb
+    TYPE(neighbor_list_type), POINTER          :: sab_orb_neighbor_list,&
+                                                 sab_orb_neighbor_list_local
+    TYPE(neighbor_node_type), POINTER          :: sab_orb_neighbor_node
+    TYPE(particle_type), DIMENSION(:), &
+      POINTER                                  :: particle_set
+    TYPE (real_matrix_p_type), DIMENSION(:,:),&
+      POINTER                                  :: op_sm_set
+
+
+    CALL timeset(routine_name,"I"," ",handle)
+
+    failure = .FALSE.
+    NULLIFY (atomic_kind, atomic_kind_set)
+    NULLIFY ( cell, sab_orb, op_sm_set , orb_basis_set, particle_set)
+    NULLIFY (cosabt,sinabt, workt)
+
+    CALL get_qs_env(qs_env=qs_env, atomic_kind_set=atomic_kind_set,&
+                    particle_set=particle_set, sab_orb=sab_orb)
+
+    nkind = SIZE(atomic_kind_set)
+
+    CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,&
+                             maxco=ldwork, maxlgto=maxl )
+    ldab = ldwork
+    nthread = 1
+!$  nthread = omp_get_max_threads()
+    CALL reallocate(cosabt,1,ldab,1,ldab,0,nthread-1) 
+    CALL reallocate(sinabt,1,ldab,1,ldab,0,nthread-1) 
+    CALL reallocate(workt,1,ldwork,1,ldwork,0,nthread-1)
+
+    ALLOCATE (op_cost(3,0:nthread-1),STAT=istat)
+    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+    ALLOCATE (op_sint(3,0:nthread-1),STAT=istat)
+    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+    DO i = 1, 3
+      DO j=0,nthread-1
+        NULLIFY (op_cost(i,j)%block)
+        NULLIFY (op_sint(i,j)%block)
+      END DO
+    END DO 
+ 
+    CALL get_qs_loc_env(qs_loc_env=qs_loc_env,op_sm_set=op_sm_set, cell=cell)
+    ooLx = 1.0_dp/SQRT ( SUM ( cell % hmat ( :, 1 ) ** 2 ) ) 
+    ooLy = 1.0_dp/SQRT ( SUM ( cell % hmat ( :, 2 ) ** 2 ) )
+    ooLz = 1.0_dp/SQRT ( SUM ( cell % hmat ( :, 3 ) ** 2 ) )
+    twopoLx = twopi*ooLx
+    twopoLy = twopi*ooLy
+    twopoLz = twopi*ooLz
+    ortho = cell%orthorhombic
+
+    DO ikind=1,nkind
+
+      atomic_kind => atomic_kind_set(ikind)
+
+      CALL get_atomic_kind(atomic_kind=atomic_kind,&
+                           orb_basis_set=orb_basis_set)
+
+      IF (.NOT.ASSOCIATED(orb_basis_set)) CYCLE
+
+      CALL get_gto_basis_set(gto_basis_set=orb_basis_set,&
+                             first_sgf=first_sgfa,&
+                             lmax=la_max,&
+                             lmin=la_min,&
+                             npgf=npgfa,&
+                             nset=nseta,&
+                             nsgf_set=nsgfa,&
+                             pgf_radius=rpgfa,&
+                             set_radius=set_radius_a,&
+                             sphi=sphi_a,&
+                             zet=zeta)
+      ldsa = SIZE(sphi_a,1)
+      DO jkind=1,nkind
+
+        atomic_kind => atomic_kind_set(jkind)
+
+        CALL get_atomic_kind(atomic_kind=atomic_kind,&
+                             orb_basis_set=orb_basis_set)
+
+        IF (.NOT.ASSOCIATED(orb_basis_set)) CYCLE
+
+        CALL get_gto_basis_set(gto_basis_set=orb_basis_set,&
+                               first_sgf=first_sgfb,&
+                               lmax=lb_max,&
+                               lmin=lb_min,&
+                               npgf=npgfb,&
+                               nset=nsetb,&
+                               nsgf_set=nsgfb,&
+                               pgf_radius=rpgfb,&
+                               set_radius=set_radius_b,&
+                               sphi=sphi_b,&
+                               zet=zetb)
+
+        iab = ikind + nkind*(jkind - 1)
+        ldsb = SIZE(sphi_b,1)
+
+        IF (.NOT.ASSOCIATED(sab_orb(iab)%neighbor_list_set)) CYCLE
+
+        CALL get_neighbor_list_set(neighbor_list_set=&
+                                   sab_orb(iab)%neighbor_list_set,&
+                                   nlist=nlist)
+
+        NULLIFY ( sab_orb_neighbor_list )
+
+!$OMP parallel &
+!$OMP default(none) &
+!$OMP private(ithread,cosab,sinab,work,ilist,iatom,jatom,atom_a)&
+!$OMP private(last_jatom,new_atom_b,istat,sgfa,sgfb,ra,rb,rac,rbc)&
+!$OMP private(ncol,nrow,iset,jset,ncoa,ncob,nnode,inode,irow,icol)&
+!$OMP private(cos_op,sin_op,rab,rab2,dab,i,kvec)&
+!$OMP private(sab_orb_neighbor_node,sab_orb_neighbor_list_local)&
+!$OMP shared(ikind,jkind,rpgfb,zetb,sphi_b,sphi_a,nsgfa,nsgfb,set_radius_b,ldab,ldwork)&
+!$OMP shared(lb_max,npgfb,nsetb,iab,la_min,rpgfa,zeta)&
+!$OMP shared(set_radius_a,nco,ncoset,npgfa,nseta,ldsa,ldsb)&
+!$OMP shared(nkind,sab_orb_neighbor_list,nlist,workt,cosabt,sinabt,qs_env)&
+!$OMP shared(op_cost,op_sint,ortho,twopoLx,twopoLy,twopoLz)&
+!$OMP shared(first_sgfa,first_sgfb)
+!$OMP shared(atomic_kind_set,particle_set,pbc,cell,routineP)
+        ithread = 0
+!$      ithread = omp_get_thread_num()
+
+        cosab => cosabt(:,:,ithread)
+        sinab => sinabt(:,:,ithread)
+        work  => workt(:,:,ithread)
+        op_cos => op_cost(:,ithread)
+        op_sin => op_sint(:,ithread)
+
+!$OMP do
+       DO ilist = 1,nlist
+
+!$OMP critical (qs_core_neighbor_list)
+          IF ( .NOT. ASSOCIATED(sab_orb_neighbor_list) ) THEN
+            sab_orb_neighbor_list => first_list(sab_orb(iab)%neighbor_list_set)
+          ELSE
+            sab_orb_neighbor_list => next(sab_orb_neighbor_list)
+          END IF
+          sab_orb_neighbor_list_local => sab_orb_neighbor_list
+!$OMP end critical (qs_core_neighbor_list)
+
+          CALL get_neighbor_list(neighbor_list=sab_orb_neighbor_list_local,&
+                                 atom=iatom,&
+                                 nnode=nnode)
+          ra = pbc(particle_set(iatom)%r,cell)
+          last_jatom = 0
+
+          IF (jatom /= last_jatom) THEN
+            new_atom_b = .TRUE.
+            last_jatom = jatom
+          ELSE
+            new_atom_b = .FALSE.
+          END IF
+          sab_orb_neighbor_node => first_node(sab_orb_neighbor_list_local)
+
+          DO inode=1,nnode
+
+            CALL get_neighbor_node(neighbor_node=sab_orb_neighbor_node,&
+                                   neighbor=jatom, r=rab)
+            rb = pbc(particle_set(jatom)%r,cell)
+
+            IF (new_atom_b) THEN
+              IF (iatom <= jatom) THEN
+                irow = iatom
+                icol = jatom
+              ELSE
+                irow = jatom
+                icol = iatom
+              END IF
+
+              DO i = 1,3
+                 NULLIFY(op_cos(i)%block)
+                 CALL get_block_node(matrix=op_sm_set(1,i)%matrix,&
+                                     block_row=irow,&
+                                     block_col=icol,&
+                                     block=op_cos(i)%block)
+                 NULLIFY(op_sin(i)%block)
+                 CALL get_block_node(matrix=op_sm_set(2,i)%matrix,&
+                                     block_row=irow,&
+                                     block_col=icol,&
+                                     block=op_sin(i)%block)
+              END DO  
+            END IF  ! new_atom_b
+ 
+            rab2 = rab(1)*rab(1) + rab(2)*rab(2) + rab(3)*rab(3)
+            dab = SQRT(rab2)
+
+            nrow = 0
+            DO iset=1,nseta
+
+              ncoa = npgfa(iset)*ncoset(la_max(iset))
+              sgfa = first_sgfa(1,iset)
+
+              DO jset=1,nsetb
+
+                ncob = npgfb(jset)*ncoset(lb_max(jset))
+                sgfb = first_sgfb(1,jset)
+
+                IF (set_radius_a(iset) + set_radius_b(jset) >= dab) THEN
+
+!           *** Calculate the primitive overlap integrals ***
+                  IF(ortho)THEN
+
+                    ! x component
+                    kvec = 0.0_dp
+                    kvec(1) = twopoLx
+  
+                    CALL cossin(la_max(iset),npgfa(iset),zeta(:,iset),rpgfa(:,iset),la_min(iset),&
+                              lb_max(jset),npgfb(jset),zetb(:,jset),rpgfb(:,jset),lb_min(jset),&
+                              ra,rb,kvec,cosab,sinab)
+
+                     CALL contract_cossin(op_cos(1)%block,op_sin(1)%block,&
+                               iatom,ncoa,nsgfa(iset),sgfa,sphi_a,ldsa,&
+                               jatom,ncob,nsgfb(jset),sgfb,sphi_b,ldsb,&
+                               cosab,sinab,ldab,work,ldwork)
+!dbg
+! write(*,*) 'comp x ', iatom, iset, jatom, jset
+! write(*,*) 'rab ', rab(:)
+! write(*,*) nsgfa(iset),nsgfb(jset)
+! if(iatom>=jatom) THEN
+! DO i =1,nsgfa(iset)
+! write(*,'(i4,30f12.6)') i,(op_cos(1)%block(i,j),j=1,nsgfb(jset))
+! END DO
+! end if
+! stop
+!dbg
+
+                    ! y component
+                    kvec = 0.0_dp
+                    kvec(2) = twopoLy
+
+                    CALL cossin(la_max(iset),npgfa(iset),zeta(:,iset),rpgfa(:,iset),la_min(iset),&
+                              lb_max(jset),npgfb(jset),zetb(:,jset),rpgfb(:,jset),lb_min(jset),&
+                              ra,rb,kvec,cosab,sinab)
+
+                    CALL contract_cossin(op_cos(2)%block,op_sin(2)%block,&
+                               iatom,ncoa,nsgfa(iset),sgfa,sphi_a,ldsa,&
+                               jatom,ncob,nsgfb(jset),sgfb,sphi_b,ldsb,&
+                               cosab,sinab,ldab,work,ldwork)
+
+                    ! z component
+                    kvec = 0.0_dp
+                    kvec(3) = twopoLz
+
+                    CALL cossin(la_max(iset),npgfa(iset),zeta(:,iset),rpgfa(:,iset),la_min(iset),&
+                              lb_max(jset),npgfb(jset),zetb(:,jset),rpgfb(:,jset),lb_min(jset),&
+                              ra,rb,kvec,cosab,sinab)
+
+                    CALL contract_cossin(op_cos(3)%block,op_sin(3)%block,&
+                               iatom,ncoa,nsgfa(iset),sgfa,sphi_a,ldsa,&
+                               jatom,ncob,nsgfb(jset),sgfb,sphi_b,ldsb,&
+                               cosab,sinab,ldab,work,ldwork)
+
+
+                  ELSE
+                    CALL stop_program(routineP,&
+                      "spread calculation with berry phase in non orthorombic cell NYI")
+                  END IF  ! ortho
+
+                END IF  !  >= dab
+
+              END DO ! jset
+
+              nrow = nrow + ncoa
+
+            END DO ! iset
+
+            sab_orb_neighbor_node => next(sab_orb_neighbor_node)
+
+          END DO ! jatom => atom B
+
+       END DO ! iatom => atom A
+
+!$OMP end parallel
+
+      END DO ! jkind
+
+    END DO ! ikind
+
+    DO i = 1,3
+      DO j = 0,nthread-1
+         NULLIFY(op_cost(i,j)%block)
+         NULLIFY(op_sint(i,j)%block)
+      END DO
+    END DO 
+    DEALLOCATE(op_cost,op_sint, STAT=istat)
+    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+
+    DEALLOCATE(cosabt,sinabt,workt,STAT=istat)
+    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+
+    CALL timestop(0.0_dp,handle)
+
+  END SUBROUTINE get_berry_operator
 
 !******************************************************************************
 !

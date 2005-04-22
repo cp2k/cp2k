@@ -47,8 +47,8 @@ CONTAINS
 
 ! *****************************************************************************
 
-  SUBROUTINE dabdr(la_max,zeta,rpgfa,la_min,&
-                   lb_max,zetb,rpgfb,lb_min,&
+  SUBROUTINE dabdr(la_max,npgfa,zeta,rpgfa,la_min,&
+                   lb_max,npgfb,zetb,rpgfb,lb_min,&
                    dab,ab,dabdx,dabdy,dabdz)
 
 !   Purpose: Calculate the first derivative of an integral block.
@@ -57,9 +57,9 @@ CONTAINS
 
 !   ***************************************************************************
 
-    INTEGER, INTENT(IN)                      :: la_max
+    INTEGER, INTENT(IN)                      :: la_max, npgfa
     REAL(KIND=dp), DIMENSION(:), INTENT(IN)  :: zeta, rpgfa
-    INTEGER, INTENT(IN)                      :: la_min, lb_max
+    INTEGER, INTENT(IN)                      :: la_min, npgfb,lb_max
     REAL(KIND=dp), DIMENSION(:), INTENT(IN)  :: zetb, rpgfb
     INTEGER, INTENT(IN)                      :: lb_min
     REAL(KIND=dp), INTENT(IN)                :: dab
@@ -80,13 +80,13 @@ CONTAINS
     na = 0
     nda = 0
 
-    DO ipgf=1,SIZE(zeta)
+    DO ipgf=1,npgfa
 
       fa = 2.0_dp*zeta(ipgf)
 
       nb = 0
 
-      DO jpgf=1,SIZE(zetb)
+      DO jpgf=1,npgfb
 
 !       *** Screening ***
 

@@ -42,7 +42,7 @@ MODULE ai_moments
 ! *****************************************************************************
 
   USE ai_derivatives,                  ONLY: dabdr
-  USE ai_overlap,                      ONLY: overlap
+  USE ai_overlap_new,                  ONLY: overlap
   USE kinds,                           ONLY: dp
   USE mathconstants,                   ONLY: pi
   USE orbital_pointers,                ONLY: coset,&
@@ -53,7 +53,7 @@ MODULE ai_moments
 
   PRIVATE
 
-  PUBLIC :: cossin, moment, diffop
+  PUBLIC :: cossin, moment, diffop, contract_cossin
 
 !!***
 ! *****************************************************************************
@@ -62,15 +62,75 @@ CONTAINS
 
 ! *****************************************************************************
 
-  SUBROUTINE cossin(la_max,zeta,rpgfa,la_min,&
-                    lb_max,zetb,rpgfb,lb_min,&
+  SUBROUTINE contract_cossin(cos_block, sin_block,&
+                             iatom,ncoa,nsgfa,sgfa,sphi_a,ldsa,&
+                             jatom,ncob,nsgfb,sgfb,sphi_b,ldsb,&
+                             cosab,sinab,ldab,work,ldwork)
+
+    REAL(dp), DIMENSION(:,:), POINTER       :: cos_block, sin_block
+    INTEGER, INTENT(IN)                     :: iatom,ncoa,nsgfa,sgfa
+    REAL(dp), DIMENSION(:,:), INTENT(IN)    :: sphi_a
+    INTEGER, INTENT(IN)                     :: ldsa,jatom,ncob,nsgfb,sgfb
+    REAL(dp), DIMENSION(:,:), INTENT(IN)    :: sphi_b
+    REAL(dp), DIMENSION(:,:), INTENT(IN)    :: cosab, sinab
+    INTEGER, INTENT(IN)                     :: ldsb,ldab
+    REAL(dp), DIMENSION(:,:)                :: work
+    INTEGER, INTENT(IN)                     :: ldwork
+
+
+       ! Calculate cosine
+       CALL dgemm("N","N",ncoa,nsgfb,ncob,&
+                   1.0_dp,cosab(1,1),ldab,&
+                   sphi_b(1,sgfb),ldsb,&
+                   0.0_dp,work(1,1),ldwork)       
+   
+       IF(iatom<=jatom) THEN
+         CALL dgemm("T","N",nsgfa,nsgfb,ncoa,&
+                    1.0_dp,sphi_a(1,sgfa),ldsa,&
+                    work(1,1),ldwork,&
+                    1.0_dp,cos_block(sgfa,sgfb),&
+                    SIZE(cos_block,1))
+       ELSE
+         CALL dgemm("T","N",nsgfb,nsgfa,ncoa,&
+                    1.0_dp,work(1,1),ldwork,&
+                    sphi_a(1,sgfa),ldsa,&
+                    1.0_dp,cos_block(sgfb,sgfa),&
+                    SIZE(cos_block,1))
+       END IF
+
+       ! Calculate sine
+       CALL dgemm("N","N",ncoa,nsgfb,ncob,&
+                   1.0_dp,sinab(1,1),ldab,&
+                   sphi_b(1,sgfb),ldsb,&
+                   0.0_dp,work(1,1),ldwork)       
+
+       IF(iatom<=jatom) THEN
+         CALL dgemm("T","N",nsgfa,nsgfb,ncoa,&
+                    1.0_dp,sphi_a(1,sgfa),ldsa,&
+                    work(1,1),ldwork,&
+                    1.0_dp,sin_block(sgfa,sgfb),&
+                    SIZE(sin_block,1))
+       ELSE
+         CALL dgemm("T","N",nsgfb,nsgfa,ncoa,&
+                    1.0_dp,work(1,1),ldwork,&
+                    sphi_a(1,sgfa),ldsa,&
+                    1.0_dp,sin_block(sgfb,sgfa),&
+                    SIZE(sin_block,1))
+       END IF
+
+    
+  END SUBROUTINE contract_cossin
+
+! *****************************************************************************
+
+  SUBROUTINE cossin(la_max,npgfa,zeta,rpgfa,la_min,&
+                    lb_max,npgfb,zetb,rpgfb,lb_min,&
                     rac,rbc,kvec,cosab,sinab)
 
-    INTEGER, INTENT(IN)                      :: la_max
+    INTEGER, INTENT(IN)                      :: la_max,la_min,npgfa
     REAL(KIND=dp), DIMENSION(:), INTENT(IN)  :: zeta, rpgfa
-    INTEGER, INTENT(IN)                      :: la_min, lb_max
+    INTEGER, INTENT(IN)                      :: lb_max,lb_min,npgfb
     REAL(KIND=dp), DIMENSION(:), INTENT(IN)  :: zetb, rpgfb
-    INTEGER, INTENT(IN)                      :: lb_min
     REAL(KIND=dp), DIMENSION(3), INTENT(IN)  :: rac, rbc
     REAL(KIND=dp), DIMENSION(3), INTENT(IN)  :: kvec
     REAL(KIND=dp), DIMENSION(:, :), &
@@ -95,11 +155,11 @@ CONTAINS
 
     na = 0
 
-    DO ipgf=1,SIZE(zeta)
+    DO ipgf=1,npgfa
 
       nb = 0
 
-      DO jpgf=1,SIZE(zetb)
+      DO jpgf=1,npgfb
 
 !       *** Screening ***
 
@@ -608,13 +668,13 @@ CONTAINS
 
 ! *****************************************************************************
 
-  SUBROUTINE moment(la_max,zeta,rpgfa,la_min,&
-                    lb_max,zetb,rpgfb,lb_min,&
+  SUBROUTINE moment(la_max,npgfa,zeta,rpgfa,la_min,&
+                    lb_max,npgfb,zetb,rpgfb,lb_min,&
                     lc_max,rac,rbc,mab)
 
-    INTEGER, INTENT(IN)                      :: la_max
+    INTEGER, INTENT(IN)                      :: la_max, npgfa
     REAL(KIND=dp), DIMENSION(:), INTENT(IN)  :: zeta, rpgfa
-    INTEGER, INTENT(IN)                      :: la_min, lb_max, lc_max
+    INTEGER, INTENT(IN)                      :: la_min, lb_max, npgfb, lc_max
     REAL(KIND=dp), DIMENSION(:), INTENT(IN)  :: zetb, rpgfb
     INTEGER, INTENT(IN)                      :: lb_min
     REAL(KIND=dp), DIMENSION(3), INTENT(IN)  :: rac, rbc
@@ -640,11 +700,11 @@ CONTAINS
 
     na = 0
 
-    DO ipgf=1,SIZE(zeta)
+    DO ipgf=1,npgfa
 
       nb = 0
 
-      DO jpgf=1,SIZE(zetb)
+      DO jpgf=1,npgfb
 
 !       *** Screening ***
 
@@ -1127,23 +1187,24 @@ CONTAINS
 
 ! *****************************************************************************
 
-  SUBROUTINE diffop(la_max,zeta,rpgfa,la_min,&
-                    lb_max,zetb,rpgfb,lb_min,&
+  SUBROUTINE diffop(la_max,npgfa,zeta,rpgfa,la_min,&
+                    lb_max,npgfb,zetb,rpgfb,lb_min,&
                     rab,difab)
 
-    INTEGER, INTENT(IN)                      :: la_max
+    INTEGER, INTENT(IN)                      :: la_max,npgfa
     REAL(KIND=dp), DIMENSION(:), INTENT(IN)  :: zeta, rpgfa
-    INTEGER, INTENT(IN)                      :: la_min, lb_max
+    INTEGER, INTENT(IN)                      :: la_min,npgfb,lb_max
     REAL(KIND=dp), DIMENSION(:), INTENT(IN)  :: zetb, rpgfb
     INTEGER, INTENT(IN)                      :: lb_min
     REAL(KIND=dp), DIMENSION(3), INTENT(IN)  :: rab
     REAL(KIND=dp), DIMENSION(:, :, :), &
       INTENT(OUT)                            :: difab
 
-    INTEGER                                  :: lda_min, ldb_min
+    INTEGER                                  :: istat, lda_min, ldb_min, lmax, lds
     REAL(KIND=dp)                            :: dab, rab2
-    REAL(KIND=dp), DIMENSION(SIZE(zeta)*ncoset(la_max+1),&
-      SIZE(zetb)*ncoset(lb_max+1))           :: sab, sabdx, sabdy, sabdz
+    REAL(KIND=dp), DIMENSION(npgfa*ncoset(la_max+1),&
+      npgfb*ncoset(lb_max+1))           :: sab, sabdx, sabdy, sabdz
+    REAL(KIND=dp), DIMENSION(:,:,:), ALLOCATABLE :: s
 
 !   ---------------------------------------------------------------------------
     rab2= SUM( rab**2 )
@@ -1151,14 +1212,19 @@ CONTAINS
 
     lda_min = MAX ( 0, la_min-1 )
     ldb_min = MAX ( 0, lb_min-1 )
+    lmax = MAX(la_max+1,lb_max+1)
+    lds = ncoset(lmax+1)
+    ALLOCATE(s(lds,lds,ncoset(1)),STAT=istat)
+    
+    CALL overlap(la_max+1,lda_min,npgfa,rpgfa,zeta,&
+                 lb_max+1,ldb_min,npgfb,rpgfb,zetb,&
+                 rab,dab,sab,0,.FALSE.,s,lds)
 
-    CALL overlap(la_max+1,zeta,rpgfa,lda_min,&
-                 lb_max+1,zetb,rpgfb,ldb_min,&
-                 rab,rab2,sab)
-
-    CALL dabdr(la_max,zeta,rpgfa,la_min,&
-               lb_max,zetb,rpgfb,lb_min,&
+    CALL dabdr(la_max,npgfa,zeta,rpgfa,la_min,&
+               lb_max,npgfb,zetb,rpgfb,lb_min,&
                dab,sab,difab(:,:,1),difab(:,:,2),difab(:,:,3))
+
+    DEALLOCATE(s,STAT=istat)
 
   END SUBROUTINE diffop
 

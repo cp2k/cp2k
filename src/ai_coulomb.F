@@ -487,7 +487,7 @@ CONTAINS
 
 !   ---------------------------------------------------------------------------
 
-    CALL timeset(routine_name,"I"," ",handle)
+!    CALL timeset(routine_name,"I"," ",handle)
 
     v = 0.0_dp
 
@@ -1616,7 +1616,7 @@ CONTAINS
 
     END DO
 
-    CALL timestop(0.0_dp,handle)
+!    CALL timestop(0.0_dp,handle)
 
   END SUBROUTINE coulomb3
 

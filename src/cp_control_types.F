@@ -409,15 +409,16 @@ SUBROUTINE localized_wfn_control_release(localized_wfn_control,error)
       routineP = moduleN//':'//routineN
    LOGICAL :: failure
    failure=.FALSE.
-   CPPrecondition(ASSOCIATED(localized_wfn_control),cp_failure_level,routineP,error,failure)
-   CPPrecondition(localized_wfn_control%ref_count>0,cp_failure_level,routineP,error,failure)
-   localized_wfn_control%ref_count=localized_wfn_control%ref_count-1
-   IF (localized_wfn_control%ref_count==0) THEN
-      IF (ASSOCIATED(localized_wfn_control%loc_states)) &
-          DEALLOCATE(localized_wfn_control%loc_states)
-      localized_wfn_control%ref_count=0
-      DEALLOCATE(localized_wfn_control)
-   ENDIF
+   IF(ASSOCIATED(localized_wfn_control)) THEN
+     CPPrecondition(localized_wfn_control%ref_count>0,cp_failure_level,routineP,error,failure)
+     localized_wfn_control%ref_count=localized_wfn_control%ref_count-1
+     IF (localized_wfn_control%ref_count==0) THEN
+        IF (ASSOCIATED(localized_wfn_control%loc_states)) &
+            DEALLOCATE(localized_wfn_control%loc_states)
+        localized_wfn_control%ref_count=0
+        DEALLOCATE(localized_wfn_control)
+     ENDIF
+   END IF
 END SUBROUTINE localized_wfn_control_release
 
 SUBROUTINE localized_wfn_control_retain(localized_wfn_control,error)
@@ -503,7 +504,6 @@ END SUBROUTINE localized_wfn_control_retain
         END DO 
       END IF
     END IF 
-     
 
   END SUBROUTINE set_loc_wfn_lists
  
@@ -707,6 +707,7 @@ SUBROUTINE qs_control_dealloc_ref(qs_control, error)
     INTEGER                                  :: stat
 
     CALL mulliken_control_release(qs_control%mulliken_restraint_control)
+    CALL localized_wfn_control_release(qs_control% localized_wfn_control, error=error)
 
     IF (ASSOCIATED(qs_control%e_cutoff)) THEN
        DEALLOCATE(qs_control%e_cutoff,stat=stat)

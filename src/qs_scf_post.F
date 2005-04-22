@@ -240,6 +240,7 @@ CONTAINS
     CALL write_available_results(qs_env,globenv,error)
 
     failure=.FALSE.
+    my_localized_wfn = .FALSE.
     NULLIFY(cell,dft_control,pw_env,auxbas_pw_pool,pw_pools,&
             mos,atomic_kind_set,particle_set,rho,mo_coeff,&
             ks_rmpv,matrix_s,qs_loc_env,scf_control,unoccupied_orbs,&
@@ -336,8 +337,10 @@ CONTAINS
 !     this should be done only in the at selected steps of the iter_level we are in (MD or..) 
 !     for this I need to know the niter and the iter_level to refer to
           my_localized_wfn = (.NOT. failure .AND. .TRUE.)
-          CALL qs_loc_env_create(qs_loc_env_new,error=error)
-          CALL qs_loc_env_init(qs_loc_env_new,my_localized_wfn_control,qs_env,error=error)
+          IF(my_localized_wfn) THEN
+             CALL qs_loc_env_create(qs_loc_env_new,error=error)
+             CALL qs_loc_env_init(qs_loc_env_new,my_localized_wfn_control,qs_env,error=error)
+          END IF
           CALL localized_wfn_control_release(my_localized_wfn_control,error=error)
 
        ELSEIF (globenv%print%localization)THEN
@@ -504,7 +507,7 @@ CONTAINS
        END IF
 
 ! *** destroy the localization environment
-       IF(dft_control%qs_control%localized_wfn) THEN
+       IF(dft_control%qs_control%localized_wfn .AND. my_localized_wfn) THEN
           CALL qs_loc_env_destroy(qs_loc_env_new, error=error)
           DEALLOCATE(qs_loc_env_new,STAT=istat)
           CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
