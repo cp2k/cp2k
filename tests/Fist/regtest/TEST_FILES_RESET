@@ -2,3 +2,7 @@
 # just add file names for which the reference needs to be reset below, with some comment
 # now prints some output to the screen
 water_IPBV_flex.inp
+H2O-32_NPT_res_1.inp
+H2O-32_NPT_res_2.inp
+H2O-32_NPT_res_3.inp
+H2O-32_NPT_res_4.inp
