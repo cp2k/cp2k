@@ -271,7 +271,7 @@ CONTAINS
               particles%els, globenv )
       END DO
 
-      SELECT CASE ( simpar % read_type )
+      SELECT CASE ( TRIM ( simpar % read_type ) )
       CASE ( 'POS' )
 !FM should be adapted to the existence of many fragments
          CPPrecondition(SIZE(subsys)==1,cp_failure_level,routineP,error,failure)

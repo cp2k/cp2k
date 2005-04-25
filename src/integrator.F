@@ -864,9 +864,8 @@ CONTAINS
     REAL (KIND=dp), DIMENSION (3) :: vector_r, vector_v
     LOGICAL, PARAMETER :: box_change = .TRUE.
     LOGICAL :: first
+    LOGICAL, SAVE :: first_time = .TRUE.
     INTEGER :: iroll
-! dbg
-    INTEGER :: ii,jj
     TYPE(cp_para_env_type), POINTER          :: para_env
 
 
@@ -920,7 +919,7 @@ CONTAINS
 !------------------------------------------------------------------------------
 
 ! initialize eps_0 the first time through
-      IF ( itimes == 1 ) eps_0 = npt (1,1) % eps
+      IF ( first_time ) eps_0 = npt (1,1) % eps
 
 ! perform Nose'-Hoover chains for barostat
       CALL lnhc ( nhc_baro ( isubsys ), npt, para_env % group )
@@ -1075,6 +1074,7 @@ CONTAINS
 ! Deallocate old variables
     CALL deallocate_old ( )
   END DO
+  first_time = .FALSE.
 
   END SUBROUTINE npt_i
 !!*****
