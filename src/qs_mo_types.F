@@ -1153,7 +1153,7 @@ CONTAINS
                          orbtramat(lshell)%s2c,nso(lshell),&
                          smatrix(isgf,1),nsgf,0.0_dp,&
                          cmatrix(icgf,1),ncgf)
-              icgf = isgf + nco(lshell)
+              icgf = icgf + nco(lshell)
               isgf = isgf + nso(lshell)
             END DO
           END DO
