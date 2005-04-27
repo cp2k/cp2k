@@ -30,6 +30,7 @@ MODULE topology_psf
   USE parser,                          ONLY: get_next,&
                                              parser_end,&
                                              parser_init,&
+                                             parser_backspace, &
                                              read_line,&
                                              search_label
   USE cp_files,                        ONLY: close_file,&
@@ -121,8 +122,7 @@ SUBROUTINE read_topology_psf (topology,globenv)
     IF(PM1) WRITE ( iw, '( A )' ) ' No NATOM section '
     natom = 0
   ELSE
-    INQUIRE (FILE=topology%conn_file_name,NUMBER=iunit)
-    BACKSPACE iunit 
+    CALL parser_backspace
     CALL read_line
     CALL get_next (natom)
     IF(PM1) WRITE(iw,*) 'NATOM = ',natom
@@ -200,8 +200,7 @@ SUBROUTINE read_topology_psf (topology,globenv)
     IF(PM1) WRITE ( iw, '( A )' ) ' No NBOND section '
     nbond = 0
   ELSE
-    INQUIRE (FILE=topology%conn_file_name,NUMBER=iunit)
-    BACKSPACE iunit 
+    CALL parser_backspace
     CALL read_line
     CALL get_next (nbond)
     IF(PM1) WRITE(iw,*) 'NBOND = ',nbond
@@ -259,8 +258,7 @@ SUBROUTINE read_topology_psf (topology,globenv)
     IF(PM1) WRITE ( iw, '( A )' ) ' No NTHETA section '
     ntheta = 0
   ELSE
-    INQUIRE (FILE=topology%conn_file_name,NUMBER=iunit)
-    BACKSPACE iunit 
+    CALL parser_backspace
     CALL read_line
     CALL get_next (ntheta)
     IF(PM1) WRITE(iw,*) 'NTHETA = ',ntheta
@@ -311,8 +309,7 @@ SUBROUTINE read_topology_psf (topology,globenv)
     IF(PM1) WRITE ( iw, '( A )' ) ' No NPHI section '
     nphi = 0
   ELSE
-    INQUIRE (FILE=topology%conn_file_name,NUMBER=iunit)
-    BACKSPACE iunit 
+    CALL parser_backspace()
     CALL read_line
     CALL get_next (nphi)
     IF(PM1) WRITE(iw,*) 'NPHI = ',nphi
@@ -363,8 +360,7 @@ SUBROUTINE read_topology_psf (topology,globenv)
     IF(PM1) WRITE ( iw, '( A )' ) ' No NIMPHI section '
     nphi = 0
   ELSE
-    INQUIRE (FILE=topology%conn_file_name,NUMBER=iunit)
-    BACKSPACE iunit 
+    CALL parser_backspace
     CALL read_line
     CALL get_next (nphi)
     IF(PM1) WRITE(iw,*) 'NIMPR = ',nphi

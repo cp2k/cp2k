@@ -62,7 +62,7 @@ MODULE parser
 
   PRIVATE
   PUBLIC :: parser_init, parser_end, read_line, test_next, get_next, &
-       p_error, stop_parser, search_label
+       p_error, stop_parser, search_label, parser_backspace
 
   INTEGER, PARAMETER :: max_line = 20
   CHARACTER ( LEN = 132 ) :: inp_line(max_line)
@@ -159,6 +159,14 @@ SUBROUTINE parser_end
 END SUBROUTINE parser_end
 
 !******************************************************************************
+
+SUBROUTINE parser_backspace()
+
+    IF (ionode) THEN
+       BACKSPACE iunit
+    ENDIF
+
+END SUBROUTINE
 
 SUBROUTINE search_label ( label, ierr, ignore_case )
 
