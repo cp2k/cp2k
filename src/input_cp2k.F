@@ -1710,7 +1710,8 @@ SUBROUTINE create_tddfpt_section(section,error)
      CALL keyword_release(keyword,error=error)    
      
      CALL keyword_create(keyword, name="DIAG_METHOD",&
-          variants=(/"DIAGONALIZATION_METHOD","METHOD"/),& 
+          variants=(/"DIAGONALIZATION_METHOD",&
+                     "METHOD                "/),& 
           description="Diagonalization method used in tddfpt",&
           usage="DIAG_METHOD DAVIDSON",&
           enum_c_vals=s2a("DAVIDSON","LANCZOS"),&
