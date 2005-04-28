@@ -103,7 +103,6 @@ CONTAINS
       POINTER                                :: atomic_kind_set
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
     TYPE(cell_type), POINTER                 :: cell
-    TYPE(cp_logger_type), POINTER            :: logger
     TYPE(cp_subsystem_p_type), &
       DIMENSION(:), POINTER                  :: subsys
     TYPE(particle_list_type), POINTER        :: particles
@@ -113,9 +112,6 @@ CONTAINS
     CALL write_checkpoint_information("entering "//routine_name,globenv)
 
     CALL timeset(routine_name,"I","",handle)
-
-    NULLIFY(logger)
-    logger => cp_error_get_logger(error)
 
     ionode      = globenv%ionode
     output_unit = globenv%scr
@@ -741,10 +737,11 @@ CONTAINS
        CALL DSCAL(ndf,rat,dr,1)
        step = DDOT(ndf,dr,1,dr,1)
        step = SQRT(step/scal)
-       IF(ionode) &
-       WRITE(unit=output_unit,FMT="(/,T2,A,F8.5)") &
-           " Step is scaled; Scaling factor = ", rat
-       CALL m_flush(output_unit)
+       IF(ionode) THEN
+         WRITE(unit=output_unit,FMT="(/,T2,A,F8.5)") &
+             " Step is scaled; Scaling factor = ", rat
+         CALL m_flush(output_unit)
+       ENDIF
     END IF
 
   END SUBROUTINE trust_radius
