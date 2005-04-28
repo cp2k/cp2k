@@ -37,7 +37,8 @@ MODULE force_field_types
                                              int_size
   USE pair_potential_types,            ONLY: pair_potential_type
   USE splines,                         ONLY: spline_environment_type,&
-                                             spline_env_release
+                                             spline_data_release, &
+                                             spline_data_type
   USE termination,                     ONLY: stop_memory
 
   IMPLICIT NONE
@@ -84,8 +85,8 @@ MODULE force_field_types
   END TYPE impr_kind_type
 
   TYPE onfo_kind_type
-    CHARACTER(LEN=default_string_length)                  :: name
-    TYPE ( spline_environment_type ), POINTER       :: spline_env
+    CHARACTER(LEN=default_string_length)            :: name
+    TYPE ( spline_data_type ), POINTER             :: spline_data
     INTEGER                                         :: kind_number
   END TYPE onfo_kind_type
 
@@ -463,7 +464,7 @@ CONTAINS
     DO ikind=1,nkind
       onfo_kind_set(ikind)%name = "UNSET"
       onfo_kind_set(ikind)%kind_number = ikind
-      NULLIFY(onfo_kind_set(ikind)%spline_env)
+      NULLIFY(onfo_kind_set(ikind)%spline_data)
     END DO
 
   END SUBROUTINE allocate_onfo_kind_set
@@ -1146,7 +1147,7 @@ END SUBROUTINE deallocate_ff_type
     
     failure = .false.
     DO ionfo=1,SIZE(onfo_kind_set)
-      CALL spline_env_release(onfo_kind_set(ionfo)%spline_env, error)
+      CALL spline_data_release(onfo_kind_set(ionfo)%spline_data, error)
     END DO
     DEALLOCATE(onfo_kind_set,STAT=istat)
     IF (istat /= 0) THEN

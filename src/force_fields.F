@@ -38,6 +38,7 @@ MODULE force_fields
                                              cp_error_get_logger,&
                                              cp_error_message,&
                                              cp_error_type
+  USE cp_files,                        ONLY: open_file
   USE cp_log_handling,                 ONLY: cp_failure_level,&
                                              cp_fatal_level,&
                                              cp_note_level,&
@@ -78,6 +79,7 @@ MODULE force_fields
   USE global_types,                    ONLY: global_environment_type
   USE kinds,                           ONLY: dp,&
                                              default_string_length
+  USE manybody_potential,              ONLY: spline_manybody_control
   USE mathconstants,                   ONLY: pi, twopi
   USE memory_utilities,                ONLY: reallocate
   USE molecule_kind_types,             ONLY: allocate_molecule_kind_set,&
@@ -98,7 +100,9 @@ MODULE force_fields
                                              get_molecule
   USE pair_potential,                  ONLY: spline_nonbond_control
   USE pair_potential_types,            ONLY: pair_potential_type,&
-                                             reallocate_potparm
+                                             eam_pot_type,       &
+                                             reallocate_potparm, &
+                                             pot_parameters_create
   USE parser,                          ONLY: get_next,&
                                              p_error,&
                                              parser_end,&
@@ -112,7 +116,9 @@ MODULE force_fields
                                              spline_env_create, &
                                              spline_env_release, &
                                              spline_env_retain,&
-                                             spline_env_set
+                                             spline_data_release, &
+                                             spline_data_retain, &
+                                             spline_data_type
   USE string_utilities,                ONLY: str_search,&
                                              uppercase
   USE termination,                     ONLY: stop_memory,&
@@ -295,11 +301,6 @@ SUBROUTINE force_field_control (atomic_kind_set,particle_set,&
 !-------------------------------------------------------------------------------
 !-------------------------------------------------------------------------------
 END SUBROUTINE force_field_control
-
-
-
-
-
 
 !******************************************************************************
 !!****** force_fields/read_force_field_section [1.0] *
@@ -507,6 +508,9 @@ SUBROUTINE input_nonbonded14(ff_type,globenv)
                  CALL get_next ( epsilon )
                  CALL get_next ( sigma )
                  CALL get_next ( rcut )
+                 CALL convert_to_cp2k_units ( "KELVIN", energy = epsilon )
+                 CALL convert_to_cp2k_units ( "ANGSTROM", length = sigma )
+                 CALL convert_to_cp2k_units ( "ANGSTROM", length = rcut )
                  inp_info%nonbonded14(np) %type = string2
                  inp_info%nonbonded14(np) %at1 = at1
                  inp_info%nonbonded14(np) %at2 = at2
@@ -525,6 +529,11 @@ SUBROUTINE input_nonbonded14(ff_type,globenv)
                  CALL get_next ( b )
                  CALL get_next ( c )
                  CALL get_next ( rcut )
+                 CALL convert_to_cp2k_units ( "KELVIN", energy = a )
+                 CALL convert_to_cp2k_units ( "ANGSTROM", length = b, l_power = -1  )
+                 CALL convert_to_cp2k_units ( "ANGSTROM", length = c, l_power = 6  )
+                 CALL convert_to_cp2k_units ( "KELVIN", energy = c )
+                 CALL convert_to_cp2k_units ( "ANGSTROM", length = rcut )
                  inp_info%nonbonded14(np) %type = string2
                  inp_info%nonbonded14(np) %at1 = at1
                  inp_info%nonbonded14(np) %at2 = at2
@@ -563,7 +572,6 @@ SUBROUTINE input_nonbonded14(ff_type,globenv)
         END IF
         CALL read_line
      END DO
-     CALL convert_to_cp2k_units ( "KELVIN", ff_nonbonded = inp_info % nonbonded14 )
   END IF
 
 END SUBROUTINE input_nonbonded14
@@ -610,7 +618,7 @@ SUBROUTINE input_nonbonded(ff_type,globenv)
     TYPE(input_info_type),POINTER            :: inp_info
     CHARACTER(LEN=default_string_length)     :: at1, at2
     CHARACTER(LEN=default_string_length)     :: label
-    CHARACTER(LEN=default_string_length)     :: string, string2
+    CHARACTER(LEN=default_string_length)     :: string, string2, file_name
     INTEGER                                  :: i, ierror, ilen, iw, &
                                                 np
     REAL(KIND=dp)                                :: a, b, c, d, dc, epsilon, m, &
@@ -669,6 +677,9 @@ SUBROUTINE input_nonbonded(ff_type,globenv)
                  CALL get_next ( epsilon )
                  CALL get_next ( sigma )
                  CALL get_next ( rcut )
+                 CALL convert_to_cp2k_units ( "KELVIN", energy = epsilon )
+                 CALL convert_to_cp2k_units ( "ANGSTROM", length = sigma )
+                 CALL convert_to_cp2k_units ( "ANGSTROM", length = rcut )
                  inp_info%nonbonded(np) %type = string2
                  inp_info%nonbonded(np) %at1 = at1
                  inp_info%nonbonded(np) %at2 = at2
@@ -687,6 +698,11 @@ SUBROUTINE input_nonbonded(ff_type,globenv)
                  CALL get_next ( b )
                  CALL get_next ( c )
                  CALL get_next ( rcut )
+                 CALL convert_to_cp2k_units ( "KELVIN", energy = a )
+                 CALL convert_to_cp2k_units ( "ANGSTROM", length = b, l_power = -1  )
+                 CALL convert_to_cp2k_units ( "ANGSTROM", length = c, l_power = 6  )
+                 CALL convert_to_cp2k_units ( "KELVIN", energy = c )
+                 CALL convert_to_cp2k_units ( "ANGSTROM", length = rcut )
                  inp_info%nonbonded(np) %type = string2
                  inp_info%nonbonded(np) %at1 = at1
                  inp_info%nonbonded(np) %at2 = at2
@@ -694,6 +710,22 @@ SUBROUTINE input_nonbonded(ff_type,globenv)
                  inp_info%nonbonded(np) %willis%b = b
                  inp_info%nonbonded(np) %willis%c = c
                  inp_info%nonbonded(np) %rcutsq = rcut*rcut
+              CASE ( 'EAM')
+                 np = np + 1
+                 CALL reallocate_potparm(inp_info%nonbonded,1,np)
+                 ilen = 0
+                 CALL get_next(at1,ilen)
+                 ilen = 0
+                 CALL get_next(at2,ilen)
+                 inp_info%nonbonded(np) %type = string2
+                 inp_info%nonbonded(np) %at1 = at1
+                 inp_info%nonbonded(np) %at2 = at2
+                 ilen = 80
+                 CALL get_next(file_name,ilen)
+                 inp_info%nonbonded(np) %eam%eam_file_name = TRIM ( file_name )
+                 CALL read_eam_data ( inp_info%nonbonded(np)%eam, globenv )
+                 inp_info%nonbonded(np) %rcutsq = inp_info%nonbonded(np)%eam%acutal* & 
+                                                  inp_info%nonbonded(np)%eam%acutal
               CASE ( 'IPBV')
                  np = np + 1
                  CALL reallocate_potparm(inp_info%nonbonded,1,np)
@@ -705,6 +737,7 @@ SUBROUTINE input_nonbonded(ff_type,globenv)
                  IF ( rcut /= 7.8_dp ) &
                  WRITE ( *, * ) '****IPBV cut-off changed to 7.8 Angstroms****'
                  rcut = 7.8_dp
+                 CALL convert_to_cp2k_units ( "ANGSTROM", length = rcut )
                  inp_info%nonbonded(np) %type = string2
                  inp_info%nonbonded(np) %at1 = at1
                  inp_info%nonbonded(np) %at2 = at2
@@ -819,7 +852,6 @@ SUBROUTINE input_nonbonded(ff_type,globenv)
         END IF
         CALL read_line
      END DO
-     CALL convert_to_cp2k_units ( "KELVIN", ff_nonbonded = inp_info % nonbonded )
   END IF
 
 END SUBROUTINE input_nonbonded
@@ -1729,6 +1761,7 @@ SUBROUTINE force_field_pack (particle_set,atomic_kind_set,&
 
   TYPE(spline_environment_type), POINTER                 :: spline_bond_env
   TYPE(spline_environment_type), POINTER                 :: spline_nonbond_env
+  TYPE(spline_environment_type), POINTER                 :: spline_manybody_env
 
   CHARACTER(len=*), PARAMETER :: routineN = 'force_field_pack', &
     routineP = moduleN//':'//routineN
@@ -1736,7 +1769,7 @@ SUBROUTINE force_field_pack (particle_set,atomic_kind_set,&
   TYPE(input_info_type),POINTER     :: inp_info
   TYPE(charmm_info_type),POINTER    :: chm_info
 
-  INTEGER                                  :: istat, iw, i, j, k
+  INTEGER                                  :: istat, iw, i, j, k, ikind, jkind, n
   LOGICAL                                  :: PM1, PM2, PM3, PM4
 
   CHARACTER(LEN=default_string_length)   :: name
@@ -1744,7 +1777,7 @@ SUBROUTINE force_field_pack (particle_set,atomic_kind_set,&
   TYPE(molecule_kind_type), POINTER      :: molecule_kind
 
   INTEGER                                :: natom,nbond,nbend,nub,ntorsion,&
-                                            nonfo,nimpr
+                                            nonfo,nimpr,nkinds
   INTEGER                                :: atm_a,atm_b,atm_c,atm_d
   CHARACTER(LEN=default_string_length)   :: name_atm_a,name_atm_b, name_atm_a_local, name_atm_b_local
   CHARACTER(LEN=default_string_length)   :: name_atm_c,name_atm_d
@@ -1786,6 +1819,7 @@ SUBROUTINE force_field_pack (particle_set,atomic_kind_set,&
   INTEGER, DIMENSION(:), POINTER           :: molecule_list
   INTEGER                                  :: first,last
   TYPE(molecule_type), POINTER        :: molecule
+  TYPE ( spline_data_type ), POINTER :: spline_data
 
 !------------------------------------------------------------------------------
 !------------------------------------------------------------------------------
@@ -2916,9 +2950,9 @@ SUBROUTINE force_field_pack (particle_set,atomic_kind_set,&
   !-----------------------------------------------------------------------------
   ! 12. Set spline_bond_env, use for ONFO interaction
   !-----------------------------------------------------------------------------
-  ALLOCATE(potparm_bond(SIZE(atomic_kind_set),SIZE(atomic_kind_set)),&
-           STAT=istat)
-  IF (istat /= 0) CALL stop_memory('ff_pack','potparm_bond')
+  CALL pot_parameters_create ( potparm_bond,  &
+                               SIZE ( atomic_kind_set ), &
+                               error )
   DO i=1,SIZE(atomic_kind_set)
     atomic_kind => atomic_kind_set(i)
     CALL get_atomic_kind(atomic_kind=atomic_kind,name=name_atm_a_local)
@@ -3051,10 +3085,26 @@ SUBROUTINE force_field_pack (particle_set,atomic_kind_set,&
     END DO
   END DO
   NULLIFY(spline_bond_env)
-  CALL spline_env_create(spline_bond_env, error)
-  CALL spline_env_set(spline_bond_env,potparm=potparm_bond)
-  CALL spline_nonbond_control(spline_bond_env,atomic_kind_set)
-
+  nkinds = SIZE ( potparm_bond, 1 )
+  CALL spline_env_create ( spline_bond_env, nkinds, error )
+  CALL spline_nonbond_control ( spline_bond_env, potparm_bond, atomic_kind_set )
+! point potparm ( ikind, jkind ) % spline_data => spline_data_p ( n )
+  DO ikind = 1, SIZE ( potparm_bond, 1 )
+    DO jkind = ikind, SIZE ( potparm_bond, 2 )
+      n = spline_bond_env % spltab ( ikind, jkind )
+      spline_data => spline_bond_env % spline_data_p ( n ) % spline_data
+! do i,j
+      CALL spline_data_retain ( spline_data, error )
+      CALL spline_data_release (  &
+         potparm_bond ( ikind, jkind ) % pair_spline_data, error )
+      potparm_bond ( ikind, jkind ) % pair_spline_data => spline_data
+! do j,i
+      CALL spline_data_retain ( spline_data, error )
+      CALL spline_data_release (  &
+         potparm_bond ( jkind, ikind ) % pair_spline_data, error )
+      potparm_bond ( jkind, ikind ) % pair_spline_data => spline_data
+    END DO
+  END DO
 
   !-----------------------------------------------------------------------------
   !-----------------------------------------------------------------------------
@@ -3073,12 +3123,12 @@ SUBROUTINE force_field_pack (particle_set,atomic_kind_set,&
       !atomic_kind => atom_list(atm_a)%atomic_kind
       atomic_kind => particle_set(atm_a+first-1)%atomic_kind
       CALL get_atomic_kind(atomic_kind=atomic_kind,&
-                           name=name_atm_a)
+                           name=name_atm_a, kind_number = ikind )
       atm_b = onfo_list(j)%b
       !atomic_kind => atom_list(atm_b)%atomic_kind
       atomic_kind => particle_set(atm_b+first-1)%atomic_kind
       CALL get_atomic_kind(atomic_kind=atomic_kind,&
-                           name=name_atm_b)
+                           name=name_atm_b, kind_number = jkind )
       found = .FALSE.
       only_qm = qmmm_ff_precond_only_qm(id1=name_atm_a, id2=name_atm_b)
       ! loop over params from amber
@@ -3103,10 +3153,13 @@ SUBROUTINE force_field_pack (particle_set,atomic_kind_set,&
 !     END IF
 
 !      IF(ASSOCIATED(chm_info%nonbond_a_14)) THEN
-      CALL spline_env_release(onfo_list(j)%onfo_kind%spline_env, error=error)
-      CALL spline_env_retain (spline_bond_env,error=error)
       onfo_list(j)%onfo_kind%name   = "CHARMM"
-      onfo_list(j)%onfo_kind%spline_env   => spline_bond_env
+! Point to the correct potparm % ( ikind, jkind ) % spline_data
+      CALL spline_data_retain (potparm_bond (ikind, jkind ) % pair_spline_data,error=error)
+      CALL spline_data_release(onfo_list(j)%onfo_kind%spline_data, error=error)
+      onfo_list(j)%onfo_kind%spline_data => &
+      potparm_bond ( ikind, jkind ) % pair_spline_data
+      
 !      END IF
 
 !      ! always have the input param last to overwrite all the other ones
@@ -3237,9 +3290,9 @@ SUBROUTINE force_field_pack (particle_set,atomic_kind_set,&
   !-----------------------------------------------------------------------------
   ! 15. Set spline_nonbond_env
   !-----------------------------------------------------------------------------
-  ALLOCATE(potparm_nonbond(SIZE(atomic_kind_set),&
-                           SIZE(atomic_kind_set)),STAT=istat)
-  IF (istat /= 0) CALL stop_memory('ff_pack','potparm_nonbond')
+  CALL pot_parameters_create ( potparm_nonbond,  &
+                               SIZE ( atomic_kind_set ), &
+                               error )
   DO i=1,SIZE(atomic_kind_set)
     atomic_kind => atomic_kind_set(i)
     CALL get_atomic_kind(atomic_kind=atomic_kind,name=name_atm_a_local)
@@ -3333,13 +3386,60 @@ SUBROUTINE force_field_pack (particle_set,atomic_kind_set,&
       END IF
     END DO
   END DO
-  CALL spline_env_create(spline_nonbond_env, error)
-  CALL spline_env_set(spline_nonbond_env,potparm=potparm_nonbond)
-  CALL spline_nonbond_control(spline_nonbond_env,atomic_kind_set,ewald_env)
-  CALL fist_nonbond_env_create(fist_nonbond_env,spline_nonbond_env,&
-                               SIZE(atomic_kind_set),error)
+  nkinds = SIZE ( potparm_nonbond, 1 )
+!---------------------------------------
+! create the pair potential spline environment
+!---------------------------------------
+  CALL spline_env_create(spline_nonbond_env, nkinds, error)
+  CALL spline_nonbond_control(spline_nonbond_env, potparm_nonbond, &
+                              atomic_kind_set,ewald_env)
+!---------------------------------------
+! create the manybody spline environment
+!---------------------------------------
+  CALL spline_env_create(spline_manybody_env, nkinds, error)
+  CALL spline_manybody_control(spline_manybody_env, potparm_nonbond)
+                              
+  DO ikind = 1, SIZE ( potparm_nonbond, 1 )
+    DO jkind = ikind, SIZE ( potparm_nonbond, 2)
+!---------------------------------------
+! 1st: The pair-potential contribution
+!---------------------------------------
+      n = spline_nonbond_env % spltab ( ikind, jkind )
+      spline_data => spline_nonbond_env % spline_data_p ( n ) % spline_data
+! do i,j
+      CALL spline_data_retain ( spline_data, error )
+      CALL spline_data_release (  &
+         potparm_nonbond ( ikind, jkind ) % pair_spline_data, error )
+      potparm_nonbond ( ikind, jkind ) % pair_spline_data => spline_data
+! do j,i
+      CALL spline_data_retain ( spline_data, error )
+      CALL spline_data_release (  &
+         potparm_nonbond ( jkind, ikind ) % pair_spline_data, error )
+      potparm_nonbond ( jkind, ikind ) % pair_spline_data => spline_data
+!---------------------------------------
+! 2nd: The many-body contribution
+!---------------------------------------
+      n = spline_manybody_env % spltab ( ikind, jkind )
+      spline_data => spline_manybody_env % spline_data_p ( n ) % spline_data
+! do i,j
+      IF ( ASSOCIATED ( spline_data ) ) THEN
+        CALL spline_data_retain ( spline_data, error )
+        CALL spline_data_release (  &
+           potparm_nonbond ( ikind, jkind ) % rho_spline_data, error )
+        potparm_nonbond ( ikind, jkind ) % rho_spline_data => spline_data
+! do j,i
+        CALL spline_data_retain ( spline_data, error )
+        CALL spline_data_release (  &
+           potparm_nonbond ( jkind, ikind ) % rho_spline_data, error )
+        potparm_nonbond ( jkind, ikind ) % rho_spline_data => spline_data
+      ENDIF 
+    END DO
+  END DO
+  CALL fist_nonbond_env_create (  fist_nonbond_env, potparm_nonbond, error )
+
+! Release all spline_environments
   CALL spline_env_release (spline_nonbond_env,error)
-  call spline_env_release (spline_bond_env,error)
+  CALL spline_env_release (spline_bond_env,error)
 
 
 !------------------------------------------------------------------------------
@@ -4219,6 +4319,78 @@ SUBROUTINE clean_intra_force_kind (molecule_kind_set,globenv)
 !------------------------------------------------------------------------------
 END SUBROUTINE clean_intra_force_kind
 
-END MODULE force_fields
+!******************************************************************************
+!!****** force_field/read_eam_data [1.0] *
+!!
+!!   NAME
+!!     read_eam_data
+!!
+!!   SYNOPSIS
+!!
+!!   FUNCTION
+!!     reads EAM potential from library
+!!
+!!   AUTHOR
+!!
+!!   MODIFICATION HISTORY
+!!
+!!   OPTIONS
+!!
+!!   INPUTS
+!!*****************************************************************************
+SUBROUTINE read_eam_data ( eam, globenv )
+  TYPE ( eam_pot_type ), INTENT ( INOUT )                    :: eam
+  TYPE ( global_environment_type ), INTENT(IN), OPTIONAL     :: globenv
+!locals
+  INTEGER :: unit_number, scr, i, ntyp
+  REAL ( dp ) :: rmass, rlatt, acutal2
+  CHARACTER ( len = default_string_length ) :: title3
+  IF ( PRESENT ( globenv ) ) scr = globenv % scr
+  CALL open_file(file_name=TRIM(eam % eam_file_name),&
+                 file_form="FORMATTED",&
+                 file_position="REWIND",&
+                 file_status="OLD",&
+                 unit_number=unit_number)
+  READ ( unit_number, '(A72)' ) title3
+  WRITE ( scr, * ) title3
 
+  READ ( unit_number, * ) ntyp,rmass,rlatt
+
+!  WRITE ( scr, '(1x,72('*'),//1x,'input data from the EAM functions',  &
+!         //1x,'title: ',a72,                                           &
+!         /1x,'-> Z =',i5,8x,'A =',f10.3,                               &
+!         /1x,'-> a =',f10.4)') title3,ntyp,rmass,rlatt
+
+  READ ( unit_number, * ) eam % drar, eam % drhoar, eam % acutal
+      CALL convert_to_cp2k_units ( "ANGSTROM", length = eam % drar )
+      CALL convert_to_cp2k_units ( "ANGSTROM", length = eam % acutal )
+      acutal2 = eam % acutal * eam % acutal
+
+!  WRITE(scr,'('  dr, drho, rcut = ',3e12.4)') eam % drar, eam % drhoar, eam % acutal
+!
+  DO i = 1,5000
+    READ ( unit_number, * ) eam % rho(i),eam % rhop(i)
+    CALL convert_to_cp2k_units ( "ANGSTROM", length = eam % rhop ( i ), l_power = -1 )
+    eam % rval(i) = REAL ( i-1 ) * eam % drar
+    eam % rhoval(i) = REAL ( i-1 )* eam % drhoar
+  END DO
+!
+  DO i = 1,5000
+     READ ( unit_number, * ) eam % phi(i), eam % phip(i)
+     CALL convert_to_cp2k_units ( "EV", energy = eam % phi ( i ) )
+     CALL convert_to_cp2k_units ( "EV", energy = eam % phip ( i ) )
+     CALL convert_to_cp2k_units ( "ANGSTROM", length = eam % phip ( i ), l_power = -1 )
+  END DO
+!
+  DO i = 1,5000
+     READ ( unit_number, * ) eam%frho(i), eam % frhop(i)
+     CALL convert_to_cp2k_units ( "EV", energy = eam % frho ( i ) )
+     CALL convert_to_cp2k_units ( "EV", energy = eam % frhop ( i ) )
+  END DO
+!
+  WRITE ( scr, * ) 'Finished EAM data'
+  CLOSE ( unit_number )
+END SUBROUTINE read_eam_data 
+!******************************************************************************
+END MODULE force_fields
 !******************************************************************************

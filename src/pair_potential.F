@@ -30,8 +30,7 @@ MODULE pair_potential
   USE pair_potential_types,            ONLY: pair_potential_type
   USE splines,                         ONLY: init_spline,&
                                              init_splinexy,&
-                                             kill_spline,&
-                                             spline_data,&
+                                             spline_data_type,&
                                              splineh, &
                                              spline_environment_type
   USE termination,                     ONLY: stop_memory,&
@@ -57,8 +56,9 @@ FUNCTION ener_pot ( pot, qi, qj, r )
     REAL(KIND=dp), INTENT(IN)                    :: qi, qj, r
     REAL(KIND=dp)                                :: ener_pot
 
-    REAL(KIND=dp)                                :: scale
-    INTEGER                                      :: i
+! locals
+    REAL(KIND=dp)                                :: scale, pp, qq 
+    INTEGER                                      :: i, index
 
 !------------------------------------------------------------------------------
 
@@ -71,7 +71,7 @@ FUNCTION ener_pot ( pot, qi, qj, r )
        DO i = 2, 15
          ener_pot = ener_pot + pot % ipbv % a(i)/(r**(i-1)*REAL(i-1,dp)) 
        END DO
-       ener_pot=ener_pot- pot % energy_cutoff
+       ener_pot=ener_pot - pot % energy_cutoff
      ELSE
 ! use a linear potential
        ener_pot = pot % ipbv % m * r + pot % ipbv % b
@@ -83,6 +83,17 @@ FUNCTION ener_pot ( pot, qi, qj, r )
      scale = exp(pot%goodwin%m*(-(r/pot%goodwin%dc)**pot%goodwin%mc+(pot% &
           goodwin%d/pot%goodwin%dc)**pot%goodwin%mc))
      ener_pot = scale*pot%goodwin%vr0*(pot%goodwin%d/r)**pot%goodwin%m
+  ELSE IF (pot%type=='EAM') THEN
+     index = INT ( r / pot % eam % drar ) + 1
+     IF ( index > 5000 ) THEN
+       index = 5000
+     ELSEIF ( index < 1 ) THEN
+       index = 1
+     ENDIF
+     qq = r - pot % eam % rval (index)
+     pp =  pot % eam % phi ( index ) + &
+          qq * pot % eam % phip ( index )
+     ener_pot = pp - pot % energy_cutoff
   ELSE
      WRITE(*,*) "pot%type = ",pot%type
      CALL stop_program("pair_potential%ener_pot","Potential type unknown")
@@ -127,61 +138,31 @@ END FUNCTION ener_coul
 
 ! creates the splines for the potentials
 
-SUBROUTINE spline_nonbond_control ( spline_env, atomic_kind_set, ewald_env )
+SUBROUTINE spline_nonbond_control ( spline_env, potparm, atomic_kind_set, &
+                                    ewald_env )
 
 
     TYPE ( spline_environment_type ), INTENT ( INOUT )  :: spline_env 
+    TYPE ( pair_potential_type ), POINTER               :: potparm ( :, : )
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                           :: atomic_kind_set
     TYPE(ewald_environment_type), POINTER, OPTIONAL     :: ewald_env
 
-    INTEGER                                  :: i, isos, j, jx, n, ntab, ntype
+    INTEGER                                  :: i, isos, j, jx, n, ntype
     INTEGER                                  :: npoints
-    REAL(KIND=dp)                                :: a, cutmax, cutmin, dx2, e, &
+    REAL(KIND=dp)                            :: a, cutmax, cutmin, dx2, e, &
                                                 hicut, locut, qi, qj, x, x2
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
-  !  INTEGER, POINTER                         :: spltab ( :, : )
-  !  TYPE ( spline_data ), POINTER            :: spline_table ( : )
-    TYPE ( pair_potential_type ), POINTER    :: potparm ( :, : )
 
 !------------------------------------------------------------------------------
 
-  potparm => spline_env % potparm
   npoints = spline_env % nspline_points
-
-  ntype = SIZE ( atomic_kind_set )
-  ntab = ( ntype * ntype + ntype ) / 2
-
-  IF ( ASSOCIATED ( spline_env % spline_table ) ) THEN
-     DO i = 1, ntab
-        CALL kill_spline ( spline_env % spline_table(i), 'a' )
-     END DO
-     DEALLOCATE ( spline_env % spline_table, STAT = isos )
-     IF ( isos /= 0 ) CALL stop_memory ( 'spline_nonbond_control', &
-          'spline_table' )
-     NULLIFY ( spline_env % spline_table )
-  END IF
-
-  ALLOCATE ( spline_env % spline_table ( ntab ), STAT = isos )
-  IF ( isos /= 0 ) CALL stop_memory ( 'spline_nonbond_control', &
-       'spline_table', ntab )
-  DO i = 1, ntab
-     NULLIFY ( spline_env % spline_table(i) % x )
-     NULLIFY ( spline_env % spline_table(i) % y )
-     NULLIFY ( spline_env % spline_table(i) % y2 )
-  END DO
-  IF ( ASSOCIATED ( spline_env % spltab ) ) THEN
-     DEALLOCATE ( spline_env % spltab, STAT = isos )
-     IF ( isos /= 0 ) CALL stop_memory ( 'spline_nonbond_control', 'spltab' )
-  END IF
-  ALLOCATE ( spline_env % spltab ( ntype, ntype ), STAT = isos )
-  IF ( isos /= 0 ) CALL stop_memory ( 'spline_nonbond_control', &
-       'spltab', ntype ** 2 )
 
   cutmin = 1.0E+30_dp
   cutmax = 0.0_dp
   n = 0
 
+  ntype = SIZE ( atomic_kind_set )
   DO i = 1, ntype ! i:  first atom type
 
      atomic_kind=> atomic_kind_set(i)
@@ -195,7 +176,7 @@ SUBROUTINE spline_nonbond_control ( spline_env, atomic_kind_set, ewald_env )
         spline_env % spltab(i,j) = n
         spline_env % spltab(j,i) = n
 !ODER: n=j+(i-1)*n-(i-1)*i/2 mit j>=i
-        CALL init_splinexy(spline_env % spline_table(n),npoints+1)
+        CALL init_splinexy(spline_env % spline_data_p(n) % spline_data,npoints+1)
 
         IF (potparm(i,j)%type=='LENNARD-JONES') THEN
            locut =  0.944863_dp ! else put locut to 0.5 Angstrom
@@ -206,7 +187,7 @@ SUBROUTINE spline_nonbond_control ( spline_env, atomic_kind_set, ewald_env )
         ELSE
            locut = 0.944863_dp  ! else put locut to 0.5 Angstrom
         END IF
-        hicut = SQRT(potparm(i,j)%rcutsq)
+        hicut = SQRT ( potparm ( i, j ) % rcutsq )
         IF ( hicut > cutmax ) cutmax = hicut
         IF ( locut < cutmin ) cutmin = locut
         potparm(i,j) %energy_cutoff = 0.0_dp
@@ -223,13 +204,13 @@ SUBROUTINE spline_nonbond_control ( spline_env, atomic_kind_set, ewald_env )
         DO jx = 1, npoints + 1 ! jx: loop over distance**2
            x = SQRT ( x2 )
            e = ener_pot ( potparm ( i, j ), qi, qj, x ) &
-                + ener_coul ( potparm ( i, j ), qi, qj, x, ewald_env )
-           spline_env % spline_table(n) %x(jx) = x2
-           spline_env % spline_table(n) %y(jx) = e
+             + ener_coul ( potparm ( i, j ), qi, qj, x, ewald_env )
+           spline_env % spline_data_p ( n ) % spline_data % x(jx) = x2
+           spline_env % spline_data_p ( n ) % spline_data % y(jx) = e
            x2 = x2 + dx2
         END DO ! jx: loop over distance
 
-        CALL init_spline(spline_env % spline_table(n),dx=dx2)
+        CALL init_spline(spline_env % spline_data_p ( n ) % spline_data,dx=dx2)
 
      END DO ! j:  second atom type
   END DO ! i:  first atom type
@@ -241,18 +222,16 @@ END SUBROUTINE spline_nonbond_control
 !     calculates energy=V(r^2) and fscalar=-V^{prime}(r^2)/r
 !     qi,qj are not used any more. only kept to have same args as potential()
 
-SUBROUTINE potential_s ( spline_table, spltab, rijsq, iatom, jatom, energy, fscalar )
+SUBROUTINE potential_s ( spline_table, rijsq, energy, fscalar )
 
 
     REAL(KIND=dp), INTENT(IN)                    :: rijsq
-    INTEGER, INTENT(IN)                      :: iatom, jatom
     REAL(KIND=dp), INTENT(OUT)                   :: energy, fscalar
-    INTEGER, INTENT ( IN ), DIMENSION ( :, : ) :: spltab
-    TYPE ( spline_data ), INTENT ( IN ), DIMENSION ( : ) :: spline_table
+    TYPE ( spline_data_type ), INTENT ( IN )     :: spline_table
 
 !------------------------------------------------------------------------------
 
-  energy = splineh ( spline_table ( spltab ( iatom, jatom ) ), rijsq, fscalar )
+  energy = splineh ( spline_table, rijsq, fscalar )
   fscalar = -2.0_dp * fscalar
 
 END SUBROUTINE potential_s

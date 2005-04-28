@@ -349,13 +349,10 @@ CONTAINS
 
     cell%h_inv = inv_3x3(cell%hmat)
 
+    cell%orthorhombic = .FALSE.
     IF ((cell%hmat(1,2) == 0.0_dp).AND.(cell%hmat(1,3) == 0.0_dp).AND.&
         (cell%hmat(2,1) == 0.0_dp).AND.(cell%hmat(2,3) == 0.0_dp).AND.&
-        (cell%hmat(3,1) == 0.0_dp).AND.(cell%hmat(3,2) == 0.0_dp)) THEN
-      cell%orthorhombic = .TRUE.
-    ELSE
-      cell%orthorhombic = .FALSE.
-    END IF
+        (cell%hmat(3,1) == 0.0_dp).AND.(cell%hmat(3,2) == 0.0_dp)) cell%orthorhombic = .TRUE.
     dim = COUNT(cell%perd == 1)
     IF ((dim/=3).AND.(.NOT.cell%orthorhombic)) THEN
        CALL stop_program(routine,"Not ortho and not periodic")

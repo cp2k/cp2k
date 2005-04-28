@@ -51,7 +51,7 @@ MODULE fist_force_numer
                                              torsion_type
   USE molecule_types_new,              ONLY: molecule_type, &
                                              get_molecule
-  USE pair_potential,                 ONLY : potential_f
+  USE pair_potential,                 ONLY : potential_f, potential_s
   USE pair_potential_types,           ONLY : pair_potential_type
   USE particle_types,                 ONLY : particle_type
   USE pw_grids,                       ONLY : pw_grid_change
@@ -71,7 +71,7 @@ MODULE fist_force_numer
                                              cell_create, &
                                              cell_retain, &
                                              cell_release
-  USE splines,                         ONLY: spline_environment_type
+  USE splines,                         ONLY: spline_data_type
   USE termination,                     ONLY : stop_program, stop_memory
   USE timings,                         ONLY : timeset, timestop
 
@@ -222,9 +222,8 @@ SUBROUTINE force_onefour_numer ( molecule_set, molecule_kind_set, local_molecule
   TYPE ( onfo_type ), POINTER              :: onfo_list ( : )
   TYPE ( molecule_type ), POINTER          :: molecule
   TYPE ( molecule_kind_type ), POINTER      :: molecule_kind
-  TYPE ( pair_potential_type ), POINTER      :: potparm ( :, : )
   TYPE ( atomic_kind_type ), POINTER      :: atomic_kind
-  TYPE ( spline_environment_type ), POINTER      :: spline_env
+  TYPE ( spline_data_type ), POINTER      :: spline_data
 
 !------------------------------------------------------------------------------
 
@@ -250,21 +249,17 @@ SUBROUTINE force_onefour_numer ( molecule_set, molecule_kind_set, local_molecule
         rij = particle_set ( index_b ) % r - particle_set ( index_a ) % r
 ! get the energy
         rab2 = DOT_PRODUCT ( rij, rij )
-        spline_env => onfo_list ( ibond ) % onfo_kind % spline_env
-        potparm => spline_env % potparm
-        CALL potential_f ( rab2, potparm, 0.0_dp, 0.0_dp, &
-                          akind, bkind, e0 )
+        spline_data => onfo_list ( ibond ) % onfo_kind % spline_data
+        CALL potential_s ( spline_data, rab2, e0, fscalar )
         pot = pot + e0
 
 ! get the forces
         DO idim = 1, 3
            delta(idim) = numerical_shift
            rab2_minus_delta = DOT_PRODUCT ( rij - delta, rij - delta )
-           CALL potential_f ( rab2_minus_delta, potparm, 0.0_dp, 0.0_dp, &
-                             akind, bkind, em )
+           CALL potential_s ( spline_data, rab2_minus_delta, em, fscalar )
            rab2_plus_delta = DOT_PRODUCT ( rij + delta, rij + delta )
-           CALL potential_f ( rab2_plus_delta, potparm, 0.0_dp, 0.0_dp, &
-                             akind, bkind, ep )
+           CALL potential_s ( spline_data, rab2_plus_delta, ep, fscalar )
            f_numer(idim,index_a) = f_numer(idim,index_a) + (ep-em)
            f_numer(idim,index_b) = f_numer(idim,index_b) - (ep-em)
            delta = 0.0_dp
@@ -1798,7 +1793,11 @@ SUBROUTINE pv_nonbond_numer ( fist_nonbond_env, ewald_env, atomic_kind_set, &
 ! get coords from perturbed hmat
         DO i = 1, natoms
            particle_set ( i ) % r ( : ) = MATMUL ( cell_local % hmat, s(:,i) )
+!           particle_set ( i ) % rho = 0._dp
+!           particle_set ( i ) % f_embedding = 0._dp
         END DO
+!        CALL density_nonbond_numer
+!        CALL energy_manybody_numer
         CALL potential_nonbond ( fist_nonbond_env, particle_set, atomic_kind_set, &
                                  ewald_env, cell_local, vnb )
         vp = vnb
@@ -1808,7 +1807,11 @@ SUBROUTINE pv_nonbond_numer ( fist_nonbond_env, ewald_env, atomic_kind_set, &
         CALL get_hinv(cell_local)
         DO i = 1, natoms
            particle_set (i) % r = MATMUL(cell_local % hmat,s(:,i))
+!           particle_set ( i ) % rho = 0._dp
+!           particle_set ( i ) % f_embedding = 0._dp
         END DO
+!        CALL density_nonbond_numer
+!        CALL energy_manybody_numer
         CALL potential_nonbond ( fist_nonbond_env, particle_set, atomic_kind_set, &
                                  ewald_env, cell_local, vnb )
         vm = vnb
@@ -2353,8 +2356,7 @@ SUBROUTINE potential_onefour ( molecule_set, molecule_kind_set, local_molecules,
   TYPE ( molecule_type ), POINTER          :: molecule
   TYPE ( molecule_kind_type ), POINTER      :: molecule_kind
   TYPE ( atomic_kind_type ), POINTER      :: atomic_kind
-  TYPE ( spline_environment_type ), POINTER      :: spline_env
-  TYPE ( pair_potential_type ), POINTER      :: potparm ( :, : )
+  TYPE ( spline_data_type ), POINTER      :: spline_data
 
 !------------------------------------------------------------------------------
 
@@ -2380,10 +2382,8 @@ SUBROUTINE potential_onefour ( molecule_set, molecule_kind_set, local_molecules,
         CALL get_atomic_kind ( atomic_kind, kind_number =  bkind )
         rij = particle_set ( index_b ) % r - particle_set ( index_a ) % r
         rab2 = DOT_PRODUCT ( rij, rij )
-        spline_env => onfo_list ( ibond ) % onfo_kind % spline_env
-        potparm => spline_env % potparm
-        CALL potential_f ( rab2, potparm, 0.0_dp, 0.0_dp, &
-                          akind, bkind, e0 )
+        spline_data => onfo_list ( ibond ) % onfo_kind % spline_data
+        CALL potential_s ( spline_data, rab2, e0, fscalar )
         energy = energy + e0
      END DO BOND
     END DO
@@ -2745,12 +2745,12 @@ SUBROUTINE potential_nonbond ( fist_nonbond_env, particle_set, atomic_kind_set, 
   TYPE ( particle_type ), DIMENSION ( : ), POINTER  :: particle_set
   TYPE (ewald_environment_type), POINTER :: ewald_env
   TYPE ( cell_type ), POINTER :: cell
-  TYPE (pair_potential_type), POINTER, DIMENSION ( :, : ) :: potparm
   REAL (KIND=dp), INTENT ( INOUT ) :: vnb
 
 ! Locals
   TYPE ( atomic_kind_type ), POINTER :: atomic_kind 
-  TYPE ( spline_environment_type ), POINTER :: spline_env
+  TYPE ( spline_data_type ), POINTER :: spline_data
+  TYPE ( pair_potential_type ), POINTER :: potparm ( :, : )
     INTEGER                                  :: ab, atom_a, atom_b, &
                                                 cell_b( 3 ), handle, ikind, &
                                                 ilist, inode, jkind, nkinds, &
@@ -2772,12 +2772,13 @@ SUBROUTINE potential_nonbond ( fist_nonbond_env, particle_set, atomic_kind_set, 
 
   CALL fist_nonbond_env_get ( fist_nonbond_env, nonbonded = nonbonded, &
                               r_last_update = r_last_update,            &
-                              spline_env = spline_env, natom_types = nkinds )
-  potparm => spline_env % potparm
+                              potparm = potparm )
 !
 ! initializing the potential energy
 !
   vnb = 0.0_dp
+
+  nkinds = SIZE ( potparm, 1 )
 
 !
 ! starting the force loop
@@ -2826,10 +2827,10 @@ SUBROUTINE potential_nonbond ( fist_nonbond_env, particle_set, atomic_kind_set, 
             IF (rab2 <= rab2_max) THEN
               IF (qi==0.AND.qj==0) THEN
                 CALL potential_f ( rab2, potparm, qi, qj, &
-                   ikind, jkind, energy )
+                                   ikind, jkind, energy )
               ELSE
                 CALL potential_f ( rab2, potparm, qi, qj, &
-                   ikind, jkind, energy, ewald_env )
+                          ikind, jkind, energy, ewald_env )
               ENDIF
 !
 ! summing up the potential energy
@@ -3044,7 +3045,7 @@ END SUBROUTINE potential_nonbond
     REAL(KIND=dp)                                 :: rab2, rab2_max,&
                                                  qi, qj
     REAL(KIND=dp), DIMENSION(3)                   :: r, rab, rb, s, sab, sab_max, &
-                                                sb, sb_max, sb_min, sb_pbc
+                                                  sb, sb_max, sb_min, sb_pbc
     TYPE(subcell_type), DIMENSION(:, :, :), &
       POINTER                                :: subcell
     INTEGER, DIMENSION(:), POINTER           :: exclusion_list
@@ -3157,15 +3158,22 @@ END SUBROUTINE potential_nonbond
                               exclude_flag = .TRUE. 
                             END DO
                           END IF
-                          IF (.NOT.exclude_flag ) &
-                          CALL finite_difference_evaluate ( ewald_env,     &
-                                                            potparm, rab,    &
-                                                            ikind, jkind, &
-                                                            atom_a, atom_b, &
-                                                            qi, qj, &
-                                                            numerical_shift, &
-                                                            f_numer,     &
-                                                            energy_numer )
+                          IF (.NOT.exclude_flag ) THEN
+                            SELECT CASE ( TRIM ( potparm ( ikind, jkind ) % type ) )
+                            CASE ( "EAM" )
+                              CALL stop_program ( "force_nonbond_numer", &
+                                "DEBUG results for EAM are in regtest" )
+                            CASE DEFAULT
+                              CALL finite_difference_evaluate ( ewald_env,     &
+                                                              potparm, rab,    &
+                                                              ikind, jkind, &
+                                                              atom_a, atom_b, &
+                                                              qi, qj, &
+                                                              numerical_shift, &
+                                                              f_numer,     &
+                                                              energy_numer )
+                            END SELECT
+                          END IF
                         END IF
                       END IF
                     END IF

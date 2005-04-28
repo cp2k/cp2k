@@ -24,6 +24,7 @@ MODULE cp2k_units
                                              bohr,&
                                              boltzmann,&
                                              e_charge,&
+                                             evolt,&
                                              femtoseconds,&
                                              h_bar,&
                                              hz,&
@@ -37,8 +38,8 @@ MODULE cp2k_units
   PRIVATE
 
   TYPE unit_convert_type
- !    PRIVATE  later
-     REAL (KIND=dp) :: mass, fs, kcal, kelvin, degree, bar, wavenum, angstrom, bohr, eps0
+ !   PRIVATE  later
+     REAL (KIND=dp) :: mass, fs, kcal, kelvin, degree, bar, wavenum, angstrom, bohr, eps0, ev
      CHARACTER ( LEN = 10 ) :: e_label, l_label, vol_label,  &
                                temp_label, pres_label,       &
                                angl_label
@@ -90,6 +91,8 @@ SUBROUTINE init_cp2k_units ()
   units % wavenum =  joule * wavenum / hz / h_bar
 ! kcal/mole to energy AU
   units % kcal = 1.0_dp / kcalmol
+! EV to energy AU
+  units % ev = 1.0_dp / evolt
 ! kelvin to energy AU
   units % kelvin = boltzmann / joule
 ! angstrom to length AU
@@ -128,7 +131,7 @@ SUBROUTINE get_cp2k_units ( unit_struc )
 
     TYPE(unit_convert_type), POINTER         :: unit_struc
 
-  unit_struc => units
+    unit_struc => units
 
 END SUBROUTINE get_cp2k_units
 

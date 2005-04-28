@@ -69,7 +69,6 @@ MODULE fist_debug
   USE pair_potential_types,                     ONLY : pair_potential_type
   USE particle_types,                           ONLY : particle_type
   USE simulation_cell,                          ONLY : cell_type
-  USE splines,                                  ONLY : spline_environment_type
   USE termination,                              ONLY : stop_memory, stop_program
   USE virial_types,                             ONLY : virial_type
 
@@ -133,7 +132,6 @@ SUBROUTINE  debug_control ( force_env, globenv, error)
   TYPE ( ewald_environment_type ),   POINTER :: ewald_env
   TYPE ( debug_variables_type ) :: dbg
   TYPE ( fist_environment_type ), POINTER :: fist_env
-  TYPE ( spline_environment_type ), POINTER :: spline_env
   REAL (KIND=dp) :: delta, energy_numer, cutoff, ecut
   REAL (KIND=dp) :: e_numer, pv_test ( 3, 3 )
   REAL (KIND=dp) :: err1, numer, denom1, vec ( 3 ), e_bc, e_real, energy_tot
@@ -155,8 +153,7 @@ SUBROUTINE  debug_control ( force_env, globenv, error)
                       fist_nonbond_env = fist_nonbond_env, cell = cell )
 
 
-  CALL fist_nonbond_env_get ( fist_nonbond_env, spline_env = spline_env )
-  potparm => spline_env % potparm
+  CALL fist_nonbond_env_get ( fist_nonbond_env, potparm = potparm )
   CALL ewald_env_get ( ewald_env, ewald_type = ewald_type )
   isos = 0
 
@@ -243,6 +240,7 @@ SUBROUTINE  debug_control ( force_env, globenv, error)
   f_numer = 0.0_dp
   energy_numer = 0.0_dp
   pv_test = 0.0_dp
+
   CALL force_nonbond_numer ( atomic_kind_set, particle_set, local_particles, &
                              ewald_env, cell, potparm, delta, f_numer, &
                              energy_numer, globenv )

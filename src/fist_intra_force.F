@@ -21,8 +21,6 @@
 
 MODULE fist_intra_force
 
-  USE atomic_kind_types,               ONLY: atomic_kind_type,&
-                                             get_atomic_kind
   USE distribution_1d_types,           ONLY: distribution_1d_type
   USE kinds,                           ONLY: dp
   USE mol_force,                       ONLY: force_bends,&
@@ -44,8 +42,7 @@ MODULE fist_intra_force
                                              get_molecule
   USE pair_potential,                  ONLY: potential_s
   USE particle_types,                  ONLY: particle_type
-  USE splines,                         ONLY: spline_environment_type, &
-                                             spline_data
+  USE splines,                         ONLY: spline_data_type
   USE timings,                         ONLY: timeset,&
                                              timestop
 
@@ -122,10 +119,8 @@ SUBROUTINE force_intra_control ( molecule_set, molecule_kind_set, local_molecule
   TYPE ( onfo_type ), POINTER              :: onef_list ( : )
   TYPE ( torsion_type ), POINTER           :: torsion_list ( : )
   TYPE ( molecule_type ), POINTER          :: molecule
-  TYPE ( molecule_kind_type ), POINTER      :: molecule_kind
-  TYPE ( spline_environment_type ), POINTER      :: spline_env
-  TYPE ( spline_data ), POINTER, DIMENSION ( : ) :: spline_table
-  TYPE ( atomic_kind_type ), POINTER :: atomic_kind
+  TYPE ( molecule_kind_type ), POINTER     :: molecule_kind
+  TYPE ( spline_data_type ), POINTER       :: spline_data
   INTEGER, POINTER, DIMENSION ( :, : ) :: spltab
 
 !------------------------------------------------------------------------------
@@ -384,18 +379,11 @@ SUBROUTINE force_intra_control ( molecule_set, molecule_kind_set, local_molecule
      ONEF: DO ionef = 1, nonefs
         CALL get_molecule ( molecule, first_atom=first_atom )
         index_a = onef_list ( ionef ) % a + first_atom - 1
-        atomic_kind => particle_set ( index_a ) % atomic_kind
-        CALL get_atomic_kind ( atomic_kind, kind_number =  akind )
         index_b = onef_list ( ionef ) % b + first_atom - 1
-        atomic_kind => particle_set ( index_b ) % atomic_kind
-        CALL get_atomic_kind ( atomic_kind, kind_number =  bkind )
         rij = particle_set ( index_b ) % r - particle_set ( index_a ) % r
         rab2 = DOT_PRODUCT ( rij, rij )
-        spline_env => onef_list ( ionef ) % onfo_kind % spline_env
-        spline_table => spline_env % spline_table
-        spltab => spline_env % spltab
-        CALL potential_s ( spline_table, spltab, rab2,  &
-                           akind, bkind, energy, fscalar )
+        spline_data => onef_list ( ionef ) % onfo_kind % spline_data
+        CALL potential_s ( spline_data, rab2, energy, fscalar )
         pot_onef = pot_onef + energy
         particle_set ( index_a )% f = particle_set ( index_a ) % f &
                                       -rij * fscalar

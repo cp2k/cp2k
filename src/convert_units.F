@@ -22,7 +22,6 @@ MODULE convert_units
   USE cp2k_units,                      ONLY: get_cp2k_units,&
                                              unit_convert_type
   USE kinds,                           ONLY: dp
-  USE pair_potential_types,            ONLY: pair_potential_type
   USE particle_types,                  ONLY: particle_type
   USE simulation_cell,                 ONLY: cell_type
 
@@ -55,7 +54,7 @@ CONTAINS
 !******************************************************************************
 SUBROUTINE convert_to_cp2k_units ( unit_char, time, temperature, pressure, length,  &
                                    tau_nhc, mass, angle, eps0, l_power, t_power, part, box, &
-                                   energy, ff_nonbonded )
+                                   energy )
 
 
     CHARACTER(len=*), INTENT(IN), OPTIONAL   :: unit_char
@@ -65,8 +64,6 @@ SUBROUTINE convert_to_cp2k_units ( unit_char, time, temperature, pressure, lengt
     TYPE(particle_type), INTENT(INOUT), &
       OPTIONAL                               :: part( : )
     TYPE(cell_type), INTENT(INOUT), OPTIONAL :: box
-    TYPE(pair_potential_type), &
-      POINTER,   OPTIONAL                    :: ff_nonbonded ( : )
     INTEGER                                  :: i, ll, tt
     TYPE(unit_convert_type), POINTER         :: units
 
@@ -145,47 +142,14 @@ SUBROUTINE convert_to_cp2k_units ( unit_char, time, temperature, pressure, lengt
      ENDIF
   END IF
 
-  IF ( PRESENT ( ff_nonbonded ) ) THEN
-   IF(ASSOCIATED(ff_nonbonded)) THEN
-! convert IPBV parameters
-     ! Already in appropriate units (see force_fields.F)
-! convert LJ parameters
-
-     IF ( unit_char == 'KCAL' ) THEN
-        ff_nonbonded ( : ) % lj % epsilon = ff_nonbonded ( : ) % lj % epsilon * units % kcal
-        ff_nonbonded ( : ) % lj % sigma6 = ff_nonbonded ( : ) % lj % sigma6 * ( units % angstrom ) ** 6
-        ff_nonbonded ( : ) % lj % sigma12 = ff_nonbonded ( : ) % lj % sigma12 * ( units % angstrom ) ** 12
-     ELSEIF ( unit_char == 'KELVIN' ) THEN
-        ff_nonbonded ( : ) % lj % epsilon = ff_nonbonded ( : ) % lj % epsilon * units % kelvin
-        ff_nonbonded ( : ) % lj % sigma6 = ff_nonbonded ( : ) % lj % sigma6 * ( units % angstrom ) ** 6
-        ff_nonbonded ( : ) % lj % sigma12 = ff_nonbonded ( : ) % lj % sigma12 * ( units % angstrom ) ** 12
-     ENDIF 
-
-! convert Williams parameters
-     IF ( unit_char == 'KCAL' ) THEN
-       ff_nonbonded ( : ) %willis%a = ff_nonbonded ( : ) %willis%a*units%kcal
-       ff_nonbonded ( : ) %willis%b = ff_nonbonded ( : ) %willis%b/units%angstrom
-       ff_nonbonded ( : ) %willis%c = ff_nonbonded ( : ) %willis%c*units%kcal* &
-                                                      units%angstrom**6
-     ELSEIF ( unit_char == 'KELVIN' ) THEN
-       ff_nonbonded ( : ) %willis%a = ff_nonbonded ( : ) %willis%a*units%kelvin
-       ff_nonbonded ( : ) %willis%b = ff_nonbonded ( : ) %willis%b/units%angstrom
-       ff_nonbonded ( : ) %willis%c = ff_nonbonded ( : ) %willis%c*units%kelvin* &
-                                                      units%angstrom**6
-     ENDIF
-
-! convert Cutoff distances
-     IF ( ( unit_char /= 'AU' ) .OR. ( unit_char /= 'ATOMIC' ) ) &
-     ff_nonbonded ( : ) % rcutsq = ff_nonbonded ( : ) % rcutsq * ( units % angstrom ) ** 2
-    END IF
-  END IF
-
 ! converting bond, bends and torsion and constraint parameters
   IF ( PRESENT ( energy ) ) THEN
      IF ( unit_char == 'KCAL' ) THEN
        energy  = energy * units%kcal
      ELSEIF ( unit_char == 'KELVIN' ) THEN
        energy  = energy * units%kelvin
+     ELSEIF ( unit_char == 'EV' ) THEN
+       energy  = energy * units%ev
      ENDIF
   END IF
 

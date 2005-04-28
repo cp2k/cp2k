@@ -2,7 +2,7 @@
 !   CP2K: A general program to perform molecular dynamics simulations         !
 !   Copyright (C ) 2000  CP2K developers group                                !
 !-----------------------------------------------------------------------------!
-!!****** cp2k/fist_force [1.0] *
+!!****** cp2k/fist_force [1.0] 
 !!
 !!   NAME
 !!     fist_force
@@ -47,7 +47,8 @@ MODULE fist_force
   USE fist_intra_force, ONLY : force_intra_control
   USE fist_neighbor_list_control, ONLY : list_control
   USE fist_nonbond_env_types, ONLY : fist_nonbond_env_type
-  USE fist_nonbond_force, ONLY : force_nonbond, bonded_correct_gaussian
+  USE fist_nonbond_force, ONLY : force_nonbond, density_nonbond, &
+                                 bonded_correct_gaussian, energy_manybody
   USE global_types, ONLY : global_environment_type
   USE kinds, ONLY: dp, default_string_length
   USE mathconstants, ONLY : pi, zero
@@ -123,7 +124,7 @@ SUBROUTINE fist_force_control ( fist_env, virial, globenv, box_change, debug ,er
   INTEGER :: ikind, iparticle_kind, nparticle_kind, nparticle_local, iparticle_local
   INTEGER :: node, iw, j
   REAL (KIND=dp) :: pot_nonbond, pot_bond, pot_bend, pot_urey_bradley,  &
-                  pot_imptors, pot_torsion, pot_onef, vg_coulomb
+                  pot_imptors, pot_torsion, pot_onef,pot_manybody,vg_coulomb
   REAL (KIND=dp), DIMENSION ( 3,3 ) :: pv_nonbond, pv_bond, pv_bend,  &
                  pv_torsion, pv_urey_bradley, pv_imptors, pv_onef
   REAL (KIND=dp), DIMENSION ( :,: ), ALLOCATABLE :: fg_coulomb
@@ -134,7 +135,7 @@ SUBROUTINE fist_force_control ( fist_env, virial, globenv, box_change, debug ,er
   TYPE ( fist_energy_type ), POINTER :: thermo
   TYPE ( particle_type ), DIMENSION(:), POINTER :: particle_set 
   TYPE(distribution_1d_type), POINTER      :: local_molecules, &
-                                                local_particles
+                                              local_particles
   TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
   TYPE(molecule_kind_type), DIMENSION(:), &
@@ -200,10 +201,16 @@ SUBROUTINE fist_force_control ( fist_env, virial, globenv, box_change, debug ,er
 !
 ! initial force, energy and pressure tensor arrays
 !
-  DO i = 1, natoms
-     particle_set ( i ) % f ( 1 ) = 0.0_dp
-     particle_set ( i ) % f ( 2 ) = 0.0_dp
-     particle_set ( i ) % f ( 3 ) = 0.0_dp
+  DO ikind = 1, nparticle_kind
+     nparticle_local = local_particles%n_el(ikind) 
+     DO iparticle_local = 1, nparticle_local
+       i = local_particles%list(ikind)%array(iparticle_local)
+       particle_set ( i ) % f ( 1 ) = 0.0_dp
+       particle_set ( i ) % f ( 2 ) = 0.0_dp
+       particle_set ( i ) % f ( 3 ) = 0.0_dp
+       particle_set ( i ) % rho = 0.0_dp
+       particle_set ( i ) % f_embed = 0.0_dp
+     END DO
   END DO
   pv_bc = 0.0_dp
   pv_bond = 0.0_dp
@@ -213,6 +220,7 @@ SUBROUTINE fist_force_control ( fist_env, virial, globenv, box_change, debug ,er
   pv_onef = 0.0_dp
   pv_urey_bradley = 0.0_dp
   pot_nonbond = 0.0_dp
+  pot_manybody = 0.0_dp
   pot_bond = 0.0_dp
   pot_bend = 0.0_dp
   pot_torsion = 0.0_dp
@@ -230,14 +238,23 @@ SUBROUTINE fist_force_control ( fist_env, virial, globenv, box_change, debug ,er
      WRITE(iw,'(3f15.9)')((particle_set ( i ) % f ( j ),j=1,3), i = 1, SIZE(particle_set))
   END IF
 
-  f_nonbond = zero
+!  compute density for EAM 
+  CALL density_nonbond ( fist_nonbond_env, particle_set, cell )
+
+! compute embedding function and manybody energy 
+  CALL energy_manybody ( fist_nonbond_env, atomic_kind_set, &
+                         local_particles, particle_set, pot_manybody )
+
+! nonbond contribution + manybody forces
   CALL force_nonbond ( fist_nonbond_env, particle_set, cell, &
                        pot_nonbond, f_nonbond, pv_nonbond  )
+
   IF (PM2) THEN
-     WRITE(iw,'(A)')" FIST:: NONBOND LENNARD-JONES + R-SPACE ELECTROSTATIC FORCES ..."
+     WRITE(iw,'(A)')" FIST:: NONBOND + R-SPACE ELECTROSTATIC FORCES ..."
      WRITE(iw,'(3f15.9)')f_nonbond
   END IF
 
+!
 ! get g-space non-bonded forces:
 !
   IF ( ewald_type /= 'NONE' ) THEN
@@ -297,19 +314,19 @@ SUBROUTINE fist_force_control ( fist_env, virial, globenv, box_change, debug ,er
 !
 ! get intramolecular forces
 !
-  IF ( PRESENT ( debug )  ) THEN
-     CALL force_intra_control ( molecule_set, molecule_kind_set, local_molecules, &
-                      particle_set, pot_bond, pot_bend, pot_urey_bradley, &
-                      pot_torsion, pot_imptors, pot_onef, pv_bond, pv_bend, &
-                      pv_urey_bradley, pv_torsion, pv_imptors, pv_onef,    &
-                      debug % f_bond, debug % f_bend, debug % f_torsion,  &
-                      debug % f_ub, debug % f_imptors, debug % f_onef )
+  IF ( PRESENT ( debug ) ) THEN
+    CALL force_intra_control ( molecule_set, molecule_kind_set, local_molecules, &
+                   particle_set, pot_bond, pot_bend, pot_urey_bradley, &
+                   pot_torsion, pot_imptors, pot_onef, pv_bond, pv_bend, &
+                   pv_urey_bradley, pv_torsion, pv_imptors, pv_onef,    &
+                   debug % f_bond, debug % f_bend, debug % f_torsion,  &
+                   debug % f_ub, debug % f_imptors, debug % f_onef )
   ELSE
-     CALL force_intra_control ( molecule_set, molecule_kind_set, local_molecules, &
-                               particle_set, pot_bond, pot_bend, pot_urey_bradley, &
-                               pot_torsion, pot_imptors, pot_onef, pv_bond, pv_bend,     &
-                               pv_urey_bradley, pv_torsion, pv_imptors,pv_onef )
-  END IF
+    CALL force_intra_control ( molecule_set, molecule_kind_set, local_molecules, &
+                   particle_set, pot_bond, pot_bend, pot_urey_bradley, &
+                   pot_torsion, pot_imptors, pot_onef, pv_bond, pv_bend, &
+                   pv_urey_bradley, pv_torsion, pv_imptors, pv_onef )
+  ENDIF
 
   IF (PM2) THEN
      WRITE(iw,'(A)')" FIST:: CORRECTED BONDED ELECTROSTATIC FORCES + INTERNAL FORCES..."
@@ -319,21 +336,21 @@ SUBROUTINE fist_force_control ( fist_env, virial, globenv, box_change, debug ,er
 !
 ! add up all the potential energies
 !
-  IF ( ewald_type == 'NONE' ) THEN
-     thermo % pot = pot_nonbond + pot_bond + pot_bend + pot_torsion + pot_onef + &
-                    pot_imptors + pot_urey_bradley
-     CALL mp_sum ( thermo % pot, globenv % group )
-  ELSE
-     thermo % pot = pot_nonbond + pot_bond + pot_bend + pot_torsion + pot_onef + &
-                    pot_imptors + pot_urey_bradley
-     thermo % e_gspace = vg_coulomb
-     CALL mp_sum ( thermo % pot,globenv % group )
+  thermo % pot = pot_nonbond + pot_bond + pot_bend + pot_torsion + pot_onef + &
+                 pot_imptors + pot_urey_bradley + pot_manybody
+  CALL mp_sum ( thermo % pot, globenv % group )
+!
+! add g-space contributions if needed
+  IF ( ewald_type /= 'NONE' ) THEN
 ! e_self, e_neut, and ebonded are already summed over all processors
 ! vg_coulomb is not calculated in parallel
+     thermo % e_gspace = vg_coulomb
      thermo % pot = thermo % pot + thermo % e_self + thermo % e_neut/cell % deth
      thermo % pot = thermo % pot + vg_coulomb + thermo % e_bonded
   END IF
+!
 ! add up all the forces
+!
 ! nonbonded forces might be claculated for atoms not on this node
 ! ewald forces are strictly local -> sum only over pnode
 ! We first sum the forces in f_nonbond, this allows for a more efficient
@@ -379,8 +396,9 @@ SUBROUTINE fist_force_control ( fist_env, virial, globenv, box_change, debug ,er
      WRITE(iw,'(3f15.9)')((f_total ( j, i ),j=1,3), i = 1, natoms)
   END IF  
 
-
+!
 ! add up all the pressure tensors
+!
   IF ( ewald_type == 'NONE' ) THEN
      virial % pv_virial = pv_nonbond + pv_bond + pv_bend + &
                           pv_torsion + pv_imptors + pv_urey_bradley
@@ -397,7 +415,7 @@ SUBROUTINE fist_force_control ( fist_env, virial, globenv, box_change, debug ,er
      CALL mp_sum ( virial % pv_virial, globenv % group )
 
      virial % pv_virial = virial % pv_virial + &
-                                   ident * thermo % e_neut / cell % deth
+                          ident * thermo % e_neut / cell % deth
      virial % pv_virial = virial % pv_virial + pv_g
   END IF
 

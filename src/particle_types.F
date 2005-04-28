@@ -111,6 +111,8 @@ MODULE particle_types
      REAL(KIND = dp), DIMENSION(3)         :: f,&         ! force
                                               r,&         ! position
                                               v           ! velocity
+! particle dependent terms for EAM
+     REAL(KIND = dp)                       :: rho, f_embed
      LOGICAL                               :: is_fixed    ! force is set to zero
   END TYPE particle_type
 

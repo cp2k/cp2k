@@ -36,18 +36,19 @@ MODULE splines
   USE kinds,                           ONLY: dp
   USE termination,                     ONLY: stop_memory,&
                                              stop_program
-  USE pair_potential_types,            ONLY: pair_potential_type
 
   IMPLICIT NONE
 
   PRIVATE
-  CHARACTER(len=*), PRIVATE, PARAMETER :: moduleN='fist_environment_types'
+  CHARACTER(len=*), PRIVATE, PARAMETER :: moduleN='splines'
   INTEGER, PRIVATE, SAVE :: last_spline_env_id_nr=0
+  INTEGER, PRIVATE, SAVE :: last_spline_data_id_nr=0
 
-  PUBLIC :: spline_env_release, spline_env_retain, spline_env_set, &
-            spline_environment_type
-  PUBLIC :: spline_env_create
-  PUBLIC :: spline_data      ! the data structure for splines
+  PUBLIC :: spline_env_release, spline_env_retain, spline_environment_type
+  PUBLIC :: spline_env_create, spline_data_p_type
+  PUBLIC :: spline_data_create
+  PUBLIC :: spline_data_retain, spline_data_release
+  PUBLIC :: spline_data_type ! the data structure for spline table
   PUBLIC :: init_splinexy    ! allocates x and y vectors for splines
   PUBLIC :: init_spline      ! generate table for spline (allocates y2)
   PUBLIC :: spline           ! return value of spline for given abscissa
@@ -80,7 +81,8 @@ MODULE splines
 !!   SOURCE
 !******************************************************************************
 
-  TYPE spline_data
+  TYPE spline_data_type
+     INTEGER :: ref_count, id_nr
      REAL (KIND=dp), POINTER :: x  ( : )    ! the x values
      REAL (KIND=dp), POINTER :: y  ( : )    ! the function values y(x)
      REAL (KIND=dp), POINTER :: y2 ( : )    ! the 2nd derivative via interpolation
@@ -93,12 +95,15 @@ MODULE splines
                                           ! 1/6 otherwise
      REAL (KIND=dp)          :: x1          ! starting x value if uniform incr.
      REAL (KIND=dp)          :: xn          ! end x value if uniform incr.
-  END TYPE spline_data
+  END TYPE spline_data_type
+
+  TYPE spline_data_p_type
+     TYPE ( spline_data_type ), POINTER :: spline_data
+  END TYPE spline_data_p_type
 
   TYPE spline_environment_type
      INTEGER :: ref_count, id_nr
-     TYPE ( spline_data ), POINTER, DIMENSION ( : ) :: spline_table
-     TYPE ( pair_potential_type ), POINTER, DIMENSION ( :, : ) :: potparm
+     TYPE ( spline_data_p_type ), POINTER, DIMENSION ( : ) :: spline_data_p
      INTEGER, POINTER, DIMENSION ( :, : ) :: spltab
      INTEGER  :: nspline_points
   END TYPE spline_environment_type
@@ -107,39 +112,6 @@ MODULE splines
 
 CONTAINS
 
-!******************************************************************************
-!!****
-!!****s* splines/spline_env_set [1.0] *
-!!
-!!   NAME
-!!     spline_env_set
-!!
-!!   FUNCTION
-!!     set spline_env
-!!   AUTHOR
-!!     unknown
-!!
-!!   MODIFICATION HISTORY
-!!
-!!   SOURCE
-!******************************************************************************
-SUBROUTINE spline_env_set ( spline_env, potparm, spline_table, spltab,  &
-                            nspline_points, error)
-  TYPE(spline_environment_type), POINTER :: spline_env
-  TYPE ( pair_potential_type ), POINTER, OPTIONAL :: potparm ( :, : )
-  TYPE ( spline_data ), POINTER, OPTIONAL :: spline_table ( : )
-  INTEGER, POINTER, OPTIONAL :: spltab ( :, : )
-  INTEGER, OPTIONAL :: nspline_points
-  TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
-
-  CHARACTER(len=*), PARAMETER :: routineN='spline_env_set',&
-       routineP=moduleN//':'//routineN
-
-  IF ( PRESENT ( potparm ) ) spline_env % potparm => potparm
-  IF ( PRESENT ( spline_table ) ) spline_env % spline_table => spline_table
-  IF ( PRESENT ( spltab ) ) spline_env % spltab => spltab
-  IF ( PRESENT ( nspline_points ) ) spline_env % nspline_points = nspline_points
-END SUBROUTINE spline_env_set
 !******************************************************************************
 !!****
 !!****s* splines/spline_env_release [1.0] *
@@ -153,7 +125,6 @@ END SUBROUTINE spline_env_set
 !!     unknown
 !!
 !!   MODIFICATION HISTORY
-!!     2001-09-19-HAF added this doc entry and changed formatting
 !!
 !!   SOURCE
 !******************************************************************************
@@ -161,6 +132,7 @@ SUBROUTINE spline_env_release(spline_env,error)
   TYPE(spline_environment_type), POINTER :: spline_env
   TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
 
+  TYPE ( spline_data_type ), POINTER :: spline_data
   LOGICAL :: failure
   CHARACTER(len=*), PARAMETER :: routineN='spline_env_release',&
        routineP=moduleN//':'//routineN
@@ -173,16 +145,14 @@ SUBROUTINE spline_env_release(spline_env,error)
      IF (spline_env%ref_count<1) THEN
         DEALLOCATE (  spline_env % spltab, stat = stat )
         CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
-        DO i = 1, SIZE (  spline_env % spline_table )
-          CALL kill_spline ( spline_env % spline_table ( i )  )
+        DO i = 1, SIZE (  spline_env % spline_data_p )
+          spline_data => spline_env % spline_data_p ( i ) % spline_data
+          CALL spline_data_release ( spline_data, error )
         END DO
-        DEALLOCATE (  spline_env % spline_table, stat = stat )
-        CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
-        DEALLOCATE ( spline_env % potparm, stat=stat)
+        DEALLOCATE (  spline_env % spline_data_p, stat = stat )
         CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
         NULLIFY ( spline_env % spltab )
-        NULLIFY ( spline_env % spline_table )
-        NULLIFY ( spline_env % potparm ) 
+        NULLIFY ( spline_env % spline_data_p )
         DEALLOCATE (  spline_env , stat = stat )
         CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)        
      END IF
@@ -190,6 +160,79 @@ SUBROUTINE spline_env_release(spline_env,error)
   NULLIFY ( spline_env )
 END SUBROUTINE spline_env_release
 !***************************************************************************
+
+!******************************************************************************
+!!****
+!!****s* splines/spline_data_release [1.0] *
+!!
+!!   NAME
+!!     spline_data_release
+!!
+!!   FUNCTION
+!!     releases spline_data
+!!    
+!!
+!!   AUTHOR
+!!     CJM
+!!
+!!   MODIFICATION HISTORY
+!!
+!!   SOURCE
+!******************************************************************************
+SUBROUTINE spline_data_release (spline_data,error)
+  TYPE(spline_data_type), POINTER :: spline_data
+  TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
+
+  LOGICAL :: failure
+  CHARACTER(len=*), PARAMETER :: routineN='spline_data_release',&
+       routineP=moduleN//':'//routineN
+  INTEGER :: i, stat
+  failure=.FALSE.
+
+  IF (ASSOCIATED(spline_data)) THEN
+     CPPrecondition(spline_data%ref_count>0,cp_failure_level,routineP,error,failure)
+     spline_data%ref_count=spline_data%ref_count-1
+     IF (spline_data%ref_count<1) THEN
+      CALL kill_spline ( spline_data  )
+      DEALLOCATE (  spline_data, stat = stat )
+      CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+     END IF
+  END IF
+  NULLIFY ( spline_data )
+END SUBROUTINE spline_data_release
+!******************************************************************************
+!!****
+!!****s* splines/spline_data_retain [1.0] *
+!!
+!!   NAME
+!!     spline_env_retain
+!!
+!!   FUNCTION
+!!     retains spline_env
+!!    
+!!
+!!   AUTHOR
+!!     CJM
+!!
+!!   MODIFICATION HISTORY
+!!
+!!   SOURCE
+!******************************************************************************
+SUBROUTINE spline_data_retain(spline_data,error)
+  TYPE(spline_data_type), POINTER :: spline_data
+  TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
+ 
+  LOGICAL :: failure
+  CHARACTER(len=*), PARAMETER :: routineN='spline_data_retain',&
+        routineP=moduleN//':'//routineN
+  failure=.FALSE.
+!!  
+  CPPrecondition(ASSOCIATED(spline_data),cp_failure_level,routineP,error,failure)
+  IF (.NOT. failure) THEN
+     CPPrecondition(spline_data%ref_count>0,cp_failure_level,routineP,error,failure)
+     spline_data%ref_count=spline_data%ref_count+1
+  END IF
+END SUBROUTINE spline_data_retain
 
 !******************************************************************************
 !!****
@@ -245,14 +288,15 @@ END SUBROUTINE spline_env_retain
 !!
 !!   SOURCE
 !******************************************************************************
-SUBROUTINE spline_env_create ( spline_env, error )
+SUBROUTINE spline_env_create ( spline_env, ntype, error )
   TYPE(spline_environment_type), POINTER :: spline_env
+  INTEGER, INTENT ( IN ) :: ntype
   TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
   
   LOGICAL :: failure
   CHARACTER(len=*), PARAMETER :: routineN='spline_env_create',&
         routineP=moduleN//':'//routineN
-  INTEGER :: stat
+  INTEGER :: stat, ntab, isos, i
 
   failure=.FALSE.
   
@@ -262,12 +306,66 @@ SUBROUTINE spline_env_create ( spline_env, error )
     spline_env%ref_count=1
     last_spline_env_id_nr=last_spline_env_id_nr+1
     spline_env%id_nr=last_spline_env_id_nr
-    NULLIFY ( spline_env % spline_table )
+    NULLIFY ( spline_env % spline_data_p )
+! Allocate the number of spline data tables (upper triangular)
+    ntab = ( ntype * ntype + ntype ) / 2
+    ALLOCATE ( spline_env % spline_data_p ( ntab ), STAT = isos )
+    IF ( isos /= 0 ) CALL stop_memory ( 'splines', &
+       'spline_data_p', ntab )
     NULLIFY ( spline_env % spltab )
-    NULLIFY ( spline_env % potparm )
+    IF ( ASSOCIATED ( spline_env % spltab ) ) THEN
+      DEALLOCATE ( spline_env % spltab, STAT = isos )
+      IF ( isos /= 0 ) CALL stop_memory ( 'splines', 'spltab' )
+    END IF
+    ALLOCATE ( spline_env % spltab ( ntype, ntype ), STAT = isos )
+    IF ( isos /= 0 ) CALL stop_memory ( 'splines', &
+       'spltab', ntype ** 2 )
+    DO i = 1, ntab
+      NULLIFY ( spline_env % spline_data_p ( i ) % spline_data )
+      CALL spline_data_create ( spline_env % spline_data_p ( i ) % spline_data )
+    END DO
     spline_env % nspline_points = 2500
   END IF
 END SUBROUTINE spline_env_create
+!******************************************************************************
+!!****
+!!****s* splines/spline_data_create [1.0] *
+!!
+!!   NAME
+!!     spline_data_create
+!!
+!!   FUNCTION
+!!     Data-structure that constains spline table
+!!
+!!   AUTHOR
+!!     unknown
+!!
+!!   MODIFICATION HISTORY
+!!
+!!   SOURCE
+!******************************************************************************
+SUBROUTINE spline_data_create ( spline_data, error )
+  TYPE(spline_data_type), POINTER :: spline_data
+  TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
+  
+  LOGICAL :: failure
+  CHARACTER(len=*), PARAMETER :: routineN='spline_data_create',&
+        routineP=moduleN//':'//routineN
+  INTEGER :: stat, ntab, isos
+
+  failure=.FALSE.
+  
+  ALLOCATE(spline_data, stat=stat)
+  CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+  IF (.NOT. failure) THEN
+    spline_data%ref_count=1
+    last_spline_data_id_nr=last_spline_data_id_nr+1
+    spline_data%id_nr=last_spline_data_id_nr
+    NULLIFY ( spline_data % x )
+    NULLIFY ( spline_data % y )
+    NULLIFY ( spline_data % y2 )
+  END IF
+END SUBROUTINE spline_data_create
 
 !******************************************************************************
 !!****m* splines/init_splinexy [1.0] *
@@ -294,7 +392,7 @@ END SUBROUTINE spline_env_create
 SUBROUTINE init_splinexy ( spl, nn )
 
 
-    TYPE(spline_data), INTENT(INOUT)         :: spl
+    TYPE(spline_data_type), INTENT(INOUT)         :: spl
     INTEGER, INTENT(IN)                      :: nn
 
     INTEGER                                  :: err
@@ -372,7 +470,7 @@ END SUBROUTINE init_splinexy
 SUBROUTINE init_spline ( spl, dx, y1a, y1b )
 
 
-    TYPE(spline_data), INTENT(INOUT)         :: spl
+    TYPE(spline_data_type), INTENT(INOUT)         :: spl
     REAL(KIND=dp), INTENT(IN), OPTIONAL          :: dx, y1a, y1b
 
     INTEGER                                  :: err, i, n
@@ -501,7 +599,7 @@ END SUBROUTINE init_spline
 FUNCTION interv ( spl, xx )
 
 
-    TYPE(spline_data), INTENT(IN)            :: spl
+    TYPE(spline_data_type), INTENT(IN)            :: spl
     REAL(KIND=dp), INTENT(IN)                    :: xx
     INTEGER                                  :: interv
 
@@ -625,7 +723,7 @@ FUNCTION spline ( spl, xx, y1, y2, y3 )
 
 
 ! Return value
-    TYPE(spline_data), INTENT(INOUT)         :: spl
+    TYPE(spline_data_type), INTENT(INOUT)         :: spl
     REAL(KIND=dp), INTENT(IN)                    :: xx
     REAL(KIND=dp), INTENT(OUT), OPTIONAL         :: y1, y2, y3
     REAL(KIND=dp)                                :: spline
@@ -711,7 +809,7 @@ FUNCTION splineh ( spl, xx, y1 )
 
 
 ! Return value
-    TYPE(spline_data), INTENT(IN)            :: spl
+    TYPE(spline_data_type), INTENT(IN)            :: spl
     REAL(KIND=dp), INTENT(IN)                    :: xx
     REAL(KIND=dp), INTENT(OUT)                   :: y1
     REAL(KIND=dp)                                :: splineh
@@ -768,7 +866,7 @@ FUNCTION spline_1 ( spl, xx )
 
 
 ! Return value
-    TYPE(spline_data), INTENT(INOUT)         :: spl
+    TYPE(spline_data_type), INTENT(INOUT)         :: spl
     REAL(KIND=dp), INTENT(IN)                    :: xx
     REAL(KIND=dp)                                :: spline_1
 
@@ -838,7 +936,7 @@ FUNCTION stamm ( spl, p, xx )
 
 
 ! Return value
-    TYPE(spline_data), INTENT(IN)            :: spl
+    TYPE(spline_data_type), INTENT(IN)            :: spl
     INTEGER, INTENT(IN)                      :: p
     REAL(KIND=dp), INTENT(IN)                    :: xx
     REAL(KIND=dp)                                :: stamm
@@ -897,7 +995,7 @@ FUNCTION spline_int( spl, x0, x1 )
 
 
 ! Return value
-    TYPE(spline_data), INTENT(INOUT)         :: spl
+    TYPE(spline_data_type), INTENT(INOUT)         :: spl
     REAL(KIND=dp), INTENT(IN)                    :: x0, x1
     REAL(KIND=dp)                                :: spline_int
 
@@ -1007,7 +1105,7 @@ END FUNCTION spline_int
 SUBROUTINE kill_spline ( spl, what )
 
 
-    TYPE(spline_data), INTENT(INOUT)         :: spl
+    TYPE(spline_data_type), INTENT(INOUT)         :: spl
     CHARACTER, INTENT(IN), OPTIONAL          :: what
 
     CHARACTER                                :: w

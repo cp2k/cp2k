@@ -186,6 +186,7 @@ OBJECTS_GENERIC =\
  library_tests.o\
  linear_systems.o\
  machine.o\
+ manybody_potential.o\
  mathconstants.o\
  mathlib.o\
  mc_control.o\
