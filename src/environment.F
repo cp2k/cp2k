@@ -185,8 +185,12 @@ CONTAINS
     CALL add_mp_perf_env()
 
 !   *** Set the default logical output and error unit number ***
-
-    CALL set_error_unit(globenv%scr)
+!   *** write to screen in case of error on non-io nodes, and hope this is appropriate
+    IF (globenv%ionode) THEN
+       CALL set_error_unit(globenv%scr)
+    ELSE
+       CALL set_error_unit(6)
+    ENDIF
 
 !   *** Init the default logger 
 
