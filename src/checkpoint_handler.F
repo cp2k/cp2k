@@ -117,7 +117,7 @@ CONTAINS
     CALL mp_sum(myconvertedstring,group)
     IF (ionode) THEN
       DO ipe=1,npe
-         CALL ascii_to_string(myconvertedstring(:,ipe+1),string2)
+         CALL ascii_to_string(myconvertedstring(:,ipe),string2)
          WRITE (UNIT=output_unit,FMT="(T2,A)") TRIM(string2)
       ENDDO
       CALL m_flush(output_unit)
