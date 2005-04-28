@@ -1646,8 +1646,7 @@ SUBROUTINE create_tddfpt_section(section,error)
      CALL keyword_release(keyword,error=error)
 
      CALL keyword_create(keyword, name="NEV",&
-          variants=(/"N_EV",&
-                     "EV  "/),&
+          variants=s2a("N_EV", "EV"),&
           description=" number of excitations to calculate",&
           usage="NEV someInteger>0",&
           n_var=1,type_of_var=integer_t,&
@@ -1698,8 +1697,7 @@ SUBROUTINE create_tddfpt_section(section,error)
 
      ! Character
      CALL keyword_create(keyword, name="RES_ETYPE",&
-          variants=(/"RESTRICTED_EXCITATIONS_TYPE",&
-                     "RES_E_TYPE                 "/),& 
+          variants=s2a("RESTRICTED_EXCITATIONS_TYPE", "RES_E_TYPE"),& 
           description="(singlets/triplets) for restricted calculation",&
           usage="RES_ETYPE T",&
           enum_c_vals=s2a("S","SINGLET","SINGLETS","T","TRIPLET","TRIPLETS"),&
@@ -1710,8 +1708,7 @@ SUBROUTINE create_tddfpt_section(section,error)
      CALL keyword_release(keyword,error=error)    
      
      CALL keyword_create(keyword, name="DIAG_METHOD",&
-          variants=(/"DIAGONALIZATION_METHOD",&
-                     "METHOD                "/),& 
+          variants=s2a("DIAGONALIZATION_METHOD", "METHOD"),& 
           description="Diagonalization method used in tddfpt",&
           usage="DIAG_METHOD DAVIDSON",&
           enum_c_vals=s2a("DAVIDSON","LANCZOS"),&
@@ -1721,7 +1718,7 @@ SUBROUTINE create_tddfpt_section(section,error)
      CALL keyword_release(keyword,error=error)      
 
      CALL keyword_create(keyword, name="OE_CORR",&
-          variants=(/"ORBITAL_EIGENVALUES_CORRECTION"/),& 
+          variants=s2a("ORBITAL_EIGENVALUES_CORRECTION"),& 
           description="Which type of orbital eigenvalue correction to use\n"//&
                       "(to yield better HOMO-LUMO energies)",&
           usage="OE_CORR SAOP",&
@@ -1733,7 +1730,7 @@ SUBROUTINE create_tddfpt_section(section,error)
 
      ! Real
      CALL keyword_create(keyword, name="CONVERGENCE",&
-          variants=(/"CONV"/),&
+          variants=s2a("CONV"),&
           description="The convergence of the eigenvalues",&
           usage="CONVERGENCE 1.0E-6 ",&
           n_var=1,type_of_var=real_t,&
