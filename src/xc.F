@@ -2188,7 +2188,6 @@ END FUNCTION xc_exc_calc
     END DO
     IF (needs%drho.OR.needs%drho_spin.OR.needs%norm_drho.OR.&
          needs%norm_drho_spin) gradient_f=.TRUE.
-
     bo = rho_set%local_bounds
 
     IF (lsd) THEN
@@ -2988,7 +2987,7 @@ END FUNCTION xc_exc_calc
                    DO idir=1,3
                       dr1dr=dr1dr+drho(idir)%array(i,j,k)*drho1(idir)%array(i,j,k)
                    END DO
-                   IF (rho_set%norm_drho(i,j,k)**2 > xc_control%gradient_cut) THEN
+                   IF (rho_set%norm_drho(i,j,k) > xc_control%gradient_cut) THEN
                       dr1dr = dr1dr / (rho_set%norm_drho(i,j,k))**2
                       v_drho%pw%cr3d(i,j,k) = v_drho%pw%cr3d(i,j,k) + deriv_data(i,j,k)*dr1dr
                    END IF

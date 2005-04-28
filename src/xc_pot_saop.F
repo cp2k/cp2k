@@ -670,6 +670,7 @@ CONTAINS
        allocate(drho_h(1:4,1:na,1:nr,1:nspins), drho_s(1:4,1:na,1:nr,1:nspins), stat=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
        
+
 !      Distribute the atoms of this kind
        num_pe = qs_env%para_env%num_pe
        mepos  = qs_env%para_env%mepos

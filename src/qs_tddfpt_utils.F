@@ -192,7 +192,7 @@ CONTAINS
     
     IF (qs_env%dft_control%tddfpt_control%invert_S) THEN
        DO spin=1, n_spins
-          CALL copy_sm_to_fm(qs_env%matrix_s(spin)%matrix, t_env%invS(spin)%matrix)
+          CALL copy_sm_to_fm(qs_env%matrix_s(1)%matrix, t_env%invS(spin)%matrix)
           CALL cp_fm_cholesky_decompose(t_env%invS(spin)%matrix)
           CALL cp_fm_cholesky_invert(t_env%invS(spin)%matrix)
        END DO
@@ -413,15 +413,13 @@ CONTAINS
        nlumos(spin) = t_control%lumos(spin)%matrix%matrix_struct%ncol_global
        CALL cp_fm_create(S_lumos(spin)%matrix, t_control%lumos(spin)%matrix%matrix_struct, &
                          "S times lumos", error=error)
-       CALL cp_sm_fm_multiply(qs_env%matrix_s(spin)%matrix, t_control%lumos(spin)%matrix, &
+       CALL cp_sm_fm_multiply(qs_env%matrix_s(1)%matrix, t_control%lumos(spin)%matrix, &
                               S_lumos(spin)%matrix, nlumos(spin), 1.0_dp, 0.0_dp)
     END DO
        
-    DO spin=1, n_spins
-       ALLOCATE(homo_coeff_col(nrows(spin),1),lumo_coeff_col(nrows(spin),1), stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-    END DO
-
+    ALLOCATE(homo_coeff_col(MAXVAL(nrows(1:n_spins)),n_spins), &
+             lumo_coeff_col(MAXVAL(nrows(1:n_spins)),n_spins), stat=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     DO i=1, n_ev
        IF (ionode) THEN
           WRITE (*,'(A,I3,5X,F15.6)') "  excited state : ", i, t_env%evals(i)*evolt
@@ -452,10 +450,10 @@ CONTAINS
     END DO
 
     DO spin=1, n_spins
-       DEALLOCATE(homo_coeff_col, lumo_coeff_col, stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
        CALL cp_fm_release(S_lumos(spin)%matrix, error=error)
     END DO
+    DEALLOCATE(homo_coeff_col, lumo_coeff_col, stat=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
 
     DEALLOCATE(S_lumos, stat=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
@@ -481,7 +479,7 @@ CONTAINS
 
     DO spin=1, n_spins
        tmp = 0.0_dp
-       CALL cp_sm_fm_multiply(metric(spin)%matrix, X(spin)%matrix, &
+       CALL cp_sm_fm_multiply(metric(1)%matrix, X(spin)%matrix, &
             tmp_vec(spin)%matrix, &
             X(spin)%matrix%matrix_struct%ncol_global, &
             1.0_dp, 0.0_dp)

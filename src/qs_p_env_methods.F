@@ -864,7 +864,7 @@ END SUBROUTINE p_env_did_change
     END IF
     CALL cp_fm_symm('R', 'U', p_env%n_ao(spin), p_env%n_mo(spin), 1.0_dp, &
          p_env%m_epsilon(spin)%matrix, v, 0.0_dp, tmp)
-    CALL cp_sm_fm_multiply(qs_env%matrix_s(spin)%matrix, tmp, &
+    CALL cp_sm_fm_multiply(qs_env%matrix_s(1)%matrix, tmp, &
          res, p_env%n_mo(spin), alpha=1.0_dp,beta=1.0_dp)    
     CALL fm_pool_give_back_fm(maxao_maxmo_fm_pool,tmp); NULLIFY(tmp)
 

@@ -225,7 +225,7 @@ CONTAINS
     INTEGER :: col, handle, i, iter, j, &
       max_krylovspace_dim, max_kv, n_ev, n_kv, nspins, &
       row, spin, stat, k, iev
-    REAL(dp)                                 :: Atilde_ij, tmp, convergence
+    REAL(dp)                                 :: Atilde_ij, tmp, tmp2, convergence
     INTEGER, DIMENSION(:), ALLOCATABLE       :: must_improve
     REAL(kind=dp), ALLOCATABLE, &
       DIMENSION(:, :)                        :: evals
@@ -275,7 +275,13 @@ CONTAINS
     !-----------------------------------------!
     max_krylovspace_dim = SUM(p_env%n_ao(1:nspins)*p_env%n_mo(1:nspins))
     max_kv = tddfpt_control%max_kv
-    CPPostcondition(max_krylovspace_dim>=max_kv,cp_failure_level,routineP,error,failure)
+    if (max_krylovspace_dim <= max_kv) then
+       max_kv = max_krylovspace_dim
+       if (ionode) then
+          write (*,*) "  Setting the maximum number of krylov vectors to ", max_kv, "!!"
+       end if
+    end if
+!    CPPostcondition(max_krylovspace_dim>=max_kv,cp_failure_level,routineP,error,failure)
 
     !----------------------!
     ! allocate the vectors !
@@ -369,29 +375,34 @@ CONTAINS
                                                tmp, X(spin)%matrix)
                    END DO
 
-                   !----------------!
-                   ! preconditioner !
-                   !----------------!
-!TC                   DO row=1, p_env%n_ao(spin)
-!TC                      DO col=1, p_env%n_mo(spin)
-!TC                         CALL cp_fm_get_element(R(spin)%matrix, row, col, tmp)
-!TC                         IF (col<=n_ev) THEN
-!TC                            tmp = tmp / (evals(iev,iter-1) - in_evals(col))
-!TC                         ELSE
-!TC                            tmp = tmp / (evals(iev,iter-1) - (in_evals(n_ev)+1.0_dp))
-!TC                         END IF
-!TC                         CALL cp_fm_set_element(R(spin)%matrix, row, col, tmp)
-!TC                      END DO
-!TC                   END DO
-
                    IF (tddfpt_control%invert_S) THEN
                       CALL cp_fm_symm('L', 'U', p_env%n_ao(spin), p_env%n_mo(spin), &
                            1.0_dp, t_env%invS(spin)%matrix, R(spin)%matrix, &
-                           0.0_dp, b(k,spin)%matrix)
+                           0.0_dp, X(spin)%matrix)
                    ELSE
-                      CALL cp_fm_to_fm(R(spin)%matrix, b(k,spin)%matrix)
+                      CALL cp_fm_to_fm(R(spin)%matrix, X(spin)%matrix)
                    END IF
-                   
+
+                   !----------------!
+                   ! preconditioner !
+                   !----------------!
+                   IF (qs_env%dft_control%tddfpt_control%precond) THEN
+                      DO col=1, p_env%n_mo(spin)
+                         IF (col<=n_ev) THEN
+                            tmp2 = abs(evals(iev,iter-1) - in_evals(col))
+                         ELSE
+                            tmp2 = abs(evals(iev,iter-1) - (in_evals(n_ev)+10.0_dp))
+                         END IF
+                         DO row=1, p_env%n_ao(spin)
+                            CALL cp_fm_get_element(X(spin)%matrix, row, col, tmp)
+                            CALL cp_fm_set_element(b(k,spin)%matrix, row, col, tmp/tmp2)
+                         END DO
+                      END DO
+                   ELSE
+                      CALL cp_fm_to_fm(X(spin)%matrix, b(k,spin)%matrix)
+                   END IF
+
+
                 END DO
 
              ELSE
@@ -411,7 +422,7 @@ CONTAINS
           END DO
           CALL apply_op(X, Ab(k,:), t_env, p_env, qs_env)
           DO spin=1, nspins
-             CALL cp_sm_fm_multiply(qs_env%matrix_s(spin)%matrix, &
+             CALL cp_sm_fm_multiply(qs_env%matrix_s(1)%matrix, &
                   b(k,spin)%matrix, &
                   Sb(k,spin)%matrix, &
                   p_env%n_mo(spin))
@@ -466,13 +477,13 @@ CONTAINS
 
           evals_difference = ABS((evals(1:n_ev,iter-1)-evals(1:n_ev,iter))/evals(1:n_ev,iter-1))          
           ! For debugging
-!TC          IF (ionode) THEN
-!TC             WRITE (*,*)
-!TC             DO i=1, n_ev
-!TC                WRITE (out_unit,'(2X,F10.7,T69,ES11.4)') evals(i,iter), evals_difference(i)
-!TC             END DO
-!TC             WRITE (*,*)
-!TC          END IF
+          IF (ionode) THEN
+             WRITE (*,*)
+             DO i=1, n_ev
+                WRITE (out_unit,'(2X,F10.7,T69,ES11.4)') evals(i,iter)*evolt, evals_difference(i)
+             END DO
+             WRITE (*,*)
+          END IF
 
           convergence = MAXVAL(evals_difference)
           IF (ionode) WRITE (out_unit, '(2X,I4,T69,ES11.4)') k, convergence

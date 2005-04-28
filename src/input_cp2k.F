@@ -1566,7 +1566,14 @@ SUBROUTINE create_xc_fun_section(section,error)
      CALL section_add_subsection(section,subsection,error=error)
      CALL section_release(subsection,error=error)
      
-     CALL section_create(subsection,name="PBE",&
+     CALL section_create(subsection,name="PBEX",&
+          description="Uses the PBE functional",&
+          n_keywords=0, n_subsections=0, repeats=.FALSE., required=.TRUE.,&
+          error=error)
+     CALL section_add_subsection(section,subsection,error=error)
+     CALL section_release(subsection,error=error)
+          
+     CALL section_create(subsection,name="PBEC",&
           description="Uses the PBE functional",&
           n_keywords=0, n_subsections=0, repeats=.FALSE., required=.TRUE.,&
           error=error)
@@ -1681,6 +1688,14 @@ SUBROUTINE create_tddfpt_section(section,error)
      CALL section_add_keyword(section,keyword,error=error)
      CALL keyword_release(keyword,error=error)
 
+     CALL keyword_create(keyword, name="PRECONDITIONER",&
+          variants=s2a("PRECOND"),&
+          description="use the preconditioner (only for Davidson)",&
+          usage="PRECONDITIONER logical_value",&
+          default_l_val=.TRUE.,lone_keyword_l_val=.TRUE.,error=error)
+     CALL section_add_keyword(section,keyword,error=error)
+     CALL keyword_release(keyword,error=error)
+
      ! Character
      CALL keyword_create(keyword, name="RES_ETYPE",&
           variants=(/"RESTRICTED_EXCITATIONS_TYPE",&
@@ -1695,8 +1710,8 @@ SUBROUTINE create_tddfpt_section(section,error)
      CALL keyword_release(keyword,error=error)    
      
      CALL keyword_create(keyword, name="DIAG_METHOD",&
-          variants=(/"DIAGONALIZATION_METHOD"/),& 
-          description="Diagonalization method used in tddfpt.",&
+          variants=(/"DIAGONALIZATION_METHOD","METHOD"/),& 
+          description="Diagonalization method used in tddfpt",&
           usage="DIAG_METHOD DAVIDSON",&
           enum_c_vals=s2a("DAVIDSON","LANCZOS"),&
           enum_i_vals=(/ tddfpt_davidson, tddfpt_lanczos/),&

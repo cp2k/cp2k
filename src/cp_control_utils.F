@@ -1490,6 +1490,7 @@ CONTAINS
     t_control%do_kernel = .TRUE.
     t_control%lsd_singlets = .FALSE.
     t_control%invert_S = .TRUE.
+    t_control%precond = .TRUE.
     t_control%res_etype = tddfpt_singlet
     t_control%diag_method = tddfpt_davidson
     t_control%oe_corr = oe_none
@@ -1724,6 +1725,9 @@ CONTAINS
 
     CALL section_vals_val_get(t_section,"INVERT_S", &
          l_val=t_control%invert_S,error=error)
+
+    CALL section_vals_val_get(t_section,"PRECOND", &
+         l_val=t_control%precond,error=error)
 
     CALL section_vals_val_get(t_section,"OE_CORR", &
          i_val=t_control%oe_corr,error=error)

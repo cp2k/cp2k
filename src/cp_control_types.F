@@ -218,6 +218,7 @@ MODULE cp_control_types
      LOGICAL                                   :: do_kernel
      LOGICAL                                   :: lsd_singlets
      LOGICAL                                   :: invert_S
+     LOGICAL                                   :: precond
      INTEGER                                   :: res_etype
      INTEGER                                   :: diag_method
      INTEGER                                   :: oe_corr
