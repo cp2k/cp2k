@@ -10,16 +10,13 @@
  BASIS_SET_FILE BASIS_SET
 &END
 
-&TOPOLOGY
-&END
-
 &DFT
  FUNCTIONAL   PADE
  EXCITATIONS  tddfpt
 &END
 
 &QS
- CUTOFF       200
+ CUTOFF       160
 &END
 
 &SCF
@@ -28,16 +25,8 @@
  EPS_SCF      1.0E-5
 &END
 
-&TDDFPT
- NEV        2
- REORTHO    2
- KERNEL     Y
- RES_ETYPE singlets
- FUNCTIONAL PADE
-&END
-
-&PRINT MEDIUM
- LUMOS 1
+&PRINT LOW
+ LUMOS 2
  HOMOS
  NO_CUBE
 &END
@@ -62,3 +51,31 @@
  H   0.000000   -0.757136    0.520545 H2O
  H   0.000000    0.757136    0.520545 H2O
 &END
+
+&FORCE_EVAL
+  &DFT
+    &TDDFPT
+      RES_ETYPE  SINGLETS
+      METHOD     DAVIDSON
+      NEV        2
+      REORTHO    2
+      KERNEL     Y
+      INVERT_S   Y
+      PRECOND    N
+      MAX_KV     60
+      RESTARTS   2
+      OE_CORR    NONE
+      &XC
+        DENSITY_CUTOFF  1.0E-10
+        GRADIENT_CUTOFF 1.0E-10
+        &XC_GRID
+          XC_DERIV NN10_SMOOTH
+        &END
+        &XC_FUNCTIONAL
+          &PADE
+          &END
+        &END
+      &END
+    &END TDDFPT
+  &END DFT
+&END FORCE_EVAL
