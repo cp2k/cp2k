@@ -10,9 +10,6 @@
  BASIS_SET_FILE GTH_BASIS_SETS
 &END
 
-&TOPOLOGY
-&END
-
 &DFT
  FUNCTIONAL   PBE
  EXCITATIONS  tddfpt
@@ -24,23 +21,10 @@
 &END
 
 &SCF
- GUESS        RESTART
+ GUESS        atomic
  MIXING       0.4
  EPS_SCF      1.0E-5
 &END
-
-&TDDFPT
- NEV        2
- REORTHO    2
- KERNEL     Y
- INVERT_S   Y
- RES_ETYPE  SINGLETS
- MAX_KV     60
- RESTARTS   3
- FUNCTIONAL PADE
- OE_CORR    SAOP
-&END
- FUNCTIONAL PBE
 
 &PRINT LOW
  LUMOS 2
@@ -67,3 +51,31 @@
  H   0.000000   -0.757136    0.520545
  H   0.000000    0.757136    0.520545
 &END
+
+&FORCE_EVAL
+  &DFT
+    &TDDFPT
+      RES_ETYPE  TRIPLETS
+      METHOD     DAVIDSON
+      NEV        2
+      REORTHO    2
+      KERNEL     Y
+      INVERT_S   Y
+      PRECOND    N
+      MAX_KV     60
+      RESTARTS   2
+      OE_CORR    SAOP
+      &XC
+        DENSITY_CUTOFF  1.0E-10
+        GRADIENT_CUTOFF 1.0E-10
+        &XC_GRID
+          XC_DERIV NN10_SMOOTH
+        &END
+        &XC_FUNCTIONAL
+          &PADE
+          &END
+        &END
+      &END
+    &END TDDFPT
+  &END DFT
+&END FORCE_EVAL
