@@ -1,0 +1,42 @@
+&CP2K
+ PROGRAM      Quickstep
+ PROJECT      H2O
+ IOLEVEL      10
+ FFTLIB       FFTSG
+&END
+
+&DFT
+ FUNCTIONAL   Pade
+ LSD
+&END
+
+&QS
+ CUTOFF       150
+&END
+
+&SCF
+ GUESS        ATOMIC
+ MAX_SCF      2
+&END
+
+&PRINT MEDIUM
+&END
+
+&KIND C
+ BASIS_SET    DZVP-GTH-PADE
+ POTENTIAL    GTH-PADE-q4
+&END
+&KIND N
+ BASIS_SET    DZVP-GTH-PADE
+ POTENTIAL    GTH-PADE-q5
+&END
+
+&CELL
+ UNIT         ANGSTROM
+ ABC          8.0  5.0  5.0
+&END
+
+&COORD
+ N 0.0 0.0 0.0
+ C 2.0 0.0 0.0
+&END
