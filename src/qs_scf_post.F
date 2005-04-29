@@ -821,7 +821,7 @@ CONTAINS
           tmp=0.0_dp
           DO j=1,ncol_local
           DO i=1,nrow_local
-             tmp=tmp+local_data(i,j)
+             tmp=tmp+local_data(i,j)**2
           ENDDO
           ENDDO
           CALL mp_sum(tmp,para_env%group)
