@@ -303,20 +303,16 @@ SUBROUTINE spline_env_create ( spline_env, ntype, error )
   ALLOCATE(spline_env, stat=stat)
   CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
   IF (.NOT. failure) THEN
+    NULLIFY ( spline_env % spline_data_p )
+    NULLIFY ( spline_env % spltab )
     spline_env%ref_count=1
     last_spline_env_id_nr=last_spline_env_id_nr+1
     spline_env%id_nr=last_spline_env_id_nr
-    NULLIFY ( spline_env % spline_data_p )
 ! Allocate the number of spline data tables (upper triangular)
     ntab = ( ntype * ntype + ntype ) / 2
     ALLOCATE ( spline_env % spline_data_p ( ntab ), STAT = isos )
     IF ( isos /= 0 ) CALL stop_memory ( 'splines', &
        'spline_data_p', ntab )
-    NULLIFY ( spline_env % spltab )
-    IF ( ASSOCIATED ( spline_env % spltab ) ) THEN
-      DEALLOCATE ( spline_env % spltab, STAT = isos )
-      IF ( isos /= 0 ) CALL stop_memory ( 'splines', 'spltab' )
-    END IF
     ALLOCATE ( spline_env % spltab ( ntype, ntype ), STAT = isos )
     IF ( isos /= 0 ) CALL stop_memory ( 'splines', &
        'spltab', ntype ** 2 )

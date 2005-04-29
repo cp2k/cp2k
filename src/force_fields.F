@@ -3438,6 +3438,7 @@ SUBROUTINE force_field_pack (particle_set,atomic_kind_set,&
   CALL fist_nonbond_env_create (  fist_nonbond_env, potparm_nonbond, error )
 
 ! Release all spline_environments
+  CALL spline_env_release (spline_manybody_env,error)
   CALL spline_env_release (spline_nonbond_env,error)
   CALL spline_env_release (spline_bond_env,error)
 
