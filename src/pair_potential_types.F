@@ -211,6 +211,19 @@ SUBROUTINE pot_parameters_create ( potparm, nkinds, error )
       NULLIFY ( potparm ( i, j ) % rho_spline_data )
      END DO
     END DO
+    potparm ( :, : ) % eam % drar = 0._dp
+    potparm ( :, : ) % eam % drhoar = 0._dp
+    potparm ( :, : ) % eam % acutal = 0._dp
+    DO i = 1, 5000
+      potparm ( :, : ) % eam % rho ( i ) = 0._dp
+      potparm ( :, : ) % eam % phi ( i ) = 0._dp
+      potparm ( :, : ) % eam % frho ( i ) = 0._dp
+      potparm ( :, : ) % eam % rhoval ( i ) = 0._dp
+      potparm ( :, : ) % eam % rval ( i ) = 0._dp
+      potparm ( :, : ) % eam % rhop ( i ) = 0._dp
+      potparm ( :, : ) % eam % phip ( i ) = 0._dp
+      potparm ( :, : ) % eam % frhop ( i ) = 0._dp
+    END DO
   END IF
 END SUBROUTINE pot_parameters_create
 
