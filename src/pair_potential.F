@@ -173,10 +173,10 @@ SUBROUTINE spline_nonbond_control ( spline_env, potparm, atomic_kind_set, &
         atomic_kind=> atomic_kind_set(j)
         CALL get_atomic_kind(atomic_kind=atomic_kind,qeff=qj)
         n = n + 1
-        spline_env % spltab(i,j) = n
-        spline_env % spltab(j,i) = n
+        spline_env % spltab ( i, j ) = n
+        spline_env % spltab ( j, i ) = n
 !ODER: n=j+(i-1)*n-(i-1)*i/2 mit j>=i
-        CALL init_splinexy(spline_env % spline_data_p(n) % spline_data,npoints+1)
+        CALL init_splinexy ( spline_env % spline_data_p ( n ) % spline_data, npoints+1)
 
         IF (potparm(i,j)%type=='LENNARD-JONES') THEN
            locut =  0.944863_dp ! else put locut to 0.5 Angstrom

@@ -102,7 +102,8 @@ MODULE force_fields
   USE pair_potential_types,            ONLY: pair_potential_type,&
                                              eam_pot_type,       &
                                              reallocate_potparm, &
-                                             pot_parameters_create
+                                             pot_parameters_create, &
+                                             pot_parameters_release 
   USE parser,                          ONLY: get_next,&
                                              p_error,&
                                              parser_end,&
@@ -3192,6 +3193,7 @@ SUBROUTINE force_field_pack (particle_set,atomic_kind_set,&
     CALL set_molecule_kind(molecule_kind=molecule_kind,&
                            onfo_list=onfo_list)
   END DO
+  CALL pot_parameters_release ( potparm_bond, error )
 
 
   !-----------------------------------------------------------------------------
