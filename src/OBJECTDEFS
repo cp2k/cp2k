@@ -284,10 +284,11 @@ OBJECTS_GENERIC =\
  qs_ks_qmmm_methods.o\
  qs_ks_qmmm_types.o\
  qs_ks_types.o\
+ qs_loc_methods.o\
+ qs_loc_types.o\
  qs_local_rho_types.o\
  qs_localization.o\
  qs_localization_methods.o\
- qs_localization_new.o\
  qs_main.o\
  qs_matrix_pools.o\
  qs_mc.o\

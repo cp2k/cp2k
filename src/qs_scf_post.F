@@ -109,7 +109,8 @@ MODULE qs_scf_post
                                              qs_loc_destroy,&
                                              qs_loc_env_type,&
                                              qs_loc_init
-  USE qs_localization_new,             ONLY: qs_loc_env_create,&
+  USE qs_loc_methods,                  ONLY: qs_loc_driver
+  USE qs_loc_types       ,             ONLY: qs_loc_env_create,&
                                              qs_loc_env_destroy,& 
                                              qs_loc_env_init, &
                                              qs_loc_env_new_type
@@ -355,7 +356,15 @@ CONTAINS
 ! *** gets localization info for the occupied orbs
 ! *** possibly gets wannier functions
 ! *** possibly gets molecular states
-       IF (globenv%print%localization) THEN
+       IF (my_localized_wfn) THEN
+
+          CALL qs_loc_driver(qs_env,qs_loc_env_new,ionode,error=error)
+
+          IF(qs_loc_env_new%localized_wfn_control%print_cubes) THEN
+!           on which grid? which ones? 
+          END IF
+
+       ELSEIF (globenv%print%localization) THEN
           DO ispin=1,dft_control%nspins
              CALL get_mo_set(mo_set=mos(ispin)%mo_set,mo_coeff=mo_coeff, &
                                               eigenvalues=mo_eigenvalues,homo=homo,nmo=nmo)
@@ -369,7 +378,7 @@ CONTAINS
                 ENDIF
                 IF (globenv%ionode) WRITE(globenv%scr,*) " ---------------------------------------------"
                 CALL calculate_subspace_eigenvalues(mo_coeff,ks_rmpv(ispin)%matrix, &
-                     mo_eigenvalues, para_env=qs_env%para_env,scr=globenv%scr, &
+                     evals_arg=mo_eigenvalues, para_env=qs_env%para_env,scr=globenv%scr, &
                      ionode=globenv%ionode, do_rotation=.TRUE.)
              ENDIF
              NULLIFY(mo_localized)

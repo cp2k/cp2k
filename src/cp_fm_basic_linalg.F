@@ -301,7 +301,7 @@ CONTAINS
 !!
 !!*** *********************************************************************
   SUBROUTINE cp_fm_gemm(transa,transb,m,n,k,alpha,matrix_a,matrix_b,beta,&
-       matrix_c,error,b_first_col)
+       matrix_c,error,b_first_col,a_first_row,b_first_row)
 
     CHARACTER(LEN=1), INTENT(IN)             :: transa, transb
     INTEGER, INTENT(IN)                      :: m, n, k
@@ -312,8 +312,10 @@ CONTAINS
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
     INTEGER, INTENT(IN), OPTIONAL            :: b_first_col
+    INTEGER, INTENT(IN), OPTIONAL            :: a_first_row
+    INTEGER, INTENT(IN), OPTIONAL            :: b_first_row
 
-    INTEGER                                  :: handle, j, lda, ldb, ldc
+    INTEGER                                  :: handle, i_a, i_b, j_b, lda, ldb, ldc
     INTEGER, DIMENSION(9)                    :: desca, descb, descc
     REAL(KIND=dp)                            :: flops
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: a, b, c
@@ -326,10 +328,20 @@ CONTAINS
     b => matrix_b%local_data
     c => matrix_c%local_data
 
-    IF (PRESENT(b_first_col)) THEN
-      j = b_first_col
+    IF (PRESENT(b_first_row)) THEN
+      i_a = a_first_row
     ELSE
-      j = 1
+      i_a = 1
+    END IF
+    IF (PRESENT(b_first_row)) THEN
+      i_b = b_first_row
+    ELSE
+      i_b = 1
+    END IF
+    IF (PRESENT(b_first_col)) THEN
+      j_b = b_first_col
+    ELSE
+      j_b = 1
     END IF
 
 #if defined(__SCALAPACK)
@@ -340,8 +352,8 @@ CONTAINS
 
     flops=2.0_dp*(1E-9_dp*m*n*k)/(matrix_a%matrix_struct%context%num_pe(1)*&
          matrix_a%matrix_struct%context%num_pe(2))
-    CALL pdgemm(transa,transb,m,n,k,alpha,a(1,1),1,1,desca,b(1,1),1,j,&
-                descb,beta,c(1,1),1,j,descc)
+    CALL pdgemm(transa,transb,m,n,k,alpha,a(1,1),i_a,1,desca,b(1,1),i_b,j_b,&
+                descb,beta,c(1,1),1,j_b,descc)
 #else
 
     lda = SIZE(a,1)
@@ -349,7 +361,7 @@ CONTAINS
     ldc = SIZE(c,1)
 
     flops=2.0_dp*(1E-9_dp*m*n*k)
-    CALL dgemm(transa,transb,m,n,k,alpha,a(1,1),lda,b(1,j),ldb,beta,c(1,j),ldc)
+    CALL dgemm(transa,transb,m,n,k,alpha,a(i_a,1),lda,b(i_b,j_b),ldb,beta,c(1,j_b),ldc)
 
 #endif
     CALL timestop(flops,handle)

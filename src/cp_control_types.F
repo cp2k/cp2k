@@ -18,6 +18,7 @@
 !******************************************************************************
 
 MODULE cp_control_types
+  USE cp_array_r_utils,                ONLY: cp_2d_r_p_type
   USE cp_error_handling,               ONLY: cp_a_l,&
                                              cp_assert,&
                                              cp_error_get_logger,&
@@ -31,6 +32,7 @@ MODULE cp_control_types
                                              cp_note_level,&
                                              cp_to_string,&
                                              cp_warning_level
+  USE global_types,                    ONLY: global_environment_type
   USE kinds,                           ONLY: dp
   USE pw_grid_types,                   ONLY: pw_grid_type
   USE input_constants, only: xc_rho_no_smooth, xc_rho_nn50, xc_rho_nn10, &
@@ -53,6 +55,8 @@ MODULE cp_control_types
        tddfpt_lanczos,&
        tddfpt_singlet,&
        tddfpt_triplet
+  USE string_utilities,                ONLY: uppercase,&
+                                             xstring
   USE memory_utilities,                ONLY: reallocate
 
   IMPLICIT NONE
@@ -120,6 +124,9 @@ MODULE cp_control_types
     LOGICAL                         :: print_centers
     LOGICAL                         :: print_spreads
     INTEGER, POINTER, DIMENSION(:)  :: loc_states
+    TYPE(cp_2d_r_p_type), DIMENSION(2)  :: centers_set
+    CHARACTER ( LEN = 50 ),DIMENSION(2):: centers_file_name
+    CHARACTER ( LEN = 50 ),DIMENSION(2):: spreads_file_name
   END TYPE localized_wfn_control_type
 
 ! *** Control parameters for a KIM-GORDON calculation ***
@@ -275,6 +282,7 @@ MODULE cp_control_types
             localized_wfn_control_release,&
             localized_wfn_control_retain, &
             set_loc_wfn_lists,&
+            set_loc_centers,&
             mulliken_control_create,&
             mulliken_control_retain,&
             mulliken_control_release
@@ -372,7 +380,7 @@ END SUBROUTINE mulliken_control_retain
 !!
 !!   SOURCE
 !!*** **********************************************************************
-SUBROUTINE localized_wfn_control_create(localized_wfn_control,error)
+  SUBROUTINE localized_wfn_control_create(localized_wfn_control,error)
    TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
    TYPE(localized_wfn_control_type), POINTER :: localized_wfn_control
@@ -399,10 +407,12 @@ SUBROUTINE localized_wfn_control_create(localized_wfn_control,error)
    localized_wfn_control%print_centers = .FALSE.
    localized_wfn_control%print_spreads = .FALSE.
    NULLIFY(localized_wfn_control%loc_states)
+   NULLIFY(localized_wfn_control%centers_set(1)%array)
+   NULLIFY(localized_wfn_control%centers_set(2)%array)
 
-END SUBROUTINE localized_wfn_control_create
+  END SUBROUTINE localized_wfn_control_create
 
-SUBROUTINE localized_wfn_control_release(localized_wfn_control,error)
+  SUBROUTINE localized_wfn_control_release(localized_wfn_control,error)
    TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
    TYPE(localized_wfn_control_type), POINTER :: localized_wfn_control
@@ -416,13 +426,17 @@ SUBROUTINE localized_wfn_control_release(localized_wfn_control,error)
      IF (localized_wfn_control%ref_count==0) THEN
         IF (ASSOCIATED(localized_wfn_control%loc_states)) &
             DEALLOCATE(localized_wfn_control%loc_states)
+        IF (ASSOCIATED(localized_wfn_control%centers_set(1)%array)) &
+            DEALLOCATE(localized_wfn_control%centers_set(1)%array)
+        IF (ASSOCIATED(localized_wfn_control%centers_set(2)%array)) &
+            DEALLOCATE(localized_wfn_control%centers_set(2)%array)
         localized_wfn_control%ref_count=0
         DEALLOCATE(localized_wfn_control)
      ENDIF
    END IF
-END SUBROUTINE localized_wfn_control_release
+  END SUBROUTINE localized_wfn_control_release
 
-SUBROUTINE localized_wfn_control_retain(localized_wfn_control,error)
+  SUBROUTINE localized_wfn_control_retain(localized_wfn_control,error)
    TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
    TYPE(localized_wfn_control_type), POINTER :: localized_wfn_control
@@ -433,7 +447,59 @@ SUBROUTINE localized_wfn_control_retain(localized_wfn_control,error)
    CPPrecondition(ASSOCIATED(localized_wfn_control),cp_failure_level,routineP,error,failure)
 
    localized_wfn_control%ref_count=localized_wfn_control%ref_count+1
-END SUBROUTINE localized_wfn_control_retain
+  END SUBROUTINE localized_wfn_control_retain
+
+!!****f* cp_control_types/set_loc_wfn_lists *
+!!
+!!   NAME
+!!      loc_wfn_lists
+!!   FUNCTION
+!!      create the lists of mos that are taken into account 
+!!   NOTES
+!!
+!!   INPUTS
+!!
+!!   MODIFICATION HISTORY
+!!     04.2005 created [MI]
+!!
+!!   SOURCE
+!!*** **********************************************************************
+
+  SUBROUTINE set_loc_centers(localized_wfn_control,nmoloc,nspins,globenv,error)
+
+    TYPE(localized_wfn_control_type)          :: localized_wfn_control
+    INTEGER, DIMENSION(2), INTENT(IN)         :: nmoloc
+    INTEGER, INTENT(IN)                       :: nspins
+    TYPE(global_environment_type), POINTER    :: globenv
+    TYPE(cp_error_type), INTENT(inout), &
+       OPTIONAL                               :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'set_loc_centers', &
+       routineP = moduleN//':'//routineN
+
+    INTEGER :: ia, ie, ispin, istat
+    LOGICAL :: failure
+
+    failure = .FALSE.
+
+    CALL xstring ( globenv % project_name, ia, ie )
+    DO ispin = 1,nspins
+      ALLOCATE(localized_wfn_control%centers_set(ispin)%array(nmoloc(ispin),6), STAT = istat)
+      CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+      localized_wfn_control%spreads_file_name(ispin) = globenv%project_name(ia:ie)//&
+                 '_spreads_s'//TRIM(ADJUSTL(cp_to_string(ispin)))
+      localized_wfn_control%centers_file_name(ispin) = globenv%project_name(ia:ie)//&
+                 '_centers_s'//TRIM(ADJUSTL(cp_to_string(ispin)))
+    END DO
+
+    localized_wfn_control%print_centers = globenv%print%localization
+    localized_wfn_control%print_spreads = globenv%print%localization
+    localized_wfn_control%print_cubes = globenv%print%cubes
+
+  END SUBROUTINE set_loc_centers
+ 
+! *****************************************************************************
+
 
 !!****f* cp_control_types/set_loc_wfn_lists *
 !!

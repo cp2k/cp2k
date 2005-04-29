@@ -40,9 +40,10 @@ MODULE qs_environment
   USE cp_control_types,                ONLY: dft_control_release,&
                                              dft_control_type,&
                                              localized_wfn_control_type,&
-                                             set_loc_wfn_lists,&
                                              gapw_control_type,&
-                                             semi_empirical_control_type
+                                             semi_empirical_control_type,&
+                                             set_loc_centers,&
+                                             set_loc_wfn_lists
   USE cp_control_utils,                ONLY: read_dft_control,&
                                              read_qs_control,&
                                              write_dft_control,&
@@ -665,6 +666,8 @@ CONTAINS
       NULLIFY (localized_wfn_control)
       CALL set_loc_wfn_lists(dft_control%qs_control%localized_wfn_control,&
            nmoloc,n_mo,dft_control%nspins,error=error)
+      CALL set_loc_centers(dft_control%qs_control%localized_wfn_control,nmoloc,&
+           dft_control%nspins,globenv,error=error)
     END IF 
 
 
