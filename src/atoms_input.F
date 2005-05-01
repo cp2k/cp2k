@@ -511,13 +511,13 @@ SUBROUTINE read_md_restart ( rtype, globenv, particle_set, cell, cell_ref,  &
 
   DEALLOCATE ( r, STAT = isos )
   IF (isos/=0) CALL stop_program('atoms_input', &
-  'failed to allocate r' )
+  'failed to deallocate r' )
   DEALLOCATE ( v, STAT = isos )
   IF (isos/=0) CALL stop_program('atoms_input', &
-  'failed to allocate v' )
+  'failed to deallocate v' )
   DEALLOCATE ( f, STAT = isos )
   IF (isos/=0) CALL stop_program('atoms_input', &
-  'failed to allocate f' )
+  'failed to deallocate f' )
 
 !-----------------------------------------------------------------------------
 ! cells
@@ -539,10 +539,10 @@ SUBROUTINE read_md_restart ( rtype, globenv, particle_set, cell, cell_ref,  &
 
   DEALLOCATE ( h, STAT = isos )
   IF (isos/=0) CALL stop_program('atoms_input', &
-  'failed to allocate h' )
+  'failed to deallocate h' )
   DEALLOCATE ( href, STAT = isos )
   IF (isos/=0) CALL stop_program('atoms_input', &
-  'failed to allocate href' )
+  'failed to deallocate href' )
 
 !-----------------------------------------------------------------------------
 ! particle thermostat
@@ -576,16 +576,16 @@ SUBROUTINE read_md_restart ( rtype, globenv, particle_set, cell, cell_ref,  &
 
   DEALLOCATE ( eta_p, STAT = isos )
   IF (isos/=0) CALL stop_program('atoms_input', &
-  'failed to allocate eta_p' )
+  'failed to deallocate eta_p' )
   DEALLOCATE ( veta_p, STAT = isos )
   IF (isos/=0) CALL stop_program('atoms_input', &
-  'failed to allocate veta_p' )
+  'failed to deallocate veta_p' )
   DEALLOCATE ( fnhc_p, STAT = isos )
   IF (isos/=0) CALL stop_program('atoms_input', &
-  'failed to allocate fnhc_p' )
+  'failed to deallocate fnhc_p' )
   DEALLOCATE ( mnhc_p, STAT = isos )
   IF (isos/=0) CALL stop_program('atoms_input', &
-  'failed to allocate mnhc_p' )
+  'failed to deallocate mnhc_p' )
 
 !-----------------------------------------------------------------------------
 ! baroastat thermostat
@@ -619,16 +619,16 @@ SUBROUTINE read_md_restart ( rtype, globenv, particle_set, cell, cell_ref,  &
 
   DEALLOCATE ( eta_b, STAT = isos )
   IF (isos/=0) CALL stop_program('atoms_input', &
-  'failed to allocate eta_b' )
+  'failed to deallocate eta_b' )
   DEALLOCATE ( veta_b, STAT = isos )
   IF (isos/=0) CALL stop_program('atoms_input', &
-  'failed to allocate veta_b' )
+  'failed to deallocate veta_b' )
   DEALLOCATE ( fnhc_b, STAT = isos )
   IF (isos/=0) CALL stop_program('atoms_input', &
-  'failed to allocate fnhc_b' )
+  'failed to deallocate fnhc_b' )
   DEALLOCATE ( mnhc_b, STAT = isos )
   IF (isos/=0) CALL stop_program('atoms_input', &
-  'failed to allocate mnhc_b' )
+  'failed to deallocate mnhc_b' )
 !------------------------------------------------------------------------
 !barostat
 !------------------------------------------------------------------------
@@ -654,11 +654,11 @@ SUBROUTINE read_md_restart ( rtype, globenv, particle_set, cell, cell_ref,  &
 
   DEALLOCATE ( veps, STAT = isos )
   IF (isos/=0) CALL stop_program('atoms_input', &
-  'failed to allocate veps' )
+  'failed to deallocate veps' )
 
   DEALLOCATE ( meps, STAT = isos )
   IF (isos/=0) CALL stop_program('atoms_input', &
-  'failed to allocate meps' )
+  'failed to deallocate meps' )
    
 
 

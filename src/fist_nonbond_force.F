@@ -40,7 +40,8 @@ MODULE fist_nonbond_force
                                              next
   USE fist_nonbond_env_types,          ONLY: fist_nonbond_env_get,&
                                              fist_nonbond_env_type
-  USE kinds,                           ONLY: dp
+  USE global_types,                    ONLY: global_environment_type 
+  USE kinds,                           ONLY: dp, dp_size
   USE mathconstants,                   ONLY: pi
   USE message_passing,                 ONLY: mp_sum
   USE manybody_potential,              ONLY: rho_s
@@ -51,6 +52,7 @@ MODULE fist_nonbond_force
                                              real_to_scaled,&
                                              scaled_to_real
   USE splines,                         ONLY: spline_data_type
+  USE termination,                     ONLY: stop_memory
   USE timings,                         ONLY: timeset,&
                                              timestop
 
@@ -87,7 +89,6 @@ SUBROUTINE force_nonbond ( fist_nonbond_env, particle_set, cell,  &
     INTEGER                                  :: ab, atom_a, atom_b, handle, &
                                                 ikind, ilist, inode, jkind, &
                                                 nkinds, nlist, nnode
-    INTEGER, DIMENSION(:, :), POINTER        :: spltab
     REAL(KIND=dp)                            :: energy, flops, fscalar, rab2, &
                                                 rab2_max, f_eam
     REAL(KIND=dp), DIMENSION(3)              :: dra, drb, fr, rab
@@ -226,13 +227,14 @@ END SUBROUTINE force_nonbond
 
 !******************************************************************************
 
-SUBROUTINE density_nonbond ( fist_nonbond_env, particle_set, cell )
+SUBROUTINE density_nonbond ( fist_nonbond_env, particle_set, cell, globenv )
                           
 
 ! Computes the density term for manybody empirical potentials (e.g. EAM )
 !
 
     TYPE(fist_nonbond_env_type), POINTER     :: fist_nonbond_env
+    TYPE ( global_environment_type ), INTENT ( IN ) :: globenv
     TYPE(particle_type), DIMENSION(:), &
       INTENT (INOUT)                         :: particle_set
     TYPE(cell_type), POINTER                 :: cell
@@ -241,10 +243,12 @@ SUBROUTINE density_nonbond ( fist_nonbond_env, particle_set, cell )
 
     INTEGER                                  :: ab, atom_a, atom_b, handle, &
                                                 ikind, ilist, inode, jkind, &
-                                                nkinds, nlist, nnode
-    INTEGER, DIMENSION(:, :), POINTER        :: spltab
+                                                nkinds, nlist, nnode, iparticle, &
+                                                nparticle, istat
+
     REAL(KIND=dp)                            :: flops, rab2, rab2_max
     REAL(KIND=dp), DIMENSION(3)              :: dra, drb, fr, rab
+    REAL(KIND=dp), DIMENSION(:), POINTER     :: rho
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: r_last_update
     TYPE(neighbor_list_set_p_type), &
       DIMENSION(:), POINTER                  :: nonbonded
@@ -259,8 +263,14 @@ SUBROUTINE density_nonbond ( fist_nonbond_env, particle_set, cell )
   CALL timeset ( routine_name, 'E', 'Mflops', handle )
   flops = 0.0_dp
   CALL fist_nonbond_env_get ( fist_nonbond_env, nonbonded = nonbonded, &
-                             r_last_update = r_last_update,            &
+                              r_last_update = r_last_update,           &
                               potparm = potparm )
+
+  nparticle = SIZE ( particle_set )
+  ALLOCATE ( rho ( nparticle ), STAT = istat )
+  IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+                                   "rho",nparticle*dp_size)
+  rho ( : ) = 0._dp
 ! starting the force loop
 
     nkinds = SIZE ( potparm, 1 )
@@ -312,9 +322,7 @@ SUBROUTINE density_nonbond ( fist_nonbond_env, particle_set, cell )
               SELECT CASE ( potparm  ( ikind, jkind ) % type )
               CASE ( "EAM" )
                 pot => potparm ( ikind, jkind )
-                CALL get_rho_eam ( pot, rab2, atom_a, atom_b, particle_set  )
-              CASE ( "STILLINGER-WEBER" )
-              CASE ( "REBO" )
+                CALL get_rho_eam ( pot, rab2, atom_a, atom_b, rho  )
               END SELECT
             END IF
 
@@ -329,6 +337,15 @@ SUBROUTINE density_nonbond ( fist_nonbond_env, particle_set, cell )
       END DO
 
     END DO
+
+    CALL mp_sum( rho, globenv % group )
+    DO iparticle=1,nparticle
+      particle_set(iparticle)%rho = rho(iparticle)
+    END DO
+    
+    DEALLOCATE ( rho, STAT = istat )
+    IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+                                    "deallocate rho")
 
   CALL timestop ( flops, handle )
 
@@ -384,11 +401,11 @@ SUBROUTINE energy_manybody ( fist_nonbond_env, atomic_kind_set, &
 !  CALL timestop ( flops, handle )
 END SUBROUTINE energy_manybody
 !******************************************************************************
-SUBROUTINE get_rho_eam ( potparm, rab2, atom_a, atom_b, particle_set )
+SUBROUTINE get_rho_eam ( potparm, rab2, atom_a, atom_b, rho )
     TYPE(pair_potential_type), POINTER       :: potparm
     REAL ( dp ), INTENT ( IN )               :: rab2
     INTEGER, INTENT ( IN )                   :: atom_a, atom_b
-    TYPE ( particle_type ), INTENT ( INOUT ) :: particle_set ( : )
+    REAL ( dp ), INTENT ( INOUT )            :: rho ( : )
 ! locals
     INTEGER :: index
     REAL ( dp ) :: rab, qq, rhoi, rhoj
@@ -407,8 +424,8 @@ SUBROUTINE get_rho_eam ( potparm, rab2, atom_a, atom_b, particle_set )
     rhoi = potparm % eam % rho ( index ) + qq * potparm % eam % rhop ( index )
     rhoj = potparm % eam % rho ( index ) + qq * potparm % eam % rhop ( index )
 
-    particle_set ( atom_a ) % rho = particle_set ( atom_a ) % rho + rhoi
-    particle_set ( atom_b ) % rho = particle_set ( atom_b ) % rho + rhoj
+    rho ( atom_a ) = rho ( atom_a ) + rhoi
+    rho ( atom_b ) = rho ( atom_b ) + rhoj
 END SUBROUTINE get_rho_eam 
 !******************************************************************************
 SUBROUTINE get_force_eam ( rab2, potparm, particle_set, atom_a, atom_b, f_eam )

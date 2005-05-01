@@ -82,6 +82,7 @@ MODULE force_fields
   USE manybody_potential,              ONLY: spline_manybody_control
   USE mathconstants,                   ONLY: pi, twopi
   USE memory_utilities,                ONLY: reallocate
+  USE message_passing,                 ONLY: mp_bcast
   USE molecule_kind_types,             ONLY: allocate_molecule_kind_set,&
                                              atom_type,&
                                              bend_type,&
@@ -4345,54 +4346,166 @@ SUBROUTINE read_eam_data ( eam, globenv )
   TYPE ( eam_pot_type ), INTENT ( INOUT )                    :: eam
   TYPE ( global_environment_type ), INTENT(IN), OPTIONAL     :: globenv
 !locals
-  INTEGER :: unit_number, scr, i, ntyp
-  REAL ( dp ) :: rmass, rlatt, acutal2
+  INTEGER :: unit_number, scr, i, ntyp, isos
+  REAL ( dp ) :: rmass, rlatt
   CHARACTER ( len = default_string_length ) :: title3
-  IF ( PRESENT ( globenv ) ) scr = globenv % scr
-  CALL open_file(file_name=TRIM(eam % eam_file_name),&
+  REAL ( dp ), POINTER, DIMENSION ( : ) :: rval, rhoval, phi, phip, frho, frhop, &
+                                           rho, rhop
+  REAL ( dp ) :: drar, drhoar, acutal
+
+  NULLIFY ( rval, rhoval, phi, phip, frho, frhop, rho, rhop )
+  IF ( globenv % ionode ) THEN
+    ALLOCATE ( rho ( 5000 ), STAT = isos )
+    IF (isos/=0) CALL stop_program('read_eam_data', &
+    'failed to allocate rho' )
+    rho=0.0_dp
+    ALLOCATE ( rhop ( 5000 ), STAT = isos )
+    IF (isos/=0) CALL stop_program('read_eam_data', &
+    'failed to allocate rhop' )
+    rhop=0.0_dp
+    ALLOCATE ( rval ( 5000 ), STAT = isos )
+    IF (isos/=0) CALL stop_program('read_eam_data', &
+    'failed to allocate rval' )
+    rval=0.0_dp
+    ALLOCATE ( rhoval ( 5000 ), STAT = isos )
+    IF (isos/=0) CALL stop_program('read_eam_data', &
+    'failed to allocate rhoval' )
+    rhoval=0.0_dp
+    ALLOCATE ( phi ( 5000 ), STAT = isos )
+    IF (isos/=0) CALL stop_program('read_eam_data', &
+    'failed to allocate phi' )
+    phi=0.0_dp
+    ALLOCATE ( phip ( 5000 ), STAT = isos )
+    IF (isos/=0) CALL stop_program('read_eam_data', &
+    'failed to allocate phip' )
+    phip=0.0_dp
+    ALLOCATE ( frho ( 5000 ), STAT = isos )
+    IF (isos/=0) CALL stop_program('read_eam_data', &
+    'failed to allocate frho' )
+    frho=0.0_dp
+    ALLOCATE ( frhop ( 5000 ), STAT = isos )
+    IF (isos/=0) CALL stop_program('read_eam_data', &
+    'failed to allocate frhop' )
+    frhop=0.0_dp
+
+    IF ( PRESENT ( globenv ) ) scr = globenv % scr
+    CALL open_file(file_name=TRIM(eam % eam_file_name),&
                  file_form="FORMATTED",&
                  file_position="REWIND",&
                  file_status="OLD",&
                  unit_number=unit_number)
-  READ ( unit_number, '(A72)' ) title3
-  WRITE ( scr, * ) title3
+    READ ( unit_number, '(A72)' ) title3
+    WRITE ( scr, * ) title3
 
-  READ ( unit_number, * ) ntyp,rmass,rlatt
+    READ ( unit_number, * ) ntyp,rmass,rlatt
 
 !  WRITE ( scr, '(1x,72('*'),//1x,'input data from the EAM functions',  &
 !         //1x,'title: ',a72,                                           &
 !         /1x,'-> Z =',i5,8x,'A =',f10.3,                               &
 !         /1x,'-> a =',f10.4)') title3,ntyp,rmass,rlatt
 
-  READ ( unit_number, * ) eam % drar, eam % drhoar, eam % acutal
-      CALL convert_to_cp2k_units ( "ANGSTROM", length = eam % drar )
-      CALL convert_to_cp2k_units ( "ANGSTROM", length = eam % acutal )
-      acutal2 = eam % acutal * eam % acutal
+    READ ( unit_number, * ) drar, drhoar, acutal
+        CALL convert_to_cp2k_units ( "ANGSTROM", length = drar )
+        CALL convert_to_cp2k_units ( "ANGSTROM", length = acutal )
 
 !  WRITE(scr,'('  dr, drho, rcut = ',3e12.4)') eam % drar, eam % drhoar, eam % acutal
 !
-  DO i = 1,5000
-    READ ( unit_number, * ) eam % rho(i),eam % rhop(i)
-    CALL convert_to_cp2k_units ( "ANGSTROM", length = eam % rhop ( i ), l_power = -1 )
-    eam % rval(i) = REAL ( i-1 ) * eam % drar
-    eam % rhoval(i) = REAL ( i-1 )* eam % drhoar
-  END DO
+    DO i = 1,5000
+      READ ( unit_number, * ) rho(i), rhop(i)
+      CALL convert_to_cp2k_units ( "ANGSTROM", length = rhop ( i ), l_power = -1 )
+      rval(i) = REAL ( i-1 ) * drar
+      rhoval(i) = REAL ( i-1 )* drhoar
+    END DO
 !
-  DO i = 1,5000
-     READ ( unit_number, * ) eam % phi(i), eam % phip(i)
-     CALL convert_to_cp2k_units ( "EV", energy = eam % phi ( i ) )
-     CALL convert_to_cp2k_units ( "EV", energy = eam % phip ( i ) )
-     CALL convert_to_cp2k_units ( "ANGSTROM", length = eam % phip ( i ), l_power = -1 )
-  END DO
+    DO i = 1,5000
+       READ ( unit_number, * ) phi(i), phip(i)
+       CALL convert_to_cp2k_units ( "EV", energy = phi ( i ) )
+       CALL convert_to_cp2k_units ( "EV", energy = phip ( i ) )
+       CALL convert_to_cp2k_units ( "ANGSTROM", length = phip ( i ), l_power = -1 )
+    END DO
 !
-  DO i = 1,5000
-     READ ( unit_number, * ) eam%frho(i), eam % frhop(i)
-     CALL convert_to_cp2k_units ( "EV", energy = eam % frho ( i ) )
-     CALL convert_to_cp2k_units ( "EV", energy = eam % frhop ( i ) )
-  END DO
+    DO i = 1,5000
+       READ ( unit_number, * ) frho(i), frhop(i)
+       CALL convert_to_cp2k_units ( "EV", energy = frho ( i ) )
+       CALL convert_to_cp2k_units ( "EV", energy = frhop ( i ) )
+    END DO
 !
-  WRITE ( scr, * ) 'Finished EAM data'
-  CLOSE ( unit_number )
+    WRITE ( scr, * ) 'Finished EAM data'
+    CLOSE ( unit_number )
+  ENDIF
+  CALL mp_bcast ( drar, globenv % source, globenv % group )
+  CALL mp_bcast ( drhoar, globenv % source, globenv % group )
+  CALL mp_bcast ( acutal, globenv % source, globenv % group )
+
+  eam % drar = drar
+  eam % drhoar = drhoar
+  eam % acutal = acutal
+  
+  CALL reallocate ( rho, 1, 5000 )
+  CALL mp_bcast ( rho, globenv % source, globenv % group )
+
+  CALL reallocate ( rhop, 1, 5000 )
+  CALL mp_bcast ( rhop, globenv % source, globenv % group )
+
+  CALL reallocate ( rval, 1, 5000 )
+  CALL mp_bcast ( rval, globenv % source, globenv % group )
+
+  CALL reallocate ( rhoval, 1, 5000 )
+  CALL mp_bcast ( rhoval, globenv % source, globenv % group )
+
+  CALL reallocate ( phi, 1, 5000 )
+  CALL mp_bcast ( phi, globenv % source, globenv % group )
+
+  CALL reallocate ( phip, 1, 5000 )
+  CALL mp_bcast ( phip, globenv % source, globenv % group )
+
+  CALL reallocate ( frho, 1, 5000 )
+  CALL mp_bcast ( frho, globenv % source, globenv % group )
+
+  CALL reallocate ( frhop, 1, 5000 )
+  CALL mp_bcast ( frhop, globenv % source, globenv % group )
+  
+  DO i = 1, 5000
+    eam % rho ( i ) = rho ( i )
+    eam % rhop ( i ) = rhop ( i )
+    eam % rval ( i ) = rval ( i )
+    eam % rhoval ( i ) = rhoval ( i )
+    eam % phi ( i ) = phi ( i )
+    eam % phip ( i ) = phip ( i )
+    eam % frho ( i ) = frho ( i )
+    eam % frhop ( i ) = frhop ( i )
+  END DO
+  DEALLOCATE ( rho, STAT = isos )
+  IF (isos/=0) CALL stop_program('read_eam_data', &
+  'failed to deallocate rho' )
+
+  DEALLOCATE ( rhop, STAT = isos )
+  IF (isos/=0) CALL stop_program('read_eam_data', &
+  'failed to deallocate rhop' )
+
+  DEALLOCATE ( rval, STAT = isos )
+  IF (isos/=0) CALL stop_program('read_eam_data', &
+  'failed to deallocate rval' )
+
+  DEALLOCATE ( rhoval, STAT = isos )
+  IF (isos/=0) CALL stop_program('read_eam_data', &
+  'failed to deallocate rhoval' )
+
+  DEALLOCATE ( phi, STAT = isos )
+  IF (isos/=0) CALL stop_program('read_eam_data', &
+  'failed to deallocate phi' )
+
+  DEALLOCATE ( phip, STAT = isos )
+  IF (isos/=0) CALL stop_program('read_eam_data', &
+  'failed to deallocate phip' )
+
+  DEALLOCATE ( frho, STAT = isos )
+  IF (isos/=0) CALL stop_program('read_eam_data', &
+  'failed to deallocate frho' )
+
+  DEALLOCATE ( frhop, STAT = isos )
+  IF (isos/=0) CALL stop_program('read_eam_data', &
+  'failed to deallocate frhop' )
 END SUBROUTINE read_eam_data 
 !******************************************************************************
 END MODULE force_fields

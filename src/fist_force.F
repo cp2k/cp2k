@@ -212,6 +212,7 @@ SUBROUTINE fist_force_control ( fist_env, virial, globenv, box_change, debug ,er
        particle_set ( i ) % f_embed = 0.0_dp
      END DO
   END DO
+
   pv_bc = 0.0_dp
   pv_bond = 0.0_dp
   pv_bend = 0.0_dp
@@ -239,7 +240,7 @@ SUBROUTINE fist_force_control ( fist_env, virial, globenv, box_change, debug ,er
   END IF
 
 !  compute density for EAM 
-  CALL density_nonbond ( fist_nonbond_env, particle_set, cell )
+  CALL density_nonbond ( fist_nonbond_env, particle_set, cell, globenv )
 
 ! compute embedding function and manybody energy 
   CALL energy_manybody ( fist_nonbond_env, atomic_kind_set, &
