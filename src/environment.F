@@ -65,6 +65,8 @@ MODULE environment
                                              rm_mp_perf_env
   USE orbital_pointers,                ONLY: deallocate_orbital_pointers
   USE orbital_transformation_matrices, ONLY: deallocate_spherical_harmonics
+  USE parallel_rng_types,              ONLY: init_rng,&
+                                             write_rng_matrices
   USE physcon,                         ONLY: init_physcon,&
                                              write_physcon
   USE print_key_types,                 ONLY: print_keys_reset
@@ -262,6 +264,14 @@ CONTAINS
 
     globenv%idum = -1
     initial_random = ran2(globenv%idum)
+
+!   *** Initialize the parallel random number generator ***
+
+    CALL init_rng()
+
+    IF (ionode.AND.(globenv%print%level >= HIGH)) THEN
+      CALL write_rng_matrices(globenv%scr)
+    END IF
 
 !   *** Initialize mathematical constants ***
 

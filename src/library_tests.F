@@ -42,6 +42,17 @@ MODULE library_tests
   USE machine,                         ONLY: m_cputime
   USE message_passing,                 ONLY: mp_max,&
                                              mp_sum
+  USE parallel_rng_types,              ONLY: advance_rng_state,&
+                                             create_rng_stream,&
+                                             delete_rng_stream,&
+                                             next_random_number,&
+                                             next_rng_seed,&
+                                             reset_rng_stream,&
+                                             reset_rng_substream,&
+                                             reset_to_next_rng_substream,&
+                                             rng_stream_type,&
+                                             set_rng_stream,&
+                                             write_rng_matrices
   USE parser,                          ONLY: get_next,&
                                              p_error,&
                                              parser_end,&
@@ -128,6 +139,8 @@ SUBROUTINE lib_test ( globenv )
   IF ( runtest ( 7 ) /= 0 ) CALL rs_test ( globenv )
 !
   IF ( runtest ( 8 ) /= 0 ) CALL mpi_test ( globenv%group )
+!
+  IF ( runtest ( 9 ) /= 0 ) CALL rng_test ( globenv )
 
 END SUBROUTINE lib_test
 
@@ -159,6 +172,7 @@ END SUBROUTINE lib_test
 !!I    Clebsch-Gordon n                                                       I
 !!I    RS_GRIDS n                                                             I
 !!I    MPI      n                                                             I
+!!I    RNG      n             -> Parallel random number generator             I
 !!I                                                                           I
 !!I---------------------------------------------------------------------------I
 !!
@@ -215,6 +229,8 @@ SUBROUTINE test_input ( globenv )
            CALL get_next ( runtest ( 7 ) )
         CASE ( 'MPI' )
            CALL get_next ( runtest ( 8 ) )
+        CASE ( 'RNG' )
+           CALL get_next ( runtest ( 9 ) )
         END SELECT
         CALL read_line
      END DO
@@ -1377,6 +1393,153 @@ SUBROUTINE simple_copy(buf1,buf2,N)
   ENDDO
 END SUBROUTINE simple_copy
 
+!******************************************************************************
+
+SUBROUTINE rng_test(globenv)
+
+  ! Test the parallel (pseudo)random number generator.
+
+  ! ***************************************************************************
+
+  TYPE(global_environment_type), INTENT(IN) :: globenv
+
+  ! Local variables
+
+  TYPE(rng_stream_type), POINTER :: cantor,g1,g2,g3,galois,laplace,poisson
+  INTEGER, DIMENSION(3,2)        :: germe
+  REAL(dp)                       :: sum,sum3
+  INTEGER                        :: i,output_unit,sumi
+
+  ! ---------------------------------------------------------------------------
+
+  output_unit = globenv%scr
+
+  NULLIFY (g1)
+  NULLIFY (g2)
+  NULLIFY (g3)
+  NULLIFY (cantor)
+  NULLIFY (galois)
+  NULLIFY (laplace)
+  NULLIFY (poisson)
+
+  IF (globenv%ionode) CALL write_rng_matrices(output_unit)
+
+  CALL create_rng_stream(g1,"g1")
+  CALL create_rng_stream(g2,"g2",g1)
+  CALL create_rng_stream(g3,"g3",g2)
+
+  sum = next_random_number(g2) + next_random_number(g3)
+
+  CALL advance_rng_state(g1,5,3)
+  sum = sum + next_random_number(g1)
+
+  CALL reset_rng_stream(g1)
+  DO i=1,35
+     CALL advance_rng_state(g1,0,1)
+  END DO
+  sum = sum + next_random_number(g1)
+
+  CALL reset_rng_stream(g1)
+
+  sumi = 0
+  DO i=1,35
+    sumi = sumi + next_random_number(g1,1,10)
+  END DO
+  sum = sum + sumi/100.0_dp
+
+  sum3 = 0.0_dp
+  DO i=1,100
+    sum3 = sum3 + next_random_number(g3)
+  END DO
+  sum = sum + sum3/10.0_dp
+
+  CALL reset_rng_stream(g3)
+  DO i=1,5
+    sum = sum + next_random_number(g3)
+  END DO
+
+  CALL reset_rng_stream(g3)
+  DO i=1,4
+    CALL reset_to_next_rng_substream(g3)
+  END DO
+  DO i=1,5
+    sum = sum + next_random_number(g3)
+  END DO
+
+  CALL reset_rng_substream(g3)
+  DO i=1,5
+    sum = sum + next_random_number(g3)
+  END DO
+
+  CALL reset_to_next_rng_substream(g2)
+  sum3 = 0.0_dp
+  DO i=1,100000
+    sum3 = sum3 + next_random_number(g2)
+  END DO
+  sum = sum + sum3/10000.0_dp
+
+  CALL set_rng_stream(g3,antithetic=.TRUE.)
+  sum3 = 0.0_dp
+  DO i=1,100000
+    sum3 = sum3 + next_random_number(g3)
+  END DO
+  sum = sum + sum3/10000.0_dp
+
+  germe = 1
+
+  CALL create_rng_stream(poisson,name="Poisson",seed=germe)
+  CALL create_rng_stream(laplace,"Laplace",poisson)
+  CALL create_rng_stream(galois,"Galois",laplace)
+  CALL create_rng_stream(cantor,"Cantor",galois)
+
+  sum = sum + next_random_number(poisson) +&
+              next_random_number(laplace) +&
+              next_random_number(galois) +&
+              next_random_number(cantor)
+
+  CALL advance_rng_state(galois,-127,0)
+  sum = sum + next_random_number(galois)
+
+  CALL reset_to_next_rng_substream(galois)
+  CALL set_rng_stream(galois,extended_precision=.TRUE.)
+  sum3 = 0.0_dp
+  DO i=1,100000
+    sum3 = sum3 + next_random_number(galois)
+  END DO
+  sum = sum + sum3/10000.0_dp
+
+  CALL set_rng_stream(galois,antithetic=.TRUE.)
+  sum3 = 0.0_dp
+  DO i=1,100000
+    sum3 = sum3 + next_random_number(galois)
+  END DO
+  sum = sum + sum3/10000.0_dp
+  CALL set_rng_stream(galois,antithetic=.FALSE.)
+
+  CALL set_rng_stream(galois,extended_precision=.FALSE.)
+  sum = sum + next_random_number(poisson) +&
+              next_random_number(laplace) +&
+              next_random_number(galois) +&
+              next_random_number(cantor)
+
+  IF (globenv%ionode) THEN
+    WRITE (UNIT=output_unit,FMT="(/,(T2,A))")&
+      "This test routine should print the number 39.697547"
+    WRITE (UNIT=output_unit,FMT="(T2,A,F10.6)")&
+      "Actual test result is                    ",sum
+  END IF
+
+  ! Delete RNG streams
+
+  CALL delete_rng_stream(g1)
+  CALL delete_rng_stream(g2)
+  CALL delete_rng_stream(g3)
+  CALL delete_rng_stream(cantor)
+  CALL delete_rng_stream(galois)
+  CALL delete_rng_stream(laplace)
+  CALL delete_rng_stream(poisson)
+
+END SUBROUTINE rng_test
 
 !******************************************************************************
 
