@@ -13,4 +13,5 @@
    Clebsch-Gordon 1
    RS_GRID        1
    MPI            6
+   RNG            1
 &END
