@@ -748,6 +748,7 @@ END SUBROUTINE qs_loc_env_init
     TYPE (real_matrix_p_type), DIMENSION(:,:),&
       POINTER                                  :: op_sm_set
 
+!$  INTEGER :: omp_get_max_threads,omp_get_thread_num
 
     CALL timeset(routine_name,"I"," ",handle)
 
@@ -845,18 +846,18 @@ END SUBROUTINE qs_loc_env_init
 
 !$OMP parallel &
 !$OMP default(none) &
-!$OMP private(ithread,cosab,sinab,work,ilist,iatom,jatom,atom_a)&
-!$OMP private(last_jatom,new_atom_b,istat,sgfa,sgfb,ra,rb,rac,rbc)&
-!$OMP private(ncol,nrow,iset,jset,ncoa,ncob,nnode,inode,irow,icol)&
-!$OMP private(cos_op,sin_op,rab,rab2,dab,i,kvec)&
+!$OMP private(ithread,cosab,sinab,work,ilist,iatom,jatom)&
+!$OMP private(last_jatom,new_atom_b,istat,sgfa,sgfb,ra,rb)&
+!$OMP private(nrow,iset,jset,ncoa,ncob,nnode,inode,irow,icol)&
+!$OMP private(op_cos,op_sin,rab,rab2,dab,i,kvec)&
 !$OMP private(sab_orb_neighbor_node,sab_orb_neighbor_list_local)&
 !$OMP shared(ikind,jkind,rpgfb,zetb,sphi_b,sphi_a,nsgfa,nsgfb,set_radius_b,ldab,ldwork)&
 !$OMP shared(lb_max,npgfb,nsetb,iab,la_min,rpgfa,zeta)&
 !$OMP shared(set_radius_a,nco,ncoset,npgfa,nseta,ldsa,ldsb)&
 !$OMP shared(nkind,sab_orb_neighbor_list,nlist,workt,cosabt,sinabt,qs_env)&
 !$OMP shared(op_cost,op_sint,ortho,twopoLx,twopoLy,twopoLz)&
-!$OMP shared(first_sgfa,first_sgfb)
-!$OMP shared(atomic_kind_set,particle_set,pbc,cell,routineP)
+!$OMP shared(first_sgfa,first_sgfb,sab_orb,lb_min,la_max,op_sm_set)&
+!$OMP shared(atomic_kind_set,particle_set,cell)
         ithread = 0
 !$      ithread = omp_get_thread_num()
 
