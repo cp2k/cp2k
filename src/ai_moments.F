@@ -140,13 +140,14 @@ CONTAINS
                                                 ipgf, j, jpgf, la, la_start, &
                                                 lb, na, nb
     REAL(KIND=dp)                            :: dab, f0, f1, f2, f3, fx, fy, &
-                                                fz, zetp, k2, kdp, rab2, s
+                                                fz, fza, fzb, zetp, k2, kdp, rab2, s
     REAL(KIND=dp), DIMENSION(3)              :: rab, rap, rbp
     REAL(KIND=dp), DIMENSION(ncoset(la_max),&
       ncoset(lb_max))                        :: sc, ss
 
 !   ---------------------------------------------------------------------------
-    rab = rac - rbc
+
+    rab = rbc - rac
     rab2= SUM( rab**2 )
     dab = SQRT(rab2)
     k2  = kvec(1)*kvec(1) + kvec(2)*kvec(2) + kvec(3)*kvec(3)
@@ -184,6 +185,9 @@ CONTAINS
 
         kdp = zetp * DOT_PRODUCT ( kvec, zeta(ipgf)*rac + zetb(jpgf)*rbc ) 
 
+        fza = zeta(ipgf)*zetp
+        fzb = zetb(ipgf)*zetp
+
 !       *** Calculate the basic two-center cos/sin integral [s|cos/sin|s] ***
 
         s       = f0*EXP(-zeta(ipgf)*f1*rab2)*EXP(-0.25_dp*k2*zetp)
@@ -196,16 +200,17 @@ CONTAINS
 
 !         *** Vertical recurrence steps: [s|O|s] -> [a|O|s] ***
 
-          rap(:) = -f1*rab(:)
+!          rap(:) = -f1*rab(:)
+          rap(:) = f1*rab(:)
 
 !         *** [p|O|s] = (Pi - Ai)*[s|O|s] +[s|dO|s]  (i = x,y,z) ***
 
-          sc(2,1) = rap(1)*sc(1,1) - kvec(1)*ss(1,1)
-          sc(3,1) = rap(2)*sc(1,1) - kvec(2)*ss(1,1)
-          sc(4,1) = rap(3)*sc(1,1) - kvec(3)*ss(1,1)
-          ss(2,1) = rap(1)*ss(1,1) + kvec(1)*sc(1,1)
-          ss(3,1) = rap(2)*ss(1,1) + kvec(2)*sc(1,1)
-          ss(4,1) = rap(3)*ss(1,1) + kvec(3)*sc(1,1)
+          sc(2,1) = rap(1)*sc(1,1) - f2* kvec(1)*ss(1,1)
+          sc(3,1) = rap(2)*sc(1,1) - f2* kvec(2)*ss(1,1)
+          sc(4,1) = rap(3)*sc(1,1) - f2* kvec(3)*ss(1,1)
+          ss(2,1) = rap(1)*ss(1,1) + f2* kvec(1)*sc(1,1)
+          ss(3,1) = rap(2)*ss(1,1) + f2* kvec(2)*sc(1,1)
+          ss(4,1) = rap(3)*ss(1,1) + f2* kvec(3)*sc(1,1)
 
 !         *** [a|O|s] = (Pi - Ai)*[a-1i|O|s] + f2*Ni(a-1i)*[a-2i|s] ***
 !         ***           + [a-1i|dO|s]                               ***
@@ -216,27 +221,27 @@ CONTAINS
 
             sc(coset(0,0,la),1) = rap(3)*sc(coset(0,0,la-1),1) +&
                                  f2*REAL(la-1,dp)*sc(coset(0,0,la-2),1) -&
-                                 kvec(3)*ss(coset(0,0,la-1),1)
+                            f2 *     kvec(3)*ss(coset(0,0,la-1),1)
             ss(coset(0,0,la),1) = rap(3)*ss(coset(0,0,la-1),1) +&
                                  f2*REAL(la-1,dp)*ss(coset(0,0,la-2),1) +&
-                                 kvec(3)*sc(coset(0,0,la-1),1)
+                            f2 *     kvec(3)*sc(coset(0,0,la-1),1)
 
 !           *** Increase the angular momentum component y of function a ***
 
             az = la - 1
             sc(coset(0,1,az),1) = rap(2)*sc(coset(0,0,az),1) -&
-                                  kvec(2)*ss(coset(0,0,az),1)
+                            f2 *      kvec(2)*ss(coset(0,0,az),1)
             ss(coset(0,1,az),1) = rap(2)*ss(coset(0,0,az),1) +&
-                                  kvec(2)*sc(coset(0,0,az),1)
+                            f2 *      kvec(2)*sc(coset(0,0,az),1)
 
             DO ay=2,la
               az = la - ay
               sc(coset(0,ay,az),1) = rap(2)*sc(coset(0,ay-1,az),1) +&
                                      f2*REAL(ay-1,dp)*sc(coset(0,ay-2,az),1) -&
-                                     kvec(2)*ss(coset(0,ay-1,az),1)
+                            f2 *         kvec(2)*ss(coset(0,ay-1,az),1)
               ss(coset(0,ay,az),1) = rap(2)*ss(coset(0,ay-1,az),1) +&
                                      f2*REAL(ay-1,dp)*ss(coset(0,ay-2,az),1) +&
-                                     kvec(2)*sc(coset(0,ay-1,az),1)
+                            f2 *         kvec(2)*sc(coset(0,ay-1,az),1)
             END DO
 
 !           *** Increase the angular momentum component x of function a ***
@@ -244,9 +249,9 @@ CONTAINS
             DO ay=0,la-1
               az = la - 1 - ay
               sc(coset(1,ay,az),1) = rap(1)*sc(coset(0,ay,az),1) -&
-                                     kvec(1)*ss(coset(0,ay,az),1)
+                            f2 *         kvec(1)*ss(coset(0,ay,az),1)
               ss(coset(1,ay,az),1) = rap(1)*ss(coset(0,ay,az),1) +&
-                                     kvec(1)*sc(coset(0,ay,az),1)
+                            f2 *         kvec(1)*sc(coset(0,ay,az),1)
             END DO
 
             DO ax=2,la
@@ -255,10 +260,10 @@ CONTAINS
                 az = la - ax - ay
                 sc(coset(ax,ay,az),1) = rap(1)*sc(coset(ax-1,ay,az),1) +&
                                         f3*sc(coset(ax-2,ay,az),1) -&
-                                        kvec(1)*ss(coset(ax-1,ay,az),1)
+                              f2 *          kvec(1)*ss(coset(ax-1,ay,az),1)
                 ss(coset(ax,ay,az),1) = rap(1)*ss(coset(ax-1,ay,az),1) +&
                                         f3*ss(coset(ax-2,ay,az),1) +&
-                                        kvec(1)*sc(coset(ax-1,ay,az),1)
+                              f2 *          kvec(1)*sc(coset(ax-1,ay,az),1)
               END DO
             END DO
 
@@ -320,42 +325,42 @@ CONTAINS
                 fz = f2*REAL(az,dp)
                 IF (ax == 0) THEN
                   sc(coset(ax,ay,az),2) = rbp(1)*sc(coset(ax,ay,az),1) -&
-                                          kvec(1)*ss(coset(ax,ay,az),1)
+                                 f2 *         kvec(1)*ss(coset(ax,ay,az),1)
                   ss(coset(ax,ay,az),2) = rbp(1)*ss(coset(ax,ay,az),1) +&
-                                          kvec(1)*sc(coset(ax,ay,az),1)
+                                 f2 *         kvec(1)*sc(coset(ax,ay,az),1)
                 ELSE
                   sc(coset(ax,ay,az),2) = rbp(1)*sc(coset(ax,ay,az),1) +&
                                           fx*sc(coset(ax-1,ay,az),1) -&
-                                          kvec(1)*ss(coset(ax,ay,az),1)
+                                 f2 *         kvec(1)*ss(coset(ax,ay,az),1)
                   ss(coset(ax,ay,az),2) = rbp(1)*ss(coset(ax,ay,az),1) +&
                                           fx*ss(coset(ax-1,ay,az),1) +&
-                                          kvec(1)*sc(coset(ax,ay,az),1)
+                                 f2 *         kvec(1)*sc(coset(ax,ay,az),1)
                 END IF
                 IF (ay == 0) THEN
                   sc(coset(ax,ay,az),3) = rbp(2)*sc(coset(ax,ay,az),1) -&
-                                          kvec(2)*ss(coset(ax,ay,az),1)
+                                  f2 *        kvec(2)*ss(coset(ax,ay,az),1)
                   ss(coset(ax,ay,az),3) = rbp(2)*ss(coset(ax,ay,az),1) +&
-                                          kvec(2)*sc(coset(ax,ay,az),1)
+                                 f2 *         kvec(2)*sc(coset(ax,ay,az),1)
                 ELSE
                   sc(coset(ax,ay,az),3) = rbp(2)*sc(coset(ax,ay,az),1) +&
                                           fy*sc(coset(ax,ay-1,az),1) -&
-                                          kvec(2)*ss(coset(ax,ay,az),1)
+                                  f2 *        kvec(2)*ss(coset(ax,ay,az),1)
                   ss(coset(ax,ay,az),3) = rbp(2)*ss(coset(ax,ay,az),1) +&
                                           fy*ss(coset(ax,ay-1,az),1) +&
-                                          kvec(2)*sc(coset(ax,ay,az),1)
+                                  f2 *        kvec(2)*sc(coset(ax,ay,az),1)
                 END IF
                 IF (az == 0) THEN
                   sc(coset(ax,ay,az),4) = rbp(3)*sc(coset(ax,ay,az),1) -&
-                                          kvec(3)*ss(coset(ax,ay,az),1)
+                                  f2 *        kvec(3)*ss(coset(ax,ay,az),1)
                   ss(coset(ax,ay,az),4) = rbp(3)*ss(coset(ax,ay,az),1) +&
-                                          kvec(3)*sc(coset(ax,ay,az),1)
+                                  f2 *        kvec(3)*sc(coset(ax,ay,az),1)
                 ELSE
                   sc(coset(ax,ay,az),4) = rbp(3)*sc(coset(ax,ay,az),1) +&
                                           fz*sc(coset(ax,ay,az-1),1) -&
-                                          kvec(3)*ss(coset(ax,ay,az),1)
+                                  f2 *        kvec(3)*ss(coset(ax,ay,az),1)
                   ss(coset(ax,ay,az),4) = rbp(3)*ss(coset(ax,ay,az),1) +&
                                           fz*ss(coset(ax,ay,az-1),1) +&
-                                          kvec(3)*sc(coset(ax,ay,az),1)
+                                  f2 *        kvec(3)*sc(coset(ax,ay,az),1)
                 END IF
               END DO
             END DO
@@ -438,22 +443,22 @@ CONTAINS
                     sc(coset(ax,ay,az),coset(0,0,lb)) =&
                       rbp(3)*sc(coset(ax,ay,az),coset(0,0,lb-1)) +&
                       f3*sc(coset(ax,ay,az),coset(0,0,lb-2)) -&
-                      kvec(3)*ss(coset(ax,ay,az),coset(0,0,lb-1))
+               f2 *       kvec(3)*ss(coset(ax,ay,az),coset(0,0,lb-1))
                     ss(coset(ax,ay,az),coset(0,0,lb)) =&
                       rbp(3)*ss(coset(ax,ay,az),coset(0,0,lb-1)) +&
                       f3*ss(coset(ax,ay,az),coset(0,0,lb-2)) +&
-                      kvec(3)*sc(coset(ax,ay,az),coset(0,0,lb-1))
+               f2 *       kvec(3)*sc(coset(ax,ay,az),coset(0,0,lb-1))
                   ELSE
                     sc(coset(ax,ay,az),coset(0,0,lb)) =&
                       rbp(3)*sc(coset(ax,ay,az),coset(0,0,lb-1)) +&
                       fz*sc(coset(ax,ay,az-1),coset(0,0,lb-1)) +&
                       f3*sc(coset(ax,ay,az),coset(0,0,lb-2)) -&
-                      kvec(3)*ss(coset(ax,ay,az),coset(0,0,lb-1))
+               f2 *       kvec(3)*ss(coset(ax,ay,az),coset(0,0,lb-1))
                     ss(coset(ax,ay,az),coset(0,0,lb)) =&
                       rbp(3)*ss(coset(ax,ay,az),coset(0,0,lb-1)) +&
                       fz*ss(coset(ax,ay,az-1),coset(0,0,lb-1)) +&
                       f3*ss(coset(ax,ay,az),coset(0,0,lb-2)) +&
-                      kvec(3)*sc(coset(ax,ay,az),coset(0,0,lb-1))
+               f2 *       kvec(3)*sc(coset(ax,ay,az),coset(0,0,lb-1))
                   END IF
 
 !                 *** Increase the angular momentum component y of function b ***
@@ -462,32 +467,32 @@ CONTAINS
                     bz = lb - 1
                     sc(coset(ax,ay,az),coset(0,1,bz)) =&
                       rbp(2)*sc(coset(ax,ay,az),coset(0,0,bz)) -&
-                      kvec(2)*ss(coset(ax,ay,az),coset(0,0,bz))
+                f2 *      kvec(2)*ss(coset(ax,ay,az),coset(0,0,bz))
                     ss(coset(ax,ay,az),coset(0,1,bz)) =&
                       rbp(2)*ss(coset(ax,ay,az),coset(0,0,bz)) +&
-                      kvec(2)*sc(coset(ax,ay,az),coset(0,0,bz))
+                f2 *      kvec(2)*sc(coset(ax,ay,az),coset(0,0,bz))
                     DO by=2,lb
                       bz = lb - by
                       f3 = f2*REAL(by-1,dp)
                       sc(coset(ax,ay,az),coset(0,by,bz)) =&
                         rbp(2)*sc(coset(ax,ay,az),coset(0,by-1,bz)) +&
                         f3*sc(coset(ax,ay,az),coset(0,by-2,bz)) -&
-                        kvec(2)*ss(coset(ax,ay,az),coset(0,by-1,bz))
+                 f2 *       kvec(2)*ss(coset(ax,ay,az),coset(0,by-1,bz))
                       ss(coset(ax,ay,az),coset(0,by,bz)) =&
                         rbp(2)*ss(coset(ax,ay,az),coset(0,by-1,bz)) +&
                         f3*ss(coset(ax,ay,az),coset(0,by-2,bz)) +&
-                        kvec(2)*sc(coset(ax,ay,az),coset(0,by-1,bz))
+                  f2 *      kvec(2)*sc(coset(ax,ay,az),coset(0,by-1,bz))
                     END DO
                   ELSE
                     bz = lb - 1
                     sc(coset(ax,ay,az),coset(0,1,bz)) =&
                       rbp(2)*sc(coset(ax,ay,az),coset(0,0,bz)) +&
                       fy*sc(coset(ax,ay-1,az),coset(0,0,bz)) -&
-                      kvec(2)*ss(coset(ax,ay,az),coset(0,0,bz))
+                 f2 *     kvec(2)*ss(coset(ax,ay,az),coset(0,0,bz))
                     ss(coset(ax,ay,az),coset(0,1,bz)) =&
                       rbp(2)*ss(coset(ax,ay,az),coset(0,0,bz)) +&
                       fy*ss(coset(ax,ay-1,az),coset(0,0,bz)) +&
-                      kvec(2)*sc(coset(ax,ay,az),coset(0,0,bz))
+                 f2 *     kvec(2)*sc(coset(ax,ay,az),coset(0,0,bz))
                     DO by=2,lb
                       bz = lb - by
                       f3 = f2*REAL(by-1,dp)
@@ -495,12 +500,12 @@ CONTAINS
                         rbp(2)*sc(coset(ax,ay,az),coset(0,by-1,bz)) +&
                         fy*sc(coset(ax,ay-1,az),coset(0,by-1,bz)) +&
                         f3*sc(coset(ax,ay,az),coset(0,by-2,bz)) -&
-                        kvec(2)*ss(coset(ax,ay,az),coset(0,by-1,bz))
+                  f2 *      kvec(2)*ss(coset(ax,ay,az),coset(0,by-1,bz))
                       ss(coset(ax,ay,az),coset(0,by,bz)) =&
                         rbp(2)*ss(coset(ax,ay,az),coset(0,by-1,bz)) +&
                         fy*ss(coset(ax,ay-1,az),coset(0,by-1,bz)) +&
                         f3*ss(coset(ax,ay,az),coset(0,by-2,bz)) +&
-                        kvec(2)*sc(coset(ax,ay,az),coset(0,by-1,bz))
+                  f2 *      kvec(2)*sc(coset(ax,ay,az),coset(0,by-1,bz))
                     END DO
                   END IF
 
@@ -511,10 +516,10 @@ CONTAINS
                       bz = lb - 1 - by
                       sc(coset(ax,ay,az),coset(1,by,bz)) =&
                         rbp(1)*sc(coset(ax,ay,az),coset(0,by,bz)) -&
-                        kvec(1)*ss(coset(ax,ay,az),coset(0,by,bz))
+                   f2 *     kvec(1)*ss(coset(ax,ay,az),coset(0,by,bz))
                       ss(coset(ax,ay,az),coset(1,by,bz)) =&
                         rbp(1)*ss(coset(ax,ay,az),coset(0,by,bz)) +&
-                        kvec(1)*sc(coset(ax,ay,az),coset(0,by,bz))
+                   f2 *     kvec(1)*sc(coset(ax,ay,az),coset(0,by,bz))
                     END DO
                     DO bx=2,lb
                       f3 = f2*REAL(bx-1,dp)
@@ -524,12 +529,12 @@ CONTAINS
                           rbp(1)*sc(coset(ax,ay,az),&
                                    coset(bx-1,by,bz)) +&
                           f3*sc(coset(ax,ay,az),coset(bx-2,by,bz)) -&
-                          kvec(1)*ss(coset(ax,ay,az),coset(bx-1,by,bz))
+                     f2 *     kvec(1)*ss(coset(ax,ay,az),coset(bx-1,by,bz))
                         ss(coset(ax,ay,az),coset(bx,by,bz)) =&
                           rbp(1)*ss(coset(ax,ay,az),&
                                    coset(bx-1,by,bz)) +&
                           f3*ss(coset(ax,ay,az),coset(bx-2,by,bz)) +&
-                          kvec(1)*sc(coset(ax,ay,az),coset(bx-1,by,bz))
+                     f2 *     kvec(1)*sc(coset(ax,ay,az),coset(bx-1,by,bz))
                       END DO
                     END DO
                   ELSE
@@ -538,11 +543,11 @@ CONTAINS
                       sc(coset(ax,ay,az),coset(1,by,bz)) =&
                         rbp(1)*sc(coset(ax,ay,az),coset(0,by,bz)) +&
                         fx*sc(coset(ax-1,ay,az),coset(0,by,bz)) -&
-                        kvec(1)*ss(coset(ax,ay,az),coset(0,by,bz))
+                     f2 *   kvec(1)*ss(coset(ax,ay,az),coset(0,by,bz))
                       ss(coset(ax,ay,az),coset(1,by,bz)) =&
                         rbp(1)*ss(coset(ax,ay,az),coset(0,by,bz)) +&
                         fx*ss(coset(ax-1,ay,az),coset(0,by,bz)) +&
-                        kvec(1)*sc(coset(ax,ay,az),coset(0,by,bz))
+                     f2 *   kvec(1)*sc(coset(ax,ay,az),coset(0,by,bz))
                     END DO
                     DO bx=2,lb
                       f3 = f2*REAL(bx-1,dp)
@@ -553,13 +558,13 @@ CONTAINS
                                    coset(bx-1,by,bz)) +&
                           fx*sc(coset(ax-1,ay,az),coset(bx-1,by,bz)) +&
                           f3*sc(coset(ax,ay,az),coset(bx-2,by,bz)) -&
-                          kvec(1)*ss(coset(ax,ay,az),coset(bx-1,by,bz))
+                      f2 *    kvec(1)*ss(coset(ax,ay,az),coset(bx-1,by,bz))
                         ss(coset(ax,ay,az),coset(bx,by,bz)) =&
                           rbp(1)*ss(coset(ax,ay,az),&
                                    coset(bx-1,by,bz)) +&
                           fx*ss(coset(ax-1,ay,az),coset(bx-1,by,bz)) +&
-                          f3*ss(coset(ax,ay,az),coset(bx-2,by,bz)) -&
-                          kvec(1)*sc(coset(ax,ay,az),coset(bx-1,by,bz))
+                          f3*ss(coset(ax,ay,az),coset(bx-2,by,bz)) +&
+                       f2 *   kvec(1)*sc(coset(ax,ay,az),coset(bx-1,by,bz))
                       END DO
                     END DO
                   END IF
@@ -581,12 +586,12 @@ CONTAINS
 
 !           *** [s|O|p] = (Pi - Bi)*[s|O|s] + [s|dO|s] ***
 
-            sc(1,2) = rbp(1)*sc(1,1) - kvec(1)*ss(1,1)
-            sc(1,3) = rbp(2)*sc(1,1) - kvec(2)*ss(1,1)
-            sc(1,4) = rbp(3)*sc(1,1) - kvec(3)*ss(1,1)
-            ss(1,2) = rbp(1)*ss(1,1) + kvec(1)*sc(1,1)
-            ss(1,3) = rbp(2)*ss(1,1) + kvec(2)*sc(1,1)
-            ss(1,4) = rbp(3)*ss(1,1) + kvec(3)*sc(1,1)
+            sc(1,2) = rbp(1)*sc(1,1) -f2 * kvec(1)*ss(1,1)
+            sc(1,3) = rbp(2)*sc(1,1) -f2 * kvec(2)*ss(1,1)
+            sc(1,4) = rbp(3)*sc(1,1) -f2 * kvec(3)*ss(1,1)
+            ss(1,2) = rbp(1)*ss(1,1) +f2 * kvec(1)*sc(1,1)
+            ss(1,3) = rbp(2)*ss(1,1) +f2 * kvec(2)*sc(1,1)
+            ss(1,4) = rbp(3)*ss(1,1) +f2 * kvec(3)*sc(1,1)
 
 !           *** [s|O|b] = (Pi - Bi)*[s|O|b-1i] + f2*Ni(b-1i)*[s|O|b-2i] ***
 !           ***           + [s|dO|b-1i]                                 ***
@@ -597,27 +602,27 @@ CONTAINS
 
               sc(1,coset(0,0,lb)) = rbp(3)*sc(1,coset(0,0,lb-1)) +&
                                     f2*REAL(lb-1,dp)*sc(1,coset(0,0,lb-2)) -&
-                                    kvec(3)*ss(1,coset(0,0,lb-1))
+                           f2 *         kvec(3)*ss(1,coset(0,0,lb-1))
               ss(1,coset(0,0,lb)) = rbp(3)*ss(1,coset(0,0,lb-1)) +&
                                     f2*REAL(lb-1,dp)*ss(1,coset(0,0,lb-2)) +&
-                                    kvec(3)*sc(1,coset(0,0,lb-1))
+                           f2 *         kvec(3)*sc(1,coset(0,0,lb-1))
 
 !             *** Increase the angular momentum component y of function b ***
 
               bz = lb - 1
               sc(1,coset(0,1,bz)) = rbp(2)*sc(1,coset(0,0,bz)) -&
-                                    kvec(2)*ss(1,coset(0,0,bz))
+                           f2 *         kvec(2)*ss(1,coset(0,0,bz))
               ss(1,coset(0,1,bz)) = rbp(2)*ss(1,coset(0,0,bz)) +&
-                                    kvec(2)*sc(1,coset(0,0,bz))
+                           f2 *         kvec(2)*sc(1,coset(0,0,bz))
 
               DO by=2,lb
                 bz = lb - by
                 sc(1,coset(0,by,bz)) = rbp(2)*sc(1,coset(0,by-1,bz)) +&
                                        f2*REAL(by-1,dp)*sc(1,coset(0,by-2,bz)) -&
-                                       kvec(2)*ss(1,coset(0,by-1,bz))
+                           f2 *            kvec(2)*ss(1,coset(0,by-1,bz))
                 ss(1,coset(0,by,bz)) = rbp(2)*ss(1,coset(0,by-1,bz)) +&
                                        f2*REAL(by-1,dp)*ss(1,coset(0,by-2,bz)) +&
-                                       kvec(2)*sc(1,coset(0,by-1,bz))
+                           f2 *            kvec(2)*sc(1,coset(0,by-1,bz))
               END DO
 
 !             *** Increase the angular momentum component x of function b ***
@@ -625,9 +630,9 @@ CONTAINS
               DO by=0,lb-1
                 bz = lb - 1 - by
                 sc(1,coset(1,by,bz)) = rbp(1)*sc(1,coset(0,by,bz)) -&
-                                       kvec(1)*ss(1,coset(0,by,bz))
+                              f2 *         kvec(1)*ss(1,coset(0,by,bz))
                 ss(1,coset(1,by,bz)) = rbp(1)*ss(1,coset(0,by,bz)) +&
-                                       kvec(1)*sc(1,coset(0,by,bz))
+                              f2 *         kvec(1)*sc(1,coset(0,by,bz))
               END DO
 
               DO bx=2,lb
@@ -636,10 +641,10 @@ CONTAINS
                   bz = lb - bx - by
                   sc(1,coset(bx,by,bz)) = rbp(1)*sc(1,coset(bx-1,by,bz)) +&
                                           f3*sc(1,coset(bx-2,by,bz)) -&
-                                          kvec(1)*ss(1,coset(bx-1,by,bz))
+                              f2 *            kvec(1)*ss(1,coset(bx-1,by,bz))
                   ss(1,coset(bx,by,bz)) = rbp(1)*ss(1,coset(bx-1,by,bz)) +&
                                           f3*ss(1,coset(bx-2,by,bz)) +&
-                                          kvec(1)*sc(1,coset(bx-1,by,bz))
+                               f2 *           kvec(1)*sc(1,coset(bx-1,by,bz))
                 END DO
               END DO
 
@@ -649,8 +654,8 @@ CONTAINS
 
         END IF
 
-        DO j=1,ncoset(lb_max)
-          DO i=1,ncoset(la_max)
+        DO j=ncoset(lb_min-1)+1,ncoset(lb_max)
+          DO i=ncoset(la_min-1)+1,ncoset(la_max)
             cosab(na+i,nb+j) = sc(i,j)
             sinab(na+i,nb+j) = ss(i,j)
           END DO

@@ -171,8 +171,10 @@ CONTAINS
      IF(ionode) THEN
        ! check if file exists
        filename1 = localized_wfn_control%centers_file_name(ispin)
-       filename2 = localized_wfn_control%centers_file_name(ispin)
+       filename2 = localized_wfn_control%spreads_file_name(ispin)
        INQUIRE (FILE=filename1,EXIST=file_exists)
+
+
        ! open file
        IF(file_exists) THEN
          CALL open_file(file_name=TRIM(filename1),&
@@ -198,12 +200,15 @@ CONTAINS
                      file_position="REWIND",&
                      file_status="REPLACE",&
                      unit_number=out_c)
+         WRITE(out_c,'(I8)') nmoloc
+         WRITE(out_c,'(A,I10)') " Iteration Step ", iter
          CALL open_file(file_name=TRIM(filename2),&
                      file_action="READWRITE",&
                      file_form="FORMATTED",&
                      file_position="REWIND",&
                      file_status="REPLACE",&
                      unit_number=out_s)
+         WRITE(out_s,'(A,I10)') " Iteration Step ", iter
 
        END IF 
      END IF
@@ -245,7 +250,6 @@ CONTAINS
        close(out_c)
        close(out_s)
      ENDIF
-
 
   END SUBROUTINE centers_spreads_berry
 
@@ -309,7 +313,7 @@ CONTAINS
       routineP = module_name//':'//routine_name
 
 
-    INTEGER                                   :: handle, i, j, k, nao, &
+    INTEGER                                   :: handle, i, j, k, l, nao, &
                                                  nmoloc, sweeps, scr
     TYPE(cp_fm_type), POINTER                 :: opvec
 
@@ -322,6 +326,7 @@ CONTAINS
     ! replicate the input kind of matrix
     CALL cp_fm_create(opvec,vectors%matrix_struct)
 
+
 ! Compute zij here
     DO i=1,SIZE ( zij_fm_set, 2 )
       DO j=1,SIZE ( zij_fm_set, 1 )
@@ -332,6 +337,8 @@ CONTAINS
       ENDDO
     ENDDO
 
+!      CALL centers_spreads_berry( localized_wfn_control, zij_fm_set, nmoloc, &
+!           cell, weights, ispin, ionode, error=error ) 
 
     SELECT CASE ( method ) 
     CASE ( do_loc_jacobi )
@@ -536,7 +543,7 @@ CONTAINS
                         cell=cell, weights=weights)
 
     CALL get_qs_env(qs_env=qs_env, dft_control=dft_control, mos=mos)
-
+ 
     DO ispin = 1,dft_control%nspins
 
        loc_method = localized_wfn_control%localization_method
@@ -581,7 +588,7 @@ CONTAINS
        ELSE
          nmosub = localized_wfn_control%nloc_states(ispin)
 
-        CALL cp_fm_to_fm(moloc_coeff(ispin)%matrix,mo_coeff,1,lb)
+         CALL cp_fm_to_fm(moloc_coeff(ispin)%matrix,mo_coeff,1,lb)
 
        END IF
     END DO  ! ispin

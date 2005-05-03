@@ -359,9 +359,9 @@ CONTAINS
        IF (my_localized_wfn) THEN
 
           CALL qs_loc_driver(qs_env,qs_loc_env_new,ionode,error=error)
-
+ 
           IF(qs_loc_env_new%localized_wfn_control%print_cubes) THEN
-!           on which grid? which ones? 
+!           on which grid? which ones? when?
           END IF
 
        ELSEIF (globenv%print%localization) THEN

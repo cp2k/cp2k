@@ -254,7 +254,7 @@ CONTAINS
        NULLIFY(qs_loc_env%moloc_coeff)
        NULLIFY(qs_loc_env%particle_set)
        NULLIFY(qs_loc_env%localized_wfn_control)
-
+       qs_loc_env%weights = 0.0_dp
 
     END IF
 
@@ -524,7 +524,6 @@ CONTAINS
     CALL mpools_get(qs_env%mpools,ao_mosub_fm_pools=ao_mosub_fm_pools,&
                     mosub_mosub_fm_pools=mosub_mosub_fm_pools)
 
- 
     nspins = SIZE(mos,1)
     ALLOCATE (moloc_coeff(nspins), STAT=istat)
     DO ispin = 1,nspins
@@ -605,6 +604,7 @@ CONTAINS
            CALL set_matrix(qs_loc_env%op_sm_set(j,i)%matrix,0.0_dp)
          ENDDO
       END DO
+
       ALLOCATE ( qs_loc_env % op_fm_set( 2, 3 ), STAT = istat )
       CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
       DO i =   1, SIZE ( qs_loc_env % op_fm_set, 2 )
@@ -649,7 +649,7 @@ CONTAINS
       CALL initialize_weights ( qs_loc_env % cell, qs_loc_env % weights ) 
   
       CALL get_berry_operator ( qs_loc_env, qs_env , error=error)
-  stop 'loc: only initialization implemented'
+
     ELSEIF ( localized_wfn_control%operator_type== op_loc_pipek) THEN
 
 !!    here we don't have to do anything
@@ -856,7 +856,7 @@ END SUBROUTINE qs_loc_env_init
 !$OMP shared(set_radius_a,nco,ncoset,npgfa,nseta,ldsa,ldsb)&
 !$OMP shared(nkind,sab_orb_neighbor_list,nlist,workt,cosabt,sinabt,qs_env)&
 !$OMP shared(op_cost,op_sint,ortho,twopoLx,twopoLy,twopoLz)&
-!$OMP shared(first_sgfa,first_sgfb,sab_orb,lb_min,la_max,op_sm_set)&
+!$OMP shared(first_sgfa,first_sgfb,sab_orb,lb_min,la_max,op_sm_set)
 !$OMP shared(atomic_kind_set,particle_set,cell)
         ithread = 0
 !$      ithread = omp_get_thread_num()
@@ -885,19 +885,22 @@ END SUBROUTINE qs_loc_env_init
           ra = pbc(particle_set(iatom)%r,cell)
           last_jatom = 0
 
-          IF (jatom /= last_jatom) THEN
-            new_atom_b = .TRUE.
-            last_jatom = jatom
-          ELSE
-            new_atom_b = .FALSE.
-          END IF
           sab_orb_neighbor_node => first_node(sab_orb_neighbor_list_local)
 
           DO inode=1,nnode
 
             CALL get_neighbor_node(neighbor_node=sab_orb_neighbor_node,&
                                    neighbor=jatom, r=rab)
-            rb = pbc(particle_set(jatom)%r,cell)
+
+!            rb = ra - rab
+            rb = rab + ra
+
+            IF (jatom /= last_jatom) THEN
+              new_atom_b = .TRUE.
+              last_jatom = jatom
+            ELSE
+              new_atom_b = .FALSE.
+            END IF
 
             IF (new_atom_b) THEN
               IF (iatom <= jatom) THEN
@@ -944,30 +947,24 @@ END SUBROUTINE qs_loc_env_init
                     ! x component
                     kvec = 0.0_dp
                     kvec(1) = twopoLx
-  
+                    cosab = 0.0_dp  
+                    sinab = 0.0_dp  
+
                     CALL cossin(la_max(iset),npgfa(iset),zeta(:,iset),rpgfa(:,iset),la_min(iset),&
                               lb_max(jset),npgfb(jset),zetb(:,jset),rpgfb(:,jset),lb_min(jset),&
                               ra,rb,kvec,cosab,sinab)
 
-                     CALL contract_cossin(op_cos(1)%block,op_sin(1)%block,&
+                    CALL contract_cossin(op_cos(1)%block,op_sin(1)%block,&
                                iatom,ncoa,nsgfa(iset),sgfa,sphi_a,ldsa,&
                                jatom,ncob,nsgfb(jset),sgfb,sphi_b,ldsb,&
                                cosab,sinab,ldab,work,ldwork)
-!dbg
-! write(*,*) 'comp x ', iatom, iset, jatom, jset
-! write(*,*) 'rab ', rab(:)
-! write(*,*) nsgfa(iset),nsgfb(jset)
-! if(iatom>=jatom) THEN
-! DO i =1,nsgfa(iset)
-! write(*,'(i4,30f12.6)') i,(op_cos(1)%block(i,j),j=1,nsgfb(jset))
-! END DO
-! end if
-! stop
-!dbg
 
                     ! y component
                     kvec = 0.0_dp
                     kvec(2) = twopoLy
+                    cosab = 0.0_dp  
+                    sinab = 0.0_dp  
+
 
                     CALL cossin(la_max(iset),npgfa(iset),zeta(:,iset),rpgfa(:,iset),la_min(iset),&
                               lb_max(jset),npgfb(jset),zetb(:,jset),rpgfb(:,jset),lb_min(jset),&
@@ -981,6 +978,9 @@ END SUBROUTINE qs_loc_env_init
                     ! z component
                     kvec = 0.0_dp
                     kvec(3) = twopoLz
+                    cosab = 0.0_dp  
+                    sinab = 0.0_dp  
+
 
                     CALL cossin(la_max(iset),npgfa(iset),zeta(:,iset),rpgfa(:,iset),la_min(iset),&
                               lb_max(jset),npgfb(jset),zetb(:,jset),rpgfb(:,jset),lb_min(jset),&
@@ -990,7 +990,6 @@ END SUBROUTINE qs_loc_env_init
                                iatom,ncoa,nsgfa(iset),sgfa,sphi_a,ldsa,&
                                jatom,ncob,nsgfb(jset),sgfb,sphi_b,ldsb,&
                                cosab,sinab,ldab,work,ldwork)
-
 
                   ELSE
                     CALL stop_program(routineP,&
