@@ -100,7 +100,7 @@ MODULE parallel_rng_types
   PUBLIC :: advance_rng_state,&
             create_rng_stream,&
             delete_rng_stream,&
-            dump_rng_state,&
+            dump_rng_stream,&
             get_rng_stream,&
             init_rng,&
             next_random_number,&
@@ -184,7 +184,7 @@ CONTAINS
 
     ! Check that the seeds are legitimate values.
 
-    INTEGER, DIMENSION(3,2), INTENT(IN) :: seed
+    REAL(KIND=dp), DIMENSION(3,2), INTENT(IN) :: seed
 
     ! Local variables
 
@@ -232,12 +232,12 @@ CONTAINS
     ! Then CALL create_rng_stream(next_rng_stream,name,name,rng_stream) to
     ! create all the following RNG stream.
 
-    TYPE(rng_stream_type), POINTER                :: rng_stream
-    CHARACTER(LEN=*), INTENT(IN)                  :: name
-    TYPE(rng_stream_type), OPTIONAL, POINTER      :: last_rng_stream
-    INTEGER, DIMENSION(3,2), OPTIONAL, INTENT(IN) :: seed
-    LOGICAL, OPTIONAL, INTENT(IN)                 :: antithetic,&
-                                                     extended_precision
+    TYPE(rng_stream_type), POINTER                      :: rng_stream
+    CHARACTER(LEN=*), INTENT(IN)                        :: name
+    TYPE(rng_stream_type), OPTIONAL, POINTER            :: last_rng_stream
+    REAL(KIND=dp), DIMENSION(3,2), OPTIONAL, INTENT(IN) :: seed
+    LOGICAL, OPTIONAL, INTENT(IN)                       :: antithetic,&
+                                                           extended_precision
 
     ! Local variables
 
@@ -301,7 +301,7 @@ CONTAINS
 
   ! ***************************************************************************
 
-  SUBROUTINE dump_rng_state(rng_stream,output_unit)
+  SUBROUTINE dump_rng_stream(rng_stream,output_unit)
 
     ! Dump the state of a RNG stream to a logical output unit.
 
@@ -318,7 +318,7 @@ CONTAINS
       rng_stream%antithetic,&
       rng_stream%extended_precision
 
-  END SUBROUTINE dump_rng_state
+  END SUBROUTINE dump_rng_stream
 
   ! ***************************************************************************
 
@@ -800,11 +800,11 @@ CONTAINS
     ! Set the components of a RNG stream.
     ! NOTE: The manipulation of an active RNG stream is discouraged.
 
-    TYPE(rng_stream_type), POINTER                :: rng_stream
-    CHARACTER(LEN=*), OPTIONAL, INTENT(IN)        :: name
-    INTEGER, DIMENSION(3,2), OPTIONAL, INTENT(IN) :: bg,cg,ig,seed
-    LOGICAL, OPTIONAL, INTENT(IN)                 :: antithetic,&
-                                                     extended_precision
+    TYPE(rng_stream_type), POINTER                      :: rng_stream
+    CHARACTER(LEN=*), OPTIONAL, INTENT(IN)              :: name
+    REAL(KIND=dp), DIMENSION(3,2), OPTIONAL, INTENT(IN) :: bg,cg,ig,seed
+    LOGICAL, OPTIONAL, INTENT(IN)                       :: antithetic,&
+                                                           extended_precision
 
     ! -------------------------------------------------------------------------
 

@@ -1406,8 +1406,8 @@ SUBROUTINE rng_test(globenv)
   ! Local variables
 
   TYPE(rng_stream_type), POINTER :: cantor,g1,g2,g3,galois,laplace,poisson
-  INTEGER, DIMENSION(3,2)        :: germe
-  REAL(dp)                       :: sum,sum3
+  REAL(KIND=dp), DIMENSION(3,2)  :: germe
+  REAL(KIND=dp)                  :: sum,sum3
   INTEGER                        :: i,output_unit,sumi
 
   ! ---------------------------------------------------------------------------
