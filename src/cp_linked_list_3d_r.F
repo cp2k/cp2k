@@ -133,10 +133,10 @@ USE cp_array_r_utils, only: cp_3d_r_p_type, cp_3d_r_write
   INTERFACE cp_insert
      MODULE PROCEDURE cp_sll_3d_r_insert_el
   END INTERFACE
-  INTERFACE cp_insert_ordered
-     MODULE PROCEDURE cp_sll_3d_r_insert_ordered,&
-          cp_sll_3d_r_insert_ordered2
-  END INTERFACE
+!MK  INTERFACE cp_insert_ordered
+!MK     MODULE PROCEDURE cp_sll_3d_r_insert_ordered,&
+!MK          cp_sll_3d_r_insert_ordered2
+!MK  END INTERFACE
   INTERFACE cp_insert_at
      MODULE PROCEDURE cp_sll_3d_r_insert_el_at
   END INTERFACE

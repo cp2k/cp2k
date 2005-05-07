@@ -134,10 +134,10 @@ USE cp_fm_types, ONLY: cp_fm_type, cp_fm_p_type,&
   INTERFACE cp_insert
      MODULE PROCEDURE cp_sll_fm_insert_el
   END INTERFACE
-  INTERFACE cp_insert_ordered
-     MODULE PROCEDURE cp_sll_fm_insert_ordered,&
-          cp_sll_fm_insert_ordered2
-  END INTERFACE
+!MK  INTERFACE cp_insert_ordered
+!MK     MODULE PROCEDURE cp_sll_fm_insert_ordered,&
+!MK          cp_sll_fm_insert_ordered2
+!MK  END INTERFACE
   INTERFACE cp_insert_at
      MODULE PROCEDURE cp_sll_fm_insert_el_at
   END INTERFACE

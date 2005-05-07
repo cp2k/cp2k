@@ -134,10 +134,10 @@ USE realspace_grid_types, ONLY: realspace_grid_type, realspace_grid_p_type,&
   INTERFACE cp_insert
      MODULE PROCEDURE cp_sll_rs_insert_el
   END INTERFACE
-  INTERFACE cp_insert_ordered
-     MODULE PROCEDURE cp_sll_rs_insert_ordered,&
-          cp_sll_rs_insert_ordered2
-  END INTERFACE
+!MK  INTERFACE cp_insert_ordered
+!MK     MODULE PROCEDURE cp_sll_rs_insert_ordered,&
+!MK          cp_sll_rs_insert_ordered2
+!MK  END INTERFACE
   INTERFACE cp_insert_at
      MODULE PROCEDURE cp_sll_rs_insert_el_at
   END INTERFACE
