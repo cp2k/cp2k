@@ -11,10 +11,11 @@
  */
 
 
-/* compiler dependent declarations, now hardcoded for nag-gcc on mac */
+/* ==== compiler dependent declarations ==== */
 typedef double f_real;
 typedef int f_integer;
-/* end of compiler dependent declarations (.c files contains some more) */
+/* ==== end of compiler dependent declarations ==== */
+/* ==== !      .c file contains some more     ! ==== */
 
 #if defined(__cplusplus) && ! defined(cp2k_direct_connection)
 extern "C" {

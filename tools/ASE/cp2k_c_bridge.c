@@ -13,7 +13,7 @@
 #include "cp2k_c_bridge.h"
 #include <string.h>
 
-/* compiler dependent declarations, now hardcoded for nag-gcc on mac */
+/* ==== default compiler dependent declarations ==== */
 #define F77_NAME(name) name ## _
 #define TRAIL(var) ,int _ ## var ## _len
 #define DECLARE_CHARACTER_DYN(var) int _ ## var ## _len
@@ -21,7 +21,16 @@
 #define CHARACTER_ARG(var) var
 #define TRAIL_ARG(var) ,_ ## var ## _len
 #define F77_FREE_CHARACTER_DYN(var)
-/* end of compiler dependent declarations */
+/* ==== end of default compiler dependent declarations ==== */
+
+/* ==== compiler specific changes ==== */
+#ifdef COMP_MAC_NAG_GCC
+/* just the defaults */
+#elif defined(COMP_LINUX32_NAG_GCC)
+#undef F77_NAME
+#define F77_NAME(name) name ## __
+#endif
+/* ==== end compiler specific changes ==== */
 
 #if defined(__cplusplus)
 extern "C" {

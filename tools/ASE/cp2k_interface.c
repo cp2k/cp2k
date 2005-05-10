@@ -34,6 +34,19 @@ static PyObject* cp2k_interface_cp_init_cp2k(PyObject *self, PyObject *args){
   return Py_BuildValue("");
 }
 
+static PyObject* cp2k_interface_cp_finalize_cp2k(PyObject *self, PyObject *args){ 
+  int ierr,free_mpi;
+  if (!PyArg_ParseTuple(args, "i",&free_mpi))
+    return NULL;
+      
+  ierr=ccp_finalize_cp2k(free_mpi);
+  if (ierr) {
+    PyErr_Format(cp2kError,"error %d finalizing cp2k",ierr);
+    return NULL;
+  }
+  return Py_BuildValue("");
+}
+
 static PyObject* cp2k_interface_cp_create_f_env(PyObject *self, PyObject *args){
   int ierr,new_id;
   const char *in_path, *out_path;
@@ -175,8 +188,9 @@ static PyObject* cp2k_interface_cp_update_forces(PyObject *self, PyObject *args)
 
 
 /* python extension stuff */
-static PyMethodDef cp2k_interfaceMethods[] = {
+static PyMethodDef cp2k_interface_lowMethods[] = {
   {"cp_init_cp2k", cp2k_interface_cp_init_cp2k, METH_VARARGS, "Initialize CP2K."},
+  {"cp_finalize_cp2k", cp2k_interface_cp_finalize_cp2k, METH_VARARGS, "Finalize CP2K."},
   {"cp_create_f_env", cp2k_interface_cp_create_f_env, METH_VARARGS, "Create a Force Environment"},
   {"cp_set_pos", cp2k_interface_cp_set_pos, METH_VARARGS, "Set Positions"},
   {"cp_get_pos", cp2k_interface_cp_get_pos, METH_VARARGS, "Get Positions"},
@@ -187,10 +201,10 @@ static PyMethodDef cp2k_interfaceMethods[] = {
 };
 
 
-PyMODINIT_FUNC initcp2k_interface(void){
+PyMODINIT_FUNC initcp2k_interface_low(void){
   PyObject *m;
 
-  m=Py_InitModule("cp2k_interface", cp2k_interfaceMethods);
+  m=Py_InitModule("cp2k_interface_low", cp2k_interfaceMethods);
   import_libnumarray();
 
   cp2kError = PyErr_NewException("cp2k_interface_low.error", NULL, NULL);
