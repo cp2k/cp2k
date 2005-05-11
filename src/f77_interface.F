@@ -101,8 +101,6 @@ MODULE f77_interface
                                              get_timer_env,&
                                              timer_env_retain,&
                                              timer_env_release
-  USE physcon, only: angstrom
-
   implicit none
   private
 
@@ -924,7 +922,7 @@ END SUBROUTINE f_env_rm_defaults
              DO ip=1,particles%n_els
                 DO idir=1,3
                    ii=ii+1
-                   particles%els(ip)%r(idir)=new_pos(ii)*angstrom
+                   particles%els(ip)%r(idir)=new_pos(ii)
                 END DO
              END DO
           END DO
