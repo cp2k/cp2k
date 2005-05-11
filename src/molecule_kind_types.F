@@ -676,7 +676,6 @@ CONTAINS
            zeff = 0.0_dp
            zeff_correction = 0.0_dp
         END IF
-        WRITE(*,*)"TEOTEO",nelectron, zeff_correction
         nelectron = nelectron + INT(zeff-zeff_correction)
   
         IF (ASSOCIATED(orb_basis_set)) THEN
@@ -862,7 +861,6 @@ CONTAINS
          zeff = 0.0_dp
          zeff_correction = 0.0_dp
       END IF
-      WRITE(*,*)"TEOTEO",nelectron, zeff, zeff_correction
       nelectron = nelectron + INT(zeff-zeff_correction)
 
       IF (ASSOCIATED(orb_basis_set)) THEN
