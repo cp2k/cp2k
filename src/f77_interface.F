@@ -270,15 +270,15 @@ contains
        ierr=cp_failure_level
     ELSE
        CALL cp_error_init(error, stop_level=cp_fatal_level)
-       DO ienv=1,n_f_envs
-          CALL f_env_dealloc(f_envs(ienv)%f_env,error=error)
+       DO ienv=n_f_envs,1,-1
+          CALL destroy_force_env(f_envs(ienv)%f_env%id_nr,ierr=ierr)
+          CPAssertNoFail(ierr==0,cp_warning_level,routineP,error)
        END DO
-       n_f_envs=0
        DEALLOCATE(f_envs,stat=stat)
-       CPPostconditionNoErr(stat==0,cp_warning_level,routineP)
-       CALL cp_para_env_release(default_para_env)
+       CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+       CALL cp_para_env_release(default_para_env,error)
        ierr=cp_error_get_level(error)
-       CALL cp_rm_default_logger()
+       !FM CALL cp_rm_default_logger()
        CALL rm_timer_env()
        CALL rm_mp_perf_env()
        IF (finalize_mpi) THEN
@@ -1263,7 +1263,7 @@ END SUBROUTINE f_env_rm_defaults
 
     logical                                  :: calc_f
 
-    calc_f=(n_el_force==0)
+    calc_f=(n_el_force/=0)
     CALL set_pos(env_id,pos,n_el_pos,ierr)
     IF (ierr==0) CALL calc_energy_force(env_id,calc_f,ierr)
     IF (ierr==0) CALL get_energy(env_id,e_pot,ierr)
