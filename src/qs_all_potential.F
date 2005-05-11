@@ -68,8 +68,8 @@ MODULE qs_all_potential
     TYPE(qlist_type), DIMENSION(:,:,:), POINTER :: neighbor
     REAL(KIND = dp)                             :: alpha_c,&
                                                    core_charge,&
-                                                   core_radius
-    INTEGER                                     :: zeta_c
+                                                   core_radius,&
+                                                   zeta_c
     REAL(KIND=dp), DIMENSION(:,:), POINTER      :: force_c
   END TYPE vall_type
 
@@ -167,7 +167,7 @@ MODULE qs_all_potential
       IF (.NOT. ASSOCIATED(vall(kkind)%neighbor)) CYCLE
 
       zetc = vall(kkind)%alpha_c
-      zc = REAL(vall(kkind)%zeta_c,dp)
+      zc = vall(kkind)%zeta_c
       cerf = vall(kkind)%core_charge
       rpgfc = vall(kkind)%core_radius
 
@@ -317,7 +317,7 @@ MODULE qs_all_potential
     TYPE(gto_basis_set_type),     POINTER      :: orb_basis
 
     INTEGER :: i, ic, ico, ico0, icoa, ikind, ipgf, iset, is, istat, &
-               j, l0, la, lx, ly, lz, maxlgto, n, ncoc, ncoa, nkind, nseta, zeta_c
+               j, l0, la, lx, ly, lz, maxlgto, n, ncoc, ncoa, nkind, nseta
     INTEGER, DIMENSION(:),        POINTER      :: la_max, la_min, npgfa 
 
     REAL(dp) :: cerf, intmax0, r(3,0:60), r2(0:60), rab(3), rab2, rac(3), rac2, ri, &
@@ -345,12 +345,10 @@ MODULE qs_all_potential
     ncoc = 1
     CALL get_potential(potential=all_potential,&
               alpha_core_charge=zetc,&
-              zeff=zeta_c,&
+              zeff=zc,&
               ccore_charge=cerf,&
               core_charge_radius=rpgfc)
  
-    zc = REAL(zeta_c,dp)
-
     orb_rad => all_potential%orb_radius_3c
     set_rad => all_potential%set_radius_3c
 

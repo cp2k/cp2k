@@ -404,8 +404,8 @@ END SUBROUTINE rf_deriv_check
 
     CHARACTER(LEN=2)                         :: element_symbol
     INTEGER                                  :: handle, i, iblock, &
-                                                ispin, nblock, nspin, zeff
-    REAL(KIND=dp)                            :: total_charge
+                                                ispin, nblock, nspin
+    REAL(KIND=dp)                            :: total_charge, zeff
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: charges
 
 ! GO

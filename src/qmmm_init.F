@@ -121,6 +121,7 @@ MODULE qmmm_init
        section_vals_type,&
        section_vals_get_subs_vals, section_vals_get, section_vals_val_get
   USE input_constants, ONLY: RADIUS_QMMM_DEFAULT, do_qmmm_link_imomm, do_qmmm_link_gho,&
+                        do_qmmm_link_pseudo,&
                         do_qmmm_gauss, do_center_none, do_center_grid
   USE fist_environment_types,  ONLY: set_fist_env
   USE green_types,                     ONLY: greens_function_type,&
@@ -668,13 +669,15 @@ CONTAINS
       mm_el_pot_radius(I) = ri
    END DO
 
-   DO ilink = 1, SIZE(mm_link_atoms)
-      DO i = 1, SIZE(mm_atom_index)
-         IF (mm_atom_index(i) == mm_link_atoms(ilink)) EXIT
+   IF (ASSOCIATED(mm_link_atoms)) THEN
+      DO ilink = 1, SIZE(mm_link_atoms)
+         DO i = 1, SIZE(mm_atom_index)
+            IF (mm_atom_index(i) == mm_link_atoms(ilink)) EXIT
+         END DO
+         IndMM = mm_atom_index(I)
+         mm_atom_chrg(i) = mm_atom_chrg(i) * mm_link_scale_factor(ilink)
       END DO
-      IndMM = mm_atom_index(I)
-      mm_atom_chrg(i) = mm_atom_chrg(i) * mm_link_scale_factor(ilink)
-   END DO
+   END IF
 
  END SUBROUTINE assign_mm_charges_and_radius
 
@@ -799,19 +802,35 @@ CONTAINS
     print_key => section_vals_get_subs_vals(qmmm_section,"print%qmmm_link_info",error=error)
     IF (cp_should_output(logger%iter_info,print_key,error=error).AND.&
          logger%para_env%mepos==logger%para_env%source) THEN 
-       WRITE(iw,FMT="(/,T2, A)") REPEAT("-",73)
-       WRITE(iw,FMT="(/,T31,A)") " QM/MM LINKS "
-       WRITE(iw,FMT="(/,T2, A)") REPEAT("-",73)
        IF (ASSOCIATED(qmmm_links)) THEN
-          DO I = 1, SIZE(qmmm_links%imomm)
-             qm_index = qmmm_links%imomm(I)%link%qm_index
-             mm_index = qmmm_links%imomm(I)%link%mm_index
-             alpha    = qmmm_links%imomm(I)%link%alpha
-             WRITE(iw,FMT="(T2,A,T20,A9,I6,1X,A9,I6,T55,A6,F12.6)")"TYPE: IMOMM",&
-                  "QM INDEX:",qm_index,"MM INDEX:",mm_index,"ALPHA:",alpha
-          END DO
+          WRITE(iw,FMT="(/,T2, A)") REPEAT("-",73)
+          WRITE(iw,FMT="(/,T31,A)") " QM/MM LINKS "
+          WRITE(iw,FMT="(/,T2, A)") REPEAT("-",73)
+          IF (ASSOCIATED(qmmm_links%imomm)) THEN
+             WRITE(iw,FMT="(/,T31,A)") " IMOMM TYPE LINK "
+             DO I = 1, SIZE(qmmm_links%imomm)
+                qm_index = qmmm_links%imomm(I)%link%qm_index
+                mm_index = qmmm_links%imomm(I)%link%mm_index
+                alpha    = qmmm_links%imomm(I)%link%alpha
+                WRITE(iw,FMT="(T2,A,T20,A9,I6,1X,A9,I6,T55,A6,F12.6)")"TYPE: IMOMM",&
+                     "QM INDEX:",qm_index,"MM INDEX:",mm_index,"ALPHA:",alpha
+             END DO
+          END IF
+          IF (ASSOCIATED(qmmm_links%pseudo)) THEN
+             WRITE(iw,FMT="(/,T31,A)") " PSEUDO TYPE LINK "
+             DO I = 1, SIZE(qmmm_links%pseudo)
+                qm_index = qmmm_links%pseudo(I)%link%qm_index
+                mm_index = qmmm_links%pseudo(I)%link%mm_index
+                WRITE(iw,FMT="(T2,A,T20,A9,I6,1X,A9,I6,T55)")"TYPE: PSEUDO",&
+                     "QM INDEX:",qm_index,"MM INDEX:",mm_index
+             END DO
+          END IF
+          WRITE(iw,FMT="(/,T2,A,/)") REPEAT("-",73)
+       ELSE
+          WRITE(iw,FMT="(/,T2, A)") REPEAT("-",73)
+          WRITE(iw,FMT="(/,T26,A)") " NO QM/MM LINKS DETECTED"
+          WRITE(iw,FMT="(/,T2, A)") REPEAT("-",73)          
        END IF
-       WRITE(iw,FMT="(/,T2,A,/)") REPEAT("-",73)
     END IF
   END SUBROUTINE print_qmmm_links
 
@@ -1136,13 +1155,15 @@ CONTAINS
     ! Build MM atoms list
     !
     size_mm_system = SIZE(subsys_mm(1)%subsys%particles%els) - SIZE(qm_atom_index)
-    IF (qmmm_link) size_mm_system = size_mm_system + SIZE(mm_link_atoms)
+    IF (qmmm_link.AND.ASSOCIATED(mm_link_atoms)) size_mm_system = size_mm_system + SIZE(mm_link_atoms)
     ALLOCATE(mm_atom_index(size_mm_system))
     icount = 0
     DO i = 1, SIZE(subsys_mm(1)%subsys%particles%els)
        is_mm = .TRUE.
        IF ( ANY(qm_atom_index == i)) is_mm =.FALSE.
-       IF (ANY( mm_link_atoms == i ).AND.qmmm_link) is_mm =.TRUE.
+       IF (ASSOCIATED(mm_link_atoms)) THEN 
+          IF (ANY( mm_link_atoms == i ).AND.qmmm_link) is_mm =.TRUE.
+       END IF
        IF (is_mm) THEN
           icount = icount + 1
           mm_atom_index(icount) = i
@@ -1250,14 +1271,15 @@ CONTAINS
          routineP = moduleN//':'//routineN
     LOGICAL :: explicit, failure
     INTEGER :: num_qm_atom_tot, nkind, ikind, nlinks, stat, mm_index, n_var, k
-    INTEGER :: qm_subsys_type
+    INTEGER :: qm_subsys_type, link_type, link_involv_mm
     INTEGER, DIMENSION(:), POINTER           :: mm_indexes
     TYPE(section_vals_type), POINTER         :: qm_kinds, qmmm_links
-    CHARACTER(len=default_string_length)     :: qm_atom_kind
+    CHARACTER(len=default_string_length)     :: qm_atom_kind, qm_link_element
     REAL(KIND=dp) :: scale_f
 
     failure         = .FALSE.
     num_qm_atom_tot = 0
+    link_involv_mm  = 0
     nlinks          = 0
     stat            = 0
     !
@@ -1282,13 +1304,31 @@ CONTAINS
     IF (explicit) THEN
        qmmm_link = .TRUE.
        CALL section_vals_get(qmmm_links,n_repetition=nlinks,error=error)
-       num_qm_atom_tot = num_qm_atom_tot + nlinks
+       ! Take care of the various link types
+       DO ikind = 1, nlinks
+          CALL section_vals_val_get(qmmm_links,"LINK_TYPE",i_rep_section=ikind,&
+               i_val=link_type,error=error)
+          SELECT CASE(link_type)
+          CASE(do_qmmm_link_imomm)
+             num_qm_atom_tot = num_qm_atom_tot + 1
+             link_involv_mm = link_involv_mm + 1
+          CASE(do_qmmm_link_pseudo)
+             num_qm_atom_tot = num_qm_atom_tot + 1
+          CASE(do_qmmm_link_gho)
+             ! do nothing for the moment
+          CASE DEFAULT
+             CPPostcondition(.FALSE.,cp_failure_level,routineP,error,failure)
+          END SELECT
+       END DO
     END IF
-    IF (PRESENT(mm_link_scale_factor)) ALLOCATE(mm_link_scale_factor(nlinks), stat=stat)
+    IF (PRESENT(mm_link_scale_factor).AND.(link_involv_mm /= 0)) &
+         ALLOCATE(mm_link_scale_factor(link_involv_mm), stat=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-    IF (PRESENT(fist_scale_charge_link)) ALLOCATE(fist_scale_charge_link(nlinks), stat=stat)
+    IF (PRESENT(fist_scale_charge_link).AND.(link_involv_mm /= 0)) & 
+         ALLOCATE(fist_scale_charge_link(link_involv_mm), stat=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-    IF (PRESENT(mm_link_atoms))   ALLOCATE(mm_link_atoms(nlinks),stat=stat)
+    IF (PRESENT(mm_link_atoms).AND.(link_involv_mm /= 0)) &
+         ALLOCATE(mm_link_atoms(link_involv_mm),stat=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     IF (PRESENT(qm_atom_index))   ALLOCATE(qm_atom_index(num_qm_atom_tot),stat=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
@@ -1322,9 +1362,9 @@ CONTAINS
           num_qm_atom_tot = num_qm_atom_tot + SIZE(mm_indexes)
        END DO
     END DO
-    IF (PRESENT(mm_link_scale_factor))     mm_link_scale_factor = 0.0_dp
-    IF (PRESENT(fist_scale_charge_link)) fist_scale_charge_link = 0.0_dp
-    IF (PRESENT(mm_link_atoms))            mm_link_atoms        = 0
+    IF (PRESENT(mm_link_scale_factor).AND.(link_involv_mm /= 0))     mm_link_scale_factor = 0.0_dp
+    IF (PRESENT(fist_scale_charge_link).AND.(link_involv_mm /= 0)) fist_scale_charge_link = 0.0_dp
+    IF (PRESENT(mm_link_atoms).AND.(link_involv_mm /= 0))            mm_link_atoms        = 0
     IF (explicit) THEN
        DO ikind = 1, nlinks
           IF (PRESENT(qm_subsys_index)) THEN
@@ -1333,7 +1373,9 @@ CONTAINS
              qm_subsys_index(num_qm_atom_tot:num_qm_atom_tot) = qm_subsys_type
           END IF
           IF (PRESENT(qm_atom_type)) THEN
-             qm_atom_type (num_qm_atom_tot:num_qm_atom_tot)   = "H_LINK"
+              CALL section_vals_val_get(qmmm_links,"QM_KIND",i_rep_section=ikind,c_val=qm_link_element,&
+                  error=error)
+             qm_atom_type (num_qm_atom_tot:num_qm_atom_tot)   = TRIM(qm_link_element)//"_LINK"
           END IF
           IF (PRESENT(qm_atom_index)) THEN
              CALL section_vals_val_get(qmmm_links,"MM_INDEX",i_rep_section=ikind,i_val=mm_index,&
@@ -1341,17 +1383,17 @@ CONTAINS
              qm_atom_index(num_qm_atom_tot:num_qm_atom_tot )  = mm_index
              num_qm_atom_tot = num_qm_atom_tot + 1
           END IF
-          IF (PRESENT(mm_link_atoms)) THEN
+          IF (PRESENT(mm_link_atoms).AND.(link_involv_mm /= 0))  THEN
              CALL section_vals_val_get(qmmm_links,"MM_INDEX",i_rep_section=ikind,i_val=mm_index,&
                   error=error)
              mm_link_atoms (ikind) = mm_index
           END IF
-          IF (PRESENT(mm_link_scale_factor)) THEN
+          IF (PRESENT(mm_link_scale_factor).AND.(link_involv_mm /= 0)) THEN
              CALL section_vals_val_get(qmmm_links,"QMMM_SCALE_FACTOR",i_rep_section=ikind,r_val=scale_f,&
                   error=error)
              mm_link_scale_factor(ikind) = scale_f
           END IF
-          IF (PRESENT(fist_scale_charge_link)) THEN
+          IF (PRESENT(fist_scale_charge_link).AND.(link_involv_mm /= 0))  THEN
              CALL section_vals_val_get(qmmm_links,"FIST_SCALE_FACTOR",i_rep_section=ikind,r_val=scale_f,&
                   error=error)
              fist_scale_charge_link(ikind) = scale_f
@@ -1401,7 +1443,7 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'setup_qmmm_links',&
          routineP = moduleN//':'//routineN
     INTEGER  :: ikind, nlinks, n_imomm, n_gho, link_type, qm_index, mm_index, stat
-    INTEGER  :: n_rep_val
+    INTEGER  :: n_rep_val, n_pseudo, n_tot
     LOGICAL  :: failure, charge_scale, explicit
     REAL(KIND=dp) :: alpha, scale_factor, my_radius
     INTEGER, POINTER, DIMENSION(:) :: wrk_tmp
@@ -1410,17 +1452,23 @@ CONTAINS
     failure = .FALSE.
     n_imomm = 0
     n_gho   = 0
+    n_pseudo= 0
     qmmm_link_section => section_vals_get_subs_vals(qmmm_section,"LINK",error=error)
     CALL section_vals_get(qmmm_link_section,n_repetition=nlinks,error=error)    
     CPPostcondition(nlinks /= 0,cp_failure_level,routineP,error,failure)
     DO ikind= 1, nlinks
        CALL section_vals_val_get(qmmm_link_section,"LINK_TYPE",i_rep_section=ikind,i_val=link_type,error=error)
-       IF (link_type ==  do_qmmm_link_imomm) n_imomm = n_imomm + 1
-       IF (link_type ==  do_qmmm_link_gho  ) n_gho   = n_gho   + 1
+       IF (link_type ==  do_qmmm_link_imomm)  n_imomm  = n_imomm  + 1
+       IF (link_type ==  do_qmmm_link_gho  )  n_gho    = n_gho    + 1
+       IF (link_type ==  do_qmmm_link_pseudo) n_pseudo = n_pseudo + 1
     END DO
-    CPPostcondition(n_imomm + n_gho /= 0,cp_failure_level,routineP,error,failure)
+    n_tot = n_imomm + n_gho + n_pseudo
+    CPPostcondition(n_tot /= 0,cp_failure_level,routineP,error,failure)
     ALLOCATE(qmmm_links, stat=stat)
     CPPostcondition(stat == 0,cp_failure_level,routineP,error,failure)
+    NULLIFY(qmmm_links%imomm,&
+            qmmm_links%pseudo)
+    ! IMOMM
     IF ( n_imomm /= 0 ) THEN
        ALLOCATE(qmmm_links%imomm(n_imomm), stat=stat)
        CPPostcondition(stat == 0,cp_failure_level,routineP,error,failure)
@@ -1463,6 +1511,28 @@ CONTAINS
        DEALLOCATE(wrk_tmp, stat=stat)
        CPPostcondition(stat == 0,cp_failure_level,routineP,error,failure)
     END IF
+    ! PSEUDO
+    IF ( n_pseudo /= 0 ) THEN
+       ALLOCATE(qmmm_links%pseudo(n_pseudo), stat=stat)
+       CPPostcondition(stat == 0,cp_failure_level,routineP,error,failure)
+       DO ikind = 1, n_pseudo
+          NULLIFY(qmmm_links%pseudo(ikind)%link)
+          ALLOCATE(qmmm_links%pseudo(ikind)%link,stat=stat)
+          CPPostcondition(stat == 0,cp_failure_level,routineP,error,failure)
+       END DO
+       n_pseudo = 0
+       DO ikind = 1, nlinks
+          CALL section_vals_val_get(qmmm_link_section,"LINK_TYPE",i_rep_section=ikind,i_val=link_type,error=error)
+          IF (link_type ==  do_qmmm_link_pseudo) THEN
+             n_pseudo = n_pseudo + 1
+             CALL section_vals_val_get(qmmm_link_section,"QM_INDEX",i_rep_section=ikind,i_val=qm_index,error=error)
+             CALL section_vals_val_get(qmmm_link_section,"MM_INDEX",i_rep_section=ikind,i_val=mm_index,error=error)
+             qmmm_links%pseudo(n_pseudo)%link%qm_index = qm_index
+             qmmm_links%pseudo(n_pseudo)%link%mm_index = mm_index
+          END IF
+       END DO
+    END IF
+    ! GHO
     IF ( n_gho /= 0) THEN
        ! not yet implemented
        ! still to define : type, implementation into QS

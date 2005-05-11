@@ -358,8 +358,8 @@ CONTAINS
     INTEGER, INTENT(OUT), OPTIONAL           :: lmax_rho0, ncgf,&
                                                 ngrid_ang,&
                                                 ngrid_rad, nsgf,&
-                                                z, zeff
-    REAL(KIND=dp), INTENT(OUT), OPTIONAL     :: qeff
+                                                z
+    REAL(KIND=dp), INTENT(OUT), OPTIONAL     :: qeff, zeff
     REAL(kind=dp), DIMENSION(4), &
       INTENT(out), OPTIONAL                  :: ldaCoreRadius
     LOGICAL, OPTIONAL,  INTENT(OUT)          :: paw_atom
@@ -476,7 +476,7 @@ CONTAINS
         ELSE IF (ASSOCIATED(atomic_kind%gth_potential)) THEN
           CALL get_potential(potential=atomic_kind%gth_potential,zeff=zeff)
         ELSE
-          zeff = 0
+          zeff = 0.0_dp
         END IF
       END IF
       IF (PRESENT(qeff)) THEN
@@ -572,7 +572,8 @@ CONTAINS
       lmax_rho0_kind, max_iso_not0, &
       max_s_harm, n, ngrid_rad, nkind, p_excl_bas, &
       p_excl_bas_max, p_full_bas, p_full_bas_max, p_full_bas_tot, &
-      p_l_angles_max, p_min_bas, p_min_bas_max, p_min_bas_tot, zeff
+      p_l_angles_max, p_min_bas, p_min_bas_max, p_min_bas_tot
+    REAL(KIND=dp) :: zeff, zeff_correction
     INTEGER, DIMENSION(:), POINTER           :: n_ppl
     INTEGER, DIMENSION(:), POINTER           :: npgf_kind
     LOGICAL                                  :: paw_atom
@@ -802,13 +803,16 @@ CONTAINS
         END IF
         IF (PRESENT(nelectron)) THEN
           IF (ASSOCIATED(atomic_kind%all_potential)) THEN
-            CALL get_potential(potential=atomic_kind%all_potential,zeff=zeff)
+            CALL get_potential(potential=atomic_kind%all_potential,&
+                 zeff=zeff,zeff_correction=zeff_correction)
           ELSE IF (ASSOCIATED(atomic_kind%gth_potential)) THEN
-            CALL get_potential(potential=atomic_kind%gth_potential,zeff=zeff)
+            CALL get_potential(potential=atomic_kind%gth_potential,&
+                 zeff=zeff,zeff_correction=zeff_correction)
           ELSE
-            zeff = 0
+            zeff = 0.0_dp
+            zeff_correction = 0.0_dp
           END IF
-          nelectron = nelectron + atomic_kind_set(ikind)%natom*zeff
+          nelectron = nelectron + atomic_kind_set(ikind)%natom*INT(zeff-zeff_correction)
         END IF
         IF (PRESENT(npgf)) THEN
           IF (ASSOCIATED(orb_basis_set)) THEN
@@ -936,17 +940,6 @@ CONTAINS
           IF(atomic_kind%orb_basis_set%norm_type < 0) &
                         atomic_kind%orb_basis_set%norm_type = 2
           CALL init_orb_basis_set(atomic_kind%orb_basis_set)
-        END IF
-      ELSE IF (globenv%program_name == "POL") THEN
-        IF (ASSOCIATED(atomic_kind%orb_basis_set))THEN
-          IF(atomic_kind%orb_basis_set%norm_type < 0) &
-                        atomic_kind%orb_basis_set%norm_type = 1
-          CALL init_orb_basis_set(atomic_kind%orb_basis_set)
-        END IF
-        IF (ASSOCIATED(atomic_kind%aux_basis_set))THEN
-          IF(atomic_kind%aux_basis_set%norm_type < 0) &
-                        atomic_kind%aux_basis_set%norm_type = 1
-          CALL init_aux_basis_set(atomic_kind%aux_basis_set)
         END IF
       ELSE IF (globenv%program_name == "KG") THEN
         IF (ASSOCIATED(atomic_kind%gth_potential).AND. PRESENT(method))THEN
@@ -1143,6 +1136,7 @@ CONTAINS
                                                 min_b_index, naux, &
                                                 ngrid_ang, ngrid_rad, norb, z
     LOGICAL                                  :: failure, section_found
+    REAL(KIND=dp)                            :: zeff_correction
     TYPE(cp_error_type)                      :: error
 
 !   ---------------------------------------------------------------------------
@@ -1154,6 +1148,7 @@ CONTAINS
     potential_type = ""
     z = -1
     atomic_kind%mass=-1.0_dp
+    zeff_correction = 0.0_dp
 
     CALL cp_error_init(error)
 
@@ -1262,6 +1257,8 @@ CONTAINS
                 EXIT
               END IF
             END DO
+          CASE ("CORE_CORRECTION")
+             CALL read_object(zeff_correction)
           CASE ("ATOMIC_MASS","ATOMIC_WEIGHT","MASS","WEIGHT")
             CALL read_object(atomic_kind%mass)
           CASE ("POTENTIAL","POT")
@@ -1371,12 +1368,12 @@ CONTAINS
       CASE ("ALL")
         CALL allocate_potential(atomic_kind%all_potential)
         CALL read_potential(atomic_kind%element_symbol,potential_name,&
-                            atomic_kind%all_potential,globenv)
+                            atomic_kind%all_potential,zeff_correction, globenv)
         CALL set_potential(atomic_kind%all_potential,z=z)
       CASE ("GTH")
         CALL allocate_potential(atomic_kind%gth_potential)
         CALL read_potential(atomic_kind%element_symbol,potential_name,&
-                            atomic_kind%gth_potential,globenv)
+                            atomic_kind%gth_potential,zeff_correction, globenv)
         CALL set_potential(atomic_kind%gth_potential,z=z)
       CASE ("GHOST")
         atomic_kind%mass = 0.0_dp
@@ -1397,7 +1394,7 @@ CONTAINS
     ELSE
 
       CALL allocate_potential(atomic_kind%all_potential)
-      CALL set_default_all_potential(atomic_kind%all_potential,z)
+      CALL set_default_all_potential(atomic_kind%all_potential,z,zeff_correction)
 
     END IF
 
@@ -1510,7 +1507,7 @@ CONTAINS
                            atomic_kind%orb_basis_set)
         IF ( ASSOCIATED(all_potential) ) THEN
           CALL init_potential ( all_potential, itype="BARE", &
-             zeff=se_parameter%zeff)
+             zeff=se_parameter%zeff, zeff_correction=all_potential%zeff_correction) 
         END IF
       END IF
     ELSE IF (globenv%program_name == "KG") THEN

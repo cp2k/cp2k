@@ -5832,170 +5832,7 @@ END SUBROUTINE create_ewald_section
        CALL section_add_subsection(section,subsection,error=error)
        CALL section_release(subsection,error=error)    
 
-       CALL section_create(subsection,name="LINK",&
-            description="Specify information on the QM/MM link treatment",&
-            n_keywords=7, n_subsections=2, repeats=.true., required=.true.,&
-            error=error)    
-       
-       CALL keyword_create(keyword, name="QM_INDEX",&
-            variants=(/ "QM" /),&
-            description="Specifies the index of the QM atom involved in the QM/MM link",&
-            usage="QM_INDEX integer",n_var=1,type_of_var=integer_t,&
-            error=error)
-       CALL section_add_keyword(subsection,keyword,error=error)
-       CALL keyword_release(keyword,error=error)
-
-       CALL keyword_create(keyword, name="MM_INDEX",&
-            variants=(/ "MM" /),&
-            description="Specifies the index of the MM atom involved in the QM/MM link",&
-            usage="MM_INDEX integer",n_var=1,type_of_var=integer_t,&
-            error=error)
-       CALL section_add_keyword(subsection,keyword,error=error)
-       CALL keyword_release(keyword,error=error)
-
-       CALL keyword_create(keyword, name="RADIUS",&
-            description="Overwrite the specification of the radius only for the MM atom involved in the link."//&
-            "Default is to use the same radius as for the specified type.",&
-            usage="RADIUS real",n_var=1,type_of_var=real_t,error=error)
-       CALL section_add_keyword(subsection,keyword,error=error)
-       CALL keyword_release(keyword,error=error)
-
-        CALL keyword_create(keyword, name="LINK_TYPE",&
-            variants=(/ "LINK ","TYPE ","LTYPE" /),&
-            description="Specifies the method to use to treat the defined QM/MM link",&
-            usage="LINK_TYPE char",&
-            enum_c_vals=s2a( "IMOMM","GHO"),&
-            enum_i_vals=(/ do_qmmm_link_imomm, do_qmmm_link_gho /),&
-            default_i_val=do_qmmm_link_imomm, error=error)
-       CALL section_add_keyword(subsection,keyword,error=error)
-       CALL keyword_release(keyword,error=error)      
-
-       CALL keyword_create(keyword, name="ALPHA_IMOMM",&
-            variants=(/ "ALPHA" /),&
-            description="Specifies the scaling factor to be used in the IMOMM QM/MM link scheme",&
-            usage="ALPHA_IMOMM real",n_var=1,type_of_var=real_t,&
-            default_r_val=ALPHA_IMOMM_DEFAULT,error=error)
-       CALL section_add_keyword(subsection,keyword,error=error)
-       CALL keyword_release(keyword,error=error)      
-
-       CALL keyword_create(keyword, name="QMMM_SCALE_FACTOR",&
-            variants=(/ "QMMM_CHARGE_SCALE ",&
-                        "QMMM_CHARGE_FACTOR",&
-                        "QMMM_SCALE_CHARGE " /),&
-            description="Specifies the scaling factor for the MM charge involved in the link QM/MM."//&
-            "This keyword affects only the QM/MM potential, it doesn't affect the electrostatic in "//&
-            "the classical part of the code"//&
-            "Default 1.0 i.e. delete the charge of the MM atom of the QM/MM link bond.",&
-            usage="SCALE_FACTOR real",n_var=1,type_of_var=real_t,&
-            default_r_val=CHARGE_SCALE_FACTOR,error=error)
-       CALL section_add_keyword(subsection,keyword,error=error)
-       CALL keyword_release(keyword,error=error)
-
-       CALL keyword_create(keyword, name="FIST_SCALE_FACTOR",&
-            variants=(/ "FIST_CHARGE_SCALE ",&
-                        "FIST_CHARGE_FACTOR",&
-                        "FIST_SCALE_CHARGE " /),&
-            description="Specifies the scaling factor for the MM charge involved in the link QM/MM."//&
-            "This keyword modifies the MM charge in FIST. The modified charge will be used then also"//&
-            "for the generation of the QM/MM potential."//&
-            "Default 1.0 i.e. delete the charge of the MM atom of the QM/MM link bond.",&
-            usage="SCALE_FACTOR real",n_var=1,type_of_var=real_t,&
-            default_r_val=CHARGE_SCALE_FACTOR,error=error)
-       CALL section_add_keyword(subsection,keyword,error=error)
-       CALL keyword_release(keyword,error=error)       
-
-       CALL keyword_create(keyword, name="SUBSYS",&
-            description="Specifies which subsystem the qm/mm link atoms belong to.",&
-            usage="SUBSYS integer",n_var=1,type_of_var=integer_t,&
-            default_i_val=1,error=error)
-       CALL section_add_keyword(subsection,keyword,error=error)
-       CALL keyword_release(keyword,error=error)
-
-
-       CALL section_create(subsubsection,name="MOVE_MM_CHARGE",&
-            description="Specify information to move a classical charge before the"//&
-            " QM/MM energies and forces evaluation",&
-            n_keywords=4, n_subsections=0, repeats=.TRUE., required=.TRUE.,&
-            error=error)      
-
-       CALL keyword_create(keyword, name="ATOM_INDEX_1",&
-            variants=(/ "MM1" /),&
-            description="Specifies the index of the MM atom involved in the QM/MM link to be moved",&
-            usage="ATOM_INDEX_1 integer",n_var=1,type_of_var=integer_t,&
-            error=error)
-       CALL section_add_keyword(subsubsection,keyword,error=error)
-       CALL keyword_release(keyword,error=error)
-
-       CALL keyword_create(keyword, name="ATOM_INDEX_2",&
-            variants=(/ "MM2" /),&
-            description="Specifies the index of the second atom defining the direction along which "//&
-            " the atom will be moved",&
-            usage="ATOM_INDEX_2 integer",n_var=1,type_of_var=integer_t,&
-            error=error)
-       CALL section_add_keyword(subsubsection,keyword,error=error)
-       CALL keyword_release(keyword,error=error)
-
-       CALL keyword_create(keyword, name="ALPHA",&
-            description="Specifies the scaling factor that defines the movement along the defined direction",&
-            usage="ALPHA real",n_var=1,type_of_var=real_t,error=error)
-       CALL section_add_keyword(subsubsection,keyword,error=error)
-       CALL keyword_release(keyword,error=error)      
-
-       CALL keyword_create(keyword, name="RADIUS",&
-            description="Specifies the radius used for the QM/MM electrostatic coupling after movement",&
-            usage="RADIUS real",n_var=1,type_of_var=real_t, default_r_val=0.0_dp, error=error)
-       CALL section_add_keyword(subsubsection,keyword,error=error)
-       CALL keyword_release(keyword,error=error)
-
-       CALL section_add_subsection(subsection,subsubsection,error=error)
-       CALL section_release(subsubsection,error=error)
-
-
-       CALL section_create(subsubsection,name="ADD_MM_CHARGE",&
-            description="Specify information to add a classical charge before the"//&
-            " QM/MM energies and forces evaluation",&
-            n_keywords=5, n_subsections=0, repeats=.true., required=.true.,&
-            error=error)      
-
-       CALL keyword_create(keyword, name="ATOM_INDEX_1",&
-            variants=(/ "MM1" /),&
-            description="Specifies the index of the first atom defining the direction along which"//&
-            " the atom will be added",&
-            usage="ATOM_INDEX_1 integer",n_var=1,type_of_var=integer_t,&
-            error=error)
-       CALL section_add_keyword(subsubsection,keyword,error=error)
-       CALL keyword_release(keyword,error=error)
-
-       CALL keyword_create(keyword, name="ATOM_INDEX_2",&
-            variants=(/ "MM2" /),&
-            description="Specifies the index of the second atom defining the direction along which "//&
-            " the atom will be added",&
-            usage="ATOM_INDEX_2 integer",n_var=1,type_of_var=integer_t,&
-            error=error)
-       CALL section_add_keyword(subsubsection,keyword,error=error)
-       CALL keyword_release(keyword,error=error)
-
-       CALL keyword_create(keyword, name="ALPHA",&
-            description="Specifies the scaling factor that defines the movement along the defined direction",&
-            usage="ALPHA real",n_var=1,type_of_var=real_t,error=error)
-       CALL section_add_keyword(subsubsection,keyword,error=error)
-       CALL keyword_release(keyword,error=error)      
-
-       CALL keyword_create(keyword, name="RADIUS",&
-            description="Specifies the radius used for the QM/MM electrostatic coupling for the added source",&
-            usage="RADIUS real",default_r_val=RADIUS_QMMM_DEFAULT,n_var=1,type_of_var=real_t,error=error)
-       CALL section_add_keyword(subsubsection,keyword,error=error)
-       CALL keyword_release(keyword,error=error)
-
-       CALL keyword_create(keyword, name="CHARGE",&
-            description="Specifies the charge for the added source of QM/MM potential",&
-            usage="CHARGE real",default_r_val=0.0_dp,n_var=1,type_of_var=real_t,error=error)
-       CALL section_add_keyword(subsubsection,keyword,error=error)
-       CALL keyword_release(keyword,error=error)
-
-       CALL section_add_subsection(subsection,subsubsection,error=error)
-       CALL section_release(subsubsection,error=error)
-
+       CALL create_qmmm_link_section(subsection,error)
        CALL section_add_subsection(section,subsection,error=error)
        CALL section_release(subsection,error=error)
 
@@ -6010,6 +5847,213 @@ END SUBROUTINE create_ewald_section
     END IF
 
   END SUBROUTINE create_qmmm_section
+
+
+!!****f* input_cp2k/create_qmmm_link_section *
+!!
+!!   NAME
+!!     create_qmmm_link_section
+!!
+!!   FUNCTION
+!!     creates the qm/mm link section
+!!
+!!   NOTES
+!!     -
+!!
+!!   INPUTS
+!!     - error: variable to control error logging, stopping,... 
+!!       see module cp_error_handling 
+!!
+!!   AUTHOR
+!!     tlaino
+!!
+!!*** **********************************************************************
+  SUBROUTINE create_qmmm_link_section(section,error)
+    TYPE(section_type), POINTER :: section
+    TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
+    
+    LOGICAL :: failure
+    CHARACTER(len=*), PARAMETER :: routineN='create_qmmm_link_section',&
+         routineP=moduleN//':'//routineN
+    TYPE(keyword_type), POINTER :: keyword
+    TYPE(section_type), POINTER :: print_key, subsection
+    failure=.FALSE.
+    
+    NULLIFY(keyword, subsection, print_key)
+    CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
+    IF (.NOT. failure) THEN
+       CALL section_create(section,name="LINK",&
+            description="Specify information on the QM/MM link treatment",&
+            n_keywords=7, n_subsections=2, repeats=.true., required=.true.,&
+            error=error)    
+       
+       CALL keyword_create(keyword, name="QM_INDEX",&
+            variants=(/ "QM" /),&
+            description="Specifies the index of the QM atom involved in the QM/MM link",&
+            usage="QM_INDEX integer",n_var=1,type_of_var=integer_t,&
+            error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="QM_KIND",&
+            description="Specifies the element of the QM capping atom involved in the QM/MM link",&
+            usage="QM_KIND char",n_var=1,type_of_var=char_t,&
+            default_c_val="H",error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="MM_INDEX",&
+            variants=(/ "MM" /),&
+            description="Specifies the index of the MM atom involved in the QM/MM link, Default hydrogen.",&
+            usage="MM_INDEX integer",n_var=1,type_of_var=integer_t,&
+            error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="RADIUS",&
+            description="Overwrite the specification of the radius only for the MM atom involved in the link."//&
+            "Default is to use the same radius as for the specified type.",&
+            usage="RADIUS real",n_var=1,type_of_var=real_t,error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+        CALL keyword_create(keyword, name="LINK_TYPE",&
+            variants=(/ "LINK ","TYPE ","LTYPE"/),&
+            description="Specifies the method to use to treat the defined QM/MM link",&
+            usage="LINK_TYPE char",&
+            enum_c_vals=s2a( "IMOMM","GHO","PSEUDO"),&
+            enum_i_vals=(/ do_qmmm_link_imomm, do_qmmm_link_gho, do_qmmm_link_pseudo/),&
+            default_i_val=do_qmmm_link_imomm, error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)      
+
+       CALL keyword_create(keyword, name="ALPHA_IMOMM",&
+            variants=s2a("ALPHA"),&
+            description="Specifies the scaling factor to be used in the IMOMM QM/MM link scheme",&
+            usage="ALPHA_IMOMM real",n_var=1,type_of_var=real_t,&
+            default_r_val=ALPHA_IMOMM_DEFAULT,error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)      
+
+       CALL keyword_create(keyword, name="QMMM_SCALE_FACTOR",&
+            variants=(/ "QMMM_CHARGE_SCALE ",&
+                        "QMMM_CHARGE_FACTOR",&
+                        "QMMM_SCALE_CHARGE " /),&
+            description="Specifies the scaling factor for the MM charge involved in the link QM/MM."//&
+            "This keyword affects only the QM/MM potential, it doesn't affect the electrostatic in "//&
+            "the classical part of the code"//&
+            "Default 1.0 i.e. delete the charge of the MM atom of the QM/MM link bond.",&
+            usage="SCALE_FACTOR real",n_var=1,type_of_var=real_t,&
+            default_r_val=CHARGE_SCALE_FACTOR,error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="FIST_SCALE_FACTOR",&
+            variants=(/ "FIST_CHARGE_SCALE ",&
+                        "FIST_CHARGE_FACTOR",&
+                        "FIST_SCALE_CHARGE " /),&
+            description="Specifies the scaling factor for the MM charge involved in the link QM/MM."//&
+            "This keyword modifies the MM charge in FIST. The modified charge will be used then also"//&
+            "for the generation of the QM/MM potential."//&
+            "Default 1.0 i.e. delete the charge of the MM atom of the QM/MM link bond.",&
+            usage="SCALE_FACTOR real",n_var=1,type_of_var=real_t,&
+            default_r_val=CHARGE_SCALE_FACTOR,error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)       
+
+       CALL keyword_create(keyword, name="SUBSYS",&
+            description="Specifies which subsystem the qm/mm link atoms belong to.",&
+            usage="SUBSYS integer",n_var=1,type_of_var=integer_t,&
+            default_i_val=1,error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+
+       CALL section_create(subsection,name="MOVE_MM_CHARGE",&
+            description="Specify information to move a classical charge before the"//&
+            " QM/MM energies and forces evaluation",&
+            n_keywords=4, n_subsections=0, repeats=.TRUE., required=.TRUE.,&
+            error=error)      
+
+       CALL keyword_create(keyword, name="ATOM_INDEX_1",&
+            variants=(/ "MM1" /),&
+            description="Specifies the index of the MM atom involved in the QM/MM link to be moved",&
+            usage="ATOM_INDEX_1 integer",n_var=1,type_of_var=integer_t,&
+            error=error)
+       CALL section_add_keyword(subsection,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="ATOM_INDEX_2",&
+            variants=(/ "MM2" /),&
+            description="Specifies the index of the second atom defining the direction along which "//&
+            " the atom will be moved",&
+            usage="ATOM_INDEX_2 integer",n_var=1,type_of_var=integer_t,&
+            error=error)
+       CALL section_add_keyword(subsection,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="ALPHA",&
+            description="Specifies the scaling factor that defines the movement along the defined direction",&
+            usage="ALPHA real",n_var=1,type_of_var=real_t,error=error)
+       CALL section_add_keyword(subsection,keyword,error=error)
+       CALL keyword_release(keyword,error=error)      
+
+       CALL keyword_create(keyword, name="RADIUS",&
+            description="Specifies the radius used for the QM/MM electrostatic coupling after movement",&
+            usage="RADIUS real",n_var=1,type_of_var=real_t, default_r_val=0.0_dp, error=error)
+       CALL section_add_keyword(subsection,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL section_add_subsection(section,subsection,error=error)
+       CALL section_release(subsection,error=error)
+
+
+       CALL section_create(subsection,name="ADD_MM_CHARGE",&
+            description="Specify information to add a classical charge before the"//&
+            " QM/MM energies and forces evaluation",&
+            n_keywords=5, n_subsections=0, repeats=.true., required=.true.,&
+            error=error)      
+
+       CALL keyword_create(keyword, name="ATOM_INDEX_1",&
+            variants=(/ "MM1" /),&
+            description="Specifies the index of the first atom defining the direction along which"//&
+            " the atom will be added",&
+            usage="ATOM_INDEX_1 integer",n_var=1,type_of_var=integer_t,&
+            error=error)
+       CALL section_add_keyword(subsection,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="ATOM_INDEX_2",&
+            variants=(/ "MM2" /),&
+            description="Specifies the index of the second atom defining the direction along which "//&
+            " the atom will be added",&
+            usage="ATOM_INDEX_2 integer",n_var=1,type_of_var=integer_t,&
+            error=error)
+       CALL section_add_keyword(subsection,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="ALPHA",&
+            description="Specifies the scaling factor that defines the movement along the defined direction",&
+            usage="ALPHA real",n_var=1,type_of_var=real_t,error=error)
+       CALL section_add_keyword(subsection,keyword,error=error)
+       CALL keyword_release(keyword,error=error)      
+
+       CALL keyword_create(keyword, name="RADIUS",&
+            description="Specifies the radius used for the QM/MM electrostatic coupling for the added source",&
+            usage="RADIUS real",default_r_val=RADIUS_QMMM_DEFAULT,n_var=1,type_of_var=real_t,error=error)
+       CALL section_add_keyword(subsection,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="CHARGE",&
+            description="Specifies the charge for the added source of QM/MM potential",&
+            usage="CHARGE real",default_r_val=0.0_dp,n_var=1,type_of_var=real_t,error=error)
+       CALL section_add_keyword(subsection,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL section_add_subsection(section,subsection,error=error)
+       CALL section_release(subsection,error=error)
+    END IF
+  END SUBROUTINE create_qmmm_link_section
 
 !!****f* input_cp2k/create_qmmm_interp_section *
 !!

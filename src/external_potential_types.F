@@ -66,8 +66,9 @@ MODULE external_potential_types
       DIMENSION(2)                         :: description
     REAL(KIND = dp)                        :: alpha_core_charge,&
                                               ccore_charge,&
-                                              core_charge_radius
-    INTEGER                                :: z,zeff
+                                              core_charge_radius,&
+                                              zeff, zeff_correction
+    INTEGER                                :: z
     INTEGER, DIMENSION(:), POINTER         :: elec_conf
     REAL(KIND = dp),DIMENSION(:),POINTER   :: orb_radius_3c
     REAL(KIND = dp),DIMENSION(:,:),POINTER :: set_radius_3c
@@ -87,12 +88,13 @@ MODULE external_potential_types
       DIMENSION(3)                             :: description
     REAL(KIND = dp)                            :: alpha_core_charge,&
                                                   alpha_ppl,ccore_charge,&
-                                                  cerf_ppl,&
+                                                  cerf_ppl,zeff,&
                                                   core_charge_radius,&
-                                                  ppl_radius,ppnl_radius
+                                                  ppl_radius,ppnl_radius,&
+                                                  zeff_correction
     INTEGER                                    :: lppnl,lprj_ppnl_max,&
                                                   nexp_ppl,nppnl,&
-                                                  nprj_ppnl_max,z,zeff
+                                                  nprj_ppnl_max,z
     REAL(KIND = dp), DIMENSION(:), POINTER     :: alpha_ppnl,cexp_ppl
     INTEGER, DIMENSION(:), POINTER             :: elec_conf,nprj_ppnl
     REAL(KIND = dp), DIMENSION(:,:), POINTER   :: cprj,cprj_ppnl,vprj_ppnl
@@ -459,7 +461,7 @@ CONTAINS
 
   SUBROUTINE get_all_potential(potential,name,alpha_core_charge,&
                                ccore_charge,core_charge_radius,z,zeff,&
-                               elec_conf)
+                               zeff_correction, elec_conf)
 
 !   Purpose: Get informations about an all-electron potential data set.
 
@@ -473,7 +475,8 @@ CONTAINS
     REAL(KIND=dp), INTENT(OUT), OPTIONAL     :: alpha_core_charge, &
                                                 ccore_charge, &
                                                 core_charge_radius
-    INTEGER, INTENT(OUT), OPTIONAL           :: z, zeff
+    INTEGER, INTENT(OUT), OPTIONAL           :: z
+    REAL(KIND=dp),INTENT(OUT), OPTIONAL      :: zeff, zeff_correction
     INTEGER, DIMENSION(:), OPTIONAL, POINTER :: elec_conf
 
     CHARACTER(LEN=*), PARAMETER :: routine_name = "get_all_potential"
@@ -490,6 +493,7 @@ CONTAINS
         core_charge_radius = potential%core_charge_radius
       IF (PRESENT(z)) z = potential%z
       IF (PRESENT(zeff)) zeff = potential%zeff
+      IF (PRESENT(zeff_correction)) zeff_correction = potential%zeff_correction
       IF (PRESENT(elec_conf)) elec_conf => potential%elec_conf
 
     ELSE
@@ -567,7 +571,8 @@ CONTAINS
                                alpha_ppl,ccore_charge,cerf_ppl,&
                                core_charge_radius,ppl_radius,ppnl_radius,&
                                lppnl,lprj_ppnl_max,nexp_ppl,nppnl,&
-                               nprj_ppnl_max,z,zeff,ppl_present,ppnl_present,&
+                               nprj_ppnl_max,z,zeff,zeff_correction,&
+                               ppl_present,ppnl_present,&
                                alpha_ppnl,cexp_ppl,elec_conf,nprj_ppnl,cprj,&
                                cprj_ppnl,vprj_ppnl,hprj_ppnl)
 
@@ -584,7 +589,8 @@ CONTAINS
       ccore_charge, cerf_ppl, core_charge_radius, ppl_radius, ppnl_radius
     INTEGER, INTENT(OUT), OPTIONAL           :: lppnl, lprj_ppnl_max, &
                                                 nexp_ppl, nppnl, &
-                                                nprj_ppnl_max, z, zeff
+                                                nprj_ppnl_max, z
+    REAL(KIND=dp), INTENT(OUT), OPTIONAL     :: zeff, zeff_correction
     LOGICAL, INTENT(OUT), OPTIONAL           :: ppl_present, ppnl_present
     REAL(KIND=dp), DIMENSION(:), OPTIONAL, &
       POINTER                                :: alpha_ppnl, cexp_ppl
@@ -617,6 +623,7 @@ CONTAINS
       IF (PRESENT(nprj_ppnl_max)) nprj_ppnl_max = potential%nprj_ppnl_max
       IF (PRESENT(z)) z = potential%z
       IF (PRESENT(zeff)) zeff = potential%zeff
+      IF (PRESENT(zeff_correction)) zeff_correction = potential%zeff_correction
       IF (PRESENT(ppl_present)) ppl_present = (potential%nexp_ppl > 0)
       IF (PRESENT(ppnl_present)) ppnl_present = (potential%nppnl > 0)
       IF (PRESENT(alpha_ppnl)) alpha_ppnl => potential%alpha_ppnl
@@ -773,11 +780,11 @@ CONTAINS
 
 ! *****************************************************************************
 
-  SUBROUTINE init_all_potential(potential,itype,zeff)
+  SUBROUTINE init_all_potential(potential,itype,zeff,zeff_correction)
 
     TYPE(all_potential_type), POINTER        :: potential
     CHARACTER (LEN=*), OPTIONAL              :: itype
-    INTEGER, OPTIONAL                        :: zeff
+    REAL(KIND=dp), OPTIONAL                  :: zeff, zeff_correction
 
     INTEGER   :: dz
 
@@ -785,10 +792,9 @@ CONTAINS
 
     IF (.NOT.ASSOCIATED(potential)) RETURN
 
-    IF ( PRESENT (zeff) ) THEN
-      potential%zeff = zeff
-    END IF
-    dz = potential%z - potential%zeff
+    IF ( PRESENT (zeff) ) potential%zeff = zeff
+    IF ( PRESENT (zeff_correction) ) potential%zeff_correction = zeff_correction
+    dz = potential%z - INT(potential%zeff - potential%zeff_correction)
     SELECT CASE (dz)
       CASE DEFAULT
       CASE (2)
@@ -866,7 +872,7 @@ CONTAINS
 ! *****************************************************************************
 
   SUBROUTINE read_all_potential(element_symbol,potential_name,potential,&
-                                globenv)
+                                zeff_correction, globenv)
 
 !   Purpose: Read an atomic all-electron potential data set.
 
@@ -876,6 +882,7 @@ CONTAINS
 
     CHARACTER(LEN=*), INTENT(IN)             :: element_symbol, potential_name
     TYPE(all_potential_type), POINTER        :: potential
+    REAL(KIND=dp)                            :: zeff_correction
     TYPE(global_environment_type), &
       INTENT(IN)                             :: globenv
 
@@ -945,7 +952,8 @@ CONTAINS
           CALL reallocate(potential%elec_conf,0,l)
           potential%elec_conf(:) = elec_conf(:)
 
-          potential%zeff = SUM(elec_conf)
+          potential%zeff_correction = zeff_correction
+          potential%zeff = REAL(SUM(elec_conf),dp)+zeff_correction
 
           DEALLOCATE (elec_conf,STAT=istat)
           IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
@@ -959,7 +967,7 @@ CONTAINS
           alpha = 1.0_dp/(2.0_dp*r**2)
 
           potential%alpha_core_charge = alpha
-          potential%ccore_charge = REAL(potential%zeff,dp)*SQRT((alpha/pi)**3)
+          potential%ccore_charge = potential%zeff*SQRT((alpha/pi)**3)
 
           EXIT search_loop
 
@@ -1126,7 +1134,7 @@ CONTAINS
 ! *****************************************************************************
 
   SUBROUTINE read_gth_potential(element_symbol,potential_name,potential,&
-                                globenv)
+                                zeff_correction, globenv)
 
 !   Purpose: Read an atomic GTH potential data set.
 
@@ -1141,6 +1149,7 @@ CONTAINS
 
     CHARACTER(LEN=*), INTENT(IN)             :: element_symbol, potential_name
     TYPE(gth_potential_type), POINTER        :: potential
+    REAL(KIND=dp), INTENT(IN)                :: zeff_correction
     TYPE(global_environment_type), &
       INTENT(IN)                             :: globenv
 
@@ -1215,7 +1224,8 @@ CONTAINS
           CALL reallocate(potential%elec_conf,0,l)
           potential%elec_conf(:) = elec_conf(:)
 
-          potential%zeff = SUM(elec_conf)
+          potential%zeff_correction = zeff_correction
+          potential%zeff = REAL(SUM(elec_conf),dp)+zeff_correction
 
           DEALLOCATE (elec_conf,STAT=istat)
           IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
@@ -1229,10 +1239,10 @@ CONTAINS
           alpha = 1.0_dp/(2.0_dp*r**2)
 
           potential%alpha_core_charge = alpha
-          potential%ccore_charge = REAL(potential%zeff,dp)*SQRT((alpha/pi)**3)
+          potential%ccore_charge = potential%zeff*SQRT((alpha/pi)**3)
 
           potential%alpha_ppl = alpha
-          potential%cerf_ppl = REAL(potential%zeff,dp)*SQRT((alpha/pi)**3)
+          potential%cerf_ppl = potential%zeff*SQRT((alpha/pi)**3)
 
 !         *** Read the parameters for the local part ***
 !         *** of the GTH pseudopotential (ppl)       ***
@@ -1353,22 +1363,23 @@ CONTAINS
 
 ! *****************************************************************************
 
-  SUBROUTINE set_default_all_potential(potential,z)
+  SUBROUTINE set_default_all_potential(potential,z,zeff_correction)
 
     TYPE(all_potential_type), POINTER        :: potential
     INTEGER, INTENT(IN)                      :: z
+    REAL(KIND=dp)                            :: zeff_correction
 
     CHARACTER(LEN=default_string_length)     :: name
     REAL(KIND=dp)                            :: r, alpha
     REAL(KIND=dp)                            :: alpha_core_charge, &
                                                 ccore_charge, &
                                                 core_charge_radius
-    INTEGER                                  :: zeff
+    REAL(KIND=dp)                            :: zeff
     INTEGER, DIMENSION(:),POINTER            :: elec_conf
 
     ALLOCATE ( elec_conf(0:3) )
     elec_conf(0:3) = ptable(z)%e_conv(0:3)
-    zeff = SUM ( elec_conf )
+    zeff = REAL(SUM ( elec_conf ),dp)+zeff_correction
     name = ptable(z)%name
 
     r = ptable(z)%covalent_radius * 0.5_dp
@@ -1378,7 +1389,7 @@ CONTAINS
 
     core_charge_radius = r
     alpha_core_charge = alpha
-    ccore_charge = REAL(zeff,dp)*SQRT((alpha/pi)**3)
+    ccore_charge = zeff*SQRT((alpha/pi)**3)
 
     CALL set_all_potential(potential,&
                            name=name,&
@@ -1387,6 +1398,7 @@ CONTAINS
                            core_charge_radius=core_charge_radius,&
                            z=z,&
                            zeff=zeff,&
+                           zeff_correction=zeff_correction,&
                            elec_conf=elec_conf)
     
     DEALLOCATE ( elec_conf )
@@ -1397,7 +1409,7 @@ CONTAINS
 
   SUBROUTINE set_all_potential(potential,name,alpha_core_charge,&
                                ccore_charge,core_charge_radius,z,zeff,&
-                               elec_conf)
+                               zeff_correction,elec_conf)
 
 !   Purpose: Set the components of an all-electron potential data set.
 
@@ -1411,7 +1423,8 @@ CONTAINS
     REAL(KIND=dp), INTENT(IN), OPTIONAL      :: alpha_core_charge, &
                                                 ccore_charge, &
                                                 core_charge_radius
-    INTEGER, INTENT(IN), OPTIONAL            :: z, zeff
+    INTEGER, INTENT(IN), OPTIONAL            :: z
+    REAL(KIND=dp), INTENT(IN), OPTIONAL      :: zeff, zeff_correction
     INTEGER, DIMENSION(:), OPTIONAL, POINTER :: elec_conf
 
     CHARACTER(LEN=*), PARAMETER :: routine_name = "set_all_potential"
@@ -1428,6 +1441,7 @@ CONTAINS
         potential%core_charge_radius = core_charge_radius
       IF (PRESENT(z)) potential%z = z
       IF (PRESENT(zeff)) potential%zeff = zeff
+      IF (PRESENT(zeff_correction)) potential%zeff_correction = zeff_correction
       IF (PRESENT(elec_conf)) THEN
         IF ( .NOT. ASSOCIATED( potential%elec_conf ) ) THEN
           CALL reallocate(potential%elec_conf,0,SIZE(elec_conf)-1)
@@ -1506,8 +1520,8 @@ CONTAINS
   SUBROUTINE set_gth_potential(potential,name,alpha_core_charge,alpha_ppl,&
                                ccore_charge,cerf_ppl,core_charge_radius,&
                                ppl_radius,ppnl_radius,lppnl,lprj_ppnl_max,&
-                               nexp_ppl,nppnl,nprj_ppnl_max,z,zeff,alpha_ppnl,&
-                               cexp_ppl,elec_conf,nprj_ppnl,cprj,cprj_ppnl,&
+                               nexp_ppl,nppnl,nprj_ppnl_max,z,zeff,zeff_correction,&
+                               alpha_ppnl,cexp_ppl,elec_conf,nprj_ppnl,cprj,cprj_ppnl,&
                                vprj_ppnl,hprj_ppnl)
 
 !   Purpose: Get the components of a GTH potential data set.
@@ -1523,7 +1537,8 @@ CONTAINS
       ccore_charge, cerf_ppl, core_charge_radius, ppl_radius, ppnl_radius
     INTEGER, INTENT(IN), OPTIONAL            :: lppnl, lprj_ppnl_max, &
                                                 nexp_ppl, nppnl, &
-                                                nprj_ppnl_max, z, zeff
+                                                nprj_ppnl_max, z
+    REAL(KIND=dp), INTENT(IN), OPTIONAL      :: zeff, zeff_correction
     REAL(KIND=dp), DIMENSION(:), OPTIONAL, &
       POINTER                                :: alpha_ppnl, cexp_ppl
     INTEGER, DIMENSION(:), OPTIONAL, POINTER :: elec_conf, nprj_ppnl
@@ -1555,6 +1570,7 @@ CONTAINS
       IF (PRESENT(nprj_ppnl_max)) potential%nprj_ppnl_max = nprj_ppnl_max
       IF (PRESENT(z)) potential%z = z
       IF (PRESENT(zeff)) potential%zeff = zeff
+      IF (PRESENT(zeff_correction)) potential%zeff_correction = zeff_correction
       IF (PRESENT(alpha_ppnl)) potential%alpha_ppnl => alpha_ppnl
       IF (PRESENT(cexp_ppl)) potential%cexp_ppl => cexp_ppl
       IF (PRESENT(elec_conf)) potential%elec_conf => elec_conf

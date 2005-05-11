@@ -602,7 +602,7 @@ RECURSIVE SUBROUTINE qmmm_energy_and_forces(force_env,calc_force,error)
   qmmm_added_chrg =  (force_env%qmmm_env%move_mm_charges .OR. force_env%qmmm_env%add_mm_charges)
   IF (qmmm_link) THEN
      CPPrecondition(ASSOCIATED(qmmm_links),cp_failure_level,routineP,error,failure)
-     qmmm_link_imomm = (SIZE(qmmm_links%imomm) /= 0)
+     IF (ASSOCIATED(qmmm_links%imomm)) qmmm_link_imomm = (SIZE(qmmm_links%imomm) /= 0)
   END IF
   CPPrecondition(ASSOCIATED(qm_atom_index),cp_failure_level,routineP,error,failure)
   CPPrecondition(ASSOCIATED(qm_subsys_index),cp_failure_level,routineP,error,failure)

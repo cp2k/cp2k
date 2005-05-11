@@ -353,7 +353,8 @@ MODULE qs_rho0_methods
                                                 total_rho_core_rspace, &
                                                 zetsoft_max
     INTEGER  ::  iat, iatom, ikind, istat, l, l_rho1_max, laddg, lmaxg, max_nr, maxl, maxnset, maxso, nat, &
-                 natom, nchan_c, nchan_s, nkind, nr, nset, nsotot,  zeff
+                 natom, nchan_c, nchan_s, nkind, nr, nset, nsotot
+    REAL(KIND=dp)                            :: zeff
     INTEGER, DIMENSION(:), POINTER           :: atom_list
     LOGICAL                                  :: paw_atom, my_tddft
 

@@ -1797,7 +1797,8 @@ CONTAINS
   
   SUBROUTINE valence_electrons ( z, zeff, natorb )
     INTEGER, INTENT(IN)                      :: z
-    INTEGER, INTENT(OUT)                     :: zeff, natorb
+    INTEGER, INTENT(OUT)                     :: natorb
+    REAL(KIND=dp) :: zeff
 
     INTEGER, DIMENSION(0:nelem), PARAMETER :: norb = (/ -1, 1,  1,  4,  4,  4,&
       4,  4,  4,  4,  4,  0,  4,  4,  4,  4,  4,  4,  4,0,  4,  9,  9,  9,  9,&
@@ -1813,7 +1814,7 @@ CONTAINS
       4,  5,  6,  7, -1, -1, -1, -1,  4,-1,  6, -1, -1, -1, -1, -1, -1, -1, -1&
       , -1, -1, -1, -1, -1, -1         /)
 
-    zeff = zval(z)
+    zeff = REAL(zval(z),dp)
     natorb = norb(z)
 
   END SUBROUTINE valence_electrons 

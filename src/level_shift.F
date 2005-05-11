@@ -145,8 +145,8 @@ CONTAINS
     TYPE(cell_type), POINTER                 :: cell
     REAL(KIND=dp)                            :: core_eshift
 
-    INTEGER                                  :: atom_a, iatom, ikind, natom, &
-                                                zeff
+    INTEGER                                  :: atom_a, iatom, ikind, natom
+    REAL(KIND=dp)                            :: zeff
     INTEGER, DIMENSION(:), POINTER           :: atom_list
     REAL(KIND=dp)                            :: alpha, pos_part, spread_part
     REAL(KIND=dp), DIMENSION(3)              :: center, ra

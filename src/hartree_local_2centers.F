@@ -136,8 +136,8 @@ MODULE  hartree_local_2centers
     INTEGER :: ab, bo(2), handle, i_atom, iat, iatom, ic, ico, idir, ikind, ilist, &
                inode, is, iso, ispin, istat, j_atom, jatom, jkind, l0_a, l0_b, &
                lmax_0, lmax_01, lshell, lx, ly, lz, maxch0, maxder, maxso, &
-               mepos, nat, natom, nch0_sph, nkind, nlist, nnode, nset, nsotot, num_pe,&
-               zeff_a, zeff_b
+               mepos, nat, natom, nch0_sph, nkind, nlist, nnode, nset, nsotot, num_pe
+    REAL(KIND=dp) ::  zeff_a, zeff_b
     INTEGER, DIMENSION(:),        POINTER      :: atom_list
     INTEGER, DIMENSION(:),        ALLOCATABLE  :: atom_of_kind
     LOGICAL                                    :: paw_atom_a, paw_atom_b, my_tddft

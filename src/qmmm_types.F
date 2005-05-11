@@ -59,6 +59,7 @@ MODULE qmmm_types
   PUBLIC :: qmmm_env_qm_retain, qmmm_env_qm_release, qmmm_env_qm_create
   PUBLIC :: qmmm_env_mm_type, qmmm_env_mm_create, qmmm_env_mm_retain, qmmm_env_mm_release
   PUBLIC :: qmmm_imomm_link_type, qmmm_imomm_link_p_type, qmmm_links_type 
+  PUBLIC :: qmmm_pseudo_link_type, qmmm_pseudo_link_p_type
   PUBLIC :: add_env_type, add_set_type, add_set_release, create_add_set_type
 
 !***
@@ -102,7 +103,10 @@ MODULE qmmm_types
   TYPE qmmm_pot_p_type
       TYPE(qmmm_pot_type), POINTER :: pot
   END TYPE qmmm_pot_p_type
-
+  !
+  ! LINKs
+  !
+  ! IMOMM
   TYPE qmmm_imomm_link_type
      INTEGER  :: qm_index, mm_index
      REAL(KIND=dp) :: alpha
@@ -111,9 +115,20 @@ MODULE qmmm_types
   TYPE qmmm_imomm_link_p_type
      TYPE(qmmm_imomm_link_type), POINTER :: link
   END TYPE qmmm_imomm_link_p_type
-
+  ! PSEUDO
+  TYPE qmmm_pseudo_link_type
+     INTEGER  :: qm_index, mm_index     
+  END TYPE qmmm_pseudo_link_type
+  
+  TYPE qmmm_pseudo_link_p_type
+     TYPE(qmmm_pseudo_link_type), POINTER :: link
+  END TYPE qmmm_pseudo_link_p_type
+  !
+  ! LINKs summary...
+  !
   TYPE qmmm_links_type
-     TYPE(qmmm_imomm_link_p_type), DIMENSION(:), POINTER :: imomm
+     TYPE(qmmm_imomm_link_p_type),  DIMENSION(:), POINTER :: imomm
+     TYPE(qmmm_pseudo_link_p_type), DIMENSION(:), POINTER :: pseudo
   END TYPE qmmm_links_type
 
   TYPE add_env_type
@@ -598,6 +613,14 @@ SUBROUTINE qmmm_links_dealloc(qmmm_links, error)
         CPPostconditionNoFail(stat==0,cp_failure_level,routineP,error) 
      END DO
      DEALLOCATE(qmmm_links%imomm, stat=stat)
+     CPPostconditionNoFail(stat==0,cp_failure_level,routineP,error) 
+  END IF
+  IF (ASSOCIATED(qmmm_links%pseudo)) THEN
+     DO i = 1, SIZE(qmmm_links%pseudo)
+        IF (ASSOCIATED(qmmm_links%pseudo(i)%link)) DEALLOCATE(qmmm_links%pseudo(i)%link, stat=stat)
+        CPPostconditionNoFail(stat==0,cp_failure_level,routineP,error) 
+     END DO
+     DEALLOCATE(qmmm_links%pseudo, stat=stat)
      CPPostconditionNoFail(stat==0,cp_failure_level,routineP,error) 
   END IF
   DEALLOCATE(qmmm_links, stat=stat)

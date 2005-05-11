@@ -173,7 +173,7 @@ CONTAINS
 
     INTEGER :: atom_a, atom_b, handle, iab, iatom, icol, ikind, ilist, inode, &
       irow, ispin, istat, jatom, jkind, natom, natorb_a, natorb_b, nkind, &
-      nlist, nnode, nspins, output_unit, za, zb
+      nlist, nnode, nspins, output_unit
     INTEGER, DIMENSION(:), POINTER           :: atom_of_kind
     LOGICAL                                  :: defined, ewald, failure, &
                                                 ionode
@@ -269,7 +269,6 @@ CONTAINS
           CALL get_atomic_kind(atomic_kind=atomic_kind,&
                                se_parameter=se_kind_a)
           CALL get_se_param(se_kind_a,&
-                            zeff=za,&
                             defined=defined,&
                             natorb=natorb_a,&
                             gss=gss,gsp=gsp,gpp=gpp,gp2=gp2,hsp=hsp)
@@ -281,7 +280,6 @@ CONTAINS
              CALL get_atomic_kind(atomic_kind=atomic_kind,&
                                   se_parameter=se_kind_b)
              CALL get_se_param(se_kind_b,&
-                               zeff=zb,&
                                defined=defined,&
                                natorb=natorb_b)
 
@@ -1321,9 +1319,9 @@ CONTAINS
                            POINTER           :: rho0_atom_set
     TYPE(semi_empirical_type), POINTER       :: se_kind
     REAL(dp)                                 :: ecut,max_rpgf0_s,r_s,&
-                                                eps_gauss,z0
+                                                eps_gauss,z0,zeff
     INTEGER  ::  nkind,natom,ikind,natorb,nat_kind,nchan_s,nchan_c,iatom,&
-                 zeff,iat,istat,l
+                 iat,istat,l
     INTEGER, DIMENSION(:), POINTER           :: atom_list
     REAL(dp), DIMENSION(:,:,:), POINTER      :: Qlm_gg
     LOGICAL                                  :: failure

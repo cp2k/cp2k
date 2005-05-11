@@ -124,7 +124,8 @@ MODULE qs_local_rho_types
     TYPE(harmonics_atom_type)   :: harmonics
     REAL(dp), INTENT(IN)        :: alpha
     REAL(dp), INTENT(INOUT)     :: rhoz_tot
-    INTEGER                     :: natom,zeff
+    INTEGER                     :: natom
+    REAL(dp)                    :: zeff
  
     CHARACTER(LEN=*), PARAMETER :: routine_name = "calculate_rhoz"
 

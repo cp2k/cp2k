@@ -208,7 +208,8 @@ MODULE  hartree_local_3centers
     LOGICAL                                    :: paw_atom, my_tddft
     INTEGER  :: ic1, ic1_min_m1, ic1_max, ic2, ic2_min_m1, ic2_max, &
                 ip1,ip2, ldcpc1, ldcpc2, ldhab1, ldhab2, ldintab1, ldintab2, &
-                n1, n2, nn1, nn2,jc, zeff
+                n1, n2, nn1, nn2,jc
+    REAL(KIND=dp) :: zeff
 
 !   ---------------------------------------------------------------------------
 

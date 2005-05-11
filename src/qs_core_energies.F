@@ -190,7 +190,7 @@ CONTAINS
       iatom_subcell, icell, ikind, istat, j, jatom, jatom_local, jcell, &
       jkind, k, kcell, maxatom_local, natom, natom_local_a, natom_local_b, &
       nkind, output_unit
-    INTEGER, ALLOCATABLE, DIMENSION(:)       :: zeff
+    REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: zeff
     INTEGER, DIMENSION(3)                    :: cell_b, ncell, nsubcell, &
                                                 periodic
     LOGICAL                                  :: cell000, include_ab, ionode, only_molecule
@@ -273,7 +273,7 @@ CONTAINS
 
     ALLOCATE (zeff(nkind),STAT=istat)
     IF (istat /= 0) CALL stop_memory(routine,"zeff",nkind*int_size)
-    zeff(:) = 0
+    zeff(:) = 0.0_dp
 
 !   *** Initialize the local data structures ***
 
@@ -407,7 +407,7 @@ CONTAINS
 
         natom_local_b = SIZE(atom(jkind)%list_local_b_index)
 
-        zab = REAL(zeff(ikind)*zeff(jkind),dp)
+        zab = zeff(ikind)*zeff(jkind)
         aab = alpha(ikind)*alpha(jkind)/(alpha(ikind) + alpha(jkind))
         rootaab = SQRT(aab)
         fab = 2.0_dp*oorootpi*zab*rootaab
@@ -715,8 +715,8 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routine_name = "calculate_ecore_self", &
       routine = "SUBROUTINE "//routine_name//" (MODULE "//module_name//")"
 
-    INTEGER                                  :: handle, ikind, natom, zeff
-    REAL(KIND=dp)                            :: alpha_core_charge, ecore_self
+    INTEGER                                  :: handle, ikind, natom
+    REAL(KIND=dp)                            :: alpha_core_charge, ecore_self,zeff
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
@@ -741,7 +741,7 @@ CONTAINS
                            zeff=zeff,&
                            alpha_core_charge=alpha_core_charge)
 
-      ecore_self = ecore_self - REAL(natom*zeff**2,dp)*SQRT(alpha_core_charge)
+      ecore_self = ecore_self - REAL(natom,dp)*zeff**2*SQRT(alpha_core_charge)
 
     END DO
 

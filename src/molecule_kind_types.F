@@ -638,7 +638,8 @@ CONTAINS
 
     INTEGER                                  :: iatom, ikind, imol, istat,&
                                                 nmol_kind, natom,&
-                                                nelectron, n_ao, nsgf, zeff
+                                                nelectron, n_ao, nsgf
+    REAL(KIND=dp)                            :: zeff, zeff_correction
     TYPE(molecule_kind_type), POINTER        :: molecule_kind
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
     TYPE(all_potential_type), POINTER        :: all_potential
@@ -666,13 +667,17 @@ CONTAINS
                              gth_potential=gth_potential,&
                              orb_basis_set=orb_basis_set)
         IF (ASSOCIATED(all_potential)) THEN
-           CALL get_potential(potential=all_potential,zeff=zeff)
+           CALL get_potential(potential=all_potential,zeff=zeff,&
+                zeff_correction=zeff_correction)
         ELSE IF (ASSOCIATED(gth_potential)) THEN
-           CALL get_potential(potential=gth_potential,zeff=zeff)
+           CALL get_potential(potential=gth_potential,zeff=zeff,&
+                zeff_correction=zeff_correction)
         ELSE
-           zeff = 0
+           zeff = 0.0_dp
+           zeff_correction = 0.0_dp
         END IF
-        nelectron = nelectron + zeff
+        WRITE(*,*)"TEOTEO",nelectron, zeff_correction
+        nelectron = nelectron + INT(zeff-zeff_correction)
   
         IF (ASSOCIATED(orb_basis_set)) THEN
           CALL get_gto_basis_set(gto_basis_set=orb_basis_set,nsgf=nsgf)
@@ -712,7 +717,8 @@ CONTAINS
     CHARACTER(LEN=default_string_length)     :: atomic_kind_name, &
                                                 current_name, keyword
     INTEGER                                  :: iatom, ikind, istat, natom,&
-                                                nelectron, n_ao, nsgf, zeff
+                                                nelectron, n_ao, nsgf
+    REAL(KIND=dp)                            :: zeff, zeff_correction
     INTEGER, DIMENSION(:), POINTER           :: kind_list
     INTEGER, DIMENSION(:, :), POINTER        :: name_list
     LOGICAL                                  :: atoms_read, name_found, &
@@ -849,13 +855,15 @@ CONTAINS
                            gth_potential=gth_potential,&
                            orb_basis_set=orb_basis_set)
       IF (ASSOCIATED(all_potential)) THEN
-         CALL get_potential(potential=all_potential,zeff=zeff)
+         CALL get_potential(potential=all_potential,zeff=zeff,zeff_correction=zeff_correction)
       ELSE IF (ASSOCIATED(gth_potential)) THEN
-         CALL get_potential(potential=gth_potential,zeff=zeff)
+         CALL get_potential(potential=gth_potential,zeff=zeff,zeff_correction=zeff_correction)
       ELSE
-         zeff = 0
+         zeff = 0.0_dp
+         zeff_correction = 0.0_dp
       END IF
-      nelectron = nelectron + zeff
+      WRITE(*,*)"TEOTEO",nelectron, zeff, zeff_correction
+      nelectron = nelectron + INT(zeff-zeff_correction)
 
       IF (ASSOCIATED(orb_basis_set)) THEN
         CALL get_gto_basis_set(gto_basis_set=orb_basis_set,nsgf=nsgf)

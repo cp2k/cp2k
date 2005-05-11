@@ -1368,8 +1368,8 @@ END SUBROUTINE clone_particle
     CHARACTER(LEN=2)                         :: element_symbol
     CHARACTER(LEN=8)                         :: unit_of_length_name
     INTEGER                                  :: iatom, ikind, natom, &
-                                                output_unit, z, zeff
-    REAL(KIND=dp)                            :: mass, unit_of_length
+                                                output_unit, z
+    REAL(KIND=dp)                            :: zeff, mass, unit_of_length
     LOGICAL                                  :: ionode, print_coordinates
 
 !   ---------------------------------------------------------------------------
@@ -1410,12 +1410,12 @@ END SUBROUTINE clone_particle
                              zeff=zeff)
         IF (particle_set(iatom)%is_fixed) THEN
           WRITE (output_unit,&
-               "(T2,I5,1X,I4,3X,A2,2X,I3,3F12.6,4X,I6,2X,F11.4,1X,A1)")&
+               "(T2,I5,1X,I4,3X,A2,2X,I3,3F12.6,4X,F6.2,2X,F11.4,1X,A1)")&
             iatom,ikind,element_symbol,z,&
             particle_set(iatom)%r(1:3)/unit_of_length,zeff,mass/massunit,"!"
         ELSE
           WRITE (output_unit,&
-               "(T2,I5,1X,I4,3X,A2,2X,I3,3F12.6,4X,I6,2X,F11.4)")&
+               "(T2,I5,1X,I4,3X,A2,2X,I3,3F12.6,4X,F6.2,2X,F11.4)")&
             iatom,ikind,element_symbol,z,&
             particle_set(iatom)%r(1:3)/unit_of_length,zeff,mass/massunit
         END IF

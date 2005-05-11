@@ -696,7 +696,7 @@ CONTAINS
             IF(sepj%z == 7.OR.sepj%z == 8) &
                       scale=scale+(0.5291772083_dp*rij-1._dp)*EXP(-alpj*rij)
          ENDIF
-         zz = REAL(sepi%zeff,dp)*REAL(sepj%zeff,dp)
+         zz = sepi%zeff*sepj%zeff
          enuc = zz*ssss
          scale=ABS(scale*enuc)
          zz=zz/rij
@@ -801,8 +801,8 @@ CONTAINS
       r=rij
       si = (sepi%natorb >= 3)
       sj = (sepj%natorb >= 3)
-      zi = REAL ( sepi%zeff, dp )
-      zj = REAL ( sepj%zeff, dp )
+      zi = sepi%zeff
+      zj = sepj%zeff
       ddi = sepi%dd
       ddj = sepj%dd
       qqi = sepi%qq
@@ -1161,8 +1161,8 @@ CONTAINS
       r=rij
       si = (sepi%natorb >= 3)
       sj = (sepj%natorb >= 3)
-      zi = REAL ( sepi%zeff, dp )
-      zj = REAL ( sepj%zeff, dp )
+      zi = sepi%zeff
+      zj = sepj%zeff
       ddi = sepi%dd
       ddj = sepj%dd
       qqi = sepi%qq

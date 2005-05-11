@@ -37,7 +37,8 @@ MODULE semi_empirical_types
     CHARACTER(LEN=default_string_length)   :: typ
     CHARACTER(LEN=default_string_length)   :: name
     LOGICAL                                :: defined
-    INTEGER                                :: z,zeff
+    INTEGER                                :: z
+    REAL(KIND=dp)                          :: zeff
     INTEGER                                :: natorb
     REAL(KIND = dp), DIMENSION(:), POINTER :: beta
     REAL(KIND = dp), DIMENSION(:), &

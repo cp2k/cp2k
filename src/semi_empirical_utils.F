@@ -88,7 +88,7 @@ CONTAINS
     se_parameter % name = ""
     se_parameter % typ = "NONE"
     se_parameter % z = -1
-    se_parameter % zeff = -1
+    se_parameter % zeff = -1.0_dp
     se_parameter % natorb = 0
     se_parameter % ngauss = 0
 
@@ -163,7 +163,8 @@ CONTAINS
     CHARACTER(LEN=default_string_length), &
       INTENT(OUT), OPTIONAL                  :: name, typ
     LOGICAL, INTENT(OUT), OPTIONAL           :: defined
-    INTEGER, INTENT(OUT), OPTIONAL           :: z, zeff, natorb
+    INTEGER, INTENT(OUT), OPTIONAL           :: z, natorb
+    REAL(KIND=dp), OPTIONAL, INTENT(OUT)     :: zeff
     REAL(KIND=dp), OPTIONAL                  :: eheat
     REAL(KIND=dp), DIMENSION(:), OPTIONAL, &
       POINTER                                :: beta, sto_exponents
@@ -306,7 +307,8 @@ CONTAINS
     CHARACTER(LEN=default_string_length), &
       INTENT(IN), OPTIONAL                   :: name, typ
     LOGICAL, INTENT(IN), OPTIONAL            :: defined
-    INTEGER, INTENT(IN), OPTIONAL            :: z, zeff, natorb
+    INTEGER, INTENT(IN), OPTIONAL            :: z, natorb
+    REAL(KIND=dp), OPTIONAL, INTENT(IN)      :: zeff
     REAL(KIND=dp), OPTIONAL                  :: eheat
     REAL(dp), DIMENSION(0:), OPTIONAL        :: beta
     REAL(KIND=dp), DIMENSION(:), OPTIONAL    :: sto_exponents
@@ -367,11 +369,11 @@ CONTAINS
 
     CHARACTER(LEN=default_string_length)     :: name, typ
     INTEGER                                  :: l, lm, natorb, ngauss, &
-                                                output_unit, z, zeff
+                                                output_unit, z
     LOGICAL                                  :: defined
     REAL(KIND=dp)                            :: alp, eheat, eisol, gp2, gpp, &
                                                 gsp, gss, hsp, udd, uff, upp, &
-                                                uss
+                                                uss,zeff
     REAL(KIND=dp), DIMENSION(0:3)            :: u
     REAL(KIND=dp), DIMENSION(:), POINTER     :: beta, sexp
 
@@ -405,8 +407,9 @@ CONTAINS
           WRITE (UNIT=output_unit,FMT="(/,A,T35,A,T67,A14)")&
             " Semi empirical parameters: ","Extended Huckel ",TRIM(name)
           IF ( defined ) THEN
+            WRITE (UNIT=output_unit,FMT="(T16,A,T71,F10.2)")&
+              "Effective core charge:",zeff
             WRITE (UNIT=output_unit,FMT="(T16,A,T71,I10)")&
-              "Effective core charge:",zeff, &
               "Number of orbitals:",natorb, &
               "Basis set expansion (STO-NG)",ngauss
             WRITE (UNIT=output_unit,FMT="(T16,A,T66,F15.5)")&
@@ -427,8 +430,9 @@ CONTAINS
           WRITE (UNIT=output_unit,FMT="(/,A,T35,A,T67,A14)")&
             " Semi empirical parameters: ","Austin Model 1 (AM1)",TRIM(name)
           IF ( defined ) THEN
+            WRITE (UNIT=output_unit,FMT="(T16,A,T71,F10.2)")&
+              "Effective core charge:",zeff
             WRITE (UNIT=output_unit,FMT="(T16,A,T71,I10)")&
-              "Effective core charge:",zeff, &
               "Number of orbitals:",natorb, &
               "Basis set expansion (STO-NG)",ngauss
             WRITE (UNIT=output_unit,FMT="(T16,A,T66,F15.5)")&
@@ -458,8 +462,9 @@ CONTAINS
             " Semi empirical parameters: ","Parametric Method 3 (PM3) ",&
             TRIM(name)
           IF ( defined ) THEN
+            WRITE (UNIT=output_unit,FMT="(T16,A,T71,F10.2)")&
+              "Effective core charge:",zeff
             WRITE (UNIT=output_unit,FMT="(T16,A,T71,I10)")&
-              "Effective core charge:",zeff, &
               "Number of orbitals:",natorb, &
               "Basis set expansion (STO-NG)",ngauss
             WRITE (UNIT=output_unit,FMT="(T16,A,T66,F15.5)")&
@@ -488,8 +493,9 @@ CONTAINS
           WRITE (UNIT=output_unit,FMT="(/,A,T35,A,T67,A14)")&
             " Semi empirical parameters: ","MNDO ",TRIM(name)
           IF ( defined ) THEN
+            WRITE (UNIT=output_unit,FMT="(T16,A,T71,F10.2)")&
+              "Effective core charge:",zeff
             WRITE (UNIT=output_unit,FMT="(T16,A,T71,I10)")&
-              "Effective core charge:",zeff, &
               "Number of orbitals:",natorb, &
               "Basis set expansion (STO-NG)",ngauss
             WRITE (UNIT=output_unit,FMT="(T16,A,T66,F15.5)")&

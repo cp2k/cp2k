@@ -105,7 +105,7 @@ CONTAINS
 
     INTEGER :: atom_a, atom_b, i, iab, iatom, icol, icor, ikind, ilist, &
       inode, irow, istat, itype, j, jatom, jkind, natom, natorb_a, natorb_b, &
-      nkind, nlist, nnode, za, zb
+      nkind, nlist, nnode
     INTEGER, DIMENSION(:), POINTER           :: atom_of_kind
     LOGICAL                                  :: defined, failure
     REAL(KIND=dp)                            :: delta, econst, eheat, eisol, &
@@ -198,7 +198,6 @@ CONTAINS
                              natom=natom,&
                              se_parameter=se_kind_a)
         CALL get_se_param(se_kind_a,&
-                          zeff=za,&
                           defined=defined,&
                           natorb=natorb_a,&
                           beta=beta_a,&
@@ -223,7 +222,6 @@ CONTAINS
            CALL get_atomic_kind(atomic_kind=atomic_kind,&
                                 se_parameter=se_kind_b)
            CALL get_se_param(se_kind_b,&
-                             zeff=zb,&
                              defined=defined,&
                              natorb=natorb_b,&
                              beta=beta_b)

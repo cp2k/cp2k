@@ -43,6 +43,7 @@ MODULE qmmm_links_methods
   USE particle_types,                  ONLY: particle_type
   USE qmmm_types,                      ONLY: qmmm_links_type,&
                                              qmmm_imomm_link_type,&
+                                             qmmm_pseudo_link_type,&
                                              qmmm_env_qm_type,&
                                              add_set_type
 

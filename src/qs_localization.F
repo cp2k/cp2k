@@ -485,8 +485,8 @@ SUBROUTINE wfc_to_molecule ( qs_loc_env, center, molecule_set )
     TYPE(particle_type), POINTER             :: particle_set( : )
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
     TYPE(gth_potential_type), POINTER        :: gth_potential
-    INTEGER                                  :: zeff,output_unit
-
+    INTEGER                                  :: output_unit
+    REAL(KIND=dp)                            :: zeff
 !---------------------------------------------------------------------------
 !---------------------------------------------------------------------------
 

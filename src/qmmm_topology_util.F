@@ -111,15 +111,17 @@ CONTAINS
     !
     ! Modify type for MM link atoms 
     !
-    DO iatm = 1, SIZE(qmmm_env%mm_link_atoms)
-       prefix_lnk = "_LNK000"
-       WRITE(prefix_lnk(5:),'(I20)')iatm
-       CALL compress(prefix_lnk,.TRUE.)
-       topology%atom_info%label_atmname(qmmm_env%mm_link_atoms(iatm)) = TRIM(prefix_lnk)//&
-            TRIM(topology%atom_info%label_atmname(qmmm_env%mm_link_atoms(iatm)))
-       topology%atom_info%label_resname(qmmm_env%mm_link_atoms(iatm)) = TRIM(prefix_lnk)//&
-            TRIM(topology%atom_info%label_resname(qmmm_env%mm_link_atoms(iatm))) 
-    END DO
+    IF (ASSOCIATED(qmmm_env%mm_link_atoms)) THEN
+       DO iatm = 1, SIZE(qmmm_env%mm_link_atoms)
+          prefix_lnk = "_LNK000"
+          WRITE(prefix_lnk(5:),'(I20)')iatm
+          CALL compress(prefix_lnk,.TRUE.)
+          topology%atom_info%label_atmname(qmmm_env%mm_link_atoms(iatm)) = TRIM(prefix_lnk)//&
+               TRIM(topology%atom_info%label_atmname(qmmm_env%mm_link_atoms(iatm)))
+          topology%atom_info%label_resname(qmmm_env%mm_link_atoms(iatm)) = TRIM(prefix_lnk)//&
+               TRIM(topology%atom_info%label_resname(qmmm_env%mm_link_atoms(iatm))) 
+       END DO
+    END IF
     !
     IF((globenv%ionode).AND.(globenv%print%level>0))THEN
        WRITE(iw,*) "  Exiting  qmmm_coordinate_control"
