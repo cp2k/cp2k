@@ -31,9 +31,6 @@ MODULE qs_scf_post
                                              coeff_sumup,&
                                              coeff_type
   USE cp_control_types,                ONLY: dft_control_type,&
-                                             localized_wfn_control_type,&
-                                             localized_wfn_control_release,&
-                                             localized_wfn_control_retain,&
                                              tddfpt_control_type
   USE cp_error_handling,               ONLY: cp_a_l,&
                                              cp_assert,&
@@ -105,6 +102,9 @@ MODULE qs_scf_post
                                              qs_environment_type
   USE qs_ks_methods,                   ONLY: qs_ks_did_change,&
                                              qs_ks_update_qs_env
+  USE qs_loc_control,                  ONLY: localized_wfn_control_type,&
+                                             localized_wfn_control_release,&
+                                             localized_wfn_control_retain
   USE qs_localization,                 ONLY: qs_loc_compute_properties,&
                                              qs_loc_destroy,&
                                              qs_loc_env_type,&

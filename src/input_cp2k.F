@@ -499,6 +499,122 @@ contains
 !***************************************************************************
 
 
+!****f* input_cp2k/create_xas_section *
+!!
+!!   NAME
+!!     create_xas_section
+!!   FUNCTION
+!!     makes the x-ray absorption section
+!!   NOTES
+!!
+!!   INPUTS
+!!
+!!   MODIFICATION HISTORY
+!!     03.2005 created [MI]
+!!
+!!   SOURCE
+!!*** **********************************************************************
+  SUBROUTINE create_localize_section(section, error)
+
+    TYPE(section_type), pointer :: section
+    type(cp_error_type), optional, intent(inout) :: error
+
+    logical :: failure
+    character(len=*), parameter :: routineN='create_localize_section',&
+          routineP=moduleN//':'//routineN
+    TYPE(keyword_type), pointer :: keyword
+    failure=.false.
+
+    CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
+    IF (.NOT. failure) THEN
+
+      CALL section_create(section,name="LOCALIZE",&
+           description="Use one of the available methods to define the localization "//&
+           " and possibly to optimize it to a minimum or a maximum.",&
+           n_keywords=8, n_subsections=0, repeats=.TRUE., required=.TRUE.,&
+           error=error)
+
+      CALL keyword_create(keyword,name="MIN_OR_MAX",&
+           description="Requires the maximization of the spread of the wfn",&
+           usage="MIN_OR_MAX (MINIMIZE|MAXIMIZE)",&
+           enum_c_vals=(/"SPREADMIN","SPREADMAX"/),&
+           enum_i_vals=(/do_loc_min, do_loc_max/),&
+           default_i_val=do_loc_min,error=error)
+      CALL section_add_keyword(section,keyword,error=error)
+      CALL keyword_release(keyword,error=error)
+ 
+ 
+      CALL keyword_create(keyword,name="METHOD",&
+           description="Method of optimization if any",&
+           usage="METHOD (JACOBI|CRAZY|DIRECT|NONE)",&
+           enum_c_vals=s2a("NONE","JACOBI","CRAZY","DIRECT"),&
+           enum_i_vals=(/do_loc_jacobi, do_loc_crazy, do_loc_direct, do_loc_none/),&
+           default_i_val=do_loc_jacobi,error=error)
+      CALL section_add_keyword(section,keyword,error=error)
+      CALL keyword_release(keyword,error=error)
+ 
+      CALL keyword_create(keyword,name="OPERATOR",&
+           description="Type of opertator which defines the spread functional",&
+           usage="OPERATOR (BERRY|BOYS|PIPEK)",&
+           enum_c_vals=s2a("BERRY","BOYS","PIPEK"),&
+           enum_i_vals=(/op_loc_berry, op_loc_boys, op_loc_pipek/),&
+           default_i_val=op_loc_berry,error=error)
+      CALL section_add_keyword(section,keyword,error=error)
+      CALL keyword_release(keyword,error=error)
+ 
+      CALL keyword_create(keyword,name="SET_OF_STATES",&
+           description="Selected states to be localized",&
+           usage="SET_OF_STATES (ALL|UPTON|FROMITOJ|LIST|NONE)",&
+           enum_c_vals=s2a("ALL","UPTON","FROMITOJ","LIST","NONE"),&
+           enum_i_vals=(/state_loc_all, state_loc_upton, state_loc_fromitoj,& 
+           state_loc_list,state_loc_none/),&
+           default_i_val=state_loc_all,error=error)
+      CALL section_add_keyword(section,keyword,error=error)
+      CALL keyword_release(keyword,error=error)
+
+
+      CALL keyword_create(keyword,name="LU_BOUNDS",&
+           description="The lower and upper index of the set of wfn to be localized",&
+           usage="LU_BOUNDS integer integer",&
+           n_var=2,default_i_vals=(/0,0/),type_of_var=integer_t,error=error)
+      CALL section_add_keyword(section,keyword,error=error)
+      CALL keyword_release(keyword,error=error)
+
+      CALL keyword_create(keyword,name="UP_BOUND",&
+           description="Highest index of  wfn to be localized",&
+           usage="UP_BOUND  integer",&
+           default_i_val=0,error=error)
+      CALL section_add_keyword(section,keyword,error=error)
+      CALL keyword_release(keyword,error=error)
+
+
+      CALL keyword_create(keyword,name="LISTSTATES",&
+           description="Indexes of the wfn to be localized"//&
+           "This keyword can be repeated several times"//&
+           "(useful if you have to specify many indexes).",&
+           usage="LISTSTATES 1 2",&
+           n_var=-1,type_of_var=integer_t,repeats=.TRUE.,error=error)
+      CALL section_add_keyword(section,keyword,error=error)
+      CALL keyword_release(keyword,error=error)
+ 
+      CALL keyword_create(keyword,name="EACH_STEP",&
+           description="Evry how many steps the localization calculation"//&
+           " is performed  along an iterative procedure (e.g. MD)",&
+           usage="EACH_STEP integer",&
+           default_i_val=1,error=error)
+      CALL section_add_keyword(section,keyword,error=error)
+      CALL keyword_release(keyword,error=error)
+
+      CALL keyword_create(keyword, name="FNAME",&
+           description="Root of the file names where to store the spectra",&
+           usage="FNAME loc_orb",&
+           default_c_val="loc_orb",error=error)
+      CALL section_add_keyword(section,keyword,error=error)
+      CALL keyword_release(keyword,error=error)
+
+    END IF
+  END SUBROUTINE create_localize_section
+
 !***************************************************************************
 !!****f* input_cp2k/create_print_dft_section [1.0] *
 !!
@@ -1171,76 +1287,8 @@ SUBROUTINE create_qs_section(section,error)
      CALL section_add_keyword(section,keyword,error=error)
      CALL keyword_release(keyword,error=error) 
 
-     CALL section_create(subsection,name="LOCALIZE",&
-          description="Use one of the available methods to define the localization "//&
-          " and possibly to optimize it to a minimum or a maximum.",&
-          n_keywords=8, n_subsections=0, repeats=.TRUE., required=.TRUE.,&
-          error=error)
-
-     CALL keyword_create(keyword,name="MIN_OR_MAX",&
-          description="Requires the maximization of the spread of the wfn",&
-          usage="MIN_OR_MAX (MINIMIZE|MAXIMIZE)",&
-          enum_c_vals=(/"SPREADMIN","SPREADMAX"/),&
-          enum_i_vals=(/do_loc_min, do_loc_max/),&
-          default_i_val=do_loc_min,error=error)
-     CALL section_add_keyword(subsection,keyword,error=error)
-     CALL keyword_release(keyword,error=error)
-
-
-     CALL keyword_create(keyword,name="METHOD",&
-          description="Method of optimization if any",&
-          usage="METHOD (JACOBI|CRAZY|DIRECT|NONE)",&
-          enum_c_vals=s2a("NONE","JACOBI","CRAZY","DIRECT"),&
-          enum_i_vals=(/do_loc_jacobi, do_loc_crazy, do_loc_direct, do_loc_none/),&
-          default_i_val=do_loc_jacobi,error=error)
-     CALL section_add_keyword(subsection,keyword,error=error)
-     CALL keyword_release(keyword,error=error)
-
-     CALL keyword_create(keyword,name="OPERATOR",&
-          description="Type of opertator which defines the spread functional",&
-          usage="OPERATOR (BERRY|BOYS|PIPEK)",&
-          enum_c_vals=s2a("BERRY","BOYS","PIPEK"),&
-          enum_i_vals=(/op_loc_berry, op_loc_boys, op_loc_pipek/),&
-          default_i_val=op_loc_berry,error=error)
-     CALL section_add_keyword(subsection,keyword,error=error)
-     CALL keyword_release(keyword,error=error)
-
-     CALL keyword_create(keyword,name="SET_OF_STATES",&
-          description="Selected states to be localized",&
-          usage="SET_OF_STATES (ALL|UPTON|FROMITOJ|LIST|NONE)",&
-          enum_c_vals=s2a("ALL","UPTON","FROMITOJ","LIST","NONE"),&
-          enum_i_vals=(/state_loc_all, state_loc_upton, state_loc_fromitoj,& 
-          state_loc_list,state_loc_none/),&
-          default_i_val=state_loc_all,error=error)
-     CALL section_add_keyword(subsection,keyword,error=error)
-     CALL keyword_release(keyword,error=error)
-
-
-     CALL keyword_create(keyword,name="LU_BOUNDS",&
-          description="The lower and upper index of the set of wfn to be localized",&
-          usage="LU_BOUNDS integer integer",&
-          n_var=2,type_of_var=integer_t,error=error)
-     CALL section_add_keyword(subsection,keyword,error=error)
-     CALL keyword_release(keyword,error=error)
-
-     CALL keyword_create(keyword,name="LIST",&
-          description="Indexes of the wfn to be localized"//&
-          "This keyword can be repeated several times"//&
-          "(useful if you have to specify many indexes).",&
-          usage="LIST 1 2",&
-          n_var=-1,type_of_var=integer_t,repeats=.TRUE.,error=error)
-     CALL section_add_keyword(subsection,keyword,error=error)
-     CALL keyword_release(keyword,error=error)
-
-     CALL keyword_create(keyword,name="EACH_STEP",&
-          description="Evry how many steps the localization calculation"//&
-          " is performed  along an iterative procedure (e.g. MD)",&
-          usage="EACH_STEP integer",&
-          default_i_val=1,error=error)
-     CALL section_add_keyword(subsection,keyword,error=error)
-     CALL keyword_release(keyword,error=error)
-
-     CALL section_add_subsection(section,subsection,error=error)
+     CALL create_localize_section(subsection,error)
+     CALL section_add_subsection(section, subsection, error=error)
      CALL section_release(subsection,error=error)
 
 
@@ -7102,49 +7150,120 @@ END SUBROUTINE create_ot_section
 !!
 !!   SOURCE
 !!*** **********************************************************************
-SUBROUTINE create_xas_section(section,error)
-  TYPE(section_type), pointer :: section
-  type(cp_error_type), optional, intent(inout) :: error
+  SUBROUTINE create_xas_section(section,error)
+    TYPE(section_type), pointer :: section
+    type(cp_error_type), optional, intent(inout) :: error
   
-  logical :: failure
-  character(len=*), parameter :: routineN='create_xas_section',&
+    logical :: failure
+    character(len=*), parameter :: routineN='create_xas_section',&
         routineP=moduleN//':'//routineN
-  TYPE(keyword_type), pointer :: keyword
-  failure=.false.
+    TYPE(section_type), POINTER :: subsection
+    TYPE(keyword_type), pointer :: keyword
+    failure=.false.
   
-  CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
-  IF (.NOT. failure) THEN
-     CALL section_create(section,"xas",&
+    CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
+    IF (.NOT. failure) THEN
+      CALL section_create(section,"xas",&
          description="Sets the method of choice to calculate the XAS. "//&
-                     "The occupied states from  which we calculate the excitation should be specified. "//&
+                     "The occupied states from  which we calculate the "//&
+                     "excitation should be specified. "//&
                      "Localization of the orbitals may be useful.",&
-         n_keywords=2, n_subsections=0, repeats=.FALSE., required=.false.,&
+         n_keywords=10, n_subsections=1, repeats=.FALSE., required=.false.,&
          error=error)
 
-     nullify(keyword)
-     CALL keyword_create(keyword, name="XAS_METHOD",&
-          description="Method to be used to calculate XAS",&
-          usage="XAS_METHOD TP_HH",&
-          default_i_val=xas_none,&
-          enum_c_vals=s2a( "NONE", "TP_HH", "TP_FH", "TDDFT"),&
-          enum_desc=s2a("No XAS is calculated", "Transition potential halfhole","Transition potential fullhole", &
-                        "Excitations by TDDFT"),&
-          enum_i_vals=(/xas_none,xas_tp_hh,xas_tp_fh,xas_tddft/),&
-          error=error)
-     CALL section_add_keyword(section,keyword,error=error)
-     CALL keyword_release(keyword,error=error)
+      nullify(keyword,subsection)
+      CALL keyword_create(keyword, name="METHOD",&
+           variants=(/"XAS_METHOD"/),&
+           description="Method to be used to calculate XAS",&
+           usage="METHOD TP_HH",&
+           default_i_val=xas_none,&
+           enum_c_vals=s2a( "NONE", "TP_HH", "TP_FH", "TDDFT"),&
+           enum_desc=s2a("No XAS is calculated", "Transition potential halfhole",&
+                         "Transition potential fullhole", &
+                         "Excitations by TDDFT"),&
+           enum_i_vals=(/xas_none,xas_tp_hh,xas_tp_fh,xas_tddft/),&
+           error=error)
+      CALL section_add_keyword(section,keyword,error=error)
+      CALL keyword_release(keyword,error=error)
 
-     CALL keyword_create(keyword, name="EXCITED_STATE",&
-          variants=(/"ESTATE"/),&
-          description="Index of the MO to be excited",&
-          usage="ESTATE 1",&
-          default_i_val=-1,error=error)
-     CALL section_add_keyword(section,keyword,error=error)
-     CALL keyword_release(keyword,error=error)
+      CALL keyword_create(keyword, name="MAXSTEP",&
+           description="Max # of steps in the xas-scf for one excitation",&
+           usage="MAXSTEP 150",&
+           default_i_val=150,error=error)
+      CALL section_add_keyword(section,keyword,error=error)
+      CALL keyword_release(keyword,error=error)
+ 
+      CALL keyword_create(keyword, name="CONVERGENCE",&
+           variants=(/"CONV"/),&
+           description="Convergence criterion for the xas-scf",&
+           usage="CONVERGENCE 0.00005",&
+           default_r_val=0.5D-6,error=error)
+      CALL section_add_keyword(section,keyword,error=error)
+      CALL keyword_release(keyword,error=error)
+ 
+      CALL keyword_create(keyword, name="EACH_STEP",&
+           description="How often  the xas spectra are computed",&
+           usage="EACH_STEP 1",&
+           default_i_val=1,error=error)
+      CALL section_add_keyword(section,keyword,error=error)
+      CALL keyword_release(keyword,error=error)
+ 
+      CALL keyword_create(keyword, name="STATE_TYPE",&
+           variants=(/"TYPE"/),&
+           description="Type of the orbitas that are excited for the xas spectra calculation",&
+           usage="STATE_TYPE 1S",&
+           default_i_val=xas_1s_type,&
+           enum_c_vals=s2a( "1S", "2S"),&
+           enum_desc=s2a("1s orbitals", "2s orbitals"),&
+           enum_i_vals=(/xas_1s_type,xas_2s_type/),&
+           error=error)
+      CALL section_add_keyword(section,keyword,error=error)
+      CALL keyword_release(keyword,error=error)
+ 
+      CALL keyword_create(keyword, name="STATE_SEARCH",&
+           description="# of states where to look for the one to be excited",&
+           usage="STATE_SEARCH 1",&
+           default_i_val=-1,error=error)
+      CALL section_add_keyword(section,keyword,error=error)
+      CALL keyword_release(keyword,error=error)
 
+      CALL keyword_create(keyword, name="FNAME",&
+           description="Root of the file names where to store the spectra",&
+           usage="FNAME xas_1s_o",&
+           default_c_val="xas_out",error=error)
+      CALL section_add_keyword(section,keyword,error=error)
+      CALL keyword_release(keyword,error=error)
 
-  END IF
-END SUBROUTINE create_xas_section
+      CALL keyword_create(keyword,name="ATOMS_LU_BOUNDS",&
+           variants=(/"AT_LU"/),&
+           description="The lower and upper index of the atoms to be excited",&
+           usage="ATOMS_LU_BOUNDS integer integer",&
+           n_var=2,default_i_vals=(/0,0/), type_of_var=integer_t,error=error)
+      CALL section_add_keyword(section,keyword,error=error)
+      CALL keyword_release(keyword,error=error)
 
+      CALL keyword_create(keyword,name="ATOMS_LIST",&
+           variants=(/"AT_LIST"/),&
+           description="Indexes of the atoms to be excited"//&
+           "This keyword can be repeated several times"//&
+           "(useful if you have to specify many indexes).",&
+           usage="ATOMS_LIST 1 2",&
+           n_var=-1,type_of_var=integer_t,repeats=.TRUE.,error=error)
+      CALL section_add_keyword(section,keyword,error=error)
+      CALL keyword_release(keyword,error=error)
+
+      CALL keyword_create(keyword, name="LOCALIZE_WFN",&
+           description="Check and possibly optimize the localization of the wavefunctions",&
+           usage="LOCALIZE_WFN",&
+            default_l_val=.FALSE.,lone_keyword_l_val=.TRUE.,error=error)
+      CALL section_add_keyword(section,keyword,error=error)
+      CALL keyword_release(keyword,error=error) 
+
+      CALL create_localize_section(subsection,error)
+      CALL section_add_subsection(section, subsection, error=error)
+      CALL section_release(subsection,error=error)
+
+    END IF
+  END SUBROUTINE create_xas_section
 
 END MODULE input_cp2k

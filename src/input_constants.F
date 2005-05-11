@@ -208,5 +208,6 @@ MODULE input_constants
                                 use_perd_none=7
  
   INTEGER, PARAMETER, PUBLIC :: xas_none=0, xas_tp_hh=1, xas_tp_fh=2,  xas_tddft=3 
+  INTEGER, PARAMETER, PUBLIC :: xas_1s_type=1, xas_2s_type=2
 
 END MODULE input_constants

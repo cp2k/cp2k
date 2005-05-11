@@ -55,9 +55,18 @@ MODULE cp_control_types
        tddfpt_lanczos,&
        tddfpt_singlet,&
        tddfpt_triplet
+  USE qs_loc_control,                  ONLY: localized_wfn_control_create, &
+                                             localized_wfn_control_release,&
+                                             localized_wfn_control_retain,&
+                                             localized_wfn_control_type,&
+                                             set_loc_wfn_lists,&
+                                             set_loc_centers
   USE string_utilities,                ONLY: uppercase,&
                                              xstring
   USE memory_utilities,                ONLY: reallocate
+  USE xas_control,                     ONLY: xas_control_create,&
+                                             xas_control_release,&
+                                             xas_control_type
 
   IMPLICIT NONE
 
@@ -110,24 +119,6 @@ MODULE cp_control_types
     INTEGER, POINTER, DIMENSION(:)  :: atoms
   END TYPE mulliken_restraint_type
 
-! *** some parameters useful for loczlized wfn
-  TYPE localized_wfn_control_type
-    INTEGER                         :: ref_count
-    INTEGER                         :: each_step
-    INTEGER                         :: min_or_max
-    INTEGER                         :: localization_method
-    INTEGER                         :: operator_type
-    INTEGER, DIMENSION(2)           :: nloc_states
-    INTEGER                         :: set_of_states
-    INTEGER, DIMENSION(2,2)         :: lu_bound_states
-    LOGICAL                         :: print_cubes
-    LOGICAL                         :: print_centers
-    LOGICAL                         :: print_spreads
-    INTEGER, POINTER, DIMENSION(:)  :: loc_states
-    TYPE(cp_2d_r_p_type), DIMENSION(2)  :: centers_set
-    CHARACTER ( LEN = 50 ),DIMENSION(2):: centers_file_name
-    CHARACTER ( LEN = 50 ),DIMENSION(2):: spreads_file_name
-  END TYPE localized_wfn_control_type
 
 ! *** Control parameters for a KIM-GORDON calculation ***
 ! *** Control parameters for a QUICKSTEP calculation ***
@@ -240,6 +231,7 @@ MODULE cp_control_types
      TYPE(qs_control_type)           :: qs_control
      TYPE(tddfpt_control_type)       :: tddfpt_control
      TYPE(wave_control_type)         :: wave_control
+     TYPE(xas_control_type), POINTER :: xas_control
      TYPE(xc_grid_type)              :: integration_grid
      TYPE(xc_control_type)           :: xc_control
      INTEGER                         :: nspins,&
@@ -248,11 +240,11 @@ MODULE cp_control_types
                                         sic_method_id,&
                                         ref_count,&
                                         id_nr,&
-                                        xas_method_id,&
                                         xas_estate
      REAL(KIND=dp)                   :: sic_scaling_a,sic_scaling_b
      LOGICAL                         :: forces,&
                                         do_tddfpt_calculation, &
+                                        do_xas_calculation, &
                                         derive_function_rho, &
                                         use_kinetic_energy_density, & 
                                         restricted
@@ -269,7 +261,7 @@ MODULE cp_control_types
             gapw_control_type,&
             wave_control_type, tddfpt_control_type,&
             pw_grid_option, xc_control_type, mulliken_restraint_type,&
-            localized_wfn_control_type, semi_empirical_control_type
+            semi_empirical_control_type
 
 
 ! *** Public subroutines ***
@@ -278,9 +270,6 @@ MODULE cp_control_types
             dft_control_release,&
             dft_control_create,&
             gapw_control_create,&
-            localized_wfn_control_create, &
-            localized_wfn_control_release,&
-            localized_wfn_control_retain, &
             set_loc_wfn_lists,&
             set_loc_centers,&
             mulliken_control_create,&
@@ -365,214 +354,6 @@ SUBROUTINE mulliken_control_retain(mulliken_restraint_control,error)
    mulliken_restraint_control%ref_count=mulliken_restraint_control%ref_count+1
 END SUBROUTINE mulliken_control_retain
 
-!!****f* cp_control_types/localized_wfn_control_create/retain/release *
-!!
-!!   NAME
-!!      localized_wfn_control_create/retain/release
-!!   FUNCTION
-!!      create retain release the localized_wfn_restraint_type
-!!   NOTES
-!!
-!!   INPUTS
-!!
-!!   MODIFICATION HISTORY
-!!     04.2005 created [MI]
-!!
-!!   SOURCE
-!!*** **********************************************************************
-  SUBROUTINE localized_wfn_control_create(localized_wfn_control,error)
-   TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
-   TYPE(localized_wfn_control_type), POINTER :: localized_wfn_control
-   CHARACTER(len=*), PARAMETER :: routineN = 'localized_wfn_control_create', &
-      routineP = moduleN//':'//routineN
-
-   INTEGER :: stat
-   LOGICAL :: failure
-   failure=.FALSE.
-
-   CPPrecondition(.NOT.ASSOCIATED(localized_wfn_control),cp_failure_level,routineP,error,failure)
-   ALLOCATE(localized_wfn_control,stat=stat)
-   CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-
-   localized_wfn_control%ref_count= 1
-   localized_wfn_control%each_step= 1
-   localized_wfn_control%min_or_max= do_loc_min
-   localized_wfn_control%localization_method =do_loc_jacobi
-   localized_wfn_control%operator_type = op_loc_berry
-   localized_wfn_control%set_of_states = state_loc_all
-   localized_wfn_control%nloc_states=0
-   localized_wfn_control%lu_bound_states=0
-   localized_wfn_control%print_cubes = .FALSE.
-   localized_wfn_control%print_centers = .FALSE.
-   localized_wfn_control%print_spreads = .FALSE.
-   NULLIFY(localized_wfn_control%loc_states)
-   NULLIFY(localized_wfn_control%centers_set(1)%array)
-   NULLIFY(localized_wfn_control%centers_set(2)%array)
-
-  END SUBROUTINE localized_wfn_control_create
-
-  SUBROUTINE localized_wfn_control_release(localized_wfn_control,error)
-   TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
-   TYPE(localized_wfn_control_type), POINTER :: localized_wfn_control
-   CHARACTER(len=*), PARAMETER :: routineN = 'localized_wfn_control_release', &
-      routineP = moduleN//':'//routineN
-   LOGICAL :: failure
-   failure=.FALSE.
-   IF(ASSOCIATED(localized_wfn_control)) THEN
-     CPPrecondition(localized_wfn_control%ref_count>0,cp_failure_level,routineP,error,failure)
-     localized_wfn_control%ref_count=localized_wfn_control%ref_count-1
-     IF (localized_wfn_control%ref_count==0) THEN
-        IF (ASSOCIATED(localized_wfn_control%loc_states)) &
-            DEALLOCATE(localized_wfn_control%loc_states)
-        IF (ASSOCIATED(localized_wfn_control%centers_set(1)%array)) &
-            DEALLOCATE(localized_wfn_control%centers_set(1)%array)
-        IF (ASSOCIATED(localized_wfn_control%centers_set(2)%array)) &
-            DEALLOCATE(localized_wfn_control%centers_set(2)%array)
-        localized_wfn_control%ref_count=0
-        DEALLOCATE(localized_wfn_control)
-     ENDIF
-   END IF
-  END SUBROUTINE localized_wfn_control_release
-
-  SUBROUTINE localized_wfn_control_retain(localized_wfn_control,error)
-   TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
-   TYPE(localized_wfn_control_type), POINTER :: localized_wfn_control
-   CHARACTER(len=*), PARAMETER :: routineN = 'localized_wfn_control_retain', &
-      routineP = moduleN//':'//routineN
-   LOGICAL :: failure
-   failure=.FALSE.
-   CPPrecondition(ASSOCIATED(localized_wfn_control),cp_failure_level,routineP,error,failure)
-
-   localized_wfn_control%ref_count=localized_wfn_control%ref_count+1
-  END SUBROUTINE localized_wfn_control_retain
-
-!!****f* cp_control_types/set_loc_wfn_lists *
-!!
-!!   NAME
-!!      loc_wfn_lists
-!!   FUNCTION
-!!      create the lists of mos that are taken into account 
-!!   NOTES
-!!
-!!   INPUTS
-!!
-!!   MODIFICATION HISTORY
-!!     04.2005 created [MI]
-!!
-!!   SOURCE
-!!*** **********************************************************************
-
-  SUBROUTINE set_loc_centers(localized_wfn_control,nmoloc,nspins,globenv,error)
-
-    TYPE(localized_wfn_control_type)          :: localized_wfn_control
-    INTEGER, DIMENSION(2), INTENT(IN)         :: nmoloc
-    INTEGER, INTENT(IN)                       :: nspins
-    TYPE(global_environment_type), POINTER    :: globenv
-    TYPE(cp_error_type), INTENT(inout), &
-       OPTIONAL                               :: error
-
-    CHARACTER(len=*), PARAMETER :: routineN = 'set_loc_centers', &
-       routineP = moduleN//':'//routineN
-
-    INTEGER :: ia, ie, ispin, istat
-    LOGICAL :: failure
-
-    failure = .FALSE.
-
-    CALL xstring ( globenv % project_name, ia, ie )
-    DO ispin = 1,nspins
-      ALLOCATE(localized_wfn_control%centers_set(ispin)%array(nmoloc(ispin),6), STAT = istat)
-      CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
-      localized_wfn_control%spreads_file_name(ispin) = globenv%project_name(ia:ie)//&
-                 '_spreads_s'//TRIM(ADJUSTL(cp_to_string(ispin)))
-      localized_wfn_control%centers_file_name(ispin) = globenv%project_name(ia:ie)//&
-                 '_centers_s'//TRIM(ADJUSTL(cp_to_string(ispin)))
-    END DO
-
-    localized_wfn_control%print_centers = globenv%print%localization
-    localized_wfn_control%print_spreads = globenv%print%localization
-    localized_wfn_control%print_cubes = globenv%print%cubes
-
-  END SUBROUTINE set_loc_centers
- 
-! *****************************************************************************
-
-
-!!****f* cp_control_types/set_loc_wfn_lists *
-!!
-!!   NAME
-!!      loc_wfn_lists
-!!   FUNCTION
-!!      create the lists of mos that are taken into account 
-!!   NOTES
-!!
-!!   INPUTS
-!!
-!!   MODIFICATION HISTORY
-!!     04.2005 created [MI]
-!!
-!!   SOURCE
-!!*** **********************************************************************
-
-  SUBROUTINE set_loc_wfn_lists(localized_wfn_control,nmoloc,nmo,nspins,error)
-
-    TYPE(localized_wfn_control_type)          :: localized_wfn_control
-    INTEGER, DIMENSION(2), INTENT(IN)         :: nmoloc,nmo
-    INTEGER, INTENT(IN)                       :: nspins
-    TYPE(cp_error_type), INTENT(inout), &
-       OPTIONAL                               :: error
-
-    CHARACTER(len=*), PARAMETER :: routineN = 'set_loc_wfn_lists', &
-       routineP = moduleN//':'//routineN
-
-    INTEGER :: i, iloc, ispin, istat, max_iloc, max_nmoloc
-    LOGICAL :: failure
-
-    failure = .FALSE.
-
-    localized_wfn_control%nloc_states(1:2) = nmoloc(1:2)
-    max_nmoloc = max(nmoloc(1),nmoloc(2))
-
-
-    IF(localized_wfn_control%set_of_states == state_loc_list) THEN
-      CPPrecondition(ASSOCIATED(localized_wfn_control%loc_states),cp_failure_level,routineP,error,failure)
-      IF(max_nmoloc<SIZE(localized_wfn_control%loc_states,1)) THEN
-         CALL reallocate(localized_wfn_control%loc_states,1,max_nmoloc) 
-      END IF
-      DO ispin = 1,nspins
-         localized_wfn_control%lu_bound_states(1,ispin) = 1
-         localized_wfn_control%lu_bound_states(2,ispin) = nmoloc(ispin)
-         DO i = 1,nmoloc(ispin)  
-           iloc = localized_wfn_control%loc_states(i)
-           CPPostcondition(iloc<=nmo(ispin),cp_failure_level,routineP,error,failure)
-         ENDDO
-      END DO 
-    ELSE
-      IF (ASSOCIATED(localized_wfn_control%loc_states)) THEN
-          DEALLOCATE(localized_wfn_control%loc_states,STAT=istat)
-          CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
-      END IF
-      IF(localized_wfn_control%set_of_states == state_loc_fromitoj) THEN
-        DO ispin = 1,nspins
-           localized_wfn_control%lu_bound_states(1,ispin) = &
-               localized_wfn_control%lu_bound_states(1,1) 
-           localized_wfn_control%lu_bound_states(2,ispin) = &
-              localized_wfn_control%lu_bound_states(1,1) +  nmoloc(ispin) -1
-           max_iloc = localized_wfn_control%lu_bound_states(2,ispin)
-           CPPostcondition(max_iloc<=nmo(ispin),cp_failure_level,routineP,error,failure)
-        END DO
-      ELSE
-        DO ispin = 1,nspins
-           localized_wfn_control%lu_bound_states(1,ispin) = 1
-           localized_wfn_control%lu_bound_states(2,ispin) = nmoloc(ispin)
-        END DO 
-      END IF
-    END IF 
-
-  END SUBROUTINE set_loc_wfn_lists
  
 ! *****************************************************************************
 
@@ -624,6 +405,7 @@ SUBROUTINE dft_control_create(dft_control, error)
      CALL qs_control_init(dft_control%qs_control, error=error)
      CALL tddfpt_control_init(dft_control%tddfpt_control, error=error)
      CALL wave_control_init(dft_control%wave_control, error=error)
+     CALL xas_control_create(dft_control%xas_control,error=error)
      CALL xc_grid_init(dft_control%integration_grid, error=error)
      CALL xc_control_init(dft_control%xc_control, error=error)
   END IF
@@ -714,6 +496,7 @@ SUBROUTINE dft_control_release(dft_control,error)
         CALL qs_control_dealloc_ref(dft_control%qs_control, error=error)
         CALL tddfpt_control_dealloc_ref(dft_control%tddfpt_control, error=error)
         CALL wave_control_dealloc_ref(dft_control%wave_control, error=error)
+        CALL xas_control_release(dft_control%xas_control, error=error)
         CALL xc_grid_dealloc_ref(dft_control%integration_grid, error=error)
         CALL xc_control_dealloc_ref(dft_control%xc_control, error=error)
         DEALLOCATE(dft_control, stat=stat)

@@ -44,9 +44,6 @@ MODULE qs_loc_types
   USE basis_set_types,                 ONLY: get_gto_basis_set,&
                                              gto_basis_set_type
   USE coefficient_types,               ONLY: coeff_type
-  USE cp_control_types,                ONLY: localized_wfn_control_release,&
-                                             localized_wfn_control_retain,&
-                                             localized_wfn_control_type
   USE cp_error_handling,               ONLY: cp_a_l,&
                                              cp_assert,&
                                              cp_error_get_logger,&
@@ -106,6 +103,9 @@ MODULE qs_loc_types
   USE particle_types,                  ONLY: particle_type
   USE qs_environment_types,            ONLY: get_qs_env,&
                                              qs_environment_type
+  USE qs_loc_control,                  ONLY: localized_wfn_control_release,&
+                                             localized_wfn_control_retain,&
+                                             localized_wfn_control_type
   USE qs_localization_methods,         ONLY: initialize_weights
   USE qs_neighbor_list_types,          ONLY: find_neighbor_list,&
                                              first_list,&

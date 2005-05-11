@@ -750,9 +750,6 @@ CONTAINS
        END IF
 
 ! ** convergence check
-!       IF (qs_env%para_env%source==qs_env%para_env%mepos) &
-!            INQUIRE(file="EXIT_SCF",exist=should_stop)
-!       CALL mp_bcast(should_stop,qs_env%para_env%source,qs_env%para_env%group)
        CALL external_control(should_stop,"SCF",error)
        IF (scf_env%iter_delta < scf_control%eps_scf) THEN
           IF (ionode.AND.logger%print_keys%scf) THEN
@@ -1323,8 +1320,9 @@ CONTAINS
          error=error)
 
     ! very first tests for xas
-    transition_potential = (dft_control%xas_method_id == xas_tp_hh .OR. &
-                            dft_control%xas_method_id == xas_tp_fh )
+    transition_potential = (dft_control%do_xas_calculation).AND. &
+                           (dft_control%xas_control%xas_method == xas_tp_hh .OR. &
+                            dft_control%xas_control%xas_method == xas_tp_fh )
 
 !   *** finish initialization of the MOs ***
     CPPrecondition(ASSOCIATED(mos),cp_failure_level,routineP,error,failure)
@@ -1333,13 +1331,13 @@ CONTAINS
           CALL get_mo_set(mos(ispin)%mo_set,mo_coeff=mo_coeff)
           IF (.NOT.ASSOCIATED(mo_coeff)) THEN
              IF(transition_potential .AND. ispin==1) THEN
-               IF(dft_control%xas_method_id == xas_tp_hh) THEN
+               IF(dft_control%xas_control%xas_method == xas_tp_hh) THEN
                  CALL init_mo_set(mos(ispin)%mo_set,&
                     ao_mo_fm_pools(ispin)%pool,&
                     name="qs_env"//TRIM(ADJUSTL(cp_to_string(qs_env%id_nr)))//&
                     "%mo"//TRIM(ADJUSTL(cp_to_string(ispin))),&
                     halfhole=dft_control%xas_estate,error=error)
-               ELSE IF(dft_control%xas_method_id == xas_tp_fh) THEN
+               ELSE IF(dft_control%xas_control%xas_method == xas_tp_fh) THEN
                  CALL init_mo_set(mos(ispin)%mo_set,&
                     ao_mo_fm_pools(ispin)%pool,&
                     name="qs_env"//TRIM(ADJUSTL(cp_to_string(qs_env%id_nr)))//&

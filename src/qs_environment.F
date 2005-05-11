@@ -39,11 +39,8 @@ MODULE qs_environment
   USE checkpoint_handler,              ONLY: write_checkpoint_information
   USE cp_control_types,                ONLY: dft_control_release,&
                                              dft_control_type,&
-                                             localized_wfn_control_type,&
                                              gapw_control_type,&
-                                             semi_empirical_control_type,&
-                                             set_loc_centers,&
-                                             set_loc_wfn_lists
+                                             semi_empirical_control_type
   USE cp_control_utils,                ONLY: read_dft_control,&
                                              read_qs_control,&
                                              write_dft_control,&
@@ -99,6 +96,9 @@ MODULE qs_environment
   USE qs_force_types,                  ONLY: allocate_qs_force,&
                                              qs_force_type
   USE qs_interactions,                 ONLY: init_interaction_radii
+  USE qs_loc_control,                  ONLY: localized_wfn_control_type,&
+                                             set_loc_centers,&
+                                             set_loc_wfn_lists
   USE qs_mo_types,                     ONLY: allocate_mo_set,&
                                              mo_set_p_type
   USE qs_rho0_ggrid,                   ONLY: rho0_s_grid_create
@@ -269,7 +269,7 @@ CONTAINS
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: natom_of_kind
     INTEGER, DIMENSION(2)                    :: n_mo, nelectron_spin, nmoloc
     LOGICAL                                  :: all_potential_present, ionode,&
-                                                transition_potential
+                                                xas_calculation
     REAL(dp)                                 :: maxocc
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
@@ -551,13 +551,13 @@ CONTAINS
     END IF
 
     ! The transition potential method to calculate XAS needs LSD
-    transition_potential = (dft_control%xas_method_id==xas_tp_hh .OR. &
-                              dft_control%xas_method_id==xas_tp_fh)
-    IF(transition_potential .AND. (dft_control%nspins == 1) ) THEN
+    xas_calculation = (dft_control%do_xas_calculation)
+
+    IF(xas_calculation .AND. (dft_control%nspins == 1) ) THEN
       CALL stop_program(routine_name,module_name,__LINE__,&
                    "Use the LSD option for XAS with transition potential.")
     END IF
-    IF(transition_potential .AND.  (scf_control%smear /= 0.0_dp)) THEN
+    IF(xas_calculation .AND.  (scf_control%smear /= 0.0_dp)) THEN
       CALL stop_program(routine_name,module_name,__LINE__,&
           "transition potential XAS and smearing not implemented.")
     END IF
@@ -612,7 +612,7 @@ CONTAINS
         (scf_control%level_shift /= 0.0_dp).OR.&
         (scf_control%smear /= 0.0_dp).OR.&
         (scf_control%eps_jacobi /= 0.0_dp) .OR.&
-         transition_potential) THEN
+         xas_calculation) THEN
        n_mo(1) = n_ao
        IF (n_mo(2) /= 0) n_mo(2) = n_ao
     END IF

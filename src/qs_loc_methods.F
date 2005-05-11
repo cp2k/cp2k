@@ -30,8 +30,7 @@ MODULE qs_loc_methods
   USE cp_cfm_types,                    ONLY: cp_cfm_create,&
                                              cp_cfm_release,&
                                              cp_cfm_type
-  USE cp_control_types,                ONLY: dft_control_type,&
-                                             localized_wfn_control_type
+  USE cp_control_types,                ONLY: dft_control_type
   USE cp_error_handling,               ONLY: cp_a_l,&
                                              cp_assert,&
                                              cp_error_get_logger,&
@@ -95,7 +94,7 @@ MODULE qs_loc_methods
   USE qs_matrix_pools,                 ONLY: mpools_get
   USE qs_mo_types,                     ONLY: get_mo_set,&
                                              mo_set_p_type
-
+  USE qs_loc_control,                  ONLY: localized_wfn_control_type
   USE qs_loc_types,                    ONLY: get_qs_loc_env,& 
                                              qs_loc_env_new_type, &
                                              set_qs_loc_env

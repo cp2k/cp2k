@@ -18,7 +18,6 @@ MODULE cp_control_utils
   USE cp_control_types,                ONLY: dft_control_create,&
                                              dft_control_type,&
                                              gapw_control_create,&
-                                             localized_wfn_control_type,&
                                              qs_control_type,&
                                              tddfpt_control_type,&
                                              wave_control_type
@@ -48,11 +47,7 @@ MODULE cp_control_utils
                                              tddfpt_lanczos,&
                                              tddfpt_singlet,&
                                              tddfpt_triplet
-  USE input_constants,                 ONLY: xas_none,&
-                                             xas_tp_hh,&
-                                             xas_tp_fh,&
-                                             xas_tddft,&
-                                             xc_debug_new_routine,&
+  USE input_constants,                 ONLY: xc_debug_new_routine,&
                                              xc_deriv_fd,&
                                              xc_deriv_nn10_smooth,&
                                              xc_deriv_nn50_smooth,&
@@ -105,6 +100,8 @@ MODULE cp_control_utils
   USE kinds,                           ONLY: dp,&
                                              dp_size
   USE memory_utilities,                ONLY: reallocate
+
+  USE qs_loc_control,                  ONLY: read_loc_control_old
   USE qs_parser,                       ONLY: finish_parser,&
                                              read_object,&
                                              start_parser,&
@@ -123,6 +120,9 @@ MODULE cp_control_utils
   USE xc_derivatives,                  ONLY: xc_functional_get_info
   USE xc_rho_set_types,                ONLY: xc_rho_cflags_setall,&
                                              xc_rho_cflags_type
+  USE xas_control,                     ONLY: read_xas_control_old,&
+                                             read_xas_control_new,&
+                                             xas_control_type
 
   IMPLICIT NONE
 
@@ -346,6 +346,7 @@ CONTAINS
 
     INTEGER                                  :: excitations, i, run_id
     LOGICAL                                  :: failure, l_param, xc_fun_set
+    LOGICAL                                  :: was_present
     TYPE(cp_error_type)                      :: sub_error
     TYPE(section_vals_type), POINTER         :: dft_section, tmp_section, &
                                                 xc_fun_section, &
@@ -355,6 +356,7 @@ CONTAINS
 !   ---------------------------------------------------------------------------
 
     failure=.FALSE.
+    was_present = .FALSE.
     CALL dft_control_create(dft_control, error=error)
     dft_section => section_vals_get_subs_vals(globenv%input_file,"FORCE_EVAL",error=error)
     dft_section => section_vals_get_subs_vals(dft_section,"DFT",error=error)
@@ -385,7 +387,6 @@ CONTAINS
     dft_control % sic_scaling_a = 1.0_dp
     dft_control % sic_scaling_b = 1.0_dp
 
-    dft_control % xas_method_id = xas_none
     dft_control % xas_estate    = -1
 
     !FM! should be removed
@@ -495,8 +496,23 @@ CONTAINS
 !   *** Read the input section ***
     tmp_section => section_vals_get_subs_vals(dft_section,"xas",&
          error=error)
-    CALL section_vals_val_get(tmp_section,"XAS_METHOD",&
-         i_val=dft_control%xas_method_id,error=error)
+    call section_vals_get(tmp_section,explicit=was_present,error=error)
+    if (was_present) then
+
+      dft_control % do_xas_calculation = .TRUE.
+
+      CALL read_xas_control_new(dft_control%xas_control,globenv,error=error)
+
+    else
+
+      dft_control % do_xas_calculation = .FALSE.
+
+    end if
+
+
+    CALL section_vals_val_get(tmp_section,"METHOD",&
+         i_val=dft_control%xas_control%xas_method,error=error)
+
     CALL section_vals_val_get(tmp_section,"EXCITED_STATE",&
          i_val=dft_control%xas_estate,error=error)
 
@@ -574,7 +590,7 @@ CONTAINS
     dft_control % sic_method_id = sic_none
     dft_control % sic_scaling_a = 1.0_dp
     dft_control % sic_scaling_b = 1.0_dp
-    dft_control % xas_method_id = xas_none
+    dft_control % do_xas_calculation = .FALSE.
     dft_control % xas_estate = -1
 
     DO i=1,SIZE(dft_control % xc_control % functionals)
@@ -765,19 +781,8 @@ CONTAINS
              END SELECT
           CASE ("XAS")
               CALL read_object(str2,lower_to_upper=.TRUE.)
-              SELECT CASE (TRIM(str2))
-              CASE ("NONE")
-                 dft_control%xas_method_id=xas_none
-              CASE ("TP_HH")
-                 dft_control%xas_method_id=xas_tp_hh
-              CASE ("TP_FH")
-                 dft_control%xas_method_id=xas_tp_fh
-              CASE ("TDDFT")
-                 dft_control%xas_method_id=xas_tddft
-              CASE DEFAULT
-                CALL stop_program(routine,"UNKNOWN XAS KEYWORD "//&
-                     TRIM(str2))
-              END SELECT
+              CALL read_xas_control_old(dft_control%xas_control,str2)
+              dft_control%do_xas_calculation = .TRUE.
           CASE ("XAS_ESTATE")
              CALL read_object(dft_control%xas_estate)
           CASE DEFAULT
@@ -1180,103 +1185,104 @@ CONTAINS
             END SELECT
          CASE (qs_key_LOCALIZED_WFN)
             qs_control%localized_wfn = .TRUE.
-            SELECT CASE (test_object())
-            CASE ("STR")
-              CALL read_object(string,lower_to_upper=.TRUE.)
-              SELECT CASE (string)
-              CASE ("METHOD")
-                CALL read_object(string2,lower_to_upper=.TRUE.)
-                SELECT CASE (string2)
-                CASE ("JACOBI")
-                   qs_control%localized_wfn_control%localization_method = do_loc_jacobi
-                CASE ("CRAZY")
-                   qs_control%localized_wfn_control%localization_method = do_loc_crazy
-                CASE ("DIRECT")
-                   qs_control%localized_wfn_control%localization_method = do_loc_direct
-                CASE ("NONE")
-                   qs_control%localized_wfn_control%localization_method = do_loc_none
-                CASE DEFAULT
-                   CALL stop_parser(routine,"unexpected data following LOCALIZED_WFN METHOD")
-                END SELECT
-              CASE ("MIN_OR_MAX")
-                CALL read_object(string2,lower_to_upper=.TRUE.)
-                SELECT CASE (string2)
-                CASE ("SPREADMIN")
-                   qs_control%localized_wfn_control%min_or_max = do_loc_min
-                CASE ("SPREADMAX")
-                   qs_control%localized_wfn_control%min_or_max = do_loc_max
-                CASE DEFAULT
-                   CALL stop_parser(routine,"unexpected data following LOCALIZED_WFN MIN_OR_MAX")
-                END SELECT
-              CASE ("OPERATOR")
-                CALL read_object(string2,lower_to_upper=.TRUE.)
-                SELECT CASE (string2)
-                CASE("BERRY")
-                   qs_control%localized_wfn_control%operator_type = op_loc_berry
-                CASE("BOYS")
-                   qs_control%localized_wfn_control%operator_type = op_loc_boys
-                CASE("PIPEK")
-                   qs_control%localized_wfn_control%operator_type = op_loc_pipek
-                CASE DEFAULT
-                   CALL stop_parser(routine,"unexpected data following LOCALIZED_WFN OPERATOR ")
-                END SELECT 
-              CASE ("SET_OF_STATES")
-                CALL read_object(string2,lower_to_upper=.TRUE.)
-                SELECT CASE (string2)
-                CASE("ALL")
-                   qs_control%localized_wfn_control%set_of_states = state_loc_all
-                CASE("NONE")
-                   qs_control%localized_wfn_control%set_of_states = state_loc_none
-                CASE("UPTON")
-                   qs_control%localized_wfn_control%set_of_states = state_loc_upton
-                   CALL read_object(qs_control%localized_wfn_control%lu_bound_states(2,1), &
-                                    lower_to_upper=.TRUE.)    
-                   qs_control%localized_wfn_control%lu_bound_states(1,1) = 1
-                   qs_control%localized_wfn_control%nloc_states(1) = &
-                             qs_control%localized_wfn_control%lu_bound_states(2,1) 
-                CASE("FROMITOJ")
-                   qs_control%localized_wfn_control%set_of_states = state_loc_fromitoj
-                   CALL read_object(qs_control%localized_wfn_control%lu_bound_states(1,1), &
-                                    lower_to_upper=.TRUE.)
-                   CALL read_object(qs_control%localized_wfn_control%lu_bound_states(2,1), &
-                                    lower_to_upper=.TRUE.)
-                   qs_control%localized_wfn_control%nloc_states(1) = &
-                             qs_control%localized_wfn_control%lu_bound_states(2,1)-&
-                             qs_control%localized_wfn_control%lu_bound_states(1,1)+1 
-                CASE("LIST")
-                   qs_control%localized_wfn_control%set_of_states = state_loc_list 
-                   IF(.NOT.ASSOCIATED(qs_control%localized_wfn_control%loc_states)) THEN
-                     ALLOCATE(qs_control%localized_wfn_control%loc_states(50),STAT=istat)
-                     qs_control%localized_wfn_control%loc_states = 0
-                     nloc_now = 0
-                   ELSE
-                     nloc_now = SIZE(qs_control%localized_wfn_control%loc_states,1)
-                     CALL reallocate(qs_control%localized_wfn_control%loc_states,1,50+nloc_now)
-                   ENDIF  
-                   DO 
-                     IF(test_object()=="EOL") THEN
-                         EXIT
-                     ELSE
-                       nloc_now = nloc_now + 1
-                       IF(nloc_now > SIZE(qs_control%localized_wfn_control%loc_states,1))THEN
-                         CALL reallocate(qs_control%localized_wfn_control%loc_states,1,nloc_now)
-                       END IF  
-                       CALL read_object(qs_control%localized_wfn_control%loc_states(nloc_now))
-                     END IF 
-                   END DO 
-                   CALL reallocate(qs_control%localized_wfn_control%loc_states,1,nloc_now)
-                   qs_control%localized_wfn_control%nloc_states(1) = nloc_now
-                CASE DEFAULT
-                   CALL stop_parser(routine,"unexpected data following LOCALIZED_WFN ")
-                END SELECT
-              CASE ("EACH_STEP")
-                CALL read_object(qs_control%localized_wfn_control%each_step,lower_to_upper=.TRUE.)
-              END SELECT
-            CASE ("EOL")
-              ! do nothing
-            CASE DEFAULT
-             CALL stop_parser(routine,"unexpected data following LOCALIZED_WFN") 
-            END SELECT
+            CALL read_loc_control_old(qs_control%localized_wfn_control,test_object())
+!            SELECT CASE (test_object())
+!            CASE ("STR")
+!              CALL read_object(string,lower_to_upper=.TRUE.)
+!              SELECT CASE (string)
+!              CASE ("METHOD")
+!                CALL read_object(string2,lower_to_upper=.TRUE.)
+!                SELECT CASE (string2)
+!                CASE ("JACOBI")
+!                   qs_control%localized_wfn_control%localization_method = do_loc_jacobi
+!                CASE ("CRAZY")
+!                   qs_control%localized_wfn_control%localization_method = do_loc_crazy
+!                CASE ("DIRECT")
+!                   qs_control%localized_wfn_control%localization_method = do_loc_direct
+!                CASE ("NONE")
+!                   qs_control%localized_wfn_control%localization_method = do_loc_none
+!                CASE DEFAULT
+!                   CALL stop_parser(routine,"unexpected data following LOCALIZED_WFN METHOD")
+!                END SELECT
+!              CASE ("MIN_OR_MAX")
+!                CALL read_object(string2,lower_to_upper=.TRUE.)
+!                SELECT CASE (string2)
+!                CASE ("SPREADMIN")
+!                   qs_control%localized_wfn_control%min_or_max = do_loc_min
+!                CASE ("SPREADMAX")
+!                   qs_control%localized_wfn_control%min_or_max = do_loc_max
+!                CASE DEFAULT
+!                   CALL stop_parser(routine,"unexpected data following LOCALIZED_WFN MIN_OR_MAX")
+!                END SELECT
+!              CASE ("OPERATOR")
+!                CALL read_object(string2,lower_to_upper=.TRUE.)
+!                SELECT CASE (string2)
+!                CASE("BERRY")
+!                   qs_control%localized_wfn_control%operator_type = op_loc_berry
+!                CASE("BOYS")
+!                   qs_control%localized_wfn_control%operator_type = op_loc_boys
+!                CASE("PIPEK")
+!                   qs_control%localized_wfn_control%operator_type = op_loc_pipek
+!                CASE DEFAULT
+!                   CALL stop_parser(routine,"unexpected data following LOCALIZED_WFN OPERATOR ")
+!                END SELECT 
+!              CASE ("SET_OF_STATES")
+!                CALL read_object(string2,lower_to_upper=.TRUE.)
+!                SELECT CASE (string2)
+!                CASE("ALL")
+!                   qs_control%localized_wfn_control%set_of_states = state_loc_all
+!                CASE("NONE")
+!                   qs_control%localized_wfn_control%set_of_states = state_loc_none
+!                CASE("UPTON")
+!                   qs_control%localized_wfn_control%set_of_states = state_loc_upton
+!                   CALL read_object(qs_control%localized_wfn_control%lu_bound_states(2,1), &
+!                                    lower_to_upper=.TRUE.)    
+!                   qs_control%localized_wfn_control%lu_bound_states(1,1) = 1
+!                   qs_control%localized_wfn_control%nloc_states(1) = &
+!                             qs_control%localized_wfn_control%lu_bound_states(2,1) 
+!                CASE("FROMITOJ")
+!                   qs_control%localized_wfn_control%set_of_states = state_loc_fromitoj
+!                   CALL read_object(qs_control%localized_wfn_control%lu_bound_states(1,1), &
+!                                    lower_to_upper=.TRUE.)
+!                   CALL read_object(qs_control%localized_wfn_control%lu_bound_states(2,1), &
+!                                    lower_to_upper=.TRUE.)
+!                   qs_control%localized_wfn_control%nloc_states(1) = &
+!                             qs_control%localized_wfn_control%lu_bound_states(2,1)-&
+!                             qs_control%localized_wfn_control%lu_bound_states(1,1)+1 
+!                CASE("LIST")
+!                   qs_control%localized_wfn_control%set_of_states = state_loc_list 
+!                   IF(.NOT.ASSOCIATED(qs_control%localized_wfn_control%loc_states)) THEN
+!                     ALLOCATE(qs_control%localized_wfn_control%loc_states(50),STAT=istat)
+!                     qs_control%localized_wfn_control%loc_states = 0
+!                     nloc_now = 0
+!                   ELSE
+!                     nloc_now = SIZE(qs_control%localized_wfn_control%loc_states,1)
+!                     CALL reallocate(qs_control%localized_wfn_control%loc_states,1,50+nloc_now)
+!                   ENDIF  
+!                   DO 
+!                     IF(test_object()=="EOL") THEN
+!                         EXIT
+!                     ELSE
+!                       nloc_now = nloc_now + 1
+!                       IF(nloc_now > SIZE(qs_control%localized_wfn_control%loc_states,1))THEN
+!                         CALL reallocate(qs_control%localized_wfn_control%loc_states,1,nloc_now)
+!                       END IF  
+!                       CALL read_object(qs_control%localized_wfn_control%loc_states(nloc_now))
+!                     END IF 
+!                   END DO 
+!                   CALL reallocate(qs_control%localized_wfn_control%loc_states,1,nloc_now)
+!                   qs_control%localized_wfn_control%nloc_states(1) = nloc_now
+!                CASE DEFAULT
+!                   CALL stop_parser(routine,"unexpected data following LOCALIZED_WFN ")
+!                END SELECT
+!              CASE ("EACH_STEP")
+!                CALL read_object(qs_control%localized_wfn_control%each_step,lower_to_upper=.TRUE.)
+!              END SELECT
+!            CASE ("EOL")
+!              ! do nothing
+!            CASE DEFAULT
+!             CALL stop_parser(routine,"unexpected data following LOCALIZED_WFN") 
+!            END SELECT
 
           CASE (qs_key_PW_GRID)
             CALL read_object(string,lower_to_upper=.TRUE.)
