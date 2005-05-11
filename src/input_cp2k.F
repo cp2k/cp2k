@@ -528,6 +528,7 @@ contains
     CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
     IF (.NOT. failure) THEN
 
+      NULLIFY(keyword)
       CALL section_create(section,name="LOCALIZE",&
            description="Use one of the available methods to define the localization "//&
            " and possibly to optimize it to a minimum or a maximum.",&
@@ -5888,6 +5889,10 @@ END SUBROUTINE create_ewald_section
        CALL section_add_subsection(section,subsection,error=error)
        CALL section_release(subsection,error=error)
 
+       CALL create_qmmm_forcefield_section(subsection,error)
+       CALL section_add_subsection(section,subsection,error=error)
+       CALL section_release(subsection,error=error)       
+
        CALL create_print_qmmm_section(subsection, error=error)
        CALL section_add_subsection(section,subsection,error=error)
        CALL section_release(subsection,error=error)
@@ -5896,6 +5901,59 @@ END SUBROUTINE create_ewald_section
 
   END SUBROUTINE create_qmmm_section
 
+!!****f* input_cp2k/create_qmmm_forcefield_section *
+!!
+!!   NAME
+!!     create_qmmm_forcefield_section
+!!
+!!   FUNCTION
+!!     creates the qm/mm forcefield section to override to the FF specification
+!!     given in the FIST input
+!!
+!!   NOTES
+!!     -
+!!
+!!   INPUTS
+!!     - error: variable to control error logging, stopping,... 
+!!       see module cp_error_handling 
+!!
+!!   AUTHOR
+!!     tlaino
+!!
+!!*** **********************************************************************
+  SUBROUTINE create_qmmm_forcefield_section(section,error)
+    TYPE(section_type), POINTER :: section
+    TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
+    
+    LOGICAL :: failure
+    CHARACTER(len=*), PARAMETER :: routineN='create_qmmm_forcefield_section',&
+         routineP=moduleN//':'//routineN
+    TYPE(keyword_type), POINTER :: keyword
+    TYPE(section_type), POINTER :: print_key, subsection
+    failure=.FALSE.
+    
+    NULLIFY(keyword, subsection, print_key)
+    CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
+    IF (.NOT. failure) THEN
+       CALL section_create(section,name="FORCEFIELD",&
+            description="Specify information on the QM/MM non-bonded forcefield",&
+            n_keywords=0, n_subsections=2, repeats=.true., required=.true.,&
+            error=error)    
+
+       CALL create_LJ_section(subsection, error=error)
+       CALL section_add_subsection(section, subsection, error=error)
+       CALL section_release(subsection,error=error)
+       
+       CALL create_Williams_section(subsection, error=error)
+       CALL section_add_subsection(section, subsection, error=error)
+       CALL section_release(subsection,error=error)
+
+       CALL create_Goodwin_section(subsection, error=error)
+       CALL section_add_subsection(section, subsection, error=error)
+       CALL section_release(subsection,error=error)
+
+    END IF
+  END SUBROUTINE create_qmmm_forcefield_section
 
 !!****f* input_cp2k/create_qmmm_link_section *
 !!

@@ -398,10 +398,11 @@ SUBROUTINE dft_control_create(dft_control, error)
      ALLOCATE (dft_control,STAT=stat)
      CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
   END IF
-  IF (.not.failure) THEN
+  IF (.NOT.failure) THEN
      dft_control%ref_count=1
      last_dft_control_id=last_dft_control_id+1
      dft_control%id_nr=last_dft_control_id
+     NULLIFY(dft_control%xas_control)
      CALL qs_control_init(dft_control%qs_control, error=error)
      CALL tddfpt_control_init(dft_control%tddfpt_control, error=error)
      CALL wave_control_init(dft_control%wave_control, error=error)
