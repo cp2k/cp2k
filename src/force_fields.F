@@ -104,7 +104,8 @@ MODULE force_fields
                                              eam_pot_type,       &
                                              reallocate_potparm, &
                                              pot_parameters_create, &
-                                             pot_parameters_release 
+                                             pot_parameters_release,&
+                                             clean_pot_parameter
   USE parser,                          ONLY: get_next,&
                                              p_error,&
                                              parser_end,&
@@ -3075,13 +3076,9 @@ SUBROUTINE force_field_pack (particle_set,atomic_kind_set,&
       END IF
 
       IF (only_qm) THEN
-        potparm_bond(i,j)%type       = 'LENNARD-JONES'
-        potparm_bond(i,j)%at1        = ''
-        potparm_bond(i,j)%at2        = ''
-        potparm_bond(i,j)%lj%epsilon = 0.0_dp
-        potparm_bond(i,j)%lj%sigma6  = 0.0_dp
-        potparm_bond(i,j)%lj%sigma12 = 0.0_dp
-        potparm_bond(i,j)%rcutsq     = default_rcutsq
+         CALL clean_pot_parameter( potparm_bond(i,j) )
+         potparm_bond(i,j)%type       = 'LENNARD-JONES'
+         potparm_bond(i,j)%rcutsq     = default_rcutsq
       END IF
 
     END DO
@@ -3379,12 +3376,8 @@ SUBROUTINE force_field_pack (particle_set,atomic_kind_set,&
       END IF
 
       IF (only_qm) THEN
-         potparm_nonbond(i,j)%type       = 'LENNARD-JONES'
-         potparm_nonbond(i,j)%at1        = ''
-         potparm_nonbond(i,j)%at2        = ''
-         potparm_nonbond(i,j)%lj%epsilon = 0.0_dp
-         potparm_nonbond(i,j)%lj%sigma6  = 0.0_dp
-         potparm_nonbond(i,j)%lj%sigma12 = 0.0_dp
+         CALL clean_pot_parameter( potparm_nonbond(i,j) )
+         potparm_nonbond(i,j)%type       = 'LENNARD-JONES'         
          potparm_nonbond(i,j)%rcutsq     = default_rcutsq
       END IF
     END DO

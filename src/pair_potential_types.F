@@ -46,7 +46,7 @@ MODULE pair_potential_types
   PUBLIC :: pair_potential_type, pot_parameters_release
   PUBLIC :: pot_parameters_create
   PUBLIC :: lj_pot_type, williams_pot_type, goodwin_pot_type, ipbv_pot_type
-  PUBLIC :: eam_pot_type
+  PUBLIC :: eam_pot_type, clean_pot_parameter
 
   PUBLIC :: reallocate_potparm
 
@@ -226,6 +226,81 @@ SUBROUTINE pot_parameters_create ( potparm, nkinds, error )
     END DO
   END IF
 END SUBROUTINE pot_parameters_create
+
+!******************************************************************************
+!!****
+!!****s* pair_potential_types/clean_pot_parameter [1.0] *
+!!
+!!   NAME
+!!     clean_pot_parameter
+!!
+!!   FUNCTION
+!!     Cleans the potential parameter type
+!!
+!!   AUTHOR
+!!     unknown
+!!
+!!   MODIFICATION HISTORY
+!!
+!!   SOURCE
+!******************************************************************************
+SUBROUTINE clean_pot_parameter(potparm)
+  IMPLICIT NONE
+  TYPE(pair_potential_type) :: potparm
+  INTEGER :: i
+
+  potparm % TYPE = 'NULL'
+  potparm % rcutsq = 0._dp
+  potparm % energy_cutoff = 0._dp
+  potparm % e_cutoff_coul = 0._dp
+  potparm % ipbv % a ( 2 ) = 0.0_dp
+  potparm % ipbv % a ( 3 ) = 0.0_dp
+  potparm % ipbv % a ( 4 ) = 0.0_dp
+  potparm % ipbv % a ( 5 ) = 0.0_dp
+  potparm % ipbv % a ( 6 ) = 0.0_dp
+  potparm % ipbv % a ( 7 ) = 0.0_dp
+  potparm % ipbv % a ( 8 ) = 0.0_dp
+  potparm % ipbv % a ( 9 ) = 0.0_dp
+  potparm % ipbv % a ( 10 ) = 0.0_dp
+  potparm % ipbv % a ( 11 ) = 0.0_dp
+  potparm % ipbv % a ( 12 ) = 0.0_dp
+  potparm % ipbv % a ( 13 ) = 0.0_dp
+  potparm % ipbv % a ( 14 ) = 0.0_dp
+  potparm % ipbv % a ( 15 ) = 0.0_dp
+  potparm % ipbv % rcore = 0.0_dp
+  potparm % ipbv % b = 0.0_dp
+  potparm % ipbv % m = 0.0_dp
+  potparm % lj % epsilon = 0.0_dp
+  potparm % lj % sigma6 = 0.0_dp
+  potparm % lj % sigma12 = 0.0_dp
+  potparm % willis % a = 0.0_dp
+  potparm % willis % b = 0.0_dp
+  potparm % willis % c = 0.0_dp
+  potparm % goodwin % vr0 = 0.0_dp
+  potparm % goodwin % d = 0.0_dp
+  potparm % goodwin % dc = 0.0_dp
+  potparm % goodwin % m = 0.0_dp
+  potparm % goodwin % mc = 0.0_dp
+  potparm % eam % eam_file_name = 'NULL'
+  IF (ASSOCIATED( potparm % pair_spline_data ))&
+       CALL spline_data_release ( potparm % pair_spline_data )
+  IF (ASSOCIATED( potparm % rho_spline_data )) &
+       CALL spline_data_release ( potparm % rho_spline_data )
+  potparm % eam % drar = 0._dp
+  potparm % eam % drhoar = 0._dp
+  potparm % eam % acutal = 0._dp
+  DO i = 1, 5000
+     potparm % eam % rho ( i ) = 0._dp
+     potparm % eam % phi ( i ) = 0._dp
+     potparm % eam % frho ( i ) = 0._dp
+     potparm % eam % rhoval ( i ) = 0._dp
+     potparm % eam % rval ( i ) = 0._dp
+     potparm % eam % rhop ( i ) = 0._dp
+     potparm % eam % phip ( i ) = 0._dp
+     potparm % eam % frhop ( i ) = 0._dp
+  END DO
+
+END SUBROUTINE clean_pot_parameter
 
 !******************************************************************************
   SUBROUTINE reallocate_potparm(p,lb1_new,ub1_new)
