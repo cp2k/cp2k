@@ -278,7 +278,7 @@ contains
        CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
        CALL cp_para_env_release(default_para_env,error)
        ierr=cp_error_get_level(error)
-       !FM CALL cp_rm_default_logger()
+       CALL cp_rm_default_logger()
        CALL rm_timer_env()
        CALL rm_mp_perf_env()
        IF (finalize_mpi) THEN
