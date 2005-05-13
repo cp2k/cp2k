@@ -341,7 +341,6 @@ CONTAINS
           END IF
           IF (ASSOCIATED(qmmm_env%inp_info)) THEN
              CALL deallocate_inp_info(qmmm_env%inp_info)
-             CPPostconditionNoFail(stat==0,cp_failure_level,routineP,error)
              DEALLOCATE(qmmm_env%inp_info,stat=stat)
              CPPostconditionNoFail(stat==0,cp_failure_level,routineP,error)
           END IF
