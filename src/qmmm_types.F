@@ -48,6 +48,9 @@ MODULE qmmm_types
                                              allocate_particle_set
   USE pw_pool_types, ONLY: pw_pool_p_type, pw_pool_type, pw_pools_dealloc
   USE input_constants, ONLY: do_qmmm_grid, do_qmmm_gauss, do_qmmm_none
+  USE force_field_types, ONLY: input_info_type,&
+                               init_inp_info,&
+                               deallocate_inp_info
   IMPLICIT NONE
   PRIVATE
 
@@ -175,12 +178,14 @@ MODULE qmmm_types
   TYPE qmmm_env_mm_type
      INTEGER :: ref_count, id_nr
      LOGICAL                                                 :: qmmm_link
+     LOGICAL                                                 :: use_qmmm_ff
      INTEGER                                                 :: qmmm_coupl_type
      INTEGER,        DIMENSION(:), POINTER                   :: qm_atom_index
      INTEGER,        DIMENSION(:), POINTER                   :: mm_link_atoms
      REAL(KIND=dp),  DIMENSION(:), POINTER                   :: mm_link_scale_factor
      REAL(KIND=dp),  DIMENSION(:), POINTER                   :: fist_scale_charge_link
      INTEGER,        DIMENSION(:), POINTER                   :: qm_molecule_index
+     TYPE(input_info_type),POINTER                           :: inp_info
   END TYPE qmmm_env_mm_type
 
 !!***
@@ -229,9 +234,14 @@ CONTAINS
                qmmm_env%qm_molecule_index,&
                qmmm_env%mm_link_atoms,&
                qmmm_env%mm_link_scale_factor,&
-               qmmm_env%fist_scale_charge_link)
+               qmmm_env%fist_scale_charge_link,&
+               qmmm_env%inp_info)
        qmmm_env%qmmm_coupl_type=do_qmmm_none
        qmmm_env%qmmm_link = .FALSE.
+       qmmm_env%use_qmmm_ff = .FALSE.
+       ALLOCATE(qmmm_env%inp_info, stat=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       CALL init_inp_info(qmmm_env%inp_info)
     END IF
   END SUBROUTINE qmmm_env_mm_create
   
@@ -329,6 +339,13 @@ CONTAINS
              DEALLOCATE(qmmm_env%fist_scale_charge_link,stat=stat)
              CPPostconditionNoFail(stat==0,cp_failure_level,routineP,error)
           END IF
+          IF (ASSOCIATED(qmmm_env%inp_info)) THEN
+             CALL deallocate_inp_info(qmmm_env%inp_info)
+             CPPostconditionNoFail(stat==0,cp_failure_level,routineP,error)
+             DEALLOCATE(qmmm_env%inp_info,stat=stat)
+             CPPostconditionNoFail(stat==0,cp_failure_level,routineP,error)
+          END IF
+
           DEALLOCATE(qmmm_env,stat=stat)
           CPPostconditionNoFail(stat==0,cp_failure_level,routineP,error)
        END IF

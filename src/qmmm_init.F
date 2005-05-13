@@ -56,7 +56,10 @@ MODULE qmmm_init
   USE force_env_types,                 ONLY: force_env_get,&
                                              force_env_p_type,&
                                              force_env_type
-  USE force_fields,                    ONLY: force_field_control
+  USE force_fields,                    ONLY: force_field_control,&
+                                             read_lj_section,&
+                                             read_wl_section,&
+                                             read_gd_section
   USE global_types,                    ONLY: global_environment_type
   USE kinds,                           ONLY: default_string_length,&
                                              dp
@@ -127,7 +130,9 @@ MODULE qmmm_init
   USE green_types,                     ONLY: greens_function_type,&
                                              pw_green_release
   USE green_methods,                   ONLY: pw_green_setup  
-  
+  USE force_field_types,               ONLY: input_info_type
+  USE pair_potential_types,            ONLY: reallocate_potparm
+
   IMPLICIT NONE
   PRIVATE
 
@@ -1218,7 +1223,9 @@ CONTAINS
          routineP = moduleN//':'//routineN
     LOGICAL                                  :: failure
     LOGICAL :: explicit
+    TYPE(section_vals_type), POINTER         :: qmmm_ff_section
     
+    NULLIFY(qmmm_ff_section)
     qmmm_link = .FALSE.
     CALL section_vals_get(qmmm_section,explicit=explicit,error=error)
     IF (explicit) THEN
@@ -1226,9 +1233,85 @@ CONTAINS
        CALL setup_qm_atom_list(qmmm_section,qm_atom_index=qm_atom_index,qmmm_link=qmmm_link,&
             mm_link_atoms=mm_link_atoms, mm_link_scale_factor = mm_link_scale_factor,&
             fist_scale_charge_link=fist_scale_charge_link, error=error)
+       !
+       ! Do we want to use a different FF for the non-bonded QM/MM interactions?
+       !
+       qmmm_ff_section => section_vals_get_subs_vals(qmmm_section,"FORCEFIELD",error=error)
+       CALL section_vals_get(qmmm_ff_section,explicit=explicit,error=error)
+       IF (explicit) THEN
+          CALL read_qmmm_ff_section(qmmm_ff_section, qmmm_env%inp_info, error=error)
+          qmmm_env%use_qmmm_ff = .TRUE.
+       END IF
     END IF
   END SUBROUTINE setup_qmmm_vars_mm
      
+  !!****f* qmmm_init/read_qmmm_ff_section [1.0] *
+  !!
+  !!   NAME
+  !!     read_qmmm_ff_section
+  !!
+  !!   FUNCTION
+  !!     reads information regarding the forcefield specific for the QM/MM
+  !!     interactions
+  !!
+  !!   NOTES
+  !!
+  !!
+  !!   INPUTS
+  !!     - error: variable to control error logging, stopping,... 
+  !!       see module cp_error_handling 
+  !!
+  !!   AUTHOR
+  !!     Teodoro Laino
+  !!
+  !!   MODIFICATION HISTORY
+  !!     12.2004 created [tlaino]
+  !!
+  !!*************************************************************************
+  SUBROUTINE read_qmmm_ff_section(qmmm_ff_section, inp_info, error)
+    IMPLICIT NONE
+    ! Arguments
+    TYPE(section_vals_type), POINTER                        :: qmmm_ff_section
+    TYPE(input_info_type),POINTER                           :: inp_info
+    TYPE(cp_error_type), INTENT(inout), &
+         OPTIONAL                               :: error    
+    ! Local Variables
+    INTEGER :: n_lj, n_wl, n_gd, np
+    TYPE(section_vals_type), POINTER                        :: lj_section,&
+                                                               wl_section,&
+                                                               gd_section
+
+    !
+    ! NONBONDED
+    !
+    lj_section => section_vals_get_subs_vals(qmmm_ff_section,"NONBONDED%LENNARD-JONES",error=error)
+    wl_section => section_vals_get_subs_vals(qmmm_ff_section,"NONBONDED%WILLIAMS",error=error)
+    gd_section => section_vals_get_subs_vals(qmmm_ff_section,"NONBONDED%GOODWIN",error=error)
+    CALL section_vals_get(lj_section,n_repetition=n_lj,error=error)
+    CALL section_vals_get(wl_section,n_repetition=n_wl,error=error)
+    CALL section_vals_get(gd_section,n_repetition=n_gd,error=error)
+    np = n_lj + n_wl + n_gd
+    CALL reallocate_potparm(inp_info%nonbonded,1,np)
+    IF (n_lj /= 0) CALL read_lj_section(inp_info%nonbonded,lj_section, start=0,      error=error)
+    IF (n_wl /= 0) CALL read_wl_section(inp_info%nonbonded,wl_section, start=n_lj, error=error)
+    IF (n_gd /= 0) CALL read_gd_section(inp_info%nonbonded,gd_section, start=n_lj+n_wl, error=error)
+    !
+    ! NONBONDED14
+    !
+    lj_section => section_vals_get_subs_vals(qmmm_ff_section,"NONBONDED14%LENNARD-JONES",error=error)
+    wl_section => section_vals_get_subs_vals(qmmm_ff_section,"NONBONDED14%WILLIAMS",error=error)
+    gd_section => section_vals_get_subs_vals(qmmm_ff_section,"NONBONDED14%GOODWIN",error=error)
+    CALL section_vals_get(lj_section,n_repetition=n_lj,error=error)
+    CALL section_vals_get(wl_section,n_repetition=n_wl,error=error)
+    CALL section_vals_get(gd_section,n_repetition=n_gd,error=error)
+    np = n_lj + n_wl + n_gd
+    CALL reallocate_potparm(inp_info%nonbonded14,1,np)
+    IF (n_lj /= 0) CALL read_lj_section(inp_info%nonbonded14,lj_section, start=0,      error=error)
+    IF (n_wl /= 0) CALL read_wl_section(inp_info%nonbonded14,wl_section, start=n_lj, error=error)
+    IF (n_gd /= 0) CALL read_gd_section(inp_info%nonbonded14,gd_section, start=n_lj+n_wl, error=error)
+
+  END SUBROUTINE read_qmmm_ff_section
+
   !!****f* qmmm_init/setup_qm_atom_list [1.0] *
   !!
   !!   NAME

@@ -5944,6 +5944,10 @@ END SUBROUTINE create_ewald_section
        CALL section_add_subsection(section, subsection, error=error)
        CALL section_release(subsection,error=error)
 
+       CALL create_NONBONDED14_section(subsection,error)
+       CALL section_add_subsection(section, subsection, error=error)
+       CALL section_release(subsection,error=error)
+
     END IF
   END SUBROUTINE create_qmmm_forcefield_section
 

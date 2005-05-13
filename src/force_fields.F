@@ -134,6 +134,10 @@ MODULE force_fields
   USE qmmm_types,                      ONLY: qmmm_env_mm_type
   USE input_constants,                 ONLY: do_qmmm_none
   USE physcon,                         ONLY: bohr
+  USE input_section_types, ONLY: section_type, section_create, &
+       section_add_keyword, section_add_subsection, section_release,&
+       section_vals_type,&
+       section_vals_get_subs_vals, section_vals_get, section_vals_val_get
 
   IMPLICIT NONE
 
@@ -143,7 +147,10 @@ MODULE force_fields
   PUBLIC :: force_field_control,&
             read_force_field_section,&
             read_force_field_charmm,&
-            read_force_field_amber
+            read_force_field_amber,&
+            read_lj_section,&
+            read_wl_section,&
+            read_gd_section
 
 !!*****
 !******************************************************************************
@@ -837,6 +844,9 @@ SUBROUTINE input_nonbonded(ff_type,globenv)
                  CALL get_next ( m )
                  CALL get_next ( mc )
                  CALL get_next ( rcut )
+                 CALL convert_to_cp2k_units ( "KELVIN", energy = vr0 )
+                 CALL convert_to_cp2k_units ( "ANGSTROM", length = d, l_power = 1  )
+                 CALL convert_to_cp2k_units ( "ANGSTROM", length = dc, l_power = 1  )
                  inp_info%nonbonded(np) %type = string2
                  inp_info%nonbonded(np) %at1 = at1
                  inp_info%nonbonded(np) %at2 = at2
@@ -858,6 +868,115 @@ SUBROUTINE input_nonbonded(ff_type,globenv)
   END IF
 
 END SUBROUTINE input_nonbonded
+
+SUBROUTINE read_lj_section(nonbonded, section, start, error)
+  IMPLICIT NONE
+  ! Arguments
+  TYPE(section_vals_type), POINTER                  :: section
+  TYPE (pair_potential_type), POINTER, DIMENSION(:) :: nonbonded
+  INTEGER, INTENT(IN) :: start
+  TYPE(cp_error_type), INTENT(inout), &
+       OPTIONAL                               :: error    
+  ! Local Variables
+  INTEGER :: n_items, isec
+  CHARACTER(LEN=default_string_length), POINTER, DIMENSION(:) :: atm_names
+  REAL(KIND=dp) :: epsilon, sigma, rcut
+
+  CALL section_vals_get(section,n_repetition=n_items,error=error)
+  DO isec = 1, n_items
+     CALL section_vals_val_get(section,"ATOM",i_rep_section=isec,c_vals=atm_names,error=error)
+     CALL section_vals_val_get(section,"EPSILON",i_rep_section=isec,r_val=epsilon,error=error)
+     CALL section_vals_val_get(section,"SIGMA",i_rep_section=isec,r_val=sigma,error=error)
+     CALL section_vals_val_get(section,"RCUT",i_rep_section=isec,r_val=rcut,error=error)
+
+     CALL convert_to_cp2k_units ( "KELVIN", energy = epsilon )
+     CALL convert_to_cp2k_units ( "ANGSTROM", length = sigma )
+     CALL convert_to_cp2k_units ( "ANGSTROM", length = rcut )
+     nonbonded(start+isec) %type = "LENNARD-JONES"
+     nonbonded(start+isec) %at1 = atm_names(1)
+     nonbonded(start+isec) %at2 = atm_names(2)
+     nonbonded(start+isec) %lj%epsilon = epsilon
+     nonbonded(start+isec) %lj%sigma6  = sigma**6
+     nonbonded(start+isec) %lj%sigma12 = sigma**12
+     nonbonded(start+isec) %rcutsq = rcut*rcut
+  END DO
+END SUBROUTINE read_lj_section
+
+SUBROUTINE read_wl_section(nonbonded, section, start, error)
+  IMPLICIT NONE
+  ! Arguments
+  TYPE(section_vals_type), POINTER                  :: section
+  TYPE (pair_potential_type), POINTER, DIMENSION(:) :: nonbonded
+  INTEGER, INTENT(IN) :: start
+  TYPE(cp_error_type), INTENT(inout), &
+       OPTIONAL                               :: error    
+  ! Local Variables
+  INTEGER :: n_items, isec
+  CHARACTER(LEN=default_string_length), POINTER, DIMENSION(:) :: atm_names
+  REAL(KIND=dp) :: a,b,c, rcut
+
+  CALL section_vals_get(section,n_repetition=n_items,error=error)
+  DO isec = 1, n_items
+     CALL section_vals_val_get(section,"ATOM",i_rep_section=isec,c_vals=atm_names,error=error)
+     CALL section_vals_val_get(section,"A",i_rep_section=isec,r_val=a,error=error)
+     CALL section_vals_val_get(section,"B",i_rep_section=isec,r_val=b,error=error)
+     CALL section_vals_val_get(section,"C",i_rep_section=isec,r_val=c,error=error)
+     CALL section_vals_val_get(section,"RCUT",i_rep_section=isec,r_val=rcut,error=error)
+
+     CALL convert_to_cp2k_units ( "KELVIN", energy = a )
+     CALL convert_to_cp2k_units ( "ANGSTROM", length = b, l_power = -1  )
+     CALL convert_to_cp2k_units ( "ANGSTROM", length = c, l_power = 6  )
+     CALL convert_to_cp2k_units ( "KELVIN", energy = c )
+     CALL convert_to_cp2k_units ( "ANGSTROM", length = rcut )
+     nonbonded(start+isec) %type = "WILLIAMS"
+     nonbonded(start+isec) %at1 = atm_names(1)
+     nonbonded(start+isec) %at2 = atm_names(2)
+     nonbonded(start+isec) %willis%a = a
+     nonbonded(start+isec) %willis%b = b
+     nonbonded(start+isec) %willis%c = c
+     nonbonded(start+isec) %rcutsq = rcut*rcut
+  END DO
+END SUBROUTINE read_wl_section
+
+SUBROUTINE read_gd_section(nonbonded, section, start, error)
+  IMPLICIT NONE
+  ! Arguments
+  TYPE(section_vals_type), POINTER                  :: section
+  TYPE (pair_potential_type), POINTER, DIMENSION(:) :: nonbonded
+  INTEGER, INTENT(IN) :: start
+  TYPE(cp_error_type), INTENT(inout), &
+       OPTIONAL                               :: error    
+  ! Local Variables
+  INTEGER :: n_items, isec
+  CHARACTER(LEN=default_string_length), POINTER, DIMENSION(:) :: atm_names
+  REAL(KIND=dp) :: vr0, d, dc, rcut
+  INTEGER       :: m, mc
+
+  CALL section_vals_get(section,n_repetition=n_items,error=error)
+  DO isec = 1, n_items
+     CALL section_vals_val_get(section,"ATOM",i_rep_section=isec,c_vals=atm_names,error=error)
+     CALL section_vals_val_get(section,"VR0",i_rep_section=isec,r_val=vr0,error=error)
+     CALL section_vals_val_get(section,"D",i_rep_section=isec,r_val=d,error=error)
+     CALL section_vals_val_get(section,"DC",i_rep_section=isec,r_val=dc,error=error)
+     CALL section_vals_val_get(section,"M",i_rep_section=isec,i_val=m,error=error)
+     CALL section_vals_val_get(section,"MC",i_rep_section=isec,i_val=mc,error=error)
+     CALL section_vals_val_get(section,"RCUT",i_rep_section=isec,r_val=rcut,error=error)
+
+     CALL convert_to_cp2k_units ( "KELVIN", energy = vr0 )
+     CALL convert_to_cp2k_units ( "ANGSTROM", length = d, l_power = 1  )
+     CALL convert_to_cp2k_units ( "ANGSTROM", length = dc, l_power = 1  )
+     CALL convert_to_cp2k_units ( "ANGSTROM", length = rcut )
+     nonbonded(start+isec) %type = "GOODWIN"
+     nonbonded(start+isec) %at1 = atm_names(1)
+     nonbonded(start+isec) %at2 = atm_names(2)
+     nonbonded(start+isec) %goodwin%vr0 = vr0
+     nonbonded(start+isec) %goodwin%d = d
+     nonbonded(start+isec) %goodwin%dc = dc
+     nonbonded(start+isec) %goodwin%m = m
+     nonbonded(start+isec) %goodwin%mc = mc
+     nonbonded(start+isec) %rcutsq = rcut*rcut
+  END DO  
+END SUBROUTINE read_gd_section
 
 !!*****
 !******************************************************************************
@@ -1812,7 +1931,7 @@ SUBROUTINE force_field_pack (particle_set,atomic_kind_set,&
   REAL(KIND=dp)                                :: rmin2_a,rmin2_b
   REAL(KIND=dp)                                :: epsilon_a,epsilon_b,scale_factor
   INTEGER                                  :: ii, jj, imul, ilink
-  LOGICAL :: only_qm, my_qmmm, is_link_atom, failure
+  LOGICAL :: only_qm, my_qmmm, is_link_atom, failure,use_qmmm_ff
   INTEGER, DIMENSION(:), POINTER :: my_atom_list
 
   CHARACTER(LEN=default_string_length)     :: atmname
@@ -1820,7 +1939,7 @@ SUBROUTINE force_field_pack (particle_set,atomic_kind_set,&
   TYPE(elp_potential_type), POINTER        :: elp_potential
 
   INTEGER, DIMENSION(:), POINTER           :: molecule_list
-  INTEGER                                  :: first,last
+  INTEGER                                  :: first,last,match_names
   TYPE(molecule_type), POINTER        :: molecule
   TYPE ( spline_data_type ), POINTER :: spline_data
 
@@ -1839,6 +1958,7 @@ SUBROUTINE force_field_pack (particle_set,atomic_kind_set,&
   PM4 = .FALSE.
   only_qm = .FALSE.
   my_qmmm = .FALSE.
+  use_qmmm_ff = qmmm_env%use_qmmm_ff
   failure = .FALSE.
   default_rcutsq = (10.0_dp*bohr)*(10.0_dp*bohr)
   IF (PRESENT(qmmm).AND.PRESENT(qmmm_env)) my_qmmm = qmmm
@@ -3060,6 +3180,34 @@ SUBROUTINE force_field_pack (particle_set,atomic_kind_set,&
         END DO
       END IF
 
+      ! at the very end we offer the possibility to overwrite the parameters for QM/MM
+      ! nonbonded interactions
+      IF (use_qmmm_ff) THEN
+         match_names = 0
+         IF (TRIM(name_atm_a) == TRIM(name_atm_a_local)) match_names = match_names + 1
+         IF (TRIM(name_atm_b) == TRIM(name_atm_b_local)) match_names = match_names + 1
+         IF (match_names == 1) THEN
+            DO k=1,SIZE(qmmm_env%inp_info%nonbonded14)
+               IF(PM2) WRITE(iw,*) "    TESTING ",TRIM(name_atm_a),TRIM(name_atm_b),&
+                    " with ",TRIM(qmmm_env%inp_info%nonbonded14(k)%at1),&
+                    TRIM(qmmm_env%inp_info%nonbonded14(k)%at2)
+               IF(( (TRIM(name_atm_a) ==TRIM(qmmm_env%inp_info%nonbonded14(k)%at1))  .AND. &
+                    (TRIM(name_atm_b) ==TRIM(qmmm_env%inp_info%nonbonded14(k)%at2))) .OR.  &
+                    ((TRIM(name_atm_b)==TRIM(qmmm_env%inp_info%nonbonded14(k)%at1))  .AND. &
+                    (TRIM(name_atm_a) ==TRIM(qmmm_env%inp_info%nonbonded14(k)%at2))) ) THEN
+                  potparm_bond(i,j) = qmmm_env%inp_info%nonbonded14(k)
+                  IF(found .AND. PM1) &
+                       WRITE(iw,*) "    Multiple LJ-POT declarations: overwriting with"//& 
+                       " QM/MM forcefield specifications"
+                  IF(PM2) WRITE(iw,*) "    FOUND ",TRIM(name_atm_a),&
+                       " ",TRIM(name_atm_b)
+                  found = .TRUE.
+                  EXIT
+               END IF
+            END DO            
+         END IF
+      END IF
+
       IF(.NOT.found) THEN
         IF(PM2) WRITE(iw,*) "    spline_bond_env ",j," : ",&
                             TRIM(name_atm_a)," ",&
@@ -3366,6 +3514,34 @@ SUBROUTINE force_field_pack (particle_set,atomic_kind_set,&
             EXIT
           END IF
         END DO
+      END IF
+
+      ! at the very end we offer the possibility to overwrite the parameters for QM/MM
+      ! nonbonded interactions
+      IF (use_qmmm_ff) THEN
+         match_names = 0
+         IF (TRIM(name_atm_a) == TRIM(name_atm_a_local)) match_names = match_names + 1
+         IF (TRIM(name_atm_b) == TRIM(name_atm_b_local)) match_names = match_names + 1
+         IF (match_names == 1) THEN
+            DO k=1,SIZE(qmmm_env%inp_info%nonbonded)
+               IF(PM2) WRITE(iw,*) "    TESTING ",TRIM(name_atm_a),TRIM(name_atm_b),&
+                    " with ",TRIM(qmmm_env%inp_info%nonbonded(k)%at1),&
+                    TRIM(qmmm_env%inp_info%nonbonded(k)%at2)
+               IF(( (TRIM(name_atm_a) ==TRIM(qmmm_env%inp_info%nonbonded(k)%at1))  .AND. &
+                    (TRIM(name_atm_b) ==TRIM(qmmm_env%inp_info%nonbonded(k)%at2))) .OR.  &
+                    ((TRIM(name_atm_b)==TRIM(qmmm_env%inp_info%nonbonded(k)%at1))  .AND. &
+                    (TRIM(name_atm_a) ==TRIM(qmmm_env%inp_info%nonbonded(k)%at2))) ) THEN
+                  potparm_nonbond(i,j) = qmmm_env%inp_info%nonbonded(k)
+                  IF(found .AND. PM1) &
+                       WRITE(iw,*) "    Multiple LJ-POT declarations: overwriting with"//& 
+                       " QM/MM forcefield specifications"
+                  IF(PM2) WRITE(iw,*) "    FOUND ",TRIM(name_atm_a),&
+                       " ",TRIM(name_atm_b)
+                  found = .TRUE.
+                  EXIT
+               END IF
+            END DO            
+         END IF
       END IF
 
       IF(.NOT.found) THEN
