@@ -86,8 +86,6 @@ MODULE qs_loc_methods
                                              particle_type
   USE qs_environment_types,            ONLY: get_qs_env,&
                                              qs_environment_type
-  USE qs_loc_types,                    ONLY: get_qs_loc_env,&
-                                             qs_loc_env_new_type
   USE qs_localization_methods,         ONLY: crazy_rotations,&
                                              direct_mini,&
                                              jacobi_rotations
