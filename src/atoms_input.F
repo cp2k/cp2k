@@ -562,7 +562,7 @@ SUBROUTINE read_md_restart ( rtype, globenv, particle_set, cell, cell_ref,  &
   CALL reallocate ( mnhc_p, 1, size_pnhc1*size_pnhc2 )
   CALL mp_bcast ( mnhc_p, globenv % source, globenv % group )
 
-  DO i = 1, size_pnhc2
+  DO i = 1, nhc_part % num_nhc
      icount = nhc_part % index(i)
      icount = (icount-1) * nhc_part % nhc_len
      DO j = 1, size_pnhc1
@@ -605,7 +605,7 @@ SUBROUTINE read_md_restart ( rtype, globenv, particle_set, cell, cell_ref,  &
   CALL reallocate ( mnhc_b, 1, size_bnhc1*size_bnhc2 )
   CALL mp_bcast ( mnhc_b, globenv % source, globenv % group )
 
-  DO i = 1, size_bnhc2
+  DO i = 1, nhc_baro % num_nhc
      icount = nhc_part % index(i)
      icount = (icount-1) * nhc_part % nhc_len
      DO j = 1, size_bnhc1
