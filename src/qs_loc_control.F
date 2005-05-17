@@ -100,6 +100,7 @@ MODULE qs_loc_control
 !!***
   TYPE localized_wfn_control_type
     INTEGER                         :: ref_count
+    INTEGER                         :: iter_count
     INTEGER                         :: each_step
     INTEGER                         :: min_or_max
     INTEGER                         :: localization_method
@@ -169,6 +170,7 @@ CONTAINS
    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
 
    localized_wfn_control%ref_count= 1
+   localized_wfn_control%iter_count= 0
    localized_wfn_control%each_step= 1
    localized_wfn_control%min_or_max= do_loc_min
    localized_wfn_control%localization_method =do_loc_jacobi
@@ -486,7 +488,7 @@ CONTAINS
 
     failure = .FALSE.
 
-    IF(localized_wfn_control%loc_rootfname=="") THEN
+    IF(localized_wfn_control%loc_rootfname==" ") THEN
       CALL xstring ( globenv % project_name, ia, ie )
       DO ispin = 1,nspins
          localized_wfn_control%spreads_file_name(ispin) = globenv%project_name(ia:ie)//&
@@ -504,7 +506,7 @@ CONTAINS
                  '_centers_s'//TRIM(ADJUSTL(cp_to_string(ispin)))
     END IF
     DO ispin = 1,nspins
-      ALLOCATE(localized_wfn_control%centers_set(ispin)%array(nmoloc(ispin),6), STAT = istat)
+      ALLOCATE(localized_wfn_control%centers_set(ispin)%array(6,nmoloc(ispin)), STAT = istat)
       CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
       localized_wfn_control%spreads_file_name(ispin) = globenv%project_name(ia:ie)//&
                  '_spreads_s'//TRIM(ADJUSTL(cp_to_string(ispin)))

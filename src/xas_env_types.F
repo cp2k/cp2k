@@ -1,0 +1,329 @@
+!-----------------------------------------------------------------------------!
+!   CP2K: A general program to perform molecular dynamics simulations         !
+!   Copyright (C) 2000 - 2005  CP2K developers group                          !
+!-----------------------------------------------------------------------------!
+#include "cp_prep_globals.h"
+!!****s* cp2k/xas_env_types [1.0] *
+!!
+!!   NAME
+!!     xas_env_types
+!!
+!!   FUNCTION
+!!     define create destroy get and put information 
+!!     in xas_env to calculate the x-ray absorption spectra
+!!
+!!   AUTHOR
+!!     MI (05.2005)
+!!
+!!   MODIFICATION HISTORY
+!!     created 05.2005
+!!
+!!   SOURCE
+!******************************************************************************
+
+MODULE xas_env_types
+
+  USE cp_error_handling,               ONLY: cp_a_l,&
+                                             cp_assert,&
+                                             cp_error_get_logger,&
+                                             cp_error_message,&
+                                             cp_error_type
+  USE cp_fm_types,                     ONLY: cp_fm_create,&
+                                             cp_fm_p_type,&
+                                             cp_fm_release,&
+                                             cp_fm_type
+
+  USE cp_log_handling,                 ONLY: cp_failure_level,&
+                                             cp_fatal_level,&
+                                             cp_note_level,&
+                                             cp_to_string,&
+                                             cp_warning_level
+  USE kinds,                           ONLY: dp
+  USE qs_loc_types,                    ONLY: qs_loc_env_release,&
+                                             qs_loc_env_retain,&
+                                             qs_loc_env_new_type
+  USE sparse_matrix_types,             ONLY: deallocate_matrix,&
+                                             real_matrix_p_type
+
+  IMPLICIT NONE
+  PRIVATE
+
+  CHARACTER(len=*), PRIVATE, PARAMETER :: module_name='xas_env_types'
+
+! *** Public data types ***
+
+  PUBLIC :: xas_environment_type
+
+! *** Public subroutines ***
+
+  PUBLIC :: get_xas_env, set_xas_env, xas_env_create, xas_env_release, xas_env_retain 
+
+
+!!***
+!****************************************************************************
+
+!!****t* xas_env_types/xas_environment_type
+!!
+!!   NAME
+!!     xas_environment_type
+!!   
+!!   FUNCTION
+!!
+!!   ATTRIBUTES
+!!
+!!   AUTHOR
+!!     MI
+!! 
+!!   MODIFICATION HISTORY
+!!      created 05-2005
+!!
+ !***************************************************************************
+
+  TYPE xas_environment_type
+    INTEGER :: ref_count
+    INTEGER :: iter_count
+    INTEGER :: nao,exc_state
+    INTEGER :: nvirtual
+    INTEGER, DIMENSION(:), POINTER :: state_of_atom
+    INTEGER, DIMENSION(:), POINTER :: atom_of_state
+    REAL(dp), DIMENSION(:,:), POINTER :: spectrum
+    REAL(dp), DIMENSION(:,:), POINTER :: centers_wfn
+    TYPE( cp_fm_p_type ), DIMENSION(:),  POINTER :: groundstate_coeff
+    TYPE( cp_fm_type ), POINTER :: excvec_coeff
+    TYPE( cp_fm_type ), POINTER :: excvec_overlap
+    TYPE( cp_fm_type ), POINTER :: fm_work
+    TYPE( real_matrix_p_type ), DIMENSION(:), POINTER :: ostrength_sm
+    TYPE( qs_loc_env_new_type ), POINTER :: qs_loc_env
+
+  END TYPE xas_environment_type
+
+ !****************************************************************************
+
+CONTAINS
+!!****f*  xas_env_types/get_xas_env, set_xas_env
+!!
+!!  NAME
+!!    get_xas_env
+!!
+!!    FUNCTION
+!!     -
+!!
+!!   ARGUMENTS
+!!
+!!   AUTHOR
+!
+!!   MODIFICATION HISTORY
+!!
+!!*** **********************************************************************
+  SUBROUTINE get_xas_env(xas_env,iter_count,exc_state,nao,nvirtual,&
+             centers_wfn,atom_of_state,&
+             state_of_atom,spectrum,groundstate_coeff,ostrength_sm,&
+             excvec_coeff,excvec_overlap,fm_work,qs_loc_env,error)
+
+    TYPE(xas_environment_type), POINTER         :: xas_env
+    INTEGER, INTENT(OUT), OPTIONAL              :: iter_count
+    INTEGER, INTENT(OUT), OPTIONAL              :: nao,exc_state
+    INTEGER, INTENT(OUT), OPTIONAL              :: nvirtual
+    INTEGER, DIMENSION(:), POINTER, OPTIONAL    :: state_of_atom
+    INTEGER, DIMENSION(:), POINTER, OPTIONAL    :: atom_of_state
+    REAL(dp), DIMENSION(:,:), POINTER, OPTIONAL :: spectrum
+    REAL(dp), DIMENSION(:,:), POINTER, OPTIONAL :: centers_wfn
+    TYPE( cp_fm_p_type ), DIMENSION(:), &
+      POINTER, OPTIONAL                         :: groundstate_coeff
+    TYPE( cp_fm_type ), POINTER, OPTIONAL       :: excvec_coeff
+    TYPE( cp_fm_type ), POINTER, OPTIONAL       :: excvec_overlap
+    TYPE( cp_fm_type ), POINTER, OPTIONAL       :: fm_work
+    TYPE( real_matrix_p_type ), DIMENSION(:), &
+      POINTER, OPTIONAL                         :: ostrength_sm
+    TYPE( qs_loc_env_new_type ), POINTER, &
+      OPTIONAL                                  :: qs_loc_env
+    TYPE(cp_error_type), INTENT(inout), &
+       OPTIONAL                                 :: error
+
+    CHARACTER(len=*), PARAMETER :: routine_name = 'get_xas_env', &
+      routineP = module_name//':'//routine_name
+
+    INTEGER                                    :: istat
+    LOGICAL                                    :: failure
+
+     failure =.FALSE.
+     CPPrecondition(ASSOCIATED(xas_env),cp_failure_level,routineP,error,failure)
+
+     IF(.NOT.failure) THEN
+
+       IF(PRESENT(iter_count)) iter_count=xas_env%iter_count
+       IF(PRESENT(exc_state)) exc_state=xas_env%exc_state
+       IF(PRESENT(nao)) nao=xas_env%nao
+       IF(PRESENT(nvirtual)) nvirtual=xas_env%nvirtual
+       IF(PRESENT(centers_wfn)) centers_wfn=>xas_env%centers_wfn
+       IF(PRESENT(atom_of_state)) atom_of_state=>xas_env%atom_of_state
+       IF(PRESENT(state_of_atom)) state_of_atom=>xas_env%state_of_atom
+       IF(PRESENT(spectrum)) spectrum=>xas_env%spectrum
+       IF(PRESENT(groundstate_coeff)) groundstate_coeff=>xas_env%groundstate_coeff
+       IF(PRESENT(ostrength_sm)) ostrength_sm=>xas_env%ostrength_sm
+       IF(PRESENT(excvec_overlap)) excvec_overlap=>xas_env%excvec_overlap
+       IF(PRESENT(fm_work)) fm_work=>xas_env%fm_work
+       IF(PRESENT(qs_loc_env)) qs_loc_env=>xas_env%qs_loc_env
+       IF(PRESENT(excvec_coeff)) excvec_coeff=>xas_env%excvec_coeff
+
+     END IF
+  END SUBROUTINE get_xas_env
+
+  SUBROUTINE set_xas_env(xas_env,iter_count, qs_loc_env,error)
+
+    TYPE(xas_environment_type), POINTER         :: xas_env
+    INTEGER, INTENT(IN), OPTIONAL               :: iter_count
+    TYPE( qs_loc_env_new_type ), POINTER, &
+      OPTIONAL                                  :: qs_loc_env
+    TYPE(cp_error_type), INTENT(inout), &
+       OPTIONAL                                 :: error
+
+
+    CHARACTER(len=*), PARAMETER :: routine_name = 'set_qs_loc_env', &
+      routineP = module_name//':'//routine_name
+
+    INTEGER                                    :: istat
+    LOGICAL                                    :: failure
+
+    failure =.FALSE.
+
+    CPPrecondition(ASSOCIATED(xas_env),cp_failure_level,routineP,error,failure)
+
+    IF(.NOT. failure) THEN
+   
+      IF (PRESENT(iter_count)) xas_env%iter_count = iter_count
+      IF (PRESENT(qs_loc_env)) THEN
+        CALL  qs_loc_env_retain(qs_loc_env, error=error)
+        IF(ASSOCIATED(xas_env%qs_loc_env)) &
+            CALL qs_loc_env_release(xas_env%qs_loc_env,error=error)
+        xas_env%qs_loc_env => qs_loc_env
+      END IF 
+
+    END IF
+
+  END SUBROUTINE set_xas_env
+
+!!
+!!****f* xas_env_types/xas_env_create,xas_env_release,xas_env_retain
+!!
+!!  NAME
+!!    xas_env_create
+!!
+!!   FUNCTION
+!!     -
+!!
+!!   ARGUMENTS
+!!
+!!   AUTHOR
+!
+!!   MODIFICATION HISTORY
+!!
+!!*** **********************************************************************
+
+  SUBROUTINE xas_env_create(xas_env, error)
+
+    TYPE(xas_environment_type), POINTER      :: xas_env
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
+
+    CHARACTER(len=*), PARAMETER :: routine_name='xas_env_create',&
+      routineP = module_name//':'//routine_name
+
+    INTEGER ::  istat 
+    LOGICAL :: failure
+
+    failure=.FALSE.
+    ALLOCATE(xas_env,STAT=istat)
+    CPPostcondition(istat==0,cp_warning_level,routineP,error,failure)
+
+    IF (.NOT.failure) THEN
+
+      xas_env%ref_count=1
+      xas_env%iter_count=0
+
+      NULLIFY(xas_env%centers_wfn, xas_env%state_of_atom, xas_env%atom_of_state)
+      NULLIFY(xas_env%excvec_coeff,xas_env%excvec_overlap)
+      NULLIFY(xas_env%fm_work,xas_env%groundstate_coeff)
+      NULLIFY(xas_env%ostrength_sm,xas_env%qs_loc_env,xas_env%spectrum)
+
+    END IF
+   END SUBROUTINE xas_env_create
+
+
+  SUBROUTINE xas_env_release(xas_env, error)
+
+    TYPE(xas_environment_type), POINTER      :: xas_env
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
+
+    CHARACTER(len=*), PARAMETER :: routine_name='xas_env_release',&
+      routineP = module_name//':'//routine_name
+
+    INTEGER :: i, istat
+    LOGICAL :: failure
+
+    failure=.FALSE.
+
+    IF (ASSOCIATED(xas_env)) THEN
+       CPPreconditionNoFail(xas_env%ref_count>0,cp_failure_level,routineP,error)
+       xas_env%ref_count = xas_env%ref_count -1
+       IF (xas_env%ref_count==0) THEN
+
+         DEALLOCATE(xas_env%state_of_atom,xas_env%atom_of_state,STAT=istat)
+         CPPostcondition(istat==0,cp_warning_level,routineP,error,failure)
+         DEALLOCATE(xas_env%spectrum,xas_env%centers_wfn,STAT=istat)
+         CPPostcondition(istat==0,cp_warning_level,routineP,error,failure)
+         IF(ASSOCIATED(xas_env%groundstate_coeff)) THEN
+           DO i = 1,SIZE(xas_env%groundstate_coeff)
+             CALL cp_fm_release(xas_env%groundstate_coeff(i)%matrix, error=error)
+           END DO
+         END IF
+         IF(ASSOCIATED(xas_env%excvec_coeff)) THEN
+           CALL cp_fm_release(xas_env%excvec_coeff,error=error)
+         END IF
+         IF(ASSOCIATED(xas_env%excvec_overlap)) THEN
+
+         END IF
+         IF(ASSOCIATED(xas_env%fm_work)) THEN
+           CALL cp_fm_release(xas_env%fm_work,error=error)
+         END IF
+         IF(ASSOCIATED(xas_env%ostrength_sm)) THEN
+           DO i = 1, SIZE(xas_env%ostrength_sm,1)
+              CALL deallocate_matrix(xas_env%ostrength_sm(i)%matrix)
+           END DO
+         END IF
+         IF(ASSOCIATED(xas_env%qs_loc_env)) THEN
+            CALL qs_loc_env_release(xas_env%qs_loc_env, error=error)
+         END IF
+
+         DEALLOCATE(xas_env,STAT=istat)
+         CPPostcondition(istat==0,cp_warning_level,routineP,error,failure)
+         NULLIFY(xas_env)
+       END IF
+    END IF
+
+  END SUBROUTINE xas_env_release
+
+  SUBROUTINE xas_env_retain(xas_env, error)
+
+    TYPE(xas_environment_type), POINTER      :: xas_env
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
+
+    CHARACTER(len=*), PARAMETER :: routine_name='xas_env_retain',&
+      routineP = module_name//':'//routine_name
+
+    INTEGER :: istat
+    LOGICAL :: failure
+
+    failure=.FALSE.
+
+    CPPrecondition(ASSOCIATED(xas_env),cp_failure_level,routineP,error,failure)
+    IF (.NOT. failure) THEN
+       CPPrecondition(xas_env%ref_count>0,cp_failure_level,routineP,error,failure)
+       xas_env%ref_count=xas_env%ref_count+1
+    END IF
+  END SUBROUTINE xas_env_retain
+
+END MODULE xas_env_types
+

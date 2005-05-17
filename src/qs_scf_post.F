@@ -112,8 +112,8 @@ MODULE qs_scf_post
   USE qs_loc_methods,                  ONLY: qs_loc_driver
   USE qs_loc_types       ,             ONLY: qs_loc_env_create,&
                                              qs_loc_env_destroy,& 
-                                             qs_loc_env_init, &
                                              qs_loc_env_new_type
+  USE qs_loc_utils,                    ONLY: qs_loc_env_init
   USE qs_mo_methods,                   ONLY: calculate_density_matrix,&
                                              calculate_subspace_eigenvalues
   USE qs_mo_types,                     ONLY: get_mo_set,&
@@ -280,7 +280,7 @@ CONTAINS
        ! XXX Joost : should go as soon as the default printing within the new scheme is clear
        IF (globenv%print%mulliken_analysis) THEN
             CALL mulliken_charges(rho%rho_ao,matrix_s(1)%matrix,globenv%para_env,particle_set, &
-                                  globenv%scr,globenv%ionode,"")
+                                  globenv%scr,globenv%ionode," ")
        ENDIF
 
 !    *** setup the grids needed to compute a wavefunction given a vector
@@ -300,7 +300,7 @@ CONTAINS
        IF (globenv%print%homos) THEN
           DO ispin=1,dft_control%nspins
              CALL get_mo_set(mo_set=mos(ispin)%mo_set,mo_coeff=mo_coeff, &
-                                              eigenvalues=mo_eigenvalues,homo=homo,nmo=nmo)
+                             eigenvalues=mo_eigenvalues,homo=homo,nmo=nmo)
              IF (globenv%ionode) WRITE(globenv%scr,*) " "
              IF (globenv%ionode) WRITE(globenv%scr,*) " Eigenvalues of the occupied subspace spin ",ispin
              IF (homo .NE. nmo) THEN
@@ -360,10 +360,6 @@ CONTAINS
 
           CALL qs_loc_driver(qs_env,qs_loc_env_new,ionode,error=error)
  
-          IF(qs_loc_env_new%localized_wfn_control%print_cubes) THEN
-!           on which grid? which ones? when?
-          END IF
-
        ELSEIF (globenv%print%localization) THEN
           DO ispin=1,dft_control%nspins
              CALL get_mo_set(mo_set=mos(ispin)%mo_set,mo_coeff=mo_coeff, &
@@ -405,8 +401,8 @@ CONTAINS
                    IF (globenv%ionode) OPEN(UNIT=21,FILE=filename)
                    ! title name
                    WRITE(title,'(A7,I5.5,A1,I1.1,A1,6G10.4)') "WANNIER",ivector,"_",ispin," ",&
-                                             center(ivector,1:3)*angstrom, &
-                                             center(ivector,4:6)*angstrom
+                     center(ivector,1:3)*angstrom, &
+                     center(ivector,4:6)*angstrom
                    CALL rs_pw_to_cube(wf_r%pw,21,globenv%ionode,title)
                    IF (globenv%ionode) CLOSE(21)
                 ENDDO

@@ -147,7 +147,8 @@ SUBROUTINE qs_env_setup(qs_env,error)
     CHARACTER(len=*), PARAMETER :: routineN = 'qs_env_setup', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
+    LOGICAL                                  :: failure, localized_wfn
+    INTEGER                                  :: nloc_states(2)
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
     TYPE(cp_para_env_type), POINTER          :: para_env
@@ -162,7 +163,8 @@ SUBROUTINE qs_env_setup(qs_env,error)
     TYPE(qs_charges_type), POINTER           :: qs_charges
     TYPE(scf_control_type), POINTER          :: scf_control
 
-  failure=.FALSE.
+  failure = .FALSE.
+  localized_wfn = .FALSE.
 
   NULLIFY(atomic_kind_set, dft_control, scf_control, qs_charges, para_env,&
        distribution_2d, molecule_kind_set, molecule_set, particle_set)
@@ -189,13 +191,19 @@ SUBROUTINE qs_env_setup(qs_env,error)
      CALL qs_env_rebuild_pw_env(qs_env, error=error)
 
      ! rebuilds fm_pools
-     IF(dft_control%qs_control%localized_wfn) THEN
+     localized_wfn = (dft_control%qs_control%localized_wfn) .OR. &
+                     (dft_control%xas_control%localized_wfn)
+     nloc_states(1) = MAX(dft_control%qs_control%localized_wfn_control%nloc_states(1),&
+                      dft_control%xas_control%localized_wfn_control%nloc_states(1))
+     nloc_states(2) = MAX(dft_control%qs_control%localized_wfn_control%nloc_states(2),&
+                      dft_control%xas_control%localized_wfn_control%nloc_states(2))
+     IF(localized_wfn) THEN
        ! build some additional pools for a subset of mos 
        CALL mpools_rebuild_fm_pools(qs_env%mpools,mos=qs_env%mos,&
             blacs_env=qs_env%blacs_env, para_env=para_env,&
             nrow_block=scf_control%nrow_block,&
             ncol_block=scf_control%ncol_block,&
-            nmosub=dft_control%qs_control%localized_wfn_control%nloc_states,&
+            nmosub=nloc_states,&
             error=error)
 
      ELSE

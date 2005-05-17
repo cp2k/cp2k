@@ -288,6 +288,7 @@ OBJECTS_GENERIC =\
  qs_loc_control.o\
  qs_loc_methods.o\
  qs_loc_types.o\
+ qs_loc_utils.o\
  qs_local_rho_types.o\
  qs_localization.o\
  qs_localization_methods.o\
@@ -369,6 +370,8 @@ OBJECTS_GENERIC =\
  virial_types.o\
  whittaker.o\
  xas_control.o\
+ xas_methods.o\
+ xas_env_types.o\
  xc.o\
  xc_atom.o\
  xc_cs1_new.o\

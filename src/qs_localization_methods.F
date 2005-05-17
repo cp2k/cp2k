@@ -59,7 +59,8 @@ MODULE qs_localization_methods
                                              timestop
 
   IMPLICIT NONE
-  PUBLIC :: jacobi_rotations, initialize_weights, crazy_rotations, direct_mini
+  PUBLIC :: jacobi_rotations, initialize_weights, crazy_rotations,&
+            direct_mini, rotate_orbitals
   PRIVATE
 
 ! *****************************************************************************
@@ -93,7 +94,7 @@ CONTAINS
     TYPE(cp_error_type)                      :: error
     TYPE(cp_fm_type), POINTER                :: rmat
 
-    CALL timeset("wannier_jacobi","I","",handle)
+    CALL timeset("wannier_jacobi","I"," ",handle)
 
     NULLIFY(rmat,c_rmat,c_zij)
     ALLOCATE(c_zij(SIZE(zij,2)))
@@ -433,7 +434,7 @@ CONTAINS
     TYPE(cp_cfm_type), POINTER               :: cmat_A, cmat_R, cmat_t1
     TYPE(cp_fm_type), POINTER                :: mat_R, mat_t, mat_U
 
-    CALL timeset("crazy_rotations","I","",handle)
+    CALL timeset("crazy_rotations","I"," ",handle)
     NULLIFY(row_indices,col_indices)
     NULLIFY(mat_U,mat_t,mat_R)
     NULLIFY(cmat_A,cmat_R,cmat_t1)

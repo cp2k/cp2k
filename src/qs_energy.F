@@ -33,6 +33,7 @@ MODULE qs_energy
   USE qs_scf,                          ONLY: scf
   USE timings,                         ONLY: timeset,&
                                              timestop
+  USE xas_methods,                     ONLY: xas
 
   IMPLICIT NONE
 
@@ -66,6 +67,7 @@ CONTAINS
       routine = "SUBROUTINE "//routine_name//" (MODULE "//module_name//")"
 
     INTEGER                                  :: handle
+    LOGICAL                                  :: right_iteration_level
     TYPE(dft_control_type), POINTER          :: dft_control
 
 !   ---------------------------------------------------------------------------
@@ -93,6 +95,14 @@ CONTAINS
 
     ! *** Perform a SCF run ***
     CALL scf(qs_env,globenv)
+
+
+    !Properties
+    right_iteration_level = .TRUE.
+    !right_iteration_level = (MODULO(iter_count,dft_control%xas_control%each_step)==0)
+    IF(dft_control%do_xas_calculation .AND. right_iteration_level ) THEN
+      CALL xas(qs_env, dft_control%xas_control, globenv)
+    END IF
 
     CALL timestop(0.0_dp,handle)
 

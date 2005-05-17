@@ -70,6 +70,8 @@ MODULE qs_environment_types
                                              hartree_local_release,&
                                              hartree_local_type,&
                                              set_hartree_local
+  USE input_section_types,             ONLY: section_vals_type, section_vals_retain,&
+                                             section_vals_release
   USE kg_gpw_pw_env_types,             ONLY: kg_sub_pw_env_release,&
                                              kg_sub_pw_env_retain,&
                                              kg_sub_pw_env_type
@@ -144,8 +146,10 @@ MODULE qs_environment_types
                                              pw_green_release,&
                                              pw_green_retain,&
                                              pw_green_create
-  USE input_section_types, ONLY: section_vals_type, section_vals_retain,&
-       section_vals_release
+  USE xas_env_types,                   ONLY: xas_env_release,&
+                                             xas_env_retain,& 
+                                             xas_environment_type
+
   IMPLICIT NONE
 
   PRIVATE
@@ -229,6 +233,7 @@ MODULE qs_environment_types
 !!     - requires_mo_derivs: logical, true if dE/dC is required (e.g. OT) 
 !!     - mo_derivs: the actual derivatives of the total energy wrt to MO coeffs
 !!     - neighbor_list_id: the current version of the neighbor_list
+!!     - xas_env: temporary information for xas calculation
 !!
 !!     compatibility get (things that you should get from the subsys):
 !!     - atomic_kind_set: array with infos about the species (atomic_kinds)
@@ -293,6 +298,7 @@ MODULE qs_environment_types
     TYPE(hartree_local_type),  POINTER                    :: hartree_local
     TYPE(section_vals_type), POINTER                      :: input
     TYPE(kg_sub_pw_env_type), POINTER                     :: kg_sub_pw_env
+    TYPE(xas_environment_type), POINTER                   :: xas_env
   END TYPE qs_environment_type
 
 ! *****************************************************************************
@@ -342,7 +348,7 @@ CONTAINS
                         rho0_atom_set,rho0_mpole,nddo_mpole,&
                         rhoz_set,ecoul_1c,VH_3c_list,rho0_s_rs,rho0_s_gs, &
                         requires_mo_derivs,mo_derivs,tddfpt_control, &
-                        neighbor_list_id,kg_sub_pw_env)
+                        neighbor_list_id,kg_sub_pw_env,xas_env)
 
 !   Purpose: Get the QUICKSTEP environment.
 
@@ -431,6 +437,8 @@ CONTAINS
     INTEGER, OPTIONAL                        :: neighbor_list_id
     TYPE(kg_sub_pw_env_type), OPTIONAL,&
       POINTER                                :: kg_sub_pw_env
+    TYPE(xas_environment_type), OPTIONAL,&
+      POINTER                                :: xas_env
 
 
     CHARACTER(len=*), PARAMETER :: routineN = 'get_qs_env', &
@@ -523,6 +531,7 @@ CONTAINS
     END IF
 
     IF(PRESENT(kg_sub_pw_env)) kg_sub_pw_env => qs_env%kg_sub_pw_env
+    IF(PRESENT(xas_env)) xas_env => qs_env%xas_env
 
     CALL cp_subsys_get(qs_env%subsys,&
                       atomic_kinds=atomic_kinds,&
@@ -598,6 +607,7 @@ CONTAINS
     NULLIFY (qs_env%hartree_local)
     NULLIFY (qs_env%input)
     NULLIFY (qs_env%kg_sub_pw_env)
+    NULLIFY (qs_env%xas_env)
     qs_env%neighbor_list_id=-1
 
     CALL local_rho_set_create(qs_env%local_rho_set, error=error)
@@ -630,7 +640,8 @@ CONTAINS
                         distribution_2d,dft_section,input,&
                         subsys, oce,rho_atom_set,rho0_atom_set,rho0_mpole,&
                         nddo_mpole,rhoz_set,rhoz_tot,ecoul_1c,VH_3c_list,error, &
-                        requires_mo_derivs,mo_derivs,neighbor_list_id,kg_sub_pw_env)
+                        requires_mo_derivs,mo_derivs,neighbor_list_id,&
+                        kg_sub_pw_env,xas_env)
 
 !   Purpose: Set the QUICKSTEP environment.
 
@@ -701,6 +712,8 @@ CONTAINS
     INTEGER, OPTIONAL                        :: neighbor_list_id
     TYPE(kg_sub_pw_env_type), OPTIONAL,&
       POINTER                                :: kg_sub_pw_env
+    TYPE(xas_environment_type), OPTIONAL,&
+      POINTER                                :: xas_env
 
     CHARACTER(len=*), PARAMETER :: routineN = "set_qs_env", &
       routineP = moduleN//':'//routineN
@@ -803,6 +816,11 @@ CONTAINS
        CALL scf_env_retain(scf_env,error=error)
        CALL scf_env_release(qs_env%scf_env, error=error)
        qs_env%scf_env => scf_env
+    END IF
+    IF (PRESENT(xas_env)) THEN ! accept also null pointers?
+       CALL xas_env_retain(xas_env, error=error)
+       CALL xas_env_release(qs_env%xas_env, error=error)
+       qs_env%xas_env => xas_env
     END IF
     IF (PRESENT(mpools)) THEN
        CALL mpools_retain(mpools,error=error)
@@ -1110,6 +1128,12 @@ SUBROUTINE qs_env_release(qs_env,error)
         IF(ASSOCIATED(qs_env%kg_sub_pw_env)) THEN
           CALL kg_sub_pw_env_release(qs_env%kg_sub_pw_env,error=error)
         END IF
+
+        !Only if do_xas_calculation
+        IF(ASSOCIATED(qs_env%xas_env)) THEN
+          CALL xas_env_release(qs_env%xas_env,error=error)
+        END IF
+
         CALL pw_env_release(qs_env%pw_env, error=error)
         CALL cp_para_env_release(qs_env%para_env,error=error)
         CALL cp_blacs_env_release(qs_env%blacs_env, error=error)

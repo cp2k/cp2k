@@ -213,7 +213,7 @@ MODULE qs_scf
 
   PUBLIC :: scf, scf_env_density_mixing,&
             scf_env_create, scf_env_do_scf, &
-            scf_env_did_change
+            scf_env_did_change, init_scf_run
 
 ! *****************************************************************************
 
@@ -1038,7 +1038,8 @@ CONTAINS
                                                 output_unit, &
                                                 stat, number_of_OT_envs
     LOGICAL                                  :: failure, &
-                                                gth_potential_present, ionode
+                                                gth_potential_present, ionode,&
+                                                my_transition_potential
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
     TYPE(cp_fm_type), POINTER                :: mo_coeff, ortho, &
@@ -1278,7 +1279,7 @@ CONTAINS
     INTEGER                                  :: handle, ispin, nao, &
                                                 nrow_block, stat
     LOGICAL                                  :: failure, gth_potential_present
-    LOGICAL                                  :: transition_potential
+    LOGICAL                                  :: my_transition_potential
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
     TYPE(cp_fm_pool_p_type), DIMENSION(:), &
@@ -1303,6 +1304,8 @@ CONTAINS
          dft_control, mos, S_sm_pools, ks_env)
     failure=.FALSE.
 
+    my_transition_potential = .FALSE.
+
     CPPrecondition(ASSOCIATED(scf_env),cp_failure_level,routineP,error,failure)
     CPPrecondition(scf_env%ref_count>0,cp_failure_level,routineP,error,failure)
 
@@ -1320,17 +1323,15 @@ CONTAINS
          error=error)
 
     ! very first tests for xas
-    transition_potential = (dft_control%do_xas_calculation).AND. &
-                           (dft_control%xas_control%xas_method == xas_tp_hh .OR. &
-                            dft_control%xas_control%xas_method == xas_tp_fh )
 
+    my_transition_potential = (dft_control%do_xas_calculation .AND. dft_control%xas_estate>0)
 !   *** finish initialization of the MOs ***
     CPPrecondition(ASSOCIATED(mos),cp_failure_level,routineP,error,failure)
     IF (.NOT.failure) THEN
        DO ispin=1,SIZE(mos)
           CALL get_mo_set(mos(ispin)%mo_set,mo_coeff=mo_coeff)
           IF (.NOT.ASSOCIATED(mo_coeff)) THEN
-             IF(transition_potential .AND. ispin==1) THEN
+             IF(my_transition_potential .AND. ispin==1) THEN
                IF(dft_control%xas_control%xas_method == xas_tp_hh) THEN
                  CALL init_mo_set(mos(ispin)%mo_set,&
                     ao_mo_fm_pools(ispin)%pool,&
