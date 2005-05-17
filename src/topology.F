@@ -109,12 +109,15 @@ SUBROUTINE topology_control (atomic_kind_set,particle_set,&
   INTEGER                                          :: handle, iw
   TYPE(topology_parameters_type)                   :: topology
   LOGICAL                                          :: my_qmmm
-  TYPE(section_vals_type), POINTER                 :: cell_section
+  TYPE(section_vals_type), POINTER                 :: cell_section,&
+                                                      constraint_section
 
   NULLIFY(cell_section)
     
   cell_section => section_vals_get_subs_vals(globenv%input_file,&
        "FORCE_EVAL%SUBSYS%CELL",error=error)
+  constraint_section =>  section_vals_get_subs_vals(globenv%input_file,&
+       "FORCE_EVAL%SUBSYS%CONSTRAINT",error=error)
   my_qmmm = .FALSE.
   IF (PRESENT(qmmm).AND.PRESENT(qmmm_env)) my_qmmm = qmmm
   iw = globenv%scr
@@ -149,7 +152,7 @@ SUBROUTINE topology_control (atomic_kind_set,particle_set,&
   !-----------------------------------------------------------------------------
   ! 4. Read in the constraints section
   !-----------------------------------------------------------------------------
-  CALL read_constraints_section(topology,globenv)
+  CALL read_constraints_section(topology,globenv,constraint_section,error)
 
   !-----------------------------------------------------------------------------
   !-----------------------------------------------------------------------------
@@ -216,7 +219,7 @@ SUBROUTINE topology_control (atomic_kind_set,particle_set,&
   !-----------------------------------------------------------------------------
   ! 11. Cleanup the topology structure type
   !-----------------------------------------------------------------------------
-  CALL deallocate_topology(topology)
+  CALL deallocate_topology(topology, error)
 
   IF((globenv%ionode).AND.(globenv%print%level>0))THEN
     WRITE(iw,*) "Exiting  topology_control"

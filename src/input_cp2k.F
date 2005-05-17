@@ -4251,18 +4251,15 @@ SUBROUTINE create_tddfpt_section(section,error)
 
        NULLIFY(keyword, subsection)
 
-       CALL create_colvar_dist_section(subsection,error,&
-            description="Specifies the bond as a constrained variable.")
+       CALL create_constraint_dist_section(subsection,error)
        CALL section_add_subsection(section, subsection, error=error)
        CALL section_release(subsection,error=error)
 
-       CALL create_colvar_angle_section(subsection,error,&
-            description="Specifies the angle as a constrained variable.")
+       CALL create_constraint_angle_section(subsection,error)
        CALL section_add_subsection(section, subsection, error=error)
        CALL section_release(subsection,error=error)
 
-       CALL create_colvar_torsion_section(subsection,error,&
-            description="Specifies the torsion as a constrained variable.")
+       CALL create_constraint_tors_section(subsection,error)
        CALL section_add_subsection(section, subsection, error=error)
        CALL section_release(subsection,error=error)
 
@@ -4273,6 +4270,184 @@ SUBROUTINE create_tddfpt_section(section,error)
     END IF
 
   END SUBROUTINE create_internal_section
+
+
+!!****f* input_cp2k/create_constraint_tors_section *
+!!
+!!   NAME
+!!     create_constraint_tors_section
+!!
+!!   FUNCTION
+!!     creates the colvar section regarded to the collective variables dist
+!!
+!!   NOTES
+!!     -
+!!
+!!   INPUTS
+!!     - section: the section to be created
+!!     - error: variable to control error logging, stopping,... 
+!!       see module cp_error_handling 
+!!
+!!   AUTHOR
+!!     teo
+!!
+!!*** **********************************************************************
+  SUBROUTINE create_constraint_tors_section(section,error)
+    TYPE(section_type), POINTER :: section
+    TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
+    
+    LOGICAL :: failure
+    CHARACTER(len=*), PARAMETER :: routineN='create_constraint_tors_section',&
+         routineP=moduleN//':'//routineN
+    TYPE(keyword_type), pointer :: keyword    
+
+    failure=.FALSE.
+
+    IF (.NOT.failure) THEN
+       CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
+       CALL section_create(section,name="torsion",&
+            description="Specifies the torsion as a constrained variable.",&
+            n_keywords=1, n_subsections=0, repeats=.TRUE., required=.TRUE.,&
+            error=error)
+        
+       NULLIFY(keyword)
+
+       CALL keyword_create(keyword, name="ATOMS",&
+            description="Specifies the atom indexes defining the torsion.",&
+            usage="ATOMS <integer> <integer> <integer> <integer>",required=.TRUE.,&
+            n_var=4, type_of_var=integer_t, error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="ANGLE",&
+            description="Specifies the value of the angle to which constraint the torsion.",&
+            usage="ANGLE <real>",required=.TRUE.,&
+            n_var=1, type_of_var=real_t, error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+    END IF
+
+  END SUBROUTINE create_constraint_tors_section
+
+!!****f* input_cp2k/create_constraint_angle_section *
+!!
+!!   NAME
+!!     create_constraint_angle_section
+!!
+!!   FUNCTION
+!!     creates the colvar section regarded to the collective variables dist
+!!
+!!   NOTES
+!!     -
+!!
+!!   INPUTS
+!!     - section: the section to be created
+!!     - error: variable to control error logging, stopping,... 
+!!       see module cp_error_handling 
+!!
+!!   AUTHOR
+!!     teo
+!!
+!!*** **********************************************************************
+  SUBROUTINE create_constraint_angle_section(section,error)
+    TYPE(section_type), POINTER :: section
+    TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
+    
+    LOGICAL :: failure
+    CHARACTER(len=*), PARAMETER :: routineN='create_constraint_angle_section',&
+         routineP=moduleN//':'//routineN
+    TYPE(keyword_type), pointer :: keyword    
+
+    failure=.FALSE.
+    
+    IF (.NOT.failure) THEN
+       CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
+       CALL section_create(section,name="angle",&
+            description="Specifies the angle as a constrained variable.",&
+            n_keywords=1, n_subsections=0, repeats=.TRUE., required=.TRUE.,&
+            error=error)
+
+       NULLIFY(keyword)
+
+       CALL keyword_create(keyword, name="ATOMS",&
+            description="Specifies the atom indexes defining the angle.",&
+            usage="ATOMS <integer> <integer> <integer>",required=.TRUE.,&
+            n_var=3, type_of_var=integer_t, error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="ANGLE",&
+            description="Specifies the value of the angle to which constraint the bending motion.",&
+            usage="ANGLE <real>",required=.TRUE.,&
+            n_var=1, type_of_var=real_t, error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+    END IF
+
+  END SUBROUTINE create_constraint_angle_section
+
+
+!!****f* input_cp2k/create_constraint_dist_section *
+!!
+!!   NAME
+!!     create_constraint_dist_section
+!!
+!!   FUNCTION
+!!     creates the colvar section regarded to the collective variables dist
+!!
+!!   NOTES
+!!     -
+!!
+!!   INPUTS
+!!     - section: the section to be created
+!!     - error: variable to control error logging, stopping,... 
+!!       see module cp_error_handling 
+!!
+!!   AUTHOR
+!!     teo
+!!
+!!*** **********************************************************************
+  SUBROUTINE create_constraint_dist_section(section,error)
+    TYPE(section_type), POINTER :: section
+    TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
+
+    LOGICAL :: failure
+    CHARACTER(len=*), PARAMETER :: routineN='create_constraint_dist_section',&
+         routineP=moduleN//':'//routineN
+    TYPE(keyword_type), pointer :: keyword    
+
+    failure=.FALSE.
+    
+    IF (.NOT.failure) THEN
+       CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
+       CALL section_create(section,name="distance",&
+            description="Specifies the bond as a constrained variable.",&
+            n_keywords=1, n_subsections=0, repeats=.TRUE., required=.TRUE.,&
+            error=error)
+
+       NULLIFY(keyword)
+
+       CALL keyword_create(keyword, name="ATOMS",&
+            description="Specifies the atom indexes defining the distance.",&
+            usage="ATOMS <integer> <integer>",required=.TRUE.,&
+            n_var=2, type_of_var=integer_t, error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="DISTANCE",&
+            description="Specifies the value of the constrained distance",&
+            usage="DISTANCE <real>",required=.TRUE.,&
+            n_var=1, type_of_var=real_t, error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+    END IF
+
+  END SUBROUTINE create_constraint_dist_section
+
+
 
 !!****f* input_cp2k/create_comb_section *
 !!
@@ -4325,18 +4500,15 @@ SUBROUTINE create_tddfpt_section(section,error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
-       CALL create_colvar_dist_section(subsection,error,&
-            description="Specifies the bond as a constrained variable.")
+       CALL create_constraint_dist_section(subsection,error)
        CALL section_add_subsection(section, subsection, error=error)
        CALL section_release(subsection,error=error)
 
-       CALL create_colvar_angle_section(subsection,error,&
-            description="Specifies the angle as a constrained variable.")
+       CALL create_constraint_angle_section(subsection,error)
        CALL section_add_subsection(section, subsection, error=error)
        CALL section_release(subsection,error=error)
 
-       CALL create_colvar_torsion_section(subsection,error,&
-            description="Specifies the torsion as a constrained variable.")
+       CALL create_constraint_tors_section(subsection,error)
        CALL section_add_subsection(section, subsection, error=error)
        CALL section_release(subsection,error=error)
 

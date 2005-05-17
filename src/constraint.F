@@ -31,7 +31,8 @@ MODULE constraint
                                              molecule_kind_type,&
                                              g3x3_constraint_type, &
                                              g4x6_constraint_type, &
-                                             dist_constraint_type
+                                             dist_constraint_type,&
+                                             fixd_constraint_type
   USE molecule_types_new,              ONLY: molecule_type, & 
                                              get_molecule, &
                                              local_dist_constraint_type, &
@@ -46,19 +47,94 @@ MODULE constraint
                                              matvec_3x3,&
                                              transpose_3d
   USE virial_types,                    ONLY: virial_type
+  USE force_env_types,                 ONLY: force_env_type,&
+                                             force_env_get
+  USE cp_error_handling,               ONLY: cp_a_l,&
+                                             cp_assert,&
+                                             cp_assertion_failed,&
+                                             cp_error_get_logger,&
+                                             cp_error_message,&
+                                             cp_error_type
+  USE cp_subsystem_types,              ONLY: cp_subsystem_p_type,&
+                                             cp_subsys_get
+  USE particle_list_types,             ONLY: particle_list_type
+  USE mol_kind_new_list_types,         ONLY: mol_kind_new_list_type
 
   IMPLICIT NONE
 
   PRIVATE
   PUBLIC :: shake_control, rattle_control,  getold,  pv_constraint
-  PUBLIC :: shake_roll_control, rattle_roll_control
-  CHARACTER(LEN=*), PARAMETER :: module_name = "constraint"
+  PUBLIC :: shake_roll_control, rattle_roll_control, fix_atom_control
+  CHARACTER(LEN=*), PARAMETER :: moduleN = "constraint"
 
 
 !!*****
 !******************************************************************************
 
 CONTAINS
+
+
+  SUBROUTINE fix_atom_control( force_env, error)
+    IMPLICIT NONE    
+    ! Arguments
+    TYPE(force_env_type), POINTER            :: force_env
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
+    ! Local Variables
+    CHARACTER(len=*), PARAMETER :: routineN = 'fix_atom_control', &
+         routineP = moduleN//':'//routineN
+    LOGICAL :: failure
+    INTEGER :: handle, isubsys
+    TYPE(cp_subsystem_p_type), DIMENSION(:), POINTER :: subsys
+    TYPE(particle_list_type), POINTER        :: particles
+    TYPE(mol_kind_new_list_type), POINTER    :: molecule_kinds
+    TYPE ( molecule_kind_type ), POINTER     :: molecule_kind
+    TYPE(molecule_kind_type), DIMENSION(:), &
+      POINTER                                :: molecule_kind_set
+    INTEGER :: nfixed_atoms, nkind, ikind, i,&
+         nparticle_local, iparticle_local, iparticle
+    TYPE(particle_type), DIMENSION(:), &
+      POINTER                                :: particle_set
+    TYPE(fixd_constraint_type), &
+      DIMENSION(:), POINTER        :: fixd_list
+    TYPE(distribution_1d_type), POINTER      :: local_particles
+
+    failure = .FALSE.
+    CALL timeset(routineN,'I','',handle)
+    IF (.NOT. failure) THEN
+!       WRITE(*,*)"FORCE_ENV%IN_USE",force_env%in_use
+       CALL force_env_get(force_env=force_env, subsys=subsys)
+
+       DO isubsys = 1, SIZE(subsys)
+          CALL cp_subsys_get(subsys=subsys(isubsys)%subsys,&
+                             particles=particles, &
+                             local_particles=local_particles,&
+                             molecule_kinds_new=molecule_kinds )
+          
+          nkind             =  molecule_kinds % n_els
+          molecule_kind_set => molecule_kinds % els
+          particle_set      => particles%els
+          
+          Mol_kind:  DO ikind = 1, nkind
+             molecule_kind => molecule_kind_set(ikind)
+             CALL get_molecule_kind ( molecule_kind, nfixd=nfixed_atoms, fixd_list=fixd_list )
+          
+             IF (nfixed_atoms ==0) CYCLE Mol_Kind
+             DO i = 1, SIZE(local_particles%n_el)
+                nparticle_local   = local_particles%n_el(i)
+                DO iparticle_local=1,nparticle_local
+                   iparticle = local_particles%list(i)%array(iparticle_local)
+                   IF (ANY(fixd_list(:)%fixd == iparticle)) particle_set(iparticle)%f(:) = 0.0_dp
+                END DO
+             END DO
+          END DO Mol_kind
+
+       END DO
+    END IF
+!    WRITE(*,'(3f15.6)')(particle_set(i)%f(:),i=1,SIZE(particle_set))
+    CALL timestop(0.0_dp,handle)
+
+  END SUBROUTINE fix_atom_control
 
 !******************************************************************************
 
@@ -73,7 +149,7 @@ SUBROUTINE shake_control( local_molecules, molecule_set, molecule_kind_set, &
     TYPE(simulation_parameters_type), &
       INTENT(IN)                             :: simpar
 ! locals
-    CHARACTER(LEN=*), PARAMETER              :: routine_name = "shake_control"
+    CHARACTER(LEN=*), PARAMETER              :: routineN = "shake_control"
     INTEGER                                  :: iconst, ikind, nkind, i, first_atom
     INTEGER                                  :: imol, n3x3con, n4x6con, ndcon
     INTEGER                                  :: handle, ishake, nmol_per_kind
@@ -137,7 +213,7 @@ SUBROUTINE rattle_control( local_molecules, molecule_set, molecule_kind_set,  &
     TYPE(simulation_parameters_type), &
       INTENT(IN)                             :: simpar
 ! locals
-    CHARACTER(LEN=*), PARAMETER              :: routine_name = "rattle_control"
+    CHARACTER(LEN=*), PARAMETER              :: routineN = "rattle_control"
     INTEGER                                  :: iconst, ikind, nkind, i, first_atom
     INTEGER                                  :: imol, irattle, n3x3con, n4x6con, ndcon
     INTEGER                                  :: handle, ishake, nmol_per_kind
@@ -201,7 +277,7 @@ SUBROUTINE shake_roll_control( local_molecules, molecule_set, molecule_kind_set,
       OPTIONAL                               :: u
 
 ! locals
-    CHARACTER(LEN=*), PARAMETER              :: routine_name = "shake_roll_control"
+    CHARACTER(LEN=*), PARAMETER              :: routineN = "shake_roll_control"
     INTEGER                                  :: iconst, ikind, nkind, i, first_atom
     INTEGER                                  :: imol, n3x3con, n4x6con, ndcon
     INTEGER                                  :: handle, ishake, nmol_per_kind
@@ -289,7 +365,7 @@ SUBROUTINE rattle_roll_control( local_molecules, molecule_set, molecule_kind_set
       OPTIONAL                               :: u
 
 ! locals
-    CHARACTER(LEN=*), PARAMETER              :: routine_name = "rattle_roll_control"
+    CHARACTER(LEN=*), PARAMETER              :: routineN = "rattle_roll_control"
     INTEGER                                  :: iconst, ikind, nkind, i, first_atom
     INTEGER                                  :: imol, irattle, n3x3con, n4x6con, ndcon
     INTEGER                                  :: handle, ishake, nmol_per_kind

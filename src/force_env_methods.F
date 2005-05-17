@@ -106,6 +106,7 @@ MODULE force_env_methods
        section_add_keyword, section_add_subsection, section_release,&
        section_describe_html, section_describe_index_html, section_vals_type,&
        section_vals_get_subs_vals, section_vals_get, section_vals_val_get
+  USE constraint, only: fix_atom_control
 
   IMPLICIT NONE
 
@@ -175,42 +176,47 @@ RECURSIVE SUBROUTINE force_env_calc_energy_force ( force_env, &
      CASE ( use_fist_force )
         CALL fist_force_control( force_env%fist_env,force_env%virial, &
                                  force_env%globenv, my_box_change, error=error)
-    CASE ( use_qs_force )
-       IF (.not.need_f) THEN
-          CALL qs_energies(force_env%qs_env,force_env%globenv)
-       ELSE
-          CALL qs_forces(force_env%qs_env,force_env%globenv)
-       END IF
-    CASE ( use_pol_force )
-       CPAssert(.FALSE.,cp_failure_level,routineP,error,failure)
-    CASE ( use_kg_force )
-       IF (.not.need_f) THEN
-          CALL kg_energies ( force_env%kg_env, force_env%globenv )
-       ELSE
-          CALL kg_force_control ( force_env%kg_env, force_env%globenv )
-       END IF
-    CASE ( use_qmmm )
-      CALL qmmm_energy_and_forces(force_env,need_f,error)
-    CASE ( use_list_force )
+     CASE ( use_qs_force )
+        IF (.NOT.need_f) THEN
+           CALL qs_energies(force_env%qs_env,force_env%globenv)
+        ELSE
+           CALL qs_forces(force_env%qs_env,force_env%globenv)
+        END IF
+     CASE ( use_pol_force )
+        CPAssert(.FALSE.,cp_failure_level,routineP,error,failure)
+     CASE ( use_kg_force )
+        IF (.NOT.need_f) THEN
+           CALL kg_energies ( force_env%kg_env, force_env%globenv )
+        ELSE
+           CALL kg_force_control ( force_env%kg_env, force_env%globenv )
+        END IF
+     CASE ( use_qmmm )
+        CALL qmmm_energy_and_forces(force_env,need_f,error)
+     CASE ( use_list_force )
 !HAF: we could split this out into a separate subroutine, but for now:
 !HAF: atm we assume all sub-force_env's share the same para_env, just like QS
-      CPPrecondition(ASSOCIATED(force_env%force_env_list),cp_failure_level, routineP,error,failure)
-      IF (.NOT.failure) THEN
-         DO i = 1, SIZE (force_env%force_env_list)
-            CPPrecondition(ASSOCIATED(force_env%force_env_list(i)%force_env), cp_failure_level,routineP,error,failure)
-            CALL force_env_calc_energy_force( &
-                 force_env%force_env_list(i)%force_env, need_f,error)
-         END DO
-      END IF
-    CASE default
-      CPAssert(.FALSE.,cp_failure_level,routineP,error,failure)
-  END SELECT
-
-  IF (ASSOCIATED(force_env%meta_env)) THEN
-     CALL metadyn_add_forces(force_env%meta_env,force_env, error=error)
+        CPPrecondition(ASSOCIATED(force_env%force_env_list),cp_failure_level, routineP,error,failure)
+        IF (.NOT.failure) THEN
+           DO i = 1, SIZE (force_env%force_env_list)
+              CPPrecondition(ASSOCIATED(force_env%force_env_list(i)%force_env), cp_failure_level,routineP,error,failure)
+              CALL force_env_calc_energy_force( &
+                   force_env%force_env_list(i)%force_env, need_f,error)
+           END DO
+        END IF
+     CASE default
+        CPAssert(.FALSE.,cp_failure_level,routineP,error,failure)
+     END SELECT
+     
+     ! Metadynamics
+     IF (ASSOCIATED(force_env%meta_env)) THEN
+        CALL metadyn_add_forces(force_env%meta_env,force_env, error=error)
+     END IF
+     force_env%box_changed=.FALSE.
+     
+     ! Constraint ONLY of Fixed Atom type
+     CALL fix_atom_control(force_env, error=error)
+     
   END IF
-  force_env%box_changed=.false.
-END IF
 END SUBROUTINE force_env_calc_energy_force
 !******************************************************************************
 

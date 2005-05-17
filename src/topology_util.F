@@ -53,6 +53,7 @@ MODULE topology_util
                                              dist_constraint_type,&
                                              g3x3_constraint_type,&
                                              g4x6_constraint_type,&
+                                             fixd_constraint_type,&
                                              get_molecule_kind,&
                                              impr_type,&
                                              molecule_kind_type,&
@@ -851,7 +852,7 @@ SUBROUTINE topology_set_atm_mass(topology,globenv)
       END IF
     END DO
     IF (.NOT. element_found) THEN
-      IF(PM2) WRITE(iw,'(A)') "WARNING : topology_set_atm_mass: The element " &
+        WRITE(iw,'(A)') "WARNING : topology_set_atm_mass: The element " &
                         //atm_symbol(iatom)//" was not found in the periodic table"
     ENDIF
 
@@ -998,7 +999,7 @@ SUBROUTINE topology_generate_bond(topology,globenv)
       END IF
     END DO
     IF (.NOT. element_found) THEN
-      IF(PM2) WRITE(iw,'(A)') "WARNING : topology_generate_bond: The element " &
+        WRITE(iw,'(A)') "WARNING : topology_generate_bond: The element " &
                         //atm_symbol(iatom)//" was not found in the periodic table"
     ENDIF
     covalent_radius(iatom) = ptable(ielem_found)%covalent_radius
@@ -3371,7 +3372,7 @@ SUBROUTINE topology_constraint_pack ( molecule_kind_set,molecule_set,&
 
   INTEGER                                  :: istat, iw, i, j, k, natom, dum
   INTEGER                                  :: counter,nmolecule,ndist,nbond
-  INTEGER                                  :: ng3x3,ng4x6
+  INTEGER                                  :: ng3x3,ng4x6,nfixed_atoms
   INTEGER                                  :: first, last,search1,search2
   LOGICAL                                  :: PM1, PM2, PM3, PM4
   REAL(KIND=dp)                            :: xdum
@@ -3384,12 +3385,14 @@ SUBROUTINE topology_constraint_pack ( molecule_kind_set,molecule_set,&
   TYPE(dist_constraint_type), DIMENSION(:), POINTER :: dist_list
   TYPE(g3x3_constraint_type), DIMENSION(:), POINTER :: g3x3_list
   TYPE(g4x6_constraint_type), DIMENSION(:), POINTER :: g4x6_list
+  TYPE(fixd_constraint_type), DIMENSION(:), POINTER :: fixd_list
   TYPE(atom_type), DIMENSION(:), POINTER   :: atom_list
   TYPE(bond_type), DIMENSION(:), POINTER            :: bond_list
   TYPE(local_constraint_type), POINTER       :: lci
   TYPE ( local_dist_constraint_type ), DIMENSION ( : ) , POINTER :: ldist
   TYPE ( local_g3x3_constraint_type ), DIMENSION ( : ) , POINTER :: lg3x3
   TYPE ( local_g4x6_constraint_type ), DIMENSION ( : ) , POINTER :: lg4x6
+  TYPE(atom_info_type),POINTER     :: atom_info
 
 !------------------------------------------------------------------------------
 !------------------------------------------------------------------------------
@@ -3410,7 +3413,8 @@ SUBROUTINE topology_constraint_pack ( molecule_kind_set,molecule_set,&
   IF(PM1) WRITE(iw,*) "  Entering topology_constraint_pack"
 
   cons_info => topology%cons_info
-
+  atom_info => topology%atom_info
+  
   !-----------------------------------------------------------------------------
   !-----------------------------------------------------------------------------
   ! 1. NULLIFY the molecule_set(imol)%lci via set_molecule_set
@@ -3425,16 +3429,6 @@ SUBROUTINE topology_constraint_pack ( molecule_kind_set,molecule_set,&
     NULLIFY(lci%lg4x6)
     CALL set_molecule(molecule,lci=lci)
   END DO
-
-
-  !-----------------------------------------------------------------------------
-  !-----------------------------------------------------------------------------
-  ! 2. Set info necessary for atom constraint
-  !-----------------------------------------------------------------------------
-  IF(topology%const_atom) THEN
-    CALL stop_program("topology_constraint_pack","NO CONST_ATOM yet")
-  END IF
-
 
   !-----------------------------------------------------------------------------
   !-----------------------------------------------------------------------------
@@ -3739,11 +3733,40 @@ SUBROUTINE topology_constraint_pack ( molecule_kind_set,molecule_set,&
   END IF
 
 
+  !-----------------------------------------------------------------------------
+  !-----------------------------------------------------------------------------
+  ! 8. Set the group fixed_atom constraint fixd_list
+  !-----------------------------------------------------------------------------
+  IF(topology%const_atom) THEN
+     DO i=1,SIZE(molecule_kind_set)
+        molecule_kind => molecule_kind_set(i)
+        CALL get_molecule_kind(molecule_kind=molecule_kind,&
+                               nmolecule=nmolecule,molecule_list=molecule_list)
+        ! Try to figure out how many atoms of the list belong to this molecule_kind
+        nfixed_atoms = 0
+        DO j=1,nmolecule
+           molecule => molecule_set(molecule_list(j))
+           CALL get_molecule ( molecule, first_atom = first, last_atom = last )
+           DO k = first, last
+              IF (ANY(cons_info%fixed_atoms == k)) nfixed_atoms = nfixed_atoms + 1
+           END DO
+        END DO
+        ALLOCATE(fixd_list(nfixed_atoms),STAT=istat)
+        IF (istat /= 0) CALL stop_memory('topology_constraint_pack','fixd_list')
+        DO j=1,nmolecule
+           molecule => molecule_set(molecule_list(j))
+           CALL get_molecule ( molecule, first_atom = first, last_atom = last )
+           DO k = first, last
+              IF (ANY(cons_info%fixed_atoms == k)) fixd_list(k)%fixd = k
+           END DO
+        END DO
+        CALL set_molecule_kind(molecule_kind, nfixd=nfixed_atoms, fixd_list=fixd_list)
+     END DO
+  END IF
 !------------------------------------------------------------------------------
 !------------------------------------------------------------------------------
   IF(PM1) WRITE(iw,*) "  Exiting  topology_constraint_pack"
   CALL write_checkpoint_information("leaving "//routineN,globenv)
-  !CALL stop_program("topology_constraint_pack","checkpoint end")
 
 END SUBROUTINE topology_constraint_pack
 

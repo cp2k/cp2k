@@ -2,6 +2,9 @@
 !   CP2K: A general program to perform molecular dynamics simulations         !
 !   Copyright (C) 2000  CP2K developers group                                 !
 !-----------------------------------------------------------------------------!
+
+#include "cp_prep_globals.h"
+
 !!****** cp2k/topology_input [1.0] *
 !!
 !!   NAME
@@ -21,6 +24,19 @@
 !******************************************************************************
 
 MODULE topology_input
+  USE cp_error_handling,               ONLY: cp_error_type
+  USE cp_log_handling,                 ONLY: cp_failure_level,&
+                                             cp_fatal_level,&
+                                             cp_note_level,&
+                                             cp_to_string,&
+                                             cp_logger_type,&
+                                             cp_warning_level
+  USE cp_error_handling,               ONLY: cp_a_l,&
+                                             cp_assert,&
+                                             cp_error_get_logger,&
+                                             cp_error_message,&
+                                             cp_error_type,&
+                                             cp_assertion_failed
   USE checkpoint_handler,              ONLY: write_checkpoint_information
   USE global_types,                    ONLY: global_environment_type
   USE memory_utilities,                ONLY: reallocate
@@ -37,7 +53,12 @@ MODULE topology_input
   USE termination,                     ONLY: stop_program
   USE topology_types,                  ONLY: constraint_info_type,&
                                              topology_parameters_type
-
+  USE input_section_types, ONLY: section_type, section_create, &
+       section_add_keyword, section_add_subsection, section_release,&
+       section_vals_type,&
+       section_vals_get_subs_vals, section_vals_get, section_vals_val_get
+  USE input_cp2k, ONLY: parsed_cp2k_input
+  USE kinds, ONLY: dp
   IMPLICIT NONE
 
   CHARACTER(LEN=*), PARAMETER, PRIVATE :: moduleN = "topology_input"
@@ -285,7 +306,7 @@ END SUBROUTINE read_topology_section
 !!I                                                                           I
 !!I constraints                                                               I
 !!I   HYDROGEN                                                                I
-!!I   ATOM ??????                                                             I
+!!I   ATOM                                                                    I
 !!I   DIST MOLKIND ATM_A ATM_B D_AB                                           I
 !!I   G3x3 MOLKIND ATM_A ATM_B ATM_C D_AB D_AC D_BC                           I
 !!I   G4x6 MOLKIND ATM_A ATM_B ATM_C ATM_D D_AB D_AC D_BC D_AD D_BD D_CD      I
@@ -297,12 +318,15 @@ END SUBROUTINE read_topology_section
 !!   SOURCE
 !******************************************************************************
 
-SUBROUTINE read_constraints_section(topology,globenv)
+SUBROUTINE read_constraints_section(topology, globenv, constraint_section, error)
 
     TYPE(topology_parameters_type), &
       INTENT(INOUT)                          :: topology
     TYPE(global_environment_type), &
       INTENT(IN),OPTIONAL                    :: globenv
+    TYPE(section_vals_type), POINTER                 :: constraint_section  
+      TYPE(cp_error_type), INTENT(inout), &
+       OPTIONAL                               :: error
 
   CHARACTER(len=*), PARAMETER :: routineN = 'read_constraints_section', &
       routineP = moduleN//':'//routineN
@@ -312,8 +336,15 @@ SUBROUTINE read_constraints_section(topology,globenv)
     CHARACTER(LEN=40)                        :: string
     INTEGER                                  :: i, ierror, ilen, iw
 
-  LOGICAL                                  :: PM1, PM2, PM3, PM4
+  LOGICAL                                    :: PM1, PM2, PM3, PM4
 
+  IF (parsed_cp2k_input(constraint_section,check_this_section=.TRUE.,error=error)) THEN
+     CALL read_constraints_section_new(topology, constraint_section=constraint_section,&
+          error=error)
+     RETURN
+  END IF
+  
+!TODEL_START_TL
 !------------------------------------------------------------------------------
   PM1 = .FALSE.
   PM2 = .FALSE.
@@ -437,11 +468,252 @@ SUBROUTINE read_constraints_section(topology,globenv)
 
   IF(PM1)  WRITE(iw,*) "  Exiting  read_constraints_section"
   CALL write_checkpoint_information("exiting "//routineN,globenv)
+!TODEL_END_TL
 
 END SUBROUTINE read_constraints_section
 
 !!*****
 !******************************************************************************
+!!****** force_fields/read_constraints_section_new [1.0] *
+!!
+!!   NAME
+!!     read_constraints_section_new
+!!
+!!   FUNCTION
+!!     Read the CONSTRAINT section within the new input style
+!!
+!!   AUTHOR
+!!     teo
+!!
+!!   MODIFICATION HISTORY
+!!
+!!   NOTES
+!!
+!******************************************************************************
+
+SUBROUTINE read_constraints_section_new(topology, constraint_section, error)
+  IMPLICIT NONE
+  ! Arguments
+  TYPE(topology_parameters_type), INTENT(INOUT)      :: topology
+  TYPE(section_vals_type), POINTER                   :: constraint_section  
+  TYPE(cp_error_type), INTENT(inout), &
+       OPTIONAL                               :: error
+  ! Local Variables
+  CHARACTER(len=*), PARAMETER :: routineN = 'read_constraints_section', &
+       routineP = moduleN//':'//routineN
+  TYPE(constraint_info_type),POINTER       :: cons_info
+  TYPE(section_vals_type), POINTER         ::  g3x3_section, g4x6_section, fix_atom_section,&
+                                               internal_section, dist_section, angle_section,&
+                                               tors_section, comb_section
+  LOGICAL :: explicit, failure
+  INTEGER :: ncons, stat, isize, j, k, jj, icons, ig, n_rep
+  INTEGER, DIMENSION(:), POINTER       :: ilist, tmplist
+  REAL(KIND=dp), DIMENSION(:), POINTER :: rlist 
+
+  cons_info    => topology%cons_info
+  failure = .FALSE.
+  IF (.NOT.failure) THEN
+     g3x3_section => section_vals_get_subs_vals(constraint_section,"G3X3",error=error)
+     g4x6_section => section_vals_get_subs_vals(constraint_section,"G4X6",error=error)
+     fix_atom_section => section_vals_get_subs_vals(constraint_section,"FIXED_ATOMS",error=error)
+     internal_section => section_vals_get_subs_vals(constraint_section,"INTERNALS",error=error)
+     ! G3X3
+     CALL section_vals_get(g3x3_section,explicit=explicit, n_repetition=ncons, error=error)
+     IF (explicit) THEN
+        topology%constraint  =.TRUE.
+        topology%const_33    =.TRUE.
+        cons_info%nconst_g33 =ncons
+        !
+        ALLOCATE(cons_info%const_g33_mol(ncons),stat=stat)
+        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+        ALLOCATE(cons_info%const_g33_a(ncons),stat=stat)
+        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+        ALLOCATE(cons_info%const_g33_b(ncons),stat=stat)
+        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+        ALLOCATE(cons_info%const_g33_c(ncons),stat=stat)
+        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+        ALLOCATE(cons_info%const_g33_dab(ncons),stat=stat)
+        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+        ALLOCATE(cons_info%const_g33_dac(ncons),stat=stat)
+        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+        ALLOCATE(cons_info%const_g33_dbc(ncons),stat=stat)
+        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+        DO ig = 1, ncons
+           CALL section_vals_val_get(g3x3_section,"MOLECULE",i_rep_section=ig,&
+                i_val=cons_info%const_g33_mol(ig),error=error)
+           CALL section_vals_val_get(g3x3_section,"ATOMS",i_rep_section=ig,&
+                i_vals=ilist,error=error)
+           CALL section_vals_val_get(g3x3_section,"DISTANCES",i_rep_section=ig,&
+                r_vals=rlist,error=error)
+           cons_info%const_g33_a(ig) = ilist(1)
+           cons_info%const_g33_b(ig) = ilist(2)
+           cons_info%const_g33_c(ig) = ilist(3)
+
+           cons_info%const_g33_dab(ig) = rlist(1)
+           cons_info%const_g33_dac(ig) = rlist(2)
+           cons_info%const_g33_dbc(ig) = rlist(3)
+        END DO
+     END IF
+     ! G4X6
+     CALL section_vals_get(g4x6_section,explicit=explicit, n_repetition=ncons, error=error)
+     IF (explicit) THEN
+        topology%constraint =.TRUE.
+        topology%const_46   =.TRUE.
+        cons_info%nconst_g46 = ncons
+        !
+        ALLOCATE(cons_info%const_g46_mol(ncons),stat=stat)
+        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+        ALLOCATE(cons_info%const_g46_a(ncons),stat=stat)
+        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+        ALLOCATE(cons_info%const_g46_b(ncons),stat=stat)
+        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+        ALLOCATE(cons_info%const_g46_c(ncons),stat=stat)
+        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+        ALLOCATE(cons_info%const_g46_d(ncons),stat=stat)
+        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+        ALLOCATE(cons_info%const_g46_dab(ncons),stat=stat)
+        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+        ALLOCATE(cons_info%const_g46_dac(ncons),stat=stat)
+        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+        ALLOCATE(cons_info%const_g46_dbc(ncons),stat=stat)
+        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+        ALLOCATE(cons_info%const_g46_dad(ncons),stat=stat)
+        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+        ALLOCATE(cons_info%const_g46_dbd(ncons),stat=stat)
+        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+        ALLOCATE(cons_info%const_g46_dcd(ncons),stat=stat)
+        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+        DO ig = 1, ncons
+           CALL section_vals_val_get(g4x6_section,"MOLECULE",i_rep_section=ig,&
+                i_val=cons_info%const_g46_mol(ig),error=error)
+           CALL section_vals_val_get(g4x6_section,"ATOMS",i_rep_section=ig,&
+                i_vals=ilist,error=error)
+           CALL section_vals_val_get(g4x6_section,"DISTANCES",i_rep_section=ig,&
+                r_vals=rlist,error=error)
+           cons_info%const_g46_a(ig)   = ilist(1)
+           cons_info%const_g46_b(ig)   = ilist(2)
+           cons_info%const_g46_c(ig)   = ilist(3)
+           cons_info%const_g46_d(ig)   = ilist(4)
+           cons_info%const_g46_dab(ig) = rlist(1)
+           cons_info%const_g46_dac(ig) = rlist(2)
+           cons_info%const_g46_dad(ig) = rlist(3)
+           cons_info%const_g46_dbc(ig) = rlist(4)
+           cons_info%const_g46_dbd(ig) = rlist(5)
+           cons_info%const_g46_dcd(ig) = rlist(6)
+        END DO
+     END IF
+     ! FIXED ATOMS
+     CALL section_vals_get(fix_atom_section,explicit=explicit, n_repetition=ncons, error=error)
+     IF (explicit) THEN
+        NULLIFY(tmplist)
+        isize = 0
+        DO ig = 1, ncons
+           CALL section_vals_val_get(fix_atom_section,"LIST", i_rep_section=ig, n_rep_val=n_rep, error=error)
+           DO k = 1, n_rep
+              CALL section_vals_val_get(fix_atom_section,"LIST", i_rep_section=ig, i_rep_val=k,&
+                   i_vals=tmplist, error=error)
+              CALL reallocate(cons_info%fixed_atoms,1,isize+SIZE(tmplist))
+              cons_info%fixed_atoms(isize+1:isize+SIZE(tmplist)) = tmplist
+              isize = SIZE(cons_info%fixed_atoms)
+           END DO
+           CALL section_vals_val_get(fix_atom_section,"RANGE", i_rep_section=ig, n_rep_val=n_rep, error=error)
+           DO k = 1, n_rep
+              CALL section_vals_val_get(fix_atom_section,"RANGE", i_rep_section=ig, i_rep_val=k,&
+                   i_vals=tmplist, error=error)
+              CALL reallocate(cons_info%fixed_atoms,1,isize+tmplist(2)-tmplist(1)+1)
+              jj = 0
+              DO j = tmplist(1), tmplist(2)
+                 jj = jj + 1
+                 cons_info%fixed_atoms(isize+jj:isize+jj) = j
+              END DO
+              isize = SIZE(cons_info%fixed_atoms)
+           END DO
+        END DO
+        IF (isize /= 0) THEN
+           topology%constraint    = .TRUE.
+           topology%const_atom    = .TRUE.
+           cons_info%nfixed_atoms =  isize
+        END IF
+        !
+        ! The Case MM_SUBSYS and QM_SUBSYS is a special case and is treated directly
+        ! in the qmmm_eval_energy_and_forces
+        !
+     END IF
+     ! INTERNAL
+     CALL section_vals_get(internal_section,explicit=explicit, n_repetition=ncons, error=error)
+     IF (explicit) THEN
+        isize = 0
+        ! DISTANCE
+        DO ig = 1, ncons
+           dist_section => section_vals_get_subs_vals(internal_section,"DISTANCE",i_rep_section=ig,error=error)
+           CALL section_vals_get(dist_section,explicit=explicit, n_repetition=icons, error=error)
+           isize = isize + icons 
+        END DO
+        IF (isize /= 0) THEN
+           ALLOCATE(cons_info%const_dist_mol(isize), stat=stat)
+           CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+           ALLOCATE(cons_info%const_dist_a(isize), stat=stat)
+           CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+           ALLOCATE(cons_info%const_dist_b(isize), stat=stat)
+           CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+           ALLOCATE(cons_info%const_dist_dab(isize), stat=stat)
+           CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+           isize = 0
+           DO ig = 1, ncons
+              ! DISTANCE
+              dist_section => section_vals_get_subs_vals(internal_section,"DISTANCE",i_rep_section=ig,error=error)
+              CALL section_vals_get(dist_section,explicit=explicit, n_repetition=icons, error=error)
+              IF (explicit) THEN
+                 DO j = 1, icons
+                    isize = isize + 1
+                    CALL section_vals_val_get(fix_atom_section,"MOLECULE", i_val=cons_info%const_dist_mol(isize),&
+                         error=error)
+                    CALL section_vals_val_get(fix_atom_section,"ATOMS", i_vals=tmplist, error=error)
+                    CALL section_vals_val_get(fix_atom_section,"DISTANCE",&
+                         r_val=cons_info%const_dist_dab(isize), error=error)
+                    cons_info%const_dist_a(isize) = tmplist(1)
+                    cons_info%const_dist_b(isize) = tmplist(2)
+                 END DO
+              END IF
+           END DO
+        END IF
+        ! ANGLE
+        isize = 0
+        DO ig = 1, ncons
+           angle_section => section_vals_get_subs_vals(internal_section,"ANGLE",i_rep_section=ig,error=error)
+           CALL section_vals_get(angle_section,explicit=explicit, n_repetition=icons, error=error)
+           isize = isize + icons 
+        END DO
+        IF (isize /= 0) THEN
+           ! Not implemented yet
+           CPPostcondition(.FALSE.,cp_failure_level,routineP,error,failure)
+        END IF
+        ! TORSION
+        isize = 0
+        DO ig = 1, ncons
+           tors_section => section_vals_get_subs_vals(internal_section,"TORSION",i_rep_section=ig,error=error)
+           CALL section_vals_get(tors_section,explicit=explicit, n_repetition=icons, error=error)
+           isize = isize + icons 
+        END DO
+        IF (isize /= 0) THEN
+           ! Not implemented yet
+           CPPostcondition(.FALSE.,cp_failure_level,routineP,error,failure)
+        END IF
+        ! COMB
+        isize = 0
+        DO ig = 1, ncons
+           comb_section => section_vals_get_subs_vals(internal_section,"COMB",i_rep_section=ig,error=error)
+           CALL section_vals_get(comb_section,explicit=explicit, n_repetition=icons, error=error)
+           isize = isize + icons 
+        END DO
+        IF (isize /= 0) THEN
+           ! Not implemented yet
+           CPPostcondition(.FALSE.,cp_failure_level,routineP,error,failure)
+        END IF
+     END IF
+  END IF
+
+END SUBROUTINE read_constraints_section_new
 
 END MODULE topology_input
 

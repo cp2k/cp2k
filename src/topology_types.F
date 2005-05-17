@@ -2,6 +2,9 @@
 !   CP2K: A general program to perform molecular dynamics simulations         !
 !   Copyright (C) 2000  CP2K developers group                                 !
 !-----------------------------------------------------------------------------!
+ 
+#include "cp_prep_globals.h"
+
 !!****s* cp2k/topology_types [1.0] *
 !!
 !!   NAME
@@ -22,7 +25,19 @@
 !******************************************************************************
 
 MODULE topology_types
-
+  USE cp_error_handling,               ONLY: cp_error_type
+  USE cp_log_handling,                 ONLY: cp_failure_level,&
+                                             cp_fatal_level,&
+                                             cp_note_level,&
+                                             cp_to_string,&
+                                             cp_logger_type,&
+                                             cp_warning_level
+  USE cp_error_handling,               ONLY: cp_a_l,&
+                                             cp_assert,&
+                                             cp_error_get_logger,&
+                                             cp_error_message,&
+                                             cp_error_type,&
+                                             cp_assertion_failed
   USE kinds,                           ONLY: dp,&
                                              default_string_length
   USE pair_potential_types,            ONLY: pair_potential_type
@@ -60,31 +75,52 @@ MODULE topology_types
   END TYPE connectivity_info_type
 
   TYPE constraint_info_type
-    INTEGER          :: nconst_dist
-    INTEGER, POINTER :: const_dist_mol(:)
-    INTEGER, POINTER :: const_dist_a(:)
-    INTEGER, POINTER :: const_dist_b(:)
-    REAL(KIND=dp), POINTER :: const_dist_dab(:)
-    INTEGER          :: nconst_g33
-    INTEGER, POINTER :: const_g33_mol(:)
-    INTEGER, POINTER :: const_g33_a(:)
-    INTEGER, POINTER :: const_g33_b(:)
-    INTEGER, POINTER :: const_g33_c(:)
-    REAL(KIND=dp), POINTER :: const_g33_dab(:)
-    REAL(KIND=dp), POINTER :: const_g33_dac(:)
-    REAL(KIND=dp), POINTER :: const_g33_dbc(:)
-    INTEGER          :: nconst_g46
-    INTEGER, POINTER :: const_g46_mol(:)
-    INTEGER, POINTER :: const_g46_a(:)
-    INTEGER, POINTER :: const_g46_b(:)
-    INTEGER, POINTER :: const_g46_c(:)
-    INTEGER, POINTER :: const_g46_d(:)
-    REAL(KIND=dp), POINTER :: const_g46_dab(:)
-    REAL(KIND=dp), POINTER :: const_g46_dac(:)
-    REAL(KIND=dp), POINTER :: const_g46_dbc(:)
-    REAL(KIND=dp), POINTER :: const_g46_dad(:)
-    REAL(KIND=dp), POINTER :: const_g46_dbd(:)
-    REAL(KIND=dp), POINTER :: const_g46_dcd(:)
+     ! Fixed Atoms
+     INTEGER          :: nfixed_atoms
+     INTEGER, POINTER :: fixed_atoms(:)
+     ! Distance
+     INTEGER          :: nconst_dist
+     INTEGER, POINTER :: const_dist_mol(:)
+     INTEGER, POINTER :: const_dist_a(:)
+     INTEGER, POINTER :: const_dist_b(:)
+     REAL(KIND=dp), POINTER :: const_dist_dab(:)
+     ! Angle
+     INTEGER          :: nconst_angle
+     INTEGER, POINTER :: const_angle_mol(:)
+     INTEGER, POINTER :: const_angle_a(:)
+     INTEGER, POINTER :: const_angle_b(:)
+     INTEGER, POINTER :: const_angle_c(:)
+     REAL(KIND=dp), POINTER :: const_angle_abc(:)
+     ! Torsion
+     INTEGER          :: nconst_tors
+     INTEGER, POINTER :: const_tors_mol(:)
+     INTEGER, POINTER :: const_tors_a(:)
+     INTEGER, POINTER :: const_tors_b(:)
+     INTEGER, POINTER :: const_tors_c(:)
+     INTEGER, POINTER :: const_tors_d(:)
+     REAL(KIND=dp), POINTER :: const_tors_abcd(:)
+     ! G3x3
+     INTEGER          :: nconst_g33
+     INTEGER, POINTER :: const_g33_mol(:)
+     INTEGER, POINTER :: const_g33_a(:)
+     INTEGER, POINTER :: const_g33_b(:)
+     INTEGER, POINTER :: const_g33_c(:)
+     REAL(KIND=dp), POINTER :: const_g33_dab(:)
+     REAL(KIND=dp), POINTER :: const_g33_dac(:)
+     REAL(KIND=dp), POINTER :: const_g33_dbc(:)
+     ! G4x6
+     INTEGER          :: nconst_g46
+     INTEGER, POINTER :: const_g46_mol(:)
+     INTEGER, POINTER :: const_g46_a(:)
+     INTEGER, POINTER :: const_g46_b(:)
+     INTEGER, POINTER :: const_g46_c(:)
+     INTEGER, POINTER :: const_g46_d(:)
+     REAL(KIND=dp), POINTER :: const_g46_dab(:)
+     REAL(KIND=dp), POINTER :: const_g46_dac(:)
+     REAL(KIND=dp), POINTER :: const_g46_dbc(:)
+     REAL(KIND=dp), POINTER :: const_g46_dad(:)
+     REAL(KIND=dp), POINTER :: const_g46_dbd(:)
+     REAL(KIND=dp), POINTER :: const_g46_dcd(:)
   END TYPE constraint_info_type
 
   TYPE topology_parameters_type
@@ -130,7 +166,7 @@ MODULE topology_types
   PUBLIC :: init_topology,&
             deallocate_topology
 
-
+  CHARACTER(LEN=*), PARAMETER, PRIVATE :: moduleN = "topology_types"
   PRIVATE
 
 
@@ -258,39 +294,65 @@ SUBROUTINE init_topology (topology)
   !-----------------------------------------------------------------------------
   ! 5. Initialize and Nullify things in topology%cons_info
   !-----------------------------------------------------------------------------
-  topology%cons_info%nconst_dist = 0
-  NULLIFY(topology%cons_info%const_dist_mol)
-  NULLIFY(topology%cons_info%const_dist_a)
-  NULLIFY(topology%cons_info%const_dist_b)
-  NULLIFY(topology%cons_info%const_dist_dab)
-  topology%cons_info%nconst_g33 = 0
-  NULLIFY(topology%cons_info%const_g33_mol)
-  NULLIFY(topology%cons_info%const_g33_a)
-  NULLIFY(topology%cons_info%const_g33_b)
-  NULLIFY(topology%cons_info%const_g33_c)
-  NULLIFY(topology%cons_info%const_g33_dab)
-  NULLIFY(topology%cons_info%const_g33_dac)
-  NULLIFY(topology%cons_info%const_g33_dbc)
-  topology%cons_info%nconst_g46 = 0
-  NULLIFY(topology%cons_info%const_g46_mol)
-  NULLIFY(topology%cons_info%const_g46_a)
-  NULLIFY(topology%cons_info%const_g46_b)
-  NULLIFY(topology%cons_info%const_g46_c)
-  NULLIFY(topology%cons_info%const_g46_d)
-  NULLIFY(topology%cons_info%const_g46_dab)
-  NULLIFY(topology%cons_info%const_g46_dac)
-  NULLIFY(topology%cons_info%const_g46_dbc)
-  NULLIFY(topology%cons_info%const_g46_dad)
-  NULLIFY(topology%cons_info%const_g46_dbd)
-  NULLIFY(topology%cons_info%const_g46_dcd)
-
-
+  CALL init_constraint(topology%cons_info)
 
 !-------------------------------------------------------------------------------
 !-------------------------------------------------------------------------------
 END SUBROUTINE init_topology
 
 
+SUBROUTINE init_constraint(constraint_info)
+  IMPLICIT NONE
+  ! Arguments
+  TYPE(constraint_info_type),POINTER :: constraint_info
+  ! Fixed Atoms
+  constraint_info%nfixed_atoms = 0
+  NULLIFY(constraint_info%fixed_atoms)
+  ! Distance
+  constraint_info%nconst_dist = 0
+  NULLIFY(constraint_info%const_dist_mol)
+  NULLIFY(constraint_info%const_dist_a)
+  NULLIFY(constraint_info%const_dist_b)
+  NULLIFY(constraint_info%const_dist_dab)
+  ! Angle
+  constraint_info%nconst_angle=0
+  NULLIFY(constraint_info%const_angle_mol)
+  NULLIFY(constraint_info%const_angle_a)
+  NULLIFY(constraint_info%const_angle_b)
+  NULLIFY(constraint_info%const_angle_c)
+  NULLIFY(constraint_info%const_angle_abc)
+  ! Torsion
+  constraint_info%nconst_tors = 0
+  NULLIFY(constraint_info%const_tors_mol)
+  NULLIFY(constraint_info%const_tors_a)
+  NULLIFY(constraint_info%const_tors_b)
+  NULLIFY(constraint_info%const_tors_c)
+  NULLIFY(constraint_info%const_tors_d)
+  NULLIFY(constraint_info%const_tors_abcd)
+  ! G3x3
+  constraint_info%nconst_g33 = 0
+  NULLIFY(constraint_info%const_g33_mol)
+  NULLIFY(constraint_info%const_g33_a)
+  NULLIFY(constraint_info%const_g33_b)
+  NULLIFY(constraint_info%const_g33_c)
+  NULLIFY(constraint_info%const_g33_dab)
+  NULLIFY(constraint_info%const_g33_dac)
+  NULLIFY(constraint_info%const_g33_dbc)
+  ! G4x6
+  constraint_info%nconst_g46 = 0
+  NULLIFY(constraint_info%const_g46_mol)
+  NULLIFY(constraint_info%const_g46_a)
+  NULLIFY(constraint_info%const_g46_b)
+  NULLIFY(constraint_info%const_g46_c)
+  NULLIFY(constraint_info%const_g46_d)
+  NULLIFY(constraint_info%const_g46_dab)
+  NULLIFY(constraint_info%const_g46_dac)
+  NULLIFY(constraint_info%const_g46_dbc)
+  NULLIFY(constraint_info%const_g46_dad)
+  NULLIFY(constraint_info%const_g46_dbd)
+  NULLIFY(constraint_info%const_g46_dcd)
+
+END SUBROUTINE init_constraint
 
 !******************************************************************************
 !!****** topology_types/deallocate_topology [1.0] *
@@ -308,11 +370,15 @@ END SUBROUTINE init_topology
 !!
 !!   SOURCE
 !******************************************************************************
-SUBROUTINE deallocate_topology (topology)
-    TYPE(topology_parameters_type), &
-      INTENT(INOUT)                          :: topology
-
-    INTEGER                                  :: istat
+SUBROUTINE deallocate_topology (topology, error)
+  IMPLICIT NONE
+  ! Arguments
+  TYPE(topology_parameters_type), &
+         INTENT(INOUT)                          :: topology
+  TYPE(cp_error_type), INTENT(inout), &
+       OPTIONAL                               :: error
+  ! Local Variables
+  INTEGER                                  :: istat
 
 !-------------------------------------------------------------------------------
 !-------------------------------------------------------------------------------
@@ -469,96 +535,9 @@ SUBROUTINE deallocate_topology (topology)
   !-----------------------------------------------------------------------------
   ! 3. DEALLOCATE things in topology%cons_info
   !-----------------------------------------------------------------------------
-  IF(ASSOCIATED(topology%cons_info%const_dist_mol)) THEN
-    DEALLOCATE(topology%cons_info%const_dist_mol,STAT=istat)
-    IF (istat /= 0) CALL stop_memory('deallocate_topology','const_dist_mol')
-  END IF
-  IF(ASSOCIATED(topology%cons_info%const_dist_a)) THEN
-    DEALLOCATE(topology%cons_info%const_dist_a,STAT=istat)
-    IF (istat /= 0) CALL stop_memory('deallocate_topology','const_dist_a')
-  END IF
-  IF(ASSOCIATED(topology%cons_info%const_dist_b)) THEN
-    DEALLOCATE(topology%cons_info%const_dist_b,STAT=istat)
-    IF (istat /= 0) CALL stop_memory('deallocate_topology','const_dist_b')
-  END IF
-  IF(ASSOCIATED(topology%cons_info%const_dist_dab)) THEN
-    DEALLOCATE(topology%cons_info%const_dist_dab,STAT=istat)
-    IF (istat /= 0) CALL stop_memory('deallocate_topology','const_dist_dab')
-  END IF
-  IF(ASSOCIATED(topology%cons_info%const_g33_mol)) THEN
-    DEALLOCATE(topology%cons_info%const_g33_mol,STAT=istat)
-    IF (istat /= 0) CALL stop_memory('deallocate_topology','const_g33_mol')
-  END IF
-  IF(ASSOCIATED(topology%cons_info%const_g33_a)) THEN
-    DEALLOCATE(topology%cons_info%const_g33_a,STAT=istat)
-    IF (istat /= 0) CALL stop_memory('deallocate_topology','const_g33_a')
-  END IF
-  IF(ASSOCIATED(topology%cons_info%const_g33_b)) THEN
-    DEALLOCATE(topology%cons_info%const_g33_b,STAT=istat)
-    IF (istat /= 0) CALL stop_memory('deallocate_topology','const_g33_b')
-  END IF
-  IF(ASSOCIATED(topology%cons_info%const_g33_c)) THEN
-    DEALLOCATE(topology%cons_info%const_g33_c,STAT=istat)
-    IF (istat /= 0) CALL stop_memory('deallocate_topology','const_g33_c')
-  END IF
-  IF(ASSOCIATED(topology%cons_info%const_g33_dab)) THEN
-    DEALLOCATE(topology%cons_info%const_g33_dab,STAT=istat)
-    IF (istat /= 0) CALL stop_memory('deallocate_topology','const_g33_dab')
-  END IF
-  IF(ASSOCIATED(topology%cons_info%const_g33_dac)) THEN
-    DEALLOCATE(topology%cons_info%const_g33_dac,STAT=istat)
-    IF (istat /= 0) CALL stop_memory('deallocate_topology','const_g33_dac')
-  END IF
-  IF(ASSOCIATED(topology%cons_info%const_g33_dbc)) THEN
-    DEALLOCATE(topology%cons_info%const_g33_dbc,STAT=istat)
-    IF (istat /= 0) CALL stop_memory('deallocate_topology','const_g33_dbc')
-  END IF
-  IF(ASSOCIATED(topology%cons_info%const_g46_mol)) THEN
-    DEALLOCATE(topology%cons_info%const_g46_mol,STAT=istat)
-    IF (istat /= 0) CALL stop_memory('deallocate_topology','const_g46_mol')
-  END IF
-  IF(ASSOCIATED(topology%cons_info%const_g46_a)) THEN
-    DEALLOCATE(topology%cons_info%const_g46_a,STAT=istat)
-    IF (istat /= 0) CALL stop_memory('deallocate_topology','const_g46_a')
-  END IF
-  IF(ASSOCIATED(topology%cons_info%const_g46_b)) THEN
-    DEALLOCATE(topology%cons_info%const_g46_b,STAT=istat)
-    IF (istat /= 0) CALL stop_memory('deallocate_topology','const_g46_b')
-  END IF
-  IF(ASSOCIATED(topology%cons_info%const_g46_c)) THEN
-    DEALLOCATE(topology%cons_info%const_g46_c,STAT=istat)
-    IF (istat /= 0) CALL stop_memory('deallocate_topology','const_g46_c')
-  END IF
-  IF(ASSOCIATED(topology%cons_info%const_g46_d)) THEN
-    DEALLOCATE(topology%cons_info%const_g46_d,STAT=istat)
-    IF (istat /= 0) CALL stop_memory('deallocate_topology','const_g46_d')
-  END IF
-  IF(ASSOCIATED(topology%cons_info%const_g46_dab)) THEN
-    DEALLOCATE(topology%cons_info%const_g46_dab,STAT=istat)
-    IF (istat /= 0) CALL stop_memory('deallocate_topology','const_g46_dab')
-  END IF
-  IF(ASSOCIATED(topology%cons_info%const_g46_dac)) THEN
-    DEALLOCATE(topology%cons_info%const_g46_dac,STAT=istat)
-    IF (istat /= 0) CALL stop_memory('deallocate_topology','const_g46_dac')
-  END IF
-  IF(ASSOCIATED(topology%cons_info%const_g46_dbc)) THEN
-    DEALLOCATE(topology%cons_info%const_g46_dbc,STAT=istat)
-    IF (istat /= 0) CALL stop_memory('deallocate_topology','const_g46_dbc')
-  END IF
-  IF(ASSOCIATED(topology%cons_info%const_g46_dad)) THEN
-    DEALLOCATE(topology%cons_info%const_g46_dad,STAT=istat)
-    IF (istat /= 0) CALL stop_memory('deallocate_topology','const_g46_dad')
-  END IF
-  IF(ASSOCIATED(topology%cons_info%const_g46_dbd)) THEN
-    DEALLOCATE(topology%cons_info%const_g46_dbd,STAT=istat)
-    IF (istat /= 0) CALL stop_memory('deallocate_topology','const_g46_dbd')
-  END IF
-  IF(ASSOCIATED(topology%cons_info%const_g46_dcd)) THEN
-    DEALLOCATE(topology%cons_info%const_g46_dcd,STAT=istat)
-    IF (istat /= 0) CALL stop_memory('deallocate_topology','const_g46_dcd')
-  END IF
-
-
+  IF (ASSOCIATED(topology%cons_info)) &
+       CALL deallocate_constraint(topology%cons_info, error)
+  
   !-----------------------------------------------------------------------------
   !-----------------------------------------------------------------------------
   ! 7. DEALLOCATE things in topology
@@ -584,6 +563,166 @@ SUBROUTINE deallocate_topology (topology)
 !-------------------------------------------------------------------------------
 END SUBROUTINE deallocate_topology
 
+
+
+SUBROUTINE deallocate_constraint(constraint_info, error)
+  IMPLICIT NONE
+  ! Arguments
+  TYPE(constraint_info_type),POINTER :: constraint_info
+  TYPE(cp_error_type), INTENT(inout), &
+       OPTIONAL                               :: error
+  ! Local Variables
+  CHARACTER(len=*), PARAMETER :: routineN = 'deallocate_constraint', &
+       routineP = moduleN//':'//routineN
+  LOGICAL :: failure
+  integer :: stat
+
+  failure = .FALSE.
+  IF (.NOT.failure) THEN
+     ! Fixed Atoms
+     IF(ASSOCIATED(constraint_info%fixed_atoms)) THEN
+        DEALLOCATE(constraint_info%fixed_atoms, stat=stat)
+        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+     END IF
+     ! Distance
+     IF(ASSOCIATED(constraint_info%const_dist_mol)) THEN
+        DEALLOCATE(constraint_info%const_dist_mol,STAT=stat)
+        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+     END IF
+     IF(ASSOCIATED(constraint_info%const_dist_a)) THEN
+        DEALLOCATE(constraint_info%const_dist_a,STAT=stat)
+        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+     END IF
+     IF(ASSOCIATED(constraint_info%const_dist_b)) THEN
+        DEALLOCATE(constraint_info%const_dist_b,STAT=stat)
+        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+     END IF
+     IF(ASSOCIATED(constraint_info%const_dist_dab)) THEN
+        DEALLOCATE(constraint_info%const_dist_dab,STAT=stat)
+        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+     END IF
+     ! Angle
+     IF(ASSOCIATED(constraint_info%const_angle_mol)) THEN
+        DEALLOCATE(constraint_info%const_angle_mol,STAT=stat)
+        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+     END IF
+     IF(ASSOCIATED(constraint_info%const_angle_a)) THEN
+        DEALLOCATE(constraint_info%const_angle_a,STAT=stat)
+        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+     END IF
+     IF(ASSOCIATED(constraint_info%const_angle_b)) THEN
+        DEALLOCATE(constraint_info%const_angle_b,STAT=stat)
+        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+     END IF
+     IF(ASSOCIATED(constraint_info%const_angle_c)) THEN
+        DEALLOCATE(constraint_info%const_angle_c,STAT=stat)
+        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+     END IF
+     IF(ASSOCIATED(constraint_info%const_angle_abc)) THEN
+        DEALLOCATE(constraint_info%const_angle_abc,STAT=stat)
+        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+     END IF     
+     ! Torsion
+     IF(ASSOCIATED(constraint_info%const_tors_mol)) THEN
+        DEALLOCATE(constraint_info%const_tors_mol,STAT=stat)
+        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+     END IF
+     IF(ASSOCIATED(constraint_info%const_tors_a)) THEN
+        DEALLOCATE(constraint_info%const_tors_a,STAT=stat)
+        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+     END IF
+     IF(ASSOCIATED(constraint_info%const_tors_b)) THEN
+        DEALLOCATE(constraint_info%const_tors_b,STAT=stat)
+        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+     END IF
+     IF(ASSOCIATED(constraint_info%const_tors_c)) THEN
+        DEALLOCATE(constraint_info%const_tors_c,STAT=stat)
+        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+     END IF 
+     IF(ASSOCIATED(constraint_info%const_tors_d)) THEN
+        DEALLOCATE(constraint_info%const_tors_d,STAT=stat)
+        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+     END IF     
+     IF(ASSOCIATED(constraint_info%const_tors_abcd)) THEN
+        DEALLOCATE(constraint_info%const_tors_abcd,STAT=stat)
+        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+     END IF     
+     ! G3x3
+     IF(ASSOCIATED(constraint_info%const_g33_mol)) THEN
+        DEALLOCATE(constraint_info%const_g33_mol,STAT=stat)
+        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+     END IF
+     IF(ASSOCIATED(constraint_info%const_g33_a)) THEN
+        DEALLOCATE(constraint_info%const_g33_a,STAT=stat)
+        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+     END IF
+     IF(ASSOCIATED(constraint_info%const_g33_b)) THEN
+        DEALLOCATE(constraint_info%const_g33_b,STAT=stat)
+        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+     END IF
+     IF(ASSOCIATED(constraint_info%const_g33_c)) THEN
+        DEALLOCATE(constraint_info%const_g33_c,STAT=stat)
+        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+     END IF
+     IF(ASSOCIATED(constraint_info%const_g33_dab)) THEN
+        DEALLOCATE(constraint_info%const_g33_dab,STAT=stat)
+        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+     END IF
+     IF(ASSOCIATED(constraint_info%const_g33_dac)) THEN
+        DEALLOCATE(constraint_info%const_g33_dac,STAT=stat)
+        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+     END IF
+     IF(ASSOCIATED(constraint_info%const_g33_dbc)) THEN
+        DEALLOCATE(constraint_info%const_g33_dbc,STAT=stat)
+        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+     END IF
+     ! G4x6
+     IF(ASSOCIATED(constraint_info%const_g46_mol)) THEN
+        DEALLOCATE(constraint_info%const_g46_mol,STAT=stat)
+        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+     END IF
+     IF(ASSOCIATED(constraint_info%const_g46_a)) THEN
+        DEALLOCATE(constraint_info%const_g46_a,STAT=stat)
+        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+     END IF
+     IF(ASSOCIATED(constraint_info%const_g46_b)) THEN
+        DEALLOCATE(constraint_info%const_g46_b,STAT=stat)
+        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+     END IF
+     IF(ASSOCIATED(constraint_info%const_g46_c)) THEN
+        DEALLOCATE(constraint_info%const_g46_c,STAT=stat)
+        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+     END IF
+     IF(ASSOCIATED(constraint_info%const_g46_d)) THEN
+        DEALLOCATE(constraint_info%const_g46_d,STAT=stat)
+        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+     END IF
+     IF(ASSOCIATED(constraint_info%const_g46_dab)) THEN
+        DEALLOCATE(constraint_info%const_g46_dab,STAT=stat)
+        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+     END IF
+     IF(ASSOCIATED(constraint_info%const_g46_dac)) THEN
+        DEALLOCATE(constraint_info%const_g46_dac,STAT=stat)
+        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+     END IF
+     IF(ASSOCIATED(constraint_info%const_g46_dbc)) THEN
+        DEALLOCATE(constraint_info%const_g46_dbc,STAT=stat)
+        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+     END IF
+     IF(ASSOCIATED(constraint_info%const_g46_dad)) THEN
+        DEALLOCATE(constraint_info%const_g46_dad,STAT=stat)
+        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+     END IF
+     IF(ASSOCIATED(constraint_info%const_g46_dbd)) THEN
+        DEALLOCATE(constraint_info%const_g46_dbd,STAT=stat)
+        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+     END IF
+     IF(ASSOCIATED(constraint_info%const_g46_dcd)) THEN
+        DEALLOCATE(constraint_info%const_g46_dcd,STAT=stat)
+        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+     END IF
+  END IF
+END SUBROUTINE deallocate_constraint
 
 
 END MODULE topology_types
