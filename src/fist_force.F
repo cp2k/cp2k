@@ -121,7 +121,7 @@ SUBROUTINE fist_force_control ( fist_env, virial, globenv, box_change, debug ,er
        OPTIONAL                               :: error
 ! Locals
   INTEGER :: id, i, ii, natoms, nnodes, handle, isos, n, nlocal_particles
-  INTEGER :: ikind, iparticle_kind, nparticle_kind, nparticle_local, iparticle_local
+  INTEGER :: ikind, iparticle_kind, nparticle_kind, iparticle_local, nparticle_local
   INTEGER :: node, iw, j
   REAL (KIND=dp) :: pot_nonbond, pot_bond, pot_bend, pot_urey_bradley,  &
                   pot_imptors, pot_torsion, pot_onef,pot_manybody,vg_coulomb
@@ -201,17 +201,13 @@ SUBROUTINE fist_force_control ( fist_env, virial, globenv, box_change, debug ,er
 !
 ! initial force, energy and pressure tensor arrays
 !
-  DO ikind = 1, nparticle_kind
-     nparticle_local = local_particles%n_el(ikind) 
-     DO iparticle_local = 1, nparticle_local
-       i = local_particles%list(ikind)%array(iparticle_local)
-       particle_set ( i ) % f ( 1 ) = 0.0_dp
-       particle_set ( i ) % f ( 2 ) = 0.0_dp
-       particle_set ( i ) % f ( 3 ) = 0.0_dp
-       particle_set ( i ) % rho = 0.0_dp
-       particle_set ( i ) % f_embed = 0.0_dp
-     END DO
-  END DO
+  DO i = 1, natoms
+    particle_set ( i ) % f ( 1 ) = 0.0_dp
+    particle_set ( i ) % f ( 2 ) = 0.0_dp
+    particle_set ( i ) % f ( 3 ) = 0.0_dp
+    particle_set ( i ) % rho = 0.0_dp
+    particle_set ( i ) % f_embed = 0.0_dp
+  ENDDO
 
   pv_bc = 0.0_dp
   pv_bond = 0.0_dp

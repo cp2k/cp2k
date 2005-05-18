@@ -736,7 +736,6 @@ SUBROUTINE get_part_ke ( md_env, ekin, int_grp )
     END DO
   END DO
 
-
 ! sum all contributions to energy over calculated parts on all processors
   CALL mp_sum ( ekin, int_grp )
 END SUBROUTINE get_part_ke 
