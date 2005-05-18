@@ -240,7 +240,7 @@ SUBROUTINE fist_force_control ( fist_env, virial, globenv, box_change, debug ,er
 
 ! compute embedding function and manybody energy 
   CALL energy_manybody ( fist_nonbond_env, atomic_kind_set, &
-                         local_particles, particle_set, pot_manybody )
+                         local_particles, particle_set, pot_manybody, globenv )
 
 ! nonbond contribution + manybody forces
   CALL force_nonbond ( fist_nonbond_env, particle_set, cell, &

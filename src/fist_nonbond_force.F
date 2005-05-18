@@ -352,7 +352,7 @@ SUBROUTINE density_nonbond ( fist_nonbond_env, particle_set, cell, globenv )
 END SUBROUTINE density_nonbond
 !******************************************************************************
 SUBROUTINE energy_manybody ( fist_nonbond_env, atomic_kind_set, &
-                             local_particles, particle_set, pot_manybody )
+                             local_particles, particle_set, pot_manybody, globenv )
 
 ! computes the embedding contribution to the energy 
 
@@ -361,11 +361,13 @@ SUBROUTINE energy_manybody ( fist_nonbond_env, atomic_kind_set, &
   TYPE(distribution_1d_type), POINTER      :: local_particles
   TYPE(particle_type), POINTER             :: particle_set( : )
   REAL ( dp ), INTENT ( INOUT )            :: pot_manybody
+  TYPE ( global_environment_type ), INTENT ( IN ) :: globenv
 ! locals
   CHARACTER(LEN=*), PARAMETER   :: routine_name = "energy_manybody"
-  INTEGER :: index, iparticle_local, iparticle, nparticle_local
-  INTEGER :: handle, flops, ikind
+  INTEGER :: index, iparticle_local, iparticle, nparticle_local, nparticle
+  INTEGER :: handle, flops, ikind, istat
   REAL ( dp ) :: embed, qr
+  REAL ( dp ), POINTER :: fembed ( : )
   TYPE ( pair_potential_type ), POINTER :: pot, potparm ( :, : )
 
   flops = 0.0_dp
@@ -379,6 +381,12 @@ SUBROUTINE energy_manybody ( fist_nonbond_env, atomic_kind_set, &
     CASE DEFAULT
       CYCLE
     CASE ( "EAM" )
+      
+      nparticle = SIZE ( particle_set )
+      ALLOCATE ( fembed ( nparticle ), STAT = istat )
+      IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+                                   "fembed",nparticle*dp_size)
+      fembed ( : ) = 0._dp
 ! computation of embedding function and energy
       nparticle_local = local_particles%n_el(ikind)
       DO iparticle_local=1,nparticle_local
@@ -389,13 +397,21 @@ SUBROUTINE energy_manybody ( fist_nonbond_env, atomic_kind_set, &
 
         embed = pot % eam % frho ( index ) + &
                 qr * pot % eam % frhop ( index )
-        particle_set ( iparticle ) % f_embed =             &
-               pot % eam % frhop ( index ) +            &
-               qr * ( pot % eam % frhop ( index + 1 ) - &
-               pot % eam % frhop ( index ) ) / pot % eam %  drhoar
+        fembed ( iparticle ) = pot % eam % frhop ( index ) + &
+                  qr * ( pot % eam % frhop ( index + 1 ) -    &
+                  pot % eam % frhop ( index ) ) / pot % eam %  drhoar
 
         pot_manybody = pot_manybody + embed
       END DO
+! communicate data
+      CALL mp_sum( fembed, globenv % group )
+      DO iparticle=1,nparticle
+        particle_set(iparticle)%f_embed = fembed(iparticle)
+      END DO
+    
+      DEALLOCATE ( fembed, STAT = istat )
+      IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+                                    "deallocate fembed")
     END SELECT
   END DO
 !  CALL timestop ( flops, handle )
