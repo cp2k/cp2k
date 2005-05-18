@@ -70,8 +70,6 @@ OBJECTS_GENERIC =\
  cp_para_env.o\
  cp_para_types.o\
  cp_parser.o\
- cp_random_methods.o\
- cp_random_types.o\
  cp_rs_pool_types.o\
  cp_sm_fm_interactions.o\
  cp_sm_pool_types.o\

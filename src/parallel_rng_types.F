@@ -16,12 +16,39 @@
 !!
 !!     In detail, this RNG provides 2**64 random number streams each with a
 !!     length of 2**127 resulting in a length of 2**191 for the total RNG.
-!!     Moreover, each stream is divided in 2*51 substream of length 2**76.
+!!     Moreover, each stream is divided in 2**51 substream of length 2**76.
 !!     The stream lengths refer to the default precision of 32 bit random
 !!     number, but also an extended precision of 53 bit per random number
 !!     can be requested. In this case, two 32 bit random numbers are used
 !!     to generate a 53 bit random number and therefore the stream length
 !!     is halved when extended precision are requested.
+!!
+!!     Usage hint:
+!!
+!!     CALL create_rng_stream(rng_stream,name,...)
+!!
+!!     to generate the first stream. Optionally, you may define a different
+!!     seed or create a stream of extended precision (53 bits). Then
+!!
+!!     CALL create_rng_stream(next_rng_stream,name,last_rng_stream=rng_stream)
+!!
+!!     to create all the following RNG streams w.r.t. the previous stream.
+!!     Finally,
+!!
+!!     x = next_random_number(rng_stream,error)
+!!
+!!     will provide the next real random number x between 0 and 1 and
+!!
+!!     ix = next_random_number(rng_stream,low,high,error)
+!!
+!!     the next integer random number ix between low and high from stream
+!!     rng_stream.
+!!     Do not forget to delete each created RNG stream when it is no longer
+!!     needed by
+!!
+!!     CALL delete_rng_stream(rng_stream,error)
+!!
+!!     to avoid memory leaks!
 !!
 !!   LITERATURE
 !!     P. L'Ecuyer, R. Simard, E. J. Chen, and W. D. Kelton,
@@ -61,9 +88,9 @@ MODULE parallel_rng_types
                               a13n  = 810728.0_dp,&
                               a21   = 527612.0_dp,&
                               a23n  = 1370589.0_dp,&
-                              two17 = 131072.0_dp,&           ! 2**17
-                              two53 = 9007199254740992.0_dp,& ! 2**53
-                              fact  = 5.9604644775390625e-8   ! 1/2**24
+                              two17 = 131072.0_dp,&            ! 2**17
+                              two53 = 9007199254740992.0_dp,&  ! 2**53
+                              fact  = 5.9604644775390625e-8_dp ! 1/2**24
 
   ! Data type definitions
 
