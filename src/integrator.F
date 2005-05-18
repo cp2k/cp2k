@@ -77,7 +77,7 @@ MODULE integrator
   USE util,                            ONLY: matmul_3x3, matvec_3x3, transpose_3d
   USE virial_methods,                  ONLY: virial_evaluate
   USE virial_types,                    ONLY: virial_type
-
+  USE input_section_types, ONLY: section_vals_type, section_vals_val_get
   IMPLICIT NONE
 
   PRIVATE
@@ -303,6 +303,8 @@ CONTAINS
                                                  molecule_kind_set, particle_set, &
                                                  vel, simpar )
 
+      IF (simpar%annealing)  vel(:,:)=vel(:,:)*simpar%f_annealing
+
 !     *** Broadcast the new particle velocities ***
       CALL update_particle_set ( particle_set, para_env % group, vel = vel )
 
@@ -498,6 +500,8 @@ CONTAINS
                                                 dm*particle_set(iparticle)%f(:))
         END DO
       END DO
+
+      IF (simpar%annealing)  work(:,:)=work(:,:)*simpar%f_annealing
 
 !     *** Broadcast the new particle velocities ***
 
@@ -739,6 +743,8 @@ CONTAINS
 ! perform Nose'-Hoover chain dynamimcs
       CALL lnhc ( nhc ( isubsys ), molecule_kind_set, molecule_set, &
                   atomic_kind_set, particle_set, local_molecules, vel, para_env % group )
+
+      IF (simpar%annealing)  vel(:,:)=vel(:,:)*simpar%f_annealing
 
 !     *** Broadcast the new particle velocities ***
       CALL update_particle_set ( particle_set, para_env % group, vel = vel )
@@ -1054,6 +1060,8 @@ CONTAINS
 
 ! Nose-Hoover for the Barostat
       CALL lnhc ( nhc_baro ( isubsys ), npt, para_env % group )
+
+      IF (simpar%annealing)  vel(:,:)=vel(:,:)*simpar%f_annealing
 
 !     *** Broadcast the new particle velocities ***
       CALL update_particle_set ( particle_set, para_env % group, vel = vel )
@@ -1410,6 +1418,8 @@ CONTAINS
 
       END DO RR
 
+      IF (simpar%annealing)  vel(:,:)=vel(:,:)*simpar%f_annealing
+
 !     *** Broadcast the new particle velocities ***
       CALL update_particle_set ( particle_set, para_env % group, vel = vel )
 
@@ -1685,6 +1695,8 @@ CONTAINS
 
 ! Nose-Hoover for the Barostat
       CALL lnhc ( nhc_baro ( isubsys ), npt, para_env % group )
+
+      IF (simpar%annealing)  vel(:,:)=vel(:,:)*simpar%f_annealing
 
 !     *** Broadcast the new particle velocities ***
       CALL update_particle_set ( particle_set, para_env % group, vel = vel )
@@ -2232,6 +2244,7 @@ END SUBROUTINE deallocate_old
 ! Nose-Hoover for the Barostat
      CALL lnhc ( nhc_baro ( isubsys ), npt, para_env % group )
 
+     IF (simpar%annealing)  vel(:,:)=vel(:,:)*simpar%f_annealing
 
 !     *** Broadcast the new particle velocities ***
      CALL update_particle_set ( particle_set, para_env % group, vel = vel )

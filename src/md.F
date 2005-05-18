@@ -95,11 +95,13 @@ MODULE md
      REAL (KIND=dp) :: e0
      REAL (KIND=dp) :: v_shock
      REAL (KIND=dp) :: p0
+     REAL (KIND=dp) :: f_annealing
      CHARACTER ( LEN = 20 ) :: ensemble
      CHARACTER ( LEN = 20 ) :: read_type
      CHARACTER ( LEN = 20 ) :: output_format
      CHARACTER ( LEN = 20 ) :: PROGRAM
      LOGICAL :: constraint
+     LOGICAL :: annealing
      LOGICAL :: pv_numerical
      LOGICAL :: pv_availability
      INTEGER :: nfree
@@ -246,8 +248,10 @@ SUBROUTINE read_md_section ( simpar, mdpar, mdio )
   simpar % temp_baro = 0.0_dp
   simpar % temp_tol = 0.0_dp
   simpar % p_ext = 0.0_dp
+  simpar % f_annealing = 1.0_dp
   simpar % read_type = 'POS'
   simpar % constraint = .FALSE.
+  simpar % annealing = .FALSE.
   simpar % pv_numerical=.FALSE.
   simpar % pv_availability=.FALSE.
   simpar % shake_tol = 1.0E-6_dp
@@ -309,6 +313,9 @@ SUBROUTINE read_md_section ( simpar, mdpar, mdio )
         CASE ( 'FIX_AT' )
            simpar % fix_atoms = .TRUE.
 
+        CASE ( 'ANNEALING' )
+           simpar % annealing = .TRUE.
+           CALL get_next ( simpar % f_annealing )
         CASE ( 'OUTPUT' )
            ilen = 0
            CALL get_next ( string, ilen )

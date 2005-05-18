@@ -5013,6 +5013,13 @@ SUBROUTINE create_tddfpt_section(section,error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
+       CALL keyword_create(keyword, name="annealing",&
+            description="Specifies the rescaling factor for velocities after the integration"//&
+            "scheme used. Automatically enables the annealing procedure.", &
+            usage="annealing 0.0", default_r_val=1.0_dp, error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
        CALL keyword_create(keyword, name="pv_ava",&
             description="Chris has to provide docs",&
             usage="pv_ava LOGICAL",&
