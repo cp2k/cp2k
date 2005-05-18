@@ -606,8 +606,8 @@ SUBROUTINE read_md_restart ( rtype, globenv, particle_set, cell, cell_ref,  &
   CALL mp_bcast ( mnhc_b, globenv % source, globenv % group )
 
   DO i = 1, nhc_baro % num_nhc
-     icount = nhc_part % index(i)
-     icount = (icount-1) * nhc_part % nhc_len
+     icount = nhc_baro % index(i)
+     icount = (icount-1) * nhc_baro % nhc_len
      DO j = 1, size_bnhc1
         icount = icount + 1
         nhc_baro % nvt(j,i) % eta = eta_b ( icount )
