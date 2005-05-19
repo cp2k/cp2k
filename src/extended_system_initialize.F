@@ -56,10 +56,10 @@ MODULE extended_system_initialize
 !!   SOURCE
 !******************************************************************************
 
-SUBROUTINE initialize_nhc(nhc,tau_nhc,temp_ext, globenv )
+SUBROUTINE initialize_nhc ( nhc,tau_nhc,temp_ext, globenv )
     TYPE(lnhc_parameters_type), &
       INTENT(INOUT)                          :: nhc
-    REAL(KIND=dp), INTENT(IN)                    :: tau_nhc, temp_ext
+    REAL(KIND=dp), INTENT(IN)                :: tau_nhc, temp_ext
     TYPE(global_environment_type), &
       INTENT(INOUT)                          :: globenv
 
@@ -67,13 +67,16 @@ SUBROUTINE initialize_nhc(nhc,tau_nhc,temp_ext, globenv )
     INTEGER                                  :: i, j, number, isos, iproc, &
                                                 rannumneed, tot_rn, &
                                                 icount
-    REAL(KIND=dp)                                :: akin, temp, v
+    REAL(KIND=dp)                            :: akin, temp, v
     INTEGER, DIMENSION ( : ), ALLOCATABLE    :: rn_need_per_proc
     REAL (KIND=dp), DIMENSION ( : ), ALLOCATABLE    :: array_of_rn
 
 ! first initializing the mass of the nhc variables
 
   nhc % nvt ( :, : ) % mass = nhc % nvt ( :, : ) % nkt * tau_nhc * tau_nhc
+  nhc % nvt ( :, : ) % eta = 0._dp
+  nhc % nvt ( :, : ) % v = 0._dp
+  nhc % nvt ( :, : ) % f = 0._dp
 
 
   SELECT CASE ( nhc % dis_type )
@@ -146,6 +149,8 @@ SUBROUTINE initialize_nhc(nhc,tau_nhc,temp_ext, globenv )
       DO i = 1, SIZE ( nhc % nvt, 1 )
         DO j = 1, SIZE ( nhc % nvt, 2 )
           CALL mp_bcast ( nhc % nvt ( i, j ) % v, globenv % source, globenv % group )
+          CALL mp_bcast ( nhc % nvt ( i, j ) % eta, globenv % source, globenv % group )
+          CALL mp_bcast ( nhc % nvt ( i, j ) % f, globenv % source, globenv % group )
         END DO
       END DO
 
@@ -200,8 +205,6 @@ SUBROUTINE initialize_nhc(nhc,tau_nhc,temp_ext, globenv )
       END DO
 
   END SELECT
-
-
 
 END SUBROUTINE initialize_nhc
 
@@ -298,20 +301,19 @@ SUBROUTINE initialize_npt ( npt, tau_cell, temp_ext, deth, nfree, ensemble, &
        END DO
     END DO
 
-! Zero barostat velocities for npu_uniaxial
+! Zero barostat velocities for nph_uniaxial
     SELECT CASE ( TRIM ( ensemble ) )
     CASE ( 'NPH_UNIAXIAL', 'NPH_UNIAXIAL_DAMPED' )
        npt(:,:) % v = 0.0_dp
     END SELECT
   ENDIF 
 
-#if defined(__parallel)
+! Broadcast
   DO i = 1, SIZE ( npt, 1 )
     DO j = 1, SIZE ( npt, 2 )
        CALL mp_bcast ( npt ( i, j ) % v, globenv % source, globenv % group )
     END DO
   END DO
-#endif
 
 END SUBROUTINE initialize_npt
 
