@@ -206,7 +206,7 @@ CONTAINS
 !!
 !!**************************************************************************
   SUBROUTINE integrate_gf_rspace_NoPBC(zetp,rp,scale,W,pwgrid,cube_info,&
-       eps_mm_rspace,ithread,xdat,ydat,zdat,xder,yder,zder,bo2,wrk,force)
+       eps_mm_rspace,ithread,xdat,ydat,zdat,xder,yder,zder,bo2,wrk,iwrk,force)
     IMPLICIT NONE
     ! Arguments
     REAL(KIND=dp), INTENT(IN)                 :: zetp
@@ -220,6 +220,7 @@ CONTAINS
     REAL(KIND=dp), DIMENSION(:), POINTER     :: xder, yder, zder, wrk
     REAL(KIND=dp), DIMENSION(3), INTENT(OUT) :: force
     INTEGER, DIMENSION(2,3), INTENT(IN)      :: bo2
+    INTEGER, INTENT(IN)                      :: iwrk
     ! Local Variables
     INTEGER                                   :: ithread_l
     INTEGER                                   :: zub,zlb,yub,ylb,xub,xlb
@@ -230,7 +231,7 @@ CONTAINS
                                                  ub_cube
     REAL(KIND=dp), DIMENSION(:, :, :), &
       POINTER                                 :: grid
-    INTEGER, DIMENSION(2,3)                   :: bo, gbo
+    INTEGER, DIMENSION(2,3)                   :: bo, gbo, bo2l
     INTEGER, DIMENSION(:), POINTER            :: sphere_bounds
 
 
@@ -286,22 +287,31 @@ CONTAINS
     ENDDO
  
     ! z derivative
+    bo2l = bo2
+    bo2l(1,3) = bo2(1,iwrk)
+    bo2l(2,3) = bo2(2,iwrk)
     DO ig=zlb,zub
        wrk(ig)  = zder(ig)*zdat(ig)*zetp*2.0_dp
     ENDDO
-    CALL integrate_gf_npbc(grid,xdat,ydat,wrk,bo,bo2,&
+    CALL integrate_gf_npbc(grid,xdat,ydat,wrk,bo,bo2l,&
          zlb,zub,ylb,yub,xlb,xub,force(3))
     ! y derivative
     DO ig=ylb,yub
        wrk(ig)  = yder(ig)*ydat(ig)*zetp*2.0_dp
-    ENDDO    
-    CALL integrate_gf_npbc(grid,xdat,wrk,zdat,bo,bo2,&
+    ENDDO
+    bo2l = bo2
+    bo2l(1,2) = bo2(1,iwrk)
+    bo2l(2,2) = bo2(2,iwrk)
+    CALL integrate_gf_npbc(grid,xdat,wrk,zdat,bo,bo2l,&
          zlb,zub,ylb,yub,xlb,xub,force(2))
     ! x derivative
     DO ig=xlb,xub
        wrk(ig)  = xder(ig)*xdat(ig)*zetp*2.0_dp
-    ENDDO    
-    CALL integrate_gf_npbc(grid,wrk,ydat,zdat,bo,bo2,&
+    ENDDO
+    bo2l = bo2
+    bo2l(1,1) = bo2(1,iwrk)
+    bo2l(2,1) = bo2(2,iwrk)
+    CALL integrate_gf_npbc(grid,wrk,ydat,zdat,bo,bo2l,&
          zlb,zub,ylb,yub,xlb,xub,force(1))
 
   END SUBROUTINE integrate_gf_rspace_NoPBC

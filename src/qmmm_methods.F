@@ -899,6 +899,7 @@ CONTAINS
                                             zder=zder,&
                                             bo2=bo2,&
                                             wrk=wrk,&
+                                            iwrk=iwrk,&
                                             force=force)
              force = force * dvol
              Forces(LIndMM,:) = Forces(LIndMM,:) + force(:)
