@@ -201,9 +201,13 @@ SUBROUTINE topology_control (atomic_kind_set,particle_set,&
   !-----------------------------------------------------------------------------
   ! 9. Deal with the constraint stuff if requested
   !-----------------------------------------------------------------------------
-  CALL topology_constraint_pack(molecule_kind_set,molecule_set,&
-                                topology,qmmm_env,particle_set,globenv)
-
+  IF (my_qmmm) THEN
+     CALL topology_constraint_pack(molecule_kind_set,molecule_set,&
+                                   topology,qmmm_env,particle_set,globenv)
+  ELSE
+     CALL topology_constraint_pack(molecule_kind_set,molecule_set,&
+                                   topology,particle_set=particle_set, globenv=globenv)
+  END IF
 
   !-----------------------------------------------------------------------------
   !-----------------------------------------------------------------------------

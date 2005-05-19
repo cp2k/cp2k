@@ -3751,10 +3751,15 @@ SUBROUTINE topology_constraint_pack ( molecule_kind_set,molecule_set,&
            molecule => molecule_set(molecule_list(j))
            CALL get_molecule ( molecule, first_atom = first, last_atom = last )
            DO k = first, last
-              IF  (ANY(cons_info%fixed_atoms == k).OR.&
-                   (cons_info%freeze_qm.AND.ANY(qmmm_env%qm_molecule_index == molecule_list(j))).OR.&
-                   (cons_info%freeze_mm.AND.ALL(qmmm_env%qm_molecule_index /= molecule_list(j))))&
-                   nfixed_atoms = nfixed_atoms + 1              
+              IF (PRESENT(qmmm_env)) THEN
+                 IF  (ANY(cons_info%fixed_atoms == k).OR.&
+                      (cons_info%freeze_qm.AND.ANY(qmmm_env%qm_molecule_index == molecule_list(j))).OR.&
+                      (cons_info%freeze_mm.AND.ALL(qmmm_env%qm_molecule_index /= molecule_list(j))))&
+                      nfixed_atoms = nfixed_atoms + 1 
+              ELSE
+                 IF  (ANY(cons_info%fixed_atoms == k))&
+                      nfixed_atoms = nfixed_atoms + 1 
+              END IF
            END DO
         END DO
         ALLOCATE(fixd_list(nfixed_atoms),STAT=istat)
@@ -3764,12 +3769,20 @@ SUBROUTINE topology_constraint_pack ( molecule_kind_set,molecule_set,&
            molecule => molecule_set(molecule_list(j))
            CALL get_molecule ( molecule, first_atom = first, last_atom = last )
            DO k = first, last
-              IF  (ANY(cons_info%fixed_atoms == k).OR.&
-                   (cons_info%freeze_qm.AND.ANY(qmmm_env%qm_molecule_index == molecule_list(j))).OR.&
-                   (cons_info%freeze_mm.AND.ALL(qmmm_env%qm_molecule_index /= molecule_list(j)))) THEN
-                 kk = kk + 1
-                 fixd_list(kk)%fixd = k
-                 particle_set(k)%is_fixed = .TRUE.
+              IF (PRESENT(qmmm_env)) THEN
+                 IF  (ANY(cons_info%fixed_atoms == k).OR.&
+                      (cons_info%freeze_qm.AND.ANY(qmmm_env%qm_molecule_index == molecule_list(j))).OR.&
+                      (cons_info%freeze_mm.AND.ALL(qmmm_env%qm_molecule_index /= molecule_list(j)))) THEN
+                    kk = kk + 1
+                    fixd_list(kk)%fixd = k
+                    particle_set(k)%is_fixed = .TRUE.
+                 END IF
+              ELSE
+                 IF  (ANY(cons_info%fixed_atoms == k)) THEN                     
+                    kk = kk + 1
+                    fixd_list(kk)%fixd = k
+                    particle_set(k)%is_fixed = .TRUE.
+                 END IF
               END IF
            END DO
         END DO
