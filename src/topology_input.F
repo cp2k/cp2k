@@ -505,7 +505,7 @@ SUBROUTINE read_constraints_section_new(topology, constraint_section, error)
   TYPE(section_vals_type), POINTER         ::  g3x3_section, g4x6_section, fix_atom_section,&
                                                internal_section, dist_section, angle_section,&
                                                tors_section, comb_section
-  LOGICAL :: explicit, failure
+  LOGICAL :: explicit, failure, freeze_mm, freeze_qm
   INTEGER :: ncons, stat, isize, j, k, jj, icons, ig, n_rep
   INTEGER, DIMENSION(:), POINTER       :: ilist, tmplist
   REAL(KIND=dp), DIMENSION(:), POINTER :: rlist 
@@ -607,6 +607,8 @@ SUBROUTINE read_constraints_section_new(topology, constraint_section, error)
      IF (explicit) THEN
         NULLIFY(tmplist)
         isize = 0
+        ALLOCATE(cons_info%fixed_atoms(isize),stat=stat)
+        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
         DO ig = 1, ncons
            CALL section_vals_val_get(fix_atom_section,"LIST", i_rep_section=ig, n_rep_val=n_rep, error=error)
            DO k = 1, n_rep
@@ -628,16 +630,16 @@ SUBROUTINE read_constraints_section_new(topology, constraint_section, error)
               END DO
               isize = SIZE(cons_info%fixed_atoms)
            END DO
+           CALL section_vals_val_get(fix_atom_section,"MM_SUBSYS",l_val=freeze_mm,i_rep_section=ig,error=error)
+           CALL section_vals_val_get(fix_atom_section,"QM_SUBSYS",l_val=freeze_qm,i_rep_section=ig,error=error)
+           cons_info%freeze_mm = cons_info%freeze_mm .OR. freeze_mm
+           cons_info%freeze_qm = cons_info%freeze_qm .OR. freeze_qm
         END DO
-        IF (isize /= 0) THEN
+        IF (isize /= 0 .OR. cons_info%freeze_mm .OR. cons_info%freeze_qm ) THEN
            topology%constraint    = .TRUE.
            topology%const_atom    = .TRUE.
            cons_info%nfixed_atoms =  isize
         END IF
-        !
-        ! The Case MM_SUBSYS and QM_SUBSYS is a special case and is treated directly
-        ! in the qmmm_eval_energy_and_forces
-        !
      END IF
      ! INTERNAL
      CALL section_vals_get(internal_section,explicit=explicit, n_repetition=ncons, error=error)

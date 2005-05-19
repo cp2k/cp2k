@@ -82,7 +82,6 @@ MODULE md_run
   USE mol_kind_new_list_types,         ONLY: mol_kind_new_list_type
   USE mol_new_list_types,              ONLY: mol_new_list_type
   USE particle_list_types,             ONLY: particle_list_type
-  USE particle_types,                  ONLY: read_fixed_particles
   USE physcon,                         ONLY: kelvin
   USE simulation_cell,                 ONLY: cell_type
   USE termination,                     ONLY: stop_memory
@@ -244,9 +243,7 @@ CONTAINS
               molecules_new=molecules_new,&
               particles=particles,&
               error=error)
-          IF (simpar%fix_atoms) THEN
-            CALL read_fixed_particles(particles%els,globenv,nfixed)
-          END IF
+
          CALL initialize_nhc_part(cell,simpar,local_molecules, &
                                   molecules_new%els, molecule_kinds_new%els,&
                                   globenv, extended_type%nhc_part(ibead))

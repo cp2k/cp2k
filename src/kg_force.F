@@ -973,11 +973,7 @@ END SUBROUTINE kg_calculate_forces
       ! XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
       force(ikind)%other(1:3,i)=-particle_set(iatom)%f(1:3)
       force(ikind)%total(1:3,i)=force(ikind)%total(1:3,i)+force(ikind)%other(1:3,i)
-      IF (particle_set(iatom)%is_fixed) THEN
-        particle_set(iatom)%f = 0.0_dp
-      ELSE
-        particle_set(iatom)%f = -force(ikind)%total(1:3,i)
-      END IF
+      particle_set(iatom)%f = -force(ikind)%total(1:3,i)
     END DO
 
     CALL write_forces(force,atomic_kind_set,3,globenv)

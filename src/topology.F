@@ -202,7 +202,7 @@ SUBROUTINE topology_control (atomic_kind_set,particle_set,&
   ! 9. Deal with the constraint stuff if requested
   !-----------------------------------------------------------------------------
   CALL topology_constraint_pack(molecule_kind_set,molecule_set,&
-                                topology,globenv)
+                                topology,qmmm_env,particle_set,globenv)
 
 
   !-----------------------------------------------------------------------------

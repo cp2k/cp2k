@@ -78,6 +78,7 @@ MODULE topology_types
      ! Fixed Atoms
      INTEGER          :: nfixed_atoms
      INTEGER, POINTER :: fixed_atoms(:)
+     LOGICAL          :: freeze_qm, freeze_mm
      ! Distance
      INTEGER          :: nconst_dist
      INTEGER, POINTER :: const_dist_mol(:)
@@ -307,6 +308,8 @@ SUBROUTINE init_constraint(constraint_info)
   TYPE(constraint_info_type),POINTER :: constraint_info
   ! Fixed Atoms
   constraint_info%nfixed_atoms = 0
+  constraint_info%freeze_mm = .FALSE.
+  constraint_info%freeze_qm = .FALSE.
   NULLIFY(constraint_info%fixed_atoms)
   ! Distance
   constraint_info%nconst_dist = 0

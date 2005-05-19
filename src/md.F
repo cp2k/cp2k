@@ -114,7 +114,6 @@ MODULE md
      REAL (KIND=dp) :: shake_tol
      TYPE ( qs_md_parameters_type ) :: qs_md_param
      TYPE ( simpar_units_type ) :: units
-     LOGICAL :: fix_atoms
   END TYPE simulation_parameters_type
 
   TYPE mdio_parameters_type
@@ -193,7 +192,6 @@ CONTAINS
 !!I   timecon:  tau_cell  &                 barostat time constant            I
 !!I qs_md_parameter &                                                         I
 !!I   neighbor_lists_from_scratch: [true, false]                              I
-!!! fix_atoms                            fix atoms during an MD run
 !!I FILES                           &                                         I
 !!I   filebody    "filename"        &                                         I
 !!I   coordinates "filename.crd"    &                                         I
@@ -261,7 +259,6 @@ SUBROUTINE read_md_section ( simpar, mdpar, mdio )
   simpar % tau_nhc = 1000.0_dp
   simpar % tau_cell = 1000.0_dp
   simpar % qs_md_param % neighbor_lists_from_scratch = .TRUE.
-  simpar % fix_atoms = .FALSE.
   simpar % p0 = 0._dp
   simpar % v0 = 0._dp
   simpar % e0 = 0._dp
@@ -310,12 +307,10 @@ SUBROUTINE read_md_section ( simpar, mdpar, mdio )
            CALL p_error()
            CALL stop_parser ( 'read_md_section', 'unknown option' )
 
-        CASE ( 'FIX_AT' )
-           simpar % fix_atoms = .TRUE.
-
-        CASE ( 'ANNEALING' )
+        CASE ( 'ANNEAL' )
            simpar % annealing = .TRUE.
            CALL get_next ( simpar % f_annealing )
+
         CASE ( 'OUTPUT' )
            ilen = 0
            CALL get_next ( string, ilen )
@@ -661,6 +656,9 @@ SUBROUTINE read_md_section ( simpar, mdpar, mdio )
           simpar % temp_ext
      WRITE ( iw, '( A,T71,F10.2 )' ) ' MD| Temperature tolerance [K] ', &
           simpar % temp_tol
+     IF ( simpar % annealing ) &
+          WRITE ( iw, '( A,T71,F10.2 )' ) ' MD| Annealing ion factor      ', &
+          simpar % f_annealing
      IF ( ( simpar % ensemble ( 1:3 ) == 'NVT' ) &
           .OR. (simpar % ensemble ( 1:3 ) == 'NPT' ) ) THEN
         WRITE ( iw, '( A )' ) ' MD| Nose-Hoover-Chain parameters '

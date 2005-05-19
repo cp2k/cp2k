@@ -53,7 +53,6 @@ MODULE bfgs_optimizer
   USE message_passing,                 ONLY: mp_bcast
   USE particle_list_types,             ONLY: particle_list_type
   USE particle_types,                  ONLY: particle_type,&
-                                             read_fixed_particles,&
                                              write_particle_coordinates,&
                                              write_particle_distances,&
                                              write_qs_particle_coordinates,&
@@ -137,14 +136,8 @@ CONTAINS
 
 !   Atom fixing constraints for optimizer
 
-    nfixed = 0
-
-    IF (gopt_param%fix_atoms) THEN
-      CALL read_fixed_particles(particle_set,globenv,nfixed)
-    END IF
-
+    nfixed = COUNT(particle_set(:)%is_fixed)
     nfree = natom - nfixed
-
     ndf = 3*nfree
 
     ALLOCATE(x(ndf) )

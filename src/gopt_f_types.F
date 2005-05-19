@@ -144,7 +144,7 @@ MODULE gopt_f_types
      INTEGER :: id_nr,ref_count,method_id,max_h_rank, max_f_per_iter, max_iter
      REAL(KIND = dp) :: wanted_proj_gradient, wanted_rel_f_error,&
                         max_dr,max_force,rms_dr,rms_force
-     LOGICAL :: fix_atoms,hesrest
+     LOGICAL :: hesrest
   END TYPE gopt_param_type
 !!***
   !****************************************************************************
@@ -521,7 +521,6 @@ SUBROUTINE gopt_param_create(gopt_param,error)
      gopt_param%wanted_proj_gradient=1.0e-3_dp
      gopt_param%wanted_rel_f_error=1.0e5_dp
      gopt_param%hesrest=.FALSE.
-     gopt_param%fix_atoms = .FALSE.
      gopt_param%max_dr = 0.0030_dp
      gopt_param%max_force = 0.00045_dp
      gopt_param%rms_dr = 0.0015_dp
@@ -615,8 +614,6 @@ SUBROUTINE gopt_param_read(gopt_param, globenv, error)
               CALL read_object(gopt_param%wanted_rel_f_error)
            CASE ('RESTART')
               gopt_param%hesrest = .TRUE.
-           CASE('FIX_ATOMS')
-              gopt_param%fix_atoms = .TRUE.
            CASE ("MAX_DR")
               CALL read_object(gopt_param%max_dr)
            CASE ("MAX_FORCE")

@@ -763,12 +763,6 @@ RECURSIVE SUBROUTINE qmmm_energy_and_forces(force_env,calc_force,error)
      END DO
      ! If add charges get rid of their derivatives right NOW!
      IF (qmmm_added_chrg) CALL qmmm_added_chrg_forces(force_env%qmmm_env, particles_mm, error)
-     ! Check if we have to delete some gradients.. i.e. some atom is considered fixed...
-     IF (ANY(particles_mm%is_fixed)) THEN
-        DO ip = 1, SIZE(particles_mm)
-           IF (particles_mm(ip)%is_fixed) particles_mm(ip)%f = 0.0_dp
-        END DO
-     END IF
   END IF
 
   print_key => section_vals_get_subs_vals(qmmm_section,"print%qmmm_derivatives",&

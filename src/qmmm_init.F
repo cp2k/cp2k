@@ -398,12 +398,6 @@ CONTAINS
        CALL setup_origin_mm_cell(qmmm_section, qmmm_env_qm, mm_cell, qm_cell_small,&
             dr=qs_env%pw_env%pw_pools(qs_env%pw_env%auxbas_grid)%pool%pw_grid%dr,&
             error=error)
-       !
-       ! Initialize constraints specific to QM/MM, all other constraints will
-       ! be specified elsewhere
-       !
-       CALL qmmm_setup_constraints(subsys_mm, force_env_section, qm_atom_index,&
-            mm_atom_index, error)
 
        CALL pw_green_release(green, error)
        CALL cell_release(qm_cell_small, error)                       
@@ -572,26 +566,6 @@ CONTAINS
        CALL topology_coordinate_pack(particle_set,atomic_kind_set,&
             molecule_kind_set,molecule_set,&
             topology,globenv)
-
-       !-----------------------------------------------------------------------------
-       !-----------------------------------------------------------------------------
-       ! 10. Deal with the constraint stuff if requested
-       !-----------------------------------------------------------------------------
-       IF(topology%constraint) THEN
-          CALL topology_constraint_pack(molecule_kind_set,molecule_set,&
-               topology,globenv)
-       END IF
-
-
-       !-----------------------------------------------------------------------------
-       !-----------------------------------------------------------------------------
-       ! 11. Dump the topology informations
-       !-----------------------------------------------------------------------------
-       IF(topology%dump_topology) THEN
-          CALL write_topology_psf(topology,globenv)
-          CALL write_coordinate_pdb(topology,globenv)
-       END IF
-
 
        !-----------------------------------------------------------------------------
        !-----------------------------------------------------------------------------
@@ -1819,77 +1793,6 @@ CONTAINS
         added_charges%mm_el_pot_radius(icount) = my_radius
      END IF
    END SUBROUTINE set_add_set_type
-
-  !!****f* qmmm_init/qmmm_setup_constraints [1.0] *
-  !!
-  !!   NAME
-  !!     qmmm_setup_constraints
-  !!
-  !!   FUNCTION
-  !!     this routine sets up all variables of the add_set_type type
-  !!
-  !!   NOTES
-  !!
-  !!
-  !!   INPUTS
-  !!     - error: variable to control error logging, stopping,... 
-  !!       see module cp_error_handling 
-  !!
-  !!   AUTHOR
-  !!     Teodoro Laino
-  !!
-  !!   MODIFICATION HISTORY
-  !!     02.2005 created [tlaino]
-  !!
-  !!*************************************************************************
-   SUBROUTINE  qmmm_setup_constraints(subsys_mm, force_eval_section, qm_atom_index,&
-        mm_atom_index, error)
-     IMPLICIT NONE
-     ! Arguments
-     TYPE(cp_subsystem_p_type), &
-          DIMENSION(:), POINTER                  :: subsys_mm     
-     TYPE(section_vals_type), POINTER         :: force_eval_section, constraint_section     
-     INTEGER, DIMENSION(:), POINTER           :: qm_atom_index, mm_atom_index
-     TYPE(cp_error_type), INTENT(inout), &
-          OPTIONAL                            :: error
-     ! Local Variables
-     CHARACTER(len=*), PARAMETER :: routineN = 'qmmm_setup_constraints',&
-          routineP = moduleN//':'//routineN
-     LOGICAL :: failure, freeze_mm, freeze_qm, explicit
-     TYPE(section_vals_type), POINTER         :: fix_section
-     INTEGER :: n_fix, i_fix, i
-
-     failure = .FALSE.
-     IF (.NOT.failure) THEN
-        freeze_mm = .FALSE.
-        freeze_qm = .FALSE.
-        constraint_section => section_vals_get_subs_vals(force_eval_section,"SUBSYS",error=error)
-        constraint_section => section_vals_get_subs_vals(constraint_section,"CONSTRAINT",error=error)
-        !
-        ! Check for fix_atom section.. At the moment the only QM/MM dependent constraint 
-        ! are in that subsection
-        ! 
-        fix_section => section_vals_get_subs_vals(constraint_section,"FIXED_ATOMS",error=error)
-        CALL section_vals_get(fix_section, explicit=explicit, n_repetition=n_fix, error=error)
-        IF (explicit) THEN
-           DO i_fix = 1, n_fix
-              CALL section_vals_val_get(fix_section,"MM_SUBSYS",l_val=freeze_mm,i_rep_section=i_fix,error=error)
-              IF (freeze_mm) THEN
-                 DO i = 1, SIZE(mm_atom_index)
-                    subsys_mm(1)%subsys%particles%els(mm_atom_index(i))%is_fixed = .TRUE.
-                 END DO
-              END IF
-              CALL section_vals_val_get(fix_section,"QM_SUBSYS",l_val=freeze_qm,i_rep_section=i_fix,error=error)
-              IF (freeze_qm) THEN
-                 DO i = 1, SIZE(qm_atom_index)
-                    subsys_mm(1)%subsys%particles%els(qm_atom_index(i))%is_fixed = .TRUE.
-                 END DO
-              END IF
-           END DO
-        END IF
-     END IF
-
-   END SUBROUTINE qmmm_setup_constraints
 
    !!****f* qmmm_init/setup_origin_mm_cell [1.0] *
    !!

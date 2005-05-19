@@ -440,12 +440,6 @@ SUBROUTINE fist_force_control ( fist_env, virial, globenv, box_change, debug ,er
     CALL stop_program ( "fist_force", "illegal value of ewald_type: "//&
                          ewald_type )
   END SELECT
-  ! Check if we have to delete some gradients.. i.e. some atom is considered fixed...
-  IF (ANY(particle_set%is_fixed)) THEN
-     DO i = 1, natoms
-        IF (particle_set(i)%is_fixed) particle_set(i)%f = 0.0_dp
-     END DO
-  END IF
   IF (PM2) THEN
      WRITE(iw,'(A)')" FIST:: (3) TOTAL FORCES - THE END..."
      WRITE(iw,'(3f15.9)')((particle_set ( i ) % f ( j ),j=1,3), i = 1, natoms)

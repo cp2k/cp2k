@@ -530,8 +530,7 @@ CONTAINS
       IF (PRESENT(nonfo)) nonfo = molecule_kind%nonfo
       IF (PRESENT(nconstraint)) nconstraint = molecule_kind%ndist +&
                                               3*molecule_kind%ng3x3 +&
-                                              6*molecule_kind%ng4x6 +&
-                                              molecule_kind%nfixd
+                                              6*molecule_kind%ng4x6 
       IF (PRESENT(ndist)) ndist = molecule_kind%ndist
       IF (PRESENT(ng3x3)) ng3x3= molecule_kind%ng3x3
       IF (PRESENT(ng4x6)) ng4x6= molecule_kind%ng4x6
@@ -582,7 +581,7 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routine_name = "get_molecule_kind_set"
 
     INTEGER                                  :: imolecule_kind, nmolecule_kind
-    INTEGER                                  :: na, nc, nm
+    INTEGER                                  :: na, nc, nm, nfixd
     INTEGER                                  :: ibond,ibend,iub,itorsion
     INTEGER                                  :: iimpr,ionfo
     TYPE(molecule_kind_type), POINTER        :: molecule_kind
@@ -618,6 +617,7 @@ CONTAINS
                                nimpr=iimpr,&
                                nonfo=ionfo,&
                                nconstraint=nc,&
+                               nfixd=nfixd,&
                                nmolecule=nm)
 
         IF (PRESENT(maxatom)) maxatom = MAX(maxatom,na)
@@ -628,7 +628,7 @@ CONTAINS
         IF (PRESENT(ntorsion)) ntorsion = ntorsion + itorsion*nm
         IF (PRESENT(nimpr)) nimpr = nimpr + iimpr*nm
         IF (PRESENT(nonfo)) nonfo = nonfo + ionfo*nm
-        IF (PRESENT(nconstraint)) nconstraint = nconstraint + nc*nm
+        IF (PRESENT(nconstraint)) nconstraint = nconstraint + nc*nm + 3*nfixd
         IF (PRESENT(nmolecule)) nmolecule = nmolecule + nm
 
       END DO
