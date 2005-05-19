@@ -3750,12 +3750,7 @@ SUBROUTINE topology_constraint_pack ( molecule_kind_set,molecule_set,&
         DO j=1,nmolecule
            molecule => molecule_set(molecule_list(j))
            CALL get_molecule ( molecule, first_atom = first, last_atom = last )
-!           WRITE(*,*)"TEOTEO ::",j,first,last,molecule_list(j)
-!           WRITE(*,*)qmmm_env%qm_molecule_index
            DO k = first, last
-!              WRITE(*,*)ANY(cons_info%fixed_atoms == k)
-!              WRITE(*,*)cons_info%freeze_qm.AND.ANY(qmmm_env%qm_molecule_index == molecule_list(j))
-!              WRITE(*,*)cons_info%freeze_mm.AND.ALL(qmmm_env%qm_molecule_index /= molecule_list(j))
               IF  (ANY(cons_info%fixed_atoms == k).OR.&
                    (cons_info%freeze_qm.AND.ANY(qmmm_env%qm_molecule_index == molecule_list(j))).OR.&
                    (cons_info%freeze_mm.AND.ALL(qmmm_env%qm_molecule_index /= molecule_list(j))))&
@@ -3778,7 +3773,7 @@ SUBROUTINE topology_constraint_pack ( molecule_kind_set,molecule_set,&
               END IF
            END DO
         END DO
-        WRITE(*,*)"FIXD_LIST ::",fixd_list
+        IF (PM1) WRITE(*,*)"FIXD_LIST ::",fixd_list
         CALL set_molecule_kind(molecule_kind, nfixd=nfixed_atoms, fixd_list=fixd_list)
      END DO
   END IF
