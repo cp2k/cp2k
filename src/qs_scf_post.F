@@ -885,7 +885,8 @@ SUBROUTINE calc_stupid_dipole(subsystem, rho_r, rho_core_g,aux_bas_pool,&
     LOGICAL                                  :: failure, my_print_header
     REAL(kind=dp)                            :: mass, tot_m
     REAL(kind=dp), DIMENSION(3)              :: com, dipole_center, &
-                                                dipole_com, dr, r, r_com
+                                                dipole_com, dr, r, r_com,&
+                                                shift
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(particle_list_type), POINTER        :: particles
     TYPE(pw_type), POINTER                   :: total_charge
@@ -924,13 +925,14 @@ SUBROUTINE calc_stupid_dipole(subsystem, rho_r, rho_core_g,aux_bas_pool,&
   dipole_com=0._dp
   bo=total_charge%pw_grid%bounds_local
   dr=total_charge%pw_grid%dr
+  shift=REAL(MODULO(total_charge%pw_grid%npts,2),dp)*dr
   DO k=bo(1,3),bo(2,3)
-     r(3)=k*dr(3)
+     r(3)=k*dr(3)+shift(3)
      r_com(3)=MODULO(r(3)-com(3),cell%hmat(3,3))-cell%hmat(3,3)/2._dp
      DO j=bo(1,2),bo(2,2)
-        r(2)=j*dr(2)
+        r(2)=j*dr(2)+shift(2)
         r_com(2)=MODULO(r(2)-com(2),cell%hmat(2,2))-cell%hmat(2,2)/2._dp
-        r(1)=bo(1,1)*dr(1)
+        r(1)=bo(1,1)*dr(1)+shift(1)
         r_com(1)=MODULO(r(1)-com(1),cell%hmat(1,1))-cell%hmat(1,1)/2._dp
         DO i=bo(1,1),bo(2,1)
            dipole_com=dipole_com+total_charge%cr3d(i,j,k)*r_com
