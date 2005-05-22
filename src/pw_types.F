@@ -782,7 +782,7 @@ SUBROUTINE pw_get_left_right ( pw, left, right )
   send = pw%cr3d(bl(1,1),:,:)
   CALL mp_sendrecv(send,left_cpu,right,right_cpu,pw%pw_grid%para%group)
   ! send the right data (receive the left)
-  send = pw%cr3d(bl(1,2),:,:)
+  send = pw%cr3d(bl(2,1),:,:)
   CALL mp_sendrecv(send,right_cpu,left,left_cpu,pw%pw_grid%para%group)
   DEALLOCATE(send)
 
