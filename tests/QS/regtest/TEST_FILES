@@ -145,3 +145,5 @@ H+.TI.inp          1
 He2H-.inp          1
 # S**2
 CN.inp             4
+# testing of distributed rs grids
+rsgrid-dist-1.inp  1
