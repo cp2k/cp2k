@@ -94,8 +94,6 @@ MODULE print_key_types
     LOGICAL :: optical_conductivity,&
                ortho_matrix,&
                overlap_matrix,&
-               overlap_matrix_magnitude, &
-               density_matrix_magnitude, &
                pgf_radii,&
                physcon,&
                potential,&
@@ -266,8 +264,6 @@ CONTAINS
     print_keys%total_densities = key_value(level,(/f,t,t/))
     print_keys%total_numbers = key_value(level,(/t,t,t/))
     print_keys%w_matrix = key_value(level,(/f,f,f/))
-    print_keys%density_matrix_magnitude = key_value(level,(/f,f,f/))
-    print_keys%overlap_matrix_magnitude = key_value(level,(/f,f,f/))
     print_keys%e_density_cube = key_value(level,(/f,f,f/))
     print_keys%v_hartree_cube = key_value(level,(/f,f,f/))
     print_keys%v_qmmm_cube = key_value(level,(/f,f,f/))

@@ -147,8 +147,7 @@ MODULE qs_core_hamiltonian
                                              deallocate_matrix_set,&
                                              get_block_node,&
                                              real_matrix_p_type,&
-                                             replicate_matrix_structure,&
-                                             write_blocks_maxabsval
+                                             replicate_matrix_structure
   USE string_utilities,                ONLY: compress,&
                                              uppercase
   USE termination,                     ONLY: stop_memory,&
@@ -2077,22 +2076,6 @@ CONTAINS
     CALL write_matrix_distribution(matrix_s(1)%matrix,globenv)
 
 !   *** Print the overlap integral matrix, if requested ***
-
-    IF (globenv%print%overlap_matrix_magnitude) THEN
-      IF (globenv%num_pe > 1) THEN
-        WRITE (UNIT=extension,FMT="(I6)") globenv%mepos
-        file_name = "S_MAGNITUDE"//"."//ADJUSTL(extension)
-      ELSE
-        file_name = "S_MAGNITUDE"
-      END IF
-      CALL open_file(file_name=file_name,&
-                     file_action="WRITE",&
-                     file_form="FORMATTED",&
-                     file_status="REPLACE",&
-                     unit_number=unit_number)
-      CALL write_blocks_maxabsval(matrix_s(1)%matrix,unit_number)
-      CALL close_file(unit_number=unit_number)
-    END IF
 
     IF (globenv%print%overlap_matrix) THEN
       CALL write_sparse_matrix(matrix_s(1)%matrix,4,6,qs_env,globenv)

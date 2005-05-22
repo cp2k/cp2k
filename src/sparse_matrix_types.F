@@ -124,7 +124,7 @@ MODULE sparse_matrix_types
             sparse_times_local, &
             sparse_plus_loc_loct, &
             remove_block_node, &
-            write_blocks_maxabsval, add_all_real_matrix_blocks, get_real_matrix_occupation,& ! should be removed
+            write_blocks_maxabsval, get_real_matrix_occupation,& ! should be removed
             cp_sm_scale_and_add,&
             cp_sm_get_id_nr,&
             cp_sm_set,&
@@ -728,33 +728,6 @@ END SUBROUTINE cp_sm_scale_and_add
     END DO
 
   END SUBROUTINE write_blocks_maxabsval
-
-!******************************************************************************************
-! add all real matrix blocks, but distributed over all cpus, keeps into account symmetric
-!******************************************************************************************
-  SUBROUTINE add_all_real_matrix_blocks(sparse_matrix,globenv)
-
-    TYPE(real_matrix_type), POINTER          :: sparse_matrix
-    TYPE(global_environment_type), &
-      INTENT(IN)                             :: globenv
-
-    INTEGER                                  :: iblock_col, iblock_row, ij
-
-    ij=0
-    DO iblock_row=1,sparse_matrix%nblock_row
-      DO iblock_col=1,sparse_matrix%nblock_col
-         IF (sparse_matrix%symmetry.eq."symmetric") THEN
-            IF (iblock_col.lt.iblock_row) CYCLE
-         ENDIF
-         ij=ij+1
-         IF (MOD(ij,globenv%num_pe).EQ. globenv%mepos) THEN
-            CALL add_real_matrix_block(sparse_matrix, &
-                 block_row=iblock_row,block_col=iblock_col)
-         ENDIF
-      END DO
-    END DO
-
-  END SUBROUTINE add_all_real_matrix_blocks
 
 ! *****************************************************************************
   SUBROUTINE allocate_real_matrix(matrix,nrow,ncol,nblock_row,nblock_col,&

@@ -721,13 +721,6 @@ contains
        CALL section_add_subsection(section,print_key,error=error)
        CALL section_release(print_key,error=error)
 
-       CALL cp_print_key_section_create(print_key,"DENSITY_MATRIX_MAGNITUDE",&
-            description="Controls the printing of the Magnitude of the Density Matrix", &
-            print_level=high_print_level,each=(/1/),filename="__STD_OUT__",&
-            error=error)
-       CALL section_add_subsection(section,print_key,error=error)
-       CALL section_release(print_key,error=error)
-
        CALL cp_print_key_section_create(print_key,"DERIVATIVES",&
             description="Controls the printing of derivatives.", &
             print_level=high_print_level,each=(/1/),filename="__STD_OUT__",&
@@ -842,13 +835,6 @@ contains
 
        CALL cp_print_key_section_create(print_key,"OVERLAP_MATRIX",&
             description="Controls the printing of the Overlap Matrix", &
-            print_level=high_print_level,each=(/1/),filename="__STD_OUT__",&
-            error=error)
-       CALL section_add_subsection(section,print_key,error=error)
-       CALL section_release(print_key,error=error)
-
-       CALL cp_print_key_section_create(print_key,"OVERLAP_MATRIX_MAGNITUDE",&
-            description="Controls the printing the magnitude of the Overlap Matrix", &
             print_level=high_print_level,each=(/1/),filename="__STD_OUT__",&
             error=error)
        CALL section_add_subsection(section,print_key,error=error)

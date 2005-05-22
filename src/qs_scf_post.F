@@ -127,12 +127,10 @@ MODULE qs_scf_post
   USE scf_control_types,               ONLY: scf_control_type
   USE simulation_cell,                 ONLY: cell_type,&
                                              get_cell
-  USE sparse_matrix_types,             ONLY: add_all_real_matrix_blocks,&
-                                             deallocate_matrix,&
+  USE sparse_matrix_types,             ONLY: deallocate_matrix,&
                                              real_matrix_p_type,&
                                              real_matrix_type,&
-                                             replicate_matrix,&
-                                             write_blocks_maxabsval
+                                             replicate_matrix
   USE termination,                     ONLY: stop_program
   USE timings,                         ONLY: timeset,&
                                              timestop
@@ -725,29 +723,6 @@ CONTAINS
            CALL write_sparse_matrix(rho%rho_ao(ispin)%matrix,4,6,qs_env,globenv)
          END DO
        END IF
-
-!    *** a coarse grained version of the density matrix ***
-       IF (Globenv%print%density_matrix_magnitude) THEN
-          IF (globenv%num_pe > 1) THEN
-             WRITE (unit=extension,fmt="(I6)") globenv%mepos
-             file_name = "P_magnitude"//"."//ADJUSTL(extension)
-          ELSE
-             file_name = "P_magnitude"
-          END IF
-          CALL open_file(file_name=file_name,&
-               file_action="Write",&
-               file_form="Formatted",&
-               file_status="Replace",&
-               unit_number=file_unit)
-
-          NULLIFY(pfull) 
-          CALL replicate_matrix(matrix_s(1)%matrix,Pfull,"Full Density Matrix",.FALSE.)
-          CALL add_all_real_matrix_blocks(Pfull,Globenv)
-          CALL calculate_density_matrix(mos(1)%mo_set,Pfull,error=error)
-          CALL write_blocks_maxabsval(Pfull,File_unit)
-          CALL deallocate_matrix(Pfull)
-          CALL close_file(Unit_number=File_unit)
-       ENDIF
 
 !    **** the Kohn-Sham matrix itself
        IF (globenv%print%kohn_sham_matrix) THEN
