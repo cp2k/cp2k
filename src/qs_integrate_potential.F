@@ -1542,7 +1542,7 @@ CONTAINS
 ! local blocks
 
      CALL cp_sm_scale_and_add(matrix_a=h,matrix_b=dh)
-
+     NULLIFY(hlist,dhlist)
      CALL cp_sm_get_block_list ( h, hlist )
      CALL cp_sm_get_block_list ( dh, dhlist )
 
