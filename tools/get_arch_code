@@ -51,6 +51,8 @@
         PLATFORM="IRIX";;
       IRIX64-*-*-*)
         PLATFORM="IRIX";;
+      Linux-*-*-ppc64)
+        PLATFORM="Linux-bgl-ibm";;
       Linux-*-*-alpha)
         PLATFORM="Linux-dec-alpha";;
       OSF1-*-*-alpha)
