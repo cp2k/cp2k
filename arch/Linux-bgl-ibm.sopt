@@ -1,0 +1,14 @@
+PERL     = perl
+CC       = xlc
+CPP      = cpp -traditional -E
+FC       = mpxlf95 -qsuffix=f=f90
+LD       = mpxlf95
+AR       = bglar -r
+DFLAGS   = -D__AIX -D__ESSL -D__FFTSG -D__FFTESSL
+CPPFLAGS = -C $(DFLAGS) -P
+FCFLAGS  = -O2 -qarch=440 -qmaxmem=-1 -qtune=440 -qalias=noaryovrlp -qhot=novector
+LDFLAGS  = $(FCFLAGS) -L/users/krack/lib/64 -L/apps/mass/lib -bnoquiet\
+           -bmaxdata:0x80000000 -bmaxstack:0x80000000
+LIBS     = -llapack3 -lessl -lmass -lhm
+
+OBJECTS_ARCHITECTURE = machine_aix.o
