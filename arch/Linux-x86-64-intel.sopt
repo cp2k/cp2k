@@ -9,8 +9,8 @@
 PERL     = perl
 CC       = cc
 CPP      = cpp
-FC       = mpif90 -FR
-LD       = mpif90
+FC       = ifort -FR
+LD       = ifort
 AR       = ar -r
 DFLAGS   = -D__INTEL -D__FFTSG\
            -D__FFTW\
@@ -25,7 +25,7 @@ DFLAGS   = -D__INTEL -D__FFTSG\
 CPPFLAGS = -traditional -C $(DFLAGS) -P
 FCFLAGS  = $(DFLAGS) -O2
 MKLPATH  = /apps64/intel/mkl72cluster/lib/em64t
-LDFLAGS  = $(FCFLAGS) -i-static
+LDFLAGS  = $(FCFLAGS)
 LIBS     = $(MKLPATH)/libmkl_lapack.a\
            $(MKLPATH)/libmkl_em64t.a\
            $(MKLPATH)/libguide.a\
