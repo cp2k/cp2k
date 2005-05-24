@@ -24,7 +24,6 @@
 !******************************************************************************
 
 MODULE topology_input
-  USE cp_error_handling,               ONLY: cp_error_type
   USE cp_log_handling,                 ONLY: cp_failure_level,&
                                              cp_fatal_level,&
                                              cp_note_level,&
