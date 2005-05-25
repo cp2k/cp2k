@@ -1396,7 +1396,7 @@ END SUBROUTINE section_vals_add_values
 !!       (defaults to 1)
 !!     - ival: which repetition of the keyword/val you are interested in
 !!       (defaults to 1)
-!!     - n_val: returns number of val available
+!!     - n_rep_val: returns number of val available
 !!     - l_val,i_val,r_val,c_val: returns the logical,integer,real or
 !!       character value
 !!     - l_vals,i_vals,r_vals,c_vals: returns the logical,integer,real or

@@ -2144,7 +2144,6 @@ SUBROUTINE create_tddfpt_section(section,error)
     CHARACTER(len=*), PARAMETER :: routineN='create_motion_section',&
          routineP=moduleN//':'//routineN
     TYPE(section_type), POINTER :: subsection
-    TYPE(keyword_type), pointer :: keyword    
 
     failure=.FALSE.
     
@@ -2155,7 +2154,7 @@ SUBROUTINE create_tddfpt_section(section,error)
             n_keywords=1, n_subsections=1, repeats=.FALSE., required=.TRUE.,&
             error=error)
 
-       NULLIFY(subsection,keyword)
+       NULLIFY(subsection)
 
        CALL create_geoopt_section(subsection,error)
        CALL section_add_subsection(section, subsection, error=error)
@@ -2477,28 +2476,32 @@ SUBROUTINE create_tddfpt_section(section,error)
        CALL keyword_release(keyword,error=error)       
 
        CALL keyword_create(keyword, name="MAX_H_RANK",&
-            description="Fawzi will provide docs",&
+            description="Maximum rank (and consequently size) of the "//&
+            "approximate hessian matrix used by the LBFGS optimizer",&
             usage="MAX_H_RANK <integer>",&
             default_i_val=5,error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
        CALL keyword_create(keyword, name="MAX_F_PER_ITER",&
-            description="Fawzi will provide docs",&
+            description="Maximum number of force evaluations per iteration"// &
+            "(used for the line search)",&
             usage="MAX_F_PER_ITER <integer>",&
             default_i_val=3,error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
        CALL keyword_create(keyword, name="WANTED_PROJ_GRADIENT",&
-            description="Fawzi will provide docs",&
+            description="Requested norm thresold of the gradient multiplied "// &
+            "by the approximate hessian",&
             usage="WANTED_PROJ_GRADIENT <real>",&
             default_r_val=1.0E-3_dp,error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
        CALL keyword_create(keyword, name="WANTED_REL_F_ERROR",&
-            description="Fawzi will provide docs",&
+            description="Requested relative error on the objective function"//&
+            "of the optimizer (the energy)",&
             usage="WANTED_REL_F_ERROR <real>",&
             default_r_val=1.0E-5_dp,error=error)
        CALL section_add_keyword(section,keyword,error=error)
@@ -4232,10 +4235,10 @@ SUBROUTINE create_tddfpt_section(section,error)
        CALL section_create(section,name="internals",&
             description="This section is used to constraint the internals (bonds,angles,torsions)"//&
             " variables or their combination.",&
-            n_keywords=3, n_subsections=0, repeats=.TRUE., required=.TRUE.,&
+            n_subsections=0, repeats=.TRUE., required=.TRUE.,&
             error=error)
 
-       NULLIFY(keyword, subsection)
+       NULLIFY(subsection)
 
        CALL create_constraint_dist_section(subsection,error)
        CALL section_add_subsection(section, subsection, error=error)
@@ -5549,7 +5552,7 @@ SUBROUTINE create_ewald_section(section,error)
     CALL keyword_create(keyword, name="EWALD_TYPE",&
          description="The type of ewald you want to perform."//&
          " EWALD is the standard non-fft based ewald."//&
-         " SPME is the smooth particle mesh using beta-Eurler splines."//&
+         " SPME is the smooth particle mesh using beta-Euler splines."//&
          " PME is the particle mesh using fft interpolation.",&
          usage="EWALD_TYPE SPME}",&
          default_i_val=do_ewald,&

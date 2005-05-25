@@ -101,6 +101,7 @@ MODULE f77_interface
                                              get_timer_env,&
                                              timer_env_retain,&
                                              timer_env_release
+  USE cp_units, ONLY: cp_unit_set_type, cp_unit_set_create, cp_unit_set_release
   implicit none
   private
 
@@ -621,6 +622,7 @@ END SUBROUTINE f_env_rm_defaults
     TYPE(global_environment_type), pointer   :: globenv
     TYPE(section_type), pointer              :: input_structure
     TYPE(section_vals_type), pointer         :: input_file
+    TYPE(cp_unit_set_type), pointer :: default_units
 
     failure=.false.
 
@@ -674,8 +676,10 @@ END SUBROUTINE f_env_rm_defaults
     nullify(cpparser)
     CALL parser_create(cpparser,file_name=input_file_path,para_env=para_env,&
          error=error)
+    CALL cp_unit_set_create(default_units, "OUTPUT",error=error)
     CALL section_vals_parse(input_file,cpparser,root_section=.false.,&
-         error=error)
+         default_units=default_units,error=error)
+    CALL cp_unit_set_release(default_units,error=error)
     CALL parser_release(cpparser,error=error)
     IF (globenv%ionode) THEN
        CALL section_vals_write(input_file,unit_nr=globenv%scr,hide_root=.TRUE.,&
@@ -1316,6 +1320,7 @@ END SUBROUTINE f_env_rm_defaults
     TYPE(section_vals_type), pointer :: input_file
     TYPE(cp_parser_type), pointer :: cpparser
     LOGICAL :: my_echo_input
+    TYPE(cp_unit_set_type), pointer :: default_units
 
     failure=.false.
     my_echo_input=.false.
@@ -1355,8 +1360,10 @@ END SUBROUTINE f_env_rm_defaults
     nullify(cpparser)
     CALL parser_create(cpparser,file_name=input_file_path,para_env=para_env,&
          error=error)
+    CALL cp_unit_set_create(default_units, "OUTPUT",error=error)
     CALL section_vals_parse(input_file,cpparser,root_section=.false.,&
-         error=error)
+         default_units=default_units,error=error)
+    CALL cp_unit_set_release(default_units,error=error)
     CALL parser_release(cpparser,error=error)
     CALL cp_error_check(error,failure)
     IF (.NOT.failure) THEN

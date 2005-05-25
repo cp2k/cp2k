@@ -75,6 +75,7 @@ OBJECTS_GENERIC =\
  cp_sm_pool_types.o\
  cp_sm_struct.o\
  cp_subsystem_types.o\
+ cp_units.o\
  cube_utils.o\
  density_types.o\
  dg_rho0_types.o\

@@ -80,7 +80,9 @@ MODULE input_parsing
   USE input_enumeration_types, ONLY: enumeration_type, enum_i2c, enum_c2i
   USE string_utilities,                ONLY: uppercase
   USE timings,                         ONLY: timeset,&
-                                             timestop
+       timestop
+  USE cp_units, ONLY: cp_unit_type, cp_unit_set_type, cp_unit_create,&
+       cp_unit_to_cp2k, cp_unit_retain, cp_unit_release
 
   IMPLICIT NONE
   PRIVATE
@@ -114,9 +116,10 @@ CONTAINS
 !!
 !!*** **********************************************************************
   RECURSIVE SUBROUTINE section_vals_parse(section_vals,parser, &
-       root_section,error)
+       default_units,root_section,error)
     TYPE(section_vals_type), POINTER         :: section_vals
     TYPE(cp_parser_type), POINTER            :: parser
+    TYPE(cp_unit_set_type), POINTER :: default_units
     LOGICAL, INTENT(in), optional :: root_section
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
@@ -177,7 +180,9 @@ CONTAINS
         NULLIFY(el)
         CALL val_create_parsing(el,type_of_var=keyword%type_of_var,&
              n_var=keyword%n_var,default_value=keyword%lone_keyword_value,&
-             enum=keyword%enum,parser=parser,error=suberror)
+             enum=keyword%enum,unit=keyword%unit,&
+             default_units=default_units,&
+             parser=parser,error=suberror)
         CALL cp_error_propagate_error(suberror,routineP,"parsing section "//&
              TRIM(section%name)//" parameters",error=error,failure=failure)
         IF (.NOT.failure) THEN
@@ -237,7 +242,7 @@ CONTAINS
            is=section_get_subsection_index(section,token(2:),error=error)
            IF (is>0) THEN
               CALL section_vals_parse(section_vals%subs_vals(is,irs)%section_vals,&
-                   parser=parser,error=suberror)
+                   default_units=default_units,parser=parser,error=suberror)
               suberror_happened=.false.
               CALL cp_error_propagate_error(suberror,routineP,&
                    "parsing subsection "//TRIM(section%subsections(is)%section%name)&
@@ -321,7 +326,8 @@ CONTAINS
 !FM                 PRINT *,"about to parse keyword ",TRIM(token)," in section ",TRIM(section%name)
                  CALL val_create_parsing(el,type_of_var=keyword%type_of_var,&
                       n_var=keyword%n_var,default_value=keyword%lone_keyword_value,&
-                      enum=keyword%enum,parser=parser,error=suberror)
+                      enum=keyword%enum,unit=keyword%unit,&
+                      default_units=default_units,parser=parser,error=suberror)
                  CALL cp_error_propagate_error(suberror,routineP,"parsing keyword "//&
                       TRIM(token)//" in section "// TRIM(section%name),&
                       error=error,failure=failure)
@@ -393,13 +399,15 @@ END SUBROUTINE section_vals_parse
 !!     fawzi
 !!
 !!*** **********************************************************************
-SUBROUTINE val_create_parsing(val,type_of_var, n_var,enum,default_value,&
-     parser,error)
+SUBROUTINE val_create_parsing(val,type_of_var, n_var,enum,&
+     parser,unit,default_units,default_value,error)
   TYPE(val_type), POINTER                  :: val
   INTEGER, INTENT(in)                      :: type_of_var, n_var
   TYPE(enumeration_type), POINTER          :: enum
-  TYPE(val_type), OPTIONAL, POINTER        :: default_value
   TYPE(cp_parser_type), POINTER            :: parser
+  TYPE(cp_unit_type), POINTER              :: unit
+  TYPE(cp_unit_set_type), pointer          :: default_units
+  TYPE(val_type), OPTIONAL, POINTER        :: default_value
   TYPE(cp_error_type), INTENT(inout), &
        OPTIONAL                               :: error
 
@@ -420,11 +428,14 @@ SUBROUTINE val_create_parsing(val,type_of_var, n_var,enum,default_value,&
   TYPE(cp_sll_char_type),POINTER :: c_new,c_last,c_first
   REAL(kind=dp),DIMENSION(:), POINTER :: r_val_p
   CHARACTER(len=default_string_length),DIMENSION(:), POINTER :: c_val_p
+  TYPE(cp_unit_type), pointer :: my_unit
 
   failure=.FALSE.
   CALL cp_error_init(suberror,stop_level=cp_fatal_level,template_error=error)
   CPPrecondition(.not.ASSOCIATED(val),cp_failure_level,routineP,error,failure)
   IF (.NOT. failure) THEN
+     my_unit => unit
+     IF (ASSOCIATED(my_unit)) CALL cp_unit_retain(my_unit,error=error)
      SELECT CASE(type_of_var)
      CASE(no_t)
      CASE (logical_t)
@@ -549,12 +560,38 @@ SUBROUTINE val_create_parsing(val,type_of_var, n_var,enum,default_value,&
         ELSE
            IF (n_var<1) THEN
               NULLIFY(r_last,r_first)
+              IF (ASSOCIATED(my_unit)) THEN
+                 IF ('STR'==parser_test_next_token(parser,error=error)) THEN
+                    CALL parser_get_object(parser,c_val,error=error)
+                    CPPrecondition(c_val(1:1)=='[',cp_failure_level,routineP,error,failure)
+                    CPPrecondition(c_val(len_trim(c_val):len_trim(c_val))==']',cp_failure_level,routineP,error,failure)
+                    CALL cp_unit_release(my_unit,error=error)
+                    CALL cp_unit_create(my_unit,c_val(2:LEN_TRIM(c_val)-1),&
+                         error=error)
+                 END IF
+              END IF
               CALL parser_get_object(parser,r_val,error=error)
+              IF (ASSOCIATED(my_unit)) THEN
+                 r_val=cp_unit_to_cp2k(r_val,my_unit,default_units,error=error)
+              END IF
               CALL cp_create(r_first,r_val,error=error)
               r_last => r_first
               DO WHILE(parser_test_next_token(parser,error=error)/="EOL"&
                    .AND..NOT.failure)
+                 IF (ASSOCIATED(my_unit)) THEN
+                    IF ('STR'==parser_test_next_token(parser,error=error)) THEN
+                       CALL parser_get_object(parser,c_val,error=error)
+                       CPPrecondition(c_val(1:1)=='[',cp_failure_level,routineP,error,failure)
+                       CPPrecondition(c_val(LEN_TRIM(c_val):LEN_TRIM(c_val))==']',cp_failure_level,routineP,error,failure)
+                       CALL cp_unit_release(my_unit,error=error)
+                       CALL cp_unit_create(my_unit,c_val(2:LEN_TRIM(c_val)-1),&
+                            error=error)
+                    END IF
+                 END IF
                  CALL parser_get_object(parser,r_val,error=error)
+                 IF (ASSOCIATED(my_unit)) THEN
+                    r_val=cp_unit_to_cp2k(r_val,my_unit,default_units,error=error)
+                 END IF
                  CALL cp_create(r_new,r_val,error=error)
                  r_last%rest => r_new
                  r_last => r_new
@@ -566,6 +603,21 @@ SUBROUTINE val_create_parsing(val,type_of_var, n_var,enum,default_value,&
               CPPostcondition(stat==0,cp_fatal_level,routineP,error,failure)
               IF (.NOT.failure) THEN
                  DO i=1,n_var
+                    IF (ASSOCIATED(my_unit)) THEN
+                       IF ('STR'==parser_test_next_token(parser,error=error)) THEN
+                          CALL parser_get_object(parser,c_val,error=error)
+                          CPPrecondition(c_val(1:1)=='[',cp_failure_level,routineP,error,failure)
+                          CPPrecondition(c_val(LEN_TRIM(c_val):LEN_TRIM(c_val))==']',cp_failure_level,routineP,error,failure)
+                          CALL cp_unit_release(my_unit,error=error)
+                          CALL cp_unit_create(my_unit,c_val(2:LEN_TRIM(c_val)-1),&
+                               error=error)
+                       END IF
+                    END IF
+                    CALL parser_get_object(parser,r_val,error=error)
+                    IF (ASSOCIATED(my_unit)) THEN
+                       r_val_p(i)=cp_unit_to_cp2k(r_val_p(i),my_unit,&
+                            default_units,error=error)
+                    END IF
                     CALL parser_get_object(parser,r_val_p(i),error=suberror)
                     CALL cp_error_propagate_error(suberror,routineP,error=error,&
                          failure=failure)
@@ -697,6 +749,7 @@ SUBROUTINE val_create_parsing(val,type_of_var, n_var,enum,default_value,&
              CPSourceFileRef,&
              error,cp_failure_level)
      END SELECT
+     IF (ASSOCIATED(my_unit)) CALL cp_unit_release(my_unit,error=error)
   END IF
 !FM  PRINT *,"parsed val:"
 !FM  CALL val_write(val,6,error=error)

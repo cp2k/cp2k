@@ -59,6 +59,7 @@ MODULE input_keyword_types
                                              uppercase
   USE timings,                         ONLY: timeset,&
                                              timestop
+  USE cp_units, ONLY: cp_unit_type, cp_unit_retain, cp_unit_release, cp_unit_desc
 
   IMPLICIT NONE
   PRIVATE
@@ -131,6 +132,8 @@ MODULE input_keyword_types
 !!       error)
 !!     - enum: enumeration that defines the mapping between integers and
 !!       strings
+!!     - unit: the default unit this keyword is read in (to automatically
+!!       convert to the internal cp2k units during parsing)
 !!     - default_value: the default value for the keyword
 !!     - lone_keyword_value: value to be used in presence of the keyword
 !!       without any parameter
@@ -148,7 +151,7 @@ MODULE input_keyword_types
      INTEGER :: type_of_var,n_var
      LOGICAL :: repeats, required
      TYPE(enumeration_type), POINTER :: enum
-     
+     TYPE(cp_unit_type), POINTER :: unit
      TYPE(val_type), POINTER :: default_value
      TYPE(val_type), POINTER :: lone_keyword_value
   END TYPE keyword_type
@@ -186,7 +189,7 @@ SUBROUTINE keyword_create(keyword, name, description, usage, type_of_var,&
      lone_keyword_val, lone_keyword_l_val, lone_keyword_r_val, lone_keyword_c_val,&
      lone_keyword_i_val, lone_keyword_l_vals, lone_keyword_r_vals, &
      lone_keyword_c_vals, lone_keyword_i_vals, enum_c_vals, enum_i_vals, &
-     enum,enum_strict,enum_desc,error)
+     enum,enum_strict,enum_desc,unit,error)
     TYPE(keyword_type), POINTER              :: keyword
     CHARACTER(len=*), INTENT(in)             :: name, description, usage
     INTEGER, INTENT(in), OPTIONAL            :: type_of_var, n_var
@@ -227,6 +230,7 @@ SUBROUTINE keyword_create(keyword, name, description, usage, type_of_var,&
     TYPE(enumeration_type), OPTIONAL, &
       POINTER                                :: enum
     LOGICAL, INTENT(in), OPTIONAL            :: enum_strict
+    TYPE(cp_unit_type), POINTER, OPTIONAL    :: unit
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
@@ -245,6 +249,7 @@ SUBROUTINE keyword_create(keyword, name, description, usage, type_of_var,&
      keyword%ref_count=1
      last_keyword_id=last_keyword_id+1
      keyword%id_nr=last_keyword_id
+     nullify(keyword%unit)
 
      IF (PRESENT(variants)) THEN
         ALLOCATE(keyword%names(SIZE(variants)+1),stat=stat)
@@ -425,6 +430,10 @@ SUBROUTINE keyword_create(keyword, name, description, usage, type_of_var,&
      END IF
      IF (PRESENT(n_var)) keyword%n_var=n_var
 
+     IF (PRESENT(unit)) THEN
+        keyword%unit => unit
+        CALL cp_unit_retain(unit,error=error)
+     END IF
   END IF
 END SUBROUTINE keyword_create
 !***************************************************************************
@@ -509,6 +518,7 @@ SUBROUTINE keyword_release(keyword, error)
         CALL val_release(keyword%default_value,error=error)
         CALL val_release(keyword%lone_keyword_value,error=error)
         CALL enum_release(keyword%enum,error=error)
+        CALL cp_unit_release(keyword%unit,error=error)
         DEALLOCATE(keyword,stat=stat)
         CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
      END IF
@@ -648,6 +658,11 @@ SUBROUTINE keyword_describe(keyword, unit_nr, level,error)
                  WRITE(unit_nr,"('  A real is expected')")
               ELSE
                  WRITE(unit_nr,"(i6,' reals are expected')") keyword%n_var
+              END IF
+              IF (ASSOCIATED(keyword%unit)) THEN
+                 WRITE(unit_nr,"('the unit is ',a)")&
+                      TRIM(cp_unit_desc(keyword%unit,accept_undefined=.TRUE.,&
+                      error=error))
               END IF
            CASE (char_t)
               IF (keyword%n_var==-1) THEN

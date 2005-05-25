@@ -81,6 +81,7 @@ MODULE cp2k_runs
   USE cp_parser, ONLY: cp_parser_type, parser_create, parser_release
   USE input_parsing, only: section_vals_parse
   USE qs_debug, ONLY: qs_debug_energy_and_forces
+  USE cp_units, ONLY: cp_unit_set_type, cp_unit_set_create, cp_unit_set_release
   IMPLICIT NONE
 
   PRIVATE
@@ -144,12 +145,13 @@ CONTAINS
     TYPE(section_vals_type), POINTER :: input_file, glob_section, metadyn_section
     TYPE(cp_parser_type), pointer :: parser
     TYPE(cp_para_env_type), pointer :: para_env
+    TYPE(cp_unit_set_type), pointer :: default_units
     LOGICAL :: failure, echo_input, I_was_ionode
 
     ! -----------------------------------------------------------------------------
     cp2k_run_OK = .FALSE.
     failure=.false.
-    NULLIFY(para_env, metadyn_section)
+    NULLIFY(para_env, metadyn_section, default_units)
     CALL cp_para_env_create(para_env, group=mpi_comm,&
          owns_group=.false.)
 
@@ -172,8 +174,10 @@ CONTAINS
     nullify(parser)
     CALL parser_create(parser,file_name=input_file_name,para_env=para_env,&
          error=error)
+    CALL cp_unit_set_create(default_units, "OUTPUT",error=error)
     CALL section_vals_parse(input_file,parser,root_section=.false.,&
-         error=error)
+         default_units=default_units,error=error)
+    CALL cp_unit_set_release(default_units,error=error)
     CALL parser_release(parser,error=error)
     CALL cp_error_check(error,failure)
     IF (.not.failure.and.parsed_cp2k_input(input_file,error=error)) THEN
