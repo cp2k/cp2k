@@ -1564,6 +1564,7 @@ CONTAINS
     DO i = 1, SIZE ( r ,2 )
       z = r ( 3, i )
       dplm = dlegendre ( z, l, ABS ( m ) )
+      plm = legendre ( z, l, m )
 
       IF ( m == 0 ) THEN
         dy (1, i ) = 0.0_dp

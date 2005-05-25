@@ -563,8 +563,8 @@ SUBROUTINE val_create_parsing(val,type_of_var, n_var,enum,&
               IF (ASSOCIATED(my_unit)) THEN
                  IF ('STR'==parser_test_next_token(parser,error=error)) THEN
                     CALL parser_get_object(parser,c_val,error=error)
-                    CPPrecondition(c_val(1:1)=='[',cp_failure_level,routineP,error,failure)
-                    CPPrecondition(c_val(len_trim(c_val):len_trim(c_val))==']',cp_failure_level,routineP,error,failure)
+                    CPPrecondition(c_val(1:1)=="[",cp_failure_level,routineP,error,failure)
+   CPPrecondition(c_val(len_trim(c_val):len_trim(c_val))=="]",cp_failure_level,routineP,error,failure)
                     CALL cp_unit_release(my_unit,error=error)
                     CALL cp_unit_create(my_unit,c_val(2:LEN_TRIM(c_val)-1),&
                          error=error)
@@ -581,8 +581,8 @@ SUBROUTINE val_create_parsing(val,type_of_var, n_var,enum,&
                  IF (ASSOCIATED(my_unit)) THEN
                     IF ('STR'==parser_test_next_token(parser,error=error)) THEN
                        CALL parser_get_object(parser,c_val,error=error)
-                       CPPrecondition(c_val(1:1)=='[',cp_failure_level,routineP,error,failure)
-                       CPPrecondition(c_val(LEN_TRIM(c_val):LEN_TRIM(c_val))==']',cp_failure_level,routineP,error,failure)
+          CPPrecondition(c_val(1:1)=="[",cp_failure_level,routineP,error,failure)
+          CPPrecondition(c_val(LEN_TRIM(c_val):LEN_TRIM(c_val))=="]",cp_failure_level,routineP,error,failure)
                        CALL cp_unit_release(my_unit,error=error)
                        CALL cp_unit_create(my_unit,c_val(2:LEN_TRIM(c_val)-1),&
                             error=error)
@@ -606,8 +606,8 @@ SUBROUTINE val_create_parsing(val,type_of_var, n_var,enum,&
                     IF (ASSOCIATED(my_unit)) THEN
                        IF ('STR'==parser_test_next_token(parser,error=error)) THEN
                           CALL parser_get_object(parser,c_val,error=error)
-                          CPPrecondition(c_val(1:1)=='[',cp_failure_level,routineP,error,failure)
-                          CPPrecondition(c_val(LEN_TRIM(c_val):LEN_TRIM(c_val))==']',cp_failure_level,routineP,error,failure)
+                          CPPrecondition(c_val(1:1)=="[",cp_failure_level,routineP,error,failure)
+                          CPPrecondition(c_val(LEN_TRIM(c_val):LEN_TRIM(c_val))=="]",cp_failure_level,routineP,error,failure)
                           CALL cp_unit_release(my_unit,error=error)
                           CALL cp_unit_create(my_unit,c_val(2:LEN_TRIM(c_val)-1),&
                                error=error)

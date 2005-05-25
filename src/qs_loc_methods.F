@@ -767,9 +767,10 @@ CONTAINS
           CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
 
        ELSE
+
          nmosub = localized_wfn_control%nloc_states(ispin)
 
-         CALL cp_fm_to_fm(moloc_coeff(ispin)%matrix,mo_coeff,1,lb)
+         CALL cp_fm_to_fm(moloc_coeff(ispin)%matrix,mo_coeff,nmosub,1,lb)
 
        END IF
 
@@ -794,8 +795,7 @@ CONTAINS
            ELSE
              ivector = localized_wfn_control%lu_bound_states(1,ispin)+istate-1
            END IF
-
-           CALL calculate_wavefunction(moloc_coeff(ispin)%matrix, ivector,&
+            CALL calculate_wavefunction(moloc_coeff(ispin)%matrix, istate,&
                 wf_r, wf_g, qs_env, error=error)
 
            WRITE(filename,'(a7,I5.5,a1,I1.1,a1,I1.1,a5)') "WFNLOC_",ivector,"_",ispin,&

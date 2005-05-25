@@ -729,6 +729,11 @@ CONTAINS
 !   ----------------------------------------------------------------------
 
     failure = .FALSE. 
+    use_pmatrix = .FALSE.
+    use_cholesky = .FALSE.
+    use_sv = .FALSE.
+    found_type = .FALSE.
+    
 
     nrow = SIZE(matrix_mo,1)
     
@@ -755,18 +760,14 @@ CONTAINS
        use_simple=.TRUE.
     ENDIF
 
+   IF(PRESENT(matrix_p)) use_pmatrix = .TRUE.
+
     ALLOCATE(matrix_cc(ncol,ncol) , STAT = istat)
     IF (istat /= 0) CALL stop_memory(routineP,"matrix_cc",ncol*ncol*dp_size)
 
     lda = SIZE(matrix_mo,1)
     ldb = SIZE(matrix_ortho,1)
     ldc = SIZE(matrix_cc,1)
-
-    IF (use_pmatrix) THEN
-
-    ELSE
-
-    END IF
 
     IF (use_sv) THEN
 

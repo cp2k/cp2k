@@ -330,6 +330,8 @@ CONTAINS
       DO jstate = 1,ncol_local
         grad_ij = 0.0_dp
         DO iatom = 1,natom
+          zii = diag(istate,iatom)
+          zjj = diag(jstate,iatom)
           zij = zij_fm_set(iatom,1)%matrix%local_data(istate,jstate)
           grad_ij = grad_ij + 4.0_dp*zij*(zjj-zii)
         END DO
@@ -422,6 +424,7 @@ CONTAINS
 
     nspins = SIZE(mos,1)
     ALLOCATE (moloc_coeff(nspins), STAT=istat)
+
     DO ispin = 1,nspins
       CALL get_mo_set(mos(ispin)%mo_set,nao=nao,nmo=nmo)
       CALL fm_pool_create_fm(ao_mosub_fm_pools(ispin)%pool,moloc_coeff(ispin)%matrix,&

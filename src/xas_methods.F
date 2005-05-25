@@ -147,7 +147,7 @@ CONTAINS
       routineP = module_name//':'//routineN
 
     INTEGER :: handle, homo, iat, iatom, ispin, istat, istate, iter, &
-               nao, natoms, nmo, nspins, nexc_atoms, nexc_search, output_unit,&
+               nao, natoms, nmo, nspins, nexc_search, output_unit,&
                state_to_be_excited, xas_iter_count
     INTEGER, DIMENSION(:), POINTER              :: atom_of_state
     INTEGER, DIMENSION(:), POINTER              :: state_of_atom
@@ -292,7 +292,7 @@ CONTAINS
     ! Take the  state_to_be_excited vector from the full set and copy into excvec_coeff
     ALLOCATE(vecbuffer(1,nao),STAT=istat)
   
-    DO iat = 1,nexc_atoms
+    DO iat = 1,xas_control%nexc_atoms
        iatom = xas_control%exc_atoms(iat)
        state_to_be_excited = state_of_atom(iat)
 
