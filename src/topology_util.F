@@ -3589,7 +3589,6 @@ SUBROUTINE topology_constraint_pack ( molecule_kind_set,molecule_set,&
         ALLOCATE(ldist(ndist),STAT=istat)
         IF (istat /= 0) CALL stop_memory('topology_constraint_pack','ldist')
         DO k=1,ndist
-          ldist(k)%del_lam = 0.0_dp
           ldist(k)%lambda = 0.0_dp
           ldist(k)%scale = 0.0_dp
           ldist(k)%scale_old = 0.0_dp
@@ -3643,10 +3642,6 @@ SUBROUTINE topology_constraint_pack ( molecule_kind_set,molecule_set,&
           lg3x3(k)%va = 0.0_dp
           lg3x3(k)%vb = 0.0_dp
           lg3x3(k)%vc = 0.0_dp
-          lg3x3(k)%va_old = 0.0_dp
-          lg3x3(k)%vb_old = 0.0_dp
-          lg3x3(k)%vc_old = 0.0_dp
-          lg3x3(k)%del_lam = 0.0_dp
           lg3x3(k)%lambda = 0.0_dp
         END DO
         CALL set_molecule(molecule=molecule,lg3x3=lg3x3)
@@ -3706,13 +3701,6 @@ SUBROUTINE topology_constraint_pack ( molecule_kind_set,molecule_set,&
           lg4x6(k)%vd = 0.0_dp
           lg4x6(k)%ve = 0.0_dp
           lg4x6(k)%vf = 0.0_dp
-          lg4x6(k)%va_old = 0.0_dp
-          lg4x6(k)%vb_old = 0.0_dp
-          lg4x6(k)%vc_old = 0.0_dp
-          lg4x6(k)%vd_old = 0.0_dp
-          lg4x6(k)%ve_old = 0.0_dp
-          lg4x6(k)%vf_old = 0.0_dp
-          lg4x6(k)%del_lam = 0.0_dp
           lg4x6(k)%lambda = 0.0_dp
         END DO
         CALL set_molecule(molecule=molecule,lg4x6=lg4x6)

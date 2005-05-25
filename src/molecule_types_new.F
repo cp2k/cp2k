@@ -37,7 +37,7 @@ MODULE molecule_types_new
 
 ! *** Data types ***
   TYPE local_dist_constraint_type
-    REAL(KIND = dp)               :: del_lam,lambda,scale,scale_old,sigma
+    REAL(KIND = dp)               :: lambda,scale,scale_old,sigma
     REAL(KIND = dp), DIMENSION(3) :: f,ra_old,rb_old
   END TYPE local_dist_constraint_type
 
@@ -45,17 +45,15 @@ MODULE molecule_types_new
     REAL(KIND = dp)               :: scale,scale_old
     REAL(KIND = dp), DIMENSION(3) :: fa,fb,fc,&
                               ra_old,rb_old,rc_old,&
-                              va,vb,vc,del_lam,lambda,&
-                              va_old,vb_old,vc_old
+                              va,vb,vc,lambda
   END TYPE local_g3x3_constraint_type
 
   TYPE local_g4x6_constraint_type
     REAL(KIND = dp)               :: scale,scale_old
     REAL(KIND = dp), DIMENSION(3) :: fa,fb,fc,fd,fe,ff,&
                               ra_old,rb_old,rc_old,rd_old,re_old,rf_old,&
-                              va,vb,vc,vd,ve,vf,&
-                              va_old,vb_old,vc_old,vd_old,ve_old,vf_old
-    REAL(KIND = dp), DIMENSION(6) :: del_lam,lambda
+                              va,vb,vc,vd,ve,vf
+    REAL(KIND = dp), DIMENSION(6) :: lambda
   END TYPE local_g4x6_constraint_type
 
   TYPE local_molecule_type

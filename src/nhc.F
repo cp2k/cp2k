@@ -266,7 +266,7 @@ SUBROUTINE nhc_particle_setup ( simpar, local_molecules, molecule_set, &
     INTEGER :: atm_offset, i, icount, ii, ikind, imol, isos, iw, j, &
       jj, kk, n3x3con, n4x6con, natom, natoms_local, ndcon, nkind, nmol_local, &
       nmol_per_kind, nmolecule, number, number_total, ll, imol_local, first_atom, &
-      last_atom, ipart, atom_increment, start, finish
+      last_atom, ipart, atom_increment, start, finish, sum_of_thermostats
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: const_mol, deg_of_freedom, &
                                                 tot_const
     INTEGER                                  :: ielement, iii
@@ -301,9 +301,11 @@ SUBROUTINE nhc_particle_setup ( simpar, local_molecules, molecule_set, &
      nkind = SIZE ( molecule_kind_set )
 
 ! Counting the global number of thermostats
-     number = 0
+     sum_of_thermostats = 0
      noneflag = .FALSE.
+! variable to denote  a global thermostat
      have_global = .FALSE.
+! variable to denote independent thermostats (no communication necessary)
      nointer = .TRUE.
     
 
@@ -314,7 +316,7 @@ SUBROUTINE nhc_particle_setup ( simpar, local_molecules, molecule_set, &
        IF ( ( nhcopt == "GLOBAL" ) ) THEN
           have_global = .TRUE.
           nointer = .FALSE.
-          number = number + 1
+          sum_of_thermostats = sum_of_thermostats + 1
        END IF
     END DO
 
@@ -323,7 +325,10 @@ SUBROUTINE nhc_particle_setup ( simpar, local_molecules, molecule_set, &
        molecule_kind => molecule_kind_set ( i )
        CALL get_molecule_kind ( molecule_kind, nhcopt=nhcopt, nmolecule=nmolecule )
        IF ( ( nhcopt == "MOLECULE" ) ) THEN
-          number = number + nmolecule
+          sum_of_thermostats = sum_of_thermostats + nmolecule
+! If we have ONE kind and ONE molecule, then effectively we have a GLOBAL thermostat
+! and the degrees of freedom will be computed correctly for this special case
+          IF ( ( nmolecule == 1 ) .AND. ( nkind == 1 ) ) nointer = .FALSE.
        END IF
     END DO
 
@@ -333,9 +338,10 @@ SUBROUTINE nhc_particle_setup ( simpar, local_molecules, molecule_set, &
        CALL get_molecule_kind ( molecule_kind, nhcopt=nhcopt, nmolecule=nmolecule, &
                                 natom=natom )
        IF ( ( nhcopt == "MASSIVE" ) ) THEN
-          number = number + 3 * natom * nmolecule
+          sum_of_thermostats = sum_of_thermostats + 3 * natom * nmolecule
        END IF
     END DO
+    number = sum_of_thermostats
 !
 ! here we decide on what parallel algorithm to use
 ! if there are only massive and molecule type thermostats we can use
@@ -346,7 +352,7 @@ SUBROUTINE nhc_particle_setup ( simpar, local_molecules, molecule_set, &
     nhc % dis_type = 'NONE'
     IF ( globenv % num_pe > 1 ) THEN
       IF ( nointer ) THEN
-        nhc % dis_type = 'DIS_REP'
+        nhc % dis_type = 'DIS_REP' ! DIStributed thermostats, no interaction
 ! we only count thermostats on this processor
         number = 0
         DO ikind = 1, nkind
@@ -362,7 +368,7 @@ SUBROUTINE nhc_particle_setup ( simpar, local_molecules, molecule_set, &
            END IF
         END DO
       ELSE
-        nhc % dis_type = 'INTER_REP' 
+        nhc % dis_type = 'INTER_REP' ! REPlicated thermostats, INTERacting via communication
       END IF
     END IF
 ! Allocate
@@ -685,12 +691,12 @@ SUBROUTINE nhc_particle_setup ( simpar, local_molecules, molecule_set, &
 
     nhc % num_nhc = number
 
-! We know the total number of system thermostats. For nvt it is number
+! We know the total number of system thermostats. 
 
-    IF ( ( number == 1 ) .AND. ( .NOT. noneflag ) .AND. &
+    IF ( ( sum_of_thermostats == 1 ) .AND. ( .NOT. noneflag ) .AND. &
        ( .NOT. nhc % dis_type == 'DIS_REP' ) ) THEN
      nhc % nvt ( 1, 1 ) % nkt = simpar % temp_ext * ( nhc % s_kin ( 1 ) - &
-       deg_of_freedom ( 1 ) - 3 )
+       deg_of_freedom ( 1 ) - simpar % nfree )
     ELSE
 
 ! re-initializing simpar%nfree to zero because of multiple thermostats

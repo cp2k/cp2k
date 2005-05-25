@@ -349,7 +349,7 @@ CONTAINS
                                                       molecule_set,    & 
                                                       molecule_kind_set, &
                                                       particle_set, virial, &
-                                                      "FULL", para_env % group )
+                                                      para_env % group )
 
       CALL virial_evaluate ( atomic_kind_set, particle_set,  &
                              local_particles, virial, para_env % group  )
@@ -754,7 +754,7 @@ CONTAINS
                                                       molecule_set,    & 
                                                       molecule_kind_set, &
                                                       particle_set, virial, &
-                                                      "FULL", para_env % group )
+                                                      para_env % group )
 
       DEALLOCATE (vel,STAT=istat)
       IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,"vel")
@@ -992,6 +992,7 @@ CONTAINS
                                         roll_tol, iroll, vector_r, vector_v,  &
                                         para_env % group )
   END DO SR
+     
 
 ! Update eps:
       npt ( :, : ) % eps =  npt ( :, : ) % eps + dt * npt ( :, : ) % v
@@ -1045,14 +1046,13 @@ CONTAINS
                                       molecule_kind_set, molecule_set,  &
                                       local_molecules, vel,  &
                                       cell, npt, simpar, virial, vector_v,  &
-                                      roll_tol, iroll, infree, first, para_env % group )
+                                      roll_tol, iroll, infree, first, para_env )
 
          CALL get_veps ( cell, npt, simpar, atomic_kind_set, vel, particle_set,&
                          local_molecules, molecule_set, molecule_kind_set, &
                          local_particles, virial, infree, para_env % group )
 
       END DO RR
-
 
 ! Nose-Hoover for the Particles
       CALL lnhc ( nhc_part ( isubsys ), molecule_kind_set, molecule_set, &
@@ -1071,7 +1071,7 @@ CONTAINS
                                                       molecule_set,    & 
                                                       molecule_kind_set, &
                                                       particle_set, virial, &
-                                                      "FULL", para_env % group )
+                                                      para_env % group )
 
       DEALLOCATE (vel,STAT=istat)
       IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,"vel")
@@ -1085,8 +1085,7 @@ CONTAINS
   first_time = .FALSE.
 
   END SUBROUTINE npt_i
-!!*****
-
+!!*** **********************************************************************
 !!****f* integrator/reftraj *
 !!
 !!   NAME
@@ -1410,7 +1409,7 @@ CONTAINS
                                       molecule_kind_set, molecule_set,  &
                                       local_molecules, vel,  &
                                       cell, npt, simpar, virial, vector_v,  &
-                                      roll_tol, iroll, infree, first, para_env % group )
+                                      roll_tol, iroll, infree, first, para_env )
 
          CALL get_veps ( cell, npt, simpar, atomic_kind_set, vel, particle_set,&
                          local_molecules, molecule_set, molecule_kind_set, &
@@ -1428,7 +1427,7 @@ CONTAINS
                                                       molecule_set,    & 
                                                       molecule_kind_set, &
                                                       particle_set, virial, &
-                                                      "FULL", para_env % group )
+                                                      para_env % group )
 
       DEALLOCATE (vel,STAT=istat)
       IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,"vel")
@@ -1685,7 +1684,7 @@ CONTAINS
                                       molecule_kind_set, molecule_set,  &
                                       local_molecules, vel,  &
                                       cell, npt, simpar, virial, vector_v,  &
-                                      roll_tol, iroll, infree, first, para_env % group )
+                                      roll_tol, iroll, infree, first, para_env )
 
          CALL get_veps ( cell, npt, simpar, atomic_kind_set, vel, particle_set,&
                          local_molecules, molecule_set, molecule_kind_set, &
@@ -1706,7 +1705,7 @@ CONTAINS
                                                       molecule_set,    & 
                                                       molecule_kind_set, &
                                                       particle_set, virial, &
-                                                      "FULL", para_env % group )
+                                                      para_env % group )
 
       DEALLOCATE (vel,STAT=istat)
       IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,"vel")
@@ -2229,7 +2228,7 @@ END SUBROUTINE deallocate_old
                                      molecule_kind_set, molecule_set,  &
                                      local_molecules, vel, &
                                      cell, npt, simpar, virial, vector_v,  &
-                                     roll_tol, iroll, infree, first, para_env % group, u )
+                                     roll_tol, iroll, infree, first, para_env, u )
 
         CALL get_veps ( cell, npt, simpar, atomic_kind_set, vel, particle_set, &
                         local_molecules, molecule_set, molecule_kind_set, &
@@ -2254,7 +2253,7 @@ END SUBROUTINE deallocate_old
                                                      molecule_set,    & 
                                                      molecule_kind_set, &
                                                      particle_set, virial, &
-                                                     "FULL", para_env % group )
+                                                     para_env % group )
      DEALLOCATE (vel,STAT=istat)
      IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,"vel")
 
@@ -2289,7 +2288,7 @@ END SUBROUTINE deallocate_old
 SUBROUTINE rattle_roll_setup ( atomic_kind_set, particle_set, local_particles, &
                                molecule_kind_set, molecule_set, local_molecules, &
                                vel, cell, npt, simpar, virial, vector_v,  &
-                               roll_tol, iroll, infree, first, int_group, u )
+                               roll_tol, iroll, infree, first, para_env, u )
 
   IMPLICIT NONE
 
@@ -2309,7 +2308,7 @@ SUBROUTINE rattle_roll_setup ( atomic_kind_set, particle_set, local_particles, &
   REAL (KIND=dp), INTENT ( OUT ) :: roll_tol
   REAL (KIND=dp), INTENT ( IN ), DIMENSION ( : ) :: vector_v
   INTEGER, INTENT ( INOUT ) :: iroll
-  INTEGER, INTENT ( IN ) :: int_group
+  TYPE ( cp_para_env_type ), INTENT ( IN ) :: para_env
   REAL (KIND=dp), INTENT ( IN ), OPTIONAL :: u ( : , : )
 
 ! Locals
@@ -2317,12 +2316,12 @@ SUBROUTINE rattle_roll_setup ( atomic_kind_set, particle_set, local_particles, &
 
 !------------------------------------------------------------------------------
 
-  IF ( first ) THEN
-     CALL get_veps ( cell, npt, simpar, atomic_kind_set, vel, particle_set, &
-                     local_molecules, molecule_set, molecule_kind_set, &
-                     local_particles, virial, infree, int_group )
+! update veps using multiplier obtained from SHAKE
+  IF ( first ) &
+  CALL get_veps ( cell, npt, simpar, atomic_kind_set, vel, particle_set, &
+                  local_molecules, molecule_set, molecule_kind_set, &
+                  local_particles, virial, infree, para_env % group )
 
-  END IF
   first = .FALSE.
 
 ! assigning local variable
@@ -2346,7 +2345,8 @@ SUBROUTINE rattle_roll_setup ( atomic_kind_set, particle_set, local_particles, &
    CALL rattle_roll_control( local_molecules, molecule_set, molecule_kind_set, &
                              particle_set, vel, simpar, virial, vector_v,   &
                              npt_loc % v, npt_loc %  mass, roll_tol, iroll,    &
-                             int_group, u )
+                             para_env, u )
+
 
 END SUBROUTINE rattle_roll_setup
 
@@ -2434,7 +2434,7 @@ SUBROUTINE get_veps_particle_set ( box, npt, simpar, atomic_kind_set, particle_s
                                                   molecule_set,    & 
                                                   molecule_kind_set, &
                                                   particle_set, virial, &
-                                                  "FULL", int_group )
+                                                  int_group )
   IF ( simpar % ensemble == 'NPT_I' ) THEN
 ! get force on barostat
      fdotr = 0.0_dp
@@ -2562,7 +2562,7 @@ SUBROUTINE get_veps_velocity ( box, npt, simpar, atomic_kind_set, vel, particle_
                                                   molecule_set,    & 
                                                   molecule_kind_set, &
                                                   particle_set, virial, &
-                                                  "FULL", int_group )
+                                                  int_group )
  
   IF ( simpar % ensemble == 'NPT_I' ) THEN
 ! get force on barostat
