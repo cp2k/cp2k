@@ -443,17 +443,9 @@ SUBROUTINE nhc_particle_setup ( simpar, local_molecules, molecule_set, &
 
 
 ! Now we can allocate the target array s_kin and p_kin
-    SELECT CASE ( simpar%ensemble ( 1:3 ) )
-    CASE ( 'NPT' )
-       ALLOCATE (deg_of_freedom(number+1),STAT=isos)
-       IF ( isos /= 0 ) CALL stop_memory ( 'nhc_particle_setup', &
-          'deg_of_freedom', number + 1 )
-    CASE DEFAULT
-       ALLOCATE (deg_of_freedom(number),STAT=isos)
-       IF ( isos /= 0 ) CALL stop_memory ( 'nhc_particle_setup', &
+    ALLOCATE (deg_of_freedom(number),STAT=isos)
+    IF ( isos /= 0 ) CALL stop_memory ( 'nhc_particle_setup', &
           'deg_of_freedom', number )
-    END SELECT
-
     ALLOCATE (nhc%s_kin(number),STAT=isos)
     IF ( isos /= 0 ) CALL stop_memory ( 'nhc_particle_setup', 'nhc%s_kin', number )
     ALLOCATE (nhc%v_scale(number),STAT=isos)
