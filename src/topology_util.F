@@ -43,9 +43,12 @@ MODULE topology_util
                                              allocate_potential,&
                                              set_potential
   USE global_types,                    ONLY: global_environment_type
+  USE input_constants,                 ONLY: do_qmmm_none
   USE kinds,                           ONLY: dp,&
                                              default_string_length
   USE memory_utilities,                ONLY: reallocate
+  USE message_passing,                 ONLY: mp_allgather,&
+                                             mp_bcast
   USE molecule_kind_types,             ONLY: allocate_molecule_kind_set,&
                                              atom_type,&
                                              bend_type,&
@@ -76,6 +79,8 @@ MODULE topology_util
                                              particle_type
   USE periodic_table,                  ONLY: ptable
   USE physcon,                         ONLY: massunit
+  USE qmmm_ff_fist,                    ONLY: qmmm_ff_precond_only_qm
+  USE qmmm_types,                      ONLY: qmmm_env_mm_type
   USE simulation_cell,                 ONLY: pbc
   USE string_utilities,                ONLY: integer_to_string,&
                                              uppercase,&
@@ -88,9 +93,6 @@ MODULE topology_util
                                              atom_info_type,&
                                              connectivity_info_type,&
                                              constraint_info_type
-  USE qmmm_ff_fist, ONLY: qmmm_ff_precond_only_qm
-  USE qmmm_types,   ONLY: qmmm_env_mm_type
-  USE input_constants,   ONLY: do_qmmm_none
   
 
   IMPLICIT NONE
@@ -918,12 +920,17 @@ SUBROUTINE topology_generate_bond(topology,globenv)
                                                 k, last, natom, nbond, nelem, &
                                                 search
     INTEGER, POINTER                         :: tbond_a(:), tbond_b(:)
+    INTEGER, POINTER                         :: ttbond_a(:), ttbond_b(:)
     LOGICAL                                  :: PM1, PM2, PM3, PM4, only_qm
     REAL(KIND=dp)                                :: dr(3), r2, rbond, rbond2, &
                                                 rr(3)
     REAL(KIND=dp), POINTER                       :: covalent_radius(:), &
                                                 vdw_radius(:)
     INTEGER :: cbond
+    INTEGER :: iproc
+    INTEGER :: handle
+    INTEGER :: workload
+    INTEGER, POINTER                         :: nbond_loc(:)
 
 !------------------------------------------------------------------------------
 !------------------------------------------------------------------------------
@@ -940,6 +947,8 @@ SUBROUTINE topology_generate_bond(topology,globenv)
     IF((globenv%ionode).AND.(globenv%print%level>2)) PM3= .TRUE.
     IF((globenv%ionode).AND.(globenv%print%level>3)) PM4= .TRUE.
   END IF
+
+  CALL timeset(routineN,'I','',handle)
 
   IF(PM1) WRITE(iw,*) "    Entering topology_generate_bond"
 
@@ -1013,9 +1022,11 @@ SUBROUTINE topology_generate_bond(topology,globenv)
   END DO
 !------------------------------------------------------------------------------
   !Find bonds according to periodic table
+  workload = 0
   nbond = 0
   DO iatom=1,natom
-    DO jatom=iatom+1,natom
+    DO jatom=iatom+1+globenv%mepos,natom,globenv%num_pe
+      workload = workload + 1
       dr(1) = atom_info%r(1,iatom) - atom_info%r(1,jatom)
       dr(2) = atom_info%r(2,iatom) - atom_info%r(2,jatom)
       dr(3) = atom_info%r(3,iatom) - atom_info%r(3,jatom)
@@ -1074,22 +1085,71 @@ SUBROUTINE topology_generate_bond(topology,globenv)
       END IF
     END DO
   END DO
+  CALL reallocate(tbond_a,1,nbond)
+  CALL reallocate(tbond_b,1,nbond)
 !------------------------------------------------------------------------------
-  !Copy the stuff from temporary array into the more permanent one
+  !Put together the difference pieces for the bond
+  
+  !Determine the total number of bonds
+  ALLOCATE(nbond_loc(globenv%num_pe),STAT=istat)
+  IF(istat/=0) CALL stop_program('topology_generate_bond','nbond_loc')
+  nbond_loc(:)=0
+  CALL mp_allgather(nbond,nbond_loc,globenv%group)
+  nbond = SUM(nbond_loc)
+
+  !Reallocate those memory
   ALLOCATE(conn_info%bond_a(nbond),STAT=istat)
   IF(istat/=0) CALL stop_memory('generate_bond','bond_a',nbond)
   ALLOCATE(conn_info%bond_b(nbond),STAT=istat)
   IF(istat/=0) CALL stop_memory('generate_bond','bond_b',nbond)
-  DO ibond=1,nbond
-    conn_info%bond_a(ibond) = tbond_a(ibond)
-    conn_info%bond_b(ibond) = tbond_b(ibond)
+  conn_info%bond_a(:)=0
+  conn_info%bond_b(:)=0
+
+  workload=0
+  !Gather everything
+  DO iproc=0,globenv%num_pe-1
+    CALL reallocate(ttbond_a,1,nbond_loc(iproc+1))
+    CALL reallocate(ttbond_b,1,nbond_loc(iproc+1))
+    IF(iproc==globenv%mepos) THEN
+      ttbond_a(:) = tbond_a(:)
+      ttbond_b(:) = tbond_b(:)
+    ELSE
+      ttbond_a(:) = 0
+      ttbond_b(:) = 0
+    ENDIF
+    CALL mp_bcast(ttbond_a,iproc,globenv%group)
+    CALL mp_bcast(ttbond_b,iproc,globenv%group)
+    conn_info%bond_a(workload+1:workload+nbond_loc(iproc+1)) = ttbond_a(1:nbond_loc(iproc+1))
+    conn_info%bond_b(workload+1:workload+nbond_loc(iproc+1)) = ttbond_b(1:nbond_loc(iproc+1))
+    workload=workload+nbond_loc(iproc+1)
+  ENDDO
+
+  !Sort the array
+  DO i=1,nbond
+    DO j=1,nbond
+      IF(conn_info%bond_a(i) < conn_info%bond_a(j)) THEN
+        workload = conn_info%bond_a(i)
+        conn_info%bond_a(i) = conn_info%bond_a(j)
+        conn_info%bond_a(j) = workload
+        workload = conn_info%bond_b(i)
+        conn_info%bond_b(i) = conn_info%bond_b(j)
+        conn_info%bond_b(j) = workload
+      END IF
+    END DO
   END DO
+
 !------------------------------------------------------------------------------
 !------------------------------------------------------------------------------
+  DEALLOCATE(nbond_loc,STAT=istat)
+  IF(istat/=0) CALL stop_memory('generate_bond','nbond_loc')
   DEALLOCATE(tbond_a,STAT=istat)
   IF(istat/=0) CALL stop_memory('generate_bond','tbond_a')
   DEALLOCATE(tbond_b,STAT=istat)
   IF(istat/=0) CALL stop_memory('generate_bond','tbond_b')
+  DEALLOCATE(ttbond_a,STAT=istat)
+  IF(istat/=0) CALL stop_memory('generate_bond','ttbond_a')
+  DEALLOCATE(ttbond_b,STAT=istat)
+  IF(istat/=0) CALL stop_memory('generate_bond','ttbond_b')
   DEALLOCATE(atm_symbol,STAT=istat)
   IF(istat/=0) CALL stop_memory('generate_bond','atm_symbol')
   DEALLOCATE(covalent_radius,STAT=istat)
@@ -1098,6 +1158,8 @@ SUBROUTINE topology_generate_bond(topology,globenv)
   IF(istat/=0) CALL stop_memory('generate_bond','vdw_radius')
 
   IF(PM1) WRITE(iw,*) "    Exiting  topology_generate_bond"
+
+  CALL timestop(0.0_dp,handle)
 
   IF(PRESENT(globenv)) THEN
     CALL write_checkpoint_information("leaving "//routineN,globenv)
