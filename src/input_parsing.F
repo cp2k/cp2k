@@ -613,12 +613,11 @@ SUBROUTINE val_create_parsing(val,type_of_var, n_var,enum,&
                                error=error)
                        END IF
                     END IF
-                    CALL parser_get_object(parser,r_val,error=error)
+                    CALL parser_get_object(parser,r_val_p(i),error=suberror)
                     IF (ASSOCIATED(my_unit)) THEN
                        r_val_p(i)=cp_unit_to_cp2k(r_val_p(i),my_unit,&
-                            default_units,error=error)
+                            default_units,error=suberror)
                     END IF
-                    CALL parser_get_object(parser,r_val_p(i),error=suberror)
                     CALL cp_error_propagate_error(suberror,routineP,error=error,&
                          failure=failure)
                     IF (failure) EXIT
