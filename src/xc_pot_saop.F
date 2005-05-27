@@ -222,6 +222,7 @@ CONTAINS
     CALL xc_rho_cflags_setall(needs,.FALSE.,error)
     IF (lsd) THEN
        CALL xb88_lsd_info(needs=needs)
+       needs%norm_drho = .TRUE.
     ELSE
        CALL xb88_lda_info(needs=needs)
     END IF
@@ -255,6 +256,7 @@ CONTAINS
     CALL xc_vxc_pw_create(vxc_LB, vxc_tau, xc_energy, rho_r, rho_g, tau,&
                           dft_control, cell, auxbas_pw_pool, &
                           error)
+
     DO ispin=1, nspins
        vxc_LB(ispin)%pw%cr3d = vxc_LB(ispin)%pw%cr3d + alpha*vxc_tmp(ispin)%pw%cr3d
     END DO
@@ -644,6 +646,7 @@ CONTAINS
        call xc_rho_cflags_setall(needs, .false., error=error)
        if (lsd) then
           call xb88_lsd_info(needs=needs)
+          needs%norm_drho = .TRUE.
        else
           call xb88_lda_info(needs=needs)
        end if
@@ -676,7 +679,7 @@ CONTAINS
        mepos  = qs_env%para_env%mepos
        bo     = get_limit( natom, num_pe, mepos )
 
-       do iat = bo(1),bo(2) !1,natom
+       do iat = 1,natom !bo(1),bo(2) 
           iatom = atom_list(iat)
           
           rho_atom => rho_atom_set(iatom)
@@ -1120,7 +1123,7 @@ CONTAINS
 
     INTEGER                                  :: i, j, k
     INTEGER, DIMENSION(2,3)                  :: bo
-    REAL(KIND=dp)                            :: e_unif
+    REAL(KIND=dp)                            :: e_unif, rho
 
     bo = rho_set%local_bounds
     
@@ -1141,15 +1144,21 @@ CONTAINS
                      calc_expbe_r(rho_set%rho(i,j,k), rho_set%norm_drho(i,j,k), &
                                   rho_set%rho_cutoff, rho_set%drho_cutoff)
              ELSE                
+                rho = rho_set%rhoa(i,j,k) + rho_set%rhob(i,j,k)
+                IF (rho > rho_set%rho_cutoff) THEN
+                   e_unif = e_uniform(i,j,k)/rho
+                ELSE
+                   e_unif = 0.0_dp
+                END IF
                 pot(i,j,k) = &
                      2.0_dp * &
                      calc_ecpbe_u(rho_set%rhoa(i,j,k), rho_set%rhob(i,j,k), rho_set%norm_drho(i,j,k), &
-                                  e_uniform(i,j,k)/rho_set%rho(i,j,k), &
+                                  e_unif, &
                                   rho_set%rho_cutoff, rho_set%drho_cutoff) + &
                      2.0_dp * &
                      calc_expbe_u(rho_set%rhoa(i,j,k), rho_set%rhob(i,j,k), rho_set%norm_drho(i,j,k), &
                                   rho_set%rho_cutoff, rho_set%drho_cutoff)
-             END IF
+              END IF
           END DO
        END DO
     END DO
