@@ -959,6 +959,9 @@ SUBROUTINE topology_generate_bond(topology,globenv)
 
   natom = topology%natoms
 
+!  NULLIFY(tbond_a,tbond_b,ttbond_a,ttbond_b,nbond_loc)
+!  NULLIFY(covalent_radius,vdw_radius)
+
   !Get the temporary array that we need
   ALLOCATE(tbond_a(nblock),STAT=istat)
   IF(istat/=0) CALL stop_memory('generate_bond','tbond_a',nblock)
