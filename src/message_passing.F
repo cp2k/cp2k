@@ -663,7 +663,7 @@ SUBROUTINE mp_cart_create ( comm_old, ndims, dims, pos, comm_cart )
   CALL mpi_comm_size ( comm_old, nodes, ierr )
   IF ( ierr /= 0 ) CALL mp_stop ( ierr, "mpi_comm_size @ mp_cart_create" )
 
-  CALL mpi_dims_create ( nodes, ndims, dims, ierr )
+  IF (ANY(dims == 0)) CALL mpi_dims_create(nodes,ndims,dims,ierr)
   IF ( ierr /= 0 ) CALL mp_stop ( ierr, "mpi_dims_create @ mp_cart_create" )
 
   reorder = .TRUE.
@@ -863,7 +863,7 @@ SUBROUTINE mp_dims_create ( nodes, dims )
 
 #if defined(__parallel)
   ndim = SIZE ( dims )
-  CALL mpi_dims_create ( nodes, ndim, dims ,ierr)
+  IF (ANY(dims == 0)) CALL mpi_dims_create(nodes,ndim,dims,ierr)
   IF ( ierr /= 0 ) CALL mp_stop ( ierr, "mpi_dims_create @ mp_dims_create" )
 #else
   dims = 1
