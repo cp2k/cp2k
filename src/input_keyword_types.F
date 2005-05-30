@@ -59,7 +59,7 @@ MODULE input_keyword_types
                                              uppercase
   USE timings,                         ONLY: timeset,&
                                              timestop
-  USE cp_units, ONLY: cp_unit_type, cp_unit_retain, cp_unit_release, cp_unit_desc
+  USE cp_units, ONLY: cp_unit_type, cp_unit_retain, cp_unit_release, cp_unit_desc, cp_unit_create
 
   IMPLICIT NONE
   PRIVATE
@@ -189,7 +189,7 @@ SUBROUTINE keyword_create(keyword, name, description, usage, type_of_var,&
      lone_keyword_val, lone_keyword_l_val, lone_keyword_r_val, lone_keyword_c_val,&
      lone_keyword_i_val, lone_keyword_l_vals, lone_keyword_r_vals, &
      lone_keyword_c_vals, lone_keyword_i_vals, enum_c_vals, enum_i_vals, &
-     enum,enum_strict,enum_desc,unit,error)
+     enum,enum_strict,enum_desc,unit_str,error)
     TYPE(keyword_type), POINTER              :: keyword
     CHARACTER(len=*), INTENT(in)             :: name, description, usage
     INTEGER, INTENT(in), OPTIONAL            :: type_of_var, n_var
@@ -230,7 +230,7 @@ SUBROUTINE keyword_create(keyword, name, description, usage, type_of_var,&
     TYPE(enumeration_type), OPTIONAL, &
       POINTER                                :: enum
     LOGICAL, INTENT(in), OPTIONAL            :: enum_strict
-    TYPE(cp_unit_type), POINTER, OPTIONAL    :: unit
+    CHARACTER(len=*), intent(in), OPTIONAL   :: unit_str
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
@@ -430,9 +430,8 @@ SUBROUTINE keyword_create(keyword, name, description, usage, type_of_var,&
      END IF
      IF (PRESENT(n_var)) keyword%n_var=n_var
 
-     IF (PRESENT(unit)) THEN
-        keyword%unit => unit
-        CALL cp_unit_retain(unit,error=error)
+     IF (PRESENT(unit_str)) THEN
+        CALL cp_unit_create(keyword%unit,unit_str,error=error)
      END IF
   END IF
 END SUBROUTINE keyword_create
