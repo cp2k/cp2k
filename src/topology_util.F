@@ -1128,6 +1128,7 @@ SUBROUTINE topology_generate_bond(topology,globenv)
   ENDDO
 
   !Sort the array
+  !Sort the first column
   DO i=1,nbond
     DO j=1,nbond
       IF(conn_info%bond_a(i) < conn_info%bond_a(j)) THEN
@@ -1139,6 +1140,28 @@ SUBROUTINE topology_generate_bond(topology,globenv)
         conn_info%bond_b(j) = workload
       END IF
     END DO
+  END DO
+  !Sort the second column
+  i=1
+  DO WHILE (i<nbond)
+    CALL find_boundary(conn_info%bond_a,nbond,first,last,conn_info%bond_a(i))
+    IF(.NOT.(first==last)) THEN
+      DO j=first,last
+        DO k=first,last
+          IF(conn_info%bond_b(j) < conn_info%bond_b(k)) THEN
+            workload = conn_info%bond_a(j)
+            conn_info%bond_a(j) = conn_info%bond_a(k)
+            conn_info%bond_a(k) = workload
+            workload = conn_info%bond_b(j)
+            conn_info%bond_b(j) = conn_info%bond_b(k)
+            conn_info%bond_b(k) = workload
+          END IF
+        END DO
+      END DO
+      i=last+1
+    ELSE
+      i=i+1
+    END IF
   END DO
 
 !------------------------------------------------------------------------------
