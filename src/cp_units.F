@@ -200,14 +200,15 @@ contains
     INTEGER :: i_low, i_high, len_string, i_unit, next_power
     character(len=*), parameter :: routineN='cp_unit_create',&
          routineP=moduleN//':'//routineN
+    character(default_string_length) :: desc
 
-    failure=.false.
+    failure=.FALSE.
     unit_id=0
     kind_id=0
     power=0
     i_low=1
     i_high=1
-    len_string=len(string)
+    len_string=LEN(string)
     i_unit=0
     next_power=1
     DO WHILE(i_low<len_string)
@@ -215,13 +216,13 @@ contains
        i_low=i_low+1
     END DO
     i_high=i_low
-    DO WHILE(i_high<len_string)
-       if (string(i_high:i_high)==' '.or.string(i_high:i_high)=='^'.or.&
-            string(i_high:i_high)=='*'.OR.string(i_high:i_high)=='/') exit
+    DO WHILE(i_high<=len_string)
+       IF ( string(i_high:i_high)==' '.OR.string(i_high:i_high)=='^'.OR.&
+            string(i_high:i_high)=='*'.OR.string(i_high:i_high)=='/') EXIT
        i_high=i_high+1
     END DO
-    DO while(.not.failure)
-       if (i_high<=i_low) exit
+    DO WHILE(.NOT.failure)
+       IF (i_high<=i_low.OR.i_low>len_string) EXIT
        i_unit=i_unit+1
        IF (i_unit>cp_unit_max_kinds) THEN
           CALL cp_assert(.FALSE.,cp_failure_level,&
@@ -231,6 +232,7 @@ contains
           EXIT
        END IF
        ! read unit
+  !!!!     PRINT *,i_unit,string(i_low:i_high-1)
        SELECT CASE(string(i_low:i_high-1))
        CASE("hartree")
           unit_id(i_unit)=cp_units_hartree
@@ -261,6 +263,9 @@ contains
           kind_id(i_unit)=cp_ukind_length
        CASE("bohr")
           unit_id(i_unit)=cp_units_bohr
+          kind_id(i_unit)=cp_ukind_length
+       CASE("m")
+          unit_id(i_unit)=cp_units_m
           kind_id(i_unit)=cp_ukind_length
        CASE("angstrom")
           unit_id(i_unit)=cp_units_angstrom
@@ -331,41 +336,47 @@ contains
        END SELECT
        power(i_unit)=next_power
        ! parse op
-       i_low=i_high+1
-       DO WHILE(i_low<len_string)
+       i_low=i_high
+       DO WHILE(i_low<=len_string)
           IF (string(i_low:i_low)/=' ') EXIT
           i_low=i_low+1
        END DO
        i_high=i_low
-       DO WHILE(i_high<len_string)
-          if (string(i_high:i_high)==' '.or.string(i_high:i_high)=='^'.or.&
-               string(i_high:i_high)=='*'.OR.string(i_high:i_high)=='/') exit
+       DO WHILE(i_high<=len_string)
+          IF ( string(i_high:i_high)==' '.OR.string(i_high:i_high)=='^'.OR.&
+               string(i_high:i_high)=='*'.OR.string(i_high:i_high)=='/') EXIT
           i_high=i_high+1
        END DO
-       if (i_high<i_low) exit
+       IF (i_high<i_low.OR.i_low>len_string) EXIT
+  !!!!     PRINT *,string(i_low:i_high)
        IF (string(i_low:i_high)=='^') THEN
-          DO WHILE(i_low<len_string)
+          i_low=i_high+1
+          DO WHILE(i_low<=len_string)
              IF (string(i_low:i_low)/=' ') EXIT
              i_low=i_low+1
           END DO
           i_high=i_low
-          DO WHILE(i_high<len_string)
+          DO WHILE(i_high<=len_string)
+  !!!!           PRINT *,i_high,string(i_high:i_high)
              SELECT CASE(string(i_high:i_high))
              CASE('+','-','0','1','2','3','4','5','6','7','8','9')
+                i_high=i_high+1
              CASE default
                 EXIT
              END SELECT
           END DO
-          IF (i_high<=i_low) THEN
+  !!!!        PRINT *,"high-low",i_high,i_low
+          IF (i_high<=i_low.OR.i_low>len_string) THEN
              CALL cp_assert(.FALSE.,cp_failure_level,&
                   cp_assertion_failed,routineP,&
                   "an integer number is expected after a '^'",&
                   error,failure)
              EXIT
           END IF
-          READ (string(i_low:i_high),"(i"//cp_to_string(i_high-i_low+1)//")")&
+          READ (string(i_low:i_high-1),"(i"//cp_to_string(i_high-i_low+1)//")")&
                next_power
           power(i_unit)=power(i_unit)*next_power
+   !!!!       PRINT *,"pippo"
           ! next op
           i_low=i_high
           DO WHILE(i_low<len_string)
@@ -373,30 +384,34 @@ contains
              i_low=i_low+1
           END DO
           i_high=i_low
-          DO WHILE(i_high<len_string)
-             if (string(i_high:i_high)==' '.or.string(i_high:i_high)=='^'.or.&
-                  string(i_high:i_high)=='*'.OR.string(i_high:i_high)=='/') exit
+          DO WHILE(i_high<=len_string)
+             IF ( string(i_high:i_high)==' '.OR.string(i_high:i_high)=='^'.OR.&
+                  string(i_high:i_high)=='*'.OR.string(i_high:i_high)=='/') EXIT
              i_high=i_high+1
           END DO
        END IF
+       IF (i_low>len_string) EXIT
+  !!!!     PRINT *,string(i_low:i_high)
        next_power=1
        IF (string(i_low:i_high)=="*".OR.string(i_low:i_high)=='/') THEN
           IF (string(i_low:i_high)=='/') next_power=-1
           i_low=i_high+1
-          DO WHILE(i_low<len_string)
+          DO WHILE(i_low<=len_string)
              IF (string(i_low:i_low)/=' ') EXIT
              i_low=i_low+1
           END DO
           i_high=i_low
-          DO WHILE(i_high<len_string)
-             if (string(i_high:i_high)==' '.or.string(i_high:i_high)=='^'.or.&
-                  string(i_high:i_high)=='*'.OR.string(i_high:i_high)=='/') exit
+          DO WHILE(i_high<=len_string)
+             IF ( string(i_high:i_high)==' '.OR.string(i_high:i_high)=='^'.OR.&
+                  string(i_high:i_high)=='*'.OR.string(i_high:i_high)=='/') EXIT
              i_high=i_high+1
           END DO
        END IF
     END DO
     CALL cp_unit_create2(unit,kind_id=kind_id, unit_id=unit_id, &
          power=power, error=error)
+    desc=cp_unit_desc(unit,error=error)
+ !!!   PRINT *,"unit_desc=",TRIM(desc)
   END SUBROUTINE cp_unit_create
 !***************************************************************************
 
@@ -438,8 +453,8 @@ SUBROUTINE cp_unit_create2(unit, kind_id, unit_id, power, error)
   failure=.false.
   
   CPPrecondition(.not.ASSOCIATED(unit),cp_failure_level,routineP,error,failure)
-  CPPrecondition(SIZE(kind_id)<SIZE(unit%kind_id),cp_failure_level,routineP,error,failure)
-  CPPrecondition(SIZE(unit_id)<SIZE(unit%unit_id),cp_failure_level,routineP,error,failure)
+  CPPrecondition(SIZE(kind_id)<=SIZE(unit%kind_id),cp_failure_level,routineP,error,failure)
+  CPPrecondition(SIZE(unit_id)<=SIZE(unit%unit_id),cp_failure_level,routineP,error,failure)
   ALLOCATE(unit,stat=stat)
   CPPostcondition(stat==0,cp_fatal_level,routineP,error,failure)
   unit%ref_count=1
@@ -653,7 +668,7 @@ FUNCTION cp_basic_unit_check(basic_kind,basic_unit,error_level,error)&
         END SELECT
      CASE(cp_ukind_length)
         SELECT CASE (basic_unit)
-        CASE(cp_units_bohr, cp_units_angstrom, cp_units_au,cp_units_none)
+        CASE(cp_units_bohr, cp_units_angstrom, cp_units_au,cp_units_none, cp_units_m)
         CASE default
            CALL cp_assert(.FALSE.,my_error_level,cp_assertion_failed,&
                 routineP,"unknown length unit:"//TRIM(cp_to_string(basic_unit)),&
@@ -788,6 +803,8 @@ FUNCTION cp_basic_unit_to_cp2k(value,basic_kind,basic_unit,power,error)&
         SELECT CASE (basic_unit)
         CASE(cp_units_bohr,cp_units_au)
            res=value
+        CASE(cp_units_m)
+           res=value*(1.e10_dp*bohr)**my_power
         CASE(cp_units_angstrom)
            res=value*bohr**my_power
         CASE default
@@ -951,6 +968,8 @@ FUNCTION cp_basic_unit_desc(basic_kind,basic_unit,power,&
         SELECT CASE (basic_unit)
         CASE(cp_units_bohr,cp_units_au)
            res="bohr"
+        CASE(cp_units_m)
+           res="m"
         CASE(cp_units_angstrom)
            res="angstrom"
         CASE default
@@ -1062,7 +1081,7 @@ FUNCTION cp_basic_unit_desc(basic_kind,basic_unit,power,&
      IF (my_power/=1) THEN
         a=LEN_TRIM(res)
         CPPrecondition(LEN(res)-a>=3,cp_failure_level,routineP,error,failure)
-        WRITE (res(a:),"('^',i3)") my_power
+        WRITE (res(a+1:),"('^',i3)") my_power
         CALL compress(res,.true.)
      END IF
   END IF
@@ -1129,8 +1148,8 @@ FUNCTION cp_unit_desc(unit,defaults,accept_undefined,error)&
         END IF
         res(pos:)=TRIM(cp_basic_unit_desc(basic_kind=unit%kind_id(i),&
              basic_unit=my_unit,accept_undefined=my_accept_undefined,&
-             error=error))
-        pos=len_trim(res)
+             power=unit%power(i),error=error))
+        pos=LEN_TRIM(res)+1
      END DO
   END IF
 END FUNCTION cp_unit_desc
