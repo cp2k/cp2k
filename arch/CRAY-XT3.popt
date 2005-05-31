@@ -1,0 +1,15 @@
+# The following settings worked for a Cray XT3 using PGI 5.2.4 and ACML 2.5
+PERL     = perl
+CC       = gcc
+CPP      = cpp
+FC       = ftn -Mfree
+LD       = ftn
+AR       = ar -r
+DFLAGS   = -D__PGI -D__FFTSG\
+           -D__parallel -D__BLACS -D__SCALAPACK
+CPPFLAGS = -traditional -C $(DFLAGS) -P
+FCFLAGS  = -fastsse -target=catamount -tp amd64
+LDFLAGS  = $(FCFLAGS) -L/opt/xt-tools/papi/papi/lib
+LIBS     = -lacml
+
+OBJECTS_ARCHITECTURE = machine_xt3.o
