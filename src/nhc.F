@@ -22,6 +22,7 @@
 
 MODULE nhc
 
+  USE convert_units,                   ONLY: convert_to_cp2k_units
   USE distribution_1d_types,           ONLY: distribution_1d_type
   USE dynamical_coeff_types,           ONLY: dyn_coeff_set_type,&
                                              get_dyn_coeff
@@ -765,6 +766,7 @@ END SUBROUTINE nhc_particle_setup
   kg_coeff_section => section_vals_get_subs_vals(globenv%input_file,&
        "MOTION%MD_NEW")
   call section_vals_val_get(kg_coeff_section,"timestep",r_val=dt)
+  CALL convert_to_cp2k_units ( "FS", time=dt)
   kg_coeff_section => section_vals_get_subs_vals(kg_coeff_section,&
        "kg_coeff")
   nose_section => section_vals_get_subs_vals(kg_coeff_section,&
@@ -773,6 +775,7 @@ END SUBROUTINE nhc_particle_setup
   call section_vals_val_get(kg_coeff_section,"ensemble",i_val=kg_coeff_ens)
   call section_vals_val_get(kg_coeff_section,"nhcopt",i_val=kg_coeff_nhc)
   call section_vals_val_get(kg_coeff_section,"temperature",r_val=kg_coeff_temp)
+  CALL convert_to_cp2k_units(temperature=kg_coeff_temp)
   
   SELECT CASE ( kg_coeff_ens )
   CASE  DEFAULT

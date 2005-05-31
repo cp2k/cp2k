@@ -21,6 +21,7 @@
 
 MODULE initialize_extended_types
 
+  USE convert_units,                   ONLY: convert_to_cp2k_units
   USE distribution_1d_types,           ONLY: distribution_1d_type
   USE dynamical_coeff_types,           ONLY: dyn_coeff_set_type
   USE extended_system_initialize,      ONLY: initialize_nhc,&
@@ -296,7 +297,9 @@ SUBROUTINE initialize_nhc_coef ( dyn_coeff_set, globenv, nhc )
   coeff_section => section_vals_get_subs_vals(globenv%input_file,"MOTION%MD_NEW%KG_COEFF")
   nose_section => section_vals_get_subs_vals(coeff_section,"nose")
   call section_vals_val_get(nose_section,"timeconstant",r_val=tau_nhc)
+  CALL convert_to_cp2k_units ( "FS", time=tau_nhc)
   call section_vals_val_get(coeff_section,"temperature",r_val=kg_coeff_target_temp)
+  CALL convert_to_cp2k_units(temperature=kg_coeff_target_temp)
 
 ! fire up the thermostats
   CALL nhc_coef_setup ( dyn_coeff_set, nhc, globenv )

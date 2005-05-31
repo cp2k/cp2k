@@ -25,6 +25,7 @@ MODULE dynamical_coeff_types
                                              get_atomic_kind
   USE basis_set_types,                 ONLY: get_gto_basis_set,&
                                              gto_basis_set_type
+  USE convert_units,                   ONLY: convert_to_cp2k_units
   USE cp2k_units,                      ONLY: get_cp2k_units,&
                                              unit_convert_type
   USE cp_error_handling,               ONLY: cp_a_l,&
@@ -475,6 +476,7 @@ SUBROUTINE dyn_coeff_set_initialize(dyn_coeff_set,globenv)
   call section_vals_val_get(coeff_section,"mass",r_val=dyn_coeff_set%global_mass)
   call section_vals_val_get(coeff_section,"restart",i_val=restart_coeff)
   call section_vals_val_get(coeff_section,"temperature",r_val=kg_coeff_target_temp)
+  CALL convert_to_cp2k_units(temperature=kg_coeff_target_temp)
     
 ! get total numbers
   nkind=SIZE(dyn_coeff_set%coeffs_of_kind)

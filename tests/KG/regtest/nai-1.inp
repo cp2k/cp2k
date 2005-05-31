@@ -61,7 +61,7 @@ POTENTIAL ELP
 
 &MOTION
   &MD_NEW
-    timestep 1.0
+    timestep 0.5
     ensemble  nvt
     temperature  300.0000
     restart      init
