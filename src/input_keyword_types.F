@@ -659,7 +659,7 @@ SUBROUTINE keyword_describe(keyword, unit_nr, level,error)
                  WRITE(unit_nr,"(i6,' reals are expected')") keyword%n_var
               END IF
               IF (ASSOCIATED(keyword%unit)) THEN
-                 WRITE(unit_nr,"('the unit is ',a)")&
+                 WRITE(unit_nr,"('the default unit of measure is ',a)")&
                       TRIM(cp_unit_desc(keyword%unit,accept_undefined=.TRUE.,&
                       error=error))
               END IF
@@ -774,7 +774,7 @@ SUBROUTINE keyword_describe_html(keyword, unit_nr, error)
     CHARACTER(len=*), PARAMETER :: routineN = 'keyword_describe_thml', &
       routineP = moduleN//':'//routineN
 
-    CHARACTER(len=default_string_length)     :: c_string
+    CHARACTER(len=default_string_length)     :: c_string, my_unit
     INTEGER                                  :: i, l
     LOGICAL                                  :: failure
 
@@ -851,7 +851,11 @@ SUBROUTINE keyword_describe_html(keyword, unit_nr, error)
             WRITE(unit_nr,'(a)',advance="NO") '. Default  : '
             CALL val_write(keyword%default_value,unit_nr=unit_nr,error=error)
       END IF
- 
+      IF (ASSOCIATED(keyword%unit)) THEN
+         my_unit=cp_unit_desc(keyword%unit,accept_undefined=.TRUE.,error=error)
+         WRITE(unit_nr,'(a)',advance="NO") '. Default unit of measure : '//TRIM(my_unit)
+      END IF
+
       IF (keyword%type_of_var==enum_t) THEN
             IF (ANY(keyword%enum%desc.NE."")) THEN
                 WRITE(unit_nr,'(a)',advance='NO') '<TR><TD WIDTH="10%"><TD>  valid keywords:<ul> '
@@ -993,6 +997,13 @@ END SUBROUTINE keyword_describe_html
         WRITE (UNIT=unit_number,FMT="(A)")&
           REPEAT(" ",l1)//"<DEFAULT_VALUE>"//&
           TRIM(ADJUSTL(string))//"</DEFAULT_VALUE>"
+      END IF
+
+      IF (ASSOCIATED(keyword%unit)) THEN
+         string=cp_unit_desc(keyword%unit,accept_undefined=.TRUE.,error=error)
+         WRITE (UNIT=unit_number,FMT="(A)")&
+              REPEAT(" ",l1)//"<DEFAULT_UNIT>"//&
+              TRIM(ADJUSTL(string))//"</DEFAULT_UNIT>"
       END IF
 
       IF (ASSOCIATED(keyword%lone_keyword_value).AND.&
