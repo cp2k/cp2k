@@ -60,6 +60,8 @@ MODULE constraint
                                              cp_subsys_get
   USE particle_list_types,             ONLY: particle_list_type
   USE mol_kind_new_list_types,         ONLY: mol_kind_new_list_type
+  USE input_constants,                 ONLY: npt_i_ensemble,&
+                                             npt_f_ensemble
 
   IMPLICIT NONE
 
@@ -294,9 +296,9 @@ SUBROUTINE shake_roll_control( local_molecules, molecule_set, molecule_kind_set,
   CALL timeset ( 'SHAKE_ROLL_CONTROL', 'I', ' ', handle )
   nkind = SIZE ( molecule_kind_set )
 ! setting up for roll
-  IF ( simpar % ensemble == 'NPT_I' ) THEN
+  IF ( simpar % ensemble == npt_i_ensemble ) THEN
      CALL get_roll_matrix ('SHAKE', r_shake, v_shake, vector_r, vector_v )
-  ELSE IF ( simpar % ensemble == 'NPT_F' ) THEN
+  ELSE IF ( simpar % ensemble == npt_f_ensemble ) THEN
      CALL get_roll_matrix ('SHAKE', r_shake, v_shake, vector_r, vector_v, u )
   END IF
 
@@ -382,9 +384,9 @@ SUBROUTINE rattle_roll_control( local_molecules, molecule_set, molecule_kind_set
 ! initialize locals
    nkind = SIZE ( molecule_kind_set )
 ! setting up for roll
-   IF ( simpar % ensemble == 'NPT_I' ) THEN
+   IF ( simpar % ensemble == npt_i_ensemble ) THEN
       CALL get_roll_matrix ('RATTLE', v_shake=r_rattle, vector_v=vector )
-   ELSE IF ( simpar % ensemble == 'NPT_F' ) THEN
+   ELSE IF ( simpar % ensemble == npt_f_ensemble ) THEN
       CALL get_roll_matrix ('RATTLE', v_shake=r_rattle, vector_v=vector, u=u )
    END IF
    MOL: DO ikind = 1, nkind

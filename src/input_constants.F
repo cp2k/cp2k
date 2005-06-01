@@ -22,27 +22,58 @@
 !!   SOURCE
 !****************************************************************************
 MODULE input_constants
-  USE kinds, ONLY: dp
-  implicit none
-  private
+  USE kinds, ONLY: dp,&
+                   default_string_length
+  IMPLICIT NONE
+  PRIVATE
 
   INTEGER, PARAMETER, public :: do_qs=1,do_fist=2,do_kg=3,do_qmmm=4,do_atom=5,&
        do_farming=6,do_test=8
   REAL(KIND=dp), PARAMETER, PUBLIC :: RADIUS_QMMM_DEFAULT = 0.80_dp,&
                                       ALPHA_IMOMM_DEFAULT = 1.38_dp,&
                                       CHARGE_SCALE_FACTOR = 1.00_dp
-  INTEGER, PARAMETER, PUBLIC :: nve_ensemble=101,&
-                                nvt_ensemble=102,&
-                                npt_i_ensemble=103,&
-                                npt_f_ensemble=104,&
-                                nph_ensemble=105,&
-                                nph_uniaxial=106,&
-                                nph_uniaxial_damped_ensamble=107,&
-                                isokin_ensemble=108, &
-                                reftraj=109
+  !
+  ! MD Ensemble
+  !
+  CHARACTER (LEN=default_string_length), PARAMETER, DIMENSION(9), PUBLIC :: ensemble_name_types=&
+       (/"nve                ",&
+         "nvt                ",&
+         "npt_i              ",&
+         "npt_f              ",&
+         "nph                ",&
+         "nph_uniaxial       ",&
+         "nph_uniaxial_damped",&
+         "isokin             ",&
+         "reftraj            " /)
+  INTEGER, PARAMETER, PUBLIC :: nve_ensemble=1,&
+                                nvt_ensemble=2,&
+                                npt_i_ensemble=3,&
+                                npt_f_ensemble=4,&
+                                nph_ensemble=5,&
+                                nph_uniaxial_ensemble=6,&
+                                nph_uniaxial_damped_ensemble=7,&
+                                isokin_ensemble=8,&
+                                reftraj_ensemble=9
+  INTEGER, PARAMETER, PUBLIC, DIMENSION(9) :: ensemble_name_index=&
+       (/nve_ensemble,nvt_ensemble,npt_i_ensemble,&
+         npt_f_ensemble,nph_ensemble,nph_uniaxial_ensemble,&
+         nph_uniaxial_damped_ensemble,isokin_ensemble,reftraj_ensemble/)
   INTEGER, PARAMETER, PUBLIC :: nhc_global=101,nhc_massive=102
-  INTEGER, PARAMETER, PUBLIC :: md_init_start=101,md_pos_restart=102,&
-       md_pos_vel_restart=103
+  !
+  ! MD restart
+  !
+  CHARACTER (LEN=default_string_length), PARAMETER, DIMENSION(4), PUBLIC :: restart_name_types=&
+       (/"init  ",&
+         "pos   ",&
+         "posvel",&
+         "all   "/)
+  INTEGER, PARAMETER, PUBLIC :: md_init_start=1,&
+                                md_pos_restart=2,&
+                                md_pos_vel_restart=3,&
+                                md_all_restart=4
+  INTEGER, PARAMETER, PUBLIC, DIMENSION(4) :: restart_name_index=&
+       (/md_init_start,md_pos_restart, md_pos_vel_restart, md_all_restart/)
+
   INTEGER, PARAMETER, public :: energy_run=1,energy_force_run=2,&
        md_run=3, geo_opt_run=4,mc_run=5, electronic_spectra_run=6, qs_debug=7
   INTEGER, PARAMETER, public :: atomic_guess=1,restart_guess=2,random_guess=3,&
@@ -88,8 +119,20 @@ MODULE input_constants
        do_extrpl_linear_p=6,&
        do_extrpl_linear_ps=7
 
-  INTEGER, PARAMETER, PUBLIC :: dump_xyz=0,&
-                                dump_crd=1
+  !
+  ! Output format files
+  !
+  CHARACTER (LEN=default_string_length), PARAMETER, DIMENSION(4), PUBLIC :: output_name_types=&
+  (/"XYZ   ",&
+    "CRD   ",&
+    "ATOMIC",&
+    "XMOL  "/)
+  INTEGER, PARAMETER, PUBLIC :: dump_xyz=1,&
+                                dump_crd=2,&
+                                dump_atomic=3,&
+                                dump_xmol=4
+  INTEGER, PARAMETER, PUBLIC, DIMENSION(4) :: output_name_index=&
+       (/dump_xyz,dump_crd,dump_atomic,dump_xmol/)
 
   integer, parameter, public :: do_qmmm_none=0,&
                                 do_qmmm_grid=1,&

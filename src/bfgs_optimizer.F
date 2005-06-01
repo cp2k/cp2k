@@ -61,7 +61,7 @@ MODULE bfgs_optimizer
   USE termination,                     ONLY: external_control
   USE timings,                         ONLY: timeset,&
                                              timestop
-
+  USE input_constants,                 ONLY: dump_xmol
   IMPLICIT NONE
 
   PRIVATE
@@ -364,7 +364,7 @@ CONTAINS
    IF (ionode) THEN
      WRITE (UNIT=title,FMT="(A,I8,A,F20.10)") " i =",it,", E =",etot
      CALL write_particle_coordinates(particle_set,cell,dataunit,&
-                                     "XMOL","POS",TRIM(title))
+                                     dump_xmol,"POS",TRIM(title))
      CALL m_flush(dataunit)
      CALL write_qs_particle_coordinates(particle_set,cell,globenv)
    END IF

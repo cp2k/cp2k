@@ -52,6 +52,10 @@ MODULE atoms_input
   USE topology_types,                  ONLY: topology_parameters_type,&
                                              atom_info_type
   USE util,                            ONLY: get_unit
+  USE input_constants,                 ONLY: md_init_start,&
+                                             md_pos_restart,&
+                                             md_pos_vel_restart,&
+                                             md_all_restart
 
   IMPLICIT NONE
 
@@ -265,7 +269,7 @@ END SUBROUTINE read_atoms_input
 !!*** *************************************************************************
 SUBROUTINE read_md_restart ( rtype, globenv, particle_set, cell, cell_ref,  &
                              nhc_part, nhc_baro, npt_info ) 
-    CHARACTER(len=*), INTENT(IN)             :: rtype
+    INTEGER, INTENT(IN)             :: rtype
     TYPE(global_environment_type), &
       INTENT(IN)                             :: globenv
     TYPE(particle_type), DIMENSION(:), &
@@ -333,7 +337,7 @@ SUBROUTINE read_md_restart ( rtype, globenv, particle_set, cell, cell_ref,  &
     IF ( exists ) THEN
        iunit = get_unit()
        OPEN ( iunit, file = filen )
-       IF ( rtype == 'INIT' ) THEN
+       IF ( rtype == md_init_start ) THEN
           DO i = 1, SIZE ( particle_set )
              READ ( iunit, * ) r ( :, i )
              f ( :, i ) = 0.0_dp
@@ -342,7 +346,7 @@ SUBROUTINE read_md_restart ( rtype, globenv, particle_set, cell, cell_ref,  &
           READ ( iunit, * ) h ( 2, 1:3 )
           READ ( iunit, * ) h ( 3, 1:3 )
 
-       ELSE IF ( rtype == 'POS' )THEN
+       ELSE IF ( rtype == md_pos_restart )THEN
           DO i = 1, SIZE ( particle_set )
              READ ( iunit, * ) r ( :, i )
              f ( :, i ) = 0.0_dp
@@ -354,7 +358,7 @@ SUBROUTINE read_md_restart ( rtype, globenv, particle_set, cell, cell_ref,  &
           READ ( iunit, * ) href( 1, 1:3 )
           READ ( iunit, * ) href( 2, 1:3 )
           READ ( iunit, * ) href( 3, 1:3 )
-       ELSE IF ( rtype == 'POSVEL' ) THEN
+       ELSE IF ( rtype == md_pos_vel_restart ) THEN
 
           DO i = 1, SIZE ( particle_set )
              READ ( iunit, * ) r ( :, i )
@@ -372,7 +376,7 @@ SUBROUTINE read_md_restart ( rtype, globenv, particle_set, cell, cell_ref,  &
              READ ( iunit, * ) v ( :, i )
           END DO
 
-       ELSE IF ( rtype == 'ALL' ) THEN
+       ELSE IF ( rtype == md_all_restart ) THEN
 
           DO i = 1, SIZE ( particle_set )
              READ ( iunit, * ) r ( :, i )
@@ -674,9 +678,9 @@ SUBROUTINE read_md_restart ( rtype, globenv, particle_set, cell, cell_ref,  &
     WRITE ( iw, '( A, T71, I10 )' ) &
         ' RESTART MD| Number of atoms read ', SIZE ( particle_set )
     IF ( globenv % print_level > 4 ) THEN
-         IF ( rtype == 'POS' ) THEN
+         IF ( rtype == md_pos_restart ) THEN
            CALL print_c ( iw, particle_set )
-         ELSE IF ( rtype == 'POSVEL' ) THEN
+         ELSE IF ( rtype == md_pos_vel_restart ) THEN
             CALL print_cv ( iw, particle_set )
          END IF
     END IF
@@ -702,7 +706,7 @@ END SUBROUTINE read_md_restart
 SUBROUTINE read_pimd_atoms_input ( rtype, globenv, particle_set, cell,  &
                                   cell_ref, nhc_part, nhc_baro, npt_info ) 
 
-    CHARACTER(len=*), INTENT(IN)             :: rtype
+    INTEGER, INTENT(IN)             :: rtype
     TYPE(global_environment_type), &
       INTENT(IN)                             :: globenv
     TYPE(particle_type), DIMENSION(:), &
@@ -729,7 +733,7 @@ SUBROUTINE read_pimd_atoms_input ( rtype, globenv, particle_set, cell,  &
      iunit = get_unit()
      OPEN ( iunit, file = filen )
 
-     IF ( rtype == 'INIT' ) THEN
+     IF ( rtype == md_init_start ) THEN
         DO i = 1, SIZE ( particle_set )
            READ ( iunit, * ) particle_set ( i ) % r ( : )
            particle_set ( i ) % f = 0.0_dp
@@ -738,7 +742,7 @@ SUBROUTINE read_pimd_atoms_input ( rtype, globenv, particle_set, cell,  &
         READ ( iunit, * ) cell % hmat( 2, 1:3 )
         READ ( iunit, * ) cell % hmat( 3, 1:3 )
 
-     ELSE IF ( rtype == 'POS' )THEN
+     ELSE IF ( rtype == md_pos_restart )THEN
         DO i = 1, SIZE ( particle_set )
            READ ( iunit, * ) particle_set ( i ) % r ( : )
            particle_set ( i ) % f = 0.0_dp
@@ -750,7 +754,7 @@ SUBROUTINE read_pimd_atoms_input ( rtype, globenv, particle_set, cell,  &
         READ ( iunit, * ) cell_ref % hmat( 1, 1:3 )
         READ ( iunit, * ) cell_ref % hmat( 2, 1:3 )
         READ ( iunit, * ) cell_ref % hmat( 3, 1:3 )
-     ELSE IF ( rtype == 'POSVEL' ) THEN
+     ELSE IF ( rtype == md_pos_vel_restart ) THEN
 
         DO i = 1, SIZE ( particle_set )
            READ ( iunit, * ) particle_set ( i ) % r ( : )
@@ -767,7 +771,7 @@ SUBROUTINE read_pimd_atoms_input ( rtype, globenv, particle_set, cell,  &
            READ ( iunit, * ) particle_set ( i ) % v ( : )
         END DO
 
-     ELSE IF ( rtype == 'ALL' ) THEN
+     ELSE IF ( rtype == md_all_restart ) THEN
 
         DO i = 1, SIZE ( particle_set )
            READ ( iunit, * ) particle_set ( i ) % r ( : )
@@ -867,9 +871,9 @@ SUBROUTINE read_pimd_atoms_input ( rtype, globenv, particle_set, cell,  &
     WRITE ( iw, '( A, T71, I10 )' ) &
         ' READ PIMD| Number of atoms read ', SIZE ( particle_set )
     IF ( globenv % print_level > 4 ) THEN
-         IF ( rtype == 'POS' ) THEN
+         IF ( rtype == md_pos_restart ) THEN
            CALL print_c ( iw, particle_set )
-         ELSE IF ( rtype == 'POSVEL' ) THEN
+         ELSE IF ( rtype == md_pos_vel_restart ) THEN
             CALL print_cv ( iw, particle_set )
          END IF
     END IF

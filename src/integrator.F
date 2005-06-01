@@ -78,6 +78,13 @@ MODULE integrator
   USE virial_methods,                  ONLY: virial_evaluate
   USE virial_types,                    ONLY: virial_type
   USE input_section_types, ONLY: section_vals_type, section_vals_val_get
+  USE input_constants,                 ONLY: nve_ensemble,&
+                                             nvt_ensemble,&
+                                             npt_i_ensemble,&
+                                             npt_f_ensemble,&
+                                             nph_ensemble,&
+                                             nph_uniaxial_ensemble,&
+                                             nph_uniaxial_damped_ensemble  
   IMPLICIT NONE
 
   PRIVATE
@@ -2326,7 +2333,7 @@ SUBROUTINE rattle_roll_setup ( atomic_kind_set, particle_set, local_particles, &
 
 ! assigning local variable
   SELECT CASE ( simpar % ensemble )
-  CASE ( 'NPT_I' )
+  CASE ( npt_i_ensemble )
     npt_loc ( :, : ) % v = 0.0_dp
     npt_loc ( :, : ) % mass = 0.0_dp
     npt_loc ( 1, 1 ) % v = npt ( 1, 1 ) % v
@@ -2335,7 +2342,7 @@ SUBROUTINE rattle_roll_setup ( atomic_kind_set, particle_set, local_particles, &
     npt_loc ( 1, 1 ) % mass = npt ( 1, 1 ) % mass
     npt_loc ( 2, 2 ) % mass = npt ( 1, 1 ) % mass
     npt_loc ( 3, 3 ) % mass = npt ( 1, 1 ) % mass
-  CASE ( 'NPT_F' )
+  CASE ( npt_f_ensemble )
     npt_loc = npt
   END SELECT
 
@@ -2435,7 +2442,7 @@ SUBROUTINE get_veps_particle_set ( box, npt, simpar, atomic_kind_set, particle_s
                                                   molecule_kind_set, &
                                                   particle_set, virial, &
                                                   int_group )
-  IF ( simpar % ensemble == 'NPT_I' ) THEN
+  IF ( simpar % ensemble == npt_i_ensemble ) THEN
 ! get force on barostat
      fdotr = 0.0_dp
      DO ii = 1, 3
@@ -2445,7 +2452,7 @@ SUBROUTINE get_veps_particle_set ( box, npt, simpar, atomic_kind_set, particle_s
 
      npt ( :, : ) % f = ( 1.0_dp + ( 3.0_dp * infree ) ) * kin + fdotr - &
        3.0_dp * simpar % p_ext * box % deth
-  ELSEIF ( simpar % ensemble == 'NPT_F' ) THEN
+  ELSEIF ( simpar % ensemble == npt_f_ensemble ) THEN
      npt ( :, : ) % f = virial % pv_virial ( :, : ) +                   &
        pv_kin ( :, : ) +  virial % pv_constraint ( :, : ) -  &
        unit ( :, : ) * simpar % p_ext * box % deth +       &
@@ -2455,7 +2462,9 @@ SUBROUTINE get_veps_particle_set ( box, npt, simpar, atomic_kind_set, particle_s
 !    trace = trace / 3.0_dp
 !    npt ( :, : ) % f = trace * unit ( :, : )
 ! dbg
-  ELSEIF ( simpar % ensemble (1:3) == 'NPH' ) THEN
+  ELSEIF ( simpar % ensemble == nph_ensemble .OR.&
+           simpar % ensemble == nph_uniaxial_ensemble .OR.&
+           simpar % ensemble == nph_uniaxial_damped_ensemble ) THEN
      v = box % deth
      vi = 1._dp/v
      v0 = simpar % v0 
@@ -2564,7 +2573,7 @@ SUBROUTINE get_veps_velocity ( box, npt, simpar, atomic_kind_set, vel, particle_
                                                   particle_set, virial, &
                                                   int_group )
  
-  IF ( simpar % ensemble == 'NPT_I' ) THEN
+  IF ( simpar % ensemble ==  npt_i_ensemble ) THEN
 ! get force on barostat
      fdotr = 0.0_dp
      DO ii = 1, 3
@@ -2574,7 +2583,7 @@ SUBROUTINE get_veps_velocity ( box, npt, simpar, atomic_kind_set, vel, particle_
 
      npt ( :, : ) % f = ( 1.0_dp + ( 3.0_dp * infree ) ) * kin + fdotr - &
        3.0_dp * simpar % p_ext * box % deth
-  ELSEIF ( simpar % ensemble == 'NPT_F' ) THEN
+  ELSEIF ( simpar % ensemble ==  npt_f_ensemble ) THEN
      npt ( :, : ) % f = virial % pv_virial ( :, : ) +                   &
        pv_kin ( :, : ) +  virial % pv_constraint ( :, : ) -  &
        unit ( :, : ) * simpar % p_ext * box % deth +       &
@@ -2584,7 +2593,9 @@ SUBROUTINE get_veps_velocity ( box, npt, simpar, atomic_kind_set, vel, particle_
 !    trace = trace / 3.0_dp
 !    npt ( :, : ) % f = trace * unit ( :, : )
 ! dbg
-  ELSEIF ( simpar % ensemble (1:3) == 'NPH' ) THEN
+  ELSEIF ( simpar % ensemble == nph_ensemble .OR.&
+           simpar % ensemble == nph_uniaxial_ensemble .OR.&
+           simpar % ensemble == nph_uniaxial_damped_ensemble ) THEN
      v = box % deth
      vi = 1._dp/v
      v0 = simpar % v0 

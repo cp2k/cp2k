@@ -562,14 +562,16 @@ CONTAINS
                                                 xc_fun_set
     TYPE(cp_error_type)                      :: sub_error
     TYPE(xc_rho_cflags_type)                 :: needs
-
-    TYPE(section_vals_type), POINTER         :: xas_section
+    TYPE(section_vals_type), POINTER         :: dft_section, xas_section
 !   ---------------------------------------------------------------------------
 
-
     IF (parsed_cp2k_input(globenv%input_file,error=error)) THEN
-       CALL read_dft_control_new(dft_control,globenv)
-       RETURN
+       dft_section => section_vals_get_subs_vals(globenv%input_file,&
+            "FORCE_EVAL%DFT",error=error)
+       IF (parsed_cp2k_input(dft_section,check_this_section=.TRUE.,error=error)) THEN
+          CALL read_dft_control_new(dft_control,globenv)
+          RETURN
+       END IF
     END IF
 
     failure=.FALSE.

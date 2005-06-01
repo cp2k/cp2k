@@ -85,6 +85,10 @@ MODULE particle_types
   USE timings,                         ONLY: timeset,&
                                              timestop
   USE qmmm_ff_fist,                    ONLY: qmmm_ff_precond_only_qm
+  USE input_constants,                 ONLY: dump_xyz,&
+                                             dump_xmol,&
+                                             dump_atomic,&
+                                             dump_crd
 
   IMPLICIT NONE
 
@@ -1145,8 +1149,8 @@ END SUBROUTINE clone_particle
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
     TYPE(cell_type), POINTER                 :: cell
-    INTEGER                                  :: iunit
-    CHARACTER(LEN=*)                         :: FORMAT, content, title
+    INTEGER                                  :: iunit, FORMAT
+    CHARACTER(LEN=*)                         :: content, title
 
     CHARACTER(LEN=2)                         :: element_symbol
     CHARACTER(LEN=4)                         :: name
@@ -1157,8 +1161,8 @@ END SUBROUTINE clone_particle
 
     natom = SIZE(particle_set)
 
-    SELECT CASE (TRIM(FORMAT))
-    CASE ("XMOL")
+    SELECT CASE (FORMAT)
+    CASE (dump_xmol)
       WRITE(iunit,"(I8)") natom
       WRITE(iunit,"(A)")  TRIM(title)
       DO iatom=1,natom
@@ -1195,7 +1199,7 @@ END SUBROUTINE clone_particle
                                                  particle_set(iatom)%f(1:3)
         END SELECT
       END DO
-    CASE ("ATOMIC")
+    CASE (dump_atomic)
       DO iatom=1,natom
         SELECT CASE (TRIM(content))
         CASE ("POS")

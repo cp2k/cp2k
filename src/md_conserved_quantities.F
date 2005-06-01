@@ -47,7 +47,15 @@ MODULE md_conserved_quantities
   USE particle_types,                  ONLY: particle_type
   USE simulation_cell,                 ONLY: cell_type
   USE termination,                     ONLY: stop_program
-
+  USE input_constants,                 ONLY: nve_ensemble,&
+                                             nvt_ensemble,&
+                                             npt_i_ensemble,&
+                                             npt_f_ensemble,&
+                                             nph_ensemble,&
+                                             nph_uniaxial_ensemble,&
+                                             nph_uniaxial_damped_ensemble,&
+                                             isokin_ensemble, &
+                                             reftraj_ensemble
   IMPLICIT NONE
 
   PRIVATE
@@ -145,23 +153,23 @@ SUBROUTINE compute_conserved_quantity (md_env, epot, cons, cons_rel, ekin,&
   IF (simpar%nfree /= 0) &
   md_ener % temp_part = 2.0_dp * md_ener % ekin / REAL ( simpar%nfree,KIND=dp)
   
-  SELECT CASE ( TRIM(simpar % ensemble)  )
+  SELECT CASE ( simpar % ensemble  )
   CASE DEFAULT
     ! hence, should be implemented 
     CALL stop_program( RoutineN, 'Unknown Ensemble')
-  CASE ( 'ISOKIN' )
+  CASE ( isokin_ensemble )
     cons = md_ener % ekin
-  CASE ( 'REFTRAJ' ) ! no constant of motion available
+  CASE ( reftraj_ensemble ) ! no constant of motion available
     cons = md_ener % epot
-  CASE ( 'NVE')
+  CASE ( nve_ensemble)
     CALL get_econs_nve (md_env, md_ener, cons, int_grp)
-  CASE ( 'NVT')
+  CASE ( nvt_ensemble)
     CALL get_econs_nvt (md_env, md_ener, cons, int_grp)
-  CASE ( 'NPT_I', 'NPT_F' )
+  CASE (  npt_i_ensemble,  npt_f_ensemble )
     CALL get_econs_npt (md_env, md_ener, cons, int_grp)
-  CASE ( 'NPH_UNIAXIAL' )
+  CASE (  nph_uniaxial_ensemble )
     CALL get_econs_nph_uniaxial (md_env, md_ener, cons, int_grp)
-  CASE ( 'NPH_UNIAXIAL_DAMPED' )
+  CASE ( nph_uniaxial_damped_ensemble )
     CALL get_econs_nph_damped (md_env, md_ener, cons, int_grp)
   END SELECT
 
@@ -180,122 +188,6 @@ SUBROUTINE compute_conserved_quantity (md_env, epot, cons, cons_rel, ekin,&
   IF (PRESENT(temp_coefs)) temp_coefs=md_ener%temp_coefs 
 
 END SUBROUTINE compute_conserved_quantity
-
-!*****************************************************************************
-
-!SUBROUTINE compute_conserved_quantity_pimd (md_env, epot, cons,&
-!                                            cons_rel, ekin, temp)
-
-!  IMPLICIT NONE
-
-! Arguments
-!  TYPE (md_environment_type), POINTER :: md_env
-!  REAL(KIND=dp), INTENT (INOUT) :: epot
-!  REAL(KIND=dp), INTENT (OUT):: cons
-!  REAL(KIND=dp), INTENT (OUT):: cons_rel
-!  REAL(KIND=dp), INTENT (OUT):: ekin
-!  REAL(KIND=dp), INTENT (OUT):: temp
-
-!Locals
-!  TYPE (simulation_parameters_type), POINTER :: simpar
-!  TYPE (structure_type), POINTER :: struc ( : )
-
-!  TYPE (cell_type), POINTER :: box
-!  TYPE (lnhc_parameters_type), POINTER :: nhc_baro ( : )
-!  TYPE (lnhc_parameters_type), POINTER :: nhc_part ( : )
-!  TYPE (npt_info_type), POINTER :: npt ( :, : )
-
-!  INTEGER, POINTER :: itimes
-!  REAL(KIND=dp), POINTER :: constant
-!  TYPE (atomic_kind_type), POINTER :: atomic_kind
-
-!  INTEGER i,j,nnodes,beads                             
-!  REAL(KIND=dp) :: ke, t, atmp, btmp, mass 
-!  REAL(KIND=dp) :: nhc_part_kin, nhc_part_pot, nhc_baro_kin 
-!  REAL(KIND=dp) :: nhc_baro_pot, baro_kin, baro_pot 
-!  TYPE(cp_para_env_type), POINTER :: para_env
-
-!------------------------------------------------------------------------------
-
-!  CALL get_md_env (md_env=md_env,&
-!                   cell=box,&
-!                   constant=constant,&
-!                   itimes=itimes,&
-!                   nhc_baro=nhc_baro,&
-!                   nhc_part=nhc_part,&
-!                   npt=npt,&
-!                   simpar=simpar,&
-!                   struc=struc, &
-!                   para_env = para_env)
-!
-!  int_grp = para_env % group  
-
-!  nnodes = SIZE ( struc ( 1 ) % pnode )
-!  beads = SIZE ( struc )
-!  atmp = zero
-!  cons = zero
-
-!  DO i = 1, beads
-
-!     CALL get_part_ke ( struc ( i ), ke )
-!     CALL get_part_temp ( ke, simpar, t )
-!     atmp = atmp + t
-!     cons = cons + ke            
-!
-!  END DO
-
-!  temp = atmp / beads
-
-!  IF ( simpar % ensemble ( 1 : 3 )/= 'NVE' ) THEN
-!     nhc_part_kin = zero
-!     nhc_part_pot = zero
-!     DO i = 1, beads
-!        CALL get_nhc_energies ( nhc_part ( i ), atmp, btmp )
-!        nhc_part_kin = nhc_part_kin + atmp
-!        nhc_part_pot = nhc_part_pot + btmp
-!     END DO
-!  END IF
-
-!  IF ( simpar % ensemble ( 1 : 3 ) == 'NPT' ) &
-!  CALL get_nhc_energies (  nhc_baro ( 1 ), nhc_baro_kin, nhc_baro_pot )
-
-!  IF ( simpar % ensemble ( 1 : 3 ) == 'NPT' ) &
-!  CALL get_baro_energies ( box, simpar, nhc_baro ( 1 ), npt,  &
-!                           baro_kin, baro_pot )
-!  btmp = zero
-!  DO i = 1, beads
-!     atmp = zero
-!     DO j = 1, nnodes
-!        atomic_kind => struc (i)%pnode(j) %p % atomic_kind
-!        CALL get_atomic_kind (atomic_kind=atomic_kind, mass=mass)
-!        atmp = atmp + mass * (struc(i)%pimd_env%u(1,j)**2 + &
-!           struc(i)%pimd_env%u(2,j)**2 + struc(i)%pimd_env%u(3,j)**2 )  
-!     END DO
-!     btmp = btmp + struc(i)%pimd_env%lbd * atmp
-!  END DO
-!  btmp = 0.5_dp*simpar%pimd_params%wp**2*btmp
-!  cons = cons + btmp
-
-!  ekin = 1.5_dp*beads*nnodes/simpar%pimd_params%beta - btmp
-!  epot = epot/beads
-
-!  SELECT CASE ( simpar % ensemble ( 1 : 3 ) )
-!  CASE ( 'NVE')
-!     cons = cons + epot
-!  CASE ( 'NVT')
-!     cons = cons + epot + nhc_part_kin + nhc_part_pot
-!  CASE ( 'NPT')
-!     cons = cons + epot + nhc_part_kin + nhc_part_pot  &
-!                 + nhc_baro_kin + nhc_baro_pot + baro_kin + baro_pot
-!  END SELECT
-
-!  IF (itimes==1) THEN
-!     constant = cons
-!     CALL set_md_env (md_env=md_env, constant=constant)
-!  END IF
-!  IF (itimes /= 0 ) cons_rel = abs((cons-constant)/constant)
-
-!END SUBROUTINE compute_conserved_quantity_pimd
 
 !******************************************************************************
 !!******
@@ -593,11 +485,11 @@ SUBROUTINE get_baro_energies ( box, simpar, npt, baro_kin, baro_pot, int_grp )
     INTEGER                                  :: i, j
     REAL ( dp )                             :: v0, iv0, v_shock 
 
-  IF ( simpar%ensemble == 'NPT_I' ) THEN
+  IF ( simpar%ensemble == npt_i_ensemble ) THEN
      baro_pot = simpar % p_ext * box % deth
      baro_kin = 0.5_dp * npt ( 1, 1 ) % v * npt ( 1, 1 ) % v * &
           npt ( 1, 1 ) % mass
-  ELSE IF ( simpar%ensemble=='NPT_F' ) THEN
+  ELSE IF ( simpar%ensemble== npt_f_ensemble ) THEN
      baro_pot =  simpar % p_ext * box % deth
      baro_kin = 0.0_dp
      DO i = 1, 3
@@ -606,7 +498,9 @@ SUBROUTINE get_baro_energies ( box, simpar, npt, baro_kin, baro_pot, int_grp )
                       npt ( i, j ) % v * npt ( i, j ) % mass
         END DO
      END DO
-  ELSEIF ( simpar%ensemble (1:3) == 'NPH' ) THEN
+  ELSEIF ( simpar%ensemble == nph_ensemble .OR.&
+           simpar%ensemble == nph_uniaxial_ensemble .OR.&
+           simpar%ensemble == nph_uniaxial_damped_ensemble ) THEN
      v0 = simpar % v0
      iv0 = 1._dp / v0
      v_shock = simpar % v_shock

@@ -42,7 +42,15 @@ MODULE velocity_verlet_control
   USE termination,                     ONLY: stop_program
   USE timings,                         ONLY: timeset,&
                                              timestop
-
+  USE input_constants,                 ONLY: nve_ensemble,&
+                                             nvt_ensemble,&
+                                             npt_i_ensemble,&
+                                             npt_f_ensemble,&
+                                             nph_ensemble,&
+                                             nph_uniaxial_ensemble,&
+                                             nph_uniaxial_damped_ensemble,&
+                                             isokin_ensemble, &
+                                             reftraj_ensemble
   IMPLICIT NONE
 
   PRIVATE
@@ -90,35 +98,35 @@ SUBROUTINE velocity_verlet ( md_env )
 
   SELECT CASE ( in_use )
   CASE ( use_fist_force )
-     SELECT CASE ( TRIM ( simpar % ensemble ) )
+     SELECT CASE ( simpar % ensemble  )
      CASE DEFAULT
         CALL stop_program ( 'velocity_verlet','integrator not implemented')
-     CASE ( 'NVE')
+     CASE ( nve_ensemble )
         CALL nve ( md_env )
-     CASE ( 'NVT')
+     CASE ( nvt_ensemble )
         CALL nvt ( md_env )
-     CASE ( 'ISOKIN')
+     CASE ( isokin_ensemble )
         CALL isokin ( md_env )
-     CASE ( 'NPT_I')
+     CASE ( npt_i_ensemble )
         CALL npt_i ( md_env )
-     CASE ( 'NPT_F')
+     CASE ( npt_f_ensemble)
         CALL npt_f ( md_env )
-     CASE ( 'NPH_UNIAXIAL')
+     CASE ( nph_uniaxial_ensemble)
         CALL nph_uniaxial ( md_env )
-     CASE ( 'NPH_UNIAXIAL_DAMPED')
+     CASE ( nph_uniaxial_damped_ensemble )
         CALL nph_uniaxial_damped ( md_env )
-     CASE ( 'REFTRAJ')
+     CASE ( reftraj_ensemble)
         CALL reftraj ( md_env )
      END SELECT
  CASE default
-    SELECT CASE (TRIM(simpar%ensemble))
-    CASE ("NVE")
+    SELECT CASE (simpar%ensemble)
+    CASE (nve_ensemble)
       CALL nve(md_env)
-    CASE ("NVT")
+    CASE (nvt_ensemble)
       CALL nvt(md_env)
-     CASE ( 'ISOKIN')
+     CASE (isokin_ensemble)
         CALL isokin ( md_env )
-     CASE ( 'REFTRAJ')
+     CASE (reftraj_ensemble)
         CALL reftraj ( md_env )
     CASE DEFAULT
       CALL stop_program("velocity_verlet",&

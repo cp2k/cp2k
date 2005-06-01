@@ -22,7 +22,6 @@
 
 MODULE nhc
 
-  USE convert_units,                   ONLY: convert_to_cp2k_units
   USE distribution_1d_types,           ONLY: distribution_1d_type
   USE dynamical_coeff_types,           ONLY: dyn_coeff_set_type,&
                                              get_dyn_coeff
@@ -45,6 +44,15 @@ MODULE nhc
                                              get_molecule
   USE termination,                     ONLY: stop_memory,&
                                              stop_program
+  USE input_constants,                 ONLY: nve_ensemble,&
+                                             nvt_ensemble,&
+                                             npt_i_ensemble,&
+                                             npt_f_ensemble,&
+                                             nph_ensemble,&
+                                             nph_uniaxial_ensemble,&
+                                             nph_uniaxial_damped_ensemble,&
+                                             isokin_ensemble, &
+                                             reftraj_ensemble
 
   IMPLICIT NONE
 
@@ -90,7 +98,7 @@ SUBROUTINE nhc_barostat_setup ( simpar, nhc, globenv )
 !
   nhc % dis_type = 'NONE'
   IF ( globenv % num_pe > 1 ) nhc % dis_type = 'REP_REP'
-  SELECT CASE (TRIM(simpar%ensemble))
+  SELECT CASE (simpar%ensemble)
   CASE  DEFAULT
     ALLOCATE ( nhc % nvt ( 0, 0 ), STAT = isos )
     IF (isos/=0) CALL stop_program('nhc_barostat_setup', &
@@ -99,7 +107,7 @@ SUBROUTINE nhc_barostat_setup ( simpar, nhc, globenv )
     nhc % nc = 0
     nhc % nhc_len = 0
     nhc % num_nhc = 0
-  CASE ( 'NPT_I', 'NPT_F' )
+  CASE ( npt_i_ensemble, npt_f_ensemble )
     nhc % nyosh = simpar % nyosh
     nhc % nc = simpar % nc
     nhc % nhc_len = simpar % nhclen
@@ -113,7 +121,7 @@ SUBROUTINE nhc_barostat_setup ( simpar, nhc, globenv )
     IF ( isos /= 0 ) CALL stop_memory ( 'nhc_barostat_setup', &
       'index', number )
    
-    IF ( simpar % ensemble == 'NPT_F' ) THEN
+    IF ( simpar % ensemble == npt_f_ensemble ) THEN
       number = 9
     ELSE
       number = 1
@@ -170,7 +178,7 @@ SUBROUTINE nhc_barostat_setup ( simpar, nhc, globenv )
       'failed to allocate nhc%dt_yosh')
     CALL set_yoshida_coef( nhc, simpar % dt )
 
-  CASE ( 'NPH_UNIAXIAL_DAMPED' )
+  CASE ( nph_uniaxial_damped_ensemble )
     nhc % nyosh = simpar % nyosh
     nhc % nc = simpar % nc
     nhc % nhc_len = simpar % nhclen
@@ -283,10 +291,14 @@ SUBROUTINE nhc_particle_setup ( simpar, local_molecules, molecule_set, &
   iw = globenv % scr
   NULLIFY ( massive_atom_list ) 
 
-  SELECT CASE ( TRIM ( simpar % ensemble ) )
+  SELECT CASE ( simpar % ensemble )
     CASE DEFAULT
-      CALL stop_program ( 'nhc_particle_setup', 'unknown ensemble '//TRIM(simpar % ensemble) )
-    CASE ( 'NVE', 'ISOKIN', 'NPH_UNIAXIAL', 'NPH_UNIAXIAL_DAMPED', 'REFTRAJ' )
+      CALL stop_program ( 'nhc_particle_setup', 'unknown ensemble ' )
+    CASE ( nve_ensemble,&
+           isokin_ensemble,&
+           nph_uniaxial_ensemble,&
+           nph_uniaxial_damped_ensemble,&
+           reftraj_ensemble )
      ALLOCATE ( nhc % nvt ( 0, 0 ), STAT = isos )
      IF ( isos /= 0 ) CALL stop_memory ( 'nhc_particle_setup', 'nhc%nvt', 0 )
      nhc % nyosh = 0
@@ -294,7 +306,7 @@ SUBROUTINE nhc_particle_setup ( simpar, local_molecules, molecule_set, &
      nhc % nhc_len = 0
      nhc % num_nhc = 0
      nhc % dis_type = ''
-    CASE ( 'NVT', 'NPT_I', 'NPT_F' )
+    CASE ( nvt_ensemble, npt_i_ensemble, npt_f_ensemble )
      nhc%nyosh = simpar%nyosh
      nhc%nc = simpar%nc
      nhc%nhc_len = simpar%nhclen
@@ -766,7 +778,6 @@ END SUBROUTINE nhc_particle_setup
   kg_coeff_section => section_vals_get_subs_vals(globenv%input_file,&
        "MOTION%MD_NEW")
   call section_vals_val_get(kg_coeff_section,"timestep",r_val=dt)
-  CALL convert_to_cp2k_units ( "FS", time=dt)
   kg_coeff_section => section_vals_get_subs_vals(kg_coeff_section,&
        "kg_coeff")
   nose_section => section_vals_get_subs_vals(kg_coeff_section,&
@@ -775,7 +786,6 @@ END SUBROUTINE nhc_particle_setup
   call section_vals_val_get(kg_coeff_section,"ensemble",i_val=kg_coeff_ens)
   call section_vals_val_get(kg_coeff_section,"nhcopt",i_val=kg_coeff_nhc)
   call section_vals_val_get(kg_coeff_section,"temperature",r_val=kg_coeff_temp)
-  CALL convert_to_cp2k_units(temperature=kg_coeff_temp)
   
   SELECT CASE ( kg_coeff_ens )
   CASE  DEFAULT

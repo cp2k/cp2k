@@ -88,7 +88,10 @@ MODULE md_run
   USE timings,                         ONLY: timeset,&
                                              timestop
   USE velocity_verlet_control,         ONLY: velocity_verlet
-
+  USE input_constants,                 ONLY: md_init_start,&
+                                             md_pos_restart,&
+                                             md_pos_vel_restart,&
+                                             md_all_restart
   IMPLICIT NONE
 
   PRIVATE
@@ -205,7 +208,7 @@ CONTAINS
     IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
                                      "mdio",0)
 
-    CALL read_md_section ( simpar, globenv, mdio )
+    CALL read_md_section ( simpar, globenv, mdio, error )
     simpar%program = globenv%program_name
 
 !    CALL force_env_get(force_env,subsys=subsys, cell=cell,&
@@ -268,8 +271,8 @@ CONTAINS
               particles%els, globenv )
       END DO
 
-      SELECT CASE ( TRIM ( simpar % read_type ) )
-      CASE ( 'POS' )
+      SELECT CASE ( simpar % read_type )
+      CASE ( md_pos_restart )
 !FM should be adapted to the existence of many fragments
          CPPrecondition(SIZE(subsys)==1,cp_failure_level,routineP,error,failure)
          isubsys=1
@@ -282,7 +285,7 @@ CONTAINS
               particles%els, cell, cell_ref,  &
               nhc_part, nhc_baro, extended_type%npt_info )
          CALL initialize_velocities ( simpar, particles%els, globenv )
-      CASE ( 'POSVEL', 'ALL' )
+      CASE ( md_pos_vel_restart, md_all_restart )
 !FM should be adapted to the existence of many fragments
          CPPrecondition(SIZE(subsys)==1,cp_failure_level,routineP,error,failure)
           isubsys=1

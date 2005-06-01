@@ -334,10 +334,10 @@ contains
 
     CALL keyword_create(keyword, name="OUTPUT",&
          description="Specifies the format of the output file for geometry and velocity.",&
-         usage="OUTPUT (XYZ|CRD)",&
+         usage="OUTPUT (XYZ|CRD|ATOMIC|XMOL)",&
          default_i_val=dump_xyz,&
-         enum_c_vals=s2a( "XYZ","CRD"),&
-         enum_i_vals=(/dump_xyz, dump_crd/),&
+         enum_c_vals=output_name_types,&
+         enum_i_vals=output_name_index,&
          error=error)
     CALL section_add_keyword(section,keyword,error=error)
     CALL keyword_release(keyword,error=error)    
@@ -499,13 +499,12 @@ contains
 !***************************************************************************
 
 
-!****f* input_cp2k/create_localize_section *
+!****f* input_cp2k/create_xas_section *
 !!
 !!   NAME
-!!     create_localize_section
+!!     create_xas_section
 !!   FUNCTION
-!!     parameters for the localizations of wfn
-!!
+!!     makes the x-ray absorption section
 !!   NOTES
 !!
 !!   INPUTS
@@ -4952,11 +4951,8 @@ SUBROUTINE create_tddfpt_section(section,error)
             " npt_i uses an isotropic resize of the cell, npt_f a flexible cell.",&
             usage="ensemble nve",&
             default_i_val=nve_ensemble,&
-            enum_c_vals=s2a("nve  ","nvt  ","npt_i","npt_f","nph","nph_uniaxial",&
-            "nph_uniaxial_damped","isokin","reftraj"),&
-            enum_i_vals=(/nve_ensemble,nvt_ensemble,npt_i_ensemble,&
-            npt_f_ensemble,nph_ensemble,nph_uniaxial,&
-            nph_uniaxial_damped_ensamble,isokin_ensemble,reftraj/),error=error)
+            enum_c_vals=ensemble_name_types,&
+            enum_i_vals=ensemble_name_index,error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
@@ -4967,8 +4963,8 @@ SUBROUTINE create_tddfpt_section(section,error)
        CALL keyword_release(keyword,error=error)
 
        CALL keyword_create(keyword, name="timestep",&
-            description="The length of an integration step (in fs).",&
-            usage="timestep 1.0", default_r_val=0.5_dp,error=error)
+            description="The length of an integration step.",&
+            usage="timestep 1.0", default_r_val=0.5_dp,unit_str='fs',error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
@@ -4978,10 +4974,10 @@ SUBROUTINE create_tddfpt_section(section,error)
             "distribution; pos: using the latest positions stored in the restart"//&
             " file, with with velocities from a Boltzmann distribution"//&
             "; posvel: using both the latest positions and velocites stored in "//&
-            "the restart file", usage="RESTART posvel", &
+            "the restart file; all: restarts all.", usage="RESTART posvel", &
             default_i_val=md_init_start,&
-            enum_c_vals=s2a("init","pos","posvel"),&
-            enum_i_vals=(/md_init_start,md_pos_restart, md_pos_vel_restart/),&
+            enum_c_vals=restart_name_types,&
+            enum_i_vals=restart_name_index,&
             error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
@@ -4990,7 +4986,7 @@ SUBROUTINE create_tddfpt_section(section,error)
             description="The temperature in K used to initialize the velocities"//&
             "with init and pos restart, and in the npt/nvt simulations", &
             usage="temperature 325.0",&
-            default_r_val=300.0_dp, error=error)
+            default_r_val=300.0_dp, unit_str='K',error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
@@ -4999,7 +4995,7 @@ SUBROUTINE create_tddfpt_section(section,error)
             description="The maximum accepted oscillations of the temperature"//&
             "from the wanted temperature before rescaling the velocites."//&
             "If it is 0 no rescaling is performed", &
-            usage="temp_tol 0.0", default_r_val=0.0_dp, error=error)
+            usage="temp_tol 0.0", default_r_val=0.0_dp, unit_str='K', error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
@@ -5024,15 +5020,6 @@ SUBROUTINE create_tddfpt_section(section,error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
-       CALL keyword_create(keyword, name="CONSTRAINTS",&
-            variants=(/"CONSTRAINT"/),&
-            description="Enables the use of constraints during the MD.",&
-            usage="CONSTRAINTS",&
-            default_l_val=.FALSE.,lone_keyword_l_val=.TRUE.,error=error)
-       CALL section_add_keyword(section,keyword,error=error)
-       CALL keyword_release(keyword,error=error)
-
-
        CALL create_uniaxial_section(uni_section, error=error)
        CALL section_add_subsection(section, uni_section, error=error)
        CALL section_release(uni_section,error=error)       
@@ -5053,63 +5040,80 @@ SUBROUTINE create_tddfpt_section(section,error)
        CALL section_add_subsection(section, subsection, error=error)
        CALL section_release(subsection,error=error)       
 
+
+       CALL section_create(subsection,name="print",&
+            description="Controls the printing properties during an MD run",&
+            n_keywords=0, n_subsections=1, repeats=.TRUE., required=.FALSE.,&
+            error=error)
+
+       
        NULLIFY(print_key)
+       CALL cp_print_key_section_create(print_key,"FILES",&
+            description="Controls the printing of MD information on all files.", &
+            print_level=silent_print_level,each=(/1/),&
+            error=error)
+       CALL section_add_subsection(subsection,print_key,error=error)
+       CALL section_release(print_key,error=error)
+
        CALL cp_print_key_section_create(print_key,"SCREEN",&
             description="Controls the printing of MD information on screen.", &
             print_level=silent_print_level,each=(/1/),filename="__STD_OUT__",&
             error=error)
-       CALL section_add_subsection(section,print_key,error=error)
+       CALL section_add_subsection(subsection,print_key,error=error)
        CALL section_release(print_key,error=error)
 
        CALL cp_print_key_section_create(print_key,"COORDINATE",&
             description="Controls the printing of coordinates during an MD run.", &
             print_level=silent_print_level,each=(/1/),&
             error=error)
-       CALL section_add_subsection(section,print_key,error=error)
+       CALL section_add_subsection(subsection,print_key,error=error)
        CALL section_release(print_key,error=error)
 
        CALL cp_print_key_section_create(print_key,"VELOCITIES",&
             description="Controls the printing of velocities during an MD run.", &
             print_level=silent_print_level,each=(/1/),&
             error=error)
-       CALL section_add_subsection(section,print_key,error=error)
+       CALL section_add_subsection(subsection,print_key,error=error)
        CALL section_release(print_key,error=error)
 
        CALL cp_print_key_section_create(print_key,"COEFFICIENTS",&
             description="Controls the printing of coefficients during an MD run.", &
             print_level=medium_print_level,each=(/1/),&
             error=error)
-       CALL section_add_subsection(section,print_key,error=error)
+       CALL section_add_subsection(subsection,print_key,error=error)
        CALL section_release(print_key,error=error)
 
        CALL cp_print_key_section_create(print_key,"PRESSURE",&
             description="Controls the printing of the Pressure info during an MD run.", &
             print_level=silent_print_level,each=(/1/),&
             error=error)
-       CALL section_add_subsection(section,print_key,error=error)
+       CALL section_add_subsection(subsection,print_key,error=error)
        CALL section_release(print_key,error=error)
 
        CALL cp_print_key_section_create(print_key,"ENERGIES",&
             description="Controls the printing of energies during an MD run.", &
             print_level=silent_print_level,each=(/1/),&
             error=error)
-       CALL section_add_subsection(section,print_key,error=error)
+       CALL section_add_subsection(subsection,print_key,error=error)
        CALL section_release(print_key,error=error)
 
        CALL cp_print_key_section_create(print_key,"TEMPERATURE",&
             description="Controls the printing of temperature info during an MD run.", &
             print_level=silent_print_level,each=(/1/),&
             error=error)
-       CALL section_add_subsection(section,print_key,error=error)
+       CALL section_add_subsection(subsection,print_key,error=error)
        CALL section_release(print_key,error=error)
 
        CALL cp_print_key_section_create(print_key,"RESTART",&
             description="Controls the dumping of the restart file during an MD run.", &
             print_level=silent_print_level,each=(/1/),&
             error=error)
-       CALL section_add_subsection(section,print_key,error=error)
+       CALL section_add_subsection(subsection,print_key,error=error)
        CALL section_release(print_key,error=error)
        
+       CALL section_add_subsection(section,subsection,error=error)
+       CALL section_release(subsection, error=error)
+
     END IF
 END SUBROUTINE create_md_section
 
@@ -5216,45 +5220,44 @@ SUBROUTINE create_uniaxial_section(section, error)
        CALL keyword_create(keyword, name="PRESSURE",&
             description="Initial pressure",&
             usage="PRESSURE real",&
-            type_of_var=real_t, n_var=1,error=error)
+            type_of_var=real_t, n_var=1, unit_str='bar', error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)            
 
         CALL keyword_create(keyword, name="ENERGY",&
             description="Initial energy",&
             usage="ENERGY real",&
-            type_of_var=real_t, n_var=1,error=error)
+            type_of_var=real_t, n_var=1, unit_str='hartree',error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)         
 
        CALL keyword_create(keyword, name="VOLUME",&
             description="Initial compression",&
             usage="VOLUME real",&
-            type_of_var=real_t, n_var=1,error=error)
+            type_of_var=real_t, n_var=1, unit_str='angstrom^3',error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)             
 
        CALL keyword_create(keyword, name="TEMP_B",&
             description="Temperature of the barostat.",&
             usage="TEMP_B real",&
-            type_of_var=real_t, n_var=1,error=error)
+            type_of_var=real_t, n_var=1,unit_str='K',error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)             
 
        CALL keyword_create(keyword, name="TIMECO",&
             description="Barostat time constant",&
             usage="TIMECO real",&
-            type_of_var=real_t, n_var=1,error=error)
+            type_of_var=real_t, n_var=1,unit_str='wavenumber_t',error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)             
 
        CALL keyword_create(keyword, name="VSHOCK",&
             description="Velocity of shock front",&
             usage="VSHOCK real",&
-            type_of_var=real_t, n_var=1,error=error)
+            type_of_var=real_t, n_var=1,unit_str='m/s',error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)             
-
 
     END IF
   END SUBROUTINE create_uniaxial_section
@@ -5306,14 +5309,14 @@ SUBROUTINE create_barostat_section(section, error)
        CALL keyword_create(keyword, name="PRESSURE",&
             description="Initial pressure",&
             usage="PRESSURE real",&
-            type_of_var=real_t, n_var=1,error=error)
+            type_of_var=real_t, n_var=1,unit_str='bar',error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)      
 
-       CALL keyword_create(keyword, name="TIMECO",&
+       CALL keyword_create(keyword, name="TIMECON",&
             description="Barostat time constant",&
-            usage="TIMECO real",&
-            type_of_var=real_t, n_var=1,error=error)
+            usage="TIMECON real",&
+            type_of_var=real_t, n_var=1,unit_str='wavenumber_t',error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)        
 
@@ -5403,13 +5406,13 @@ SUBROUTINE create_coeff_section(coeff_section, error)
        CALL keyword_create(keyword, name="temperature",&
             description="target temperature for the KG-POL coeffs",&
             default_r_val=1.0_dp, usage="temperature 1.0",&
-            error=error)
+            unit_str='K',error=error)
        CALL section_add_keyword(coeff_section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
        CALL keyword_create(keyword, name="mass",&
             description="mass of the KG-POL coeffs if storage is global",&
-            default_r_val=1.0_dp, usage="mass 1.0",&
+            default_r_val=1.0_dp, usage="mass 1.0",unit_str='au_m',&
             error=error)
        CALL section_add_keyword(coeff_section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
@@ -5488,17 +5491,17 @@ SUBROUTINE create_nose_section(section, error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
-       CALL keyword_create(keyword, name="timeconstant",&
+       CALL keyword_create(keyword, name="timecon",&
             description="timeconstant of the termostat chain",&
             usage="timeconstant real", &
-            default_r_val=1000._dp,&
+            default_r_val=1000._dp,unit_str='wavenumber_t',&
             error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
        CALL keyword_create(keyword, name="mts", &
             variants=s2a("multiple_time_steps","mult_t_steps"),&
-            description="number of multiple timestes to be used for the NoseHoover chain",&
+            description="number of multiple timesteps to be used for the NoseHoover chain",&
             usage="mts integer", &
             default_i_val=2,&
             error=error)

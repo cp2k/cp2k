@@ -73,7 +73,7 @@ MODULE cp_units
   INTEGER, PARAMETER, PUBLIC ::  cp_units_k=150
   INTEGER, PARAMETER, PUBLIC ::  cp_units_bar=161
   INTEGER, PARAMETER, PUBLIC ::  cp_units_rad=170, cp_units_deg=171
-  INTEGER, PARAMETER, PUBLIC ::  cp_units_fs=180, cp_units_s=181
+  INTEGER, PARAMETER, PUBLIC ::  cp_units_fs=180, cp_units_s=181, cp_units_wn=182
   
   INTEGER, PARAMETER, PUBLIC :: cp_unit_max_kinds=8, &
        cp_unit_basic_desc_length=15, &
@@ -232,12 +232,11 @@ contains
           EXIT
        END IF
        ! read unit
-  !!!!     PRINT *,i_unit,string(i_low:i_high-1)
        SELECT CASE(string(i_low:i_high-1))
        CASE("hartree")
           unit_id(i_unit)=cp_units_hartree
           kind_id(i_unit)=cp_ukind_energy
-       CASE("wavenumber")
+       CASE("wavenumber_e")
           unit_id(i_unit)=cp_units_wavenum
           kind_id(i_unit)=cp_ukind_energy
        CASE("joule")
@@ -306,6 +305,9 @@ contains
        CASE("fs")
           unit_id(i_unit)=cp_units_fs
           kind_id(i_unit)=cp_ukind_time
+       CASE("wavenumber_t")
+          unit_id(i_unit)=cp_units_wn
+          kind_id(i_unit)=cp_ukind_time          
        CASE("au_t")
           unit_id(i_unit)=cp_units_au
           kind_id(i_unit)=cp_ukind_time
@@ -320,6 +322,9 @@ contains
           kind_id(i_unit)=cp_ukind_mass
        CASE("m_e")
           unit_id(i_unit)=cp_units_m_e
+          kind_id(i_unit)=cp_ukind_mass
+       CASE("au_m")
+          unit_id(i_unit)=cp_units_au
           kind_id(i_unit)=cp_ukind_mass
        CASE("mass")
           unit_id(i_unit)=cp_units_none
@@ -348,7 +353,6 @@ contains
           i_high=i_high+1
        END DO
        IF (i_high<i_low.OR.i_low>len_string) EXIT
-  !!!!     PRINT *,string(i_low:i_high)
        IF (string(i_low:i_high)=='^') THEN
           i_low=i_high+1
           DO WHILE(i_low<=len_string)
@@ -357,7 +361,6 @@ contains
           END DO
           i_high=i_low
           DO WHILE(i_high<=len_string)
-  !!!!           PRINT *,i_high,string(i_high:i_high)
              SELECT CASE(string(i_high:i_high))
              CASE('+','-','0','1','2','3','4','5','6','7','8','9')
                 i_high=i_high+1
@@ -365,7 +368,6 @@ contains
                 EXIT
              END SELECT
           END DO
-  !!!!        PRINT *,"high-low",i_high,i_low
           IF (i_high<=i_low.OR.i_low>len_string) THEN
              CALL cp_assert(.FALSE.,cp_failure_level,&
                   cp_assertion_failed,routineP,&
@@ -376,7 +378,6 @@ contains
           READ (string(i_low:i_high-1),"(i"//cp_to_string(i_high-i_low+1)//")")&
                next_power
           power(i_unit)=power(i_unit)*next_power
-   !!!!       PRINT *,"pippo"
           ! next op
           i_low=i_high
           DO WHILE(i_low<len_string)
@@ -391,7 +392,6 @@ contains
           END DO
        END IF
        IF (i_low>len_string) EXIT
-  !!!!     PRINT *,string(i_low:i_high)
        next_power=1
        IF (string(i_low:i_high)=="*".OR.string(i_low:i_high)=='/') THEN
           IF (string(i_low:i_high)=='/') next_power=-1
@@ -411,7 +411,6 @@ contains
     CALL cp_unit_create2(unit,kind_id=kind_id, unit_id=unit_id, &
          power=power, error=error)
     desc=cp_unit_desc(unit,error=error)
- !!!   PRINT *,"unit_desc=",TRIM(desc)
   END SUBROUTINE cp_unit_create
 !***************************************************************************
 
@@ -452,7 +451,7 @@ SUBROUTINE cp_unit_create2(unit, kind_id, unit_id, power, error)
 
   failure=.false.
   
-  CPPrecondition(.not.ASSOCIATED(unit),cp_failure_level,routineP,error,failure)
+  CPPrecondition(.NOT.ASSOCIATED(unit),cp_failure_level,routineP,error,failure)
   CPPrecondition(SIZE(kind_id)<=SIZE(unit%kind_id),cp_failure_level,routineP,error,failure)
   CPPrecondition(SIZE(unit_id)<=SIZE(unit%unit_id),cp_failure_level,routineP,error,failure)
   ALLOCATE(unit,stat=stat)
@@ -613,6 +612,7 @@ SUBROUTINE cp_unit_release(unit,error)
         CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
      END IF
   END IF
+  NULLIFY(unit)
 END SUBROUTINE cp_unit_release
 !***************************************************************************
 
@@ -700,7 +700,7 @@ FUNCTION cp_basic_unit_check(basic_kind,basic_unit,error_level,error)&
         END SELECT
      CASE(cp_ukind_time)
         SELECT CASE (basic_unit)
-        CASE(cp_units_s, cp_units_fs, cp_units_au,cp_units_none)
+        CASE(cp_units_s, cp_units_fs, cp_units_au, cp_units_wn, cp_units_none)
         CASE default
            CALL cp_assert(.FALSE.,my_error_level,cp_assertion_failed,&
                 routineP,"unknown time unit:"//TRIM(cp_to_string(basic_unit)),&
@@ -708,7 +708,7 @@ FUNCTION cp_basic_unit_check(basic_kind,basic_unit,error_level,error)&
         END SELECT
      CASE(cp_ukind_mass)
         SELECT CASE (basic_unit)
-        CASE(cp_units_kg, cp_units_amu, cp_units_m_e, cp_units_au,cp_units_none)
+        CASE(cp_units_kg, cp_units_amu, cp_units_m_e, cp_units_au, cp_units_none)
         CASE default
            CALL cp_assert(.FALSE.,my_error_level,cp_assertion_failed,&
                 routineP,"unknown mass unit:"//TRIM(cp_to_string(basic_unit)),&
@@ -853,6 +853,8 @@ FUNCTION cp_basic_unit_to_cp2k(value,basic_kind,basic_unit,power,error)&
            res=value*femtoseconds**(-my_power)
         CASE(cp_units_au)
            res=value
+        CASE(cp_units_wn)
+           res=wavenum**(my_power)/value
         CASE default
            CALL cp_assert(.FALSE.,my_error_level,cp_assertion_failed,&
                 routineP,"unknown time unit:"//TRIM(cp_to_string(basic_unit)),&
@@ -942,7 +944,7 @@ FUNCTION cp_basic_unit_desc(basic_kind,basic_unit,power,&
         CASE(cp_units_hartree,cp_units_au)
            res="hartree"
         CASE(cp_units_wavenum)
-           res="wavenumber"
+           res="wavenumber_e"
         CASE(cp_units_joule)
            res="joule"
         CASE(cp_units_kcalmol)
@@ -1037,6 +1039,8 @@ FUNCTION cp_basic_unit_desc(basic_kind,basic_unit,power,&
            res="fs"
         CASE(cp_units_au)
            res="au_t"
+        CASE(cp_units_wn)
+           res="wavenumber_t"
         CASE(cp_units_none)
            res="time"
            CALL cp_assert(my_accept_undefined,my_error_level,&

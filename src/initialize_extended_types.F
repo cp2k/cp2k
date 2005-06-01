@@ -21,7 +21,6 @@
 
 MODULE initialize_extended_types
 
-  USE convert_units,                   ONLY: convert_to_cp2k_units
   USE distribution_1d_types,           ONLY: distribution_1d_type
   USE dynamical_coeff_types,           ONLY: dyn_coeff_set_type
   USE extended_system_initialize,      ONLY: initialize_nhc,&
@@ -42,7 +41,15 @@ MODULE initialize_extended_types
                                              nhc_particle_setup
   USE simulation_cell,                 ONLY: cell_type
   USE termination,                     ONLY: stop_program
-
+  USE input_constants,                 ONLY: nve_ensemble,&
+                                             nvt_ensemble,&
+                                             npt_i_ensemble,&
+                                             npt_f_ensemble,&
+                                             nph_ensemble,&
+                                             nph_uniaxial_ensemble,&
+                                             nph_uniaxial_damped_ensemble,&
+                                             isokin_ensemble, &
+                                             md_all_restart
   IMPLICIT NONE
 
   PUBLIC :: initialize_nhc_part, initialize_nhc_baro, initialize_npt_type, &
@@ -91,26 +98,26 @@ SUBROUTINE initialize_npt_type ( simpar, globenv, npt_info, box )
 ! first allocating the npt_info_type
 
   SELECT CASE ( simpar % ensemble )
-  CASE ( 'NPT_I')
+  CASE ( npt_i_ensemble )
      ALLOCATE ( npt_info ( 1, 1 ), STAT = isos )
      IF ( isos /= 0 ) CALL stop_program ( 'initial_npt', &
           'failed to allocate npt_info')
      npt_info  ( :, : ) % eps = LOG ( box % deth ) / 3.0_dp
      temp = simpar % temp_ext
 
-  CASE ( 'NPT_F')
+  CASE ( npt_f_ensemble )
      ALLOCATE ( npt_info ( 3, 3 ), STAT = isos )
      IF ( isos /= 0 ) CALL stop_program ( 'initial_npt', &
           'failed to allocate npt_info')
      temp = simpar % temp_ext
 
-  CASE ( 'NPH_UNIAXIAL' )
+  CASE ( nph_uniaxial_ensemble )
      ALLOCATE ( npt_info ( 1, 1 ), STAT = isos )
      IF ( isos /= 0 ) CALL stop_program ( 'initial_npt', &
           'failed to allocate npt_info')
      temp = simpar % temp_ext
 
-  CASE ( 'NPH_UNIAXIAL_DAMPED' )
+  CASE (  nph_uniaxial_damped_ensemble )
      ALLOCATE ( npt_info ( 1, 1 ), STAT = isos )
      IF ( isos /= 0 ) CALL stop_program ( 'initial_npt', &
           'failed to allocate npt_info')
@@ -122,7 +129,7 @@ SUBROUTINE initialize_npt_type ( simpar, globenv, npt_info, box )
           'failed to allocate npt_info')
   END SELECT
 
-  IF ( simpar % read_type /= 'ALL' ) &
+  IF ( simpar % read_type /= md_all_restart ) &
   CALL initialize_npt ( npt_info, simpar % tau_cell, temp,  &
                        box % deth, simpar % nfree, simpar % ensemble, globenv )
 
@@ -162,14 +169,14 @@ SUBROUTINE initialize_nhc_baro ( simpar, globenv, nhc )
 
   CALL nhc_barostat_setup ( simpar, nhc, globenv )
 
-  IF ( simpar % read_type /= 'ALL' ) THEN
+  IF ( simpar % read_type /= md_all_restart ) THEN
 
 ! Initializing thermostat forces and velocities for the Nose-Hoover
 ! Chain variables
-      SELECT CASE ( TRIM ( simpar % ensemble ) )
+      SELECT CASE (simpar % ensemble )
       CASE DEFAULT
         temp = simpar % temp_ext 
-      CASE ( 'NPH_UNIAXIAL_DAMPED' )
+      CASE (  nph_uniaxial_damped_ensemble )
         temp = simpar % temp_baro
       END SELECT
 
@@ -226,7 +233,7 @@ SUBROUTINE initialize_nhc_part ( box, simpar, local_molecules, molecule, &
   CALL nhc_particle_setup ( simpar, local_molecules, molecule, &
                             molecule_kind_set, nhc, globenv )
 
-  IF ( simpar % read_type /= 'ALL' ) THEN
+  IF ( simpar % read_type /= md_all_restart ) THEN
 
 ! Initializing thermostat forces and velocities for the Nose-Hoover
 ! Chain variables
@@ -296,10 +303,8 @@ SUBROUTINE initialize_nhc_coef ( dyn_coeff_set, globenv, nhc )
   NULLIFY(coeff_section,nose_section) 
   coeff_section => section_vals_get_subs_vals(globenv%input_file,"MOTION%MD_NEW%KG_COEFF")
   nose_section => section_vals_get_subs_vals(coeff_section,"nose")
-  call section_vals_val_get(nose_section,"timeconstant",r_val=tau_nhc)
-  CALL convert_to_cp2k_units ( "FS", time=tau_nhc)
+  call section_vals_val_get(nose_section,"timecon",r_val=tau_nhc)
   call section_vals_val_get(coeff_section,"temperature",r_val=kg_coeff_target_temp)
-  CALL convert_to_cp2k_units(temperature=kg_coeff_target_temp)
 
 ! fire up the thermostats
   CALL nhc_coef_setup ( dyn_coeff_set, nhc, globenv )

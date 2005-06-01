@@ -63,12 +63,24 @@ MODULE md_energies
   USE timings,                         ONLY: timeset,&
                                              timestop
   USE virial_types,                    ONLY: virial_type
-
+  USE input_constants,                 ONLY: nve_ensemble,&
+                                             nvt_ensemble,&
+                                             npt_i_ensemble,&
+                                             npt_f_ensemble,&
+                                             nph_ensemble,&
+                                             nph_uniaxial_ensemble,&
+                                             nph_uniaxial_damped_ensemble,&
+                                             isokin_ensemble, &
+                                             ensemble_name_types,&
+                                             md_init_start,&
+                                             md_pos_restart,&
+                                             md_pos_vel_restart,&
+                                             dump_xmol
   IMPLICIT NONE
 
   PRIVATE
 
-  CHARACTER(LEN=*), PARAMETER :: module_name = "md_energies"
+  CHARACTER(LEN=*), PARAMETER :: moduleN = "md_energies"
 
   TYPE average_quantities_type
      REAL ( dp ) :: avetemp, avepot, avekin, avevol, aveca, avecb, avecc
@@ -110,7 +122,7 @@ CONTAINS
       OPTIONAL                                  :: error
 
 ! locals
-    CHARACTER(LEN=*), PARAMETER              :: routine_name = "md_energy"
+    CHARACTER(LEN=*), PARAMETER              :: routineN = "md_energy"
 
     CHARACTER (LEN=200)                      :: title
     CHARACTER (len=50)                       :: filename
@@ -148,7 +160,7 @@ CONTAINS
 
 !   ---------------------------------------------------------------------------
 
-    CALL timeset(routine_name,"E","",handle)
+    CALL timeset(routineN,"E","",handle)
 
     CALL get_cp2k_units ( unit )
 
@@ -209,7 +221,9 @@ CONTAINS
       ENDIF
 
      IF (itimes == 0) THEN
-       IF ( simpar % ensemble (1:3) == 'NPH' ) THEN
+       IF ( simpar % ensemble == nph_ensemble .OR.&
+            simpar % ensemble == nph_uniaxial_ensemble .OR.&
+            simpar % ensemble == nph_uniaxial_damped_ensemble ) THEN
          IF ( simpar % v0 == 0._dp ) simpar % v0 = cell_ref % deth
        ENDIF
      ENDIF
@@ -248,14 +262,16 @@ CONTAINS
   replace_file = .FALSE.
 
   IF (itimes == 0) THEN
-    IF ( simpar % ensemble (1:3) == 'NPH' ) THEN
+     IF ( simpar % ensemble == nph_ensemble .OR.&
+          simpar % ensemble == nph_uniaxial_ensemble .OR.&
+          simpar % ensemble == nph_uniaxial_damped_ensemble ) THEN
       IF ( simpar % e0 == 0._dp ) simpar % e0 = epot + ekin
     ENDIF
     IF (ionode) THEN
         WRITE (iw,*)
         WRITE ( iw, '( A )' ) ' MD_ENERGIES| Initialization proceeding'
         WRITE (iw,*)
-        replace_file = (simpar%read_type == "INIT")
+        replace_file = (simpar%read_type == md_init_start)
         filename=ener_file_name
         INQUIRE (FILE=filename,EXIST=file_exists)
         CALL open_md_file(ener_file_name,ene,replace_file)
@@ -264,14 +280,14 @@ CONTAINS
         IF ((.NOT.replace_file).AND.file_exists) THEN
           BACKSPACE (UNIT=ene,IOSTAT=istat)
           IF (istat /= 0) THEN
-            CALL stop_program(routine_name,module_name,__LINE__,&
+            CALL stop_program(routineN,moduleN,__LINE__,&
                               "BACKSPACE command failed for file <"//&
                               TRIM(ener_file_name)//">")
           END IF
           READ (UNIT=ene,FMT=*,IOSTAT=istat) itimes_old,t_old
                                              
           IF (istat /= 0) THEN
-            CALL print_warning(routine_name,&
+            CALL print_warning(routineN,&
                                "Could not read the last line of the file <"//&
                                TRIM(ener_file_name)//">. MD step number "//&
                                "and time are set to zero.")
@@ -291,7 +307,9 @@ CONTAINS
     t = t_old
     constant = cons
     CALL set_md_env(md_env=md_env,constant=constant)
-    IF ( simpar % ensemble ( 1 : 3 ) == 'NPH' ) THEN
+    IF ( simpar % ensemble == nph_ensemble .OR.&
+         simpar % ensemble == nph_uniaxial_ensemble .OR.&
+         simpar % ensemble == nph_uniaxial_damped_ensemble ) THEN
         hugoniot = epot + ekin - simpar % e0 -  &
                   .5_dp * ( pv_xx/unit%bar + simpar % p0 ) * &
                   ( simpar % v0 - cell % deth )
@@ -306,13 +324,19 @@ CONTAINS
            adjustl( unit % e_label), '= ', ekin
         WRITE ( iw, '( A,A,T40,A,T60,1(1X,E20.12) )' ) ' INITIAL TEMPERATURE', &
            adjustl( unit % temp_label ), '= ', temp
-        IF ( simpar % ensemble (1:2) == 'NP' ) &
+        IF ( simpar % ensemble == nph_ensemble .OR.&
+             simpar % ensemble == nph_uniaxial_ensemble .OR.&
+             simpar % ensemble == nph_uniaxial_damped_ensemble.OR.&
+             simpar % ensemble == npt_i_ensemble.OR.&
+             simpar % ensemble == npt_f_ensemble ) &
         WRITE ( iw, '( A,A,T40,A,T60,1(1X,E20.12) )' ) ' INITIAL BAROSTAT TEMP', &
            adjustl( unit % temp_label), '= ', temp_baro
         IF ( virial % pv_availability ) &
         WRITE ( iw, '( A,A,T40,A,T60,1(1X,E20.12) )' ) ' INITIAL PRESSURE', &
            adjustl( unit % pres_label), '= ', pv_scalar
-        IF ( simpar % ensemble ( 1 : 3 ) == 'NPH' ) &
+        IF ( simpar % ensemble == nph_ensemble .OR.&
+             simpar % ensemble == nph_uniaxial_ensemble .OR.&
+             simpar % ensemble == nph_uniaxial_damped_ensemble)&
         WRITE ( iw, '( A,A,T40,A,T60,1(1X,E20.12) )' ) ' INITIAL HUGONIOT CONSTRAINT', &
            adjustl( unit % e_label), '= ', hugoniot
         WRITE ( iw, '( A,A,T40,A,T60,1(1X,E20.12) )' ) ' INITIAL VOLUME', &
@@ -325,20 +349,22 @@ CONTAINS
            'GO CP2K GO! **********************************'
     ENDIF
   ELSE
-    IF ( simpar % ensemble ( 1 : 3 ) == 'NPH' ) &
-      hugoniot = epot + ekin - simpar % e0 -  &
-                .5_dp * ( pv_xx/unit%bar + simpar % p0 ) * &
-                ( simpar % v0 - cell % deth )
-      t = t_old + REAL(itimes-itimes_old,dp)*simpar%dt*femtoseconds
-      econs = ABS((cons-constant)/constant)
-    END IF
+     IF ( simpar % ensemble == nph_ensemble .OR.&
+          simpar % ensemble == nph_uniaxial_ensemble .OR.&
+          simpar % ensemble == nph_uniaxial_damped_ensemble)&
+          hugoniot = epot + ekin - simpar % e0 -  &
+              .5_dp * ( pv_xx/unit%bar + simpar % p0 ) * &
+              ( simpar % v0 - cell % deth )
+     t = t_old + REAL(itimes-itimes_old,dp)*simpar%dt*femtoseconds
+     econs = ABS((cons-constant)/constant)
+  END IF
 
 
     IF (itimes > itimes_old) THEN
 
       IF (ionode) THEN
 
-        IF (simpar%output_format == "XMOL") THEN
+        IF (simpar%output_format == dump_xmol) THEN
 !         *** This information can be digested by Molden ***
           WRITE (UNIT=title,FMT="(A,I8,A,F20.10)")&
             " i =",itimes,", E =",epot
@@ -406,7 +432,7 @@ CONTAINS
           WRITE ( iw, '( A,A )' ) ' **************************************', &
                '*****************************************'
           WRITE ( iw, '( A,T61,A )' ) ' ENSEMBLE TYPE                = ', &
-               ADJUSTR ( simpar%ensemble)
+               ADJUSTR ( ensemble_name_types(simpar%ensemble)(1:20))
           WRITE ( iw, '( A,T71,I10 )' ) ' STEP NUMBER                  = ', itimes
           WRITE ( iw, '( A,T60,1(1X,F20.12) )' ) ' TIME [FS]                    = ', t
           WRITE ( iw, '( A,T60,1(1X,E20.12) )' ) ' CONSERVED QNTY               = ', &
@@ -426,13 +452,19 @@ CONTAINS
           IF ( virial % pv_availability ) &
           WRITE ( iw, '( A,A,T31,A,T39,2(1X,E20.12) )' ) ' PRESSURE', &
                adjustl(unit % pres_label), '= ', pv_scalar, averages%avepress
-          IF (simpar%ensemble(1:3)=='NPH') THEN
+          IF ( simpar % ensemble == nph_ensemble .OR.&
+               simpar % ensemble == nph_uniaxial_ensemble .OR.&
+               simpar % ensemble == nph_uniaxial_damped_ensemble) THEN
             WRITE ( iw, '( A,A,T31,A,T39,2(1X,E20.12) )' ) ' P_XX', &
                adjustl(unit % pres_label), '= ', pv_xx, averages%avepxx
             WRITE ( iw, '( A,A,T31,A,T39,2(1X,E20.12) )' ) ' HUGONIOT', &
                adjustl(unit % e_label), '= ', hugoniot, averages%avehugoniot
           END IF
-          IF (simpar%ensemble(1:2)=='NP') THEN
+        IF ( simpar % ensemble == nph_ensemble .OR.&
+             simpar % ensemble == nph_uniaxial_ensemble .OR.&
+             simpar % ensemble == nph_uniaxial_damped_ensemble.OR.&
+             simpar % ensemble == npt_i_ensemble.OR.&
+             simpar % ensemble == npt_f_ensemble ) THEN
              WRITE ( iw, '( A,A,T31,A,T39,2(1X,E20.12) )' ) ' BAROSTAT TEMP', &
                adjustl(unit % temp_label), '= ', temp_baro, averages%avetemp_baro
              WRITE ( iw, '( A,A,T31,A,T39,2(1X,E20.12) )' ) ' VOLUME', &
@@ -443,7 +475,7 @@ CONTAINS
                   adjustl(unit % l_label), '= ', averages%aveca, averages%avecb, &
                   averages%avecc
           END IF
-          IF (simpar%ensemble=='NPT_F') THEN
+          IF (simpar%ensemble==npt_f_ensemble) THEN
              WRITE ( iw, '( A,A,T31,A,T33,3(1X,E15.7) )' ) ' CELL ANGLS', &
                   adjustl(unit % angl_label), '= ', cell_angle(3), cell_angle(2), cell_angle(1)
              WRITE ( iw, '( A,A,T31,A,T33,3(1X,E15.7) )' ) ' AVE. CELL ANGLS', &

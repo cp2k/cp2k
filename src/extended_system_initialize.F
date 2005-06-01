@@ -28,7 +28,14 @@ MODULE extended_system_initialize
   USE timings,                         ONLY: timeset,&
                                              timestop
   USE util,                            ONLY: gasdev
-
+  USE input_constants,                 ONLY: nve_ensemble,&
+                                             nvt_ensemble,&
+                                             npt_i_ensemble,&
+                                             npt_f_ensemble,&
+                                             nph_ensemble,&
+                                             nph_uniaxial_ensemble,&
+                                             nph_uniaxial_damped_ensemble,&
+                                             isokin_ensemble
   IMPLICIT NONE
 
   PRIVATE
@@ -237,7 +244,7 @@ SUBROUTINE initialize_npt ( npt, tau_cell, temp_ext, deth, nfree, ensemble, &
       INTENT(INOUT)                          :: npt
     REAL(KIND=dp), INTENT(IN)                :: tau_cell, temp_ext, deth
     INTEGER, INTENT(IN)                      :: nfree
-    CHARACTER(LEN=20), INTENT(IN)            :: ensemble
+    INTEGER, INTENT(IN)                      :: ensemble
     TYPE(global_environment_type), &
       INTENT(INOUT)                          :: globenv
 
@@ -247,17 +254,17 @@ SUBROUTINE initialize_npt ( npt, tau_cell, temp_ext, deth, nfree, ensemble, &
 !------------------------------------------------------------------------------
 ! first initializing the mass of the nhc variables
 
-  SELECT CASE ( TRIM ( ensemble ) )
-  CASE ( 'NPT_I')
+  SELECT CASE ( ensemble )
+  CASE ( npt_i_ensemble )
      npt ( :, : ) % mass = REAL ( nfree + 3,KIND=dp) &
           * temp_ext * tau_cell ** 2
-  CASE ( 'NPT_F')
+  CASE ( npt_f_ensemble)
      npt ( :, : ) % mass = REAL ( nfree + 3,KIND=dp) &
           * temp_ext * tau_cell ** 2 / 3.0_dp
-  CASE ( 'NPH_UNIAXIAL')
+  CASE ( nph_uniaxial_ensemble )
      npt ( :, : ) % mass = REAL ( nfree + 3,KIND=dp) &
           * temp_ext * tau_cell ** 2
-  CASE ( 'NPH_UNIAXIAL_DAMPED')
+  CASE ( nph_uniaxial_damped_ensemble)
      npt ( :, : ) % mass = REAL ( nfree + 3,KIND=dp) &
           * temp_ext * tau_cell ** 2
   END SELECT
@@ -302,8 +309,8 @@ SUBROUTINE initialize_npt ( npt, tau_cell, temp_ext, deth, nfree, ensemble, &
     END DO
 
 ! Zero barostat velocities for nph_uniaxial
-    SELECT CASE ( TRIM ( ensemble ) )
-    CASE ( 'NPH_UNIAXIAL', 'NPH_UNIAXIAL_DAMPED' )
+    SELECT CASE ( ensemble )
+    CASE ( nph_uniaxial_ensemble, nph_uniaxial_damped_ensemble )
        npt(:,:) % v = 0.0_dp
     END SELECT
   ENDIF 

@@ -78,7 +78,7 @@ MODULE mc_ensembles
                                              stop_program
   USE timings,                         ONLY: timeset,&
                                              timestop
-
+  USE input_constants,                 ONLY: dump_xmol
   IMPLICIT NONE
 
   PRIVATE
@@ -284,7 +284,7 @@ CONTAINS
          WRITE(ene,*) 'Initial Energy:                ',&
             old_energy,'0.0E0_dp'
          CALL write_particle_coordinates(particles_old%els,cell,&
-                   crd,'XMOL','POS','INITIAL')
+                   crd,dump_xmol,'POS','INITIAL')
 
          CALL set_mc_par(mc_par,cl=cl,rm=rm,diff=diff)
 
@@ -411,7 +411,7 @@ CONTAINS
 
             IF(.NOT. lclassical_run) &
                CALL write_particle_coordinates(particles_old%els,cell,&
-               crd,'XMOL','POS','POSITIONS')
+               crd,dump_xmol,'POS','POSITIONS')
 
 ! compute some averages
             averages%molecules=averages%molecules*&
@@ -501,7 +501,7 @@ CONTAINS
       IF (ionode) THEN
 
          CALL write_particle_coordinates(particles_old%els,cell,&
-                        crd,'XMOL','POS','FINAL')
+                        crd,dump_xmol,'POS','FINAL')
                         
          WRITE(ene,*) 'Final Energy:                        ',&
                   final_energy,energy_check
@@ -794,7 +794,7 @@ CONTAINS
             WRITE(crd(1),*) 'INITIAL'
          ELSE
             CALL write_particle_coordinates(particles_old_1%els,cell_1,&
-               crd(1),'XMOL','POS','INITIAL')
+               crd(1),dump_xmol,'POS','INITIAL')
          ENDIF
 ! box 2
          CALL open_file(file_name='energy_differences_box2',&
@@ -807,7 +807,7 @@ CONTAINS
             WRITE(crd(2),*) 'INITIAL'
          ELSE
             CALL write_particle_coordinates(particles_old_2%els,cell_2,&
-               crd(2),'XMOL','POS','INITIAL')
+               crd(2),dump_xmol,'POS','INITIAL')
          ENDIF
 
 ! set all the units numbers that we just opened in the respective mc_par
@@ -836,14 +836,14 @@ CONTAINS
             WRITE(com_crd,*) 'INITIAL BOX 1'
          ELSE
             CALL write_particle_coordinates(particles_old_1%els,cell_1,&
-               com_crd,'XMOL','POS','INITIAL BOX 1')
+               com_crd,dump_xmol,'POS','INITIAL BOX 1')
          ENDIF
          IF(nchain(2) == 0) THEN
             WRITE(com_crd,*) ' 0'
             WRITE(com_crd,*) 'INITIAL BOX 2'
          ELSE
             CALL write_particle_coordinates(particles_old_2%els,cell_2,&
-               com_crd,'XMOL','POS','INITIAL BOX 2')
+               com_crd,dump_xmol,'POS','INITIAL BOX 2')
          ENDIF
          initial_energy(1)=old_energy(1)
          initial_energy(2)=old_energy(2)
@@ -1100,10 +1100,10 @@ CONTAINS
                   WRITE(crd(1),*) ' POSITIONS BOX 1 '
                ELSE
                   CALL write_particle_coordinates(&
-                     particles_old_1%els,cell_1,com_crd,'XMOL',&
+                     particles_old_1%els,cell_1,com_crd,dump_xmol,&
                      'POS','POSITIONS BOX 1')
                   CALL write_particle_coordinates(&
-                     particles_old_1%els,cell_1,crd(1),'XMOL',&
+                     particles_old_1%els,cell_1,crd(1),dump_xmol,&
                      'POS','POSITIONS BOX 1')
                ENDIF
                IF (nchain(2) == 0) THEN
@@ -1113,10 +1113,10 @@ CONTAINS
                   WRITE(crd(2),*) ' POSITIONS BOX 2 '
                ELSE
                   CALL write_particle_coordinates(&
-                     particles_old_2%els,cell_2,com_crd,'XMOL',&
+                     particles_old_2%els,cell_2,com_crd,dump_xmol,&
                      'POS','POSITIONS BOX 2')
                   CALL write_particle_coordinates(&
-                     particles_old_2%els,cell_2,crd(2),'XMOL',&
+                     particles_old_2%els,cell_2,crd(2),dump_xmol,&
                      'POS','POSITIONS BOX 2')
                ENDIF
             ENDIF
@@ -1218,9 +1218,9 @@ CONTAINS
             WRITE(com_crd,*) 'FINAL BOX 1'
          ELSE
             CALL write_particle_coordinates(particles_old_1%els,cell_1,&
-               com_crd,'XMOL','POS','FINAL BOX 1')
+               com_crd,dump_xmol,'POS','FINAL BOX 1')
             CALL write_particle_coordinates(particles_old_1%els,cell_1,&
-               crd(1),'XMOL','POS','FINAL BOX 1')
+               crd(1),dump_xmol,'POS','FINAL BOX 1')
          ENDIF
          CALL force_env_get(force_env(2)%force_env,&
             subsys=oldsys_2,cell=cell_2,error=error)
@@ -1233,9 +1233,9 @@ CONTAINS
             WRITE(com_crd,*) 'FINAL BOX 2'
          ELSE
             CALL write_particle_coordinates(particles_old_2%els,cell_2,&
-               com_crd,'XMOL','POS','FINAL BOX 2')
+               com_crd,dump_xmol,'POS','FINAL BOX 2')
             CALL write_particle_coordinates(particles_old_2%els,cell_2,&
-               crd(2),'XMOL','POS','FINAL BOX 2')
+               crd(2),dump_xmol,'POS','FINAL BOX 2')
          ENDIF
          WRITE(ene(1),*) 'Final Energy BOX 1:   ',final_energy(1)
          WRITE(ene(2),*) 'Final Energy BOX 2:   ',final_energy(2)
