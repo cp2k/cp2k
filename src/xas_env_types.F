@@ -70,6 +70,23 @@ MODULE xas_env_types
 !!   FUNCTION
 !!
 !!   ATTRIBUTES
+!!     ref_count : counter for pointers to xas_env
+!!     iter_count : counter for the step at which xas is calculated
+!!     nao : number of atomic orbitals in the basis
+!!     exc_state : state that is now excited (this change atom by atom)
+!!     nvirtual : number of empy states to take into account for the spectrum
+!!     state_of_atom : for each atom the state that have to be excited (global index)
+!!                     dimension is the number of atoms to be excited
+!!     atom_of_state : atom to which each state is assigned, 
+!!                    dimension is the number of states occupied that might be excited
+!!     type_of_state : character of the state (1s,2s,2p...)
+!!     spectrum : for each excitation the energy and the oscillator strength
+!!     centers_wfn : for each wfn the center of charge (optimized by localization)
+!!     groundstate_coeff : temporary storage for the original mos coefficients
+!!     ostrength_sm : sin and cos integrals computed for the contracted GTO functions
+!!     dip_fm_set : fm for the sin and cos integrals to define the pos operator
+!!     fm_work : temporary fm 
+!!     qs_loc_env : environment for the localization procedure
 !!
 !!   AUTHOR
 !!     MI
@@ -86,13 +103,15 @@ MODULE xas_env_types
     INTEGER :: nvirtual
     INTEGER, DIMENSION(:), POINTER :: state_of_atom
     INTEGER, DIMENSION(:), POINTER :: atom_of_state
+    INTEGER, DIMENSION(:), POINTER :: type_of_state
     REAL(dp), DIMENSION(:,:), POINTER :: spectrum
     REAL(dp), DIMENSION(:,:), POINTER :: centers_wfn
     TYPE( cp_fm_p_type ), DIMENSION(:),  POINTER :: groundstate_coeff
+    TYPE( cp_fm_p_type ), DIMENSION(:,:),  POINTER :: dip_fm_set
     TYPE( cp_fm_type ), POINTER :: excvec_coeff
     TYPE( cp_fm_type ), POINTER :: excvec_overlap
     TYPE( cp_fm_type ), POINTER :: fm_work
-    TYPE( real_matrix_p_type ), DIMENSION(:), POINTER :: ostrength_sm
+    TYPE( real_matrix_p_type ), DIMENSION(:,:), POINTER :: ostrength_sm
     TYPE( qs_loc_env_new_type ), POINTER :: qs_loc_env
 
   END TYPE xas_environment_type
@@ -116,9 +135,9 @@ CONTAINS
 !!
 !!*** **********************************************************************
   SUBROUTINE get_xas_env(xas_env,iter_count,exc_state,nao,nvirtual,&
-             centers_wfn,atom_of_state,&
+             centers_wfn,atom_of_state,type_of_state,&
              state_of_atom,spectrum,groundstate_coeff,ostrength_sm,&
-             excvec_coeff,excvec_overlap,fm_work,qs_loc_env,error)
+             dip_fm_set,excvec_coeff,excvec_overlap,fm_work,qs_loc_env,error)
 
     TYPE(xas_environment_type), POINTER         :: xas_env
     INTEGER, INTENT(OUT), OPTIONAL              :: iter_count
@@ -126,14 +145,17 @@ CONTAINS
     INTEGER, INTENT(OUT), OPTIONAL              :: nvirtual
     INTEGER, DIMENSION(:), POINTER, OPTIONAL    :: state_of_atom
     INTEGER, DIMENSION(:), POINTER, OPTIONAL    :: atom_of_state
+    INTEGER, DIMENSION(:), POINTER, OPTIONAL    :: type_of_state
     REAL(dp), DIMENSION(:,:), POINTER, OPTIONAL :: spectrum
     REAL(dp), DIMENSION(:,:), POINTER, OPTIONAL :: centers_wfn
     TYPE( cp_fm_p_type ), DIMENSION(:), &
       POINTER, OPTIONAL                         :: groundstate_coeff
+    TYPE( cp_fm_p_type ), DIMENSION(:,:), &
+      POINTER, OPTIONAL                         :: dip_fm_set
     TYPE( cp_fm_type ), POINTER, OPTIONAL       :: excvec_coeff
     TYPE( cp_fm_type ), POINTER, OPTIONAL       :: excvec_overlap
     TYPE( cp_fm_type ), POINTER, OPTIONAL       :: fm_work
-    TYPE( real_matrix_p_type ), DIMENSION(:), &
+    TYPE( real_matrix_p_type ), DIMENSION(:,:), &
       POINTER, OPTIONAL                         :: ostrength_sm
     TYPE( qs_loc_env_new_type ), POINTER, &
       OPTIONAL                                  :: qs_loc_env
@@ -157,12 +179,14 @@ CONTAINS
        IF(PRESENT(nvirtual)) nvirtual=xas_env%nvirtual
        IF(PRESENT(centers_wfn)) centers_wfn=>xas_env%centers_wfn
        IF(PRESENT(atom_of_state)) atom_of_state=>xas_env%atom_of_state
+       IF(PRESENT(type_of_state)) type_of_state=>xas_env%type_of_state
        IF(PRESENT(state_of_atom)) state_of_atom=>xas_env%state_of_atom
        IF(PRESENT(spectrum)) spectrum=>xas_env%spectrum
        IF(PRESENT(groundstate_coeff)) groundstate_coeff=>xas_env%groundstate_coeff
        IF(PRESENT(ostrength_sm)) ostrength_sm=>xas_env%ostrength_sm
        IF(PRESENT(excvec_overlap)) excvec_overlap=>xas_env%excvec_overlap
        IF(PRESENT(fm_work)) fm_work=>xas_env%fm_work
+       IF(PRESENT(dip_fm_set)) dip_fm_set=>xas_env%dip_fm_set
        IF(PRESENT(qs_loc_env)) qs_loc_env=>xas_env%qs_loc_env
        IF(PRESENT(excvec_coeff)) excvec_coeff=>xas_env%excvec_coeff
 
@@ -242,8 +266,8 @@ CONTAINS
       xas_env%iter_count=0
 
       NULLIFY(xas_env%centers_wfn, xas_env%state_of_atom, xas_env%atom_of_state)
-      NULLIFY(xas_env%excvec_coeff,xas_env%excvec_overlap)
-      NULLIFY(xas_env%fm_work,xas_env%groundstate_coeff)
+      NULLIFY(xas_env%excvec_coeff,xas_env%excvec_overlap,xas_env%type_of_state)
+      NULLIFY(xas_env%fm_work,xas_env%groundstate_coeff,xas_env%dip_fm_set)
       NULLIFY(xas_env%ostrength_sm,xas_env%qs_loc_env,xas_env%spectrum)
 
     END IF
@@ -259,7 +283,7 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routine_name='xas_env_release',&
       routineP = module_name//':'//routine_name
 
-    INTEGER :: i, istat
+    INTEGER :: i, istat, j
     LOGICAL :: failure
 
     failure=.FALSE.
@@ -271,6 +295,8 @@ CONTAINS
 
          DEALLOCATE(xas_env%state_of_atom,xas_env%atom_of_state,STAT=istat)
          CPPostcondition(istat==0,cp_warning_level,routineP,error,failure)
+         DEALLOCATE(xas_env%type_of_state,STAT=istat)
+         CPPostcondition(istat==0,cp_warning_level,routineP,error,failure)
          DEALLOCATE(xas_env%spectrum,xas_env%centers_wfn,STAT=istat)
          CPPostcondition(istat==0,cp_warning_level,routineP,error,failure)
          IF(ASSOCIATED(xas_env%groundstate_coeff)) THEN
@@ -278,6 +304,14 @@ CONTAINS
              CALL cp_fm_release(xas_env%groundstate_coeff(i)%matrix, error=error)
            END DO
          END IF
+         IF(ASSOCIATED(xas_env%dip_fm_set)) THEN
+           DO i = 1,SIZE(xas_env%dip_fm_set,2)
+             DO j = 1,SIZE(xas_env%dip_fm_set,1)
+               CALL cp_fm_release(xas_env%dip_fm_set(j,i)%matrix, error=error)
+             END DO
+           END DO
+         END IF
+
          IF(ASSOCIATED(xas_env%excvec_coeff)) THEN
            CALL cp_fm_release(xas_env%excvec_coeff,error=error)
          END IF
@@ -288,8 +322,10 @@ CONTAINS
            CALL cp_fm_release(xas_env%fm_work,error=error)
          END IF
          IF(ASSOCIATED(xas_env%ostrength_sm)) THEN
-           DO i = 1, SIZE(xas_env%ostrength_sm,1)
-              CALL deallocate_matrix(xas_env%ostrength_sm(i)%matrix)
+           DO i = 1, SIZE(xas_env%ostrength_sm,2)
+              DO j = 1,SIZE(xas_env%ostrength_sm,1)
+                CALL deallocate_matrix(xas_env%ostrength_sm(j,i)%matrix)
+              END DO 
            END DO
          END IF
          IF(ASSOCIATED(xas_env%qs_loc_env)) THEN

@@ -265,7 +265,7 @@ CONTAINS
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                            :: error
 
-    INTEGER :: iatom, natom, nstate
+    INTEGER :: iatom, natom, nstate, stride
 #if defined(__SCALAPACK)
     INTEGER, DIMENSION(9) :: desc
 #endif
@@ -285,8 +285,9 @@ CONTAINS
 #else
        CALL drot(nstate,zij(iatom,1)%matrix%local_data(1,istate),&
             1,zij(iatom,1)%matrix%local_data(1,jstate),1,ct,st)
+       stride = size(zij(iatom,1)%matrix%local_data,1)
        CALL drot(nstate,zij(iatom,1)%matrix%local_data(istate,1),&
-            1,zij(iatom,1)%matrix%local_data(jstate,1),1,ct,st)
+            stride,zij(iatom,1)%matrix%local_data(jstate,1),stride,ct,st)
 #endif
     END DO
     

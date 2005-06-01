@@ -658,8 +658,12 @@ CONTAINS
 
 !******************************************************************************
 !!****f* qs_loc_methods/qs_loc_driver()
-
-
+!!
+!!   NAME
+!!     qs_loc_driver
+!!
+!!   FUNCTION
+!!     set up the calculation of localized orbitals
 !!
 !!   AUTHOR
 !!     MI
@@ -767,14 +771,14 @@ CONTAINS
           CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
 
        ELSE
-
          nmosub = localized_wfn_control%nloc_states(ispin)
 
-         CALL cp_fm_to_fm(moloc_coeff(ispin)%matrix,mo_coeff,nmosub,1,lb)
+         CALL cp_fm_to_fm(moloc_coeff(ispin)%matrix,mo_coeff,1,lb)
 
        END IF
 
        ! Write cube files if required
+  
        IF(localized_wfn_control%print_cubes) THEN
          NULLIFY(pw_env)
          CALL get_qs_env(qs_env=qs_env,pw_env=pw_env)
@@ -795,7 +799,8 @@ CONTAINS
            ELSE
              ivector = localized_wfn_control%lu_bound_states(1,ispin)+istate-1
            END IF
-            CALL calculate_wavefunction(moloc_coeff(ispin)%matrix, istate,&
+
+           CALL calculate_wavefunction(moloc_coeff(ispin)%matrix, ivector,&
                 wf_r, wf_g, qs_env, error=error)
 
            WRITE(filename,'(a7,I5.5,a1,I1.1,a1,I1.1,a5)') "WFNLOC_",ivector,"_",ispin,&

@@ -563,7 +563,9 @@ CONTAINS
     TYPE(cp_error_type)                      :: sub_error
     TYPE(xc_rho_cflags_type)                 :: needs
 
+    TYPE(section_vals_type), POINTER         :: xas_section
 !   ---------------------------------------------------------------------------
+
 
     IF (parsed_cp2k_input(globenv%input_file,error=error)) THEN
        CALL read_dft_control_new(dft_control,globenv)
@@ -779,18 +781,19 @@ CONTAINS
                 CALL stop_parser(routine=routine,&
                   message="INVALID_KEYWORD for FUNCTIONAL_ROUTINE "//str1)
              END SELECT
-          CASE ("XAS")
-              CALL read_object(str2,lower_to_upper=.TRUE.)
-              CALL read_xas_control_old(dft_control%xas_control,str2)
-              dft_control%do_xas_calculation = .TRUE.
-          CASE ("XAS_ESTATE")
-             CALL read_object(dft_control%xas_estate)
           CASE DEFAULT
             CALL stop_parser(routine=routine,&
                  message="INVALID_KEYWORD "//keyword)
           END SELECT
         END IF
       END DO
+    END IF
+
+    xas_section => section_vals_get_subs_vals(globenv%input_file,&
+                   "FORCE_EVAL%DFT%XAS", error=error)
+    IF (parsed_cp2k_input(xas_section,check_this_section=.TRUE.,error=error)) THEN
+       dft_control%do_xas_calculation = .TRUE.
+       CALL read_xas_control_new(dft_control%xas_control,globenv,error=error)
     END IF
 
     xc_fun_set=.FALSE.

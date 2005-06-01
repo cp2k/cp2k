@@ -499,12 +499,13 @@ contains
 !***************************************************************************
 
 
-!****f* input_cp2k/create_xas_section *
+!****f* input_cp2k/create_localize_section *
 !!
 !!   NAME
-!!     create_xas_section
+!!     create_localize_section
 !!   FUNCTION
-!!     makes the x-ray absorption section
+!!     parameters for the localizations of wfn
+!!
 !!   NOTES
 !!
 !!   INPUTS

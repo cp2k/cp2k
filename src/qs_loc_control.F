@@ -498,25 +498,25 @@ CONTAINS
       END DO
     ELSE 
       CALL xstring (localized_wfn_control%loc_rootfname, ia, ie )
+      DO ispin = 1,nspins
          localized_wfn_control%spreads_file_name(ispin) = &
                  localized_wfn_control%loc_rootfname(ia:ie)//&
                  '_spreads_s'//TRIM(ADJUSTL(cp_to_string(ispin)))
          localized_wfn_control%centers_file_name(ispin) = &
                  localized_wfn_control%loc_rootfname(ia:ie)//&
                  '_centers_s'//TRIM(ADJUSTL(cp_to_string(ispin)))
+       END DO 
     END IF
+
     DO ispin = 1,nspins
       ALLOCATE(localized_wfn_control%centers_set(ispin)%array(6,nmoloc(ispin)), STAT = istat)
       CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
-      localized_wfn_control%spreads_file_name(ispin) = globenv%project_name(ia:ie)//&
-                 '_spreads_s'//TRIM(ADJUSTL(cp_to_string(ispin)))
-      localized_wfn_control%centers_file_name(ispin) = globenv%project_name(ia:ie)//&
-                 '_centers_s'//TRIM(ADJUSTL(cp_to_string(ispin)))
     END DO
 
     localized_wfn_control%print_centers = globenv%print%localization
     localized_wfn_control%print_spreads = globenv%print%localization
     localized_wfn_control%print_cubes = globenv%print%cubes
+
 
   END SUBROUTINE set_loc_centers
  

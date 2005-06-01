@@ -134,7 +134,6 @@ CONTAINS
     xas_section => section_vals_get_subs_vals(xas_section,"DFT",error=error)
     xas_section => section_vals_get_subs_vals(xas_section,"XAS",error=error)
 
-
     NULLIFY(bounds,list)
 
     CALL section_vals_val_get(xas_section,"CONVERGENCE", &
@@ -204,7 +203,6 @@ CONTAINS
     if (was_present) then
       CALL read_loc_control_new(xas_control%localized_wfn_control,loc_section,error=error)
     end if
-
 
   END SUBROUTINE read_xas_control_new
 
@@ -362,7 +360,7 @@ CONTAINS
     xas_control%xas_method = xas_tp_hh
     xas_control%xas_rootfname = ""
     xas_control%nexc_atoms = 1
-    xas_control%nexc_atoms = -1
+    xas_control%nexc_search = -1
     xas_control%lb_atom = 1
     xas_control%ub_atom = 1
     xas_control%state_type = xas_1s_type    
