@@ -49,7 +49,7 @@ MODULE cp_units
   use cp_para_types, only: cp_para_env_type
   use timings, only: timeset, timestop
   USE physcon, ONLY: evolt, kcalmol, joule, wavenum, bohr, a_bohr,&
-       femtoseconds, e_mass,massunit,kelvin, seconds
+       femtoseconds, e_mass,massunit,kelvin, seconds, hz, h_bar
   USE mathconstants, only: radians
   USE string_utilities, ONLY: compress, uppercase
   implicit none
@@ -854,7 +854,7 @@ FUNCTION cp_basic_unit_to_cp2k(value,basic_kind,basic_unit,power,error)&
         CASE(cp_units_au)
            res=value
         CASE(cp_units_wn)
-           res=wavenum**(my_power)/value
+           res=(joule * wavenum / hz / h_bar)**(my_power)/value
         CASE default
            CALL cp_assert(.FALSE.,my_error_level,cp_assertion_failed,&
                 routineP,"unknown time unit:"//TRIM(cp_to_string(basic_unit)),&
@@ -1444,7 +1444,7 @@ SUBROUTINE cp_unit_set_create(unit_set,name,error)
            CASE default
               CALL cp_assert(.FALSE.,cp_assertion_failed,cp_failure_level,routineP,&
                    "unhandled unit type "//TRIM(cp_to_string(i)),error,failure)
-              exit
+              EXIT
            END SELECT
         CASE default
            CALL cp_assert(.FALSE.,cp_assertion_failed,cp_failure_level,&
@@ -1518,13 +1518,21 @@ SUBROUTINE cp_unit_set_release(unit_set,error)
   type(cp_error_type), optional, intent(inout) :: error
   
   logical :: failure
+  INTEGER :: stat, i
   character(len=*), parameter :: routineN='cp_unit_set_release',&
         routineP=moduleN//':'//routineN
   failure=.false.
 
   IF (ASSOCIATED(unit_set)) THEN
      CPPrecondition(unit_set%ref_count>0,cp_failure_level,routineP,error,failure)
-     unit_set%ref_count=unit_set%ref_count-11
+     unit_set%ref_count=unit_set%ref_count-1
+     IF (unit_set%ref_count == 0) THEN
+        DO i = 1, SIZE(unit_set%units)
+           CALL cp_unit_release(unit_set%units(i)%unit,error)
+        END DO
+        DEALLOCATE(unit_set,stat=stat)
+        CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+     END IF
   END IF
 END SUBROUTINE cp_unit_set_release
 !***************************************************************************

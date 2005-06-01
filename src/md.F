@@ -680,6 +680,24 @@ CONTAINS
 !TODEL_END_TL
 !
     END IF
+!
+!TODEL_START_TL -- The conversion is intrinsic to the new input style.. not needed anymore
+!
+    IF (.NOT.parsed_cp2k_input(md_section,check_this_section=.TRUE.,error=error)) THEN
+       CALL convert_to_cp2k_units ( simpar % units % time, time = simpar % dt ) 
+       CALL convert_to_cp2k_units ( temperature = simpar % temp_ext ) 
+       CALL convert_to_cp2k_units ( temperature = simpar % temp_baro ) 
+       CALL convert_to_cp2k_units ( temperature = simpar % temp_tol ) 
+       CALL convert_to_cp2k_units ( simpar % units % tau, tau_nhc = simpar % tau_nhc ) 
+       CALL convert_to_cp2k_units ( simpar % units % tau_cell, tau_nhc = simpar % tau_cell ) 
+       CALL convert_to_cp2k_units ( simpar % units % press, pressure = simpar % p_ext ) 
+       CALL convert_to_cp2k_units ( simpar % units % press, pressure = simpar % p0 ) 
+       CALL convert_to_cp2k_units ( "ANGSTROM", length = simpar % v_shock ) 
+       CALL convert_to_cp2k_units ( "FS", time = simpar % v_shock, t_power = -1 ) 
+    END IF    
+!
+!TODEL_END_TL
+!
 !..write some information to output
     IF (globenv % ionode .AND. globenv % print_level>=0) THEN
        CALL get_cp2k_units ( unit )
@@ -694,7 +712,7 @@ CONTAINS
             simpar % nsteps
        WRITE ( iw, '( A,T71,F10.2 )' ) ' MD| Target Walltime [sec]', &
             simpar % walltime
-       WRITE ( iw, '( A,A2,A,T71,F10.2 )' ) ' MD| Time Step [',simpar % units % time,'] ',&
+       WRITE ( iw, '( A,A2,A,T71,F10.2 )' ) ' MD| Time Step [','fs','] ',&
             simpar % dt /unit%fs
        WRITE ( iw, '( A,T71,F10.2 )' ) ' MD| Temperature [K] ', &
             simpar % temp_ext/ unit % kelvin
@@ -709,7 +727,7 @@ CONTAINS
           WRITE ( iw, '( A,T77,I4 )' ) ' MD| Nose-Hoover-Chain length ', &
                simpar % nhclen
           WRITE ( iw, '( A,A4,A,T71,F10.4 )' ) &
-               ' MD| Nose-Hoover-Chain time constant [',simpar % units % tau,'] ',&
+               ' MD| Nose-Hoover-Chain time constant [', 'fs' ,'] ',&
                simpar % tau_nhc/unit%fs
           WRITE ( iw, '( A,T77,I4 )' ) ' MD| Order of Yoshida integrator ', &
                simpar % nyosh
@@ -718,9 +736,9 @@ CONTAINS
        END IF
        IF (  simpar % ensemble == npt_i_ensemble .OR. simpar % ensemble == npt_f_ensemble ) THEN
           WRITE ( iw, '( A,A3,A, T71, F10.2 )' ) &
-               ' MD| Pressure [',simpar % units % press,'] ', simpar % p_ext
+               ' MD| Pressure [','Bar','] ', simpar % p_ext/unit%bar
           WRITE ( iw, '( A,A4,A, T71, F10.4 )' ) &
-               ' MD| Barostat time constant [',simpar % units % tau_cell,'] ', &
+               ' MD| Barostat time constant [','fs','] ', &
                simpar % tau_cell/unit%fs
        END IF
        IF (  simpar % ensemble == isokin_ensemble ) THEN
@@ -752,24 +770,7 @@ CONTAINS
             ADJUSTR ( mdio % dump_file_name ( 1:50 ) )
        WRITE (iw,*)
     END IF
-!
-!TODEL_START_TL -- The conversion is intrinsic to the new input style.. not needed anymore
-!
-    IF (.NOT.parsed_cp2k_input(md_section,check_this_section=.TRUE.,error=error)) THEN
-       CALL convert_to_cp2k_units ( simpar % units % time, time = simpar % dt ) 
-       CALL convert_to_cp2k_units ( temperature = simpar % temp_ext ) 
-       CALL convert_to_cp2k_units ( temperature = simpar % temp_baro ) 
-       CALL convert_to_cp2k_units ( temperature = simpar % temp_tol ) 
-       CALL convert_to_cp2k_units ( simpar % units % tau, tau_nhc = simpar % tau_nhc ) 
-       CALL convert_to_cp2k_units ( simpar % units % tau_cell, tau_nhc = simpar % tau_cell ) 
-       CALL convert_to_cp2k_units ( simpar % units % press, pressure = simpar % p_ext ) 
-       CALL convert_to_cp2k_units ( simpar % units % press, pressure = simpar % p0 ) 
-       CALL convert_to_cp2k_units ( "ANGSTROM", length = simpar % v_shock ) 
-       CALL convert_to_cp2k_units ( "FS", time = simpar % v_shock, t_power = -1 ) 
-    END IF    
-!
-!TODEL_END_TL
-!
+
 END SUBROUTINE read_md_section
 
 !******************************************************************************
