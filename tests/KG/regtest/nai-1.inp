@@ -59,13 +59,17 @@ POTENTIAL ELP
  WRITE_RESTART_EACH 100
 &END
 
+&GLOBAL
+ OUTPUT atomic
+&END GLOBAL
+
 &MOTION
   &MD_NEW
     timestep 0.5
     ensemble  nvt
     temperature  300.0000
     restart      init
-    steps 10
+    steps 5
     &KG_COEFF
       ENSEMBLE NVT
       NHCOPT GLOBAL
@@ -76,33 +80,18 @@ POTENTIAL ELP
       &NOSE
         length 1
         Yoshida 3
-        timeconstant 100.
+        timecon [fs] 100.
         mts 2
       &END NOSE
     &END KG_COEFF
+    &NOSE
+      length 1
+      Yoshida 3
+      timecon [fs] 1000.
+      mts 2
+    &END NOSE
   &END MD_NEW
 &END MOTION
-
-&MD
-  output_format: atomic
-  ensemble:      nvt                      (nve,nvt,npt_i,npt_f)
-  steps:         5
-  timestep:    0.5   fs                 time step [fs]
-  temperature:  300.0000                  temperature [K]
-  restart:      init                    start type (pos,posvel)
-  constraints:  off
-  shake:        1.e-10
-  nose_parameter   &
-    length:    1        &
-    Yoshida:   3        &
-    timecon:   1000.  fs   &
-    mts:       2
-  barostat_parameter:   &
-    pressure: 0.        &
-    timecon: 1000.
-  print  files          1
-  print  screen         1  
-&END
 
 &CELL
  UNIT         ANGSTROM
