@@ -838,7 +838,9 @@ SUBROUTINE read_md_new_section(simpar, globenv, mdio, md_section, error)
         CALL section_vals_val_get(tmp_section,"VOLUME",r_val=simpar%v0,error=error)
         IF (simpar%ensemble == nph_uniaxial_damped_ensemble) THEN
            CALL section_vals_val_get(tmp_section,"TEMP_B",r_val=simpar%temp_baro,n_rep_val=n_rep,error=error)
-           IF (n_rep == 0) CPPostcondition(.FALSE.,cp_failure_level,routineP,error,failure)
+           IF (n_rep == 0) THEN
+              CPPostcondition(.FALSE.,cp_failure_level,routineP,error,failure)
+           ENDIF
         END IF
         CALL section_vals_val_get(tmp_section,"TIMECO",r_val=simpar%tau_cell,error=error)
         CALL section_vals_val_get(tmp_section,"VSHOC",r_val=simpar%v_shock,error=error)
