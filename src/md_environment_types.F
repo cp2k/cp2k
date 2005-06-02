@@ -73,7 +73,7 @@ MODULE md_environment_types
   END TYPE md_environment_type
 
   TYPE reftraj_type
-     INTEGER :: unit=-1
+     INTEGER :: unit
   END TYPE
 
 ! *** Public subroutines and data types ***
@@ -189,6 +189,7 @@ CONTAINS
     md_env % constant  = 0
     md_env % used_time = 0
     ALLOCATE ( md_env % reftraj_info )
+    md_env % reftraj_info % unit =-1
 
   END SUBROUTINE md_env_create
 !***************************************************************************
