@@ -996,23 +996,77 @@ CONTAINS
 !!   MODIFICATION HISTORY
 !!
 !!*** *********************************************************************
-  SUBROUTINE cp_fm_maxabsval(matrix,a_max,error)
+  SUBROUTINE cp_fm_maxabsval(matrix,a_max,ir_max,ic_max,error)
     TYPE(cp_fm_type), POINTER                :: matrix
     REAL(KIND=dp), INTENT(OUT)               :: a_max
+    INTEGER, INTENT(OUT), OPTIONAL           :: ir_max,ic_max
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
-    INTEGER                                  :: handle, ncol_local, nrow_local
+    CHARACTER(len=*), PARAMETER :: routineN = 'cp_fm_maxabsval', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: handle, i, ic_max_local, &
+                                                ir_max_local, istat, j, mepos, &
+                                                ncol_local, nrow_local, num_pe
+    INTEGER, DIMENSION(:), ALLOCATABLE       :: ir_max_vec, ic_max_vec
+    INTEGER, DIMENSION(:), POINTER           :: row_indices, col_indices
+    LOGICAL :: failure
+    REAL(dp)                                 :: my_max
+    REAL(dp), DIMENSION(:), ALLOCATABLE      :: a_max_vec
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: my_block
 
 !   ---------------------------------------------------------------------------
 
     CALL timeset("cp_fm_maxabsval",handle)
 
+    failure = .FALSE.
     my_block => matrix%local_data
 
-    CALL cp_fm_get_info(matrix, nrow_local=nrow_local, ncol_local=ncol_local,error=error)
+    CALL cp_fm_get_info(matrix, nrow_local=nrow_local, ncol_local=ncol_local,&
+                        row_indices=row_indices,col_indices=col_indices,error=error)
     a_max = MAXVAL(ABS(my_block(1:nrow_local,1:ncol_local)))
+
+    IF(PRESENT(ir_max)) THEN
+      num_pe = matrix%matrix_struct%para_env%num_pe
+      mepos = matrix%matrix_struct%para_env%mepos
+      ALLOCATE(ir_max_vec(0:num_pe-1),STAT=istat) 
+      CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+      ALLOCATE(ic_max_vec(0:num_pe-1),STAT=istat) 
+      CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+      ALLOCATE(a_max_vec(0:num_pe-1),STAT=istat) 
+      CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+      my_max = 0.0_dp
+      DO i = 1,ncol_local
+        DO j = 1,nrow_local
+          IF( ABS(my_block(j,i)) > my_max) THEN
+            my_max =  my_block(j,i)
+            ir_max_local = j
+            ic_max_local = i
+          END IF
+        END DO 
+      END DO 
+
+      a_max_vec(mepos) = my_max
+      ir_max_vec(mepos) = row_indices(ir_max_local)
+      ic_max_vec(mepos) = row_indices(ic_max_local)
+      CALL mp_bcast (a_max_vec, matrix%matrix_struct%para_env%source,&
+           matrix%matrix_struct%para_env%group)
+      CALL mp_bcast (ir_max_vec, matrix%matrix_struct%para_env%source,&
+           matrix%matrix_struct%para_env%group)
+      CALL mp_bcast (ic_max_vec, matrix%matrix_struct%para_env%source,&
+           matrix%matrix_struct%para_env%group)
+      my_max = 0.0_dp
+      DO i = 0,num_pe-1
+        IF(a_max_vec(i)>my_max) THEN
+           ir_max = ir_max_vec(i)
+           ic_max = ic_max_vec(i)
+        END IF
+      END DO 
+
+      DEALLOCATE(ir_max_vec,ic_max_vec,a_max_vec, STAT = istat)
+      CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+    END IF
 
     CALL mp_max(a_max,matrix%matrix_struct%para_env%group)
 

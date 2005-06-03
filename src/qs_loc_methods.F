@@ -80,9 +80,7 @@ MODULE qs_loc_methods
                                              state_loc_list,&
                                              state_loc_none
   USE kinds,                           ONLY: dp
-  USE machine,                         ONLY: m_flush
   USE mathconstants,                   ONLY: pi, twopi
-  USE message_passing,                 ONLY: mp_max
   USE particle_types,                  ONLY: get_particle_set,&
                                              particle_type
   USE physcon,                         ONLY: angstrom
@@ -91,6 +89,7 @@ MODULE qs_loc_methods
   USE pw_pool_types,                   ONLY: pw_pool_give_back_coeff,&
                                              pw_pool_init_coeff,&
                                              pw_pool_type
+  USE qs_rho_types,                    ONLY: qs_rho_type
   USE pw_types,                        ONLY: COMPLEXDATA1D,&
                                              REALDATA3D,&
                                              REALSPACE,&
@@ -98,17 +97,21 @@ MODULE qs_loc_methods
   USE qs_collocate_density,            ONLY: calculate_wavefunction
   USE qs_environment_types,            ONLY: get_qs_env,&
                                              qs_environment_type
-  USE qs_localization_methods,         ONLY: crazy_rotations,&
-                                             direct_mini,&
-                                             jacobi_rotations
-  USE qs_matrix_pools,                 ONLY: mpools_get
-  USE qs_mo_types,                     ONLY: get_mo_set,&
-                                             mo_set_p_type
+  USE qs_ks_methods,                   ONLY: qs_ks_did_change
   USE qs_loc_control,                  ONLY: localized_wfn_control_type
   USE qs_loc_types,                    ONLY: get_qs_loc_env,& 
                                              qs_loc_env_new_type, &
                                              set_qs_loc_env
   USE qs_loc_utils,                    ONLY: jacobi_rotation_pipek
+  USE qs_localization_methods,         ONLY: crazy_rotations,&
+                                             direct_mini,&
+                                             jacobi_rotations
+  USE qs_matrix_pools,                 ONLY: mpools_get
+  USE qs_mo_methods,                   ONLY: calculate_density_matrix
+  USE qs_mo_types,                     ONLY: get_mo_set,&
+                                             mo_set_p_type
+  USE qs_rho_atom_methods,             ONLY: calculate_rho_atom_coeff
+  USE qs_rho_methods,                  ONLY: qs_rho_update_rho
   USE realspace_grid_types,            ONLY: rs_pw_to_cube
   USE simulation_cell,                 ONLY: cell_type
   USE sparse_matrix_types,             ONLY: real_matrix_p_type
@@ -127,8 +130,7 @@ MODULE qs_loc_methods
 
 
 ! *** Public ***
-  PUBLIC ::  qs_loc_driver
-!!  PUBLIC :: centers_spreads_berry, optimize_loc_berry, qs_loc_driver
+  PUBLIC ::  loc_initialize_rho, qs_loc_driver
 
 ! *****************************************************************************
 
@@ -822,6 +824,58 @@ CONTAINS
     END DO  ! ispin
 
   END SUBROUTINE qs_loc_driver
+
+!*****************************************************************************
+  SUBROUTINE loc_initialize_rho(qs_env,error)
+
+    TYPE(qs_environment_type), POINTER       :: qs_env
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
+
+    CHARACTER(LEN=*), PARAMETER :: routineN = "loc_initialize_rho", &
+      routineP = module_name//":"//routineN
+
+    INTEGER                                  :: handle, ispin, nmo, &
+                                                istat
+    LOGICAL                                  :: failure, gapw
+    TYPE(dft_control_type), POINTER          :: dft_control
+    TYPE(mo_set_p_type), DIMENSION(:), &
+      POINTER                                :: mos
+    TYPE(qs_rho_type), POINTER               :: rho
+
+!   ---------------------------------------------------------------------------
+
+    CALL timeset(routineN,"I"," ",handle)
+    failure=.FALSE.
+    gapw = .FALSE.
+
+    NULLIFY(dft_control,mos)
+
+    CALL get_qs_env(qs_env=qs_env,&
+         dft_control=dft_control,&
+         mos=mos,rho=rho)
+    gapw = dft_control%qs_control%gapw
+
+    DO ispin=1,SIZE(mos)
+!       CALL get_mo_set(mos(ispin)%mo_set,mo_coeff=mo_coeff,&
+!            nmo=nmo)
+!       CALL qs_env_reorthogonalize_vectors(qs_env,&
+!            v_matrix=mo_coeff,ispin=ispin,&
+!            n_col=nmo, error=error)
+       CALL calculate_density_matrix(mo_set=mos(ispin)%mo_set,&
+            density_matrix=rho%rho_ao(ispin)%matrix,error=error)
+    END DO
+
+    CALL qs_rho_update_rho(rho,qs_env=qs_env, gapw=gapw, error=error)
+    IF(gapw) THEN
+      CALL calculate_rho_atom_coeff(qs_env,rho%rho_ao)
+    ENDIF
+    CALL qs_ks_did_change(qs_env%ks_env,rho_changed=.TRUE.,&
+           error=error)
+   
+    CALL timestop(0.0_dp,handle)
+
+  END SUBROUTINE loc_initialize_rho
 
 !******************************************************************************
 

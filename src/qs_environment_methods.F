@@ -191,13 +191,16 @@ SUBROUTINE qs_env_setup(qs_env,error)
      CALL qs_env_rebuild_pw_env(qs_env, error=error)
 
      ! rebuilds fm_pools
+
      localized_wfn = (dft_control%qs_control%localized_wfn) .OR. &
                      (dft_control%xas_control%localized_wfn)
-     nloc_states(1) = MAX(dft_control%qs_control%localized_wfn_control%nloc_states(1),&
-                      dft_control%xas_control%localized_wfn_control%nloc_states(1))
-     nloc_states(2) = MAX(dft_control%qs_control%localized_wfn_control%nloc_states(2),&
-                      dft_control%xas_control%localized_wfn_control%nloc_states(2))
+
      IF(localized_wfn) THEN
+       nloc_states(1) = MAX(dft_control%qs_control%localized_wfn_control%nloc_states(1),&
+                        dft_control%xas_control%nexc_search)
+       nloc_states(2) = MAX(dft_control%qs_control%localized_wfn_control%nloc_states(2),&
+                        dft_control%xas_control%nexc_search)
+
        ! build some additional pools for a subset of mos 
        CALL mpools_rebuild_fm_pools(qs_env%mpools,mos=qs_env%mos,&
             blacs_env=qs_env%blacs_env, para_env=para_env,&

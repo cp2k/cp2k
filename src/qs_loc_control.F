@@ -567,6 +567,7 @@ CONTAINS
       DO ispin = 1,nspins
          localized_wfn_control%lu_bound_states(1,ispin) = 1
          localized_wfn_control%lu_bound_states(2,ispin) = nmoloc(ispin)
+         IF(nmoloc(ispin)< 1) localized_wfn_control%lu_bound_states(1,ispin) = 0
          DO i = 1,nmoloc(ispin)  
            iloc = localized_wfn_control%loc_states(i)
            CPPostcondition(iloc<=nmo(ispin),cp_failure_level,routineP,error,failure)
@@ -590,6 +591,7 @@ CONTAINS
         DO ispin = 1,nspins
            localized_wfn_control%lu_bound_states(1,ispin) = 1
            localized_wfn_control%lu_bound_states(2,ispin) = nmoloc(ispin)
+           IF(nmoloc(ispin)< 1) localized_wfn_control%lu_bound_states(1,ispin) = 0
         END DO 
       END IF
     END IF 

@@ -75,7 +75,9 @@ MODULE xas_methods
                                              set_qs_env
   USE qs_loc_control,                  ONLY: localized_wfn_control_type,&
                                              localized_wfn_control_release,&
-                                             localized_wfn_control_retain
+                                             localized_wfn_control_retain,&
+                                             set_loc_centers,&
+                                             set_loc_wfn_lists
   USE qs_loc_methods,                  ONLY: qs_loc_driver
   USE qs_loc_types,                    ONLY: qs_loc_env_release,&
                                              qs_loc_env_retain,&
@@ -86,8 +88,10 @@ MODULE xas_methods
                                              qs_matrix_pools_type
   USE qs_mo_types,                     ONLY: get_mo_set,&
                                              mo_set_p_type,mo_set_type
+  USE qs_scf,                          ONLY: init_scf_run,&
+                                             scf_env_cleanup
   USE qs_scf_types,                    ONLY: qs_scf_env_type
-  USE simulation_cell,                 ONLY: cell_type
+  USE simulation_cell,                 ONLY: cell_type, pbc
   USE sparse_matrix_types,             ONLY: real_matrix_p_type, &
                                              real_matrix_type,&
                                              replicate_matrix_structure,&
@@ -103,6 +107,7 @@ MODULE xas_methods
                                              xas_env_create, xas_env_release,&
                                              xas_env_retain, &
                                              xas_environment_type
+  USE xas_tp_scf,                      ONLY: xas_do_tp_scf
 
   IMPLICIT NONE
   PRIVATE
@@ -159,9 +164,9 @@ CONTAINS
       routineP = module_name//':'//routineN
 
     COMPLEX(KIND=dp)                            :: z
-    INTEGER :: handle, homo, i, iat, iatom, ikind, ikind_old,  iset, &
+    INTEGER :: handle, homo, i, iat, iatom, ikind, ikind_old,  iset, iset_old,&
                isgf, isgfa, ishell, ispin, istat, istate, iter, &
-               j, la, maxshell, maxl, maxll, nao, natom, nelec, nmo,  &
+               j, la, la_old, maxnset, maxshell, maxl, maxlev, maxll, nao, natom, nelec, nmo,  &
                nset, nspins, nexc_search, nvirtual, output_unit,& 
                state_to_be_excited, xas_iter_count
     INTEGER, ALLOCATABLE, DIMENSION(:)          :: econf,first_sgf, nlev
@@ -171,7 +176,8 @@ CONTAINS
     INTEGER, DIMENSION(:), POINTER              :: type_of_state
     INTEGER, DIMENSION(:), POINTER              :: state_of_atom
     LOGICAL :: failure, ionode, transition_potential
-    REAL(dp) :: dist, distmin, ene_i, ene_f, imagpart, maxocc, r(3), realpart
+    REAL(dp) :: charmax, dist, distmin, ene_i, ene_f, imagpart, maxocc, &
+                ra(3), rac(3), rc(3), realpart
     REAL(dp), DIMENSION(:,:), ALLOCATABLE       :: orb_char
     REAL(dp), DIMENSION(:), POINTER             :: eigenvalues
     REAL(dp), DIMENSION(:,:), POINTER           :: spectrum
@@ -188,7 +194,7 @@ CONTAINS
       POINTER                                   :: dip_fm_set
     TYPE(cp_fm_type), POINTER                   :: mo_coeff
     TYPE(cp_fm_type), POINTER                   :: fm_work
-    TYPE(cp_fm_type), POINTER                   :: EXCVEC_COEFF
+    TYPE(cp_fm_type), POINTER                   :: excvec_coeff
     TYPE(cp_logger_type), POINTER               :: logger
     TYPE(cp_para_env_type), POINTER             :: para_env
     TYPE(dft_control_type), POINTER             :: dft_control
@@ -204,12 +210,22 @@ CONTAINS
       POINTER                                   :: ostrength_sm
     TYPE(xas_environment_type), POINTER         :: xas_env
 
+    INTEGER, DIMENSION(0:5,6) ::  typestate 
+    INTEGER, DIMENSION(0:5,6) ::  typestate2 
+    INTEGER, DIMENSION(0:5), PARAMETER ::  shift =(/0,1,2,3,4,5/)
+
 
     CALL timeset(routineN,"I",'',handle)
 
     failure = .FALSE.
     transition_potential = .FALSE.
 
+    typestate(0:5,1) = (/ 1, 0, 0, 0, 0, 0/)
+    typestate(0:5,2) = (/ 2, 3, 0, 0, 0, 0/)
+    typestate(0:5,3) = (/ 4, 5, 6, 0, 0, 0/)
+    typestate(0:5,4) = (/ 7, 8, 9,10, 0, 0/)
+    typestate(0:5,5) = (/11,12,13,14,15, 0/)
+    typestate(0:5,6) = (/16,17,18,19,20,21/)
 
     logger => cp_error_get_logger(error)
     ionode = logger%para_env%mepos==logger%para_env%source
@@ -217,13 +233,13 @@ CONTAINS
 
 
     NULLIFY(xas_env, groundstate_coeff, ostrength_sm, dip_fm_set, fm_work)
-    NULLIFY(spectrum, state_of_atom, centers_wfn, qs_loc_env, cell)
+    NULLIFY(excvec_coeff, spectrum, state_of_atom, centers_wfn, qs_loc_env, cell)
 
 !   Create the xas environment
     CALL get_qs_env(qs_env,xas_env=xas_env,error=error)
     IF (.NOT.ASSOCIATED(xas_env)) THEN
       CALL xas_env_create(xas_env, error=error)
-      CALL xas_env_init(xas_env, xas_control, qs_env, error=error)
+      CALL xas_env_init(xas_env, xas_control, qs_env, globenv, error=error)
       CALL set_qs_env(qs_env,xas_env=xas_env, error=error)
       CALL xas_env_release(xas_env,error=error)
       CALL get_qs_env(qs_env,xas_env=xas_env,error=error)
@@ -235,7 +251,7 @@ CONTAINS
          cell = cell, dft_control=dft_control, &
          mos=mos, para_env=para_env, particle_set=particle_set )
     CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,&
-         maxlgto=maxl,maxshell=maxshell)
+         maxlgto=maxl,maxshell=maxshell,maxnset=maxnset)
 
     nexc_search = xas_control%nexc_search
     nspins = dft_control%nspins
@@ -252,35 +268,28 @@ CONTAINS
     CALL get_xas_env(xas_env=xas_env,iter_count=xas_iter_count,nvirtual=nvirtual,&
          centers_wfn=centers_wfn,atom_of_state=atom_of_state,&
          type_of_state = type_of_state, state_of_atom=state_of_atom,spectrum=spectrum,&
-         groundstate_coeff=groundstate_coeff,&
+         groundstate_coeff=groundstate_coeff,excvec_coeff=excvec_coeff,&
          dip_fm_set=dip_fm_set,fm_work=fm_work)
 
     xas_iter_count =  xas_iter_count + 1
     CALL set_xas_env(xas_env=xas_env,iter_count=xas_iter_count)
-
+    
    !I know from which atoms I want to excite (O) and which type of states (1s) (input)
 
    !Define the qs_loc_env : to find centers, spread and possibly localize them
     my_localized_wfn_control =>  xas_control%localized_wfn_control
     CALL localized_wfn_control_retain(my_localized_wfn_control,error=error)
     CPPrecondition(ASSOCIATED(my_localized_wfn_control),cp_failure_level,routineP,error,failure)
-    IF(.NOT. xas_control%localized_wfn) THEN
-      my_localized_wfn_control%localization_method = do_loc_none
-    END IF
-    ! The localization is needed only for the states up to nexc_search
-    my_localized_wfn_control%set_of_states = state_loc_upton
-    my_localized_wfn_control%operator_type = op_loc_berry
-    my_localized_wfn_control%nloc_states(1) = nexc_search
-    my_localized_wfn_control%lu_bound_states(1,1) = 1
-    my_localized_wfn_control%lu_bound_states(2,1) = nexc_search
 
     CALL get_xas_env(xas_env=xas_env, qs_loc_env=qs_loc_env)
+
     IF(.NOT.(ASSOCIATED(qs_loc_env))) THEN
       CALL qs_loc_env_create(qs_loc_env,error=error)
       CALL set_xas_env(xas_env=xas_env, qs_loc_env=qs_loc_env)
       CALL qs_loc_env_release(qs_loc_env,error=error)
       CALL get_xas_env(xas_env=xas_env, qs_loc_env=qs_loc_env)
       CALL qs_loc_env_init(qs_loc_env,my_localized_wfn_control,qs_env,error=error)
+
     END IF
     CALL qs_loc_driver(qs_env,qs_loc_env,ionode,onlyspin1=.TRUE.,error=error)
 
@@ -292,9 +301,9 @@ CONTAINS
     ALLOCATE (first_sgf(natom),STAT=istat)
     CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
     CALL get_particle_set(particle_set=particle_set, first_sgf=first_sgf)
-    ALLOCATE(orb_char(maxl,maxshell),STAT=istat)
+    ALLOCATE(orb_char(0:maxl,maxnset),STAT=istat)
     CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
-    ALLOCATE(nlev(maxl),STAT=istat)
+    ALLOCATE(nlev(0:maxl),STAT=istat)
     CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
     ALLOCATE (econf(0:maxl),STAT=istat)
     CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
@@ -307,13 +316,15 @@ CONTAINS
 
       ! Assign the state to the closest atom
       distmin = 100.0_dp
+      charmax = 0.0_dp
+
       DO iat = 1,xas_control%nexc_atoms
         iatom = xas_control%exc_atoms(iat)
-        r(1:3) = particle_set(iatom)%r(1:3)
+        ra(1:3) = particle_set(iatom)%r(1:3)
+        rc(1:3) = centers_wfn(1:3,istate)
+        rac = pbc(ra,rc,cell)
+        dist = rac(1)*rac(1) + rac(2)*rac(2) + rac(3)*rac(3)
 
-        dist = (r(1)-centers_wfn(1,istate))*(r(1)-centers_wfn(1,istate)) + &
-               (r(2)-centers_wfn(2,istate))*(r(2)-centers_wfn(2,istate)) + &
-               (r(3)-centers_wfn(3,istate))*(r(3)-centers_wfn(3,istate))
         IF(dist < distmin) THEN
            atom_of_state(istate) = iatom
            distmin = dist
@@ -323,13 +334,16 @@ CONTAINS
       !Character of the state
        CALL cp_fm_get_submatrix(mo_coeff,vecbuffer,1,istate,&
             nao,1,transpose=.TRUE.,error=error)
+  
        iatom = atom_of_state(istate)
+      
        atomic_kind =>  particle_set(iatom)%atomic_kind
        CALL get_atomic_kind(atomic_kind=atomic_kind,&
               all_potential=all_potential,&
               gth_potential=gth_potential,&
               orb_basis_set=orb_basis_set,&
               kind_number=ikind)
+
        IF(ikind /= ikind_old) THEN
          ikind_old = ikind
          IF (ASSOCIATED(all_potential)) THEN
@@ -340,6 +354,16 @@ CONTAINS
          maxll = MIN(SIZE(elec_conf) - 1,maxl)
          econf(:) = 0.0_dp
          econf(0:maxll) = 0.5_dp*maxocc*REAL(elec_conf(0:maxll),dp)
+
+         typestate2 = typestate
+         DO la = 0,maxll
+            nelec = maxocc*REAL(2*la + 1,dp)
+            maxlev = int(econf(la)/nelec) 
+            IF(MOD(econf(la),nelec)/=0) maxlev = maxlev +1
+            DO i = maxlev+shift(la)+1, 6
+              typestate2(la,i ) = typestate(la,maxlev+shift(la))
+            END DO 
+         END DO  
 
          CALL get_gto_basis_set(gto_basis_set=orb_basis_set,&
                                 nset=nset,&
@@ -352,29 +376,49 @@ CONTAINS
        nlev(:) = 0
        orb_char(:,:) = 0.0_dp
 
+       iset_old = 0
        DO iset=1,nset
+         la_old = -1
          DO ishell=1,nshell(iset)
            la = l(ishell,iset)
            nelec = maxocc*REAL(2*la + 1,dp)
-           nlev(la) = nlev(la) + 1
+           IF (la/=la_old) THEN
+             nlev(la) = nlev(la) + 1
+             la_old = la
+           END IF
            DO isgfa=first_sgfa(ishell,iset),last_sgfa(ishell,iset)
              isgf = first_sgf(iatom) + isgfa - 1
              orb_char(la , nlev(la)) = orb_char(la , nlev(la)) + &
                       vecbuffer(1,isgf)* vecbuffer(1,isgf)
            END DO  ! isgfa
 
+           IF(orb_char(la , nlev(la)) >= charmax) THEN
+              charmax = orb_char(la , nlev(la))
+              type_of_state(istate) = typestate2(la , nlev(la)+shift(la))
+           END IF
+
          END DO  ! ishell
-       END DO  ! istate
-      
-    END DO
+       END DO  ! iset
+    END DO  ! istate
 
     CALL localized_wfn_control_release(my_localized_wfn_control,error=error)
 
   ! If required check the character of the states of each atom
   ! by taking the overlap with atomic-like states
 
-  ! Now I know, in the actual set of states, which is the index of the state 
-  ! to be excited, for each atom
+  ! In the set of states, which is the index of the one to be excited for iatom
+    DO iat = 1,xas_control%nexc_atoms
+      iatom = xas_control%exc_atoms(iat)
+
+      DO istate = 1,nexc_search
+         IF(atom_of_state(istate) == iatom .AND. & 
+            type_of_state(istate) == xas_control%state_type) THEN
+            state_of_atom(iat) = istate
+            EXIT
+         END IF
+      END DO 
+    END DO 
+
 
   ! copy the coefficients of the mos in a temporary fm with the right structure
     IF(transition_potential) THEN
@@ -397,27 +441,34 @@ CONTAINS
        dft_control % xas_estate  = state_to_be_excited
 
       ! Take the state_to_be_excited vector from the full set and copy into excvec_coeff
-       CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
        CALL get_mo_set(mos(1)%mo_set, mo_coeff=mo_coeff)
        CPPrecondition(ASSOCIATED(excvec_coeff),cp_failure_level,routineP,error,failure)
        CALL cp_fm_get_submatrix(mo_coeff,vecbuffer,1,state_to_be_excited,&
             nao,1,transpose=.TRUE.,error=error)
        CALL cp_fm_set_submatrix(excvec_coeff,vecbuffer,1,1,&
             nao,1,transpose=.TRUE.,error=error)
-    ! set to zero excene and oscillators
 
-    !  copy the coefficients of state to be excited in a vector coefvec_fm(nao x 1)
       IF (transition_potential) THEN
          IF(ionode) THEN
-           WRITE(output_unit,'(A,I6)') " Start xas calculation for atom  ", iatom 
+           WRITE(UNIT=output_unit,FMT='(/,/,T2,A,I6)') &
+                  " START XAS CALCULATION WITH TP APPROACH FOR ATOM   ", iatom 
          END IF
          NULLIFY(scf_env)
          CALL get_qs_env(qs_env,scf_env=scf_env,error=error)
-!         CALL xas_do_tp_scf(xas_env,scf_env,qs_env,error=error)
+         CALL init_scf_run(scf_env=scf_env,qs_env=qs_env,&
+                 globenv=globenv, error=error)
+
+         CALL xas_do_tp_scf(xas_control,xas_env,scf_env,qs_env,globenv,error=error)
+
+         IF(iat == xas_control%nexc_atoms) THEN 
+            CALL scf_env_cleanup(scf_env,qs_env=qs_env,error=error)
+         END IF
+
          CALL get_mo_set(mos(1)%mo_set, mo_coeff=mo_coeff, nmo=nmo,&
               homo =homo, eigenvalues=eigenvalues)
          DO i=1,3
            DO j = 1,2
+             CPPrecondition(ASSOCIATED(dip_fm_set(j,i)%matrix),cp_failure_level,routineP,error,failure)
              CALL cp_fm_set_all(dip_fm_set(j,i)%matrix, 0.0_dp, error=error)
              CALL cp_sm_fm_multiply(ostrength_sm(j,i)%matrix,mo_coeff,fm_work,ncol=nmo)
              CALL cp_fm_gemm("T","N",1,nvirtual,nao,1.0_dp,excvec_coeff,&
@@ -432,10 +483,10 @@ CONTAINS
              CALL cp_fm_get_element(dip_fm_set(1,i)%matrix,1,istate,realpart)
              CALL cp_fm_get_element(dip_fm_set(2,i)%matrix,1,istate,imagpart)
              z = CMPLX(realpart,imagpart,dp)
-             r(i) = ( cell % hmat ( i, i ) / twopi ) * AIMAG ( LOG ( z ) )
+             ra(i) = ( cell % hmat ( i, i ) / twopi ) * AIMAG ( LOG ( z ) )
            END DO 
            spectrum(1,istate) = ene_f - ene_i
-           spectrum(2,istate) = r(1)*r(1)+r(2)*r(2)+r(3)*r(3)
+           spectrum(2,istate) = ra(1)*ra(1)+ra(2)*ra(2)+ra(3)*ra(3)
          END DO 
       ELSE
          ! the states defined by the rotation are the ground state orbitals
@@ -500,18 +551,21 @@ CONTAINS
 !!
 !!***  *********************************************************************
 
-  SUBROUTINE xas_env_init(xas_env, xas_control, qs_env, error)
+  SUBROUTINE xas_env_init(xas_env, xas_control, qs_env, globenv, error)
 
     TYPE(xas_environment_type), POINTER      :: xas_env
     TYPE(xas_control_type)                   :: xas_control
     TYPE(qs_environment_type), POINTER       :: qs_env
+    TYPE(global_environment_type), &
+      POINTER                                :: globenv
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
     CHARACTER(len=*), PARAMETER :: routine_name='xas_env_init',&
       routineP = module_name//':'//routine_name
 
-    INTEGER :: homo, i, ispin, istat , j, nao, nexc_atoms, nexc_search, nmo, nspins
+    INTEGER :: homo, i, ispin, istat , j, nao, nexc_atoms, nexc_search,&
+               n_mo(2), nmo, nmoloc(2), nspins
     LOGICAL :: failure
     TYPE(dft_control_type), POINTER             :: dft_control
     TYPE(cp_fm_pool_p_type), DIMENSION(:), &
@@ -519,6 +573,7 @@ CONTAINS
     TYPE(cp_fm_type), POINTER                   :: mo_coeff
     TYPE(cp_fm_struct_type), POINTER            :: tmp_fm_struct
     TYPE(cp_para_env_type), POINTER             :: para_env
+    TYPE(localized_wfn_control_type), POINTER   :: my_localized_wfn_control
     TYPE(mo_set_p_type), DIMENSION(:), POINTER  :: mos
     TYPE(qs_matrix_pools_type), POINTER         :: mpools
     TYPE(real_matrix_p_type), DIMENSION(:), &
@@ -526,6 +581,8 @@ CONTAINS
 
 
     failure=.FALSE.
+
+    n_mo(1:2) = 0
 
     CPPrecondition(ASSOCIATED(xas_env),cp_failure_level,routineP,error,failure)
 
@@ -546,6 +603,8 @@ CONTAINS
       IF(nexc_search < 0) nexc_search = homo
       xas_env%nvirtual = nmo - homo
 
+      n_mo(1:2) = nmo
+
       ALLOCATE(xas_env%centers_wfn(3,nexc_search),STAT=istat)
       CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
       ALLOCATE(xas_env%atom_of_state(nexc_search),STAT=istat)
@@ -564,6 +623,13 @@ CONTAINS
       CALL cp_fm_create (xas_env%excvec_coeff, tmp_fm_struct )
       CALL cp_fm_struct_release ( tmp_fm_struct )
 
+
+      NULLIFY(tmp_fm_struct)
+      CALL cp_fm_struct_create(tmp_fm_struct,nrow_global=1,&
+           ncol_global=nexc_search,para_env=para_env,&
+           context=mo_coeff%matrix_struct%context)
+      CALL cp_fm_create (xas_env%excvec_overlap, tmp_fm_struct )
+      CALL cp_fm_struct_release ( tmp_fm_struct )
 
       nspins = SIZE(mos,1)
 
@@ -613,6 +679,27 @@ CONTAINS
       !initialize td-dft calculation
       END IF 
 
+   !Define the qs_loc_env : to find centers, spread and possibly localize them
+    my_localized_wfn_control =>  xas_control%localized_wfn_control
+    CALL localized_wfn_control_retain(my_localized_wfn_control,error=error)
+    CPPrecondition(ASSOCIATED(my_localized_wfn_control),cp_failure_level,routineP,error,failure)
+    IF(.NOT. xas_control%localized_wfn) THEN
+      my_localized_wfn_control%localization_method = do_loc_none
+    END IF
+
+    ! The localization is needed only for the states up to nexc_search
+    my_localized_wfn_control%set_of_states = state_loc_upton
+    my_localized_wfn_control%operator_type = op_loc_berry
+    my_localized_wfn_control%nloc_states(1) = nexc_search
+    my_localized_wfn_control%nloc_states(2) = 0
+    my_localized_wfn_control%lu_bound_states(1,1) = 1
+    my_localized_wfn_control%lu_bound_states(2,1) = nexc_search
+
+    nmoloc(1:2) = my_localized_wfn_control%nloc_states(1:2)
+    CALL set_loc_wfn_lists(xas_control%localized_wfn_control,nmoloc,n_mo,nspins,error=error)
+    CALL set_loc_centers(xas_control%localized_wfn_control,nmoloc,nspins,globenv,error=error)
+
+    CALL localized_wfn_control_release(my_localized_wfn_control,error=error)
     END IF
 
   END SUBROUTINE xas_env_init

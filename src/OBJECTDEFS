@@ -371,6 +371,7 @@ OBJECTS_GENERIC =\
  xas_control.o\
  xas_methods.o\
  xas_env_types.o\
+ xas_tp_scf.o\
  xc.o\
  xc_atom.o\
  xc_cs1_new.o\

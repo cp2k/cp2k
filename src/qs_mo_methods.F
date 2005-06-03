@@ -300,6 +300,7 @@ CONTAINS
     DO imo=mo_set%lfomo,mo_set%homo
       CALL cp_fm_syrk("U","N",1,mo_set%occupation_numbers(imo),&
                       mo_set%mo_coeff,1,imo,1.0_dp,density_matrix)
+
     END DO
 
     CALL timestop(0.0_dp,handle)
@@ -332,13 +333,13 @@ CONTAINS
 
     CALL set_matrix(density_matrix,0.0_dp)
 
-!    IF ( mo_set%lfomo .LE. mo_set%homo) THEN ! not all orbitals 1..homo are equally occupied
     IF ( .NOT. mo_set%uniform_occupation ) THEN ! not all orbitals 1..homo are equally occupied
        NULLIFY(fm_tmp)
        CALL cp_fm_create(fm_tmp,mo_set%mo_coeff%matrix_struct)
        CALL cp_fm_to_fm(mo_set%mo_coeff,fm_tmp)
        CALL cp_fm_column_scale(fm_tmp,mo_set%occupation_numbers(1:mo_set%homo))
        alpha=1.0_dp
+
     ELSE
        alpha=mo_set%maxocc
        fm_tmp => mo_set%mo_coeff

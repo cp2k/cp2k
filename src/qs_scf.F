@@ -138,6 +138,7 @@ MODULE qs_scf
                                              qs_ks_update_qs_env
   USE qs_ks_types,                     ONLY: qs_ks_env_type,&
                                              qs_ks_release
+  USE qs_loc_methods,                  ONLY: loc_initialize_rho
   USE qs_matrix_pools,                 ONLY: mpools_get
   USE qs_mo_methods,                   ONLY: calculate_density_matrix,&
                                              calculate_orthonormality,&
@@ -176,7 +177,6 @@ MODULE qs_scf
                                              wfi_update
   USE qs_wf_history_types,             ONLY: wfi_use_guess_method_nr
   USE scf_control_types,               ONLY: scf_control_type
-  USE simulation_cell,                 ONLY: cell_type
   USE sparse_matrix_types,             ONLY: cp_sm_scale_and_add,&
                                              deallocate_matrix_set,&
                                              first_block_node,&
@@ -211,7 +211,8 @@ MODULE qs_scf
 
 ! *** Public subroutines ***
 
-  PUBLIC :: scf, scf_env_density_mixing,&
+  PUBLIC :: eigensolver, simple_eigensolver, scf,&
+            scf_env_cleanup, scf_env_density_mixing,&
             scf_env_create, scf_env_do_scf, &
             scf_env_did_change, init_scf_run
 
@@ -428,7 +429,6 @@ CONTAINS
                                                 t1, t2, tot1_h, tot1_s
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
-    TYPE(cell_type), POINTER                 :: cell
     TYPE(cp_fm_p_type), DIMENSION(:), &
       POINTER                                :: scf_work1
     TYPE(cp_fm_type), POINTER                :: ortho, scf_work2
@@ -453,7 +453,7 @@ CONTAINS
 
     NULLIFY(dft_control,matrix_h,matrix_s,matrix_ks,matrix_p,rho,energy,scf_control,logger,&
          pw_env, qs_charges,ks_env,mos,atomic_kind_set,particle_set,&
-         scf_work1,ortho,scf_work2,cell)
+         scf_work1,ortho,scf_work2)
     logger => cp_error_get_logger(error)
     t1 = m_walltime()
     failure=.FALSE.
@@ -506,7 +506,6 @@ CONTAINS
          matrix_h=matrix_h,&
          matrix_s=matrix_s,energy=energy,&
          particle_set=particle_set,&
-         cell=cell,&
          pw_env=pw_env,&
          qs_charges=qs_charges,&
          ks_env=ks_env)
@@ -1064,6 +1063,7 @@ CONTAINS
     NULLIFY(scf_control,atomic_kind_set,matrix_h,matrix_s,matrix_ks,dft_control,mos,&
          ortho,scf_work2, mo_coeff)
     failure=.FALSE.
+    my_transition_potential = .FALSE.
     logger => cp_error_get_logger(error)
     
     CPPrecondition(ASSOCIATED(scf_env),cp_failure_level,routineP,error,failure)
@@ -1151,9 +1151,15 @@ CONTAINS
        CALL write_fm_with_basis_info(ortho,4,6,qs_env,globenv)
     END IF
 
-! initializes rho and the mos
-    CALL scf_env_initial_rho_setup(scf_env,qs_env=qs_env,&
-         globenv=globenv,error=error)
+    my_transition_potential = (dft_control%do_xas_calculation .AND. dft_control%xas_estate>0)
+    ! initializes rho and the mos
+    IF( my_transition_potential) THEN
+      ! initialize the density with the localized mos
+        CALL loc_initialize_rho(qs_env,error=error)  
+    ELSE
+      CALL scf_env_initial_rho_setup(scf_env,qs_env=qs_env,&
+           globenv=globenv,error=error)
+    END IF
 
 ! *** method dependent initializations ***
     SELECT CASE (scf_env%method)
@@ -1196,6 +1202,7 @@ CONTAINS
           ELSE 
               scf_env%qs_ot_env(:)%restricted=.FALSE.
           ENDIF
+
 
           ! might need the KS matrix to init properly
           CALL qs_ks_update_qs_env(qs_env%ks_env,qs_env=qs_env,&
@@ -1279,7 +1286,8 @@ CONTAINS
     INTEGER                                  :: handle, ispin, nao, &
                                                 nrow_block, stat
     LOGICAL                                  :: failure, gth_potential_present
-    LOGICAL                                  :: my_transition_potential
+    LOGICAL                                  :: my_transition_potential,uniform_occupation
+    REAL(KIND=dp), DIMENSION(:), POINTER     :: occupation_numbers
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
     TYPE(cp_fm_pool_p_type), DIMENSION(:), &
@@ -1305,6 +1313,7 @@ CONTAINS
     failure=.FALSE.
 
     my_transition_potential = .FALSE.
+    uniform_occupation = .TRUE.
 
     CPPrecondition(ASSOCIATED(scf_env),cp_failure_level,routineP,error,failure)
     CPPrecondition(scf_env%ref_count>0,cp_failure_level,routineP,error,failure)
@@ -1331,27 +1340,24 @@ CONTAINS
        DO ispin=1,SIZE(mos)
           CALL get_mo_set(mos(ispin)%mo_set,mo_coeff=mo_coeff)
           IF (.NOT.ASSOCIATED(mo_coeff)) THEN
-             IF(my_transition_potential .AND. ispin==1) THEN
-               IF(dft_control%xas_control%xas_method == xas_tp_hh) THEN
-                 CALL init_mo_set(mos(ispin)%mo_set,&
-                    ao_mo_fm_pools(ispin)%pool,&
-                    name="qs_env"//TRIM(ADJUSTL(cp_to_string(qs_env%id_nr)))//&
-                    "%mo"//TRIM(ADJUSTL(cp_to_string(ispin))),&
-                    halfhole=dft_control%xas_estate,error=error)
-               ELSE IF(dft_control%xas_control%xas_method == xas_tp_fh) THEN
-                 CALL init_mo_set(mos(ispin)%mo_set,&
-                    ao_mo_fm_pools(ispin)%pool,&
-                    name="qs_env"//TRIM(ADJUSTL(cp_to_string(qs_env%id_nr)))//&
-                    "%mo"//TRIM(ADJUSTL(cp_to_string(ispin))),&
-                    fullhole=dft_control%xas_estate,error=error)
-               END IF
-             ELSE
-               CALL init_mo_set(mos(ispin)%mo_set,&
+             CALL init_mo_set(mos(ispin)%mo_set,&
                   ao_mo_fm_pools(ispin)%pool,&
                   name="qs_env"//TRIM(ADJUSTL(cp_to_string(qs_env%id_nr)))//&
                   "%mo"//TRIM(ADJUSTL(cp_to_string(ispin))),&
                   error=error)
-             END IF
+          END IF
+          IF(my_transition_potential .AND. ispin==1) THEN
+            CALL get_mo_set(mos(ispin)%mo_set,&
+                 occupation_numbers=occupation_numbers)
+            IF(dft_control%xas_control%xas_method == xas_tp_hh) THEN
+               occupation_numbers(dft_control%xas_estate) = 0.5_dp
+               uniform_occupation = .FALSE.
+            ELSE IF(dft_control%xas_control%xas_method == xas_tp_fh) THEN
+               occupation_numbers(dft_control%xas_estate) = 0.0_dp
+               uniform_occupation = .FALSE.    
+            END IF
+            CALL set_mo_set(mos(ispin)%mo_set,&
+                 uniform_occupation=uniform_occupation)
           END IF
        END DO
     END IF

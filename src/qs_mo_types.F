@@ -254,13 +254,11 @@ CONTAINS
 !!
 !!*** *********************************************************************
 
-  SUBROUTINE init_mo_set(mo_set, fm_pool, name, halfhole, fullhole, error)
+  SUBROUTINE init_mo_set(mo_set, fm_pool, name, error)
 
     TYPE(mo_set_type), POINTER               :: mo_set
     TYPE(cp_fm_pool_type), POINTER           :: fm_pool
     CHARACTER(len=*), INTENT(in)             :: name
-    INTEGER, INTENT(in),OPTIONAL             :: halfhole
-    INTEGER, INTENT(in),OPTIONAL             :: fullhole
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
@@ -285,9 +283,7 @@ CONTAINS
     END IF
     CALL set_mo_occupation(mo_set%occupation_numbers,&
                            mo_set%eigenvalues,mo_set%homo,mo_set%lfomo,&
-                           mo_set%maxocc,mo_set%nelectron,&
-                           mo_set%uniform_occupation,&
-                           halfhole=halfhole,fullhole=fullhole)
+                           mo_set%maxocc,mo_set%nelectron, uocc=mo_set%uniform_occupation)
 
     CALL fm_pool_create_fm(fm_pool,mo_set%mo_coeff,&
          name=name,error=error)
