@@ -269,7 +269,7 @@ CONTAINS
 
     CALL init_rng()
 
-    IF (ionode.AND.(globenv%print%level >= HIGH)) THEN
+    IF (ionode.AND.globenv%print%rng_matrices) THEN
       CALL write_rng_matrices(globenv%scr)
     END IF
 
@@ -523,6 +523,8 @@ SUBROUTINE cp2k_read(globenv)
             globenv%print%forces = print_request
           CASE ("HARTREE_MATRIX")
             globenv%print%hartree_matrix = print_request
+          CASE ("RNG_MATRICES")
+            globenv%print%rng_matrices = print_request
           CASE ("INTERATOMIC_DISTANCES","DISTANCES")
             globenv%print%interatomic_distances = print_request
           CASE ("KIND_INFORMATION","KIND_INFO","KINDS")

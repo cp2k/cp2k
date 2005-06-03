@@ -106,6 +106,7 @@ MODULE print_key_types
                projectors,&
                pw_grid_information,&
                rho0_information,&
+               rng_matrices,&
                sab_orb_neighbor_lists,&
                sac_ppl_neighbor_lists,&
                sac_ppnl_neighbor_lists,&
@@ -192,8 +193,10 @@ CONTAINS
     print_keys%id_nr=last_print_k_id
     print_keys%ref_count=1
     IF (PRESENT(level)) THEN
+       print_keys%level=level
        CALL print_keys_reset(print_keys,level)
     ELSE
+       print_keys%level=MEDIUM
        CALL print_keys_reset(print_keys,MEDIUM)
     END IF
   END SUBROUTINE print_keys_create
@@ -250,6 +253,7 @@ CONTAINS
     print_keys%potential_energy_matrix = key_value(level,(/f,f,f/))
     print_keys%pw_grid_information = key_value(level,(/f,t,t/))
     print_keys%rho0_information = key_value(level,(/f,t,t/))
+    print_keys%rng_matrices = key_value(level,(/f,f,t/))
     print_keys%sab_orb_neighbor_lists = key_value(level,(/f,f,t/))
     print_keys%sac_ppl_neighbor_lists = key_value(level,(/f,f,t/))
     print_keys%sac_ppnl_neighbor_lists = key_value(level,(/f,f,t/))
