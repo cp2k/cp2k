@@ -63,6 +63,9 @@ MODULE qs_scf_post
                                              cp_unitnr_for_output
   USE cp_para_types,                   ONLY: cp_blacs_env_type,&
                                              cp_para_env_type
+  USE cp_rs_pool_types,                ONLY: cp_rs_pool_type,&
+                                             rs_pool_create_rs,&
+                                             rs_pool_give_back_rs
   USE cp_sm_fm_interactions,           ONLY: cp_sm_fm_multiply
   USE cp_subsystem_types,              ONLY: cp_subsys_get,&
                                              cp_subsystem_type
@@ -123,7 +126,8 @@ MODULE qs_scf_post
   USE qs_overlap,                      ONLY: write_sparse_matrix
   USE qs_rho_types,                    ONLY: qs_rho_type
   USE qs_scf_types,                    ONLY: qs_scf_env_type
-  USE realspace_grid_types,            ONLY: rs_pw_to_cube
+  USE realspace_grid_types,            ONLY: rs_pw_to_cube, & 
+                                             realspace_grid_type
   USE scf_control_types,               ONLY: scf_control_type
   USE simulation_cell,                 ONLY: cell_type,&
                                              get_cell
@@ -232,6 +236,8 @@ CONTAINS
     REAL(KIND = dp)           :: volume
     REAL(KIND = dp), POINTER, DIMENSION(:,:) :: center
     TYPE(section_vals_type), POINTER :: print_key, input
+    TYPE(cp_rs_pool_type), POINTER           :: auxbas_rs_pool
+    TYPE(realspace_grid_type), POINTER       :: rs
  
     CALL timeset(routineN,"I",'',handle)
 
@@ -285,7 +291,8 @@ CONTAINS
        IF ((globenv%print%homos .OR. globenv%print%lumos .OR. globenv%print%localization) &
                    .AND. globenv%print%cubes ) THEN
           CALL pw_env_get(pw_env, auxbas_pw_pool=auxbas_pw_pool,&
-               pw_pools=pw_pools)
+               pw_pools=pw_pools,auxbas_rs_pool=auxbas_rs_pool)
+          CALL rs_pool_create_rs(auxbas_rs_pool,rs)
           CALL pw_pool_init_coeff(auxbas_pw_pool,wf_r,&
                use_data = REALDATA3D,&
                in_space = REALSPACE, error=error)
@@ -507,6 +514,7 @@ CONTAINS
                error=error)
           CALL pw_pool_give_back_coeff(auxbas_pw_pool,wf_g,&
                error=error)
+          CALL rs_pool_give_back_rs(auxbas_rs_pool,rs, error=error)
        END IF
 
 ! *** destroy the localization environment
@@ -545,7 +553,7 @@ CONTAINS
                                           unoccupied_orbs(ispin)%matrix,unoccupied_evals(ispin)%evals, &
                                           volume,globenv%ionode,File_unit) 
            ENDDO
-           IF (globenv%ionode) CALL Close_file(Unit_number=File_unit)
+           IF (globenv%ionode) CALL close_file(Unit_number=File_unit)
            IF (globenv%ionode) WRITE(globenv%scr,*) " Results written to file ",File_name
        ENDIF
 
@@ -598,7 +606,6 @@ CONTAINS
     TYPE evals_p_type
          REAL(KIND = dp), DIMENSION(:), POINTER :: evals
     END TYPE
-    TYPE(real_matrix_type), POINTER :: pfull
     INTEGER :: ispin, output_unit
     CHARACTER(LEN=6)   :: extension
     CHARACTER(LEN=200) :: file_name
@@ -608,11 +615,14 @@ CONTAINS
     REAL(KIND=dp), DIMENSION(:), POINTER :: occupation_numbers
     INTEGER            :: nmo, unit_nr
     TYPE(section_vals_type), POINTER :: print_key, input
+    TYPE(cp_rs_pool_type), POINTER           :: auxbas_rs_pool
+    TYPE(realspace_grid_type), POINTER       :: rs
+
 
     failure=.FALSE.
     NULLIFY(cell,dft_control,pw_env,auxbas_pw_pool,pw_pools,&
             mos,atomic_kind_set,particle_set,rho,&
-            ks_rmpv,matrix_s,scf_control,pfull,&
+            ks_rmpv,matrix_s,scf_control,&
             molecule_set,input)
     logger => cp_error_get_logger(error)
     ionode = logger%para_env%mepos==logger%para_env%source
@@ -634,7 +644,7 @@ CONTAINS
        IF (dft_control%nspins.eq.2) THEN
           CALL get_qs_env(qs_env=qs_env,pw_env=pw_env)
           CALL pw_env_get(pw_env, auxbas_pw_pool=auxbas_pw_pool,&
-               pw_pools=pw_pools)
+               pw_pools=pw_pools,auxbas_rs_pool=auxbas_rs_pool)
           CALL pw_pool_init_coeff(auxbas_pw_pool,wf_r,&
                use_data = REALDATA3D,&
                in_space = REALSPACE, error=error)
@@ -665,38 +675,47 @@ CONTAINS
        ENDIF
 
 !   *** Cube file of the electron density ***
-       IF (globenv%print%e_density_cube) THEN ! write the electron density
+       IF (globenv%print%e_density_cube) THEN ! write the electron densoity
+          CALL get_qs_env(qs_env=qs_env,pw_env=pw_env)
+          CALL pw_env_get(pw_env, auxbas_rs_pool=auxbas_rs_pool)
+          CALL rs_pool_create_rs(auxbas_rs_pool,rs)
           IF (dft_control%nspins.ne.1) THEN
              CALL get_qs_env(qs_env=qs_env,pw_env=pw_env)
              CALL pw_env_get(pw_env, auxbas_pw_pool=auxbas_pw_pool,&
-                  pw_pools=pw_pools)
+                  pw_pools=pw_pools,auxbas_rs_pool=auxbas_rs_pool)
+             CALL rs_pool_create_rs(auxbas_rs_pool,rs)
              CALL pw_pool_init_coeff(auxbas_pw_pool,wf_r,&
                   use_data = REALDATA3D,&
                   in_space = REALSPACE, error=error)
              CALL coeff_copy(rho%rho_r(1),wf_r)
              CALL coeff_sumup(rho%rho_r(2),wf_r)
              IF (globenv%ionode) OPEN(UNIT=21,FILE="ELECTRON_DENSITY.cube")
-             CALL rs_pw_to_cube(wf_r%pw,21,globenv%ionode,"SPIN 1 + SPIN 2 ELECTRON DENSITY")
+             CALL rs_pw_to_cube(wf_r%pw,21,globenv%ionode,"SPIN 1 + SPIN 2 ELECTRON DENSITY",rs)
              IF (globenv%ionode) CLOSE(21)
              CALL coeff_copy(rho%rho_r(1),wf_r)
              CALL coeff_reduce(rho%rho_r(2),wf_r)
              IF (globenv%ionode) OPEN(UNIT=21,FILE="SPIN_DENSITY.cube")
-             CALL rs_pw_to_cube(wf_r%pw,21,globenv%ionode,"SPIN 1 DENSITY - SPIN 2 DENSITY")
+             CALL rs_pw_to_cube(wf_r%pw,21,globenv%ionode,"SPIN 1 DENSITY - SPIN 2 DENSITY",rs)
              IF (globenv%ionode) CLOSE(21)
              CALL pw_pool_give_back_coeff(auxbas_pw_pool,wf_r, error=error)
           ELSE
              IF (globenv%ionode) OPEN(UNIT=21,FILE="ELECTRON_DENSITY.cube")
-             CALL rs_pw_to_cube(rho%rho_r(1)%pw,21,globenv%ionode,"ELECTRON DENSITY")
+             CALL rs_pw_to_cube(rho%rho_r(1)%pw,21,globenv%ionode,"ELECTRON DENSITY",rs)
              IF (globenv%ionode) CLOSE(21)
           ENDIF
+          CALL rs_pool_give_back_rs(auxbas_rs_pool,rs,error=error)
        ENDIF
 
 !   *** write the hartree potential ***
        IF (globenv%print%v_hartree_cube) THEN
+          CALL get_qs_env(qs_env=qs_env,pw_env=pw_env)
+          CALL pw_env_get(pw_env, auxbas_rs_pool=auxbas_rs_pool)
+          CALL rs_pool_create_rs(auxbas_rs_pool,rs)
           IF (globenv%ionode) OPEN(UNIT=21,FILE="V_HARTREE.cube")
           CALL rs_pw_to_cube(qs_env%ks_env%v_hartree_rspace%pw,&
-               21,globenv%ionode,"HARTREE POTENTIAL")
+               21,globenv%ionode,"HARTREE POTENTIAL",rs)
           IF (globenv%ionode) CLOSE(21)
+          CALL rs_pool_give_back_rs(auxbas_rs_pool,rs,error=error)
        ENDIF
 
 !    *** stupid (non periodic) calculation of the dipole moment ***

@@ -1012,28 +1012,34 @@ END SUBROUTINE rs_grid_to_cube
 !******************************************************************************
 
 !******************************************************************************
-SUBROUTINE rs_pw_to_cube ( pw, iunit, ionode, title )
+! optionally pass a preallocated rs grid
+!******************************************************************************
+SUBROUTINE rs_pw_to_cube ( pw, iunit, ionode, title, rs )
     TYPE(pw_type), INTENT(INOUT), TARGET     :: pw
     INTEGER, INTENT(IN)                      :: iunit
     LOGICAL, INTENT(IN)                      :: ionode
     CHARACTER(*), INTENT(IN), OPTIONAL       :: title
+    TYPE(realspace_grid_type), POINTER, OPTIONAL      :: rs 
 
     INTEGER                                  :: nsmax
-    TYPE(realspace_grid_type)                :: rs
+    TYPE(realspace_grid_type), POINTER       :: rs_local
 
 !-----------------------------------------------------------------------------!
 !-----------------------------------------------------------------------------!
 
-   nsmax=-1
-   CALL rs_grid_setup(rs,pw%pw_grid,nsmax)
-   CALL rs_grid_allocate(rs)
-   CALL rs_pw_transfer(rs,pw,"BACKWARD")
-   IF (PRESENT(title)) THEN
-      CALL rs_grid_to_cube(rs,iunit,ionode,title)
+   IF (PRESENT(rs)) THEN
+     rs_local=>rs
    ELSE
-      CALL rs_grid_to_cube(rs,iunit,ionode)
+     nsmax=-1
+     CALL rs_grid_setup(rs_local,pw%pw_grid,nsmax)
+     CALL rs_grid_allocate(rs_local)
    ENDIF
-   CALL rs_grid_deallocate(rs)
+
+   CALL rs_pw_transfer(rs_local,pw,"BACKWARD")
+   CALL rs_grid_to_cube(rs_local,iunit,ionode,title)
+
+   IF (.NOT. PRESENT(rs)) CALL rs_grid_deallocate(rs_local)
+
 END SUBROUTINE rs_pw_to_cube
 !******************************************************************************
 
