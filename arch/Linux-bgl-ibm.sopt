@@ -7,8 +7,8 @@ AR       = bglar -r
 DFLAGS   = -D__AIX -D__ESSL -D__FFTSG
 CPPFLAGS = -C $(DFLAGS) -P
 FCFLAGS  = -O2 -qarch=440 -qmaxmem=-1 -qtune=440 -qalias=noaryovrlp -qhot=novector
-LDFLAGS  = $(FCFLAGS) -L/bgl/local/lib\
-           -bmaxdata:0x80000000 -bmaxstack:0x80000000
+FCFLAGS  = -O2 -qarch=440 -qmaxmem=-1 -qtune=440 -qalias=noaryovrlp
+LDFLAGS  = $(FCFLAGS) -L/bgl/local/lib
 LIBS     = -llapack440 -lmassv -lblas440
 
 OBJECTS_ARCHITECTURE = machine_aix.o
