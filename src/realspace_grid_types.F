@@ -1031,6 +1031,7 @@ SUBROUTINE rs_pw_to_cube ( pw, iunit, ionode, title, rs )
      rs_local=>rs
    ELSE
      nsmax=-1
+     ALLOCATE(rs_local)
      CALL rs_grid_setup(rs_local,pw%pw_grid,nsmax)
      CALL rs_grid_allocate(rs_local)
    ENDIF
@@ -1038,7 +1039,10 @@ SUBROUTINE rs_pw_to_cube ( pw, iunit, ionode, title, rs )
    CALL rs_pw_transfer(rs_local,pw,"BACKWARD")
    CALL rs_grid_to_cube(rs_local,iunit,ionode,title)
 
-   IF (.NOT. PRESENT(rs)) CALL rs_grid_deallocate(rs_local)
+   IF (.NOT. PRESENT(rs)) THEN
+       CALL rs_grid_deallocate(rs_local)
+       DEALLOCATE(rs_local)
+   ENDIF
 
 END SUBROUTINE rs_pw_to_cube
 !******************************************************************************
