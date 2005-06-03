@@ -194,9 +194,6 @@ SUBROUTINE pw_env_get(pw_env, pw_pools,l_info,l_info_rho0, cube_info, gridlevel_
      IF (PRESENT(auxbas_pw_pool)) THEN
         auxbas_pw_pool => pw_env%pw_pools(pw_env%auxbas_grid)%pool
      END IF
-     IF (PRESENT(auxbas_pw_pool)) THEN
-        auxbas_pw_pool => pw_env%pw_pools(pw_env%auxbas_grid)%pool
-     END IF
      IF (PRESENT(auxbas_rs_pool)) THEN
         auxbas_rs_pool => pw_env%rs_pools(pw_env%auxbas_grid)%pool
      END IF
