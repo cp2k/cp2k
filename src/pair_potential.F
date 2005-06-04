@@ -193,9 +193,13 @@ SUBROUTINE spline_nonbond_control ( spline_env, potparm, atomic_kind_set, &
         potparm(i,j) %energy_cutoff = 0.0_dp
         potparm(i,j) %energy_cutoff = ener_pot(potparm(i,j),qi,qj,hicut)
         potparm(i,j) %e_cutoff_coul = 0.0_dp
-        potparm(i,j) %e_cutoff_coul &
-        = ener_coul ( potparm ( i, j ), qi, qj, hicut, ewald_env )
-
+        IF ( PRESENT ( ewald_env ) ) THEN
+          potparm(i,j) %e_cutoff_coul &
+          = ener_coul ( potparm ( i, j ), qi, qj, hicut, ewald_env )
+        ELSE 
+          potparm(i,j) %e_cutoff_coul &
+          = ener_coul ( potparm ( i, j ), qi, qj, hicut)
+        END IF
         potparm(j,i) %energy_cutoff = potparm(i,j) %energy_cutoff
         potparm(j,i) %e_cutoff_coul = potparm(i,j) %e_cutoff_coul
 
@@ -203,8 +207,13 @@ SUBROUTINE spline_nonbond_control ( spline_env, potparm, atomic_kind_set, &
         x2 = locut**2
         DO jx = 1, npoints + 1 ! jx: loop over distance**2
            x = SQRT ( x2 )
-           e = ener_pot ( potparm ( i, j ), qi, qj, x ) &
-             + ener_coul ( potparm ( i, j ), qi, qj, x, ewald_env )
+           IF ( PRESENT ( ewald_env ) ) THEN
+             e = ener_pot ( potparm ( i, j ), qi, qj, x ) &
+               + ener_coul ( potparm ( i, j ), qi, qj, x, ewald_env )
+           ELSE
+             e = ener_pot ( potparm ( i, j ), qi, qj, x ) &
+               + ener_coul ( potparm ( i, j ), qi, qj, x)
+           END IF
            spline_env % spline_data_p ( n ) % spline_data % x(jx) = x2
            spline_env % spline_data_p ( n ) % spline_data % y(jx) = e
            x2 = x2 + dx2
