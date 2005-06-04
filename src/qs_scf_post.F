@@ -327,7 +327,7 @@ CONTAINS
                    WRITE(filename,'(a13,I5.5,a1,I1.1,a5)') "WAVEFUNCTION_",ivector,"_",ispin,".cube"
                    IF (globenv%ionode) OPEN(UNIT=21,FILE=filename)
                    WRITE(title,*) "WAVEFUNCTION ",ivector," spin ",ispin," i.e. HOMO - ",ivector-homo
-                   CALL rs_pw_to_cube(wf_r%pw,21,globenv%ionode,title)
+                   CALL rs_pw_to_cube(wf_r%pw,21,globenv%ionode,title,rs)
                    IF (globenv%ionode) CLOSE(21)
                 ENDDO
              END IF
@@ -408,7 +408,7 @@ CONTAINS
                    WRITE(title,'(A7,I5.5,A1,I1.1,A1,6G10.4)') "WANNIER",ivector,"_",ispin," ",&
                      center(ivector,1:3)*angstrom, &
                      center(ivector,4:6)*angstrom
-                   CALL rs_pw_to_cube(wf_r%pw,21,globenv%ionode,title)
+                   CALL rs_pw_to_cube(wf_r%pw,21,globenv%ionode,title,rs)
                    IF (globenv%ionode) CLOSE(21)
                 ENDDO
              END IF
@@ -487,7 +487,7 @@ CONTAINS
                    WRITE(filename,'(a13,I5.5,a1,I1.1,a5)') "WAVEFUNCTION_",homo+ivector,"_",ispin,".cube"
                    IF (globenv%ionode) OPEN(UNIT=21,FILE=filename)
                    WRITE(title,*) "WAVEFUNCTION ",homo+ivector," spin ",ispin," i.e. LUMO + ",ivector-1
-                   CALL rs_pw_to_cube(wf_r%pw,21,globenv%ionode,title)
+                   CALL rs_pw_to_cube(wf_r%pw,21,globenv%ionode,title,rs)
                    IF (globenv%ionode) CLOSE(21)
                 ENDDO
              ENDIF
@@ -617,8 +617,9 @@ CONTAINS
     TYPE(section_vals_type), POINTER :: print_key, input
     TYPE(cp_rs_pool_type), POINTER           :: auxbas_rs_pool
     TYPE(realspace_grid_type), POINTER       :: rs
+    INTEGER            :: handle
 
-
+    CALL timeset(routineN,handle)
     failure=.FALSE.
     NULLIFY(cell,dft_control,pw_env,auxbas_pw_pool,pw_pools,&
             mos,atomic_kind_set,particle_set,rho,&
@@ -682,8 +683,7 @@ CONTAINS
           IF (dft_control%nspins.ne.1) THEN
              CALL get_qs_env(qs_env=qs_env,pw_env=pw_env)
              CALL pw_env_get(pw_env, auxbas_pw_pool=auxbas_pw_pool,&
-                  pw_pools=pw_pools,auxbas_rs_pool=auxbas_rs_pool)
-             CALL rs_pool_create_rs(auxbas_rs_pool,rs)
+                  pw_pools=pw_pools)
              CALL pw_pool_init_coeff(auxbas_pw_pool,wf_r,&
                   use_data = REALDATA3D,&
                   in_space = REALSPACE, error=error)
@@ -752,6 +752,9 @@ CONTAINS
           CALL Write_sparse_matrix(ks_rmpv(1)%matrix,4,6,Qs_env,Globenv)
        END IF
     END IF
+
+    CALL timestop(handle)
+
   END SUBROUTINE write_available_results
 
 !!****f* qs_scf_post/compute_s_square *
@@ -782,8 +785,11 @@ CONTAINS
       POINTER                                :: matrix_s
     REAL(KIND=dp)                            :: s_square, s_square_ideal
 
+    CHARACTER(len=*), PARAMETER :: routineN = 'compute_s_square', &
+      routineP = moduleN//':'//routineN
+
     INTEGER                                  :: i, j, na, nb, ncol_local, &
-                                                nrow, nrow_local
+                                                nrow, nrow_local, handle
     REAL(KIND=dp)                            :: tmp
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: local_data
     TYPE(cp_blacs_env_type), POINTER         :: context
@@ -791,6 +797,8 @@ CONTAINS
     TYPE(cp_fm_type), POINTER                :: c_alpha, c_beta, &
                                                 matrix_overlap, matrix_sc
     TYPE(cp_para_env_type), POINTER          :: para_env
+
+    CALL timeset(routineN,handle)
 
     NULLIFY(fm_struct_tmp,matrix_sc,matrix_overlap,para_env,context,local_data)
 
@@ -830,6 +838,8 @@ CONTAINS
     CASE DEFAULT
           CALL stop_program("compute_s_square","alpha, beta, what else ?")
     END SELECT
+
+    CALL timestop(handle)
 
   END SUBROUTINE
 
