@@ -1021,12 +1021,13 @@ SUBROUTINE rs_pw_to_cube ( pw, iunit, ionode, title, rs )
     CHARACTER(*), INTENT(IN), OPTIONAL       :: title
     TYPE(realspace_grid_type), POINTER, OPTIONAL      :: rs 
 
-    INTEGER                                  :: nsmax
+    INTEGER                                  :: nsmax,handle
     TYPE(realspace_grid_type), POINTER       :: rs_local
 
 !-----------------------------------------------------------------------------!
 !-----------------------------------------------------------------------------!
 
+   CALL timeset("rs_pw_to_cube",handle)
    IF (PRESENT(rs)) THEN
      rs_local=>rs
    ELSE
@@ -1043,6 +1044,7 @@ SUBROUTINE rs_pw_to_cube ( pw, iunit, ionode, title, rs )
        CALL rs_grid_deallocate(rs_local)
        DEALLOCATE(rs_local)
    ENDIF
+   CALL timestop(handle)
 
 END SUBROUTINE rs_pw_to_cube
 !******************************************************************************
