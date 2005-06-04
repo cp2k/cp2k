@@ -24,7 +24,6 @@
 !******************************************************************************
 
 MODULE force_env_methods
-  USE realspace_grid_types,            ONLY: rs_pw_to_cube
   USE atomic_kind_list_types,          ONLY: atomic_kind_list_type
   USE cp_error_handling,               ONLY: cp_a_l,&
                                              cp_assert,&
