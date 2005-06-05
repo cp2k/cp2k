@@ -183,7 +183,7 @@ SUBROUTINE pw_env_rebuild(pw_env, qs_env, error)
       routineP = moduleN//':'//routineN
     REAL(KIND=dp), PARAMETER                 :: safety_factor = 1.2 
 
-    INTEGER :: cmax, cmaxl, grid_span, handle, i, igrid_level, igrid_zet0_s, &
+    INTEGER :: cmax, grid_span, handle, i, igrid_level, igrid_zet0_s, &
       ikind, ipgf, iset, ishell, istat, jkind, jpgf, jset, jshell, la, lb, &
       lgrid_level, lmax_rho0, maxlgto, ncommensurate, ngrid_level, nkind, &
       nseta, nsetb, nsmax, stat
@@ -195,6 +195,7 @@ SUBROUTINE pw_env_rebuild(pw_env, qs_env, error)
                                                 max_rpgf0_s, maxradius, &
                                                 rel_cutoff, zet0_s, zetp
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: radius
+    INTEGER, ALLOCATABLE, DIMENSION(:)       :: cmaxl
     REAL(KIND=dp), DIMENSION(:), POINTER     :: cutoff
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: zeta, zetb
     TYPE(atomic_kind_type), DIMENSION(:), &
@@ -213,9 +214,14 @@ SUBROUTINE pw_env_rebuild(pw_env, qs_env, error)
       POINTER                                :: pw_pools
     TYPE(rho0_mpole_type), POINTER           :: nddo_mpole, rho0_mpole
 
-! should be be avoided (see later)
-
   CALL timeset(routineN,"I","",handle)
+
+!
+!
+! Part one, deallocate old data if needed
+!
+!
+
   failure=.FALSE.
   NULLIFY(cutoff,cell,pw_grid,old_pw_grid,dft_control,atomic_kind_set,&
           pw_pools,rho0_mpole,rs_pools, para_env,cell_ref, green)
@@ -275,6 +281,14 @@ SUBROUTINE pw_env_rebuild(pw_env, qs_env, error)
      END IF
      NULLIFY(pw_env%pw_pools, pw_env%cube_info)
   END IF
+
+
+!
+!
+! Part two, setup the pw_grids
+!
+!
+
   IF (.NOT.failure) THEN
      CALL get_qs_env(qs_env=qs_env,&
           dft_control=dft_control,atomic_kind_set=atomic_kind_set,&
@@ -288,14 +302,9 @@ SUBROUTINE pw_env_rebuild(pw_env, qs_env, error)
      !                     XXXXXXXXX same holds for radius
      CALL init_gaussian_gridlevel(pw_env%gridlevel_info,&
           ngrid_levels=ngrid_level,cutoff=cutoff,rel_cutoff=rel_cutoff)
-     ALLOCATE(radius(ngrid_level),stat=stat)
-     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-     CALL get_subgrid_size ( qs_env, cutoff, radius ) 
 
      ! init pw_grids and pools
      ALLOCATE(pw_pools(ngrid_level),stat=stat)
-     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-     ALLOCATE(rs_pools(ngrid_level),stat=stat)
      CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
 
      IF (dft_control % qs_control % commensurate_mgrids) THEN
@@ -384,20 +393,27 @@ SUBROUTINE pw_env_rebuild(pw_env, qs_env, error)
         CALL pw_pool_create(pw_pools(igrid_level)%pool,&
              pw_grid=pw_grid,error=error)
 
-      ! init rs_pools
-        drmin = MINVAL ( pw_grid%dr )
-
-        IF ( dft_control % qs_control % rs_distributed ) THEN
-           nsmax = 2*MAX(1,CEILING((radius(igrid_level))/drmin))+1
-        ELSE
-           nsmax = -1
-        ENDIF
-
-        NULLIFY(rs_pools(igrid_level)%pool)
-        CALL rs_pool_create(rs_pools(igrid_level)%pool,&
-             el_struct=pw_grid,nsmax=nsmax,error=error)
         CALL pw_grid_release(pw_grid,error=error)
      END DO
+     pw_env%pw_pools => pw_pools
+
+     ! init auxbas_grid
+     DO i=1,ngrid_level
+        IF (cutoff(i) == dft_control%qs_control%cutoff) pw_env%auxbas_grid=i
+     END DO
+
+     ! complete init of green's function
+     CALL pw_green_fn_rebuild(green,&
+          pw_env%pw_pools(pw_env%auxbas_grid)%pool, cell=cell, para_env=para_env)
+
+!
+!
+!    determine the maximum radii for mapped gaussians, needed to
+!    set up distributed rs grids
+!
+!
+     ALLOCATE(radius(ngrid_level),stat=stat)
+     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
 
      ! Find the grid level suitable for rho0_soft
      IF(qs_env%dft_control%qs_control%gapw) THEN
@@ -408,20 +424,9 @@ SUBROUTINE pw_env_rebuild(pw_env, qs_env, error)
         nddo_mpole%igrid_zet0_s = igrid_zet0_s
      END IF
 
-     DEALLOCATE(radius,stat=stat)
-     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-
-     pw_env%pw_pools => pw_pools
-     pw_env%rs_pools => rs_pools
-
-     ! init cube info
-     ALLOCATE (pw_env%cube_info(ngrid_level),STAT=istat)
-     IF (istat /= 0) CALL stop_memory(routineP,"cube_info",0)
-
      CALL get_qs_env(qs_env=qs_env, atomic_kind_set=atomic_kind_set)
      nkind=SIZE(atomic_kind_set)
 
-     cmax = 0
      ! XXXXXXXXXXXXXX this duplicates the functionality of get_subgrid_size  XXXXXXXXXXXXXXXXXX
      ! try to predict the maximum radius of the gaussians to be mapped on the grid
      ! up to now, it is not yet very good 
@@ -496,15 +501,56 @@ SUBROUTINE pw_env_rebuild(pw_env, qs_env, error)
         ! safety first, not very efficient, nor general
         ! one could possibly decide that this *is* the maximum allowed radius
         maxradius = maxradius * safety_factor 
-        pw_env%cube_info%max_rad_ga = maxradius
-        ! write(6,*) igrid_level,maxradius, CEILING(maxradius/MINVAL(pw_pools(igrid_level)%pool%pw_grid%dr(:)))
-        CALL init_cube_info(pw_env%cube_info(igrid_level),&
-             pw_pools(igrid_level)%pool%pw_grid%dr(:),&
-             maxradius,cmaxl)
-        cmax = MAX(cmax,cmaxl)
+        radius(igrid_level)=maxradius
      END DO
 
-     ! init l_info
+!
+!
+!    set up the rs_grids, requires 'radius' to be set up correctly
+!
+!
+     ALLOCATE(rs_pools(ngrid_level),stat=stat)
+     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+     DO igrid_level=1,ngrid_level 
+        pw_grid => pw_pools(igrid_level)%pool%pw_grid
+        drmin = MINVAL ( pw_grid%dr )
+
+        IF ( dft_control % qs_control % rs_distributed ) THEN
+           nsmax = 2*MAX(1,CEILING((radius(igrid_level))/drmin))+1
+        ELSE
+           nsmax = -1
+        ENDIF
+
+        NULLIFY(rs_pools(igrid_level)%pool)
+        CALL rs_pool_create(rs_pools(igrid_level)%pool,&
+             el_struct=pw_grid,nsmax=nsmax,error=error)
+     END DO
+     pw_env%rs_pools => rs_pools
+
+!
+!
+! set up the cube info and the cmaxl array
+!
+!
+     ALLOCATE(cmaxl(ngrid_level),stat=stat)
+     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+     ALLOCATE (pw_env%cube_info(ngrid_level),STAT=stat)
+     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+
+     DO igrid_level=1,ngrid_level 
+        pw_env%cube_info%max_rad_ga = maxradius
+        CALL init_cube_info(pw_env%cube_info(igrid_level),&
+             pw_pools(igrid_level)%pool%pw_grid%dr(:),&
+             radius(igrid_level),cmaxl(igrid_level))
+     END DO
+
+!
+!
+!  l_info set up here, requires cmaxl
+!
+!
+
+     cmax=MAXVAL(cmaxl)
      CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,&
           maxlgto=maxlgto)
      CALL init_l_info(pw_env%l_info,maxlgto+2,cmax)
@@ -522,19 +568,26 @@ SUBROUTINE pw_env_rebuild(pw_env, qs_env, error)
            CALL init_l_info(pw_env%l_info_rho0,lmax_rho0+1,cmax,lrho0=.TRUE.)
         END IF
      END IF
- 
-     ! init auxbas_grid
-     DO i=1,ngrid_level
-        IF (cutoff(i) == dft_control%qs_control%cutoff) pw_env%auxbas_grid=i
-     END DO
 
-     ! complete init of green's function
-     CALL pw_green_fn_rebuild(green,&
-          pw_env%pw_pools(pw_env%auxbas_grid)%pool, cell=cell, para_env=para_env)
+!
+!
+!  remove radius and cmaxl
+!
+!
+
+     DEALLOCATE(radius,stat=stat)
+     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+     DEALLOCATE(cmaxl,stat=stat)
+     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+ 
   END IF
 
+!
 ! If reference cell is present, then use pw_grid_change to keep bounds constant...
-! MJM is looking at a way to phase this out, because it doesn't seem like everything gets initialized properly
+! MJM is looking at a way to phase this out, because it doesn't seem like everything
+! gets initialized properly
+!
+!
   CALL get_qs_env ( qs_env, use_ref_cell = use_ref_cell )
   IF ( use_ref_cell ) THEN
       DO igrid_level = 1, SIZE ( pw_pools )
@@ -544,125 +597,9 @@ SUBROUTINE pw_env_rebuild(pw_env, qs_env, error)
           pw_env%pw_pools(pw_env%auxbas_grid)%pool, cell=cell, para_env=para_env)
   ENDIF
   CALL pw_grid_release ( green%super_ref_pw_grid, error=error)     
+
   CALL timestop(0.0_dp,handle)
+
 END SUBROUTINE pw_env_rebuild
-
-!***************************************************************************
-
-SUBROUTINE get_subgrid_size ( qs_env, cutoff, radius )
-    TYPE(qs_environment_type), POINTER       :: qs_env
-    REAL(KIND=dp), DIMENSION(:), INTENT(IN)  :: cutoff
-    REAL(KIND=dp), DIMENSION(:), INTENT(OUT) :: radius
-
-    INTEGER                                  :: i, igrid_level, ikind, j, &
-                                                maxlgto, numgrids, stat
-    REAL(KIND=dp)                            :: alpha, charge, &
-                                                eps_rho_rspace, lcut, &
-                                                maxcharge, mincoreval, &
-                                                minexpval, rel_cutoff
-    REAL(KIND=dp), DIMENSION(3)              :: ra, rb, rp
-    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: p, zet
-    TYPE(atomic_kind_type), DIMENSION(:), &
-      POINTER                                :: atomic_kind_set
-    TYPE(atomic_kind_type), POINTER          :: atomic_kind
-    TYPE(dft_control_type), POINTER          :: dft_control
-    TYPE(gto_basis_set_type), POINTER        :: orb_basis_set
-
-  radius = 1.E10_dp
-
-  numgrids = SIZE ( cutoff )
-  ra = 0._dp
-  rb = 0._dp
-  rp = 0._dp
-
-  NULLIFY(atomic_kind_set,atomic_kind,dft_control,orb_basis_set,p,zet)
-  ALLOCATE (p(1,1),STAT=stat)
-  IF ( stat /= 0 ) CALL stop_memory ("get_subgrid_size","p",1)
-  p = 1._dp
-
-  CALL get_qs_env(qs_env=qs_env,dft_control=dft_control,atomic_kind_set=atomic_kind_set)
-
-  rel_cutoff = dft_control%qs_control%relative_cutoff
-  eps_rho_rspace = dft_control%qs_control%eps_rho_rspace
-
-  CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,maxlgto=maxlgto)
-  ! derivatives need l+1
-  maxlgto = maxlgto + 1
-  ! be sure coset is set as it should for exp_radius_very_extended
-  CALL init_orbital_pointers(maxlgto)
-
-  minexpval = 1.E10_dp
-  mincoreval = 1.E10_dp
-  maxcharge = 0._dp
-  DO ikind=1,SIZE(atomic_kind_set)
-      atomic_kind => atomic_kind_set(ikind)
-      CALL get_atomic_kind(atomic_kind=atomic_kind,&
-                           orb_basis_set=orb_basis_set,&
-                           alpha_core_charge=alpha,&
-                           ccore_charge=charge)
-      mincoreval = MIN ( alpha, mincoreval )
-      maxcharge = MAX ( charge, maxcharge )
-
-      IF (.NOT.ASSOCIATED(orb_basis_set)) CYCLE
-      CALL get_gto_basis_set(gto_basis_set=orb_basis_set,&
-                             zet=zet)
-      DO i=1,SIZE(zet,2)
-        DO j=1,SIZE(zet,1)
-          IF ( zet(j,i) > 0._dp) THEN
-            minexpval = MIN ( zet(j,i), minexpval )
-          END IF
-        END DO
-      END DO
-  END DO
-  minexpval = 2._dp * minexpval
-
-  DO igrid_level = 1, numgrids
-
-    IF ( igrid_level == 1 ) THEN
-      ! this should be the grid level with the highest cutoff
-      IF ( MAXVAL ( ABS ( cutoff ) ) /= ABS ( cutoff (1) ) ) &
-          CALL stop_program("get_subgrid_size","cutoff not correctly ordered")
-      IF ( numgrids == 1 ) THEN
-        lcut = minexpval
-      ELSE
-        lcut = ABS ( cutoff ( igrid_level+1 ) ) / rel_cutoff
-        lcut = MAX ( lcut, minexpval )
-      END IF
-
-    ELSE IF ( igrid_level == numgrids ) THEN
-      ! check that grid-1 has a higher cutoff
-      IF ( ABS(cutoff(igrid_level)) > ABS(cutoff(igrid_level-1)) ) &
-          CALL stop_program("get_subgrid_size","cutoff not correctly ordered")
-      lcut = minexpval
-
-    ELSE
-      ! check that grid-1 has a higher cutoff
-      IF ( ABS(cutoff(igrid_level)) > ABS(cutoff(igrid_level-1)) ) &
-          CALL stop_program("get_subgrid_size","cutoff not correctly ordered")
-      ! check that grid+1 has a lower cutoff
-      IF ( ABS(cutoff(igrid_level)) < ABS(cutoff(igrid_level+1)) ) &
-          CALL stop_program("get_subgrid_size","cutoff not correctly ordered")
-      lcut = ABS ( cutoff ( igrid_level+1 ) ) / rel_cutoff
-      lcut = MAX ( lcut, minexpval )
-
-    END IF
-    radius(igrid_level)=exp_radius_very_extended(0,maxlgto,0,maxlgto,ra=ra,rb=rb,rp=rp,&
-                             zetp=lcut,eps=eps_rho_rspace,prefactor=1._dp,cutoff=0._dp)
-    IF ( igrid_level == 1 ) THEN
-      p=maxcharge
-      IF (mincoreval > 0.0_dp)&
-        radius(1)=MAX(radius(1), exp_radius_very_extended(0,0,0,0,ra=ra,rb=rb,rp=rp,&
-                      zetp=mincoreval,eps=eps_rho_rspace,prefactor=1._dp,cutoff=0._dp) )
-      p = 1._dp
-    END IF
-
-  END DO
-
-  DEALLOCATE (p,STAT=stat)
-  IF ( stat /= 0 ) CALL stop_memory ("get_subgrid_size","p")
-
-END SUBROUTINE get_subgrid_size 
-
-!***************************************************************************
 
 END MODULE pw_env_methods
