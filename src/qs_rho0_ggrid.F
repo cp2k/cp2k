@@ -84,7 +84,9 @@ MODULE qs_rho0_ggrid
   USE realspace_grid_types,            ONLY: realspace_grid_type,&
                                              rs_get_my_tasks,&
                                              rs_grid_zero,&
-                                             rs_pw_transfer
+                                             rs_pw_transfer,&
+                                             rs2pw,&
+                                             pw2rs
   USE simulation_cell,                 ONLY: cell_type,&
                                              pbc
   USE termination,                     ONLY: stop_memory
@@ -297,7 +299,7 @@ MODULE qs_rho0_ggrid
 
 
     IF(igrid /= auxbas_grid) THEN
-      CALL rs_pw_transfer(rs_grid,coeff_rspace%pw,"FORWARD")
+      CALL rs_pw_transfer(rs_grid,coeff_rspace%pw,rs2pw)
       CALL rs_pool_give_back_rs(pool,rs_grid,error=error)
 
       CALL coeff_zero(rho0_s_gs)
@@ -313,7 +315,7 @@ MODULE qs_rho0_ggrid
       CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
 
     ELSE
-      CALL rs_pw_transfer(rs_grid,rho0_s_rs%pw,"FORWARD")
+      CALL rs_pw_transfer(rs_grid,rho0_s_rs%pw,rs2pw)
       CALL rs_pool_give_back_rs(pool,rs_grid,error=error)
 
       tot_rs_int = calculate_total_rho(rho0_s_rs)
@@ -579,7 +581,7 @@ MODULE qs_rho0_ggrid
     ! *** set up the rs grid at level igrid
     CALL rs_pool_create_rs(rs_pool,rs_v,error=error)
     CALL rs_grid_zero(rs_v)
-    CALL rs_pw_transfer(rs_v,coeff_rspace%pw,"BACKWARD")
+    CALL rs_pw_transfer(rs_v,coeff_rspace%pw,pw2rs)
 
     CALL pw_pool_give_back_coeff(pw_pool,coeff_rspace,error=error)
     DEALLOCATE(coeff_rspace, STAT=istat)

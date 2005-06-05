@@ -54,7 +54,9 @@ MODULE spme
                                              rs_grid_allocate,&
                                              rs_grid_deallocate,&
                                              rs_grid_setup,&
-                                             rs_pw_transfer
+                                             rs_pw_transfer,&
+                                             rs2pw,&
+                                             pw2rs
   USE simulation_cell,                 ONLY: cell_type
   USE termination,                     ONLY: stop_memory,&
                                              stop_program
@@ -163,7 +165,7 @@ SUBROUTINE spme_evaluate ( ewald_env, ewald_pw, particle_set, &
                            use_data = REALDATA3D, &
                            in_space = REALSPACE )
 
-  CALL rs_pw_transfer ( rden, rhob_r % pw, "FORWARD" )
+  CALL rs_pw_transfer ( rden, rhob_r % pw, rs2pw )
 
   CALL rs_grid_deallocate ( rden )
 
@@ -223,7 +225,7 @@ SUBROUTINE spme_evaluate ( ewald_env, ewald_pw, particle_set, &
                               green % p3m_charge % cr
      CALL coeff_transform_space ( dphi_g ( i ), rhob_r )
      CALL pw_pool_give_back_coeff ( pw_pool, dphi_g ( i ) )
-     CALL rs_pw_transfer ( drpot ( i ), rhob_r % pw, "BACKWARD" )
+     CALL rs_pw_transfer ( drpot ( i ), rhob_r % pw, pw2rs )
   END DO
 
   CALL pw_pool_give_back_coeff ( pw_pool, rhob_r )

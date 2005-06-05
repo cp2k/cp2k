@@ -120,7 +120,8 @@ MODULE qs_collocate_density
                                              rs_get_loop_vars,&
                                              rs_get_my_tasks,&
                                              rs_grid_zero,&
-                                             rs_pw_transfer
+                                             rs_pw_transfer,&
+                                             rs2pw
   USE simulation_cell,                 ONLY: cell_type,&
                                              pbc
   USE sparse_matrix_types,             ONLY: add_block_node,&
@@ -308,7 +309,7 @@ CONTAINS
     CALL pw_pool_init_coeff(pool=auxbas_pw_pool, coeff=rhoc_r, &
          use_data=REALDATA3D,in_space=REALSPACE, error=error)
 
-    CALL rs_pw_transfer(rs_rho,rhoc_r%pw,"FORWARD")
+    CALL rs_pw_transfer(rs_rho,rhoc_r%pw,rs2pw)
     CALL rs_pool_give_back_rs(auxbas_rs_pool,rs_rho,error=error)
 
     total_rho = calculate_total_rho(rhoc_r)
@@ -943,7 +944,7 @@ CONTAINS
         "tasks,tasks_local,ival,latom,dist_ab,dab_local,asets,atasks")
 
     IF (gridlevel_info%ngrid_levels==1) THEN
-       CALL rs_pw_transfer(rs_rho(1)%rs_grid,rho%pw,"FORWARD")
+       CALL rs_pw_transfer(rs_rho(1)%rs_grid,rho%pw,rs2pw)
        CALL rs_pools_give_back_rs_vect(rs_pools, rs_rho, error=error)
        CALL coeff_transform_space(rho,rho_gspace)
        IF (rho%pw%pw_grid%spherical) THEN ! rho_gspace = rho
@@ -952,7 +953,7 @@ CONTAINS
     ELSE
        DO igrid_level=1,gridlevel_info%ngrid_levels
           CALL rs_pw_transfer(rs_rho(igrid_level)%rs_grid,&
-               mgrid_rspace(igrid_level)%pw,"FORWARD")
+               mgrid_rspace(igrid_level)%pw,rs2pw)
        ENDDO
        CALL rs_pools_give_back_rs_vect(rs_pools, rs_rho, error=error)
 
@@ -1185,7 +1186,7 @@ CONTAINS
 
     DO igrid_level=1,gridlevel_info%ngrid_levels
        CALL rs_pw_transfer(rs_rho(igrid_level)%rs_grid,&
-            mgrid_rspace(igrid_level)%pw,"FORWARD")
+            mgrid_rspace(igrid_level)%pw,rs2pw)
     ENDDO
     
     CALL rs_pools_give_back_rs_vect(rs_pools,rs_rho,error=error)

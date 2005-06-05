@@ -89,7 +89,9 @@ MODULE kg_density
   USE realspace_grid_types,            ONLY: realspace_grid_type,&
                                              realspace_grid_p_type,&
                                              rs_grid_zero,&
-                                             rs_pw_transfer
+                                             rs_pw_transfer,&
+                                             rs2pw,&
+                                             pw2rs
   USE simulation_cell,                 ONLY: cell_type,&
                                              pbc
   USE termination,                     ONLY: stop_memory,&
@@ -295,7 +297,7 @@ CONTAINS
     IF (istat /= 0) CALL stop_memory(routine,"work")
 
     IF (gridlevel_info%ngrid_levels==1) THEN
-       CALL rs_pw_transfer(rs_rho(1)%rs_grid,rho%pw,"FORWARD")
+       CALL rs_pw_transfer(rs_rho(1)%rs_grid,rho%pw,rs2pw)
        CALL rs_pools_give_back_rs_vect(rs_pools, rs_rho, error=error)
        CALL coeff_transform_space(rho,rho_gspace)
        IF (rho%pw%pw_grid%spherical) THEN ! rho_gspace = rho
@@ -304,7 +306,7 @@ CONTAINS
     ELSE
        DO igrid_level=1,gridlevel_info%ngrid_levels
           CALL rs_pw_transfer(rs_rho(igrid_level)%rs_grid,&
-               mgrid_rspace(igrid_level)%pw,"FORWARD")
+               mgrid_rspace(igrid_level)%pw,rs2pw)
        ENDDO
        CALL rs_pools_give_back_rs_vect(rs_pools, rs_rho, error=error)
 
@@ -469,7 +471,7 @@ CONTAINS
     CALL pw_pool_init_coeff(pool=auxbas_pw_pool, coeff=rhoc_r, &
          use_data=REALDATA3D,in_space=REALSPACE,error=error)
 
-    call rs_pw_transfer(rs_rho,rhoc_r%pw,"FORWARD")
+    call rs_pw_transfer(rs_rho,rhoc_r%pw,rs2pw)
     CALL rs_pool_give_back_rs(auxbas_rs_pool,rs_rho,error=error)
 
     total_rho = calculate_total_density(rhoc_r)
@@ -675,7 +677,7 @@ CONTAINS
     IF (istat /= 0) CALL stop_memory(routine,"work")
 
     IF (gridlevel_info%ngrid_levels==1) THEN
-       CALL rs_pw_transfer(rs_rho(1)%rs_grid,rho%pw,"FORWARD")
+       CALL rs_pw_transfer(rs_rho(1)%rs_grid,rho%pw,rs2pw)
        CALL rs_pools_give_back_rs_vect(rs_pools, rs_rho, error=error)
        CALL coeff_transform_space(rho,rho_gspace)
        IF (rho%pw%pw_grid%spherical) THEN ! rho_gspace = rho
@@ -684,7 +686,7 @@ CONTAINS
     ELSE
        DO igrid_level=1,gridlevel_info%ngrid_levels
           CALL rs_pw_transfer(rs_rho(igrid_level)%rs_grid,&
-               mgrid_rspace(igrid_level)%pw,"FORWARD")
+               mgrid_rspace(igrid_level)%pw,rs2pw)
        ENDDO
        CALL rs_pools_give_back_rs_vect(rs_pools, rs_rho, error=error)
 
@@ -772,7 +774,7 @@ CONTAINS
     CALL kg_rspw_get(kg_rspw=rspw,auxbas_rs_pool=auxbas_rs_pool)
 
     CALL rs_pool_create_rs(auxbas_rs_pool,rs_v)
-    CALL rs_pw_transfer(rs_v,v_rspace%pw,"BACKWARD")
+    CALL rs_pw_transfer(rs_v,v_rspace%pw,pw2rs)
 
     nkind = SIZE(atomic_kind_set)
     natom = SIZE(particle_set)
@@ -962,7 +964,7 @@ CONTAINS
 
     DO igrid_level=1,gridlevel_info%ngrid_levels
        CALL rs_pw_transfer(rs_v(igrid_level)%rs_grid,mgrid_rspace(igrid_level)%pw,&
-                           "BACKWARD")
+                           pw2rs)
     ENDDO
 
     ! *** give back the pw multi-grids
@@ -1242,7 +1244,7 @@ CONTAINS
 
     DO igrid_level=1,gridlevel_info%ngrid_levels
        CALL rs_pw_transfer(rs_v(igrid_level)%rs_grid,mgrid_rspace(igrid_level)%pw,&
-                           "BACKWARD")
+                           pw2rs)
     ENDDO
 
     ! *** give back the pw multi-grids

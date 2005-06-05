@@ -110,7 +110,9 @@ MODULE qs_integrate_potential
                                              realspace_grid_type,&
                                              rs_get_loop_vars,&
                                              rs_get_my_tasks,&
-                                             rs_pw_transfer
+                                             rs_pw_transfer,&
+                                             rs2pw,&
+                                             pw2rs
   USE simulation_cell,                 ONLY: cell_type,&
                                              pbc
   USE sparse_matrix_types,             ONLY: add_block_node,&
@@ -190,7 +192,7 @@ CONTAINS
     CALL pw_env_get(pw_env=pw_env,auxbas_rs_pool=auxbas_rs_pool)
     CALL rs_pool_create_rs(auxbas_rs_pool,rs_v)
 
-    CALL rs_pw_transfer(rs_v,v_rspace%pw,"BACKWARD")
+    CALL rs_pw_transfer(rs_v,v_rspace%pw,pw2rs)
 
     CALL get_qs_env(qs_env=qs_env,&
                     atomic_kind_set=atomic_kind_set,&
@@ -470,7 +472,7 @@ CONTAINS
     CALL rs_pools_create_rs_vect(rs_pools, rs_v)
     DO igrid_level=1,gridlevel_info%ngrid_levels
        CALL rs_pw_transfer(rs_v(igrid_level)%rs_grid,&
-                           mgrid_rspace(igrid_level)%pw,"BACKWARD")
+                           mgrid_rspace(igrid_level)%pw,pw2rs)
     ENDDO
 
     ! *** give back the pw multi-grids

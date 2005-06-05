@@ -84,6 +84,7 @@ MODULE realspace_grid_types
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN="realspace_grid_types"
   INTEGER, SAVE, PRIVATE :: last_rs_id=0
   INTEGER, SAVE, PRIVATE :: allocated_rs_grid_count=0
+  INTEGER, PARAMETER, PUBLIC :: rs2pw=11,pw2rs=12
 
   TYPE realspace_grid_type
      INTEGER :: identifier                               ! tag of the pw_grid
@@ -495,6 +496,7 @@ CONTAINS
 !!   FUNCTION
 !!     Copy a function from/to a PW grid type to/from a real
 !!     space type 
+!!     dir is the named constant rs2pw or pw2rs
 !!
 !!   AUTHOR
 !!     JGH (18-Mar-2001)
@@ -510,22 +512,25 @@ CONTAINS
 
     TYPE(realspace_grid_type), INTENT(INOUT) :: rs
     TYPE(pw_type), INTENT(INOUT), TARGET     :: pw
-    CHARACTER(LEN=*), INTENT(IN)             :: dir
+    INTEGER, INTENT(IN)                      :: dir
 
     INTEGER                                  :: handle, handle2, nn
+    CHARACTER(LEN=100)                       :: dirname
 
 !-----------------------------------------------------------------------------!
 
     CALL timeset("rs_pw_transfer_all",'I',' ',handle2)
-    CALL timeset("rs_pw_transfer_"//dir//"_"// &
+    IF (dir.EQ.rs2pw) dirname="RS2PW"
+    IF (dir.EQ.pw2rs) dirname="PW2RS"
+    CALL timeset("rs_pw_transfer_"//dirname//"_"// &
                  TRIM(ADJUSTL(cp_to_string(pw%pw_grid%identifier))),'I',' ',handle)
 
     IF ( rs % identifier /= pw % pw_grid % identifier ) &
        CALL stop_program ( "rs_pw_transfer", "different rs and pw indentitfiers")
     IF ( (pw%in_use .NE. REALDATA3D) .AND. (pw%in_use .NE. COMPLEXDATA3D)) &
        CALL stop_program ( "rs_pw_transfer", "Need REALDATA3D or COMPLEXDATA3D" )
-    IF ( (dir.NE."BACKWARD") .AND. (dir.NE."FORWARD") ) &
-       CALL stop_program ( "rs_pw_transfer", "direction must be forward or backward")
+    IF ( (dir.NE.rs2pw) .AND. (dir.NE.pw2rs) ) &
+       CALL stop_program ( "rs_pw_transfer", "direction must be rs2pw or pw2rs")
 
     IF (  rs % parallel ) THEN
        IF ( rs % group_dim ( 1 ) == 1 ) THEN
@@ -535,7 +540,7 @@ CONTAINS
        END IF
     ELSE ! treat simple serial case locally
        nn = SIZE ( rs % r )
-       IF ( dir == "FORWARD" ) THEN
+       IF ( dir == rs2pw ) THEN
           IF ( pw % in_use == REALDATA3D ) THEN
              CALL dcopy ( nn, rs % r, 1, pw % cr3d, 1 )
           ELSEIF ( pw % in_use == COMPLEXDATA3D ) THEN
@@ -561,7 +566,7 @@ CONTAINS
   SUBROUTINE rs_pw_transfer_replicated(rs,pw,dir)
     TYPE(realspace_grid_type), INTENT(INOUT) :: rs
     TYPE(pw_type), INTENT(INOUT), TARGET     :: pw
-    CHARACTER(LEN=*), INTENT(IN)             :: dir
+    INTEGER, INTENT(IN)             :: dir
 
     INTEGER                                  :: dest, group, ierr, ii, ip, &
                                                 ix, iy, iz, mepos, nma, nn, &
@@ -589,7 +594,7 @@ CONTAINS
     IF ( ierr /= 0 ) CALL stop_memory ( "rs_pw_transfer", "sendbuf/recvbuf", 2*nma )
     grid=>rs%r
 
-    IF ( dir == "FORWARD" ) THEN
+    IF ( dir == rs2pw ) THEN
        dest  =MODULO(mepos+1,np)
        source=MODULO(mepos-1,np)
        sendbuf=0.0_dp
@@ -681,7 +686,7 @@ CONTAINS
   SUBROUTINE rs_pw_transfer_distributed(rs,pw,dir)
     TYPE(realspace_grid_type), INTENT(INOUT) :: rs
     TYPE(pw_type), INTENT(INOUT), TARGET     :: pw
-    CHARACTER(LEN=*), INTENT(IN)             :: dir
+    INTEGER, INTENT(IN)                      :: dir
 
     INTEGER                                  :: dest, group, idir, ierr, nn, &
                                                 source, subgroup
@@ -692,7 +697,7 @@ CONTAINS
 
 !Both grids are distributed, we have to do some reshuffling of data
 
-    IF ( dir == "FORWARD" ) THEN
+    IF ( dir == rs2pw ) THEN
 
        ! The border data has to be send/received from the neighbors
        ! First we calculate the source and destination processes for the shift
@@ -1037,7 +1042,7 @@ SUBROUTINE rs_pw_to_cube ( pw, iunit, ionode, title, rs )
      CALL rs_grid_allocate(rs_local)
    ENDIF
 
-   CALL rs_pw_transfer(rs_local,pw,"BACKWARD")
+   CALL rs_pw_transfer(rs_local,pw,pw2rs)
    CALL rs_grid_to_cube(rs_local,iunit,ionode,title)
 
    IF (.NOT. PRESENT(rs)) THEN

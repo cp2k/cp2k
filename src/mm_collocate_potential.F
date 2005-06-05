@@ -59,8 +59,7 @@ MODULE mm_collocate_potential
                                              realspace_grid_type,&
                                              rs_get_loop_vars,&
                                              rs_get_my_tasks,&
-                                             rs_grid_zero,&
-                                             rs_pw_transfer
+                                             rs_grid_zero
   USE cp_rs_pool_types,                ONLY: cp_rs_pool_p_type,&
                                              cp_rs_pool_type,&
                                              rs_pool_create_rs,&

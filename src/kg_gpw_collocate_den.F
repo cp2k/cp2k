@@ -96,7 +96,9 @@ MODULE kg_gpw_collocate_den
   USE realspace_grid_types,            ONLY: realspace_grid_p_type,&
                                              realspace_grid_type,&
                                              rs_grid_zero,&
-                                             rs_pw_transfer
+                                             rs_pw_transfer,&
+                                             rs2pw,&
+                                             pw2rs
   USE sparse_matrix_types,             ONLY: get_block_node,&
                                              real_matrix_p_type,&
                                              real_matrix_type
@@ -635,7 +637,7 @@ CONTAINS
     CPPostconditionNoFail(istat==0,cp_warning_level,routineP,error)
 
     IF (gridlevel_info%ngrid_levels==1) THEN
-       CALL rs_pw_transfer(rs_rho(1)%rs_grid,rho_r%pw,"FORWARD")
+       CALL rs_pw_transfer(rs_rho(1)%rs_grid,rho_r%pw,rs2pw)
        CALL rs_pools_give_back_rs_vect(rs_pools, rs_rho, error=error)
        CALL coeff_transform_space(rho_r,rho_g)
        IF (rho_r%pw%pw_grid%spherical) THEN ! rho_g = rho_r
@@ -644,7 +646,7 @@ CONTAINS
     ELSE
        DO igrid_level=1,gridlevel_info%ngrid_levels
           CALL rs_pw_transfer(rs_rho(igrid_level)%rs_grid,&
-               mgrid_rspace(igrid_level)%pw,"FORWARD")
+               mgrid_rspace(igrid_level)%pw,rs2pw)
        ENDDO
        CALL rs_pools_give_back_rs_vect(rs_pools, rs_rho, error=error)
 
@@ -899,7 +901,7 @@ CONTAINS
     CALL rs_pools_create_rs_vect(rs_pools, rs_v)
     DO igrid_level=1,gridlevel_info%ngrid_levels
        CALL rs_pw_transfer(rs_v(igrid_level)%rs_grid,&
-                           mgrid_rspace(igrid_level)%pw,"BACKWARD")
+                           mgrid_rspace(igrid_level)%pw,pw2rs)
     ENDDO
 
     ! *** give back the pw multi-grids

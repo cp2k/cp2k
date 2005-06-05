@@ -107,7 +107,8 @@ MODULE nddo_methods
   USE realspace_grid_types,            ONLY: realspace_grid_type,&
                                              rs_get_my_tasks,&
                                              rs_grid_zero,&
-                                             rs_pw_transfer
+                                             rs_pw_transfer,&
+                                             pw2rs
   USE semi_empirical_integrals,        ONLY: drotint,&
                                              rotint
   USE semi_empirical_types,            ONLY: semi_empirical_type
@@ -1607,7 +1608,7 @@ CONTAINS
     NULLIFY(rs_v)
     CALL rs_pool_create_rs(rs_pool,rs_v,error=error)
     CALL rs_grid_zero(rs_v)
-    CALL rs_pw_transfer(rs_v,v_rspace%pw,"BACKWARD")
+    CALL rs_pw_transfer(rs_v,v_rspace%pw,pw2rs)
 
     eps_rho_rspace = dft_control%qs_control%eps_rho_rspace
 

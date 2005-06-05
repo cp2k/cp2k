@@ -46,7 +46,9 @@ MODULE real_space_test
                                              rs_grid_deallocate,&
                                              rs_grid_setup,&
                                              rs_grid_zero,&
-                                             rs_pw_transfer
+                                             rs_pw_transfer,&
+                                             rs2pw,&
+                                             pw2rs
   USE simulation_cell,                 ONLY: cell_type,&
                                              get_hinv,&
                                              cell_create,&
@@ -169,7 +171,7 @@ SUBROUTINE rs_test ( globenv )
   CALL pw_allocate ( pw_a, grid, REALDATA3D )
   CALL rs_pw_get ( rden, pw_a )
   pw_a%cr3d = pw_a%cr3d**(1.0_dp/3.0_dp)
-  CALL rs_pw_transfer ( rden, pw_a, "BACKWARD" )
+  CALL rs_pw_transfer ( rden, pw_a, pw2rs )
   energy1 = 0.0_dp
   DO i = 1, nparticle
     pt = refco(:,i) - rden%lb(:) + 1
@@ -207,10 +209,10 @@ SUBROUTINE rs_test ( globenv )
     CALL put_on_grid ( rden%r, pt, no, bval(i), 0 )
   END DO
   CALL pw_allocate ( pw_b, grid, REALDATA3D )
-  CALL rs_pw_transfer ( rden, pw_b, "FORWARD" )
+  CALL rs_pw_transfer ( rden, pw_b, rs2pw )
   pw_b%cr3d = pw_b%cr3d**(1.0_dp/3.0_dp)
   CALL rs_grid_zero ( rden )
-  CALL rs_pw_transfer ( rden, pw_b, "BACKWARD" )
+  CALL rs_pw_transfer ( rden, pw_b, pw2rs )
   energy2 = 0.0_dp
   DO i = bo(1), bo(2)
     pt = refco(:,i) - rden%lb(:) + 1
@@ -262,10 +264,10 @@ SUBROUTINE rs_test ( globenv )
   DEALLOCATE ( tasks, STAT=ierr )
   IF ( ierr /= 0 ) CALL stop_memory ( "rs_test", "tasks" )
   CALL pw_allocate ( pw_c, grid, REALDATA3D )
-  CALL rs_pw_transfer ( rden, pw_c, "FORWARD" )
+  CALL rs_pw_transfer ( rden, pw_c, rs2pw )
   pw_c%cr3d = pw_c%cr3d**(1.0_dp/3.0_dp)
   CALL rs_grid_zero ( rden )
-  CALL rs_pw_transfer ( rden, pw_c, "BACKWARD" )
+  CALL rs_pw_transfer ( rden, pw_c, pw2rs )
   IF ( rden%parallel ) THEN
     CALL mp_environ ( n, me, rden%group )
   ELSE

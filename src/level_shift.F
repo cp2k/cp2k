@@ -46,7 +46,8 @@ MODULE level_shift
                                              RECIPROCALSPACE
   USE qs_rho_types,                    ONLY: qs_rho_type
   USE realspace_grid_types,            ONLY: realspace_grid_type,&
-                                             rs_pw_transfer
+                                             rs_pw_transfer,&
+                                             pw2rs
   USE simulation_cell,                 ONLY: cell_type,&
                                              pbc
   USE timings,                         ONLY: timeset,&
@@ -234,7 +235,7 @@ CONTAINS
     NULLIFY(rs_rho,auxbas_rs_pool)
     CALL pw_env_get(pw_env, auxbas_rs_pool=auxbas_rs_pool)
     CALL rs_pool_create_rs(auxbas_rs_pool,rs_rho)
-    CALL rs_pw_transfer(rs_rho,rho_r%pw,"BACKWARD")
+    CALL rs_pw_transfer(rs_rho,rho_r%pw,pw2rs)
 
     ! could all be done in parallel using the pw_grids I guess
     monopole    =0.0_dp
