@@ -3,12 +3,20 @@
   PROJECT   silica
   IOLEVEL   1
   FFTLIB    FFTSG
-  RUN_TYPE  WFN_OPT
+  RUN_TYPE  MD
 &END
 
-&PRINT LOW
- HOMO 1
- LUMO 10
+&PRINT MEDIUM
+&END
+
+&MD
+  ensemble:     nve                    ensemble type (nve,nvt,npt_i,npt_f)
+  steps:        1                     total number of steps
+  timestep:     0.5 fs                 time step [fs]
+  temperature:  298                    temperature [K]
+  restart:      init                   start type (init,pos,posvel)
+  print  files        100
+  print  screen       1
 &END
 
 &DFT
@@ -64,23 +72,23 @@
  GUESS        ATOMIC
  EPS_SCF      1.0E-6
  MIXING       0.2 
- MAX_SCF      2
+ MAX_SCF      1
 &END
 
 &KIND SI
- BASIS_SET    DZVP-GTH
+ BASIS_SET    SZV-GTH
  POTENTIAL    GTH-PADE-q4
 &END
 
 &KIND O
- BASIS_SET    DZVP-GTH
+ BASIS_SET    SZV-GTH
  POTENTIAL    GTH-PADE-q6
 &END
 
 &KIND OZ
  ELEMENT O
  CORE_CORRECTION 0.4
- BASIS_SET    DZVP-GTH
+ BASIS_SET    SZV-GTH
  POTENTIAL    GTH-PADE-q6
 &END
 
@@ -270,7 +278,7 @@
      POISSON_SOLVER MT
      &MT
       ALPHA 7.0
-      REL_CUTOFF 1.4
+      REL_CUTOFF 1.0
      &END
     &END POISSON_DFT
   &END

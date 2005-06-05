@@ -3,20 +3,12 @@
   PROJECT   silica
   IOLEVEL   1
   FFTLIB    FFTSG
-  RUN_TYPE  MD
+  RUN_TYPE  WFN_OPT
 &END
 
-&MD
-  ensemble:     nve                    ensemble type (nve,nvt,npt_i,npt_f)
-  steps:        1                     total number of steps
-  timestep:     0.5 fs                 time step [fs]
-  temperature:  298                    temperature [K]
-  restart:      init                   start type (init,pos,posvel)
-  print  files        100
-  print  screen       1
-&END
-
-&PRINT MEDIUM
+&PRINT LOW
+ HOMO 1
+ LUMO 10
 &END
 
 &DFT
@@ -72,7 +64,7 @@
  GUESS        ATOMIC
  EPS_SCF      1.0E-6
  MIXING       0.2 
- MAX_SCF      1
+ MAX_SCF      2
 &END
 
 &KIND SI
@@ -278,7 +270,7 @@
      POISSON_SOLVER MT
      &MT
       ALPHA 7.0
-      REL_CUTOFF 1.0
+      REL_CUTOFF 1.4
      &END
     &END POISSON_DFT
   &END
@@ -314,19 +306,8 @@
      &END
      &END PRINT
      #
-     #  FORCEFIELD
+     #  LINK
      #
-     &FORCEFIELD
-       &NONBONDED
-         &WILLIAMS
-           ATOM  SI OZ 
-           A     603935406. 
-           B     5.6077  
-           C     2244282.      
-           RCUT 5.0           
-         &END WILLIAMS
-       &END
-     &END
   &END QMMM
 &END FORCE_EVAL
 
