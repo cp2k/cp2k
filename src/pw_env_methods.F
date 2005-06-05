@@ -57,10 +57,11 @@ MODULE pw_env_methods
                                              init_gaussian_gridlevel
   USE green_methods,                   ONLY: pw_green_fn_rebuild,&
                                              setup_MT_ref_grid
+  USE green_types,                     ONLY: greens_function_type
   USE kinds,                           ONLY: dp
   USE l_utils,                         ONLY: init_l_info,&
-                                             l_info_retain,&
-                                             l_info_release
+                                             l_info_release,&
+                                             l_info_retain
   USE orbital_pointers,                ONLY: init_orbital_pointers
   USE pw_env_types,                    ONLY: pw_env_type
   USE pw_grid_types,                   ONLY: FULLSPACE,&
@@ -84,7 +85,6 @@ MODULE pw_env_methods
                                              stop_program
   USE timings,                         ONLY: timeset,&
                                              timestop
-  USE green_types,                     ONLY: greens_function_type
 
   IMPLICIT NONE
   PRIVATE
@@ -123,7 +123,8 @@ CONTAINS
 !!*** **********************************************************************
 SUBROUTINE pw_env_create(pw_env,qs_env,error)
     TYPE(pw_env_type), POINTER               :: pw_env
-    TYPE(qs_environment_type), OPTIONAL, POINTER :: qs_env
+    TYPE(qs_environment_type), OPTIONAL, &
+      POINTER                                :: qs_env
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
@@ -182,18 +183,17 @@ SUBROUTINE pw_env_rebuild(pw_env, qs_env, error)
       routineP = moduleN//':'//routineN
     REAL(KIND=dp), PARAMETER                 :: safety_factor = 1.2 
 
-    INTEGER :: cmax, cmaxl, handle, i, igrid_level, ikind, ipgf, iset, &
-      ishell, istat, jkind, jpgf, jset, jshell, la, lb, lgrid_level, igrid_zet0_s,&
-      lmax_rho0, maxlgto, ncommensurate, ngrid_level, nkind, nseta, nsetb, nsmax, stat,&
-      grid_span
+    INTEGER :: cmax, cmaxl, grid_span, handle, i, igrid_level, igrid_zet0_s, &
+      ikind, ipgf, iset, ishell, istat, jkind, jpgf, jset, jshell, la, lb, &
+      lgrid_level, lmax_rho0, maxlgto, ncommensurate, ngrid_level, nkind, &
+      nseta, nsetb, nsmax, stat
     INTEGER, DIMENSION(:), POINTER           :: npgfa, npgfb, nshella, nshellb
     INTEGER, DIMENSION(:, :), POINTER        :: lshella, lshellb
     LOGICAL                                  :: failure, pw_grid_information, &
                                                 use_ref_cell
     REAL(KIND=dp)                            :: alpha, cutilev, drmin, &
-                                                maxradius, rel_cutoff, &
-                                                max_rpgf0_s, zet0_s, zetp
-    TYPE(greens_function_type), POINTER      :: green
+                                                max_rpgf0_s, maxradius, &
+                                                rel_cutoff, zet0_s, zetp
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: radius
     REAL(KIND=dp), DIMENSION(:), POINTER     :: cutoff
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: zeta, zetb
@@ -206,11 +206,12 @@ SUBROUTINE pw_env_rebuild(pw_env, qs_env, error)
     TYPE(cp_rs_pool_p_type), DIMENSION(:), &
       POINTER                                :: rs_pools
     TYPE(dft_control_type), POINTER          :: dft_control
+    TYPE(greens_function_type), POINTER      :: green
     TYPE(gto_basis_set_type), POINTER        :: orb_basis_set
     TYPE(pw_grid_type), POINTER              :: old_pw_grid, pw_grid
     TYPE(pw_pool_p_type), DIMENSION(:), &
       POINTER                                :: pw_pools
-    TYPE(rho0_mpole_type), POINTER           :: rho0_mpole, nddo_mpole
+    TYPE(rho0_mpole_type), POINTER           :: nddo_mpole, rho0_mpole
 
 ! should be be avoided (see later)
 
