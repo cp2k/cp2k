@@ -55,11 +55,6 @@ MODULE mm_collocate_potential
   USE pw_env_types,                    ONLY: pw_env_get,&
                                              pw_env_type
   USE pw_types,                        ONLY: pw_type
-  USE realspace_grid_types,            ONLY: realspace_grid_p_type,&
-                                             realspace_grid_type,&
-                                             rs_get_loop_vars,&
-                                             rs_get_my_tasks,&
-                                             rs_grid_zero
   USE cp_rs_pool_types,                ONLY: cp_rs_pool_p_type,&
                                              cp_rs_pool_type,&
                                              rs_pool_create_rs,&
