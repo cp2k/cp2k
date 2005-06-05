@@ -5216,7 +5216,7 @@ SUBROUTINE create_uniaxial_section(section, error)
             n_keywords=1, n_subsections=0, repeats=.FALSE., required=.TRUE.,&
             error=error)
 
-       NULLIFY(keyword, subsection)
+       NULLIFY(keyword )
        CALL keyword_create(keyword, name="PRESSURE",&
             description="Initial pressure",&
             usage="PRESSURE real",&
@@ -5293,7 +5293,6 @@ SUBROUTINE create_barostat_section(section, error)
   CHARACTER(len=*), PARAMETER :: routineN='create_barostat_section',&
        routineP=moduleN//':'//routineN
   TYPE(keyword_type), POINTER :: keyword
-  TYPE(section_type), POINTER :: subsection
 
   failure=.false.
   
@@ -5639,7 +5638,6 @@ END SUBROUTINE create_ewald_section
     logical :: failure
     character(len=*), parameter :: routineN='create_subsys_section',&
          routineP=moduleN//':'//routineN
-    TYPE(keyword_type), pointer :: keyword
     TYPE(section_type), pointer :: subsection
 
     failure=.false.
@@ -5651,7 +5649,7 @@ END SUBROUTINE create_ewald_section
             n_keywords=5, n_subsections=0, repeats=.FALSE., required=.TRUE.,&
             error=error)
 
-       NULLIFY(subsection,keyword)
+       NULLIFY(subsection)
        CALL create_cell_section(subsection,error=error)
        CALL section_add_subsection(section,subsection,error=error)
        CALL section_release(subsection,error=error)
@@ -5901,7 +5899,7 @@ END SUBROUTINE create_ewald_section
     logical :: failure
     character(len=*), parameter :: routineN='create_qmmm_section',&
          routineP=moduleN//':'//routineN
-    TYPE(section_type), POINTER :: subsection, subsubsection 
+    TYPE(section_type), POINTER :: subsection
     TYPE(keyword_type), pointer :: keyword
 
     failure=.false.
@@ -5913,7 +5911,7 @@ END SUBROUTINE create_ewald_section
             n_keywords=6, n_subsections=3, repeats=.FALSE., required=.TRUE.,&
             error=error)
 
-       NULLIFY(keyword, subsection, subsubsection)
+       NULLIFY(keyword, subsection )
 
        CALL keyword_create(keyword, name="MM_POTENTIAL_FILE_NAME",&
             description="Name of the file containing the potential expansion in gaussians.",&
@@ -6100,11 +6098,10 @@ END SUBROUTINE create_ewald_section
     LOGICAL :: failure
     CHARACTER(len=*), PARAMETER :: routineN='create_qmmm_forcefield_section',&
          routineP=moduleN//':'//routineN
-    TYPE(keyword_type), POINTER :: keyword
-    TYPE(section_type), POINTER :: print_key, subsection
+    TYPE(section_type), POINTER :: subsection
     failure=.FALSE.
     
-    NULLIFY(keyword, subsection, print_key)
+    NULLIFY(subsection )
     CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
     IF (.NOT. failure) THEN
        CALL section_create(section,name="FORCEFIELD",&
@@ -6150,11 +6147,10 @@ END SUBROUTINE create_ewald_section
     LOGICAL :: failure
     CHARACTER(len=*), PARAMETER :: routineN='create_qmmm_ff_nb_section',&
          routineP=moduleN//':'//routineN
-    TYPE(keyword_type), POINTER :: keyword
-    TYPE(section_type), POINTER :: print_key, subsection
+    TYPE(section_type), POINTER ::  subsection
     failure=.FALSE.
     
-    NULLIFY(keyword, subsection, print_key)
+    NULLIFY(subsection )
     CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
     IF (.NOT. failure) THEN
        CALL section_create(section,name="NONBONDED",&
@@ -6204,10 +6200,10 @@ END SUBROUTINE create_ewald_section
     CHARACTER(len=*), PARAMETER :: routineN='create_qmmm_link_section',&
          routineP=moduleN//':'//routineN
     TYPE(keyword_type), POINTER :: keyword
-    TYPE(section_type), POINTER :: print_key, subsection
+    TYPE(section_type), POINTER :: subsection
     failure=.FALSE.
     
-    NULLIFY(keyword, subsection, print_key)
+    NULLIFY(keyword, subsection )
     CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
     IF (.NOT. failure) THEN
        CALL section_create(section,name="LINK",&

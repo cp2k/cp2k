@@ -108,8 +108,6 @@ CONTAINS
     INTEGER                                  :: n_ev, i, restarts, out_unit
     LOGICAL                                  :: do_kernel_save, ionode, failure
     REAL(KIND=dp), DIMENSION(:), ALLOCATABLE :: ievals
-    TYPE(cp_fm_pool_p_type), DIMENSION(:), &
-      POINTER                                :: ao_mo_fm_pools
     TYPE(cp_logger_type), POINTER            :: logger
 
     CHARACTER(len=*), PARAMETER :: routineN = "eigensolver", &
@@ -117,7 +115,7 @@ CONTAINS
 
     CALL timeset(routineN,"I","",handle)
 
-    NULLIFY(ao_mo_fm_pools,logger)
+    NULLIFY(logger)
     failure   = .FALSE.
 
     logger    => cp_error_get_logger(error)

@@ -1345,7 +1345,6 @@ END SUBROUTINE p_env_did_change
     INTEGER, SAVE                            :: iter = 0
     LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: maxocc, my_alpha, my_beta
-    TYPE(cp_logger_type), POINTER            :: logger
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(mo_set_p_type), DIMENSION(:), &
@@ -1365,7 +1364,6 @@ END SUBROUTINE p_env_did_change
 
     iter=iter+1
     NULLIFY(p1_new, matrix_s, dft_control, para_env, rho, mos)
-    logger => cp_error_get_logger(error)
 
     CPPrecondition(ASSOCIATED(p_env),cp_failure_level,routineP,error,failure)
     CPPrecondition(p_env%ref_count>0,cp_failure_level,routineP,error,failure)

@@ -124,9 +124,7 @@ CONTAINS
     LOGICAL, DIMENSION(4)                    :: my_subsection
     TYPE(section_vals_type), POINTER         :: distance_section, angle_section,&
                                                 torsion_section, coordination_section    
-    INTEGER, DIMENSION(:), POINTER           :: iatms
 
-    NULLIFY(iatms)
     failure=.FALSE.
     n_opt=0
     n_opt_cv=0

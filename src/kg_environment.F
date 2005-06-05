@@ -474,7 +474,6 @@ CONTAINS
     TYPE(kg_fm_p_type), POINTER              :: kg_fm
     TYPE(kg_fm_mol_set_type), POINTER        :: fm_mol_set
     TYPE(kg_sub_pw_env_type), POINTER        :: kg_sub_pw_env
-    TYPE(kg_molbox_env_type), POINTER        :: molbox_env
     TYPE(molecule_kind_type), DIMENSION(:), &
       POINTER                                :: molecule_kind_set
     TYPE(molecule_kind_type), POINTER        :: molecule_kind
@@ -635,7 +634,6 @@ CONTAINS
                               maxocc_global=maxocc_global,&
                               error=error)
       ! Initialize the local cell and the pw_env for each molecule kind
-      molbox_env => kg_sub_pw_env%molbox_env_set(imolecule_kind)
       fm_mol_set => kg_fm%kg_fm_mol_set(imolecule_kind) 
       CALL build_molbox_env(kg_sub_pw_env%molbox_env_set(imolecule_kind),&
                             fm_mol_set,qs_env,poisson_section=poisson_section,&

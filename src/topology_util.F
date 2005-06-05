@@ -3483,7 +3483,6 @@ SUBROUTINE topology_constraint_pack ( molecule_kind_set,molecule_set,&
   TYPE ( local_dist_constraint_type ), DIMENSION ( : ) , POINTER :: ldist
   TYPE ( local_g3x3_constraint_type ), DIMENSION ( : ) , POINTER :: lg3x3
   TYPE ( local_g4x6_constraint_type ), DIMENSION ( : ) , POINTER :: lg4x6
-  TYPE(atom_info_type),POINTER     :: atom_info
 
 !------------------------------------------------------------------------------
 !------------------------------------------------------------------------------
@@ -3504,7 +3503,6 @@ SUBROUTINE topology_constraint_pack ( molecule_kind_set,molecule_set,&
   IF(PM1) WRITE(iw,*) "  Entering topology_constraint_pack"
 
   cons_info => topology%cons_info
-  atom_info => topology%atom_info
   
   !-----------------------------------------------------------------------------
   !-----------------------------------------------------------------------------

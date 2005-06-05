@@ -3120,13 +3120,11 @@ END FUNCTION xc_exc_calc
     INTEGER, DIMENSION(2, 3)                 :: bo
     LOGICAL                                  :: failure, lsd
     TYPE(pw_p_type), DIMENSION(:), POINTER   :: rho_g, rho_r_pw, tau
-    TYPE(pw_type), POINTER                   :: tmp_g, tmp_r
     TYPE(xc_control_type)                    :: xc_control
 
     CALL timeset(routineN,"I","",handle)
 
     failure=.FALSE.
-    NULLIFY(tmp_g, tmp_r)
 
     CPPrecondition(.NOT.ASSOCIATED(rho_set),cp_failure_level,routineP,error,failure)
     CPPrecondition(ASSOCIATED(dft_control),cp_failure_level,routineP,error,failure)

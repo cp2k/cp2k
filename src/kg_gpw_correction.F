@@ -187,7 +187,6 @@ CONTAINS
 
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                    :: atomic_kind_set
-    TYPE(atomic_kind_type), POINTER              :: atomic_kind
     TYPE(cell_type), POINTER                     :: cell_mol
     TYPE(coeff_type), DIMENSION(:), POINTER      :: vxc_rho, vxc_tau
     TYPE(cp_para_env_type), POINTER              :: para_env
@@ -219,7 +218,7 @@ CONTAINS
     ! initialize to zero
     ekin_mol = 0.0_dp
 
-    NULLIFY(atomic_kind_set,atomic_kind,particle_set,para_env,vxc_tau,tau)
+    NULLIFY(atomic_kind_set,particle_set,para_env,vxc_tau,tau)
     NULLIFY(dft_control,rho_global,rho_g,rho_r,my_vxc_rho,my_vxc_tau)
 
     CALL get_qs_env(qs_env=qs_env, atomic_kind_set=atomic_kind_set,&
