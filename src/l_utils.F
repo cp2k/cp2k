@@ -26,22 +26,22 @@ MODULE l_utils
             l_info_release, l_set_info_type, l_info_retain
    
    TYPE l_set_info_type
-        integer                        :: lx_max,lxy_max,lxyz_max
-        integer, pointer, dimension(:) :: ly_max,lz_max
+        INTEGER                        :: lx_max,lxy_max,lxyz_max
+        INTEGER, POINTER, DIMENSION(:) :: ly_max,lz_max
 
-        integer, pointer, dimension(:,:)  :: map
-        real(KIND = dp), pointer, dimension(:,:) :: polx,poly,polz,alpha, &
+        INTEGER, POINTER, DIMENSION(:,:)  :: map
+        REAL(KIND = dp), POINTER, DIMENSION(:,:) :: polx,poly,polz,alpha, &
                                              dpy,dpz
-        real(KIND = dp), pointer, dimension(:)   :: pzyx
-        integer,  pointer, dimension(:,:,:,:,:,:)   :: ipzyx
+        REAL(KIND = dp), POINTER, DIMENSION(:)   :: pzyx
+        INTEGER,  POINTER, DIMENSION(:,:,:,:,:,:)   :: ipzyx
    END TYPE
 
    TYPE l_info_type
-        integer :: lmax
-        integer :: cmax
-        integer :: nthread
-        integer :: ref_count
-        TYPE(l_set_info_type), pointer, dimension(:,:,:,:,:) :: data
+        INTEGER :: lmax
+        INTEGER :: cmax
+        INTEGER :: nthread
+        INTEGER :: ref_count
+        TYPE(l_set_info_type), POINTER, DIMENSION(:,:,:,:,:) :: DATA
    END TYPE
 
 CONTAINS
@@ -49,25 +49,25 @@ CONTAINS
    SUBROUTINE return_l_info(l_info,la_min,la_max,lb_min,lb_max,ithread, &
                             lx_max,lxy_max,lxyz_max,ly_max,lz_max,&
                             map,polx,poly,polz,dpy,dpz,alpha,pzyx,ipzyx,cmax)
-    type(l_info_type)                        :: l_info
-    integer                                  :: la_min, la_max, lb_min, &
+    TYPE(l_info_type)                        :: l_info
+    INTEGER                                  :: la_min, la_max, lb_min, &
                                                 lb_max, ithread, lx_max, &
                                                 lxy_max, lxyz_max
-    integer, dimension(:), pointer           :: ly_max, lz_max
-    integer, dimension(:, :), pointer        :: map
-    real(KIND=dp), dimension(:, :), pointer  :: polx, poly, polz, dpy, dpz, &
+    INTEGER, DIMENSION(:), POINTER           :: ly_max, lz_max
+    INTEGER, DIMENSION(:, :), POINTER        :: map
+    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: polx, poly, polz, dpy, dpz, &
                                                 alpha
-    real(KIND=dp), dimension(:), pointer     :: pzyx
-    integer, dimension(:, :, :, :, :, :), &
-      pointer                                :: ipzyx
-    integer                                  :: cmax
+    REAL(KIND=dp), DIMENSION(:), POINTER     :: pzyx
+    INTEGER, DIMENSION(:, :, :, :, :, :), &
+      POINTER                                :: ipzyx
+    INTEGER                                  :: cmax
 
-      if (la_max.gt.l_info%lmax .or. lb_max.gt.l_info%lmax) then
+      IF (la_max.gt.l_info%lmax .OR. lb_max.gt.l_info%lmax) THEN
         CALL stop_program("return_l_info","called with l too large")
-      endif
-      if (ithread.ge.l_info%nthread) then
+      ENDIF
+      IF (ithread.ge.l_info%nthread) THEN
         CALL stop_program("return_l_info","called with ithread too large")
-      endif
+      ENDIF
       lx_max=l_info%data(la_min,la_max,lb_min,lb_max,ithread)%lx_max
       lxy_max=l_info%data(la_min,la_max,lb_min,lb_max,ithread)%lxy_max
       lxyz_max=l_info%data(la_min,la_max,lb_min,lb_max,ithread)%lxyz_max
@@ -89,12 +89,12 @@ CONTAINS
 ! really not so elegant...
 ! the nthread argument is optional, the right number of threads should be determined automatically
    SUBROUTINE init_l_info(l_info,lmax,cmax,nthread,lrho0)
-    type(l_info_type)                        :: l_info
-    integer                                  :: lmax, cmax
-    integer, optional                        :: nthread
+    TYPE(l_info_type)                        :: l_info
+    INTEGER                                  :: lmax, cmax
+    INTEGER, OPTIONAL                        :: nthread
     LOGICAL, INTENT(in), OPTIONAL            :: lrho0
 
-    integer                                  :: handle, ithread, la_max, &
+    INTEGER                                  :: handle, ithread, la_max, &
                                                 la_min, lb_max, lb_min, &
                                                 nthread_l
     LOGICAL                                  :: my_lrho0
@@ -118,13 +118,13 @@ CONTAINS
 
       IF(my_lrho0) THEN
 
-      allocate(l_info%data(0:lmax,0:lmax,0:0,0:0,0:nthread_l-1))
+      ALLOCATE(l_info%data(0:lmax,0:lmax,0:0,0:0,0:nthread_l-1))
       DO ithread=0,nthread_l-1
       DO lb_max=0,0
       DO lb_min=0,lb_max
       DO la_max=0,lmax
       DO la_min=0,la_max
-         call init_l_set_info_type(la_min,la_max,lb_min,lb_max,cmax, &
+         CALL init_l_set_info_type(la_min,la_max,lb_min,lb_max,cmax, &
                                    l_info%data(la_min,la_max,lb_min,lb_max,ithread))       
       ENDDO
       ENDDO
@@ -134,13 +134,13 @@ CONTAINS
 
       ELSE
 
-      allocate(l_info%data(0:lmax,0:lmax,0:lmax,0:lmax,0:nthread_l-1))
+      ALLOCATE(l_info%data(0:lmax,0:lmax,0:lmax,0:lmax,0:nthread_l-1))
       DO ithread=0,nthread_l-1
       DO lb_max=0,lmax
       DO lb_min=0,lb_max
       DO la_max=0,lmax
       DO la_min=0,la_max
-         call init_l_set_info_type(la_min,la_max,lb_min,lb_max,cmax, &
+         CALL init_l_set_info_type(la_min,la_max,lb_min,lb_max,cmax, &
                                    l_info%data(la_min,la_max,lb_min,lb_max,ithread))       
       ENDDO
       ENDDO
@@ -152,9 +152,9 @@ CONTAINS
    END SUBROUTINE
 
    SUBROUTINE destroy_l_info(l_info)
-    type(l_info_type)                        :: l_info
+    TYPE(l_info_type)                        :: l_info
 
-    integer                                  :: istat, ithread, la_max, &
+    INTEGER                                  :: istat, ithread, la_max, &
                                                 la_min, lb_max, lb_min
 
       DO ithread=0,l_info%nthread-1
@@ -162,22 +162,22 @@ CONTAINS
       DO lb_min=0,lb_max
       DO la_max=0,l_info%lmax
       DO la_min=0,la_max
-         call destroy_l_set_info_type(l_info%data(la_min,la_max,lb_min,lb_max,ithread))
+         CALL destroy_l_set_info_type(l_info%data(la_min,la_max,lb_min,lb_max,ithread))
       ENDDO
       ENDDO
       ENDDO
       ENDDO
       ENDDO
-      deallocate(l_info%data,STAT=istat)
+      DEALLOCATE(l_info%data,STAT=istat)
       IF (istat /= 0) CALL stop_memory("destroy_l_info","l_info%data")
    END SUBROUTINE
 
    SUBROUTINE init_l_set_info_type(la_min,la_max,lb_min,lb_max,cmax,l_set_info)
-    integer                                  :: la_min, la_max, lb_min, &
+    INTEGER                                  :: la_min, la_max, lb_min, &
                                                 lb_max, cmax
     TYPE(l_set_info_type)                    :: l_set_info
 
-    integer                                  :: coef_max, lx, lxa, lxb, lxy, &
+    INTEGER                                  :: coef_max, lx, lxa, lxb, lxy, &
                                                 lxyz, lya, lyb, lza, lzb
 
       coef_max=la_max+lb_max+1
@@ -191,8 +191,8 @@ CONTAINS
          DO lya=0,la_max-lxa
          DO lyb=0,lb_max-lxb
             l_set_info%lxy_max=l_set_info%lxy_max+1
-            DO lza=max(la_min-lxa-lya,0),la_max-lxa-lya
-            DO lzb=max(lb_min-lxb-lyb,0),lb_max-lxb-lyb
+            DO lza=MAX(la_min-lxa-lya,0),la_max-lxa-lya
+            DO lzb=MAX(lb_min-lxb-lyb,0),lb_max-lxb-lyb
                l_set_info%lxyz_max=l_set_info%lxyz_max+1
             ENDDO
             ENDDO
@@ -200,16 +200,16 @@ CONTAINS
          ENDDO
       ENDDO
       ENDDO
-      allocate(l_set_info%ly_max(l_set_info%lx_max),l_set_info%lz_max(l_set_info%lxy_max))
-      allocate(l_set_info%map(-cmax:cmax,1:3),&
+      ALLOCATE(l_set_info%ly_max(l_set_info%lx_max),l_set_info%lz_max(l_set_info%lxy_max))
+      ALLOCATE(l_set_info%map(-cmax:cmax,1:3),&
       l_set_info%pzyx(l_set_info%lxyz_max),&
       l_set_info%ipzyx(0:la_max,0:la_max,0:la_max,&
                        0:lb_max,0:lb_max,0:lb_max),&
       l_set_info%polz(l_set_info%lxyz_max,-cmax:cmax))
-      allocate(l_set_info%poly(l_set_info%lxy_max,-cmax:cmax),&
+      ALLOCATE(l_set_info%poly(l_set_info%lxy_max,-cmax:cmax),&
       l_set_info%polx(coef_max,-cmax:cmax),&
       l_set_info%alpha(coef_max,l_set_info%lx_max))
-      allocate(l_set_info%dpy(0:lb_max,0:la_max),&
+      ALLOCATE(l_set_info%dpy(0:lb_max,0:la_max),&
       l_set_info%dpz(0:lb_max,0:la_max))
       l_set_info%ly_max(:)=0
       l_set_info%lz_max(:)=0
@@ -223,8 +223,8 @@ CONTAINS
          DO lyb=0,lb_max-lxb
             lxy=lxy+1
             l_set_info%ly_max(lx)=l_set_info%ly_max(lx)+1
-            DO lza=max(la_min-lxa-lya,0),la_max-lxa-lya
-            DO lzb=max(lb_min-lxb-lyb,0),lb_max-lxb-lyb
+            DO lza=MAX(la_min-lxa-lya,0),la_max-lxa-lya
+            DO lzb=MAX(lb_min-lxb-lyb,0),lb_max-lxb-lyb
                lxyz=lxyz+1
                l_set_info%lz_max(lxy)=l_set_info%lz_max(lxy)+1
                l_set_info%ipzyx(lxa,lya,lza,lxb,lyb,lzb)=lxyz 
@@ -242,7 +242,7 @@ CONTAINS
 
     INTEGER                                  :: istat
 
-      deallocate(l_set_info%ly_max,l_set_info%lz_max,l_set_info%map,&
+      DEALLOCATE(l_set_info%ly_max,l_set_info%lz_max,l_set_info%map,&
                  l_set_info%polz,l_set_info%poly,l_set_info%polx,&
                  l_set_info%dpy,l_set_info%dpz,l_set_info%pzyx,&
                  l_set_info%ipzyx,l_set_info%alpha,STAT=istat)
@@ -270,16 +270,15 @@ CONTAINS
   END SUBROUTINE l_info_retain
 
   SUBROUTINE l_info_release(l_info,error)
-    TYPE(l_info_type), POINTER                 :: l_info
+    TYPE(l_info_type), POINTER               :: l_info
     TYPE(cp_error_type), INTENT(inout), &
-         OPTIONAL                               :: error
-    
+      OPTIONAL                               :: error
+
     CHARACTER(len=*), PARAMETER :: routineN = 'l_info_release', &
-         routineP = module_name//':'//routineN
-    
-    INTEGER                                  :: stat
+      routineP = module_name//':'//routineN
+
     LOGICAL                                  :: failure
-    
+
     failure=.FALSE.
     
     IF (ASSOCIATED(l_info)) THEN
