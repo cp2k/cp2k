@@ -262,8 +262,6 @@ SUBROUTINE read_topology_section ( topology, globenv )
               CALL stop_parser( 'read_topology_section', &
                                 'unknown option nhc opt' )
            END IF
-        CASE ('CONSTRAINT')
-              topology % constraint = .TRUE.
         CASE DEFAULT
            IF(PM1)  WRITE(iw,*) "read_topology_section unknown option"//string
         END SELECT
@@ -367,17 +365,14 @@ SUBROUTINE read_constraints_section(topology, globenv, constraint_section, error
         CALL uppercase ( string )
 
         IF ( INDEX ( string, 'ATOM' ) /= 0 ) THEN
-           topology%constraint=.TRUE.
            topology%const_atom=.TRUE.
            CALL stop_program ( "read_constraints_section", &
                                "CONATOM not done yet " )
         ELSE IF ( INDEX ( string, 'CONHYDR' ) /= 0 ) THEN
-           topology%constraint=.TRUE.
            topology%const_hydr=.TRUE.
            CALL stop_program ( "read_constraints_section", &
                "CONHYDR will not work until force field is completed " )
         ELSE IF ( INDEX ( string, 'DIST' ) /= 0 ) THEN
-           topology%constraint=.TRUE.
            topology%const_dist=.TRUE.
            ilen = 40
            CALL get_next(string,ilen)
@@ -393,7 +388,6 @@ SUBROUTINE read_constraints_section(topology, globenv, constraint_section, error
            CALL get_next(cons_info%const_dist_dab(i))
            cons_info%nconst_dist = i
         ELSE IF ( INDEX ( string, 'G3X3' ) /= 0 ) THEN
-           topology%constraint=.TRUE.
            topology%const_33=.TRUE.
            ilen = 40
            CALL get_next(string,ilen)
@@ -415,7 +409,6 @@ SUBROUTINE read_constraints_section(topology, globenv, constraint_section, error
            CALL get_next(cons_info%const_g33_dbc(i))
            cons_info%nconst_g33 = i
         ELSE IF ( INDEX ( string, 'G4X6' ) /= 0 ) THEN
-           topology%constraint=.TRUE.
            topology%const_46=.TRUE.
            ilen = 40
            CALL get_next(string,ilen)
@@ -506,7 +499,6 @@ SUBROUTINE read_constraints_section_new(topology, constraint_section, error)
      ! G3X3
      CALL section_vals_get(g3x3_section,explicit=explicit, n_repetition=ncons, error=error)
      IF (explicit) THEN
-        topology%constraint  =.TRUE.
         topology%const_33    =.TRUE.
         cons_info%nconst_g33 =ncons
         !
@@ -543,7 +535,6 @@ SUBROUTINE read_constraints_section_new(topology, constraint_section, error)
      ! G4X6
      CALL section_vals_get(g4x6_section,explicit=explicit, n_repetition=ncons, error=error)
      IF (explicit) THEN
-        topology%constraint =.TRUE.
         topology%const_46   =.TRUE.
         cons_info%nconst_g46 = ncons
         !
@@ -622,7 +613,6 @@ SUBROUTINE read_constraints_section_new(topology, constraint_section, error)
            cons_info%freeze_qm = cons_info%freeze_qm .OR. freeze_qm
         END DO
         IF (isize /= 0 .OR. cons_info%freeze_mm .OR. cons_info%freeze_qm ) THEN
-           topology%constraint    = .TRUE.
            topology%const_atom    = .TRUE.
            cons_info%nfixed_atoms =  isize
         END IF

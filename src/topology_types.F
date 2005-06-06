@@ -143,7 +143,6 @@ MODULE topology_types
     CHARACTER (LEN=default_string_length)     :: coord_file_name
     CHARACTER (LEN=default_string_length)     :: conn_type
     CHARACTER (LEN=default_string_length)     :: conn_file_name
-    LOGICAL                                   :: constraint
     LOGICAL                                   :: const_atom
     LOGICAL                                   :: const_hydr
     LOGICAL                                   :: const_dist
@@ -230,7 +229,6 @@ SUBROUTINE init_topology (topology)
   topology%coord_file_name=''
   topology%conn_type='GENERATE'
   topology%conn_file_name='OFF'
-  topology%constraint=.FALSE.
   topology%const_atom=.FALSE.
   topology%const_hydr=.FALSE.
   topology%const_dist=.FALSE.
