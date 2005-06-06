@@ -72,8 +72,7 @@ MODULE xas_tp_scf
   USE qs_rho_types,                    ONLY: qs_rho_type
   USE qs_scf,                          ONLY: eigensolver,&
                                              init_scf_run,&
-                                             scf_env_density_mixing,&
-                                             simple_eigensolver
+                                             scf_env_density_mixing
   USE qs_scf_types,                    ONLY: ao_mixing_nr,&
                                              special_diag_method_nr,&
                                              general_diag_method_nr,&
@@ -394,11 +393,7 @@ CONTAINS
          CASE(ot_method_nr) ! orbital transforms
 ! in case of LSD the first spin qs_ot_env will drive the minimization
 ! in the case of a restricted calculation, it will make sure the spin orbitals are equal
-            IF (has_unit_metric) THEN
-               NULLIFY(orthogonality_metric)
-            ELSE
-               orthogonality_metric=>matrix_s(1)%matrix
-            ENDIF
+            orthogonality_metric=>matrix_s(1)%matrix
 
             CALL ot_scf_mini(mos,qs_env%mo_derivs,orthogonality_metric, &
                              energy%total, energy_only,scf_env%iter_delta, &
