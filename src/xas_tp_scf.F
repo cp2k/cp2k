@@ -175,12 +175,11 @@ CONTAINS
     TYPE(real_matrix_p_type), DIMENSION(:), &
       POINTER                                :: matrix_h, matrix_ks, matrix_p, matrix_s
     TYPE(scf_control_type), POINTER          :: scf_control
-    LOGICAL                                  :: has_unit_metric
     TYPE(real_matrix_type), POINTER          :: orthogonality_metric
 
     NULLIFY(dft_control,matrix_h,matrix_s,matrix_ks,matrix_p,rho,energy,scf_control,logger,&
-         ks_env,mos,atomic_kind_set,particle_set,&
-         scf_work1,ortho,scf_work2,excvec_coeff,excvec_overlap)
+         ks_env,mos,atomic_kind_set,particle_set,vecbuffer, occupation_numbers,&
+         scf_work1,ortho,scf_work2,excvec_coeff,excvec_overlap,mo_coeff)
     logger => cp_error_get_logger(error)
     t1 = m_walltime()
     failure=.FALSE.
