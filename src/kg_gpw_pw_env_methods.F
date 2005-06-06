@@ -927,6 +927,8 @@ CONTAINS
 !   ---------------------------------------------------------------------------
 
     failure = .FALSE.
+    my_rebuild_grids = .FALSE.
+    my_rebuild_ao = .FALSE.
     CALL timeset(routineN,'I',' ',handle)
 
     CPPrecondition(kg_sub_pw_env%ref_count>0,cp_failure_level,routineP,error,failure)
