@@ -83,6 +83,7 @@ MODULE xas_control
     INTEGER                             :: nexc_search
     INTEGER                             :: state_type
     INTEGER                             :: xas_method
+    INTEGER                             :: dipole_form
     INTEGER                             :: lb_atom, ub_atom
     INTEGER, DIMENSION(:), POINTER      :: exc_atoms 
     LOGICAL                             :: localized_wfn
@@ -100,7 +101,7 @@ MODULE xas_control
 
 ! *** Public subroutines ***
 
-  PUBLIC :: read_xas_control_new, read_xas_control_old, xas_control_create, &
+  PUBLIC :: read_xas_control_new, xas_control_create, &
             xas_control_release, xas_control_retain
 
 !!***
@@ -141,6 +142,9 @@ CONTAINS
 
     CALL section_vals_val_get(xas_section,"METHOD",&
          i_val=xas_control%xas_method,error=error)
+
+    CALL section_vals_val_get(xas_section,"DIPOLE_FORM",&
+         i_val=xas_control%dipole_form,error=error)
 
     CALL section_vals_val_get(xas_section,"MAXSTEP",&
          i_val=xas_control%max_scf,error=error)
@@ -205,122 +209,6 @@ CONTAINS
     end if
 
   END SUBROUTINE read_xas_control_new
-
-
-!!****f* xas_control/read_xas_control_old
-!!
-!!   NAME
-!!      read_xas_control_old
-!!   FUNCTION
-!!      read the xas_control parameters from input, in the old fashion
-!!   NOTES
-!!
-!!   INPUTS
-!!
-!!   MODIFICATION HISTORY
-!!     05.2005 created [MI]
-!!
-!!   SOURCE
-!!*** **********************************************************************
-
-  SUBROUTINE read_xas_control_old(xas_control,string,error)
-
-    TYPE(xas_control_type), POINTER           :: xas_control
-    CHARACTER(LEN=60)                         :: string
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                                :: error
-
-    CHARACTER(LEN=*), PARAMETER ::  routineN = "read_xas_control_old", &
-      routineP = moduleN//"/"//routineN
-
-    CHARACTER(LEN=60)                         :: str1
-    INTEGER                                   :: i, istat, nat_now
-    LOGICAL :: failure  
-
-    failure = .FALSE.
-
-    SELECT CASE (TRIM(string))
-    CASE ("NONE")
-      xas_control%xas_method=xas_none
-    CASE ("TP_HH")
-       xas_control%xas_method=xas_tp_hh
-    CASE ("TP_FH")
-       xas_control%xas_method=xas_tp_fh
-    CASE ("TDDFT")
-       xas_control%xas_method=xas_tddft
-    CASE ("LOCALIZED")
-       xas_control%localized_wfn=.TRUE.
-       CALL read_loc_control_old(xas_control%localized_wfn_control,test_object())
-    CASE ("MAXSTEP")
-       CALL read_object(xas_control%max_scf)
-    CASE ("CONVERGENCE")
-       CALL read_object(xas_control%eps_scf)
-    CASE ("EACH_STEP")
-       CALL read_object(xas_control%each_step)
-    CASE ("FNAME")
-       CALL read_object(xas_control%xas_rootfname)
-    CASE ("STATE_TYPE")
-       CALL read_object(str1,lower_to_upper=.TRUE.)
-       SELECT CASE (str1)
-       CASE("1S")
-          xas_control%state_type = xas_1s_type
-       CASE("2S")
-          xas_control%state_type = xas_2s_type
-       CASE DEFAULT
-         CALL stop_parser(routineP,"unexpected data following XAS STATE_TYPE")
-       END SELECT
-    CASE ("STATE_SEARCH")
-       CALL read_object(xas_control%nexc_search)
-    CASE ("ATOMS")
-       CALL read_object(str1,lower_to_upper=.TRUE.)
-       SELECT CASE (str1)
-       CASE("ITOJ")
-         CALL read_object(xas_control%lb_atom)
-         CALL read_object(xas_control%ub_atom)
-         xas_control%nexc_atoms = &
-             xas_control%ub_atom - xas_control%lb_atom + 1
-         IF(ASSOCIATED(xas_control%exc_atoms))  THEN
-            DEALLOCATE(xas_control%exc_atoms, STAT=istat)
-            CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
-         END IF
-         ALLOCATE(xas_control%exc_atoms(xas_control%nexc_atoms),STAT=istat)
-         CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
-         DO i = 1,xas_control%nexc_atoms
-           xas_control%exc_atoms(i) = xas_control%lb_atom + (i-1)
-         END DO
-       CASE("LIST")
-         IF(.NOT.ASSOCIATED(xas_control%exc_atoms)) THEN
-            ALLOCATE(xas_control%exc_atoms(50),STAT=istat)
-            CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
-            xas_control%exc_atoms = 0
-            nat_now = 0
-         ELSE
-            nat_now = SIZE(xas_control%exc_atoms,1)
-            CALL reallocate(xas_control%exc_atoms,1,50+nat_now)
-         ENDIF
-         DO
-           IF(test_object()=="EOL") THEN
-               EXIT
-           ELSE
-             nat_now = nat_now + 1
-             IF(nat_now > SIZE(xas_control%exc_atoms,1))THEN
-               CALL reallocate(xas_control%exc_atoms,1,nat_now)
-             END IF
-             CALL read_object(xas_control%exc_atoms(nat_now))
-           END IF
-         END DO
-         CALL reallocate(xas_control%exc_atoms,1,nat_now)
-         xas_control%nexc_atoms = nat_now
-       CASE DEFAULT
-         CALL stop_parser(routineP,"unexpected data following XAS ATOMS")
-       END SELECT
-       
-    CASE DEFAULT
-      CALL stop_program(routineP,"UNKNOWN XAS KEYWORD "//&
-           TRIM(string))
-    END SELECT
-
-  END SUBROUTINE read_xas_control_old
 
 
 !****f* xas_control/xas_control_create/retain/release *

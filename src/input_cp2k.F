@@ -305,14 +305,14 @@ contains
 
     CALL keyword_create(keyword, name="ERROR_FILE_NAME",&
          description="Name of the error file.",&
-         usage="ERROR_FILE_NAME {filename}",&
+         usage="ERROR_FILE_NAME <filename>",&
          default_c_val="ERROR",error=error)
     CALL section_add_keyword(section,keyword,error=error)
     CALL keyword_release(keyword,error=error)
 
     CALL keyword_create(keyword, name="RESTART_FILE_NAME",&
          description="Name of the restart file.",&
-         usage="RESTART_FILE_NAME {filename}",&
+         usage="RESTART_FILE_NAME <filename>",&
          default_c_val="RESTART",error=error)
     CALL section_add_keyword(section,keyword,error=error)
     CALL keyword_release(keyword,error=error)
@@ -499,12 +499,12 @@ contains
 !***************************************************************************
 
 
-!****f* input_cp2k/create_xas_section *
+!****f* input_cp2k/create_localize_section *
 !!
 !!   NAME
-!!     create_xas_section
+!!     create_localize_section
 !!   FUNCTION
-!!     makes the x-ray absorption section
+!!     parameters fo the localization of wavefunctions
 !!   NOTES
 !!
 !!   INPUTS
@@ -623,7 +623,8 @@ contains
 !!     create_print_dft_section
 !!
 !!   FUNCTION
-!!     Create the print dft section
+!!     Create the forcefield section. This section is useful to set up the
+!!     proper force_field for FIST calculations
 !!
 !!   NOTES
 !!     -
@@ -1012,14 +1013,14 @@ contains
 
        CALL keyword_create(keyword, name="NUMBER_ORBITALS",&
             description="Specify the number of orbitals to print (counting from HOMO to the lowest orbital)",&
-            usage="NUMBER_ORBITALS {integer}",&
+            usage="NUMBER_ORBITALS <integer>",&
             default_i_val=5,error=error)
        CALL section_add_keyword(print_key,keyword,error=error)
        CALL keyword_release(keyword,error=error)       
 
        CALL keyword_create(keyword, name="ORBITAL_NUMBER",&
             description="Specify the orbital number to print.",&
-            usage="ORBITAL_NUMBER {integer} .. {integer}",&
+            usage="ORBITAL_NUMBER <integer> .. <integer>",&
             required=.TRUE., type_of_var=integer_t, n_var=-1, error=error)
        CALL section_add_keyword(print_key,keyword,error=error)
        CALL keyword_release(keyword,error=error)       
@@ -2217,63 +2218,63 @@ SUBROUTINE create_tddfpt_section(section,error)
 
        CALL keyword_create(keyword, name="NSTEP",&
             description="Specifies the number of MC cycles.",&
-            usage="NSTEP {integer}",&
+            usage="NSTEP <integer>",&
             default_i_val=100,error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
        CALL keyword_create(keyword, name="NMOVES",&
             description="Specifies the number of classical moves between energy evaluations. ",&
-            usage="NMOVES {integer}",&
+            usage="NMOVES <integer>",&
             default_i_val=4,error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)       
 
        CALL keyword_create(keyword, name="NVOLMOVES",&
             description="How many classical volume moves to bias with.",&
-            usage="NVOLMOVES {integer}",&
+            usage="NVOLMOVES <integer>",&
             default_i_val=1,error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)       
 
        CALL keyword_create(keyword, name="NSWAPMOVES",&
             description="How many classical swap moves to try per QS swap move.",&
-            usage="NSWAPMOVES {integer}",&
+            usage="NSWAPMOVES <integer>",&
             default_i_val=16,error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)      
 
        CALL keyword_create(keyword, name="LSTOP",&
             description="Makes nstep in terms of steps, instead of cycles.",&
-            usage="LSTOP {logical}",&
+            usage="LSTOP <logical>",&
             default_l_val=.FALSE.,error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
        CALL keyword_create(keyword, name="LCLASSICAL",&
             description="Bias the moves with an inexpensive classical potential.",&
-            usage="LCLASSICAL {logical}",&
+            usage="LCLASSICAL <logical>",&
             default_l_val=.TRUE.,error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)       
 
        CALL keyword_create(keyword, name="RESTART",&
             description="Read initial configuration from restart file.",&
-            usage="RESTART {logical}",&
+            usage="RESTART <logical>",&
             default_l_val=.FALSE.,error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)       
 
        CALL keyword_create(keyword, name="IUPVOLUME",&
             description="Every iupvolume steps update maximum volume displacement.",&
-            usage="IUPVOLUME {integer}",&
+            usage="IUPVOLUME <integer>",&
             default_i_val=10000,error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)       
 
        CALL keyword_create(keyword, name="IUPTRANS",&
             description="Every iuptrans steps update maximum translation.",&
-            usage="IUPTRANS {integer}",&
+            usage="IUPTRANS <integer>",&
             default_i_val=10000,error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)       
@@ -2289,126 +2290,126 @@ SUBROUTINE create_tddfpt_section(section,error)
        
        CALL keyword_create(keyword, name="RESTART_FILE_NAME",&
             description="Name of the restart file for MC information.",&
-            usage="RESTART_FILE_NAME {filename}",&
+            usage="RESTART_FILE_NAME <filename>",&
             default_c_val="XXXXXXXX",error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
        CALL keyword_create(keyword, name="COORDINATE_FILE_NAME",&
             description="The file to print the current coordinates to.",&
-            usage="COORDINATE_FILE_NAME {filename}",&
+            usage="COORDINATE_FILE_NAME <filename>",&
             default_c_val="XXXXXXXX",error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
        CALL keyword_create(keyword, name="ENERGY_FILE_NAME",&
             description="The file to print current energies to.",&
-            usage="ENERGY_FILE_NAME {filename}",&
+            usage="ENERGY_FILE_NAME <filename>",&
             default_c_val="XXXXXXXX",error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
        CALL keyword_create(keyword, name="DATA_FILE_NAME",&
             description="The file to print current configurational info to.",&
-            usage="DATA_FILE_NAME {filename}",&
+            usage="DATA_FILE_NAME <filename>",&
             default_c_val="XXXXXXXX",error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
        CALL keyword_create(keyword, name="CELL_FILE_NAME",&
             description="The file to print current cell length info to.",&
-            usage="CELL_FILE_NAME {filename}",&
+            usage="CELL_FILE_NAME <filename>",&
             default_c_val="XXXXXXXX",error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
        CALL keyword_create(keyword, name="MAX_DISP_FILE_NAME",&
             description="The file to print current maximum displacement info to.",&
-            usage="MAX_DISP_FILE_NAME {filename}",&
+            usage="MAX_DISP_FILE_NAME <filename>",&
             default_c_val="XXXXXXXX",error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
        CALL keyword_create(keyword, name="BOX2_FILE_NAME",&
             description="For GEMC, the name of the input file for the other box.",&
-            usage="BOX2_FILE_NAME {filename}",&
+            usage="BOX2_FILE_NAME <filename>",&
             default_c_val="XXXXXXXX",error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
        CALL keyword_create(keyword, name="PRESSURE",&
             description="The pressure for NpT simulations, in bar.",&
-            usage="PRESSURE {real}",&
+            usage="PRESSURE <real>",&
             type_of_var=real_t, required=.TRUE., error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
        CALL keyword_create(keyword, name="TEMP",&
             description="The temperature of the simulation, in Kelvin.",&
-            usage="TEMP {real}",&
+            usage="TEMP <real>",&
             type_of_var=real_t, required=.TRUE., error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
        CALL keyword_create(keyword, name="PMSWAP",&
             description="The probability of attempting a swap move.",&
-            usage="PMSWAP {real}",&
+            usage="PMSWAP <real>",&
             type_of_var=real_t, required=.TRUE., error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
        CALL keyword_create(keyword, name="PMVOLUME",&
             description="The probability of attempting a volume move.",&
-            usage="PMVOLUME {real}",&
+            usage="PMVOLUME <real>",&
             type_of_var=real_t, required=.TRUE., error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
        CALL keyword_create(keyword, name="PMTRAION",&
             description="The probability of attempting a conformational change.",&
-            usage="PMTRAION {real}",&
+            usage="PMTRAION <real>",&
             type_of_var=real_t, required=.TRUE., error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
        CALL keyword_create(keyword, name="PMTRANS",&
             description="The probability of attempting a molecule translation.",&
-            usage="PMTRANS {real}",&
+            usage="PMTRANS <real>",&
             type_of_var=real_t, required=.TRUE., error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
        CALL keyword_create(keyword, name="RMVOLUME",&
             description="Maximum volume displacement, in angstrom**3.",&
-            usage="RMVOLUME {real}",&
+            usage="RMVOLUME <real>",&
             type_of_var=real_t, required=.TRUE., error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
        CALL keyword_create(keyword, name="RMBOND",&
             description="Maximum bond length displacement, in angstrom.",&
-            usage="RMBOND {real}",&
+            usage="RMBOND <real>",&
             type_of_var=real_t, required=.TRUE., error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
        CALL keyword_create(keyword, name="RMANGLE",&
             description="Maximum bond angle distplacement, in degrees.",&
-            usage="RMANGLE {real}",&
+            usage="RMANGLE <real>",&
             type_of_var=real_t, required=.TRUE., error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
        CALL keyword_create(keyword, name="RMROT",&
             description="Maximum rotational displacement, in degrees.",&
-            usage="RMROT {real}",&
+            usage="RMROT <real>",&
             type_of_var=real_t, required=.TRUE., error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
        CALL keyword_create(keyword, name="RMTRANS",&
             description="Maximum translational displacement, in angstroms.",&
-            usage="RMTRANS {real}",&
+            usage="RMTRANS <real>",&
             type_of_var=real_t, required=.TRUE., error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
@@ -2469,7 +2470,7 @@ SUBROUTINE create_tddfpt_section(section,error)
        
        CALL keyword_create(keyword, name="MAX_ITER",&
             description="Specifies the maximum number of geometry optimization steps.",&
-            usage="MAX_ITER {integer}",&
+            usage="MAX_ITER <integer>",&
             default_i_val=200,error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)       
@@ -2477,7 +2478,7 @@ SUBROUTINE create_tddfpt_section(section,error)
        CALL keyword_create(keyword, name="MAX_H_RANK",&
             description="Maximum rank (and consequently size) of the "//&
             "approximate hessian matrix used by the LBFGS optimizer",&
-            usage="MAX_H_RANK {integer}",&
+            usage="MAX_H_RANK <integer>",&
             default_i_val=5,error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
@@ -2485,7 +2486,7 @@ SUBROUTINE create_tddfpt_section(section,error)
        CALL keyword_create(keyword, name="MAX_F_PER_ITER",&
             description="Maximum number of force evaluations per iteration"// &
             "(used for the line search)",&
-            usage="MAX_F_PER_ITER {integer}",&
+            usage="MAX_F_PER_ITER <integer>",&
             default_i_val=3,error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
@@ -2493,7 +2494,7 @@ SUBROUTINE create_tddfpt_section(section,error)
        CALL keyword_create(keyword, name="WANTED_PROJ_GRADIENT",&
             description="Requested norm thresold of the gradient multiplied "// &
             "by the approximate hessian",&
-            usage="WANTED_PROJ_GRADIENT {real}",&
+            usage="WANTED_PROJ_GRADIENT <real>",&
             default_r_val=1.0E-3_dp,error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
@@ -2501,35 +2502,35 @@ SUBROUTINE create_tddfpt_section(section,error)
        CALL keyword_create(keyword, name="WANTED_REL_F_ERROR",&
             description="Requested relative error on the objective function"//&
             "of the optimizer (the energy)",&
-            usage="WANTED_REL_F_ERROR {real}",&
+            usage="WANTED_REL_F_ERROR <real>",&
             default_r_val=1.0E-5_dp,error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
        CALL keyword_create(keyword, name="MAX_DR",&
             description="Tolerance on the maximum value of the displacement.",&
-            usage="MAX_DR {real}",&
+            usage="MAX_DR <real>",&
             default_r_val=0.0030_dp,error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
        CALL keyword_create(keyword, name="MAX_FORCE",&
             description="Tolerance on the maximum value of Forces.",&
-            usage="MAX_FORCE {real}",&
+            usage="MAX_FORCE <real>",&
             default_r_val=0.00045_dp,error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
        CALL keyword_create(keyword, name="RMS_DR",&
             description="Tolerance on RMS displacements.",&
-            usage="RMS_DR {real}",&
+            usage="RMS_DR <real>",&
             default_r_val=0.0015_dp,error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
        CALL keyword_create(keyword, name="RMS_FORCE",&
             description="Tolerance on RMS Forces.",&
-            usage="RMS_FORCE {real}",&
+            usage="RMS_FORCE <real>",&
             default_r_val=0.00030_dp,error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
@@ -2598,14 +2599,14 @@ SUBROUTINE create_tddfpt_section(section,error)
             variants=(/"N_COLVAR"/),&
             description="Specifies the number of collective variables to use in the metadynamics."//&
             "Defaults 1 variable.",&
-            usage="NCOLVAR {integer}",&
+            usage="NCOLVAR <integer>",&
             default_i_val=1,error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
        CALL keyword_create(keyword, name="NT_HILLS",&
             description="Specify the number the interval of time step to spawn the hills.",&
-            usage="NT_HILLS {integer}",&
+            usage="NT_HILLS <integer>",&
             default_i_val=30,error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
@@ -2614,14 +2615,14 @@ SUBROUTINE create_tddfpt_section(section,error)
             variants=(/"TEMPCONTROL"/),&
             description="If a Lagrangian scheme is used the temperature control for the collective "//&
             "variables is specified. Default 100.0 K.",&
-            usage="TEMPERATURE {real}",&
+            usage="TEMPERATURE <real>",&
             default_r_val=100.0_dp,error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
        CALL keyword_create(keyword, name="WW",&
             description="Specifies the width of the gaussian to spawn. Default 0.1 .",&
-            usage="WW {real}",&
+            usage="WW <real>",&
             default_r_val=0.1_dp,error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
@@ -2702,7 +2703,7 @@ SUBROUTINE create_tddfpt_section(section,error)
        CALL keyword_create(keyword, name="LAMBDA",&
             description="Specifies the lambda parameter of the collective variable in the"//&
             " extended lagrangian scheme.",&
-            usage="LAMBDA {real}",&
+            usage="LAMBDA <real>",&
             default_r_val=-HUGE(0.0_dp),error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
@@ -2710,14 +2711,14 @@ SUBROUTINE create_tddfpt_section(section,error)
        CALL keyword_create(keyword, name="MASS",&
             description="Specifies the mass parameter of the collective variable in the"//&
             " extended lagrangian scheme. Default 0.0 .",&
-            usage="MASS {real}",&
+            usage="MASS <real>",&
             default_r_val=-HUGE(0.0_dp),error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
        CALL keyword_create(keyword, name="SCALE",&
             description="Specifies the scale factor for the following collective variable.",&
-            usage="SCALE {real}",&
+            usage="SCALE <real>",&
             default_r_val=-HUGE(0.0_dp),error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
@@ -2725,7 +2726,7 @@ SUBROUTINE create_tddfpt_section(section,error)
        CALL keyword_create(keyword, name="WALL+",&
             variants=(/"WALLP"/),&
             description="Activates the reflective wall on the upper limit of the collective variable.",&
-            usage="WALL+ {real}",&
+            usage="WALL+ <real>",&
             default_r_val=-HUGE(0.0_dp),error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
@@ -2733,14 +2734,14 @@ SUBROUTINE create_tddfpt_section(section,error)
        CALL keyword_create(keyword, name="WALL-",&
             variants=(/"WALLM"/),&
             description="Activates the reflective wall on the lower limit of the collective variable.",&
-            usage="WALL- {real}",&
+            usage="WALL- <real>",&
             default_r_val=-HUGE(0.0_dp),error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
        CALL keyword_create(keyword, name="SUBSYS",&
             description="Specifies the subsystem on which to apply the collective variables. Default 1.",&
-            usage="SUBSYS {integer}",&
+            usage="SUBSYS <integer>",&
             default_i_val=1,error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)       
@@ -2847,28 +2848,28 @@ SUBROUTINE create_tddfpt_section(section,error)
 
        CALL keyword_create(keyword, name="ATOMS_FROM",&
             description="Specify indexes of atoms building the coordination variable. ",&
-            usage="ATOMS_FROM {integer} {integer} ..",required=.TRUE.,&
+            usage="ATOMS_FROM <integer> <integer> ..",required=.TRUE.,&
             n_var=-1, type_of_var=integer_t, error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
        CALL keyword_create(keyword, name="ATOMS_TO",&
             description="Specify indexes of atoms building the coordination variable. ",&
-            usage="ATOMS_TO {integer} {integer} ..",required=.TRUE.,&
+            usage="ATOMS_TO <integer> <integer> ..",required=.TRUE.,&
             n_var=-1, type_of_var=integer_t, error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
        CALL keyword_create(keyword, name="KINDS_FROM",&
             description="Specify kinds of atoms building the coordination variable. ",&
-            usage="KINDS_FROM {integer} {integer} ..",required=.TRUE.,&
+            usage="KINDS_FROM <integer> <integer> ..",required=.TRUE.,&
             n_var=-1, type_of_var=integer_t, error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
        CALL keyword_create(keyword, name="KINDS_TO",&
             description="Specify kinds of atoms building the coordination variable. ",&
-            usage="KINDS_TO {integer} {integer} ..",required=.TRUE.,&
+            usage="KINDS_TO <integer> <integer> ..",required=.TRUE.,&
             n_var=-1, type_of_var=integer_t, error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
@@ -2876,7 +2877,7 @@ SUBROUTINE create_tddfpt_section(section,error)
        CALL keyword_create(keyword, name="R0",&
             variants=(/"R_0"/),&
             description="Specify the R0 parameter in the coordination function.",&
-            usage="R0 {real}",default_r_val=3.0_dp,&
+            usage="R0 <real>",default_r_val=3.0_dp,&
             n_var=1, error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
@@ -2885,7 +2886,7 @@ SUBROUTINE create_tddfpt_section(section,error)
             variants=(/"EXPON_NUMERATOR"/),&
             description="Sets the value of the numerator of the exponential factor"//&
             "in the coordination FUNCTION.",&
-            usage="NN {integer}",default_i_val=6,&
+            usage="NN <integer>",default_i_val=6,&
             n_var=1, error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
@@ -2894,7 +2895,7 @@ SUBROUTINE create_tddfpt_section(section,error)
             variants=(/"EXPON_DENOMINATOR"/),&
             description="Sets the value of the denominator of the exponential factor"//&
             "in the coordination FUNCTION.",&
-            usage="ND {integer}",default_i_val=12,&
+            usage="ND <integer>",default_i_val=12,&
             n_var=1, error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
@@ -2954,7 +2955,7 @@ SUBROUTINE create_tddfpt_section(section,error)
 
        CALL keyword_create(keyword, name="ATOMS",&
             description="Specifies the atom indexes defining the torsion.",&
-            usage="ATOMS {integer} {integer} {integer} {integer}",required=.TRUE.,&
+            usage="ATOMS <integer> <integer> <integer> <integer>",required=.TRUE.,&
             n_var=4, type_of_var=integer_t, error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
@@ -3014,7 +3015,7 @@ SUBROUTINE create_tddfpt_section(section,error)
 
        CALL keyword_create(keyword, name="ATOMS",&
             description="Specifies the atom indexes defining the angle.",&
-            usage="ATOMS {integer} {integer} {integer}",required=.TRUE.,&
+            usage="ATOMS <integer> <integer> <integer>",required=.TRUE.,&
             n_var=3, type_of_var=integer_t, error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
@@ -3074,7 +3075,7 @@ SUBROUTINE create_tddfpt_section(section,error)
 
        CALL keyword_create(keyword, name="ATOMS",&
             description="Specifies the atom indexes defining the distance.",&
-            usage="ATOMS {integer} {integer}",required=.TRUE.,&
+            usage="ATOMS <integer> <integer>",required=.TRUE.,&
             n_var=2, type_of_var=integer_t, error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
@@ -3152,7 +3153,8 @@ SUBROUTINE create_tddfpt_section(section,error)
 !!     create_print_mm_section
 !!
 !!   FUNCTION
-!!     Create the print mm section
+!!     Create the forcefield section. This section is useful to set up the
+!!     proper force_field for FIST calculations
 !!
 !!   NOTES
 !!     -
@@ -3360,7 +3362,7 @@ SUBROUTINE create_tddfpt_section(section,error)
     
     CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
     IF (.NOT. failure) THEN
-       CALL section_create(section,name="FORCEFIELD",&
+       CALL section_create(section,name="force_field",&
             description="Section specifying information regarding how to set up properly"// &
             " a force_field for the classical calculations.",&
             n_keywords=2, n_subsections=2, repeats=.FALSE., required=.TRUE.,&
@@ -3368,22 +3370,16 @@ SUBROUTINE create_tddfpt_section(section,error)
 
        NULLIFY(subsection,keyword)
 
-       CALL keyword_create(keyword, name="PARMTYPE",&
-            description="Specifies the type of parameters file to use.",&
-            usage="PARMTYPE {OFF|CHM}",default_c_val="OFF",error=error)
-       CALL section_add_keyword(section,keyword,error=error)
-       CALL keyword_release(keyword,error=error)
-
        CALL keyword_create(keyword, name="PARMFILE",&
             description="Specifies the filename that contains the parameters of the FF.",&
-            usage="PARMFILE {FILENAME}",default_c_val="",error=error)
+            usage="PARMFILE <FF_TYPE> <FILENAME>",required=.TRUE.,&
+            n_var=2,type_of_var=char_t,error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
        CALL keyword_create(keyword, name="RCUT_NB",&
             description="Cutoff radius for nonbonded interactions",&
-            usage="RCUT_NB {real}", type_of_var=real_t, default_r_val=-1.0_dp,&
-            unit_str="angstrom",error=error)
+            usage="RCUT_NB <real>", type_of_var=real_t, default_r_val=-1.0_dp,error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)                     
        !
@@ -3452,37 +3448,44 @@ SUBROUTINE create_tddfpt_section(section,error)
     CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
     IF (.NOT. failure) THEN
        CALL section_create(section,name="TORSIONS",&
-            description="This section specifies the torsion potential of the MM system."//&
-            "JORGENSEN type potential supported.",&
+            description="This section specifies the torsion potential of the MM system",&
             n_keywords=1, n_subsections=0, repeats=.TRUE., required=.FALSE.,&
             error=error)
 
        NULLIFY(keyword)
        
+       CALL keyword_create(keyword, name="TYPE",&
+            description="Defines the kind of the torsion potential to use.",&
+            usage="TYPE (JORGENSEN)", required=.TRUE., type_of_var=char_t,&
+            n_var=1, error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
        CALL keyword_create(keyword, name="ATOMS",&
             description="Defines the atomic kinds involved in the bond.",&
-            usage="ATOMS {KIND1} {KIND2} {KIND3} {KIND4}", required=.TRUE., type_of_var=char_t,&
+            usage="ATOMS <KIND1> <KIND2> <KIND3> <KIND4>", required=.TRUE., type_of_var=char_t,&
             n_var=4, error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
+
        CALL keyword_create(keyword, name="K",&
             description="Defines the force constant of the potential",&
-            usage="K {real}", required=.TRUE., type_of_var=real_t,&
-            n_var=1, unit_str="hartree",error=error)
+            usage="K <real>", required=.TRUE., type_of_var=real_t,&
+            n_var=1, error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
        CALL keyword_create(keyword, name="PHI0",&
             description="Defines the phase of the potential",&
-            usage="PHI0 {real}", required=.TRUE., type_of_var=real_t,&
-            n_var=1, unit_str="rad", error=error)
+            usage="PHI0 <real>", required=.TRUE., type_of_var=real_t,&
+            n_var=1, error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
        CALL keyword_create(keyword, name="M",&
             description="Defines the multiplicity of the potential",&
-            usage="M {real}", required=.TRUE., type_of_var=real_t,&
+            usage="M <real>", required=.TRUE., type_of_var=real_t,&
             n_var=1, error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
@@ -3525,16 +3528,22 @@ SUBROUTINE create_tddfpt_section(section,error)
     CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
     IF (.NOT. failure) THEN
        CALL section_create(section,name="BENDS",&
-            description="This section specifies the bends potential of the MM system."//&
-            "HARMONIC type potential supported.",&
+            description="This section specifies the bends potential of the MM system",&
             n_keywords=1, n_subsections=0, repeats=.TRUE., required=.FALSE.,&
             error=error)
 
        NULLIFY(keyword)
        
+       CALL keyword_create(keyword, name="TYPE",&
+            description="Defines the kind of the stretching potential to use.",&
+            usage="TYPE (HARMONIC)", required=.TRUE., type_of_var=char_t,&
+            n_var=1, error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
        CALL keyword_create(keyword, name="ATOMS",&
             description="Defines the atomic kinds involved in the bond.",&
-            usage="ATOMS {KIND1} {KIND2} {KIND3}", required=.TRUE., type_of_var=char_t,&
+            usage="ATOMS <KIND1> <KIND2> <KIND3>", required=.TRUE., type_of_var=char_t,&
             n_var=3, error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
@@ -3542,15 +3551,15 @@ SUBROUTINE create_tddfpt_section(section,error)
 
        CALL keyword_create(keyword, name="K",&
             description="Defines the force constant of the potential",&
-            usage="K {real}", required=.TRUE., type_of_var=real_t,&
-            n_var=1, unit_str="hartree*rad^-2",error=error)
+            usage="K <real>", required=.TRUE., type_of_var=real_t,&
+            n_var=1, error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
        CALL keyword_create(keyword, name="THETA0",&
             description="Defines the equilibrium angle.",&
-            usage="THETA0 {real}", required=.TRUE., type_of_var=real_t,&
-            n_var=1, unit_str='rad',error=error)
+            usage="THETA0 <real>", required=.TRUE., type_of_var=real_t,&
+            n_var=1, error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
@@ -3598,25 +3607,32 @@ SUBROUTINE create_tddfpt_section(section,error)
 
        NULLIFY(keyword)
        
+       CALL keyword_create(keyword, name="TYPE",&
+            description="Defines the kind of the stretching potential to use.",&
+            usage="TYPE (HARMONIC)", required=.TRUE., type_of_var=char_t,&
+            n_var=1, error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
        CALL keyword_create(keyword, name="ATOMS",&
             description="Defines the atomic kinds involved in the bond.",&
-            usage="ATOMS {KIND1} {KIND2}", required=.TRUE., type_of_var=char_t,&
+            usage="ATOMS <KIND1> <KIND2>", required=.TRUE., type_of_var=char_t,&
             n_var=2, error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
+
        CALL keyword_create(keyword, name="K",&
-            description="Defines the force constant of the potential. For QUARTIC potentials"//&
-            " three numbers are expected.",&
-            usage="K {real}", required=.TRUE., type_of_var=real_t,&
-            n_var=-1, unit_str="hartree*bohr^-2",error=error)
+            description="Defines the force constant of the potential",&
+            usage="K <real>", required=.TRUE., type_of_var=real_t,&
+            n_var=1, error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
        CALL keyword_create(keyword, name="R0",&
             description="Defines the equilibrium distance.",&
-            usage="R0 {real}", required=.TRUE., type_of_var=real_t,&
-            n_var=1, unit_str="bohr", error=error)
+            usage="R0 <real>", required=.TRUE., type_of_var=real_t,&
+            n_var=1, error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
@@ -3666,20 +3682,21 @@ SUBROUTINE create_tddfpt_section(section,error)
        
        CALL keyword_create(keyword, name="ATOM",&
             description="Defines the atomic kind of the charge.",&
-            usage="ATOM {KIND1}", required=.TRUE., type_of_var=char_t,&
+            usage="ATOM <KIND1>", required=.TRUE., type_of_var=char_t,&
             n_var=1, error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
        CALL keyword_create(keyword, name="CHARGE",&
-            description="Defines the charge of the MM atom in electron charge unit.",&
-            usage="CHARGE {real}", required=.TRUE., type_of_var=real_t,&
+            description="Defines the charge of the MM atom.",&
+            usage="CHARGE <real>", required=.TRUE., type_of_var=real_t,&
             n_var=1, error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
     END IF
   END SUBROUTINE create_charge_section
+
 
 !***************************************************************************
 !!****f* input_cp2k/create_NONBONDED14_section [1.0] *
@@ -3789,10 +3806,6 @@ SUBROUTINE create_tddfpt_section(section,error)
        CALL section_add_subsection(section, subsection, error=error)
        CALL section_release(subsection,error=error)
 
-       CALL create_EAM_section(subsection, error=error)
-       CALL section_add_subsection(section, subsection, error=error)
-       CALL section_release(subsection,error=error)       
-
        CALL create_Goodwin_section(subsection, error=error)
        CALL section_add_subsection(section, subsection, error=error)
        CALL section_release(subsection,error=error)
@@ -3805,62 +3818,6 @@ SUBROUTINE create_tddfpt_section(section,error)
 
   END SUBROUTINE create_NONBONDED_section
 
-!***************************************************************************
-!!****f* input_cp2k/create_EAM_section [1.0] *
-!!
-!!   NAME
-!!     create_EAM_section
-!!
-!!   FUNCTION
-!!     This section specifies the input parameters for EAM  potential type
-!!
-!!   NOTES
-!!     -
-!!
-!!   ARGUMENTS
-!!     - section: the section to create
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
-!!
-!!   AUTHOR
-!!     teo
-!!
-!!*** **********************************************************************
-  SUBROUTINE create_EAM_section(section,error)
-    TYPE(section_type), POINTER :: section
-    TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
-    
-    LOGICAL :: failure
-    CHARACTER(len=*), PARAMETER :: routineN='create_EAM_section',&
-         routineP=moduleN//':'//routineN
-    TYPE(keyword_type), POINTER :: keyword
-    
-    failure=.FALSE.
-    
-    CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
-    IF (.NOT. failure) THEN
-       CALL section_create(section,name="EAM",&
-            description="This section specifies the input parameters for LENNARD-JONES potential type.",&
-            n_keywords=1, n_subsections=0, repeats=.TRUE., required=.TRUE.,&
-            error=error)
-
-       NULLIFY(keyword)
-       
-       CALL keyword_create(keyword, name="ATOM",&
-            description="Defines the atomic kind involved in the nonbond potential",&
-            usage="ATOM {KIND1} {KIND2}", required=.TRUE., type_of_var=char_t,&
-            n_var=2, error=error)
-       CALL section_add_keyword(section,keyword,error=error)
-       CALL keyword_release(keyword,error=error)
-
-       CALL keyword_create(keyword, name="PARMFILE",&
-            description="Specifies the filename that contains the parameters of the EAM FF.",&
-            usage="PARMFILE {FILENAME}",default_c_val="",error=error)
-       CALL section_add_keyword(section,keyword,error=error)
-       CALL keyword_release(keyword,error=error)
-
-    END IF
-  END SUBROUTINE create_EAM_section
 
 !***************************************************************************
 !!****f* input_cp2k/create_LJ_section [1.0] *
@@ -3898,36 +3855,36 @@ SUBROUTINE create_tddfpt_section(section,error)
     IF (.NOT. failure) THEN
        CALL section_create(section,name="lennard-jones",&
             description="This section specifies the input parameters for LENNARD-JONES potential type.",&
-            n_keywords=1, n_subsections=0, repeats=.TRUE., required=.TRUE.,&
+            n_keywords=1, n_subsections=0, repeats=.FALSE., required=.TRUE.,&
             error=error)
 
        NULLIFY(keyword)
        
        CALL keyword_create(keyword, name="ATOM",&
             description="Defines the atomic kind involved in the nonbond potential",&
-            usage="ATOM {KIND1} {KIND2}", required=.TRUE., type_of_var=char_t,&
+            usage="ATOM <KIND1> <KIND2>", required=.TRUE., type_of_var=char_t,&
             n_var=2, error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
        CALL keyword_create(keyword, name="EPSILON",&
             description="Defines the EPSILON parameter of the LJ potential",&
-            usage="EPSILON {real}", required=.TRUE., type_of_var=real_t,&
-            n_var=1, unit_str="K_e", error=error)
+            usage="EPS <real>", required=.TRUE., type_of_var=real_t,&
+            n_var=1, error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
        CALL keyword_create(keyword, name="SIGMA",&
             description="Defines the SIGMA parameter of the LJ potential",&
-            usage="SIGMA {real}", required=.TRUE., type_of_var=real_t,&
-            n_var=1, unit_str="angstrom", error=error)
+            usage="SIGMA <real>", required=.TRUE., type_of_var=real_t,&
+            n_var=1, error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
        CALL keyword_create(keyword, name="RCUT",&
             description="Defines the cutoff parameter of the LJ potential",&
-            usage="RCUT {real}", required=.TRUE., type_of_var=real_t,&
-            n_var=1, unit_str="angstrom", error=error)
+            usage="RCUT <real>", required=.TRUE., type_of_var=real_t,&
+            n_var=1, error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
@@ -3978,36 +3935,36 @@ SUBROUTINE create_tddfpt_section(section,error)
        
        CALL keyword_create(keyword, name="ATOM",&
             description="Defines the atomic kind involved in the nonbond potential",&
-            usage="ATOM {KIND1} {KIND2}", required=.TRUE., type_of_var=char_t,&
+            usage="ATOM <KIND1> <KIND2>", required=.TRUE., type_of_var=char_t,&
             n_var=2, error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
        CALL keyword_create(keyword, name="A",&
             description="Defines the A parameter of the Williams potential",&
-            usage="A {real}", required=.TRUE., type_of_var=real_t,&
-            n_var=1, unit_str="K_e", error=error)
+            usage="A <real>", required=.TRUE., type_of_var=real_t,&
+            n_var=1, error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
        CALL keyword_create(keyword, name="B",&
             description="Defines the B parameter of the Williams potential",&
-            usage="B {real}", required=.TRUE., type_of_var=real_t,&
-            n_var=1, unit_str="angstrom^-1",error=error)
+            usage="B <real>", required=.TRUE., type_of_var=real_t,&
+            n_var=1, error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
        CALL keyword_create(keyword, name="C",&
             description="Defines the C parameter of the Williams potential",&
-            usage="C {real}", required=.TRUE., type_of_var=real_t,&
-            n_var=1, unit_str="K_e*angstrom^6",error=error)
+            usage="C <real>", required=.TRUE., type_of_var=real_t,&
+            n_var=1, error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
        CALL keyword_create(keyword, name="RCUT",&
             description="Defines the cutoff parameter of the Williams potential",&
-            usage="RCUT {real}", required=.TRUE., type_of_var=real_t,&
-            n_var=1, unit_str="angstrom", error=error)
+            usage="RCUT <real>", required=.TRUE., type_of_var=real_t,&
+            n_var=1, error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
@@ -4057,50 +4014,50 @@ SUBROUTINE create_tddfpt_section(section,error)
        
        CALL keyword_create(keyword, name="ATOM",&
             description="Defines the atomic kind involved in the nonbond potential",&
-            usage="ATOM {KIND1} {KIND2}", required=.TRUE., type_of_var=char_t,&
+            usage="ATOM <KIND1> <KIND2>", required=.TRUE., type_of_var=char_t,&
             n_var=2, error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
        CALL keyword_create(keyword, name="VR0",&
             description="Defines the VR0 parameter of the Goodwin potential",&
-            usage="VR0 {real}", required=.TRUE., type_of_var=real_t,&
-            n_var=1, unit_str="K_e",error=error)
+            usage="VR0 <real>", required=.TRUE., type_of_var=real_t,&
+            n_var=1, error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
        CALL keyword_create(keyword, name="D",&
             description="Defines the D parameter of the Goodwin potential",&
-            usage="D {real}", required=.TRUE., type_of_var=real_t,&
-            n_var=1, unit_str="angstrom",error=error)
+            usage="D <real>", required=.TRUE., type_of_var=real_t,&
+            n_var=1, error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
        CALL keyword_create(keyword, name="DC",&
             description="Defines the DC parameter of the Goodwin potential",&
-            usage="DC {real}", required=.TRUE., type_of_var=real_t,&
-            n_var=1, unit_str="angstrom",error=error)
+            usage="DC <real>", required=.TRUE., type_of_var=real_t,&
+            n_var=1, error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
        CALL keyword_create(keyword, name="M",&
             description="Defines the M parameter of the Goodwin potential",&
-            usage="M {real}", required=.TRUE., type_of_var=integer_t,&
+            usage="M <real>", required=.TRUE., type_of_var=real_t,&
             n_var=1, error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
        CALL keyword_create(keyword, name="MC",&
             description="Defines the MC parameter of the Goodwin potential",&
-            usage="MC {real}", required=.TRUE., type_of_var=integer_t,&
+            usage="MC <real>", required=.TRUE., type_of_var=real_t,&
             n_var=1, error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
        CALL keyword_create(keyword, name="RCUT",&
             description="Defines the cutoff parameter of the Goodwin potential",&
-            usage="RCUT {real}", required=.TRUE., type_of_var=real_t,&
-            n_var=1, unit_str="angstrom", error=error)
+            usage="RCUT <real>", required=.TRUE., type_of_var=real_t,&
+            n_var=1, error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
@@ -4150,7 +4107,7 @@ SUBROUTINE create_tddfpt_section(section,error)
        
        CALL keyword_create(keyword, name="ATOM",&
             description="Defines the atomic kind involved in the IPBV nonbond potential",&
-            usage="ATOM {KIND1} {KIND2}", required=.TRUE., type_of_var=char_t,&
+            usage="ATOM <KIND1> <KIND2>", required=.TRUE., type_of_var=char_t,&
             n_var=2, error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
@@ -4158,7 +4115,7 @@ SUBROUTINE create_tddfpt_section(section,error)
 
        CALL keyword_create(keyword, name="RCUT",&
             description="Defines the cutoff parameter of the IPBV potential",&
-            usage="RCUT {real}", required=.TRUE., type_of_var=real_t,&
+            usage="RCUT <real>", required=.TRUE., type_of_var=real_t,&
             n_var=1, error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
@@ -4346,14 +4303,14 @@ SUBROUTINE create_tddfpt_section(section,error)
 
        CALL keyword_create(keyword, name="ATOMS",&
             description="Specifies the atom indexes defining the torsion.",&
-            usage="ATOMS {integer} {integer} {integer} {integer}",required=.TRUE.,&
+            usage="ATOMS <integer> <integer> <integer> <integer>",required=.TRUE.,&
             n_var=4, type_of_var=integer_t, error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
        CALL keyword_create(keyword, name="ANGLE",&
             description="Specifies the value of the angle to which constraint the torsion.",&
-            usage="ANGLE {real}",required=.TRUE.,&
+            usage="ANGLE <real>",required=.TRUE.,&
             n_var=1, type_of_var=real_t, error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
@@ -4404,14 +4361,14 @@ SUBROUTINE create_tddfpt_section(section,error)
 
        CALL keyword_create(keyword, name="ATOMS",&
             description="Specifies the atom indexes defining the angle.",&
-            usage="ATOMS {integer} {integer} {integer}",required=.TRUE.,&
+            usage="ATOMS <integer> <integer> <integer>",required=.TRUE.,&
             n_var=3, type_of_var=integer_t, error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
        CALL keyword_create(keyword, name="ANGLE",&
             description="Specifies the value of the angle to which constraint the bending motion.",&
-            usage="ANGLE {real}",required=.TRUE.,&
+            usage="ANGLE <real>",required=.TRUE.,&
             n_var=1, type_of_var=real_t, error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
@@ -4463,14 +4420,14 @@ SUBROUTINE create_tddfpt_section(section,error)
 
        CALL keyword_create(keyword, name="ATOMS",&
             description="Specifies the atom indexes defining the distance.",&
-            usage="ATOMS {integer} {integer}",required=.TRUE.,&
+            usage="ATOMS <integer> <integer>",required=.TRUE.,&
             n_var=2, type_of_var=integer_t, error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
        CALL keyword_create(keyword, name="DISTANCE",&
             description="Specifies the value of the constrained distance",&
-            usage="DISTANCE {real}",required=.TRUE.,&
+            usage="DISTANCE <real>",required=.TRUE.,&
             n_var=1, type_of_var=real_t, error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
@@ -4527,7 +4484,7 @@ SUBROUTINE create_tddfpt_section(section,error)
             " BONDS, ANGLES, TORSIONS) in building the combined"//&
             " internal coordinate. Specifying all bonds, angles and torsions the order within"//&
             " each group is assumed to be the order in which they appear in the input file." ,&
-            usage="MIXING_FACTOR {real} {real} .. {real}", required=.TRUE.,&
+            usage="MIXING_FACTOR <real> <real> .. <real>", required=.TRUE.,&
             n_var=-1, type_of_var=real_t, error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
@@ -4592,14 +4549,14 @@ SUBROUTINE create_tddfpt_section(section,error)
        ! Integer
        CALL keyword_create(keyword, name="LIST",&
             description="Specifies a list of atoms to freeze.",&
-            usage="LIST {integer} {integer} .. {integer}", required=.TRUE.,&
+            usage="LIST <integer> <integer> .. <integer>", required=.TRUE.,&
             n_var=-1, type_of_var=integer_t, error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
        CALL keyword_create(keyword, name="RANGE",&
             description="Specifies the starting and the ending index of atoms range you wish to freeze.",&
-            usage="RANGE {integer} {integer}", required=.TRUE.,&
+            usage="RANGE <integer> <integer>", required=.TRUE.,&
             n_var=2, type_of_var=integer_t, error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
@@ -4670,7 +4627,7 @@ SUBROUTINE create_tddfpt_section(section,error)
        CALL keyword_create(keyword, name="MOLECULE",&
             variants=(/"MOL"/),&
             description="Specifies the molecule number on which constraint will be applied",&
-            usage="MOL {integer}", required=.TRUE., n_var=1, type_of_var=integer_t, error=error)
+            usage="MOL <integer>", required=.TRUE., n_var=1, type_of_var=integer_t, error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
@@ -4683,7 +4640,7 @@ SUBROUTINE create_tddfpt_section(section,error)
        ! Real
        CALL keyword_create(keyword, name="DISTANCES",&
             description="The constrained distances' values.",&
-            usage="DISTANCES {real} {real} {real}", type_of_var=real_t, n_var=-1,error=error)
+            usage="DISTANCES <real> <real> <real>", type_of_var=real_t, n_var=-1,error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)              
 
@@ -4736,7 +4693,7 @@ SUBROUTINE create_tddfpt_section(section,error)
        CALL keyword_create(keyword, name="MOLECULE",&
             variants=(/"MOL"/),&
             description="Specifies the molecule number on which constraint will be applied",&
-            usage="MOL {integer}", required=.TRUE., n_var=1, type_of_var=integer_t, error=error)
+            usage="MOL <integer>", required=.TRUE., n_var=1, type_of_var=integer_t, error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
@@ -4749,7 +4706,7 @@ SUBROUTINE create_tddfpt_section(section,error)
        ! Real
        CALL keyword_create(keyword, name="DISTANCES",&
             description="The constrained distances' values.",&
-            usage="DISTANCES {real} {real} {real} {real} {real} {real}",&
+            usage="DISTANCES <real> <real> <real> <real> <real> <real>",&
             type_of_var=real_t, n_var=-1,error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)              
@@ -4931,7 +4888,7 @@ SUBROUTINE create_tddfpt_section(section,error)
                         "proper exclusion list. 3 is safe for all "//&
                         "molecules situations but 1 should work for "//&
                         "all proteins.",&
-            usage="exclude_check {integer}", default_i_val=3,error=error)
+            usage="exclude_check <integer>", default_i_val=3,error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
@@ -4940,7 +4897,7 @@ SUBROUTINE create_tddfpt_section(section,error)
             description="Used in conjunction with BONDPARM to help "//&
                         "determine wheather there is bonding between "//&
                         "two atoms based on a distance criteria.",&
-            usage="bondparm_factor {real}", default_r_val=1.1_dp,error=error)
+            usage="bondparm_factor <real>", default_r_val=1.1_dp,error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
@@ -5259,7 +5216,7 @@ SUBROUTINE create_uniaxial_section(section, error)
             n_keywords=1, n_subsections=0, repeats=.FALSE., required=.TRUE.,&
             error=error)
 
-       NULLIFY(keyword )
+       NULLIFY(keyword)
        CALL keyword_create(keyword, name="PRESSURE",&
             description="Initial pressure",&
             usage="PRESSURE real",&
@@ -5942,7 +5899,7 @@ END SUBROUTINE create_ewald_section
             n_keywords=6, n_subsections=3, repeats=.FALSE., required=.TRUE.,&
             error=error)
 
-       NULLIFY(keyword, subsection )
+       NULLIFY(keyword, subsection)
 
        CALL keyword_create(keyword, name="MM_POTENTIAL_FILE_NAME",&
             description="Name of the file containing the potential expansion in gaussians.",&
@@ -6132,7 +6089,7 @@ END SUBROUTINE create_ewald_section
     TYPE(section_type), POINTER :: subsection
     failure=.FALSE.
     
-    NULLIFY(subsection )
+    NULLIFY(subsection)
     CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
     IF (.NOT. failure) THEN
        CALL section_create(section,name="FORCEFIELD",&
@@ -6178,10 +6135,10 @@ END SUBROUTINE create_ewald_section
     LOGICAL :: failure
     CHARACTER(len=*), PARAMETER :: routineN='create_qmmm_ff_nb_section',&
          routineP=moduleN//':'//routineN
-    TYPE(section_type), POINTER ::  subsection
+    TYPE(section_type), POINTER :: subsection
     failure=.FALSE.
     
-    NULLIFY(subsection )
+    NULLIFY(subsection)
     CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
     IF (.NOT. failure) THEN
        CALL section_create(section,name="NONBONDED",&
@@ -6234,7 +6191,7 @@ END SUBROUTINE create_ewald_section
     TYPE(section_type), POINTER :: subsection
     failure=.FALSE.
     
-    NULLIFY(keyword, subsection )
+    NULLIFY(keyword, subsection)
     CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
     IF (.NOT. failure) THEN
        CALL section_create(section,name="LINK",&
@@ -7492,6 +7449,18 @@ END SUBROUTINE create_ot_section
       CALL section_add_keyword(section,keyword,error=error)
       CALL keyword_release(keyword,error=error)
 
+      CALL keyword_create(keyword, name="DIPOLE_FORM",&
+           variants=(/"DIP_FORM"/),&
+           description="Type of integral to get the oscillator strengths "//&
+           "in the diipole approximation",&
+           usage="DIPOLE_FORM string",&
+           default_i_val=xas_dip_len,&
+           enum_c_vals=s2a( "LENGTH","VELOCITY" ),&
+           enum_desc=s2a("Length form <i|e r |j>","Velocity form <i|d/dr|j>"),&
+           enum_i_vals=(/xas_dip_len,xas_dip_vel/),error=error)
+      CALL section_add_keyword(section,keyword,error=error)
+      CALL keyword_release(keyword,error=error)
+        
       CALL keyword_create(keyword, name="MAXSTEP",&
            description="Max # of steps in the xas-scf for one excitation",&
            usage="MAXSTEP 150",&
