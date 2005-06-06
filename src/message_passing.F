@@ -2332,6 +2332,7 @@ SUBROUTINE mp_irecv_rm2(msgout,source,comm,request,tag)
   t_end = m_cputime ( )
   CALL add_perf(perf_id=12,count=1,time=t_end-t_start,msg_size=msglen*reallen)
 #else
+  ierr=1
   CALL mp_stop( ierr, "mp_irecv called in non parallel case" )
 #endif
 END SUBROUTINE mp_irecv_rm2
