@@ -140,7 +140,7 @@ CONTAINS
                                                 ipgf, j, jpgf, la, la_start, &
                                                 lb, na, nb
     REAL(KIND=dp)                            :: dab, f0, f1, f2, f3, fx, fy, &
-                                                fz, fza, fzb, zetp, k2, kdp, rab2, s
+                                                fz, zetp, k2, kdp, rab2, s
     REAL(KIND=dp), DIMENSION(3)              :: rab, rap, rbp
     REAL(KIND=dp), DIMENSION(ncoset(la_max),&
       ncoset(lb_max))                        :: sc, ss
@@ -185,8 +185,6 @@ CONTAINS
 
         kdp = zetp * DOT_PRODUCT ( kvec, zeta(ipgf)*rac + zetb(jpgf)*rbc ) 
 
-        fza = zeta(ipgf)*zetp
-        fzb = zetb(ipgf)*zetp
 
 !       *** Calculate the basic two-center cos/sin integral [s|cos/sin|s] ***
 

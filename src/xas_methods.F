@@ -289,7 +289,7 @@ CONTAINS
       CALL set_xas_env(xas_env=xas_env, qs_loc_env=qs_loc_env)
       CALL qs_loc_env_release(qs_loc_env,error=error)
       CALL get_xas_env(xas_env=xas_env, qs_loc_env=qs_loc_env)
-      CALL qs_loc_env_init(qs_loc_env,my_localized_wfn_control,qs_env,error=error)
+      CALL qs_loc_env_init(qs_loc_env,my_localized_wfn_control,qs_env,onlyspin1=.TRUE.,error=error)
 
     END IF
     CALL qs_loc_driver(qs_env,qs_loc_env,ionode,onlyspin1=.TRUE.,error=error)

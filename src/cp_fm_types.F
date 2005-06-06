@@ -1032,30 +1032,36 @@ CONTAINS
       mepos = matrix%matrix_struct%para_env%mepos
       ALLOCATE(ir_max_vec(0:num_pe-1),STAT=istat) 
       CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+      ir_max_vec(0:num_pe-1) = 0
       ALLOCATE(ic_max_vec(0:num_pe-1),STAT=istat) 
       CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+      ic_max_vec(0:num_pe-1) = 0
       ALLOCATE(a_max_vec(0:num_pe-1),STAT=istat) 
       CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+      a_max_vec(0:num_pe-1) = 0.0_dp
       my_max = 0.0_dp
-      DO i = 1,ncol_local
-        DO j = 1,nrow_local
-          IF( ABS(my_block(j,i)) > my_max) THEN
-            my_max =  my_block(j,i)
-            ir_max_local = j
-            ic_max_local = i
-          END IF
-        END DO 
-      END DO 
 
-      a_max_vec(mepos) = my_max
-      ir_max_vec(mepos) = row_indices(ir_max_local)
-      ic_max_vec(mepos) = row_indices(ic_max_local)
-      CALL mp_bcast (a_max_vec, matrix%matrix_struct%para_env%source,&
-           matrix%matrix_struct%para_env%group)
-      CALL mp_bcast (ir_max_vec, matrix%matrix_struct%para_env%source,&
-           matrix%matrix_struct%para_env%group)
-      CALL mp_bcast (ic_max_vec, matrix%matrix_struct%para_env%source,&
-           matrix%matrix_struct%para_env%group)
+      IF((ncol_local > 0) .AND. (nrow_local > 0)) THEN
+        DO i = 1,ncol_local
+          DO j = 1,nrow_local
+            IF( ABS(my_block(j,i)) > my_max) THEN
+              my_max =  my_block(j,i)
+              ir_max_local = j
+              ic_max_local = i
+            END IF
+          END DO 
+        END DO 
+
+        a_max_vec(mepos) = my_max
+        ir_max_vec(mepos) = row_indices(ir_max_local)
+        ic_max_vec(mepos) = col_indices(ic_max_local)
+
+      END IF
+
+      CALL mp_sum(a_max_vec,matrix%matrix_struct%para_env%group)
+      CALL mp_sum(ir_max_vec,matrix%matrix_struct%para_env%group)
+      CALL mp_sum(ic_max_vec,matrix%matrix_struct%para_env%group)
+
       my_max = 0.0_dp
       DO i = 0,num_pe-1
         IF(a_max_vec(i)>my_max) THEN
@@ -1066,6 +1072,9 @@ CONTAINS
 
       DEALLOCATE(ir_max_vec,ic_max_vec,a_max_vec, STAT = istat)
       CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+      CPPostcondition(ic_max>0,cp_failure_level,routineP,error,failure)
+      CPPostcondition(ir_max>0,cp_failure_level,routineP,error,failure)
+
     END IF
 
     CALL mp_max(a_max,matrix%matrix_struct%para_env%group)

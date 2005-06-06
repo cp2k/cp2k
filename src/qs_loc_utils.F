@@ -374,12 +374,13 @@ CONTAINS
 !!     04.2005 created [MI]
 !!
 !!*** **********************************************************************
-  SUBROUTINE qs_loc_env_init(qs_loc_env,localized_wfn_control,qs_env,error)
+  SUBROUTINE qs_loc_env_init(qs_loc_env,localized_wfn_control,qs_env,onlyspin1,error)
 
     TYPE(qs_loc_env_new_type), POINTER         :: qs_loc_env
     TYPE ( localized_wfn_control_type ), &
       POINTER                                  :: localized_wfn_control
     TYPE(qs_environment_type), POINTER         :: qs_env
+    LOGICAL, OPTIONAL                          :: onlyspin1
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                                 :: error
 
@@ -387,8 +388,8 @@ CONTAINS
       routineP = module_name//':'//routine_name
 
     INTEGER  :: handle, i, iatom, imo, imoloc, isos, ispin, istat, j, &
-                lb, nao, naosub, natoms,  nmo, nmosub, nspins, ub
-    LOGICAL  :: failure
+                lb, my_nspins, nao, naosub, natoms,  nmo, nmosub, nspins, ub
+    LOGICAL  :: failure, my_one_spin
     REAL(KIND=dp)                               :: my_occ, occ_imo
     REAL(KIND=dp), DIMENSION(:, :), POINTER     :: vecbuffer
     REAL(KIND=dp), DIMENSION(:), POINTER        :: occupations
@@ -411,6 +412,9 @@ CONTAINS
     CALL timeset("qs_loc_env_init","I",'',handle)
 
     failure = .FALSE.
+    my_one_spin = .FALSE.
+    IF(PRESENT(onlyspin1)) my_one_spin = onlyspin1
+
     NULLIFY(mos,matrix_s,moloc_coeff,ao_mosub_fm_pools,mosub_mosub_fm_pools)
 
   
@@ -425,22 +429,30 @@ CONTAINS
 
     nspins = SIZE(mos,1)
     ALLOCATE (moloc_coeff(nspins), STAT=istat)
+    my_nspins = nspins
+    IF(my_one_spin) my_nspins = 1
+!write(*,*) para_env%mepos, nspins, my_nspins
+!write(*,*) para_env%mepos, associated(ao_mosub_fm_pools)
+!write(*,*) para_env%mepos, size(ao_mosub_fm_pools,1)
 
-    DO ispin = 1,nspins
+    DO ispin = 1,my_nspins
       CALL get_mo_set(mos(ispin)%mo_set,nao=nao,nmo=nmo)
+!write(*,*) para_env%mepos, 'ispin ', ispin, 'nao ', nao, ' nmo ', nmo
+
       CALL fm_pool_create_fm(ao_mosub_fm_pools(ispin)%pool,moloc_coeff(ispin)%matrix,&
            name="qs_loc_env%mo"//TRIM(ADJUSTL(cp_to_string(ispin))),error=error)
       CALL cp_fm_get_info(moloc_coeff(ispin)%matrix, nrow_global=naosub, &
            ncol_global=nmosub,error=error)
+!write(*,*) para_env%mepos, ' nmosub ', nmosub
       CPPostcondition(nao==naosub,cp_failure_level,routineP,error,failure)
       CPPostcondition(nmo>=nmosub,cp_failure_level,routineP,error,failure)
       CALL cp_fm_set_all(moloc_coeff(ispin)%matrix,0.0_dp)
 
     END DO  ! ispin
-
+! stop 'pippo '
     ! Copy the submatrix
 
-    DO ispin = 1,nspins
+    DO ispin = 1,my_nspins
       CALL get_mo_set(mos(ispin)%mo_set, mo_coeff=mo_coeff,&
            occupation_numbers=occupations, nao=nao, nmo=nmo)
       lb = localized_wfn_control%lu_bound_states(1,ispin)
@@ -521,7 +533,6 @@ CONTAINS
       END DO
     ELSEIF ( localized_wfn_control%operator_type== op_loc_pipek) THEN
       natoms = SIZE ( qs_loc_env % particle_set, 1 )
-!      ALLOCATE ( qs_loc_env % op_fm_set ( natoms , nspins ), STAT = istat )
       ALLOCATE ( qs_loc_env % op_fm_set ( natoms , 1 ), STAT = istat )
       CPPostcondition(istat==0,cp_failure_level,routineP,error,failure) 
       DO ispin = 1, SIZE(qs_loc_env % op_fm_set ,2)
