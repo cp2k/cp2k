@@ -1576,7 +1576,7 @@ CONTAINS
 
        CALL cp_fm_symm("L","U",nao,homo,1.0_dp,matrix_ks,mo_coeff,0.0_dp,work)
        CALL cp_fm_gemm("T","N",homo,nao-homo,nao,1.0_dp,work,mo_coeff,&
-            0.0_dp,matrix_ks,b_first_col=homo+1)
+            0.0_dp,matrix_ks,b_first_col=homo+1,c_first_col=homo+1)
 
 !     epsi =1e-11
 !     Anz_max=4
