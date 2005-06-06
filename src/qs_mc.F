@@ -173,7 +173,7 @@ CONTAINS
   ENDIF
 
   CALL get_mc_par(mc_par,lrestart=lrestart,dat_file=dat_file,&
-      ensemble=ensemble,box2_file=box2_file)
+      ensemble=ensemble)
 
 ! check for restart
   IF ( lrestart ) THEN
@@ -192,6 +192,8 @@ CONTAINS
       CALL mc_traditional_ensemble(mc_env,globenv,error)
 
   CASE("gemc")
+
+      CALL get_mc_par(mc_par,box2_file=box2_file)
 
 ! prepare the second box
 ! initialize mc_env
