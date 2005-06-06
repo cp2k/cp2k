@@ -71,7 +71,10 @@ MODULE fist_debug
   USE simulation_cell,                          ONLY : cell_type
   USE termination,                              ONLY : stop_memory, stop_program
   USE virial_types,                             ONLY : virial_type
-
+  USE input_constants,                 ONLY: do_ewald_none,&
+                                             do_ewald_ewald,&
+                                             do_ewald_pme,&
+                                             do_ewald_spme
   IMPLICIT NONE
 
   PRIVATE
@@ -115,7 +118,7 @@ SUBROUTINE  debug_control ( force_env, globenv, error)
   INTEGER ::  iatom, iw, iwf, ir, nbond, nbend, ntorsion, group
   INTEGER, DIMENSION ( 2 ) :: dum
   INTEGER :: i, natoms, nnodes, isos, n, nlocal_particles
-  CHARACTER ( len = default_string_length ) :: ewald_type
+  INTEGER :: ewald_type
   TYPE (pair_potential_type), POINTER, DIMENSION ( :, : ) :: potparm
   TYPE ( particle_type ), POINTER :: particle_set ( : )
   TYPE(distribution_1d_type), POINTER      :: local_molecules, &
@@ -854,7 +857,7 @@ SUBROUTINE  debug_control ( force_env, globenv, error)
 ! Debug g-space
   CALL ewald_env_get ( ewald_env, ewald_type = ewald_type )
   IF ( ionode ) THEN
-    IF ( ewald_type /= 'NONE' ) THEN
+    IF ( ewald_type /= do_ewald_none ) THEN
       WRITE ( iw, '( A,A )' ) ' **************************************', &
                               '*****************************************'
       WRITE ( iw, '( 16x,A )' ) 'G-SPACE CONTRIBUTIONS'
@@ -863,33 +866,33 @@ SUBROUTINE  debug_control ( force_env, globenv, error)
     ENDIF
   ENDIF
   SELECT CASE ( ewald_type )
-  CASE ( "EWALD" )
+  CASE ( do_ewald_ewald )
     energy_numer = 0.0_dp
     CALL ewald_energy_numer ( ewald_env, ewald_pw, atomic_kind_set, &
                               particle_set, local_particles, energy_numer )
     IF ( ionode ) &
     WRITE ( iw, '( A, T61, G20.12 )' ) ' G-SPACE DBG ENERGY = ', &
          energy_numer
-  CASE ( "PME" )
+  CASE ( do_ewald_pme )
     IF ( ionode ) &
     WRITE ( iw, '( A, T61, G20.12 )' ) ' G-SPACE ANA ENERGY = ', &
          dbg % pot_g
-  CASE ( "SPME" )
+  CASE ( do_ewald_spme )
     CALL stop_program ( "fist_debug", " NO SPME energy debug routines " )
   END SELECT
 
 ! Now forces
   SELECT CASE ( ewald_type )
-  CASE ( "EWALD" )
+  CASE ( do_ewald_ewald )
     f_numer = 0.0_dp
     CALL ewald_force_numer ( ewald_env, ewald_pw, atomic_kind_set,  &
                              particle_set, local_particles, delta, f_numer )
     CALL mp_sum ( f_numer, group )    
     CALL mp_sum ( dbg % f_g, group )    
-  CASE ( "PME" )
+  CASE ( do_ewald_pme )
     f_numer = 0.0_dp
     CALL pme_force_numer ( ewald_env, ewald_pw, particle_set, delta, f_numer )
-  CASE ( "SPME" )
+  CASE ( do_ewald_spme )
     CALL stop_program ( "fist_debug", " NO SPME debug routines " )
   END SELECT
 ! write out all particle numbers and forces
@@ -941,13 +944,13 @@ SUBROUTINE  debug_control ( force_env, globenv, error)
 
 ! Debug g-space virial
   SELECT CASE ( ewald_type )
-  CASE ( "EWALD" )
+  CASE ( do_ewald_ewald )
     pv_test = 0.0_dp
     CALL pv_g_numer ( ewald_env, ewald_pw, atomic_kind_set, &
                        particle_set, local_particles, delta, pv_test )
-  CASE ( "PME" )
+  CASE ( do_ewald_pme )
     CALL stop_program ( "fist_debug", " NO PME debug routines " )
-  CASE ( "SPME" )
+  CASE ( do_ewald_spme )
     CALL stop_program ( "fist_debug", " NO SPME debug routines " )
   END SELECT
 

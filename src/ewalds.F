@@ -51,7 +51,10 @@ MODULE ewalds
   USE timings,                         ONLY: timeset,&
                                              timestop
   USE util,                            ONLY: matvec_3x3
-
+  USE input_constants,                 ONLY: do_ewald_none,&
+                                             do_ewald_ewald,&
+                                             do_ewald_pme,&
+                                             do_ewald_spme
   IMPLICIT NONE
 
   PRIVATE
@@ -306,7 +309,7 @@ SUBROUTINE ewald_self ( ewald_env, atomic_kind_set,  &
     INTEGER                                  :: iparticle_kind, nparticle_local
     REAL(KIND=dp)                                :: q, q_self, q_sum, eps0, alpha
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
-    CHARACTER ( default_string_length )      :: ewald_type
+    INTEGER     :: ewald_type
 
 !------------------------------------------------------------------------------
 
@@ -331,9 +334,7 @@ SUBROUTINE ewald_self ( ewald_env, atomic_kind_set,  &
 
   e_neut = 0.0_dp
   e_self = 0.0_dp
-  IF ( ewald_type == 'EWALD' .OR. &
-       ewald_type == 'PME' .OR. &
-       ewald_type == 'SPME' ) THEN
+  IF ( ewald_type /= do_ewald_none) THEN
 
      e_self = -q_self *  alpha &
           / ( 4.0_dp *  eps0 * pi * SQRT ( pi ) )

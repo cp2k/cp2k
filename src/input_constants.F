@@ -33,6 +33,20 @@ MODULE input_constants
                                       ALPHA_IMOMM_DEFAULT = 1.38_dp,&
                                       CHARGE_SCALE_FACTOR = 1.00_dp
   !
+  ! EWALD methods
+  !
+  CHARACTER (LEN=default_string_length), PARAMETER, DIMENSION(4), PUBLIC :: ewald_name_types=&
+       (/"none     ",&
+         "ewald    ",&
+         "pme      ",&
+         "spme     " /)
+  INTEGER, PARAMETER, PUBLIC :: do_ewald_none=0,&
+                                do_ewald_ewald=1,&
+                                do_ewald_pme=2,&
+                                do_ewald_spme=3
+  INTEGER, PARAMETER, PUBLIC, DIMENSION(4) :: ewald_name_index=&
+       (/do_ewald_none, do_ewald_ewald, do_ewald_pme, do_ewald_spme/)
+  !
   ! MD Ensemble
   !
   CHARACTER (LEN=default_string_length), PARAMETER, DIMENSION(9), PUBLIC :: ensemble_name_types=&
@@ -58,6 +72,7 @@ MODULE input_constants
        (/nve_ensemble,nvt_ensemble,npt_i_ensemble,&
          npt_f_ensemble,nph_ensemble,nph_uniaxial_ensemble,&
          nph_uniaxial_damped_ensemble,isokin_ensemble,reftraj_ensemble/)
+
   INTEGER, PARAMETER, PUBLIC :: nhc_global=101,nhc_massive=102
   !
   ! MD restart
@@ -165,10 +180,6 @@ MODULE input_constants
 
   INTEGER, PARAMETER, PUBLIC :: do_mc_traditional=0,&
                                 do_mc_gemc=1
-
-  INTEGER, PARAMETER, PUBLIC :: do_ewald=0,&
-                                do_pme=1,&
-                                do_spme=2
 
   INTEGER, PARAMETER, public :: do_loc_jacobi=0,&
                                 do_loc_crazy=1,&

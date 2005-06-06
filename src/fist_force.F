@@ -67,6 +67,10 @@ MODULE fist_force
        section_add_keyword, section_add_subsection, section_release,&
        section_describe_html, section_describe_index_html, section_vals_type,&
        section_vals_get_subs_vals, section_vals_get, section_vals_val_get
+  USE input_constants,                 ONLY: do_ewald_none,&
+                                             do_ewald_ewald,&
+                                             do_ewald_pme,&
+                                             do_ewald_spme
   PRIVATE
   PUBLIC :: fist_force_control, debug_variables_type
 
@@ -131,7 +135,7 @@ SUBROUTINE fist_force_control ( fist_env, virial, globenv, box_change, debug ,er
   REAL (KIND=dp), DIMENSION ( :,: ), ALLOCATABLE :: f_total
   REAL (KIND=dp), DIMENSION ( 3,3 ) :: pv_g, ident
   REAL (KIND=dp), DIMENSION ( 3,3 ) :: pv_bc
-  CHARACTER ( len = default_string_length ) :: ewald_type
+  INTEGER                           :: ewald_type
   TYPE ( fist_energy_type ), POINTER :: thermo
   TYPE ( particle_type ), DIMENSION(:), POINTER :: particle_set 
   TYPE(distribution_1d_type), POINTER      :: local_molecules, &
@@ -254,12 +258,12 @@ SUBROUTINE fist_force_control ( fist_env, virial, globenv, box_change, debug ,er
 !
 ! get g-space non-bonded forces:
 !
-  IF ( ewald_type /= 'NONE' ) THEN
+  IF ( ewald_type /= do_ewald_none ) THEN
 
      ! compute g-space part of the ewald sum
      SELECT CASE ( ewald_type )
 
-     CASE ( "EWALD" )
+     CASE ( do_ewald_ewald )
         ! Parallelisation over atoms --> allocate local atoms
         ALLOCATE ( fg_coulomb ( 3, nlocal_particles ), STAT=isos )
         IF ( isos /= 0 ) &
@@ -268,7 +272,7 @@ SUBROUTINE fist_force_control ( fist_env, virial, globenv, box_change, debug ,er
         CALL ewald_evaluate ( ewald_env, ewald_pw, atomic_kind_set, particle_set, &
                               local_particles, fg_coulomb, vg_coulomb, pv_g )
         
-     CASE ( "PME" )
+     CASE ( do_ewald_pme )
         ! Parallelisation over grids --> allocate all atoms
         ALLOCATE ( fg_coulomb ( 3, natoms ), STAT=isos )
         IF ( isos /= 0 ) &
@@ -277,7 +281,7 @@ SUBROUTINE fist_force_control ( fist_env, virial, globenv, box_change, debug ,er
         CALL pme_evaluate ( ewald_env, ewald_pw, particle_set, &
                             vg_coulomb, fg_coulomb, pv_g )
         CALL mp_sum ( fg_coulomb, globenv % group ) 
-     CASE ( "SPME" )
+     CASE ( do_ewald_spme )
         ! Parallelisation over grids --> allocate all atoms
         ALLOCATE ( fg_coulomb ( 3, natoms ), STAT=isos )
         IF ( isos /= 0 ) &
@@ -287,9 +291,6 @@ SUBROUTINE fist_force_control ( fist_env, virial, globenv, box_change, debug ,er
                              fg_coulomb, vg_coulomb, pv_g)
         CALL mp_sum ( fg_coulomb, globenv % group ) 
         
-     CASE DEFAULT
-        CALL stop_program ( "fist_force", "illegal value of ewald_type: "//&
-                            ewald_type )
      END SELECT
 
      CALL bonded_correct_gaussian ( atomic_kind_set, local_particles, &
@@ -338,7 +339,7 @@ SUBROUTINE fist_force_control ( fist_env, virial, globenv, box_change, debug ,er
   CALL mp_sum ( thermo % pot, globenv % group )
 !
 ! add g-space contributions if needed
-  IF ( ewald_type /= 'NONE' ) THEN
+  IF ( ewald_type /= do_ewald_none ) THEN
 ! e_self, e_neut, and ebonded are already summed over all processors
 ! vg_coulomb is not calculated in parallel
      thermo % e_gspace = vg_coulomb
@@ -369,7 +370,7 @@ SUBROUTINE fist_force_control ( fist_env, virial, globenv, box_change, debug ,er
 ! Adding in the reciprocal forces: EWALD is a special
 ! case because of distrubted data
   SELECT CASE ( ewald_type )
-  CASE ( "EWALD" )
+  CASE ( do_ewald_ewald )
      node = 0
      DO iparticle_kind = 1, nparticle_kind
         nparticle_local = local_particles % n_el ( iparticle_kind )
@@ -396,7 +397,7 @@ SUBROUTINE fist_force_control ( fist_env, virial, globenv, box_change, debug ,er
 !
 ! add up all the pressure tensors
 !
-  IF ( ewald_type == 'NONE' ) THEN
+  IF ( ewald_type == do_ewald_none ) THEN
      virial % pv_virial = pv_nonbond + pv_bond + pv_bend + &
                           pv_torsion + pv_imptors + pv_urey_bradley
      CALL mp_sum ( virial % pv_virial, globenv % group )
@@ -424,21 +425,18 @@ SUBROUTINE fist_force_control ( fist_env, virial, globenv, box_change, debug ,er
 
 ! Assign to particle_set
   SELECT CASE ( ewald_type )
-  CASE ( "SPME", "PME" )
+  CASE ( do_ewald_spme, do_ewald_pme )
     DO i = 1, natoms
       particle_set ( i ) % f ( 1 ) = f_total ( 1, i ) + fg_coulomb ( 1, i )
       particle_set ( i ) % f ( 2 ) = f_total ( 2, i ) + fg_coulomb ( 2, i )
       particle_set ( i ) % f ( 3 ) = f_total ( 3, i ) + fg_coulomb ( 3, i )
     END DO
-  CASE ( "EWALD", "NONE" )
+  CASE ( do_ewald_ewald, do_ewald_none )
     DO i = 1, natoms
       particle_set ( i ) % f ( 1 ) = f_total ( 1, i ) 
       particle_set ( i ) % f ( 2 ) = f_total ( 2, i ) 
       particle_set ( i ) % f ( 3 ) = f_total ( 3, i ) 
     END DO
-  CASE DEFAULT
-    CALL stop_program ( "fist_force", "illegal value of ewald_type: "//&
-                         ewald_type )
   END SELECT
   IF (PM2) THEN
      WRITE(iw,'(A)')" FIST:: (3) TOTAL FORCES - THE END..."
@@ -482,11 +480,11 @@ SUBROUTINE fist_force_control ( fist_env, virial, globenv, box_change, debug ,er
      CALL mp_sum ( pv_urey_bradley, globenv % group )
      debug % pv_ub = pv_urey_bradley
      SELECT CASE ( ewald_type )
-     CASE ( 'PME', 'SPME' )
+     CASE ( do_ewald_spme, do_ewald_pme )
         debug % pot_g = vg_coulomb
         debug % pv_g = pv_g
         debug % f_g = fg_coulomb
-     CASE ( 'EWALD' )
+     CASE ( do_ewald_ewald )
         debug % pot_g = vg_coulomb
         debug % pv_g = pv_g
         ! debug % fg is computed above because of

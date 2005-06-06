@@ -75,6 +75,10 @@ MODULE ewald_pw_types
   USE green_types,                     ONLY: greens_function_type,&
                                              pw_green_release,&
                                              pw_green_retain
+  USE input_constants,                 ONLY: do_ewald_none,&
+                                             do_ewald_ewald,&
+                                             do_ewald_pme,&
+                                             do_ewald_spme
   IMPLICIT NONE
 
   PRIVATE
@@ -263,7 +267,7 @@ SUBROUTINE ewald_pw_init ( ewald_pw, green, cell, cell_ref, ewald_env, error )
   LOGICAL :: pw_grid_information, failure, ionode
   TYPE ( cp_logger_type ), POINTER :: logger
   TYPE ( pw_pool_type ), POINTER :: pw_pool
-  CHARACTER ( len = default_string_length ) :: ewald_type
+  INTEGER :: ewald_type
   CHARACTER(len=*), PARAMETER :: routineN='ewald_pw_init',&
         routineP=moduleN//':'//routineN
 
@@ -297,7 +301,7 @@ SUBROUTINE ewald_pw_init ( ewald_pw, green, cell, cell_ref, ewald_env, error )
     CALL pw_grid_construct( pw_big_grid )
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     SELECT CASE ( ewald_type )
-    CASE ( "EWALD" )
+    CASE ( do_ewald_ewald )
        ! set up EWALD "Classic"
        IF ( gmax == 2 * ( gmax / 2 ) ) THEN
           IF ( ionode ) &
@@ -318,7 +322,7 @@ SUBROUTINE ewald_pw_init ( ewald_pw, green, cell, cell_ref, ewald_env, error )
        ewald_pw % pw_big_pool => pw_pool
        CALL pw_pool_retain ( ewald_pw % pw_big_pool )
        CALL pw_pool_release ( pw_pool )
-    CASE ( "PME" )
+    CASE ( do_ewald_pme )
        ! set up PME, the double grid method
        IF ( ns_max == 2 * ( ns_max / 2 ) ) THEN
           IF ( ionode ) &
@@ -359,7 +363,7 @@ SUBROUTINE ewald_pw_init ( ewald_pw, green, cell, cell_ref, ewald_env, error )
        CALL pw_pool_retain ( ewald_pw % pw_small_pool )
        CALL pw_pool_release ( pw_pool )
 
-    CASE ( "SPME" )
+    CASE ( do_ewald_spme )
      ! set up SPME
        npts_s = (/ gmax, gmax, gmax /)
        CALL pw_find_cutoff ( npts_s, cell_ref, cutoff )
@@ -385,9 +389,7 @@ SUBROUTINE ewald_pw_init ( ewald_pw, green, cell, cell_ref, ewald_env, error )
        ewald_pw%pw_big_pool => pw_pool
        CALL pw_pool_retain ( ewald_pw % pw_big_pool )
        CALL pw_pool_release ( pw_pool )
-    CASE ( "NONE" )
-    CASE DEFAULT
-       CALL stop_program ( "ewald_pw_init", "option not implemented" )
+    CASE ( do_ewald_none )
     END SELECT
     CALL cell_retain ( cell )
     CALL cell_retain ( cell_ref )

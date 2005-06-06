@@ -3,6 +3,9 @@
 !   CP2K: A general program to perform molecular dynamics simulations         !
 !   Copyright (C) 2000  CP2K developers group                                 !
 !-----------------------------------------------------------------------------!
+
+#include "cp_prep_globals.h"
+
 !!****** cp2k/fist_environment [1.0] *
 !!
 !!   NAME
@@ -186,7 +189,7 @@ SUBROUTINE fist_init ( fist_env, globenv, error )
   CALL ewald_env_create ( ewald_env, globenv % para_env, error )
 
 ! Read the input section and set the ewald_env ***
-  CALL read_ewald_section ( ewald_env, globenv )
+  CALL read_ewald_section ( ewald_env, globenv, error )
 
 ! topology
   CALL get_fist_env (fist_env, qmmm=qmmm, qmmm_env=qmmm_env, error=error)

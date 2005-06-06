@@ -47,6 +47,10 @@ MODULE dg_rho0_types
   USE mathconstants, ONLY : pi
   USE pw_grid_types, ONLY : pw_grid_type
   USE termination, ONLY : stop_program
+  USE input_constants,                 ONLY: do_ewald_none,&
+                                             do_ewald_ewald,&
+                                             do_ewald_pme,&
+                                             do_ewald_spme  
 
   IMPLICIT NONE
 
@@ -63,7 +67,7 @@ MODULE dg_rho0_types
   ! zet = Gaussian exponent
   TYPE dg_rho0_type
      INTEGER :: ref_count, id_nr
-     CHARACTER ( LEN = default_string_length ) :: type
+     INTEGER :: TYPE
      INTEGER :: grid
      INTEGER :: kind
      REAL (KIND=dp) :: cutoff_radius
@@ -90,7 +94,7 @@ CONTAINS
     REAL (KIND=dp), POINTER, OPTIONAL :: gcc ( : ), zet ( : )
     REAL (KIND=dp), OPTIONAL :: cutoff_radius
     TYPE ( coeff_type ), OPTIONAL :: density
-    CHARACTER ( len = * ), OPTIONAL :: type
+    INTEGER, OPTIONAL :: TYPE
     
 !   ---------------------------------------------------------------------------
 !   *** Local parameters ***
@@ -120,7 +124,7 @@ CONTAINS
     REAL (KIND=dp), POINTER, OPTIONAL :: gcc ( : ), zet ( : )
     REAL (KIND=dp), OPTIONAL :: cutoff_radius
     TYPE ( coeff_type ), POINTER, OPTIONAL :: density
-    CHARACTER ( len = * ), OPTIONAL :: type
+    INTEGER, OPTIONAL :: TYPE
     
 !   ---------------------------------------------------------------------------
 !   *** Local parameters ***
@@ -162,7 +166,7 @@ CONTAINS
     dg_rho0 % cutoff_radius = 0.0_dp
     dg_rho0 % grid = 0
     dg_rho0 % kind = 0
-    dg_rho0 % type = ""
+    dg_rho0 % type = do_ewald_none
     last_dg_rho0_id_nr=last_dg_rho0_id_nr+1
     dg_rho0%id_nr=last_dg_rho0_id_nr
     dg_rho0%ref_count=1
@@ -282,37 +286,21 @@ END SUBROUTINE dg_rho0_release
 !******************************************************************************
 
 SUBROUTINE dg_rho0_init ( dg_rho0, pw_grid )
-
   IMPLICIT NONE
-
-! Arguments
+  ! Arguments
   TYPE ( dg_rho0_type ), POINTER :: dg_rho0
   TYPE ( pw_grid_type ), POINTER :: pw_grid
 
-! Locals
-
-!------------------------------------------------------------------------------
-
   CALL coeff_deallocate ( dg_rho0 % density )
   SELECT CASE ( dg_rho0 % type )
-  CASE ( "EWALD" )
+  CASE ( do_ewald_ewald )
     CALL coeff_allocate ( dg_rho0 % density, pw_grid, PW_REALDATA3D )
     CALL dg_rho0_pme_gauss ( dg_rho0 % density, dg_rho0 % zet ( 1 ) )
-  CASE ( "PME" )
+  CASE ( do_ewald_pme )
     CALL coeff_allocate ( dg_rho0 % density, pw_grid, PW_REALDATA3D )
     CALL dg_rho0_pme_gauss ( dg_rho0 % density, dg_rho0 % zet ( 1 ) )
-  CASE ( "SPME" )
-    CALL stop_program ( 'dg_rho0_init', 'type not implemented' )
-  CASE ( "S" )
-    CALL coeff_allocate ( dg_rho0 % density, pw_grid, PW_REALDATA3D )
-    CALL dg_rho0_s_cgf ( dg_rho0 % density, dg_rho0 % zet , &
-                          dg_rho0 % gcc)
-  CASE ( "PX", "PY", "PZ" )
-    CALL coeff_allocate ( dg_rho0 % density, pw_grid, PW_COMPLEXDATA3D )
-    CALL dg_rho0_p_cgf ( dg_rho0 % density, dg_rho0 % zet, & 
-                         dg_rho0 % gcc, dg_rho0 % type)
-  CASE DEFAULT
-    CALL stop_program ( 'dg_rho0_init', 'type not implemented' )
+  CASE ( do_ewald_spme )
+    CALL stop_program ( 'dg_rho0_init', 'SPME type not implemented' )
   END SELECT
 
 END SUBROUTINE dg_rho0_init
@@ -397,243 +385,6 @@ SUBROUTINE dg_rho0_pme_gauss ( dg_rho0, alpha )
   END DO
 
 END SUBROUTINE dg_rho0_pme_gauss
-!******************************************************************************
-
-SUBROUTINE dg_rho0_s_cgf ( dg_rho0, zet, gcc )
-
-!******************************************************************************
-!   NAME
-!!     dg_rho0_s_cgf
-!!
-!!   FUNCTION
-!!     puts a contracted gaussian function of s-type                
-!!     in the g-space                            
-!!
-!!   AUTHOR
-!!     gloria      
-!!
-!!   SOURCE
-!******************************************************************************
-  IMPLICIT NONE
-
-! Arguments
-  TYPE ( coeff_type ), INTENT ( INOUT ), TARGET :: dg_rho0
-  REAL (KIND=dp), INTENT ( IN ), DIMENSION ( : ) :: zet
-  REAL (KIND=dp), INTENT ( IN ), DIMENSION ( : ) :: gcc
-
-! Locals
-  TYPE ( pw_grid_type ), POINTER :: pw_grid
-  INTEGER :: l0, m0, n0
-  INTEGER, PARAMETER :: IMPOSSIBLE = 10000
-  REAL (KIND=dp) :: const, e_gsq, charge, coef
-  INTEGER :: lp, mp, np, ln, mn, nn, gpt, ncg, icg
-  INTEGER, DIMENSION ( :, : ), POINTER :: bds
-  INTEGER, DIMENSION ( : ), POINTER :: ghat
-  REAL (KIND=dp), DIMENSION ( :, :, : ), POINTER :: rho0
-
-!------------------------------------------------------------------------------
-
-  ncg = SIZE ( zet  )
-
-  pw_grid => dg_rho0 % pw % pw_grid
-  bds => pw_grid % bounds
-
-  IF ( -bds ( 1, 1 ) == bds ( 2, 1 ) ) THEN
-    l0 = IMPOSSIBLE
-  ELSE
-    l0 = bds ( 1, 1 )
-  END IF
-
-  IF ( -bds ( 1, 2 ) == bds ( 2, 2 ) ) THEN
-    m0 = IMPOSSIBLE
-  ELSE
-    m0 = bds ( 1, 2 )
-  END IF
-
-  IF ( -bds ( 1, 3 ) == bds ( 2, 3 ) ) THEN
-    n0 = IMPOSSIBLE
-  ELSE
-    n0 = bds ( 1, 3 )
-  END IF
-
-  CALL coeff_zero ( dg_rho0 )
-
-  rho0 => dg_rho0 % pw % cr3d
-
-  charge = 0.0_dp
-  DO icg = 1, ncg
-
-     const = 1.0_dp / ( 4.0_dp * zet ( icg ) )
-     coef  = ( gcc ( icg ) * pi ** 1.5_dp ) / zet ( icg )**1.5_dp
-
-     rho0(l0,m0,n0)  =  rho0(l0,m0,n0)  + coef * 1.0_dp / pw_grid % vol
-
-     DO gpt = 1, pw_grid % ngpts_cut
-        ghat => pw_grid % g_hat ( :, gpt )
-
-        lp = pw_grid % mapl % pos ( ghat ( 1 ) )
-        ln = pw_grid % mapl % neg ( ghat ( 1 ) )
-        mp = pw_grid % mapm % pos ( ghat ( 2 ) )
-        mn = pw_grid % mapm % neg ( ghat ( 2 ) )
-        np = pw_grid % mapn % pos ( ghat ( 3 ) )
-        nn = pw_grid % mapn % neg ( ghat ( 3 ) )
-
-        e_gsq = EXP ( -const * pw_grid % gsq ( gpt ) ) / pw_grid % vol
-
-    !*apsi
-        lp = lp + bds ( 1, 1 )
-        mp = mp + bds ( 1, 2 )
-        np = np + bds ( 1, 3 )
-        ln = ln + bds ( 1, 1 )
-        mn = mn + bds ( 1, 2 )
-        nn = nn + bds ( 1, 3 )
-
-        IF ( lp == l0 .AND. mp == m0 .AND. np == n0 ) CYCLE
-        rho0 ( lp, mp, np ) = rho0 ( lp, mp, np ) + e_gsq * coef
-        rho0 ( ln, mn, nn ) = rho0 ( ln, mn, nn ) + e_gsq * coef
-
-        IF ( ghat ( 1 ) == l0 .OR. ghat ( 2 ) == m0 .OR. ghat ( 3 ) == n0 ) THEN
-          rho0 ( lp, mp, np ) = 0.0_dp
-          rho0 ( ln, mn, nn ) = 0.0_dp
-        END IF
-
-      END DO
-
-   END DO
-
-END SUBROUTINE dg_rho0_s_cgf
-
-!******************************************************************************
-
-SUBROUTINE dg_rho0_p_cgf ( dg_rho0, zet, gcc, type )
-
-!******************************************************************************
-!   NAME
-!!     dg_rho0_p_cgf
-!!
-!!   FUNCTION
-!!     puts a contracted gaussian function of p-type                
-!!     in the g-space. The p is imaginary, so
-!!     the p-function has then to be multiplied by (0.0, -1.0)
-!!     in order to get the true p.
-!!
-!!   AUTHOR
-!!     gloria      
-!!
-!!   SOURCE
-!******************************************************************************
-
-
-
-  IMPLICIT NONE
-
-! Arguments
-  TYPE ( coeff_type ), INTENT ( INOUT ), TARGET :: dg_rho0
-  REAL (KIND=dp), INTENT ( IN ), DIMENSION (:) :: zet
-  REAL (KIND=dp), INTENT ( IN ), DIMENSION (:) :: gcc
-  CHARACTER ( LEN = 12 ), INTENT ( IN ) :: type
-
-
-! Locals
-  TYPE ( pw_grid_type ), POINTER :: pw_grid
-  INTEGER :: l0, m0, n0
-  INTEGER, PARAMETER :: IMPOSSIBLE = 10000
-  REAL (KIND=dp) :: charge, const, e_gsq, p_on_grid
-  INTEGER :: lp, mp, np, ln, mn, nn, gpt, ncg, icg
-  INTEGER, DIMENSION ( :, : ), POINTER :: bds
-  INTEGER, DIMENSION ( : ), POINTER :: ghat
-  COMPLEX (KIND=dp), DIMENSION ( :, :, : ), POINTER :: rho0
-  COMPLEX (KIND=dp) :: minus_i
-  REAL (KIND=dp) :: coef
-
-!------------------------------------------------------------------------------
-  minus_i = CMPLX( 0.0_dp, -1.0_dp,KIND=dp)
-  ncg = size(zet)
-
-  pw_grid => dg_rho0 % pw % pw_grid
-  bds => pw_grid % bounds
-
-  IF ( -bds ( 1, 1 ) == bds ( 2, 1 ) ) THEN
-    l0 = IMPOSSIBLE
-  ELSE
-    l0 = bds ( 1, 1 )
-  END IF
-
-  IF ( -bds ( 1, 2 ) == bds ( 2, 2 ) ) THEN
-    m0 = IMPOSSIBLE
-  ELSE
-    m0 = bds ( 1, 2 )
-  END IF
-
-  IF ( -bds ( 1, 3 ) == bds ( 2, 3 ) ) THEN
-    n0 = IMPOSSIBLE
-  ELSE
-    n0 = bds ( 1, 3 )
-  END IF
-
-  CALL coeff_zero ( dg_rho0 )
-
-  rho0 => dg_rho0 % pw % cc3d
-  charge = 0.0_dp
-  DO icg = 1, ncg
-
-     IF ( zet (icg) == 0 ) CYCLE
-     
-     const = 1.0_dp / ( 4.0_dp * zet ( icg ) )
-     coef  = ( gcc ( icg ) * pi**1.5 ) / ( 2.0_dp * zet ( icg )**2.5 )
-
-     DO gpt = 1, pw_grid % ngpts_cut
-        ghat => pw_grid % g_hat ( :, gpt )
-
-        lp = pw_grid % mapl % pos ( ghat ( 1 ) )
-        ln = pw_grid % mapl % neg ( ghat ( 1 ) )
-        mp = pw_grid % mapm % pos ( ghat ( 2 ) )
-        mn = pw_grid % mapm % neg ( ghat ( 2 ) )
-        np = pw_grid % mapn % pos ( ghat ( 3 ) )
-        nn = pw_grid % mapn % neg ( ghat ( 3 ) )
-
-        e_gsq = EXP ( -const * pw_grid % gsq ( gpt ) ) / pw_grid % vol
-
-    !*apsi
-        lp = lp + bds ( 1, 1 )
-        mp = mp + bds ( 1, 2 )
-        np = np + bds ( 1, 3 )
-        ln = ln + bds ( 1, 1 )
-        mn = mn + bds ( 1, 2 )
-        nn = nn + bds ( 1, 3 )
-
-        IF ( lp == l0 .AND. mp == m0 .AND. np == n0 ) CYCLE
-
-        SELECT CASE (type)
- 
-        CASE ("PX")
-
-           p_on_grid = pw_grid % g (1, gpt) * e_gsq * coef
-           
-        CASE ("PY")
-
-           p_on_grid = pw_grid % g (2, gpt) * e_gsq * coef
-
-        CASE ("PZ")
-
-           p_on_grid = pw_grid % g (3, gpt) * e_gsq * coef
-
-        END SELECT
-
-        rho0 ( lp, mp, np ) = rho0 ( lp, mp, np ) + p_on_grid * minus_i  
-        rho0 ( ln, mn, nn ) = rho0 ( ln, mn, nn ) - p_on_grid * minus_i
-
-        IF ( ghat ( 1 ) == l0 .OR. ghat ( 2 ) == m0 .OR. ghat ( 3 ) == n0 ) THEN
-          rho0 ( lp, mp, np ) = 0.0_dp
-          rho0 ( ln, mn, nn ) = 0.0_dp
-        END IF
-
-      END DO
-
-   END DO
-
-END SUBROUTINE dg_rho0_p_cgf
-
 !******************************************************************************
 
 END MODULE dg_rho0_types

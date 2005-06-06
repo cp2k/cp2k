@@ -35,7 +35,10 @@ MODULE pair_potential
                                              spline_environment_type
   USE termination,                     ONLY: stop_memory,&
                                              stop_program
-
+  USE input_constants,                 ONLY: do_ewald_none,&
+                                             do_ewald_ewald,&
+                                             do_ewald_pme,&
+                                             do_ewald_spme
   IMPLICIT NONE
 
   PRIVATE
@@ -113,7 +116,7 @@ FUNCTION ener_coul ( pot, qi, qj, r, ewald_env )
 
     REAL(KIND=dp), PARAMETER :: eps = 1.0E-6_dp, &
       ifourpi = 1.0_dp / ( 4.0_dp * pi )
-    CHARACTER ( len = default_string_length ) :: ewald_type
+    INTEGER :: ewald_type
     REAL (KIND=dp) :: eps0, alpha
 
 !------------------------------------------------------------------------------
@@ -121,13 +124,10 @@ FUNCTION ener_coul ( pot, qi, qj, r, ewald_env )
   IF ( PRESENT ( ewald_env ) ) THEN
     CALL ewald_env_get ( ewald_env, alpha = alpha, eps0 = eps0, &
                        ewald_type = ewald_type ) 
-    SELECT CASE(  ewald_type )
-    CASE( 'EWALD', 'PME', 'SPME' )
-       ener_coul = ifourpi / eps0 * qi * qj &
-            * erfc ( alpha * r ) / r - pot % e_cutoff_coul
-    CASE( 'NONE')
-       ener_coul= 0.0_dp
-    END SELECT
+    ener_coul= 0.0_dp
+    IF (ewald_type /= do_ewald_none) &
+         ener_coul = ifourpi / eps0 * qi * qj &
+         * erfc ( alpha * r ) / r - pot % e_cutoff_coul
   ELSE
     ener_coul= 0.0_dp
   ENDIF

@@ -283,7 +283,7 @@ CONTAINS
     md_section => section_vals_get_subs_vals(globenv%input_file,&
        "MOTION%MD_NEW",error=error)
     IF (parsed_cp2k_input(md_section,check_this_section=.TRUE.,error=error)) THEN
-       CALL read_md_new_section(simpar, globenv, mdio, md_section, error)
+       CALL read_md_new_section(simpar, globenv,  md_section, error)
     ELSE
 !
 !TODEL_START_TL
@@ -790,14 +790,13 @@ END SUBROUTINE read_md_section
 !!  
 !!
 !!*** *************************************************************************  
-SUBROUTINE read_md_new_section(simpar, globenv, mdio, md_section, error)
+SUBROUTINE read_md_new_section(simpar, globenv, md_section, error)
   IMPLICIT NONE
   ! Arguments
   TYPE(simulation_parameters_type), &
        INTENT(INOUT)                          :: simpar
   TYPE(global_environment_type), &
        INTENT(IN)                             :: globenv
-  TYPE(mdio_parameters_type), INTENT(OUT)     :: mdio
   TYPE(cp_error_type), INTENT(inout)          :: error
   TYPE(section_vals_type), POINTER            :: md_section
   ! Local Variables

@@ -283,7 +283,7 @@ END SUBROUTINE read_topology_section
 
 !!*****
 !******************************************************************************
-!!****** force_fields/input_constraints [1.0] *
+!!****** topology_input/input_constraints [1.0] *
 !!
 !!   NAME
 !!     read_constraints_section
@@ -300,21 +300,7 @@ END SUBROUTINE read_topology_section
 !!        within the table is used as handle for the topology
 !!
 !!   NOTES
-!!I---------------------------------------------------------------------------I
-!!I SECTION: &force_field ... &end                                            I
-!!I                                                                           I
-!!I constraints                                                               I
-!!I   HYDROGEN                                                                I
-!!I   ATOM                                                                    I
-!!I   DIST MOLKIND ATM_A ATM_B D_AB                                           I
-!!I   G3x3 MOLKIND ATM_A ATM_B ATM_C D_AB D_AC D_BC                           I
-!!I   G4x6 MOLKIND ATM_A ATM_B ATM_C ATM_D D_AB D_AC D_BC D_AD D_BD D_CD      I
-!!I                                                                           I
-!!I end constraints                                                           I
-!!I                                                                           I
-!!I---------------------------------------------------------------------------I
 !!
-!!   SOURCE
 !******************************************************************************
 
 SUBROUTINE read_constraints_section(topology, globenv, constraint_section, error)
@@ -335,14 +321,14 @@ SUBROUTINE read_constraints_section(topology, globenv, constraint_section, error
     CHARACTER(LEN=40)                        :: string
     INTEGER                                  :: i, ierror, ilen, iw
 
-  LOGICAL                                    :: PM1, PM2, PM3, PM4
+    LOGICAL                                  :: PM1, PM2, PM3, PM4
 
   IF (parsed_cp2k_input(constraint_section,check_this_section=.TRUE.,error=error)) THEN
      CALL read_constraints_section_new(topology, constraint_section=constraint_section,&
           error=error)
      RETURN
   END IF
-  
+!  
 !TODEL_START_TL
 !------------------------------------------------------------------------------
   PM1 = .FALSE.
@@ -467,13 +453,14 @@ SUBROUTINE read_constraints_section(topology, globenv, constraint_section, error
 
   IF(PM1)  WRITE(iw,*) "  Exiting  read_constraints_section"
   CALL write_checkpoint_information("exiting "//routineN,globenv)
+!
 !TODEL_END_TL
-
+!
 END SUBROUTINE read_constraints_section
 
 !!*****
 !******************************************************************************
-!!****** force_fields/read_constraints_section_new [1.0] *
+!!****** topology_input/read_constraints_section_new [1.0] *
 !!
 !!   NAME
 !!     read_constraints_section_new

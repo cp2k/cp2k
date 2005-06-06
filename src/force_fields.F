@@ -134,6 +134,7 @@ MODULE force_fields
   USE qmmm_types,                      ONLY: qmmm_env_mm_type
   USE input_constants,                 ONLY: do_qmmm_none
   USE physcon,                         ONLY: bohr
+  USE input_cp2k,                      ONLY: parsed_cp2k_input
   USE input_section_types, ONLY: section_type, section_create, &
        section_add_keyword, section_add_subsection, section_release,&
        section_vals_type,&
@@ -232,7 +233,7 @@ SUBROUTINE force_field_control (atomic_kind_set,particle_set,&
   !-----------------------------------------------------------------------------
   ! 2. Read in the force field section in the input file if any
   !-----------------------------------------------------------------------------
-  CALL read_force_field_section(ff_type,globenv)
+  CALL read_force_field_section(ff_type,globenv,error)
 
 
   !-----------------------------------------------------------------------------
@@ -322,6 +323,552 @@ END SUBROUTINE force_field_control
 !!     Reads the force_field input section
 !!
 !!   AUTHOR
+!!     teo
+!!
+!!   MODIFICATION HISTORY
+!!
+!!   SOURCE
+!******************************************************************************
+
+SUBROUTINE read_force_field_new_section ( ff_section, ff_type, globenv, error )
+  IMPLICIT NONE
+  ! Arguments
+  TYPE(force_field_type), &
+       INTENT(INOUT)                          :: ff_type
+  TYPE(section_vals_type), POINTER         :: ff_section  
+  TYPE(global_environment_type), &
+       INTENT(IN),OPTIONAL                    :: globenv
+  TYPE(cp_error_type), INTENT(inout), OPTIONAL   :: error
+  ! Local Variables
+  CHARACTER(len=*), PARAMETER :: routineN = 'read_force_field_new_section', &
+       routineP = moduleN//':'//routineN
+  LOGICAL :: failure, explicit
+  INTEGER :: n_rep, nlj, i, iwl, nwl, ieam, neam, ngd, igd, nipbv, ipbv, ntot
+  INTEGER :: nchg, nbonds, nbends, ntors
+  TYPE(section_vals_type), POINTER         :: tmp_section, tmp_section2
+  CHARACTER(len=default_string_length) ,DIMENSION(:), POINTER :: atoms
+  TYPE(input_info_type),POINTER            :: inp_info
+
+  NULLIFY(tmp_section, tmp_section2)
+  inp_info => ff_type%inp_info
+  failure = .FALSE.
+  IF (.NOT.failure) THEN
+     CALL section_vals_val_get(ff_section,"PARMTYPE",c_val=ff_type%ff_type,error=error)
+     CALL section_vals_val_get(ff_section,"PARMFILE",c_val=ff_type%ff_file_name,error=error)
+     CALL section_vals_val_get(ff_section,"RCUT_NB",r_val=ff_type%rcut_nb,error=error)
+
+     tmp_section  => section_vals_get_subs_vals(ff_section,"NONBONDED",error=error)
+     CALL section_vals_get(tmp_section,explicit=explicit,error=error)
+     IF (explicit) THEN
+        tmp_section2 => section_vals_get_subs_vals(tmp_section,"LENNARD-JONES",error=error)
+        CALL section_vals_get(tmp_section2,explicit=explicit,n_repetition=nlj,error=error)
+        ntot = 0
+        IF (explicit) THEN
+           CALL reallocate_potparm(inp_info%nonbonded,1,ntot+nlj)
+           CALL read_lj_section(inp_info%nonbonded,tmp_section2,ntot,error)
+        END IF
+        tmp_section2 => section_vals_get_subs_vals(tmp_section,"WILLIAMS",error=error)
+        CALL section_vals_get(tmp_section2,explicit=explicit,n_repetition=nwl,error=error)
+        ntot=nlj
+        IF (explicit) THEN
+           CALL reallocate_potparm(inp_info%nonbonded,1,ntot+nwl)
+           CALL read_wl_section(inp_info%nonbonded,tmp_section2,ntot,error)
+        END IF        
+        tmp_section2 => section_vals_get_subs_vals(tmp_section,"EAM",error=error)
+        CALL section_vals_get(tmp_section2,explicit=explicit,n_repetition=neam,error=error)
+        ntot=nlj+nwl
+        IF (explicit) THEN
+           CALL reallocate_potparm(inp_info%nonbonded,1,ntot+neam)
+           CALL read_eam_section(inp_info%nonbonded,tmp_section2,ntot,globenv,error)
+        END IF
+        tmp_section2 => section_vals_get_subs_vals(tmp_section,"GOODWIN",error=error)
+        CALL section_vals_get(tmp_section2,explicit=explicit,n_repetition=ngd,error=error)
+        ntot=nlj+nwl+neam
+        IF (explicit) THEN
+           CALL reallocate_potparm(inp_info%nonbonded,1,ntot+ngd)
+           CALL read_gd_section(inp_info%nonbonded,tmp_section2,ntot,error)
+        END IF        
+        tmp_section2 => section_vals_get_subs_vals(tmp_section,"IPBV",error=error)
+        CALL section_vals_get(tmp_section2,explicit=explicit,n_repetition=nipbv,error=error)
+        ntot=nlj+nwl+neam+ngd
+        IF (explicit) THEN
+           CALL reallocate_potparm(inp_info%nonbonded,1,ntot+nipbv)
+           CALL read_ipbv_section(inp_info%nonbonded,tmp_section2,ntot,error)
+        END IF
+     END IF
+     tmp_section => section_vals_get_subs_vals(ff_section,"NONBONDED14",error=error)
+     CALL section_vals_get(tmp_section,explicit=explicit,error=error)
+     IF (explicit) THEN
+        tmp_section2 => section_vals_get_subs_vals(tmp_section,"LENNARD-JONES",error=error)
+        CALL section_vals_get(tmp_section2,explicit=explicit,n_repetition=nlj,error=error)
+        ntot = 0
+        IF (explicit) THEN
+           CALL reallocate_potparm(inp_info%nonbonded14,1,ntot+nlj)
+           CALL read_lj_section(inp_info%nonbonded14,tmp_section2,ntot,error)
+        END IF
+        tmp_section2 => section_vals_get_subs_vals(tmp_section,"WILLIAMS",error=error)
+        CALL section_vals_get(tmp_section2,explicit=explicit,n_repetition=nwl,error=error)
+        ntot=nlj
+        IF (explicit) THEN
+           CALL reallocate_potparm(inp_info%nonbonded14,1,ntot+nwl)
+           CALL read_wl_section(inp_info%nonbonded14,tmp_section2,ntot,error)
+        END IF        
+        tmp_section2 => section_vals_get_subs_vals(tmp_section,"GOODWIN",error=error)
+        CALL section_vals_get(tmp_section2,explicit=explicit,n_repetition=ngd,error=error)
+        ntot=nlj+nwl
+        IF (explicit) THEN
+           CALL reallocate_potparm(inp_info%nonbonded14,1,ntot+ngd)
+           CALL read_gd_section(inp_info%nonbonded14,tmp_section2,ntot,error)
+        END IF        
+     END IF
+     tmp_section => section_vals_get_subs_vals(ff_section,"CHARGES",error=error)
+     CALL section_vals_get(tmp_section,explicit=explicit,n_repetition=nchg,error=error)
+     IF (explicit) THEN
+        ntot=0
+        CALL reallocate(inp_info%charge_atm,1,nchg)
+        CALL reallocate(inp_info%charge,1,nchg)
+        CALL read_chrg_section(inp_info%charge_atm,inp_info%charge,tmp_section2,ntot,error)
+     END IF
+     tmp_section => section_vals_get_subs_vals(ff_section,"BONDS",error=error)
+     CALL section_vals_get(tmp_section,explicit=explicit,n_repetition=nbonds,error=error)
+     IF (explicit) THEN
+        ntot=0
+        CALL reallocate(inp_info%bond_a,1,nbonds)
+        CALL reallocate(inp_info%bond_b,1,nbonds)
+        CALL reallocate(inp_info%bond_k,1,3,1,nbonds)
+        CALL reallocate(inp_info%bond_r0,1,nbonds)        
+        CALL read_bonds_section(inp_info%bond_a, inp_info%bond_b, inp_info%bond_k,&
+                                inp_info%bond_r0, tmp_section2, ntot, error)
+     END IF
+     tmp_section => section_vals_get_subs_vals(ff_section,"BENDS",error=error)
+     CALL section_vals_get(tmp_section,explicit=explicit,n_repetition=nbends,error=error)
+     IF (explicit) THEN
+        ntot=0
+        CALL reallocate(inp_info%bend_a,1,nbends)
+        CALL reallocate(inp_info%bend_b,1,nbends)
+        CALL reallocate(inp_info%bend_c,1,nbends)
+        CALL reallocate(inp_info%bend_k,1,nbends)
+        CALL reallocate(inp_info%bend_theta0,1,nbends)
+        CALL read_bends_section(inp_info%bend_a, inp_info%bend_b, inp_info%bend_c,&
+             inp_info%bend_k, inp_info%bend_theta0, tmp_section2, ntot, error)
+     END IF
+     tmp_section => section_vals_get_subs_vals(ff_section,"TORSIONS",error=error)
+     CALL section_vals_get(tmp_section,explicit=explicit,n_repetition=ntors,error=error)
+     IF (explicit) THEN
+        ntot=0
+        CALL reallocate(inp_info%torsion_a,1,ntors)
+        CALL reallocate(inp_info%torsion_b,1,ntors)
+        CALL reallocate(inp_info%torsion_c,1,ntors)
+        CALL reallocate(inp_info%torsion_d,1,ntors)
+        CALL reallocate(inp_info%torsion_k,1,ntors)
+        CALL reallocate(inp_info%torsion_m,1,ntors)
+        CALL reallocate(inp_info%torsion_cosphi0,1,ntors)
+        CALL read_torsions_section( inp_info%torsion_a, inp_info%torsion_b, inp_info%torsion_c,&
+             inp_info%torsion_d,inp_info%torsion_k,inp_info%torsion_cosphi0, inp_info%torsion_m,&
+             tmp_section2, ntot, error )
+     END IF
+  END IF
+
+END SUBROUTINE read_force_field_new_section
+
+
+SUBROUTINE set_IPBV_ff(at1, at2, nonbonded )
+  IMPLICIT NONE
+  ! Arguments
+  CHARACTER (LEN=*), INTENT(IN) :: at1, at2
+  TYPE (pair_potential_type)            :: nonbonded
+  ! Local Variables
+
+  IF  ( ( at1(1:1) == 'O' ) .AND. ( at2 (1:1) == 'O' ) ) THEN
+     nonbonded %ipbv%rcore = 0.9_dp       ! a.u.
+     nonbonded %ipbv%m = 0.0_dp           ! Kelvin/a.u. 
+     nonbonded %ipbv%b = 1.0e23_dp        ! Hartree
+     ! Hartree*a.u.^2
+     nonbonded %ipbv% a ( 2 ) = 4.786380682394_dp 
+     nonbonded %ipbv% a ( 3 ) = -1543.407053545_dp
+     nonbonded %ipbv% a ( 4 ) = 88783.31188529_dp
+     nonbonded %ipbv% a ( 5 ) = -2361200.155376_dp
+     nonbonded %ipbv% a ( 6 ) = 35940504.84679_dp
+     nonbonded %ipbv% a ( 7 ) = -339762743.6358_dp
+     nonbonded %ipbv% a ( 8 ) = 2043874926.466_dp
+     nonbonded %ipbv% a ( 9 ) = -7654856796.383_dp
+     nonbonded %ipbv% a ( 10 ) = 16195251405.65_dp
+     nonbonded %ipbv% a ( 11 ) = -13140392992.18_dp
+     nonbonded %ipbv% a ( 12 ) = -9285572894.245_dp 
+     nonbonded %ipbv% a ( 13 ) = 8756947519.029_dp
+     nonbonded %ipbv% a ( 14 ) = 15793297761.67_dp
+     nonbonded %ipbv% a ( 15 ) = 12917180227.21_dp
+  ELSEIF ( ( at1(1:1) == 'O' ) .AND. ( at2 (1:1) == 'H' ) ) THEN
+     nonbonded %ipbv%rcore = 2.95_dp       ! a.u.
+     nonbonded %ipbv%m =  -0.00437054E0_dp ! Hartree/a.u. 
+     nonbonded %ipbv%b =  0.0313652_dp     ! Hartree
+     ! Hartree*a.u.^2
+     nonbonded %ipbv% a ( 2 ) = -195.7716013277_dp
+     nonbonded %ipbv% a ( 3 ) = 15343.78613395_dp
+     nonbonded %ipbv% a ( 4 ) = -530864.4586516_dp
+     nonbonded %ipbv% a ( 5 ) = 10707934.39058_dp
+     nonbonded %ipbv% a ( 6 ) = -140099704.7890_dp
+     nonbonded %ipbv% a ( 7 ) = 1250943273.785_dp
+     nonbonded %ipbv% a ( 8 ) = -7795458330.676_dp
+     nonbonded %ipbv% a ( 9 ) = 33955897217.31_dp
+     nonbonded %ipbv% a ( 10 ) = -101135640744.0_dp
+     nonbonded %ipbv% a ( 11 ) = 193107995718.7_dp
+     nonbonded %ipbv% a ( 12 ) = -193440560940.0_dp
+     nonbonded %ipbv% a ( 13 ) =-4224406093.918E0_dp
+     nonbonded %ipbv% a ( 14 ) = 217192386506.5E0_dp 
+     nonbonded %ipbv% a ( 15 ) = -157581228915.5_dp
+  ELSEIF ( ( at1(1:1) == 'H' ) .AND. ( at2 (1:1) == 'O' ) ) THEN
+     nonbonded %ipbv%rcore = 2.95_dp       ! a.u.
+     nonbonded %ipbv%m =  -0.00437054E0_dp ! Hartree/a.u. 
+     nonbonded %ipbv%b =  0.0313652_dp     ! Hartree
+     ! Hartree*a.u.^2
+     nonbonded %ipbv% a ( 2 ) = -195.7716013277_dp
+     nonbonded %ipbv% a ( 3 ) = 15343.78613395_dp
+     nonbonded %ipbv% a ( 4 ) = -530864.4586516_dp
+     nonbonded %ipbv% a ( 5 ) = 10707934.39058_dp
+     nonbonded %ipbv% a ( 6 ) = -140099704.7890_dp
+     nonbonded %ipbv% a ( 7 ) = 1250943273.785_dp
+     nonbonded %ipbv% a ( 8 ) = -7795458330.676_dp
+     nonbonded %ipbv% a ( 9 ) = 33955897217.31_dp
+     nonbonded %ipbv% a ( 10 ) = -101135640744.0_dp
+     nonbonded %ipbv% a ( 11 ) = 193107995718.7_dp
+     nonbonded %ipbv% a ( 12 ) = -193440560940.0_dp
+     nonbonded %ipbv% a ( 13 ) =-4224406093.918E0_dp
+     nonbonded %ipbv% a ( 14 ) = 217192386506.5E0_dp 
+     nonbonded %ipbv% a ( 15 ) = -157581228915.5_dp
+  ELSEIF ( ( at1(1:1) == 'H' ) .AND. ( at2 (1:1) == 'H' ) ) THEN
+     nonbonded %ipbv%rcore = 3.165_dp     ! a.u.
+     nonbonded %ipbv%m = 0.00377391E0_dp  ! Hartree/a.u. 
+     nonbonded %ipbv%b = -0.02062040_dp   ! Hartree
+     ! Hartree*a.u.^2
+     nonbonded %ipbv% a ( 2 ) = -26.29456010782_dp
+     nonbonded %ipbv% a ( 3 ) =  2373.352548248_dp
+     nonbonded %ipbv% a ( 4 ) = -93880.43551360_dp
+     nonbonded %ipbv% a ( 5 ) =  2154624.884809_dp
+     nonbonded %ipbv% a ( 6 ) = -31965151.34955_dp
+     nonbonded %ipbv% a ( 7 ) = 322781785.3278_dp
+     nonbonded %ipbv% a ( 8 ) = -2271097368.668_dp
+     nonbonded %ipbv% a ( 9 ) = 11169163192.90_dp
+     nonbonded %ipbv% a ( 10 ) =-37684457778.47_dp
+     nonbonded %ipbv% a ( 11 ) = 82562104256.03_dp
+     nonbonded %ipbv% a ( 12 ) = -100510435213.4_dp
+     nonbonded %ipbv% a ( 13 ) = 24570342714.65E0_dp 
+     nonbonded %ipbv% a ( 14 ) = 88766181532.94E0_dp
+     nonbonded %ipbv% a ( 15 ) = -79705131323.98_dp
+  ELSE
+     CALL stop_program ("input_nonbonded","IPBV only for WATER")
+  ENDIF
+
+END SUBROUTINE set_IPBV_ff
+
+
+SUBROUTINE read_eam_section(nonbonded, section, start, globenv, error)
+  IMPLICIT NONE
+  ! Arguments
+  TYPE(section_vals_type), POINTER                  :: section
+  TYPE (pair_potential_type), POINTER, DIMENSION(:) :: nonbonded
+  INTEGER, INTENT(IN) :: start
+  TYPE(global_environment_type), &
+       INTENT(IN),OPTIONAL                    :: globenv
+  TYPE(cp_error_type), INTENT(inout), &
+       OPTIONAL                               :: error    
+  ! Local Variables
+  CHARACTER(len=*), PARAMETER :: routineN = 'read_eam_section', &
+       routineP = moduleN//':'//routineN
+  INTEGER :: n_items, isec
+  CHARACTER(LEN=default_string_length), POINTER, DIMENSION(:) :: atm_names
+
+ CALL section_vals_get(section,n_repetition=n_items,error=error)
+  DO isec = 1, n_items
+     CALL section_vals_val_get(section,"ATOM",i_rep_section=isec,c_vals=atm_names,error=error)
+
+     nonbonded(start+isec) %type = "EAM"
+     nonbonded(start+isec) %at1 = atm_names(1)
+     nonbonded(start+isec) %at2 = atm_names(2)
+     CALL section_vals_val_get(section,"PARMFILE",i_rep_section=isec,&
+          c_val=nonbonded(start+isec)%eam%eam_file_name,error=error)
+     CALL read_eam_data ( nonbonded(start+isec)%eam, globenv )
+     nonbonded(start+isec) %rcutsq  = nonbonded(start+isec)%eam%acutal**2
+  END DO
+END SUBROUTINE read_eam_section
+
+
+SUBROUTINE read_lj_section(nonbonded, section, start, error)
+  IMPLICIT NONE
+  ! Arguments
+  TYPE(section_vals_type), POINTER                  :: section
+  TYPE (pair_potential_type), POINTER, DIMENSION(:) :: nonbonded
+  INTEGER, INTENT(IN) :: start
+  TYPE(cp_error_type), INTENT(inout), &
+       OPTIONAL                               :: error    
+  ! Local Variables
+  CHARACTER(len=*), PARAMETER :: routineN = 'read_lj_section', &
+       routineP = moduleN//':'//routineN
+  INTEGER :: n_items, isec
+  CHARACTER(LEN=default_string_length), POINTER, DIMENSION(:) :: atm_names
+  REAL(KIND=dp) :: epsilon, sigma, rcut
+
+  CALL section_vals_get(section,n_repetition=n_items,error=error)
+  DO isec = 1, n_items
+     CALL section_vals_val_get(section,"ATOM",i_rep_section=isec,c_vals=atm_names,error=error)
+     CALL section_vals_val_get(section,"EPSILON",i_rep_section=isec,r_val=epsilon,error=error)
+     CALL section_vals_val_get(section,"SIGMA",i_rep_section=isec,r_val=sigma,error=error)
+     CALL section_vals_val_get(section,"RCUT",i_rep_section=isec,r_val=rcut,error=error)
+
+     nonbonded(start+isec) %type = "LENNARD-JONES"
+     nonbonded(start+isec) %at1 = atm_names(1)
+     nonbonded(start+isec) %at2 = atm_names(2)
+     nonbonded(start+isec) %lj%epsilon = epsilon
+     nonbonded(start+isec) %lj%sigma6  = sigma**6
+     nonbonded(start+isec) %lj%sigma12 = sigma**12
+     nonbonded(start+isec) %rcutsq = rcut*rcut
+  END DO
+END SUBROUTINE read_lj_section
+
+
+SUBROUTINE read_wl_section(nonbonded, section, start, error)
+  IMPLICIT NONE
+  ! Arguments
+  TYPE(section_vals_type), POINTER                  :: section
+  TYPE (pair_potential_type), POINTER, DIMENSION(:) :: nonbonded
+  INTEGER, INTENT(IN) :: start
+  TYPE(cp_error_type), INTENT(inout), &
+       OPTIONAL                               :: error    
+  ! Local Variables
+  CHARACTER(len=*), PARAMETER :: routineN = 'read_wl_section', &
+       routineP = moduleN//':'//routineN
+  INTEGER :: n_items, isec
+  CHARACTER(LEN=default_string_length), POINTER, DIMENSION(:) :: atm_names
+  REAL(KIND=dp) :: a,b,c, rcut
+
+  CALL section_vals_get(section,n_repetition=n_items,error=error)
+  DO isec = 1, n_items
+     CALL section_vals_val_get(section,"ATOM",i_rep_section=isec,c_vals=atm_names,error=error)
+     CALL section_vals_val_get(section,"A",i_rep_section=isec,r_val=a,error=error)
+     CALL section_vals_val_get(section,"B",i_rep_section=isec,r_val=b,error=error)
+     CALL section_vals_val_get(section,"C",i_rep_section=isec,r_val=c,error=error)
+     CALL section_vals_val_get(section,"RCUT",i_rep_section=isec,r_val=rcut,error=error)
+
+     nonbonded(start+isec) %type = "WILLIAMS"
+     nonbonded(start+isec) %at1 = atm_names(1)
+     nonbonded(start+isec) %at2 = atm_names(2)
+     nonbonded(start+isec) %willis%a = a
+     nonbonded(start+isec) %willis%b = b
+     nonbonded(start+isec) %willis%c = c
+     nonbonded(start+isec) %rcutsq = rcut*rcut
+  END DO
+END SUBROUTINE read_wl_section
+
+
+SUBROUTINE read_gd_section(nonbonded, section, start, error)
+  IMPLICIT NONE
+  ! Arguments
+  TYPE(section_vals_type), POINTER                  :: section
+  TYPE (pair_potential_type), POINTER, DIMENSION(:) :: nonbonded
+  INTEGER, INTENT(IN) :: start
+  TYPE(cp_error_type), INTENT(inout), &
+       OPTIONAL                               :: error    
+  ! Local Variables
+  CHARACTER(len=*), PARAMETER :: routineN = 'read_gd_section', &
+       routineP = moduleN//':'//routineN  
+  INTEGER :: n_items, isec
+  CHARACTER(LEN=default_string_length), POINTER, DIMENSION(:) :: atm_names
+  REAL(KIND=dp) :: vr0, d, dc, rcut
+  INTEGER       :: m, mc
+
+  CALL section_vals_get(section,n_repetition=n_items,error=error)
+  DO isec = 1, n_items
+     CALL section_vals_val_get(section,"ATOM",i_rep_section=isec,c_vals=atm_names,error=error)
+     CALL section_vals_val_get(section,"VR0",i_rep_section=isec,r_val=vr0,error=error)
+     CALL section_vals_val_get(section,"D",i_rep_section=isec,r_val=d,error=error)
+     CALL section_vals_val_get(section,"DC",i_rep_section=isec,r_val=dc,error=error)
+     CALL section_vals_val_get(section,"M",i_rep_section=isec,i_val=m,error=error)
+     CALL section_vals_val_get(section,"MC",i_rep_section=isec,i_val=mc,error=error)
+     CALL section_vals_val_get(section,"RCUT",i_rep_section=isec,r_val=rcut,error=error)
+
+     nonbonded(start+isec) %type = "GOODWIN"
+     nonbonded(start+isec) %at1 = atm_names(1)
+     nonbonded(start+isec) %at2 = atm_names(2)
+     nonbonded(start+isec) %goodwin%vr0 = vr0
+     nonbonded(start+isec) %goodwin%d = d
+     nonbonded(start+isec) %goodwin%dc = dc
+     nonbonded(start+isec) %goodwin%m = m
+     nonbonded(start+isec) %goodwin%mc = mc
+     nonbonded(start+isec) %rcutsq = rcut*rcut
+  END DO  
+END SUBROUTINE read_gd_section
+
+
+SUBROUTINE read_ipbv_section(nonbonded, section, start, error)
+  IMPLICIT NONE
+  ! Arguments
+  TYPE(section_vals_type), POINTER                  :: section
+  TYPE (pair_potential_type), POINTER, DIMENSION(:) :: nonbonded
+  INTEGER, INTENT(IN) :: start
+  TYPE(cp_error_type), INTENT(inout), &
+       OPTIONAL                               :: error    
+  ! Local Variables
+  CHARACTER(len=*), PARAMETER :: routineN = 'read_ipbv_section', &
+       routineP = moduleN//':'//routineN  
+  INTEGER :: n_items, isec
+  CHARACTER(LEN=default_string_length), POINTER, DIMENSION(:) :: atm_names
+  REAL(KIND=dp) :: rcut
+
+  CALL section_vals_get(section,n_repetition=n_items,error=error)
+  DO isec = 1, n_items         
+     CALL section_vals_val_get(section,"ATOM",i_rep_section=isec,c_vals=atm_names,error=error)
+     nonbonded(start+isec) %type = "IPBV"
+     nonbonded(start+isec) %at1  = atm_names(1)
+     nonbonded(start+isec) %at2  = atm_names(2)
+     CALL set_IPBV_ff(nonbonded(start+isec) %at1, nonbonded(start+isec) %at2, nonbonded(start+isec) )
+     CALL section_vals_val_get(section,"RCUT",i_rep_section=isec,r_val=rcut,error=error)
+     nonbonded(start+isec)%rcutsq     = rcut**2
+  END DO
+END SUBROUTINE read_ipbv_section
+
+SUBROUTINE read_chrg_section(charge_atm, charge, section, start, error)
+  IMPLICIT NONE
+  ! Arguments
+  TYPE(section_vals_type), POINTER                  :: section
+  CHARACTER (LEN=default_string_length), POINTER, DIMENSION(:) :: charge_atm
+  REAL(KIND=dp), POINTER, DIMENSION(:) :: charge
+  INTEGER, INTENT(IN) :: start
+  TYPE(cp_error_type), INTENT(inout), &
+       OPTIONAL                               :: error    
+  ! Local Variables
+  CHARACTER(len=*), PARAMETER :: routineN = 'read_chrg_section', &
+       routineP = moduleN//':'//routineN  
+  INTEGER :: n_items, isec
+
+  CALL section_vals_get(section,n_repetition=n_items,error=error)
+  DO isec = 1, n_items         
+     CALL section_vals_val_get(section,"ATOM",i_rep_section=isec,c_val=charge_atm(start+isec),&
+          error=error)
+     CALL section_vals_val_get(section,"CHARGE",i_rep_section=isec,r_val=charge(start+isec),&
+          error=error)
+  END DO
+END SUBROUTINE read_chrg_section
+
+SUBROUTINE read_bonds_section(bond_a, bond_b, bond_k, bond_r0, section, start, error)
+  IMPLICIT NONE
+  ! Arguments
+  CHARACTER (LEN=default_string_length), POINTER, DIMENSION(:) :: bond_a
+  CHARACTER (LEN=default_string_length), POINTER, DIMENSION(:) :: bond_b
+  REAL(KIND=dp), POINTER, DIMENSION(:,:)                       :: bond_k
+  REAL(KIND=dp), POINTER, DIMENSION(:)                         :: bond_r0
+  TYPE(section_vals_type), POINTER                  :: section
+  INTEGER, INTENT(IN) :: start
+  TYPE(cp_error_type), INTENT(inout), &
+       OPTIONAL                               :: error    
+  ! Local Variables
+  CHARACTER(len=*), PARAMETER :: routineN = 'read_bonds_section', &
+       routineP = moduleN//':'//routineN  
+  INTEGER :: n_items, isec, k
+  CHARACTER(LEN=default_string_length), POINTER, DIMENSION(:) :: atm_names
+  REAL(KIND=dp), POINTER, DIMENSION(:)                        :: Kvals
+  LOGICAL :: failure
+
+  failure = .FALSE.
+  NULLIFY(Kvals, atm_names)
+  CALL section_vals_get(section,n_repetition=n_items,error=error)
+  DO isec = 1, n_items         
+     CALL section_vals_val_get(section,"ATOM",i_rep_section=isec,c_vals=atm_names,error=error)
+     bond_a(start+isec) = atm_names(1)
+     bond_b(start+isec) = atm_names(2)
+     CALL section_vals_val_get(section,"K",i_rep_section=isec,r_vals=Kvals,error=error)
+     CPPostcondition(size(Kvals) <= 3, cp_failure_level, routineP, error, failure)
+     bond_k(:,start+isec) = 0.0_dp
+     DO k=1,SIZE(Kvals)
+        bond_k(k,start+isec) = Kvals(k)
+     END DO
+     CALL section_vals_val_get(section,"R0",i_rep_section=isec,r_val=bond_r0(start+isec),error=error)
+  END DO     
+END SUBROUTINE read_bonds_section
+
+SUBROUTINE read_bends_section(bend_a, bend_b, bend_c, bend_k, bend_theta0, section, start, error)
+  IMPLICIT NONE
+  ! Arguments
+  CHARACTER (LEN=default_string_length), POINTER, DIMENSION(:) :: bend_a
+  CHARACTER (LEN=default_string_length), POINTER, DIMENSION(:) :: bend_b
+  CHARACTER (LEN=default_string_length), POINTER, DIMENSION(:) :: bend_c
+  REAL(KIND=dp), POINTER, DIMENSION(:)                         :: bend_k
+  REAL(KIND=dp), POINTER, DIMENSION(:)                         :: bend_theta0
+  TYPE(section_vals_type), POINTER                  :: section
+  INTEGER, INTENT(IN) :: start
+  TYPE(cp_error_type), INTENT(inout), &
+       OPTIONAL                               :: error    
+  ! Local Variables
+  CHARACTER(len=*), PARAMETER :: routineN = 'read_bends_section', &
+       routineP = moduleN//':'//routineN  
+  INTEGER :: n_items, isec
+  CHARACTER(LEN=default_string_length), POINTER, DIMENSION(:) :: atm_names
+  REAL(KIND=dp), POINTER, DIMENSION(:)                        :: Kvals
+  LOGICAL :: failure
+
+  failure = .FALSE.
+  NULLIFY(Kvals, atm_names)
+  CALL section_vals_get(section,n_repetition=n_items,error=error)
+  DO isec = 1, n_items         
+     CALL section_vals_val_get(section,"ATOM",i_rep_section=isec,c_vals=atm_names,error=error)
+     bend_a(start+isec) = atm_names(1)
+     bend_b(start+isec) = atm_names(2)
+     bend_c(start+isec) = atm_names(3)
+     CALL section_vals_val_get(section,"K",i_rep_section=isec,r_vals=Kvals,error=error)
+     CPPostcondition(size(Kvals) == 1, cp_failure_level, routineP, error, failure)
+     bend_k(start+isec) = Kvals(1)
+     CALL section_vals_val_get(section,"THETA0",i_rep_section=isec,r_val=bend_theta0(start+isec),error=error)
+  END DO     
+END SUBROUTINE read_bends_section
+
+SUBROUTINE read_torsions_section( torsion_a, torsion_b, torsion_c, torsion_d, torsion_k,&
+     torsion_cosphi0, torsion_m, section, start, error )
+  IMPLICIT NONE
+  ! Arguments
+  CHARACTER (LEN=default_string_length), POINTER,DIMENSION(:)  :: torsion_a
+  CHARACTER (LEN=default_string_length), POINTER,DIMENSION(:)  :: torsion_b
+  CHARACTER (LEN=default_string_length), POINTER,DIMENSION(:)  :: torsion_c
+  CHARACTER (LEN=default_string_length), POINTER,DIMENSION(:)  :: torsion_d
+  REAL(KIND=dp), POINTER,DIMENSION(:)                          :: torsion_k
+  REAL(KIND=dp), POINTER,DIMENSION(:)                          :: torsion_m
+  REAL(KIND=dp), POINTER,DIMENSION(:)                          :: torsion_cosphi0
+  TYPE(section_vals_type), POINTER                  :: section
+  INTEGER, INTENT(IN) :: start
+  TYPE(cp_error_type), INTENT(inout), &
+       OPTIONAL                               :: error      
+  ! Local Variables
+  CHARACTER(len=*), PARAMETER :: routineN = 'read_torsions_section', &
+       routineP = moduleN//':'//routineN  
+  INTEGER :: n_items, isec, ival
+  CHARACTER(LEN=default_string_length), POINTER, DIMENSION(:) :: atm_names
+  REAL(KIND=dp) :: myval
+  LOGICAL :: failure  
+
+  failure = .FALSE.
+  NULLIFY( atm_names)
+  CALL section_vals_get(section,n_repetition=n_items,error=error)
+  DO isec = 1, n_items         
+     CALL section_vals_val_get(section,"ATOM",i_rep_section=isec,c_vals=atm_names,error=error)
+     torsion_a(start+isec) = atm_names(1)
+     torsion_b(start+isec) = atm_names(2)
+     torsion_c(start+isec) = atm_names(3)
+     torsion_d(start+isec) = atm_names(4)
+     CALL section_vals_val_get(section,"K",i_rep_section=isec,r_val=torsion_k(start+isec),error=error)
+     CALL section_vals_val_get(section,"PHI0",i_rep_section=isec,r_val=torsion_cosphi0(start+isec),error=error)
+     CALL section_vals_val_get(section,"M",i_rep_section=isec,r_val=torsion_m(start+isec),error=error)
+  END DO       
+END SUBROUTINE read_torsions_section
+
+
+!******************************************************************************
+!!****** force_fields/read_force_field_section [1.0] *
+!!
+!!   NAME
+!!     read_force_field_section
+!!
+!!   FUNCTION
+!!     Reads the force_field input section
+!!
+!!   AUTHOR
 !!     CJM
 !!
 !!   MODIFICATION HISTORY
@@ -331,93 +878,104 @@ END SUBROUTINE force_field_control
 !!   SOURCE
 !******************************************************************************
 
-SUBROUTINE read_force_field_section ( ff_type , globenv )
-
-
-    TYPE(force_field_type), &
-      INTENT(INOUT)                          :: ff_type
-    TYPE(global_environment_type), &
-      INTENT(IN),OPTIONAL                    :: globenv
-
-
-    CHARACTER(LEN=default_string_length)     :: label
-    CHARACTER(LEN=default_string_length)     :: string
-
-    INTEGER                                  :: iw,ilen,ierror
-
+SUBROUTINE read_force_field_section ( ff_type , globenv, error )
+  IMPLICIT NONE
+  ! Arguments
+  TYPE(force_field_type), &
+       INTENT(INOUT)                          :: ff_type
+  TYPE(global_environment_type), &
+       INTENT(IN),OPTIONAL                    :: globenv
+  TYPE(cp_error_type), INTENT(inout), OPTIONAL   :: error
+  ! Local Variables
+  CHARACTER(LEN=default_string_length)     :: label
+  CHARACTER(LEN=default_string_length)     :: string
+  INTEGER                                  :: iw,ILEN,ierror
   LOGICAL                                  :: PM1, PM2, PM3, PM4
+  TYPE(section_vals_type), POINTER         :: ff_section  
 
-!------------------------------------------------------------------------------
-
-  PM1 = .FALSE.
-  PM2 = .FALSE.
-  PM3 = .FALSE.
-  PM4 = .FALSE.
-  IF(PRESENT(globenv)) THEN
-    iw = globenv%scr
-    IF((globenv%ionode).AND.(globenv%print%level>0)) PM1= .TRUE.
-    IF((globenv%ionode).AND.(globenv%print%level>1)) PM2= .TRUE.
-    IF((globenv%ionode).AND.(globenv%print%level>2)) PM3= .TRUE.
-    IF((globenv%ionode).AND.(globenv%print%level>3)) PM4= .TRUE.
-  END IF
-
-  IF(PM1) WRITE(iw,*) "  Entering read_force_field_section"
-
-
-  CALL parser_init(globenv%input_file_name,globenv)
-
-
-!..parse the input section
-  label = '&FORCE_FIELD'
-  CALL search_label ( label, ierror, ignore_case=.TRUE. )
-  IF (ierror /= 0 ) THEN
-     IF (globenv%ionode .AND. globenv%print_level >= 2) THEN
-        WRITE ( iw, '( A )' ) ' No input section &FORCE_FIELD found on file '
+  NULLIFY(ff_section)
+  ff_section => section_vals_get_subs_vals(globenv%input_file,&
+       "FORCE_EVAL%MM%FORCEFIELD",error=error)
+  IF (parsed_cp2k_input(ff_section,check_this_section=.TRUE.,error=error)) THEN
+     CALL read_force_field_new_section(ff_section, ff_type, globenv, error)
+  ELSE  
+     !
+     ! TODEL_START_TL
+     !
+     PM1 = .FALSE.
+     PM2 = .FALSE.
+     PM3 = .FALSE.
+     PM4 = .FALSE.
+     IF(PRESENT(globenv)) THEN
+        iw = globenv%scr
+        IF((globenv%ionode).AND.(globenv%print%level>0)) PM1= .TRUE.
+        IF((globenv%ionode).AND.(globenv%print%level>1)) PM2= .TRUE.
+        IF((globenv%ionode).AND.(globenv%print%level>2)) PM3= .TRUE.
+        IF((globenv%ionode).AND.(globenv%print%level>3)) PM4= .TRUE.
      END IF
-  ELSE
-     CALL read_line
-     DO WHILE (test_next()/='X')
-        ilen = 9
-        CALL get_next(string,ilen)
-        CALL uppercase(string)
-        IF (string == 'PARMFILE') THEN
-          ilen = 40
-          CALL get_next(ff_type%ff_type,ilen)
-          CALL uppercase(ff_type%ff_type)
-          CALL get_next(ff_type%ff_file_name,ilen)
-        ELSE IF(string == 'RCUT_NB') THEN
-          CALL get_next(ff_type%rcut_nb)
-          CALL convert_to_cp2k_units("ANGSTROM",length=ff_type%rcut_nb)
+
+     IF(PM1) WRITE(iw,*) "  Entering read_force_field_section"
+
+     CALL parser_init(globenv%input_file_name,globenv)
+
+     !..parse the input section
+     label = '&FORCE_FIELD'
+     CALL search_label ( label, ierror, ignore_case=.TRUE. )
+     IF (ierror /= 0 ) THEN
+        IF (globenv%ionode .AND. globenv%print_level >= 2) THEN
+           WRITE ( iw, '( A )' ) ' No input section &FORCE_FIELD found on file '
         END IF
+     ELSE
         CALL read_line
-     END DO
-   END IF
-    CALL parser_end()
+        DO WHILE (test_next()/='X')
+           ilen = 9
+           CALL get_next(string,ilen)
+           CALL uppercase(string)
+           IF (string == 'PARMFILE') THEN
+              ilen = 40
+              CALL get_next(ff_type%ff_type,ilen)
+              CALL uppercase(ff_type%ff_type)
+              CALL get_next(ff_type%ff_file_name,ilen)
+           ELSE IF(string == 'RCUT_NB') THEN
+              CALL get_next(ff_type%rcut_nb)
+              CALL convert_to_cp2k_units("ANGSTROM",length=ff_type%rcut_nb)
+           END IF
+           CALL read_line
+        END DO
+     END IF
+     CALL parser_end()
 
-  CALL parser_init(globenv%input_file_name,globenv)
-!..read in non-bonded interaction information
-    CALL input_nonbonded(ff_type,globenv)
-    CALL input_nonbonded14(ff_type,globenv)
+     CALL parser_init(globenv%input_file_name,globenv)
+     !..read in non-bonded interaction information
+     CALL input_nonbonded(ff_type,globenv)
+     CALL input_nonbonded14(ff_type,globenv)
 
-!..read the charges parameters
-    CALL input_charges(ff_type,globenv)
+     !..read the charges parameters
+     CALL input_charges(ff_type,globenv)
 
-!..read the bond parameters
-    CALL input_bonds(ff_type,globenv)
+     !..read the bond parameters
+     CALL input_bonds(ff_type,globenv)
 
-!..read the bend parameters
-    CALL input_bends(ff_type,globenv)
+     !..read the bend parameters
+     CALL input_bends(ff_type,globenv)
 
-!..read the torsion parameters
-    CALL input_torsions(ff_type,globenv)
+     !..read the torsion parameters
+     CALL input_torsions(ff_type,globenv)
 
-!..read the distance constraint parameters
-    CALL parser_end()
- 
-  IF(PM1) WRITE(iw,*) "  Exiting  read_force_field_section"
+     !..read the distance constraint parameters
+     CALL parser_end()
 
+     IF(PM1) WRITE(iw,*) "  Exiting  read_force_field_section"
+     !
+     !TODEL_END_TL
+     !
+  END IF
 END SUBROUTINE read_force_field_section
 
+
+!
+! TODEL_START_TL
+!
 
 !!*****
 !******************************************************************************
@@ -751,85 +1309,7 @@ SUBROUTINE input_nonbonded(ff_type,globenv)
                  inp_info%nonbonded(np) %type = string2
                  inp_info%nonbonded(np) %at1 = at1
                  inp_info%nonbonded(np) %at2 = at2
-                 IF  ( ( at1(1:1) == 'O' ) .AND. ( at2 (1:1) == 'O' ) ) THEN
-                   inp_info%nonbonded(np) %ipbv%rcore = 0.9_dp       ! a.u.
-                   inp_info%nonbonded(np) %ipbv%m = 0.0_dp           ! Kelvin/a.u. 
-                   inp_info%nonbonded(np) %ipbv%b = 1.0e23_dp        ! Hartree
-                   ! Hartree*a.u.^2
-                   inp_info%nonbonded(np) %ipbv% a ( 2 ) = 4.786380682394_dp 
-                   inp_info%nonbonded(np) %ipbv% a ( 3 ) = -1543.407053545_dp
-                   inp_info%nonbonded(np) %ipbv% a ( 4 ) = 88783.31188529_dp
-                   inp_info%nonbonded(np) %ipbv% a ( 5 ) = -2361200.155376_dp
-                   inp_info%nonbonded(np) %ipbv% a ( 6 ) = 35940504.84679_dp
-                   inp_info%nonbonded(np) %ipbv% a ( 7 ) = -339762743.6358_dp
-                   inp_info%nonbonded(np) %ipbv% a ( 8 ) = 2043874926.466_dp
-                   inp_info%nonbonded(np) %ipbv% a ( 9 ) = -7654856796.383_dp
-                   inp_info%nonbonded(np) %ipbv% a ( 10 ) = 16195251405.65_dp
-                   inp_info%nonbonded(np) %ipbv% a ( 11 ) = -13140392992.18_dp
-                   inp_info%nonbonded(np) %ipbv% a ( 12 ) = -9285572894.245_dp 
-                   inp_info%nonbonded(np) %ipbv% a ( 13 ) = 8756947519.029_dp
-                   inp_info%nonbonded(np) %ipbv% a ( 14 ) = 15793297761.67_dp
-                   inp_info%nonbonded(np) %ipbv% a ( 15 ) = 12917180227.21_dp
-                 ELSEIF ( ( at1(1:1) == 'O' ) .AND. ( at2 (1:1) == 'H' ) ) THEN
-                   inp_info%nonbonded(np) %ipbv%rcore = 2.95_dp       ! a.u.
-                   inp_info%nonbonded(np) %ipbv%m =  -0.00437054E0_dp ! Hartree/a.u. 
-                   inp_info%nonbonded(np) %ipbv%b =  0.0313652_dp     ! Hartree
-                   ! Hartree*a.u.^2
-                   inp_info%nonbonded(np) %ipbv% a ( 2 ) = -195.7716013277_dp
-                   inp_info%nonbonded(np) %ipbv% a ( 3 ) = 15343.78613395_dp
-                   inp_info%nonbonded(np) %ipbv% a ( 4 ) = -530864.4586516_dp
-                   inp_info%nonbonded(np) %ipbv% a ( 5 ) = 10707934.39058_dp
-                   inp_info%nonbonded(np) %ipbv% a ( 6 ) = -140099704.7890_dp
-                   inp_info%nonbonded(np) %ipbv% a ( 7 ) = 1250943273.785_dp
-                   inp_info%nonbonded(np) %ipbv% a ( 8 ) = -7795458330.676_dp
-                   inp_info%nonbonded(np) %ipbv% a ( 9 ) = 33955897217.31_dp
-                   inp_info%nonbonded(np) %ipbv% a ( 10 ) = -101135640744.0_dp
-                   inp_info%nonbonded(np) %ipbv% a ( 11 ) = 193107995718.7_dp
-                   inp_info%nonbonded(np) %ipbv% a ( 12 ) = -193440560940.0_dp
-                   inp_info%nonbonded(np) %ipbv% a ( 13 ) =-4224406093.918E0_dp
-                   inp_info%nonbonded(np) %ipbv% a ( 14 ) = 217192386506.5E0_dp 
-                   inp_info%nonbonded(np) %ipbv% a ( 15 ) = -157581228915.5_dp
-                 ELSEIF ( ( at1(1:1) == 'H' ) .AND. ( at2 (1:1) == 'O' ) ) THEN
-                   inp_info%nonbonded(np) %ipbv%rcore = 2.95_dp       ! a.u.
-                   inp_info%nonbonded(np) %ipbv%m =  -0.00437054E0_dp ! Hartree/a.u. 
-                   inp_info%nonbonded(np) %ipbv%b =  0.0313652_dp     ! Hartree
-                   ! Hartree*a.u.^2
-                   inp_info%nonbonded(np) %ipbv% a ( 2 ) = -195.7716013277_dp
-                   inp_info%nonbonded(np) %ipbv% a ( 3 ) = 15343.78613395_dp
-                   inp_info%nonbonded(np) %ipbv% a ( 4 ) = -530864.4586516_dp
-                   inp_info%nonbonded(np) %ipbv% a ( 5 ) = 10707934.39058_dp
-                   inp_info%nonbonded(np) %ipbv% a ( 6 ) = -140099704.7890_dp
-                   inp_info%nonbonded(np) %ipbv% a ( 7 ) = 1250943273.785_dp
-                   inp_info%nonbonded(np) %ipbv% a ( 8 ) = -7795458330.676_dp
-                   inp_info%nonbonded(np) %ipbv% a ( 9 ) = 33955897217.31_dp
-                   inp_info%nonbonded(np) %ipbv% a ( 10 ) = -101135640744.0_dp
-                   inp_info%nonbonded(np) %ipbv% a ( 11 ) = 193107995718.7_dp
-                   inp_info%nonbonded(np) %ipbv% a ( 12 ) = -193440560940.0_dp
-                   inp_info%nonbonded(np) %ipbv% a ( 13 ) =-4224406093.918E0_dp
-                   inp_info%nonbonded(np) %ipbv% a ( 14 ) = 217192386506.5E0_dp 
-                   inp_info%nonbonded(np) %ipbv% a ( 15 ) = -157581228915.5_dp
-                 ELSEIF ( ( at1(1:1) == 'H' ) .AND. ( at2 (1:1) == 'H' ) ) THEN
-                   inp_info%nonbonded(np) %ipbv%rcore = 3.165_dp     ! a.u.
-                   inp_info%nonbonded(np) %ipbv%m = 0.00377391E0_dp  ! Hartree/a.u. 
-                   inp_info%nonbonded(np) %ipbv%b = -0.02062040_dp   ! Hartree
-                   ! Hartree*a.u.^2
-                   inp_info%nonbonded(np) %ipbv% a ( 2 ) = -26.29456010782_dp
-                   inp_info%nonbonded(np) %ipbv% a ( 3 ) =  2373.352548248_dp
-                   inp_info%nonbonded(np) %ipbv% a ( 4 ) = -93880.43551360_dp
-                   inp_info%nonbonded(np) %ipbv% a ( 5 ) =  2154624.884809_dp
-                   inp_info%nonbonded(np) %ipbv% a ( 6 ) = -31965151.34955_dp
-                   inp_info%nonbonded(np) %ipbv% a ( 7 ) = 322781785.3278_dp
-                   inp_info%nonbonded(np) %ipbv% a ( 8 ) = -2271097368.668_dp
-                   inp_info%nonbonded(np) %ipbv% a ( 9 ) = 11169163192.90_dp
-                   inp_info%nonbonded(np) %ipbv% a ( 10 ) =-37684457778.47_dp
-                   inp_info%nonbonded(np) %ipbv% a ( 11 ) = 82562104256.03_dp
-                   inp_info%nonbonded(np) %ipbv% a ( 12 ) = -100510435213.4_dp
-                   inp_info%nonbonded(np) %ipbv% a ( 13 ) = 24570342714.65E0_dp 
-                   inp_info%nonbonded(np) %ipbv% a ( 14 ) = 88766181532.94E0_dp
-                   inp_info%nonbonded(np) %ipbv% a ( 15 ) = -79705131323.98_dp
-                 ELSE
-                   CALL stop_program ("input_nonbonded","IPBV only for WATER")
-                 ENDIF
+                 CALL set_IPBV_ff(at1, at2,  inp_info%nonbonded(np) )
                  inp_info%nonbonded(np) %rcutsq = rcut*rcut
               CASE ( 'GOODWIN')
                  np = np + 1
@@ -869,114 +1349,7 @@ SUBROUTINE input_nonbonded(ff_type,globenv)
 
 END SUBROUTINE input_nonbonded
 
-SUBROUTINE read_lj_section(nonbonded, section, start, error)
-  IMPLICIT NONE
-  ! Arguments
-  TYPE(section_vals_type), POINTER                  :: section
-  TYPE (pair_potential_type), POINTER, DIMENSION(:) :: nonbonded
-  INTEGER, INTENT(IN) :: start
-  TYPE(cp_error_type), INTENT(inout), &
-       OPTIONAL                               :: error    
-  ! Local Variables
-  INTEGER :: n_items, isec
-  CHARACTER(LEN=default_string_length), POINTER, DIMENSION(:) :: atm_names
-  REAL(KIND=dp) :: epsilon, sigma, rcut
 
-  CALL section_vals_get(section,n_repetition=n_items,error=error)
-  DO isec = 1, n_items
-     CALL section_vals_val_get(section,"ATOM",i_rep_section=isec,c_vals=atm_names,error=error)
-     CALL section_vals_val_get(section,"EPSILON",i_rep_section=isec,r_val=epsilon,error=error)
-     CALL section_vals_val_get(section,"SIGMA",i_rep_section=isec,r_val=sigma,error=error)
-     CALL section_vals_val_get(section,"RCUT",i_rep_section=isec,r_val=rcut,error=error)
-
-     CALL convert_to_cp2k_units ( "KELVIN", energy = epsilon )
-     CALL convert_to_cp2k_units ( "ANGSTROM", length = sigma )
-     CALL convert_to_cp2k_units ( "ANGSTROM", length = rcut )
-     nonbonded(start+isec) %type = "LENNARD-JONES"
-     nonbonded(start+isec) %at1 = atm_names(1)
-     nonbonded(start+isec) %at2 = atm_names(2)
-     nonbonded(start+isec) %lj%epsilon = epsilon
-     nonbonded(start+isec) %lj%sigma6  = sigma**6
-     nonbonded(start+isec) %lj%sigma12 = sigma**12
-     nonbonded(start+isec) %rcutsq = rcut*rcut
-  END DO
-END SUBROUTINE read_lj_section
-
-SUBROUTINE read_wl_section(nonbonded, section, start, error)
-  IMPLICIT NONE
-  ! Arguments
-  TYPE(section_vals_type), POINTER                  :: section
-  TYPE (pair_potential_type), POINTER, DIMENSION(:) :: nonbonded
-  INTEGER, INTENT(IN) :: start
-  TYPE(cp_error_type), INTENT(inout), &
-       OPTIONAL                               :: error    
-  ! Local Variables
-  INTEGER :: n_items, isec
-  CHARACTER(LEN=default_string_length), POINTER, DIMENSION(:) :: atm_names
-  REAL(KIND=dp) :: a,b,c, rcut
-
-  CALL section_vals_get(section,n_repetition=n_items,error=error)
-  DO isec = 1, n_items
-     CALL section_vals_val_get(section,"ATOM",i_rep_section=isec,c_vals=atm_names,error=error)
-     CALL section_vals_val_get(section,"A",i_rep_section=isec,r_val=a,error=error)
-     CALL section_vals_val_get(section,"B",i_rep_section=isec,r_val=b,error=error)
-     CALL section_vals_val_get(section,"C",i_rep_section=isec,r_val=c,error=error)
-     CALL section_vals_val_get(section,"RCUT",i_rep_section=isec,r_val=rcut,error=error)
-
-     CALL convert_to_cp2k_units ( "KELVIN", energy = a )
-     CALL convert_to_cp2k_units ( "ANGSTROM", length = b, l_power = -1  )
-     CALL convert_to_cp2k_units ( "ANGSTROM", length = c, l_power = 6  )
-     CALL convert_to_cp2k_units ( "KELVIN", energy = c )
-     CALL convert_to_cp2k_units ( "ANGSTROM", length = rcut )
-     nonbonded(start+isec) %type = "WILLIAMS"
-     nonbonded(start+isec) %at1 = atm_names(1)
-     nonbonded(start+isec) %at2 = atm_names(2)
-     nonbonded(start+isec) %willis%a = a
-     nonbonded(start+isec) %willis%b = b
-     nonbonded(start+isec) %willis%c = c
-     nonbonded(start+isec) %rcutsq = rcut*rcut
-  END DO
-END SUBROUTINE read_wl_section
-
-SUBROUTINE read_gd_section(nonbonded, section, start, error)
-  IMPLICIT NONE
-  ! Arguments
-  TYPE(section_vals_type), POINTER                  :: section
-  TYPE (pair_potential_type), POINTER, DIMENSION(:) :: nonbonded
-  INTEGER, INTENT(IN) :: start
-  TYPE(cp_error_type), INTENT(inout), &
-       OPTIONAL                               :: error    
-  ! Local Variables
-  INTEGER :: n_items, isec
-  CHARACTER(LEN=default_string_length), POINTER, DIMENSION(:) :: atm_names
-  REAL(KIND=dp) :: vr0, d, dc, rcut
-  INTEGER       :: m, mc
-
-  CALL section_vals_get(section,n_repetition=n_items,error=error)
-  DO isec = 1, n_items
-     CALL section_vals_val_get(section,"ATOM",i_rep_section=isec,c_vals=atm_names,error=error)
-     CALL section_vals_val_get(section,"VR0",i_rep_section=isec,r_val=vr0,error=error)
-     CALL section_vals_val_get(section,"D",i_rep_section=isec,r_val=d,error=error)
-     CALL section_vals_val_get(section,"DC",i_rep_section=isec,r_val=dc,error=error)
-     CALL section_vals_val_get(section,"M",i_rep_section=isec,i_val=m,error=error)
-     CALL section_vals_val_get(section,"MC",i_rep_section=isec,i_val=mc,error=error)
-     CALL section_vals_val_get(section,"RCUT",i_rep_section=isec,r_val=rcut,error=error)
-
-     CALL convert_to_cp2k_units ( "KELVIN", energy = vr0 )
-     CALL convert_to_cp2k_units ( "ANGSTROM", length = d, l_power = 1  )
-     CALL convert_to_cp2k_units ( "ANGSTROM", length = dc, l_power = 1  )
-     CALL convert_to_cp2k_units ( "ANGSTROM", length = rcut )
-     nonbonded(start+isec) %type = "GOODWIN"
-     nonbonded(start+isec) %at1 = atm_names(1)
-     nonbonded(start+isec) %at2 = atm_names(2)
-     nonbonded(start+isec) %goodwin%vr0 = vr0
-     nonbonded(start+isec) %goodwin%d = d
-     nonbonded(start+isec) %goodwin%dc = dc
-     nonbonded(start+isec) %goodwin%m = m
-     nonbonded(start+isec) %goodwin%mc = mc
-     nonbonded(start+isec) %rcutsq = rcut*rcut
-  END DO  
-END SUBROUTINE read_gd_section
 
 !!*****
 !******************************************************************************
@@ -1427,9 +1800,12 @@ SUBROUTINE input_torsions(ff_type,globenv)
 
 END SUBROUTINE input_torsions
 
-
 !!*****
 !******************************************************************************
+
+!
+!TODEL_END_TL
+!
 
 !******************************************************************************
 !!****** force_fields/read_force_field_charmm [1.0] *
