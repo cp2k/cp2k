@@ -316,7 +316,7 @@ CONTAINS
            CALL cp_fm_release(xas_env%excvec_coeff,error=error)
          END IF
          IF(ASSOCIATED(xas_env%excvec_overlap)) THEN
-
+           CALL cp_fm_release(xas_env%excvec_overlap,error=error)
          END IF
          IF(ASSOCIATED(xas_env%fm_work)) THEN
            CALL cp_fm_release(xas_env%fm_work,error=error)

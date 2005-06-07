@@ -66,7 +66,7 @@ MODULE xas_methods
                                              gth_potential_type
   USE global_types,                    ONLY: global_environment_type
   USE input_constants,                 ONLY: xas_none, xas_tp_hh, xas_tp_fh, xas_tddft,&
-                                             xas_1s_type, xas_2s_type,&
+                                             xas_1s_type, xas_2s_type, xas_dip_len,&
                                              do_loc_none, op_loc_berry, state_loc_upton
   USE kinds,                           ONLY: dp
   USE mathconstants,                   ONLY: twopi
@@ -430,11 +430,15 @@ CONTAINS
        CALL cp_fm_to_fm(mo_coeff,groundstate_coeff(ispin)%matrix,nmo,1,1)
       END DO
 
-      ostrength_sm =>  qs_loc_env%op_sm_set
+      IF(xas_control%dipole_form==xas_dip_len) THEN
+        ostrength_sm =>  qs_loc_env%op_sm_set
+      ELSE
+      ! Calculate the operator 
+        CALL get_xas_env(xas_env=xas_env,ostrength_sm=ostrength_sm)
+      END IF
       ! In td-dft case the oscillator strength come from  linear response orbitals
     END IF
 
-  
     DO iat = 1,xas_control%nexc_atoms
        iatom = xas_control%exc_atoms(iat)
        ! determine which state has to be excited in the global list
@@ -500,7 +504,6 @@ CONTAINS
     ! append the spectrum of this iteration to the right output file
       CALL xas_write(spectrum, xas_control%xas_rootfname, &
            iatom, iter, ionode, error=error)
-
       DO ispin = 1,nspins
        CALL get_mo_set(mos(ispin)%mo_set, mo_coeff=mo_coeff,&
             nao=nao, nmo=nmo)

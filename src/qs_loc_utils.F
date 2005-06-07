@@ -428,28 +428,22 @@ CONTAINS
                     mosub_mosub_fm_pools=mosub_mosub_fm_pools)
 
     nspins = SIZE(mos,1)
-    ALLOCATE (moloc_coeff(nspins), STAT=istat)
     my_nspins = nspins
     IF(my_one_spin) my_nspins = 1
-!write(*,*) para_env%mepos, nspins, my_nspins
-!write(*,*) para_env%mepos, associated(ao_mosub_fm_pools)
-!write(*,*) para_env%mepos, size(ao_mosub_fm_pools,1)
 
+    ALLOCATE (moloc_coeff(my_nspins), STAT=istat)
     DO ispin = 1,my_nspins
       CALL get_mo_set(mos(ispin)%mo_set,nao=nao,nmo=nmo)
-!write(*,*) para_env%mepos, 'ispin ', ispin, 'nao ', nao, ' nmo ', nmo
 
       CALL fm_pool_create_fm(ao_mosub_fm_pools(ispin)%pool,moloc_coeff(ispin)%matrix,&
            name="qs_loc_env%mo"//TRIM(ADJUSTL(cp_to_string(ispin))),error=error)
       CALL cp_fm_get_info(moloc_coeff(ispin)%matrix, nrow_global=naosub, &
            ncol_global=nmosub,error=error)
-!write(*,*) para_env%mepos, ' nmosub ', nmosub
       CPPostcondition(nao==naosub,cp_failure_level,routineP,error,failure)
       CPPostcondition(nmo>=nmosub,cp_failure_level,routineP,error,failure)
       CALL cp_fm_set_all(moloc_coeff(ispin)%matrix,0.0_dp)
 
     END DO  ! ispin
-! stop 'pippo '
     ! Copy the submatrix
 
     DO ispin = 1,my_nspins
