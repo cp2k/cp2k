@@ -658,8 +658,13 @@ END SUBROUTINE qs_loc_env_init
 
     failure = .FALSE.
     NULLIFY (atomic_kind, atomic_kind_set)
-    NULLIFY ( cell, sab_orb, op_sm_set , orb_basis_set, particle_set)
-    NULLIFY (cosabt,sinabt, workt)
+    NULLIFY ( cell, op_sm_set , orb_basis_set, particle_set)
+    NULLIFY (sab_orb,sab_orb_neighbor_list,sab_orb_neighbor_list_local,&
+             sab_orb_neighbor_node)
+    NULLIFY (cosabt,sinabt, workt,cosab,sinab, work)
+    NULLIFY (la_max, la_min, lb_max, lb_min, npgfa, npgfb, nsgfa, nsgfb)
+    NULLIFY (set_radius_a,set_radius_b,rpgfa, rpgfb, sphi_a,sphi_b,zeta, zetb )
+
 
     CALL get_qs_env(qs_env=qs_env, atomic_kind_set=atomic_kind_set,&
                     particle_set=particle_set, sab_orb=sab_orb)
