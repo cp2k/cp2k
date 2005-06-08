@@ -496,7 +496,8 @@ CONTAINS
            CALL spectrum_dip_len(dip_fm_set,ostrength_sm,mos,excvec_coeff,fm_work,&
                  cell,spectrum,dft_control%xas_estate,error=error)
          ELSE
-
+           CALL spectrum_dip_vel(dip_fm_set,ostrength_sm,mos,excvec_coeff,fm_work,&
+                spectrum,dft_control%xas_estate,error=error)
          END IF
       ELSE
          ! the states defined by the rotation are the ground state orbitals
@@ -901,6 +902,99 @@ CONTAINS
 
   END SUBROUTINE spectrum_dip_len
 
+
+!***************************************************************************
+!!****f* xas_methods/spectrum_dip_vel [1.0] *
+!!
+!!   NAME
+!!    spectrum_dip_vel 
+!!
+!!   FUNCTION
+!!     Calculation of the spectrum when the dipole approximation
+!!     in the velocity form is used. 
+!!
+!!   NOTES
+!!
+!!   ARGUMENTS
+!!     - fm_set: components of the position operator in a full matrix form
+!!               already multiplied by the coefficiets
+!!               only the terms <C_i Op C_f> are calculated where
+!!               C_i are the coefficients of the excited state
+!!     - op_sm: components of the position operator for the dipole 
+!!              in a sparse matrix form (cos and sin)
+!!              calculated for the basis functions
+!!     - mos: wavefunctions coefficients
+!!     - excvec: coefficients of the excited orbital
+!!     - fm_work: work space
+!!     - spectrum: temporary variable contaning the spectrum for the actual atom
+!!     - estate: index of the excited state
+!!     - error: variable to control error logging, stopping,... 
+!!       see module cp_error_handling 
+!!
+!!   AUTHOR
+!!     MI
+!!
+!!   MODIFICATION HISTORY
+!!     06.2005 created [MI]
+!!
+!!***  *********************************************************************
+
+  SUBROUTINE spectrum_dip_vel(fm_set,op_sm,mos,excvec,fm_work,spectrum,estate,error)
+
+    TYPE( cp_fm_p_type ), DIMENSION(:,:),  &
+      POINTER                                   :: fm_set
+    TYPE( real_matrix_p_type ), DIMENSION(:,:), &
+      POINTER                                   :: op_sm
+    TYPE(mo_set_p_type), DIMENSION(:), POINTER  :: mos
+    TYPE(cp_fm_type), POINTER                   :: excvec
+    TYPE(cp_fm_type), POINTER                   :: fm_work
+    REAL(dp), DIMENSION(:,:), POINTER           :: spectrum
+    INTEGER, INTENT(IN)                         :: estate
+
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                                  :: error
+
+    CHARACTER(LEN=*), PARAMETER :: routineN = "spectrum_dip_vel", &
+      routineP = module_name//':'//routineN
+
+    INTEGER :: homo, i, istate, j, nao, nvirtual, nmo
+    LOGICAL :: failure
+    REAL(dp) :: ene_i, ene_f,  dip(3)
+    REAL(dp), DIMENSION(:), POINTER             :: eigenvalues
+    TYPE(cp_fm_type), POINTER                   :: mo_coeff
+
+    failure = .FALSE.
+    NULLIFY(eigenvalues,mo_coeff)
+
+    CPPrecondition(ASSOCIATED(fm_set),cp_failure_level,routineP,error,failure)
+    CPPrecondition(ASSOCIATED(mos),cp_failure_level,routineP,error,failure)
+    CPPrecondition(ASSOCIATED(spectrum),cp_failure_level,routineP,error,failure)
+    nvirtual = SIZE(spectrum,2)
+    
+    IF(.NOT. failure) THEN
+      CALL get_mo_set(mos(1)%mo_set, mo_coeff=mo_coeff, nao=nao, nmo=nmo,&
+           homo =homo, eigenvalues=eigenvalues)
+      DO i=1,SIZE(fm_set,2)
+         CPPrecondition(ASSOCIATED(fm_set(1,i)%matrix),cp_failure_level,routineP,error,failure)
+         CALL cp_fm_set_all(fm_set(1,i)%matrix, 0.0_dp, error=error)
+         CALL cp_sm_fm_multiply(op_sm(1,i)%matrix,mo_coeff,fm_work,ncol=nmo)
+         CALL cp_fm_gemm("T","N",1,nvirtual,nao,1.0_dp,excvec,&
+                  fm_work,0.0_dp, fm_set(1,i)%matrix,b_first_col=homo+1,error=error)
+      END DO
+      
+      ene_i = eigenvalues(estate)
+      DO istate = 1,nvirtual
+         ene_f = eigenvalues(homo+istate)
+         DO i = 1,3
+           CALL cp_fm_get_element(fm_set(1,i)%matrix,1,istate,dip(i))
+         END DO 
+         spectrum(1,istate) = ene_f - ene_i
+         spectrum(2,istate) = dip(1)*dip(1)+dip(2)*dip(2)+dip(3)*dip(3)
+      END DO 
+    END IF
+
+  END SUBROUTINE spectrum_dip_vel
+
 !***************************************************************************
 !!****f* xas_methods/get_dip_vel_operator [1.0] *
 !!
@@ -989,7 +1083,7 @@ CONTAINS
     NULLIFY (set_radius_a,set_radius_b,rpgfa, rpgfb, sphi_a,sphi_b,zeta, zetb )
 
     CALL get_qs_env(qs_env=qs_env, atomic_kind_set=atomic_kind_set,&
-         particle_set=particle_set,sab_orb=sab_orb)
+         cell=cell,particle_set=particle_set,sab_orb=sab_orb)
 
     nkind = SIZE(atomic_kind_set)
 
@@ -1008,7 +1102,7 @@ CONTAINS
         NULLIFY (op_dipt(i,j)%block)
       END DO
     END DO 
- 
+
     DO ikind=1,nkind
 
       atomic_kind => atomic_kind_set(ikind)
@@ -1105,8 +1199,6 @@ CONTAINS
 
           sab_orb_neighbor_node => first_node(sab_orb_neighbor_list_local)
 
-          sab_orb_neighbor_node => first_node(sab_orb_neighbor_list_local)
-
           DO inode=1,nnode
 
             CALL get_neighbor_node(neighbor_node=sab_orb_neighbor_node,&
@@ -1159,37 +1251,37 @@ CONTAINS
                    CALL diffop(la_max(iset),npgfa(iset),zeta(:,iset),&
                         rpgfa(:,iset),la_min(iset), lb_max(jset),npgfb(jset),&
                         zetb(:,jset),rpgfb(:,jset),lb_min(jset),rab,difab)
-
 !            *** Contraction ***
-                   CALL dgemm("N","N",ncoa,nsgfb,ncob,&
-                        1.0_dp,difab(1,1,1),ldsb,&
+                   CALL dgemm("N","N",ncoa,nsgfb(jset),ncob,&
+                        1.0_dp,difab(1,1,1),ldab,sphi_b(1,sgfb),ldsb,&
                         0.0_dp,work(1,1),ldwork)
                    IF(iatom<=jatom) THEN
-                     CALL dgemm("T","N",nsgfa,nsgfb,ncoa,&
+                     CALL dgemm("T","N",nsgfa(iset),nsgfb(jset),ncoa,&
                           1.0_dp,sphi_a(1,sgfa),ldsa,&
                           work(1,1),ldwork,&
                           1.0_dp,op_dip(1)%block(sgfa,sgfb),&
                           SIZE(op_dip(1)%block,1))
                    ELSE
-                     CALL dgemm("T","N",nsgfb,nsgfa,ncoa,&
+                     CALL dgemm("T","N",nsgfb(jset),nsgfa(iset),ncoa,&
                           1.0_dp,work(1,1),ldwork,&
                           sphi_a(1,sgfa),ldsa,&
                           1.0_dp,op_dip(1)%block(sgfb,sgfa),&
                           SIZE(op_dip(1)%block,1))
                    END IF
+! stop 'pippo'
 
 !            *** Contraction ***
-                   CALL dgemm("N","N",ncoa,nsgfb,ncob,&
-                        1.0_dp,difab(1,1,2),ldsb,&
+                   CALL dgemm("N","N",ncoa,nsgfb(jset),ncob,&
+                        1.0_dp,difab(1,1,2),ldab,sphi_b(1,sgfb),ldsb,&
                         0.0_dp,work(1,1),ldwork)
                    IF(iatom<=jatom) THEN
-                     CALL dgemm("T","N",nsgfa,nsgfb,ncoa,&
+                     CALL dgemm("T","N",nsgfa(iset),nsgfb(jset),ncoa,&
                           1.0_dp,sphi_a(1,sgfa),ldsa,&
                           work(1,1),ldwork,&
                           1.0_dp,op_dip(2)%block(sgfa,sgfb),&
                           SIZE(op_dip(2)%block,1))
                    ELSE
-                     CALL dgemm("T","N",nsgfb,nsgfa,ncoa,&
+                     CALL dgemm("T","N",nsgfb(jset),nsgfa(iset),ncoa,&
                           1.0_dp,work(1,1),ldwork,&
                           sphi_a(1,sgfa),ldsa,&
                           1.0_dp,op_dip(2)%block(sgfb,sgfa),&
@@ -1197,17 +1289,17 @@ CONTAINS
                    END IF
 
 !            *** Contraction ***
-                   CALL dgemm("N","N",ncoa,nsgfb,ncob,&
-                        1.0_dp,difab(1,1,3),ldsb,&
+                   CALL dgemm("N","N",ncoa,nsgfb(jset),ncob,&
+                        1.0_dp,difab(1,1,3),ldab,sphi_b(1,sgfb),ldsb,&
                         0.0_dp,work(1,1),ldwork)
                    IF(iatom<=jatom) THEN
-                     CALL dgemm("T","N",nsgfa,nsgfb,ncoa,&
+                     CALL dgemm("T","N",nsgfa(iset),nsgfb(jset),ncoa,&
                           1.0_dp,sphi_a(1,sgfa),ldsa,&
                           work(1,1),ldwork,&
                           1.0_dp,op_dip(3)%block(sgfa,sgfb),&
                           SIZE(op_dip(3)%block,1))
                    ELSE
-                     CALL dgemm("T","N",nsgfb,nsgfa,ncoa,&
+                     CALL dgemm("T","N",nsgfb(jset),nsgfa(iset),ncoa,&
                           1.0_dp,work(1,1),ldwork,&
                           sphi_a(1,sgfa),ldsa,&
                           1.0_dp,op_dip(3)%block(sgfb,sgfa),&
