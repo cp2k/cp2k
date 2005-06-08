@@ -178,8 +178,9 @@ CONTAINS
     IMPLICIT NONE
     REAL(KIND=dp), POINTER, DIMENSION(:) :: gval
     REAL(KIND=dp)             :: dr
-    CHARACTER (LEN=200)       :: gfile
-    CHARACTER (LEN=80)        :: file_pdb, out_file, sel1, sel2, user, hostname, cwd
+    CHARACTER (LEN=280)       :: gfile
+    CHARACTER (LEN=80)        :: file_pdb, out_file, sel1, sel2, user, hostname
+    CHARACTER (LEN=200)       :: cwd
     CHARACTER (LEN=80)        :: cal_date
     CHARACTER (LEN=10)        :: time
     CHARACTER (LEN=5)         :: zone
@@ -204,6 +205,7 @@ CONTAINS
        gfile = TRIM(out_file)
     END IF
     ! Dump info...
+    IF (verbose) WRITE(*,*)" Dumping information on file :: ",gfile
     OPEN(12, file=gfile, status='unknown', form='formatted')
     WRITE(12,'(A)')"# Pair Correlation Function - g(r) - between :: "//&
          TRIM(sel1)//" and "//TRIM(sel2)//" ."
