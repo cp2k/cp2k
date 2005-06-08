@@ -452,8 +452,8 @@ SUBROUTINE cp_unit_create2(unit, kind_id, unit_id, power, error)
   failure=.false.
   
   CPPrecondition(.NOT.ASSOCIATED(unit),cp_failure_level,routineP,error,failure)
-  CPPrecondition(SIZE(kind_id)<=SIZE(unit%kind_id),cp_failure_level,routineP,error,failure)
-  CPPrecondition(SIZE(unit_id)<=SIZE(unit%unit_id),cp_failure_level,routineP,error,failure)
+  CPPrecondition(SIZE(kind_id)<=cp_unit_max_kinds,cp_failure_level,routineP,error,failure)
+  CPPrecondition(SIZE(unit_id)<=cp_unit_max_kinds,cp_failure_level,routineP,error,failure)
   ALLOCATE(unit,stat=stat)
   CPPostcondition(stat==0,cp_fatal_level,routineP,error,failure)
   unit%ref_count=1
@@ -1424,6 +1424,9 @@ SUBROUTINE cp_unit_set_create(unit_set,name,error)
         CASE('OUTPUT')
            SELECT CASE(i)
            CASE(cp_ukind_energy)
+              CALL cp_unit_create2(unit_set%units(i)%unit, kind_id=(/i/), unit_id=(/cp_units_hartree/),&
+                   power=(/1/), error=error)
+           CASE (cp_ukind_length)
               CALL cp_unit_create2(unit_set%units(i)%unit, kind_id=(/i/), unit_id=(/cp_units_angstrom/),&
                    power=(/1/), error=error)
            CASE (cp_ukind_temperature)

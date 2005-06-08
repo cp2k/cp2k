@@ -646,7 +646,7 @@ END SUBROUTINE f_env_rm_defaults
     END IF
     CALL globenv_create(globenv, para_env=para_env,&
          output_unit=unit_nr, input_file_name=input_file_path,&
-         close_output_unit=(unit_nr==6))
+         close_output_unit=(unit_nr>0 .and. unit_nr/=6))
     call cp2k_init(globenv)
     logger => cp_get_default_logger()
     ! warning this is dangerous, I did not check that all the subfunctions
