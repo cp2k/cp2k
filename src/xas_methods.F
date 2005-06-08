@@ -75,6 +75,7 @@ MODULE xas_methods
   USE orbital_pointers,                ONLY: nco,&
                                              ncoset
   USE particle_types,                  ONLY: get_particle_set,particle_type
+  USE physcon,                         ONLY: evolt
   USE qs_environment_types,            ONLY: get_qs_env,&
                                              qs_environment_type,&
                                              set_qs_env
@@ -92,7 +93,8 @@ MODULE xas_methods
   USE qs_matrix_pools,                 ONLY: mpools_get, &
                                              qs_matrix_pools_type
   USE qs_mo_types,                     ONLY: get_mo_set,&
-                                             mo_set_p_type,mo_set_type
+                                             mo_set_p_type,mo_set_type,&
+                                             write_mo_set
   USE qs_neighbor_list_types,          ONLY: find_neighbor_list,&
                                              first_list,&
                                              first_node,&
@@ -490,6 +492,10 @@ CONTAINS
             CALL scf_env_cleanup(scf_env,qs_env=qs_env,error=error)
          END IF
 
+!   *** Write last wavefunction to screen ***
+         DO ispin=1,dft_control%nspins
+           CALL write_mo_set(mos(ispin)%mo_set,atomic_kind_set,particle_set,4,6,globenv)
+         ENDDO
 
          ! Calculate the spectrum
          IF(xas_control%dipole_form == xas_dip_len) THEN
@@ -792,7 +798,7 @@ CONTAINS
       WRITE(out_sp,'(A,I10)') " Iteration Step ", iter
 
       DO istate = 1,SIZE(spectrum,2)
-        WRITE(out_sp,'(I6,2F16.8)') istate, spectrum(1,istate), spectrum(2,istate)
+        WRITE(out_sp,'(I6,2F16.8)') istate, spectrum(1,istate)*evolt, spectrum(2,istate)
       END DO 
         
 
