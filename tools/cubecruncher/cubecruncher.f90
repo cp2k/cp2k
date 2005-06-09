@@ -209,6 +209,15 @@ CONTAINS
   END SUBROUTINE
 
 !-------------------------------------------------------------------------------
+! substract cubes, cube1=cube1-cube2
+!-------------------------------------------------------------------------------
+  SUBROUTINE subtract_cubes(cube1,cube2)
+    TYPE(cube_type), POINTER :: cube1,cube2
+    cube1%grid=cube1%grid-cube2%grid
+  END SUBROUTINE
+
+
+!-------------------------------------------------------------------------------
 ! folds the atoms in the cube assuming periodic boundary conditions
 ! smart_hydrogen=.TRUE. means that hydrogen move to the closest heavy atoms
 ! and are not really folded
@@ -263,9 +272,10 @@ MODULE command_line_tools
   TYPE input_type
     CHARACTER(LEN=200) :: cube_name_in
     CHARACTER(LEN=200) :: cube_name_out
+    CHARACTER(LEN=200) :: cube_name_subtract
     CHARACTER(LEN=200) :: xyz_name
     LOGICAL :: do_xyz, do_center, do_fold, do_foldsmart,do_center_atom,do_center_geo
-    LOGICAL :: have_input, have_output, write_help, write_version
+    LOGICAL :: have_input, have_output, write_help, write_version, do_subtract
     INTEGER :: atom_center, stride
   END TYPE
 CONTAINS
@@ -281,6 +291,7 @@ CONTAINS
     input%do_center_geo=.FALSE.
     input%do_fold=.FALSE.
     input%do_foldsmart=.FALSE.
+    input%do_subtract=.FALSE.
     input%write_help=.FALSE.
     input%write_version=.FALSE.
     input%stride=1
@@ -301,6 +312,7 @@ CONTAINS
       write(6,'(A80)') ""
       write(6,'(A80)') " -xyz coords.xyz         : merge in a xyz coordinate file                      "
       write(6,'(A80)') "                              (e.g. for VMD usage)                             "
+      write(6,'(A80)') " -subtract min.cube      : subtract min.cube from input.cube                   "
       write(6,'(A80)') " -center {#|geo}         : #=1..Natom center the cube around atom #            "
       write(6,'(A80)') "                           geo        center the cube so that the cell         "
       write(6,'(A80)') "                              boundaries are as far as possible from the       "
@@ -335,6 +347,10 @@ CONTAINS
         input%have_input=.TRUE.
         CALL getarg(I+1,input%cube_name_in)
         WRITE(6,*) "Reading from cube          ",TRIM(input%cube_name_in)
+      CASE("-subtract")
+        input%do_subtract=.TRUE.
+        CALL getarg(I+1,input%cube_name_subtract)
+        WRITE(6,*) "Subtracting cube           ",TRIM(input%cube_name_subtract)
       CASE("-xyz")
         input%do_xyz=.TRUE.
         CALL getarg(I+1,input%xyz_name)
@@ -377,7 +393,7 @@ PROGRAM main
    USE command_line_tools
    IMPLICIT NONE
 
-   TYPE(cube_type), POINTER :: cube
+   TYPE(cube_type), POINTER :: cube,cube_subtract
 
    INTEGER :: iunit_cube_in,iunit_cube_out,iunit_xyz,narg
    LOGICAL :: did_something
@@ -421,6 +437,20 @@ PROGRAM main
      CALL read_cube(cube,iunit_cube_in)
      CLOSE(iunit_cube_in)
      write(6,*) "Done"
+
+     IF (input%do_subtract) THEN
+        ! read cube
+        ALLOCATE(cube_subtract)
+        CALL init_cube(cube_subtract)
+        write(6,FMT='(A)',ADVANCE="No") "Reading cube to subtract ... "
+        OPEN(iunit_cube_in,FILE=TRIM(input%cube_name_subtract)) 
+        CALL read_cube(cube_subtract,iunit_cube_in)
+        CLOSE(iunit_cube_in)
+        write(6,*) "Done"
+        ! subtract from input
+        CALL subtract_cubes(cube,cube_subtract)
+        CALL deallocate_cube(cube_subtract)
+     ENDIF
 
      IF (input%do_xyz) THEN  
         ! read xyz
