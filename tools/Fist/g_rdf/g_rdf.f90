@@ -39,13 +39,13 @@ PROGRAM main
   INTEGER, POINTER, DIMENSION(:)              :: isel1, isel2
   REAL (KIND=dp), POINTER, DIMENSION(:)       :: gval, cell
   INTEGER        :: nframe, ntap, skip_frame, start_frame, end_frame
-  REAL (KIND=dp) :: dr
+  REAL (KIND=dp) :: dr, dr_input
 
   NULLIFY( coord, name, atom, element, residue, num, numres, isel1, isel2, gval, cell)
 
   CALL read_command_line(file_pdb, file_dcd, file_xsc, file_xyz, &
                          out_file, sel1, sel2, skip_frame,&
-                         start_frame, end_frame, verbose)
+                         start_frame, end_frame, dr_input, verbose)
   
   OPEN ( 9, file=file_pdb, status='old', form='formatted'  )
   IF (INDEX(file_dcd,"NULL") == 0) OPEN (10, file=file_dcd, status='old', form='unformatted')
@@ -104,15 +104,18 @@ CONTAINS
   END SUBROUTINE print_help_banner
 
   SUBROUTINE read_command_line(file_pdb, file_dcd, file_xsc, file_xyz, out_file,&
-                              sel1, sel2, skip_frame, start_frame, end_frame, verbose)
+                              sel1, sel2, skip_frame, start_frame, end_frame,&
+                              dr_input, verbose)
     IMPLICIT NONE
     CHARACTER(len=80)  :: file_dcd, file_pdb, file_xsc, out_file, file_xyz
     CHARACTER(len=80)  :: sel1, sel2, argval
     INTEGER            :: skip_frame, start_frame, end_frame, narg, I
     LOGICAL            :: sel_set, verbose
+    REAL(KIND=dp)      :: dr_input
 
     skip_frame  = 1
     start_frame = 1
+    dr_input    = 0.1_dp
     end_frame   = -999
     verbose     = .FALSE.
     file_pdb    = "NULL"
@@ -131,6 +134,9 @@ CONTAINS
     DO i=1, narg
        CALL getarg(i, argval)
        SELECT CASE (TRIM(ARGVAL))
+       CASE ("-dr")
+          CALL getarg(i+1, argval)
+          READ(argval,*)dr_input
        CASE ("-pdb")
           CALL getarg(i+1, file_pdb)
        CASE ("-dcd")
@@ -232,7 +238,7 @@ CONTAINS
     
     IF (end_frame .LT. 0) end_frame = nframe
     pi    = ATAN(1.0_dp)*4.0_dp
-    dr    = 0.1_dp
+    dr    = dr_input
     gmax  = MINVAL(cell)/2.0_dp
     np    = FLOOR(gmax/dr)
     gmax  = dr * REAL(np,dp)
