@@ -91,7 +91,7 @@ CONTAINS
 !!*** **********************************************************************  
   SUBROUTINE qmmm_gaussian_initialize(qmmm_gaussian_fns, globenv, pw_env,       &
        qm_cell_small, mm_cell, mm_el_pot_radius, qmmm_coupl_type, eps_mm_rspace,&
-       maxradius, maxchrg, print_section, error)
+       maxradius, maxchrg, compatibility, print_section, error)
     IMPLICIT NONE
     ! Arguments
     TYPE(qmmm_gaussian_p_type), &
@@ -106,6 +106,7 @@ CONTAINS
     TYPE(section_vals_type), POINTER         :: print_section
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
+    LOGICAL, INTENT(IN) :: compatibility
     ! Local Variables
     CHARACTER(len=*), PARAMETER :: routineN = 'qmmm_gaussian_initialize', &
       routineP = moduleN//':'//routineN
@@ -177,7 +178,7 @@ CONTAINS
           END IF
           !
           CALL read_mm_potential(globenv, qmmm_gaussian_fns, qm_cell_small,&
-               error)
+               compatibility, error)
           !
           CALL pw_env_get(pw_env,pw_pools=pools, gridlevel_info=gridlevel_info,&
                error=error)

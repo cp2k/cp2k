@@ -199,6 +199,7 @@ CONTAINS
     TYPE(qmmm_links_type), pointer           :: qmmm_links
     REAL(KIND=dp),  DIMENSION(:), POINTER    :: mm_link_scale_factor, fist_scale_charge_link
     LOGICAL                                  :: move_mm_charges, add_mm_charges, nocenter
+    LOGICAL                                  :: nocompatibility
     TYPE(add_set_type), POINTER              :: added_charges
     TYPE(greens_function_type), POINTER                   :: green
     REAL(KIND=dp), DIMENSION(3)              :: abc
@@ -253,6 +254,10 @@ CONTAINS
        ! Center the qm subsys into the qm box
        CALL section_vals_val_get(qmmm_section,"NOCENTER",l_val=nocenter,error=error)
        qmmm_env_qm%center_qm_subsys = .NOT.nocenter
+
+       ! Compatibility with the QM/MM in CPMD code
+       CALL section_vals_val_get(qmmm_section,"NOCOMPATIBILITY",l_val=nocompatibility,error=error)
+       qmmm_env_qm%compatibility = .NOT.nocompatibility       
 
        ! First Initialize Fist...
        globenv%program_name="FIST"       
@@ -872,6 +877,7 @@ CONTAINS
                                   eps_mm_rspace=qmmm_env_qm%eps_mm_rspace,&
                                   maxradius=maxradius,&
                                   maxchrg=maxchrg,&
+                                  compatibility=qmmm_env_qm%compatibility,&
                                   print_section=print_section,&
                                   error=error)
 
@@ -886,6 +892,7 @@ CONTAINS
                                      eps_mm_rspace=qmmm_env_qm%eps_mm_rspace,&
                                      maxradius=maxradius2,&
                                      maxchrg=maxchrg,&
+                                     compatibility=qmmm_env_qm%compatibility,&
                                      print_section=print_section,&
                                      error=error)
 
@@ -945,6 +952,7 @@ CONTAINS
                             mm_cell=mm_cell,&
                             globenv=globenv,&
                             pw_env=qs_env%pw_env,&
+                            compatibility=qmmm_env_qm%compatibility,&
                             error=error)
 
    IF (qmmm_env_qm%move_mm_charges.OR.qmmm_env_qm%add_mm_charges) THEN
@@ -957,6 +965,7 @@ CONTAINS
                                mm_cell=mm_cell,&
                                globenv=globenv,&
                                pw_env=qs_env%pw_env,&
+                               compatibility=qmmm_env_qm%compatibility,&
                                error=error)      
    END IF
 

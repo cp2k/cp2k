@@ -86,7 +86,7 @@ CONTAINS
 !!
 !!*** ********************************************************************** 
   SUBROUTINE qmmm_potential_init(qmmm_coupl_type, mm_el_pot_radius, potentials,&
-    pgfs, qm_cell_small, mm_cell, globenv, pw_env, error)
+    pgfs, qm_cell_small, mm_cell, globenv, pw_env, compatibility, error)
     IMPLICIT NONE
     ! Arguments
     TYPE(qmmm_pot_p_type), DIMENSION(:), POINTER            :: potentials
@@ -99,14 +99,15 @@ CONTAINS
       OPTIONAL                               :: error
     TYPE(global_environment_type), POINTER   :: globenv
     TYPE(pw_env_type), POINTER :: pw_env    
+    LOGICAL, INTENT(IN) :: compatibility
     ! Local Variables
     CHARACTER(len=*), PARAMETER :: routineN = 'qmmm_potential_init', &
       routineP = moduleN//':'//routineN
     LOGICAL :: failure, found
     TYPE(qmmm_gaussian_type), POINTER                :: pgf
-    REAL(KIND=dp) :: Rmax, Rmin
-    REAL(KIND=dp) :: rc, x, t, A,G, t1, t2
-    INTEGER        :: I, J, K, Np, stat, ndim, ig
+    REAL(KIND=dp) :: Rmax, Rmin, Fac
+    REAL(KIND=dp) :: rc, x, t, A,G, t1, t2, f, f1, f2
+    INTEGER        :: I, J, K, Np, stat, ndim, ig, ig_start
     INTEGER,        DIMENSION(:), POINTER :: mm_atom_index
     REAL(KIND=dp), PARAMETER :: dx = 0.05_dp, d2x=dx*dx
     REAL(KIND=dp), DIMENSION(:,:),POINTER :: pot0_2
@@ -163,17 +164,36 @@ CONTAINS
 
        SELECT CASE(qmmm_coupl_type)
        CASE(do_qmmm_grid)
-          pot0_2(1,1)= 2.0_dp/(rootpi*rc)
-          pot0_2(2,1)= 0.0_dp
-          pot0_2(3,1)=-4.0_dp/(3.0_dp*rootpi*rc**3)
-          x=0.0_dp
-          DO i=2,np
-             x=x+dx
-             pot0_2(1,i)=erf(x/rc)/x
-             t=2._dp/(rootpi*x*rc)*EXP(-(x/rc)**2)
-             pot0_2(2,i)=(t-pot0_2(1,i)/x)*dx
-             pot0_2(3,i)=(-t*2._dp*(x/rc**2+1._dp/x)+2._dp*pot0_2(1,i)/x**2)*d2x
-          END DO
+          IF (compatibility) THEN
+             Fac = 1.0_dp/rc - 2.0_dp/(rootpi*rc)
+             f1=1/rc**2
+             pot0_2(1,1)= 2.0_dp/(rootpi*rc) + Fac
+             pot0_2(2,1)= 0.0_dp
+             pot0_2(3,1)=-4.0_dp/(3.0_dp*rootpi*rc**3) - 2.0_dp*Fac*f1
+             x=0.0_dp
+             DO i=2,np
+                x=x+dx
+                f=EXP(-f1*x**2)*Fac
+                f2=f1*f
+                pot0_2(1,i)=erf(x/rc)/x + f
+                t=2._dp/(rootpi*x*rc)*EXP(-(x/rc)**2)
+                pot0_2(2,i)=(t-pot0_2(1,i)/x)*dx - 2.0_dp*x*f2*dx
+                pot0_2(3,i)=(-t*2._dp*(x/rc**2+1._dp/x)+2._dp*pot0_2(1,i)/x**2)*d2x &
+                     - ( 2.0_dp*f2 - 4.0_dp*x**2*f1*f2)*d2x 
+             END DO
+          ELSE
+             pot0_2(1,1)= 2.0_dp/(rootpi*rc)
+             pot0_2(2,1)= 0.0_dp
+             pot0_2(3,1)=-4.0_dp/(3.0_dp*rootpi*rc**3)
+             x=0.0_dp
+             DO i=2,np
+                x=x+dx
+                pot0_2(1,i)=erf(x/rc)/x
+                t=2._dp/(rootpi*x*rc)*EXP(-(x/rc)**2)
+                pot0_2(2,i)=(t-pot0_2(1,i)/x)*dx
+                pot0_2(3,i)=(-t*2._dp*(x/rc**2+1._dp/x)+2._dp*pot0_2(1,i)/x**2)*d2x
+             END DO             
+          END IF
        CASE(do_qmmm_gauss)
           pot0_2(1,1)= 2.0_dp/(rootpi*rc)
           pot0_2(2,1)= 0.0_dp
@@ -186,8 +206,10 @@ CONTAINS
           END DO
           pgf => pgfs(K)%pgf
           CPPostcondition(pgf%Elp_Radius==rc,cp_failure_level,routineP,error,failure)
-          DO Ig = 1, pgf%number_of_gaussians
-             A = pgf%Ak(Ig) 
+          ig_start = 1
+          IF (compatibility) ig_start = 2
+          DO Ig = ig_start, pgf%number_of_gaussians
+             A = pgf%Ak(Ig)
              G = pgf%Gk(Ig)
              pot0_2(1,1) = pot0_2(1,1) - A
              x = 0.0_dp

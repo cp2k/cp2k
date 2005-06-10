@@ -38,6 +38,7 @@ MODULE qmmm_gaussian_input
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE kinds,                           ONLY: default_string_length,&
                                              dp
+  USE mathconstants,                   ONLY: rootpi
   USE qs_parser,                       ONLY: finish_parser,&
                                              read_object,&
                                              search_object,&
@@ -86,7 +87,7 @@ CONTAINS
   !!
   !!*************************************************************************
   SUBROUTINE read_mm_potential(globenv, qmmm_gaussian_fns, qm_cell_small,&
-                               error)
+                               compatibility, error)
     IMPLICIT NONE
     ! Arguments
     TYPE(global_environment_type), POINTER   :: globenv
@@ -95,14 +96,15 @@ CONTAINS
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
     TYPE(cell_type), POINTER                 :: qm_cell_small
+    LOGICAL, INTENT(IN)                      :: compatibility
     ! Local Variables
     CHARACTER(len=*), PARAMETER :: routineN = 'read_mm_potential',&
          routineP = moduleN//':'//routineN
-    INTEGER :: j, IRad, Nog, stat, Ival , Nval
+    INTEGER :: j, IRad, Nog, stat, Ival , Nval, istart
     LOGICAL ::  Found, Found_Radius, failure
     CHARACTER(LEN=240)                       :: line
     CHARACTER(len=10)                        :: Ftarget, Units
-    REAL(KIND=dp)                           :: Radius, fconv
+    REAL(KIND=dp)                           :: Radius, fconv, my_radius, a, b, c
 
 
     Nval = size(qmmm_gaussian_fns)
@@ -152,12 +154,42 @@ CONTAINS
           ! Read  Rmin, Rmax
           CALL read_object(qmmm_gaussian_fns(J)%pgf%Number_of_Gaussians,newline=.TRUE.)
           ! Allocate Vectors
+          istart = 1
+          IF (compatibility) THEN 
+             qmmm_gaussian_fns(J)%pgf%Number_of_Gaussians = qmmm_gaussian_fns(J)%pgf%Number_of_Gaussians + 1
+             istart = 2             
+          END IF
           NOG = qmmm_gaussian_fns(IRad)%pgf%Number_of_Gaussians
           ALLOCATE(qmmm_gaussian_fns(IRad)%pgf%Ak(NOG),stat=stat)
           CPPostcondition(stat==0,cp_failure_level,routineP,error,Failure)
           ALLOCATE(qmmm_gaussian_fns(IRad)%pgf%Gk(NOG),stat=stat)
           CPPostcondition(stat==0,cp_failure_level,routineP,error,Failure)
-          DO J = 1, qmmm_gaussian_fns(IRad)%pgf%Number_of_Gaussians
+          IF (compatibility) THEN
+             IF     (radius>=0.4_dp*fconv .AND. radius<0.6_dp*fconv) THEN
+                a = 0.382027_dp
+                b = 0.947593_dp
+                c = 0.051891_dp
+             ELSE IF(radius>=0.6_dp*fconv .AND. radius<0.8_dp*fconv) THEN
+                a = 0.069660_dp
+                b = 1.520630_dp
+                c = -0.21155_dp
+             ELSE IF(radius>=0.8_dp*fconv .AND. radius<1.0_dp*fconv) THEN
+                a = 0.00142918_dp
+                b = -1.61831_dp
+                c = 0.246434_dp
+             ELSE IF(radius>=1.0_dp*fconv .AND. radius<1.2_dp*fconv) THEN
+                a = 0.137868_dp
+                b = 1.47547_dp
+                c = -0.20902_dp
+             ELSE
+                WRITE(*,'(A,F12.6,A)')"The compatibility option works only in the radius range 0.4 - 1.2 Angstrom." 
+                CALL stop_program(routineN,moduleN,__LINE__,"Please contact one of the developer for this feature!",globenv)                
+             END IF
+             my_radius = a + b * radius + c * radius**2
+             qmmm_gaussian_fns(IRad)%pgf%Ak(1) = 1.0_dp/radius - 2.0_dp/(rootpi*radius)
+             qmmm_gaussian_fns(IRad)%pgf%Gk(1) = my_radius
+          END IF
+          DO J = istart, qmmm_gaussian_fns(IRad)%pgf%Number_of_Gaussians
              CALL read_object(qmmm_gaussian_fns(IRad)%pgf%Ak(J),newline=.TRUE.)
              CALL read_object(qmmm_gaussian_fns(IRad)%pgf%Gk(J))
              CALL read_object(units)

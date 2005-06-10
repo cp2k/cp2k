@@ -5992,6 +5992,15 @@ END SUBROUTINE create_ewald_section
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
+       CALL keyword_create(keyword, name="nocompatibility",&
+            description="This keyword disables the compatibility of QM/MM "//&
+            "potential between CPMD and CP2K implementations. The compatibility"//&
+            " is achieved using an MM potential of the form: Erf[x/rc]/x + (1/rc -2/(pi^1/2*rc))*Exp[-(x/rc)^2] .",&
+            usage="nocompatibility LOGICAL",&
+            default_l_val=.FALSE., lone_keyword_l_val=.TRUE., error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
        CALL keyword_create(keyword, name="periodic",&
             description="This keyword enables the QMMM periodic potential. Default .FALSE.",&
             usage="periodic LOGICAL",&
