@@ -111,7 +111,7 @@ contains
        NULLIFY(keyword)
        CALL keyword_create(keyword,name="_DEFAULT_KEYWORD_",&
             description="ignores lines outside sections",&
-            usage="", type_of_var=no_t,error=error)
+            usage=" ", type_of_var=no_t,error=error)
        CALL section_add_keyword(root_section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
@@ -1371,7 +1371,7 @@ SUBROUTINE create_qs_section(section,error)
      CALL cp_print_key_section_create(print_key,"DIPOLE",&
           description="Calculates the dipole, for the moment it only supports"//&
           "the stupid non periodic dipole, should be extended soon", &
-          print_level=high_print_level,each=(/1/),filename="",&
+          print_level=high_print_level,each=(/1/),filename=" ",&
           common_iter_levels=1,error=error)
      CALL section_add_subsection(section,print_key,error=error)
      CALL section_release(print_key,error=error)
@@ -1493,8 +1493,8 @@ SUBROUTINE create_xc_fun_section(section,error)
           "PBEX    ",&
           "REV_PBEX",&
           "OPTX    "/),&
-          enum_i_vals=(/xgga_b88,xgga_pw86,xgga_pw91,xgga_pbe,xgga_revpbe,xgga_opt/),&
-          default_i_val=xgga_b88,error=error)
+          enum_i_vals=(/xgga_b88x,xgga_pw86,xgga_pw91,xgga_pbex,xgga_revpbe,xgga_opt/),&
+          default_i_val=xgga_b88x,error=error)
      CALL section_add_keyword(subsection,keyword,error=error)
      CALL keyword_release(keyword,error=error)
      CALL section_add_subsection(section,subsection,error=error)
@@ -1508,8 +1508,8 @@ SUBROUTINE create_xc_fun_section(section,error)
      CALL keyword_create(keyword,name="FUNCTIONAL",&
           description="Which one of the KE_GGA functionals should be used",&
           usage="FUNCTIONAL LLP",&
-          enum_c_vals=(/"OL1 ","OL2 ","LLP ","PW86","PW91","LC  ","T92 "/),&
-          enum_i_vals=(/ke_ol1,ke_ol2,ke_llp,ke_pw86,ke_pw91,ke_lc,ke_t92/),&
+          enum_c_vals=(/"OL1 ","OL2 ","LLP ","PW86","PW91","LC  ","T92 ","PBE "/),&
+          enum_i_vals=(/ke_ol1,ke_ol2,ke_llp,ke_pw86,ke_pw91,ke_lc,ke_t92,ke_pbe/),&
           default_i_val=ke_ol1,error=error)
      CALL section_add_keyword(subsection,keyword,error=error)
      CALL keyword_release(keyword,error=error)
@@ -1534,8 +1534,8 @@ SUBROUTINE create_xc_fun_section(section,error)
           "ORIGINAL",&
           "DMC     ",&
           "VMC     "/),&
-          enum_i_vals=(/pw_orig,pw_dmc,pw_vmc/),&
-          default_i_val=pw_orig,error=error)
+          enum_i_vals=(/c_pw92,c_pw92dmc,c_pw92vmc/),&
+          default_i_val=c_pw92,error=error)
      CALL section_add_keyword(subsection,keyword,error=error)
      CALL keyword_release(keyword,error=error)
      CALL section_add_subsection(section,subsection,error=error)
@@ -1552,7 +1552,7 @@ SUBROUTINE create_xc_fun_section(section,error)
           "ORIGINAL",&
           "DMC     ",&
           "VMC     "/),&
-          enum_i_vals=(/pz_orig,pz_dmc,pz_vmc/),&
+          enum_i_vals=(/c_pz,c_pzdmc,c_pzvmc/),&
           default_i_val=pz_orig,error=error)
      CALL section_add_keyword(subsection,keyword,error=error)
      CALL keyword_release(keyword,error=error)
@@ -1842,6 +1842,15 @@ SUBROUTINE create_tddfpt_section(section,error)
        CALL keyword_create(keyword, name="tau_cutoff",&
             description="The cutoff on tau used by the xc calculation",&
             usage="tau_cutoff 1.e-11", default_r_val=1.0e-10_dp,error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="FUNCTIONAL_ROUTINE",&
+       description="Select the code for xc calculation",&
+            usage="FUNCTIONAL_ROUTINE NEW", default_i_val=xc_new_f_routine,&
+            enum_c_vals=s2a("NEW","OLD","TEST_LSD","DEBUG"),&
+            enum_i_vals=(/ xc_new_f_routine, xc_old_f_routine, &
+            xc_test_lsd_f_routine, xc_debug_new_routine/),error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
@@ -3376,7 +3385,7 @@ SUBROUTINE create_tddfpt_section(section,error)
 
        CALL keyword_create(keyword, name="PARMFILE",&
             description="Specifies the filename that contains the parameters of the FF.",&
-            usage="PARMFILE {FILENAME}",default_c_val="",error=error)
+            usage="PARMFILE {FILENAME}",default_c_val=" ",error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
@@ -3855,7 +3864,7 @@ SUBROUTINE create_tddfpt_section(section,error)
 
        CALL keyword_create(keyword, name="PARMFILE",&
             description="Specifies the filename that contains the parameters of the EAM FF.",&
-            usage="PARMFILE {FILENAME}",default_c_val="",error=error)
+            usage="PARMFILE {FILENAME}",default_c_val=" ",error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 

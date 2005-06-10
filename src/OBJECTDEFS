@@ -391,10 +391,12 @@ OBJECTS_GENERIC =\
  xc_perdew_wang_new.o\
  xc_perdew_zunger_new.o\
  xc_pot_saop.o\
+ xc_rho_cflags_types.o\
  xc_rho_set_types.o\
  xc_tfw_new.o\
  xc_thomas_fermi_new.o\
  xc_tpss.o\
+ xc_utils.o\
  xc_vwn_new.o\
  xc_xalpha_new.o\
  xc_xbecke88.o

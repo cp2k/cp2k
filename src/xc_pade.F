@@ -51,8 +51,8 @@ MODULE xc_pade
                                              calc_rs_pw,&
                                              set_util,&
                                              setup_calculation
-  USE xc_rho_set_types,                ONLY: xc_rho_cflags_type,&
-                                             xc_rho_set_type
+  USE xc_rho_cflags_types,             ONLY: xc_rho_cflags_type
+  USE xc_rho_set_types,                ONLY: xc_rho_set_type
 
   IMPLICIT NONE
 

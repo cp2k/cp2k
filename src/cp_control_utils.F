@@ -20,6 +20,7 @@ MODULE cp_control_utils
                                              gapw_control_create,&
                                              qs_control_type,&
                                              tddfpt_control_type,&
+                                             xc_control_type,&
                                              wave_control_type
   USE input_constants,                 ONLY: do_loc_min,&
                                              do_loc_max,&
@@ -117,11 +118,12 @@ MODULE cp_control_utils
                                              wfi_use_prev_wf_method_nr
   USE termination,                     ONLY: stop_memory,&
                                              stop_program
-  USE xc_derivatives,                  ONLY: xc_functional_get_info
-  USE xc_rho_set_types,                ONLY: xc_rho_cflags_setall,&
-                                             xc_rho_cflags_type
   USE xas_control,                     ONLY: read_xas_control_new,&
                                              xas_control_type
+  USE xc_derivatives,                  ONLY: xc_functional_get_info
+  USE xc_rho_cflags_types,                ONLY: xc_rho_cflags_setall,&
+                                             xc_rho_cflags_type
+  USE xc_utils,                        ONLY: read_xc_control
 
   IMPLICIT NONE
 
@@ -195,141 +197,141 @@ CONTAINS
      qs_keywords(qs_key_REALSPACE_MGRIDS)=keyword_type("REALSPACE_MGRIDS", &
                                        "REALSPACE_MGRIDS",&
                                        "Use realspace techniques for multigrids",&
-                                       "REALSPACE_MGRID","","")
+                                       "REALSPACE_MGRID"," "," ")
      qs_keywords(qs_key_COMMENSURATE)=keyword_type("COMMENSURATE", &
                                        "COMMENSURATE",&
                                        "Have realspace multigrids grids that are commensurate in real space",&
-                                       "","","")
+                                       " "," "," ")
      qs_keywords(qs_key_MAP_PAA)=keyword_type("MAP_PAA", &
                                        "MAP_PAA",&
                                        "Put diagonal density matrix elements on the highest cutoff multigrid",&
-                                       "","","")
+                                       " "," "," ")
      qs_keywords(qs_key_MAP_CONSISTENT)=keyword_type("MAP_CONSISTENT", &
                                        "MAP_CONSISTENT",&
                                        "Guarantee an exact derivative (Hks) of the energy",&
-                                       "","","")
+                                       " "," "," ")
      qs_keywords(qs_key_MULTIGRID)=keyword_type("MULTIGRID", &
                                        "MULTIGRID integer real ... real",&
                                        "Set the cutoffs of the multigrids",&
-                                       "MULTI_GRID","MGRID","")
+                                       "MULTI_GRID","MGRID"," ")
      qs_keywords(qs_key_EPS_DEFAULT)=keyword_type("EPS_DEFAULT", &
                                        "EPS_DEFAULT real",&
                                        "Try setting all EPS_xxx to values leading to an energy correct up to EPS_DEFAULT",&
-                                       "","","")
+                                       " "," "," ")
      qs_keywords(qs_key_EPS_CORE_CHARGE)=keyword_type("EPS_CORE_CHARGE", &
                                        "EPS_CORE_CHARGE real",&
                                        "Precision for mapping the core charges",&
-                                       "","","")
+                                       " "," "," ")
      qs_keywords(qs_key_EPS_GVG_RSPACE)=keyword_type("EPS_GVG_RSPACE", &
                                        "EPS_GVG_RSPACE real",&
                                        "Sets precision of the realspace KS matrix element integration",&
-                                       "EPS_GVG","","")
+                                       "EPS_GVG"," "," ")
      qs_keywords(qs_key_EPS_PGF_AUX)=keyword_type("EPS_PGF_AUX", &
                                        "EPS_PGF_AUX real",&
                                        "XXXXXXXXXXX set precision of the ...",&
-                                       "","","")
+                                       " "," "," ")
      qs_keywords(qs_key_EPS_PGF_ORB)=keyword_type("EPS_PGF_ORB", &
                                        "EPS_PGF_ORB real",&
                                        "Sets precision of the overlap matrix elements",&
-                                       "","","")
+                                       " "," "," ")
      qs_keywords(qs_key_EPS_PPL)=keyword_type("EPS_PPL", &
                                        "EPS_PPL real",&
                                        "Sets precision of the local part of the pseudo potential",&
-                                       "","","")
+                                       " "," "," ")
      qs_keywords(qs_key_EPS_PPNL)=keyword_type("EPS_PPNL", &
                                        "EPS_PPNL real",&
                                        "Sets precision of the non-local part of the pseudo potential",&
-                                       "","","")
+                                       " "," "," ")
      qs_keywords(qs_key_EPS_RHO)=keyword_type("EPS_RHO", &
                                        "EPS_RHO real",&
                                        "Sets precision of the density mapping on the grids",&
-                                       "","","")
+                                       " "," "," ")
      qs_keywords(qs_key_EPS_RHO_GSPACE)=keyword_type("EPS_RHO_GSPACE", &
                                        "EPS_RHO_GSPACE real",&
                                        "Sets precision of the density mapping in gspace. Unused ?",&
-                                       "","","")
+                                       " "," "," ")
      qs_keywords(qs_key_EPS_RHO_RSPACE)=keyword_type("EPS_RHO_RSPACE", &
                                        "EPS_RHO_RSPACE real",&
                                        "Sets precision of the density mapping in rspace",&
-                                       "","","")
+                                       " "," "," ")
      qs_keywords(qs_key_PROGRESSION_FACTOR)=keyword_type("PROGRESSION_FACTOR", &
                                        "PROGRESSION_FACTOR real",&
                                        "Subsequent multigrids have a cutoff that is profac smaller then the next bigger grid",&
-                                       "RROFAC","","")
+                                       "RROFAC"," "," ")
      qs_keywords(qs_key_REL_CUTOFF)=keyword_type("REL_CUTOFF", &
                                        "REL_CUTOFF real",&
                                        "Determines the grid at which a Gaussian is mapped,"// &
                                                 " giving the cutoff used for a gaussian with alpha=1",&
-                                       "RELATIVE_CUTOFF","","")
+                                       "RELATIVE_CUTOFF"," "," ")
      qs_keywords(qs_key_NGRID)=keyword_type("NGRID", &
                                        "NGRID integer",&
                                        "The number of multigrids that should be used",&
-                                       "NGRID_LEVEL","","")
+                                       "NGRID_LEVEL"," "," ")
      qs_keywords(qs_key_EPSFIT)=keyword_type("EPSFIT", &
                                        "EPSFIT real",&
                                        "GAPW : precision to give the extention of a hard gaussian ",&
-                                       "EPS_FIT","","")
+                                       "EPS_FIT"," "," ")
      qs_keywords(qs_key_EPSISO)=keyword_type("EPSISO", &
                                        "EPSISO real",&
                                        "GAPW : precision to determine an isolated projector",&
-                                       "EPS_ISO","","")
+                                       "EPS_ISO"," "," ")
      qs_keywords(qs_key_EPSRHO0)=keyword_type("EPSRHO0", &
                                        "EPSRHO0 real",&
                                        "GAPW : precision to determine the range of V(rho0-rho0soft)",&
-                                       "EPSVRHO0","EPS_VRHO0","")
+                                       "EPSVRHO0","EPS_VRHO0"," ")
      qs_keywords(qs_key_QUADRATURE)=keyword_type("QUADRATURE", &
                                        "QUADRATURE {GC_SIMPLE|GC_TRANSFORMED|GC_LOG}",&
                                        "GAPW: algorithm to construct the atomic radial grids",&
-                                       "","","")
+                                       " "," "," ")
      qs_keywords(qs_key_LMAXN1)=keyword_type("LMAXN1", &
                                        "LMAXN1 integer",&
                                        "GAPW : max L number for espansion of the atomic densities in spherical gaussians",&
-                                       "LMAXRHO1","","")
+                                       "LMAXRHO1"," "," ")
      qs_keywords(qs_key_LMAXN0)=keyword_type("LMAXN0", &
                                        "LMAXN0 integer",&
                                        "GAPW : max L number for the expansion compensation densities in spherical gaussians",&
-                                       "LMAXRHO0","","")
+                                       "LMAXRHO0"," "," ")
      qs_keywords(qs_key_LADDN0)=keyword_type("LADDN0", &
                                        "LADDN0 integer",&
                                        "GAPW : XXXXXXXXXX",&
-                                       "","","")
+                                       " "," "," ")
      qs_keywords(qs_key_ALPHA0_H)=keyword_type("ALPHA0_HARD", &
                                        "ALPHA0_HARD real ",&
                                        "GAPW : Exponent for hard compensation charge",&
-                                       "ALPHA0_H","","")
+                                       "ALPHA0_H"," "," ")
      qs_keywords(qs_key_ALPHA0_S)=keyword_type("ALPHA0_SOFT", &
                                        "ALPHA0_SOFT real ",&
                                        "GAPW : Exponent for soft compensation charge",&
-                                       "ALPHA0_S","","")
+                                       "ALPHA0_S"," "," ")
      qs_keywords(qs_key_PAO)=keyword_type("PAO", &
                                        "PAO",&
                                        "Use the PAO method",&
-                                       "","","")
+                                       " "," "," ")
      qs_keywords(qs_key_PW_GRID)=keyword_type("PW_GRID", &
                                        "PW_GRID {SPHERICAL|NON-SPHERICAL|FULLSPACE|HALFSPACE}",&
                                        "What kind of PW_GRID should be employed",&
-                                       "","","")
+                                       " "," "," ")
      qs_keywords(qs_key_RS_GRID)=keyword_type("RS_GRID", &
                                        "RS_GRID {DISTRIBUTED|REPLICATED}",&
                                        "Parallellisation strategy of the realspace grids",&
-                                       "","","")
+                                       " "," "," ")
      qs_keywords(qs_key_EXTRAPOLATION)=keyword_type("EXTRAPOLATION", &
                                        "EXTRAPOLATION {PS N|USE_GUESS|USE_PREV_P|USE_PREV_WF|"//&
                                                  "USE_PREV_RHO_R|LINEAR_WF|LINEAR_P|LINEAR_PS}",&
                                        "Extrapolation strategy for e.g. MD",&
-                                       "INTERPOLATION","WF_INTERPOLATION","")
+                                       "INTERPOLATION","WF_INTERPOLATION"," ")
      qs_keywords(qs_key_METHOD)=keyword_type("METHOD", &
                                        "METHOD {GAPW|GPW|KG_POL|KG_NOPOL|KG_GPW}",&
                                        "What method should be employed",&
-                                       "","","")
+                                       " "," "," ")
      qs_keywords(qs_key_MULLIKEN_RESTRAINT)=keyword_type("MULLIKEN_RESTRAINT", &
                                        "MULLIKEN_RESTRAINT",&
                                        "Employ a restraint on the mulliken charges",&
-                                       "","","")
+                                       " "," "," ")
      qs_keywords(qs_key_LOCALIZED_WFN)=keyword_type("LOCALIZED_WFN", &
                                        "LOCALIZED_WFN {METHOD,OPERATOR,SET_OF_STATES,MIN_OR_MAX}",&
                                        "Set up the calculation of the localization for a selected set of wfn",&
-                                       "LOC_WFN","","")
+                                       "LOC_WFN"," "," ")
   END SUBROUTINE
 
 ! *****************************************************************************
@@ -388,34 +390,11 @@ CONTAINS
 
     dft_control % xas_estate    = -1
 
-    !FM! should be removed
-    CALL section_vals_val_get(xc_grid_section,"xc_smooth_rho",&
-         i_val=dft_control % xc_control % xc_rho_smooth_id,error=error)
-    CALL section_vals_val_get(xc_grid_section,"xc_deriv",&
-         i_val=dft_control % xc_control % xc_deriv_method_id, error=error)
     dft_control % derive_function_rho = .FALSE.          !FM to rm
     dft_control % integration_grid % pw_default = .TRUE. !FM to rm
     dft_control % integration_grid % pw_cutoff  = -1._dp !FM to rm
     dft_control % integration_grid % pw_mesh    = -1_dp  !FM to rm
     dft_control % use_kinetic_energy_density = .FALSE.   !FM to rm
-    DO i=1,SIZE(dft_control % xc_control % functionals)
-       dft_control % xc_control % functionals ( i ) = "" !FM to rm
-    END DO
-    DO i=1,SIZE(dft_control % xc_control % functionals)
-       tmp_section => section_vals_get_subs_vals2(xc_fun_section,i,error=error)
-       IF (.NOT.ASSOCIATED(tmp_section)) EXIT
-       dft_control % xc_control % functionals(i)=tmp_section%section%name
-    END DO
-    CALL section_vals_val_get(xc_section,"density_cutoff",&!FM to rm
-         r_val=dft_control % xc_control % density_cut,error=error)
-    CALL section_vals_val_get(xc_section,"gradient_cutoff",&!FM to rm
-         r_val=dft_control % xc_control % gradient_cut,error=error)
-    dft_control % xc_control % density_smooth_cut_range = 0.0_dp!FM to rm
-    CALL section_vals_val_get(xc_section,"tau_cutoff",&!FM to rm
-         r_val=dft_control % xc_control % tau_cut,error=error)
-    dft_control % xc_control % gradient_functionals = .FALSE.!FM to rm
-    dft_control % xc_control % crossterms = .FALSE.!FM to rm
-    dft_control % xc_control % functional_routine = xc_new_f_routine !FM to rm
     
     tmp_section => section_vals_get_subs_vals(globenv%input_file,"GLOBAL",&
          error=error)
@@ -444,54 +423,14 @@ CONTAINS
          i_val=excitations,error=error)
     dft_control % do_tddfpt_calculation = (excitations==tddfpt_excitations)
 
-    xc_fun_set=.FALSE.
-    DO i=1,SIZE( dft_control % xc_control % functionals )
-       IF (dft_control % xc_control % functionals(i)=="") THEN
-          dft_control % xc_control % functionals(i)="NONE"
-       ELSE
-          xc_fun_set=.TRUE.
-       END IF
-    END DO
-    IF (.NOT.xc_fun_set) THEN
-       dft_control % xc_control % functionals ( 1 ) = "XALPHA"
-       dft_control % xc_control % functionals ( 2 ) = "PZ81_DMC"
-    END IF    
-    
-    IF (.NOT.failure) THEN
-       ! assess the needs of the requested functionals
-       CALL xc_rho_cflags_setall(needs,.FALSE.,error=error)
-       CALL cp_error_init(sub_error,stop_level=cp_fatal_level, &
-            print_level=cp_fatal_level,template_error=error)
-       DO i=1,SIZE(dft_control % xc_control % functionals)
-          IF ( dft_control % xc_control % functionals(i) /= "NONE") THEN
-             CALL xc_functional_get_info(&
-                  functional=dft_control % xc_control % functionals(i),&
-                  lsd=(dft_control % nspins /= 1),&
-                  needs=needs, error=sub_error)
-             CALL cp_error_check(sub_error,failure)
-             
-             IF (failure) THEN
-                failure=.FALSE.
-                CALL cp_error_reset(sub_error)
-             END IF
-          END IF
-       END DO
-       CALL cp_error_dealloc_ref(sub_error)
-       
-       ! sets the flag that the kinetic energy needs to be calculated
-       ! if some functional needs it
-       dft_control % use_kinetic_energy_density=&
-            dft_control % use_kinetic_energy_density .OR.&
-            needs%tau .OR. needs%tau_spin
-       ! fills in the old structure (I would like to remove it)
-       dft_control % xc_control % gradient_functionals=&
-            dft_control % xc_control % gradient_functionals.OR.&
-            needs%norm_drho .OR. needs%norm_drho_spin .OR.&
-            needs%drho .OR. needs%drho_spin
-       ! presence of crossterms cannot be determined before evaluating
-       ! the functional
+    xc_section => section_vals_get_subs_vals(globenv%input_file,&
+                   "FORCE_EVAL%DFT%XC", error=error)
+    IF (parsed_cp2k_input(xc_section,check_this_section=.TRUE.,error=error)) THEN
+       CALL read_xc_control(dft_control%xc_control, dft_control%nspins,&
+            dft_control%use_kinetic_energy_density, globenv, error=error)
     END IF
 
+    
 !   *** Read the input section ***
     tmp_section => section_vals_get_subs_vals(dft_section,"xas",&
          error=error)
@@ -561,7 +500,7 @@ CONTAINS
                                                 xc_fun_set
     TYPE(cp_error_type)                      :: sub_error
     TYPE(xc_rho_cflags_type)                 :: needs
-    TYPE(section_vals_type), POINTER         :: dft_section, xas_section
+    TYPE(section_vals_type), POINTER         :: dft_section, xc_section, xas_section
 !   ---------------------------------------------------------------------------
 
     IF (parsed_cp2k_input(globenv%input_file,error=error)) THEN
@@ -597,7 +536,7 @@ CONTAINS
     dft_control % xas_estate = -1
 
     DO i=1,SIZE(dft_control % xc_control % functionals)
-       dft_control % xc_control % functionals ( i ) = ""
+       dft_control % xc_control % functionals ( i ) = " "
     END DO
     dft_control % xc_control % xc_rho_smooth_id = xc_rho_no_smooth
     dft_control % xc_control % xc_deriv_method_id = xc_deriv_pw
@@ -640,6 +579,7 @@ CONTAINS
         ELSE
           CALL read_object(keyword,lower_to_upper=.TRUE.,newline=.TRUE.)
           SELECT CASE (TRIM(keyword))
+!TODEL_START_MI
           CASE ("EXCHANGE-CORRELATION-FUNCTIONAL","XC-FUNCTIONAL","XC-FUN",&
                 "XCFUN","FUNCTIONAL","FUN")
             CALL read_object(string,lower_to_upper=.TRUE.)
@@ -669,6 +609,7 @@ CONTAINS
             CALL read_object(dft_control % xc_control % density_smooth_cut_range)
           CASE ("GRADIENT_CUTOFF")
             CALL read_object(dft_control % xc_control % gradient_cut)
+!TODEL_END_MI
           CASE ("GRID")
             CALL read_object(str1,lower_to_upper=.TRUE.)
             SELECT CASE (TRIM(str1))
@@ -721,6 +662,7 @@ CONTAINS
              CASE ("TDLR","TDDFPT")
                 dft_control % do_tddfpt_calculation = .TRUE.
              END SELECT
+!TODEL_START_MI
           CASE ("XC_SMOOTH_RHO")
              CALL read_object(str1,lower_to_upper=.TRUE.)
              SELECT CASE(str1)
@@ -757,6 +699,7 @@ CONTAINS
                 dft_control % xc_control % xc_deriv_method_id = xc_deriv_spline2_smooth
              CASE ("SPLINE3_SMOOTH","NN4_SMOOTH")
                 dft_control % xc_control % xc_deriv_method_id = xc_deriv_spline3_smooth
+!TODEL_START_MI
              CASE default
                 CALL stop_program(routine,"unknown XC_DERIV option: "//&
                      TRIM(str1))
@@ -790,6 +733,13 @@ CONTAINS
       END DO
     END IF
 
+    xc_section => section_vals_get_subs_vals(globenv%input_file,&
+                   "FORCE_EVAL%DFT%XC", error=error)
+    IF (parsed_cp2k_input(xc_section,check_this_section=.TRUE.,error=error)) THEN
+       CALL read_xc_control(dft_control%xc_control, dft_control%nspins,&
+            dft_control%use_kinetic_energy_density, globenv, error=error)
+    END IF
+
     xas_section => section_vals_get_subs_vals(globenv%input_file,&
                    "FORCE_EVAL%DFT%XAS", error=error)
     IF (parsed_cp2k_input(xas_section,check_this_section=.TRUE.,error=error)) THEN
@@ -799,7 +749,7 @@ CONTAINS
 
     xc_fun_set=.FALSE.
     DO i=1,SIZE( dft_control % xc_control % functionals )
-       IF (dft_control % xc_control % functionals(i)=="") THEN
+       IF (dft_control % xc_control % functionals(i)==" ") THEN
           dft_control % xc_control % functionals(i)="NONE"
        ELSE
           xc_fun_set=.TRUE.
@@ -1383,7 +1333,7 @@ CONTAINS
     call section_vals_get(tddfpt_section,explicit=was_present,error=error)
     
     IF (was_present .OR. parsed_cp2k_input(globenv%input_file,error=error)) THEN
-       CALL read_tddfpt_control_new(t_control,globenv)
+       CALL read_tddfpt_control_new(t_control,dft_control%nspins,globenv)
        RETURN
     END IF
 
@@ -1587,8 +1537,9 @@ CONTAINS
 
 !   ***************************************************************************
 
-  SUBROUTINE read_tddfpt_control_new(t_control,globenv, error)
+  SUBROUTINE read_tddfpt_control_new(t_control,nspins,globenv, error)
     TYPE(tddfpt_control_type)                :: t_control
+    INTEGER, INTENT(IN)                      :: nspins
     TYPE(global_environment_type)            :: globenv
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
@@ -1598,12 +1549,13 @@ CONTAINS
       routineP = moduleN//"/"//routineN
 
     INTEGER                                  :: i
-    LOGICAL                                  :: failure, was_present
+    LOGICAL                                  :: failure, kenergy_den, was_present
     TYPE(section_vals_type), POINTER         :: t_section, sic_section, xc_section
     TYPE(section_vals_type), POINTER         :: tmp_section, xc_grid, xc_fun
 
 
     failure=.FALSE.
+    kenergy_den = .FALSE.
     nullify(sic_section, t_section, xc_section, xc_grid, xc_fun)
     t_section => section_vals_get_subs_vals(globenv%input_file,"FORCE_EVAL",error=error)
     t_section => section_vals_get_subs_vals(t_section,"DFT",error=error)
@@ -1648,6 +1600,11 @@ CONTAINS
     xc_section=>section_vals_get_subs_vals(t_section,"XC",error=error)
     call section_vals_get(xc_section,explicit=was_present,error=error)
     if (was_present) then
+      ! to be uncommented START_MI
+!      CALL read_xc_control(t_control%xc_control,nspins,kenergy_den,globenv,error)
+      ! to be uncommented START_MI
+
+!TODEL_START_MI
        xc_grid=>section_vals_get_subs_vals(xc_section,"XC_GRID",error=error)
 
        CALL section_vals_val_get(xc_grid,"XC_SMOOTH_RHO",&
@@ -1672,6 +1629,7 @@ CONTAINS
        t_control%xc_control%gradient_functionals = .FALSE.
        t_control%xc_control%crossterms = .FALSE.
        t_control%xc_control%functional_routine = xc_new_f_routine
+!TODEL_END_MI
     end if
 
     sic_section=>section_vals_get_subs_vals(t_section,"SIC",error=error)
@@ -2227,7 +2185,7 @@ FUNCTION xc_get_routine_label(xc_functional_routine_id,error) RESULT(res)
   END SELECT
 END FUNCTION xc_get_routine_label
 !***************************************************************************
-
+!TODEL_START_MI
   SUBROUTINE xc_get_functional ( tag, string, functional, &
                                  gradient_functionals, crossterms, error )
 
@@ -2259,14 +2217,14 @@ END FUNCTION xc_get_routine_label
        CALL stop_program ( 'xc_get_functional', 'illegal tag' )
 
      CASE ( 0 )
-        IF (functional(1)/="".OR.functional(2)/="") THEN
+        IF (functional(1)/="".OR.functional(2)/=" ") THEN
            CALL cp_assert(.FALSE.,cp_warning_level,cp_assertion_failed,routineP,&
                 "strange xc functional combination, check the input!",error,failure)
            ! try to make space
-           IF (functional(2)/="" .AND. functional(2)/="NONE") THEN
+           IF (functional(2)/=" " .AND. functional(2)/="NONE") THEN
               moved=.FALSE.
               DO i=3,SIZE(functional)
-                 IF (functional(i)=="".OR.functional(i)=="NONE") THEN
+                 IF (functional(i)==" ".OR.functional(i)=="NONE") THEN
                     functional(i)=functional(2)
                     moved=.TRUE.
                     EXIT
@@ -2275,10 +2233,10 @@ END FUNCTION xc_get_routine_label
               CALL cp_assert(moved,cp_failure_level,cp_assertion_failed,routineP,&
                    "requested too many functionals!",error,failure)
            END IF
-           IF (functional(1)/="" .AND. functional(1)/="NONE") THEN
+           IF (functional(1)/=" " .AND. functional(1)/="NONE") THEN
               moved=.FALSE.
               DO i=3,SIZE(functional)
-                 IF (functional(i)=="".OR.functional(i)=="NONE") THEN
+                 IF (functional(i)==" ".OR.functional(i)=="NONE") THEN
                     functional(i)=functional(1)
                     moved=.TRUE.
                     EXIT
@@ -2344,12 +2302,12 @@ END FUNCTION xc_get_routine_label
 
      CASE ( 1 )
      ! exchange functionals
-        IF (functional(1)/="" .AND. functional(1)/="NONE") THEN
+        IF (functional(1)/=" " .AND. functional(1)/="NONE") THEN
            CALL cp_assert(.FALSE.,cp_warning_level,cp_assertion_failed,routineP,&
                 "strange xc functional combination, check the input!",error,failure)
            moved=.FALSE.
            DO i=2,SIZE(functional)
-              IF (functional(i)=="".OR.functional(i)=="NONE") THEN
+              IF (functional(i)==" ".OR.functional(i)=="NONE") THEN
                  functional(i)=functional(1)
                  moved=.TRUE.
                  EXIT
@@ -2390,12 +2348,12 @@ END FUNCTION xc_get_routine_label
 
      CASE ( 2 )
      ! correlation functionals
-        IF (functional(2)/="" .AND. functional(2)/="NONE") THEN
+        IF (functional(2)/=" " .AND. functional(2)/="NONE") THEN
            CALL cp_assert(.FALSE.,cp_warning_level,cp_assertion_failed,routineP,&
                 "strange xc functional combination, check the input!",error,failure)
            moved=.FALSE.
            DO i=1,SIZE(functional)
-              IF (functional(i)=="".OR.functional(i)=="NONE") THEN
+              IF (functional(i)==" ".OR.functional(i)=="NONE") THEN
                  functional(i)=functional(2)
                  moved=.TRUE.
                  EXIT
@@ -2445,14 +2403,14 @@ END FUNCTION xc_get_routine_label
 
      CASE ( 3 )
      ! kinetic energy functionals
-        IF (functional(3)/="" .AND. functional(3)/="NONE") THEN
+        IF (functional(3)/=" " .AND. functional(3)/="NONE") THEN
            CALL cp_assert(.FALSE.,cp_warning_level,cp_assertion_failed,routineP,&
                 "strange xc functional combination, check the input!",error,failure)
            moved=.FALSE.
            DO i=1,SIZE(functional)
-              IF (functional(i)=="".OR.functional(i)=="NONE") THEN
+              IF (functional(i)==" ".OR.functional(i)=="NONE") THEN
                  functional(i)=functional(3)
-                 functional(3)=""
+                 functional(3)=" "
                  moved=.TRUE.
                  EXIT
               END IF
@@ -2502,6 +2460,9 @@ END FUNCTION xc_get_routine_label
      END SELECT
 
   END SUBROUTINE xc_get_functional
+!TODEL_END_MI
+!******************************************************************************
+
 
 !******************************************************************************
 END MODULE cp_control_utils

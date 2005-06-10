@@ -47,8 +47,8 @@ MODULE xc_vwn_new
                                              xc_derivative_type
   USE xc_functionals_utilities,        ONLY: calc_srs_pw,&
                                              set_util
-  USE xc_rho_set_types,                ONLY: xc_rho_cflags_type,&
-                                             xc_rho_set_get,&
+  USE xc_rho_cflags_types,                ONLY: xc_rho_cflags_type
+  USE xc_rho_set_types,                ONLY: xc_rho_set_get,&
                                              xc_rho_set_type
 
   IMPLICIT NONE

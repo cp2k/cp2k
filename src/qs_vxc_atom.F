@@ -67,9 +67,9 @@ MODULE qs_vxc_atom
                                              xc_dset_create,&
                                              xc_dset_release,&
                                              xc_dset_zero_all
-  USE xc_rho_set_types,                ONLY: xc_rho_cflags_setall,&
-                                             xc_rho_cflags_type,&
-                                             xc_rho_set_create,&
+  USE xc_rho_cflags_types,                ONLY: xc_rho_cflags_setall,&
+                                             xc_rho_cflags_type
+  USE xc_rho_set_types,                ONLY: xc_rho_set_create,&
                                              xc_rho_set_release,&
                                              xc_rho_set_type
 
@@ -119,7 +119,7 @@ CONTAINS
     TYPE(xc_control_type), POINTER      :: xc_control
     TYPE(xc_derivative_set_type), &
                              POINTER    :: deriv_set
-    TYPE(xc_rho_cflags_type)            :: needs
+!    TYPE(xc_rho_cflags_type)            :: needs
     TYPE(xc_rho_set_type), POINTER      :: rho_set_h, rho_set_s
 
     REAL(dp), DIMENSION(:,:), POINTER   :: weight 
@@ -205,23 +205,29 @@ CONTAINS
      CALL xc_rho_set_create(rho_set_s,bounds,rho_cutoff=xc_control%density_cut,&
             drho_cutoff=xc_control%gradient_cut,tau_cutoff=xc_control%tau_cut,&
             error=error)
+
+!TODEL_START_MI
+  ! this should be done when the functional is defined
+
      ! assesses the argument needed by the functionals
-     CALL xc_rho_cflags_setall(needs,.FALSE.,error=error)
+     CALL xc_rho_cflags_setall(xc_control%needs,.FALSE.,error=error)
      DO ifunc=1,SIZE(xc_control%functionals)
         CALL xc_functional_get_info(xc_control%functionals(ifunc),lsd=lsd,&
-             needs=needs, error=error)
+             needs=xc_control%needs, error=error)
      END DO
-     IF (needs%drho .OR. needs%drho_spin .OR. &
-         needs%norm_drho .OR. needs%norm_drho_spin) THEN
+     IF (xc_control%needs%drho .OR. xc_control%needs%drho_spin .OR. &
+         xc_control%needs%norm_drho .OR. xc_control%needs%norm_drho_spin) THEN
         IF (lsd) THEN
-           needs%drho_spin=.TRUE.
+           xc_control%needs%drho_spin=.TRUE.
         ELSE
-           needs%drho=.TRUE.
+           xc_control%needs%drho=.TRUE.
         END IF
      END IF
+!TODEL_END_MI
+
      ! allocate the required 3d arrays where to store rho and drho
-     CALL xc_rho_set_atom_update(rho_set_h,needs,nspins,bounds)
-     CALL xc_rho_set_atom_update(rho_set_s,needs,nspins,bounds)
+     CALL xc_rho_set_atom_update(rho_set_h,xc_control%needs,nspins,bounds)
+     CALL xc_rho_set_atom_update(rho_set_s,xc_control%needs,nspins,bounds)
      
      CALL reallocate(rho_h,1,na,1,nspins)
      CALL reallocate(rho_s,1,na,1,nspins)
@@ -266,8 +272,8 @@ CONTAINS
          CALL calc_rho_angular(grid_atom, harmonics, nspins, gradient_f,&
                                ir, r_h, r_s, rho_h, rho_s, dr_h, dr_s, &
                                r_h_d, r_s_d, drho_h, drho_s, error)
-         CALL fill_rho_set(rho_set_h,lsd,nspins,needs,rho_h,drho_h,na,ir,error)
-         CALL fill_rho_set(rho_set_s,lsd,nspins,needs,rho_s,drho_s,na,ir,error)
+         CALL fill_rho_set(rho_set_h,lsd,nspins,xc_control%needs,rho_h,drho_h,na,ir,error)
+         CALL fill_rho_set(rho_set_s,lsd,nspins,xc_control%needs,rho_s,drho_s,na,ir,error)
          DO ia=1, na
             weight(ia,ir) = grid_atom%wr(ir)*grid_atom%wa(ia)
          END DO
@@ -277,7 +283,7 @@ CONTAINS
       ! hard atom density !
       !-------------------!
       CALL xc_dset_zero_all(deriv_set, error)
-      CALL vxc_of_r_new(xc_control, rho_set_h, deriv_set, 1, needs, weight, &
+      CALL vxc_of_r_new(xc_control, rho_set_h, deriv_set, 1, xc_control%needs, weight, &
                         lsd, na, nr, exc_h, vxc_h, vxg_h, error=error)
       rho_atom%exc_h = rho_atom%exc_h + exc_h
 
@@ -285,7 +291,7 @@ CONTAINS
       ! soft atom density !
       !-------------------!
       CALL xc_dset_zero_all(deriv_set, error)
-      CALL vxc_of_r_new(xc_control, rho_set_s, deriv_set, 1, needs, weight, &
+      CALL vxc_of_r_new(xc_control, rho_set_s, deriv_set, 1, xc_control%needs, weight, &
                         lsd, na, nr, exc_s, vxc_s, vxg_s, error=error)
       rho_atom%exc_s = rho_atom%exc_s + exc_s
 
@@ -351,7 +357,7 @@ CONTAINS
    TYPE(qs_energy_type), POINTER       :: energy
    TYPE(grid_atom_type), POINTER       :: grid_atom
    TYPE(harmonics_atom_type), POINTER  :: harmonics
-   TYPE(xc_rho_cflags_type)            :: needs
+!   TYPE(xc_rho_cflags_type)            :: needs
    TYPE(cp_para_env_type), POINTER     :: para_env
    TYPE(rho_atom_type), DIMENSION(:), &
         POINTER                        :: rho_atom_set, rho1_atom_set
@@ -450,39 +456,43 @@ CONTAINS
                              drho_cutoff=xc_control%gradient_cut,tau_cutoff=xc_control%tau_cut,&
                              error=error)
 
+!TODEL_START_MI
+  ! this should be done when the functional is defined
+
       ! assesses the argument needed by the functionals
-      CALL xc_rho_cflags_setall(needs, .FALSE., error=error)
+      CALL xc_rho_cflags_setall(xc_control%needs, .FALSE., error=error)
       DO i=1,SIZE(xc_control%functionals)
          CALL xc_functional_get_info(xc_control%functionals(i), lsd=lsd, &
-                                     needs=needs, error=error)
+                                     needs=xc_control%needs, error=error)
       END DO  
       ! basic components
       IF (lsd) THEN
-         needs%rho_spin=.TRUE.
-         needs%tau_spin=needs%tau_spin.OR.needs%tau
+         xc_control%needs%rho_spin=.TRUE.
+         xc_control%needs%tau_spin=xc_control%needs%tau_spin.OR.xc_control%needs%tau
       ELSE
-         needs%rho=.TRUE.
+         xc_control%needs%rho=.TRUE.
       END IF
-      IF (needs%drho .OR. needs%drho_spin .OR. &
-          needs%norm_drho .OR. needs%norm_drho_spin) THEN
+      IF (xc_control%needs%drho .OR. xc_control%needs%drho_spin .OR. &
+          xc_control%needs%norm_drho .OR. xc_control%needs%norm_drho_spin) THEN
          IF (lsd) THEN
-            needs%drho_spin = .TRUE.
+            xc_control%needs%drho_spin = .TRUE.
          ELSE
-            needs%drho = .TRUE.
+            xc_control%needs%drho = .TRUE.
          END IF
       END IF
+!TODEL_END_MI
 
       ! allocate the required 3d arrays where to store rho and drho
       IF (nspins == 1 .AND. .NOT. lsd) THEN
-         CALL xc_rho_set_atom_update(rho_set_h, needs, 1, bounds)
-         CALL xc_rho_set_atom_update(rho1_set_h, needs, 1, bounds)
-         CALL xc_rho_set_atom_update(rho_set_s, needs, 1, bounds)
-         CALL xc_rho_set_atom_update(rho1_set_s, needs, 1, bounds)
+         CALL xc_rho_set_atom_update(rho_set_h, xc_control%needs, 1, bounds)
+         CALL xc_rho_set_atom_update(rho1_set_h, xc_control%needs, 1, bounds)
+         CALL xc_rho_set_atom_update(rho_set_s, xc_control%needs, 1, bounds)
+         CALL xc_rho_set_atom_update(rho1_set_s, xc_control%needs, 1, bounds)
       ELSE
-         CALL xc_rho_set_atom_update(rho_set_h, needs, 2, bounds)
-         CALL xc_rho_set_atom_update(rho1_set_h, needs, 2, bounds)
-         CALL xc_rho_set_atom_update(rho_set_s, needs, 2, bounds)
-         CALL xc_rho_set_atom_update(rho1_set_s, needs, 2, bounds)
+         CALL xc_rho_set_atom_update(rho_set_h, xc_control%needs, 2, bounds)
+         CALL xc_rho_set_atom_update(rho1_set_h, xc_control%needs, 2, bounds)
+         CALL xc_rho_set_atom_update(rho_set_s, xc_control%needs, 2, bounds)
+         CALL xc_rho_set_atom_update(rho1_set_s, xc_control%needs, 2, bounds)
       END IF
 
       ALLOCATE(rho_h(1:na,1:nspins), rho1_h(1:na,1:nspins), &
@@ -551,10 +561,10 @@ CONTAINS
                                   ir, r1_h, r1_s, rho1_h, rho1_s, dr1_h, dr1_s, r1_h_d, r1_s_d, &
                                   drho1_h, drho1_s, error)
 
-            CALL fill_rho_set(rho_set_h,lsd,nspins,needs,rho_h,drho_h,na,ir,error)
-            CALL fill_rho_set(rho1_set_h,lsd,nspins,needs,rho1_h,drho1_h,na,ir,error)
-            CALL fill_rho_set(rho_set_s,lsd,nspins,needs,rho_s,drho_s,na,ir,error)
-            CALL fill_rho_set(rho1_set_s,lsd,nspins,needs,rho1_s,drho1_s,na,ir,error)
+            CALL fill_rho_set(rho_set_h,lsd,nspins,xc_control%needs,rho_h,drho_h,na,ir,error)
+            CALL fill_rho_set(rho1_set_h,lsd,nspins,xc_control%needs,rho1_h,drho1_h,na,ir,error)
+            CALL fill_rho_set(rho_set_s,lsd,nspins,xc_control%needs,rho_s,drho_s,na,ir,error)
+            CALL fill_rho_set(rho1_set_s,lsd,nspins,xc_control%needs,rho1_s,drho1_s,na,ir,error)
 
             DO ia=1, na
                weight(ia,ir) = grid_atom%wr(ir)*grid_atom%wa(ia)
@@ -563,11 +573,11 @@ CONTAINS
 
          CALL xc_2nd_deriv_of_r(dft_control=dft_control, &
                                 rho_set=rho_set_h, rho1_set=rho1_set_h, &
-                                deriv_set=deriv_set, needs=needs, &
+                                deriv_set=deriv_set, needs=xc_control%needs, &
                                 w=weight, exc=exc, vxc=vxc_h, vxg=vxg_h, error=error)
          CALL xc_2nd_deriv_of_r(dft_control=dft_control, &
                                 rho_set=rho_set_s, rho1_set=rho1_set_s, &
-                                deriv_set=deriv_set, needs=needs, &
+                                deriv_set=deriv_set, needs=xc_control%needs, &
                                 w=weight, exc=exc, vxc=vxc_s, vxg=vxg_s, error=error)
 
          atom_kind => atomic_kind_set(ikind)

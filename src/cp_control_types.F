@@ -67,6 +67,7 @@ MODULE cp_control_types
   USE xas_control,                     ONLY: xas_control_create,&
                                              xas_control_release,&
                                              xas_control_type
+  USE xc_rho_cflags_types,             ONLY: xc_rho_cflags_type
 
   IMPLICIT NONE
 
@@ -178,6 +179,10 @@ MODULE cp_control_types
      INTEGER                         :: functional_routine,&
                                         xc_rho_smooth_id,&
                                         xc_deriv_method_id
+     TYPE(xc_rho_cflags_type)        :: needs  
+     INTEGER, DIMENSION(3)           :: functionals_new
+     REAL(dp)                        :: xa_param
+     INTEGER                         :: max_deriv
   END TYPE xc_control_type
 
   ! *** Control parameters for a TIME-DEPENDENT PERTURBATION calculation ***

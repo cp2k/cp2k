@@ -47,8 +47,8 @@ MODULE xc_perdew_wang_new
                                              calc_rs,&
                                              calc_z,&
                                              set_util
-  USE xc_rho_set_types,                ONLY: xc_rho_cflags_type,&
-                                             xc_rho_set_get,&
+  USE xc_rho_cflags_types,                ONLY: xc_rho_cflags_type
+  USE xc_rho_set_types,                ONLY: xc_rho_set_get,&
                                              xc_rho_set_type
   USE input_constants,                 ONLY: pw_dmc,&
                                              pw_orig,&

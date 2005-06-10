@@ -65,8 +65,8 @@ MODULE xc_atom
   USE xc_derivative_types,             ONLY: xc_derivative_get,&
                                              xc_derivative_type
   USE xc_derivatives,                  ONLY: xc_functional_eval
-  USE xc_rho_set_types,                ONLY: xc_rho_cflags_type,&
-                                             xc_rho_set_get,&
+  USE xc_rho_cflags_types,                ONLY: xc_rho_cflags_type
+  USE xc_rho_set_types,                ONLY: xc_rho_set_get,&
                                              xc_rho_set_type
 
  IMPLICIT NONE
@@ -129,6 +129,7 @@ CONTAINS
     
 !  Calculate the derivatives
     DO i=1,SIZE(xc_control%functionals)
+        ! TO be changed with the version in xc_utils
        CALL xc_functional_eval(xc_control%functionals(i), &
             lsd=lsd,&
             rho_set=rho_set, &

@@ -46,8 +46,8 @@ MODULE xc_thomas_fermi_new
   USE xc_derivative_types,             ONLY: xc_derivative_get,&
                                              xc_derivative_type
   USE xc_functionals_utilities,        ONLY: set_util
-  USE xc_rho_set_types,                ONLY: xc_rho_cflags_type,&
-                                             xc_rho_set_get,&
+  USE xc_rho_cflags_types,                ONLY: xc_rho_cflags_type
+  USE xc_rho_set_types,                ONLY: xc_rho_set_get,&
                                              xc_rho_set_type
 
   IMPLICIT NONE

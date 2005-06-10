@@ -3,6 +3,12 @@
 !   Copyright (C) 2003  CP2K developers group                                 !
 !-----------------------------------------------------------------------------!
 
+!TODEL_START_MI
+! all this stuff is not used anymore if the we 
+! activate the new input
+! I copied the get_info and eval routines in another module
+! obviously the other module can take the name of this one
+! if preferred
 #include "cp_prep_globals.h"
 
 !!****h* cp2k/xc_derivatives [1.0] *
@@ -55,9 +61,10 @@ MODULE xc_derivatives
   USE xc_ke_gga_new,                   ONLY: ke_gga_info,&
                                              ke_gga_lda_eval,&
                                              ke_gga_lsd_eval
-  USE input_constants,                 ONLY: xgga_b88,&                                             
+  USE input_constants,                 ONLY: xgga_b88,&
+                                             xgga_b88x,&  
                                              xgga_opt,&
-                                             xgga_pbe,&
+                                             xgga_pbex,&
                                              xgga_pw86,&
                                              xgga_pw91,&
                                              xgga_revpbe,&
@@ -99,8 +106,8 @@ MODULE xc_derivatives
   USE xc_perdew_zunger_new,            ONLY: pz_info,&
                                              pz_lda_eval,&
                                              pz_lsd_eval
-  USE xc_rho_set_types,                ONLY: xc_rho_cflags_type,&
-                                             xc_rho_set_get,&
+  USE xc_rho_cflags_types,             ONLY: xc_rho_cflags_type
+  USE xc_rho_set_types,                ONLY: xc_rho_set_get,&
                                              xc_rho_set_type
   USE xc_tfw_new,                      ONLY: tfw_lda_eval,&
                                              tfw_lda_info,&
@@ -375,13 +382,13 @@ SUBROUTINE xc_functional_get_info(functional,lsd,reference,shortform,&
                 error=error)
         ENDIF
      CASE("BECKE88X")
-        CALL xgga_info(xgga_b88,lsd,reference,shortform,needs,max_deriv,error=error)
+        CALL xgga_info(xgga_b88x,lsd,reference,shortform,needs,max_deriv,error=error)
      CASE("PW86X")
         CALL xgga_info(xgga_pw86,lsd,reference,shortform,needs,max_deriv,error=error)
      CASE("PW91X")
         CALL xgga_info(xgga_pw91,lsd,reference,shortform,needs,max_deriv,error=error)
-!     CASE("PBEX")
-!        CALL xgga_info(xgga_pbe,lsd,reference,shortform,needs,max_deriv,error=error)
+     CASE("PBEXX")
+        CALL xgga_info(xgga_pbex,lsd,reference,shortform,needs,max_deriv,error=error)
      CASE("REV_PBEX")
         CALL xgga_info(xgga_revpbe,lsd,reference,shortform,needs,max_deriv,error=error)
      CASE("OPTX_2")
@@ -454,8 +461,8 @@ SUBROUTINE xc_functional_get_info(functional,lsd,reference,shortform,&
            CALL my_tpss_lda_info(reference,shortform,needs,max_deriv,error=error)
         END IF
      CASE("PBEX")
-        IF (PRESENT(reference)) reference=""
-        IF (PRESENT(shortform)) shortform=""
+        IF (PRESENT(reference)) reference=" "
+        IF (PRESENT(shortform)) shortform=" "
         IF (PRESENT(max_deriv)) max_deriv=HUGE(0)
      CASE("PBEC")
         IF (lsd) THEN
@@ -464,8 +471,8 @@ SUBROUTINE xc_functional_get_info(functional,lsd,reference,shortform,&
            CALL pbe_lda_info(reference,shortform,needs,max_deriv,error=error)
         END IF
      CASE("NONE")
-        IF (PRESENT(reference)) reference=""
-        IF (PRESENT(shortform)) shortform=""
+        IF (PRESENT(reference)) reference=" "
+        IF (PRESENT(shortform)) shortform=" "
         IF (PRESENT(max_deriv)) max_deriv=HUGE(0)
      CASE default
         CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,routineP,&
@@ -530,7 +537,7 @@ SUBROUTINE xc_functional_eval(functional, lsd, rho_set, deriv_set, &
     LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: density_cut, gradient_cut
 
-  CALL timeset(routineN,"I","",handle)
+  CALL timeset(routineN,"I"," ",handle)
   failure=.FALSE.
 
   IF (.NOT. failure) THEN
@@ -582,13 +589,13 @@ SUBROUTINE xc_functional_eval(functional, lsd, rho_set, deriv_set, &
            CALL cs1_lda_eval(rho_set,deriv_set,deriv_order,error=error)
         ENDIF
      CASE("BECKE88X")
-        CALL xgga_eval(xgga_b88,lsd,rho_set,deriv_set,deriv_order,error=error)
+        CALL xgga_eval(xgga_b88x,lsd,rho_set,deriv_set,deriv_order,error=error)
      CASE("PW86X")
         CALL xgga_eval(xgga_pw86,lsd,rho_set,deriv_set,deriv_order,error=error)
      CASE("PW91X")
         CALL xgga_eval(xgga_pw91,lsd,rho_set,deriv_set,deriv_order,error=error)
-!     CASE("PBEX")
-!        CALL xgga_eval(xgga_pbe,lsd,rho_set,deriv_set,deriv_order,error=error)
+     CASE("PBEXX")
+        CALL xgga_eval(xgga_pbex,lsd,rho_set,deriv_set,deriv_order,error=error)
      CASE("REV_PBEX")
         CALL xgga_eval(xgga_revpbe,lsd,rho_set,deriv_set,deriv_order,error=error)
      CASE("OPTX_2")
@@ -793,7 +800,7 @@ SUBROUTINE xc_functional_eval_new(functional, lsd, rho_set, deriv_set, &
     REAL(KIND=dp)                            :: density_cut, gradient_cut, &
                                                 r_param
 
-  CALL timeset(routineN,"I","",handle)
+  CALL timeset(routineN,"I"," ",handle)
   failure=.FALSE.
 
   IF (.NOT. failure) THEN
@@ -916,5 +923,5 @@ SUBROUTINE xc_functional_eval_new(functional, lsd, rho_set, deriv_set, &
   CALL timestop(0.0_dp,handle)
 END SUBROUTINE xc_functional_eval_new
 !***************************************************************************
-
+!TO_DEL_END
 END MODULE xc_derivatives

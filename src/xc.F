@@ -122,9 +122,9 @@ MODULE xc
                                              xc_derivative_type
   USE xc_derivatives,                  ONLY: xc_functional_eval,&
                                              xc_functional_get_info
-  USE xc_rho_set_types,                ONLY: xc_rho_cflags_setall,&
-                                             xc_rho_cflags_type,&
-                                             xc_rho_set_create,&
+  USE xc_rho_cflags_types,             ONLY: xc_rho_cflags_setall,&
+                                             xc_rho_cflags_type
+  USE xc_rho_set_types,                ONLY: xc_rho_set_create,&
                                              xc_rho_set_get,&
                                              xc_rho_set_release,&
                                              xc_rho_set_type,&
@@ -988,7 +988,7 @@ END SUBROUTINE xc_vxc_pw_create_debug
     INTEGER                                  :: handle, i, nspins
     INTEGER, DIMENSION(2, 3)                 :: bo
     LOGICAL                                  :: failure, lsd
-    TYPE(xc_rho_cflags_type)                 :: needs
+!    TYPE(xc_rho_cflags_type)                 :: needs
 
     CALL timeset(routineN,"I","",handle)
     failure=.FALSE.
@@ -1023,38 +1023,43 @@ END SUBROUTINE xc_vxc_pw_create_debug
             drho_cutoff=xc_control%gradient_cut,tau_cutoff=xc_control%tau_cut,&
             error=error)
 
+!TODEL_START_MI
+  ! this should be done when the functional is defined
        ! assesses the argument needed by the functionals
-       CALL xc_rho_cflags_setall(needs,.FALSE.,error=error)
+       CALL xc_rho_cflags_setall(xc_control%needs,.FALSE.,error=error)
        DO i=1,SIZE(xc_control%functionals)
           CALL xc_functional_get_info(xc_control%functionals(i),lsd=lsd,&
-               needs=needs,&
+               needs=xc_control%needs,&
                error=error)
        END DO
 
        IF (needs_basic_components) THEN
           IF (lsd) THEN
-             needs%rho_spin=.TRUE.
-             needs%tau_spin=needs%tau_spin.OR.needs%tau
+             xc_control%needs%rho_spin=.TRUE.
+             xc_control%needs%tau_spin=xc_control%needs%tau_spin.OR.xc_control%needs%tau
           ELSE
-             needs%rho=.TRUE.
+             xc_control%needs%rho=.TRUE.
           END IF
-          IF (needs%drho.OR.needs%drho_spin.OR.needs%norm_drho.OR.&
-               needs%norm_drho_spin) THEN
+          IF (xc_control%needs%drho.OR.xc_control%needs%drho_spin.OR.xc_control%needs%norm_drho.OR.&
+               xc_control%needs%norm_drho_spin) THEN
              IF (PRESENT(gradient_f)) gradient_f=.TRUE.
              IF (lsd) THEN
-                needs%drho_spin=.TRUE.
+                xc_control%needs%drho_spin=.TRUE.
              ELSE
-                needs%drho=.TRUE.
+                xc_control%needs%drho=.TRUE.
              END IF
           END IF
        END IF
+!TODEL_END_MI
 
        ! calculate the agruments needed by the functionals
-       CALL xc_rho_set_update(rho_set, rho_r, rho_g, tau, needs,&
-            xc_control,cell,pw_pool, error=error)
+       CALL xc_rho_set_update(rho_set, rho_r, rho_g, tau, xc_control%needs,&
+            xc_control%xc_deriv_method_id,xc_control%xc_rho_smooth_id,&
+            cell,pw_pool, error=error)
 
        ! evaluate the functionals
        DO i=1,SIZE(xc_control%functionals)
+        ! TO be changed with the version in xc_utils
           CALL xc_functional_eval(xc_control%functionals(i), &
                lsd=lsd,&
                rho_set=rho_set, &

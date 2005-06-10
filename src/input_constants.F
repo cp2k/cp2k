@@ -242,15 +242,26 @@ MODULE input_constants
                                 use_mt=2,&
                                 use_hockney=3
 
-  INTEGER, PARAMETER, PUBLIC :: xgga_b88=1, xgga_pw86=2, xgga_pw91=3, xgga_pbe=4,&
-       xgga_revpbe=5, xgga_opt=6
+  INTEGER, PARAMETER, PUBLIC :: xgga_b88=101,xgga_b88x=102,&
+                                xgga_pw86=103, xgga_pw91=104,&
+                                xgga_pbex=105, xgga_revpbe=106, &
+                                xgga_optx=107,&
+                                xgga_hcth=108, xgga_tpss=109, &
+                                xalpha=110, xgga_pbe=111, xgga_opt=112
+  INTEGER, PARAMETER, PUBLIC :: cgga_lyp=201, c_pade=202, cgga_hcth93=203, &
+                                cgga_hcth120=204, cgga_hcth147=205,&
+                                cgga_hcth407=206, cgga_cs1=207, cgga_pw86=208,&
+                                c_pw92=209, c_pw92dmc=210, c_pw92vmc=211, &
+                                c_pz=212, c_pzdmc=213, c_pzvmc=214, c_vwn=215,&
+                                cgga_pbe=216
 
-  INTEGER, PARAMETER, PUBLIC :: ke_ol1=1, ke_ol2=2,ke_llp=3,ke_pw86=4,&
-       ke_pw91=5, ke_lc=6,ke_t92=7, ke_pbe=8, ke_revpbe=9
+  INTEGER, PARAMETER, PUBLIC :: ke_ol1=301, ke_ol2=302,ke_llp=303,ke_pw86=304,&
+                                ke_pw91=305, ke_lc=306, ke_t92=307, ke_pbe=308, &
+                                ke_revpbe=309, ke_tf=310, ke_tfw=311
 
-  INTEGER, PARAMETER, PUBLIC :: pw_orig=1,pw_dmc=2,pw_vmc=3
+  INTEGER, PARAMETER, PUBLIC :: pw_orig=209,pw_dmc=210,pw_vmc=211
   
-  INTEGER, PARAMETER, PUBLIC :: pz_orig=1, pz_dmc=2, pz_vmc=3
+  INTEGER, PARAMETER, PUBLIC :: pz_orig=212, pz_dmc=213, pz_vmc=214
 
   INTEGER, PARAMETER, PUBLIC :: use_perd_x=0,&
                                 use_perd_y=1,&

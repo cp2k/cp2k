@@ -100,9 +100,9 @@ MODULE qs_kpp1_env_methods
   USE xc_derivative_set_types,         ONLY: xc_derivative_set_type,&
                                              xc_dset_release
   USE xc_derivatives,                  ONLY: xc_functional_get_info
-  USE xc_rho_set_types,                ONLY: xc_rho_cflags_setall,&
-                                             xc_rho_cflags_type,&
-                                             xc_rho_set_create,&
+  USE xc_rho_cflags_types,                ONLY: xc_rho_cflags_setall,&
+                                             xc_rho_cflags_type
+  USE xc_rho_set_types,                ONLY: xc_rho_set_create,&
                                              xc_rho_set_release,&
                                              xc_rho_set_type,&
                                              xc_rho_set_update
@@ -250,7 +250,7 @@ CONTAINS
     TYPE(pw_pool_type), POINTER              :: auxbas_pw_pool
     TYPE(tddfpt_control_type), POINTER       :: tddfpt_control
     TYPE(xc_control_type)                    :: xc_control
-    TYPE(xc_rho_cflags_type)                 :: needs
+!    TYPE(xc_rho_cflags_type)                 :: needs
     TYPE(xc_rho_set_type), POINTER           :: rho1_set
 
     CALL timeset(routineN,"I","",handle)
@@ -380,31 +380,36 @@ CONTAINS
        CALL xc_rho_set_create(rho1_set,bo,rho_cutoff=xc_control%density_cut,&
                               drho_cutoff=xc_control%gradient_cut,tau_cutoff=xc_control%tau_cut,&
                               error=error)
+
+!TODEL_START_MI
        ! assesses the argument needed by the functionals
-       CALL xc_rho_cflags_setall(needs,.FALSE.,error=error)
+       CALL xc_rho_cflags_setall(xc_control%needs,.FALSE.,error=error)
        DO i=1,SIZE(xc_control%functionals)
           CALL xc_functional_get_info(xc_control%functionals(i),lsd=lsd,&
-               needs=needs,&
+               needs=xc_control%needs,&
                error=error)
        END DO
        ! needed basic components
        IF (lsd) THEN
-          needs%rho_spin=.TRUE.
-          needs%tau_spin=needs%tau_spin.or.needs%tau
+          xc_control%needs%rho_spin=.TRUE.
+          xc_control%needs%tau_spin=xc_control%needs%tau_spin.or.xc_control%needs%tau
        ELSE
-          needs%rho=.TRUE.
+          xc_control%needs%rho=.TRUE.
        END IF
-       IF (needs%drho.OR.needs%drho_spin.OR.needs%norm_drho.OR.&
-            needs%norm_drho_spin) THEN
+       IF (xc_control%needs%drho.OR.xc_control%needs%drho_spin.OR.xc_control%needs%norm_drho.OR.&
+            xc_control%needs%norm_drho_spin) THEN
           IF (lsd) THEN
-             needs%drho_spin=.TRUE.
+             xc_control%needs%drho_spin=.TRUE.
           ELSE
-             needs%drho=.TRUE.
+             xc_control%needs%drho=.TRUE.
           END IF
        END IF
+!TODEL_END_MI
+        
        ! calculate the agruments needed by the functionals
-       CALL xc_rho_set_update(rho1_set, rho1_r_pw, rho1_g_pw, tau_pw, needs,& 
-                              xc_control, cell, auxbas_pw_pool,  error)
+       CALL xc_rho_set_update(rho1_set, rho1_r_pw, rho1_g_pw, tau_pw, xc_control%needs,& 
+                             xc_control%xc_deriv_method_id,xc_control%xc_rho_smooth_id ,&
+                             cell, auxbas_pw_pool,  error)
 
        ALLOCATE(v_xc(nspins),stat=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)

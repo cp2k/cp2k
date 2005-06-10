@@ -103,9 +103,9 @@ MODULE xc_pot_saop
   USE xc_derivative_types,             ONLY: xc_derivative_get,&
                                              xc_derivative_type
   USE xc_derivatives,                  ONLY: xc_functional_eval
-  USE xc_rho_set_types,                ONLY: xc_rho_cflags_setall,&
-                                             xc_rho_cflags_type,&
-                                             xc_rho_set_create,&
+  USE xc_rho_cflags_types,             ONLY: xc_rho_cflags_setall,&
+                                             xc_rho_cflags_type
+  USE xc_rho_set_types,                ONLY: xc_rho_set_create,&
                                              xc_rho_set_release,&
                                              xc_rho_set_type,&
                                              xc_rho_set_update
@@ -227,7 +227,9 @@ CONTAINS
        CALL xb88_lda_info(needs=needs)
     END IF
     CALL xc_rho_set_update(rho_set, rho_r, rho_g, tau, needs, &
-                           dft_control%xc_control, cell, auxbas_pw_pool, error)
+                           dft_control%xc_control%xc_deriv_method_id,&
+                           dft_control%xc_control%xc_rho_smooth_id,&
+                           cell, auxbas_pw_pool, error)
 
     !----------------------------------------!
     ! Construct the LB94 potential in vxc_LB !
