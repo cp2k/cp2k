@@ -25,7 +25,8 @@ MODULE qs_force
   USE checkpoint_handler,              ONLY: write_checkpoint_information
   USE cp_control_types,                ONLY: dft_control_type
   USE cp_fm_types,                     ONLY: cp_fm_p_type
-  USE global_types,                    ONLY: global_environment_type
+  USE global_types,                    ONLY: global_environment_type,&
+                                             MEDIUM
   USE kinds,                           ONLY: dp,&
                                              int_size
   USE message_passing,                 ONLY: mp_sum
@@ -308,7 +309,8 @@ CONTAINS
     CHARACTER(LEN=35)                        :: fmtstr2
     CHARACTER(LEN=48)                        :: fmtstr1
     INTEGER                                  :: i, iatom, ikind, istat, &
-                                                natom, ndigits, output_unit
+                                                natom, ndigits, output_unit, &
+                                                my_ftype
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: atom_of_kind, kind_of
     REAL(KIND=dp), DIMENSION(3)              :: grand_total
 
@@ -355,8 +357,22 @@ CONTAINS
 
     grand_total(:) = 0.0_dp
 
-    SELECT CASE (ftype)
+    IF (globenv%print%level <= MEDIUM) THEN
+       my_ftype=-1
+    ELSE
+       my_ftype=ftype
+    ENDIF
+
+    SELECT CASE (my_ftype)
       CASE DEFAULT
+       DO iatom=1,natom
+          ikind = kind_of(iatom)
+          i = atom_of_kind(iatom)
+          WRITE (UNIT=output_unit,FMT=fmtstr2)&
+            iatom,ikind,"         total",qs_force(ikind)%total(1:3,i)
+            grand_total(1:3) = grand_total(1:3) + qs_force(ikind)%total(1:3,i)
+        END DO
+      CASE (0)
         DO iatom=1,natom
           ikind = kind_of(iatom)
           i = atom_of_kind(iatom)
