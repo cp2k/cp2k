@@ -859,7 +859,7 @@ SUBROUTINE topology_set_atm_mass(topology,globenv)
     ENDIF
 
     atom_info%atm_mass(iatom) = ptable(ielem_found)% amass
-    IF(PM2) WRITE(iw,'(7X,A,A5)') "iatom = ",ptable(ielem_found)%symbol
+    IF(PM3) WRITE(iw,'(7X,A,A5)') "iatom = ",ptable(ielem_found)%symbol
   END DO
 
   DEALLOCATE(atm_symbol,STAT=istat)
@@ -1021,7 +1021,7 @@ SUBROUTINE topology_generate_bond(topology,globenv)
     CALL convert_to_cp2k_units("ANGSTROM",length=vdw_radius(iatom))
 
     atom_info%atm_mass(iatom) = ptable(ielem_found)% amass
-    IF(PM2) WRITE(iw,'(7X,A,A5)') "iatom = ",ptable(ielem_found)%symbol
+    IF(PM3) WRITE(iw,'(7X,A,A5)') "iatom = ",ptable(ielem_found)%symbol
   END DO
 !------------------------------------------------------------------------------
   !Find bonds according to periodic table
@@ -1064,7 +1064,7 @@ SUBROUTINE topology_generate_bond(topology,globenv)
         END IF
         tbond_a(nbond)=iatom
         tbond_b(nbond)=jatom
-        IF(PM2) WRITE(iw,'(7X,A,I5,I5,I5)') "bond ",nbond,iatom,jatom
+        IF(PM3) WRITE(iw,'(7X,A,I5,I5,I5)') "bond ",nbond,iatom,jatom
 
         IF(topology%para_res) THEN
         IF((atom_info%label_molname(iatom)/=atom_info%label_molname(jatom)).OR.&
@@ -2918,7 +2918,7 @@ SUBROUTINE topology_coordinate_pack (particle_set,atomic_kind_set,&
   !-----------------------------------------------------------------------------
   DO i=1,topology%natoms
      ikind = kind_of(i)
-     IF (PM2) THEN
+     IF (PM3) THEN
         WRITE(iw,*)"atom number :: ",i,"kind number ::",ikind
      END IF
      particle_set(i)%atomic_kind => atomic_kind_set(ikind)
@@ -3032,7 +3032,7 @@ SUBROUTINE topology_coordinate_pack (particle_set,atomic_kind_set,&
        topology%exclude_vdw=="1-3" .OR. &
        topology%exclude_vdw=="1-4") THEN
       DO j=1,nbond
-         IF (PM2) WRITE(iw,*)"bond_list ::",&
+         IF (PM3) WRITE(iw,*)"bond_list ::",&
                              ex_bond_list(j)%a,&
                              ex_bond_list(j)%b
          IF(  (ex_bond_list(j)%a==iatom).OR. &
@@ -3046,7 +3046,7 @@ SUBROUTINE topology_coordinate_pack (particle_set,atomic_kind_set,&
     IF(topology%exclude_vdw=="1-3" .OR. &
        topology%exclude_vdw=="1-4") THEN
       DO j=1,nbend
-         IF (PM2) WRITE(iw,*)"bend_list ::",&
+         IF (PM3) WRITE(iw,*)"bend_list ::",&
                              ex_bend_list(j)%a,&
                              ex_bend_list(j)%b,&
                              ex_bend_list(j)%c
@@ -3060,7 +3060,7 @@ SUBROUTINE topology_coordinate_pack (particle_set,atomic_kind_set,&
 
     IF(topology%exclude_vdw=="1-4") THEN
       DO j=1,ntorsion
-         IF (PM2) WRITE(iw,*)"tors_list ::",&
+         IF (PM3) WRITE(iw,*)"tors_list ::",&
                              ex_torsion_list(j)%a,&
                              ex_torsion_list(j)%b,&
                              ex_torsion_list(j)%c,&
@@ -3113,7 +3113,7 @@ SUBROUTINE topology_coordinate_pack (particle_set,atomic_kind_set,&
         END IF
         particle_set(iatom)%lpi%exclusion(j)%list_ei => list2
       END IF
-      IF (PM2) THEN 
+      IF (PM3) THEN 
          IF (ASSOCIATED(list)) &
          WRITE(iw,*)"exclusion list_vdw :: ",&
                    "atom num :",iatom,"kind num. :",j,"exclusion list ::",&
@@ -3250,7 +3250,7 @@ SUBROUTINE topology_coordinate_pack (particle_set,atomic_kind_set,&
          topology%exclude_ei=="1-3" .OR. &
          topology%exclude_ei=="1-4") THEN
         DO j=1,nbond
-           IF (PM2) WRITE(iw,*)"bond_list ::",&
+           IF (PM3) WRITE(iw,*)"bond_list ::",&
                                ex_bond_list(j)%a,&
                                ex_bond_list(j)%b
            IF(  (ex_bond_list(j)%a==iatom).OR. &
@@ -3264,7 +3264,7 @@ SUBROUTINE topology_coordinate_pack (particle_set,atomic_kind_set,&
       IF(topology%exclude_ei=="1-3" .OR. &
          topology%exclude_ei=="1-4") THEN
         DO j=1,nbend
-           IF (PM2) WRITE(iw,*)"bend_list ::",&
+           IF (PM3) WRITE(iw,*)"bend_list ::",&
                                ex_bend_list(j)%a,&
                                ex_bend_list(j)%b,&
                                ex_bend_list(j)%c
@@ -3278,7 +3278,7 @@ SUBROUTINE topology_coordinate_pack (particle_set,atomic_kind_set,&
   
       IF(topology%exclude_ei=="1-4") THEN
         DO j=1,ntorsion
-           IF (PM2) WRITE(iw,*)"tors_list ::",&
+           IF (PM3) WRITE(iw,*)"tors_list ::",&
                                ex_torsion_list(j)%a,&
                                ex_torsion_list(j)%b,&
                                ex_torsion_list(j)%c,&
@@ -3323,7 +3323,7 @@ SUBROUTINE topology_coordinate_pack (particle_set,atomic_kind_set,&
           END IF
         END DO
         particle_set(iatom)%lpi%exclusion(j)%list_ei => list
-        IF (PM2) THEN 
+        IF (PM3) THEN 
            IF (ASSOCIATED(list)) &
            WRITE(iw,*)"exclusion list_ei :: ",&
                      "atom num :",iatom,"kind num. :",j,"exclusion list ::",&
