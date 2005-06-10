@@ -36,7 +36,8 @@ MODULE distribution_methods
   USE distribution_2d_types,           ONLY: distribution_2d_create,&
                                              distribution_2d_type,&
                                              distribution_2d_write
-  USE global_types,                    ONLY: LOW
+  USE global_types,                    ONLY: LOW,&
+                                             MEDIUM
   USE kinds,                           ONLY: dp,&
                                              int_size
   USE machine,                         ONLY: m_flush
@@ -881,7 +882,7 @@ CONTAINS
         CALL stop_memory(routine_name,module_name,__LINE__,"work")
       END IF
 
-      IF (logger%print_keys%level > LOW) THEN
+      IF (logger%print_keys%level > MEDIUM) THEN
         output_unit = cp_logger_get_default_unit_nr(logger,local=.TRUE.)
         CALL distribution_2d_write(distribution_2d,&
                                    unit_nr=output_unit,&
