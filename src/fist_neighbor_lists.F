@@ -131,7 +131,7 @@ CONTAINS
     output_unit = globenv%scr
 
     IF ((globenv%ionode.AND.globenv%print%cell_parameters).AND.&
-        (globenv%print%level > LOW)) THEN
+        (globenv%print%level > MEDIUM)) THEN
       print_subcell_grid = .TRUE.
     ELSE
       print_subcell_grid = .FALSE.
