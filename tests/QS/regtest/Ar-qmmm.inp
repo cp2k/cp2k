@@ -12,6 +12,7 @@
          &QM_KIND He
           mm_index 49 105
          &END QM_KIND
+         NOCOMPATIBILITY 
         &END QMMM
 &END FORCE_EVAL
 

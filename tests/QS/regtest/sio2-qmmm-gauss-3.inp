@@ -283,6 +283,7 @@
   &END SUBSYS
 
   &QMMM
+     NOCOMPATIBILITY
      ECOUPL GAUSS
      ABC_QM   12.0 10.0 12.0
      #

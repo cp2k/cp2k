@@ -21,6 +21,7 @@
 
 &FORCE_EVAL
         &QMMM
+         NOCOMPATIBILITY
          ECOUPL GRID
          NOCENTER
          ABC_QM  6.0 6.0 6.0

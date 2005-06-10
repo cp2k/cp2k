@@ -71,6 +71,7 @@
 
 &FORCE_EVAL
         &QMMM
+         NOCOMPATIBILITY
          &INTERPOLATOR
 	   EPS_R 1.0e-14
 	   EPS_X 1.0e-14

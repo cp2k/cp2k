@@ -95,6 +95,7 @@ H    -2.090603     1.352766     1.597519    H2O3
 
 &FORCE_EVAL
         &QMMM
+         NOCOMPATIBILITY
          &INTERPOLATOR
 	    EPS_R 1.0e-14
 	    EPS_X 1.0e-14

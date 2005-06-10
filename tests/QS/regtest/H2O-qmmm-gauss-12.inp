@@ -94,6 +94,7 @@ H     0.942809     0.000000    -0.333333    H2O
 
 &FORCE_EVAL
         &QMMM
+         NOCOMPATIBILITY
          &INTERPOLATOR
 	    EPS_R 1.0e-14
 	    EPS_X 1.0e-14
