@@ -451,6 +451,11 @@ SUBROUTINE coordinate_control(topology,globenv)
     CALL read_atoms_input ( topology, globenv )
   END SELECT
 
+  ! if the e.g. the &COORD block is empty, we don't proceed
+  IF (topology%natoms.LE.0) THEN
+     CALL stop_program ("coordinate_control","No atomic coordinates have been found")
+  ENDIF
+
 
   IF((globenv%ionode).AND.(globenv%print%level>0))THEN
     WRITE(iw,*) "  Exiting  coordinate_control"
