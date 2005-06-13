@@ -36,10 +36,7 @@ MODULE qs_debug
                                              cp_note_level,&
                                              cp_to_string,&
                                              cp_warning_level 
-  USE global_types,                    ONLY: global_environment_type,&
-                                             globenv_create,&
-                                             globenv_retain,&
-                                             globenv_release
+  USE global_types,                    ONLY: global_environment_type
   USE cp_subsystem_types,              ONLY: cp_subsys_retain,&
                                              cp_subsys_get,&
                                              cp_subsystem_p_type

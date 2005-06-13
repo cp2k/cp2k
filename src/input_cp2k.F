@@ -251,7 +251,10 @@ contains
     CALL keyword_create(keyword, name="BLACS_GRID",&
          description="how to distribute the processors on the 2d grid needed "//&
          "by BLACS (and thus SCALAPACK)", usage="BLACS_GRID SQUARE",&
-         default_c_val="BLACS_GRID_SQUARE",error=error)
+         default_i_val=blacs_square,enum_c_vals=s2a("SQUARE","ROW","COLUMN"),&
+         enum_desc=s2a("Distribution by marix blocks", "Distribution by matrix rows",&
+         "Distribution by matrix columns"), &
+         enum_i_vals=(/blacs_square,blacs_row,blacs_col/), error=error)
     CALL section_add_keyword(section,keyword,error=error)
     CALL keyword_release(keyword,error=error)
 
@@ -322,12 +325,12 @@ contains
          "optimization, md, montecarlo,...",&
          usage="RUN_TYPE MD",&
          default_i_val=energy_force_run,&
-         enum_c_vals=s2a( "ENERGY", "ENERGY_FORCE", "MD", "MOLECULAR_DYNAMICS",&
+         enum_c_vals=s2a( "NONE", "ENERGY", "ENERGY_FORCE", "MD", "MOLECULAR_DYNAMICS",&
          "GEO_OPT", "GEOMETRY_OPTIMIZATION", "MC", "MONTECARLO",&
          "SPECTRA", "ELECTRONIC_SPECTRA", "DEBUG"),&
-         enum_i_vals=(/energy_run,energy_force_run,md_run,md_run,&
+         enum_i_vals=(/none_run, energy_run,energy_force_run,mol_dyn_run,mol_dyn_run,&
          geo_opt_run,geo_opt_run,mc_run,mc_run,&
-         electronic_spectra_run,electronic_spectra_run, qs_debug/),&
+         electronic_spectra_run,electronic_spectra_run, qs_debug_run/),&
          error=error)
     CALL section_add_keyword(section,keyword,error=error)
     CALL keyword_release(keyword,error=error)
@@ -1838,6 +1841,14 @@ SUBROUTINE create_tddfpt_section(section,error)
             usage="gradient_cutoff 1.e-11", default_r_val=1.0e-10_dp,error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="DENSITY_SMOOTH_CUTOFF_RANGE",&
+            description="Parameter for the smoothing procedure in"//&
+            "xc calculation",&
+            usage="gradient_cutoff {real}", default_r_val=0.0_dp,error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
 
        CALL keyword_create(keyword, name="tau_cutoff",&
             description="The cutoff on tau used by the xc calculation",&

@@ -631,7 +631,7 @@ CONTAINS
       CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
       ALLOCATE(xas_env%state_of_atom(nexc_atoms),STAT=istat)
       CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
-      ALLOCATE(xas_env%spectrum(2,xas_env%nvirtual),STAT=istat)
+      ALLOCATE(xas_env%spectrum(5,xas_env%nvirtual),STAT=istat)
       CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
 
       ! create a new matrix structure nao x 1
@@ -798,7 +798,9 @@ CONTAINS
       WRITE(out_sp,'(A,I10)') " Iteration Step ", iter
 
       DO istate = 1,SIZE(spectrum,2)
-        WRITE(out_sp,'(I6,2F16.8)') istate, spectrum(1,istate)*evolt, spectrum(2,istate)
+        WRITE(out_sp,'(I6,5F16.8)') istate, spectrum(1,istate)*evolt, &
+             spectrum(2,istate), spectrum(3,istate),&    
+             spectrum(4,istate), spectrum(5,istate)
       END DO 
         
 
@@ -902,7 +904,10 @@ CONTAINS
            ra(i) = ( cell % hmat ( i, i ) / twopi ) * AIMAG ( LOG ( z ) )
          END DO 
          spectrum(1,istate) = ene_f - ene_i
-         spectrum(2,istate) = ra(1)*ra(1)+ra(2)*ra(2)+ra(3)*ra(3)
+         spectrum(2,istate) = ra(1)*ra(1)
+         spectrum(3,istate) = ra(2)*ra(2)
+         spectrum(4,istate) = ra(3)*ra(3)
+         spectrum(5,istate) = ra(1)*ra(1)+ra(2)*ra(2)+ra(3)*ra(3)
       END DO 
     END IF
 
@@ -995,7 +1000,10 @@ CONTAINS
            CALL cp_fm_get_element(fm_set(1,i)%matrix,1,istate,dip(i))
          END DO 
          spectrum(1,istate) = ene_f - ene_i
-         spectrum(2,istate) = dip(1)*dip(1)+dip(2)*dip(2)+dip(3)*dip(3)
+         spectrum(2,istate) = dip(1)*dip(1)
+         spectrum(3,istate) = dip(2)*dip(2)
+         spectrum(4,istate) = dip(3)*dip(3)
+         spectrum(5,istate) = dip(1)*dip(1)+dip(2)*dip(2)+dip(3)*dip(3)
       END DO 
     END IF
 

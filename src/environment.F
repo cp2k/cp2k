@@ -24,6 +24,16 @@
 
 MODULE environment
   USE cp2k_units,                      ONLY: init_cp2k_units
+  USE cp_error_handling,               ONLY: cp_a_l,&
+                                             cp_assert,&
+                                             cp_assertion_failed,&
+                                             cp_error_check,&
+                                             cp_error_dealloc_ref,&
+                                             cp_error_get_logger,&
+                                             cp_error_init,&
+                                             cp_error_message,&
+                                             cp_error_reset,&
+                                             cp_error_type
   USE cp_files,                        ONLY: close_file,&
                                              open_file
   USE cp_log_handling,                 ONLY: cp_add_default_logger,&
@@ -49,6 +59,12 @@ MODULE environment
                                              WANNIER_JACOBI,&
                                              WANNIER_NONE,&
                                              global_environment_type
+  USE input_constants,                 ONLY: none_run, do_atom, do_farming, do_test
+  USE input_cp2k,                      ONLY: parsed_cp2k_input
+  USE input_section_types,             ONLY: section_vals_get,&
+                                             section_vals_get_subs_vals,&
+                                             section_vals_type,&
+                                             section_vals_val_get
   USE kinds,                           ONLY: dp,&
                                              int_size,&
                                              print_kind_info
@@ -820,6 +836,79 @@ SUBROUTINE cp2k_read(globenv)
   END SUBROUTINE read_io_section
 
 !******************************************************************************
+!!****f* environment/read_global_section [1.0] *
+!!
+!!   NAME
+!!     read_global_section
+!!
+!!   FUNCTION
+!!     read the global sectionof new input
+!!
+!!   NOTES
+!!     Should not be required anymore once everything is converted 
+!!     to get information directly from the input structure
+!!
+!!   AUTHOR
+!!     MI
+!!
+!!   MODIFICATION HISTORY
+!!     06-2005 [created]
+!!
+!!******
+!******************************************************************************
+  SUBROUTINE read_global_section(globenv,error)
+
+    TYPE(global_environment_type), &
+      INTENT(INOUT)                          :: globenv
+    type(cp_error_type), optional, intent(inout) :: error
+
+    CHARACTER(LEN=*), PARAMETER :: routine_name = "read_global_section", &
+      start_section_label = "GLOBAL"
+
+    LOGICAL                                  :: failure, trace
+    TYPE(section_vals_type), POINTER         :: global_section
+
+    failure = .FALSE.
+    trace = .FALSE.
+
+    global_section => section_vals_get_subs_vals(globenv%input_file,"GLOBAL",error=error)
+
+    CALL section_vals_val_get(global_section,"BLACS_GRID",i_val=globenv%blacs_grid_layout,error=error)
+
+    CALL section_vals_val_get(global_section,"FFT_LIBRARY",c_val=globenv%default_fft_library,error=error)
+
+    CALL section_vals_val_get(global_section,"PRINT_LEVEL",i_val=globenv%print_level,error=error)
+
+    CALL section_vals_val_get(global_section,"PROGRAM_NAME",i_val=globenv%prog_name_id,error=error)
+
+    CALL section_vals_val_get(global_section,"PROJECT_NAME",c_val=globenv%project_name,error=error)
+
+    CALL section_vals_val_get(global_section,"ERROR_FILE_NAME",c_val=globenv%error_file_name,error=error)
+
+    CALL section_vals_val_get(global_section,"RESTART_FILE_NAME",c_val=globenv%restart_file_name,error=error)
+
+    CALL section_vals_val_get(global_section,"RUN_TYPE",i_val=globenv%run_type_id,error=error)
+
+    CALL section_vals_val_get(global_section,"OUTPUT",i_val=globenv%out_form,error=error)
+
+    CALL section_vals_val_get(global_section,"TRACE",l_val=trace,error=error)
+    IF(trace) CALL trace_debug("start",groupid=globenv%group)
+
+    IF(globenv%prog_name_id == do_atom .AND. globenv%run_type_id /= none_run) &
+       CALL stop_program(routine_name,module_name,__LINE__,&
+               "ATOM program supports only NONE as run type",globenv)
+
+    IF(globenv%prog_name_id == do_farming .AND. globenv%run_type_id /= none_run) &
+       CALL stop_program(routine_name,module_name,__LINE__,&
+               " FARMING program supports only NONE as run type",globenv)
+
+    IF(globenv%prog_name_id == do_test .AND. globenv%run_type_id /= none_run) &
+       CALL stop_program(routine_name,module_name,__LINE__,&
+               "TEST program supports only NONE as run type",globenv)
+
+  END SUBROUTINE read_global_section
+
+!******************************************************************************
 !!****f* environment/read_cp2k_section [1.0] *
 !!
 !!   NAME
@@ -836,10 +925,11 @@ SUBROUTINE cp2k_read(globenv)
 !!******
 !******************************************************************************
 
-  SUBROUTINE read_cp2k_section(globenv)
+  SUBROUTINE read_cp2k_section(globenv,error)
 
     TYPE(global_environment_type), &
       INTENT(INOUT)                          :: globenv
+    type(cp_error_type), optional, intent(inout) :: error
 
     CHARACTER(LEN=*), PARAMETER :: routine_name = "read_cp2k_section", &
       start_section_label = "CP2K"
@@ -851,9 +941,21 @@ SUBROUTINE cp2k_read(globenv)
                                                 omp_get_num_threads, &
                                                 output_unit, stat
     INTEGER, DIMENSION(3)                    :: n
-    LOGICAL                                  :: section_found
+    LOGICAL                                  :: section_found, was_present
+    TYPE(section_vals_type), POINTER         :: global_section
 
 !   ---------------------------------------------------------------------------
+
+    was_present = .FALSE.
+
+    global_section => section_vals_get_subs_vals(globenv%input_file,"GLOBAL",error=error)
+    call section_vals_get(global_section,explicit=was_present,error=error)
+    IF (was_present .OR. parsed_cp2k_input(globenv%input_file,error=error)) THEN
+       CALL read_global_section(globenv)
+       GO TO 20
+    END IF
+
+!TODEL_START_MI
 !   *** Load the default settings ***
 
     globenv%blacs_grid_layout = BLACS_GRID_SQUARE
@@ -920,6 +1022,7 @@ SUBROUTINE cp2k_read(globenv)
     END IF
 
     CALL finish_parser()
+
 
 !   *** Check and unify arguments ***
 
@@ -1003,6 +1106,10 @@ SUBROUTINE cp2k_read(globenv)
                "TEST program supports only NONE as run type",globenv)
        END IF
     END SELECT
+
+ 20 CONTINUE
+
+!TODEL_START_MI
 
 !   *** Initialize FFT library ***
     CALL init_fft(fftlib=TRIM(globenv%default_fft_library))

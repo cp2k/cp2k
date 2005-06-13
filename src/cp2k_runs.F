@@ -73,9 +73,16 @@ MODULE cp2k_runs
   USE qs_tddfpt_module,                ONLY: tddfpt_calculation
   USE input_section_types, ONLY: section_type, section_release,&
        section_vals_type, section_vals_release, section_vals_create,&
-       section_vals_write, section_vals_get_subs_vals, section_describe_html,&
+       section_vals_write, section_vals_get, section_vals_get_subs_vals, section_describe_html,&
        section_vals_val_get, section_describe_index_html, write_section_xml
   USE input_keyword_types, only: keyword_release
+  USE input_constants,                 ONLY: do_qs,do_qs,do_fist,&
+                                             do_kg,do_kg,do_qmmm,do_atom,&
+                                             do_farming,do_test,none_run,&
+                                             energy_run,energy_force_run,mol_dyn_run,&
+                                             geo_opt_run,mc_run,&
+                                             electronic_spectra_run,&
+                                             qs_debug_run
   USE input_cp2k,                      ONLY: create_cp2k_root_section,&
        check_cp2k_input, parsed_cp2k_input
   USE cp_parser, ONLY: cp_parser_type, parser_create, parser_release
@@ -146,11 +153,13 @@ CONTAINS
     TYPE(cp_parser_type), pointer :: parser
     TYPE(cp_para_env_type), pointer :: para_env
     TYPE(cp_unit_set_type), pointer :: default_units
-    LOGICAL :: failure, echo_input, I_was_ionode
+    LOGICAL :: failure, echo_input, I_was_ionode, was_present
+    INTEGER :: prog_id, run_id
 
     ! -----------------------------------------------------------------------------
     cp2k_run_OK = .FALSE.
     failure=.false.
+    was_present = .FALSE.
     NULLIFY(para_env, metadyn_section, default_units)
     CALL cp_para_env_create(para_env, group=mpi_comm,&
          owns_group=.false.)
@@ -189,6 +198,7 @@ CONTAINS
                hide_root=.TRUE., error=error)
        END IF
     END IF
+ 
     IF (.NOT.failure) THEN
        CALL check_cp2k_input(input_file,error=error)
     END IF
@@ -199,6 +209,94 @@ CONTAINS
     IF (.NOT.failure) THEN
        call cp2k_read(globenv)
 
+    was_present = .FALSE.
+    glob_section => section_vals_get_subs_vals(globenv%input_file,"GLOBAL",error=error)
+    call section_vals_get(glob_section,explicit=was_present,error=error)
+    IF (was_present .OR. parsed_cp2k_input(globenv%input_file,error=error)) THEN
+       CALL section_vals_val_get(glob_section,"PROGRAM_NAME",i_val=prog_id,error=error)
+       SELECT CASE (prog_id)
+       CASE (do_atom)
+         globenv%program_name = "ATOM"
+         CALL atomic_code ( globenv )
+       CASE (do_farming)
+         globenv%program_name = "FARMING"
+         CALL farming_run ( globenv, error )
+       CASE (do_fist)
+         globenv%program_name = "FIST"
+         CALL fist_create_force_env ( force_env, globenv,  error = error )
+       CASE (do_kg)
+         globenv%program_name = "KG"
+         CALL kg_create_force_env ( force_env, globenv, error=error)
+       CASE (do_qmmm)
+         globenv%program_name = "QMMM"
+         CALL qmmm_create_force_env(force_env, globenv, error=error)
+       CASE (do_qs)
+         globenv%program_name = "QS"
+         CALL quickstep_create_force_env(force_env, globenv, error=error)
+       CASE (do_test)
+         globenv%program_name = "TEST"
+         CALL lib_test(globenv) 
+       CASE DEFAULT
+         CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,routineP,&
+               "Invalid run TYPE <"//TRIM(globenv%run_type)//"> was specified, "//&
+               CPSourceFileRef,error,failure)
+       END SELECT
+       IF (ASSOCIATED(force_env)) THEN
+          NULLIFY(meta_env)
+          metadyn_section => section_vals_get_subs_vals(globenv%input_file,"MOTION%METADYN",error=error)
+          CALL metadyn_read(meta_env, globenv, metadyn_section, error=error)
+          CALL force_env_set(force_env,meta_env=meta_env,error=error)
+          CALL meta_env_release(meta_env,error=error)
+       END IF
+
+       CALL section_vals_val_get(glob_section,"RUN_TYPE",i_val=run_id,error=error)
+
+       SELECT CASE (run_id)
+       CASE (none_run)
+         ! do nothing
+       CASE (energy_run)
+           IF(prog_id /= do_qs) CALL cp_assert(.FALSE.,cp_failure_level,&
+                      cp_assertion_failed,routineP,&
+                      "Elnergy run available only withi Quickstep program "//&
+                       CPSourceFileRef,error,failure)
+            CALL force_env_calc_energy_force(force_env,calc_force=.FALSE.,&
+                     error=error)
+       CASE (energy_force_run)
+           IF(prog_id /= do_qs) CALL cp_assert(.FALSE.,cp_failure_level,&
+                      cp_assertion_failed,routineP,&
+                      "Elnergy run available only withi Quickstep program "//&
+                       CPSourceFileRef,error,failure)
+            CALL force_env_calc_energy_force(force_env,calc_force=.TRUE.,&
+                     error=error)
+       CASE (mol_dyn_run)
+           CALL qs_mol_dyn ( force_env, globenv, error=error )
+       CASE (geo_opt_run)
+           CALL qs_geo_opt(force_env,globenv,error=error)
+       CASE (mc_run)
+           CALL qs_mon_car ( force_env, globenv, error=error )
+       CASE (electronic_spectra_run)
+           IF(prog_id /= do_qs) CALL cp_assert(.FALSE.,cp_failure_level,&
+                      cp_assertion_failed,routineP,&
+                      "Electron spectra available only withi Quickstep program "//&
+                       CPSourceFileRef,error,failure)
+           CALL force_env_calc_energy_force(force_env,calc_force=.FALSE.,&
+                error=error)
+           CALL tddfpt_calculation(force_env%qs_env, globenv) 
+       CASE (qs_debug_run)
+           IF(prog_id /= do_qs) CALL cp_assert(.FALSE.,cp_failure_level,&
+                      cp_assertion_failed,routineP,&
+                      "Debug run available only withi Quickstep program "//&
+                       CPSourceFileRef,error,failure)
+           CALL qs_debug_energy_and_forces(force_env, globenv, error=error)
+       CASE DEFAULT
+           CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,routineP,&
+               "Invalid run TYPE <"//TRIM(globenv%run_type)//"> was specified, "//&
+                CPSourceFileRef, error,failure)
+       END SELECT
+       CALL force_env_release(force_env, error=error)
+
+    ELSE       
+!TODEL_START_MI
        ! initialize force_env
        SELECT CASE (globenv%program_name)
        CASE ("ATOM")
@@ -277,16 +375,17 @@ CONTAINS
              CASE ("MOLECULAR DYNAMICS")
                 CALL qs_mol_dyn ( force_env, globenv, error=error )
              CASE ("WAVEFUNCTION OPTIMIZATION","ENERGY CALCULATION")
-
                 CALL force_env_calc_energy_force(force_env,calc_force=.FALSE.,&
                      error=error)
              END SELECT
              CALL force_env_release(force_env, error=error)
           END IF
        END IF
+!TODEL_END_MI
+    END IF
     END IF
     CALL cp_error_dealloc_ref(error)
-
+ 
     I_was_ionode=globenv%ionode
     CALL cp2k_finalize(globenv)
     CPPostconditionNoFail(globenv%ref_count==1,cp_failure_level,routineP,error)

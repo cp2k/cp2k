@@ -90,8 +90,8 @@ MODULE cp_control_utils
                                              energy_run,&
                                              geo_opt_run,&
                                              mc_run,&
-                                             md_run,&
-                                             qs_debug
+                                             mol_dyn_run,&
+                                             qs_debug_run
   USE input_cp2k,                      ONLY: parsed_cp2k_input
   USE input_section_types,             ONLY: section_vals_get,&
                                              section_vals_get_subs_vals,&
@@ -366,8 +366,6 @@ CONTAINS
     xc_fun_section => section_vals_get_subs_vals(xc_section,"XC_FUNCTIONAL",&
          error=error)
     
-!   *** Load the default values ***
-
     
     CALL section_vals_val_get(dft_section,"LSD",l_val=l_param,error=error)
     IF (l_param) THEN
@@ -375,6 +373,8 @@ CONTAINS
     ELSE
        dft_control % nspins = 1
     END IF
+
+
     CALL section_vals_val_get(dft_section,"RESTRICTED",l_val=l_param,error=error)
     dft_control % restricted = l_param
     
@@ -395,19 +395,24 @@ CONTAINS
     dft_control % integration_grid % pw_cutoff  = -1._dp !FM to rm
     dft_control % integration_grid % pw_mesh    = -1_dp  !FM to rm
     dft_control % use_kinetic_energy_density = .FALSE.   !FM to rm
-    
+
+    CALL section_vals_val_get(dft_section,"BASIS_SET_FILE_NAME",&
+         c_val=globenv % basis_set_file_name , error=error)
+    CALL section_vals_val_get(dft_section,"POTENTIAL_FILE_NAME",&
+         c_val=globenv % potential_file_name , error=error)
+   
     tmp_section => section_vals_get_subs_vals(globenv%input_file,"GLOBAL",&
          error=error)
     CALL section_vals_val_get(tmp_section,"RUN_TYPE",i_val=run_id,error=error)
     SELECT CASE (run_id)!FM to rm, ugly!!
     CASE (energy_run,mc_run,energy_force_run)
       dft_control%forces = .FALSE.
-    CASE (md_run,geo_opt_run,electronic_spectra_run,qs_debug)
+    CASE (mol_dyn_run,geo_opt_run,electronic_spectra_run,qs_debug_run)
       dft_control%forces = .TRUE.
     CASE DEFAULT
       CALL stop_program(routine,"unknown run type "//TRIM(globenv%run_type))
     END SELECT
-
+ 
 !   *** Read the input section ***
     tmp_section => section_vals_get_subs_vals(dft_section,"sic",&
          error=error)
@@ -435,6 +440,7 @@ CONTAINS
     tmp_section => section_vals_get_subs_vals(dft_section,"xas",&
          error=error)
     call section_vals_get(tmp_section,explicit=was_present,error=error)
+
     if (was_present) then
 
       dft_control % do_xas_calculation = .TRUE.
@@ -447,15 +453,9 @@ CONTAINS
 
     end if
 
-
-    CALL section_vals_val_get(tmp_section,"METHOD",&
-         i_val=dft_control%xas_control%xas_method,error=error)
-
-    CALL section_vals_val_get(tmp_section,"EXCITED_STATE",&
-         i_val=dft_control%xas_estate,error=error)
-
-
   END SUBROUTINE read_dft_control_new
+
+!   ***************************************************************************
 
   SUBROUTINE read_dft_control(dft_control,globenv, error)
 
@@ -497,7 +497,7 @@ CONTAINS
     CHARACTER(LEN=60)                        :: keyword, str1, str2, string
     INTEGER                                  :: i
     LOGICAL                                  :: failure, section_found, &
-                                                xc_fun_set
+                                                was_present,xc_fun_set
     TYPE(cp_error_type)                      :: sub_error
     TYPE(xc_rho_cflags_type)                 :: needs
     TYPE(section_vals_type), POINTER         :: dft_section, xc_section, xas_section
@@ -512,6 +512,7 @@ CONTAINS
        END IF
     END IF
 
+!TODEL_START_MI
     failure=.FALSE.
     IF (.NOT.ASSOCIATED(dft_control)) THEN
        CALL dft_control_create(dft_control, error=error)
@@ -796,6 +797,8 @@ CONTAINS
     END IF
 
     CALL finish_parser()
+
+!TODEL_END_MI
 
   END SUBROUTINE read_dft_control
 

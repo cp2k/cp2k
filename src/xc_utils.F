@@ -141,7 +141,7 @@ MODULE xc_utils
 
 ! *** Public subroutines ***
 
-  PUBLIC :: read_xc_control, xc_get_info_yat!, xc_eval_yat
+  PUBLIC :: read_xc_control, xc_get_info_yat, xc_eval_yat
   
 !!***
 ! *****************************************************************************
@@ -191,11 +191,13 @@ CONTAINS
          r_val=xc_control%density_cut,error=error)
     CALL section_vals_val_get(xc_section,"GRADIENT_CUTOFF",&
          r_val=xc_control%gradient_cut,error=error)
-    xc_control%density_smooth_cut_range = 0.0_dp
+    CALL section_vals_val_get(xc_section,"DENSITY_SMOOTH_CUTOFF_RANGE",&
+         r_val=xc_control%density_smooth_cut_range,error=error)
     CALL section_vals_val_get(xc_section,"TAU_CUTOFF",&
          r_val=xc_control%tau_cut,error=error)
     xc_control%gradient_functionals = .FALSE.
     xc_control%crossterms = .FALSE.
+
     CALL section_vals_val_get(xc_section,"FUNCTIONAL_ROUTINE",&
          i_val=xc_control%functional_routine,error=error)
 
@@ -352,7 +354,7 @@ CONTAINS
          xc_control%crossterms ( 2 ) = CROSS_TERM
       END IF
 
-      tmp_section => section_vals_get_subs_vals(func_section,"PZ",error=error)
+      tmp_section => section_vals_get_subs_vals(func_section,"PZ81",error=error)
       CALL section_vals_get(tmp_section,explicit=was_present,error=error)
       IF(was_present)THEN
          CALL section_vals_val_get(tmp_section,"PARAMETRIZATION",i_val=i_param,error=error)
@@ -454,6 +456,7 @@ CONTAINS
     END IF    
 
     DO i = 1,SIZE( xc_control%functionals_new )
+! write(*,*) i, xc_control%functionals_new(i), xc_control%functionals(i)
       CALL xc_get_info_yat(functional=xc_control%functionals_new(i),&
            lsd=(nspins/=1),needs=xc_control%needs,&
            max_deriv=xc_control%max_deriv,xparam=xc_control%xa_param,&
@@ -469,6 +472,13 @@ CONTAINS
          xc_control%gradient_functionals .OR. xc_control%needs%norm_drho&
         .OR. xc_control%needs%norm_drho_spin .OR.&
          xc_control%needs%drho .OR. xc_control%needs%drho_spin
+    IF(ANY(xc_control%gradient_functionals)) THEN
+      IF (nspins /= 1) THEN
+        xc_control%needs%drho_spin=.TRUE.
+      ELSE
+        xc_control%needs%drho=.TRUE.
+      END IF
+    END IF
 
     CALL section_vals_get(grid_section,explicit=was_present,error=error)
     if (was_present) then
@@ -713,7 +723,7 @@ CONTAINS
 !!
 !!*** **********************************************************************
 
-  SUBROUTINE xc_functional_eval(functional, lsd, rho_set, deriv_set, &
+  SUBROUTINE xc_eval_yat(functional, lsd, rho_set, deriv_set, &
      deriv_order, xparam, error)
 
     INTEGER, INTENT(in)                      :: functional
@@ -738,7 +748,7 @@ CONTAINS
 
     CALL xc_rho_set_get(rho_set,rho_cutoff=density_cut,&
           drho_cutoff=gradient_cut,error=error)
-
+ 
     SELECT CASE (functional)
       CASE(xgga_b88)
         IF (lsd) THEN
@@ -942,6 +952,6 @@ CONTAINS
              error=error)
      END SELECT
   
-  END SUBROUTINE xc_functional_eval
+  END SUBROUTINE xc_eval_yat
 !!*** **********************************************************************
 END MODULE xc_utils

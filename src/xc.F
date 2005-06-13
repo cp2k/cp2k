@@ -129,6 +129,7 @@ MODULE xc
                                              xc_rho_set_release,&
                                              xc_rho_set_type,&
                                              xc_rho_set_update
+  USE xc_utils,                        ONLY: xc_eval_yat
 
   IMPLICIT NONE
   PRIVATE
@@ -1023,6 +1024,28 @@ END SUBROUTINE xc_vxc_pw_create_debug
             drho_cutoff=xc_control%gradient_cut,tau_cutoff=xc_control%tau_cut,&
             error=error)
 
+       IF( ANY(xc_control%functionals_new /= 0) ) THEN
+
+       ! calculate the agruments needed by the functionals
+       CALL xc_rho_set_update(rho_set, rho_r, rho_g, tau, xc_control%needs,&
+            xc_control%xc_deriv_method_id,xc_control%xc_rho_smooth_id,&
+            cell,pw_pool, error=error)
+
+       ! evaluate the functionals
+       DO i=1,SIZE(xc_control%functionals)
+        ! TO be changed with the version in xc_utils
+          CALL xc_eval_yat(xc_control%functionals_new(i), &
+               lsd=lsd,&
+               rho_set=rho_set, &
+               deriv_set=deriv_set,&
+               deriv_order=deriv_order, &
+               xparam=xc_control%xa_param,&
+               error=error)
+       END DO
+       
+
+       ELSE
+
 !TODEL_START_MI
   ! this should be done when the functional is defined
        ! assesses the argument needed by the functionals
@@ -1067,7 +1090,10 @@ END SUBROUTINE xc_vxc_pw_create_debug
                deriv_order=deriv_order, &
                error=error)
        END DO
+
+       END IF  ! ANY
     END IF
+
     CALL timestop(0.0_dp,handle)
 
   END SUBROUTINE xc_rho_set_and_dset_create
@@ -1460,6 +1486,7 @@ SUBROUTINE xc_vxc_pw_create(vxc_rho,vxc_tau,exc,rho_r,rho_g,tau,dft_control,&
 
      CALL xc_rho_set_get(rho_set,rho=rho,rhoa=rhoa,rhob=rhob,&
           can_return_null=.TRUE., error=error)
+  
      ! recover the vxc arrays
      IF (lsd) THEN
         deriv_att => xc_dset_get_derivative(deriv_set, "(rhoa)")
@@ -1487,6 +1514,7 @@ SUBROUTINE xc_vxc_pw_create(vxc_rho,vxc_tau,exc,rho_r,rho_g,tau,dft_control,&
                 use_data=REALDATA3D,in_space=REALSPACE,error=error)
            CALL pw_zero(vxc_rho(2)%pw)
         END IF
+
      ELSE
         deriv_att => xc_dset_get_derivative(deriv_set, "(rho)")
         IF (ASSOCIATED(deriv_att)) THEN

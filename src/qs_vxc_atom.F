@@ -456,6 +456,9 @@ CONTAINS
                              drho_cutoff=xc_control%gradient_cut,tau_cutoff=xc_control%tau_cut,&
                              error=error)
 
+       IF( ANY(xc_control%functionals_new /= 0) ) THEN
+
+       ELSE      
 !TODEL_START_MI
   ! this should be done when the functional is defined
 
@@ -481,6 +484,8 @@ CONTAINS
          END IF
       END IF
 !TODEL_END_MI
+
+      END IF
 
       ! allocate the required 3d arrays where to store rho and drho
       IF (nspins == 1 .AND. .NOT. lsd) THEN

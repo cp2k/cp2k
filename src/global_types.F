@@ -134,7 +134,10 @@ MODULE global_types
      INTEGER :: idum         !! random number seed
      INTEGER :: mepos        !! position number for local processor
      INTEGER :: num_pe       !! total number of processors
+     INTEGER :: out_form     !! ormat of the output file for geometry and velocity
      INTEGER :: print_level  !! how much information is written
+     INTEGER :: prog_name_id !! index to define the type of program
+     INTEGER :: run_type_id  !! index to define the run_tupe
      INTEGER :: scr          !! output unit
      INTEGER :: source       !! processor id for global output node
      LOGICAL :: ionode       !! this processor performs global output
