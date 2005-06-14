@@ -81,6 +81,8 @@ sio2-qmmm-gauss-2.inp 1
 sio2-qmmm-gauss-3.inp 1
 # tpss
 H2O-tpss.inp       1
+# tpss new input   
+H2O-tpss_new.inp   1
 # farming
 farming.inp        0
 # isokinetic ensemble
@@ -107,6 +109,8 @@ H2-geo-2.inp       1
 # tests GAPW GTH and ALL
 H2O-gapw-gth.inp   1
 H2O-gapw-all.inp   1
+# GAPW  ALL new input
+H2O-gapw-all_new.inp 1
 # test with presence of soft S
 H2S-gapw.inp       1
 # tests GAPW  6-311++G(3df,3pd)
