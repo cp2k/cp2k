@@ -130,6 +130,8 @@ OBJECTS_GENERIC =\
  gopt_f_types.o\
  green_types.o\
  green_methods.o\
+ harris_functional.o\
+ harris_env_types.o\
  hartree.o\
  hartree_local_2centers.o\
  hartree_local_3centers.o\

@@ -1385,6 +1385,9 @@ SUBROUTINE create_qs_section(section,error)
           common_iter_levels=1,error=error)
      CALL section_add_subsection(section,print_key,error=error)
      CALL section_release(print_key,error=error)
+     CALL create_harris_section(subsection,error=error)
+     CALL section_add_subsection(section,subsection,error=error)
+     CALL section_release(subsection, error=error)
   END IF
 
 END SUBROUTINE create_qs_section
@@ -7044,7 +7047,6 @@ END SUBROUTINE create_ewald_section
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
-
 ! Character
        CALL keyword_create(keyword, name="UNITS",&
             variants=(/"UNIT"/),& 
@@ -7068,6 +7070,58 @@ END SUBROUTINE create_ewald_section
 
     END IF
   END SUBROUTINE create_cell_ref_section
+
+!!****f* input_cp2k/create_harris_section [1.0] *
+!!
+!!   NAME
+!!     create_harris_section
+!!
+!!   FUNCTION
+!!     This section specifies the flags for the harris functional
+!!
+!!   NOTES
+!!     -
+!!
+!!   ARGUMENTS
+!!     - section: the section to create
+!!     - error: variable to control error logging, stopping,... 
+!!       see module cp_error_handling 
+!!
+!!   AUTHOR
+!!     Thomas D. Kuehne (tkuehne@phys.chem.ethz.ch)
+!!
+!!*** **********************************************************************
+  SUBROUTINE create_harris_section(section,error)
+    TYPE(section_type), POINTER :: section
+    TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
+    
+    LOGICAL :: failure
+    CHARACTER(len=*), PARAMETER :: routineN='create_harris_section',&
+         routineP=moduleN//':'//routineN
+    TYPE(keyword_type), POINTER :: keyword
+    
+    failure=.FALSE.
+    
+    CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
+    IF (.NOT. failure) THEN
+       CALL section_create(section,name="HARRIS",&
+            description="This section specifies the flags for the calculation of the harris functional",&
+            n_keywords=1, n_subsections=0, repeats=.FALSE., required=.FALSE.,&
+            error=error)
+
+       NULLIFY(keyword)
+       
+       CALL keyword_create(keyword, name="ACTIVATE",&
+            description="Activates the harris functional.",&
+            usage="ACTIVATE TRUE", required=.FALSE.,&
+            default_l_val=.FALSE., lone_keyword_l_val=.TRUE., error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+    END IF
+  END SUBROUTINE create_harris_section
+
+!***************************************************************************
 
 !!****f* input_cp2k/create_mgrid_section *
 !!
