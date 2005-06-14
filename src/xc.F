@@ -2289,7 +2289,7 @@ END FUNCTION xc_exc_calc
                 DO j = bo(1,2), bo(2,2)
                    DO i = bo(1,1), bo(2,1)
                       v_xc(2)%pw%cr3d(i,j,k) = v_xc(2)%pw%cr3d(i,j,k) + &
-                           deriv_data(i,j,k) * rho1a(i,j,k)
+                           deriv_data(i,j,k) * rho1b(i,j,k)
                    END DO
                 END DO
              END DO
