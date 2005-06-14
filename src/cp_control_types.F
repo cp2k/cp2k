@@ -641,6 +641,7 @@ SUBROUTINE xc_control_init(xc_control, error)
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
+    xc_control%functionals_new = 0
 END SUBROUTINE xc_control_init
 
 SUBROUTINE xc_control_dealloc_ref(xc_control, error)
