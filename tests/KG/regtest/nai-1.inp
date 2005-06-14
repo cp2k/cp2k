@@ -1,19 +1,11 @@
-&CP2K
+&GLOBAL
   PROJECT    nai
   PROGRAM    kg
-  IOLEVEL    4
+  IOLEVEL    LOW
   RUN_TYPE   MD     
   FFTLIB     FFTSG
+  OUTPUT atomic
 &END
-
-
-&DFT
-X-FUNCTIONAL  none
-C-FUNCTIONAL  pade 
-KE-FUNCTIONAL tf
-density_cutoff   1.0E-10
-gradient_cutoff   1.0E-10
-&END 
 
 &TOPOLOGY
 nhcopt   GLOBAL
@@ -59,9 +51,27 @@ POTENTIAL ELP
  WRITE_RESTART_EACH 100
 &END
 
-&GLOBAL
- OUTPUT atomic
-&END GLOBAL
+        
+&FORCE_EVAL
+  &DFT
+    BASIS_SET_FILE_NAME BASIS_SET
+    POTENTIAL_FILE_NAME POTENTIAL
+    &XC
+      &XC_FUNCTIONAL
+        &PADE
+        &END
+        &TF
+        &END
+      &END
+    &END
+  &END SECTION DFT
+  &SUBSYS
+    &CELL
+       UNIT   ANGSTROM
+       ABC    7.940  7.940   7.940 
+    &END CELL
+  &END SUBSYS
+&END FORCE_EVAL
 
 &MOTION
   &MD_NEW
@@ -93,11 +103,6 @@ POTENTIAL ELP
   &END MD_NEW
 &END MOTION
 
-&CELL
- UNIT         ANGSTROM
- ABC          7.940  7.940   7.940          
- SUBCELLS  0.
-&END
 
 &COORD
     I      0.05444808     -0.15740044      0.24414683
