@@ -248,16 +248,18 @@ CONTAINS
        CASE (none_run)
          ! do nothing
        CASE (energy_run)
-           IF(prog_id /= do_qs) CALL cp_assert(.FALSE.,cp_failure_level,&
+           IF(prog_id /= do_qs.AND. prog_id /= do_kg .AND. prog_id /= do_qmmm) &
+              CALL cp_assert(.FALSE.,cp_failure_level,&
                       cp_assertion_failed,routineP,&
-                      "Elnergy run available only withi Quickstep program "//&
+                      "Energy run available only with QS, KG, and QMMM programs "//&
                        CPSourceFileRef,error,failure)
             CALL force_env_calc_energy_force(force_env,calc_force=.FALSE.,&
                      error=error)
        CASE (energy_force_run)
-           IF(prog_id /= do_qs) CALL cp_assert(.FALSE.,cp_failure_level,&
+           IF(prog_id /= do_qs .AND. prog_id /= do_kg .AND. prog_id /= do_qmmm)&
+             CALL cp_assert(.FALSE.,cp_failure_level,&
                       cp_assertion_failed,routineP,&
-                      "Elnergy run available only withi Quickstep program "//&
+                      "Energy run available only with QS, KG, and QMMM programs "//&
                        CPSourceFileRef,error,failure)
             CALL force_env_calc_energy_force(force_env,calc_force=.TRUE.,&
                      error=error)
@@ -270,7 +272,7 @@ CONTAINS
        CASE (electronic_spectra_run)
            IF(prog_id /= do_qs) CALL cp_assert(.FALSE.,cp_failure_level,&
                       cp_assertion_failed,routineP,&
-                      "Electron spectra available only withi Quickstep program "//&
+                      "Electron spectra available only with Quickstep program "//&
                        CPSourceFileRef,error,failure)
            CALL force_env_calc_energy_force(force_env,calc_force=.FALSE.,&
                 error=error)
@@ -278,7 +280,7 @@ CONTAINS
        CASE (qs_debug_run)
            IF(prog_id /= do_qs) CALL cp_assert(.FALSE.,cp_failure_level,&
                       cp_assertion_failed,routineP,&
-                      "Debug run available only withi Quickstep program "//&
+                      "Debug run available only with Quickstep program "//&
                        CPSourceFileRef,error,failure)
            CALL qs_debug_energy_and_forces(force_env, globenv, error=error)
        CASE DEFAULT

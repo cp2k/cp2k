@@ -378,14 +378,14 @@ CONTAINS
       IF(was_present)THEN
          xc_control%functionals(3)=tmp_section%section%name
          xc_control%gradient_functionals ( 3 ) = GRADIENT_FUNCTIONAL
-          xc_control%functionals_new(2)=ke_tfw
+          xc_control%functionals_new(3)=ke_tfw
       END IF
       
       tmp_section => section_vals_get_subs_vals(func_section,"TF",error=error)
       CALL section_vals_get(tmp_section,explicit=was_present,error=error)
       IF(was_present)THEN
          xc_control%functionals(3)=tmp_section%section%name
-          xc_control%functionals_new(2)=ke_tfw
+          xc_control%functionals_new(3)=ke_tf
       END IF
 
       tmp_section => section_vals_get_subs_vals(func_section,"VWN",error=error)
