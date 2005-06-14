@@ -216,25 +216,18 @@ CONTAINS
        CALL section_vals_val_get(glob_section,"PROGRAM_NAME",i_val=prog_id,error=error)
        SELECT CASE (prog_id)
        CASE (do_atom)
-         globenv%program_name = "ATOM"
          CALL atomic_code ( globenv )
        CASE (do_farming)
-         globenv%program_name = "FARMING"
          CALL farming_run ( globenv, error )
        CASE (do_fist)
-         globenv%program_name = "FIST"
          CALL fist_create_force_env ( force_env, globenv,  error = error )
        CASE (do_kg)
-         globenv%program_name = "KG"
          CALL kg_create_force_env ( force_env, globenv, error=error)
        CASE (do_qmmm)
-         globenv%program_name = "QMMM"
          CALL qmmm_create_force_env(force_env, globenv, error=error)
        CASE (do_qs)
-         globenv%program_name = "QS"
          CALL quickstep_create_force_env(force_env, globenv, error=error)
        CASE (do_test)
-         globenv%program_name = "TEST"
          CALL lib_test(globenv) 
        CASE DEFAULT
          CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,routineP,&

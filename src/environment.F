@@ -59,7 +59,7 @@ MODULE environment
                                              WANNIER_JACOBI,&
                                              WANNIER_NONE,&
                                              global_environment_type
-  USE input_constants,                 ONLY: none_run, do_atom, do_farming, do_test
+  USE input_constants,                 ONLY: program_names,none_run, do_atom, do_farming, do_test
   USE input_cp2k,                      ONLY: parsed_cp2k_input
   USE input_section_types,             ONLY: section_vals_get,&
                                              section_vals_get_subs_vals,&
@@ -724,10 +724,11 @@ SUBROUTINE cp2k_read(globenv)
 !!
 !!******
 !******************************************************************************
-  SUBROUTINE read_io_section(globenv)
+  SUBROUTINE read_io_section(globenv,error)
 
     TYPE(global_environment_type), &
       INTENT(INOUT)                          :: globenv
+    type(cp_error_type), optional, intent(inout) :: error
 
     CHARACTER(LEN=*), PARAMETER :: routine_name = "read_io_section", &
       start_section_label = "IO"
@@ -735,11 +736,22 @@ SUBROUTINE cp2k_read(globenv)
     CHARACTER(LEN=3)                         :: test_result
     CHARACTER(LEN=60)                        :: keyword
     INTEGER                                  :: output_unit, unit_number
-    LOGICAL                                  :: section_found
+    LOGICAL                                  :: section_found, was_present
+    TYPE(section_vals_type), POINTER         :: global_section
 
 !   ---------------------------------------------------------------------------
-!   *** Load the default settings ***
 
+!TODEL_START_MI
+    NULLIFY(global_section)
+    was_present = .FALSE.
+
+    global_section => section_vals_get_subs_vals(globenv%input_file,"GLOBAL",error=error)
+    call section_vals_get(global_section,explicit=was_present,error=error)
+    IF (was_present .OR. parsed_cp2k_input(globenv%input_file,error=error)) THEN
+       GO TO 20
+    END IF
+
+!   *** Load the default settings ***
     globenv%pp_library_path = "./"
 
     globenv%basis_set_file_name = "BASIS_SET"
@@ -833,6 +845,8 @@ SUBROUTINE cp2k_read(globenv)
         ADJUSTR(globenv%coord_file_name(:40))
     END IF
 
+  20 CONTINUE
+!TODEL_END_MI
   END SUBROUTINE read_io_section
 
 !******************************************************************************
@@ -865,11 +879,13 @@ SUBROUTINE cp2k_read(globenv)
     CHARACTER(LEN=*), PARAMETER :: routine_name = "read_global_section", &
       start_section_label = "GLOBAL"
 
+    INTEGER                                  :: num_threads,output_unit
     LOGICAL                                  :: failure, trace
-    TYPE(section_vals_type), POINTER         :: global_section
+    TYPE(section_vals_type), POINTER         :: dft_section,global_section
 
     failure = .FALSE.
     trace = .FALSE.
+    NULLIFY(dft_section,global_section)
 
     global_section => section_vals_get_subs_vals(globenv%input_file,"GLOBAL",error=error)
 
@@ -880,6 +896,7 @@ SUBROUTINE cp2k_read(globenv)
     CALL section_vals_val_get(global_section,"PRINT_LEVEL",i_val=globenv%print_level,error=error)
 
     CALL section_vals_val_get(global_section,"PROGRAM_NAME",i_val=globenv%prog_name_id,error=error)
+    globenv%program_name = program_names(globenv%prog_name_id)
 
     CALL section_vals_val_get(global_section,"PROJECT_NAME",c_val=globenv%project_name,error=error)
 
@@ -894,6 +911,18 @@ SUBROUTINE cp2k_read(globenv)
     CALL section_vals_val_get(global_section,"TRACE",l_val=trace,error=error)
     IF(trace) CALL trace_debug("start",groupid=globenv%group)
 
+    globenv%coord_file_name = globenv%input_file_name
+    globenv%output_file_name = "(stdout)"
+
+    dft_section => section_vals_get_subs_vals(globenv%input_file,"FORCE_EVAL%DFT",error=error)
+
+    CALL section_vals_val_get(dft_section,"BASIS_SET_FILE_NAME",&
+         c_val=globenv % basis_set_file_name , error=error)
+    CALL section_vals_val_get(dft_section,"POTENTIAL_FILE_NAME",&
+         c_val=globenv % potential_file_name , error=error)
+    CALL section_vals_val_get(dft_section,"PP_LIBRARY_PATH",&
+         c_val=globenv %  pp_library_path, error=error)
+
     IF(globenv%prog_name_id == do_atom .AND. globenv%run_type_id /= none_run) &
        CALL stop_program(routine_name,module_name,__LINE__,&
                "ATOM program supports only NONE as run type",globenv)
@@ -905,6 +934,53 @@ SUBROUTINE cp2k_read(globenv)
     IF(globenv%prog_name_id == do_test .AND. globenv%run_type_id /= none_run) &
        CALL stop_program(routine_name,module_name,__LINE__,&
                "TEST program supports only NONE as run type",globenv)
+
+    num_threads=1
+!$omp parallel
+!$ num_threads = omp_get_num_threads()
+!$omp end parallel
+    IF (globenv%ionode.AND.(globenv%print_level > 0)) THEN
+      output_unit = globenv%scr
+      WRITE (UNIT=output_unit,FMT=*)
+      WRITE (UNIT=output_unit,FMT="(T2,A,T41,A)")&
+        start_section_label//"| Input file name",&
+        ADJUSTR(globenv%input_file_name(:40)),&
+        start_section_label//"| Output file name",&
+        ADJUSTR(globenv%output_file_name(:40)),&
+        start_section_label//"| Error file name",&
+        ADJUSTR(globenv%error_file_name(:40)),&
+        start_section_label//"| Library path",&
+        ADJUSTR(globenv%pp_library_path(:40)),&
+        start_section_label//"| Basis set file name",&
+        ADJUSTR(globenv%basis_set_file_name(:40)),&
+        start_section_label//"| Potential file name",&
+        ADJUSTR(globenv%potential_file_name(:40)),&
+        start_section_label//"| MM Potential file name",&
+        ADJUSTR(globenv%mm_potential_file_name(:40)),&
+        start_section_label//"| Restart file name",&
+        ADJUSTR(globenv%restart_file_name(:40)),&
+        start_section_label//"| Coordinate file name",&
+        ADJUSTR(globenv%coord_file_name(:40))
+      WRITE (UNIT=output_unit,FMT="(T2,A,T79,A)")&
+        "GLOBAL"//"| Program name",&
+        program_names(globenv%prog_name_id)
+      WRITE (UNIT=output_unit,FMT="(T2,A,T41,A)")&
+        start_section_label//"| Project name",&
+        ADJUSTR(globenv%project_name(:40)),&
+        start_section_label//"| Default FFT library",&
+        ADJUSTR(globenv%default_fft_library(:40)),&
+        start_section_label//"| Run type",&
+        ADJUSTR(globenv%run_type(:40))
+
+      WRITE (UNIT=output_unit,FMT="(T2,A,T75,I6)")&
+        start_section_label//"| Global print level",globenv%print_level,&
+        start_section_label//"| Total number of message passing processes",&
+                             globenv%num_pe,&
+        start_section_label//"| Number of threads for this process",&
+                             num_threads,&
+        start_section_label//"| This output is from process",globenv%mepos
+      WRITE (UNIT=output_unit,FMT='()')
+    END IF
 
   END SUBROUTINE read_global_section
 
@@ -1107,6 +1183,32 @@ SUBROUTINE cp2k_read(globenv)
        END IF
     END SELECT
 
+    num_threads=1
+!$omp parallel
+!$ num_threads = omp_get_num_threads()
+!$omp end parallel
+    IF (globenv%ionode.AND.(globenv%print%level > SILENT)) THEN
+      output_unit = globenv%scr
+      WRITE (UNIT=output_unit,FMT=*)
+      WRITE (UNIT=output_unit,FMT="(T2,A,T41,A)")&
+        start_section_label//"| Program name",&
+        ADJUSTR(globenv%program_name(:40)),&
+        start_section_label//"| Project name",&
+        ADJUSTR(globenv%project_name(:40)),&
+        start_section_label//"| Default FFT library",&
+        ADJUSTR(globenv%default_fft_library(:40)),&
+        start_section_label//"| Run type",&
+        ADJUSTR(globenv%run_type(:40))
+      WRITE (UNIT=output_unit,FMT="(T2,A,T75,I6)")&
+        start_section_label//"| Global print level",globenv%print_level,&
+        start_section_label//"| Total number of message passing processes",&
+                             globenv%num_pe,&
+        start_section_label//"| Number of threads for this process",&
+                             num_threads,&
+        start_section_label//"| This output is from process",globenv%mepos
+      WRITE (UNIT=output_unit,FMT='()')
+    END IF
+
  20 CONTINUE
 
 !TODEL_START_MI
@@ -1136,32 +1238,7 @@ SUBROUTINE cp2k_read(globenv)
       ENDIF
     END IF
 
-    num_threads=1
-!$omp parallel
-!$ num_threads = omp_get_num_threads()
-!$omp end parallel
 
-    IF (globenv%ionode.AND.(globenv%print%level > SILENT)) THEN
-      output_unit = globenv%scr
-      WRITE (UNIT=output_unit,FMT=*)
-      WRITE (UNIT=output_unit,FMT="(T2,A,T41,A)")&
-        start_section_label//"| Program name",&
-        ADJUSTR(globenv%program_name(:40)),&
-        start_section_label//"| Project name",&
-        ADJUSTR(globenv%project_name(:40)),&
-        start_section_label//"| Default FFT library",&
-        ADJUSTR(globenv%default_fft_library(:40)),&
-        start_section_label//"| Run type",&
-        ADJUSTR(globenv%run_type(:40))
-      WRITE (UNIT=output_unit,FMT="(T2,A,T75,I6)")&
-        start_section_label//"| Global print level",globenv%print_level,&
-        start_section_label//"| Total number of message passing processes",&
-                             globenv%num_pe,&
-        start_section_label//"| Number of threads for this process",&
-                             num_threads,&
-        start_section_label//"| This output is from process",globenv%mepos
-      WRITE (UNIT=output_unit,FMT='()')
-    END IF
 
   END SUBROUTINE read_cp2k_section
 

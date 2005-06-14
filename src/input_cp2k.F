@@ -284,14 +284,14 @@ contains
          variants=(/"PROGRAM"/),&
          description="Which program should be run to compute forces,...",&
          usage="PROGRAM_NAME QUICKSTEP",&
-         enum_c_vals=s2a("QUICKSTEP","QS","FIST","KIM_GORDON","KG",&
+         enum_c_vals=s2a("QUICKSTEP","QS","FIST","KIM_GORDON","KIM-GORDON","KG",&
          "QMMM", "ATOM", "FARMING", "TEST"),&
          enum_desc=s2a("Electronic structure methods (DFT, ...)","Idem",&
                        "Molecular Mechanics","Kim Gordon models (DFT)",&
-                       "Idem","Hybrid quantum classical","Atomic calculations",&
+                       "Idem","Idem","Hybrid quantum classical","Atomic calculations",&
                        "Runs N independent jobs in a single run",&
                        "Do some benchmarking and testing"),&
-         enum_i_vals=(/do_qs,do_qs,do_fist,do_kg,do_kg,do_qmmm,do_atom,&
+         enum_i_vals=(/do_qs,do_qs,do_fist,do_kg,do_kg,do_kg,do_qmmm,do_atom,&
          do_farming,do_test/),&
          default_i_val=do_qs, error=error)
     CALL section_add_keyword(section,keyword,error=error)

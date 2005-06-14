@@ -400,7 +400,9 @@ CONTAINS
          c_val=globenv % basis_set_file_name , error=error)
     CALL section_vals_val_get(dft_section,"POTENTIAL_FILE_NAME",&
          c_val=globenv % potential_file_name , error=error)
-   
+    CALL section_vals_val_get(dft_section,"PP_LIBRARY_PATH",&
+         c_val=globenv % pp_library_path , error=error)
+
     tmp_section => section_vals_get_subs_vals(globenv%input_file,"GLOBAL",&
          error=error)
     CALL section_vals_val_get(tmp_section,"RUN_TYPE",i_val=run_id,error=error)

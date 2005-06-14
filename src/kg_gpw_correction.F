@@ -179,6 +179,7 @@ CONTAINS
                                                     my_calculate_forces, &
                                                     my_just_energy
     CHARACTER(LEN=40), DIMENSION(3)              :: functionals_tmp
+    INTEGER, DIMENSION(3)                        :: functionals_new_tmp
     LOGICAL, DIMENSION(3)                        :: gradient_functionals_tmp,&
                                                     crossterms_tmp
     REAL(dp)                                     :: ekin_imol
@@ -226,11 +227,14 @@ CONTAINS
 
     ! Modify temporarely dft_control to calculate only the kinetic energy functional
     functionals_tmp(1:3) = dft_control%xc_control%functionals(1:3)
+    functionals_new_tmp(1:3) = dft_control%xc_control%functionals_new(1:3)
     gradient_functionals_tmp(1:3) = dft_control%xc_control%gradient_functionals(1:3)
     crossterms_tmp(1:3) = dft_control%xc_control%crossterms(1:3)
 
     dft_control%xc_control%functionals(1) = "NONE"
     dft_control%xc_control%functionals(2) = "NONE"
+    dft_control%xc_control%functionals_new(1) = 0
+    dft_control%xc_control%functionals_new(2) = 0
     dft_control%xc_control%gradient_functionals(1) = .FALSE.
     dft_control%xc_control%gradient_functionals(2) = .FALSE.
     dft_control%xc_control%crossterms(1) = .FALSE.
@@ -468,6 +472,7 @@ CONTAINS
 
     ! Set back dft_control%xc_control to the correct parameters for the functionals
     dft_control%xc_control%functionals(1:3) = functionals_tmp(1:3)
+    dft_control%xc_control%functionals_new(1:3) = functionals_new_tmp(1:3)
     dft_control%xc_control%gradient_functionals(1:3) = gradient_functionals_tmp(1:3)
     dft_control%xc_control%crossterms(1:3) = crossterms_tmp(1:3)
 

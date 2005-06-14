@@ -27,6 +27,15 @@ MODULE input_constants
   IMPLICIT NONE
   PRIVATE
 
+  ! Program Names
+  CHARACTER (LEN=default_string_length), PARAMETER, DIMENSION(7), PUBLIC :: program_names=&
+       (/"QS        ",&
+         "FIST      ",&
+         "KG        ",&
+         "QMMM      ",&
+         "ATOM      ",&
+         "FARMING   ",&
+         "TEST      "/)
   INTEGER, PARAMETER, public :: do_qs=1,do_fist=2,do_kg=3,do_qmmm=4,do_atom=5,&
        do_farming=6,do_test=8
   REAL(KIND=dp), PARAMETER, PUBLIC :: RADIUS_QMMM_DEFAULT = 0.80_dp,&
