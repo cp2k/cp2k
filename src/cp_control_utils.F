@@ -887,7 +887,7 @@ CONTAINS
       routine = "SUBROUTINE read_qs_control "
 
     LOGICAL                                  :: failure, was_present
-    INTEGER                                  :: IVALUE, j, jj, k, n_rep
+    INTEGER                                  :: j, jj, k, n_rep
     INTEGER, DIMENSION(:), POINTER           :: tmplist
     REAL(dp) :: value
     TYPE(section_vals_type), POINTER         :: qs_section,loc_section,&
@@ -954,7 +954,7 @@ CONTAINS
     
     ! Integers grids
     CALL section_vals_val_get(qs_section,"PW_GRID",i_val=qs_control%pw_grid_opt_id,error=error)
-    SELECT CASE (ivalue)
+    SELECT CASE (qs_control%pw_grid_opt_id)
     CASE(do_pwgrid_spherical)
        qs_control%pw_grid_opt%spherical = .TRUE.
        qs_control%pw_grid_opt%fullspace = .FALSE.
