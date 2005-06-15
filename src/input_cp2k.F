@@ -1427,6 +1427,7 @@ SUBROUTINE create_se_control_section(section,error)
 
     failure=.FALSE.
 
+    NULLIFY(keyword)
     CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
     IF (.NOT. failure) THEN
       CALL section_create(section,"SE",&
@@ -1492,6 +1493,7 @@ SUBROUTINE create_mulliken_section(section,error)
     TYPE(keyword_type), POINTER              :: keyword
 
     failure=.FALSE.
+    nullify(keyword)
     CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
     IF (.NOT. failure) THEN
       CALL section_create(section,"MULLIKEN",&

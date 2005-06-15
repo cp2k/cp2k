@@ -97,6 +97,8 @@ MODULE harris_env_types
      INTEGER            :: id_nr, ref_count
      REAL(KIND=dp)      :: Ehartree_elec, &
                            Ehartree_core, &
+                           !Ehartree_tot, &
+                           !Ehartree_elec_core, &
                            Exc, &
                            integral_vxc, &
                            Ecore, &
@@ -472,7 +474,7 @@ CONTAINS
 !!     harris_env_clear
 !!
 !!   SYNOPSIS
-!!     SUBROUTINE ep_env_init(harris_env, error)
+!!     SUBROUTINE harris_env_clear(harris_env, error)
 !!       TYPE(harris_env_type), POINTER:: harris_env
 !!       TYPE(cp_error_type), OPTIONAL, INTENT(INOUT):: error
 !!     END SUBROUTINE ep_env_init
@@ -502,7 +504,7 @@ CONTAINS
     TYPE(cp_error_type), INTENT(INOUT), &
       OPTIONAL                               :: error
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'harris_env_init', &
+    CHARACTER(len=*), PARAMETER :: routineN = 'harris_env_clear', &
       routineP = moduleN//':'//routineN
 
     LOGICAL                                  :: failure
@@ -580,9 +582,9 @@ CONTAINS
     ALLOCATE(harris_env, stat=stat)
     CPPostcondition(stat == 0, cp_failure_level, routineP, error, failure)
     IF (.NOT. failure) THEN
-       harris_env%ref_count = 1
-       last_harris_id=last_harris_id+1
-       harris_env%id_nr = last_harris_id
+      harris_env%ref_count = 1
+      last_harris_id=last_harris_id+1
+      harris_env%id_nr = last_harris_id
       CALL harris_env_clear(harris_env, error=error)      
     END IF
   END SUBROUTINE harris_env_create

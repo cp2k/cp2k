@@ -195,6 +195,7 @@ MODULE qs_scf
   USE timings,                         ONLY: timeset,&
                                              timestop
   USE harris_functional,               ONLY: harris_energy_correction, &
+                                             harris_eigenvalue_summation, &
                                              harris_eigenvalue_calculation, &
                                              harris_postprocessing
   USE input_section_types,             ONLY: section_vals_get_subs_vals, &
@@ -455,17 +456,19 @@ CONTAINS
     TYPE(real_matrix_p_type), DIMENSION(:), &
       POINTER                                :: matrix_h, matrix_ks, matrix_p, matrix_s
     TYPE(scf_control_type), POINTER          :: scf_control
-    LOGICAL                                  :: harris_flag
-    TYPE(section_vals_type), POINTER         :: harris_section
-    TYPE(harris_env_type), POINTER           :: harris_env
     LOGICAL                                  :: has_unit_metric
     TYPE(real_matrix_type), POINTER          :: orthogonality_metric
+    LOGICAL                                  :: harris_flag, &
+                                                EII_necessary
+    TYPE(section_vals_type), POINTER         :: harris_section
+    TYPE(harris_env_type), POINTER           :: harris_env
 
 !   ---------------------------------------------------------------------------
 
-    NULLIFY(dft_control,matrix_h,matrix_s,matrix_ks,matrix_p,rho,energy,scf_control,logger,&
-         pw_env, qs_charges,ks_env,mos,atomic_kind_set,particle_set,&
-         scf_work1,ortho,scf_work2,harris_section,harris_env)
+    NULLIFY(dft_control,matrix_h,matrix_s,matrix_ks,matrix_p,rho,energy, &
+            scf_control,logger,pw_env, qs_charges,ks_env,mos,atomic_kind_set, &
+            particle_set,scf_work1,ortho,scf_work2,harris_section,harris_env)
+
     logger => cp_error_get_logger(error)
     t1 = m_walltime()
     failure=.FALSE.
@@ -491,6 +494,7 @@ CONTAINS
     ionode = logger%para_env%source==logger%para_env%mepos
     IF (ionode) output_unit = cp_logger_get_default_unit_nr(logger)
     energy_only = .FALSE.
+    EII_necessary = .TRUE.
 
     ! some special checks to eliminate the first problems with restricted
     IF (dft_control%restricted) THEN
@@ -585,6 +589,10 @@ CONTAINS
 
     scf_loop: DO
        CALL timeset("scf_iter","I"," ",handle2)
+
+       !IF (harris_flag) THEN
+       !  CALL harris_energy_correction(rho, qs_env, harris_env, error=error)
+       !END IF       
 
        IF (ionode) CALL m_flush(output_unit)
 
@@ -755,7 +763,6 @@ CONTAINS
             scf_env%iter_param=scf_env%qs_ot_env(1)%ds_min
 
        END SELECT
-
        IF (scf_env%mixing_method.EQ.ao_mixing_nr) THEN
           CALL scf_env_density_mixing(scf_env%p_mix_new,scf_env%mixing_method,&
                                     scf_env%p_mix,scf_env%iter_delta,&
@@ -771,11 +778,12 @@ CONTAINS
                scf_env%iter_param,t2 - t1,scf_env%iter_delta,energy%total
        END IF
 
-       
        ! *** calculation of the harris functional energy correction ***
        IF (harris_flag) THEN
-         CALL harris_energy_correction(rho, qs_env, harris_env, error=error)
-         CALL harris_eigenvalue_calculation(qs_env, harris_env, error=error)
+         CALL harris_energy_correction(qs_env, harris_env, &
+                                       EII_necessary=EII_necessary, error=error)
+         CALL harris_eigenvalue_summation(qs_env, harris_env, error=error)
+         !CALL harris_eigenvalue_calculation(qs_env, harris_env, error=error)
          CALL harris_postprocessing(harris_env, error=error)
        END IF
 
@@ -1520,7 +1528,7 @@ CONTAINS
     INTEGER, INTENT(OUT)                     :: ndep
     REAL(KIND=dp), INTENT(in)                :: eps_eigval, work_syevx
 
-    INTEGER                                  :: handle,i
+    INTEGER                                  :: handle
 
 !   ---------------------------------------------------------------------------
 
