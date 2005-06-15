@@ -37,7 +37,7 @@ MODULE input_constants
          "FARMING   ",&
          "TEST      "/)
   INTEGER, PARAMETER, public :: do_qs=1,do_fist=2,do_kg=3,do_qmmm=4,do_atom=5,&
-       do_farming=6,do_test=8
+       do_farming=6,do_test=7
   REAL(KIND=dp), PARAMETER, PUBLIC :: RADIUS_QMMM_DEFAULT = 0.80_dp,&
                                       ALPHA_IMOMM_DEFAULT = 1.38_dp,&
                                       CHARGE_SCALE_FACTOR = 1.00_dp
@@ -51,10 +51,10 @@ MODULE input_constants
          "ewald    ",&
          "pme      ",&
          "spme     " /)
-  INTEGER, PARAMETER, PUBLIC :: do_ewald_none=0,&
-                                do_ewald_ewald=1,&
-                                do_ewald_pme=2,&
-                                do_ewald_spme=3
+  INTEGER, PARAMETER, PUBLIC :: do_ewald_none=1,&
+                                do_ewald_ewald=2,&
+                                do_ewald_pme=3,&
+                                do_ewald_spme=4
   INTEGER, PARAMETER, PUBLIC, DIMENSION(4) :: ewald_name_index=&
        (/do_ewald_none, do_ewald_ewald, do_ewald_pme, do_ewald_spme/)
   !
