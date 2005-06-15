@@ -92,6 +92,22 @@ MODULE cp_control_utils
                                              mc_run,&
                                              mol_dyn_run,&
                                              qs_debug_run
+  USE input_constants,                 ONLY: quadrature_name,&
+                                             do_pwgrid_spherical,&
+                                             do_pwgrid_ns_fullspace,&
+                                             do_pwgrid_ns_halfspace,&
+                                             do_rsgrid_distributed,&
+                                             do_rsgrid_replicated,&
+                                             elstr_method_name,&
+                                             do_method_gapw,& 
+                                             do_method_gpw,& 
+                                             do_method_kg_pol,&
+                                             do_method_kg_nopol,&
+                                             do_method_kg_gpw,&
+                                             do_method_eht,& 
+                                             do_method_mndo,& 
+                                             do_method_am1,& 
+                                             do_method_pm3 
   USE input_cp2k,                      ONLY: parsed_cp2k_input
   USE input_section_types,             ONLY: section_vals_get,&
                                              section_vals_get_subs_vals,&
@@ -101,8 +117,8 @@ MODULE cp_control_utils
   USE kinds,                           ONLY: dp,&
                                              dp_size
   USE memory_utilities,                ONLY: reallocate
-
-  USE qs_loc_control,                  ONLY: read_loc_control_old
+  USE qs_loc_control,                  ONLY: read_loc_control_old,&
+                                             read_loc_section
   USE qs_parser,                       ONLY: finish_parser,&
                                              read_object,&
                                              start_parser,&
@@ -121,7 +137,7 @@ MODULE cp_control_utils
   USE xas_control,                     ONLY: read_xas_control_new,&
                                              xas_control_type
   USE xc_derivatives,                  ONLY: xc_functional_get_info
-  USE xc_rho_cflags_types,                ONLY: xc_rho_cflags_setall,&
+  USE xc_rho_cflags_types,             ONLY: xc_rho_cflags_setall,&
                                              xc_rho_cflags_type
   USE xc_utils,                        ONLY: read_xc_control
 
@@ -352,12 +368,13 @@ CONTAINS
     TYPE(section_vals_type), POINTER         :: dft_section, tmp_section, &
                                                 xc_fun_section, &
                                                 xc_grid_section, xc_section
-    TYPE(xc_rho_cflags_type)                 :: needs
 
 !   ---------------------------------------------------------------------------
 
     failure=.FALSE.
     was_present = .FALSE.
+    NULLIFY(dft_section,tmp_section,xc_fun_section,xc_grid_section,xc_section)
+
     CALL dft_control_create(dft_control, error=error)
     dft_section => section_vals_get_subs_vals(globenv%input_file,"FORCE_EVAL",error=error)
     dft_section => section_vals_get_subs_vals(dft_section,"DFT",error=error)
@@ -828,13 +845,179 @@ CONTAINS
 !!  RELATIVE_CUTOFF        : relcut                                           !
 !!  NGRID_LEVEL            : ngrid                                            !
 !!  METHOD                 : [GPW, GAPW]                                      !
-!!  PAO                                                                       !
 !!  wf_interpolation       : [use_guess,use_prev_p,use_prev_rho_r,            !
 !!                            linear_wf,linear_p,linear_ps, ps, use_prev_wf]  !
 !!                                                                            !
 !!<----------------------------------------------------------------------------
+  SUBROUTINE read_mgrid_section(qs_control,globenv,error)
 
-  SUBROUTINE read_qs_control(qs_control,globenv)
+    TYPE(qs_control_type), INTENT(INOUT)     :: qs_control
+    TYPE(global_environment_type), &
+      INTENT(INOUT)                          :: globenv
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
+
+    CHARACTER(LEN=*), PARAMETER :: &
+      routine = "SUBROUTINE read_mgrid_control "
+
+    LOGICAL                                  :: failure
+    INTEGER                                  :: j, jj, k, n_rep
+    INTEGER, DIMENSION(:), POINTER           :: tmplist
+    TYPE(section_vals_type), POINTER         :: mgrid_section
+
+!   ---------------------------------------------------------------------------
+
+    failure=.FALSE.
+    NULLIFY(mgrid_section)
+    mgrid_section => section_vals_get_subs_vals(globenv%input_file,"FORCE_EVAL",error=error)
+    mgrid_section => section_vals_get_subs_vals(mgrid_section,"DFT",error=error)
+    mgrid_section => section_vals_get_subs_vals(mgrid_section,"MGRID",error=error)
+
+  END SUBROUTINE read_mgrid_section
+
+  SUBROUTINE read_qs_section(qs_control,globenv,error)
+
+    TYPE(qs_control_type), INTENT(INOUT)     :: qs_control
+    TYPE(global_environment_type), &
+      INTENT(INOUT)                          :: globenv
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
+
+    CHARACTER(LEN=*), PARAMETER :: &
+      routine = "SUBROUTINE read_qs_control "
+
+    LOGICAL                                  :: failure, was_present
+    INTEGER                                  :: IVALUE, j, jj, k, n_rep
+    INTEGER, DIMENSION(:), POINTER           :: tmplist
+    REAL(dp) :: value
+    TYPE(section_vals_type), POINTER         :: qs_section,loc_section,&
+                                                mull_section,& 
+                                                se_section
+    
+!   ---------------------------------------------------------------------------
+
+    failure=.FALSE.
+    was_present = .FALSE.
+    NULLIFY(qs_section,loc_section,mull_section,se_section)
+
+    qs_section => section_vals_get_subs_vals(globenv%input_file,"FORCE_EVAL",error=error)
+    qs_section => section_vals_get_subs_vals(qs_section,"DFT",error=error)
+    qs_section => section_vals_get_subs_vals(qs_section,"QS",error=error)
+    loc_section => section_vals_get_subs_vals(qs_section,"LOCALIZE",error=error)
+    mull_section => section_vals_get_subs_vals(qs_section,"MULLIKEN", error=error)
+    se_section => section_vals_get_subs_vals(qs_section,"SE", error=error)
+
+    CALL section_vals_val_get(qs_section,"RESTART_FILE_NAME",c_val=globenv%restart_file_name,error=error)
+
+    CALL section_vals_val_get(qs_section,"EPS_DEFAULT",r_val=value,error=error)
+    qs_control%eps_core_charge = value/100.0_dp
+    qs_control%eps_pgf_orb = SQRT(value)
+    qs_control%eps_ppl = value/100.0_dp
+    qs_control%eps_ppnl = value/100.0_dp
+    qs_control%eps_rho_gspace = value
+    qs_control%eps_rho_rspace = value
+    qs_control%eps_gvg_rspace = SQRT(value)
+
+    CALL section_vals_val_get(qs_section,"EPS_CORE_CHARGE",r_val=qs_control%eps_core_charge,error=error)
+    CALL section_vals_val_get(qs_section,"EPS_GVG_RSPACE",r_val=qs_control%eps_gvg_rspace,error=error)
+    CALL section_vals_val_get(qs_section,"EPS_PGF_ORB",r_val=qs_control%eps_pgf_orb,error=error)
+    CALL section_vals_val_get(qs_section,"EPS_PPL",r_val=qs_control%eps_ppl,error=error)
+    CALL section_vals_val_get(qs_section,"EPS_PPNL",r_val=qs_control%eps_ppnl,error=error)
+    CALL section_vals_val_get(qs_section,"EPS_RHO",r_val=qs_control%eps_rho_gspace,error=error)
+    qs_control%eps_rho_rspace = qs_control%eps_rho_gspace
+    CALL section_vals_val_get(qs_section,"EPS_RHO_SPACE",r_val=qs_control%eps_rho_rspace,error=error)
+
+    ! Gapw
+    CALL section_vals_val_get(qs_section,"EPSFIT",r_val=qs_control%gapw_control%eps_fit,error=error)
+    CALL section_vals_val_get(qs_section,"EPSISO",r_val=qs_control%gapw_control%eps_iso,error=error)
+    CALL section_vals_val_get(qs_section,"EPSRHO0",r_val=qs_control%gapw_control%eps_Vrho0,error=error)
+    CALL section_vals_val_get(qs_section,"ALPHA0_HARD",r_val=qs_control%gapw_control%alpha0_hard,error=error)
+    qs_control%gapw_control%alpha0_hard_from_input = .FALSE.
+    IF(qs_control%gapw_control%alpha0_hard/=0.0_dp) qs_control%gapw_control%alpha0_hard_from_input = .TRUE.
+    CALL section_vals_val_get(qs_section,"ALPHA0_SOFT",r_val=qs_control%gapw_control%alpha0_soft,error=error)
+    qs_control%gapw_control%alpha0_soft_from_input = .FALSE.
+    IF(qs_control%gapw_control%alpha0_soft/=0.0_dp) qs_control%gapw_control%alpha0_soft_from_input = .TRUE.
+
+    ! Logicals
+    CALL section_vals_val_get(qs_section,"MAP_PAA",l_val=qs_control%map_paa,error=error)
+    CALL section_vals_val_get(qs_section,"MAP_CONSISTENT",l_val=qs_control%map_consistent,error=error)
+    CALL section_vals_val_get(qs_section,"MULLIKEN_RESTRAINT",l_val=qs_control%mulliken_restraint,error=error)
+    CALL section_vals_val_get(qs_section,"LOCALIZE_WFN",l_val=qs_control%localized_wfn,error=error)
+
+    ! Integers gapw
+    CALL section_vals_val_get(qs_section,"LMAXN1",i_val=qs_control%gapw_control%lmax_sphere,error=error)
+    CALL section_vals_val_get(qs_section,"LMAXN0",i_val=qs_control%gapw_control%lmax_rho0,error=error)
+    CALL section_vals_val_get(qs_section,"LADDN0",i_val=qs_control%gapw_control%ladd_rho0,error=error)
+    CALL section_vals_val_get(qs_section,"QUADRATURE",i_val=qs_control%gapw_control%quadrature,error=error)
+    qs_control%gapw_control%quadrature_name=quadrature_name(qs_control%gapw_control%quadrature)
+    
+    ! Integers grids
+    CALL section_vals_val_get(qs_section,"PW_GRID",i_val=qs_control%pw_grid_opt_id,error=error)
+    SELECT CASE (ivalue)
+    CASE(do_pwgrid_spherical)
+       qs_control%pw_grid_opt%spherical = .TRUE.
+       qs_control%pw_grid_opt%fullspace = .FALSE.
+    CASE (do_pwgrid_ns_fullspace)
+       qs_control%pw_grid_opt%spherical = .FALSE.
+       qs_control%pw_grid_opt%fullspace = .TRUE.
+    CASE (do_pwgrid_ns_halfspace)
+       qs_control%pw_grid_opt%spherical = .FALSE.
+       qs_control%pw_grid_opt%fullspace = .FALSE.
+    END SELECT
+
+    CALL section_vals_val_get(qs_section,"RS_GRID",i_val=qs_control%rs_distributed_id,error=error)
+
+    !Integers extrapolation
+    CALL section_vals_val_get(qs_section,"EXTRAPOLATION",i_val=qs_control%wf_interpolation_method_nr,error=error)
+    CALL section_vals_val_get(qs_section,"EXTRAPOLATION_ORDER",i_val=qs_control%wf_extrapolation_order,error=error)
+    
+    !Method
+    CALL section_vals_val_get(qs_section,"METHOD",i_val=qs_control%method_id,error=error)
+    qs_control %method = elstr_method_name(qs_control %method_id)
+    qs_control%gapw = .FALSE.
+    qs_control%gpw = .FALSE.
+    qs_control%semi_empirical = .FALSE.
+    IF(qs_control %method_id==do_method_gapw) qs_control%gapw = .TRUE.
+    IF(qs_control %method_id==do_method_gpw) qs_control%gpw = .TRUE.
+    IF(qs_control %method_id >= do_method_eht .AND. qs_control %method_id <= do_method_pm3)&
+                              qs_control%semi_empirical = .TRUE.
+    
+    CALL read_loc_section(qs_control%localized_wfn_control,loc_section,error=error)
+
+!    CALL read_mulliken_section()
+    CALL section_vals_val_get(mull_section,"STRENGTH",r_val=qs_control%mulliken_restraint_control%strength,error=error)
+    CALL section_vals_val_get(mull_section,"TARGET",r_val=qs_control%mulliken_restraint_control%target,error=error)
+    CALL section_vals_val_get(mull_section,"NATOMS",i_val=qs_control%mulliken_restraint_control%natoms,error=error)
+    IF(qs_control%mulliken_restraint_control%natoms .GT. 0) THEN
+      ALLOCATE(qs_control%mulliken_restraint_control%atoms(qs_control%mulliken_restraint_control%natoms))
+      CALL section_vals_val_get(mull_section,"ATOMS",n_rep_val=n_rep,error=error)
+      jj = 0
+      do k = 1,n_rep
+       CALL section_vals_val_get(mull_section,"ATOMS",i_rep_val=k,i_vals=tmplist, error=error)
+       DO  j = 1,SIZE(tmplist) 
+         jj = jj+1
+         qs_control%mulliken_restraint_control%atoms (jj) = tmplist(j) 
+       END DO 
+      end do
+    ELSE
+      IF(ASSOCIATED(qs_control%mulliken_restraint_control%atoms)) &
+          DEALLOCATE(qs_control%mulliken_restraint_control%atoms)
+      NULLIFY(qs_control%mulliken_restraint_control%atoms)
+    END IF
+
+!    CALL read_se_control_section()
+    CALL section_vals_val_get(se_section,"orthogonal_basis",l_val=qs_control%se_control%orthogonal_basis,error=error)
+    CALL section_vals_val_get(se_section,"EWALD",l_val=qs_control%se_control%ewald,error=error)
+    CALL section_vals_val_get(se_section,"DELTA",r_val=qs_control%se_control%delta,error=error)
+    CALL section_vals_val_get(se_section,"ALPHA_GAUSS",r_val=qs_control%se_control%alpha_gauss,error=error)
+    CALL section_vals_val_get(se_section,"EPS_GAUSS",r_val=qs_control%se_control%eps_gauss,error=error)
+    CALL section_vals_val_get(se_section,"RC_EXCHANGE",r_val=qs_control%se_control%rc_exchange,error=error)
+    CALL section_vals_val_get(se_section,"RC_COULOMB",r_val=qs_control%se_control%rc_coulomb,error=error)
+
+  END SUBROUTINE read_qs_section
+
+
+  SUBROUTINE read_qs_control(qs_control,globenv,error)
 
 !   Purpose: Read the QUICKSTEP/KG control parameters.
 
@@ -845,6 +1028,8 @@ CONTAINS
     TYPE(qs_control_type), INTENT(INOUT)     :: qs_control
     TYPE(global_environment_type), &
       INTENT(INOUT)                          :: globenv
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
 
     CHARACTER(LEN=*), PARAMETER :: &
       routine = "SUBROUTINE read_qs_control (MODULE dft_types)"
@@ -857,14 +1042,26 @@ CONTAINS
                                                 ngrid_set, progression_set, &
                                                 section_found
     REAL(KIND=dp)                            :: value
-
+    TYPE(section_vals_type), POINTER         :: qs_section 
 !   ---------------------------------------------------------------------------
+
+    IF (parsed_cp2k_input(globenv%input_file,error=error)) THEN
+       qs_section => section_vals_get_subs_vals(globenv%input_file,&
+            "FORCE_EVAL%DFT%QS",error=error)
+       IF (parsed_cp2k_input(qs_section,check_this_section=.TRUE.,error=error)) THEN
+          CALL read_qs_section(qs_control,globenv)
+          CALL read_mgrid_section(qs_control,globenv)
+          RETURN
+       END IF
+    END IF
+
+
 !   *** Load the default values ***
 ! is now set as would result from EPS_DEFAULT=1.0E-10
 
     qs_control%method = "GPW"
+    qs_control%method_id = do_method_gpw
     qs_control%eps_core_charge = 1.0E-12_dp
-    qs_control%eps_pgf_aux = 1.0E-5_dp
     qs_control%eps_pgf_orb = 1.0E-5_dp
     qs_control%eps_ppl = 1.0E-12_dp
     qs_control%eps_ppnl = 1.0E-12_dp
@@ -875,11 +1072,12 @@ CONTAINS
     qs_control%relative_cutoff = 15.0_dp ! to 15 a.u. 30 Ry
     qs_control%gapw = .FALSE.
     qs_control%gpw = .TRUE.
-    qs_control%pao = .FALSE.
     qs_control%semi_empirical = .FALSE.
     qs_control%pw_grid_opt%spherical = .FALSE.
     qs_control%pw_grid_opt%fullspace = .TRUE.
+    qs_control%pw_grid_opt_id = do_pwgrid_ns_fullspace
     qs_control%rs_distributed = .FALSE.
+    qs_control%rs_distributed_id = do_rsgrid_replicated
     qs_control%wf_interpolation_method_nr = wfi_linear_p_method_nr
     qs_control%commensurate_mgrids = .FALSE.
     qs_control%realspace_mgrids = .FALSE.
@@ -986,7 +1184,7 @@ CONTAINS
             ! the /100 is used to set some of the parameters to a stricter value
             ! because they seem computationally not very expensive
             qs_control%eps_core_charge = value/100.0_dp
-            qs_control%eps_pgf_aux = SQRT(value) 
+!            qs_control%eps_pgf_aux = SQRT(value) 
             qs_control%eps_pgf_orb = SQRT(value)
             qs_control%eps_ppl = value/100.0_dp
             qs_control%eps_ppnl = value/100.0_dp
@@ -997,8 +1195,8 @@ CONTAINS
             CALL read_object(qs_control%eps_core_charge)
           CASE (qs_key_EPS_GVG_RSPACE)
             CALL read_object(qs_control%eps_gvg_rspace)
-          CASE (qs_key_EPS_PGF_AUX)
-            CALL read_object(qs_control%eps_pgf_aux)
+!          CASE (qs_key_EPS_PGF_AUX)
+!            CALL read_object(qs_control%eps_pgf_aux)
           CASE (qs_key_EPS_PGF_ORB)
             CALL read_object(qs_control%eps_pgf_orb)
           CASE (qs_key_EPS_PPL)
@@ -1030,36 +1228,45 @@ CONTAINS
             CASE ("GAPW")
               qs_control%method = "GAPW"
               qs_control%gapw = .TRUE.
+              qs_control%method_id = do_method_gapw
             CASE ("GPW")
               qs_control%method = "GPW"
               qs_control%gpw = .TRUE.
+              qs_control%method_id = do_method_gpw
             CASE ("KG_POL")
               qs_control%method = "KG_POL"
               qs_control%polarization = .TRUE.
+              qs_control%method_id = do_method_kg_pol
             CASE ("KG_NOPOL")
               qs_control%method = "KG_NOPOL"
               qs_control%polarization = .FALSE.
+              qs_control%method_id = do_method_kg_nopol
             CASE ("KG_GPW")
               qs_control%method = "KG_GPW"
               qs_control%polarization = .FALSE.
+              qs_control%method_id = do_method_kg_gpw
             CASE ("EHT")
               qs_control%method = "EHT"
               qs_control%semi_empirical = .TRUE.
+              qs_control%method_id = do_method_eht
               qs_control%se_control%orthogonal_basis = .FALSE.
             CASE ("MNDO")
               qs_control%method = "MNDO"
               qs_control%semi_empirical = .TRUE.
+              qs_control%method_id = do_method_mndo
               qs_control%se_control%orthogonal_basis = .TRUE.
 !deb          qs_control%se_control%ewald = .TRUE.
             CASE ("AM1")
               qs_control%method = "AM1"
               qs_control%semi_empirical = .TRUE.
               qs_control%se_control%orthogonal_basis = .TRUE.
+              qs_control%method_id = do_method_am1
 !deb          qs_control%se_control%ewald = .TRUE.
             CASE ("PM3")
               qs_control%method = "PM3"
               qs_control%semi_empirical = .TRUE.
               qs_control%se_control%orthogonal_basis = .TRUE.
+              qs_control%method_id = do_method_pm3
 !deb          qs_control%se_control%ewald = .TRUE.
             CASE DEFAULT
               CALL stop_parser(routine,"Invalid method <"//TRIM(keyword)//&
@@ -1106,8 +1313,6 @@ CONTAINS
             CALL read_object(value)
             qs_control%gapw_control%alpha0_soft = value
             qs_control%gapw_control%alpha0_soft_from_input = .TRUE.
-          CASE (qs_key_PAO)
-            qs_control%pao = .TRUE.
           CASE (qs_key_MULLIKEN_RESTRAINT)
             qs_control%mulliken_restraint = .TRUE.
             SELECT CASE (test_object())
@@ -1152,14 +1357,17 @@ CONTAINS
             CASE ("SPHERICAL")
               qs_control%pw_grid_opt%spherical = .TRUE.
               qs_control%pw_grid_opt%fullspace = .FALSE.
+              qs_control%pw_grid_opt_id=do_pwgrid_spherical
             CASE ("NON-SPHERICAL")
               qs_control%pw_grid_opt%spherical = .FALSE.
               CALL read_object(string2,lower_to_upper=.TRUE.)
               SELECT CASE (string2)
               CASE ("FULLSPACE")
                 qs_control%pw_grid_opt%fullspace = .TRUE.
+                qs_control%pw_grid_opt_id=do_pwgrid_ns_fullspace
               CASE ("HALFSPACE")
                 qs_control%pw_grid_opt%fullspace = .FALSE.
+                qs_control%pw_grid_opt_id=do_pwgrid_ns_halfspace
               CASE DEFAULT
                 CALL stop_parser(routine,"Invalid method <"//TRIM(keyword)//&
                                          "> specified for PW_GRID NON-SPHERICAL")
@@ -1173,8 +1381,10 @@ CONTAINS
             SELECT CASE (string)
             CASE ("DISTRIBUTED")
                  qs_control%rs_distributed = .TRUE.
+                 qs_control%rs_distributed_id = do_rsgrid_distributed
             CASE ("REPLICATED")
                  qs_control%rs_distributed = .FALSE.
+                 qs_control%rs_distributed_id = do_rsgrid_replicated
             CASE DEFAULT
                 CALL stop_parser(routine,"Invalid method <"//TRIM(string)//&
                                          "> specified for RS_GRID")
@@ -1889,9 +2099,6 @@ CONTAINS
                 ("QS|                         ",igrid_level,") grid level",&
               qs_control%e_cutoff(igrid_level),&
               igrid_level=2,SIZE(qs_control%e_cutoff))
-      END IF
-      IF (qs_control%pao) THEN
-         WRITE (UNIT=output_unit,FMT="(T2,A)") "QS| PAO active"
       END IF
       WRITE (UNIT=output_unit,FMT="(T2,A,T71,F10.1)")&
         "QS| Grid level progression factor:",qs_control%progression_factor

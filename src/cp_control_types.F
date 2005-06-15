@@ -130,6 +130,7 @@ MODULE cp_control_types
   TYPE qs_control_type
 !MK PRIVATE would be nice
     CHARACTER(LEN=10)               :: method
+    INTEGER                         :: method_id
     REAL(KIND = dp)                 :: eps_core_charge,&
                                        eps_pgf_aux,&
                                        eps_pgf_orb,&
@@ -144,7 +145,7 @@ MODULE cp_control_types
     LOGICAL                         :: realspace_mgrids
     LOGICAL                         :: map_paa
     LOGICAL                         :: map_consistent
-    LOGICAL                         :: gapw,gpw,pao
+    LOGICAL                         :: gapw,gpw
     LOGICAL                         :: semi_empirical
     LOGICAL                         :: polarization
     LOGICAL                         :: mulliken_restraint
@@ -156,7 +157,9 @@ MODULE cp_control_types
     REAL(KIND = dp), DIMENSION(:), POINTER  :: e_cutoff
     TYPE (gapw_control_type), POINTER       :: gapw_control
     TYPE ( pw_grid_option )         :: pw_grid_opt
+    INTEGER                         :: pw_grid_opt_id
     LOGICAL                         :: rs_distributed
+    INTEGER                         :: rs_distributed_id
     INTEGER                         :: wf_interpolation_method_nr
     INTEGER                         :: wf_extrapolation_order
   END TYPE qs_control_type

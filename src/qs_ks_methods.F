@@ -701,7 +701,7 @@ CONTAINS
                "Core Hamiltonian energy of separated molecules:",energy%core,&
                "Hartree energy of the total density:           ",energy%hartree,&
                "XC and Kin. energy of the total density:       ",energy%exc,&
-               "Kin. enery of the molecular densities:         ",energy%kg_gpw_ekin_mol
+               "Kin. energy of the molecular densities:        ",energy%kg_gpw_ekin_mol
           ELSE
             WRITE (UNIT=output_unit,FMT="(/,(T3,A,T60,F20.10))")&
                "Core Hamiltonian energy:                       ",energy%core,&

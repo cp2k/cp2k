@@ -130,7 +130,7 @@ MODULE qs_loc_control
             localized_wfn_control_release,&
             localized_wfn_control_retain,&
             read_loc_control_old,&
-            read_loc_control_new,&
+            read_loc_section,&
             set_loc_wfn_lists,&
             set_loc_centers
 
@@ -228,10 +228,10 @@ CONTAINS
    localized_wfn_control%ref_count=localized_wfn_control%ref_count+1
   END SUBROUTINE localized_wfn_control_retain
 
-!!****f* qs_loc_control/read_loc_control_new *
+!!****f* qs_loc_control/read_loc_section *
 !!
 !!   NAME
-!!      read_loc_control_new
+!!      read_loc_section
 !!   FUNCTION
 !!      read the controlparameter from input, using the new input scheme
 !!   NOTES
@@ -244,14 +244,14 @@ CONTAINS
 !!   SOURCE
 !!*** **********************************************************************
 
-  SUBROUTINE read_loc_control_new(localized_wfn_control,loc_section,error)
+  SUBROUTINE read_loc_section(localized_wfn_control,loc_section,error)
 
     TYPE(localized_wfn_control_type), POINTER :: localized_wfn_control
     TYPE(section_vals_type), POINTER          :: loc_section
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                                :: error
 
-    CHARACTER(LEN=*), PARAMETER ::  routine_name = "read_loc_control_new", &
+    CHARACTER(LEN=*), PARAMETER ::  routine_name = "read_loc_section", &
       routineP = module_name//"/"//routine_name
 
     INTEGER                                   :: nloc_now, i, istat
@@ -314,13 +314,9 @@ CONTAINS
 
       CALL section_vals_val_get(loc_section,"FNAME",&
            c_val=localized_wfn_control%loc_rootfname,error=error)
-
-
     END IF
 
-
-
-  END SUBROUTINE read_loc_control_new
+  END SUBROUTINE read_loc_section
 
 !!****f* qs_loc_control/read_loc_control_old *
 !!

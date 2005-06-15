@@ -480,13 +480,11 @@ CONTAINS
       END IF
     END IF
 
-    CALL section_vals_get(grid_section,explicit=was_present,error=error)
-    if (was_present) then
-       CALL section_vals_val_get(grid_section,"XC_SMOOTH_RHO",&
-            i_val=xc_control%xc_rho_smooth_id,error=error)
-       CALL section_vals_val_get(grid_section,"XC_DERIV",&
-            i_val=xc_control%xc_deriv_method_id,error=error)
-    end if
+    ! Assign smoothing parameters
+     CALL section_vals_val_get(grid_section,"XC_SMOOTH_RHO",&
+          i_val=xc_control%xc_rho_smooth_id,error=error)
+     CALL section_vals_val_get(grid_section,"XC_DERIV",&
+          i_val=xc_control%xc_deriv_method_id,error=error)
 
   END SUBROUTINE read_xc_control
 

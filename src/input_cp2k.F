@@ -1089,8 +1089,23 @@ contains
        CALL section_add_subsection(section,print_key,error=error)
        CALL section_release(print_key,error=error)
 
+       CALL cp_print_key_section_create(print_key,"DIPOLE",&
+            description="Calculates the dipole, for the moment it only supports"//&
+            "the stupid non periodic dipole, should be extended soon", &
+            print_level=high_print_level,each=(/1/),filename=" ",&
+            common_iter_levels=1,error=error)
+       CALL section_add_subsection(section,print_key,error=error)
+       CALL section_release(print_key,error=error)
+
        CALL cp_print_key_section_create(print_key,"MULLIKEN",&
             description="Controls the printing of the Mulliken Population analysis.", &
+            print_level=silent_print_level,each=(/1/),filename="__STD_OUT__",&
+            error=error)
+       CALL section_add_subsection(section,print_key,error=error)
+       CALL section_release(print_key,error=error)
+
+       CALL cp_print_key_section_create(print_key,"LOCALIZED_WFN",&
+            description="Controls the printing of new localized wavefunctions method.", &
             print_level=silent_print_level,each=(/1/),filename="__STD_OUT__",&
             error=error)
        CALL section_add_subsection(section,print_key,error=error)
@@ -1247,6 +1262,7 @@ SUBROUTINE create_qs_section(section,error)
      CALL section_add_keyword(section,keyword,error=error)
      CALL keyword_release(keyword,error=error)
 
+
      ! Logicals
      CALL keyword_create(keyword, name="MAP_PAA",&
           description="Put diagonal density matrix elements on the highest cutoff multigrid",&
@@ -1276,6 +1292,7 @@ SUBROUTINE create_qs_section(section,error)
      CALL section_add_keyword(section,keyword,error=error)
      CALL keyword_release(keyword,error=error) 
 
+     NULLIFY(subsection)
      CALL create_localize_section(subsection,error)
      CALL section_add_subsection(section, subsection, error=error)
      CALL section_release(subsection,error=error)
@@ -1353,6 +1370,14 @@ SUBROUTINE create_qs_section(section,error)
      CALL section_add_keyword(section,keyword,error=error)
      CALL keyword_release(keyword,error=error)
 
+     CALL keyword_create(keyword, name="EXTRAPOLATION_ORDER",&
+          description="Order for the PS extrapolation",&
+          usage="EXTRAPOLATION_ORDER {integer}",default_i_val=0, error=error)
+     CALL section_add_keyword(section,keyword,error=error)
+     CALL keyword_release(keyword,error=error)
+
+
+
      CALL keyword_create(keyword, name="METHOD",&
           description="What method should be employed",&
           usage="METHOD GAPW",&
@@ -1360,7 +1385,7 @@ SUBROUTINE create_qs_section(section,error)
           enum_desc=s2a("Gaussian and augmented plane waves method",&
                         "Gaussian and plane waves method",&
                         "Polarisable Kim-Gordon method",&
-                        "Non-polarisable Kim-Gordon method", " ? ",&
+                        "Non-polarisable Kim-Gordon method", " DFT Embedding method ",&
                         "EHT semiempirical","MNDO semiempirical","AM1 semiempirical",&
                         "PM3 semiempirical"),&
           enum_i_vals=(/ do_method_gapw, do_method_gpw, do_method_kg_pol,&
@@ -1370,30 +1395,140 @@ SUBROUTINE create_qs_section(section,error)
      CALL section_add_keyword(section,keyword,error=error)
      CALL keyword_release(keyword,error=error)
 
-     nullify(print_key)
-     CALL cp_print_key_section_create(print_key,"DIPOLE",&
-          description="Calculates the dipole, for the moment it only supports"//&
-          "the stupid non periodic dipole, should be extended soon", &
-          print_level=high_print_level,each=(/1/),filename=" ",&
-          common_iter_levels=1,error=error)
-     CALL section_add_subsection(section,print_key,error=error)
-     CALL section_release(print_key,error=error)
+     NULLIFY(subsection)
+     CALL create_se_control_section(subsection,error)
+     CALL section_add_subsection(section, subsection, error=error)
+     CALL section_release(subsection,error=error)
 
-     CALL cp_print_key_section_create(print_key,"MULLIKEN",&
-          description="Calculates the mulliken charges of the system",&
-          print_level=high_print_level,each=(/1/), filename="__STD_OUT__", &
-          common_iter_levels=1,error=error)
-     CALL section_add_subsection(section,print_key,error=error)
-     CALL section_release(print_key,error=error)
-     CALL create_harris_section(subsection,error=error)
-     CALL section_add_subsection(section,subsection,error=error)
-     CALL section_release(subsection, error=error)
+     NULLIFY(subsection)
+     CALL create_mulliken_section(subsection,error)
+     CALL section_add_subsection(section, subsection, error=error)
+     CALL section_release(subsection,error=error)
+
+     NULLIFY(subsection)
+     CALL create_harris_section(subsection,error)
+     CALL section_add_subsection(section, subsection, error=error)
+     CALL section_release(subsection,error=error) 
+
   END IF
 
 END SUBROUTINE create_qs_section
 
+SUBROUTINE create_se_control_section(section,error)
+    TYPE(section_type), POINTER              :: section
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'create_se_section', &
+      routineP = moduleN//':'//routineN
+
+    LOGICAL                                  :: failure
+    TYPE(keyword_type), POINTER              :: keyword
+
+    failure=.FALSE.
+
+    CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
+    IF (.NOT. failure) THEN
+      CALL section_create(section,"SE",&
+           description="parameters needed to set up the Semiempirical method",&
+           n_keywords=7, n_subsections=0, repeats=.FALSE., required=.FALSE.,&
+           error=error)
+
+      CALL keyword_create(keyword, name="orthogonal_basis",&
+           description="Use orthogonal basis",&
+           usage="ORTHOGONAL_BASIS ",default_l_val=.FALSE., error=error)
+     CALL section_add_keyword(section,keyword,error=error)
+     CALL keyword_release(keyword,error=error)
+
+     CALL keyword_create(keyword, name="EWALD",&
+          description="Do ewald",&
+           usage="EWALD ",default_l_val=.FALSE., error=error)
+     CALL section_add_keyword(section,keyword,error=error)
+     CALL keyword_release(keyword,error=error)
+
+     CALL keyword_create(keyword, name="DELTA",&
+          description="??",&
+          usage="DELTA {real} ",default_r_val=1.e-6_dp, error=error)
+     CALL section_add_keyword(section,keyword,error=error)
+     CALL keyword_release(keyword,error=error)
+
+     CALL keyword_create(keyword, name="ALPHA_GAUSS",&
+          description="??",&
+          usage="ALPHA_GAUSS {real} ",default_r_val=1._dp, error=error)
+     CALL section_add_keyword(section,keyword,error=error)
+     CALL keyword_release(keyword,error=error)
+
+     CALL keyword_create(keyword, name="EPS_GAUSS",&
+          description="??",&
+          usage="EPS_GAUSS {real} ",default_r_val=1.e-8_dp, error=error)
+     CALL section_add_keyword(section,keyword,error=error)
+     CALL keyword_release(keyword,error=error)
+
+     CALL keyword_create(keyword, name="RC_EXCHANGE",&
+          description="??",&
+          usage="RC_EXCHANGE {real} ",default_r_val=25._dp, error=error)
+     CALL section_add_keyword(section,keyword,error=error)
+     CALL keyword_release(keyword,error=error)
+ 
+     CALL keyword_create(keyword, name="RC_COULOMB",&
+          description="??",&
+          usage="RC_COULOMB {real} ",default_r_val=10._dp, error=error)
+     CALL section_add_keyword(section,keyword,error=error)
+     CALL keyword_release(keyword,error=error)
+
+    END IF
+
+END SUBROUTINE create_se_control_section
+
+SUBROUTINE create_mulliken_section(section,error)
+    TYPE(section_type), POINTER              :: section
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'create_mulliken_section', &
+      routineP = moduleN//':'//routineN
+
+    LOGICAL                                  :: failure
+    TYPE(keyword_type), POINTER              :: keyword
+
+    failure=.FALSE.
+    CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
+    IF (.NOT. failure) THEN
+      CALL section_create(section,"MULLIKEN",&
+           description="parameters needed to calculate the Mulliken charges",&
+           n_keywords=7, n_subsections=0, repeats=.FALSE., required=.FALSE.,&
+           error=error)
+
+      CALL keyword_create(keyword, name="STRENGTH",&
+           description="??",&
+           usage="STRENGTH {real} ",default_r_val=0.1_dp, error=error)
+      CALL section_add_keyword(section,keyword,error=error)
+      CALL keyword_release(keyword,error=error)
+  
+      CALL keyword_create(keyword, name="TARGET",&
+           description="??",&
+           usage="TARGET {real} ",default_r_val=1._dp, error=error)
+      CALL section_add_keyword(section,keyword,error=error)
+      CALL keyword_release(keyword,error=error)
+
+      CALL keyword_create(keyword, name="NATOMS",&
+           description="??",&
+           usage="NATOMS {integer} ",default_i_val=0, error=error)
+      CALL section_add_keyword(section,keyword,error=error)
+      CALL keyword_release(keyword,error=error)
+
+      CALL keyword_create(keyword, name="ATOMS",&
+           description="Specifies a list of atoms to ....",&
+           usage="LIST {integer} {integer} .. {integer}", required=.TRUE.,&
+           n_var=-1, type_of_var=integer_t, error=error)
+      CALL section_add_keyword(section,keyword,error=error)
+      CALL keyword_release(keyword,error=error)
+    END IF
+
+END SUBROUTINE create_mulliken_section
+
+
 !!****f* xc_derivatives/create_xc_fun_section [1.0] *
-!!
 !!   NAME
 !!     create_xc_fun_section
 !!
@@ -1885,7 +2020,7 @@ SUBROUTINE create_tddfpt_section(section,error)
 
        CALL keyword_create(keyword, name="xc_deriv",&
             description="The method used to compute the derivatives",&
-            usage="xc_deriv NN10_SMOOTH", default_i_val=xc_deriv_spline2,&
+            usage="xc_deriv NN10_SMOOTH", default_i_val=xc_deriv_pw,&
             enum_c_vals=s2a("PW","SPLINE3","SPLINE2","NN50_SMOOTH","NN10_SMOOTH",&
             "SPLINE2_SMOOTH", "NN6_SMOOTH", "SPLINE3_SMOOTH", "NN4_SMOOTH"),&
             enum_i_vals=(/xc_deriv_pw, xc_deriv_spline3, xc_deriv_spline2,&
@@ -7047,6 +7182,7 @@ END SUBROUTINE create_ewald_section
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
+
 ! Character
        CALL keyword_create(keyword, name="UNITS",&
             variants=(/"UNIT"/),& 
@@ -7573,7 +7709,7 @@ END SUBROUTINE create_ot_section
            description="Type of integral to get the oscillator strengths "//&
            "in the diipole approximation",&
            usage="DIPOLE_FORM string",&
-           default_i_val=xas_dip_len,&
+           default_i_val=xas_dip_vel,&
            enum_c_vals=s2a( "LENGTH","VELOCITY" ),&
            enum_desc=s2a("Length form <i|e r |j>","Velocity form <i|d/dr|j>"),&
            enum_i_vals=(/xas_dip_len,xas_dip_vel/),error=error)

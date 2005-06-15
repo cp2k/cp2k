@@ -43,7 +43,7 @@ MODULE xas_control
   USE qs_loc_control,                  ONLY: localized_wfn_control_create,&
                                              localized_wfn_control_release,&
                                              localized_wfn_control_type,&
-                                             read_loc_control_new,&
+                                             read_loc_section,&
                                              read_loc_control_old
   USE qs_parser,                       ONLY: read_object,&
                                              stop_parser,&
@@ -205,7 +205,7 @@ CONTAINS
     loc_section =>section_vals_get_subs_vals(xas_section,"LOCALIZE",error=error)
     call section_vals_get(loc_section,explicit=was_present,error=error)
     if (was_present) then
-      CALL read_loc_control_new(xas_control%localized_wfn_control,loc_section,error=error)
+      CALL read_loc_section(xas_control%localized_wfn_control,loc_section,error=error)
     end if
 
   END SUBROUTINE read_xas_control_new

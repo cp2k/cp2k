@@ -269,7 +269,7 @@ CONTAINS
        CALL get_qs_env(qs_env=qs_env,pw_env=pw_env)
 
 !    *** compute the mulliken charges ***
-       print_key => section_vals_get_subs_vals(input,"DFT%QS%MULLIKEN", error=error)
+       print_key => section_vals_get_subs_vals(input,"DFT%PRINT%MULLIKEN", error=error)
        IF (cp_should_output(logger%iter_info,print_key,error=error)) THEN
           unit_nr=cp_unitnr_for_output(logger, print_key, extension=".mulliken", &
                local=.FALSE., log_filename=.FALSE., error=error)
@@ -719,7 +719,7 @@ CONTAINS
        ENDIF
 
 !    *** stupid (non periodic) calculation of the dipole moment ***
-       print_key => section_vals_get_subs_vals(input,"DFT%QS%DIPOLE",&
+       print_key => section_vals_get_subs_vals(input,"DFT%PRINT%DIPOLE",&
             error=error)
        IF (cp_should_output(logger%iter_info,print_key,error=error)) THEN
           unit_nr=cp_unitnr_for_output(logger, print_key, extension=".dipole",&

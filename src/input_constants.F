@@ -109,6 +109,11 @@ MODULE input_constants
   integer, parameter, public :: do_gapw_gcs=1,&
        do_gapw_gct=2,&
        do_gapw_log=3
+  CHARACTER (LEN=default_string_length), PARAMETER, DIMENSION(3), PUBLIC :: quadrature_name=&
+       (/"Gauss-Chebyshev         ",&
+         "Trans_Gauss-Chebyshev   ",&
+         "LogTrans-Gauss-Chebyshev"/)
+
   integer, parameter, public :: do_pwgrid_spherical=1,&
        do_pwgrid_ns_fullspace=2,&
        do_pwgrid_ns_halfspace=3
@@ -120,6 +125,10 @@ MODULE input_constants
        do_etrxpl_linear_ps=5,&
        do_etrxpl_use_prev_wf=6,&
        do_etrxpl_ps=7
+  CHARACTER (LEN=default_string_length), PARAMETER, DIMENSION(9), PUBLIC :: elstr_method_name=&
+      (/"GAPW    ", "GPW     ",&
+        "KG_POL  ", "KG_NOPOL", "KG_GPW  ", &
+        "EHT     ", "MNDO    ", "AM1     ", "PM3     "/)
   INTEGER, PARAMETER, PUBLIC :: do_method_gapw=1,&
        do_method_gpw=2,&
        do_method_kg_pol=3,&
