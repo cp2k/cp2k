@@ -4998,6 +4998,13 @@ SUBROUTINE create_tddfpt_section(section,error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
+       CALL keyword_create(keyword, name="MOL_CHECK",&
+            description="Check molecules have the same number of atom and names.",&
+            usage="MOL_CHECK logical",&
+            default_l_val=.FALSE.,lone_keyword_l_val=.TRUE.,error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
        ! Character
        CALL keyword_create(keyword, name="COORD_FILE",&
             variants=s2a("COORD_FI", "COORD_FILE_NAME"),&

@@ -171,6 +171,8 @@ SUBROUTINE read_topology_section ( topology, globenv )
            topology % dump_topology = .TRUE.
         CASE ('REORDER')
            topology % reorder_atom = .TRUE.
+        CASE ('MOL_CHECK')
+           topology % molecules_check = .TRUE.
         CASE ('COORD_FI','COORD_FILE','COORD_FILE_NAME')
            ilen = 40
            CALL get_next(topology % coord_file_name,ilen)

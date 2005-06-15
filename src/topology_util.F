@@ -115,7 +115,8 @@ MODULE topology_util
             topology_generate_impr,&
             topology_generate_molecule,&
             topology_generate_onfo,&
-            topology_generate_ub
+            topology_generate_ub,&
+            topology_molecules_check
 
 !!*****
 !******************************************************************************
@@ -3870,6 +3871,146 @@ SUBROUTINE topology_constraint_pack ( molecule_kind_set,molecule_set,&
   CALL write_checkpoint_information("leaving "//routineN,globenv)
 
 END SUBROUTINE topology_constraint_pack
+
+
+!
+!******************************************************************************
+!!****** topology_util [1.0] *
+!!
+!!   NAME
+!!     topology_molecules_check
+!!
+!!   SYNOPSIS
+!!
+!!   FUNCTION
+!!     Check and verify that all molecules of the same kind are bonded the same
+!!
+!!   AUTHOR
+!!
+!!   MODIFICATION HISTORY
+!!
+!!   SOURCE
+!******************************************************************************
+SUBROUTINE topology_molecules_check(topology,globenv)
+
+    TYPE(topology_parameters_type), &
+      INTENT(INOUT)                          :: topology
+    TYPE(global_environment_type), &
+      INTENT(IN), OPTIONAL                   :: globenv
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'topology_molecules_check', &
+      routineP = moduleN//':'//routineN
+    TYPE(atom_info_type),POINTER             :: atom_info
+    TYPE(connectivity_info_type),POINTER     :: conn_info
+
+    INTEGER                                  :: iw,istat
+    LOGICAL                                  :: PM1, PM2, PM3, PM4
+
+    INTEGER                                  :: counter,iatom,imol,nmol,nmol_typ
+    INTEGER                                  :: natom,imol_typ
+    INTEGER                                  :: first,last,first2,last2
+
+!------------------------------------------------------------------------------
+!------------------------------------------------------------------------------
+  PM1 = .FALSE.
+  PM2 = .FALSE.
+  PM3 = .FALSE.
+  PM4 = .FALSE.
+  IF(PRESENT(globenv)) THEN
+    CALL write_checkpoint_information("entering "//routineN,globenv)
+    iw = globenv%scr
+    IF((globenv%ionode).AND.(globenv%print%level>0)) PM1= .TRUE.
+    IF((globenv%ionode).AND.(globenv%print%level>1)) PM2= .TRUE.
+    IF((globenv%ionode).AND.(globenv%print%level>2)) PM3= .TRUE.
+    IF((globenv%ionode).AND.(globenv%print%level>3)) PM4= .TRUE.
+  END IF
+
+  IF(PM1) WRITE(iw,*) "    Entering topology_molecules_check"
+!------------------------------------------------------------------------------
+
+  atom_info => topology%atom_info
+  conn_info => topology%conn_info
+
+  !-----------------------------------------------------------------------------
+  !-----------------------------------------------------------------------------
+  ! X.
+  !-----------------------------------------------------------------------------
+  natom = topology%natoms
+  nmol_typ = atom_info%map_mol_typ(natom)
+
+  !-----------------------------------------------------------------------------
+  !-----------------------------------------------------------------------------
+  ! X. Check each molecule have the same number of atoms
+  !-----------------------------------------------------------------------------
+  DO imol_typ=1,nmol_typ
+    CALL find_boundary(atom_info%map_mol_typ,natom,first,last,imol_typ)
+    !get back the first and last atom for this molecule type
+    nmol = atom_info%map_mol_num(last)
+    IF(nmol > 1) THEN
+      CALL find_boundary2(atom_info%map_mol_typ,atom_info%map_mol_num,&
+                            natom,first,last,imol_typ,1)
+      counter = last - first + 1
+      DO imol=2,nmol
+        CALL find_boundary2(atom_info%map_mol_typ,atom_info%map_mol_num,&
+                            natom,first,last,imol_typ,imol)
+        !get back the first and last atom of this molecule
+        iatom = last - first + 1
+        IF(iatom /= counter) THEN
+          CALL stop_program ("topology_molecules_check",&
+                             "different number of atoms for same molecule kind")
+        END IF
+      END DO
+    END IF
+  END DO
+
+
+  !-----------------------------------------------------------------------------
+  !-----------------------------------------------------------------------------
+  ! X. Check that each molecule has the same atom sequences
+  !-----------------------------------------------------------------------------
+  DO imol_typ=1,nmol_typ
+    CALL find_boundary(atom_info%map_mol_typ,natom,first,last,imol_typ)
+    !get back the first and last atom for this molecule type
+    nmol = atom_info%map_mol_num(last)
+    IF(nmol > 1) THEN
+      CALL find_boundary2(atom_info%map_mol_typ,atom_info%map_mol_num,&
+                            natom,first,last,imol_typ,1)
+      counter = last - first + 1
+      DO imol=2,nmol
+        CALL find_boundary2(atom_info%map_mol_typ,atom_info%map_mol_num,&
+                            natom,first2,last2,imol_typ,imol)
+        DO iatom=1,counter
+          IF( atom_info%label_atmname(first+iatom-1) /= &
+              atom_info%label_atmname(first2+iatom-1) ) THEN
+            CALL stop_program ("topology_molecules_check",&
+                               "different atom name for same molecule kind")
+          END IF
+        END DO
+      END DO
+    END IF
+  END DO
+
+
+  !-----------------------------------------------------------------------------
+  !-----------------------------------------------------------------------------
+  ! X. Check that each molecule have the same bond sequences
+  !-----------------------------------------------------------------------------
+  ! Need to put in later, this is not necesary for simple molecules as the two 
+  ! above check will catch all the problems. This will be needed in the 
+  ! instance where you have a bunch of ring per se and one of the bond is 
+  ! streatched.
+  
+
+!------------------------------------------------------------------------------
+  IF(PM1) WRITE(iw,*) "    Exiting  topology_molecules_check"
+
+  IF(PRESENT(globenv)) THEN
+    CALL write_checkpoint_information("leaving "//routineN,globenv)
+  END IF
+!------------------------------------------------------------------------------
+!------------------------------------------------------------------------------
+
+END SUBROUTINE topology_molecules_check
 
 
 END MODULE topology_util

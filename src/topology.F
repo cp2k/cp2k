@@ -52,6 +52,7 @@ MODULE topology
                                              topology_generate_molecule,&
                                              topology_generate_onfo,&
                                              topology_generate_ub,&
+                                             topology_molecules_check,&
                                              topology_reorder_atoms
   USE qmmm_topology_util,              ONLY: qmmm_coordinate_control,&
                                              qmmm_connectivity_control
@@ -313,6 +314,8 @@ SUBROUTINE connectivity_control(topology,globenv,qmmm,qmmm_env,error)
   CASE ("PSF")
     CALL read_topology_psf(topology,globenv)
     CALL topology_generate_molecule(topology,my_qmmm,qmmm_env,globenv,error)
+    IF(topology%molecules_check) &
+      CALL topology_molecules_check(topology,globenv)
   CASE ("GROMOS")
     !WRITE(iw,*) 'Using topology file ',topology%conn_file_name
     !CALL read_topology_gromos(molecule_set,topology,globenv)
@@ -327,6 +330,8 @@ SUBROUTINE connectivity_control(topology,globenv,qmmm,qmmm_env,error)
     CALL topology_generate_impr(topology,globenv)
     CALL topology_generate_onfo(topology,globenv)
     CALL topology_generate_molecule(topology,my_qmmm,qmmm_env,globenv,error)
+    IF(topology%molecules_check) &
+      CALL topology_molecules_check(topology,globenv)
     IF(topology%reorder_atom) THEN
       CALL topology_reorder_atoms(topology,globenv)
       CALL topology_set_atm_mass(topology,globenv)

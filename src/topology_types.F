@@ -133,8 +133,9 @@ MODULE topology_types
     INTEGER                                   :: nmol, nmol_type, nmol_conn
     !TRY TO REMOVE THIS FOUR VARIABLE IN THE FUTURE
     CHARACTER (LEN=default_string_length)     :: bondparm_type
-    REAL(KIND=dp)                                :: bondparm_factor
+    REAL(KIND=dp)                             :: bondparm_factor
     LOGICAL                                   :: reorder_atom
+    LOGICAL                                   :: molecules_check
     LOGICAL                                   :: coordinate
     LOGICAL                                   :: connectivity
     LOGICAL                                   :: dump_topology
@@ -221,6 +222,7 @@ SUBROUTINE init_topology (topology)
   topology%bondparm_type='COVALENT'
   topology%bondparm_factor=1.1
   topology%reorder_atom=.FALSE.
+  topology%molecules_check=.FALSE.
   topology%coordinate=.FALSE.
   topology%connectivity=.FALSE.
   topology%dump_topology=.FALSE.
