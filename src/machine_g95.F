@@ -58,7 +58,7 @@ END SUBROUTINE m_abort
 ! the number of arguments of the fortran program
 FUNCTION m_iargc() RESULT (ic)
     INTEGER                                  :: ic
-    INTEGER, EXTERNAL                        :: iargc
+    INTEGER                                  :: iargc
     ic = iargc()
 END FUNCTION m_iargc
 
