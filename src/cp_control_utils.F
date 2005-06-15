@@ -912,6 +912,7 @@ CONTAINS
     CALL section_vals_val_get(qs_section,"EPS_DEFAULT",r_val=value,error=error)
     qs_control%eps_core_charge = value/100.0_dp
     qs_control%eps_pgf_orb = SQRT(value)
+    qs_control%eps_pgf_aux = SQRT(value)
     qs_control%eps_ppl = value/100.0_dp
     qs_control%eps_ppnl = value/100.0_dp
     qs_control%eps_rho_gspace = value
@@ -1062,6 +1063,7 @@ CONTAINS
     qs_control%method = "GPW"
     qs_control%method_id = do_method_gpw
     qs_control%eps_core_charge = 1.0E-12_dp
+    qs_control%eps_pgf_aux = 1.0E-5_dp
     qs_control%eps_pgf_orb = 1.0E-5_dp
     qs_control%eps_ppl = 1.0E-12_dp
     qs_control%eps_ppnl = 1.0E-12_dp
@@ -1072,6 +1074,7 @@ CONTAINS
     qs_control%relative_cutoff = 15.0_dp ! to 15 a.u. 30 Ry
     qs_control%gapw = .FALSE.
     qs_control%gpw = .TRUE.
+    qs_control%gpw = .FALSE.
     qs_control%semi_empirical = .FALSE.
     qs_control%pw_grid_opt%spherical = .FALSE.
     qs_control%pw_grid_opt%fullspace = .TRUE.
@@ -1184,7 +1187,7 @@ CONTAINS
             ! the /100 is used to set some of the parameters to a stricter value
             ! because they seem computationally not very expensive
             qs_control%eps_core_charge = value/100.0_dp
-!            qs_control%eps_pgf_aux = SQRT(value) 
+            qs_control%eps_pgf_aux = SQRT(value) 
             qs_control%eps_pgf_orb = SQRT(value)
             qs_control%eps_ppl = value/100.0_dp
             qs_control%eps_ppnl = value/100.0_dp
@@ -1195,8 +1198,8 @@ CONTAINS
             CALL read_object(qs_control%eps_core_charge)
           CASE (qs_key_EPS_GVG_RSPACE)
             CALL read_object(qs_control%eps_gvg_rspace)
-!          CASE (qs_key_EPS_PGF_AUX)
-!            CALL read_object(qs_control%eps_pgf_aux)
+          CASE (qs_key_EPS_PGF_AUX)
+            CALL read_object(qs_control%eps_pgf_aux)
           CASE (qs_key_EPS_PGF_ORB)
             CALL read_object(qs_control%eps_pgf_orb)
           CASE (qs_key_EPS_PPL)
@@ -1313,6 +1316,8 @@ CONTAINS
             CALL read_object(value)
             qs_control%gapw_control%alpha0_soft = value
             qs_control%gapw_control%alpha0_soft_from_input = .TRUE.
+          CASE (qs_key_PAO)
+            qs_control%pao = .TRUE.
           CASE (qs_key_MULLIKEN_RESTRAINT)
             qs_control%mulliken_restraint = .TRUE.
             SELECT CASE (test_object())
@@ -2099,6 +2104,9 @@ CONTAINS
                 ("QS|                         ",igrid_level,") grid level",&
               qs_control%e_cutoff(igrid_level),&
               igrid_level=2,SIZE(qs_control%e_cutoff))
+      END IF
+      IF (qs_control%pao) THEN
+         WRITE (UNIT=output_unit,FMT="(T2,A)") "QS| PAO active"
       END IF
       WRITE (UNIT=output_unit,FMT="(T2,A,T71,F10.1)")&
         "QS| Grid level progression factor:",qs_control%progression_factor
