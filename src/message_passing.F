@@ -2282,6 +2282,7 @@ SUBROUTINE mp_isend_rm2(msgin,dest,comm,request,tag)
   t_end = m_cputime ( )
   CALL add_perf(perf_id=11,count=1,time=t_end-t_start,msg_size=msglen*reallen)
 #else
+  ierr=1
   CALL mp_stop( ierr, "mp_isend called in non parallel case" )
 #endif
 END SUBROUTINE mp_isend_rm2
