@@ -1074,7 +1074,7 @@ CONTAINS
     qs_control%relative_cutoff = 15.0_dp ! to 15 a.u. 30 Ry
     qs_control%gapw = .FALSE.
     qs_control%gpw = .TRUE.
-    qs_control%gpw = .FALSE.
+    qs_control%pao = .FALSE.
     qs_control%semi_empirical = .FALSE.
     qs_control%pw_grid_opt%spherical = .FALSE.
     qs_control%pw_grid_opt%fullspace = .TRUE.
