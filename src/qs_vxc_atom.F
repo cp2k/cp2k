@@ -119,7 +119,6 @@ CONTAINS
     TYPE(xc_control_type), POINTER      :: xc_control
     TYPE(xc_derivative_set_type), &
                              POINTER    :: deriv_set
-!    TYPE(xc_rho_cflags_type)            :: needs
     TYPE(xc_rho_set_type), POINTER      :: rho_set_h, rho_set_s
 
     REAL(dp), DIMENSION(:,:), POINTER   :: weight 
@@ -207,6 +206,10 @@ CONTAINS
             error=error)
 
 !TODEL_START_MI
+       IF( ANY(xc_control%functionals_new /= 0) ) THEN
+
+       ELSE      
+
   ! this should be done when the functional is defined
 
      ! assesses the argument needed by the functionals
@@ -222,6 +225,7 @@ CONTAINS
         ELSE
            xc_control%needs%drho=.TRUE.
         END IF
+     END IF
      END IF
 !TODEL_END_MI
 
@@ -357,7 +361,6 @@ CONTAINS
    TYPE(qs_energy_type), POINTER       :: energy
    TYPE(grid_atom_type), POINTER       :: grid_atom
    TYPE(harmonics_atom_type), POINTER  :: harmonics
-!   TYPE(xc_rho_cflags_type)            :: needs
    TYPE(cp_para_env_type), POINTER     :: para_env
    TYPE(rho_atom_type), DIMENSION(:), &
         POINTER                        :: rho_atom_set, rho1_atom_set
