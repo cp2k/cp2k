@@ -1085,12 +1085,14 @@ END SUBROUTINE cp_error_check
     LOGICAL, INTENT(in)                      :: condition
     CHARACTER(len=*), INTENT(in)             :: routineP
     INTEGER, INTENT(in)                      :: line
+    CHARACTER(LEN=100)                       :: str
 
 ! code
 
     IF (.NOT.condition) THEN
        WRITE (*,*) "======== ASSERTION FAILED ========"
-       WRITE (*,*) routineP, ": ", cp_to_string(line)
+       str=cp_to_string(line)
+       WRITE (*,*) routineP, ": ", LEN_TRIM(str)
        STOP 1
     END IF
   
