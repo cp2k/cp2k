@@ -201,6 +201,7 @@ contains
     character(len=*), parameter :: routineN='cp_unit_create',&
          routineP=moduleN//':'//routineN
     character(default_string_length) :: desc
+    character(LEN=40)                :: formatstr
 
     failure=.FALSE.
     unit_id=0
@@ -375,7 +376,8 @@ contains
                   error,failure)
              EXIT
           END IF
-          READ (string(i_low:i_high-1),"(i"//cp_to_string(i_high-i_low+1)//")")&
+          formatstr="(i"//cp_to_string(i_high-i_low+1)//")"
+          READ (string(i_low:i_high-1),formatstr)&
                next_power
           power(i_unit)=power(i_unit)*next_power
           ! next op
