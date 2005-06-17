@@ -427,6 +427,13 @@ CONTAINS
        END IF
        summed_contributions = 0.0_dp
        DO spin=1, n_spins
+          IF (n_spins == 2) THEN
+             IF (spin == 1) THEN
+                IF (ionode) WRITE (*,*) 'alpha:'
+             ELSE
+                IF (ionode) WRITE (*,*) 'beta:'
+             END IF
+          END IF
           searchloop: DO occ=nhomos(spin), 1, -1
              CALL cp_fm_get_submatrix(t_env%evecs(i,spin)%matrix, homo_coeff_col, &
                                       1, occ, nrows(spin), 1, error=error)
