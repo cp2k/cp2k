@@ -468,10 +468,12 @@ CONTAINS
              END IF
 
           ELSE
-             v_hartree_rspace%pw%cr3d = v_hartree_rspace%pw%cr3d * &
-                                        v_hartree_rspace%pw%pw_grid%dvol
-             v_rspace_new(1)%pw%cr3d  = v_rspace_new(1)%pw%cr3d + &
-                                        v_hartree_rspace%pw%cr3d
+             IF (ispin == 1) THEN
+                v_hartree_rspace%pw%cr3d = v_hartree_rspace%pw%cr3d * &
+                                           v_hartree_rspace%pw%pw_grid%dvol
+             END IF
+             v_rspace_new(ispin)%pw%cr3d  = v_rspace_new(ispin)%pw%cr3d + &
+                                            v_hartree_rspace%pw%cr3d
           END IF
 
           ! remove kpp1_env%v_ao and work directly on k_p_p1 ?
