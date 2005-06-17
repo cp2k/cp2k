@@ -183,7 +183,8 @@ CONTAINS
                 c = -0.20902_dp
              ELSE
                 WRITE(*,'(A,F12.6,A)')"The compatibility option works only in the radius range 0.4 - 1.2 Angstrom." 
-                CALL stop_program(routineN,moduleN,__LINE__,"Please contact one of the developer for this feature!",globenv)                
+                CALL stop_program(routineN,moduleN,__LINE__, &
+                         "Please contact one of the developer for this feature!",globenv)                
              END IF
              my_radius = a + b * radius + c * radius**2
              qmmm_gaussian_fns(IRad)%pgf%Ak(1) = 1.0_dp/radius - 2.0_dp/(rootpi*radius)
