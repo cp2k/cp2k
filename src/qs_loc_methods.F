@@ -130,7 +130,7 @@ MODULE qs_loc_methods
 
 
 ! *** Public ***
-  PUBLIC ::  loc_initialize_rho, qs_loc_driver
+  PUBLIC ::  loc_initialize_rho, qs_loc_driver, optimize_loc_berry
 
 ! *****************************************************************************
 
@@ -375,10 +375,9 @@ CONTAINS
     ENDIF
 
     my_ionode = ionode .AND. localized_wfn_control%print_centers
-!    IF ( localized_wfn_control%print_centers)  THEN
-      CALL centers_spreads_berry( localized_wfn_control, zij_fm_set, nmoloc, &
+
+    CALL centers_spreads_berry( localized_wfn_control, zij_fm_set, nmoloc, &
            cell, weights, ispin, ionode=my_ionode, error=error ) 
-!    ENDIF 
 
     CALL cp_fm_release(opvec)
  

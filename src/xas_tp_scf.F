@@ -37,10 +37,13 @@ MODULE xas_tp_scf
                                              cp_error_type
   USE cp_fm_basic_linalg,              ONLY: cp_fm_gemm
   USE cp_fm_types,                     ONLY: cp_fm_get_submatrix,&
+                                             cp_fm_get_info,&
                                              cp_fm_maxabsval,&
                                              cp_fm_p_type,&
                                              cp_fm_set_submatrix,&
-                                             cp_fm_type
+                                             cp_fm_type,cp_fm_to_fm
+  USE cp_sm_fm_interactions,           ONLY: copy_sm_to_fm,&
+                                             cp_sm_fm_multiply
   USE cp_log_handling,                 ONLY: cp_failure_level,&
                                              cp_logger_get_default_unit_nr,&
                                              cp_fatal_level,&
@@ -50,7 +53,7 @@ MODULE xas_tp_scf
                                              cp_warning_level
   USE cp_sm_fm_interactions,           ONLY: copy_sm_to_fm
   USE global_types,                    ONLY: global_environment_type
-  USE input_constants,                 ONLY: xas_tp_hh, xas_tp_fh
+  USE input_constants,                 ONLY: xas_tp_hh, xas_tp_fh,do_loc_none 
   USE kinds,                           ONLY: dp
   USE machine,                         ONLY: m_flush,&
                                              m_walltime
@@ -89,8 +92,11 @@ MODULE xas_tp_scf
   USE xas_control,                     ONLY: xas_control_type
   USE xas_env_types,                   ONLY: get_xas_env, set_xas_env,&
                                              xas_environment_type
-  
-
+  USE qs_loc_methods,                   ONLY: optimize_loc_berry  
+  USE qs_loc_types,                    ONLY: get_qs_loc_env,& 
+                                             qs_loc_env_new_type
+  USE qs_loc_control,                  ONLY: localized_wfn_control_type
+  USE simulation_cell,                 ONLY: cell_type,pbc
 
   IMPLICIT NONE
   PRIVATE
@@ -133,10 +139,11 @@ CONTAINS
 !!
 !!*** **********************************************************************
 
-  SUBROUTINE xas_do_tp_scf (xas_control,xas_env,scf_env,qs_env,globenv,error)
+  SUBROUTINE xas_do_tp_scf (xas_control,xas_env,iatom,scf_env,qs_env,globenv,error)
 
     TYPE(xas_control_type)                   :: xas_control
     TYPE(xas_environment_type), POINTER      :: xas_env
+    INTEGER, INTENT(IN)                      :: iatom
     TYPE(qs_scf_env_type), POINTER           :: scf_env
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(global_environment_type), &
@@ -148,38 +155,51 @@ CONTAINS
       routineP = module_name//':'//routineN
 
     INTEGER                                  :: handle, handle2,  ic_max, ir_max,ispin, &
-                                                istat, iter_count, nao, output_unit
+                                                istat, iter_count, nao, nmo,output_unit,i,istate
     LOGICAL :: diis_step, do_level_shift, energy_only, failure,& 
                gapw, ionode, should_stop, uniform_occupation, use_cholesky, use_jacobi, id_equal
-    REAL(KIND=dp)                            :: a_max, diis_error, orthonormality, &
-                                                t1, t2, tot1_h, tot1_s
-    REAL(KIND=dp), DIMENSION(:), POINTER     :: occupation_numbers
-    REAL(KIND=dp), DIMENSION(:,:), POINTER   :: vecbuffer
+    REAL(KIND=dp)                            :: a_max,b_max, diis_error, orthonormality, &
+                                                ra(3), rac(3), rc(3), t1, t2, tot1_h, tot1_s
+    REAL(dp), DIMENSION(6)                       :: weights
+    REAL(KIND=dp), DIMENSION(:), POINTER     :: occupation_numbers, eigenvalues
+    REAL(dp), DIMENSION(:,:), POINTER        :: centers_wfn
+    REAL(KIND=dp), DIMENSION(:,:), POINTER   :: vecbuffer,vecbuffer2
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
+    TYPE(cell_type), POINTER                     :: cell
     TYPE(cp_fm_p_type), DIMENSION(:), &
       POINTER                                :: scf_work1
     TYPE(cp_fm_type), POINTER                :: excvec_coeff
     TYPE(cp_fm_type), POINTER                :: excvec_overlap
-    TYPE(cp_fm_type), POINTER                :: ortho, scf_work2
+    TYPE(cp_fm_type), POINTER                :: ortho, scf_work2,fm_work
     TYPE(cp_fm_type), POINTER                :: mo_coeff
+    TYPE(cp_fm_p_type), DIMENSION(:,:), POINTER  :: op_fm_set
+    TYPE(cp_fm_p_type), DIMENSION(:), POINTER    :: moloc_coeff
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(dft_control_type), POINTER          :: dft_control
+    TYPE(localized_wfn_control_type), POINTER :: localized_wfn_control
     TYPE(mo_set_p_type), DIMENSION(:), &
       POINTER                                :: mos
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
     TYPE(qs_energy_type), POINTER            :: energy
     TYPE(qs_ks_env_type), POINTER            :: ks_env
+    TYPE( qs_loc_env_new_type ), POINTER     :: qs_loc_env
     TYPE(qs_rho_type), POINTER               :: rho
     TYPE(real_matrix_p_type), DIMENSION(:), &
       POINTER                                :: matrix_h, matrix_ks, matrix_p, matrix_s
     TYPE(scf_control_type), POINTER          :: scf_control
     TYPE(real_matrix_type), POINTER          :: orthogonality_metric
+    INTEGER, DIMENSION(:), POINTER           :: col_indices
+    TYPE (real_matrix_p_type), DIMENSION(:,:),&
+      POINTER                                    :: op_sm_set
 
     NULLIFY(dft_control,matrix_h,matrix_s,matrix_ks,matrix_p,rho,energy,scf_control,logger,&
-         ks_env,mos,atomic_kind_set,particle_set,vecbuffer, occupation_numbers,&
-         scf_work1,ortho,scf_work2,excvec_coeff,excvec_overlap,mo_coeff)
+         ks_env,mos,atomic_kind_set,particle_set,vecbuffer,vecbuffer2, occupation_numbers,&
+         scf_work1,ortho,scf_work2,excvec_coeff,excvec_overlap,mo_coeff,fm_work,&
+         col_indices, eigenvalues)
+    NULLIFY(centers_wfn,qs_loc_env,localized_wfn_control,op_sm_set,op_fm_set,moloc_coeff,cell)
+
     logger => cp_error_get_logger(error)
     t1 = m_walltime()
     failure=.FALSE.
@@ -212,10 +232,6 @@ CONTAINS
 !   True the GAPW method is used
     gapw = dft_control%qs_control%gapw
 
-!    CALL init_scf_run(scf_env=scf_env,qs_env=qs_env,&
-!         globenv=globenv,&
-!         error=error)
-
     CALL get_qs_env(qs_env=qs_env,&
          matrix_h=matrix_h,&
          matrix_s=matrix_s,energy=energy,&
@@ -231,6 +247,10 @@ CONTAINS
     nao = mos(1)%mo_set%nao
     ALLOCATE(vecbuffer(1,nao),STAT=istat)
     CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+    vecbuffer = 0.0_dp
+    ALLOCATE(vecbuffer2(1,xas_control%nexc_search),STAT=istat)
+    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+    vecbuffer2 = 0.0_dp
 
     ! do some assertions here on these matrices having the same structure, 
     ! as is currently required
@@ -253,7 +273,8 @@ CONTAINS
     ! end sparsity check
 
     ! Some elements from the xas_env
-     CALL get_xas_env(xas_env=xas_env,excvec_coeff=excvec_coeff,excvec_overlap=excvec_overlap)
+     CALL get_xas_env(xas_env=xas_env,excvec_coeff=excvec_coeff,&
+          excvec_overlap=excvec_overlap,fm_work=fm_work,centers_wfn=centers_wfn)
      CPPrecondition(ASSOCIATED(excvec_overlap),cp_failure_level,routineP,error,failure)
 
     iter_count = 0
@@ -348,15 +369,58 @@ CONTAINS
 
                IF(ispin == 1) THEN
 ! ** use the maximum overlap criterion to find the index of the excited orbital
-                 CALL get_mo_set(mos(1)%mo_set, mo_coeff=mo_coeff,nao=nao)
+                 CALL get_mo_set(mos(1)%mo_set, mo_coeff=mo_coeff,nao=nao,nmo=nmo,&
+                      eigenvalues=eigenvalues)
+!TEST  
+                 CALL get_xas_env(xas_env=xas_env, qs_loc_env=qs_loc_env)
+                 CALL get_qs_loc_env(qs_loc_env=qs_loc_env,&
+                        localized_wfn_control=localized_wfn_control,&
+                        moloc_coeff=moloc_coeff,&
+                        op_sm_set=op_sm_set,op_fm_set=op_fm_set,&
+                        cell=cell, weights=weights)
+ 
+                 CALL cp_fm_to_fm(mo_coeff,moloc_coeff(1)%matrix,xas_control%nexc_search,1,1 )
+                 CALL optimize_loc_berry(do_loc_none, localized_wfn_control, &
+                      moloc_coeff(1)%matrix, op_sm_set, &
+                      op_fm_set, cell, weights, 1, ionode, error=error)
+
+                 ra(1:3) = particle_set(iatom)%r(1:3)
+                 DO istate = 1,xas_control%nexc_search
+                    centers_wfn(1,istate) = localized_wfn_control%centers_set(1)%array(1,istate)
+                    centers_wfn(2,istate) = localized_wfn_control%centers_set(1)%array(2,istate)
+                    centers_wfn(3,istate) = localized_wfn_control%centers_set(1)%array(3,istate)
+                    rc(1:3) = centers_wfn(1:3,istate)
+                    rac = pbc(ra,rc,cell)
+                    IF(ionode) WRITE(*,'(I4,4f12.6 )' ) istate, rac, eigenvalues(istate)
+                 END DO 
+!TEST
+
+                 CALL cp_sm_fm_multiply(matrix_s(1)%matrix,mo_coeff,fm_work,ncol=nmo)
+
                  CALL cp_fm_gemm("T","N",1,xas_control%nexc_search,nao,1.0_dp,excvec_coeff,&
-                      mo_coeff,0.0_dp,excvec_overlap,b_first_col=1,error=error)
-                 CALL cp_fm_maxabsval(excvec_overlap,a_max,ir_max=ir_max,ic_max=ic_max,error=error)
+                      fm_work,0.0_dp,excvec_overlap,b_first_col=1,error=error)
+                 CALL cp_fm_get_info ( matrix=excvec_overlap, col_indices = col_indices)
+
+                 CALL cp_fm_get_submatrix(excvec_overlap,vecbuffer2,1,1,&
+                      1,xas_control%nexc_search,transpose=.TRUE.,error=error)
+
+ if(ionode)  WRITE(*,*) globenv%para_env%mepos, vecbuffer2(1,1:SIZE(vecbuffer2,2))
+ if(ionode) WRITE(*,*) MAXLOC(ABS(vecbuffer2(1,:))), MAXVAL(ABS(vecbuffer2(1,:)))
+
                  uniform_occupation = .FALSE.
                  CALL get_mo_set(mos(1)%mo_set,&
                         occupation_numbers=occupation_numbers)
 
-!                 write(*,*) 'exc ', ir_max, ic_max
+                 b_max = 0.0_dp 
+
+                 DO i = 1,xas_control%nexc_search
+                   a_max = ABS(vecbuffer2(1,i))
+                   IF(a_max > b_max)THEN
+                      ic_max = i 
+                      b_max = a_max
+                   ENDIF
+                 END DO
+
                  IF(ic_max /= dft_control% xas_estate) THEN
                    ir_max = dft_control% xas_estate
                    dft_control% xas_estate = ic_max
@@ -370,7 +434,10 @@ CONTAINS
                    END IF
 
                  END IF
-!         write(*,'(A,10f5.2)') 'occ ',  occupation_numbers(1:10)
+
+         IF(ionode) WRITE(*,'(A, I4, A,f5.2)') ' st ', dft_control% xas_estate,&
+                ' occ ',  occupation_numbers(dft_control% xas_estate)
+
                  CALL set_mo_set(mos(1)%mo_set,&
                       uniform_occupation=uniform_occupation)
                  CALL cp_fm_get_submatrix(mo_coeff,vecbuffer,1,dft_control%xas_estate,&
@@ -378,7 +445,6 @@ CONTAINS
                  CALL cp_fm_set_submatrix(excvec_coeff,vecbuffer,1,1,&
                       nao,1,transpose=.TRUE.,error=error)
                END IF 
-
 
                IF (logger%print_keys%each_scf_step) THEN
                   CALL write_mo_set(mos(ispin)%mo_set,atomic_kind_set,particle_set,4,6,globenv)
@@ -401,14 +467,30 @@ CONTAINS
             DO ispin=1,dft_control%nspins
               IF(ispin == 1) THEN
 ! ** use the maximum overlap criterion to find the index of the excited orbital
-                 CALL get_mo_set(mos(1)%mo_set, mo_coeff=mo_coeff,nao=nao)
+                 CALL get_mo_set(mos(1)%mo_set, mo_coeff=mo_coeff,nao=nao,nmo=nmo)
+
+                 CALL cp_sm_fm_multiply(matrix_s(1)%matrix,mo_coeff,fm_work,ncol=nmo)
+
                  CALL cp_fm_gemm("T","N",1,xas_control%nexc_search,nao,1.0_dp,excvec_coeff,&
-                      mo_coeff,0.0_dp,excvec_overlap,b_first_col=1,error=error)
-                 CALL cp_fm_maxabsval(excvec_overlap,a_max,ir_max=ir_max,ic_max=ic_max,error=error)
+                      fm_work,0.0_dp,excvec_overlap,b_first_col=1,error=error)
+                 CALL cp_fm_get_info ( matrix=excvec_overlap, col_indices = col_indices)
+
+                 CALL cp_fm_get_submatrix(excvec_overlap,vecbuffer2,1,1,&
+                      1,xas_control%nexc_search,transpose=.TRUE.,error=error)
+
                  uniform_occupation = .FALSE.
                  CALL get_mo_set(mos(1)%mo_set,&
                         occupation_numbers=occupation_numbers)
 
+                 b_max = 0.0_dp
+ 
+                 DO i = 1,xas_control%nexc_search
+                   a_max = ABS(vecbuffer2(1,i))
+                   IF(a_max > b_max)THEN
+                      ic_max = i 
+                      b_max = a_max
+                   ENDIF
+                 END DO
 
                  IF(ic_max /= dft_control% xas_estate) THEN
                    ir_max = dft_control% xas_estate
@@ -520,7 +602,7 @@ CONTAINS
 
     CALL qs_ks_did_change(ks_env,rho_changed=.TRUE.,error=error)
 
-    DEALLOCATE(vecbuffer,STAT=istat)
+    DEALLOCATE(vecbuffer,vecbuffer2,STAT=istat)
     CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
 ! *** cleanup
 !    CALL scf_env_cleanup(scf_env,qs_env=qs_env,error=error)

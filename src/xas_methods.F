@@ -287,6 +287,7 @@ CONTAINS
 !   Set of states among which there is the state to be excited
     CALL get_mo_set(mos(1)%mo_set,nao=nao,homo=homo)
     IF(nexc_search < 0) nexc_search = homo
+!IF(ionode) WRITE(*,*) 'homo ', homo, evolt
 
     CALL get_xas_env(xas_env=xas_env,iter_count=xas_iter_count,nvirtual=nvirtual,&
          centers_wfn=centers_wfn,atom_of_state=atom_of_state,&
@@ -337,6 +338,8 @@ CONTAINS
       centers_wfn(2,istate) =  my_localized_wfn_control%centers_set(1)%array(2,istate)
       centers_wfn(3,istate) =  my_localized_wfn_control%centers_set(1)%array(3,istate)
 
+ !if(ionode) WRITE(*,'(A,I4,3f10.5)') 'center ', istate, centers_wfn(1:3, istate)
+
       ! Assign the state to the closest atom
       distmin = 100.0_dp
       charmax = 0.0_dp
@@ -353,6 +356,7 @@ CONTAINS
            distmin = dist
         END IF
       END DO
+ !if(ionode) WRITE(*,'(A,I4,3f10.5)') 'atom ', atom_of_state(istate),  particle_set(atom_of_state(istate))%r(1:3)
 
       !Character of the state
        CALL cp_fm_get_submatrix(mo_coeff,vecbuffer,1,istate,&
@@ -366,7 +370,7 @@ CONTAINS
               gth_potential=gth_potential,&
               orb_basis_set=orb_basis_set,&
               kind_number=ikind)
-
+ 
        IF(ikind /= ikind_old) THEN
          ikind_old = ikind
          IF (ASSOCIATED(all_potential)) THEN
@@ -422,6 +426,7 @@ CONTAINS
 
          END DO  ! ishell
        END DO  ! iset
+ !if(ionode) WRITE(*,*) 'type ', type_of_state(istate)
     END DO  ! istate
 
     CALL localized_wfn_control_release(my_localized_wfn_control,error=error)
@@ -440,6 +445,7 @@ CONTAINS
             EXIT
          END IF
       END DO 
+ !IF(ionode) WRITE(*,'(A,2I4)') 'state of iatom ',iatom , state_of_atom(iat)
     END DO 
 
 
@@ -467,7 +473,7 @@ CONTAINS
        ! determine which state has to be excited in the global list
        state_to_be_excited = state_of_atom(iat)
        dft_control % xas_estate  = state_to_be_excited
-
+IF (ionode ) WRITE(*,*) 'estate ',  dft_control % xas_estate
       ! Take the state_to_be_excited vector from the full set and copy into excvec_coeff
        CALL get_mo_set(mos(1)%mo_set, mo_coeff=mo_coeff)
        CPPrecondition(ASSOCIATED(excvec_coeff),cp_failure_level,routineP,error,failure)
@@ -486,7 +492,7 @@ CONTAINS
          CALL init_scf_run(scf_env=scf_env,qs_env=qs_env,&
                  globenv=globenv, error=error)
 
-         CALL xas_do_tp_scf(xas_control,xas_env,scf_env,qs_env,globenv,error=error)
+         CALL xas_do_tp_scf(xas_control,xas_env,iatom,scf_env,qs_env,globenv,error=error)
 
          IF(iat == xas_control%nexc_atoms) THEN 
             CALL scf_env_cleanup(scf_env,qs_env=qs_env,error=error)
