@@ -61,7 +61,7 @@ MODULE harris_functional
   USE coefficient_types,               ONLY: coeff_type, &
                                              coeff_add, &
                                              coeff_sumup
-  USE qs_collocate_density,            ONLY: calculate_total_rho
+  !USE qs_collocate_density,            ONLY: calculate_total_rho
   !USE qs_charges_types,                ONLY: qs_charges_type
   USE pws,                             ONLY: pw_integral_ab
   USE qs_energy_types,                 ONLY: qs_energy_type
@@ -69,14 +69,11 @@ MODULE harris_functional
   !USE qs_core_energies,                ONLY: calculate_ecore, &
   !                                           calculate_ecore_overlap, &
   !                                           calculate_ecore_self
-  USE harris_env_types,                ONLY: harris_env_type, &
-                                             harris_env_create, &
-                                             harris_env_release, &
-                                             harris_env_set, &
-                                             harris_env_get
+  USE harris_env_types,                ONLY: harris_env_type
   USE sparse_matrix_types,             ONLY: real_matrix_p_type, &
                                              cp_sm_sm_trace
   USE cp_para_types,                   ONLY: cp_para_env_type
+  USE qs_scf_types,                    ONLY: qs_scf_env_type
 
   IMPLICIT NONE
   PRIVATE
@@ -87,6 +84,7 @@ MODULE harris_functional
   PUBLIC :: harris_energy_correction, &
             harris_eigenvalue_summation, &
             harris_eigenvalue_calculation, &
+            harris_eigenvalue_trace_KS_Pmix, &
             harris_postprocessing
 
 !***
@@ -129,9 +127,6 @@ CONTAINS
     LOGICAL, INTENT(INOUT), OPTIONAL                :: EII_necessary
     TYPE(cp_error_type), INTENT(INOUT), OPTIONAL    :: error
     TYPE(qs_rho_type), POINTER                      :: rho
-    REAL(KIND=dp)                                   :: Ecore, &
-                                                       Ecore_overlap, &
-                                                       Ecore_self
     INTEGER                                         :: handle
     TYPE(greens_function_type), POINTER             :: green
     TYPE(pw_env_type), POINTER                      :: pw_env
@@ -150,7 +145,8 @@ CONTAINS
 
     CHARACTER(len=*), PARAMETER :: routineN = 'harris_energy_correction', &
       routineP = moduleN//':'//routineN
-    TYPE(cp_logger_type), pointer :: logger
+    TYPE(cp_logger_type), POINTER :: logger
+    INTEGER :: unit_nr
 
 !   ------------------------------------------------------------------------
 
@@ -163,12 +159,14 @@ CONTAINS
 
     CPPrecondition(ASSOCIATED(qs_env), cp_failure_level, routineP, error, failure)
     CPPrecondition(qs_env%ref_count>0, cp_failure_level, routineP, error, failure)
-    !CPPrecondition(ASSOCIATED(rho), cp_failure_level, routineP, error, failure)
     my_EII_necessary = .TRUE.
     IF (PRESENT(EII_necessary)) my_EII_necessary=EII_necessary
 
-    print *, ""
-    print *,"The Harris functional energy correction is performed!"
+    IF (logger%para_env%source==logger%para_env%mepos) THEN
+          unit_nr=cp_logger_get_default_unit_nr(logger,local=.false.)
+          WRITE (unit_nr,*) ""
+          WRITE (unit_nr,*) "The Harris functional energy correction is performed!"
+    END IF
 
     IF (.NOT. failure) THEN
 
@@ -292,6 +290,7 @@ CONTAINS
 !!
 !!*** **********************************************************************
   SUBROUTINE harris_eigenvalue_summation(qs_env, harris_env, error)
+
     TYPE(qs_environment_type), POINTER              :: qs_env
     TYPE(harris_env_type), POINTER                  :: harris_env
     TYPE(cp_error_type), INTENT(INOUT), OPTIONAL    :: error
@@ -373,6 +372,7 @@ CONTAINS
 !!
 !!*** **********************************************************************
   SUBROUTINE harris_eigenvalue_calculation(qs_env, harris_env, error)
+
     TYPE(qs_environment_type), POINTER              :: qs_env
     TYPE(harris_env_type), POINTER                  :: harris_env
     TYPE(cp_error_type), INTENT(INOUT), OPTIONAL    :: error
@@ -403,11 +403,7 @@ CONTAINS
       CALL get_qs_env(qs_env, matrix_ks=matrix_ks, error=error)
       CALL get_qs_env(qs_env, rho=rho, error=error)
       CALL qs_rho_get(rho_struct=rho, rho_ao=rho_ao, error=error)
-      !rho_ao = rho%rho_ao
            
-      !print *, matrix_ks(1)%matrix%ncol, matrix_ks(1)%matrix%nrow
-      !print *, rho_ao(1)%matrix%ncol, rho_ao(1)%matrix%nrow
-
       CALL get_qs_env(qs_env, para_env=para_env, error=error)
       CALL cp_sm_sm_trace(matrix_ks(1)%matrix, rho_ao(1)%matrix, &
                           harris_env%sum_of_eigenvalues, &
@@ -423,13 +419,15 @@ CONTAINS
   END SUBROUTINE harris_eigenvalue_calculation
 
 
-!!****f* harris_functional/harris_postprocessing [1.0] *
+!!****f* harris_functional/harris_eigenvalue_trace_KS_Pmix [1.0] *
 !!
 !!   NAME
-!!     harris_postprocessing
+!!     harris_eigenvalue_trace_KS_Pmix
 !!
 !!   FUNCTION
-!!     Performs the output and diverse analyses
+!!     Calculates the sum of eigenvalues needed for the Harris energy 
+!!     functional as the trace of sparse matrix product KS*Pmix_new, thus:
+!!     sum_of_eigenvalues = tr(KS*Pmix_new)
 !!
 !!   NOTES
 !!     -
@@ -448,15 +446,85 @@ CONTAINS
 !!     06.2005 initial create [tdk]
 !!
 !!*** **********************************************************************
-  SUBROUTINE harris_postprocessing(harris_env, error)
+  SUBROUTINE harris_eigenvalue_trace_KS_Pmix(scf_env, qs_env, harris_env, error)
+
+    TYPE(qs_scf_env_type), POINTER                  :: scf_env
     TYPE(qs_environment_type), POINTER              :: qs_env
+    TYPE(harris_env_type), POINTER                  :: harris_env
+    TYPE(cp_error_type), INTENT(INOUT), OPTIONAL    :: error
+    INTEGER                                         :: handle
+    LOGICAL                                         :: failure
+    TYPE(real_matrix_p_type), DIMENSION(:), POINTER :: matrix_ks
+    TYPE(cp_para_env_type), POINTER                 :: para_env
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'harris_eigenvalue_trace_KS_Pmix', &
+      routineP = moduleN//':'//routineN
+
+!   ------------------------------------------------------------------------
+
+    CALL timeset(routineN, "I", "", handle)
+
+    failure = .FALSE.
+    NULLIFY(matrix_ks)
+
+    CPPrecondition(ASSOCIATED(scf_env),cp_failure_level, routineP, error, failure)
+    CPPrecondition(scf_env%ref_count>0, CP_failure_level, routineP, error, failure)
+    CPPrecondition(ASSOCIATED(qs_env), cp_failure_level, routineP, error, failure)
+    CPPrecondition(qs_env%ref_count>0, cp_failure_level, routineP, error, failure)
+    CPPrecondition(ASSOCIATED(harris_env), cp_failure_level, routineP, error, failure)
+    CPPrecondition(harris_env%ref_count>0, cp_failure_level, routineP, error, failure)
+    
+    IF (.NOT. failure) THEN
+
+      CALL get_qs_env(qs_env, matrix_ks=matrix_ks, error=error)
+                      
+      CALL get_qs_env(qs_env, para_env=para_env, error=error)
+      CALL cp_sm_sm_trace(matrix_ks(1)%matrix, scf_env%p_mix_new(1)%matrix, &
+                          harris_env%sum_of_eigenvalues, &
+                          para_env=para_env, error=error)
+
+      harris_env%Eharris = harris_env%sum_of_eigenvalues + &
+                           harris_env%Eharris_correction
+
+    END IF
+
+    CALL timestop(0.0_dp, handle)
+
+  END SUBROUTINE harris_eigenvalue_trace_KS_Pmix
+
+
+!!****f* harris_functional/harris_postprocessing [1.0] *
+!!
+!!   NAME
+!!     harris_postprocessing
+!!
+!!   FUNCTION
+!!     Performs the output and diverse analyses
+!!
+!!   NOTES
+!!     -
+!!
+!!   INPUTS
+!!     - harris_env: The harris environment in which all results are stored
+!!     - error: variable to control error logging, stopping,... 
+!!              see module cp_error_handling 
+!!
+!!   AUTHOR
+!!     Thomas D. Kuehne (tkuehne@phys.chem.ethz.ch)
+!!
+!!   MODIFICATION HISTORY
+!!     06.2005 initial create [tdk]
+!!
+!!*** **********************************************************************
+  SUBROUTINE harris_postprocessing(harris_env, error)
+
     TYPE(harris_env_type), POINTER                  :: harris_env
     TYPE(cp_error_type), INTENT(INOUT), OPTIONAL    :: error
     LOGICAL                                         :: failure
 
     CHARACTER(len=*), PARAMETER :: routineN = 'harris_postprocessing', &
          routineP = moduleN//':'//routineN
-    TYPE(cp_logger_type), pointer :: logger
+    TYPE(cp_logger_type), POINTER :: logger
     INTEGER :: unit_nr
 
     !   ------------------------------------------------------------------------

@@ -195,8 +195,9 @@ MODULE qs_scf
   USE timings,                         ONLY: timeset,&
                                              timestop
   USE harris_functional,               ONLY: harris_energy_correction, &
-                                             harris_eigenvalue_summation, &
-                                             harris_eigenvalue_calculation, &
+                                             !harris_eigenvalue_summation, &
+                                             !harris_eigenvalue_calculation, &
+                                             harris_eigenvalue_trace_KS_Pmix, &
                                              harris_postprocessing
   USE input_section_types,             ONLY: section_vals_get_subs_vals, &
                                              section_vals_val_get, &
@@ -591,7 +592,7 @@ CONTAINS
        CALL timeset("scf_iter","I"," ",handle2)
 
        !IF (harris_flag) THEN
-       !  CALL harris_energy_correction(rho, qs_env, harris_env, error=error)
+       !  CALL harris_energy_correction(qs_env, harris_env, error=error)
        !END IF       
 
        IF (ionode) CALL m_flush(output_unit)
@@ -763,6 +764,16 @@ CONTAINS
             scf_env%iter_param=scf_env%qs_ot_env(1)%ds_min
 
        END SELECT
+
+       IF (harris_flag) THEN
+         CALL harris_energy_correction(qs_env, harris_env, &
+                                       EII_necessary=EII_necessary, error=error)
+       !  CALL harris_eigenvalue_summation(qs_env, harris_env, error=error)
+       !  CALL harris_eigenvalue_calculation(qs_env, harris_env, error=error)
+         CALL harris_eigenvalue_trace_KS_Pmix(scf_env, qs_env, harris_env, error=error)
+         CALL harris_postprocessing(harris_env, error=error)
+       END IF
+
        IF (scf_env%mixing_method.EQ.ao_mixing_nr) THEN
           CALL scf_env_density_mixing(scf_env%p_mix_new,scf_env%mixing_method,&
                                     scf_env%p_mix,scf_env%iter_delta,&
@@ -776,15 +787,6 @@ CONTAINS
                FMT="(T2,I5,2X,A,T22,E10.2,T32,F8.2,T40,2F20.10)")&
                scf_env%iter_count,TRIM(scf_env%iter_method),&
                scf_env%iter_param,t2 - t1,scf_env%iter_delta,energy%total
-       END IF
-
-       ! *** calculation of the harris functional energy correction ***
-       IF (harris_flag) THEN
-         CALL harris_energy_correction(qs_env, harris_env, &
-                                       EII_necessary=EII_necessary, error=error)
-         CALL harris_eigenvalue_summation(qs_env, harris_env, error=error)
-         !CALL harris_eigenvalue_calculation(qs_env, harris_env, error=error)
-         CALL harris_postprocessing(harris_env, error=error)
        END IF
 
 ! ** convergence check
@@ -829,7 +831,7 @@ CONTAINS
          CALL calculate_rho_atom_coeff(qs_env,rho%rho_ao)
        ENDIF
 
-       CALL qs_ks_did_change(ks_env,rho_changed=.TRUE.,error=error)      
+       CALL qs_ks_did_change(ks_env,rho_changed=.TRUE.,error=error)
 
        CALL timestop(0.0_dp,handle2)
 
