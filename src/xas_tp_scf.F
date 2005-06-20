@@ -42,8 +42,6 @@ MODULE xas_tp_scf
                                              cp_fm_p_type,&
                                              cp_fm_set_submatrix,&
                                              cp_fm_type,cp_fm_to_fm
-  USE cp_sm_fm_interactions,           ONLY: copy_sm_to_fm,&
-                                             cp_sm_fm_multiply
   USE cp_log_handling,                 ONLY: cp_failure_level,&
                                              cp_logger_get_default_unit_nr,&
                                              cp_fatal_level,&
@@ -51,7 +49,8 @@ MODULE xas_tp_scf
                                              cp_note_level,&
                                              cp_to_string,&
                                              cp_warning_level
-  USE cp_sm_fm_interactions,           ONLY: copy_sm_to_fm
+  USE cp_sm_fm_interactions,           ONLY: copy_sm_to_fm,&
+                                             cp_sm_fm_multiply
   USE global_types,                    ONLY: global_environment_type
   USE input_constants,                 ONLY: xas_tp_hh, xas_tp_fh,do_loc_none 
   USE kinds,                           ONLY: dp
@@ -70,6 +69,10 @@ MODULE xas_tp_scf
   USE qs_mo_types,                     ONLY: get_mo_set,set_mo_set,&
                                              mo_set_p_type,mo_set_type,&
                                              write_mo_set
+  USE qs_loc_methods,                  ONLY: optimize_loc_berry  
+  USE qs_loc_types,                    ONLY: get_qs_loc_env,& 
+                                             qs_loc_env_new_type
+  USE qs_loc_control,                  ONLY: localized_wfn_control_type
   USE qs_rho_atom_methods,             ONLY: calculate_rho_atom_coeff
   USE qs_rho_methods,                  ONLY: qs_rho_update_rho
   USE qs_rho_types,                    ONLY: qs_rho_type
@@ -82,6 +85,7 @@ MODULE xas_tp_scf
                                              ot_method_nr,&
                                              qs_scf_env_type
   USE scf_control_types,               ONLY: scf_control_type
+  USE simulation_cell,                 ONLY: cell_type,pbc
   USE sparse_matrix_types,             ONLY: real_matrix_p_type, &
                                              real_matrix_type,&
                                              set_matrix,&
@@ -92,11 +96,6 @@ MODULE xas_tp_scf
   USE xas_control,                     ONLY: xas_control_type
   USE xas_env_types,                   ONLY: get_xas_env, set_xas_env,&
                                              xas_environment_type
-  USE qs_loc_methods,                   ONLY: optimize_loc_berry  
-  USE qs_loc_types,                    ONLY: get_qs_loc_env,& 
-                                             qs_loc_env_new_type
-  USE qs_loc_control,                  ONLY: localized_wfn_control_type
-  USE simulation_cell,                 ONLY: cell_type,pbc
 
   IMPLICIT NONE
   PRIVATE

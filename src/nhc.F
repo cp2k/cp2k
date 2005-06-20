@@ -28,8 +28,16 @@ MODULE nhc
   USE extended_system_initialize,      ONLY: set_yoshida_coef
   USE extended_system_types,           ONLY: lnhc_parameters_type
   USE global_types,                    ONLY: global_environment_type
-  USE input_constants,                 ONLY: nhc_global,nhc_massive,&
-                                             nvt_ensemble
+  USE input_constants,                 ONLY: isokin_ensemble, &
+                                             nhc_global,nhc_massive,&
+                                             nve_ensemble,&
+                                             nvt_ensemble,&
+                                             npt_i_ensemble,&
+                                             npt_f_ensemble,&
+                                             nph_ensemble,&
+                                             nph_uniaxial_ensemble,&
+                                             nph_uniaxial_damped_ensemble,&
+                                             reftraj_ensemble
   USE input_section_types,             ONLY: section_vals_get_subs_vals,&
                                              section_vals_type,&
                                              section_vals_val_get
@@ -44,15 +52,6 @@ MODULE nhc
                                              get_molecule
   USE termination,                     ONLY: stop_memory,&
                                              stop_program
-  USE input_constants,                 ONLY: nve_ensemble,&
-                                             nvt_ensemble,&
-                                             npt_i_ensemble,&
-                                             npt_f_ensemble,&
-                                             nph_ensemble,&
-                                             nph_uniaxial_ensemble,&
-                                             nph_uniaxial_damped_ensemble,&
-                                             isokin_ensemble, &
-                                             reftraj_ensemble
 
   IMPLICIT NONE
 
