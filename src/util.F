@@ -29,10 +29,14 @@ MODULE util
   PUBLIC :: sort, ran2, get_unit, gasdev, close_unit, &
        get_share, get_limit, include_list, getinv3x3,  &
        matmul_3x3, dotprod_3d, crossprod_3d, matvec_3x3, &
-       transpose_3d,locate
+       transpose_3d,locate, find_boundary
 
   INTERFACE sort
      MODULE PROCEDURE sort2, sort2i
+  END INTERFACE
+
+  INTERFACE find_boundary
+     MODULE PROCEDURE find_boundary1, find_boundary2, find_boundary3
   END INTERFACE
 
 ! *****************************************************************************
@@ -662,6 +666,116 @@ FUNCTION matmul_3x3 ( mat1, mat2 )
 END FUNCTION matmul_3x3
 
 !******************************************************************************
+SUBROUTINE find_boundary1(num_array,ntot,first,last,search)
+
+
+    INTEGER, POINTER                         :: num_array(:)
+    INTEGER                                  :: ntot, first, last, search
+
+    INTEGER                                  :: i
+    LOGICAL                                  :: found
+
+!------------------------------------------------------------------------------
+
+  found=.FALSE.
+  first=0
+  last=ntot
+
+  DO i=1,ntot
+    IF(num_array(i)==search) THEN
+      IF(.NOT.found) THEN
+        first = i
+      END IF
+      found=.TRUE.
+    ELSE
+      IF(found) THEN
+        last = i-1
+        EXIT                  !Exit this do loop???
+      END IF
+      found=.FALSE.
+    END IF
+  END DO
+
+END SUBROUTINE find_boundary1
+
+!******************************************************************************
+SUBROUTINE find_boundary2(num_array1,num_array2,ntot,first,last,search1,search2)
+
+
+    INTEGER, POINTER                         :: num_array1(:), num_array2(:)
+    INTEGER                                  :: ntot, first, last, search1, &
+                                                search2
+
+    INTEGER                                  :: i, tfirst, tlast
+    LOGICAL                                  :: found
+
+!------------------------------------------------------------------------------
+
+  found=.FALSE.
+  first=0
+  last=ntot
+
+  CALL find_boundary(num_array1,ntot,tfirst,tlast,search1)
+
+  last=tlast
+
+  DO i=tfirst,tlast
+    IF(num_array2(i)==search2) THEN
+      IF(.NOT.found) THEN
+        first = i
+      END IF
+      found=.TRUE.
+    ELSE
+      IF(found) THEN
+        last = i-1
+        EXIT                  !Exit this do loop???
+      END IF
+      found=.FALSE.
+    END IF
+  END DO
+
+END SUBROUTINE find_boundary2
+
+!******************************************************************************
+SUBROUTINE find_boundary3(num_array1,num_array2,num_array3,ntot,first,last,&
+                          search1,search2,search3)
+
+
+    INTEGER, POINTER                         :: num_array1(:), num_array2(:), &
+                                                num_array3(:)
+    INTEGER                                  :: ntot, first, last, search1, &
+                                                search2, search3
+
+    INTEGER                                  :: i, tfirst, tlast
+    LOGICAL                                  :: found
+
+!------------------------------------------------------------------------------
+
+  found=.FALSE.
+  first=0
+  last=ntot
+
+  CALL find_boundary2(num_array1,num_array2,ntot,tfirst,tlast,search1,search2)
+
+  last=tlast
+
+  DO i=tfirst,tlast
+    IF(num_array3(i)==search3) THEN
+      IF(.NOT.found) THEN
+        first = i
+      END IF
+      found=.TRUE.
+    ELSE
+      IF(found) THEN
+        last = i-1
+        EXIT                  !Exit this do loop???
+      END IF
+      found=.FALSE.
+    END IF
+  END DO
+
+END SUBROUTINE find_boundary3
+
 
 END MODULE util
 

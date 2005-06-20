@@ -45,6 +45,10 @@ MODULE particle_types
                                              cp_note_level,&
                                              cp_to_string,&
                                              cp_warning_level
+  USE input_constants,                 ONLY: dump_xyz,&
+                                             dump_xmol,&
+                                             dump_atomic,&
+                                             dump_crd
   USE global_types,                    ONLY: global_environment_type
   USE kinds,                           ONLY: dp,&
                                              default_string_length,&
@@ -54,6 +58,8 @@ MODULE particle_types
   USE mathlib,                         ONLY: angle,&
                                              dihedral_angle
   USE memory_utilities,                ONLY: reallocate
+  USE message_passing,                 ONLY: mp_allgather,&
+                                             mp_bcast
   USE molecule_kind_types,             ONLY: allocate_molecule_kind_set,&
                                              atom_type,&
                                              get_molecule_kind,&
@@ -66,6 +72,7 @@ MODULE particle_types
   USE output_utilities,                ONLY: print_warning
   USE physcon,                         ONLY: angstrom,&
                                              massunit
+  USE qmmm_ff_fist,                    ONLY: qmmm_ff_precond_only_qm
   USE qs_parser,                       ONLY: finish_parser,&
                                              integer_object,&
                                              read_object,&
@@ -84,11 +91,7 @@ MODULE particle_types
                                              stop_program
   USE timings,                         ONLY: timeset,&
                                              timestop
-  USE qmmm_ff_fist,                    ONLY: qmmm_ff_precond_only_qm
-  USE input_constants,                 ONLY: dump_xyz,&
-                                             dump_xmol,&
-                                             dump_atomic,&
-                                             dump_crd
+  USE util,                            ONLY: find_boundary
 
   IMPLICIT NONE
 
@@ -130,6 +133,7 @@ MODULE particle_types
 
   PUBLIC :: allocate_particle_set,&
             deallocate_particle_set,&
+            generate_particle_distances,&
             get_particle_set,&
             read_particle_set,&
             write_qs_particle_coordinates,&
@@ -540,7 +544,7 @@ END SUBROUTINE clone_particle
 ! blocking for number of kinds
 !   ---------------------------------------------------------------------------
 
-    CALL timeset(routine_name,"I","",handle)
+    CALL timeset(routine_name,"I",'',handle)
 
     NULLIFY (atom_list)
     NULLIFY (first_atom_of_molecule)
@@ -1336,7 +1340,7 @@ END SUBROUTINE clone_particle
 
 !   ---------------------------------------------------------------------------
 
-    CALL timeset(routine_name,"I","",handle)
+    CALL timeset(routine_name,"I",'',handle)
 
     ionode = globenv%ionode
     output_unit = globenv%scr
@@ -1554,5 +1558,161 @@ END SUBROUTINE clone_particle
   END SUBROUTINE write_particle_distances
 
 ! *****************************************************************************
+
+SUBROUTINE generate_particle_distances(r,cell,radius,bondparm_factor,&
+                                       bond_a,bond_b,bondparm_type,globenv)
+
+    REAL(KIND=dp), POINTER                        :: r(:,:)
+    TYPE(cell_type), POINTER                      :: cell
+    REAL(KIND=dp), POINTER                        :: radius(:)
+    REAL(KIND=dp)                                 :: bondparm_factor
+    INTEGER, POINTER                              :: bond_a(:),bond_b(:)
+    CHARACTER (LEN=default_string_length)         :: bondparm_type
+    TYPE(global_environment_type), &
+      INTENT(IN)                                  :: globenv
+    REAL(KIND=dp), POINTER                        :: tbond_a(:),tbond_b(:)
+    REAL(KIND=dp), POINTER                        :: ttbond_a(:),ttbond_b(:)
+    REAL(KIND=dp)                                 :: dr(3),r2,rbond,rbond2,rr(3)
+    INTEGER, PARAMETER                            :: nblock = 1000
+    INTEGER, POINTER                              :: nbond_loc(:)
+    INTEGER                                       :: workload,nbond,i,j,k,&
+                                                     first,last,iproc,iatom,&
+                                                     natom,istat,iw,jatom
+!------------------------------------------------------------------------------
+  NULLIFY(bond_a,bond_b,tbond_a,tbond_b,ttbond_a,ttbond_b)
+  NULLIFY(nbond_loc)
+!------------------------------------------------------------------------------
+  CALL reallocate(tbond_a,1,nblock)
+  CALL reallocate(tbond_b,1,nblock)
+
+  workload = 0
+  nbond = 0
+  natom = SIZE(r,2)
+  DO iatom=1,natom
+    DO jatom=iatom+1+globenv%mepos,natom,globenv%num_pe
+      workload = workload + 1
+      dr(1) = r(1,iatom) - r(1,jatom)
+      dr(2) = r(2,iatom) - r(2,jatom)
+      dr(3) = r(3,iatom) - r(3,jatom)
+
+      rr = pbc ( dr, cell )
+      r2 = DOT_PRODUCT(rr,rr)
+
+      IF(r2 <= 0.01_dp) THEN
+        CALL stop_program ("topology_generate_bond",&
+                           "bond distance between atoms less then 0.1")
+      END IF
+
+      IF(bondparm_type=="COVALENT") THEN
+        rbond = radius(iatom) + radius(jatom)
+      ELSE IF(bondparm_type=="VDW") THEN
+        rbond = MAX(radius(iatom),radius(jatom))
+      END IF
+
+      rbond2 = rbond*rbond
+
+      !Look for the right factor to use...
+      rbond2 = rbond2*(bondparm_factor)
+
+      !Test the distance to the sum of the covalent radius
+      IF(r2 < rbond2) THEN
+        nbond=nbond+1
+        IF(nbond > SIZE(tbond_a)) THEN
+          CALL reallocate(tbond_a,1,nbond+nblock)
+          CALL reallocate(tbond_b,1,nbond+nblock)
+        END IF
+        tbond_a(nbond)=iatom
+        tbond_b(nbond)=jatom
+      END IF
+    END DO
+  END DO
+  CALL reallocate(tbond_a,1,nbond)
+  CALL reallocate(tbond_b,1,nbond)
+!------------------------------------------------------------------------------
+  !Put together the difference pieces for the bond
+  
+  !Determine the total number of bonds
+  ALLOCATE(nbond_loc(globenv%num_pe),STAT=istat)
+  IF(istat/=0) CALL stop_program('topology_generate_bond','nbond_loc')
+  nbond_loc(:)=0
+  CALL mp_allgather(nbond,nbond_loc,globenv%group)
+  nbond = SUM(nbond_loc)
+
+  !Reallocate those memory
+  ALLOCATE(bond_a(nbond),STAT=istat)
+  IF(istat/=0) CALL stop_memory('generate_bond','bond_a',nbond)
+  ALLOCATE(bond_b(nbond),STAT=istat)
+  IF(istat/=0) CALL stop_memory('generate_bond','bond_b',nbond)
+  bond_a(:)=0
+  bond_b(:)=0
+
+  workload=0
+  !Gather everything
+  DO iproc=0,globenv%num_pe-1
+    CALL reallocate(ttbond_a,1,nbond_loc(iproc+1))
+    CALL reallocate(ttbond_b,1,nbond_loc(iproc+1))
+    IF(iproc==globenv%mepos) THEN
+      ttbond_a(:) = tbond_a(:)
+      ttbond_b(:) = tbond_b(:)
+    ELSE
+      ttbond_a(:) = 0
+      ttbond_b(:) = 0
+    ENDIF
+    CALL mp_bcast(ttbond_a,iproc,globenv%group)
+    CALL mp_bcast(ttbond_b,iproc,globenv%group)
+    bond_a(workload+1:workload+nbond_loc(iproc+1)) = ttbond_a(1:nbond_loc(iproc+1))
+    bond_b(workload+1:workload+nbond_loc(iproc+1)) = ttbond_b(1:nbond_loc(iproc+1))
+    workload=workload+nbond_loc(iproc+1)
+  ENDDO
+
+  !Sort the array
+  !Sort the first column
+  DO i=1,nbond
+    DO j=1,nbond
+      IF(bond_a(i) < bond_a(j)) THEN
+        workload  = bond_a(i)
+        bond_a(i) = bond_a(j)
+        bond_a(j) = workload
+        workload  = bond_b(i)
+        bond_b(i) = bond_b(j)
+        bond_b(j) = workload
+      END IF
+    END DO
+  END DO
+  !Sort the second column
+  i=1
+  DO WHILE (i<nbond)
+    CALL find_boundary(bond_a,nbond,first,last,bond_a(i))
+    IF(.NOT.(first==last)) THEN
+      DO j=first,last
+        DO k=first,last
+          IF(bond_b(j) < bond_b(k)) THEN
+            workload = bond_a(j)
+            bond_a(j) = bond_a(k)
+            bond_a(k) = workload
+            workload = bond_b(j)
+            bond_b(j) = bond_b(k)
+            bond_b(k) = workload
+          END IF
+        END DO
+      END DO
+      i=last+1
+    ELSE
+      i=i+1
+    END IF
+  END DO
+!------------------------------------------------------------------------------
+  DEALLOCATE(nbond_loc,STAT=istat)
+  IF(istat/=0) CALL stop_memory('generate_bond','nbond_loc')
+  DEALLOCATE(tbond_a,STAT=istat)
+  IF(istat/=0) CALL stop_memory('generate_bond','tbond_a')
+  DEALLOCATE(tbond_b,STAT=istat)
+  IF(istat/=0) CALL stop_memory('generate_bond','tbond_b')
+  DEALLOCATE(ttbond_a,STAT=istat)
+  IF(istat/=0) CALL stop_memory('generate_bond','ttbond_a')
+  DEALLOCATE(ttbond_b,STAT=istat)
+  IF(istat/=0) CALL stop_memory('generate_bond','ttbond_b')
+!------------------------------------------------------------------------------
+END SUBROUTINE generate_particle_distances
 
 END MODULE particle_types

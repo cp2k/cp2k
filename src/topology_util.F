@@ -76,6 +76,7 @@ MODULE topology_util
                                              set_molecule_set
   USE pair_potential_types,            ONLY: pair_potential_type
   USE particle_types,                  ONLY: allocate_particle_set,&
+                                             generate_particle_distances,&
                                              particle_type
   USE periodic_table,                  ONLY: ptable
   USE physcon,                         ONLY: massunit
@@ -93,6 +94,7 @@ MODULE topology_util
                                              atom_info_type,&
                                              connectivity_info_type,&
                                              constraint_info_type
+  USE util,                            ONLY: find_boundary
   
 
   IMPLICIT NONE
@@ -101,10 +103,7 @@ MODULE topology_util
 
 
   PRIVATE
-  PUBLIC :: find_boundary,&
-            find_boundary2,&
-            find_boundary3,&
-            topology_set_atm_mass,&
+  PUBLIC :: topology_set_atm_mass,&
             topology_reorder_atoms,&
             topology_connectivity_pack,&
             topology_constraint_pack,&
@@ -491,7 +490,7 @@ SUBROUTINE topology_generate_molecule(topology,qmmm,qmmm_env,globenv,error)
       CALL find_boundary(atom_info%map_mol_typ,natom,first,last,itype)
       nmol = atom_info%map_mol_num(last)
       DO jtype = 1,nmol
-        CALL find_boundary2(atom_info%map_mol_typ,atom_info%map_mol_num,&
+        CALL find_boundary(atom_info%map_mol_typ,atom_info%map_mol_num,&
                             natom,first,last,itype,jtype)
         inum = 1
         atom_info%map_mol_res(first) = inum
@@ -597,168 +596,6 @@ SUBROUTINE topology_generate_molecule(topology,qmmm,qmmm_env,globenv,error)
 !------------------------------------------------------------------------------
 END SUBROUTINE topology_generate_molecule
 
-!******************************************************************************
-!!****** topology_util [1.0] *
-!!
-!!   NAME
-!!     find_boundary
-!!
-!!   SYNOPSIS
-!!
-!!   FUNCTION
-!!     find get the indices for the element that matches in the array
-!!
-!!   AUTHOR
-!!
-!!
-!!   MODIFICATION HISTORY
-!!
-!!
-!!   SOURCE
-!******************************************************************************
-SUBROUTINE find_boundary(num_array,ntot,first,last,search)
-
-
-    INTEGER, POINTER                         :: num_array(:)
-    INTEGER                                  :: ntot, first, last, search
-
-    INTEGER                                  :: i
-    LOGICAL                                  :: found
-
-!------------------------------------------------------------------------------
-
-  found=.FALSE.
-  first=0
-  last=ntot
-
-  DO i=1,ntot
-    IF(num_array(i)==search) THEN
-      IF(.NOT.found) THEN
-        first = i
-      END IF
-      found=.TRUE.
-    ELSE
-      IF(found) THEN
-        last = i-1
-        EXIT                  !Exit this do loop???
-      END IF
-      found=.FALSE.
-    END IF
-  END DO
-
-END SUBROUTINE find_boundary
-
-!******************************************************************************
-!!****** topology_util [1.0] *
-!!
-!!   NAME
-!!     find_boundary2
-!!
-!!   FUNCTION
-!!     find get the indices for the element that matches in the array
-!!
-!!   AUTHOR
-!!
-!!
-!!   MODIFICATION HISTORY
-!!
-!!
-!!   SOURCE
-!******************************************************************************
-SUBROUTINE find_boundary2(num_array1,num_array2,ntot,first,last,search1,search2)
-
-
-    INTEGER, POINTER                         :: num_array1(:), num_array2(:)
-    INTEGER                                  :: ntot, first, last, search1, &
-                                                search2
-
-    INTEGER                                  :: i, tfirst, tlast
-    LOGICAL                                  :: found
-
-!------------------------------------------------------------------------------
-
-  found=.FALSE.
-  first=0
-  last=ntot
-
-  CALL find_boundary(num_array1,ntot,tfirst,tlast,search1)
-
-  last=tlast
-
-  DO i=tfirst,tlast
-    IF(num_array2(i)==search2) THEN
-      IF(.NOT.found) THEN
-        first = i
-      END IF
-      found=.TRUE.
-    ELSE
-      IF(found) THEN
-        last = i-1
-        EXIT                  !Exit this do loop???
-      END IF
-      found=.FALSE.
-    END IF
-  END DO
-
-END SUBROUTINE find_boundary2
-
-!******************************************************************************
-!!****** topology_util [1.0] *
-!!
-!!   NAME
-!!     find_boundary3
-!!
-!!   FUNCTION
-!!     find get the indices for the element that matches in the array
-!!
-!!   AUTHOR
-!!
-!!
-!!   MODIFICATION HISTORY
-!!
-!!
-!!   SOURCE
-!******************************************************************************
-SUBROUTINE find_boundary3(num_array1,num_array2,num_array3,ntot,first,last,&
-                          search1,search2,search3)
-
-
-    INTEGER, POINTER                         :: num_array1(:), num_array2(:), &
-                                                num_array3(:)
-    INTEGER                                  :: ntot, first, last, search1, &
-                                                search2, search3
-
-    INTEGER                                  :: i, tfirst, tlast
-    LOGICAL                                  :: found
-
-!------------------------------------------------------------------------------
-
-  found=.FALSE.
-  first=0
-  last=ntot
-
-  CALL find_boundary2(num_array1,num_array2,ntot,tfirst,tlast,search1,search2)
-
-  last=tlast
-
-  DO i=tfirst,tlast
-    IF(num_array3(i)==search3) THEN
-      IF(.NOT.found) THEN
-        first = i
-      END IF
-      found=.TRUE.
-    ELSE
-      IF(found) THEN
-        last = i-1
-        EXIT                  !Exit this do loop???
-      END IF
-      found=.FALSE.
-    END IF
-  END DO
-
-END SUBROUTINE find_boundary3
-
-
 !
 !******************************************************************************
 !!****** topology_util [1.0] *
@@ -799,7 +636,6 @@ SUBROUTINE topology_set_atm_mass(topology,globenv)
        ielem, istat, iw, j, jatom, &
        k, last, natom, nbond, nelem, &
        search
-  INTEGER, POINTER                         :: tbond_a(:), tbond_b(:)
   LOGICAL                                  :: PM1, PM2, PM3, PM4, only_qm
   REAL(KIND=dp)                                :: dr(3), r2, rbond, rbond2, &
        rr(3)
@@ -907,7 +743,6 @@ SUBROUTINE topology_generate_bond(topology,globenv)
 
     CHARACTER(len=*), PARAMETER :: routineN = 'topology_generate_bond', &
       routineP = moduleN//':'//routineN
-    INTEGER, PARAMETER                       :: nblock = 1000
   TYPE(atom_info_type),POINTER     :: atom_info
   TYPE(connectivity_info_type),POINTER     :: conn_info
 
@@ -920,18 +755,14 @@ SUBROUTINE topology_generate_bond(topology,globenv)
                                                 ielem, istat, iw, j, jatom, &
                                                 k, last, natom, nbond, nelem, &
                                                 search
-    INTEGER, POINTER                         :: tbond_a(:), tbond_b(:)
-    INTEGER, POINTER                         :: ttbond_a(:), ttbond_b(:)
     LOGICAL                                  :: PM1, PM2, PM3, PM4, only_qm
     REAL(KIND=dp)                                :: dr(3), r2, rbond, rbond2, &
                                                 rr(3)
-    REAL(KIND=dp), POINTER                       :: covalent_radius(:), &
-                                                vdw_radius(:)
+    REAL(KIND=dp), POINTER                       :: radius(:)
     INTEGER :: cbond
     INTEGER :: iproc
     INTEGER :: handle
     INTEGER :: workload
-    INTEGER, POINTER                         :: nbond_loc(:)
 
 !------------------------------------------------------------------------------
 !------------------------------------------------------------------------------
@@ -960,42 +791,23 @@ SUBROUTINE topology_generate_bond(topology,globenv)
 
   natom = topology%natoms
 
-  NULLIFY(tbond_a,tbond_b,ttbond_a,ttbond_b,nbond_loc)
-  NULLIFY(covalent_radius,vdw_radius)
+  NULLIFY(atm_symbol)
+  NULLIFY(radius)
 
   !Get the temporary array that we need
-  ALLOCATE(tbond_a(nblock),STAT=istat)
-  IF(istat/=0) CALL stop_memory('generate_bond','tbond_a',nblock)
-  ALLOCATE(tbond_b(nblock),STAT=istat)
-  IF(istat/=0) CALL stop_memory('generate_bond','tbond_b',nblock)
   ALLOCATE(atm_symbol(natom),STAT=istat)
   IF(istat/=0) CALL stop_memory('generate_bond','atm_symbol',natom)
-  ALLOCATE(covalent_radius(natom),STAT=istat)
-  IF(istat/=0) CALL stop_memory('generate_bond','covalent_radius',natom)
-  ALLOCATE(vdw_radius(natom),STAT=istat)
-  IF(istat/=0) CALL stop_memory('generate_bond','vdw_radius',natom)
+  ALLOCATE(radius(natom),STAT=istat)
+  IF(istat/=0) CALL stop_memory('generate_bond','radius',natom)
 !------------------------------------------------------------------------------
   DO iatom=1,natom
     atm_symbol(iatom) = ''
     IF(ASSOCIATED(atom_info%element)) THEN
       atm_symbol(iatom) = atom_info%element(iatom)
     END IF
-    !
-    ! In general %element should always be set... I added this stuff for qmmm 
-    ! calculation because if you read coordinates from cp2k input %element is not
-    ! setted up!! We should change this...
-    !
-  !  IF(atm_symbol(iatom) == '') THEN
-  !     label_atmname = atom_info%label_atmname(iatom)
-  !     only_qm = qmmm_ff_precond_only_qm(id1=label_atmname)
-  !     atm_symbol(iatom) = label_atmname
-  !  END IF
   END DO
 !------------------------------------------------------------------------------
   !Set up the arrays that we need for this routine
-  tbond_a(:) = 0
-  tbond_b(:) = 0
-
   DO iatom=1,natom
     nelem = UBOUND(ptable,1)
     element_found=.FALSE.
@@ -1015,59 +827,33 @@ SUBROUTINE topology_generate_bond(topology,globenv)
         WRITE(iw,'(A)') "WARNING : topology_generate_bond: The element " &
                         //atm_symbol(iatom)//" was not found in the periodic table"
     ENDIF
-    covalent_radius(iatom) = ptable(ielem_found)%covalent_radius
-    CALL convert_to_cp2k_units("ANGSTROM",length=covalent_radius(iatom))
 
-    vdw_radius(iatom) = ptable(ielem_found)%vdw_radius
-    CALL convert_to_cp2k_units("ANGSTROM",length=vdw_radius(iatom))
+    IF(topology%bondparm_type=="COVALENT") THEN
+      radius(iatom) = ptable(ielem_found)%covalent_radius
+    ELSE IF(topology%bondparm_type=="VDW") THEN
+      radius(iatom) = ptable(ielem_found)%vdw_radius
+    ELSE
+      CALL stop_program ("topology_generate_bond","illegal bondparm_type")
+    END IF
+    CALL convert_to_cp2k_units("ANGSTROM",length=radius(iatom))
 
     atom_info%atm_mass(iatom) = ptable(ielem_found)% amass
     IF(PM3) WRITE(iw,'(7X,A,A5)') "iatom = ",ptable(ielem_found)%symbol
   END DO
 !------------------------------------------------------------------------------
-  !Find bonds according to periodic table
-  workload = 0
-  nbond = 0
-  DO iatom=1,natom
-    DO jatom=iatom+1+globenv%mepos,natom,globenv%num_pe
-      workload = workload + 1
-      dr(1) = atom_info%r(1,iatom) - atom_info%r(1,jatom)
-      dr(2) = atom_info%r(2,iatom) - atom_info%r(2,jatom)
-      dr(3) = atom_info%r(3,iatom) - atom_info%r(3,jatom)
+  IF( (topology%bondparm_type=="COVALENT").OR.&
+      (topology%bondparm_type=="VDW") ) THEN
+    CALL generate_particle_distances(atom_info%r,topology%cell,radius,&
+            topology%bondparm_factor,conn_info%bond_a,conn_info%bond_b,&
+            topology%bondparm_type,globenv)
+  ELSE 
+    CALL stop_program ("topology_generate_bond","illegal bondparm_type")
+  END IF
 
-      rr = pbc ( dr, topology%cell )
-      r2 = DOT_PRODUCT(rr,rr)
-
-      IF(r2 <= 0.01_dp) THEN
-        CALL stop_program ("topology_generate_bond",&
-                           "bond distance between atoms less then 0.1")
-      END IF
-
-      IF(topology%bondparm_type=="COVALENT") THEN
-        rbond = covalent_radius(iatom)+covalent_radius(jatom)
-      ELSE IF(topology%bondparm_type=="VDW") THEN
-        rbond = MAX(vdw_radius(iatom),vdw_radius(jatom))
-      ELSE
-        CALL stop_program ("topology_generate_bond",&
-                           "illegal bondparm_type")
-      END IF
-      rbond2 = rbond*rbond
-
-      !Look for the right factor to use...
-      rbond2 = rbond2*(topology%bondparm_factor)
-
-      !Test the distance to the sum of the covalent radius
-      IF(r2 < rbond2) THEN
-        nbond=nbond+1
-        IF(nbond > SIZE(tbond_a)) THEN
-          CALL reallocate(tbond_a,1,nbond+nblock)
-          CALL reallocate(tbond_b,1,nbond+nblock)
-        END IF
-        tbond_a(nbond)=iatom
-        tbond_b(nbond)=jatom
-        IF(PM3) WRITE(iw,'(7X,A,I5,I5,I5)') "bond ",nbond,iatom,jatom
-
-        IF(topology%para_res) THEN
+  IF(topology%para_res) THEN
+    DO ibond=1,SIZE(conn_info%bond_a)
+      iatom = conn_info%bond_a(ibond)
+      jatom = conn_info%bond_b(ibond)
         IF((atom_info%label_molname(iatom)/=atom_info%label_molname(jatom)).OR.&
            (atom_info%label_resid(iatom)/=atom_info%label_resid(jatom)).OR.&
            (atom_info%label_resname(iatom)/=atom_info%label_resname(jatom)))THEN
@@ -1078,111 +864,20 @@ SUBROUTINE topology_generate_bond(topology,globenv)
             CALL reallocate(conn_info%c_bond_b,1,cbond+1)
             conn_info%c_bond_a(cbond) = iatom
             conn_info%c_bond_b(cbond) = jatom
-        END IF
         ELSE
         IF(atom_info%label_molname(iatom)/=atom_info%label_molname(jatom)) THEN
             CALL stop_program ("topology_generate_bond",&
                                "bonds between different molecule types??? ")
         END IF
         END IF
-
-      END IF
     END DO
-  END DO
-  CALL reallocate(tbond_a,1,nbond)
-  CALL reallocate(tbond_b,1,nbond)
-!------------------------------------------------------------------------------
-  !Put together the difference pieces for the bond
-  
-  !Determine the total number of bonds
-  ALLOCATE(nbond_loc(globenv%num_pe),STAT=istat)
-  IF(istat/=0) CALL stop_program('topology_generate_bond','nbond_loc')
-  nbond_loc(:)=0
-  CALL mp_allgather(nbond,nbond_loc,globenv%group)
-  nbond = SUM(nbond_loc)
-
-  !Reallocate those memory
-  ALLOCATE(conn_info%bond_a(nbond),STAT=istat)
-  IF(istat/=0) CALL stop_memory('generate_bond','bond_a',nbond)
-  ALLOCATE(conn_info%bond_b(nbond),STAT=istat)
-  IF(istat/=0) CALL stop_memory('generate_bond','bond_b',nbond)
-  conn_info%bond_a(:)=0
-  conn_info%bond_b(:)=0
-
-  workload=0
-  !Gather everything
-  DO iproc=0,globenv%num_pe-1
-    CALL reallocate(ttbond_a,1,nbond_loc(iproc+1))
-    CALL reallocate(ttbond_b,1,nbond_loc(iproc+1))
-    IF(iproc==globenv%mepos) THEN
-      ttbond_a(:) = tbond_a(:)
-      ttbond_b(:) = tbond_b(:)
-    ELSE
-      ttbond_a(:) = 0
-      ttbond_b(:) = 0
-    ENDIF
-    CALL mp_bcast(ttbond_a,iproc,globenv%group)
-    CALL mp_bcast(ttbond_b,iproc,globenv%group)
-    conn_info%bond_a(workload+1:workload+nbond_loc(iproc+1)) = ttbond_a(1:nbond_loc(iproc+1))
-    conn_info%bond_b(workload+1:workload+nbond_loc(iproc+1)) = ttbond_b(1:nbond_loc(iproc+1))
-    workload=workload+nbond_loc(iproc+1)
-  ENDDO
-
-  !Sort the array
-  !Sort the first column
-  DO i=1,nbond
-    DO j=1,nbond
-      IF(conn_info%bond_a(i) < conn_info%bond_a(j)) THEN
-        workload = conn_info%bond_a(i)
-        conn_info%bond_a(i) = conn_info%bond_a(j)
-        conn_info%bond_a(j) = workload
-        workload = conn_info%bond_b(i)
-        conn_info%bond_b(i) = conn_info%bond_b(j)
-        conn_info%bond_b(j) = workload
-      END IF
-    END DO
-  END DO
-  !Sort the second column
-  i=1
-  DO WHILE (i<nbond)
-    CALL find_boundary(conn_info%bond_a,nbond,first,last,conn_info%bond_a(i))
-    IF(.NOT.(first==last)) THEN
-      DO j=first,last
-        DO k=first,last
-          IF(conn_info%bond_b(j) < conn_info%bond_b(k)) THEN
-            workload = conn_info%bond_a(j)
-            conn_info%bond_a(j) = conn_info%bond_a(k)
-            conn_info%bond_a(k) = workload
-            workload = conn_info%bond_b(j)
-            conn_info%bond_b(j) = conn_info%bond_b(k)
-            conn_info%bond_b(k) = workload
-          END IF
-        END DO
-      END DO
-      i=last+1
-    ELSE
-      i=i+1
-    END IF
-  END DO
-
+  END IF
 !------------------------------------------------------------------------------
 !------------------------------------------------------------------------------
-  DEALLOCATE(nbond_loc,STAT=istat)
-  IF(istat/=0) CALL stop_memory('generate_bond','nbond_loc')
-  DEALLOCATE(tbond_a,STAT=istat)
-  IF(istat/=0) CALL stop_memory('generate_bond','tbond_a')
-  DEALLOCATE(tbond_b,STAT=istat)
-  IF(istat/=0) CALL stop_memory('generate_bond','tbond_b')
-  DEALLOCATE(ttbond_a,STAT=istat)
-  IF(istat/=0) CALL stop_memory('generate_bond','ttbond_a')
-  DEALLOCATE(ttbond_b,STAT=istat)
-  IF(istat/=0) CALL stop_memory('generate_bond','ttbond_b')
   DEALLOCATE(atm_symbol,STAT=istat)
   IF(istat/=0) CALL stop_memory('generate_bond','atm_symbol')
-  DEALLOCATE(covalent_radius,STAT=istat)
-  IF(istat/=0) CALL stop_memory('generate_bond','covalent_radius')
-  DEALLOCATE(vdw_radius,STAT=istat)
-  IF(istat/=0) CALL stop_memory('generate_bond','vdw_radius')
+  DEALLOCATE(radius,STAT=istat)
+  IF(istat/=0) CALL stop_memory('generate_bond','radius')
 
   IF(PM1) WRITE(iw,*) "    Exiting  topology_generate_bond"
 
@@ -3624,7 +3319,7 @@ SUBROUTINE topology_constraint_pack ( molecule_kind_set,molecule_set,&
     DO WHILE (i<ndist)
       search1 = cons_info%const_dist_mol(i)
       search2 = cons_info%const_dist_a(i)
-      CALL find_boundary2(cons_info%const_dist_mol,cons_info%const_dist_a,&
+      CALL find_boundary(cons_info%const_dist_mol,cons_info%const_dist_a,&
                           ndist,first,last,search1,search2)
       IF(.NOT.(first==last)) THEN
         DO j=first,last
@@ -3933,25 +3628,25 @@ SUBROUTINE topology_molecules_check(topology,globenv)
 
   !-----------------------------------------------------------------------------
   !-----------------------------------------------------------------------------
-  ! X.
+  ! 1.
   !-----------------------------------------------------------------------------
   natom = topology%natoms
   nmol_typ = atom_info%map_mol_typ(natom)
 
   !-----------------------------------------------------------------------------
   !-----------------------------------------------------------------------------
-  ! X. Check each molecule have the same number of atoms
+  ! 2. Check each molecule have the same number of atoms
   !-----------------------------------------------------------------------------
   DO imol_typ=1,nmol_typ
     CALL find_boundary(atom_info%map_mol_typ,natom,first,last,imol_typ)
     !get back the first and last atom for this molecule type
     nmol = atom_info%map_mol_num(last)
     IF(nmol > 1) THEN
-      CALL find_boundary2(atom_info%map_mol_typ,atom_info%map_mol_num,&
+      CALL find_boundary(atom_info%map_mol_typ,atom_info%map_mol_num,&
                             natom,first,last,imol_typ,1)
       counter = last - first + 1
       DO imol=2,nmol
-        CALL find_boundary2(atom_info%map_mol_typ,atom_info%map_mol_num,&
+        CALL find_boundary(atom_info%map_mol_typ,atom_info%map_mol_num,&
                             natom,first,last,imol_typ,imol)
         !get back the first and last atom of this molecule
         iatom = last - first + 1
@@ -3966,18 +3661,18 @@ SUBROUTINE topology_molecules_check(topology,globenv)
 
   !-----------------------------------------------------------------------------
   !-----------------------------------------------------------------------------
-  ! X. Check that each molecule has the same atom sequences
+  ! 3. Check that each molecule has the same atom sequences
   !-----------------------------------------------------------------------------
   DO imol_typ=1,nmol_typ
     CALL find_boundary(atom_info%map_mol_typ,natom,first,last,imol_typ)
     !get back the first and last atom for this molecule type
     nmol = atom_info%map_mol_num(last)
     IF(nmol > 1) THEN
-      CALL find_boundary2(atom_info%map_mol_typ,atom_info%map_mol_num,&
+      CALL find_boundary(atom_info%map_mol_typ,atom_info%map_mol_num,&
                             natom,first,last,imol_typ,1)
       counter = last - first + 1
       DO imol=2,nmol
-        CALL find_boundary2(atom_info%map_mol_typ,atom_info%map_mol_num,&
+        CALL find_boundary(atom_info%map_mol_typ,atom_info%map_mol_num,&
                             natom,first2,last2,imol_typ,imol)
         DO iatom=1,counter
           IF( atom_info%label_atmname(first+iatom-1) /= &
@@ -3993,7 +3688,7 @@ SUBROUTINE topology_molecules_check(topology,globenv)
 
   !-----------------------------------------------------------------------------
   !-----------------------------------------------------------------------------
-  ! X. Check that each molecule have the same bond sequences
+  ! 4. Check that each molecule have the same bond sequences
   !-----------------------------------------------------------------------------
   ! Need to put in later, this is not necesary for simple molecules as the two 
   ! above check will catch all the problems. This will be needed in the 
