@@ -883,6 +883,8 @@ SUBROUTINE cp2k_read(globenv)
     LOGICAL                                  :: failure, trace
     TYPE(section_vals_type), POINTER         :: dft_section,global_section
 
+!$  INTEGER :: omp_get_num_threads
+
     failure = .FALSE.
     trace = .FALSE.
     NULLIFY(dft_section,global_section)
