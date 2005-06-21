@@ -765,7 +765,7 @@ END SUBROUTINE qs_loc_env_init
 !$OMP shared(set_radius_a,nco,ncoset,npgfa,nseta,ldsa,ldsb)&
 !$OMP shared(nkind,sab_orb_neighbor_list,nlist,workt,cosabt,sinabt,qs_env)&
 !$OMP shared(op_cost,op_sint,ortho,twopoLx,twopoLy,twopoLz)&
-!$OMP shared(first_sgfa,first_sgfb,sab_orb,lb_min,la_max,op_sm_set)
+!$OMP shared(first_sgfa,first_sgfb,sab_orb,lb_min,la_max,op_sm_set)&
 !$OMP shared(atomic_kind_set,particle_set,cell)
         ithread = 0
 !$      ithread = omp_get_thread_num()
