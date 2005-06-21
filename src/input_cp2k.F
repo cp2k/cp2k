@@ -2208,7 +2208,7 @@ SUBROUTINE create_tddfpt_section(section,error)
 
        CALL keyword_create(keyword, name="ADDED_MOS",&
             description="Number of additional MOS added for each spin",&
-            usage="ADDED_MOS", default_i_val=1,n_var=-1,error=error)
+            usage="ADDED_MOS", default_i_val=0,n_var=-1,error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
@@ -7788,6 +7788,12 @@ END SUBROUTINE create_ot_section
            "(useful if you have to specify many indexes).",&
            usage="ATOMS_LIST 1 2",&
            n_var=-1,type_of_var=integer_t,repeats=.TRUE.,error=error)
+      CALL section_add_keyword(section,keyword,error=error)
+      CALL keyword_release(keyword,error=error)
+
+      CALL keyword_create(keyword, name="ADDED_MOS",&
+            description="Number of additional MOS added spin up only",&
+            usage="ADDED_MOS {integer}", default_i_val=-1,error=error)
       CALL section_add_keyword(section,keyword,error=error)
       CALL keyword_release(keyword,error=error)
 

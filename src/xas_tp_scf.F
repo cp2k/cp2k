@@ -42,6 +42,8 @@ MODULE xas_tp_scf
                                              cp_fm_p_type,&
                                              cp_fm_set_submatrix,&
                                              cp_fm_type,cp_fm_to_fm
+  USE cp_sm_fm_interactions,           ONLY: copy_sm_to_fm,&
+                                             cp_sm_fm_multiply
   USE cp_log_handling,                 ONLY: cp_failure_level,&
                                              cp_logger_get_default_unit_nr,&
                                              cp_fatal_level,&
@@ -49,8 +51,6 @@ MODULE xas_tp_scf
                                              cp_note_level,&
                                              cp_to_string,&
                                              cp_warning_level
-  USE cp_sm_fm_interactions,           ONLY: copy_sm_to_fm,&
-                                             cp_sm_fm_multiply
   USE global_types,                    ONLY: global_environment_type
   USE input_constants,                 ONLY: xas_tp_hh, xas_tp_fh,do_loc_none 
   USE kinds,                           ONLY: dp
@@ -65,14 +65,14 @@ MODULE xas_tp_scf
   USE qs_ks_methods,                   ONLY: qs_ks_did_change,&
                                              qs_ks_update_qs_env
   USE qs_ks_types,                     ONLY: qs_ks_env_type
+  USE qs_loc_methods,                   ONLY: optimize_loc_berry  
+  USE qs_loc_types,                    ONLY: get_qs_loc_env,& 
+                                             qs_loc_env_new_type
+  USE qs_loc_control,                  ONLY: localized_wfn_control_type
   USE qs_mo_methods,                   ONLY: calculate_density_matrix
   USE qs_mo_types,                     ONLY: get_mo_set,set_mo_set,&
                                              mo_set_p_type,mo_set_type,&
                                              write_mo_set
-  USE qs_loc_methods,                  ONLY: optimize_loc_berry  
-  USE qs_loc_types,                    ONLY: get_qs_loc_env,& 
-                                             qs_loc_env_new_type
-  USE qs_loc_control,                  ONLY: localized_wfn_control_type
   USE qs_rho_atom_methods,             ONLY: calculate_rho_atom_coeff
   USE qs_rho_methods,                  ONLY: qs_rho_update_rho
   USE qs_rho_types,                    ONLY: qs_rho_type
@@ -192,7 +192,7 @@ CONTAINS
     INTEGER, DIMENSION(:), POINTER           :: col_indices
     TYPE (real_matrix_p_type), DIMENSION(:,:),&
       POINTER                                    :: op_sm_set
-
+    INTEGER :: m, n
     NULLIFY(dft_control,matrix_h,matrix_s,matrix_ks,matrix_p,rho,energy,scf_control,logger,&
          ks_env,mos,atomic_kind_set,particle_set,vecbuffer,vecbuffer2, occupation_numbers,&
          scf_work1,ortho,scf_work2,excvec_coeff,excvec_overlap,mo_coeff,fm_work,&
@@ -370,7 +370,8 @@ CONTAINS
 ! ** use the maximum overlap criterion to find the index of the excited orbital
                  CALL get_mo_set(mos(1)%mo_set, mo_coeff=mo_coeff,nao=nao,nmo=nmo,&
                       eigenvalues=eigenvalues)
-!TEST  
+!TEST : Calculate the centers of the wavefunctions to check the localization
+                 IF(.FALSE.) THEN
                  CALL get_xas_env(xas_env=xas_env, qs_loc_env=qs_loc_env)
                  CALL get_qs_loc_env(qs_loc_env=qs_loc_env,&
                         localized_wfn_control=localized_wfn_control,&
@@ -392,20 +393,22 @@ CONTAINS
                     rac = pbc(ra,rc,cell)
                     IF(ionode) WRITE(*,'(I4,4f12.6 )' ) istate, rac, eigenvalues(istate)
                  END DO 
+                 END IF
 !TEST
 
                  CALL cp_sm_fm_multiply(matrix_s(1)%matrix,mo_coeff,fm_work,ncol=nmo)
-
                  CALL cp_fm_gemm("T","N",1,xas_control%nexc_search,nao,1.0_dp,excvec_coeff,&
                       fm_work,0.0_dp,excvec_overlap,b_first_col=1,error=error)
-                 CALL cp_fm_get_info ( matrix=excvec_overlap, col_indices = col_indices)
-
+                 CALL cp_fm_get_info ( matrix=excvec_overlap, col_indices = col_indices,&
+                        nrow_global = m, ncol_global = n )
+!        CALL cp_fm_get_info ( matrix=excvec_coeff, nrow_global = m, ncol_global = n )
+!        CALL cp_fm_get_info ( matrix=fm_work, nrow_global = m, ncol_global = n )
                  CALL cp_fm_get_submatrix(excvec_overlap,vecbuffer2,1,1,&
-                      1,xas_control%nexc_search,transpose=.TRUE.,error=error)
-
- if(ionode)  WRITE(*,*) globenv%para_env%mepos, vecbuffer2(1,1:SIZE(vecbuffer2,2))
- if(ionode) WRITE(*,*) MAXLOC(ABS(vecbuffer2(1,:))), MAXVAL(ABS(vecbuffer2(1,:)))
-
+                      1,xas_control%nexc_search,transpose=.FALSE.,error=error)
+!dbg
+! if(ionode)  WRITE(*,*) globenv%para_env%mepos, vecbuffer2(1,1:SIZE(vecbuffer2,2))
+! if(ionode) WRITE(*,*) MAXLOC(ABS(vecbuffer2(1,:))), MAXVAL(ABS(vecbuffer2(1,:)))
+!dbg
                  uniform_occupation = .FALSE.
                  CALL get_mo_set(mos(1)%mo_set,&
                         occupation_numbers=occupation_numbers)
@@ -433,10 +436,10 @@ CONTAINS
                    END IF
 
                  END IF
-
-         IF(ionode) WRITE(*,'(A, I4, A,f5.2)') ' st ', dft_control% xas_estate,&
-                ' occ ',  occupation_numbers(dft_control% xas_estate)
-
+!dbg
+!         IF(ionode) WRITE(*,'(A, I4, A,f5.2)') ' st ', dft_control% xas_estate,&
+!                ' occ ',  occupation_numbers(dft_control% xas_estate)
+!dbg
                  CALL set_mo_set(mos(1)%mo_set,&
                       uniform_occupation=uniform_occupation)
                  CALL cp_fm_get_submatrix(mo_coeff,vecbuffer,1,dft_control%xas_estate,&

@@ -202,6 +202,7 @@ CONTAINS
     LOGICAL :: failure, ionode, transition_potential
     REAL(dp) :: charmax, dist, distmin,  maxocc, &
                 ra(3), rac(3), rc(3)
+    REAL(dp), DIMENSION(:), POINTER           :: occupation_numbers
     REAL(dp), DIMENSION(:,:), ALLOCATABLE       :: orb_char
     REAL(dp), DIMENSION(:,:), POINTER           :: spectrum
     REAL(dp), DIMENSION(:,:), POINTER           :: centers_wfn
@@ -250,6 +251,7 @@ CONTAINS
     typestate(0:5,5) = (/11,12,13,14,15, 0/)
     typestate(0:5,6) = (/16,17,18,19,20,21/)
 
+    NULLIFY(logger)
     logger => cp_error_get_logger(error)
     ionode = logger%para_env%mepos==logger%para_env%source
     IF (ionode) output_unit= cp_logger_get_default_unit_nr(logger)
@@ -257,6 +259,7 @@ CONTAINS
 
     NULLIFY(xas_env, groundstate_coeff, ostrength_sm, dip_fm_set, fm_work)
     NULLIFY(excvec_coeff, spectrum, state_of_atom, centers_wfn, qs_loc_env, cell)
+    NULLIFY(occupation_numbers,my_localized_wfn_control)
 
 !   Create the xas environment
     CALL get_qs_env(qs_env,xas_env=xas_env,error=error)
@@ -363,7 +366,7 @@ CONTAINS
             nao,1,transpose=.TRUE.,error=error)
   
        iatom = atom_of_state(istate)
-      
+       NULLIFY(atomic_kind,all_potential,gth_potential,orb_basis_set)
        atomic_kind =>  particle_set(iatom)%atomic_kind
        CALL get_atomic_kind(atomic_kind=atomic_kind,&
               all_potential=all_potential,&
@@ -473,9 +476,11 @@ CONTAINS
        ! determine which state has to be excited in the global list
        state_to_be_excited = state_of_atom(iat)
        dft_control % xas_estate  = state_to_be_excited
-IF (ionode ) WRITE(*,*) 'estate ',  dft_control % xas_estate
+!IF (ionode ) WRITE(*,*) 'estate ',  dft_control % xas_estate
       ! Take the state_to_be_excited vector from the full set and copy into excvec_coeff
-       CALL get_mo_set(mos(1)%mo_set, mo_coeff=mo_coeff)
+       CALL get_mo_set(mos(1)%mo_set, mo_coeff=mo_coeff,&
+            occupation_numbers=occupation_numbers,homo=homo)
+       occupation_numbers(1:homo)  = 1.0_dp
        CPPrecondition(ASSOCIATED(excvec_coeff),cp_failure_level,routineP,error,failure)
        CALL cp_fm_get_submatrix(mo_coeff,vecbuffer,1,state_to_be_excited,&
             nao,1,transpose=.TRUE.,error=error)

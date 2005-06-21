@@ -65,7 +65,7 @@ MODULE xc_atom
   USE xc_derivative_types,             ONLY: xc_derivative_get,&
                                              xc_derivative_type
   USE xc_derivatives,                  ONLY: xc_functional_eval
-  USE xc_rho_cflags_types,                ONLY: xc_rho_cflags_type
+  USE xc_rho_cflags_types,             ONLY: xc_rho_cflags_type
   USE xc_rho_set_types,                ONLY: xc_rho_set_get,&
                                              xc_rho_set_type
   USE xc_utils,                        ONLY: xc_eval_yat
@@ -131,7 +131,6 @@ CONTAINS
 !  Calculate the derivatives
     IF( ANY(xc_control%functionals_new /= 0) ) THEN
        DO i=1,SIZE(xc_control%functionals)
-        ! TO be changed with the version in xc_utils
           CALL xc_eval_yat(xc_control%functionals_new(i), &
                lsd=lsd,&
                rho_set=rho_set, &
@@ -141,15 +140,15 @@ CONTAINS
                error=error)
        END DO
     ELSE
-    DO i=1,SIZE(xc_control%functionals)
-        ! TO be changed with the version in xc_utils
-       CALL xc_functional_eval(xc_control%functionals(i), &
-            lsd=lsd,&
-            rho_set=rho_set, &
-            deriv_set=deriv_set,&
-            deriv_order=deriv_order, &
-            error=error)
-    END DO
+      DO i=1,SIZE(xc_control%functionals)
+          ! TO be changed with the version in xc_utils
+         CALL xc_functional_eval(xc_control%functionals(i), &
+              lsd=lsd,&
+              rho_set=rho_set, &
+              deriv_set=deriv_set,&
+              deriv_order=deriv_order, &
+              error=error)
+      END DO
     END IF
     CALL xc_rho_set_get(rho_set, drho_cutoff=drho_cutoff, error=error)
 

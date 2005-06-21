@@ -356,13 +356,14 @@ CONTAINS
 
        parameters => diis_buffer%parameter(ib,ispin)%matrix
        CALL cp_fm_to_fm(kc(ispin)%matrix,parameters)
-       IF(.NOT. mo_uocc) THEN
-         CALL cp_fm_to_fm(c,sc)
-         CALL cp_fm_column_scale(sc,occupation(1:nmo))
-         CALL cp_fm_symm("L","U",nao,nmo,1.0_dp,parameters,sc,0.0_dp,kc(ispin)%matrix)
-       ELSE
+!       Using the not integer occ. numbers makes the algorithm instable
+!       IF(.NOT. mo_uocc) THEN
+!         CALL cp_fm_to_fm(c,sc)
+!         CALL cp_fm_column_scale(sc,occupation(1:nmo))
+!         CALL cp_fm_symm("L","U",nao,nmo,1.0_dp,parameters,sc,0.0_dp,kc(ispin)%matrix)
+!       ELSE
          CALL cp_fm_symm("L","U",nao,nmo,maxocc,parameters,c,0.0_dp,kc(ispin)%matrix)
-       END IF
+!       END IF
 
        IF (PRESENT(s_matrix)) THEN
          new_errors => diis_buffer%error(ib,ispin)%matrix

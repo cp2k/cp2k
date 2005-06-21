@@ -62,6 +62,8 @@ MODULE qs_environment
                                              state_loc_none,&
                                              xas_tp_hh, xas_tp_fh 
   USE input_section_types,             ONLY: section_vals_get_subs_vals,&
+                                             section_vals_val_get, &
+                                             section_vals_get,&
                                              section_vals_type
   USE input_types,                     ONLY: setup_parameters_type
   USE kinds,                           ONLY: dp,&
@@ -293,6 +295,7 @@ CONTAINS
     TYPE(qs_wf_history_type), POINTER        :: wf_history
     TYPE(rho0_mpole_type), POINTER           :: nddo_mpole, rho0_mpole
     TYPE(scf_control_type), POINTER          :: scf_control
+    TYPE(section_vals_type), POINTER         :: xas_section
     TYPE(semi_empirical_control_type), &
       POINTER                                :: se_control
 
@@ -551,7 +554,11 @@ CONTAINS
     END IF
 
     ! The transition potential method to calculate XAS needs LSD
-    xas_calculation = (dft_control%do_xas_calculation)
+    xas_section =>  section_vals_get_subs_vals(globenv%input_file, &
+                                                 "FORCE_EVAL%DFT%XAS")
+    call section_vals_get(xas_section,explicit=xas_calculation,error=error)
+
+!    xas_calculation = (dft_control%do_xas_calculation)
 
     IF(xas_calculation .AND. (dft_control%nspins == 1) ) THEN
       CALL stop_program(routine_name,module_name,__LINE__,&
@@ -604,6 +611,13 @@ CONTAINS
    END IF
 
 !   *** if additional mos need to be taken along, we do it here ***
+
+    scf_control%added_mos(1) = MAX(scf_control%added_mos(1),dft_control%xas_control%added_mos)
+    scf_control%added_mos(1) = MIN(scf_control%added_mos(1),n_ao-n_mo(1))
+    IF(xas_calculation .AND. (scf_control%added_mos(1) == 0)) THEN
+      scf_control%added_mos(1) = n_ao-n_mo(1)
+    END IF
+
     n_mo(1) = n_mo(1) + scf_control%added_mos(1)
     IF (n_mo(2) /= 0) n_mo(2) = n_mo(2) + scf_control%added_mos(2)
 
@@ -611,8 +625,7 @@ CONTAINS
     IF (globenv%print%mo_eigenvalues.OR.&
         (scf_control%level_shift /= 0.0_dp).OR.&
         (scf_control%smear /= 0.0_dp).OR.&
-        (scf_control%eps_jacobi /= 0.0_dp) .OR.&
-         xas_calculation) THEN
+        (scf_control%eps_jacobi /= 0.0_dp)) THEN
        n_mo(1) = n_ao
        IF (n_mo(2) /= 0) n_mo(2) = n_ao
     END IF

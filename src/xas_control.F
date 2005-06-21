@@ -85,6 +85,7 @@ MODULE xas_control
     INTEGER                             :: xas_method
     INTEGER                             :: dipole_form
     INTEGER                             :: lb_atom, ub_atom
+    INTEGER                             :: added_mos
     INTEGER, DIMENSION(:), POINTER      :: exc_atoms 
     LOGICAL                             :: localized_wfn
     REAL(dp)                            :: eps_scf
@@ -198,6 +199,9 @@ CONTAINS
         xas_control%exc_atoms(i) = xas_control%lb_atom + (i-1)
       END DO
     END IF
+
+    CALL section_vals_val_get(xas_section,"ADDED_MOS",&
+         i_val=xas_control%added_mos,error=error)
 
     CALL section_vals_val_get(xas_section,"LOCALIZE_WFN",&
          l_val=xas_control%localized_wfn,error=error)
