@@ -27,7 +27,7 @@ PROGRAM main
   INTEGER, PARAMETER  :: sp = SELECTED_REAL_KIND ( 6, 30 )
   INTEGER, PARAMETER  :: dp = SELECTED_REAL_KIND ( 14, 200 )
   CHARACTER (LEN=80)  :: file_dcd, file_pdb, file_xsc, file_xyz, out_file
-  CHARACTER (LEN=80)  :: sel1, sel2
+  CHARACTER (LEN=80)  :: sel1, sel2, diffusion
   LOGICAL             :: verbose
   REAL (KIND=sp), POINTER, DIMENSION(:,:,:)   :: coord
   CHARACTER (LEN=6), POINTER, DIMENSION(:)    :: name
@@ -38,14 +38,16 @@ PROGRAM main
   INTEGER, POINTER, DIMENSION(:)              :: numres 
   INTEGER, POINTER, DIMENSION(:)              :: isel1, isel2
   REAL (KIND=dp), POINTER, DIMENSION(:)       :: gval, cell
-  INTEGER        :: nframe, ntap, skip_frame, start_frame, end_frame
+  REAL(KIND=sp), POINTER, DIMENSION(:) ::  diff
+  INTEGER        :: nframe, ntap, skip_frame, start_frame, end_frame, ref_frame
   REAL (KIND=dp) :: dr, dr_input
 
-  NULLIFY( coord, name, atom, element, residue, num, numres, isel1, isel2, gval, cell)
+  NULLIFY( coord, name, atom, element, residue, num, numres, isel1, isel2, gval, cell, diff)
 
   CALL read_command_line(file_pdb, file_dcd, file_xsc, file_xyz, &
                          out_file, sel1, sel2, skip_frame,&
-                         start_frame, end_frame, dr_input, verbose)
+                         start_frame, end_frame, ref_frame, dr_input, diffusion,&
+                         verbose)
   
   OPEN ( 9, file=file_pdb, status='old', form='formatted'  )
   IF (INDEX(file_dcd,"NULL") == 0) OPEN (10, file=file_dcd, status='old', form='unformatted')
@@ -53,8 +55,11 @@ PROGRAM main
   OPEN (11, file=file_xsc, status='old', form='formatted'  )
   
   CALL read_pdb( 9, name, atom, residue, num, numres, element, ntap)
-  IF (INDEX(file_dcd,"NULL") == 0) CALL read_dcd(coord, ntap, nframe,10)
-  IF (INDEX(file_xyz,"NULL") == 0) CALL read_xyz(coord, ntap, nframe,10)
+  IF (INDEX(file_dcd,"NULL")  == 0) CALL read_dcd(coord, ntap, nframe,10)
+  IF (INDEX(file_xyz,"NULL")  == 0) CALL read_xyz(coord, ntap, nframe,10)
+  IF (INDEX(diffusion,"NULL") == 0) &
+       CALL eval_diffusion(coord, atom, diffusion,start_frame, end_frame, skip_frame, ref_frame,&
+       nframe, diff)
   CALL read_xsc(cell,11)
   ! Evaluate g(r)
   CALL makeSel(atom, residue, num, numres, element, ntap, sel1, isel1, verbose)
@@ -79,6 +84,43 @@ PROGRAM main
   
 CONTAINS
   
+  SUBROUTINE eval_diffusion(coord, atom, diffusion, start_frame, end_frame, skip_frame, ref_frame, nframe, diff)
+    IMPLICIT NONE
+    REAL(KIND=sp), POINTER, DIMENSION(:,:,:) :: coord
+    REAL(KIND=sp), POINTER, DIMENSION(:) ::  diff
+    CHARACTER (LEN=5), POINTER, DIMENSION(:) :: atom 
+    CHARACTER (LEN=80)  :: diffusion
+    INTEGER             :: skip_frame, start_frame, end_frame, ref_frame
+    INTEGER             :: iframe, idim, j, nframe
+    REAL(KIND=sp), POINTER, DIMENSION(:) :: x, y, z  
+
+    IF (end_frame .LT. 0) end_frame = nframe
+    idim = (end_frame - start_frame)/skip_frame + 1
+    ALLOCATE(diff(idim))
+
+    DO iframe = start_frame, end_frame, skip_frame
+       x => coord(:,iframe,1)
+       y => coord(:,iframe,2)
+       z => coord(:,iframe,3)
+       diff(iframe) = 0.0_sp
+       DO j = 1, SIZE(atom)
+          IF (TRIM(diffusion) == TRIM(atom(j))) &
+               diff(iframe) = diff(iframe) + (coord(j,iframe,1)-coord(j,ref_frame,1))**2 +&
+                                             (coord(j,iframe,2)-coord(j,ref_frame,2))**2 +&
+                                             (coord(j,iframe,3)-coord(j,ref_frame,3))**2
+       END DO
+       diff(iframe) = SQRT(diff(iframe))
+    END DO
+
+    OPEN (12, file="diffusion", status="unknown", form="formatted")
+    WRITE(12,'(A)')"# RMSD for atom ::"//TRIM(diffusion)
+    DO j = 1, SIZE(diff)
+       WRITE(12, '(f12.6)')diff(j)
+    END DO
+    CLOSE(12)
+    DEALLOCATE(diff)
+  END SUBROUTINE eval_diffusion
+
   SUBROUTINE print_help_banner
     IMPLICIT NONE
     
@@ -96,6 +138,7 @@ CONTAINS
     WRITE(*,'(2X,A,T20,A)')"-start_frame","Start Frame for evaluation of g(r)" 
     WRITE(*,'(2X,A,T20,A)')"-end_frame","End Frame for evaluation of g(r)" 
     WRITE(*,'(2X,A,T20,A)')"-skip_frame","Frames Stride" 
+    WRITE(*,'(2X,A,T20,A)')"-diffusion","Evaluates the diffusion coefficient for the input TYPE" 
     WRITE(*,'(2X,A,T20,A)')"-verbose","Print verbose information during executions" 
     WRITE(*,'(2X,A,T20,A)')"    ","    "
     WRITE(*,'(2X,A,T20,A)')"Comments:",&
@@ -104,12 +147,12 @@ CONTAINS
   END SUBROUTINE print_help_banner
 
   SUBROUTINE read_command_line(file_pdb, file_dcd, file_xsc, file_xyz, out_file,&
-                              sel1, sel2, skip_frame, start_frame, end_frame,&
-                              dr_input, verbose)
+                              sel1, sel2, skip_frame, start_frame, end_frame, ref_frame,&
+                              dr_input, diffusion, verbose)
     IMPLICIT NONE
     CHARACTER(len=80)  :: file_dcd, file_pdb, file_xsc, out_file, file_xyz
-    CHARACTER(len=80)  :: sel1, sel2, argval
-    INTEGER            :: skip_frame, start_frame, end_frame, narg, I
+    CHARACTER(len=80)  :: sel1, sel2, argval, diffusion
+    INTEGER            :: skip_frame, start_frame, end_frame, ref_frame,narg, I
     LOGICAL            :: sel_set, verbose
     REAL(KIND=dp)      :: dr_input
 
@@ -125,6 +168,7 @@ CONTAINS
     out_file    = "NULL"
     sel1        = "NULL"
     sel2        = "NULL"
+    diffusion   = "NULL"
     sel_set     = .false.
     ! number of arguments...
     narg = iargc()
@@ -157,12 +201,17 @@ CONTAINS
        CASE ("-start_frame")
           CALL getarg(i+1,argval)
           READ(argval,*)start_frame
+       CASE ("-ref_frame")
+          CALL getarg(i+1,argval)
+          READ(argval,*)ref_frame
        CASE ("-end_frame")
           CALL getarg(i+1,argval)
           READ(argval,*)end_frame
        CASE ("-skip_frame")
           CALL getarg(i+1,argval)
           READ(argval,*)skip_frame
+       CASE ("-diffusion")
+          CALL getarg(i+1,diffusion)
        CASE ("-verbose")
           verbose = .TRUE.
        CASE DEFAULT
