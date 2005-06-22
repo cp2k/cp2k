@@ -158,6 +158,7 @@ CONTAINS
 
     skip_frame  = 1
     start_frame = 1
+    ref_frame   = -999
     dr_input    = 0.1_dp
     end_frame   = -999
     verbose     = .FALSE.
@@ -218,7 +219,8 @@ CONTAINS
           ! do nothing...
        END SELECT
     END DO
-    
+
+    IF (ref_frame < 0) ref_frame = start_frame
     IF (INDEX(file_pdb,"NULL") /= 0) CALL print_help_banner
     IF (INDEX(file_dcd,"NULL") /= 0 .AND. INDEX(file_xyz,"NULL") /= 0 ) CALL print_help_banner
     IF (INDEX(file_dcd,"NULL") == 0 .AND. INDEX(file_xyz,"NULL") == 0 ) CALL print_help_banner
