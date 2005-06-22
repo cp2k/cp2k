@@ -38,8 +38,8 @@ MODULE qs_loc_utils
                                              cp_error_message,&
                                              cp_error_type
   USE cp_fm_basic_linalg,              ONLY: cp_fm_gemm
-  USE cp_fm_pool_types,                ONLY: cp_fm_pool_p_type,&
-                                             fm_pool_create_fm
+!  USE cp_fm_pool_types,                ONLY: cp_fm_pool_p_type,&
+!                                             fm_pool_create_fm
   USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
                                              cp_fm_struct_release,&
                                              cp_fm_struct_type
@@ -104,7 +104,7 @@ MODULE qs_loc_utils
                                              neighbor_list_type,&
                                              neighbor_node_type,&
                                              next
-  USE qs_matrix_pools,                 ONLY: mpools_get
+!  USE qs_matrix_pools,                 ONLY: mpools_get
   USE qs_mo_types,                     ONLY: get_mo_set,&
                                              mo_set_p_type
   USE simulation_cell,                 ONLY: cell_type,&
@@ -394,10 +394,8 @@ CONTAINS
     REAL(KIND=dp), DIMENSION(:, :), POINTER     :: vecbuffer
     REAL(KIND=dp), DIMENSION(:), POINTER        :: occupations
     TYPE(cell_type), POINTER                    :: cell
-    TYPE(cp_fm_pool_p_type), DIMENSION(:), &
-      POINTER                                   :: ao_mosub_fm_pools,&
-                                                   mosub_mosub_fm_pools
     TYPE(cp_fm_p_type), DIMENSION(:), POINTER   :: moloc_coeff
+    TYPE(cp_fm_struct_type), POINTER            :: tmp_fm_struct
     TYPE(cp_fm_type), POINTER                   :: mo_coeff
     TYPE(cp_para_env_type), POINTER             :: para_env
     TYPE(distribution_1d_type), POINTER         :: local_molecules
@@ -415,8 +413,7 @@ CONTAINS
     my_one_spin = .FALSE.
     IF(PRESENT(onlyspin1)) my_one_spin = onlyspin1
 
-    NULLIFY(mos,matrix_s,moloc_coeff,ao_mosub_fm_pools,mosub_mosub_fm_pools)
-
+    NULLIFY(mos,matrix_s,moloc_coeff,particle_set,para_env,cell,local_molecules,occupations)
   
     CALL get_qs_env(qs_env=qs_env, matrix_s=matrix_s, cell=cell, &
                      local_molecules=local_molecules,&
@@ -424,25 +421,25 @@ CONTAINS
                      para_env=para_env,&
                      mos=mos)
 
-    CALL mpools_get(qs_env%mpools,ao_mosub_fm_pools=ao_mosub_fm_pools,&
-                    mosub_mosub_fm_pools=mosub_mosub_fm_pools)
-
     nspins = SIZE(mos,1)
     my_nspins = nspins
     IF(my_one_spin) my_nspins = 1
-
     ALLOCATE (moloc_coeff(my_nspins), STAT=istat)
     DO ispin = 1,my_nspins
-      CALL get_mo_set(mos(ispin)%mo_set,nao=nao,nmo=nmo)
+      NULLIFY(tmp_fm_struct,mo_coeff)
+      CALL get_mo_set(mos(ispin)%mo_set,mo_coeff=mo_coeff,nao=nao,nmo=nmo)
+      nmosub = localized_wfn_control%nloc_states(ispin)
+      CALL cp_fm_struct_create(tmp_fm_struct,nrow_global=nao,&
+           ncol_global=nmosub,para_env=para_env,context=mo_coeff%matrix_struct%context)
 
-      CALL fm_pool_create_fm(ao_mosub_fm_pools(ispin)%pool,moloc_coeff(ispin)%matrix,&
-           name="qs_loc_env%mo"//TRIM(ADJUSTL(cp_to_string(ispin))),error=error)
+      CALL cp_fm_create (moloc_coeff(ispin)%matrix , tmp_fm_struct )
+
       CALL cp_fm_get_info(moloc_coeff(ispin)%matrix, nrow_global=naosub, &
            ncol_global=nmosub,error=error)
       CPPostcondition(nao==naosub,cp_failure_level,routineP,error,failure)
       CPPostcondition(nmo>=nmosub,cp_failure_level,routineP,error,failure)
       CALL cp_fm_set_all(moloc_coeff(ispin)%matrix,0.0_dp)
-
+      CALL cp_fm_struct_release ( tmp_fm_struct )
     END DO  ! ispin
     ! Copy the submatrix
 
@@ -496,6 +493,11 @@ CONTAINS
                         localized_wfn_control=localized_wfn_control)
 
     ! Prepare the operators
+    NULLIFY(tmp_fm_struct,mo_coeff)
+    nmosub = MAXVAL(localized_wfn_control%nloc_states)
+    CALL get_mo_set(mos(1)%mo_set, mo_coeff=mo_coeff)
+    CALL cp_fm_struct_create(tmp_fm_struct,nrow_global=nmosub,&
+         ncol_global=nmosub,para_env=para_env,context=mo_coeff%matrix_struct%context)
 
     IF ( localized_wfn_control%operator_type==op_loc_berry )  THEN
       ALLOCATE ( qs_loc_env % op_sm_set ( 2, 3 ), STAT = istat )
@@ -512,13 +514,14 @@ CONTAINS
 
       ALLOCATE ( qs_loc_env % op_fm_set( 2, 3 ), STAT = istat )
       CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+
+
       DO i =   1, SIZE ( qs_loc_env % op_fm_set, 2 )
          DO j =   1, SIZE ( qs_loc_env % op_fm_set, 1 )
            NULLIFY(qs_loc_env % op_fm_set(j,i)%matrix)
-           CALL fm_pool_create_fm(mosub_mosub_fm_pools(1)%pool,&
-               qs_loc_env %op_fm_set(j,i)%matrix,&
-               name="qs_loc_env%zij_fm_"//TRIM(ADJUSTL(cp_to_string(j)))//&
-               "-"//TRIM(ADJUSTL(cp_to_string(i))),error=error)
+
+           CALL cp_fm_create (qs_loc_env % op_fm_set(j,i)%matrix , tmp_fm_struct )
+
            CALL cp_fm_get_info(qs_loc_env %op_fm_set(j,i)%matrix, nrow_global=nmosub, &
                error=error)
            CPPostcondition(nmo>=nmosub,cp_failure_level,routineP,error,failure)
@@ -533,10 +536,9 @@ CONTAINS
          CALL get_mo_set(mos(ispin)%mo_set,nmo=nmo)
          DO iatom = 1,natoms
            NULLIFY(qs_loc_env %op_fm_set(iatom,ispin)%matrix)
-           CALL fm_pool_create_fm(mosub_mosub_fm_pools(1)%pool,&
-                qs_loc_env %op_fm_set(iatom,ispin)%matrix,&
-                name="qs_loc_env%op_fm_"//TRIM(ADJUSTL(cp_to_string(iatom)))//&
-                "-"//TRIM(ADJUSTL(cp_to_string(ispin))),error=error)
+
+           CALL cp_fm_create (qs_loc_env % op_fm_set(iatom,ispin)%matrix , tmp_fm_struct )
+
            CALL cp_fm_get_info(qs_loc_env %op_fm_set(iatom,ispin)%matrix, nrow_global=nmosub, &
                 error=error)
            CPPostcondition(nmo>=nmosub,cp_failure_level,routineP,error,failure)
@@ -546,7 +548,7 @@ CONTAINS
     ELSE
       CALL stop_program(routineP,"Type of operator not implemented")
     ENDIF
-
+    CALL cp_fm_struct_release ( tmp_fm_struct )
 
     IF (  localized_wfn_control%operator_type==op_loc_berry ) THEN 
  
