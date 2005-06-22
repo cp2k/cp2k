@@ -259,6 +259,7 @@ CONTAINS
     xas_control%max_scf = 150
     xas_control%eps_scf = 0.5d-6
     xas_control%localized_wfn = .FALSE. 
+    xas_control%added_mos=0
     NULLIFY(xas_control%localized_wfn_control)
     CALL localized_wfn_control_create(xas_control%localized_wfn_control,error=error)
     NULLIFY(xas_control%exc_atoms)
