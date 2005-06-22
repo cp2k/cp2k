@@ -558,8 +558,6 @@ CONTAINS
                                                  "FORCE_EVAL%DFT%XAS")
     call section_vals_get(xas_section,explicit=xas_calculation,error=error)
 
-!    xas_calculation = (dft_control%do_xas_calculation)
-
     IF(xas_calculation .AND. (dft_control%nspins == 1) ) THEN
       CALL stop_program(routine_name,module_name,__LINE__,&
                    "Use the LSD option for XAS with transition potential.")
@@ -611,12 +609,12 @@ CONTAINS
    END IF
 
 !   *** if additional mos need to be taken along, we do it here ***
-
-    scf_control%added_mos(1) = MAX(scf_control%added_mos(1),dft_control%xas_control%added_mos)
-    scf_control%added_mos(1) = MIN(scf_control%added_mos(1),n_ao-n_mo(1))
-    IF(xas_calculation .AND. (scf_control%added_mos(1) == 0)) THEN
-      scf_control%added_mos(1) = n_ao-n_mo(1)
+    IF(xas_calculation) THEN
+      scf_control%added_mos(1) = MAX(scf_control%added_mos(1),&
+                                 dft_control%xas_control%added_mos)
+      IF(scf_control%added_mos(1) == 0) scf_control%added_mos(1) = n_ao-n_mo(1)
     END IF
+    scf_control%added_mos(1) = MIN(scf_control%added_mos(1),n_ao-n_mo(1))
 
     n_mo(1) = n_mo(1) + scf_control%added_mos(1)
     IF (n_mo(2) /= 0) n_mo(2) = n_mo(2) + scf_control%added_mos(2)
