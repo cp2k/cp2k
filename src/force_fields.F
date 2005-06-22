@@ -2318,6 +2318,7 @@ SUBROUTINE force_field_pack (particle_set,atomic_kind_set,&
   INTEGER                                  :: first,last,match_names
   TYPE(molecule_type), POINTER        :: molecule
   TYPE ( spline_data_type ), POINTER :: spline_data
+  LOGICAL :: allocate_spline_bond_env
 
 !------------------------------------------------------------------------------
 !------------------------------------------------------------------------------
@@ -2335,6 +2336,7 @@ SUBROUTINE force_field_pack (particle_set,atomic_kind_set,&
   only_qm = .FALSE.
   my_qmmm = .FALSE.
   use_qmmm_ff = qmmm_env%use_qmmm_ff
+  allocate_spline_bond_env = .FALSE.
   failure = .FALSE.
   default_rcutsq = (10.0_dp*bohr)*(10.0_dp*bohr)
   IF (PRESENT(qmmm).AND.PRESENT(qmmm_env)) my_qmmm = qmmm
@@ -3471,9 +3473,9 @@ SUBROUTINE force_field_pack (particle_set,atomic_kind_set,&
       ! loop over params from amber
 
       ! loop over params from charmm
+      ii = 0 
+      jj = 0
       IF(ASSOCIATED(chm_info%nonbond_a_14)) THEN
-        ii = 0 
-        jj = 0
         DO k=1,SIZE(chm_info%nonbond_a_14)
           IF(TRIM(name_atm_a)==TRIM(chm_info%nonbond_a_14(k))) THEN
             ii = k
@@ -3490,50 +3492,49 @@ SUBROUTINE force_field_pack (particle_set,atomic_kind_set,&
             found_b = .TRUE.
           END IF
         END DO
+      END IF
+      IF(ASSOCIATED(chm_info%nonbond_a)) THEN
+         IF(.NOT.found_a) THEN
+            DO k=1,SIZE(chm_info%nonbond_a)
+               IF(TRIM(name_atm_a)==TRIM(chm_info%nonbond_a(k))) THEN
+                  ii = k
+                  rmin2_a = chm_info%nonbond_rmin2(k)
+                  epsilon_a = chm_info%nonbond_eps(k)
+               END IF
+            END DO
+         END IF
+         IF(.NOT.found_b) THEN
+            DO k=1,SIZE(chm_info%nonbond_a)
+               IF(TRIM(name_atm_b)==TRIM(chm_info%nonbond_a(k))) THEN
+                  jj = k
+                  rmin2_b = chm_info%nonbond_rmin2(k)
+                  epsilon_b = chm_info%nonbond_eps(k)
+               END IF
+            END DO
+         END IF
+      END IF
 
-        IF(.NOT.found_a) THEN
-          DO k=1,SIZE(chm_info%nonbond_a)
-            IF(TRIM(name_atm_a)==TRIM(chm_info%nonbond_a(k))) THEN
-              ii = k
-              rmin2_a = chm_info%nonbond_rmin2(k)
-              epsilon_a = chm_info%nonbond_eps(k)
-            END IF
-          END DO
-        END IF
-        IF(.NOT.found_b) THEN
-          DO k=1,SIZE(chm_info%nonbond_a)
-            IF(TRIM(name_atm_b)==TRIM(chm_info%nonbond_a(k))) THEN
-              jj = k
-              rmin2_b = chm_info%nonbond_rmin2(k)
-              epsilon_b = chm_info%nonbond_eps(k)
-            END IF
-          END DO
-        END IF
-
-        IF(ii/=0 .AND. jj/=0) THEN
-          !rmin = chm_info%nonbond_rmin2_14(ii)+chm_info%nonbond_rmin2_14(jj)
-          !epsilon = sqrt(chm_info%nonbond_eps_14(ii)*&
-          !               chm_info%nonbond_eps_14(jj))
-          rmin = rmin2_a + rmin2_b
-          epsilon = sqrt(epsilon_a*epsilon_b)
-          potparm_bond(i,j)%type       = 'LENNARD-JONES'
-          potparm_bond(i,j)%at1        = name_atm_a
-          potparm_bond(i,j)%at2        = name_atm_b
-          potparm_bond(i,j)%lj%epsilon = epsilon
-          potparm_bond(i,j)%lj%sigma6  = 0.5_dp*rmin**6
-          potparm_bond(i,j)%lj%sigma12 = 0.25_dp*rmin**12
-          IF(ff_type%rcut_nb>0.0_dp) THEN
+      IF(ii/=0 .AND. jj/=0) THEN
+         rmin = rmin2_a + rmin2_b
+         epsilon = SQRT(epsilon_a*epsilon_b)
+         potparm_bond(i,j)%type       = 'LENNARD-JONES'
+         potparm_bond(i,j)%at1        = name_atm_a
+         potparm_bond(i,j)%at2        = name_atm_b
+         potparm_bond(i,j)%lj%epsilon = epsilon
+         potparm_bond(i,j)%lj%sigma6  = 0.5_dp*rmin**6
+         potparm_bond(i,j)%lj%sigma12 = 0.25_dp*rmin**12
+         IF(ff_type%rcut_nb>0.0_dp) THEN
             potparm_bond(i,j)%rcutsq     = ff_type%rcut_nb*ff_type%rcut_nb
-          ELSE
+         ELSE
             !Corresponds to an cutoff of 10A
             potparm_bond(i,j)%rcutsq     = default_rcutsq
-          END IF
-
-          IF(found .AND. PM1) &
-             WRITE(iw,*) "    Multiple LJ-POT declarations: overwriting"
-          found = .TRUE.
-        END IF
+         END IF
+         
+         IF(found .AND. PM1) &
+              WRITE(iw,*) "    Multiple LJ-POT declarations: overwriting"
+         found = .TRUE.
       END IF
+      
 
       ! always have the input param last to overwrite all the other ones
       IF(ASSOCIATED(inp_info%nonbonded14)) THEN
@@ -3583,20 +3584,22 @@ SUBROUTINE force_field_pack (particle_set,atomic_kind_set,&
             END DO            
          END IF
       END IF
-
+      
       IF(.NOT.found) THEN
-        IF(PM2) WRITE(iw,*) "    spline_bond_env ",j," : ",&
-                            TRIM(name_atm_a)," ",&
-                            TRIM(name_atm_b)
-        potparm_bond(i,j)%type       = 'UNSET'
-        !Temporary Fix until 1-4 clean up is done
-        potparm_bond(i,j)%type       = 'LENNARD-JONES'
-        potparm_bond(i,j)%at1        = ''
-        potparm_bond(i,j)%at2        = ''
-        potparm_bond(i,j)%lj%epsilon = 0.0_dp
-        potparm_bond(i,j)%lj%sigma6  = 0.0_dp
-        potparm_bond(i,j)%lj%sigma12 = 0.0_dp
-        potparm_bond(i,j)%rcutsq     = default_rcutsq
+         IF(PM2) WRITE(iw,*) "    spline_bond_env ",j," : ",&
+                  TRIM(name_atm_a)," ",&
+                  TRIM(name_atm_b)
+         potparm_bond(i,j)%type       = 'UNSET'
+         !Temporary Fix until 1-4 clean up is done
+         potparm_bond(i,j)%type       = 'LENNARD-JONES'
+         potparm_bond(i,j)%at1        = ''
+         potparm_bond(i,j)%at2        = ''
+         potparm_bond(i,j)%lj%epsilon = 0.0_dp
+         potparm_bond(i,j)%lj%sigma6  = 0.0_dp
+         potparm_bond(i,j)%lj%sigma12 = 0.0_dp
+         potparm_bond(i,j)%rcutsq     = default_rcutsq
+      ELSE
+         allocate_spline_bond_env = .TRUE.
       END IF
 
       IF (only_qm) THEN
@@ -3608,27 +3611,28 @@ SUBROUTINE force_field_pack (particle_set,atomic_kind_set,&
     END DO
   END DO
   NULLIFY(spline_bond_env)
-  nkinds = SIZE ( potparm_bond, 1 )
-  CALL spline_env_create ( spline_bond_env, nkinds, error )
-  CALL spline_nonbond_control ( spline_bond_env, potparm_bond, atomic_kind_set )
-! point potparm ( ikind, jkind ) % spline_data => spline_data_p ( n )
-  DO ikind = 1, SIZE ( potparm_bond, 1 )
-    DO jkind = ikind, SIZE ( potparm_bond, 2 )
-      n = spline_bond_env % spltab ( ikind, jkind )
-      spline_data => spline_bond_env % spline_data_p ( n ) % spline_data
-! do i,j
-      CALL spline_data_retain ( spline_data, error )
-      CALL spline_data_release (  &
-         potparm_bond ( ikind, jkind ) % pair_spline_data, error )
-      potparm_bond ( ikind, jkind ) % pair_spline_data => spline_data
-! do j,i
-      CALL spline_data_retain ( spline_data, error )
-      CALL spline_data_release (  &
-         potparm_bond ( jkind, ikind ) % pair_spline_data, error )
-      potparm_bond ( jkind, ikind ) % pair_spline_data => spline_data
-    END DO
-  END DO
-
+  IF (allocate_spline_bond_env) THEN
+     nkinds = SIZE ( potparm_bond, 1 )
+     CALL spline_env_create ( spline_bond_env, nkinds, error )
+     CALL spline_nonbond_control ( spline_bond_env, potparm_bond, atomic_kind_set )
+     ! point potparm ( ikind, jkind ) % spline_data => spline_data_p ( n )
+     DO ikind = 1, SIZE ( potparm_bond, 1 )
+        DO jkind = ikind, SIZE ( potparm_bond, 2 )
+           n = spline_bond_env % spltab ( ikind, jkind )
+           spline_data => spline_bond_env % spline_data_p ( n ) % spline_data
+           ! do i,j
+           CALL spline_data_retain ( spline_data, error )
+           CALL spline_data_release (  &
+                potparm_bond ( ikind, jkind ) % pair_spline_data, error )
+           potparm_bond ( ikind, jkind ) % pair_spline_data => spline_data
+           ! do j,i
+           CALL spline_data_retain ( spline_data, error )
+           CALL spline_data_release (  &
+                potparm_bond ( jkind, ikind ) % pair_spline_data, error )
+           potparm_bond ( jkind, ikind ) % pair_spline_data => spline_data
+        END DO
+     END DO
+  END IF
   !-----------------------------------------------------------------------------
   !-----------------------------------------------------------------------------
   ! 13. ONFO
@@ -3654,63 +3658,16 @@ SUBROUTINE force_field_pack (particle_set,atomic_kind_set,&
                            name=name_atm_b, kind_number = jkind )
       found = .FALSE.
       only_qm = qmmm_ff_precond_only_qm(id1=name_atm_a, id2=name_atm_b)
-      ! loop over params from amber
-!     IF(ASSOCIATED(chm_info%onfo_a)) THEN
-!       DO k=1,SIZE(chm_info%onfo_a)
-!         IF( ((TRIM(chm_info%onfo_a(k))==TRIM(name_atm_a)) .AND. &
-!              (TRIM(chm_info%onfo_b(k))==TRIM(name_atm_b)) .AND. &
-!              (TRIM(chm_info%onfo_c(k))==TRIM(name_atm_c)) .AND. &
-!              (TRIM(chm_info%onfo_d(k))==TRIM(name_atm_d))) .OR. &
-!             ((TRIM(chm_info%onfo_a(k))==TRIM(name_atm_d)) .AND. &
-!              (TRIM(chm_info%onfo_b(k))==TRIM(name_atm_c)) .AND. &
-!              (TRIM(chm_info%onfo_c(k))==TRIM(name_atm_b)) .AND. &
-!              (TRIM(chm_info%onfo_d(k))==TRIM(name_atm_a))) ) THEN
-!           onfo_list(j)%onfo_kind%k      = chm_info%onfo_k(k)
-!           onfo_list(j)%onfo_kind%phi0 = chm_info%onfo_phi0(k)
-!           IF(found .AND. PM1) &
-!              WRITE(iw,*) "    Multiple Impropers declarations: overwriting"
-!           found = .TRUE.
-!           EXIT
-!         END IF
-!       END DO
-!     END IF
-
-!      IF(ASSOCIATED(chm_info%nonbond_a_14)) THEN
       onfo_list(j)%onfo_kind%name   = "CHARMM"
-! Point to the correct potparm % ( ikind, jkind ) % spline_data
+
       CALL spline_data_retain (potparm_bond (ikind, jkind ) % pair_spline_data,error=error)
       CALL spline_data_release(onfo_list(j)%onfo_kind%spline_data, error=error)
       onfo_list(j)%onfo_kind%spline_data => &
       potparm_bond ( ikind, jkind ) % pair_spline_data
       
-!      END IF
-
-!      ! always have the input param last to overwrite all the other ones
-!      IF(ASSOCIATED(inp_info%nonbonded14)) THEN
-!        DO k=1,SIZE(inp_info%nonbonded14)
-!          IF(PM2) WRITE(iw,*) "    TESTING ",TRIM(name_atm_a),TRIM(name_atm_b),&
-!              " with ",TRIM(inp_info%nonbonded14(k)%at1),&
-!              TRIM(inp_info%nonbonded14(k)%at2)
-!          IF(((TRIM(name_atm_a)==TRIM(inp_info%nonbonded14(k)%at1))  .AND. &
-!              (TRIM(name_atm_b)==TRIM(inp_info%nonbonded14(k)%at2))) .OR.  &
-!             ((TRIM(name_atm_b)==TRIM(inp_info%nonbonded14(k)%at1))  .AND. &
-!              (TRIM(name_atm_a)==TRIM(inp_info%nonbonded14(k)%at2))) ) THEN
-!            potparm_bond(i,j) = inp_info%nonbonded14(k)
-!            IF(found .AND. PM1) &
-!               WRITE(iw,*) "    Multiple LJ-POT declarations: overwriting"
-!            IF(PM2) WRITE(iw,*) "    FOUND ",TRIM(name_atm_a),&
-!                    " ",TRIM(name_atm_b)
-!            found = .TRUE.
-!            EXIT
-!          END IF
-!        END DO
-!      END IF
-!
-!      IF(.NOT.found) THEN
       IF(PM2) WRITE(iw,*) "    ONE-FOUR ",j," : ",&
                           TRIM(name_atm_a)," ",&
                           TRIM(name_atm_b)
-!      END IF
     END DO
     CALL set_molecule_kind(molecule_kind=molecule_kind,&
                            onfo_list=onfo_list)

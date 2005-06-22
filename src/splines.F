@@ -388,7 +388,7 @@ END SUBROUTINE spline_data_create
 SUBROUTINE init_splinexy ( spl, nn )
 
 
-    TYPE(spline_data_type), INTENT(INOUT)         :: spl
+    TYPE(spline_data_type), POINTER          :: spl
     INTEGER, INTENT(IN)                      :: nn
 
     INTEGER                                  :: err
@@ -466,7 +466,7 @@ END SUBROUTINE init_splinexy
 SUBROUTINE init_spline ( spl, dx, y1a, y1b )
 
 
-    TYPE(spline_data_type), INTENT(INOUT)         :: spl
+    TYPE(spline_data_type), POINTER         :: spl
     REAL(KIND=dp), INTENT(IN), OPTIONAL          :: dx, y1a, y1b
 
     INTEGER                                  :: err, i, n
@@ -719,7 +719,7 @@ FUNCTION spline ( spl, xx, y1, y2, y3 )
 
 
 ! Return value
-    TYPE(spline_data_type), INTENT(INOUT)         :: spl
+    TYPE(spline_data_type), POINTER         :: spl
     REAL(KIND=dp), INTENT(IN)                    :: xx
     REAL(KIND=dp), INTENT(OUT), OPTIONAL         :: y1, y2, y3
     REAL(KIND=dp)                                :: spline
@@ -862,7 +862,7 @@ FUNCTION spline_1 ( spl, xx )
 
 
 ! Return value
-    TYPE(spline_data_type), INTENT(INOUT)         :: spl
+    TYPE(spline_data_type), POINTER         :: spl
     REAL(KIND=dp), INTENT(IN)                    :: xx
     REAL(KIND=dp)                                :: spline_1
 
@@ -991,7 +991,7 @@ FUNCTION spline_int( spl, x0, x1 )
 
 
 ! Return value
-    TYPE(spline_data_type), INTENT(INOUT)         :: spl
+    TYPE(spline_data_type), POINTER         :: spl
     REAL(KIND=dp), INTENT(IN)                    :: x0, x1
     REAL(KIND=dp)                                :: spline_int
 
@@ -1101,7 +1101,7 @@ END FUNCTION spline_int
 SUBROUTINE kill_spline ( spl, what )
 
 
-    TYPE(spline_data_type), INTENT(INOUT)         :: spl
+    TYPE(spline_data_type), POINTER         :: spl
     CHARACTER, INTENT(IN), OPTIONAL          :: what
 
     CHARACTER                                :: w

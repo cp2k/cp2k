@@ -73,7 +73,7 @@ SUBROUTINE spline_manybody_control ( spline_env, potparm )
                                   
 
 
-    TYPE ( spline_environment_type ), INTENT ( INOUT )  :: spline_env 
+    TYPE ( spline_environment_type ), POINTER  :: spline_env 
     TYPE ( pair_potential_type ), POINTER               :: potparm ( :, : )
 
     INTEGER                                  :: i, isos, j, jx, n, ntype

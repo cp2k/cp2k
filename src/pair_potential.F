@@ -142,7 +142,7 @@ SUBROUTINE spline_nonbond_control ( spline_env, potparm, atomic_kind_set, &
                                     ewald_env )
 
 
-    TYPE ( spline_environment_type ), INTENT ( INOUT )  :: spline_env 
+    TYPE ( spline_environment_type ), POINTER  :: spline_env 
     TYPE ( pair_potential_type ), POINTER               :: potparm ( :, : )
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                           :: atomic_kind_set
