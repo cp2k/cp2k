@@ -26,6 +26,7 @@
 !!   SOURCE
 !******************************************************************************
 MODULE harris_env_types
+
   USE cp_error_handling,               ONLY: cp_a_l,&
                                              cp_assert,&
                                              cp_assertion_failed,&
@@ -149,7 +150,7 @@ CONTAINS
 !!
 !!   SYNOPSIS
 !!     SUBROUTINE harris_env_retain(harris_env, error)
-!!       TYPE(harris_env_type), POINTER:: harris_env
+!!       TYPE(harris_env_type), POINTER :: harris_env
 !!       TYPE(cp_error_type), OPTIONAL, INTENT(INOUT):: error
 !!     END SUBROUTINE harris_env_retain
 !!
@@ -174,6 +175,7 @@ CONTAINS
 !!
 !!*** **********************************************************************
   SUBROUTINE harris_env_retain(harris_env, error)
+
     TYPE(harris_env_type), POINTER           :: harris_env
     TYPE(cp_error_type), INTENT(INOUT), &
       OPTIONAL                               :: error
@@ -202,8 +204,8 @@ CONTAINS
 !!
 !!   SYNOPSIS
 !!     SUBROUTINE harris_env_release(harris_env, error)
-!!       TYPE(harris_env_type), POINTER:: harris_env
-!!       TYPE(cp_error_type), OPTIONAL, INTENT(INOUT):: error
+!!       TYPE(harris_env_type), POINTER :: harris_env
+!!       TYPE(cp_error_type), OPTIONAL, INTENT(INOUT) :: error
 !!     END SUBROUTINE harris_env_release
 !!
 !!   FUNCTION
@@ -228,6 +230,7 @@ CONTAINS
 !!
 !!*** **********************************************************************
   SUBROUTINE harris_env_release(harris_env, error)
+
     TYPE(harris_env_type), POINTER           :: harris_env
     TYPE(cp_error_type), INTENT(INOUT), &
       OPTIONAL                               :: error
@@ -264,8 +267,8 @@ CONTAINS
 !!                           Exc, integral_vxc, Ecore, Ecore_overlap,
 !!                           Ecore_self, EII, Eharris_correction, 
 !!                           sum_of_eigenvalues, Eharris, error)
-!!       TYPE(harris_env_type), POINTER:: harris_env
-!!       INTEGER, INTENT(OUT), OPTIONAL:: id_nr
+!!       TYPE(harris_env_type), POINTER       :: harris_env
+!!       INTEGER, INTENT(OUT), OPTIONAL       :: id_nr
 !!       REAL(KIND=dp), INTENT(OUT), OPTIONAL :: Ehartreee_elec, 
 !!                                               Ehartree_core, Exc,
 !!                                               integral_vxc, Ecore,
@@ -283,6 +286,7 @@ CONTAINS
 !!
 !!   ARGUMENTS
 !!     - harris_env: The enquired harris environment
+!!     - id_nr: unique identifier
 !!     - error: variable to control error logging, stopping,... 
 !!       see module cp_error_handling
 !!     - Ehartree_elec: The electronic hartree energy
@@ -310,6 +314,7 @@ CONTAINS
                             Exc, integral_vxc, Ecore, Ecore_overlap, &
                             Ecore_self, EII, Eharris_correction, &
                             sum_of_eigenvalues, Eharris, error)
+
     TYPE(harris_env_type), POINTER           :: harris_env
     INTEGER, INTENT(OUT), OPTIONAL           :: id_nr
     REAL(KIND=dp), INTENT(OUT), OPTIONAL     :: Ehartree_elec, &
@@ -367,10 +372,10 @@ CONTAINS
 !!     harris_env_set
 !!
 !!   SYNOPSIS
-!!     SUBROUTINE ep_env_set(harris_env, id_nr, Ehartree_elec, Ehartree_core, 
-!!                           Exc, integral_vxc, Ecore, Ecore_overlap, 
-!!                           Ecore_self, EII, Eharris_correction, 
-!!                           sum_of_eigenvalues, Eharris, error)
+!!     SUBROUTINE harris_env_set(harris_env, id_nr, Ehartree_elec, Ehartree_core, 
+!!                               Exc, integral_vxc, Ecore, Ecore_overlap, 
+!!                               Ecore_self, EII, Eharris_correction, 
+!!                               sum_of_eigenvalues, Eharris, error)
 !!       TYPE(harris_env_type), POINTER       :: harris_env
 !!       INTEGER, INTENT(OUT), OPTIONAL       :: id_nr
 !!       REAL(KIND=dp), INTENT(OUT), OPTIONAL :: Ehartreee_elec, 
@@ -380,7 +385,7 @@ CONTAINS
 !!                                               EII, Eharris_correction,
 !!                                               sum_of_eigenvalues, Eharris
 !!       TYPE(cp_error_type), OPTIONAL, INTENT(INOUT):: error
-!!     END SUBROUTINE ep_env_set
+!!     END SUBROUTINE harris_env_set
 !!
 !!   FUNCTION
 !!     Sets various attributes of the harris environment.
@@ -390,6 +395,7 @@ CONTAINS
 !!
 !!   ARGUMENTS
 !!     - harris_env: The enquired harris environment
+!!     - id_nr: unique identifier
 !!     - error: variable to control error logging, stopping,... 
 !!       see module cp_error_handling
 !!     - Ehartree_elec: The electronic hartree energy
@@ -417,6 +423,7 @@ CONTAINS
                             Exc, integral_vxc, Ecore, Ecore_overlap, &
                             Ecore_self, EII, Eharris_correction, &
                             sum_of_eigenvalues, Eharris, error)
+
     TYPE(harris_env_type), POINTER           :: harris_env
     INTEGER, INTENT(OUT), OPTIONAL           :: id_nr
     REAL(KIND=dp), INTENT(OUT), OPTIONAL     :: Ehartree_elec, &
@@ -463,7 +470,7 @@ CONTAINS
       IF (PRESENT(sum_of_eigenvalues)) THEN
         harris_env%sum_of_eigenvalues = sum_of_eigenvalues
       END IF
-      If (PRESENT(Eharris)) harris_env%Eharris = Eharris
+      IF (PRESENT(Eharris)) harris_env%Eharris = Eharris
     END IF
   END SUBROUTINE harris_env_set
 !***************************************************************************
@@ -475,9 +482,9 @@ CONTAINS
 !!
 !!   SYNOPSIS
 !!     SUBROUTINE harris_env_clear(harris_env, error)
-!!       TYPE(harris_env_type), POINTER:: harris_env
-!!       TYPE(cp_error_type), OPTIONAL, INTENT(INOUT):: error
-!!     END SUBROUTINE ep_env_init
+!!       TYPE(harris_env_type), POINTER :: harris_env
+!!       TYPE(cp_error_type), OPTIONAL, INTENT(INOUT) :: error
+!!     END SUBROUTINE harris_env_clear
 !!
 !!   FUNCTION
 !!     Reinitializes the harris environment.
@@ -500,6 +507,7 @@ CONTAINS
 !!
 !!*** **********************************************************************
   SUBROUTINE harris_env_clear(harris_env, error)
+
     TYPE(harris_env_type), POINTER           :: harris_env
     TYPE(cp_error_type), INTENT(INOUT), &
       OPTIONAL                               :: error
@@ -539,10 +547,10 @@ CONTAINS
 !!     harris_env_create
 !!
 !!   SYNOPSIS
-!!     SUBROUTINE ep_env_create(harris_env, error)
-!!       TYPE(harris_env_type), POINTER:: harris_env
-!!       TYPE(cp_error_type), OPTIONAL, INTENT(INOUT):: error
-!!     END SUBROUTINE ep_env_create
+!!     SUBROUTINE harris_env_create(harris_env, error)
+!!       TYPE(harris_env_type), POINTER :: harris_env
+!!       TYPE(cp_error_type), OPTIONAL, INTENT(INOUT) :: error
+!!     END SUBROUTINE harris_env_create
 !!
 !!   FUNCTION
 !!     Creates a harris environment.
@@ -565,6 +573,7 @@ CONTAINS
 !!
 !!*** **********************************************************************
   SUBROUTINE harris_env_create(harris_env, error)
+
     TYPE(harris_env_type), POINTER           :: harris_env
     TYPE(cp_error_type), INTENT(INOUT), &
       OPTIONAL                               :: error

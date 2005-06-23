@@ -58,9 +58,9 @@ MODULE harris_functional
                                              pw_env_get
   USE pw_types,                        ONLY: COMPLEXDATA1D, &
                                              RECIPROCALSPACE
-  USE coefficient_types,               ONLY: coeff_type, &
-                                             coeff_add, &
-                                             coeff_sumup
+  USE coefficient_types,               ONLY: coeff_type
+  !                                           coeff_add, &
+  !                                           coeff_sumup
   !USE qs_collocate_density,            ONLY: calculate_total_rho
   !USE qs_charges_types,                ONLY: qs_charges_type
   USE pws,                             ONLY: pw_integral_ab
@@ -131,8 +131,8 @@ CONTAINS
     TYPE(greens_function_type), POINTER             :: green
     TYPE(pw_env_type), POINTER                      :: pw_env
     TYPE(pw_pool_type), POINTER                     :: auxbas_pw_pool
-    TYPE(coeff_type)                                :: rho_tot_gspace, &
-                                                       v_hartree_gspace
+    TYPE(coeff_type)                                :: v_hartree_gspace
+    !                                                   rho_tot_gspace
     INTEGER                                         :: ispin
     TYPE(coeff_type), POINTER                       :: rho_core
     !TYPE(qs_charges_type), POINTER                  :: qs_charges
@@ -145,8 +145,8 @@ CONTAINS
 
     CHARACTER(len=*), PARAMETER :: routineN = 'harris_energy_correction', &
       routineP = moduleN//':'//routineN
-    TYPE(cp_logger_type), POINTER :: logger
-    INTEGER :: unit_nr
+    !TYPE(cp_logger_type), POINTER :: logger
+    !INTEGER :: unit_nr
 
 !   ------------------------------------------------------------------------
 
@@ -155,41 +155,40 @@ CONTAINS
     failure = .FALSE.
     NULLIFY(rho, green, pw_env, auxbas_pw_pool, v_rspace_new, v_tau_rspace, &
             rho_core, qs_energy)
-    logger => cp_error_get_logger(error)
+    !logger => cp_error_get_logger(error)
 
     CPPrecondition(ASSOCIATED(qs_env), cp_failure_level, routineP, error, failure)
     CPPrecondition(qs_env%ref_count>0, cp_failure_level, routineP, error, failure)
     my_EII_necessary = .TRUE.
     IF (PRESENT(EII_necessary)) my_EII_necessary=EII_necessary
 
-    IF (logger%para_env%source==logger%para_env%mepos) THEN
-          unit_nr=cp_logger_get_default_unit_nr(logger,local=.false.)
-          WRITE (unit_nr,*) ""
-          WRITE (unit_nr,*) "The Harris functional energy correction is performed!"
-    END IF
+    !IF (logger%para_env%source==logger%para_env%mepos) THEN
+    !      unit_nr=cp_logger_get_default_unit_nr(logger,local=.false.)
+    !      WRITE (unit_nr,*) ""
+    !      WRITE (unit_nr,*) "The Harris functional energy correction is performed!"
+    !END IF
 
     IF (.NOT. failure) THEN
 
-      CALL get_qs_env(qs_env=qs_env, pw_env=pw_env, error=error)
+      CALL get_qs_env(qs_env=qs_env, pw_env=pw_env, rho=rho, rho_core=rho_core, &
+                      green=green, error=error)
       CALL pw_env_get(pw_env, auxbas_pw_pool=auxbas_pw_pool, error=error)
       CALL pw_pool_init_coeff(auxbas_pw_pool, v_hartree_gspace, &
                               use_data=COMPLEXDATA1D, &
                               in_space=RECIPROCALSPACE, error=error)
-      CALL pw_pool_init_coeff(auxbas_pw_pool, rho_tot_gspace, &
-                              use_data=COMPLEXDATA1D, &
-                              in_space=RECIPROCALSPACE, error=error)
+      !CALL pw_pool_init_coeff(auxbas_pw_pool, rho_tot_gspace, &
+      !                        use_data=COMPLEXDATA1D, &
+      !                        in_space=RECIPROCALSPACE, error=error)
 
       ! ** CALL calc_rho_tot_gspace(rho_tot_gspace, qs_env, rho) ** !
-      !CALL get_qs_env(qs_env=qs_env, rho_core=rho_core,qs_charges=qs_charges)
-      CALL get_qs_env(qs_env=qs_env, rho_core=rho_core, error=error)
-      CALL get_qs_env(qs_env, rho=rho, error=error)
-      CALL coeff_add(rho_core, rho%rho_g(1), rho_tot_gspace)
-      DO ispin=2, qs_env%dft_control%nspins
-         CALL coeff_sumup(rho%rho_g(ispin), rho_tot_gspace)
-      END DO
+      !CALL get_qs_env(qs_env=qs_env,rho=rho,rho_core=rho_core,qs_charges=qs_charges,error=error)
+
+      !CALL coeff_add(rho_core, rho%rho_g(1), rho_tot_gspace)
+      !DO ispin=2, qs_env%dft_control%nspins
+      !   CALL coeff_sumup(rho%rho_g(ispin), rho_tot_gspace)
+      !END DO
       !qs_charges%total_rho_gspace = calculate_total_rho(rho_tot_gspace)
 
-      CALL get_qs_env(qs_env=qs_env, green=green, error=error)
       CALL init_pw_poisson_solver(green, error=error)
       !CALL calculate_hartree(rho_tot_gspace, ehartree=harris_env%Ehartree_tot, &
       !                       vhartree=v_hartree_gspace)
@@ -201,8 +200,8 @@ CONTAINS
       END IF
       CALL cleanup_pw_poisson_solver(green, error=error)
 
-      CALL pw_pool_give_back_coeff(auxbas_pw_pool, rho_tot_gspace, &
-                                   error=error)
+      !CALL pw_pool_give_back_coeff(auxbas_pw_pool, rho_tot_gspace, &
+      !                             error=error)
       CALL pw_pool_give_back_coeff(auxbas_pw_pool, v_hartree_gspace, &
                                    error=error)
 
@@ -247,9 +246,6 @@ CONTAINS
         harris_env%EII = harris_env%Ecore_overlap + harris_env%Ecore_self + &
                          harris_env%Ehartree_core
         IF (PRESENT(EII_necessary)) EII_necessary=.FALSE.
-        WRITE (cp_logger_get_default_unit_nr(logger,local=.TRUE.),*) "EII is calculated"
-      ELSE
-        WRITE (cp_logger_get_default_unit_nr(logger,local=.TRUE.),*) "EII is not calculated"
       END IF
 
       harris_env%Eharris_correction = - harris_env%Ehartree_elec &
@@ -477,7 +473,6 @@ CONTAINS
     IF (.NOT. failure) THEN
 
       CALL get_qs_env(qs_env, matrix_ks=matrix_ks, error=error)
-                      
       CALL get_qs_env(qs_env, para_env=para_env, error=error)
       CALL cp_sm_sm_trace(matrix_ks(1)%matrix, scf_env%p_mix_new(1)%matrix, &
                           harris_env%sum_of_eigenvalues, &
@@ -541,6 +536,8 @@ CONTAINS
        IF (logger%para_env%source==logger%para_env%mepos) THEN
           unit_nr=cp_logger_get_default_unit_nr(logger,local=.false.)
           WRITE (unit_nr,*) ""
+          WRITE (unit_nr,*) "The Harris functional energy correction is performed!"
+          WRITE (unit_nr,*) ""
           WRITE (unit_nr,*) "Ehartree n_elec            =", harris_env%Ehartree_elec
           WRITE (unit_nr,*) "Ehartree n_core            =", harris_env%Ehartree_core
           !write (unit_nr,*) "Ehartree n_tot             =", harris_env%Ehartree_tot
@@ -565,4 +562,4 @@ CONTAINS
 
   END SUBROUTINE harris_postprocessing
 
-END MODULE
+END MODULE harris_functional
