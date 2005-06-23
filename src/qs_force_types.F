@@ -20,7 +20,7 @@
 
 MODULE qs_force_types
 
-  USE cp_control_types,                ONLY: qs_control_type
+  !USE cp_control_types,                ONLY: qs_control_type
   USE kinds,                           ONLY: dp,&
                                              dp_size,&
                                              int_size
@@ -57,7 +57,8 @@ MODULE qs_force_types
 
   PUBLIC :: allocate_qs_force,&
             deallocate_qs_force,&
-            zero_qs_force
+            zero_qs_force, &
+            duplicate_qs_force
 
 !!***
 ! *****************************************************************************
@@ -347,5 +348,89 @@ CONTAINS
   END SUBROUTINE zero_qs_force
 
 ! *****************************************************************************
+
+!!****f* qs_force_types/duplicate_qs_force [1.0] *
+!!
+!!   NAME
+!!     qs_duplicate_force
+!!
+!!   SYNOPSIS
+!!     SUBROUTINE duplicate_qs_force(qs_force_input, qs_force_output, natom_of_kind)
+!!       TYPE(qs_force_type), DIMENSION(:), POINTER :: qs_force_input, qs_force_output
+!!       INTEGER, DIMENSION(:), INTENT(IN) :: natom_of_kind
+!!     END SUBROUTINE duplicate_qs_force
+!!
+!!   FUNCTION
+!!     Duplicates a force type variable.
+!!
+!!   NOTES
+!!     The qs_forcce_variable is expected of the same size as 
+!!     qs_force_input if present.
+!!
+!!   ARGUMENTS
+!!     - qs_force_input: The force type variable to be duplicated
+!!     - qs_force_output: The force type duplicate
+!!     - natom_of_kind: 
+!!
+!!   AUTHOR
+!!     Thomas D. Kuehne (tkuehne@phys.chem.ethz.ch)
+!!
+!!   MODIFICATION HISTORY
+!!     06.2005 initial create [tdk]
+!!
+!!*** **********************************************************************
+  SUBROUTINE duplicate_qs_force(qs_force_input, qs_force_output, &
+                                natom_of_kind)
+
+    TYPE(qs_force_type), DIMENSION(:), POINTER      :: qs_force_input, &
+                                                       qs_force_output
+    INTEGER, DIMENSION(:), INTENT(IN)               :: natom_of_kind
+    INTEGER                                         :: ikind
+    
+    CHARACTER(len=*), PARAMETER :: &
+      routine = "SUBROUTINE duplicate_qs_force (MODULE qs_force_types)"
+    LOGICAL                                         :: failure
+
+!   ------------------------------------------------------------------------
+
+    failure = .FALSE.
+
+    IF (.NOT.ASSOCIATED(qs_force_input)) THEN
+      CALL stop_program(routine,"The qs_force_input pointer is not associated "//&
+                                "and cannot be initialized")
+    END IF
+
+    IF (.NOT. failure) THEN
+      IF (.NOT. ASSOCIATED(qs_force_output)) THEN
+        CALL allocate_qs_force(qs_force_output, natom_of_kind)
+      ELSE
+        CALL zero_qs_force(qs_force_output)
+      END IF
+
+      DO ikind=1,SIZE(natom_of_kind)
+        qs_force_output(ikind)%all_potential(:,:) = &
+           qs_force_input(ikind)%all_potential(:,:)
+        qs_force_output(ikind)%core_overlap(:,:) = &
+           qs_force_input(ikind)%core_overlap(:,:)
+        qs_force_output(ikind)%gth_ppl(:,:) = qs_force_input(ikind)%gth_ppl(:,:)
+        qs_force_output(ikind)%gth_ppnl(:,:) = qs_force_input(ikind)%gth_ppnl(:,:)
+        qs_force_output(ikind)%kinetic(:,:) = qs_force_input(ikind)%kinetic(:,:)
+        qs_force_output(ikind)%overlap(:,:) = qs_force_input(ikind)%overlap(:,:)
+        qs_force_output(ikind)%rho_core(:,:) = qs_force_input(ikind)%rho_core(:,:)
+        qs_force_output(ikind)%rho_elec(:,:) = qs_force_input(ikind)%rho_elec(:,:)
+        qs_force_output(ikind)%vhxc_atom(:,:) = qs_force_input(ikind)%vhxc_atom(:,:)
+        qs_force_output(ikind)%g0s_Vh_elec(:,:) = &
+           qs_force_input(ikind)%g0s_Vh_elec(:,:)
+        qs_force_output(ikind)%hartree_2c(:,:) = qs_force_input(ikind)%hartree_2c(:,:)
+        qs_force_output(ikind)%hartree_3c(:,:) = qs_force_input(ikind)%hartree_3c(:,:)
+        qs_force_output(ikind)%kg_gpw_ekin_mol(:,:) = &
+           qs_force_input(ikind)%kg_gpw_ekin_mol(:,:)
+        qs_force_output(ikind)%other(:,:) = qs_force_input(ikind)%other(:,:)
+        qs_force_output(ikind)%total(:,:) = qs_force_input(ikind)%total(:,:)
+      END DO
+    END IF
+
+  END SUBROUTINE duplicate_qs_force
+!***************************************************************************
 
 END MODULE qs_force_types
