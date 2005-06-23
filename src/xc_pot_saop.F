@@ -1184,6 +1184,8 @@ CONTAINS
     H = 0.0_dp
     IF (r > rc .AND. ngr > ngrc) THEN
        zeta = (ra-rb)/r
+       if (zeta > 1.0_dp) zeta = 1.0_dp ! machine precision problem
+       if (zeta < -1.0_dp) zeta = -1.0_dp ! machine precision problem
        phi  = ((1.0_dp+zeta)**tb3 + (1.0_dp-zeta)**tb3)/2.0_dp
        phi3 = phi*phi*phi
        kf   = (3.0_dp*r*pi*pi)**ob3
