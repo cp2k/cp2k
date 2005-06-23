@@ -342,7 +342,7 @@ CONTAINS
                              guess(:,sorter_iterator%orbit),1)
           CALL cp_fm_set_submatrix(matrices(i,spin)%matrix, &
                                    guess(:,1:n_orbits))
-          energies(i) = sorter_iterator%value
+          energies(i) = energies(i) + sorter_iterator%value/REAL(n_spins,dp)
           sorter_iterator=>sorter_iterator%next
        END DO
        IF (n_v > n_orbits*n_lumos) THEN
@@ -364,7 +364,6 @@ CONTAINS
           DEALLOCATE(sorter_pointer)
        END DO
           
-
     END DO
 
   END SUBROUTINE co_initial_guess
@@ -387,7 +386,7 @@ CONTAINS
     LOGICAL                            :: failure, ionode 
     REAL(KIND=dp)                      :: contribution, summed_contributions
     REAL(KIND=dp), ALLOCATABLE, &
-      DIMENSION(:, :)                  :: homo_coeff_col, lumo_coeff_col
+      DIMENSION(:,:)                   :: homo_coeff_col, lumo_coeff_col
     TYPE(tddfpt_control_type)          :: t_control
     TYPE(cp_fm_p_type), DIMENSION(:), &
          POINTER                       :: S_lumos
@@ -417,8 +416,8 @@ CONTAINS
                               S_lumos(spin)%matrix, nlumos(spin), 1.0_dp, 0.0_dp)
     END DO
        
-    ALLOCATE(homo_coeff_col(MAXVAL(nrows(1:n_spins)),n_spins), &
-             lumo_coeff_col(MAXVAL(nrows(1:n_spins)),n_spins), stat=stat)
+    ALLOCATE(homo_coeff_col(MAXVAL(nrows(1:n_spins)),1), &
+             lumo_coeff_col(MAXVAL(nrows(1:n_spins)),1), stat=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     DO i=1, n_ev
        IF (ionode) THEN
@@ -442,14 +441,14 @@ CONTAINS
                                          1, virt, nrows(spin), 1, error=error)
                 contribution = 0.0_dp
                 DO j=1, nrows(spin)
-                   contribution = contribution + homo_coeff_col(j,spin)*lumo_coeff_col(j,spin)
+                   contribution = contribution + homo_coeff_col(j,1)*lumo_coeff_col(j,1)
                 END DO
                 summed_contributions = summed_contributions + (contribution)**2
-                IF (ABS(contribution) > 1.0e-1_dp) THEN
+                IF (ABS(contribution) > 5.0e-2_dp) THEN
                    IF (ionode) WRITE (*,'(18X,I3,A,I3,10X,F8.3,5X,F8.3)') &
                         occ, " ->", nhomos(spin)+virt, ABS(contribution), summed_contributions
                 END IF
-                IF (ABS(summed_contributions - 1.0_dp) < 1.0e-2_dp) CYCLE searchloop
+                IF (ABS(summed_contributions - 1.0_dp) < 1.0e-3_dp) CYCLE searchloop
              END DO
           END DO searchloop
        END DO
