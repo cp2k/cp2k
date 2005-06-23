@@ -34,7 +34,9 @@ MODULE qmmm_elpot
                                              cp_fatal_level,&
                                              cp_note_level,&
                                              cp_to_string,&
-                                             cp_warning_level
+                                             cp_warning_level,&
+                                             cp_logger_type
+  USE cp_output_handling, ONLY: cp_should_output
   USE kinds,                           ONLY: default_string_length,&
                                              dp
   USE timings,                         ONLY: timeset,&
@@ -52,6 +54,10 @@ MODULE qmmm_elpot
   USE pw_env_types,                    ONLY: pw_env_type, pw_env_release, pw_env_get
   USE input_constants,                 ONLY: do_qmmm_grid, do_qmmm_gauss, do_qmmm_none
   USE particle_types,                  ONLY: particle_type
+  USE input_section_types, ONLY: section_type, section_create, &
+       section_add_keyword, section_add_subsection, section_release,&
+       section_vals_type,&
+       section_vals_get_subs_vals, section_vals_get, section_vals_val_get  
 
   IMPLICIT NONE
   PRIVATE
@@ -86,7 +92,8 @@ CONTAINS
 !!
 !!*** ********************************************************************** 
   SUBROUTINE qmmm_potential_init(qmmm_coupl_type, mm_el_pot_radius, potentials,&
-    pgfs, qm_cell_small, mm_cell, globenv, pw_env, compatibility, error)
+    pgfs, qm_cell_small, mm_cell, globenv, pw_env, compatibility, print_section,&
+    error)
     IMPLICIT NONE
     ! Arguments
     TYPE(qmmm_pot_p_type), DIMENSION(:), POINTER            :: potentials
@@ -94,7 +101,8 @@ CONTAINS
          DIMENSION(:), POINTER                       :: pgfs    
     REAL(KIND=dp), DIMENSION(:), POINTER             :: mm_el_pot_radius 
     INTEGER, INTENT(IN)                              :: qmmm_coupl_type      
-    TYPE(cell_type), POINTER                         :: mm_cell, qm_cell_small   
+    TYPE(cell_type), POINTER                         :: mm_cell, qm_cell_small  
+    TYPE(section_vals_type), POINTER         :: print_section
      TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
     TYPE(global_environment_type), POINTER   :: globenv
@@ -106,18 +114,25 @@ CONTAINS
     LOGICAL :: failure, found
     TYPE(qmmm_gaussian_type), POINTER                :: pgf
     REAL(KIND=dp) :: Rmax, Rmin, Fac
-    REAL(KIND=dp) :: rc, x, t, A,G, t1, t2, f, f1, f2
-    INTEGER        :: I, J, K, Np, stat, ndim, ig, ig_start
+    REAL(KIND=dp) :: rc, x, t, A,G, t1, t2
+    REAL(KIND=dp) :: rc2,rc3,rc4,rc5,rc6,rc7, x2,x3,x4,x5,x6,x7
+    INTEGER        :: I, J, K, Np, stat, ndim, ig, ig_start, myind
     INTEGER,        DIMENSION(:), POINTER :: mm_atom_index
     REAL(KIND=dp), PARAMETER :: dx = 0.05_dp, d2x=dx*dx
     REAL(KIND=dp), DIMENSION(:,:),POINTER :: pot0_2
     REAL(KIND=dp), DIMENSION(:), POINTER :: radius
+    TYPE(section_vals_type), POINTER         :: print_pot
+    TYPE(cp_logger_type), POINTER :: logger
+    CHARACTER(LEN=80)                        :: FileName
+    CHARACTER(LEN=default_string_length)     :: myFormat
 
+    logger => cp_error_get_logger(error)
     Rmin = 0.0_dp
     Rmax = SQRT(mm_cell%hmat(1,1)**2+&
                 mm_cell%hmat(2,2)**2+&
                 mm_cell%hmat(3,3)**2 ) 
     np   = CEILING(rmax/dx)+1
+    print_pot => section_vals_get_subs_vals(print_section,"MM_POTENTIAL",error=error)
     !
     ! Preprocessing
     !
@@ -165,21 +180,18 @@ CONTAINS
        SELECT CASE(qmmm_coupl_type)
        CASE(do_qmmm_grid)
           IF (compatibility) THEN
-             Fac = 1.0_dp/rc - 2.0_dp/(rootpi*rc)
-             f1=1/rc**2
-             pot0_2(1,1)= 2.0_dp/(rootpi*rc) + Fac
+             rc2=rc*rc; rc3=rc2*rc; rc4=rc3*rc; rc5=rc4*rc; rc6=rc5*rc; rc7=rc6*rc
+             pot0_2(1,1)= 1.0_dp/rc
              pot0_2(2,1)= 0.0_dp
-             pot0_2(3,1)=-4.0_dp/(3.0_dp*rootpi*rc**3) - 2.0_dp*Fac*f1
+             pot0_2(3,1)= 0.0_dp
              x=0.0_dp
              DO i=2,np
-                x=x+dx
-                f=EXP(-f1*x**2)*Fac
-                f2=f1*f
-                pot0_2(1,i)=erf(x/rc)/x + f
-                t=2._dp/(rootpi*x*rc)*EXP(-(x/rc)**2)
-                pot0_2(2,i)=(t-pot0_2(1,i)/x)*dx - 2.0_dp*x*f2*dx
-                pot0_2(3,i)=(-t*2._dp*(x/rc**2+1._dp/x)+2._dp*pot0_2(1,i)/x**2)*d2x &
-                     - ( 2.0_dp*f2 - 4.0_dp*x**2*f1*f2)*d2x 
+                x=x+dx ; x2=x*x; x3=x2*x; x4=x3*x; x5=x4*x; x6=x5*x; x7=x6*x
+                pot0_2(1,i)= (rc4-x4)/(rc5-x5)
+                pot0_2(2,i)= x3*(-x5 + 5.0_dp*x*rc4 - 4.0_dp*rc5)/(x5-rc5)**2
+                pot0_2(3,i)= 2.0_dp*x2*&
+                     (-6.0_dp*rc7-8.0_dp*rc6*x-6.0_dp*rc5*x2+10.0_dp*rc3*x4+6.0_dp*rc2*x5+3.0_dp*rc*x6+x7)/&
+                     (rc4+rc3*x+rc2*x2+rc*x3+x4)**3
              END DO
           ELSE
              pot0_2(1,1)= 2.0_dp/(rootpi*rc)
@@ -194,6 +206,27 @@ CONTAINS
                 pot0_2(3,i)=(-t*2._dp*(x/rc**2+1._dp/x)+2._dp*pot0_2(1,i)/x**2)*d2x
              END DO             
           END IF
+          ! Print info on the unidimensional MM electrostatic potential
+          IF (cp_should_output(logger%iter_info,print_pot,error=error).AND.&
+               logger%para_env%mepos==logger%para_env%source) THEN
+             CALL section_vals_val_get(print_pot,"FILENAME",c_val=FileName,error=error)
+             CALL section_vals_val_get(print_pot,"FILENAME",c_val=FileName,error=error)
+             myind = INDEX(FileName," ")
+             CPPostcondition(myind /= 1,cp_failure_level,routineP,error,failure)
+             WRITE(Filename(myind:),'(A1,F4.2)')"_",rc
+             IF (globenv%ionode) THEN 
+                OPEN(UNIT=21,FILE=FileName)
+                WRITE(21,'(A)')"# MM ELECTROSTATIC POTENTIAL - UNIDIMENSIONAL - ATOMIC UNITS"
+                WRITE(21,'(A,T10,A,T30,A)')"#","Xval","ElecPot"
+                x=0.0_dp
+                DO i=1,np
+                   WRITE(21,'(T10,F15.9,T30,F15.9)')x,pot0_2(1,i)
+                   x=x+dx
+                END DO
+                CLOSE(21)
+             END IF
+          END IF
+          
        CASE(do_qmmm_gauss)
           pot0_2(1,1)= 2.0_dp/(rootpi*rc)
           pot0_2(2,1)= 0.0_dp
@@ -220,8 +253,37 @@ CONTAINS
                 t2=t1*t
                 pot0_2(1,i) = pot0_2(1,i)-t 
                 pot0_2(2,i) = pot0_2(2,i)+2.0_dp*x*t2*dx
-             END DO
+             END DO             
           END DO
+          ! Print info on the unidimensional MM electrostatic potential
+          IF (cp_should_output(logger%iter_info,print_pot,error=error).AND.&
+               logger%para_env%mepos==logger%para_env%source) THEN
+             CALL section_vals_val_get(print_pot,"FILENAME",c_val=FileName,error=error)
+             myind = INDEX(FileName," ")
+             CPPostcondition(myind /= 1,cp_failure_level,routineP,error,failure)
+             WRITE(Filename(myind:),'(A1,F4.2)')"_",rc
+             IF (globenv%ionode) THEN 
+                OPEN(UNIT=21,FILE=FileName)
+                WRITE(21,'(A)')"# MM ELECTROSTATIC POTENTIAL - UNIDIMENSIONAL - ATOMIC UNITS"
+                WRITE(21,'(A,T10,A,T30,A,T130,A)')"#","Xval","Gaussians","LongRange"
+                myFormat = "T10,F15.9,T30,"
+                DO Ig=1,pgf%number_of_gaussians
+                   myind = INDEX(myFormat," ")
+                   WRITE(myFormat(myind:),'(A6)')"F12.6,"
+                END DO
+                myind = INDEX(myFormat," ")-1
+                myFormat = myFormat(1:myind)//"T130,F15.9"
+                myind = INDEX(myFormat," ")-1
+                x=0.0_dp
+                DO i=1,np
+                   WRITE(21,'('//myFormat(1:myind)//')')&
+                        x,(EXP(-(x/pgf%Gk(Ig))**2)*pgf%Ak(Ig),Ig=1,pgf%number_of_gaussians),pot0_2(1,i)
+                   x=x+dx
+                END DO
+                CLOSE(21)
+             END IF
+          END IF
+
        CASE DEFAULT
           DEALLOCATE(potentials(K)%Pot)
           CPPostcondition(stat==0,cp_fatal_level,routineP,error,failure)
@@ -229,7 +291,6 @@ CONTAINS
           WRITE(*,'(A)')" QMMM Potential - Spline Interpolation - not Initialized!"
           CYCLE Potential_Type
        END SELECT
-
        NULLIFY(mm_atom_index)
        ALLOCATE(mm_atom_index(1),stat=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,Failure)
@@ -249,7 +310,6 @@ CONTAINS
                                  mm_atom_index=mm_atom_index)
 
     END DO Potential_Type
-
     DEALLOCATE(radius, stat=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,Failure)
   END SUBROUTINE qmmm_potential_init

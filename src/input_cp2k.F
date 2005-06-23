@@ -6759,7 +6759,14 @@ END SUBROUTINE create_ewald_section
 
        CALL cp_print_key_section_create(print_key,"POTENTIAL",&
             description="Controls the printing of the QMMM  potential",&
-            print_level=high_print_level,each=(/1/),filename=" ",&
+            print_level=high_print_level,each=(/1/),filename="MM_ELPOT_QMMM.cube",&
+            common_iter_levels=1,error=error)
+       CALL section_add_subsection(section,print_key,error=error)
+       CALL section_release(print_key,error=error)
+
+       CALL cp_print_key_section_create(print_key,"MM_POTENTIAL",&
+            description="Controls the printing of the MM unidimensional potential on file",&
+            print_level=high_print_level,each=(/1/),filename="MM_ELPOT.data",&
             common_iter_levels=1,error=error)
        CALL section_add_subsection(section,print_key,error=error)
        CALL section_release(print_key,error=error)

@@ -212,7 +212,7 @@ CONTAINS
 
        IF (cp_should_output(logger%iter_info,print_pot,error=error).AND.&
             logger%para_env%mepos==logger%para_env%source) THEN
-          FileName = "MM_ELPOT_QMMM.cube"
+          CALL section_vals_val_get(print_pot,"FILENAME",c_val=FileName,error=error)
           Title    = "QM/MM: MM ELECTROSTATIC POTENTIAL "
           IF (globenv%ionode) OPEN(UNIT=21,FILE=FileName)
           CALL rs_pw_to_cube(ks_qmmm_env_loc%v_qmmm_rspace%pw,21,globenv%ionode,Title)

@@ -389,6 +389,7 @@ CONTAINS
                                 globenv=globenv,&
                                 qs_env=qs_env,&
                                 added_charges=qmmm_env_qm%added_charges,&
+                                print_section=print_section,&
                                 error=error)
        !
        ! Initialize the qmmm_pw_grid
@@ -761,7 +762,7 @@ CONTAINS
   !!
   !!*************************************************************************
  SUBROUTINE qmmm_init_potential(qmmm_env_qm, qm_cell_small, mm_cell, globenv, qs_env,&
-                                added_charges, error)
+                                added_charges, print_section, error)
    IMPLICIT NONE
    ! Arguments
    TYPE(cell_type), POINTER                 :: mm_cell, qm_cell_small
@@ -769,6 +770,7 @@ CONTAINS
    TYPE(global_environment_type), POINTER   :: globenv
    TYPE(qs_environment_type), POINTER       :: qs_env
    TYPE(add_set_type), POINTER              :: added_charges
+   TYPE(section_vals_type), POINTER         :: print_section
    TYPE(cp_error_type), INTENT(inout), &
         OPTIONAL                               :: error   
    ! Local Variables
@@ -782,6 +784,7 @@ CONTAINS
                             globenv=globenv,&
                             pw_env=qs_env%pw_env,&
                             compatibility=qmmm_env_qm%compatibility,&
+                            print_section=print_section,&
                             error=error)
 
    IF (qmmm_env_qm%move_mm_charges.OR.qmmm_env_qm%add_mm_charges) THEN
@@ -795,6 +798,7 @@ CONTAINS
                                globenv=globenv,&
                                pw_env=qs_env%pw_env,&
                                compatibility=qmmm_env_qm%compatibility,&
+                               print_section=print_section,&
                                error=error)      
    END IF
 
