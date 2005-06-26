@@ -188,10 +188,10 @@ CONTAINS
              DO i=2,np
                 x=x+dx ; x2=x*x; x3=x2*x; x4=x3*x; x5=x4*x; x6=x5*x; x7=x6*x
                 pot0_2(1,i)= (rc4-x4)/(rc5-x5)
-                pot0_2(2,i)= x3*(-x5 + 5.0_dp*x*rc4 - 4.0_dp*rc5)/(x5-rc5)**2
+                pot0_2(2,i)= x3*(-x5 + 5.0_dp*x*rc4 - 4.0_dp*rc5)/(x5-rc5)**2*dx
                 pot0_2(3,i)= 2.0_dp*x2*&
                      (-6.0_dp*rc7-8.0_dp*rc6*x-6.0_dp*rc5*x2+10.0_dp*rc3*x4+6.0_dp*rc2*x5+3.0_dp*rc*x6+x7)/&
-                     (rc4+rc3*x+rc2*x2+rc*x3+x4)**3
+                     (rc4+rc3*x+rc2*x2+rc*x3+x4)**3*d2x
              END DO
           ELSE
              pot0_2(1,1)= 2.0_dp/(rootpi*rc)
