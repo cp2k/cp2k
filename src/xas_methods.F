@@ -361,7 +361,7 @@ CONTAINS
            distmin = dist
         END IF
       END DO
- if(ionode) WRITE(*,'(I4,A,I4,6f10.5)') istate, 'atom ', atom_of_state(istate),  particle_set(atom_of_state(istate))%r(1:3), centers_wfn(1:3,istate)
+! if(ionode) WRITE(*,'(I4,A,I4,6f10.5)') istate, 'atom ', atom_of_state(istate),  particle_set(atom_of_state(istate))%r(1:3), centers_wfn(1:3,istate)
 
       !Character of the state
        CALL cp_fm_get_submatrix(mo_coeff,vecbuffer,1,istate,&
@@ -436,7 +436,7 @@ CONTAINS
 
          END DO  ! ishell
        END DO  ! iset
- if(ionode) WRITE(*,*) 'type ', type_of_state(istate)
+! if(ionode) WRITE(*,*) 'type ', type_of_state(istate)
     END DO  ! istate
 
     CALL localized_wfn_control_release(my_localized_wfn_control,error=error)
@@ -483,7 +483,7 @@ CONTAINS
        ! determine which state has to be excited in the global list
        state_to_be_excited = state_of_atom(iat)
        dft_control % xas_estate  = state_to_be_excited
-IF (ionode ) WRITE(*,*) 'estate ',  dft_control % xas_estate
+!IF (ionode ) WRITE(*,*) 'estate ',  dft_control % xas_estate
       ! Take the state_to_be_excited vector from the full set and copy into excvec_coeff
        CALL get_mo_set(mos(1)%mo_set, mo_coeff=mo_coeff,&
             occupation_numbers=occupation_numbers,homo=homo)
