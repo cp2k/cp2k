@@ -63,8 +63,9 @@ MODULE cp2k_runs
                                              geo_opt_run,&
                                              mc_run,&
                                              electronic_spectra_run,&
-                                             qs_debug_run,&
-                                             linear_response_run
+                                             bsse_run,&
+                                             linear_response_run,&
+                                             qs_debug_run
   USE input_cp2k,                      ONLY: create_cp2k_root_section,&
                                              check_cp2k_input, &
                                              parsed_cp2k_input
@@ -105,14 +106,13 @@ MODULE cp2k_runs
   USE print_key_types,                 ONLY: print_keys_release
   USE qmmm_init,                       ONLY: qmmm_create_force_env
   USE qs_debug,                        ONLY: qs_debug_energy_and_forces
-  USE qs_linres_module,                ONLY: linres_calculation
   USE qs_main,                         ONLY: quickstep_create_force_env
   USE qs_mc,                           ONLY: qs_mon_car
   USE qs_tddfpt_module,                ONLY: tddfpt_calculation
   USE string_utilities,                ONLY: uppercase
   USE timings,                         ONLY: timeset, &
                                              timestop
-
+  USE bsse,                            ONLY: do_bsse_calculation
 
   IMPLICIT NONE
 
@@ -223,7 +223,7 @@ CONTAINS
                hide_root=.TRUE., error=error)
        END IF
     END IF
- 
+   
     IF (.NOT.failure) THEN
        CALL check_cp2k_input(input_file,error=error)
     END IF
@@ -301,16 +301,18 @@ CONTAINS
                        CPSourceFileRef,error,failure)
            CALL force_env_calc_energy_force(force_env,calc_force=.FALSE.,&
                 error=error)
-           CALL tddfpt_calculation(force_env%qs_env, globenv) 
+           CALL tddfpt_calculation(force_env%qs_env, globenv)
+       CASE (bsse_run)
+          CALL do_bsse_calculation(force_env, globenv, error=error)
        CASE (linear_response_run)
-           IF(prog_id /= do_qs) CALL cp_assert(.FALSE.,cp_failure_level,&
-                   cp_assertion_failed,routineP,&
-                   "Property calculations by Linear Response only within the QS program "//&
-                    CPSourceFileRef,error,failure)
-            ! The Ground State is needed, it can be read from Restart
-            CALL force_env_calc_energy_force(force_env,calc_force=.FALSE.,&
-                error=error)
-!            CALL linres_calculation(force_env%qs_env, globenv)
+          IF(prog_id /= do_qs) CALL cp_assert(.FALSE.,cp_failure_level,&
+               cp_assertion_failed,routineP,&
+               "Property calculations by Linear Response only within the QS program "//&
+               CPSourceFileRef,error,failure)
+          ! The Ground State is needed, it can be read from Restart
+          CALL force_env_calc_energy_force(force_env,calc_force=.FALSE.,&
+               error=error)
+          ! CALL linres_calculation(force_env%qs_env, globenv)
        CASE (qs_debug_run)
            IF(prog_id /= do_qs) CALL cp_assert(.FALSE.,cp_failure_level,&
                       cp_assertion_failed,routineP,&
@@ -378,6 +380,8 @@ CONTAINS
                 CALL tddfpt_calculation(force_env%qs_env, globenv) 
              CASE ("DEBUG")
                 CALL qs_debug_energy_and_forces(force_env, globenv, error=error)
+             CASE ("BSSE")
+                CALL do_bsse_calculation(force_env, globenv, error=error)
              CASE DEFAULT
                 CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,routineP,&
                      "Invalid run TYPE <"//TRIM(globenv%run_type)//"> was specified, "//&

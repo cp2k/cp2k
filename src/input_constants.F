@@ -100,9 +100,38 @@ MODULE input_constants
   INTEGER, PARAMETER, PUBLIC, DIMENSION(4) :: restart_name_index=&
        (/md_init_start,md_pos_restart, md_pos_vel_restart, md_all_restart/)
 
-  INTEGER, PARAMETER, public :: none_run=0, energy_run=1,energy_force_run=2,&
-            mol_dyn_run=3, geo_opt_run=4,mc_run=5, electronic_spectra_run=6,&
-            qs_debug_run=7, linear_response_run = 8
+  INTEGER, PARAMETER, public :: none_run=0,&
+                                energy_run=1,&
+                                energy_force_run=2,&
+                                mol_dyn_run=3,&
+                                geo_opt_run=4,&
+                                mc_run=5,&
+                                electronic_spectra_run=6,&
+                                qs_debug_run=7,&
+                                bsse_run=8,&
+                                linear_response_run=9
+  CHARACTER (LEN=default_string_length), PARAMETER, DIMENSION(15), PUBLIC :: run_type_names=&
+       (/"NONE                 ",&
+         "ENERGY               ",&
+         "ENERGY_FORCE         ",&
+         "MD                   ",&
+         "MOLECULAR_DYNAMICS   ",&
+         "GEO_OPT              ",&
+         "GEOMETRY_OPTIMIZATION",& 
+         "MC                   ",&
+         "MONTECARLO           ",&
+         "SPECTRA              ",&
+         "ELECTRONIC_SPECTRA   ",& 
+         "BSSE                 ",&
+         "LINEAR_RESPONSE      ",&
+         "LR                   ",&
+         "DEBUG                "/)
+  INTEGER, PARAMETER, PUBLIC, DIMENSION(15) :: run_type_index=&
+       (/none_run, energy_run,energy_force_run,mol_dyn_run,mol_dyn_run,&
+         geo_opt_run,geo_opt_run,mc_run,mc_run,electronic_spectra_run, &
+         electronic_spectra_run,bsse_run,linear_response_run,&
+         linear_response_run,qs_debug_run/)
+
   INTEGER, PARAMETER, public :: atomic_guess=1,restart_guess=2,random_guess=3,&
        core_guess=4
   INTEGER, PARAMETER, public :: pw_interp=1,linear_interp=2,&

@@ -91,7 +91,8 @@ MODULE cp_control_utils
                                              geo_opt_run,&
                                              mc_run,&
                                              mol_dyn_run,&
-                                             qs_debug_run
+                                             qs_debug_run,&
+                                             bsse_run
   USE input_constants,                 ONLY: quadrature_name,&
                                              do_pwgrid_spherical,&
                                              do_pwgrid_ns_fullspace,&
@@ -424,7 +425,7 @@ CONTAINS
          error=error)
     CALL section_vals_val_get(tmp_section,"RUN_TYPE",i_val=run_id,error=error)
     SELECT CASE (run_id)!FM to rm, ugly!!
-    CASE (energy_run,mc_run,energy_force_run)
+    CASE (energy_run,mc_run,energy_force_run,bsse_run)
       dft_control%forces = .FALSE.
     CASE (mol_dyn_run,geo_opt_run,electronic_spectra_run,qs_debug_run)
       dft_control%forces = .TRUE.
@@ -569,7 +570,7 @@ CONTAINS
     dft_control % xc_control % functional_routine = xc_new_f_routine
 
     SELECT CASE (globenv%run_type)
-    CASE ("WAVEFUNCTION OPTIMIZATION","MONTE CARLO","ELECTRONIC SPECTRA")
+    CASE ("WAVEFUNCTION OPTIMIZATION","MONTE CARLO","ELECTRONIC SPECTRA","BSSE")
       dft_control%forces = .FALSE.
     CASE ("MOLECULAR DYNAMICS","GEOMETRY OPTIMIZATION","DEBUG")
       dft_control%forces = .TRUE.

@@ -3785,11 +3785,6 @@ SUBROUTINE force_field_pack (particle_set,atomic_kind_set,&
       name_atm_b = name_atm_b_local
       only_qm = qmmm_ff_precond_only_qm(id1=name_atm_a, id2=name_atm_b)
 
-      ! loop over params from amber
-      ! loop over params from amber
-      ! loop over params from amber
-      ! loop over params from amber
-
       ! loop over params from charmm
       IF(ASSOCIATED(chm_info%nonbond_a)) THEN
         ii = 0 

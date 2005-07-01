@@ -325,13 +325,8 @@ contains
          "optimization, md, montecarlo,...",&
          usage="RUN_TYPE MD",&
          default_i_val=energy_force_run,&
-         enum_c_vals=s2a( "NONE", "ENERGY", "ENERGY_FORCE", "MD", "MOLECULAR_DYNAMICS",&
-         "GEO_OPT", "GEOMETRY_OPTIMIZATION", "MC", "MONTECARLO",&
-         "SPECTRA", "ELECTRONIC_SPECTRA", "DEBUG", "LINEAR_RESPONSE", "LR"),&
-         enum_i_vals=(/none_run, energy_run,energy_force_run,mol_dyn_run,mol_dyn_run,&
-         geo_opt_run,geo_opt_run,mc_run,mc_run,&
-         electronic_spectra_run, electronic_spectra_run, qs_debug_run,&
-         linear_response_run, linear_response_run/),&
+         enum_c_vals=run_type_names,&
+         enum_i_vals=run_type_index,&
          error=error)
     CALL section_add_keyword(section,keyword,error=error)
     CALL keyword_release(keyword,error=error)
@@ -2269,6 +2264,10 @@ SUBROUTINE create_tddfpt_section(section,error)
     CALL section_add_subsection(section, subsection, error=error)
     CALL section_release(subsection,error=error)
 
+    CALL create_bsse_section(subsection,error)
+    CALL section_add_subsection(section, subsection, error=error)
+    CALL section_release(subsection,error=error)
+
     CALL create_subsys_section(subsection,error)
     CALL section_add_subsection(section, subsection, error=error)
     CALL section_release(subsection,error=error)
@@ -2279,6 +2278,72 @@ SUBROUTINE create_tddfpt_section(section,error)
 
   END SUBROUTINE create_force_eval_section
 !***************************************************************************
+
+!***************************************************************************
+!!****f* input_cp2k/create_bsse_section [1.0] *
+!!
+!!   NAME
+!!     create_bsse_section
+!!
+!!   FUNCTION
+!!     Create the BSSE section for counterpoise correction
+!!
+!!   NOTES
+!!     -
+!!
+!!   ARGUMENTS
+!!     - section: the section to create
+!!     - error: variable to control error logging, stopping,... 
+!!       see module cp_error_handling 
+!!
+!!   AUTHOR
+!!     teo
+!!
+!!*** ********************************************************************** 
+  SUBROUTINE create_bsse_section(section,error)
+    TYPE(section_type), POINTER :: section
+    TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
+    
+    LOGICAL :: failure
+    CHARACTER(len=*), PARAMETER :: routineN='create_bsse_section',&
+         routineP=moduleN//':'//routineN
+    TYPE(keyword_type), POINTER :: keyword
+    TYPE(section_type), POINTER :: subsection
+    failure=.FALSE.
+    
+    CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
+    IF (.NOT. failure) THEN
+       CALL section_create(section,name="BSSE",&
+            description="This section is used to set up the BSSE calculation.",&
+            n_keywords=3, n_subsections=0, repeats=.FALSE., required=.TRUE.,&
+            error=error)
+
+       NULLIFY(keyword, subsection)
+       CALL section_create(subsection,name="FRAGMENT",&
+            description="Specify the atom number belonging to this fragment.",&
+            n_keywords=2, n_subsections=0, repeats=.FALSE., required=.TRUE.,&
+            error=error)
+
+       ! Integer
+       CALL keyword_create(keyword, name="LIST",&
+            description="Specifies a list of atoms.",&
+            usage="LIST {integer} {integer} .. {integer}", required=.TRUE.,&
+            n_var=-1, type_of_var=integer_t, error=error)
+       CALL section_add_keyword(subsection,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="RANGE",&
+            description="Specifies the starting and the ending index of atoms range.",&
+            usage="RANGE {integer} {integer}", required=.TRUE.,&
+            n_var=2, type_of_var=integer_t, error=error)
+       CALL section_add_keyword(subsection,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL section_add_subsection(section, subsection, error=error)
+       CALL section_release(subsection,error=error)      
+    END IF
+
+  END SUBROUTINE create_bsse_section
 
 !!****f* input_cp2k/create_metadyn_section *
 !!

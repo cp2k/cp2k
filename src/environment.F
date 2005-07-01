@@ -1136,8 +1136,10 @@ SUBROUTINE cp2k_read(globenv)
       globenv%run_type = "WAVEFUNCTION OPTIMIZATION"
     CASE ("DEBUG_FORCES","DEBUG")
       globenv%run_type = "DEBUG"
-   CASE ("ELECTRONIC_SPECTRA", "SPECTRA")
+    CASE ("ELECTRONIC_SPECTRA", "SPECTRA")
       globenv%run_type = "ELECTRONIC SPECTRA"
+    CASE ("BSSE")
+      globenv%run_type = "BSSE"
     CASE ("default")
        SELECT CASE (globenv%program_name)
        CASE ("ATOM")

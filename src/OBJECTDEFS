@@ -20,6 +20,7 @@ OBJECTS_GENERIC =\
  basis_set_types.o\
  bessel_lib.o\
  bfgs_optimizer.o\
+ bsse.o\
  cg_test.o\
  checkpoint_handler.o\
  coefficient_lists.o\
