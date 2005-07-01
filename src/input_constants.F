@@ -101,7 +101,8 @@ MODULE input_constants
        (/md_init_start,md_pos_restart, md_pos_vel_restart, md_all_restart/)
 
   INTEGER, PARAMETER, public :: none_run=0, energy_run=1,energy_force_run=2,&
-       mol_dyn_run=3, geo_opt_run=4,mc_run=5, electronic_spectra_run=6, qs_debug_run=7
+            mol_dyn_run=3, geo_opt_run=4,mc_run=5, electronic_spectra_run=6,&
+            qs_debug_run=7, linear_response_run = 8
   INTEGER, PARAMETER, public :: atomic_guess=1,restart_guess=2,random_guess=3,&
        core_guess=4
   INTEGER, PARAMETER, public :: pw_interp=1,linear_interp=2,&
@@ -292,10 +293,16 @@ MODULE input_constants
                                 use_perd_xyz=6,&
                                 use_perd_none=7
  
+  ! X-Ray spectra Calculation
   INTEGER, PARAMETER, PUBLIC :: xas_none=0, xas_tp_hh=1, xas_tp_fh=2,  xas_tddft=3 
   INTEGER, PARAMETER, PUBLIC :: xas_1s_type=1, xas_2s_type=2, xas_2p_type=3,&
                                 xas_3s_type=4, xas_3p_type=5, xas_3d_type=6,&
                                 xas_4s_type=7, xas_4p_type=8, xas_4d_type=9, xas_4f_type=10
   INTEGER, PARAMETER, PUBLIC :: xas_dip_len=1, xas_dip_vel=2
+
+  ! Linear Response for properties
+  INTEGER, PARAMETER, PUBLIC :: lr_none=0, lr_chemshift=1
+  INTEGER, PARAMETER, PUBLIC :: lr_diis=1, lr_pcg=2
+  INTEGER, PARAMETER, PUBLIC :: lr_pcond_none=0, lr_pcond_1=1
 
 END MODULE input_constants

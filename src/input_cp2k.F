@@ -327,10 +327,11 @@ contains
          default_i_val=energy_force_run,&
          enum_c_vals=s2a( "NONE", "ENERGY", "ENERGY_FORCE", "MD", "MOLECULAR_DYNAMICS",&
          "GEO_OPT", "GEOMETRY_OPTIMIZATION", "MC", "MONTECARLO",&
-         "SPECTRA", "ELECTRONIC_SPECTRA", "DEBUG"),&
+         "SPECTRA", "ELECTRONIC_SPECTRA", "DEBUG", "LINEAR_RESPONSE", "LR"),&
          enum_i_vals=(/none_run, energy_run,energy_force_run,mol_dyn_run,mol_dyn_run,&
          geo_opt_run,geo_opt_run,mc_run,mc_run,&
-         electronic_spectra_run,electronic_spectra_run, qs_debug_run/),&
+         electronic_spectra_run, electronic_spectra_run, qs_debug_run,&
+         linear_response_run, linear_response_run/),&
          error=error)
     CALL section_add_keyword(section,keyword,error=error)
     CALL keyword_release(keyword,error=error)
@@ -2269,6 +2270,10 @@ SUBROUTINE create_tddfpt_section(section,error)
     CALL section_release(subsection,error=error)
 
     CALL create_subsys_section(subsection,error)
+    CALL section_add_subsection(section, subsection, error=error)
+    CALL section_release(subsection,error=error)
+
+    CALL create_linres_section(subsection,error)
     CALL section_add_subsection(section, subsection, error=error)
     CALL section_release(subsection,error=error)
 
@@ -7817,5 +7822,125 @@ END SUBROUTINE create_ot_section
 
     END IF
   END SUBROUTINE create_xas_section
+
+!!*** **********************************************************************
+!!****f* input_cp2k/create_linres_section [1.0] *
+!!
+!!   NAME
+!!     create_linres_section
+!!
+!!   FUNCTION
+!!     creates the input structure used to activate
+!!     a linear response calculation 
+!!     Available properties : none
+!!
+!!   NOTES
+!!     -
+!!
+!!   ARGUMENTS
+!!     - section: the section to create
+!!     - error: variable to control error logging, stopping,... 
+!!       see module cp_error_handling 
+!!
+!!   AUTHOR
+!!     MI
+!!
+!!*** **********************************************************************
+  SUBROUTINE create_linres_section(section,error)
+    TYPE(section_type), pointer :: section
+    type(cp_error_type), optional, intent(inout) :: error
+
+    logical :: failure
+    character(len=*), parameter :: routineN='create_linres_section',&
+         routineP=moduleN//':'//routineN
+    TYPE(keyword_type), pointer :: keyword
+    TYPE(section_type), pointer :: subsection
+
+    failure=.false.
+    NULLIFY(keyword,subsection)
+
+    CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
+    IF (.NOT. failure) THEN
+       CALL section_create(section,name="linres",&
+            description="The linear response is used to calculate one of the "//&
+            " following properties: chemicalshift, ...(to be implemented) ",&
+            n_keywords=5, n_subsections=2, repeats=.FALSE., required=.TRUE.,&
+            error=error)
+
+      CALL keyword_create(keyword, name="CONVERGENCE",&
+           variants=(/"CONV"/),&
+           description="Convergence criterion for the linear response scf",&
+           usage="CONVERGENCE 0.00005",&
+           default_r_val=0.5D-6,error=error)
+      CALL section_add_keyword(section,keyword,error=error)
+      CALL keyword_release(keyword,error=error)
+
+      CALL keyword_create(keyword, name="OPT_METHOD",&
+           variants=(/"MINIMIZER"/),&
+           description="Define the algorithms used to optimize the Psi1 in the scf iteration",&
+           usage="OPT_METHOD DIIS",&
+           default_i_val=lr_diis,&
+           enum_c_vals=s2a( "DIIS", "PCG"),&
+           enum_desc=s2a("DIIS", "Preconditioned Conjugate Gradients"),&
+           enum_i_vals=(/lr_diis,lr_pcg/),&
+           error=error)
+      CALL section_add_keyword(section,keyword,error=error)
+      CALL keyword_release(keyword,error=error)
+
+      CALL keyword_create(keyword, name="PRECONDITIONER",&
+           variants=(/"PCOND"/),&
+           description="Determine if to apply a preconditioner to the scf optimization of Psi1 ",&
+           usage="PRECONDITIONER NONE",&
+           default_i_val=lr_pcond_none,&
+           enum_c_vals=s2a( "NONE", "P1"),&
+           enum_desc=s2a("No preconditioner is applied", "boh"),&
+           enum_i_vals=(/lr_pcond_none,lr_pcond_1/),&
+           error=error)
+      CALL section_add_keyword(section,keyword,error=error)
+      CALL keyword_release(keyword,error=error)
+
+      CALL keyword_create(keyword, name="LOCALIZE_PSI0",&
+           description="Require the optimize the localization of the wavefunctions",&
+           usage="LOCALIZE_PSI0",&
+           default_l_val=.FALSE.,lone_keyword_l_val=.TRUE.,error=error)
+
+      NULLIFY(subsection)
+      CALL create_localize_section(subsection,error)
+      CALL section_add_subsection(section, subsection, error=error)
+      CALL section_release(subsection,error=error)
+
+
+       NULLIFY(subsection)
+       CALL create_nmr_section(subsection,error=error)
+       CALL section_add_subsection(section,subsection,error=error)
+       CALL section_release(subsection,error=error)
+
+    END IF
+  END SUBROUTINE create_linres_section
+
+  SUBROUTINE create_nmr_section(section,error)
+    TYPE(section_type), pointer :: section
+    type(cp_error_type), optional, intent(inout) :: error
+
+    logical :: failure
+    character(len=*), parameter :: routineN='create_linres_section',&
+         routineP=moduleN//':'//routineN
+    TYPE(section_type), POINTER :: subsection
+    TYPE(keyword_type), pointer :: keyword
+ 
+    failure=.false.
+    NULLIFY(keyword,subsection)
+
+    CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
+    IF (.NOT. failure) THEN
+       CALL section_create(section,name="nmr",&
+            description="The chemical shift is calculated by DFPT ",&
+            n_keywords=5, n_subsections=0, repeats=.FALSE., required=.TRUE.,&
+            error=error)
+
+    END IF
+
+  END SUBROUTINE create_nmr_section
+
 
 END MODULE input_cp2k

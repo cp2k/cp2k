@@ -98,6 +98,9 @@ MODULE qs_environment_types
   USE qs_ks_types,                     ONLY: qs_ks_env_type,&
                                              qs_ks_release,&
                                              qs_ks_retain
+  USE qs_linres_types,                 ONLY: linres_control_release,&
+                                             linres_control_retain,&
+                                             linres_control_type
   USE qs_local_rho_types,              ONLY: local_rho_set_create,&
                                              local_rho_set_release,&
                                              get_local_rho,&
@@ -298,6 +301,7 @@ MODULE qs_environment_types
     TYPE(hartree_local_type),  POINTER                    :: hartree_local
     TYPE(section_vals_type), POINTER                      :: input
     TYPE(kg_sub_pw_env_type), POINTER                     :: kg_sub_pw_env
+    TYPE(linres_control_type), POINTER                    :: linres_control
     TYPE(xas_environment_type), POINTER                   :: xas_env
   END TYPE qs_environment_type
 
@@ -348,7 +352,7 @@ CONTAINS
                         rho0_atom_set,rho0_mpole,nddo_mpole,&
                         rhoz_set,ecoul_1c,VH_3c_list,rho0_s_rs,rho0_s_gs, &
                         requires_mo_derivs,mo_derivs,tddfpt_control, &
-                        neighbor_list_id,kg_sub_pw_env,xas_env)
+                        neighbor_list_id,kg_sub_pw_env,linres_control,xas_env)
 
 !   Purpose: Get the QUICKSTEP environment.
 
@@ -437,6 +441,8 @@ CONTAINS
     INTEGER, OPTIONAL                        :: neighbor_list_id
     TYPE(kg_sub_pw_env_type), OPTIONAL,&
       POINTER                                :: kg_sub_pw_env
+    TYPE(linres_control_type), OPTIONAL,&
+      POINTER                                :: linres_control
     TYPE(xas_environment_type), OPTIONAL,&
       POINTER                                :: xas_env
 
@@ -504,6 +510,7 @@ CONTAINS
     IF (PRESENT(requires_mo_derivs)) requires_mo_derivs = qs_env%requires_mo_derivs
     IF (PRESENT(mo_derivs)) mo_derivs => qs_env%mo_derivs
     IF (PRESENT(tddfpt_control)) tddfpt_control => qs_env%dft_control%tddfpt_control
+    IF (PRESENT(linres_control)) linres_control => qs_env%linres_control
 
     IF (PRESENT(rho_atom_set)) &
        CALL get_local_rho(qs_env%local_rho_set, rho_atom_set=rho_atom_set)
@@ -607,6 +614,7 @@ CONTAINS
     NULLIFY (qs_env%hartree_local)
     NULLIFY (qs_env%input)
     NULLIFY (qs_env%kg_sub_pw_env)
+    NULLIFY (qs_env%linres_control)
     NULLIFY (qs_env%xas_env)
     qs_env%neighbor_list_id=-1
 
@@ -641,7 +649,7 @@ CONTAINS
                         subsys, oce,rho_atom_set,rho0_atom_set,rho0_mpole,&
                         nddo_mpole,rhoz_set,rhoz_tot,ecoul_1c,VH_3c_list,error, &
                         requires_mo_derivs,mo_derivs,neighbor_list_id,&
-                        kg_sub_pw_env,xas_env)
+                        kg_sub_pw_env,linres_control,xas_env)
 
 !   Purpose: Set the QUICKSTEP environment.
 
@@ -712,6 +720,8 @@ CONTAINS
     INTEGER, OPTIONAL                        :: neighbor_list_id
     TYPE(kg_sub_pw_env_type), OPTIONAL,&
       POINTER                                :: kg_sub_pw_env
+    TYPE(linres_control_type), OPTIONAL,&
+      POINTER                                :: linres_control
     TYPE(xas_environment_type), OPTIONAL,&
       POINTER                                :: xas_env
 
@@ -789,6 +799,11 @@ CONTAINS
        CALL scf_c_retain(scf_control,error=error)
        CALL scf_c_release(qs_env%scf_control,error=error)
        qs_env%scf_control => scf_control
+    END IF
+    IF (PRESENT(linres_control)) THEN ! accept also null pointers?
+       CALL linres_control_retain(linres_control,error=error)
+       CALL linres_control_release(qs_env%linres_control,error=error)
+       qs_env%linres_control => linres_control
     END IF
     IF (PRESENT(kinetic)) qs_env%kinetic => kinetic
     IF (PRESENT(rho_core)) qs_env%rho_core => rho_core
@@ -1125,6 +1140,11 @@ SUBROUTINE qs_env_release(qs_env,error)
 
         CALL qs_rho_release(qs_env%rho, error=error)
         CALL scf_c_release(qs_env%scf_control, error=error)
+
+        IF(ASSOCIATED(qs_env%linres_control)) THEN
+          CALL linres_control_release(qs_env%linres_control, error=error)
+        END IF
+
         IF(ASSOCIATED(qs_env%kg_sub_pw_env)) THEN
           CALL kg_sub_pw_env_release(qs_env%kg_sub_pw_env,error=error)
         END IF

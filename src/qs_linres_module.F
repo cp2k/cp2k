@@ -1,0 +1,292 @@
+!-----------------------------------------------------------------------------!
+!   CP2K: A general program to perform molecular dynamics simulations         !
+!   Copyright (C) 2005  CP2K developers group                                 !
+!-----------------------------------------------------------------------------!
+
+#include "cp_prep_globals.h"
+
+!!****m* cp2k/qs_linres_module *
+!!
+!!   NAME
+!!     qs_linres_module
+!!
+!!   FUNCTION
+!!     Contains the setup for  the calculation of properties by linear response
+!!     by the application of second order density functional perturbation theory.
+!!     The knowledge of the ground state energy, density and wavefunctions is assumed.
+!!     Uses the self consistent approach.
+!!     Properties that can be calculated : none
+!!
+!!   AUTHOR
+!!      MI 
+!!
+!!   MODIFICATION HISTORY
+!!      created 06-2005 [MI]
+!!
+!!   SOURCE
+!!****
+
+MODULE qs_linres_module
+
+  USE cp_control_types,                ONLY: dft_control_type
+  USE cp_error_handling,               ONLY: cp_a_l,&
+                                             cp_assert,&
+                                             cp_error_get_logger,&
+                                             cp_error_message,&
+                                             cp_error_type
+  USE cp_log_handling,                 ONLY: cp_failure_level,&
+                                             cp_fatal_level,&
+                                             cp_logger_get_default_unit_nr,&
+                                             cp_logger_type,&
+                                             cp_note_level,&
+                                             cp_to_string,&
+                                             cp_warning_level
+  USE global_types,                    ONLY: global_environment_type
+  USE input_constants,                 ONLY: lr_none, lr_chemshift,state_loc_all
+  USE kinds,                           ONLY: dp
+  USE qs_environment_types,            ONLY: get_qs_env,&
+                                             qs_environment_type,&
+                                             set_qs_env
+  USE qs_linres_types,                 ONLY: linres_control_create,&
+                                             linres_control_release,&
+                                             linres_control_retain,&
+                                             linres_control_type,&
+                                             nmr_env_type
+!  USE qs_linres_nmr_utils,             ONLY: nmr_env_cleanup, nmr_env_init
+  USE qs_loc_control,                  ONLY: read_loc_section,&
+                                             set_loc_centers,&
+                                             set_loc_wfn_lists
+  USE qs_loc_methods,                  ONLY: qs_loc_driver
+  USE qs_loc_types,                    ONLY: qs_loc_env_release,&
+                                             qs_loc_env_retain,&
+                                             qs_loc_env_create,&
+                                             qs_loc_env_destroy,&
+                                             qs_loc_env_new_type
+  USE qs_loc_utils,                    ONLY: qs_loc_env_init
+  USE qs_mo_types,                     ONLY: get_mo_set,&
+                                             mo_set_p_type
+  USE qs_p_env_methods,                ONLY: p_env_create,&
+                                             p_env_psi0_changed
+  USE qs_p_env_types,                  ONLY: p_env_release,&
+                                             qs_p_env_type
+  USE input_section_types,             ONLY: section_vals_get,&
+                                             section_vals_get_subs_vals,&
+                                             section_vals_get_subs_vals2,&
+                                             section_vals_type,&
+                                             section_vals_val_get
+  USE termination,                     ONLY: stop_program
+  USE timings,                         ONLY: timeset,&
+                                             timestop
+
+  IMPLICIT NONE
+
+  PRIVATE
+  PUBLIC :: linres_calculation
+
+  CHARACTER(LEN=*), PARAMETER :: moduleN='qs_linres_module'
+
+CONTAINS
+
+! *****************************************************************************
+!!****f* cp2k/linres_module/linres_calculation
+!!
+!!   NAME
+!!     linres_calculation
+!!
+!!   FUNCTION
+!!     Driver for the linear response calculatios
+!!     Initialize the perturbation environment
+!!     Define which properties is to be calculated
+!!     Start up the optimization of the response density and wfn
+!!
+!!   NOTES
+!!     -
+!!
+!!   AUTHOR
+!!     MI
+!!
+!!   MODIFICATION HISTORY
+!!     06.2005 created [MI]
+!!
+!****************************************************************************
+
+  SUBROUTINE linres_calculation(qs_env, globenv, error)
+
+    TYPE(qs_environment_type), POINTER          :: qs_env
+    TYPE(global_environment_type),  &
+      POINTER                                   :: globenv
+    TYPE(cp_error_type), &
+         INTENT(INOUT), OPTIONAL                :: error
+
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'linres_calculation', &
+                                   routineP = moduleN//'/'//routineN
+ 
+    INTEGER                                     :: handle,output_unit
+    LOGICAL                                     :: ionode, failure, &
+                                                  lr_calculation, was_present
+    TYPE(cp_logger_type), POINTER               :: logger    
+    TYPE(linres_control_type), POINTER          ::  linres_control
+    TYPE(nmr_env_type)                          :: nmr_env
+    TYPE(qs_p_env_type), POINTER                :: p_env
+    TYPE(section_vals_type), POINTER            :: lr_section, prop_section
+
+    CALL timeset(routineN,"I","",handle)    
+    failure = .FALSE. 
+    lr_calculation = .FALSE. 
+    was_present = .FALSE.
+
+    NULLIFY(p_env,linres_control,logger,lr_section,prop_section)
+
+    logger => cp_error_get_logger(error)
+    ionode = (logger%para_env%mepos==logger%para_env%source)
+    IF(ionode) output_unit = cp_logger_get_default_unit_nr(logger)
+
+    CPPrecondition(ASSOCIATED(qs_env),cp_failure_level,routineP,error,failure)
+
+    ! The transition potential method to calculate XAS needs LSD
+    lr_section =>  section_vals_get_subs_vals(globenv%input_file, &
+                                                 "FORCE_EVAL%LINRES")
+    call section_vals_get(lr_section,explicit=lr_calculation,error=error)
+
+    IF (lr_calculation) THEN
+
+       CALL linres_init(lr_section,p_env,qs_env,ionode,globenv,error=error)
+
+       CALL get_qs_env(qs_env=qs_env, linres_control=linres_control)
+
+       !The type of perturbation has not been defined yet
+       linres_control%property = lr_none
+
+       prop_section => section_vals_get_subs_vals(lr_section,"NMR",error=error)
+       CALL section_vals_get(prop_section,explicit=was_present,error=error)
+       IF(was_present)THEN
+
+         linres_control%property = lr_chemshift
+         linres_control%do_kernel = .FALSE.
+
+         IF(.NOT.linres_control%localized_psi0) CALL stop_program(routineP,&
+             "Are you sure that you want to calculate the chemical shift without localized psi0??")
+
+         !Initialize the nmr environment
+!         CALL nmr_env_init(nmr_env,qs_env,error=error)
+
+         
+!         CALL nmr_env_cleanup(nmr_env,error=error)
+
+       END IF
+      
+      CALL p_env_release(p_env)
+
+
+    ELSE
+       IF(ionode)  WRITE (output_unit, "(2X,A)") "",&
+       "-----------------------------------------------------------------------------",&
+       "-              No LR calculation has been specified in the input            -",&
+       "                        cp2k is going to stop, bye bye                       ",&
+       "-----------------------------------------------------------------------------",&
+       ""    
+    END IF 
+
+    CALL timestop(0.0_dp, handle)
+
+  END SUBROUTINE linres_calculation
+
+! *****************************************************************************
+!!****f* cp2k/linres_module/linres_init
+!!
+!!   NAME
+!!     linres_init
+!!
+!!   FUNCTION
+!!     Initialize some general settings like the p_env
+!!     Localize the psi0 if required
+!!
+!!   NOTES
+!!     - The localization should probably be always for all the occupied states
+!!
+!!   AUTHOR
+!!     MI
+!!
+!!   MODIFICATION HISTORY
+!!     06.2005 created [MI]
+!!
+!****************************************************************************
+
+  SUBROUTINE linres_init(lr_section,p_env,qs_env,ionode,globenv,error)
+
+    TYPE(section_vals_type), POINTER            :: lr_section
+    TYPE(qs_environment_type), POINTER          :: qs_env
+    TYPE(qs_p_env_type), POINTER                :: p_env
+    LOGICAL, INTENT(IN)                         :: ionode
+    TYPE(global_environment_type),  &
+      POINTER                                   :: globenv
+    TYPE(cp_error_type), & 
+         INTENT(INOUT), OPTIONAL                :: error
+
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'linres_init', &
+                                   routineP = moduleN//'/'//routineN
+ 
+    INTEGER :: istat, ispin, n_mo(2),nelectron,nmoloc(2)
+    LOGICAL :: failure
+    REAL(dp) :: maxocc
+    TYPE(dft_control_type), POINTER             :: dft_control
+    TYPE(linres_control_type), POINTER          ::  linres_control
+    TYPE(mo_set_p_type), DIMENSION(:), POINTER  :: mos
+    TYPE(qs_loc_env_new_type), POINTER          :: qs_loc_env     
+    TYPE(section_vals_type), POINTER            :: loc_section
+
+    failure = .FALSE.
+
+    NULLIFY(dft_control,linres_control,loc_section,mos,qs_loc_env)
+
+    CPPrecondition(.NOT.ASSOCIATED(p_env),cp_failure_level,routineP,error,failure)
+    IF (.NOT. failure) THEN
+
+      !------------------!
+      ! create the p_env !
+      !------------------!
+       CALL p_env_create(p_env, qs_env, orthogonal_orbitals=.TRUE.,error=error)
+
+       CALL linres_control_create(linres_control,error=error)
+       CALL set_qs_env(qs_env=qs_env, linres_control=linres_control)
+       CALL linres_control_release(linres_control,error=error)
+       CALL get_qs_env(qs_env=qs_env, linres_control=linres_control,&
+                       dft_control=dft_control, mos=mos)
+
+       ! Localized Psi0 are required when the position operator has to be defined (nmr)
+       CALL section_vals_val_get(lr_section,"LOCALIZE_PSI0",&
+           l_val=linres_control%localized_psi0,error=error)
+       IF(linres_control%localized_psi0) THEN
+         loc_section =>section_vals_get_subs_vals(lr_section,"LOCALIZE",error=error)
+         CALL read_loc_section(linres_control%localized_wfn_control,loc_section,error=error)
+         DO ispin = 1,dft_control%nspins
+           CALL get_mo_set(mos(ispin)%mo_set,nmo=n_mo(ispin),nelectron=nelectron,maxocc=maxocc)
+           IF(linres_control%localized_wfn_control%set_of_states == state_loc_all) THEN
+             nmoloc(ispin) = NINT(nelectron/maxocc)
+           ELSE
+             nmoloc(ispin) = MIN(linres_control%localized_wfn_control%nloc_states(1) ,n_mo(ispin))
+           END IF
+         END DO  ! ispin
+         CALL set_loc_wfn_lists(linres_control%localized_wfn_control,&
+                nmoloc,n_mo,dft_control%nspins,error=error)
+         CALL set_loc_centers(linres_control%localized_wfn_control,nmoloc,&
+                dft_control%nspins,globenv,error=error) 
+         CALL qs_loc_env_create(qs_loc_env,error=error)
+         CALL qs_loc_env_init(qs_loc_env,linres_control%localized_wfn_control,qs_env,error=error)
+         ! The localized orbitals are copied in the mos, 
+         ! The orbital centers are stored in linres_control%localized_wfn_control
+         CALL qs_loc_driver(qs_env,qs_loc_env,ionode,error=error)
+         CALL qs_loc_env_destroy(qs_loc_env, error=error)
+         DEALLOCATE(qs_loc_env,STAT=istat)
+         CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+       END IF
+
+       CALL p_env_psi0_changed(p_env,qs_env, error=error) ! update the m_epsilon matrix
+    END IF
+
+  END SUBROUTINE linres_init
+
+! *****************************************************************************
+END MODULE qs_linres_module
+
+

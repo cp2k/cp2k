@@ -194,7 +194,7 @@ CONTAINS
                nset, nspins, nexc_search, nvirtual, output_unit,& 
                state_to_be_excited, xas_iter_count
     INTEGER, ALLOCATABLE, DIMENSION(:)          :: econf,first_sgf, nlev
-    INTEGER, DIMENSION(:), POINTER              :: elec_conf, nshell
+    INTEGER, DIMENSION(:), POINTER              :: elec_conf, nshell, npgf
     INTEGER, DIMENSION(:, :), POINTER           :: first_sgfa, l, last_sgfa
     INTEGER, DIMENSION(:), POINTER              :: atom_of_state
     INTEGER, DIMENSION(:), POINTER              :: type_of_state
@@ -204,7 +204,7 @@ CONTAINS
                 ra(3), rac(3), rc(3)
     REAL(dp), DIMENSION(:), POINTER           :: occupation_numbers
     REAL(dp), DIMENSION(:,:), ALLOCATABLE       :: orb_char
-    REAL(dp), DIMENSION(:,:), POINTER           :: spectrum
+    REAL(dp), DIMENSION(:,:), POINTER           :: spectrum, zet
     REAL(dp), DIMENSION(:,:), POINTER           :: centers_wfn
     REAL(dp), DIMENSION(:,:), POINTER           :: vecbuffer
     TYPE(all_potential_type), POINTER           :: all_potential
@@ -260,6 +260,8 @@ CONTAINS
     NULLIFY(xas_env, groundstate_coeff, ostrength_sm, dip_fm_set, fm_work)
     NULLIFY(excvec_coeff, spectrum, state_of_atom, centers_wfn, qs_loc_env, cell)
     NULLIFY(occupation_numbers,my_localized_wfn_control)
+    NULLIFY(elec_conf,l,nshell,zet,first_sgfa, last_sgfa)
+    NULLIFY(atom_of_state,type_of_state,state_of_atom)
 
 !   Create the xas environment
     CALL get_qs_env(qs_env,xas_env=xas_env,error=error)
@@ -359,7 +361,7 @@ CONTAINS
            distmin = dist
         END IF
       END DO
- !if(ionode) WRITE(*,'(A,I4,3f10.5)') 'atom ', atom_of_state(istate),  particle_set(atom_of_state(istate))%r(1:3)
+ if(ionode) WRITE(*,'(I4,A,I4,6f10.5)') istate, 'atom ', atom_of_state(istate),  particle_set(atom_of_state(istate))%r(1:3), centers_wfn(1:3,istate)
 
       !Character of the state
        CALL cp_fm_get_submatrix(mo_coeff,vecbuffer,1,istate,&
@@ -398,7 +400,7 @@ CONTAINS
          CALL get_gto_basis_set(gto_basis_set=orb_basis_set,&
                                 nset=nset,&
                                 nshell=nshell,&
-                                l=l,&
+                                l=l, zet=zet, npgf=npgf,&
                                 first_sgf=first_sgfa,&
                                 last_sgf=last_sgfa)
        END IF
@@ -411,10 +413,15 @@ CONTAINS
          la_old = -1
          DO ishell=1,nshell(iset)
            la = l(ishell,iset)
-           nelec = maxocc*REAL(2*la + 1,dp)
-           IF (la/=la_old) THEN
-             nlev(la) = nlev(la) + 1
-             la_old = la
+           nelec = REAL(2*la + 1,dp)
+           IF(la == 0) THEN
+             IF(zet(npgf(iset),iset) .GT. 6._dp) THEN
+                nlev(la) = 1
+             ELSE
+                nlev(la) = 2
+             END IF
+           ELSE
+             EXIT
            END IF
            DO isgfa=first_sgfa(ishell,iset),last_sgfa(ishell,iset)
              isgf = first_sgf(iatom) + isgfa - 1
@@ -429,7 +436,7 @@ CONTAINS
 
          END DO  ! ishell
        END DO  ! iset
- !if(ionode) WRITE(*,*) 'type ', type_of_state(istate)
+ if(ionode) WRITE(*,*) 'type ', type_of_state(istate)
     END DO  ! istate
 
     CALL localized_wfn_control_release(my_localized_wfn_control,error=error)
@@ -476,7 +483,7 @@ CONTAINS
        ! determine which state has to be excited in the global list
        state_to_be_excited = state_of_atom(iat)
        dft_control % xas_estate  = state_to_be_excited
-!IF (ionode ) WRITE(*,*) 'estate ',  dft_control % xas_estate
+IF (ionode ) WRITE(*,*) 'estate ',  dft_control % xas_estate
       ! Take the state_to_be_excited vector from the full set and copy into excvec_coeff
        CALL get_mo_set(mos(1)%mo_set, mo_coeff=mo_coeff,&
             occupation_numbers=occupation_numbers,homo=homo)

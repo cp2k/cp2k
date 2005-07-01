@@ -39,7 +39,7 @@ MODULE string_utilities
 
   INTERFACE s2a
     MODULE PROCEDURE s2a_1,s2a_2,s2a_3,s2a_4,s2a_5,s2a_6, &
-                     s2a_7,s2a_8,s2a_9,s2a_10,s2a_11,s2a_12  ! should be clear how to add more
+                     s2a_7,s2a_8,s2a_9,s2a_10,s2a_11,s2a_12, s2a_13, s2a_14  ! should be clear how to add more
   END INTERFACE 
 
 
@@ -125,6 +125,18 @@ PURE FUNCTION s2a_12(s1,s2,s3,s4,s5,s6,s7,s8,s9,s10,s11,s12) RESULT(a)
   character(LEN=1000), DIMENSION(12) :: a
   a(1)=s1; a(2)=s2; a(3)=s3; a(4)=s4; a(5)=s5; a(6)=s6; a(7)=s7
   a(8)=s8; a(9)=s9; a(10)=s10; a(11)=s11; a(12)=s12
+END FUNCTION
+PURE FUNCTION s2a_13(s1,s2,s3,s4,s5,s6,s7,s8,s9,s10,s11,s12,s13) RESULT(a)
+  character(LEN=*), INTENT(IN) :: s1,s2,s3,s4,s5,s6,s7,s8,s9,s10,s11,s12,s13
+  character(LEN=1000), DIMENSION(13) :: a
+  a(1)=s1; a(2)=s2; a(3)=s3; a(4)=s4; a(5)=s5; a(6)=s6; a(7)=s7
+  a(8)=s8; a(9)=s9; a(10)=s10; a(11)=s11; a(12)=s12; a(13)=s13
+END FUNCTION
+PURE FUNCTION s2a_14(s1,s2,s3,s4,s5,s6,s7,s8,s9,s10,s11,s12,s13,s14) RESULT(a)
+  character(LEN=*), INTENT(IN) :: s1,s2,s3,s4,s5,s6,s7,s8,s9,s10,s11,s12,s13,s14
+  character(LEN=1000), DIMENSION(14) :: a
+  a(1)=s1; a(2)=s2; a(3)=s3; a(4)=s4; a(5)=s5; a(6)=s6; a(7)=s7
+  a(8)=s8; a(9)=s9; a(10)=s10; a(11)=s11; a(12)=s12; a(13)=s13; a(14)=s14
 END FUNCTION
 ! *****************************************************************************
 
