@@ -165,7 +165,8 @@ CONTAINS
 
 ! *****************************************************************************
 
-  SUBROUTINE calculate_ecore_overlap(qs_env,globenv,calculate_forces,molecular)
+  SUBROUTINE calculate_ecore_overlap(qs_env,globenv,calculate_forces,molecular, &
+                                     E_overlap_core)
 
 !   Purpose: Calculate the overlap energy of the core charge distribution.
 
@@ -181,6 +182,7 @@ CONTAINS
       INTENT(IN)                             :: globenv
     LOGICAL, INTENT(IN)                      :: calculate_forces
     LOGICAL, INTENT(IN), OPTIONAL             :: molecular
+    REAL(KIND=dp), INTENT(OUT), OPTIONAL     :: E_overlap_core
 
     CHARACTER(LEN=*), PARAMETER :: routine_name = "calculate_ecore_overlap", &
       routine = "SUBROUTINE "//routine_name//" (MODULE "//module_name//")"
@@ -695,6 +697,9 @@ CONTAINS
     CALL mp_sum(ecore_overlap,group)
 
     energy%core_overlap = ecore_overlap
+    IF (PRESENT(E_overlap_core)) THEN
+      E_overlap_core = energy%core_overlap
+    END IF
 
     CALL timestop(0.0_dp,handle)
 
@@ -702,7 +707,7 @@ CONTAINS
 
 ! *****************************************************************************
 
-  SUBROUTINE calculate_ecore_self(qs_env)
+  SUBROUTINE calculate_ecore_self(qs_env, E_self_core)
 
 !   Purpose: Calculate the self energy of the core charge distribution.
 
@@ -711,12 +716,13 @@ CONTAINS
 !   ***************************************************************************
 
     TYPE(qs_environment_type), POINTER       :: qs_env
+    REAL(KIND=dp), INTENT(OUT), OPTIONAL     :: E_self_core
 
     CHARACTER(LEN=*), PARAMETER :: routine_name = "calculate_ecore_self", &
       routine = "SUBROUTINE "//routine_name//" (MODULE "//module_name//")"
 
     INTEGER                                  :: handle, ikind, natom
-    REAL(KIND=dp)                            :: alpha_core_charge, ecore_self,zeff
+    REAL(KIND=dp)                            :: alpha_core_charge, ecore_self, zeff
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
@@ -746,6 +752,9 @@ CONTAINS
     END DO
 
     energy%core_self = ecore_self/SQRT(twopi)
+    IF (PRESENT(E_self_core)) THEN
+      E_self_core = energy%core_self
+    END IF
 
     CALL timestop(0.0_dp,handle)
 
