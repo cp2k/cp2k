@@ -27,6 +27,9 @@ MODULE qs_force
   USE cp_fm_types,                     ONLY: cp_fm_p_type
   USE global_types,                    ONLY: global_environment_type,&
                                              MEDIUM
+  USE input_section_types,             ONLY: section_vals_get_subs_vals, &
+                                             section_vals_val_get, &
+                                             section_vals_type
   USE kinds,                           ONLY: dp,&
                                              int_size
   USE message_passing,                 ONLY: mp_sum
@@ -57,6 +60,10 @@ MODULE qs_force
                                              stop_program
   USE timings,                         ONLY: timeset,&
                                              timestop
+  USE harris_force,                    ONLY: harris_force_correction
+  USE harris_force_types,              ONLY: harris_force_type
+                                             !harris_force_create, &
+                                             !harris_force_release
 
   IMPLICIT NONE
 
@@ -85,32 +92,38 @@ CONTAINS
 
 !   ***************************************************************************
 
-    TYPE(qs_environment_type), POINTER       :: qs_env
-    TYPE(global_environment_type), POINTER   :: globenv
+    TYPE(qs_environment_type), POINTER               :: qs_env
+    TYPE(global_environment_type), POINTER           :: globenv
 
     CHARACTER(LEN=*), PARAMETER :: routine_name = "qs_forces", &
       routine = "SUBROUTINE "//routine_name//" (MODULE "//module_name//")"
 
-    INTEGER                                  :: handle, i, iatom, ikind, &
-                                                ispin, istat, natom, nspin
-    INTEGER, ALLOCATABLE, DIMENSION(:)       :: atom_of_kind, kind_of
+    INTEGER                                          :: handle, i, iatom, &
+                                                        ikind, ispin, &
+                                                        istat, natom, nspin
+    INTEGER, ALLOCATABLE, DIMENSION(:)               :: atom_of_kind, kind_of
     TYPE(atomic_kind_type), DIMENSION(:), &
-      POINTER                                :: atomic_kind_set
-    TYPE(dft_control_type), POINTER          :: dft_control
+      POINTER                                        :: atomic_kind_set
+    TYPE(dft_control_type), POINTER                  :: dft_control
     TYPE(mo_set_p_type), DIMENSION(:), &
-      POINTER                                :: mos
-    TYPE(mo_set_type), POINTER               :: mo_set
+      POINTER                                        :: mos
+    TYPE(mo_set_type), POINTER                       :: mo_set
     TYPE(particle_type), DIMENSION(:), &
-      POINTER                                :: particle_set
+      POINTER                                        :: particle_set
     TYPE(qs_force_type), DIMENSION(:), &
-      POINTER                                :: force
-    TYPE(qs_ks_env_type), POINTER            :: ks_env
+      POINTER                                        :: force
+    TYPE(qs_ks_env_type), POINTER                    :: ks_env
     TYPE(real_matrix_p_type), DIMENSION(:), &
-      POINTER                                :: matrix_ks, matrix_s, matrix_w
-    TYPE(scf_control_type), POINTER          :: scf_control
-    LOGICAL                                  :: gapw, obasis
-    TYPE(qs_rho_type), POINTER               :: rho
-    TYPE(cp_fm_p_type), DIMENSION(:), POINTER :: mo_derivs 
+      POINTER                                        :: matrix_ks, matrix_s, &
+                                                        matrix_w
+    TYPE(scf_control_type), POINTER                  :: scf_control
+    LOGICAL                                          :: gapw, obasis, &
+                                                        harris_flag
+    TYPE(qs_rho_type), POINTER                       :: rho
+    TYPE(cp_fm_p_type), DIMENSION(:), POINTER        :: mo_derivs
+    TYPE(harris_force_type),POINTER                  :: harris_force
+    TYPE(section_vals_type), POINTER                 :: harris_section
+
 !   ---------------------------------------------------------------------------
 
     CALL write_checkpoint_information("entering "//routine_name,globenv)
@@ -166,7 +179,8 @@ CONTAINS
     CALL qs_energies(qs_env,globenv)
 
     CALL get_qs_env(qs_env=qs_env,mos=mos,mo_derivs=mo_derivs, &
-                    matrix_ks=matrix_ks, ks_env=ks_env, matrix_s=matrix_s, rho=rho)
+                    matrix_ks=matrix_ks, ks_env=ks_env, matrix_s=matrix_s, &
+                    rho=rho)
 
 
     IF ( .NOT. obasis ) THEN
@@ -213,6 +227,7 @@ CONTAINS
                                          globenv=globenv,&
                                          calculate_forces=.TRUE.)
     END IF
+
 
 !   *** compute grid-based forces ***
     CALL qs_ks_update_qs_env(ks_env=ks_env,&
@@ -267,6 +282,17 @@ CONTAINS
       CALL write_forces(force,atomic_kind_set,1,globenv)
     ELSE
       CALL write_forces(force,atomic_kind_set,0,globenv)
+    END IF
+
+    harris_section => section_vals_get_subs_vals(globenv%input_file, &
+                                                 "FORCE_EVAL%DFT%QS%HARRIS")
+    CALL section_vals_val_get(harris_section, "ACTIVATE", l_val=harris_flag)
+
+    IF (harris_flag) THEN
+      !CALL harris_force_create(harris_force, natom)
+      CALL get_qs_env(qs_env=qs_env, harris_force=harris_force)
+      CALL harris_force_correction(qs_env, harris_force, globenv)
+      !CALL harris_force_release(harris_force)
     END IF
 
     CALL deallocate_matrix_set(matrix_w)
