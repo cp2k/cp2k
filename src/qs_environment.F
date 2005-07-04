@@ -255,6 +255,7 @@ CONTAINS
 
   END SUBROUTINE qs_init
 
+! *****************************************************************************
 
   SUBROUTINE qs_init_subsys(qs_env,subsystem,green,cell,cell_ref,use_ref_cell,&
        globenv,qmmm,harris,error)
@@ -274,10 +275,10 @@ CONTAINS
     TYPE(global_environment_type), POINTER   :: globenv
     LOGICAL, INTENT(in)                      :: qmmm
     LOGICAL, INTENT(IN), OPTIONAL            :: harris
-    TYPE(cp_error_type), INTENT(inout), &
+    TYPE(cp_error_type), INTENT(INOUT), &
       OPTIONAL                               :: error
 
-    CHARACTER(LEN=*), PARAMETER              :: routine_name = "qs_init"
+    CHARACTER(LEN=*), PARAMETER              :: routine_name = "qs_init_subsys"
 
     INTEGER :: handle, ispin, istat, lmax_sphere, maxl, maxlgto, maxlppl, &
       maxlppnl, multiplicity, n_ao, nelectron, nkind, output_unit, natom
@@ -314,15 +315,22 @@ CONTAINS
     TYPE(semi_empirical_control_type), &
       POINTER                                :: se_control
 
+    LOGICAL :: harris_flag
+
 !   ---------------------------------------------------------------------------
 
     CALL write_checkpoint_information("entering "//routine_name,globenv)
 
     CALL timeset(routine_name,"I",'',handle)
 
-
     ionode = globenv%ionode
     output_unit = globenv%scr
+
+    IF (PRESENT(harris)) THEN
+      harris_flag = harris
+    ELSE
+      harris_flag = .FALSE.
+    END IF
 
 !   *** Initialise the Quickstep environment ***
 
@@ -466,9 +474,10 @@ CONTAINS
 
     CALL allocate_qs_energy(energy)
 
-    ! *** Allocate the data structure for the Harris energies *** !
-    IF (harris) THEN
-      CALL harris_env_create(harris_env=harris_energy, error=error)
+!   *** Allocate the data structure for the Harris energies ***
+
+    IF (harris_flag) THEN
+      CALL harris_env_create(harris_env=harris_energy,error=error)
     END IF
 
 !   *** Allocate the force data structure ***
@@ -484,10 +493,10 @@ CONTAINS
       DEALLOCATE (natom_of_kind,STAT=istat)
       IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
                                        "natom_of_kind")
-
-      ! *** Allocate the Harris force data structure *** !
-      natom = SIZE(particle_set)
-      CALL harris_force_create(harris_force=harris_force, natom=natom, error=error)
+      IF (harris_flag) THEN
+        natom = SIZE(particle_set)
+        CALL harris_force_create(harris_force=harris_force,natom=natom,error=error)
+      END IF
     END IF
 
 !   *** Activate the interpolation ***
@@ -499,7 +508,8 @@ CONTAINS
                     error=error)
 
 !   *** Set the current Quickstep environment ***
-    CALL set_qs_env(qs_env, subsys=subsystem,error=error)
+
+    CALL set_qs_env(qs_env,subsys=subsystem,error=error)
     CALL set_qs_env(qs_env=qs_env,&
                     cell=cell,&
                     green=green,&
@@ -509,10 +519,14 @@ CONTAINS
                     dft_control=dft_control,&
                     energy=energy,&
                     force=force,&
-                    harris_energy = harris_energy, &
-                    harris_force = harris_force, &
                     scf_control=scf_control,&
                     wf_history=wf_history)
+
+    IF (harris_flag) THEN
+      CALL set_qs_env(qs_env=qs_env,&
+                      harris_energy=harris_energy,&
+                      harris_force=harris_force)
+    END IF
 
     CALL cp_subsys_set(subsystem,local_molecules_new=local_molecules,&
          local_particles=local_particles,error=error)
