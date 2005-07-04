@@ -7877,7 +7877,7 @@ END SUBROUTINE create_ot_section
       CALL keyword_create(keyword, name="LOCALIZE_WFN",&
            description="Check and possibly optimize the localization of the wavefunctions",&
            usage="LOCALIZE_WFN",&
-            default_l_val=.FALSE.,lone_keyword_l_val=.TRUE.,error=error)
+           default_l_val=.FALSE.,lone_keyword_l_val=.TRUE.,error=error)
       CALL section_add_keyword(section,keyword,error=error)
       CALL keyword_release(keyword,error=error) 
 
@@ -7965,9 +7965,11 @@ END SUBROUTINE create_ot_section
       CALL keyword_release(keyword,error=error)
 
       CALL keyword_create(keyword, name="LOCALIZE_PSI0",&
-           description="Require the optimize the localization of the wavefunctions",&
+           description="Maximize the localization of the ground state wavefunctions",&
            usage="LOCALIZE_PSI0",&
            default_l_val=.FALSE.,lone_keyword_l_val=.TRUE.,error=error)
+      CALL section_add_keyword(section,keyword,error=error)
+      CALL keyword_release(keyword,error=error)
 
       NULLIFY(subsection)
       CALL create_localize_section(subsection,error)
