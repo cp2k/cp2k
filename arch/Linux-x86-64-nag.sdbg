@@ -20,7 +20,7 @@ DFLAGS   = -D__NAG -D__FFTSG\
            -Dfftw_f77=fftw_f77_\
            -Dfftw_f77_destroy_plan=fftw_f77_destroy_plan_
 CPPFLAGS = -traditional -C $(DFLAGS)
-FCFLAGS  = -O0 -g -C -mismatch_all -nan -gline
+FCFLAGS  = -O0 -g -C=all -mismatch_all -nan -gline
 LDFLAGS  = $(FCFLAGS) -L/home/krack/lib/64
 LIBS     = -llapack_nag -lblas_nag -ldfftw
 
