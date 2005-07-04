@@ -132,6 +132,8 @@ OBJECTS_GENERIC =\
  gopt_f_types.o\
  green_types.o\
  green_methods.o\
+ harris_force.o\
+ harris_force_types.o\
  harris_functional.o\
  harris_env_types.o\
  hartree.o\
