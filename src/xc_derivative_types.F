@@ -152,9 +152,8 @@ CONTAINS
        derivative%ref_count = 1
        derivative%id_nr     = derivative_id_nr
        derivative_id_nr     = derivative_id_nr + 1
-       my_desc = standardize_derivative_desc(desc)
-       derivative%split_desc => &
-            create_split_derivative_desc(my_desc)
+       CALL standardize_derivative_desc(desc,my_desc)
+       CALL create_split_derivative_desc(my_desc,derivative%split_desc)
        derivative%desc = my_desc
        derivative%deriv_data => cr3d_ptr
     END IF

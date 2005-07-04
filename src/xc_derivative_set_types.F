@@ -149,7 +149,7 @@ CONTAINS
     my_allocate_deriv=.FALSE.
     IF (PRESENT(allocate_deriv)) my_allocate_deriv=allocate_deriv
     NULLIFY(res)
-    std_deriv_desc = standardize_derivative_desc(description)
+    CALL standardize_derivative_desc(description,std_deriv_desc)
     IF (.NOT. failure) THEN
        pos => derivative_set%derivs
        DO WHILE(cp_sll_xc_deriv_next(pos,el_att=deriv_att,error=error))

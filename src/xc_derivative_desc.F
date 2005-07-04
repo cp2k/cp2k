@@ -85,12 +85,11 @@ CONTAINS
 !!                   see module cp_error_handling 
 !!
 !!****
- FUNCTION standardize_derivative_desc(deriv_desc, error) RESULT(res)
-    CHARACTER(len=*), INTENT(in)             :: deriv_desc
+ SUBROUTINE standardize_derivative_desc(deriv_desc,res,error)
+    CHARACTER(len=*), INTENT(in)                           :: deriv_desc
     TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
-    CHARACTER&
-      (len=MAX_DERIVATIVE_DESC_LENGTH)       :: res
+      OPTIONAL                                             :: error
+    CHARACTER(LEN=MAX_DERIVATIVE_DESC_LENGTH), INTENT(OUT) :: res
 
     CHARACTER(len=*), PARAMETER :: routineN = 'standardize_derivative_desc', &
       routineP = moduleN//':'//routineN
@@ -101,7 +100,7 @@ CONTAINS
     INTEGER                                  :: i, l_label, pos, stat
     LOGICAL                                  :: ordered
 
-    deriv_array => create_split_derivative_desc(deriv_desc, error=error)
+    CALL create_split_derivative_desc(deriv_desc,deriv_array,error=error)
 
     ordered=.FALSE.
     DO WHILE(.not.ordered)
@@ -127,7 +126,7 @@ CONTAINS
     DEALLOCATE(deriv_array, stat=stat)
     CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
 
-  END FUNCTION standardize_derivative_desc
+  END SUBROUTINE standardize_derivative_desc
 
 !!****f* xc_derivative_types/create_split_derivative_desc [1.0] *
 !!
@@ -143,7 +142,7 @@ CONTAINS
 !!                   see module cp_error_handling 
 !!
 !!*** *********************************************************************
-  FUNCTION create_split_derivative_desc(deriv_desc, error) RESULT(res)
+  SUBROUTINE create_split_derivative_desc(deriv_desc,res,error)
     CHARACTER(len=*), INTENT(in)             :: deriv_desc
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
@@ -178,7 +177,7 @@ CONTAINS
        END IF
     END DO
     
-  END FUNCTION create_split_derivative_desc
+  END SUBROUTINE create_split_derivative_desc
 
 ! *****************************************************************************
 
