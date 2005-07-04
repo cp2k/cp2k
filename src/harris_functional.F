@@ -25,18 +25,10 @@
 !!   SOURCE
 !****************************************************************************
 MODULE harris_functional
-  USE pws,                             ONLY: cleanup_pw_poisson_solver, &
-                                             init_pw_poisson_solver
-  USE qs_rho_types,                    ONLY: qs_rho_type, &
-                                             qs_rho_get
-  USE qs_environment_types,            ONLY: qs_environment_type, &
-                                             get_qs_env
-  USE cp_log_handling,                 ONLY: cp_failure_level, &
-                                             cp_note_level, &
-                                             cp_to_string, &
-                                             cp_warning_level,&
-                                             cp_logger_get_default_unit_nr,&
-                                             cp_logger_type
+  USE coefficient_types,               ONLY: coeff_type
+  !                                           coeff_add, &
+  !                                           coeff_sumup
+  USE cp_control_types,                ONLY: dft_control_type
   USE cp_error_handling,               ONLY: cp_a_l, &
                                              cp_assert, &
                                              cp_assertion_failed, &
@@ -44,37 +36,48 @@ MODULE harris_functional
                                              cp_error_get_logger, &
                                              cp_error_message, &
                                              cp_error_type
-  USE kinds,                           ONLY: dp
-  USE qs_mo_types,                     ONLY: get_mo_set, &
-                                             mo_set_p_type
-  USE hartree,                         ONLY: calculate_hartree
-  USE qs_ks_methods,                   ONLY: qs_vxc_create
-                                             ! calc_rho_tot_gspace
+  USE cp_log_handling,                 ONLY: cp_failure_level, &
+                                             cp_note_level, &
+                                             cp_to_string, &
+                                             cp_warning_level,&
+                                             cp_logger_get_default_unit_nr,&
+                                             cp_logger_type
+  USE cp_para_types,                   ONLY: cp_para_env_type
+  USE global_types,                    ONLY: global_environment_type
   USE green_types,                     ONLY: greens_function_type
+  USE harris_env_types,                ONLY: harris_env_type
+  USE hartree,                         ONLY: calculate_hartree
+  USE kinds,                           ONLY: dp
+  USE pw_env_types,                    ONLY: pw_env_type, &
+                                             pw_env_get
   USE pw_pool_types,                   ONLY: pw_pool_type, &
                                              pw_pool_init_coeff, &
                                              pw_pool_give_back_coeff
-  USE pw_env_types,                    ONLY: pw_env_type, &
-                                             pw_env_get
+  USE pws,                             ONLY: cleanup_pw_poisson_solver, &
+                                             init_pw_poisson_solver, &
+                                             pw_integral_ab
   USE pw_types,                        ONLY: COMPLEXDATA1D, &
                                              RECIPROCALSPACE
-  USE coefficient_types,               ONLY: coeff_type
-  !                                           coeff_add, &
-  !                                           coeff_sumup
-  !USE qs_collocate_density,            ONLY: calculate_total_rho
   !USE qs_charges_types,                ONLY: qs_charges_type
-  USE pws,                             ONLY: pw_integral_ab
+  !USE qs_collocate_density,            ONLY: calculate_total_rho
+  USE qs_core_energies,                ONLY: calculate_ecore_overlap, &
+                                             calculate_ecore_self
+                                             !calculate_ecore
   USE qs_energy_types,                 ONLY: qs_energy_type
-  USE timings,                         ONLY: timeset, timestop
-  !USE qs_core_energies,                ONLY: calculate_ecore, &
-  !                                           calculate_ecore_overlap, &
-  !                                           calculate_ecore_self
-  USE harris_env_types,                ONLY: harris_env_type
+  USE qs_environment_types,            ONLY: qs_environment_type, &
+                                             get_qs_env
+  USE qs_ks_methods,                   ONLY: qs_vxc_create
+                                             ! calc_rho_tot_gspace
+  USE qs_mo_types,                     ONLY: get_mo_set, &
+                                             mo_set_p_type
+  USE qs_rho_types,                    ONLY: qs_rho_type, &
+                                             qs_rho_get
+  USE qs_scf_types,                    ONLY: qs_scf_env_type
   USE sparse_matrix_types,             ONLY: real_matrix_p_type, &
                                              cp_sm_sm_trace
-  USE cp_para_types,                   ONLY: cp_para_env_type
-  USE qs_scf_types,                    ONLY: qs_scf_env_type
-
+  USE timings,                         ONLY: timeset, timestop
+  
+ 
   IMPLICIT NONE
   PRIVATE
 
@@ -120,11 +123,12 @@ CONTAINS
 !!
 !!*** **********************************************************************
   SUBROUTINE harris_energy_correction(qs_env, harris_env, EII_necessary, &
-                                      error)
+                                      globenv, error)
 
     TYPE(qs_environment_type), POINTER              :: qs_env
     TYPE(harris_env_type), POINTER                  :: harris_env
     LOGICAL, INTENT(INOUT), OPTIONAL                :: EII_necessary
+    TYPE(global_environment_type), POINTER          :: globenv
     TYPE(cp_error_type), INTENT(INOUT), OPTIONAL    :: error
     TYPE(qs_rho_type), POINTER                      :: rho
     INTEGER                                         :: handle
@@ -133,7 +137,7 @@ CONTAINS
     TYPE(pw_pool_type), POINTER                     :: auxbas_pw_pool
     TYPE(coeff_type)                                :: v_hartree_gspace
     !                                                   rho_tot_gspace
-    INTEGER                                         :: ispin
+    !INTEGER                                         :: ispin
     TYPE(coeff_type), POINTER                       :: rho_core
     !TYPE(qs_charges_type), POINTER                  :: qs_charges
     TYPE(coeff_type), DIMENSION(:), POINTER         :: v_rspace_new, &
@@ -141,6 +145,9 @@ CONTAINS
     !INTEGER, DIMENSION(:,:), POINTER                :: bo
     !INTEGER, DIMENSION(2,3)                         :: bo
     TYPE(qs_energy_type), POINTER                   :: qs_energy
+    TYPE(cp_para_env_type), POINTER                 :: para_env
+    TYPE(real_matrix_p_type), DIMENSION(:), POINTER :: matrix_ks
+    TYPE(dft_control_type), POINTER                 :: dft_control
     LOGICAL                                         :: failure, my_EII_necessary
 
     CHARACTER(len=*), PARAMETER :: routineN = 'harris_energy_correction', &
@@ -154,7 +161,7 @@ CONTAINS
 
     failure = .FALSE.
     NULLIFY(rho, green, pw_env, auxbas_pw_pool, v_rspace_new, v_tau_rspace, &
-            rho_core, qs_energy)
+            rho_core, qs_energy, para_env, matrix_ks, rho)
     !logger => cp_error_get_logger(error)
 
     CPPrecondition(ASSOCIATED(qs_env), cp_failure_level, routineP, error, failure)
@@ -229,19 +236,24 @@ CONTAINS
       !CALL mp_sum(sum)
       !harris_env%integral_vxc = sum * v_rspace_new(1)%pw%pw_grid%dvol
 
-      ispin = 1
-      harris_env%integral_vxc = pw_integral_ab(v_rspace_new(ispin)%pw, &
-                                               rho%rho_r(ispin)%pw)
+      harris_env%integral_vxc = pw_integral_ab(v_rspace_new(1)%pw, &
+                                               rho%rho_r(1)%pw)
 
       IF (my_EII_necessary) THEN
         CALL get_qs_env(qs_env=qs_env, energy=qs_energy)
-        harris_env%Ecore = qs_energy%core
-        harris_env%Ecore_overlap = qs_energy%core_overlap
-        harris_env%Ecore_self = qs_energy%core_self
-        !CALL get_qs_env(qs_env, para_env=para_env, error=error)
-        !CALL calculate_ecore(h, p, ecore, para_env)      
-        !CALL calculate_ecore_overlap(qs_env, globenv, .FALSE.)
-        !CALL calculate_ecore_self(qs_env)
+        !harris_env%Ecore = qs_energy%core
+        !harris_env%Ecore_overlap = qs_energy%core_overlap
+        !harris_env%Ecore_self = qs_energy%core_self
+        CALL get_qs_env(qs_env, matrix_ks=matrix_ks, rho=rho, &
+                        para_env=para_env, dft_control=dft_control, error=error)
+        !CALL calculate_ecore(h=matrix_ks(1)%matrix, p=rho%rho_ao(1)%matrix, &
+        !                     ecore=harris_env%Ecore, para_env=para_env)
+        CALL calculate_ecore_overlap(qs_env=qs_env, globenv=globenv, &
+                                     calculate_forces=dft_control%forces, &
+                                     E_overlap_core=harris_env%Ecore_overlap)
+        !harris_env%Ecore_overlap = qs_energy%core_overlap
+        CALL calculate_ecore_self(qs_env, E_self_core=harris_env%Ecore_self)
+        !harris_env%Ecore_self = qs_energy%core_self
 
         harris_env%EII = harris_env%Ecore_overlap + harris_env%Ecore_self + &
                          harris_env%Ehartree_core
@@ -257,7 +269,7 @@ CONTAINS
     CALL timestop(0.0_dp, handle)
 
   END SUBROUTINE harris_energy_correction
-
+!***************************************************************************
 
 !!****f* harris_functional/harris_eigenvalue_summation [1.0] *
 !!
@@ -338,7 +350,7 @@ CONTAINS
     CALL timestop(0.0_dp, handle)
 
   END SUBROUTINE harris_eigenvalue_summation
-
+!***************************************************************************
 
 !!****f* harris_functional/harris_eigenvalue_calculation [1.0] *
 !!
@@ -413,7 +425,7 @@ CONTAINS
     CALL timestop(0.0_dp, handle)
 
   END SUBROUTINE harris_eigenvalue_calculation
-
+!***************************************************************************
 
 !!****f* harris_functional/harris_eigenvalue_trace_KS_Pmix [1.0] *
 !!
@@ -486,7 +498,7 @@ CONTAINS
     CALL timestop(0.0_dp, handle)
 
   END SUBROUTINE harris_eigenvalue_trace_KS_Pmix
-
+!***************************************************************************
 
 !!****f* harris_functional/harris_postprocessing [1.0] *
 !!
@@ -547,7 +559,7 @@ CONTAINS
 
           write (unit_nr,*) "The XC potential integral  =", harris_env%integral_vxc
 
-          write (unit_nr,*) "Ecore                      =", harris_env%Ecore
+          !write (unit_nr,*) "Ecore                      =", harris_env%Ecore
           write (unit_nr,*) "Ecore_overlap              =", harris_env%Ecore_overlap
           write (unit_nr,*) "Ecore_self                 =", harris_env%Ecore_self
 
@@ -561,5 +573,6 @@ CONTAINS
     END IF
 
   END SUBROUTINE harris_postprocessing
+!***************************************************************************
 
 END MODULE harris_functional
