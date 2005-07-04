@@ -57,6 +57,10 @@ MODULE qs_environment
   USE distribution_methods,            ONLY: distribute_molecules_1d
   USE gamma,                           ONLY: init_md_ftable
   USE global_types,                    ONLY: global_environment_type
+  USE harris_env_types,                ONLY: harris_env_type, &
+                                             harris_env_create
+  USE harris_force_types,              ONLY: harris_force_type, &
+                                             harris_force_create
   USE hartree_local_methods,           ONLY: init_coulomb_local
   USE input_constants,                 ONLY: state_loc_all,&
                                              state_loc_none,&
@@ -164,7 +168,8 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = "qs_init", &
       routineP = module_name//":"//routineN
 
-    LOGICAL                                  :: use_ref_cell
+    LOGICAL                                  :: use_ref_cell, &
+                                                harris_flag
     TYPE(atomic_kind_list_type), POINTER     :: atomic_kinds
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
@@ -181,13 +186,14 @@ CONTAINS
       POINTER                                :: particle_set
     TYPE(section_vals_type), POINTER         :: force_env_section,&
                                                 cell_section,&
-                                                poisson_section
+                                                poisson_section, &
+                                                harris_section
     REAL(kind=dp), dimension(3)              :: abc
-    TYPE(greens_function_type), POINTER                   :: green
+    TYPE(greens_function_type), POINTER      :: green
 
     NULLIFY(subsystem, molecule_kind_set, molecule_set, atomic_kind_set,&
          particle_set,atomic_kinds,particles,mols,mol_kinds,cell,cell_ref,&
-         cell_section, poisson_section, green)
+         cell_section, poisson_section, harris_section, green)
     
     force_env_section => section_vals_get_subs_vals(globenv%input_file,&
          "FORCE_EVAL",error=error)
@@ -195,6 +201,12 @@ CONTAINS
          "SUBSYS%CELL",error=error)
     poisson_section => section_vals_get_subs_vals(force_env_section,&
          "DFT%POISSON_DFT",error=error)
+    harris_section => section_vals_get_subs_vals(force_env_section, &
+         "DFT%QS%HARRIS", error=error)
+    
+    harris_flag = .FALSE.
+    CALL section_vals_val_get(harris_section, "ACTIVATE", &
+                              l_val=harris_flag, error=error)
         
     CALL set_qs_env(qs_env,input=force_env_section,error=error)
     
@@ -202,8 +214,8 @@ CONTAINS
 
 !   *** Read the input section with the cell parameters ***
 
-    CALL read_cell(cell, cell_ref, globenv, use_ref_cell=use_ref_cell, cell_section=cell_section,&
-         error=error)
+    CALL read_cell(cell, cell_ref, globenv, use_ref_cell=use_ref_cell, &
+                   cell_section=cell_section, error=error)
     CALL get_cell ( cell, abc=abc)
 
     CALL pw_green_setup ( green, poisson_section, abc, error )
@@ -234,7 +246,7 @@ CONTAINS
     CALL mol_kind_new_list_release(mol_kinds,error=error)
     
     CALL qs_init_subsys(qs_env,subsystem,green,cell,cell_ref,use_ref_cell,&
-         globenv,.FALSE.,error)
+         globenv,.FALSE.,harris=harris_flag,error=error)
 
     CALL cell_release(cell,error=error)
     CALL cell_release(cell_ref,error=error)
@@ -245,7 +257,7 @@ CONTAINS
 
 
   SUBROUTINE qs_init_subsys(qs_env,subsystem,green,cell,cell_ref,use_ref_cell,&
-       globenv,qmmm,error)
+       globenv,qmmm,harris,error)
 
 !   Purpose: Read the input and the database files for the setup of the
 !            QUICKSTEP environment.
@@ -261,13 +273,14 @@ CONTAINS
     LOGICAL, INTENT(in)                      :: use_ref_cell
     TYPE(global_environment_type), POINTER   :: globenv
     LOGICAL, INTENT(in)                      :: qmmm
+    LOGICAL, INTENT(IN), OPTIONAL            :: harris
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
     CHARACTER(LEN=*), PARAMETER              :: routine_name = "qs_init"
 
     INTEGER :: handle, ispin, istat, lmax_sphere, maxl, maxlgto, maxlppl, &
-      maxlppnl, multiplicity, n_ao, nelectron, nkind, output_unit
+      maxlppnl, multiplicity, n_ao, nelectron, nkind, output_unit, natom
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: natom_of_kind
     INTEGER, DIMENSION(2)                    :: n_mo, nelectron_spin, nmoloc
     LOGICAL                                  :: all_potential_present, ionode,&
@@ -292,6 +305,8 @@ CONTAINS
     TYPE(qs_energy_type), POINTER            :: energy
     TYPE(qs_force_type), DIMENSION(:), &
       POINTER                                :: force
+    TYPE(harris_env_type), POINTER           :: harris_energy
+    TYPE(harris_force_type), POINTER         :: harris_force
     TYPE(qs_wf_history_type), POINTER        :: wf_history
     TYPE(rho0_mpole_type), POINTER           :: nddo_mpole, rho0_mpole
     TYPE(scf_control_type), POINTER          :: scf_control
@@ -315,6 +330,8 @@ CONTAINS
     NULLIFY (dft_control)
     NULLIFY (energy)
     NULLIFY (force)
+    NULLIFY (harris_energy)
+    NULLIFY (harris_force)
     NULLIFY (local_molecules)
     NULLIFY (local_particles)
     NULLIFY (scf_control)
@@ -449,6 +466,11 @@ CONTAINS
 
     CALL allocate_qs_energy(energy)
 
+    ! *** Allocate the data structure for the Harris energies *** !
+    IF (harris) THEN
+      CALL harris_env_create(harris_env=harris_energy, error=error)
+    END IF
+
 !   *** Allocate the force data structure ***
 
     IF (dft_control%forces) THEN
@@ -462,6 +484,10 @@ CONTAINS
       DEALLOCATE (natom_of_kind,STAT=istat)
       IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
                                        "natom_of_kind")
+
+      ! *** Allocate the Harris force data structure *** !
+      natom = SIZE(particle_set)
+      CALL harris_force_create(harris_force=harris_force, natom=natom, error=error)
     END IF
 
 !   *** Activate the interpolation ***
@@ -483,6 +509,8 @@ CONTAINS
                     dft_control=dft_control,&
                     energy=energy,&
                     force=force,&
+                    harris_energy = harris_energy, &
+                    harris_force = harris_force, &
                     scf_control=scf_control,&
                     wf_history=wf_history)
 

@@ -522,9 +522,9 @@ CONTAINS
     CALL section_vals_val_get(harris_section, "ACTIVATE", &
                               l_val=harris_flag, error=error)
 
-    IF (harris_flag) THEN
-      CALL harris_env_create(harris_env=harris_env, error=error)
-    END IF
+    !IF (harris_flag) THEN
+    !  CALL harris_env_create(harris_env=harris_env, error=error)
+    !END IF
 
     CALL init_scf_run(scf_env=scf_env,qs_env=qs_env,&
          globenv=globenv,&
@@ -536,7 +536,9 @@ CONTAINS
          particle_set=particle_set,&
          pw_env=pw_env,&
          qs_charges=qs_charges,&
-         ks_env=ks_env)
+         ks_env=ks_env, &
+         harris_energy=harris_env, &
+         error=error)
 
      has_unit_metric=.FALSE.
      IF (dft_control%qs_control%semi_empirical) THEN
@@ -590,10 +592,6 @@ CONTAINS
 
     scf_loop: DO
        CALL timeset("scf_iter","I"," ",handle2)
-
-       !IF (harris_flag) THEN
-       !  CALL harris_energy_correction(qs_env, harris_env, error=error)
-       !END IF       
 
        IF (ionode) CALL m_flush(output_unit)
 
@@ -765,13 +763,15 @@ CONTAINS
 
        END SELECT
 
+       ! ** calculation of the harris energy correction *** !
        IF (harris_flag) THEN
          CALL harris_energy_correction(qs_env, harris_env, &
-                                       EII_necessary=EII_necessary, error=error)
+                                       EII_necessary=EII_necessary, &
+                                       globenv=globenv, error=error)
        !  CALL harris_eigenvalue_summation(qs_env, harris_env, error=error)
        !  CALL harris_eigenvalue_calculation(qs_env, harris_env, error=error)
          CALL harris_eigenvalue_trace_KS_Pmix(scf_env, qs_env, harris_env, error=error)
-         CALL harris_postprocessing(harris_env, error=error)
+       !  CALL harris_postprocessing(harris_env, error=error)
        END IF
 
        IF (scf_env%mixing_method.EQ.ao_mixing_nr) THEN
@@ -787,6 +787,10 @@ CONTAINS
                FMT="(T2,I5,2X,A,T22,E10.2,T32,F8.2,T40,2F20.10)")&
                scf_env%iter_count,TRIM(scf_env%iter_method),&
                scf_env%iter_param,t2 - t1,scf_env%iter_delta,energy%total
+       END IF
+
+       IF (harris_flag) THEN
+          CALL harris_postprocessing(harris_env, error=error)
        END IF
 
 ! ** convergence check
@@ -837,9 +841,9 @@ CONTAINS
 
     END DO scf_loop
 
-    IF (harris_flag) THEN
-      CALL harris_env_release(harris_env, error=error)
-    END IF
+    !IF (harris_flag) THEN
+    !  CALL harris_env_release(harris_env=harris_env, error=error)
+    !END IF
 
     IF (ionode.AND.logger%print_keys%scf) THEN
        WRITE (UNIT=output_unit,FMT="(/,(T3,A,T40,2F20.10))")&
