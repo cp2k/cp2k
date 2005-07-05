@@ -43,7 +43,8 @@ MODULE topology_util
                                              allocate_potential,&
                                              set_potential
   USE global_types,                    ONLY: global_environment_type
-  USE input_constants,                 ONLY: do_qmmm_none
+  USE input_constants,                 ONLY: do_qmmm_none,&
+                                             do_fist
   USE kinds,                           ONLY: dp,&
                                              default_string_length
   USE memory_utilities,                ONLY: reallocate
@@ -3060,7 +3061,7 @@ SUBROUTINE topology_coordinate_pack (particle_set,atomic_kind_set,&
   !-----------------------------------------------------------------------------
   ! 10. Set the atomic_kind_set()%elp_potentail%[qeff] (PART 1)
   !-----------------------------------------------------------------------------
-  IF(globenv%program_name == "FIST") THEN
+  IF(globenv%prog_name_id == do_fist) THEN
     DO i=1,SIZE(atomic_kind_set)
       atomic_kind => atomic_kind_set(i)
       CALL get_atomic_kind(atomic_kind=atomic_kind,name=atmname)

@@ -102,7 +102,13 @@ MODULE atomic_kind_types
   USE string_utilities,                ONLY: uppercase
   USE termination,                     ONLY: stop_memory,&
                                              stop_program
-
+  USE input_constants,                 ONLY: do_qs,&
+                                             do_fist,&
+                                             do_kg,&
+                                             do_qmmm,&
+                                             do_atom,&
+                                             do_farming,&
+                                             do_test
   IMPLICIT NONE
 
   PRIVATE
@@ -932,7 +938,7 @@ CONTAINS
 
     IF (ASSOCIATED(atomic_kind)) THEN
 
-      IF (globenv%program_name == "QS") THEN
+      IF (globenv%prog_name_id == do_qs) THEN
         IF (ASSOCIATED(atomic_kind%gth_potential))THEN
           CALL init_potential(atomic_kind%gth_potential)
         END IF
@@ -941,7 +947,7 @@ CONTAINS
                         atomic_kind%orb_basis_set%norm_type = 2
           CALL init_orb_basis_set(atomic_kind%orb_basis_set)
         END IF
-      ELSE IF (globenv%program_name == "KG") THEN
+      ELSE IF (globenv%prog_name_id == do_kg) THEN
         IF (ASSOCIATED(atomic_kind%gth_potential).AND. PRESENT(method))THEN
           IF(method == "KG_GPW")&  
           CALL init_potential(atomic_kind%gth_potential)
@@ -966,7 +972,7 @@ CONTAINS
                         atomic_kind%aux_basis_set%norm_type = 1
           CALL init_aux_basis_set(atomic_kind%aux_basis_set)
         END IF
-      ELSE IF (globenv%program_name == "FIST") THEN
+      ELSE IF (globenv%prog_name_id == do_fist) THEN
         IF (ASSOCIATED(atomic_kind%elp_potential))THEN
           CALL allocate_potential(atomic_kind%elp_potential)
         END IF
@@ -1471,7 +1477,7 @@ CONTAINS
                          elp_potential=elp_potential,&
                          gth_potential=gth_potential)
 
-    IF (globenv%program_name == "QS") THEN
+    IF (globenv%prog_name_id == do_qs) THEN
       IF (z < 0) THEN
         CALL stop_program(routine_name,module_name,__LINE__,&
                      "No valid element is assign to the atomic kind ",globenv)
@@ -1510,7 +1516,7 @@ CONTAINS
              zeff=se_parameter%zeff, zeff_correction=all_potential%zeff_correction) 
         END IF
       END IF
-    ELSE IF (globenv%program_name == "KG") THEN
+    ELSE IF (globenv%prog_name_id == do_kg) THEN
       !no checks programmed yet
     END IF
 

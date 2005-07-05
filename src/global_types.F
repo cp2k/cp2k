@@ -126,9 +126,7 @@ MODULE global_types
                                                 mm_potential_file_name,&
                                                 pp_library_path,&
                                                 restart_file_name
-     CHARACTER(LEN=default_string_length)    :: run_type,&
-                                                default_fft_library,&
-                                                program_name,&
+     CHARACTER(LEN=default_string_length)    :: default_fft_library,&
                                                 project_name
      INTEGER :: group        !! group handle for all processors
      INTEGER :: idum         !! random number seed
@@ -218,9 +216,9 @@ CONTAINS
        globenv%mm_potential_file_name=""
        globenv%pp_library_path=""
        globenv%restart_file_name=""
-       globenv%run_type=""
+       globenv%run_type_id=0
        globenv%default_fft_library="FFTSG"
-       globenv%program_name=""
+       globenv%prog_name_id=0
        globenv%project_name=""
        globenv%group=para_env%group
        globenv%idum=0                 !! random number seed

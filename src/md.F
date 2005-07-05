@@ -143,7 +143,6 @@ MODULE md
      INTEGER        :: ensemble
      INTEGER        :: read_type
      INTEGER        :: output_format
-     CHARACTER ( LEN = 20 ) :: PROGRAM
      LOGICAL :: constraint
      LOGICAL :: annealing
      LOGICAL :: pv_numerical

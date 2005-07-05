@@ -125,7 +125,8 @@ MODULE qmmm_init
        section_vals_get_subs_vals, section_vals_get, section_vals_val_get
   USE input_constants, ONLY: RADIUS_QMMM_DEFAULT, do_qmmm_link_imomm, do_qmmm_link_gho,&
                         do_qmmm_link_pseudo,&
-                        do_qmmm_gauss, do_center_none, do_center_grid
+                        do_qmmm_gauss, do_center_none, do_center_grid,&
+                        do_fist, do_qs, do_qmmm
   USE fist_environment_types,  ONLY: set_fist_env
   USE green_types,                     ONLY: greens_function_type,&
                                              pw_green_release
@@ -261,7 +262,7 @@ CONTAINS
        qmmm_env_qm%compatibility = .NOT.nocompatibility       
 
        ! First Initialize Fist...
-       globenv%program_name="FIST"       
+       globenv%prog_name_id=do_fist
        CALL fist_create_force_env(sub_force_env(1)%force_env, &
             globenv, qmmm=.TRUE., qmmm_env=qmmm_env_mm, error=error)
 
@@ -347,7 +348,7 @@ CONTAINS
                                qmmm_env_qm%added_charges, globenv, qmmm_section,&
                                error)
 
-       globenv%program_name="QS"
+       globenv%prog_name_id=do_qs
        CALL create_small_subsystem(subsys_qm,&
             big_subsys=subsys_mm,small_para_env=para_env,&
             small_cell=qm_cell_small,sub_atom_index=qm_atom_index,&
@@ -410,7 +411,7 @@ CONTAINS
        CALL cell_release(qm_cell_small, error)                       
        CALL qs_env_release(qs_env,error=error)
 
-       globenv%program_name="QMMM"
+       globenv%prog_name_id=do_qmmm
        CALL force_env_create(force_env, sub_force_env=sub_force_env,&
             qmmm_env=qmmm_env_qm,globenv=globenv,error=error)
 

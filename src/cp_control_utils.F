@@ -47,7 +47,8 @@ MODULE cp_control_utils
                                              tddfpt_excitations,&
                                              tddfpt_lanczos,&
                                              tddfpt_singlet,&
-                                             tddfpt_triplet
+                                             tddfpt_triplet,&
+                                             run_type_names
   USE input_constants,                 ONLY: xc_debug_new_routine,&
                                              xc_deriv_fd,&
                                              xc_deriv_nn10_smooth,&
@@ -425,12 +426,12 @@ CONTAINS
          error=error)
     CALL section_vals_val_get(tmp_section,"RUN_TYPE",i_val=run_id,error=error)
     SELECT CASE (run_id)!FM to rm, ugly!!
-    CASE (energy_run,mc_run,energy_force_run,bsse_run)
+    CASE (energy_run,mc_run,energy_force_run,electronic_spectra_run,bsse_run)
       dft_control%forces = .FALSE.
-    CASE (mol_dyn_run,geo_opt_run,electronic_spectra_run,qs_debug_run)
+    CASE (mol_dyn_run,geo_opt_run,qs_debug_run)
       dft_control%forces = .TRUE.
     CASE DEFAULT
-      CALL stop_program(routine,"unknown run type "//TRIM(globenv%run_type))
+      CALL stop_program(routine,"unknown run type "//TRIM(run_type_names(globenv%run_type_id)))
     END SELECT
  
 !   *** Read the input section ***
@@ -569,13 +570,13 @@ CONTAINS
     dft_control % xc_control % crossterms = .FALSE.
     dft_control % xc_control % functional_routine = xc_new_f_routine
 
-    SELECT CASE (globenv%run_type)
-    CASE ("WAVEFUNCTION OPTIMIZATION","MONTE CARLO","ELECTRONIC SPECTRA","BSSE")
+    SELECT CASE (globenv%run_type_id)
+    CASE (energy_run,mc_run,energy_force_run,electronic_spectra_run,bsse_run)
       dft_control%forces = .FALSE.
-    CASE ("MOLECULAR DYNAMICS","GEOMETRY OPTIMIZATION","DEBUG")
+    CASE (mol_dyn_run,geo_opt_run,qs_debug_run)
       dft_control%forces = .TRUE.
     CASE DEFAULT
-      CALL stop_program(routine,"unknown run type "//TRIM(globenv%run_type))
+      CALL stop_program(routine,"unknown run type "//TRIM(run_type_names(globenv%run_type_id)))
     END SELECT
 
 !   *** Read the input section ***

@@ -48,6 +48,13 @@ MODULE bsse
        section_add_keyword, section_add_subsection, section_release,&
        section_vals_type,&
        section_vals_get_subs_vals, section_vals_get, section_vals_val_get
+  USE input_constants,                 ONLY: do_qs,&
+                                             do_fist,&
+                                             do_kg,&
+                                             do_qmmm,&
+                                             do_atom,&
+                                             do_farming,&
+                                             do_test
 
   IMPLICIT NONE
   PRIVATE
@@ -247,7 +254,7 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'eval_bsse_energy_low', &
       routineP = moduleN//':'//routineN    
 
-    IF (globenv%program_name /= "QS") STOP
+    IF (globenv%prog_name_id /= do_qs) STOP
 
 !!!TL    CALL create_small_subsystem(subsys_loc,&
 !!!TL         big_subsys=big_subsys,small_para_env=para_env,&

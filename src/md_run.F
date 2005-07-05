@@ -209,7 +209,6 @@ CONTAINS
                                      "mdio",0)
 
     CALL read_md_section ( simpar, globenv, mdio, error )
-    simpar%program = globenv%program_name
 
 !    CALL force_env_get(force_env,subsys=subsys, cell=cell,&
 !                       dyn_coeff_set=dyn_coeff_set, error=error)

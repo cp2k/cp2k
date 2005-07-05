@@ -71,6 +71,14 @@ MODULE f77_interface
                                              globenv_create
   USE input_cp2k,                      ONLY: check_cp2k_input,&
                                              create_cp2k_root_section
+  USE input_constants,                 ONLY: do_qs,&
+                                             do_fist,&
+                                             do_kg,&
+                                             do_qmmm,&
+                                             do_atom,&
+                                             do_farming,&
+                                             do_test,&
+                                             run_type_names
   USE input_parsing,                   ONLY: section_vals_parse
   USE input_section_types,             ONLY: section_release,&
                                              section_type,&
@@ -698,22 +706,22 @@ END SUBROUTINE f_env_rm_defaults
        CALL cp2k_read(globenv)
 
        ! initialize force_env
-       SELECT CASE (globenv%program_name)
-       CASE ("FIST")
+       SELECT CASE (globenv%prog_name_id)
+       CASE (do_fist)
           CALL fist_create_force_env ( force_env,&
                globenv,  error = error )
-       CASE ("KG")
+       CASE (do_kg)
           CALL kg_create_force_env ( force_env,&
                globenv, error=error)
-       CASE ("QS")
+       CASE (do_qs)
           CALL quickstep_create_force_env( force_env,&
                globenv, error=error)
-       CASE ("QMMM")
+       CASE (do_qmmm)
           CALL qmmm_create_force_env( force_env,&
                globenv, error=error)
        CASE default
           CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,routineP,&
-               "Invalid run TYPE <"//TRIM(globenv%run_type)//"> was specified, "//&
+               "Invalid run TYPE <"//TRIM(run_type_names(globenv%run_type_id))//"> was specified, "//&
                CPSourceFileRef,error,failure)
        END SELECT
     END IF

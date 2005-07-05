@@ -59,7 +59,19 @@ MODULE environment
                                              WANNIER_JACOBI,&
                                              WANNIER_NONE,&
                                              global_environment_type
-  USE input_constants,                 ONLY: program_names,none_run, do_atom, do_farming, do_test
+  USE input_constants,                 ONLY: program_names,&
+                                             none_run,&
+                                             mol_dyn_run,&
+                                             energy_run,&
+                                             do_atom,&
+                                             do_fist,&
+                                             do_qs,&
+                                             do_kg,&
+                                             do_farming,&
+                                             do_test,&
+                                             run_type_names,&
+                                             run_type_index,&
+                                             program_name_index
   USE input_cp2k,                      ONLY: parsed_cp2k_input
   USE input_section_types,             ONLY: section_vals_get,&
                                              section_vals_get_subs_vals,&
@@ -67,6 +79,7 @@ MODULE environment
                                              section_vals_val_get
   USE kinds,                           ONLY: dp,&
                                              int_size,&
+                                             default_string_length,&
                                              print_kind_info
   USE machine,                         ONLY: m_datum,&
                                              m_getcwd,&
@@ -892,24 +905,14 @@ SUBROUTINE cp2k_read(globenv)
     global_section => section_vals_get_subs_vals(globenv%input_file,"GLOBAL",error=error)
 
     CALL section_vals_val_get(global_section,"BLACS_GRID",i_val=globenv%blacs_grid_layout,error=error)
-
     CALL section_vals_val_get(global_section,"FFT_LIBRARY",c_val=globenv%default_fft_library,error=error)
-
     CALL section_vals_val_get(global_section,"PRINT_LEVEL",i_val=globenv%print_level,error=error)
-
     CALL section_vals_val_get(global_section,"PROGRAM_NAME",i_val=globenv%prog_name_id,error=error)
-    globenv%program_name = program_names(globenv%prog_name_id)
-
     CALL section_vals_val_get(global_section,"PROJECT_NAME",c_val=globenv%project_name,error=error)
-
     CALL section_vals_val_get(global_section,"ERROR_FILE_NAME",c_val=globenv%error_file_name,error=error)
-
     CALL section_vals_val_get(global_section,"RESTART_FILE_NAME",c_val=globenv%restart_file_name,error=error)
-
     CALL section_vals_val_get(global_section,"RUN_TYPE",i_val=globenv%run_type_id,error=error)
-
     CALL section_vals_val_get(global_section,"OUTPUT",i_val=globenv%out_form,error=error)
-
     CALL section_vals_val_get(global_section,"TRACE",l_val=trace,error=error)
     IF(trace) CALL trace_debug("start",groupid=globenv%group)
 
@@ -924,6 +927,23 @@ SUBROUTINE cp2k_read(globenv)
          c_val=globenv % potential_file_name , error=error)
     CALL section_vals_val_get(dft_section,"PP_LIBRARY_PATH",&
          c_val=globenv %  pp_library_path, error=error)
+
+    IF (globenv%run_type_id == 0) THEN
+       SELECT CASE (globenv%prog_name_id)
+       CASE (do_atom)
+          globenv%run_type_id = none_run
+       CASE (do_farming)
+          globenv%run_type_id = none_run
+       CASE (do_fist)
+          globenv%run_type_id = mol_dyn_run
+       CASE (do_kg)
+          globenv%run_type_id = mol_dyn_run
+       CASE (do_qs)
+          globenv%run_type_id = energy_run
+       CASE (do_test)
+          globenv%run_type_id = none_run
+       END SELECT
+    END IF
 
     IF(globenv%prog_name_id == do_atom .AND. globenv%run_type_id /= none_run) &
        CALL stop_program(routine_name,module_name,__LINE__,&
@@ -972,7 +992,7 @@ SUBROUTINE cp2k_read(globenv)
         start_section_label//"| Default FFT library",&
         ADJUSTR(globenv%default_fft_library(:40)),&
         start_section_label//"| Run type",&
-        ADJUSTR(globenv%run_type(:40))
+        ADJUSTR(run_type_names(globenv%run_type_id)(:40))
 
       WRITE (UNIT=output_unit,FMT="(T2,A,T75,I6)")&
         start_section_label//"| Global print level",globenv%print_level,&
@@ -1014,6 +1034,7 @@ SUBROUTINE cp2k_read(globenv)
 
     CHARACTER(LEN=3)                         :: test_result
     CHARACTER(LEN=60)                        :: keyvalue, keyword
+    CHARACTER(LEN=default_string_length)     :: program_name, run_type
     COMPLEX(KIND=dp), DIMENSION(4, 4, 4)     :: zz
     INTEGER                                  :: num_threads, &
                                                 omp_get_num_threads, &
@@ -1021,7 +1042,7 @@ SUBROUTINE cp2k_read(globenv)
     INTEGER, DIMENSION(3)                    :: n
     LOGICAL                                  :: section_found, was_present
     TYPE(section_vals_type), POINTER         :: global_section
-
+    INTEGER :: i
 !   ---------------------------------------------------------------------------
 
     was_present = .FALSE.
@@ -1038,10 +1059,10 @@ SUBROUTINE cp2k_read(globenv)
 
     globenv%blacs_grid_layout = BLACS_GRID_SQUARE
     globenv%default_fft_library = "FFTSG"
-    globenv%print_level = 0
-    globenv%program_name = " "
+    globenv%print_level  = 0
+    globenv%prog_name_id = 0
     globenv%project_name = "unspecified"
-    globenv%run_type = "default"
+    globenv%run_type_id  = 0
 
     CALL start_parser(file_name=globenv%input_file_name,&
                       globenv=globenv,&
@@ -1082,11 +1103,32 @@ SUBROUTINE cp2k_read(globenv)
           CASE ("IOLEVEL","PRINT_LEVEL")
             CALL read_object(globenv%print_level)
           CASE ("PROGRAM_NAME","PROGRAM")
-            CALL read_object(globenv%program_name,lower_to_upper=.TRUE.)
+            CALL read_object(program_name,lower_to_upper=.TRUE.)
+            
+            DO i = 1, SIZE(program_names)
+               IF (TRIM(program_name) == TRIM(program_names(i))) EXIT
+            END DO
+            IF ( i == SIZE(program_names) + 1 ) THEN
+               CALL stop_program(routine_name,module_name,__LINE__,&
+                    "Invalid program name <"//&
+                    TRIM(program_name)//"> found",globenv)               
+            END IF
+            globenv%prog_name_id = program_name_index(i) 
           CASE ("PROJECT_NAME","PROJECT")
             CALL read_object(globenv%project_name)
           CASE ("RUN_TYPE")
-            CALL read_object(globenv%run_type,lower_to_upper=.TRUE.)
+            CALL read_object(run_type,lower_to_upper=.TRUE.)
+
+            DO i = 1, SIZE(run_type_names)
+               IF (TRIM(run_type) == TRIM(run_type_names(i))) EXIT
+            END DO
+            IF ( i == SIZE(run_type_names) + 1 ) THEN
+               CALL stop_program(routine_name,module_name,__LINE__,&
+                    "Invalid program name <"//&
+                    TRIM(run_type)//"> found",globenv)               
+            END IF
+            globenv%run_type_id = run_type_index(i)   
+
           CASE ("TRACE")
             CALL trace_debug("start",groupid=globenv%group)
           CASE DEFAULT
@@ -1101,87 +1143,37 @@ SUBROUTINE cp2k_read(globenv)
 
     CALL finish_parser()
 
-
-!   *** Check and unify arguments ***
-
-    SELECT CASE (globenv%program_name)
-    CASE ("ATOM")
-    CASE ("FARMING")
-    CASE ("FIST")
-    CASE ("KIM-GORDON","KG")
-      globenv%program_name = "KG"
-    CASE ("QUICKSTEP","QS")
-      globenv%program_name = "QS"
-    CASE("QMMM")
-    CASE ("EP")
-    CASE ("TEST")
-    CASE (" ")
-      CALL stop_program(routine_name,module_name,__LINE__,&
-                        "No PROGRAM_NAME was specified in the "//&
-                        TRIM(start_section_label)//" section",globenv)
-    CASE DEFAULT
-      CALL stop_program(routine_name,module_name,__LINE__,&
-                        "Invalid program name <"//&
-                        TRIM(globenv%program_name)//"> found",globenv)
-    END SELECT
-
-    SELECT CASE (globenv%run_type)
-    CASE ("GEOMETRY_OPTIMIZATION","GEO_OPT")
-      globenv%run_type = "GEOMETRY OPTIMIZATION"
-    CASE ("MONTE_CARLO","MC")
-      globenv%run_type = "MONTE CARLO"
-    CASE ("MOLECULAR_DYNAMICS","MD")
-      globenv%run_type = "MOLECULAR DYNAMICS"
-    CASE ("WAVEFUNCTION_OPTIMIZATION","WFN_OPT")
-      globenv%run_type = "WAVEFUNCTION OPTIMIZATION"
-    CASE ("DEBUG_FORCES","DEBUG")
-      globenv%run_type = "DEBUG"
-    CASE ("ELECTRONIC_SPECTRA", "SPECTRA")
-      globenv%run_type = "ELECTRONIC SPECTRA"
-    CASE ("BSSE")
-      globenv%run_type = "BSSE"
-    CASE ("default")
-       SELECT CASE (globenv%program_name)
-       CASE ("ATOM")
-          globenv%run_type = "NONE"
-       CASE ("FARMING")
-          globenv%run_type = "NONE"
-       CASE ("FIST")
-          globenv%run_type = "MOLECULAR DYNAMICS"
-       CASE ("KIM-GORDON","KG")
-          globenv%run_type = "MOLECULAR DYNAMICS"
-       CASE ("QUICKSTEP","QS")
-          globenv%run_type = "WAVEFUNCTION OPTIMIZATION"
-       CASE ("TEST")
-          globenv%run_type = "NONE"
-       CASE DEFAULT
-         CALL stop_program(routine_name,module_name,__LINE__,&
-                           "Invalid program name <"//&
-                           TRIM(globenv%program_name)//"> found",globenv)
+    IF (globenv%run_type_id == 0) THEN
+       SELECT CASE (globenv%prog_name_id)
+       CASE (do_atom)
+          globenv%run_type_id = none_run
+       CASE (do_farming)
+          globenv%run_type_id = none_run
+       CASE (do_fist)
+          globenv%run_type_id = mol_dyn_run
+       CASE (do_kg)
+          globenv%run_type_id = mol_dyn_run
+       CASE (do_qs)
+          globenv%run_type_id = energy_run
+       CASE (do_test)
+          globenv%run_type_id = none_run
        END SELECT
-    CASE (" ")
-      CALL stop_program(routine_name,module_name,__LINE__,&
-                        "No RUN_TYPE was specified in the "//&
-                        TRIM(start_section_label)//" section",globenv)
-    CASE DEFAULT
-      CALL stop_program(routine_name,module_name,__LINE__,&
-                        "Invalid run type <"//&
-                        TRIM(globenv%run_type)//"> found",globenv)
-    END SELECT
+    END IF
+    
 
-    SELECT CASE(globenv%program_name)
-    CASE ("ATOM")
-       IF (globenv%run_type/="NONE") THEN
+    SELECT CASE(globenv%prog_name_id)
+    CASE (do_atom)
+       IF (globenv%run_type_id/=none_run) THEN
           CALL stop_program(routine_name,module_name,__LINE__,&
                "ATOM program supports only NONE as run type",globenv)
        END IF
-    CASE ("FARMING")
-       IF (globenv%run_type/="NONE") THEN
+    CASE (do_farming)
+       IF (globenv%run_type_id/=none_run) THEN
           CALL stop_program(routine_name,module_name,__LINE__,&
                "ATOM program supports only NONE as run type",globenv)
        END IF
-    CASE ("TEST")
-       IF (globenv%run_type/="NONE") THEN
+    CASE (do_test)
+       IF (globenv%run_type_id/=none_run) THEN
           CALL stop_program(routine_name,module_name,__LINE__,&
                "TEST program supports only NONE as run type",globenv)
        END IF
@@ -1196,13 +1188,13 @@ SUBROUTINE cp2k_read(globenv)
       WRITE (UNIT=output_unit,FMT=*)
       WRITE (UNIT=output_unit,FMT="(T2,A,T41,A)")&
         start_section_label//"| Program name",&
-        ADJUSTR(globenv%program_name(:40)),&
+        ADJUSTR(program_names(globenv%prog_name_id)(:40)),&
         start_section_label//"| Project name",&
         ADJUSTR(globenv%project_name(:40)),&
         start_section_label//"| Default FFT library",&
         ADJUSTR(globenv%default_fft_library(:40)),&
         start_section_label//"| Run type",&
-        ADJUSTR(globenv%run_type(:40))
+        ADJUSTR(run_type_names(globenv%run_type_id)(:40))
       WRITE (UNIT=output_unit,FMT="(T2,A,T75,I6)")&
         start_section_label//"| Global print level",globenv%print_level,&
         start_section_label//"| Total number of message passing processes",&
@@ -1215,7 +1207,7 @@ SUBROUTINE cp2k_read(globenv)
 
  20 CONTINUE
 
-!TODEL_START_MI
+!TODEL_END_MI
 
 !   *** Initialize FFT library ***
     CALL init_fft(fftlib=TRIM(globenv%default_fft_library))

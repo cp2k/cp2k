@@ -28,16 +28,41 @@ MODULE input_constants
   PRIVATE
 
   ! Program Names
-  CHARACTER (LEN=default_string_length), PARAMETER, DIMENSION(7), PUBLIC :: program_names=&
+  CHARACTER (LEN=default_string_length), PARAMETER, DIMENSION(10), PUBLIC :: program_names=&
        (/"QS        ",&
+         "QUICKSTEP ",&
          "FIST      ",&
          "KG        ",&
+         "KIM-GORDON",&
+         "KIM_GORDON",&
          "QMMM      ",&
          "ATOM      ",&
          "FARMING   ",&
          "TEST      "/)
-  INTEGER, PARAMETER, public :: do_qs=1,do_fist=2,do_kg=3,do_qmmm=4,do_atom=5,&
-       do_farming=6,do_test=7
+
+  CHARACTER (LEN=default_string_length), PARAMETER, DIMENSION(10), PUBLIC :: program_name_desc=&
+       (/"Electronic structure methods (DFT, ...)",&
+         "Electronic structure methods (DFT, ...)",&
+         "Molecular Mechanics                    ",&
+         "Kim Gordon models (DFT)                ",&
+         "Kim Gordon models (DFT)                ",&
+         "Kim Gordon models (DFT)                ",&
+         "Hybrid quantum classical               ",&
+         "Atomic calculations                    ",&
+         "Runs N independent jobs in a single run",&
+         "Do some benchmarking and testing       "/)
+
+  INTEGER, PARAMETER, public :: do_qs=1,&
+                                do_fist=2,&
+                                do_kg=3,&
+                                do_qmmm=4,&
+                                do_atom=5,&
+                                do_farming=6,&
+                                do_test=7
+
+  INTEGER, PARAMETER, PUBLIC, DIMENSION(10) :: program_name_index=&
+       (/do_qs, do_qs, do_fist, do_kg, do_kg, do_kg, do_qmmm, do_atom, do_farming, do_test/)
+
   REAL(KIND=dp), PARAMETER, PUBLIC :: RADIUS_QMMM_DEFAULT = 0.80_dp,&
                                       ALPHA_IMOMM_DEFAULT = 1.38_dp,&
                                       CHARGE_SCALE_FACTOR = 1.00_dp
@@ -100,37 +125,59 @@ MODULE input_constants
   INTEGER, PARAMETER, PUBLIC, DIMENSION(4) :: restart_name_index=&
        (/md_init_start,md_pos_restart, md_pos_vel_restart, md_all_restart/)
 
-  INTEGER, PARAMETER, public :: none_run=0,&
-                                energy_run=1,&
-                                energy_force_run=2,&
-                                mol_dyn_run=3,&
-                                geo_opt_run=4,&
-                                mc_run=5,&
-                                electronic_spectra_run=6,&
-                                qs_debug_run=7,&
-                                bsse_run=8,&
-                                linear_response_run=9
-  CHARACTER (LEN=default_string_length), PARAMETER, DIMENSION(15), PUBLIC :: run_type_names=&
-       (/"NONE                 ",&
-         "ENERGY               ",&
-         "ENERGY_FORCE         ",&
-         "MD                   ",&
-         "MOLECULAR_DYNAMICS   ",&
-         "GEO_OPT              ",&
-         "GEOMETRY_OPTIMIZATION",& 
-         "MC                   ",&
-         "MONTECARLO           ",&
-         "SPECTRA              ",&
-         "ELECTRONIC_SPECTRA   ",& 
-         "BSSE                 ",&
-         "LINEAR_RESPONSE      ",&
-         "LR                   ",&
-         "DEBUG                "/)
-  INTEGER, PARAMETER, PUBLIC, DIMENSION(15) :: run_type_index=&
-       (/none_run, energy_run,energy_force_run,mol_dyn_run,mol_dyn_run,&
-         geo_opt_run,geo_opt_run,mc_run,mc_run,electronic_spectra_run, &
-         electronic_spectra_run,bsse_run,linear_response_run,&
-         linear_response_run,qs_debug_run/)
+  !
+  ! Run Types
+  INTEGER, PARAMETER, public :: none_run=1,&
+                                energy_run=2,&
+                                energy_force_run=3,&
+                                mol_dyn_run=4,&
+                                geo_opt_run=5,&
+                                mc_run=6,&
+                                electronic_spectra_run=7,&
+                                qs_debug_run=8,&
+                                bsse_run=9,&
+                                linear_response_run=10,&
+                                ep_run=11
+  
+  CHARACTER (LEN=default_string_length), PARAMETER, DIMENSION(18), PUBLIC :: run_type_names=&
+       (/"NONE                     ",&
+         "ENERGY                   ",&
+         "ENERGY_FORCE             ",&
+         "MD                       ",&
+         "GEO_OPT                  ",&
+         "MC                       ",&
+         "SPECTRA                  ",&
+         "BSSE                     ",&
+         "LR                       ",&
+         "DEBUG                    ",&
+         "EP                       ",&
+         "WFN_OPT                  ",&   ! Aliases to the previous unique names
+         "WAVEFUNCTION_OPTIMIZATION",&   !
+         "MOLECULAR_DYNAMICS       ",&   !
+         "GEOMETRY_OPTIMIZATION    ",&   !
+         "MONTECARLO               ",&   !
+         "ELECTRONIC_SPECTRA       ",&   !
+         "LINEAR_RESPONSE          " /)  !
+
+  INTEGER, PARAMETER, PUBLIC, DIMENSION(18) :: run_type_index=&
+       (/ none_run,& 
+          energy_run,&
+          energy_force_run,&
+          mol_dyn_run,&
+          geo_opt_run,&
+          mc_run,&
+          electronic_spectra_run,&
+          bsse_run,&
+          linear_response_run,&
+          qs_debug_run,&
+          ep_run,&
+          energy_run,&
+          energy_run,&
+          mol_dyn_run,&
+          geo_opt_run,&
+          mc_run,&
+          electronic_spectra_run,&
+          linear_response_run /)
 
   INTEGER, PARAMETER, public :: atomic_guess=1,restart_guess=2,random_guess=3,&
        core_guess=4

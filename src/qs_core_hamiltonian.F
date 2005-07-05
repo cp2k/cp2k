@@ -156,6 +156,7 @@ MODULE qs_core_hamiltonian
                                              timestop
   USE util,                            ONLY: locate,&
                                              sort
+  USE input_constants,                 ONLY: ep_run
 
   IMPLICIT NONE
 
@@ -501,7 +502,7 @@ CONTAINS
     build_kinetic_energy_matrix = (scf_control%use_ot.OR.&
                                    globenv%print%kinetic_energy_matrix.OR.&
                                    globenv%print%potential_energy_matrix.OR.&
-                                   globenv%run_type=="EP")
+                                   globenv%run_type_id==ep_run)
     ! assume false by default
     return_t_derivatives = .FALSE.
 

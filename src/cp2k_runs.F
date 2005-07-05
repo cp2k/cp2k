@@ -179,9 +179,7 @@ CONTAINS
     TYPE(cp_para_env_type), pointer :: para_env
     TYPE(cp_unit_set_type), pointer :: default_units
     LOGICAL :: failure, echo_input, I_was_ionode, was_present
-    INTEGER :: prog_id, run_id
 
-    ! -----------------------------------------------------------------------------
     cp2k_run_OK = .FALSE.
     failure=.false.
     was_present = .FALSE.
@@ -232,32 +230,22 @@ CONTAINS
     CALL cp_error_check(error,failure)
 
     IF (.NOT.failure) THEN
-       call cp2k_read(globenv)
-
-    was_present = .FALSE.
-    glob_section => section_vals_get_subs_vals(globenv%input_file,"GLOBAL",error=error)
-    call section_vals_get(glob_section,explicit=was_present,error=error)
-    IF (was_present .OR. parsed_cp2k_input(globenv%input_file,error=error)) THEN
-       CALL section_vals_val_get(glob_section,"PROGRAM_NAME",i_val=prog_id,error=error)
-       SELECT CASE (prog_id)
+       CALL cp2k_read(globenv)
+       SELECT CASE (globenv%prog_name_id)
        CASE (do_atom)
-         CALL atomic_code ( globenv )
+          CALL atomic_code ( globenv )
        CASE (do_farming)
-         CALL farming_run ( globenv, error )
+          CALL farming_run ( globenv, error )
        CASE (do_fist)
-         CALL fist_create_force_env ( force_env, globenv,  error = error )
+          CALL fist_create_force_env ( force_env, globenv,  error = error )
        CASE (do_kg)
-         CALL kg_create_force_env ( force_env, globenv, error=error)
+          CALL kg_create_force_env ( force_env, globenv, error=error)
        CASE (do_qmmm)
-         CALL qmmm_create_force_env(force_env, globenv, error=error)
+          CALL qmmm_create_force_env(force_env, globenv, error=error)
        CASE (do_qs)
-         CALL quickstep_create_force_env(force_env, globenv, error=error)
+          CALL quickstep_create_force_env(force_env, globenv, error=error)
        CASE (do_test)
-         CALL lib_test(globenv) 
-       CASE DEFAULT
-         CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,routineP,&
-               "Invalid run TYPE <"//TRIM(globenv%run_type)//"> was specified, "//&
-               CPSourceFileRef,error,failure)
+          CALL lib_test(globenv) 
        END SELECT
        IF (ASSOCIATED(force_env)) THEN
           NULLIFY(meta_env)
@@ -267,45 +255,40 @@ CONTAINS
           CALL meta_env_release(meta_env,error=error)
        END IF
 
-       CALL section_vals_val_get(glob_section,"RUN_TYPE",i_val=run_id,error=error)
-
-       SELECT CASE (run_id)
+       SELECT CASE (globenv%run_type_id)
        CASE (none_run)
-         ! do nothing
-       CASE (energy_run)
-           IF(prog_id /= do_qs.AND. prog_id /= do_kg .AND. prog_id /= do_qmmm) &
-              CALL cp_assert(.FALSE.,cp_failure_level,&
-                      cp_assertion_failed,routineP,&
-                      "Energy run available only with QS, KG, and QMMM programs "//&
-                       CPSourceFileRef,error,failure)
-            CALL force_env_calc_energy_force(force_env,calc_force=.FALSE.,&
-                     error=error)
-       CASE (energy_force_run)
-           IF(prog_id /= do_qs .AND. prog_id /= do_kg .AND. prog_id /= do_qmmm)&
-             CALL cp_assert(.FALSE.,cp_failure_level,&
-                      cp_assertion_failed,routineP,&
-                      "Energy run available only with QS, KG, and QMMM programs "//&
-                       CPSourceFileRef,error,failure)
-            CALL force_env_calc_energy_force(force_env,calc_force=.TRUE.,&
-                     error=error)
+          ! do nothing
+       CASE (energy_run, energy_force_run)
+          IF(  globenv%prog_name_id /= do_qs .AND.&
+               globenv%prog_name_id /= do_kg .AND.&
+               globenv%prog_name_id  /= do_qmmm)  &
+               CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,routineP,&
+               "Energy run available only with QS, KG, and QMMM programs "//&
+               CPSourceFileRef,error,failure)
+          SELECT CASE(globenv%run_type_id)
+          CASE (energy_run)
+             CALL force_env_calc_energy_force(force_env,calc_force=.FALSE.,error=error)
+          CASE(energy_force_run)
+             CALL force_env_calc_energy_force(force_env,calc_force=.TRUE. ,error=error)
+          END SELECT
        CASE (mol_dyn_run)
-           CALL qs_mol_dyn ( force_env, globenv, error=error )
+          CALL qs_mol_dyn ( force_env, globenv, error=error )
        CASE (geo_opt_run)
-           CALL qs_geo_opt(force_env,globenv,error=error)
+          CALL qs_geo_opt(force_env,globenv,error=error)
        CASE (mc_run)
-           CALL qs_mon_car ( force_env, globenv, error=error )
+          CALL qs_mon_car ( force_env, globenv, error=error )
        CASE (electronic_spectra_run)
-           IF(prog_id /= do_qs) CALL cp_assert(.FALSE.,cp_failure_level,&
-                      cp_assertion_failed,routineP,&
-                      "Electron spectra available only with Quickstep program "//&
-                       CPSourceFileRef,error,failure)
-           CALL force_env_calc_energy_force(force_env,calc_force=.FALSE.,&
-                error=error)
-           CALL tddfpt_calculation(force_env%qs_env, globenv)
+          IF(globenv%prog_name_id /= do_qs) &
+               CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,routineP,&
+               "Electron spectra available only with Quickstep program "//&
+               CPSourceFileRef,error,failure)
+          CALL force_env_calc_energy_force(force_env,calc_force=.FALSE.,&
+               error=error)
+          CALL tddfpt_calculation(force_env%qs_env, globenv)
        CASE (bsse_run)
           CALL do_bsse_calculation(force_env, globenv, error=error)
        CASE (linear_response_run)
-          IF(prog_id /= do_qs) CALL cp_assert(.FALSE.,cp_failure_level,&
+          IF(globenv%prog_name_id /= do_qs) CALL cp_assert(.FALSE.,cp_failure_level,&
                cp_assertion_failed,routineP,&
                "Property calculations by Linear Response only within the QS program "//&
                CPSourceFileRef,error,failure)
@@ -314,108 +297,14 @@ CONTAINS
                error=error)
           ! CALL linres_calculation(force_env%qs_env, globenv)
        CASE (qs_debug_run)
-           IF(prog_id /= do_qs) CALL cp_assert(.FALSE.,cp_failure_level,&
-                      cp_assertion_failed,routineP,&
-                      "Debug run available only with Quickstep program "//&
-                       CPSourceFileRef,error,failure)
-           CALL qs_debug_energy_and_forces(force_env, globenv, error=error)
-       CASE DEFAULT
-           CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,routineP,&
-               "Invalid run TYPE <"//TRIM(globenv%run_type)//"> was specified, "//&
-                CPSourceFileRef, error,failure)
+          IF((globenv%prog_name_id /= do_qs).AND.(globenv%prog_name_id /= do_qmmm))  &
+               CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,routineP,&
+               "Debug run available only with Quickstep program "//&
+               CPSourceFileRef,error,failure)
+          CALL qs_debug_energy_and_forces(force_env, globenv, error=error)
        END SELECT
        CALL force_env_release(force_env, error=error)
-
-    ELSE       
-!TODEL_START_MI
-       ! initialize force_env
-       SELECT CASE (globenv%program_name)
-       CASE ("ATOM")
-          CALL atomic_code ( globenv )
-       CASE ("FARMING")
-          CALL farming_run ( globenv, error )
-       CASE ("FIST")
-          CALL fist_create_force_env ( force_env, globenv,  error = error )
-       CASE ("KG")
-          CALL kg_create_force_env ( force_env, globenv, error=error)
-       CASE ("QS")
-          CALL quickstep_create_force_env(force_env, globenv, error=error)
-       CASE ("QMMM")
-          CALL qmmm_create_force_env(force_env, globenv, error=error)
-       CASE ("TEST")
-          CALL lib_test(globenv)
-       CASE default
-          CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,routineP,&
-               "Invalid run TYPE <"//TRIM(globenv%run_type)//"> was specified, "//&
-               CPSourceFileRef,error,failure)
-       END SELECT
-
-       IF (ASSOCIATED(force_env)) THEN
-          NULLIFY(meta_env)
-          metadyn_section => section_vals_get_subs_vals(globenv%input_file,"MOTION%METADYN",error=error)
-          CALL metadyn_read(meta_env, globenv, metadyn_section, error=error)
-          CALL force_env_set(force_env,meta_env=meta_env,error=error)
-          CALL meta_env_release(meta_env,error=error)
-       END IF
-
-       ! perform requested calculation
-       IF (globenv%run_type/="NONE") THEN 
-!FM this test should be reduced to the first one
-
-          IF (globenv%program_name=="QMMM".OR.globenv%program_name=="QS"&
-               .OR.globenv%program_name=="EP") THEN
-             SELECT CASE (globenv%run_type)
-             CASE ("GEOMETRY OPTIMIZATION")
-                CALL qs_geo_opt(force_env,globenv,error=error)
-             CASE ("MONTE CARLO")
-                CALL qs_mon_car ( force_env, globenv, error=error )
-             CASE ("MOLECULAR DYNAMICS")
-                CALL qs_mol_dyn ( force_env, globenv, error=error )
-             CASE ("WAVEFUNCTION OPTIMIZATION","ENERGY CALCULATION")
-                CALL force_env_calc_energy_force(force_env,calc_force=.false.,&
-                     error=error)
-             CASE ("ELECTRONIC SPECTRA")
-                CALL force_env_calc_energy_force(force_env,calc_force=.FALSE.,&
-                     error=error)
-                CALL tddfpt_calculation(force_env%qs_env, globenv) 
-             CASE ("DEBUG")
-                CALL qs_debug_energy_and_forces(force_env, globenv, error=error)
-             CASE ("BSSE")
-                CALL do_bsse_calculation(force_env, globenv, error=error)
-             CASE DEFAULT
-                CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,routineP,&
-                     "Invalid run TYPE <"//TRIM(globenv%run_type)//"> was specified, "//&
-                     CPSourceFileRef,&
-                     error,failure)
-             END SELECT
-             CALL force_env_release(force_env, error=error)
-          ELSE IF ( globenv % program_name == "FIST" ) THEN
-             SELECT CASE (globenv%run_type)
-             CASE ("MOLECULAR DYNAMICS")
-                CALL qs_mol_dyn ( force_env, globenv, error=error )
-             CASE ("GEOMETRY OPTIMIZATION")
-                CALL qs_geo_opt(force_env,globenv,error=error)
-             CASE ( "MONTE CARLO" )
-                CALL qs_mon_car ( force_env, globenv, error=error )
-             CASE ( "DEBUG" )
-                CALL fist_debug_control ( force_env, globenv, error=error )
-             END SELECT
-             CALL force_env_release(force_env, error=error)
-          ELSE IF(globenv%program_name=="KG") THEN
-             SELECT CASE (globenv%run_type)
-             CASE ("GEOMETRY OPTIMIZATION")
-                CALL qs_geo_opt(force_env,globenv,error=error)
-             CASE ("MOLECULAR DYNAMICS")
-                CALL qs_mol_dyn ( force_env, globenv, error=error )
-             CASE ("WAVEFUNCTION OPTIMIZATION","ENERGY CALCULATION")
-                CALL force_env_calc_energy_force(force_env,calc_force=.FALSE.,&
-                     error=error)
-             END SELECT
-             CALL force_env_release(force_env, error=error)
-          END IF
-       END IF
-!TODEL_END_MI
-    END IF
+       
     END IF
     CALL cp_error_dealloc_ref(error)
  
