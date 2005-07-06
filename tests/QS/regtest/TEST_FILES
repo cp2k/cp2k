@@ -152,3 +152,6 @@ He2H-.inp          1
 CN.inp             4
 # testing of distributed rs grids
 rsgrid-dist-1.inp  1
+#BSSE
+2H2O_bsse.inp      5
+3H2O_bsse.inp      5
