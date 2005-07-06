@@ -229,8 +229,7 @@ CONTAINS
        ! 8. Pack everything into the atomic types
        !-----------------------------------------------------------------------------
        CALL topology_coordinate_pack(particle_set,atomic_kind_set,&
-            molecule_kind_set,molecule_set,&
-            topology,globenv)
+            molecule_kind_set,molecule_set,topology,globenv)
 
        !-----------------------------------------------------------------------------
        !-----------------------------------------------------------------------------

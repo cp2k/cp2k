@@ -2309,35 +2309,89 @@ SUBROUTINE create_tddfpt_section(section,error)
     IF (.NOT. failure) THEN
        CALL section_create(section,name="BSSE",&
             description="This section is used to set up the BSSE calculation.",&
-            n_keywords=3, n_subsections=0, repeats=.FALSE., required=.TRUE.,&
+            n_keywords=3, n_subsections=1, repeats=.FALSE., required=.TRUE.,&
             error=error)
 
        NULLIFY(keyword, subsection)
        CALL section_create(subsection,name="FRAGMENT",&
             description="Specify the atom number belonging to this fragment.",&
-            n_keywords=2, n_subsections=0, repeats=.FALSE., required=.TRUE.,&
+            n_keywords=2, n_subsections=0, repeats=.TRUE., required=.TRUE.,&
             error=error)
 
        ! Integer
        CALL keyword_create(keyword, name="LIST",&
             description="Specifies a list of atoms.",&
-            usage="LIST {integer} {integer} .. {integer}", required=.TRUE.,&
+            usage="LIST {integer} {integer} .. {integer}", required=.FALSE.,&
             n_var=-1, type_of_var=integer_t, error=error)
        CALL section_add_keyword(subsection,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
        CALL keyword_create(keyword, name="RANGE",&
             description="Specifies the starting and the ending index of atoms range.",&
-            usage="RANGE {integer} {integer}", required=.TRUE.,&
+            usage="RANGE {integer} {integer}", required=.FALSE.,&
             n_var=2, type_of_var=integer_t, error=error)
        CALL section_add_keyword(subsection,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
        CALL section_add_subsection(section, subsection, error=error)
-       CALL section_release(subsection,error=error)      
+       CALL section_release(subsection,error=error)
+
+       CALL create_print_bsse_section(subsection,error)
+       CALL section_add_subsection(section, subsection, error=error)
+       CALL section_release(subsection,error=error)
+      
     END IF
 
   END SUBROUTINE create_bsse_section
+
+!***************************************************************************
+!!****f* input_cp2k/create_print_bsse_section [1.0] *
+!!
+!!   NAME
+!!     create_print_bsse_section
+!!
+!!   FUNCTION
+!!     Create the print bsse section
+!!
+!!   NOTES
+!!     -
+!!
+!!   ARGUMENTS
+!!     - section: the section to create
+!!     - error: variable to control error logging, stopping,... 
+!!       see module cp_error_handling 
+!!
+!!   AUTHOR
+!!     teo
+!!
+!!*** **********************************************************************
+  SUBROUTINE create_print_bsse_section(section,error)
+    TYPE(section_type), POINTER :: section
+    TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
+    
+    LOGICAL :: failure
+    CHARACTER(len=*), PARAMETER :: routineN='create_print_bsse_section',&
+         routineP=moduleN//':'//routineN
+    TYPE(section_type), POINTER :: print_key
+    failure=.FALSE.
+    
+    CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
+    IF (.NOT. failure) THEN
+       CALL section_create(section,name="print",&
+            description="Section of possible print options in BSSE code.",&
+            n_keywords=0, n_subsections=1, repeats=.FALSE., required=.TRUE.,&
+            error=error)
+       
+       NULLIFY(print_key)
+       CALL cp_print_key_section_create(print_key,"PROGRAM_RUN_INFO",&
+            description="Controls the printing of information regarding the run.",&
+            print_level=silent_print_level,each=(/1/),filename="__STD_OUT__",&
+            error=error)
+       CALL section_add_subsection(section,print_key,error=error)
+       CALL section_release(print_key,error=error)
+
+    END IF
+  END SUBROUTINE create_print_bsse_section
 
 !!****f* input_cp2k/create_metadyn_section *
 !!
