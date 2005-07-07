@@ -1194,6 +1194,7 @@ CONTAINS
                             section_found=section_found)
        END IF
     END IF
+
     IF (.NOT.section_found) THEN
        IF (z /= -1) CALL finish_parser() 
        CALL start_parser(file_name=globenv%input_file_name,&
@@ -1295,11 +1296,7 @@ CONTAINS
           END SELECT
         END IF
       END DO
-   ELSE
-      CALL stop_program(routine_name,module_name,__LINE__,&
-                        "No KIND section found in input file for <"//&
-                        TRIM(atomic_kind%name)//"> or for DEFAULT KIND.",globenv)      
-   END IF
+    END IF
 
     CALL finish_parser()
 

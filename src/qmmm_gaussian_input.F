@@ -104,7 +104,7 @@ CONTAINS
     LOGICAL ::  Found, Found_Radius, failure
     CHARACTER(LEN=240)                       :: line
     CHARACTER(len=10)                        :: Ftarget, Units
-    REAL(KIND=dp)                           :: Radius, fconv, my_radius, a, b, c
+    REAL(KIND=dp)                           :: Radius, fconv, my_radius
 
 
     Nval = size(qmmm_gaussian_fns)
@@ -165,32 +165,7 @@ CONTAINS
           ALLOCATE(qmmm_gaussian_fns(IRad)%pgf%Gk(NOG),stat=stat)
           CPPostcondition(stat==0,cp_failure_level,routineP,error,Failure)
           IF (compatibility) THEN
-             IF     (radius>=0.3_dp*fconv .AND. radius<0.4_dp*fconv) THEN
-                a = 0.549660_dp
-                b = 0.533291_dp
-                c = 0.307918_dp
-             ELSE IF(radius>=0.4_dp*fconv .AND. radius<0.6_dp*fconv) THEN
-                a = 0.382027_dp
-                b = 0.947593_dp
-                c = 0.051891_dp
-             ELSE IF(radius>=0.6_dp*fconv .AND. radius<0.8_dp*fconv) THEN
-                a = 0.069660_dp
-                b = 1.520630_dp
-                c = -0.21155_dp
-             ELSE IF(radius>=0.8_dp*fconv .AND. radius<1.0_dp*fconv) THEN
-                a = 0.00142918_dp
-                b = -1.61831_dp
-                c = 0.246434_dp
-             ELSE IF(radius>=1.0_dp*fconv .AND. radius<1.2_dp*fconv) THEN
-                a = 0.137868_dp
-                b = 1.47547_dp
-                c = -0.20902_dp
-             ELSE
-                WRITE(*,'(A,F12.6,A)')"The compatibility option works only in the radius range 0.3 - 1.2 Angstrom." 
-                CALL stop_program(routineN,moduleN,__LINE__, &
-                         "Please contact one of the developer for this feature!",globenv)                
-             END IF
-             my_radius = a + b * radius + c * radius**2
+             my_radius = radius
              qmmm_gaussian_fns(IRad)%pgf%Ak(1) = 1.0_dp/radius - 2.0_dp/(rootpi*radius)
              qmmm_gaussian_fns(IRad)%pgf%Gk(1) = my_radius
           END IF
