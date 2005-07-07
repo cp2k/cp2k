@@ -88,6 +88,7 @@ MODULE bsse
   USE green_types,                     ONLY: greens_function_type,&
                                              pw_green_release
   USE green_methods,                   ONLY: pw_green_setup  
+  USE qs_main,                         ONLY: quickstep_create_force_env
 
   IMPLICIT NONE
   PRIVATE
@@ -399,22 +400,9 @@ CONTAINS
                sub_subsys_index=subsys_index, sub_atom_kind_name=atom_type,&
                globenv=globenv, error=error)
 
-          CALL read_atomic_kind_set(subsys_loc%atomic_kinds%els, globenv)
-          
-          CALL qs_env_create(qs_env, para_env=para_env, error=error)
-          
-          CALL set_qs_env(qs_env, input=force_env_section, error=error)
-          CALL get_cell(cell, abc=abc)
-          CALL pw_green_setup ( green, poisson_section, abc, error )
-    
-          CALL qs_init_subsys(qs_env,subsystem=subsys_loc,cell=cell,&
-               cell_ref=cell, use_ref_cell=.FALSE., qmmm=.FALSE.,&
-               globenv=globenv, green=green, error=error)
-    
+          CALL quickstep_create_force_env(force_env_loc,globenv,subsystem=subsys_loc,error=error)
+
           CALL cp_subsys_release(subsys_loc,error=error)
-          CALL force_env_create(force_env_loc, qs_env=qs_env, globenv=globenv, error=error)
-          CALL pw_green_release(green, error)
-          CALL qs_env_release(qs_env,error=error)
           !
           ! Evaluate Energy
           !

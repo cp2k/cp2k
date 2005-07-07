@@ -134,7 +134,7 @@ MODULE qmmm_init
   USE force_field_types,               ONLY: input_info_type
   USE pair_potential_types,            ONLY: reallocate_potparm
   USE cp_subsystem_methods,            ONLY: create_small_subsystem
-
+  USE qs_main,                         ONLY: quickstep_create_force_env
   IMPLICIT NONE
   PRIVATE
 
@@ -306,7 +306,6 @@ CONTAINS
           CALL write_cell(qm_cell_small, globenv)
        END IF
        CALL get_cell(qm_cell_small, abc=abc)
-       CALL pw_green_setup ( green, poisson_section, abc, error )
        !
        ! Assign charges and mm_el_pot_radius from fist_topology
        !
@@ -354,21 +353,10 @@ CONTAINS
             small_cell=qm_cell_small,sub_atom_index=qm_atom_index,&
             sub_subsys_index=qm_subsys_index,&
             sub_atom_kind_name=qm_atom_type, globenv=globenv,error=error)
-       CALL read_atomic_kind_set(subsys_qm%atomic_kinds%els,globenv)
-     
-       CALL qs_env_create(qs_env, para_env=para_env, error=error)
-
-       CALL set_qs_env(qs_env,input=force_env_section,error=error)
-
-       CALL qs_init_subsys(qs_env,subsystem=subsys_qm,cell=qm_cell_small,&
-            cell_ref=qm_cell_small, use_ref_cell=.FALSE.,qmmm=.TRUE.,&
-            globenv=globenv,green=green,&
-            error=error)
-
+       CALL quickstep_create_force_env(sub_force_env(2)%force_env,globenv,subsystem=subsys_qm,&
+            cell=qm_cell_small, qmmm=.TRUE., error=error)
        CALL cp_subsys_release(subsys_qm,error=error)
-       CALL force_env_create(sub_force_env(2)%force_env,&
-            qs_env=qs_env,globenv=globenv, error=error)
-
+       CALL force_env_get(sub_force_env(2)%force_env,qs_env=qs_env,error=error)
        !
        ! Initialize MM Potential fitted with Gaussian
        !
@@ -407,9 +395,7 @@ CONTAINS
             dr=qs_env%pw_env%pw_pools(qs_env%pw_env%auxbas_grid)%pool%pw_grid%dr,&
             error=error)
 
-       CALL pw_green_release(green, error)
        CALL cell_release(qm_cell_small, error)                       
-       CALL qs_env_release(qs_env,error=error)
 
        globenv%prog_name_id=do_qmmm
        CALL force_env_create(force_env, sub_force_env=sub_force_env,&

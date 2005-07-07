@@ -46,7 +46,11 @@ MODULE qs_main
                                              qs_environment_type
   USE timings,                         ONLY: timeset,&
                                              timestop
-
+  USE cp_subsystem_types,              ONLY: cp_subsys_create,&
+                                             cp_subsys_release,&
+                                             cp_subsys_set,&
+                                             cp_subsystem_type
+  USE simulation_cell,                 ONLY: cell_type
     IMPLICIT NONE
 
   PRIVATE
@@ -87,11 +91,14 @@ CONTAINS
 !!   SOURCE
 !******************************************************************************
 
-  SUBROUTINE quickstep_create_force_env(force_env,globenv,&
-                                        error)
+  SUBROUTINE quickstep_create_force_env(force_env,globenv,subsystem,cell,cell_ref,&
+       qmmm, error)
 
     TYPE(force_env_type), POINTER            :: force_env
     TYPE(global_environment_type), POINTER   :: globenv
+    TYPE(cp_subsystem_type), POINTER, OPTIONAL :: subsystem
+    TYPE(cell_type), POINTER, OPTIONAL         :: cell, cell_ref
+    LOGICAL, INTENT(IN), OPTIONAL              :: qmmm
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
@@ -109,8 +116,8 @@ CONTAINS
 
 !   *** Read the input and the database files and perform further  ***
 !   *** initializations for the setup of the QUICKSTEP environment ***
-
-    CALL qs_init( qs_env, globenv, error=error )
+    CALL qs_init( qs_env, globenv, subsystem=subsystem, cell=cell, cell_ref=cell_ref,&
+                  qmmm=qmmm, error=error )
 
     CALL force_env_create(force_env, qs_env=qs_env, globenv=globenv,&
          error=error)

@@ -494,23 +494,15 @@ RECURSIVE SUBROUTINE force_env_get(force_env, in_use, force_env_list, &
 
      IF (PRESENT(in_use)) in_use=force_env%in_use
      IF (PRESENT(force_env_list)) THEN
-        ! you should not need this from other routines, try to rethink your code
-        CPAssert(.FALSE.,cp_warning_level,routineP,error,failure)
         force_env_list => force_env%force_env_list
      END IF
      IF (PRESENT(fist_env)) THEN
-        ! you should not need this from other routines, try to rethink your code
-        CPAssert(.FALSE.,cp_warning_level,routineP,error,failure)
         fist_env => force_env%fist_env
      END IF
      IF (PRESENT(qs_env)) THEN
-        ! you should not need this from other routines, try to rethink your code
-        CPAssert(.FALSE.,cp_warning_level,routineP,error,failure)
         qs_env => force_env%qs_env
      END IF
      IF (PRESENT(kg_env)) THEN
-        ! you should not need this from other routines, try to rethink your code
-        CPAssert(.FALSE.,cp_warning_level,routineP,error,failure)
         kg_env => force_env%kg_env
      END IF
      IF (PRESENT(dyn_coeff_set)) dyn_coeff_set => force_env%dyn_coeff_set

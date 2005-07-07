@@ -123,7 +123,9 @@ MODULE qs_environment
                                              cell_type,&
                                              read_cell,&
                                              write_cell,&
-                                             get_cell
+                                             get_cell,&
+                                             cell_create,&
+                                             cell_clone
   USE termination,                     ONLY: stop_memory,&
                                              stop_program
   USE timings,                         ONLY: timeset,&
@@ -151,7 +153,7 @@ CONTAINS
 
 ! *****************************************************************************
 
-  SUBROUTINE qs_init(qs_env,globenv,error)
+  SUBROUTINE qs_init(qs_env,globenv,subsystem,cell,cell_ref,qmmm,error)
 
 !   Purpose: Read the input and the database files for the setup of the
 !            QUICKSTEP environment.
@@ -160,10 +162,13 @@ CONTAINS
 
 !   ***************************************************************************
 
-    TYPE(qs_environment_type), POINTER       :: qs_env
-    TYPE(global_environment_type), POINTER   :: globenv
+    TYPE(qs_environment_type), POINTER         :: qs_env
+    TYPE(global_environment_type), POINTER     :: globenv
+    TYPE(cp_subsystem_type), POINTER, OPTIONAL :: subsystem
+    TYPE(cell_type), POINTER, OPTIONAL         :: cell, cell_ref
+    LOGICAL, INTENT(IN), OPTIONAL              :: qmmm
     TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+         OPTIONAL                              :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = "qs_init", &
       routineP = module_name//":"//routineN
@@ -173,8 +178,8 @@ CONTAINS
     TYPE(atomic_kind_list_type), POINTER     :: atomic_kinds
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
-    TYPE(cell_type), POINTER                 :: cell, cell_ref
-    TYPE(cp_subsystem_type), POINTER         :: subsystem
+    TYPE(cell_type), POINTER                 :: my_cell, my_cell_ref
+    TYPE(cp_subsystem_type), POINTER         :: my_subsystem
     TYPE(mol_kind_new_list_type), POINTER    :: mol_kinds
     TYPE(mol_new_list_type), POINTER         :: mols
     TYPE(molecule_kind_type), DIMENSION(:), &
@@ -190,9 +195,10 @@ CONTAINS
                                                 harris_section
     REAL(kind=dp), dimension(3)              :: abc
     TYPE(greens_function_type), POINTER      :: green
+    LOGICAL                                  :: my_qmmm
 
-    NULLIFY(subsystem, molecule_kind_set, molecule_set, atomic_kind_set,&
-         particle_set,atomic_kinds,particles,mols,mol_kinds,cell,cell_ref,&
+    NULLIFY(my_subsystem, molecule_kind_set, molecule_set, atomic_kind_set,&
+         particle_set,atomic_kinds,particles,mols,mol_kinds,my_cell,my_cell_ref,&
          cell_section, poisson_section, harris_section, green)
     
     force_env_section => section_vals_get_subs_vals(globenv%input_file,&
@@ -205,53 +211,69 @@ CONTAINS
          "DFT%QS%HARRIS", error=error)
     
     harris_flag = .FALSE.
+    my_qmmm     = .FALSE.
+    IF (PRESENT(qmmm)) my_qmmm=qmmm
     CALL section_vals_val_get(harris_section, "ACTIVATE", &
                               l_val=harris_flag, error=error)
-        
+
     CALL set_qs_env(qs_env,input=force_env_section,error=error)
-    
-    CALL cp_subsys_create(subsystem,para_env=globenv%para_env,error=error)
 
-!   *** Read the input section with the cell parameters ***
-
-    CALL read_cell(cell, cell_ref, globenv, use_ref_cell=use_ref_cell, &
-                   cell_section=cell_section, error=error)
-    CALL get_cell ( cell, abc=abc)
-
+    IF (PRESENT(cell)) THEN
+       my_cell => cell
+       IF (PRESENT(cell_ref)) THEN
+          my_cell_ref => cell_ref
+          use_ref_cell = .TRUE.
+       ELSE
+          CALL cell_create(my_cell_ref,error=error)
+          CALL cell_clone(my_cell,my_cell_ref,error)
+          use_ref_cell = .FALSE.
+       END IF
+    ELSE
+       !   *** Read the input section with the cell parameters ***
+       CALL read_cell(my_cell, my_cell_ref, globenv, use_ref_cell=use_ref_cell, &
+                      cell_section=cell_section, error=error)
+    END IF
+    CALL get_cell ( my_cell, abc=abc)
     CALL pw_green_setup ( green, poisson_section, abc, error )
 
 !   *** Print the cell parameters ***
 
-    CALL write_cell(cell,globenv)
+    CALL write_cell(my_cell,globenv)
+    IF (PRESENT(subsystem)) THEN 
+       my_subsystem => subsystem
+       CALL read_atomic_kind_set(my_subsystem%atomic_kinds%els, globenv)
+    ELSE
+       CALL cp_subsys_create(my_subsystem,para_env=globenv%para_env,error=error)
 
-!   *** Read the particle coordinates and allocate the atomic kind, ***
-!   *** the molecule kind, and the molecule data structures         ***
-    CALL topology_control (atomic_kind_set,particle_set,&
-                         molecule_kind_set,molecule_set,&
-                         globenv,error=error)
+       !   *** Read the particle coordinates and allocate the atomic kind, ***
+       !   *** the molecule kind, and the molecule data structures         ***
+       CALL topology_control (atomic_kind_set,particle_set,&
+                              molecule_kind_set,molecule_set,&
+                              globenv,error=error)
   
-    CALL read_atomic_kind_set(atomic_kind_set,globenv)
+       CALL read_atomic_kind_set(atomic_kind_set,globenv)
+       
+       CALL num_ao_el_per_molecule(molecule_kind_set)
+       
+       CALL particle_list_create(particles,els_ptr=particle_set,error=error)
+       CALL atomic_kind_list_create(atomic_kinds,els_ptr=atomic_kind_set,error=error)
+       CALL mol_new_list_create(mols,els_ptr=molecule_set,error=error)
+       CALL mol_kind_new_list_create(mol_kinds,els_ptr=molecule_kind_set,error=error)
+       CALL cp_subsys_set(my_subsystem,particles=particles,atomic_kinds=atomic_kinds,&
+            molecules_new=mols,molecule_kinds_new=mol_kinds,error=error)
+       CALL particle_list_release(particles,error=error)
+       CALL atomic_kind_list_release(atomic_kinds,error=error)
+       CALL mol_new_list_release(mols,error=error)
+       CALL mol_kind_new_list_release(mol_kinds,error=error)
+    END IF
 
-    CALL num_ao_el_per_molecule(molecule_kind_set)
+    CALL qs_init_subsys(qs_env,my_subsystem,green,my_cell,my_cell_ref,use_ref_cell,&
+         globenv,my_qmmm,harris=harris_flag,error=error)
 
-    CALL particle_list_create(particles,els_ptr=particle_set,error=error)
-    CALL atomic_kind_list_create(atomic_kinds,els_ptr=atomic_kind_set,error=error)
-    CALL mol_new_list_create(mols,els_ptr=molecule_set,error=error)
-    CALL mol_kind_new_list_create(mol_kinds,els_ptr=molecule_kind_set,error=error)
-    CALL cp_subsys_set(subsystem,particles=particles,atomic_kinds=atomic_kinds,&
-         molecules_new=mols,molecule_kinds_new=mol_kinds,error=error)
-    CALL particle_list_release(particles,error=error)
-    CALL atomic_kind_list_release(atomic_kinds,error=error)
-    CALL mol_new_list_release(mols,error=error)
-    CALL mol_kind_new_list_release(mol_kinds,error=error)
-    
-    CALL qs_init_subsys(qs_env,subsystem,green,cell,cell_ref,use_ref_cell,&
-         globenv,.FALSE.,harris=harris_flag,error=error)
-
-    CALL cell_release(cell,error=error)
-    CALL cell_release(cell_ref,error=error)
     CALL pw_green_release(green, error=error)
-    CALL cp_subsys_release(subsystem,error=error)
+    IF (.NOT.PRESENT(cell))      CALL cell_release(my_cell,error=error)
+    IF (.NOT.PRESENT(cell_ref))  CALL cell_release(my_cell_ref,error=error)
+    IF (.NOT.PRESENT(subsystem)) CALL cp_subsys_release(my_subsystem,error=error)
 
   END SUBROUTINE qs_init
 

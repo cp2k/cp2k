@@ -1044,7 +1044,6 @@ CONTAINS
 !!     - cell the cell to initialize
 !!     - hmat: the h matrix that defines the cell
 !!     - periodic: periodicity of the cell
-!!     - poisson_solver: the poisson solver to use
 !!     - error: variable to control error logging, stopping,...
 !!       see module cp_error_handling
 !!
@@ -1055,13 +1054,12 @@ CONTAINS
 !!     09.2003 created [fawzi]
 !!
 !!*** **********************************************************************
-  SUBROUTINE cell_create(cell,hmat,periodic,poisson_solver, error)
+  SUBROUTINE cell_create(cell,hmat,periodic, error)
     TYPE(cell_type), POINTER                 :: cell
     REAL(KIND=dp), DIMENSION(3, 3), &
       INTENT(IN), OPTIONAL                   :: hmat
     INTEGER, DIMENSION(3), INTENT(IN), &
       OPTIONAL                               :: periodic
-    CHARACTER(LEN=*), INTENT(IN), OPTIONAL   :: poisson_solver
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
