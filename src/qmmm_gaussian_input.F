@@ -165,7 +165,11 @@ CONTAINS
           ALLOCATE(qmmm_gaussian_fns(IRad)%pgf%Gk(NOG),stat=stat)
           CPPostcondition(stat==0,cp_failure_level,routineP,error,Failure)
           IF (compatibility) THEN
-             IF     (radius>=0.4_dp*fconv .AND. radius<0.6_dp*fconv) THEN
+             IF     (radius>=0.3_dp*fconv .AND. radius<0.4_dp*fconv) THEN
+                a = 0.549660_dp
+                b = 0.533291_dp
+                c = 0.307918_dp
+             ELSE IF(radius>=0.4_dp*fconv .AND. radius<0.6_dp*fconv) THEN
                 a = 0.382027_dp
                 b = 0.947593_dp
                 c = 0.051891_dp
@@ -182,7 +186,7 @@ CONTAINS
                 b = 1.47547_dp
                 c = -0.20902_dp
              ELSE
-                WRITE(*,'(A,F12.6,A)')"The compatibility option works only in the radius range 0.4 - 1.2 Angstrom." 
+                WRITE(*,'(A,F12.6,A)')"The compatibility option works only in the radius range 0.3 - 1.2 Angstrom." 
                 CALL stop_program(routineN,moduleN,__LINE__, &
                          "Please contact one of the developer for this feature!",globenv)                
              END IF
