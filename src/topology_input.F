@@ -590,16 +590,16 @@ SUBROUTINE read_constraints_section_new(topology, constraint_section, error)
         CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
         DO ig = 1, ncons
            CALL section_vals_val_get(fix_atom_section,"LIST", i_rep_section=ig, n_rep_val=n_rep, error=error)
-           DO k = 1, n_rep
-              CALL section_vals_val_get(fix_atom_section,"LIST", i_rep_section=ig, i_rep_val=k,&
+           IF (n_rep /= 0) THEN
+              CALL section_vals_val_get(fix_atom_section,"LIST", i_rep_section=ig, &
                    i_vals=tmplist, error=error)
               CALL reallocate(cons_info%fixed_atoms,1,isize+SIZE(tmplist))
               cons_info%fixed_atoms(isize+1:isize+SIZE(tmplist)) = tmplist
               isize = SIZE(cons_info%fixed_atoms)
-           END DO
+           END IF
            CALL section_vals_val_get(fix_atom_section,"RANGE", i_rep_section=ig, n_rep_val=n_rep, error=error)
-           DO k = 1, n_rep
-              CALL section_vals_val_get(fix_atom_section,"RANGE", i_rep_section=ig, i_rep_val=k,&
+           IF (n_rep /= 0) THEN
+              CALL section_vals_val_get(fix_atom_section,"RANGE", i_rep_section=ig, &
                    i_vals=tmplist, error=error)
               CALL reallocate(cons_info%fixed_atoms,1,isize+tmplist(2)-tmplist(1)+1)
               jj = 0
@@ -608,7 +608,7 @@ SUBROUTINE read_constraints_section_new(topology, constraint_section, error)
                  cons_info%fixed_atoms(isize+jj:isize+jj) = j
               END DO
               isize = SIZE(cons_info%fixed_atoms)
-           END DO
+           END IF
            CALL section_vals_val_get(fix_atom_section,"MM_SUBSYS",l_val=freeze_mm,i_rep_section=ig,error=error)
            CALL section_vals_val_get(fix_atom_section,"QM_SUBSYS",l_val=freeze_qm,i_rep_section=ig,error=error)
            cons_info%freeze_mm = cons_info%freeze_mm .OR. freeze_mm

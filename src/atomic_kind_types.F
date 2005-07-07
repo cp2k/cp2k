@@ -1167,7 +1167,7 @@ CONTAINS
        CALL finish_parser()
        IF (z == -1) THEN
           ipos = INDEX(atomic_kind%name,"_")
-          IF ((ipos == 2).OR.(ipos == 3)) THEN
+          IF (((ipos == 2).OR.(ipos == 3)).AND.(INDEX(atomic_kind%name,"_ghost")==0)) THEN
              element_symbol = atomic_kind%name(1:ipos-1)
           ELSE
              element_symbol = atomic_kind%name
@@ -1195,7 +1195,7 @@ CONTAINS
        END IF
     END IF
     IF (.NOT.section_found) THEN
-       CALL finish_parser() 
+       IF (z /= -1) CALL finish_parser() 
        CALL start_parser(file_name=globenv%input_file_name,&
                          globenv=globenv,&
                          start_section_label="KIND",&
@@ -1295,7 +1295,11 @@ CONTAINS
           END SELECT
         END IF
       END DO
-    END IF
+   ELSE
+      CALL stop_program(routine_name,module_name,__LINE__,&
+                        "No KIND section found in input file for <"//&
+                        TRIM(atomic_kind%name)//"> or for DEFAULT KIND.",globenv)      
+   END IF
 
     CALL finish_parser()
 
