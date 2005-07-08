@@ -27,6 +27,11 @@ Correctness of results (<A HREF="#correct_serial">serial</A> and <A HREF="#corre
 <H3> Info </H3> 
 Correctness runs are serial/parallel runs using the NAG compiler with full error checking on a PC architecture. Even though we strive to reach the above goal, the rapid development of CP2K does imply that not all features are working or passing the high standard of Fortran conformance we require during this testing. Failing tests are an indication of possible problems, but as yet still quite common.
 Memory leak checking is performed using the free Fortran compiler g95 (<A HREF="http://www.g95.org/">www.g95.org</A>).
+<H3> Reference results </H3>
+The latest reference result of the regression testing suite as obtained with the NAG compiler
+for a serial run can be downloaded (<A HREF="reference"> 'reference', 2Mb, a gzipped tar file without the .tgz extension</A>).
+They can be used to set up a local regtest, but note that differences in compiler optimization
+can introduce differences in the output O(1E-9), which is acceptable within this setup (see the regtest READMEs for more info).
 <H3> <a NAME="correct_serial">Serial correctness of results and Fortran conformance</a> </H3> 
 <CENTER>
 The <A HREF="regtest.txt">latest build report</A> is available. <BR>
