@@ -194,7 +194,7 @@ CONTAINS
     TYPE(qmmm_env_qm_type), POINTER          :: qmmm_env_qm
     TYPE(qmmm_env_mm_type), POINTER          :: qmmm_env_mm
     TYPE(qs_environment_type), POINTER       :: qs_env
-    REAL(dp), DIMENSION(:), POINTER          :: mm_atom_chrg, mm_el_pot_radius
+    REAL(dp), DIMENSION(:), POINTER          :: mm_atom_chrg, mm_el_pot_radius, mm_el_pot_radius_corr 
     REAL(KIND=dp)                            :: eps_mm_rspace
     INTEGER                                  :: qmmm_coupl_type
     TYPE(section_vals_type), POINTER         :: force_env_section, qmmm_section, poisson_section, print_section
@@ -216,7 +216,7 @@ CONTAINS
          qs_env, para_env, mm_atom_chrg,mm_el_pot_radius, qmmm_env_mm,   &
          mm_link_atoms, mm_link_scale_factor, qmmm_links, added_charges, &
          fist_scale_charge_link, green, poisson_section, print_section,  &
-         print_gen, logger)
+         print_gen, logger, mm_el_pot_radius_corr)
     para_env => globenv%para_env
     iw = globenv%scr
     logger => cp_error_get_logger(error)
@@ -313,39 +313,44 @@ CONTAINS
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
        ALLOCATE(mm_el_pot_radius(SIZE(mm_atom_index)),stat=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       ALLOCATE(mm_el_pot_radius_corr(SIZE(mm_atom_index)),stat=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
        mm_atom_chrg     = 0.0_dp
        mm_el_pot_radius = 0.0_dp
-       
+       mm_el_pot_radius_corr = 0.0_dp
+
        CALL assign_mm_charges_and_radius(subsys=subsys_mm,&
                                          mm_atom_chrg=mm_atom_chrg,&
                                          mm_el_pot_radius=mm_el_pot_radius,&
+                                         mm_el_pot_radius_corr=mm_el_pot_radius_corr,&
                                          mm_atom_index=mm_atom_index,&
                                          mm_link_atoms=mm_link_atoms,&
                                          mm_link_scale_factor=mm_link_scale_factor,&
                                          error=error)
 
-       qmmm_env_qm%mm_atom_chrg     => mm_atom_chrg
-       qmmm_env_qm%mm_el_pot_radius => mm_el_pot_radius
+       qmmm_env_qm%mm_atom_chrg          => mm_atom_chrg
+       qmmm_env_qm%mm_el_pot_radius      => mm_el_pot_radius
+       qmmm_env_qm%mm_el_pot_radius_corr => mm_el_pot_radius_corr
 
        IF (qmmm_link) THEN 
-          CALL setup_qmmm_links(qmmm_section, qmmm_links, mm_el_pot_radius, mm_atom_index,&
-               qm_cell_small, iw, error=error)
+          CALL setup_qmmm_links(qmmm_section, qmmm_links, mm_el_pot_radius, &
+               mm_el_pot_radius_corr, mm_atom_index, qm_cell_small, iw, error=error)
           qmmm_env_qm%qmmm_links    => qmmm_links
 
           CALL print_qmmm_links(globenv, qmmm_section, qmmm_links, error)
 
           CALL add_set_release  (qmmm_env_qm%added_charges, error=error)
           CALL move_or_add_atoms(qmmm_section, move_mm_charges, add_mm_charges, &
-                                 mm_atom_chrg, mm_el_pot_radius, added_charges, &
-                                 mm_atom_index, qm_cell_small, error)
+                                 mm_atom_chrg, mm_el_pot_radius, mm_el_pot_radius_corr,&
+                                 added_charges, mm_atom_index, qm_cell_small, error)
           qmmm_env_qm%move_mm_charges =  move_mm_charges
           qmmm_env_qm%add_mm_charges  =  add_mm_charges
           qmmm_env_qm%added_charges   => added_charges
        END IF
        
        CALL print_qmmm_charges(mm_atom_index, mm_atom_chrg, mm_el_pot_radius,&
-                               qmmm_env_qm%added_charges, globenv, qmmm_section,&
-                               error)
+                               mm_el_pot_radius_corr, qmmm_env_qm%added_charges,&
+                               globenv, qmmm_section, nocompatibility, error)
 
        globenv%prog_name_id=do_qs
        CALL create_small_subsystem(subsys_qm,&
@@ -434,7 +439,7 @@ CONTAINS
 !!     06.2004 created [tlaino]
 !!
 !!*** **********************************************************************
- SUBROUTINE assign_mm_charges_and_radius(subsys, mm_atom_chrg,mm_el_pot_radius,&
+ SUBROUTINE assign_mm_charges_and_radius(subsys, mm_atom_chrg,mm_el_pot_radius,mm_el_pot_radius_corr,&
                                          mm_atom_index, mm_link_atoms, mm_link_scale_factor,&
                                          error)
    IMPLICIT NONE
@@ -442,17 +447,18 @@ CONTAINS
    TYPE(cp_subsystem_p_type), &
         DIMENSION(:), POINTER                  :: subsys
    REAL(dp), DIMENSION(:), POINTER             :: mm_atom_chrg, mm_el_pot_radius,mm_link_scale_factor
+   REAL(dp), DIMENSION(:), POINTER             :: mm_el_pot_radius_corr
    INTEGER, DIMENSION(:), POINTER              :: mm_atom_index, mm_link_atoms
    TYPE(cp_error_type), INTENT(inout), &
         OPTIONAL                               :: error
    ! Local Variables
    TYPE(atomic_kind_type), POINTER             :: my_kind
-    TYPE(elp_potential_type), POINTER          :: my_potential
+   TYPE(elp_potential_type), POINTER           :: my_potential
    TYPE(particle_list_type), POINTER           :: particles
    TYPE(particle_type), DIMENSION(:), &
         POINTER                                :: particle_set
    INTEGER  :: I, IndMM, ilink, iw
-   REAL(dp) :: qi, ri
+   REAL(dp) :: qi, ri, rc
 
    NULLIFY(particle_set, my_kind)
    CALL cp_subsys_get(subsys=subsys(1)%subsys,&
@@ -465,9 +471,11 @@ CONTAINS
       CALL get_atomic_kind(atomic_kind=my_kind, elp_potential=my_potential)
       CALL get_potential  (potential=my_potential,& 
                            qeff=qi,&
-                           core_charge_radius=ri)
-      mm_atom_chrg(I)     = qi
-      mm_el_pot_radius(I) = ri
+                           core_charge_radius=ri,&
+                           ccore_charge_radius=rc)
+      mm_atom_chrg(I)          = qi
+      mm_el_pot_radius(I)      = ri
+      mm_el_pot_radius_corr(I) = rc
    END DO
 
    IF (ASSOCIATED(mm_link_atoms)) THEN
@@ -505,20 +513,22 @@ CONTAINS
 !!     01.2005 created [tlaino]
 !!
 !!*** **********************************************************************
- SUBROUTINE print_qmmm_charges(mm_atom_index, mm_atom_chrg, mm_el_pot_radius, added_charges,&
-                               globenv, qmmm_section, error)
+ SUBROUTINE print_qmmm_charges(mm_atom_index, mm_atom_chrg, mm_el_pot_radius, mm_el_pot_radius_corr,&
+                               added_charges, globenv, qmmm_section, nocompatibility, error)
    IMPLICIT NONE
    ! Arguments
    REAL(dp), DIMENSION(:), POINTER             :: mm_atom_chrg, mm_el_pot_radius
+   REAL(dp), DIMENSION(:), POINTER             :: mm_el_pot_radius_corr
    INTEGER, DIMENSION(:), POINTER              :: mm_atom_index
    TYPE(section_vals_type), POINTER            :: qmmm_section
    TYPE(cp_error_type), INTENT(inout), &
         OPTIONAL                               :: error
     TYPE(global_environment_type), POINTER     :: globenv
     TYPE(add_set_type), POINTER                :: added_charges
+    LOGICAL, INTENT(IN)                        :: nocompatibility
     ! Local Variables
     INTEGER                                    :: IndMM, I, iw, ind1, ind2
-    REAL(KIND=dp)                              :: qi, ri, qtot
+    REAL(KIND=dp)                              :: qi, ri, qtot, rc
     TYPE(cp_logger_type), POINTER :: logger
     TYPE(section_vals_type), POINTER :: print_key
 
@@ -536,8 +546,14 @@ CONTAINS
           qi = mm_atom_chrg(I)    
           qtot = qtot + qi 
           ri = mm_el_pot_radius(I) 
-          WRITE(iw,'(7X,A9,I5,A8,F12.6,A8,F12.6)')' MM ATOM:',IndMM,' RADIUS:',ri,&
-                                                  ' CHARGE:',qi
+          rc = mm_el_pot_radius_corr(I) 
+          IF (nocompatibility) THEN
+             WRITE(iw,'(7X,A9,I5,A8,F12.6,A8,F12.6)')' MM ATOM:',IndMM,' RADIUS:',ri,&
+                  ' CHARGE:',qi
+          ELSE
+             WRITE(iw,'(7X,A9,I5,A8,F12.6,A8,F12.6,A,F12.6)')' MM ATOM:',IndMM,' RADIUS:',ri,&
+                  ' CHARGE:',qi,'CORR. RADIUS',rc
+          END IF
        END DO
        IF (added_charges%num_mm_atoms /= 0) THEN
           WRITE(iw,FMT="(/,T2,A)") REPEAT("-",73)
@@ -550,8 +566,13 @@ CONTAINS
              ri = added_charges%mm_el_pot_radius(I) 
              ind1 = added_charges%add_env(I)%Index1
              ind2 = added_charges%add_env(I)%Index2
-             WRITE(iw,'(7X,A9,I5,A8,F12.6,A8,F12.6,I5,I5)')'MM POINT:',IndMM,' RADIUS:',ri,&
-                                                           ' CHARGE:',qi,ind1,ind2
+             IF (nocompatibility) THEN
+                WRITE(iw,'(7X,A9,I5,A8,F12.6,A8,F12.6,I5,I5)')'MM POINT:',IndMM,' RADIUS:',ri,&
+                     ' CHARGE:',qi,ind1,ind2
+             ELSE
+                WRITE(iw,'(7X,A9,I5,A8,F12.6,A8,F12.6,I5,I5,A,F12.6)')'MM POINT:',IndMM,' RADIUS:',ri,&
+                     ' CHARGE:',qi,ind1,ind2,'CORR. RADIUS',rc
+             END IF
           END DO
 
        END IF
@@ -690,6 +711,7 @@ CONTAINS
                                   globenv=globenv,&
                                   pw_env=qs_env%pw_env,&
                                   mm_el_pot_radius=qmmm_env_qm%mm_el_pot_radius,&
+                                  mm_el_pot_radius_corr=qmmm_env_qm%mm_el_pot_radius_corr,&
                                   qmmm_coupl_type=qmmm_env_qm%qmmm_coupl_type,&
                                   eps_mm_rspace=qmmm_env_qm%eps_mm_rspace,&
                                   maxradius=maxradius,&
@@ -705,6 +727,7 @@ CONTAINS
                                      globenv=globenv,&
                                      pw_env=qs_env%pw_env,&
                                      mm_el_pot_radius=added_charges%mm_el_pot_radius,&
+                                     mm_el_pot_radius_corr=added_charges%mm_el_pot_radius_corr,&
                                      qmmm_coupl_type=qmmm_env_qm%qmmm_coupl_type,&
                                      eps_mm_rspace=qmmm_env_qm%eps_mm_rspace,&
                                      maxradius=maxradius2,&
@@ -837,13 +860,13 @@ CONTAINS
          routineP = moduleN//':'//routineN
     INTEGER :: i, j, icount, size_mm_system, stat, ikind, ikindr, nkind, n_rep, iatm
     LOGICAL :: is_mm
-    INTEGER                                  :: qm_subsys_type
+    INTEGER                                  :: qm_subsys_type, n_rep_val
     LOGICAL                                  :: failure
     CHARACTER(len=default_string_length)     :: qm_atom_kind, mm_atom_kind
     TYPE(atomic_kind_list_type), POINTER     :: atomic_kinds
     TYPE(atomic_kind_type),POINTER           :: atomic_kind
     CHARACTER(LEN=default_string_length)     :: atmname
-    REAL(KIND=dp)                                :: tmp_radius
+    REAL(KIND=dp)                            :: tmp_radius, tmp_radius_c
     TYPE(elp_potential_type), POINTER        :: elp_potential
     TYPE(section_vals_type), POINTER         :: mm_kinds
     LOGICAL :: explicit, is_qm
@@ -869,7 +892,8 @@ CONTAINS
           CALL get_atomic_kind(atomic_kind=atomic_kind,&
                                elp_potential=elp_potential)
           CALL set_potential  (potential=elp_potential,&
-                               core_charge_radius=tmp_radius)
+                               core_charge_radius=tmp_radius,&
+                               ccore_charge_radius=tmp_radius)
           CALL set_atomic_kind(atomic_kind=atomic_kind,&
                                elp_potential=elp_potential)
        END DO
@@ -895,7 +919,8 @@ CONTAINS
           CALL get_atomic_kind(atomic_kind=atomic_kind,&
                elp_potential=elp_potential)
           CALL set_potential  (potential=elp_potential,&
-               core_charge_radius=tmp_radius)
+               core_charge_radius=tmp_radius,&
+               ccore_charge_radius=tmp_radius)
           CALL set_atomic_kind(atomic_kind=atomic_kind,&
                elp_potential=elp_potential)
        END DO Set_Radius_Pot_0
@@ -907,7 +932,12 @@ CONTAINS
              CALL section_vals_val_get(mm_kinds,"_SECTION_PARAMETERS_",i_rep_section=ikind,&
                   c_val=mm_atom_kind,error=error)
              CALL section_vals_val_get(mm_kinds,"RADIUS",i_rep_section=ikind,r_val=tmp_radius,error=error)
-             tmp_radius = tmp_radius * qm_cell_small%unit_of_length
+             tmp_radius_c = tmp_radius
+             CALL section_vals_val_get(mm_kinds,"CORR_RADIUS",i_rep_section=ikind,n_rep_val=n_rep_val,error=error)
+             if (n_rep_val == 1) &
+                  CALL section_vals_val_get(mm_kinds,"CORR_RADIUS",i_rep_section=ikind,r_val=tmp_radius_c,error=error)
+             tmp_radius   = tmp_radius * qm_cell_small%unit_of_length
+             tmp_radius_c = tmp_radius_c * qm_cell_small%unit_of_length
              Set_Radius_Pot_1: DO IkindR = 1, SIZE(atomic_kinds%els)
                 atomic_kind => atomic_kinds%els(IkindR)
                 CALL get_atomic_kind(atomic_kind=atomic_kind,name=atmname)
@@ -916,7 +946,8 @@ CONTAINS
                    CALL get_atomic_kind(atomic_kind=atomic_kind,&
                         elp_potential=elp_potential)
                    CALL set_potential  (potential=elp_potential,&
-                        core_charge_radius=tmp_radius)
+                        core_charge_radius=tmp_radius,&
+                        ccore_charge_radius=tmp_radius_c)
                    CALL set_atomic_kind(atomic_kind=atomic_kind,&
                         elp_potential=elp_potential)
                 END IF
@@ -1313,13 +1344,13 @@ CONTAINS
   !!     12.2004 created [tlaino]
   !!
   !!*************************************************************************
-  SUBROUTINE  setup_qmmm_links(qmmm_section, qmmm_links, mm_el_pot_radius, mm_atom_index, &
-       qm_cell_small, iw, error)
+  SUBROUTINE  setup_qmmm_links(qmmm_section, qmmm_links, mm_el_pot_radius, mm_el_pot_radius_corr,&
+       mm_atom_index, qm_cell_small, iw, error)
     IMPLICIT NONE
     ! Arguments
     TYPE(section_vals_type), POINTER         :: qmmm_section, qmmm_link_section
     TYPE(qmmm_links_type), POINTER           :: qmmm_links
-    REAL(KIND=dp), DIMENSION(:), POINTER     :: mm_el_pot_radius
+    REAL(KIND=dp), DIMENSION(:), POINTER     :: mm_el_pot_radius, mm_el_pot_radius_corr
     INTEGER, DIMENSION(:), POINTER           :: mm_atom_index
     TYPE(cell_type), POINTER                 :: qm_cell_small
     INTEGER, INTENT(IN) :: iw
@@ -1382,6 +1413,11 @@ CONTAINS
                 CALL section_vals_val_get(qmmm_link_section,"RADIUS",i_rep_section=ikind,r_val=my_radius,error=error)
                 WHERE ( mm_atom_index == mm_index ) mm_el_pot_radius = my_radius * qm_cell_small%unit_of_length
              END IF
+             CALL section_vals_val_get(qmmm_link_section,"CORR_RADIUS",i_rep_section=ikind,n_rep_val=n_rep_val,error=error)
+             IF (n_rep_val == 1) THEN
+                CALL section_vals_val_get(qmmm_link_section,"CORR_RADIUS",i_rep_section=ikind,r_val=my_radius,error=error)
+             END IF
+             WHERE ( mm_atom_index == mm_index ) mm_el_pot_radius_corr = my_radius * qm_cell_small%unit_of_length
           END IF
        END DO
        !
@@ -1450,13 +1486,14 @@ CONTAINS
   !!
   !!*************************************************************************
   SUBROUTINE move_or_add_atoms(qmmm_section, move_mm_charges, add_mm_charges, &
-                               mm_atom_chrg, mm_el_pot_radius, added_charges, &
-                               mm_atom_index, qm_cell_small, error)
+                               mm_atom_chrg, mm_el_pot_radius, mm_el_pot_radius_corr,&
+                               added_charges, mm_atom_index, qm_cell_small, error)
     IMPLICIT NONE
     ! Arguments
     TYPE(section_vals_type), POINTER         :: qmmm_section
     LOGICAL, INTENT(OUT)                     :: move_mm_charges, add_mm_charges
     REAL(KIND=dp), DIMENSION(:), POINTER     :: mm_atom_chrg, mm_el_pot_radius
+    REAL(KIND=dp), DIMENSION(:), POINTER     :: mm_el_pot_radius_corr
     TYPE(add_set_type), POINTER              :: added_charges
     INTEGER, POINTER, DIMENSION(:)           :: mm_atom_index
     TYPE(cell_type), POINTER                 :: qm_cell_small
@@ -1467,10 +1504,10 @@ CONTAINS
          routineP = moduleN//':'//routineN
     LOGICAL :: failure, explicit
     INTEGER :: nlinks, n_moves, n_adds, icount, ikind, n_move_tot, n_add_tot
-    INTEGER :: Index1, Index2, i_add, ind1
+    INTEGER :: Index1, Index2, i_add, ind1, n_rep_val
     TYPE(section_vals_type), POINTER         :: qmmm_link_section, move_section,&
                                                 add_section
-    REAL(KIND=dp) :: radius, alpha, charge
+    REAL(KIND=dp) :: radius, alpha, charge, c_radius
 
     failure = .FALSE.
     explicit = .FALSE.
@@ -1519,10 +1556,16 @@ CONTAINS
                 CALL section_vals_val_get(move_section,"ATOM_INDEX_2",i_val=Index2,i_rep_section=i_add,error=error)
                 CALL section_vals_val_get(move_section,"ALPHA",r_val=alpha,i_rep_section=i_add,error=error)
                 CALL section_vals_val_get(move_section,"RADIUS",r_val=radius,i_rep_section=i_add,error=error)
-                
-                radius = radius * qm_cell_small%unit_of_length
-                CALL set_add_set_type(added_charges, icount, Index1, Index2, alpha, radius,&
+                CALL section_vals_val_get(move_section,"CORR_RADIUS",n_rep_val=n_rep_val,i_rep_section=i_add,error=error)
+                c_radius = radius
+                IF (n_rep_val == 1) &
+                     CALL section_vals_val_get(move_section,"CORR_RADIUS",r_val=c_radius,i_rep_section=i_add,error=error)
+
+                radius   = radius * qm_cell_small%unit_of_length
+                c_radius = c_radius * qm_cell_small%unit_of_length
+                CALL set_add_set_type(added_charges, icount, Index1, Index2, alpha, radius, c_radius,&
                                       mm_atom_chrg=mm_atom_chrg, mm_el_pot_radius=mm_el_pot_radius,&
+                                      mm_el_pot_radius_corr=mm_el_pot_radius_corr,&
                                       mm_atom_index=mm_atom_index, move=n_moves, Ind1=ind1,&
                                       error=error)
              END DO
@@ -1543,10 +1586,16 @@ CONTAINS
                 CALL section_vals_val_get(add_section,"ALPHA",r_val=alpha,i_rep_section=i_add,error=error)
                 CALL section_vals_val_get(add_section,"RADIUS",r_val=radius,i_rep_section=i_add,error=error)
                 CALL section_vals_val_get(add_section,"CHARGE",r_val=charge,i_rep_section=i_add,error=error)
+                CALL section_vals_val_get(move_section,"CORR_RADIUS",n_rep_val=n_rep_val,i_rep_section=i_add,error=error)
+                c_radius = radius
+                IF (n_rep_val == 1) &
+                     CALL section_vals_val_get(move_section,"CORR_RADIUS",r_val=c_radius,i_rep_section=i_add,error=error)
 
-                radius = radius * qm_cell_small%unit_of_length
-                CALL set_add_set_type(added_charges, icount, Index1, Index2, alpha, radius, charge,&
+                radius   = radius * qm_cell_small%unit_of_length
+                c_radius = c_radius * qm_cell_small%unit_of_length
+                CALL set_add_set_type(added_charges, icount, Index1, Index2, alpha, radius, c_radius, charge,&
                                       mm_atom_chrg=mm_atom_chrg, mm_el_pot_radius=mm_el_pot_radius,&
+                                      mm_el_pot_radius_corr=mm_el_pot_radius_corr,&
                                       mm_atom_index=mm_atom_index, error=error)
              END DO
           END IF
@@ -1577,16 +1626,17 @@ CONTAINS
   !!     12.2004 created [tlaino]
   !!
   !!*************************************************************************
-   SUBROUTINE set_add_set_type(added_charges, icount, Index1, Index2, alpha, radius, charge,&
-        mm_atom_chrg, mm_el_pot_radius, mm_atom_index, move, ind1, error)
+   SUBROUTINE set_add_set_type(added_charges, icount, Index1, Index2, alpha, radius, c_radius, charge,&
+        mm_atom_chrg, mm_el_pot_radius, mm_el_pot_radius_corr, mm_atom_index, move, ind1, error)
      IMPLICIT NONE
      ! Arguments
      REAL(KIND=dp), DIMENSION(:), POINTER     :: mm_atom_chrg, mm_el_pot_radius
+     REAL(KIND=dp), DIMENSION(:), POINTER     :: mm_el_pot_radius_corr
      TYPE(add_set_type), POINTER              :: added_charges
      INTEGER, POINTER, DIMENSION(:)           :: mm_atom_index
      INTEGER, INTENT(IN)  :: Index1, Index2, icount
      INTEGER, INTENT(OUT),OPTIONAL  :: ind1
-     REAL(KIND=dp), INTENT(IN) :: alpha, radius
+     REAL(KIND=dp), INTENT(IN) :: alpha, radius, c_radius
      REAL(KIND=dp), INTENT(IN), OPTIONAL :: charge
      INTEGER, OPTIONAL, INTENT(in) :: move
      TYPE(cp_error_type), INTENT(inout), &
@@ -1596,11 +1646,12 @@ CONTAINS
           routineP = moduleN//':'//routineN
      LOGICAL :: failure
      INTEGER :: i, my_move
-     REAL(KIND=dp) :: my_charge, my_radius
+     REAL(KIND=dp) :: my_charge, my_radius, my_c_radius
      
      failure = .FALSE.
      my_move = 0
-     my_radius = radius
+     my_radius   = radius
+     my_c_radius = c_radius
      IF (PRESENT(charge)) my_charge = charge
      IF (PRESENT(move))   my_move   = move
      IF (.NOT.failure) THEN
@@ -1612,14 +1663,16 @@ CONTAINS
         IF (PRESENT(ind1)) ind1 = i
         CPPostcondition(i<=SIZE(mm_atom_index),cp_failure_level,routineP,error,failure)
         IF (.NOT.PRESENT(charge)) my_charge = mm_atom_chrg(i)/REAL(my_move,KIND=dp)
-        IF (my_radius == 0.0_dp) my_radius = mm_el_pot_radius(i)
+        IF (my_radius   == 0.0_dp) my_radius   = mm_el_pot_radius(i)
+        IF (my_c_radius == 0.0_dp) my_c_radius = mm_el_pot_radius_corr(i)
 
-        added_charges%add_env(icount)%Index1   = Index1
-        added_charges%add_env(icount)%Index2   = Index2
-        added_charges%add_env(icount)%alpha    = alpha 
-        added_charges%mm_atom_index(icount)    = icount
-        added_charges%mm_atom_chrg(icount)     = my_charge
-        added_charges%mm_el_pot_radius(icount) = my_radius
+        added_charges%add_env(icount)%Index1        = Index1
+        added_charges%add_env(icount)%Index2        = Index2
+        added_charges%add_env(icount)%alpha         = alpha 
+        added_charges%mm_atom_index(icount)         = icount
+        added_charges%mm_atom_chrg(icount)          = my_charge
+        added_charges%mm_el_pot_radius(icount)      = my_radius
+        added_charges%mm_el_pot_radius_corr(icount) = my_c_radius
      END IF
    END SUBROUTINE set_add_set_type
 

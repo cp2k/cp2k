@@ -6366,6 +6366,12 @@ END SUBROUTINE create_ewald_section
        CALL section_add_keyword(subsection,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
+       CALL keyword_create(keyword, name="CORR_RADIUS",&
+            description="Specifies the correction radius of the atomic kinds [angstrom]",&
+            usage="RADIUS real",n_var=1,type_of_var=real_t,error=error)
+       CALL section_add_keyword(subsection,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
        CALL section_add_subsection(section,subsection,error=error)
        CALL section_release(subsection,error=error)    
 
@@ -6559,6 +6565,13 @@ END SUBROUTINE create_ewald_section
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
+       CALL keyword_create(keyword, name="CORR_RADIUS",&
+            description="Overwrite the specification of the correction radius only for the MM atom involved in the link."//&
+            "Default is to use the same correction radius as for the specified type.",&
+            usage="RADIUS real",n_var=1,type_of_var=real_t,error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
         CALL keyword_create(keyword, name="LINK_TYPE",&
             variants=(/ "LINK ","TYPE ","LTYPE"/),&
             description="Specifies the method to use to treat the defined QM/MM link",&
@@ -6646,6 +6659,12 @@ END SUBROUTINE create_ewald_section
        CALL section_add_keyword(subsection,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
+       CALL keyword_create(keyword, name="CORR_RADIUS",&
+            description="Specifies the correction radius used for the QM/MM electrostatic coupling after movement",&
+            usage="RADIUS real",n_var=1,type_of_var=real_t, default_r_val=0.0_dp, error=error)
+       CALL section_add_keyword(subsection,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
        CALL section_add_subsection(section,subsection,error=error)
        CALL section_release(subsection,error=error)
 
@@ -6682,6 +6701,12 @@ END SUBROUTINE create_ewald_section
 
        CALL keyword_create(keyword, name="RADIUS",&
             description="Specifies the radius used for the QM/MM electrostatic coupling for the added source",&
+            usage="RADIUS real",default_r_val=RADIUS_QMMM_DEFAULT,n_var=1,type_of_var=real_t,error=error)
+       CALL section_add_keyword(subsection,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="CORR_RADIUS",&
+            description="Specifies the correction radius used for the QM/MM electrostatic coupling for the added source",&
             usage="RADIUS real",default_r_val=RADIUS_QMMM_DEFAULT,n_var=1,type_of_var=real_t,error=error)
        CALL section_add_keyword(subsection,keyword,error=error)
        CALL keyword_release(keyword,error=error)

@@ -65,9 +65,9 @@ MODULE qmmm_gaussian_types
 
   TYPE qmmm_gaussian_type
      INTEGER                               :: number_of_gaussians
-     REAL(KIND=dp)                        :: Elp_Radius
+     REAL(KIND=dp)                         :: Elp_Radius, Elp_Radius_Corr
      INTEGER, DIMENSION(:), pointer        :: grid_level
-     REAL(KIND=dp), DIMENSION(:), POINTER :: Ak, Gk
+     REAL(KIND=dp), DIMENSION(:), POINTER  :: Ak, Gk
   END TYPE qmmm_gaussian_type
 
 !!****s* qmmm_gaussian_types/qmmm_gaussian_p_type [1.0] *

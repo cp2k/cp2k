@@ -112,6 +112,7 @@ MODULE external_potential_types
                                               ccore_charge,&
                                               cerf_ppl,&
                                               core_charge_radius,&
+                                              ccore_charge_radius,&
                                               ppl_radius,qeff 
     INTEGER                                :: nalpha_ppl
     INTEGER,DIMENSION (:), POINTER         :: nexp_ppl               
@@ -510,6 +511,7 @@ CONTAINS
   SUBROUTINE get_elp_potential(potential,name,alpha_core_charge,&
                                alpha_ppl,cerf_ppl,cexp_ppl,nalpha_ppl,&
                                ccore_charge,core_charge_radius,&
+                               ccore_charge_radius,&
                                nexp_ppl,ppl_radius,ppl_present,qeff)
 
 !   Purpose: Get informations about effective pint charge potential.
@@ -529,7 +531,8 @@ CONTAINS
       OPTIONAL, POINTER                      :: cexp_ppl
     INTEGER, OPTIONAL                        :: nalpha_ppl
     REAL(KIND=dp), INTENT(OUT), OPTIONAL     :: ccore_charge, &
-                                                core_charge_radius
+                                                core_charge_radius,&
+                                                ccore_charge_radius
     INTEGER, DIMENSION(:), OPTIONAL, POINTER :: nexp_ppl
     REAL(KIND=dp), INTENT(OUT), OPTIONAL     :: ppl_radius
     LOGICAL, INTENT(OUT), OPTIONAL           :: ppl_present
@@ -552,6 +555,8 @@ CONTAINS
       IF (PRESENT(ccore_charge)) ccore_charge = potential%ccore_charge
       IF (PRESENT(core_charge_radius))&
         core_charge_radius = potential%core_charge_radius
+      IF (PRESENT(ccore_charge_radius))&
+        ccore_charge_radius = potential%ccore_charge_radius
       IF (PRESENT(ppl_radius)) ppl_radius=potential%ppl_radius
       IF (PRESENT(nexp_ppl)) nexp_ppl => potential%nexp_ppl
       IF (PRESENT(ppl_present)) ppl_present = (ASSOCIATED(potential%nexp_ppl) )
@@ -1461,7 +1466,7 @@ CONTAINS
 ! *****************************************************************************
 
   SUBROUTINE set_elp_potential(potential,name,alpha_core_charge,ccore_charge,&
-                               core_charge_radius,cexp_ppl,cerf_ppl,qeff,&
+                               core_charge_radius,ccore_charge_radius,cexp_ppl,cerf_ppl,qeff,&
                                ppl_radius,alpha_ppl,nexp_ppl,nalpha_ppl,description)
 
 !   Purpose: Set the effective charge in the elp potential data set.
@@ -1476,7 +1481,8 @@ CONTAINS
          DIMENSION(2), OPTIONAL              :: description
     REAL(KIND=dp), INTENT(IN), OPTIONAL      :: alpha_core_charge, &
                                                 ccore_charge, &
-                                                core_charge_radius
+                                                core_charge_radius,&
+                                                ccore_charge_radius
     REAL(KIND=dp), DIMENSION(:, :), &
       OPTIONAL, POINTER                      :: cexp_ppl
     REAL(KIND=dp), INTENT(IN), OPTIONAL      :: cerf_ppl, qeff, ppl_radius
@@ -1499,6 +1505,8 @@ CONTAINS
       IF (PRESENT(ccore_charge)) potential%ccore_charge = ccore_charge
       IF (PRESENT(core_charge_radius))&
         potential%core_charge_radius = core_charge_radius
+      IF (PRESENT(ccore_charge_radius))&
+        potential%ccore_charge_radius = ccore_charge_radius
       IF (PRESENT(qeff)) potential%qeff = qeff
       IF (PRESENT(alpha_ppl)) potential%alpha_ppl => alpha_ppl
       IF (PRESENT(cexp_ppl)) potential%cexp_ppl => cexp_ppl

@@ -165,7 +165,7 @@ CONTAINS
           ALLOCATE(qmmm_gaussian_fns(IRad)%pgf%Gk(NOG),stat=stat)
           CPPostcondition(stat==0,cp_failure_level,routineP,error,Failure)
           IF (compatibility) THEN
-             my_radius = radius
+             my_radius = qmmm_gaussian_fns(J)%pgf%Elp_Radius_corr
              qmmm_gaussian_fns(IRad)%pgf%Ak(1) = 1.0_dp/radius - 2.0_dp/(rootpi*radius)
              qmmm_gaussian_fns(IRad)%pgf%Gk(1) = my_radius
           END IF

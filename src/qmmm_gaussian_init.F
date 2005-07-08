@@ -89,14 +89,15 @@ CONTAINS
 !!     06.2004 created [tlaino]
 !!
 !!*** **********************************************************************  
-  SUBROUTINE qmmm_gaussian_initialize(qmmm_gaussian_fns, globenv, pw_env,       &
-       qm_cell_small, mm_cell, mm_el_pot_radius, qmmm_coupl_type, eps_mm_rspace,&
-       maxradius, maxchrg, compatibility, print_section, error)
+  SUBROUTINE qmmm_gaussian_initialize(qmmm_gaussian_fns, globenv, pw_env,&
+       qm_cell_small, mm_cell, mm_el_pot_radius, mm_el_pot_radius_corr,  &
+       qmmm_coupl_type, eps_mm_rspace, maxradius, maxchrg, compatibility,&
+       print_section, error)
     IMPLICIT NONE
     ! Arguments
     TYPE(qmmm_gaussian_p_type), &
          DIMENSION(:), POINTER                       :: qmmm_gaussian_fns    
-    REAL(KIND=dp), DIMENSION(:), POINTER             :: mm_el_pot_radius 
+    REAL(KIND=dp), DIMENSION(:), POINTER             :: mm_el_pot_radius, mm_el_pot_radius_corr 
     INTEGER, INTENT(IN)                              :: qmmm_coupl_type  
     REAL(KIND=dp), INTENT(IN)                        :: eps_mm_rspace, maxchrg
     REAL(KIND=dp), DIMENSION(:), POINTER :: maxradius
@@ -110,7 +111,7 @@ CONTAINS
     ! Local Variables
     CHARACTER(len=*), PARAMETER :: routineN = 'qmmm_gaussian_initialize', &
       routineP = moduleN//':'//routineN
-    REAL(KIND=dp), DIMENSION(:), POINTER :: radius
+    REAL(KIND=dp), DIMENSION(:), POINTER :: radius, c_radius
     INTEGER :: stat, i, j, Ndim ,ilevel
     LOGICAL :: Failure, Found
     TYPE(qmmm_gaussian_type), POINTER :: mypgf
@@ -120,7 +121,7 @@ CONTAINS
     TYPE(cp_logger_type), POINTER :: logger
     TYPE(section_vals_type), POINTER :: print_gen
     ! Statements
-    NULLIFY(mypgf, gridlevel_info, radius, print_gen, logger)
+    NULLIFY(mypgf, gridlevel_info, radius, c_radius, print_gen, logger)
     failure = .FALSE.
     IF (.NOT.failure) THEN
        logger => cp_error_get_logger(error)
@@ -131,6 +132,8 @@ CONTAINS
           ! Preprocessing...
           !
           ALLOCATE(radius(1),stat=stat)
+          CPPostcondition(stat==0,cp_failure_level,routineP,error,Failure)
+          ALLOCATE(c_radius(1),stat=stat)
           CPPostcondition(stat==0,cp_failure_level,routineP,error,Failure)
           Ndim = SIZE(radius)
           Loop_on_all_values: DO I = 1, SIZE(mm_el_pot_radius)
@@ -143,16 +146,21 @@ CONTAINS
              END DO Loop_on_found_values
              IF (.NOT.Found) THEN
                 Ndim = SIZE(radius)
-                radius(Ndim) = mm_el_pot_radius(i)
+                radius(Ndim)   = mm_el_pot_radius(i)
+                c_radius(Ndim) = mm_el_pot_radius_corr(i)
                 Ndim = Ndim + 1
                 CALL REALLOCATE(radius,1,Ndim)
+                CALL REALLOCATE(c_radius,1,Ndim)
              END IF
           END DO Loop_on_all_values
           !
           IF (Ndim-1 > 0) THEN
              CALL REALLOCATE(radius,1,Ndim-1)
+             CALL REALLOCATE(c_radius,1,Ndim-1)
           ELSE IF (Ndim-1 == 0) THEN
              DEALLOCATE(radius,stat=stat)
+             CPPostcondition(stat==0,cp_failure_level,routineP,error,Failure)
+             DEALLOCATE(c_radius,stat=stat)
              CPPostcondition(stat==0,cp_failure_level,routineP,error,Failure)
           ELSE
              CPPostcondition(.FALSE.,cp_failure_level,routineP,error,Failure)      
@@ -171,9 +179,14 @@ CONTAINS
              ! Default Values
              !
              qmmm_gaussian_fns(I)%pgf%Elp_Radius          = radius(I)
+             qmmm_gaussian_fns(I)%pgf%Elp_Radius_corr     = c_radius(I)
           END DO
           IF (ASSOCIATED(radius)) THEN 
              DEALLOCATE(radius,stat=stat)
+             CPPostcondition(stat==0,cp_failure_level,routineP,error,Failure)      
+          END IF
+          IF (ASSOCIATED(c_radius)) THEN 
+             DEALLOCATE(c_radius,stat=stat)
              CPPostcondition(stat==0,cp_failure_level,routineP,error,Failure)      
           END IF
           !

@@ -146,6 +146,7 @@ MODULE qmmm_types
      INTEGER,        DIMENSION(:), POINTER                   :: mm_atom_index
      REAL(KIND=dp), DIMENSION(:), POINTER                    :: mm_atom_chrg
      REAL(KIND=dp), DIMENSION(:), POINTER                    :: mm_el_pot_radius
+     REAL(KIND=dp), DIMENSION(:), POINTER                    :: mm_el_pot_radius_corr
      TYPE(qmmm_pot_p_type), DIMENSION(:), POINTER            :: Potentials
      TYPE(qmmm_gaussian_p_type), DIMENSION(:),POINTER        :: pgfs     
   END TYPE add_set_type
@@ -168,6 +169,7 @@ MODULE qmmm_types
      INTEGER,        DIMENSION(:), POINTER                   :: mm_atom_index
      REAL(KIND=dp), DIMENSION(:), POINTER                    :: mm_atom_chrg
      REAL(KIND=dp), DIMENSION(:), POINTER                    :: mm_el_pot_radius
+     REAL(KIND=dp), DIMENSION(:), POINTER                    :: mm_el_pot_radius_corr
      TYPE(qmmm_pot_p_type), DIMENSION(:), POINTER            :: Potentials
      TYPE(gridlevel_info_type)                               :: gridlevel_info
      TYPE(qmmm_gaussian_p_type), DIMENSION(:),POINTER        :: pgfs
@@ -509,6 +511,10 @@ SUBROUTINE qmmm_env_qm_release(qmmm_env,error)
            DEALLOCATE(qmmm_env%mm_el_pot_radius,stat=stat)
            CPPostconditionNoFail(stat==0,cp_failure_level,routineP,error)
         END IF
+        IF (ASSOCIATED(qmmm_env%mm_el_pot_radius_corr)) THEN
+           DEALLOCATE(qmmm_env%mm_el_pot_radius_corr,stat=stat)
+           CPPostconditionNoFail(stat==0,cp_failure_level,routineP,error)
+        END IF
         IF (ASSOCIATED(qmmm_env%qm_subsys_index)) THEN
            DEALLOCATE(qmmm_env%qm_subsys_index,stat=stat)
            CPPostconditionNoFail(stat==0,cp_failure_level,routineP,error)
@@ -747,6 +753,10 @@ SUBROUTINE add_set_release(added_charges, error)
         DEALLOCATE(added_charges%mm_el_pot_radius, stat=stat)
         CPPostconditionNoFail(stat==0,cp_failure_level,routineP,error)
      END IF
+     IF (ASSOCIATED(added_charges%mm_el_pot_radius_corr)) THEN
+        DEALLOCATE(added_charges%mm_el_pot_radius_corr, stat=stat)
+        CPPostconditionNoFail(stat==0,cp_failure_level,routineP,error)
+     END IF
      IF (ASSOCIATED(added_charges%Potentials)) THEN
         CALL qmmm_pot_type_dealloc(added_charges%Potentials, error)
         DEALLOCATE(added_charges%Potentials,stat=stat)
@@ -806,6 +816,7 @@ SUBROUTINE create_add_set_type(added_charges, ndim, error)
              added_charges%added_particles,&
              added_charges%mm_atom_chrg,&
              added_charges%mm_el_pot_radius,&
+             added_charges%mm_el_pot_radius_corr,&
              added_charges%potentials,&
              added_charges%pgfs)
 
@@ -822,6 +833,8 @@ SUBROUTINE create_add_set_type(added_charges, ndim, error)
      ALLOCATE(added_charges%mm_atom_chrg(ndim), stat=stat)
      CPPostcondition(stat==0,cp_failure_level,routineP,error,Failure)
      ALLOCATE(added_charges%mm_el_pot_radius(ndim), stat=stat)
+     CPPostcondition(stat==0,cp_failure_level,routineP,error,Failure)
+     ALLOCATE(added_charges%mm_el_pot_radius_corr(ndim), stat=stat)
      CPPostcondition(stat==0,cp_failure_level,routineP,error,Failure)
   END IF
 
