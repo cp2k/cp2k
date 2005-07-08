@@ -15,7 +15,7 @@
   timestep:     0.5 fs                 time step [fs]
   temperature:  298                    temperature [K]
   restart:      init                   start type (init,pos,posvel)
-  print  files        100
+  print  files        1
   print  screen       1
 &END
 
@@ -95,6 +95,7 @@ H     0.942809     0.000000    -0.333333    H2O
 &FORCE_EVAL
         &QMMM
          NOCOMPATIBILITY
+         NOCENTER
          &INTERPOLATOR
 	    EPS_R 1.0e-14
 	    EPS_X 1.0e-14
