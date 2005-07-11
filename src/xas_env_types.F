@@ -28,11 +28,12 @@ MODULE xas_env_types
                                              cp_error_get_logger,&
                                              cp_error_message,&
                                              cp_error_type
+  USE cp_fm_pool_types,                ONLY: cp_fm_pool_p_type,&
+                                             fm_pool_give_back_fm
   USE cp_fm_types,                     ONLY: cp_fm_create,&
                                              cp_fm_p_type,&
                                              cp_fm_release,&
                                              cp_fm_type
-
   USE cp_log_handling,                 ONLY: cp_failure_level,&
                                              cp_fatal_level,&
                                              cp_note_level,&
@@ -108,6 +109,8 @@ MODULE xas_env_types
     REAL(dp), DIMENSION(:,:), POINTER :: centers_wfn
     TYPE( cp_fm_p_type ), DIMENSION(:),  POINTER :: groundstate_coeff
     TYPE( cp_fm_p_type ), DIMENSION(:,:),  POINTER :: dip_fm_set
+     TYPE(cp_fm_pool_p_type), DIMENSION(:), &
+       POINTER                                   :: ao_mo_fm_pools
     TYPE( cp_fm_type ), POINTER :: excvec_coeff
     TYPE( cp_fm_type ), POINTER :: excvec_overlap
     TYPE( cp_fm_type ), POINTER :: fm_work
@@ -265,6 +268,7 @@ CONTAINS
       xas_env%ref_count=1
       xas_env%iter_count=0
 
+      NULLIFY(xas_env%ao_mo_fm_pools)
       NULLIFY(xas_env%centers_wfn, xas_env%state_of_atom, xas_env%atom_of_state)
       NULLIFY(xas_env%excvec_coeff,xas_env%excvec_overlap,xas_env%type_of_state)
       NULLIFY(xas_env%fm_work,xas_env%groundstate_coeff,xas_env%dip_fm_set)
@@ -301,7 +305,8 @@ CONTAINS
          CPPostcondition(istat==0,cp_warning_level,routineP,error,failure)
          IF(ASSOCIATED(xas_env%groundstate_coeff)) THEN
            DO i = 1,SIZE(xas_env%groundstate_coeff)
-             CALL cp_fm_release(xas_env%groundstate_coeff(i)%matrix, error=error)
+             CALL fm_pool_give_back_fm(xas_env%ao_mo_fm_pools(i)%pool,&
+                  xas_env%groundstate_coeff(i)%matrix, error=error)
            END DO
          END IF
          IF(ASSOCIATED(xas_env%dip_fm_set)) THEN
@@ -319,8 +324,10 @@ CONTAINS
            CALL cp_fm_release(xas_env%excvec_overlap,error=error)
          END IF
          IF(ASSOCIATED(xas_env%fm_work)) THEN
-           CALL cp_fm_release(xas_env%fm_work,error=error)
+           CALL fm_pool_give_back_fm(xas_env%ao_mo_fm_pools(1)%pool,&
+                  xas_env%fm_work,error=error)
          END IF
+         NULLIFY(xas_env%ao_mo_fm_pools)
          IF(ASSOCIATED(xas_env%ostrength_sm)) THEN
            DO i = 1, SIZE(xas_env%ostrength_sm,2)
               DO j = 1,SIZE(xas_env%ostrength_sm,1)

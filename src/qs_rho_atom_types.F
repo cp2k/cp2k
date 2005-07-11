@@ -69,6 +69,9 @@ MODULE qs_rho_atom_types
                                            ga_Vlocal_gb_s
   END TYPE rho_atom_type
 
+  TYPE rho_atom_p_type
+     TYPE(rho_atom_type), POINTER       :: rho_atom
+  END TYPE rho_atom_p_type 
 
 ! *** Public subroutines ***
 
@@ -79,7 +82,7 @@ MODULE qs_rho_atom_types
 
 ! *** Public data types ***
 
-  PUBLIC :: rho_atom_coeff,rho_atom_type
+  PUBLIC :: rho_atom_coeff,rho_atom_p_type,rho_atom_type
 
 ! *****************************************************************************
 

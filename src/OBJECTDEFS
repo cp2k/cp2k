@@ -291,6 +291,8 @@ OBJECTS_GENERIC =\
  qs_ks_qmmm_types.o\
  qs_ks_types.o\
  qs_linres_module.o\
+ qs_linres_methods.o\
+ qs_linres_nmr_utils.o\
  qs_linres_types.o\
  qs_loc_control.o\
  qs_loc_methods.o\

@@ -189,7 +189,7 @@ CONTAINS
 
 ! code
 
-    CALL timeset(routineN,"I","",handle)
+    CALL timeset(routineN,"I"," ",handle)
 
     n_spins = qs_env%dft_control%nspins
 
@@ -207,7 +207,7 @@ CONTAINS
             p_env%kpp1_env,&
             p_env%rho1,&
             p_env%Smo_inv,&
-            p_env%oce, p_env%local_rho_set, p_env%hartree_local)
+            p_env%local_rho_set, p_env%hartree_local)
 
        p_env%ref_count=1
        last_p_env_id=last_p_env_id+1
@@ -348,7 +348,7 @@ CONTAINS
     TYPE(real_matrix_p_type), DIMENSION(:), &
       POINTER                                :: matrix_s
 
-    CALL timeset(routineN,"I","",handle)
+    CALL timeset(routineN,"I"," ",handle)
 
     failure=.FALSE.
     NULLIFY(dft_control,matrix_s)
@@ -526,7 +526,7 @@ END SUBROUTINE p_env_did_change
 
 ! code
 
-    CALL timeset(routineN,"I","",handle)
+    CALL timeset(routineN,"I"," ",handle)
 
     failure=.FALSE.
     NULLIFY(ao_mo_fm_pools,mos,my_psi0,matrix_s,mos, para_env,ks_env, rho, &
@@ -836,7 +836,7 @@ END SUBROUTINE p_env_did_change
 
 ! code
 
-    CALL timeset(routineN,"I","",handle)
+    CALL timeset(routineN,"I"," ",handle)
 
     NULLIFY(tmp)
     failure = .FALSE.
@@ -939,7 +939,7 @@ END SUBROUTINE p_env_did_change
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(qs_rho_type), POINTER               :: rho
 
-    CALL timeset(routineN,"I","",handle)
+    CALL timeset(routineN,"I"," ",handle)
 
     failure=.FALSE.
 
@@ -1058,7 +1058,7 @@ END SUBROUTINE p_env_did_change
 
 ! code
 
-    CALL timeset(routineN,"I","",handle)
+    CALL timeset(routineN,"I"," ",handle)
 
     failure=.FALSE.
 
@@ -1205,7 +1205,7 @@ END SUBROUTINE p_env_did_change
 
 ! code
 
-    CALL timeset(routineN,"I","",handle)
+    CALL timeset(routineN,"I"," ",handle)
 
     failure=.FALSE.
     NULLIFY(tmp_matrix,maxmo_maxmo_fm_pool, maxmo_maxmo_fmstruct,tmp_fmstruct,&
@@ -1353,7 +1353,7 @@ END SUBROUTINE p_env_did_change
     TYPE(real_matrix_p_type), DIMENSION(:), &
       POINTER                                :: p1_new, matrix_s
 
-    CALL timeset(routineN,"I","",handle)
+    CALL timeset(routineN,"I"," ",handle)
 
     failure=.FALSE.
 

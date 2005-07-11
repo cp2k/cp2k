@@ -47,8 +47,6 @@ MODULE qs_p_env_types
                                              qs_kpp1_env_type
   USE qs_local_rho_types,              ONLY: local_rho_set_release,&
                                              local_rho_type
-  USE qs_oce_types,                    ONLY: deallocate_oce_set,&
-                                             oce_matrix_type
   USE qs_rho_types,                    ONLY: qs_rho_type,&
                                              qs_rho_release
   USE sparse_matrix_types,             ONLY: deallocate_matrix_set,&
@@ -110,7 +108,6 @@ MODULE qs_p_env_types
      INTEGER, DIMENSION(2) :: n_mo, & ! no of molecular orbitals
                               n_ao    ! no of basis functions
      ! GAPW stuff
-     TYPE(oce_matrix_type), POINTER                     :: oce
      TYPE(hartree_local_type),  POINTER                 :: hartree_local
      TYPE(local_rho_type), POINTER                      :: local_rho_set
   END TYPE qs_p_env_type
@@ -252,7 +249,6 @@ END SUBROUTINE p_env_retain
           CALL qs_rho_release(p_env%rho1)
           IF (ASSOCIATED(p_env%kpp1)) CALL deallocate_matrix_set(p_env%kpp1)
           IF (ASSOCIATED(p_env%p1)) CALL deallocate_matrix_set(p_env%p1)
-          IF (ASSOCIATED(p_env%oce)) CALL deallocate_oce_set(p_env%oce)
           IF (ASSOCIATED(p_env%local_rho_set)) THEN
              CALL local_rho_set_release(p_env%local_rho_set)
           END IF

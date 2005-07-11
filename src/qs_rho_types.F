@@ -51,7 +51,7 @@ MODULE qs_rho_types
   LOGICAL, PRIVATE, PARAMETER :: debug_this_module=.TRUE.
   CHARACTER(len=*), PRIVATE, PARAMETER :: moduleN='qs_rho_types'
 
-  PUBLIC :: qs_rho_type
+  PUBLIC :: qs_rho_p_type, qs_rho_type
   PUBLIC :: qs_rho_retain, qs_rho_release, qs_rho_did_change,&
        qs_rho_get
 
@@ -108,6 +108,10 @@ MODULE qs_rho_types
           rebuild_each
      REAL(KIND = dp), DIMENSION(:), POINTER :: tot_rho_r, tot_rho_g
   END TYPE qs_rho_type
+
+  TYPE qs_rho_p_type
+    TYPE(qs_rho_type), POINTER         :: rho
+  END TYPE qs_rho_p_type
 !!***
 !****************************************************************************
 

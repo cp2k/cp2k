@@ -52,7 +52,8 @@ MODULE xas_tp_scf
                                              cp_to_string,&
                                              cp_warning_level
   USE global_types,                    ONLY: global_environment_type
-  USE input_constants,                 ONLY: xas_tp_hh, xas_tp_fh,do_loc_none 
+  USE input_constants,                 ONLY: xas_tp_hh, xas_tp_fh,&
+                                             do_loc_none 
   USE kinds,                           ONLY: dp
   USE machine,                         ONLY: m_flush,&
                                              m_walltime
@@ -65,7 +66,7 @@ MODULE xas_tp_scf
   USE qs_ks_methods,                   ONLY: qs_ks_did_change,&
                                              qs_ks_update_qs_env
   USE qs_ks_types,                     ONLY: qs_ks_env_type
-  USE qs_loc_methods,                   ONLY: optimize_loc_berry  
+  USE qs_loc_methods,                  ONLY: optimize_loc_berry  
   USE qs_loc_types,                    ONLY: get_qs_loc_env,& 
                                              qs_loc_env_new_type
   USE qs_loc_control,                  ONLY: localized_wfn_control_type

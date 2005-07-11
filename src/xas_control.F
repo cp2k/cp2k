@@ -87,6 +87,7 @@ MODULE xas_control
     INTEGER                             :: lb_atom, ub_atom
     INTEGER                             :: added_mos
     INTEGER, DIMENSION(:), POINTER      :: exc_atoms 
+    LOGICAL                             :: emission
     LOGICAL                             :: localized_wfn
     REAL(dp)                            :: eps_scf
     TYPE(localized_wfn_control_type), &
@@ -203,6 +204,9 @@ CONTAINS
     CALL section_vals_val_get(xas_section,"ADDED_MOS",&
          i_val=xas_control%added_mos,error=error)
 
+    CALL section_vals_val_get(xas_section,"EMISSION",&
+         l_val=xas_control%emission,error=error)
+         
     CALL section_vals_val_get(xas_section,"LOCALIZE_WFN",&
          l_val=xas_control%localized_wfn,error=error)
 
@@ -259,7 +263,7 @@ CONTAINS
     xas_control%max_scf = 150
     xas_control%eps_scf = 0.5d-6
     xas_control%localized_wfn = .FALSE. 
-    xas_control%added_mos=-1
+    xas_control%added_mos=0
     NULLIFY(xas_control%localized_wfn_control)
     CALL localized_wfn_control_create(xas_control%localized_wfn_control,error=error)
     NULLIFY(xas_control%exc_atoms)

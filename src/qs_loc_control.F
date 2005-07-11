@@ -458,6 +458,7 @@ CONTAINS
 !!   FUNCTION
 !!      create the center and spread array and the file names for the output
 !!   NOTES
+!!     would be better to get rid of globenv
 !!
 !!   INPUTS
 !!

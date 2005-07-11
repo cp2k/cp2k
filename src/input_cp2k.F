@@ -7947,6 +7947,13 @@ END SUBROUTINE create_ot_section
       CALL section_add_keyword(section,keyword,error=error)
       CALL keyword_release(keyword,error=error)
 
+      CALL keyword_create(keyword, name="EMISSION",&
+           description="Calculate also the emission spectrum",&
+           usage="EMISSION",&
+           default_l_val=.FALSE.,lone_keyword_l_val=.TRUE.,error=error)
+      CALL section_add_keyword(section,keyword,error=error)
+      CALL keyword_release(keyword,error=error) 
+
       CALL keyword_create(keyword, name="LOCALIZE_WFN",&
            description="Check and possibly optimize the localization of the wavefunctions",&
            usage="LOCALIZE_WFN",&
@@ -8077,6 +8084,22 @@ END SUBROUTINE create_ot_section
             description="The chemical shift is calculated by DFPT ",&
             n_keywords=5, n_subsections=0, repeats=.FALSE., required=.TRUE.,&
             error=error)
+
+       CALL keyword_create(keyword, name="CURRENT_DENSITY",&
+            description="Calculate the current density and the "//&
+            " induced magnetic field on a mesh in real space",&
+            usage="CURRENT_DENSITY",&
+            default_l_val=.FALSE.,lone_keyword_l_val=.TRUE.,error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="FULL",&
+            description="Calculate the orbital dependent correction "//&
+            " to get the full current density", usage="FULL",&
+            default_l_val=.FALSE.,lone_keyword_l_val=.TRUE.,error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
 
     END IF
 

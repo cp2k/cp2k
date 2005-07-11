@@ -29,6 +29,8 @@ MODULE qs_linres_types
                                              cp_error_get_logger,&
                                              cp_error_message,&
                                              cp_error_type
+  USE cp_fm_pool_types,                ONLY: cp_fm_pool_p_type
+  USE cp_fm_types,                     ONLY: cp_fm_p_type
   USE cp_log_handling,                 ONLY: cp_failure_level,&
                                              cp_fatal_level,&
                                              cp_logger_type,&
@@ -40,6 +42,10 @@ MODULE qs_linres_types
                                              localized_wfn_control_release,&
                                              localized_wfn_control_retain ,&
                                              localized_wfn_control_type
+  USE qs_rho_atom_types,               ONLY: rho_atom_p_type
+  USE qs_rho_types,                    ONLY: qs_rho_p_type
+  USE sparse_matrix_types,             ONLY: deallocate_matrix_set,&
+                                             real_matrix_p_type
   IMPLICIT NONE
 
   PRIVATE
@@ -62,6 +68,8 @@ MODULE qs_linres_types
 !!
 !! NOTES
 !!   
+!! AUTHOR
+!!   MI 
 !!
 !!***
   TYPE linres_control_type
@@ -75,10 +83,47 @@ MODULE qs_linres_types
      TYPE(localized_wfn_control_type),POINTER  :: localized_wfn_control
   END TYPE linres_control_type
 
-  TYPE nmr_env_type
-     INTEGER                                   :: ref_count
-     TYPE(cp_2d_r_p_type), DIMENSION(:),POINTER  :: centers_set
+!****s* qs_linres_types/nmr_env_type
+!!
+!! NAME
+!!   nmr_env_type
+!!
+!! FUNCTION
+!!
+!! ATTRIBUTES
+!!   - ref_count
+!!   - centers_set : poiter to the  centers of the maximally localized psi0
+!!   - spreads_set : pointer to the spreads of the maximally localized psi0 (to evaluate thei extension)
+!!   - op_p_ao     : sparse matrices for the px, py and pz operator appliet to the atomic orbitals
+!!   - op_rxp_ao   : the rxp operator should be psi0 dependent, therefore it is used a s a temporary matrix
+!!   - jp1_ao      : current density matrices. If the current density has to be calculated,
+!!                   we need to store at least two set of current density matrices, 
+!!                   each set has the x y and z components.
+!!   - jrho1_set   : current density on the global grid, if gapw this is only the soft part
+!!   - jrho1_atom_set : current density on the local atomic grids (only if gapw)
+!!
+!! NOTES
+!!   
+!! AUTHOR
+!!   MI 
+!!***
 
+  TYPE nmr_env_type
+     INTEGER                                     :: ref_count
+     LOGICAL                                     :: current_density, &
+                                                    full_nmr
+     REAL(dp),DIMENSION(3,3)                     :: chemical_shift
+     TYPE(cp_2d_r_p_type), DIMENSION(:),POINTER  :: centers_set
+     TYPE(cp_fm_pool_p_type), DIMENSION(:), &
+       POINTER                                   :: ao_mo_fm_pools
+     TYPE(real_matrix_p_type), DIMENSION(:), &
+          POINTER                                :: op_p_ao, op_rmd_ao
+     TYPE(cp_fm_p_type), DIMENSION(:,:), POINTER :: psi1_p, psi1_rxp, psi1_D
+     TYPE(real_matrix_p_type), DIMENSION(:,:), &
+          POINTER                                :: jp1_ao
+     TYPE(cp_fm_p_type), DIMENSION(:,:), POINTER :: p_psi0, rxp_psi0
+     TYPE(qs_rho_p_type),DIMENSION(:),   POINTER :: jrho1_set
+     TYPE(rho_atom_p_type), DIMENSION(:), POINTER:: jrho1_atom_set
   END TYPE nmr_env_type
 
   CHARACTER(LEN=*), PARAMETER :: module_name ="qs_linres_types"
@@ -90,7 +135,8 @@ MODULE qs_linres_types
 
 ! *** Public subroutines ***
 
-  PUBLIC :: linres_control_create, linres_control_retain, linres_control_release
+  PUBLIC :: linres_control_create, linres_control_retain, linres_control_release,&
+            nmr_env_create
 
 !!***
 ! *****************************************************************************
@@ -165,6 +211,38 @@ CONTAINS
      END IF
      
   END SUBROUTINE linres_control_retain
+
+  SUBROUTINE nmr_env_create(nmr_env,error)
+
+    TYPE(nmr_env_type)                         :: nmr_env
+    TYPE(cp_error_type), INTENT(inout), &
+       OPTIONAL                                :: error
+     CHARACTER(len=*), PARAMETER :: routineN = 'nmr_env_create', &
+      routineP = module_name//':'//routineN
+     INTEGER                                   :: istat
+     LOGICAL                                   :: failure
+
+     failure =.FALSE.
+
+     CPPrecondition(nmr_env%ref_count==0, cp_failure_level,routineP,error,failure)
+     IF(.NOT. failure) THEN
+       nmr_env%ref_count = 1
+       NULLIFY(nmr_env%centers_set)
+       NULLIFY(nmr_env%ao_mo_fm_pools)
+       NULLIFY(nmr_env%op_p_ao)
+       NULLIFY(nmr_env%op_rmd_ao)
+       NULLIFY(nmr_env%psi1_p)
+       NULLIFY(nmr_env%psi1_rxp)
+       NULLIFY(nmr_env%psi1_D)
+       NULLIFY(nmr_env%jp1_ao)
+       NULLIFY(nmr_env%p_psi0)
+       NULLIFY(nmr_env%rxp_psi0)
+       NULLIFY(nmr_env%jrho1_set)
+       NULLIFY(nmr_env%jrho1_atom_set)
+     END IF 
+
+
+  END SUBROUTINE nmr_env_create
        
 END MODULE qs_linres_types
 

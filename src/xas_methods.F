@@ -517,10 +517,10 @@ CONTAINS
 
          ! Calculate the spectrum
          IF(xas_control%dipole_form == xas_dip_len) THEN
-           CALL spectrum_dip_len(dip_fm_set,ostrength_sm,mos,excvec_coeff,fm_work,&
+           CALL spectrum_dip_len(xas_control,dip_fm_set,ostrength_sm,mos,excvec_coeff,fm_work,&
                  cell,spectrum,dft_control%xas_estate,error=error)
          ELSE
-           CALL spectrum_dip_vel(dip_fm_set,ostrength_sm,mos,excvec_coeff,fm_work,&
+           CALL spectrum_dip_vel(xas_control,dip_fm_set,ostrength_sm,mos,excvec_coeff,fm_work,&
                 spectrum,dft_control%xas_estate,error=error)
          END IF
       ELSE
@@ -532,8 +532,8 @@ CONTAINS
 
       iter = xas_iter_count*xas_control%each_step
     ! append the spectrum of this iteration to the right output file
-      CALL xas_write(spectrum, xas_control%xas_rootfname, &
-           iatom, iter, ionode, error=error)
+      CALL xas_write(xas_control,spectrum, dft_control%xas_estate, &
+           homo, iatom, iter, ionode, error=error)
       DO ispin = 1,nspins
        CALL get_mo_set(mos(ispin)%mo_set, mo_coeff=mo_coeff,&
             nao=nao, nmo=nmo)
@@ -602,8 +602,6 @@ CONTAINS
                n_mo(2), nmo, nmoloc(2), nspins
     LOGICAL :: failure
     TYPE(dft_control_type), POINTER             :: dft_control
-    TYPE(cp_fm_pool_p_type), DIMENSION(:), &
-      POINTER                                   :: ao_mo_fm_pools
     TYPE(cp_fm_type), POINTER                   :: mo_coeff
     TYPE(cp_fm_struct_type), POINTER            :: tmp_fm_struct
     TYPE(cp_para_env_type), POINTER             :: para_env
@@ -624,7 +622,7 @@ CONTAINS
 
     IF(.NOT. failure) THEN
 
-      NULLIFY(ao_mo_fm_pools, dft_control, matrix_s, mos, mpools, para_env)
+      NULLIFY( dft_control, matrix_s, mos, mpools, para_env)
       CALL get_qs_env(qs_env=qs_env, &
               dft_control = dft_control, &
               mpools=mpools,& 
@@ -632,12 +630,16 @@ CONTAINS
       nexc_search = xas_control%nexc_search
       nexc_atoms = xas_control%nexc_atoms
 
-      CALL mpools_get(mpools, ao_mo_fm_pools= ao_mo_fm_pools)
+      CALL mpools_get(mpools, ao_mo_fm_pools= xas_env%ao_mo_fm_pools)
 
       NULLIFY(mo_coeff)
       CALL get_mo_set(mos(1)%mo_set,nao=nao,homo=homo,nmo=nmo,mo_coeff=mo_coeff)
       IF(nexc_search < 0) nexc_search = homo
-      xas_env%nvirtual = nmo - homo
+      IF(xas_control%emission) THEN
+         xas_env%nvirtual = nmo
+      ELSE
+        xas_env%nvirtual = nmo - homo
+      END IF
 
       n_mo(1:2) = nmo
 
@@ -676,13 +678,13 @@ CONTAINS
         CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
         DO ispin = 1,nspins
           CALL get_mo_set(mos(ispin)%mo_set,nao=nao,nmo=nmo)
-          CALL fm_pool_create_fm(ao_mo_fm_pools(ispin)%pool,&
+          CALL fm_pool_create_fm(xas_env%ao_mo_fm_pools(ispin)%pool,&
                xas_env%groundstate_coeff(ispin)%matrix,&
              name="xas_env%mo0"//TRIM(ADJUSTL(cp_to_string(ispin))),error=error)
 
         END DO  ! ispin
 
-        CALL fm_pool_create_fm(ao_mo_fm_pools(1)%pool,&
+        CALL fm_pool_create_fm(xas_env%ao_mo_fm_pools(1)%pool,&
                xas_env%fm_work,name="xas_env%fm_work",error=error)
 
         NULLIFY(tmp_fm_struct)
@@ -769,12 +771,11 @@ CONTAINS
 !!
 !!***  *********************************************************************
 
-  SUBROUTINE xas_write(spectrum, xas_rootfname, &
-                       iatom, iter, ionode, error)
+  SUBROUTINE xas_write(xas_control, spectrum, estate, homo, iatom, iter, ionode, error)
 
+    TYPE(xas_control_type)                      :: xas_control
     REAL(dp), DIMENSION(:,:),POINTER            :: spectrum
-    CHARACTER(len=50)                           :: xas_rootfname
-    INTEGER, INTENT(IN)                         :: iatom, iter
+    INTEGER, INTENT(IN)                         :: estate, homo, iatom, iter
     LOGICAL, INTENT(IN)                         :: ionode
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                                  :: error
@@ -783,7 +784,7 @@ CONTAINS
       routineP = module_name//':'//routine_name
 
     CHARACTER(len = 50)                      :: filename
-    INTEGER :: ia, ie, istate, out_sp
+    INTEGER :: ia, ie, istate, istate0, out_sp
     LOGICAL :: failure, file_exists
     
     failure = .FALSE.
@@ -792,8 +793,8 @@ CONTAINS
 
     IF(ionode) THEN
       ! check if file exists
-      CALL xstring (xas_rootfname, ia, ie )
-      filename = xas_rootfname(ia:ie)//'_at_'//TRIM(ADJUSTL(cp_to_string(iatom)))
+      CALL xstring (xas_control%xas_rootfname, ia, ie )
+      filename = xas_control%xas_rootfname(ia:ie)//'_at_'//TRIM(ADJUSTL(cp_to_string(iatom)))
 
       INQUIRE (FILE=filename,EXIST=file_exists)
 
@@ -815,12 +816,21 @@ CONTAINS
       END IF
       WRITE(out_sp,'(A,I10)') " Iteration Step ", iter
 
-      DO istate = 1,SIZE(spectrum,2)
-        WRITE(out_sp,'(I6,5F16.8)') istate, spectrum(1,istate)*evolt, &
-             spectrum(2,istate), spectrum(3,istate),&    
-             spectrum(4,istate), spectrum(5,istate)
-      END DO 
-        
+      IF(xas_control%emission) THEN
+         istate0 = estate
+         DO istate = estate,SIZE(spectrum,2)
+            WRITE(out_sp,'(I6,5F16.8)') istate, spectrum(1,istate)*evolt, &
+                  spectrum(2,istate), spectrum(3,istate),&    
+                  spectrum(4,istate), spectrum(5,istate)
+         END DO 
+      ELSE
+         istate0 = homo
+         DO istate = 1,SIZE(spectrum,2)
+            WRITE(out_sp,'(I6,5F16.8)') homo+istate, spectrum(1,istate)*evolt, &
+                  spectrum(2,istate), spectrum(3,istate),&    
+                  spectrum(4,istate), spectrum(5,istate)
+         END DO 
+      END IF
 
       close(out_sp)
     END IF
@@ -865,8 +875,9 @@ CONTAINS
 !!
 !!***  *********************************************************************
 
-  SUBROUTINE spectrum_dip_len(fm_set,op_sm,mos,excvec,fm_work,cell,spectrum,estate,error)
+  SUBROUTINE spectrum_dip_len(xas_control,fm_set,op_sm,mos,excvec,fm_work,cell,spectrum,estate,error)
 
+    TYPE(xas_control_type)                      :: xas_control
     TYPE( cp_fm_p_type ), DIMENSION(:,:),  &
       POINTER                                   :: fm_set
     TYPE( real_matrix_p_type ), DIMENSION(:,:), &
@@ -885,7 +896,7 @@ CONTAINS
       routineP = module_name//':'//routineN
 
     COMPLEX(KIND=dp)                            :: z
-    INTEGER :: homo, i, istate, j, nao, nvirtual, nmo
+    INTEGER :: homo, i, istate, istate0, j, nao, nvirtual, nmo
     LOGICAL :: failure
     REAL(dp) :: ene_i, ene_f, imagpart, ra(3), realpart
     REAL(dp), DIMENSION(:), POINTER             :: eigenvalues
@@ -902,19 +913,21 @@ CONTAINS
     IF(.NOT. failure) THEN
       CALL get_mo_set(mos(1)%mo_set, mo_coeff=mo_coeff, nao=nao, nmo=nmo,&
            homo =homo, eigenvalues=eigenvalues)
+      istate0 = homo
+      IF(xas_control%emission) istate0 = 0
       DO i=1,SIZE(fm_set,2)
         DO j = 1,SIZE(fm_set,1)
            CPPrecondition(ASSOCIATED(fm_set(j,i)%matrix),cp_failure_level,routineP,error,failure)
            CALL cp_fm_set_all(fm_set(j,i)%matrix, 0.0_dp, error=error)
            CALL cp_sm_fm_multiply(op_sm(j,i)%matrix,mo_coeff,fm_work,ncol=nmo)
            CALL cp_fm_gemm("T","N",1,nvirtual,nao,1.0_dp,excvec,&
-                  fm_work,0.0_dp, fm_set(j,i)%matrix,b_first_col=homo+1,error=error)
+                  fm_work,0.0_dp, fm_set(j,i)%matrix,b_first_col=istate0+1,error=error)
         END DO 
       END DO
       
       ene_i = eigenvalues(estate)
       DO istate = 1,nvirtual
-         ene_f = eigenvalues(homo+istate)
+         ene_f = eigenvalues(istate0+istate)
          DO i = 1,3
            CALL cp_fm_get_element(fm_set(1,i)%matrix,1,istate,realpart)
            CALL cp_fm_get_element(fm_set(2,i)%matrix,1,istate,imagpart)
@@ -968,8 +981,9 @@ CONTAINS
 !!
 !!***  *********************************************************************
 
-  SUBROUTINE spectrum_dip_vel(fm_set,op_sm,mos,excvec,fm_work,spectrum,estate,error)
+  SUBROUTINE spectrum_dip_vel(xas_control, fm_set,op_sm,mos,excvec,fm_work,spectrum,estate,error)
 
+    TYPE(xas_control_type)                      :: xas_control
     TYPE( cp_fm_p_type ), DIMENSION(:,:),  &
       POINTER                                   :: fm_set
     TYPE( real_matrix_p_type ), DIMENSION(:,:), &
@@ -986,7 +1000,7 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = "spectrum_dip_vel", &
       routineP = module_name//':'//routineN
 
-    INTEGER :: homo, i, istate, j, nao, nvirtual, nmo
+    INTEGER :: homo, i, istate,istate0, j, nao, nvirtual, nmo
     LOGICAL :: failure
     REAL(dp) :: ene_i, ene_f,  dip(3)
     REAL(dp), DIMENSION(:), POINTER             :: eigenvalues
@@ -1003,17 +1017,19 @@ CONTAINS
     IF(.NOT. failure) THEN
       CALL get_mo_set(mos(1)%mo_set, mo_coeff=mo_coeff, nao=nao, nmo=nmo,&
            homo =homo, eigenvalues=eigenvalues)
+      istate0 = homo
+      IF(xas_control%emission) istate0 = 0
       DO i=1,SIZE(fm_set,2)
          CPPrecondition(ASSOCIATED(fm_set(1,i)%matrix),cp_failure_level,routineP,error,failure)
          CALL cp_fm_set_all(fm_set(1,i)%matrix, 0.0_dp, error=error)
          CALL cp_sm_fm_multiply(op_sm(1,i)%matrix,mo_coeff,fm_work,ncol=nmo)
          CALL cp_fm_gemm("T","N",1,nvirtual,nao,1.0_dp,excvec,&
-                  fm_work,0.0_dp, fm_set(1,i)%matrix,b_first_col=homo+1,error=error)
+              fm_work,0.0_dp, fm_set(1,i)%matrix,b_first_col=istate0+1,error=error)
       END DO
       
       ene_i = eigenvalues(estate)
       DO istate = 1,nvirtual
-         ene_f = eigenvalues(homo+istate)
+         ene_f = eigenvalues(istate0+istate)
          DO i = 1,3
            CALL cp_fm_get_element(fm_set(1,i)%matrix,1,istate,dip(i))
          END DO 
