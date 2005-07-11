@@ -163,7 +163,7 @@ CONTAINS
     ! check that the psi0 are localized and you have all the centers
      CPPrecondition(linres_control%localized_psi0,cp_warning_level,routineP,error,failure)
      IF(failure .AND. ionode) THEN
-       WRITE (UNIT=output_unit,'(A)') &
+       WRITE (UNIT=output_unit,FMT='(A)') &
           ' To get NMR parameters within PBC you need localized zero order orbitals '
      END IF
      DO ispin = 1,dft_control%nspins
