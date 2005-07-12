@@ -255,7 +255,10 @@ CONTAINS
        qmmm_env_mm%qmmm_link              =  qmmm_link
        ! Center the qm subsys into the qm box
        CALL section_vals_val_get(qmmm_section,"NOCENTER",l_val=nocenter,error=error)
-       qmmm_env_qm%center_qm_subsys = .NOT.nocenter
+       qmmm_env_qm%center_qm_subsys  = .NOT.nocenter
+
+       CALL section_vals_val_get(qmmm_section,"NOCENTER0",l_val=nocenter,error=error)
+       qmmm_env_qm%center_qm_subsys0 = .NOT.nocenter
 
        ! Compatibility with the QM/MM in CPMD code
        CALL section_vals_val_get(qmmm_section,"NOCOMPATIBILITY",l_val=nocompatibility,error=error)
@@ -571,7 +574,7 @@ CONTAINS
                      ' CHARGE:',qi,ind1,ind2
              ELSE
                 WRITE(iw,'(7X,A9,I5,A8,F12.6,A8,F12.6,I5,I5,A,F12.6)')'MM POINT:',IndMM,' RADIUS:',ri,&
-                     ' CHARGE:',qi,ind1,ind2,'CORR. RADIUS',rc
+                     ' CHARGE:',qi,ind1,ind2,' CORR. RADIUS',rc
              END IF
           END DO
 

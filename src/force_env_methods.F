@@ -574,7 +574,6 @@ RECURSIVE SUBROUTINE qmmm_energy_and_forces(force_env,calc_force,error)
   TYPE(qmmm_links_type), POINTER :: qmmm_links
   LOGICAL, SAVE :: do_translate=.TRUE.
   
-
   min_coord       =  HUGE(0.0_dp)
   max_coord       = -HUGE(0.0_dp)
   failure         = .FALSE.
@@ -624,6 +623,7 @@ RECURSIVE SUBROUTINE qmmm_energy_and_forces(force_env,calc_force,error)
      min_coord=MIN(min_coord,particles_mm(qm_atom_index(ip))%r)
      max_coord=MAX(max_coord,particles_mm(qm_atom_index(ip))%r)
   END DO
+  IF (.NOT.force_env%qmmm_env%center_qm_subsys0) do_translate = .FALSE.
   IF (do_translate) THEN
      !
      ! The first time we always translate all the system in order 
