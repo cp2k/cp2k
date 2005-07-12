@@ -74,10 +74,8 @@ MODULE harris_functional
                                              !calc_rho_tot_gspace
   USE qs_mo_types,                     ONLY: get_mo_set, &
                                              mo_set_p_type
-  !USE qs_overlap,                      ONLY: write_sparse_matrix
   USE qs_rho_methods,                  ONLY: duplicate_rho_type
   USE qs_rho_types,                    ONLY: qs_rho_type, &
-                                             !qs_rho_retain, &
                                              qs_rho_get
   USE qs_scf_types,                    ONLY: qs_scf_env_type
   USE sparse_matrix_types,             ONLY: real_matrix_p_type, &
@@ -154,8 +152,6 @@ CONTAINS
     !TYPE(qs_charges_type), POINTER                  :: qs_charges
     TYPE(coeff_type), DIMENSION(:), POINTER         :: v_rspace_new, &
                                                        v_tau_rspace
-    !INTEGER, DIMENSION(:,:), POINTER                :: bo
-    !INTEGER, DIMENSION(2,3)                         :: bo
     !TYPE(qs_energy_type), POINTER                   :: qs_energy
     TYPE(cp_para_env_type), POINTER                 :: para_env
     TYPE(real_matrix_p_type), DIMENSION(:), POINTER :: matrix_ks
@@ -287,11 +283,15 @@ CONTAINS
                                          - harris_energy%integral_vxc &
                                          + harris_energy%Exc + harris_energy%EII
 
-      DEALLOCATE(v_rspace_new,stat=stat)
-      CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+      IF (ASSOCIATED(v_rspace_new)) THEN
+        DEALLOCATE(v_rspace_new,stat=stat)
+        CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+      END IF
       
-      !DEALLOCATE(v_tau_rspace,stat=stat)
-      !CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+      IF (ASSOCIATED(v_tau_rspace)) THEN
+        DEALLOCATE(v_tau_rspace,stat=stat)
+        CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+      END IF
 
     END IF
 

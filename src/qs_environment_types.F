@@ -600,7 +600,7 @@ CONTAINS
     NULLIFY (qs_env%sbc_3c)
     NULLIFY (qs_env%energy)
     NULLIFY (qs_env%force)
-    NULLIFY(qs_env%harris_env)
+    NULLIFY (qs_env%harris_env)
     NULLIFY (qs_env%matrix_h)
     NULLIFY (qs_env%matrix_ks)
     NULLIFY (qs_env%kinetic)

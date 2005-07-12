@@ -250,21 +250,6 @@ CONTAINS
       CPPrecondition(harris_energy%ref_count>0, cp_failure_level, routineP, error, failure)
       harris_energy%ref_count = harris_energy%ref_count-1
       IF (harris_energy%ref_count<1) THEN
-        !IF (ASSOCIATED(harris_energy%p_mix_new)) THEN
-        !  CALL deallocate_matrix_set(harris_energy%p_mix_new)
-        !  !DEALLOCATE(harris_energy%p_mix_new, stat=stat)
-        !  !CPPostconditionNoFail(stat==0, cp_warning_level, routineP, error)
-        !END IF
-        !IF (ASSOCIATED(harris_energy%rho)) THEN
-        !  CALL qs_rho_release(harris_energy%rho, error=error)
-        !  !DEALLOCATE(harris_energy%rho, stat=stat)
-        !  !CPPostconditionNoFail(stat==0, cp_warning_level, routineP, error)
-        !END IF
-        !IF (ASSOCIATED(harris_energy%rho_core)) THEN
-        !  CALL coeff_deallocate(harris_energy%rho_core)
-        !  DEALLOCATE(harris_energy%rho_core, stat=stat)
-        !  CPPostconditionNoFail(stat==0, cp_warning_level, routineP, error)
-        !END IF
         DEALLOCATE(harris_energy, stat=stat)
         CPPostconditionNoFail(stat==0, cp_warning_level, routineP, error)
       END IF

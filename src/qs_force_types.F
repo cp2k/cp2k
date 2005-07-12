@@ -404,7 +404,6 @@ CONTAINS
       IF (.NOT. ASSOCIATED(qs_force_output)) THEN
         CALL allocate_qs_force(qs_force_output, natom_of_kind)
       ELSE
-        !CALL deallocate_qs_force(qs_force_output)
         CALL zero_qs_force(qs_force_output)
       END IF
 

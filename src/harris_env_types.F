@@ -250,11 +250,6 @@ CONTAINS
         IF (ASSOCIATED(harris_env%rho)) THEN
           CALL qs_rho_release(harris_env%rho, error=error)
         END IF
-        !IF (ASSOCIATED(harris_env%rho_core)) THEN
-        !  CALL coeff_deallocate(harris_env%rho_core)
-        !  DEALLOCATE(harris_env%rho_core, stat=stat)
-        !  CPPostconditionNoFail(stat==0, cp_warning_level, routineP, error)
-        !END IF
         DEALLOCATE(harris_env, stat=stat)
         CPPostconditionNoFail(stat==0, cp_warning_level, routineP, error)
       END IF
@@ -498,17 +493,15 @@ CONTAINS
     ALLOCATE(harris_env, stat=stat)
     CPPostcondition(stat == 0, cp_failure_level, routineP, error, failure)
 
-    !CALL harris_energy_create(harris_env%harris_energy, error=error)
-    IF (.NOT. failure) THEN
-      ALLOCATE(harris_env%harris_energy, stat=stat)
-      CPPostcondition(stat==0, cp_failure_level, routineP, error, failure)
-    END IF
+    !IF (.NOT. failure) THEN
+    !  ALLOCATE(harris_env%harris_energy, stat=stat)
+    !  CPPostcondition(stat==0, cp_failure_level, routineP, error, failure)
+    !END IF
 
-    !CALL harris_force_create(harris_env%harris_force, natom, error=error)
-    IF (.NOT. failure) THEN
-      ALLOCATE(harris_env%harris_force, stat=stat)
-      CPPostcondition(stat==0, cp_failure_level, routineP, error, failure)
-    END IF
+    !IF (.NOT. failure) THEN
+    !  ALLOCATE(harris_env%harris_force, stat=stat)
+    !  CPPostcondition(stat==0, cp_failure_level, routineP, error, failure)
+    !END IF
 
     !IF (.NOT. failure) THEN
     !  ALLOCATE(harris_env%rho, stat=stat)
