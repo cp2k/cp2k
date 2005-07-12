@@ -66,8 +66,6 @@ MODULE qs_environment_types
                                              distribution_2d_type
   USE harris_env_types,                ONLY: harris_env_type, &
                                              harris_env_release
-  USE harris_force_types,              ONLY: harris_force_type, &
-                                             harris_force_release
   USE hartree_local_types,             ONLY: ecoul_1center_type,&
                                              get_hartree_local,&
                                              hartree_local_create,&
@@ -251,6 +249,9 @@ MODULE qs_environment_types
 !!     - local_molecules: which molecules are local to this processor
 !!     - molecule_kind_set: description of the molecule kinds
 !!     - molecule_set: all the molecule description
+!!     - harris_env: The harris environment, which consist of the harris energy
+!!                   and force type and the rho structure to pass the density of
+!!                   the harris energy functional to the force calculation
 !!     
 !!   AUTHOR
 !!     Matthias Krack & fawzi
@@ -281,8 +282,7 @@ MODULE qs_environment_types
                                                              sac_3c,sbc_3c
     TYPE(qs_energy_type), POINTER                         :: energy
     TYPE(qs_force_type), DIMENSION(:), POINTER            :: force
-    TYPE(harris_env_type), POINTER                        :: harris_energy
-    TYPE(harris_force_type), POINTER                      :: harris_force
+    TYPE(harris_env_type), POINTER                        :: harris_env
     TYPE(real_matrix_p_type), DIMENSION(:), POINTER       :: matrix_h,&
                                                              matrix_ks,&
                                                              matrix_s,&
@@ -346,7 +346,7 @@ CONTAINS
                         dft_control,mos,sab_orb,qmmm,green,&
                         sac_erfc,sac_ppl,sac_ppnl,sbc_ppnl,&
                         sac_oce,sbc_oce,sab_2c,sac_3c,sbc_3c,&
-                        particle_set,energy,force,harris_energy,harris_force,&
+                        particle_set,energy,force,harris_env,&
                         matrix_h,matrix_ks,matrix_s,matrix_w,&
                         rho, pw_env, mpools,input,&
                         para_env, blacs_env, scf_control,&
@@ -388,9 +388,8 @@ CONTAINS
     TYPE(qs_energy_type), OPTIONAL, POINTER  :: energy
     TYPE(qs_force_type), DIMENSION(:), &
       OPTIONAL, POINTER                      :: force
-    TYPE(harris_env_type), OPTIONAL, POINTER :: harris_energy
-    TYPE(harris_force_type), OPTIONAL, &
-      POINTER                                :: harris_force
+    TYPE(harris_env_type), OPTIONAL, &
+       POINTER                               :: harris_env
     TYPE(real_matrix_p_type), DIMENSION(:), &
       OPTIONAL, POINTER                      :: matrix_h, matrix_ks, matrix_s, matrix_w
     TYPE(qs_rho_type), OPTIONAL, POINTER     :: rho
@@ -495,8 +494,7 @@ CONTAINS
     IF (PRESENT(sbc_3c)) sbc_3c =>  qs_env%sbc_3c
     IF (PRESENT(energy)) energy => qs_env%energy
     IF (PRESENT(force)) force => qs_env%force
-    IF (PRESENT(harris_energy)) harris_energy => qs_env%harris_energy
-    IF (PRESENT(harris_force)) harris_force => qs_env%harris_force
+    IF (PRESENT(harris_env)) harris_env => qs_env%harris_env
     IF (PRESENT(matrix_h)) matrix_h => qs_env%matrix_h
     IF (PRESENT(matrix_ks)) matrix_ks => qs_env%matrix_ks
     IF (PRESENT(kinetic)) kinetic => qs_env%kinetic
@@ -602,8 +600,7 @@ CONTAINS
     NULLIFY (qs_env%sbc_3c)
     NULLIFY (qs_env%energy)
     NULLIFY (qs_env%force)
-    NULLIFY (qs_env%harris_energy)
-    NULLIFY (qs_env%harris_force)
+    NULLIFY(qs_env%harris_env)
     NULLIFY (qs_env%matrix_h)
     NULLIFY (qs_env%matrix_ks)
     NULLIFY (qs_env%kinetic)
@@ -653,7 +650,7 @@ CONTAINS
                         dft_control,mos,qmmm,green,&
                         sab_orb,sac_erfc,sac_ppl,sac_ppnl,sbc_ppnl,&
                         sac_oce,sbc_oce,sab_2c,sac_3c,sbc_3c,&
-                        energy,force,harris_energy,harris_force,&
+                        energy,force,harris_env,&
                         matrix_h,matrix_ks,matrix_s,matrix_w,&
                         pw_env,mpools,rho,kinetic,&
                         scf_control,qs_charges,rho_core,ks_env,ks_qmmm_env,&
@@ -687,9 +684,8 @@ CONTAINS
     TYPE(qs_energy_type), OPTIONAL, POINTER  :: energy
     TYPE(qs_force_type), DIMENSION(:), &
       OPTIONAL, POINTER                      :: force
-    TYPE(harris_env_type), POINTER, OPTIONAL :: harris_energy
-    TYPE(harris_force_type), POINTER, &
-      OPTIONAL                               :: harris_force
+    TYPE(harris_env_type), POINTER, &
+       OPTIONAL                              :: harris_env
     TYPE(real_matrix_p_type), DIMENSION(:), &
       OPTIONAL, POINTER                      :: matrix_h, matrix_ks, matrix_s, matrix_w
     TYPE(pw_env_type), OPTIONAL, POINTER     :: pw_env
@@ -788,8 +784,7 @@ CONTAINS
     IF (PRESENT(sbc_3c)) qs_env%sbc_3c => sbc_3c
     IF (PRESENT(energy)) qs_env%energy => energy
     IF (PRESENT(force)) qs_env%force => force
-    IF (PRESENT(harris_energy)) qs_env%harris_energy => harris_energy
-    IF (PRESENT(harris_force)) qs_env%harris_force => harris_force
+    IF (PRESENT(harris_env)) qs_env%harris_env => harris_env
     IF (PRESENT(matrix_h)) qs_env%matrix_h => matrix_h
     IF (PRESENT(matrix_ks)) qs_env%matrix_ks => matrix_ks
     IF (PRESENT(matrix_s)) qs_env%matrix_s => matrix_s
@@ -1137,12 +1132,8 @@ SUBROUTINE qs_env_release(qs_env,error)
              CALL deallocate_qs_energy(qs_env%energy)
         IF (ASSOCIATED(qs_env%force))&
              CALL deallocate_qs_force(qs_env%force)
-        IF (ASSOCIATED(qs_env%harris_energy)) THEN
-           CALL harris_env_release(harris_env=qs_env%harris_energy, error=error)
-        END IF
-        IF (ASSOCIATED(qs_env%harris_force)) THEN
-           CALL harris_force_release(harris_force=qs_env%harris_force, &
-                                     error=error)
+        IF (ASSOCIATED(qs_env%harris_env)) THEN
+            CALL harris_env_release(qs_env%harris_env, error=error)
         END IF
         IF (ASSOCIATED(qs_env%matrix_h)) CALL deallocate_matrix_set(qs_env%matrix_h)
 

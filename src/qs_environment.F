@@ -57,8 +57,11 @@ MODULE qs_environment
   USE distribution_methods,            ONLY: distribute_molecules_1d
   USE gamma,                           ONLY: init_md_ftable
   USE global_types,                    ONLY: global_environment_type
+  USE harris_energy_types,             ONLY: harris_energy_type, &
+                                             harris_energy_create
   USE harris_env_types,                ONLY: harris_env_type, &
-                                             harris_env_create
+                                             harris_env_create, &
+                                             harris_env_set
   USE harris_force_types,              ONLY: harris_force_type, &
                                              harris_force_create
   USE hartree_local_methods,           ONLY: init_coulomb_local
@@ -210,9 +213,10 @@ CONTAINS
     harris_section => section_vals_get_subs_vals(force_env_section, &
          "DFT%QS%HARRIS", error=error)
     
-    harris_flag = .FALSE.
     my_qmmm     = .FALSE.
     IF (PRESENT(qmmm)) my_qmmm=qmmm
+
+    harris_flag = .FALSE.
     CALL section_vals_val_get(harris_section, "ACTIVATE", &
                               l_val=harris_flag, error=error)
 
@@ -291,7 +295,7 @@ CONTAINS
 
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(cp_subsystem_type), POINTER         :: subsystem
-    TYPE(greens_function_type), POINTER                   :: green
+    TYPE(greens_function_type), POINTER      :: green
     TYPE(cell_type), POINTER                 :: cell, cell_ref
     LOGICAL, INTENT(in)                      :: use_ref_cell
     TYPE(global_environment_type), POINTER   :: globenv
@@ -328,7 +332,8 @@ CONTAINS
     TYPE(qs_energy_type), POINTER            :: energy
     TYPE(qs_force_type), DIMENSION(:), &
       POINTER                                :: force
-    TYPE(harris_env_type), POINTER           :: harris_energy
+    TYPE(harris_energy_type), POINTER        :: harris_energy
+    TYPE(harris_env_type), POINTER           :: harris_env
     TYPE(harris_force_type), POINTER         :: harris_force
     TYPE(qs_wf_history_type), POINTER        :: wf_history
     TYPE(rho0_mpole_type), POINTER           :: nddo_mpole, rho0_mpole
@@ -361,6 +366,7 @@ CONTAINS
     NULLIFY (energy)
     NULLIFY (force)
     NULLIFY (harris_energy)
+    NULLIFY (harris_env)
     NULLIFY (harris_force)
     NULLIFY (local_molecules)
     NULLIFY (local_particles)
@@ -499,7 +505,7 @@ CONTAINS
 !   *** Allocate the data structure for the Harris energies ***
 
     IF (harris_flag) THEN
-      CALL harris_env_create(harris_env=harris_energy,error=error)
+      CALL harris_energy_create(harris_energy=harris_energy,error=error)
     END IF
 
 !   *** Allocate the force data structure ***
@@ -529,6 +535,15 @@ CONTAINS
                     extrapolation_order = dft_control%qs_control%wf_extrapolation_order,&
                     error=error)
 
+!   *** Set the actual Harris environment ***
+    
+    IF (harris_flag) THEN
+      CALL harris_env_create(harris_env=harris_env, natom=natom, &
+                             nspins=dft_control%nspins, error=error)
+      CALL harris_env_set(harris_env=harris_env, harris_energy=harris_energy, &
+                          harris_force=harris_force, error=error)
+    END IF
+
 !   *** Set the current Quickstep environment ***
 
     CALL set_qs_env(qs_env,subsys=subsystem,error=error)
@@ -545,9 +560,7 @@ CONTAINS
                     wf_history=wf_history)
 
     IF (harris_flag) THEN
-      CALL set_qs_env(qs_env=qs_env,&
-                      harris_energy=harris_energy,&
-                      harris_force=harris_force)
+      CALL set_qs_env(qs_env=qs_env, harris_env=harris_env, error=error)
     END IF
 
     CALL cp_subsys_set(subsystem,local_molecules_new=local_molecules,&

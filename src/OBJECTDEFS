@@ -135,6 +135,7 @@ OBJECTS_GENERIC =\
  harris_force.o\
  harris_force_types.o\
  harris_functional.o\
+ harris_energy_types.o\
  harris_env_types.o\
  hartree.o\
  hartree_local_2centers.o\

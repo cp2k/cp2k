@@ -3172,8 +3172,9 @@ END FUNCTION xc_exc_calc
        END IF
     END IF
 
-    IF (nspins == 1 .AND. (dft_control%tddfpt_control%lsd_singlets .OR. &
-                           dft_control%tddfpt_control%res_etype == tddfpt_triplet)) THEN
+     IF (nspins == 1 .AND. (dft_control%do_tddfpt_calculation.and.&
+         (dft_control%tddfpt_control%lsd_singlets .OR. &
+         dft_control%tddfpt_control%res_etype == tddfpt_triplet))) THEN
        
        lsd = .TRUE.
        ALLOCATE(rho_r_pw(2), stat=stat)
@@ -3200,8 +3201,9 @@ END FUNCTION xc_exc_calc
        rho_r_pw,rho_g,tau,dft_control,xc_control,cell,pw_pool,&
        needs_basic_components=.TRUE.,error=error)
 
-    IF (nspins == 1 .AND. (dft_control%tddfpt_control%lsd_singlets .OR. &
-                           dft_control%tddfpt_control%res_etype == tddfpt_triplet)) THEN
+    IF (nspins == 1 .AND. (dft_control%do_tddfpt_calculation.and.&
+         (dft_control%tddfpt_control%lsd_singlets .OR. &
+         dft_control%tddfpt_control%res_etype == tddfpt_triplet))) THEN
        CALL pw_release(rho_r_pw(1)%pw)
        CALL pw_release(rho_r_pw(2)%pw)
     END IF

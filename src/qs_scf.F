@@ -202,9 +202,7 @@ MODULE qs_scf
   USE input_section_types,             ONLY: section_vals_get_subs_vals, &
                                              section_vals_val_get, &
                                              section_vals_type
-  USE harris_env_types,                ONLY: harris_env_type, &
-                                             harris_env_create, &
-                                             harris_env_release
+  USE harris_env_types,                ONLY: harris_env_type
 
   IMPLICIT NONE
 
@@ -522,9 +520,9 @@ CONTAINS
     CALL section_vals_val_get(harris_section, "ACTIVATE", &
                               l_val=harris_flag, error=error)
 
-    !IF (harris_flag) THEN
-    !  CALL harris_env_create(harris_env=harris_env, error=error)
-    !END IF
+    IF (harris_flag) THEN
+      CALL get_qs_env(qs_env=qs_env, harris_env=harris_env, error=error)
+    END IF
 
     CALL init_scf_run(scf_env=scf_env,qs_env=qs_env,&
          globenv=globenv,&
@@ -537,7 +535,6 @@ CONTAINS
          pw_env=pw_env,&
          qs_charges=qs_charges,&
          ks_env=ks_env, &
-         harris_energy=harris_env, &
          error=error)
 
      has_unit_metric=.FALSE.
@@ -776,8 +773,8 @@ CONTAINS
 
        IF (scf_env%mixing_method.EQ.ao_mixing_nr) THEN
           CALL scf_env_density_mixing(scf_env%p_mix_new,scf_env%mixing_method,&
-                                    scf_env%p_mix,scf_env%iter_delta,&
-                                    qs_env=qs_env,error=error)
+                                      scf_env%p_mix,scf_env%iter_delta,&
+                                      qs_env=qs_env,error=error)
        ENDIF
 
        t2 = m_walltime()
@@ -842,7 +839,7 @@ CONTAINS
     END DO scf_loop
 
     !IF (harris_flag) THEN
-    !  CALL harris_env_release(harris_env=harris_env, error=error)
+    !  CALL harris_energy_release(harris_energy=harris_energy, error=error)
     !END IF
 
     IF (ionode.AND.logger%print_keys%scf) THEN

@@ -8,11 +8,12 @@
 !!****** cp2k/harris_env_types [1.0] *
 !!
 !!   NAME
-!!     harris_env_types
+!!     harris_energy_types
 !!
 !!   FUNCTION
-!!     The Harris environment type, which contains all the informations 
-!!     needed to perform and analyse the Harris functional energy correction.
+!!     The Harris environment, which contains beside the harris energy and force 
+!!     types all the informations needed to perform and analyse the Harris 
+!!     functional energy and force corrections.
 !!
 !!   NOTES
 !!     -
@@ -21,7 +22,7 @@
 !!     Thomas D. Kuehne (tkuehne@phys.chem.ethz.ch)
 !!
 !!   MODIFICATION HISTORY
-!!     06.2005 initial create [tdk]
+!!     0.2005 initial create [tdk]
 !!
 !!   SOURCE
 !******************************************************************************
@@ -33,13 +34,22 @@ MODULE harris_env_types
                                              cp_error_get_logger,&
                                              cp_error_message,&
                                              cp_error_type
-  USE cp_log_handling,                 ONLY: cp_failure_level,&
+  use cp_log_handling,                 ONLY: cp_failure_level,&
                                              cp_fatal_level,&
                                              cp_note_level,&
                                              cp_to_string,&
                                              cp_warning_level
-  USE kinds,                           ONLY: dp
- 
+  USE harris_energy_types,             ONLY: harris_energy_type, &
+                                             harris_energy_release, &
+                                             harris_energy_clear
+                                             !harris_energy_create
+  USE harris_force_types,              ONLY: harris_force_type, &
+                                             harris_force_release, &
+                                             harris_force_clear
+                                             !harris_force_create
+  USE qs_rho_types,                    ONLY: qs_rho_type, &
+                                             qs_rho_release
+
   IMPLICIT NONE
   PRIVATE
 
@@ -74,41 +84,30 @@ MODULE harris_env_types
 !!   ATTRIBUTES
 !!     - id_nr: unique identifier
 !!     - ref_count: reference counter (see doc/ReferenceCounting.html)
-!!     - Ehartree_elec: The electronic hartree energy
-!!     - Ehartree_core: The hartree energy computed with rho_core
-!!     - Exc: The exchange-correlation energy
-!!     - integral_vxc: The xc potential integral
-!!     - Ecore: The core hamiltonian energy
-!!     - Ecore_overlap: The overalp energy
-!!     - Ecore_self: The self-interaction energy
-!!     - EII: The ion-ion Energy
-!!     - Eharris_correction: The energy correction due to the harris functional
-!!     - sum_of_eigenvalues: The sum of the eigenvalues
-!!     - Eharris: The actual harris functional energy
+!!     - harris_energy: The harris energy type
+!!     - harris_force: The harris force type
+!!     - rho: The rho data structure in which diverse representations of 
+!!            the density are stored
+!!     - natom: The number of involved atoms
+!!     - nspins: The number of spins
 !!
 !!   AUTHOR
 !!     Thomas D. Kuehne (tkuehne@phys.chem.ethz.ch)
 !!
 !!   MODIFICATION HISTORY
-!!     06.2005 initial create [tdk]
+!!     07.2005 initial create [tdk]
 !!
 !!   SOURCE
 !****************************************************************************
   TYPE harris_env_type
-     INTEGER            :: id_nr, ref_count
-     REAL(KIND=dp)      :: Ehartree_elec, &
-                           Ehartree_core, &
-                           !Ehartree_tot, &
-                           !Ehartree_elec_core, &
-                           Exc, &
-                           integral_vxc, &
-                           Ecore, &
-                           Ecore_overlap, &
-                           Ecore_self, &
-                           EII, &
-                           Eharris_correction, &
-                           sum_of_eigenvalues, &
-                           Eharris
+    INTEGER                                          :: id_nr, &
+                                                        ref_count
+    TYPE(harris_energy_type), POINTER                :: harris_energy
+    TYPE(harris_force_type), POINTER                 :: harris_force
+    TYPE(qs_rho_type), POINTER                       :: rho
+    INTEGER                                          :: natom, &
+                                                        nspins
+
   END TYPE harris_env_type
 !!***
 !****************************************************************************
@@ -125,18 +124,18 @@ MODULE harris_env_types
 !!     -
 !!
 !!   ATTRIBUTES
-!!     - harris_env_ptr: Pointer to the actual harris environment type
+!!     - harris_env_ptr: Pointer to the actual harris environment
 !!
 !!   AUTHOR
 !!     Thomas D. Kuehne (tkuehne@phys.chem.ethz.ch)
 !!
 !!   MODIFICATION HISTORY
-!!     06.2005 initial create [tdk]
+!!     07.2005 initial create [tdk]
 !!
 !!   SOURCE
 !***************************************************************************
   TYPE harris_env_p_type
-     TYPE(harris_env_type), POINTER :: harris_env_ptr
+    TYPE(harris_env_type), POINTER :: harris_env_ptr
   END TYPE harris_env_p_type
 !!***
 !****************************************************************************
@@ -155,13 +154,13 @@ CONTAINS
 !!     END SUBROUTINE harris_env_retain
 !!
 !!   FUNCTION
-!!     Retains a harris environment type (see doc/ReferenceCounting.html)
+!!     Retains an harris environment (see doc/ReferenceCounting.html)
 !!
 !!   NOTES
 !!     -
 !!
 !!   INPUTS
-!!     - harris_env_type: The harris environment type to retain
+!!     - harris_env: The harris environment to retain
 !!     - error: variable to control error logging, stopping,... 
 !!       see module cp_error_handling
 !!
@@ -171,7 +170,7 @@ CONTAINS
 !!     Thomas D. Kuehne (tkuehne@phys.chem.ethz.ch)
 !!
 !!   MODIFICATION HISTORY
-!!     06.2005 initial create [tdk]
+!!     07.2005 initial create [tdk]
 !!
 !!*** **********************************************************************
   SUBROUTINE harris_env_retain(harris_env, error)
@@ -202,15 +201,8 @@ CONTAINS
 !!   NAME
 !!     harris_env_release
 !!
-!!   SYNOPSIS
-!!     SUBROUTINE harris_env_release(harris_env, error)
-!!       TYPE(harris_env_type), POINTER :: harris_env
-!!       TYPE(cp_error_type), OPTIONAL, INTENT(INOUT) :: error
-!!     END SUBROUTINE harris_env_release
-!!
 !!   FUNCTION
-!!     Releases the given harris environment type 
-!!     (see doc/ReferenceCounting.html)
+!!     Releases the given harris environment (see doc/ReferenceCounting.html)
 !!
 !!   NOTES
 !!     -
@@ -226,7 +218,7 @@ CONTAINS
 !!     Thomas D. Kuehne (tkuehne@phys.chem.ethz.ch)
 !!
 !!   MODIFICATION HISTORY
-!!     06.2005 initial create [tdk]
+!!     07.2005 initial create [tdk]
 !!
 !!*** **********************************************************************
   SUBROUTINE harris_env_release(harris_env, error)
@@ -249,6 +241,20 @@ CONTAINS
       CPPrecondition(harris_env%ref_count>0, cp_failure_level, routineP, error, failure)
       harris_env%ref_count = harris_env%ref_count-1
       IF (harris_env%ref_count<1) THEN
+        IF (ASSOCIATED(harris_env%harris_energy)) THEN
+          CALL harris_energy_release(harris_env%harris_energy, error=error)
+        END IF
+        IF (ASSOCIATED(harris_env%harris_force)) THEN
+          CALL harris_force_release(harris_env%harris_force, error=error)
+        END IF
+        IF (ASSOCIATED(harris_env%rho)) THEN
+          CALL qs_rho_release(harris_env%rho, error=error)
+        END IF
+        !IF (ASSOCIATED(harris_env%rho_core)) THEN
+        !  CALL coeff_deallocate(harris_env%rho_core)
+        !  DEALLOCATE(harris_env%rho_core, stat=stat)
+        !  CPPostconditionNoFail(stat==0, cp_warning_level, routineP, error)
+        !END IF
         DEALLOCATE(harris_env, stat=stat)
         CPPostconditionNoFail(stat==0, cp_warning_level, routineP, error)
       END IF
@@ -262,24 +268,8 @@ CONTAINS
 !!   NAME
 !!     harris_env_get
 !!
-!!   SYNOPSIS
-!!     SUBROUTINE ep_env_get(harris_env, id_nr, Ehartree_elec, Ehartree_core, 
-!!                           Exc, integral_vxc, Ecore, Ecore_overlap,
-!!                           Ecore_self, EII, Eharris_correction, 
-!!                           sum_of_eigenvalues, Eharris, error)
-!!       TYPE(harris_env_type), POINTER       :: harris_env
-!!       INTEGER, INTENT(OUT), OPTIONAL       :: id_nr
-!!       REAL(KIND=dp), INTENT(OUT), OPTIONAL :: Ehartreee_elec, 
-!!                                               Ehartree_core, Exc,
-!!                                               integral_vxc, Ecore,
-!!                                               Ecore_overlap, Ecore_self
-!!                                               EII, Eharris_correction,
-!!                                               sum_of_eigenvalues, Eharris
-!!       TYPE(cp_error_type), OPTIONAL, INTENT(INOUT):: error
-!!     END SUBROUTINE ep_env_get
-!!
 !!   FUNCTION
-!!     Returns various attributes of the harris environment.
+!!     Returns various attributes of the harris environment
 !!
 !!   NOTES
 !!     -
@@ -287,19 +277,12 @@ CONTAINS
 !!   ARGUMENTS
 !!     - harris_env: The enquired harris environment
 !!     - id_nr: unique identifier
-!!     - error: variable to control error logging, stopping,... 
+!!     - harris_energy: The harris energy type
+!!     - harris_force: The harris force type
 !!       see module cp_error_handling
-!!     - Ehartree_elec: The electronic hartree energy
-!!     - Ehartree_core: The hartree energy computed with rho_core
-!!     - Exc: The exchange-correlation energy
-!!     - integral_vxc: The xc potential integral
-!!     - Ecore: The core hamiltonian energy
-!!     - Ecore_overlap: The overalp energy
-!!     - Ecore_self: The self-interaction energy
-!!     - EII: The ion-ion Energy
-!!     - Eharris_correction: The energy correction due to the harris functional
-!!     - sum_of_eigenvalues: The sum of the eigenvalues
-!!     - Eharris: The actual harris functional energy
+!!     - rho: The rho data structure in which diverse representations of 
+!!            the density are stored
+!!     - error: variable to control error logging, stopping,... 
 !!
 !!     For possible missing arguments see the attributes of harris_env_type
 !!
@@ -307,62 +290,39 @@ CONTAINS
 !!     Thomas D. Kuehne (tkuehne@phys.chem.ethz.ch)
 !!
 !!   MODIFICATION HISTORY
-!!     06.2005 initial create [tdk]
+!!     07.2005 initial create [tdk]
 !!
 !!*** **********************************************************************
-  SUBROUTINE harris_env_get(harris_env, id_nr, Ehartree_elec, Ehartree_core, &
-                            Exc, integral_vxc, Ecore, Ecore_overlap, &
-                            Ecore_self, EII, Eharris_correction, &
-                            sum_of_eigenvalues, Eharris, error)
+  SUBROUTINE harris_env_get(harris_env, id_nr, harris_energy, harris_force, &
+                            rho, error)
 
-    TYPE(harris_env_type), POINTER           :: harris_env
-    INTEGER, INTENT(OUT), OPTIONAL           :: id_nr
-    REAL(KIND=dp), INTENT(OUT), OPTIONAL     :: Ehartree_elec, &
-                                                Ehartree_core, &
-                                                Exc, &
-                                                integral_vxc, &
-                                                Ecore, &
-                                                Ecore_overlap, &
-                                                Ecore_self, &
-                                                EII, &
-                                                Eharris_correction, &
-                                                sum_of_eigenvalues, &
-                                                Eharris
+    TYPE(harris_env_type), POINTER               :: harris_env
+    TYPE(harris_energy_type), POINTER, OPTIONAL  :: harris_energy
+    TYPE(harris_force_type), POINTER, OPTIONAL   :: harris_force
+    INTEGER, INTENT(OUT), OPTIONAL               :: id_nr
+    TYPE(qs_rho_type), POINTER, OPTIONAL         :: rho
     TYPE(cp_error_type), INTENT(INOUT), &
-      OPTIONAL                               :: error
+         OPTIONAL                                :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'harris_env_get', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
+    LOGICAL                                      :: failure
 
 !   ------------------------------------------------------------------------
 
     failure = .FALSE.
-  
+
     CPPrecondition(ASSOCIATED(harris_env), cp_failure_level, routineP, error, failure)
-    IF (.not.failure) THEN
-      CPPrecondition(harris_env%ref_count>0, cp_failure_level, routineP, error, failure)
-    END IF
+    CPPrecondition(harris_env%ref_count>0, cp_failure_level, routineP, error, failure)
 
     IF (.NOT. failure) THEN
       IF (PRESENT(id_nr)) id_nr = harris_env%id_nr
-      IF (PRESENT(Ehartree_elec)) Ehartree_elec = harris_env%Ehartree_elec
-      IF (PRESENT(Ehartree_core)) Ehartree_core = harris_env%Ehartree_core
-      IF (PRESENT(Exc)) Exc = harris_env%Exc
-      IF (PRESENT(integral_vxc)) integral_vxc = harris_env%integral_vxc
-      IF (PRESENT(Ecore)) Ecore = harris_env%Ecore
-      IF (PRESENT(Ecore_overlap)) Ecore_overlap = harris_env%Ecore_overlap
-      IF (PRESENT(Ecore_self)) Ecore_self = harris_env%Ecore_self
-      IF (PRESENT(EII)) EII = harris_env%EII
-      IF (PRESENT(Eharris_correction)) THEN
-        Eharris_correction = harris_env%Eharris_correction
-      END IF
-      IF (PRESENT(sum_of_eigenvalues)) THEN
-        sum_of_eigenvalues = harris_env%sum_of_eigenvalues
-      END IF
-      IF (PRESENT(Eharris)) Eharris = harris_env%Eharris
+      IF (PRESENT(harris_energy)) harris_energy => harris_env%harris_energy
+      IF (PRESENT(harris_force)) harris_force => harris_env%harris_force
+      IF (PRESENT(rho)) rho => harris_env%rho
     END IF
+
   END SUBROUTINE harris_env_get
 !***************************************************************************
 
@@ -371,24 +331,8 @@ CONTAINS
 !!   NAME
 !!     harris_env_set
 !!
-!!   SYNOPSIS
-!!     SUBROUTINE harris_env_set(harris_env, id_nr, Ehartree_elec, Ehartree_core, 
-!!                               Exc, integral_vxc, Ecore, Ecore_overlap, 
-!!                               Ecore_self, EII, Eharris_correction, 
-!!                               sum_of_eigenvalues, Eharris, error)
-!!       TYPE(harris_env_type), POINTER       :: harris_env
-!!       INTEGER, INTENT(OUT), OPTIONAL       :: id_nr
-!!       REAL(KIND=dp), INTENT(OUT), OPTIONAL :: Ehartreee_elec, 
-!!                                               Ehartree_core, Exc,
-!!                                               integral_vxc, Ecore,
-!!                                               Ecore_overlap, Ecore_self,
-!!                                               EII, Eharris_correction,
-!!                                               sum_of_eigenvalues, Eharris
-!!       TYPE(cp_error_type), OPTIONAL, INTENT(INOUT):: error
-!!     END SUBROUTINE harris_env_set
-!!
 !!   FUNCTION
-!!     Sets various attributes of the harris environment.
+!!     Sets various attributes of the harris environment
 !!
 !!   NOTES
 !!     -
@@ -396,19 +340,12 @@ CONTAINS
 !!   ARGUMENTS
 !!     - harris_env: The enquired harris environment
 !!     - id_nr: unique identifier
+!!     - harris_energy: The harris energy type
+!!     - harris_force: The harris force type
 !!     - error: variable to control error logging, stopping,... 
 !!       see module cp_error_handling
-!!     - Ehartree_elec: The electronic hartree energy
-!!     - Ehartree_core: The hartree energy computed with rho_core
-!!     - Exc: The exchange-correlation energy
-!!     - integral_vxc: The xc potential integral
-!!     - Ecore: The core hamiltonian energy
-!!     - Ecore_overlap: The overalp energy
-!!     - Ecore_self: The self-interaction energy
-!!     - EII: The ion-ion Energy
-!!     - Eharris_correction: The energy correction due to the harris functional
-!!     - sum_of_eigenvalues: The sum of the eigenvalues
-!!     - Eharris: The actual harris functional energy
+!!     - rho: The rho data structure in which diverse representations of 
+!!            the density are stored
 !!
 !!     For possible missing arguments see the attributes of harris_env_type
 !!
@@ -416,61 +353,37 @@ CONTAINS
 !!     Thomas D. Kuehne (tkuehne@phys.chem.ethz.ch)
 !!
 !!   MODIFICATION HISTORY
-!!     06.2005 initial create [tdk]
+!!     07.2005 initial create [tdk]
 !!
 !!*** **********************************************************************
-  SUBROUTINE harris_env_set(harris_env, id_nr, Ehartree_elec, Ehartree_core, &
-                            Exc, integral_vxc, Ecore, Ecore_overlap, &
-                            Ecore_self, EII, Eharris_correction, &
-                            sum_of_eigenvalues, Eharris, error)
+  SUBROUTINE harris_env_set(harris_env, id_nr, harris_energy, harris_force, &
+                            rho, error)
 
-    TYPE(harris_env_type), POINTER           :: harris_env
-    INTEGER, INTENT(OUT), OPTIONAL           :: id_nr
-    REAL(KIND=dp), INTENT(OUT), OPTIONAL     :: Ehartree_elec, &
-                                                Ehartree_core, &
-                                                Exc, &
-                                                integral_vxc, &
-                                                Ecore, &
-                                                Ecore_overlap, &
-                                                Ecore_self, &
-                                                EII, &
-                                                Eharris_correction, &
-                                                sum_of_eigenvalues, &
-                                                Eharris
+    TYPE(harris_env_type), POINTER              :: harris_env
+    TYPE(harris_energy_type), POINTER, OPTIONAl :: harris_energy
+    TYPE(harris_force_type), POINTER, OPTIONAL  :: harris_force
+    INTEGER, INTENT(OUT), OPTIONAL              :: id_nr
+    TYPE(qs_rho_type), POINTER, OPTIONAL        :: rho
     TYPE(cp_error_type), INTENT(INOUT), &
-      OPTIONAL                               :: error
+         OPTIONAL                               :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'harris_env_set', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
+    LOGICAL                                     :: failure
 
 !   ------------------------------------------------------------------------
 
     failure = .FALSE.
   
     CPPrecondition(ASSOCIATED(harris_env), cp_failure_level, routineP, error, failure)
-    IF (.not.failure) THEN
-      CPPrecondition(harris_env%ref_count>0, cp_failure_level, routineP, error, failure)
-    END IF
+    CPPrecondition(harris_env%ref_count>0, cp_failure_level, routineP, error, failure)
 
     IF (.NOT. failure) THEN
       IF (PRESENT(id_nr)) harris_env%id_nr = id_nr
-      IF (PRESENT(Ehartree_elec)) harris_env%Ehartree_elec = Ehartree_elec
-      IF (PRESENT(Ehartree_core)) harris_env%Ehartree_core = Ehartree_core
-      IF (PRESENT(Exc)) harris_env%Exc = Exc
-      IF (PRESENT(integral_vxc)) harris_env%integral_vxc = integral_vxc
-      IF (PRESENT(Ecore)) harris_env%Ecore = Ecore
-      IF (PRESENT(Ecore_overlap)) harris_env%Ecore_overlap = Ecore_overlap
-      IF (PRESENT(Ecore_self)) harris_env%Ecore_self = Ecore_self
-      IF (PRESENT(EII)) harris_env%EII = EII
-      IF (PRESENT(Eharris_correction)) THEN
-        harris_env%Eharris_correction = Eharris_correction
-      END IF
-      IF (PRESENT(sum_of_eigenvalues)) THEN
-        harris_env%sum_of_eigenvalues = sum_of_eigenvalues
-      END IF
-      IF (PRESENT(Eharris)) harris_env%Eharris = Eharris
+      IF (PRESENT(harris_energy)) harris_env%harris_energy => harris_energy
+      IF (PRESENT(harris_force)) harris_env%harris_force => harris_force
+      IF (PRESENT(rho)) harris_env%rho => rho
     END IF
   END SUBROUTINE harris_env_set
 !***************************************************************************
@@ -480,20 +393,16 @@ CONTAINS
 !!   NAME
 !!     harris_env_clear
 !!
-!!   SYNOPSIS
-!!     SUBROUTINE harris_env_clear(harris_env, error)
-!!       TYPE(harris_env_type), POINTER :: harris_env
-!!       TYPE(cp_error_type), OPTIONAL, INTENT(INOUT) :: error
-!!     END SUBROUTINE harris_env_clear
-!!
 !!   FUNCTION
-!!     Reinitializes the harris environment.
+!!     Reinitializes the harris environment
 !!
 !!   NOTES
 !!     -
 !!
 !!   ARGUMENTS
-!!     - harris_env: The harris environment to be initialized
+!!     - harris_env: The harris energy environment to be reinitialized
+!!     - natom: Number of atoms
+!!     - nspins: Number of spins
 !!     - error: variable to control error logging, stopping,... 
 !!       see module cp_error_handling
 !!
@@ -503,12 +412,14 @@ CONTAINS
 !!     Thomas D. Kuehne (tkuehne@phys.chem.ethz.ch)
 !!
 !!   MODIFICATION HISTORY
-!!     06.2005 initial create [tdk]
+!!     07.2005 initial create [tdk]
 !!
 !!*** **********************************************************************
-  SUBROUTINE harris_env_clear(harris_env, error)
+  SUBROUTINE harris_env_clear(harris_env, natom, nspins, error)
 
     TYPE(harris_env_type), POINTER           :: harris_env
+    INTEGER, INTENT(IN)                      :: natom, &
+                                                nspins
     TYPE(cp_error_type), INTENT(INOUT), &
       OPTIONAL                               :: error
 
@@ -524,19 +435,17 @@ CONTAINS
     CPPrecondition(ASSOCIATED(harris_env), cp_failure_level, routineP, error, failure)
  
     IF (.NOT. failure) THEN
-      harris_env%Ehartree_elec = 0.0_dp
-      harris_env%Ehartree_core = 0.0_dp
-      harris_env%Exc = 0.0_dp
-      harris_env%integral_vxc = 0.0_dp
-      harris_env%Ecore = 0.0_dp
-      harris_env%Ecore_overlap = 0.0_dp
-      harris_env%Ecore_self = 0.0_dp
-      harris_env%EII = 0.0_dp
-      harris_env%Eharris_correction = 0.0_dp
-      harris_env%sum_of_eigenvalues = 0.0_dp
-      harris_env%Eharris = 0.0_dp
+      harris_env%natom  = natom
+      harris_env%nspins = nspins
+
+      CALL harris_energy_clear(harris_env%harris_energy, error=error)
+      CALL harris_force_clear(harris_env%harris_force, natom, error=error)
+
+      !CALL coeff_zero(harris_env%rho_core)
+      
+      NULLIFY(harris_env%rho)
     ELSE
-      CALL harris_env_create(harris_env, error=error)
+      CALL harris_env_create(harris_env, natom, nspins, error=error)
     END IF
   END SUBROUTINE harris_env_clear
 !***************************************************************************
@@ -546,20 +455,16 @@ CONTAINS
 !!   NAME
 !!     harris_env_create
 !!
-!!   SYNOPSIS
-!!     SUBROUTINE harris_env_create(harris_env, error)
-!!       TYPE(harris_env_type), POINTER :: harris_env
-!!       TYPE(cp_error_type), OPTIONAL, INTENT(INOUT) :: error
-!!     END SUBROUTINE harris_env_create
-!!
 !!   FUNCTION
-!!     Creates a harris environment.
+!!     Creates an harris environment
 !!
 !!   NOTES
 !!     -
 !!
 !!   ARGUMENTS
 !!     - harris_env: The harris environment to be created
+!!     - natom: Number of atoms
+!!     - nspins: Number of spins
 !!     - error: variable to control error logging, stopping,... 
 !!       see module cp_error_handling
 !!
@@ -569,12 +474,14 @@ CONTAINS
 !!     Thomas D. Kuehne (tkuehne@phys.chem.ethz.ch)
 !!
 !!   MODIFICATION HISTORY
-!!     06.2005 initial create [tdk]
+!!     07.2005 initial create [tdk]
 !!
 !!*** **********************************************************************
-  SUBROUTINE harris_env_create(harris_env, error)
+  SUBROUTINE harris_env_create(harris_env, natom, nspins, error)
 
     TYPE(harris_env_type), POINTER           :: harris_env
+    INTEGER, INTENT(IN)                      :: natom, &
+                                                nspins
     TYPE(cp_error_type), INTENT(INOUT), &
       OPTIONAL                               :: error
 
@@ -590,13 +497,34 @@ CONTAINS
   
     ALLOCATE(harris_env, stat=stat)
     CPPostcondition(stat == 0, cp_failure_level, routineP, error, failure)
+
+    !CALL harris_energy_create(harris_env%harris_energy, error=error)
+    IF (.NOT. failure) THEN
+      ALLOCATE(harris_env%harris_energy, stat=stat)
+      CPPostcondition(stat==0, cp_failure_level, routineP, error, failure)
+    END IF
+
+    !CALL harris_force_create(harris_env%harris_force, natom, error=error)
+    IF (.NOT. failure) THEN
+      ALLOCATE(harris_env%harris_force, stat=stat)
+      CPPostcondition(stat==0, cp_failure_level, routineP, error, failure)
+    END IF
+
+    !IF (.NOT. failure) THEN
+    !  ALLOCATE(harris_env%rho, stat=stat)
+    !  CPPostcondition(stat==0, cp_failure_level, routineP, error, failure)
+    !END IF
+   
     IF (.NOT. failure) THEN
       harris_env%ref_count = 1
       last_harris_id=last_harris_id+1
       harris_env%id_nr = last_harris_id
-      CALL harris_env_clear(harris_env, error=error)      
+      !CALL harris_env_clear(harris_env, natom=natom, nspins=nspins, error=error)
+      NULLIFY(harris_env%rho)
+      harris_env%natom = natom
+      harris_env%nspins = nspins
     END IF
   END SUBROUTINE harris_env_create
 !***************************************************************************
 
-END MODULE harris_env_types
+END MODULE

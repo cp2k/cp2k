@@ -93,6 +93,7 @@ MODULE qs_core_hamiltonian
                                              get_potential,&
                                              gth_potential_type
   USE global_types,                    ONLY: global_environment_type
+  !USE harris_env_types,                ONLY: harris_env_type
   USE kinds,                           ONLY: dp,&
                                              dp_size,&
                                              int_size
@@ -104,7 +105,7 @@ MODULE qs_core_hamiltonian
   USE orbital_symbols,                 ONLY: cgf_symbol
   USE particle_types,                  ONLY: get_particle_set,&
                                              particle_type
-  USE qs_all_potential,                 ONLY: all_integrals,&
+  USE qs_all_potential,                ONLY: all_integrals,&
                                              vall_type 
   USE qs_environment_types,            ONLY: get_qs_env,&
                                              qs_environment_type,&
@@ -196,7 +197,7 @@ CONTAINS
 
 ! *****************************************************************************
 
-  SUBROUTINE build_core_hamiltonian_matrix(qs_env,globenv,calculate_forces)
+  SUBROUTINE build_core_hamiltonian_matrix(qs_env,globenv,calculate_forces,harris)
 
 !   Purpose: Calculation of the overlap matrix over Cartesian Gaussian
 !            functions.
@@ -212,6 +213,7 @@ CONTAINS
     TYPE(global_environment_type), &
       INTENT(IN)                             :: globenv
     LOGICAL, INTENT(IN)                      :: calculate_forces
+    LOGICAL, INTENT(IN), OPTIONAL            :: harris
 
 !   *** Local parameters ***
 
@@ -255,7 +257,7 @@ CONTAINS
                           build_kinetic_energy_matrix,gth_potential_present,&
                           new_atom_b,ppl_present,ppnl_present,&
                           return_s_derivatives,return_t_derivatives,&
-                          oce_present, rho0_present
+                          oce_present, rho0_present, harris_flag
 
     REAL(KIND = dp), DIMENSION(1) :: rprjc,zetc
     REAL(KIND = dp), DIMENSION(3) :: force_a,force_b,rab,rac,rbc
@@ -312,6 +314,8 @@ CONTAINS
     INTEGER :: omp_get_max_threads,omp_get_thread_num
     INTEGER :: neighbor_list_id
 
+    !TYPE(harris_env_type), POINTER    :: harris_env
+
 #if defined(__AIX) && defined(__INIT_WITH_NANS)
     REAL(dp) :: nans_dp
     nans_dp = z"7FF0000000000001"
@@ -348,9 +352,16 @@ CONTAINS
     NULLIFY (matrix_w)
     NULLIFY (matrix_v)
     NULLIFY (workt)
+    !NULLIFY (harris_env)
 ! Default
     oce_present = .FALSE.
     rho0_present = .FALSE.
+
+    IF (PRESENT(harris)) THEN
+      harris_flag = harris
+    ELSE
+      harris_flag = .FALSE.
+    END IF
 
     CALL get_qs_env(qs_env=qs_env,&
                     atomic_kind_set=atomic_kind_set,&
@@ -375,6 +386,7 @@ CONTAINS
     nkind = SIZE(atomic_kind_set)
     natom = SIZE(particle_set)
 
+
     IF (calculate_forces) THEN
 
       CALL timeset(routine_name//" (forces)","I"," ",handle)
@@ -394,6 +406,15 @@ CONTAINS
                       matrix_w=matrix_w)
 
       matrix_p => rho%rho_ao
+
+      !IF (harris_flag) THEN
+      !  CALL get_qs_env(qs_env=qs_env, harris_env = harris_env)
+      !  matrix_p => harris_env%p_mix_new
+      !ELSE
+      !  CALL get_qs_env(qs_env=qs_env, rho=rho)
+      !  matrix_p => rho%rho_ao
+      !END IF
+      
 
 !     *** If LSD, then combine alpha density and beta density to
 !     *** total density: alpha <- alpha + beta   and

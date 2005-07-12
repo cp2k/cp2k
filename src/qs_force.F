@@ -61,9 +61,7 @@ MODULE qs_force
   USE timings,                         ONLY: timeset,&
                                              timestop
   USE harris_force,                    ONLY: harris_force_correction
-  USE harris_force_types,              ONLY: harris_force_type
-                                             !harris_force_create, &
-                                             !harris_force_release
+  USE harris_env_types,                ONLY: harris_env_type
 
   IMPLICIT NONE
 
@@ -121,7 +119,7 @@ CONTAINS
                                                         harris_flag
     TYPE(qs_rho_type), POINTER                       :: rho
     TYPE(cp_fm_p_type), DIMENSION(:), POINTER        :: mo_derivs
-    TYPE(harris_force_type),POINTER                  :: harris_force
+    TYPE(harris_env_type), POINTER                   :: harris_env
     TYPE(section_vals_type), POINTER                 :: harris_section
 
 !   ---------------------------------------------------------------------------
@@ -141,6 +139,7 @@ CONTAINS
     NULLIFY (scf_control)
     NULLIFY (matrix_w)
     NULLIFY (rho)
+    NULLIFY (harris_env)
 
     CALL get_qs_env(qs_env=qs_env,&
                     atomic_kind_set=atomic_kind_set,&
@@ -289,10 +288,8 @@ CONTAINS
     CALL section_vals_val_get(harris_section, "ACTIVATE", l_val=harris_flag)
 
     IF (harris_flag) THEN
-      !CALL harris_force_create(harris_force, natom)
-      CALL get_qs_env(qs_env=qs_env, harris_force=harris_force)
-      CALL harris_force_correction(qs_env, harris_force, globenv)
-      !CALL harris_force_release(harris_force)
+      CALL get_qs_env(qs_env=qs_env, harris_env=harris_env)
+      CALL harris_force_correction(qs_env, harris_env, globenv)
     END IF
 
     CALL deallocate_matrix_set(matrix_w)

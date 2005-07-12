@@ -352,7 +352,7 @@ CONTAINS
 !!****f* qs_force_types/duplicate_qs_force [1.0] *
 !!
 !!   NAME
-!!     qs_duplicate_force
+!!     duplicate_qs_force
 !!
 !!   SYNOPSIS
 !!     SUBROUTINE duplicate_qs_force(qs_force_input, qs_force_output, natom_of_kind)
@@ -364,7 +364,7 @@ CONTAINS
 !!     Duplicates a force type variable.
 !!
 !!   NOTES
-!!     The qs_forcce_variable is expected of the same size as 
+!!     The qs_force_variable is expected of the same size as 
 !!     qs_force_input if present.
 !!
 !!   ARGUMENTS
@@ -404,6 +404,7 @@ CONTAINS
       IF (.NOT. ASSOCIATED(qs_force_output)) THEN
         CALL allocate_qs_force(qs_force_output, natom_of_kind)
       ELSE
+        !CALL deallocate_qs_force(qs_force_output)
         CALL zero_qs_force(qs_force_output)
       END IF
 
