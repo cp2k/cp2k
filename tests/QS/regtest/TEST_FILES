@@ -157,3 +157,6 @@ rsgrid-dist-1.inp  1
 #BSSE
 2H2O_bsse.inp      5
 3H2O_bsse.inp      5
+#Harris funcional 
+H2O-harris.inp     1
+H2O-MD-harris.inp  1
