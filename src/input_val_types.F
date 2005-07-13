@@ -25,16 +25,13 @@
 !!   SOURCE
 !****************************************************************************
 MODULE input_val_types
+
   USE cp_error_handling,               ONLY: cp_a_l,&
                                              cp_assert,&
                                              cp_assertion_failed,&
-                                             cp_error_get_logger,&
-                                             cp_error_message,&
                                              cp_error_type
   USE cp_log_handling,                 ONLY: cp_failure_level,&
                                              cp_fatal_level,&
-                                             cp_note_level,&
-                                             cp_to_string,&
                                              cp_warning_level
   USE input_enumeration_types,         ONLY: enum_i2c,&
                                              enum_release,&
@@ -42,8 +39,6 @@ MODULE input_val_types
                                              enumeration_type
   USE kinds,                           ONLY: default_string_length,&
                                              dp
-  USE timings,                         ONLY: timeset,&
-                                             timestop
 
   IMPLICIT NONE
   PRIVATE
@@ -655,7 +650,7 @@ END SUBROUTINE val_write
                                    routineP = moduleN//":"//routineN
 
     CHARACTER(LEN=default_string_length) :: enum_string
-    INTEGER                              :: i
+    INTEGER                              :: i,ipos
     LOGICAL                              :: failure
 
 !   ---------------------------------------------------------------------------
@@ -669,26 +664,35 @@ END SUBROUTINE val_write
       SELECT CASE(val%type_of_var)
       CASE (logical_t)
         IF (ASSOCIATED(val%l_val)) THEN
-          WRITE (UNIT=string,FMT="(L2)") (val%l_val(i),i=1,SIZE(val%l_val))
+          DO i=1,SIZE(val%l_val)
+            WRITE (UNIT=string(2*i-1:),FMT="(L2)") val%l_val(i)
+          END DO
         ELSE
           CPAssert(.FALSE.,cp_failure_level,routineP,error,failure)
         END IF
       CASE (integer_t)
         IF (ASSOCIATED(val%i_val)) THEN
-          WRITE (UNIT=string,FMT="(I12)") (val%i_val(i),i=1,SIZE(val%i_val))
+          DO i=1,SIZE(val%i_val)
+            WRITE (UNIT=string(12*i-11:),FMT="(I12)") val%i_val(i)
+          END DO
         ELSE
           CPAssert(.FALSE.,cp_failure_level,routineP,error,failure)
         END IF
       CASE (real_t)
         IF (ASSOCIATED(val%r_val)) THEN
-          WRITE (UNIT=string,FMT="(ES16.8)") (val%r_val(i),i=1,SIZE(val%r_val))
+          DO i=1,SIZE(val%r_val)
+            WRITE (UNIT=string(16*i-15:),FMT="(ES16.8)") val%r_val(i)
+          END DO
         ELSE
           CPAssert(.FALSE.,cp_failure_level,routineP,error,failure)
         END IF
       CASE (char_t)
         IF (ASSOCIATED(val%c_val)) THEN
-          WRITE (UNIT=string,FMT="(A)")&
-            (TRIM(ADJUSTL(val%c_val(i))),i=1,SIZE(val%c_val))
+          ipos = 1
+          DO i=1,SIZE(val%c_val)
+            WRITE (UNIT=string(ipos:),FMT="(A)") TRIM(ADJUSTL(val%c_val(i)))
+            ipos = ipos + LEN_TRIM(ADJUSTL(val%c_val(i))) + 1
+          END DO
         ELSE
           CPAssert(.FALSE.,cp_failure_level,routineP,error,failure)
         END IF

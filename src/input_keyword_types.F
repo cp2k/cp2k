@@ -28,14 +28,13 @@ MODULE input_keyword_types
   USE cp_error_handling,               ONLY: cp_a_l,&
                                              cp_assert,&
                                              cp_assertion_failed,&
-                                             cp_error_get_logger,&
-                                             cp_error_message,&
                                              cp_error_type
   USE cp_log_handling,                 ONLY: cp_failure_level,&
-                                             cp_fatal_level,&
-                                             cp_note_level,&
-                                             cp_to_string,&
                                              cp_warning_level
+  USE cp_units,                        ONLY: cp_unit_create,&
+                                             cp_unit_desc,&
+                                             cp_unit_release,&
+                                             cp_unit_type
   USE input_enumeration_types,         ONLY: enum_create,&
                                              enum_release,&
                                              enum_retain,&
@@ -55,11 +54,9 @@ MODULE input_keyword_types
   USE kinds,                           ONLY: default_string_length,&
                                              dp
   USE output_utilities,                ONLY: print_message
-  USE string_utilities,                ONLY: substitute_special_xml_tokens,&
+  USE string_utilities,                ONLY: compress,&
+                                             substitute_special_xml_tokens,&
                                              uppercase
-  USE timings,                         ONLY: timeset,&
-                                             timestop
-  USE cp_units, ONLY: cp_unit_type, cp_unit_retain, cp_unit_release, cp_unit_desc, cp_unit_create
 
   IMPLICIT NONE
   PRIVATE
@@ -775,7 +772,7 @@ SUBROUTINE keyword_describe_html(keyword, unit_nr, error)
       routineP = moduleN//':'//routineN
 
     CHARACTER(len=default_string_length)     :: c_string, my_unit
-    INTEGER                                  :: i, l
+    INTEGER                                  :: i
     LOGICAL                                  :: failure
 
   failure=.FALSE.
@@ -904,7 +901,7 @@ END SUBROUTINE keyword_describe_html
 
     CHARACTER(LEN=1000) :: string
     CHARACTER(LEN=5)    :: keyword_n_var
-    INTEGER             :: i,j,l0,l1,l2,l3,l4
+    INTEGER             :: i,l0,l1,l2,l3,l4
     LOGICAL             :: failure
 
 !   ---------------------------------------------------------------------------
@@ -964,12 +961,14 @@ END SUBROUTINE keyword_describe_html
       CASE (enum_t)
         WRITE (UNIT=unit_number,FMT="(A)") REPEAT(" ",l2)//"<ENUMERATION>"
         DO i=1,SIZE(keyword%enum%c_vals)
+          CALL substitute_special_xml_tokens(keyword%enum%desc(i),string,&
+                                             ltu=.FALSE.)
           WRITE (UNIT=unit_number,FMT="(A)")&
             REPEAT(" ",l3)//"<ITEM>",&
             REPEAT(" ",l4)//"<NAME>"//&
             TRIM(ADJUSTL(keyword%enum%c_vals(i)))//"</NAME>",&
             REPEAT(" ",l4)//"<DESCRIPTION>"//&
-            TRIM(ADJUSTL(keyword%enum%desc(i)))//"</DESCRIPTION>",&
+            TRIM(ADJUSTL(string))//"</DESCRIPTION>",&
             REPEAT(" ",l3)//"</ITEM>"
         END DO
         IF (keyword%enum%strict) THEN
@@ -985,25 +984,27 @@ END SUBROUTINE keyword_describe_html
       WRITE (UNIT=unit_number,FMT="(A)") REPEAT(" ",l1)//"</DATA_TYPE>"
 
       CALL substitute_special_xml_tokens(keyword%usage,string,ltu=.TRUE.)
-
       WRITE (UNIT=unit_number,FMT="(A)")&
-        REPEAT(" ",l1)//"<USAGE>"//TRIM(string)//"</USAGE>",&
-        REPEAT(" ",l1)//"<DESCRIPTION>"//&
-        TRIM(keyword%description)//"</DESCRIPTION>"
+        REPEAT(" ",l1)//"<USAGE>"//TRIM(string)//"</USAGE>"
+
+      CALL substitute_special_xml_tokens(keyword%description,string,ltu=.FALSE.)
+      WRITE (UNIT=unit_number,FMT="(A)")&
+        REPEAT(" ",l1)//"<DESCRIPTION>"//TRIM(string)//"</DESCRIPTION>"
 
       IF (ASSOCIATED(keyword%default_value).AND.&
           (keyword%type_of_var /= no_t)) THEN
         CALL val_write_internal(keyword%default_value,string,error)
+        CALL compress(string)
         WRITE (UNIT=unit_number,FMT="(A)")&
           REPEAT(" ",l1)//"<DEFAULT_VALUE>"//&
           TRIM(ADJUSTL(string))//"</DEFAULT_VALUE>"
       END IF
 
       IF (ASSOCIATED(keyword%unit)) THEN
-         string=cp_unit_desc(keyword%unit,accept_undefined=.TRUE.,error=error)
-         WRITE (UNIT=unit_number,FMT="(A)")&
-              REPEAT(" ",l1)//"<DEFAULT_UNIT>"//&
-              TRIM(ADJUSTL(string))//"</DEFAULT_UNIT>"
+        string = cp_unit_desc(keyword%unit,accept_undefined=.TRUE.,error=error)
+        WRITE (UNIT=unit_number,FMT="(A)")&
+          REPEAT(" ",l1)//"<DEFAULT_UNIT>"//&
+          TRIM(ADJUSTL(string))//"</DEFAULT_UNIT>"
       END IF
 
       IF (ASSOCIATED(keyword%lone_keyword_value).AND.&
