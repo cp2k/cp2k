@@ -420,7 +420,7 @@ CONTAINS
           CALL get_potential(potential=atomic_kind%gth_potential,&
                              alpha_core_charge=alpha_core_charge)
         ELSE
-          alpha_core_charge = 0.0_dp
+          alpha_core_charge = 1.0_dp
         END IF
       END IF
       IF (PRESENT(ccore_charge)) THEN
