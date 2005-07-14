@@ -28,8 +28,6 @@ MODULE harris_functional
   USE coefficient_types,               ONLY: coeff_type
                                              !coeff_add, &
                                              !coeff_sumup, &
-                                             !coeff_allocate, &
-                                             !coeff_copy
   USE cp_control_types,                ONLY: dft_control_type
   USE cp_error_handling,               ONLY: cp_a_l, &
                                              cp_assert, &
@@ -62,7 +60,6 @@ MODULE harris_functional
                                              pw_integral_ab
   USE pw_types,                        ONLY: COMPLEXDATA1D, &
                                              RECIPROCALSPACE
-  !USE qs_charges_types,                ONLY: qs_charges_type
   !USE qs_collocate_density,            ONLY: calculate_total_rho
   USE qs_core_energies,                ONLY: calculate_ecore_overlap, &
                                              calculate_ecore_self
@@ -79,7 +76,6 @@ MODULE harris_functional
                                              qs_rho_get
   USE qs_scf_types,                    ONLY: qs_scf_env_type
   USE sparse_matrix_types,             ONLY: real_matrix_p_type, &
-                                             !replicate_matrix, &
                                              cp_sm_sm_trace
   USE timings,                         ONLY: timeset, timestop
   
@@ -149,19 +145,16 @@ CONTAINS
                                                        !rho_tot_gspace, &
     !INTEGER                                         :: ispin
     TYPE(coeff_type), POINTER                       :: rho_core
-    !TYPE(qs_charges_type), POINTER                  :: qs_charges
     TYPE(coeff_type), DIMENSION(:), POINTER         :: v_rspace_new, &
                                                        v_tau_rspace
     !TYPE(qs_energy_type), POINTER                   :: qs_energy
-    TYPE(cp_para_env_type), POINTER                 :: para_env
-    TYPE(real_matrix_p_type), DIMENSION(:), POINTER :: matrix_ks
+    !TYPE(cp_para_env_type), POINTER                 :: para_env
+    !TYPE(real_matrix_p_type), DIMENSION(:), POINTER :: matrix_ks
     TYPE(dft_control_type), POINTER                 :: dft_control
     LOGICAL                                         :: failure, my_EII_necessary
 
     CHARACTER(len=*), PARAMETER :: routineN = 'harris_energy_correction', &
       routineP = moduleN//':'//routineN
-    !TYPE(cp_logger_type), POINTER :: logger
-    !INTEGER :: unit_nr
 
 !   ------------------------------------------------------------------------
 
@@ -169,8 +162,7 @@ CONTAINS
 
     failure = .FALSE.
     NULLIFY(rho, green, pw_env, auxbas_pw_pool, v_rspace_new, v_tau_rspace, &
-            rho_core, para_env, matrix_ks, rho, harris_energy)
-    !logger => cp_error_get_logger(error)
+            rho_core, rho, harris_energy)
 
     CPPrecondition(ASSOCIATED(qs_env), cp_failure_level, routineP, error, failure)
     CPPrecondition(qs_env%ref_count>0, cp_failure_level, routineP, error, failure)
@@ -185,9 +177,6 @@ CONTAINS
       CALL get_qs_env(qs_env=qs_env, pw_env=pw_env, rho=rho, rho_core=rho_core, &
                       green=green, error=error)
 
-      !CALL coeff_allocate(c_out=harris_env%rho_core, c_model=rho_core, &
-      !                    use_basis=rho_core%in_use)
-      !CALL coeff_copy(rho_core, harris_env%rho_core)
       CALL duplicate_rho_type(rho_input=rho, rho_output=harris_env%rho, &
                               qs_env=qs_env, error=error)
 
@@ -200,13 +189,10 @@ CONTAINS
       !                        in_space=RECIPROCALSPACE, error=error)
 
       ! ** CALL calc_rho_tot_gspace(rho_tot_gspace, qs_env, rho) ** !
-      !CALL get_qs_env(qs_env=qs_env,rho=rho,rho_core=rho_core,qs_charges=qs_charges,error=error)
-
       !CALL coeff_add(rho_core, rho%rho_g(1), rho_tot_gspace)
       !DO ispin=2, qs_env%dft_control%nspins
       !   CALL coeff_sumup(rho%rho_g(ispin), rho_tot_gspace)
       !END DO
-      !qs_charges%total_rho_gspace = calculate_total_rho(rho_tot_gspace)
 
       CALL init_pw_poisson_solver(green, error=error)
       !CALL calculate_hartree(rho_tot_gspace, ehartree=harris_energy%Ehartree_tot, &
@@ -223,10 +209,6 @@ CONTAINS
       !                             error=error)
       CALL pw_pool_give_back_coeff(auxbas_pw_pool, v_hartree_gspace, &
                                    error=error)
-
-      !harris_energy%Ehartree_elec_core = harris_energy%Ehartree_tot &
-      !                                 - harris_energy%Ehartree_elec &
-      !                                 - harris_energy%Ehartree_core
 
       CALL qs_vxc_create(qs_env=qs_env, vxc_rho=v_rspace_new, &
                          vxc_tau = v_tau_rspace, exc=harris_energy%Exc, &
@@ -259,20 +241,15 @@ CONTAINS
       END IF
 
       IF (my_EII_necessary) THEN
-        !CALL get_qs_env(qs_env=qs_env, energy=qs_energy, error=error)
-        !harris_energy%Ecore = qs_energy%core
-        !harris_energy%Ecore_overlap = qs_energy%core_overlap
-        !harris_energy%Ecore_self = qs_energy%core_self
-        CALL get_qs_env(qs_env, matrix_ks=matrix_ks, rho=rho, &
-                        para_env=para_env, dft_control=dft_control, error=error)
+        !CALL get_qs_env(qs_env=qs_env, matrix_ks=matrix_ks, rho=rho, &
+        !                para_env=para_env, dft_control=dft_control, error=error)
         !CALL calculate_ecore(h=matrix_ks(1)%matrix, p=rho%rho_ao(1)%matrix, &
         !                     ecore=harris_energy%Ecore, para_env=para_env)
+        CALL get_qs_env(qs_env=qs_env, dft_control=dft_control, error=error)
         CALL calculate_ecore_overlap(qs_env=qs_env, globenv=globenv, &
                                      calculate_forces=dft_control%forces, &
                                      E_overlap_core=harris_energy%Ecore_overlap)
-        !harris_energy%Ecore_overlap = qs_energy%core_overlap
         CALL calculate_ecore_self(qs_env, E_self_core=harris_energy%Ecore_self)
-        !harris_energy%Ecore_self = qs_energy%core_self
 
         harris_energy%EII = harris_energy%Ecore_overlap + harris_energy%Ecore_self + &
                             harris_energy%Ehartree_core
@@ -519,11 +496,6 @@ CONTAINS
       CALL harris_env_get(harris_env=harris_env, harris_energy=harris_energy, error=error)
 
       CALL get_qs_env(qs_env, matrix_ks=matrix_ks, para_env=para_env, error=error)
-      !CALL replicate_matrix(scf_env%p_mix_new(1)%matrix, &
-      !                      harris_env%p_mix_new(1)%matrix, &
-      !                      target_name= 'p_mix_new_matrix',&
-      !                      allocate_blocks=.TRUE.)
-      !harris_energy%p_mix_new => scf_env%p_mix_new
 
       CALL cp_sm_sm_trace(matrix_ks(1)%matrix, scf_env%p_mix_new(1)%matrix, &
                           harris_energy%sum_of_eigenvalues, &
@@ -594,14 +566,11 @@ CONTAINS
           WRITE (unit_nr,*) ""
           WRITE (unit_nr,*) "Ehartree n_elec            =", harris_energy%Ehartree_elec
           WRITE (unit_nr,*) "Ehartree n_core            =", harris_energy%Ehartree_core
-          !WRITE (unit_nr,*) "Ehartree n_tot             =", harris_energy%Ehartree_tot
-          !WRITE (unit_nr,*) "Ehartree_elec_core         =", harris_energy%Ehartree_elec_core
 
           WRITE (unit_nr,*) "Exc                        =", harris_energy%Exc
 
           WRITE (unit_nr,*) "The XC potential integral  =", harris_energy%integral_vxc
 
-          !WRITE (unit_nr,*) "Ecore                      =", harris_energy%Ecore
           WRITE (unit_nr,*) "Ecore_overlap              =", harris_energy%Ecore_overlap
           WRITE (unit_nr,*) "Ecore_self                 =", harris_energy%Ecore_self
 

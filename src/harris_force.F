@@ -53,8 +53,7 @@ MODULE harris_force
                                              harris_env_get
   USE harris_force_types,              ONLY: harris_force_type
   USE hartree,                         ONLY: calculate_hartree
-  USE kinds,                           ONLY: dp, &
-                                             int_size
+  USE kinds,                           ONLY: dp
   USE particle_types,                  ONLY: particle_type
   USE pw_env_types,                    ONLY: pw_env_type, &
                                              pw_env_get
@@ -70,7 +69,6 @@ MODULE harris_force
                                              REALDATA3D, &
                                              REALSPACE, &
                                              pw_zero, &
-                                             !pw_deallocate, &
                                              pw_release
   USE qs_core_hamiltonian,             ONLY: build_core_hamiltonian_matrix
   USE qs_environment_types,            ONLY: get_qs_env, &
@@ -83,14 +81,11 @@ MODULE harris_force
   USE qs_integrate_potential,          ONLY: integrate_v_rspace, &
                                              integrate_v_core_rspace
   USE qs_ks_methods,                   ONLY: qs_vxc_create
-                                             !qs_ks_update_qs_env
-  !USE qs_ks_types,                     ONLY: qs_ks_env_type
   USE qs_rho_types,                    ONLY: qs_rho_type, &
                                              qs_rho_get
   USE simulation_cell,                 ONLY: cell_type
   USE sparse_matrix_types,             ONLY: real_matrix_p_type, &
                                              transfer_matrix
-  USE termination,                     ONLY: stop_memory
   USE timings,                         ONLY: timeset, &
                                              timestop
   USE xc,                              ONLY: xc_prep_2nd_deriv_new, &
@@ -184,7 +179,6 @@ CONTAINS
     TYPE(pw_p_type), DIMENSION(:), POINTER          :: my_rho_r, &
                                                        v_xc
     TYPE(coeff_type), DIMENSION(:), POINTER         :: rho_r
-    !TYPE(qs_ks_env_type), POINTER                   :: ks_env
     LOGICAL                                         :: failure
 
     CHARACTER(len=*), PARAMETER :: routineN = 'harris_force_correction', &
@@ -237,7 +231,7 @@ CONTAINS
 
 
       CALL build_core_hamiltonian_matrix(qs_env=qs_env, globenv=globenv, &
-                                         calculate_forces=.TRUE.)
+                                         calculate_forces=.TRUE., harris=.TRUE.)
 
       DO iatom = 1, natom
         ikind = kind_of(iatom)
@@ -251,11 +245,10 @@ CONTAINS
       CALL zero_qs_force(force)
 
 
-      !CALL get_qs_env(qs_env=qs_env, pw_env=pw_env, green=green, error=error)
       CALL get_qs_env(qs_env=qs_env, pw_env=pw_env, rho_core=rho_core, &
                       green=green, error=error)
-      !CALL harris_env_get(harris_env=harris_env, rho=rho, rho_core=rho_core, error=error)
       CALL harris_env_get(harris_env=harris_env, rho=rho, error=error)
+      !CALL get_qs_env(qs_env=qs_env, rho=rho, error=error)
 
       CALL pw_env_get(pw_env=pw_env, auxbas_pw_pool=auxbas_pw_pool, error=error)
 
@@ -414,8 +407,6 @@ CONTAINS
                          exc=Exc, just_energy = .FALSE., error=error)
 
       CALL coeff_scale(v_rspace_new(1), v_rspace_new(1)%pw%pw_grid%dvol)
-      !v_rspace_new(1)%pw%cr3d = v_rspace_new(1)%pw%pw_grid%dvol * &
-      !     v_rspace_new(1)%pw%cr3d
       CALL integrate_v_rspace(v_rspace=v_rspace_new(1), p=rho%rho_ao(1), &
                               h=matrix_ks(1), qs_env=qs_env, calculate_forces=.TRUE., &
                               gapw=.FALSE., error=error)
@@ -475,7 +466,6 @@ CONTAINS
       CALL coeff_scale(v_rspace_new(1), v_rspace_new(1)%pw%pw_grid%dvol)
 
       CALL pw_release(v_xc(1)%pw, error=error)
-      !CALL pw_deallocate(v_xc(1)%pw)
       DEALLOCATE(v_xc,stat=stat)
       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
       
@@ -502,15 +492,6 @@ CONTAINS
 
       !CALL zero_qs_force(force)
 
-
-      !CALL build_core_hamiltonian_matrix(qs_env=qs_env, globenv=globenv, &
-      !                                   calculate_forces=.TRUE.)
-
-      !CALL get_qs_env(qs_env=qs_env, ks_env=ks_env, error=error)
-      !ks_env%rho_changed = .TRUE.
-      !ks_env%forces_up_to_date = .FALSE.
-      !CALL qs_ks_update_qs_env(ks_env=ks_env, qs_env=qs_env, calculate_forces=.TRUE., &
-      !                         just_energy=.FALSE., error=error)
       
       DO iatom = 1, natom
         ikind = kind_of(iatom)
@@ -533,14 +514,11 @@ CONTAINS
       DO iatom = 1, natom
         ikind = kind_of(iatom)
         i = atom_of_kind(iatom)
-        !harris_force%f_rho_core(iatom, 1:3) = force(ikind)%rho_core(1:3,i)
-        !harris_force%f_ovrl(iatom, 1:3) = force(ikind)%overlap(1:3,i)
         harris_force%f_ovrl(iatom, 1:3) = force(ikind)%core_overlap(1:3,i)
         harris_force%f_self(iatom, 1:3) = 0.0_dp
         harris_force%f_EII(iatom, 1:3) = harris_force%f_ovrl(iatom, 1:3) &
                                        + harris_force%f_self(iatom, 1:3) &
                                        + harris_force%f_rho_core(iatom, 1:3)
-        !harris_force%f_hartree(iatom, 1:3) = force(ikind)%rho_elec(1:3,i)
         harris_force%f_harris(iatom, 1:3) = harris_force%f_trace(iatom, 1:3) &
                                           - harris_force%f_hartree(iatom, 1:3) &
                                           - harris_force%f_integral_vxc(iatom, 1:3) &
