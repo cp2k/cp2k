@@ -3,25 +3,21 @@
   PROJECT   butane
   IOLEVEL   1
   FFTLIB    FFTSG
-  RUN_TYPE  MD
+  RUN_TYPE  GEO_OPT
 &END
 
 &PRINT MEDIUM
+V_QMMM
 &END
 
-&MD
-  ensemble:     nve                    ensemble type (nve,nvt,npt_i,npt_f)
-  steps:        3                      total number of steps
-  timestep:     0.5 fs                 time step [fs]
-  temperature:  298                    temperature [K]
-  restart:      init                   start type (init,pos,posvel)
-  print  files        100
-  print  screen       1
+&GEOOPT
+ OPTIMIZER BFGS
+ MAX_ITER  1
 &END
 
 
 &TOPOLOGY
- coord_file     ../../Fist/sample_pdb/butane.pdb
+ coord_file     butane.pdb
  coordinate     pdb
  CHARGE_BETA
 &END
@@ -33,7 +29,7 @@
 &END
 
 &FORCE_FIELD
- PARMFILE CHM ../../Fist/sample_pot/butane.pot
+ PARMFILE CHM butane.pot
 &END
 
 &CELL
@@ -105,7 +101,6 @@
           QM_INDEX 5
           MM_INDEX 1
           ALPHA  1.50
-          QMMM_SCALE_FACTOR 0.0
           FIST_SCALE_FACTOR 0.0
           RADIUS 0.80
          &END LINK
@@ -114,7 +109,6 @@
           QM_INDEX 8
           MM_INDEX 11
           ALPHA  1.50
-          QMMM_SCALE_FACTOR 0.0
           FIST_SCALE_FACTOR 0.0
           RADIUS 0.80
          &END LINK

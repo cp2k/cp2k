@@ -1,23 +1,22 @@
 &CP2K  
   PROGRAM   QMMM
-  PROJECT   butane
+  PROJECT   undecane
   IOLEVEL   1
   FFTLIB    FFTSG
   RUN_TYPE  GEO_OPT
 &END
 
 &PRINT MEDIUM
-V_QMMM
 &END
 
 &GEOOPT
  OPTIMIZER BFGS
- MAX_ITER  1
+ MAX_ITER  0
 &END
 
 
 &TOPOLOGY
- coord_file     ../../Fist/sample_pdb/butane.pdb
+ coord_file     C11H24.pdb
  coordinate     pdb
  CHARGE_BETA
 &END
@@ -29,7 +28,7 @@ V_QMMM
 &END
 
 &FORCE_FIELD
- PARMFILE CHM ../../Fist/sample_pot/butane.pot
+ PARMFILE CHM butane.pot
 &END
 
 &CELL
@@ -40,6 +39,7 @@ V_QMMM
 &IO
  BASIS_SET_FILE GTH_BASIS_SETS
  POTENTIAL_FILE POTENTIAL
+ MM_POTENTIAL_FILE MM_POTENTIAL
 &END
 
 &DFT
@@ -53,11 +53,6 @@ V_QMMM
 
 &SCF
  GUESS        atomic
-&END
-
-&KIND F
- BASIS_SET    SZV-GTH
- POTENTIAL    GTH-PADE-q7
 &END
 
 &KIND H
@@ -77,22 +72,28 @@ V_QMMM
 	    EPS_R 1.0e-14
 	    EPS_X 1.0e-14
             MAXITER 100
-	 &END INTERPOLATOR
+         &END INTERPOLATOR
          ECOUPL GAUSS
-         ABC_QM  7.0 7.0 7.0
+         ABC_QM  10.0 10.0 10.0
          #
          # QM_KINDS
          #
          &QM_KIND C
-          mm_index   5 8 
+          mm_index   14 17 20 23
          &END QM_KIND
          &QM_KIND H
-          mm_index  6 7 9 10 
+          mm_index  15 16 18 19 21 22 24 25
          &END QM_KIND
          #
          # MM_KINDS
          #
+         &MM_KIND CTL2
+          radius 0.78
+         &END MM_KIND
          &MM_KIND CTL3
+          radius 0.78
+         &END MM_KIND
+         &MM_KIND HAL2
           radius 0.78
          &END MM_KIND
          &MM_KIND HAL3
@@ -103,19 +104,19 @@ V_QMMM
          # 
          &LINK
           LINK_TYPE IMOMM
-          QM_INDEX 5
-          MM_INDEX 1
+          QM_INDEX 14
+          MM_INDEX 11
           ALPHA  1.50
-          QM_KIND F
+          QMMM_SCALE_FACTOR 0.0
           FIST_SCALE_FACTOR 0.0
           RADIUS 0.80
          &END LINK
          &LINK
           LINK_TYPE IMOMM
-          QM_INDEX 8
-          QM_KIND F
-          MM_INDEX 11
+          QM_INDEX 23
+          MM_INDEX 26
           ALPHA  1.50
+          QMMM_SCALE_FACTOR 0.0
           FIST_SCALE_FACTOR 0.0
           RADIUS 0.80
          &END LINK

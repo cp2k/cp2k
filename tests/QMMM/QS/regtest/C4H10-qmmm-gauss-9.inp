@@ -16,7 +16,7 @@ V_QMMM
 &END
 
 &TOPOLOGY
- coord_file     ../../Fist/sample_pdb/butane.pdb
+ coord_file     butane.pdb
  coordinate     pdb
  CHARGE_BETA
 &END
@@ -28,7 +28,7 @@ V_QMMM
 &END
 
 &FORCE_FIELD
- PARMFILE CHM ../../Fist/sample_pot/butane.pot
+ PARMFILE CHM butane.pot
 &END
 
 &CELL
