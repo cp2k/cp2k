@@ -30,6 +30,7 @@ MODULE ewald_pw_types
                                              cp_error_message,&
                                              cp_error_type,&
                                              cp_internal_error
+  USE message_passing, only: MPI_COMM_SELF
   USE cp_log_handling,                 ONLY: cp_failure_level,&
                                              cp_fatal_level,&
                                              cp_logger_get_default_unit_nr,&
@@ -297,8 +298,12 @@ SUBROUTINE ewald_pw_init ( ewald_pw, green, cell, cell_ref, ewald_env, error )
                          o_spline=o_spline,&
                          epsilon = epsilon )
     ALLOCATE(pw_big_grid,pw_small_grid,stat=stat)
-    CALL pw_grid_construct( pw_small_grid )
-    CALL pw_grid_construct( pw_big_grid )
+    CALL pw_grid_construct( pw_small_grid, para_env%group )
+    IF (ewald_type==do_ewald_spme) THEN
+       CALL pw_grid_construct( pw_big_grid, para_env%group )
+    ELSE
+       CALL pw_grid_construct( pw_big_grid, MPI_COMM_SELF )
+    END IF
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     SELECT CASE ( ewald_type )
     CASE ( do_ewald_ewald )
@@ -318,7 +323,7 @@ SUBROUTINE ewald_pw_init ( ewald_pw, green, cell, cell_ref, ewald_env, error )
        CALL pw_grid_setup ( cell_ref, pw_big_grid, cutoff = ecut, &
                            info = output_unit, fft_usage = .FALSE. )
        NULLIFY ( pw_pool )
-       CALL pw_pool_create ( pw_pool, pw_grid = pw_big_grid )     
+       CALL pw_pool_create ( pw_pool, pw_grid = pw_big_grid )
        ewald_pw % pw_big_pool => pw_pool
        CALL pw_pool_retain ( ewald_pw % pw_big_pool )
        CALL pw_pool_release ( pw_pool )
@@ -334,12 +339,10 @@ SUBROUTINE ewald_pw_init ( ewald_pw, green, cell, cell_ref, ewald_env, error )
        norm = ( 2.0_dp * alphasq / pi ) ** ( 1.5_dp )
        cutoff_radius = exp_radius ( 0, 2.0_dp * alphasq, epsilon , norm )
 
-       pw_big_grid%para%rs_dims ( 1 ) = para_env%num_pe
-       pw_big_grid%para%rs_dims ( 2 ) = 1
-
        CALL dg_pme_grid_setup ( cell_ref, npts_s, cutoff_radius,   &
                                 pw_small_grid, pw_big_grid,   & 
-                                para_env, error = error )
+                                para_env,rs_dims=(/para_env%num_pe,1/),&
+                                error = error )
 ! Write some useful info
        IF ( ionode ) THEN
          WRITE ( output_unit, '( A,T71,E10.4 )' ) &
@@ -372,12 +375,10 @@ SUBROUTINE ewald_pw_init ( ewald_pw, green, cell, cell_ref, ewald_env, error )
        pw_big_grid % bounds ( 2, : ) = -gmax/2 + gmax - 1
 
        ecut = 0.5_dp * cutoff * cutoff
-       pw_big_grid%para%rs_dims ( 1 ) = para_env%num_pe
-       pw_big_grid%para%rs_dims ( 2 ) = 1
 
        CALL pw_grid_setup( cell_ref, pw_big_grid, cutoff = ecut, &
-            pe_group = para_env % group, info = output_unit, &
-            fft_usage = .TRUE. )
+            info = output_unit, &
+            fft_usage = .TRUE., rs_dims=(/para_env%num_pe,1/))
 
        n = o_spline
        ALLOCATE ( green % p3m_coeff ( -(n-1):n-1, 0:n-1 ), STAT = isos )

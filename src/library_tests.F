@@ -745,15 +745,13 @@ SUBROUTINE pw_fft_test ( globenv )
   np ( 3 ) = NINT ( r * 0.666_dp )
 
 !..Test 1
-  call pw_grid_construct ( grid )
+  CALL pw_grid_construct ( grid, globenv%group )
   grid % grid_span = FULLSPACE
-  grid % para % rs_dims ( 1 ) = globenv % num_pe
-  grid % para % rs_dims ( 2 ) = 1
   grid % bounds ( 1, : ) = -np / 2
   grid % bounds ( 2, : ) = ( np - 1 ) / 2
 
-  CALL pw_grid_setup ( box, grid, pe_group = globenv % group, &
-                       info = globenv % scr )
+  CALL pw_grid_setup ( box, grid, &
+                       info = globenv % scr, rs_dims=(/globenv%num_pe,1/) )
   no = grid % npts
 
   CALL coeff_allocate ( ca, grid, COMPLEXDATA1D )
@@ -811,15 +809,13 @@ SUBROUTINE pw_fft_test ( globenv )
   END IF
 
 !..Test 2
-  call pw_grid_construct ( grid )
+  CALL pw_grid_construct ( grid, globenv%group )
   grid % grid_span = HALFSPACE
-  grid % para % rs_dims ( 1 ) = globenv % num_pe
-  grid % para % rs_dims ( 2 ) = 1
   grid % bounds ( 1, : ) = -np / 2
   grid % bounds ( 2, : ) = ( np - 1 ) / 2
 
-  CALL pw_grid_setup ( box, grid, pe_group = globenv % group, &
-                       info = globenv % scr )
+  CALL pw_grid_setup ( box, grid, &
+                       info = globenv % scr, rs_dims=(/globenv%num_pe,1/) )
   no = grid % npts
 
   CALL coeff_allocate ( ca, grid, COMPLEXDATA1D )
@@ -877,16 +873,14 @@ SUBROUTINE pw_fft_test ( globenv )
   END IF
 
 !..Test 3
-  call pw_grid_construct ( grid )
+  CALL pw_grid_construct ( grid, globenv%group )
   grid % grid_span = FULLSPACE
-  grid % para % rs_dims ( 1 ) = globenv % num_pe
-  grid % para % rs_dims ( 2 ) = 1
 
   CALL pw_find_cutoff ( np, box, cutoff )
   cutoff = 0.5_dp * cutoff * cutoff
 
-  CALL pw_grid_setup ( box, grid, cutoff = cutoff, pe_group = globenv % group, &
-                       info = globenv % scr )
+  CALL pw_grid_setup ( box, grid, cutoff = cutoff, &
+                       info = globenv % scr, rs_dims=(/globenv%num_pe,1/) )
   no = grid % npts
 
   CALL coeff_allocate ( ca, grid, COMPLEXDATA1D )
@@ -944,15 +938,13 @@ SUBROUTINE pw_fft_test ( globenv )
   END IF
 
 !..Test 4
-  call pw_grid_construct ( grid )
+  CALL pw_grid_construct ( grid , globenv%group )
   grid % grid_span = HALFSPACE
-  grid % para % rs_dims ( 1 ) = globenv % num_pe
-  grid % para % rs_dims ( 2 ) = 1
   CALL pw_find_cutoff ( np, box, cutoff )
   cutoff = cutoff * cutoff
 
-  CALL pw_grid_setup ( box, grid, cutoff = cutoff, pe_group = globenv % group, &
-                       info = globenv % scr )
+  CALL pw_grid_setup ( box, grid, cutoff = cutoff, &
+                       info = globenv % scr, rs_dims=(/globenv%num_pe,1/) )
   no = grid % npts
 
   CALL coeff_allocate ( ca, grid, COMPLEXDATA1D )

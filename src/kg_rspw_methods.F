@@ -249,9 +249,7 @@ END SUBROUTINE kg_rspw_create
       DO igrid_level=1,ngrid_level 
         ALLOCATE(pw_grid,stat=stat)
         CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-        CALL pw_grid_construct(pw_grid)
-        pw_grid%para%rs_dims ( 1 ) = para_env%num_pe
-        pw_grid%para%rs_dims ( 2 ) = 1
+        CALL pw_grid_construct(pw_grid,para_env%group)
 
         IF ( dft_control % qs_control % pw_grid_opt % spherical ) THEN
            cutilev = cutoff(igrid_level)
@@ -267,25 +265,29 @@ END SUBROUTINE kg_rspw_create
         IF (igrid_level == 1) THEN
            IF (pw_grid_information) THEN
               CALL pw_grid_setup(cell,pw_grid,cutilev,&
-                   pe_group=para_env%group,&
                    info= cp_logger_get_default_unit_nr(logger,&
-                   local=.FALSE.), blocked=.FALSE.,ncommensurate=ncommensurate,icommensurate=igrid_level)
+                   local=.FALSE.), blocked=.FALSE.,&
+                   ncommensurate=ncommensurate,icommensurate=igrid_level,&
+                   rs_dims=(/para_env%num_pe,1/))
            ELSE
               CALL pw_grid_setup(cell,pw_grid,cutilev,&
-                   pe_group=para_env%group, blocked=.FALSE.,ncommensurate=ncommensurate,icommensurate=igrid_level)
+                   blocked=.FALSE.,&
+                   ncommensurate=ncommensurate,icommensurate=igrid_level,&
+                   rs_dims=(/para_env%num_pe,1/))
            END IF
            old_pw_grid => pw_grid
         ELSE
            IF (pw_grid_information) THEN
               CALL pw_grid_setup(cell,pw_grid,cutilev,&
-                   pe_group=para_env%group,&
                    info=cp_logger_get_default_unit_nr(logger,&
                    local=.FALSE.), blocked=.FALSE., &
-                   ref_grid=old_pw_grid,ncommensurate=ncommensurate,icommensurate=igrid_level)
+                   ref_grid=old_pw_grid,ncommensurate=ncommensurate,&
+                   icommensurate=igrid_level, rs_dims=(/para_env%num_pe,1/))
            ELSE
               CALL pw_grid_setup(cell,pw_grid,cutilev,&
-                   pe_group=para_env%group, blocked=.FALSE., &
-                   ref_grid=old_pw_grid,ncommensurate=ncommensurate,icommensurate=igrid_level)
+                   blocked=.FALSE., &
+                   ref_grid=old_pw_grid,ncommensurate=ncommensurate,&
+                   icommensurate=igrid_level, rs_dims=(/para_env%num_pe,1/))
            END IF
         END IF
 

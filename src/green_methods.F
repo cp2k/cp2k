@@ -404,12 +404,11 @@ CONTAINS
           IF (ALL (ABS(bounds1) < ABS(bounds2))) THEN 
              ALLOCATE(green%super_ref_pw_grid,stat=stat)
              CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-             CALL pw_grid_construct(green%super_ref_pw_grid)
-             green%super_ref_pw_grid%para%rs_dims ( 1 ) = para_env%num_pe
-             green%super_ref_pw_grid%para%rs_dims ( 2 ) = 1
+             CALL pw_grid_construct(green%super_ref_pw_grid,para_env%group)
              green%super_ref_pw_grid%grid_span = grid_span
              CALL pw_grid_setup(cell_ref, green%super_ref_pw_grid, my_cutilev,&
-                  pe_group=para_env%group, blocked=.FALSE.)
+                  blocked=.FALSE.,&
+                  rs_dims=(/para_env%num_pe,1/))
              old_pw_grid => green%super_ref_pw_grid
           END IF
        CASE DEFAULT

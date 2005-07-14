@@ -38,6 +38,7 @@ MODULE qmmm_methods
                                              cp_error_get_logger,&
                                              cp_error_message,&
                                              cp_error_type
+  USE message_passing, ONLY: mp_isend, mp_irecv, mp_wait
   USE cp_log_handling,                 ONLY: cp_failure_level,&
                                              cp_fatal_level,&
                                              cp_note_level,&
@@ -682,11 +683,13 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'qmmm_forces_with_gaussian', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle, i, igrid, j, k, ngrids, stat,&
-         kind_interp
-    INTEGER, DIMENSION(3)                    :: lb, ub
+    INTEGER                                  :: handle, i, igrid, j, k, ngrids,&
+         stat, kind_interp, request, group
+    INTEGER, DIMENSION(3)                    :: lb, ub,glb,gub
     LOGICAL                                  :: failure
     TYPE(pw_p_type), DIMENSION(:), POINTER   :: grids
+    real(kind=dp), DIMENSION(:,:), pointer :: tmp
+    INTEGER, DIMENSION(:), pointer :: pos_of_x
 
 ! Statements
 
@@ -712,12 +715,6 @@ CONTAINS
                                    lb(2):ub(2),&
                                    lb(3):ub(3) )= rho % cr3d
     ! copy the boundaries
-    DO k=lb(3),ub(3)
-       DO j=lb(2),ub(2)
-          grids(auxbas_grid) % pw %cr3d(ub(1)+1,j,k)=rho%cr3d(lb(1),j,k)
-       END DO
-       grids(auxbas_grid) % pw %cr3d(ub(1)+1,ub(2)+1,k)=rho%cr3d(lb(1),lb(2),k)
-    END DO
     DO i=lb(1),ub(1)
        grids(auxbas_grid) % pw %cr3d(i,ub(2)+1,ub(3)+1)=rho%cr3d(i,lb(2),lb(3))
     END DO
@@ -730,9 +727,72 @@ CONTAINS
        DO i=lb(1),ub(1)
           grids(auxbas_grid) % pw %cr3d(i,j,ub(3)+1)=rho%cr3d(i,j,lb(3))
        END DO
-       grids(auxbas_grid) % pw %cr3d(ub(1)+1,j,ub(3)+1)=rho%cr3d(lb(1),j,lb(3))
     END DO
-    grids(auxbas_grid) % pw %cr3d(ub(1)+1,ub(2)+1,ub(3)+1)=rho%cr3d(lb(1),lb(2),lb(3))
+    pos_of_x => grids(auxbas_grid)%pw%pw_grid%para%pos_of_x
+    group=grids(auxbas_grid)%pw%pw_grid%para%group
+    glb=rho%pw_grid%bounds(1,:)
+    gub=rho%pw_grid%bounds(2,:)
+    IF (lb(1)==glb(1).AND.ub(1)==gub(1)) THEN
+       DO k=lb(3),ub(3)
+          DO j=lb(2),ub(2)
+             grids(auxbas_grid) % pw %cr3d(ub(1)+1,j,k)=rho%cr3d(lb(1),j,k)
+          END DO
+          grids(auxbas_grid) % pw %cr3d(ub(1)+1,ub(2)+1,k)=rho%cr3d(lb(1),lb(2),k)
+       END DO
+       DO j=lb(2),ub(2)
+          grids(auxbas_grid) % pw %cr3d(ub(1)+1,j,ub(3)+1)=rho%cr3d(lb(1),j,lb(3))
+       END DO
+       grids(auxbas_grid) % pw %cr3d(ub(1)+1,ub(2)+1,ub(3)+1)=rho%cr3d(lb(1),lb(2),lb(3))
+    ELSE IF (lb(1)==glb(1)) then
+       ALLOCATE(tmp(rho%pw_grid%bounds_local(1,2):rho%pw_grid%bounds_local(2,2),&
+            rho%pw_grid%bounds_local(1,3):rho%pw_grid%bounds_local(2,3)),&
+            stat=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       tmp=rho%cr3d(lb(1),:,:)
+       CALL mp_isend(msgin=tmp,dest=pos_of_x(rho%pw_grid%bounds(2,1)),comm=group,&
+            request=request,tag=112)
+       call mp_wait(request)
+    ELSE IF (ub(1)==gub(1)) THEN
+       ALLOCATE(tmp(rho%pw_grid%bounds_local(1,2):rho%pw_grid%bounds_local(2,2),&
+            rho%pw_grid%bounds_local(1,3):rho%pw_grid%bounds_local(2,3)),&
+            stat=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       CALL mp_irecv(msgout=tmp,source=pos_of_x(rho%pw_grid%bounds(1,1)),&
+            comm=group,request=request,tag=112)
+       CALL mp_wait(request)
+
+       DO k=lb(3),ub(3)
+          DO j=lb(2),ub(2)
+             grids(auxbas_grid) % pw %cr3d(ub(1)+1,j,k)=tmp(j,k)
+          END DO
+          grids(auxbas_grid) % pw %cr3d(ub(1)+1,ub(2)+1,k)=tmp(lb(2),k)
+       END DO
+       DO j=lb(2),ub(2)
+          grids(auxbas_grid) % pw %cr3d(ub(1)+1,j,ub(3)+1)=tmp(j,lb(3))
+       END DO
+       grids(auxbas_grid) % pw %cr3d(ub(1)+1,ub(2)+1,ub(3)+1)=tmp(lb(2),lb(3))
+    END IF
+!FM    DO k=lb(3),ub(3)
+!FM       DO j=lb(2),ub(2)
+!FM          grids(auxbas_grid) % pw %cr3d(ub(1)+1,j,k)=rho%cr3d(lb(1),j,k)
+!FM       END DO
+!FM       grids(auxbas_grid) % pw %cr3d(ub(1)+1,ub(2)+1,k)=rho%cr3d(lb(1),lb(2),k)
+!FM    END DO
+!FM    DO i=lb(1),ub(1)
+!FM       grids(auxbas_grid) % pw %cr3d(i,ub(2)+1,ub(3)+1)=rho%cr3d(i,lb(2),lb(3))
+!FM    END DO
+!FM    DO k=lb(3),ub(3)
+!FM       DO i=lb(1),ub(1)
+!FM          grids(auxbas_grid) % pw %cr3d(i,ub(2)+1,k)=rho%cr3d(i,lb(2),k)
+!FM       END DO
+!FM    END DO
+!FM    DO j=lb(2),ub(2)
+!FM       DO i=lb(1),ub(1)
+!FM          grids(auxbas_grid) % pw %cr3d(i,j,ub(3)+1)=rho%cr3d(i,j,lb(3))
+!FM       END DO
+!FM       grids(auxbas_grid) % pw %cr3d(ub(1)+1,j,ub(3)+1)=rho%cr3d(lb(1),j,lb(3))
+!FM    END DO
+!FM    grids(auxbas_grid) % pw %cr3d(ub(1)+1,ub(2)+1,ub(3)+1)=rho%cr3d(lb(1),lb(2),lb(3))
     CALL section_vals_val_get(interp_section,"kind", i_val=kind_interp, error=error)
     ! RealSpace Interpolation
     SELECT CASE(kind_interp)

@@ -56,6 +56,7 @@ MODULE xc_derivative_set_types
   USE xc_derivative_types,             ONLY: xc_derivative_create,&
                                              xc_derivative_release,&
                                              xc_derivative_type
+  USE message_passing, only: MPI_COMM_SELF
 
   IMPLICIT NONE
   PRIVATE
@@ -232,7 +233,7 @@ CONTAINS
           !FM ugly hack, should be replaced by a pool only for 3d arrays
           CPPrecondition(PRESENT(local_bounds),cp_failure_level,routineP,error,failure)
           ALLOCATE(pw_grid,stat=stat)
-          call pw_grid_construct(pw_grid)
+          CALL pw_grid_construct(pw_grid,MPI_COMM_SELF)
           pw_grid%bounds_local=local_bounds
           NULLIFY(derivative_set%pw_pool)
           CALL pw_pool_create(derivative_set%pw_pool, pw_grid, error=error)

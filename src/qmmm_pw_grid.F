@@ -68,7 +68,7 @@ MODULE qmmm_pw_grid
                                              PW_MODE_LOCAL
   USE pw_grids,                        ONLY: pw_grid_construct,&
                                              pw_grid_release,&
-                                             pw_grid_duplicate
+                                             pw_grid_copy_no_pbc
   USE qs_ks_qmmm_types,                ONLY: qs_ks_qmmm_env_type
   USE qs_ks_types,                     ONLY: qs_ks_env_type
   USE mathconstants,                   ONLY: pi
@@ -149,8 +149,8 @@ CONTAINS
           NULLIFY(pool, qmmm_env%aug_pools(Ilevel)%pool)
           pool      => pw_pools(Ilevel)%pool
           nullify(el_struct)
-          CALL pw_grid_duplicate(pool%pw_grid,el_struct, para_env%group, &
-               augmented_grid=.TRUE., cell=cell, error=error)
+          CALL pw_grid_copy_no_pbc(pool%pw_grid,el_struct, cell=cell,&
+               error=error)
 
           CALL pw_pool_create(qmmm_env%aug_pools(Ilevel)%pool,&
                pw_grid=el_struct,error=error)

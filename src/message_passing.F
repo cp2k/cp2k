@@ -744,7 +744,18 @@ SUBROUTINE mp_comm_compare ( comm1, comm2, RESULT)
 #if defined(__parallel)
   CALL mpi_comm_compare ( comm1, comm2, iout, ierr )
   IF ( ierr /= 0 ) CALL mp_stop( ierr, "mpi_comm_compare @ mp_comm_compare" )
-  IF ( iout == MPI_UNEQUAL ) RESULT = 1
+  SELECT CASE(iout)
+  CASE(MPI_IDENT)
+     result=0
+  CASE(MPI_CONGRUENT)
+     result=1
+  CASE(MPI_SIMILAR)
+     RESULT=2
+  CASE (MPI_UNEQUAL)
+     RESULT=3
+  CASE default
+     RESULT=4
+  END SELECT
 #endif
 
 END SUBROUTINE mp_comm_compare

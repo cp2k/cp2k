@@ -581,7 +581,7 @@ SUBROUTINE fft3d_ps ( fsign, n, cin, gin, gs_group, rs_group, yzp, nyzray, &
   END IF
   numtask = numtask_r
   CALL mp_comm_compare ( rs_group, gs_group, iout )
-  IF ( iout /= 0 ) THEN
+  IF ( iout >3 ) THEN
     CALL stop_program("fft3d","Real space and G space groups are different")
   END IF
 

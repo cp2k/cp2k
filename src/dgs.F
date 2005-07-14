@@ -106,7 +106,7 @@ CONTAINS
 
 !******************************************************************************
 SUBROUTINE dg_pme_grid_setup ( box_b, npts_s, cutoff_radius, grid_s, grid_b, &
-                               para_env, grid_ref, error )
+                               para_env, grid_ref, rs_dims, error )
 
   TYPE(cell_type), POINTER                  :: box_b
   INTEGER, DIMENSION(:), INTENT(IN)         :: npts_s
@@ -114,6 +114,7 @@ SUBROUTINE dg_pme_grid_setup ( box_b, npts_s, cutoff_radius, grid_s, grid_b, &
   TYPE(pw_grid_type), POINTER               :: grid_s, grid_b
   TYPE(cp_para_env_type), POINTER           :: para_env
   TYPE(pw_grid_type), INTENT(IN), OPTIONAL  :: grid_ref
+  INTEGER, DIMENSION(2), INTENT(in), optional :: rs_dims
   TYPE ( cp_error_type ), OPTIONAL          :: error
   
   REAL(KIND=dp)                                :: cutoff, ecut
@@ -135,12 +136,12 @@ SUBROUTINE dg_pme_grid_setup ( box_b, npts_s, cutoff_radius, grid_s, grid_b, &
   
   IF ( PRESENT ( grid_ref ) ) THEN
      CALL pw_grid_setup ( box_b, grid_b, cutoff = ecut, &
-          pe_group = para_env % group, info = output_unit , & 
-          fft_usage = .TRUE.,  ref_grid = grid_ref )
+          info = output_unit , & 
+          fft_usage = .TRUE.,  ref_grid = grid_ref, rs_dims=rs_dims )
   ELSE
      CALL pw_grid_setup ( box_b, grid_b, cutoff = ecut, &
-          pe_group = para_env % group, info =  output_unit, &
-          fft_usage = .TRUE. )
+          info =  output_unit, &
+          fft_usage = .TRUE., rs_dims=rs_dims )
   ENDIF
   
   CALL dg_find_basis ( grid_b % npts, box_b, unit_box )

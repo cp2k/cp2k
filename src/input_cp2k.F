@@ -6779,6 +6779,15 @@ END SUBROUTINE create_ewald_section
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
+       CALL keyword_create(keyword, name="safe_computation",&
+            description="if a non unrolled calculation is to be performed in parallel",&
+            usage="safe_computation OFF",&
+            default_l_val=.true.,&
+            lone_keyword_l_val=.TRUE.,&
+            error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
        CALL keyword_create(keyword, name="aint_precond",&
             description="the approximate inverse to use to get the starting point"//&
             " for the linear solver of the spline3 methods",&

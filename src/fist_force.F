@@ -305,7 +305,7 @@ SUBROUTINE fist_force_control ( fist_env, virial, globenv, box_change, debug ,er
   IF (PM2) THEN
      IF (ALLOCATED(fg_coulomb)) THEN
         WRITE(iw,'(A)')" FIST:: NONBONDED ELECTROSTATIC FORCES IN G-SPACE..."
-        WRITE(iw,'(3f15.9)')((fg_coulomb(j,i) ,j=1,3),i = 1, SIZE(particle_set))
+        WRITE(iw,'(3f15.9)')((fg_coulomb(j,i) ,j=1,3),i = 1, SIZE(fg_coulomb,2))
      END IF
   END IF
 

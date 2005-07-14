@@ -67,7 +67,6 @@ MODULE pw_grid_types
      INTEGER :: ngpts_cut_local                   ! # grid points within cutoff
      INTEGER, DIMENSION ( 2, 3 ) :: bounds_local  ! bounds on local process
      INTEGER, DIMENSION ( 3 ) :: npts_local       ! local version of npts
-     INTEGER :: ndimension                        ! # of dimensions
      REAL (KIND=dp), DIMENSION ( 3 ) :: dr          ! grid spacing
      REAL (KIND=dp) :: dvol, vol                    ! volume element, volume
      REAL (KIND=dp) :: cutoff                       ! cutoff in a.u.

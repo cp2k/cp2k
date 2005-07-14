@@ -82,7 +82,8 @@ MODULE kg_gpw_pw_env_methods
                                              l_info_release,&
                                              l_info_type
   USE message_passing,                 ONLY: mp_max,&
-                                             mp_sum
+                                             mp_sum,&
+                                             MPI_COMM_SELF
   USE particle_types,                  ONLY: particle_type
   USE pw_env_methods,                  ONLY: pw_env_create
   USE pw_env_types,                    ONLY: pw_env_get, &
@@ -492,10 +493,10 @@ CONTAINS
 !     igrid_level == 1
        ALLOCATE(pw_grid_mol,STAT=istat)
        CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
-       CALL pw_grid_construct(pw_grid_mol)
+       CALL pw_grid_construct(pw_grid_mol,MPI_COMM_SELF)
 
-       pw_grid_mol%para%rs_dims ( 1 ) = num_pe
-       pw_grid_mol%para%rs_dims ( 2 ) = 1
+!FM       pw_grid_mol%para%rs_dims ( 1 ) = num_pe
+!FM       pw_grid_mol%para%rs_dims ( 2 ) = 1
        IF ( dft_control % qs_control % pw_grid_opt % spherical ) THEN
            cutilev = cutoff(1)
            pw_grid_mol%grid_span = HALFSPACE
@@ -650,9 +651,9 @@ CONTAINS
 
            ALLOCATE(pw_grid_mol,STAT=istat)
            CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
-           CALL pw_grid_construct(pw_grid_mol)
-           pw_grid_mol%para%rs_dims ( 1 ) = num_pe
-           pw_grid_mol%para%rs_dims ( 2 ) = 1
+           CALL pw_grid_construct(pw_grid_mol,MPI_COMM_SELF)
+!FM           pw_grid_mol%para%rs_dims ( 1 ) = num_pe
+!FM           pw_grid_mol%para%rs_dims ( 2 ) = 1
            IF ( dft_control % qs_control % pw_grid_opt % spherical ) THEN
               cutilev = cutoff(igrid_level)
               pw_grid_mol%grid_span = HALFSPACE

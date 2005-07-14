@@ -141,15 +141,13 @@ SUBROUTINE rs_test ( globenv )
     IF ( refpt ( 3, i ) > np(3) ) refpt ( 3, i ) = refpt ( 3, i ) - np ( 3 )
   END DO
 
-  call pw_grid_construct ( grid )
+  CALL pw_grid_construct ( grid, globenv%group )
   grid % grid_span = FULLSPACE
-  grid % para % rs_dims ( 1 ) = globenv % num_pe
-  grid % para % rs_dims ( 2 ) = 1
   grid % bounds ( 1, : ) = -np / 2
   grid % bounds ( 2, : ) = ( np - 1 ) / 2
 
-  CALL pw_grid_setup ( box, grid, pe_group = globenv % group, &
-                       info = globenv % scr )
+  CALL pw_grid_setup ( box, grid, &
+                       info = globenv % scr, rs_dims=(/globenv%num_pe,1/) )
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 ! TEST 1, replicated calculation

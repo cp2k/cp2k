@@ -2,7 +2,6 @@
 !   CP2K: A general program to perform molecular dynamics simulations         !
 !   Copyright (C) 2000 - 2003  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
-#include "cp_prep_globals.h"
 !!****** cp2k/pw_grids [1.1] *
 !!
 !!   NAME
@@ -44,6 +43,7 @@
 !******************************************************************************
 
 MODULE pw_grids
+#include "cp_prep_globals.h"
   USE cp_error_handling,               ONLY: cp_a_l,&
                                              cp_assert,&
                                              cp_error_get_logger,&
@@ -69,7 +69,8 @@ MODULE pw_grids
                                              mp_environ,&
                                              mp_max,&
                                              mp_min,&
-                                             mp_sum
+                                             mp_sum,&
+                                             MPI_COMM_SELF
   USE pw_grid_types,                   ONLY: FULLSPACE,&
                                              HALFSPACE,&
                                              PW_MODE_DISTRIBUTED,&
@@ -91,7 +92,7 @@ MODULE pw_grids
   PRIVATE
   PUBLIC :: pw_grid_construct, pw_grid_destruct, pw_grid_compare
   PUBLIC :: pw_grid_setup, pw_grid_change, pw_find_cutoff, pw_grid_find_bounds
-  PUBLIC :: pw_grid_retain, pw_grid_release, pw_grid_duplicate
+  PUBLIC :: pw_grid_retain, pw_grid_release, pw_grid_copy_no_pbc
   PUBLIC :: create_gvectors
 
   INTEGER :: grid_tag = 0
@@ -118,10 +119,10 @@ CONTAINS
 !!
 !!*** *************************************************************************
 
-SUBROUTINE pw_grid_construct ( pw_grid )
-
+SUBROUTINE pw_grid_construct ( pw_grid, pe_group )
 
     TYPE(pw_grid_type), INTENT(INOUT)        :: pw_grid
+    INTEGER, intent(in) :: pe_group
 
   pw_grid % bounds = 0
   pw_grid % cutoff = 0.0_dp
@@ -145,6 +146,24 @@ SUBROUTINE pw_grid_construct ( pw_grid )
   NULLIFY ( pw_grid % para % nyzray )
   NULLIFY ( pw_grid % para % bo )
   NULLIFY ( pw_grid % para % pos_of_x )
+
+  ! assign a unique tag to this grid
+  grid_tag = grid_tag + 1
+  pw_grid % identifier = grid_tag
+
+  ! parallel info
+  CALL mp_comm_dup ( pe_group, pw_grid % para % group )
+  CALL mp_environ ( pw_grid % para % group_size, &
+       pw_grid % para % my_pos, &
+       pw_grid % para % group )
+  pw_grid % para % group_head_id = 0
+  pw_grid % para % group_head = &
+       ( pw_grid % para % group_head_id == pw_grid % para % my_pos )
+  IF (pw_grid % para % group_size > 1) THEN
+     pw_grid % para % mode = PW_MODE_DISTRIBUTED
+  ELSE
+     pw_grid % para % mode = PW_MODE_LOCAL
+  END IF
 
 END SUBROUTINE pw_grid_construct
 
@@ -245,13 +264,12 @@ SUBROUTINE pw_grid_destruct ( pw_grid, error )
       IF ( ierr /= 0 ) CALL stop_memory ( "pw_grid_destruct", &
         "pw_grid % para % bo" )
     END IF
-
-    ! also release groups
-    CALL mp_comm_free ( pw_grid % para % group )
-    CALL mp_comm_free ( pw_grid % para % rs_group )
-
-  END IF
-  IF ( ASSOCIATED ( pw_grid % para % pos_of_x ) ) THEN
+ END IF
+ ! also release groups
+ CALL mp_comm_free ( pw_grid % para % group )
+ IF (PRODUCT(pw_grid % para % rs_dims) /= 0 ) &
+      CALL mp_comm_free ( pw_grid % para % rs_group )
+ IF ( ASSOCIATED ( pw_grid % para % pos_of_x ) ) THEN
     DEALLOCATE ( pw_grid % para % pos_of_x, STAT = ierr )
     IF ( ierr /= 0 ) CALL stop_memory ( "pw_grid_destruct", &
         "pw_grid % para % pos_of_x" )
@@ -319,18 +337,20 @@ END FUNCTION pw_grid_compare
 !!
 !!*** *************************************************************************
 
-SUBROUTINE pw_grid_setup ( cell, pw_grid, cutoff, pe_group, info, fft_usage, &
-                           symm_usage, blocked, ref_grid, ncommensurate, icommensurate )
+SUBROUTINE pw_grid_setup ( cell, pw_grid, cutoff, info, fft_usage, &
+                           symm_usage, blocked, ref_grid, ncommensurate,&
+                           icommensurate, rs_dims )
 
 
     TYPE(cell_type), INTENT(IN)              :: cell
     TYPE(pw_grid_type), INTENT(INOUT), &
       TARGET                                 :: pw_grid
     REAL(KIND=dp), INTENT(IN), OPTIONAL      :: cutoff
-    INTEGER, INTENT(IN), OPTIONAL            :: pe_group, info
+    INTEGER, INTENT(IN), OPTIONAL            :: info
     LOGICAL, INTENT(IN), OPTIONAL            :: fft_usage, symm_usage, blocked
     TYPE(pw_grid_type), INTENT(IN), OPTIONAL :: ref_grid
     INTEGER, INTENT(IN), OPTIONAL            :: ncommensurate, icommensurate
+    INTEGER, DIMENSION(2), INTENT(in), optional :: rs_dims
 
     INTEGER :: allocstat, group_size, handle, i, ires, my_icommensurate, &
       my_ncommensurate, my_pos, n(3), nlowest, nlowest_new, ntest(3)
@@ -410,33 +430,9 @@ SUBROUTINE pw_grid_setup ( cell, pw_grid, cutoff, pe_group, info, fft_usage, &
      ENDIF
   ENDIF
 
-  ! assign a unique tag to this grid
-  grid_tag = grid_tag + 1
-  pw_grid % identifier = grid_tag
   ! set pointer to possible reference grid
   IF ( PRESENT ( ref_grid ) ) THEN
     pw_grid % reference = ref_grid % identifier
-  END IF
-
-  ! parallel info
-  IF (PRESENT ( pe_group ) ) THEN
-    CALL mp_environ ( group_size, my_pos, pe_group )
-    IF ( group_size > 1 ) THEN
-      CALL mp_comm_dup ( pe_group, pw_grid % para % group )
-      CALL mp_environ ( pw_grid % para % group_size, &
-                        pw_grid % para % my_pos, &
-                        pw_grid % para % group )
-      pw_grid % para % group_head_id = 0
-      pw_grid % para % group_head = &
-                ( pw_grid % para % group_head_id == pw_grid % para % my_pos )
-      pw_grid % para % mode = PW_MODE_DISTRIBUTED
-    ELSE
-      pw_grid % para % mode = PW_MODE_LOCAL
-      pw_grid % para % group_head = .TRUE.
-    END IF
-  ELSE
-    pw_grid % para % mode = PW_MODE_LOCAL
-    pw_grid % para % group_head = .TRUE.
   END IF
 
   IF ( PRESENT ( cutoff ) ) THEN
@@ -572,7 +568,7 @@ SUBROUTINE pw_grid_setup ( cell, pw_grid, cutoff, pe_group, info, fft_usage, &
     END IF
     IF ( pw_grid % para % mode == PW_MODE_DISTRIBUTED ) THEN
       CALL mp_comm_compare(pw_grid % para % group, ref_grid % para % group, ires )
-      IF ( ires /= 0 ) &
+      IF ( ires >2 ) & !FM make it >3 ?
         CALL stop_program ( "pw_grid_setup", "Incompatible MPI groups" )
     END IF
     IF ( pw_grid % grid_span /= ref_grid % grid_span ) THEN
@@ -584,7 +580,8 @@ SUBROUTINE pw_grid_setup ( cell, pw_grid, cutoff, pe_group, info, fft_usage, &
   END IF
 
   ! Distribute grid
-  CALL pw_grid_distribute ( pw_grid, yz_mask, ref_grid, blocking )
+  CALL pw_grid_distribute ( pw_grid, yz_mask, ref_grid, blocking, &
+       rs_dims=rs_dims )
 
   ! Allocate the grid fields
   CALL pw_grid_allocate ( pw_grid, pw_grid % ngpts_cut_local, &
@@ -765,7 +762,8 @@ END SUBROUTINE pw_grid_setup
 !!
 !!*** *************************************************************************
 
-SUBROUTINE pw_grid_distribute ( pw_grid, yz_mask, ref_grid, blocking )
+SUBROUTINE pw_grid_distribute ( pw_grid, yz_mask, ref_grid, blocking, rs_dims,&
+     error)
 
 
     TYPE(pw_grid_type), INTENT(INOUT), &
@@ -773,6 +771,8 @@ SUBROUTINE pw_grid_distribute ( pw_grid, yz_mask, ref_grid, blocking )
     INTEGER, DIMENSION(:, :), INTENT(INOUT)  :: yz_mask
     TYPE(pw_grid_type), INTENT(IN), OPTIONAL :: ref_grid
     LOGICAL, INTENT(IN)                      :: blocking
+    INTEGER, DIMENSION(2), INTENT(in), optional :: rs_dims
+    TYPE(cp_error_type), INTENT(inout), optional :: error
 
     INTEGER                                  :: coor( 2 ), gmax, handle, i, &
                                                 i1, i2, ierr, ip, ipl, j, k, &
@@ -780,6 +780,9 @@ SUBROUTINE pw_grid_distribute ( pw_grid, yz_mask, ref_grid, blocking )
                                                 np, ns, nx, ny, nz, rsd( 2 )
     INTEGER, ALLOCATABLE, DIMENSION(:, :)    :: yz_index
     REAL(KIND=dp)                            :: tfun, tt
+    CHARACTER(len=*), PARAMETER :: routineN="pw_grid_distribute",&
+         routineP=moduleN//':'//routineN
+    logical :: failure
 
 !------------------------------------------------------------------------------
 
@@ -789,6 +792,10 @@ SUBROUTINE pw_grid_distribute ( pw_grid, yz_mask, ref_grid, blocking )
   lbz = pw_grid % bounds ( 1, 3 )
 
   pw_grid % ngpts = PRODUCT ( pw_grid % npts )
+  CPPrecondition(ALL(pw_grid%para%rs_dims==0),cp_failure_level,routineP,error,failure)
+  IF (PRESENT(rs_dims)) THEN
+     pw_grid%para%rs_dims=rs_dims
+  END IF
 
   IF ( pw_grid % para % mode == PW_MODE_LOCAL) THEN
 
@@ -796,6 +803,14 @@ SUBROUTINE pw_grid_distribute ( pw_grid, yz_mask, ref_grid, blocking )
     pw_grid % npts_local = pw_grid % npts
     pw_grid % ngpts_cut_local = pw_grid % ngpts_cut
     pw_grid % ngpts_local = PRODUCT ( pw_grid % npts_local )
+    pw_grid % para % rs_dims=1
+    CALL mp_cart_create ( MPI_COMM_SELF, 2, &
+                          pw_grid % para % rs_dims, &
+                          pw_grid % para % rs_pos, &
+                          pw_grid % para % rs_group )
+    CALL mp_cart_rank ( pw_grid % para % rs_group, &
+                        pw_grid % para % rs_pos, &
+                        pw_grid % para % rs_mpo )
 
   ELSE
 
@@ -2262,13 +2277,14 @@ SUBROUTINE pw_grid_release(pw_grid, error)
   NULLIFY(pw_grid)
 END SUBROUTINE pw_grid_release
 !***************************************************************************
-!!****f* pw_grids/pw_grid_duplicate [1.0] *
+!!****f* pw_grids/pw_grid_copy_no_pbc [1.0] *
 !!
 !!   NAME
-!!     pw_grid_duplicate
+!!     pw_grid_copy_no_pbc
 !!
 !!   FUNCTION
-!!     duplicates pw_grid_type
+!!     creates a copy of pw_grid_in in which the pbc have been removed
+!!     (by adding a point for the upper boundary)
 !!
 !!   NOTES
 !!
@@ -2279,105 +2295,109 @@ END SUBROUTINE pw_grid_release
 !!       see module cp_error_handling 
 !!
 !!   AUTHOR
-!!     Teodoro Laino
+!!     Fawzi, Teo
 !!
 !!   MODIFICATION HISTORY
 !!     08.2004 created [tlaino]
+!!     04.2005 completly rewritten the duplicate routine, fixed parallel
+!!             behaviour, narrowed scope to copy to non pbc and renamed
+!!             accordingly [fawzi]
 !!
 !!*** **********************************************************************
-  SUBROUTINE pw_grid_duplicate(pw_grid_in, pw_grid_out, pe_group, augmented_grid, cell, error)
+  SUBROUTINE pw_grid_copy_no_pbc(pw_grid_in, pw_grid_out, cell, error)
     IMPLICIT NONE
     ! Arguments
     TYPE(pw_grid_type), POINTER              :: pw_grid_in, pw_grid_out
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
-    INTEGER, INTENT(IN), OPTIONAL            :: pe_group
-    LOGICAL, INTENT(IN), OPTIONAL            :: augmented_grid
     TYPE(cell_type), POINTER                 :: cell
     ! Local Variables
-    CHARACTER(len=*), PARAMETER :: routineN = 'pw_grid_duplicate', &
+    CHARACTER(len=*), PARAMETER :: routineN = 'pw_grid_copy_no_pbc', &
       routineP = moduleN//':'//routineN
-    INTEGER                                  :: stat, group_size, my_pos
-    LOGICAL                                  :: failure, my_augmented_grid
-    INTEGER, ALLOCATABLE, DIMENSION(:, :)    :: yz_mask
+    INTEGER                                  :: stat
+    LOGICAL                                  :: failure
     INTEGER, DIMENSION(3)                    :: n
+    INTEGER, DIMENSION(:),pointer            :: pos_of_x
 
     failure = .FALSE.
-    my_augmented_grid = .FALSE.
-    IF (PRESENT(augmented_grid)) my_augmented_grid = augmented_grid
-    ALLOCATE(pw_grid_out,stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    
+    CPPrecondition(pw_grid_in%ngpts_cut>0,cp_failure_level,routineP,error,failure)
+    CPPrecondition(.NOT.ASSOCIATED(pw_grid_out),cp_failure_level,routineP,error,failure)
     IF (.NOT.failure) THEN
-       CALL pw_grid_construct(pw_grid_out)
+       ALLOCATE(pw_grid_out,stat=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    END IF
+    IF (.NOT.failure) THEN
+       CALL pw_grid_construct(pw_grid_out, pw_grid_in%para%group)
        grid_tag = grid_tag + 1
        pw_grid_out % identifier = grid_tag
        pw_grid_out % ref_count  = 1
        pw_grid_out % reference  = 0
-       pw_grid_out%spherical    =  pw_grid_in%spherical 
-       IF (my_augmented_grid) THEN
-          ! First copy and then augment of one point in every direction
-          pw_grid_out%bounds          =  pw_grid_in%bounds           
-          pw_grid_out%npts            =  pw_grid_in%npts
-          !
-          pw_grid_out%bounds(2,:)     =  pw_grid_out%bounds(2,:) + 1
-          pw_grid_out%npts            =  pw_grid_out%npts  + 1
-          pw_grid_out%ngpts           =  PRODUCT ( pw_grid_out% npts )          
-       ELSE
-          pw_grid_out%bounds          =  pw_grid_in%bounds           
-          pw_grid_out%npts            =  pw_grid_in%npts
+
+       pw_grid_out%bounds_local=pw_grid_in%bounds_local
+       IF (pw_grid_in%bounds_local(2,1)==pw_grid_in%bounds(2,1)) THEN
+          pw_grid_out%bounds_local(2,1)=pw_grid_out%bounds_local(2,1)+1
        END IF
+       pw_grid_out%bounds_local(2,2)=pw_grid_out%bounds_local(2,2)+1
+       pw_grid_out%bounds_local(2,3)=pw_grid_out%bounds_local(2,3)+1
+
+       pw_grid_out%bounds=pw_grid_in%bounds
+       pw_grid_out%bounds(2,:)     =  pw_grid_out%bounds(2,:) + 1
+
+       pw_grid_out%npts            =  pw_grid_in%npts  + 1
+       pw_grid_out%ngpts           =  PRODUCT ( pw_grid_out% npts )
+       pw_grid_out%ngpts_cut=0
+       pw_grid_out%npts_local=pw_grid_out%bounds_local(2,:)-pw_grid_out%bounds_local(2,:)+1
+       pw_grid_out%ngpts_local=product(pw_grid_out%npts_local)
+       pw_grid_out%ngpts_cut_local=0
        pw_grid_out%dr              =  pw_grid_in%dr               
        pw_grid_out%dvol            =  pw_grid_in%dvol             
-       pw_grid_out%vol             =  pw_grid_in%vol              
+       pw_grid_out%vol             =  pw_grid_in%vol*REAL(pw_grid_out%ngpts,dp)&
+            /REAL(pw_grid_in%ngpts,dp) !FM do not modify?
        pw_grid_out%cutoff          =  pw_grid_in%cutoff
-       ! parallel info
-       IF (PRESENT ( pe_group ) ) THEN
-          CALL mp_environ ( group_size, my_pos, pe_group )
-          IF ( group_size > 1 ) THEN
-             CALL mp_comm_dup ( pe_group, pw_grid_out % para % group )
-             CALL mp_environ ( pw_grid_out % para % group_size, &
-                               pw_grid_out % para % my_pos, &
-                               pw_grid_out % para % group )
-             pw_grid_out % para % group_head_id = 0
-             pw_grid_out % para % group_head = &
-                  ( pw_grid_out % para % group_head_id == pw_grid_out % para % my_pos )
-             pw_grid_out % para % mode = PW_MODE_DISTRIBUTED
-          ELSE
-             pw_grid_out % para % mode = PW_MODE_LOCAL
-             pw_grid_out % para % group_head = .TRUE.
-          END IF
+       NULLIFY(pw_grid_out%mapl%pos, pw_grid_out%mapl%neg,&
+            pw_grid_out%mapm%pos,pw_grid_out%mapm%neg,&
+            pw_grid_out%mapn%pos,pw_grid_out%mapn%neg)
+       
+       !para
+       CALL mp_comm_dup ( pw_grid_in % para % group, pw_grid_out % para % group )
+       CALL mp_environ ( pw_grid_out % para % group_size, &
+            pw_grid_out % para % my_pos, &
+            pw_grid_out % para % group )
+       pw_grid_out % para % group_head_id = pw_grid_in % para % group_head_id
+       pw_grid_out % para % group_head = &
+            ( pw_grid_out % para % group_head_id == pw_grid_out % para % my_pos )
+       pw_grid_out % para % mode = pw_grid_in % para % mode
+       pw_grid_out % para % ray_distribution = pw_grid_in % para % ray_distribution
+       NULLIFY(pw_grid_out % para % yzp, pw_grid_out % para % yzq, &
+            pw_grid_out % para % nyzray, pw_grid_out % para % bo)
+       ALLOCATE(pos_of_x(pw_grid_out%bounds(1,1):pw_grid_out%bounds(2,1)),stat=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       pos_of_x(:pw_grid_out%bounds(2,1)-1)=pw_grid_in%para%pos_of_x
+       pos_of_x(pw_grid_out%bounds(2,1))=pos_of_x(pw_grid_out%bounds(2,1)-1)
+       pw_grid_out%para%pos_of_x => pos_of_x
+       pw_grid_out % para % rs_dims = pw_grid_in % para % rs_dims
+       IF (PRODUCT(pw_grid_in % para % rs_dims)/=0) THEN
+          CALL mp_comm_dup ( pw_grid_in % para % rs_group, pw_grid_out % para % rs_group )
+          CALL mp_cart_rank ( pw_grid_out % para % rs_group, &
+               pw_grid_out % para % rs_pos, &
+               pw_grid_out % para % rs_mpo )
        ELSE
-          pw_grid_out % para % mode = PW_MODE_LOCAL
-          pw_grid_out % para % group_head = .TRUE.
+          pw_grid_out % para % rs_mpo=HUGE(0) !FM copy also from pw_grid_in?
+          pw_grid_out % para % rs_pos=HUGE(0)
        END IF
-       !
-       ! Set-up of the rest of the pw_grid type
-       ! 
-       n ( : )  = pw_grid_out % npts ( : )
-       ALLOCATE ( yz_mask ( n(2), n(3) ), STAT = stat )
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-       CALL pw_grid_count ( cell % h_inv, pw_grid_out, pw_grid_out%cutoff, yz_mask )
-
-       ! Distribute grid
-       CALL pw_grid_distribute ( pw_grid_out, yz_mask, blocking=.FALSE.)
-
-       ! Allocate the grid fields
-       CALL pw_grid_allocate ( pw_grid_out, pw_grid_out % ngpts_cut_local, &
-                               pw_grid_out % bounds )
-
-       ! Fill in the grid structure
-       CALL pw_grid_assign ( cell % h_inv, pw_grid_out, pw_grid_out%cutoff )
-  
-       ! Sort g vector wrt length (only local for each processor)
-       CALL pw_grid_sort ( pw_grid_out )
-  
-       CALL pw_grid_remap ( pw_grid_out, yz_mask )
-
-       DEALLOCATE ( yz_mask, STAT=stat )
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       
+       NULLIFY(pw_grid_out%g,pw_grid_out%gsq,pw_grid_out%g_hat)
+       CPPrecondition(pw_grid_in%grid_span==FULLSPACE,cp_failure_level,routineP,error,failure)
+       pw_grid_out%grid_span=pw_grid_in%grid_span
+       pw_grid_out%have_g0=.false.
+       pw_grid_out%first_gne0=huge(0)
+       pw_grid_out%nglengths=huge(0)
+       nullify(pw_grid_out%gidx)
+       pw_grid_out%spherical    =  .false.
 
     END IF
-  END SUBROUTINE pw_grid_duplicate
+  END SUBROUTINE pw_grid_copy_no_pbc
 
 END MODULE pw_grids
 
