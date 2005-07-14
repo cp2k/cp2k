@@ -30,27 +30,27 @@ MODULE input_constants
   ! Program Names
   CHARACTER (LEN=default_string_length), PARAMETER, DIMENSION(10), PUBLIC :: program_names=&
        (/"QS        ",&
-         "QUICKSTEP ",&
          "FIST      ",&
          "KG        ",&
-         "KIM-GORDON",&
-         "KIM_GORDON",&
          "QMMM      ",&
          "ATOM      ",&
          "FARMING   ",&
-         "TEST      "/)
+         "TEST      ",&
+         "QUICKSTEP ",&
+         "KIM-GORDON",&
+         "KIM_GORDON" /)
 
   CHARACTER (LEN=default_string_length), PARAMETER, DIMENSION(10), PUBLIC :: program_name_desc=&
        (/"Electronic structure methods (DFT, ...)",&
-         "Electronic structure methods (DFT, ...)",&
          "Molecular Mechanics                    ",&
-         "Kim Gordon models (DFT)                ",&
-         "Kim Gordon models (DFT)                ",&
          "Kim Gordon models (DFT)                ",&
          "Hybrid quantum classical               ",&
          "Atomic calculations                    ",&
          "Runs N independent jobs in a single run",&
-         "Do some benchmarking and testing       "/)
+         "Do some benchmarking and testing       ",&
+         "Electronic structure methods (DFT, ...)",&    ! Aliases to the previous unique names
+         "Kim Gordon models (DFT)                ",&    !
+         "Kim Gordon models (DFT)                " /)   !
 
   INTEGER, PARAMETER, public :: do_qs=1,&
                                 do_fist=2,&
@@ -61,7 +61,7 @@ MODULE input_constants
                                 do_test=7
 
   INTEGER, PARAMETER, PUBLIC, DIMENSION(10) :: program_name_index=&
-       (/do_qs, do_qs, do_fist, do_kg, do_kg, do_kg, do_qmmm, do_atom, do_farming, do_test/)
+       (/do_qs, do_fist, do_kg, do_qmmm, do_atom, do_farming, do_test, do_qs, do_kg, do_kg/)
 
   REAL(KIND=dp), PARAMETER, PUBLIC :: RADIUS_QMMM_DEFAULT = 0.80_dp,&
                                       ALPHA_IMOMM_DEFAULT = 1.38_dp,&
@@ -80,8 +80,10 @@ MODULE input_constants
                                 do_ewald_ewald=2,&
                                 do_ewald_pme=3,&
                                 do_ewald_spme=4
+
   INTEGER, PARAMETER, PUBLIC, DIMENSION(4) :: ewald_name_index=&
        (/do_ewald_none, do_ewald_ewald, do_ewald_pme, do_ewald_spme/)
+
   !
   ! MD Ensemble
   !
@@ -147,9 +149,9 @@ MODULE input_constants
          "GEO_OPT                  ",&
          "MC                       ",&
          "SPECTRA                  ",&
+         "DEBUG                    ",&
          "BSSE                     ",&
          "LR                       ",&
-         "DEBUG                    ",&
          "EP                       ",&
          "WFN_OPT                  ",&   ! Aliases to the previous unique names
          "WAVEFUNCTION_OPTIMIZATION",&   !
@@ -167,9 +169,9 @@ MODULE input_constants
           geo_opt_run,&
           mc_run,&
           electronic_spectra_run,&
+          qs_debug_run,&
           bsse_run,&
           linear_response_run,&
-          qs_debug_run,&
           ep_run,&
           energy_run,&
           energy_run,&
