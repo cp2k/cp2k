@@ -8029,11 +8029,22 @@ END SUBROUTINE create_ot_section
             n_keywords=5, n_subsections=2, repeats=.FALSE., required=.TRUE.,&
             error=error)
 
-      CALL keyword_create(keyword, name="CONVERGENCE",&
-           variants=(/"CONV"/),&
-           description="Convergence criterion for the linear response scf",&
-           usage="CONVERGENCE 0.00005",&
-           default_r_val=0.5D-6,error=error)
+      CALL keyword_create(keyword, name="EPS_SCF",&
+           description="target accuracy for the scf convergence",&
+           usage="EPS_SCF 1.e-6", default_r_val=1.e-5_dp,error=error)
+      CALL section_add_keyword(section,keyword,error=error)
+      CALL keyword_release(keyword,error=error)
+
+      CALL keyword_create(keyword, name="MAX_SCF",&
+           description="Maximum number of SCF iteration to be performed for one optimization",&
+           usage="MAX_SCF 200", default_i_val=50,error=error)
+      CALL section_add_keyword(section,keyword,error=error)
+      CALL keyword_release(keyword,error=error)
+
+      CALL keyword_create(keyword, name="MAX_DIIS",&
+           variants=(/"MAX_DIIS_BUFFER_SIZE"/),&
+           description="Maximum number of DIIS vectors to be used",&
+           usage="MAX_DIIS 3", default_i_val=4,error=error)
       CALL section_add_keyword(section,keyword,error=error)
       CALL keyword_release(keyword,error=error)
 

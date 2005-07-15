@@ -45,6 +45,7 @@ MODULE qs_tddfpt_eigensolver
                                              fm_pools_give_back_fm_vect
   USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
                                              cp_fm_struct_release, &
+                                             cp_fm_struct_p_type,&
                                              cp_fm_struct_type
   USE cp_fm_types,                     ONLY: cp_fm_create,&
                                              cp_fm_p_type,&
@@ -82,15 +83,15 @@ MODULE qs_tddfpt_eigensolver
 
   IMPLICIT NONE
 
-  TYPE cp_fm_struct_p_type
-     TYPE(cp_fm_struct_type), POINTER :: struct
-  END TYPE cp_fm_struct_p_type
+!  TYPE cp_fm_struct_p_type
+!     TYPE(cp_fm_struct_type), POINTER :: struct
+!  END TYPE cp_fm_struct_p_type
 
   CHARACTER(len=*), PARAMETER :: moduleN = "qs_tddfpt_eigensolver"
 
   PRIVATE
 
-  PUBLIC :: eigensolver
+  PUBLIC :: apply_op, eigensolver
 
 CONTAINS
 
@@ -418,7 +419,9 @@ CONTAINS
           DO spin=1, nspins
              CALL cp_fm_to_fm(b(k,spin)%matrix, X(spin)%matrix)
           END DO
-          CALL apply_op(X, Ab(k,:), t_env, p_env, qs_env)
+          CALL apply_op(X, Ab(k,:),  p_env, qs_env, &
+               qs_env%dft_control%tddfpt_control%do_kernel)
+          CALL p_postortho(p_env, qs_env, Ab(k,:))
           DO spin=1, nspins
              CALL cp_sm_fm_multiply(qs_env%matrix_s(1)%matrix, &
                   b(k,spin)%matrix, &
@@ -580,13 +583,13 @@ CONTAINS
   !            both of these carry info for the tddfpt calculation
   ! qs_env   : info about a quickstep ground state calculation
 
-  SUBROUTINE apply_op(X, R, t_env, p_env, qs_env)
+  SUBROUTINE apply_op(X, R,  p_env, qs_env, do_kernel)
 
 
     TYPE(cp_fm_p_type), DIMENSION(:)         :: X, R
-    TYPE(tddfpt_env_type), INTENT(INOUT)     :: t_env
     TYPE(qs_p_env_type), POINTER             :: p_env
     TYPE(qs_environment_type), POINTER       :: qs_env
+    LOGICAL, INTENT(IN)                      :: do_kernel
 
     CHARACTER(LEN=*), PARAMETER :: routineN = "apply_op", &
                                    routineP = moduleN//"/"//routineN
@@ -609,7 +612,7 @@ CONTAINS
     ! calc P1 and     !
     ! R = R + K(P1)*C !
     !-----------------!
-    IF (qs_env%dft_control%tddfpt_control%do_kernel) THEN
+    IF (do_kernel) THEN
        DO spin=1, nspins
           CALL set_matrix(p_env%p1(spin)%matrix, value=0.0_dp) ! optimize?
           CALL cp_sm_plus_fm_fm_t(p_env%p1(spin)%matrix,&
@@ -633,7 +636,6 @@ CONTAINS
                                    1.0_dp, X(spin)%matrix) ! add X to R
        END DO
     END IF
-    CALL p_postortho(p_env, qs_env, R)
        
     CALL timestop(0.0_dp, handle)
 

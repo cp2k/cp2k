@@ -77,9 +77,10 @@ MODULE qs_linres_types
      INTEGER                                   :: property
      INTEGER                                   :: preconditioner
      INTEGER                                   :: opt_method
+     INTEGER                                   :: max_scf
      LOGICAL                                   :: localized_psi0
      LOGICAL                                   :: do_kernel
-     REAL(KIND=dp)                             :: tolerance
+     REAL(KIND=dp)                             :: eps_scf
      TYPE(localized_wfn_control_type),POINTER  :: localized_wfn_control
   END TYPE linres_control_type
 

@@ -293,6 +293,7 @@ OBJECTS_GENERIC =\
  qs_ks_types.o\
  qs_linres_module.o\
  qs_linres_methods.o\
+ qs_linres_nmr_op.o\
  qs_linres_nmr_utils.o\
  qs_linres_types.o\
  qs_loc_control.o\
@@ -311,6 +312,7 @@ OBJECTS_GENERIC =\
  qs_neighbor_lists.o\
  qs_oce_methods.o\
  qs_oce_types.o\
+ qs_operators_ao.o\
  qs_ot.o\
  qs_ot_eigensolver.o\
  qs_ot_minimizer.o\

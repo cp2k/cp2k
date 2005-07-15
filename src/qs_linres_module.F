@@ -53,8 +53,11 @@ MODULE qs_linres_module
   USE qs_environment_types,            ONLY: get_qs_env,&
                                              qs_environment_type,&
                                              set_qs_env
-  USE qs_linres_nmr_utils,             ONLY: nmr_env_cleanup, nmr_env_init
+  USE qs_linres_nmr_utils,             ONLY: nmr_do_nmr,&
+                                             nmr_env_cleanup,&
+                                             nmr_env_init
   USE qs_linres_methods,               ONLY: linres_localize
+  USE qs_linres_nmr_op,                ONLY: nmr_operators
   USE qs_linres_types,                 ONLY: linres_control_create,&
                                              linres_control_release,&
                                              linres_control_retain,&
@@ -118,10 +121,10 @@ CONTAINS
  
     INTEGER                                     :: handle,output_unit
     LOGICAL                                     :: ionode, failure, &
-                                                  lr_calculation, was_present
+                                                   lr_calculation, was_present
     TYPE(cp_logger_type), POINTER               :: logger    
     TYPE(dft_control_type), POINTER             :: dft_control
-    TYPE(linres_control_type), POINTER          ::  linres_control
+    TYPE(linres_control_type), POINTER          :: linres_control
     TYPE(nmr_env_type)                          :: nmr_env
     TYPE(qs_p_env_type), POINTER                :: p_env
     TYPE(section_vals_type), POINTER            :: lr_section, prop_section
@@ -170,13 +173,15 @@ CONTAINS
 
          !Initialize the nmr environment
          CALL nmr_env_init(nmr_env,qs_env,globenv,error=error)
-
-         
+         CALL nmr_operators(nmr_env,qs_env,error=error)
+         CALL nmr_do_nmr(nmr_env,p_env,qs_env,globenv,error=error)
          CALL nmr_env_cleanup(nmr_env,error=error)
 
        END IF
+
+      ! Other possible LR calculations can be introduced here
       
-      CALL p_env_release(p_env)
+       CALL p_env_release(p_env)
 
 
     ELSE
@@ -261,6 +266,11 @@ CONTAINS
          CALL linres_localize(linres_control%localized_wfn_control,qs_env,&
                dft_control%nspins,globenv,error=error)
        END IF
+
+       CALL section_vals_val_get(lr_section,"OPT_METHOD",i_val=linres_control%opt_method,error=error)
+       CALL section_vals_val_get(lr_section,"MAX_SCF",i_val=linres_control%max_scf,error=error)
+       CALL section_vals_val_get(lr_section,"EPS_SCF",r_val=linres_control%eps_scf,error=error)
+
        ! update the m_epsilon matrix
        CALL p_env_psi0_changed(p_env,qs_env,error=error)
     END IF

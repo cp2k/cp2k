@@ -62,13 +62,13 @@ CONTAINS
 
 ! *****************************************************************************
 
-  SUBROUTINE angmom(la_max,zeta,rpgfa,la_min,&
-                    lb_max,zetb,rpgfb,lb_min,&
+  SUBROUTINE angmom(la_max,npgfa,zeta,rpgfa,la_min,&
+                    lb_max,npgfb,zetb,rpgfb,lb_min,&
                     rac,rbc,angab)
 
-    INTEGER, INTENT(IN)                      :: la_max
+    INTEGER, INTENT(IN)                      :: la_max,npgfa
     REAL(KIND=dp), DIMENSION(:), INTENT(IN)  :: zeta, rpgfa
-    INTEGER, INTENT(IN)                      :: la_min, lb_max
+    INTEGER, INTENT(IN)                      :: la_min, lb_max,npgfb
     REAL(KIND=dp), DIMENSION(:), INTENT(IN)  :: zetb, rpgfb
     INTEGER, INTENT(IN)                      :: lb_min
     REAL(KIND=dp), DIMENSION(3), INTENT(IN)  :: rac, rbc
@@ -90,7 +90,7 @@ CONTAINS
 !   ---------------------------------------------------------------------------
 !   *** Calculate the distance between the centers a and b ***
 
-    rab = rac - rbc
+    rab = rbc - rac
     rab2 = rab(1)*rab(1) + rab(2)*rab(2) + rab(3)*rab(3)
     dab = SQRT(rab2)
 
@@ -98,11 +98,11 @@ CONTAINS
 
     na = 0
 
-    DO ipgf=1,SIZE(zeta)
+    DO ipgf=1,npgfa
 
       nb = 0
 
-      DO jpgf=1,SIZE(zetb)
+      DO jpgf=1,npgfb
 
 !       *** Screening ***
 

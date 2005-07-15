@@ -198,7 +198,6 @@ CONTAINS
 
 !         *** Vertical recurrence steps: [s|O|s] -> [a|O|s] ***
 
-!          rap(:) = -f1*rab(:)
           rap(:) = f1*rab(:)
 
 !         *** [p|O|s] = (Pi - Ai)*[s|O|s] +[s|dO|s]  (i = x,y,z) ***

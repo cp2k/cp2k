@@ -33,6 +33,7 @@
 
 MODULE qs_linres_nmr_utils
 
+  USE atomic_kind_types,               ONLY: atomic_kind_type
   USE cp_control_types,                ONLY: dft_control_type
   USE cp_error_handling,               ONLY: cp_a_l,&
                                              cp_assert,&
@@ -41,9 +42,12 @@ MODULE qs_linres_nmr_utils
                                              cp_error_type
   USE cp_fm_pool_types,                ONLY: cp_fm_pool_p_type,&
                                              fm_pool_create_fm,&
-                                             fm_pool_get_el_struct,&
+                                             fm_pools_create_fm_vect,&
+                                             fm_pools_give_back_fm_vect,&
                                              fm_pool_give_back_fm
-  USE cp_fm_types,                     ONLY: cp_fm_p_type
+  USE cp_fm_types,                     ONLY: cp_fm_p_type,&
+                                             cp_fm_set_all,&
+                                             cp_fm_to_fm
   USE cp_log_handling,                 ONLY: cp_failure_level,&
                                              cp_fatal_level,&
                                              cp_logger_get_default_unit_nr,&
@@ -59,13 +63,16 @@ MODULE qs_linres_nmr_utils
   USE kinds,                           ONLY: dp
   USE qs_environment_types,            ONLY: get_qs_env,&
                                              qs_environment_type
-  USE qs_linres_methods,               ONLY: linres_localize
+  USE qs_linres_methods,               ONLY: linres_localize, linres_scf
   USE qs_linres_types,                 ONLY: linres_control_type,&
                                              nmr_env_create, nmr_env_type
   USE qs_mo_types,                     ONLY: get_mo_set,&
                                              mo_set_p_type
   USE qs_matrix_pools,                 ONLY: mpools_get,&
                                              qs_matrix_pools_type
+  USE qs_neighbor_list_types,          ONLY: neighbor_list_set_p_type
+  USE qs_operators_ao,                 ONLY: set_up_op_rmd
+  USE qs_p_env_types,                  ONLY: qs_p_env_type
   USE simulation_cell,                 ONLY: cell_type, pbc
   USE sparse_matrix_types,             ONLY: cp_sm_scale_and_add,&
                                              deallocate_matrix_set,&
@@ -74,16 +81,110 @@ MODULE qs_linres_nmr_utils
                                              replicate_matrix_structure,&
                                              set_matrix,&
                                              transfer_matrix
+  USE timings,                         ONLY: timeset,&
+                                             timestop
 
   IMPLICIT NONE
 
   PRIVATE
-  PUBLIC :: nmr_env_cleanup, nmr_env_init
+  PUBLIC :: nmr_do_nmr, nmr_env_cleanup, nmr_env_init
 
   CHARACTER(LEN=*), PARAMETER :: moduleN='qs_linres_nmr_utils'
 
 CONTAINS
 
+  SUBROUTINE nmr_do_nmr(nmr_env,p_env,qs_env,globenv,error)
+
+    TYPE(nmr_env_type)                          :: nmr_env
+    TYPE(qs_p_env_type), POINTER                :: p_env
+    TYPE(qs_environment_type), POINTER          :: qs_env
+    TYPE(global_environment_type), &
+      POINTER                                   :: globenv
+    TYPE(cp_error_type), & 
+         INTENT(INOUT), OPTIONAL                :: error
+
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'nmr_do_nmr', &
+                                   routineP = moduleN//'/'//routineN
+
+    INTEGER ::  handle, idir, ispin, istat
+    LOGICAL                                     :: ionode, failure
+    TYPE(cp_fm_p_type), DIMENSION(:), &
+      POINTER                                   :: psi1,h1_psi0
+    TYPE(cp_fm_pool_p_type), DIMENSION(:), &
+      POINTER                                   :: ao_mo_fm_pools
+    TYPE(dft_control_type), POINTER             :: dft_control
+    TYPE(qs_matrix_pools_type), POINTER         :: mpools
+
+
+    failure   = .FALSE.
+    CALL timeset(routineN,"I","",handle)
+
+     NULLIFY(ao_mo_fm_pools, dft_control, mpools)
+
+     CALL get_qs_env(qs_env=qs_env,&
+          dft_control= dft_control,&
+          mpools=mpools)
+
+     !----------------------!
+     ! allocate the vectors !
+     !----------------------!
+     CALL mpools_get(mpools, ao_mo_fm_pools=ao_mo_fm_pools)
+     CALL fm_pools_create_fm_vect(ao_mo_fm_pools, psi1, name=routineP//":X")
+     ALLOCATE(h1_psi0(dft_control%nspins),STAT=istat)
+     CPPostcondition(istat==0,cp_failure_level,routineP,error,failure) 
+
+     ! operator p
+     DO idir = 1,3
+
+       !initial guess for psi1
+
+       !DO scf cycle to optimize psi1
+       DO ispin = 1,dft_control%nspins
+         NULLIFY(h1_psi0(ispin)%matrix)
+         h1_psi0(ispin)%matrix =>  nmr_env%p_psi0(ispin,idir)%matrix
+       END DO
+       CALL linres_scf(p_env, qs_env, psi1, h1_psi0,error=error)
+
+       !Calculate the contribution to the chemical shift
+!       CALL chemshift_p(nmr_env%chemical_shift,psi1,idir,error=error)
+
+       IF(nmr_env%current_density) THEN
+        ! the optimized wfns are copied in the  fm
+         DO ispin=1, dft_control%nspins
+            CALL cp_fm_to_fm(psi1(ispin)%matrix, nmr_env%psi1_p(ispin,idir)%matrix)
+         END DO
+       END IF
+
+     END DO ! idir
+
+     IF(nmr_env%current_density) THEN
+      ! the optimized wfns are copied in the  fm
+       DO ispin=1, dft_control%nspins
+          CALL cp_fm_to_fm(psi1(ispin)%matrix, nmr_env%psi1_rxp(ispin,idir)%matrix)
+       END DO
+     END IF
+
+     IF(nmr_env%current_density) THEN
+      ! the optimized wfns are copied in the  fm
+       DO ispin=1, dft_control%nspins
+          CALL cp_fm_to_fm(psi1(ispin)%matrix, nmr_env%psi1_D(ispin,idir)%matrix)
+       END DO
+     END IF
+
+    !Calculate current density and induced field
+!    CALL current_density(nmr_env,error=error)
+
+    !----------!
+    ! clean up !
+    !----------!
+     CALL fm_pools_give_back_fm_vect(ao_mo_fm_pools, psi1)
+     DEALLOCATE(h1_psi0,STAT=istat)
+     CPPostcondition(istat==1,cp_failure_level,routineP,error,failure)
+     NULLIFY(psi1,h1_psi0)
+
+    CALL timestop(0.0_dp, handle)
+
+  END SUBROUTINE nmr_do_nmr
 
 ! *****************************************************************************
 !!****f* cp2k/qs_linres_nmr_utils/nmr_env_init
@@ -119,11 +220,15 @@ CONTAINS
     INTEGER                                     :: homo, idir,ispin,istat,n_mo(2),nao,nmoloc,output_unit
     LOGICAL                                     :: ionode, failure
     REAL(dp), DIMENSION(:,:), POINTER           :: centers
+    TYPE(atomic_kind_type), DIMENSION(:),&
+      POINTER                                   :: atomic_kind_set
     TYPE(cp_logger_type), POINTER               :: logger
     TYPE(dft_control_type), POINTER             :: dft_control
     TYPE(linres_control_type), POINTER          :: linres_control
     TYPE(mo_set_p_type), DIMENSION(:), &
       POINTER                                   :: mos
+    TYPE(neighbor_list_set_p_type), &
+      DIMENSION(:),           POINTER           :: sab_orb
     TYPE(qs_matrix_pools_type), POINTER         :: mpools
     TYPE(real_matrix_p_type), DIMENSION(:), &
       POINTER                                   :: matrix_s
@@ -131,7 +236,7 @@ CONTAINS
 
     failure = .FALSE.
 
-    NULLIFY(centers,dft_control,linres_control,logger,matrix_s,mos,mpools,nmr_section)
+    NULLIFY(atomic_kind_set,centers,dft_control,linres_control,logger,matrix_s,mos,mpools,nmr_section,sab_orb)
     n_mo(1:2) = 0
     nao = 0
     nmoloc = 0
@@ -154,11 +259,12 @@ CONTAINS
     CALL section_vals_val_get(nmr_section,"FULL",l_val=nmr_env%full_nmr,error=error)
 
     CALL get_qs_env(qs_env=qs_env,&
+                    atomic_kind_set=atomic_kind_set,&
                     dft_control=dft_control,&
                     linres_control=linres_control,&
                     matrix_s=matrix_s,&
                     mos=mos,&
-                    mpools=mpools)
+                    mpools=mpools,sab_orb=sab_orb)
 
     ! check that the psi0 are localized and you have all the centers
      CPPrecondition(linres_control%localized_psi0,cp_warning_level,routineP,error,failure)
@@ -217,7 +323,8 @@ CONTAINS
      DO idir = 1,3 
        NULLIFY(nmr_env%op_p_ao(idir)%matrix)
        CALL replicate_matrix_structure(matrix_s(1)%matrix, &
-            nmr_env%op_p_ao(idir)%matrix,"nmr_env%op_p_ao"//"-"//TRIM(ADJUSTL(cp_to_string(idir))))
+            nmr_env%op_p_ao(idir)%matrix,"nmr_env%op_p_ao"//"-"//TRIM(ADJUSTL(cp_to_string(idir))),&
+            target_symmetry="symmetric")
        CALL set_matrix(nmr_env%op_p_ao(idir)%matrix,0.0_dp)
      END DO
 
@@ -241,11 +348,14 @@ CONTAINS
 
      ALLOCATE(nmr_env%op_rmd_ao(3),STAT=istat)
      CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
-     DO idir = 1,3 
+
+     CALL set_up_op_rmd(nmr_env%op_rmd_ao(1)%matrix,atomic_kind_set,sab_orb,error=error)
+
+     DO idir = 2,3 
        NULLIFY(nmr_env%op_rmd_ao(idir)%matrix)
-       CALL replicate_matrix_structure(matrix_s(1)%matrix, &
+       CALL replicate_matrix_structure( nmr_env%op_rmd_ao(1)%matrix, &
             nmr_env%op_rmd_ao(idir)%matrix,"nmr_env%op_rmd_ao"//&
-            "-"//TRIM(ADJUSTL(cp_to_string(idir))))
+            "-"//TRIM(ADJUSTL(cp_to_string(idir))),target_symmetry="none")
        CALL set_matrix(nmr_env%op_rmd_ao(idir)%matrix,0.0_dp)
      END DO
 
@@ -255,7 +365,8 @@ CONTAINS
     ! but how we define it depends also on how we will use it
     ! If Gapw I suppose we should use the same partitioning used for the density
    
-
+    ! Initialize the chemical shift tensor
+    nmr_env%chemical_shift = 0.0_dp
 
   END SUBROUTINE nmr_env_init
 

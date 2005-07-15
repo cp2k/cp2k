@@ -64,7 +64,7 @@ MODULE cp_fm_struct
   INTEGER :: optimal_blacs_col_block_size=32
   INTEGER :: optimal_blacs_row_block_size=32
 
-  PUBLIC :: cp_fm_struct_type
+  PUBLIC :: cp_fm_struct_type,cp_fm_struct_p_type
   PUBLIC :: optimal_blacs_row_block_size, optimal_blacs_col_block_size
   PUBLIC :: cp_fm_struct_create,cp_fm_struct_retain, cp_fm_struct_release,&
        cp_fm_struct_equivalent, cp_fm_struct_compatible, cp_fm_struct_write,&
@@ -132,7 +132,12 @@ MODULE cp_fm_struct
   END TYPE cp_fm_struct_type
 !!***
 !****************************************************************************
-
+  TYPE cp_fm_struct_p_type
+     TYPE(cp_fm_struct_type), POINTER :: struct
+  END TYPE cp_fm_struct_p_type
+!!***
+!****************************************************************************
+  
 CONTAINS
 
 !!****f* cp_fm_struct/cp_fm_struct_create [1.0] *
