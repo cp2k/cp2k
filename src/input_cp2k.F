@@ -3000,18 +3000,18 @@ SUBROUTINE create_tddfpt_section(section,error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
-       CALL keyword_create(keyword, name="WALL+",&
+       CALL keyword_create(keyword, name="WALL_PLUS",&
             variants=(/"WALLP"/),&
             description="Activates the reflective wall on the upper limit of the collective variable.",&
-            usage="WALL+ {real}",&
+            usage="WALL_PLUS {real}",&
             default_r_val=-HUGE(0.0_dp),error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
-       CALL keyword_create(keyword, name="WALL-",&
+       CALL keyword_create(keyword, name="WALL_MINUS",&
             variants=(/"WALLM"/),&
             description="Activates the reflective wall on the lower limit of the collective variable.",&
-            usage="WALL- {real}",&
+            usage="WALL_MINUS {real}",&
             default_r_val=-HUGE(0.0_dp),error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
