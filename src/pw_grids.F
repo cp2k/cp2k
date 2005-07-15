@@ -643,7 +643,7 @@ SUBROUTINE pw_grid_setup ( cell, pw_grid, cutoff, info, fft_usage, &
       n ( 2 ) = pw_grid % ngpts_local
       CALL mp_sum ( n(1:2), pw_grid % para % group )
       n ( 3 ) = SUM ( pw_grid % para % nyzray )
-      rv ( :, 1 ) = REAL ( n,KIND=dp) / REAL ( group_size,KIND=dp)
+      rv ( :, 1 ) = REAL ( n,KIND=dp) / REAL ( pw_grid % para % group_size,KIND=dp)
       n ( 1 ) = pw_grid % ngpts_cut_local
       n ( 2 ) = pw_grid % ngpts_local
       CALL mp_max ( n(1:2), pw_grid % para % group )
