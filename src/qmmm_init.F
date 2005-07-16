@@ -376,6 +376,7 @@ CONTAINS
                                      mm_atom_chrg=mm_atom_chrg,&
                                      added_charges=qmmm_env_qm%added_charges,&
                                      print_section=print_section,&
+                                     qmmm_section=qmmm_section,&
                                      error=error)
        !
        ! Initialize the MM potential stored on vector
@@ -682,7 +683,8 @@ CONTAINS
   !!
   !!*************************************************************************
  SUBROUTINE qmmm_init_gaussian_type(qmmm_env_qm, qm_cell_small, mm_cell, globenv,&
-                                    mm_atom_chrg, qs_env, added_charges, print_section, error )
+                                    mm_atom_chrg, qs_env, added_charges, print_section, &
+                                    qmmm_section, error )
    IMPLICIT NONE
    ! Arguments
     TYPE(cell_type), POINTER                 :: mm_cell, qm_cell_small
@@ -691,7 +693,7 @@ CONTAINS
     TYPE(qs_environment_type), POINTER       :: qs_env
     REAL(KIND=dp), POINTER, DIMENSION(:)     :: mm_atom_chrg
     TYPE(add_set_type), POINTER              :: added_charges
-    TYPE(section_vals_type), POINTER         :: print_section
+    TYPE(section_vals_type), POINTER         :: print_section, qmmm_section
     TYPE(cp_error_type), INTENT(inout), &
          OPTIONAL                               :: error
    ! Local Variables
@@ -721,6 +723,7 @@ CONTAINS
                                   maxchrg=maxchrg,&
                                   compatibility=qmmm_env_qm%compatibility,&
                                   print_section=print_section,&
+                                  qmmm_section=qmmm_section,&
                                   error=error)
 
     IF (qmmm_env_qm%move_mm_charges.OR.qmmm_env_qm%add_mm_charges) THEN
@@ -737,6 +740,7 @@ CONTAINS
                                      maxchrg=maxchrg,&
                                      compatibility=qmmm_env_qm%compatibility,&
                                      print_section=print_section,&
+                                     qmmm_section=qmmm_section,&
                                      error=error)
 
        IF (qmmm_env_qm%qmmm_coupl_type == do_qmmm_gauss) THEN

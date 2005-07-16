@@ -252,6 +252,7 @@ OBJECTS_GENERIC =\
  qmmm_electrostatic_methods.o\
  qmmm_elpot.o\
  qmmm_ff_fist.o\
+ qmmm_gaussian_data.o\
  qmmm_gaussian_init.o\
  qmmm_gaussian_input.o\
  qmmm_gaussian_types.o\

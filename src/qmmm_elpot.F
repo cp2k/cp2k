@@ -124,7 +124,7 @@ CONTAINS
     TYPE(section_vals_type), POINTER         :: print_pot
     TYPE(cp_logger_type), POINTER :: logger
     CHARACTER(LEN=80)                        :: FileName
-    CHARACTER(LEN=default_string_length)     :: myFormat
+    CHARACTER(LEN=200)                       :: myFormat
 
     logger => cp_error_get_logger(error)
     Rmin = 0.0_dp
@@ -265,14 +265,14 @@ CONTAINS
              IF (globenv%ionode) THEN 
                 OPEN(UNIT=21,FILE=FileName)
                 WRITE(21,'(A)')"# MM ELECTROSTATIC POTENTIAL - UNIDIMENSIONAL - ATOMIC UNITS"
-                WRITE(21,'(A,T10,A,T30,A,T130,A)')"#","Xval","Gaussians","LongRange"
+                WRITE(21,'(A,T10,A,T30,A,T211,A)')"#","Xval","Gaussians","LongRange"
                 myFormat = "T10,F15.9,T30,"
                 DO Ig=1,pgf%number_of_gaussians
                    myind = INDEX(myFormat," ")
-                   WRITE(myFormat(myind:),'(A6)')"F12.6,"
+                   WRITE(myFormat(myind:),'(A6)')"F12.9,"
                 END DO
                 myind = INDEX(myFormat," ")-1
-                myFormat = myFormat(1:myind)//"T130,F15.9"
+                myFormat = myFormat(1:myind)//"T211,F15.9"
                 myind = INDEX(myFormat," ")-1
                 x=0.0_dp
                 DO i=1,np

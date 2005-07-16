@@ -44,7 +44,8 @@ MODULE qmmm_gaussian_init
   USE memory_utilities,                ONLY: reallocate
   USE qmmm_gaussian_types,             ONLY: qmmm_gaussian_p_type,&
                                              qmmm_gaussian_type
-  USE qmmm_gaussian_input,             ONLY: read_mm_potential
+  USE qmmm_gaussian_input,             ONLY: read_mm_potential,&
+                                             set_mm_potential
   USE global_types,                    ONLY: global_environment_type
   USE simulation_cell,                 ONLY: cell_type
   USE qs_util,                         ONLY: exp_radius
@@ -92,7 +93,7 @@ CONTAINS
   SUBROUTINE qmmm_gaussian_initialize(qmmm_gaussian_fns, globenv, pw_env,&
        qm_cell_small, mm_cell, mm_el_pot_radius, mm_el_pot_radius_corr,  &
        qmmm_coupl_type, eps_mm_rspace, maxradius, maxchrg, compatibility,&
-       print_section, error)
+       print_section, qmmm_section, error)
     IMPLICIT NONE
     ! Arguments
     TYPE(qmmm_gaussian_p_type), &
@@ -104,7 +105,7 @@ CONTAINS
     TYPE(global_environment_type), POINTER   :: globenv
     TYPE(pw_env_type), POINTER :: pw_env
     TYPE(cell_type), POINTER                 :: qm_cell_small, mm_cell
-    TYPE(section_vals_type), POINTER         :: print_section
+    TYPE(section_vals_type), POINTER         :: print_section, qmmm_section
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
     LOGICAL, INTENT(IN) :: compatibility
@@ -112,8 +113,8 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'qmmm_gaussian_initialize', &
       routineP = moduleN//':'//routineN
     REAL(KIND=dp), DIMENSION(:), POINTER :: radius, c_radius
-    INTEGER :: stat, i, j, Ndim ,ilevel
-    LOGICAL :: Failure, Found
+    INTEGER :: stat, i, j, Ndim ,ilevel, num_geep_gauss
+    LOGICAL :: Failure, Found, use_geep_lib
     TYPE(qmmm_gaussian_type), POINTER :: mypgf
     REAL(KIND=dp) :: alpha, mymaxradius, Prefactor
     TYPE(pw_pool_p_type), DIMENSION(:), pointer :: pools
@@ -126,6 +127,14 @@ CONTAINS
     IF (.NOT.failure) THEN
        logger => cp_error_get_logger(error)
        print_gen => section_vals_get_subs_vals(print_section,"PROGRAM_RUN_INFO",error=error)
+       CALL section_vals_val_get(qmmm_section,"USE_GEEP_LIB",i_val=num_geep_gauss,error=error)
+       IF (num_geep_gauss == 0) THEN
+          use_geep_lib = .FALSE.
+       ELSE
+          use_geep_lib = .TRUE.
+          IF (num_geep_gauss <5)  CPPostcondition(.FALSE.,cp_failure_level,routineP,error,failure)
+          IF (num_geep_gauss >15) CPPostcondition(.FALSE.,cp_failure_level,routineP,error,failure)          
+       END IF
        SELECT CASE(qmmm_coupl_type)
        CASE(do_qmmm_gauss)
           !
@@ -190,8 +199,13 @@ CONTAINS
              CPPostcondition(stat==0,cp_failure_level,routineP,error,Failure)      
           END IF
           !
-          CALL read_mm_potential(globenv, qmmm_gaussian_fns, qm_cell_small,&
-               compatibility, error)
+          IF (use_geep_lib) THEN
+             CALL  set_mm_potential(globenv, qmmm_gaussian_fns, qm_cell_small,&
+                  compatibility, num_geep_gauss, error)
+          ELSE
+             CALL read_mm_potential(globenv, qmmm_gaussian_fns, qm_cell_small,&
+                  compatibility, error)
+          END IF
           !
           CALL pw_env_get(pw_env,pw_pools=pools, gridlevel_info=gridlevel_info,&
                error=error)
