@@ -21,6 +21,18 @@ H2O-qmmm-gauss-13.inp  1
 H2O-qmmm-grid-1.inp   1
 H2O-qmmm-grid-2.inp   1
 H2O-qmmm-none-1.inp   1
+#GEEP library
+H2O-qmmm-gauss-14-geep-10.inp  1
+H2O-qmmm-gauss-14-geep-11.inp  1
+H2O-qmmm-gauss-14-geep-12.inp  1
+H2O-qmmm-gauss-14-geep-13.inp  1
+H2O-qmmm-gauss-14-geep-14.inp  1
+H2O-qmmm-gauss-14-geep-15.inp  1
+H2O-qmmm-gauss-14-geep-5.inp   1
+H2O-qmmm-gauss-14-geep-6.inp   1
+H2O-qmmm-gauss-14-geep-7.inp   1
+H2O-qmmm-gauss-14-geep-8.inp   1
+H2O-qmmm-gauss-14-geep-9.inp   1
 # QM/MM links
 C4H10-qmmm-gauss-0.inp 1
 C4H10-qmmm-gauss-1.inp 1
