@@ -470,7 +470,7 @@ do
         timing=`grep -a "CP2K   " ${output_file} | ${awk} '{printf("%6.2f",$4)}'`
         this_test="${this_test} (${timing} sec)" ;;
      esac
-     printf "%40s %20s\n" "${dir}/${input_file}" "${this_test}"
+     printf "%50s %20s\n" "${dir}/${input_file}" "${this_test}"
   done
 done
 echo "--------------------------------------------------------------------------"
