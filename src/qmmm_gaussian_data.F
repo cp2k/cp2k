@@ -32,6 +32,21 @@ MODULE qmmm_gaussian_data
   USE kinds,                           ONLY: dp  
 
   IMPLICIT NONE
+  ! G2
+  REAL(KIND=dp), PARAMETER, PUBLIC :: g2_rc = 1.30_dp
+  REAL(KIND=dp), PARAMETER, PUBLIC :: g2_a1 = 0.121492_dp, g2_b1 = 3.85695_dp
+  REAL(KIND=dp), PARAMETER, PUBLIC :: g2_a2 = 0.104509_dp, g2_b2 = 2.72971_dp
+  ! G3
+  REAL(KIND=dp), PARAMETER, PUBLIC :: g3_rc = 1.17_dp
+  REAL(KIND=dp), PARAMETER, PUBLIC :: g3_a1 = 0.1142400_dp, g3_b1 = 3.08635_dp
+  REAL(KIND=dp), PARAMETER, PUBLIC :: g3_a2 = 0.0867876_dp, g3_b2 = 2.38345_dp  
+  REAL(KIND=dp), PARAMETER, PUBLIC :: g3_a3 = 0.0971514_dp, g3_b3 = 4.35065_dp  
+  ! G4
+  REAL(KIND=dp), PARAMETER, PUBLIC :: g4_rc = 1.05_dp
+  REAL(KIND=dp), PARAMETER, PUBLIC :: g4_a1 = 0.0776927_dp, g4_b1 = 2.10429_dp
+  REAL(KIND=dp), PARAMETER, PUBLIC :: g4_a2 = 0.1123350_dp, g4_b2 = 2.59523_dp  
+  REAL(KIND=dp), PARAMETER, PUBLIC :: g4_a3 = 0.0812506_dp, g4_b3 = 4.73860_dp  
+  REAL(KIND=dp), PARAMETER, PUBLIC :: g4_a4 = 0.0989222_dp, g4_b4 = 3.44579_dp  
   ! G5
   REAL(KIND=dp), PARAMETER, PUBLIC :: g5_rc = 0.9_dp
   REAL(KIND=dp), PARAMETER, PUBLIC :: g5_a1 = 0.0728205_dp, g5_b1 = 4.98419_dp

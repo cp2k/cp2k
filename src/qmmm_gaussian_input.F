@@ -245,6 +245,12 @@ CONTAINS
           istart = 1
        END IF
        SELECT CASE(num_geep_gauss)
+       CASE(2)
+          rc  = qmmm_gaussian_fns(Irad)%pgf%Elp_Radius / (g2_rc*bohr)
+       CASE(3)
+          rc  = qmmm_gaussian_fns(Irad)%pgf%Elp_Radius / (g3_rc*bohr)
+       CASE(4)
+          rc  = qmmm_gaussian_fns(Irad)%pgf%Elp_Radius / (g4_rc*bohr)
        CASE(5)
           rc  = qmmm_gaussian_fns(Irad)%pgf%Elp_Radius / (g5_rc*bohr)
        CASE(6)
@@ -279,6 +285,27 @@ CONTAINS
           qmmm_gaussian_fns(IRad)%pgf%Gk(1) = my_radius
        END IF
        SELECT CASE(num_geep_gauss)
+       CASE(2)
+          qmmm_gaussian_fns(IRad)%pgf%Ak(istart+1) = g2_a1
+          qmmm_gaussian_fns(IRad)%pgf%Gk(istart+1) = g2_b1
+          qmmm_gaussian_fns(IRad)%pgf%Ak(istart+2) = g2_a2
+          qmmm_gaussian_fns(IRad)%pgf%Gk(istart+2) = g2_b2
+       CASE(3)
+          qmmm_gaussian_fns(IRad)%pgf%Ak(istart+1) = g3_a1
+          qmmm_gaussian_fns(IRad)%pgf%Gk(istart+1) = g3_b1
+          qmmm_gaussian_fns(IRad)%pgf%Ak(istart+2) = g3_a2
+          qmmm_gaussian_fns(IRad)%pgf%Gk(istart+2) = g3_b2
+          qmmm_gaussian_fns(IRad)%pgf%Ak(istart+3) = g3_a3
+          qmmm_gaussian_fns(IRad)%pgf%Gk(istart+3) = g3_b3
+       CASE(4)
+          qmmm_gaussian_fns(IRad)%pgf%Ak(istart+1) = g4_a1
+          qmmm_gaussian_fns(IRad)%pgf%Gk(istart+1) = g4_b1
+          qmmm_gaussian_fns(IRad)%pgf%Ak(istart+2) = g4_a2
+          qmmm_gaussian_fns(IRad)%pgf%Gk(istart+2) = g4_b2
+          qmmm_gaussian_fns(IRad)%pgf%Ak(istart+3) = g4_a3
+          qmmm_gaussian_fns(IRad)%pgf%Gk(istart+3) = g4_b3
+          qmmm_gaussian_fns(IRad)%pgf%Ak(istart+4) = g4_a4
+          qmmm_gaussian_fns(IRad)%pgf%Gk(istart+4) = g4_b4
        CASE(5)
           qmmm_gaussian_fns(IRad)%pgf%Ak(istart+1) = g5_a1
           qmmm_gaussian_fns(IRad)%pgf%Gk(istart+1) = g5_b1

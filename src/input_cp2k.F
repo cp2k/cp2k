@@ -6297,7 +6297,7 @@ END SUBROUTINE create_ewald_section
        CALL keyword_create(keyword, name="use_geep_lib",&
             description=" This keyword enables the use of the internal GEEP library to generate the "//&
             "gaussian expansion of the MM potential. Using this keyword there's no need to provide "//&
-            "the MM_POTENTIAL_FILENAME. It expects a number from 5 to 15 (the number of gaussian funtions"//&
+            "the MM_POTENTIAL_FILENAME. It expects a number from 2 to 15 (the number of gaussian funtions"//&
             " to be used in the expansion.",&
             usage="use_geep_lib INTEGER",&
             default_i_val=0, error=error)
