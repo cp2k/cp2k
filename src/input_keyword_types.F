@@ -901,6 +901,7 @@ END SUBROUTINE keyword_describe_html
 
     CHARACTER(LEN=1000) :: string
     CHARACTER(LEN=5)    :: keyword_n_var
+    CHARACTER(LEN=3)    :: repeats,required
     INTEGER             :: i,l0,l1,l2,l3,l4
     LOGICAL             :: failure
 
@@ -921,10 +922,23 @@ END SUBROUTINE keyword_describe_html
       l3 = level + 3
       l4 = level + 4
 
+      IF (keyword%required) THEN
+        required = "yes"
+      ELSE
+        required = "no "
+      END IF
+
+      IF (keyword%repeats) THEN
+        repeats = "yes"
+      ELSE
+        repeats = "no "
+      END IF
+
 !     *** Write keyword element ***
 
       WRITE (UNIT=unit_number,FMT="(A)")&
-        REPEAT(" ",l0)//"<KEYWORD>",&
+        REPEAT(" ",l0)//"<KEYWORD required="""//TRIM(required)//&
+        """ repeats="""//TRIM(repeats)//""">",&
         REPEAT(" ",l1)//"<NAME type=""default"">"//&
         TRIM(keyword%names(1))//"</NAME>"
 
@@ -934,32 +948,29 @@ END SUBROUTINE keyword_describe_html
           TRIM(keyword%names(i))//"</NAME>"
       END DO
 
-      IF (keyword%required) THEN
-        WRITE (UNIT=unit_number,FMT="(A)") REPEAT(" ",l1)//"<REQUIRED/>"
-      END IF
-
-      IF (keyword%repeats) THEN
-        WRITE (UNIT=unit_number,FMT="(A)") REPEAT(" ",l1)//"<REPEATS/>"
-      END IF
-
-      keyword_n_var = ""
-      WRITE (UNIT=keyword_n_var,FMT="(I5)") keyword%n_var
-
-      WRITE (UNIT=unit_number,FMT="(A)")&
-        REPEAT(" ",l1)//"<DATA_TYPE>",&
-        REPEAT(" ",l2)//"<N_VAR>"//TRIM(ADJUSTL(keyword_n_var))//"</N_VAR>"
-
       SELECT CASE(keyword%type_of_var)
       CASE (logical_t)
-        WRITE (UNIT=unit_number,FMT="(A)") REPEAT(" ",l2)//"<BOOLEAN/>"
+        WRITE (UNIT=unit_number,FMT="(A)")&
+          REPEAT(" ",l1)//"<DATA_TYPE kind=""BOOLEAN"">"
       CASE (integer_t)
-        WRITE (UNIT=unit_number,FMT="(A)") REPEAT(" ",l2)//"<INTEGER/>"
+        WRITE (UNIT=unit_number,FMT="(A)")&
+          REPEAT(" ",l1)//"<DATA_TYPE kind=""INTEGER"">"
       CASE (real_t)
-        WRITE (UNIT=unit_number,FMT="(A)") REPEAT(" ",l2)//"<FLOAT/>"
+        WRITE (UNIT=unit_number,FMT="(A)")&
+          REPEAT(" ",l1)//"<DATA_TYPE kind=""FLOAT"">"
       CASE (char_t)
-        WRITE (UNIT=unit_number,FMT="(A)") REPEAT(" ",l2)//"<STRING/>"
+        WRITE (UNIT=unit_number,FMT="(A)")&
+          REPEAT(" ",l1)//"<DATA_TYPE kind=""STRING"">"
       CASE (enum_t)
-        WRITE (UNIT=unit_number,FMT="(A)") REPEAT(" ",l2)//"<ENUMERATION>"
+        WRITE (UNIT=unit_number,FMT="(A)")&
+          REPEAT(" ",l1)//"<DATA_TYPE kind=""ENUMERATION"">"
+        IF (keyword%enum%strict) THEN
+          WRITE (UNIT=unit_number,FMT="(A)")&
+            REPEAT(" ",l2)//"<ENUMERATION strict=""yes"">"
+        ELSE
+          WRITE (UNIT=unit_number,FMT="(A)")&
+            REPEAT(" ",l2)//"<ENUMERATION strict=""no"">"
+        END IF
         DO i=1,SIZE(keyword%enum%c_vals)
           CALL substitute_special_xml_tokens(keyword%enum%desc(i),string,&
                                              ltu=.FALSE.)
@@ -971,9 +982,6 @@ END SUBROUTINE keyword_describe_html
             TRIM(ADJUSTL(string))//"</DESCRIPTION>",&
             REPEAT(" ",l3)//"</ITEM>"
         END DO
-        IF (keyword%enum%strict) THEN
-          WRITE (UNIT=unit_number,FMT="(A)") REPEAT(" ",l3)//"<STRICT/>"
-        END IF
         WRITE (UNIT=unit_number,FMT="(A)") REPEAT(" ",l2)//"</ENUMERATION>"
 !MK   CASE (no_t)
 !MK     no standard type, no action?
@@ -981,7 +989,11 @@ END SUBROUTINE keyword_describe_html
         CPAssert(.FALSE.,cp_warning_level,routineP,error,failure)
       END SELECT
 
-      WRITE (UNIT=unit_number,FMT="(A)") REPEAT(" ",l1)//"</DATA_TYPE>"
+      keyword_n_var = ""
+      WRITE (UNIT=keyword_n_var,FMT="(I5)") keyword%n_var
+      WRITE (UNIT=unit_number,FMT="(A)")&
+        REPEAT(" ",l2)//"<N_VAR>"//TRIM(ADJUSTL(keyword_n_var))//"</N_VAR>",&
+        REPEAT(" ",l1)//"</DATA_TYPE>"
 
       CALL substitute_special_xml_tokens(keyword%usage,string,ltu=.TRUE.)
       WRITE (UNIT=unit_number,FMT="(A)")&

@@ -619,7 +619,9 @@ CONTAINS
       WRITE (UNIT=unit_number,FMT="(A)")&
         "<?xml version=""1.0"" encoding=""ISO-8859-1""?>",&
         "<?xml-stylesheet type=""text/xsl"" href=""cp2k_input.xsl""?>",&
-        "<INPUT>"
+        "<INPUT>",&
+        "<COMPILE_DATE>"//TRIM(compile_date)//"</COMPILE_DATE>",&
+        "<COMPILE_LASTCVS>"//TRIM(compile_lastcvs)//"</COMPILE_LASTCVS>"
 
       CALL write_section_xml(root_section,0,unit_number,error)
 
