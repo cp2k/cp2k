@@ -56,8 +56,7 @@
     <xsl:sort select="NAME"/>
     <ul class="disc">
      <li><a href="#sec_des_{generate-id(NAME)}" id="sec_ind_{generate-id(NAME)}">&amp;<xsl:value-of select="NAME"/></a>
-      <br/>
-      <xsl:call-template name="keyword_index"></xsl:call-template>
+      <!--xsl:call-template name="keyword_index"></xsl:call-template-->
       <xsl:call-template name="section_index"></xsl:call-template>
      </li>
     </ul>
@@ -84,7 +83,7 @@
    <xsl:for-each select="SECTION">
     <xsl:sort select="NAME"/>
     <br/>
-    <a href="#sec_ind_{generate-id(NAME)}" id="sec_des_{generate-id(NAME)}"><h3>Section &amp;<xsl:value-of select="NAME"/></h3></a>
+    <h3><a href="#sec_ind_{generate-id(NAME)}" id="sec_des_{generate-id(NAME)}">Section &amp;<xsl:value-of select="NAME"/></a></h3>
     <ul class="none">
      <li>
       <em><xsl:value-of select="DESCRIPTION"/></em>
@@ -112,7 +111,18 @@
      <dt>
       <a href="#key_ind_{generate-id(NAME[@type='default'])}" id="key_des_{generate-id(NAME[@type='default'])}"><xsl:value-of select="NAME[@type='default']"/></a>
       <xsl:if test="NAME[@type='alias']">
-       (alias: <xsl:value-of select="NAME[@type='alias']"/>)
+       (alias:
+       <xsl:for-each select="NAME[@type='alias']">
+        <xsl:sort select="NAME[@type='alias']"/>
+        <xsl:choose>
+         <xsl:when test="position() = last()">
+          <xsl:value-of select="."/>)
+         </xsl:when>
+         <xsl:otherwise>
+          <xsl:value-of select="."/>,
+         </xsl:otherwise>
+        </xsl:choose>
+       </xsl:for-each>
       </xsl:if>
      </dt>
      <dd><p><em><xsl:value-of select="DESCRIPTION"/></em></p></dd>
