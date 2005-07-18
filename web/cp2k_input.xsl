@@ -8,11 +8,12 @@
 
 <xsl:template match="/INPUT">
  <xsl:for-each select="SECTION">
-  <html xmlns="http://www.w3.org/1999/xhtml">
+  <html xmlns="http://www.w3.org/1999/xhtml" lang="en" xml:lang="en">
    <head>
     <title>CP2K input</title>
     <style type="text/css">
      body {background-color: #eeeeee}
+     big.uctt {font-family: monospace; text-transform: uppercase}
      ul.none {list-style-type: none}
      ul.disc {list-style-type: disc}
      ul.circle {list-style-type: circle}
@@ -116,24 +117,25 @@
      </dt>
      <dd><p><em><xsl:value-of select="DESCRIPTION"/></em></p></dd>
      <dd>
-      <p>Data type: <big><tt><xsl:value-of select="DATA_TYPE/@kind"/></tt></big>
-      <xsl:if test="DATA_TYPE/ENUMERATION">
-       <p>List of valid keys:</p>
-       <ul class="none">
-       <xsl:for-each select="DATA_TYPE/ENUMERATION/ITEM">
-        <xsl:sort select="NAME"/>
-        <dl>
-         <dt><big><tt><xsl:value-of select="NAME"/></tt></big></dt>
-         <dd><em><xsl:value-of select="DESCRIPTION"/></em></dd>
-        </dl>
-       </xsl:for-each>
-       </ul>
-      </xsl:if>
+      <p>
+       Data type: <big class="uctt"><xsl:value-of select="DATA_TYPE/@kind"/></big>
+       <xsl:if test="DATA_TYPE/ENUMERATION">
+        <p>List of valid keys:</p>
+        <ul class="none">
+        <xsl:for-each select="DATA_TYPE/ENUMERATION/ITEM">
+         <xsl:sort select="NAME"/>
+         <dl>
+          <dt><big class="uctt"><xsl:value-of select="NAME"/></big></dt>
+          <dd><em><xsl:value-of select="DESCRIPTION"/></em></dd>
+         </dl>
+        </xsl:for-each>
+        </ul>
+       </xsl:if>
       </p>
      </dd>
-     <dd><p>Usage example: <big><tt><xsl:value-of select="USAGE"/></tt></big></p></dd>
+     <dd><p>Usage example: <big class="uctt"><xsl:value-of select="USAGE"/></big></p></dd>
      <xsl:if test="string-length(DEFAULT_VALUE) > 0">
-      <dd><p>Default value: <big><tt><xsl:value-of select="DEFAULT_VALUE"/></tt></big></p></dd>
+      <dd><p>Default value: <big class="uctt"><xsl:value-of select="DEFAULT_VALUE"/></big></p></dd>
      </xsl:if>
     </dl>
    </xsl:for-each>
