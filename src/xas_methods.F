@@ -839,7 +839,7 @@ CONTAINS
         CALL slater_exponents(kind_z_tmp(ik),norb,sto_alpha,1)
         sto_zet(1) = sto_alpha(nq(1),lq(1))
         CALL allocate_sto_basis_set(sto_basis_set)
-        CALL set_sto_basis_set(sto_basis_set=sto_basis_set,name='pippo',nshell=1,nq=nq,&
+        CALL set_sto_basis_set(sto_basis_set=sto_basis_set,nshell=1,nq=nq,&
              lq=lq,zet=sto_zet)
         CALL create_gto_from_sto_basis(sto_basis_set,&
              xas_env%my_gto_basis(ik)%gto_basis_set,xas_control%ngauss)
