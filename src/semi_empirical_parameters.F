@@ -64,7 +64,8 @@ MODULE semi_empirical_parameters
   PUBLIC :: eht_default_parameter, &
             mndo_default_parameter, &
             am1_default_parameter, &
-            pm3_default_parameter
+            pm3_default_parameter,&
+            slater_exponents
 
 !!***
 ! *****************************************************************************

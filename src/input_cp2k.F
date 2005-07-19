@@ -7974,6 +7974,13 @@ END SUBROUTINE create_ot_section
       CALL section_add_keyword(section,keyword,error=error)
       CALL keyword_release(keyword,error=error)
 
+      CALL keyword_create(keyword, name="NGAUSS",&
+            description="Number of gto's for the expansion of the sto"//&
+            "of the type given by STATE_TYPE",&
+            usage="NGAUSS {integer}", default_i_val=3,error=error)
+      CALL section_add_keyword(section,keyword,error=error)
+      CALL keyword_release(keyword,error=error)
+
       CALL keyword_create(keyword, name="EMISSION",&
            description="Calculate also the emission spectrum",&
            usage="EMISSION",&

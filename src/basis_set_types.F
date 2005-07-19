@@ -73,6 +73,10 @@ MODULE basis_set_types
     REAL(KIND = dp), DIMENSION(:,:,:), POINTER :: gcc
   END TYPE gto_basis_set_type
 
+  TYPE gto_basis_set_p_type
+    TYPE(gto_basis_set_type), POINTER :: gto_basis_set
+  END TYPE gto_basis_set_p_type
+
   ! *** Define the Slater-type orbital basis set type ***
   TYPE sto_basis_set_type
     !MK PRIVATE
@@ -106,7 +110,8 @@ MODULE basis_set_types
 
 ! *** Public data types ***
 
-  PUBLIC :: gto_basis_set_type,&
+  PUBLIC :: gto_basis_set_p_type,&
+            gto_basis_set_type,&
             sto_basis_set_type
 
 ! *****************************************************************************

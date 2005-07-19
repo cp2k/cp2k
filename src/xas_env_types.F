@@ -23,6 +23,8 @@
 
 MODULE xas_env_types
 
+  USE basis_set_types,                 ONLY: deallocate_gto_basis_set,&
+                                             gto_basis_set_p_type
   USE cp_error_handling,               ONLY: cp_a_l,&
                                              cp_assert,&
                                              cp_error_get_logger,&
@@ -105,11 +107,13 @@ MODULE xas_env_types
     INTEGER, DIMENSION(:), POINTER :: state_of_atom
     INTEGER, DIMENSION(:), POINTER :: atom_of_state
     INTEGER, DIMENSION(:), POINTER :: type_of_state
+    INTEGER, DIMENSION(:), POINTER :: mykind_of_atom 
     REAL(dp), DIMENSION(:,:), POINTER :: spectrum
     REAL(dp), DIMENSION(:,:), POINTER :: centers_wfn
+    TYPE(gto_basis_set_p_type), DIMENSION(:), POINTER :: my_gto_basis
     TYPE( cp_fm_p_type ), DIMENSION(:),  POINTER :: groundstate_coeff
     TYPE( cp_fm_p_type ), DIMENSION(:,:),  POINTER :: dip_fm_set
-     TYPE(cp_fm_pool_p_type), DIMENSION(:), &
+    TYPE(cp_fm_pool_p_type), DIMENSION(:), &
        POINTER                                   :: ao_mo_fm_pools
     TYPE( cp_fm_type ), POINTER :: excvec_coeff
     TYPE( cp_fm_type ), POINTER :: excvec_overlap
@@ -138,9 +142,10 @@ CONTAINS
 !!
 !!*** **********************************************************************
   SUBROUTINE get_xas_env(xas_env,iter_count,exc_state,nao,nvirtual,&
-             centers_wfn,atom_of_state,type_of_state,&
+             centers_wfn,atom_of_state,type_of_state,mykind_of_atom,&
              state_of_atom,spectrum,groundstate_coeff,ostrength_sm,&
-             dip_fm_set,excvec_coeff,excvec_overlap,fm_work,qs_loc_env,error)
+             dip_fm_set,excvec_coeff,excvec_overlap,fm_work,&
+             my_gto_basis,qs_loc_env,error)
 
     TYPE(xas_environment_type), POINTER         :: xas_env
     INTEGER, INTENT(OUT), OPTIONAL              :: iter_count
@@ -149,6 +154,7 @@ CONTAINS
     INTEGER, DIMENSION(:), POINTER, OPTIONAL    :: state_of_atom
     INTEGER, DIMENSION(:), POINTER, OPTIONAL    :: atom_of_state
     INTEGER, DIMENSION(:), POINTER, OPTIONAL    :: type_of_state
+    INTEGER, DIMENSION(:), POINTER, OPTIONAL    :: mykind_of_atom
     REAL(dp), DIMENSION(:,:), POINTER, OPTIONAL :: spectrum
     REAL(dp), DIMENSION(:,:), POINTER, OPTIONAL :: centers_wfn
     TYPE( cp_fm_p_type ), DIMENSION(:), &
@@ -158,6 +164,8 @@ CONTAINS
     TYPE( cp_fm_type ), POINTER, OPTIONAL       :: excvec_coeff
     TYPE( cp_fm_type ), POINTER, OPTIONAL       :: excvec_overlap
     TYPE( cp_fm_type ), POINTER, OPTIONAL       :: fm_work
+    TYPE(gto_basis_set_p_type), DIMENSION(:),&
+      POINTER, OPTIONAL                         :: my_gto_basis
     TYPE( real_matrix_p_type ), DIMENSION(:,:), &
       POINTER, OPTIONAL                         :: ostrength_sm
     TYPE( qs_loc_env_new_type ), POINTER, &
@@ -184,6 +192,7 @@ CONTAINS
        IF(PRESENT(atom_of_state)) atom_of_state=>xas_env%atom_of_state
        IF(PRESENT(type_of_state)) type_of_state=>xas_env%type_of_state
        IF(PRESENT(state_of_atom)) state_of_atom=>xas_env%state_of_atom
+       IF(PRESENT(mykind_of_atom)) mykind_of_atom=>xas_env%mykind_of_atom
        IF(PRESENT(spectrum)) spectrum=>xas_env%spectrum
        IF(PRESENT(groundstate_coeff)) groundstate_coeff=>xas_env%groundstate_coeff
        IF(PRESENT(ostrength_sm)) ostrength_sm=>xas_env%ostrength_sm
@@ -192,6 +201,7 @@ CONTAINS
        IF(PRESENT(dip_fm_set)) dip_fm_set=>xas_env%dip_fm_set
        IF(PRESENT(qs_loc_env)) qs_loc_env=>xas_env%qs_loc_env
        IF(PRESENT(excvec_coeff)) excvec_coeff=>xas_env%excvec_coeff
+       IF(PRESENT(my_gto_basis)) my_gto_basis => xas_env%my_gto_basis
 
      END IF
   END SUBROUTINE get_xas_env
@@ -269,8 +279,10 @@ CONTAINS
       xas_env%iter_count=0
 
       NULLIFY(xas_env%ao_mo_fm_pools)
-      NULLIFY(xas_env%centers_wfn, xas_env%state_of_atom, xas_env%atom_of_state)
-      NULLIFY(xas_env%excvec_coeff,xas_env%excvec_overlap,xas_env%type_of_state)
+      NULLIFY(xas_env%my_gto_basis)
+      NULLIFY(xas_env%state_of_atom, xas_env%atom_of_state)
+      NULLIFY(xas_env%excvec_coeff,xas_env%excvec_overlap)
+      NULLIFY(xas_env%type_of_state,xas_env%mykind_of_atom)
       NULLIFY(xas_env%fm_work,xas_env%groundstate_coeff,xas_env%dip_fm_set)
       NULLIFY(xas_env%ostrength_sm,xas_env%qs_loc_env,xas_env%spectrum)
 
@@ -287,7 +299,7 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routine_name='xas_env_release',&
       routineP = module_name//':'//routine_name
 
-    INTEGER :: i, istat, j
+    INTEGER :: i, ik, istat, j
     LOGICAL :: failure
 
     failure=.FALSE.
@@ -301,6 +313,8 @@ CONTAINS
          CPPostcondition(istat==0,cp_warning_level,routineP,error,failure)
          DEALLOCATE(xas_env%type_of_state,STAT=istat)
          CPPostcondition(istat==0,cp_warning_level,routineP,error,failure)
+         DEALLOCATE(xas_env%mykind_of_atom,STAT=istat)
+         CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
          DEALLOCATE(xas_env%spectrum,xas_env%centers_wfn,STAT=istat)
          CPPostcondition(istat==0,cp_warning_level,routineP,error,failure)
          IF(ASSOCIATED(xas_env%groundstate_coeff)) THEN
@@ -337,6 +351,14 @@ CONTAINS
          END IF
          IF(ASSOCIATED(xas_env%qs_loc_env)) THEN
             CALL qs_loc_env_release(xas_env%qs_loc_env, error=error)
+         END IF
+
+         IF(ASSOCIATED(xas_env%my_gto_basis)) THEN
+           DO ik = 1,SIZE(xas_env%my_gto_basis,1)
+             CALL deallocate_gto_basis_set(xas_env%my_gto_basis(ik)%gto_basis_set)
+           END DO
+           DEALLOCATE(xas_env%my_gto_basis,STAT=istat)
+           CPPostcondition(istat==0,cp_warning_level,routineP,error,failure)
          END IF
 
          DEALLOCATE(xas_env,STAT=istat)

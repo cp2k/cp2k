@@ -117,7 +117,7 @@ CONTAINS
 
 
     failure   = .FALSE.
-    CALL timeset(routineN,"I","",handle)
+    CALL timeset(routineN,"I"," ",handle)
 
      NULLIFY(ao_mo_fm_pools, dft_control, mpools)
 
@@ -157,12 +157,20 @@ CONTAINS
 
      END DO ! idir
 
-     IF(nmr_env%current_density) THEN
-      ! the optimized wfns are copied in the  fm
-       DO ispin=1, dft_control%nspins
-          CALL cp_fm_to_fm(psi1(ispin)%matrix, nmr_env%psi1_rxp(ispin,idir)%matrix)
+     DO idir = 1,3 
+       !DO scf cycle to optimize psi1
+       DO ispin = 1,dft_control%nspins
+         NULLIFY(h1_psi0(ispin)%matrix)
+         h1_psi0(ispin)%matrix =>  nmr_env%p_psi0(ispin,idir)%matrix
        END DO
-     END IF
+       CALL linres_scf(p_env, qs_env, psi1, h1_psi0,error=error)
+       IF(nmr_env%current_density) THEN
+        ! the optimized wfns are copied in the  fm
+         DO ispin=1, dft_control%nspins
+            CALL cp_fm_to_fm(psi1(ispin)%matrix, nmr_env%psi1_rxp(ispin,idir)%matrix)
+         END DO
+       END IF
+     END DO ! idir
 
      IF(nmr_env%current_density) THEN
       ! the optimized wfns are copied in the  fm

@@ -220,12 +220,9 @@ MODULE qs_rho_atom_methods
             ELSE
               gg0(1:nr) = g1(1:nr)*g2(1:nr)
               gg(1:nr,lmin12) = grid_atom%rad2l(1:nr,lmin12)*g1(1:nr)*g2(1:nr)
-!              dgg(1:nr,lmin12) = REAL(lmin12,dp)*grid_atom%oorad2l(1:nr,1)*&
-!                                gg(1:nr,lmin12)
             END IF
 
             DO l=lmin12+1,lmax12
-!              dgg(1:nr,l) = REAL(l,dp)*gg(1:nr,l-1)
               gg(1:nr,l) = grid_atom%rad(1:nr)*gg(1:nr,l-1)
               dgg(1:nr,l-1) = dgg(1:nr,l-1) -2.0_dp*(zet(ipgf1,iset1)+ &
                              zet(ipgf2,iset2))*gg(1:nr,l)

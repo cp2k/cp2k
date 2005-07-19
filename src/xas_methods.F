@@ -27,8 +27,14 @@ MODULE xas_methods
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                              get_atomic_kind,&
                                              get_atomic_kind_set
-  USE basis_set_types,                 ONLY: get_gto_basis_set,&
-                                             gto_basis_set_type
+  USE basis_set_types,                 ONLY: allocate_gto_basis_set,&
+                                             allocate_sto_basis_set,&
+                                             create_gto_from_sto_basis,&
+                                             deallocate_sto_basis_set,&
+                                             get_gto_basis_set,&
+                                             gto_basis_set_type,&
+                                             set_sto_basis_set,&
+                                             sto_basis_set_type
   USE checkpoint_handler,              ONLY: write_checkpoint_information
   USE cp_control_types,                ONLY: dft_control_type
   USE cp_error_handling,               ONLY: cp_a_l,&
@@ -66,9 +72,12 @@ MODULE xas_methods
                                              get_potential,&
                                              gth_potential_type
   USE global_types,                    ONLY: global_environment_type
-  USE input_constants,                 ONLY: xas_none, xas_tp_hh, xas_tp_fh, xas_tddft,&
-                                             xas_1s_type, xas_2s_type, xas_dip_len,&
-                                             do_loc_none, op_loc_berry, state_loc_upton
+  USE input_constants,                 ONLY: xas_none, xas_tp_hh, &
+                                             xas_tp_fh, xas_tddft,&
+                                             xas_1s_type, xas_2s_type, &
+                                             xas_2p_type, xas_dip_len,&
+                                             do_loc_none, op_loc_berry,&
+                                             state_loc_upton
   USE kinds,                           ONLY: dp
   USE mathconstants,                   ONLY: twopi
   USE memory_utilities,                ONLY: reallocate
@@ -110,6 +119,7 @@ MODULE xas_methods
   USE qs_scf,                          ONLY: init_scf_run,&
                                              scf_env_cleanup
   USE qs_scf_types,                    ONLY: qs_scf_env_type
+  USE semi_empirical_parameters,       ONLY: slater_exponents
   USE simulation_cell,                 ONLY: cell_type, pbc
   USE sparse_matrix_types,             ONLY: get_block_node,&
                                              real_matrix_p_type, &
@@ -193,7 +203,8 @@ CONTAINS
                isgf, isgfa, ishell, ispin, istat, istate, iter, &
                j, la, la_old, maxnset, maxshell, maxl, maxlev, maxll, nao, natom, nelec, nmo,  &
                nset, nspins, nexc_search, nvirtual, output_unit,& 
-               state_to_be_excited, xas_iter_count
+               state_to_be_excited, xas_iter_count, zint
+    INTEGER, DIMENSION(0:3)                     :: norb
     INTEGER, ALLOCATABLE, DIMENSION(:)          :: econf,first_sgf, nlev
     INTEGER, DIMENSION(:), POINTER              :: elec_conf, nshell, npgf
     INTEGER, DIMENSION(:, :), POINTER           :: first_sgfa, l, last_sgfa
@@ -202,7 +213,7 @@ CONTAINS
     INTEGER, DIMENSION(:), POINTER              :: state_of_atom
     LOGICAL :: failure, ionode, transition_potential
     REAL(dp) :: charmax, dist, distmin,  maxocc, &
-                ra(3), rac(3), rc(3)
+                ra(3), rac(3), rc(3), zatom
     REAL(dp), DIMENSION(:), POINTER             :: occupation_numbers
     REAL(dp), DIMENSION(:,:), ALLOCATABLE       :: orb_char
     REAL(dp), DIMENSION(:,:), POINTER           :: spectrum, zet
@@ -380,13 +391,13 @@ CONTAINS
               gth_potential=gth_potential,&
               orb_basis_set=orb_basis_set,&
               kind_number=ikind)
- 
+
        IF(ikind /= ikind_old) THEN
          ikind_old = ikind
          IF (ASSOCIATED(all_potential)) THEN
             CALL get_potential(potential=all_potential,elec_conf=elec_conf)
          ELSE IF (ASSOCIATED(gth_potential)) THEN
-            CALL get_potential(potential=gth_potential,elec_conf=elec_conf)
+            CALL stop_program(routineP,"xas requires AE calculations")
          END IF
          maxll = MIN(SIZE(elec_conf) - 1,maxl)
          econf(:) = 0.0_dp
@@ -610,21 +621,32 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routine_name='xas_env_init',&
       routineP = module_name//':'//routine_name
 
-    INTEGER :: homo, i, ispin, istat , j, nao, nexc_atoms, nexc_search,&
-               n_mo(2), nmo, nmoloc(2), nspins
-    LOGICAL :: failure
+    INTEGER :: homo, i, iat, iatom, ik, ikind, ispin, istat, j, &
+               nao, nexc_atoms, nexc_search,&
+               n_mo(2), nk, nkind, nmo, nmoloc(2), norb(0:3), nspins
+    INTEGER, DIMENSION(:), ALLOCATABLE          :: kind_type_tmp, kind_z_tmp
+    INTEGER, DIMENSION(:), POINTER              :: lq, nq
+    LOGICAL :: failure, ihavethis
+    REAL(dp) :: zatom
+    REAL(dp), DIMENSION(:), POINTER             :: sto_zet
+    REAL(dp), DIMENSION(:,:), POINTER           :: sto_alpha
+    TYPE(atomic_kind_type), DIMENSION(:), &
+      POINTER                                   :: atomic_kind_set
+    TYPE(atomic_kind_type), POINTER             :: atomic_kind    
     TYPE(dft_control_type), POINTER             :: dft_control
     TYPE(cp_fm_type), POINTER                   :: mo_coeff
     TYPE(cp_fm_struct_type), POINTER            :: tmp_fm_struct
     TYPE(cp_para_env_type), POINTER             :: para_env
     TYPE(localized_wfn_control_type), POINTER   :: my_localized_wfn_control
     TYPE(mo_set_p_type), DIMENSION(:), POINTER  :: mos
+    TYPE(particle_type), DIMENSION(:), &
+      POINTER                                   :: particle_set
     TYPE(qs_matrix_pools_type), POINTER         :: mpools
     TYPE(real_matrix_p_type), DIMENSION(:), &
       POINTER                                   :: matrix_s
+    TYPE(sto_basis_set_type), POINTER           :: sto_basis_set
 
 !------------------------------------------------------------------------------
-
 
     failure=.FALSE.
 
@@ -634,11 +656,14 @@ CONTAINS
 
     IF(.NOT. failure) THEN
 
-      NULLIFY( dft_control, matrix_s, mos, mpools, para_env)
+      NULLIFY( atomic_kind_set, dft_control, matrix_s, mos, mpools )
+      NULLIFY( para_env, particle_set)
       CALL get_qs_env(qs_env=qs_env, &
+              atomic_kind_set=atomic_kind_set, &
               dft_control = dft_control, &
               mpools=mpools,& 
-              matrix_s=matrix_s, mos=mos, para_env=para_env)
+              matrix_s=matrix_s, mos=mos, &
+              para_env=para_env, particle_set=particle_set)
       nexc_search = xas_control%nexc_search
       nexc_atoms = xas_control%nexc_atoms
 
@@ -662,6 +687,8 @@ CONTAINS
       ALLOCATE(xas_env%type_of_state(nexc_search),STAT=istat)
       CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
       ALLOCATE(xas_env%state_of_atom(nexc_atoms),STAT=istat)
+      CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+      ALLOCATE(xas_env%mykind_of_atom(nexc_search),STAT=istat)
       CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
       ALLOCATE(xas_env%spectrum(5,xas_env%nvirtual),STAT=istat)
       CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
@@ -729,27 +756,101 @@ CONTAINS
       END IF 
 
    !Define the qs_loc_env : to find centers, spread and possibly localize them
-    my_localized_wfn_control =>  xas_control%localized_wfn_control
-    CALL localized_wfn_control_retain(my_localized_wfn_control,error=error)
-    CPPrecondition(ASSOCIATED(my_localized_wfn_control),cp_failure_level,routineP,error,failure)
-    IF(.NOT. xas_control%localized_wfn) THEN
-      my_localized_wfn_control%localization_method = do_loc_none
-    END IF
+      my_localized_wfn_control =>  xas_control%localized_wfn_control
+      CALL localized_wfn_control_retain(my_localized_wfn_control,error=error)
+      CPPrecondition(ASSOCIATED(my_localized_wfn_control),cp_failure_level,routineP,error,failure)
+      IF(.NOT. xas_control%localized_wfn) THEN
+        my_localized_wfn_control%localization_method = do_loc_none
+      END IF
 
-    ! The localization is needed only for the states up to nexc_search
-    my_localized_wfn_control%set_of_states = state_loc_upton
-    my_localized_wfn_control%operator_type = op_loc_berry
-    my_localized_wfn_control%nloc_states(1) = nexc_search
-    my_localized_wfn_control%nloc_states(2) = 0
-    my_localized_wfn_control%lu_bound_states(1,1) = 1
-    my_localized_wfn_control%lu_bound_states(2,1) = nexc_search
+      ! The localization is needed only for the states up to nexc_search
+      my_localized_wfn_control%set_of_states = state_loc_upton
+      my_localized_wfn_control%operator_type = op_loc_berry
+      my_localized_wfn_control%nloc_states(1) = nexc_search
+      my_localized_wfn_control%nloc_states(2) = 0
+      my_localized_wfn_control%lu_bound_states(1,1) = 1
+      my_localized_wfn_control%lu_bound_states(2,1) = nexc_search
 
-    nmoloc(1:2) = my_localized_wfn_control%nloc_states(1:2)
-    CALL set_loc_wfn_lists(xas_control%localized_wfn_control,nmoloc,n_mo,nspins,error=error)
-    CALL set_loc_centers(xas_control%localized_wfn_control,nmoloc,nspins,globenv,error=error)
+      nmoloc(1:2) = my_localized_wfn_control%nloc_states(1:2)
+      CALL set_loc_wfn_lists(xas_control%localized_wfn_control,nmoloc,n_mo,nspins,error=error)
+      CALL set_loc_centers(xas_control%localized_wfn_control,nmoloc,nspins,globenv,error=error)
 
-    CALL localized_wfn_control_release(my_localized_wfn_control,error=error)
-    END IF
+      CALL localized_wfn_control_release(my_localized_wfn_control,error=error)
+
+      !Type of state
+      norb = 0
+      ALLOCATE(nq(1),lq(1),sto_zet(1),STAT=istat)
+      IF( xas_control%state_type == xas_1s_type) THEN
+        norb(0) = 1
+        ALLOCATE(sto_alpha(1,0:1),STAT=istat)
+        CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+        nq(1) = 1
+        lq(1) = 0
+      ELSEIF( xas_control%state_type == xas_2s_type ) THEN
+        norb(0) = 2
+        ALLOCATE(sto_alpha(2,0:1),STAT=istat)
+        CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+        nq(1) = 2
+        lq(1) = 0
+      ELSEIF( xas_control%state_type == xas_2p_type ) THEN
+        norb(0) = 2
+        norb(1) = 1
+        ALLOCATE(sto_alpha(2,0:1),STAT=istat)
+        CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+        nq(1) = 2
+        lq(1) = 1
+      ELSE
+        CALL stop_program(routineP,"xas type of state not implemented")
+      END IF
+
+      nkind = SIZE(atomic_kind_set,1)
+      ALLOCATE(kind_type_tmp(nkind),STAT=istat)
+      ALLOCATE(kind_z_tmp(nkind),STAT=istat)
+      CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+      kind_type_tmp = 0
+      kind_z_tmp = 0
+      nk=0
+      DO iat = 1,xas_control%nexc_atoms
+        iatom = xas_control%exc_atoms(iat)
+        NULLIFY(atomic_kind)
+        atomic_kind =>  particle_set(iatom)%atomic_kind
+        CALL get_atomic_kind(atomic_kind=atomic_kind,&
+             kind_number=ikind,zeff=zatom)
+        ihavethis = .FALSE.
+        DO ik = 1,nk
+          IF(ikind==kind_type_tmp(ik)) THEN
+            ihavethis = .TRUE.
+            xas_env%mykind_of_atom(iat) = ik 
+            EXIT
+          END IF
+        END DO
+        IF(.NOT. ihavethis) THEN
+          nk = nk +1
+          kind_type_tmp(nk) = ikind
+          kind_z_tmp(nk) = INT(zatom)
+          xas_env%mykind_of_atom(iat) = nk
+        END IF
+      END DO  ! iat
+      ALLOCATE(xas_env%my_gto_basis(nk),STAT=istat)
+      DO ik = 1,nk
+        NULLIFY(xas_env%my_gto_basis(ik)%gto_basis_set,sto_basis_set)
+        CALL allocate_gto_basis_set(xas_env%my_gto_basis(ik)%gto_basis_set)
+        sto_alpha = 0.0_dp
+        CALL slater_exponents(kind_z_tmp(ik),norb,sto_alpha,1)
+        sto_zet(1) = sto_alpha(nq(1),lq(1))
+        CALL allocate_sto_basis_set(sto_basis_set)
+        CALL set_sto_basis_set(sto_basis_set=sto_basis_set,name='pippo',nshell=1,nq=nq,&
+             lq=lq,zet=sto_zet)
+        CALL create_gto_from_sto_basis(sto_basis_set,&
+             xas_env%my_gto_basis(ik)%gto_basis_set,xas_control%ngauss)
+        CALL deallocate_sto_basis_set(sto_basis_set)
+      END DO 
+
+      DEALLOCATE(nq,lq,sto_zet,STAT=istat)
+      DEALLOCATE(sto_alpha,STAT=istat)
+      DEALLOCATE(kind_type_tmp,kind_z_tmp,STAT=istat)
+      CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+    END IF  ! failure
 
   END SUBROUTINE xas_env_init
 

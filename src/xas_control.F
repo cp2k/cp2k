@@ -31,7 +31,8 @@ MODULE xas_control
                                              cp_to_string,&
                                              cp_warning_level
   USE global_types,                    ONLY: global_environment_type
-  USE input_constants,                 ONLY: xas_none, xas_tp_hh, xas_tp_fh, xas_tddft,&
+  USE input_constants,                 ONLY: xas_none, xas_tp_hh, &
+                                             xas_tp_fh, xas_tddft,&
                                              xas_1s_type, xas_2s_type
   USE input_section_types,             ONLY: section_vals_get,&
                                              section_vals_get_subs_vals,&
@@ -86,6 +87,7 @@ MODULE xas_control
     INTEGER                             :: dipole_form
     INTEGER                             :: lb_atom, ub_atom
     INTEGER                             :: added_mos
+    INTEGER                             :: ngauss
     INTEGER, DIMENSION(:), POINTER      :: exc_atoms 
     LOGICAL                             :: emission
     LOGICAL                             :: localized_wfn
@@ -203,6 +205,9 @@ CONTAINS
 
     CALL section_vals_val_get(xas_section,"ADDED_MOS",&
          i_val=xas_control%added_mos,error=error)
+
+    CALL section_vals_val_get(xas_section,"NGAUSS",&
+         i_val=xas_control%ngauss,error=error)
 
     CALL section_vals_val_get(xas_section,"EMISSION",&
          l_val=xas_control%emission,error=error)

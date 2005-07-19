@@ -688,11 +688,15 @@ CONTAINS
             ! iatom , jatom and  jatom, iatom
               DO i = 1,3
                  NULLIFY(op_angij(i)%block)
+                 irow = iatom
+                 icol = jatom
                  CALL get_block_node(matrix=op_sm(i)%matrix,&
                                      block_row=irow,&
                                      block_col=icol,&
                                      block=op_angij(i)%block)
                  NULLIFY(op_angji(i)%block)
+                 irow = jatom
+                 icol = iatom
                  CALL get_block_node(matrix=op_sm(i)%matrix,&
                                      block_row=irow,&
                                      block_col=icol,&
@@ -701,6 +705,67 @@ CONTAINS
             END IF  !new_atom_b
             rab2 = rab(1)*rab(1) + rab(2)*rab(2) + rab(3)*rab(3)
             dab = SQRT(rab2)
+
+
+            nrow = 0
+            DO iset=1,nseta
+
+              ncoa = npgfa(iset)*ncoset(la_max(iset))
+              sgfa = first_sgfa(1,iset)
+
+              DO jset=1,nsetb
+
+                ncob = npgfb(jset)*ncoset(lb_max(jset))
+                sgfb = first_sgfb(1,jset)
+
+                IF (set_radius_a(iset) + set_radius_b(jset) >= dab) THEN
+
+!            *** Calculate the primitive overlap integrals (iatom jatom)***
+                  rc(1:3) = ra(1:3)
+                  rac(1:3) = 0.0_dp
+                  rbc(1:3) = rab(1:3)
+                  CALL angmom(la_max(iset),npgfa(iset),zeta(:,iset),&
+                        rpgfa(:,iset),la_min(iset), lb_max(jset),npgfb(jset),&
+                        zetb(:,jset),rpgfb(:,jset),lb_min(jset),rac,rbc,angab)
+!            *** Contraction ***
+                  DO i = 1,3
+                     CALL dgemm("N","N",ncoa,nsgfb(jset),ncob,&
+                          1.0_dp,angab(1,1,i),ldab,sphi_b(1,sgfb),ldsb,&
+                          0.0_dp,work(1,1),ldwork)
+                     CALL dgemm("T","N",nsgfa(iset),nsgfb(jset),ncoa,&
+                          1.0_dp,sphi_a(1,sgfa),ldsa,&
+                          work(1,1),ldwork,&
+                          1.0_dp,op_angij(i)%block(sgfa,sgfb),&
+                          SIZE(op_angij(i)%block,1))
+                  END DO 
+
+!            *** Calculate the primitive overlap integrals (jatom iatom)***
+                  rc(1:3) = rb(1:3)
+                  rbc(1:3) = 0.0_dp
+                  rac(1:3) = -rab(1:3)
+                  CALL angmom(lb_max(jset),npgfb(jset),zetb(:,jset),&
+                        rpgfb(:,jset),lb_min(jset), la_max(iset),npgfa(iset),&
+                        zeta(:,iset),rpgfa(:,iset),la_min(iset),rbc,rac,angab)
+!            *** Contraction ***
+                  DO i = 1,3
+                     CALL dgemm("N","N",ncob,nsgfa(iset),ncoa,&
+                          1.0_dp,angab(1,1,i),ldab,sphi_a(1,sgfa),ldsa,&
+                          0.0_dp,work(1,1),ldwork)
+                     CALL dgemm("T","N",nsgfb(jset),nsgfa(iset),ncob,&
+                          1.0_dp,sphi_b(1,sgfb),ldsb,&
+                          work(1,1),ldwork,&
+                          1.0_dp,op_angji(i)%block(sgfb,sgfa),&
+                          SIZE(op_angji(i)%block,1))
+                  END DO 
+
+                END IF  !  >= dab
+
+              END DO ! jset
+
+              nrow = nrow + ncoa
+
+            END DO ! iset
+
 
             sab_orb_neighbor_node => next(sab_orb_neighbor_node)
 
