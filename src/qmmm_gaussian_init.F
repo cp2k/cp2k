@@ -132,8 +132,12 @@ CONTAINS
           use_geep_lib = .FALSE.
        ELSE
           use_geep_lib = .TRUE.
-          IF (num_geep_gauss <2)  CPPostcondition(.FALSE.,cp_failure_level,routineP,error,failure)
-          IF (num_geep_gauss >15) CPPostcondition(.FALSE.,cp_failure_level,routineP,error,failure)          
+          IF (num_geep_gauss <2)  THEN
+               CPPostcondition(.FALSE.,cp_failure_level,routineP,error,failure)
+          END IF
+          IF (num_geep_gauss >15) THEN
+               CPPostcondition(.FALSE.,cp_failure_level,routineP,error,failure)          
+          END IF
        END IF
        SELECT CASE(qmmm_coupl_type)
        CASE(do_qmmm_gauss)

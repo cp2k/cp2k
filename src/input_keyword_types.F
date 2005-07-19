@@ -30,6 +30,7 @@ MODULE input_keyword_types
                                              cp_assertion_failed,&
                                              cp_error_type
   USE cp_log_handling,                 ONLY: cp_failure_level,&
+                                             cp_to_string,&
                                              cp_warning_level
   USE cp_units,                        ONLY: cp_unit_create,&
                                              cp_unit_desc,&
