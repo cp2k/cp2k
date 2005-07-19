@@ -24,16 +24,16 @@
     <h2>Version information</h2>
      This HTML manual was generated automatically from a CP2K executable
      compiled on <xsl:value-of select="/INPUT/COMPILE_DATE"/> using the
-     -xml command line option. Thus the manual describes exactly this
+     --xml command line option. Thus the manual describes exactly this
      version of the code. The latest CVS log file entry found was
      <xsl:value-of select="/INPUT/COMPILE_LASTCVS"/>.
     <h2>Input structure</h2>
-     All sections and keywords that can be part of a CP2K input file are shown
+     All sections that can be part of a CP2K input file are shown
      with their allowed nestings. A detailed description can be obtained by
      clicking on the links. The links in the detailed descriptions switch
      back to the corresponding index entry. In this way a toggling between
      the index and the detailed description is feasible.
-    <h2>Index of all sections and keywords</h2>
+    <h2>Index of all input sections</h2>
      <xsl:call-template name="section_index"></xsl:call-template>
      Back to the <a href="http://cp2k.berlios.de">CP2K home page</a>
     <hr/>
@@ -109,7 +109,8 @@
     <dl>
      <xsl:if test="position() != 1"><br/></xsl:if>
      <dt>
-      <a href="#key_ind_{generate-id(NAME[@type='default'])}" id="key_des_{generate-id(NAME[@type='default'])}"><xsl:value-of select="NAME[@type='default']"/></a>
+      <!--a href="#key_ind_{generate-id(NAME[@type='default'])}" id="key_des_{generate-id(NAME[@type='default'])}"><xsl:value-of select="NAME[@type='default']"/></a-->
+      <a href="#sec_ind_{generate-id(../NAME)}"><xsl:value-of select="NAME[@type='default']"/></a>
       <xsl:if test="NAME[@type='alias']">
        (alias:
        <xsl:for-each select="NAME[@type='alias']">
