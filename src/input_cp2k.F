@@ -525,7 +525,7 @@ contains
       CALL section_create(section,name="LOCALIZE",&
            description="Use one of the available methods to define the localization "//&
            " and possibly to optimize it to a minimum or a maximum.",&
-           n_keywords=8, n_subsections=0, repeats=.TRUE., required=.TRUE.,&
+           n_keywords=8, n_subsections=0, repeats=.TRUE., required=.false.,&
            error=error)
 
       CALL keyword_create(keyword,name="MIN_OR_MAX",&
@@ -1163,7 +1163,7 @@ SUBROUTINE create_qs_section(section,error)
 
      CALL keyword_create(keyword, name="EPS_CORE_CHARGE",&
           description="Precision for mapping the core charges",&
-          usage="EPS_CORE_CHARGE real", type_of_var=real_t, n_var=1,&
+          usage="EPS_CORE_CHARGE real", default_r_val=1.0E-12_dp,&
           error=error)
      CALL section_add_keyword(section,keyword,error=error)
      CALL keyword_release(keyword,error=error)     
@@ -1171,14 +1171,14 @@ SUBROUTINE create_qs_section(section,error)
      CALL keyword_create(keyword, name="EPS_GVG_RSPACE",&
           variants=(/"EPS_GVG"/),&
           description="Sets precision of the realspace KS matrix element integration",&
-          usage="EPS_GVG_RSPACE real", type_of_var=real_t, n_var=1,&
+          usage="EPS_GVG_RSPACE real",default_r_val=1.0E-5_dp ,&
           error=error)
      CALL section_add_keyword(section,keyword,error=error)
      CALL keyword_release(keyword,error=error)
 
      CALL keyword_create(keyword, name="EPS_PGF_ORB",&
           description="Sets precision of the overlap matrix elements",&
-          usage="EPS_PGF_ORB real", type_of_var=real_t, n_var=1,&
+          usage="EPS_PGF_ORB real",default_r_val=  1.0E-5_dp,&
           error=error)
      CALL section_add_keyword(section,keyword,error=error)
      CALL keyword_release(keyword,error=error)
@@ -1186,28 +1186,28 @@ SUBROUTINE create_qs_section(section,error)
 
      CALL keyword_create(keyword, name="EPS_PPL",&
           description="Sets precision of the local part of the pseudo potential",&
-          usage="EPS_PPL real", type_of_var=real_t, n_var=1,&
+          usage="EPS_PPL real", default_r_val=1.0E-12_dp,&
           error=error)
      CALL section_add_keyword(section,keyword,error=error)
      CALL keyword_release(keyword,error=error)
 
      CALL keyword_create(keyword, name="EPS_PPNL",&
           description="Sets precision of the non-local part of the pseudo potential",&
-          usage="EPS_PPNL real", type_of_var=real_t, n_var=1,&
+          usage="EPS_PPNL real",  default_r_val=1.0E-12_dp,&
           error=error)
      CALL section_add_keyword(section,keyword,error=error)
      CALL keyword_release(keyword,error=error)
 
      CALL keyword_create(keyword, name="EPS_RHO",&
           description="Sets precision of the density mapping on the grids",&
-          usage="EPS_RHO real", type_of_var=real_t, n_var=1,&
+          usage="EPS_RHO real",default_r_val= 1.0E-10_dp,&
           error=error)
      CALL section_add_keyword(section,keyword,error=error)
      CALL keyword_release(keyword,error=error)
 
      CALL keyword_create(keyword, name="EPS_RHO_RSPACE",&
           description="Sets precision of the density mapping in rspace",&
-          usage="EPS_RHO_RSPACE real", type_of_var=real_t, n_var=1,&
+          usage="EPS_RHO_RSPACE real",default_r_val= 1.0E-10_dp ,&
           error=error)
      CALL section_add_keyword(section,keyword,error=error)
      CALL keyword_release(keyword,error=error)
@@ -1346,16 +1346,15 @@ SUBROUTINE create_qs_section(section,error)
           variants=s2a("INTERPOLATION","WF_INTERPOLATION"),&
           description="Extrapolation strategy for e.g. MD",&
           usage="EXTRAPOLATION PS",&     ! XXXXXXXXXXX how to add the order ? i.e. PS 3
-          enum_c_vals=s2a("PS","USE_GUESS","USE_PREV_P","USE_PREV_WF",&
-          "USE_PREV_RHO_R", "LINEAR_WF", "LINEAR_P", "LINEAR_PS"),&
-          enum_i_vals=(/ do_extrpl_ps,&
-                         do_extrpl_use_guess,&
+          enum_c_vals=s2a("USE_GUESS","USE_PREV_P","USE_PREV_RHO_R","LINEAR_WF","LINEAR_P","LINEAR_PS","USE_PREV_WF","PS"),&
+          enum_i_vals=(/ do_extrpl_use_guess,& 
                          do_extrpl_use_prev_p,&
-                         do_extrpl_use_prev_wf,&
                          do_extrpl_use_prev_rho_r,&
                          do_extrpl_linear_wf,&
                          do_extrpl_linear_p,&
-                         do_extrpl_linear_ps /),&
+                         do_extrpl_linear_ps,&
+                         do_extrpl_use_prev_wf,&
+                         do_extrpl_ps /),&
           default_i_val=do_extrpl_linear_p, error=error)
      CALL section_add_keyword(section,keyword,error=error)
      CALL keyword_release(keyword,error=error)
@@ -7484,7 +7483,7 @@ END SUBROUTINE create_ewald_section
        nullify(keyword)
        CALL keyword_create(keyword, name="ngrids",&
             description="The number of multigrids to use",&
-            usage="ngrids 1", default_i_val=100, error=error)
+            usage="ngrids 1", default_i_val=1, error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
@@ -7493,12 +7492,14 @@ END SUBROUTINE create_ewald_section
             usage="cutoff 300", default_r_val=280._dp, n_var=-1, error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
+
        CALL keyword_create(keyword, name="progression_factor",&
             description="Factor used to find the cutoff of the multigrids that"//&
             " where not given explicetly",&
-            usage="progression_factor 4", default_i_val=3, error=error)
+            usage="progression_factor 4", default_r_val=3._dp, error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
+
        CALL keyword_create(keyword, name="commensurate",&
             description="If the grids should be commensurate. If true overrides "//&
             "the progression factor and the cutoffs of the sub grids",&
@@ -7506,12 +7507,28 @@ END SUBROUTINE create_ewald_section
             lone_keyword_l_val=.TRUE.,error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
+
        CALL keyword_create(keyword, name="REL_CUTOFF",&
             variants=(/"RELATIVE_CUTOFF"/),&
             description="Determines the grid at which a Gaussian is mapped,"//&
             " giving the cutoff used for a gaussian with alpha=1",&
             usage="RELATIVE_CUTOFF real", default_r_val=15.0_dp,&
             error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="MULTIGRID_SET",&
+            description="Activate a manual setting of the multigrids",&
+            usage="MULTIGRID_SET", default_l_val=.FALSE.,&
+            error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+      CALL keyword_create(keyword,name="MULTIGRID_CUTOFF",&
+           variants=(/"CUTOFF_LIST"/),&
+           description="List of cutoff values to set up multigrids manually",&
+           usage="MULTIGRID_CUTOFF 200.0 100.0 ",&
+           n_var=-1,type_of_var=real_t,repeats=.TRUE.,error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
@@ -7576,8 +7593,8 @@ END SUBROUTINE create_ewald_section
        CALL keyword_create(keyword, name="aint_precond",&
             description="the approximate inverse to use to get the starting point"//&
             " for the linear solver of the spline3 methods",&
-            usage="kind spline3",&
-            default_i_val=pw_interp,&
+            usage="aint_precond copy",&
+            default_i_val=no_precond,&
             enum_c_vals=s2a( "copy","spl3_nopbc_aint","spl3_nopbc_precond1"),&
             enum_i_vals=(/no_precond,precond_spl3_aint, precond_spl3_1/),&
             error=error)
@@ -7587,8 +7604,8 @@ END SUBROUTINE create_ewald_section
        CALL keyword_create(keyword, name="precond",&
             description="The preconditioner used"//&
             " for the linear solver of the spline3 methods",&
-            usage="kind spline3",&
-            default_i_val=pw_interp,&
+            usage="PRECOND copy",&
+            default_i_val=no_precond,&
             enum_c_vals=s2a("copy","spl3_nopbc_aint","spl3_nopbc_precond1"),&
             enum_i_vals=(/no_precond,precond_spl3_aint, precond_spl3_1/),&
             error=error)

@@ -152,7 +152,9 @@ MODULE cp_control_utils
 ! *** Public subroutines ***
 
   PUBLIC :: read_dft_control,&
+            read_mgrid_section,&
             read_qs_control,&
+            read_qs_section,&
             read_tddfpt_control,&
             read_wave_control, &
             write_dft_control,&
@@ -862,18 +864,81 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: &
       routine = "SUBROUTINE read_mgrid_control "
 
-    LOGICAL                                  :: failure
-    INTEGER                                  :: j, jj, k, n_rep
+    LOGICAL                                  :: failure,multigrid_set
+    INTEGER                                  :: j, igrid_level, istat, jj, k, n_rep, ngrid_level
     INTEGER, DIMENSION(:), POINTER           :: tmplist
-    TYPE(section_vals_type), POINTER         :: mgrid_section
+    REAL(dp)                                 :: cutoff
+    REAL(dp), DIMENSION(:), POINTER          :: cutofflist
+    TYPE(section_vals_type), POINTER         :: interp_section, mgrid_section
 
 !   ---------------------------------------------------------------------------
 
     failure=.FALSE.
-    NULLIFY(mgrid_section)
+    NULLIFY(interp_section,mgrid_section,cutofflist)
     mgrid_section => section_vals_get_subs_vals(globenv%input_file,"FORCE_EVAL",error=error)
     mgrid_section => section_vals_get_subs_vals(mgrid_section,"DFT",error=error)
     mgrid_section => section_vals_get_subs_vals(mgrid_section,"MGRID",error=error)
+
+
+    CALL section_vals_val_get(mgrid_section,"NGRIDS",i_val=ngrid_level,error=error)
+    CALL section_vals_val_get(mgrid_section,"MULTIGRID_SET",l_val=multigrid_set,error=error)
+
+    ALLOCATE(qs_control%e_cutoff(ngrid_level),STAT=istat)
+    IF (istat /= 0) CALL stop_memory(routine,"qs_control%e_cutoff",&
+                                             ngrid_level*dp_size)
+    CALL section_vals_val_get(mgrid_section,"CUTOFF",r_val=cutoff,error=error)
+    qs_control%cutoff = MAX(0.01_dp,0.5_dp*cutoff) 
+    CALL section_vals_val_get(mgrid_section,"PROGRESSION_FACTOR",r_val=qs_control%progression_factor,error=error)
+    CALL section_vals_val_get(mgrid_section,"COMMENSURATE",l_val=qs_control%commensurate_mgrids,error=error)
+    CALL section_vals_val_get(mgrid_section,"REL_CUTOFF",r_val=qs_control%relative_cutoff)
+
+    IF(multigrid_set) THEN
+      ! Read the values from input
+      IF (qs_control%commensurate_mgrids) THEN
+          CALL stop_program(routine,&
+               "Do not specify cutoffs for the commensurate grids (NYI)")
+      ENDIF
+
+      CALL section_vals_val_get(mgrid_section,"MULTIGRID_CUTOFF",&
+           r_vals=cutofflist,error=error)
+      IF(ASSOCIATED(cutofflist)) THEN
+         IF(SIZE(cutofflist,1) /= ngrid_level) THEN
+                CALL stop_parser(routine,"Inconsistent values for number of "//&
+                                         "multi grids")
+         END IF
+         DO igrid_level = 1,ngrid_level
+           qs_control%e_cutoff(igrid_level) = cutofflist(igrid_level)*0.5_dp
+         ENDDO 
+      END IF
+      ! set cutoff to smallest value in multgrid available with >= cutoff
+      DO igrid_level=ngrid_level,1,-1
+        IF ( qs_control%cutoff <= qs_control%e_cutoff(igrid_level) ) THEN
+          qs_control%cutoff = qs_control%e_cutoff(igrid_level)
+          EXIT
+        END IF
+        ! set largest grid value to cutoff
+        IF ( igrid_level == 1) THEN
+          qs_control%cutoff = qs_control%e_cutoff(1)
+        END IF
+      END DO
+    ELSE
+      qs_control%e_cutoff(1) = qs_control%cutoff
+      DO igrid_level=2,ngrid_level
+        qs_control%e_cutoff(igrid_level) = qs_control%e_cutoff(igrid_level-1) &
+            / qs_control%progression_factor
+      END DO
+    END IF
+    ! check that multigrids are ordered
+    DO igrid_level=2,ngrid_level
+      IF ( qs_control%e_cutoff(igrid_level) > &
+           qs_control%e_cutoff(igrid_level-1) ) THEN
+         CALL stop_program (routine,"Multi grids not ordered")
+      END IF
+    END DO
+
+    interp_section => section_vals_get_subs_vals(mgrid_section,"INTERPOLATOR",error=error)
+    ! I don't kow what this is, help is welcome
+
 
   END SUBROUTINE read_mgrid_section
 
@@ -928,13 +993,17 @@ CONTAINS
     CALL section_vals_val_get(qs_section,"EPS_PPNL",r_val=qs_control%eps_ppnl,error=error)
     CALL section_vals_val_get(qs_section,"EPS_RHO",r_val=qs_control%eps_rho_gspace,error=error)
     qs_control%eps_rho_rspace = qs_control%eps_rho_gspace
-    CALL section_vals_val_get(qs_section,"EPS_RHO_SPACE",r_val=qs_control%eps_rho_rspace,error=error)
+    CALL section_vals_val_get(qs_section,"EPS_RHO_RSPACE",r_val=qs_control%eps_rho_rspace,error=error)
+
 
     ! Gapw
+    CALL gapw_control_create(qs_control%gapw_control)
+
     CALL section_vals_val_get(qs_section,"EPSFIT",r_val=qs_control%gapw_control%eps_fit,error=error)
     CALL section_vals_val_get(qs_section,"EPSISO",r_val=qs_control%gapw_control%eps_iso,error=error)
     CALL section_vals_val_get(qs_section,"EPSRHO0",r_val=qs_control%gapw_control%eps_Vrho0,error=error)
     CALL section_vals_val_get(qs_section,"ALPHA0_HARD",r_val=qs_control%gapw_control%alpha0_hard,error=error)
+
     qs_control%gapw_control%alpha0_hard_from_input = .FALSE.
     IF(qs_control%gapw_control%alpha0_hard/=0.0_dp) qs_control%gapw_control%alpha0_hard_from_input = .TRUE.
     CALL section_vals_val_get(qs_section,"ALPHA0_SOFT",r_val=qs_control%gapw_control%alpha0_soft,error=error)
@@ -985,7 +1054,9 @@ CONTAINS
     IF(qs_control %method_id >= do_method_eht .AND. qs_control %method_id <= do_method_pm3)&
                               qs_control%semi_empirical = .TRUE.
     
-    CALL read_loc_section(qs_control%localized_wfn_control,loc_section,error=error)
+    IF(qs_control%localized_wfn) THEN
+      CALL read_loc_section(qs_control%localized_wfn_control,loc_section,error=error)
+    END IF
 
 !    CALL read_mulliken_section()
     CALL section_vals_val_get(mull_section,"STRENGTH",r_val=qs_control%mulliken_restraint_control%strength,error=error)
@@ -1017,9 +1088,15 @@ CONTAINS
     CALL section_vals_val_get(se_section,"RC_EXCHANGE",r_val=qs_control%se_control%rc_exchange,error=error)
     CALL section_vals_val_get(se_section,"RC_COULOMB",r_val=qs_control%se_control%rc_coulomb,error=error)
 
+    ! do not print dft section for semi empirical methods
+    IF(qs_control%semi_empirical) THEN
+      globenv%print%dft_control_parameters=.FALSE.
+    END IF
+
+
   END SUBROUTINE read_qs_section
 
-
+!TODEL_START_MI
   SUBROUTINE read_qs_control(qs_control,globenv,error)
 
 !   Purpose: Read the QUICKSTEP/KG control parameters.
@@ -1398,6 +1475,7 @@ CONTAINS
             END SELECT
          CASE (qs_key_EXTRAPOLATION)
             CALL read_object(string,lower_to_upper=.TRUE.)
+
             SELECT CASE ( string )
             CASE DEFAULT
                CALL stop_parser ( routine, &
@@ -1510,6 +1588,7 @@ CONTAINS
     END IF
 
   END SUBROUTINE read_qs_control
+!TODEL_END_MI
 
 ! *****************************************************************************
 
@@ -1527,6 +1606,7 @@ CONTAINS
 !!                                                                            !
 !!<----------------------------------------------------------------------------
 
+!TODEL_START_MI
   SUBROUTINE read_tddfpt_control(t_control, dft_control, globenv, error)
 
 
@@ -1756,6 +1836,7 @@ CONTAINS
    CALL finish_parser()
 
   END SUBROUTINE read_tddfpt_control
+!TODEL_END_MI
 
 !   ***************************************************************************
 
@@ -1819,12 +1900,17 @@ CONTAINS
     CALL section_vals_val_get(t_section,"OE_CORR", &
          i_val=t_control%oe_corr,error=error)
 
+    t_control%use_kinetic_energy_density = .FALSE.
     xc_section=>section_vals_get_subs_vals(t_section,"XC",error=error)
     call section_vals_get(xc_section,explicit=was_present,error=error)
     if (was_present) then
       ! to be uncommented START_MI
 !      CALL read_xc_control(t_control%xc_control,nspins,kenergy_den,globenv,error)
       ! to be uncommented START_MI
+
+      !ask Thomas to activate this
+!       CALL read_xc_control(t_control%xc_control, nspins,&
+!            t_control%use_kinetic_energy_density, globenv, error=error)
 
 !TODEL_START_MI
        xc_grid=>section_vals_get_subs_vals(xc_section,"XC_GRID",error=error)

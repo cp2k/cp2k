@@ -196,14 +196,15 @@ MODULE input_constants
   integer, parameter, public :: do_pwgrid_spherical=1,&
        do_pwgrid_ns_fullspace=2,&
        do_pwgrid_ns_halfspace=3
-  INTEGER, PARAMETER, PUBLIC :: do_etrxpl_use_guess=0,&
-       do_etrxpl_use_prev_p=1,&
-       do_etrxpl_use_prev_rho_r=2,&
-       do_etrxpl_linear_wf=3,&
-       do_etrxpl_linear_p=4,&
-       do_etrxpl_linear_ps=5,&
-       do_etrxpl_use_prev_wf=6,&
-       do_etrxpl_ps=7
+
+  INTEGER, PARAMETER, PUBLIC :: do_extrpl_use_guess=0,&
+       do_extrpl_use_prev_p=1,&
+       do_extrpl_use_prev_rho_r=2,&
+       do_extrpl_linear_wf=3,&
+       do_extrpl_linear_p=4,&
+       do_extrpl_linear_ps=5,&
+       do_extrpl_use_prev_wf=6,&
+       do_extrpl_ps=7
   CHARACTER (LEN=default_string_length), PARAMETER, DIMENSION(9), PUBLIC :: elstr_method_name=&
       (/"GAPW    ", "GPW     ",&
         "KG_POL  ", "KG_NOPOL", "KG_GPW  ", &
@@ -223,15 +224,6 @@ MODULE input_constants
        use_unit_scaled_bohr=3
   integer, parameter, public :: do_rsgrid_distributed=0,&
        do_rsgrid_replicated=1
-
-  integer, parameter, public :: do_extrpl_ps=0,&
-       do_extrpl_use_guess=1,&
-       do_extrpl_use_prev_p=2,&
-       do_extrpl_use_prev_wf=3,&
-       do_extrpl_use_prev_rho_r=4,&
-       do_extrpl_linear_wf=5,&
-       do_extrpl_linear_p=6,&
-       do_extrpl_linear_ps=7
 
   !
   ! Output format files

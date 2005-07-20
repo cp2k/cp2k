@@ -31,6 +31,8 @@ MODULE kg_environment
   USE cp_control_types,                ONLY: dft_control_release,&
                                              dft_control_type
   USE cp_control_utils,                ONLY: read_dft_control,&
+                                             read_mgrid_section,&
+                                             read_qs_section,&
                                              read_qs_control,&
                                              write_dft_control,&
                                              write_qs_control
@@ -46,6 +48,8 @@ MODULE kg_environment
                                              dyn_coeff_set_type
   USE gamma,                           ONLY: init_md_ftable
   USE global_types,                    ONLY: global_environment_type
+  USE input_cp2k,                      ONLY: parsed_cp2k_input
+  USE input_section_types,             ONLY: section_vals_get
   USE kg_energy_types,                 ONLY: allocate_kg_energy,&
                                              kg_energy_type
   USE kg_environment_methods,          ONLY: kg_env_setup
@@ -155,7 +159,7 @@ CONTAINS
                                                 maxlppl, maxlppnl, nkind, &
                                                 output_unit
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: natom_of_kind
-    LOGICAL                                  :: ionode, kg_gpw, use_ref_cell
+    LOGICAL                                  :: ionode, kg_gpw, use_ref_cell, was_present
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
     TYPE(cell_type), POINTER                 :: cell, cell_ref
@@ -185,6 +189,7 @@ CONTAINS
 
     ionode = globenv%ionode
     output_unit = globenv%scr
+    was_present = .FALSE.
 
     ! nullifying  pointers
     NULLIFY ( atomic_kind_set )
@@ -200,6 +205,7 @@ CONTAINS
     NULLIFY ( particle_set )
     NULLIFY ( scf_control )
     NULLIFY ( cell_ref )
+    NULLIFY ( cell_section, force_env_section, poisson_section )
 
     force_env_section => section_vals_get_subs_vals(globenv%input_file,&
          "FORCE_EVAL",error=error)
@@ -213,7 +219,17 @@ CONTAINS
 
     ! Read/write the input section with the dft and qs control parameters
     CALL read_dft_control ( dft_control, globenv, error )
-    CALL read_qs_control ( dft_control % qs_control, globenv )
+
+!   *** Read the input section with the Quickstep control parameters ***
+    IF (parsed_cp2k_input(globenv%input_file,error=error)) THEN
+      CALL read_qs_section(dft_control%qs_control,globenv,error=error)
+      CALL read_mgrid_section(dft_control%qs_control,globenv,error=error)
+    ELSE
+!TODEL_START_MI
+      CALL read_qs_control(dft_control%qs_control,globenv)
+!TODEL_END_MI
+    END IF
+
     CALL write_dft_control ( dft_control, globenv )
     CALL write_qs_control ( dft_control % qs_control, globenv )
 

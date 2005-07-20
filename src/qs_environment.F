@@ -42,7 +42,9 @@ MODULE qs_environment
                                              gapw_control_type,&
                                              semi_empirical_control_type
   USE cp_control_utils,                ONLY: read_dft_control,&
+                                             read_mgrid_section,&
                                              read_qs_control,&
+                                             read_qs_section,&
                                              write_dft_control,&
                                              write_qs_control
   USE cp_error_handling,               ONLY: cp_error_type
@@ -68,6 +70,7 @@ MODULE qs_environment
   USE input_constants,                 ONLY: state_loc_all,&
                                              state_loc_none,&
                                              xas_tp_hh, xas_tp_fh 
+  USE input_cp2k,                      ONLY: parsed_cp2k_input
   USE input_section_types,             ONLY: section_vals_get_subs_vals,&
                                              section_vals_val_get, &
                                              section_vals_get,&
@@ -311,7 +314,7 @@ CONTAINS
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: natom_of_kind
     INTEGER, DIMENSION(2)                    :: n_mo, nelectron_spin, nmoloc
     LOGICAL                                  :: all_potential_present, ionode,&
-                                                xas_calculation
+                                                xas_calculation, was_present
     REAL(dp)                                 :: maxocc
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
@@ -352,6 +355,7 @@ CONTAINS
 
     ionode = globenv%ionode
     output_unit = globenv%scr
+    was_present = .FALSE.
 
     IF (PRESENT(harris)) THEN
       harris_flag = harris
@@ -372,6 +376,7 @@ CONTAINS
     NULLIFY (local_particles)
     NULLIFY (scf_control)
     NULLIFY (localized_wfn_control)
+    NULLIFY (xas_section)
     particle_set => subsystem%particles%els
     atomic_kind_set => subsystem%atomic_kinds%els
     molecule_set => subsystem%molecules_new%els
@@ -387,7 +392,14 @@ CONTAINS
 
 !   *** Read the input section with the Quickstep control parameters ***
 
-    CALL read_qs_control(dft_control%qs_control,globenv)
+    IF (parsed_cp2k_input(globenv%input_file,error=error)) THEN
+      CALL read_qs_section(dft_control%qs_control,globenv,error=error)
+      CALL read_mgrid_section(dft_control%qs_control,globenv,error=error)
+    ELSE
+!TODEL_START_MI
+      CALL read_qs_control(dft_control%qs_control,globenv)
+!TODEL_END_MI
+    END IF
 
 !   *** Print the DFT control parameters ***
 

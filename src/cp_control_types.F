@@ -225,6 +225,7 @@ MODULE cp_control_types
      LOGICAL                                   :: lsd_singlets
      LOGICAL                                   :: invert_S
      LOGICAL                                   :: precond
+     LOGICAL                                   :: use_kinetic_energy_density
      INTEGER                                   :: res_etype
      INTEGER                                   :: diag_method
      INTEGER                                   :: oe_corr
