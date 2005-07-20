@@ -6,20 +6,6 @@
  RUN_TYPE     ENERGY
 &END
 
-&QS
- METHOD       GAPW
- CUTOFF       150
- NGRID        1
- EPS_GVG      1.0E-6
- EPS_PGF_ORB  1.0E-6
- QUADRATURE   GC_LOG
- EPSFIT       1.E-4
- EPSISO       1.0E-12
- EPSRHO0      1.E-8
- LMAXN0       2
- LMAXN1       6
- ALPHA0_H     10
-&END
  ALPHA0_S     
 
 &SCF
@@ -36,7 +22,23 @@
         &PADE
         &END
       &END
-    &END
+    &END SECTION XC
+    &QS
+       METHOD       GAPW
+       EPS_GVG      1.0E-6
+       EPS_PGF_ORB  1.0E-6
+       QUADRATURE   GC_LOG
+       EPSFIT       1.E-4
+       EPSISO       1.0E-12
+       EPSRHO0      1.E-8
+       LMAXN0       2
+       LMAXN1       6
+       ALPHA0_HARD     10
+    &END SECTION QS
+    &MGRID
+       NGRIDS        1
+       CUTOFF       150
+    &END SECTION MGRID
   &END SECTION DFT
   &SUBSYS
     &CELL

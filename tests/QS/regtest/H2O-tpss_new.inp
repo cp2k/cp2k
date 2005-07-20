@@ -6,9 +6,6 @@
  RUN_TYPE     ENERGY
 &END
 
-&QS
- CUTOFF       200
-&END
 
 &SCF
  GUESS        atomic
@@ -30,6 +27,10 @@
         XC_DERIV      NN50_SMOOTH
         XC_SMOOTH_RHO NONE
       &END
+    &END
+    &MGRID
+      CUTOFF       200
+      NGRIDS   4
     &END
   &END SECTION DFT
   &SUBSYS
