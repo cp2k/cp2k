@@ -5,12 +5,6 @@
  RUN_TYPE     GEO_OPT
 &END
 
-&KG
- METHOD       KG_GPW
- CUTOFF       50
- NGRID        1
- EXTRAPOLATION  USE_PREV_P
-&END
 
 &SCF
  GUESS        ATOMIC
@@ -37,6 +31,14 @@
         XC_DERIV      NN6_SMOOTH
         XC_SMOOTH_RHO NN10
       &END
+    &END
+    &QS
+      METHOD       KG_GPW
+      EXTRAPOLATION  USE_PREV_P
+    &END
+    &MGRID
+       CUTOFF       50
+       NGRIDS        1
     &END
   &END SECTION DFT
   &SUBSYS
