@@ -1,3 +1,6 @@
 #
 # reset Cu.inp for testing the TEST_FILES_RESET feature
 #
+H2O-qmmm-gauss-3.inp
+H2O-qmmm-gauss-7.inp
+H2O-qmmm-gauss-8.inp
