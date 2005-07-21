@@ -1,4 +1,3 @@
-
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
 !   Copyright (C) 2002,2003,2004  CP2K developers group                       !
@@ -362,6 +361,7 @@ CONTAINS
           CPPrecondition(.FALSE.,cp_failure_level,routineP,error,failure)
        END SELECT
        CALL mp_sum(Forces,para_env%group)
+       CALL mp_sum(Forces_added_charges,para_env%group)
        !
        ! Debug Forces
        !
