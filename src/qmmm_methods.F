@@ -99,6 +99,7 @@ MODULE qmmm_methods
                                              timestop
   USE simulation_cell,                 ONLY: cell_type,&
                                              pbc
+  USE message_passing, only: mp_sum
 
   IMPLICIT NONE
   
@@ -360,6 +361,7 @@ CONTAINS
                WRITE(iw,'(T3,A)')"Unknown Coupling..."
           CPPrecondition(.FALSE.,cp_failure_level,routineP,error,failure)
        END SELECT
+       CALL mp_sum(Forces,para_env%group)
        !
        ! Debug Forces
        !
@@ -367,10 +369,10 @@ CONTAINS
           !
           ! Print Out Forces
           !
-          IF (cp_should_output(logger%iter_info,print_gen,error=error).AND.&
+          IF (cp_should_output(logger%iter_info,print_gen,error=error).and.&
                logger%para_env%mepos==logger%para_env%source) THEN
-             WRITE(iw,*)"ANALYTICAL FORCES:"
              DO Imm = 1, SIZE(qmmm_env%mm_atom_index)
+                WRITE(iw,*)"ANALYTICAL FORCES:"
                 IndMM = qmmm_env%mm_atom_index(Imm)
                 WRITE(iw,'(I6,3F15.9)') IndMM, Forces(Imm,:)
              END DO

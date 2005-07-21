@@ -3,8 +3,6 @@
 !   Copyright (C) 2002  CP2K developers group                                 !
 !-----------------------------------------------------------------------------!
 
-#include "cp_prep_globals.h"
-
 !!****h* cp2k/input_keyword_types [1.0] *
 !!
 !!   NAME
@@ -25,13 +23,6 @@
 !!   SOURCE
 !****************************************************************************
 MODULE input_keyword_types
-  USE cp_error_handling,               ONLY: cp_a_l,&
-                                             cp_assert,&
-                                             cp_assertion_failed,&
-                                             cp_error_type
-  USE cp_log_handling,                 ONLY: cp_failure_level,&
-                                             cp_to_string,&
-                                             cp_warning_level
   USE cp_units,                        ONLY: cp_unit_create,&
                                              cp_unit_desc,&
                                              cp_unit_release,&
@@ -58,7 +49,7 @@ MODULE input_keyword_types
   USE string_utilities,                ONLY: compress,&
                                              substitute_special_xml_tokens,&
                                              uppercase
-
+#include "cp_common_uses.h"
   IMPLICIT NONE
   PRIVATE
 

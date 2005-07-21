@@ -3,8 +3,6 @@
 !   Copyright (C) 2004  CP2K developers group                                 !
 !-----------------------------------------------------------------------------!
 
-#include "cp_prep_globals.h"
-
 !!****h* cp2k/input_val_types [1.0] *
 !!
 !!   NAME
@@ -25,20 +23,13 @@
 !!   SOURCE
 !****************************************************************************
 MODULE input_val_types
-
-  USE cp_error_handling,               ONLY: cp_a_l,&
-                                             cp_assert,&
-                                             cp_assertion_failed,&
-                                             cp_error_type
-  USE cp_log_handling,                 ONLY: cp_failure_level,&
-                                             cp_fatal_level,&
-                                             cp_warning_level
   USE input_enumeration_types,         ONLY: enum_i2c,&
                                              enum_release,&
                                              enum_retain,&
                                              enumeration_type
   USE kinds,                           ONLY: default_string_length,&
                                              dp
+#include "cp_common_uses.h"
 
   IMPLICIT NONE
   PRIVATE

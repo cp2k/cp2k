@@ -299,14 +299,10 @@ SUBROUTINE ewald_pw_init ( ewald_pw, green, cell, cell_ref, ewald_env, error )
                          epsilon = epsilon )
     ALLOCATE(pw_big_grid,pw_small_grid,stat=stat)
     CALL pw_grid_construct( pw_small_grid, para_env%group )
-    IF (ewald_type==do_ewald_spme) THEN
-       CALL pw_grid_construct( pw_big_grid, para_env%group )
-    ELSE
-       CALL pw_grid_construct( pw_big_grid, MPI_COMM_SELF )
-    END IF
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     SELECT CASE ( ewald_type )
     CASE ( do_ewald_ewald )
+       CALL pw_grid_construct( pw_big_grid, MPI_COMM_SELF )
        ! set up EWALD "Classic"
        IF ( gmax == 2 * ( gmax / 2 ) ) THEN
           IF ( ionode ) &
@@ -328,6 +324,7 @@ SUBROUTINE ewald_pw_init ( ewald_pw, green, cell, cell_ref, ewald_env, error )
        CALL pw_pool_retain ( ewald_pw % pw_big_pool )
        CALL pw_pool_release ( pw_pool )
     CASE ( do_ewald_pme )
+       CALL pw_grid_construct( pw_big_grid, para_env%group )
        ! set up PME, the double grid method
        IF ( ns_max == 2 * ( ns_max / 2 ) ) THEN
           IF ( ionode ) &
@@ -367,6 +364,7 @@ SUBROUTINE ewald_pw_init ( ewald_pw, green, cell, cell_ref, ewald_env, error )
        CALL pw_pool_release ( pw_pool )
 
     CASE ( do_ewald_spme )
+       CALL pw_grid_construct( pw_big_grid, para_env%group )
      ! set up SPME
        npts_s = (/ gmax, gmax, gmax /)
        CALL pw_find_cutoff ( npts_s, cell_ref, cutoff )

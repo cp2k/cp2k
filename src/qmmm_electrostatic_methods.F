@@ -3,8 +3,6 @@
 !   Copyright (C) 2004  CP2K developers group                                 !
 !-----------------------------------------------------------------------------!
 
-#include "cp_prep_globals.h"
-
 !!****h* cp2k/qmmm_electrostatic_methods [1.0] *
 !!
 !!   NAME MODULE
@@ -28,17 +26,6 @@ MODULE qmmm_electrostatic_methods
   USE coefficient_types,               ONLY: coeff_type,&
                                              coeff_zero
   USE cp_output_handling, ONLY: cp_should_output
-  USE cp_error_handling,               ONLY: cp_a_l,&
-                                             cp_assert,&
-                                             cp_error_get_logger,&
-                                             cp_error_message,&
-                                             cp_error_type
-  USE cp_log_handling,                 ONLY: cp_failure_level,&
-                                             cp_fatal_level,&
-                                             cp_note_level,&
-                                             cp_to_string,&
-                                             cp_warning_level,&
-                                             cp_logger_type
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE cube_utils,                      ONLY: cube_info_type
   USE global_types,                    ONLY: global_environment_type
@@ -58,8 +45,10 @@ MODULE qmmm_electrostatic_methods
                                              pw_env_type
   USE pw_pool_types,                   ONLY: pw_pool_p_type,&
                                              pw_pools_create_pws,&
-                                             pw_pools_give_back_pws
-  USE pw_spline_utils,                 ONLY: pw_inject_s3
+                                             pw_pools_give_back_pws,&
+                                             pw_pool_create_pw,&
+                                             pw_pool_give_back_pw
+  USE pw_spline_utils,                 ONLY: pw_inject_s3, spl3_nopbct
   USE pw_types,                        ONLY: REALDATA3D,&
                                              REALSPACE,&
                                              pw_p_type,&
@@ -79,7 +68,9 @@ MODULE qmmm_electrostatic_methods
                                              timestop
   USE simulation_cell,                 ONLY: cell_type,&
                                              pbc
-
+  USE message_passing, only: mp_stop
+  USE machine, only: m_flush
+#include "cp_common_uses.h"
   IMPLICIT NONE
   PRIVATE
 
@@ -477,9 +468,12 @@ CONTAINS
                                                 ngrids, ub(3), kind_interp
     LOGICAL                                  :: failure
     TYPE(pw_p_type), DIMENSION(:), POINTER   :: grids
+    TYPE(pw_type), POINTER   :: tmp_grid
+    TYPE(cp_logger_type), pointer :: logger
 
 ! Statements
 
+    logger => cp_error_get_logger(error)
     failure=.FALSE.
     CPPrecondition(ASSOCIATED(mm_particles),cp_failure_level,routineP,error,failure)
     CPPrecondition(ASSOCIATED(qmmm_env%mm_atom_chrg),cp_failure_level,routineP,error,failure)
@@ -524,6 +518,20 @@ CONTAINS
        END DO
     CASE(spline3_nopbc_interp, spline3_pbc_interp)
        ! Spline Iterpolator
+!FM-to_rm       DO Ilevel = coarser_grid, coarser_grid
+!FM-to_rm          nullify(tmp_grid)
+!FM-to_rm          CALL pw_pool_create_pw(aug_pools(Ilevel)%pool,tmp_grid,in_space=REALSPACE,&
+!FM-to_rm               use_data=REALDATA3D,error=error)
+!FM-to_rm          call pw_zero(tmp_grid)
+!FM-to_rm          CALL spl3_nopbct(pw_in=grids(Ilevel  )%pw,pw_out=tmp_grid,error=error)
+!FM-to_rm          WRITE(cp_logger_get_default_unit_nr(logger,.TRUE.),*) "xxxbounds=",tmp_grid%pw_grid%bounds_local
+!FM-to_rm          DO igrid=tmp_grid%pw_grid%bounds_local(1,1),tmp_grid%pw_grid%bounds_local(2,1)
+!FM-to_rm             WRITE(cp_logger_get_default_unit_nr(logger,.TRUE.),*) "xxxData=",tmp_grid%cr3d(igrid,:,:)
+!FM-to_rm          END DO
+!FM-to_rm          call m_flush(cp_logger_get_default_unit_nr(logger,.TRUE.))
+!FM-to_rm          CALL pw_pool_give_back_pw(aug_pools(Ilevel)%pool,tmp_grid,error=error)
+!FM-to_rm          CALL mp_stop(-1,"blah")
+!FM-to_rm       END DO
        DO Ilevel = coarser_grid, auxbas_grid+1, -1
           CALL pw_inject_s3(grids(Ilevel  )%pw,&
                             grids(Ilevel-1)%pw,&
