@@ -24,18 +24,20 @@
 MODULE xas_methods
 
   USE ai_moments,                      ONLY: diffop
+  USE ai_overlap_new,                  ONLY: overlap
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                              get_atomic_kind,&
                                              get_atomic_kind_set
-  USE basis_set_types,                 ONLY: allocate_gto_basis_set,&
-                                             allocate_sto_basis_set,&
+  USE basis_set_types,                 ONLY: allocate_sto_basis_set,&
                                              create_gto_from_sto_basis,&
                                              deallocate_sto_basis_set,&
                                              get_gto_basis_set,&
                                              gto_basis_set_type,&
+                                             init_orb_basis_set,&
                                              set_sto_basis_set,&
                                              sto_basis_set_type
   USE checkpoint_handler,              ONLY: write_checkpoint_information
+  USE cp_array_r_utils,                ONLY: cp_2d_r_p_type
   USE cp_control_types,                ONLY: dft_control_type
   USE cp_error_handling,               ONLY: cp_a_l,&
                                              cp_assert,&
@@ -68,9 +70,6 @@ MODULE xas_methods
                                              cp_warning_level
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE cp_sm_fm_interactions,           ONLY: cp_sm_fm_multiply
-  USE external_potential_types,        ONLY: all_potential_type,&
-                                             get_potential,&
-                                             gth_potential_type
   USE global_types,                    ONLY: global_environment_type
   USE input_constants,                 ONLY: xas_none, xas_tp_hh, &
                                              xas_tp_fh, xas_tddft,&
@@ -84,6 +83,7 @@ MODULE xas_methods
   USE orbital_pointers,                ONLY: nco,&
                                              ncoset
   USE particle_types,                  ONLY: get_particle_set,particle_type
+  USE periodic_table,                  ONLY: ptable
   USE physcon,                         ONLY: evolt
   USE qs_environment_types,            ONLY: get_qs_env,&
                                              qs_environment_type,&
@@ -119,7 +119,7 @@ MODULE xas_methods
   USE qs_scf,                          ONLY: init_scf_run,&
                                              scf_env_cleanup
   USE qs_scf_types,                    ONLY: qs_scf_env_type
-  USE semi_empirical_parameters,       ONLY: slater_exponents
+  USE semi_empirical_parameters,       ONLY: srules
   USE simulation_cell,                 ONLY: cell_type, pbc
   USE sparse_matrix_types,             ONLY: get_block_node,&
                                              real_matrix_p_type, &
@@ -199,31 +199,32 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = "xas", &
       routineP = module_name//':'//routineN
 
-    INTEGER :: handle, homo, i, iat, iatom, ikind, ikind_old,  iset, iset_old,&
-               isgf, isgfa, ishell, ispin, istat, istate, iter, &
-               j, la, la_old, maxnset, maxshell, maxl, maxlev, maxll, nao, natom, nelec, nmo,  &
-               nset, nspins, nexc_search, nvirtual, output_unit,& 
-               state_to_be_excited, xas_iter_count, zint
-    INTEGER, DIMENSION(0:3)                     :: norb
-    INTEGER, ALLOCATABLE, DIMENSION(:)          :: econf,first_sgf, nlev
-    INTEGER, DIMENSION(:), POINTER              :: elec_conf, nshell, npgf
-    INTEGER, DIMENSION(:, :), POINTER           :: first_sgfa, l, last_sgfa
+    INTEGER :: handle, homo, i, iat, iatom, ikind, iset, &
+               isgf, ispin, istat, istate, iter, &
+               j, la,  my_kind, nao, natom, nmo,  &
+               nspins, nexc_search, nvirtual, output_unit,& 
+               state_to_be_excited, xas_iter_count
+    INTEGER, ALLOCATABLE, DIMENSION(:)          :: first_sgf
     INTEGER, DIMENSION(:), POINTER              :: atom_of_state
     INTEGER, DIMENSION(:), POINTER              :: type_of_state
     INTEGER, DIMENSION(:), POINTER              :: state_of_atom
+    INTEGER, DIMENSION(:), POINTER              :: state_of_mytype
+    INTEGER, DIMENSION(:), POINTER              :: mykind_of_kind
+
     LOGICAL :: failure, ionode, transition_potential
-    REAL(dp) :: charmax, dist, distmin,  maxocc, &
-                ra(3), rac(3), rc(3), zatom
+    REAL(dp) :: component, dist, distmin,  maxocc, &
+                ra(3), rac(3), rc(3)
     REAL(dp), DIMENSION(:), POINTER             :: occupation_numbers
+    REAL(dp), DIMENSION(:), POINTER             :: max_overlap, sto_state_overlap
     REAL(dp), DIMENSION(:,:), ALLOCATABLE       :: orb_char
     REAL(dp), DIMENSION(:,:), POINTER           :: spectrum, zet
     REAL(dp), DIMENSION(:,:), POINTER           :: centers_wfn
     REAL(dp), DIMENSION(:,:), POINTER           :: vecbuffer
-    TYPE(all_potential_type), POINTER           :: all_potential
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                   :: atomic_kind_set
     TYPE(atomic_kind_type), POINTER             :: atomic_kind    
     TYPE(cell_type), POINTER                    :: cell
+    TYPE(cp_2d_r_p_type), DIMENSION(:), POINTER :: stogto_overlap
     TYPE( cp_fm_p_type ), DIMENSION(:),  &
       POINTER                                   :: groundstate_coeff
     TYPE( cp_fm_p_type ), DIMENSION(:,:),  &
@@ -234,8 +235,6 @@ CONTAINS
     TYPE(cp_logger_type), POINTER               :: logger
     TYPE(cp_para_env_type), POINTER             :: para_env
     TYPE(dft_control_type), POINTER             :: dft_control
-    TYPE(gth_potential_type), POINTER           :: gth_potential
-    TYPE(gto_basis_set_type), POINTER           :: orb_basis_set
     TYPE(localized_wfn_control_type), POINTER   :: my_localized_wfn_control
     TYPE(mo_set_p_type), DIMENSION(:), POINTER  :: mos
     TYPE(particle_type), DIMENSION(:), &
@@ -248,22 +247,12 @@ CONTAINS
       POINTER                                   :: ostrength_sm
     TYPE(xas_environment_type), POINTER         :: xas_env
 
-    INTEGER, DIMENSION(0:5,6) ::  typestate 
-    INTEGER, DIMENSION(0:5,6) ::  typestate2 
-    INTEGER, DIMENSION(0:5), PARAMETER ::  shift =(/0,1,2,3,4,5/)
-
 
     CALL timeset(routineN,"I",'',handle)
 
     failure = .FALSE.
     transition_potential = .FALSE.
 
-    typestate(0:5,1) = (/ 1, 0, 0, 0, 0, 0/)
-    typestate(0:5,2) = (/ 2, 3, 0, 0, 0, 0/)
-    typestate(0:5,3) = (/ 4, 5, 6, 0, 0, 0/)
-    typestate(0:5,4) = (/ 7, 8, 9,10, 0, 0/)
-    typestate(0:5,5) = (/11,12,13,14,15, 0/)
-    typestate(0:5,6) = (/16,17,18,19,20,21/)
 
     NULLIFY(logger)
     logger => cp_error_get_logger(error)
@@ -274,8 +263,8 @@ CONTAINS
     NULLIFY(xas_env, groundstate_coeff, ostrength_sm, op_sm, dip_fm_set, fm_work)
     NULLIFY(excvec_coeff, spectrum, state_of_atom, centers_wfn, qs_loc_env, cell)
     NULLIFY(occupation_numbers,my_localized_wfn_control)
-    NULLIFY(elec_conf,l,nshell,zet,first_sgfa, last_sgfa)
-    NULLIFY(atom_of_state,type_of_state,state_of_atom)
+    NULLIFY(atom_of_state,type_of_state,state_of_atom,stogto_overlap)
+    NULLIFY(mykind_of_kind, state_of_mytype,max_overlap,sto_state_overlap)
 
 !   Create the xas environment
     CALL get_qs_env(qs_env,xas_env=xas_env,error=error)
@@ -292,8 +281,6 @@ CONTAINS
     CALL get_qs_env(qs_env=qs_env, atomic_kind_set=atomic_kind_set,&
          cell = cell, dft_control=dft_control, &
          mos=mos, para_env=para_env, particle_set=particle_set )
-    CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,&
-         maxlgto=maxl,maxshell=maxshell,maxnset=maxnset)
 
     nexc_search = xas_control%nexc_search
     nspins = dft_control%nspins
@@ -306,13 +293,12 @@ CONTAINS
 !   Set of states among which there is the state to be excited
     CALL get_mo_set(mos(1)%mo_set,nao=nao,homo=homo)
     IF(nexc_search < 0) nexc_search = homo
-!IF(ionode) WRITE(*,*) 'homo ', homo, evolt
 
     CALL get_xas_env(xas_env=xas_env,iter_count=xas_iter_count,nvirtual=nvirtual,&
-         centers_wfn=centers_wfn,atom_of_state=atom_of_state,&
+         centers_wfn=centers_wfn,atom_of_state=atom_of_state,mykind_of_kind=mykind_of_kind,&
          type_of_state = type_of_state, state_of_atom=state_of_atom,spectrum=spectrum,&
          groundstate_coeff=groundstate_coeff,excvec_coeff=excvec_coeff,&
-         dip_fm_set=dip_fm_set,fm_work=fm_work)
+         dip_fm_set=dip_fm_set,fm_work=fm_work,stogto_overlap=stogto_overlap)
 
     xas_iter_count =  xas_iter_count + 1
     CALL set_xas_env(xas_env=xas_env,iter_count=xas_iter_count)
@@ -332,7 +318,6 @@ CONTAINS
       CALL qs_loc_env_release(qs_loc_env,error=error)
       CALL get_xas_env(xas_env=xas_env, qs_loc_env=qs_loc_env)
       CALL qs_loc_env_init(qs_loc_env,my_localized_wfn_control,qs_env,onlyspin1=.TRUE.,error=error)
-
     END IF
     CALL qs_loc_driver(qs_env,qs_loc_env,ionode,onlyspin1=.TRUE.,error=error)
 
@@ -344,16 +329,17 @@ CONTAINS
     ALLOCATE (first_sgf(natom),STAT=istat)
     CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
     CALL get_particle_set(particle_set=particle_set, first_sgf=first_sgf)
-    ALLOCATE(orb_char(0:maxl,maxnset),STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
-    ALLOCATE(nlev(0:maxl),STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
-    ALLOCATE (econf(0:maxl),STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
     ALLOCATE (op_sm(3),STAT=istat)
     CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+    ALLOCATE (sto_state_overlap(nexc_search),STAT=istat)
+    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+    ALLOCATE (max_overlap(natom),STAT=istat)
+    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+    max_overlap = 0.0_dp
+    ALLOCATE (state_of_mytype(natom),STAT=istat)
+    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+    state_of_mytype = 0
 
-    ikind_old = 0
     DO istate = 1,nexc_search
       centers_wfn(1,istate) =  my_localized_wfn_control%centers_set(1)%array(1,istate)
       centers_wfn(2,istate) =  my_localized_wfn_control%centers_set(1)%array(2,istate)
@@ -363,7 +349,6 @@ CONTAINS
 
       ! Assign the state to the closest atom
       distmin = 100.0_dp
-      charmax = 0.0_dp
 
       DO iat = 1,xas_control%nexc_atoms
         iatom = xas_control%exc_atoms(iat)
@@ -384,75 +369,30 @@ CONTAINS
             nao,1,transpose=.TRUE.,error=error)
   
        iatom = atom_of_state(istate)
-       NULLIFY(atomic_kind,all_potential,gth_potential,orb_basis_set)
+       
+       NULLIFY(atomic_kind)
        atomic_kind =>  particle_set(iatom)%atomic_kind
        CALL get_atomic_kind(atomic_kind=atomic_kind,&
-              all_potential=all_potential,&
-              gth_potential=gth_potential,&
-              orb_basis_set=orb_basis_set,&
               kind_number=ikind)
 
-       IF(ikind /= ikind_old) THEN
-         ikind_old = ikind
-         IF (ASSOCIATED(all_potential)) THEN
-            CALL get_potential(potential=all_potential,elec_conf=elec_conf)
-         ELSE IF (ASSOCIATED(gth_potential)) THEN
-            CALL stop_program(routineP,"xas requires AE calculations")
-         END IF
-         maxll = MIN(SIZE(elec_conf) - 1,maxl)
-         econf(:) = 0.0_dp
-         econf(0:maxll) = 0.5_dp*maxocc*REAL(elec_conf(0:maxll),dp)
+       my_kind = mykind_of_kind(ikind)
 
-         typestate2 = typestate
-         DO la = 0,maxll
-            nelec = maxocc*REAL(2*la + 1,dp)
-            maxlev = int(econf(la)/nelec) 
-            IF(MOD(econf(la),nelec)/=0) maxlev = maxlev +1
-            DO i = maxlev+shift(la)+1, 6
-              typestate2(la,i ) = typestate(la,maxlev+shift(la))
-            END DO 
-         END DO  
-
-         CALL get_gto_basis_set(gto_basis_set=orb_basis_set,&
-                                nset=nset,&
-                                nshell=nshell,&
-                                l=l, zet=zet, npgf=npgf,&
-                                first_sgf=first_sgfa,&
-                                last_sgf=last_sgfa)
+       sto_state_overlap(istate) = 0.0_dp
+       DO i = 1,SIZE(stogto_overlap(my_kind)%array,1)
+         component = 0.0_dp
+         DO j = 1,SIZE(stogto_overlap(my_kind)%array,2)
+           isgf = first_sgf(iatom) + j - 1
+           component = component + stogto_overlap(my_kind)%array(i,j)*vecbuffer(1,isgf)
+         END DO
+           sto_state_overlap(istate) = sto_state_overlap(istate) + &
+                 component * component
+       END DO
+       IF(sto_state_overlap(istate)>max_overlap(iatom)) THEN
+         state_of_mytype(iatom) = istate
+         max_overlap(iatom) = sto_state_overlap(istate)
        END IF
+!    write(*,*)  istate, iatom, sto_state_overlap(istate) ,  state_of_mytype(iatom)
 
-       nlev(:) = 0
-       orb_char(:,:) = 0.0_dp
-
-       iset_old = 0
-       DO iset=1,nset
-         la_old = -1
-         DO ishell=1,nshell(iset)
-           la = l(ishell,iset)
-           nelec = REAL(2*la + 1,dp)
-           IF(la == 0) THEN
-             IF(zet(npgf(iset),iset) .GT. 3._dp) THEN
-                nlev(la) = 1
-             ELSE
-                nlev(la) = 2
-             END IF
-           ELSE
-             EXIT
-           END IF
-           DO isgfa=first_sgfa(ishell,iset),last_sgfa(ishell,iset)
-             isgf = first_sgf(iatom) + isgfa - 1
-             orb_char(la , nlev(la)) = orb_char(la , nlev(la)) + &
-                      vecbuffer(1,isgf)* vecbuffer(1,isgf)
-           END DO  ! isgfa
-
-           IF(orb_char(la , nlev(la)) >= charmax) THEN
-              charmax = orb_char(la , nlev(la))
-              type_of_state(istate) = typestate2(la , nlev(la)+shift(la))
-           END IF
-
-         END DO  ! ishell
-       END DO  ! iset
-! if(ionode) WRITE(*,*) 'type ', type_of_state(istate)
     END DO  ! istate
 
     CALL localized_wfn_control_release(my_localized_wfn_control,error=error)
@@ -464,13 +404,7 @@ CONTAINS
     DO iat = 1,xas_control%nexc_atoms
       iatom = xas_control%exc_atoms(iat)
 
-      DO istate = 1,nexc_search
-         IF(atom_of_state(istate) == iatom .AND. & 
-            type_of_state(istate) == xas_control%state_type) THEN
-            state_of_atom(iat) = istate
-            EXIT
-         END IF
-      END DO 
+     state_of_atom(iat) = state_of_mytype(iatom)
 ! IF(ionode) WRITE(*,'(A,2I4)') 'state of iatom ',iatom , state_of_atom(iat)
     END DO 
 
@@ -567,14 +501,17 @@ CONTAINS
 
     DEALLOCATE (first_sgf,STAT=istat)
     CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
-    DEALLOCATE(orb_char,STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
-    DEALLOCATE(nlev,STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
     DEALLOCATE(vecbuffer,STAT=istat)
     CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
     DEALLOCATE(op_sm,STAT=istat)
     CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+    DEALLOCATE (sto_state_overlap,STAT=istat)
+    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+    DEALLOCATE (max_overlap,STAT=istat)
+    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+    DEALLOCATE (state_of_mytype,STAT=istat)
+    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+   
 
     dft_control % xas_estate    = -1
 
@@ -622,8 +559,11 @@ CONTAINS
       routineP = module_name//':'//routine_name
 
     INTEGER :: homo, i, iat, iatom, ik, ikind, ispin, istat, j, &
-               nao, nexc_atoms, nexc_search,&
-               n_mo(2), nk, nkind, nmo, nmoloc(2), norb(0:3), nspins
+               nao, nexc_atoms, nexc_search, n_mo(2), nj, nk, nkind,&
+               nmo, nmoloc(2), norb(0:3), nsgf_gto, nsgf_sto, nspins
+    INTEGER, DIMENSION(4, 7)                 :: ne
+    INTEGER                                  ::  l
+
     INTEGER, DIMENSION(:), ALLOCATABLE          :: kind_type_tmp, kind_z_tmp
     INTEGER, DIMENSION(:), POINTER              :: lq, nq
     LOGICAL :: failure, ihavethis
@@ -637,6 +577,7 @@ CONTAINS
     TYPE(cp_fm_type), POINTER                   :: mo_coeff
     TYPE(cp_fm_struct_type), POINTER            :: tmp_fm_struct
     TYPE(cp_para_env_type), POINTER             :: para_env
+    TYPE(gto_basis_set_type), POINTER           :: orb_basis_set
     TYPE(localized_wfn_control_type), POINTER   :: my_localized_wfn_control
     TYPE(mo_set_p_type), DIMENSION(:), POINTER  :: mos
     TYPE(particle_type), DIMENSION(:), &
@@ -688,8 +629,12 @@ CONTAINS
       CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
       ALLOCATE(xas_env%state_of_atom(nexc_atoms),STAT=istat)
       CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
-      ALLOCATE(xas_env%mykind_of_atom(nexc_search),STAT=istat)
+      ALLOCATE(xas_env%mykind_of_atom(nexc_atoms),STAT=istat)
       CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+      nkind = SIZE(atomic_kind_set,1)
+      ALLOCATE(xas_env%mykind_of_kind(nkind),STAT=istat)
+      CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+      xas_env%mykind_of_kind = 0
       ALLOCATE(xas_env%spectrum(5,xas_env%nvirtual),STAT=istat)
       CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
 
@@ -710,8 +655,8 @@ CONTAINS
 
       nspins = SIZE(mos,1)
 
+      ! initialize operators for the calculation of the oscillator strengts
       IF (xas_control%xas_method==xas_tp_hh .OR. xas_control%xas_method==xas_tp_fh) THEN
-      ! initialize operators
         
         ALLOCATE (xas_env%groundstate_coeff(nspins), STAT=istat)
         CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
@@ -720,7 +665,6 @@ CONTAINS
           CALL fm_pool_create_fm(xas_env%ao_mo_fm_pools(ispin)%pool,&
                xas_env%groundstate_coeff(ispin)%matrix,&
              name="xas_env%mo0"//TRIM(ADJUSTL(cp_to_string(ispin))),error=error)
-
         END DO  ! ispin
 
         CALL fm_pool_create_fm(xas_env%ao_mo_fm_pools(1)%pool,&
@@ -803,7 +747,6 @@ CONTAINS
         CALL stop_program(routineP,"xas type of state not implemented")
       END IF
 
-      nkind = SIZE(atomic_kind_set,1)
       ALLOCATE(kind_type_tmp(nkind),STAT=istat)
       ALLOCATE(kind_z_tmp(nkind),STAT=istat)
       CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
@@ -829,21 +772,50 @@ CONTAINS
           kind_type_tmp(nk) = ikind
           kind_z_tmp(nk) = INT(zatom)
           xas_env%mykind_of_atom(iat) = nk
+          xas_env%mykind_of_kind(ikind) = nk
         END IF
       END DO  ! iat
+
+
       ALLOCATE(xas_env%my_gto_basis(nk),STAT=istat)
+      CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+      ALLOCATE(xas_env%stogto_overlap(nk),STAT=istat)
+      CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
       DO ik = 1,nk
         NULLIFY(xas_env%my_gto_basis(ik)%gto_basis_set,sto_basis_set)
-        CALL allocate_gto_basis_set(xas_env%my_gto_basis(ik)%gto_basis_set)
         sto_alpha = 0.0_dp
-        CALL slater_exponents(kind_z_tmp(ik),norb,sto_alpha,1)
+        ne = 0
+        DO l=1,4 !lq(1)+1
+          nj = 2*(l-1)+1
+          DO i=l, 7! nq(1)
+            ne(l,i) = ptable(kind_z_tmp(ik))%e_conv(l-1) - 2*nj*(i-l)
+            ne(l,i) = MAX(ne(l,i),0)
+            ne(l,i) = MIN(ne(l,i),2*nj)
+          END DO
+        END DO
+
+         sto_alpha(nq(1),lq(1))=srules(kind_z_tmp(ik),ne,nq(1),lq(1))
         sto_zet(1) = sto_alpha(nq(1),lq(1))
         CALL allocate_sto_basis_set(sto_basis_set)
-        CALL set_sto_basis_set(sto_basis_set=sto_basis_set,nshell=1,nq=nq,&
+        CALL set_sto_basis_set(sto_basis_set,nshell=1,nq=nq,&
              lq=lq,zet=sto_zet)
         CALL create_gto_from_sto_basis(sto_basis_set,&
              xas_env%my_gto_basis(ik)%gto_basis_set,xas_control%ngauss)
         CALL deallocate_sto_basis_set(sto_basis_set)
+        xas_env%my_gto_basis(ik)%gto_basis_set%norm_type = 2
+        CALL init_orb_basis_set(xas_env%my_gto_basis(ik)%gto_basis_set)
+
+        atomic_kind => atomic_kind_set(kind_type_tmp(ik))
+        CALL get_atomic_kind(atomic_kind=atomic_kind,&
+             orb_basis_set=orb_basis_set)
+
+        CALL get_gto_basis_set(gto_basis_set=orb_basis_set,nsgf=nsgf_gto)
+        CALL get_gto_basis_set(gto_basis_set=xas_env%my_gto_basis(ik)%gto_basis_set,nsgf=nsgf_sto)
+        ALLOCATE(xas_env%stogto_overlap(ik)%array(nsgf_sto,nsgf_gto),STAT=istat)
+        CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+
+        CALL calc_stogto_overlap(xas_env%my_gto_basis(ik)%gto_basis_set,orb_basis_set,&
+             xas_env%stogto_overlap(ik)%array,error=error)
       END DO 
 
       DEALLOCATE(nq,lq,sto_zet,STAT=istat)
@@ -1155,5 +1127,123 @@ CONTAINS
     END IF
 
   END SUBROUTINE spectrum_dip_vel
+
+!***************************************************************************
+
+  SUBROUTINE calc_stogto_overlap(base_a, base_b, matrix,error)
+
+    TYPE(gto_basis_set_type), POINTER           :: base_a, base_b
+    REAL(dp), DIMENSION(:,:), POINTER           :: matrix
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                                  :: error
+
+    CHARACTER(LEN=*), PARAMETER :: routineN = "calc_stogto_overlap", &
+      routineP = module_name//':'//routineN
+
+    INTEGER :: ic, iset, istat, jset, ldai, ldsab, maxcoa, maxcob, maxl, maxla, maxlb, &
+               ncoa, ncob, nseta, nsetb, nsgfa, nsgfb, sgfa, sgfb
+    INTEGER, DIMENSION(:), POINTER    :: la_max,la_min,lb_max,lb_min,&
+                                         npgfa,npgfb,nsgfa_set,nsgfb_set
+    INTEGER, DIMENSION(:,:), POINTER  :: first_sgfa,first_sgfb
+    LOGICAL :: failure
+    REAL(dp) :: rab(3)
+    REAL(KIND = dp), DIMENSION(:,:), POINTER :: rpgfa, rpgfb, sphi_a, sphi_b, zeta, zetb
+    REAL(dp), DIMENSION(:,:), ALLOCATABLE :: sab, work
+    REAL(dp), DIMENSION(:,:,:), ALLOCATABLE ::  ai_work
+
+
+    failure = .FALSE.
+
+    NULLIFY(la_max,la_min,lb_max,lb_min)
+    NULLIFY(npgfa,npgfb,nsgfa_set,nsgfb_set)
+    NULLIFY(first_sgfa,first_sgfb)
+    NULLIFY(rpgfa, rpgfb, sphi_a, sphi_b, zeta, zetb)
+
+    CALL get_gto_basis_set(gto_basis_set=base_a,nsgf=nsgfa,nsgf_set=nsgfa_set,lmax=la_max,&
+                          lmin=la_min,npgf=npgfa,pgf_radius=rpgfa, &
+                          sphi=sphi_a,zet=zeta,first_sgf=first_sgfa, &
+                          maxco=maxcoa,nset=nseta, maxl=maxla)
+
+    CALL get_gto_basis_set(gto_basis_set=base_b,nsgf=nsgfb,nsgf_set=nsgfb_set, lmax=lb_max,&
+                          lmin=lb_min,npgf=npgfb,pgf_radius=rpgfb, &
+                          sphi=sphi_b,zet=zetb,first_sgf=first_sgfb, &
+                          maxco=maxcob,nset=nsetb,maxl=maxlb)
+    rab = 0.0_dp
+    ! Initialize and allocate
+    matrix = 0.0_dp
+
+    ldsab = MAX(maxcoa,maxcob,nsgfa,nsgfb)
+    maxl = MAX(maxla,maxlb)
+    ldai = ncoset(maxl)
+
+! write(*,*) 'size ', size(matrix,1),size(matrix,2)
+! write(*,*) 'dim ', ldsab, maxl, ldai
+
+    ALLOCATE(sab(ldsab,ldsab),STAT=istat)
+    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+    ALLOCATE(work(ldsab,ldsab),STAT=istat)
+    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+    ALLOCATE(ai_work(ldai,ldai,1),STAT=istat)
+    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+
+! write(*,*) 'nset ', nseta , nsetb
+
+    DO iset=1,nseta
+
+       ncoa = npgfa(iset)*ncoset(la_max(iset))
+       sgfa = first_sgfa(1,iset)
+
+! write(*,*) 'iset ', iset, ncoa, sgfa, la_max(iset)
+
+       DO jset=1,nsetb
+
+          ncob = npgfb(jset)*ncoset(lb_max(jset))
+          sgfb = first_sgfb(1,jset)
+
+! write(*,*) 'jset ', jset, ncob, sgfb, lb_max(jset)
+          ai_work = 0.0_dp
+
+          CALL overlap(la_max(iset),la_min(iset),npgfa(iset),&
+               rpgfa(:,iset),zeta(:,iset),&
+               lb_max(jset),lb_min(jset),npgfb(jset),&
+               rpgfb(:,jset),zetb(:,jset),rab,0.0_dp,sab,0,.false.,ai_work,ldai)
+! write(*,*) 'sab '
+!    do ic = 1,ncoa
+!      write(*,'(I4,10F12.6)') ic, sab(ic,1:ncob)
+!    end do
+!
+! write(*,*) 'sphi_a '
+!  do ic = sgfa, sgfa+nsgfa_set(iset) - 1
+! write(*,'(10F12.6)') sphi_a(1:ncoa,ic)
+! END DO 
+! write(*,*) 'sphi_b '
+!  do ic = sgfb, sgfb+nsgfb_set(jset) - 1
+! write(*,'(10F12.6)') sphi_b(1:ncob,ic)
+! END DO 
+
+          CALL dgemm("N","N",ncoa,nsgfb_set(jset),ncob,&
+               1.0_dp,sab(1,1),SIZE(sab,1),&
+               sphi_b(1,sgfb),SIZE(sphi_b,1),&
+               0.0_dp,work(1,1),SIZE(work,1))
+          CALL dgemm("T","N",nsgfa_set(iset),nsgfb_set(jset),ncoa,&
+               1.0_dp,sphi_a(1,sgfa),SIZE(sphi_a,1),&
+               work(1,1),SIZE(work,1),&
+               1.0_dp,matrix(sgfa,sgfb), SIZE(matrix,1))
+
+! write(*,'(A,4I5)') 'matrix', sgfa,sgfa+nsgfa_set(iset)-1, sgfb,sgfb+nsgfb_set(jset)-1
+!      DO ic = sgfb,sgfb+nsgfb_set(jset)-1
+!         write(*,'(10F12.6)')   matrix(sgfa:sgfa+nsgfa_set(iset)-1,ic)
+!      END DO 
+
+       END DO  ! jset
+    END DO  ! iset
+
+
+    DEALLOCATE(sab,work,STAT=istat)
+    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+
+  END SUBROUTINE calc_stogto_overlap
+
+!***************************************************************************
 
 END MODULE xas_methods

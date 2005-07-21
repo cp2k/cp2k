@@ -65,7 +65,7 @@ MODULE semi_empirical_parameters
             mndo_default_parameter, &
             am1_default_parameter, &
             pm3_default_parameter,&
-            slater_exponents
+            slater_exponents,srules
 
 !!***
 ! *****************************************************************************
@@ -1868,12 +1868,14 @@ CONTAINS
         ne(l,i) = MIN(ne(l,i),2*nj)
         IF(ne(l,i) > 0) no(l)=no(l)+1
       END DO
+ write(*,*) 'no ', l-1, no(l)
     END DO
     DO l=0,3
       DO i=1,norb(l)
         j=no(l+1)-norb(l)+1
         IF ( itype == 0 .OR. itype == 1 ) THEN
           sto(i,l)=srules(z,ne,j,l)
+ write(*,*) 'sto ', l, i, j , sto(i,l)
         END IF
         IF ( itype == 0 .OR. itype == 2 ) THEN
           IF ( z <= 18 .AND. z > 0 ) THEN
