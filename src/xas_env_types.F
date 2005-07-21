@@ -25,6 +25,7 @@ MODULE xas_env_types
 
   USE basis_set_types,                 ONLY: deallocate_gto_basis_set,&
                                              gto_basis_set_p_type
+  USE cp_array_r_utils,                ONLY: cp_2d_r_p_type
   USE cp_error_handling,               ONLY: cp_a_l,&
                                              cp_assert,&
                                              cp_error_get_logger,&
@@ -108,8 +109,10 @@ MODULE xas_env_types
     INTEGER, DIMENSION(:), POINTER :: atom_of_state
     INTEGER, DIMENSION(:), POINTER :: type_of_state
     INTEGER, DIMENSION(:), POINTER :: mykind_of_atom 
+    INTEGER, DIMENSION(:), POINTER :: mykind_of_kind
     REAL(dp), DIMENSION(:,:), POINTER :: spectrum
     REAL(dp), DIMENSION(:,:), POINTER :: centers_wfn
+    TYPE(cp_2d_r_p_type), DIMENSION(:), POINTER :: stogto_overlap
     TYPE(gto_basis_set_p_type), DIMENSION(:), POINTER :: my_gto_basis
     TYPE( cp_fm_p_type ), DIMENSION(:),  POINTER :: groundstate_coeff
     TYPE( cp_fm_p_type ), DIMENSION(:,:),  POINTER :: dip_fm_set
@@ -142,10 +145,10 @@ CONTAINS
 !!
 !!*** **********************************************************************
   SUBROUTINE get_xas_env(xas_env,iter_count,exc_state,nao,nvirtual,&
-             centers_wfn,atom_of_state,type_of_state,mykind_of_atom,&
+             centers_wfn,atom_of_state,type_of_state,mykind_of_atom,mykind_of_kind,&
              state_of_atom,spectrum,groundstate_coeff,ostrength_sm,&
              dip_fm_set,excvec_coeff,excvec_overlap,fm_work,&
-             my_gto_basis,qs_loc_env,error)
+             my_gto_basis,qs_loc_env,stogto_overlap,error)
 
     TYPE(xas_environment_type), POINTER         :: xas_env
     INTEGER, INTENT(OUT), OPTIONAL              :: iter_count
@@ -155,8 +158,11 @@ CONTAINS
     INTEGER, DIMENSION(:), POINTER, OPTIONAL    :: atom_of_state
     INTEGER, DIMENSION(:), POINTER, OPTIONAL    :: type_of_state
     INTEGER, DIMENSION(:), POINTER, OPTIONAL    :: mykind_of_atom
+    INTEGER, DIMENSION(:), POINTER, OPTIONAL    :: mykind_of_kind
     REAL(dp), DIMENSION(:,:), POINTER, OPTIONAL :: spectrum
     REAL(dp), DIMENSION(:,:), POINTER, OPTIONAL :: centers_wfn
+    TYPE(cp_2d_r_p_type), DIMENSION(:), &
+      POINTER, OPTIONAL                         :: stogto_overlap
     TYPE( cp_fm_p_type ), DIMENSION(:), &
       POINTER, OPTIONAL                         :: groundstate_coeff
     TYPE( cp_fm_p_type ), DIMENSION(:,:), &
@@ -193,6 +199,7 @@ CONTAINS
        IF(PRESENT(type_of_state)) type_of_state=>xas_env%type_of_state
        IF(PRESENT(state_of_atom)) state_of_atom=>xas_env%state_of_atom
        IF(PRESENT(mykind_of_atom)) mykind_of_atom=>xas_env%mykind_of_atom
+       IF(PRESENT(mykind_of_kind)) mykind_of_kind=>xas_env%mykind_of_kind
        IF(PRESENT(spectrum)) spectrum=>xas_env%spectrum
        IF(PRESENT(groundstate_coeff)) groundstate_coeff=>xas_env%groundstate_coeff
        IF(PRESENT(ostrength_sm)) ostrength_sm=>xas_env%ostrength_sm
@@ -202,6 +209,7 @@ CONTAINS
        IF(PRESENT(qs_loc_env)) qs_loc_env=>xas_env%qs_loc_env
        IF(PRESENT(excvec_coeff)) excvec_coeff=>xas_env%excvec_coeff
        IF(PRESENT(my_gto_basis)) my_gto_basis => xas_env%my_gto_basis
+       IF(PRESENT(stogto_overlap)) stogto_overlap => xas_env%stogto_overlap
 
      END IF
   END SUBROUTINE get_xas_env
@@ -283,10 +291,13 @@ CONTAINS
       NULLIFY(xas_env%state_of_atom, xas_env%atom_of_state)
       NULLIFY(xas_env%excvec_coeff,xas_env%excvec_overlap)
       NULLIFY(xas_env%type_of_state,xas_env%mykind_of_atom)
+      NULLIFY(xas_env%type_of_state,xas_env%mykind_of_kind)
       NULLIFY(xas_env%fm_work,xas_env%groundstate_coeff,xas_env%dip_fm_set)
       NULLIFY(xas_env%ostrength_sm,xas_env%qs_loc_env,xas_env%spectrum)
+      NULLIFY(xas_env%stogto_overlap)
 
     END IF
+
    END SUBROUTINE xas_env_create
 
 
@@ -314,6 +325,8 @@ CONTAINS
          DEALLOCATE(xas_env%type_of_state,STAT=istat)
          CPPostcondition(istat==0,cp_warning_level,routineP,error,failure)
          DEALLOCATE(xas_env%mykind_of_atom,STAT=istat)
+         CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+         DEALLOCATE(xas_env%mykind_of_kind,STAT=istat)
          CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
          DEALLOCATE(xas_env%spectrum,xas_env%centers_wfn,STAT=istat)
          CPPostcondition(istat==0,cp_warning_level,routineP,error,failure)
@@ -356,6 +369,14 @@ CONTAINS
          IF(ASSOCIATED(xas_env%my_gto_basis)) THEN
            DO ik = 1,SIZE(xas_env%my_gto_basis,1)
              CALL deallocate_gto_basis_set(xas_env%my_gto_basis(ik)%gto_basis_set)
+           END DO
+           DEALLOCATE(xas_env%my_gto_basis,STAT=istat)
+           CPPostcondition(istat==0,cp_warning_level,routineP,error,failure)
+         END IF
+
+         IF(ASSOCIATED(xas_env%stogto_overlap)) THEN
+           DO ik = 1,SIZE(xas_env%stogto_overlap,1)
+             DEALLOCATE(xas_env%stogto_overlap(ik)%array)
            END DO
            DEALLOCATE(xas_env%my_gto_basis,STAT=istat)
            CPPostcondition(istat==0,cp_warning_level,routineP,error,failure)
