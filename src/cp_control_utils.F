@@ -951,7 +951,7 @@ CONTAINS
       OPTIONAL                               :: error
 
     CHARACTER(LEN=*), PARAMETER :: &
-      routine = "SUBROUTINE read_qs_control "
+      routine = "SUBROUTINE read_qs_section "
 
     LOGICAL                                  :: failure, was_present
     INTEGER                                  :: j, jj, k, n_rep
@@ -1003,7 +1003,7 @@ CONTAINS
     CALL section_vals_val_get(qs_section,"EPSISO",r_val=qs_control%gapw_control%eps_iso,error=error)
     CALL section_vals_val_get(qs_section,"EPSRHO0",r_val=qs_control%gapw_control%eps_Vrho0,error=error)
     CALL section_vals_val_get(qs_section,"ALPHA0_HARD",r_val=qs_control%gapw_control%alpha0_hard,error=error)
-
+    qs_control%gapw_control%lrho1_eq_lrho0 = .FALSE.
     qs_control%gapw_control%alpha0_hard_from_input = .FALSE.
     IF(qs_control%gapw_control%alpha0_hard/=0.0_dp) qs_control%gapw_control%alpha0_hard_from_input = .TRUE.
     CALL section_vals_val_get(qs_section,"ALPHA0_SOFT",r_val=qs_control%gapw_control%alpha0_soft,error=error)
@@ -1048,11 +1048,15 @@ CONTAINS
     qs_control %method = elstr_method_name(qs_control %method_id)
     qs_control%gapw = .FALSE.
     qs_control%gpw = .FALSE.
+    qs_control%pao = .FALSE.
+    qs_control%polarization = .FALSE.
     qs_control%semi_empirical = .FALSE.
     IF(qs_control %method_id==do_method_gapw) qs_control%gapw = .TRUE.
     IF(qs_control %method_id==do_method_gpw) qs_control%gpw = .TRUE.
     IF(qs_control %method_id >= do_method_eht .AND. qs_control %method_id <= do_method_pm3)&
                               qs_control%semi_empirical = .TRUE.
+    
+    IF(qs_control %method_id == do_method_kg_pol) qs_control%polarization = .TRUE.
     
     IF(qs_control%localized_wfn) THEN
       CALL read_loc_section(qs_control%localized_wfn_control,loc_section,error=error)
