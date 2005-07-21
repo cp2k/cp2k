@@ -11,17 +11,6 @@
 nhcopt   GLOBAL
 &END 
 
-&KG
- cutoff 20.0
- eps_core_charge 1.0E-96 
- eps_ppl 1.0E-96
- eps_pgf_orb 1.0E-16
- eps_gvg_rspace 1.0E-16
- eps_rho 1.0E-16
- method  KG_POL
- ngrid_level 1
-&END
-
 
 &PRINT  low
 BASIS_SET
@@ -63,6 +52,18 @@ POTENTIAL ELP
         &TF
         &END
       &END
+    &END
+    &QS
+      eps_core_charge 1.0E-96 
+      eps_ppl 1.0E-96
+      eps_pgf_orb 1.0E-16
+      eps_gvg_rspace 1.0E-16
+      eps_rho 1.0E-16
+      method  KG_POL
+    &END
+    &MGRID
+      cutoff 20.0
+      ngrids 1
     &END
   &END SECTION DFT
   &SUBSYS
