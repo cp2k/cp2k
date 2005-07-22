@@ -1,6 +1,9 @@
 #
-# reset Cu.inp for testing the TEST_FILES_RESET feature
+# reset some QMMM tests because the spline numeric is different and the
+# energy has changed too much in some tests (1.e-12)
 #
 H2O-qmmm-gauss-3.inp
+H2O-qmmm-gauss-4.inp
+H2O-qmmm-gauss-5.inp
 H2O-qmmm-gauss-7.inp
 H2O-qmmm-gauss-8.inp
