@@ -1156,7 +1156,7 @@ SUBROUTINE create_qs_section(section,error)
      ! Reals
      CALL keyword_create(keyword, name="EPS_DEFAULT",&
           description="Try setting all EPS_xxx to values leading to an energy correct up to EPS_DEFAULT",&
-          usage="EPS_DEFAULT real", default_r_val=1.0E-10_dp,&
+          usage="EPS_DEFAULT real", default_r_val=1.0E-16_dp,&
           error=error)
      CALL section_add_keyword(section,keyword,error=error)
      CALL keyword_release(keyword,error=error)     
@@ -1200,14 +1200,14 @@ SUBROUTINE create_qs_section(section,error)
 
      CALL keyword_create(keyword, name="EPS_RHO",&
           description="Sets precision of the density mapping on the grids",&
-          usage="EPS_RHO real",default_r_val= 1.0E-10_dp,&
+          usage="EPS_RHO real",type_of_var=real_t,&
           error=error)
      CALL section_add_keyword(section,keyword,error=error)
      CALL keyword_release(keyword,error=error)
 
      CALL keyword_create(keyword, name="EPS_RHO_RSPACE",&
           description="Sets precision of the density mapping in rspace",&
-          usage="EPS_RHO_RSPACE real",default_r_val= 1.0E-10_dp ,&
+          usage="EPS_RHO_RSPACE real",type_of_var=real_t,&
           error=error)
      CALL section_add_keyword(section,keyword,error=error)
      CALL keyword_release(keyword,error=error)
@@ -7286,7 +7286,7 @@ END SUBROUTINE create_ewald_section
        CALL keyword_create(keyword, name="SUBCELLS",&
             description="Read the subcells numbers.",&
             usage="SUBCELLS integer",&
-            n_var=1,type_of_var=integer_t,error=error)
+            n_var=1,type_of_var=real_t,error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
