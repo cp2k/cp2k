@@ -3,7 +3,8 @@
 # energy has changed too much in some tests (1.e-12)
 #
 H2O-qmmm-gauss-3.inp
-H2O-qmmm-gauss-4.inp
-H2O-qmmm-gauss-5.inp
 H2O-qmmm-gauss-7.inp
 H2O-qmmm-gauss-8.inp
+C4H10-qmmm-gauss-3.inp
+C4H10-qmmm-gauss-4.inp
+C4H10-qmmm-gauss-5.inp
