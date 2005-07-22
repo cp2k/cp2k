@@ -64,6 +64,7 @@ MODULE qmmm_types
   PUBLIC :: qmmm_imomm_link_type, qmmm_imomm_link_p_type, qmmm_links_type 
   PUBLIC :: qmmm_pseudo_link_type, qmmm_pseudo_link_p_type
   PUBLIC :: add_env_type, add_set_type, add_set_release, create_add_set_type
+  PUBLIC :: qmmm_per_pot_type, qmmm_per_pot_p_type
 
 !***
 !****************************************************************************
@@ -95,17 +96,32 @@ MODULE qmmm_types
      INTEGER                                                 :: auxbas_grid
      INTEGER                                                 :: coarser_grid
   END TYPE gridlevel_info_type
-
+  !
+  ! Real Space Potential
+  !
   TYPE qmmm_pot_type
      REAL(KIND=dp), DIMENSION(:,:), POINTER :: Pot0_2
-     REAL(KIND=dp)  :: Rmax, Rmin, dx, Rc
+     REAL(KIND=dp)   :: Rmax, Rmin, dx, Rc
      INTEGER         :: npts
      INTEGER,        DIMENSION(:), POINTER :: mm_atom_index
   END TYPE qmmm_pot_type
 
   TYPE qmmm_pot_p_type
-      TYPE(qmmm_pot_type), POINTER :: pot
+     TYPE(qmmm_pot_type), POINTER :: pot
   END TYPE qmmm_pot_p_type
+  !
+  ! Periodic Potential
+  !
+  TYPE qmmm_per_pot_type
+     REAL(KIND=dp), DIMENSION(:), POINTER :: lg, gx, gy, gz
+     REAL(KIND=dp)  :: Gmax, Fac(3)
+     INTEGER        :: Kmax(3), n_rep_real(3)
+     INTEGER,        DIMENSION(:), POINTER :: mm_atom_index
+  END TYPE qmmm_per_pot_type
+
+  TYPE qmmm_per_pot_p_type
+     TYPE(qmmm_per_pot_type), POINTER :: pot
+  END TYPE qmmm_per_pot_p_type
   !
   ! LINKs
   !
@@ -148,6 +164,7 @@ MODULE qmmm_types
      REAL(KIND=dp), DIMENSION(:), POINTER                    :: mm_el_pot_radius
      REAL(KIND=dp), DIMENSION(:), POINTER                    :: mm_el_pot_radius_corr
      TYPE(qmmm_pot_p_type), DIMENSION(:), POINTER            :: Potentials
+     TYPE(qmmm_per_pot_p_type), DIMENSION(:), POINTER        :: Per_Potentials
      TYPE(qmmm_gaussian_p_type), DIMENSION(:),POINTER        :: pgfs     
   END TYPE add_set_type
 
@@ -159,6 +176,7 @@ MODULE qmmm_types
      LOGICAL                                                 :: qmmm_link
      LOGICAL                                                 :: move_mm_charges
      LOGICAL                                                 :: add_mm_charges
+     LOGICAL                                                 :: periodic
      INTEGER                                                 :: qmmm_coupl_type
      INTEGER                                                 :: num_qm_atoms
      INTEGER                                                 :: num_mm_atoms
@@ -172,6 +190,7 @@ MODULE qmmm_types
      REAL(KIND=dp), DIMENSION(:), POINTER                    :: mm_el_pot_radius
      REAL(KIND=dp), DIMENSION(:), POINTER                    :: mm_el_pot_radius_corr
      TYPE(qmmm_pot_p_type), DIMENSION(:), POINTER            :: Potentials
+     TYPE(qmmm_per_pot_p_type), DIMENSION(:), POINTER        :: Per_Potentials
      TYPE(gridlevel_info_type)                               :: gridlevel_info
      TYPE(qmmm_gaussian_p_type), DIMENSION(:),POINTER        :: pgfs
      TYPE(pw_pool_p_type), DIMENSION(:), POINTER             :: aug_pools
@@ -398,13 +417,15 @@ SUBROUTINE qmmm_env_qm_create(qmmm_env, error)
              qmmm_env%mm_atom_index,qmmm_env%mm_atom_chrg,&
              qmmm_env%pgfs, qmmm_env%maxradius,&
              qmmm_env%aug_pools, qmmm_env%potentials,&
-             qmmm_env%qmmm_links, qmmm_env%added_charges)
+             qmmm_env%qmmm_links, qmmm_env%added_charges,&
+             qmmm_env%per_potentials)
      qmmm_env%center_qm_subsys = .TRUE.
      qmmm_env%center_qm_subsys0= .TRUE.
      qmmm_env%compatibility    = .TRUE.
      qmmm_env%qmmm_link        = .FALSE.
      qmmm_env%add_mm_charges   = .FALSE.
      qmmm_env%move_mm_charges  = .FALSE.
+     qmmm_env%periodic         = .FALSE.
      qmmm_env%qmmm_coupl_type=do_qmmm_none
      qmmm_env%num_qm_atoms=0
      qmmm_env%num_mm_atoms=0
@@ -529,6 +550,11 @@ SUBROUTINE qmmm_env_qm_release(qmmm_env,error)
         IF (ASSOCIATED(qmmm_env%Potentials)) THEN
            CALL qmmm_pot_type_dealloc(qmmm_env%Potentials)
            DEALLOCATE(qmmm_env%Potentials,stat=stat)
+           CPPostconditionNoFail(stat==0,cp_failure_level,routineP,error)
+        END IF
+        IF (ASSOCIATED(qmmm_env%Per_Potentials)) THEN
+           CALL qmmm_per_pot_type_dealloc(qmmm_env%Per_Potentials)
+           DEALLOCATE(qmmm_env%Per_Potentials,stat=stat)
            CPPostconditionNoFail(stat==0,cp_failure_level,routineP,error)
         END IF
         IF (ASSOCIATED(qmmm_env%aug_pools)) THEN
@@ -704,6 +730,69 @@ SUBROUTINE qmmm_pot_type_dealloc(Potentials, error)
 
 END SUBROUTINE qmmm_pot_type_dealloc
 
+
+!!****f* qmmm_types/qmmm_per_pot_type_dealloc [1.0] *
+!!
+!!   NAME
+!!     qmmm_per_pot_type_dealloc
+!!
+!!   FUNCTION
+!!     deallocates the qmmm_per_pot_type structure
+!!     for QM/MM periodic boundary conditions
+!!
+!!   NOTES
+!!     -
+!!
+!!   INPUTS
+!!     - qmmm_env: the object to release
+!!     - error: variable to control error logging, stopping,... 
+!!       see module cp_error_handling 
+!!
+!!   AUTHOR
+!!     Teodoro Laino
+!!
+!!*** **********************************************************************
+SUBROUTINE qmmm_per_pot_type_dealloc(Per_Potentials, error)
+  IMPLICIT NONE
+  ! Arguments
+  TYPE(qmmm_per_pot_p_type), DIMENSION(:), POINTER :: Per_Potentials
+  TYPE(cp_error_type), INTENT(inout), &
+       OPTIONAL                               :: error
+  ! Local Variables
+  CHARACTER(len=*), PARAMETER :: routineN = 'qmmm_per_pot_type_dealloc', &
+       routineP = moduleN//':'//routineN
+  INTEGER :: I, stat
+
+  
+  DO I = 1, SIZE(Per_Potentials)
+     IF (ASSOCIATED(Per_Potentials(I)%Pot)) THEN
+        IF (ASSOCIATED(Per_Potentials(I)%Pot%LG)) THEN   
+           DEALLOCATE(Per_Potentials(I)%Pot%LG,stat=stat)
+           CPPostconditionNoFail(stat==0,cp_failure_level,routineP,error)           
+        END IF
+        IF (ASSOCIATED(Per_Potentials(I)%Pot%gx)) THEN   
+           DEALLOCATE(Per_Potentials(I)%Pot%gx,stat=stat)
+           CPPostconditionNoFail(stat==0,cp_failure_level,routineP,error)           
+        END IF
+        IF (ASSOCIATED(Per_Potentials(I)%Pot%gy)) THEN   
+           DEALLOCATE(Per_Potentials(I)%Pot%gy,stat=stat)
+           CPPostconditionNoFail(stat==0,cp_failure_level,routineP,error)           
+        END IF
+        IF (ASSOCIATED(Per_Potentials(I)%Pot%gz)) THEN   
+           DEALLOCATE(Per_Potentials(I)%Pot%gz,stat=stat)
+           CPPostconditionNoFail(stat==0,cp_failure_level,routineP,error)           
+        END IF
+        IF (ASSOCIATED(Per_Potentials(I)%Pot%mm_atom_index)) THEN   
+           DEALLOCATE(Per_Potentials(I)%Pot%mm_atom_index,stat=stat)
+           CPPostconditionNoFail(stat==0,cp_failure_level,routineP,error)              
+        END IF
+        DEALLOCATE(Per_Potentials(I)%Pot,stat=stat)
+        CPPostconditionNoFail(stat==0,cp_failure_level,routineP,error)
+     END IF
+  END DO
+
+END SUBROUTINE qmmm_per_pot_type_dealloc
+
 !!****f* qmmm_types/add_set_release [1.0] *
 !!
 !!   NAME
@@ -764,6 +853,11 @@ SUBROUTINE add_set_release(added_charges, error)
         DEALLOCATE(added_charges%Potentials,stat=stat)
         CPPostconditionNoFail(stat==0,cp_failure_level,routineP,error)
      END IF
+     IF (ASSOCIATED(added_charges%Per_Potentials)) THEN
+        CALL qmmm_per_pot_type_dealloc(added_charges%Per_Potentials, error)
+        DEALLOCATE(added_charges%Per_Potentials,stat=stat)
+        CPPostconditionNoFail(stat==0,cp_failure_level,routineP,error)
+     END IF
      IF (ASSOCIATED(added_charges%pgfs)) THEN
         CALL pgfs_release(added_charges%pgfs, error)
         DEALLOCATE(added_charges%pgfs,stat=stat)
@@ -820,6 +914,7 @@ SUBROUTINE create_add_set_type(added_charges, ndim, error)
              added_charges%mm_el_pot_radius,&
              added_charges%mm_el_pot_radius_corr,&
              added_charges%potentials,&
+             added_charges%per_potentials,&
              added_charges%pgfs)
 
      added_charges%num_mm_atoms = ndim

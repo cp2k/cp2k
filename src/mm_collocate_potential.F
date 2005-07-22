@@ -40,6 +40,7 @@ MODULE mm_collocate_potential
   USE timings,                         ONLY: timeset,&
                                              timestop  
   USE kinds,                           ONLY: dp
+  USE simulation_cell,                 ONLY: cell_type
   USE cube_utils,                      ONLY: cube_info_type,&
                                              return_cube
   USE pw_types,                        ONLY: COMPLEXDATA1D,&
@@ -98,7 +99,7 @@ CONTAINS
 !!
 !!**************************************************************************
   SUBROUTINE collocate_gf_rspace_NoPBC(zetp,rp,scale,W,pwgrid,cube_info,&
-       eps_mm_rspace,ithread,xdat,ydat,zdat,bo2)
+       eps_mm_rspace,ithread,xdat,ydat,zdat,bo2, n_rep_real, mm_cell)
     IMPLICIT NONE
     ! Arguments
     REAL(KIND=dp), INTENT(IN)                :: zetp
@@ -110,12 +111,14 @@ CONTAINS
     INTEGER, INTENT(IN), OPTIONAL            :: ithread
     REAL(KIND=dp), DIMENSION(:), POINTER     :: xdat, ydat, zdat
     INTEGER, DIMENSION(2,3), INTENT(IN)      :: bo2
+    INTEGER, DIMENSION(3), INTENT(IN)        :: n_rep_real
+    TYPE(cell_type), POINTER                 :: mm_cell
     ! Local Variables
     INTEGER                                  :: ithread_l
-    INTEGER                                  :: zub,zlb,yub,ylb,xub,xlb
+    INTEGER                                  :: zub,zlb,yub,ylb,xub,xlb,ix,iy,iz
     INTEGER                                  :: ig
     REAL(KIND=dp)                           :: radius,  rpg, zap, yap, xap
-    REAL(KIND=dp), DIMENSION(3)              :: dr
+    REAL(KIND=dp), DIMENSION(3)              :: dr, my_shift
     INTEGER, DIMENSION(3)                    :: cubecenter, lb_cube, &
                                                 ub_cube
     REAL(KIND=dp), DIMENSION(:, :, :), &
@@ -144,34 +147,74 @@ CONTAINS
 !   *** get the sub grid properties for the given radius ***
     CALL return_cube(cube_info,radius,lb_cube,ub_cube,sphere_bounds)
 
-    cubecenter(:) = FLOOR(rp(:)/dr(:))+gbo(1,:)
-    zub = MIN(bo(2,3),cubecenter(3)+ub_cube(3))
-    zlb = MAX(bo(1,3),cubecenter(3)+lb_cube(3))
-    yub = MIN(bo(2,2),cubecenter(2)+ub_cube(2))
-    ylb = MAX(bo(1,2),cubecenter(2)+lb_cube(2))
-    xub = MIN(bo(2,1),cubecenter(1)+ub_cube(1))
-    xlb = MAX(bo(1,1),cubecenter(1)+lb_cube(1))
+    IF (ALL(n_rep_real ==0)) THEN
+       cubecenter(:) = FLOOR(rp(:)/dr(:))+gbo(1,:)
+       zub = MIN(bo(2,3),cubecenter(3)+ub_cube(3))
+       zlb = MAX(bo(1,3),cubecenter(3)+lb_cube(3))
+       yub = MIN(bo(2,2),cubecenter(2)+ub_cube(2))
+       ylb = MAX(bo(1,2),cubecenter(2)+lb_cube(2))
+       xub = MIN(bo(2,1),cubecenter(1)+ub_cube(1))
+       xlb = MAX(bo(1,1),cubecenter(1)+lb_cube(1))
+       
+       IF (zlb.GT.zub) RETURN
+       DO ig=zlb,zub
+          rpg = REAL(ig-gbo(1,3),dp)*dr(3) - rp(3)
+          zap = EXP(-zetp*rpg**2)
+          zdat(ig)=scale*W*zap
+       ENDDO
+       IF (ylb.GT.yub) RETURN
+       DO ig=ylb,yub
+          rpg = REAL(ig-gbo(1,2),dp)*dr(2) - rp(2)
+          yap = EXP(-zetp*rpg**2)
+          ydat(ig)=yap
+       ENDDO
+       IF (xlb.GT.xub) RETURN
+       DO ig=xlb,xub
+          rpg = REAL(ig-gbo(1,1),dp)*dr(1) - rp(1)
+          xap  = EXP(-zetp*rpg**2)
+          xdat(ig)=xap
+       ENDDO
+       CALL collocate_gf_npbc(grid,xdat,ydat,zdat,bo,bo2,zlb,zub,ylb,yub,xlb,xub)
+    ELSE
+       DO iz = -n_rep_real(3),n_rep_real(3)
+          my_shift(3) = mm_cell%hmat(3,3)*REAL(iz,KIND=dp)
+          DO iy = -n_rep_real(2),n_rep_real(2)
+             my_shift(2) = mm_cell%hmat(2,2)*REAL(iy,KIND=dp)
+             DO ix = -n_rep_real(1),n_rep_real(1)
+                my_shift(1) = mm_cell%hmat(1,1)*REAL(ix,KIND=dp)
 
-    IF (zlb.GT.zub) RETURN
-    DO ig=zlb,zub
-       rpg = REAL(ig-gbo(1,3),dp)*dr(3) - rp(3)
-       zap = EXP(-zetp*rpg**2)
-       zdat(ig)=scale*W*zap
-    ENDDO
-    IF (ylb.GT.yub) RETURN
-    DO ig=ylb,yub
-       rpg = REAL(ig-gbo(1,2),dp)*dr(2) - rp(2)
-       yap = EXP(-zetp*rpg**2)
-       ydat(ig)=yap
-    ENDDO
-    IF (xlb.GT.xub) RETURN
-    DO ig=xlb,xub
-       rpg = REAL(ig-gbo(1,1),dp)*dr(1) - rp(1)
-       xap  = EXP(-zetp*rpg**2)
-       xdat(ig)=xap
-    ENDDO
+                cubecenter(:) = FLOOR((rp(:)+my_shift(:))/dr(:))+gbo(1,:)
+                zub = MIN(bo(2,3),cubecenter(3)+ub_cube(3))
+                zlb = MAX(bo(1,3),cubecenter(3)+lb_cube(3))
+                yub = MIN(bo(2,2),cubecenter(2)+ub_cube(2))
+                ylb = MAX(bo(1,2),cubecenter(2)+lb_cube(2))
+                xub = MIN(bo(2,1),cubecenter(1)+ub_cube(1))
+                xlb = MAX(bo(1,1),cubecenter(1)+lb_cube(1))
+                
+                IF (zlb.GT.zub) CYCLE
+                DO ig=zlb,zub
+                   rpg = REAL(ig-gbo(1,3),dp)*dr(3) - rp(3)
+                   zap = EXP(-zetp*rpg**2)
+                   zdat(ig)=scale*W*zap
+                ENDDO
+                IF (ylb.GT.yub) CYCLE
+                DO ig=ylb,yub
+                   rpg = REAL(ig-gbo(1,2),dp)*dr(2) - rp(2)
+                   yap = EXP(-zetp*rpg**2)
+                   ydat(ig)=yap
+                ENDDO
+                IF (xlb.GT.xub) CYCLE
+                DO ig=xlb,xub
+                   rpg = REAL(ig-gbo(1,1),dp)*dr(1) - rp(1)
+                   xap  = EXP(-zetp*rpg**2)
+                   xdat(ig)=xap
+                ENDDO
+                CALL collocate_gf_npbc(grid,xdat,ydat,zdat,bo,bo2,zlb,zub,ylb,yub,xlb,xub)
 
-    CALL collocate_gf_npbc(grid,xdat,ydat,zdat,bo,bo2,zlb,zub,ylb,yub,xlb,xub)
+             END DO
+          END DO
+       END DO
+    END IF
 
   END SUBROUTINE collocate_gf_rspace_NoPBC
 
@@ -200,7 +243,8 @@ CONTAINS
 !!
 !!**************************************************************************
   SUBROUTINE integrate_gf_rspace_NoPBC(zetp,rp,scale,W,pwgrid,cube_info,&
-       eps_mm_rspace,ithread,xdat,ydat,zdat,xder,yder,zder,bo2,wrk,iwrk,force)
+       eps_mm_rspace,ithread,xdat,ydat,zdat,xder,yder,zder,bo2,wrk,iwrk,force,&
+       n_rep_real, mm_cell)
     IMPLICIT NONE
     ! Arguments
     REAL(KIND=dp), INTENT(IN)                 :: zetp
@@ -215,12 +259,14 @@ CONTAINS
     REAL(KIND=dp), DIMENSION(3), INTENT(OUT) :: force
     INTEGER, DIMENSION(2,3), INTENT(IN)      :: bo2
     INTEGER, INTENT(IN)                      :: iwrk
+    INTEGER, DIMENSION(3), INTENT(IN)        :: n_rep_real
+    TYPE(cell_type), POINTER                 :: mm_cell
     ! Local Variables
     INTEGER                                   :: ithread_l
-    INTEGER                                   :: zub,zlb,yub,ylb,xub,xlb
+    INTEGER                                   :: zub,zlb,yub,ylb,xub,xlb,ix,iy,iz
     INTEGER                                   :: ig
     REAL(KIND=dp)                            :: radius,  rpg, zap, yap, xap
-    REAL(KIND=dp), DIMENSION(3)               :: dr
+    REAL(KIND=dp), DIMENSION(3)               :: dr, my_shift
     INTEGER, DIMENSION(3)                     :: cubecenter, lb_cube, &
                                                  ub_cube
     REAL(KIND=dp), DIMENSION(:, :, :), &
@@ -250,64 +296,133 @@ CONTAINS
 !   *** get the sub grid properties for the given radius ***
     CALL return_cube(cube_info,radius,lb_cube,ub_cube,sphere_bounds)
 
-    cubecenter(:) = FLOOR(rp(:)/dr(:))+gbo(1,:)
-    zub = MIN(bo(2,3),cubecenter(3)+ub_cube(3))
-    zlb = MAX(bo(1,3),cubecenter(3)+lb_cube(3))
-    yub = MIN(bo(2,2),cubecenter(2)+ub_cube(2))
-    ylb = MAX(bo(1,2),cubecenter(2)+lb_cube(2))
-    xub = MIN(bo(2,1),cubecenter(1)+ub_cube(1))
-    xlb = MAX(bo(1,1),cubecenter(1)+lb_cube(1))
-
-    IF (zlb.GT.zub) RETURN
-    DO ig=zlb,zub
-       rpg      = REAL(ig-gbo(1,3),dp)*dr(3) - rp(3)
-       zap      = EXP(-zetp*rpg**2)
-       zder(ig) = rpg
-       zdat(ig) = scale*W*zap
-    ENDDO
-    IF (ylb.GT.yub) RETURN
-    DO ig=ylb,yub
-       rpg      = REAL(ig-gbo(1,2),dp)*dr(2) - rp(2)
-       yap      = EXP(-zetp*rpg**2)
-       yder(ig) = rpg
-       ydat(ig) = yap
-    ENDDO
-    IF (xlb.GT.xub) RETURN
-    DO ig=xlb,xub
-       rpg      = REAL(ig-gbo(1,1),dp)*dr(1) - rp(1)
-       xap      = EXP(-zetp*rpg**2)
-       xder(ig) = rpg
-       xdat(ig) = xap
-    ENDDO
- 
-    ! z derivative
-    bo2l = bo2
-    bo2l(1,3) = bo2(1,iwrk)
-    bo2l(2,3) = bo2(2,iwrk)
-    DO ig=zlb,zub
-       wrk(ig)  = zder(ig)*zdat(ig)*zetp*2.0_dp
-    ENDDO
-    CALL integrate_gf_npbc(grid,xdat,ydat,wrk,bo,bo2l,&
-         zlb,zub,ylb,yub,xlb,xub,force(3))
-    ! y derivative
-    DO ig=ylb,yub
-       wrk(ig)  = yder(ig)*ydat(ig)*zetp*2.0_dp
-    ENDDO
-    bo2l = bo2
-    bo2l(1,2) = bo2(1,iwrk)
-    bo2l(2,2) = bo2(2,iwrk)
-    CALL integrate_gf_npbc(grid,xdat,wrk,zdat,bo,bo2l,&
-         zlb,zub,ylb,yub,xlb,xub,force(2))
-    ! x derivative
-    DO ig=xlb,xub
-       wrk(ig)  = xder(ig)*xdat(ig)*zetp*2.0_dp
-    ENDDO
-    bo2l = bo2
-    bo2l(1,1) = bo2(1,iwrk)
-    bo2l(2,1) = bo2(2,iwrk)
-    CALL integrate_gf_npbc(grid,wrk,ydat,zdat,bo,bo2l,&
-         zlb,zub,ylb,yub,xlb,xub,force(1))
-
+    IF (ALL(n_rep_real ==0)) THEN
+       cubecenter(:) = FLOOR(rp(:)/dr(:))+gbo(1,:)
+       zub = MIN(bo(2,3),cubecenter(3)+ub_cube(3))
+       zlb = MAX(bo(1,3),cubecenter(3)+lb_cube(3))
+       yub = MIN(bo(2,2),cubecenter(2)+ub_cube(2))
+       ylb = MAX(bo(1,2),cubecenter(2)+lb_cube(2))
+       xub = MIN(bo(2,1),cubecenter(1)+ub_cube(1))
+       xlb = MAX(bo(1,1),cubecenter(1)+lb_cube(1))
+       
+       IF (zlb.GT.zub) RETURN
+       DO ig=zlb,zub
+          rpg      = REAL(ig-gbo(1,3),dp)*dr(3) - rp(3)
+          zap      = EXP(-zetp*rpg**2)
+          zder(ig) = rpg
+          zdat(ig) = scale*W*zap
+       ENDDO
+       IF (ylb.GT.yub) RETURN
+       DO ig=ylb,yub
+          rpg      = REAL(ig-gbo(1,2),dp)*dr(2) - rp(2)
+          yap      = EXP(-zetp*rpg**2)
+          yder(ig) = rpg
+          ydat(ig) = yap
+       ENDDO
+       IF (xlb.GT.xub) RETURN
+       DO ig=xlb,xub
+          rpg      = REAL(ig-gbo(1,1),dp)*dr(1) - rp(1)
+          xap      = EXP(-zetp*rpg**2)
+          xder(ig) = rpg
+          xdat(ig) = xap
+       ENDDO
+       
+       ! z derivative
+       bo2l = bo2
+       bo2l(1,3) = bo2(1,iwrk)
+       bo2l(2,3) = bo2(2,iwrk)
+       DO ig=zlb,zub
+          wrk(ig)  = zder(ig)*zdat(ig)*zetp*2.0_dp
+       ENDDO
+       CALL integrate_gf_npbc(grid,xdat,ydat,wrk,bo,bo2l,&
+            zlb,zub,ylb,yub,xlb,xub,force(3))
+       ! y derivative
+       DO ig=ylb,yub
+          wrk(ig)  = yder(ig)*ydat(ig)*zetp*2.0_dp
+       ENDDO
+       bo2l = bo2
+       bo2l(1,2) = bo2(1,iwrk)
+       bo2l(2,2) = bo2(2,iwrk)
+       CALL integrate_gf_npbc(grid,xdat,wrk,zdat,bo,bo2l,&
+            zlb,zub,ylb,yub,xlb,xub,force(2))
+       ! x derivative
+       DO ig=xlb,xub
+          wrk(ig)  = xder(ig)*xdat(ig)*zetp*2.0_dp
+       ENDDO
+       bo2l = bo2
+       bo2l(1,1) = bo2(1,iwrk)
+       bo2l(2,1) = bo2(2,iwrk)
+       CALL integrate_gf_npbc(grid,wrk,ydat,zdat,bo,bo2l,&
+            zlb,zub,ylb,yub,xlb,xub,force(1))
+    ELSE
+       DO iz = -n_rep_real(3),n_rep_real(3)
+          my_shift(3) = mm_cell%hmat(3,3)*REAL(iz,KIND=dp)
+          DO iy = -n_rep_real(2),n_rep_real(2)
+             my_shift(2) = mm_cell%hmat(2,2)*REAL(iy,KIND=dp)
+             DO ix = -n_rep_real(1),n_rep_real(1)
+                my_shift(1) = mm_cell%hmat(1,1)*REAL(ix,KIND=dp)
+                
+                cubecenter(:) = FLOOR((rp(:)+my_shift(:))/dr(:))+gbo(1,:)       
+                zub = MIN(bo(2,3),cubecenter(3)+ub_cube(3))
+                zlb = MAX(bo(1,3),cubecenter(3)+lb_cube(3))
+                yub = MIN(bo(2,2),cubecenter(2)+ub_cube(2))
+                ylb = MAX(bo(1,2),cubecenter(2)+lb_cube(2))
+                xub = MIN(bo(2,1),cubecenter(1)+ub_cube(1))
+                xlb = MAX(bo(1,1),cubecenter(1)+lb_cube(1))
+                
+                IF (zlb.GT.zub) CYCLE
+                DO ig=zlb,zub
+                   rpg      = REAL(ig-gbo(1,3),dp)*dr(3) - rp(3)
+                   zap      = EXP(-zetp*rpg**2)
+                   zder(ig) = rpg
+                   zdat(ig) = scale*W*zap
+                ENDDO
+                IF (ylb.GT.yub) CYCLE
+                DO ig=ylb,yub
+                   rpg      = REAL(ig-gbo(1,2),dp)*dr(2) - rp(2)
+                   yap      = EXP(-zetp*rpg**2)
+                   yder(ig) = rpg
+                   ydat(ig) = yap
+                ENDDO
+                IF (xlb.GT.xub) CYCLE
+                DO ig=xlb,xub
+                   rpg      = REAL(ig-gbo(1,1),dp)*dr(1) - rp(1)
+                   xap      = EXP(-zetp*rpg**2)
+                   xder(ig) = rpg
+                   xdat(ig) = xap
+                ENDDO
+                
+                ! z derivative
+                bo2l = bo2
+                bo2l(1,3) = bo2(1,iwrk)
+                bo2l(2,3) = bo2(2,iwrk)
+                DO ig=zlb,zub
+                   wrk(ig)  = zder(ig)*zdat(ig)*zetp*2.0_dp
+                ENDDO
+                CALL integrate_gf_npbc(grid,xdat,ydat,wrk,bo,bo2l,&
+                     zlb,zub,ylb,yub,xlb,xub,force(3))
+                ! y derivative
+                DO ig=ylb,yub
+                   wrk(ig)  = yder(ig)*ydat(ig)*zetp*2.0_dp
+                ENDDO
+                bo2l = bo2
+                bo2l(1,2) = bo2(1,iwrk)
+                bo2l(2,2) = bo2(2,iwrk)
+                CALL integrate_gf_npbc(grid,xdat,wrk,zdat,bo,bo2l,&
+                     zlb,zub,ylb,yub,xlb,xub,force(2))
+                ! x derivative
+                DO ig=xlb,xub
+                   wrk(ig)  = xder(ig)*xdat(ig)*zetp*2.0_dp
+                ENDDO
+                bo2l = bo2
+                bo2l(1,1) = bo2(1,iwrk)
+                bo2l(2,1) = bo2(2,iwrk)
+                CALL integrate_gf_npbc(grid,wrk,ydat,zdat,bo,bo2l,&
+                     zlb,zub,ylb,yub,xlb,xub,force(1))
+             END DO
+          END DO
+       END DO
+    END IF
   END SUBROUTINE integrate_gf_rspace_NoPBC
 
 

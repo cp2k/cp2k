@@ -259,6 +259,7 @@ OBJECTS_GENERIC =\
  qmmm_init.o\
  qmmm_links_methods.o\
  qmmm_methods.o\
+ qmmm_per_elpot.o\
  qmmm_pw_grid.o\
  qmmm_topology_util.o\
  qmmm_types.o\

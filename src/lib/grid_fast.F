@@ -930,12 +930,11 @@
     REAL(wp), INTENT(IN)    :: xdat(bo2(1,1):bo2(2,1)),&
                                ydat(bo2(1,2):bo2(2,2)),&
                                zdat(bo2(1,3):bo2(2,3))
-    REAL(wp), INTENT(OUT)   :: force
+    REAL(wp), INTENT(INOUT) :: force
     ! Local Variables
     INTEGER :: iz, iy, ix
     REAL(wp):: tmp1
 
-    force = 0.0_wp
     DO iz=zlb,zub
        DO iy=ylb,yub
           tmp1 = zdat(iz) * ydat(iy)

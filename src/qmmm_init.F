@@ -90,6 +90,7 @@ MODULE qmmm_init
   USE qmmm_gaussian_init,              ONLY: qmmm_gaussian_initialize
   USE qmmm_pw_grid,                    ONLY: qmmm_pw_grid_init
   USE qmmm_elpot,                      ONLY: qmmm_potential_init
+  USE qmmm_per_elpot,                  ONLY: qmmm_per_potential_init
   USE qs_environment,                  ONLY: qs_init_subsys
   USE qs_environment_types,            ONLY: qs_env_create,&
                                              qs_env_release,&
@@ -197,11 +198,12 @@ CONTAINS
     REAL(dp), DIMENSION(:), POINTER          :: mm_atom_chrg, mm_el_pot_radius, mm_el_pot_radius_corr 
     REAL(KIND=dp)                            :: eps_mm_rspace
     INTEGER                                  :: qmmm_coupl_type
-    TYPE(section_vals_type), POINTER         :: force_env_section, qmmm_section, poisson_section, print_section
+    TYPE(section_vals_type), POINTER         :: force_env_section, qmmm_section, poisson_section, print_section,&
+                                                qmmm_periodic
     TYPE(qmmm_links_type), pointer           :: qmmm_links
     REAL(KIND=dp),  DIMENSION(:), POINTER    :: mm_link_scale_factor, fist_scale_charge_link
     LOGICAL                                  :: move_mm_charges, add_mm_charges, nocenter
-    LOGICAL                                  :: nocompatibility
+    LOGICAL                                  :: nocompatibility, explicit
     TYPE(add_set_type), POINTER              :: added_charges
     TYPE(greens_function_type), POINTER                   :: green
     REAL(KIND=dp), DIMENSION(3)              :: abc
@@ -224,6 +226,7 @@ CONTAINS
        ! Input section...
        force_env_section => section_vals_get_subs_vals(globenv%input_file,"FORCE_EVAL",error=error)
        qmmm_section => section_vals_get_subs_vals(force_env_section,"QMMM",error=error)
+       qmmm_periodic => section_vals_get_subs_vals(qmmm_section,"PERIODIC",error=error)
        print_section => section_vals_get_subs_vals(qmmm_section,"PRINT",error=error)
        poisson_section => section_vals_get_subs_vals(force_env_section,"DFT%POISSON_DFT",error=error)
        print_gen => section_vals_get_subs_vals(print_section,"PROGRAM_RUN_INFO",error=error)
@@ -263,6 +266,10 @@ CONTAINS
        ! Compatibility with the QM/MM in CPMD code
        CALL section_vals_val_get(qmmm_section,"NOCOMPATIBILITY",l_val=nocompatibility,error=error)
        qmmm_env_qm%compatibility = .NOT.nocompatibility       
+
+       ! Periodic boundary condition calculation
+       CALL section_vals_get(qmmm_periodic,explicit=explicit,error=error)
+       qmmm_env_qm%periodic = explicit
 
        ! First Initialize Fist...
        globenv%prog_name_id=do_fist
@@ -388,6 +395,19 @@ CONTAINS
                                 qs_env=qs_env,&
                                 added_charges=qmmm_env_qm%added_charges,&
                                 print_section=print_section,&
+                                error=error)
+       !
+       ! Initialize the MM periodic potential
+       !
+       CALL qmmm_init_periodic_potential(qmmm_env_qm=qmmm_env_qm,&
+                                qm_cell_small=qm_cell_small,&
+                                mm_cell=mm_cell,&
+                                globenv=globenv,&
+                                qs_env=qs_env,&
+                                added_charges=qmmm_env_qm%added_charges,&
+                                qmmm_periodic=qmmm_periodic,&
+                                print_section=print_section,&
+                                mm_atom_chrg=mm_atom_chrg,&
                                 error=error)
        !
        ! Initialize the qmmm_pw_grid
@@ -820,6 +840,82 @@ CONTAINS
    END IF
 
  END SUBROUTINE qmmm_init_potential
+
+  !!****f* qmmm_init/qmmm_init_potential [1.0] *
+  !!
+  !!   NAME
+  !!     qmmm_init_potential
+  !!
+  !!   FUNCTION
+  !!
+  !!
+  !!   NOTES
+  !!
+  !!
+  !!   INPUTS
+  !!     - error: variable to control error logging, stopping,... 
+  !!       see module cp_error_handling 
+  !!
+  !!   AUTHOR
+  !!     Teodoro Laino
+  !!
+  !!   MODIFICATION HISTORY
+  !!     7.2005 created [tlaino]
+  !!
+  !!*************************************************************************
+ SUBROUTINE qmmm_init_periodic_potential(qmmm_env_qm, qm_cell_small, mm_cell, globenv, qs_env,&
+                                         added_charges, qmmm_periodic, print_section, mm_atom_chrg, error)
+   IMPLICIT NONE
+   ! Arguments
+   TYPE(cell_type), POINTER                 :: mm_cell, qm_cell_small
+   TYPE(qmmm_env_qm_type), POINTER          :: qmmm_env_qm
+   TYPE(global_environment_type), POINTER   :: globenv
+   TYPE(qs_environment_type), POINTER       :: qs_env
+   TYPE(add_set_type), POINTER              :: added_charges
+   REAL(KIND=dp), POINTER, DIMENSION(:)     :: mm_atom_chrg
+   TYPE(section_vals_type), POINTER         :: print_section, qmmm_periodic
+   TYPE(cp_error_type), INTENT(inout), &
+        OPTIONAL                               :: error   
+   ! Local Variables
+   REAL(KIND=dp) :: maxchrg
+
+   IF (.NOT.qmmm_env_qm%periodic) RETURN
+
+   maxchrg = MAXVAL(ABS(mm_atom_chrg))
+   IF (qmmm_env_qm%add_mm_charges) maxchrg=MAX(maxchrg,MAXVAL(ABS(added_charges%mm_atom_chrg)))
+
+   CALL qmmm_per_potential_init(qmmm_coupl_type=qmmm_env_qm%qmmm_coupl_type,&
+                                per_potentials=qmmm_env_qm%per_potentials,&
+                                potentials=qmmm_env_qm%potentials,&
+                                pgfs=qmmm_env_qm%pgfs,&
+                                qm_cell_small=qm_cell_small,&
+                                mm_cell=mm_cell,&
+                                globenv=globenv,&
+                                compatibility=qmmm_env_qm%compatibility,&
+                                qmmm_periodic=qmmm_periodic,&
+                                print_section=print_section,&
+                                eps_mm_rspace=qmmm_env_qm%eps_mm_rspace,&
+                                maxchrg=maxchrg,&
+                                error=error)
+
+   IF (qmmm_env_qm%move_mm_charges.OR.qmmm_env_qm%add_mm_charges) THEN
+
+      CALL qmmm_per_potential_init(qmmm_coupl_type=qmmm_env_qm%qmmm_coupl_type,&
+                                   per_potentials=added_charges%per_potentials,&
+                                   potentials=added_charges%potentials,&
+                                   pgfs=added_charges%pgfs,&
+                                   qm_cell_small=qm_cell_small,&
+                                   mm_cell=mm_cell,&
+                                   globenv=globenv,&
+                                   compatibility=qmmm_env_qm%compatibility,&
+                                   qmmm_periodic=qmmm_periodic,&
+                                   print_section=print_section,&
+                                   eps_mm_rspace=qmmm_env_qm%eps_mm_rspace,&
+                                   maxchrg=maxchrg,&
+                                   error=error)      
+   END IF
+
+ END SUBROUTINE qmmm_init_periodic_potential
 
   !!****f* qmmm_init/setup_qmmm_vars_qm [1.0] *
   !!

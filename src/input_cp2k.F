@@ -6303,13 +6303,6 @@ END SUBROUTINE create_ewald_section
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
-       CALL keyword_create(keyword, name="periodic",&
-            description="This keyword enables the QMMM periodic potential. Default .FALSE.",&
-            usage="periodic LOGICAL",&
-            default_l_val=.FALSE., lone_keyword_l_val=.TRUE., error=error)
-       CALL section_add_keyword(section,keyword,error=error)
-       CALL keyword_release(keyword,error=error)
-
        CALL keyword_create(keyword, name="typ_center",&
             description="This keyword specifies whether the centering is performes continuosly (NONE) "//&
             "or by unit grid steps (GRID).",&
@@ -6392,6 +6385,10 @@ END SUBROUTINE create_ewald_section
        CALL section_add_subsection(section,subsection,error=error)
        CALL section_release(subsection,error=error)    
 
+       CALL create_qmmm_periodic_section(subsection, error)
+       CALL section_add_subsection(section,subsection,error=error)
+       CALL section_release(subsection,error=error)       
+
        CALL create_qmmm_link_section(subsection,error)
        CALL section_add_subsection(section,subsection,error=error)
        CALL section_release(subsection,error=error)
@@ -6411,6 +6408,61 @@ END SUBROUTINE create_ewald_section
     END IF
 
   END SUBROUTINE create_qmmm_section
+
+!!****f* input_cp2k/create_qmmm_periodic_section *
+!!
+!!   NAME
+!!     create_qmmm_periodic_section
+!!
+!!   FUNCTION
+!!     Input section to set QM/MM periodic boundary conditions
+!!
+!!   NOTES
+!!     -
+!!
+!!   INPUTS
+!!     - error: variable to control error logging, stopping,... 
+!!       see module cp_error_handling 
+!!
+!!   AUTHOR
+!!     tlaino
+!!
+!!*** **********************************************************************
+  SUBROUTINE create_qmmm_periodic_section(section,error)
+    TYPE(section_type), POINTER :: section
+    TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
+    
+    LOGICAL :: failure
+    CHARACTER(len=*), PARAMETER :: routineN='create_qmmm_periodic_section',&
+         routineP=moduleN//':'//routineN
+    TYPE(keyword_type), POINTER :: keyword
+    failure=.FALSE.
+    
+    NULLIFY(keyword)
+    CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
+    IF (.NOT. failure) THEN
+       CALL section_create(section,name="PERIODIC",&
+            description="Specify parameters for QM/MM periodic boundary conditions calculations",&
+            n_keywords=0, n_subsections=0, repeats=.FALSE., required=.TRUE.,&
+            error=error)    
+
+       CALL keyword_create(keyword, name="GMAX",&
+            description="Specifies the maximum value of G in the reciprocal space over which perform the Ewald sum.",&
+            usage="GMAX real",n_var=1,default_r_val=1.0_dp,&
+            error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="REPLICA",&
+            description="Specifies the number of replica to take into consideration for the real part of the "//&
+            "calculation. Default is letting the qmmm module decide how many replica you really need.",&
+            usage="REPLICA integer",n_var=1,default_i_val=-1,&
+            error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)       
+       
+    END IF
+  END SUBROUTINE create_qmmm_periodic_section
 
 !!****f* input_cp2k/create_qmmm_forcefield_section *
 !!
@@ -6949,6 +7001,13 @@ END SUBROUTINE create_ewald_section
 
        CALL cp_print_key_section_create(print_key,"PROGRAM_RUN_INFO",&
             description="Controls the printing of information regarding the run.",&
+            print_level=medium_print_level,each=(/1/),filename="__STD_OUT__",&
+            error=error)
+       CALL section_add_subsection(section,print_key,error=error)
+       CALL section_release(print_key,error=error)
+
+       CALL cp_print_key_section_create(print_key,"PERIODIC_INFO",&
+            description="Controls the printing of information regarding the periodic boundary condition.",&
             print_level=medium_print_level,each=(/1/),filename="__STD_OUT__",&
             error=error)
        CALL section_add_subsection(section,print_key,error=error)

@@ -25,6 +25,7 @@
 MODULE qmmm_electrostatic_methods
   USE coefficient_types,               ONLY: coeff_type,&
                                              coeff_zero
+  USE mathconstants,                   ONLY: pi
   USE cp_output_handling, ONLY: cp_should_output
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE cube_utils,                      ONLY: cube_info_type
@@ -59,7 +60,9 @@ MODULE qmmm_electrostatic_methods
                                              qmmm_gaussian_type
   USE qmmm_types,                      ONLY: qmmm_env_qm_type,&
                                              qmmm_pot_p_type,&
-                                             qmmm_pot_type
+                                             qmmm_pot_type,&
+                                             qmmm_per_pot_p_type,&
+                                             qmmm_per_pot_type
   USE qs_environment_types,            ONLY: get_qs_env,&
                                              qs_environment_type
   USE qs_ks_qmmm_types,                ONLY: qs_ks_qmmm_env_type
@@ -80,7 +83,7 @@ MODULE qmmm_electrostatic_methods
   PUBLIC :: qmmm_el_coupling
   PUBLIC :: qmmm_electrostatic_on_grid
   PUBLIC :: qmmm_elec_with_gaussian,qmmm_elec_with_gaussian_low,&
-       qmmm_elec_with_gaussian_LR
+            qmmm_elec_with_gaussian_LR, qmmm_elec_with_gaussian_LG
 !***
 !****************************************************************************
 CONTAINS
@@ -493,7 +496,7 @@ CONTAINS
          qmmm_env%num_mm_atoms, cube_info, para_env, eps_mm_rspace, qmmm_env%pgfs,  &
          auxbas_grid, coarser_grid, pw_pools, aug_pools, qmmm_env%potentials,       &
          interp_section=interp_section, mm_cell=mm_cell, dOmmOqm=qmmm_env%dOmmOqm,  &
-         error=error)
+         periodic=qmmm_env%periodic, per_potentials=qmmm_env%per_potentials, error=error)
 
     IF (qmmm_env%move_mm_charges.OR.qmmm_env%add_mm_charges) THEN
 
@@ -503,7 +506,7 @@ CONTAINS
          cube_info, para_env, eps_mm_rspace, qmmm_env%added_charges%pgfs,auxbas_grid,     &
          coarser_grid, pw_pools, aug_pools, qmmm_env%added_charges%potentials,            &
          interp_section=interp_section, mm_cell=mm_cell, dOmmOqm=qmmm_env%dOmmOqm,        &
-         error=error)
+         periodic=qmmm_env%periodic, per_potentials=qmmm_env%per_potentials, error=error)
 
     END IF
     CALL section_vals_val_get(interp_section,"kind", i_val=kind_interp, error=error)
@@ -581,7 +584,8 @@ CONTAINS
   SUBROUTINE qmmm_elec_with_gaussian_low( tmp_grid, mm_particles,&
          mm_charges, mm_el_pot_radius, mm_atom_index, num_mm_atoms,&
          cube_info, para_env, eps_mm_rspace, pgfs, auxbas_grid, coarser_grid,&
-         pw_pools, aug_pools, potentials, interp_section, mm_cell, dOmmOqm, error)
+         pw_pools, aug_pools, potentials, interp_section, mm_cell, dOmmOqm,&
+         periodic, per_potentials, error)
     TYPE(pw_p_type), DIMENSION(:), POINTER   :: tmp_grid
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: mm_particles
@@ -600,10 +604,13 @@ CONTAINS
       POINTER                                :: pw_pools, aug_pools
     TYPE(qmmm_pot_p_type), DIMENSION(:), &
       POINTER                                :: potentials
+    TYPE(qmmm_per_pot_p_type), DIMENSION(:), &
+      POINTER                                :: per_potentials
     TYPE(section_vals_type), POINTER         :: interp_section
     TYPE(cell_type), POINTER                 :: mm_cell
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
+    LOGICAL, INTENT(IN)                      :: periodic
 
     CHARACTER(len=*), PARAMETER :: routineN = 'qmmm_elec_with_gaussian_low', &
       routineP = moduleN//':'//routineN
@@ -616,11 +623,13 @@ CONTAINS
     REAL(KIND=dp), DIMENSION(3)              :: ra
     REAL(KIND=dp), DIMENSION(:), POINTER     :: xdat, ydat, zdat
     TYPE(qmmm_gaussian_type), POINTER        :: pgf
+    TYPE(qmmm_per_pot_type), POINTER         :: per_pot
     TYPE(qmmm_pot_type), POINTER             :: pot
     INTEGER, DIMENSION(2,3)                  :: bo2
+    INTEGER                                  :: n_rep_real(3)
 !Statements
 
-    NULLIFY(pgf, xdat, ydat, zdat)
+    NULLIFY(pgf, pot, per_pot, xdat, ydat, zdat)
     CALL timeset(routineN,"I","",handle)
 
     ithread            = 0
@@ -636,6 +645,11 @@ CONTAINS
     Radius: DO IRadTyp = 1, SIZE(pgfs) 
        pgf => pgfs(IRadTyp)%pgf
        pot => potentials(IRadTyp)%pot 
+       n_rep_real = 0
+       IF (periodic) THEN
+          per_pot => per_potentials(IRadTyp)%pot 
+          n_rep_real = per_pot%n_rep_real
+       END IF
        Gaussian: DO IGauss = 1, pgf%Number_of_Gaussians
           alpha     = 1.0_dp / pgf%Gk(IGauss)
           alpha     = alpha * alpha
@@ -659,7 +673,9 @@ CONTAINS
                                             xdat=xdat,&
                                             ydat=ydat,&
                                             zdat=zdat,&
-                                            bo2=bo2)                          
+                                            bo2=bo2,&
+                                            n_rep_real=n_rep_real,&
+                                            mm_cell=mm_cell)
           END DO Atoms
        END DO Gaussian
     END DO Radius
@@ -676,27 +692,161 @@ CONTAINS
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     ENDIF
 
-    ! Long Range Part of the QM/MM Potential with Gaussians
-    CALL qmmm_elec_with_gaussian_LR    (pgfs=pgfs,&
-                                        grid=tmp_grid(coarser_grid)%pw,&
-                                        mm_charges=mm_charges,&
-                                        mm_atom_index=mm_atom_index,&
-                                        mm_particles=mm_particles,&
-                                        mm_el_pot_radius=mm_el_pot_radius,&
-                                        para_env=para_env,&
-                                        coarser_grid_level=coarser_grid,&
-                                        potentials=potentials,&
-                                        mm_cell=mm_cell,&
-                                        dOmmOqm=dOmmOqm,&
-                                        error=error)
+    IF (periodic) THEN
+       ! Long Range Part of the QM/MM Potential with Gaussians With Periodic Boundary Conditions
+       CALL qmmm_elec_with_gaussian_LG    (pgfs=pgfs,&
+                                           grid=tmp_grid(coarser_grid)%pw,&
+                                           mm_charges=mm_charges,&
+                                           mm_atom_index=mm_atom_index,&
+                                           mm_particles=mm_particles,&
+                                           mm_el_pot_radius=mm_el_pot_radius,&
+                                           para_env=para_env,&
+                                           coarser_grid_level=coarser_grid,&
+                                           per_potentials=per_potentials,&
+                                           mm_cell=mm_cell,&
+                                           dOmmOqm=dOmmOqm,&
+                                           error=error)       
+    ELSE
+       ! Long Range Part of the QM/MM Potential with Gaussians
+       CALL qmmm_elec_with_gaussian_LR    (pgfs=pgfs,&
+                                           grid=tmp_grid(coarser_grid)%pw,&
+                                           mm_charges=mm_charges,&
+                                           mm_atom_index=mm_atom_index,&
+                                           mm_particles=mm_particles,&
+                                           mm_el_pot_radius=mm_el_pot_radius,&
+                                           para_env=para_env,&
+                                           coarser_grid_level=coarser_grid,&
+                                           potentials=potentials,&
+                                           mm_cell=mm_cell,&
+                                           dOmmOqm=dOmmOqm,&
+                                           error=error)
+    END IF
     CALL timestop(0.0_dp,handle)
 
   END SUBROUTINE qmmm_elec_with_gaussian_low
 
+!!****f* qmmm_electrostatic_methods/qmmm_elec_with_gaussian_LG [1.0] *
+!!
+!!   NAME
+!!     qmmm_elec_with gaussian_LG
+!!
+!!   FUNCTION
+!!     Compute the QM/MM electrostatic Interaction collocating 
+!!     (1/R - Sum_NG Gaussians) on the coarser grid level in G-SPACE
+!!     Long Range QM/MM Electrostatic Potential with Gaussian - Low Level
+!!     PERIODIC BOUNDARY CONDITION VERSION
+!!
+!!   NOTES
+!!     -
+!!
+!!   INPUTS
+!!     - error: variable to control error logging, stopping,... 
+!!       see module cp_error_handling 
+!!
+!!   AUTHOR
+!!     Teodoro Laino
+!!
+!!   MODIFICATION HISTORY
+!!     07.2004 created [tlaino]
+!!
+!!**************************************************************************
+  SUBROUTINE qmmm_elec_with_gaussian_LG(pgfs, grid, mm_charges,&
+       mm_atom_index, mm_particles, mm_el_pot_radius, para_env,&
+       coarser_grid_level, per_potentials, mm_cell, dOmmOqm, error)
+    TYPE(qmmm_gaussian_p_type), &
+      DIMENSION(:), POINTER                  :: pgfs
+    TYPE(pw_type), POINTER                   :: grid
+    REAL(KIND=dp), DIMENSION(:), POINTER     :: mm_charges
+    INTEGER, DIMENSION(:), POINTER           :: mm_atom_index
+    TYPE(particle_type), DIMENSION(:), &
+      POINTER                                :: mm_particles
+    REAL(KIND=dp), DIMENSION(3), INTENT(IN)  :: dOmmOqm
+    REAL(KIND=dp), DIMENSION(:), POINTER     :: mm_el_pot_radius
+    TYPE(cp_para_env_type), POINTER          :: para_env
+    INTEGER, INTENT(IN)                      :: coarser_grid_level
+    TYPE(qmmm_per_pot_p_type), DIMENSION(:), &
+      POINTER                                :: per_potentials
+    TYPE(cell_type), POINTER                 :: mm_cell
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'qmmm_elec_with_gaussian_LG', &
+      routineP = moduleN//':'//routineN    
+
+    INTEGER                                  :: handle, i, Imm, IndMM, &
+                                                IRadTyp, ix, j, k, LIndMM, &
+                                                my_j, my_k, n1, n2, n3, kg
+    INTEGER, DIMENSION(2, 3)                 :: bo, gbo
+    REAL(KIND=dp)                            :: dr1, dr2, dr3, qt, r, r2, &
+                                                rt1, rt2, rt3, rv1, rv2, rv3, &
+                                                rx, rx2, rx3, Term, xs1, xs2, &
+                                                xs3
+    REAL(KIND=dp), DIMENSION(3)              :: ra, vec
+    REAL(KIND=dp), DIMENSION(:), POINTER     :: Lg, gx, gy, gz
+    TYPE(qmmm_per_pot_type), POINTER         :: per_pot
+
+! Statements
+
+    CALL timeset(routineN,"I","",handle)
+
+    n1  = grid%pw_grid%npts(1)
+    n2  = grid%pw_grid%npts(2)
+    n3  = grid%pw_grid%npts(3)
+    dr1 = grid%pw_grid%dr(1) 
+    dr2 = grid%pw_grid%dr(2) 
+    dr3 = grid%pw_grid%dr(3) 
+    bo  = grid%pw_grid%bounds_local
+    gbo = grid%pw_grid%bounds
+
+    Radius: DO IRadTyp = 1, SIZE(pgfs) 
+       per_pot => per_potentials(IRadTyp)%pot
+       Lg => per_pot%Lg
+       gx => per_pot%gx
+       gy => per_pot%gy
+       gz => per_pot%gz
+       Atoms: DO Imm = 1, SIZE(per_pot%mm_atom_index)
+          LIndMM    =   per_pot%mm_atom_index(Imm)
+          IndMM     =   mm_atom_index(LIndMM)
+          ra(:)     =   pbc(mm_particles(IndMM)%r-dOmmOqm,mm_cell)+dOmmOqm
+          qt        =   mm_charges(LIndMM)
+          IF (qt == 0.0_dp) CYCLE Atoms
+          rt1 = ra(1)
+          rt2 = ra(2)
+          rt3 = ra(3)
+          LoopOnGrid: DO k = bo(1,3), bo(2,3)
+             my_k=k-gbo(1,3)
+             xs3  = REAL(my_k,dp)*dr3
+             my_j=bo(1,2)-gbo(1,2)
+             xs2 = REAL(my_j,dp)*dr2
+             rv3 = rt3 - xs3
+             DO j =  bo(1,2), bo(2,2)
+                xs1 = (bo(1,1)-gbo(1,1))*dr1
+                rv2 = rt2 - xs2
+                DO i =  bo(1,1), bo(2,1)
+                   rv1  = rt1 - xs1
+                   ! Sum over k vectors
+                   Term = 0.0_dp
+                   DO kg = 1, SIZE(Lg)
+                      vec  = (/REAL(gx(kg)),REAL(gy(kg)),REAL(gz(kg))/)
+                      Term = Term + lg(kg)*COS((2.0_dp*Pi)*(vec(1)*rv1+vec(2)*rv2+vec(3)*rv3))
+                   END DO
+                   grid%cr3d(i,j,k) = grid%cr3d(i,j,k) - Term * qt 
+                   xs1 = xs1 + dr1
+                END DO
+                xs2 = xs2 + dr2
+             END DO
+          END DO LoopOnGrid
+       END DO Atoms
+    END DO Radius
+
+    CALL timestop(0.0_dp,handle)
+  END SUBROUTINE qmmm_elec_with_gaussian_LG
+
+
 !!****f* qmmm_electrostatic_methods/qmmm_elec_with_gaussian_LR [1.0] *
 !!
 !!   NAME
-!!     qmmm_electrostatic_with gaussian_LR
+!!     qmmm_elec_with gaussian_LR
 !!
 !!   FUNCTION
 !!     Compute the QM/MM electrostatic Interaction collocating 
