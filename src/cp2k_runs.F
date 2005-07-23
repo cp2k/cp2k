@@ -596,7 +596,7 @@ CONTAINS
                                    routineP=moduleN//":"//routineN
 
     TYPE(section_type), POINTER :: root_section
-    INTEGER                     :: unit_number
+    INTEGER                     :: i,unit_number
     LOGICAL                     :: failure
 
 !   ---------------------------------------------------------------------------
@@ -619,15 +619,18 @@ CONTAINS
       WRITE (UNIT=unit_number,FMT="(A)")&
         "<?xml version=""1.0"" encoding=""ISO-8859-1""?>",&
         "<?xml-stylesheet type=""text/xsl"" href=""cp2k_input.xsl""?>",&
-        "<INPUT>",&
-        "<COMPILE_DATE>"//TRIM(compile_date)//"</COMPILE_DATE>",&
-        "<COMPILE_LASTCVS>"//TRIM(compile_lastcvs)//"</COMPILE_LASTCVS>"
+        "<CP2K_INPUT>",&
+        " <COMPILE_DATE>"//TRIM(compile_date)//"</COMPILE_DATE>",&
+        " <COMPILE_LASTCVS>"//TRIM(compile_lastcvs)//"</COMPILE_LASTCVS>"
 
-      CALL write_section_xml(root_section,0,unit_number,error)
+      DO i=1,root_section%n_subsections
+        CALL write_section_xml(root_section%subsections(i)%section,1,&
+                               unit_number,error)
+      END DO
 
-      WRITE (UNIT=unit_number,FMT="(A)") "</INPUT>"
+      WRITE (UNIT=unit_number,FMT="(A)") "</CP2K_INPUT>"
 
-      CALL close_file(unit_number)
+      CALL close_file(unit_number=unit_number)
 
     END IF
 

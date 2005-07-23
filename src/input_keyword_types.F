@@ -883,13 +883,16 @@ END SUBROUTINE keyword_describe_html
 
   SUBROUTINE write_keyword_xml(keyword,level,unit_number,error)
 
-    TYPE(keyword_type), POINTER              :: keyword
-    INTEGER, INTENT(IN)                      :: level,unit_number
-    TYPE(cp_error_type), OPTIONAL,&
-      INTENT(INOUT)                          :: error
+    TYPE(keyword_type), POINTER                  :: keyword
+    INTEGER, INTENT(IN)                          :: level,unit_number
+    TYPE(cp_error_type), OPTIONAL, INTENT(INOUT) :: error
+
+    ! Local parameters
 
     CHARACTER(LEN=*), PARAMETER :: routineN = "write_keyword_xml",&
                                    routineP = moduleN//':'//routineN
+
+    ! Local variables
 
     CHARACTER(LEN=1000) :: string
     CHARACTER(LEN=5)    :: keyword_n_var

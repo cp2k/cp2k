@@ -1627,9 +1627,14 @@ END SUBROUTINE section_vals_write
     INTEGER, INTENT(IN)                          :: level,unit_number
     TYPE(cp_error_type), INTENT(INOUT), OPTIONAL :: error
 
+    ! Local parameters
+
     CHARACTER(LEN=*), PARAMETER :: routineN = "write_section_xml",&
                                    routineP=moduleN//':'//routineN
 
+    ! Local variables
+
+    CHARACTER(LEN=3) :: repeats,required
     INTEGER          :: i,l0,l1
     LOGICAL          :: failure
 
@@ -1646,19 +1651,24 @@ END SUBROUTINE section_vals_write
       l0 = level
       l1 = level + 1
 
-      WRITE (UNIT=unit_number,FMT="(A)")&
-        REPEAT(" ",l0)//"<SECTION>",&
-        REPEAT(" ",l1)//"<NAME>"//TRIM(section%name)//"</NAME>",&
-        REPEAT(" ",l1)//"<DESCRIPTION>"//TRIM(section%description)//&
-        "</DESCRIPTION>"
-
       IF (section%required) THEN
-        WRITE (UNIT=unit_number,FMT="(A)") REPEAT(" ",l1)//"<REQUIRED/>"
+        required = "yes"
+      ELSE
+        required = "no "
       END IF
 
       IF (section%repeats) THEN
-        WRITE (UNIT=unit_number,FMT="(A)") REPEAT(" ",l1)//"<REPEATS/>"
+        repeats = "yes"
+      ELSE
+        repeats = "no "
       END IF
+
+      WRITE (UNIT=unit_number,FMT="(A)")&
+        REPEAT(" ",l0)//"<SECTION required="""//TRIM(required)//&
+        """ repeats="""//TRIM(repeats)//""">",&
+        REPEAT(" ",l1)//"<NAME>"//TRIM(section%name)//"</NAME>",&
+        REPEAT(" ",l1)//"<DESCRIPTION>"//TRIM(section%description)//&
+        "</DESCRIPTION>"
 
       DO i=1,section%n_keywords
         CALL write_keyword_xml(section%keywords(i)%keyword,l1,unit_number,&
