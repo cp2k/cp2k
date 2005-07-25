@@ -297,11 +297,10 @@ SUBROUTINE ewald_pw_init ( ewald_pw, green, cell, cell_ref, ewald_env, error )
                          ewald_type = ewald_type, &
                          o_spline=o_spline,&
                          epsilon = epsilon )
-    ALLOCATE(pw_big_grid,pw_small_grid,stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-    CALL pw_grid_construct( pw_small_grid, para_env%group )
     SELECT CASE ( ewald_type )
     CASE ( do_ewald_ewald )
+       ALLOCATE(pw_big_grid,stat=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
        CALL pw_grid_construct( pw_big_grid, MPI_COMM_SELF )
        ! set up EWALD "Classic"
        IF ( gmax == 2 * ( gmax / 2 ) ) THEN
@@ -323,7 +322,11 @@ SUBROUTINE ewald_pw_init ( ewald_pw, green, cell, cell_ref, ewald_env, error )
        ewald_pw % pw_big_pool => pw_pool
        CALL pw_pool_retain ( ewald_pw % pw_big_pool )
        CALL pw_pool_release ( pw_pool )
+       CALL pw_grid_release ( pw_small_grid, error )
     CASE ( do_ewald_pme )
+       ALLOCATE(pw_big_grid,pw_small_grid,stat=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       CALL pw_grid_construct( pw_small_grid, MPI_COMM_SELF )
        CALL pw_grid_construct( pw_big_grid, para_env%group )
        ! set up PME, the double grid method
        IF ( ns_max == 2 * ( ns_max / 2 ) ) THEN
@@ -362,8 +365,11 @@ SUBROUTINE ewald_pw_init ( ewald_pw, green, cell, cell_ref, ewald_env, error )
        ewald_pw%pw_small_pool => pw_pool
        CALL pw_pool_retain ( ewald_pw % pw_small_pool )
        CALL pw_pool_release ( pw_pool )
-
+       CALL pw_grid_release ( pw_small_grid, error )
+       CALL pw_grid_release ( pw_big_grid, error )
     CASE ( do_ewald_spme )
+       ALLOCATE(pw_big_grid,stat=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
        CALL pw_grid_construct( pw_big_grid, para_env%group )
      ! set up SPME
        npts_s = (/ gmax, gmax, gmax /)
@@ -388,8 +394,8 @@ SUBROUTINE ewald_pw_init ( ewald_pw, green, cell, cell_ref, ewald_env, error )
        ewald_pw%pw_big_pool => pw_pool
        CALL pw_pool_retain ( ewald_pw % pw_big_pool )
        CALL pw_pool_release ( pw_pool )
+       CALL pw_grid_release ( pw_big_grid, error )
     CASE ( do_ewald_none )
-       CALL pw_grid_construct( pw_big_grid, MPI_COMM_SELF )
     CASE default
        CPAssert(.FALSE.,cp_failure_level,routineP,error,failure)
     END SELECT
@@ -402,8 +408,6 @@ SUBROUTINE ewald_pw_init ( ewald_pw, green, cell, cell_ref, ewald_env, error )
     ewald_pw % cell => cell
     ewald_pw % cell_ref => cell_ref
     ewald_pw % green => green
-    CALL pw_grid_release ( pw_small_grid, error )
-    CALL pw_grid_release ( pw_big_grid, error )
   ENDIF
 
   CALL timestop(0.0_dp,handle)

@@ -352,8 +352,8 @@ SUBROUTINE pw_grid_setup ( cell, pw_grid, cutoff, info, fft_usage, &
     INTEGER, INTENT(IN), OPTIONAL            :: ncommensurate, icommensurate
     INTEGER, DIMENSION(2), INTENT(in), optional :: rs_dims
 
-    INTEGER :: allocstat, group_size, handle, i, ires, my_icommensurate, &
-      my_ncommensurate, my_pos, n(3), nlowest, nlowest_new, ntest(3)
+    INTEGER :: allocstat, handle, i, ires, my_icommensurate, &
+      my_ncommensurate, n(3), nlowest, nlowest_new, ntest(3)
     INTEGER, ALLOCATABLE, DIMENSION(:, :)    :: yz_mask
     LOGICAL                                  :: blocking, fft, symmetry
     REAL(KIND=dp)                            :: ecut, rv(3,3)
