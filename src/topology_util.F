@@ -692,7 +692,7 @@ SUBROUTINE topology_set_atm_mass(topology,globenv)
       END IF
     END DO
     IF (.NOT. element_found) THEN
-        WRITE(iw,'(A)') "WARNING : topology_set_atm_mass: The element " &
+        IF (PM1) WRITE(iw,'(A)') "WARNING : topology_set_atm_mass: The element " &
                         //atm_symbol(iatom)//" was not found in the periodic table"
     ENDIF
 
