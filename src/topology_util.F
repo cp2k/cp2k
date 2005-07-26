@@ -825,7 +825,7 @@ SUBROUTINE topology_generate_bond(topology,globenv)
       END IF
     END DO
     IF (.NOT. element_found) THEN
-        WRITE(iw,'(A)') "WARNING : topology_generate_bond: The element " &
+        IF (PM1) WRITE(iw,'(A)') "WARNING : topology_generate_bond: The element " &
                         //atm_symbol(iatom)//" was not found in the periodic table"
     ENDIF
 
