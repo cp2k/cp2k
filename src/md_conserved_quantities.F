@@ -55,7 +55,8 @@ MODULE md_conserved_quantities
                                              nph_uniaxial_ensemble,&
                                              nph_uniaxial_damped_ensemble,&
                                              isokin_ensemble, &
-                                             reftraj_ensemble
+                                             reftraj_ensemble,&
+                                             langevin_ensemble
   IMPLICIT NONE
 
   PRIVATE
@@ -171,6 +172,8 @@ SUBROUTINE compute_conserved_quantity (md_env, epot, cons, cons_rel, ekin,&
     CALL get_econs_nph_uniaxial (md_env, md_ener, cons, int_grp)
   CASE ( nph_uniaxial_damped_ensemble )
     CALL get_econs_nph_damped (md_env, md_ener, cons, int_grp)
+  CASE ( langevin_ensemble )
+    cons = md_ener%ekin
   END SELECT
 
   IF (itimes==1) THEN

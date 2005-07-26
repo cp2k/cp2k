@@ -5326,6 +5326,13 @@ SUBROUTINE create_tddfpt_section(section,error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
+       CALL keyword_create(keyword, name="gamma",&
+            description="Gamma parameter for the Langevin dynamics",&
+            usage="gamma 0.001",&
+            default_r_val=0.0_dp, unit_str='fs^-1',error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
        CALL keyword_create(keyword, name="pv_ava",&
             description="Chris has to provide docs",&
             usage="pv_ava LOGICAL",&

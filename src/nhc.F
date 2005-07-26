@@ -37,7 +37,8 @@ MODULE nhc
                                              nph_ensemble,&
                                              nph_uniaxial_ensemble,&
                                              nph_uniaxial_damped_ensemble,&
-                                             reftraj_ensemble
+                                             reftraj_ensemble,&
+                                             langevin_ensemble
   USE input_section_types,             ONLY: section_vals_get_subs_vals,&
                                              section_vals_type,&
                                              section_vals_val_get
@@ -297,7 +298,8 @@ SUBROUTINE nhc_particle_setup ( simpar, local_molecules, molecule_set, &
            isokin_ensemble,&
            nph_uniaxial_ensemble,&
            nph_uniaxial_damped_ensemble,&
-           reftraj_ensemble )
+           reftraj_ensemble,&
+           langevin_ensemble )
      ALLOCATE ( nhc % nvt ( 0, 0 ), STAT = isos )
      IF ( isos /= 0 ) CALL stop_memory ( 'nhc_particle_setup', 'nhc%nvt', 0 )
      nhc % nyosh = 0

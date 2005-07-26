@@ -88,10 +88,15 @@ MODULE md_run
   USE timings,                         ONLY: timeset,&
                                              timestop
   USE velocity_verlet_control,         ONLY: velocity_verlet
-  USE input_constants,                 ONLY: md_init_start,&
+  USE input_constants,                 ONLY: langevin_ensemble,&
+                                             md_init_start,&
                                              md_pos_restart,&
                                              md_pos_vel_restart,&
                                              md_all_restart
+  USE wiener_process,                  ONLY: create_wiener_process,&
+                                             read_md_restart_file,&
+                                             write_md_restart_file
+
   IMPLICIT NONE
 
   PRIVATE
@@ -270,6 +275,7 @@ CONTAINS
               particles%els, globenv )
       END DO
 
+      IF (simpar%ensemble /= langevin_ensemble) THEN
       SELECT CASE ( simpar % read_type )
       CASE ( md_pos_restart )
 !FM should be adapted to the existence of many fragments
@@ -300,6 +306,7 @@ CONTAINS
                               nhc_baro, &
                               extended_type%npt_info )
        END SELECT
+       END IF
 
        nhc_part => extended_type%nhc_part(ibead)
        nhc_baro => extended_type%nhc_baro(ibead)
@@ -329,6 +336,11 @@ CONTAINS
        CALL set_md_env( md_env, nhc_coef=extended_type%nhc_coef)
     END IF
 
+    IF (simpar%ensemble == langevin_ensemble) THEN
+      CALL create_wiener_process(md_env,error)
+      CALL read_md_restart_file(md_env,error)
+    END IF
+
     time_iter_start=m_walltime()
 
     CALL get_md_env ( md_env, force_env_p=force_env_p, itimes = itimes, &
@@ -354,7 +366,11 @@ CONTAINS
       time_iter_start=time_iter_stop
       CALL md_energy ( md_env, globenv )
       IF (MODULO(itimes,mdio%idump) == 0) THEN
-        CALL dump_variables(md_env,mdio%dump_file_name,error)
+        IF (simpar%ensemble == langevin_ensemble) THEN
+          CALL write_md_restart_file(md_env,error)
+        ELSE
+          CALL dump_variables(md_env,mdio%dump_file_name,error)
+        END IF
       END IF
 
       ! test for EXIT_MD to exit

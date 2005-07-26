@@ -69,8 +69,7 @@ MODULE parallel_rng_types
                                              cp_assert,&
                                              cp_assertion_failed,&
                                              cp_error_type
-  USE cp_log_handling,                 ONLY: cp_failure_level, &
-                                             cp_to_string
+  USE cp_log_handling,                 ONLY: cp_failure_level
   USE kinds,                           ONLY: dp
 
   IMPLICIT NONE
@@ -79,7 +78,9 @@ MODULE parallel_rng_types
 
   ! Global parameters in this module
 
-  CHARACTER(LEN=*), PARAMETER :: moduleN = "parallel_rng_types"
+  CHARACTER(LEN=*), PARAMETER :: moduleN = "parallel_rng_types",&
+                                 rng_record_format = "(A40,2L2,18F20.1)"
+  INTEGER, PARAMETER          :: rng_record_length = 404
 
   REAL(KIND=dp), PARAMETER :: norm  = 2.328306549295727688e-10_dp,&
                               m1    = 4294967087.0_dp,&
@@ -109,8 +110,7 @@ MODULE parallel_rng_types
   END TYPE rng_stream_type
 
   TYPE rng_stream_p_type
-    PRIVATE
-    TYPE(rng_stream_type), POINTER :: rng_stream
+    TYPE(rng_stream_type), POINTER :: stream
   END TYPE rng_stream_p_type
 
   ! The following are the transition matrices of the two MRG components
@@ -129,7 +129,8 @@ MODULE parallel_rng_types
 
   ! Public data types
 
-  PUBLIC :: rng_stream_type
+  PUBLIC :: rng_stream_p_type,&
+            rng_stream_type
 
   ! Public subroutines
 
@@ -141,6 +142,7 @@ MODULE parallel_rng_types
             init_rng,&
             next_random_number,&
             next_rng_seed,&
+            read_rng_stream,&
             reset_rng_stream,&
             reset_rng_substream,&
             reset_to_next_rng_substream,&
@@ -399,13 +401,13 @@ CONTAINS
 
   ! ***************************************************************************
 
-  SUBROUTINE dump_rng_stream(rng_stream,output_unit,error)
+  SUBROUTINE dump_rng_stream(rng_stream,rng_record,error)
 
-    ! Dump the state of a RNG stream to a logical output unit.
+    ! Dump a RNG stream as a record given as an internal file (string).
 
-    TYPE(rng_stream_type), POINTER               :: rng_stream
-    INTEGER, INTENT(IN)                          :: output_unit
-    TYPE(cp_error_type), OPTIONAL, INTENT(INOUT) :: error
+    TYPE(rng_stream_type), POINTER                :: rng_stream
+    CHARACTER(LEN=rng_record_length), INTENT(OUT) :: rng_record
+    TYPE(cp_error_type), OPTIONAL, INTENT(INOUT)  :: error
 
     ! Local parameter
 
@@ -423,13 +425,14 @@ CONTAINS
     CPPrecondition(ASSOCIATED(rng_stream),cp_failure_level,routineP,error,failure)
 
     IF (.NOT.failure) THEN
-      WRITE (UNIT=output_unit,FMT=*)&
-        TRIM(rng_stream%name),&
-        rng_stream%ig,&
-        rng_stream%bg,&
-        rng_stream%cg,&
+      rng_record = " "
+      WRITE (UNIT=rng_record,FMT=rng_record_format)&
+        rng_stream%name,&
         rng_stream%antithetic,&
-        rng_stream%extended_precision
+        rng_stream%extended_precision,&
+        rng_stream%cg,&
+        rng_stream%bg,&
+        rng_stream%ig
     END IF
 
   END SUBROUTINE dump_rng_stream
@@ -837,6 +840,47 @@ CONTAINS
     END IF
 
   END FUNCTION next_rng_seed
+
+  ! ***************************************************************************
+
+  SUBROUTINE read_rng_stream(rng_stream,rng_record,error)
+
+    ! Read a RNG stream from a record given as an internal file (string).
+
+    TYPE(rng_stream_type), POINTER               :: rng_stream
+    CHARACTER(LEN=rng_record_length), INTENT(IN) :: rng_record
+    TYPE(cp_error_type), OPTIONAL, INTENT(INOUT) :: error
+
+    ! Local parameter
+
+    CHARACTER(LEN=*), PARAMETER :: routineN = "read_rng_stream",&
+                                   routineP = moduleN//":"//routineN
+
+    ! Local variables
+
+    INTEGER :: istat
+    LOGICAL :: failure
+
+    ! -------------------------------------------------------------------------
+
+    failure = .FALSE.
+
+    IF (ASSOCIATED(rng_stream)) CALL delete_rng_stream(rng_stream)
+
+    ALLOCATE (rng_stream,STAT=istat)
+    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+
+    IF (.NOT.failure) THEN
+      READ (UNIT=rng_record,FMT=rng_record_format)&
+        rng_stream%name,&
+        rng_stream%antithetic,&
+        rng_stream%extended_precision,&
+        rng_stream%cg,&
+        rng_stream%bg,&
+        rng_stream%ig
+    END IF
+
+  END SUBROUTINE read_rng_stream
 
   ! ***************************************************************************
 

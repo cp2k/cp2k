@@ -53,11 +53,14 @@ MODULE distribution_1d_types
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE message_passing,                 ONLY: mp_max,&
                                              mp_sum
+  USE parallel_rng_types,              ONLY: delete_rng_stream,&
+                                             rng_stream_p_type
   USE timings,                         ONLY: timeset,&
                                              timestop
   USE util,                            ONLY: sort
 
   IMPLICIT NONE
+
   PRIVATE
 
   LOGICAL, PRIVATE, PARAMETER :: debug_this_module=.TRUE.
@@ -68,6 +71,12 @@ MODULE distribution_1d_types
   PUBLIC :: distribution_1d_create, distribution_1d_retain, distribution_1d_release, &
        distribution_1d_build_gdist, distribution_1d_destroy_gdist,&
        distribution_1d_search_el, distribution_1d_sort_list, distribution_1d_write
+
+  PUBLIC :: local_particle_type
+
+  TYPE local_particle_type
+    TYPE(rng_stream_p_type), DIMENSION(:), POINTER :: rng
+  END TYPE local_particle_type
 !***
 !****************************************************************************
 
@@ -111,6 +120,7 @@ MODULE distribution_1d_types
      INTEGER, DIMENSION(:), POINTER :: n_el
      TYPE(cp_1d_i_p_type), DIMENSION(:), POINTER :: list, global_distribution
      TYPE(cp_para_env_type), POINTER :: para_env
+     TYPE(local_particle_type), DIMENSION(:), POINTER :: local_particle_set
   END TYPE distribution_1d_type
 !!***
   !****************************************************************************
@@ -238,6 +248,8 @@ SUBROUTINE distribution_1d_create(distribution_1d,para_env,listbased_distributio
         distribution_1d%list(ilist)%array=-1
      END DO
 
+     NULLIFY (distribution_1d%local_particle_set)
+
   END IF
 END SUBROUTINE distribution_1d_create
 !***************************************************************************
@@ -328,6 +340,9 @@ SUBROUTINE distribution_1d_release(distribution_1d,error)
     CHARACTER(len=*), PARAMETER :: routineN = 'distribution_1d_release', &
       routineP = moduleN//':'//routineN
 
+    TYPE(local_particle_type), DIMENSION(:), POINTER :: local_particle_set
+    INTEGER :: iparticle_kind,iparticle_local,nparticle_kind,nparticle_local
+
     INTEGER                                  :: ilist, stat
     LOGICAL                                  :: failure
 
@@ -350,7 +365,31 @@ SUBROUTINE distribution_1d_release(distribution_1d,error)
         END DO
         DEALLOCATE(distribution_1d%list,stat=stat)
         CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
-        
+
+        !MK Delete Wiener process
+
+        local_particle_set => distribution_1d%local_particle_set
+
+        IF (ASSOCIATED(local_particle_set)) THEN
+          nparticle_kind = SIZE(local_particle_set)
+          DO iparticle_kind=1,nparticle_kind
+            IF (ASSOCIATED(local_particle_set(iparticle_kind)%rng)) THEN
+              nparticle_local = SIZE(local_particle_set(iparticle_kind)%rng)
+              DO iparticle_local=1,nparticle_local
+                IF (ASSOCIATED(local_particle_set(iparticle_kind)%&
+                               &rng(iparticle_local)%stream)) THEN 
+                  CALL delete_rng_stream(local_particle_set(iparticle_kind)%&
+                                         &rng(iparticle_local)%stream)
+                END IF
+              END DO
+              DEALLOCATE (local_particle_set(iparticle_kind)%rng,STAT=stat)
+              CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+            END IF
+          END DO
+          DEALLOCATE(local_particle_set,STAT=stat)
+          CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+        END IF
+
         CALL cp_para_env_release(distribution_1d%para_env,error=error)
 
         DEALLOCATE(distribution_1d,stat=stat)

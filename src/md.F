@@ -67,6 +67,7 @@ MODULE md
                                              nph_uniaxial_damped_ensemble,&
                                              isokin_ensemble, &
                                              reftraj_ensemble,&
+                                             langevin_ensemble,&
                                              nhc_global,&
                                              nhc_massive,&
                                              ensemble_name_types,&
@@ -157,6 +158,8 @@ MODULE md
      REAL (KIND=dp) :: shake_tol
      TYPE ( qs_md_parameters_type ) :: qs_md_param
      TYPE ( simpar_units_type ) :: units
+     !MK Langevin
+     REAL (KIND=dp) :: gamma,var_w
   END TYPE simulation_parameters_type
 
   TYPE mdio_parameters_type
@@ -304,7 +307,10 @@ CONTAINS
              CASE DEFAULT
                 CALL p_error()
                 CALL stop_parser ( 'read_md_section', 'unknown option' )
-                
+
+             !MK Langevin
+             CASE ("GAMMA")
+               CALL get_next(simpar%gamma)
              CASE ( 'ANNEAL' )
                 simpar % annealing = .TRUE.
                 CALL get_next ( simpar % f_annealing )
@@ -336,7 +342,7 @@ CONTAINS
                    simpar % ensemble = nvt_ensemble
                 CASE ("NPT_I")
                    simpar % ensemble = npt_i_ensemble
-                 CASE ("NPT_F")
+                CASE ("NPT_F")
                    simpar % ensemble = npt_f_ensemble
                 CASE ("NPH")
                    simpar % ensemble = nph_ensemble
@@ -348,6 +354,8 @@ CONTAINS
                    simpar % ensemble = isokin_ensemble
                 CASE ("REFTRAJ")
                    simpar % ensemble = reftraj_ensemble
+                CASE ("LANGEVIN")
+                   simpar % ensemble = langevin_ensemble
                 CASE DEFAULT 
                    CALL p_error()
                 END SELECT
@@ -697,6 +705,35 @@ CONTAINS
 !
 !TODEL_END_TL
 !
+!MK begin setup Langevin
+  IF (simpar%ensemble == langevin_ensemble) THEN
+  
+    IF (globenv%ionode.AND.(globenv%print_level >= 0)) THEN
+      WRITE (iw,"(T2,A,T71,ES10.3)")&
+        "MD| Gamma [1/"//TRIM(simpar%units%time)//"] ",simpar%gamma
+    END IF
+  
+    CALL convert_to_cp2k_units(simpar%units%time,&
+                               time=simpar%gamma,&
+                               t_power=-1)
+                               
+    !MK Normalization factor uniform random number distribution [-0.5,0.5]
+  
+    simpar%var_w = 24.0_dp*simpar%temp_ext*simpar%dt*simpar%gamma
+  
+    !MK Normalization factor Gaussian random number distribution
+    !MK simpar%var_w = 2.0_dp*simpar%temp_ext*simpar%dt*simpar%gamma
+  
+    IF (globenv%ionode.AND.(globenv%print_level >= 0)) THEN
+      print*,"T=    ",simpar%temp_ext
+      print*,"dt=   ",simpar%dt
+      print*,"gamma=",simpar%gamma
+      print*,"var_w=",simpar%var_w
+    END IF
+  
+  END IF
+!MK End setup Langevin
+
 !..write some information to output
     IF (globenv % ionode .AND. globenv % print_level>=0) THEN
        CALL get_cp2k_units ( unit )
@@ -929,6 +966,9 @@ END SUBROUTINE read_md_new_section
     simpar % v0 = 0._dp
     simpar % e0 = 0._dp
     simpar % v_shock = 0.0_dp
+    !MK Langevin
+    simpar%gamma = 0.0_dp
+    simpar%var_w = 0.0_dp
     
     !..filenames
     CALL xstring ( globenv % project_name, ia, ie )

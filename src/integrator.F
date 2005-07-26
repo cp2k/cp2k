@@ -67,14 +67,17 @@ MODULE integrator
   USE mol_new_list_types,              ONLY: mol_new_list_type
   USE molecule_kind_types,             ONLY: molecule_kind_type
   USE molecule_types_new,              ONLY: molecule_type
+  USE parallel_rng_types,              ONLY: next_random_number,&
+                                             rng_stream_type
   USE particle_list_types,             ONLY: particle_list_type
   USE particle_types,                  ONLY: particle_type
   USE simulation_cell,                 ONLY: cell_type, get_hinv
   USE termination,                     ONLY: stop_memory, stop_program
 !  USE transformations,                 ONLY: fr2fu,&
 !                                             u2r
-
-  USE util,                            ONLY: matmul_3x3, matvec_3x3, transpose_3d
+  USE util,                            ONLY: matmul_3x3,&
+                                             matvec_3x3,&
+                                             transpose_3d
   USE virial_methods,                  ONLY: virial_evaluate
   USE virial_types,                    ONLY: virial_type
   USE input_section_types, ONLY: section_vals_type, section_vals_val_get
@@ -102,7 +105,7 @@ MODULE integrator
   TYPE ( old_variables_type ) :: old
 
   PUBLIC :: nve, nvt, isokin, npt_i, npt_f, nph_uniaxial
-  PUBLIC :: nph_uniaxial_damped, reftraj
+  PUBLIC :: nph_uniaxial_damped, reftraj, langevin
 
   INTERFACE set
      MODULE PROCEDURE set_particle_set, set_vel
@@ -115,7 +118,201 @@ MODULE integrator
 
 CONTAINS
 
-!!*****
+! *****************************************************************************
+
+!******************************************************************************
+!!****** integrator/langevin [1.0] *
+!!
+!!   NAME
+!!     langevin
+!!
+!!   FUNCTION
+!!     Langevin integrator for particle positions & momenta (Brownian dynamics)
+!!
+!!   AUTHOR
+!!     Matthias Krack
+!!
+!!   LITERATURE
+!!     - A. Ricci and G. Ciccotti, Mol. Phys. 101, 1927-1931 (2003)
+!!
+!!   MODIFICATION HISTORY
+!!     - Created (01.07.2005,MK)
+!!
+!!   SOURCE
+!******************************************************************************
+
+  SUBROUTINE langevin(md_env)
+
+    TYPE(md_environment_type), POINTER       :: md_env
+
+    CHARACTER(LEN=*), PARAMETER              :: routine_name = "langevin"
+
+    INTEGER :: i,icoef, iparticle, iparticle_kind, iparticle_local, istat, &
+      isubsys, mass_storage, nmolecule, nmolecule_kind, nparticle, &
+      nparticle_kind, nparticle_local
+    REAL(KIND=dp)                            :: c,c1,c2,c3,c4,dm,dmcoef,dt,&
+                                                global_mass, &
+                                                mass, gam, w_norm, random_number
+    REAL(KIND=dp), ALLOCATABLE, &
+      DIMENSION(:, :)                        :: pos, vel, w
+    TYPE(atomic_kind_list_type), POINTER     :: atomic_kinds
+    TYPE(atomic_kind_type), DIMENSION(:), &
+      POINTER                                :: atomic_kind_set
+    TYPE(atomic_kind_type), POINTER          :: atomic_kind
+    TYPE(cp_subsystem_p_type), &
+      DIMENSION(:), POINTER                  :: subsys
+    TYPE(distribution_1d_type), POINTER      :: local_molecules, &
+                                                local_particles
+    TYPE(dyn_coeff_p_type), DIMENSION(:), &
+      POINTER                                :: coeffs_of_kind
+    TYPE(dyn_coeff_set_p_type), &
+      DIMENSION(:), POINTER                  :: dyn_coeff_set
+    TYPE(dyn_coeff_type), POINTER            :: coeffs
+    TYPE(force_env_p_type), DIMENSION(:), &
+      POINTER                                :: force_env_p
+    TYPE(lnhc_parameters_type), &
+      DIMENSION(:), POINTER                  :: nhc_coef
+    TYPE(mol_kind_new_list_type), POINTER    :: molecule_kinds
+    TYPE(mol_new_list_type), POINTER         :: molecules
+    TYPE(molecule_kind_type), DIMENSION(:), &
+      POINTER                                :: molecule_kind_set
+    TYPE(molecule_type), DIMENSION(:), &
+      POINTER                                :: molecule_set
+    TYPE(particle_list_type), POINTER        :: particles
+    TYPE(particle_type), DIMENSION(:), &
+      POINTER                                :: particle_set
+    TYPE(simulation_parameters_type), &
+      POINTER                                :: simpar
+    TYPE(virial_type), POINTER               :: virial
+    TYPE(cp_para_env_type), POINTER          :: para_env
+    TYPE(rng_stream_type), POINTER           :: rng_stream
+
+!   ---------------------------------------------------------------------------
+
+    NULLIFY (dyn_coeff_set,coeffs_of_kind,coeffs,nhc_coef,para_env)
+    CALL get_md_env(md_env=md_env,simpar=simpar,force_env_p=force_env_p,&
+                    nhc_coef=nhc_coef, para_env = para_env)
+
+    dt = simpar%dt
+    gam = simpar%gamma
+
+    IF (SIZE(force_env_p)/=1) THEN
+       CALL stop_program("nve","integrator",__LINE__,&
+       "MD_ENV with more than (or less) than one force_env not supported atm!")
+    END IF
+    CALL force_env_get(force_env=force_env_p(1)%force_env,subsys=subsys,&
+                       dyn_coeff_set=dyn_coeff_set, virial = virial )
+
+    DO isubsys=1,SIZE(subsys)
+
+      CALL cp_subsys_get(subsys=subsys(isubsys)%subsys,&
+                         atomic_kinds=atomic_kinds,&
+                         local_particles=local_particles,&
+                         particles=particles,&
+                         local_molecules_new=local_molecules,&
+                         molecules_new=molecules, &
+                         molecule_kinds_new=molecule_kinds)
+
+      nparticle_kind = atomic_kinds%n_els
+      atomic_kind_set => atomic_kinds%els
+      nmolecule_kind = molecule_kinds%n_els
+      molecule_kind_set => molecule_kinds%els
+
+      nparticle = particles%n_els
+      particle_set => particles%els
+      nmolecule = molecules % n_els
+      molecule_set => molecules % els
+
+!     *** Allocate work storage for positions ***
+
+      ALLOCATE (pos(3,nparticle),STAT=istat)
+      IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+                                       "pos",3*nparticle*dp_size)
+      pos(:,:) = 0.0_dp
+
+      ALLOCATE (vel(3,nparticle),STAT=istat)
+      IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+                                       "vel",3*nparticle*dp_size)
+      vel(:,:) = 0.0_dp
+
+!     *** Generate Gaussian random variables for Wiener process ***
+
+      ALLOCATE (w(3,nparticle),STAT=istat)
+      IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+                                       "w",3*nparticle*dp_size)
+      w(:,:) = 0.0_dp
+
+!     *** Velocity Verlet (first part) ***
+
+      c = exp(-0.25_dp*dt*gam)
+      c2 = c*c
+      c4 = c2*c2
+      c1 = dt*c2
+
+      DO iparticle_kind=1,nparticle_kind
+        atomic_kind => atomic_kind_set(iparticle_kind)
+        CALL get_atomic_kind(atomic_kind=atomic_kind,mass=mass)
+        nparticle_local = local_particles%n_el(iparticle_kind)
+        w_norm = SQRT(simpar%var_w*mass)
+        dm = 0.5_dp*dt/mass
+        c3 = dm/c2
+        DO iparticle_local=1,nparticle_local
+          iparticle = local_particles%list(iparticle_kind)%array(iparticle_local)
+          rng_stream => local_particles%local_particle_set(iparticle_kind)%&
+                        &rng(iparticle_local)%stream
+          w(1,iparticle) = w_norm*(next_random_number(rng_stream) - 0.5_dp)
+          w(2,iparticle) = w_norm*(next_random_number(rng_stream) - 0.5_dp)
+          w(3,iparticle) = w_norm*(next_random_number(rng_stream) - 0.5_dp)
+          vel(:,iparticle) = particle_set(iparticle)%v(:) +&
+                             c3*particle_set(iparticle)%f(:)
+          pos(:,iparticle) = particle_set(iparticle)%r(:) +&
+                             c1*particle_set(iparticle)%v(:) +&
+                             c*dm*(dt*particle_set(iparticle)%f(:) +&
+                                   w(:,iparticle))
+        END DO
+      END DO
+
+!     *** Broadcast the new particle positions ***
+
+      CALL update_particle_set(particle_set,para_env%group,pos=pos)
+
+      DEALLOCATE (pos,STAT=istat)
+      IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,"pos")
+
+!     *** Update forces ***
+
+!      CALL force_env_set(force_env_p(1)%force_env,box_changed=.false.)
+      CALL force_env_calc_energy_force(force_env_p(1)%force_env)
+
+!     *** Update Verlet (second part) ***
+
+      DO iparticle_kind=1,nparticle_kind
+        atomic_kind => atomic_kind_set(iparticle_kind)
+        CALL get_atomic_kind(atomic_kind=atomic_kind,mass=mass)
+        dm = 0.5_dp*dt/mass
+        c3 = dm/c2
+        nparticle_local = local_particles%n_el(iparticle_kind)
+        DO iparticle_local=1,nparticle_local
+          iparticle = local_particles%list(iparticle_kind)%array(iparticle_local)
+          vel(:,iparticle) = vel(:,iparticle) + c3*particle_set(iparticle)%f(:)
+          vel(:,iparticle) = c4*vel(:,iparticle) + c2*w(:,iparticle)/mass
+        END DO
+      END DO
+
+!     *** Broadcast the new particle velocities ***
+
+      CALL update_particle_set(particle_set,para_env%group,vel=vel)
+
+      DEALLOCATE (vel,STAT=istat)
+      IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,"vel")
+
+      DEALLOCATE (w,STAT=istat)
+      IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,"w")
+
+    END DO ! next subsys or sub-system
+
+  END SUBROUTINE langevin
+
 !******************************************************************************
 !!****** integrator/nve [1.0] *
 !!
@@ -290,7 +487,7 @@ CONTAINS
 !     *** Update forces ***
 
 !      CALL force_env_set(force_env_p(1)%force_env,box_changed=.false.)
-      CALL force_env_calc_energy_force(force_env_p(1)%force_env)
+       CALL force_env_calc_energy_force(force_env_p(1)%force_env)
 
 !     *** Velocity Verlet (second part) ***
 

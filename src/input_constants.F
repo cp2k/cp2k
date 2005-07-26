@@ -87,7 +87,7 @@ MODULE input_constants
   !
   ! MD Ensemble
   !
-  CHARACTER (LEN=default_string_length), PARAMETER, DIMENSION(9), PUBLIC :: ensemble_name_types=&
+  CHARACTER (LEN=default_string_length), PARAMETER, DIMENSION(10), PUBLIC :: ensemble_name_types=&
        (/"nve                ",&
          "nvt                ",&
          "npt_i              ",&
@@ -96,7 +96,8 @@ MODULE input_constants
          "nph_uniaxial       ",&
          "nph_uniaxial_damped",&
          "isokin             ",&
-         "reftraj            " /)
+         "reftraj            ",&
+         "langevin           " /)
   INTEGER, PARAMETER, PUBLIC :: nve_ensemble=1,&
                                 nvt_ensemble=2,&
                                 npt_i_ensemble=3,&
@@ -105,11 +106,13 @@ MODULE input_constants
                                 nph_uniaxial_ensemble=6,&
                                 nph_uniaxial_damped_ensemble=7,&
                                 isokin_ensemble=8,&
-                                reftraj_ensemble=9
-  INTEGER, PARAMETER, PUBLIC, DIMENSION(9) :: ensemble_name_index=&
+                                reftraj_ensemble=9,&
+                                langevin_ensemble=10
+  INTEGER, PARAMETER, PUBLIC, DIMENSION(10) :: ensemble_name_index=&
        (/nve_ensemble,nvt_ensemble,npt_i_ensemble,&
          npt_f_ensemble,nph_ensemble,nph_uniaxial_ensemble,&
-         nph_uniaxial_damped_ensemble,isokin_ensemble,reftraj_ensemble/)
+         nph_uniaxial_damped_ensemble,isokin_ensemble,reftraj_ensemble,&
+         langevin_ensemble/)
 
   INTEGER, PARAMETER, PUBLIC :: nhc_global=101,nhc_massive=102
   !

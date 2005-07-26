@@ -34,7 +34,8 @@ MODULE velocity_verlet_control
                                              nph_uniaxial, &
                                              nph_uniaxial_damped, &
                                              isokin,&
-                                             reftraj
+                                             reftraj,&
+                                             langevin
   USE mathconstants,                   ONLY: zero
   USE md,                              ONLY: simulation_parameters_type
   USE md_environment_types,            ONLY: get_md_env,&
@@ -50,7 +51,8 @@ MODULE velocity_verlet_control
                                              nph_uniaxial_ensemble,&
                                              nph_uniaxial_damped_ensemble,&
                                              isokin_ensemble, &
-                                             reftraj_ensemble
+                                             reftraj_ensemble,&
+                                             langevin_ensemble
   IMPLICIT NONE
 
   PRIVATE
@@ -117,17 +119,21 @@ SUBROUTINE velocity_verlet ( md_env )
         CALL nph_uniaxial_damped ( md_env )
      CASE ( reftraj_ensemble)
         CALL reftraj ( md_env )
+     CASE (langevin_ensemble)
+        CALL langevin(md_env)
      END SELECT
- CASE default
+  CASE default
     SELECT CASE (simpar%ensemble)
     CASE (nve_ensemble)
       CALL nve(md_env)
     CASE (nvt_ensemble)
       CALL nvt(md_env)
-     CASE (isokin_ensemble)
-        CALL isokin ( md_env )
-     CASE (reftraj_ensemble)
-        CALL reftraj ( md_env )
+    CASE (isokin_ensemble)
+      CALL isokin ( md_env )
+    CASE (reftraj_ensemble)
+      CALL reftraj ( md_env )
+    CASE (langevin_ensemble)
+      CALL langevin(md_env)
     CASE DEFAULT
       CALL stop_program("velocity_verlet",&
                         "integrator not implemented for a generic force_env")

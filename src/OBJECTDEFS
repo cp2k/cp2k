@@ -383,6 +383,7 @@ OBJECTS_GENERIC =\
  virial_methods.o\
  virial_types.o\
  whittaker.o\
+ wiener_process.o\
  xas_control.o\
  xas_methods.o\
  xas_env_types.o\
