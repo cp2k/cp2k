@@ -83,6 +83,7 @@ MODULE qs_ks_methods
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE cp_sm_fm_interactions,           ONLY: cp_sm_fm_multiply,&
                                              cp_sm_plus_fm_fm_t
+  USE harris_env_types,                ONLY: harris_env_type
   USE hartree,                         ONLY: calculate_hartree
   USE hartree_local_2centers,          ONLY: integrate_vhg0_g0
   USE hartree_local_3centers,          ONLY: integrate_a_vhg0_b
@@ -1068,6 +1069,7 @@ END SUBROUTINE qs_ks_did_change
 !!       the xc
 !!     - just_energy: if true calculates just the energy, and does not 
 !!       allocate v_*_rspace
+!!     - harris: If true uses the rho structure of the Harris environment
 !!     - error: variable to control error logging, stopping,... 
 !!       see module cp_error_handling 
 !!
@@ -1085,11 +1087,12 @@ END SUBROUTINE qs_ks_did_change
 !!
 !!*** *********************************************************************
 SUBROUTINE qs_vxc_create(vxc_rho,vxc_tau, exc, qs_env,&
-      just_energy, error)
+      just_energy, harris, error)
     TYPE(coeff_type), DIMENSION(:), POINTER  :: vxc_rho, vxc_tau
     TYPE(qs_environment_type), POINTER       :: qs_env
     REAL(KIND=dp)                            :: exc
-    LOGICAL, INTENT(in), OPTIONAL            :: just_energy
+    LOGICAL, INTENT(in), OPTIONAL            :: just_energy, &
+                                                harris
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
@@ -1111,7 +1114,9 @@ SUBROUTINE qs_vxc_create(vxc_rho,vxc_tau, exc, qs_env,&
     INTEGER                                  :: nelec_spin(2)
     TYPE(mo_set_p_type), DIMENSION(:), &
          POINTER                                :: mo_array
-    LOGICAL                                  :: sic_scaling_b_zero
+    LOGICAL                                  :: sic_scaling_b_zero, &
+                                                harris_flag
+    TYPE(harris_env_type), POINTER           :: harris_env
 
 !   ---------------------------------------------------------------------------
 
@@ -1120,17 +1125,26 @@ SUBROUTINE qs_vxc_create(vxc_rho,vxc_tau, exc, qs_env,&
   failure=.FALSE.
   CPPrecondition(.NOT.ASSOCIATED(vxc_rho),cp_failure_level,routineP,error,failure)
   CPPrecondition(.NOT.ASSOCIATED(vxc_tau),cp_failure_level,routineP,error,failure)
-  NULLIFY(dft_control,rho_struct,pw_env,auxbas_pw_pool,&
-       cell, my_vxc_rho, my_vxc_tau, rho_g, rho_r, tau, rho_m_rspace,rho_m_gspace)
+  NULLIFY(dft_control,rho_struct,pw_env,auxbas_pw_pool,harris_env,cell, my_vxc_rho, &
+          my_vxc_tau, rho_g, rho_r, tau, rho_m_rspace,rho_m_gspace)
   my_just_energy=.FALSE.
   IF (PRESENT(just_energy)) my_just_energy=just_energy
+  IF (PRESENT(harris)) THEN
+    harris_flag = harris
+  ELSE
+    harris_flag = .FALSE.
+  END IF
 
   ! would be better to pass these as arguments
-  CALL get_qs_env(qs_env=qs_env,&
-       dft_control=dft_control,&
-       rho=rho_struct,&
-       pw_env=pw_env,&
-       cell=cell)
+  IF (harris_flag) THEN
+    CALL get_qs_env(qs_env=qs_env, dft_control=dft_control, harris_env=harris_env, &
+                    pw_env=pw_env, cell=cell, error=error)
+    rho_struct => harris_env%rho
+  ELSE
+    CALL get_qs_env(qs_env=qs_env, dft_control=dft_control, rho=rho_struct, &
+                    pw_env=pw_env, cell=cell, error=error)
+  END IF
+
 
 
   ! test if the real space density is available
