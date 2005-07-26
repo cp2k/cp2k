@@ -126,3 +126,6 @@ rsgrid-dist-1.inp  1
 #Harris funcional 
 H2O-harris.inp     1
 H2O-MD-harris.inp  1
+# Langevin dynamics
+H2O-langevin-1.inp 1
+H2O-langevin-2.inp 1
