@@ -322,7 +322,7 @@ SUBROUTINE ewald_pw_init ( ewald_pw, green, cell, cell_ref, ewald_env, error )
        ewald_pw % pw_big_pool => pw_pool
        CALL pw_pool_retain ( ewald_pw % pw_big_pool )
        CALL pw_pool_release ( pw_pool )
-       CALL pw_grid_release ( pw_small_grid, error )
+       CALL pw_grid_release ( pw_big_grid, error )
     CASE ( do_ewald_pme )
        ALLOCATE(pw_big_grid,pw_small_grid,stat=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)

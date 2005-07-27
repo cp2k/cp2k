@@ -521,20 +521,6 @@ CONTAINS
        END DO
     CASE(spline3_nopbc_interp, spline3_pbc_interp)
        ! Spline Iterpolator
-!FM-to_rm       DO Ilevel = coarser_grid, coarser_grid
-!FM-to_rm          nullify(tmp_grid)
-!FM-to_rm          CALL pw_pool_create_pw(aug_pools(Ilevel)%pool,tmp_grid,in_space=REALSPACE,&
-!FM-to_rm               use_data=REALDATA3D,error=error)
-!FM-to_rm          call pw_zero(tmp_grid)
-!FM-to_rm          CALL spl3_nopbct(pw_in=grids(Ilevel  )%pw,pw_out=tmp_grid,error=error)
-!FM-to_rm          WRITE(cp_logger_get_default_unit_nr(logger,.TRUE.),*) "xxxbounds=",tmp_grid%pw_grid%bounds_local
-!FM-to_rm          DO igrid=tmp_grid%pw_grid%bounds_local(1,1),tmp_grid%pw_grid%bounds_local(2,1)
-!FM-to_rm             WRITE(cp_logger_get_default_unit_nr(logger,.TRUE.),*) "xxxData=",tmp_grid%cr3d(igrid,:,:)
-!FM-to_rm          END DO
-!FM-to_rm          call m_flush(cp_logger_get_default_unit_nr(logger,.TRUE.))
-!FM-to_rm          CALL pw_pool_give_back_pw(aug_pools(Ilevel)%pool,tmp_grid,error=error)
-!FM-to_rm          CALL mp_stop(-1,"blah")
-!FM-to_rm       END DO
        DO Ilevel = coarser_grid, auxbas_grid+1, -1
           CALL pw_inject_s3(grids(Ilevel  )%pw,&
                             grids(Ilevel-1)%pw,&

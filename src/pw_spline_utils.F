@@ -1214,10 +1214,6 @@ SUBROUTINE pw_compose_stripe(weights,in_val,in_val_first,in_val_last,&
     LOGICAL                                  :: failure
     REAL(kind=dp)                            :: v0, v1, v2
 
-!FM    TYPE(cp_error_type), INTENT(inout), &
-!FM      OPTIONAL                               :: error
-!    REAL(kind=dp), DIMENSION(0:2)            :: v
-
   IF (n_el<1) RETURN
   failure=.FALSE.
   v0=in_val_first
@@ -1705,7 +1701,6 @@ END SUBROUTINE pw_nn_compose_r
     INTEGER :: i,j,k,fi,fj,fk,ii,ij,ik,rest_b,s(3), reqs(3), nReq, f_shift(3)
     INTEGER :: rcv_tot_size, ip, send_tot_size, x, xx, x_att, p, p_old, p_lb,&
          p_ub, fi_lb, fi_ub,  n_procs, coarse_slice_size, stat, ss, sf
-!FMtmp    integer ::  unit_nr
     REAL(kind=dp) :: wk,wj,wi,v0,v1,v2,v3
     REAL(kind=dp),DIMENSION(3) :: ww0, w_0
     REAL(kind=dp),DIMENSION(4) :: ww1, w_1
@@ -1723,13 +1718,11 @@ END SUBROUTINE pw_nn_compose_r
     safe_calc=.false.
     if (present(safe_computation)) safe_calc=safe_computation
     logger => cp_error_get_logger(error)
-!tmpFM    unit_nr=cp_logger_get_default_unit_nr(logger,local=.TRUE.)
     CALL mp_comm_compare(coarse_coeffs_pw%pw_grid%para%group,&
          fine_values_pw%pw_grid%para%group,ii)
     IF (ii>1) then
        CPPrecondition(.FALSE.,cp_failure_level,routineP,error,failure)
     END IF
-!tmpFM    WRITE(unit_nr,*) "START add_coarse2fine"
     IF (.NOT. failure) THEN
        my_coarse_bo=coarse_coeffs_pw%pw_grid%bounds_local
        coarse_gbo=coarse_coeffs_pw%pw_grid%bounds
@@ -1759,8 +1752,6 @@ END SUBROUTINE pw_nn_compose_r
           CPPrecondition(ALL(fine_gbo(1,:)==2*coarse_gbo(1,:)+f_shift),cp_failure_level,routineP,error,failure)
        END IF
 
-!tmpFM       WRITE (unit_nr,*) "coarse_gbo",coarse_gbo,"coarse_bo",coarse_bo,"my_coarse_bo",my_coarse_bo,"f_shift",f_shift
-       
        coarse_coeffs => coarse_coeffs_pw%cr3d
        DO i=1,3
           s(i)=coarse_gbo(2,i)-coarse_gbo(1,i)+1
@@ -1791,9 +1782,6 @@ END SUBROUTINE pw_nn_compose_r
 
           pos_of_x => fine_values_pw%pw_grid%para%pos_of_x
           sf=fine_gbo(2,1)-fine_gbo(1,1)+1
-!tmpFM          WRITE(unit_nr,*) "mepos=",logger%para_env%mepos,"pos_of_x",pos_of_x
-!tmpFM          WRITE(unit_nr,*) "fine_bo",fine_values_pw%pw_grid%bounds
-!tmpFM          WRITE(unit_nr,*) "fine_bo_local",fine_values_pw%pw_grid%bounds_local
           fi_lb=2*my_coarse_bo(1,1)-3+f_shift(1)
           fi_ub=2*my_coarse_bo(2,1)+3+f_shift(1)
           IF (.not.pbc) THEN
@@ -1807,7 +1795,6 @@ END SUBROUTINE pw_nn_compose_r
           send_size=0
           DO x=fi_lb,fi_ub
              p=pos_of_x(fine_gbo(1,1)+MODULO(x-fine_gbo(1,1),sf))
-!tmpFM             WRITE(unit_nr,*) "x=",x,"p=",p
              IF (p/=p_old) THEN
                 p_ub=FLOOR((x-1+3-f_shift(1))/2.)
                 
@@ -1852,7 +1839,6 @@ END SUBROUTINE pw_nn_compose_r
                 END IF
              END DO
           END IF
-!tmpFM          WRITE(unit_nr,*) "send_size",send_size
           ! ** offsets & alloc send-rcv
 
           send_tot_size=0
@@ -1863,7 +1849,6 @@ END SUBROUTINE pw_nn_compose_r
           ALLOCATE(send_buf(0:send_tot_size-1),stat=stat)
           CPPostcondition(stat==0,cp_fatal_level,routineP,error,failure)
 
-!tmpFM          WRITE(unit_nr,*) "rcv_size",rcv_size
           rcv_tot_size=0
           DO ip=0,n_procs-1
              rcv_offset(ip)=rcv_tot_size
@@ -1880,13 +1865,6 @@ END SUBROUTINE pw_nn_compose_r
           
           ! ** fill send buffer
 
-!-FM          pos_of_x => fine_values_pw%pw_grid%para%pos_of_x
-!-FM          fi_lb=2*my_coarse_bo(1,1)-2+f_shift(1)
-!-FM          fi_ub=2*my_coarse_bo(2,1)+3+f_shift(1)
-!-FM          IF (.not.pbc) THEN
-!-FM             fi_lb=MAX(fi_lb,fine_gbo(1,1))
-!-FM             fi_ub=MIN(fi_ub,fine_gbo(2,1))
-!-FM          END IF
           p_old=pos_of_x(fine_gbo(1,1)+MODULO(fi_lb-fine_gbo(1,1),sf))
           p_lb=FLOOR((fi_lb-2-f_shift(1))/2.)
           sent_size=send_offset
@@ -1973,11 +1951,8 @@ END SUBROUTINE pw_nn_compose_r
              END DO
           END IF
 
-!tmpFM          WRITE(unit_nr,*)"sent_size",sent_size,"send_offset",send_offset
           CPPostcondition(ALL(sent_size(:n_procs-2)==send_offset(1:)),cp_failure_level,routineP,error,failure)
-!tmpFM          WRITE(unit_nr,*)"ssize",sent_size(n_procs-1),"send_tot_size",send_tot_size
           CPPostcondition(sent_size(n_procs-1)==send_tot_size,cp_failure_level,routineP,error,failure)
-!tmpFM          CALL m_flush(unit_nr)
           ! test send/rcv sizes
           CALL mp_alltoall(send_size,real_rcv_size,1,coarse_coeffs_pw%pw_grid%para%group)
           CPAssert(ALL(real_rcv_size==rcv_size),cp_failure_level,routineP,error,failure)
@@ -2360,7 +2335,7 @@ END SUBROUTINE pw_nn_compose_r
                                fine_values(fi,fj,fk)=fine_values(fi,fj,fk)+&
                                     w_border0*wj*v0
                             END IF
-                         ELSE if (pbc) then
+                         ELSE if (pbc.and..not.is_split) then
                             v0=coarse_coeffs(coarse_bo(1,1),j,k)
                             fi=fi+1
                             fine_values(fi,fj,fk)=fine_values(fi,fj,fk)+&
@@ -2442,7 +2417,6 @@ END SUBROUTINE pw_nn_compose_r
           CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
        END IF
     END IF
-!tmpFM    WRITE(unit_nr,*) "END add_coarse2fine"
     call mp_sync ( coarse_coeffs_pw%pw_grid%para%group )
   END SUBROUTINE add_coarse2fine
 !***************************************************************************
@@ -2513,7 +2487,6 @@ END SUBROUTINE pw_nn_compose_r
 
     INTEGER                                  :: fi, fj, fk, i, ij, ik, j, k, &
          rest_b, ii, s(3), f_shift(3)
-!FMtmp    integer :: unit_nr
     INTEGER :: rcv_tot_size, ip, send_tot_size, x, xx, x_att, p, p_old, p_lb,&
          p_ub, fi_lb, fi_ub,  n_procs, coarse_slice_size, stat, ss,&
          sf
@@ -2535,7 +2508,6 @@ END SUBROUTINE pw_nn_compose_r
        safe_calc=.FALSE.
        IF (PRESENT(safe_computation)) safe_calc=safe_computation
        logger => cp_error_get_logger(error)
-!tmpFM       unit_nr=cp_logger_get_default_unit_nr(logger,local=.TRUE.)
 
        my_coarse_bo=coarse_coeffs_pw%pw_grid%bounds_local
        coarse_gbo=coarse_coeffs_pw%pw_grid%bounds
@@ -2552,10 +2524,7 @@ END SUBROUTINE pw_nn_compose_r
        END IF
        has_i_ubound=(coarse_gbo(2,1)/=coarse_bo(2,1))
        has_i_lbound=(coarse_gbo(1,1)/=coarse_bo(1,1))
-!tmpFM       WRITE(unit_nr,*) "START add_fine2coarse"
-!tmpFM       WRITE(unit_nr,*)"coarse_bo",coarse_bo,"my_coarse_bo",my_coarse_bo
-!tmpFM       WRITE(unit_nr,*) "has_i_ubound",has_i_ubound,"has_i_lbound",has_i_lbound
-!tmpFM       WRITE(unit_nr,*) "is_split",is_split
+
        IF (pbc) THEN
           CPPrecondition(ALL(fine_gbo(1,:)==2*coarse_gbo(1,:)+f_shift),cp_failure_level,routineP,error,failure)
           CPPrecondition(ALL(fine_gbo(2,:)==2*coarse_gbo(2,:)+f_shift+1),cp_failure_level,routineP,error,failure)
@@ -2725,14 +2694,21 @@ END SUBROUTINE pw_nn_compose_r
                          coarse_coeffs(i+3,j,k)=coarse_coeffs(i+3,j,k)&
                               +ww1(4)*vv6+ww0(3)*vv7
                       ELSE IF (has_i_lbound) THEN
-!-FM                         i=coarse_bo(1,1)
-!-FM                         fi=fine_bo(1,1)-1
-!-FM                         IF (i+1==FLOOR((fine_bo(1,1)+1)/2._dp)) THEN
-!-FM                            fi=fi+1
-!-FM                            vv0=fine_values(fi,fj,fk)
-!-FM                         END IF
-!-FM                         coarse_coeffs(i,j,k)=coarse_coeffs(i,j,k)+&
-!-FM                              vv0*ww0(3)*
+                         i=coarse_bo(1,1)
+                         fi=fine_bo(1,1)-1
+                         IF (i+1==FLOOR((fine_bo(1,1)+1-f_shift(1))/2._dp)) THEN
+                            fi=fi+1
+                            vv0=fine_values(fi,fj,fk)
+                            coarse_coeffs(i,j,k)=coarse_coeffs(i,j,k)+&
+                                 
+                                 vv0*ww0(3)
+                            coarse_coeffs(i+1,j,k)=coarse_coeffs(i+1,j,k)+&
+                                 
+                                 vv0*ww0(2)
+                            coarse_coeffs(i+2,j,k)=coarse_coeffs(i+2,j,k)+&
+                                 
+                                 vv0*ww0(1)
+                         END IF
                       ELSE
                          i=coarse_bo(1,1)
                          fi=2*i+f_shift(1)
@@ -2748,7 +2724,6 @@ END SUBROUTINE pw_nn_compose_r
                          coarse_coeffs(i+2,j,k)=coarse_coeffs(i+2,j,k)+&
                               wj*w_border1(3)*vv1+ww0(3)*vv2
                       END IF
-!-FM                      ubound=MIN(FLOOR((fine_bo(2,1)-f_shift(1))/2._dp),coarse_bo(2,1))
                       DO i=coarse_bo(1,1)+3,FLOOR((fine_bo(2,1)-f_shift(1))/2._dp)-3,4
                          fi=fi+1
                          vv0=fine_values(fi,fj,fk)
@@ -2781,14 +2756,12 @@ END SUBROUTINE pw_nn_compose_r
                          coarse_coeffs(i+3,j,k)=coarse_coeffs(i+3,j,k)&
                               +ww1(4)*vv6+ww0(3)*vv7
                       END DO
-                      call cp_assert(FLOOR((fine_bo(2,1)-f_shift(1))/2._dp)-coarse_bo(1,1)>=4,&
+                      CALL cp_assert(FLOOR((fine_bo(2,1)-f_shift(1))/2._dp)-coarse_bo(1,1)>=4,&
                            cp_failure_level,cp_assertion_failed,routineP,&
                            "FLOOR((fine_bo(2,1)-f_shift(1))/2._dp)-coarse_bo(1,1)>=4",&
                            error,failure)
                       rest_b=MODULO(FLOOR((fine_bo(2,1)-f_shift(1))/2._dp)-coarse_bo(1,1)-6,4)
-                      !PRINT *,"old i=",i
                       i=FLOOR((fine_bo(2,1)-f_shift(1))/2._dp)-3-rest_b+4
-                      !PRINT *, "i=",i,"rest_b=",rest_b,"fi=",fi
                       CPPrecondition(fi==(i-2)*2+f_shift(1),cp_failure_level,routineP,error,failure)
                       IF (rest_b>0) THEN
                          fi=fi+1
@@ -2827,12 +2800,41 @@ END SUBROUTINE pw_nn_compose_r
                                vv7=fine_values(fi,fj,fk)
                                coarse_coeffs(i-1,j,k)=coarse_coeffs(i-1,j,k)&
                                     +ww1(1)*vv4
-                               coarse_coeffs(i,j,k)=coarse_coeffs(i,j,k)&
-                                    +ww1(2)*vv4+ww0(1)*vv5+wj*w_border1(3)*vv6
-                               coarse_coeffs(i+1,j,k)=coarse_coeffs(i+1,j,k)&
-                                    +ww1(3)*vv4+ww0(2)*vv5+wj*w_border1(2)*vv6
-                               coarse_coeffs(i+2,j,k)=coarse_coeffs(i+2,j,k)&
-                                    +ww1(4)*vv4+ww0(3)*vv5+wj*w_border1(1)*vv6+w_border0*wj*vv7
+                               IF (has_i_ubound) THEN
+                                  IF (coarse_bo(2,1)-2==FLOOR((fine_bo(2,1)-f_shift(1))/2._dp)) THEN
+                                     fi=fi+1
+                                     vv0=fine_values(fi,fj,fk)
+                                     coarse_coeffs(i+4,j,k)=coarse_coeffs(i+4,j,k)&
+                                          +vv0*ww1(4)
+                                  ELSE
+                                     vv0=0._dp
+                                  END IF
+                                  coarse_coeffs(i,j,k)=coarse_coeffs(i,j,k)&
+                                       +ww1(2)*vv4+ww0(1)*vv5+ww1(1)*vv6
+                                  coarse_coeffs(i+1,j,k)=coarse_coeffs(i+1,j,k)&
+                                       +ww1(3)*vv4+ww0(2)*vv5+ww1(2)*vv6+ww0(1)*vv7+vv0*ww1(1)
+                                  coarse_coeffs(i+2,j,k)=coarse_coeffs(i+2,j,k)&
+                                       +ww1(4)*vv4+ww0(3)*vv5+ww1(3)*vv6+ww0(2)*vv7+vv0*ww1(2)
+                                  coarse_coeffs(i+3,j,k)=coarse_coeffs(i+3,j,k)&
+                                       +ww1(4)*vv6+ww0(3)*vv7+vv0*ww1(3)
+                               ELSEIF (pbc.and..not.is_split) then
+                                  fi=fi+1
+                                  vv0=fine_values(fi,fj,fk)
+                                  vv1=fine_values(fine_bo(1,1),fj,fk)
+                                  coarse_coeffs(i,j,k)=coarse_coeffs(i,j,k)&
+                                       +ww1(2)*vv4+ww0(1)*vv5+ww1(1)*vv6
+                                  coarse_coeffs(i+1,j,k)=coarse_coeffs(i+1,j,k)&
+                                       +ww1(3)*vv4+ww0(2)*vv5+ww1(2)*vv6+ww0(1)*vv7
+                                  coarse_coeffs(i+2,j,k)=coarse_coeffs(i+2,j,k)&
+                                       +ww1(4)*vv4+ww0(3)*vv5+ww1(3)*vv6+ww0(2)*vv7+vv0*ww1(1)+vv2*ww1(1)
+                               ELSE
+                                  coarse_coeffs(i,j,k)=coarse_coeffs(i,j,k)&
+                                       +ww1(2)*vv4+ww0(1)*vv5+wj*w_border1(3)*vv6
+                                  coarse_coeffs(i+1,j,k)=coarse_coeffs(i+1,j,k)&
+                                       +ww1(3)*vv4+ww0(2)*vv5+wj*w_border1(2)*vv6
+                                  coarse_coeffs(i+2,j,k)=coarse_coeffs(i+2,j,k)&
+                                       +ww1(4)*vv4+ww0(3)*vv5+wj*w_border1(1)*vv6+w_border0*wj*vv7
+                               END IF
                             ELSE
                                fi=fi+1
                                vv4=fine_values(fi,fj,fk)
@@ -2840,10 +2842,35 @@ END SUBROUTINE pw_nn_compose_r
                                vv5=fine_values(fi,fj,fk)
                                coarse_coeffs(i-1,j,k)=coarse_coeffs(i-1,j,k)&
                                     +wj*w_border1(3)*vv4
-                               coarse_coeffs(i,j,k)=coarse_coeffs(i,j,k)&
-                                    +wj*w_border1(2)*vv4
-                               coarse_coeffs(i+1,j,k)=coarse_coeffs(i+1,j,k)&
-                                    +wj*(w_border1(1)*vv4+w_border0*vv5)
+                               IF (has_i_ubound) THEN
+                                  IF (coarse_bo(2,1)-2==FLOOR((fine_bo(2,1)-f_shift(1))/2._dp)) THEN
+                                     fi=fi+1
+                                     vv6=fine_values(fi,fj,fk)
+                                     coarse_coeffs(i+3,j,k)=coarse_coeffs(i+3,j,k)&
+                                          +ww1(4)*vv6
+                                  ELSE
+                                     vv6=0._dp
+                                  END IF
+                                  coarse_coeffs(i,j,k)=coarse_coeffs(i,j,k)&
+                                       +ww1(2)*vv4+ww0(1)*vv5+ww1(1)*vv6
+                                  coarse_coeffs(i+1,j,k)=coarse_coeffs(i+1,j,k)&
+                                       +ww1(3)*vv4+ww0(2)*vv5+ww1(2)*vv6
+                                  coarse_coeffs(i+2,j,k)=coarse_coeffs(i+2,j,k)&
+                                       +ww1(4)*vv4+ww0(3)*vv5+ww1(3)*vv6
+                               ELSEIF (pbc.AND..not.is_split) THEN
+                                  fi=fi+1
+                                  vv6=fine_values(fi,fj,fk)
+                                  vv7=fine_values(fine_bo(1,1),fj,fk)
+                                  coarse_coeffs(i,j,k)=coarse_coeffs(i,j,k)&
+                                       +ww1(4)*vv0+ww0(3)*vv1+ww1(3)*vv2+ww0(2)*vv3+ww1(2)*vv4+ww0(1)*vv5+ww1(1)*vv6
+                                  coarse_coeffs(i+1,j,k)=coarse_coeffs(i+1,j,k)&
+                                       +ww1(4)*vv2+ww0(3)*vv3+ww1(3)*vv4+ww0(2)*vv5+ww1(2)*vv6+ww0(1)*vv7
+                               ELSE
+                                  coarse_coeffs(i,j,k)=coarse_coeffs(i,j,k)&
+                                       +wj*w_border1(2)*vv4
+                                  coarse_coeffs(i+1,j,k)=coarse_coeffs(i+1,j,k)&
+                                       +wj*(w_border1(1)*vv4+w_border0*vv5)
+                               END IF
                             END IF
                          ELSE
                             fi=fi+1
@@ -2852,23 +2879,73 @@ END SUBROUTINE pw_nn_compose_r
                             vv3=fine_values(fi,fj,fk)
                             coarse_coeffs(i-2,j,k)=coarse_coeffs(i-2,j,k)&
                                  +wj*w_border1(3)*vv2
-                            coarse_coeffs(i-1,j,k)=coarse_coeffs(i-1,j,k)&
-                                 +wj*w_border1(2)*vv2
-                            coarse_coeffs(i,j,k)=coarse_coeffs(i,j,k)&
-                                 +wj*(w_border1(1)*vv2+w_border0*vv3)
+                            IF (has_i_ubound) THEN
+                               IF (coarse_bo(2,1)-2==FLOOR((fine_bo(2,1)-f_shift(1))/2._dp)) THEN
+                                  fi=fi+1
+                                  vv4=fine_values(fi,fj,fk)
+                                  coarse_coeffs(i+2,j,k)=coarse_coeffs(i+2,j,k)&
+                                       +ww1(4)*vv4
+                               ELSE
+                                  vv4=0._dp
+                               END IF
+                               coarse_coeffs(i-1,j,k)=coarse_coeffs(i-1,j,k)&
+                                    +ww1(2)*vv2+ww0(1)*vv3+ww1(1)*vv4
+                               coarse_coeffs(i,j,k)=coarse_coeffs(i,j,k)&
+                                    +ww1(3)*vv2+ww0(2)*vv3+ww1(2)*vv4
+                               coarse_coeffs(i+1,j,k)=coarse_coeffs(i+1,j,k)&
+                                    +ww1(4)*vv2+ww0(3)*vv3+ww1(3)*vv4
+                            ELSEIF (pbc.AND..not.is_split) THEN
+                               fi=fi+1
+                               vv4=fine_values(fi,fj,fk)
+                               vv5=fine_values(fine_bo(1,1),fj,fk)
+                               coarse_coeffs(i-1,j,k)=coarse_coeffs(i-1,j,k)&
+                                    +ww1(2)*vv2+ww0(1)*vv3+ww1(1)*vv4
+                               coarse_coeffs(i,j,k)=coarse_coeffs(i,j,k)&
+                                    +ww1(3)*vv2+ww0(2)*vv3+ww1(2)*vv4+vv5*ww0(1)
+                               
+                            ELSE
+                               coarse_coeffs(i-1,j,k)=coarse_coeffs(i-1,j,k)&
+                                    +wj*w_border1(2)*vv2
+                               coarse_coeffs(i,j,k)=coarse_coeffs(i,j,k)&
+                                    +wj*(w_border1(1)*vv2+w_border0*vv3)
+                            END IF
                          END IF
                       ELSE
                          fi=fi+1
                          vv0=fine_values(fi,fj,fk)
                          fi=fi+1
                          vv1=fine_values(fi,fj,fk)
-
                          coarse_coeffs(i-3,j,k)=coarse_coeffs(i-3,j,k)&
                               +wj*w_border1(3)*vv0
-                         coarse_coeffs(i-2,j,k)=coarse_coeffs(i-2,j,k)&
-                              +wj*w_border1(2)*vv0
-                         coarse_coeffs(i-1,j,k)=coarse_coeffs(i-1,j,k)&
-                              +wj*(w_border1(1)*vv0+w_border0*vv1)
+                         IF (has_i_ubound) THEN
+                            IF (coarse_bo(2,1)-2==FLOOR((fine_bo(2,1)-f_shift(1))/2._dp)) THEN
+                               fi=fi+1
+                               vv2=fine_values(fi,fj,fk)
+                               coarse_coeffs(i+1,j,k)=coarse_coeffs(i+1,j,k)&
+                                    +ww1(4)*vv2
+                            ELSE
+                               vv2=0._dp
+                            END IF
+                            coarse_coeffs(i-2,j,k)=coarse_coeffs(i-2,j,k)&
+                                 +ww1(2)*vv0+ww0(1)*vv1+ww1(1)*vv2
+                            coarse_coeffs(i-1,j,k)=coarse_coeffs(i-1,j,k)&
+                                 +ww1(3)*vv0+ww0(2)*vv1+ww1(2)*vv2
+                            coarse_coeffs(i,j,k)=coarse_coeffs(i,j,k)&
+                                 +ww1(4)*vv0+ww0(3)*vv1+ww1(3)*vv2
+                         ELSEIF (pbc.AND..not.is_split) THEN
+                            fi=fi+1
+                            vv2=fine_values(fi,fj,fk)
+                            vv3=fine_values(fine_bo(1,1),fk,fk)
+                            coarse_coeffs(i-2,j,k)=coarse_coeffs(i-2,j,k)&
+                                 +ww1(2)*vv0+ww0(1)*vv1+ww1(1)*vv2
+                            coarse_coeffs(i-1,j,k)=coarse_coeffs(i-1,j,k)&
+                                 +ww1(3)*vv0+ww0(2)*vv1+ww1(2)*vv2+ww0(1)*vv3
+                         ELSE
+                            coarse_coeffs(i-2,j,k)=coarse_coeffs(i-2,j,k)&
+                                 +wj*w_border1(2)*vv0
+                            coarse_coeffs(i-1,j,k)=coarse_coeffs(i-1,j,k)&
+                                 +wj*(w_border1(1)*vv0+w_border0*vv1)
+                         END IF
                       END IF
                       CPPostcondition(fi==fine_bo(2,1),cp_failure_level,routineP,error,failure)
                    END IF
@@ -2896,7 +2973,6 @@ END SUBROUTINE pw_nn_compose_r
              p=pos_of_x(coarse_gbo(1,1)+MODULO(x-coarse_gbo(1,1),s(1)))
              send_size(p)=send_size(p)+coarse_slice_size
           END DO
-!tmpFM          WRITE(unit_nr,*) "send_size",send_size,"norm",send_size/coarse_slice_size
 
           ! ** rcv size count
 
@@ -2940,72 +3016,6 @@ END SUBROUTINE pw_nn_compose_r
                 END IF
              END DO
           END DO
-!-FM
-!-FM          pos_of_x => fine_values_pw%pw_grid%para%pos_of_x
-!-FM          sf=fine_gbo(2,1)-fine_gbo(1,1)+1
-!-FM          WRITE(unit_nr,*) "mepos=",logger%para_env%mepos,"pos_of_x",pos_of_x
-!-FM          WRITE(unit_nr,*) "fine_bo",fine_values_pw%pw_grid%bounds
-!-FM          WRITE(unit_nr,*) "fine_bo_local",fine_values_pw%pw_grid%bounds_local
-!-FM          fi_lb=2*my_coarse_bo(1,1)-3+f_shift(1)
-!-FM          fi_ub=2*my_coarse_bo(2,1)+3+f_shift(1)
-!-FM          IF (.not.pbc) THEN
-!-FM             fi_lb=MAX(fi_lb,fine_gbo(1,1))
-!-FM             fi_ub=MIN(fi_ub,fine_gbo(2,1))
-!-FM          ELSE
-!-FM             fi_ub=MIN(fi_ub,fi_lb+sf-1)
-!-FM          END IF
-!-FM          p_old=pos_of_x(fine_gbo(1,1)+MODULO(fi_lb-fine_gbo(1,1),sf))
-!-FM          p_lb=FLOOR((fi_lb-2-f_shift(1))/2.)
-!-FM          rcv_size=0
-!-FM          DO x=fi_lb,fi_ub
-!-FM             p=pos_of_x(fine_gbo(1,1)+MODULO(x-fine_gbo(1,1),sf))
-!-FM             WRITE(unit_nr,*) "x=",x,"p=",p
-!-FM             IF (p/=p_old) THEN
-!-FM                p_ub=FLOOR((x-1+3-f_shift(1))/2.)
-!-FM
-!-FM                rcv_size(p_old)=rcv_size(p_old)+(MIN(p_ub,my_coarse_bo(2,1)) &
-!-FM                     -MAX(p_lb,my_coarse_bo(1,1))+1)*coarse_slice_size
-!-FM
-!-FM                IF (pbc) THEN
-!-FM                   DO xx=p_lb,coarse_gbo(1,1)-1
-!-FM                      x_att=coarse_gbo(1,1)+MODULO(xx-coarse_gbo(1,1),s(1))
-!-FM                      IF (x_att>=my_coarse_bo(1,1).AND.x_att<=my_coarse_bo(2,1)) THEN
-!-FM                         rcv_size(p_old)=rcv_size(p_old)+coarse_slice_size
-!-FM                      END IF
-!-FM                   END DO
-!-FM                   DO xx=coarse_gbo(2,1)+1,p_ub
-!-FM                      x_att=coarse_gbo(1,1)+MODULO(xx-coarse_gbo(1,1),s(1))
-!-FM                      IF (x_att>=my_coarse_bo(1,1).AND.x_att<=my_coarse_bo(2,1)) THEN
-!-FM                         rcv_size(p_old)=rcv_size(p_old)+coarse_slice_size
-!-FM                      END IF
-!-FM                   END DO
-!-FM                END IF
-!-FM
-!-FM                p_old=p
-!-FM                p_lb=FLOOR((x-2-f_shift(1))/2.)
-!-FM             END IF
-!-FM          END DO
-!-FM          p_ub=FLOOR((fi_ub+3-f_shift(1))/2.)
-!-FM
-!-FM          rcv_size(p_old)=rcv_size(p_old)+(MIN(p_ub,my_coarse_bo(2,1)) &
-!-FM               -MAX(p_lb,my_coarse_bo(1,1))+1)*coarse_slice_size
-!-FM
-!-FM          IF (pbc) THEN
-!-FM             DO xx=p_lb,coarse_gbo(1,1)-1
-!-FM                x_att=coarse_gbo(1,1)+MODULO(xx-coarse_gbo(1,1),s(1))
-!-FM                IF (x_att>=my_coarse_bo(1,1).AND.x_att<=my_coarse_bo(2,1)) THEN
-!-FM                   rcv_size(p_old)=rcv_size(p_old)+coarse_slice_size
-!-FM                END IF
-!-FM             END DO
-!-FM             DO xx=coarse_gbo(2,1)+1,p_ub
-!-FM                x_att=coarse_gbo(1,1)+MODULO(xx-coarse_gbo(1,1),s(1))
-!-FM                IF (x_att>=my_coarse_bo(1,1).AND.x_att<=my_coarse_bo(2,1)) THEN
-!-FM                   rcv_size(p_old)=rcv_size(p_old)+coarse_slice_size
-!-FM                END IF
-!-FM             END DO
-!-FM          END IF
-
-!tmpFM          WRITE(unit_nr,*) "rcv_size",rcv_size,"norm",rcv_size/coarse_slice_size
 
           ! ** offsets & alloc send-rcv
 
@@ -3057,11 +3067,8 @@ END SUBROUTINE pw_nn_compose_r
                CPSourceFileRef,&
                error,failure)
 
-!tmpFM          WRITE(unit_nr,*)"sent_size",sent_size,"send_offset",send_offset
           CPPostcondition(ALL(sent_size(:n_procs-2)==send_offset(1:)),cp_failure_level,routineP,error,failure)
-!tmpFM          WRITE(unit_nr,*)"ssize",sent_size(n_procs-1),"send_tot_size",send_tot_size
           CPPostcondition(sent_size(n_procs-1)==send_tot_size,cp_failure_level,routineP,error,failure)
-!tmpFM          CALL m_flush(unit_nr)
           ! test send/rcv sizes
           CALL mp_alltoall(send_size,real_rcv_size,1,coarse_coeffs_pw%pw_grid%para%group)
           CPAssert(ALL(real_rcv_size==rcv_size),cp_failure_level,routineP,error,failure)
@@ -3127,117 +3134,6 @@ END SUBROUTINE pw_nn_compose_r
                CPSourceFileRef,&
                error,failure)
           
-!-FM          pos_of_x => fine_values_pw%pw_grid%para%pos_of_x
-!-FM          sf=fine_gbo(2,1)-fine_gbo(1,1)+1
-!-FM          fi_lb=2*my_coarse_bo(1,1)-3+f_shift(1)
-!-FM          fi_ub=2*my_coarse_bo(2,1)+3+f_shift(1)
-!-FM          IF (.not.pbc) THEN
-!-FM             fi_lb=MAX(fi_lb,fine_gbo(1,1))
-!-FM             fi_ub=MIN(fi_ub,fine_gbo(2,1))
-!-FM          ELSE
-!-FM             fi_ub=MIN(fi_ub,fi_lb+sf-1)
-!-FM          END IF
-!-FM          p_old=pos_of_x(fine_gbo(1,1)+MODULO(fi_lb-fine_gbo(1,1),sf))
-!-FM          p_lb=FLOOR((fi_lb-2-f_shift(1))/2.)
-!-FM          sent_size=rcv_offset
-!-FM          DO x=fi_lb,fi_ub
-!-FM             p=pos_of_x(fine_gbo(1,1)+MODULO(x-fine_gbo(1,1),sf))
-!-FM             WRITE(unit_nr,*) "x=",x,"p=",p
-!-FM             IF (p/=p_old) THEN
-!-FM                p_ub=FLOOR((x-1+3-f_shift(1))/2.)
-!-FM
-!-FM                IF (pbc) THEN
-!-FM                   DO xx=p_lb,coarse_gbo(1,1)-1
-!-FM                      x_att=coarse_gbo(1,1)+MODULO(xx-coarse_gbo(1,1),s(1))
-!-FM                      IF (x_att>=my_coarse_bo(1,1).AND.x_att<=my_coarse_bo(2,1)) THEN
-!-FM                         ii=sent_size(p_old)
-!-FM                         DO k=coarse_bo(1,3),coarse_bo(2,3)
-!-FM                            DO j=coarse_bo(1,2),coarse_bo(2,2)
-!-FM                               coarse_coeffs_pw%cr3d(x_att,j,k)=coarse_coeffs_pw%cr3d(x_att,j,k)+rcv_buf(ii)
-!-FM                               ii=ii+1
-!-FM                            END DO
-!-FM                         END DO
-!-FM                         sent_size(p_old)=ii
-!-FM                      END IF
-!-FM                   END DO
-!-FM                END IF
-!-FM
-!-FM                ii=sent_size(p_old)
-!-FM                DO k=coarse_bo(1,3),coarse_bo(2,3)
-!-FM                   DO j=coarse_bo(1,2),coarse_bo(2,2)
-!-FM                      DO i=MAX(p_lb,my_coarse_bo(1,1)),MIN(p_ub,my_coarse_bo(2,1))
-!-FM                         coarse_coeffs_pw%cr3d(i,j,k)=coarse_coeffs_pw%cr3d(x_att,j,k)+rcv_buf(ii)
-!-FM                         ii=ii+1
-!-FM                      END DO
-!-FM                   END DO
-!-FM                END DO
-!-FM                sent_size(p_old)=ii
-!-FM
-!-FM                IF (pbc) THEN
-!-FM                   DO xx=coarse_gbo(2,1)+1,p_ub
-!-FM                      x_att=coarse_gbo(1,1)+MODULO(xx-coarse_gbo(1,1),s(1))
-!-FM                      IF (x_att>=my_coarse_bo(1,1).AND.x_att<=my_coarse_bo(2,1)) THEN
-!-FM                         ii=sent_size(p_old)
-!-FM                         DO k=coarse_bo(1,3),coarse_bo(2,3)
-!-FM                            DO j=coarse_bo(1,2),coarse_bo(2,2)
-!-FM                               coarse_coeffs_pw%cr3d(x_att,j,k)=coarse_coeffs_pw%cr3d(x_att,j,k)+rcv_buf(ii)
-!-FM                               ii=ii+1
-!-FM                            END DO
-!-FM                         END DO
-!-FM                         sent_size(p_old)=ii
-!-FM                      END IF
-!-FM                   END DO
-!-FM                END IF
-!-FM
-!-FM                p_old=p
-!-FM                p_lb=FLOOR((x-2-f_shift(1))/2.)
-!-FM             END IF
-!-FM          END DO
-!-FM          p_ub=FLOOR((fi_ub+3-f_shift(1))/2.)
-!-FM
-!-FM          IF (pbc) THEN
-!-FM             DO xx=p_lb,coarse_gbo(1,1)-1
-!-FM                x_att=coarse_gbo(1,1)+MODULO(xx-coarse_gbo(1,1),s(1))
-!-FM                IF (x_att>=my_coarse_bo(1,1).AND.x_att<=my_coarse_bo(2,1)) THEN
-!-FM                   ii=sent_size(p_old)
-!-FM                   DO k=coarse_bo(1,3),coarse_bo(2,3)
-!-FM                      DO j=coarse_bo(1,2),coarse_bo(2,2)
-!-FM                         coarse_coeffs_pw%cr3d(x_att,j,k)=coarse_coeffs_pw%cr3d(x_att,j,k)+rcv_buf(ii)
-!-FM                         ii=ii+1
-!-FM                      END DO
-!-FM                   END DO
-!-FM                   sent_size(p_old)=ii
-!-FM                END IF
-!-FM             END DO
-!-FM          END IF
-!-FM
-!-FM          ii=sent_size(p_old)
-!-FM          DO k=coarse_bo(1,3),coarse_bo(2,3)
-!-FM             DO j=coarse_bo(1,2),coarse_bo(2,2)
-!-FM                DO i=MAX(p_lb,my_coarse_bo(1,1)),MIN(p_ub,my_coarse_bo(2,1))
-!-FM                   coarse_coeffs_pw%cr3d(i,j,k)=coarse_coeffs_pw%cr3d(x_att,j,k)+rcv_buf(ii)
-!-FM                   ii=ii+1
-!-FM                END DO
-!-FM             END DO
-!-FM          END DO
-!-FM          sent_size(p_old)=ii
-!-FM
-!-FM          IF (pbc) THEN
-!-FM             DO xx=coarse_gbo(2,1)+1,p_ub
-!-FM                x_att=coarse_gbo(1,1)+MODULO(xx-coarse_gbo(1,1),s(1))
-!-FM                IF (x_att>=my_coarse_bo(1,1).AND.x_att<=my_coarse_bo(2,1)) THEN
-!-FM                   ii=sent_size(p_old)
-!-FM                   DO k=coarse_bo(1,3),coarse_bo(2,3)
-!-FM                      DO j=coarse_bo(1,2),coarse_bo(2,2)
-!-FM                         coarse_coeffs_pw%cr3d(x_att,j,k)=coarse_coeffs_pw%cr3d(x_att,j,k)+rcv_buf(ii)
-!-FM                         ii=ii+1
-!-FM                      END DO
-!-FM                   END DO
-!-FM                   sent_size(p_old)=ii
-!-FM                END IF
-!-FM             END DO
-!-FM          END IF
-
           ! dealloc
           DEALLOCATE(send_size,send_offset, rcv_size, rcv_offset, stat=stat)
           CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
@@ -3246,9 +3142,7 @@ END SUBROUTINE pw_nn_compose_r
           DEALLOCATE(pp_ub,pp_lb,stat=stat)
           CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
        END IF
-!tmpFM       WRITE(unit_nr,*) 'is_split',is_split, ' has_i_lbound',has_i_lbound,&
-!tmpFM            ' has_i_ubound',has_i_ubound
-!tmpFM       WRITE(unit_nr,*) "END add_fine2coarse"
+
     END IF
     call mp_sync ( coarse_coeffs_pw%pw_grid%para%group )
 
