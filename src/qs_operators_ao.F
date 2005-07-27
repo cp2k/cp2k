@@ -271,7 +271,8 @@ CONTAINS
 !$OMP shared(nkind,sab_orb_neighbor_list,nlist,workt,difabt,qs_env)&
 !$OMP shared(op_dipt)&
 !$OMP shared(first_sgfa,first_sgfb,sab_orb,lb_min,la_max,op_sm)&
-!$OMP shared(atomic_kind_set,particle_set,cell)
+!$OMP shared(atomic_kind_set,particle_set,cell)&
+!$OMP shared(my_minimum_image,Lxo2)
         ithread = 0
 !$      ithread = omp_get_thread_num()
 
@@ -628,13 +629,15 @@ CONTAINS
 !$OMP private(nrow,iset,jset,ncoa,ncob,nnode,inode,irow,icol)&
 !$OMP private(op_angij,op_angji,rab,rab2,dab,i)&
 !$OMP private(sab_orb_neighbor_node,sab_orb_neighbor_list_local)&
+!$OMP private(rc,rac,rbc)&
 !$OMP shared(ikind,jkind,rpgfb,zetb,sphi_b,sphi_a,nsgfa,nsgfb,set_radius_b,ldab,ldwork)&
 !$OMP shared(lb_max,npgfb,nsetb,iab,la_min,rpgfa,zeta)&
 !$OMP shared(set_radius_a,nco,ncoset,npgfa,nseta,ldsa,ldsb)&
 !$OMP shared(nkind,sab_orb_neighbor_list,nlist,workt,angabt,qs_env)&
 !$OMP shared(op_angijt,op_angjit)&
 !$OMP shared(first_sgfa,first_sgfb,sab_orb,lb_min,la_max,op_sm)&
-!$OMP shared(atomic_kind_set,particle_set,cell)
+!$OMP shared(atomic_kind_set,particle_set,cell)&
+!$OMP shared(my_minimum_image,Lxo2)
         ithread = 0
 !$      ithread = omp_get_thread_num()
 
