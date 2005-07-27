@@ -36,7 +36,9 @@ MODULE qs_linres_methods
                                              cp_fm_symm,&
                                              cp_fm_scale_and_add,&
                                              cp_fm_trace
-  USE cp_fm_pool_types,                ONLY: cp_fm_pool_p_type
+  USE cp_fm_pool_types,                ONLY: cp_fm_pool_p_type,&
+                                             fm_pools_create_fm_vect,&
+                                             fm_pools_give_back_fm_vect
   USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
                                              cp_fm_struct_release, &
                                              cp_fm_struct_p_type,&
@@ -55,9 +57,6 @@ MODULE qs_linres_methods
                                              cp_warning_level
   USE cp_para_types,                   ONLY: cp_blacs_env_type,&
                                              cp_para_env_type
-  USE cp_fm_pool_types,                ONLY: cp_fm_pool_p_type,&
-                                             fm_pools_create_fm_vect,&
-                                             fm_pools_give_back_fm_vect
   USE global_types,                    ONLY: global_environment_type 
   USE kinds,                           ONLY: dp
   USE input_constants,                 ONLY: do_loc_none,state_loc_all,&

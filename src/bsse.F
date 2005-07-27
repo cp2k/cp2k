@@ -72,7 +72,6 @@ MODULE bsse
   USE atomic_kind_list_types,          ONLY: atomic_kind_list_create,&
                                              atomic_kind_list_release,&
                                              atomic_kind_list_type
-  USE atomic_kind_types, only : get_atomic_kind
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE simulation_cell,                 ONLY: cell_type,&
                                              get_cell
