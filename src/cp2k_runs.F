@@ -389,7 +389,7 @@ CONTAINS
     ENDIF
     IF (globenv%ionode) THEN
         write(globenv%scr,FMT="(T2,A,T71,I10)") "FARMING| Number of created MPI groups:",ngroups
-        write(globenv%scr,FMT="(T2,A,T71,I10)",ADVANCE="NO") "FARMING| Task to group correspondence:"
+        write(globenv%scr,FMT="(T2,A)",ADVANCE="NO") "FARMING| Task to group correspondence:"
         DO i=0,globenv%num_pe-1
            IF (MODULO(i,4)==0) write(globenv%scr,*)
            write(globenv%scr,FMT='(A3,I4,A3,I4,A1)',ADVANCE="NO") "  (",i," : ",group_distribution(i),")"
