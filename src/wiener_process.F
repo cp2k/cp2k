@@ -32,7 +32,7 @@ MODULE wiener_process
                                              cp_error_type
   USE cp_files,                        ONLY: close_file,&
                                              open_file
-  USE cp_log_handling,                 ONLY: cp_failure_level
+  USE cp_log_handling,                 ONLY: cp_failure_level, cp_to_string
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE cp_subsystem_types,              ONLY: cp_subsys_get,&
                                              cp_subsystem_p_type

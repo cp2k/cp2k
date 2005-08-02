@@ -69,7 +69,7 @@ MODULE parallel_rng_types
                                              cp_assert,&
                                              cp_assertion_failed,&
                                              cp_error_type
-  USE cp_log_handling,                 ONLY: cp_failure_level
+  USE cp_log_handling,                 ONLY: cp_failure_level,cp_to_string
   USE kinds,                           ONLY: dp
 
   IMPLICIT NONE
