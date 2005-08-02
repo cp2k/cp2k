@@ -496,8 +496,7 @@ CONTAINS
 !!                                                           f_EII, f_harris, 
 !!                                                           f_cross_integrate_v, 
 !!                                                           f_cross_integrate_v_core,
-!!                                                           f_kinetic,
-!!                                                           f_gth_pp,
+!!                                                           f_kinetic, gth_pp, 
 !!                                                           f_overlap
 !!       REAL(KIND=dp), DIMENSION(:), POINTER, OPTIONAL   :: f_total
 !!       TYPE(cp_error_type), OPTIONAL, INTENT(INOUT)     :: error

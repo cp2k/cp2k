@@ -61,7 +61,7 @@ CONTAINS
 SUBROUTINE calculate_hartree ( density, ehartree, vhartree, dvhartree, h_stress )
   
     TYPE(coeff_type), INTENT(IN)             :: density
-    REAL(KIND=dp), INTENT(OUT), OPTIONAL         :: ehartree
+    REAL(KIND=dp), INTENT(OUT), OPTIONAL     :: ehartree
     TYPE(coeff_type), INTENT(INOUT), &
       OPTIONAL, TARGET                       :: vhartree
     TYPE(coeff_type), DIMENSION(3), &

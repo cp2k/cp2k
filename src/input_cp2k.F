@@ -6124,6 +6124,13 @@ END SUBROUTINE create_ewald_section
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
+       CALL keyword_create(keyword, name="CORE_CORRECTION",&
+            description="Corrects the effective nuclear charge",&
+            usage="CORE_CORRECTION 1.0", n_var=1, required=.FALSE., &
+            default_r_val=0.0_dp, error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
        CALL keyword_create(keyword, name="ELEMENT",&
             variants=(/ "ELEMENT_SYMBOL" /),&
             description="The element of the actual kind "//&

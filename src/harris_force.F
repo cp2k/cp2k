@@ -70,6 +70,7 @@ MODULE harris_force
                                              REALSPACE, &
                                              pw_zero, &
                                              pw_release
+  !USE qs_core_energies,                ONLY: calculate_ecore_overlap
   USE qs_core_hamiltonian,             ONLY: build_core_hamiltonian_matrix
   USE qs_environment_types,            ONLY: get_qs_env, &
                                              set_qs_env, &
@@ -163,6 +164,7 @@ CONTAINS
                                                        v_tau_rspace
     REAL(KIND=dp)                                   :: Exc, &
                                                        Ehartree
+                                                       !E_overlap_core
     TYPE(qs_rho_type), POINTER                      :: rho
     TYPE(real_matrix_p_type), DIMENSION(:), POINTER :: matrix_ks, &
                                                        matrix_h
@@ -194,7 +196,7 @@ CONTAINS
     NULLIFY(force, force_tmp, v_rspace_new, v_tau_rspace, rho, matrix_ks, &
             green, pw_env, auxbas_pw_pool, rho_core, cell, dft_control, &
             atomic_kind_set, particle_set, deriv_set, rho_set, my_rho_r, &
-            v_xc, matrix_h, harris_force)
+            v_xc, matrix_h, harris_force, rho_r)
     logger => cp_error_get_logger(error)
 
     CPPrecondition(ASSOCIATED(qs_env), cp_failure_level, routineP, error, failure)
@@ -228,10 +230,13 @@ CONTAINS
       CALL duplicate_qs_force(qs_force_input=force, qs_force_output=force_tmp, &
                               natom_of_kind=natom_of_kind)
       CALL zero_qs_force(force)
+      
 
-
+      ! *** Sum of eigenvalues = trace(H_in * rho_out) *** !
       CALL build_core_hamiltonian_matrix(qs_env=qs_env, globenv=globenv, &
-                                         calculate_forces=.TRUE., harris=.TRUE.)
+                                         calculate_forces=.TRUE., harris=.FALSE.)
+      !CALL build_core_hamiltonian_matrix(qs_env=qs_env, globenv=globenv, &
+      !                                   calculate_forces=.TRUE., harris=.TRUE.)
 
       DO iatom = 1, natom
         ikind = kind_of(iatom)
@@ -243,6 +248,236 @@ CONTAINS
       END DO
 
       CALL zero_qs_force(force)
+
+      CALL get_qs_env(qs_env=qs_env, pw_env=pw_env, rho=rho, rho_core=rho_core, &
+                      green=green, error=error)
+      !CALL harris_env_get(harris_env=harris_env, matrix_h=matrix_h, &
+      !                    matrix_ks=matrix_ks, error=error)
+      CALL get_qs_env(qs_env=qs_env, matrix_h=matrix_h, matrix_ks=matrix_ks, error=error)
+
+      CALL pw_env_get(pw_env=pw_env, auxbas_pw_pool=auxbas_pw_pool, error=error)
+      CALL pw_pool_init_coeff(auxbas_pw_pool, v_hartree_gspace, &
+                              use_data = COMPLEXDATA1D,&
+                              in_space = RECIPROCALSPACE, error=error)
+      CALL pw_pool_init_coeff(auxbas_pw_pool, v_hartree_rspace, &
+                              use_data=REALDATA3D, in_space=REALSPACE)
+
+      ! *** Calculation of the forces due to the Hartree energy *** !
+      CALL init_pw_poisson_solver(green,error=error)
+      CALL calculate_hartree(rho%rho_g(1), ehartree=Ehartree, vhartree=v_hartree_gspace)
+      !CALL calculate_hartree(harris_env%rho%rho_g(1), ehartree=Ehartree, %
+      !                       vhartree=v_hartree_gspace)
+      CALL cleanup_pw_poisson_solver(green,error=error)
+
+      CALL coeff_transform_space(v_hartree_gspace, v_hartree_rspace)
+      CALL coeff_scale(v_hartree_rspace, v_hartree_rspace%pw%pw_grid%dvol)
+
+      CALL integrate_v_rspace(v_rspace=v_hartree_rspace, p=harris_env%rho%rho_ao(1), &
+                              h=matrix_ks(1), qs_env=qs_env, calculate_forces=.TRUE., &
+                              gapw=.FALSE.,error=error)
+      !CALL integrate_v_rspace(v_rspace=v_hartree_rspace, p=rho%rho_ao(1), &
+      !                        h=matrix_ks(1), qs_env=qs_env, calculate_forces=.TRUE., &
+      !                        gapw=.FALSE.,error=error)
+
+      DO iatom = 1, natom
+        ikind = kind_of(iatom)
+        i = atom_of_kind(iatom)
+        harris_force%f_hartree(iatom, 1:3) = force(ikind)%rho_elec(1:3,i)
+      END DO
+
+      CALL zero_qs_force(force)
+
+      CALL init_pw_poisson_solver(green,error=error)
+      CALL calculate_hartree(harris_env%rho%rho_g(1), ehartree=Ehartree, &
+                             vhartree=v_hartree_gspace)
+      !CALL calculate_hartree(rho%rho_g(1), ehartree=Ehartree, vhartree=v_hartree_gspace)
+      CALL cleanup_pw_poisson_solver(green,error=error)
+
+      CALL coeff_transform_space(v_hartree_gspace, v_hartree_rspace)
+      CALL coeff_scale(v_hartree_rspace, v_hartree_rspace%pw%pw_grid%dvol)
+
+      CALL integrate_v_rspace(v_rspace=v_hartree_rspace, p=rho%rho_ao(1), &
+                              h=matrix_ks(1), qs_env=qs_env, calculate_forces=.TRUE., &
+                              gapw=.FALSE.,error=error)
+      !CALL integrate_v_rspace(v_rspace=v_hartree_rspace, p=harris_env%rho%rho_ao(1), &
+      !                        h=matrix_ks(1), qs_env=qs_env, calculate_forces=.TRUE., &
+      !                        gapw=.FALSE.,error=error)
+
+      DO iatom = 1, natom
+        ikind = kind_of(iatom)
+        i = atom_of_kind(iatom)
+        harris_force%f_hartree(iatom, 1:3) = harris_force%f_hartree(iatom, 1:3) + &
+             force(ikind)%rho_elec(1:3,i)
+      END DO
+
+      CALL zero_qs_force(force)
+
+      ! ** Force computation of f_V  ** !
+      CALL init_pw_poisson_solver(green, error=error)
+      CALL calculate_hartree(rho%rho_g(1), ehartree=Ehartree, vhartree=v_hartree_gspace)
+      CALL cleanup_pw_poisson_solver(green, error=error)
+
+      CALL coeff_transform_space(v_hartree_gspace, v_hartree_rspace)
+      CALL coeff_scale(v_hartree_rspace, v_hartree_rspace%pw%pw_grid%dvol)
+
+      CALL integrate_v_core_rspace(v_hartree_rspace, qs_env)
+      
+      DO iatom = 1, natom
+        ikind = kind_of(iatom)
+        i = atom_of_kind(iatom)
+        harris_force%f_cross_integrate_v_core(iatom, 1:3) = force(ikind)%rho_core(1:3,i)
+      END DO
+
+      CALL zero_qs_force(force)
+
+      CALL transfer_matrix(matrix_h(1)%matrix, matrix_ks(1)%matrix)
+            
+      CALL init_pw_poisson_solver(green,error=error)
+      CALL calculate_hartree(rho_core, ehartree=Ehartree, &
+                             vhartree=v_hartree_gspace)
+      CALL cleanup_pw_poisson_solver(green,error=error)
+
+      CALL coeff_transform_space(v_hartree_gspace, v_hartree_rspace)
+      CALL coeff_scale(v_hartree_rspace, v_hartree_rspace%pw%pw_grid%dvol)
+
+      CALL integrate_v_rspace(v_rspace=v_hartree_rspace, p=rho%rho_ao(1), &
+                              h=matrix_ks(1), qs_env=qs_env, calculate_forces=.TRUE., &
+                              gapw=.FALSE.,error=error)
+
+      CALL pw_pool_give_back_coeff(auxbas_pw_pool, v_hartree_gspace, &
+                                   error=error)
+      CALL pw_pool_give_back_coeff(auxbas_pw_pool, v_hartree_rspace, error=error)
+
+      DO iatom = 1, natom
+        ikind = kind_of(iatom)
+        i = atom_of_kind(iatom)
+        harris_force%f_cross_integrate_v(iatom, 1:3) = force(ikind)%rho_elec(1:3,i)
+        harris_force%f_V(iatom,1:3) = harris_force%f_cross_integrate_v(iatom,1:3) &
+                                    + harris_force%f_cross_integrate_v_core(iatom,1:3)
+      END DO
+
+      CALL zero_qs_force(force)
+
+      ! *** Calculation of the forces of the xc-integral *** !
+      CALL qs_vxc_create(qs_env=qs_env, vxc_rho=v_rspace_new, vxc_tau=v_tau_rspace, &
+                         exc=Exc, just_energy=.FALSE., harris=.FALSE., error=error)
+      CALL coeff_scale(v_rspace_new(1), v_rspace_new(1)%pw%pw_grid%dvol)
+      CALL integrate_v_rspace(v_rspace=v_rspace_new(1), p=rho%rho_ao(1), &
+                              h=matrix_ks(1), qs_env=qs_env, calculate_forces=.TRUE., &
+                              gapw=.FALSE., error=error)
+
+      DO iatom = 1, natom
+        ikind = kind_of(iatom)
+        i = atom_of_kind(iatom)
+        harris_force%f_xc(iatom, 1:3) = force(ikind)%rho_elec(1:3,i)
+      END DO
+
+      CALL zero_qs_force(force)
+
+      CALL get_qs_env(qs_env=qs_env, dft_control=dft_control, cell=cell, error=error)
+
+      CALL qs_rho_get(rho, rho_r=rho_r, error=error)
+      ALLOCATE(my_rho_r(SIZE(rho_r)), stat=stat)
+      CPPostcondition(stat==0, cp_failure_level, routineP, error, failure)
+      DO ispin=1, SIZE(rho_r)
+        my_rho_r(ispin)%pw => rho_r(ispin)%pw
+      END DO
+      CALL xc_prep_2nd_deriv_new(deriv_set=deriv_set, rho_set=rho_set, &
+                                 rho_r=my_rho_r, pw_pool=auxbas_pw_pool, &
+                                 dft_control=dft_control, cell=cell, error=error)
+      DEALLOCATE(my_rho_r, stat=stat)
+      CPPostconditionNoFail(stat==0, cp_warning_level, routineP, error)
+
+      ! ** v_xc ** !
+      nspins = dft_control%nspins
+      ALLOCATE(v_xc(nspins), stat=stat)
+      CPPostcondition(stat==0, cp_failure_level, routineP, error, failure)
+      DO ispin=1, nspins
+        NULLIFY(v_xc(ispin)%pw)
+        CALL pw_pool_create_pw(auxbas_pw_pool, v_xc(ispin)%pw, use_data=REALDATA3D, &
+                               in_space=REALSPACE, error=error)
+        CALL pw_zero(v_xc(ispin)%pw)
+      END DO
+
+      CALL xc_calc_2nd_deriv_new(v_xc, deriv_set=deriv_set, rho_set=rho_set, &
+                                rho1_set=rho_set, pw_pool=auxbas_pw_pool, &
+                                dft_control=dft_control, gapw=.FALSE., error=error)
+
+      CALL xc_dset_release(deriv_set, error=error)
+
+      v_xc(1)%pw%cr3d = v_xc(1)%pw%cr3d * v_xc(1)%pw%pw_grid%dvol
+      v_rspace_new(1)%pw%cr3d = rho_r(1)%pw%cr3d * v_xc(1)%pw%cr3d
+      CALL coeff_scale(v_rspace_new(1), v_rspace_new(1)%pw%pw_grid%dvol)
+
+      CALL pw_release(v_xc(1)%pw, error=error)
+      DEALLOCATE(v_xc,stat=stat)
+      CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+      
+      CALL xc_rho_set_release(rho_set)
+
+      CALL integrate_v_rspace(v_rspace=v_rspace_new(1), p=rho%rho_ao(1), &
+                              h=matrix_ks(1), qs_env=qs_env, calculate_forces=.TRUE., &
+                              gapw=.FALSE., error=error)
+
+      IF (ASSOCIATED(v_rspace_new)) THEN
+        CALL pw_pool_give_back_coeff(auxbas_pw_pool,v_rspace_new(1),error=error)
+      END IF
+      IF (ASSOCIATED(v_tau_rspace)) THEN
+        CALL pw_pool_give_back_coeff(auxbas_pw_pool,v_tau_rspace(1),error=error)
+      END IF
+
+      DO iatom = 1, natom
+        ikind = kind_of(iatom)
+        i = atom_of_kind(iatom)
+        harris_force%f_delta_integral_vxc(iatom, 1:3) = force(ikind)%rho_elec(1:3,i)
+        harris_force%f_integral_vxc(iatom, 1:3) = harris_force%f_xc(iatom,1:3) &
+             + harris_force%f_delta_integral_vxc(iatom,1:3)
+      END DO
+
+      DO iatom = 1, natom
+        ikind = kind_of(iatom)
+        i = atom_of_kind(iatom)
+        harris_force%f_trace(iatom, 1:3) = harris_force%f_kinetic(iatom, 1:3) &
+                                         + harris_force%f_gth_pp(iatom, 1:3) &
+                                         + harris_force%f_overlap(iatom, 1:3) &
+                                         + harris_force%f_V(iatom, 1:3) &
+                                         !+ 2*harris_force%f_hartree(iatom, 1:3) &
+                                         + harris_force%f_hartree(iatom, 1:3) &
+                                         + harris_force%f_integral_vxc(iatom, 1:3)
+      END DO
+
+      DO iatom =1, natom
+        ikind = kind_of(iatom)
+        i = atom_of_kind(iatom)
+        harris_force%f_kinetic(iatom, 1:3) = 0.0_dp
+        harris_force%f_gth_pp(iatom, 1:3) = 0.0_dp
+        harris_force%f_overlap(iatom, 1:3) = 0.0_dp
+        harris_force%f_V(iatom, 1:3) = 0.0_dp
+        harris_force%f_integral_vxc(iatom, 1:3) = 0.0_dp
+        harris_force%f_xc(iatom, 1:3) = 0.0_dp
+        harris_force%f_delta_integral_vxc(iatom, 1:3) = 0.0_dp
+        harris_force%f_cross_integrate_v(iatom,1:3) = 0.0_dp
+        harris_force%f_cross_integrate_v_core(iatom,1:3) = 0.0_dp
+      END DO
+
+      !CALL zero_qs_force(force)
+      !
+      !CALL calculate_ecore_overlap(qs_env=qs_env, globenv=globenv, &
+      !                             calculate_forces=.TRUE., E_overlap_core=E_overlap_core)
+      !
+      !DO iatom = 1, natom
+      !  ikind = kind_of(iatom)
+      !  i = atom_of_kind(iatom)
+      !  harris_force%f_ovrl(iatom, 1:3) = force(ikind)%core_overlap(1:3,i)
+      !END DO
+
+      CALL zero_qs_force(force)
+
+      NULLIFY(rho, rho_core, pw_env, green, auxbas_pw_pool, cell, dft_control, &
+              rho_r, my_rho_r, deriv_set, rho_set, v_xc, matrix_ks, matrix_h, &
+              v_rspace_new, v_tau_rspace)
+      
+      ! *** End of force calculation due to the sum_of_eigenvalues *** !
 
 
       CALL get_qs_env(qs_env=qs_env, pw_env=pw_env, rho_core=rho_core, &
@@ -292,6 +527,18 @@ CONTAINS
 
       CALL zero_qs_force(force)
 
+      
+      !CALL calculate_ecore_overlap(qs_env=qs_env, globenv=globenv, &
+      !                             calculate_forces=.TRUE., E_overlap_core=E_overlap_core)
+      !
+      !DO iatom = 1, natom
+      !  ikind = kind_of(iatom)
+      !  i = atom_of_kind(iatom)
+      !  harris_force%f_ovrl(iatom, 1:3) = force(ikind)%core_overlap(1:3,i)
+      !END DO
+      !
+      !CALL zero_qs_force(force)
+
 
       ! ** Force computation of f_V  ** !
       !CALL pw_pool_init_coeff(auxbas_pw_pool, v_hartree_gspace, &
@@ -323,11 +570,16 @@ CONTAINS
 
       !CALL build_core_hamiltonian_matrix(qs_env=qs_env, globenv=globenv, &
       !                                   calculate_forces=.TRUE.)
+
       CALL get_qs_env(qs_env=qs_env, matrix_h=matrix_h, matrix_ks=matrix_ks, error=error)
+      !CALL harris_env_get(harris_env=harris_env, matrix_h=matrix_h, &
+      !                    matrix_ks=matrix_ks, error=error)
+
       !DO ispin = 1, nspins
         ! copy of the core hamiltonian matrix into the KS-matrix
         CALL transfer_matrix(matrix_h(1)%matrix, matrix_ks(1)%matrix)
       !END DO
+      !CALL harris_env_get(harris_env=harris_env, matrix_ks=matrix_ks, error=error)
 
       !CALL pw_pool_init_coeff(auxbas_pw_pool, v_hartree_gspace, &
       !                        use_data = COMPLEXDATA1D,&
@@ -403,9 +655,11 @@ CONTAINS
 
 
       ! *** The forces due to exchange and correlation *** !
-      CALL qs_vxc_create(qs_env=qs_env, vxc_rho = v_rspace_new, vxc_tau=v_tau_rspace, &
-                         exc=Exc, just_energy = .FALSE., error=error)
-
+      !CALL qs_vxc_create(qs_env=qs_env, vxc_rho=v_rspace_new, vxc_tau=v_tau_rspace, &
+      !                   exc=Exc, just_energy=.FALSE., harris=.FALSE., error=error)
+      CALL qs_vxc_create(qs_env=qs_env, vxc_rho=v_rspace_new, vxc_tau=v_tau_rspace, &
+                         exc=Exc, just_energy=.FALSE., harris=.TRUE., error=error)
+     
       CALL coeff_scale(v_rspace_new(1), v_rspace_new(1)%pw%pw_grid%dvol)
       CALL integrate_v_rspace(v_rspace=v_rspace_new(1), p=rho%rho_ao(1), &
                               h=matrix_ks(1), qs_env=qs_env, calculate_forces=.TRUE., &
@@ -491,23 +745,19 @@ CONTAINS
       END DO
 
       !CALL zero_qs_force(force)
-
+      !
+      !CALL calculate_ecore_overlap(qs_env=qs_env, globenv=globenv, &
+      !                             calculate_forces=.TRUE., E_overlap_core=E_overlap_core)
+      !
+      !DO iatom = 1, natom
+      !  ikind = kind_of(iatom)
+      !  i = atom_of_kind(iatom)
+      !  harris_force%f_ovrl(iatom, 1:3) = force(ikind)%core_overlap(1:3,i)
+      !END DO
       
-      DO iatom = 1, natom
-        ikind = kind_of(iatom)
-        i = atom_of_kind(iatom)
-        harris_force%f_trace(iatom, 1:3) = harris_force%f_kinetic(iatom, 1:3) & 
-                                         + harris_force%f_gth_pp(iatom, 1:3) &
-                                         + harris_force%f_overlap(iatom, 1:3) &
-                                         + harris_force%f_V(iatom, 1:3) &
-                                         + 2*harris_force%f_hartree(iatom, 1:3) &
-                                         + harris_force%f_integral_vxc(iatom, 1:3)
-      END DO
-
-
       CALL deallocate_qs_force(force)
       CALL set_qs_env(qs_env=qs_env, force=force_tmp, error=error)
-
+      
       CALL get_qs_env(qs_env=qs_env, force=force, error=error)
       harris_force%f_total(:) = 0.0_dp
 
