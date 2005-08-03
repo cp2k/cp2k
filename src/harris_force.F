@@ -47,6 +47,7 @@ MODULE harris_force
                                              cp_warning_level,&
                                              cp_logger_get_default_unit_nr,&
                                              cp_logger_type
+  USE cp_para_types,                   ONLY: cp_para_env_type
   USE global_types,                    ONLY: global_environment_type
   USE green_types,                     ONLY: greens_function_type
   USE harris_env_types,                ONLY: harris_env_type, &
@@ -86,6 +87,8 @@ MODULE harris_force
                                              qs_rho_get
   USE simulation_cell,                 ONLY: cell_type
   USE sparse_matrix_types,             ONLY: real_matrix_p_type, &
+                                             !cp_sm_scale_and_add, &
+                                             !cp_sm_maxabsval, &
                                              transfer_matrix
   USE timings,                         ONLY: timeset, &
                                              timestop
@@ -254,6 +257,18 @@ CONTAINS
       !CALL harris_env_get(harris_env=harris_env, matrix_h=matrix_h, &
       !                    matrix_ks=matrix_ks, error=error)
       CALL get_qs_env(qs_env=qs_env, matrix_h=matrix_h, matrix_ks=matrix_ks, error=error)
+
+      ! *** Debug Section for the KS & H Matrices *** !
+      !CALL get_qs_env(qs_env=qs_env, para_env=para_env, error=error)
+      !CALL cp_sm_scale_and_add(matrix_a=harris_env%matrix_h(1)%matrix, alpha=1.0_dp, &
+      !                         matrix_b=matrix_h(1)%matrix, beta=-1.0_dp, error=error)
+      !CALL cp_sm_maxabsval(matrix=harris_env%matrix_h(1)%matrix, maxabsval=maxabsval, &
+      !                     para_env=para_env, error=error)
+      !
+      !CALL cp_sm_scale_and_add(matrix_a=harris_env%matrix_ks(1)%matrix, alpha=1.0_dp, &
+      !                         matrix_b=matrix_ks(1)%matrix, beta=-1.0_dp, error=error)
+      !CALL cp_sm_maxabsval(matrix=harris_env%matrix_ks(1)%matrix, maxabsval=maxabsval, &
+      !                     para_env=para_env, error=error)
 
       CALL pw_env_get(pw_env=pw_env, auxbas_pw_pool=auxbas_pw_pool, error=error)
       CALL pw_pool_init_coeff(auxbas_pw_pool, v_hartree_gspace, &
@@ -426,6 +441,16 @@ CONTAINS
         CALL pw_pool_give_back_coeff(auxbas_pw_pool,v_tau_rspace(1),error=error)
       END IF
 
+      IF (ASSOCIATED(v_rspace_new)) THEN
+        DEALLOCATE(v_rspace_new,stat=stat)
+        CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+      END IF
+      
+      IF (ASSOCIATED(v_tau_rspace)) THEN
+        DEALLOCATE(v_tau_rspace,stat=stat)
+        CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+      END IF 
+
       DO iatom = 1, natom
         ikind = kind_of(iatom)
         i = atom_of_kind(iatom)
@@ -539,80 +564,9 @@ CONTAINS
       !
       !CALL zero_qs_force(force)
 
-
-      ! ** Force computation of f_V  ** !
-      !CALL pw_pool_init_coeff(auxbas_pw_pool, v_hartree_gspace, &
-      !                        use_data = COMPLEXDATA1D,&
-      !                        in_space = RECIPROCALSPACE, error=error)
-
-      CALL init_pw_poisson_solver(green, error=error)
-      CALL calculate_hartree(rho%rho_g(1), ehartree=Ehartree, vhartree=v_hartree_gspace)
-      CALL cleanup_pw_poisson_solver(green, error=error)
-
-      !CALL pw_pool_init_coeff(auxbas_pw_pool, v_hartree_rspace, &
-      !                        use_data=REALDATA3D, in_space=REALSPACE)
-      CALL coeff_transform_space(v_hartree_gspace, v_hartree_rspace)
-      CALL coeff_scale(v_hartree_rspace, v_hartree_rspace%pw%pw_grid%dvol)
-
-      !CALL pw_pool_give_back_coeff(auxbas_pw_pool, v_hartree_gspace, &
-      !                             error=error)
-
-      CALL integrate_v_core_rspace(v_hartree_rspace, qs_env)
-      !CALL pw_pool_give_back_coeff(auxbas_pw_pool, v_hartree_rspace, error=error)
-      
-      DO iatom = 1, natom
-        ikind = kind_of(iatom)
-        i = atom_of_kind(iatom)
-        harris_force%f_cross_integrate_v_core(iatom, 1:3) = force(ikind)%rho_core(1:3,i)
-      END DO
-
-      CALL zero_qs_force(force)
-
-      !CALL build_core_hamiltonian_matrix(qs_env=qs_env, globenv=globenv, &
-      !                                   calculate_forces=.TRUE.)
-
       CALL get_qs_env(qs_env=qs_env, matrix_h=matrix_h, matrix_ks=matrix_ks, error=error)
       !CALL harris_env_get(harris_env=harris_env, matrix_h=matrix_h, &
       !                    matrix_ks=matrix_ks, error=error)
-
-      !DO ispin = 1, nspins
-        ! copy of the core hamiltonian matrix into the KS-matrix
-        CALL transfer_matrix(matrix_h(1)%matrix, matrix_ks(1)%matrix)
-      !END DO
-      !CALL harris_env_get(harris_env=harris_env, matrix_ks=matrix_ks, error=error)
-
-      !CALL pw_pool_init_coeff(auxbas_pw_pool, v_hartree_gspace, &
-      !                        use_data = COMPLEXDATA1D,&
-      !                        in_space = RECIPROCALSPACE, error=error)
-      
-      CALL init_pw_poisson_solver(green,error=error)
-      CALL calculate_hartree(rho_core, ehartree=Ehartree, &
-                             vhartree=v_hartree_gspace)
-      CALL cleanup_pw_poisson_solver(green,error=error)
-
-      !CALL pw_pool_init_coeff(auxbas_pw_pool, v_hartree_rspace, &
-      !                        use_data=REALDATA3D, in_space=REALSPACE)
-      CALL coeff_transform_space(v_hartree_gspace, v_hartree_rspace)
-      CALL coeff_scale(v_hartree_rspace, v_hartree_rspace%pw%pw_grid%dvol)
-
-      !CALL pw_pool_give_back_coeff(auxbas_pw_pool, v_hartree_gspace, &
-      !                             error=error)
-
-      CALL integrate_v_rspace(v_rspace=v_hartree_rspace, p=rho%rho_ao(1), &
-                              h=matrix_ks(1), qs_env=qs_env, calculate_forces=.TRUE., &
-                              gapw=.FALSE.,error=error)
-      !CALL pw_pool_give_back_coeff(auxbas_pw_pool, v_hartree_rspace, error=error)
-
-      DO iatom = 1, natom
-        ikind = kind_of(iatom)
-        i = atom_of_kind(iatom)
-        harris_force%f_cross_integrate_v(iatom, 1:3) = force(ikind)%rho_elec(1:3,i)
-        harris_force%f_V(iatom,1:3) = harris_force%f_cross_integrate_v(iatom,1:3) &
-                                    + harris_force%f_cross_integrate_v_core(iatom,1:3)
-      END DO
-
-      CALL zero_qs_force(force)
-
 
       ! *** The forces due to the hartree electron-electron repulsion *** !
       !CALL pw_pool_init_coeff(auxbas_pw_pool, v_hartree_gspace, &
@@ -743,6 +697,19 @@ CONTAINS
         harris_force%f_integral_vxc(iatom, 1:3) = harris_force%f_xc(iatom,1:3) &
              + harris_force%f_delta_integral_vxc(iatom,1:3)
       END DO
+
+      !CALL zero_qs_force(force)
+      !
+      !CALL build_core_hamiltonian_matrix(qs_env=qs_env, globenv=globenv, &
+      !                                   calculate_forces=.TRUE., harris=.TRUE.)
+      !
+      !DO iatom = 1, natom
+      !  ikind = kind_of(iatom)
+      !  i = atom_of_kind(iatom)
+      !  harris_force%f_overlap(iatom, 1:3) = force(ikind)%overlap(1:3,i)
+      !  harris_force%f_trace(iatom, 1:3) = harris_force%f_trace(iatom, 1:3) &
+      !                                   + force(ikind)%overlap(1:3, i)
+      !END DO
 
       !CALL zero_qs_force(force)
       !
