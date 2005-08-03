@@ -354,7 +354,7 @@ CONTAINS
     CALL timeset(routine_name,"I",'',handle)
 
     ionode = globenv%ionode
-    output_unit = globenv%scr
+    IF(ionode) output_unit = globenv%scr
     was_present = .FALSE.
 
     IF (PRESENT(harris)) THEN

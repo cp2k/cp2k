@@ -53,7 +53,7 @@ MODULE xas_tp_scf
                                              cp_warning_level
   USE global_types,                    ONLY: global_environment_type
   USE input_constants,                 ONLY: xas_tp_hh, xas_tp_fh,&
-                                             do_loc_none 
+                                             xas_dscf, do_loc_none 
   USE kinds,                           ONLY: dp
   USE machine,                         ONLY: m_flush,&
                                              m_walltime
@@ -154,7 +154,7 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = "xas_tp_scf", &
       routineP = module_name//':'//routineN
 
-    INTEGER                                  :: handle, handle2,  ic_max, ir_max,ispin, &
+    INTEGER                                  :: handle, handle2,  homo, ic_max, ir_max,ispin, &
                                                 istat, iter_count, nao, nmo,output_unit,i,istate
     LOGICAL :: diis_step, do_level_shift, energy_only, failure,& 
                gapw, ionode, should_stop, uniform_occupation, use_cholesky, use_jacobi, id_equal
@@ -194,6 +194,7 @@ CONTAINS
     TYPE (real_matrix_p_type), DIMENSION(:,:),&
       POINTER                                    :: op_sm_set
     INTEGER :: m, n
+
     NULLIFY(dft_control,matrix_h,matrix_s,matrix_ks,matrix_p,rho,energy,scf_control,logger,&
          ks_env,mos,atomic_kind_set,particle_set,vecbuffer,vecbuffer2, occupation_numbers,&
          scf_work1,ortho,scf_work2,excvec_coeff,excvec_overlap,mo_coeff,fm_work,&
@@ -370,7 +371,7 @@ CONTAINS
                IF(ispin == 1) THEN
 ! ** use the maximum overlap criterion to find the index of the excited orbital
                  CALL get_mo_set(mos(1)%mo_set, mo_coeff=mo_coeff,nao=nao,nmo=nmo,&
-                      eigenvalues=eigenvalues)
+                      eigenvalues=eigenvalues,homo=homo)
 !TEST : Calculate the centers of the wavefunctions to check the localization
                  IF(.FALSE.) THEN
                  CALL get_xas_env(xas_env=xas_env, qs_loc_env=qs_loc_env)
@@ -434,6 +435,10 @@ CONTAINS
                    ELSE IF(xas_control%xas_method == xas_tp_fh) THEN
                        occupation_numbers(dft_control%xas_estate) = 0.0_dp
                        occupation_numbers(ir_max) = 1.0_dp
+                   ELSE IF(xas_control%xas_method == xas_dscf) THEN
+                       occupation_numbers(dft_control%xas_estate) = 0.0_dp
+                       occupation_numbers(ir_max) = 1.0_dp
+                       occupation_numbers(homo+1) = 1.0_dp
                    END IF
 
                  END IF

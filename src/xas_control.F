@@ -31,9 +31,8 @@ MODULE xas_control
                                              cp_to_string,&
                                              cp_warning_level
   USE global_types,                    ONLY: global_environment_type
-  USE input_constants,                 ONLY: xas_none, xas_tp_hh, &
-                                             xas_tp_fh, xas_tddft,&
-                                             xas_1s_type, xas_2s_type
+  USE input_constants,                 ONLY: xas_tp_hh, &
+                                             xas_1s_type
   USE input_section_types,             ONLY: section_vals_get,&
                                              section_vals_get_subs_vals,&
                                              section_vals_get_subs_vals2,&

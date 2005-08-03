@@ -72,7 +72,7 @@ MODULE xas_methods
   USE cp_sm_fm_interactions,           ONLY: cp_sm_fm_multiply
   USE global_types,                    ONLY: global_environment_type
   USE input_constants,                 ONLY: xas_none, xas_tp_hh, &
-                                             xas_tp_fh, xas_tddft,&
+                                             xas_tp_fh, xas_tddft, xas_dscf,&
                                              xas_1s_type, xas_2s_type, &
                                              xas_2p_type, xas_dip_len,&
                                              do_loc_none, op_loc_berry,&
@@ -285,7 +285,8 @@ CONTAINS
     nexc_search = xas_control%nexc_search
     nspins = dft_control%nspins
     transition_potential = (xas_control%xas_method==xas_tp_hh).OR.&
-                           (xas_control%xas_method==xas_tp_fh)
+                           (xas_control%xas_method==xas_tp_fh).OR.&
+                           (xas_control%xas_method==xas_dscf)
     IF(nspins ==1 .AND. transition_potential) THEN
        CALL stop_program(routineP,"xas with tp method requires LSD calculations")
     END IF
@@ -470,13 +471,15 @@ CONTAINS
            CALL write_mo_set(mos(ispin)%mo_set,atomic_kind_set,particle_set,4,6,globenv)
          ENDDO
 
+         IF(.NOT. xas_control%xas_method == xas_dscf) THEN
          ! Calculate the spectrum
-         IF(xas_control%dipole_form == xas_dip_len) THEN
-           CALL spectrum_dip_len(xas_control,dip_fm_set,ostrength_sm,mos,excvec_coeff,fm_work,&
+           IF(xas_control%dipole_form == xas_dip_len) THEN
+             CALL spectrum_dip_len(xas_control,dip_fm_set,ostrength_sm,mos,excvec_coeff,fm_work,&
                  cell,spectrum,dft_control%xas_estate,error=error)
-         ELSE
-           CALL spectrum_dip_vel(xas_control,dip_fm_set,ostrength_sm,mos,excvec_coeff,fm_work,&
-                spectrum,dft_control%xas_estate,error=error)
+           ELSE
+             CALL spectrum_dip_vel(xas_control,dip_fm_set,ostrength_sm,mos,excvec_coeff,fm_work,&
+                  spectrum,dft_control%xas_estate,error=error)
+           END IF
          END IF
       ELSE
          ! the states defined by the rotation are the ground state orbitals
@@ -485,10 +488,15 @@ CONTAINS
 !         CALL xas_tddft(error)
       END IF
 
+      !update iteration counter
       iter = xas_iter_count*xas_control%each_step
+
     ! append the spectrum of this iteration to the right output file
-      CALL xas_write(xas_control,spectrum, dft_control%xas_estate, &
-           homo, iatom, iter, ionode, error=error)
+      IF(.NOT. xas_control%xas_method == xas_dscf) THEN
+        CALL xas_write(xas_control,spectrum, dft_control%xas_estate, &
+             homo, iatom, iter, ionode, error=error)
+      END IF
+
       DO ispin = 1,nspins
        CALL get_mo_set(mos(ispin)%mo_set, mo_coeff=mo_coeff,&
             nao=nao, nmo=nmo)
@@ -656,7 +664,8 @@ CONTAINS
       nspins = SIZE(mos,1)
 
       ! initialize operators for the calculation of the oscillator strengts
-      IF (xas_control%xas_method==xas_tp_hh .OR. xas_control%xas_method==xas_tp_fh) THEN
+      IF (xas_control%xas_method==xas_tp_hh .OR. xas_control%xas_method==xas_tp_fh &
+         .OR. xas_control%xas_method==xas_dscf) THEN
         
         ALLOCATE (xas_env%groundstate_coeff(nspins), STAT=istat)
         CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)

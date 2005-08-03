@@ -8153,11 +8153,11 @@ END SUBROUTINE create_ot_section
            description="Method to be used to calculate XAS",&
            usage="METHOD TP_HH",&
            default_i_val=xas_none,&
-           enum_c_vals=s2a( "NONE", "TP_HH", "TP_FH", "TDDFT"),&
+           enum_c_vals=s2a( "NONE", "TP_HH", "TP_FH", "TDDFT","DSCF"),&
            enum_desc=s2a("No XAS is calculated", "Transition potential halfhole",&
                          "Transition potential fullhole", &
-                         "Excitations by TDDFT"),&
-           enum_i_vals=(/xas_none,xas_tp_hh,xas_tp_fh,xas_tddft/),&
+                         "Excitations by TDDFT","DSCF calculations for the first excited state"),&
+           enum_i_vals=(/xas_none,xas_tp_hh,xas_tp_fh,xas_tddft,xas_dscf/),&
            error=error)
       CALL section_add_keyword(section,keyword,error=error)
       CALL keyword_release(keyword,error=error)
