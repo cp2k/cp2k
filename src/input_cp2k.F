@@ -2265,12 +2265,194 @@ SUBROUTINE create_tddfpt_section(section,error)
     CALL section_add_subsection(section, subsection, error=error)
     CALL section_release(subsection,error=error)
 
-    CALL create_linres_section(subsection,error)
+    CALL create_properties_section(subsection,error)
     CALL section_add_subsection(section, subsection, error=error)
     CALL section_release(subsection,error=error)
 
   END SUBROUTINE create_force_eval_section
 !***************************************************************************
+
+
+!***************************************************************************
+!!****f* input_cp2k/create_properties_section [1.0] *
+!!
+!!   NAME
+!!     create_properties_section
+!!
+!!   FUNCTION
+!!     Create the PROPERTIES section 
+!!
+!!   NOTES
+!!     -
+!!
+!!   ARGUMENTS
+!!     - section: the section to create
+!!     - error: variable to control error logging, stopping,... 
+!!       see module cp_error_handling 
+!!
+!!   AUTHOR
+!!     teo
+!!
+!!*** ********************************************************************** 
+  SUBROUTINE create_properties_section(section,error)
+    TYPE(section_type), POINTER :: section
+    TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
+    
+    LOGICAL :: failure
+    CHARACTER(len=*), PARAMETER :: routineN='create_properties_section',&
+         routineP=moduleN//':'//routineN
+    TYPE(keyword_type), POINTER :: keyword
+    TYPE(section_type), POINTER :: subsection
+    failure=.FALSE.
+    
+    CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
+    IF (.NOT. failure) THEN
+       CALL section_create(section,name="PROPERTIES",&
+            description="This section is used to set up the PROPERTIES calculation.",&
+            n_keywords=3, n_subsections=1, repeats=.FALSE., required=.TRUE.,&
+            error=error)
+
+       NULLIFY(keyword, subsection)
+    
+       CALL create_linres_section(subsection,error)
+       CALL section_add_subsection(section, subsection, error=error)
+       CALL section_release(subsection,error=error)
+
+       CALL create_fitcharge_section(subsection,error)
+       CALL section_add_subsection(section, subsection, error=error)
+       CALL section_release(subsection,error=error)
+      
+    END IF
+
+  END SUBROUTINE create_properties_section
+
+!***************************************************************************
+!!****f* input_cp2k/create_fitcharge_section [1.0] *
+!!
+!!   NAME
+!!     create_fitcharge_section
+!!
+!!   FUNCTION
+!!     Create the BSSE section for counterpoise correction
+!!
+!!   NOTES
+!!     -
+!!
+!!   ARGUMENTS
+!!     - section: the section to create
+!!     - error: variable to control error logging, stopping,... 
+!!       see module cp_error_handling 
+!!
+!!   AUTHOR
+!!     teo
+!!
+!!*** ********************************************************************** 
+  SUBROUTINE create_fitcharge_section(section,error)
+    TYPE(section_type), POINTER :: section
+    TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
+    
+    LOGICAL :: failure
+    CHARACTER(len=*), PARAMETER :: routineN='create_fitcharge_section',&
+         routineP=moduleN//':'//routineN
+    TYPE(keyword_type), POINTER :: keyword
+    TYPE(section_type), POINTER :: subsection
+    failure=.FALSE.
+    
+    CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
+    IF (.NOT. failure) THEN
+       CALL section_create(section,name="FIT_CHARGE",&
+            description="This section is used to set up calculation of density derived atomic point charges.",&
+            n_keywords=3, n_subsections=1, repeats=.FALSE., required=.TRUE.,&
+            error=error)
+
+       NULLIFY(keyword, subsection)
+
+       CALL keyword_create(keyword, name="NUM_GAUSS",&
+            description="Specifies the numbers of gaussian used to fit the QM density for each atomic site.",&
+            usage="NUM_GAUSS {integer}", required=.FALSE.,&
+            n_var=1, type_of_var=integer_t, error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="PFACTOR",&
+            description="Specifies the progression factor for the gaussian exponent for each atomic site.",&
+            usage="PFACTOR {real}", required=.FALSE.,&
+            n_var=1, type_of_var=real_t, default_r_val=1.5_dp,error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="MIN_RADIUS",&
+            description="Specifies the smallest radius of the gaussian used in the fit. All other radius are"//&
+            " obtained with the progression factor.",&
+            usage="MIN_RADIUS {real}", required=.FALSE.,&
+            n_var=1, type_of_var=real_t, default_r_val=0.5_dp, error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+       
+       CALL keyword_create(keyword, name="RADIUS",&
+            description="Specifies all the radius of the gaussian used in the fit for each atomic site. The use"//&
+            " of this keyword disables all other keywords of this section.",&
+            usage="RADIUS {real} {real} .. {real}", required=.FALSE.,&
+            n_var=-1, type_of_var=real_t, error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL create_print_fitcharge_section(subsection,error)
+       CALL section_add_subsection(section, subsection, error=error)
+       CALL section_release(subsection,error=error)
+      
+    END IF
+
+  END SUBROUTINE create_fitcharge_section
+
+!***************************************************************************
+!!****f* input_cp2k/create_print_fitcharge_section [1.0] *
+!!
+!!   NAME
+!!     create_print_fitcharge_section
+!!
+!!   FUNCTION
+!!     Create the print bsse section
+!!
+!!   NOTES
+!!     -
+!!
+!!   ARGUMENTS
+!!     - section: the section to create
+!!     - error: variable to control error logging, stopping,... 
+!!       see module cp_error_handling 
+!!
+!!   AUTHOR
+!!     teo
+!!
+!!*** **********************************************************************
+  SUBROUTINE create_print_fitcharge_section(section,error)
+    TYPE(section_type), POINTER :: section
+    TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
+    
+    LOGICAL :: failure
+    CHARACTER(len=*), PARAMETER :: routineN='create_print_fitcharge_section',&
+         routineP=moduleN//':'//routineN
+    TYPE(section_type), POINTER :: print_key
+    failure=.FALSE.
+    
+    CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
+    IF (.NOT. failure) THEN
+       CALL section_create(section,name="print",&
+            description="Section of possible print options in FIT_CHARGE code.",&
+            n_keywords=0, n_subsections=1, repeats=.FALSE., required=.TRUE.,&
+            error=error)
+       
+       NULLIFY(print_key)
+       CALL cp_print_key_section_create(print_key,"PROGRAM_RUN_INFO",&
+            description="Controls the printing of information regarding the run.",&
+            print_level=silent_print_level,each=(/1/),filename="__STD_OUT__",&
+            error=error)
+       CALL section_add_subsection(section,print_key,error=error)
+       CALL section_release(print_key,error=error)
+
+    END IF
+  END SUBROUTINE create_print_fitcharge_section
 
 !***************************************************************************
 !!****f* input_cp2k/create_bsse_section [1.0] *

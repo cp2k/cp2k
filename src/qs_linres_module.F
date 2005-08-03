@@ -144,7 +144,7 @@ CONTAINS
 
     ! The transition potential method to calculate XAS needs LSD
     lr_section =>  section_vals_get_subs_vals(globenv%input_file, &
-                                                 "FORCE_EVAL%LINRES")
+                                                 "FORCE_EVAL%PROPERTIES%LINRES")
     call section_vals_get(lr_section,explicit=lr_calculation,error=error)
 
     IF (lr_calculation) THEN

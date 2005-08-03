@@ -261,7 +261,7 @@ CONTAINS
 
     ! If surrent_density or full_nmr different allocations are required
     nmr_section => section_vals_get_subs_vals(globenv%input_file, &
-                                                 "FORCE_EVAL%LINRES%NMR")
+                                                 "FORCE_EVAL%PROPERTIES%LINRES%NMR")
     CALL section_vals_val_get(nmr_section,"CURRENT_DENSITY", &
          l_val=nmr_env%current_density,error=error)
     CALL section_vals_val_get(nmr_section,"FULL",l_val=nmr_env%full_nmr,error=error)
