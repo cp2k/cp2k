@@ -378,7 +378,7 @@ CONTAINS
            DO ik = 1,SIZE(xas_env%stogto_overlap,1)
              DEALLOCATE(xas_env%stogto_overlap(ik)%array)
            END DO
-           DEALLOCATE(xas_env%my_gto_basis,STAT=istat)
+           DEALLOCATE(xas_env%stogto_overlap,STAT=istat)
            CPPostcondition(istat==0,cp_warning_level,routineP,error,failure)
          END IF
 

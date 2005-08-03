@@ -1120,8 +1120,11 @@ CONTAINS
          END DO 
          spectrum(1,istate) = ene_f - ene_i
          spectrum(2,istate) = dip(1)*dip(1)
+!         spectrum(1,istate) = dip(1)
          spectrum(3,istate) = dip(2)*dip(2)
+!         spectrum(3,istate) = dip(2)
          spectrum(4,istate) = dip(3)*dip(3)
+!         spectrum(4,istate) = dip(3)
          spectrum(5,istate) = dip(1)*dip(1)+dip(2)*dip(2)+dip(3)*dip(3)
       END DO 
     END IF
