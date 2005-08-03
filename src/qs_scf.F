@@ -109,7 +109,9 @@ MODULE qs_scf
   USE kinds,                           ONLY: dp,&
                                              dp_size,&
                                              int_size
-  USE input_constants,                 ONLY: xas_none,xas_tp_hh, xas_tp_fh
+  USE input_constants,                 ONLY: xas_tp_hh, &
+                                             xas_tp_fh, &
+                                             xas_dscf
   USE machine,                         ONLY: m_flush,&
                                              m_walltime
   USE message_passing,                 ONLY: mp_bcast,&
@@ -1325,7 +1327,7 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = "scf_env_check_i_alloc", &
       routineP = moduleN//":"//routineN
 
-    INTEGER                                  :: handle, ispin, nao, &
+    INTEGER                                  :: handle, homo, ispin, nao, &
                                                 nrow_block, stat
     LOGICAL                                  :: failure, gth_potential_present
     LOGICAL                                  :: my_transition_potential,uniform_occupation
@@ -1350,8 +1352,10 @@ CONTAINS
 
     CALL timeset(routineN,"I"," ",handle)
 
-    NULLIFY(matrix_ks,ao_mo_fm_pools, matrix_s, ao_mo_fmstruct, ao_ao_fmstruct,&
-         dft_control, mos, S_sm_pools, ks_env)
+    NULLIFY(matrix_ks, ao_mo_fm_pools, matrix_s, ao_mo_fmstruct, ao_ao_fmstruct,&
+            dft_control, mos, occupation_numbers, S_sm_pools, ks_env)
+    NULLIFY(atomic_kind_set, mo_derivs, mo_coeff)
+
     failure=.FALSE.
 
     my_transition_potential = .FALSE.
@@ -1380,7 +1384,7 @@ CONTAINS
     CPPrecondition(ASSOCIATED(mos),cp_failure_level,routineP,error,failure)
     IF (.NOT.failure) THEN
        DO ispin=1,SIZE(mos)
-          CALL get_mo_set(mos(ispin)%mo_set,mo_coeff=mo_coeff)
+          CALL get_mo_set(mos(ispin)%mo_set,mo_coeff=mo_coeff,homo=homo)
           IF (.NOT.ASSOCIATED(mo_coeff)) THEN
              CALL init_mo_set(mos(ispin)%mo_set,&
                   ao_mo_fm_pools(ispin)%pool,&
@@ -1397,6 +1401,10 @@ CONTAINS
             ELSE IF(dft_control%xas_control%xas_method == xas_tp_fh) THEN
                occupation_numbers(dft_control%xas_estate) = 0.0_dp
                uniform_occupation = .FALSE.    
+            ELSE IF(dft_control%xas_control%xas_method == xas_dscf) THEN
+               occupation_numbers(dft_control%xas_estate) = 0.0_dp
+               uniform_occupation = .FALSE.
+               occupation_numbers(homo+1) = 1.0_dp
             END IF
             CALL set_mo_set(mos(ispin)%mo_set,&
                  uniform_occupation=uniform_occupation)
