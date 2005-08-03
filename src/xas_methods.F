@@ -103,7 +103,7 @@ MODULE xas_methods
                                              qs_matrix_pools_type
   USE qs_mo_types,                     ONLY: get_mo_set,&
                                              mo_set_p_type,mo_set_type,&
-                                             write_mo_set
+                                             set_mo_set,write_mo_set
   USE qs_neighbor_list_types,          ONLY: find_neighbor_list,&
                                              first_list,&
                                              first_node,&
@@ -442,6 +442,10 @@ CONTAINS
       ! Take the state_to_be_excited vector from the full set and copy into excvec_coeff
        CALL get_mo_set(mos(1)%mo_set, mo_coeff=mo_coeff,&
             occupation_numbers=occupation_numbers,homo=homo)
+       IF(xas_control%xas_method == xas_dscf) THEN
+          homo = homo + 1
+          CALL set_mo_set(mos(1)%mo_set, homo = homo)
+       END IF
        occupation_numbers(1:homo)  = 1.0_dp
        CPPrecondition(ASSOCIATED(excvec_coeff),cp_failure_level,routineP,error,failure)
        CALL cp_fm_get_submatrix(mo_coeff,vecbuffer,1,state_to_be_excited,&
@@ -492,7 +496,10 @@ CONTAINS
       iter = xas_iter_count*xas_control%each_step
 
     ! append the spectrum of this iteration to the right output file
-      IF(.NOT. xas_control%xas_method == xas_dscf) THEN
+      IF( xas_control%xas_method == xas_dscf) THEN
+         homo = homo - 1
+         CALL set_mo_set(mos(1)%mo_set, homo = homo)
+      ELSE
         CALL xas_write(xas_control,spectrum, dft_control%xas_estate, &
              homo, iatom, iter, ionode, error=error)
       END IF

@@ -158,7 +158,7 @@ CONTAINS
                                                 istat, iter_count, nao, nmo,output_unit,i,istate
     LOGICAL :: diis_step, do_level_shift, energy_only, failure,& 
                gapw, ionode, should_stop, uniform_occupation, use_cholesky, use_jacobi, id_equal
-    REAL(KIND=dp)                            :: a_max,b_max, diis_error, orthonormality, &
+    REAL(KIND=dp)                            :: a_max,b_max, diis_error, IP_energy, orthonormality, &
                                                 ra(3), rac(3), rc(3), t1, t2, tot1_h, tot1_s
     REAL(dp), DIMENSION(6)                       :: weights
     REAL(KIND=dp), DIMENSION(:), POINTER     :: occupation_numbers, eigenvalues
@@ -438,10 +438,11 @@ CONTAINS
                    ELSE IF(xas_control%xas_method == xas_dscf) THEN
                        occupation_numbers(dft_control%xas_estate) = 0.0_dp
                        occupation_numbers(ir_max) = 1.0_dp
-                       occupation_numbers(homo+1) = 1.0_dp
                    END IF
 
                  END IF
+                 ! IOnization Potential
+                 IP_energy = eigenvalues(dft_control% xas_estate)
 !dbg
 !         IF(ionode) WRITE(*,'(A, I4, A,f5.2)') ' st ', dft_control% xas_estate,&
 !                ' occ ',  occupation_numbers(dft_control% xas_estate)
@@ -475,7 +476,8 @@ CONTAINS
             DO ispin=1,dft_control%nspins
               IF(ispin == 1) THEN
 ! ** use the maximum overlap criterion to find the index of the excited orbital
-                 CALL get_mo_set(mos(1)%mo_set, mo_coeff=mo_coeff,nao=nao,nmo=nmo)
+                 CALL get_mo_set(mos(1)%mo_set, mo_coeff=mo_coeff,nao=nao,nmo=nmo,&
+                      eigenvalues=eigenvalues,homo=homo)
 
                  CALL cp_sm_fm_multiply(matrix_s(1)%matrix,mo_coeff,fm_work,ncol=nmo)
 
@@ -510,9 +512,15 @@ CONTAINS
                    ELSE IF(xas_control%xas_method == xas_tp_fh) THEN
                        occupation_numbers(dft_control%xas_estate) = 0.0_dp
                        occupation_numbers(ir_max) = 1.0_dp
+                   ELSE IF(xas_control%xas_method == xas_dscf) THEN
+                       occupation_numbers(dft_control%xas_estate) = 0.0_dp
+                       occupation_numbers(ir_max) = 1.0_dp
                    END IF
 
                  END IF
+
+                 ! IOnization Potential
+                 IP_energy = eigenvalues(dft_control% xas_estate)
 
                  CALL set_mo_set(mos(1)%mo_set,&
                       uniform_occupation=uniform_occupation)
@@ -605,6 +613,8 @@ CONTAINS
          END IF
          WRITE (UNIT=output_unit,FMT="(/,(T3,A,T55,F25.14))")&
             "Total energy:                                  ",energy%total
+         WRITE (UNIT=output_unit,FMT="(/,(T3,A,T55,F25.14))")&
+            "Ionization potential of the excited atom:      ",IP_energy
        CALL m_flush(output_unit)
     END IF
 
@@ -612,8 +622,6 @@ CONTAINS
 
     DEALLOCATE(vecbuffer,vecbuffer2,STAT=istat)
     CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
-! *** cleanup
-!    CALL scf_env_cleanup(scf_env,qs_env=qs_env,error=error)
 
     CALL timestop(0.0_dp,handle)
 

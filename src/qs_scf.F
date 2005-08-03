@@ -1404,7 +1404,7 @@ CONTAINS
             ELSE IF(dft_control%xas_control%xas_method == xas_dscf) THEN
                occupation_numbers(dft_control%xas_estate) = 0.0_dp
                uniform_occupation = .FALSE.
-               occupation_numbers(homo+1) = 1.0_dp
+               occupation_numbers(homo) = 1.0_dp
             END IF
             CALL set_mo_set(mos(ispin)%mo_set,&
                  uniform_occupation=uniform_occupation)
