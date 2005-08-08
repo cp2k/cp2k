@@ -102,7 +102,8 @@ MODULE qmmm_methods
                                              timestop
   USE simulation_cell,                 ONLY: cell_type,&
                                              pbc
-  USE message_passing, only: mp_sum
+  USE message_passing,                 ONLY: mp_sum 
+  USE cp_ddapc,                        ONLY: get_ddapc
 
   IMPLICIT NONE
   
@@ -111,104 +112,9 @@ MODULE qmmm_methods
   REAL(KIND=dp), PARAMETER, PRIVATE   :: Dx = 0.01_dp    ! Debug Variables
   REAL(KIND=dp), PARAMETER, PRIVATE   :: MaxErr = 10.0_dp ! Debug Variables
   CHARACTER(len=*), PRIVATE, PARAMETER :: moduleN='qmmm_methods'
-  PUBLIC :: qmmm_calculate_energy,&
-            qmmm_modify_hartree_pot,&
-            qmmm_forces
+  PUBLIC :: qmmm_forces
   
 CONTAINS
-!!****f* qmmm_methods/qmmm_calculate_energy [1.0] *
-!!
-!!   NAME
-!!     qmmm_calculate_energy
-!!
-!!   FUNCTION
-!!     Computes the contribution to the total energy of the QM/MM 
-!!     electrostatic coupling
-!!
-!!   NOTES
-!!     -
-!!
-!!   INPUTS
-!!
-!!   AUTHOR
-!!     Teodoro Laino
-!!
-!!   MODIFICATION HISTORY
-!!     05.2004 created [tlaino]
-!!
-!!*** **********************************************************************
-  SUBROUTINE qmmm_calculate_energy(qs_env, rho, v_qmmm, qmmm_energy, error)
-    TYPE(qs_environment_type), POINTER       :: qs_env
-    TYPE(coeff_type), DIMENSION(:), POINTER  :: rho
-    TYPE(coeff_type), INTENT(IN)             :: v_qmmm
-    REAL(KIND=dp), INTENT(INOUT)             :: qmmm_energy
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
-
-    CHARACTER(len=*), PARAMETER :: routineN = 'qmmm_calculate_energy', &
-      routineP = moduleN//':'//routineN   
-
-    INTEGER                                  :: handle, ispin
-    LOGICAL                                  :: failure
-    TYPE(dft_control_type), POINTER          :: dft_control
-
-    CALL timeset(routineN,"I","",handle)    
-    failure=.FALSE.
-    CPPrecondition(ASSOCIATED(rho),cp_failure_level,routineP,error,failure)
-    NULLIFY(dft_control)
-
-    CALL get_qs_env(qs_env=qs_env,&
-                    dft_control=dft_control,&
-                    error=error)
-
-    qmmm_energy = 0.0_dp
-    DO ispin=1, dft_control%nspins
-       qmmm_energy = qmmm_energy + pw_integral_ab ( rho(ispin)%pw, v_qmmm%pw )
-    END DO
-
-    CALL timestop(0.0_dp,handle)
-  END SUBROUTINE qmmm_calculate_energy
-
-!!****f* qmmm_methods/qmmm_modify_hartree_pot [1.0] *
-!!
-!!   NAME
-!!     qmmm_modify_hartree_pot
-!!
-!!   FUNCTION
-!!     Modify the hartree potential in order to include the QM/MM correction
-!!
-!!   NOTES
-!!     -
-!!
-!!   INPUTS
-!!
-!!   AUTHOR
-!!     Teodoro Laino
-!!
-!!   MODIFICATION HISTORY
-!!     05.2004 created [tlaino]
-!!
-!!*** **********************************************************************
-  SUBROUTINE qmmm_modify_hartree_pot(v_hartree,v_qmmm, error)
-    TYPE(coeff_type), INTENT(INOUT)          :: v_hartree
-    TYPE(coeff_type), INTENT(IN)             :: v_qmmm
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
-
-    CHARACTER(len=*), PARAMETER :: routineN = 'qmmm_modify_hartree_pot', &
-      routineP = moduleN//':'//routineN   
-
-    INTEGER                                  :: handle
-    LOGICAL                                  :: failure
-
-    CALL timeset(routineN,"I","",handle)    
-    failure=.FALSE.
-
-    v_hartree%pw%cr3d = v_hartree%pw%cr3d + &
-                        v_qmmm%pw%pw_grid%dvol*v_qmmm%pw%cr3d
-
-    CALL timestop(0.0_dp,handle)
-  END SUBROUTINE qmmm_modify_hartree_pot
 
 !!****f* qmmm_methods/qmmm_forces [1.0] *
 !!
@@ -234,7 +140,7 @@ CONTAINS
   SUBROUTINE qmmm_forces(qs_env,qmmm_env,mm_particles,calc_force,mm_cell,&
        globenv, error)
     TYPE(global_environment_type), &
-      INTENT(in), OPTIONAL, TARGET           :: globenv
+      OPTIONAL, POINTER                      :: globenv
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(qmmm_env_qm_type), POINTER          :: qmmm_env
     TYPE(particle_type), DIMENSION(:), &
@@ -249,7 +155,7 @@ CONTAINS
 
     INTEGER                                  :: handle, Imm, IndMM, ispin, &
                                                 stat, iw
-    LOGICAL                                  :: failure, need_f
+    LOGICAL                                  :: failure, need_f, periodic
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: Forces, Forces_added_charges
     TYPE(coeff_type), POINTER                :: rho_core
     TYPE(cp_para_env_type), POINTER          :: para_env
@@ -262,12 +168,13 @@ CONTAINS
     TYPE(qs_ks_qmmm_env_type), POINTER       :: ks_qmmm_env_loc
     TYPE(qs_rho_type), POINTER               :: rho
     TYPE(section_vals_type), POINTER         :: input_section, interp_section, print_section
-    TYPE(section_vals_type), POINTER         :: print_gen
+    TYPE(section_vals_type), POINTER         :: print_gen, fitcharge_section 
     TYPE(cp_logger_type), POINTER :: logger
 
     CALL timeset(routineN,"I","",handle)
     failure=.FALSE.
     need_f = .TRUE.
+    periodic = qmmm_env%periodic
     iw = globenv%scr
     IF (PRESENT(calc_force)) need_f = calc_force
     NULLIFY(ks_qmmm_env_loc, rho, pw_env, rho_tot_r, energy, Forces, Forces_added_charges,&
@@ -320,6 +227,14 @@ CONTAINS
        !
        Forces               = 0.0_dp
        Forces_added_charges = 0.0_dp
+       !
+       ! If periodic evaluates the charges to couple QM images
+       !
+       IF (periodic) THEN
+          fitcharge_section => section_vals_get_subs_vals(input_section,"QMMM%PERIODIC%FIT_CHARGE",error=error)
+          CALL get_ddapc(qs_env,need_f,globenv,fitcharge_section,error=error)
+       END IF
+       !
        SELECT CASE(qmmm_env%qmmm_coupl_type)
        CASE(do_qmmm_grid)
           IF (cp_should_output(logger%iter_info,print_gen,error=error).AND.&
@@ -1436,7 +1351,7 @@ CONTAINS
     TYPE(section_vals_type), POINTER         :: interp_section
     TYPE(cell_type), POINTER                 :: mm_cell
     TYPE(global_environment_type), &
-      INTENT(in), OPTIONAL, TARGET           :: globenv
+      OPTIONAL, POINTER                      :: globenv
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 

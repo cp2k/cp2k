@@ -2362,7 +2362,7 @@ SUBROUTINE create_tddfpt_section(section,error)
     IF (.NOT. failure) THEN
        CALL section_create(section,name="FIT_CHARGE",&
             description="This section is used to set up calculation of density derived atomic point charges.",&
-            n_keywords=3, n_subsections=1, repeats=.FALSE., required=.TRUE.,&
+            n_keywords=3, n_subsections=1, repeats=.FALSE., required=.FALSE.,&
             error=error)
 
        NULLIFY(keyword, subsection)
@@ -2370,7 +2370,7 @@ SUBROUTINE create_tddfpt_section(section,error)
        CALL keyword_create(keyword, name="NUM_GAUSS",&
             description="Specifies the numbers of gaussian used to fit the QM density for each atomic site.",&
             usage="NUM_GAUSS {integer}", required=.FALSE.,&
-            n_var=1, type_of_var=integer_t, error=error)
+            n_var=1, type_of_var=integer_t, default_i_val=3, error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
@@ -2389,11 +2389,18 @@ SUBROUTINE create_tddfpt_section(section,error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
        
-       CALL keyword_create(keyword, name="RADIUS",&
+       CALL keyword_create(keyword, name="RADII",&
             description="Specifies all the radius of the gaussian used in the fit for each atomic site. The use"//&
             " of this keyword disables all other keywords of this section.",&
-            usage="RADIUS {real} {real} .. {real}", required=.FALSE.,&
+            usage="RADII {real} {real} .. {real}", required=.FALSE.,&
             n_var=-1, type_of_var=real_t, error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="GCUT",&
+            description="Cutoff for fit in G-space.",&
+            usage="GCUT {real}", required=.FALSE.,&
+            n_var=1, type_of_var=real_t, default_r_val=SQRT(6.0_dp),error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
@@ -6632,9 +6639,10 @@ END SUBROUTINE create_ewald_section
     CHARACTER(len=*), PARAMETER :: routineN='create_qmmm_periodic_section',&
          routineP=moduleN//':'//routineN
     TYPE(keyword_type), POINTER :: keyword
+    TYPE(section_type), POINTER :: subsection
     failure=.FALSE.
     
-    NULLIFY(keyword)
+    NULLIFY(keyword, subsection)
     CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
     IF (.NOT. failure) THEN
        CALL section_create(section,name="PERIODIC",&
@@ -6657,6 +6665,10 @@ END SUBROUTINE create_ewald_section
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)       
        
+       CALL create_fitcharge_section(subsection,error)
+       CALL section_add_subsection(section, subsection, error=error)
+       CALL section_release(subsection,error=error)       
+
     END IF
   END SUBROUTINE create_qmmm_periodic_section
 

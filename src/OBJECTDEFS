@@ -42,6 +42,7 @@ OBJECTS_GENERIC =\
  cp_cfm_types.o\
  cp_control_types.o\
  cp_control_utils.o\
+ cp_ddapc.o\
  cp_error_handling.o\
  cp_files.o\
  cp_fm_basic_linalg.o\

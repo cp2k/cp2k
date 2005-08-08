@@ -137,10 +137,10 @@ MODULE qs_ks_methods
   USE timings,                         ONLY: timeset,&
                                              timestop
   USE xc,                              ONLY: xc_exc_calc,&
-                                             xc_vxc_pw_create1
-  USE qmmm_methods,                    ONLY: qmmm_calculate_energy,&
+                                             xc_vxc_pw_create1 
+  USE qs_ks_qmmm_methods,              ONLY: qs_ks_qmmm_create,&
+                                             qmmm_calculate_energy,&
                                              qmmm_modify_hartree_pot
-  USE qs_ks_qmmm_methods,              ONLY: qs_ks_qmmm_create
   USE green_types,                       ONLY: greens_function_type
   USE input_section_types, ONLY: section_type, section_create, &
        section_add_keyword, section_add_subsection, section_release,&

@@ -32,6 +32,7 @@ MODULE qs_ks_qmmm_methods
                                              cp_note_level,&
                                              cp_to_string,&
                                              cp_warning_level
+  USE pws,                             ONLY: pw_integral_ab
   USE qs_environment_types,            ONLY: get_qs_env,&
                                              qs_env_retain,&
                                              qs_environment_type,&
@@ -56,6 +57,9 @@ MODULE qs_ks_qmmm_methods
   USE kinds,                           ONLY: dp
   USE timings,                         ONLY: timeset,&
                                              timestop
+  USE coefficient_types,               ONLY: coeff_type,&
+                                             coeff_zero
+  USE cp_control_types,                ONLY: dft_control_type
   USE input_constants, ONLY: do_qmmm_grid, do_qmmm_gauss, do_qmmm_none
   IMPLICIT NONE
 
@@ -64,7 +68,9 @@ MODULE qs_ks_qmmm_methods
   CHARACTER(len=*), PRIVATE, PARAMETER :: moduleN='qs_ks_qmmm_methods'
   INTEGER, SAVE, PRIVATE :: last_ks_qmmm_nr=0
 
-  PUBLIC :: ks_qmmm_env_rebuild, qs_ks_qmmm_create
+  PUBLIC :: ks_qmmm_env_rebuild, qs_ks_qmmm_create,qmmm_calculate_energy,&
+            qmmm_modify_hartree_pot
+            
 CONTAINS
   !!****f* force_env_methods/ks_qmmm_env_rebuild [1.0] *
   !!
@@ -194,5 +200,98 @@ CONTAINS
 
   END SUBROUTINE qs_ks_qmmm_create
 !***************************************************************************
+!!****f* qmmm_methods/qmmm_calculate_energy [1.0] *
+!!
+!!   NAME
+!!     qmmm_calculate_energy
+!!
+!!   FUNCTION
+!!     Computes the contribution to the total energy of the QM/MM 
+!!     electrostatic coupling
+!!
+!!   NOTES
+!!     -
+!!
+!!   INPUTS
+!!
+!!   AUTHOR
+!!     Teodoro Laino
+!!
+!!   MODIFICATION HISTORY
+!!     05.2004 created [tlaino]
+!!
+!!*** **********************************************************************
+  SUBROUTINE qmmm_calculate_energy(qs_env, rho, v_qmmm, qmmm_energy, error)
+    TYPE(qs_environment_type), POINTER       :: qs_env
+    TYPE(coeff_type), DIMENSION(:), POINTER  :: rho
+    TYPE(coeff_type), INTENT(IN)             :: v_qmmm
+    REAL(KIND=dp), INTENT(INOUT)             :: qmmm_energy
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'qmmm_calculate_energy', &
+      routineP = moduleN//':'//routineN   
+
+    INTEGER                                  :: handle, ispin
+    LOGICAL                                  :: failure
+    TYPE(dft_control_type), POINTER          :: dft_control
+
+    CALL timeset(routineN,"I","",handle)    
+    failure=.FALSE.
+    CPPrecondition(ASSOCIATED(rho),cp_failure_level,routineP,error,failure)
+    NULLIFY(dft_control)
+
+    CALL get_qs_env(qs_env=qs_env,&
+                    dft_control=dft_control,&
+                    error=error)
+
+    qmmm_energy = 0.0_dp
+    DO ispin=1, dft_control%nspins
+       qmmm_energy = qmmm_energy + pw_integral_ab ( rho(ispin)%pw, v_qmmm%pw )
+    END DO
+
+    CALL timestop(0.0_dp,handle)
+  END SUBROUTINE qmmm_calculate_energy
+
+!!****f* qmmm_methods/qmmm_modify_hartree_pot [1.0] *
+!!
+!!   NAME
+!!     qmmm_modify_hartree_pot
+!!
+!!   FUNCTION
+!!     Modify the hartree potential in order to include the QM/MM correction
+!!
+!!   NOTES
+!!     -
+!!
+!!   INPUTS
+!!
+!!   AUTHOR
+!!     Teodoro Laino
+!!
+!!   MODIFICATION HISTORY
+!!     05.2004 created [tlaino]
+!!
+!!*** **********************************************************************
+  SUBROUTINE qmmm_modify_hartree_pot(v_hartree,v_qmmm, error)
+    TYPE(coeff_type), INTENT(INOUT)          :: v_hartree
+    TYPE(coeff_type), INTENT(IN)             :: v_qmmm
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'qmmm_modify_hartree_pot', &
+      routineP = moduleN//':'//routineN   
+
+    INTEGER                                  :: handle
+    LOGICAL                                  :: failure
+
+    CALL timeset(routineN,"I","",handle)    
+    failure=.FALSE.
+
+    v_hartree%pw%cr3d = v_hartree%pw%cr3d + &
+                        v_qmmm%pw%pw_grid%dvol*v_qmmm%pw%cr3d
+
+    CALL timestop(0.0_dp,handle)
+  END SUBROUTINE qmmm_modify_hartree_pot
 
 END MODULE qs_ks_qmmm_methods
