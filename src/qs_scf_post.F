@@ -72,7 +72,9 @@ MODULE qs_scf_post
   USE global_types,                    ONLY: WANNIER_NONE,&
                                              global_environment_type
   USE input_section_types,             ONLY: section_vals_get_subs_vals,&
-                                             section_vals_type
+                                             section_vals_type,&
+                                             section_vals_get
+  USE cp_ddapc,                        ONLY: get_ddapc
   USE kinds,                           ONLY: default_string_length,&
                                              dp
   USE level_shift,                     ONLY: level_shift_testing
@@ -183,8 +185,7 @@ CONTAINS
   SUBROUTINE scf_post_calculation(scf_env,qs_env,globenv,error)
     TYPE(qs_scf_env_type), POINTER           :: scf_env
     TYPE(qs_environment_type), POINTER       :: qs_env
-    TYPE(global_environment_type), &
-      INTENT(in), TARGET                     :: globenv
+    TYPE(global_environment_type),POINTER    :: globenv
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
@@ -192,7 +193,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     LOGICAL                                  :: failure, ionode
-    LOGICAL                                  :: my_localized_wfn
+    LOGICAL                                  :: my_localized_wfn, was_present
     REAL(KIND=dp), DIMENSION(:), POINTER     :: mo_eigenvalues
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
@@ -286,6 +287,13 @@ CONTAINS
             CALL mulliken_charges(rho%rho_ao,matrix_s(1)%matrix,globenv%para_env,particle_set, &
                                   globenv%scr,globenv%ionode," ")
        ENDIF
+
+!    *** Fit charges with the Bloechl scheme
+       print_key => section_vals_get_subs_vals(input,"PROPERTIES%FIT_CHARGE", error=error)
+       CALL section_vals_get(print_key,explicit=was_present,error=error)
+       IF (was_present) THEN
+          CALL get_ddapc(qs_env,.FALSE.,globenv,print_key,error=error)
+       END IF
 
 !    *** setup the grids needed to compute a wavefunction given a vector
        IF ((globenv%print%homos .OR. globenv%print%lumos .OR. globenv%print%localization) &
