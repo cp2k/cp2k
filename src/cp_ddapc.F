@@ -116,7 +116,7 @@ CONTAINS
     INTEGER :: iw, handle, ispin, n_rep_val, num_gauss, stat, i, ndim, ii, j, iparticle, kk, ll
     TYPE(pw_pool_type), POINTER              :: auxbas_pool
     REAL(KIND=dp), DIMENSION(:), POINTER     :: inp_radii, radii
-    REAL(KIND=dp) :: rcmin, pfact, gcut, Vol, inv_error, c0, c1, c3, c4, dx, v0
+    REAL(KIND=dp) :: rcmin, pfact, gcut, Vol, inv_error, c0, c1, c3, c4, dx, v0, ch_dens
     REAL(KIND=dp), DIMENSION(3) :: rvec
     TYPE(particle_type), DIMENSION(:), &
          POINTER                                 :: particle_set
@@ -159,6 +159,7 @@ CONTAINS
           CALL pw_sumup(rho%rho_g(ispin)%pw,rho_tot_g)
        END DO
        Vol = rho%rho_r(1)%pw%pw_grid%vol
+       ch_dens = REAL(qs_env%dft_control%charge,KIND=dp)/Vol
        !
        ! Get Input Parameters
        !
@@ -201,7 +202,7 @@ CONTAINS
        bv  = 0.0_dp
        cv  = 1.0_dp/Vol
        CALL build_b_vector(bv, particle_set, radii, rho_tot_g, gcut, error);  bv = bv / Vol
-       CALL build_A_matrix(Am, particle_set, radii, rho_tot_g, gcut, error);  Am = Am /(Vol*Vol)
+       CALL build_A_matrix(Am, particle_set, radii, rho_tot_g, gcut, error);  Am = Am /(Vol*Vol)       
        CALL mp_sum(bv,rho_tot_g%pw_grid%para%group)
        CALL mp_sum(Am,rho_tot_g%pw_grid%para%group)
        CALL invert_matrix(Am, AmI, inv_error, "N")
@@ -210,7 +211,7 @@ CONTAINS
           WRITE(iw,'(T3,A,F15.9)')" Error inverting the A matrix: ", inv_error 
        END IF
        c0 = DOT_PRODUCT(cv,MATMUL(AmI,cv))
-       c1 = DOT_PRODUCT(cv,MATMUL(AmI,bv))-rho_tot_g%cc(1)
+       c1 = DOT_PRODUCT(cv,MATMUL(AmI,bv))-ch_dens
        c1 = c1 / c0
        qv = - MATMUL(AmI,(bv-c1*cv))
        j  = 0
