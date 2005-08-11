@@ -487,9 +487,11 @@ CONTAINS
                                        qmmm_energy=energy%qmmm_el,&
              ! also take into account the scaling (in addition to the volume element)
                                        error=error)
-           CALL qmmm_modify_hartree_pot(v_hartree=ks_env%v_hartree_rspace,&
-                                        v_qmmm=qs_env%ks_qmmm_env%v_qmmm_rspace,&
-                                        error=error)
+           IF (.NOT.just_energy) THEN
+              CALL qmmm_modify_hartree_pot(v_hartree=ks_env%v_hartree_rspace,&
+                   v_qmmm=qs_env%ks_qmmm_env%v_qmmm_rspace,&
+                   error=error)
+           END IF
        End If
 
        ! *** calculate the xc potential on the pw density ***       
