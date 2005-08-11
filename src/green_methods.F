@@ -45,10 +45,12 @@ MODULE green_methods
                                              MT1D,&
                                              MT2D,&
                                              PERIODIC3D,&
+                                             MULTIPOLE0D,&
                                              use_periodic,&
                                              use_analytic,&
                                              use_mt,&
                                              use_hockney,&
+                                             use_multipole,&
                                              use_perd_x,&
                                              use_perd_y,&
                                              use_perd_z,&
@@ -136,7 +138,7 @@ CONTAINS
        CALL pw_pool_give_back_pw(pw_pool,green % influence_function, accept_non_compatible=.TRUE.)
        CALL pw_pool_give_back_pw(pw_pool,green % screen_function, accept_non_compatible=.TRUE.)
        SELECT CASE ( green % method )
-       CASE ( PERIODIC3D, ANALYTIC2D, ANALYTIC1D, ANALYTIC0D, MT2D, MT1D, MT0D )
+       CASE ( PERIODIC3D, ANALYTIC2D, ANALYTIC1D, ANALYTIC0D, MT2D, MT1D, MT0D, MULTIPOLE0D)
           CALL pw_pool_create_pw ( pw_pool, green % influence_function,&
                use_data=COMPLEXDATA1D, in_space=RECIPROCALSPACE )
           IF ( PRESENT ( p3m ) ) THEN
@@ -235,6 +237,12 @@ CONTAINS
        CASE (use_periodic)
           green%method = PERIODIC3D
           IF (dim /= 3) THEN
+             CALL stop_program(routineP,&
+                  "Illegal combination of periodicity and Poisson solver (perd)")
+          END IF
+       CASE (use_multipole)
+          green%method = MULTIPOLE0D
+          IF (dim /= 0) THEN
              CALL stop_program(routineP,&
                   "Illegal combination of periodicity and Poisson solver (perd)")
           END IF

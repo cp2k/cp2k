@@ -330,12 +330,14 @@ MODULE input_constants
   INTEGER, PARAMETER, PUBLIC :: PERIODIC3D = 1000, ANALYTIC2D = 1001,  &
                         ANALYTIC1D = 1002, ANALYTIC0D = 1003,  &
                         MT2D = 1101, MT1D = 1102, MT0D = 1103,&
-                        HOCKNEY2D = 1201, HOCKNEY1D = 1202, HOCKNEY0D = 1203
+                        HOCKNEY2D = 1201, HOCKNEY1D = 1202, HOCKNEY0D = 1203,&
+                        MULTIPOLE2D = 1301, MULTIPOLE1D = 1302, MULTIPOLE0D = 1303
 
   INTEGER, PARAMETER, PUBLIC :: use_periodic = 0,&
                                 use_analytic = 1,&
                                 use_mt=2,&
-                                use_hockney=3
+                                use_hockney=3,&
+                                use_multipole=4
 
   INTEGER, PARAMETER, PUBLIC :: xgga_b88=101,xgga_b88x=102,&
                                 xgga_pw86=103, xgga_pw91=104,&

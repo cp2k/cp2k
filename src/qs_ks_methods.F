@@ -141,11 +141,12 @@ MODULE qs_ks_methods
   USE qs_ks_qmmm_methods,              ONLY: qs_ks_qmmm_create,&
                                              qmmm_calculate_energy,&
                                              qmmm_modify_hartree_pot
-  USE green_types,                       ONLY: greens_function_type
+  USE green_types,                     ONLY: greens_function_type
   USE input_section_types, ONLY: section_type, section_create, &
        section_add_keyword, section_add_subsection, section_release,&
        section_vals_type,&
        section_vals_get_subs_vals, section_vals_get, section_vals_val_get
+  USE cp_ddapc,                        ONLY: cp_decpl_ddapc 
   IMPLICIT NONE
 
   PRIVATE
@@ -408,6 +409,7 @@ CONTAINS
        CALL calculate_hartree(rho_tot_gspace,energy%hartree,&
             v_hartree_gspace)
        CALL cleanup_pw_poisson_solver(green,error=error)
+       CALL cp_decpl_ddapc(qs_env,v_hartree_gspace,error=error)
 
        IF (.NOT. just_energy) THEN
           CALL coeff_transform_space(v_hartree_gspace,&

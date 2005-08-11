@@ -42,6 +42,7 @@ MODULE pws
                                              HOCKNEY0D,&
                                              HOCKNEY1D,&
                                              HOCKNEY2D,&
+                                             MULTIPOLE0D,&
                                              MT0D,&
                                              MT1D,&
                                              MT2D,&
@@ -236,7 +237,7 @@ SUBROUTINE pw_poisson_solver ( density, ehartree, vhartree, dvhartree, h_stress 
 ! apply the greens function
     ng = SIZE ( pw_grid % gsq )
     SELECT CASE ( gf % method )
-    CASE ( PERIODIC3D, ANALYTIC2D, ANALYTIC1D, ANALYTIC0D, MT2D, MT1D, MT0D )
+    CASE ( PERIODIC3D, ANALYTIC2D, ANALYTIC1D, ANALYTIC0D, MT2D, MT1D, MT0D, MULTIPOLE0D)
       CALL pw_transfer ( density % pw, rhog )
       rhog % cc ( 1 : ng )  = rhog % cc ( 1 : ng ) *  &
                               gf % influence_function % cc  ( 1 : ng )

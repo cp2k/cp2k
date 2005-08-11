@@ -103,7 +103,6 @@ MODULE qmmm_methods
   USE simulation_cell,                 ONLY: cell_type,&
                                              pbc
   USE message_passing,                 ONLY: mp_sum 
-  USE cp_ddapc,                        ONLY: get_ddapc
 
   IMPLICIT NONE
   
@@ -227,13 +226,6 @@ CONTAINS
        !
        Forces               = 0.0_dp
        Forces_added_charges = 0.0_dp
-       !
-       ! If periodic evaluates the charges to couple QM images
-       !
-       IF (periodic) THEN
-          fitcharge_section => section_vals_get_subs_vals(input_section,"QMMM%PERIODIC%FIT_CHARGE",error=error)
-          CALL get_ddapc(qs_env,need_f,globenv,fitcharge_section,error=error)
-       END IF
        !
        SELECT CASE(qmmm_env%qmmm_coupl_type)
        CASE(do_qmmm_grid)

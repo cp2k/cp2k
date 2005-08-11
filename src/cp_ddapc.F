@@ -63,13 +63,14 @@ MODULE cp_ddapc
        section_vals_type,&
        section_vals_get_subs_vals, section_vals_get, section_vals_val_get
   USE message_passing,                 ONLY: mp_sum
+  USE input_constants,                 ONLY: use_multipole
 #include "cp_common_uses.h"
   IMPLICIT NONE
   PRIVATE
 
   LOGICAL, PRIVATE, PARAMETER :: debug_this_module=.FALSE.
   CHARACTER(len=*), PRIVATE, PARAMETER :: moduleN='cp_ddapc'
-  PUBLIC :: get_ddapc
+  PUBLIC :: get_ddapc, cp_decpl_ddapc
   
 CONTAINS
 
@@ -93,11 +94,9 @@ CONTAINS
 !!     08.2005 created [tlaino]
 !!
 !!*** **********************************************************************
-  RECURSIVE SUBROUTINE get_ddapc(qs_env,calc_force,globenv,fitcharge_section,qout1,qout2,error)
+  RECURSIVE SUBROUTINE get_ddapc(qs_env,calc_force,fitcharge_section,qout1,qout2,error)
     IMPLICIT NONE
     ! Arguments
-    TYPE(global_environment_type), &
-         OPTIONAL, POINTER                   :: globenv
     TYPE(qs_environment_type), POINTER       :: qs_env
     LOGICAL, INTENT(in), OPTIONAL            :: calc_force
     TYPE(section_vals_type), POINTER         :: fitcharge_section
@@ -112,7 +111,7 @@ CONTAINS
     TYPE(pw_type), POINTER                   :: rho_tot_g
     TYPE(coeff_type), POINTER                :: rho_core
     TYPE(cp_logger_type), POINTER :: logger
-    LOGICAL :: failure, need_f
+    LOGICAL :: failure, need_f, ionode
     INTEGER :: iw, handle, ispin, n_rep_val, num_gauss, stat, i, ndim, ii, j, iparticle, kk, ll
     TYPE(pw_pool_type), POINTER              :: auxbas_pool
     REAL(KIND=dp), DIMENSION(:), POINTER     :: inp_radii, radii
@@ -129,9 +128,10 @@ CONTAINS
     CALL timeset(routineN,"I","",handle)
     failure=.FALSE.
     need_f = .FALSE.
-    iw = globenv%scr
     IF (PRESENT(calc_force)) need_f = calc_force    
     logger => cp_error_get_logger(error)
+    ionode = logger%para_env%mepos==logger%para_env%source
+    IF (ionode) iw = cp_logger_get_default_unit_nr(logger)
     NULLIFY(rho, rho_tot_g, rho_core, pw_env, radii, inp_radii, particle_set)
     IF (.NOT.failure) THEN
        print_gen => section_vals_get_subs_vals(fitcharge_section,"PRINT%PROGRAM_RUN_INFO",error=error)
@@ -365,9 +365,9 @@ CONTAINS
                 DO i = 1, 3
                    particle_set(iparticle)%r = rvec
                    particle_set(iparticle)%r(i) = rvec(i) + dx
-                   CALL get_ddapc(qs_env,.FALSE.,globenv,fitcharge_section,qout1=qtot1,error=error)
+                   CALL get_ddapc(qs_env,.FALSE.,fitcharge_section,qout1=qtot1,error=error)
                    particle_set(iparticle)%r(i) = rvec(i) - dx
-                   CALL get_ddapc(qs_env,.FALSE.,globenv,fitcharge_section,qout1=qtot2,error=error)
+                   CALL get_ddapc(qs_env,.FALSE.,fitcharge_section,qout1=qtot2,error=error)
                    ddqv = (qtot1 - qtot2)/(2.0_dp*dx)
                    DO kk = 1, SIZE(qtot1)-1, num_gauss
                       WRITE(*,'(A,2F12.6,F12.2)')"Error :",SUM(dqv(kk:kk+2,iparticle,i)),SUM(ddqv(kk:kk+2)),&
@@ -708,5 +708,79 @@ CONTAINS
     END DO
 
   END SUBROUTINE build_der_A_matrix
+
+
+!!****f* cp_ddapc/cp_decpl_ddapc [1.0] *
+!!
+!!   NAME
+!!     cp_decpl_ddapc
+!!
+!!   FUNCTION
+!!     Routine to couple/decouple periodic images with the Bloechl scheme
+!!
+!!     The coupling/decoupling is obtaines evaluating terms E2 and E3 in
+!!     J. Chem. Phys. Vol. 103 pp. 7422-7428.. The E2 terms is just a 
+!!     Ewald summation, and for performance reason I'm writing a specific 
+!!     driver instead of using and setting-up the environment of the already 
+!!     available routines
+!!
+!!   NOTES
+!!     -
+!!
+!!   INPUTS
+!!
+!!   AUTHOR
+!!     Teodoro Laino
+!!
+!!   MODIFICATION HISTORY
+!!     08.2005 created [tlaino]
+!!
+!!*** **********************************************************************
+  SUBROUTINE cp_decpl_ddapc(qs_env,v_hartree_gspace,error)
+    IMPLICIT NONE
+    ! Arguments
+    TYPE(qs_environment_type), POINTER       :: qs_env
+    TYPE(coeff_type)                         :: v_hartree_gspace    
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
+    ! Local Variables
+    CHARACTER(len=*), PARAMETER :: routineN = 'cp_decpl_ddapc', &
+      routineP = moduleN//':'//routineN      
+    TYPE(section_vals_type), POINTER         :: fitcharge_section,&
+                                                force_env_section,&
+                                                poisson_section,&
+                                                qmmm_periodic_section
+    TYPE(particle_type), DIMENSION(:), &
+         POINTER                                 :: particle_set
+    LOGICAL :: failure, qmmm_periodic
+    INTEGER :: stat, handle, my_val
+    REAL(KIND=dp), DIMENSION(:), POINTER     :: charges
+
+    failure = .FALSE.
+    IF (.NOT.failure) THEN
+       NULLIFY(fitcharge_section, poisson_section, force_env_section, particle_set,&
+               qmmm_periodic_section)
+       CALL get_qs_env(qs_env=qs_env,&
+                       input=force_env_section,&
+                       particle_set=particle_set,&
+                       error=error)
+       poisson_section => section_vals_get_subs_vals(force_env_section,"DFT%POISSON_DFT", error=error)
+       qmmm_periodic_section   => section_vals_get_subs_vals(force_env_section,"QMMM%PERIODIC", error=error)
+       CALL section_vals_get(qmmm_periodic_section,explicit=qmmm_periodic, error=error)
+       IF (.NOT.qmmm_periodic) THEN
+          CALL section_vals_val_get(poisson_section,"POISSON_SOLVER",i_val=my_val,error=error)
+          SELECT CASE (my_val)
+          CASE (use_multipole)       
+             fitcharge_section => section_vals_get_subs_vals(force_env_section,"PROPERTIES%FIT_CHARGE", error=error)
+          CASE DEFAULT
+             RETURN
+          END SELECT
+       ELSE
+          fitcharge_section => section_vals_get_subs_vals(qmmm_periodic_section,"FIT_CHARGE", error=error)
+       END IF
+       ! First we evaluate the charges at the corresponding SCF STEP
+       CALL get_ddapc(qs_env,.FALSE.,fitcharge_section,qout2=charges,error=error)
+    END IF
+  END SUBROUTINE cp_decpl_ddapc
 
 END MODULE cp_ddapc

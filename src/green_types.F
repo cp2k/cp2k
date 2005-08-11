@@ -60,7 +60,8 @@ MODULE green_types
                                              mt0d,&       
                                              hockney2d,&
                                              hockney1d,&
-                                             hockney0d 
+                                             hockney0d,&
+                                             multipole0d
   IMPLICIT NONE
   
   PRIVATE
@@ -292,7 +293,7 @@ CONTAINS
     gf   => gftype % influence_function
     grid => gftype % influence_function % pw_grid
     SELECT CASE ( method )
-    CASE ( PERIODIC3D, ANALYTIC2D, ANALYTIC1D, ANALYTIC0D, MT2D, MT1D, MT0D )
+    CASE ( PERIODIC3D, ANALYTIC2D, ANALYTIC1D, ANALYTIC0D, MT2D, MT1D, MT0D, MULTIPOLE0D )
        IF ( gf % in_space /= RECIPROCALSPACE .OR. &
             gf % in_use /= COMPLEXDATA1D ) &
             CALL stop_program ( "green_types", "gf wrong space or DATA TYPE" )
@@ -306,7 +307,7 @@ CONTAINS
     IF ( gftype % volume /= grid % vol ) THEN       
        gftype % volume = grid % vol         
        SELECT CASE ( method )            
-       CASE ( PERIODIC3D )            
+       CASE ( PERIODIC3D, MULTIPOLE0D )            
           DO ig = grid % first_gne0, grid % ngpts_cut_local
              g2 = grid % gsq ( ig )
              gf % cc ( ig ) = fourpi / g2
