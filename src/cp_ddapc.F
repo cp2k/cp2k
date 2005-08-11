@@ -43,7 +43,7 @@ MODULE cp_ddapc
                                              pw_pool_type,&
                                              pw_pools_create_pws,&
                                              pw_pools_give_back_pws
-  USE pw_grid_types, only: pw_grid_type
+  USE pw_grid_types,                   ONLY: pw_grid_type
   USE pw_types,                        ONLY: COMPLEXDATA1D,&
                                              REALSPACE,&
                                              REALDATA3D,&
@@ -61,7 +61,8 @@ MODULE cp_ddapc
   USE input_section_types, ONLY: section_type, section_create, &
        section_add_keyword, section_add_subsection, section_release,&
        section_vals_type,&
-       section_vals_get_subs_vals, section_vals_get, section_vals_val_get 
+       section_vals_get_subs_vals, section_vals_get, section_vals_val_get
+  USE message_passing,                 ONLY: mp_sum
 #include "cp_common_uses.h"
   IMPLICIT NONE
   PRIVATE
@@ -201,6 +202,8 @@ CONTAINS
        cv  = 1.0_dp/Vol
        CALL build_b_vector(bv, particle_set, radii, rho_tot_g, gcut, error);  bv = bv / Vol
        CALL build_A_matrix(Am, particle_set, radii, rho_tot_g, gcut, error);  Am = Am /(Vol*Vol)
+       CALL mp_sum(bv,rho_tot_g%pw_grid%para%group)
+       CALL mp_sum(Am,rho_tot_g%pw_grid%para%group)
        CALL invert_matrix(Am, AmI, inv_error, "N")
        IF (cp_should_output(logger%iter_info,print_gen,error=error).AND.&
             logger%para_env%mepos==logger%para_env%source) THEN
@@ -257,6 +260,7 @@ CONTAINS
              dAm = 0.0_dp
              dbv = 0.0_dp
              CALL build_der_b_vector(dbv, particle_set, radii, rho_tot_g, gcut, iparticle, error);  dbv = dbv / Vol
+             CALL mp_sum(dbv,rho_tot_g%pw_grid%para%group)
              IF (debug_this_module) THEN
                 dx = 0.01_dp
                 ALLOCATE(bv1(ndim), stat=stat)
@@ -272,8 +276,10 @@ CONTAINS
                    particle_set(iparticle)%r = rvec
                    particle_set(iparticle)%r(i) = rvec(i) + dx
                    CALL build_b_vector(bv1, particle_set, radii, rho_tot_g, gcut, error);  bv1 = bv1 / Vol
+                   CALL mp_sum(bv1,rho_tot_g%pw_grid%para%group)
                    particle_set(iparticle)%r(i) = rvec(i) - dx
                    CALL build_b_vector(bv2, particle_set, radii, rho_tot_g, gcut, error);  bv2 = bv2 / Vol
+                   CALL mp_sum(bv2,rho_tot_g%pw_grid%para%group)
                    ddbv = (bv1 - bv2)/(2.0_dp*dx)
                    DO kk = 1, SIZE(ddbv)
                       IF (ddbv(kk).GT.0.0_dp) THEN
@@ -294,6 +300,7 @@ CONTAINS
                 CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
              END IF
              CALL build_der_A_matrix(dAm, particle_set, radii, rho_tot_g, gcut, iparticle, error);  dAm = dAm /(Vol*Vol)
+             CALL mp_sum(dAm,rho_tot_g%pw_grid%para%group)             
              IF (debug_this_module) THEN
                 ALLOCATE(Am1(ndim,ndim), stat=stat)
                 CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
@@ -308,8 +315,10 @@ CONTAINS
                    particle_set(iparticle)%r = rvec
                    particle_set(iparticle)%r(i) = rvec(i) + dx
                    CALL build_A_matrix(Am1, particle_set, radii, rho_tot_g, gcut, error);  Am1 = Am1 /(Vol*Vol)
+                   CALL mp_sum(Am1,rho_tot_g%pw_grid%para%group)
                    particle_set(iparticle)%r(i) = rvec(i) - dx
                    CALL build_A_matrix(Am2, particle_set, radii, rho_tot_g, gcut, error);  Am2 = Am2 /(Vol*Vol)
+                   CALL mp_sum(Am2,rho_tot_g%pw_grid%para%group)
                    ddAm = (Am1 - Am2)/(2.0_dp*dx)
                    DO kk = 1, SIZE(ddAm,1)
                       DO ll = 1, SIZE(ddAm,2)
@@ -404,6 +413,8 @@ CONTAINS
        DEALLOCATE(qtot, stat=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     END IF
+    CALL pw_pool_give_back_pw(auxbas_pool,rho_tot_g,&
+         accept_non_compatible=.TRUE.,error=error)
     CALL timestop(0.0_dp,handle)
   END SUBROUTINE get_ddapc
 
