@@ -32,10 +32,14 @@ MODULE qs_linres_methods
                                              cp_error_get_logger,&
                                              cp_error_message,&
                                              cp_error_type
-  USE cp_fm_basic_linalg,              ONLY: cp_fm_scale,&
+  USE cp_fm_basic_linalg,              ONLY: cp_fm_column_scale,&
+                                             cp_fm_scale,&
+                                             cp_fm_gemm,&
                                              cp_fm_symm,&
                                              cp_fm_scale_and_add,&
                                              cp_fm_trace
+  USE cp_fm_cholesky,                  ONLY: cp_fm_cholesky_decompose,&
+                                             cp_fm_cholesky_invert
   USE cp_fm_pool_types,                ONLY: cp_fm_pool_p_type,&
                                              fm_pools_create_fm_vect,&
                                              fm_pools_give_back_fm_vect
@@ -44,9 +48,11 @@ MODULE qs_linres_methods
                                              cp_fm_struct_p_type,&
                                              cp_fm_struct_type
   USE cp_fm_types,                     ONLY: cp_fm_create,&
+                                             cp_fm_get_info,&
                                              cp_fm_p_type,&
                                              cp_fm_release,&
                                              cp_fm_set_all,&
+                                             cp_fm_type,&
                                              cp_fm_to_fm
   USE cp_log_handling,                 ONLY: cp_failure_level,&
                                              cp_fatal_level,&
@@ -60,7 +66,10 @@ MODULE qs_linres_methods
   USE global_types,                    ONLY: global_environment_type 
   USE kinds,                           ONLY: dp
   USE input_constants,                 ONLY: do_loc_none,state_loc_all,&
-                                             op_loc_berry, lr_diis, lr_pcg
+                                             op_loc_berry, lr_diis, lr_cg,&
+                                             lr_precond_none
+  USE preconditioner,                  ONLY: apply_preconditioner, &
+                                             make_preconditioner
   USE qs_environment_types,            ONLY: get_qs_env,&
                                              qs_environment_type
   USE qs_linres_types,                 ONLY: linres_control_type
@@ -218,10 +227,12 @@ CONTAINS
 
     INTEGER ::  handle, i, ik, istat, ispin, iter, last_ik, nvectors, out_unit
     LOGICAL                                     :: ionode, failure
+    REAL(dp) :: tmp
+    REAL(dp), DIMENSION(:), POINTER             :: occupations
     TYPE(cp_blacs_env_type), POINTER            :: blacs_env
     TYPE(cp_fm_p_type), DIMENSION(:), &
       POINTER                                   :: R, X
-    TYPE(cp_fm_p_type), DIMENSION(:, :), &
+    TYPE(cp_fm_p_type), DIMENSION(:), &
       POINTER                                   :: b, Ab
     TYPE(cp_fm_pool_p_type), DIMENSION(:), &
       POINTER                                   :: ao_mo_fm_pools
@@ -231,6 +242,7 @@ CONTAINS
     TYPE(cp_para_env_type), POINTER                       :: para_env
     TYPE(dft_control_type), POINTER             :: dft_control
     TYPE(linres_control_type), POINTER          :: linres_control
+    TYPE(mo_set_p_type), DIMENSION(:), POINTER  :: mos
     TYPE(qs_matrix_pools_type), POINTER         :: mpools
     TYPE(real_matrix_p_type), DIMENSION(:), &
       POINTER                                   :: matrix_s
@@ -239,8 +251,8 @@ CONTAINS
     failure   = .FALSE.
     CALL timeset(routineN,"I","",handle)
 
-     NULLIFY(ao_mo_fm_pools, blacs_env, dft_control, linres_control, matrix_s, mpools, para_env, R, X)
-     NULLIFY(Ab, b, kv_fm_struct, logger)
+     NULLIFY(ao_mo_fm_pools, blacs_env, dft_control, linres_control, matrix_s, mos, mpools, para_env)
+     NULLIFY(Ab, b, kv_fm_struct, logger,  R, X)
 
     logger    => cp_error_get_logger(error)
     ionode    = (logger%para_env%mepos==logger%para_env%source)
@@ -251,9 +263,8 @@ CONTAINS
                      dft_control= dft_control, &
                      linres_control=linres_control,&
                      matrix_s=matrix_s,&
-                     mpools=mpools, &
+                     mpools=mpools, mos=mos,&
                      para_env=para_env)
-
 
 
      !----------------------!
@@ -274,57 +285,64 @@ CONTAINS
 
      ! The storage of older vectors and residues depends on the optimization algorithm (DIIS,PCG..)
      nvectors = 1
-     ALLOCATE(b(nvectors,dft_control%nspins), Ab(nvectors,dft_control%nspins), STAT=istat)
-!              Sb(nvectors,dft_control%nspins), stat=istat)
+     ALLOCATE(b(dft_control%nspins), Ab(dft_control%nspins), STAT=istat)
      CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
 
      DO ispin=1,dft_control%nspins
-       DO i=1, nvectors
-          NULLIFY(b(i,ispin)%matrix, Ab(i,ispin)%matrix )
-       END DO
+        NULLIFY(b(ispin)%matrix, Ab(ispin)%matrix )
      END DO
      ! Copy the initial guess
      DO ispin=1, dft_control%nspins
-       CALL cp_fm_to_fm(psi1(ispin)%matrix, b(1,ispin)%matrix)
+       CALL cp_fm_to_fm(psi1(ispin)%matrix, b(ispin)%matrix)
      END DO
+
+     CALL check_p_env_init(p_env,linres_control, dft_control%nspins, error=error)
+
+    !Orthogonalize with respect to the psi0
+     CALL p_preortho(p_env, qs_env, b(:))
+     CALL normalize(b(:), R, matrix_s) ! R is temp
 
      ik = 1
      last_ik = 1
      DO  iter = 1,linres_control%max_scf
 
-     !Orthogonalize with respect to the psi0
-     CALL p_preortho(p_env, qs_env, b(ik,:))
-     CALL normalize(b(ik,:), R, matrix_s) ! R is temp
+       p_env%etotal = 0.0_dp
+       p_env%gnorm = 0.0_dp
+       p_env%gradient = 0.0_dp
 
-     DO ispin=1, dft_control%nspins
-        CALL cp_fm_to_fm(b(ik,ispin)%matrix, X(ispin)%matrix)
-     END DO
-     ! Apply the operators that do not depend on the perturbationnn
-     CALL apply_op(X, Ab(ik,:), p_env, qs_env, linres_control%do_kernel)
-     ! Apply the perturbative operator
-!     CALL apply_op_h1(Ab(ik,:),h1_psi0, p_env, qs_env)
+       DO ispin=1, dft_control%nspins
+          CALL cp_fm_to_fm(b(ispin)%matrix, X(ispin)%matrix)
+       END DO
+       ! Apply the operators that do not depend on the perturbation
+       CALL apply_op(X, Ab(:), p_env, qs_env, linres_control%do_kernel)
+       ! Apply the perturbative operator
+       DO ispin=1, dft_control%nspins
+          CALL cp_fm_scale_and_add(1.0_dp, Ab(ispin)%matrix, &
+                                   1.0_dp, h1_psi0(ispin)%matrix) ! add h1_psi0 to Ab 
+          CALL get_mo_set(mo_set=mos(ispin)%mo_set, &
+                          occupation_numbers=occupations )
+          CALL cp_fm_column_scale(Ab(ispin)%matrix, occupations)
+          CALL cp_fm_trace(psi1(ispin)%matrix,Ab(ispin)%matrix,tmp,error)
+          p_env%etotal = p_env%etotal + tmp 
+       END DO
 
-     !Refine the orthogonalization constraint
-     CALL p_postortho(p_env,qs_env, Ab(ik,:))
+       !minimization
+       CALL linres_scf_mini(p_env,qs_env,linres_control,b,Ab,dft_control%nspins,error=error)
 
-     !Optimizer
-     IF(linres_control%opt_method == lr_diis) THEN
+       !Refine the orthogonalization constraint
+       CALL p_postortho(p_env,qs_env, Ab(:))
 
-     ELSEIF(linres_control%opt_method == lr_pcg) THEN
+       !Check Convergence
+       IF(iter /= 1) THEN
 
-     END IF
-
-     !Check Convergence
-     IF(iter /= 1) THEN
-
-     END IF
+       END IF
 
 
      END DO  ! iter
 
     ! Copy the optimized wavefunctions
      DO ispin=1, dft_control%nspins
-       CALL cp_fm_to_fm(b(1,ispin)%matrix,psi1(ispin)%matrix)
+       CALL cp_fm_to_fm(b(ispin)%matrix,psi1(ispin)%matrix)
      END DO
 
     !----------!
@@ -333,12 +351,10 @@ CONTAINS
      DO ispin=1, dft_control%nspins
         CALL cp_fm_struct_release(kv_fm_struct(ispin)%struct)
         DO i=1, nvectors
-           IF (ASSOCIATED(b(i,ispin)%matrix)) &
-                CALL cp_fm_release(b(i,ispin)%matrix)
-           IF (ASSOCIATED(Ab(i,ispin)%matrix)) &
-                CALL cp_fm_release(Ab(i,ispin)%matrix)
-!           IF (ASSOCIATED(Sb(i,ispin)%matrix)) &
-!                CALL cp_fm_release(Sb(i,ispin)%matrix)
+           IF (ASSOCIATED(b(ispin)%matrix)) &
+                CALL cp_fm_release(b(ispin)%matrix)
+           IF (ASSOCIATED(Ab(ispin)%matrix)) &
+                CALL cp_fm_release(Ab(ispin)%matrix)
         END DO
      END DO
      DEALLOCATE(b, Ab, kv_fm_struct, STAT=istat)
@@ -350,5 +366,145 @@ CONTAINS
     CALL timestop(0.0_dp, handle)
 
   END SUBROUTINE linres_scf
+
+  SUBROUTINE check_p_env_init(p_env,linres_control, nspins, error)
+
+    TYPE(qs_p_env_type), POINTER                :: p_env
+    TYPE(linres_control_type), POINTER          :: linres_control
+    INTEGER, INTENT(IN)                         :: nspins
+    TYPE(cp_error_type), &
+         INTENT(INOUT), OPTIONAL                :: error
+
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'check_p_env_init', &
+                                   routineP = moduleN//'/'//routineN
+    LOGICAL :: failure
+    INTEGER :: ispin, nrow, ncol
+
+    failure = .FALSE.
+
+    p_env%iter = 0
+    p_env%only_energy = .FALSE.
+    p_env%new_preconditioner = .TRUE.
+    p_env%os_valid = .FALSE.
+
+
+    IF(linres_control%opt_method == lr_cg ) THEN
+
+      p_env%ls_pos = 0.0_dp
+      p_env%ls_energy = 0.0_dp
+      p_env%ls_grad = 0.0_dp
+
+      CPPrecondition(ASSOCIATED(p_env%g_psi1_old),cp_failure_level,routineP,error,failure)
+      Do ispin = 1,nspins
+        CALL cp_fm_get_info(p_env%g_psi1_old(ispin)%matrix,nrow_global=nrow,ncol_global=ncol)
+        CPPrecondition(nrow==p_env%n_ao(ispin),cp_failure_level,routineP,error,failure)
+        CPPrecondition(ncol==p_env%n_mo(ispin),cp_failure_level,routineP,error,failure)
+        CALL cp_fm_set_all(p_env%g_psi1_old(ispin)%matrix,0.0_dp)
+        CALL cp_fm_set_all(p_env%g_psi1(ispin)%matrix,0.0_dp)
+        CALL cp_fm_set_all(p_env%d_psi1(ispin)%matrix,0.0_dp)
+      END DO 
+
+    ELSE IF (linres_control%opt_method == lr_diis) THEN
+
+        CALL cp_fm_get_info(p_env%g_psi1(ispin)%matrix,nrow_global=nrow,ncol_global=ncol)
+        CPPrecondition(nrow==p_env%n_ao(ispin),cp_failure_level,routineP,error,failure)
+        CPPrecondition(ncol==p_env%n_mo(ispin),cp_failure_level,routineP,error,failure)
+        CALL cp_fm_set_all(p_env%g_psi1(ispin)%matrix,0.0_dp)
+        CALL cp_fm_set_all(p_env%d_psi1(ispin)%matrix,0.0_dp)
+
+    END IF
+
+    IF(linres_control%preconditioner_type /= lr_precond_none) THEN
+
+      CPPrecondition(ASSOCIATED(p_env%preconditioner),cp_failure_level,routineP,error,failure)
+      Do ispin = 1,nspins
+        CALL cp_fm_get_info(p_env%PS_psi0(ispin)%matrix,nrow_global=nrow,ncol_global=ncol)
+        CPPrecondition(nrow==p_env%n_ao(ispin),cp_failure_level,routineP,error,failure)
+        CPPrecondition(ncol==p_env%n_mo(ispin),cp_failure_level,routineP,error,failure)
+      END DO
+    END IF
+
+  END SUBROUTINE check_p_env_init
+
+
+
+  SUBROUTINE linres_scf_mini(p_env,qs_env,linres_control,b,Ab,nspins,error)
+
+    TYPE(qs_p_env_type), POINTER                :: p_env
+    TYPE(qs_environment_type), POINTER          :: qs_env
+    TYPE(linres_control_type), POINTER          :: linres_control
+    TYPE(cp_fm_p_type), DIMENSION(:), &
+      POINTER                                   :: b, Ab
+    INTEGER, INTENT(IN)                         :: nspins
+    TYPE(cp_error_type), &
+         INTENT(INOUT), OPTIONAL                :: error
+
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'linres_scf_mini', &
+                                   routineP = moduleN//'/'//routineN
+
+    INTEGER :: ispin, nao, nmo
+    LOGICAL :: failure
+    TYPE(cp_fm_p_type), DIMENSION(2)            :: PS_psi0
+    TYPE(cp_fm_type), POINTER                   :: mo_coeff
+    TYPE(mo_set_p_type), DIMENSION(:), &
+      POINTER                                   :: mos
+    TYPE(real_matrix_p_type), DIMENSION(:), &
+      POINTER                                   :: matrix_ks, matrix_t, matrix_s
+
+
+
+    failure = .FALSE.
+
+    NULLIFY(PS_psi0(1)%matrix,PS_psi0(2)%matrix)
+    NULLIFY(matrix_ks,matrix_s,matrix_t,mo_coeff,mos)
+ 
+    CALL get_qs_env(qs_env=qs_env,&
+         matrix_ks=matrix_ks,&
+         matrix_s=matrix_s,&
+         kinetic=matrix_t,&
+         mos=mos,&
+         error=error)
+
+    IF(linres_control%preconditioner_type /= lr_precond_none) THEN
+
+      IF(p_env%new_preconditioner) THEN
+        CALL get_mo_set(mo_set=mos(1)%mo_set, mo_coeff=mo_coeff)
+        IF(linres_control%nprec == 1) THEN
+          CALL make_preconditioner(p_env%preconditioner,linres_control%preconditioner_type,&
+               matrix_ks(1)%matrix,matrix_s(1)%matrix,matrix_t(1)%matrix,&
+               mo_coeff,linres_control%energy_gap)
+        ELSE
+          CALL make_preconditioner(p_env%preconditioner,linres_control%preconditioner_type,&
+               matrix_ks(1)%matrix,matrix_s(1)%matrix,matrix_t(1)%matrix,&
+               mo_coeff,linres_control%energy_gap,linres_control%nprec)
+        END IF   
+        p_env%new_preconditioner = .FALSE.
+      ENDIF
+      DO ispin = 1,nspins
+        PS_psi0(ispin)%matrix => p_env%PS_psi0(ispin)%matrix
+      END DO
+    ELSE
+      DO ispin = 1,nspins
+        PS_psi0(ispin)%matrix => p_env%S_psi0(ispin)%matrix
+      END DO
+    END IF
+    IF(.NOT.p_env%os_valid) THEN
+      DO ispin = 1,nspins
+        IF(ASSOCIATED(p_env%preconditioner)) THEN
+           CALL apply_preconditioner(p_env%preconditioner,p_env%S_psi0(ispin)%matrix,&
+                 p_env%PS_psi0(ispin)%matrix)
+        END IF
+        CALL cp_fm_get_info(p_env%S_psi0(ispin)%matrix,nrow_global=nao,ncol_global=nmo)
+        CALL cp_fm_gemm('T','N',nmo,nmo,nao,1.0_dp,p_env%S_psi0(ispin)%matrix,&
+             PS_psi0(ispin)%matrix,0.0_dp,p_env%os_psi0(ispin)%matrix) 
+        CALL cp_fm_cholesky_decompose(p_env%os_psi0(ispin)%matrix)
+        CALL cp_fm_cholesky_invert(p_env%os_psi0(ispin)%matrix)
+        p_env%os_valid = .TRUE.
+      END DO
+
+    END IF
+    
+
+  END SUBROUTINE linres_scf_mini
 
 END MODULE qs_linres_methods

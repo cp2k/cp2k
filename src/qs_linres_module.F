@@ -149,6 +149,7 @@ CONTAINS
 
     IF (lr_calculation) THEN
 
+
        CALL linres_init(lr_section,p_env,qs_env,ionode,globenv,error=error)
 
        CALL get_qs_env(qs_env=qs_env, dft_control=dft_control, &
@@ -246,10 +247,6 @@ CONTAINS
     CPPrecondition(.NOT.ASSOCIATED(p_env),cp_failure_level,routineP,error,failure)
     IF (.NOT. failure) THEN
 
-      !------------------!
-      ! create the p_env !
-      !------------------!
-       CALL p_env_create(p_env, qs_env, orthogonal_orbitals=.TRUE.,error=error)
 
        CALL linres_control_create(linres_control,error=error)
        CALL set_qs_env(qs_env=qs_env, linres_control=linres_control)
@@ -270,6 +267,17 @@ CONTAINS
        CALL section_vals_val_get(lr_section,"OPT_METHOD",i_val=linres_control%opt_method,error=error)
        CALL section_vals_val_get(lr_section,"MAX_SCF",i_val=linres_control%max_scf,error=error)
        CALL section_vals_val_get(lr_section,"EPS_SCF",r_val=linres_control%eps_scf,error=error)
+       CALL section_vals_val_get(lr_section,"LINESEARCH",i_val=linres_control%ls_method)
+       CALL section_vals_val_get(lr_section,"STEPSIZE",r_val=linres_control%ds_min)
+
+       CALL section_vals_val_get(lr_section,"PRECONDITIONER",i_val=linres_control%preconditioner_type)
+       CALL section_vals_val_get(lr_section,"MULT_PRECONDITIONER",i_val=linres_control%nprec)
+       CALL section_vals_val_get(lr_section,"ENERGY_GAP",r_val=linres_control%energy_gap)
+       
+      !------------------!
+      ! create the p_env !
+      !------------------!
+       CALL p_env_create(p_env, qs_env, orthogonal_orbitals=.TRUE.,linres_control=linres_control,error=error)
 
        ! update the m_epsilon matrix
        CALL p_env_psi0_changed(p_env,qs_env,error=error)

@@ -68,6 +68,7 @@ MODULE qs_ep_methods
   USE cp_sm_fm_interactions,           ONLY: cp_sm_fm_multiply
   USE global_types,                    ONLY: global_environment_type
   USE green_methods,                   ONLY: pw_green_fn_rebuild
+  USE input_constants,                 ONLY: ot_precond_full_kinetic
   USE kinds,                           ONLY: dp
   USE machine,                         ONLY: m_flush
   USE particle_types,                  ONLY: particle_type
@@ -674,7 +675,7 @@ END SUBROUTINE qs_ep_calculation
             para_env=para_env,&
             blacs_env=blacs_env)
        CALL make_preconditioner(ep_env%precond(ispin)%preconditioner,&
-            "FULL_KINETIC",&
+            ot_precond_full_kinetic,&
             ep_env%main_qs_env%matrix_ks(ispin)%matrix,&
             ep_env%main_qs_env%matrix_s(1)%matrix,&
             ep_env%main_qs_env%kinetic(1)%matrix,&

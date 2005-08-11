@@ -71,7 +71,9 @@ MODULE qs_p_env_methods
   USE global_types,                    ONLY: global_environment_type
   USE hartree_local_methods,           ONLY: init_coulomb_local
   USE hartree_local_types,             ONLY: hartree_local_create
+  USE input_constants,                 ONLY: lr_cg, lr_precond_none
   USE kinds,                           ONLY: dp
+  USE preconditioner,                  ONLY: init_preconditioner
   USE qs_environment_types,            ONLY: get_qs_env,&
                                              qs_environment_type
   USE qs_kpp1_env_methods,             ONLY: kpp1_calc_k_p_p1,&
@@ -82,6 +84,7 @@ MODULE qs_p_env_methods
   USE qs_ks_methods,                   ONLY: qs_ks_did_change,&
                                              qs_ks_update_qs_env
   USE qs_ks_types,                     ONLY: qs_ks_env_type
+  USE qs_linres_types,                 ONLY: linres_control_type
   USE qs_local_rho_types,              ONLY: local_rho_set_create
   USE qs_matrix_pools,                 ONLY: mpools_get
   USE qs_mo_types,                     ONLY: get_mo_set,&
@@ -162,7 +165,7 @@ CONTAINS
 !!
 !!*** **********************************************************************
   SUBROUTINE p_env_create(p_env, qs_env, kpp1_env, p1_option, &
-       psi0d, orthogonal_orbitals, error)
+       psi0d, orthogonal_orbitals,linres_control, error)
 
 
     TYPE(qs_p_env_type), POINTER             :: p_env
@@ -174,6 +177,8 @@ CONTAINS
     TYPE(cp_fm_p_type), DIMENSION(:), &
       OPTIONAL, POINTER                      :: psi0d
     LOGICAL, INTENT(in), OPTIONAL            :: orthogonal_orbitals
+    TYPE(linres_control_type), POINTER,&
+      OPTIONAL                               :: linres_control
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
@@ -207,12 +212,28 @@ CONTAINS
             p_env%kpp1_env,&
             p_env%rho1,&
             p_env%Smo_inv,&
-            p_env%local_rho_set, p_env%hartree_local)
+            p_env%local_rho_set, &
+            p_env%hartree_local,&
+            p_env%PS_psi0,&
+            p_env%d_psi1,&
+            p_env%g_psi1,&
+            p_env%g_psi1_old,&
+            p_env%os_psi0,&
+            p_env%preconditioner)
 
        p_env%ref_count=1
        last_p_env_id=last_p_env_id+1
        p_env%id_nr=last_p_env_id
        p_env%iter=0
+
+       p_env%new_preconditioner = .TRUE.
+       p_env%only_energy = .FALSE.
+       p_env%os_valid = .FALSE.
+       p_env%delta=0.0_dp
+       p_env%gnorm=0.0_dp
+       p_env%gnorm_old=0.0_dp
+       p_env%etotal=0.0_dp
+       p_env%gradient=0.0_dp
 
        IF (PRESENT(kpp1_env)) THEN
           p_env%kpp1_env => kpp1_env
@@ -269,7 +290,7 @@ CONTAINS
 
        ! alloc Smo_inv
        IF (.NOT. p_env%orthogonal_orbitals) THEN
-          CALL fm_pools_create_fm_vect(mo_mo_fm_pools,elements=p_env%S_psi0,&
+          CALL fm_pools_create_fm_vect(mo_mo_fm_pools,elements=p_env%Smo_inv,&
                name="p_env"//TRIM(ADJUSTL(cp_to_string(p_env%id_nr)))//&
                "%Smo_inv",&
                error=error)
@@ -300,6 +321,44 @@ CONTAINS
                                   .TRUE., p_env)
        END IF
 
+       !------------------------!
+       ! LINRES initializations !
+       !------------------------!
+       IF(PRESENT(linres_control)) THEN
+
+         
+         CALL fm_pools_create_fm_vect(ao_mo_fm_pools,elements=p_env%d_psi1,&
+              name="p_env"//TRIM(ADJUSTL(cp_to_string(p_env%id_nr)))//"%d_psi1",&
+              error=error)
+
+         
+         CALL fm_pools_create_fm_vect(ao_mo_fm_pools,elements=p_env%g_psi1,&
+              name="p_env"//TRIM(ADJUSTL(cp_to_string(p_env%id_nr)))//"%g_psi1",&
+              error=error)
+
+         IF(linres_control%opt_method==lr_cg) THEN
+           CALL fm_pools_create_fm_vect(ao_mo_fm_pools,elements=p_env%g_psi1_old,&
+                name="p_env"//TRIM(ADJUSTL(cp_to_string(p_env%id_nr)))//"%g_psi1_old",&
+                error=error)
+         END IF
+
+         CALL fm_pools_create_fm_vect(mo_mo_fm_pools,elements=p_env%os_psi0,&
+              name="p_env"//TRIM(ADJUSTL(cp_to_string(p_env%id_nr)))//"%os_psi0",&
+              error=error)
+
+         IF(linres_control%preconditioner_type/= lr_precond_none) THEN
+           IF (.NOT.ASSOCIATED(p_env%preconditioner)) THEN
+             ALLOCATE(p_env%preconditioner, STAT=stat)
+             CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+             CALL init_preconditioner(p_env%preconditioner,para_env=qs_env%para_env,blacs_env=qs_env%blacs_env)
+             p_env%os_valid = .FALSE.
+             CALL fm_pools_create_fm_vect(ao_mo_fm_pools,elements=p_env%PS_psi0,&
+                  name="p_env"//TRIM(ADJUSTL(cp_to_string(p_env%id_nr)))//"%PS_psi0",&
+                  error=error)
+           END IF
+         END IF
+
+       END IF
 
     END IF
 

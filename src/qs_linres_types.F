@@ -75,8 +75,12 @@ MODULE qs_linres_types
   TYPE linres_control_type
      INTEGER                                   :: ref_count
      INTEGER                                   :: property
-     INTEGER                                   :: preconditioner
+     INTEGER                                   :: preconditioner_type
+     REAL(dp)                                  :: energy_gap
+     INTEGER                                   :: nprec
      INTEGER                                   :: opt_method
+     INTEGER                                   :: ls_method
+     REAL(dp)                                  :: ds_min
      INTEGER                                   :: max_scf
      LOGICAL                                   :: localized_psi0
      LOGICAL                                   :: do_kernel

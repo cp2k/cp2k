@@ -94,6 +94,12 @@ MODULE qs_core_hamiltonian
                                              gth_potential_type
   USE global_types,                    ONLY: global_environment_type
   USE harris_env_types,                ONLY: harris_env_type
+  USE input_constants,                 ONLY: ep_run,linear_response_run,&
+                                             lr_precond_kinetic 
+  USE input_section_types,             ONLY: section_vals_get,&
+                                             section_vals_get_subs_vals,&
+                                             section_vals_type,&
+                                             section_vals_val_get
   USE kinds,                           ONLY: dp,&
                                              dp_size,&
                                              int_size
@@ -157,7 +163,6 @@ MODULE qs_core_hamiltonian
                                              timestop
   USE util,                            ONLY: locate,&
                                              sort
-  USE input_constants,                 ONLY: ep_run
 
   IMPLICIT NONE
 
@@ -248,7 +253,7 @@ CONTAINS
                           iac,iat,iatom,ibc,icell,ico,icol,idx,ikind,ilist,&
                           inode,ipgf,irow,iset,istat,j,jatom,jcell,jco,&
                           jkind,jset,katom,kcell,kkind,kneighbor,knode,&
-                          l,last_jatom,lc_max,lc_min,ldai,ldsab,lppnl,maxblock,&
+                          l,last_jatom,lc_max,lc_min,ldai,ldsab,lppnl,lr_precond,maxblock,&
                           maxco,maxdco,maxder,maxl,maxlgto,maxlppl,maxlppnl,&
                           maxppnl,maxsgf,n,nat,natom,ncoa,ncoa_sum,ncob,ncoc,ncol,&
                           nder,nkind,nlist,nneighbor,nnode,nnode_c,nppnl,nprjc,&
@@ -315,6 +320,8 @@ CONTAINS
     INTEGER :: neighbor_list_id
 
     TYPE(harris_env_type), POINTER    :: harris_env
+    TYPE(section_vals_type), POINTER            :: lr_section
+
 
 #if defined(__AIX) && defined(__INIT_WITH_NANS)
     REAL(dp) :: nans_dp
@@ -516,10 +523,17 @@ CONTAINS
 !   *** matrix (only needed for printing or  ***
 !   *** the OT preconditioner)               ***
 
+    lr_precond = 0  
+    IF(globenv%run_type_id==linear_response_run) THEN
+      lr_section = section_vals_get_subs_vals(globenv%input_file,"FORCE_EVAL%PROPERTIES%LINRES")
+      CALL section_vals_val_get(lr_section,"PRECONDITIONER",i_val=lr_precond)
+    END IF
+    
     build_kinetic_energy_matrix = (scf_control%use_ot.OR.&
                                    globenv%print%kinetic_energy_matrix.OR.&
                                    globenv%print%potential_energy_matrix.OR.&
-                                   globenv%run_type_id==ep_run)
+                                   globenv%run_type_id==ep_run .OR. &
+                                   lr_precond == lr_precond_kinetic)
     ! assume false by default
     return_t_derivatives = .FALSE.
 

@@ -57,7 +57,7 @@ MODULE qs_scf_types
   LOGICAL, PRIVATE, PARAMETER :: debug_this_module=.TRUE.
   CHARACTER(len=*), PRIVATE, PARAMETER :: moduleN='qs_scf_types'
 
-  INTEGER, PARAMETER, PUBLIC :: pao_mehod_nr=0,&
+  INTEGER, PARAMETER, PUBLIC :: &
                                 general_diag_method_nr=1,&
                                 special_diag_method_nr=2,&
                                 ot_method_nr=3
@@ -81,7 +81,7 @@ MODULE qs_scf_types
 !!     -
 !!
 !!   ATTRIBUTES
-!!     - method: 0: pao, 1: diagonalization (default), 2: orbital transforms
+!!     - method: 1: diagonalization (default), 2: orbital transforms
 !!
 !!   AUTHOR
 !!     fawzi

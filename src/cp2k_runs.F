@@ -106,6 +106,7 @@ MODULE cp2k_runs
   USE print_key_types,                 ONLY: print_keys_release
   USE qmmm_init,                       ONLY: qmmm_create_force_env
   USE qs_debug,                        ONLY: qs_debug_energy_and_forces
+  USE qs_linres_module,                ONLY: linres_calculation
   USE qs_main,                         ONLY: quickstep_create_force_env
   USE qs_mc,                           ONLY: qs_mon_car
   USE qs_tddfpt_module,                ONLY: tddfpt_calculation
@@ -295,7 +296,7 @@ CONTAINS
           ! The Ground State is needed, it can be read from Restart
           CALL force_env_calc_energy_force(force_env,calc_force=.FALSE.,&
                error=error)
-          ! CALL linres_calculation(force_env%qs_env, globenv)
+          CALL linres_calculation(force_env%qs_env, globenv, error=error)
        CASE (qs_debug_run)
           IF((globenv%prog_name_id /= do_qs).AND.(globenv%prog_name_id /= do_qmmm))  &
                CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,routineP,&

@@ -54,6 +54,7 @@ MODULE qs_ot
   USE cp_para_types,                   ONLY: cp_blacs_env_type,&
                                              cp_para_env_type
   USE kinds,                           ONLY: dp
+  USE input_constants,                 ONLY: ot_precond_full_kinetic
   USE preconditioner,                  ONLY: apply_preconditioner,&
                                              preconditioner_type
   USE termination,                     ONLY: stop_program
@@ -79,7 +80,9 @@ MODULE qs_ot
        LOGICAL           :: do_rotation
        CHARACTER(LEN=4)  :: ot_method
        CHARACTER(LEN=4)  :: line_search_method
-       CHARACTER(LEN=12) :: preconditioner_type
+       CHARACTER(LEN=14) :: preconditioner_name
+       INTEGER           :: preconditioner_type
+       INTEGER           :: nprec ! number of matrices for the preconditioner (only fm)
        LOGICAL           :: safer_diis
        REAL(KIND = dp)   :: ds_min
        REAL(KIND = dp)   :: energy_gap
@@ -200,8 +203,10 @@ CONTAINS
     TYPE(qs_ot_settings_type)                :: settings
 
     settings%ot_method="CG"
+    settings%nprec =1
     settings%diis_m=7
-    settings%preconditioner_type="FULL_KINETIC"
+    settings%preconditioner_name="FULL_KINETIC"
+    settings%preconditioner_type= ot_precond_full_kinetic
     settings%line_search_method="2PNT"
     settings%ds_min=0.15_dp
     settings%safer_diis=.TRUE.

@@ -109,7 +109,8 @@ MODULE qs_scf
   USE kinds,                           ONLY: dp,&
                                              dp_size,&
                                              int_size
-  USE input_constants,                 ONLY: xas_tp_hh, &
+  USE input_constants,                 ONLY: ot_precond_none,&
+                                             xas_tp_hh, &
                                              xas_tp_fh, &
                                              xas_dscf
   USE machine,                         ONLY: m_flush,&
@@ -1252,7 +1253,7 @@ CONTAINS
           CALL qs_ks_update_qs_env(qs_env%ks_env,qs_env=qs_env,&
                error=error, calculate_forces=.FALSE.,just_energy=.FALSE.)
 
-          IF (scf_env%qs_ot_env(1)%settings%preconditioner_type .NE. "NONE") THEN 
+          IF (scf_env%qs_ot_env(1)%settings%preconditioner_type /= ot_precond_none) THEN 
              !
              ! preconditioning still needs to be done correctly with has_unit_metric
              ! notice that a big part of the preconditioning (S^-1) is fine anyhow
@@ -1262,11 +1263,20 @@ CONTAINS
              ! this might or might not be reasonable. Presumably it is.
              CALL get_mo_set(mo_set=mos(1)%mo_set,&
                   mo_coeff=mo_coeff)
-             CALL make_preconditioner(scf_env%ot_preconditioner, &
+             IF(scf_env%qs_ot_env(1)%settings%nprec ==1 ) THEN
+               CALL make_preconditioner(scf_env%ot_preconditioner, &
                   scf_env%qs_ot_env(1)%settings%preconditioner_type, &
                   matrix_ks(1)%matrix,matrix_s(1)%matrix,&
                   qs_env%kinetic(1)%matrix, &
                   mo_coeff,scf_env%qs_ot_env(1)%settings%energy_gap) 
+             ELSE
+               CALL make_preconditioner(scf_env%ot_preconditioner, &
+                  scf_env%qs_ot_env(1)%settings%preconditioner_type, &
+                  matrix_ks(1)%matrix,matrix_s(1)%matrix,&
+                  qs_env%kinetic(1)%matrix, &
+                  mo_coeff,scf_env%qs_ot_env(1)%settings%energy_gap,&
+                  scf_env%qs_ot_env(1)%settings%nprec)
+             END IF
           ENDIF
 
           IF (has_unit_metric) THEN
@@ -1277,7 +1287,7 @@ CONTAINS
 
           CALL ot_scf_init(mos,orthogonality_metric,scf_env%qs_ot_env)
           
-          IF (scf_env%qs_ot_env(1)%settings%preconditioner_type .NE. "NONE") THEN
+          IF (scf_env%qs_ot_env(1)%settings%preconditioner_type /= ot_precond_none) THEN
              DO ispin=1,SIZE(scf_env%qs_ot_env)
                 CALL qs_ot_new_preconditioner(scf_env%qs_ot_env(ispin),&
                      scf_env%ot_preconditioner) 

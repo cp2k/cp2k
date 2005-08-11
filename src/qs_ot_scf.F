@@ -132,21 +132,22 @@ SUBROUTINE ot_scf_read_input(qs_ot_env,globenv)
        CASE DEFAULT
          CALL stop_program("READ OTSCF LS","VALUE UNKNOWN")
        END SELECT
-       CALL section_vals_val_get(ot_section,"PRECONDITIONER",i_val=preconditioner_method)
-       SELECT CASE(preconditioner_method)
+       CALL section_vals_val_get(ot_section,"PRECONDITIONER",i_val=qs_ot_env(1)%settings%preconditioner_type)
+       SELECT CASE(qs_ot_env(1)%settings%preconditioner_type)
        CASE(ot_precond_none)
-           qs_ot_env(1)%settings%preconditioner_type="NONE"
+           qs_ot_env(1)%settings%preconditioner_name="NONE"
        CASE(ot_precond_full_single)
-           qs_ot_env(1)%settings%preconditioner_type="FULL_SINGLE"
+           qs_ot_env(1)%settings%preconditioner_name="FULL_SINGLE"
        CASE(ot_precond_full_kinetic)
-           qs_ot_env(1)%settings%preconditioner_type="FULL_KINETIC"
+           qs_ot_env(1)%settings%preconditioner_name="FULL_KINETIC"
        CASE(ot_precond_s_inverse)
-           qs_ot_env(1)%settings%preconditioner_type="FULL_S_INVERSE"
+           qs_ot_env(1)%settings%preconditioner_name="FULL_S_INVERSE"
        CASE(ot_precond_sparse_diag)
-           qs_ot_env(1)%settings%preconditioner_type="SPARSE_DIAG"
+           qs_ot_env(1)%settings%preconditioner_name="SPARSE_DIAG"
        CASE DEFAULT
          CALL stop_program("READ OTSCF PRECONDITIONER","VALUE UNKNOWN")
        END SELECT
+       CALL section_vals_val_get(ot_section,"MULT_PRECONDITIONER",i_val=qs_ot_env(1)%settings%nprec)
        CALL section_vals_val_get(ot_section,"STEPSIZE",r_val=qs_ot_env(1)%settings%ds_min)
        CALL section_vals_val_get(ot_section,"ENERGY_GAP",r_val=qs_ot_env(1)%settings%energy_gap)
        CALL section_vals_val_get(ot_section,"EPS_TAYLOR",r_val=qs_ot_env(1)%settings%eps_taylor)
@@ -213,19 +214,26 @@ SUBROUTINE ot_scf_read_input(qs_ot_env,globenv)
                   CALL read_object(value,lower_to_upper=.TRUE.)
                   SELECT CASE (TRIM(value)) ! somehow in order of efficiency
                   CASE ("FULL_SINGLE")
-                       qs_ot_env(1)%settings%preconditioner_type="FULL_SINGLE"
+                       qs_ot_env(1)%settings%preconditioner_type=ot_precond_full_single
+                       qs_ot_env(1)%settings%preconditioner_name="FULL_SINGLE"
                   CASE ("FULL_KINETIC")
-                       qs_ot_env(1)%settings%preconditioner_type="FULL_KINETIC"
+                       qs_ot_env(1)%settings%preconditioner_type=ot_precond_full_kinetic
+                       qs_ot_env(1)%settings%preconditioner_name="FULL_KINETIC"
                   CASE ("FULL_S_INVERSE")
-                       qs_ot_env(1)%settings%preconditioner_type="FULL_S_INVERSE"
+                       qs_ot_env(1)%settings%preconditioner_type=ot_precond_s_inverse
+                       qs_ot_env(1)%settings%preconditioner_name="FULL_S_INVERSE"
                   CASE ("SPARSE_DIAG")
-                       qs_ot_env(1)%settings%preconditioner_type="SPARSE_DIAG"
+                       qs_ot_env(1)%settings%preconditioner_type=ot_precond_sparse_diag
+                       qs_ot_env(1)%settings%preconditioner_name="SPARSE_DIAG"
                   CASE ("NONE")
-                       qs_ot_env(1)%settings%preconditioner_type="NONE"
+                       qs_ot_env(1)%settings%preconditioner_type=ot_precond_none
+                       qs_ot_env(1)%settings%preconditioner_name="NONE"
                   CASE DEFAULT ! others are too experimental to be here
                        IF (globenv%ionode) WRITE(globenv%scr,*) value
                        CALL stop_program("READ OTSCF PRECONDITIONER","VALUE UNKNOWN")
                   END SELECT
+             CASE ("MULT_PRECONDITIONER")
+                 CALL read_object(qs_ot_env(1)%settings%nprec)
              CASE ("STEPSIZE")
                   CALL read_object(qs_ot_env(1)%settings%ds_min)
              CASE ("ENERGY_GAP")
@@ -273,7 +281,7 @@ SUBROUTINE ot_scf_read_input(qs_ot_env,globenv)
     CASE DEFAULT
          WRITE(globenv%scr,'(3A)') "  minimizer      :      ",qs_ot_env(1)%settings%OT_METHOD," : UNKNOWN"
     END SELECT
-    SELECT CASE (qs_ot_env(1)%settings%preconditioner_type)
+    SELECT CASE (qs_ot_env(1)%settings%preconditioner_name)
     CASE ("FULL_SINGLE")
          WRITE(globenv%scr,'(A)') "  preconditioner : FULL_SINGLE    : diagonalization based "
     CASE ("FULL_KINETIC")
@@ -286,8 +294,13 @@ SUBROUTINE ot_scf_read_input(qs_ot_env,globenv)
     CASE ("NONE")
          WRITE(globenv%scr,'(A)') "  preconditioner : NONE  "
     CASE DEFAULT 
-         WRITE(globenv%scr,'(3A)') "  preconditioner : ",qs_ot_env(1)%settings%preconditioner_type," : UNKNOWN"
+         WRITE(globenv%scr,'(3A)') "  preconditioner : ",qs_ot_env(1)%settings%preconditioner_name," : UNKNOWN"
     END SELECT
+    IF((qs_ot_env(1)%settings%preconditioner_type /= ot_precond_none).AND. (qs_ot_env(1)%settings%nprec /= 1)) THEN
+        WRITE(globenv%scr,'(A,I5,A)')  &
+        " preconditioner constituted by ", qs_ot_env(1)%settings%nprec,&
+        " matricies, used in different regions of the KS spectrum " 
+    END IF
     IF (qs_ot_env(1)%settings%OT_METHOD .EQ."SD".OR.qs_ot_env(1)%settings%OT_METHOD.EQ."CG") THEN
        SELECT CASE (qs_ot_env(1)%settings%line_search_method)
          CASE ("2PNT")

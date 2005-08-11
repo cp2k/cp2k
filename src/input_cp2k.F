@@ -8090,6 +8090,13 @@ SUBROUTINE create_ot_section(section,error)
      CALL section_add_keyword(section,keyword,error=error)
      CALL keyword_release(keyword,error=error)
 
+     CALL keyword_create(keyword, name="MULT_PRECONDITIONER",&
+          description="Number of matrices constituting the preconditioner,"//&
+          " to take into account large differences in the eigenvalues",&
+          usage="MULT_PRECONDITIONER 2",default_i_val=1,error=error)
+     CALL section_add_keyword(section,keyword,error=error)
+     CALL keyword_release(keyword,error=error)
+
      CALL keyword_create(keyword, name="ENERGY_GAP",&
           description="Energy gap estimate [a.u.] for preconditioning",&
           usage="EPS_TAYLOR 0.1",&
@@ -8342,34 +8349,72 @@ END SUBROUTINE create_ot_section
       CALL section_add_keyword(section,keyword,error=error)
       CALL keyword_release(keyword,error=error)
 
-      CALL keyword_create(keyword, name="MAX_DIIS",&
-           variants=(/"MAX_DIIS_BUFFER_SIZE"/),&
-           description="Maximum number of DIIS vectors to be used",&
-           usage="MAX_DIIS 3", default_i_val=4,error=error)
-      CALL section_add_keyword(section,keyword,error=error)
-      CALL keyword_release(keyword,error=error)
-
       CALL keyword_create(keyword, name="OPT_METHOD",&
            variants=(/"MINIMIZER"/),&
            description="Define the algorithms used to optimize the Psi1 in the scf iteration",&
-           usage="OPT_METHOD DIIS",&
+           usage="OPT_METHOD CG",&
            default_i_val=lr_diis,&
-           enum_c_vals=s2a( "DIIS", "PCG"),&
-           enum_desc=s2a("DIIS", "Preconditioned Conjugate Gradients"),&
-           enum_i_vals=(/lr_diis,lr_pcg/),&
+           enum_c_vals=s2a( "CG", "DIIS", "SD"),&
+           enum_desc=s2a("Conjugate Gradients", "DIIS", "Steepesst Descent"),&
+           enum_i_vals=(/lr_cg,lr_diis,lr_sd/),&
            error=error)
+      CALL section_add_keyword(section,keyword,error=error)
+      CALL keyword_release(keyword,error=error)
+
+      CALL keyword_create(keyword, name="N_DIIS",&
+           variants=(/"NDIIS"/),&
+           description="Number of history vectors to be used with DIIS",&
+           usage="N_DIIS 4",&
+           default_i_val=7,error=error)
+      CALL section_add_keyword(section,keyword,error=error)
+      CALL keyword_release(keyword,error=error)
+
+      CALL keyword_create(keyword, name="LINESEARCH",&
+           variants=(/"LINE_SEARCH"/),&
+           description="1D line search algorithm to be used with the OT minimizer,"//&
+                      " in increasing order of robustness and cost. MINIMIZER CG combined with"//&
+                      " LINESEARCH GOLD should always find an electronic minimum.",&
+           usage="LINESEARCH GOLD",&
+           default_i_val=ot_ls_none,&
+           enum_c_vals=s2a( "NONE", "2PNT", "3PNT","GOLD"),&
+           enum_desc=s2a("take fixed lenght steps","extrapolate based on 2 points", &
+                         "... or on 3 points","perform 1D golden section search of the minimum"),&
+           enum_i_vals=(/ot_ls_none,ot_ls_2pnt,ot_ls_3pnt,ot_ls_gold/),&
+           error=error)
+      CALL section_add_keyword(section,keyword,error=error)
+      CALL keyword_release(keyword,error=error)
+
+      CALL keyword_create(keyword, name="STEPSIZE",&
+           description="Initial stepsize used for the line search",&
+           usage="STEPSIZE 0.4",&
+           default_r_val=0.15_dp,error=error)
       CALL section_add_keyword(section,keyword,error=error)
       CALL keyword_release(keyword,error=error)
 
       CALL keyword_create(keyword, name="PRECONDITIONER",&
-           variants=(/"PCOND"/),&
-           description="Determine if to apply a preconditioner to the scf optimization of Psi1 ",&
-           usage="PRECONDITIONER NONE",&
-           default_i_val=lr_pcond_none,&
-           enum_c_vals=s2a( "NONE", "P1"),&
-           enum_desc=s2a("No preconditioner is applied", "boh"),&
-           enum_i_vals=(/lr_pcond_none,lr_pcond_1/),&
-           error=error)
+           description="Type of preconditioner to be used with all minimization schemes."//&
+                       "They differ in effectiveness, cost of construction, cost of application.",&
+           usage="PRECONDITIONER FULL_SINGLE",&
+           default_i_val=lr_precond_none,&
+           enum_c_vals=s2a("FULL_SINGLE","FULL_KINETIC","FULL_S_INVERSE","NONE"),&
+           enum_desc=s2a("Based on diagonalisation","Cholesky inversion of S and T", &
+                         "Cholesky inversion of S", "skip preconditioning"),&
+           enum_i_vals=(/lr_precond_single,lr_precond_kinetic,lr_precond_s_inverse,&
+                         lr_precond_none/), error=error)
+     CALL section_add_keyword(section,keyword,error=error)
+     CALL keyword_release(keyword,error=error)
+
+      CALL keyword_create(keyword, name="MULT_PRECONDITIONER",&
+           description="Number of matrices constituting the preconditioner,"//&
+           " to take into account large differences in the eigenvalues",&
+           usage="MULT_PRECONDITIONER 2",default_i_val=1,error=error)
+      CALL section_add_keyword(section,keyword,error=error)
+      CALL keyword_release(keyword,error=error)
+
+      CALL keyword_create(keyword, name="ENERGY_GAP",&
+           description="Energy gap estimate [a.u.] for preconditioning",&
+           usage="ENERGY_GAP 0.1",&
+           default_r_val=0.2_dp,error=error)
       CALL section_add_keyword(section,keyword,error=error)
       CALL keyword_release(keyword,error=error)
 

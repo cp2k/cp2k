@@ -43,6 +43,8 @@ MODULE qs_p_env_types
   USE hartree_local_types,             ONLY: hartree_local_release,&
                                              hartree_local_type
   USE kinds,                           ONLY: dp
+  USE preconditioner,                  ONLY: destroy_preconditioner,&
+                                             preconditioner_type
   USE qs_kpp1_env_types,               ONLY: kpp1_release,&
                                              qs_kpp1_env_type
   USE qs_local_rho_types,              ONLY: local_rho_set_release,&
@@ -98,6 +100,7 @@ MODULE qs_p_env_types
 !***************************************************************************
 
   TYPE qs_p_env_type
+
      LOGICAL :: orthogonal_orbitals
      INTEGER :: id_nr, ref_count, iter
      TYPE(real_matrix_p_type), DIMENSION(:), POINTER :: kpp1, p1
@@ -110,6 +113,23 @@ MODULE qs_p_env_types
      ! GAPW stuff
      TYPE(hartree_local_type),  POINTER                 :: hartree_local
      TYPE(local_rho_type), POINTER                      :: local_rho_set
+
+     ! Linear Response Modules
+
+     TYPE(cp_fm_p_type), DIMENSION(:), POINTER  :: PS_psi0
+     TYPE(cp_fm_p_type), DIMENSION(:), POINTER  :: d_psi1, g_psi1, g_psi1_old
+     TYPE(cp_fm_p_type), DIMENSION(:), POINTER  :: os_psi0 
+
+     ! preconditioner matrix should be symmetric and positive definite
+     TYPE(preconditioner_type), POINTER :: preconditioner
+     LOGICAL :: new_preconditioner
+
+     !factors
+     REAL(KIND = dp)  :: delta,gnorm,gnorm_old,etotal,gradient
+     !line search
+     REAL(KIND = dp)  :: ls_pos(53),ls_energy(53),ls_grad(53)
+     LOGICAL :: only_energy, os_valid
+
   END TYPE qs_p_env_type
 
 !!***
@@ -255,6 +275,24 @@ END SUBROUTINE p_env_retain
           IF (ASSOCIATED(p_env%hartree_local)) THEN
              NULLIFY(p_env%hartree_local%vtriple) ! we must not deallocate this
              CALL hartree_local_release(p_env%hartree_local)
+          END IF
+          IF(ASSOCIATED(p_env%PS_psi0)) THEN
+            CALL cp_fm_vect_dealloc(p_env%PS_psi0, error=error)  
+          END IF
+          IF(ASSOCIATED(p_env%g_psi1_old)) THEN
+            CALL cp_fm_vect_dealloc(p_env%g_psi1_old, error=error)  
+          END IF
+          IF(ASSOCIATED(p_env%g_psi1)) THEN
+            CALL cp_fm_vect_dealloc(p_env%g_psi1, error=error)  
+          END IF
+          IF(ASSOCIATED(p_env%d_psi1)) THEN
+            CALL cp_fm_vect_dealloc(p_env%d_psi1, error=error)  
+          END IF
+          IF(ASSOCIATED(p_env%os_psi0)) THEN
+            CALL cp_fm_vect_dealloc(p_env%os_psi0, error=error)
+          END IF
+          IF(ASSOCIATED(p_env%preconditioner)) THEN
+            CALL destroy_preconditioner(p_env%preconditioner)
           END IF
        END IF
        DEALLOCATE(p_env,stat=stat)
