@@ -189,7 +189,7 @@ CONTAINS
   SUBROUTINE rs_grid_allocate_n ( rs )
 
     TYPE(realspace_grid_type), &
-      DIMENSION(:), INTENT(INOUT)            :: rs
+      DIMENSION(:), INTENT(INOUT), TARGET    :: rs
 
     INTEGER                                  :: i, n
 

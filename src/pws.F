@@ -210,7 +210,7 @@ SUBROUTINE pw_poisson_solver ( density, ehartree, vhartree, dvhartree, h_stress 
     INTEGER, DIMENSION(3)                    :: n
     REAL(KIND=dp)                                :: ffa
     TYPE(pw_grid_type), POINTER              :: pw_grid
-    TYPE(pw_type)                            :: dvg( 3 ), rhog
+    TYPE(pw_type), TARGET                    :: dvg( 3 ), rhog
 
 !------------------------------------------------------------------------------
 
