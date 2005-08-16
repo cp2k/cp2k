@@ -74,7 +74,7 @@ SUBROUTINE ot_mini(qs_ot_env,matrix_hc)
       DO ispin=1,nspin
          CALL qs_ot_get_derivative(matrix_hc(ispin)%matrix,qs_ot_env(ispin)%matrix_x, &
                                      qs_ot_env(ispin)%matrix_sx, &
-                                     qs_ot_env(ispin)%matrix_gx,qs_ot_env(ispin))
+                                     qs_ot_env(ispin)%matrix_gx,qs_ot_env(ispin), qs_ot_env(1)%settings%nprec)
         ! and also the gradient along the direction
         IF (qs_ot_env(1)%use_dx) THEN
            CALL cp_fm_trace(qs_ot_env(ispin)%matrix_gx,qs_ot_env(ispin)%matrix_dx,tmp)

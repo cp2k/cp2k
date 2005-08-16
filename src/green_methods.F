@@ -253,8 +253,8 @@ CONTAINS
              green%radius = 0.5_dp*MINVAL(abc)
           CASE (1)
              green%method = ANALYTIC1D
-             green%special_dimension = MAXLOC(perd,1)
-             green%radius = MAXVAL(abc)
+             green%special_dimension = MAXLOC(perd(1:3),1)
+             green%radius = MAXVAL(abc(1:3))
              DO i=1,3
                 IF (i == green%special_dimension) CYCLE
                 green%radius = MIN(green%radius,0.5_dp*abc(i))
@@ -294,8 +294,8 @@ CONTAINS
              green%radius = 0.5_dp*MINVAL(abc)
           CASE (1)
              green%method = MT1D
-             green%special_dimension = MAXLOC(perd,1)
-             green%radius = MAXVAL(abc)
+             green%special_dimension = MAXLOC(perd(1:3),1)
+             green%radius = MAXVAL(abc(1:3))
              DO i=1,3
                 IF (i == green%special_dimension) CYCLE
                 green%radius = MIN(green%radius,0.5_dp*abc(i))

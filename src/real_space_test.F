@@ -230,7 +230,7 @@ SUBROUTINE rs_test ( globenv )
   IF ( globenv % ionode ) &
     WRITE(iw,'(/,A,/)') " Start Test 3: Distributed grid, parallel calculation"
   tstart = m_cputime ( )
-  CALL rs_grid_setup ( rden, grid, MAXVAL ( bsize ), iw )
+  CALL rs_grid_setup ( rden, grid, MAXVAL ( bsize(1:nparticle) ), iw )
   CALL rs_grid_allocate ( rden )
   CALL rs_grid_zero ( rden )
   dir = rden%direction

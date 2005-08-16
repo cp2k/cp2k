@@ -55,7 +55,9 @@ MODULE qs_ot
                                              cp_para_env_type
   USE kinds,                           ONLY: dp
   USE input_constants,                 ONLY: ot_precond_full_kinetic
-  USE preconditioner,                  ONLY: apply_preconditioner,&
+  USE preconditioner,                  ONLY: apply_multiprec_full,&
+                                             apply_preconditioner,&
+                                             get_info_preconditioner,&
                                              preconditioner_type
   USE termination,                     ONLY: stop_program
   USE timings,                         ONLY: timeset,&
@@ -131,6 +133,7 @@ MODULE qs_ot
 
      ! mo-like vectors
      TYPE(cp_fm_type), POINTER :: matrix_c0,matrix_sc0,matrix_psc0
+     TYPE(cp_fm_p_type), DIMENSION(:), POINTER :: mult_os,mult_psc0
 
      ! only here for the ease of programming. These will have to be supplied
      ! explicitly at all times
@@ -224,18 +227,29 @@ CONTAINS
 ! you remain responsible of proper deallocate of your preconditioner
 ! (or you can reuse it on the next step of the computation)
 !*******************************************************************************
-SUBROUTINE qs_ot_new_preconditioner(qs_ot_env,preconditioner)
+SUBROUTINE qs_ot_new_preconditioner(qs_ot_env,preconditioner,nprec)
     TYPE(qs_ot_type)                         :: qs_ot_env
     TYPE(preconditioner_type), TARGET        :: preconditioner
+    INTEGER, INTENT(IN)                      :: nprec
+
+    INTEGER :: ip
 
 !----
 
   qs_ot_env%preconditioner => preconditioner
   qs_ot_env%os_valid = .FALSE.
-  IF (.NOT. ASSOCIATED(qs_ot_env%matrix_psc0)) THEN
-      CALL cp_fm_create(qs_ot_env%matrix_psc0,qs_ot_env%matrix_sc0%matrix_struct,"matrix_psc0")
-
-  ENDIF
+  IF(nprec == 1) THEN
+    IF (.NOT. ASSOCIATED(qs_ot_env%matrix_psc0)) THEN
+        CALL cp_fm_create(qs_ot_env%matrix_psc0,qs_ot_env%matrix_sc0%matrix_struct,"matrix_psc0")
+    ENDIF
+  ELSEIF(nprec > 1) THEN
+    IF (.NOT. ASSOCIATED(qs_ot_env%mult_psc0)) THEN
+      ALLOCATE(qs_ot_env%mult_psc0(nprec))
+      DO ip = 1,nprec
+        CALL cp_fm_create(qs_ot_env%mult_psc0(ip)%matrix,qs_ot_env%matrix_sc0%matrix_struct,"mult_psc0")
+      END DO
+    END IF
+  END IF
 
   IF (.NOT. qs_ot_env%use_dx) THEN
      qs_ot_env%use_dx=.TRUE.
@@ -252,12 +266,13 @@ END SUBROUTINE qs_ot_new_preconditioner
 ! ortho_k allows for specifying an additional orthogonal subspace (i.e. c will
 ! be kept orthogonal provided c0 was, used in qs_ot_eigensolver)
 !*******************************************************************************
-SUBROUTINE qs_ot_allocate(qs_ot_env,fm_struct_ref,ortho_k)
+SUBROUTINE qs_ot_allocate(qs_ot_env,fm_struct_ref,nprec,ortho_k)
     TYPE(qs_ot_type)                         :: qs_ot_env
     TYPE(cp_fm_struct_type), POINTER         :: fm_struct_ref
+    INTEGER, INTENT(IN)                      :: nprec
     INTEGER, OPTIONAL                        :: ortho_k
 
-    INTEGER                                  :: i, k, m_diis, my_ortho_k, n
+    INTEGER                                  :: i, ip, k, m_diis, my_ortho_k, n
     TYPE(cp_blacs_env_type), POINTER         :: context
     TYPE(cp_fm_struct_type), POINTER         :: fm_struct_k_k, fm_struct_n_o, &
                                                 fm_struct_o_k, fm_struct_o_o
@@ -266,6 +281,8 @@ SUBROUTINE qs_ot_allocate(qs_ot_env,fm_struct_ref,ortho_k)
    NULLIFY(fm_struct_o_o, fm_struct_o_k, fm_struct_k_k, fm_struct_n_o)
    NULLIFY(qs_ot_env%preconditioner)
    NULLIFY(qs_ot_env%matrix_psc0)
+   NULLIFY(qs_ot_env%mult_psc0)
+   NULLIFY(qs_ot_env%mult_os)
    NULLIFY(qs_ot_env%row_indices)
    NULLIFY(qs_ot_env%col_indices)
 
@@ -317,7 +334,15 @@ SUBROUTINE qs_ot_allocate(qs_ot_env,fm_struct_ref,ortho_k)
    CALL cp_fm_struct_create(fm_struct_n_o,para_env=para_env,context=context, &
                             nrow_global=n,ncol_global=my_ortho_k)
 
-   CALL cp_fm_create(qs_ot_env%matrix_os,fm_struct_o_o,name="matrix_os")
+   IF(nprec == 1) THEN 
+     CALL cp_fm_create(qs_ot_env%matrix_os,fm_struct_o_o,name="matrix_os")
+   ELSEIF(nprec > 1) THEN
+     NULLIFY(qs_ot_env%matrix_os)
+     ALLOCATE(qs_ot_env%mult_os(nprec))
+     DO ip = 1,nprec
+       CALL cp_fm_create(qs_ot_env%mult_os(ip)%matrix,fm_struct_o_o,name="mult_os")
+     END DO
+   END IF
    CALL cp_fm_create(qs_ot_env%matrix_buf1_ortho,fm_struct_o_k,name="matrix_buf1_ortho")
    CALL cp_fm_create(qs_ot_env%matrix_buf2_ortho,fm_struct_o_k,name="matrix_buf2_ortho")
    CALL cp_fm_create(qs_ot_env%matrix_p,fm_struct_k_k,name="matrix_p")
@@ -430,11 +455,18 @@ END SUBROUTINE qs_ot_init
 SUBROUTINE qs_ot_destroy(qs_ot_env)
     TYPE(qs_ot_type)                         :: qs_ot_env
 
-    INTEGER                                  :: i
+    INTEGER                                  :: i, ip
 
    DEALLOCATE(qs_ot_env%evals)
    DEALLOCATE(qs_ot_env%dum)
-   CALL cp_fm_release(qs_ot_env%matrix_os)
+
+   IF(ASSOCIATED(qs_ot_env%matrix_os)) CALL cp_fm_release(qs_ot_env%matrix_os)
+   IF(ASSOCIATED(qs_ot_env%mult_os)) THEN
+     DO ip = 1,SIZE(qs_ot_env%mult_os)
+       CALL cp_fm_release(qs_ot_env%mult_os(ip)%matrix)
+     END DO
+     DEALLOCATE(qs_ot_env%mult_os)
+   END IF
    CALL cp_fm_release(qs_ot_env%matrix_p)
    CALL cp_fm_release(qs_ot_env%matrix_cosp)
    CALL cp_fm_release(qs_ot_env%matrix_sinp)
@@ -456,6 +488,12 @@ SUBROUTINE qs_ot_destroy(qs_ot_env)
    IF (ASSOCIATED(qs_ot_env%matrix_psc0)) THEN
         CALL cp_fm_release(qs_ot_env%matrix_psc0)
    ENDIF
+   IF (ASSOCIATED(qs_ot_env%mult_psc0)) THEN
+     DO ip = 1,SIZE(qs_ot_env%mult_psc0)
+       CALL cp_fm_release(qs_ot_env%mult_psc0(ip)%matrix)
+     END DO
+     DEALLOCATE(qs_ot_env%mult_psc0)
+   END IF
 
    IF (qs_ot_env%use_dx) &
       CALL cp_fm_release(qs_ot_env%matrix_dx)
@@ -786,14 +824,15 @@ END SUBROUTINE qs_ot_get_orbitals
 ! is changed so that P*dE/dx is the right derivative (i.e. in the allowed subspace)
 !*******************************************************************************
 SUBROUTINE qs_ot_get_derivative(matrix_hc,matrix_x,matrix_sx,matrix_gx, &
-                                               qs_ot_env)
+                                               qs_ot_env,nprec)
     TYPE(cp_fm_type), POINTER                :: matrix_hc, matrix_x, &
                                                 matrix_sx, matrix_gx
     TYPE(qs_ot_type)                         :: qs_ot_env
+    INTEGER, INTENT(IN)                      :: nprec
 
     REAL(KIND=dp), PARAMETER                 :: rone = 1.0_dp , rzero = 0.0_dp
 
-    INTEGER                                  :: handle, k, n, ortho_k
+    INTEGER                                  :: handle, ip, fcol, lcol, k, k_range, n, ortho_k
     TYPE(cp_fm_type), POINTER                :: matrix_hc_local, matrix_target
 
   CALL timeset("qs_ot_get_derivative","I","",handle)
@@ -822,37 +861,73 @@ SUBROUTINE qs_ot_get_derivative(matrix_hc,matrix_x,matrix_sx,matrix_gx, &
   ! and make it orthogonal
   CALL cp_fm_get_info(qs_ot_env%matrix_sc0,ncol_global=ortho_k)
 
-  IF (ASSOCIATED(qs_ot_env%preconditioner)) THEN
+  IF(nprec == 1) THEN 
+    IF (ASSOCIATED(qs_ot_env%preconditioner)) THEN
       matrix_target => qs_ot_env%matrix_psc0
-  ELSE
+    ELSE
       matrix_target => qs_ot_env%matrix_sc0
-  ENDIF
-  ! first make the matrix os if not yet valid
-  IF (.NOT. qs_ot_env%os_valid) THEN
+    ENDIF
+    ! first make the matrix os if not yet valid
+    IF (.NOT. qs_ot_env%os_valid) THEN
      ! this assumes that the preconditioner is a single matrix
      ! that maps sc0 onto psc0
-     IF (ASSOCIATED(qs_ot_env%preconditioner)) THEN
-        CALL apply_preconditioner(qs_ot_env%preconditioner, qs_ot_env%matrix_sc0, &
-                               qs_ot_env%matrix_psc0 )
-     ENDIF
-     CALL cp_fm_gemm('T','N',ortho_k,ortho_k,n,rone,&
-                     qs_ot_env%matrix_sc0,matrix_target, &
-                     rzero,qs_ot_env%matrix_os)
-     CALL cp_fm_cholesky_decompose(qs_ot_env%matrix_os)
-     CALL cp_fm_cholesky_invert(qs_ot_env%matrix_os)
-     qs_ot_env%os_valid=.TRUE.
-  ENDIF
+ 
+       IF (ASSOCIATED(qs_ot_env%preconditioner)) THEN
+          CALL apply_preconditioner(qs_ot_env%preconditioner, qs_ot_env%matrix_sc0, &
+                                 qs_ot_env%matrix_psc0 )
+       ENDIF
+       CALL cp_fm_gemm('T','N',ortho_k,ortho_k,n,rone,&
+                       qs_ot_env%matrix_sc0,matrix_target, &
+                       rzero,qs_ot_env%matrix_os)
+       CALL cp_fm_cholesky_decompose(qs_ot_env%matrix_os)
+       CALL cp_fm_cholesky_invert(qs_ot_env%matrix_os)
+       qs_ot_env%os_valid=.TRUE.
+    ENDIF
 
-  CALL cp_fm_gemm('T','N',ortho_k,k,n,rone,matrix_target,matrix_gx, &
-                      rzero,qs_ot_env%matrix_buf1_ortho)
+    CALL cp_fm_gemm('T','N',ortho_k,k,n,rone,matrix_target,matrix_gx, &
+                        rzero,qs_ot_env%matrix_buf1_ortho)
 
-  CALL cp_fm_symm('L','U',ortho_k,k,rone,qs_ot_env%matrix_os,&
+    CALL cp_fm_symm('L','U',ortho_k,k,rone,qs_ot_env%matrix_os,&
                       qs_ot_env%matrix_buf1_ortho, &
                       rzero,qs_ot_env%matrix_buf2_ortho)
 
-  CALL cp_fm_gemm('N','N',n,k,ortho_k,-rone,qs_ot_env%matrix_sc0, &
+    CALL cp_fm_gemm('N','N',n,k,ortho_k,-rone,qs_ot_env%matrix_sc0, &
                      qs_ot_env%matrix_buf2_ortho, &
                       rone,matrix_gx)
+  ELSEIF(nprec > 1) THEN
+    DO ip = 1,nprec
+      IF (ASSOCIATED(qs_ot_env%preconditioner)) THEN
+        matrix_target => qs_ot_env%mult_psc0(ip)%matrix
+      ELSE
+        ! it should not happen      
+      ENDIF
+
+    ! first make the matrix os if not yet valid
+      IF(.NOT. qs_ot_env%os_valid) THEN
+        CALL apply_multiprec_full(qs_ot_env%preconditioner, ip, qs_ot_env%matrix_sc0, &
+             qs_ot_env%mult_psc0(ip)%matrix)
+        CALL cp_fm_gemm('T','N',ortho_k,ortho_k,n,rone,&
+                       qs_ot_env%matrix_sc0,matrix_target, &
+                       rzero,qs_ot_env%mult_os(ip)%matrix)
+       CALL cp_fm_cholesky_decompose(qs_ot_env%mult_os(ip)%matrix)
+       CALL cp_fm_cholesky_invert(qs_ot_env%mult_os(ip)%matrix)
+       IF(ip == nprec) qs_ot_env%os_valid = .TRUE.
+      END IF
+     
+      ! Calculate the gradients corrected by the lagrange multiplier, which is preconditioner dependent 
+      
+      CALL get_info_preconditioner(qs_ot_env%preconditioner,ip,fcol=fcol,lcol=lcol)
+      k_range =  lcol - fcol + 1
+      CALL cp_fm_gemm('T','N',ortho_k,k_range,n,rone,matrix_target,matrix_gx, &
+                      rzero,qs_ot_env%matrix_buf1_ortho,b_first_col=fcol)
+      CALL cp_fm_symm('L','U',ortho_k,k_range,rone,qs_ot_env%mult_os(ip)%matrix,&
+                      qs_ot_env%matrix_buf1_ortho, &
+                      rzero,qs_ot_env%matrix_buf2_ortho)
+      CALL cp_fm_gemm('N','N',n,k_range,ortho_k,-rone,qs_ot_env%matrix_sc0, &
+                      qs_ot_env%matrix_buf2_ortho, &
+                      rone,matrix_gx,c_first_col=fcol)
+    END DO  ! ip
+  END IF
 
   ! also treat the rot_mat gradient here
   IF (qs_ot_env%settings%do_rotation) THEN

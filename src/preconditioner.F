@@ -76,6 +76,8 @@ MODULE preconditioner
   PUBLIC  :: destroy_preconditioner
   PUBLIC  :: make_preconditioner
   PUBLIC  :: apply_preconditioner
+  PUBLIC  :: apply_multiprec_full
+  PUBLIC  :: get_info_preconditioner
 
   INTERFACE make_preconditioner
     MODULE PROCEDURE make_preconditioner_single, make_preconditioner_multiple
@@ -196,6 +198,7 @@ SUBROUTINE make_preconditioner_single(preconditioner_env, precon_type, matrix_h,
                          do_rotation = .FALSE. ) 
 
   energy_homo=eigenvalues_ot(k)
+
   DEALLOCATE(eigenvalues_ot)
 
   SELECT CASE (precon_type)
@@ -271,6 +274,7 @@ SUBROUTINE make_preconditioner_multiple(preconditioner_env, precon_type, matrix_
   ALLOCATE(preconditioner_env%first_col(k),preconditioner_env%last_col(k)) 
   ilast = 0
   DO ip = 1,nprec
+    NULLIFY(preconditioner_env%mult_fm(ip)%matrix)
     emin = eigenvalues_ot(1)+REAL(ip-1,dp)*deltaE
     emax = emin + deltaE
     preconditioner_env%first_col(ip) = ilast+1
@@ -283,6 +287,7 @@ SUBROUTINE make_preconditioner_multiple(preconditioner_env, precon_type, matrix_
     END DO 
   END DO 
   preconditioner_env%last_col(nprec) = k
+
 
   DO ip = 1,nprec
     energy_high=eigenvalues_ot(preconditioner_env%last_col(ip))
@@ -310,6 +315,7 @@ SUBROUTINE make_preconditioner_multiple(preconditioner_env, precon_type, matrix_
       CALL stop_program("make preconditioner","Type not implemented")
     CASE (ot_precond_full_kinetic)
       preconditioner_env%in_use=6
+
       CALL make_full_kinetic(preconditioner_env,preconditioner_env%mult_fm(ip)%matrix,&
                              matrix_t, matrix_s, energy_high, energy_gap )
 
@@ -322,6 +328,20 @@ SUBROUTINE make_preconditioner_multiple(preconditioner_env, precon_type, matrix_
   CALL timestop(0.0_dp,handle)
 
 END SUBROUTINE make_preconditioner_multiple
+
+SUBROUTINE get_info_preconditioner(preconditioner_env,ip,fcol,lcol,first_col,last_col)
+    TYPE(preconditioner_type)                :: preconditioner_env
+    INTEGER, INTENT(IN), OPTIONAL            :: ip
+    INTEGER, INTENT(OUT), OPTIONAL           :: fcol
+    INTEGER, INTENT(OUT), OPTIONAL           :: lcol
+    INTEGER, DIMENSION(:), POINTER, OPTIONAL :: first_col, last_col
+
+   IF(PRESENT(fcol) .AND. PRESENT(ip)) fcol = preconditioner_env%first_col(ip)
+   IF(PRESENT(lcol) .AND. PRESENT(ip)) lcol = preconditioner_env%last_col(ip)
+   IF(PRESENT(first_col)) first_col =>  preconditioner_env%first_col
+   IF(PRESENT(last_col))  last_col =>  preconditioner_env%last_col
+
+END SUBROUTINE get_info_preconditioner
 
 !*******************************************************************************
 ! applies a previously created preconditioner to a full matrix
@@ -357,6 +377,21 @@ SUBROUTINE apply_preconditioner(preconditioner_env, matrix_in, matrix_out)
   CALL timestop(0.0_dp,handle)
 
 END SUBROUTINE apply_preconditioner
+
+SUBROUTINE apply_multiprec_full(preconditioner_env, ip, matrix_in, matrix_out )
+    TYPE(preconditioner_type)                :: preconditioner_env
+    INTEGER, INTENT(IN)                      :: ip
+    TYPE(cp_fm_type), POINTER                :: matrix_in, matrix_out
+
+    INTEGER :: k, n
+!----
+
+  CALL cp_fm_get_info(matrix_in,nrow_global=n,ncol_global=k)
+  CALL cp_fm_gemm('N','N',n,k,n,1.0_dp,preconditioner_env%mult_fm(ip)%matrix, &
+                  matrix_in,0.0_dp,matrix_out)
+
+
+END SUBROUTINE apply_multiprec_full
 
 !***************************************************************************
 ! different types of preconditioner come here

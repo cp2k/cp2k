@@ -823,7 +823,7 @@ CONTAINS
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     ALLOCATE (zder(bo2(1,3):bo2(2,3)), STAT=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-    iwrk = MAXLOC(grids(auxbas_grid) % pw % pw_grid % npts, 1)
+    iwrk = MAXLOC(grids(auxbas_grid) % pw % pw_grid % npts(1:3), 1)
     ALLOCATE (wrk(bo2(1,iwrk):bo2(2,iwrk)), STAT=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
 !

@@ -728,8 +728,8 @@ CONTAINS
     stat=0
     NULLIFY(maxradius, maxradius2)
 
-    maxchrg = MAXVAL(ABS(mm_atom_chrg))
-    IF (qmmm_env_qm%add_mm_charges) maxchrg=MAX(maxchrg,MAXVAL(ABS(added_charges%mm_atom_chrg)))
+    maxchrg = MAXVAL(ABS(mm_atom_chrg(:)))
+    IF (qmmm_env_qm%add_mm_charges) maxchrg=MAX(maxchrg,MAXVAL(ABS(added_charges%mm_atom_chrg(:))))
     CALL qmmm_gaussian_initialize(qmmm_gaussian_fns=qmmm_env_qm%pgfs,&
                                   qm_cell_small=qm_cell_small,&
                                   mm_cell=mm_cell,&
@@ -881,8 +881,8 @@ CONTAINS
 
    IF (.NOT.qmmm_env_qm%periodic) RETURN
 
-   maxchrg = MAXVAL(ABS(mm_atom_chrg))
-   IF (qmmm_env_qm%add_mm_charges) maxchrg=MAX(maxchrg,MAXVAL(ABS(added_charges%mm_atom_chrg)))
+   maxchrg = MAXVAL(ABS(mm_atom_chrg(:)))
+   IF (qmmm_env_qm%add_mm_charges) maxchrg=MAX(maxchrg,MAXVAL(ABS(added_charges%mm_atom_chrg(:))))
 
    CALL qmmm_per_potential_init(qmmm_coupl_type=qmmm_env_qm%qmmm_coupl_type,&
                                 per_potentials=qmmm_env_qm%per_potentials,&

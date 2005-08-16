@@ -1263,6 +1263,7 @@ CONTAINS
              ! this might or might not be reasonable. Presumably it is.
              CALL get_mo_set(mo_set=mos(1)%mo_set,&
                   mo_coeff=mo_coeff)
+
              IF(scf_env%qs_ot_env(1)%settings%nprec ==1 ) THEN
                CALL make_preconditioner(scf_env%ot_preconditioner, &
                   scf_env%qs_ot_env(1)%settings%preconditioner_type, &
@@ -1277,6 +1278,7 @@ CONTAINS
                   mo_coeff,scf_env%qs_ot_env(1)%settings%energy_gap,&
                   scf_env%qs_ot_env(1)%settings%nprec)
              END IF
+
           ENDIF
 
           IF (has_unit_metric) THEN
@@ -1290,7 +1292,7 @@ CONTAINS
           IF (scf_env%qs_ot_env(1)%settings%preconditioner_type /= ot_precond_none) THEN
              DO ispin=1,SIZE(scf_env%qs_ot_env)
                 CALL qs_ot_new_preconditioner(scf_env%qs_ot_env(ispin),&
-                     scf_env%ot_preconditioner) 
+                     scf_env%ot_preconditioner,scf_env%qs_ot_env(1)%settings%nprec) 
              ENDDO
           ENDIF
 

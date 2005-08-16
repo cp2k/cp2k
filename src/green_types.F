@@ -420,17 +420,17 @@ CONTAINS
     lb => gftype % influence_function % pw_grid % bounds (1, : )
     ub => gftype % influence_function % pw_grid % bounds (2, : )
     IF (ASSOCIATED(gftype % p3m_bm2)) THEN
-       IF (LBOUND(gftype % p3m_bm2,2)/=MINVAL(lb).OR.&
-            UBOUND(gftype % p3m_bm2,2)/=MAXVAL(ub)) THEN
+       IF (LBOUND(gftype % p3m_bm2,2)/=MINVAL(lb(:)).OR.&
+            UBOUND(gftype % p3m_bm2,2)/=MAXVAL(ub(:))) THEN
           DEALLOCATE(gftype % p3m_bm2,stat=ierr)
           IF ( ierr /= 0 ) CALL stop_memory ( 'influence_factor, deallocating', &
                'gftype % p3m_bm2', 3*SIZE(gftype % p3m_bm2,2) )
        END IF
     END IF
     IF (.NOT.ASSOCIATED(gftype % p3m_bm2)) THEN
-       ALLOCATE ( gftype % p3m_bm2 ( 3, MINVAL(lb):MAXVAL(ub) ), STAT = ierr )
+       ALLOCATE ( gftype % p3m_bm2 ( 3, MINVAL(lb(:)):MAXVAL(ub(:)) ), STAT = ierr )
        IF ( ierr /= 0 ) CALL stop_memory ( 'influence_factor', &
-            'gftype % p3m_bm2', 3*(MAXVAL(ub)-MINVAL(lb)+1) )
+            'gftype % p3m_bm2', 3*(MAXVAL(ub(:))-MINVAL(lb(:))+1) )
     END IF
     
     ALLOCATE ( m_assign ( 0:n-2 ), STAT = ierr )

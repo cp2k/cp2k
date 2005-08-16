@@ -228,6 +228,7 @@ SUBROUTINE distribution_1d_create(distribution_1d,para_env,listbased_distributio
      CALL cp_para_env_retain(para_env,error=error)
      
      NULLIFY(distribution_1d%global_distribution)
+     NULLIFY(distribution_1d%list,distribution_1d%n_el)
      
      distribution_1d%listbased_distribution=.FALSE.
      IF (PRESENT(listbased_distribution)) &
@@ -238,15 +239,18 @@ SUBROUTINE distribution_1d_create(distribution_1d,para_env,listbased_distributio
      CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
 
      IF (PRESENT(n_el)) THEN
-        distribution_1d%n_el=n_el(1:my_n_lists)
+        distribution_1d%n_el(1:my_n_lists)=n_el(1:my_n_lists)
+        DO ilist=1,my_n_lists
+          ALLOCATE(distribution_1d%list(ilist)%array(n_el(ilist)),stat=stat)
+          distribution_1d%list(ilist)%array=-1
+        END DO
      ELSE
-        distribution_1d%n_el=0
+        distribution_1d%n_el(1:my_n_lists)=0
+        DO ilist=1,my_n_lists
+          NULLIFY(distribution_1d%list(ilist)%array)
+        END DO
      END IF
 
-     DO ilist=1,my_n_lists
-        ALLOCATE(distribution_1d%list(ilist)%array(n_el(ilist)),stat=stat)
-        distribution_1d%list(ilist)%array=-1
-     END DO
 
      NULLIFY (distribution_1d%local_particle_set)
 

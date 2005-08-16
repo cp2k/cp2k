@@ -136,7 +136,7 @@ SUBROUTINE spme_evaluate ( ewald_env, ewald_pw, particle_set, &
   ALLOCATE ( rhos ( n, n, n ), STAT = ierr )
   IF ( ierr /= 0 ) CALL stop_memory ( "spme_evaluate", "rhos", n**3 )
   ndim = n
-  CALL rs_grid_setup ( rden, grid_spme, -MAXVAL ( ndim ) )
+  CALL rs_grid_setup ( rden, grid_spme, -MAXVAL ( ndim(1:3) ) )
   CALL rs_grid_allocate ( rden )
   rden % r = 0.0_dp
 
@@ -218,7 +218,7 @@ SUBROUTINE spme_evaluate ( ewald_env, ewald_pw, particle_set, &
 
   ! move derivative of potential to real space grid and
   ! multiply by charge function in g-space
-  CALL rs_grid_setup ( drpot, grid_spme, -MAXVAL ( ndim ) )
+  CALL rs_grid_setup ( drpot, grid_spme, -MAXVAL ( ndim(1:3) ) )
   CALL rs_grid_allocate ( drpot ( 1 : 3 ) )
   DO i = 1, 3
      dphi_g ( i ) % pw % cc = dphi_g ( i ) % pw % cc * &
@@ -541,7 +541,7 @@ SUBROUTINE get_center ( part, box, centre, npts, n )
 
 !------------------------------------------------------------------------------
 
-  mp = MAXVAL ( npts )
+  mp = MAXVAL ( npts(:) )
   rmp = REAL ( mp,KIND=dp)
   DO ipart = 1, SIZE ( part )
     ! compute the scaled coordinate of atomi
@@ -575,7 +575,7 @@ SUBROUTINE get_delta ( box, r, npts, delta, n )
 
 !------------------------------------------------------------------------------
 
-  mp = MAXVAL ( npts )
+  mp = MAXVAL ( npts(:) )
   rmp = REAL ( mp,KIND=dp)
 ! compute the scaled coordinate of atomi
   s = MATMUL ( box % h_inv, r )

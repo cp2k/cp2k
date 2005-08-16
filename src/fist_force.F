@@ -167,7 +167,8 @@ SUBROUTINE fist_force_control ( fist_env, virial, globenv, box_change, debug ,er
   IF((globenv%ionode).AND.(globenv%print%level>1)) PM2= .TRUE.
   IF((globenv%ionode).AND.(globenv%print%level>2)) PM3= .TRUE.
   IF((globenv%ionode).AND.(globenv%print%level>3)) PM4= .TRUE.
-  NULLIFY(fist_section)
+  NULLIFY(fist_section,thermo,particle_set,local_molecules,local_particles,atomic_kind_set,&
+          molecule_kind_set,molecule_set,fist_nonbond_env,cell,ewald_pw,ewald_env,fist_section,print_section)
   fist_section => section_vals_get_subs_vals(globenv%input_file,"FORCE_EVAL%MM",error=error)
 
 ! associcating local pointers
@@ -377,6 +378,7 @@ SUBROUTINE fist_force_control ( fist_env, virial, globenv, box_change, debug ,er
         DO iparticle_local = 1, nparticle_local
           ii = local_particles%list(iparticle_kind)%array(iparticle_local)
           node = node + 1
+
           f_total ( 1, ii ) = f_total ( 1, ii ) + fg_coulomb ( 1, node )
           f_total ( 2, ii ) = f_total ( 2, ii ) + fg_coulomb ( 2, node )
           f_total ( 3, ii ) = f_total ( 3, ii ) + fg_coulomb ( 3, node )
@@ -388,6 +390,7 @@ SUBROUTINE fist_force_control ( fist_env, virial, globenv, box_change, debug ,er
         END DO
      END DO
   END SELECT
+
 
   IF (PM2) THEN
      WRITE(iw,'(A)')" FIST:: (2) TOTAL FORCES (1) + ELECTROSTATIC FORCES"
@@ -548,6 +551,7 @@ SUBROUTINE print_fist(print_section, atomic_kind_set, particle_set, cell, error)
   TYPE(cp_logger_type), POINTER :: logger
   TYPE(section_vals_type), POINTER :: print_key
 
+  NULLIFY(logger,print_key)
   logger => cp_error_get_logger(error)
   print_key => section_vals_get_subs_vals(print_section,"dipole",error=error)  
   IF (cp_should_output(logger%iter_info,print_key,error=error).AND.&
