@@ -340,13 +340,14 @@ CONTAINS
     ALLOCATE (state_of_mytype(natom),STAT=istat)
     CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
     state_of_mytype = 0
+    atom_of_state = 0
 
     DO istate = 1,nexc_search
       centers_wfn(1,istate) =  my_localized_wfn_control%centers_set(1)%array(1,istate)
       centers_wfn(2,istate) =  my_localized_wfn_control%centers_set(1)%array(2,istate)
       centers_wfn(3,istate) =  my_localized_wfn_control%centers_set(1)%array(3,istate)
 
- !if(ionode) WRITE(*,'(A,I4,3f10.5)') 'center ', istate, centers_wfn(1:3, istate)
+! if(ionode) WRITE(*,'(A,I4,3f10.5)') 'center ', istate, centers_wfn(1:3, istate)
 
       ! Assign the state to the closest atom
       distmin = 100.0_dp
@@ -364,36 +365,36 @@ CONTAINS
         END IF
       END DO
 ! if(ionode) WRITE(*,'(I4,A,I4,6f10.5)') istate, 'atom ', atom_of_state(istate),  particle_set(atom_of_state(istate))%r(1:3), centers_wfn(1:3,istate)
-
+      IF(atom_of_state(istate) /= 0) THEN 
       !Character of the state
-       CALL cp_fm_get_submatrix(mo_coeff,vecbuffer,1,istate,&
-            nao,1,transpose=.TRUE.,error=error)
+         CALL cp_fm_get_submatrix(mo_coeff,vecbuffer,1,istate,&
+              nao,1,transpose=.TRUE.,error=error)
   
-       iatom = atom_of_state(istate)
+         iatom = atom_of_state(istate)
        
-       NULLIFY(atomic_kind)
-       atomic_kind =>  particle_set(iatom)%atomic_kind
-       CALL get_atomic_kind(atomic_kind=atomic_kind,&
-              kind_number=ikind)
+         NULLIFY(atomic_kind)
+         atomic_kind =>  particle_set(iatom)%atomic_kind
+         CALL get_atomic_kind(atomic_kind=atomic_kind,&
+                kind_number=ikind)
 
-       my_kind = mykind_of_kind(ikind)
+         my_kind = mykind_of_kind(ikind)
 
-       sto_state_overlap(istate) = 0.0_dp
-       DO i = 1,SIZE(stogto_overlap(my_kind)%array,1)
-         component = 0.0_dp
-         DO j = 1,SIZE(stogto_overlap(my_kind)%array,2)
-           isgf = first_sgf(iatom) + j - 1
-           component = component + stogto_overlap(my_kind)%array(i,j)*vecbuffer(1,isgf)
+         sto_state_overlap(istate) = 0.0_dp
+         DO i = 1,SIZE(stogto_overlap(my_kind)%array,1)
+           component = 0.0_dp
+           DO j = 1,SIZE(stogto_overlap(my_kind)%array,2)
+             isgf = first_sgf(iatom) + j - 1
+             component = component + stogto_overlap(my_kind)%array(i,j)*vecbuffer(1,isgf)
+           END DO
+             sto_state_overlap(istate) = sto_state_overlap(istate) + &
+                   component * component
          END DO
-           sto_state_overlap(istate) = sto_state_overlap(istate) + &
-                 component * component
-       END DO
-       IF(sto_state_overlap(istate)>max_overlap(iatom)) THEN
-         state_of_mytype(iatom) = istate
-         max_overlap(iatom) = sto_state_overlap(istate)
-       END IF
-!    write(*,*)  istate, iatom, sto_state_overlap(istate) ,  state_of_mytype(iatom)
-
+         IF(sto_state_overlap(istate)>max_overlap(iatom)) THEN
+           state_of_mytype(iatom) = istate
+           max_overlap(iatom) = sto_state_overlap(istate)
+         END IF
+!      write(*,*)  istate, iatom, sto_state_overlap(istate) ,  state_of_mytype(iatom)
+      END IF
     END DO  ! istate
 
     CALL localized_wfn_control_release(my_localized_wfn_control,error=error)
