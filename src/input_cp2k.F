@@ -3852,6 +3852,13 @@ SUBROUTINE create_tddfpt_section(section,error)
             unit_str="angstrom",error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)                     
+
+       CALL keyword_create(keyword, name="EI_SCALE14",&
+            description="Scaling factor for the electrostatics 1-4 ",&
+            usage="EI_SCALE14 1.0", default_r_val=0.0_dp,error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
        !
        ! subsections
        !

@@ -106,7 +106,7 @@ END FUNCTION ener_pot
 
 !******************************************************************************
 
-FUNCTION ener_coul ( pot, qi, qj, r, ewald_env )
+FUNCTION ener_coul ( pot, qi, qj, r, ewald_env, ei_scale14 )
 
 
     TYPE(pair_potential_type), INTENT(IN)          :: pot
@@ -118,10 +118,11 @@ FUNCTION ener_coul ( pot, qi, qj, r, ewald_env )
       ifourpi = 1.0_dp / ( 4.0_dp * pi )
     INTEGER :: ewald_type
     REAL (KIND=dp) :: eps0, alpha
+    REAL (KIND=dp),OPTIONAL :: ei_scale14
 
 !------------------------------------------------------------------------------
 
-  IF ( PRESENT ( ewald_env ) ) THEN
+  IF ( PRESENT ( ewald_env ) .AND. .NOT.PRESENT(ei_scale14) ) THEN
     CALL ewald_env_get ( ewald_env, alpha = alpha, eps0 = eps0, &
                        ewald_type = ewald_type ) 
     ener_coul= 0.0_dp
@@ -129,7 +130,9 @@ FUNCTION ener_coul ( pot, qi, qj, r, ewald_env )
          ener_coul = ifourpi / eps0 * qi * qj &
          * erfc ( alpha * r ) / r - pot % e_cutoff_coul
   ELSE
-    ener_coul= 0.0_dp
+    CALL ewald_env_get ( ewald_env, alpha = alpha, eps0 = eps0, &
+                       ewald_type = ewald_type ) 
+         ener_coul = ei_scale14 * ifourpi / eps0 * qi * qj / r - pot % e_cutoff_coul
   ENDIF
 
 END FUNCTION ener_coul
@@ -139,7 +142,7 @@ END FUNCTION ener_coul
 ! creates the splines for the potentials
 
 SUBROUTINE spline_nonbond_control ( spline_env, potparm, atomic_kind_set, &
-                                    ewald_env )
+                                    ewald_env, ei_scale14 )
 
 
     TYPE ( spline_environment_type ), POINTER  :: spline_env 
@@ -153,6 +156,7 @@ SUBROUTINE spline_nonbond_control ( spline_env, potparm, atomic_kind_set, &
     REAL(KIND=dp)                            :: a, cutmax, cutmin, dx2, e, &
                                                 hicut, locut, qi, qj, x, x2
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
+    REAL(KIND=dp), OPTIONAL :: ei_scale14
 
 !------------------------------------------------------------------------------
 
@@ -193,13 +197,21 @@ SUBROUTINE spline_nonbond_control ( spline_env, potparm, atomic_kind_set, &
         potparm(i,j) %energy_cutoff = 0.0_dp
         potparm(i,j) %energy_cutoff = ener_pot(potparm(i,j),qi,qj,hicut)
         potparm(i,j) %e_cutoff_coul = 0.0_dp
-        IF ( PRESENT ( ewald_env ) ) THEN
+!        IF ( PRESENT ( ewald_env ) ) THEN
+!          potparm(i,j) %e_cutoff_coul &
+!          = ener_coul ( potparm ( i, j ), qi, qj, hicut, ewald_env )
+!        ELSE 
+!          potparm(i,j) %e_cutoff_coul &
+!          = ener_coul ( potparm ( i, j ), qi, qj, hicut)
+!        END IF
+
+        IF ( PRESENT ( ei_scale14 ) ) THEN
+          potparm(i,j) %e_cutoff_coul &
+          = ener_coul ( potparm ( i, j ), qi, qj, hicut, ewald_env, ei_scale14 )
+        ELSE
           potparm(i,j) %e_cutoff_coul &
           = ener_coul ( potparm ( i, j ), qi, qj, hicut, ewald_env )
-        ELSE 
-          potparm(i,j) %e_cutoff_coul &
-          = ener_coul ( potparm ( i, j ), qi, qj, hicut)
-        END IF
+        ENDIF
         potparm(j,i) %energy_cutoff = potparm(i,j) %energy_cutoff
         potparm(j,i) %e_cutoff_coul = potparm(i,j) %e_cutoff_coul
 
@@ -207,13 +219,20 @@ SUBROUTINE spline_nonbond_control ( spline_env, potparm, atomic_kind_set, &
         x2 = locut**2
         DO jx = 1, npoints + 1 ! jx: loop over distance**2
            x = SQRT ( x2 )
-           IF ( PRESENT ( ewald_env ) ) THEN
+           !IF ( PRESENT ( ewald_env ) ) THEN
+           !  e = ener_pot ( potparm ( i, j ), qi, qj, x ) &
+           !    + ener_coul ( potparm ( i, j ), qi, qj, x, ewald_env )
+           !ELSE
+           !  e = ener_pot ( potparm ( i, j ), qi, qj, x ) &
+           !    + ener_coul ( potparm ( i, j ), qi, qj, x)
+           !END IF
+           IF ( PRESENT ( ei_scale14 ) ) THEN
              e = ener_pot ( potparm ( i, j ), qi, qj, x ) &
-               + ener_coul ( potparm ( i, j ), qi, qj, x, ewald_env )
+               + ener_coul ( potparm ( i, j ), qi, qj, x, ewald_env, ei_scale14 )
            ELSE
              e = ener_pot ( potparm ( i, j ), qi, qj, x ) &
-               + ener_coul ( potparm ( i, j ), qi, qj, x)
-           END IF
+               + ener_coul ( potparm ( i, j ), qi, qj, x, ewald_env )
+           ENDIF
            spline_env % spline_data_p ( n ) % spline_data % x(jx) = x2
            spline_env % spline_data_p ( n ) % spline_data % y(jx) = e
            x2 = x2 + dx2
