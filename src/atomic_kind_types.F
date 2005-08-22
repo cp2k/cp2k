@@ -947,6 +947,11 @@ CONTAINS
                         atomic_kind%orb_basis_set%norm_type = 2
           CALL init_orb_basis_set(atomic_kind%orb_basis_set)
         END IF
+        IF (ASSOCIATED(atomic_kind%aux_basis_set)) THEN
+          IF(atomic_kind%aux_basis_set%norm_type < 0) &
+                        atomic_kind%aux_basis_set%norm_type = 1
+          CALL init_aux_basis_set(atomic_kind%aux_basis_set)
+        END IF
       ELSE IF (globenv%prog_name_id == do_kg) THEN
         IF (ASSOCIATED(atomic_kind%gth_potential).AND. PRESENT(method))THEN
           IF(method == "KG_GPW")&  
@@ -1350,6 +1355,7 @@ CONTAINS
 !   *** Allocate and initialise the auxiliary basis set data set structure ***
 
     IF (aux_basis_set_name /= '') THEN
+
       CALL allocate_gto_basis_set(atomic_kind%aux_basis_set)
       CALL read_gto_basis_set(atomic_kind%element_symbol,aux_basis_set_name,&
                               atomic_kind%aux_basis_set,globenv)

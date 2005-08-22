@@ -124,9 +124,9 @@ CONTAINS
                                total_rho, kg_env,error)
 
     TYPE(coeff_type), INTENT(INOUT)          :: rho, rho_gspace
-    REAL(KIND=dp), INTENT(OUT)                   :: total_rho
+    REAL(KIND=dp), INTENT(OUT)               :: total_rho
     TYPE(kg_environment_type), POINTER       :: kg_env
-    TYPE(cp_error_type), INTENT(inout), &
+    TYPE(cp_error_type), INTENT(INOUT), &
       OPTIONAL                               :: error
 
     CHARACTER(LEN=*), PARAMETER :: &

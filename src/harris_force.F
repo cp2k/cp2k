@@ -47,7 +47,7 @@ MODULE harris_force
                                              cp_warning_level,&
                                              cp_logger_get_default_unit_nr,&
                                              cp_logger_type
-  USE cp_para_types,                   ONLY: cp_para_env_type
+  !USE cp_para_types,                   ONLY: cp_para_env_type
   USE global_types,                    ONLY: global_environment_type
   USE green_types,                     ONLY: greens_function_type
   USE harris_env_types,                ONLY: harris_env_type, &
@@ -436,20 +436,14 @@ CONTAINS
 
       IF (ASSOCIATED(v_rspace_new)) THEN
         CALL pw_pool_give_back_coeff(auxbas_pw_pool,v_rspace_new(1),error=error)
-      END IF
-      IF (ASSOCIATED(v_tau_rspace)) THEN
-        CALL pw_pool_give_back_coeff(auxbas_pw_pool,v_tau_rspace(1),error=error)
-      END IF
-
-      IF (ASSOCIATED(v_rspace_new)) THEN
         DEALLOCATE(v_rspace_new,stat=stat)
         CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
       END IF
-      
       IF (ASSOCIATED(v_tau_rspace)) THEN
+        CALL pw_pool_give_back_coeff(auxbas_pw_pool,v_tau_rspace(1),error=error)
         DEALLOCATE(v_tau_rspace,stat=stat)
         CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
-      END IF 
+      END IF
 
       DO iatom = 1, natom
         ikind = kind_of(iatom)
@@ -685,9 +679,13 @@ CONTAINS
 
       IF (ASSOCIATED(v_rspace_new)) THEN
         CALL pw_pool_give_back_coeff(auxbas_pw_pool,v_rspace_new(1),error=error)
+        DEALLOCATE(v_rspace_new,stat=stat)
+        CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
       END IF
       IF (ASSOCIATED(v_tau_rspace)) THEN
         CALL pw_pool_give_back_coeff(auxbas_pw_pool,v_tau_rspace(1),error=error)
+        DEALLOCATE(v_tau_rspace,stat=stat)
+        CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
       END IF
 
       DO iatom = 1, natom
@@ -731,6 +729,7 @@ CONTAINS
       DO iatom = 1, natom
         ikind = kind_of(iatom)
         i = atom_of_kind(iatom)
+
         harris_force%f_ovrl(iatom, 1:3) = force(ikind)%core_overlap(1:3,i)
         harris_force%f_self(iatom, 1:3) = 0.0_dp
         harris_force%f_EII(iatom, 1:3) = harris_force%f_ovrl(iatom, 1:3) &
@@ -752,38 +751,38 @@ CONTAINS
         WRITE (unit_nr,*) "The Harris functional force correction is performed!"
         WRITE (unit_nr,*) ""
       
-        WRITE (unit_nr, *) "F_Trace"
-        DO iatom = 1, natom
-          WRITE (unit_nr,*) harris_force%f_trace(iatom, 1:3)
-        END DO
-        WRITE (unit_nr, *) "F_Hartree"
-        DO iatom = 1, natom
-          WRITE (unit_nr,*) harris_force%f_hartree(iatom, 1:3)
-        END DO
-        WRITE (unit_nr, *) "F_Integral_vxc"
-        DO iatom = 1, natom
-          WRITE (unit_nr,*) harris_force%f_integral_vxc(iatom, 1:3)
-        END DO
-        WRITE (unit_nr, *) "F_Exc"
-        DO iatom = 1, natom
-          WRITE (unit_nr,*) harris_force%f_xc(iatom, 1:3)
-        END DO
-        WRITE (unit_nr, *) "F_ovrl"
-        DO iatom = 1, natom
-          WRITE (unit_nr,*) harris_force%f_ovrl(iatom, 1:3)
-        END DO
-        WRITE (unit_nr, *) "F_Self"
-        DO iatom = 1, natom
-          WRITE (unit_nr,*) harris_force%f_self(iatom, 1:3)
-        END DO
-        WRITE (unit_nr, *) "F_Rho_Core"
-        DO iatom = 1, natom
-          WRITE (unit_nr,*) harris_force%f_rho_core(iatom, 1:3)
-        END DO
-        WRITE (unit_nr, *) "F_EII"
-        DO iatom = 1, natom
-          WRITE (unit_nr,*) harris_force%f_EII(iatom, 1:3)
-        END DO
+        !WRITE (unit_nr, *) "F_Trace"
+        !DO iatom = 1, natom
+        !  WRITE (unit_nr,*) harris_force%f_trace(iatom, 1:3)
+        !END DO
+        !WRITE (unit_nr, *) "F_Hartree"
+        !DO iatom = 1, natom
+        !  WRITE (unit_nr,*) harris_force%f_hartree(iatom, 1:3)
+        !END DO
+        !WRITE (unit_nr, *) "F_Integral_vxc"
+        !DO iatom = 1, natom
+        !  WRITE (unit_nr,*) harris_force%f_integral_vxc(iatom, 1:3)
+        !END DO
+        !WRITE (unit_nr, *) "F_Exc"
+        !DO iatom = 1, natom
+        !  WRITE (unit_nr,*) harris_force%f_xc(iatom, 1:3)
+        !END DO
+        !WRITE (unit_nr, *) "F_ovrl"
+        !DO iatom = 1, natom
+        !  WRITE (unit_nr,*) harris_force%f_ovrl(iatom, 1:3)
+        !END DO
+        !WRITE (unit_nr, *) "F_Self"
+        !DO iatom = 1, natom
+        !  WRITE (unit_nr,*) harris_force%f_self(iatom, 1:3)
+        !END DO
+        !WRITE (unit_nr, *) "F_Rho_Core"
+        !DO iatom = 1, natom
+        !  WRITE (unit_nr,*) harris_force%f_rho_core(iatom, 1:3)
+        !END DO
+        !WRITE (unit_nr, *) "F_EII"
+        !DO iatom = 1, natom
+        !  WRITE (unit_nr,*) harris_force%f_EII(iatom, 1:3)
+        !END DO
         WRITE (unit_nr, *) "F_Harris"
         DO iatom = 1, natom
           WRITE (unit_nr,*) harris_force%f_harris(iatom, 1:3)
@@ -798,16 +797,6 @@ CONTAINS
       !                                error=error)
       !CALL harris_force_test_integral_vxc(qs_env=qs_env, &
       !                                    harris_force=harris_force, error=error)
-
-      IF (ASSOCIATED(v_rspace_new)) THEN
-        DEALLOCATE(v_rspace_new,stat=stat)
-        CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
-      END IF
-
-      IF (ASSOCIATED(v_tau_rspace)) THEN
-        DEALLOCATE(v_tau_rspace,stat=stat)
-        CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
-      END IF 
 
       DEALLOCATE (atom_of_kind,STAT=stat)
       CPPostconditionNoFail(stat==0, cp_warning_level, routineP, error)

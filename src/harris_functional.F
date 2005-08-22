@@ -76,6 +76,7 @@ MODULE harris_functional
                                              qs_rho_get
   USE qs_scf_types,                    ONLY: qs_scf_env_type
   USE sparse_matrix_types,             ONLY: real_matrix_p_type, &
+                                             !replicate_matrix, &
                                              cp_sm_sm_trace
   USE timings,                         ONLY: timeset, timestop
   
@@ -179,6 +180,13 @@ CONTAINS
 
       CALL duplicate_rho_type(rho_input=rho, rho_output=harris_env%rho, &
                               qs_env=qs_env, error=error)
+
+      !CALL replicate_matrix(source=qs_env%matrix_h(1)%matrix, &
+      !                      TARGET=harris_env%matrix_h(1)%matrix, &
+      !                      target_name="myH-Matrix", allocate_blocks=.TRUE.)
+      !CALL replicate_matrix(source=qs_env%matrix_ks(1)%matrix, &
+      !                      TARGET=harris_env%matrix_ks(1)%matrix, &
+      !                      target_name="myKS-Matrix", allocate_blocks=.TRUE.)
 
       CALL pw_env_get(pw_env, auxbas_pw_pool=auxbas_pw_pool, error=error)
       CALL pw_pool_init_coeff(auxbas_pw_pool, v_hartree_gspace, &
@@ -418,15 +426,15 @@ CONTAINS
     IF (.NOT. failure) THEN
       CALL harris_env_get(harris_env=harris_env, harris_energy=harris_energy, error=error)
 
-      CALL get_qs_env(qs_env, rho=rho, matrix_ks=matrix_ks, para_env=para_env,  error=error)
+      CALL get_qs_env(qs_env, rho=rho, matrix_ks=matrix_ks, para_env=para_env, error=error)
       CALL qs_rho_get(rho_struct=rho, rho_ao=rho_ao, error=error)
 
       CALL cp_sm_sm_trace(matrix_ks(1)%matrix, rho_ao(1)%matrix, &
                           harris_energy%sum_of_eigenvalues, &
                           para_env=para_env, error=error)
 
-      harris_energy%Eharris = harris_energy%sum_of_eigenvalues + &
-                              harris_energy%Eharris_correction
+      harris_energy%Eharris = harris_energy%sum_of_eigenvalues &
+                            + harris_energy%Eharris_correction
 
     END IF
 

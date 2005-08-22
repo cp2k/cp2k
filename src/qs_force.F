@@ -290,6 +290,10 @@ CONTAINS
     IF (harris_flag) THEN
       CALL get_qs_env(qs_env=qs_env, harris_env=harris_env)
       CALL harris_force_correction(qs_env, harris_env, globenv)
+      DO iatom = 1,natom
+        i = atom_of_kind(iatom)
+        particle_set(1)%f = harris_env%harris_force%f_harris(iatom, 1:3)
+      END DO
     END IF
 
     CALL deallocate_matrix_set(matrix_w)

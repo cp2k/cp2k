@@ -17,6 +17,7 @@
 !!   AUTHOR
 !!     Matthias Krack (03.04.2001)
 !!     1) Joost VandeVondele (01.2002)
+!!     Thomas D. Kuehne (04.08.2005)
 !!
 !!   MODIFICATION HISTORY
 !!     - rewrote collocate for increased accuracy and speed
@@ -37,6 +38,7 @@
 !!     - removed the incremental density rebuild (Joost 01.04)
 !!     - introduced realspace multigridding (Joost 02.04)
 !!     - introduced map_consistent (Joost 02.04)
+!!     - Addition of the subroutine calculate_atomic_charge_density (TdK, 08.05)
 !!
 !!   SOURCE
 !******************************************************************************
@@ -115,6 +117,7 @@ MODULE qs_collocate_density
                                              neighbor_list_type,&
                                              neighbor_node_type,&
                                              next
+  USE qs_rho_types,                    ONLY: qs_rho_type
   USE realspace_grid_types,            ONLY: realspace_grid_p_type,&
                                              realspace_grid_type,&
                                              rs_get_loop_vars,&
@@ -145,7 +148,8 @@ MODULE qs_collocate_density
   PUBLIC :: calculate_rho_core,&
             calculate_rho_elec,&
             calculate_wavefunction,&
-            collocate_pgf_product_rspace
+            collocate_pgf_product_rspace,&
+            collocate_atomic_charge_density
 
 ! *** Public functions ***
 
@@ -168,13 +172,278 @@ MODULE qs_collocate_density
 CONTAINS
 
 ! *****************************************************************************
+!!****f* qs_collocate_density/collocate_atomic_charge_density [1.0] *
+!!
+!!   NAME
+!!     collocate_atomic_charge_density
+!!
+!!   FUNCTION
+!!     Collocates an arbitrary density from the aux_basis_set onto a grid.
+!!
+!!   NOTES
+!!     -
+!!
+!!   INPUTS
+!!     - rho: The PW-Grid onto which the density is collocated
+!!     - rho_g: The realspace-grid onto which the density is collocated
+!!     - rho_r: The G-space-grid onto which the density is collocated
+!!     - total_rho: Gives back the integral of the collocated density
+!!     - qs_env: The QS environment of matter
+!!     - error: variable to control error logging, stopping,... 
+!!              see module cp_error_handling 
+!!
+!!   AUTHOR
+!!     Thomas D. Kuehne (tkuehne@phys.chem.ethz.ch)
+!!
+!!   MODIFICATION HISTORY
+!!     08.2005 initial create [tdk]
+!!
+!!*** **********************************************************************
+  SUBROUTINE collocate_atomic_charge_density(total_rho, qs_env, error)
+
+    REAL(KIND=dp), INTENT(OUT)               :: total_rho
+    TYPE(qs_environment_type), POINTER       :: qs_env
+    TYPE(cp_error_type), INTENT(INOUT), &
+      OPTIONAL                               :: error
+
+    TYPE(gto_basis_set_type), POINTER        :: aux_basis_set
+    TYPE(atomic_kind_type), DIMENSION(:), &
+      POINTER                                :: atomic_kind_set
+    TYPE(atomic_kind_type), POINTER          :: atomic_kind
+    INTEGER                                  :: handle, &
+                                                ikind, &
+                                                nkind, &
+                                                nseta, &
+                                                iset, &
+                                                ipgf, &
+                                                iatom, &
+                                                natom, &
+                                                ierr, &
+                                                ithread, &
+                                                sgfa, &
+                                                igrid_level
+    INTEGER, DIMENSION(:), POINTER           :: la_max, &
+                                                la_min, &
+                                                atom_list, &
+                                                npgfa, &
+                                                nsgfa
+    INTEGER, DIMENSION(:,:), POINTER         :: first_sgfa
+    REAL(KIND=dp), DIMENSION(3)              :: ra
+    REAL(KIND=dp), DIMENSION(:,:), POINTER   :: zeta, &
+                                                sphi_a, &
+                                                pab, &
+                                                work
+    TYPE(cell_type), POINTER                 :: cell
+    TYPE(particle_type), DIMENSION(:), &
+      POINTER                                :: particle_set
+    !TYPE(realspace_grid_type), POINTER       :: rs_rho
+    TYPE(realspace_grid_p_type), &
+      DIMENSION(:), POINTER                  :: rs_rho
+    !TYPE(cp_rs_pool_type), POINTER           :: auxbas_rs_pool
+    TYPE(pw_env_type), POINTER               :: pw_env
+    !TYPE(pw_pool_type), POINTER              :: auxbas_pw_pool
+    !TYPE(coeff_type)                         :: rhoc_r
+    TYPE(cube_info_type), DIMENSION(:), &
+      POINTER                                :: cube_info
+    !TYPE(cube_info_type), POINTER            :: cube_info
+    TYPE(l_info_type)                        :: l_info
+    REAL(KIND=dp)                            :: eps_rho_rspace
+    TYPE(dft_control_type), POINTER          :: dft_control
+    LOGICAL                                  :: map_consistent, &
+                                                failure
+    TYPE(qs_rho_type), POINTER               :: rho_struct
+    INTEGER                                  :: i, &
+                                                maxco, &
+                                                ncoa, &
+                                                na1
+    TYPE(gridlevel_info_type), POINTER       :: gridlevel_info
+    TYPE(cp_rs_pool_p_type), DIMENSION(:), &
+      POINTER                                :: rs_pools
+    TYPE(pw_pool_p_type), DIMENSION(:), &
+      POINTER                                :: pw_pools
+    TYPE(coeff_type), DIMENSION(:), POINTER  :: mgrid_gspace, &
+                                                mgrid_rspace
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'collocate_atomic_charge_density', &
+      routineP = moduleN//':'//routineN
+
+!   ---------------------------------------------------------------------------
+
+    NULLIFY(aux_basis_set, atomic_kind_set, atomic_kind, npgfa, cell, particle_set, &
+            sphi_a, rs_rho, pw_env, cube_info, dft_control, rho_struct, atom_list, &
+            first_sgfa, pab, work)
+    NULLIFY(gridlevel_info, rs_pools, pw_pools, mgrid_gspace, mgrid_rspace)
+
+    CALL timeset("collocate_atomic_charge_density","I","",handle)
+
+    !ALLOCATE(pab(1,1),STAT=ierr)
+    !IF ( ierr /= 0 ) CALL stop_memory ( routineN, "pab", 1 )
+
+    CALL get_qs_env(qs_env=qs_env, atomic_kind_set=atomic_kind_set, cell=cell, &
+                    particle_set=particle_set, pw_env=pw_env, rho=rho_struct, &
+                    dft_control=dft_control, error=error)
+
+    !CALL pw_env_get(pw_env=pw_env, auxbas_rs_pool=auxbas_rs_pool, &
+    !                auxbas_pw_pool=auxbas_pw_pool, error=error)
+
+    !CALL rs_pool_create_rs(auxbas_rs_pool, rs_rho)
+    !CALL rs_grid_zero(rs_rho)
+
+    !cube_info => pw_env%cube_info(1)
+    cube_info => pw_env%cube_info
+    l_info = pw_env%l_info
+    eps_rho_rspace = dft_control%qs_control%eps_rho_rspace
+    map_consistent = dft_control%qs_control%map_consistent
+    ithread = 0
+    gridlevel_info=>pw_env%gridlevel_info
+
+    ! *** set up the pw multi-grids *** !
+    CPPrecondition(ASSOCIATED(pw_env), cp_failure_level, routineN, error, failure)
+    CALL pw_env_get(pw_env=pw_env, rs_pools=rs_pools, pw_pools=pw_pools, error=error)
+
+    ALLOCATE(mgrid_rspace(SIZE(pw_pools)), stat=ierr)
+    CPPostcondition(ierr==0, cp_failure_level, routineN, error, failure)
+    CALL pw_pools_init_coeffs(pools=pw_pools, coeffs=mgrid_rspace, &
+                              use_data=REALDATA3D, in_space=REALSPACE, &
+                              error=error)
+
+    ALLOCATE(mgrid_gspace(SIZE(pw_pools)), stat=ierr)
+    CPPostcondition(ierr==0, cp_failure_level, routineN, error, failure)
+    CALL pw_pools_init_coeffs(pools=pw_pools, coeffs=mgrid_gspace, &
+                              use_data=COMPLEXDATA1D, in_space=RECIPROCALSPACE, &
+                              error=error)
+
+    ! *** set up the rs multi-grids *** !
+    CALL rs_pools_create_rs_vect(rs_pools,rs_rho, error=error)
+    DO igrid_level = 1,gridlevel_info%ngrid_levels
+      CALL rs_grid_zero(rs_rho(igrid_level)%rs_grid)
+    END DO
+
+    CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set, maxco=maxco)
+    ALLOCATE(pab(maxco,1), STAT=ierr)
+    IF (ierr /= 0) CALL stop_memory(routineN, "pab", maxco*1*dp_size)
+    ALLOCATE(work(maxco,1), STAT=ierr)
+    IF (ierr /= 0) CALL stop_memory(routineN, "work", maxco*1*dp_size)
+
+    nkind = SIZE(atomic_kind_set)
+
+    DO ikind = 1,nkind
+      atomic_kind => atomic_kind_set(ikind)
+
+      CALL get_atomic_kind(atomic_kind=atomic_kind, aux_basis_set=aux_basis_set, natom=natom, &
+                           atom_list=atom_list)
+
+      CALL get_gto_basis_set(gto_basis_set=aux_basis_set, lmax=la_max, lmin=la_min, zet=zeta, &
+                             nset=nseta, npgf=npgfa, sphi=sphi_a, first_sgf=first_sgfa, nsgf_set=nsgfa)
+
+      DO iatom = 1,natom
+        ! ra(:) = pbc(particle_set(iatom)%r, cell)
+        ra(:) = pbc(particle_set(atom_list(iatom))%r, cell)
+
+        DO iset = 1,nseta
+
+          sgfa = first_sgfa(1,iset)
+          ncoa = npgfa(iset)*ncoset(la_max(iset))
+
+          DO i = 1,nsgfa(iset)
+            work(i,1) = 1.0_dp
+          END DO
+          CALL dgemm("N","N",ncoa,1,nsgfa(iset),1.0_dp, sphi_a(1,sgfa),SIZE(sphi_a,1), &
+                     work(1,1),SIZE(work,1),0.0_dp,pab(1,1),SIZE(pab,1))
+
+          DO ipgf = 1,npgfa(iset)
+
+            na1 = (ipgf-1)*ncoset(la_max(iset))
+            igrid_level = gaussian_gridlevel(gridlevel_info, zeta(ipgf,iset))
+
+            !CALL collocate_pgf_product_rspace(la_max=la_max(iset), zeta=zeta(ipgf,iset), &
+            !                                  la_min=la_min(iset), lb_max=0, zetb=0.0_dp, lb_min=0, &
+            !                                  ra=ra, rab=(/0.0_dp,0.0_dp,0.0_dp/), rab2=0.0_dp, &
+            !                                  scale=1.0_dp, pab=pab, o1=na1, o2=0, rsgrid=rs_rho, &
+            !                                  cube_info=cube_info, l_info=l_info, &
+            !                                  eps_rho_rspace=eps_rho_rspace, ithread=ithread, &
+            !                                  compute_tau=.FALSE., map_consistent=map_consistent)
+            CALL collocate_pgf_product_rspace(la_max=la_max(iset), zeta=zeta(ipgf,iset), &
+                                              la_min=la_min(iset), lb_max=0, zetb=0.0_dp, lb_min=0, &
+                                              ra=ra, rab=(/0.0_dp,0.0_dp,0.0_dp/), rab2=0.0_dp, &
+                                              scale=1.0_dp, pab=pab, o1=na1, o2=0, &
+                                              rsgrid=rs_rho(igrid_level)%rs_grid, &
+                                              cube_info=cube_info(igrid_level), l_info=l_info, &
+                                              eps_rho_rspace=eps_rho_rspace, ithread=ithread, &
+                                              compute_tau=.FALSE., map_consistent=map_consistent)
+          END DO
+        END DO
+      END DO
+    END DO
+
+    DEALLOCATE(pab, stat=ierr)
+    IF (ierr /= 0) CALL stop_memory(routineN, "pab")
+
+    DEALLOCATE(work, stat=ierr)
+    IF (ierr /= 0) CALL stop_memory(routineN, "work")
+
+    IF (gridlevel_info%ngrid_levels==1) THEN
+      CALL rs_pw_transfer(rs=rs_rho(1)%rs_grid, pw=qs_env%rho%rho_r(1)%pw, dir=rs2pw)
+      CALL rs_pools_give_back_rs_vect(pools=rs_pools, elements=rs_rho, error=error)
+      CALL coeff_transform_space(qs_env%rho%rho_r(1), qs_env%rho%rho_g(1))
+      IF (qs_env%rho%rho_r(1)%pw%pw_grid%spherical) THEN
+        CALL coeff_transform_space(qs_env%rho%rho_g(1), qs_env%rho%rho_r(1))
+      END IF
+    ELSE
+      DO igrid_level = 1,gridlevel_info%ngrid_levels
+        CALL rs_pw_transfer(rs=rs_rho(igrid_level)%rs_grid, &
+                            pw=mgrid_rspace(igrid_level)%pw, dir=rs2pw)
+      END DO
+      CALL rs_pools_give_back_rs_vect(pools=rs_pools, elements=rs_rho, error=error)
+      
+      !CALL coeff_zero(rho_gspace)
+      CALL coeff_zero(qs_env%rho%rho_g(1))
+      DO igrid_level=1, gridlevel_info%ngrid_levels
+        CALL coeff_transform_space(mgrid_rspace(igrid_level), &
+                                   mgrid_gspace(igrid_level))
+        CALL coeff_sumup(mgrid_gspace(igrid_level), qs_env%rho%rho_g(1))
+      END DO
+      CALL coeff_transform_space(qs_env%rho%rho_g(1), qs_env%rho%rho_r(1))
+    END IF
+
+  !  CALL rs_pw_transfer(rs=rs_rho, pw=qs_env%rho%rho_r(1)%pw, dir=rs2pw)
+
+  !  CALL rs_pool_give_back_rs(pool=auxbas_rs_pool, element=rs_rho, error=error)
+
+    !CALL coeff_transform_space(rhoc_r, qs_env%rho%rho_g(1))
+  !  CALL coeff_transform_space(qs_env%rho%rho_r(1), qs_env%rho%rho_g(1))
+
+  !  IF (qs_env%rho%rho_r(1)%pw%pw_grid%spherical) THEN
+  !    CALL coeff_transform_space(qs_env%rho%rho_g(1), qs_env%rho%rho_r(1))
+  !  END IF
+
+    total_rho = calculate_total_rho(qs_env%rho%rho_r(1))
+    qs_env%rho%tot_rho_r = total_rho
+PRINT *, "Total Rho =", total_rho
+
+    ! *** give back the multi-grids *** !
+    CALL pw_pools_give_back_coeffs(pw_pools, mgrid_gspace, error=error)
+    DEALLOCATE(mgrid_gspace, stat=ierr)
+    CPPostcondition(ierr==0, cp_failure_level, routineN, error, failure)
+    CALL pw_pools_give_back_coeffs(pw_pools, mgrid_rspace, error=error)
+    DEALLOCATE(mgrid_rspace, stat=ierr)
+    CPPostcondition(ierr==0, cp_failure_level, routineN, error, failure)
+
+    qs_env%rho%rho_r_valid = .TRUE.
+    qs_env%rho%rho_g_valid = .TRUE.
+
+    CALL timestop(0.0_dp,handle)
+
+  END SUBROUTINE collocate_atomic_charge_density
+
+! *****************************************************************************
 
   SUBROUTINE calculate_rho_core(rho_core,total_rho,qs_env,error)
 
     TYPE(coeff_type), INTENT(INOUT)          :: rho_core
     REAL(KIND=dp), INTENT(OUT)               :: total_rho
     TYPE(qs_environment_type), POINTER       :: qs_env
-    TYPE(cp_error_type), INTENT(inout), &
+    TYPE(cp_error_type), INTENT(INOUT), &
       OPTIONAL                               :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'calculate_rho_core', &
@@ -1221,6 +1490,7 @@ CONTAINS
     CALL timestop(0.0_dp,handle)
 
   END SUBROUTINE calculate_wavefunction
+
 ! *****************************************************************************
 
   FUNCTION calculate_total_rho(rho) RESULT(total_rho)

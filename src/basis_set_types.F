@@ -1198,7 +1198,9 @@ CONTAINS
         "Number of Cartesian basis functions:     ",&
         aux_basis_set%ncgf,&
         "Number of spherical basis functions:     ",&
-        aux_basis_set%nsgf
+        aux_basis_set%nsgf,&
+        "Norm type:                               ",&
+        aux_basis_set%norm_type
 
       WRITE (UNIT=output_unit,FMT="(/,T6,A,/,T6,A)")&
         "Normalised Cartesian auxiliary functions",&

@@ -126,6 +126,7 @@ MODULE qs_scf
   USE pw_env_types,                    ONLY: pw_env_type
   USE physcon,                         ONLY: kcalmol,evolt
   USE qs_charges_types,                ONLY: qs_charges_type
+  USE qs_collocate_density,            ONLY: collocate_atomic_charge_density
   USE qs_core_energies,                ONLY: calculate_ecore_overlap,&
                                              calculate_ecore_self
   USE qs_diis,                         ONLY: qs_diis_b_clear,&
@@ -138,7 +139,8 @@ MODULE qs_scf
                                              set_qs_env
   USE qs_ks_methods,                   ONLY: qs_ks_create,&
                                              qs_ks_did_change,&
-                                             qs_ks_update_qs_env
+                                             qs_ks_update_qs_env,&
+                                             qs_ks_build_kohn_sham_matrix
   USE qs_ks_types,                     ONLY: qs_ks_env_type,&
                                              qs_ks_release
   USE qs_loc_methods,                  ONLY: loc_initialize_rho
@@ -792,6 +794,7 @@ CONTAINS
 
        IF (harris_flag) THEN
           CALL harris_postprocessing(harris_env, error=error)
+          !energy%total = harris_env%harris_energy%Eharris
        END IF
 
 ! ** convergence check
@@ -1888,7 +1891,7 @@ CONTAINS
     INTEGER, DIMENSION(:), POINTER           :: atom_list, elec_conf, nshell
     INTEGER, DIMENSION(:, :), POINTER        :: first_sgfa, l, last_sgfa
     REAL(KIND=dp)                            :: maxocc, nelec, paa, scale, &
-                                                trps1, trps2
+                                                trps1, trps2, total_rho
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: econf, pdiag, sdiag
     TYPE(all_potential_type), POINTER        :: all_potential
     TYPE(atomic_kind_type), DIMENSION(:), &
@@ -1910,7 +1913,9 @@ CONTAINS
     TYPE(real_matrix_p_type), DIMENSION(:), &
       POINTER                                :: h_core_sparse
     TYPE(scf_control_type), POINTER          :: scf_control
-    LOGICAL                                  :: ortho_basis
+    LOGICAL                                  :: ortho_basis, &
+                                                id_equal, &
+                                                failure
 
 !   ---------------------------------------------------------------------------
 
@@ -2211,6 +2216,66 @@ CONTAINS
       DEALLOCATE (sdiag,STAT=istat)
       IF (istat /= 0) CALL stop_memory(routineP,"sdiag")
 
+    ELSE IF (scf_control%density_guess == "DENSITIES") THEN
+
+      ! Collocation of the density into the PW-grid
+      CALL collocate_atomic_charge_density(total_rho=total_rho, qs_env=qs_env, error=error)
+
+      ! do some assertions here on these matrices having the same structure, 
+      ! as is currently required
+      DO ispin=1,SIZE(qs_env%matrix_s)
+        id_equal=(qs_env%matrix_s(ispin)%matrix%sparsity_id==qs_env%matrix_s(1)%matrix%sparsity_id)
+        CPPrecondition(id_equal,cp_failure_level,routineP,error,failure)
+      ENDDO
+      ! matrix_p = rho%rho_ao
+      DO ispin=1,SIZE(qs_env%rho%rho_ao)
+        id_equal=(qs_env%rho%rho_ao(ispin)%matrix%sparsity_id==qs_env%matrix_s(1)%matrix%sparsity_id)
+        CPPrecondition(id_equal,cp_failure_level,routineP,error,failure)
+      ENDDO
+      DO ispin=1,SIZE(qs_env%matrix_h)
+        id_equal=(qs_env%matrix_h(ispin)%matrix%sparsity_id==qs_env%matrix_s(1)%matrix%sparsity_id)
+        CPPrecondition(id_equal,cp_failure_level,routineP,error,failure)
+      ENDDO
+      DO ispin=1,SIZE(qs_env%matrix_ks)
+        id_equal=(qs_env%matrix_ks(ispin)%matrix%sparsity_id==qs_env%matrix_s(1)%matrix%sparsity_id)
+        CPPrecondition(id_equal,cp_failure_level,routineP,error,failure)
+      ENDDO
+      ! end sparsity check
+
+      qs_env%scf_env%iter_count = 1
+
+      ! qs_ks_build_kohn_sham_matrix (Integration)
+      !CALL qs_ks_build_kohn_sham_matrix(ks_env=qs_env%ks_env, qs_env=qs_env, &
+      !                                  ks_matrix=qs_env%matrix_ks, rho=qs_env%rho, &
+      !                                  energy=qs_env%energy, calculate_forces=.TRUE., &
+      !                                  just_energy=.FALSE., kg_gpw=.FALSE., error=error)
+      CALL qs_ks_did_change(ks_env=qs_env%ks_env, rho_changed=.TRUE., error=error)
+
+      CALL qs_ks_update_qs_env(ks_env=qs_env%ks_env, qs_env=qs_env, &
+                               calculate_forces=.TRUE., just_energy=.FALSE., error=error)
+
+      ! diagonalization
+      DO ispin = 1,qs_env%dft_control%nspins
+        CALL copy_sm_to_fm(qs_env%matrix_ks(ispin)%matrix, qs_env%scf_env%scf_work1(ispin)%matrix)
+      END DO
+
+      qs_env%scf_env%iter_method = "Mixing/Diag"
+      qs_env%scf_env%iter_delta = 0.0_dp
+
+      DO ispin = 1,qs_env%dft_control%nspins
+        CALL eigensolver(matrix_ks=qs_env%scf_env%scf_work1(ispin)%matrix, &
+                         mo_set=qs_env%mos(ispin)%mo_set, ortho=qs_env%scf_env%ortho, &
+                         work=qs_env%scf_env%scf_work2, do_level_shift=.FALSE., &
+                         level_shift=scf_control%level_shift, &
+                         use_cholesky=scf_control%use_cholesky, work_syevx=scf_control%work_syevx, &
+                         use_jacobi=.FALSE., jacobi_threshold=scf_control%jacobi_threshold, &
+                         smear=scf_control%smear, error=error)
+
+        ! calculate_density_matrix
+        CALL calculate_density_matrix(qs_env%mos(ispin)%mo_set, qs_env%rho%rho_ao(ispin)%matrix, &
+                                      error=error)
+      END DO
+
     ELSE
 
       CALL stop_program(routineP,&
@@ -2301,12 +2366,14 @@ CONTAINS
        IF (extrapolation_method_nr==wfi_use_guess_method_nr) THEN
           CALL calculate_first_density_matrix(scf_env=scf_env,qs_env=qs_env,&
                globenv=globenv, error=error)
-          CALL qs_rho_update_rho(qs_env%rho,qs_env=qs_env, gapw=gapw, error=error)
-          IF(gapw) THEN
-             CALL calculate_rho_atom_coeff(qs_env,qs_env%rho%rho_ao)
-          ENDIF
-          CALL qs_ks_did_change(qs_env%ks_env,rho_changed=.TRUE.,&
-               error=error)
+          IF (.NOT.(qs_env%scf_control%density_guess=="DENSITIES")) THEN
+            CALL qs_rho_update_rho(qs_env%rho,qs_env=qs_env, gapw=gapw, error=error)
+            IF(gapw) THEN
+               CALL calculate_rho_atom_coeff(qs_env,qs_env%rho%rho_ao)
+            ENDIF
+            CALL qs_ks_did_change(qs_env%ks_env,rho_changed=.TRUE.,&
+                 error=error)
+          END IF
        END IF
     END IF
 

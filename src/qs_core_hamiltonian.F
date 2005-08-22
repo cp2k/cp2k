@@ -319,7 +319,7 @@ CONTAINS
     INTEGER :: omp_get_max_threads,omp_get_thread_num
     INTEGER :: neighbor_list_id
 
-    TYPE(harris_env_type), POINTER    :: harris_env
+    TYPE(harris_env_type), POINTER              :: harris_env
     TYPE(section_vals_type), POINTER            :: lr_section
 
 

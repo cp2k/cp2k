@@ -96,7 +96,6 @@ CONTAINS
     ! *** Perform a SCF run ***
     CALL scf(qs_env,globenv)
 
-
     !Properties
     right_iteration_level = .TRUE.
     !right_iteration_level = (MODULO(iter_count,dft_control%xas_control%each_step)==0)

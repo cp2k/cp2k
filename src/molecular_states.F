@@ -246,7 +246,7 @@ SUBROUTINE construct_molecular_states(molecule_set, mo_localized, &
        ENDDO
     ENDDO
     CALL cp_fm_release(D_igk)
-          
+
     IF ( globenv % print % cubes ) THEN
       DO i=1,ns
         j=ind(i)

@@ -28,7 +28,7 @@ MODULE cube_utils
 
   TYPE :: cube_info_type
      integer                      :: max_radius
-     real(KIND = dp)                     :: dr(3),drmin,drsafe
+     real(KIND = dp)              :: dr(3),drmin,drsafe
      integer, pointer             :: lb_cube(:,:)
      integer, pointer             :: ub_cube(:,:)
      TYPE(cube_ptr), pointer, dimension(:)  :: sphere_bounds
