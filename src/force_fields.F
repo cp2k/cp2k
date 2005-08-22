@@ -357,6 +357,7 @@ SUBROUTINE read_force_field_new_section ( ff_section, ff_type, globenv, error )
      CALL section_vals_val_get(ff_section,"PARMFILE",c_val=ff_type%ff_file_name,error=error)
      CALL section_vals_val_get(ff_section,"RCUT_NB",r_val=ff_type%rcut_nb,error=error)
      CALL section_vals_val_get(ff_section,"EI_SCALE14",r_val=ff_type%ei_scale14,error=error)
+     CALL section_vals_val_get(ff_section,"VDW_SCALE14",r_val=ff_type%vdw_scale14,error=error)
 
      tmp_section  => section_vals_get_subs_vals(ff_section,"NONBONDED",error=error)
      CALL section_vals_get(tmp_section,explicit=explicit,error=error)
@@ -940,6 +941,10 @@ SUBROUTINE read_force_field_section ( ff_type , globenv, error )
            ELSE IF(string == 'RCUT_NB') THEN
               CALL get_next(ff_type%rcut_nb)
               CALL convert_to_cp2k_units("ANGSTROM",length=ff_type%rcut_nb)
+           ELSE IF(string == 'EI_SCALE1') THEN
+              CALL get_next(ff_type%ei_scale14)
+           ELSE IF(string == 'VDW_SCALE') THEN
+              CALL get_next(ff_type%vdw_scale14)
            END IF
            CALL read_line
         END DO
@@ -3615,7 +3620,7 @@ SUBROUTINE force_field_pack (particle_set,atomic_kind_set,&
   IF (allocate_spline_bond_env) THEN
      nkinds = SIZE ( potparm_bond, 1 )
      CALL spline_env_create ( spline_bond_env, nkinds, error )
-     CALL spline_nonbond_control ( spline_bond_env, potparm_bond, atomic_kind_set , ewald_env, ff_type%ei_scale14)
+     CALL spline_nonbond_control ( spline_bond_env, potparm_bond, atomic_kind_set , ewald_env, ff_type%ei_scale14,ff_type%vdw_scale14)
      ! point potparm ( ikind, jkind ) % spline_data => spline_data_p ( n )
      DO ikind = 1, SIZE ( potparm_bond, 1 )
         DO jkind = ikind, SIZE ( potparm_bond, 2 )
@@ -3634,6 +3639,8 @@ SUBROUTINE force_field_pack (particle_set,atomic_kind_set,&
         END DO
      END DO
   END IF
+
+
   !-----------------------------------------------------------------------------
   !-----------------------------------------------------------------------------
   ! 13. ONFO

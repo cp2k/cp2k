@@ -52,7 +52,7 @@ CONTAINS
 
 !******************************************************************************
 
-FUNCTION ener_pot ( pot, qi, qj, r )
+FUNCTION ener_pot ( pot, qi, qj, r, vdw_scale14 )
 
 
     TYPE(pair_potential_type), INTENT(IN)    :: pot
@@ -62,12 +62,19 @@ FUNCTION ener_pot ( pot, qi, qj, r )
 ! locals
     REAL(KIND=dp)                                :: scale, pp, qq 
     INTEGER                                      :: i, index
+    REAL(KIND=dp), OPTIONAL                      :: vdw_scale14
 
 !------------------------------------------------------------------------------
 
   IF (pot%type=='LENNARD-JONES') THEN
+   IF(PRESENT(vdw_scale14)) THEN
+     ener_pot = vdw_scale14 * &
+                4.0_dp*pot%lj%epsilon*(pot%lj%sigma12*r**(-12)-pot%lj% &
+          sigma6*r**(-6)) - pot%energy_cutoff
+   ELSE
      ener_pot = 4.0_dp*pot%lj%epsilon*(pot%lj%sigma12*r**(-12)-pot%lj% &
           sigma6*r**(-6)) - pot%energy_cutoff
+   END IF
   ELSE IF ( pot % type == 'IPBV' ) THEN
      ener_pot = 0._dp
      IF ( r > pot % ipbv % rcore ) THEN
@@ -142,7 +149,7 @@ END FUNCTION ener_coul
 ! creates the splines for the potentials
 
 SUBROUTINE spline_nonbond_control ( spline_env, potparm, atomic_kind_set, &
-                                    ewald_env, ei_scale14 )
+                                    ewald_env, ei_scale14, vdw_scale14 )
 
 
     TYPE ( spline_environment_type ), POINTER  :: spline_env 
@@ -156,7 +163,7 @@ SUBROUTINE spline_nonbond_control ( spline_env, potparm, atomic_kind_set, &
     REAL(KIND=dp)                            :: a, cutmax, cutmin, dx2, e, &
                                                 hicut, locut, qi, qj, x, x2
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
-    REAL(KIND=dp), OPTIONAL :: ei_scale14
+    REAL(KIND=dp), OPTIONAL                  :: ei_scale14, vdw_scale14
 
 !------------------------------------------------------------------------------
 
@@ -195,15 +202,12 @@ SUBROUTINE spline_nonbond_control ( spline_env, potparm, atomic_kind_set, &
         IF ( hicut > cutmax ) cutmax = hicut
         IF ( locut < cutmin ) cutmin = locut
         potparm(i,j) %energy_cutoff = 0.0_dp
-        potparm(i,j) %energy_cutoff = ener_pot(potparm(i,j),qi,qj,hicut)
+        IF ( PRESENT ( vdw_scale14 ) ) THEN
+          potparm(i,j) %energy_cutoff = ener_pot(potparm(i,j),qi,qj,hicut,vdw_scale14)
+        ELSE
+          potparm(i,j) %energy_cutoff = ener_pot(potparm(i,j),qi,qj,hicut)
+        END IF
         potparm(i,j) %e_cutoff_coul = 0.0_dp
-!        IF ( PRESENT ( ewald_env ) ) THEN
-!          potparm(i,j) %e_cutoff_coul &
-!          = ener_coul ( potparm ( i, j ), qi, qj, hicut, ewald_env )
-!        ELSE 
-!          potparm(i,j) %e_cutoff_coul &
-!          = ener_coul ( potparm ( i, j ), qi, qj, hicut)
-!        END IF
 
         IF ( PRESENT ( ei_scale14 ) ) THEN
           potparm(i,j) %e_cutoff_coul &
@@ -219,15 +223,8 @@ SUBROUTINE spline_nonbond_control ( spline_env, potparm, atomic_kind_set, &
         x2 = locut**2
         DO jx = 1, npoints + 1 ! jx: loop over distance**2
            x = SQRT ( x2 )
-           !IF ( PRESENT ( ewald_env ) ) THEN
-           !  e = ener_pot ( potparm ( i, j ), qi, qj, x ) &
-           !    + ener_coul ( potparm ( i, j ), qi, qj, x, ewald_env )
-           !ELSE
-           !  e = ener_pot ( potparm ( i, j ), qi, qj, x ) &
-           !    + ener_coul ( potparm ( i, j ), qi, qj, x)
-           !END IF
-           IF ( PRESENT ( ei_scale14 ) ) THEN
-             e = ener_pot ( potparm ( i, j ), qi, qj, x ) &
+           IF ( PRESENT ( ei_scale14 ) .AND. PRESENT ( vdw_scale14 ) ) THEN
+             e = ener_pot ( potparm ( i, j ), qi, qj, x ,vdw_scale14 ) &
                + ener_coul ( potparm ( i, j ), qi, qj, x, ewald_env, ei_scale14 )
            ELSE
              e = ener_pot ( potparm ( i, j ), qi, qj, x ) &
