@@ -10,6 +10,7 @@ pot_bend.inp             2
 pot_ub.inp               2
 pot_tor.inp              2
 pot_onfo.inp             2
+pot_onfo_elec.inp        2
 # EWALD test
 #
 #
