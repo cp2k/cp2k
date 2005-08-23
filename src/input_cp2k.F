@@ -8443,6 +8443,31 @@ END SUBROUTINE create_ot_section
       CALL section_add_subsection(section, subsection, error=error)
       CALL section_release(subsection,error=error)
 
+      CALL keyword_create(keyword, name="CUBES",&
+           description="Print some of the wavefunctions as cube files",&
+           usage="CUBES",&
+           default_l_val=.FALSE.,lone_keyword_l_val=.TRUE.,error=error)
+      CALL section_add_keyword(section,keyword,error=error)
+      CALL keyword_release(keyword,error=error) 
+
+      CALL keyword_create(keyword,name="CUBES_LU_BOUNDS",&
+           variants=(/"CUBES_LU"/),&
+           description="The lower and upper index of the states to be printed as cube files",&
+           usage="CUBES_LU_BOUNDS integer integer",&
+           n_var=2,default_i_vals=(/0,0/), type_of_var=integer_t,error=error)
+      CALL section_add_keyword(section,keyword,error=error)
+      CALL keyword_release(keyword,error=error)
+
+      CALL keyword_create(keyword,name="CUBES_LIST",&
+           description="Indexes of the states to be printed as cube files"//&
+           "This keyword can be repeated several times"//&
+           "(useful if you have to specify many indexes).",&
+           usage="CUBES_LIST 1 2",&
+           n_var=-1,type_of_var=integer_t,repeats=.TRUE.,error=error)
+      CALL section_add_keyword(section,keyword,error=error)
+      CALL keyword_release(keyword,error=error)
+
+
     END IF
   END SUBROUTINE create_xas_section
 

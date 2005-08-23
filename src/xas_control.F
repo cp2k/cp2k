@@ -90,6 +90,8 @@ MODULE xas_control
     INTEGER, DIMENSION(:), POINTER      :: exc_atoms 
     LOGICAL                             :: emission
     LOGICAL                             :: localized_wfn
+    LOGICAL                             :: cubes, do_centers
+    INTEGER, DIMENSION(:), POINTER      :: list_cubes
     REAL(dp)                            :: eps_scf
     TYPE(localized_wfn_control_type), &
       POINTER                           :: localized_wfn_control
@@ -124,7 +126,7 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER ::  routineN = "read_xas_control_new", &
       routineP = moduleN//"/"//routineN
 
-    INTEGER                                  :: i,istat
+    INTEGER                                  :: i,istat,ncubes
     INTEGER,DIMENSION(:) , POINTER           :: bounds,list
     LOGICAL                                  :: failure, was_present
     TYPE(section_vals_type), POINTER         :: xas_section, loc_section
@@ -220,6 +222,39 @@ CONTAINS
       CALL read_loc_section(xas_control%localized_wfn_control,loc_section,error=error)
     end if
 
+    CALL section_vals_val_get(xas_section,"CUBES",&
+         l_val=xas_control%cubes,error=error)
+    IF(xas_control%cubes) THEN
+      CALL section_vals_val_get(xas_section,"CUBES_LU_BOUNDS",&
+           i_vals=bounds,error=error) 
+      ncubes = bounds(2) - bounds(1)  + 1
+      IF(ncubes > 0 ) THEN
+        ALLOCATE( xas_control%list_cubes(ncubes),STAT=istat)
+        CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+
+        DO i = 1,ncubes
+          xas_control%list_cubes(i) = bounds(1) + (i-1)
+        END DO
+      END IF
+
+      IF(.NOT. ASSOCIATED(xas_control%list_cubes)) THEN
+        CALL section_vals_val_get(xas_section,"CUBES_LIST",&
+             i_vals=list,error=error)
+        IF(ASSOCIATED(list)) THEN
+          ncubes = SIZE(list)
+          ALLOCATE(xas_control%list_cubes(ncubes),STAT=istat)
+          CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+          DO i = 1,ncubes
+            xas_control%list_cubes(i) = list(i)
+          END DO
+        END IF
+      END IF
+      ! If the states are not given from input, don't print any
+      IF(.NOT. ASSOCIATED(xas_control%list_cubes)) xas_control%cubes = .FALSE.
+    ELSE
+      NULLIFY(xas_control%list_cubes)
+    ENDIF
+
   END SUBROUTINE read_xas_control_new
 
 
@@ -271,6 +306,9 @@ CONTAINS
     NULLIFY(xas_control%localized_wfn_control)
     CALL localized_wfn_control_create(xas_control%localized_wfn_control,error=error)
     NULLIFY(xas_control%exc_atoms)
+    xas_control%cubes = .FALSE.
+    xas_control%do_centers = .FALSE.
+    NULLIFY(xas_control%list_cubes)
 
   END SUBROUTINE xas_control_create
 
@@ -294,6 +332,10 @@ CONTAINS
         END IF
         IF (ASSOCIATED(xas_control%exc_atoms)) THEN
           DEALLOCATE(xas_control%exc_atoms,STAT=istat)
+          CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+        END IF
+        IF (ASSOCIATED(xas_control%list_cubes)) THEN
+          DEALLOCATE(xas_control%list_cubes,STAT=istat)
           CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
         END IF
         DEALLOCATE(xas_control,STAT=istat)

@@ -115,6 +115,8 @@ MODULE qs_loc_methods
   USE realspace_grid_types,            ONLY: rs_pw_to_cube
   USE simulation_cell,                 ONLY: cell_type
   USE sparse_matrix_types,             ONLY: real_matrix_p_type
+  USE string_utilities,                ONLY: uppercase,&
+                                             xstring
   USE termination,                     ONLY: stop_memory,&
                                              stop_program
   USE timings,                         ONLY: timeset,&
@@ -130,7 +132,7 @@ MODULE qs_loc_methods
 
 
 ! *** Public ***
-  PUBLIC ::  loc_initialize_rho, qs_loc_driver, optimize_loc_berry
+  PUBLIC ::  loc_initialize_rho, qs_loc_driver, optimize_loc_berry, qs_print_cubes
 
 ! *****************************************************************************
 
@@ -686,16 +688,14 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routine_name = 'qs_loc_driver', &
       routineP = module_name//':'//routine_name
 
-    CHARACTER(LEN=80)  :: filename
-    CHARACTER(LEN=80)  :: title
     INTEGER :: i, ispin, imo, imoloc, istat, istate, iter, ivector, lb, loc_method,&
                my_nspins, nao, nmosub, ub
+    INTEGER, DIMENSION(:), POINTER               :: state_list
     LOGICAL :: failure, my_one_spin
     REAL(dp), DIMENSION(6)                       :: weights
     REAL(KIND=dp), DIMENSION(:, :), POINTER      :: vecbuffer
     REAL(KIND=dp), DIMENSION(:, :), POINTER      :: centers
     TYPE(cell_type), POINTER                     :: cell
-    TYPE(coeff_type)                             :: wf_g, wf_r
     TYPE(cp_fm_p_type), DIMENSION(:), POINTER    :: moloc_coeff
     TYPE(cp_fm_p_type), DIMENSION(:,:), POINTER  :: op_fm_set
     TYPE(cp_fm_type),  POINTER                   :: mo_coeff
@@ -703,12 +703,8 @@ CONTAINS
     TYPE(localized_wfn_control_type), POINTER    :: localized_wfn_control
     TYPE(mo_set_p_type), DIMENSION(:), &
       POINTER                                    :: mos
-    TYPE(pw_env_type), POINTER                   :: pw_env
-    TYPE(pw_pool_type), POINTER                  :: auxbas_pw_pool
     TYPE (real_matrix_p_type), DIMENSION(:,:),&
       POINTER                                    :: op_sm_set
-
-
 
     failure = .FALSE.
     my_one_spin = .FALSE.
@@ -716,7 +712,7 @@ CONTAINS
 
     NULLIFY(cell, localized_wfn_control, moloc_coeff, op_sm_set, op_fm_set)
     NULLIFY(mos, dft_control)
-    NULLIFY(auxbas_pw_pool, pw_env)
+    NULLIFY(state_list)
 
     CALL get_qs_loc_env(qs_loc_env=qs_loc_env,&
                         localized_wfn_control=localized_wfn_control,&
@@ -779,10 +775,89 @@ CONTAINS
        END IF
 
        ! Write cube files if required
-  
        IF(localized_wfn_control%print_cubes) THEN
-         NULLIFY(pw_env)
-         CALL get_qs_env(qs_env=qs_env,pw_env=pw_env)
+
+         centers => localized_wfn_control%centers_set(ispin)%array
+         iter = localized_wfn_control%iter_count*localized_wfn_control%each_step
+         ALLOCATE(state_list(localized_wfn_control%nloc_states(ispin)),STAT=istat)
+         CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+         DO istate = 1,localized_wfn_control%nloc_states(ispin)
+           IF(localized_wfn_control%set_of_states == state_loc_list)THEN 
+               state_list(istate) = localized_wfn_control%loc_states(istate)
+           ELSE
+               state_list(istate) = localized_wfn_control%lu_bound_states(1,ispin)+istate-1
+           END IF
+         
+         END DO 
+         CALL qs_print_cubes(qs_env,moloc_coeff(ispin)%matrix,&
+              localized_wfn_control%nloc_states(ispin),state_list,&
+              centers,iter,ispin,ionode,"loc",error=error)
+
+         DEALLOCATE(state_list,STAT=istat)
+         CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+       END IF
+       
+    END DO  ! ispin
+
+  END SUBROUTINE qs_loc_driver
+
+!*****************************************************************************
+!!****f* qs_loc_methods/qs_print_cubes
+!!
+!!   NAME
+!!     qs_print_cubes
+!!
+!!   FUNCTION
+!!     write the cube files for a set of selected states
+!!
+!!   ARGUMENTS
+!!    - qs_env
+!!    - mo_coeff : set mos from which the states to be printed are extracted
+!!    - nstates : number of states to be printed
+!!    - state_list : list of the indexes of the states to be printed
+!!    - centers : centers and spread, all=0 if they hva not been calculated
+!!    - iter    : iteration step (e.g. along an md)
+!!    - ispin
+!!    - ionode
+!!    - root    : initial part of the cube file names
+!!
+!!   NOTE
+!!     This routine shoul not be in this module
+!!
+!!   AUTHOR
+!!     MI
+!!
+!!   MODIFICATION HISTORY
+!!     08.2005 created [MI]
+!!
+!!*** **********************************************************************
+
+  SUBROUTINE qs_print_cubes(qs_env,mo_coeff,nstates,state_list,centers,iter,ispin,ionode,root,error)
+
+    TYPE(qs_environment_type), POINTER           :: qs_env
+    TYPE(cp_fm_type),  POINTER                   :: mo_coeff
+    INTEGER, INTENT(IN)                          :: nstates, iter, ispin
+    INTEGER, DIMENSION(:), POINTER               :: state_list
+    REAL(dp), DIMENSION(:,:), POINTER            :: centers
+    LOGICAL, INTENT(IN)                          :: ionode
+    CHARACTER(LEN=*)                             :: root
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                                   :: error
+
+    CHARACTER(len=*), PARAMETER :: routine_name = 'qs_print_cubes', &
+      routineP = module_name//':'//routine_name
+
+    CHARACTER(LEN=80)  :: filename
+    CHARACTER(LEN=80)  :: title
+    INTEGER :: ia, ie, istat, istate, ivector
+    LOGICAL                                      :: failure
+    TYPE(coeff_type)                             :: wf_g, wf_r
+    TYPE(pw_env_type), POINTER                   :: pw_env
+    TYPE(pw_pool_type), POINTER                  :: auxbas_pw_pool
+
+    failure = .FALSE.
+    NULLIFY(auxbas_pw_pool, pw_env)
+       CALL get_qs_env(qs_env=qs_env,pw_env=pw_env)
          CALL pw_env_get(pw_env, auxbas_pw_pool=auxbas_pw_pool)
          CALL pw_pool_init_coeff(auxbas_pw_pool,wf_r,&
               use_data = REALDATA3D,&
@@ -791,38 +866,32 @@ CONTAINS
               use_data = COMPLEXDATA1D,&
               in_space = RECIPROCALSPACE, error=error)
 
-         centers => localized_wfn_control%centers_set(ispin)%array
-         iter = localized_wfn_control%iter_count*localized_wfn_control%each_step
+         DO istate = 1,nstates
+           ivector = state_list(istate)
 
-         DO istate = 1,localized_wfn_control%nloc_states(ispin)
-           IF(localized_wfn_control%set_of_states == state_loc_list)THEN 
-              ivector = localized_wfn_control%loc_states(istate)
-           ELSE
-             ivector = localized_wfn_control%lu_bound_states(1,ispin)+istate-1
-           END IF
-
-           CALL calculate_wavefunction(moloc_coeff(ispin)%matrix, ivector,&
+           CALL calculate_wavefunction(mo_coeff, ivector,&
                 wf_r, wf_g, qs_env, error=error)
 
-           WRITE(filename,'(a7,I5.5,a1,I1.1,a1,I1.1,a5)') "WFNLOC_",ivector,"_",ispin,&
-                 "_",iter,".cube"
+           CALL xstring (root,ia,ie)
+           filename=root(ia:ie)//"_w_"//TRIM(ADJUSTL(cp_to_string(ivector)))//&
+                   "_s"//TRIM(ADJUSTL(cp_to_string(ispin)))//"_i"//TRIM(ADJUSTL(cp_to_string(iter)))//&
+                   ".cube"
            IF (ionode) OPEN(UNIT=21,FILE=filename)
-           WRITE(title,'(A7,I5.5,A1,I1.1,A1,6G10.4)') "WFNLOC",ivector,"_",ispin," ",&
+           WRITE(title,'(A7,I5.5,A1,I1.1,A1,6G10.4)') "WFN ",ivector,"_s",ispin," ",&
                  centers(1:3,istate)*angstrom, &
-                 centers(4:6,istate)*angstrom 
+                 centers(4:6,istate)*angstrom
            CALL rs_pw_to_cube(wf_r%pw,21,ionode,title)
            IF (ionode) CLOSE(21)
-           
+
          END DO 
+
          CALL pw_pool_give_back_coeff(auxbas_pw_pool,wf_r,&
                error=error)
          CALL pw_pool_give_back_coeff(auxbas_pw_pool,wf_g,&
                error=error)
-       END IF
-       
-    END DO  ! ispin
 
-  END SUBROUTINE qs_loc_driver
+
+  END SUBROUTINE qs_print_cubes
 
 !*****************************************************************************
   SUBROUTINE loc_initialize_rho(qs_env,error)

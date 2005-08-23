@@ -93,7 +93,7 @@ MODULE xas_methods
                                              localized_wfn_control_retain,&
                                              set_loc_centers,&
                                              set_loc_wfn_lists
-  USE qs_loc_methods,                  ONLY: qs_loc_driver
+  USE qs_loc_methods,                  ONLY: qs_loc_driver,qs_print_cubes
   USE qs_loc_types,                    ONLY: qs_loc_env_release,&
                                              qs_loc_env_retain,&
                                              qs_loc_env_create,&
@@ -347,7 +347,7 @@ CONTAINS
       centers_wfn(2,istate) =  my_localized_wfn_control%centers_set(1)%array(2,istate)
       centers_wfn(3,istate) =  my_localized_wfn_control%centers_set(1)%array(3,istate)
 
-! if(ionode) WRITE(*,'(A,I4,3f10.5)') 'center ', istate, centers_wfn(1:3, istate)
+ !if(ionode) WRITE(*,'(A,I4,3f10.5)') 'center ', istate, centers_wfn(1:3, istate)
 
       ! Assign the state to the closest atom
       distmin = 100.0_dp
@@ -503,6 +503,10 @@ CONTAINS
       ELSE
         CALL xas_write(xas_control,spectrum, dft_control%xas_estate, &
              homo, iatom, iter, ionode, error=error)
+      END IF
+
+      IF( xas_control%cubes) THEN
+        CALL xas_print_cubes(xas_control,qs_env,mos,iter,iatom,ionode,error=error)
       END IF
 
       DO ispin = 1,nspins
@@ -938,6 +942,80 @@ CONTAINS
     END IF
 
   END SUBROUTINE xas_write
+
+!***************************************************************************
+!!****f*  xas_methods/xas_print_cubes [1.0] *
+!!
+!!   NAME
+!!     xas_print_cubes
+!!
+!!   FUNCTION
+!!     write the cube files for a set of selected states
+!!
+!!   ARGUMENTS
+!!    - xas_control : provide number ant indexes of the states to be printed
+!!    - qs_env
+!!    - mos     : mos from which the states to be printed are extracted
+!!    - iter    : iteration step (e.g. along an md)
+!!    - iatom   : index of the atom that has been excited
+!!    - ionode
+!!
+!!   AUTHOR
+!!     MI
+!!
+!!   MODIFICATION HISTORY
+!!     08.2005 created [MI]
+!!
+!!*** **********************************************************************
+
+  SUBROUTINE  xas_print_cubes(xas_control,qs_env,mos,iter,iatom,ionode,error)
+
+    TYPE(xas_control_type)                       :: xas_control
+    TYPE(qs_environment_type), POINTER           :: qs_env
+    TYPE(mo_set_p_type), DIMENSION(:), &
+      POINTER                                    :: mos
+    INTEGER, INTENT(IN)                          :: iter,iatom
+    LOGICAL, INTENT(IN)                          :: ionode
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                                   :: error
+
+    CHARACTER(len=*), PARAMETER :: routine_name = 'xas_print_cubes', &
+      routineP = module_name//':'//routine_name
+
+    CHARACTER(len=50) :: flag
+    INTEGER :: ispin, istat, istate, nspins, nstates
+    LOGICAL :: failure
+
+    REAL(dp), DIMENSION(:,:), POINTER             :: centers
+    TYPE(cp_fm_type),  POINTER                    :: mo_coeff
+
+    failure = .FALSE.
+
+    nspins = SIZE(mos)
+
+    flag="at_"//TRIM(ADJUSTL(cp_to_string(iatom)))
+    flag=TRIM(flag)
+
+    nstates = SIZE(xas_control%list_cubes,1)
+    IF(xas_control%do_centers) THEN
+      ! one might like to calculate the centers of the xas orbital (without localizing them)
+    ELSE
+      ALLOCATE(centers(6,nstates),STAT=istat)
+      CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+      centers = 0.0_dp
+    END IF
+
+    DO ispin = 1,nspins
+      CALL get_mo_set(mos(ispin)%mo_set, mo_coeff=mo_coeff)
+      CALL qs_print_cubes(qs_env,mo_coeff,&
+                 nstates,xas_control%list_cubes,&
+                 centers,iter,ispin,ionode,flag,error=error)
+    END DO
+
+    DEALLOCATE(centers,STAT=istat)
+    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+
+  END SUBROUTINE xas_print_cubes
 
 !***************************************************************************
 !!****f* xas_methods/spectrum_dip_len [1.0] *

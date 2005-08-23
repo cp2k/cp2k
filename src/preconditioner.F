@@ -208,8 +208,8 @@ SUBROUTINE make_preconditioner_single(preconditioner_env, precon_type, matrix_h,
                               energy_homo, energy_gap )
   CASE (ot_precond_full_single)
     preconditioner_env%in_use=2
-    CALL make_full_single(preconditioner_env, matrix_h, matrix_s, &
-                                          energy_homo, energy_gap )
+    CALL make_full_single(preconditioner_env, preconditioner_env%fm,&
+                          matrix_h, matrix_s, energy_homo, energy_gap )
   CASE (ot_precond_s_inverse)
     preconditioner_env%in_use=3
     CALL make_full_s_inverse(preconditioner_env, matrix_h, matrix_s, &
@@ -300,9 +300,8 @@ SUBROUTINE make_preconditioner_multiple(preconditioner_env, precon_type, matrix_
       CALL stop_program("make preconditioner","Type not implemented")
     CASE (ot_precond_full_single)
       preconditioner_env%in_use=2
-!      CALL make_full_single(preconditioner_env, matrix_h, matrix_s, &
-!                                            energy_high, energy_gap )
-      CALL stop_program("make preconditioner","Type not implemented")
+      CALL make_full_single(preconditioner_env, preconditioner_env%mult_fm(ip)%matrix,&
+                            matrix_h, matrix_s, energy_high, energy_gap )
     CASE (ot_precond_s_inverse)
       preconditioner_env%in_use=3
 !      CALL make_full_s_inverse(preconditioner_env, matrix_h, matrix_s, &
@@ -756,10 +755,11 @@ SUBROUTINE apply_full_multiple(preconditioner_env, matrix_in, matrix_out)
 END SUBROUTINE apply_full_multiple
 
 
-SUBROUTINE make_full_single(preconditioner_env, matrix_h, matrix_s, &
+SUBROUTINE make_full_single(preconditioner_env, fm, matrix_h, matrix_s, &
                        energy_homo, energy_gap )
 
     TYPE(preconditioner_type)                :: preconditioner_env
+    TYPE(cp_fm_type), POINTER                :: fm
     TYPE(real_matrix_type), POINTER          :: matrix_h, matrix_s
     REAL(KIND=dp)                            :: energy_homo, energy_gap
 
@@ -773,8 +773,8 @@ SUBROUTINE make_full_single(preconditioner_env, matrix_h, matrix_s, &
 
   NULLIFY(fm_h,fm_s,fm_struct_tmp,evals)
 
-  IF (ASSOCIATED(preconditioner_env%fm)) THEN 
-     CALL cp_fm_release(preconditioner_env%fm)
+  IF (ASSOCIATED(fm)) THEN 
+     CALL cp_fm_release(fm)
   ENDIF
   CALL get_matrix_info(matrix_h,nrow=n)
   ALLOCATE(evals(n))
@@ -782,7 +782,7 @@ SUBROUTINE make_full_single(preconditioner_env, matrix_h, matrix_s, &
   CALL cp_fm_struct_create(fm_struct_tmp, nrow_global=n,ncol_global=n,&
                              context=preconditioner_env%ctxt, &
                              para_env=preconditioner_env%para_env)
-  CALL cp_fm_create(preconditioner_env%fm,fm_struct_tmp, name="preconditioner")
+  CALL cp_fm_create(fm,fm_struct_tmp, name="preconditioner")
   CALL cp_fm_create(fm_h,fm_struct_tmp, name="fm_h")
   CALL cp_fm_create(fm_s,fm_struct_tmp, name="fm_s")
   CALL cp_fm_struct_release(fm_struct_tmp)
@@ -791,15 +791,16 @@ SUBROUTINE make_full_single(preconditioner_env, matrix_h, matrix_s, &
   CALL copy_sm_to_fm(matrix_s,fm_s)
   CALL cp_fm_cholesky_decompose(fm_s)
   CALL cp_fm_cholesky_reduce(fm_h,fm_s)
-  CALL cp_fm_syevd(fm_h,preconditioner_env%fm,evals)
-  CALL cp_fm_cholesky_restore(preconditioner_env%fm,n,fm_s,fm_h,"SOLVE") 
+  CALL cp_fm_syevd(fm_h,fm,evals)
+  CALL cp_fm_cholesky_restore(fm,n,fm_s,fm_h,"SOLVE") 
   DO i=1,n
-        evals(i)=1.0_dp/MAX(evals(i)-energy_homo,energy_gap)
+!        evals(i)=1.0_dp/MAX(evals(i)-energy_homo,energy_gap)
+        evals(i)=1.0_dp/ABS(evals(i)-energy_homo)
   ENDDO
-  CALL cp_fm_to_fm(fm_h,preconditioner_env%fm)
-  CALL cp_fm_column_scale(preconditioner_env%fm,evals)
-  CALL cp_fm_gemm('N','T',n,n,n,1.0_dp,preconditioner_env%fm,fm_h,0.0_dp,fm_s)
-  CALL cp_fm_to_fm(fm_s,preconditioner_env%fm)
+  CALL cp_fm_to_fm(fm_h,fm)
+  CALL cp_fm_column_scale(fm,evals)
+  CALL cp_fm_gemm('N','T',n,n,n,1.0_dp,fm,fm_h,0.0_dp,fm_s)
+  CALL cp_fm_to_fm(fm_s,fm)
 
   DEALLOCATE(evals)
   CALL cp_fm_release(fm_h)

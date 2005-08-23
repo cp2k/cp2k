@@ -47,7 +47,8 @@ CONTAINS
 
     imr=MAX(1,CEILING((radius+info%drsafe)/info%drmin))
     if (imr.gt.info%max_radius) then
-        CALL stop_program("return_cube","called with radius too large")
+        imr = info%max_radius
+!        CALL stop_program("return_cube","called with radius too large")
     endif
     lb_cube(:)       = info%lb_cube(:,imr)
     ub_cube(:)       = info%ub_cube(:,imr)

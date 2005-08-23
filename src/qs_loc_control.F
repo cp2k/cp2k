@@ -273,7 +273,6 @@ CONTAINS
 
       CALL section_vals_val_get(loc_section,"METHOD",&
            i_val=localized_wfn_control%localization_method,error=error)
-
       CALL section_vals_val_get(loc_section,"OPERATOR",&
            i_val=localized_wfn_control%operator_type,error=error)
 
@@ -283,7 +282,7 @@ CONTAINS
       IF(localized_wfn_control%set_of_states==state_loc_all) THEN
 
       ELSE IF(localized_wfn_control%set_of_states==state_loc_upton) THEN
-         CALL section_vals_val_get(loc_section,"SET_OF_STATES",&
+         CALL section_vals_val_get(loc_section,"UP_BOUND",&
               i_val=localized_wfn_control%lu_bound_states(2,1), error=error)
          localized_wfn_control%lu_bound_states(1,1) = 1
          localized_wfn_control%nloc_states(1) = &
@@ -292,7 +291,7 @@ CONTAINS
          CALL section_vals_val_get(loc_section,"LU_BOUNDS",&
               i_vals=bounds,error=error)
               localized_wfn_control%lu_bound_states(1,1) = bounds(1)
-              localized_wfn_control%lu_bound_states= bounds(2)
+              localized_wfn_control%lu_bound_states(2,1) = bounds(2)
 
          localized_wfn_control%nloc_states(1) = &
                      localized_wfn_control%lu_bound_states(2,1)-&
@@ -311,7 +310,6 @@ CONTAINS
       ELSE IF(localized_wfn_control%set_of_states==state_loc_none) THEN
          localized_wfn_control%nloc_states(:) = 0
       END IF
-
       CALL section_vals_val_get(loc_section,"FNAME",&
            c_val=localized_wfn_control%loc_rootfname,error=error)
     END IF
