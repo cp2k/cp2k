@@ -76,7 +76,8 @@ MODULE pw_spline_utils
        cp_add_iter_level, cp_rm_iter_level, cp_unitnr_for_output, &
        cp_finished_output
   USE string_utilities, only: compress
-  USE input_constants, only: no_precond,precond_spl3_aint, precond_spl3_1
+  USE input_constants, ONLY: no_precond,precond_spl3_aint, precond_spl3_1,&
+       precond_spl3_aint2, precond_spl3_2, precond_spl3_3
 
   IMPLICIT NONE
   PRIVATE
@@ -126,6 +127,7 @@ MODULE pw_spline_utils
        pw_spline2_deriv_g
   PUBLIC :: pw_nn_compose_r, pw_nn_smear_r, pw_nn_deriv_r, pw_inject_s3,&
        pw_project_s3, spl3_nopbc, pw_nn_compose_r_no_pbc, spl3_nopbct
+  public :: add_fine2coarse
 
 !***
 !****************************************************************************
@@ -154,7 +156,7 @@ MODULE pw_spline_utils
      INTEGER :: ref_count,id_nr, kind
      REAL(kind=dp), DIMENSION(4) :: coeffs
      REAL(kind=dp), DIMENSION(3) :: coeffs_1d
-     LOGICAL :: sharpen, normalize, pbc
+     LOGICAL :: sharpen, normalize, pbc, transpose
      TYPE(pw_pool_type), pointer :: pool
   end type pw_spline_precond_type
   !!***
@@ -2636,12 +2638,12 @@ END SUBROUTINE pw_nn_compose_r
                             ELSE
                                fi=2*i+ii+f_shift(1)
                                IF (fi<fine_bo(1,1).OR.fi>fine_bo(2,1)) CYCLE
-                               IF (.NOT.has_i_lbound.AND.fi<=fine_gbo(1,1)+1.OR. &
-                                    .NOT.has_i_ubound.AND.fi>=fine_gbo(2,1)-1) THEN
-                                  IF (fi==fine_bo(1,1).OR.fi==fine_bo(2,1)) THEN
+                               IF (((.NOT.pbc).AND.fi<=fine_gbo(1,1)+1).OR. &
+                                    ((.NOT.pbc).AND.fi>=fine_gbo(2,1)-1)) THEN
+                                  IF (fi==fine_gbo(1,1).OR.fi==fine_gbo(2,1)) THEN
                                      IF (ii/=0) CYCLE
                                      wi=w_border0*wj
-                                  ELSE IF (fi==fine_bo(1,1)+1) THEN
+                                  ELSE IF (fi==fine_gbo(1,1)+1) THEN
                                      SELECT CASE(ii)
                                      CASE(1)
                                         wi=w_border1(1)*wj
@@ -2840,8 +2842,6 @@ END SUBROUTINE pw_nn_compose_r
                                vv4=fine_values(fi,fj,fk)
                                fi=fi+1
                                vv5=fine_values(fi,fj,fk)
-                               coarse_coeffs(i-1,j,k)=coarse_coeffs(i-1,j,k)&
-                                    +wj*w_border1(3)*vv4
                                IF (has_i_ubound) THEN
                                   IF (coarse_bo(2,1)-2==FLOOR((fine_bo(2,1)-f_shift(1))/2._dp)) THEN
                                      fi=fi+1
@@ -2851,6 +2851,8 @@ END SUBROUTINE pw_nn_compose_r
                                   ELSE
                                      vv6=0._dp
                                   END IF
+                                  coarse_coeffs(i-1,j,k)=coarse_coeffs(i-1,j,k)&
+                                       +ww1(1)*vv4
                                   coarse_coeffs(i,j,k)=coarse_coeffs(i,j,k)&
                                        +ww1(2)*vv4+ww0(1)*vv5+ww1(1)*vv6
                                   coarse_coeffs(i+1,j,k)=coarse_coeffs(i+1,j,k)&
@@ -2861,11 +2863,15 @@ END SUBROUTINE pw_nn_compose_r
                                   fi=fi+1
                                   vv6=fine_values(fi,fj,fk)
                                   vv7=fine_values(fine_bo(1,1),fj,fk)
+                                  coarse_coeffs(i-1,j,k)=coarse_coeffs(i-1,j,k)&
+                                       +ww1(1)*vv4
                                   coarse_coeffs(i,j,k)=coarse_coeffs(i,j,k)&
                                        +ww1(4)*vv0+ww0(3)*vv1+ww1(3)*vv2+ww0(2)*vv3+ww1(2)*vv4+ww0(1)*vv5+ww1(1)*vv6
                                   coarse_coeffs(i+1,j,k)=coarse_coeffs(i+1,j,k)&
                                        +ww1(4)*vv2+ww0(3)*vv3+ww1(3)*vv4+ww0(2)*vv5+ww1(2)*vv6+ww0(1)*vv7
                                ELSE
+                                  coarse_coeffs(i-1,j,k)=coarse_coeffs(i-1,j,k)&
+                                       +wj*w_border1(3)*vv4
                                   coarse_coeffs(i,j,k)=coarse_coeffs(i,j,k)&
                                        +wj*w_border1(2)*vv4
                                   coarse_coeffs(i+1,j,k)=coarse_coeffs(i+1,j,k)&
@@ -2877,8 +2883,6 @@ END SUBROUTINE pw_nn_compose_r
                             vv2=fine_values(fi,fj,fk)
                             fi=fi+1
                             vv3=fine_values(fi,fj,fk)
-                            coarse_coeffs(i-2,j,k)=coarse_coeffs(i-2,j,k)&
-                                 +wj*w_border1(3)*vv2
                             IF (has_i_ubound) THEN
                                IF (coarse_bo(2,1)-2==FLOOR((fine_bo(2,1)-f_shift(1))/2._dp)) THEN
                                   fi=fi+1
@@ -2888,6 +2892,8 @@ END SUBROUTINE pw_nn_compose_r
                                ELSE
                                   vv4=0._dp
                                END IF
+                               coarse_coeffs(i-2,j,k)=coarse_coeffs(i-2,j,k)&
+                                    +ww1(1)*vv2
                                coarse_coeffs(i-1,j,k)=coarse_coeffs(i-1,j,k)&
                                     +ww1(2)*vv2+ww0(1)*vv3+ww1(1)*vv4
                                coarse_coeffs(i,j,k)=coarse_coeffs(i,j,k)&
@@ -2898,12 +2904,16 @@ END SUBROUTINE pw_nn_compose_r
                                fi=fi+1
                                vv4=fine_values(fi,fj,fk)
                                vv5=fine_values(fine_bo(1,1),fj,fk)
+                               coarse_coeffs(i-2,j,k)=coarse_coeffs(i-2,j,k)&
+                                    +ww1(1)*vv2
                                coarse_coeffs(i-1,j,k)=coarse_coeffs(i-1,j,k)&
                                     +ww1(2)*vv2+ww0(1)*vv3+ww1(1)*vv4
                                coarse_coeffs(i,j,k)=coarse_coeffs(i,j,k)&
                                     +ww1(3)*vv2+ww0(2)*vv3+ww1(2)*vv4+vv5*ww0(1)
                                
                             ELSE
+                               coarse_coeffs(i-2,j,k)=coarse_coeffs(i-2,j,k)&
+                                    +wj*w_border1(3)*vv2
                                coarse_coeffs(i-1,j,k)=coarse_coeffs(i-1,j,k)&
                                     +wj*w_border1(2)*vv2
                                coarse_coeffs(i,j,k)=coarse_coeffs(i,j,k)&
@@ -2915,8 +2925,6 @@ END SUBROUTINE pw_nn_compose_r
                          vv0=fine_values(fi,fj,fk)
                          fi=fi+1
                          vv1=fine_values(fi,fj,fk)
-                         coarse_coeffs(i-3,j,k)=coarse_coeffs(i-3,j,k)&
-                              +wj*w_border1(3)*vv0
                          IF (has_i_ubound) THEN
                             IF (coarse_bo(2,1)-2==FLOOR((fine_bo(2,1)-f_shift(1))/2._dp)) THEN
                                fi=fi+1
@@ -2926,6 +2934,8 @@ END SUBROUTINE pw_nn_compose_r
                             ELSE
                                vv2=0._dp
                             END IF
+                            coarse_coeffs(i-3,j,k)=coarse_coeffs(i-3,j,k)&
+                                 +ww1(1)*vv0
                             coarse_coeffs(i-2,j,k)=coarse_coeffs(i-2,j,k)&
                                  +ww1(2)*vv0+ww0(1)*vv1+ww1(1)*vv2
                             coarse_coeffs(i-1,j,k)=coarse_coeffs(i-1,j,k)&
@@ -2936,11 +2946,15 @@ END SUBROUTINE pw_nn_compose_r
                             fi=fi+1
                             vv2=fine_values(fi,fj,fk)
                             vv3=fine_values(fine_bo(1,1),fk,fk)
+                            coarse_coeffs(i-3,j,k)=coarse_coeffs(i-3,j,k)&
+                                 +ww1(1)*vv0
                             coarse_coeffs(i-2,j,k)=coarse_coeffs(i-2,j,k)&
                                  +ww1(2)*vv0+ww0(1)*vv1+ww1(1)*vv2
                             coarse_coeffs(i-1,j,k)=coarse_coeffs(i-1,j,k)&
                                  +ww1(3)*vv0+ww0(2)*vv1+ww1(2)*vv2+ww0(1)*vv3
                          ELSE
+                            coarse_coeffs(i-3,j,k)=coarse_coeffs(i-3,j,k)&
+                                 +wj*w_border1(3)*vv0
                             coarse_coeffs(i-2,j,k)=coarse_coeffs(i-2,j,k)&
                                  +wj*w_border1(2)*vv0
                             coarse_coeffs(i-1,j,k)=coarse_coeffs(i-1,j,k)&
@@ -2987,7 +3001,7 @@ END SUBROUTINE pw_nn_compose_r
                 p_old=p
              END IF
           END DO
-          pp_ub(p_old)=fine_gbo(2,2)
+          pp_ub(p_old)=fine_gbo(2,1)
           
           DO ip=0,n_procs-1
              pp_lb(ip)=FLOOR(REAL(pp_lb(ip)-f_shift(1),dp)/2._dp)-1
@@ -3174,11 +3188,11 @@ END SUBROUTINE pw_nn_compose_r
   !!
   !!*** **********************************************************************
   SUBROUTINE pw_spline_precond_create(preconditioner,precond_kind,&
-       pool,pbc,error)
+       pool,pbc,transpose,error)
     TYPE(pw_spline_precond_type), pointer :: preconditioner
     INTEGER, intent(in) :: precond_kind
     TYPE(pw_pool_type), pointer :: pool
-    LOGICAL, intent(in) :: pbc
+    LOGICAL, INTENT(in) :: pbc, transpose
     type(cp_error_type), optional, intent(inout) :: error
 
     logical :: failure
@@ -3197,6 +3211,7 @@ END SUBROUTINE pw_nn_compose_r
        preconditioner%kind=no_precond
        preconditioner%pool => pool
        preconditioner%pbc=pbc
+       preconditioner%transpose=transpose
        CALL pw_pool_retain(pool,error=error)
        CALL pw_spline_precond_set_kind(preconditioner,precond_kind,error=error)
     END IF
@@ -3224,10 +3239,11 @@ END SUBROUTINE pw_nn_compose_r
   !!     fawzi
   !!
   !!*** **********************************************************************
-  SUBROUTINE pw_spline_precond_set_kind(preconditioner,precond_kind,pbc,error)
+  SUBROUTINE pw_spline_precond_set_kind(preconditioner,precond_kind,pbc,&
+       transpose,error)
     TYPE(pw_spline_precond_type), pointer :: preconditioner
     INTEGER, intent(in) :: precond_kind
-    LOGICAL, INTENT(in), OPTIONAL :: pbc
+    LOGICAL, INTENT(in), OPTIONAL :: pbc, transpose
     type(cp_error_type), optional, intent(inout) :: error
 
     LOGICAL :: failure,do_3d_coeff
@@ -3240,11 +3256,31 @@ END SUBROUTINE pw_nn_compose_r
     CPPrecondition(ASSOCIATED(preconditioner),cp_failure_level,routineP,error,failure)
     CPPrecondition(preconditioner%ref_count>0,cp_failure_level,routineP,error,failure)
     IF (.NOT. failure) THEN
+       IF (PRESENT(transpose)) preconditioner%transpose=transpose
        do_3d_coeff=.false.
        preconditioner%kind=precond_kind
        if (present(pbc)) preconditioner%pbc=pbc
        SELECT CASE(precond_kind)
        CASE(no_precond)
+       CASE (precond_spl3_aint2)
+          preconditioner%coeffs_1d=(/ -1.66_dp*0.25_dp,1.66_dp,-1.66_dp*0.25_dp /)
+          preconditioner%sharpen=.false.
+          preconditioner%normalize=.false.
+          do_3d_coeff=.true.
+       CASE (precond_spl3_3)
+          preconditioner%coeffs_1d(1)=-0.25_dp*1.6_dp
+          preconditioner%coeffs_1d(2)=1.6_dp
+          preconditioner%coeffs_1d(3)=-0.25_dp*1.6_dp
+          preconditioner%sharpen=.false.
+          preconditioner%normalize=.false.
+          do_3d_coeff=.true.
+       CASE (precond_spl3_2)
+          preconditioner%coeffs_1d(1)=-0.26_dp*1.76_dp
+          preconditioner%coeffs_1d(2)=1.76_dp
+          preconditioner%coeffs_1d(3)=-0.26_dp*1.76_dp
+          preconditioner%sharpen=.false.
+          preconditioner%normalize=.false.
+          do_3d_coeff=.true.
        CASE (precond_spl3_aint)
           preconditioner%coeffs_1d=spl3_1d_coeffs0
           preconditioner%sharpen=.true.
@@ -3422,8 +3458,15 @@ END SUBROUTINE pw_nn_compose_r
           ELSE
              CALL pw_nn_compose_r_no_pbc(weights_1d=preconditioner%coeffs_1d,&
                   pw_in=in_v, pw_out=out_v, sharpen=preconditioner%sharpen,&
-                  normalize=preconditioner%normalize, error=error)
+                  normalize=preconditioner%normalize,&
+                  transpose=preconditioner%transpose,error=error)
           END IF
+       CASE(precond_spl3_3,precond_spl3_2,precond_spl3_aint2)
+          CALL pw_zero(out_v)
+          CALL pw_nn_compose_r_no_pbc(weights_1d=preconditioner%coeffs_1d,&
+               pw_in=in_v, pw_out=out_v, sharpen=preconditioner%sharpen,&
+               normalize=preconditioner%normalize, smooth_boundary=.true.,&
+               transpose=preconditioner%transpose,error=error)
        CASE default
           CPAssert(.FALSE.,cp_failure_level,routineP,error,failure)
        END SELECT
@@ -3638,8 +3681,6 @@ END SUBROUTINE pw_nn_compose_r
        CALL section_vals_val_get(param_section,"eps_x", &
             r_val=eps_x, error=error)
 
-       aint_precond=no_precond
-       precond_kind=no_precond
        bo=pw_coarse_out%pw_grid%bounds_local
        NULLIFY(values,coeffs)
        CALL pw_pool_create_pw(coarse_pool,values, use_data=REALDATA3D,&
@@ -3666,7 +3707,7 @@ END SUBROUTINE pw_nn_compose_r
             in_space=REALSPACE,error=error)
        nullify(precond)
        call pw_spline_precond_create(precond,precond_kind=aint_precond,&
-            pool=coarse_pool,pbc=.false.,error=error)
+            pool=coarse_pool,pbc=.FALSE.,transpose=.TRUE.,error=error)
        CALL pw_spline_do_precond(precond,values,coeffs,error=error)
        CALL pw_spline_precond_set_kind(precond,precond_kind,error=error)
        success=find_coeffs(values=values,coeffs=coeffs,&
@@ -3758,7 +3799,7 @@ END SUBROUTINE pw_nn_compose_r
 
        nullify(precond)
        call pw_spline_precond_create(precond,precond_kind=aint_precond,&
-            pool=coarse_pool,pbc=.FALSE.,error=error)
+            pool=coarse_pool,pbc=.FALSE.,transpose=.FALSE.,error=error)
        CALL pw_spline_do_precond(precond,pw_coarse_in,coeffs,error=error)
        CALL pw_spline_precond_set_kind(precond,precond_kind,error=error)
        success=find_coeffs(values=pw_coarse_in,coeffs=coeffs,&
@@ -3816,10 +3857,10 @@ END SUBROUTINE pw_nn_compose_r
   !!
   !!*** **********************************************************************
   SUBROUTINE pw_nn_compose_r_no_pbc(weights_1d,pw_in,pw_out,&
-       sharpen,normalize,transpose,error)
+       sharpen,normalize,transpose,smooth_boundary,error)
     REAL(kind=dp), DIMENSION(-1:1)           :: weights_1d
     TYPE(pw_type), POINTER                   :: pw_in, pw_out
-    LOGICAL, INTENT(in), OPTIONAL            :: sharpen,normalize,transpose
+    LOGICAL, INTENT(in), OPTIONAL            :: sharpen,normalize,transpose,smooth_boundary
     TYPE(cp_error_type), INTENT(inout), &
          OPTIONAL                            :: error
 
@@ -3831,8 +3872,8 @@ END SUBROUTINE pw_nn_compose_r
     INTEGER, DIMENSION(2, 3)                 :: bo,gbo
     INTEGER, DIMENSION(3)                    :: s
     LOGICAL                                  :: failure, has_l_boundary, &
-         has_u_boundary,is_split,my_sharpen,my_normalize, my_transpose
-    REAL(kind=dp)                            :: in_val_f, in_val_l,w_k,w_j
+         has_u_boundary,is_split,my_sharpen,my_normalize, my_transpose,my_smooth_boundary
+    REAL(kind=dp)                            :: in_val_f, in_val_l,w_k,w_j, in_val_tmp
     REAL(kind=dp), DIMENSION(-1:1)           :: w
     REAL(kind=dp), DIMENSION(:, :), POINTER  :: l_boundary, tmp, u_boundary
     REAL(kind=dp), DIMENSION(:,:,:), POINTER :: in_val, out_val
@@ -3848,6 +3889,10 @@ END SUBROUTINE pw_nn_compose_r
     if (present(normalize)) my_normalize=normalize
     my_transpose=.FALSE.
     if (present(transpose)) my_transpose=transpose
+    my_smooth_boundary=.false.
+    if (present(smooth_boundary)) my_smooth_boundary=smooth_boundary
+    CPAssert(.not.my_normalize.OR.my_sharpen,cp_failure_level,routineP,error,failure)
+    CPAssert(.NOT.my_smooth_boundary.OR..NOT.my_sharpen,cp_failure_level,routineP,error,failure)
     DO i=1,3
        s(i)=bo(2,i)-bo(1,i)+1
     END DO
@@ -3901,6 +3946,9 @@ END SUBROUTINE pw_nn_compose_r
                 IF (k==gbo(2,3).OR.k==gbo(1,3)) THEN
                    IF (myk<gbo(2,3).AND.myk>gbo(1,3)) THEN
                       w_k=weights_1d(kw)
+                      IF (my_smooth_boundary) THEN 
+                         w_k=weights_1d(kw)/weights_1d(0)
+                      END IF
                    ELSE IF (kw==0) THEN
                       w_k=1._dp
                    ELSE
@@ -3914,9 +3962,18 @@ END SUBROUTINE pw_nn_compose_r
                 w_k=weights_1d(kw)
              END IF
           ELSE
-             IF (k==gbo(2,3).OR.k==gbo(1,3)) THEN
-                IF (kw/=0) CYCLE
-                w_k=1._dp
+             IF (k>=gbo(2,3)-1.OR.k<=gbo(1,3)+1) THEN
+                IF (k==gbo(2,3).OR.k==gbo(1,3)) THEN
+                   IF (kw/=0) CYCLE
+                   w_k=1._dp
+                ELSE
+                   IF (my_smooth_boundary.AND.((k==gbo(1,3)+1.AND.myk==gbo(1,3)).OR.&
+                        (k==gbo(2,3)-1.AND.myk==gbo(2,3)))) THEN
+                      w_k=weights_1d(kw)/weights_1d(0)
+                   ELSE
+                      w_k=weights_1d(kw)
+                   END IF
+                END IF
              ELSE
                 w_k=weights_1d(kw)
              END IF
@@ -3929,6 +3986,9 @@ END SUBROUTINE pw_nn_compose_r
                       IF (j==gbo(2,2).OR.j==gbo(1,2)) THEN
                          IF (myj<gbo(2,2).AND.myj>gbo(1,2)) THEN
                             w_j=weights_1d(jw)*w_k
+                            IF (my_smooth_boundary) THEN
+                               w_j=weights_1d(jw)/weights_1d(0)*w_k
+                            END IF
                          ELSE IF (jw==0) THEN
                             w_j=w_k
                          ELSE
@@ -3942,9 +4002,16 @@ END SUBROUTINE pw_nn_compose_r
                       w_j=w_k*weights_1d(jw)
                    END IF
                 ELSE
-                   IF (j==gbo(2,2).OR.j==gbo(1,2)) THEN
-                      IF (jw/=0) CYCLE
-                      w_j=w_k
+                   IF (j>=gbo(2,2)-1.OR.j<=gbo(1,2)+1) THEN
+                      IF (j==gbo(2,2).OR.j==gbo(1,2)) THEN
+                         IF (jw/=0) CYCLE
+                         w_j=w_k
+                      ELSE IF (my_smooth_boundary.AND.((j==gbo(1,2)+1.AND.myj==gbo(1,2)).OR.&
+                           (j==gbo(2,2)-1.AND.myj==gbo(2,2)))) THEN
+                         w_j=w_k*weights_1d(jw)/weights_1d(0)
+                      ELSE
+                         w_j=w_k*weights_1d(jw)
+                      END IF
                    ELSE
                       w_j=w_k*weights_1d(jw)
                    END IF
@@ -3954,16 +4021,36 @@ END SUBROUTINE pw_nn_compose_r
                    IF (my_transpose) THEN
                       IF (s(1)==1) THEN
                          CPAssert(.not.has_u_boundary,cp_failure_level,routineP,error,failure)
+                         in_val_tmp=u_boundary(myj,myk)
+                      ELSE
+                         in_val_tmp=in_val(bo(1,1)+1,myj,myk)
+                      END IF
+                      IF (my_sharpen) THEN
+                         IF (kw==0.AND.jw==0) THEN
+                            IF (my_normalize) THEN
+                               out_val(bo(1,1),j,k)=out_val(bo(1,1),j,k)+&
+                                    (2.0_dp-w_j)*in_val(bo(1,1),myj,myk)-&
+                                    in_val_tmp*weights_1d(1)*w_j
+                            ELSE
+                               out_val(bo(1,1),j,k)=out_val(bo(1,1),j,k)+&
+                                    in_val(bo(1,1),myj,myk)*w_j-&
+                                    in_val_tmp*weights_1d(1)*w_j
+                            END IF
+                         ELSE
+                            out_val(bo(1,1),j,k)=out_val(bo(1,1),j,k)-&
+                                 in_val(bo(1,1),myj,myk)*w_j-&
+                                 in_val_tmp*weights_1d(1)*w_j
+                         END IF
+                      ELSE IF (my_smooth_boundary) THEN
                          out_val(bo(1,1),j,k)=out_val(bo(1,1),j,k)+&
                               w_j*(in_val(bo(1,1),myj,myk)+&
-                              u_boundary(myj,myk)*weights_1d(1))
-                         in_val_f=0.0_dp
+                              in_val_tmp*weights_1d(1)/weights_1d(0))
                       ELSE
                          out_val(bo(1,1),j,k)=out_val(bo(1,1),j,k)+&
                               w_j*(in_val(bo(1,1),myj,myk)+&
-                              in_val(bo(1,1)+1,myj,myk)*weights_1d(1))
-                         in_val_f=0.0_dp
+                              in_val_tmp*weights_1d(1))
                       END IF
+                      in_val_f=0.0_dp
                    ELSE
                       in_val_f=in_val(bo(1,1),myj,myk)
                       IF (my_sharpen) THEN
@@ -3989,18 +4076,37 @@ END SUBROUTINE pw_nn_compose_r
                 END IF
                 if (has_u_boundary) then
                    IF (my_transpose) THEN
+                      in_val_l=in_val(bo(2,1),myj,myk)
                       IF (s(1)==1) THEN
                          CPAssert(.not.has_l_boundary,cp_failure_level,routineP,error,failure)
-                         out_val(bo(2,1),j,k)=out_val(bo(2,1),j,k)+&
-                              w_j*(in_val(bo(2,1),myj,myk)+&
-                              l_boundary(myj,myk)*weights_1d(1))
-                         in_val_l=0.0_dp
+                         in_val_tmp=l_boundary(myj,myk)
                       ELSE
-                         in_val_l=0.0_dp
-                         out_val(bo(2,1),j,k)=out_val(bo(2,1),j,k)+&
-                              w_j*(in_val(bo(2,1),myj,myk)+&
-                              in_val(bo(2,1)-1,myj,myk)*weights_1d(1))
+                         in_val_tmp=in_val(bo(2,1)-1,myj,myk)
                       END IF
+                      IF (my_sharpen) THEN
+                         IF (kw==0.AND.jw==0) THEN
+                            IF (my_normalize) THEN
+                               out_val(bo(2,1),j,k)=out_val(bo(2,1),j,k)+&
+                                    in_val_l*(2._dp-w_j)-&
+                                    in_val_tmp*weights_1d(1)*w_j
+                            ELSE
+                               out_val(bo(2,1),j,k)=out_val(bo(2,1),j,k)+&
+                                    in_val_l*w_j-&
+                                    in_val_tmp*weights_1d(1)*w_j
+                            END IF
+                         ELSE
+                            out_val(bo(2,1),j,k)=out_val(bo(2,1),j,k)-&
+                                 w_j*in_val_l-&
+                                    in_val_tmp*weights_1d(1)*w_j
+                         END IF
+                      ELSE IF (my_smooth_boundary) THEN
+                         out_val(bo(2,1),j,k)=out_val(bo(2,1),j,k)+&
+                              w_j*(in_val_l+in_val_tmp*weights_1d(1)/weights_1d(0))
+                      ELSE
+                         out_val(bo(2,1),j,k)=out_val(bo(2,1),j,k)+&
+                              w_j*(in_val_l+in_val_tmp*weights_1d(1))
+                      END IF
+                      in_val_l=0._dp
                    ELSE
                       in_val_l=in_val(bo(2,1),myj,myk)
                       IF (my_sharpen) THEN
@@ -4039,11 +4145,35 @@ END SUBROUTINE pw_nn_compose_r
                    ELSE
                       w=weights_1d*w_j
                    END IF
+                   IF (my_smooth_boundary.AND.(.NOT.my_transpose).AND.gbo(1,1)+1>=bo(1,1).AND.&
+                        gbo(1,1)+1<=bo(2,1).AND.gbo(2,1)-gbo(1,1)>2) THEN
+                      IF (gbo(1,1)>=bo(1,1)) THEN
+                         out_val(gbo(1,1)+1,j,k)=out_val(gbo(1,1)+1,j,k)+&
+                              in_val(gbo(1,1),myj,myk)*w_j*weights_1d(-1)*&
+                              (1._dp/weights_1d(0)-1._dp)
+                      ELSE
+                         out_val(gbo(1,1)+1,j,k)=out_val(gbo(1,1)+1,j,k)+&
+                              l_boundary(myj,myk)*w_j*weights_1d(-1)*&
+                              (1._dp/weights_1d(0)-1._dp)
+                      END IF
+                   END IF
                    CALL pw_compose_stripe(weights=w,&
                         in_val=in_val(first_index:last_index,myj,myk),&
                         in_val_first=in_val_f,in_val_last=in_val_l,&
                         out_val=out_val(first_index:last_index,j,k),&
                         n_el=n_els)
+                   IF (my_smooth_boundary.AND.(.NOT.my_transpose).AND.gbo(2,1)-1>=bo(1,1).AND.&
+                        gbo(2,1)-1<=bo(2,1).AND.gbo(2,1)-gbo(1,1)>2) THEN
+                      IF (gbo(2,1)<=bo(2,1)) THEN
+                         out_val(gbo(2,1)-1,j,k)=out_val(gbo(2,1)-1,j,k)+&
+                              in_val(gbo(2,1),myj,myk)*w_j*weights_1d(1)*&
+                              (1._dp/weights_1d(0)-1._dp)
+                      ELSE
+                         out_val(gbo(2,1)-1,j,k)=out_val(gbo(2,1)-1,j,k)+&
+                              u_boundary(myj,myk)*w_j*weights_1d(1)*&
+                              (1._dp/weights_1d(0)-1._dp)
+                      END IF
+                   END IF
                 END IF
              END DO
           END DO

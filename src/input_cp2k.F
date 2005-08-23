@@ -7075,8 +7075,10 @@ END SUBROUTINE create_ewald_section
             " for the linear solver of the spline3 methods",&
             usage="kind spline3",&
             default_i_val=pw_interp,&
-            enum_c_vals=s2a( "copy","spl3_nopbc_aint","spl3_nopbc_precond1"),&
-            enum_i_vals=(/no_precond,precond_spl3_aint, precond_spl3_1/),&
+            enum_c_vals=s2a( "copy","spl3_nopbc_aint1","spl3_nopbc_precond1",&
+            "spl3_nopbc_aint2","spl3_nopbc_precond2","spl3_nopbc_precond3"),&
+            enum_i_vals=(/no_precond,precond_spl3_aint, precond_spl3_1,&
+            precond_spl3_aint2, precond_spl3_2, precond_spl3_3/),&
             error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
@@ -7086,8 +7088,10 @@ END SUBROUTINE create_ewald_section
             " for the linear solver of the spline3 methods",&
             usage="kind spline3",&
             default_i_val=pw_interp,&
-            enum_c_vals=s2a("copy","spl3_nopbc_aint","spl3_nopbc_precond1"),&
-            enum_i_vals=(/no_precond,precond_spl3_aint, precond_spl3_1/),&
+            enum_c_vals=s2a("copy","spl3_nopbc_aint1","spl3_nopbc_precond1",&
+            "spl3_nopbc_aint2","spl3_nopbc_precond2","spl3_nopbc_precond3"),&
+            enum_i_vals=(/no_precond,precond_spl3_aint, precond_spl3_1,&
+            precond_spl3_aint2, precond_spl3_2, precond_spl3_3/),&
             error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)

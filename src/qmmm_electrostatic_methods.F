@@ -49,13 +49,15 @@ MODULE qmmm_electrostatic_methods
                                              pw_pools_give_back_pws,&
                                              pw_pool_create_pw,&
                                              pw_pool_give_back_pw
-  USE pw_spline_utils,                 ONLY: pw_inject_s3, spl3_nopbct
+  USE pw_spline_utils,                 ONLY: pw_inject_s3, spl3_nopbct,&
+       spl3_1d_transf_coeffs,spl3_1d_transf_border1, add_fine2coarse
   USE pw_types,                        ONLY: REALDATA3D,&
                                              REALSPACE,&
                                              pw_p_type,&
                                              pw_prolongate_NoPBC,&
                                              pw_type,&
-                                             pw_zero
+                                             pw_zero,&
+                                             pw_compare_debug
   USE qmmm_gaussian_types,             ONLY: qmmm_gaussian_p_type,&
                                              qmmm_gaussian_type
   USE qmmm_types,                      ONLY: qmmm_env_qm_type,&
@@ -468,10 +470,12 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, igrid, ilevel, lb(3), &
-                                                ngrids, ub(3), kind_interp
+                                                ngrids, ub(3), kind_interp,gbo(2,3),&
+                                                jgrid,kgrid
     LOGICAL                                  :: failure
     TYPE(pw_p_type), DIMENSION(:), POINTER   :: grids
-    TYPE(pw_type), POINTER   :: tmp_grid
+    TYPE(pw_type), POINTER   :: tmp_grid, tmp_grid2,tmp_grid3
+    real(dp) :: maxdiff
     TYPE(cp_logger_type), pointer :: logger
 
 ! Statements
