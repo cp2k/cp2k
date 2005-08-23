@@ -3,8 +3,6 @@
 !   Copyright (C) 2000 - 2005  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
-#include "cp_prep_globals.h"
-
 !!****** cp2k/wiener_process [1.0] *
 !!
 !!   NAME
@@ -26,13 +24,8 @@
 MODULE wiener_process
 
   USE atomic_kind_list_types,          ONLY: atomic_kind_list_type
-  USE cp_error_handling,               ONLY: cp_a_l,&
-                                             cp_assert,&
-                                             cp_assertion_failed,&
-                                             cp_error_type
   USE cp_files,                        ONLY: close_file,&
                                              open_file
-  USE cp_log_handling,                 ONLY: cp_failure_level, cp_to_string
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE cp_subsystem_types,              ONLY: cp_subsys_get,&
                                              cp_subsystem_p_type
@@ -58,7 +51,7 @@ MODULE wiener_process
   USE particle_list_types,             ONLY: particle_list_type
   USE string_utilities,                ONLY: ascii_to_string,&
                                              string_to_ascii
-
+#include "cp_common_uses.h"
   IMPLICIT NONE
 
   PRIVATE
