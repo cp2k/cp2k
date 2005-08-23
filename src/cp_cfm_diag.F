@@ -95,6 +95,7 @@ CONTAINS
     liwork=iwork(1)
     DEALLOCATE(work,iwork,rwork)
     ALLOCATE(iwork(liwork),work(lwork),rwork(lrwork),STAT=istat)
+    iwork=0;work=CMPLX(0._dp,0._dp,dp);rwork=0._dp;
     IF (istat.NE.0) CALL stop_memory(routineN,"work")
     CALL PZHEEVD('V','U',n,m(1,1),1,1,descm,eigenvalues(1),v(1,1),1,1,descv, &
                   work(1),lwork,rwork(1),lrwork,iwork(1),liwork,info)

@@ -194,8 +194,8 @@ CONTAINS
        npcol=context%num_pe(2)
        NULLIFY(matrix%local_data)
 
-       nrow_local=matrix_struct%nrow_locals(context%mepos(1))
-       ncol_local=matrix_struct%ncol_locals(context%mepos(2))
+       nrow_local=matrix_struct%local_leading_dimension
+       ncol_local=MAX(1,matrix_struct%ncol_locals(context%mepos(2)))
        ALLOCATE(matrix%local_data(nrow_local,ncol_local),stat=stat)
 
        CALL dcopy(2*nrow_local*ncol_local,0.0_dp,0,matrix%local_data,1)

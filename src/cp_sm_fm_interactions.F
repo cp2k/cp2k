@@ -3,8 +3,6 @@
 !   Copyright (C) 2003 CP2K developers group
 !-----------------------------------------------------------------------------!
 
-#include "cp_prep_globals.h"
-
 !!****h* cp2k/cp_sm_fm_interactions [1.0] *
 !!
 !!   NAME
@@ -27,22 +25,9 @@ MODULE cp_sm_fm_interactions
                                              cp_blacs_gridinfo,&
                                              cp_blacs_gridinit,&
                                              cp_blacs_pnum
-  USE cp_error_handling,               ONLY: cp_a_l,&
-                                             cp_assert,&
-                                             cp_assertion_failed,&
-                                             cp_error_get_logger,&
-                                             cp_error_message,&
-                                             cp_error_type
   USE cp_fm_struct,                    ONLY: cp_fm_struct_compatible
   USE cp_fm_types,                     ONLY: cp_fm_get_info,&
                                              cp_fm_type
-  USE cp_log_handling,                 ONLY: cp_failure_level,&
-                                             cp_fatal_level,&
-                                             cp_log,&
-                                             cp_logger_type,&
-                                             cp_note_level,&
-                                             cp_to_string,&
-                                             cp_warning_level
   USE cp_para_types,                   ONLY: cp_blacs_env_type,&
                                              cp_para_env_type
   USE distribution_2d_types,           ONLY: distribution_2d_get
@@ -65,6 +50,7 @@ MODULE cp_sm_fm_interactions
   USE termination,                     ONLY: stop_memory
   USE timings,                         ONLY: timeset,&
                                              timestop
+#include "cp_common_uses.h"
 
   IMPLICIT NONE
   PRIVATE
@@ -1284,6 +1270,7 @@ END SUBROUTINE cp_sm_plus_fm_fm_t
       POINTER                                :: v_in, v_out
     TYPE(cp_para_env_type), POINTER          :: fm_para_env
     TYPE(real_block_node_type), POINTER      :: block_node
+    TYPE(cp_logger_type), pointer :: logger
 
     CALL timeset(routineN,"I","Gflops",handle)
     failure=.false.
@@ -1295,6 +1282,7 @@ END SUBROUTINE cp_sm_plus_fm_fm_t
          local_atomic_cols)
     NULLIFY(blacs2mpi,sparse_block,block_node,&
          v_in,v_out,fm_para_env)
+    logger => cp_error_get_logger(error)
     CPPrecondition(ASSOCIATED(sm),cp_failure_level,routineP,error,failure)
     CPPrecondition(ASSOCIATED(fm_in),cp_failure_level,routineP,error,failure)
     CPPrecondition(ASSOCIATED(fm_out),cp_failure_level,routineP,error,failure)
@@ -1303,6 +1291,7 @@ END SUBROUTINE cp_sm_plus_fm_fm_t
          CPSourceFileRef,&
          error,failure)
 
+    flops=0.0_dp
     IF (.NOT.transpose_sm) THEN
        nprow         =fm_in%matrix_struct%context%num_pe(1)
        npcol         =fm_in%matrix_struct%context%num_pe(2)
@@ -1310,14 +1299,14 @@ END SUBROUTINE cp_sm_plus_fm_fm_t
        mypcol        =fm_in%matrix_struct%context%mepos(2)
        blacs2mpi     => fm_in%matrix_struct%context%blacs2mpi
        
-    CALL distribution_2d_get(sm%distribution_2d,&
-         row_distribution=atomic_row_distribution,&
-         col_distribution=atomic_col_distribution,&
-         flat_local_cols=local_atomic_cols,&
-         n_flat_local_cols=n_local_atomic_cols,&
-         flat_local_rows=local_atomic_rows,&
-         n_flat_local_rows=n_local_atomic_rows,&
-         error=error)
+       CALL distribution_2d_get(sm%distribution_2d,&
+            row_distribution=atomic_row_distribution,&
+            col_distribution=atomic_col_distribution,&
+            flat_local_cols=local_atomic_cols,&
+            n_flat_local_cols=n_local_atomic_cols,&
+            flat_local_rows=local_atomic_rows,&
+            n_flat_local_rows=n_local_atomic_rows,&
+            error=error)
 
        CALL get_matrix_info(sm,nblock_row=sm_nblock_row,&
             nblock_col=sm_nblock_col, last_row=sm_last_row,&
@@ -1365,6 +1354,7 @@ END SUBROUTINE cp_sm_plus_fm_fm_t
     njunk_local_out= njunk / npcol
     CPPrecondition(njunk_local_in>1,cp_failure_level,routineP,error,failure)
     CPPrecondition(njunk_local_out>1,cp_failure_level,routineP,error,failure)
+    IF (fm_ncol_global==0) GOTO 100
 
     ! number of global fm columns belonging to a junk
     ALLOCATE(ncol_global_of_junk(njunk),stat=stat)
@@ -1430,7 +1420,6 @@ END SUBROUTINE cp_sm_plus_fm_fm_t
     col_src=blacs2mpi(myprow,MODULO(mypcol+1,npcol))
     
     ! let the magic of the distribution play the game
-    flops=0.0_dp
     DO ijunk=1,njunk
        ! go circular
        CALL timeset(routineN//"_local","I","Gflops",handle2)
@@ -1534,6 +1523,7 @@ END SUBROUTINE cp_sm_plus_fm_fm_t
     DEALLOCATE(v_out,stat=stat)
     CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
 
+100 CONTINUE ! end
     CALL timestop(flops*1.0e-9_dp,handle)
 
   END SUBROUTINE cp_sm_fm_multiply_2d
