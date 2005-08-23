@@ -3621,7 +3621,7 @@ SUBROUTINE force_field_pack (particle_set,atomic_kind_set,&
      nkinds = SIZE ( potparm_bond, 1 )
      CALL spline_env_create ( spline_bond_env, nkinds, error )
      CALL spline_nonbond_control ( spline_bond_env, potparm_bond, &
-           atomic_kind_set , ewald_env, ff_type%ei_scale14,ff_type%vdw_scale14)
+          atomic_kind_set , ewald_env, ff_type%ei_scale14,ff_type%vdw_scale14)
      ! point potparm ( ikind, jkind ) % spline_data => spline_data_p ( n )
      DO ikind = 1, SIZE ( potparm_bond, 1 )
         DO jkind = ikind, SIZE ( potparm_bond, 2 )
