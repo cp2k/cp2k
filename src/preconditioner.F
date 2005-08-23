@@ -794,8 +794,7 @@ SUBROUTINE make_full_single(preconditioner_env, fm, matrix_h, matrix_s, &
   CALL cp_fm_syevd(fm_h,fm,evals)
   CALL cp_fm_cholesky_restore(fm,n,fm_s,fm_h,"SOLVE") 
   DO i=1,n
-!        evals(i)=1.0_dp/MAX(evals(i)-energy_homo,energy_gap)
-        evals(i)=1.0_dp/ABS(evals(i)-energy_homo)
+        evals(i)=1.0_dp/MAX(evals(i)-energy_homo,energy_gap)
   ENDDO
   CALL cp_fm_to_fm(fm_h,fm)
   CALL cp_fm_column_scale(fm,evals)
