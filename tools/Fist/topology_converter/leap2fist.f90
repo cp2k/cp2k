@@ -108,6 +108,7 @@ PROGRAM leap2fist
   CALL open_file(input_filename,  "old", "formatted", unit_i)
   CALL open_file(output_filename, "unknown", "formatted", unit_o)
   CALL rdparm_amber_8(unit_i)
+  CALL conform_amber_2_charmm
   CALL initialize_var
   IF (fist) THEN
      CALL open_file(psf_filename, "unknown", "formatted", unit_p)
@@ -407,6 +408,78 @@ CONTAINS
 
   END SUBROUTINE rdparm_amber_8
 
+  SUBROUTINE  conform_amber_2_charmm
+    IMPLICIT NONE
+    INTEGER :: i, num_types, num_types2, j, k, len_type, l
+    CHARACTER(LEN=atom_name_length) :: my_type, my_form
+    REAL(KIND=dp), DIMENSION(:), ALLOCATABLE :: my_charge
+    INTEGER,  DIMENSION(:), ALLOCATABLE :: my_index, my_done
+    REAL(KIND=dp) :: my_ch
+    !
+    ! MOdify AMBER TYPES if two symbols have different charge
+    ! This is not allowed in CHARMM !
+    !
+    ALLOCATE(my_done(NATOM))
+    my_done = 0
+    DO i = 1, NATOM
+       my_type    = ISYMBL(i)
+       len_type   = LEN_TRIM(my_type)
+       num_types  = COUNT(ISYMBL==my_type)
+       IF (num_types == 1.OR.my_done(i)==1) CYCLE
+       my_done(i) = 1
+       ALLOCATE(my_charge(num_types), my_index(num_types))
+       k = 0
+       ! Collect Information
+       DO j = 1, NATOM
+          IF (ISYMBL(j) /= my_type) CYCLE
+          k = k + 1
+          my_charge(k) = CHRG(j)
+          my_index(k)  = j
+       END DO
+       ! Post-Processing of information       
+       IF (ALL(my_charge==my_charge(1))) THEN 
+          DEALLOCATE(my_charge, my_index)
+          CYCLE
+       END IF
+       k = 1
+       DO j = 1, num_types
+          my_ch = my_charge(j)
+          num_types2 = COUNT(my_charge==my_ch)
+          IF (num_types2 ==1 .OR. my_ch==-9999) THEN 
+             my_charge(j) = -9999
+             CYCLE
+          ELSEIF(num_types2 < 10) THEN
+             IF (len_type>3) CALL stop_converter(" A type with more than 4 character should be created!")
+          ELSEIF(num_types2 < 100) THEN
+             IF (len_type>2) CALL stop_converter(" A type with more than 4 character should be created!")
+          ELSEIF(num_types2 < 1000) THEN
+             IF (len_type>1) CALL stop_converter(" A type with more than 4 character should be created!")
+          ELSE
+             CALL stop_converter(" A type with more than 4 character should be created!")
+          END IF
+          DO l = 1, num_types
+             IF (my_charge(l) /= my_ch) CYCLE
+             IF (k<10) THEN
+                my_form = '(I1)'
+             ELSEIF (K<100) THEN
+                my_form = '(I2)'
+             ELSEIF (K<1000) THEN
+                my_form = '(I3)'
+             ELSE
+                CALL stop_converter(" Should never reach this point!")
+             END IF
+             WRITE(ISYMBL(my_index(l))(LEN_TRIM(ISYMBL(my_index(l)))+1:),my_form)k
+             my_charge(l) = -9999
+             my_done(my_index(l)) = 1
+          END DO
+          k = k + 1
+       END DO
+       IF (ANY(my_charge /= -9999)) CALL stop_converter(" Should never reach this point!")
+       DEALLOCATE(my_charge, my_index)
+    END DO
+    IF (ANY(my_done/=1)) CALL stop_converter(" Should never reach this point!")
+    DEALLOCATE(my_done)
+  END SUBROUTINE conform_amber_2_charmm
 
   SUBROUTINE release_amber_8_structures
     IMPLICIT NONE
