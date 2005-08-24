@@ -245,6 +245,8 @@ CONTAINS
           verbose = .TRUE.
        CASE ("-impropers")
           amber_impropers = .FALSE.
+       CASE ("-xplor")
+          psf_xplor = .TRUE.
        CASE ("-dlpoly")
           dlpoly = .TRUE.
           fist   = .FALSE.
