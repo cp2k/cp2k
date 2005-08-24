@@ -231,6 +231,7 @@ CONTAINS
     INTEGER ::  handle, ispin, istat, n, nmo, output_unit
     CHARACTER(LEN=200) :: file_name
     INTEGER            :: file_unit,ivector,nao,nlumos, homo, unit_nr
+    LOGICAL            :: homoEQnmo
     CHARACTER(LEN=80)  :: filename
     CHARACTER(LEN=80) :: title
     CHARACTER(LEN=default_string_length) :: mulliken_title
@@ -541,28 +542,37 @@ CONTAINS
            IF (globenv%ionode) WRITE(globenv%scr,*) " Computing the optical conductivity "
            IF (globenv%ionode) WRITE(globenv%scr,*) " Experimental version " 
            IF (globenv%ionode) WRITE(globenv%scr,*) " Check the code before believing results " 
-           IF (.NOT. globenv%print%lumos) &
-              CALL stop_program("optical_conductivity","put LUMOS XX in the print section")
-           IF (.NOT. globenv%print%homos) &
-              CALL stop_program("optical_conductivity","put HOMOS XX in the print section")
-           IF (globenv%ionode) THEN
-              File_name="CONDUCTIVITY"
-              CALL Open_file(File_name=File_name,&
-                  File_action="Write",&
-                  File_form="Formatted",&
-                  File_status="Replace",&
-                  Unit_number=File_unit)
-           ENDIF
-           CALL get_cell(cell,deth=volume)
+           homoEQnmo=.true.
            DO ispin=1,dft_control%nspins
-              CALL get_mo_set(mo_set=mos(ispin)%mo_set,mo_coeff=mo_coeff, &
-                                                     eigenvalues=mo_eigenvalues)
-              CALL optical_conductivity(matrix_s,mo_coeff,mo_eigenvalues, &
-                                          unoccupied_orbs(ispin)%matrix,unoccupied_evals(ispin)%evals, &
-                                          volume,globenv%ionode,File_unit) 
+              CALL get_mo_set(mo_set=mos(ispin)%mo_set,homo=homo,nmo=nmo)
+              if (homo.NE.nmo) homoEQnmo=.false. 
            ENDDO
-           IF (globenv%ionode) CALL close_file(Unit_number=File_unit)
-           IF (globenv%ionode) WRITE(globenv%scr,*) " Results written to file ",File_name
+           IF (.NOT. homoEQnmo) THEN
+              IF (globenv%ionode) WRITE(globenv%scr,*) " homo.NE.nmo : skip optical conductivty "
+           ELSE
+             IF (.NOT. globenv%print%lumos) &
+                CALL stop_program("optical_conductivity","put LUMOS XX in the print section")
+             IF (.NOT. globenv%print%homos) &
+                CALL stop_program("optical_conductivity","put HOMOS XX in the print section")
+             IF (globenv%ionode) THEN
+                File_name="CONDUCTIVITY"
+                CALL Open_file(File_name=File_name,&
+                    File_action="Write",&
+                    File_form="Formatted",&
+                    File_status="Replace",&
+                    Unit_number=File_unit)
+             ENDIF
+             CALL get_cell(cell,deth=volume)
+             DO ispin=1,dft_control%nspins
+                CALL get_mo_set(mo_set=mos(ispin)%mo_set,mo_coeff=mo_coeff, &
+                                                       eigenvalues=mo_eigenvalues)
+                CALL optical_conductivity(matrix_s,mo_coeff,mo_eigenvalues, &
+                                            unoccupied_orbs(ispin)%matrix,unoccupied_evals(ispin)%evals, &
+                                            volume,globenv%ionode,File_unit) 
+             ENDDO
+             IF (globenv%ionode) CALL close_file(Unit_number=File_unit)
+             IF (globenv%ionode) WRITE(globenv%scr,*) " Results written to file ",File_name
+           ENDIF
        ENDIF
 
        IF (globenv%print%lumos) THEN
