@@ -237,6 +237,7 @@ MODULE  hartree_local_3centers
                     rho_atom_set=rho_atom_set,&
                     sab_orb=sab_orb)
 
+    NULLIFY(ng0_h,ng0_s)
     CALL get_rho0_mpole(rho0_mpole=rho0_mpole,zet0_h=z0_h,zet0_s=z0_s,&
                         norm_g0l_h=ng0_h,norm_g0l_s=ng0_s,lmax_0=lmax_0,&
                         set_radius_3c=set_radius_3c)
@@ -276,7 +277,6 @@ MODULE  hartree_local_3centers
       maxlgto1 = maxlgto
     END IF
 
-    NULLIFY(ng0_h,ng0_s)
 
 
     maxch0 = ncoset(lmax_0)

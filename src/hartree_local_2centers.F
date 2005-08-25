@@ -163,8 +163,10 @@ MODULE  hartree_local_2centers
                     rho_atom_set=rho_atom_set,&
                     sab_2c=sab_2c)
 
+    NULLIFY(ng0_h,ng0_s)
     CALL get_rho0_mpole(rho0_mpole=rho0_mpole,zet0_h=z0_h,zet0_s=z0_s,&
                         norm_g0l_h=ng0_h,norm_g0l_s=ng0_s,lmax_0=lmax_0)
+
     IF(z0_h==z0_s) RETURN
 
     IF (my_tddft) THEN
@@ -195,8 +197,6 @@ MODULE  hartree_local_2centers
       CALL timeset(routine_name,"I"," ",handle)
 
     END IF
-
-    NULLIFY(ng0_h,ng0_s)
 
 
     IF (calculate_forces) THEN
