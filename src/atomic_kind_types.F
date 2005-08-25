@@ -1089,7 +1089,6 @@ CONTAINS
         CALL create_soft_basis(orb_basis,atomic_kind%soft_basis_set,qs_control%gapw_control,rc,paw_atom)
         CALL set_atomic_kind(atomic_kind=atomic_kind,&
                              paw_atom=paw_atom)
-
         IF(paw_atom) THEN
           IF (globenv%print%basis_set) THEN
             IF(globenv%ionode) WRITE (UNIT=output_unit,FMT="(/,T2,I2,A)")&

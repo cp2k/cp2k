@@ -146,7 +146,7 @@ MODULE cp_control_types
     LOGICAL                         :: realspace_mgrids
     LOGICAL                         :: map_paa
     LOGICAL                         :: map_consistent
-    LOGICAL                         :: gapw,gpw,pao
+    LOGICAL                         :: gapw,gapw_xc,gpw,pao
     LOGICAL                         :: semi_empirical
     LOGICAL                         :: polarization
     LOGICAL                         :: mulliken_restraint

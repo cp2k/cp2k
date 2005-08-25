@@ -1377,14 +1377,15 @@ SUBROUTINE create_qs_section(section,error)
      CALL keyword_create(keyword, name="METHOD",&
           description="What method should be employed",&
           usage="METHOD GAPW",&
-          enum_c_vals=s2a("GAPW","GPW","KG_POL","KG_NOPOL","KG_GPW","EHT","MNDO","AM1","PM3"),&
+          enum_c_vals=s2a("GAPW","GAPW_XC","GPW","KG_POL","KG_NOPOL","KG_GPW","EHT","MNDO","AM1","PM3"),&
           enum_desc=s2a("Gaussian and augmented plane waves method",&
+                        "Gaussian and augmented plane waves method only for XC",&
                         "Gaussian and plane waves method",&
                         "Polarisable Kim-Gordon method",&
                         "Non-polarisable Kim-Gordon method", " DFT Embedding method ",&
                         "EHT semiempirical","MNDO semiempirical","AM1 semiempirical",&
                         "PM3 semiempirical"),&
-          enum_i_vals=(/ do_method_gapw, do_method_gpw, do_method_kg_pol,&
+          enum_i_vals=(/ do_method_gapw, do_method_gapw_xc, do_method_gpw, do_method_kg_pol,&
                          do_method_kg_nopol, do_method_kg_gpw, do_method_eht,&
                          do_method_mndo, do_method_am1, do_method_pm3/),&
           default_i_val=do_method_gpw, error=error)

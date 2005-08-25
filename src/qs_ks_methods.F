@@ -311,7 +311,7 @@ CONTAINS
 
     INTEGER                                  :: handle, ispin, n_electrons, &
                                                 nspins, output_unit, stat
-    LOGICAL                                  :: failure, gapw, ionode, my_kg_gpw
+    LOGICAL                                  :: failure, gapw, gapw_xc, ionode, my_kg_gpw
     TYPE(greens_function_type), POINTER      :: green
     TYPE(cell_type), POINTER                 :: cell
     TYPE(coeff_type)                         :: rho_tot_gspace, &
@@ -377,6 +377,10 @@ CONTAINS
 
     ! Check for GAPW method : additional terms for local densities
     gapw = dft_control%qs_control%gapw
+    gapw_xc = dft_control%qs_control%gapw_xc
+    IF(gapw_xc .AND. gapw) CALL cp_assert( .FALSE. , cp_failure_level,cp_assertion_failed,routineP,&
+                          " GAPW and GAPW_XC are not compatible",error,failure)
+
 
     ! gets the tmp grids
     IF (.NOT. failure) THEN
@@ -385,8 +389,9 @@ CONTAINS
     END IF
 
 ! ***  Prepare densities for gapw ***
-    IF(gapw) THEN
-      CALL prepare_gapw_den(qs_env,error=error)
+
+    IF(gapw .OR. gapw_xc) THEN
+      CALL prepare_gapw_den(qs_env,do_rho0=(.NOT.gapw_xc),error=error)
     ENDIF
 
     IF (.NOT. failure) THEN
@@ -502,7 +507,7 @@ CONTAINS
             vxc_rho=v_rspace_new, vxc_tau=v_tau_rspace, exc=energy%exc, &
             just_energy=just_energy, error=error)
 
-       IF (gapw) THEN
+       IF (gapw .or. gapw_xc) THEN
           CALL calculate_vxc_atom(qs_env,error)
        END IF
 
@@ -617,20 +622,21 @@ CONTAINS
 !      ***  Inizialize the energy
           energy%hartree_2c = 0.0_dp
           CALL integrate_vhg0_g0(qs_env,energy%hartree_2c,.FALSE.,calculate_forces)
+
 !      ***  Energy, Integrals and Forces coming from the 3-centers terms
 !      *** Initialize energy
           energy%hartree_3c = 0.0_dp
           CALL integrate_a_vhg0_b(qs_env,ks_matrix,rho%rho_ao,&
                        energy%hartree_3c,.FALSE.,calculate_forces,error=error)
 
-
+       END IF
+       IF(gapw .OR. gapw_xc) THEN
 !      ***  Single atom contributions in the KS matrix ***
 !          DO ispin = 1,nspins
              CALL update_ks_atom(qs_env,ks_matrix,rho%rho_ao,&
                   calculate_forces,error=error)
 !          ENDDO
        ENDIF
-
 
 !      
        energy%mulliken = 0.0_dp

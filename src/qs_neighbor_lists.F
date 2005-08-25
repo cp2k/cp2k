@@ -645,6 +645,7 @@ CONTAINS
         END IF
       ENDIF
     END IF
+
     IF (rho0_present) THEN
 
 !     *** Build the neighbor lists for the 2-centers Hartree_local terms ***
@@ -774,6 +775,10 @@ CONTAINS
       IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
                                        "oce_radius")
 
+    ENDIF
+
+    IF(rho0_present) THEN
+
       DEALLOCATE (V0hmV0s_radius,STAT=istat)
       IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
                                        "V0hmV0s_radius")
@@ -781,7 +786,8 @@ CONTAINS
       DEALLOCATE(orb_rad_3c,STAT=istat)
       IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
                                        "hard_radius")
-    ENDIF
+
+    END IF
 
     IF(all_potential_present) THEN
 
@@ -2485,7 +2491,6 @@ CONTAINS
     DEALLOCATE (nelement,STAT=istat)
     IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
                                      "nelement")
-
   END SUBROUTINE write_distribution
 
 ! *****************************************************************************

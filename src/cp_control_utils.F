@@ -102,6 +102,7 @@ MODULE cp_control_utils
                                              do_rsgrid_replicated,&
                                              elstr_method_name,&
                                              do_method_gapw,& 
+                                             do_method_gapw_xc,& 
                                              do_method_gpw,& 
                                              do_method_kg_pol,&
                                              do_method_kg_nopol,&
@@ -848,7 +849,7 @@ CONTAINS
 !!  PROGRESSION_FACTOR     : eprog                                            !
 !!  RELATIVE_CUTOFF        : relcut                                           !
 !!  NGRID_LEVEL            : ngrid                                            !
-!!  METHOD                 : [GPW, GAPW]                                      !
+!!  METHOD                 : [GPW, GAPW, GAPW_XC]                                      !
 !!  wf_interpolation       : [use_guess,use_prev_p,use_prev_rho_r,            !
 !!                            linear_wf,linear_p,linear_ps, ps, use_prev_wf]  !
 !!                                                                            !
@@ -1057,11 +1058,13 @@ CONTAINS
     CALL section_vals_val_get(qs_section,"METHOD",i_val=qs_control%method_id,error=error)
     qs_control %method = elstr_method_name(qs_control %method_id)
     qs_control%gapw = .FALSE.
+    qs_control%gapw_xc = .FALSE.
     qs_control%gpw = .FALSE.
     qs_control%pao = .FALSE.
     qs_control%polarization = .FALSE.
     qs_control%semi_empirical = .FALSE.
     IF(qs_control %method_id==do_method_gapw) qs_control%gapw = .TRUE.
+    IF(qs_control %method_id==do_method_gapw_xc) qs_control%gapw_xc = .TRUE.
     IF(qs_control %method_id==do_method_gpw) qs_control%gpw = .TRUE.
     IF(qs_control %method_id >= do_method_eht .AND. qs_control %method_id <= do_method_pm3)&
                               qs_control%semi_empirical = .TRUE.
@@ -1166,6 +1169,7 @@ CONTAINS
     qs_control%progression_factor = 3.0_dp
     qs_control%relative_cutoff = 15.0_dp ! to 15 a.u. 30 Ry
     qs_control%gapw = .FALSE.
+    qs_control%gapw_xc = .FALSE.
     qs_control%gpw = .TRUE.
     qs_control%pao = .FALSE.
     qs_control%semi_empirical = .FALSE.
@@ -1326,6 +1330,10 @@ CONTAINS
               qs_control%method = "GAPW"
               qs_control%gapw = .TRUE.
               qs_control%method_id = do_method_gapw
+            CASE ("GAPW_XC")
+              qs_control%method = "GAPW_XC"
+              qs_control%gapw_xc = .TRUE.
+              qs_control%method_id = do_method_gapw_xc
             CASE ("GPW")
               qs_control%method = "GPW"
               qs_control%gpw = .TRUE.
@@ -2248,6 +2256,19 @@ CONTAINS
            qs_control%gapw_control%lmax_sphere ,& 
            "QS| GAPW|      max_l_rho0 :",&
             qs_control%gapw_control%lmax_rho0
+      END IF
+      IF (qs_control%gapw_xc) THEN
+         WRITE (UNIT=output_unit,FMT="(T2,A,T73,ES8.1)")&
+           "QS| GAPW_XC|                eps_fit:",&
+           qs_control%gapw_control%eps_fit,&
+           "QS| GAPW_XC|                eps_iso:",&
+           qs_control%gapw_control%eps_iso
+         WRITE (UNIT=output_unit,FMT="(T2,A,T55,A30)")&
+           "QS| GAPW_XC|atom-r-grid: quadrature:",&
+           qs_control%gapw_control%quadrature_name
+         WRITE (UNIT=output_unit,FMT="(T2,A,T71,I10)")&
+           "QS| GAPW_XC|   atom-s-grid:  max l :",&
+           qs_control%gapw_control%lmax_sphere 
       END IF
       IF (qs_control%mulliken_restraint) THEN
          WRITE (UNIT=output_unit,FMT="(T2,A,T73,ES8.1)")&

@@ -68,7 +68,9 @@ MODULE qs_environment
   USE harris_force_types,              ONLY: harris_force_type, &
                                              harris_force_create
   USE hartree_local_methods,           ONLY: init_coulomb_local
-  USE input_constants,                 ONLY: state_loc_all,&
+  USE input_constants,                 ONLY: do_method_gapw,&
+                                             do_method_gapw_xc,&
+                                             state_loc_all,&
                                              state_loc_none,&
                                              xas_tp_hh, xas_tp_fh 
   USE input_cp2k,                      ONLY: parsed_cp2k_input
@@ -415,14 +417,14 @@ CONTAINS
 
     CALL check_atomic_kind_set(atomic_kind_set,dft_control,globenv)
 
-!   *** Check that no all-electron potential is present if GPW
+!   *** Check that no all-electron potential is present if GPW or GAPW_XC
 
     CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,&
                             all_potential_present=all_potential_present)
     IF(all_potential_present .AND. .NOT.(dft_control%qs_control%method == "GAPW"&
           .OR. dft_control%qs_control%semi_empirical))&
       CALL stop_program(routine_name,module_name,__LINE__,&
-                        "all-el calculations with GPW are not implemented ")      
+                        "all-el calculations with GPW and GAPW_XC are not implemented ")      
 
 !   *** Initialize the spherical harmonics and ***
 !   *** the orbital transformation matrices    ***
@@ -450,7 +452,8 @@ CONTAINS
 
 !   *** Initialise GAPW soft basis and projectors
 
-    IF(dft_control%qs_control%method == "GAPW") THEN
+    IF(dft_control%qs_control%method == "GAPW" .OR. &
+       dft_control%qs_control%method == "GAPW_XC")  THEN
       qs_control => dft_control%qs_control
       gapw_control => dft_control%qs_control%gapw_control
       CALL init_gapw_basis_set(atomic_kind_set,qs_control,globenv)
@@ -490,7 +493,6 @@ CONTAINS
 !   *** Initialize the atomic interaction radii ***
     CALL init_interaction_radii(dft_control%qs_control,cell,atomic_kind_set,&
                                 globenv)
-
 
 !   *** Distribute molecules and atoms using the new data structures ***
 
@@ -601,13 +603,16 @@ CONTAINS
     ENDIF
 
 !   Initialize the GAPW local densities and potentials
-    IF(dft_control%qs_control%method == "GAPW") THEN
+    IF(dft_control%qs_control%method_id == do_method_gapw .OR. &
+      dft_control%qs_control%method_id == do_method_gapw_xc) THEN
 !     *** Allocate and initialize the set of atomic densities ***
       CALL init_rho_atom(qs_env,gapw_control)
-!     *** Allocate and initialize the compensation density rho0 ***
-      CALL init_rho0(qs_env,gapw_control,cell,error=error)
-!     *** Allocate and Initialize the local coulomb terms (1,2 and 3 centers) ***
-      CALL init_coulomb_local(qs_env,gapw_control)
+      IF(dft_control%qs_control%method_id /= do_method_gapw_xc) THEN
+!       *** Allocate and initialize the compensation density rho0 ***
+        CALL init_rho0(qs_env,gapw_control,cell,error=error)
+!       *** Allocate and Initialize the local coulomb terms (1,2 and 3 centers) ***
+        CALL init_coulomb_local(qs_env,gapw_control)
+      END IF
     ELSE IF(dft_control%qs_control%semi_empirical) THEN
       se_control => dft_control%qs_control%se_control
       SELECT CASE ( dft_control%qs_control%method )
