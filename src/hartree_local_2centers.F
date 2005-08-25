@@ -163,6 +163,10 @@ MODULE  hartree_local_2centers
                     rho_atom_set=rho_atom_set,&
                     sab_2c=sab_2c)
 
+    CALL get_rho0_mpole(rho0_mpole=rho0_mpole,zet0_h=z0_h,zet0_s=z0_s,&
+                        norm_g0l_h=ng0_h,norm_g0l_s=ng0_s,lmax_0=lmax_0)
+    IF(z0_h==z0_s) RETURN
+
     IF (my_tddft) THEN
        rho0_mpole   => p_env%local_rho_set%rho0_mpole
        rho_atom_set => p_env%local_rho_set%rho_atom_set
@@ -194,8 +198,6 @@ MODULE  hartree_local_2centers
 
     NULLIFY(ng0_h,ng0_s)
 
-    CALL get_rho0_mpole(rho0_mpole=rho0_mpole,zet0_h=z0_h,zet0_s=z0_s,&
-                        norm_g0l_h=ng0_h,norm_g0l_s=ng0_s,lmax_0=lmax_0)
 
     IF (calculate_forces) THEN
       lmax_01 = lmax_0 + maxder
