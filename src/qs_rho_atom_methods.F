@@ -54,7 +54,6 @@ MODULE qs_rho_atom_methods
                                              neighbor_list_type,&
                                              neighbor_node_type,&
                                              next,&
-!                                             qlist_type,&
                                              reduced_3c_list_type
   USE qs_oce_types,                    ONLY: oce_matrix_type
   USE qs_rho_atom_types,               ONLY: allocate_rho_atom_set,&
@@ -433,7 +432,6 @@ MODULE qs_rho_atom_methods
     NULLIFY(rho_atom)
     NULLIFY(orb_basis_set)
     NULLIFY(reduced_3c_oce)
-
 
     CALL get_qs_env(qs_env=qs_env,&
             dft_control=dft_control,&

@@ -109,6 +109,7 @@ MODULE cp_control_types
     LOGICAL                         :: alpha0_hard_from_input, &
                                        alpha0_soft_from_input
     REAL(KIND = dp)                 :: alpha0_hard, alpha0_soft
+    REAL(KIND = dp)                 :: max_rad_local
   END TYPE gapw_control_type
 
 ! *** some parameters useful for mulliken_restraints

@@ -36,7 +36,8 @@ MODULE atomic_kind_types
                                              write_gto_basis_set,&
                                              write_orb_basis_set
   USE cp_control_types,                ONLY: dft_control_type, &
-                                             gapw_control_type
+                                             gapw_control_type,&
+                                             qs_control_type
   USE cp_error_handling,               ONLY: cp_a_l,&
                                              cp_assert,&
                                              cp_assertion_failed,&
@@ -1037,11 +1038,11 @@ CONTAINS
 
 ! *****************************************************************************
 
-  SUBROUTINE init_gapw_basis_set(atomic_kind_set,gapw,globenv)
+  SUBROUTINE init_gapw_basis_set(atomic_kind_set,qs_control,globenv)
 
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
-    TYPE(gapw_control_type),  POINTER        :: gapw
+    TYPE(qs_control_type),  POINTER        :: qs_control 
     TYPE(global_environment_type), &
       INTENT(IN)                             :: globenv
 
@@ -1085,7 +1086,7 @@ CONTAINS
 
         paw_atom = .FALSE.
 
-        CALL create_soft_basis(orb_basis,atomic_kind%soft_basis_set,gapw,rc,paw_atom)
+        CALL create_soft_basis(orb_basis,atomic_kind%soft_basis_set,qs_control%gapw_control,rc,paw_atom)
         CALL set_atomic_kind(atomic_kind=atomic_kind,&
                              paw_atom=paw_atom)
 
@@ -1101,7 +1102,7 @@ CONTAINS
           CALL get_atomic_kind(atomic_kind=atomic_kind,&
                                paw_proj_set=paw_proj)
 
-          CALL projectors(paw_proj,orb_basis,rc,gapw,globenv)
+          CALL projectors(paw_proj,orb_basis,rc,qs_control,globenv)
 
          ENDIF
 

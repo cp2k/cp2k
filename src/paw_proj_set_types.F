@@ -24,16 +24,15 @@ MODULE paw_proj_set_types
 
   USE basis_set_types,                 ONLY: get_gto_basis_set,&
                                              gto_basis_set_type
-  USE cp_control_types,                ONLY: gapw_control_type
+  USE cp_control_types,                ONLY: gapw_control_type, qs_control_type
   USE global_types,                    ONLY: global_environment_type
   USE kinds,                           ONLY: default_string_length,&
-                                             dp,&
-                                             int_size
-  USE mathconstants,                   ONLY: dfac,pi,rootpi,oorootpi
+                                             dp
+  USE mathconstants,                   ONLY: dfac,pi,rootpi
   USE mathlib,                         ONLY: invert_matrix
   USE memory_utilities,                ONLY: reallocate
   USE orbital_transformation_matrices, ONLY: orbtramat
-  USE orbital_pointers,                ONLY: coset,&
+  USE orbital_pointers,                ONLY: &
                                              indco,nco,ncoset,nso,&
                                              nsoset, indso
   USE qs_util,                         ONLY: gauss_exponent,&
@@ -263,7 +262,7 @@ CONTAINS
 
 ! *****************************************************************************
 
-  SUBROUTINE projectors(paw_proj,orb_basis,rc,gapw,globenv)
+  SUBROUTINE projectors(paw_proj,orb_basis,rc,qs_control,globenv)
 
 !   Purpose: initialize the projector-type set data set.
 
@@ -271,9 +270,10 @@ CONTAINS
 
     TYPE(paw_proj_set_type),  POINTER         :: paw_proj
     TYPE(gto_basis_set_type), POINTER         :: orb_basis
-    TYPE(gapw_control_type),  POINTER         :: gapw
+    TYPE(qs_control_type), INTENT(IN)         :: qs_control
     TYPE(global_environment_type), INTENT(IN) :: globenv
     REAL(dp)                                  :: rc
+    REAL(dp)                                  :: eps_orb, max_rad_local
 
 !   *** Local parameters ***
 
@@ -285,17 +285,18 @@ CONTAINS
 
 !   ***************************************************************************
 
-    eps_fit=gapw%eps_fit
-    eps_iso=gapw%eps_iso
+    eps_fit =  qs_control%gapw_control%eps_fit
+    eps_iso =  qs_control%gapw_control%eps_iso
+    max_rad_local = qs_control%gapw_control%max_rad_local
+    eps_orb =  qs_control%eps_pgf_orb
 
-    CALL build_projector(paw_proj,orb_basis,eps_fit,eps_iso,rc,globenv)
+    CALL build_projector(paw_proj,orb_basis,eps_fit,eps_iso,rc,eps_orb,max_rad_local,globenv)
 
   END SUBROUTINE  projectors
 
 ! *****************************************************************************
 
-  SUBROUTINE build_projector(paw_proj,orb_basis,&
-                             eps_fit,eps_iso,rc,globenv)
+  SUBROUTINE build_projector(paw_proj,orb_basis,eps_fit,eps_iso,rc,eps_orb,max_rad_local,globenv)
 
 !   Purpose: initialize the projector-type set data set.
 
@@ -304,6 +305,7 @@ CONTAINS
     TYPE(gto_basis_set_type), POINTER :: orb_basis
     TYPE(paw_proj_set_type),  POINTER :: paw_proj
     REAL(dp), INTENT(IN)              :: eps_fit,eps_iso,rc
+    REAL(dp), INTENT(IN)              :: eps_orb, max_rad_local
     TYPE(global_environment_type), INTENT(IN) :: globenv
 
 
@@ -312,9 +314,9 @@ CONTAINS
     CHARACTER(LEN=default_string_length)   :: bsname
     INTEGER  :: icgf, icgfmin, icgfmax, ico, icomin, icomax, il, ip, ipgf, iprj, &
       iprjfirst, isgf, isgfmax, isgfmin, iset, ishell, istat, jp, kp, &
-      iso, is1, is2, lshell, lx, ly, lz, m, maxco, maxl,&
+      iso, lshell, lx, ly, lz, m, maxco, maxl,&
       maxnprj, maxpgf, maxso,  &
-      n, nc, ncgauprj, ncgf, nisop, np, npgfg, ns, nset, nsgf, output_unit
+      n, ncgauprj, ncgf, nisop, np, npgfg, ns, nset, nsgf, output_unit
     INTEGER, DIMENSION(:),    POINTER :: lmin,lmax,npgf,nshell
     INTEGER, DIMENSION(:,:),  POINTER :: first_cgf,first_sgf,last_cgf,last_sgf,l
     LOGICAL,  DIMENSION(:),&
@@ -324,13 +326,19 @@ CONTAINS
     REAL(dp), DIMENSION(:),   POINTER :: zet,zetp
     REAL(dp), DIMENSION(:,:), POINTER :: gcc,smat,work
     REAL(dp), DIMENSION(:,:), POINTER :: cphi,sphi
+    REAL(KIND=dp), DIMENSION(:), POINTER :: set_radius
+    REAL(KIND=dp), DIMENSION(:, :, :), &
+      POINTER                                :: gcca
 
-    INTEGER :: ic, iprjs, is, isomin, mc, ms, nsgauprj
+    REAL(dp), DIMENSION(:), POINTER :: ei, er,worka
+    REAL(dp), DIMENSION(:,:), POINTER :: aa, vl, vr
+    INTEGER :: lwork, info
+    INTEGER :: ic, iprjs, is, isomin, ms, nsgauprj, notprj
 
 !   ***************************************************************************
 
-    NULLIFY (first_cgf,first_sgf,last_cgf,last_sgf,gcc,l)
-    NULLIFY (cphi,sphi,lmax,lmin,npgf,nshell,zet,zetp,smat,work)
+    NULLIFY (first_cgf,first_sgf,last_cgf,last_sgf,gcc,l,set_radius)
+    NULLIFY (cphi,sphi,lmax,lmin,npgf,nshell,zet,zetp,smat,work,gcca)
 
 !   ***************************************************************************
 
@@ -340,7 +348,8 @@ CONTAINS
                            nshell=nshell,cphi=cphi,sphi=sphi,&
                            first_cgf=first_cgf,first_sgf=first_sgf,&
                            l=l,last_cgf=last_cgf,last_sgf=last_sgf,&
-                           maxco=maxco,maxso=maxso,maxl=maxl,maxpgf=maxpgf)
+                           maxco=maxco,maxso=maxso,maxl=maxl,maxpgf=maxpgf,&
+                           gcc=gcca)
 
     paw_proj%maxl = maxl
     CALL reallocate(paw_proj%zisomin,0,maxl)
@@ -353,13 +362,27 @@ CONTAINS
              "Projectors for the basis functions of"//TRIM(bsname)
     ENDIF
 
+    ALLOCATE(set_radius(nset),STAT=istat)
+    set_radius = 0.0_dp
+    DO iset = 1,nset
+      DO is = 1,nshell(iset)
+       set_radius(iset) = MAX(set_radius(iset), &
+            exp_radius(l(is,iset),orb_basis%zet(npgf(iset),iset),eps_orb,gcca(npgf(iset),is,iset)))
+!dbg
+! write(*,*) iset, l(is,iset),orb_basis%zet(npgf(iset),iset), gcca(npgf(iset),is,iset),set_radius(iset)
+!dbg
+      END DO  ! is
+    END DO  ! iset
+
 !   *** Determine the max # of projectors for an ang. mom. q.n. ***
     maxnprj = 0
     DO lshell = 0,maxl     ! lshell
       np = 0
       DO iset = 1,nset
         IF (lshell >= lmin(iset) .AND. lshell <= lmax(iset))THEN
-          np = np + npgf(iset)
+          IF(set_radius(iset)<max_rad_local) THEN
+            np = np + npgf(iset)
+          END IF
         ENDIF
       ENDDO
       maxnprj = MAX(maxnprj,np)
@@ -368,12 +391,12 @@ CONTAINS
 
     ENDDO                  ! lshell
 
-
+ 
 !   *** Allocate exponents and coefficients ***
     CALL reallocate(paw_proj%zetprj,1,maxnprj,0,maxl)
     CALL reallocate(paw_proj%gccprj,1,maxnprj,1,maxpgf,0,maxl,1,nset)
     CALL reallocate(paw_proj%rzetprj,1,maxnprj,0,maxl)
-    allocate(paw_proj%isoprj(maxnprj,0:maxl))
+    allocate(paw_proj%isoprj(maxnprj,0:maxl),STAT=istat)
     paw_proj%isoprj = .FALSE.
 
     NULLIFY(zet,zetp,gcc,smat,work)
@@ -382,7 +405,7 @@ CONTAINS
 
       np = paw_proj%nprj(lshell) 
 
-      ALLOCATE(isoprj(np))
+      ALLOCATE(isoprj(np),STAT=istat)
       isoprj = .FALSE.
       CALL reallocate(zet,1,np)
       CALL reallocate(zetp,1,np)
@@ -394,8 +417,12 @@ CONTAINS
 !     *** Collect all the exponent which contribute to lshell ***
       DO iset = 1,nset     ! iset
         IF (lshell >= lmin(iset) .AND. lshell <= lmax(iset))THEN
-          zet(npgfg+1:npgfg+npgf(iset)) = orb_basis%zet(1:npgf(iset),iset)
-          npgfg = npgfg + npgf(iset)
+          IF(set_radius(iset)<max_rad_local) THEN
+            zet(npgfg+1:npgfg+npgf(iset)) = orb_basis%zet(1:npgf(iset),iset)
+            npgfg = npgfg + npgf(iset)
+          ELSE
+            notprj =  notprj +  npgf(iset)
+          END IF
         ENDIF
       ENDDO                ! iset
 
@@ -412,11 +439,11 @@ CONTAINS
         END IF
       END DO
  !dbg
- !   WRITE(*,*) 'lshell ', lshell, ' zisomin ', paw_proj%zisomin(lshell), ' np ', np, 'niso ', nisop
- !   WRITE(*,*) 'basis exponents'
- !   DO ip = 1,np
- !   WRITE(*,*) 'exponent ', ip, zet(ip), ' iso =', isoprj(ip) 
- !   ENDDO 
+!    WRITE(*,*) 'lshell ', lshell, ' zisomin ', paw_proj%zisomin(lshell), ' np ', np, 'niso ', nisop
+!    WRITE(*,*) 'basis exponents'
+!    DO ip = 1,np
+!    WRITE(*,*) 'exponent ', ip, zet(ip), ' iso =', isoprj(ip) 
+!    ENDDO 
 ! dbg
 
 
@@ -453,10 +480,10 @@ CONTAINS
       ENDDO
 
  !dbg
- !   WRITE(*,*) 'proj exponents'
- !   DO ip = 1,np
- !   WRITE(*,*) 'exponent ', ip, zetp(ip), ' iso =', isoprj(ip) 
- !   ENDDO 
+!    WRITE(*,*) 'proj exponents'
+!    DO ip = 1,np
+!    WRITE(*,*) 'exponent ', ip, zetp(ip), ' iso =', isoprj(ip) 
+!    ENDDO 
 ! dbg
 
 !     *** Build the overlap matrix: <projector|primitive> ***
@@ -480,9 +507,27 @@ CONTAINS
 !    WRITE(*,'(i4,20(1PE12.4))') ip, (smat(ip,jp),jp = 1,np)
 !  END DO
 !dbg
+
+!      NULLIFY(aa,ei,er,vl,vr,worka)
+!      ALLOCATE(aa(np,np),er(np),ei(np),vr(np,np),vl(np,np),stat=istat)
+!      lwork = 3*np
+!      ALLOCATE(worka(lwork),STAT=istat)
+!      aa(1:np,1:np) = smat(1:np,1:np)
+!      ei =0.0_dp
+!      er =0.0_dp
+!      vl =0.0_dp
+!      vr =0.0_dp
+!      CALL DGEEV( "N","N", np, aa, np, er, ei, vl, np,vr,np,&
+!                 worka, lwork, info )
+!      DO ip = 1,np
+!      write(*,*) ip, er(ip), ei(ip)
+!      END DO
+!      DEALLOCATE(aa,er,ei,vr,vl,worka,STAT=istat)
+
 !     *** Compute inverse of the transpose ***
       CALL invert_matrix(smat,gcc,error,"T")
 
+ 
 !     *** Compute the orthogonality error ***
 
 !     *** Set the coefficient of the isolated projectors to 0 ***
@@ -500,9 +545,14 @@ CONTAINS
       npgfg = 0
       DO iset = 1,nset     ! iset
         IF (lshell >= lmin(iset) .AND. lshell <= lmax(iset))THEN
-          paw_proj%gccprj(1:np,1:npgf(iset),lshell,iset) = &
-               gcc(1:np,npgfg+1:npgfg+npgf(iset))
-          npgfg = npgfg + npgf(iset)
+          IF(set_radius(iset)<max_rad_local) THEN
+            paw_proj%gccprj(1:np,1:npgf(iset),lshell,iset) = &
+                 gcc(1:np,npgfg+1:npgfg+npgf(iset))
+            npgfg = npgfg + npgf(iset)
+          ELSE 
+            paw_proj%gccprj(1:np,1:npgf(iset),lshell,iset) = 0.0_dp
+            notprj =  notprj +  npgf(iset)
+          END IF
         ENDIF
       ENDDO                ! iset
 
@@ -540,6 +590,9 @@ CONTAINS
     DEALLOCATE(gcc,zet,zetp,smat,work,STAT=istat)
     IF (istat /= 0) CALL stop_memory(routine,module_name,__LINE__,&
                            "gcc,zet,zetp,smat,work")
+    DEALLOCATE(set_radius,STAT=istat)
+    IF (istat /= 0) CALL stop_memory(routine,module_name,__LINE__,&
+                           "set_radius")
 
 !   *** Count primitives basis functions for the projectors
     paw_proj%ncgauprj = 0

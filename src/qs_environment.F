@@ -40,6 +40,7 @@ MODULE qs_environment
   USE cp_control_types,                ONLY: dft_control_release,&
                                              dft_control_type,&
                                              gapw_control_type,&
+                                             qs_control_type,&
                                              semi_empirical_control_type
   USE cp_control_utils,                ONLY: read_dft_control,&
                                              read_mgrid_section,&
@@ -322,6 +323,7 @@ CONTAINS
     TYPE(distribution_1d_type), POINTER      :: local_molecules, &
                                                 local_particles
     TYPE(gapw_control_type), POINTER         :: gapw_control
+    TYPE(qs_control_type), POINTER           :: qs_control
     TYPE(localized_wfn_control_type), &
       POINTER                                :: localized_wfn_control
     TYPE(mo_set_p_type), DIMENSION(:), &
@@ -449,8 +451,9 @@ CONTAINS
 !   *** Initialise GAPW soft basis and projectors
 
     IF(dft_control%qs_control%method == "GAPW") THEN
+      qs_control => dft_control%qs_control
       gapw_control => dft_control%qs_control%gapw_control
-      CALL init_gapw_basis_set(atomic_kind_set,gapw_control,globenv)
+      CALL init_gapw_basis_set(atomic_kind_set,qs_control,globenv)
     ENDIF
 
 !   *** Initialize the pretabulation for the calculation of the   ***

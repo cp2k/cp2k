@@ -1018,6 +1018,7 @@ CONTAINS
     CALL section_vals_val_get(qs_section,"ALPHA0_SOFT",r_val=qs_control%gapw_control%alpha0_soft,error=error)
     qs_control%gapw_control%alpha0_soft_from_input = .FALSE.
     IF(qs_control%gapw_control%alpha0_soft/=0.0_dp) qs_control%gapw_control%alpha0_soft_from_input = .TRUE.
+    CALL section_vals_val_get(qs_section,"MAX_RAD_LOCAL",r_val=qs_control%gapw_control%max_rad_local,error=error)
 
     ! Logicals
     CALL section_vals_val_get(qs_section,"MAP_PAA",l_val=qs_control%map_paa,error=error)
@@ -1198,6 +1199,7 @@ CONTAINS
     qs_control%gapw_control%alpha0_soft_from_input = .FALSE.
     qs_control%gapw_control%alpha0_hard = 0.0_dp
     qs_control%gapw_control%alpha0_soft = 0.0_dp
+    qs_control%gapw_control%max_rad_local = 25.0_dp
 
 
     cutoff_set = .FALSE.
