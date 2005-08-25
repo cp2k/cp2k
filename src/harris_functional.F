@@ -78,7 +78,8 @@ MODULE harris_functional
   USE sparse_matrix_types,             ONLY: real_matrix_p_type, &
                                              !replicate_matrix, &
                                              cp_sm_sm_trace
-  USE timings,                         ONLY: timeset, timestop
+  USE timings,                         ONLY: timeset, &
+                                             timestop
   
  
   IMPLICIT NONE
@@ -117,6 +118,10 @@ CONTAINS
 !!     - harris_env: The harris environment in which all results are stored
 !!     - EII_necessary: Logical flag which indicates if EII has to be 
 !!                      computes or not
+!!     - globenv: The global environment which contains the initially parsed
+!!                file and the parallel environment.
+!!     - fast: Logical which prevents some minor double calculations if the
+!!             Harris functional is driven on top of the QS SCF-cycle.
 !!     - error: variable to control error logging, stopping,... 
 !!              see module cp_error_handling 
 !!
@@ -128,13 +133,14 @@ CONTAINS
 !!
 !!*** **********************************************************************
   SUBROUTINE harris_energy_correction(qs_env, harris_env, EII_necessary, &
-                                      globenv, error)
+                                      globenv, fast, error)
 
     TYPE(qs_environment_type), POINTER              :: qs_env
     TYPE(harris_energy_type), POINTER               :: harris_energy
     TYPE(harris_env_type), POINTER                  :: harris_env
     LOGICAL, INTENT(INOUT), OPTIONAL                :: EII_necessary
     TYPE(global_environment_type), POINTER          :: globenv
+    LOGICAL, INTENT(IN), OPTIONAL                   :: fast
     TYPE(cp_error_type), INTENT(INOUT), OPTIONAL    :: error
     TYPE(qs_rho_type), POINTER                      :: rho
     INTEGER                                         :: handle, &
@@ -152,7 +158,9 @@ CONTAINS
     !TYPE(cp_para_env_type), POINTER                 :: para_env
     !TYPE(real_matrix_p_type), DIMENSION(:), POINTER :: matrix_ks
     TYPE(dft_control_type), POINTER                 :: dft_control
-    LOGICAL                                         :: failure, my_EII_necessary
+    LOGICAL                                         :: failure, &
+                                                       my_EII_necessary, &
+                                                       fast_flag
 
     CHARACTER(len=*), PARAMETER :: routineN = 'harris_energy_correction', &
       routineP = moduleN//':'//routineN
@@ -172,6 +180,12 @@ CONTAINS
 
     my_EII_necessary = .TRUE.
     IF (PRESENT(EII_necessary)) my_EII_necessary=EII_necessary
+    
+    IF (PRESENT(fast)) THEN
+      fast_flag = fast
+    ELSE
+      fast_flag = .FALSE.
+    END IF
 
     IF (.NOT. failure) THEN
       CALL harris_env_get(harris_env=harris_env, harris_energy=harris_energy, error=error)
@@ -221,6 +235,8 @@ CONTAINS
       CALL qs_vxc_create(qs_env=qs_env, vxc_rho=v_rspace_new, &
                          vxc_tau = v_tau_rspace, exc=harris_energy%Exc, &
                          just_energy=.FALSE., error=error)
+      !CALL qs_vxc_create(qs_env=qs_env, vxc_rho=v_rspace_new, vxc_tau=v_tau_rspace, &
+      !                   exc=harris_energy%Exc, just_energy=.TRUE., error=error)
 
       ! ** Evaluate integral_vxc ** !
       !sum=0.0_dp
@@ -243,21 +259,33 @@ CONTAINS
 
       IF (ASSOCIATED(v_rspace_new)) THEN
         CALL pw_pool_give_back_coeff(auxbas_pw_pool,v_rspace_new(1),error=error)
+        DEALLOCATE(v_rspace_new,stat=stat)
+        CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
       END IF
       IF (ASSOCIATED(v_tau_rspace)) THEN
         CALL pw_pool_give_back_coeff(auxbas_pw_pool,v_tau_rspace(1),error=error)
+        DEALLOCATE(v_tau_rspace,stat=stat)
+        CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
       END IF
 
       IF (my_EII_necessary) THEN
-        !CALL get_qs_env(qs_env=qs_env, matrix_ks=matrix_ks, rho=rho, &
-        !                para_env=para_env, dft_control=dft_control, error=error)
-        !CALL calculate_ecore(h=matrix_ks(1)%matrix, p=rho%rho_ao(1)%matrix, &
-        !                     ecore=harris_energy%Ecore, para_env=para_env)
-        CALL get_qs_env(qs_env=qs_env, dft_control=dft_control, error=error)
-        CALL calculate_ecore_overlap(qs_env=qs_env, globenv=globenv, &
-                                     calculate_forces=dft_control%forces, &
-                                     E_overlap_core=harris_energy%Ecore_overlap)
-        CALL calculate_ecore_self(qs_env, E_self_core=harris_energy%Ecore_self)
+        IF (.NOT. fast_flag) THEN
+          qs_env%energy%core_overlap = 0.0_dp
+          qs_env%energy%core_self = 0.0_dp
+          !CALL get_qs_env(qs_env=qs_env, matrix_ks=matrix_ks, rho=rho, &
+          !                para_env=para_env, dft_control=dft_control, error=error)
+          !CALL calculate_ecore(h=matrix_ks(1)%matrix, p=rho%rho_ao(1)%matrix, &
+          !                     ecore=harris_energy%Ecore, para_env=para_env)
+          CALL get_qs_env(qs_env=qs_env, dft_control=dft_control, error=error)
+          CALL calculate_ecore_overlap(qs_env=qs_env, globenv=globenv, &
+                                       calculate_forces=dft_control%forces, &
+                                       !calculate_forces=.FALSE., &
+                                       E_overlap_core=harris_energy%Ecore_overlap)
+          CALL calculate_ecore_self(qs_env, E_self_core=harris_energy%Ecore_self)
+        ELSE
+          harris_energy%Ecore_overlap = qs_env%energy%core_overlap
+          harris_energy%Ecore_self = qs_env%energy%core_self
+        END IF
 
         harris_energy%EII = harris_energy%Ecore_overlap + harris_energy%Ecore_self + &
                             harris_energy%Ehartree_core
@@ -268,15 +296,15 @@ CONTAINS
                                          - harris_energy%integral_vxc &
                                          + harris_energy%Exc + harris_energy%EII
 
-      IF (ASSOCIATED(v_rspace_new)) THEN
-        DEALLOCATE(v_rspace_new,stat=stat)
-        CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
-      END IF
-      
-      IF (ASSOCIATED(v_tau_rspace)) THEN
-        DEALLOCATE(v_tau_rspace,stat=stat)
-        CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
-      END IF
+      !IF (ASSOCIATED(v_rspace_new)) THEN
+      !  DEALLOCATE(v_rspace_new,stat=stat)
+      !  CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+      !END IF
+      !
+      !IF (ASSOCIATED(v_tau_rspace)) THEN
+      !  DEALLOCATE(v_tau_rspace,stat=stat)
+      !  CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+      !END IF
 
     END IF
 

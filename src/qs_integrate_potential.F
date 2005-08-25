@@ -491,7 +491,7 @@ CONTAINS
       CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,&
                                atom_of_kind=atom_of_kind)
     END IF
-    
+
     map_consistent=dft_control%qs_control%map_consistent
     IF (map_consistent) THEN
       eps_gvg_rspace = dft_control%qs_control%eps_rho_rspace ! needs to be consistent with rho_rspace

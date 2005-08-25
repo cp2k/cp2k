@@ -30,6 +30,8 @@ MODULE qs_energy_types
 
   PRIVATE
 
+  CHARACTER(len=*), PARAMETER :: moduleN = 'qs_energy_types'
+
   TYPE qs_energy_type
     REAL(KIND = dp) :: core,&
                 core_overlap,&
@@ -55,7 +57,9 @@ MODULE qs_energy_types
 
   PUBLIC :: allocate_qs_energy,&
             deallocate_qs_energy,&
-            init_qs_energy
+            init_qs_energy,&
+            duplicate_qs_energy,&
+            copy_qs_energy
 
 !!***
 ! *****************************************************************************
@@ -157,6 +161,105 @@ CONTAINS
     END IF
 
   END SUBROUTINE init_qs_energy
+
+! *****************************************************************************
+
+!!****f* qs_energy_types/duplicate_qs_energy [1.0] *
+!!
+!!   NAME
+!!     duplicate_qs_energy
+!!
+!!   FUNCTION
+!!     Creates a physical duplicate of an qs_energy_type instance.
+!!
+!!   NOTES
+!!     -
+!!
+!!   INPUTS
+!!     - qs_energy_in: The qs_energy_type variable to be duplicated.
+!!     - qs_energy_out: The allocated and copied output variable.
+!!
+!!   AUTHOR
+!!     Thomas D. Kuehne (tkuehne@phys.chem.ethz.ch)
+!!
+!!   MODIFICATION HISTORY
+!!     08.2005 initial create [tdk]
+!!
+!!*** **********************************************************************
+  SUBROUTINE duplicate_qs_energy(qs_energy_in, qs_energy_out)
+
+    TYPE(qs_energy_type), POINTER                   :: qs_energy_in, &
+                                                       qs_energy_out
+
+!   ------------------------------------------------------------------------
+
+    IF (ASSOCIATED(qs_energy_out)) THEN
+      CALL deallocate_qs_energy(qs_energy_out)
+    ELSE
+      NULLIFY(qs_energy_out)
+    END IF
+
+    CALL allocate_qs_energy(qs_energy_out)
+
+    CALL copy_qs_energy(qs_energy_in, qs_energy_out)
+    
+  END SUBROUTINE duplicate_qs_energy
+
+! *****************************************************************************
+
+!!****f* qs_energy_types/copy_qs_energy [1.0] *
+!!
+!!   NAME
+!!     copy_qs_energy
+!!
+!!   FUNCTION
+!!     Copies the whole content of a qs_energy_type variable.
+!!
+!!   NOTES
+!!     -
+!!
+!!   INPUTS
+!!     - qs_energy_in: The qs_energy_type varibale to be copied.
+!!     - qs_energy_out: The output variable which contains the 
+!!                      same data as the original.
+!!
+!!   AUTHOR
+!!     Thomas D. Kuehne (tkuehne@phys.chem.ethz.ch)
+!!
+!!   MODIFICATION HISTORY
+!!     08.2005 initial create [tdk]
+!!
+!!*** **********************************************************************
+  SUBROUTINE copy_qs_energy(qs_energy_in, qs_energy_out)
+
+    TYPE(qs_energy_type), POINTER                   :: qs_energy_in, &
+                                                       qs_energy_out
+
+    CHARACTER(LEN=*), PARAMETER :: &
+      routine = "SUBROUTINE copy_qs_energy (MODULE qs_energy_types)"
+
+!   ------------------------------------------------------------------------
+
+    IF (ASSOCIATED(qs_energy_in) .AND. ASSOCIATED(qs_energy_out)) THEN
+      qs_energy_out%core            = qs_energy_in%core
+      qs_energy_out%core_overlap    = qs_energy_in%core_overlap
+      qs_energy_out%core_self       = qs_energy_in%core_self
+      qs_energy_out%qmmm_el         = qs_energy_in%qmmm_el
+      qs_energy_out%qmmm_nu         = qs_energy_in%qmmm_nu
+      qs_energy_out%exc             = qs_energy_in%exc
+      qs_energy_out%exc1            = qs_energy_in%exc1
+      qs_energy_out%hartree         = qs_energy_in%hartree
+      qs_energy_out%hartree_1c      = qs_energy_in%hartree_1c
+      qs_energy_out%hartree_2c      = qs_energy_in%hartree_2c
+      qs_energy_out%hartree_3c      = qs_energy_in%hartree_3c
+      qs_energy_out%kg_gpw_ekin_mol = qs_energy_in%kg_gpw_ekin_mol
+      qs_energy_out%mulliken        = qs_energy_in%mulliken
+      qs_energy_out%total           = qs_energy_in%total
+    ELSE
+      CALL stop_program(routine,"The qs_energy pointer is not associated ")
+    END IF
+
+  END SUBROUTINE copy_qs_energy
 
 ! *****************************************************************************
 

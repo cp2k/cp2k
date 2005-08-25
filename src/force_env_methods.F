@@ -136,6 +136,9 @@ CONTAINS
 !!     - force_env: the force_env of which you want the energy and forces
 !!     - calc_force: if false the forces *might* be left unchanged
 !!       or be unvalid, no guarantee on them is done.Defaults to true
+!!     - consistent_energies: Performs an additional qs_ks_update_qs_env, so 
+!!         that the energies are appropriate to the forces, they are in the
+!!         non-selfconsistent case not consistent to each other! [08.2005, TdK]
 !!
 !!   AUTHOR
 !!     CJM & fawzi
@@ -144,18 +147,19 @@ CONTAINS
 !******************************************************************************
 
 RECURSIVE SUBROUTINE force_env_calc_energy_force ( force_env, &
-     calc_force, error)
+     calc_force, consistent_energies, error)
 
     TYPE(force_env_type), POINTER            :: force_env
-    LOGICAL, INTENT(IN), OPTIONAL            :: calc_force
+    LOGICAL, INTENT(IN), OPTIONAL            :: calc_force, &
+                                                consistent_energies
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'force_env_calc_energy_force', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure, my_box_change,&
-         need_f
+    LOGICAL                                  :: failure, my_box_change, &
+                                                need_f, energy_consistency
     INTEGER                                  :: i
 
 !------------------------------------------------------------------------------
@@ -163,6 +167,11 @@ RECURSIVE SUBROUTINE force_env_calc_energy_force ( force_env, &
   failure=.FALSE.
   need_f=.TRUE.
   IF (PRESENT(calc_force)) need_f=calc_force
+  IF (PRESENT(consistent_energies)) THEN
+    energy_consistency = consistent_energies
+  ELSE
+    energy_consistency = .FALSE.
+  END IF
 
   CPPrecondition(ASSOCIATED(force_env),cp_failure_level,routineP,error,failure)
   IF (.NOT.failure) THEN
@@ -177,7 +186,7 @@ RECURSIVE SUBROUTINE force_env_calc_energy_force ( force_env, &
                                  force_env%globenv, my_box_change, error=error)
      CASE ( use_qs_force )
         IF (.NOT.need_f) THEN
-           CALL qs_energies(force_env%qs_env,force_env%globenv)
+           CALL qs_energies(force_env%qs_env,force_env%globenv, energy_consistency)
         ELSE
            CALL qs_forces(force_env%qs_env,force_env%globenv)
         END IF
@@ -197,9 +206,9 @@ RECURSIVE SUBROUTINE force_env_calc_energy_force ( force_env, &
         CPPrecondition(ASSOCIATED(force_env%force_env_list),cp_failure_level, routineP,error,failure)
         IF (.NOT.failure) THEN
            DO i = 1, SIZE (force_env%force_env_list)
-              CPPrecondition(ASSOCIATED(force_env%force_env_list(i)%force_env), cp_failure_level,routineP,error,failure)
-              CALL force_env_calc_energy_force( &
-                   force_env%force_env_list(i)%force_env, need_f,error)
+              CPPrecondition(ASSOCIATED(force_env%force_env_list(i)%force_env),cp_failure_level,routineP,error,failure)
+              CALL force_env_calc_energy_force(force_env%force_env_list(i)%force_env, &
+                                               calc_force=need_f, error=error)
            END DO
         END IF
      CASE default

@@ -773,7 +773,7 @@ CONTAINS
        IF (harris_flag) THEN
          CALL harris_energy_correction(qs_env, harris_env, &
                                        EII_necessary=EII_necessary, &
-                                       globenv=globenv, error=error)
+                                       globenv=globenv, fast=.TRUE., error=error)
          CALL harris_eigenvalue_trace_KS_Pmix(scf_env, qs_env, harris_env, error=error)
        END IF
 
@@ -794,7 +794,6 @@ CONTAINS
 
        IF (harris_flag) THEN
           CALL harris_postprocessing(harris_env, error=error)
-          !energy%total = harris_env%harris_energy%Eharris
        END IF
 
 ! ** convergence check
@@ -920,6 +919,10 @@ CONTAINS
             "Total energy:                                  ",energy%total
        END IF
        CALL m_flush(output_unit)
+    END IF
+
+    IF (harris_flag) THEN
+      energy%total = harris_env%harris_energy%Eharris
     END IF
 
 !   *** Write restart file ***

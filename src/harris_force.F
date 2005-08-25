@@ -55,6 +55,7 @@ MODULE harris_force
   USE harris_force_types,              ONLY: harris_force_type
   USE hartree,                         ONLY: calculate_hartree
   USE kinds,                           ONLY: dp
+  USE message_passing,                 ONLY: mp_sum
   USE particle_types,                  ONLY: particle_type
   USE pw_env_types,                    ONLY: pw_env_type, &
                                              pw_env_get
@@ -128,6 +129,7 @@ CONTAINS
 !!     - harris_force: The harris force type in which all necessary informations 
 !!                     are stored
 !!     - globenv: The global environment from which the para_env is extracted
+!!     - fast: Suppress some double calculations among the Harris force terms.
 !!     - error: variable to control error logging, stopping,... 
 !!              see module cp_error_handling 
 !!
@@ -138,11 +140,12 @@ CONTAINS
 !!     06.2005 initial create [tdk]
 !!
 !!*** **********************************************************************
-  SUBROUTINE harris_force_correction(qs_env, harris_env, globenv, error)
+  SUBROUTINE harris_force_correction(qs_env, harris_env, globenv, fast, error)
 
     TYPE(qs_environment_type), POINTER              :: qs_env
     TYPE(harris_force_type),  POINTER               :: harris_force
     TYPE(global_environment_type), POINTER          :: globenv
+    LOGICAL, INTENT(IN), OPTIONAL                   :: fast
     TYPE(cp_error_type), INTENT(INOUT), OPTIONAL    :: error
     TYPE(harris_env_type), POINTER                  :: harris_env
     TYPE(qs_force_type), DIMENSION(:), POINTER      :: force, &
@@ -184,7 +187,8 @@ CONTAINS
     TYPE(pw_p_type), DIMENSION(:), POINTER          :: my_rho_r, &
                                                        v_xc
     TYPE(coeff_type), DIMENSION(:), POINTER         :: rho_r
-    LOGICAL                                         :: failure
+    LOGICAL                                         :: failure, &
+                                                       fast_flag
 
     CHARACTER(len=*), PARAMETER :: routineN = 'harris_force_correction', &
       routineP = moduleN//':'//routineN
@@ -201,6 +205,12 @@ CONTAINS
             atomic_kind_set, particle_set, deriv_set, rho_set, my_rho_r, &
             v_xc, matrix_h, harris_force, rho_r)
     logger => cp_error_get_logger(error)
+
+    IF (PRESENT(fast)) THEN
+      fast_flag = fast
+    ELSE
+      fast_flag = .FALSE.
+    END IF
 
     CPPrecondition(ASSOCIATED(qs_env), cp_failure_level, routineP, error, failure)
     CPPrecondition(qs_env%ref_count>0, cp_failure_level, routineP, error, failure)
@@ -240,6 +250,13 @@ CONTAINS
                                          calculate_forces=.TRUE., harris=.FALSE.)
       !CALL build_core_hamiltonian_matrix(qs_env=qs_env, globenv=globenv, &
       !                                   calculate_forces=.TRUE., harris=.TRUE.)
+
+      DO ikind = 1,SIZE(force)
+        CALL mp_sum(force(ikind)%kinetic, globenv%group)
+        CALL mp_sum(force(ikind)%overlap, globenv%group)
+        CALL mp_sum(force(ikind)%gth_ppl, globenv%group)
+        CALL mp_sum(force(ikind)%gth_ppnl, globenv%group)
+      END DO
 
       DO iatom = 1, natom
         ikind = kind_of(iatom)
@@ -294,6 +311,10 @@ CONTAINS
       !                        h=matrix_ks(1), qs_env=qs_env, calculate_forces=.TRUE., &
       !                        gapw=.FALSE.,error=error)
 
+      DO ikind = 1,SIZE(force)
+        CALL mp_sum(force(ikind)%rho_elec, globenv%group)
+      END DO
+
       DO iatom = 1, natom
         ikind = kind_of(iatom)
         i = atom_of_kind(iatom)
@@ -318,6 +339,10 @@ CONTAINS
       !                        h=matrix_ks(1), qs_env=qs_env, calculate_forces=.TRUE., &
       !                        gapw=.FALSE.,error=error)
 
+      DO ikind = 1,SIZE(force)
+        CALL mp_sum(force(ikind)%rho_elec, globenv%group)
+      END DO
+
       DO iatom = 1, natom
         ikind = kind_of(iatom)
         i = atom_of_kind(iatom)
@@ -336,6 +361,10 @@ CONTAINS
       CALL coeff_scale(v_hartree_rspace, v_hartree_rspace%pw%pw_grid%dvol)
 
       CALL integrate_v_core_rspace(v_hartree_rspace, qs_env)
+
+      DO ikind = 1,SIZE(force)
+        CALL mp_sum(force(ikind)%rho_core, globenv%group)
+      END DO
       
       DO iatom = 1, natom
         ikind = kind_of(iatom)
@@ -363,6 +392,10 @@ CONTAINS
                                    error=error)
       CALL pw_pool_give_back_coeff(auxbas_pw_pool, v_hartree_rspace, error=error)
 
+      DO ikind = 1,SIZE(force)
+        CALL mp_sum(force(ikind)%rho_elec, globenv%group)
+      END DO
+
       DO iatom = 1, natom
         ikind = kind_of(iatom)
         i = atom_of_kind(iatom)
@@ -376,10 +409,16 @@ CONTAINS
       ! *** Calculation of the forces of the xc-integral *** !
       CALL qs_vxc_create(qs_env=qs_env, vxc_rho=v_rspace_new, vxc_tau=v_tau_rspace, &
                          exc=Exc, just_energy=.FALSE., harris=.FALSE., error=error)
+      !CALL qs_vxc_create(qs_env=qs_env, vxc_rho=v_rspace_new, vxc_tau=v_tau_rspace, &
+      !                   exc=Exc, just_energy=.FALSE., harris=.TRUE., error=error)
       CALL coeff_scale(v_rspace_new(1), v_rspace_new(1)%pw%pw_grid%dvol)
       CALL integrate_v_rspace(v_rspace=v_rspace_new(1), p=rho%rho_ao(1), &
                               h=matrix_ks(1), qs_env=qs_env, calculate_forces=.TRUE., &
                               gapw=.FALSE., error=error)
+
+      DO ikind = 1,SIZE(force)
+        CALL mp_sum(force(ikind)%rho_elec, globenv%group)
+      END DO
 
       DO iatom = 1, natom
         ikind = kind_of(iatom)
@@ -391,7 +430,7 @@ CONTAINS
 
       CALL get_qs_env(qs_env=qs_env, dft_control=dft_control, cell=cell, error=error)
 
-      CALL qs_rho_get(rho, rho_r=rho_r, error=error)
+      CALL qs_rho_get(rho_struct=rho, rho_r=rho_r, error=error)
       ALLOCATE(my_rho_r(SIZE(rho_r)), stat=stat)
       CPPostcondition(stat==0, cp_failure_level, routineP, error, failure)
       DO ispin=1, SIZE(rho_r)
@@ -444,6 +483,10 @@ CONTAINS
         DEALLOCATE(v_tau_rspace,stat=stat)
         CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
       END IF
+
+      DO ikind = 1,SIZE(force)
+        CALL mp_sum(force(ikind)%rho_elec, globenv%group)
+      END DO
 
       DO iatom = 1, natom
         ikind = kind_of(iatom)
@@ -537,6 +580,10 @@ CONTAINS
       !                        gapw=.FALSE.,error=error)
       CALL integrate_v_core_rspace(v_hartree_rspace, qs_env)
       !CALL pw_pool_give_back_coeff(auxbas_pw_pool, v_hartree_rspace, error=error)
+
+      DO ikind = 1,SIZE(force)
+        CALL mp_sum(force(ikind)%rho_core, globenv%group)
+      END DO
       
       DO iatom = 1, natom
         ikind = kind_of(iatom)
@@ -593,6 +640,10 @@ CONTAINS
                               gapw=.FALSE.,error=error)
       CALL pw_pool_give_back_coeff(auxbas_pw_pool, v_hartree_rspace, error=error)
 
+      DO ikind = 1,SIZE(force)
+        CALL mp_sum(force(ikind)%rho_elec, globenv%group)
+      END DO
+
       DO iatom = 1, natom
         ikind = kind_of(iatom)
         i = atom_of_kind(iatom)
@@ -603,15 +654,19 @@ CONTAINS
 
 
       ! *** The forces due to exchange and correlation *** !
-      !CALL qs_vxc_create(qs_env=qs_env, vxc_rho=v_rspace_new, vxc_tau=v_tau_rspace, &
-      !                   exc=Exc, just_energy=.FALSE., harris=.FALSE., error=error)
       CALL qs_vxc_create(qs_env=qs_env, vxc_rho=v_rspace_new, vxc_tau=v_tau_rspace, &
-                         exc=Exc, just_energy=.FALSE., harris=.TRUE., error=error)
+                         exc=Exc, just_energy=.FALSE., harris=.FALSE., error=error)
+      !CALL qs_vxc_create(qs_env=qs_env, vxc_rho=v_rspace_new, vxc_tau=v_tau_rspace, &
+      !                   exc=Exc, just_energy=.FALSE., harris=.TRUE., error=error)
      
       CALL coeff_scale(v_rspace_new(1), v_rspace_new(1)%pw%pw_grid%dvol)
       CALL integrate_v_rspace(v_rspace=v_rspace_new(1), p=rho%rho_ao(1), &
                               h=matrix_ks(1), qs_env=qs_env, calculate_forces=.TRUE., &
                               gapw=.FALSE., error=error)
+
+      DO ikind = 1,SIZE(force)
+        CALL mp_sum(force(ikind)%rho_elec, globenv%group)
+      END DO
 
       DO iatom = 1, natom
         ikind = kind_of(iatom)
@@ -688,12 +743,20 @@ CONTAINS
         CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
       END IF
 
+      DO ikind = 1,SIZE(force)
+        CALL mp_sum(force(ikind)%rho_elec, globenv%group)
+      END DO
+
       DO iatom = 1, natom
         ikind = kind_of(iatom)
         i = atom_of_kind(iatom)
         harris_force%f_delta_integral_vxc(iatom, 1:3) = force(ikind)%rho_elec(1:3,i)
-        harris_force%f_integral_vxc(iatom, 1:3) = harris_force%f_xc(iatom,1:3) &
-             + harris_force%f_delta_integral_vxc(iatom,1:3)
+        IF (fast_flag) THEN
+          harris_force%f_integral_vxc(iatom, 1:3) = harris_force%f_delta_integral_vxc(iatom,1:3)
+        ELSE
+          harris_force%f_integral_vxc(iatom, 1:3) = harris_force%f_xc(iatom,1:3) &
+               + harris_force%f_delta_integral_vxc(iatom,1:3)
+        END IF
       END DO
 
       !CALL zero_qs_force(force)
@@ -726,6 +789,10 @@ CONTAINS
       CALL get_qs_env(qs_env=qs_env, force=force, error=error)
       harris_force%f_total(:) = 0.0_dp
 
+      DO ikind = 1,SIZE(force)
+        CALL mp_sum(force(ikind)%core_overlap, globenv%group)
+      END DO
+
       DO iatom = 1, natom
         ikind = kind_of(iatom)
         i = atom_of_kind(iatom)
@@ -735,11 +802,18 @@ CONTAINS
         harris_force%f_EII(iatom, 1:3) = harris_force%f_ovrl(iatom, 1:3) &
                                        + harris_force%f_self(iatom, 1:3) &
                                        + harris_force%f_rho_core(iatom, 1:3)
-        harris_force%f_harris(iatom, 1:3) = harris_force%f_trace(iatom, 1:3) &
-                                          - harris_force%f_hartree(iatom, 1:3) &
-                                          - harris_force%f_integral_vxc(iatom, 1:3) &
-                                          + harris_force%f_xc(iatom, 1:3) &
-                                          + harris_force%f_EII(iatom, 1:3)
+        IF (fast_flag) THEN
+          harris_force%f_harris(iatom, 1:3) = harris_force%f_trace(iatom, 1:3) &
+                                            - harris_force%f_hartree(iatom, 1:3) &
+                                            - harris_force%f_integral_vxc(iatom, 1:3) &
+                                            + harris_force%f_EII(iatom, 1:3)
+        ELSE
+          harris_force%f_harris(iatom, 1:3) = harris_force%f_trace(iatom, 1:3) &
+                                            - harris_force%f_hartree(iatom, 1:3) &
+                                            - harris_force%f_integral_vxc(iatom, 1:3) &
+                                            + harris_force%f_xc(iatom, 1:3) &
+                                            + harris_force%f_EII(iatom, 1:3)
+        END IF
         harris_force%f_total(1:3) = harris_force%f_total(1:3) &
                                   + harris_force%f_harris(iatom, 1:3)
       END DO

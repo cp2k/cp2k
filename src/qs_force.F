@@ -140,6 +140,11 @@ CONTAINS
     NULLIFY (matrix_w)
     NULLIFY (rho)
     NULLIFY (harris_env)
+    NULLIFY (harris_section)
+
+    harris_section => section_vals_get_subs_vals(globenv%input_file, &
+                                                 "FORCE_EVAL%DFT%QS%HARRIS")
+    CALL section_vals_val_get(harris_section, "ACTIVATE", l_val=harris_flag)
 
     CALL get_qs_env(qs_env=qs_env,&
                     atomic_kind_set=atomic_kind_set,&
@@ -217,82 +222,82 @@ CONTAINS
     ENDIF
     CALL set_qs_env(qs_env=qs_env,matrix_w=matrix_w)
 
+    IF (.NOT. harris_flag) THEN
+
 !   *** compute core forces (also overwrites matrix_w) ***
-    IF (dft_control%qs_control%semi_empirical) THEN
-      CALL build_se_core_matrix(qs_env=qs_env,globenv=globenv,&
-                                calculate_forces=.TRUE.)
-    ELSE
-      CALL build_core_hamiltonian_matrix(qs_env=qs_env,&
-                                         globenv=globenv,&
-                                         calculate_forces=.TRUE.)
-    END IF
+      IF (dft_control%qs_control%semi_empirical) THEN
+        CALL build_se_core_matrix(qs_env=qs_env,globenv=globenv,&
+                                  calculate_forces=.TRUE.)
+      ELSE
+        CALL build_core_hamiltonian_matrix(qs_env=qs_env,&
+                                           globenv=globenv,&
+                                           calculate_forces=.TRUE.)
+      END IF
 
 
 !   *** compute grid-based forces ***
-    CALL qs_ks_update_qs_env(ks_env=ks_env,&
-                             qs_env=qs_env,&
-                             calculate_forces=.TRUE.)
+      CALL qs_ks_update_qs_env(ks_env=ks_env,&
+                               qs_env=qs_env,&
+                               calculate_forces=.TRUE.)
 
 !   *** distribute forces ***
-    DO ikind=1,SIZE(force)
-      CALL mp_sum(force(ikind)%overlap,globenv%group)
-      CALL mp_sum(force(ikind)%kinetic,globenv%group)
-      CALL mp_sum(force(ikind)%gth_ppl,globenv%group)
-      CALL mp_sum(force(ikind)%gth_ppnl,globenv%group)
-      CALL mp_sum(force(ikind)%all_potential,globenv%group)
-      CALL mp_sum(force(ikind)%core_overlap,globenv%group)
-      CALL mp_sum(force(ikind)%rho_core,globenv%group)
-      CALL mp_sum(force(ikind)%rho_elec,globenv%group)
-      CALL mp_sum(force(ikind)%vhxc_atom,globenv%group)
-      CALL mp_sum(force(ikind)%g0s_Vh_elec,globenv%group)
-      CALL mp_sum(force(ikind)%hartree_2c,globenv%group)
-      CALL mp_sum(force(ikind)%hartree_3c,globenv%group)
-      force(ikind)%total(:,:) = force(ikind)%total(:,:) +&
-                                force(ikind)%core_overlap(:,:) +&
-                                force(ikind)%gth_ppl(:,:) +&
-                                force(ikind)%gth_ppnl(:,:) +&
-                                force(ikind)%all_potential(:,:) +&
-                                force(ikind)%kinetic(:,:) +&
-                                force(ikind)%overlap(:,:) +&
-                                force(ikind)%rho_core(:,:) +&
-                                force(ikind)%rho_elec(:,:) +&
-                                force(ikind)%vhxc_atom(:,:) +&
-                                force(ikind)%g0s_Vh_elec(:,:) +&
-                                force(ikind)%hartree_2c(:,:) +&
-                                force(ikind)%hartree_3c(:,:)
-    END DO
+      DO ikind=1,SIZE(force)
+        CALL mp_sum(force(ikind)%overlap,globenv%group)
+        CALL mp_sum(force(ikind)%kinetic,globenv%group)
+        CALL mp_sum(force(ikind)%gth_ppl,globenv%group)
+        CALL mp_sum(force(ikind)%gth_ppnl,globenv%group)
+        CALL mp_sum(force(ikind)%all_potential,globenv%group)
+        CALL mp_sum(force(ikind)%core_overlap,globenv%group)
+        CALL mp_sum(force(ikind)%rho_core,globenv%group)
+        CALL mp_sum(force(ikind)%rho_elec,globenv%group)
+        CALL mp_sum(force(ikind)%vhxc_atom,globenv%group)
+        CALL mp_sum(force(ikind)%g0s_Vh_elec,globenv%group)
+        CALL mp_sum(force(ikind)%hartree_2c,globenv%group)
+        CALL mp_sum(force(ikind)%hartree_3c,globenv%group)
+        force(ikind)%total(:,:) = force(ikind)%total(:,:) +&
+                                  force(ikind)%core_overlap(:,:) +&
+                                  force(ikind)%gth_ppl(:,:) +&
+                                  force(ikind)%gth_ppnl(:,:) +&
+                                  force(ikind)%all_potential(:,:) +&
+                                  force(ikind)%kinetic(:,:) +&
+                                  force(ikind)%overlap(:,:) +&
+                                  force(ikind)%rho_core(:,:) +&
+                                  force(ikind)%rho_elec(:,:) +&
+                                  force(ikind)%vhxc_atom(:,:) +&
+                                  force(ikind)%g0s_Vh_elec(:,:) +&
+                                  force(ikind)%hartree_2c(:,:) +&
+                                  force(ikind)%hartree_3c(:,:)
+      END DO
 
-    DO iatom=1,natom
-      ikind = kind_of(iatom)
-      i = atom_of_kind(iatom)
-      ! XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
-      ! the force is - dE/dR, what is called force is actually the gradient
-      ! Things should have the right name
-      ! The minus sign below is a hack
-      ! XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
-      force(ikind)%other(1:3,i)=-particle_set(iatom)%f(1:3)
-      force(ikind)%total(1:3,i)=force(ikind)%total(1:3,i)+force(ikind)%other(1:3,i)
-      particle_set(iatom)%f = -force(ikind)%total(1:3,i)
-    END DO
+      DO iatom=1,natom
+        ikind = kind_of(iatom)
+        i = atom_of_kind(iatom)
+        ! XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+        ! the force is - dE/dR, what is called force is actually the gradient
+        ! Things should have the right name
+        ! The minus sign below is a hack
+        ! XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+        force(ikind)%other(1:3,i)=-particle_set(iatom)%f(1:3)
+        force(ikind)%total(1:3,i)=force(ikind)%total(1:3,i)+force(ikind)%other(1:3,i)
+        particle_set(iatom)%f = -force(ikind)%total(1:3,i)
+      END DO
 
-    IF(dft_control%qs_control%semi_empirical .AND. obasis) THEN
-      CALL write_forces(force,atomic_kind_set,2,globenv)
-    ELSEIF(gapw) THEN
-      CALL write_forces(force,atomic_kind_set,1,globenv)
+      IF(dft_control%qs_control%semi_empirical .AND. obasis) THEN
+        CALL write_forces(force,atomic_kind_set,2,globenv)
+      ELSEIF(gapw) THEN
+        CALL write_forces(force,atomic_kind_set,1,globenv)
+      ELSE
+        CALL write_forces(force,atomic_kind_set,0,globenv)
+      END IF
+
     ELSE
-      CALL write_forces(force,atomic_kind_set,0,globenv)
-    END IF
-
-    harris_section => section_vals_get_subs_vals(globenv%input_file, &
-                                                 "FORCE_EVAL%DFT%QS%HARRIS")
-    CALL section_vals_val_get(harris_section, "ACTIVATE", l_val=harris_flag)
-
-    IF (harris_flag) THEN
+      !IF (harris_flag) THEN
       CALL get_qs_env(qs_env=qs_env, harris_env=harris_env)
-      CALL harris_force_correction(qs_env, harris_env, globenv)
+      CALL harris_force_correction(qs_env=qs_env, harris_env=harris_env, &
+                                   globenv=globenv, fast=.TRUE.)
       DO iatom = 1,natom
         i = atom_of_kind(iatom)
-        particle_set(1)%f = harris_env%harris_force%f_harris(iatom, 1:3)
+        particle_set(iatom)%f = -harris_env%harris_force%f_harris(iatom, 1:3)
       END DO
     END IF
 

@@ -25,12 +25,13 @@ MODULE qs_energy
   USE global_types,                    ONLY: global_environment_type
   USE kinds,                           ONLY: dp
   USE qs_core_hamiltonian,             ONLY: build_core_hamiltonian_matrix
-  USE qs_semi_empirical_hamiltonian,   ONLY: build_se_core_matrix
   USE qs_environment_methods,          ONLY: qs_env_update_s_mstruct
   USE qs_environment_types,            ONLY: qs_environment_type,&
                                              get_qs_env
+  USE qs_ks_methods,                   ONLY: qs_ks_update_qs_env
   USE qs_neighbor_lists,               ONLY: build_qs_neighbor_lists
   USE qs_scf,                          ONLY: scf
+  USE qs_semi_empirical_hamiltonian,   ONLY: build_se_core_matrix
   USE timings,                         ONLY: timeset,&
                                              timestop
   USE xas_methods,                     ONLY: xas
@@ -52,16 +53,18 @@ CONTAINS
 
 ! *****************************************************************************
 
-  SUBROUTINE qs_energies (qs_env, globenv )
+  SUBROUTINE qs_energies (qs_env, globenv, consistent_energies)
 
 !   Purpose: QUICKSTEP single point wavefunction optimization.
 
 !   History: - Creation (29.10.2002,MK)
+!            - consistent_energies option added (25.08.2005, TdK)
 
 !   ***************************************************************************
 
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(global_environment_type), POINTER   :: globenv
+    LOGICAL, INTENT(IN), OPTIONAL            :: consistent_energies
 
     CHARACTER(LEN=*), PARAMETER :: routine_name = "qs_energies", &
       routine = "SUBROUTINE "//routine_name//" (MODULE "//module_name//")"
@@ -95,6 +98,15 @@ CONTAINS
 
     ! *** Perform a SCF run ***
     CALL scf(qs_env,globenv)
+
+    IF (PRESENT(consistent_energies)) THEN
+      IF (consistent_energies) THEN
+        CALL qs_ks_update_qs_env(ks_env=qs_env%ks_env, &
+                                qs_env=qs_env, &
+                                calculate_forces=.FALSE., &
+                                just_energy=.TRUE.)
+      END IF
+    END IF
 
     !Properties
     right_iteration_level = .TRUE.
