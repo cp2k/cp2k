@@ -209,7 +209,7 @@ CONTAINS
 !!       see module cp_error_handling 
 !!
 !!*** **********************************************************************
-  SUBROUTINE kpp1_calc_k_p_p1(kpp1_env, p_env, qs_env, k_p_p1, rho, rho1, error)
+  SUBROUTINE kpp1_calc_k_p_p1(kpp1_env, p_env, qs_env, k_p_p1, rho, rho1, rho1_xc, error)
     
 
     TYPE(qs_kpp1_env_type), POINTER          :: kpp1_env
@@ -218,6 +218,7 @@ CONTAINS
     TYPE(real_matrix_p_type), DIMENSION(:), &
       POINTER                                :: k_p_p1
     TYPE(qs_rho_type), POINTER               :: rho, rho1
+    TYPE(qs_rho_type), POINTER,OPTIONAL      :: rho1_xc
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
@@ -227,7 +228,8 @@ CONTAINS
     INTEGER                                  :: handle, i, ispin, nspins, &
                                                 output_unit, stat
     INTEGER, DIMENSION(2, 3)                 :: bo
-    LOGICAL                                  :: failure, lsd, ionode, gapw
+    LOGICAL                                  :: failure, lsd, ionode, &
+                                                gapw, gapw_xc
     REAL(KIND=dp)                            :: energy_hartree, &
                                                 total_rho_gspace, &
                                                 energy_hartree_1c,&
@@ -250,7 +252,6 @@ CONTAINS
     TYPE(pw_pool_type), POINTER              :: auxbas_pw_pool
     TYPE(tddfpt_control_type), POINTER       :: tddfpt_control
     TYPE(xc_control_type)                    :: xc_control
-!    TYPE(xc_rho_cflags_type)                 :: needs
     TYPE(xc_rho_set_type), POINTER           :: rho1_set
 
     CALL timeset(routineN,"I","",handle)
@@ -263,11 +264,15 @@ CONTAINS
     ionode = logger%para_env%mepos==logger%para_env%source
 
     gapw = qs_env%dft_control%qs_control%gapw
+    gapw_xc = qs_env%dft_control%qs_control%gapw_xc
 
     CPPrecondition(ASSOCIATED(kpp1_env),cp_failure_level,routineP,error,failure)
     CPPrecondition(ASSOCIATED(k_p_p1),cp_failure_level,routineP,error,failure)
     CPPrecondition(ASSOCIATED(rho),cp_failure_level,routineP,error,failure)
     CPPrecondition(ASSOCIATED(rho1),cp_failure_level,routineP,error,failure)
+    IF(gapw_xc) THEN
+      CPPrecondition(ASSOCIATED(rho1_xc),cp_failure_level,routineP,error,failure)
+    END IF
 
     IF (.NOT.failure) THEN
        CPPrecondition(kpp1_env%ref_count>0,cp_failure_level,routineP,error,failure)
@@ -311,8 +316,8 @@ CONTAINS
             in_space = REALSPACE, error=error)
     END IF
 
-    IF (gapw) &
-       CALL prepare_gapw_den(qs_env, p_env%local_rho_set, error=error)
+    IF (gapw .OR. gapw_xc) &
+       CALL prepare_gapw_den(qs_env,p_env%local_rho_set, do_rho0=(.NOT.gapw_xc), error=error)
 
 
 ! *** calculate the hartree potential on the total density ***
@@ -346,8 +351,11 @@ CONTAINS
             error=error)
 
 ! *** calculate the xc potential ***       
-
-       CALL qs_rho_get(rho1, rho_r=rho1_r, error=error)
+       IF(gapw_xc) THEN
+         CALL qs_rho_get(rho1_xc, rho_r=rho1_r, error=error)
+       ELSE
+         CALL qs_rho_get(rho1, rho_r=rho1_r, error=error)
+       END IF
        
        IF (nspins == 1 .AND. dft_control%do_tddfpt_calculation .AND. &
            (dft_control%tddfpt_control%lsd_singlets .OR. &
@@ -447,44 +455,103 @@ CONTAINS
        !-------------------------------!
        DO ispin=1,nspins
 
-          v_rspace_new(ispin)%pw%cr3d = v_rspace_new(ispin)%pw%cr3d * &
+          IF(gapw_xc) THEN
+          ! XC and Hartree are integrated separatedly 
+          ! XC uses the sofft basis set only
+            v_rspace_new(ispin)%pw%cr3d = v_rspace_new(ispin)%pw%cr3d * &
                                         v_rspace_new(ispin)%pw%pw_grid%dvol
+            
+            IF (dft_control%do_tddfpt_calculation .AND. nspins==1) THEN
 
-          IF (dft_control%do_tddfpt_calculation .AND. nspins==1) THEN
-
-             IF (.NOT.(dft_control%tddfpt_control%lsd_singlets .OR. &
+                IF (.NOT.(dft_control%tddfpt_control%lsd_singlets .OR. &
                        dft_control%tddfpt_control%res_etype == tddfpt_triplet)) THEN
 
-                v_rspace_new(1)%pw%cr3d = 2.0_dp * v_rspace_new(1)%pw%cr3d
+                   v_rspace_new(1)%pw%cr3d = 2.0_dp * v_rspace_new(1)%pw%cr3d
 
-             END IF
+                END IF
+                ! remove kpp1_env%v_ao and work directly on k_p_p1 ?
+                CALL set_matrix(kpp1_env%v_ao(ispin)%matrix,0.0_dp)
+                CALL integrate_v_rspace(v_rspace=v_rspace_new(ispin),&
+                     p=rho%rho_ao(ispin),&
+                     h=kpp1_env%v_ao(ispin),&
+                     qs_env=qs_env,&
+                     calculate_forces=.FALSE.,gapw=gapw_xc,error=error)
 
-             ! add hartree only for SINGLETS
-             IF (dft_control%tddfpt_control%res_etype == tddfpt_singlet) THEN
-                v_hartree_rspace%pw%cr3d = v_hartree_rspace%pw%cr3d * &
-                                           v_hartree_rspace%pw%pw_grid%dvol
-                v_rspace_new(1)%pw%cr3d  = v_rspace_new(1)%pw%cr3d + &
-                                           2.0_dp * v_hartree_rspace%pw%cr3d
+               ! add hartree only for SINGLETS
+                IF (dft_control%tddfpt_control%res_etype == tddfpt_singlet) THEN
+                    v_hartree_rspace%pw%cr3d = v_hartree_rspace%pw%cr3d * &
+                                               v_hartree_rspace%pw%pw_grid%dvol
+                    v_rspace_new(1)%pw%cr3d  = 2.0_dp * v_hartree_rspace%pw%cr3d
+
+                    CALL integrate_v_rspace(v_rspace=v_rspace_new(ispin),&
+                         p=rho%rho_ao(ispin),&
+                         h=kpp1_env%v_ao(ispin),&
+                         qs_env=qs_env,&
+                         calculate_forces=.FALSE.,gapw=gapw,error=error)
+                END IF
+             ELSE
+               ! remove kpp1_env%v_ao and work directly on k_p_p1 ?
+               CALL set_matrix(kpp1_env%v_ao(ispin)%matrix,0.0_dp)
+               CALL integrate_v_rspace(v_rspace=v_rspace_new(ispin),&
+                     p=rho%rho_ao(ispin),&
+                     h=kpp1_env%v_ao(ispin),&
+                     qs_env=qs_env,&
+                     calculate_forces=.FALSE.,gapw=gapw_xc,error=error)
+
+               IF (ispin == 1) THEN
+                  v_hartree_rspace%pw%cr3d = v_hartree_rspace%pw%cr3d * &
+                                             v_hartree_rspace%pw%pw_grid%dvol
+               END IF
+               v_rspace_new(ispin)%pw%cr3d  = v_hartree_rspace%pw%cr3d
+               CALL integrate_v_rspace(v_rspace=v_rspace_new(ispin),&
+                         p=rho%rho_ao(ispin),&
+                         h=kpp1_env%v_ao(ispin),&
+                         qs_env=qs_env,&
+                         calculate_forces=.FALSE.,gapw=gapw,error=error)
              END IF
 
           ELSE
-             IF (ispin == 1) THEN
-                v_hartree_rspace%pw%cr3d = v_hartree_rspace%pw%cr3d * &
-                                           v_hartree_rspace%pw%pw_grid%dvol
-             END IF
-             v_rspace_new(ispin)%pw%cr3d  = v_rspace_new(ispin)%pw%cr3d + &
-                                            v_hartree_rspace%pw%cr3d
+            v_rspace_new(ispin)%pw%cr3d = v_rspace_new(ispin)%pw%cr3d * &
+                                          v_rspace_new(ispin)%pw%pw_grid%dvol
+  
+            IF (dft_control%do_tddfpt_calculation .AND. nspins==1) THEN
+  
+               IF (.NOT.(dft_control%tddfpt_control%lsd_singlets .OR. &
+                         dft_control%tddfpt_control%res_etype == tddfpt_triplet)) THEN
+  
+                  v_rspace_new(1)%pw%cr3d = 2.0_dp * v_rspace_new(1)%pw%cr3d
+  
+               END IF
+  
+               ! add hartree only for SINGLETS
+               IF (dft_control%tddfpt_control%res_etype == tddfpt_singlet) THEN
+                  v_hartree_rspace%pw%cr3d = v_hartree_rspace%pw%cr3d * &
+                                             v_hartree_rspace%pw%pw_grid%dvol
+                  v_rspace_new(1)%pw%cr3d  = v_rspace_new(1)%pw%cr3d + &
+                                             2.0_dp * v_hartree_rspace%pw%cr3d
+               END IF
+            ELSE
+               IF (ispin == 1) THEN
+                  v_hartree_rspace%pw%cr3d = v_hartree_rspace%pw%cr3d * &
+                                             v_hartree_rspace%pw%pw_grid%dvol
+               END IF
+               v_rspace_new(ispin)%pw%cr3d  = v_rspace_new(ispin)%pw%cr3d + &
+                                              v_hartree_rspace%pw%cr3d
+            END IF
+
+            ! remove kpp1_env%v_ao and work directly on k_p_p1 ?
+            CALL set_matrix(kpp1_env%v_ao(ispin)%matrix,0.0_dp)
+            CALL integrate_v_rspace(v_rspace=v_rspace_new(ispin),&
+                 p=rho%rho_ao(ispin),&
+                 h=kpp1_env%v_ao(ispin),&
+                 qs_env=qs_env,&
+                 calculate_forces=.FALSE.,gapw=gapw,error=error)
+
           END IF
 
-          ! remove kpp1_env%v_ao and work directly on k_p_p1 ?
-          CALL set_matrix(kpp1_env%v_ao(ispin)%matrix,0.0_dp)
-          CALL integrate_v_rspace(v_rspace=v_rspace_new(ispin),&
-               p=rho%rho_ao(ispin),&
-               h=kpp1_env%v_ao(ispin),&
-               qs_env=qs_env,&
-               calculate_forces=.FALSE.,gapw=gapw,error=error)
           call transfer_matrix(kpp1_env%v_ao(ispin)%matrix,&
                k_p_p1(ispin)%matrix)
+          
        END DO
 
        IF (gapw) THEN
@@ -496,17 +563,13 @@ CONTAINS
 
              CALL integrate_vhg0_g0(qs_env,energy_hartree_2c,.FALSE.,.FALSE., &
                                     .TRUE., p_env)
-!             DO ispin = 1,nspins
-                CALL integrate_a_vhg0_b(qs_env,k_p_p1,rho1%rho_ao,&
+             CALL integrate_a_vhg0_b(qs_env,k_p_p1,rho1%rho_ao,&
                                         energy_hartree_3c,.FALSE.,.FALSE.,&
                                         .TRUE.,p_env,error)
-!             END DO
           END IF
 !         ***  Add single atom contributions to the KS matrix ***
-!          DO ispin = 1,nspins
-             CALL update_ks_atom(qs_env,k_p_p1,rho%rho_ao,&
+          CALL update_ks_atom(qs_env,k_p_p1,rho%rho_ao,&
                                  .FALSE.,.TRUE.,p_env,error)
-!          ENDDO
        END IF
 
        CALL pw_pool_give_back_coeff(auxbas_pw_pool,v_hartree_gspace,&

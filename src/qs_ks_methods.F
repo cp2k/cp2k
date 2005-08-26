@@ -268,6 +268,7 @@ CONTAINS
 !!       ks matrix. Defaults to false
 !!     - ks: the KS matrix that is created
 !!     - rho: the density, must be up to date
+!!     - rho_xc: the soft density, only for gapw_xc , must be up to date
 !!     - energy: the place where energies are stored
 !!     - qs_charges: the place where the grids charges are stored
 !!     - error: variable to control error logging, stopping,... 
@@ -288,7 +289,7 @@ CONTAINS
 !!
 !!*** *********************************************************************
   SUBROUTINE qs_ks_build_kohn_sham_matrix(ks_env,qs_env,ks_matrix,&
-       rho,energy,calculate_forces,just_energy,kg_gpw,kg_fm_set,kg_sub_pw_env, error)
+       rho,energy,calculate_forces,just_energy,rho_xc,kg_gpw,kg_fm_set,kg_sub_pw_env, error)
 
     TYPE(qs_ks_env_type), POINTER            :: ks_env
     TYPE(qs_environment_type), POINTER       :: qs_env
@@ -298,6 +299,7 @@ CONTAINS
     TYPE(qs_energy_type), INTENT(inout), &
       TARGET                                 :: energy
     LOGICAL, INTENT(in)                      :: calculate_forces, just_energy
+    TYPE(qs_rho_type), POINTER, OPTIONAL     :: rho_xc
     LOGICAL, INTENT(IN), OPTIONAL            :: kg_gpw
     TYPE(kg_fm_p_type), OPTIONAL, &
       POINTER                                :: kg_fm_set
@@ -314,7 +316,7 @@ CONTAINS
     LOGICAL                                  :: failure, gapw, gapw_xc, ionode, my_kg_gpw
     TYPE(greens_function_type), POINTER      :: green
     TYPE(cell_type), POINTER                 :: cell
-    TYPE(coeff_type)                         :: rho_tot_gspace, &
+    TYPE(coeff_type)                         :: rho_tot_gspace,&
                                                 v_hartree_gspace, v_sic_rspace
     TYPE(coeff_type), DIMENSION(:), POINTER  :: v_rspace_new, v_tau_rspace
     TYPE(cp_logger_type), POINTER            :: logger
@@ -379,8 +381,13 @@ CONTAINS
     gapw = dft_control%qs_control%gapw
     gapw_xc = dft_control%qs_control%gapw_xc
     IF(gapw_xc .AND. gapw) CALL cp_assert( .FALSE. , cp_failure_level,cp_assertion_failed,routineP,&
-                          " GAPW and GAPW_XC are not compatible",error,failure)
+                           " GAPW and GAPW_XC are not compatible",error,failure)
 
+    IF(gapw_xc) THEN
+      CPPrecondition(ASSOCIATED(rho_xc),cp_failure_level,routineP,error,failure)
+      CPPrecondition(rho_xc%rho_r_valid,cp_failure_level,routineP,error,failure)
+      CPPrecondition(rho_xc%rho_g_valid,cp_failure_level,routineP,error,failure)
+    END IF
 
     ! gets the tmp grids
     IF (.NOT. failure) THEN
@@ -408,7 +415,7 @@ CONTAINS
        END IF
 
        CALL calc_rho_tot_gspace(rho_tot_gspace, qs_env, rho)
-       IF (ionode) CALL print_densities(qs_env, rho_tot_gspace, rho)
+       IF (ionode) CALL print_densities(qs_env, rho_tot_gspace, rho, rho_xc)
 
        CALL init_pw_poisson_solver(green,error=error)
        CALL calculate_hartree(rho_tot_gspace,energy%hartree,&
@@ -505,7 +512,7 @@ CONTAINS
        ! *** associates v_rspace_new if the xc potential needs to be computed.
        CALL qs_vxc_create(qs_env=qs_env,&
             vxc_rho=v_rspace_new, vxc_tau=v_tau_rspace, exc=energy%exc, &
-            just_energy=just_energy, error=error)
+            just_energy=just_energy, gapw_xc=gapw_xc, error=error)
 
        IF (gapw .or. gapw_xc) THEN
           CALL calculate_vxc_atom(qs_env,error)
@@ -524,38 +531,69 @@ CONTAINS
           END DO
 
           IF (ASSOCIATED(v_rspace_new)) THEN
-             DO ispin=1,nspins
-                v_rspace_new(ispin)%pw%cr3d  =&
-                     v_rspace_new(ispin)%pw%pw_grid%dvol * &
-                     v_rspace_new(ispin)%pw%cr3d + &
-                     ks_env%v_hartree_rspace%pw%cr3d
- 
-                ! the electrostatic sic contribution
-                SELECT CASE (dft_control%sic_method_id) 
-                CASE (sic_none)
-                   !
-                CASE (sic_mauri_us,sic_mauri_spz )
-                   IF (ispin==1) THEN
-                      v_rspace_new(ispin)%pw%cr3d=v_rspace_new(ispin)%pw%cr3d &
-                                                 -v_sic_rspace%pw%cr3d
-                   ELSE
-                      v_rspace_new(ispin)%pw%cr3d=v_rspace_new(ispin)%pw%cr3d &
-                                                 +v_sic_rspace%pw%cr3d
-                   ENDIF
-                CASE ( sic_ad )
-                  v_rspace_new(ispin)%pw%cr3d=v_rspace_new(ispin)%pw%cr3d-v_sic_rspace%pw%cr3d
-                END SELECT 
+             IF(gapw_xc) THEN
+               DO ispin=1,nspins
+                 !Only the xc potential, because it has to be integrated with the soft basis
+                  v_rspace_new(ispin)%pw%cr3d  =&
+                       v_rspace_new(ispin)%pw%pw_grid%dvol * &
+                       v_rspace_new(ispin)%pw%cr3d
 
-                ! add the part due to v_rspace
-                CALL integrate_v_rspace(v_rspace=v_rspace_new(ispin),&
-                     p=rho%rho_ao(ispin),h=ks_matrix(ispin),&
-                     qs_env=qs_env, &
-                     calculate_forces=calculate_forces,&
-                     gapw=gapw,error=error)
+                 ! add the xc  part due to v_rspace soft
+                 CALL integrate_v_rspace(v_rspace=v_rspace_new(ispin),&
+                      p=rho%rho_ao(ispin),h=ks_matrix(ispin),&
+                      qs_env=qs_env, &
+                      calculate_forces=calculate_forces,&
+                      gapw=gapw_xc,error=error)
 
-                CALL pw_pool_give_back_coeff(auxbas_pw_pool,v_rspace_new(ispin),&
+                 !Now the Hartree potential to be integrated with the full basis
+                 v_rspace_new(ispin)%pw%cr3d  =&
+                      ks_env%v_hartree_rspace%pw%cr3d
+
+                  ! add the hartree part due to v_rspace
+                 CALL integrate_v_rspace(v_rspace=v_rspace_new(ispin),&
+                      p=rho%rho_ao(ispin),h=ks_matrix(ispin),&
+                      qs_env=qs_env, &
+                      calculate_forces=calculate_forces,&
+                      gapw=gapw,error=error)
+
+                 CALL pw_pool_give_back_coeff(auxbas_pw_pool,v_rspace_new(ispin),&
                      error=error)
-             END DO
+
+               END DO  ! ispin
+             ELSE
+               DO ispin=1,nspins
+                  v_rspace_new(ispin)%pw%cr3d  =&
+                       v_rspace_new(ispin)%pw%pw_grid%dvol * &
+                       v_rspace_new(ispin)%pw%cr3d + &
+                       ks_env%v_hartree_rspace%pw%cr3d
+ 
+                  ! the electrostatic sic contribution
+                  SELECT CASE (dft_control%sic_method_id) 
+                  CASE (sic_none)
+                     !
+                  CASE (sic_mauri_us,sic_mauri_spz )
+                     IF (ispin==1) THEN
+                        v_rspace_new(ispin)%pw%cr3d=v_rspace_new(ispin)%pw%cr3d &
+                                                 -v_sic_rspace%pw%cr3d
+                     ELSE
+                        v_rspace_new(ispin)%pw%cr3d=v_rspace_new(ispin)%pw%cr3d &
+                                                 +v_sic_rspace%pw%cr3d
+                     ENDIF
+                  CASE ( sic_ad )
+                    v_rspace_new(ispin)%pw%cr3d=v_rspace_new(ispin)%pw%cr3d-v_sic_rspace%pw%cr3d
+                 END SELECT 
+
+                  ! add the part due to v_rspace
+                  CALL integrate_v_rspace(v_rspace=v_rspace_new(ispin),&
+                       p=rho%rho_ao(ispin),h=ks_matrix(ispin),&
+                       qs_env=qs_env, &
+                       calculate_forces=calculate_forces,&
+                       gapw=gapw,error=error)
+
+                  CALL pw_pool_give_back_coeff(auxbas_pw_pool,v_rspace_new(ispin),&
+                       error=error)
+               END DO
+             END IF
              SELECT CASE (dft_control%sic_method_id) 
              CASE (sic_none)
              CASE (sic_mauri_us,sic_mauri_spz, sic_ad )
@@ -726,6 +764,10 @@ CONTAINS
                 "GAPW| local Eh = 2 center integrals:           ",energy%hartree_2c,&
                 "GAPW| local Eh = 3 centers integrals:          ",energy%hartree_3c
           END IF
+          IF(gapw_xc) THEN
+             WRITE (UNIT=output_unit,FMT="(/,(T3,A,T60,F20.10))")&
+                "GAPW| Exc from hard and soft atomic rho1:      ",energy%exc1
+          END IF
           If  (qs_env%qmmm) Then
              WRITE (UNIT=output_unit,FMT="(T3,A,T60,F20.10)")&
                "QM/MM Electrostatic energy:                    ",energy%qmmm_el
@@ -783,11 +825,11 @@ CONTAINS
 
 ! *****************************************************************************
 
-  SUBROUTINE print_densities(qs_env, rho_tot_gspace, rho, error)
+  SUBROUTINE print_densities(qs_env, rho_tot_gspace, rho, rho_xc, error)
     ! ARGUMENTS
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(coeff_type), INTENT(IN)             :: rho_tot_gspace
-    TYPE(qs_rho_type), POINTER               :: rho
+    TYPE(qs_rho_type), POINTER               :: rho, rho_xc
     TYPE(cp_error_type), INTENT(INOUT), &
       OPTIONAL                               :: error
     ! LOCALS
@@ -819,7 +861,7 @@ CONTAINS
             "Total core charge density (r-space):",&
             qs_charges%total_rho_core_rspace,&
             qs_charges%total_rho_core_rspace - REAL(n_electrons,dp)
-       IF(qs_env%dft_control%qs_control%gapw) THEN
+       IF(qs_env%dft_control%qs_control%gapw ) THEN
           tot1_h =  qs_charges%total_rho1_hard(1)
           tot1_s =  qs_charges%total_rho1_soft(1)
           DO ispin=2,qs_env%dft_control%nspins
@@ -837,6 +879,19 @@ CONTAINS
                + qs_charges%total_rho_core_rspace,&
                "Total Rho_soft + Rho0_soft (g-space):",&
                qs_charges%total_rho_gspace
+       ELSE IF( qs_env%dft_control%qs_control%gapw_xc) THEN
+         tot1_h =  qs_charges%total_rho1_hard(1)
+          tot1_s =  qs_charges%total_rho1_soft(1)
+          DO ispin=2,qs_env%dft_control%nspins
+             tot1_h = tot1_h + qs_charges%total_rho1_hard(ispin)
+             tot1_s = tot1_s + qs_charges%total_rho1_soft(ispin)
+          END DO
+          WRITE (UNIT=output_unit,FMT="(/,(T3,A,T44,2F18.10))")&
+               "Hard and soft local densities (lebedev):",&
+               tot1_h, tot1_s
+           WRITE (UNIT=output_unit,FMT="(T3,A,T60,F20.10)")&
+               "Total Rho_soft + Rho1_hard - Rho1_soft (r-space): ",&
+               SUM(rho%tot_rho_r)+ tot1_h - tot1_s 
        ELSE  
           WRITE (UNIT=output_unit,FMT="(T3,A,T60,F20.10)")&
                "Total charge density (r-space):     ",&
@@ -905,6 +960,7 @@ SUBROUTINE qs_ks_update_qs_env(ks_env,qs_env, kg_env, &
     TYPE(kg_sub_pw_env_type), POINTER        :: kg_sub_pw_env
     TYPE(qs_energy_type), POINTER            :: energy
     TYPE(qs_rho_type), POINTER               :: rho
+    TYPE(qs_rho_type), POINTER               :: rho_xc
     TYPE(real_matrix_p_type), DIMENSION(:), &
       POINTER                                :: matrix_h, matrix_ks
 
@@ -921,7 +977,7 @@ SUBROUTINE qs_ks_update_qs_env(ks_env,qs_env, kg_env, &
 
   failure=.FALSE.
   did_update=.FALSE.
-  NULLIFY(matrix_ks,matrix_h,energy, logger, rho, dft_control, para_env)
+  NULLIFY(matrix_ks,matrix_h,energy, logger, rho, rho_xc, dft_control, para_env)
   logger => cp_error_get_logger(error)
 
   CPPrecondition(ASSOCIATED(ks_env),cp_failure_level,routineP,error,failure)
@@ -932,7 +988,7 @@ SUBROUTINE qs_ks_update_qs_env(ks_env,qs_env, kg_env, &
           (c_forces.AND..NOT.ks_env%forces_up_to_date)) THEN
         did_update=.TRUE.
         CALL get_qs_env(qs_env,matrix_ks=matrix_ks,rho=rho,&
-             energy=energy,&
+             rho_xc=rho_xc,energy=energy,&
              dft_control=dft_control,&
              matrix_h=matrix_h,para_env=para_env,error=error)
 
@@ -961,6 +1017,11 @@ SUBROUTINE qs_ks_update_qs_env(ks_env,qs_env, kg_env, &
                calculate_forces=c_forces,just_energy=energy_only,&
                kg_gpw = .TRUE.,kg_sub_pw_env=kg_sub_pw_env, kg_fm_set=kg_fm_set, &
                error=error)
+        ELSEIF (dft_control%qs_control%gapw_xc) THEN
+          CALL qs_ks_build_kohn_sham_matrix(ks_env,qs_env=qs_env,&
+               ks_matrix=matrix_ks, rho=rho, energy=energy,&
+               calculate_forces=c_forces,just_energy=energy_only,&
+               rho_xc=rho_xc,error=error)
         ELSE
           CALL qs_ks_build_kohn_sham_matrix(ks_env,qs_env=qs_env,&
                ks_matrix=matrix_ks, rho=rho, energy=energy,&
@@ -1097,12 +1158,12 @@ END SUBROUTINE qs_ks_did_change
 !!
 !!*** *********************************************************************
 SUBROUTINE qs_vxc_create(vxc_rho,vxc_tau, exc, qs_env,&
-      just_energy, harris, error)
+      just_energy, harris, gapw_xc, error)
     TYPE(coeff_type), DIMENSION(:), POINTER  :: vxc_rho, vxc_tau
     TYPE(qs_environment_type), POINTER       :: qs_env
     REAL(KIND=dp)                            :: exc
     LOGICAL, INTENT(in), OPTIONAL            :: just_energy, &
-                                                harris
+                                                harris, gapw_xc
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
@@ -1125,7 +1186,7 @@ SUBROUTINE qs_vxc_create(vxc_rho,vxc_tau, exc, qs_env,&
     TYPE(mo_set_p_type), DIMENSION(:), &
          POINTER                                :: mo_array
     LOGICAL                                  :: sic_scaling_b_zero, &
-                                                harris_flag
+                                                harris_flag, my_gapw_xc
     TYPE(harris_env_type), POINTER           :: harris_env
 
 !   ---------------------------------------------------------------------------
@@ -1139,6 +1200,8 @@ SUBROUTINE qs_vxc_create(vxc_rho,vxc_tau, exc, qs_env,&
           my_vxc_tau, rho_g, rho_r, tau, rho_m_rspace,rho_m_gspace)
   my_just_energy=.FALSE.
   IF (PRESENT(just_energy)) my_just_energy=just_energy
+  my_gapw_xc=.FALSE.
+  IF(PRESENT(gapw_xc)) my_gapw_xc=gapw_xc
   IF (PRESENT(harris)) THEN
     harris_flag = harris
   ELSE
@@ -1150,6 +1213,9 @@ SUBROUTINE qs_vxc_create(vxc_rho,vxc_tau, exc, qs_env,&
     CALL get_qs_env(qs_env=qs_env, dft_control=dft_control, harris_env=harris_env, &
                     pw_env=pw_env, cell=cell, error=error)
     rho_struct => harris_env%rho
+  ELSEIF(my_gapw_xc) THEN
+    CALL get_qs_env(qs_env=qs_env, dft_control=dft_control, rho_xc=rho_struct, &
+                    pw_env=pw_env, cell=cell, error=error)
   ELSE
     CALL get_qs_env(qs_env=qs_env, dft_control=dft_control, rho=rho_struct, &
                     pw_env=pw_env, cell=cell, error=error)

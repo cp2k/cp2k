@@ -452,8 +452,18 @@ SUBROUTINE qs_env_rebuild_rho(qs_env, rebuild_ao, rebuild_grids, error)
     CHARACTER(len=*), PARAMETER :: routineN = 'qs_env_rebuild_rho', &
       routineP = moduleN//':'//routineN
 
-  CALL qs_rho_rebuild(qs_env%rho,qs_env=qs_env,&
-       rebuild_ao=rebuild_ao, rebuild_grids=rebuild_grids, error=error)
+    LOGICAL :: gapw_xc
+    TYPE(dft_control_type), POINTER          :: dft_control
+
+    CALL get_qs_env(qs_env=qs_env, dft_control=dft_control)
+    gapw_xc=dft_control%qs_control%gapw_xc
+    CALL qs_rho_rebuild(qs_env%rho,qs_env=qs_env,&
+         rebuild_ao=rebuild_ao, rebuild_grids=rebuild_grids, error=error)
+    IF(gapw_xc) THEN
+      CALL qs_rho_rebuild(qs_env%rho_xc,qs_env=qs_env,&
+         rebuild_ao=rebuild_ao, rebuild_grids=rebuild_grids, gapw_xc=gapw_xc, error=error)
+      qs_env%rho_xc%rho_ao => qs_env%rho%rho_ao
+    END IF
 
 END SUBROUTINE qs_env_rebuild_rho
 !***************************************************************************

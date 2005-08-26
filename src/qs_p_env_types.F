@@ -93,6 +93,7 @@ MODULE qs_p_env_types
 !!     - Smo_inv: inverse of the mo overlap: (psi0^T S psi0)^-1
 !!     - kpp1_env: environment for the calculation of kpp1
 !!     - rho1: the density rho1
+!!     - rho1: the soft density rho1 for gapw_xc
 !!     - n_mo: cached number of mo: n_mo(i)=qs_env%c(i)%nmo
 !!     - n_ao: cached number of ao: n_ao(i)=qs_env%c(i)%nao
 !!
@@ -108,6 +109,7 @@ MODULE qs_p_env_types
           psi0d, S_psi0, Smo_inv
      TYPE(qs_kpp1_env_type), POINTER :: kpp1_env
      TYPE(qs_rho_type), POINTER :: rho1
+     TYPE(qs_rho_type), POINTER :: rho1_xc
      INTEGER, DIMENSION(2) :: n_mo, & ! no of molecular orbitals
                               n_ao    ! no of basis functions
      ! GAPW stuff
@@ -266,6 +268,10 @@ END SUBROUTINE p_env_retain
           CALL cp_fm_vect_dealloc(p_env%m_epsilon, error=error)
           CALL cp_fm_vect_dealloc(p_env%psi0d, error=error)
           CALL cp_fm_vect_dealloc(p_env%Smo_inv, error=error)
+          IF(ASSOCIATED(p_env%rho1_xc)) THEN
+            NULLIFY(p_env%rho1_xc%rho_ao)
+            CALL qs_rho_release(p_env%rho1_xc)
+          ENDIF
           CALL qs_rho_release(p_env%rho1)
           IF (ASSOCIATED(p_env%kpp1)) CALL deallocate_matrix_set(p_env%kpp1)
           IF (ASSOCIATED(p_env%p1)) CALL deallocate_matrix_set(p_env%p1)

@@ -115,10 +115,11 @@ CONTAINS
 !!     11.2002 created replacing qs_rho_create and qs_env_rebuild_rho[fawzi]
 !!
 !!*** **********************************************************************
-  SUBROUTINE qs_rho_rebuild(rho, qs_env, rebuild_ao, rebuild_grids, error)
+  SUBROUTINE qs_rho_rebuild(rho, qs_env, rebuild_ao, rebuild_grids, gapw_xc, error)
     TYPE(qs_rho_type), POINTER               :: rho
     TYPE(qs_environment_type), POINTER       :: qs_env
     LOGICAL, INTENT(in), OPTIONAL            :: rebuild_ao, rebuild_grids
+    LOGICAL, INTENT(in), OPTIONAL            :: gapw_xc
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
@@ -127,7 +128,7 @@ CONTAINS
 
     INTEGER                                  :: handle, i, nspins, stat
     LOGICAL                                  :: failure, my_rebuild_ao, &
-                                                my_rebuild_grids
+                                                my_rebuild_grids, my_gapw_xc
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(pw_env_type), POINTER               :: pw_env
     TYPE(pw_pool_type), POINTER              :: auxbas_pw_pool
@@ -137,10 +138,12 @@ CONTAINS
   NULLIFY(pw_env,auxbas_pw_pool,matrix_s,dft_control)
   CALL timeset(routineN,'I',' ',handle)
   failure=.FALSE.
+  my_gapw_xc=.FALSE.
   my_rebuild_ao=.TRUE.
   my_rebuild_grids=.TRUE.
   IF (PRESENT(rebuild_ao)) my_rebuild_ao=rebuild_ao
   IF (PRESENT(rebuild_grids)) my_rebuild_grids=rebuild_grids
+  IF (PRESENT(gapw_xc)) my_gapw_xc=gapw_xc
 
   CALL get_qs_env(qs_env, pw_env=pw_env,dft_control=dft_control,&
        matrix_s=matrix_s,error=error)
@@ -170,18 +173,20 @@ CONTAINS
   END IF
 
   ! rho_ao
-  IF (my_rebuild_ao.OR..NOT.ASSOCIATED(rho%rho_ao)) THEN
-     IF (.NOT.failure) THEN
-        IF (ASSOCIATED(rho%rho_ao)) THEN
-           CALL deallocate_matrix_set(rho%rho_ao)
-        END IF
-        CALL allocate_matrix_set(rho%rho_ao,nspins)
-        DO i=1,nspins
-           NULLIFY (rho%rho_ao(i)%matrix)
-           CALL replicate_matrix_structure(matrix_s(1)%matrix,&
+  IF(.NOT. my_gapw_xc) THEN
+    IF (my_rebuild_ao.OR..NOT.ASSOCIATED(rho%rho_ao)) THEN
+       IF (.NOT.failure) THEN
+          IF (ASSOCIATED(rho%rho_ao)) THEN
+             CALL deallocate_matrix_set(rho%rho_ao)
+          END IF
+          CALL allocate_matrix_set(rho%rho_ao,nspins)
+          DO i=1,nspins
+             NULLIFY (rho%rho_ao(i)%matrix)
+             CALL replicate_matrix_structure(matrix_s(1)%matrix,&
                 rho%rho_ao(i)%matrix,&
-                "DENSITY_MATRIX_FOR_SPIN_"//TRIM(ADJUSTL(cp_to_string(i))))
-        END DO
+                  "DENSITY_MATRIX_FOR_SPIN_"//TRIM(ADJUSTL(cp_to_string(i))))
+          END DO
+       END IF
      END IF
   END IF
 
@@ -322,52 +327,39 @@ SUBROUTINE qs_rho_update_rho(rho_struct, qs_env, gapw, error)
     INTEGER                                  :: ispin, nspins
     LOGICAL                                  :: failure, my_gapw
     REAL(KIND=dp)                            :: dum
-!    TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(dft_control_type), POINTER          :: dft_control
-!    TYPE(pw_env_type), POINTER               :: pw_env
-!    TYPE(pw_pool_p_type), DIMENSION(:), &
-!      POINTER                                :: pw_pools
-!    TYPE(pw_pool_type), POINTER              :: auxbas_pw_pool
 
-  failure=.FALSE.
-  my_gapw = .FALSE.
-  IF(PRESENT(gapw)) my_gapw = gapw
+    failure=.FALSE.
+    my_gapw = .FALSE.
+    IF(PRESENT(gapw)) my_gapw = gapw
 
-!  NULLIFY(dft_control, pw_env, auxbas_pw_pool,&
-!       pw_pools, para_env )
-  NULLIFY(dft_control)
+    NULLIFY(dft_control)
 
-  CPPrecondition(ASSOCIATED(rho_struct),cp_failure_level,routineP,error,failure)
-  CPPrecondition(rho_struct%ref_count>0,cp_failure_level,routineP,error,failure)
-  IF (.NOT. failure) THEN
+    CPPrecondition(ASSOCIATED(rho_struct),cp_failure_level,routineP,error,failure)
+    CPPrecondition(rho_struct%ref_count>0,cp_failure_level,routineP,error,failure)
+    IF (.NOT. failure) THEN
 
-!     CALL get_qs_env(qs_env, dft_control=dft_control, &
-!          pw_env=pw_env, para_env=para_env)
-     CALL get_qs_env(qs_env, dft_control=dft_control)
-     nspins=dft_control%nspins
-     ! alloc multigrids
-!     CALL pw_env_get(pw_env, pw_pools=pw_pools, auxbas_pw_pool=auxbas_pw_pool,&
-!          error=error)
-  END IF
-  IF (.NOT.failure) THEN
-     ! get tmp grids
-!!     IF(dft_control%qs_control%gapw) rho_struct%soft_valid = .TRUE. 
-     IF(dft_control%qs_control%semi_empirical) THEN
-       !
-     ELSE
-       DO ispin=1,nspins
-          CALL calculate_rho_elec(matrix_p=rho_struct%rho_ao(ispin)%matrix,&
-             rho=rho_struct%rho_r(ispin),&
-             rho_gspace=rho_struct%rho_g(ispin),&
-             total_rho=rho_struct%tot_rho_r(ispin),&
-             qs_env=qs_env,soft_valid=my_gapw,error=error)
-       END DO
-     END IF
-     rho_struct%rho_r_valid=.TRUE.
-     rho_struct%rho_g_valid=.TRUE.
+      CALL get_qs_env(qs_env, dft_control=dft_control)
+      nspins=dft_control%nspins
+    END IF
+    IF (.NOT.failure) THEN
+      ! get tmp grids
+      IF(dft_control%qs_control%semi_empirical) THEN
+        !
+      ELSE
+        DO ispin=1,nspins
+           CALL calculate_rho_elec(matrix_p=rho_struct%rho_ao(ispin)%matrix,&
+                rho=rho_struct%rho_r(ispin),&
+                rho_gspace=rho_struct%rho_g(ispin),&
+                total_rho=rho_struct%tot_rho_r(ispin),&
+                qs_env=qs_env,soft_valid=my_gapw,error=error)
+        END DO
+      END IF
+      rho_struct%rho_r_valid=.TRUE.
+      rho_struct%rho_g_valid=.TRUE.
 
-     ! if needed compute also the kinetic energy density
-     IF (dft_control%use_kinetic_energy_density) THEN
+      ! if needed compute also the kinetic energy density
+      IF (dft_control%use_kinetic_energy_density) THEN
          DO ispin=1,nspins
             CALL calculate_rho_elec(matrix_p=rho_struct%rho_ao(ispin)%matrix,&
                  rho=rho_struct%tau_r(ispin),&
@@ -378,8 +370,8 @@ SUBROUTINE qs_rho_update_rho(rho_struct, qs_env, gapw, error)
          END DO
          rho_struct%tau_r_valid=.TRUE.
          rho_struct%tau_g_valid=.TRUE.
-     ENDIF
-  END IF
+      ENDIF
+    END IF
 END SUBROUTINE qs_rho_update_rho
 
 !***************************************************************************

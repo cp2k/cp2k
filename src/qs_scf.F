@@ -435,7 +435,7 @@ CONTAINS
 
     INTEGER                                  :: handle, handle2, ispin, &
                                                 output_unit
-    LOGICAL :: diis_step, do_level_shift, energy_only, failure, gapw, ionode, &
+    LOGICAL :: diis_step, do_level_shift, energy_only, failure, gapw, gapw_xc, ionode, &
       should_stop, use_cholesky, use_jacobi, id_equal
     REAL(KIND=dp)                            :: diis_error, orthonormality, &
                                                 t1, t2, tot1_h, tot1_s
@@ -454,7 +454,7 @@ CONTAINS
     TYPE(qs_charges_type), POINTER           :: qs_charges
     TYPE(qs_energy_type), POINTER            :: energy
     TYPE(qs_ks_env_type), POINTER            :: ks_env
-    TYPE(qs_rho_type), POINTER               :: rho
+    TYPE(qs_rho_type), POINTER               :: rho,rho_xc
     TYPE(real_matrix_p_type), DIMENSION(:), &
       POINTER                                :: matrix_h, matrix_ks, matrix_p, matrix_s
     TYPE(scf_control_type), POINTER          :: scf_control
@@ -467,7 +467,7 @@ CONTAINS
 
 !   ---------------------------------------------------------------------------
 
-    NULLIFY(dft_control,matrix_h,matrix_s,matrix_ks,matrix_p,rho,energy, &
+    NULLIFY(dft_control,matrix_h,matrix_s,matrix_ks,matrix_p,rho,rho_xc,energy, &
             scf_control,logger,pw_env, qs_charges,ks_env,mos,atomic_kind_set, &
             particle_set,scf_work1,ortho,scf_work2,harris_section,harris_env)
 
@@ -515,6 +515,7 @@ CONTAINS
 
 !   True the GAPW method is used
     gapw = dft_control%qs_control%gapw
+    gapw_xc = dft_control%qs_control%gapw_xc
 
     ! *** Set harris_flag to true if the harris functional energy correction 
     !     should be used
@@ -552,7 +553,7 @@ CONTAINS
     scf_work2 => scf_env%scf_work2
     ortho => scf_env%ortho
 
-    CALL get_qs_env(qs_env,matrix_ks=matrix_ks,rho=rho,mos=mos)
+    CALL get_qs_env(qs_env,matrix_ks=matrix_ks,rho=rho,rho_xc=rho_xc,mos=mos)
     matrix_p => rho%rho_ao
 
     ! do some assertions here on these matrices having the same structure, 
@@ -762,6 +763,9 @@ CONTAINS
             DO ispin=1,dft_control%nspins
                CALL calculate_density_matrix(mos(ispin)%mo_set,&
                      rho%rho_ao(ispin)%matrix,error=error)
+               IF(gapw_xc) CALL calculate_density_matrix(mos(ispin)%mo_set,&
+                     rho_xc%rho_ao(ispin)%matrix,error=error)
+
             ENDDO
 
             scf_env%iter_method=scf_env%qs_ot_env(1)%OT_METHOD_FULL
@@ -834,8 +838,12 @@ CONTAINS
 
 ! ** update qs_env%rho
        CALL qs_rho_update_rho(rho, qs_env=qs_env, gapw=gapw, error=error)
-       IF(gapw) THEN
+       IF(gapw ) THEN
          CALL calculate_rho_atom_coeff(qs_env,rho%rho_ao)
+       ENDIF
+       IF(gapw_xc ) THEN
+         CALL calculate_rho_atom_coeff(qs_env,rho%rho_ao)
+         CALL qs_rho_update_rho(rho_xc, qs_env=qs_env, gapw=gapw_xc, error=error)
        ENDIF
 
        CALL qs_ks_did_change(ks_env,rho_changed=.TRUE.,error=error)
@@ -2328,7 +2336,7 @@ CONTAINS
 
     INTEGER                                  :: extrapolation_method_nr, &
                                                 handle, ispin, nmo
-    LOGICAL                                  :: failure, gapw, ionode, orthogonal_wf
+    LOGICAL                                  :: failure, gapw, gapw_xc, ionode, orthogonal_wf
     TYPE(cp_fm_type), POINTER                :: mo_coeff
     TYPE(cp_logger_type), POINTER            :: logger
 
@@ -2336,6 +2344,7 @@ CONTAINS
     failure=.FALSE.
     NULLIFY(mo_coeff)
     gapw = qs_env%dft_control%qs_control%gapw
+    gapw_xc = qs_env%dft_control%qs_control%gapw_xc
     logger => cp_error_get_logger(error)
     ionode = logger%para_env%source==logger%para_env%mepos
     CPPrecondition(ASSOCIATED(scf_env),cp_failure_level,routineP,error,failure)
@@ -2348,7 +2357,7 @@ CONTAINS
           CALL wfi_extrapolate(globenv,qs_env%wf_history, &
                qs_env=qs_env, dt=1.0_dp, &
                extrapolation_method_nr=extrapolation_method_nr,&
-               orthogonal_wf=orthogonal_wf, gapw=gapw, error=error)
+               orthogonal_wf=orthogonal_wf, gapw=gapw, gapw_xc=gapw_xc, error=error)
           ! wfi_use_guess_method_nr the wavefunctions are not yet initialized
           IF ((.NOT.orthogonal_wf).AND.&
               (scf_env%method == ot_method_nr).AND.&
@@ -2374,6 +2383,10 @@ CONTAINS
             IF(gapw) THEN
                CALL calculate_rho_atom_coeff(qs_env,qs_env%rho%rho_ao)
             ENDIF
+            IF(gapw_xc) THEN
+               CALL qs_rho_update_rho(qs_env%rho_xc,qs_env=qs_env, gapw=gapw_xc, error=error)
+               CALL calculate_rho_atom_coeff(qs_env,qs_env%rho%rho_ao)
+            END IF
             CALL qs_ks_did_change(qs_env%ks_env,rho_changed=.TRUE.,&
                  error=error)
           END IF

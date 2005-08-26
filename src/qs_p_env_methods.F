@@ -211,6 +211,7 @@ CONTAINS
             p_env%S_psi0, &
             p_env%kpp1_env,&
             p_env%rho1,&
+            p_env%rho1_xc,&
             p_env%Smo_inv,&
             p_env%local_rho_set, &
             p_env%hartree_local,&
@@ -402,7 +403,7 @@ CONTAINS
 
     CHARACTER(len=25)                        :: name
     INTEGER                                  :: handle, ispin, nspins, stat
-    LOGICAL                                  :: failure
+    LOGICAL                                  :: failure,gapw_xc
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(real_matrix_p_type), DIMENSION(:), &
       POINTER                                :: matrix_s
@@ -415,8 +416,10 @@ CONTAINS
     CPPrecondition(ASSOCIATED(p_env),cp_failure_level,routineP,error,failure)
     CPPrecondition(p_env%ref_count>0,cp_failure_level,routineP,error,failure)
     IF (.NOT. failure) THEN
+       CALL get_qs_env(qs_env, dft_control=dft_control)
+       gapw_xc = dft_control%qs_control%gapw_xc
        IF (.NOT.ASSOCIATED(p_env%kpp1)) THEN
-          CALL get_qs_env(qs_env, dft_control=dft_control, matrix_s=matrix_s, error=error)
+          CALL get_qs_env(qs_env, matrix_s=matrix_s, error=error)
           nspins=dft_control%nspins
           
           ALLOCATE(p_env%kpp1(nspins),stat=stat)
@@ -433,10 +436,18 @@ CONTAINS
           END IF
 
           CALL qs_rho_rebuild(p_env%rho1, qs_env=qs_env, error=error)
+          IF(gapw_xc) THEN
+             CALL qs_rho_rebuild(p_env%rho1_xc,qs_env=qs_env,gapw_xc=gapw_xc)
+             p_env%rho1_xc%rho_ao => p_env%rho1%rho_ao
+          END IF
        END IF
        
        IF (.NOT.ASSOCIATED(p_env%rho1)) THEN
           CALL qs_rho_rebuild(p_env%rho1, qs_env=qs_env, error=error)
+          IF(gapw_xc) THEN
+             CALL qs_rho_rebuild(p_env%rho1_xc,qs_env=qs_env,gapw_xc=gapw_xc)
+             p_env%rho1_xc%rho_ao => p_env%rho1%rho_ao
+          END IF
        END IF
     END IF
     CALL timestop(0.0_dp,handle)
@@ -497,6 +508,10 @@ SUBROUTINE p_env_did_change(p_env, s_struct_changed, grid_changed,error)
 
      IF (PRESENT(grid_changed)) THEN
         IF (grid_changed) THEN
+           IF(ASSOCIATED(p_env%rho1_xc)) THEN
+             NULLIFY(p_env%rho1_xc%rho_ao)
+             CALL qs_rho_release(p_env%rho1_xc,error=error)
+           END IF
            CALL qs_rho_release(p_env%rho1,error=error)
         END IF
      END IF
@@ -993,7 +1008,7 @@ END SUBROUTINE p_env_did_change
 
     INTEGER                                  :: handle, ispin, n_spins
     INTEGER, SAVE                            :: iter = 0
-    LOGICAL                                  :: failure, gapw
+    LOGICAL                                  :: failure, gapw, gapw_xc
     REAL(KIND=dp)                            :: my_alpha, my_beta
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(qs_rho_type), POINTER               :: rho
@@ -1003,6 +1018,7 @@ END SUBROUTINE p_env_did_change
     failure=.FALSE.
 
     gapw=qs_env%dft_control%qs_control%gapw    
+    gapw_xc=qs_env%dft_control%qs_control%gapw_xc    
     my_alpha=1.0_dp
     IF (PRESENT(alpha)) my_alpha=alpha
     my_beta=0.0_dp
@@ -1025,10 +1041,13 @@ END SUBROUTINE p_env_did_change
        ENDDO
        CALL qs_rho_update_rho(rho_struct=p_env%rho1, &
                               qs_env=qs_env, gapw=gapw, error=error)
-       IF(gapw) THEN
+       IF(gapw .OR. gapw_xc) THEN
          CALL calculate_rho_atom_coeff(qs_env,p_env%rho1%rho_ao,&
                                        rho_atom_set=p_env%local_rho_set%rho_atom_set)
        ENDIF
+       IF(gapw_xc ) THEN
+          CALL qs_rho_update_rho(rho_struct=p_env%rho1_xc, qs_env=qs_env, gapw=gapw_xc, error=error)
+       END IF
 
        IF (fdiff) THEN
           CALL kpp1_calc_k_p_p1_fdiff(kpp1_env=p_env%kpp1_env,qs_env=qs_env,&
@@ -1036,7 +1055,7 @@ END SUBROUTINE p_env_did_change
                                       error=error)
        ELSE
           CALL kpp1_calc_k_p_p1(kpp1_env=p_env%kpp1_env, p_env=p_env, qs_env=qs_env,&
-                                k_p_p1=p_env%kpp1, rho=rho ,rho1=p_env%rho1,&
+                                k_p_p1=p_env%kpp1, rho=rho ,rho1=p_env%rho1, rho1_xc=p_env%rho1,&
                                 error=error)
        END IF
 

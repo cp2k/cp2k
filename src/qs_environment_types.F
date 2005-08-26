@@ -212,6 +212,7 @@ MODULE qs_environment_types
 !!       its derivatives wrt. x,y, and z (matrix_s(2:4))
 !!     - kinetic: kinetic part of h
 !!     - rho: the (old) density, in various representations (ao+grid)
+!!     - rho_xc: the (old) soft density, used for the GAPW_XC method only
 !!     - scf_control: various parameters relevant to the scf cycle
 !!     - pw_env: various things to create and get info on the grids used
 !!       by qs
@@ -289,6 +290,7 @@ MODULE qs_environment_types
                                                              kinetic,&
                                                              matrix_w
     TYPE(qs_rho_type), POINTER                            :: rho
+    TYPE(qs_rho_type), POINTER                            :: rho_XC
     TYPE(scf_control_type), POINTER                       :: scf_control
     TYPE(pw_env_type), POINTER                            :: pw_env
     TYPE(cp_para_env_type), POINTER                       :: para_env
@@ -348,7 +350,7 @@ CONTAINS
                         sac_oce,sbc_oce,sab_2c,sac_3c,sbc_3c,&
                         particle_set,energy,force,harris_env,&
                         matrix_h,matrix_ks,matrix_s,matrix_w,&
-                        rho, pw_env, mpools,input,&
+                        rho, rho_xc, pw_env, mpools,input,&
                         para_env, blacs_env, scf_control,&
                         kinetic,qs_charges, rho_core, ks_env, ks_qmmm_env,&
                         wf_history,scf_env,&
@@ -393,6 +395,7 @@ CONTAINS
     TYPE(real_matrix_p_type), DIMENSION(:), &
       OPTIONAL, POINTER                      :: matrix_h, matrix_ks, matrix_s, matrix_w
     TYPE(qs_rho_type), OPTIONAL, POINTER     :: rho
+    TYPE(qs_rho_type), OPTIONAL, POINTER     :: rho_xc
     TYPE(pw_env_type), OPTIONAL, POINTER     :: pw_env
     TYPE(qs_matrix_pools_type), OPTIONAL, &
       POINTER                                :: mpools
@@ -501,6 +504,7 @@ CONTAINS
     IF (PRESENT(matrix_s)) matrix_s => qs_env%matrix_s
     IF (PRESENT(matrix_w)) matrix_w => qs_env%matrix_w
     IF (PRESENT(rho)) rho => qs_env%rho
+    IF (PRESENT(rho_xc)) rho_xc => qs_env%rho_xc
     IF (PRESENT(pw_env)) pw_env => qs_env%pw_env
     IF (PRESENT(mpools)) mpools => qs_env%mpools
     IF (PRESENT(blacs_env)) blacs_env => qs_env%blacs_env
@@ -608,6 +612,7 @@ CONTAINS
     NULLIFY (qs_env%matrix_w)
     NULLIFY (qs_env%mpools)
     NULLIFY (qs_env%rho)
+    NULLIFY (qs_env%rho_xc)
     NULLIFY (qs_env%pw_env)
     NULLIFY (qs_env%scf_control)
     NULLIFY (qs_env%qs_charges)
@@ -652,7 +657,7 @@ CONTAINS
                         sac_oce,sbc_oce,sab_2c,sac_3c,sbc_3c,&
                         energy,force,harris_env,&
                         matrix_h,matrix_ks,matrix_s,matrix_w,&
-                        pw_env,mpools,rho,kinetic,&
+                        pw_env,mpools,rho,rho_xc,kinetic,&
                         scf_control,qs_charges,rho_core,ks_env,ks_qmmm_env,&
                         wf_history,scf_env,&
                         distribution_2d,dft_section,input,&
@@ -692,6 +697,7 @@ CONTAINS
     TYPE(qs_matrix_pools_type), OPTIONAL, &
       POINTER                                :: mpools
     TYPE(qs_rho_type), OPTIONAL, POINTER     :: rho
+    TYPE(qs_rho_type), OPTIONAL, POINTER     :: rho_xc
     TYPE(real_matrix_p_type), DIMENSION(:), &
       OPTIONAL, POINTER                      :: kinetic
     TYPE(scf_control_type), OPTIONAL, &
@@ -796,6 +802,11 @@ CONTAINS
       IF (ASSOCIATED(rho)) CALL qs_rho_retain(rho,error=error)
       CALL qs_rho_release(qs_env%rho,error=error)
       qs_env%rho => rho
+    END IF
+    IF (PRESENT(rho_xc)) THEN ! accepts also null pointers !
+      IF (ASSOCIATED(rho_xc)) CALL qs_rho_retain(rho_xc,error=error)
+      CALL qs_rho_release(qs_env%rho_xc,error=error)
+      qs_env%rho_xc => rho_xc
     END IF
 
     IF(PRESENT(kg_sub_pw_env)) THEN
@@ -1154,6 +1165,10 @@ SUBROUTINE qs_env_release(qs_env,error)
         IF (ASSOCIATED(qs_env%kinetic))&
              CALL deallocate_matrix_set(qs_env%kinetic)
 
+        IF(ASSOCIATED(qs_env%rho_xc)) THEN
+          NULLIFY(qs_env%rho_xc%rho_ao)
+          CALL qs_rho_release(qs_env%rho_xc, error=error)
+        END IF
         CALL qs_rho_release(qs_env%rho, error=error)
         CALL scf_c_release(qs_env%scf_control, error=error)
 

@@ -131,8 +131,10 @@ CONTAINS
 
     IF (PRESENT(local_rho_set)) THEN
        rho_atom_set  => local_rho_set%rho_atom_set
-       rho0_mpole    => local_rho_set%rho0_mpole
-       rho0_atom_set => local_rho_set%rho0_atom_set
+       IF(my_do_rho0) THEN
+         rho0_mpole    => local_rho_set%rho0_mpole
+         rho0_atom_set => local_rho_set%rho0_atom_set
+       END IF
     END IF
 
     nkind  = SIZE(atomic_kind_set,1)
