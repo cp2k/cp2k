@@ -1,5 +1,5 @@
-# The following settings worked for a Cray XT3 using PGI 5.2.4 and ACML 2.5
-# Note: PGI 6.0.0, 6.0.1, and 6.0.1 are not working due to a compiler bug.
+# The following settings worked for a Cray XT3 using PGI 6.0.5 and ACML 2.6
+# Note: PGI 5.2.* and 6.0.1-4 are not working due to compiler bugs.
 PERL     = perl
 CC       = gcc
 CPP      = cpp
@@ -8,7 +8,7 @@ LD       = ftn
 AR       = ar -r
 DFLAGS   = -D__PGI -D__FFTSG
 CPPFLAGS = -traditional -C $(DFLAGS) -P
-FCFLAGS  = -O0 -g -target=catamount
+FCFLAGS  = -target=catamount -O0 -g
 LDFLAGS  = $(FCFLAGS)
 LIBS     = -lacml
 
