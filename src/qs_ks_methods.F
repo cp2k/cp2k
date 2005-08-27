@@ -337,6 +337,7 @@ CONTAINS
     TYPE(cp_fm_type), POINTER            :: mo_coeff,hc_tmp
     REAL(KIND=dp)                        :: ener, scaling, mulliken_order_p
     TYPE(section_vals_type), POINTER     :: print_qmmm_gen
+    TYPE(qs_rho_type), POINTER           :: my_rho_xc
 ! shorter for output
 
     failure=.FALSE.
@@ -387,6 +388,9 @@ CONTAINS
       CPPrecondition(ASSOCIATED(rho_xc),cp_failure_level,routineP,error,failure)
       CPPrecondition(rho_xc%rho_r_valid,cp_failure_level,routineP,error,failure)
       CPPrecondition(rho_xc%rho_g_valid,cp_failure_level,routineP,error,failure)
+      my_rho_xc => rho_xc
+    ELSE
+      NULLIFY(my_rho_xc)
     END IF
 
     ! gets the tmp grids
@@ -415,7 +419,7 @@ CONTAINS
        END IF
 
        CALL calc_rho_tot_gspace(rho_tot_gspace, qs_env, rho)
-       IF (ionode) CALL print_densities(qs_env, rho_tot_gspace, rho, rho_xc)
+       IF (ionode) CALL print_densities(qs_env, rho_tot_gspace, rho, my_rho_xc)
 
        CALL init_pw_poisson_solver(green,error=error)
        CALL calculate_hartree(rho_tot_gspace,energy%hartree,&
@@ -891,7 +895,7 @@ CONTAINS
                tot1_h, tot1_s
            WRITE (UNIT=output_unit,FMT="(T3,A,T60,F20.10)")&
                "Total Rho_soft + Rho1_hard - Rho1_soft (r-space): ",&
-               SUM(rho%tot_rho_r)+ tot1_h - tot1_s 
+               SUM(rho_xc%tot_rho_r)+ tot1_h - tot1_s 
        ELSE  
           WRITE (UNIT=output_unit,FMT="(T3,A,T60,F20.10)")&
                "Total charge density (r-space):     ",&
