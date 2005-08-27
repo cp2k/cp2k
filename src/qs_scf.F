@@ -763,9 +763,6 @@ CONTAINS
             DO ispin=1,dft_control%nspins
                CALL calculate_density_matrix(mos(ispin)%mo_set,&
                      rho%rho_ao(ispin)%matrix,error=error)
-               IF(gapw_xc) CALL calculate_density_matrix(mos(ispin)%mo_set,&
-                     rho_xc%rho_ao(ispin)%matrix,error=error)
-
             ENDDO
 
             scf_env%iter_method=scf_env%qs_ot_env(1)%OT_METHOD_FULL
@@ -906,6 +903,10 @@ CONTAINS
               "GAPW| local Eh = 2 center integrals:           ",energy%hartree_2c,&
               "GAPW| local Eh = 3 centers integrals:          ",energy%hartree_3c
          END IF
+         IF(gapw_xc) THEN
+           WRITE (UNIT=output_unit,FMT="(/,(T3,A,T55,F25.14))")&
+              "GAPW_XC| Exc from hard and soft atomic rho1:      ",energy%exc1
+         END IF
        END IF
        IF  (qs_env%qmmm) THEN
           WRITE (UNIT=output_unit,FMT="(T3,A,T60,F20.10)")&
@@ -968,6 +969,10 @@ CONTAINS
     IF(gapw) THEN
        CALL calculate_rho_atom_coeff(qs_env,rho%rho_ao)
     END IF
+    IF(gapw_xc ) THEN
+       CALL calculate_rho_atom_coeff(qs_env,rho%rho_ao)
+       CALL qs_rho_update_rho(rho_xc, qs_env=qs_env, gapw=gapw_xc, error=error)
+    ENDIF
 
     CALL qs_ks_did_change(ks_env,rho_changed=.TRUE.,error=error)
 

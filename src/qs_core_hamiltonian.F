@@ -488,7 +488,7 @@ CONTAINS
                          distribution_2d=distribution_2d)
 
 !   *** Allocate the matrix of coefficients for one center expansions
-    IF(qs_env%dft_control%qs_control%gapw) THEN
+    IF(qs_env%dft_control%qs_control%gapw .or. qs_env%dft_control%qs_control%gapw_xc) THEN
       CALL create_oce_set(oce)
       CALL allocate_oce_set(oce,natom,nkind,maxder)
       CALL prepare_oce_coeff(particle_set,oce,natom,nsgf,&
@@ -627,7 +627,7 @@ CONTAINS
     END IF
 
 !   ***  Initialize blocks for the one center expansione ***
-    IF(qs_env%dft_control%qs_control%gapw) THEN
+    IF(qs_env%dft_control%qs_control%gapw .or. qs_env%dft_control%qs_control%gapw_xc) THEN
        oce_present = ASSOCIATED(sac_oce)
        rho0_present = ASSOCIATED(sac_3c)
        IF(rho0_present) THEN
@@ -869,7 +869,7 @@ CONTAINS
         IF (ppnl_present) THEN
           vppnl => vppnlt(:,ithread)
         END IF
-        IF(qs_env%dft_control%qs_control%gapw) THEN
+        IF(qs_env%dft_control%qs_control%gapw .or. qs_env%dft_control%qs_control%gapw_xc) THEN
           oceh => oceht(:,ithread)
           oces => ocest(:,ithread)
         END IF
@@ -2077,7 +2077,7 @@ CONTAINS
                                        "tintt")
     END IF
 
-    IF(qs_env%dft_control%qs_control%gapw) THEN
+    IF(qs_env%dft_control%qs_control%gapw .or. qs_env%dft_control%qs_control%gapw_xc) THEN
        DO i=1,SIZE(oceht,1)
          DO j=0,nthread-1
            NULLIFY (oceht(i,j)%block)
