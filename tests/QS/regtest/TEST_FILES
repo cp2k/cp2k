@@ -77,6 +77,7 @@ H2-geo-2.inp       1
 # tests GAPW GTH and ALL
 H2O-gapw-gth.inp   1
 H2O-gapw-all.inp   1
+H2O-gapwxc-gth.inp 1
 # GAPW  ALL new input
 H2O-gapw-all_new.inp 1
 # test with presence of soft S
