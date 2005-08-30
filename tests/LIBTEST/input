@@ -14,4 +14,6 @@
    RS_GRID        1
    MPI            6
    RNG            1
+   EIGENSOLVER    400 # generate a symmetric 400x400 matrix with random numbers
 &END
+   EIGENSOLVER   -400 # read a symmetric 400x400 matrix from formatted file MATRIX
