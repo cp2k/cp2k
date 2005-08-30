@@ -19,6 +19,7 @@
 !!     15-Feb-2002 (JGH) XC-Functionals
 !!     28-Feb-2002 (JGH) Clebsch-Gordon Coefficients
 !!     06-Jun-2003 (JGH) Real space grid test
+!!     Eigensolver test (29.08.05,MK)
 !!
 !!   SOURCE
 !******************************************************************************
@@ -31,6 +32,26 @@ MODULE library_tests
                                              coeff_transform_space,&
                                              coeff_type,&
                                              coeff_zero
+  USE cp_blacs_env,                    ONLY: cp_blacs_env_create,&
+                                             cp_blacs_env_release,&
+                                             cp_blacs_env_write
+  USE cp_error_handling,               ONLY: cp_error_type
+  USE cp_files,                        ONLY: close_file,&
+                                             open_file
+  USE cp_fm_diag,                      ONLY: cp_fm_syevd,&
+                                             cp_fm_syevx
+  USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
+                                             cp_fm_struct_release,&
+                                             cp_fm_struct_type,&
+                                             cp_fm_struct_write
+  USE cp_fm_types,                     ONLY: cp_fm_create,&
+                                             cp_fm_release,&
+                                             cp_fm_set_all,&
+                                             cp_fm_set_submatrix,&
+                                             cp_fm_to_fm,&
+                                             cp_fm_type
+  USE cp_para_types,                   ONLY: cp_blacs_env_type,&
+                                             cp_para_env_type
   USE fft_tools,                       ONLY: BWFFT,&
                                              FFT_RADIX_CLOSEST,&
                                              FWFFT,&
@@ -40,13 +61,13 @@ MODULE library_tests
   USE global_types,                    ONLY: global_environment_type
   USE kinds,                           ONLY: dp
   USE machine,                         ONLY: m_cputime
-  USE message_passing,                 ONLY: mp_max,&
+  USE message_passing,                 ONLY: mp_bcast,&
+                                             mp_max,&
                                              mp_sum
   USE parallel_rng_types,              ONLY: advance_rng_state,&
                                              create_rng_stream,&
                                              delete_rng_stream,&
                                              next_random_number,&
-                                             next_rng_seed,&
                                              reset_rng_stream,&
                                              reset_rng_substream,&
                                              reset_to_next_rng_substream,&
@@ -110,10 +131,10 @@ CONTAINS
 !!
 !!*** *************************************************************************
 
-SUBROUTINE lib_test ( globenv )
+SUBROUTINE lib_test ( globenv, error )
 
-    TYPE(global_environment_type), &
-      INTENT(IN)                             :: globenv
+    TYPE(global_environment_type), INTENT(IN) :: globenv
+    TYPE(cp_error_type), INTENT(INOUT)        :: error
 
     INTEGER                                  :: iw
 
@@ -141,6 +162,10 @@ SUBROUTINE lib_test ( globenv )
   IF ( runtest ( 8 ) /= 0 ) CALL mpi_test ( globenv%group )
 !
   IF ( runtest ( 9 ) /= 0 ) CALL rng_test ( globenv )
+!
+  IF (runtest(10) /= 0) THEN
+    CALL eigensolver_test(runtest(10),globenv,error)
+  END IF
 
 END SUBROUTINE lib_test
 
@@ -173,7 +198,11 @@ END SUBROUTINE lib_test
 !!I    RS_GRIDS n                                                             I
 !!I    MPI      n                                                             I
 !!I    RNG      n             -> Parallel random number generator             I
-!!I                                                                           I
+!!I    EIGENSOLVER n          -> ABS(n) is the matrix dimension:              I
+!!I                              n > 0: the matrix will be filled with random I
+!!I                                     numbers                               I
+!!I                              n < 0: the matrix is read from the formatted I
+!!I                                     file named MATRIX                     I
 !!I---------------------------------------------------------------------------I
 !!
 !!*** *************************************************************************
@@ -231,6 +260,8 @@ SUBROUTINE test_input ( globenv )
            CALL get_next ( runtest ( 8 ) )
         CASE ( 'RNG' )
            CALL get_next ( runtest ( 9 ) )
+        CASE ( 'EIGENS' )
+           CALL get_next ( runtest (10 ) )
         END SELECT
         CALL read_line
      END DO
@@ -1011,7 +1042,7 @@ END SUBROUTINE pw_fft_test
 !
 !
 SUBROUTINE mpi_test(comm)
-  USE kinds, ONLY: dp
+
   INTEGER :: comm
 
 #if defined(__parallel)
@@ -1387,154 +1418,357 @@ END SUBROUTINE simple_copy
 
 !******************************************************************************
 
-SUBROUTINE rng_test(globenv)
+  SUBROUTINE rng_test(globenv)
 
-  ! Test the parallel (pseudo)random number generator.
+    ! Test the parallel (pseudo)random number generator.
+
+    TYPE(global_environment_type), INTENT(IN) :: globenv
+
+    ! Local variables
+
+    TYPE(rng_stream_type), POINTER :: cantor,g1,g2,g3,galois,laplace,poisson
+    REAL(KIND=dp), DIMENSION(3,2)  :: germe
+    REAL(KIND=dp)                  :: sum,sum3
+    INTEGER                        :: i,output_unit,sumi
+
+    ! -------------------------------------------------------------------------
+
+    output_unit = globenv%scr
+
+    NULLIFY (g1)
+    NULLIFY (g2)
+    NULLIFY (g3)
+    NULLIFY (cantor)
+    NULLIFY (galois)
+    NULLIFY (laplace)
+    NULLIFY (poisson)
+
+    IF (globenv%ionode) CALL write_rng_matrices(output_unit)
+
+    CALL create_rng_stream(g1,"g1")
+    CALL create_rng_stream(g2,"g2",g1)
+    CALL create_rng_stream(g3,"g3",g2)
+
+    sum = next_random_number(g2) + next_random_number(g3)
+
+    CALL advance_rng_state(g1,5,3)
+    sum = sum + next_random_number(g1)
+
+    CALL reset_rng_stream(g1)
+    DO i=1,35
+       CALL advance_rng_state(g1,0,1)
+    END DO
+    sum = sum + next_random_number(g1)
+
+    CALL reset_rng_stream(g1)
+
+    sumi = 0
+    DO i=1,35
+      sumi = sumi + next_random_number(g1,1,10)
+    END DO
+    sum = sum + sumi/100.0_dp
+
+    sum3 = 0.0_dp
+    DO i=1,100
+      sum3 = sum3 + next_random_number(g3)
+    END DO
+    sum = sum + sum3/10.0_dp
+
+    CALL reset_rng_stream(g3)
+    DO i=1,5
+      sum = sum + next_random_number(g3)
+    END DO
+
+    CALL reset_rng_stream(g3)
+    DO i=1,4
+      CALL reset_to_next_rng_substream(g3)
+    END DO
+    DO i=1,5
+      sum = sum + next_random_number(g3)
+    END DO
+
+    CALL reset_rng_substream(g3)
+    DO i=1,5
+      sum = sum + next_random_number(g3)
+    END DO
+
+    CALL reset_to_next_rng_substream(g2)
+    sum3 = 0.0_dp
+    DO i=1,100000
+      sum3 = sum3 + next_random_number(g2)
+    END DO
+    sum = sum + sum3/10000.0_dp
+
+    CALL set_rng_stream(g3,antithetic=.TRUE.)
+    sum3 = 0.0_dp
+    DO i=1,100000
+      sum3 = sum3 + next_random_number(g3)
+    END DO
+    sum = sum + sum3/10000.0_dp
+
+    germe = 1
+
+    CALL create_rng_stream(poisson,name="Poisson",seed=germe)
+    CALL create_rng_stream(laplace,"Laplace",poisson)
+    CALL create_rng_stream(galois,"Galois",laplace)
+    CALL create_rng_stream(cantor,"Cantor",galois)
+
+    sum = sum + next_random_number(poisson) +&
+                next_random_number(laplace) +&
+                next_random_number(galois) +&
+                next_random_number(cantor)
+
+    CALL advance_rng_state(galois,-127,0)
+    sum = sum + next_random_number(galois)
+
+    CALL reset_to_next_rng_substream(galois)
+    CALL set_rng_stream(galois,extended_precision=.TRUE.)
+    sum3 = 0.0_dp
+    DO i=1,100000
+      sum3 = sum3 + next_random_number(galois)
+    END DO
+    sum = sum + sum3/10000.0_dp
+
+    CALL set_rng_stream(galois,antithetic=.TRUE.)
+    sum3 = 0.0_dp
+    DO i=1,100000
+      sum3 = sum3 + next_random_number(galois)
+    END DO
+    sum = sum + sum3/10000.0_dp
+    CALL set_rng_stream(galois,antithetic=.FALSE.)
+
+    CALL set_rng_stream(galois,extended_precision=.FALSE.)
+    sum = sum + next_random_number(poisson) +&
+                next_random_number(laplace) +&
+                next_random_number(galois) +&
+                next_random_number(cantor)
+
+    IF (globenv%ionode) THEN
+      WRITE (UNIT=output_unit,FMT="(/,(T2,A))")&
+        "This test routine should print the number 39.697547"
+      WRITE (UNIT=output_unit,FMT="(T2,A,F10.6)")&
+        "Actual test result is                    ",sum
+    END IF
+
+    ! Delete RNG streams
+
+    CALL delete_rng_stream(g1)
+    CALL delete_rng_stream(g2)
+    CALL delete_rng_stream(g3)
+    CALL delete_rng_stream(cantor)
+    CALL delete_rng_stream(galois)
+    CALL delete_rng_stream(laplace)
+    CALL delete_rng_stream(poisson)
+
+  END SUBROUTINE rng_test
 
   ! ***************************************************************************
 
-  TYPE(global_environment_type), INTENT(IN) :: globenv
+  SUBROUTINE eigensolver_test(nrow_global,globenv,error)
 
-  ! Local variables
+    ! Test eigensolver library routines.
 
-  TYPE(rng_stream_type), POINTER :: cantor,g1,g2,g3,galois,laplace,poisson
-  REAL(KIND=dp), DIMENSION(3,2)  :: germe
-  REAL(KIND=dp)                  :: sum,sum3
-  INTEGER                        :: i,output_unit,sumi
+    INTEGER, INTENT(IN)                       :: nrow_global
+    TYPE(global_environment_type), INTENT(IN) :: globenv
+    TYPE(cp_error_type), INTENT(INOUT)        :: error
 
-  ! ---------------------------------------------------------------------------
+    ! Local variables
 
-  output_unit = globenv%scr
+    TYPE(cp_blacs_env_type), POINTER :: blacs_env
+    TYPE(cp_fm_struct_type),POINTER  :: fmstruct
+    TYPE(cp_fm_type), POINTER        :: eigenvectors,matrix,work
+    TYPE(cp_para_env_type), POINTER  :: para_env
+    TYPE(rng_stream_type), POINTER   :: rng_stream
 
-  NULLIFY (g1)
-  NULLIFY (g2)
-  NULLIFY (g3)
-  NULLIFY (cantor)
-  NULLIFY (galois)
-  NULLIFY (laplace)
-  NULLIFY (poisson)
+    REAL(KIND=dp), DIMENSION(:), ALLOCATABLE   :: eigenvalues
+    REAL(KIND=dp), DIMENSION(:,:), ALLOCATABLE :: buffer
 
-  IF (globenv%ionode) CALL write_rng_matrices(output_unit)
+    INTEGER :: group,i,istat,j,n,neig,output_unit,source,unit_number
+    LOGICAL :: ionode
 
-  CALL create_rng_stream(g1,"g1")
-  CALL create_rng_stream(g2,"g2",g1)
-  CALL create_rng_stream(g3,"g3",g2)
+    ! -------------------------------------------------------------------------
 
-  sum = next_random_number(g2) + next_random_number(g3)
+    group = globenv%group
+    ionode = globenv%ionode
+    output_unit = globenv%scr
+    source = globenv%source
+    para_env => globenv%para_env
+    n = ABS(nrow_global)
 
-  CALL advance_rng_state(g1,5,3)
-  sum = sum + next_random_number(g1)
+    IF (ionode) THEN
+      WRITE (UNIT=output_unit,FMT="(/,/,T2,A,/)") "EIGENSOLVER TEST"
+    END IF
 
-  CALL reset_rng_stream(g1)
-  DO i=1,35
-     CALL advance_rng_state(g1,0,1)
-  END DO
-  sum = sum + next_random_number(g1)
+    NULLIFY (blacs_env)
+    CALL cp_blacs_env_create(blacs_env=blacs_env,&
+                             para_env=para_env,&
+                             error=error)
+    IF (ionode) THEN
+      WRITE (UNIT=output_unit,FMT="(/,T3,A,/)")&
+        "BLACS_ENV (BLACS environment)"
+      CALL cp_blacs_env_write(blacs_env=blacs_env,&
+                              unit_nr=output_unit,&
+                              error=error)
+    END IF
 
-  CALL reset_rng_stream(g1)
+    NULLIFY (fmstruct)
+    CALL cp_fm_struct_create(fmstruct=fmstruct,&
+                             para_env=para_env,&
+                             context=blacs_env,&
+                             nrow_global=n,&
+                             ncol_global=n,&
+                             error=error)
+    IF (ionode) THEN
+      WRITE (UNIT=output_unit,FMT="(/,T3,A,/)")&
+        "FMSTRUCT (Full Matrix STRUCTure information)"
+      CALL cp_fm_struct_write(fmstruct=fmstruct,&
+                              unit_nr=output_unit,&
+                              long_description=.TRUE.,&
+                              error=error)
+    END IF
 
-  sumi = 0
-  DO i=1,35
-    sumi = sumi + next_random_number(g1,1,10)
-  END DO
-  sum = sum + sumi/100.0_dp
+    NULLIFY (matrix)
+    CALL cp_fm_create(matrix=matrix,&
+                      matrix_struct=fmstruct,&
+                      name="MATRIX",&
+                      error=error)
+    CALL cp_fm_set_all(matrix,0.0_dp)
 
-  sum3 = 0.0_dp
-  DO i=1,100
-    sum3 = sum3 + next_random_number(g3)
-  END DO
-  sum = sum + sum3/10.0_dp
+    NULLIFY (eigenvectors)
+    CALL cp_fm_create(matrix=eigenvectors,&
+                      matrix_struct=fmstruct,&
+                      name="EIGENVECTORS",&
+                      error=error)
+    CALL cp_fm_set_all(eigenvectors,0.0_dp)
 
-  CALL reset_rng_stream(g3)
-  DO i=1,5
-    sum = sum + next_random_number(g3)
-  END DO
+    NULLIFY (work)
+    CALL cp_fm_create(matrix=work,&
+                      matrix_struct=fmstruct,&
+                      name="WORK",&
+                      error=error)
+    CALL cp_fm_set_all(matrix,0.0_dp)
 
-  CALL reset_rng_stream(g3)
-  DO i=1,4
-    CALL reset_to_next_rng_substream(g3)
-  END DO
-  DO i=1,5
-    sum = sum + next_random_number(g3)
-  END DO
+    ALLOCATE (eigenvalues(n),STAT=istat)
+    eigenvalues = 0.0_dp
 
-  CALL reset_rng_substream(g3)
-  DO i=1,5
-    sum = sum + next_random_number(g3)
-  END DO
+    ALLOCATE (buffer(1,n),STAT=istat)
 
-  CALL reset_to_next_rng_substream(g2)
-  sum3 = 0.0_dp
-  DO i=1,100000
-    sum3 = sum3 + next_random_number(g2)
-  END DO
-  sum = sum + sum3/10000.0_dp
+    IF (ionode) THEN
+      IF (nrow_global > 0) THEN
+        CALL create_rng_stream(rng_stream=rng_stream,name="rng_stream")
+      ELSE
+        CALL open_file(file_name="MATRIX",&
+                       file_action="READ",&
+                       file_form="FORMATTED",&
+                       file_status="OLD",&
+                       unit_number=unit_number)
+      END IF
+    END IF
 
-  CALL set_rng_stream(g3,antithetic=.TRUE.)
-  sum3 = 0.0_dp
-  DO i=1,100000
-    sum3 = sum3 + next_random_number(g3)
-  END DO
-  sum = sum + sum3/10000.0_dp
+    DO i=1,n
+      IF (ionode) THEN
+        IF (nrow_global > 0) THEN
+          DO j=i,n
+            buffer(1,j) = next_random_number(rng_stream,error=error) - 0.5_dp
+          END DO
+          !MK activate/modify for a diagonal dominant symmetric matrix:
+          !MK buffer(1,i) = 10.0_dp*buffer(1,i)
+        ELSE
+          READ (UNIT=unit_number,FMT=*) buffer(1,1:n)
+        END IF
+      END IF
+      CALL mp_bcast(buffer,source,group)
+      IF (nrow_global > 0) THEN
+        CALL cp_fm_set_submatrix(fm=matrix,&
+                                 new_values=buffer,&
+                                 start_row=i,&
+                                 start_col=i,&
+                                 n_rows=1,&
+                                 n_cols=n-i+1,&
+                                 alpha=1.0_dp,&
+                                 beta=0.0_dp,&
+                                 transpose=.FALSE.,&
+                                 error=error)
+        CALL cp_fm_set_submatrix(fm=matrix,&
+                                 new_values=buffer,&
+                                 start_row=i,&
+                                 start_col=i,&
+                                 n_rows=n-i+1,&
+                                 n_cols=1,&
+                                 alpha=1.0_dp,&
+                                 beta=0.0_dp,&
+                                 transpose=.FALSE.,&
+                                 error=error)
+      ELSE
+        CALL cp_fm_set_submatrix(fm=matrix,&
+                                 new_values=buffer,&
+                                 start_row=i,&
+                                 start_col=1,&
+                                 n_rows=1,&
+                                 n_cols=n,&
+                                 alpha=1.0_dp,&
+                                 beta=0.0_dp,&
+                                 transpose=.FALSE.,&
+                                 error=error)
+      END IF
+    END DO
 
-  germe = 1
+    DEALLOCATE (buffer,STAT=istat)
 
-  CALL create_rng_stream(poisson,name="Poisson",seed=germe)
-  CALL create_rng_stream(laplace,"Laplace",poisson)
-  CALL create_rng_stream(galois,"Galois",laplace)
-  CALL create_rng_stream(cantor,"Cantor",galois)
+    IF (ionode) THEN
+      IF (nrow_global > 0) THEN
+        CALL delete_rng_stream(rng_stream=rng_stream)
+        WRITE (UNIT=output_unit,FMT="(/,/,T3,2(I5,A),/)")&
+          n," x ",n," matrix generated using random numbers [-0.5,+0.5]"
+      ELSE
+        CALL close_file(unit_number=unit_number)
+        WRITE (UNIT=output_unit,FMT="(/,/,T3,2(I5,A),/)")&
+          n," x ",n," matrix read from file MATRIX"
+      END IF
+    END IF
 
-  sum = sum + next_random_number(poisson) +&
-              next_random_number(laplace) +&
-              next_random_number(galois) +&
-              next_random_number(cantor)
+    CALL cp_fm_to_fm(source=matrix,&
+                     destination=work,&
+                     error=error)
+    CALL cp_fm_syevd(matrix=work,&
+                     eigenvectors=eigenvectors,&
+                     eigenvalues=eigenvalues,&
+                     error=error)
+    IF (ionode) THEN
+      WRITE (UNIT=output_unit,FMT="(/,T3,A,/)") "Eigenvalues (SYEVD)"
+      WRITE (UNIT=output_unit,FMT="(T3,6X,F12.6)") eigenvalues(1:n)
+      WRITE (UNIT=output_unit,FMT="(T3,A4,F14.6)") "Sum:",SUM(eigenvalues(1:n))
+    END IF
 
-  CALL advance_rng_state(galois,-127,0)
-  sum = sum + next_random_number(galois)
+    neig = INT(1.0_dp*n)
+    eigenvalues = 0.0_dp
+    CALL cp_fm_set_all(eigenvectors,0.0_dp)
+    CALL cp_fm_to_fm(source=matrix,&
+                     destination=work,&
+                     error=error)
+    CALL cp_fm_syevx(matrix=work,&
+                     eigenvectors=eigenvectors,&
+                     eigenvalues=eigenvalues,&
+                     neig=neig,&
+                     work_syevx=1.0_dp,&
+                     error=error)
+    IF (ionode) THEN
+      WRITE (UNIT=output_unit,FMT="(/,T3,A,/)") "Eigenvalues (SYEVX)"
+      WRITE (UNIT=output_unit,FMT="(T3,6X,F12.6)") eigenvalues(1:neig)
+      WRITE (UNIT=output_unit,FMT="(T3,A4,F14.6)") "Sum:",SUM(eigenvalues(1:neig))
+    END IF
 
-  CALL reset_to_next_rng_substream(galois)
-  CALL set_rng_stream(galois,extended_precision=.TRUE.)
-  sum3 = 0.0_dp
-  DO i=1,100000
-    sum3 = sum3 + next_random_number(galois)
-  END DO
-  sum = sum + sum3/10000.0_dp
+    ! Clean up
 
-  CALL set_rng_stream(galois,antithetic=.TRUE.)
-  sum3 = 0.0_dp
-  DO i=1,100000
-    sum3 = sum3 + next_random_number(galois)
-  END DO
-  sum = sum + sum3/10000.0_dp
-  CALL set_rng_stream(galois,antithetic=.FALSE.)
+    DEALLOCATE (eigenvalues,STAT=istat)
+    CALL cp_fm_release(matrix=work,error=error)
+    CALL cp_fm_release(matrix=eigenvectors,error=error)
+    CALL cp_fm_release(matrix=matrix,error=error)
+    CALL cp_fm_struct_release(fmstruct=fmstruct,error=error)
+    CALL cp_blacs_env_release(blacs_env=blacs_env,error=error)
 
-  CALL set_rng_stream(galois,extended_precision=.FALSE.)
-  sum = sum + next_random_number(poisson) +&
-              next_random_number(laplace) +&
-              next_random_number(galois) +&
-              next_random_number(cantor)
+  END SUBROUTINE eigensolver_test
 
-  IF (globenv%ionode) THEN
-    WRITE (UNIT=output_unit,FMT="(/,(T2,A))")&
-      "This test routine should print the number 39.697547"
-    WRITE (UNIT=output_unit,FMT="(T2,A,F10.6)")&
-      "Actual test result is                    ",sum
-  END IF
-
-  ! Delete RNG streams
-
-  CALL delete_rng_stream(g1)
-  CALL delete_rng_stream(g2)
-  CALL delete_rng_stream(g3)
-  CALL delete_rng_stream(cantor)
-  CALL delete_rng_stream(galois)
-  CALL delete_rng_stream(laplace)
-  CALL delete_rng_stream(poisson)
-
-END SUBROUTINE rng_test
-
-!******************************************************************************
+  ! ***************************************************************************
 
 END MODULE library_tests
-
-!******************************************************************************

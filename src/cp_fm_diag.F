@@ -245,10 +245,13 @@ CONTAINS
 
     ALLOCATE (gap(npe),STAT=istat)
     IF (istat /= 0) CALL stop_memory(routineP,"gap",npe*dp_size)
+    gap = 0.0_dp
     ALLOCATE (iclustr(2*npe),STAT=istat)
     IF (istat /= 0) CALL stop_memory(routineP,"iclustr",2*npe*int_size)
+    iclustr = 0
     ALLOCATE (ifail(n),STAT=istat)
     IF (istat /= 0) CALL stop_memory(routineP,"ifail",n*int_size)
+    ifail = 0
     ALLOCATE (iwork(liwork),STAT=istat)
     IF (istat /= 0) CALL stop_memory(routineP,"iwork",liwork*int_size)
     ALLOCATE (work(lwork),STAT=istat)
@@ -309,17 +312,29 @@ CONTAINS
 
     ALLOCATE (ifail(n),STAT=istat)
     IF (istat /= 0) CALL stop_memory(routineP,"ifail",n*int_size)
+    ifail = 0
     ALLOCATE (iwork(liwork),STAT=istat)
     IF (istat /= 0) CALL stop_memory(routineP,"iwork",liwork*int_size)
     ALLOCATE (work(lwork),STAT=istat)
     IF (istat /= 0) CALL stop_memory(routineP,"work",lwork*dp_size)
+    info = 0
 
     CALL dsyevx("V","I","U",n,a(1,1),n,vl,vu,1,neig,abstol,m,w,z(1,1),n,work(1),lwork,&
                 iwork(1),ifail(1),info)
 
 !   *** Error handling ***
 
-    IF (info /= 0) CALL stop_program(routineP,"Error in dsyevx")
+    IF (info /= 0) THEN
+      output_unit = cp_logger_get_unit_nr(logger,&
+                    cp_failure_level,routineP,local=.FALSE.)
+      WRITE (unit=output_unit,FMT="(/,(T3,A,T12,1X,I10))")&
+        "info    = ",info
+      IF (info > 0) THEN
+        WRITE (unit=output_unit,FMT="(/,T3,A,(T12,6(1X,I10)))")&
+          "ifail   = ",ifail
+      END IF
+      CALL stop_program(routineP,"Error in dsyevx")
+    END IF
 
 !   *** Release work storage ***
 

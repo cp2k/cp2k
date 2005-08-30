@@ -246,7 +246,7 @@ CONTAINS
        CASE (do_qs)
           CALL quickstep_create_force_env(force_env, globenv, error=error)
        CASE (do_test)
-          CALL lib_test(globenv) 
+          CALL lib_test(globenv,error)
        END SELECT
        IF (ASSOCIATED(force_env)) THEN
           NULLIFY(meta_env)
