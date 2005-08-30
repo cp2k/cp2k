@@ -30,9 +30,11 @@ MODULE qs_ks_atom
   USE cp_array_r_utils,                ONLY: cp_2d_r_p_type
   USE cp_error_handling,               ONLY: cp_error_type
   USE cp_log_handling,                 ONLY: cp_failure_level
+  USE cp_para_types,                   ONLY: cp_para_env_type
   USE input_constants,                 ONLY: tddfpt_singlet
   USE kinds,                           ONLY: dp, dp_size, int_size
   USE memory_utilities,                ONLY: reallocate
+  USE message_passing,                 ONLY: mp_sum
   USE qs_environment_types,            ONLY: get_qs_env,&
                                              qs_environment_type
   USE qs_force_types,                  ONLY: qs_force_type
@@ -115,13 +117,14 @@ CONTAINS
 
     CHARACTER(LEN=*), PARAMETER              :: routine = "update_ks_atom"
 
-    INTEGER :: handle, i, ia_kind, iab, iatom, ikind, ilist, inode, &
+    INTEGER :: handle, i, ia_kind, iab, iat, iatom, ikind, ilist, inode, &
                ispin, istat, ja_kind, jatom, jkind, ka_kind, katom, &
                kkind, knode, last_jatom, last_katom, lC_int, ldCPC, lPC,&
                max_gau, max_nsgf, &
-               maxsoc, natom, nkind, nlist, nnode, nnode_c, &
+               maxsoc, nat, natom, nkind, nlist, nnode, nnode_c, &
                nsetc, nsgfa, nsgfb, nsoctot, nspins
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: atom_of_kind
+    INTEGER, DIMENSION(:), POINTER           :: atom_list
     LOGICAL                                  ::  my_tddft, &
                                                  new_atom_b, new_atom_c,&
                                                  paw_atom
@@ -139,6 +142,7 @@ CONTAINS
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
     TYPE(cp_2d_r_p_type), DIMENSION(:),&
       POINTER                                :: mat_h, mat_p
+    TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(gto_basis_set_type), POINTER        :: orb_basis
     TYPE(neighbor_list_set_p_type), &
       DIMENSION(:), POINTER                  :: sab_orb
@@ -158,7 +162,7 @@ CONTAINS
 
     CALL timeset("update_ks_atom","I"," ",handle)
 
-    NULLIFY(atomic_kind_set,force,oce,rho_atom,sab_orb)
+    NULLIFY(atomic_kind_set,force,oce,para_env,rho_atom,sab_orb)
     NULLIFY(mat_h, mat_p ,orb_basis, reduced_3c_oce)
 
     my_tddft = .FALSE.
@@ -175,6 +179,7 @@ CONTAINS
            atomic_kind_set=atomic_kind_set,&
            force=force,&
            oce=oce, &
+           para_env=para_env,&
            rho_atom_set=rho_atom,&
            sab_orb=sab_orb)
 
@@ -217,6 +222,22 @@ CONTAINS
     END IF
 
     nkind = SIZE(atomic_kind_set,1)
+    ! Collect the local potentialcontributions from all the processors
+    DO ikind = 1,nkind
+       NULLIFY(atomic_kind,atom_list)
+       atomic_kind => atomic_kind_set(ikind)
+       CALL get_atomic_kind(atomic_kind=atomic_kind,atom_list=atom_list,natom=nat)
+       DO iat = 1,nat
+       iatom =  atom_list(iat)
+          DO ispin = 1,nspins
+              CALL  mp_sum(rho_atom(iatom)%ga_Vlocal_gb_h(ispin)%r_coef,&
+                           para_env%group)
+              CALL  mp_sum(rho_atom(iatom)%ga_Vlocal_gb_s(ispin)%r_coef,&
+                           para_env%group)
+          END DO
+       END DO
+    END DO 
+
 
     DO ikind=1,nkind
 

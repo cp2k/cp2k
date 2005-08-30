@@ -1019,16 +1019,6 @@ MODULE  hartree_local_3centers
 
        END DO  ! kat
 
-!      The Calculation of ga_Vlocal_gp is complete at this point
-       DO kat = 1,nat
-          katom  = atom_list(kat)
-          DO ispin = 1,nspins
-              CALL  mp_sum(rho_atom_set(katom)%ga_Vlocal_gb_h(ispin)%r_coef,&
-                           para_env%group)
-              CALL  mp_sum(rho_atom_set(katom)%ga_Vlocal_gb_s(ispin)%r_coef,&
-                           para_env%group)
-          END DO
-       END DO
     END DO  ! kkind
 
 100 CONTINUE
