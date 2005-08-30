@@ -1655,6 +1655,7 @@ END SUBROUTINE simple_copy
 
     IF (ionode) THEN
       IF (nrow_global > 0) THEN
+        NULLIFY (rng_stream)
         CALL create_rng_stream(rng_stream=rng_stream,name="rng_stream")
       ELSE
         CALL open_file(file_name="MATRIX",&
@@ -1697,7 +1698,7 @@ END SUBROUTINE simple_copy
                                  n_cols=1,&
                                  alpha=1.0_dp,&
                                  beta=0.0_dp,&
-                                 transpose=.FALSE.,&
+                                 transpose=.TRUE.,&
                                  error=error)
       ELSE
         CALL cp_fm_set_submatrix(fm=matrix,&
