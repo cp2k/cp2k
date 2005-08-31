@@ -226,16 +226,19 @@ CONTAINS
     DO ikind = 1,nkind
        NULLIFY(atomic_kind,atom_list)
        atomic_kind => atomic_kind_set(ikind)
-       CALL get_atomic_kind(atomic_kind=atomic_kind,atom_list=atom_list,natom=nat)
-       DO iat = 1,nat
-       iatom =  atom_list(iat)
-          DO ispin = 1,nspins
+       CALL get_atomic_kind(atomic_kind=atomic_kind,atom_list=atom_list,&
+            paw_atom=paw_atom, natom=nat)
+       IF(paw_atom) THEN
+         DO iat = 1,nat
+         iatom =  atom_list(iat)
+            DO ispin = 1,nspins
               CALL  mp_sum(rho_atom(iatom)%ga_Vlocal_gb_h(ispin)%r_coef,&
                            para_env%group)
               CALL  mp_sum(rho_atom(iatom)%ga_Vlocal_gb_s(ispin)%r_coef,&
                            para_env%group)
-          END DO
-       END DO
+            END DO
+         END DO
+       END IF
     END DO 
 
 
