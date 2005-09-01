@@ -652,21 +652,21 @@ contains
 
        CALL cp_print_key_section_create(print_key,"ATOMIC_COORDINATES",&
             description="Controls the printing of atomic coordinates in the DFT code.", &
-            print_level=high_print_level,each=(/1/),filename="__STD_OUT__",&
+            print_level=medium_print_level,each=(/1/),filename="__STD_OUT__",&
             error=error)
        CALL section_add_subsection(section,print_key,error=error)
        CALL section_release(print_key,error=error)
 
        CALL cp_print_key_section_create(print_key,"BASIC_DATA_TYPES",&
             description="Controls the printing of the basic data types.", &
-            print_level=high_print_level,each=(/1/),filename="__STD_OUT__",&
+            print_level=debug_print_level,each=(/1/),filename="__STD_OUT__",&
             error=error)
        CALL section_add_subsection(section,print_key,error=error)
        CALL section_release(print_key,error=error)
 
        CALL cp_print_key_section_create(print_key,"BASIC_SETS",&
             description="Controls the printing of the basis sets used in the DFT calculation.", &
-            print_level=high_print_level,each=(/1/),filename="__STD_OUT__",&
+            print_level=medium_print_level,each=(/1/),filename="__STD_OUT__",&
             error=error)
        CALL section_add_subsection(section,print_key,error=error)
        CALL section_release(print_key,error=error)
@@ -680,7 +680,7 @@ contains
 
        CALL cp_print_key_section_create(print_key,"CELL_PARAMETERS",&
             description="Controls the printing of cell information", &
-            print_level=silent_print_level,each=(/1/),filename="__STD_OUT__",&
+            print_level=low_print_level,each=(/1/),filename="__STD_OUT__",&
             error=error)
        CALL section_add_subsection(section,print_key,error=error)
        CALL section_release(print_key,error=error)
@@ -715,14 +715,14 @@ contains
 
        CALL cp_print_key_section_create(print_key,"DERIVATIVES",&
             description="Controls the printing of derivatives.", &
-            print_level=high_print_level,each=(/1/),filename="__STD_OUT__",&
+            print_level=debug_print_level,each=(/1/),filename="__STD_OUT__",&
             error=error)
        CALL section_add_subsection(section,print_key,error=error)
        CALL section_release(print_key,error=error)
 
        CALL cp_print_key_section_create(print_key,"DIIS_INFORMATION",&
             description="Controls the printing of the DIIS information.", &
-            print_level=high_print_level,each=(/1/),filename="__STD_OUT__",&
+            print_level=medium_print_level,each=(/1/),filename="__STD_OUT__",&
             error=error)
        CALL section_add_subsection(section,print_key,error=error)
        CALL section_release(print_key,error=error)
@@ -813,7 +813,7 @@ contains
 
        CALL cp_print_key_section_create(print_key,"NEIGHBOUR_LISTS",&
             description="Controls the printing of the set of neighbor lists.", &
-            print_level=high_print_level,each=(/1/),filename="__STD_OUT__",&
+            print_level=debug_print_level,each=(/1/),filename="__STD_OUT__",&
             error=error)
        CALL section_add_subsection(section,print_key,error=error)
        CALL section_release(print_key,error=error)
@@ -893,14 +893,14 @@ contains
 
        CALL cp_print_key_section_create(print_key,"PROGRAM_BANNER",&
             description="Controls the printing of the banner of the MM program",&
-            print_level=silent_print_level,each=(/1/),filename="__STD_OUT__",&
+            print_level=low_print_level,each=(/1/),filename="__STD_OUT__",&
             error=error)
        CALL section_add_subsection(section,print_key,error=error)
        CALL section_release(print_key,error=error)
 
        CALL cp_print_key_section_create(print_key,"PROGRAM_RUN_INFO",&
             description="Controls the printing of information regarding the run.",&
-            print_level=silent_print_level,each=(/1/),filename="__STD_OUT__",&
+            print_level=low_print_level,each=(/1/),filename="__STD_OUT__",&
             error=error)
        CALL section_add_subsection(section,print_key,error=error)
        CALL section_release(print_key,error=error)
@@ -921,49 +921,49 @@ contains
 
        CALL cp_print_key_section_create(print_key,"SAB_ORB_NEIGHBOR_LIST",&
             description="Controls the printing of the orbital-orbital overlap neighbor lists", &
-            print_level=high_print_level,each=(/1/),filename="__STD_OUT__",&
+            print_level=debug_print_level,each=(/1/),filename="__STD_OUT__",&
             error=error)
        CALL section_add_subsection(section,print_key,error=error)
        CALL section_release(print_key,error=error)
 
        CALL cp_print_key_section_create(print_key,"SAC_PPL_NEIGHBOR_LIST",&
             description="Controls the printing of the orbital GTH-PPL operator overlap list.", &
-            print_level=high_print_level,each=(/1/),filename="__STD_OUT__",&
+            print_level=debug_print_level,each=(/1/),filename="__STD_OUT__",&
             error=error)
        CALL section_add_subsection(section,print_key,error=error)
        CALL section_release(print_key,error=error)
 
        CALL cp_print_key_section_create(print_key,"SAC_PPNL_NEIGHBOR_LIST",&
             description="Controls the printing of the orbital GTH-PPNL operator overlap list.", &
-            print_level=high_print_level,each=(/1/),filename="__STD_OUT__",&
+            print_level=debug_print_level,each=(/1/),filename="__STD_OUT__",&
             error=error)
        CALL section_add_subsection(section,print_key,error=error)
        CALL section_release(print_key,error=error)
 
        CALL cp_print_key_section_create(print_key,"SBC_PPNL_NEIGHBOR_LIST",&
             description="Controls the printing of the orbital GTH-PPNL operator overlap list.", &
-            print_level=high_print_level,each=(/1/),filename="__STD_OUT__",&
+            print_level=debug_print_level,each=(/1/),filename="__STD_OUT__",&
             error=error)
        CALL section_add_subsection(section,print_key,error=error)
        CALL section_release(print_key,error=error)
 
        CALL cp_print_key_section_create(print_key,"SAC_OCE_NEIGHBOR_LIST",&
             description="Controls the printing of then orbital orbital-gapw projector  overlap list", &
-            print_level=high_print_level,each=(/1/),filename="__STD_OUT__",&
+            print_level=debug_print_level,each=(/1/),filename="__STD_OUT__",&
             error=error)
        CALL section_add_subsection(section,print_key,error=error)
        CALL section_release(print_key,error=error)
 
        CALL cp_print_key_section_create(print_key,"SBC_OCE_NEIGHBOR_LIST",&
             description="Controls the printing of then orbital orbital-gapw projector  overlap list", &
-            print_level=high_print_level,each=(/1/),filename="__STD_OUT__",&
+            print_level=debug_print_level,each=(/1/),filename="__STD_OUT__",&
             error=error)
        CALL section_add_subsection(section,print_key,error=error)
        CALL section_release(print_key,error=error)
 
        CALL cp_print_key_section_create(print_key,"SCF",&
             description="Controls the printing of the SCF parameters.", &
-            print_level=high_print_level,each=(/1/),filename="__STD_OUT__",&
+            print_level=low_print_level,each=(/1/),filename="__STD_OUT__",&
             error=error)
        CALL section_add_subsection(section,print_key,error=error)
        CALL section_release(print_key,error=error)
@@ -978,7 +978,7 @@ contains
        CALL cp_print_key_section_create(print_key,"SPHERICAL_HARMONICS",&
             description="Controls the printing of the Spherical Harmonics and the"//&
             "orbital transformation matrices", &
-            print_level=high_print_level,each=(/1/),filename="__STD_OUT__",&
+            print_level=debug_print_level,each=(/1/),filename="__STD_OUT__",&
             error=error)
        CALL section_add_subsection(section,print_key,error=error)
        CALL section_release(print_key,error=error)
@@ -1089,14 +1089,14 @@ contains
 
        CALL cp_print_key_section_create(print_key,"MULLIKEN",&
             description="Controls the printing of the Mulliken Population analysis.", &
-            print_level=silent_print_level,each=(/1/),filename="__STD_OUT__",&
+            print_level=medium_print_level,each=(/1/),filename="__STD_OUT__",&
             error=error)
        CALL section_add_subsection(section,print_key,error=error)
        CALL section_release(print_key,error=error)
 
        CALL cp_print_key_section_create(print_key,"LOCALIZED_WFN",&
             description="Controls the printing of new localized wavefunctions method.", &
-            print_level=silent_print_level,each=(/1/),filename="__STD_OUT__",&
+            print_level=medium_print_level,each=(/1/),filename="__STD_OUT__",&
             error=error)
        CALL section_add_subsection(section,print_key,error=error)
        CALL section_release(print_key,error=error)
