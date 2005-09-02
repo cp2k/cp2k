@@ -46,6 +46,7 @@ MODULE qs_force_types
                                          hartree_3c,&
                                          kg_gpw_ekin_mol,&
                                          other,&
+                                         ch_pulay,&
                                          total
   END TYPE qs_force_type
 
@@ -153,6 +154,12 @@ CONTAINS
       IF (istat /= 0) THEN
         CALL stop_memory(routine,"qs_force(ikind)%other",3*n*dp_size)
       END IF
+      ALLOCATE (qs_force(ikind)%ch_pulay(3,n),STAT=istat)
+      IF (istat /= 0) THEN
+        CALL stop_memory(routine,"qs_force(ikind)%other",3*n*dp_size)
+      END IF
+      ! Always initialize ch_pulay to zero..
+      qs_force(ikind)%ch_pulay  = 0.0_dp
       ALLOCATE (qs_force(ikind)%total(3,n),STAT=istat)
       IF (istat /= 0) THEN
         CALL stop_memory(routine,"qs_force(ikind)%total",3*n*dp_size)
@@ -293,6 +300,13 @@ CONTAINS
         IF (istat /= 0) THEN
           CALL stop_memory(routine,"qs_force%total")
         END IF
+      END IF
+
+      IF (ASSOCIATED(qs_force(ikind)%ch_pulay)) THEN
+         DEALLOCATE (qs_force(ikind)%ch_pulay,STAT=istat)
+         IF (istat /= 0) THEN
+            CALL stop_memory(routine,"qs_force%total")
+         END IF
       END IF
 
     END DO

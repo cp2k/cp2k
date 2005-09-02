@@ -6686,7 +6686,7 @@ END SUBROUTINE create_ewald_section
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)       
        
-       CALL create_fitcharge_section(subsection,error)
+       CALL create_multipole_section(subsection,error)
        CALL section_add_subsection(section, subsection, error=error)
        CALL section_release(subsection,error=error)       
 
@@ -7453,7 +7453,7 @@ END SUBROUTINE create_ewald_section
     
     CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
     IF (.NOT. failure) THEN
-       CALL section_create(section,name="FIT_CHARGE",&
+       CALL section_create(section,name="MULTIPOLE",&
             description="This section is used to set up the decoupling of QM periodic images with "//&
             "the use of density derived atomic point charges.",&
             n_keywords=3, n_subsections=1, repeats=.FALSE., required=.FALSE.,&
@@ -7479,7 +7479,7 @@ END SUBROUTINE create_ewald_section
             description="Specifies the smallest radius of the gaussian used in the fit. All other radius are"//&
             " obtained with the progression factor.",&
             usage="MIN_RADIUS {real}", required=.FALSE.,&
-            n_var=1, type_of_var=real_t, default_r_val=0.5_dp, error=error)
+            unit_str="angstrom",n_var=1, type_of_var=real_t, default_r_val=0.5_dp, error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
        
@@ -7487,14 +7487,28 @@ END SUBROUTINE create_ewald_section
             description="Specifies all the radius of the gaussian used in the fit for each atomic site. The use"//&
             " of this keyword disables all other keywords of this section.",&
             usage="RADII {real} {real} .. {real}", required=.FALSE.,&
-            n_var=-1, type_of_var=real_t, error=error)
+            unit_str="angstrom",n_var=-1, type_of_var=real_t, error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
        CALL keyword_create(keyword, name="GCUT",&
-            description="Cutoff for fit in G-space.",&
+            description="Cutoff for charge fit in G-space.",&
             usage="GCUT {real}", required=.FALSE.,&
             n_var=1, type_of_var=real_t, default_r_val=SQRT(6.0_dp),error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="RCUT",&
+            description="Real space cutoff for the Ewald sum.",&
+            usage="RCUT {real}", n_var=1, type_of_var=real_t,&
+            unit_str="angstrom",error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="EWALD_PRECISION",&
+            description="Precision achieved in the Ewald sum.",&
+            usage="EWALD_PRECISION {real}", n_var=1, type_of_var=real_t,&
+            unit_str="hartree",default_r_val=1.0E-6_dp,error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
@@ -7591,7 +7605,7 @@ END SUBROUTINE create_ewald_section
     IF (.NOT. failure) THEN
        CALL section_create(section,name="mt",&
             description="Sets up parameters of  Martyna-Tuckerman poisson solver",&
-            n_keywords=1, n_subsections=0, repeats=.FALSE., required=.TRUE.,&
+            n_keywords=1, n_subsections=0, repeats=.FALSE., required=.FALSE.,&
             error=error)
 
        NULLIFY(keyword)

@@ -277,7 +277,7 @@ CONTAINS
         ! Things should have the right name
         ! The minus sign below is a hack
         ! XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
-        force(ikind)%other(1:3,i)=-particle_set(iatom)%f(1:3)
+        force(ikind)%other(1:3,i)=-particle_set(iatom)%f(1:3)+force(ikind)%ch_pulay(1:3,i)
         force(ikind)%total(1:3,i)=force(ikind)%total(1:3,i)+force(ikind)%other(1:3,i)
         particle_set(iatom)%f = -force(ikind)%total(1:3,i)
       END DO
@@ -416,6 +416,7 @@ CONTAINS
             iatom,ikind,"  core_overlap",qs_force(ikind)%core_overlap(1:3,i),&
             iatom,ikind,"      rho_core",qs_force(ikind)%rho_core(1:3,i),&
             iatom,ikind,"      rho_elec",qs_force(ikind)%rho_elec(1:3,i),&
+            iatom,ikind,"      ch_pulay",qs_force(ikind)%ch_pulay(1:3,i),&
             iatom,ikind,"         total",qs_force(ikind)%total(1:3,i)
             grand_total(1:3) = grand_total(1:3) + qs_force(ikind)%total(1:3,i)
         END DO
@@ -436,6 +437,7 @@ CONTAINS
             iatom,ikind,"    g0s_Vh_elec",qs_force(ikind)%g0s_Vh_elec(1:3,i),& 
             iatom,ikind,"     hartree_2c",qs_force(ikind)%hartree_2c(1:3,i),& 
             iatom,ikind,"     hartree_3c",qs_force(ikind)%hartree_3c(1:3,i),&
+            iatom,ikind,"      ch_pulay",qs_force(ikind)%ch_pulay(1:3,i),&
             iatom,ikind,"         total",qs_force(ikind)%total(1:3,i)
             grand_total(1:3) = grand_total(1:3) + qs_force(ikind)%total(1:3,i)
         END DO
@@ -462,6 +464,7 @@ CONTAINS
             iatom,ikind,"       rho_core",qs_force(ikind)%rho_core(1:3,i),&
             iatom,ikind,"       rho_elec",qs_force(ikind)%rho_elec(1:3,i),&
             iatom,ikind,"kg_gpw_ekin_mol",qs_force(ikind)%kg_gpw_ekin_mol(1:3,i),&
+            iatom,ikind,"       ch_pulay",qs_force(ikind)%ch_pulay(1:3,i),&
             iatom,ikind,"          total",qs_force(ikind)%total(1:3,i)
             grand_total(1:3) = grand_total(1:3) + qs_force(ikind)%total(1:3,i)
         END DO

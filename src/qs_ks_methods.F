@@ -425,7 +425,9 @@ CONTAINS
        CALL calculate_hartree(rho_tot_gspace,energy%hartree,&
             v_hartree_gspace)
        CALL cleanup_pw_poisson_solver(green,error=error)
-       CALL cp_decpl_ddapc(qs_env,v_hartree_gspace,error=error)
+       ! In case decouple periodic images
+       CALL cp_decpl_ddapc(qs_env,rho_tot_gspace,energy%hartree,v_hartree_gspace,&
+            calculate_forces=calculate_forces,error=error)
 
        IF (.NOT. just_energy) THEN
           CALL coeff_transform_space(v_hartree_gspace,&
