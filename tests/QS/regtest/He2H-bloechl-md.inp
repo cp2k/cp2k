@@ -1,0 +1,81 @@
+&CP2K
+ PROGRAM      Quickstep
+ PROJECT      H2O
+ IOLEVEL      10
+ FFTLIB       FFTSG
+ RUN_TYPE     MD
+&END
+
+&PRINT MEDIUM
+&END
+
+&MD
+ ensemble:     nve                     (nve,nvt,npt_i,npt_f)
+ steps:        2
+ timestep:     0.1 fs                  time step [fs]
+ temperature:  300.0                   temperature [K]
+ restart:      init                    start type (pos,posvel)
+ constraints:  off
+ shake:        1.0E-10
+ nose_parameter & 
+  length:    3        &
+  Yoshida:   3        &
+  timecon:   100.0 fs &
+  mts:       2
+&END  
+
+&DFT
+ CHARGE 0
+ FUNCTIONAL   Pade
+&END
+
+&QS
+ CUTOFF       100
+ EPS_DEFAULT  1.0E-12
+&END
+
+&SCF
+ GUESS        ATOMIC
+ EPS_SCF      1.0E-6
+ MAX_SCF      100
+&END
+
+&IO
+POTENTIAL_FILE FAKE_POTENTIAL
+&END
+
+&KIND H
+ BASIS_SET    DZV-GTH-PADE
+ POTENTIAL    GTH-PADE-ANTYMATTER-q1
+&END
+
+&KIND He
+ BASIS_SET    DZV-GTH-PADE
+ POTENTIAL    GTH-PADE-q2
+&END
+
+&FORCE_EVAL
+  &DFT
+    &POISSON_DFT
+     POISSON_SOLVER MULTIPOLE
+     &MULTIPOLE
+      RCUT 20.0
+     &END
+     PERIODIC NONE
+    &END POISSON_DFT
+  &END
+
+  &SUBSYS
+    &CELL
+       UNIT   ANGSTROM
+       ABC    10.0 10.0 10.0
+    &END CELL
+  &END SUBSYS
+&END 
+
+&COORD
+ H   3.0000  3.0000  3.2000
+ He  3.0000  3.0000  6.8000
+ H   5.0000  5.0000  7.0000 
+&END
+
