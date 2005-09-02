@@ -269,7 +269,7 @@ MODULE qs_environment_types
     LOGICAL :: use_ref_cell
     LOGICAL :: qmmm
     LOGICAL :: requires_mo_derivs
-    TYPE(cell_type), POINTER                              :: cell
+    TYPE(cell_type), POINTER                              :: cell, super_cell 
     TYPE(cell_type), POINTER                              :: cell_ref
     TYPE(greens_function_type), POINTER                   :: green
     TYPE(dft_control_type), POINTER                       :: dft_control
@@ -344,7 +344,7 @@ CONTAINS
 
 ! *****************************************************************************
 
-  SUBROUTINE get_qs_env(qs_env,atomic_kind_set,cell,cell_ref,use_ref_cell,&
+  SUBROUTINE get_qs_env(qs_env,atomic_kind_set,cell,super_cell,cell_ref,use_ref_cell,&
                         dft_control,mos,sab_orb,qmmm,green,&
                         sac_erfc,sac_ppl,sac_ppnl,sbc_ppnl,&
                         sac_oce,sbc_oce,sab_2c,sac_3c,sbc_3c,&
@@ -372,7 +372,7 @@ CONTAINS
     TYPE(atomic_kind_type), DIMENSION(:), &
       OPTIONAL, POINTER                      :: atomic_kind_set
     TYPE(greens_function_type), POINTER, OPTIONAL  :: green
-    TYPE(cell_type), OPTIONAL, POINTER       :: cell, cell_ref
+    TYPE(cell_type), OPTIONAL, POINTER       :: cell, cell_ref, super_cell
     LOGICAL, OPTIONAL                        :: use_ref_cell
     TYPE(dft_control_type), OPTIONAL, &
       POINTER                                :: dft_control
@@ -478,6 +478,7 @@ CONTAINS
     CPPrecondition(ASSOCIATED(qs_env%subsys),cp_failure_level,routineP,error,failure)
 
     IF (PRESENT(cell)) cell => qs_env%cell
+    IF (PRESENT(super_cell)) super_cell => qs_env%super_cell
     IF (PRESENT(cell_ref)) cell_ref => qs_env%cell_ref
     IF (PRESENT(green)) green => qs_env%green
     IF (PRESENT(use_ref_cell)) use_ref_cell = qs_env%use_ref_cell
@@ -589,6 +590,7 @@ CONTAINS
     NULLIFY (qs_env%blacs_env)
     NULLIFY (qs_env%green)
     NULLIFY (qs_env%cell)
+    NULLIFY (qs_env%super_cell)
     NULLIFY (qs_env%cell_ref)
     NULLIFY (qs_env%dft_control)
     NULLIFY (qs_env%mos)
@@ -651,7 +653,7 @@ CONTAINS
 
 ! *****************************************************************************
 
-  SUBROUTINE set_qs_env(qs_env,cell,cell_ref,use_ref_cell, &
+  SUBROUTINE set_qs_env(qs_env,cell,super_cell,cell_ref,use_ref_cell, &
                         dft_control,mos,qmmm,green,&
                         sab_orb,sac_erfc,sac_ppl,sac_ppnl,sbc_ppnl,&
                         sac_oce,sbc_oce,sab_2c,sac_3c,sbc_3c,&
@@ -674,7 +676,7 @@ CONTAINS
 
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(greens_function_type), POINTER,OPTIONAL  :: green
-    TYPE(cell_type), OPTIONAL, POINTER       :: cell, cell_ref
+    TYPE(cell_type), OPTIONAL, POINTER       :: cell, super_cell, cell_ref
     LOGICAL, OPTIONAL                        :: use_ref_cell
     TYPE(dft_control_type), OPTIONAL, &
       POINTER                                :: dft_control
@@ -758,6 +760,11 @@ CONTAINS
        CALL cell_retain(cell, error=error)
        CALL cell_release(qs_env%cell,error=error)
        qs_env%cell => cell
+    END IF
+    IF (PRESENT(super_cell)) THEN
+       CALL cell_retain(super_cell, error=error)
+       CALL cell_release(qs_env%super_cell,error=error)
+       qs_env%super_cell => super_cell
     END IF
     IF (PRESENT(cell_ref)) THEN
        CALL cell_retain(cell_ref, error=error)
@@ -1042,6 +1049,7 @@ SUBROUTINE qs_env_release(qs_env,error)
      qs_env%ref_count=qs_env%ref_count-1
      IF (qs_env%ref_count<1) THEN
         CALL cell_release(qs_env%cell)
+        CALL cell_release(qs_env%super_cell)
         CALL cell_release(qs_env%cell_ref)
         CALL pw_green_release(qs_env%green)
         CALL dft_control_release(qs_env%dft_control, error=error)

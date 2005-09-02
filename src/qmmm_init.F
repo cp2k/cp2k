@@ -185,7 +185,7 @@ CONTAINS
     INTEGER, DIMENSION(:), POINTER           :: qm_atom_index, mm_atom_index, qm_subsys_index
     INTEGER, DIMENSION(:), POINTER           :: mm_link_atoms
     LOGICAL                                  :: failure, qmmm_link
-    TYPE(cell_type), POINTER                 :: mm_cell, qm_cell_small
+    TYPE(cell_type), POINTER                 :: mm_cell, qm_cell_small, super_cell
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(cp_subsystem_p_type), &
       DIMENSION(:), POINTER                  :: subsys_mm
@@ -218,7 +218,7 @@ CONTAINS
          qs_env, para_env, mm_atom_chrg,mm_el_pot_radius, qmmm_env_mm,   &
          mm_link_atoms, mm_link_scale_factor, qmmm_links, added_charges, &
          fist_scale_charge_link, green, poisson_section, print_section,  &
-         print_gen, logger, mm_el_pot_radius_corr)
+         print_gen, logger, mm_el_pot_radius_corr, super_cell)
     para_env => globenv%para_env
     iw = globenv%scr
     logger => cp_error_get_logger(error)
@@ -372,6 +372,15 @@ CONTAINS
             cell=qm_cell_small, qmmm=.TRUE., error=error)
        CALL cp_subsys_release(subsys_qm,error=error)
        CALL force_env_get(sub_force_env(2)%force_env,qs_env=qs_env,error=error)
+       IF (qmmm_env_qm%periodic) THEN 
+          IF (.NOT.ASSOCIATED(super_cell)) THEN
+             ALLOCATE (super_cell,STAT=stat)
+             CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+          END IF
+          CALL cell_clone(mm_cell, super_cell)
+          CALL set_qs_env(qs_env, super_cell=super_cell, error=error)
+          CALL cell_release(super_cell, error=error)
+       END IF
        !
        ! Initialize MM Potential fitted with Gaussian
        !
