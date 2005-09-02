@@ -201,6 +201,7 @@ MODULE qs_scf
                                              timestop
   USE harris_functional,               ONLY: harris_energy_correction, &
                                              harris_eigenvalue_trace_KS_Pmix, &
+                                             harris_eigenvalue_calculation, &
                                              harris_postprocessing
   USE input_section_types,             ONLY: section_vals_get_subs_vals, &
                                              section_vals_val_get, &
@@ -605,12 +606,6 @@ CONTAINS
             error=error,&
             calculate_forces=.FALSE.,just_energy=energy_only)
 
-       !IF (harris_flag) THEN       
-       !  CALL harris_energy_correction(qs_env, harris_env, &
-       !                                EII_necessary=EII_necessary, &
-       !                                globenv=globenv, error=error)
-       !END IF
-
 !FM      CALL pw_env_flush_cache(pw_env,error=error)
 
        DO ispin=1,dft_control%nspins
@@ -775,7 +770,12 @@ CONTAINS
          CALL harris_energy_correction(qs_env, harris_env, &
                                        EII_necessary=EII_necessary, &
                                        globenv=globenv, fast=.TRUE., error=error)
-         CALL harris_eigenvalue_trace_KS_Pmix(scf_env, qs_env, harris_env, error=error)
+         IF (scf_env%method .NE. ot_method_nr) THEN
+           CALL harris_eigenvalue_trace_KS_Pmix(scf_env, qs_env, harris_env, error=error)
+         ELSE
+           CALL harris_eigenvalue_calculation(qs_env=qs_env, harris_env=harris_env, error=error)
+         END IF
+         !energy%total = harris_env%harris_energy%Eharris
        END IF
 
        IF (scf_env%mixing_method.EQ.ao_mixing_nr) THEN

@@ -60,11 +60,9 @@ MODULE harris_functional
                                              pw_integral_ab
   USE pw_types,                        ONLY: COMPLEXDATA1D, &
                                              RECIPROCALSPACE
-  !USE qs_collocate_density,            ONLY: calculate_total_rho
   USE qs_core_energies,                ONLY: calculate_ecore_overlap, &
                                              calculate_ecore_self
                                              !calculate_ecore
-  !USE qs_energy_types,                 ONLY: qs_energy_type
   USE qs_environment_types,            ONLY: qs_environment_type, &
                                              get_qs_env
   USE qs_ks_methods,                   ONLY: qs_vxc_create
@@ -154,7 +152,6 @@ CONTAINS
     TYPE(coeff_type), POINTER                       :: rho_core
     TYPE(coeff_type), DIMENSION(:), POINTER         :: v_rspace_new, &
                                                        v_tau_rspace
-    !TYPE(qs_energy_type), POINTER                   :: qs_energy
     !TYPE(cp_para_env_type), POINTER                 :: para_env
     !TYPE(real_matrix_p_type), DIMENSION(:), POINTER :: matrix_ks
     TYPE(dft_control_type), POINTER                 :: dft_control
@@ -450,7 +447,7 @@ CONTAINS
     CPPrecondition(qs_env%ref_count>0, cp_failure_level, routineP, error, failure)
     CPPrecondition(ASSOCIATED(harris_env), cp_failure_level, routineP, error, failure)
     CPPrecondition(harris_env%ref_count>0, cp_failure_level, routineP, error, failure)
-    
+
     IF (.NOT. failure) THEN
       CALL harris_env_get(harris_env=harris_env, harris_energy=harris_energy, error=error)
 
@@ -527,7 +524,7 @@ CONTAINS
     CPPrecondition(qs_env%ref_count>0, cp_failure_level, routineP, error, failure)
     CPPrecondition(ASSOCIATED(harris_env), cp_failure_level, routineP, error, failure)
     CPPrecondition(harris_env%ref_count>0, cp_failure_level, routineP, error, failure)
-    
+
     IF (.NOT. failure) THEN
       CALL harris_env_get(harris_env=harris_env, harris_energy=harris_energy, error=error)
 

@@ -88,8 +88,6 @@ MODULE harris_force
                                              qs_rho_get
   USE simulation_cell,                 ONLY: cell_type
   USE sparse_matrix_types,             ONLY: real_matrix_p_type, &
-                                             !cp_sm_scale_and_add, &
-                                             !cp_sm_maxabsval, &
                                              transfer_matrix
   USE timings,                         ONLY: timeset, &
                                              timestop
@@ -274,18 +272,6 @@ CONTAINS
       !CALL harris_env_get(harris_env=harris_env, matrix_h=matrix_h, &
       !                    matrix_ks=matrix_ks, error=error)
       CALL get_qs_env(qs_env=qs_env, matrix_h=matrix_h, matrix_ks=matrix_ks, error=error)
-
-      ! *** Debug Section for the KS & H Matrices *** !
-      !CALL get_qs_env(qs_env=qs_env, para_env=para_env, error=error)
-      !CALL cp_sm_scale_and_add(matrix_a=harris_env%matrix_h(1)%matrix, alpha=1.0_dp, &
-      !                         matrix_b=matrix_h(1)%matrix, beta=-1.0_dp, error=error)
-      !CALL cp_sm_maxabsval(matrix=harris_env%matrix_h(1)%matrix, maxabsval=maxabsval, &
-      !                     para_env=para_env, error=error)
-      !
-      !CALL cp_sm_scale_and_add(matrix_a=harris_env%matrix_ks(1)%matrix, alpha=1.0_dp, &
-      !                         matrix_b=matrix_ks(1)%matrix, beta=-1.0_dp, error=error)
-      !CALL cp_sm_maxabsval(matrix=harris_env%matrix_ks(1)%matrix, maxabsval=maxabsval, &
-      !                     para_env=para_env, error=error)
 
       CALL pw_env_get(pw_env=pw_env, auxbas_pw_pool=auxbas_pw_pool, error=error)
       CALL pw_pool_init_coeff(auxbas_pw_pool, v_hartree_gspace, &
