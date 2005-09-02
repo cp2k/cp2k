@@ -1137,7 +1137,11 @@ SUBROUTINE initialize_velocities ( simpar, part, globenv )
 
   IF ( (simpar % read_type == md_init_start ) .AND. &
         globenv % ionode .AND. globenv % print_level > 1 ) THEN
-     temp = 2.0_dp * akin / REAL ( simpar % nfree,KIND=dp)
+     IF (simpar % nfree == 0) THEN
+        temp = 2.0_dp * akin / REAL ( 1,KIND=dp) ! Should always be zero...
+     ELSE
+        temp = 2.0_dp * akin / REAL ( simpar % nfree,KIND=dp)
+     END IF
      WRITE ( iw, '( A, T61, F18.2, A2 )' ) &
           ' Initial Temperature ', temp / unit % kelvin, " K"
      WRITE ( iw, '( A, T61, F20.12 )' ) &
