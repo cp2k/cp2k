@@ -425,8 +425,8 @@ CONTAINS
        my_type    = ISYMBL(i)
        len_type   = LEN_TRIM(my_type)
        num_types  = COUNT(ISYMBL==my_type)
-       IF (num_types == 1.OR.my_done(i)==1) CYCLE
        my_done(i) = 1
+       IF (num_types == 1.OR.my_done(i)==1) CYCLE
        ALLOCATE(my_charge(num_types), my_index(num_types))
        k = 0
        ! Collect Information
