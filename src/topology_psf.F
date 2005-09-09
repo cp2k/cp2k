@@ -42,7 +42,7 @@ MODULE topology_psf
   USE topology_types,                  ONLY: topology_parameters_type,&
                                              atom_info_type,&
                                              connectivity_info_type
-
+  USE string_utilities,                ONLY: uppercase
   IMPLICIT NONE
 
   CHARACTER(LEN=*), PARAMETER, PRIVATE :: moduleN = "topology_psf"
@@ -185,6 +185,7 @@ SUBROUTINE read_topology_psf (topology,globenv)
       CALL get_next(atom_info%label_resname(iatom),ilen)
       CALL get_next(atom_info%label_atmname(iatom),ilen)
       CALL get_next(atom_info%label_atmname(iatom),ilen)
+      CALL uppercase ( atom_info%label_atmname(iatom) )
       CALL get_next(atom_info%atm_charge(iatom))
       CALL get_next(atom_info%atm_mass(iatom))
     END DO
