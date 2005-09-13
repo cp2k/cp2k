@@ -60,3 +60,4 @@ cu_eam_1.inp              2
 cu_eam_2.inp              2
 # Fumi-Tosi Potential
 NaCl.inp                  2
+NaCl-H2O.inp              2
