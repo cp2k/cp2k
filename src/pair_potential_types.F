@@ -45,7 +45,7 @@ MODULE pair_potential_types
   PRIVATE
   PUBLIC :: pair_potential_type, pot_parameters_release
   PUBLIC :: pot_parameters_create
-  PUBLIC :: lj_pot_type, williams_pot_type, goodwin_pot_type, ipbv_pot_type
+  PUBLIC :: lj_pot_type, ft_pot_type, williams_pot_type, goodwin_pot_type, ipbv_pot_type
   PUBLIC :: eam_pot_type, clean_pot_parameter
 
   PUBLIC :: reallocate_potparm
@@ -57,11 +57,18 @@ MODULE pair_potential_types
     REAL (KIND=dp) :: b
   END TYPE ipbv_pot_type
 
-  TYPE lj_pot_type
+  TYPE lj_pot_type ! Lennard-Jones
     REAL (KIND=dp) :: epsilon
     REAL (KIND=dp) :: sigma6
     REAL (KIND=dp) :: sigma12
   END TYPE lj_pot_type
+
+  TYPE ft_pot_type ! Fumi-Tosi potential
+    REAL (KIND=dp) :: A
+    REAL (KIND=dp) :: B
+    REAL (KIND=dp) :: C
+    REAL (KIND=dp) :: D
+  END TYPE ft_pot_type
 
   TYPE williams_pot_type
     REAL (KIND=dp) :: a
@@ -88,6 +95,7 @@ MODULE pair_potential_types
     CHARACTER ( LEN = default_string_length ) :: at2
     TYPE ( ipbv_pot_type ) :: ipbv
     TYPE ( lj_pot_type ) :: lj
+    TYPE ( ft_pot_type ) :: ft
     TYPE ( williams_pot_type ) :: willis
     TYPE ( goodwin_pot_type ) :: goodwin
     TYPE ( eam_pot_type ) :: eam
@@ -196,6 +204,10 @@ SUBROUTINE pot_parameters_create ( potparm, nkinds, error )
     potparm ( :, : ) % lj % epsilon = 0.0_dp
     potparm ( :, : ) % lj % sigma6 = 0.0_dp
     potparm ( :, : ) % lj % sigma12 = 0.0_dp
+    potparm ( :, : ) % ft % A = 0.0_dp
+    potparm ( :, : ) % ft % B = 0.0_dp
+    potparm ( :, : ) % ft % C = 0.0_dp
+    potparm ( :, : ) % ft % D = 0.0_dp
     potparm ( :, : ) % willis % a = 0.0_dp
     potparm ( :, : ) % willis % b = 0.0_dp
     potparm ( :, : ) % willis % c = 0.0_dp
@@ -272,7 +284,7 @@ SUBROUTINE clean_pot_parameter(potparm)
   potparm % ipbv % m = 0.0_dp
   potparm % lj % epsilon = 0.0_dp
   potparm % lj % sigma6 = 0.0_dp
-  potparm % lj % sigma12 = 0.0_dp
+  potparm % lj % sigma12 = 0.0_dp 
   potparm % willis % a = 0.0_dp
   potparm % willis % b = 0.0_dp
   potparm % willis % c = 0.0_dp
@@ -281,6 +293,10 @@ SUBROUTINE clean_pot_parameter(potparm)
   potparm % goodwin % dc = 0.0_dp
   potparm % goodwin % m = 0.0_dp
   potparm % goodwin % mc = 0.0_dp
+  potparm % ft % A = 0.0_dp
+  potparm % ft % B = 0.0_dp
+  potparm % ft % C = 0.0_dp
+  potparm % ft % D = 0.0_dp
   potparm % eam % eam_file_name = 'NULL'
   IF (ASSOCIATED( potparm % pair_spline_data ))&
        CALL spline_data_release ( potparm % pair_spline_data )
@@ -354,6 +370,10 @@ END SUBROUTINE clean_pot_parameter
     p ( : ) % lj % epsilon = 0.0_dp
     p ( : ) % lj % sigma6 = 0.0_dp
     p ( : ) % lj % sigma12 = 0.0_dp
+    p ( : ) % ft % A = 0.0_dp
+    p ( : ) % ft % B = 0.0_dp
+    p ( : ) % ft % C = 0.0_dp
+    p ( : ) % ft % D = 0.0_dp
     p ( : ) % willis % a = 0.0_dp
     p ( : ) % willis % b = 0.0_dp
     p ( : ) % willis % c = 0.0_dp

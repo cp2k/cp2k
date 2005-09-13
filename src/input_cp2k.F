@@ -3908,7 +3908,7 @@ SUBROUTINE create_tddfpt_section(section,error)
 !!****f* input_cp2k/create_TORSIONS_section [1.0] *
 !!
 !!   NAME
-!!     create_ipbv_section
+!!     create_torsions_section
 !!
 !!   FUNCTION
 !!     This section specifies the charges of the MM atoms
@@ -3981,7 +3981,7 @@ SUBROUTINE create_tddfpt_section(section,error)
 !!****f* input_cp2k/create_BENDS_section [1.0] *
 !!
 !!   NAME
-!!     create_ipbv_section
+!!     create_bends_section
 !!
 !!   FUNCTION
 !!     This section specifies the charges of the MM atoms
@@ -4048,7 +4048,7 @@ SUBROUTINE create_tddfpt_section(section,error)
 !!****f* input_cp2k/create_BONDS_section [1.0] *
 !!
 !!   NAME
-!!     create_ipbv_section
+!!     create_bonds_section
 !!
 !!   FUNCTION
 !!     This section specifies the charges of the MM atoms
@@ -4114,7 +4114,7 @@ SUBROUTINE create_tddfpt_section(section,error)
 !!****f* input_cp2k/create_charge_section [1.0] *
 !!
 !!   NAME
-!!     create_ipbv_section
+!!     create_charge_section
 !!
 !!   FUNCTION
 !!     This section specifies the charges of the MM atoms
@@ -4288,6 +4288,10 @@ SUBROUTINE create_tddfpt_section(section,error)
        CALL section_add_subsection(section, subsection, error=error)
        CALL section_release(subsection,error=error)
 
+       CALL create_BMHFT_section(subsection, error=error)
+       CALL section_add_subsection(section, subsection, error=error)
+       CALL section_release(subsection,error=error)
+
     END IF
 
   END SUBROUTINE create_NONBONDED_section
@@ -4327,7 +4331,7 @@ SUBROUTINE create_tddfpt_section(section,error)
     CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
     IF (.NOT. failure) THEN
        CALL section_create(section,name="EAM",&
-            description="This section specifies the input parameters for LENNARD-JONES potential type.",&
+            description="This section specifies the input parameters for EAM potential type.",&
             n_keywords=1, n_subsections=0, repeats=.TRUE., required=.TRUE.,&
             error=error)
 
@@ -4645,13 +4649,72 @@ SUBROUTINE create_tddfpt_section(section,error)
 
        CALL keyword_create(keyword, name="RCUT",&
             description="Defines the cutoff parameter of the IPBV potential",&
-            usage="RCUT {real}", required=.TRUE., type_of_var=real_t,&
-            n_var=1, error=error)
+            usage="RCUT {real}", required=.TRUE., default_r_val=7.8_dp,&
+            unit_str="angstrom", n_var=1, error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
     END IF
   END SUBROUTINE create_ipbv_section
+
+!***************************************************************************
+!!****f* input_cp2k/create_BMHFT_section [1.0] *
+!!
+!!   NAME
+!!     create_BMHFT_section
+!!
+!!   FUNCTION
+!!     This section specifies the input parameters for BMHFT potential type
+!!
+!!   NOTES
+!!     -
+!!
+!!   ARGUMENTS
+!!     - section: the section to create
+!!     - error: variable to control error logging, stopping,... 
+!!       see module cp_error_handling 
+!!
+!!   AUTHOR
+!!     teo
+!!
+!!*** **********************************************************************
+  SUBROUTINE create_BMHFT_section(section,error)
+    TYPE(section_type), POINTER :: section
+    TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
+    
+    LOGICAL :: failure
+    CHARACTER(len=*), PARAMETER :: routineN='create_BMHFT_section',&
+         routineP=moduleN//':'//routineN
+    TYPE(keyword_type), POINTER :: keyword
+    
+    failure=.FALSE.
+    
+    CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
+    IF (.NOT. failure) THEN
+       CALL section_create(section,name="BMHFT",&
+            description="This section specifies the input parameters for BMHFT potential type.",&
+            n_keywords=1, n_subsections=0, repeats=.FALSE., required=.FALSE.,&
+            error=error)
+
+       NULLIFY(keyword)
+       
+       CALL keyword_create(keyword, name="ATOM",&
+            description="Defines the atomic kind involved in the BMHFT nonbond potential",&
+            usage="ATOM {KIND1} {KIND2}", required=.TRUE., type_of_var=char_t,&
+            n_var=2, error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+
+       CALL keyword_create(keyword, name="RCUT",&
+            description="Defines the cutoff parameter of the BMHFT potential",&
+            usage="RCUT {real}", required=.TRUE., default_r_val=7.8_dp,&
+            unit_str="angstrom", n_var=1, error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+    END IF
+  END SUBROUTINE create_BMHFT_section
 
 !***************************************************************************
 !!****f* input_cp2k/create_constraint_section [1.0] *

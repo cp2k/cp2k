@@ -162,14 +162,9 @@ MODULE force_field_types
     REAL (KIND=dp), POINTER                        :: nonbond_rmin2_14(:)
   END TYPE charmm_info_type
 
-  TYPE amber_info_type
-    INTEGER                                   :: nothing_here_yet
-  END TYPE amber_info_type
-
   TYPE force_field_type
     TYPE (input_info_type),POINTER   :: inp_info
     TYPE (charmm_info_type),POINTER  :: chm_info
-    TYPE (amber_info_type),POINTER   :: amb_info
     CHARACTER (LEN=default_string_length)     :: ff_file_name
     CHARACTER (LEN=default_string_length)     :: ff_type
     REAL(KIND=dp)                             :: rcut_nb
@@ -204,7 +199,6 @@ MODULE force_field_types
             torsion_kind_type,&
             ub_kind_type,&
             ub_kind_dealloc_ref,&
-            amber_info_type,&
             charmm_info_type,&
             input_info_type,&
             force_field_type
@@ -504,14 +498,11 @@ SUBROUTINE init_ff_type (ff_type)
   !-----------------------------------------------------------------------------
   ! 1. Initialize 
   !-----------------------------------------------------------------------------
-  NULLIFY(ff_type%inp_info,ff_type%chm_info,ff_type%amb_info)
+  NULLIFY(ff_type%inp_info,ff_type%chm_info)
   ALLOCATE(ff_type%inp_info,STAT=istat)
   IF(istat/=0) CALL stop_memory ('init_ff_type','inp_info')
   ALLOCATE(ff_type%chm_info,STAT=istat)
   IF(istat/=0) CALL stop_memory ('init_ff_type','chm_info')
-  ALLOCATE(ff_type%amb_info,STAT=istat)
-  IF(istat/=0) CALL stop_memory ('init_ff_type','amb_info')
-
 
   !-----------------------------------------------------------------------------
   !-----------------------------------------------------------------------------
@@ -534,12 +525,6 @@ SUBROUTINE init_ff_type (ff_type)
   ! 7. Initialize and Nullify things in ff_type%chm_info
   !-----------------------------------------------------------------------------
   CALL init_chm_info(ff_type%chm_info)
-
-  !-----------------------------------------------------------------------------
-  !-----------------------------------------------------------------------------
-  ! 8. Initialize and Nullify things in ff_type%amb_info
-  !-----------------------------------------------------------------------------
-
 
 !-------------------------------------------------------------------------------
 !-------------------------------------------------------------------------------
@@ -696,13 +681,7 @@ SUBROUTINE deallocate_ff_type (ff_type)
 
   !-----------------------------------------------------------------------------
   !-----------------------------------------------------------------------------
-  ! 6. DEALLOCATE things in ff_type%amb_info
-  !-----------------------------------------------------------------------------
-
-
-  !-----------------------------------------------------------------------------
-  !-----------------------------------------------------------------------------
-  ! 7. DEALLOCATE things in ff_type
+  ! 6. DEALLOCATE things in ff_type
   !-----------------------------------------------------------------------------
   IF(ASSOCIATED(ff_type%inp_info)) THEN
     DEALLOCATE(ff_type%inp_info,STAT=istat)
@@ -711,10 +690,6 @@ SUBROUTINE deallocate_ff_type (ff_type)
   IF(ASSOCIATED(ff_type%chm_info)) THEN
     DEALLOCATE(ff_type%chm_info,STAT=istat)
     IF (istat /= 0) CALL stop_memory('deallocate_ff_type','chm_info')
-  END IF
-  IF(ASSOCIATED(ff_type%amb_info)) THEN
-    DEALLOCATE(ff_type%amb_info,STAT=istat)
-    IF (istat /= 0) CALL stop_memory('deallocate_ff_type','amb_info')
   END IF
 
 !-------------------------------------------------------------------------------

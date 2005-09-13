@@ -70,7 +70,6 @@ MODULE force_fields
                                              onfo_kind_type,&
                                              torsion_kind_type,&
                                              ub_kind_type,&
-                                             amber_info_type,&
                                              charmm_info_type,&
                                              force_field_type,&
                                              input_info_type,&
@@ -148,7 +147,6 @@ MODULE force_fields
   PUBLIC :: force_field_control,&
             read_force_field_section,&
             read_force_field_charmm,&
-            read_force_field_amber,&
             read_lj_section,&
             read_wl_section,&
             read_gd_section
@@ -261,10 +259,6 @@ SUBROUTINE force_field_control (atomic_kind_set,particle_set,&
     SELECT CASE (ff_type%ff_type)
     CASE ("CHM")
       CALL read_force_field_charmm(ff_type,globenv)
-    CASE ("AMB")
-      CALL stop_program ("force_field_control",&
-                         "force field type not implemented")
-      CALL read_force_field_amber(ff_type,globenv)
     CASE DEFAULT
       CALL stop_program ("force_field_control",&
                          "force field type not implemented")
@@ -343,7 +337,7 @@ SUBROUTINE read_force_field_new_section ( ff_section, ff_type, globenv, error )
   CHARACTER(len=*), PARAMETER :: routineN = 'read_force_field_new_section', &
        routineP = moduleN//':'//routineN
   LOGICAL :: failure, explicit
-  INTEGER :: n_rep, nlj, i, iwl, nwl, ieam, neam, ngd, igd, nipbv, ipbv, ntot
+  INTEGER :: n_rep, nlj, i, iwl, nwl, ieam, neam, ngd, igd, nipbv, ipbv, nbmhft, ibmhft, ntot
   INTEGER :: nchg, nbonds, nbends, ntors
   TYPE(section_vals_type), POINTER         :: tmp_section, tmp_section2
   CHARACTER(len=default_string_length) ,DIMENSION(:), POINTER :: atoms
@@ -396,6 +390,13 @@ SUBROUTINE read_force_field_new_section ( ff_section, ff_type, globenv, error )
         IF (explicit) THEN
            CALL reallocate_potparm(inp_info%nonbonded,1,ntot+nipbv)
            CALL read_ipbv_section(inp_info%nonbonded,tmp_section2,ntot,error)
+        END IF
+        tmp_section2 => section_vals_get_subs_vals(tmp_section,"BMHFT",error=error)
+        CALL section_vals_get(tmp_section2,explicit=explicit,n_repetition=nbmhft,error=error)
+        ntot=nlj+nwl+neam+ngd
+        IF (explicit) THEN
+           CALL reallocate_potparm(inp_info%nonbonded,1,ntot+nbmhft)
+           CALL read_bmhft_section(inp_info%nonbonded,tmp_section2,ntot,error)
         END IF
      END IF
      tmp_section => section_vals_get_subs_vals(ff_section,"NONBONDED14",error=error)
@@ -500,26 +501,8 @@ SUBROUTINE set_IPBV_ff(at1, at2, nonbonded )
      nonbonded %ipbv% a ( 13 ) = 8756947519.029_dp
      nonbonded %ipbv% a ( 14 ) = 15793297761.67_dp
      nonbonded %ipbv% a ( 15 ) = 12917180227.21_dp
-  ELSEIF ( ( at1(1:1) == 'O' ) .AND. ( at2 (1:1) == 'H' ) ) THEN
-     nonbonded %ipbv%rcore = 2.95_dp       ! a.u.
-     nonbonded %ipbv%m =  -0.00437054E0_dp ! Hartree/a.u. 
-     nonbonded %ipbv%b =  0.0313652_dp     ! Hartree
-     ! Hartree*a.u.^2
-     nonbonded %ipbv% a ( 2 ) = -195.7716013277_dp
-     nonbonded %ipbv% a ( 3 ) = 15343.78613395_dp
-     nonbonded %ipbv% a ( 4 ) = -530864.4586516_dp
-     nonbonded %ipbv% a ( 5 ) = 10707934.39058_dp
-     nonbonded %ipbv% a ( 6 ) = -140099704.7890_dp
-     nonbonded %ipbv% a ( 7 ) = 1250943273.785_dp
-     nonbonded %ipbv% a ( 8 ) = -7795458330.676_dp
-     nonbonded %ipbv% a ( 9 ) = 33955897217.31_dp
-     nonbonded %ipbv% a ( 10 ) = -101135640744.0_dp
-     nonbonded %ipbv% a ( 11 ) = 193107995718.7_dp
-     nonbonded %ipbv% a ( 12 ) = -193440560940.0_dp
-     nonbonded %ipbv% a ( 13 ) =-4224406093.918E0_dp
-     nonbonded %ipbv% a ( 14 ) = 217192386506.5E0_dp 
-     nonbonded %ipbv% a ( 15 ) = -157581228915.5_dp
-  ELSEIF ( ( at1(1:1) == 'H' ) .AND. ( at2 (1:1) == 'O' ) ) THEN
+  ELSEIF(((at1(1:1) == 'O').AND.(at2 (1:1) == 'H')).OR.&
+         ((at1(1:1) == 'H').AND.(at2 (1:1) == 'O')))  THEN
      nonbonded %ipbv%rcore = 2.95_dp       ! a.u.
      nonbonded %ipbv%m =  -0.00437054E0_dp ! Hartree/a.u. 
      nonbonded %ipbv%b =  0.0313652_dp     ! Hartree
@@ -562,6 +545,49 @@ SUBROUTINE set_IPBV_ff(at1, at2, nonbonded )
   ENDIF
 
 END SUBROUTINE set_IPBV_ff
+
+SUBROUTINE set_BMHFT_ff(at1, at2, nonbonded )
+  IMPLICIT NONE
+  ! Arguments
+  CHARACTER (LEN=*), INTENT(IN) :: at1, at2
+  TYPE (pair_potential_type)            :: nonbonded
+  ! Local Variables
+
+  nonbonded %ft%b =  3.1545_dp     ! Ang^-1
+  CALL convert_to_cp2k_units ( "ANGSTROM", length =  nonbonded %ft%b , l_power = -1  )
+  IF  ( ( at1(1:2) == 'NA' ) .AND. ( at2 (1:2) == 'NA' ) ) THEN
+     nonbonded %ft%a = 424.097_dp  ! eV
+     CALL convert_to_cp2k_units ( "EV", energy = nonbonded %ft%a )
+     nonbonded %ft%c =    1.05_dp  ! eV * Ang^6
+     CALL convert_to_cp2k_units ( "EV", energy = nonbonded %ft%c )
+     CALL convert_to_cp2k_units ( "ANGSTROM", length =  nonbonded %ft%c , l_power = 6  )
+     nonbonded %ft%d =   0.499_dp  ! eV * Ang^8
+     CALL convert_to_cp2k_units ( "EV", energy = nonbonded %ft%d )
+     CALL convert_to_cp2k_units ( "ANGSTROM", length =  nonbonded %ft%d , l_power = 8  )
+  ELSEIF(((at1(1:2) == 'NA').AND.(at2(1:2) == 'CL')).OR.&
+         ((at1(1:2) == 'CL').AND.(at2(1:2) == 'NA'))) THEN
+     nonbonded %ft%a = 1256.31_dp  ! eV        
+     CALL convert_to_cp2k_units ( "EV", energy = nonbonded %ft%a )
+     nonbonded %ft%c =    7.00_dp  ! eV * Ang^6
+     CALL convert_to_cp2k_units ( "EV", energy = nonbonded %ft%c )
+     CALL convert_to_cp2k_units ( "ANGSTROM", length =  nonbonded %ft%c , l_power = 6  )
+     nonbonded %ft%d =   8.676_dp  ! eV * Ang^8
+     CALL convert_to_cp2k_units ( "EV", energy = nonbonded %ft%d )
+     CALL convert_to_cp2k_units ( "ANGSTROM", length =  nonbonded %ft%d , l_power = 8  )
+  ELSEIF ( ( at1(1:2) == 'CL' ) .AND. ( at2 (1:2) == 'CL' ) ) THEN
+     nonbonded %ft%a = 3488.998_dp ! eV        
+     CALL convert_to_cp2k_units ( "EV", energy = nonbonded %ft%a )
+     nonbonded %ft%c =    72.50_dp ! eV * Ang^6
+     CALL convert_to_cp2k_units ( "EV", energy = nonbonded %ft%c )
+     CALL convert_to_cp2k_units ( "ANGSTROM", length =  nonbonded %ft%c , l_power = 6  )
+     nonbonded %ft%d =  145.427_dp ! eV * Ang^8
+     CALL convert_to_cp2k_units ( "EV", energy = nonbonded %ft%d )
+     CALL convert_to_cp2k_units ( "ANGSTROM", length =  nonbonded %ft%d , l_power = 8  )
+  ELSE
+     CALL stop_program ("input_nonbonded","BMHFT only for NaCl")
+  ENDIF
+  
+END SUBROUTINE set_BMHFT_ff
 
 
 SUBROUTINE read_eam_section(nonbonded, section, start, globenv, error)
@@ -727,6 +753,33 @@ SUBROUTINE read_ipbv_section(nonbonded, section, start, error)
      nonbonded(start+isec)%rcutsq     = rcut**2
   END DO
 END SUBROUTINE read_ipbv_section
+
+SUBROUTINE read_bmhft_section(nonbonded, section, start, error)
+  IMPLICIT NONE
+  ! Arguments
+  TYPE(section_vals_type), POINTER                  :: section
+  TYPE (pair_potential_type), POINTER, DIMENSION(:) :: nonbonded
+  INTEGER, INTENT(IN) :: start
+  TYPE(cp_error_type), INTENT(inout), &
+       OPTIONAL                               :: error    
+  ! Local Variables
+  CHARACTER(len=*), PARAMETER :: routineN = 'read_bmhft_section', &
+       routineP = moduleN//':'//routineN  
+  INTEGER :: n_items, isec
+  CHARACTER(LEN=default_string_length), POINTER, DIMENSION(:) :: atm_names
+  REAL(KIND=dp) :: rcut
+
+  CALL section_vals_get(section,n_repetition=n_items,error=error)
+  DO isec = 1, n_items         
+     CALL section_vals_val_get(section,"ATOM",i_rep_section=isec,c_vals=atm_names,error=error)
+     nonbonded(start+isec) %type = "BMHFT"
+     nonbonded(start+isec) %at1  = atm_names(1)
+     nonbonded(start+isec) %at2  = atm_names(2)
+     CALL set_BMHFT_ff(nonbonded(start+isec) %at1, nonbonded(start+isec) %at2, nonbonded(start+isec) )
+     CALL section_vals_val_get(section,"RCUT",i_rep_section=isec,r_val=rcut,error=error)
+     nonbonded(start+isec)%rcutsq     = rcut**2
+  END DO
+END SUBROUTINE read_bmhft_section
 
 SUBROUTINE read_chrg_section(charge_atm, charge, section, start, error)
   IMPLICIT NONE
@@ -1317,6 +1370,26 @@ SUBROUTINE input_nonbonded(ff_type,globenv)
                  inp_info%nonbonded(np) %at2 = at2
                  CALL set_IPBV_ff(at1, at2,  inp_info%nonbonded(np) )
                  inp_info%nonbonded(np) %rcutsq = rcut*rcut
+              CASE ( 'BMHFT')
+                 np = np + 1
+                 CALL reallocate_potparm(inp_info%nonbonded,1,np)
+                 ilen = 0
+                 CALL get_next(at1,ilen)
+                 ilen = 0
+                 CALL get_next(at2,ilen)
+                 CALL get_next ( rcut )
+                 IF ( rcut /= 10.0_dp ) &
+                 WRITE ( *, * ) '**** BMHFT cut-off changed to 10.0 Angstroms****'
+                 rcut = 10.0_dp
+                 CALL convert_to_cp2k_units ( "ANGSTROM", length = rcut )
+                 inp_info%nonbonded(np) %type = string2
+                 inp_info%nonbonded(np) %at1 = at1
+                 inp_info%nonbonded(np) %at2 = at2
+                 inp_info%nonbonded(np) %rcutsq = rcut*rcut
+                 CALL uppercase(at1)
+                 CALL uppercase(at2)
+                 CALL set_BMHFT_ff(at1, at2,  inp_info%nonbonded(np) )
+                 inp_info%nonbonded(np) %rcutsq = rcut*rcut
               CASE ( 'GOODWIN')
                  np = np + 1
                  CALL reallocate_potparm(inp_info%nonbonded,1,np)
@@ -1579,7 +1652,7 @@ END SUBROUTINE input_bonds
 !!     Read all the bend parameters. Put them in the bend_parm table.
 !!     While we read the bend_pot_type,
 !!     we (so far) will do nothing with this information. It appears that
-!!     all major parameters sets, such as CHARMM or AMBER, all have only
+!!     all major parameters sets, such as CHARMM, all have only
 !!     only one type of bend interaction (harmonic).
 !!
 !!   AUTHOR
@@ -2160,77 +2233,6 @@ SUBROUTINE read_force_field_charmm ( ff_type , globenv )
 !------------------------------------------------------------------------------
 !------------------------------------------------------------------------------
 END SUBROUTINE read_force_field_charmm
-
-
-!******************************************************************************
-!!****** force_fields/read_force_field_amber [1.0] *
-!!
-!!   NAME
-!!     read_force_field_amber
-!!
-!!   FUNCTION
-!!     Reads the amber force_field
-!!
-!!   AUTHOR
-!!     
-!!
-!!   MODIFICATION HISTORY
-!!
-!!
-!!
-!!   SOURCE
-!******************************************************************************
-
-SUBROUTINE read_force_field_amber ( ff_type , globenv )
-
-
-    TYPE(force_field_type), &
-      INTENT(INOUT)                          :: ff_type
-    TYPE(global_environment_type), &
-      INTENT(IN),OPTIONAL                    :: globenv
-
-    TYPE(input_info_type),POINTER            :: inp_info
-
-  LOGICAL                                  :: PM1, PM2, PM3, PM4
-    INTEGER                                  :: i, istat, ilen, iw
-
-!------------------------------------------------------------------------------
-!------------------------------------------------------------------------------
-  PM1 = .FALSE.
-  PM2 = .FALSE.
-  PM3 = .FALSE.
-  PM4 = .FALSE.
-  IF(PRESENT(globenv)) THEN
-    iw = globenv%scr
-    IF((globenv%ionode).AND.(globenv%print%level>0)) PM1= .TRUE.
-    IF((globenv%ionode).AND.(globenv%print%level>1)) PM2= .TRUE.
-    IF((globenv%ionode).AND.(globenv%print%level>2)) PM3= .TRUE.
-    IF((globenv%ionode).AND.(globenv%print%level>3)) PM4= .TRUE.
-  END IF
-
-  !-----------------------------------------------------------------------------
-  !-----------------------------------------------------------------------------
-  ! 1. Do something
-  !-----------------------------------------------------------------------------
-
-
-  !-----------------------------------------------------------------------------
-  !-----------------------------------------------------------------------------
-  ! 2. Do something else
-  !-----------------------------------------------------------------------------
-
-
-  !-----------------------------------------------------------------------------
-  !-----------------------------------------------------------------------------
-  ! 3. Hopefully Do the last thing
-  !-----------------------------------------------------------------------------
-
-
-!------------------------------------------------------------------------------
-!------------------------------------------------------------------------------
-END SUBROUTINE read_force_field_amber
-
-
 
 !******************************************************************************
 !!****** force_field_util/force_field_pack [1.0] *
@@ -2878,22 +2880,6 @@ SUBROUTINE force_field_pack (particle_set,atomic_kind_set,&
                            name=name_atm_b)
       found = .FALSE.
       only_qm = qmmm_ff_precond_only_qm(id1=name_atm_a, id2=name_atm_b)
-      ! loop over params from amber
-!     IF(ASSOCIATED(ffam_info%ff_bond_a)) THEN
-!       DO k=1,SIZE(ffam_info%ff_bond_a)
-!         IF( ((TRIM(ffam_info%ff_bond_a(k))==TRIM(name_atm_a)) .AND. &
-!              (TRIM(ffam_info%ff_bond_b(k))==TRIM(name_atm_b))) .OR. &
-!             ((TRIM(ffam_info%ff_bond_a(k))==TRIM(name_atm_b)) .AND. &
-!              (TRIM(ffam_info%ff_bond_b(k))==TRIM(name_atm_a))) ) THEN
-!           bond_list(j)%bond_kind%k  = ffam_info%ff_bond_k(k)
-!           bond_list(j)%bond_kind%r0 = ffam_info%ff_bond_r0(k)
-!         IF(found .AND. PM1) &
-!            WRITE(iw,*) "    Multiple Bond declarations: overwriting"
-!           found = .TRUE.
-!           EXIT
-!         END IF
-!       END DO
-!     END IF
 
       ! loop over params from charmm
       IF(ASSOCIATED(chm_info%bond_a)) THEN
@@ -2980,24 +2966,6 @@ SUBROUTINE force_field_pack (particle_set,atomic_kind_set,&
                            name=name_atm_c)
       found = .FALSE.
       only_qm = qmmm_ff_precond_only_qm(id1=name_atm_a, id2=name_atm_b, id3=name_atm_c)
-      ! loop over params from amber
-!     IF(ASSOCIATED(ffam_info%ff_bend_a)) THEN
-!       DO k=1,SIZE(ffam_info%ff_bend_a)
-!         IF( ((TRIM(ffam_info%ff_bend_a(k))==TRIM(name_atm_a)) .AND. &
-!              (TRIM(ffam_info%ff_bend_b(k))==TRIM(name_atm_b)) .AND. &
-!              (TRIM(ffam_info%ff_bend_c(k))==TRIM(name_atm_c))) .OR. &
-!             ((TRIM(ffam_info%ff_bend_a(k))==TRIM(name_atm_c)) .AND. &
-!              (TRIM(ffam_info%ff_bend_b(k))==TRIM(name_atm_b)) .AND. &
-!              (TRIM(ffam_info%ff_bend_c(k))==TRIM(name_atm_a))) ) THEN
-!           bend_list(j)%bend_kind%k      = ffam_info%ff_bend_k(k)
-!           bend_list(j)%bend_kind%theta0 = ffam_info%ff_bend_theta0(k)
-!           IF(found .AND. PM1) &
-!              WRITE(iw,*) "    Multiple Bend declarations: overwriting"
-!           found = .TRUE.
-!           EXIT
-!         END IF
-!       END DO
-!     END IF
 
       ! loop over params from charmm
       IF(ASSOCIATED(chm_info%bend_a)) THEN
@@ -3089,24 +3057,6 @@ SUBROUTINE force_field_pack (particle_set,atomic_kind_set,&
                            name=name_atm_c)
       found = .FALSE.
       only_qm = qmmm_ff_precond_only_qm(id1=name_atm_a, id2=name_atm_b, id3=name_atm_c)
-      ! loop over params from amber
-!     IF(ASSOCIATED(ffam_info%ff_ub_a)) THEN
-!       DO k=1,SIZE(ffam_info%ff_ub_a)
-!         IF( ((TRIM(ffam_info%ff_ub_a(k))==TRIM(name_atm_a)) .AND. &
-!              (TRIM(ffam_info%ff_ub_b(k))==TRIM(name_atm_b)) .AND. &
-!              (TRIM(ffam_info%ff_ub_c(k))==TRIM(name_atm_c))) .OR. &
-!             ((TRIM(ffam_info%ff_ub_a(k))==TRIM(name_atm_c)) .AND. &
-!              (TRIM(ffam_info%ff_ub_b(k))==TRIM(name_atm_b)) .AND. &
-!              (TRIM(ffam_info%ff_ub_c(k))==TRIM(name_atm_a))) ) THEN
-!           ub_list(j)%ub_kind%k      = ffam_info%ff_ub_k(k)
-!           ub_list(j)%ub_kind%theta0 = ffam_info%ff_ub_theta0(k)
-!           IF(found .AND. PM1) &
-!              WRITE(iw,*) "    Multiple Bend declarations: overwriting"
-!           found = .TRUE.
-!           EXIT
-!         END IF
-!       END DO
-!     END IF
 
       ! loop over params from charmm
       IF(ASSOCIATED(chm_info%ub_a)) THEN
@@ -3205,26 +3155,6 @@ SUBROUTINE force_field_pack (particle_set,atomic_kind_set,&
                            name=name_atm_d)
       found = .FALSE.
       only_qm = qmmm_ff_precond_only_qm(id1=name_atm_a, id2=name_atm_b, id3=name_atm_c, id4=name_atm_d)
-      ! loop over params from amber
-!     IF(ASSOCIATED(chm_info%torsion_a)) THEN
-!       DO k=1,SIZE(chm_info%torsion_a)
-!         IF( ((TRIM(chm_info%torsion_a(k))==TRIM(name_atm_a)) .AND. &
-!              (TRIM(chm_info%torsion_b(k))==TRIM(name_atm_b)) .AND. &
-!              (TRIM(chm_info%torsion_c(k))==TRIM(name_atm_c)) .AND. &
-!              (TRIM(chm_info%torsion_d(k))==TRIM(name_atm_d))) .OR. &
-!             ((TRIM(chm_info%torsion_a(k))==TRIM(name_atm_d)) .AND. &
-!              (TRIM(chm_info%torsion_b(k))==TRIM(name_atm_c)) .AND. &
-!              (TRIM(chm_info%torsion_c(k))==TRIM(name_atm_b)) .AND. &
-!              (TRIM(chm_info%torsion_d(k))==TRIM(name_atm_a))) ) THEN
-!           torsion_list(j)%torsion_kind%k      = chm_info%torsion_k(k)
-!           torsion_list(j)%torsion_kind%phi0 = chm_info%torsion_cosphi0(k)
-!           IF(found .AND. PM1) &
-!              WRITE(iw,*) "    Multiple Torsion declarations: overwriting"
-!           found = .TRUE.
-!           EXIT
-!         END IF
-!       END DO
-!     END IF
 
       ! loop over params from charmm
       IF(ASSOCIATED(chm_info%torsion_a)) THEN
@@ -3371,27 +3301,7 @@ SUBROUTINE force_field_pack (particle_set,atomic_kind_set,&
                            name=name_atm_d)
       found = .FALSE.
       only_qm = qmmm_ff_precond_only_qm(id1=name_atm_a, id2=name_atm_b, id3=name_atm_c, id4=name_atm_d)
-      ! loop over params from amber
-!     IF(ASSOCIATED(chm_info%impr_a)) THEN
-!       DO k=1,SIZE(chm_info%impr_a)
-!         IF( ((TRIM(chm_info%impr_a(k))==TRIM(name_atm_a)) .AND. &
-!              (TRIM(chm_info%impr_b(k))==TRIM(name_atm_b)) .AND. &
-!              (TRIM(chm_info%impr_c(k))==TRIM(name_atm_c)) .AND. &
-!              (TRIM(chm_info%impr_d(k))==TRIM(name_atm_d))) .OR. &
-!             ((TRIM(chm_info%impr_a(k))==TRIM(name_atm_d)) .AND. &
-!              (TRIM(chm_info%impr_b(k))==TRIM(name_atm_c)) .AND. &
-!              (TRIM(chm_info%impr_c(k))==TRIM(name_atm_b)) .AND. &
-!              (TRIM(chm_info%impr_d(k))==TRIM(name_atm_a))) ) THEN
-!           impr_list(j)%impr_kind%k      = chm_info%impr_k(k)
-!           impr_list(j)%impr_kind%phi0 = chm_info%impr_phi0(k)
-!           IF(found .AND. PM1) &
-!              WRITE(iw,*) "    Multiple Impropers declarations: overwriting"
-!           found = .TRUE.
-!           EXIT
-!         END IF
-!       END DO
-!     END IF
-!
+
       ! loop over params from charmm
       IF(ASSOCIATED(chm_info%impr_a)) THEN
         DO k=1,SIZE(chm_info%impr_a)
@@ -3481,11 +3391,6 @@ SUBROUTINE force_field_pack (particle_set,atomic_kind_set,&
       name_atm_a = name_atm_a_local
       name_atm_b = name_atm_b_local
       only_qm = qmmm_ff_precond_only_qm(id1=name_atm_a, id2=name_atm_b)
-
-      ! loop over params from amber
-      ! loop over params from amber
-      ! loop over params from amber
-      ! loop over params from amber
 
       ! loop over params from charmm
       ii = 0 
@@ -3712,19 +3617,6 @@ SUBROUTINE force_field_pack (particle_set,atomic_kind_set,&
     only_qm = qmmm_ff_precond_only_qm(id1=atmname,is_link=is_link_atom)
     IF(charge(i)<=-100.0) found = .FALSE.
 
-!   ! loop over params from amber
-!   IF(ASSOCIATED(ff_type%amb_info%charge_atm)) THEN
-!     DO j=1,SIZE(ff_type%amb_info%charge_atm)
-!       IF(TRIM(ff_type%amb_info%charge_atm(j))==atmname) THEN
-!         charge(i) = ff_type%amb_info%charge(j)
-!         IF(found .AND. PM1) &
-!           WRITE(iw,*) "    Multiple Charge declarations: overwriting"
-!         found = .TRUE.
-!       END IF
-!       IF(found) EXIT
-!     END DO
-!   END IF
-  
     ! loop over params from charmm
     IF(ASSOCIATED(ff_type%chm_info%charge_atm)) THEN
       DO j=1,SIZE(ff_type%chm_info%charge_atm)
@@ -3741,13 +3633,13 @@ SUBROUTINE force_field_pack (particle_set,atomic_kind_set,&
     ! always have the input param last to overwrite all the other ones
     IF(ASSOCIATED(ff_type%inp_info%charge_atm)) THEN
       DO j=1,SIZE(ff_type%inp_info%charge_atm)
-        IF(TRIM(ff_type%inp_info%charge_atm(j))==atmname) THEN
-          charge(i) = ff_type%inp_info%charge(j)
-          IF(found .AND. PM1) &
-            WRITE(iw,*) "    Multiple Charge declarations: overwriting"
-          found = .TRUE.
-        END IF
-        !IF(found) EXIT
+         IF (PM2) WRITE(iw,*)"Charge Checking ::",TRIM(ff_type%inp_info%charge_atm(j)),atmname
+         IF(TRIM(ff_type%inp_info%charge_atm(j))==atmname) THEN
+            charge(i) = ff_type%inp_info%charge(j)
+            IF(found .AND. PM1) &
+                 WRITE(iw,*) "    Multiple Charge declarations: overwriting"
+            found = .TRUE.
+         END IF
       END DO
     END IF
 

@@ -13,7 +13,8 @@
 !!     CJM
 !!
 !!   MODIFICATION HISTORY
-!!     none
+!!     September 2005 - Introduced the Born-Mayer-Huggins-Fumi-Tosi  Potential
+!!                      BMHTF
 !!
 !!   SOURCE
 !******************************************************************************
@@ -93,6 +94,9 @@ FUNCTION ener_pot ( pot, qi, qj, r, vdw_scale14 )
      scale = exp(pot%goodwin%m*(-(r/pot%goodwin%dc)**pot%goodwin%mc+(pot% &
           goodwin%d/pot%goodwin%dc)**pot%goodwin%mc))
      ener_pot = scale*pot%goodwin%vr0*(pot%goodwin%d/r)**pot%goodwin%m
+  ELSE IF (pot%type=='BMHFT') THEN
+     ener_pot = pot%ft%a*exp(-pot%ft%b*r) - pot%ft%c/r**6 - pot%ft%d/r**8 &
+          - pot%energy_cutoff
   ELSE IF (pot%type=='EAM') THEN
      index = INT ( r / pot % eam % drar ) + 1
      IF ( index > 5000 ) THEN
