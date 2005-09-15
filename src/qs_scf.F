@@ -167,7 +167,8 @@ MODULE qs_scf
   USE qs_overlap,                      ONLY: write_fm_with_basis_info,&
                                              write_sparse_matrix
   USE qs_rho_atom_methods,             ONLY: calculate_rho_atom_coeff
-  USE qs_rho_methods,                  ONLY: qs_rho_update_rho
+  USE qs_rho_methods,                  ONLY: qs_rho_update_rho, &
+                                             duplicate_rho_type
   USE qs_rho_types,                    ONLY: qs_rho_type
   USE qs_scf_post,                     ONLY: scf_post_calculation
   USE qs_scf_types,                    ONLY: ao_mixing_nr,&
@@ -180,7 +181,8 @@ MODULE qs_scf
   USE qs_wf_history_methods,           ONLY: wfi_extrapolate,&
                                              wfi_get_method_label,&
                                              wfi_update
-  USE qs_wf_history_types,             ONLY: wfi_use_guess_method_nr
+  USE qs_wf_history_types,             ONLY: wfi_use_guess_method_nr, &
+                                             wfi_frozen_method_nr
   USE scf_control_types,               ONLY: scf_control_type
   USE sparse_matrix_types,             ONLY: cp_sm_scale_and_add,&
                                              deallocate_matrix_set,&
@@ -420,6 +422,7 @@ CONTAINS
 !!   MODIFICATION HISTORY
 !!     long history, see cvs and qs_scf module history
 !!     02.2003 introduced scf_env [fawzi]
+!!     09.2005 Frozen density approximation [TdK]
 !!
 !!*** **********************************************************************
   SUBROUTINE scf_env_do_scf(scf_env,qs_env,globenv,error)
@@ -605,6 +608,24 @@ CONTAINS
        CALL qs_ks_update_qs_env(ks_env,qs_env=qs_env,&
             error=error,&
             calculate_forces=.FALSE.,just_energy=energy_only)
+
+!       IF (harris_flag) THEN
+!         CALL duplicate_rho_type(rho_input=rho, rho_output=harris_env%rho_in, &
+!                                 qs_env=qs_env, error=error)
+!       END IF
+
+       ! Frozen density approximation
+       IF (qs_env%wf_history%interpolation_method_nr==wfi_frozen_method_nr) THEN
+         IF (.NOT. ASSOCIATED(qs_env%wf_history%past_states(1)%snapshot)) THEN
+           IF (ASSOCIATED(qs_env%wf_history)) THEN
+             CALL wfi_update(qs_env%wf_history,qs_env=qs_env,dt=1.0_dp,&
+                             error=error)
+           END IF
+           CALL duplicate_rho_type(rho_input=rho, &
+                                   rho_output=qs_env%wf_history%past_states(1)%snapshot%rho_frozen, &
+                                   qs_env=qs_env, error=error)
+         END IF
+       END IF
 
 !FM      CALL pw_env_flush_cache(pw_env,error=error)
 

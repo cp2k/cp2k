@@ -92,7 +92,9 @@ MODULE qs_wf_history_methods
   USE qs_mo_types,                     ONLY: get_mo_set,&
                                              mo_set_p_type
   USE qs_rho_atom_methods,             ONLY: calculate_rho_atom_coeff
-  USE qs_rho_methods,                  ONLY: qs_rho_update_rho
+  USE qs_rho_methods,                  ONLY: qs_rho_update_rho, &
+                                             diff_rho_type, &
+                                             copy_rho_type
   USE qs_rho_types,                    ONLY: qs_rho_get,&
                                              qs_rho_type
   USE qs_wf_history_types,             ONLY: qs_wf_history_type,&
@@ -105,9 +107,11 @@ MODULE qs_wf_history_methods
                                              wfi_use_guess_method_nr,&
                                              wfi_use_prev_p_method_nr,&
                                              wfi_use_prev_rho_r_method_nr,&
-                                             wfi_use_prev_wf_method_nr
+                                             wfi_use_prev_wf_method_nr,&
+                                             wfi_frozen_method_nr
   USE sparse_matrix_types,             ONLY: copy_matrix,&
                                              cp_sm_scale_and_add,&
+                                             cp_sm_maxabsval,&
                                              deallocate_matrix,&
                                              deallocate_matrix_set,&
                                              real_matrix_p_type,&
@@ -179,7 +183,7 @@ SUBROUTINE wfs_create(snapshot, error)
      snapshot%id_nr=last_wfs_id
      NULLIFY(snapshot%wf, snapshot%wf_mol, snapshot%rho_r, &
              snapshot%rho_g, snapshot%rho_ao,&
-             snapshot%overlap)
+             snapshot%overlap, snapshot%rho_frozen)
      snapshot%dt=1.0_dp
      snapshot%ref_count=1
   END IF
@@ -379,6 +383,11 @@ SUBROUTINE wfs_update(snapshot,wf_history,qs_env,dt,kg_fm_mol_set,error)
         CALL copy_matrix(s_array(1)%matrix,snapshot%overlap)
      END IF
 
+     IF (wf_history%store_frozen_density) THEN
+       ! do nothing
+       ! CALL deallocate_matrix_set(snapshot%rho_frozen%rho_ao)
+     END IF
+
   END IF
   CALL timestop(0.0_dp,handle)
 
@@ -450,6 +459,7 @@ SUBROUTINE wfi_create(wf_history, interpolation_method_nr, extrapolation_order, 
      wf_history%store_rho_g=.FALSE.
      wf_history%store_rho_ao=.FALSE.
      wf_history%store_overlap=.FALSE.
+     wf_history%store_frozen_density=.FALSE.
      NULLIFY(wf_history%past_states)
 
      wf_history%interpolation_method_nr=interpolation_method_nr
@@ -479,6 +489,9 @@ SUBROUTINE wfi_create(wf_history, interpolation_method_nr, extrapolation_order, 
         wf_history%memory_depth=my_extrapolation_order+1
         wf_history%store_wf=.TRUE.
         wf_history%store_overlap=.TRUE.
+     CASE(wfi_frozen_method_nr)
+        wf_history%memory_depth=1
+        wf_history%store_frozen_density=.TRUE.
     CASE default
         CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,&
              routineP,"Unknown interpolation method: "//&
@@ -560,6 +573,8 @@ FUNCTION wfi_get_method_label(method_nr,error) RESULT(res)
         res="PS linear"
      CASE(wfi_ps_method_nr)
         res="PS Nth order"
+     CASE(wfi_frozen_method_nr)
+        res="frozen-core approximation"
     CASE default
         CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,&
              routineP,"Unknown interpolation method: "//&
@@ -650,7 +665,7 @@ SUBROUTINE wfi_extrapolate(globenv,wf_history, qs_env, dt, extrapolation_method_
     TYPE(qs_rho_type), POINTER               :: rho, rho_xc
     TYPE(qs_wf_snapshot_type), POINTER       :: t0_state, t1_state
     TYPE(real_matrix_p_type), DIMENSION(:), &
-      POINTER                                 :: matrix_s
+      POINTER                                :: matrix_s
 
   NULLIFY(mos, ao_mo_fm_pools, t0_state, t1_state, matrix_s, mo_coeff, rho, rho_xc)
   failure=.FALSE.
@@ -699,6 +714,27 @@ SUBROUTINE wfi_extrapolate(globenv,wf_history, qs_env, dt, extrapolation_method_
      my_orthogonal_wf=.FALSE.
 
      SELECT CASE (actual_extrapolation_method_nr)
+     CASE(wfi_frozen_method_nr)
+        t0_state => wfi_get_snapshot(wf_history, index=1, error=error)
+        CPPrecondition(ASSOCIATED(t0_state%rho_frozen),cp_failure_level,routineP,error,failure)
+        !DO ispin=1,SIZE(t0_state%rho_ao)
+        !   CALL transfer_matrix(source_matrix=t0_state%rho_ao(ispin)%matrix,&
+        !        target_matrix=rho%rho_ao(ispin)%matrix, error=error)
+        !END DO
+        !rho%rho_g_valid=.TRUE.
+        
+        !CALL copy_rho_type(rho_input=t0_state%rho_frozen, rho_output=rho, qs_env=qs_env, error=error)
+
+        DO ispin=1,SIZE(t0_state%rho_frozen%rho_ao)
+           CALL transfer_matrix(source_matrix=t0_state%rho_frozen%rho_ao(ispin)%matrix,&
+                target_matrix=rho%rho_ao(ispin)%matrix, error=error)
+        END DO
+        !FM updating rho_ao directly with t0_state%rho_ao would have the
+        !FM wrong matrix structure
+        CALL qs_rho_update_rho(rho, qs_env=qs_env, error=error)
+        CALL qs_ks_did_change(qs_env%ks_env, rho_changed=.TRUE., error=error)
+
+        !my_orthogonal_wf=.TRUE.
      CASE(wfi_use_prev_rho_r_method_nr)
         t0_state => wfi_get_snapshot(wf_history, index=1, error=error)
         CPPrecondition(ASSOCIATED(t0_state%rho_ao),cp_failure_level,routineP,error,failure)

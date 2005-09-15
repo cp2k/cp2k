@@ -65,6 +65,7 @@ MODULE qs_collocate_density
                                              cp_fm_type
   USE cp_log_handling,                 ONLY: cp_failure_level,&
                                              cp_fatal_level,&
+                                             cp_logger_get_default_unit_nr,&
                                              cp_logger_type,&
                                              cp_note_level,&
                                              cp_to_string,&
@@ -255,7 +256,8 @@ CONTAINS
     INTEGER                                  :: i, &
                                                 maxco, &
                                                 ncoa, &
-                                                na1
+                                                na1, &
+                                                unit_nr
     TYPE(gridlevel_info_type), POINTER       :: gridlevel_info
     TYPE(cp_rs_pool_p_type), DIMENSION(:), &
       POINTER                                :: rs_pools
@@ -263,6 +265,7 @@ CONTAINS
       POINTER                                :: pw_pools
     TYPE(coeff_type), DIMENSION(:), POINTER  :: mgrid_gspace, &
                                                 mgrid_rspace
+    TYPE(cp_logger_type), POINTER            :: logger
 
     CHARACTER(len=*), PARAMETER :: routineN = 'collocate_atomic_charge_density', &
       routineP = moduleN//':'//routineN
@@ -278,6 +281,8 @@ CONTAINS
 
     !ALLOCATE(pab(1,1),STAT=ierr)
     !IF ( ierr /= 0 ) CALL stop_memory ( routineN, "pab", 1 )
+
+    logger => cp_error_get_logger(error)
 
     CALL get_qs_env(qs_env=qs_env, atomic_kind_set=atomic_kind_set, cell=cell, &
                     particle_set=particle_set, pw_env=pw_env, rho=rho_struct, &
@@ -419,7 +424,10 @@ CONTAINS
 
     total_rho = calculate_total_rho(qs_env%rho%rho_r(1))
     qs_env%rho%tot_rho_r = total_rho
-PRINT *, "Total Rho =", total_rho
+    IF (logger%para_env%source==logger%para_env%mepos) THEN
+      unit_nr=cp_logger_get_default_unit_nr(logger,local=.FALSE.)
+      WRITE (unit_nr,*) "Total Rho =", total_rho
+    END IF
 
     ! *** give back the multi-grids *** !
     CALL pw_pools_give_back_coeffs(pw_pools, mgrid_gspace, error=error)

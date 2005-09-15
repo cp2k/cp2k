@@ -1353,7 +1353,8 @@ SUBROUTINE create_qs_section(section,error)
           variants=s2a("INTERPOLATION","WF_INTERPOLATION"),&
           description="Extrapolation strategy for e.g. MD",&
           usage="EXTRAPOLATION PS",&     ! XXXXXXXXXXX how to add the order ? i.e. PS 3
-          enum_c_vals=s2a("USE_GUESS","USE_PREV_P","USE_PREV_RHO_R","LINEAR_WF","LINEAR_P","LINEAR_PS","USE_PREV_WF","PS"),&
+          enum_c_vals=s2a("USE_GUESS","USE_PREV_P","USE_PREV_RHO_R","LINEAR_WF",&
+                          "LINEAR_P","LINEAR_PS","USE_PREV_WF","PS","FROZEN"),&
           enum_i_vals=(/ do_extrpl_use_guess,& 
                          do_extrpl_use_prev_p,&
                          do_extrpl_use_prev_rho_r,&
@@ -1361,7 +1362,8 @@ SUBROUTINE create_qs_section(section,error)
                          do_extrpl_linear_p,&
                          do_extrpl_linear_ps,&
                          do_extrpl_use_prev_wf,&
-                         do_extrpl_ps /),&
+                         do_extrpl_ps,&
+                         do_extrpl_frozen /),&
           default_i_val=do_extrpl_linear_p, error=error)
      CALL section_add_keyword(section,keyword,error=error)
      CALL keyword_release(keyword,error=error)

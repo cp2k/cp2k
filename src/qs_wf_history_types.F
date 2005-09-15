@@ -43,6 +43,8 @@ MODULE qs_wf_history_types
                                              kg_fm_p_type
   USE kinds,                           ONLY: dp
   USE pw_types,                        ONLY: pw_p_type
+  USE qs_rho_types,                    ONLY: qs_rho_type, &
+                                             qs_rho_release
   USE sparse_matrix_types,             ONLY: deallocate_matrix,&
                                              deallocate_matrix_set,&
                                              real_matrix_p_type,&
@@ -60,7 +62,7 @@ MODULE qs_wf_history_types
        wfi_use_prev_p_method_nr=1, wfi_use_prev_rho_r_method_nr=2,&
        wfi_linear_wf_method_nr=3, wfi_linear_p_method_nr=4,&
        wfi_linear_ps_method_nr=5, wfi_use_prev_wf_method_nr=6,&
-       wfi_ps_method_nr=7
+       wfi_ps_method_nr=7, wfi_frozen_method_nr=8
 
   PUBLIC :: qs_wf_snapshot_type, qs_wf_snapshot_p_type, &
        qs_wf_history_type
@@ -88,6 +90,7 @@ MODULE qs_wf_history_types
 !!     - rho_g: the density in g space
 !!     - rho_ao: the density in ao space
 !!     - overlap: the overlap matrix
+!!     - rho_frozen: the frozen density structure
 !!     - dt: the time of the snapshot (wrf to te previous snapshot!)
 !!     - id_nr: unique identification number
 !!     - ref_count: reference count (see doc/ReferenceCounting.html)
@@ -108,6 +111,7 @@ MODULE qs_wf_history_types
      TYPE(pw_p_type), DIMENSION(:), POINTER :: rho_g
      TYPE(real_matrix_p_type), DIMENSION(:), POINTER :: rho_ao
      TYPE(real_matrix_type), POINTER :: overlap
+     TYPE(qs_rho_type), POINTER :: rho_frozen
      REAL(KIND = dp) :: dt
      INTEGER :: id_nr, ref_count
   END TYPE qs_wf_snapshot_type
@@ -178,7 +182,7 @@ MODULE qs_wf_history_types
      INTEGER :: id_nr, ref_count, memory_depth, last_state_index, &
           interpolation_method_nr, snapshot_count
      LOGICAL :: store_wf, store_rho_r, store_rho_g, store_rho_ao,&
-          store_overlap
+          store_overlap, store_frozen_density
      TYPE(qs_wf_snapshot_p_type), DIMENSION(:), POINTER :: past_states
   END TYPE qs_wf_history_type
 !!***
@@ -296,6 +300,9 @@ SUBROUTINE wfs_release(snapshot,error)
         END IF
         IF (ASSOCIATED(snapshot%overlap)) THEN
            CALL deallocate_matrix(snapshot%overlap)
+        END IF
+        IF (ASSOCIATED(snapshot%rho_frozen)) THEN
+           CALL qs_rho_release(snapshot%rho_frozen)
         END IF
         DEALLOCATE(snapshot,stat=stat)
         CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
