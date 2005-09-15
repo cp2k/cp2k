@@ -574,7 +574,7 @@ FUNCTION wfi_get_method_label(method_nr,error) RESULT(res)
      CASE(wfi_ps_method_nr)
         res="PS Nth order"
      CASE(wfi_frozen_method_nr)
-        res="frozen-core approximation"
+        res="frozen density approximation"
     CASE default
         CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,&
              routineP,"Unknown interpolation method: "//&
