@@ -13,14 +13,14 @@
   program:      traditional               (traditional)
   nstep:        2
   lstop:        yes                         (yes or no)
-  lclassical:   yes
+  lbias:        no
   nmoves:       8
   nvolmoves:    1
   rmbond:       0.074                        (angstroms)
   rmangle:      3.0                         (degrees)
   rmtrans:      0.38                        (angstroms)
   rmrot:        26.0                        (degrees)
-  rmvolume:     10.5                        (cubic angstroms)
+  rmvolume:     1.5                        (cubic angstroms)
   iupvolume:    3200000
   iuptrans:     6400000
   pmvolume:     1.00
@@ -69,7 +69,7 @@
 
 &CELL_REF
  UNIT         ANGSTROM
- ABC          3.42  3.42  3.42
+ ABC          4.42  4.42  4.42
 &END
 
 &COORD

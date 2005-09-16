@@ -13,8 +13,8 @@
   program:      traditional               (traditional)
   nstep:        2
   lstop:        yes                         (yes or no)
-  lclassical:   yes
-  nmoves:       8
+  lbias:        no
+  nmoves:       1
   nvolmoves:    1
   rmbond:       0.074                        (angstroms)
   rmangle:      3.0                         (degrees)
