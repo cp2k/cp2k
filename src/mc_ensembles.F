@@ -418,7 +418,7 @@ CONTAINS
 
       DO nnstep=nstart+1,nstart + nstep
 
-         IF(MOD(nnstep,iprint) == 0) THEN
+         IF(MOD(nnstep,iprint) == 0 .AND. ionode) THEN
             WRITE(iw,*) 
             WRITE(iw,*) "------- On Monte Carlo Step ",nnstep
          ENDIF
@@ -429,7 +429,7 @@ CONTAINS
 
          IF (rand .LT. pmvolume) THEN
 
-            IF(MOD(nnstep,iprint) == 0) THEN
+            IF(MOD(nnstep,iprint) == 0 .AND. ionode) THEN
                WRITE(iw,*) "Attempting a volume move"
                WRITE(iw,*) 
             ENDIF
@@ -471,7 +471,7 @@ CONTAINS
          ELSEIF ( rand .LT. pmswap) THEN
 
 ! try a swap move
-            IF(MOD(nnstep,iprint) == 0) THEN
+            IF(MOD(nnstep,iprint) == 0 .AND. ionode) THEN
                WRITE(iw,*) "Attempting a swap move"
                WRITE(iw,*) 
             ENDIF
@@ -488,7 +488,7 @@ CONTAINS
             ENDDO
         ELSE
 
-            IF(MOD(nnstep,iprint) == 0) THEN
+            IF(MOD(nnstep,iprint) == 0 .AND. ionode) THEN
                WRITE(iw,*) "Attempting a Quickstep move"
                WRITE(iw,*) 
             ENDIF
