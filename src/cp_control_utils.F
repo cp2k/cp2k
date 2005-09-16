@@ -90,7 +90,7 @@ MODULE cp_control_utils
                                              energy_force_run,&
                                              energy_run,&
                                              geo_opt_run,&
-                                             mc_run,&
+                                             mon_car_run,&
                                              mol_dyn_run,&
                                              qs_debug_run,&
                                              bsse_run
@@ -430,7 +430,7 @@ CONTAINS
          error=error)
     CALL section_vals_val_get(tmp_section,"RUN_TYPE",i_val=run_id,error=error)
     SELECT CASE (run_id)!FM to rm, ugly!!
-    CASE (energy_run,mc_run,energy_force_run,electronic_spectra_run,bsse_run)
+    CASE (energy_run,mon_car_run,energy_force_run,electronic_spectra_run,bsse_run)
       dft_control%forces = .FALSE.
     CASE (mol_dyn_run,geo_opt_run,qs_debug_run)
       dft_control%forces = .TRUE.
@@ -575,7 +575,7 @@ CONTAINS
     dft_control % xc_control % functional_routine = xc_new_f_routine
 
     SELECT CASE (globenv%run_type_id)
-    CASE (energy_run,mc_run,energy_force_run,electronic_spectra_run,bsse_run)
+    CASE (energy_run,mon_car_run,energy_force_run,electronic_spectra_run,bsse_run)
       dft_control%forces = .FALSE.
     CASE (mol_dyn_run,geo_opt_run,qs_debug_run)
       dft_control%forces = .TRUE.

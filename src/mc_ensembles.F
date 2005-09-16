@@ -28,23 +28,29 @@ MODULE mc_ensembles
                                              cp_logger_type,&
                                              cp_to_string
   USE cp_subsystem_types,              ONLY: cp_subsys_get,&
-                                             cp_subsystem_p_type
+                                             cp_subsystem_p_type,&
+                                             cp_subsystem_pp_type
   USE force_env_methods,               ONLY: force_env_calc_energy_force
   USE force_env_types,                 ONLY: force_env_get,&
                                              force_env_p_type,&
-                                             force_env_type
+                                             force_env_type,&
+                                             force_env_release
   USE global_types,                    ONLY: global_environment_type
   USE kinds,                           ONLY: dp,&
                                              dp_size
   USE machine,                         ONLY: m_flush
-  USE mc_control,                      ONLY: write_mc_restart
+  USE mc_control,                      ONLY: write_mc_restart,&
+                                             mc_create_bias_force_env
   USE mc_coordinates,                  ONLY: get_water_data,&
-                                             mc_classical_energy
+                                             mc_classical_energy,&
+                                             find_mc_test_molecule,&
+                                             create_discrete_array
   USE mc_environment_types,            ONLY: get_mc_env,&
                                              mc_environment_type,&
+                                             mc_environment_p_type,&
                                              set_mc_env
-  USE mc_ge_moves,                     ONLY: mc_ge_quickstep_move,&
-                                             mc_ge_swap_move,&
+  USE mc_ge_moves,                     ONLY: mc_ge_swap_move,&
+                                             mc_quickstep_move_new,&
                                              mc_ge_volume_move
   USE mc_misc,                         ONLY: final_mc_write,&
                                              mc_averages_create,&
@@ -53,8 +59,7 @@ MODULE mc_ensembles
                                              mc_move_update,&
                                              mc_moves_release,&
                                              write_move_stats
-  USE mc_moves,                        ONLY: mc_Quickstep_move,&
-                                             mc_atom_translation,&
+  USE mc_moves,                        ONLY: mc_atom_translation,&
                                              mc_molecule_rotation,&
                                              mc_molecule_translation,&
                                              mc_volume_move
@@ -67,13 +72,15 @@ MODULE mc_ensembles
                                              mc_simulation_parameters_type,&
                                              set_mc_par
   USE message_passing,                 ONLY: mp_bcast
-  USE particle_list_types,             ONLY: particle_list_type
+  USE particle_list_types,             ONLY: particle_list_type,&
+                                             particle_list_p_type
   USE particle_types,                  ONLY: write_particle_coordinates
   USE physcon,                         ONLY: angstrom
   USE cp_files,                        ONLY: close_file,&
                                              open_file
   USE simulation_cell,                 ONLY: cell_type,&
-                                             get_cell
+                                             get_cell,&
+                                             cell_p_type
   USE termination,                     ONLY: stop_memory,&
                                              stop_program
   USE timings,                         ONLY: timeset,&
@@ -87,7 +94,7 @@ MODULE mc_ensembles
 
   CHARACTER(LEN=*), PARAMETER :: module_name = "mc_ensembles"
 
-  PUBLIC :: mc_traditional_ensemble,gemc_nvt
+  PUBLIC :: mc_run_ensemble
 
 !!***
 ! *****************************************************************************
@@ -95,14 +102,13 @@ MODULE mc_ensembles
 CONTAINS
 
 ! *****************************************************************************
-!!****s* mc_ensembles.F/mc_traditional_ensemble
+!!****s* mc_ensembles.F/mc_run_ensemble
 !!
 !!   NAME
 !!     mc_traditional_ensemble
 !!
 !!   FUNCTION
-!!     directs the program in running a one box traditional MC
-!!     simulation (NVT and NpT ensembles)
+!!     directs the program in running one or two box MC simulations
 !!
 !!   ARGUMENTS
 !!     - mc_env: the mc_environment for the simulation box
@@ -113,535 +119,108 @@ CONTAINS
 !!     MJM
 !!
 !!**************************************************************************
-  SUBROUTINE mc_traditional_ensemble ( mc_env, globenv, error )
+  SUBROUTINE mc_run_ensemble ( mc_env, globenv, nboxes, error )
 
 !   ***************************************************************************
 
-    TYPE(mc_environment_type), POINTER       :: mc_env
+    TYPE(mc_environment_p_type), POINTER,DIMENSION(:) &
+                                             :: mc_env
     TYPE(global_environment_type), POINTER   :: globenv
+    INTEGER,INTENT(IN)                        :: nboxes
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
-    CHARACTER(LEN=*), PARAMETER :: routineN = "mc_traditional_ensemble"
+    CHARACTER(LEN=*), PARAMETER :: routineN = "mc_run_ensemble"
 
-    INTEGER                                  :: crd, ene, handle, i, &
-                                                iparticle, iw, nnstep,&
-                                                mol,data,istat,&
-                                                move_unit,cell_unit,&
-                                                nunits_tot,nchain,&
-                                                source,group,diff,cl,rm,&
-                                                nstep,nstart,nmoves,&
-                                                iuptrans,iupvolume
-    LOGICAL                               :: PM0, PM1, PM2, PM3, PM4, &
-                                              should_stop,ionode,&
-                                              lstop,lclassical_run,ldum,&
-                                              loverlap
-    REAL(KIND=dp), DIMENSION(1:3)        :: abc
-    REAL(KIND=dp)                    :: energy_check, initial_energy, &
-                                         old_energy, rand,final_energy,&
-                                         classical_energy,pmtraion,&
-                                         pmvolume,&
-                                         pmtrans,cutoff,rdum,inner_cutoff
-    REAL(KIND=dp), ALLOCATABLE, &
-      DIMENSION(:, :)                        :: particle_positions,r_old
-    TYPE(mc_averages_type), POINTER          :: averages
-    TYPE(force_env_type), POINTER            :: force_env
-    TYPE(cp_subsystem_p_type), &
-      DIMENSION(:), POINTER                  :: oldsys
-    TYPE(cell_type), POINTER                 :: cell
-    TYPE(mc_moves_type), POINTER             :: move_updates, moves
-    TYPE(mc_simulation_parameters_type), &
-      POINTER                                :: mc_par
-    TYPE(particle_list_type), POINTER        :: particles_old
-   CHARACTER(LEN=40)                         :: data_file,moves_file,&
-      energy_file,coords_file,displacement_file,cell_file
-!   ---------------------------------------------------------------------------
-! begin the timing of the subroutine
-
-      CALL timeset(routineN,'I','',handle)
-
-      NULLIFY(moves,move_updates,oldsys)
-      NULLIFY(particles_old)
-
-! make it so we don't have to type mc_env for every structure    
-      CALL get_mc_env ( mc_env, mc_par = mc_par,force_env=force_env)
-! also get some data out of mc_par
-      CALL get_mc_par ( mc_par, nunits_tot=nunits_tot,nchain=nchain,&
-         ionode=ionode,source=source,group=group,data_file=data_file,&
-         moves_file=moves_file,energy_file=energy_file,&
-         coords_file=coords_file,displacement_file=displacement_file,&
-         cell_file=cell_file,lstop=lstop,nstep=nstep,nstart=nstart,&
-         pmvolume=pmvolume,nmoves=nmoves,pmtraion=pmtraion,&
-         pmtrans=pmtrans,iuptrans=iuptrans,iupvolume=iupvolume,&
-         cutoff=cutoff,lclassical_run=lclassical_run,&
-         inner_cutoff=inner_cutoff)
-
-! allocate the particle positions array for broadcasting
-      ALLOCATE (particle_positions(3,nunits_tot),STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routineN,module_name,__LINE__,&
-                       "particle_positions",3*nunits_tot*dp_size)
-      ALLOCATE (r_old(3,nunits_tot),STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routineN,module_name,__LINE__,&
-                       "r_old",3*nunits_tot*dp_size)
-
-! deal with the different levels of print statements
-      PM0 = .FALSE.
-      PM1 = .FALSE.
-      PM2 = .FALSE.
-      PM3 = .FALSE.
-      PM4 = .FALSE.
-      CALL write_checkpoint_information("entering "//routineN,globenv)
-      iw = globenv%scr
-
-      IF((ionode).AND.(globenv%print%level .GE. 0)) PM0= .TRUE.
-      IF((ionode).AND.(globenv%print%level>0)) PM1= .TRUE.
-      IF((ionode).AND.(globenv%print%level>1)) PM2= .TRUE.
-      IF((ionode).AND.(globenv%print%level>2)) PM3= .TRUE.
-      IF((ionode).AND.(globenv%print%level>3)) PM4= .TRUE.
-      
-
-      IF (PM0) THEN
-         WRITE(iw,*)
-         WRITE(iw,*)
-         WRITE(iw,*) 'Beginning Monte Carlo calculation',&
-                ' in a traditional ensemble'
-         WRITE(iw,*)
-         WRITE(iw,*)
-      ENDIF
-
-! initialize running average variables
-      energy_check=0.0E0_dp
-
-! initialize the moves array
-      CALL init_mc_moves(moves)
-
-! initialize the arrays for updating maximum move displacements
-      CALL init_mc_moves(move_updates)
-
-! initialize the averages array
-      CALL mc_averages_create(averages)
-
-! find the energy of the initial configuration
-      IF (.NOT. lclassical_run) THEN
-         CALL force_env_calc_energy_force(force_env,calc_force=.FALSE.)
-         CALL force_env_get(force_env,potential_energy=old_energy,&
-            error=error)
-
-         CALL mc_classical_energy(force_env,moves%classical_energy,&
-            nchain,1,nchain,cutoff,ldum)
-         IF(ldum) CALL stop_program(routineN,module_name,__LINE__,&
-          'traditional ensemble found an overlap in the initial config')
-         classical_energy=moves%classical_energy
-
-      ELSE
-         CALL mc_classical_energy(force_env,moves%classical_energy,&
-                               nchain,1,nchain,inner_cutoff,ldum)
-         IF(ldum) CALL stop_program(routineN,module_name,__LINE__,&
-          'traditional ensemble found an overlap in the initial config')
-         CALL mc_classical_energy(force_env,old_energy,&
-                               nchain,1,nchain,cutoff,ldum)
-         classical_energy=moves%classical_energy
-
-      ENDIF
-
-      CALL force_env_get(force_env,subsys=oldsys,cell=cell,&
-         error=error)
-      CALL get_cell(cell,abc=abc)
-      CALL cp_subsys_get(oldsys(1)%subsys, &
-         particles=particles_old, error=error)
-
-! back to seriel
-      IF (ionode) THEN
-
-! open the files for writing coordinates, average structural data, and
-! maxiumum displacements
-         CALL open_file(file_name=data_file,unit_number=DATA,&
-                 file_action='WRITE',file_status='REPLACE')
-         CALL open_file(file_name=coords_file,unit_number=crd,&
-                 file_action='WRITE',file_status='REPLACE')
-         CALL open_file(file_name=energy_file,unit_number=ene,&
-                 file_action='WRITE',file_status='REPLACE')
-         CALL open_file(file_name=moves_file,&
-            unit_number=move_unit,file_action='WRITE',&
-            file_status='REPLACE')
-         CALL open_file(file_name=displacement_file,&
-                 unit_number=rm,&
-                 file_action='WRITE',file_status='REPLACE')
-         CALL open_file(file_name='cell_length',&
-                 unit_number=cell_unit,&
-                 file_action='WRITE',file_status='REPLACE')
-!!!!!!!!!!!!!!!!!!!!!!!!!!!! for E_V curves
-!         WRITE(cell_unit,*) (abc(1)*angstrom)**3,old_energy
-         WRITE(cell_unit,*) 'Initial Cell Length:       ',&
-               abc(1)*angstrom
-
-         CALL open_file(file_name=cell_file,&
-                 unit_number=cl,&
-                 file_action='WRITE',file_status='REPLACE')
-         CALL open_file(file_name='energy_differences',&
-                 unit_number=diff,&
-                 file_action='WRITE',file_status='REPLACE')
-         WRITE(ene,*) 'Initial Energy:                ',&
-            old_energy,'0.0E0_dp'
-         CALL write_particle_coordinates(particles_old%els,cell,&
-                   crd,dump_xmol,'POS','INITIAL')
-
-         CALL set_mc_par(mc_par,cl=cl,rm=rm,diff=diff)
-
-         initial_energy=old_energy
-
-! record the old coordinates, in case a move is rejected
-         DO iparticle=1,nunits_tot
-            r_old(1:3,iparticle)=particles_old%els(iparticle)%r(1:3)
-         ENDDO
-
-! back to parallel mode
-      ENDIF
-
-! find out how many steps we're doing
-      IF (.NOT. lstop ) THEN
-         nstep=nstep*nchain
-      ENDIF
-
-      DO nnstep=nstart+1,nstart + nstep
-
-         IF(PM0) THEN
-            WRITE(iw,*) 
-            WRITE(iw,*) "------- On Monte Carlo Step ",nnstep
-         ENDIF
-
-         CALL RANDOM_NUMBER(rand)
-! broadcast the random number, to make sure we're on the same move
-         CALL mp_bcast(rand,source,group)
-
-         IF (rand .LT. pmvolume) THEN
-
-            IF(PM0) THEN
-               WRITE(iw,*) "Attempting a volume move"
-               WRITE(iw,*) 
-            ENDIF
-
-            CALL mc_volume_move( mc_par,force_env,moves,move_updates,&
-                        nnstep,old_energy,globenv,&
-                        energy_check,r_old,&
-                        error=error)
-
-        ELSE
-
-            IF(PM0) THEN
-               WRITE(iw,*) "Attempting a Quickstep move"
-               WRITE(iw,*) 
-            ENDIF
-
-            particle_positions(:,:)=0.0E0_dp
-! we want to do all this in serial
-            IF( ionode ) THEN
-
-               DO i=1,nmoves
-                  
-                  CALL RANDOM_NUMBER(rand)
-                  IF(rand .LT. pmtraion) THEN
-! change molecular conformation
-                     CALL RANDOM_NUMBER(rand)
-                     mol=CEILING(rand*nchain)
-                     mol=3*mol-2
-                     CALL mc_atom_translation( mc_par,force_env, moves,&
-                        move_updates,nnstep,i,mol,classical_energy,&
-                        error=error)
-                  ELSEIF(rand .LT. pmtrans) THEN
-! translate a whole molecule in the system
-! call a random number to figure out which molecule we're moving...the
-! second line is necessary because we access a matrix with individual
-! particles
-                     CALL RANDOM_NUMBER(rand)
-                     mol=CEILING(nchain*rand)
-                     mol=3*mol-2
-                     CALL mc_molecule_translation(mc_par,force_env,&
-                      moves,move_updates,nnstep,i,mol,classical_energy,&
-                        error=error)
-                  ELSE
-! rotate a whole molecule in the system
-                     CALL RANDOM_NUMBER(rand)
-                     mol=CEILING(nchain*rand)
-                     mol=3*mol-2
-                     CALL mc_molecule_rotation(mc_par,force_env, moves,&
-                        move_updates,nnstep,i,mol,classical_energy,&
-                        error=error)
-                  ENDIF
-
-               ENDDO
-
-! get the new coordinates and dump them into an array so we can broadcast it
-               DO iparticle=1,nunits_tot
-                  particle_positions(1:3,iparticle)=&
-                      particles_old%els(iparticle)%r(1:3)
-               ENDDO
-
-
-! back to parallel
-            ENDIF
-
-! broadcast all the positions, to make sure we're on the same page
-            CALL mp_bcast(particle_positions,source,group)
-
-            DO iparticle=1,nunits_tot
-               particles_old%els(iparticle)%r(1:3)= &
-                 particle_positions(1:3,iparticle)
-            ENDDO
-
-! now do a Quickstep calculation to see if we accept the sequence
-            CALL mc_Quickstep_move(mc_par,force_env,moves,&
-                        move_updates,energy_check,r_old,&
-                        nnstep,old_energy,error=error)
-
-         ENDIF
-
-! make sure the pointers are pointing correctly since the subsys may
-!    have changed
-         CALL force_env_get(force_env,subsys=oldsys,cell=cell,&
-            error=error)
-         CALL get_cell(cell,abc=abc)
-         CALL cp_subsys_get(oldsys(1)%subsys,&
-            particles=particles_old, error=error)
-
-
-         IF(ionode) THEN
-!            WRITE(ene,*) nnstep,old_energy/3.16682968E-6_dp,energy_check
-            WRITE(ene,*) nnstep,old_energy,energy_check
-
-            IF(.NOT. lclassical_run) &
-               CALL write_particle_coordinates(particles_old%els,cell,&
-               crd,dump_xmol,'POS','POSITIONS')
-
-! compute some averages
-            averages%molecules=averages%molecules*&
-                     REAL(nnstep-nstart-1,dp)&
-                     /REAL(nnstep-nstart,dp)+nchain/&
-                     REAL(nnstep-nstart,dp)
-
-            averages%ave_energy=averages%ave_energy*&
-                     REAL(nnstep-nstart-1,dp)&
-                     /REAL(nnstep-nstart,dp)+old_energy/&
-                     REAL(nnstep-nstart,dp)
-
-            averages%ave_cell_length=averages%ave_cell_length*&
-                     REAL(nnstep-nstart-1,dp)&
-                     /REAL(nnstep-nstart,dp)+abc(1)/&
-                     REAL(nnstep-nstart,dp)
-
-!!!!!!!!!!!!!!!!!!!!!!! for E_V curves
-!            WRITE(cell_unit,*) (abc(1)*angstrom)**3,old_energy
-            WRITE(cell_unit,*) nnstep,abc(1)*angstrom
-
-! find bond lengths and angle for current water config
-            CALL get_water_data(force_env,averages,&
-               nnstep-nstart,nchain,DATA)
-
-! write the move statistics to file
-            CALL write_move_stats(moves,move_updates,nnstep,move_unit)
-
-! write a restart file
-            CALL write_mc_restart(nnstep,mc_par,force_env)
-
-! flush the buffers to the files
-            CALL m_flush(DATA)
-            CALL m_flush(diff)
-            CALL m_flush(ene)
-            CALL m_flush(move_unit)
-            CALL m_flush(crd)
-            CALL m_flush(cl)
-            CALL m_flush(rm)
-            CALL m_flush(cell_unit)
-
-! check to see if EXIT file exists...if so, end the calculation
-            CALL external_control(force_env,should_stop,error=error)
-
-! update the move displacements, if necessary
-            IF (MOD(nnstep-nstart,iuptrans) == 0) THEN
-               CALL mc_move_update(mc_par,move_updates,"trans",nnstep)
-            ENDIF
-            IF (MOD(nnstep-nstart,iupvolume) == 0  ) THEN
-               CALL mc_move_update(mc_par,move_updates,"volume",nnstep)
-            ENDIF
-
-         ENDIF
-
-         CALL mp_bcast(should_stop,source,group)
-
-         IF (should_stop) EXIT
-
-! check to see if there are any overlaps in the boxe
-         CALL mc_classical_energy(force_env,&
-            rdum,nchain,1,nchain,cutoff,loverlap)
-         IF(loverlap) THEN
-            IF(ionode) WRITE(iw,*) nnstep
-            CALL stop_program(routineN,module_name,__LINE__,&
-            'coordinate overlap at the end of the above step')
-         ENDIF
-
-      ENDDO
-
-
-! calculate the final energy
-
-      IF (.NOT. lclassical_run) THEN
- 
-         CALL force_env_calc_energy_force(force_env,calc_force=.FALSE.)
-         CALL force_env_get(force_env,potential_energy=final_energy,&
-            error=error)
-   
-      ELSE
-
-         CALL mc_classical_energy(force_env,final_energy,&
-            nchain,1,nchain,cutoff,ldum)
-
-      ENDIF
-
-! do some stuff in serial
-      IF (ionode) THEN
-
-         CALL write_particle_coordinates(particles_old%els,cell,&
-                        crd,dump_xmol,'POS','FINAL')
-                        
-         WRITE(ene,*) 'Final Energy:                        ',&
-                  final_energy,energy_check
-
-! write a bunch of data to the screen
-         CALL final_mc_write(mc_par,moves,iw,energy_check,&
-                         initial_energy,final_energy,averages,&
-                         move_updates)
-
-! close any open files
-         CALL close_file(unit_number=diff)
-         CALL close_file(unit_number=crd)
-         CALL close_file(unit_number=DATA)
-         CALL close_file(unit_number=move_unit)
-         CALL close_file(unit_number=ene)
-         CALL close_file(unit_number=cell_unit)
-         CALL close_file(unit_number=cl)
-         CALL close_file(unit_number=rm)
-
-! back to parallel
-      ENDIF
-
-      CALL set_mc_env ( mc_env, mc_par = mc_par,force_env=force_env)
-
-! deallocate some stuff
-      CALL mc_moves_release(move_updates)
-      CALL mc_moves_release(moves)
-      CALL mc_averages_release(averages)
-
-      DEALLOCATE(particle_positions,STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routineN,module_name,__LINE__,&
-                       "particle_positions")
-      DEALLOCATE(r_old,STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routineN,module_name,__LINE__,&
-                       "r_old")
-
-! end the timing
-      CALL timestop(0.0E0_dp,handle)
-
-  END SUBROUTINE mc_traditional_ensemble
-!*********************************************************************
-
-! *****************************************************************************
-!!****s* mc_ensembles.F/gemc_nvt
-!!
-!!   NAME
-!!     gemc_nvt
-!!
-!!   FUNCTION
-!!     directs the program in running a two box Gibbs ensemble MC
-!!     simulation (NVT ensemble)
-!!
-!!   ARGUMENTS
-!!     - mc_env_1: the mc_environment for the first simulation box
-!!     - mc_env_2: the mc_environment for the second simulation box
-!!     - globenv: the global environment for the simulation
-!!     - error: the error type
-!!
-!!   AUTHOR
-!!     MJM
-!!
-!!**************************************************************************
-  SUBROUTINE gemc_nvt ( mc_env_1, mc_env_2, globenv, error )
-
-!   ***************************************************************************
-
-    TYPE(mc_environment_type), POINTER       :: mc_env_1, mc_env_2
-    TYPE(global_environment_type), POINTER   :: globenv
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
-
-    CHARACTER(LEN=*), PARAMETER              :: routineN = "gemc_nvt"
-
-    INTEGER                                  :: com_crd, com_ene, com_mol, &
-                                                handle, i, ibox, iparticle, &
-                                                istat, iw, mol, nnstep,&
-                                                cell_unit,source,group,nstep,&
-                                                nstart,nmoves,iuptrans,&
-                                                iupvolume
-    INTEGER, DIMENSION(1:2)                  :: box_flag, crd, DATA, ene, &
+    INTEGER, DIMENSION(1:nboxes)             :: box_flag, data_unit,&
                                                 move_unit,istep,nchain,&
                                                 nunits_tot,diff,cl,rm
-    LOGICAL                                  :: ionode, PM0, PM1, PM2, PM3, &
-                                                PM4, should_stop,lstop,&
-                                                lclassical_run,loverlap,&
-                                                ldum
-    REAL(KIND=dp)                            :: rand,pmvolume,pmswap,&
-      pmtraion,pmtrans,cutoff,rdum,inner_cutoff
+    INTEGER,DIMENSION(1:3,1:2)               :: discrete_array
+    INTEGER                                  :: handle, imove, &
+                                                iparticle, iw, nnstep,&
+                                                mol,istat,cell_unit,&
+                                                source,group,&
+                                                nstep,nstart,nmoves,&
+                                                iuptrans,iupvolume,iprint,&
+                                                box_number,ibox,&
+                                                com_ene,com_crd,com_mol
+    LOGICAL                               :: PM0, PM1, PM2, PM3, PM4, &
+                                              should_stop,ionode,&
+                                              lstop,ldum,&
+                                              loverlap,lbias,lnew_bias_env,&
+                                              lreject,ldiscrete
+    REAL(KIND=dp), DIMENSION(1:3,1:nboxes)    :: abc
+    REAL(KIND=dp)                    ::  rand,pmtraion,&
+                                         pmvolume,test_energy,&
+                                         pmtrans,cutoff,rdum,inner_cutoff,&
+                                         pmswap,discrete_step
     REAL(KIND=dp), ALLOCATABLE, &
-      DIMENSION(:, :, :)                     :: particle_positions, r_old
-    REAL(KIND=dp), DIMENSION(1:3,1:2)        :: abc
-    REAL(KIND=dp), DIMENSION(1:2)            :: classical_energy, &
-                                                energy_check, final_energy, &
-                                                initial_energy, old_energy
-    TYPE(cell_type), POINTER                 :: cell_1, cell_2
-    TYPE(cp_subsystem_p_type), &
-      DIMENSION(:), POINTER                  :: oldsys_1, oldsys_2
+      DIMENSION(:, :, :)                     :: particle_positions,r_old
+    REAL(KIND=dp), DIMENSION(1:nboxes)       :: bias_energy,&
+                                              energy_check,final_energy,&
+                                              initial_energy,old_energy
+    TYPE(cell_p_type),POINTER,DIMENSION(:) &
+                                             :: cell
+    TYPE(cp_subsystem_pp_type), &
+      DIMENSION(:), POINTER                  :: oldsys
     TYPE(force_env_p_type), DIMENSION(:), &
-      POINTER                                :: force_env
+      POINTER                                :: force_env,bias_env
     TYPE(mc_averages_p_type), DIMENSION(:), &
       POINTER                                :: averages
     TYPE(mc_moves_p_type), DIMENSION(:), &
       POINTER                                :: move_updates, moves
     TYPE(mc_simulation_parameters_p_type), &
       DIMENSION(:), POINTER                  :: mc_par
-    TYPE(particle_list_type), POINTER        :: particles_old_1, &
-                                                particles_old_2
-    CHARACTER(LEN=40),DIMENSION(1:2)         :: data_file,moves_file,&
+    TYPE(particle_list_p_type), DIMENSION(:),POINTER &
+                                             :: particles_old
+    CHARACTER(LEN=40),DIMENSION(1:nboxes)    :: data_file,moves_file,&
       energy_file,coords_file,displacement_file,cell_file,molecules_file
 
+    CHARACTER(LEN=40)                        :: fft_lib,cbox,move_type
 !   ---------------------------------------------------------------------------
 ! begin the timing of the subroutine
 
-  CALL timeset(routineN,'I','',handle)
+      CALL timeset(routineN,'I','',handle)
 
-      NULLIFY(particles_old_1)
-      NULLIFY(particles_old_2)
+! nullify some pointers
+      NULLIFY(moves,move_updates)
 
-! allocate the particle positions array for broadcasting
-      ALLOCATE(averages(1:2),STAT=istat)
+! allocate a whole bunch of stuff based on how many boxes we have
+      ALLOCATE (force_env(1:nboxes),STAT=istat)
       IF (istat /= 0) CALL stop_memory(routineN,module_name,__LINE__,&
-                   "averages",2)
-      ALLOCATE(force_env(1:2),STAT=istat)
+         "force_env",1*dp_size*nboxes)
+      ALLOCATE (bias_env(1:nboxes),STAT=istat)
       IF (istat /= 0) CALL stop_memory(routineN,module_name,__LINE__,&
-                   "force_env",2)
-      ALLOCATE(mc_par(1:2),STAT=istat)
+         "bias_env",1*dp_size*nboxes)
+      ALLOCATE (cell(1:nboxes),STAT=istat)
       IF (istat /= 0) CALL stop_memory(routineN,module_name,__LINE__,&
-                   "mc_par",2)
-      ALLOCATE(moves(1:2),STAT=istat)
+         "cell",1*dp_size*nboxes)
+      ALLOCATE (particles_old(1:nboxes),STAT=istat)
       IF (istat /= 0) CALL stop_memory(routineN,module_name,__LINE__,&
-                   "moves",2)
-      ALLOCATE(move_updates(1:2),STAT=istat)
+         "particles_old",1*dp_size*nboxes)
+      ALLOCATE (oldsys(1:nboxes),STAT=istat)
       IF (istat /= 0) CALL stop_memory(routineN,module_name,__LINE__,&
-                   "moves_updates",2)
+         "oldsys",1*dp_size*nboxes)
+      ALLOCATE (averages(1:nboxes),STAT=istat)
+      IF (istat /= 0) CALL stop_memory(routineN,module_name,__LINE__,&
+         "averages",1*dp_size*nboxes)
+      ALLOCATE (moves(1:nboxes),STAT=istat)
+      IF (istat /= 0) CALL stop_memory(routineN,module_name,__LINE__,&
+         "moves",1*dp_size*nboxes)
+      ALLOCATE (move_updates(1:nboxes),STAT=istat)
+      IF (istat /= 0) CALL stop_memory(routineN,module_name,__LINE__,&
+         "move_updates",1*dp_size*nboxes)
+      ALLOCATE (mc_par(1:nboxes),STAT=istat)
+      IF (istat /= 0) CALL stop_memory(routineN,module_name,__LINE__,&
+         "mc_par",1*dp_size*nboxes)
 
-      CALL get_mc_env ( mc_env_1,mc_par=mc_par(1)%mc_par,&
-         force_env=force_env(1)%force_env)
-      CALL get_mc_env ( mc_env_2,mc_par=mc_par(2)%mc_par,&
-         force_env=force_env(2)%force_env)
+      DO ibox=1,nboxes
+         CALL get_mc_env ( mc_env(ibox)%mc_env, &
+            mc_par = mc_par(ibox)%mc_par,&
+            force_env=force_env(ibox)%force_env)
+      ENDDO
 
+! get some data out of mc_par
       CALL get_mc_par(mc_par(1)%mc_par,nunits_tot=nunits_tot(1),&
          nchain=nchain(1),ionode=ionode,source=source,group=group,&
          data_file=data_file(1),moves_file=moves_file(1),&
@@ -650,21 +229,30 @@ CONTAINS
          lstop=lstop,nstep=nstep,nstart=nstart,pmvolume=pmvolume,&
          molecules_file=molecules_file(1),pmswap=pmswap,nmoves=nmoves,&
          pmtraion=pmtraion,pmtrans=pmtrans,iuptrans=iuptrans,&
-         iupvolume=iupvolume,lclassical_run=lclassical_run,cutoff=cutoff,&
-         inner_cutoff=inner_cutoff)
-      CALL get_mc_par(mc_par(2)%mc_par,nunits_tot=nunits_tot(2),&
-         nchain=nchain(2),data_file=data_file(2),moves_file=moves_file(2),&
-         cell_file=cell_file(2),coords_file=coords_file(2),&
-         energy_file=energy_file(2),displacement_file=displacement_file(2),&
-         molecules_file=molecules_file(2))
-  
-      ALLOCATE(particle_positions(3,nunits_tot(1)+&
-              nunits_tot(2),2),STAT=istat)
+         iupvolume=iupvolume,cutoff=cutoff,ldiscrete=ldiscrete,&
+         inner_cutoff=inner_cutoff,lbias=lbias,iprint=iprint,&
+         discrete_step=discrete_step,fft_lib=fft_lib)
+
+      IF(nboxes .GT. 1) THEN
+         DO ibox=2,nboxes
+            CALL get_mc_par(mc_par(ibox)%mc_par,nunits_tot=nunits_tot(ibox),&
+            nchain=nchain(ibox),data_file=data_file(ibox),&
+            moves_file=moves_file(ibox),&
+            cell_file=cell_file(ibox),coords_file=coords_file(ibox),&
+            energy_file=energy_file(ibox),&
+            displacement_file=displacement_file(ibox),&
+            molecules_file=molecules_file(ibox))
+         ENDDO
+      ENDIF
+
+! allocate the particle positions array for broadcasting
+      ALLOCATE (particle_positions(3,SUM(nunits_tot),1:nboxes),STAT=istat)
       IF (istat /= 0) CALL stop_memory(routineN,module_name,__LINE__,&
-           "particle_positions",3*(nunits_tot(1)+nunits_tot(2))*dp_size*2)
-      ALLOCATE(r_old(3,nunits_tot(1)+nunits_tot(2),2),STAT=istat)
+                       "particle_positions",3*SUM(nunits_tot)*dp_size*nboxes)
+      ALLOCATE (r_old(3,SUM(nunits_tot),1:nboxes),STAT=istat)
       IF (istat /= 0) CALL stop_memory(routineN,module_name,__LINE__,&
-           "r_old",3*(nunits_tot(1)+nunits_tot(2))*dp_size*2)
+                       "r_old",3*SUM(nunits_tot)*dp_size*nboxes)
+
 
 ! deal with the different levels of print statements
       PM0 = .FALSE.
@@ -685,8 +273,7 @@ CONTAINS
       IF (PM0) THEN
          WRITE(iw,*)
          WRITE(iw,*)
-         WRITE(iw,*) 'Beginning Monte Carlo calculation',&
-                ' in the Gibbs ensemble'
+         WRITE(iw,*) 'Beginning the Monte Carlo calculation.'
          WRITE(iw,*)
          WRITE(iw,*)
       ENDIF
@@ -696,240 +283,235 @@ CONTAINS
       box_flag(:)=0
       istep(:)=0
 
-! initialize the moves array,the arrays for updating maximum move 
-!   displacements, and the averages array
-      DO i=1,2
-         CALL init_mc_moves(moves(i)%moves)
-         CALL init_mc_moves(move_updates(i)%moves)
-         CALL mc_averages_create(averages(i)%averages)
-      ENDDO
+      DO ibox=1,nboxes
+! initialize the moves array, the arrays for updating maximum move 
+! displacements, and the averages array
+         CALL init_mc_moves(moves(ibox)%moves)
+         CALL init_mc_moves(move_updates(ibox)%moves)
+         CALL mc_averages_create(averages(ibox)%averages)
 
 ! find the energy of the initial configuration
-      DO i=1,2
-
-         IF (nchain(i) == 0) THEN
-            old_energy(i)=0.0E0_dp
-            moves(i)%moves%classical_energy=0.0E0_dp
-            classical_energy(i)=moves(i)%moves%classical_energy
+         IF(nchain(ibox) .NE. 0) THEN
+            CALL force_env_calc_energy_force(force_env(ibox)%force_env,&
+               calc_force=.FALSE.)
+            CALL force_env_get(force_env(ibox)%force_env,&
+               potential_energy=old_energy(ibox),&
+               error=error)
          ELSE
-
-            IF (.NOT. lclassical_run) THEN
-               CALL force_env_calc_energy_force(force_env(i)%force_env,&
-                    calc_force=.FALSE.)
-               CALL force_env_get(force_env(i)%force_env,&
-               potential_energy=old_energy(i),error=error)
-               
-               CALL mc_classical_energy(force_env(i)%force_env,&
-                  moves(i)%moves%classical_energy,nchain(i),1,&
-                  nchain(i),cutoff,ldum)
-               IF(ldum) CALL stop_program(routineN,module_name,__LINE__,&
-                  'GEMC found an overlap in the initial config')
-               classical_energy(i)=moves(i)%moves%classical_energy
-
-            ELSE
-
-               CALL mc_classical_energy(force_env(i)%force_env,&
-                  moves(i)%moves%classical_energy,nchain(i),1,&
-                  nchain(i),inner_cutoff,ldum)
-               IF(ldum) CALL stop_program(routineN,module_name,__LINE__,&
-                  'GEMC found an overlap in the initial config')
-               classical_energy(i)=moves(i)%moves%classical_energy
-               CALL mc_classical_energy(force_env(i)%force_env,&
-                  old_energy(i),nchain(i),1,&
-                  nchain(i),cutoff,ldum)
-
-            ENDIF
-
+            old_energy(ibox)=0.0d0
          ENDIF
+         initial_energy(ibox)=old_energy(ibox)
+      
+! find the bias energy of the initial run
+         IF(lbias) THEN
+            CALL mc_create_bias_force_env(bias_env(ibox)%force_env,&
+               force_env(ibox)%force_env,&
+               globenv,.FALSE.,TRIM(fft_lib),error)
+            IF(nchain(ibox) .NE. 0) THEN
+               CALL force_env_calc_energy_force(bias_env(ibox)%force_env,&
+                  calc_force=.FALSE.)
+               CALL force_env_get(bias_env(ibox)%force_env,&
+                  potential_energy=moves(ibox)%moves%bias_energy,error=error)
+            ELSE
+               moves(ibox)%moves%bias_energy=0.0d0
+            ENDIF
+            bias_energy(ibox)=moves(ibox)%moves%bias_energy
+         ENDIF
+         lnew_bias_env=.FALSE.
+         CALL mc_classical_energy(force_env(ibox)%force_env,rdum,&
+         nchain(ibox),1,nchain(ibox),cutoff,ldum)
+         IF(ldum) CALL stop_program(routineN,module_name,__LINE__,&
+            "overlap in an initial configuration")
 
+! get the subsystems and the cell information
+         CALL force_env_get(force_env(ibox)%force_env,&
+            subsys=oldsys(ibox)%subsys,cell=cell(ibox)%cell,&
+            error=error)
+         CALL get_cell(cell(ibox)%cell,abc=abc(:,ibox))
+         CALL cp_subsys_get(oldsys(ibox)%subsys(1)%subsys, &
+            particles=particles_old(ibox)%list, error=error)
+! record the old coordinates, in case a move is rejected
+         DO iparticle=1,nunits_tot(ibox)
+            r_old(1:3,iparticle,ibox)=&
+               particles_old(ibox)%list%els(iparticle)%r(1:3)
+         ENDDO
       ENDDO
 
-      CALL force_env_get(force_env(1)%force_env,subsys=oldsys_1,&
-         cell=cell_1,error=error)
-      CALL get_cell(cell_1,abc=abc(:,1))
-      CALL cp_subsys_get(oldsys_1(1)%subsys, &
-         particles=particles_old_1, error=error)
-      
-      CALL force_env_get(force_env(2)%force_env,subsys=oldsys_2,&
-         cell=cell_2,error=error)
-      CALL get_cell(cell_2,abc=abc(:,2))
-      CALL cp_subsys_get(oldsys_2(1)%subsys, &
-         particles=particles_old_2, error=error)
-
-! back to seriel
+! back to seriel for a bunch of I/O stuff
       IF (ionode) THEN
 
-! open the files for writing coordinates, average structural data, and
-! maxiumum displacements
-
-! box 1
-         DO i=1,2
-            CALL open_file(file_name=data_file(i),&
-               unit_number=DATA(i),&
-               file_action='WRITE',file_status='REPLACE')
-            CALL open_file(file_name=moves_file(i),&
-               unit_number=move_unit(i),&
-               file_action='WRITE',file_status='REPLACE')
-            CALL open_file(file_name=coords_file(i),&
-               unit_number=crd(i),&
-               file_action='WRITE',file_status='REPLACE')
-            CALL open_file(file_name=energy_file(i),&
-               unit_number=ene(i),&
-               file_action='WRITE',file_status='REPLACE')
-            CALL open_file(file_name=displacement_file(i),&
-               unit_number=rm(i),&
-               file_action='WRITE',file_status='REPLACE')
-            CALL open_file(file_name=cell_file(i),&
-                  unit_number=cl(i),&
-                  file_action='WRITE',file_status='REPLACE')
-         ENDDO
-            
-         CALL open_file(file_name='energy_differences_box1',&
-                 unit_number=diff(1),&
-                 file_action='WRITE',file_status='REPLACE')
-         WRITE(ene(1),*) 'Initial Energy Box 1:            ',&
-            old_energy(1),' 0.0E0_dp'
-         IF(nchain(1) == 0) THEN
-            WRITE(crd(1),*) ' 0'
-            WRITE(crd(1),*) 'INITIAL'
-         ELSE
-            CALL write_particle_coordinates(particles_old_1%els,cell_1,&
-               crd(1),dump_xmol,'POS','INITIAL')
-         ENDIF
-! box 2
-         CALL open_file(file_name='energy_differences_box2',&
-                 unit_number=diff(2),&
-                 file_action='WRITE',file_status='REPLACE')
-         WRITE(ene(2),*) 'Initial Energy Box 2:            ',&
-            old_energy(2),' 0.0E0_dp'
-         IF(nchain(2) == 0) THEN
-            WRITE(crd(2),*) ' 0'
-            WRITE(crd(2),*) 'INITIAL'
-         ELSE
-            CALL write_particle_coordinates(particles_old_2%els,cell_2,&
-               crd(2),dump_xmol,'POS','INITIAL')
-         ENDIF
-
-! set all the units numbers that we just opened in the respective mc_par
-         CALL set_mc_par(mc_par(1)%mc_par,cl=cl(1),rm=rm(1),diff=diff(1))
-         CALL set_mc_par(mc_par(2)%mc_par,cl=cl(2),rm=rm(2),diff=diff(2))
-
 ! record the combined energies,coordinates, and cell lengths
-         CALL open_file(file_name='cell_length',&
+         CALL open_file(file_name='mc_cell_length',&
                  unit_number=cell_unit,&
                  file_action='WRITE',file_status='REPLACE')
-         WRITE(cell_unit,*) 'Initial Cell Lengths: ',&
-            abc(1,1)*angstrom,abc(1,2)*angstrom
-         CALL open_file(file_name='combined_energies',&
+         CALL open_file(file_name='mc_energies',&
                  unit_number=com_ene,&
                  file_action='WRITE',file_status='REPLACE')
-         CALL open_file(file_name='combined_coordinates',&
+         CALL open_file(file_name='mc_coordinates',&
                  unit_number=com_crd,&
                  file_action='WRITE',file_status='REPLACE')
-         CALL open_file(file_name=molecules_file(1),&
+         CALL open_file(file_name='mc_molecules',&
                  unit_number=com_mol,&
                  file_action='WRITE',file_status='REPLACE')
-         WRITE(com_ene,*) 'Initial Total Energy:            ',&
-            old_energy(1)+old_energy(2),' 0.0E0_dp'
-         IF(nchain(1) == 0) THEN
-            WRITE(com_crd,*) ' 0'
-            WRITE(com_crd,*) 'INITIAL BOX 1'
-         ELSE
-            CALL write_particle_coordinates(particles_old_1%els,cell_1,&
-               com_crd,dump_xmol,'POS','INITIAL BOX 1')
-         ENDIF
-         IF(nchain(2) == 0) THEN
-            WRITE(com_crd,*) ' 0'
-            WRITE(com_crd,*) 'INITIAL BOX 2'
-         ELSE
-            CALL write_particle_coordinates(particles_old_2%els,cell_2,&
-               com_crd,dump_xmol,'POS','INITIAL BOX 2')
-         ENDIF
-         initial_energy(1)=old_energy(1)
-         initial_energy(2)=old_energy(2)
+         WRITE(com_ene,*) 'Initial Energies:       ',&
+            old_energy(1:nboxes)
+         WRITE(com_mol,*) 'Initial Molecules:       ',&
+            nchain(1:nboxes)
+         DO ibox=1,nboxes
+            WRITE(cell_unit,*) 'Initial: ',&
+               abc(1:3,ibox)*angstrom
+            WRITE(cbox,'(I4)') ibox
+            CALL open_file(file_name='energy_differences_box' // &
+                 TRIM(ADJUSTL(cbox)),&
+                 unit_number=diff(ibox),&
+                 file_action='WRITE',file_status='REPLACE')
+            IF(nchain(ibox) == 0) THEN
+               WRITE(com_crd,*) ' 0'
+               WRITE(com_crd,*) 'INITIAL BOX ' // TRIM(ADJUSTL(cbox))
+            ELSE
+               CALL write_particle_coordinates(particles_old(ibox)%list%els,&
+                  cell(ibox)%cell,com_crd,dump_xmol,'POS',&
+                  'INITIAL BOX ' // TRIM(ADJUSTL(cbox)))
+            ENDIF
+            CALL open_file(file_name=data_file(ibox),&
+               unit_number=data_unit(ibox),&
+               file_action='WRITE',file_status='REPLACE')
+            CALL open_file(file_name=moves_file(ibox),&
+               unit_number=move_unit(ibox),&
+               file_action='WRITE',file_status='REPLACE')
+            CALL open_file(file_name=displacement_file(ibox),&
+               unit_number=rm(ibox),&
+               file_action='WRITE',file_status='REPLACE')
+            CALL open_file(file_name=cell_file(ibox),&
+               unit_number=cl(ibox),&
+               file_action='WRITE',file_status='REPLACE')
 
-! record the old coordinates, in case a move is rejected
-         DO iparticle=1,nunits_tot(1)
-            r_old(1:3,iparticle,1)=particles_old_1%els(iparticle)%r(1:3)
-         ENDDO
-         DO iparticle=1,nunits_tot(2)
-            r_old(1:3,iparticle,2)=particles_old_2%els(iparticle)%r(1:3)
+! set all the units numbers that we just opened in the respective mc_par
+            CALL set_mc_par(mc_par(ibox)%mc_par,cl=cl(ibox),rm=rm(ibox),&
+               diff=diff(ibox))
          ENDDO
 
 ! back to parallel mode
       ENDIF
 
-! find out how many steps we're doing
-      IF (.NOT. lstop) &
-         nstep=nstep*(nchain(1)+nchain(2))
+! if we're doing a discrete volume move, we need to set up the array
+! that keeps track of which direction we can move in...1 means we can
+! increase, -1 means we can decrease
 
-!    MC STUFF
+! if we're doing a discrete volume move, we need to set up the array
+! that keeps track of which direction we can move in
+      IF(ldiscrete) THEN
+         IF(nboxes .NE. 1) &
+            CALL stop_program(routineN,module_name,__LINE__,&
+            'ldiscrete=.true. ONLY for systems with 1 box')
+         CALL create_discrete_array(abc(:,1),discrete_array(:,:),&
+            discrete_step)
+      ENDIF
+
+! find out how many steps we're doing...change the updates to be in cycles
+! if the total number of steps is measured in cycles
+      IF (.NOT. lstop ) THEN
+         nstep=nstep*SUM(nchain(:))
+         iuptrans=iuptrans*SUM(nchain(:))
+         iupvolume=iupvolume*SUM(nchain(:))
+      ENDIF
 
       DO nnstep=nstart+1,nstart + nstep
 
-         IF(PM0) THEN
+         IF(MOD(nnstep,iprint) == 0) THEN
             WRITE(iw,*) 
             WRITE(iw,*) "------- On Monte Carlo Step ",nnstep
          ENDIF
+
          CALL RANDOM_NUMBER(rand)
 ! broadcast the random number, to make sure we're on the same move
          CALL mp_bcast(rand,source,group)
 
-
          IF (rand .LT. pmvolume) THEN
-!     change the volume of the system
-            IF(PM0) THEN
+
+            IF(MOD(nnstep,iprint) == 0) THEN
                WRITE(iw,*) "Attempting a volume move"
                WRITE(iw,*) 
             ENDIF
 
-            CALL mc_ge_volume_move ( mc_par,force_env, moves,&
-               move_updates,nnstep,old_energy,globenv,energy_check,&
-               r_old,error)
+            IF( nboxes .EQ. 1) THEN
+               CALL mc_volume_move( mc_par(1)%mc_par,&
+                  force_env(1)%force_env,&
+                  moves(1)%moves,move_updates(1)%moves,&
+                  nnstep,old_energy(1),globenv,&
+                  energy_check(1),r_old(:,:,1),iw,discrete_array(:,:),&
+                  error=error)
 
+            ELSE
+               CALL mc_ge_volume_move ( mc_par,force_env, moves,&
+                  move_updates,nnstep,old_energy,globenv,energy_check,&
+                  r_old,error)
+            ENDIF
+
+! we need a new biasing environment now, if we're into that sort of thing
+            IF(lbias) THEN
+               DO ibox=1,nboxes
+                  CALL force_env_release(bias_env(ibox)%force_env,error=error)
+                  CALL mc_create_bias_force_env(bias_env(ibox)%force_env,&
+                     force_env(ibox)%force_env,&
+                     globenv,.FALSE.,TRIM(fft_lib),error)
+                  IF(nchain(ibox) .NE. 0) THEN
+                     CALL force_env_calc_energy_force(&
+                        bias_env(ibox)%force_env,&
+                        calc_force=.FALSE.)
+                     CALL force_env_get(bias_env(ibox)%force_env,&
+                        potential_energy=moves(ibox)%moves%bias_energy,&
+                        error=error)
+                  ELSE
+                    moves(ibox)%moves%bias_energy=0.0d0 
+                  ENDIF
+                  bias_energy(ibox)=moves(ibox)%moves%bias_energy
+               ENDDO
+            ENDIF
          ELSEIF ( rand .LT. pmswap) THEN
 
 ! try a swap move
-            IF(PM0) THEN
+            IF(MOD(nnstep,iprint) == 0) THEN
                WRITE(iw,*) "Attempting a swap move"
                WRITE(iw,*) 
             ENDIF
 
-            CALL mc_ge_swap_move(mc_par,force_env,moves,&
-                energy_check,r_old,old_energy,&
-                nnstep,globenv,error)
+            CALL mc_ge_swap_move(mc_par,force_env,bias_env,moves,&
+                energy_check(:),r_old(:,:,:),old_energy(:),&
+                nnstep,globenv,bias_energy(:),error)
 
 ! the number of molecules may have changed
-            CALL get_mc_par(mc_par(1)%mc_par,nunits_tot=nunits_tot(1),&
-               nchain=nchain(1))
-            CALL get_mc_par(mc_par(2)%mc_par,nunits_tot=nunits_tot(2),&
-               nchain=nchain(2))
+            DO ibox=1,nboxes
+               CALL get_mc_par(mc_par(ibox)%mc_par,&
+                  nunits_tot=nunits_tot(ibox),&
+                  nchain=nchain(ibox))
+            ENDDO
+        ELSE
 
-
-         ELSE
-
-            IF(PM0) THEN
+            IF(MOD(nnstep,iprint) == 0) THEN
                WRITE(iw,*) "Attempting a Quickstep move"
                WRITE(iw,*) 
             ENDIF
 
-            particle_positions(:,:,:) = 0.0E0_dp
-            
-! go into serial mode
-            IF (ionode) THEN
+            particle_positions(:,:,:)=0.0E0_dp
+! we want to do all this in serial
+            IF( ionode ) THEN
 
-               DO i=1,nmoves
+               DO imove=1,nmoves
+                  
                   CALL RANDOM_NUMBER(rand)
                   IF(rand .LT. pmtraion) THEN
-                     
-! change the conformation of a molecule
-
+! change molecular conformation
 ! first, pick a box to do it for
                      CALL RANDOM_NUMBER(rand)
-                     IF(rand .LT. 0.75E0_dp) THEN
-                        ibox=1
+                     IF(nboxes .EQ. 2) THEN
+                        IF(rand .LT. 0.75E0_dp) THEN
+                           ibox=1
+                        ELSE
+                           ibox=2
+                        ENDIF
                      ELSE
-                        ibox=2
+                        ibox=1
                      ENDIF
 
 ! now pick a molecule, automatically rejecting the move if the
@@ -940,127 +522,143 @@ CONTAINS
                            moves(ibox)%moves%empty_conf+1
                      ELSE
 ! pick a molecule in the box
-                        mol=CEILING(nchain(ibox)*rand)
-                        mol=3*mol-2
-!                     IF (mol .LE. nunits_tot(1)) THEN
-!                        ibox=1
-!                     ELSE
-!                        ibox=2
-!                        mol=mol-nunits_tot(1)
-!                     ENDIF
+                        CALL find_mc_test_molecule(force_env,mol,&
+                           box_number,nchain(:),box=ibox)
 
-                        box_flag(ibox)=1
-                        CALL mc_atom_translation( mc_par(ibox)%mc_par,&
-                           force_env(ibox)%force_env,moves(ibox)%moves,&
-                           move_updates(ibox)%moves,nnstep,i,mol,&
-                           classical_energy(ibox),error=error)
+! choose if we're changing a bond length or an angle
+                        CALL RANDOM_NUMBER(rand)
+
+! used for keeping track of counters for lbias=.false. simulations
+                        IF (rand .LT. 0.66666667E0_dp) THEN
+                           move_type='bond'
+                        ELSE
+                           move_type='angle'
+                        ENDIF
+                        box_flag(box_number)=1
+                        CALL mc_atom_translation(mc_par(box_number)%mc_par,&
+                           force_env(box_number)%force_env,&
+                           bias_env(box_number)%force_env,&
+                           moves(box_number)%moves,&
+                           move_updates(box_number)%moves,nnstep,imove,&
+                           mol,bias_energy(box_number),&
+                           move_type,lreject,error=error)
+                        IF(lreject) EXIT
                      ENDIF
-
                   ELSEIF(rand .LT. pmtrans) THEN
-!     translate a whole molecule in the system
-!     call a random number to figure out which molecule we're moving...the
-!     second line is necessary because we access a matrix with individual
-!     particles
-                     CALL RANDOM_NUMBER(rand)
-                     mol=CEILING((nchain(1)+nchain(2))*rand)
-                     mol=3*mol-2
-                     IF (mol .LE. nunits_tot(1)) THEN
-                        ibox=1
-                     ELSE
-                        ibox=2
-                        mol=mol-nunits_tot(1)
-                     ENDIF
-
-                     box_flag(ibox)=1
-                     CALL mc_molecule_translation(mc_par(ibox)%mc_par,&
-                        force_env(ibox)%force_env,moves(ibox)%moves,&
-                        move_updates(ibox)%moves,nnstep,&
-                        i,mol,classical_energy(ibox),error=error)
-
+! translate a whole molecule in the system
+! call a random number to figure out which molecule we're moving...the
+! second line is necessary because we access a matrix with individual
+! particles
+                     move_type='trans'
+                     CALL find_mc_test_molecule(force_env,mol,box_number,&
+                        nchain(:))
+                     box_flag(box_number)=1
+                     CALL mc_molecule_translation(mc_par(box_number)%mc_par,&
+                        force_env(box_number)%force_env,&
+                        bias_env(box_number)%force_env,&
+                        moves(box_number)%moves,&
+                        move_updates(box_number)%moves,nnstep,imove,mol,&
+                        bias_energy(box_number),lreject,error=error)
+                     IF(lreject) EXIT
                   ELSE
-!     rotate a whole molecule in the system
-                     CALL RANDOM_NUMBER(rand)
-                     mol=CEILING((nchain(1)+nchain(2))*rand)
-                     mol=3*mol-2
-                     IF (mol .LE. nunits_tot(1)) THEN
-                        ibox=1
-                     ELSE
-                        ibox=2
-                        mol=mol-nunits_tot(1)
-                     ENDIF
-
-                     box_flag(ibox)=1
-                     CALL mc_molecule_rotation(mc_par(ibox)%mc_par,&
-                        force_env(ibox)%force_env,moves(ibox)%moves,&
-                        move_updates(ibox)%moves,nnstep,i,mol,&
-                        classical_energy(ibox),error=error)
-                     
+! rotate a whole molecule in the system
+                     move_type='rot'
+                     CALL find_mc_test_molecule(force_env,mol,box_number,&
+                        nchain(:))
+                     box_flag(box_number)=1
+                     CALL mc_molecule_rotation(mc_par(box_number)%mc_par,&
+                        force_env(box_number)%force_env,&
+                        bias_env(box_number)%force_env,&
+                        moves(box_number)%moves,&
+                        move_updates(box_number)%moves,nnstep,imove,&
+                        mol,bias_energy(box_number),&
+                        lreject,error=error)
+                     IF(lreject) EXIT
                   ENDIF
+
                ENDDO
-               
+
 ! get the new coordinates and dump them into an array so we can broadcast it
-               DO iparticle=1,nunits_tot(1)
-                  particle_positions(1:3,iparticle,1)=&
-                  particles_old_1%els(iparticle)%r(1:3)
+               DO ibox=1,nboxes
+                  DO iparticle=1,nunits_tot(ibox)
+                     particle_positions(1:3,iparticle,ibox)=&
+                        particles_old(ibox)%list%els(iparticle)%r(1:3)
+                  ENDDO
                ENDDO
-               DO iparticle=1,nunits_tot(2)
-                  particle_positions(1:3,iparticle,2)=&
-                     particles_old_2%els(iparticle)%r(1:3)
-               ENDDO
-               
-!     go back to parallel      
+
+
+! back to parallel
             ENDIF
-            
-!     broadcast all the positions, to make sure we're on the same page
+
+! broadcast the reject flag
+            CALL mp_bcast(lreject,source,group)
+
+! broadcast all the positions, to make sure we're on the same page
             CALL mp_bcast(particle_positions,source,group)
-            
-            DO iparticle=1,nunits_tot(1)
-               particles_old_1%els(iparticle)%r(1:3)= &
-                  particle_positions(1:3,iparticle,1)
+
+            DO ibox=1,nboxes
+               DO iparticle=1,nunits_tot(ibox)
+                  particles_old(ibox)%list%els(iparticle)%r(1:3)= &
+                     particle_positions(1:3,iparticle,ibox)
+               ENDDO
             ENDDO
-            DO iparticle=1,nunits_tot(2)
-               particles_old_2%els(iparticle)%r(1:3)= &
-                  particle_positions(1:3,iparticle,2)
-            ENDDO
-            
-!     now do a Quickstep calculation to see if we accept the sequence
-            CALL mc_ge_quickstep_move(mc_par(1)%mc_par,&
-               mc_par(2)%mc_par,force_env(1)%force_env,&
-               force_env(2)%force_env,moves(1)%moves,moves(2)%moves,&
-               move_updates(1)%moves,move_updates(2)%moves,&
-               energy_check(:),r_old(:,:,1),r_old(:,:,2),&
-               old_energy(:),box_flag(:),nnstep,error=error)
-            
+
+! now do a Quickstep calculation to see if we accept the sequence
+            CALL mc_Quickstep_move_new(mc_par,force_env,bias_env,&
+               moves,lreject,move_updates,energy_check(:),r_old(:,:,:),&
+               nnstep,old_energy(:),bias_energy(:),&
+               nboxes,box_flag(:),oldsys,particles_old,cell,&
+               error=error)
+
          ENDIF
-         
+
 ! make sure the pointers are pointing correctly since the subsys may
-!    have changed
-         CALL force_env_get(force_env(1)%force_env,cell=cell_1,&
-            subsys=oldsys_1,error=error)
-         CALL get_cell(cell_1,abc=abc(:,1))
-         CALL cp_subsys_get(oldsys_1(1)%subsys,&
-            particles=particles_old_1, error=error)
-         CALL force_env_get(force_env(2)%force_env,cell=cell_2,&
-            subsys=oldsys_2,error=error)
-         CALL get_cell(cell_2,abc=abc(:,2))
-         CALL cp_subsys_get(oldsys_2(1)%subsys, &
-            particles=particles_old_2, error=error)
+! have changed
+         DO ibox=1,nboxes
+            CALL force_env_get(force_env(ibox)%force_env,&
+               subsys=oldsys(ibox)%subsys,cell=cell(ibox)%cell,&
+               error=error)
+            CALL get_cell(cell(ibox)%cell,abc=abc(:,ibox))
+            CALL cp_subsys_get(oldsys(ibox)%subsys(1)%subsys,&
+               particles=particles_old(ibox)%list, error=error)
+         ENDDO
 
+         IF(ionode) THEN
+            
+            IF(MOD(nnstep,iprint) == 0) THEN
+               WRITE(com_ene,*) nnstep,old_energy(1:nboxes)
+               WRITE(com_mol,*) nnstep,nchain(1:nboxes)
 
-!     find bond lengths, angle, energy, and number of molecules
-!     for current water config 
-         IF (ionode) THEN
-            DO ibox=1,2
-               CALL write_move_stats(moves(ibox)%moves,&
-                  move_updates(ibox)%moves,nnstep,&
-                  move_unit(ibox))
-               IF(nchain(ibox) .NE. 0) THEN
-                  istep(ibox)=istep(ibox)+1
-                  CALL get_water_data( force_env(ibox)%force_env,&
-                     averages(ibox)%averages,istep(ibox),&
-                     nchain(ibox),DATA(ibox))
-               ENDIF
-               WRITE(ene(ibox),*) nnstep,old_energy(ibox)
+               DO ibox=1,nboxes
+
+! write the move statistics to file
+                  CALL write_move_stats(moves(ibox)%moves,&
+                     move_updates(ibox)%moves,nnstep,move_unit(ibox))
+
+! write a restart file
+                  CALL write_mc_restart(nnstep,mc_par(ibox)%mc_par,&
+                     force_env(ibox)%force_env)
+
+! write cell lengths
+                  WRITE(cell_unit,*) nnstep,abc(1:3,ibox)*angstrom
+
+! write particle coordinates
+                  WRITE(cbox,'(I4)') ibox
+                  IF(nchain(ibox) == 0) THEN
+                     WRITE(com_crd,*) ' 0'
+                     WRITE(com_crd,*) 'BOX ' // TRIM(ADJUSTL(cbox))
+                  ELSE
+                     CALL write_particle_coordinates(&
+                        particles_old(ibox)%list%els,&
+                        cell(ibox)%cell,com_crd,dump_xmol,'POS',&
+                        'BOX ' // TRIM(ADJUSTL(cbox)))
+                  ENDIF
+
+               ENDDO
+            ENDIF
+
+            DO ibox=1,nboxes
+! compute some averages
                averages(ibox)%averages%ave_energy=&
                   averages(ibox)%averages%ave_energy*REAL(nnstep-&
                   nstart-1,dp)/REAL(nnstep-nstart,dp)+&
@@ -1069,257 +667,222 @@ CONTAINS
                   averages(ibox)%averages%molecules*REAL(nnstep-&
                   nstart-1,dp)/REAL(nnstep-nstart,dp)+&
                   REAL(nchain(ibox),dp)/REAL(nnstep-nstart,dp)
-            ENDDO
-            WRITE(com_ene,*) nnstep,old_energy(2)+old_energy(1)
-            IF (pmswap .GT. 0.0E0_dp) &
-               WRITE(com_mol,*) nnstep,nchain(1),nchain(2)
+               averages(ibox)%averages%ave_volume=&
+                  averages(ibox)%averages%ave_volume*&
+                  REAL(nnstep-nstart-1,dp)/REAL(nnstep-nstart,dp)+&
+                  abc(1,ibox)*abc(2,ibox)*abc(3,ibox)/&
+                  REAL(nnstep-nstart,dp)
 
-! compute the average cell length, energy, and number of particles of
-! both boxes, as well as the total average energy...write to files
-            averages(1)%averages%ave_cell_length=&
-               averages(1)%averages%ave_cell_length*&
-               REAL(nnstep-nstart-1,dp)/REAL(nnstep-nstart,dp)+&
-               abc(1,1)/REAL(nnstep-nstart,dp)
-            averages(2)%averages%ave_cell_length=&
-               averages(2)%averages%ave_cell_length*&
-               REAL(nnstep-nstart-1,dp)/&
-               REAL(nnstep-nstart,dp)+&
-               abc(1,2)/REAL(nnstep-nstart,dp)
-
-            WRITE(cell_unit,*) nnstep,abc(1,1)*angstrom,&
-               abc(1,2)*angstrom
-            
-            
-
-!     write the coordinates and energy to a file
-            IF(.NOT. lclassical_run) THEN
-               IF (nchain(1) == 0) THEN
-                  WRITE(com_crd,*) ' 0 '
-                  WRITE(com_crd,*) ' POSITIONS BOX 1 '
-                  WRITE(crd(1),*) ' 0 '
-                  WRITE(crd(1),*) ' POSITIONS BOX 1 '
-               ELSE
-                  CALL write_particle_coordinates(&
-                     particles_old_1%els,cell_1,com_crd,dump_xmol,&
-                     'POS','POSITIONS BOX 1')
-                  CALL write_particle_coordinates(&
-                     particles_old_1%els,cell_1,crd(1),dump_xmol,&
-                     'POS','POSITIONS BOX 1')
+! find bond lengths and angle for current water config
+               IF(nchain(ibox) .NE. 0) THEN
+                  istep(ibox)=istep(ibox)+1
+                  CALL get_water_data(force_env(ibox)%force_env,&
+                     averages(ibox)%averages,&
+                     istep(ibox),nchain(ibox),data_unit(ibox))
                ENDIF
-               IF (nchain(2) == 0) THEN
-                  WRITE(com_crd,*) ' 0 '
-                  WRITE(com_crd,*) ' POSITIONS BOX 2 '
-                  WRITE(crd(2),*) ' 0 '
-                  WRITE(crd(2),*) ' POSITIONS BOX 2 '
-               ELSE
-                  CALL write_particle_coordinates(&
-                     particles_old_2%els,cell_2,com_crd,dump_xmol,&
-                     'POS','POSITIONS BOX 2')
-                  CALL write_particle_coordinates(&
-                     particles_old_2%els,cell_2,crd(2),dump_xmol,&
-                     'POS','POSITIONS BOX 2')
+
+! update the move displacements, if necessary
+               IF (MOD(nnstep-nstart,iuptrans) == 0) THEN
+                  CALL mc_move_update(mc_par(ibox)%mc_par,&
+                     move_updates(ibox)%moves,"trans",nnstep)
                ENDIF
-            ENDIF
-           
-            
-!     check to see if EXIT file exists...if so, end the calculation
-            CALL external_control(force_env(1)%force_env,&
-               should_stop,error=error)
-            
-!     write a restart file
-            CALL write_mc_restart(nnstep,mc_par(1)%mc_par,&
-               force_env(1)%force_env)
-            CALL write_mc_restart(nnstep,mc_par(2)%mc_par,&
-               force_env(2)%force_env)
-            
+
+               IF (MOD(nnstep-nstart,iupvolume) == 0  ) THEN
+                  CALL mc_move_update(mc_par(ibox)%mc_par,&
+                     move_updates(ibox)%moves,"volume",nnstep)
+               ENDIF
+                  
 ! flush the buffers to the files
-            DO i=1,2
-               CALL m_flush(DATA(i))
-               CALL m_flush(move_unit(i))
-               CALL m_flush(diff(i))
-               CALL m_flush(ene(i))
-               CALL m_flush(crd(i))
-               CALL m_flush(cl(i))
-               CALL m_flush(rm(i))
+               CALL m_flush(data_unit(ibox))
+               CALL m_flush(diff(ibox))
+               CALL m_flush(move_unit(ibox))
+               CALL m_flush(cl(ibox))
+               CALL m_flush(rm(ibox))
+
             ENDDO
+
+! flush more buffers to the files
+            CALL m_flush(cell_unit)
             CALL m_flush(com_ene)
             CALL m_flush(com_crd)
             CALL m_flush(com_mol)
-            CALL m_flush(cell_unit)
 
-!     reset the box flags
-            box_flag(1)=0
-            box_flag(2)=0
-            
-! update the move displacements, if necessary
-            IF (MOD(nnstep-nstart,iuptrans) == 0) THEN
-               CALL mc_move_update(mc_par(1)%mc_par,&
-                  move_updates(1)%moves,"trans",nnstep)
-               CALL mc_move_update(mc_par(2)%mc_par,&
-                  move_updates(2)%moves,"trans",nnstep)
-            ENDIF
-            IF (MOD(nnstep-nstart,iupvolume) == 0 ) THEN
-               CALL mc_move_update(mc_par(1)%mc_par,&
-                  move_updates(1)%moves,"volume",nnstep)
-               CALL mc_move_update(mc_par(2)%mc_par,&
-                  move_updates(2)%moves,"volume",nnstep)
-            ENDIF
+! reset the box flags
+            box_flag(:)=0
 
-!     back to parallel
+! check to see if EXIT file exists...if so, end the calculation
+            CALL external_control(force_env(1)%force_env,&
+               should_stop,error=error)
+
          ENDIF
-         
-!     make sure all the procs exit if necessary
+
          CALL mp_bcast(should_stop,source,group)
+
          IF (should_stop) EXIT
-         
-! check to see if there are any overlaps in either of the boxes
-         CALL mc_classical_energy(force_env(1)%force_env,&
-            rdum,nchain(1),1,nchain(1),cutoff,loverlap)
-         IF(loverlap) THEN
-            IF(ionode) WRITE(iw,*) nnstep
-            CALL stop_program(routineN,module_name,__LINE__,&
-            'coordinate overlap  in box 1 at the end of the above step')
-         ENDIF
-         CALL mc_classical_energy(force_env(2)%force_env,&
-            rdum,nchain(2),1,nchain(2),cutoff,loverlap)
-         IF(loverlap) THEN
-            IF(ionode) WRITE(iw,*) nnstep
-            CALL stop_program(routineN,module_name,__LINE__,&
-            'coordinate overlap  in box 2 at the end of the above step')
-         ENDIF
 
-      ENDDO
-      
-      DO i=1,2
-         IF (nchain(i) .NE. 0) THEN
-            IF (.NOT. lclassical_run) THEN
-               CALL force_env_calc_energy_force(force_env(i)%force_env,&
-                    calc_force=.FALSE.)
-               CALL force_env_get(force_env(i)%force_env,&
-                  potential_energy=final_energy(i),error=error)
-            ELSE
-               CALL mc_classical_energy(force_env(i)%force_env,&
-                  final_energy(i),nchain(i),1,nchain(i),cutoff,ldum)
+! check to see if there are any overlaps in the boxe
+         DO ibox=1,nboxes
+            IF(nchain(ibox) .NE. 0) THEN
+               CALL mc_classical_energy(force_env(ibox)%force_env,&
+                  rdum,nchain(ibox),1,nchain(ibox),cutoff,loverlap)
+               IF(loverlap) THEN
+                  IF(ionode) WRITE(iw,*) nnstep
+                  CALL stop_program(routineN,module_name,__LINE__,&
+                  'coordinate overlap at the end of the above step')
+               ENDIF
             ENDIF
-         ELSE
-            final_energy(i)=0.0E0_dp
+         ENDDO
+
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! debug make sure the energies line up
+         IF(.false.) THEN
+         DO ibox=1,nboxes
+            IF(nchain(ibox) .NE. 0) THEN
+               CALL force_env_calc_energy_force(force_env(ibox)%force_env,&
+               calc_force=.FALSE.)
+               CALL force_env_get(force_env(ibox)%force_env,&
+               potential_energy=test_energy,&
+               error=error)
+            ELSE
+               test_energy=0.0d0
+            ENDIF
+            IF(ABS(initial_energy(ibox)+energy_check(ibox)-&
+               test_energy) .GT. 0.0000001E0_dp) THEN
+               WRITE(iw,*) '!!!!!!! We have an energy problem. !!!!!!!!'
+               WRITE(iw,'(A,T64,F16.10)') 'Final Energy = ',test_energy
+               WRITE(iw,'(A,T64,F16.10)') 'Inital Energy+energy_check=',&
+               initial_energy(ibox)+energy_check(ibox)
+               WRITE(6,*) 'Box ',ibox
+               WRITE(6,*) 'nchain ',nchain(ibox)
+               STOP
+            ENDIF
+         ENDDO
          ENDIF
       ENDDO
 
-      IF (ionode) THEN
-         CALL force_env_get(force_env(1)%force_env,&
-            subsys=oldsys_1,cell=cell_1,error=error)
-         CALL cp_subsys_get(oldsys_1(1)%subsys,&
-            particles=particles_old_1, error=error)
-         IF(nchain(1) == 0) THEN
-            WRITE(crd(1),*) ' 0'
-            WRITE(crd(1),*) 'FINAL'
-            WRITE(com_crd,*) ' 0'
-            WRITE(com_crd,*) 'FINAL BOX 1'
-         ELSE
-            CALL write_particle_coordinates(particles_old_1%els,cell_1,&
-               com_crd,dump_xmol,'POS','FINAL BOX 1')
-            CALL write_particle_coordinates(particles_old_1%els,cell_1,&
-               crd(1),dump_xmol,'POS','FINAL BOX 1')
-         ENDIF
-         CALL force_env_get(force_env(2)%force_env,&
-            subsys=oldsys_2,cell=cell_2,error=error)
-         CALL cp_subsys_get(oldsys_2(1)%subsys,&
-            particles=particles_old_2, error=error)
-         IF(nchain(2) == 0) THEN
-            WRITE(crd(2),*) ' 0'
-            WRITE(crd(2),*) 'FINAL'
-            WRITE(com_crd,*) ' 0'
-            WRITE(com_crd,*) 'FINAL BOX 2'
-         ELSE
-            CALL write_particle_coordinates(particles_old_2%els,cell_2,&
-               com_crd,dump_xmol,'POS','FINAL BOX 2')
-            CALL write_particle_coordinates(particles_old_2%els,cell_2,&
-               crd(2),dump_xmol,'POS','FINAL BOX 2')
-         ENDIF
-         WRITE(ene(1),*) 'Final Energy BOX 1:   ',final_energy(1)
-         WRITE(ene(2),*) 'Final Energy BOX 2:   ',final_energy(2)
-
-!     record the final total energy
-         WRITE(com_ene,*) 'Final total energy:      ',&
-            old_energy(2)+old_energy(1),energy_check(1)+energy_check(2)
-      
-!     write a bunch of data to the screen
-         WRITE(iw,*) '------------------------------------------------'
-         WRITE(iw,*) '|                   BOX 1                      |'
-         WRITE(iw,*) '------------------------------------------------'
-         CALL final_mc_write(mc_par(1)%mc_par,moves(1)%moves,iw,energy_check(1),&
-            initial_energy(1),final_energy(1),averages(1)%averages,&
-            move_updates(1)%moves)
-         WRITE(iw,*) '------------------------------------------------'
-         WRITE(iw,*) '|                   BOX 2                      |'
-         WRITE(iw,*) '------------------------------------------------'
-         CALL final_mc_write(mc_par(2)%mc_par,moves(2)%moves,iw,energy_check(2),&
-            initial_energy(2),final_energy(2),averages(2)%averages,&
-            move_updates(2)%moves)
-      
-
-! close any open files
-         DO i=1,2
-            CALL close_file(unit_number=diff(i))
-            CALL close_file(unit_number=crd(i))
-            CALL close_file(unit_number=DATA(i))
-            CALL close_file(unit_number=move_unit(i))
-            CALL close_file(unit_number=ene(i))
-            CALL close_file(unit_number=cl(i))
-            CALL close_file(unit_number=rm(i))
+! write a restart file
+      IF(ionode) THEN
+         DO ibox=1,nboxes
+            CALL write_mc_restart(nnstep,mc_par(ibox)%mc_par,&
+               force_env(ibox)%force_env)
          ENDDO
+      ENDIF
+
+! calculate the final energy
+      DO ibox=1,nboxes
+         IF(nchain(ibox) .NE. 0) THEN
+            CALL force_env_calc_energy_force(force_env(ibox)%force_env,&
+               calc_force=.FALSE.)
+            CALL force_env_get(force_env(ibox)%force_env,&
+               potential_energy=final_energy(ibox),&
+               error=error)
+         ELSE
+            final_energy(ibox)=0.0d0
+         ENDIF
+         IF (lbias) THEN
+            CALL force_env_release(bias_env(ibox)%force_env,error=error)
+         ENDIF
+      ENDDO
+
+! do some stuff in serial
+      IF (ionode) THEN
+
+         WRITE(com_ene,*) 'Final Energies:                      ',&
+                  final_energy(1:nboxes)
+
+         DO ibox=1,nboxes
+            WRITE(cbox,'(I4)') ibox
+            IF(nchain(ibox) == 0) THEN
+               WRITE(com_crd,*) ' 0'
+               WRITE(com_crd,*) 'BOX ' // TRIM(ADJUSTL(cbox))
+            ELSE
+               CALL write_particle_coordinates(&
+               particles_old(ibox)%list%els,&
+               cell(ibox)%cell,com_crd,dump_xmol,'POS',&
+               'FINAL BOX ' // TRIM(ADJUSTL(cbox)))
+            ENDIF
+
+! write a bunch of data to the screen
+            WRITE(iw,*) &
+               '------------------------------------------------'
+            WRITE(iw,'(A,I1,A)') &
+               '|                   BOX ',ibox,&
+               '                      |'
+            WRITE(iw,*) &
+               '------------------------------------------------'
+            CALL final_mc_write(mc_par(ibox)%mc_par,moves(ibox)%moves,&
+               iw,energy_check(ibox),&
+               initial_energy(ibox),final_energy(ibox),&
+               averages(ibox)%averages,&
+               move_updates(ibox)%moves)
+            
+! close any open files
+            CALL close_file(unit_number=diff(ibox))
+            CALL close_file(unit_number=data_unit(ibox))
+            CALL close_file(unit_number=move_unit(ibox))
+            CALL close_file(unit_number=cl(ibox))
+            CALL close_file(unit_number=rm(ibox))
+         ENDDO
+
+! close some more files
+         CALL close_file(unit_number=cell_unit)
          CALL close_file(unit_number=com_ene)
          CALL close_file(unit_number=com_crd)
          CALL close_file(unit_number=com_mol)
-         CALL close_file(unit_number=cell_unit)
 
+! back to parallel
       ENDIF
 
-!     deallocate some stuff
-      CALL set_mc_env ( mc_env_1, mc_par = mc_par(1)%mc_par,&
-         force_env=force_env(1)%force_env)
-      CALL set_mc_env ( mc_env_2, mc_par = mc_par(2)%mc_par,&
-         force_env=force_env(2)%force_env)
-      NULLIFY(particles_old_1)
-      NULLIFY(particles_old_2)
+      DO ibox=1,nboxes
+         CALL set_mc_env ( mc_env(ibox)%mc_env, &
+            mc_par = mc_par(ibox)%mc_par,&
+            force_env=force_env(ibox)%force_env)
+
+! deallocate some stuff
+         CALL mc_moves_release(move_updates(ibox)%moves)
+         CALL mc_moves_release(moves(ibox)%moves)
+         CALL mc_averages_release(averages(ibox)%averages)
+      ENDDO
 
       DEALLOCATE(particle_positions,STAT=istat)
       IF (istat /= 0) CALL stop_memory(routineN,module_name,__LINE__,&
                        "particle_positions")
       DEALLOCATE(r_old,STAT=istat)
       IF (istat /= 0) CALL stop_memory(routineN,module_name,__LINE__,&
-                       "r_old deallocate")
+                       "r_old")
       DEALLOCATE(force_env,STAT=istat)
       IF (istat /= 0) CALL stop_memory(routineN,module_name,__LINE__,&
-                       "force_env deallocate")
-      DEALLOCATE(mc_par,STAT=istat)
+                       "force_env")
+      DEALLOCATE(bias_env,STAT=istat)
       IF (istat /= 0) CALL stop_memory(routineN,module_name,__LINE__,&
-                       "mc_par deallocate")
+                       "bias_env")
+      DEALLOCATE (cell,STAT=istat)
+      IF (istat /= 0) CALL stop_memory(routineN,module_name,__LINE__,&
+                       "cell")
+      DEALLOCATE (particles_old,STAT=istat)
+      IF (istat /= 0) CALL stop_memory(routineN,module_name,__LINE__,&
+                       "particles_old")
+      DEALLOCATE (oldsys,STAT=istat)
+      IF (istat /= 0) CALL stop_memory(routineN,module_name,__LINE__,&
+                       "oldsys")
+      DEALLOCATE (averages,STAT=istat)
+      IF (istat /= 0) CALL stop_memory(routineN,module_name,__LINE__,&
+                       "averages")
+      DEALLOCATE (moves,STAT=istat)
+      IF (istat /= 0) CALL stop_memory(routineN,module_name,__LINE__,&
+                       "moves")
+      DEALLOCATE (move_updates,STAT=istat)
+      IF (istat /= 0) CALL stop_memory(routineN,module_name,__LINE__,&
+                       "move_updates")
+      DEALLOCATE (mc_par,STAT=istat)
+      IF (istat /= 0) CALL stop_memory(routineN,module_name,__LINE__,&
+                       "mc_par")
 
-! release some structures
-      DO i=1,2
-         CALL mc_moves_release(moves(i)%moves)
-         CALL mc_moves_release(move_updates(i)%moves)
-         CALL mc_averages_release(averages(i)%averages)
-      ENDDO
-      
-      DEALLOCATE(averages,STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routineN,module_name,__LINE__,&
-                       "averages deallocate")
-      DEALLOCATE(moves,STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routineN,module_name,__LINE__,&
-                       "moves deallocate")
-      DEALLOCATE(move_updates,STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routineN,module_name,__LINE__,&
-                       "move_updates deallocate")
-
-   
-
-!     end the timing
+! end the timing
       CALL timestop(0.0E0_dp,handle)
-      
-  END SUBROUTINE gemc_nvt
+
+  END SUBROUTINE mc_run_ensemble
+!*********************************************************************
+
 !*********************************************************************
   SUBROUTINE external_control(force_env,should_stop,error)
 
@@ -1357,11 +920,11 @@ CONTAINS
        IF (should_stop) THEN
           CALL open_file(file_name=exit_file_name,unit_number=unit_number)
           CALL close_file(unit_number=unit_number,file_status="DELETE")
-          WRITE (UNIT=cp_logger_get_default_unit_nr(logger),FMT="(/,T2,A,/)")&
-               "*** MC run terminated by external request ***"
+          WRITE (UNIT=cp_logger_get_default_unit_nr(logger),&
+             FMT="(/,T2,A,/)")&
+             "*** MC run terminated by external request ***"
        END IF
     END IF
-!    CALL mp_bcast(should_stop,logger%para_env%source,logger%para_env%group)
 
     CALL timestop(0.0_dp,handle)
 

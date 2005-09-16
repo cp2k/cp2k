@@ -137,7 +137,7 @@ MODULE input_constants
                                 energy_force_run=3,&
                                 mol_dyn_run=4,&
                                 geo_opt_run=5,&
-                                mc_run=6,&
+                                mon_car_run=6,&
                                 electronic_spectra_run=7,&
                                 qs_debug_run=8,&
                                 bsse_run=9,&
@@ -170,7 +170,7 @@ MODULE input_constants
           energy_force_run,&
           mol_dyn_run,&
           geo_opt_run,&
-          mc_run,&
+          mon_car_run,&
           electronic_spectra_run,&
           qs_debug_run,&
           bsse_run,&
@@ -180,7 +180,7 @@ MODULE input_constants
           energy_run,&
           mol_dyn_run,&
           geo_opt_run,&
-          mc_run,&
+          mon_car_run,&
           electronic_spectra_run,&
           linear_response_run /)
 

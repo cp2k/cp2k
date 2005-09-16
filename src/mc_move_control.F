@@ -5,10 +5,10 @@
 !!****** cp2k/mc_move_control [1.0] *
 !!
 !!   NAME
-!!     qs_mc
+!!     mc_move_control
 !!
 !!   FUNCTION
-!!     the various moves in Monte Carlo (MC) simulations
+!!     control the various moves in Monte Carlo (MC) simulations
 !!
 !!   AUTHOR
 !!     Matthew J. McGrath  (10.16.2003)
@@ -96,21 +96,18 @@ CONTAINS
       ALLOCATE (moves%rot,stat=stat)
       IF (stat /= 0) CALL stop_memory(routineN,module_name,__LINE__,&
                                      "moves%rot",0)
-      ALLOCATE (moves%classical_bond,stat=stat)
+      ALLOCATE (moves%bias_bond,stat=stat)
       IF (stat /= 0) CALL stop_memory(routineN,module_name,__LINE__,&
-                                     "moves%classical_bond",0)
-      ALLOCATE (moves%classical_angle,stat=stat)
+                                     "moves%bias_bond",0)
+      ALLOCATE (moves%bias_angle,stat=stat)
       IF (stat /= 0) CALL stop_memory(routineN,module_name,__LINE__,&
-                                     "moves%classical_angle",0)
-      ALLOCATE (moves%classical_trans,stat=stat)
+                                     "moves%bias_angle",0)
+      ALLOCATE (moves%bias_trans,stat=stat)
       IF (stat /= 0) CALL stop_memory(routineN,module_name,__LINE__,&
-                                     "moves%classical_trans",0)
-      ALLOCATE (moves%classical_rot,stat=stat)
+                                     "moves%bias_trans",0)
+      ALLOCATE (moves%bias_rot,stat=stat)
       IF (stat /= 0) CALL stop_memory(routineN,module_name,__LINE__,&
-                                     "moves%classical_rot",0)
-      ALLOCATE (moves%classical_volume,stat=stat)
-      IF (stat /= 0) CALL stop_memory(routineN,module_name,__LINE__,&
-                                     "moves%classical_volume",0)
+                                     "moves%bias_rot",0)
       ALLOCATE (moves%volume,stat=stat)
       IF (stat /= 0) CALL stop_memory(routineN,module_name,__LINE__,&
                                      "moves%volume",0)
@@ -121,16 +118,18 @@ CONTAINS
       IF (stat /= 0) CALL stop_memory(routineN,module_name,__LINE__,&
                                      "moves%Quickstep",0)
 ! set all the counters equal to zero
-      moves%classical_bond%attempts=0
-      moves%classical_bond%successes=0
-      moves%classical_angle%attempts=0
-      moves%classical_angle%successes=0
-      moves%classical_trans%attempts=0
-      moves%classical_trans%successes=0
-      moves%classical_rot%attempts=0
-      moves%classical_rot%successes=0
-      moves%classical_volume%attempts=0
-      moves%classical_volume%successes=0
+      moves%bias_bond%attempts=0
+      moves%bias_bond%successes=0
+      moves%bias_bond%qsuccesses=0
+      moves%bias_angle%attempts=0
+      moves%bias_angle%successes=0
+      moves%bias_angle%qsuccesses=0
+      moves%bias_trans%attempts=0
+      moves%bias_trans%successes=0
+      moves%bias_trans%qsuccesses=0
+      moves%bias_rot%attempts=0
+      moves%bias_rot%successes=0
+      moves%bias_rot%qsuccesses=0
 
       moves%bond%attempts=0
       moves%bond%successes=0
@@ -153,7 +152,7 @@ CONTAINS
       moves%Quickstep%attempts=0
       moves%Quickstep%successes=0
       moves%Quickstep%qsuccesses=0
-      moves%classical_energy=0.0E0_dp
+      moves%bias_energy=0.0E0_dp
       moves%trans_dis=0.0E0_dp
       moves%qtrans_dis=0.0E0_dp
       moves%empty=0
@@ -209,21 +208,18 @@ CONTAINS
       DEALLOCATE (moves%rot,stat=stat)
       IF (stat /= 0) CALL stop_memory(routineN,module_name,__LINE__,&
                                      "moves%rot",0)
-      DEALLOCATE (moves%classical_bond,stat=stat)
+      DEALLOCATE (moves%bias_bond,stat=stat)
       IF (stat /= 0) CALL stop_memory(routineN,module_name,__LINE__,&
-                                     "moves%classical_bond",0)
-      DEALLOCATE (moves%classical_angle,stat=stat)
+                                     "moves%bias_bond",0)
+      DEALLOCATE (moves%bias_angle,stat=stat)
       IF (stat /= 0) CALL stop_memory(routineN,module_name,__LINE__,&
-                                     "moves%classical_angle",0)
-      DEALLOCATE (moves%classical_trans,stat=stat)
+                                     "moves%bias_angle",0)
+      DEALLOCATE (moves%bias_trans,stat=stat)
       IF (stat /= 0) CALL stop_memory(routineN,module_name,__LINE__,&
-                                     "moves%classical_trans",0)
-      DEALLOCATE (moves%classical_rot,stat=stat)
+                                     "moves%bias_trans",0)
+      DEALLOCATE (moves%bias_rot,stat=stat)
       IF (stat /= 0) CALL stop_memory(routineN,module_name,__LINE__,&
-                                     "moves%classical_rot",0)
-      DEALLOCATE (moves%classical_volume,stat=stat)
-      IF (stat /= 0) CALL stop_memory(routineN,module_name,__LINE__,&
-                                     "moves%classical_volume",0)
+                                     "moves%bias_rot",0)
       DEALLOCATE (moves%volume,stat=stat)
       IF (stat /= 0) CALL stop_memory(routineN,module_name,__LINE__,&
                                      "moves%volume",0)
@@ -267,10 +263,10 @@ CONTAINS
 !!     MJM
 !!
 !!*****************************************************************************
-SUBROUTINE move_q_reinit ( moves )
+SUBROUTINE move_q_reinit ( moves , lbias )
 
     TYPE(mc_moves_type), POINTER             :: moves
-
+      LOGICAL,INTENT(IN)                     :: lbias
     CHARACTER(LEN=*), PARAMETER              :: &
       routineN = "move_q_reinit"
 
@@ -279,15 +275,22 @@ SUBROUTINE move_q_reinit ( moves )
 !   ---------------------------------------------------------------------------
 ! begin the timing of the subroutine
 
-    CALL timeset(routineN,'I','',handle)
+      CALL timeset(routineN,'I','',handle)
 
 ! set all the counters equal to zero
-      moves%bond%qsuccesses=0
-      moves%angle%qsuccesses=0
-      moves%trans%qsuccesses=0
-      moves%rot%qsuccesses=0
-      moves%volume%qsuccesses=0
-      moves%qtrans_dis=0.0E0_dp
+      IF(lbias) THEN
+         moves%bias_bond%qsuccesses=0
+         moves%bias_angle%qsuccesses=0
+         moves%bias_trans%qsuccesses=0
+         moves%bias_rot%qsuccesses=0
+      ELSE
+         moves%bond%qsuccesses=0
+         moves%angle%qsuccesses=0
+         moves%trans%qsuccesses=0
+         moves%rot%qsuccesses=0
+         moves%volume%qsuccesses=0
+         moves%qtrans_dis=0.0E0_dp
+      ENDIF
 
  ! end the timing
       CALL timestop(0.0E0_dp,handle)
@@ -313,44 +316,46 @@ SUBROUTINE move_q_reinit ( moves )
 !!     MJM
 !!
 !!*****************************************************************************
-SUBROUTINE q_move_accept(moves)
+SUBROUTINE q_move_accept(moves,lbias)
 
-    TYPE(mc_moves_type), POINTER             :: moves
+      TYPE(mc_moves_type), POINTER             :: moves
+      LOGICAL,INTENT(IN)                       :: lbias
 
-    CHARACTER(LEN=*), PARAMETER              :: &
+      CHARACTER(LEN=*), PARAMETER              :: &
       routineN = "q_move_accept"
-
-    INTEGER                                  :: handle
+      
+      INTEGER                                  :: handle
 
 !   ---------------------------------------------------------------------------
 ! begin the timing of the subroutine
 
-    CALL timeset(routineN,'I','',handle)
+      CALL timeset(routineN,'I','',handle)
 
+      IF(lbias) THEN
 ! change the number of successful moves for the total move counter
-    moves%bond%successes=moves%bond%successes&
-           +moves%bond%qsuccesses
-    moves%angle%successes=moves%angle%successes&
-           +moves%angle%qsuccesses
-    moves%trans%successes=moves%trans%successes&
-           +moves%trans%qsuccesses
-    moves%trans_dis=moves%trans_dis+moves%qtrans_dis
-    moves%rot%successes=moves%rot%successes&
-           +moves%rot%qsuccesses
-    moves%volume%successes=moves%volume%successes&
-           +moves%volume%qsuccesses
-
- ! change the number of successful moves for the move update counter
-!    move_updates%bond%successes=move_updates%bond%successes&
-!           +move_updates%bond%qsuccesses
-!    move_updates%angle%successes=move_updates%angle%successes&
-!           +move_updates%angle%qsuccesses
-!    move_updates%trans%successes=move_updates%trans%successes&
-!           +move_updates%trans%qsuccesses
-!    move_updates%rot%successes=move_updates%rot%successes&
-!           +move_updates%rot%qsuccesses
-!    move_updates%volume%successes=move_updates%volume%successes&
-!           +move_updates%volume%qsuccesses
+         moves%bias_bond%successes=moves%bias_bond%successes&
+            +moves%bias_bond%qsuccesses
+         moves%bias_angle%successes=moves%bias_angle%successes&
+            +moves%bias_angle%qsuccesses
+         moves%bias_trans%successes=moves%bias_trans%successes&
+            +moves%bias_trans%qsuccesses
+         moves%bias_rot%successes=moves%bias_rot%successes&
+            +moves%bias_rot%qsuccesses
+      ELSE
+! change the number of successful moves for the total move counter
+         moves%bond%successes=moves%bond%successes&
+            +moves%bond%qsuccesses
+         moves%angle%successes=moves%angle%successes&
+            +moves%angle%qsuccesses
+         moves%trans%successes=moves%trans%successes&
+            +moves%trans%qsuccesses
+         moves%rot%successes=moves%rot%successes&
+            +moves%rot%qsuccesses
+         moves%volume%successes=moves%volume%successes&
+            +moves%volume%qsuccesses
+      
+         moves%trans_dis=moves%trans_dis+moves%qtrans_dis
+      ENDIF
 
 ! end the timing
       CALL timestop(0.0E0_dp,handle)
@@ -393,24 +398,15 @@ SUBROUTINE write_move_stats(moves,move_updates,nnstep,unit)
 
     CALL timeset(routineN,'I','',handle)
 
-    WRITE(unit,'(I6,2X,A,2X,I6,2X,I6)') nnstep,' classical_bond      ',&
-      move_updates%classical_bond%successes+&
-      move_updates%bond%successes,&
-      move_updates%classical_bond%attempts+move_updates%bond%attempts
-    WRITE(unit,'(I6,2X,A,2X,I6,2X,I6)') nnstep,' classical_angle     ',&
-      move_updates%classical_angle%successes+&
-      move_updates%angle%successes,&
-      move_updates%classical_angle%attempts+move_updates%angle%attempts
-    WRITE(unit,'(I6,2X,A,2X,I6,2X,I6)') nnstep,' classical_trans     ',&
-      move_updates%classical_trans%successes+&
-      move_updates%trans%successes,&
-      move_updates%classical_trans%attempts+move_updates%trans%attempts
-    WRITE(unit,'(I6,2X,A,2X,I6,2X,I6)') nnstep,' classical_rot       ',&
-      move_updates%classical_rot%successes+move_updates%rot%successes,&
-      move_updates%classical_rot%attempts+move_updates%rot%attempts
-    WRITE(unit,'(I6,2X,A,2X,I6,2X,I6)') nnstep,' classical_volume    ',&
-      moves%classical_volume%successes,&
-      moves%classical_volume%attempts
+    WRITE(unit,'(I6,2X,A,2X,I6,2X,I6)') nnstep,' bias_bond      ',&
+      moves%bias_bond%successes,moves%bias_bond%attempts
+    WRITE(unit,'(I6,2X,A,2X,I6,2X,I6)') nnstep,' bias_angle      ',&
+      moves%bias_angle%successes,moves%bias_angle%attempts
+    WRITE(unit,'(I6,2X,A,2X,I6,2X,I6)') nnstep,' bias_trans      ',&
+      moves%bias_trans%successes,moves%bias_trans%attempts
+    WRITE(unit,'(I6,2X,A,2X,I6,2X,I6)') nnstep,' bias_rot      ',&
+      moves%bias_rot%successes,moves%bias_rot%attempts
+
     WRITE(unit,'(I6,2X,A,2X,I6,2X,I6)') nnstep,' bond      ',&
       moves%bond%successes,moves%bond%attempts
     WRITE(unit,'(I6,2X,A,2X,I6,2X,I6)') nnstep,' angle     ',&
@@ -491,32 +487,26 @@ SUBROUTINE write_move_stats(moves,move_updates,nnstep,unit)
       CASE ("trans")
 
 ! update the maximum displacement for bond length change
-         IF( move_updates%bond%attempts .GT. 0 ) THEN
+         IF( move_updates%bias_bond%attempts .GT. 0 ) THEN
 
 ! first account for the extreme cases
-            IF ( move_updates%bond%successes == 0 ) THEN
+            IF ( move_updates%bias_bond%successes == 0 ) THEN
                rmbond=rmbond/2.0E0_dp
-            ELSEIF ( move_updates%bond%successes == &
-                     move_updates%bond%attempts ) THEN
+            ELSEIF ( move_updates%bias_bond%successes == &
+                     move_updates%bias_bond%attempts ) THEN
                     rmbond=rmbond*2.0E0_dp
             ELSE
 ! now for the middle case
-               test_ratio=REAL(move_updates%bond%successes,dp)&
-                  /REAL(move_updates%bond%attempts,dp)/0.5E0_dp
+               test_ratio=REAL(move_updates%bias_bond%successes,dp)&
+                  /REAL(move_updates%bias_bond%attempts,dp)/0.5E0_dp
                IF (test_ratio .GT. 2.0E0_dp) test_ratio=2.0E0_dp
                IF (test_ratio .LT. 0.5E0_dp) test_ratio=0.5E0_dp
                rmbond=rmbond*test_ratio
             ENDIF
 
 ! update and clear the counters
-            move_updates%classical_bond%attempts=&
-                move_updates%classical_bond%attempts+&
-                move_updates%bond%attempts
-            move_updates%classical_bond%successes=&
-                move_updates%classical_bond%successes+&
-                move_updates%bond%successes
-            move_updates%bond%attempts=0
-            move_updates%bond%successes=0
+            move_updates%bias_bond%attempts=0
+            move_updates%bias_bond%successes=0
 
 ! write the new displacement to a file
             WRITE(rm,*) nnstep,' rmbond = ',&
@@ -525,18 +515,18 @@ SUBROUTINE write_move_stats(moves,move_updates,nnstep,unit)
          ENDIF
 
 ! update the maximum displacement for bond length change
-         IF( move_updates%angle%attempts .GT. 0 ) THEN
+         IF( move_updates%bias_angle%attempts .GT. 0 ) THEN
 
 ! first account for the extreme cases
-            IF ( move_updates%angle%successes == 0 ) THEN
+            IF ( move_updates%bias_angle%successes == 0 ) THEN
                rmangle=rmangle/2.0E0_dp
-            ELSEIF ( move_updates%angle%successes == &
-               move_updates%angle%attempts ) THEN
+            ELSEIF ( move_updates%bias_angle%successes == &
+               move_updates%bias_angle%attempts ) THEN
                rmangle=rmangle*2.0E0_dp
             ELSE
 ! now for the middle case
-               test_ratio=REAL(move_updates%angle%successes,dp)&
-                  /REAL(move_updates%angle%attempts,dp)/0.5E0_dp
+               test_ratio=REAL(move_updates%bias_angle%successes,dp)&
+                  /REAL(move_updates%bias_angle%attempts,dp)/0.5E0_dp
                IF (test_ratio .GT. 2.0E0_dp) test_ratio=2.0E0_dp
                IF (test_ratio .LT. 0.5E0_dp) test_ratio=0.5E0_dp
                rmangle=rmangle*test_ratio
@@ -546,14 +536,8 @@ SUBROUTINE write_move_stats(moves,move_updates,nnstep,unit)
                IF (rmangle .GT. pi) rmangle=pi
 
 ! clear the counters
-            move_updates%classical_angle%attempts=&
-                move_updates%classical_angle%attempts+&
-                move_updates%angle%attempts
-            move_updates%classical_angle%successes=&
-                move_updates%classical_angle%successes+&
-                move_updates%angle%successes
-            move_updates%angle%attempts=0
-            move_updates%angle%successes=0
+            move_updates%bias_angle%attempts=0
+            move_updates%bias_angle%successes=0
 
 ! write the new displacement to a file
             WRITE(rm,*) nnstep,' rmangle = ',&
@@ -561,18 +545,18 @@ SUBROUTINE write_move_stats(moves,move_updates,nnstep,unit)
          ENDIF
 
 ! update the maximum displacement for molecule translation
-         IF( move_updates%trans%attempts .GT. 0 ) THEN
+         IF( move_updates%bias_trans%attempts .GT. 0 ) THEN
 
 ! first account for the extreme cases
-            IF ( move_updates%trans%successes == 0 ) THEN
+            IF ( move_updates%bias_trans%successes == 0 ) THEN
                rmtrans=rmtrans/2.0E0_dp
-            ELSEIF ( move_updates%trans%successes == &
-               move_updates%trans%attempts ) THEN
+            ELSEIF ( move_updates%bias_trans%successes == &
+               move_updates%bias_trans%attempts ) THEN
                rmtrans=rmtrans*2.0E0_dp
             ELSE
 ! now for the middle case
-               test_ratio=REAL(move_updates%trans%successes,dp)&
-                  /REAL(move_updates%trans%attempts,dp)/0.5E0_dp
+               test_ratio=REAL(move_updates%bias_trans%successes,dp)&
+                  /REAL(move_updates%bias_trans%attempts,dp)/0.5E0_dp
                IF (test_ratio .GT. 2.0E0_dp) test_ratio=2.0E0_dp
                IF (test_ratio .LT. 0.5E0_dp) test_ratio=0.5E0_dp
                rmtrans=rmtrans*test_ratio
@@ -582,14 +566,8 @@ SUBROUTINE write_move_stats(moves,move_updates,nnstep,unit)
            IF (rmtrans .GT. 10.0E0_dp) rmtrans = 10.0E0_dp
 
  ! clear the counters
-            move_updates%classical_trans%attempts=&
-                move_updates%classical_trans%attempts+&
-                move_updates%trans%attempts
-            move_updates%classical_trans%successes=&
-                move_updates%classical_trans%successes+&
-                move_updates%trans%successes
-            move_updates%trans%attempts=0
-            move_updates%trans%successes=0
+            move_updates%bias_trans%attempts=0
+            move_updates%bias_trans%successes=0
 
 ! write the new displacement to a file
             WRITE(rm,*) nnstep,' rmtrans = ',&
@@ -597,16 +575,16 @@ SUBROUTINE write_move_stats(moves,move_updates,nnstep,unit)
          ENDIF
 
 ! update the maximum displacement for molecule rotation
-         IF( move_updates%rot%attempts .GT. 0 ) THEN
+         IF( move_updates%bias_rot%attempts .GT. 0 ) THEN
 
 ! first account for the extreme cases
-            IF ( move_updates%rot%successes == 0 ) THEN
+            IF ( move_updates%bias_rot%successes == 0 ) THEN
                rmrot=rmrot/2.0E0_dp
 
                IF (rmrot .GT. pi) rmrot=pi
 
-            ELSEIF ( move_updates%rot%successes == &
-                     move_updates%rot%attempts ) THEN
+            ELSEIF ( move_updates%bias_rot%successes == &
+                     move_updates%bias_rot%attempts ) THEN
                  rmrot=rmrot/2.0E0_dp
 
 ! more than pi rotation is meaningless
@@ -614,8 +592,8 @@ SUBROUTINE write_move_stats(moves,move_updates,nnstep,unit)
 
             ELSE
 ! now for the middle case
-               test_ratio=REAL(move_updates%rot%successes,dp)&
-                  /REAL(move_updates%rot%attempts,dp)/0.5E0_dp
+               test_ratio=REAL(move_updates%bias_rot%successes,dp)&
+                  /REAL(move_updates%bias_rot%attempts,dp)/0.5E0_dp
                IF (test_ratio .GT. 2.0E0_dp) test_ratio=2.0E0_dp
                IF (test_ratio .LT. 0.5E0_dp) test_ratio=0.5E0_dp
                rmrot=rmrot*test_ratio
@@ -626,14 +604,8 @@ SUBROUTINE write_move_stats(moves,move_updates,nnstep,unit)
             ENDIF
 
 ! clear the counters
-            move_updates%classical_rot%attempts=&
-                move_updates%classical_rot%attempts+&
-                move_updates%rot%attempts
-            move_updates%classical_rot%successes=&
-                move_updates%classical_rot%successes+&
-                move_updates%rot%successes
-            move_updates%rot%attempts=0
-            move_updates%rot%successes=0
+            move_updates%bias_rot%attempts=0
+            move_updates%bias_rot%successes=0
 
 ! write the new displacement to a file
             WRITE(rm,*) nnstep,' rmrot = ',&
@@ -643,19 +615,19 @@ SUBROUTINE write_move_stats(moves,move_updates,nnstep,unit)
       CASE ("volume")
 
 ! update the maximum displacement for volume displacement
-         IF ( move_updates%classical_volume%attempts .NE. 0) THEN
+         IF ( move_updates%volume%attempts .NE. 0) THEN
 
 ! first account for the extreme cases
-            IF ( move_updates%classical_volume%successes == 0 ) THEN
+            IF ( move_updates%volume%successes == 0 ) THEN
                rmvolume=rmvolume/2.0E0_dp
                
-            ELSEIF ( move_updates%classical_volume%successes == &
-                  move_updates%classical_volume%attempts ) THEN
+            ELSEIF ( move_updates%volume%successes == &
+                  move_updates%volume%attempts ) THEN
                rmvolume=rmvolume*2.0E0_dp
             ELSE
 ! now for the middle case
-               test_ratio=REAL(move_updates%classical_volume%successes,dp)/&
-                  REAL(move_updates%classical_volume%attempts,dp)/0.5E0_dp
+               test_ratio=REAL(move_updates%volume%successes,dp)/&
+                  REAL(move_updates%volume%attempts,dp)/0.5E0_dp
                IF (test_ratio .GT. 2.0E0_dp) test_ratio=2.0E0_dp
                IF (test_ratio .LT. 0.5E0_dp) test_ratio=0.5E0_dp
                rmvolume=rmvolume*test_ratio
@@ -663,8 +635,8 @@ SUBROUTINE write_move_stats(moves,move_updates,nnstep,unit)
             ENDIF
 
 ! clear the counters
-            move_updates%classical_volume%attempts=0
-            move_updates%classical_volume%successes=0
+            move_updates%volume%attempts=0
+            move_updates%volume%successes=0
 
 ! write the new displacement to a file
             WRITE(rm,*) nnstep,' rmvolume = ',&

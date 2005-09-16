@@ -44,8 +44,14 @@ MODULE mc_environment_types
      TYPE ( force_env_type ), POINTER :: force_env  
   END TYPE mc_environment_type
 
+  TYPE mc_environment_p_type
+     TYPE(mc_environment_type),POINTER :: mc_env
+  END TYPE mc_environment_p_type
+
+
 ! *** Public subroutines and data types ***
-  PUBLIC :: mc_environment_type, set_mc_env, mc_env_create,&
+  PUBLIC :: mc_environment_type, mc_environment_p_type, &
+            set_mc_env, mc_env_create,&
             get_mc_env, mc_env_release, mc_env_retain
 
 ! *** Global parameters ***

@@ -61,7 +61,7 @@ MODULE cp2k_runs
                                              energy_force_run,&
                                              mol_dyn_run,&
                                              geo_opt_run,&
-                                             mc_run,&
+                                             mon_car_run,&
                                              electronic_spectra_run,&
                                              bsse_run,&
                                              linear_response_run,&
@@ -89,6 +89,7 @@ MODULE cp2k_runs
                                              dp
   USE library_tests,                   ONLY: lib_test
   USE machine,                         ONLY: print_memory,m_chdir,m_getcwd
+  USE mc_run,                          ONLY: do_mon_car
   USE md_run,                          ONLY: qs_mol_dyn 
   USE message_passing,                 ONLY: mp_sync, &
                                              mp_environ, &
@@ -108,7 +109,6 @@ MODULE cp2k_runs
   USE qs_debug,                        ONLY: qs_debug_energy_and_forces
   USE qs_linres_module,                ONLY: linres_calculation
   USE qs_main,                         ONLY: quickstep_create_force_env
-  USE qs_mc,                           ONLY: qs_mon_car
   USE qs_tddfpt_module,                ONLY: tddfpt_calculation
   USE string_utilities,                ONLY: uppercase
   USE timings,                         ONLY: timeset, &
@@ -276,8 +276,8 @@ CONTAINS
           CALL qs_mol_dyn ( force_env, globenv, error=error )
        CASE (geo_opt_run)
           CALL qs_geo_opt(force_env,globenv,error=error)
-       CASE (mc_run)
-          CALL qs_mon_car ( force_env, globenv, error=error )
+       CASE (mon_car_run)
+          CALL do_mon_car ( force_env, globenv, error=error )
        CASE (electronic_spectra_run)
           IF(globenv%prog_name_id /= do_qs) &
                CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,routineP,&

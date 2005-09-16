@@ -15,23 +15,39 @@
 !!     MJM
 !!
 !******************************************************************************
-
+#include "cp_prep_globals.h"
 MODULE mc_coordinates
-  USE cp_error_handling,               ONLY: cp_error_type
+  USE atomic_kind_types,               ONLY: atomic_kind_type,&
+                                             get_atomic_kind
+  USE cp_error_handling,               ONLY: cp_a_l,&
+                                             cp_assert,&
+                                             cp_error_get_logger,&
+                                             cp_error_type
+  USE cp_log_handling,                 ONLY: cp_failure_level
   USE cp_subsystem_types,              ONLY: cp_subsys_get,&
-                                             cp_subsystem_p_type
+                                             cp_subsystem_p_type,&
+                                             cp_subsystem_pp_type
+  USE force_env_methods,               ONLY: force_env_calc_energy_force
   USE force_env_types,                 ONLY: force_env_get,&
-                                             force_env_type
+                                             force_env_type,&
+                                             force_env_p_type
   USE kinds,                           ONLY: dp,&
                                              dp_size
   USE mathconstants,                   ONLY: pi
   USE mc_types,                        ONLY: mc_averages_type,&
                                              mc_moves_type
+  USE message_passing,                 ONLY: mp_bcast
+  USE mol_kind_new_list_types,         ONLY: mol_kind_new_list_type,&
+                                             mol_kind_new_list_p_type
+  USE mol_new_list_types,              ONLY: mol_new_list_type
+  USE molecule_kind_types,             ONLY: get_molecule_kind,&
+                                             molecule_kind_type,&
+                                             atom_type
+  USE molecule_types_new,              ONLY: get_molecule,&
+                                             molecule_type
   USE particle_list_types,             ONLY: particle_list_type
   USE physcon,                         ONLY: angstrom,&
                                              n_avogadro
-  USE cp_files,                        ONLY: close_file,&
-                                             open_file
   USE simulation_cell,                 ONLY: cell_type,&
                                              get_cell
   USE termination,                     ONLY: stop_memory,&
@@ -45,7 +61,9 @@ MODULE mc_coordinates
 
   PUBLIC :: get_water_data,mc_classical_energy,&
             generate_cbmc_swap_config,&
-            get_center_of_mass,mc_coordinate_fold
+            get_center_of_mass,mc_coordinate_fold,&
+            find_mc_test_molecule,&
+            create_discrete_array
 
   CHARACTER(LEN=*), PARAMETER :: module_name = "mc_coordinates"
 
@@ -180,7 +198,7 @@ END SUBROUTINE get_water_data
 !!             in atomic units...be careful with this, as the potential is
 !!             only zero at the cutoff for certain values
 !!     - nstart: the number of the molecule to start calculating for
-!!     - nend: the number of the moelcule to end calculating for
+!!     - nend: the number of the molecule to end calculating for
 !!     --- if nstart is not equal to 1 and nend is not equal to the total
 !!         number of molecules, set them equal
 !!     - classical_energy_new: the classical energy returned by the routine
@@ -206,14 +224,14 @@ SUBROUTINE mc_classical_energy ( force_env, classical_energy_new,&
 
     CHARACTER(LEN=*), PARAMETER :: routineN = "mc_classical_energy"
 
-    INTEGER                                  :: handle, i, imol, ipart, jmol, &
+    INTEGER                                  :: handle, imol, ipart, jmol, &
                                                 jpart, jstart, ntij
     LOGICAL                                  :: lall, lcalc_charge
     REAL(KIND=dp) :: bend_energy, box_length, charge_energy, dist, kstretch, &
-      LJ_energy, mag_HH, OH_bond1, OH_bond2, rijx, rijy, rijz, &
-      stretch_energy, unit_energy, charge_energy_mol,LJ_energy_mol,&
+      LJ_energy, rijx, rijy, rijz, &
+      stretch_energy, charge_energy_mol,LJ_energy_mol,&
       oo_min_cutoff,oh_min_cutoff,hh_min_cutoff
-    REAL(KIND=dp), DIMENSION(1:3)            :: charges, HH, kbend, RIJ,&
+    REAL(KIND=dp), DIMENSION(1:3)            :: charges, kbend, RIJ,&
                                                 abc
     TYPE(cp_subsystem_p_type), &
       DIMENSION(:), POINTER                  :: oldsys
@@ -236,7 +254,6 @@ SUBROUTINE mc_classical_energy ( force_env, classical_energy_new,&
       hh_min_cutoff=1.0E0_dp/angstrom
       classical_energy_new=0.0_dp
 
-
       NULLIFY(oldsys,particles)
       LJ_energy=0.0E0_dp
       charge_energy=0.0E0_dp
@@ -248,9 +265,9 @@ SUBROUTINE mc_classical_energy ( force_env, classical_energy_new,&
       kbend(3)= 0.0287044E0_dp  ! Hartrees/a.u.**4
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! for different classical potentials
 ! these are for the fake (IPBV) potential
-      charges(1:3) = (/ -0.7699784E0_dp,0.3849892E0_dp,0.3849892E0_dp /)
+!      charges(1:3) = (/ -0.7699784E0_dp,0.3849892E0_dp,0.3849892E0_dp /)
 ! these are for SPC/E
-!      charges(1:3) = (/ -0.8476E0_dp,0.4238E0_dp,0.4238E0_dp /)
+      charges(1:3) = (/ -0.8476E0_dp,0.4238E0_dp,0.4238E0_dp /)
 
 ! get the particle coordinates and the cell length
       CALL force_env_get(force_env,cell=cell,subsys=oldsys,error=error)
@@ -271,30 +288,32 @@ SUBROUTINE mc_classical_energy ( force_env, classical_energy_new,&
          r(1:3,3,imol)=particles%els(imol*3)%r(1:3)
       ENDDO
 
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! commented out since we shouldn't be
+! calculating potentials here anymore
 ! we need to calculate the energy of this configuration
 ! first, let's calculate intramolecular (bending and stretching)
-      DO imol=nstart,nend
-         
+!      DO imol=nstart,nend
+!         
 ! stretching
-         OH_bond1=SQRT((r(1,1,imol)-r(1,2,imol))**2+&
-                 (r(2,1,imol)-r(2,2,imol))**2+&
-                   (r(3,1,imol)-r(3,2,imol))**2)
-         OH_bond2=SQRT((r(1,1,imol)-r(1,3,imol))**2+&
-                   (r(2,1,imol)-r(2,3,imol))**2+&
-                   (r(3,1,imol)-r(3,3,imol))**2)
-
-         stretch_energy=stretch_energy+0.5E0_dp*kstretch*((OH_bond1-&
-            1.81200E0_dp)**2+(OH_bond2-1.81200E0_dp)**2)
-
+!         OH_bond1=SQRT((r(1,1,imol)-r(1,2,imol))**2+&
+!                 (r(2,1,imol)-r(2,2,imol))**2+&
+!                   (r(3,1,imol)-r(3,2,imol))**2)
+!         OH_bond2=SQRT((r(1,1,imol)-r(1,3,imol))**2+&
+!                   (r(2,1,imol)-r(2,3,imol))**2+&
+!                   (r(3,1,imol)-r(3,3,imol))**2)
+!
+!         stretch_energy=stretch_energy+0.5E0_dp*kstretch*((OH_bond1-&
+!            1.81200E0_dp)**2+(OH_bond2-1.81200E0_dp)**2)
+!
 ! bond bending
-         DO i=1,3
-            HH(i)=r(i,2,imol)-r(i,3,imol)
-         ENDDO
-         mag_HH=SQRT(DOT_PRODUCT(HH,HH))
-         bend_energy=bend_energy+0.5E0_dp*kbend(1)*(mag_HH-3.0699E0_dp)**2+&
-             0.33333333333333333E0_dp*kbend(2)*(mag_HH-3.0699E0_dp)**3+&
-             0.25E0_dp*kbend(3)*(mag_HH-3.0699E0_dp)**4
-      ENDDO
+!         DO i=1,3
+!            HH(i)=r(i,2,imol)-r(i,3,imol)
+!         ENDDO
+!         mag_HH=SQRT(DOT_PRODUCT(HH,HH))
+!         bend_energy=bend_energy+0.5E0_dp*kbend(1)*(mag_HH-3.0699E0_dp)**2+&
+!             0.33333333333333333E0_dp*kbend(2)*(mag_HH-3.0699E0_dp)**3+&
+!             0.25E0_dp*kbend(3)*(mag_HH-3.0699E0_dp)**4
+!      ENDDO
 
 ! now let's find the LJ energy between all the oxygens and
 ! the charge interactions
@@ -327,11 +346,11 @@ SUBROUTINE mc_classical_energy ( force_env, classical_energy_new,&
                ELSE
                   lcalc_charge = .TRUE.
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! for different classical potentials
-                  CALL nonbonded_energy(dist,unit_energy,1)
+!                  CALL nonbonded_energy(dist,unit_energy,1)
 !                  CALL nonbonded_energy_spce(dist,unit_energy,1)
-                  LJ_energy_mol=LJ_energy_mol+unit_energy               
-                  charge_energy_mol=charge_energy_mol+charges(1)&
-                     *charges(1)/(dist) 
+!                  LJ_energy_mol=LJ_energy_mol+unit_energy               
+!                  charge_energy_mol=charge_energy_mol+charges(1)&
+!                     *charges(1)/(dist) 
                ENDIF
             ELSE
                lcalc_charge=.FALSE.
@@ -355,8 +374,9 @@ SUBROUTINE mc_classical_energy ( force_env, classical_energy_new,&
                   dist=SQRT(DOT_PRODUCT(RIJ,RIJ))
 
 ! LJ energy
+!                  WRITE(6,*) 'eiruowe',dist,rcut
                   IF ( dist < rcut ) THEN
-                     ntij=(ipart-1)*10 + jpart
+!                     ntij=(ipart-1)*10 + jpart
                      
                      IF (ipart .NE. 1 .AND. jpart .NE. 1) THEN
                         IF(dist < hh_min_cutoff) THEN
@@ -373,29 +393,30 @@ SUBROUTINE mc_classical_energy ( force_env, classical_energy_new,&
                      ENDIF
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! for different classical potentials
-                     CALL nonbonded_energy(dist,unit_energy,ntij)
+!                     CALL nonbonded_energy(dist,unit_energy,ntij)
 !                     CALL nonbonded_energy_spce(dist,unit_energy,ntij)
-                     LJ_energy_mol=LJ_energy_mol+unit_energy
+!                     LJ_energy_mol=LJ_energy_mol+unit_energy
                   ENDIF
 
 ! coulombic
-                  IF ( lcalc_charge ) THEN
-                     charge_energy_mol=charge_energy_mol&
-                        +charges(ipart)*charges(jpart)/(dist)
-                  ENDIF
+!                  IF ( lcalc_charge ) THEN
+!                     charge_energy_mol=charge_energy_mol&
+!                        +charges(ipart)*charges(jpart)/(dist)
+!                  ENDIF
 
                ENDDO
             ENDDO
          ENDDO
-         LJ_energy=LJ_energy+LJ_energy_mol
-         charge_energy=charge_energy+charge_energy_mol
+!         LJ_energy=LJ_energy+LJ_energy_mol
+!         charge_energy=charge_energy+charge_energy_mol
       ENDDO
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! for classical simulations
 ! sum up the total energy
-      classical_energy_new=bend_energy+&
-                stretch_energy+LJ_energy+charge_energy
+!      classical_energy_new=bend_energy+&
+!                stretch_energy+LJ_energy+charge_energy
 !    classical_energy_new=LJ_energy+charge_energy
+    classical_energy_new=0.0d0
 
 ! end the timing
       CALL timestop(0.0E0_dp,handle)
@@ -558,7 +579,7 @@ SUBROUTINE nonbonded_energy_spce(dist,ljfake,ntij)
     REAL(KIND=dp), INTENT(OUT)               :: ljfake
     INTEGER, INTENT(IN)                      :: ntij
 
-    INTEGER                                  :: index, j
+    INTEGER                                  :: index
     REAL(KIND=dp)                            :: epsilon,sigma
 
       index=0
@@ -733,33 +754,43 @@ END SUBROUTINE mc_coordinate_fold
 !!
 !!*****************************************************************************
 SUBROUTINE generate_cbmc_swap_config( force_env, BETA, nswapmoves,&
-                                      loverlap,rosenbluth_weight, &
-                                      cutoff,rem_molecule)
+                                      rosenbluth_weight, &
+                                      loverlap, choosen_energy,&
+                                      old_energy,cutoff,ionode,source,group,&
+!                                      boltz_weights,rem_molecule)
+                                      rem_molecule)
 
     TYPE(force_env_type), POINTER            :: force_env
     REAL(KIND=dp),INTENT(IN)                 :: BETA
+    REAL(KIND=dp),INTENT(IN)                 :: old_energy
     REAL(KIND=dp),INTENT(IN)                 :: cutoff
     REAL(KIND=dp),INTENT(OUT)                :: rosenbluth_weight
-    INTEGER, INTENT(IN)                      :: nswapmoves
+    INTEGER, INTENT(IN)                      :: nswapmoves,source,group
     INTEGER, INTENT(IN),OPTIONAL             :: rem_molecule
+!    REAL(KIND=dp),DIMENSION(1:nswapmoves),INTENT(OUT)    &
+!                                             :: boltz_weights
     LOGICAL, INTENT(OUT)                     :: loverlap
+    LOGICAL, INTENT(IN)                      :: ionode
+    REAL(KIND=dp),INTENT(OUT)                :: choosen_energy
 
     CHARACTER(LEN=*), PARAMETER &
       :: routineN = "generate_cbmc_swap_config"
 
     INTEGER                                  :: natoms,handle,istat,&
-       iatom,imove,nmols,i,choosen,start_atom,end_atom,imolecule
+       iatom,imove,nmols,i,choosen,start_atom,end_atom,imolecule,natom
     LOGICAL,DIMENSION(:),ALLOCATABLE         :: loverlap_array
     LOGICAL                                  :: all_overlaps 
-    REAL(KIND=dp)                            :: cell_length,rand,&
-                                                classical_energy,&
-                                                total_running_weight
+    REAL(KIND=dp)                            :: rand,rdum,&
+                                                bias_energy,&
+                                                total_running_weight,&
+	                                        exponent
     REAL(KIND=dp), DIMENSION(:,:,:),&
       ALLOCATABLE                            :: r
     REAL(KIND=dp), DIMENSION(:,:),&
       ALLOCATABLE                            :: r_old
     REAL(KIND=dp), DIMENSION(:),&
-      ALLOCATABLE                            :: boltz_weight
+      ALLOCATABLE                            :: boltz_weights,mass,&
+      trial_energy
     REAL(KIND=dp), DIMENSION(1:3)            :: r_insert,center_of_mass,&
                                                 diff,abc
     TYPE(cp_subsystem_p_type), &
@@ -767,6 +798,8 @@ SUBROUTINE generate_cbmc_swap_config( force_env, BETA, nswapmoves,&
     TYPE(cp_error_type)                      :: error
     TYPE(cell_type), POINTER                 :: cell
     TYPE(particle_list_type), POINTER        :: particles
+    TYPE(mol_kind_new_list_type), POINTER    :: molecule_kinds_new
+    TYPE(molecule_kind_type), POINTER        :: molecule_kind
 
 !------------------------------------------------------------------------------
 ! begin the timing of the subroutine
@@ -778,19 +811,27 @@ SUBROUTINE generate_cbmc_swap_config( force_env, BETA, nswapmoves,&
       CALL force_env_get(force_env,cell=cell,subsys=oldsys,error=error)
       CALL get_cell(cell,abc=abc)
       CALL cp_subsys_get(oldsys(1)%subsys, &
-            particles=particles, error=error)
+            particles=particles, molecule_kinds_new=molecule_kinds_new,&
+            error=error)
+      molecule_kind => molecule_kinds_new%els(1)
+      CALL get_molecule_kind(molecule_kind,natom=natom,nmolecule=nmols)  
+      natoms=natom*nmols
+      ALLOCATE(mass(1:natoms),STAT=istat)
+      IF (istat /= 0) CALL stop_memory(routineN,module_name,__LINE__,&
+                       "mass",natoms*dp_size)
+      DO iatom=1,natoms
+         CALL get_atomic_kind(particles%els(iatom)%atomic_kind,&
+            mass=mass(iatom))
+      ENDDO
 
-      natoms=SIZE(particles%els(:))
-      nmols=natoms/3
-      cell_length=abc(1)
       IF(PRESENT(rem_molecule) ) THEN
          imolecule=rem_molecule ! this the the molecule we're removing
-         start_atom=3*imolecule-2
-         end_atom=3*imolecule
+         start_atom=natom*imolecule-(natom-1)
+         end_atom=natom*imolecule
       ELSE
          imolecule=nmols ! this is the new config, so it's the last molecule
-         start_atom=3*imolecule-2
-         end_atom=3*imolecule
+         start_atom=natom*imolecule-(natom-1)
+         end_atom=natom*imolecule
       ENDIF
 
       ALLOCATE(r_old(1:3,1:natoms),STAT=istat)
@@ -799,9 +840,12 @@ SUBROUTINE generate_cbmc_swap_config( force_env, BETA, nswapmoves,&
       ALLOCATE(r(1:3,1:natoms,1:nswapmoves),STAT=istat)
       IF (istat /= 0) CALL stop_memory(routineN,module_name,__LINE__,&
          "r",3*natoms*nswapmoves*dp_size)
-      ALLOCATE(boltz_weight(1:nswapmoves),STAT=istat)
+      ALLOCATE(trial_energy(1:nswapmoves),STAT=istat)
       IF (istat /= 0) CALL stop_memory(routineN,module_name,__LINE__,&
-         "boltz_weight",nswapmoves*dp_size)
+         "trial_energy",nswapmoves*dp_size)
+      ALLOCATE(boltz_weights(1:nswapmoves),STAT=istat)
+      IF (istat /= 0) CALL stop_memory(routineN,module_name,__LINE__,&
+         "boltz_weights",nswapmoves*dp_size)
       ALLOCATE(loverlap_array(1:nswapmoves),STAT=istat)
       IF (istat /= 0) CALL stop_memory(routineN,module_name,__LINE__,&
          "loverlap_array",nswapmoves)
@@ -809,8 +853,11 @@ SUBROUTINE generate_cbmc_swap_config( force_env, BETA, nswapmoves,&
 ! initialize the arrays that need it
       loverlap_array(:)=.FALSE.
       loverlap=.FALSE.
-      boltz_weight(:) = 0.0E0_dp
+      boltz_weights(:) = 0.0E0_dp
+      trial_energy(:) = 0.0E0_dp
       r(:,:,:)=0.0E0_dp
+      choosen_energy=0.0d0
+      rosenbluth_weight=0.0d0
 
 ! save the positions of the molecules
       DO imove=1,nswapmoves
@@ -824,7 +871,7 @@ SUBROUTINE generate_cbmc_swap_config( force_env, BETA, nswapmoves,&
       ENDDO
 
       IF(PRESENT(rem_molecule)) THEN
-         CALL mc_classical_energy(force_env,classical_energy,&
+         CALL mc_classical_energy(force_env,rdum,&
             nmols,1,nmols,cutoff,loverlap_array(1))
          
          IF(loverlap_array(1)) THEN
@@ -839,56 +886,82 @@ SUBROUTINE generate_cbmc_swap_config( force_env, BETA, nswapmoves,&
 
       DO imove=1,nswapmoves
          
+! drop into serial
+         IF(ionode) THEN
 ! find a new insertion point
-         DO i=1,3
-            CALL random_number(rand)
-            r_insert(i)=rand*cell_length
-         ENDDO
+            DO i=1,3
+               CALL random_number(rand)
+               r_insert(i)=rand*abc(i)
+            ENDDO
 
 ! find the center of mass of the insertion molecule
-         CALL get_center_of_mass(r(:,start_atom:end_atom,imove),3,&
-            center_of_mass(:),(/15.999E0_dp,1.008E0_dp,1.008E0_dp/))
+            CALL get_center_of_mass(r(:,start_atom:end_atom,imove),natom,&
+            center_of_mass(:),mass(:))
 
 ! move the molecule to the insertion point
-         DO i=1,3
-            diff(i)=r_insert(i)-center_of_mass(i)
-         ENDDO
-
-         DO iatom=start_atom,end_atom
-            r(1:3,iatom,imove)=r(1:3,iatom,imove)+diff(1:3)
-         ENDDO
-
-! rotate the molecule
-         CALL rotate_water_molecule(r(:,start_atom:end_atom,imove))
-
-         IF(imove == 1 .AND. PRESENT(rem_molecule)) THEN
-            DO iatom=1,natoms
-               r(1:3,iatom,1)=r_old(1:3,iatom)
+            DO i=1,3
+               diff(i)=r_insert(i)-center_of_mass(i)
             ENDDO
+            
+            DO iatom=start_atom,end_atom
+               r(1:3,iatom,imove)=r(1:3,iatom,imove)+diff(1:3)
+            ENDDO
+            
+! rotate the molecule
+            CALL rotate_water_molecule(r(:,start_atom:end_atom,imove))
+            
+            IF(imove == 1 .AND. PRESENT(rem_molecule)) THEN
+               DO iatom=1,natoms
+                  r(1:3,iatom,1)=r_old(1:3,iatom)
+               ENDDO
+            ENDIF
+
          ENDIF
+
+         CALL mp_bcast(r(:,:,imove),source,group)
 
 ! calculate the energy and boltzman weight of the config
          DO iatom=start_atom,end_atom
             particles%els(iatom)%r(1:3)=r(1:3,iatom,imove)
          ENDDO
-         CALL mc_classical_energy(force_env,classical_energy,&
+         CALL mc_classical_energy(force_env,rdum,&
             nmols,imolecule,imolecule,cutoff,loverlap_array(imove))
-         IF(loverlap_array(imove)) CYCLE
-         boltz_weight(imove)=EXP(-BETA*classical_energy)
+         IF(loverlap_array(imove)) THEN
+            boltz_weights(imove)=0.0d0
+            CYCLE
+         ENDIF
+         CALL force_env_calc_energy_force(force_env,calc_force=.FALSE.)
+         CALL force_env_get(force_env,&
+            potential_energy=bias_energy,error=error)
+
+
+         trial_energy(imove)=(bias_energy-old_energy)
+
+         exponent=-BETA*trial_energy(imove)
+         IF(exponent .GT. 500.0d0) THEN
+            boltz_weights(imove)=1.4E217_dp
+         ELSEIF(exponent .LT. -500.0d0) THEN
+            boltz_weights(imove)=0.0d0
+         ELSE
+            boltz_weights(imove)=EXP(exponent)
+         ENDIF
 
       ENDDO
 
 ! now we need to pick a configuration based on the Rosenbluth weight,
 ! which is just the sum of the Boltzmann weights
-      rosenbluth_weight=SUM(boltz_weight(:))
+      rosenbluth_weight=SUM(boltz_weights(:))
       all_overlaps=.TRUE.
       total_running_weight=0.0E0_dp
       choosen=0
-      CALL random_number(rand)
+      IF(ionode)THEN
+         CALL random_number(rand)
+      ENDIF
+      CALL mp_bcast(rand,source,group)
       DO imove=1,nswapmoves
          IF ( loverlap_array(imove) ) CYCLE
          all_overlaps=.FALSE.
-         total_running_weight=total_running_weight+boltz_weight(imove)
+         total_running_weight=total_running_weight+boltz_weights(imove)
          IF ( total_running_weight .GE. rand*rosenbluth_weight) THEN
             choosen=imove
             EXIT
@@ -902,7 +975,7 @@ SUBROUTINE generate_cbmc_swap_config( force_env, BETA, nswapmoves,&
 ! if this is an old configuration, we always choose the first one...
 ! this should never be the case, but I'm testing something
          IF(PRESENT(rem_molecule)) THEN
-            WRITE(6,*) boltz_weight(1:nswapmoves)
+            WRITE(6,*) boltz_weights(1:nswapmoves)
             WRITE(6,*) start_atom,end_atom,rem_molecule
             WRITE(6,*) loverlap_array(1:nswapmoves)
             DO iatom=1,natoms
@@ -912,15 +985,21 @@ SUBROUTINE generate_cbmc_swap_config( force_env, BETA, nswapmoves,&
             'CBMC swap move found all overlaps for the remove config')
          ENDIF
 
+         DEALLOCATE(mass,STAT=istat)
+         IF (istat /= 0) CALL stop_memory(routineN,module_name,&
+            __LINE__,"mass")
          DEALLOCATE(r_old,STAT=istat)
          IF (istat /= 0) CALL stop_memory(routineN,module_name,&
             __LINE__,"r_old")
          DEALLOCATE(r,STAT=istat)
          IF (istat /= 0) CALL stop_memory(routineN,module_name,&
             __LINE__,"r")
-         DEALLOCATE(boltz_weight,STAT=istat)
+         DEALLOCATE(trial_energy,STAT=istat)
          IF (istat /= 0) CALL stop_memory(routineN,module_name,&
-            __LINE__,"boltz_weight")
+            __LINE__,"trial_energy")
+         DEALLOCATE(boltz_weights,STAT=istat)
+         IF (istat /= 0) CALL stop_memory(routineN,module_name,&
+            __LINE__,"boltz_weights")
          DEALLOCATE(loverlap_array,STAT=istat)
          IF (istat /= 0) CALL stop_memory(routineN,module_name,&
             __LINE__,"loverlap_array")
@@ -935,20 +1014,29 @@ SUBROUTINE generate_cbmc_swap_config( force_env, BETA, nswapmoves,&
 ! if this is an old configuration, we always choose the first one
       IF(PRESENT(rem_molecule)) choosen=1
 
+! set the energy for the configuration
+      choosen_energy=trial_energy(choosen)
+
 ! copy the coordinates to the force environment
       DO iatom=1,natoms
          particles%els(iatom)%r(1:3)=r(1:3,iatom,choosen)
       ENDDO
 
+      DEALLOCATE(mass,STAT=istat)
+      IF (istat /= 0) CALL stop_memory(routineN,module_name,&
+         __LINE__,"mass")
       DEALLOCATE(r_old,STAT=istat)
       IF (istat /= 0) CALL stop_memory(routineN,module_name,&
          __LINE__,"r_old")
       DEALLOCATE(r,STAT=istat)
       IF (istat /= 0) CALL stop_memory(routineN,module_name,&
          __LINE__,"r")
-      DEALLOCATE(boltz_weight,STAT=istat)
+      DEALLOCATE(trial_energy,STAT=istat)
       IF (istat /= 0) CALL stop_memory(routineN,module_name,&
-         __LINE__,"boltz_weight")
+         __LINE__,"trial_energy")
+      DEALLOCATE(boltz_weights,STAT=istat)
+      IF (istat /= 0) CALL stop_memory(routineN,module_name,&
+         __LINE__,"boltz_weights")
       DEALLOCATE(loverlap_array,STAT=istat)
       IF (istat /= 0) CALL stop_memory(routineN,module_name,&
          __LINE__,"loverlap_array")
@@ -1050,6 +1138,188 @@ SUBROUTINE rotate_water_molecule(r)
       CALL timestop(0.0E0_dp,handle)
 
 END SUBROUTINE rotate_water_molecule
+
+!******************************************************************************
+!!****s* mc_coordinates.F/find_mc_test_molecule
+!!
+!!   NAME
+!!     find_mc_test_molecule
+!!
+!!   FUNCTION
+!!     returns the number of the first atom in a molecule that we
+!!     want to perform a Monte Carlo move on
+!!
+!!   ARGUMENTS
+!!     - natoms: the total number of atoms
+!!     - coordinates: the coordiantes of the atoms in the system
+!!     - box_length: the length of the simulation box
+!!
+!!   AUTHOR
+!!     MJM
+!!
+!!*****************************************************************************
+SUBROUTINE find_mc_test_molecule(force_env,mol_number,box_number,nchain,box)
+
+    TYPE(force_env_p_type), DIMENSION(:), &
+      POINTER                                :: force_env
+    INTEGER, INTENT(OUT)                     :: mol_number
+    INTEGER, INTENT(OUT)                     :: box_number
+    INTEGER, INTENT(IN),DIMENSION(:)         :: nchain
+    INTEGER, INTENT(IN),OPTIONAL             :: box
+
+    CHARACTER(LEN=*), PARAMETER :: routineN = "find_mc_test_molecule",&
+        routineP = module_name//':'//routineN
+
+    TYPE(mol_kind_new_list_p_type),DIMENSION(:),POINTER :: mol_kinds
+    TYPE(cp_subsystem_pp_type),DIMENSION(:),POINTER :: subsys
+    TYPE(cp_error_type),POINTER              :: error
+    TYPE(molecule_type),POINTER              :: molecule
+    TYPE(mol_new_list_type),POINTER          :: molecules_new
+
+    INTEGER                                  :: handle,ibox,nboxes,stat,&
+      target_molecule,nmols,imol,start_box,end_box
+    REAL(KIND=dp)                            :: rand
+    LOGICAL                                  :: failure
+
+!------------------------------------------------------------------------------
+! begin the timing of the subroutine
+      CALL timeset(routineN,'I','',handle)
+
+      NULLIFY(mol_kinds,subsys,error)
+
+      nboxes=SIZE(force_env(:))
+
+      IF(PRESENT(box))THEN
+         start_box=box
+         end_box=box
+      ELSE
+         start_box=1
+         end_box=nboxes
+      ENDIF
+
+      mol_number=0
+      box_number=0
+
+      ALLOCATE(subsys(1:nboxes),stat=stat)
+      CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+      ALLOCATE(mol_kinds(1:nboxes), stat=stat)
+      CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+
+! find out how many molecules we have total
+      DO ibox=start_box,end_box
+         CALL force_env_get(force_env(ibox)%force_env,&
+            subsys=subsys(ibox)%subsys,error=error)
+         CALL cp_subsys_get(subsys(ibox)%subsys(1)%subsys, &
+            molecule_kinds_new=mol_kinds(ibox)%list,error=error)
+      ENDDO
+
+! grab a random molecule
+      CALL random_number(rand)
+      target_molecule=CEILING(rand*REAL(SUM(nchain(start_box:end_box))))
+
+! find the starting atom and box number
+      box_loop:DO ibox=start_box,end_box
+         IF(target_molecule .GT. SUM(nchain(start_box:end_box))) CYCLE
+         box_number=ibox
+         IF(ibox .NE. start_box) THEN
+            target_molecule=target_molecule-&
+               SUM(nchain(start_box:(ibox-1)))
+         ENDIF
+         CALL cp_subsys_get(subsys(ibox)%subsys(1)%subsys, &
+            molecules_new=molecules_new,error=error) 
+         nmols=SIZE(molecules_new%els(:))
+         DO imol=1,nmols
+            IF(target_molecule .EQ. imol) THEN
+               molecule => molecules_new%els(imol)
+               CALL get_molecule(molecule,first_atom=mol_number)
+               EXIT box_loop
+            ENDIF
+         ENDDO
+      ENDDO box_loop
+
+! deallocate some stuff
+      DEALLOCATE(mol_kinds)
+      DEALLOCATE(subsys)
+!      DEALLOCATE(nmolecules)
+
+! make sure things are good
+      CPPostcondition(mol_number/=0,cp_failure_level,routineP,error,failure)
+      CPPostcondition(box_number/=0,cp_failure_level,routineP,error,failure)
+      
+! end the timing
+      CALL timestop(0.0E0_dp,handle)
+
+
+END SUBROUTINE find_mc_test_molecule
+
+!******************************************************************************
+!!****s* mc_coordinates.F/find_mc_test_molecule
+!!
+!!   NAME
+!!     find_mc_test_molecule
+!!
+!!   FUNCTION
+!!     returns the number of the first atom in a molecule that we
+!!     want to perform a Monte Carlo move on
+!!
+!!   ARGUMENTS
+!!     - natoms: the total number of atoms
+!!     - coordinates: the coordiantes of the atoms in the system
+!!     - box_length: the length of the simulation box
+!!
+!!   AUTHOR
+!!     MJM
+!!
+!!*****************************************************************************
+SUBROUTINE create_discrete_array(cell,discrete_array,step_size)
+
+! 1 is for increase, 2 is for decrease
+! 1 is for "yes, we can do the move", 0 is for no
+
+      REAL(dp),INTENT(IN)   :: step_size
+      REAL(dp),DIMENSION(1:3),INTENT(IN)   :: cell
+      INTEGER,DIMENSION(1:3,1:2),INTENT(OUT)   :: discrete_array
+
+      REAL(dp) :: length1,length2,high_value,low_value
+      INTEGER :: iside
+
+      discrete_array(:,:)=0
+
+      length1=ABS(cell(1)-cell(2))
+      length2=ABS(cell(2)-cell(3))
+
+! now let's figure out all the different cases
+      IF(length1 .LT. 0.01d0*step_size .AND. &
+         length2 .LT. 0.01d0*step_size) THEN
+! all sides are equal, so we can move up or down
+         discrete_array(1:3,1)=1
+         discrete_array(1:3,2)=1
+      ELSE
+
+! find the low value and the high value
+         high_value=-1.0d0
+         low_value=cell(1)*cell(2)*cell(3)
+         DO iside=1,3
+            IF(cell(iside) .LT. low_value) low_value=cell(iside)
+            IF(cell(iside) .GT. high_value) high_value=cell(iside)
+         ENDDO
+         DO iside=1,3
+! now we see if the value is a high value or a low value...it can only be
+! one of the two
+            IF(ABS(cell(iside)-low_value) .LT. 0.01d0*step_size) THEN
+! low value, we can only increase the cell size
+               discrete_array(iside,1)=1
+               discrete_array(iside,2)=0
+            ELSE
+! high value, we can only decrease the cell size
+               discrete_array(iside,1)=0
+               discrete_array(iside,2)=1               
+            ENDIF
+         ENDDO
+      ENDIF
+
+END SUBROUTINE create_discrete_array
+
 
 END MODULE mc_coordinates
 
