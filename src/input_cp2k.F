@@ -5529,7 +5529,7 @@ SUBROUTINE create_tddfpt_section(section,error)
          routineP=moduleN//':'//routineN
     TYPE(keyword_type), pointer :: keyword
     TYPE(section_type), POINTER :: coeff_section, nose_section,uni_section, baro_section,&
-         subsection, print_key
+                                   ldmc_section, subsection, print_key
 
     failure=.false.
 
@@ -5637,6 +5637,12 @@ SUBROUTINE create_tddfpt_section(section,error)
        CALL create_nose_section(nose_section, error=error)
        CALL section_add_subsection(section, nose_section, error=error)
        CALL section_release(nose_section,error=error)
+
+       NULLIFY(ldmc_section)
+       CALL create_ldmc_section(ldmc_section, error=error)
+       CALL section_add_subsection(section, ldmc_section, error=error)
+       CALL section_release(ldmc_section, error=error)
+
 
        CALL create_qs_md_section(subsection, error=error)
        CALL section_add_subsection(section, subsection, error=error)
@@ -7942,12 +7948,81 @@ END SUBROUTINE create_ewald_section
        CALL keyword_create(keyword, name="ACTIVATE",&
             description="Activates the harris functional.",&
             usage="ACTIVATE TRUE", required=.FALSE.,&
-            default_l_val=.FALSE., lone_keyword_l_val=.TRUE., error=error)
-       CALL section_add_keyword(section,keyword,error=error)
-       CALL keyword_release(keyword,error=error)
+            default_l_val=.FALSE., lone_keyword_l_val=.TRUE., &
+            error=error)
+       CALL section_add_keyword(section, keyword, error=error)
+       CALL keyword_release(keyword, error=error)
 
     END IF
   END SUBROUTINE create_harris_section
+
+!***************************************************************************
+
+!!****f* input_cp2k/create_ldmc_section [1.0] *
+!!
+!!   NAME
+!!     create_ldmc_section
+!!
+!!   FUNCTION
+!!     This section specifies the parameters for the Langevin Dynamics
+!!     Metropolis Monte Carlo simulation
+!!
+!!   NOTES
+!!     -
+!!
+!!   ARGUMENTS
+!!     - section: the section to create
+!!     - error: variable to control error logging, stopping,... 
+!!       see module cp_error_handling 
+!!
+!!   AUTHOR
+!!     Thomas D. Kuehne (tkuehne@phys.chem.ethz.ch)
+!!
+!!*** **********************************************************************
+  SUBROUTINE create_ldmc_section(section,error)
+    TYPE(section_type), POINTER :: section
+    TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
+    
+    LOGICAL :: failure
+    CHARACTER(len=*), PARAMETER :: routineN='create_ldmc_section',&
+         routineP=moduleN//':'//routineN
+    TYPE(keyword_type), POINTER :: keyword
+    
+    failure=.FALSE.
+    
+    CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
+    IF (.NOT. failure) THEN
+       CALL section_create(section,name="LDMC",&
+            description="This section specifies the parameters for the Langevin Dynamics Metropolis Monte Carlo simulation",&
+            n_keywords=3, n_subsections=0, repeats=.FALSE., required=.FALSE.,&
+            error=error)
+
+       NULLIFY(keyword)
+       
+       CALL keyword_create(keyword, name="ld_steps",&
+            description="Number of LD steps per MC cycle.",&
+            usage="nsteps 20", required=.FALSE.,&
+            default_i_val=10, lone_keyword_i_val=20,&
+            error=error)
+       CALL section_add_keyword(section, keyword, error=error)
+       CALL keyword_release(keyword, error=error)
+
+       CALL keyword_create(keyword, name="temp_alpha",&
+            description="Additive temperature correction",&
+            usage="temp_alpha -10.0", required=.FALSE.,&
+            default_r_val=0.0_dp, error=error)
+       CALL section_add_keyword(section, keyword, error=error)
+       CALL keyword_release(keyword, error=error)
+
+       CALL keyword_create(keyword, name="temp_beta",&
+            description="Mutiplicative temperature correction",&
+            usage="temp_beta 0.75", required=.FALSE.,&
+            default_r_val=1.0_dp, error=error)
+       CALL section_add_keyword(section, keyword, error=error)
+       CALL keyword_release(keyword, error=error)
+
+    END IF
+  END SUBROUTINE create_ldmc_section
 
 !***************************************************************************
 

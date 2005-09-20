@@ -365,7 +365,7 @@ RECURSIVE SUBROUTINE force_env_get(force_env, in_use, force_env_list, &
       DIMENSION(:), OPTIONAL, POINTER        :: subsys
     TYPE(cp_para_env_type), OPTIONAL, &
       POINTER                                :: para_env
-    REAL(KIND=dp), INTENT(OUT), OPTIONAL    :: potential_energy, &
+    REAL(KIND=dp), INTENT(OUT), OPTIONAL     :: potential_energy, &
                                                 kinetic_energy
     TYPE(cell_type), OPTIONAL, POINTER       :: cell
     TYPE(cell_type), OPTIONAL, POINTER       :: cell_ref

@@ -133,11 +133,12 @@ OBJECTS_GENERIC =\
  gopt_f_types.o\
  green_types.o\
  green_methods.o\
+ harris_energy_types.o\
+ harris_env_types.o\
  harris_force.o\
  harris_force_types.o\
  harris_functional.o\
- harris_energy_types.o\
- harris_env_types.o\
+ harris_metropolis_mc.o\
  hartree.o\
  hartree_local_2centers.o\
  hartree_local_3centers.o\

@@ -173,7 +173,7 @@ SUBROUTINE compute_conserved_quantity (md_env, epot, cons, cons_rel, ekin,&
   CASE ( nph_uniaxial_damped_ensemble )
     CALL get_econs_nph_damped (md_env, md_ener, cons, int_grp)
   CASE ( langevin_ensemble )
-    cons = md_ener%ekin
+    cons = md_ener%ekin + md_ener%epot
   END SELECT
 
   IF (itimes==1) THEN
@@ -184,7 +184,7 @@ SUBROUTINE compute_conserved_quantity (md_env, epot, cons, cons_rel, ekin,&
   IF ((PRESENT(cons_rel)).AND.(itimes /= 0 )) THEN
     cons_rel = ABS((cons-constant)/constant)
   END IF
-  IF (PRESENT(ekin)) ekin=md_ener%ekin 
+  IF (PRESENT(ekin)) ekin=md_ener%ekin
   IF (PRESENT(temp_part)) temp_part=md_ener%temp_part
   IF (PRESENT(temp_baro)) temp_baro=md_ener%temp_baro
   IF (PRESENT(ekin_coefs)) ekin_coefs=md_ener%ekin_coefs 

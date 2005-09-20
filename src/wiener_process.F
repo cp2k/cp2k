@@ -444,7 +444,7 @@ CONTAINS
 
   ! ***************************************************************************
 
-  SUBROUTINE write_md_restart_file(md_env,error)
+  SUBROUTINE write_md_restart_file(md_env,ldmc,error)
 
     ! Purpose: Write the data needed for a restart of a MD run to the restart
     !          unit unit_number.
@@ -454,6 +454,7 @@ CONTAINS
     ! *************************************************************************
 
     TYPE(md_environment_type), POINTER           :: md_env
+    LOGICAL, OPTIONAL                            :: ldmc
     TYPE(cp_error_type), OPTIONAL, INTENT(INOUT) :: error
 
     ! Local parameters
@@ -474,7 +475,7 @@ CONTAINS
 
     INTEGER :: i,iparticle,iparticle_kind,iparticle_local,istat,isubsys,&
                nparticle,nparticle_kind,nparticle_local,unit_number
-    LOGICAL :: failure
+    LOGICAL :: failure, ldmc_flag
 
     TYPE(cp_subsystem_p_type), DIMENSION(:), POINTER :: subsys
     TYPE(force_env_p_type), DIMENSION(:), POINTER    :: force_env_p
@@ -486,6 +487,12 @@ CONTAINS
     failure = .FALSE.
 
     CPPrecondition (ASSOCIATED(md_env),cp_failure_level,routineP,error,failure)
+
+    IF (PRESENT(ldmc)) THEN
+      ldmc_flag = ldmc
+    ELSE
+      ldmc_flag = .FALSE.
+    END IF
 
     CALL get_md_env(md_env=md_env,&
                     force_env_p=force_env_p,&
@@ -544,6 +551,8 @@ CONTAINS
 
           END IF
 
+          IF (.NOT. ldmc_flag) THEN
+
           ! Write current status of Wiener process to the restart unit
 
           ALLOCATE (ascii(LEN(string),nparticle),STAT=istat)
@@ -578,6 +587,8 @@ CONTAINS
 
           DEALLOCATE (ascii,STAT=istat)
           CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+
+          END IF
 
           IF (para_env%mepos == para_env%source) THEN
             WRITE (UNIT=unit_number,FMT="(A,I5)") " &END SUBSYSTEM",isubsys

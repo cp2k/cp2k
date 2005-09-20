@@ -39,6 +39,7 @@ MODULE md
   USE cp2k_units,                      ONLY: get_cp2k_units,&
                                              unit_convert_type
   USE global_types,                    ONLY: global_environment_type
+  USE input_constants,                 ONLY: ldmc_run
   USE kinds,                           ONLY: dp
   USE message_passing,                 ONLY: mp_bcast
   USE parser,                          ONLY: get_next,&
@@ -160,6 +161,9 @@ MODULE md
      TYPE ( simpar_units_type ) :: units
      !MK Langevin
      REAL (KIND=dp) :: gamma,var_w
+     !TdK LDMC
+     INTEGER        :: ld_steps
+     REAL(KIND=dp)  :: temp_alpha, temp_beta
   END TYPE simulation_parameters_type
 
   TYPE mdio_parameters_type
@@ -270,13 +274,14 @@ CONTAINS
     TYPE(global_environment_type), &
          INTENT(IN)                             :: globenv
     TYPE(mdio_parameters_type), INTENT(OUT)     :: mdio
-    TYPE(cp_error_type), INTENT(inout)            :: error
+    TYPE(cp_error_type), INTENT(inout)          :: error
     ! Local Variables
     CHARACTER(LEN=20)                        :: string
     CHARACTER(LEN=5)                         :: label
     INTEGER                                  :: ia, ie, ierror, ILEN, iw
     TYPE(section_vals_type), POINTER         :: md_section
     TYPE(unit_convert_type), POINTER         :: unit
+    LOGICAL                                  :: harris_ldmc
 
     NULLIFY(unit, md_section)
     CALL set_md_defaults(simpar, globenv, mdio)
@@ -311,6 +316,13 @@ CONTAINS
              !MK Langevin
              CASE ("GAMMA")
                CALL get_next(simpar%gamma)
+             !TdK LDMC
+             CASE ('LD_STE')
+               CALL get_next(simpar%ld_steps)
+             CASE ('TEMP_A')
+               CALL get_next(simpar%temp_alpha)
+             CASE ('TEMP_B')
+               CALL get_next(simpar%temp_beta)
              CASE ( 'ANNEAL' )
                 simpar % annealing = .TRUE.
                 CALL get_next ( simpar % f_annealing )
@@ -705,12 +717,32 @@ CONTAINS
 !
 !TODEL_END_TL
 !
+
+!TdK Turn on Langevin dynamics in case LDMC is activated in the harris section
+  IF (globenv%ionode.AND.(globenv%print_level >= 0)) THEN
+      WRITE (iw, *)
+  END IF
+
+  IF (globenv%run_type_id == ldmc_run) THEN
+     simpar%ensemble = langevin_ensemble
+     
+     IF (globenv%ionode.AND.(globenv%print_level >= 0)) THEN
+       WRITE ( iw, '( A,T71,I10 )' ) ' LDMC| Number of Harris LD steps per MC cycle ', &
+            simpar % ld_steps
+       WRITE ( iw, '( A,T71,F10.2 )' ) ' LDMC| Temperature correction value alpha ', &
+            simpar % temp_alpha
+       WRITE ( iw, '( A,T71,F10.2 )' ) ' LDMC| Temperature correction value beta ', &
+            simpar % temp_beta
+       WRITE (iw, *)
+     END IF
+  END IF
+
 !MK begin setup Langevin
   IF (simpar%ensemble == langevin_ensemble) THEN
   
     IF (globenv%ionode.AND.(globenv%print_level >= 0)) THEN
       WRITE (iw,"(T2,A,T71,ES10.3)")&
-        "MD| Gamma [1/"//TRIM(simpar%units%time)//"] ",simpar%gamma
+        "LD| Gamma [1/"//TRIM(simpar%units%time)//"] ",simpar%gamma
     END IF
   
     CALL convert_to_cp2k_units(simpar%units%time,&
@@ -725,10 +757,19 @@ CONTAINS
     !MK simpar%var_w = 2.0_dp*simpar%temp_ext*simpar%dt*simpar%gamma
   
     IF (globenv%ionode.AND.(globenv%print_level >= 0)) THEN
-      print*,"T=    ",simpar%temp_ext
-      print*,"dt=   ",simpar%dt
-      print*,"gamma=",simpar%gamma
-      print*,"var_w=",simpar%var_w
+      WRITE ( iw, '( A,T65,ES16.8 )' ) ' LD| External temperature T [a.u.] ', &
+            simpar % temp_ext
+      WRITE ( iw, '( A,T65,ES16.8 )' ) ' LD| Timestep dt [a.u.] ', &
+            simpar % dt
+      WRITE ( iw, '( A,T65,ES16.8 )' ) ' LD| Gamma [a.u.] ', &
+            simpar % gamma
+      !WRITE ( iw, '( A,T65,ES16.8 )' ) ' LD| W ', &
+      !      simpar % var_w
+      WRITE ( iw, *)
+      !print*,"T=    ",simpar%temp_ext
+      !print*,"dt=   ",simpar%dt
+      !print*,"gamma=",simpar%gamma
+      !print*,"var_w=",simpar%var_w
     END IF
   
   END IF
@@ -854,6 +895,10 @@ SUBROUTINE read_md_new_section(simpar, globenv, md_section, error)
      CALL section_vals_val_get(md_section,"RESTART",i_val=simpar%read_type,error=error)
      CALL section_vals_val_get(md_section,"PV_AVA",l_val=simpar%pv_availability,error=error)
      CALL section_vals_val_get(md_section,"PV_NUM",l_val=simpar%pv_numerical,error=error)
+     
+     IF (simpar%ensemble == langevin_ensemble) THEN
+       CALL section_vals_val_get(md_section, "GAMMA", r_val=simpar%gamma, error=error)
+     END IF
 
      tmp_section => section_vals_get_subs_vals(globenv%input_file,"GLOBAL",error=error)
      CALL section_vals_val_get(tmp_section,"OUTPUT",i_val=simpar%output_format,error=error)
@@ -895,6 +940,17 @@ SUBROUTINE read_md_new_section(simpar, globenv, md_section, error)
         CALL section_vals_val_get(tmp_section,"YOSHIDA",i_val=simpar%nyosh,error=error)
         CALL section_vals_val_get(tmp_section,"TIMECON",r_val=simpar%tau_nhc,error=error)
         CALL section_vals_val_get(tmp_section,"MTS",i_val=simpar%nc,error=error)
+     END IF
+
+     tmp_section => section_vals_get_subs_vals(md_section, "LDMC", error=error)
+     CALL section_vals_get(tmp_section, explicit=explicit, error=error)
+     IF (explicit) THEN
+       CALL section_vals_val_get(tmp_section, "LD_STEPS", i_val=simpar%ld_steps, &
+                                 error=error)
+       CALL section_vals_val_get(tmp_section, "TEMP_ALPHA", r_val=simpar%temp_alpha, &
+                                 error=error)
+       CALL section_vals_val_get(tmp_section, "TEMP_BETA", r_val=simpar%temp_beta, &
+                                 error=error)
      END IF
      
      tmp_section => section_vals_get_subs_vals(md_section,"QS_MD",error=error)

@@ -142,15 +142,17 @@ MODULE input_constants
                                 qs_debug_run=8,&
                                 bsse_run=9,&
                                 linear_response_run=10,&
-                                ep_run=11
+                                ep_run=11,&
+                                ldmc_run=12
   
-  CHARACTER (LEN=default_string_length), PARAMETER, DIMENSION(18), PUBLIC :: run_type_names=&
+  CHARACTER (LEN=default_string_length), PARAMETER, DIMENSION(20), PUBLIC :: run_type_names=&
        (/"NONE                     ",&
          "ENERGY                   ",&
          "ENERGY_FORCE             ",&
          "MD                       ",&
          "GEO_OPT                  ",&
          "MC                       ",&
+         "LDMC                     ",&
          "SPECTRA                  ",&
          "DEBUG                    ",&
          "BSSE                     ",&
@@ -161,16 +163,18 @@ MODULE input_constants
          "MOLECULAR_DYNAMICS       ",&   !
          "GEOMETRY_OPTIMIZATION    ",&   !
          "MONTECARLO               ",&   !
+         "LANGEVIN_MONTECARLO      ",&   !
          "ELECTRONIC_SPECTRA       ",&   !
          "LINEAR_RESPONSE          " /)  !
 
-  INTEGER, PARAMETER, PUBLIC, DIMENSION(18) :: run_type_index=&
+  INTEGER, PARAMETER, PUBLIC, DIMENSION(20) :: run_type_index=&
        (/ none_run,& 
           energy_run,&
           energy_force_run,&
           mol_dyn_run,&
           geo_opt_run,&
           mon_car_run,&
+          ldmc_run,&
           electronic_spectra_run,&
           qs_debug_run,&
           bsse_run,&
@@ -181,6 +185,7 @@ MODULE input_constants
           mol_dyn_run,&
           geo_opt_run,&
           mon_car_run,&
+          ldmc_run,&
           electronic_spectra_run,&
           linear_response_run /)
 

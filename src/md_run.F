@@ -105,7 +105,9 @@ MODULE md_run
 
   CHARACTER(LEN=*), PARAMETER :: module_name = "md_run"
 
-  PUBLIC :: qs_mol_dyn
+  PUBLIC :: qs_mol_dyn, &
+            temperature_control, &
+            external_control
 
   INTERFACE qs_mol_dyn
      MODULE PROCEDURE qs_mol_dyn1, qs_mol_dyn2
@@ -367,7 +369,7 @@ CONTAINS
       CALL md_energy ( md_env, globenv )
       IF (MODULO(itimes,mdio%idump) == 0) THEN
         IF (simpar%ensemble == langevin_ensemble) THEN
-          CALL write_md_restart_file(md_env,error)
+          CALL write_md_restart_file(md_env, error=error)
         ELSE
           CALL dump_variables(md_env,mdio%dump_file_name,error)
         END IF

@@ -49,6 +49,7 @@ MODULE cp2k_runs
                                              globenv_create,&
                                              globenv_retain,&
                                              globenv_release
+  USE harris_metropolis_mc,            ONLY: harris_mc_ld
   USE input_constants,                 ONLY: do_qs,&
                                              do_fist,&
                                              do_kg,&
@@ -62,6 +63,7 @@ MODULE cp2k_runs
                                              mol_dyn_run,&
                                              geo_opt_run,&
                                              mon_car_run,&
+                                             ldmc_run,&
                                              electronic_spectra_run,&
                                              bsse_run,&
                                              linear_response_run,&
@@ -222,7 +224,7 @@ CONTAINS
                hide_root=.TRUE., error=error)
        END IF
     END IF
-   
+
     IF (.NOT.failure) THEN
        CALL check_cp2k_input(input_file,error=error)
     END IF
@@ -278,6 +280,8 @@ CONTAINS
           CALL qs_geo_opt(force_env,globenv,error=error)
        CASE (mon_car_run)
           CALL do_mon_car ( force_env, globenv, error=error )
+       CASE (ldmc_run)
+          CALL harris_mc_ld(force_env, globenv, error=error)
        CASE (electronic_spectra_run)
           IF(globenv%prog_name_id /= do_qs) &
                CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,routineP,&
