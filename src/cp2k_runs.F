@@ -302,11 +302,16 @@ CONTAINS
                error=error)
           CALL linres_calculation(force_env%qs_env, globenv, error=error)
        CASE (qs_debug_run)
-          IF((globenv%prog_name_id /= do_qs).AND.(globenv%prog_name_id /= do_qmmm))  &
-               CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,routineP,&
-               "Debug run available only with Quickstep program "//&
-               CPSourceFileRef,error,failure)
-          CALL qs_debug_energy_and_forces(force_env, globenv, error=error)
+          IF( (globenv%prog_name_id == do_qs) .OR. &
+              (globenv%prog_name_id == do_qmmm) ) THEN
+            CALL qs_debug_energy_and_forces(force_env, globenv, error=error)
+          ELSE IF(globenv%prog_name_id == do_fist) THEN
+            CALL fist_debug_control(force_env, globenv, error=error)
+          ELSE
+            CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,routineP,&
+            "Debug run available only with QS, FIST, and QMMM program "//&
+            CPSourceFileRef,error,failure)
+          END IF
        END SELECT
        CALL force_env_release(force_env, error=error)
        
