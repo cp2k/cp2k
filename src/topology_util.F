@@ -41,6 +41,7 @@ MODULE topology_util
   USE convert_units,                   ONLY: convert_to_cp2k_units
   USE external_potential_types,        ONLY: elp_potential_type,&
                                              allocate_potential,&
+                                             get_potential,&
                                              set_potential
   USE global_types,                    ONLY: global_environment_type
   USE input_constants,                 ONLY: do_qmmm_none,&
@@ -86,6 +87,7 @@ MODULE topology_util
   USE simulation_cell,                 ONLY: pbc
   USE string_utilities,                ONLY: integer_to_string,&
                                              uppercase,&
+                                             str_comp,&
                                              str_search
   USE termination,                     ONLY: stop_memory,&
                                              stop_program
@@ -2431,7 +2433,7 @@ SUBROUTINE topology_coordinate_pack (particle_set,atomic_kind_set,&
     INTEGER, DIMENSION(:), POINTER           :: atomkind,atomlist, kind_of, &
                                                 natom_of_kind
     LOGICAL                                  :: PM1, PM2, PM3, PM4
-    REAL(KIND=dp), DIMENSION(:), POINTER         :: charge, mass
+    REAL(KIND=dp), DIMENSION(:), POINTER     :: charge, mass
     TYPE(atom_type), DIMENSION(:), POINTER   :: atom_list
     TYPE(bend_type), DIMENSION(:), POINTER   :: bend_list,ex_bend_list
     TYPE(bond_type), DIMENSION(:), POINTER   :: bond_list,ex_bond_list
@@ -2456,6 +2458,8 @@ SUBROUTINE topology_coordinate_pack (particle_set,atomic_kind_set,&
     INTEGER :: imol_now,imol_minus,imol_plus
     INTEGER :: ibond,ibend,itorsion,offset
     LOGICAL :: mol_change,mol_change2
+    INTEGER, DIMENSION(:), POINTER :: molecule_list
+    INTEGER :: position
 
 
 !------------------------------------------------------------------------------
@@ -2488,8 +2492,11 @@ SUBROUTINE topology_coordinate_pack (particle_set,atomic_kind_set,&
   ! 1. Determine topology%[natom_type,atom_names] and save mass(natom_type) 
   !-----------------------------------------------------------------------------
   counter=0
+  NULLIFY(work,mass,charge)
   ALLOCATE(work(topology%natoms),mass(topology%natoms),STAT=istat)
   IF (istat/=0) CALL stop_memory ('coordinate_pack','work,mass',topology%natoms)
+  ALLOCATE(charge(topology%natoms),STAT=istat)
+  IF (istat/=0) CALL stop_memory ('coordinate_pack','charge',topology%natoms)
   work(:)=""
   DO i = 1, SIZE(molecule_kind_set)
     DO j=1,SIZE(molecule_set)
@@ -2503,12 +2510,31 @@ SUBROUTINE topology_coordinate_pack (particle_set,atomic_kind_set,&
     CALL get_molecule(molecule=molecule,&
                            first_atom=first,last_atom=last)
     DO j = 1, natom
-      IF(str_search(work,counter,atom_list(j)%name)==0)THEN
+      position=str_search(work,counter,atom_list(j)%name)
+      IF(position==0)THEN
          counter = counter + 1
-         work(counter) = atom_list(j)%name
-         mass(counter) = atom_info%atm_mass(first+j-1)
-        IF(PM2) WRITE(iw,'(7X,A,1X,A5,F10.5)') &
-                "NEW ATOMIC KIND",work(counter),mass(counter)
+         work(counter)   = atom_list(j)%name
+         mass(counter)   = atom_info%atm_mass(first+j-1)
+         charge(counter) = atom_info%atm_charge(first+j-1)
+        IF(PM1) WRITE(iw,'(7X,A,1X,A5,F10.5,F10.5)') &
+                "NEW ATOMIC KIND",work(counter),mass(counter),charge(counter)
+      ELSE
+        found = .FALSE.
+        DO k = 1, counter
+          IF( (str_comp(work(k),atom_list(j)%name)) .AND. &
+              (charge(k)==atom_info%atm_charge(first+j-1)) ) THEN
+            found = .TRUE.
+            EXIT
+          END IF
+        END DO
+        IF(.NOT.found) THEN
+          counter = counter + 1
+          work(counter)   = atom_list(j)%name
+          mass(counter)   = atom_info%atm_mass(first+j-1)
+          charge(counter) = atom_info%atm_charge(first+j-1)
+          IF(PM1) WRITE(iw,'(7X,A,1X,A5,F10.5,F10.5)') &
+                  "NEW ATOMIC KIND",work(counter),mass(counter),charge(counter)
+        END IF
       END IF
     END DO
   END DO
@@ -2519,6 +2545,7 @@ SUBROUTINE topology_coordinate_pack (particle_set,atomic_kind_set,&
   DEALLOCATE(work,STAT=istat)
   IF (istat/=0) CALL stop_memory ('coordinate_pack','work')
   CALL reallocate(mass,1,counter)
+  CALL reallocate(charge,1,counter)
   IF(PM2) &
     WRITE(iw,'(5X,A,I3)') "Total Number of Atomic Kinds = ",topology%natom_type
 
@@ -2565,7 +2592,8 @@ SUBROUTINE topology_coordinate_pack (particle_set,atomic_kind_set,&
   natom_of_kind(:) = 0
   DO i=1,topology%natom_type
     DO j=1,topology%natoms
-      IF(atom_info%atom_names(i)==atom_info%label_atmname(j)) THEN
+      IF( (atom_info%atom_names(i)==atom_info%label_atmname(j)) .AND. &
+          (charge(i)==atom_info%atm_charge(j)) ) THEN
         natom_of_kind(i)=natom_of_kind(i)+1
         IF(kind_of(j)==0) kind_of(j)=i
       END IF
@@ -2589,7 +2617,7 @@ SUBROUTINE topology_coordinate_pack (particle_set,atomic_kind_set,&
         atomlist(counter)=j
       END IF
     END DO
-    IF(PM2) THEN 
+    IF(PM1) THEN 
       WRITE(iw,'(A,I6,A)') "      Atomic kind ",i," contains particles"
       DO J=1,SIZE(atomlist)  
          IF (MOD(J,5).EQ.0) THEN ! split long lines
@@ -3067,13 +3095,7 @@ SUBROUTINE topology_coordinate_pack (particle_set,atomic_kind_set,&
       CALL get_atomic_kind(atomic_kind=atomic_kind,name=atmname)
       qeff = -10000.0_dp
       alpha_core_charge = -10000.0_dp
-      DO j=1,SIZE(atom_info%label_atmname)
-        IF(atmname == atom_info%label_atmname(j)) THEN
-          
-          qeff = atom_info%atm_charge(j)
-          EXIT
-        END IF
-      END DO
+      qeff = charge(i)
       my_elp_name = TRIM("FIST_"//TRIM(atmname))
       my_elp_description(1) = "FIST Electrostatic Potential"
       my_elp_description(2) = "                            "
@@ -3087,6 +3109,8 @@ SUBROUTINE topology_coordinate_pack (particle_set,atomic_kind_set,&
       CALL set_atomic_kind(atomic_kind=atomic_kind,elp_potential=elp_potential)
     END DO
   END IF
+  DEALLOCATE(charge,STAT=istat)
+  IF (istat/=0) CALL stop_memory ('coordinate_pack','charge')
 
 
   !-----------------------------------------------------------------------------
@@ -3096,14 +3120,32 @@ SUBROUTINE topology_coordinate_pack (particle_set,atomic_kind_set,&
   DO i=1,SIZE(molecule_kind_set)
     molecule_kind => molecule_kind_set(i)
     CALL get_molecule_kind(molecule_kind=molecule_kind,&
-                           natom=natom,atom_list=atom_list)
+                           natom=natom,molecule_list=molecule_list,&
+                           atom_list=atom_list)
+    molecule => molecule_set(molecule_list(1))
+    CALL get_molecule(molecule=molecule,&
+                           first_atom=first,last_atom=last)
     DO j=1,natom
-      DO k=1,topology%natom_type
-        IF(atom_list(j)%name == atom_info%atom_names(k)) THEN
-          atom_list(j)%atomic_kind => atomic_kind_set(k)
+      DO k=1,SIZE(atomic_kind_set)
+        atomic_kind => atomic_kind_set(k)
+        CALL get_atomic_kind(atomic_kind=atomic_kind,name=atmname)
+        IF(globenv%prog_name_id == do_fist) THEN
+          CALL get_atomic_kind(atomic_kind=atomic_kind,elp_potential=elp_potential)
+          CALL get_potential(potential=elp_potential,qeff=qeff)
+          IF( (atom_list(j)%name == atmname) .AND. &
+              (qeff==atom_info%atm_charge(first+j-1)) ) THEN
+            atom_list(j)%atomic_kind => atomic_kind_set(k)
+            EXIT
+          END IF
+        ELSE
+          IF(atom_list(j)%name == atmname) THEN
+            atom_list(j)%atomic_kind => atomic_kind_set(k)
+            EXIT
+          END IF
         END IF
       END DO
     END DO
+    CALL set_molecule_kind(molecule_kind=molecule_kind,atom_list=atom_list)
   END DO
 
 
