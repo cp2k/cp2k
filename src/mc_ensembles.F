@@ -523,7 +523,7 @@ CONTAINS
                      ELSE
 ! pick a molecule in the box
                         CALL find_mc_test_molecule(force_env,mol,&
-                           box_number,nchain(:),box=ibox)
+                           box_number,nchain(:),box=ibox,error=error)
 
 ! choose if we're changing a bond length or an angle
                         CALL RANDOM_NUMBER(rand)
@@ -551,7 +551,7 @@ CONTAINS
 ! particles
                      move_type='trans'
                      CALL find_mc_test_molecule(force_env,mol,box_number,&
-                        nchain(:))
+                        nchain(:),error=error)
                      box_flag(box_number)=1
                      CALL mc_molecule_translation(mc_par(box_number)%mc_par,&
                         force_env(box_number)%force_env,&
@@ -564,7 +564,7 @@ CONTAINS
 ! rotate a whole molecule in the system
                      move_type='rot'
                      CALL find_mc_test_molecule(force_env,mol,box_number,&
-                        nchain(:))
+                        nchain(:),error=error)
                      box_flag(box_number)=1
                      CALL mc_molecule_rotation(mc_par(box_number)%mc_par,&
                         force_env(box_number)%force_env,&

@@ -1158,7 +1158,7 @@ END SUBROUTINE rotate_water_molecule
 !!     MJM
 !!
 !!*****************************************************************************
-SUBROUTINE find_mc_test_molecule(force_env,mol_number,box_number,nchain,box)
+SUBROUTINE find_mc_test_molecule(force_env,mol_number,box_number,nchain,box,error)
 
     TYPE(force_env_p_type), DIMENSION(:), &
       POINTER                                :: force_env
@@ -1166,13 +1166,14 @@ SUBROUTINE find_mc_test_molecule(force_env,mol_number,box_number,nchain,box)
     INTEGER, INTENT(OUT)                     :: box_number
     INTEGER, INTENT(IN),DIMENSION(:)         :: nchain
     INTEGER, INTENT(IN),OPTIONAL             :: box
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = "find_mc_test_molecule",&
         routineP = module_name//':'//routineN
 
     TYPE(mol_kind_new_list_p_type),DIMENSION(:),POINTER :: mol_kinds
     TYPE(cp_subsystem_pp_type),DIMENSION(:),POINTER :: subsys
-    TYPE(cp_error_type),POINTER              :: error
     TYPE(molecule_type),POINTER              :: molecule
     TYPE(mol_new_list_type),POINTER          :: molecules_new
 
@@ -1185,7 +1186,7 @@ SUBROUTINE find_mc_test_molecule(force_env,mol_number,box_number,nchain,box)
 ! begin the timing of the subroutine
       CALL timeset(routineN,'I','',handle)
 
-      NULLIFY(mol_kinds,subsys,error)
+      NULLIFY(mol_kinds,subsys)
 
       nboxes=SIZE(force_env(:))
 
