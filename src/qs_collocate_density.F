@@ -3,8 +3,6 @@
 !   Copyright (C) 2000 - 2003, 2004 CP2K developers group                           !
 !-----------------------------------------------------------------------------!
 
-#include "cp_prep_globals.h"
-
 !!****** cp2k/qs_collocate_density [1.0] *
 !!
 !!   NAME
@@ -55,21 +53,9 @@ MODULE qs_collocate_density
                                              coeff_type,&
                                              coeff_zero
   USE cp_control_types,                ONLY: dft_control_type
-  USE cp_error_handling,               ONLY: cp_a_l,&
-                                             cp_assert,&
-                                             cp_error_get_logger,&
-                                             cp_error_message,&
-                                             cp_error_type
   USE cp_fm_types,                     ONLY: cp_fm_get_element,&
                                              cp_fm_get_info,&
                                              cp_fm_type
-  USE cp_log_handling,                 ONLY: cp_failure_level,&
-                                             cp_fatal_level,&
-                                             cp_logger_get_default_unit_nr,&
-                                             cp_logger_type,&
-                                             cp_note_level,&
-                                             cp_to_string,&
-                                             cp_warning_level
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE cp_rs_pool_types,                ONLY: cp_rs_pool_p_type,&
                                              cp_rs_pool_type,&
@@ -104,7 +90,7 @@ MODULE qs_collocate_density
                                              REALSPACE,&
                                              RECIPROCALSPACE,&
                                              pw_copy,&
-                                             pw_prolongate,&
+                                             pw_prolongate_l,&
                                              pw_sumup
   USE qs_environment_types,            ONLY: get_qs_env,&
                                              qs_environment_type
@@ -138,6 +124,11 @@ MODULE qs_collocate_density
   USE timings,                         ONLY: timeset,&
                                              timestop
   USE util,                            ONLY: get_limit
+  USE pw_spline_utils, only:pw_prolongate_s3
+  USE input_constants, ONLY: pw_interp, linear_interp, spline3_pbc_interp
+  USE input_section_types, ONLY: section_vals_type, section_vals_get_subs_vals,&
+       section_vals_val_get
+#include "cp_common_uses.h"
 
   IMPLICIT NONE
 
@@ -675,6 +666,8 @@ CONTAINS
     TYPE(realspace_grid_p_type), &
       DIMENSION(:), POINTER                  :: rs_rho
     LOGICAL                                  :: distributed_rs_grids
+    TYPE(section_vals_type), POINTER :: input, interp_section
+    integer :: interp_kind
 
 !   ---------------------------------------------------------------------------
 
@@ -717,12 +710,17 @@ CONTAINS
                     particle_set=particle_set,&
                     sab_orb=sab_orb,&
                     para_env=para_env,&
+                    input=input,&
                     pw_env=pw_env)
 
     ! *** assign from pw_env
     gridlevel_info=>pw_env%gridlevel_info
     cube_info=>pw_env%cube_info
     l_info=pw_env%l_info
+
+    interp_section => section_vals_get_subs_vals(input,"DFT%MGRID%INTERPOLATOR",&
+         error=error)
+    CALL section_vals_val_get(interp_section,"KIND",i_val=interp_kind,error=error)
 
     ! *** set up the pw multi-grids 
     CPPrecondition(ASSOCIATED(pw_env),cp_failure_level,routine,error,failure)
@@ -734,7 +732,7 @@ CONTAINS
                               use_data = REALDATA3D,&
                               in_space = REALSPACE, error=error)
  
-    IF (dft_control % qs_control % realspace_mgrids) THEN
+    IF (interp_kind==linear_interp) THEN
         ALLOCATE(mgrid_temp_rspace(SIZE(pw_pools)) ,stat=stat)
         CPPostcondition(stat==0,cp_failure_level,routine,error,failure)
         CALL pw_pools_init_coeffs(pw_pools,mgrid_temp_rspace,&
@@ -1235,25 +1233,37 @@ CONTAINS
        CALL rs_pools_give_back_rs_vect(rs_pools, rs_rho, error=error)
 
        ! we want both rho and rho_gspace, the latter for Hartree and co-workers.
-       IF (dft_control % qs_control % realspace_mgrids) THEN 
-           CALL pw_copy(mgrid_rspace(gridlevel_info%ngrid_levels)%pw,mgrid_temp_rspace(gridlevel_info%ngrid_levels)%pw)
-           DO igridlevel=gridlevel_info%ngrid_levels,2,-1
-              ! prologate to the next grid and addup
-              CALL pw_prolongate(mgrid_temp_rspace(igridlevel)%pw,mgrid_temp_rspace(igridlevel-1)%pw)
-              ! add the next grid to the prolongated grid
-              CALL pw_sumup(mgrid_rspace(igridlevel-1)%pw,mgrid_temp_rspace(igridlevel-1)%pw)
-           ENDDO 
-           CALL pw_copy(mgrid_temp_rspace(1)%pw,rho%pw)
-           CALL coeff_transform_space(rho,rho_gspace)
-       ELSE
-           CALL coeff_zero(rho_gspace)
-           DO igrid_level=1,gridlevel_info%ngrid_levels
-              CALL coeff_transform_space(mgrid_rspace(igrid_level),&
-                   mgrid_gspace(igrid_level))
-              CALL coeff_sumup(mgrid_gspace(igrid_level),rho_gspace)
-           END DO
-           CALL coeff_transform_space(rho_gspace,rho)
-       ENDIF
+       SELECT CASE(interp_kind)
+       CASE(linear_interp)
+          CALL pw_copy(mgrid_rspace(gridlevel_info%ngrid_levels)%pw,mgrid_temp_rspace(gridlevel_info%ngrid_levels)%pw)
+          DO igridlevel=gridlevel_info%ngrid_levels,2,-1
+             ! prologate to the next grid and addup
+             CALL pw_prolongate_l(mgrid_temp_rspace(igridlevel)%pw,mgrid_temp_rspace(igridlevel-1)%pw)
+             ! add the next grid to the prolongated grid
+             CALL pw_sumup(mgrid_rspace(igridlevel-1)%pw,mgrid_temp_rspace(igridlevel-1)%pw)
+          ENDDO
+          CALL pw_copy(mgrid_temp_rspace(1)%pw,rho%pw)
+          CALL coeff_transform_space(rho,rho_gspace)
+       CASE(pw_interp)
+          CALL coeff_zero(rho_gspace)
+          DO igrid_level=1,gridlevel_info%ngrid_levels
+             CALL coeff_transform_space(mgrid_rspace(igrid_level),&
+                  mgrid_gspace(igrid_level))
+             CALL coeff_sumup(mgrid_gspace(igrid_level),rho_gspace)
+          END DO
+          CALL coeff_transform_space(rho_gspace,rho)
+       CASE(spline3_pbc_interp)
+          DO igrid_level=gridlevel_info%ngrid_levels,2,-1
+             CALL pw_prolongate_s3(mgrid_rspace(igrid_level)%pw,&
+                  mgrid_rspace(igrid_level-1)%pw,pw_pools(igrid_level)%pool,&
+                  interp_section,error=error)
+          END DO
+          CALL pw_copy(mgrid_rspace(1)%pw,rho%pw)
+          CALL coeff_transform_space(rho,rho_gspace)
+       CASE default
+          CALL cp_unimplemented_error(routine,"interpolator "//&
+               cp_to_string(interp_kind),error=error)
+       END SELECT
     END IF
     
     total_rho = calculate_total_rho(rho)
@@ -1559,6 +1569,7 @@ CONTAINS
   END FUNCTION calculate_total_abs_rho
 
 ! *****************************************************************************
+
   SUBROUTINE collocate_pgf_product_rspace(la_max,zeta,la_min,&
                                           lb_max,zetb,lb_min,&
                                           ra,rab,rab2,scale,pab,o1,o2,&
@@ -1758,6 +1769,8 @@ CONTAINS
 !   *** properties of the grid ***
     dr(:) = rsgrid%dr(:)
     ng(:) = rsgrid%npts(:)
+    
+! WARNING: this resets the lower bounds of grid to 1 (unlike grid => rsgrid%r)
     grid => rsgrid%r(:,:,:)
     gridbounds(1,1)=LBOUND(GRID,1)
     gridbounds(2,1)=UBOUND(GRID,1)
@@ -1779,7 +1792,7 @@ CONTAINS
 !   this is the actual definition of the position on the grid
 !   i.e. a point rp(:) gets here grid coordinates
 !   MODULO(rp(:)/dr(:),ng(:))+1
-!   hence (0.0,0.0,0.0) in real space is 1,1,1 on the grid
+!   hence (0.0,0.0,0.0) in real space is rsgrid%lb on the rsgrid ((1,1,1) on grid)
 !
 
     cubecenter(:) = FLOOR(rp(:)/dr(:))

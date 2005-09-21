@@ -51,7 +51,6 @@ MODULE cp_ddapc
                                              REALSPACE,&
                                              REALDATA3D,&
                                              RECIPROCALSPACE,&
-                                             pw_inject_NoPBC,&
                                              pw_p_type,&
                                              pw_sumup,&
                                              pw_transfer,&
@@ -379,9 +378,7 @@ CONTAINS
                 dqv(:,iparticle,j) = - ( dqv0 + MATMUL(AmI,dbv(:,j)) - c3 * MATMUL(AmI,cv) + c4 * c1 * MATMUL(AmI,cv))
              END DO
           END DO
-          IF (.NOT.PRESENT(dq_out)) THEN
-             CPPostcondition(.FALSE.,cp_failure_level,routineP,error,failure)
-          END IF
+          CPPostcondition(PRESENT(dq_out),cp_failure_level,routineP,error,failure)
           IF (.NOT.ASSOCIATED(dq_out)) THEN
              ALLOCATE(dq_out(SIZE(dqv,1),SIZE(dqv,2),SIZE(dqv,3)), stat=stat)
              CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)

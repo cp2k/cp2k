@@ -7143,7 +7143,7 @@ END SUBROUTINE create_ewald_section
        CALL keyword_create(keyword, name="safe_computation",&
             description="if a non unrolled calculation is to be performed in parallel",&
             usage="safe_computation OFF",&
-            default_l_val=.true.,&
+            default_l_val=.FALSE.,&
             lone_keyword_l_val=.TRUE.,&
             error=error)
        CALL section_add_keyword(section,keyword,error=error)
@@ -7153,9 +7153,11 @@ END SUBROUTINE create_ewald_section
             description="the approximate inverse to use to get the starting point"//&
             " for the linear solver of the spline3 methods",&
             usage="kind spline3",&
-            default_i_val=pw_interp,&
-            enum_c_vals=s2a( "copy","spl3_nopbc_aint","spl3_nopbc_precond1"),&
-            enum_i_vals=(/no_precond,precond_spl3_aint, precond_spl3_1/),&
+            default_i_val=precond_spl3_aint,&
+            enum_c_vals=s2a( "copy","spl3_nopbc_aint1","spl3_nopbc_precond1",&
+            "spl3_nopbc_aint2","spl3_nopbc_precond2","spl3_nopbc_precond3"),&
+            enum_i_vals=(/no_precond,precond_spl3_aint, precond_spl3_1,&
+            precond_spl3_aint2, precond_spl3_2, precond_spl3_3/),&
             error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
@@ -7164,9 +7166,11 @@ END SUBROUTINE create_ewald_section
             description="The preconditioner used"//&
             " for the linear solver of the spline3 methods",&
             usage="kind spline3",&
-            default_i_val=pw_interp,&
-            enum_c_vals=s2a("copy","spl3_nopbc_aint","spl3_nopbc_precond1"),&
-            enum_i_vals=(/no_precond,precond_spl3_aint, precond_spl3_1/),&
+            default_i_val=precond_spl3_3,&
+            enum_c_vals=s2a("copy","spl3_nopbc_aint1","spl3_nopbc_precond1",&
+            "spl3_nopbc_aint2","spl3_nopbc_precond2","spl3_nopbc_precond3"),&
+            enum_i_vals=(/no_precond,precond_spl3_aint, precond_spl3_1,&
+            precond_spl3_aint2, precond_spl3_2, precond_spl3_3/),&
             error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
@@ -8179,13 +8183,24 @@ END SUBROUTINE create_ewald_section
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
+       CALL keyword_create(keyword, name="safe_computation",&
+            description="if a non unrolled calculation is to be performed in parallel",&
+            usage="safe_computation OFF",&
+            default_l_val=.FALSE.,&
+            lone_keyword_l_val=.TRUE.,&
+            error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
        CALL keyword_create(keyword, name="aint_precond",&
             description="the approximate inverse to use to get the starting point"//&
             " for the linear solver of the spline3 methods",&
             usage="aint_precond copy",&
-            default_i_val=no_precond,&
-            enum_c_vals=s2a( "copy","spl3_nopbc_aint","spl3_nopbc_precond1"),&
-            enum_i_vals=(/no_precond,precond_spl3_aint, precond_spl3_1/),&
+            default_i_val=precond_spl3_aint,&
+            enum_c_vals=s2a( "copy","spl3_nopbc_aint1","spl3_nopbc_aint2",&
+            "spl3_nopbc_precond1","spl3_nopbc_precond2","spl3_nopbc_precond3"),&
+            enum_i_vals=(/no_precond,precond_spl3_aint, precond_spl3_aint2,&
+            precond_spl3_1,precond_spl3_2,precond_spl3_3/),&
             error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
@@ -8194,9 +8209,11 @@ END SUBROUTINE create_ewald_section
             description="The preconditioner used"//&
             " for the linear solver of the spline3 methods",&
             usage="PRECOND copy",&
-            default_i_val=no_precond,&
-            enum_c_vals=s2a("copy","spl3_nopbc_aint","spl3_nopbc_precond1"),&
-            enum_i_vals=(/no_precond,precond_spl3_aint, precond_spl3_1/),&
+            default_i_val=precond_spl3_3,&
+            enum_c_vals=s2a( "copy","spl3_nopbc_aint1","spl3_nopbc_aint2",&
+            "spl3_nopbc_precond1","spl3_nopbc_precond2","spl3_nopbc_precond3"),&
+            enum_i_vals=(/no_precond,precond_spl3_aint, precond_spl3_aint2,&
+            precond_spl3_1,precond_spl3_2,precond_spl3_3/),&
             error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)

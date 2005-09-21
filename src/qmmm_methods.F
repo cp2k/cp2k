@@ -70,11 +70,11 @@ MODULE qmmm_methods
                                              pw_pool_type,&
                                              pw_pools_create_pws,&
                                              pw_pools_give_back_pws
-  USE pw_spline_utils,                 ONLY: pw_inject_s3,&
-                                             pw_project_s3
+  USE pw_spline_utils,                 ONLY: pw_prolongate_s3,&
+                                             pw_restrict_s3
   USE pw_types,                        ONLY: REALDATA3D,&
                                              REALSPACE,&
-                                             pw_inject_NoPBC,&
+                                             pw_restrict_l_NoPBC,&
                                              pw_p_type,&
                                              pw_sumup,&
                                              pw_transfer,&
@@ -693,7 +693,7 @@ CONTAINS
     CASE(linear_interp)
        ! Linear Interpolator
        DO Igrid = auxbas_grid, SIZE(grids)-1
-          CALL pw_inject_NoPBC(grids(Igrid  ) % pw,&
+          CALL pw_restrict_l_NoPBC(grids(Igrid  ) % pw,&
                                grids(Igrid+1) % pw,&
                                error)
           grids(igrid+1) % pw % cr3d = grids(igrid+1) % pw % cr3d / REAL(8,dp)
@@ -701,7 +701,7 @@ CONTAINS
     CASE(spline3_nopbc_interp, spline3_pbc_interp)
        ! Spline Interpolator       
        DO Igrid =  auxbas_grid, SIZE(grids)-1
-          CALL pw_project_s3(grids(Igrid  ) % pw,&
+          CALL pw_restrict_s3(grids(Igrid  ) % pw,&
                              grids(Igrid+1) % pw,&
                              aug_pools(Igrid+1)%pool,&
                              param_section=interp_section,&

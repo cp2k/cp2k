@@ -68,8 +68,8 @@ MODULE pw_types
   PUBLIC :: pw_zero, pw_gather, pw_scatter
   PUBLIC :: pw_copy, pw_add, pw_sumup, pw_subtract, pw_reduce, pw_transfer, pw_scale
   PUBLIC :: pw_derive, pw_derive_fd, pw_sumup_square, pw_fft_wrap, pw_write
-  PUBLIC :: pw_prolongate, pw_inject, pw_compare_debug
-  PUBLIC :: pw_prolongate_NoPBC, pw_inject_NoPBC
+  PUBLIC :: pw_prolongate_l, pw_restrict_l, pw_compare_debug
+  PUBLIC :: pw_prolongate_l_NoPBC, pw_restrict_l_NoPBC
   PUBLIC :: REALDATA1D, COMPLEXDATA1D, REALDATA3D, COMPLEXDATA3D, NODATA
   PUBLIC :: NOSPACE, REALSPACE, RECIPROCALSPACE
 
@@ -965,7 +965,7 @@ END SUBROUTINE pw_derive_fd
 !          prolongates the values of a coarse grid to a fine grid
 !          uses simple linear interpolation
 ! ******************************************************************************
-SUBROUTINE pw_prolongate(pw_coarse, pw_fine )
+SUBROUTINE pw_prolongate_l(pw_coarse, pw_fine )
 
     TYPE(pw_type), INTENT(IN)                :: pw_coarse
     TYPE(pw_type), INTENT(INOUT)             :: pw_fine
@@ -1097,16 +1097,16 @@ SUBROUTINE pw_prolongate(pw_coarse, pw_fine )
   DEALLOCATE(wrapx,wrapy,wrapz)
   CALL timestop ( 0.0_dp, handle )
 
-END SUBROUTINE pw_prolongate
+END SUBROUTINE pw_prolongate_l
 
 
 ! ******************************************************************************
-!          injectes the values of a fine grid to a coarse grid
+!          restrictes the values of a fine grid to a coarse grid
 !          uses simple linear interpolation, and is the 'inverse' of the pw_prolongate
 !          i.e. read prolongate backwards
 !          xx WARNING xx for efficiency reasons, pw_fine gets destroyed ! sorry...
 ! ******************************************************************************
-SUBROUTINE pw_inject(pw_fine, pw_coarse )
+SUBROUTINE pw_restrict_l(pw_fine, pw_coarse )
 
     TYPE(pw_type), INTENT(INOUT)             :: pw_fine, pw_coarse
 
@@ -1115,25 +1115,25 @@ SUBROUTINE pw_inject(pw_fine, pw_coarse )
     INTEGER, DIMENSION(3)                    :: lb, n, ub
     REAL(KIND=dp)                           :: dum
 
-  CALL timeset ( 'pw_inject', 'I', '', handle )
-  CPPreconditionNoErr(pw_fine%ref_count>0,cp_failure_level,"pw_inject")
-  CPPreconditionNoErr(pw_coarse%ref_count>0,cp_failure_level,"pw_inject")
+  CALL timeset ( 'pw_restrict', 'I', '', handle )
+  CPPreconditionNoErr(pw_fine%ref_count>0,cp_failure_level,"pw_restrict")
+  CPPreconditionNoErr(pw_coarse%ref_count>0,cp_failure_level,"pw_restrict")
 
   ! only cr3d supported
   IF ( pw_coarse % in_space /= REALSPACE .OR.  pw_coarse % in_use /= REALDATA3D ) THEN
-     CALL stop_program("pw_inject","wrong pw type (I)")
+     CALL stop_program("pw_restrict","wrong pw type (I)")
   ENDIF
   ! only cr3d supported
   IF ( pw_fine % in_space /= REALSPACE .OR.  pw_fine % in_use /= REALDATA3D ) THEN
-     CALL stop_program("pw_inject","wrong pw type (II)")
+     CALL stop_program("pw_restrict","wrong pw type (II)")
   ENDIF
   ! only local for the time being
   IF ( pw_coarse % pw_grid % para % mode /= PW_MODE_LOCAL ) THEN
-     CALL stop_program("pw_inject","sorry local only")
+     CALL stop_program("pw_restrict","sorry local only")
   ENDIF
   ! only for the easiest case
   IF ( ANY(pw_coarse % pw_grid % npts * 2 .NE. pw_fine % pw_grid % npts )) THEN
-     CALL stop_program("pw_inject","sorry too difficult ")
+     CALL stop_program("pw_restrict","sorry too difficult ")
   ENDIF
   n   = pw_coarse % pw_grid % npts
   lb  = pw_coarse % pw_grid % bounds_local(1,:)
@@ -1241,7 +1241,7 @@ SUBROUTINE pw_inject(pw_fine, pw_coarse )
   DEALLOCATE(wrapx,wrapy,wrapz)
   CALL timestop ( 0.0_dp, handle )
 
-END SUBROUTINE pw_inject
+END SUBROUTINE pw_restrict_l
 
 !******************************************************************************
 !!****** pw_types/pw_transfer [1.0] *
@@ -3238,10 +3238,10 @@ SUBROUTINE pw_compare_debug(pw1,pw2,maxdiff,error)
 END SUBROUTINE pw_compare_debug
 !***************************************************************************
 
-!!****f* pw_types/pw_prolongate_NoPBC [1.0] *
+!!****f* pw_types/pw_prolongate_l_NoPBC [1.0] *
 !!
 !!   NAME
-!!     pw_prolongate_NoPBC
+!!     pw_prolongate_l_NoPBC
 !!
 !!   FUNCTION
 !!     Prolongates the values of a pw_type coarse grid to a pw_type fine grid
@@ -3261,14 +3261,14 @@ END SUBROUTINE pw_compare_debug
 !!     07.2004 created [tlaino]
 !!
 !!**************************************************************************
-  SUBROUTINE pw_prolongate_NoPBC(pw_coarse, pw_fine, error)
+  SUBROUTINE pw_prolongate_l_NoPBC(pw_coarse, pw_fine, error)
     ! Arguments
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
     TYPE(pw_type), POINTER       :: pw_coarse
     TYPE(pw_type), POINTER       :: pw_fine
     ! Local Variables
-    CHARACTER(len=*), PARAMETER :: routineN = 'pw_prolongate_NoPBC', &
+    CHARACTER(len=*), PARAMETER :: routineN = 'pw_prolongate_l_NoPBC', &
          routineP = moduleN//':'//routineN
     LOGICAL                                  :: failure
     INTEGER                                  :: handle, i, j, k, stat
@@ -3276,13 +3276,13 @@ END SUBROUTINE pw_compare_debug
     REAL(KIND=dp), DIMENSION(:,:,:), ALLOCATABLE :: tgr 
 
 
-    CALL timeset ( 'pw_prolongate_NoPBC', 'I', '', handle )
-    CPPreconditionNoErr(pw_coarse%ref_count>0,cp_failure_level,"pw_prolongate_NoPBC")
-    CPPreconditionNoErr(pw_fine%ref_count>0,cp_failure_level,"pw_prolongate_NoPBC")
+    CALL timeset ( 'pw_prolongate_l_NoPBC', 'I', '', handle )
+    CPPreconditionNoErr(pw_coarse%ref_count>0,cp_failure_level,"pw_prolongate_l_NoPBC")
+    CPPreconditionNoErr(pw_fine%ref_count>0,cp_failure_level,"pw_prolongate_l_NoPBC")
   
     ! only for the easiest case 
     IF ( ANY((pw_coarse % pw_grid % npts -1)* 2 .NE. (pw_fine % pw_grid % npts -1))) THEN
-       CALL stop_program("pw_prolongate_NoPBC","sorry too difficult ")
+       CALL stop_program("pw_prolongate_l_NoPBC","sorry too difficult ")
     ENDIF
     !WRITE(*,*)'coarse grid points  : ',pw_coarse % pw_grid% npts
     !WRITE(*,*)'       upper bounds : ',pw_coarse % pw_grid% bounds(2,:)
@@ -3381,17 +3381,17 @@ END SUBROUTINE pw_compare_debug
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     CALL timestop ( 0.0_dp, handle )    
 
-  END SUBROUTINE pw_prolongate_NoPBC
+  END SUBROUTINE pw_prolongate_l_NoPBC
 
-!!****f* pw_types/pw_inject_NoPBC [1.0] *
+!!****f* pw_types/pw_restrict_l_NoPBC [1.0] *
 !!
 !!   NAME
-!!     pw_inject_NoPBC
+!!     pw_restrict_l_NoPBC
 !!
 !!   FUNCTION
-!!     Injectes the values of a fine pw_type grid to a coarse pw_type grid
+!!     Restrictes the values of a fine pw_type grid to a coarse pw_type grid
 !!     uses simple linear interpolation, and is the 'inverse' of the 
-!!     rs_prolongate_NoPBC
+!!     rs_prolongate_l_NoPBC
 !!
 !!   NOTES
 !!     -
@@ -3407,14 +3407,14 @@ END SUBROUTINE pw_compare_debug
 !!     07.2004 created [tlaino]
 !!
 !!**************************************************************************
-  SUBROUTINE pw_inject_NoPBC(pw_fine, pw_coarse, error)
+  SUBROUTINE pw_restrict_l_NoPBC(pw_fine, pw_coarse, error)
     ! Arguments
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                                :: error
     TYPE(pw_type), POINTER        :: pw_fine
     TYPE(pw_type), POINTER        :: pw_coarse
     ! Local Variables
-    CHARACTER(len=*), PARAMETER :: routineN = 'pw_inject_NoPBC', &
+    CHARACTER(len=*), PARAMETER :: routineN = 'pw_restrict_NoPBC', &
          routineP = moduleN//':'//routineN
     LOGICAL                                   :: failure
     INTEGER                                   :: handle, i, j, k, stat
@@ -3422,13 +3422,13 @@ END SUBROUTINE pw_compare_debug
     REAL(KIND=dp)                            :: dum
     REAL(KIND=dp), DIMENSION(:,:,:), ALLOCATABLE :: tgr 
 
-    CALL timeset ( 'pw_inject_NoPBC', 'I', '', handle )
-    CPPreconditionNoErr(pw_fine%ref_count>0,cp_failure_level,"pw_inject_NoPBC")
-    CPPreconditionNoErr(pw_coarse%ref_count>0,cp_failure_level,"pw_inject_NoPBC")
+    CALL timeset ( 'pw_restrict_l_NoPBC', 'I', '', handle )
+    CPPreconditionNoErr(pw_fine%ref_count>0,cp_failure_level,"pw_restrict_l_NoPBC")
+    CPPreconditionNoErr(pw_coarse%ref_count>0,cp_failure_level,"pw_restrict_l_NoPBC")
 
     ! only for the easiest case
     IF ( ANY((pw_coarse % pw_grid % npts - 1 )* 2 .NE. (pw_fine % pw_grid % npts -1))) THEN
-       CALL stop_program("pw_inject_NoPBC","sorry too difficult ")
+       CALL stop_program("pw_restrict_l_NoPBC","sorry too difficult ")
     ENDIF
     lb  = pw_fine % pw_grid % bounds(1,:)
     ub  = pw_fine % pw_grid % bounds(2,:)
@@ -3523,7 +3523,7 @@ END SUBROUTINE pw_compare_debug
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     CALL timestop ( 0.0_dp, handle )
     
-  END SUBROUTINE pw_inject_NoPBC
+  END SUBROUTINE pw_restrict_l_NoPBC
 
 END MODULE pw_types
 

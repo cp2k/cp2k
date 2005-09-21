@@ -404,7 +404,10 @@ CONTAINS
     my_ncol = matrix%matrix_struct%ncol_global
     IF (PRESENT(ncol)) my_ncol=ncol
     n = matrix%matrix_struct%nrow_global
-    CPPostcondition(matrix%matrix_struct%ncol_global>=(my_start_col+my_ncol-1),cp_failure_level,routineP,error,failure)
+    call cp_assert(matrix%matrix_struct%ncol_global>=(my_start_col+my_ncol-1),&
+         cp_failure_level,cp_assertion_failed,routineP,&
+         "matrix%matrix_struct%ncol_global>=(my_start_col+my_ncol-1)",&
+         error,failure)
     ALLOCATE(buff(n,1))
     DO icol=my_start_col, my_start_col+my_ncol-1
        IF (matrix%matrix_struct%para_env%mepos.eq.0) THEN

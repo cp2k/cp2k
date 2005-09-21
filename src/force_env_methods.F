@@ -206,7 +206,9 @@ RECURSIVE SUBROUTINE force_env_calc_energy_force ( force_env, &
         CPPrecondition(ASSOCIATED(force_env%force_env_list),cp_failure_level, routineP,error,failure)
         IF (.NOT.failure) THEN
            DO i = 1, SIZE (force_env%force_env_list)
-              CPPrecondition(ASSOCIATED(force_env%force_env_list(i)%force_env),cp_failure_level,routineP,error,failure)
+              call cp_assert(ASSOCIATED(force_env%force_env_list(i)%force_env),&
+                   cp_failure_level,cp_assertion_failed,routineP,&
+                   "ASSOCIATED(force_env%force_env_list(i)%force_env)",error,failure)
               CALL force_env_calc_energy_force(force_env%force_env_list(i)%force_env, &
                                                calc_force=need_f, error=error)
            END DO

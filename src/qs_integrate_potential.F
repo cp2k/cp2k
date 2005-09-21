@@ -3,8 +3,6 @@
 !   Copyright (C) 2000 - 2003 CP2K developers group                           !
 !-----------------------------------------------------------------------------!
 
-#include "cp_prep_globals.h"
-
 !!****** cp2k/qs_integrate_potential [1.0] *
 !!
 !!   NAME
@@ -48,20 +46,6 @@ MODULE qs_integrate_potential
                                              coeff_transform_space,&
                                              coeff_type
   USE cp_control_types,                ONLY: dft_control_type
-  USE cp_error_handling,               ONLY: cp_a_l,&
-                                             cp_assert,&
-                                             cp_debug,&
-                                             cp_error_get_logger,&
-                                             cp_error_message,&
-                                             cp_error_type
-  USE cp_log_handling,                 ONLY: cp_failure_level,&
-                                             cp_fatal_level,&
-                                             cp_log,&
-                                             cp_logger_get_default_unit_nr,&
-                                             cp_logger_type,&
-                                             cp_note_level,&
-                                             cp_to_string,&
-                                             cp_warning_level
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE cp_rs_pool_types,                ONLY: cp_rs_pool_p_type,&
                                              cp_rs_pool_type,&
@@ -92,7 +76,8 @@ MODULE qs_integrate_potential
                                              REALDATA3D,&
                                              REALSPACE,&
                                              RECIPROCALSPACE, &
-                                             pw_inject
+                                             pw_restrict_l,&
+                                             pw_copy, pw_zero
   USE qs_environment_types,            ONLY: get_qs_env,&
                                              qs_environment_type
   USE qs_force_types,                  ONLY: qs_force_type
@@ -128,6 +113,11 @@ MODULE qs_integrate_potential
   USE timings,                         ONLY: timeset,&
                                              timestop
   USE util,                            ONLY: get_limit
+  USE input_constants, ONLY: pw_interp, linear_interp, spline3_pbc_interp
+  USE pw_spline_utils, only: pw_restrict_s3
+  USE input_section_types, ONLY: section_vals_type, section_vals_get_subs_vals,&
+       section_vals_val_get
+#include "cp_common_uses.h"
 
   IMPLICIT NONE
 
@@ -363,6 +353,8 @@ CONTAINS
     TYPE(l_info_type)                        :: l_info
     TYPE(cube_info_type), DIMENSION(:), &
       POINTER                                :: cube_info
+    TYPE(section_vals_type), POINTER         :: input, interp_section
+    integer :: interp_kind
 
 !   ---------------------------------------------------------------------------
     failure=.FALSE.
@@ -399,7 +391,12 @@ CONTAINS
                     particle_set=particle_set,&
                     sab_orb=sab_orb,&
                     para_env=para_env,&
+                    input=input,&
                     force=force,pw_env=pw_env)
+
+    interp_section => section_vals_get_subs_vals(input,"DFT%MGRID%INTERPOLATOR",&
+         error=error)
+    CALL section_vals_val_get(interp_section,"KIND",i_val=interp_kind,error=error)
 
     ! *** set up of the potential on the multigrids
     CPPrecondition(ASSOCIATED(pw_env),cp_failure_level,routine,error,failure)
@@ -418,7 +415,8 @@ CONTAINS
     l_info=pw_env%l_info
 
     ! use either realspace or fft techniques to get the potential on the rs multigrids
-    IF ( dft_control % qs_control % realspace_mgrids ) THEN
+    SELECT CASE(interp_kind)
+    CASE(linear_interp)
        ALLOCATE(mgrid_temp_rspace(SIZE(pw_pools)),stat=stat)
        CPPostcondition(stat==0,cp_failure_level,routine,error,failure)
        CALL pw_pools_init_coeffs(pw_pools,mgrid_temp_rspace,&
@@ -427,14 +425,14 @@ CONTAINS
        CALL coeff_copy(v_rspace,mgrid_temp_rspace(1))
        CALL coeff_copy(v_rspace,mgrid_rspace(1))
        DO igrid_level=2,gridlevel_info%ngrid_levels
-          CALL pw_inject(mgrid_temp_rspace(igrid_level-1)%pw,mgrid_rspace(igrid_level)%pw)
+          CALL pw_restrict_l(mgrid_temp_rspace(igrid_level-1)%pw,mgrid_rspace(igrid_level)%pw)
           CALL coeff_copy(mgrid_rspace(igrid_level),mgrid_temp_rspace(igrid_level))
        ENDDO
        CALL pw_pools_give_back_coeffs(pw_pools,mgrid_temp_rspace,&
                                       error=error)
        DEALLOCATE(mgrid_temp_rspace,stat=stat)
        CPPostcondition(stat==0,cp_failure_level,routine,error,failure)
-    ELSE
+    CASE (pw_interp)
        ALLOCATE(mgrid_gspace(SIZE(pw_pools)),stat=stat)
        CPPostcondition(stat==0,cp_failure_level,routine,error,failure)
        CALL pw_pools_init_coeffs(pw_pools,mgrid_gspace,&
@@ -466,7 +464,21 @@ CONTAINS
                                       error=error)
        DEALLOCATE(mgrid_gspace,stat=stat)
        CPPostcondition(stat==0,cp_failure_level,routine,error,failure)
-    ENDIF
+    CASE(spline3_pbc_interp)
+       CALL pw_copy(v_rspace%pw,mgrid_rspace(1)%pw)
+       DO igrid_level=1,gridlevel_info%ngrid_levels-1
+          CALL pw_zero(mgrid_rspace(igrid_level+1)%pw)
+          CALL pw_restrict_s3(mgrid_rspace(igrid_level)%pw,&
+               mgrid_rspace(igrid_level+1)%pw,pw_pools(igrid_level+1)%pool,&
+               interp_section,error=error)
+          ! *** Multiply by the grid volume element ratio
+          workt => mgrid_rspace(igrid_level+1) % pw % cr3d
+          workt = workt * 8._dp
+       END DO
+    CASE default
+       CALL cp_unimplemented_error(routine,"interpolation not supported "//&
+            cp_to_string(interp_kind),error=error)
+    END SELECT
 
     CALL pw_env_get(pw_env, rs_pools=rs_pools)
     CALL rs_pools_create_rs_vect(rs_pools, rs_v)

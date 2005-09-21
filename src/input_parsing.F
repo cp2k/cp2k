@@ -607,7 +607,9 @@ SUBROUTINE val_create_parsing(val,type_of_var, n_var,enum,&
                        IF ('STR'==parser_test_next_token(parser,error=error)) THEN
                           CALL parser_get_object(parser,c_val,error=error)
                           CPPrecondition(c_val(1:1)=="[",cp_failure_level,routineP,error,failure)
-                          CPPrecondition(c_val(LEN_TRIM(c_val):LEN_TRIM(c_val))=="]",cp_failure_level,routineP,error,failure)
+                          call cp_assert(c_val(LEN_TRIM(c_val):LEN_TRIM(c_val))=="]",&
+                               cp_failure_level,cp_assertion_failed,routineP,&
+                               "expected ']' not found",error,failure)
                           CALL cp_unit_release(my_unit,error=error)
                           CALL cp_unit_create(my_unit,c_val(2:LEN_TRIM(c_val)-1),&
                                error=error)

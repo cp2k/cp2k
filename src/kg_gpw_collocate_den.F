@@ -83,8 +83,8 @@ MODULE kg_gpw_collocate_den
                                              REALSPACE,&
                                              RECIPROCALSPACE,&
                                              pw_copy,&
-                                             pw_inject,&
-                                             pw_prolongate,&
+                                             pw_restrict_l,&
+                                             pw_prolongate_l,&
                                              pw_sumup
   USE qs_collocate_density,            ONLY: calculate_total_rho,&
                                              collocate_pgf_product_rspace,&
@@ -655,7 +655,7 @@ CONTAINS
            CALL pw_copy(mgrid_rspace(gridlevel_info%ngrid_levels)%pw,mgrid_temp_rspace(gridlevel_info%ngrid_levels)%pw)
            DO igridlevel=gridlevel_info%ngrid_levels,2,-1
               ! prologate to the next grid and addup
-              CALL pw_prolongate(mgrid_temp_rspace(igridlevel)%pw,mgrid_temp_rspace(igridlevel-1)%pw)
+              CALL pw_prolongate_l(mgrid_temp_rspace(igridlevel)%pw,mgrid_temp_rspace(igridlevel-1)%pw)
               ! add the next grid to the prolongated grid
               CALL pw_sumup(mgrid_rspace(igridlevel-1)%pw,mgrid_temp_rspace(igridlevel-1)%pw)
            ENDDO 
@@ -857,7 +857,7 @@ CONTAINS
        CALL coeff_copy(vxc_mol,mgrid_temp_rspace(1))
        CALL coeff_copy(vxc_mol,mgrid_rspace(1))
        DO igrid_level=2,gridlevel_info%ngrid_levels
-          CALL pw_inject(mgrid_temp_rspace(igrid_level-1)%pw,mgrid_rspace(igrid_level)%pw)
+          CALL pw_restrict_l(mgrid_temp_rspace(igrid_level-1)%pw,mgrid_rspace(igrid_level)%pw)
           CALL coeff_copy(mgrid_rspace(igrid_level),mgrid_temp_rspace(igrid_level))
        ENDDO
        CALL pw_pools_give_back_coeffs(pw_pools,mgrid_temp_rspace,&

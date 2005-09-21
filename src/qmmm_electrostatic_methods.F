@@ -49,15 +49,16 @@ MODULE qmmm_electrostatic_methods
                                              pw_pools_give_back_pws,&
                                              pw_pool_create_pw,&
                                              pw_pool_give_back_pw
-  USE pw_spline_utils,                 ONLY: pw_inject_s3, spl3_nopbct,&
+  USE pw_spline_utils,                 ONLY: pw_prolongate_s3, spl3_nopbct,&
        spl3_1d_transf_coeffs,spl3_1d_transf_border1, add_fine2coarse
-  USE pw_types,                        ONLY: REALDATA3D,&
-                                             REALSPACE,&
+  USE pw_types,                        ONLY: REALDATA3D,RECIPROCALSPACE,&
+                                             REALSPACE,COMPLEXDATA1D,&
                                              pw_p_type,&
-                                             pw_prolongate_NoPBC,&
+                                             pw_prolongate_l_NoPBC,&
                                              pw_type,&
                                              pw_zero,&
-                                             pw_compare_debug
+                                             pw_compare_debug,&
+                                             pw_transfer,pw_sumup
   USE qmmm_gaussian_types,             ONLY: qmmm_gaussian_p_type,&
                                              qmmm_gaussian_type
   USE qmmm_types,                      ONLY: qmmm_env_qm_type,&
@@ -73,7 +74,7 @@ MODULE qmmm_electrostatic_methods
                                              timestop
   USE simulation_cell,                 ONLY: cell_type,&
                                              pbc
-  USE message_passing, only: mp_stop
+  USE message_passing, ONLY: mp_stop, mp_sync
   USE machine, only: m_flush
 #include "cp_common_uses.h"
   IMPLICIT NONE
@@ -471,7 +472,7 @@ CONTAINS
 
     INTEGER                                  :: handle, igrid, ilevel, lb(3), &
                                                 ngrids, ub(3), kind_interp,gbo(2,3),&
-                                                jgrid,kgrid
+                                                jgrid,kgrid,handle2
     LOGICAL                                  :: failure
     TYPE(pw_p_type), DIMENSION(:), POINTER   :: grids
     TYPE(pw_type), POINTER   :: tmp_grid, tmp_grid2,tmp_grid3
@@ -519,19 +520,47 @@ CONTAINS
     CASE(linear_interp)
        ! Linear Interpolator
        DO Ilevel = coarser_grid, auxbas_grid+1, -1
-          CALL pw_prolongate_NoPBC(grids(Ilevel  )%pw,&
+          CALL pw_prolongate_l_NoPBC(grids(Ilevel  )%pw,&
                                    grids(Ilevel-1)%pw,&
                                    error)
        END DO
     CASE(spline3_nopbc_interp, spline3_pbc_interp)
        ! Spline Iterpolator
+       call mp_sync(para_env%group)
+       CALL timeset("spline3Int","I","",handle2)
        DO Ilevel = coarser_grid, auxbas_grid+1, -1
-          CALL pw_inject_s3(grids(Ilevel  )%pw,&
+          CALL pw_prolongate_s3(grids(Ilevel  )%pw,&
                             grids(Ilevel-1)%pw,&
                             aug_pools(Ilevel)%pool,&
                             param_section=interp_section,&
                             error=error)
        END DO
+       CALL timestop(0._dp,handle2)
+!FM       CALL timeset("PWInt","I","",handle2)
+!FM       CALL pw_pool_create_pw(pw_pools(auxbas_grid)%pool,tmp_grid,&
+!FM            in_space=RECIPROCALSPACE,use_data=COMPLEXDATA1D,error=error)
+!FM       CALL pw_zero(tmp_grid)
+!FM       DO igrid=auxbas_grid,coarser_grid
+!FM          CALL pw_pool_create_pw(pw_pools(igrid)%pool,tmp_grid2,&
+!FM               in_space=RECIPROCALSPACE,use_data=COMPLEXDATA1D,error=error)
+!FM          CALL pw_pool_create_pw(pw_pools(igrid)%pool,tmp_grid3,&
+!FM               in_space=REALSPACE,use_data=REALDATA3D,error=error)
+!FM          CALL pw_transfer(tmp_grid3,tmp_grid2)
+!FM          CALL pw_sumup(tmp_grid2,tmp_grid)
+!FM          CALL pw_pool_give_back_pw(pw_pools(igrid)%pool,tmp_grid2,&
+!FM               error=error)
+!FM          CALL pw_pool_give_back_pw(pw_pools(igrid)%pool,tmp_grid3,&
+!FM               error=error)
+!FM       END DO
+!FM       CALL pw_pool_create_pw(pw_pools(auxbas_grid)%pool,tmp_grid3,&
+!FM            in_space=REALSPACE,use_data=REALDATA3D,error=error)
+!FM       CALL pw_transfer(tmp_grid,tmp_grid3)
+!FM       CALL pw_pool_give_back_pw(pw_pools(auxbas_grid)%pool,tmp_grid,&
+!FM            error=error)
+!FM       CALL pw_pool_give_back_pw(pw_pools(auxbas_grid)%pool,tmp_grid3,&
+!FM            error=error)
+!FM       CALL timestop(0._dp,handle2)
+
     CASE DEFAULT
        CPPrecondition(.FALSE.,cp_failure_level,routineP,error,failure)
     END SELECT
