@@ -699,7 +699,6 @@ SUBROUTINE nhc_particle_setup ( simpar, local_molecules, molecule_set, &
 
 ! We know the total number of system thermostats. 
 
-    WRITE ( *, * ) 'SUM', sum_of_thermostats, noneflag, nhc % dis_type
     IF ( ( sum_of_thermostats == 1 ) .AND. ( .NOT. noneflag ) .AND. &
        ( .NOT. nhc % dis_type == 'DIS_REP' ) ) THEN
      nhc % nvt ( 1, 1 ) % nkt = simpar % temp_ext * ( nhc % s_kin ( 1 ) - &
