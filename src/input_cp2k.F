@@ -8090,6 +8090,13 @@ END SUBROUTINE create_ewald_section
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
+       CALL keyword_create(keyword, name="realspace",&
+            description="If both rho and rho_gspace are needed ",&
+            usage="realspace", default_l_val=.FALSE.,&
+            lone_keyword_l_val=.TRUE.,error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
        CALL keyword_create(keyword, name="REL_CUTOFF",&
             variants=(/"RELATIVE_CUTOFF"/),&
             description="Determines the grid at which a Gaussian is mapped,"//&

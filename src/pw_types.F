@@ -173,7 +173,7 @@ SUBROUTINE pw_allocate ( pw, pw_grid, use_data, mass_flag, cr3d_ptr, error )
 
 !------------------------------------------------------------------------------
 
-  CALL timeset(routineN,"I","",handle)
+  CALL timeset(routineN,"I"," ",handle)
   logger => cp_error_get_logger(error)
   IF (debug_this_module) THEN
      WRITE (cp_logger_get_default_unit_nr(logger),"('*** allocated pw ***')")
@@ -296,7 +296,7 @@ SUBROUTINE pw_deallocate ( pw )
 
 !------------------------------------------------------------------------------
 
-  CALL timeset(routineN,"I","",handle)
+  CALL timeset(routineN,"I"," ",handle)
   allocated_pw_count = allocated_pw_count - 1
   IF ( pw % in_use == REALDATA1D ) THEN
      DEALLOCATE ( pw % cr, STAT = allocstat )
@@ -991,9 +991,11 @@ SUBROUTINE pw_prolongate(pw_coarse, pw_fine )
      CALL stop_program("pw_prolongate","sorry local only")
   ENDIF
   ! only for the easiest case 
+
   IF ( ANY(pw_coarse % pw_grid % npts * 2 .NE. pw_fine % pw_grid % npts )) THEN
      CALL stop_program("pw_prolongate","sorry too difficult ")
   ENDIF
+
   ! we use the bounds of the smaller grid
   n   = pw_coarse % pw_grid % npts
   lb  = pw_coarse % pw_grid % bounds_local(1,:)
@@ -2445,7 +2447,7 @@ SUBROUTINE fft_wrap_pw1 ( pw1, debug )
 
 !------------------------------------------------------------------------------
 
-  CALL timeset("fft_wrap_pw1","I","",handle)
+  CALL timeset("fft_wrap_pw1","I"," ",handle)
   CPPreconditionNoErr(pw1%ref_count>0,cp_failure_level,"fft_wrap_pw1")
 
   IF ( PRESENT ( debug ) ) THEN
@@ -2508,8 +2510,8 @@ SUBROUTINE fft_wrap_pw1pw2 ( pw1, pw2, debug )
 
 !------------------------------------------------------------------------------
 
-  CALL timeset("fft_wrap_pw1pw2_all","I","",handle2)
-  CALL timeset("fft_wrap_pw1pw2_"//TRIM(ADJUSTL(cp_to_string(pw1%pw_grid%identifier))),"I","",handle)
+  CALL timeset("fft_wrap_pw1pw2_all","I"," ",handle2)
+  CALL timeset("fft_wrap_pw1pw2_"//TRIM(ADJUSTL(cp_to_string(pw1%pw_grid%identifier))),"I"," ",handle)
 
   CPPreconditionNoErr(pw1%ref_count>0,cp_failure_level,"fft_wrap_pw1pw2")
   CPPreconditionNoErr(pw2%ref_count>0,cp_failure_level,"fft_wrap_pw1pw2")

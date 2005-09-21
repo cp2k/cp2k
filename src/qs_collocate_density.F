@@ -277,7 +277,7 @@ CONTAINS
             first_sgfa, pab, work)
     NULLIFY(gridlevel_info, rs_pools, pw_pools, mgrid_gspace, mgrid_rspace)
 
-    CALL timeset("collocate_atomic_charge_density","I","",handle)
+    CALL timeset("collocate_atomic_charge_density","I"," ",handle)
 
     !ALLOCATE(pab(1,1),STAT=ierr)
     !IF ( ierr /= 0 ) CALL stop_memory ( routineN, "pab", 1 )
@@ -486,7 +486,7 @@ CONTAINS
 
 !   ---------------------------------------------------------------------------
 
-    CALL timeset("calculate_rho_core","I","",handle)
+    CALL timeset("calculate_rho_core","I"," ",handle)
 
     NULLIFY(atomic_kind,cell,dft_control,pab,atomic_kind_set,particle_set,&
          atom_list,pw_env,rs_rho,auxbas_rs_pool,auxbas_pw_pool,tasks)
@@ -705,9 +705,9 @@ CONTAINS
     ENDIF
 
     IF (my_compute_tau) THEN
-       CALL timeset("calculate_rho_tau","I","",handle)
+       CALL timeset("calculate_rho_tau","I"," ",handle)
     ELSE
-       CALL timeset("calculate_rho_elec","I","",handle)
+       CALL timeset("calculate_rho_elec","I"," ",handle)
     ENDIF
 
     CALL get_qs_env(qs_env=qs_env,&
@@ -1234,7 +1234,7 @@ CONTAINS
        ENDDO
        CALL rs_pools_give_back_rs_vect(rs_pools, rs_rho, error=error)
 
-       ! we want both rho an rho_gspace, the latter for Hartree and co-workers.
+       ! we want both rho and rho_gspace, the latter for Hartree and co-workers.
        IF (dft_control % qs_control % realspace_mgrids) THEN 
            CALL pw_copy(mgrid_rspace(gridlevel_info%ngrid_levels)%pw,mgrid_temp_rspace(gridlevel_info%ngrid_levels)%pw)
            DO igridlevel=gridlevel_info%ngrid_levels,2,-1
@@ -1336,7 +1336,7 @@ CONTAINS
 
     failure=.FALSE.
 
-    CALL timeset("calculate_wavefunction","I","",handle)
+    CALL timeset("calculate_wavefunction","I"," ",handle)
 
     CALL cp_fm_get_info(matrix=mo_vectors,nrow_global=nao,ncol_global=ncol_global) 
 
