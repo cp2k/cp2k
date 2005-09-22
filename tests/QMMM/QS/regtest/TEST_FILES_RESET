@@ -25,3 +25,11 @@ H2O-qmmm-gauss-14-geep-13.inp
 H2O-qmmm-gauss-14-geep-14.inp
 H2O-qmmm-gauss-14-geep-15.inp
 sio2-qmmm-gauss-2.inp
+# Again reset due to numeris for the new splines
+H2O-qmmm-gauss-8.inp
+H2O-qmmm-gauss-13.inp
+H2O-qmmm-gauss-14-geep-2.inp
+C4H10-qmmm-gauss-3.inp
+C4H10-qmmm-gauss-5.inp
+C4H10-qmmm-gauss-7.inp
+sio2-qmmm-gauss-1.inp
