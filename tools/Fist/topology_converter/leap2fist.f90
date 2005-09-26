@@ -416,7 +416,7 @@ CONTAINS
     INTEGER,  DIMENSION(:), ALLOCATABLE :: my_index, my_done
     REAL(KIND=dp) :: my_ch
     !
-    ! MOdify AMBER TYPES if two symbols have different charge
+    ! Modify AMBER TYPES if two symbols have different charge
     ! This is not allowed in CHARMM !
     !
     ALLOCATE(my_done(NATOM))
@@ -425,8 +425,8 @@ CONTAINS
        my_type    = ISYMBL(i)
        len_type   = LEN_TRIM(my_type)
        num_types  = COUNT(ISYMBL==my_type)
-       my_done(i) = 1
        IF (num_types == 1.OR.my_done(i)==1) CYCLE
+       my_done(i) = 1
        ALLOCATE(my_charge(num_types), my_index(num_types))
        k = 0
        ! Collect Information
