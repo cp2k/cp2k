@@ -131,7 +131,7 @@ CONTAINS
     INTEGER, SAVE                             :: crd, vel, ene 
     INTEGER                                  :: handle, istat, isubsys, iw, delta_t, i
     INTEGER                                  :: group, source
-    INTEGER                                  :: icrd, ivel, iptens, iener, itemp, idump, iscreen
+    INTEGER                                  :: icrd, ivel, iptens, iener, itemp, idump, iscreen, nat
     INTEGER, POINTER                         :: itimes
     LOGICAL                                  :: file_exists, replace_file
     LOGICAL                                  :: ionode
@@ -199,7 +199,6 @@ CONTAINS
     itemp = mdio % itemp
     idump = mdio % idump
     iscreen = mdio % iscreen
- 
 
     CALL force_env_get(force_env=force_env_p(1)%force_env,&
                        cell=cell,&
@@ -208,6 +207,14 @@ CONTAINS
                        dyn_coeff_set=dyn_coeff_set,&
                        virial = virial, &
                        error=error)
+
+    nat=0
+    DO isubsys=1,SIZE(subsys)
+       CALL cp_subsys_get(subsys(isubsys)%subsys,&
+            particles=particles,&
+            error=error)
+       nat=nat+particles%n_els
+    END DO
 
 ! computing the scalar pressure
       IF ( virial % pv_availability ) THEN
@@ -356,7 +363,7 @@ CONTAINS
               .5_dp * ( pv_xx/unit%bar + simpar % p0 ) * &
               ( simpar % v0 - cell % deth )
      t = t_old + REAL(itimes-itimes_old,dp)*simpar%dt*femtoseconds
-     econs = ABS((cons-constant)/constant)
+     econs = ABS((cons-constant)/nat*kelvin)
   END IF
 
 
@@ -422,7 +429,7 @@ CONTAINS
                REAL(delta_t,dp)
           averages%avega = (averages%avega*REAL(delta_t-1,dp)+cell_angle(1))/ &
           REAL(delta_t,dp)
-          econs_avg = econs_avg + abs((cons-constant)/constant)
+          econs_avg = econs_avg + (cons-constant)/nat*kelvin
        END SELECT
 !
 
@@ -441,7 +448,7 @@ CONTAINS
           WRITE ( iw, '( T42,A )' ) 'INSTANTANEOUS        AVERAGES'
           WRITE ( iw, '( A,T39,2(1X,F20.2) )' ) ' CPU [S]                      = ', &
                 used_time, averages%avecpu
-          WRITE ( iw, '( A,T39,2(1X,E20.12) )' ) ' {E-E0}/E0                    = ', &
+          WRITE ( iw, '( A,T39,2(1X,E20.12) )' ) ' {E-E0}/{k_b*N_at}            = ', &
                 econs, econs_avg/REAL( delta_t,dp)
           WRITE ( iw, '( A,A,T31,A,T39,2(1X,E20.12) )' ) ' POTENTIAL ENERGY', &
                adjustl(unit % e_label), '= ', epot, averages%avepot
