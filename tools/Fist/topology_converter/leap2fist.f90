@@ -443,13 +443,12 @@ CONTAINS
        IF (ALL(my_charge==my_charge(1))) THEN 
           DEALLOCATE(my_charge, my_index)
           CYCLE
-       END IF
+       END IF       
        k = 1
        DO j = 1, num_types
           my_ch = my_charge(j)
           num_types2 = COUNT(my_charge==my_ch)
-          IF (num_types2 ==1 .OR. my_ch==-9999) THEN 
-             my_charge(j) = -9999
+          IF ( my_ch==-9999 ) THEN 
              CYCLE
           ELSEIF(num_types2 < 10) THEN
              IF (len_type>3) CALL stop_converter(" A type with more than 4 character should be created!")
