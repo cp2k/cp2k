@@ -372,7 +372,7 @@ SUBROUTINE force_env_create(force_env,globenv,force_env_list,fist_env,&
         j = 0;
 ! get total number of subsystems
         DO i = 1, SIZE(force_env%force_env_list)
-           CPPrecondition(ASSOCIATED(force_env%force_env_list(i)%force_env), cp_failure_level,routineP,error,failure)
+  CPPrecondition(ASSOCIATED(force_env%force_env_list(i)%force_env), cp_failure_level,routineP,error,failure)
            CALL force_env_get ( force_env % force_env_list (i) % force_env, &
                                  subsys = subsys, error = error )
            j = j + SIZE(subsys)

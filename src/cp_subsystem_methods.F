@@ -31,6 +31,7 @@ MODULE cp_subsystem_methods
   USE atomic_kind_types,               ONLY: atomic_kind_type
   USE cp_error_handling,               ONLY: cp_a_l,&
                                              cp_assert,&
+                                             cp_assertion_failed,&
                                              cp_error_get_logger,&
                                              cp_error_message,&
                                              cp_error_type
@@ -155,7 +156,11 @@ CONTAINS
     CPPrecondition(.NOT.ASSOCIATED(small_subsystem),cp_failure_level,routineP,error,failure)
     CPPrecondition(ASSOCIATED(big_subsys),cp_failure_level,routineP,error,failure)
     CPPrecondition(ASSOCIATED(globenv),cp_failure_level,routineP,error,failure)
-    CPAssert(big_subsys(1)%subsys%para_env%group==small_para_env%group,cp_failure_level,routineP,error,failure)
+    CALL cp_assert(big_subsys(1)%subsys%para_env%group==small_para_env%group, &
+                   cp_failure_level,cp_assertion_failed,routineP, &
+                   "big_subsys(1)%subsys%para_env%group==small_para_env%group", &
+                   error,failure)
+
     IF (.NOT. failure) THEN
        !-----------------------------------------------------------------------------
        !-----------------------------------------------------------------------------
