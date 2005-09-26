@@ -356,7 +356,11 @@ SUBROUTINE keyword_create(keyword, name, description, usage, type_of_var,&
                    "keyword%enum%id_nr==lone_keyword_val%enum%id_nr", &
                    error,failure)
            ELSE
-  CPPrecondition(.NOT.ASSOCIATED(keyword%lone_keyword_value),cp_failure_level,routineP,error,failure)
+              IF (ASSOCIATED(keyword%lone_keyword_value)) THEN
+                CALL cp_assert(.FALSE., cp_failure_level, cp_precondition_failed, &
+                               routineP, ".NOT. ASSOCIATED(keyword%lone_keyword_value)", &
+                               error, failure)
+              END IF
               keyword%enum => lone_keyword_val%enum
               CALL enum_retain(keyword%enum,error=error)
            END IF
