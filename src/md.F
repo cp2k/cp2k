@@ -244,7 +244,7 @@ CONTAINS
 !!I   neighbor_lists_from_scratch: [true, false]                              I
 !!I FILES                           &                                         I
 !!I   filebody    "filename"        &                                         I
-!!I   coordinates "filename.crd"    &                                         I
+!!I   coordinates "filename.xyz"    &                                         I
 !!I   coefficient "filename.coef"   &                                         I
 !!I   velocities  "filename.vel"    &                                         I
 !!I   pressure    "filename.ptens"  &                                         I
@@ -575,7 +575,7 @@ CONTAINS
                    CASE ( 'FILEBO' )
                       ILEN = 0
                       CALL get_next ( string, ILEN )
-                      mdio % crd_file_name = string(1:ILEN) // '.crd'
+                      mdio % crd_file_name = string(1:ILEN) // '.xyz'
                       mdio % vel_file_name = string(1:ILEN) // '.vel'
                       mdio % ptens_file_name = string(1:ILEN) // '.ptens'
                       mdio % ener_file_name = string(1:ILEN) // '.ener'
@@ -1028,7 +1028,7 @@ END SUBROUTINE read_md_new_section
     
     !..filenames
     CALL xstring ( globenv % project_name, ia, ie )
-    mdio % crd_file_name   = globenv % project_name(ia:ie) // '.crd'
+    mdio % crd_file_name   = globenv % project_name(ia:ie) // '.xyz'
     mdio % vel_file_name   = globenv % project_name(ia:ie) // '.vel'
     mdio % ptens_file_name = globenv % project_name(ia:ie) // '.ptens'
     mdio % ener_file_name  = globenv % project_name(ia:ie) // '.ener'
