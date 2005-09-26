@@ -173,8 +173,9 @@ CONTAINS
     ALLOCATE(force_env_p(1), stat=stat)
     CPPostconditionNoFail(stat==0,cp_failure_level,routineP,error)
     force_env_p(1)%force_env => force_env
-    CALL harris_mc_md(force_env_p, globenv, total_energy=.FALSE., &
-                      current_temp=.FALSE., error=error)
+    CALL harris_mc_md(force_env_p, globenv, total_energy=.TRUE., &
+                      external_temp=.TRUE., qs_accept=.TRUE., &
+                      random_velocities=.TRUE., error=error)
 
   END SUBROUTINE harris_mc_ld
 !***************************************************************************
@@ -188,7 +189,14 @@ CONTAINS
 !!     Driver routine for the Langevin Dynamics Monte Carlo simulation
 !!
 !!   NOTES
-!!     -
+!!     By using the default values a hybrid Monte Carlo (HMC) simulation is 
+!!     performed.
+!!     For a high-level quick-start to following references are suggested:
+!!
+!!     S.Duane, A.D. Kennedy, et.al.: Hybrid Monte Carlo
+!!     A.Brass, B.J. Pendleton, et.al.: Hybrid Monte Carlo Simulations Theory 
+!!                                      and Initial Comparison with Molecular 
+!!                                      Dynamics
 !!
 !!   INPUTS
 !!     - force_env: The force environment, which is actual a wrapper to abstract
@@ -197,8 +205,12 @@ CONTAINS
 !!                file and the parallel environment.
 !!     - total_energy: If TRUE the differences of the total energies are used, 
 !!                     instead of the potential energies.
-!!     - current_temp: If TRUE the current temperature is calculated and used 
-!!                     instead of of temp_ext.
+!!     - external_temp: If TRUE the external temperature is used, instead of
+!!                      the computed current temperature.
+!!     - qs_accept: If TRUE the QS energies are used for the MC acceptance 
+!!                  criterion, otherwise Harris or KG energies are used.
+!!     - random_velocities: Activates random velocities to perform hybrid MC 
+!!                          simulations.
 !!     - error: variable to control error logging, stopping,... 
 !!              see module cp_error_handling 
 !!
@@ -209,13 +221,16 @@ CONTAINS
 !!     09.2005 initial create [tdk]
 !!
 !!*** **********************************************************************
-  SUBROUTINE harris_mc_md(force_env_p, globenv, total_energy, current_temp, error)
+  SUBROUTINE harris_mc_md(force_env_p, globenv, total_energy, external_temp, &
+                          qs_accept, random_velocities, error)
 
     TYPE(force_env_p_type), DIMENSION(:), &
       POINTER                                :: force_env_p
     TYPE(global_environment_type), POINTER   :: globenv
     LOGICAL, OPTIONAL                        :: total_energy, &
-                                                current_temp
+                                                external_temp, &
+                                                qs_accept, &
+                                                random_velocities
     TYPE(cp_error_type), INTENT(INOUT), &
       OPTIONAL                               :: error
 
@@ -235,13 +250,19 @@ CONTAINS
                                                 ikind, &
                                                 atom, &
                                                 iatom, &
-                                                iw
+                                                iw, &
+                                                max_scf_tmp, &
+                                                reject, &
+                                                accept
     INTEGER, POINTER                         :: itimes
     LOGICAL                                  :: failure, &
                                                 accepted, &
                                                 tot_energy, &
-                                                cur_temp, &
-                                                ionode
+                                                ext_temp, &
+                                                ionode, &
+                                                qs_ener, &
+                                                use_harris_tmp, &
+                                                rand_vel
     REAL(KIND=dp)                            :: md_run_start_time, &
                                                 time_iter_start, &
                                                 time_iter_stop, &
@@ -295,17 +316,32 @@ CONTAINS
     IF (PRESENT(total_energy)) THEN
       tot_energy = total_energy
     ELSE
-      tot_energy = .FALSE.
+      tot_energy = .TRUE.
     END IF
 
-    IF (PRESENT(current_temp)) THEN
-      cur_temp = current_temp
+    IF (PRESENT(external_temp)) THEN
+      ext_temp = external_temp
     ELSE
-      cur_temp = .FALSE.
+      ext_temp = .TRUE.
+    END IF
+
+    IF (PRESENT(qs_accept)) THEN
+      qs_ener = qs_accept
+    ELSE
+      qs_ener = .TRUE.
+    END IF
+
+    IF (PRESENT(random_velocities)) THEN
+      rand_vel = random_velocities
+    ELSE
+      rand_vel = .TRUE.
     END IF
 
     failure=.FALSE.
     accepted = .TRUE.
+    accept = 0
+    reject = 0
+
     NULLIFY(logger, simpar, mdio, subsys, dyn_coeff_set, md_env, nhc_baro, &
             nhc_part, molecule_kinds_new, molecules_new, local_molecules, &
             particles, itimes, used_time, rng_stream, local_particles, atomic_kind, &
@@ -426,8 +462,22 @@ CONTAINS
                     used_time = used_time)
 
     DO ibead = 1,nbeads
-       CALL force_env_calc_energy_force(force_env_p(ibead)%force_env, &
-                                        calc_force=.TRUE.)
+      IF (qs_ener .AND. (globenv%prog_name_id == do_qs)) THEN
+        use_harris_tmp = force_env_p(1)%force_env%qs_env%use_harris
+        max_scf_tmp = force_env_p(1)%force_env%qs_env%scf_control%max_scf
+        force_env_p(1)%force_env%qs_env%use_harris = .FALSE.
+        force_env_p(1)%force_env%qs_env%scf_control%max_scf = 100
+        CALL force_env_calc_energy_force(force_env=force_env_p(1)%force_env, &
+                                         calc_force=.FALSE., error=error)
+        force_env_p(1)%force_env%qs_env%use_harris = use_harris_tmp
+        force_env_p(1)%force_env%qs_env%scf_control%max_scf = max_scf_tmp
+      ELSE
+        CALL force_env_calc_energy_force(force_env=force_env_p(1)%force_env, &
+                                         calc_force=.FALSE., error=error)
+      END IF
+
+       !CALL force_env_calc_energy_force(force_env_p(ibead)%force_env, &
+       !                                 calc_force=.TRUE.)
     END DO
     IF (globenv%prog_name_id == do_kg) THEN
       Epot = force_env_p(1)%force_env%kg_env%energy%total
@@ -467,16 +517,31 @@ CONTAINS
     END DO
 
     istep = 1
-    DO WHILE (istep < simpar%nsteps-1)
+    DO WHILE (istep < simpar%nsteps)
       IF (.NOT. accepted) THEN
         CALL read_md_restart_file(md_env,error)
+      END IF
+
+      IF (rand_vel) THEN
+        CALL initialize_velocities(simpar, particles%els, globenv)
       END IF
 
       CALL harris_mc_md_approach(md_env, globenv, simpar, logger, error)
 
       ! Compare energies
-      CALL force_env_calc_energy_force(force_env=force_env_p(1)%force_env, &
-                                       calc_force=.FALSE., error=error)
+      IF (qs_ener .AND. (globenv%prog_name_id == do_qs)) THEN
+        use_harris_tmp = force_env_p(1)%force_env%qs_env%use_harris
+        max_scf_tmp = force_env_p(1)%force_env%qs_env%scf_control%max_scf
+        force_env_p(1)%force_env%qs_env%use_harris = .FALSE.
+        force_env_p(1)%force_env%qs_env%scf_control%max_scf = 100
+        CALL force_env_calc_energy_force(force_env=force_env_p(1)%force_env, &
+                                         calc_force=.FALSE., error=error)
+        force_env_p(1)%force_env%qs_env%use_harris = use_harris_tmp
+        force_env_p(1)%force_env%qs_env%scf_control%max_scf = max_scf_tmp
+      ELSE
+        CALL force_env_calc_energy_force(force_env=force_env_p(1)%force_env, &
+                                         calc_force=.FALSE., error=error)
+      END IF
 
       IF (globenv%prog_name_id == do_kg) THEN
         Epot = force_env_p(1)%force_env%kg_env%energy%total
@@ -501,15 +566,20 @@ CONTAINS
       IF (new_ldmc_energy < prev_ldmc_energy) THEN
       !IF (new_ldmc_energy > prev_ldmc_energy) THEN
         accepted = .TRUE.
+        accept = accept + 1
         IF (ionode) THEN
           WRITE(iw, *) ""
+          WRITE(iw, *) "New Energy =", new_ldmc_energy, "<", prev_ldmc_energy, "= Previous Energy"
+          WRITE(iw, *) "Energy difference = ", new_ldmc_energy - prev_ldmc_energy
           WRITE(iw, *) "This LD MD approach is directly accepted"
+          WRITE(iw, *) "Current acceptance ration =", (accept*100)/(accept+reject), "%"
+          WRITE(iw, *) "accepts =", accept, "  rejects =", reject
         END IF
       ELSE
         ! Random Number
         random_number = next_random_number(rng_stream=rng_stream, error=error); 
 
-        IF (cur_temp) THEN
+        IF (.NOT. ext_temp) THEN
           ! *** Calculate the current temperature ***
           DO isubsys=1,SIZE(subsys)
 
@@ -542,7 +612,7 @@ CONTAINS
 
         !prob = EXP((-1)*(ABS(prev_ldmc_energy-new_ldmc_energy)/(boltzmann* &
         !                 (simpar%temp_beta*(simpar%temp_ext)+simpar%temp_alpha))))
-        IF (cur_temp) THEN
+        IF (.NOT. ext_temp) THEN
           prob = EXP((-1)*(ABS(prev_ldmc_energy-new_ldmc_energy)/(simpar%temp_beta* &
                                temperature+simpar%temp_alpha)))
         ELSE
@@ -552,15 +622,29 @@ CONTAINS
 
         IF (prob > random_number) THEN
           accepted = .TRUE.
+          accept = accept + 1
           IF (ionode) THEN
             WRITE(iw, *) ""
+            WRITE(iw, *) "New Energy             =", new_ldmc_energy, ">", prev_ldmc_energy, "= Previous Energy"
+            WRITE(iw, *) "Energy difference = ", new_ldmc_energy - prev_ldmc_energy
+            WRITE(iw, *) "Transition probability =", prob, ">", random_number, "= Random Number"
+            WRITE(iw, *) ""
             WRITE(iw, *) "This LD MD approach is accepted"
+            WRITE(iw, *) "Current acceptance ratio =", (accept*100)/(accept+reject), "%"
+            WRITE(iw, *) "accepts =", accept, "  rejects =", reject
           END IF 
         ELSE
           accepted = .FALSE.
+          reject = reject + 1
           IF (ionode) THEN
             WRITE(iw, *) ""
+            WRITE(iw, *) "New Energy             =", new_ldmc_energy, ">", prev_ldmc_energy, "= Previous Energy"
+            WRITE(iw, *) "Energy difference = ", new_ldmc_energy - prev_ldmc_energy
+            WRITE(iw, *) "Transition probability =", prob, ">", random_number, "= Random Number"
+            WRITE(iw, *) ""
             WRITE(iw, *) "This LD MD approach is rejected"
+            WRITE(iw, *) "Current acceptance ratio =", (accept*100)/(accept+reject), "%"
+            WRITE(iw, *) "accepts =", accept, "  rejects =", reject
           END IF
         END IF
       END IF
@@ -607,6 +691,11 @@ CONTAINS
     time_iter_stop = m_walltime()
     used_time = time_iter_stop - time_iter_start
     CALL md_energy(md_env, globenv)
+
+    IF (ionode) THEN
+      WRITE(iw, *) "Final acceptance ratio =", (accept*100)/(accept+reject), "%"
+      WRITE(iw, *) "accepts =", accept, "  rejects =", reject
+    END IF
 
     CALL cp_rm_iter_level(logger%iter_info,n_rlevel_att=iter_level,&
          error=error)

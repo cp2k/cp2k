@@ -398,10 +398,10 @@ FUNCTION gasdev(idum)
 
 ! Return value
     INTEGER, INTENT(INOUT)                   :: idum
-    REAL(KIND=dp)                                :: gasdev
+    REAL(KIND=dp)                            :: gasdev
 
     INTEGER                                  :: iset
-    REAL(KIND=dp)                                :: fac, gset, r, v1, v2
+    REAL(KIND=dp)                            :: fac, gset, r, v1, v2
 
   DATA iset/0/
   SAVE iset, gset

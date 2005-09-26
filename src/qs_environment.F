@@ -226,7 +226,7 @@ CONTAINS
     CALL section_vals_val_get(harris_section, "ACTIVATE", &
                               l_val=harris_flag, error=error)
 
-    CALL set_qs_env(qs_env,input=force_env_section,error=error)
+    CALL set_qs_env(qs_env,input=force_env_section,use_harris=harris_flag,error=error)
 
     IF (PRESENT(cell)) THEN
        my_cell => cell

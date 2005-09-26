@@ -27,9 +27,6 @@ MODULE qs_force
   USE cp_fm_types,                     ONLY: cp_fm_p_type
   USE global_types,                    ONLY: global_environment_type,&
                                              MEDIUM
-  USE input_section_types,             ONLY: section_vals_get_subs_vals, &
-                                             section_vals_val_get, &
-                                             section_vals_type
   USE kinds,                           ONLY: dp,&
                                              int_size
   USE message_passing,                 ONLY: mp_sum
@@ -120,7 +117,6 @@ CONTAINS
     TYPE(qs_rho_type), POINTER                       :: rho
     TYPE(cp_fm_p_type), DIMENSION(:), POINTER        :: mo_derivs
     TYPE(harris_env_type), POINTER                   :: harris_env
-    TYPE(section_vals_type), POINTER                 :: harris_section
 
 !   ---------------------------------------------------------------------------
 
@@ -140,11 +136,8 @@ CONTAINS
     NULLIFY (matrix_w)
     NULLIFY (rho)
     NULLIFY (harris_env)
-    NULLIFY (harris_section)
 
-    harris_section => section_vals_get_subs_vals(globenv%input_file, &
-                                                 "FORCE_EVAL%DFT%QS%HARRIS")
-    CALL section_vals_val_get(harris_section, "ACTIVATE", l_val=harris_flag)
+    harris_flag = qs_env%use_harris
 
     CALL get_qs_env(qs_env=qs_env,&
                     atomic_kind_set=atomic_kind_set,&

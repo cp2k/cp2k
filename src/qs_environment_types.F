@@ -250,6 +250,8 @@ MODULE qs_environment_types
 !!     - local_molecules: which molecules are local to this processor
 !!     - molecule_kind_set: description of the molecule kinds
 !!     - molecule_set: all the molecule description
+!!     - use_harris: LOGICAL which indicates, if the Harris energy functional 
+!!                   should be used.
 !!     - harris_env: The harris environment, which consist of the harris energy
 !!                   and force type and the rho structure to pass the density of
 !!                   the harris energy functional to the force calculation
@@ -269,6 +271,7 @@ MODULE qs_environment_types
     LOGICAL :: use_ref_cell
     LOGICAL :: qmmm
     LOGICAL :: requires_mo_derivs
+    LOGICAL :: use_harris
     TYPE(cell_type), POINTER                              :: cell, super_cell 
     TYPE(cell_type), POINTER                              :: cell_ref
     TYPE(greens_function_type), POINTER                   :: green
@@ -344,7 +347,7 @@ CONTAINS
 
 ! *****************************************************************************
 
-  SUBROUTINE get_qs_env(qs_env,atomic_kind_set,cell,super_cell,cell_ref,use_ref_cell,&
+ SUBROUTINE get_qs_env(qs_env,atomic_kind_set,cell,super_cell,cell_ref,use_ref_cell,&
                         dft_control,mos,sab_orb,qmmm,green,&
                         sac_erfc,sac_ppl,sac_ppnl,sbc_ppnl,&
                         sac_oce,sbc_oce,sab_2c,sac_3c,sbc_3c,&
@@ -353,7 +356,7 @@ CONTAINS
                         rho, rho_xc, pw_env, mpools,input,&
                         para_env, blacs_env, scf_control,&
                         kinetic,qs_charges, rho_core, ks_env, ks_qmmm_env,&
-                        wf_history,scf_env,&
+                        wf_history,scf_env,use_harris,&
                         id_nr,local_particles,local_molecules,&
                         distribution_2d,molecule_kind_set,molecule_set,&
                         subsys,error,oce,rho_atom_set,&
@@ -390,6 +393,7 @@ CONTAINS
     TYPE(qs_energy_type), OPTIONAL, POINTER  :: energy
     TYPE(qs_force_type), DIMENSION(:), &
       OPTIONAL, POINTER                      :: force
+    LOGICAL, OPTIONAL                        :: use_harris
     TYPE(harris_env_type), OPTIONAL, &
        POINTER                               :: harris_env
     TYPE(real_matrix_p_type), DIMENSION(:), &
@@ -498,6 +502,7 @@ CONTAINS
     IF (PRESENT(sbc_3c)) sbc_3c =>  qs_env%sbc_3c
     IF (PRESENT(energy)) energy => qs_env%energy
     IF (PRESENT(force)) force => qs_env%force
+    IF (PRESENT(use_harris)) use_harris = qs_env%use_harris
     IF (PRESENT(harris_env)) harris_env => qs_env%harris_env
     IF (PRESENT(matrix_h)) matrix_h => qs_env%matrix_h
     IF (PRESENT(matrix_ks)) matrix_ks => qs_env%matrix_ks
@@ -648,6 +653,7 @@ CONTAINS
     qs_env%use_ref_cell=.FALSE.
     qs_env%qmmm=.FALSE.
     qs_env%requires_mo_derivs=.FALSE.
+    qs_env%use_harris=.FALSE.
     NULLIFY(qs_env%mo_derivs)
   END SUBROUTINE init_qs_env
 
@@ -661,7 +667,7 @@ CONTAINS
                         matrix_h,matrix_ks,matrix_s,matrix_w,&
                         pw_env,mpools,rho,rho_xc,kinetic,&
                         scf_control,qs_charges,rho_core,ks_env,ks_qmmm_env,&
-                        wf_history,scf_env,&
+                        wf_history,scf_env,use_harris,&
                         distribution_2d,dft_section,input,&
                         subsys, oce,rho_atom_set,rho0_atom_set,rho0_mpole,&
                         nddo_mpole,rhoz_set,rhoz_tot,ecoul_1c,VH_3c_list,error, &
@@ -691,6 +697,7 @@ CONTAINS
     TYPE(qs_energy_type), OPTIONAL, POINTER  :: energy
     TYPE(qs_force_type), DIMENSION(:), &
       OPTIONAL, POINTER                      :: force
+    LOGICAL, OPTIONAL                        :: use_harris
     TYPE(harris_env_type), POINTER, &
        OPTIONAL                              :: harris_env
     TYPE(real_matrix_p_type), DIMENSION(:), &
@@ -797,6 +804,7 @@ CONTAINS
     IF (PRESENT(sbc_3c)) qs_env%sbc_3c => sbc_3c
     IF (PRESENT(energy)) qs_env%energy => energy
     IF (PRESENT(force)) qs_env%force => force
+    IF (PRESENT(use_harris)) qs_env%use_harris = use_harris
     IF (PRESENT(harris_env)) qs_env%harris_env => harris_env
     IF (PRESENT(matrix_h)) qs_env%matrix_h => matrix_h
     IF (PRESENT(matrix_ks)) qs_env%matrix_ks => matrix_ks
@@ -875,7 +883,7 @@ CONTAINS
     END IF
     IF (PRESENT(rho_atom_set)) THEN
         CALL set_local_rho(qs_env%local_rho_set,rho_atom_set=rho_atom_set)
-    END IF
+     END IF
     IF (PRESENT(rho0_atom_set)) THEN
         CALL set_local_rho(qs_env%local_rho_set,rho0_atom_set=rho0_atom_set)
     END IF

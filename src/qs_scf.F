@@ -205,9 +205,6 @@ MODULE qs_scf
                                              harris_eigenvalue_trace_KS_Pmix, &
                                              harris_eigenvalue_calculation, &
                                              harris_postprocessing
-  USE input_section_types,             ONLY: section_vals_get_subs_vals, &
-                                             section_vals_val_get, &
-                                             section_vals_type
   USE harris_env_types,                ONLY: harris_env_type
 
   IMPLICIT NONE
@@ -466,14 +463,13 @@ CONTAINS
     TYPE(real_matrix_type), POINTER          :: orthogonality_metric
     LOGICAL                                  :: harris_flag, &
                                                 EII_necessary
-    TYPE(section_vals_type), POINTER         :: harris_section
     TYPE(harris_env_type), POINTER           :: harris_env
 
 !   ---------------------------------------------------------------------------
 
     NULLIFY(dft_control,matrix_h,matrix_s,matrix_ks,matrix_p,rho,rho_xc,energy, &
             scf_control,logger,pw_env, qs_charges,ks_env,mos,atomic_kind_set, &
-            particle_set,scf_work1,ortho,scf_work2,harris_section,harris_env)
+            particle_set,scf_work1,ortho,scf_work2,harris_env)
 
     logger => cp_error_get_logger(error)
     t1 = m_walltime()
@@ -521,12 +517,7 @@ CONTAINS
     gapw = dft_control%qs_control%gapw
     gapw_xc = dft_control%qs_control%gapw_xc
 
-    ! *** Set harris_flag to true if the harris functional energy correction 
-    !     should be used
-    harris_section => section_vals_get_subs_vals(globenv%input_file, &
-                                                 "FORCE_EVAL%DFT%QS%HARRIS")
-    CALL section_vals_val_get(harris_section, "ACTIVATE", &
-                              l_val=harris_flag, error=error)
+    harris_flag = qs_env%use_harris
 
     IF (harris_flag) THEN
       CALL get_qs_env(qs_env=qs_env, harris_env=harris_env, error=error)
