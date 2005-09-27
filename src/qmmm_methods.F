@@ -224,8 +224,8 @@ CONTAINS
        !
        ! Electrostatic Interaction type...
        !
-       Forces               = 0.0_dp
-       Forces_added_charges = 0.0_dp
+       Forces(:,:)               = 0.0_dp
+       Forces_added_charges(:,:) = 0.0_dp
        !
        SELECT CASE(qmmm_env%qmmm_coupl_type)
        CASE(do_qmmm_grid)
@@ -272,7 +272,11 @@ CONTAINS
                WRITE(iw,'(T3,A)')"Unknown Coupling..."
           CPPrecondition(.FALSE.,cp_failure_level,routineP,error,failure)
        END SELECT
+       !ikuo Temporary change to alleviate compiler problems on Intel with
+       !array dimension of 0
+       IF(qmmm_env%num_mm_atoms/=0) &
        CALL mp_sum(Forces,para_env%group)
+       IF(qmmm_env%added_charges%num_mm_atoms/=0) &
        CALL mp_sum(Forces_added_charges,para_env%group)
        !
        ! Debug Forces
