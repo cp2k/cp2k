@@ -28,7 +28,7 @@ MODULE mc_control
                                              cp_error_type
   USE cp_files,                        ONLY: open_file,&
                                              close_file
-  USE cp_log_handling,                 ONLY: cp_failure_level
+  USE cp_log_handling,                 ONLY: cp_failure_level, cp_to_string
   USE cp_subsystem_types,              ONLY: cp_subsys_get,&
                                              cp_subsystem_p_type
   USE fist_main,                       ONLY: fist_create_force_env
