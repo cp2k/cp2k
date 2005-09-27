@@ -5529,7 +5529,7 @@ SUBROUTINE create_tddfpt_section(section,error)
          routineP=moduleN//':'//routineN
     TYPE(keyword_type), pointer :: keyword
     TYPE(section_type), POINTER :: coeff_section, nose_section,uni_section, baro_section,&
-                                   ldmc_section, subsection, print_key
+                                   hmc_section, subsection, print_key
 
     failure=.false.
 
@@ -5638,10 +5638,10 @@ SUBROUTINE create_tddfpt_section(section,error)
        CALL section_add_subsection(section, nose_section, error=error)
        CALL section_release(nose_section,error=error)
 
-       NULLIFY(ldmc_section)
-       CALL create_ldmc_section(ldmc_section, error=error)
-       CALL section_add_subsection(section, ldmc_section, error=error)
-       CALL section_release(ldmc_section, error=error)
+       NULLIFY(hmc_section)
+       CALL create_hmc_section(hmc_section, error=error)
+       CALL section_add_subsection(section, hmc_section, error=error)
+       CALL section_release(hmc_section, error=error)
 
 
        CALL create_qs_md_section(subsection, error=error)
@@ -7962,14 +7962,13 @@ END SUBROUTINE create_ewald_section
 
 !***************************************************************************
 
-!!****f* input_cp2k/create_ldmc_section [1.0] *
+!!****f* input_cp2k/create_hmc_section [1.0] *
 !!
 !!   NAME
-!!     create_ldmc_section
+!!     create_hmc_section
 !!
 !!   FUNCTION
-!!     This section specifies the parameters for the Langevin Dynamics
-!!     Metropolis Monte Carlo simulation
+!!     This section specifies the parameters for the Hybrid Monte Carlo simulation
 !!
 !!   NOTES
 !!     -
@@ -7983,12 +7982,12 @@ END SUBROUTINE create_ewald_section
 !!     Thomas D. Kuehne (tkuehne@phys.chem.ethz.ch)
 !!
 !!*** **********************************************************************
-  SUBROUTINE create_ldmc_section(section,error)
+  SUBROUTINE create_hmc_section(section,error)
     TYPE(section_type), POINTER :: section
     TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
     
     LOGICAL :: failure
-    CHARACTER(len=*), PARAMETER :: routineN='create_ldmc_section',&
+    CHARACTER(len=*), PARAMETER :: routineN='create_hmc_section',&
          routineP=moduleN//':'//routineN
     TYPE(keyword_type), POINTER :: keyword
     
@@ -7996,8 +7995,8 @@ END SUBROUTINE create_ewald_section
     
     CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
     IF (.NOT. failure) THEN
-       CALL section_create(section,name="LDMC",&
-            description="This section specifies the parameters for the Langevin Dynamics Metropolis Monte Carlo simulation",&
+       CALL section_create(section,name="HMC",&
+            description="This section specifies the parameters for the Hybrid Metropolis Monte Carlo simulation",&
             n_keywords=3, n_subsections=0, repeats=.FALSE., required=.FALSE.,&
             error=error)
 
@@ -8026,7 +8025,7 @@ END SUBROUTINE create_ewald_section
        CALL keyword_release(keyword, error=error)
 
     END IF
-  END SUBROUTINE create_ldmc_section
+  END SUBROUTINE create_hmc_section
 
 !***************************************************************************
 

@@ -444,7 +444,7 @@ CONTAINS
 
   ! ***************************************************************************
 
-  SUBROUTINE write_md_restart_file(md_env,ldmc,error)
+  SUBROUTINE write_md_restart_file(md_env,hmc,error)
 
     ! Purpose: Write the data needed for a restart of a MD run to the restart
     !          unit unit_number.
@@ -454,7 +454,7 @@ CONTAINS
     ! *************************************************************************
 
     TYPE(md_environment_type), POINTER           :: md_env
-    LOGICAL, OPTIONAL                            :: ldmc
+    LOGICAL, OPTIONAL                            :: hmc
     TYPE(cp_error_type), OPTIONAL, INTENT(INOUT) :: error
 
     ! Local parameters
@@ -475,7 +475,7 @@ CONTAINS
 
     INTEGER :: i,iparticle,iparticle_kind,iparticle_local,istat,isubsys,&
                nparticle,nparticle_kind,nparticle_local,unit_number
-    LOGICAL :: failure, ldmc_flag
+    LOGICAL :: failure, hmc_flag
 
     TYPE(cp_subsystem_p_type), DIMENSION(:), POINTER :: subsys
     TYPE(force_env_p_type), DIMENSION(:), POINTER    :: force_env_p
@@ -488,10 +488,10 @@ CONTAINS
 
     CPPrecondition (ASSOCIATED(md_env),cp_failure_level,routineP,error,failure)
 
-    IF (PRESENT(ldmc)) THEN
-      ldmc_flag = ldmc
+    IF (PRESENT(hmc)) THEN
+      hmc_flag = hmc
     ELSE
-      ldmc_flag = .FALSE.
+      hmc_flag = .FALSE.
     END IF
 
     CALL get_md_env(md_env=md_env,&
@@ -551,7 +551,7 @@ CONTAINS
 
           END IF
 
-          IF (.NOT. ldmc_flag) THEN
+          IF (.NOT. hmc_flag) THEN
 
           ! Write current status of Wiener process to the restart unit
 

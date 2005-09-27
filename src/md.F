@@ -39,7 +39,7 @@ MODULE md
   USE cp2k_units,                      ONLY: get_cp2k_units,&
                                              unit_convert_type
   USE global_types,                    ONLY: global_environment_type
-  USE input_constants,                 ONLY: ldmc_run
+  USE input_constants,                 ONLY: hmc_run
   USE kinds,                           ONLY: dp
   USE message_passing,                 ONLY: mp_bcast
   USE parser,                          ONLY: get_next,&
@@ -161,7 +161,7 @@ MODULE md
      TYPE ( simpar_units_type ) :: units
      !MK Langevin
      REAL (KIND=dp) :: gamma,var_w
-     !TdK LDMC
+     !TdK HMC
      INTEGER        :: ld_steps
      REAL(KIND=dp)  :: temp_alpha, temp_beta
   END TYPE simulation_parameters_type
@@ -281,7 +281,7 @@ CONTAINS
     INTEGER                                  :: ia, ie, ierror, ILEN, iw
     TYPE(section_vals_type), POINTER         :: md_section
     TYPE(unit_convert_type), POINTER         :: unit
-    LOGICAL                                  :: harris_ldmc
+    LOGICAL                                  :: harris_hmc
 
     NULLIFY(unit, md_section)
     CALL set_md_defaults(simpar, globenv, mdio)
@@ -316,7 +316,7 @@ CONTAINS
              !MK Langevin
              CASE ("GAMMA")
                CALL get_next(simpar%gamma)
-             !TdK LDMC
+             !TdK HMC
              CASE ('LD_STE')
                CALL get_next(simpar%ld_steps)
              CASE ('TEMP_A')
@@ -718,20 +718,20 @@ CONTAINS
 !TODEL_END_TL
 !
 
-!TdK Turn on Langevin dynamics in case LDMC is activated in the harris section
+!TdK Turn on Langevin dynamics in case HMC is activated in the harris section
   IF (globenv%ionode.AND.(globenv%print_level >= 0)) THEN
       WRITE (iw, *)
   END IF
 
-  IF (globenv%run_type_id == ldmc_run) THEN
+  IF (globenv%run_type_id == hmc_run) THEN
      simpar%ensemble = langevin_ensemble
      
      IF (globenv%ionode.AND.(globenv%print_level >= 0)) THEN
-       WRITE ( iw, '( A,T71,I10 )' ) ' LDMC| Number of Harris LD steps per MC cycle ', &
+       WRITE ( iw, '( A,T71,I10 )' ) ' HMC| Number of Harris LD steps per MC cycle ', &
             simpar % ld_steps
-       WRITE ( iw, '( A,T71,F10.2 )' ) ' LDMC| Temperature correction value alpha ', &
+       WRITE ( iw, '( A,T71,F10.2 )' ) ' HMC| Temperature correction value alpha ', &
             simpar % temp_alpha
-       WRITE ( iw, '( A,T71,F10.2 )' ) ' LDMC| Temperature correction value beta ', &
+       WRITE ( iw, '( A,T71,F10.2 )' ) ' HMC| Temperature correction value beta ', &
             simpar % temp_beta
        WRITE (iw, *)
      END IF
@@ -942,7 +942,7 @@ SUBROUTINE read_md_new_section(simpar, globenv, md_section, error)
         CALL section_vals_val_get(tmp_section,"MTS",i_val=simpar%nc,error=error)
      END IF
 
-     tmp_section => section_vals_get_subs_vals(md_section, "LDMC", error=error)
+     tmp_section => section_vals_get_subs_vals(md_section, "HMC", error=error)
      CALL section_vals_get(tmp_section, explicit=explicit, error=error)
      IF (explicit) THEN
        CALL section_vals_val_get(tmp_section, "LD_STEPS", i_val=simpar%ld_steps, &
