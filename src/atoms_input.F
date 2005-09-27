@@ -30,6 +30,11 @@ MODULE atoms_input
   USE convert_units,                   ONLY: convert_to_cp2k_units
   USE extended_system_types,           ONLY: lnhc_parameters_type,&
                                              npt_info_type
+  USE force_env_types,                 ONLY: use_fist_force,&
+                                             use_kg_force,&
+                                             use_pol_force,&
+                                             use_qs_force,&
+                                             use_qmmm
   USE global_types,                    ONLY: global_environment_type
   USE kinds,                           ONLY: dp,&
                                              default_string_length
@@ -267,8 +272,9 @@ END SUBROUTINE read_atoms_input
 !!    CJM
 !!
 !!*** *************************************************************************
-SUBROUTINE read_md_restart ( rtype, globenv, particle_set, cell, cell_ref,  &
+SUBROUTINE read_md_restart ( in_use,rtype, globenv, particle_set, cell, cell_ref,  &
                              nhc_part, nhc_baro, npt_info ) 
+    INTEGER                         :: in_use
     INTEGER, INTENT(IN)             :: rtype
     TYPE(global_environment_type), &
       INTENT(IN)                             :: globenv
@@ -390,7 +396,6 @@ SUBROUTINE read_md_restart ( rtype, globenv, particle_set, cell, cell_ref,  &
           READ ( iunit, * ) href ( 1, 1:3 )
           READ ( iunit, * ) href ( 2, 1:3 )
           READ ( iunit, * ) href ( 3, 1:3 )
-
 
           DO i = 1, SIZE ( particle_set )
              READ ( iunit, * ) v ( :, i )
@@ -531,14 +536,19 @@ SUBROUTINE read_md_restart ( rtype, globenv, particle_set, cell, cell_ref,  &
 
   CALL reallocate ( href, 1, 3, 1, 3 )
   CALL mp_bcast ( href, globenv % source, globenv % group )
+
   DO i = 1, 3
     DO j = 1, 3
       cell % hmat ( i, j ) = h ( i, j )
-      cell_ref % hmat ( i, j ) = href ( i, j )
+      IF(in_use/=use_qmmm) THEN
+         cell_ref % hmat ( i, j ) = href ( i, j )
+      ENDIF
     END DO
   END DO
 
-  CALL get_hinv ( cell_ref )
+  IF(in_use/=use_qmmm) THEN
+     CALL get_hinv ( cell_ref )
+  ENDIF
   CALL get_hinv ( cell )
 
   DEALLOCATE ( h, STAT = isos )

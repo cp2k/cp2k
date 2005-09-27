@@ -185,6 +185,7 @@ CONTAINS
       POINTER                                :: simpar
     TYPE(mdio_parameters_type), &
       POINTER                                :: mdio
+    INTEGER                                  :: in_use
 
 !   ---------------------------------------------------------------------------
 
@@ -240,7 +241,7 @@ CONTAINS
     DO ibead = 1, nbeads
 
       CALL force_env_get( force_env_p(ibead)%force_env, subsys=subsys, &
-                          dyn_coeff_set=dyn_coeff_set,&
+                          dyn_coeff_set=dyn_coeff_set,in_use=in_use,&
                           cell=cell, cell_ref = cell_ref, error=error )
 
 ! Define a reference cell for compatibility with MD restarts
@@ -288,7 +289,7 @@ CONTAINS
               error=error)
          nhc_part => extended_type%nhc_part(ibead)
          nhc_baro => extended_type%nhc_baro(ibead)
-         CALL read_md_restart ( simpar % read_type, globenv,   &
+         CALL read_md_restart ( in_use, simpar % read_type, globenv,   &
               particles%els, cell, cell_ref,  &
               nhc_part, nhc_baro, extended_type%npt_info )
          CALL initialize_velocities ( simpar, particles%els, globenv )
@@ -301,7 +302,7 @@ CONTAINS
                error=error)
           nhc_part => extended_type%nhc_part(ibead)
           nhc_baro => extended_type%nhc_baro(ibead)
-          CALL read_md_restart ( simpar % read_type, globenv,   &
+          CALL read_md_restart ( in_use, simpar % read_type, globenv,   &
                               particles%els, &
                               cell, cell_ref,  &
                               nhc_part, &

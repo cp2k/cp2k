@@ -641,6 +641,13 @@ SUBROUTINE force_env_write_variables(force_env, unit_nr, local, error)
               END DO
            END IF
         CASE(use_qmmm)
+           IF (should_write) THEN
+              DO i=1,3
+                 !ikuo Just write out the same amount of data to make restart
+                 !file size consistent
+                 WRITE (UNIT=unit_nr,FMT=*) cell%hmat(i,1:3)
+              END DO
+           END IF
         CASE (use_fist_force)
            IF (should_write) THEN
               DO i=1,3
