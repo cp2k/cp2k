@@ -1,4 +1,5 @@
 rm -f *.cell               \
+      *.xyz                \
       *.coordinates        \
       *.data               \
       *.energy             \
@@ -8,4 +9,10 @@ rm -f *.cell               \
       RESTART              \
       cell_length          \
       energy_differences   \
-      mc_restart_1
+      mc_restart_1         \
+      energy_differences_box1  \
+      mc_cell_length           \
+      mc_coordinates           \
+      mc_energies              \
+      mc_molecules
+

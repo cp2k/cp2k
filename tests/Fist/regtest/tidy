@@ -1,1 +1,1 @@
-rm -f *.crd *.ener *.restart *.vel HESSIAN bfgs.data
+rm -f *.crd *.ener *.restart *.vel HESSIAN bfgs.data *.xyz
