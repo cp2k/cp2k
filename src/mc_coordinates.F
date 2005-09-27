@@ -783,7 +783,7 @@ SUBROUTINE generate_cbmc_swap_config( force_env, BETA, nswapmoves,&
     REAL(KIND=dp)                            :: rand,rdum,&
                                                 bias_energy,&
                                                 total_running_weight,&
-	                                        exponent
+                                                exponent
     REAL(KIND=dp), DIMENSION(:,:,:),&
       ALLOCATABLE                            :: r
     REAL(KIND=dp), DIMENSION(:,:),&
