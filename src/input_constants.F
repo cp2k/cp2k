@@ -242,17 +242,19 @@ MODULE input_constants
   !
   ! Output format files
   !
-  CHARACTER (LEN=default_string_length), PARAMETER, DIMENSION(4), PUBLIC :: output_name_types=&
+  CHARACTER (LEN=default_string_length), PARAMETER, DIMENSION(5), PUBLIC :: output_name_types=&
   (/"XYZ   ",&
     "CRD   ",&
     "ATOMIC",&
-    "XMOL  "/)
+    "XMOL  ",&
+    "DCD   "/)
   INTEGER, PARAMETER, PUBLIC :: dump_xyz=1,&
                                 dump_crd=2,&
                                 dump_atomic=3,&
-                                dump_xmol=4
-  INTEGER, PARAMETER, PUBLIC, DIMENSION(4) :: output_name_index=&
-       (/dump_xyz,dump_crd,dump_atomic,dump_xmol/)
+                                dump_xmol=4,&
+                                dump_dcd=5
+  INTEGER, PARAMETER, PUBLIC, DIMENSION(5) :: output_name_index=&
+       (/dump_xyz,dump_crd,dump_atomic,dump_xmol,dump_dcd/)
 
   integer, parameter, public :: do_qmmm_none=0,&
                                 do_qmmm_grid=1,&

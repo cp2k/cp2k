@@ -83,6 +83,7 @@ MODULE md
                                              dump_crd,&
                                              dump_atomic,&
                                              dump_xmol,&
+                                             dump_dcd,&
                                              output_name_types,&
                                              output_name_index
 
@@ -340,6 +341,10 @@ CONTAINS
                    simpar % output_format = dump_atomic
                 CASE ("XMOL")
                    simpar % output_format = dump_xmol
+                CASE ("DCD")
+                   simpar % output_format = dump_dcd
+                   CALL xstring ( globenv % project_name, ia, ie )
+                   mdio%crd_file_name = globenv%project_name(ia:ie)//'.dcd'
                 CASE DEFAULT
                    call p_error
                 END SELECT

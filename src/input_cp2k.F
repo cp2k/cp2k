@@ -327,7 +327,7 @@ contains
 
     CALL keyword_create(keyword, name="OUTPUT",&
          description="Specifies the format of the output file for geometry and velocity.",&
-         usage="OUTPUT (XYZ|CRD|ATOMIC|XMOL)",&
+         usage="OUTPUT (XYZ|CRD|ATOMIC|XMOL|DCD)",&
          default_i_val=dump_xyz,&
          enum_c_vals=output_name_types,&
          enum_i_vals=output_name_index,&

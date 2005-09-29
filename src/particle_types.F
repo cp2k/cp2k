@@ -48,7 +48,8 @@ MODULE particle_types
   USE input_constants,                 ONLY: dump_xyz,&
                                              dump_xmol,&
                                              dump_atomic,&
-                                             dump_crd
+                                             dump_crd,&
+                                             dump_dcd
   USE global_types,                    ONLY: global_environment_type
   USE kinds,                           ONLY: dp,&
                                              default_string_length,&
@@ -71,6 +72,7 @@ MODULE particle_types
                                              set_molecule_set
   USE output_utilities,                ONLY: print_warning
   USE physcon,                         ONLY: angstrom,&
+                                             femtoseconds,&
                                              massunit
   USE qmmm_ff_fist,                    ONLY: qmmm_ff_precond_only_qm
   USE qs_parser,                       ONLY: finish_parser,&
@@ -1162,6 +1164,8 @@ END SUBROUTINE clone_particle
     REAL(KIND=dp), DIMENSION(3)              :: r
     CHARACTER(LEN=default_string_length)     :: atm_name, my_format
     LOGICAL :: dummy
+    REAL(KIND=4),POINTER                     :: x4(:),y4(:),z4(:)
+    INTEGER                                  :: istat
 
     natom = SIZE(particle_set)
 
@@ -1223,8 +1227,40 @@ END SUBROUTINE clone_particle
                                    particle_set(iatom)%f(1:3)
         END SELECT
       END DO
+    CASE (dump_dcd)
+       NULLIFY(x4,y4,z4)
+       ALLOCATE(x4(natom),y4(natom),z4(natom),STAT=istat)
+       IF (istat /= 0) CALL stop_memory('particle_types','x4,y4,z4')
+       SELECT CASE (TRIM(content))
+       CASE ("POS")
+         x4(:) = particle_set(:)%r(1)*angstrom
+         y4(:) = particle_set(:)%r(2)*angstrom
+         z4(:) = particle_set(:)%r(3)*angstrom
+         WRITE(iunit) x4
+         WRITE(iunit) y4
+         WRITE(iunit) z4
+       CASE ("VEL")
+         x4(:) = particle_set(:)%v(1)*angstrom*femtoseconds
+         y4(:) = particle_set(:)%v(2)*angstrom*femtoseconds
+         z4(:) = particle_set(:)%v(3)*angstrom*femtoseconds
+         WRITE(iunit) x4
+         WRITE(iunit) y4
+         WRITE(iunit) z4
+        CASE ("POS_VEL_FORCE")
+         !ikuo - No such thing for DCD, hence dump velocity only
+         x4(:) = particle_set(:)%v(1)*angstrom*femtoseconds
+         y4(:) = particle_set(:)%v(2)*angstrom*femtoseconds
+         z4(:) = particle_set(:)%v(3)*angstrom*femtoseconds
+         WRITE(iunit) x4
+         WRITE(iunit) y4
+         WRITE(iunit) z4
+       CASE DEFAULT
+         CALL stop_program ("particle_types","illegal dcd dump type")
+       END SELECT
+       DEALLOCATE(x4,y4,z4,STAT=istat)
+       IF (istat /= 0) CALL stop_memory('particle_types','x4,y4,z4')
     CASE DEFAULT
-    ! others todo
+      CALL stop_program ("particle_types","illegal dump type")
     END SELECT
 
   END SUBROUTINE write_particle_coordinates
