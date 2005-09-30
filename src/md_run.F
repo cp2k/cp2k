@@ -84,7 +84,8 @@ MODULE md_run
   USE particle_list_types,             ONLY: particle_list_type
   USE physcon,                         ONLY: kelvin
   USE simulation_cell,                 ONLY: cell_type
-  USE termination,                     ONLY: stop_memory
+  USE termination,                     ONLY: stop_memory,&
+       external_control
   USE timings,                         ONLY: timeset,&
                                              timestop
   USE velocity_verlet_control,         ONLY: velocity_verlet
@@ -106,8 +107,8 @@ MODULE md_run
   CHARACTER(LEN=*), PARAMETER :: module_name = "md_run"
 
   PUBLIC :: qs_mol_dyn, &
-            temperature_control, &
-            external_control
+            temperature_control
+
 
   INTERFACE qs_mol_dyn
      MODULE PROCEDURE qs_mol_dyn1, qs_mol_dyn2
@@ -377,7 +378,7 @@ CONTAINS
       END IF
 
       ! test for EXIT_MD to exit
-      CALL external_control(force_env_p,should_stop,error=error)
+      CALL external_control(should_stop,"MD",error=error)
       IF (should_stop) EXIT
 
       ! test if we have used more walltime than allowed      
@@ -528,55 +529,6 @@ CONTAINS
     CALL timestop(0.0_dp,handle)
 
   END SUBROUTINE temperature_control
-
-! *****************************************************************************
-
-  SUBROUTINE external_control(force_env_p,should_stop,error)
-
-!   Purpose: External manipulations during an MD run.
-
-!   History: - Creation (16.09.2003,MK)
-
-!   ***************************************************************************
-
-    TYPE(force_env_p_type), DIMENSION(:), &
-      POINTER                                :: force_env_p
-    LOGICAL, INTENT(OUT)                     :: should_stop
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
-
-    CHARACTER(LEN=*), PARAMETER :: exit_file_name = "EXIT_MD", &
-      routine_name = "external_control", &
-      routineP = module_name//':'//routine_name
-
-    INTEGER                                  :: handle, unit_number
-    LOGICAL                                  :: failure
-    TYPE(cp_logger_type), POINTER            :: logger
-
-!   ---------------------------------------------------------------------------
-
-    CALL timeset(routine_name,"I","",handle)
-    failure=.FALSE.
-    CPPrecondition(ASSOCIATED(force_env_p),cp_failure_level,routineP,error,failure)
-
-    logger => cp_error_get_logger(error)
-    should_stop = .FALSE.
-
-    IF (logger%para_env%source==logger%para_env%mepos) THEN
-       INQUIRE (FILE=exit_file_name,EXIST=should_stop)
-
-       IF (should_stop) THEN
-          CALL open_file(file_name=exit_file_name,unit_number=unit_number)
-          CALL close_file(unit_number=unit_number,file_status="DELETE")
-          WRITE (UNIT=cp_logger_get_default_unit_nr(logger),FMT="(/,T2,A,/)")&
-               "*** MD run terminated by external request ***"
-       END IF
-    END IF
-    CALL mp_bcast(should_stop,logger%para_env%source,logger%para_env%group)
-
-    CALL timestop(0.0_dp,handle)
-
-  END SUBROUTINE external_control
 
 ! *****************************************************************************
 

@@ -17,18 +17,11 @@
 !!
 !!   SOURCE
 !******************************************************************************
-#include "cp_prep_globals.h"
+
 
 MODULE mc_control
-  USE cp_error_handling,               ONLY: cp_a_l,&
-                                             cp_assert,&
-                                             cp_assertion_failed,&
-                                             cp_error_get_logger,&
-                                             cp_error_message,&
-                                             cp_error_type
   USE cp_files,                        ONLY: open_file,&
                                              close_file
-  USE cp_log_handling,                 ONLY: cp_failure_level, cp_to_string
   USE cp_subsystem_types,              ONLY: cp_subsys_get,&
                                              cp_subsystem_p_type
   USE fist_main,                       ONLY: fist_create_force_env
@@ -61,7 +54,7 @@ MODULE mc_control
   USE termination,                     ONLY: stop_memory
   USE timings,                         ONLY: timeset,&
                                              timestop
-
+#include "cp_common_uses.h"
   IMPLICIT NONE
 
   PRIVATE 

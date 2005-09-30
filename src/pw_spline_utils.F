@@ -1559,9 +1559,11 @@ SUBROUTINE pw_nn_compose_r(weights, pw_in, pw_out,error)
   CPPrecondition(ASSOCIATED(pw_out),cp_failure_level,routineP,error,failure)
   CPPrecondition(pw_out%in_space==REALSPACE,cp_failure_level,routineP,error,failure)
   CPPrecondition(pw_out%in_use==REALDATA3D,cp_failure_level,routineP,error,failure)
-  CALL cp_assert(ALL(pw_in%pw_grid%bounds_local(:,2:3) == pw_in%pw_grid%bounds(:,2:3)),&
-       cp_failure_level,cp_assertion_failed,routineP,&
-       "wrong pw distribution",error,failure)
+  IF (.NOT.ALL(pw_in%pw_grid%bounds_local(:,2:3) == pw_in%pw_grid%bounds(:,2:3))) THEN
+     CALL cp_assert(.FALSE.,&
+          cp_failure_level,cp_assertion_failed,routineP,&
+          "wrong pw distribution",error,failure)
+  END IF
   IF (.NOT.failure) THEN
      CALL pw_nn_compose_r_work(weights=weights,in_val=pw_in%cr3d,&
           out_val=pw_out%cr3d,pw_in=pw_in,bo=pw_in%pw_grid%bounds_local,&
@@ -1957,12 +1959,13 @@ END SUBROUTINE pw_nn_compose_r
              rcv_offset(ip)=rcv_tot_size
              rcv_tot_size=rcv_tot_size+rcv_size(ip)
           END DO
-          call cp_assert(rcv_tot_size==&
-               (coarse_bo(2,1)-coarse_bo(1,1)+1)*coarse_slice_size,&
-               cp_failure_level,cp_assertion_failed,routineP,&
-               "Error calculating rcv_tot_size "//&
-               CPSourceFileRef,&
-               error,failure)
+          IF (.NOT.rcv_tot_size==(coarse_bo(2,1)-coarse_bo(1,1)+1)*coarse_slice_size) THEN
+             CALL cp_assert(.FALSE.,&
+                  cp_failure_level,cp_assertion_failed,routineP,&
+                  "Error calculating rcv_tot_size "//&
+                  CPSourceFileRef,&
+                  error,failure)
+          END IF
           ALLOCATE(rcv_buf(0:rcv_tot_size-1),stat=stat)
           CPPostcondition(stat==0,cp_fatal_level,routineP,error,failure)
           

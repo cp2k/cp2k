@@ -15,15 +15,9 @@
 !!     MJM
 !!
 !******************************************************************************
-#include "cp_prep_globals.h"
 MODULE mc_coordinates
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                              get_atomic_kind
-  USE cp_error_handling,               ONLY: cp_a_l,&
-                                             cp_assert,&
-                                             cp_error_get_logger,&
-                                             cp_error_type
-  USE cp_log_handling,                 ONLY: cp_failure_level, cp_to_string
   USE cp_subsystem_types,              ONLY: cp_subsys_get,&
                                              cp_subsystem_p_type,&
                                              cp_subsystem_pp_type
@@ -54,7 +48,7 @@ MODULE mc_coordinates
                                              stop_program
   USE timings,                         ONLY: timeset,&
                                              timestop
-
+#include "cp_common_uses.h"
   IMPLICIT NONE
 
   PRIVATE :: nonbonded_energy, nonbonded_energy_spce

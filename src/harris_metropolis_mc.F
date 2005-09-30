@@ -85,8 +85,7 @@ MODULE harris_metropolis_mc
                                              md_env_release, &
                                              get_md_env, &
                                              set_md_env
-  USE md_run,                          ONLY: temperature_control, &
-                                             external_control
+  USE md_run,                          ONLY: temperature_control
   USE message_passing,                 ONLY: mp_bcast, &
                                              mp_sum
   USE mol_kind_new_list_types,         ONLY: mol_kind_new_list_type
@@ -98,7 +97,8 @@ MODULE harris_metropolis_mc
   USE particle_list_types,             ONLY: particle_list_type
   USE physcon,                         ONLY: boltzmann
   USE simulation_cell,                 ONLY: cell_type
-  USE termination,                     ONLY: stop_memory
+  USE termination,                     ONLY: stop_memory,&
+                                             external_control
   USE timings,                         ONLY: timeset, &
                                              timestop
   USE velocity_verlet_control,         ONLY: velocity_verlet
@@ -800,7 +800,7 @@ CONTAINS
       time_iter_start = time_iter_stop
       CALL md_energy(md_env, globenv, error)
 
-      CALL external_control(force_env_p, should_stop, error=error)
+      CALL external_control(should_stop,"MC",error=error)
       IF (should_stop) EXIT
 
       CALL mp_bcast(should_stop, globenv%para_env%source, globenv%para_env%group) ! sync values of should_stop

@@ -42,7 +42,6 @@ MODULE qs_localization
                                              cp_fm_p_type,&
                                              cp_fm_release,&
                                              cp_fm_type
-  USE cp_log_handling,                 ONLY: cp_logger_get_default_unit_nr
   USE cp_para_env,                     ONLY: cp_para_env_release,&
                                              cp_para_env_retain
   USE cp_para_types,                   ONLY: cp_para_env_type
@@ -91,7 +90,8 @@ MODULE qs_localization
                                              stop_program
   USE timings,                         ONLY: timeset,&
                                              timestop
-
+  USE cp_output_handling, only: cp_iter_string
+#include "cp_common_uses.h"
   IMPLICIT NONE
 
 ! *** Public ***
@@ -277,7 +277,7 @@ END SUBROUTINE get_pipek_mezey_operator
 ! applies the operators to obtain the necessary data
 !
 !******************************************************************************
-SUBROUTINE qs_loc_compute_properties(qs_loc_env, molecule_set, vectors, center, ionode, iunit)
+SUBROUTINE qs_loc_compute_properties(qs_loc_env, molecule_set, vectors, center, ionode, iunit, error)
 
     TYPE(qs_loc_env_type), POINTER           :: qs_loc_env
     TYPE(molecule_type), POINTER             :: molecule_set( : )
@@ -285,15 +285,19 @@ SUBROUTINE qs_loc_compute_properties(qs_loc_env, molecule_set, vectors, center, 
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: center
     LOGICAL                                  :: ionode
     INTEGER                                  :: iunit
+    TYPE(cp_error_type), INTENT(inout), optional :: error
 
     INTEGER                                  :: handle, i, isos, j, k, n, &
                                                 natoms, sweeps, scr
     TYPE(cp_fm_p_type), ALLOCATABLE          :: ZIJ( :, : )
     TYPE(cp_fm_struct_type), POINTER         :: tmp_fm_struct
     TYPE(cp_fm_type), POINTER                :: opvec
+    logical :: converged
+    TYPE(cp_logger_type), pointer :: logger
 
   CALL timeset("qs_loc_compute_properties","I",'',handle)
   NULLIFY(tmp_fm_struct,opvec)
+  logger => cp_error_get_logger(error)
 
   ! get rows and cols of the input
   CALL cp_fm_get_info(vectors,nrow_global=n,ncol_global=k)
@@ -340,25 +344,32 @@ SUBROUTINE qs_loc_compute_properties(qs_loc_env, molecule_set, vectors, center, 
        CASE ( WANNIER_JACOBI )
           CALL jacobi_rotations ( qs_loc_env % weights, zij, vectors, sweeps ) 
        CASE ( WANNIER_CRAZY )
-          CALL crazy_rotations  ( qs_loc_env % weights, zij, vectors, sweeps ) 
+          CALL crazy_rotations  ( qs_loc_env % weights, zij, vectors, sweeps, &
+               converged=converged, error=error )
+          IF (.NOT.converged) THEN
+             WRITE (cp_logger_get_default_unit_nr(logger,local=.FALSE.),"(A,I6,A)")&
+                  " Crazy Wannier localization not converged after ",sweeps,&
+                  " iterations, switching to jacobi rotations"
+             CALL jacobi_rotations ( qs_loc_env % weights, zij, vectors, sweeps ) 
+          END IF
        CASE ( WANNIER_DIRECT )
           CALL direct_mini      ( qs_loc_env % weights, zij, vectors, sweeps ) 
        CASE DEFAULT
           CALL stop_program("qs_localization","unknown localization method")
        END SELECT
        IF (ionode) THEN
-           scr=cp_logger_get_default_unit_nr()
+           scr=cp_logger_get_default_unit_nr(logger,.false.)
            WRITE(scr,'(A,I6,A)') " Wannier localization converged in ",sweeps," iterations"
        ENDIF
   ELSE
        IF (ionode) THEN
-           scr=cp_logger_get_default_unit_nr()
+           scr=cp_logger_get_default_unit_nr(logger,.false.)
            WRITE(scr,'(A,I6,A)') " No Wannier localization applied "
        ENDIF
   ENDIF
 
   IF ( qs_loc_env % operator_type == POSITION_OPERATOR )  THEN
-    CALL centers_and_spreads ( ionode, iunit, qs_loc_env, zij, center ) 
+    CALL centers_and_spreads ( ionode, iunit, qs_loc_env, zij, center, error ) 
     IF (qs_loc_env % molecular_states ) &
     CALL wfc_to_molecule ( qs_loc_env, center, molecule_set )
   ENDIF 
@@ -385,19 +396,22 @@ END SUBROUTINE qs_loc_compute_properties
 !
 !******************************************************************************
 
-SUBROUTINE centers_and_spreads ( ionode, iunit, qs_loc_env, zij, center )
+SUBROUTINE centers_and_spreads ( ionode, iunit, qs_loc_env, zij, center, error )
 ! globals
     LOGICAL, INTENT(IN)                      :: ionode
     INTEGER, INTENT(IN)                      :: iunit
     TYPE(qs_loc_env_type), POINTER           :: qs_loc_env
     TYPE(cp_fm_p_type), INTENT(INOUT)        :: zij( :, : )
     REAL(KIND=dp), INTENT(OUT)               :: center( :, : )
+    TYPE(cp_error_type), INTENT(inout), optional :: error
 
     COMPLEX(KIND=dp)                         :: almost_determinant, z
     INTEGER                                  :: i, l, nstates, scr
     REAL(KIND=dp)                            :: imagpart, realpart
     TYPE(cell_type), POINTER                 :: cell
     TYPE(cp_cfm_type), POINTER               :: complexresult
+    TYPE(cp_logger_type), pointer :: logger
+    CHARACTER(default_string_length) :: iter
 
 ! get nstates
 
@@ -405,11 +419,16 @@ SUBROUTINE centers_and_spreads ( ionode, iunit, qs_loc_env, zij, center )
 
 ! initialize complexresult for boys-foster
   NULLIFY ( complexresult )
+  logger => cp_error_get_logger(error)
   CALL cp_cfm_create ( complexresult, zij ( 1, 1 ) % matrix % matrix_struct )
 !
   
 ! OK print out the centers ( center ( 1:3) )  and spreads ( center ( 4:6 ) ) of these friends
   cell => qs_loc_env % cell
+  IF (ionode) THEN
+     iter=cp_iter_string(logger%iter_info,error=error)
+     WRITE(iunit,'(i6,/,a)') nstates,TRIM(iter)
+  END IF
   DO l=1,nstates
     DO i=1,3
        CALL cp_fm_get_element(zij(1,i)%matrix,l,l,realpart)

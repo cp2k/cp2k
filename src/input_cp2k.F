@@ -7134,9 +7134,9 @@ END SUBROUTINE create_ewald_section
             description="the interpolator to use",&
             usage="kind spline3",&
             default_i_val=spline3_nopbc_interp,&
-            enum_c_vals=s2a("linear","spline3_nopbc","spline3"),&
+            enum_c_vals=s2a("linear","spline3_nopbc"),&
             enum_i_vals=(/linear_interp,&
-            spline3_nopbc_interp,spline3_pbc_interp/),error=error)
+            spline3_nopbc_interp/),error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
