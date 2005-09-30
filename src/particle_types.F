@@ -52,6 +52,7 @@ MODULE particle_types
                                              dump_dcd
   USE global_types,                    ONLY: global_environment_type
   USE kinds,                           ONLY: dp,&
+                                             sp,&
                                              default_string_length,&
                                              dp_size,&
                                              int_size
@@ -1164,7 +1165,7 @@ END SUBROUTINE clone_particle
     REAL(KIND=dp), DIMENSION(3)              :: r
     CHARACTER(LEN=default_string_length)     :: atm_name, my_format
     LOGICAL :: dummy
-    REAL(KIND=dp), DIMENSION(:), POINTER     :: x4,y4,z4
+    REAL(KIND=sp), DIMENSION(:), POINTER     :: x4,y4,z4
     INTEGER                                  :: istat
 
     natom = SIZE(particle_set)
