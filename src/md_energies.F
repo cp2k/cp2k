@@ -566,14 +566,16 @@ CONTAINS
     LOGICAL, INTENT(IN), OPTIONAL            :: replace_file
     LOGICAL, INTENT(IN), OPTIONAL            :: binary
 
-    LOGICAL                                  :: file_exists, keep_file
     CHARACTER(LEN=default_string_length)     :: file_form
+    LOGICAL                                  :: file_exists, keep_file
 
 !   ---------------------------------------------------------------------------
 
     file_form="FORMATTED"
-    IF(PRESENT(binary).AND.binary) file_form="UNFORMATTED"
 
+    IF (PRESENT(binary)) THEN
+      IF (binary) file_form="UNFORMATTED"
+    END IF
 
     INQUIRE (FILE=file_name,EXIST=file_exists)
 
