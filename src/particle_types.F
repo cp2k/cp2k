@@ -1164,7 +1164,7 @@ END SUBROUTINE clone_particle
     REAL(KIND=dp), DIMENSION(3)              :: r
     CHARACTER(LEN=default_string_length)     :: atm_name, my_format
     LOGICAL :: dummy
-    REAL(KIND=4),POINTER                     :: x4(:),y4(:),z4(:)
+    REAL(KIND=dp), DIMENSION(:), POINTER     :: x4,y4,z4
     INTEGER                                  :: istat
 
     natom = SIZE(particle_set)
