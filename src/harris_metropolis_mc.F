@@ -48,6 +48,8 @@ MODULE harris_metropolis_mc
                                              cp_iterate
   USE cp_subsystem_types,              ONLY: cp_subsystem_p_type, &
                                              cp_subsys_get
+  USE cp2k_units,                      ONLY: get_cp2k_units, &
+                                             unit_convert_type
   USE distribution_1d_types,           ONLY: distribution_1d_type
   USE dynamical_coeff_types,           ONLY: dyn_coeff_set_p_type, &
                                              dyn_coeff_set_initialize
@@ -97,10 +99,11 @@ MODULE harris_metropolis_mc
   USE particle_list_types,             ONLY: particle_list_type
   USE physcon,                         ONLY: boltzmann
   USE simulation_cell,                 ONLY: cell_type
-  USE termination,                     ONLY: stop_memory,&
+  USE termination,                     ONLY: stop_memory, &
                                              external_control
   USE timings,                         ONLY: timeset, &
                                              timestop
+  USE util,                            ONLY: gasdev
   USE velocity_verlet_control,         ONLY: velocity_verlet
   USE wiener_process,                  ONLY: create_wiener_process,&
                                              read_md_restart_file,&
@@ -174,8 +177,9 @@ CONTAINS
     CPPostconditionNoFail(stat==0,cp_failure_level,routineP,error)
     force_env_p(1)%force_env => force_env
     CALL harris_mc_md(force_env_p, globenv, total_energy=.TRUE., &
-                      external_temp=.TRUE., qs_accept=.TRUE., &
-                      random_velocities=.TRUE., error=error)
+                      external_temp=.TRUE., qs_accept=.FALSE., &
+                      random_velocities=.TRUE., velocity_scaling=.FALSE., &
+                      error=error)
 
   END SUBROUTINE harris_mc_ld
 !***************************************************************************
@@ -222,7 +226,7 @@ CONTAINS
 !!
 !!*** **********************************************************************
   SUBROUTINE harris_mc_md(force_env_p, globenv, total_energy, external_temp, &
-                          qs_accept, random_velocities, error)
+                          qs_accept, random_velocities, velocity_scaling, error)
 
     TYPE(force_env_p_type), DIMENSION(:), &
       POINTER                                :: force_env_p
@@ -230,7 +234,8 @@ CONTAINS
     LOGICAL, OPTIONAL                        :: total_energy, &
                                                 external_temp, &
                                                 qs_accept, &
-                                                random_velocities
+                                                random_velocities, &
+                                                velocity_scaling
     TYPE(cp_error_type), INTENT(INOUT), &
       OPTIONAL                               :: error
 
@@ -262,7 +267,8 @@ CONTAINS
                                                 ionode, &
                                                 qs_ener, &
                                                 use_harris_tmp, &
-                                                rand_vel
+                                                rand_vel, &
+                                                vel_scaling
     REAL(KIND=dp)                            :: md_run_start_time, &
                                                 time_iter_start, &
                                                 time_iter_stop, &
@@ -276,7 +282,13 @@ CONTAINS
                                                 mass, &
                                                 Ekin, &
                                                 Epot, &
-                                                Econs
+                                                Econs, &
+                                                akin, &
+                                                temp, &
+                                                denom, &
+                                                sigma
+    REAL(KIND=dp), DIMENSION(3)              :: vcom, &
+                                                vcom_new
     REAL(KIND=dp), POINTER                   :: used_time
     TYPE(extended_system_type)               :: extended_type
     TYPE(cp_subsystem_p_type), &
@@ -303,6 +315,7 @@ CONTAINS
     TYPE(atomic_kind_list_type), POINTER     :: atomic_kinds
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
     INTEGER, DIMENSION(:), POINTER           :: atom_list
+    TYPE(unit_convert_type), POINTER         :: unit
 
 !   ------------------------------------------------------------------------
 
@@ -335,6 +348,12 @@ CONTAINS
       rand_vel = random_velocities
     ELSE
       rand_vel = .TRUE.
+    END IF
+
+    IF (PRESENT(velocity_scaling) .AND. rand_vel) THEN
+      vel_scaling = velocity_scaling
+    ELSE
+      vel_scaling = .FALSE.
     END IF
 
     failure=.FALSE.
@@ -523,9 +542,84 @@ CONTAINS
       END IF
 
       IF (rand_vel) THEN
-        CALL initialize_velocities(simpar, particles%els, globenv)
-      END IF
+        IF (vel_scaling) THEN
+          CALL initialize_velocities(simpar, particles%els, globenv)
+        ELSE
+          iw = globenv % scr
+          IF (globenv % ionode) THEN
+            WRITE ( iw, '( A, A, A )' ) ' **********************', &
+                 ' begin of velocity initialization ', '***********************'
+          END IF
 
+          CALL get_cp2k_units(unit)
+
+          ! initializing the velocities
+          IF (globenv%ionode) THEN
+
+            denom = 0.0_dp
+            vcom = 0.0_dp
+            ! computing the COM velocities
+            DO i = 1,SIZE(particles%els)
+              CALL get_atomic_kind(atomic_kind = particles%els(i)%atomic_kind, mass=mass)
+              IF (particles%els(i)%is_fixed) THEN
+                particles%els(i)%v = 0.0_dp
+              ELSE
+                sigma = SQRT(simpar%temp_ext/mass)
+                particles%els(i)%v(1) = gasdev(globenv%idum) * sigma
+                particles%els(i)%v(2) = gasdev(globenv%idum) * sigma
+                particles%els(i)%v(3) = gasdev(globenv%idum) * sigma
+                vcom(1) = vcom(1) + mass * particles%els(i)%v(1)
+                vcom(2) = vcom(2) + mass * particles%els(i)%v(2)
+                vcom(3) = vcom(3) + mass * particles%els(i)%v(3)
+                denom = denom + mass
+              END IF
+            END DO
+            vcom = vcom / denom
+
+            akin = 0.0_dp
+            vcom_new = 0.0_dp
+            DO i = 1,SIZE(particles%els)
+              atomic_kind => particles%els(i)%atomic_kind
+              CALL get_atomic_kind (atomic_kind = atomic_kind, mass = mass)
+              ! first subtract the COM
+              IF (.NOT.particles%els(i)%is_fixed) THEN
+                particles%els(i)%v(:) = particles%els(i)%v(:) - vcom(:)
+                ! now compute the temp
+                akin = akin + 0.5_dp * (mass * particles%els(i)%v(1) * particles%els(i)%v(1))
+                akin = akin + 0.5_dp * (mass * particles%els(i)%v(2) * particles%els(i)%v(2))
+                akin = akin + 0.5_dp * (mass * particles%els(i)%v(3) * particles%els(i)%v(3))
+              END IF
+              vcom_new(:) = vcom_new(:) + mass * particles%els(i)%v(:)
+            END DO
+          END IF
+        
+#if defined(__parallel)
+          DO i = 1,SIZE(particles%els)
+            CALL mp_bcast(particles%els(i)%v, globenv%source, globenv%group)
+          END DO
+#endif
+
+          temp = 0.0_dp
+          IF (globenv % ionode) THEN
+            IF (simpar % nfree == 0) THEN
+              temp = 2.0_dp * akin / REAL(1, KIND=dp) ! Should always be zero...
+            ELSE
+              temp = 2.0_dp * akin / REAL(simpar%nfree, KIND=dp)
+            END IF
+            WRITE ( iw, '( A, T61, F18.2, A2 )' ) &
+                 ' Initial Temperature ', temp / unit%kelvin, " K"
+            WRITE ( iw, '( A, T61, F20.12 )' ) &
+                 ' Centre of mass velocity in direction x:', vcom_new(1)
+            WRITE ( iw, '( A, T61, F20.12 )' ) &
+                 ' Centre of mass velocity in direction y:', vcom_new(2)
+            WRITE ( iw, '( A, T61, F20.12 )' ) &
+                 ' Centre of mass velocity in direction z:', vcom_new(3)
+            WRITE ( iw, '( A, A, A, / )' ) ' ***********************', &
+                 ' end of velocity initialization ', '************************'
+          END IF
+        END IF
+      END IF
+ 
       CALL harris_mc_md_approach(md_env, globenv, simpar, logger, error)
 
       ! Compare energies
@@ -590,7 +684,7 @@ CONTAINS
 
             e_kinetic = 0.0_dp
 
-            DO ikind=1,SIZE(local_particles%list)
+            DO ikind=1,SIZE(particles%els)
               atomic_kind => atomic_kinds%els(ikind)
               CALL get_atomic_kind(atomic_kind=atomic_kind,&
                    mass=mass)
@@ -800,7 +894,7 @@ CONTAINS
       time_iter_start = time_iter_stop
       CALL md_energy(md_env, globenv, error)
 
-      CALL external_control(should_stop,"MC",error=error)
+      CALL external_control(should_stop,"HMC",error=error)
       IF (should_stop) EXIT
 
       CALL mp_bcast(should_stop, globenv%para_env%source, globenv%para_env%group) ! sync values of should_stop
