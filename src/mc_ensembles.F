@@ -2,16 +2,20 @@
 !   CP2K: A general program to perform molecular dynamics simulations
 !   Copyright (C) 2001 - 2003  CP2K developers group
 !-----------------------------------------------------------------------------!
-!!****** cp2k/mc_ensembles [1.0] *
+!!****** cp2k/mc_ensembles [2.0] *
 !!
 !!   NAME
 !!     mc_ensembles
 !!
 !!   FUNCTION
-!!     Contains the details of the individuals ensembles used in an MC run
+!!     Used to run the bulk of the MC simulation, doing things like
+!!     choosing move types and writing data to files 
 !!
 !!   AUTHOR
 !!     Matthew J. McGrath  (09.26.2003)
+!!
+!!   REVISIONS
+!!     09.10.05  MJM combined the two subroutines in this module into one
 !!
 !******************************************************************************
 
@@ -20,20 +24,15 @@
 MODULE mc_ensembles
   USE checkpoint_handler,              ONLY: write_checkpoint_information
   USE cp_error_handling,               ONLY: cp_a_l,&
-                                             cp_assert,&
                                              cp_error_get_logger,&
                                              cp_error_type
-  USE cp_log_handling,                 ONLY: cp_failure_level,&
-                                             cp_logger_get_default_unit_nr,&
-                                             cp_logger_type,&
-                                             cp_to_string
+  USE cp_log_handling,                 ONLY: cp_logger_get_default_unit_nr,& 
+                                             cp_logger_type
   USE cp_subsystem_types,              ONLY: cp_subsys_get,&
-                                             cp_subsystem_p_type,&
                                              cp_subsystem_pp_type
   USE force_env_methods,               ONLY: force_env_calc_energy_force
   USE force_env_types,                 ONLY: force_env_get,&
                                              force_env_p_type,&
-                                             force_env_type,&
                                              force_env_release
   USE global_types,                    ONLY: global_environment_type
   USE kinds,                           ONLY: dp,&
@@ -46,7 +45,6 @@ MODULE mc_ensembles
                                              find_mc_test_molecule,&
                                              create_discrete_array
   USE mc_environment_types,            ONLY: get_mc_env,&
-                                             mc_environment_type,&
                                              mc_environment_p_type,&
                                              set_mc_env
   USE mc_ge_moves,                     ONLY: mc_ge_swap_move,&
@@ -65,21 +63,16 @@ MODULE mc_ensembles
                                              mc_volume_move
   USE mc_types,                        ONLY: get_mc_par,&
                                              mc_averages_p_type,&
-                                             mc_averages_type,&
                                              mc_moves_p_type,&
-                                             mc_moves_type,&
                                              mc_simulation_parameters_p_type,&
-                                             mc_simulation_parameters_type,&
                                              set_mc_par
   USE message_passing,                 ONLY: mp_bcast
-  USE particle_list_types,             ONLY: particle_list_type,&
-                                             particle_list_p_type
+  USE particle_list_types,             ONLY: particle_list_p_type
   USE particle_types,                  ONLY: write_particle_coordinates
   USE physcon,                         ONLY: angstrom
   USE cp_files,                        ONLY: close_file,&
                                              open_file
-  USE simulation_cell,                 ONLY: cell_type,&
-                                             get_cell,&
+  USE simulation_cell,                 ONLY: get_cell,&
                                              cell_p_type
   USE termination,                     ONLY: stop_memory,&
                                              stop_program
@@ -105,14 +98,16 @@ CONTAINS
 !!****s* mc_ensembles.F/mc_run_ensemble
 !!
 !!   NAME
-!!     mc_traditional_ensemble
+!!     mc_run_ensemble
 !!
 !!   FUNCTION
 !!     directs the program in running one or two box MC simulations
 !!
 !!   ARGUMENTS
-!!     - mc_env: the mc_environment for the simulation box
+!!     - mc_env: a pointer that contains all mc_env for all the simulation
+!!         boxes 
 !!     - globenv: the global environment for the simulation
+!!     - nboxes: the number of simulation boxes 
 !!     - error: the error type
 !!
 !!   AUTHOR
@@ -395,10 +390,6 @@ CONTAINS
       ENDIF
 
 ! if we're doing a discrete volume move, we need to set up the array
-! that keeps track of which direction we can move in...1 means we can
-! increase, -1 means we can decrease
-
-! if we're doing a discrete volume move, we need to set up the array
 ! that keeps track of which direction we can move in
       IF(ldiscrete) THEN
          IF(nboxes .NE. 1) &
@@ -546,9 +537,6 @@ CONTAINS
                      ENDIF
                   ELSEIF(rand .LT. pmtrans) THEN
 ! translate a whole molecule in the system
-! call a random number to figure out which molecule we're moving...the
-! second line is necessary because we access a matrix with individual
-! particles
                      move_type='trans'
                      CALL find_mc_test_molecule(force_env,mol,box_number,&
                         nchain(:),error=error)
@@ -654,6 +642,14 @@ CONTAINS
                         'BOX ' // TRIM(ADJUSTL(cbox)))
                   ENDIF
 
+! find bond lengths and angle for current water config
+!               IF(nchain(ibox) .NE. 0) THEN
+!                  istep(ibox)=istep(ibox)+1
+!                  CALL get_water_data(force_env(ibox)%force_env,&
+!                     averages(ibox)%averages,&
+!                     istep(ibox),nchain(ibox),data_unit(ibox))
+!               ENDIF
+
                ENDDO
             ENDIF
 
@@ -672,14 +668,6 @@ CONTAINS
                   REAL(nnstep-nstart-1,dp)/REAL(nnstep-nstart,dp)+&
                   abc(1,ibox)*abc(2,ibox)*abc(3,ibox)/&
                   REAL(nnstep-nstart,dp)
-
-! find bond lengths and angle for current water config
-               IF(nchain(ibox) .NE. 0) THEN
-                  istep(ibox)=istep(ibox)+1
-                  CALL get_water_data(force_env(ibox)%force_env,&
-                     averages(ibox)%averages,&
-                     istep(ibox),nchain(ibox),data_unit(ibox))
-               ENDIF
 
 ! update the move displacements, if necessary
                IF (MOD(nnstep-nstart,iuptrans) == 0) THEN
@@ -711,7 +699,7 @@ CONTAINS
             box_flag(:)=0
 
 ! check to see if EXIT file exists...if so, end the calculation
-            CALL external_control(force_env(1)%force_env,&
+            CALL external_control(&
                should_stop,error=error)
 
          ENDIF
@@ -884,15 +872,16 @@ CONTAINS
 !*********************************************************************
 
 !*********************************************************************
-  SUBROUTINE external_control(force_env,should_stop,error)
+  SUBROUTINE external_control(should_stop,error)
 
-!   Purpose: External manipulations during an MC run.
+!   Purpose: External manipulations during an MC run.  If a file
+!   called EXIT_MC is touched in the directory the code is running in, then
+!   the MC run will end after the current step is complete
 
 !   History: - Creation (16.09.2003,MK)
 
 !   ***************************************************************************
 
-    TYPE(force_env_type), POINTER            :: force_env
     LOGICAL, INTENT(OUT)                     :: should_stop
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
@@ -902,14 +891,11 @@ CONTAINS
       routineP = module_name//':'//routine_name
 
     INTEGER                                  :: handle, unit_number
-    LOGICAL                                  :: failure
     TYPE(cp_logger_type), POINTER            :: logger
 
 !   ---------------------------------------------------------------------------
 
     CALL timeset(routine_name,"I","",handle)
-    failure=.FALSE.
-    CPPrecondition(ASSOCIATED(force_env),cp_failure_level,routineP,error,failure)
 
     logger => cp_error_get_logger(error)
     should_stop = .FALSE.

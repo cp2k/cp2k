@@ -9,7 +9,9 @@
 !!     mc_run
 !!
 !!   FUNCTION
-!!     perform classical Monte Carlo Simulations
+!!     preps the system for a Monte Carlo run (sets up some environments, calls the
+!!     routines to read in the MC parameters)...converted from qs_mc.F
+!!
 !!   AUTHOR
 !!     MJM-Oct-15-03
 !!
@@ -19,15 +21,9 @@
 
 MODULE mc_run
   USE cp2k_units,                      ONLY: init_cp2k_units
-  USE cp_error_handling,               ONLY: cp_assert,&
-                                             cp_a_l,&
+  USE cp_error_handling,               ONLY: cp_a_l,&
                                              cp_error_type
-  USE cp_log_handling,                 ONLY: cp_failure_level,&
-                                             cp_logger_get_default_unit_nr,&
-                                             cp_logger_type,&
-                                             cp_note_level,&
-                                             cp_to_string,&
-                                             cp_warning_level
+  USE cp_log_handling,                 ONLY: cp_warning_level
   USE cp_subsystem_types,              ONLY: cp_subsys_get,&
                                              cp_subsystem_p_type
   USE force_env_types,                 ONLY: force_env_get,&
@@ -55,8 +51,6 @@ MODULE mc_run
   USE physcon,                         ONLY: angstrom
   USE termination,                     ONLY: stop_memory,&
                                              stop_program
-  USE timings,                         ONLY: timeset,&
-                                             timestop
 
   IMPLICIT NONE
 
@@ -237,7 +231,6 @@ CONTAINS
 ! pull all the information together into one environment
          CALL set_mc_env( mc_env(1)%mc_env, &
             mc_par = mc_par, force_env=force_env)
-!         CALL mc_traditional_ensemble(mc_env,globenv,error)
          CALL mc_run_ensemble(mc_env,globenv,nboxes,error)
 
       CASE("gemc")
@@ -330,7 +323,6 @@ CONTAINS
             force_env=force_env_2)
 
 ! do the calculation
-!         CALL gemc_nvt(mc_env,mc_env_2,globenv,error)
          CALL mc_run_ensemble(mc_env,globenv,nboxes,error)
 
 ! clean up after ourselves

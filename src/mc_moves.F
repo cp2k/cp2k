@@ -918,12 +918,14 @@ CONTAINS
                                                 iside,iside_change
     REAL(KIND=dp) :: classical_energy_diff, classical_energy_new, &
       classical_energy_original, classical_energy_test, &
-      new_energy, old_cell_length, rand, vol_dis, w,discrete_step,&
-      BETA,rmvolume,pressure,cutoff,inner_cutoff,rcut,rdum
+      new_energy, rand, vol_dis, w,discrete_step,energy_term,&
+      BETA,rmvolume,pressure,cutoff,inner_cutoff,rcut,rdum,value,&
+      pressure_term,volume_term
     REAL(KIND=dp), DIMENSION(1:3)            :: center_of_mass, &
                                                 center_of_mass_new, diff,&
                                                 abc,test_cell_length,&
-                                                new_cell_length
+                                                new_cell_length,&
+	                                        old_cell_length
     TYPE(mol_kind_new_list_type), POINTER    :: molecule_kinds_new
     TYPE(molecule_kind_type), POINTER        :: molecule_kind
     TYPE(force_env_type), POINTER            :: test_env
@@ -994,7 +996,9 @@ CONTAINS
       ENDDO
 
 ! find the old cell length
-      old_cell_length=abc(1)
+      old_cell_length(1)=abc(1)
+      old_cell_length(2)=abc(2)
+      old_cell_length(3)=abc(3)
       test_cell_length(1)=abc(1)
       test_cell_length(2)=abc(2)
       test_cell_length(3)=abc(3)
@@ -1003,7 +1007,7 @@ CONTAINS
 ! find the old classical energy
          CALL mc_classical_energy(force_env,&
             classical_energy_original,nchain,1,nchain,&
-            cutoff,ldum,cell_length=old_cell_length)
+            cutoff,ldum,cell_length=old_cell_length(1))
          IF(ldum) CALL stop_program(routineN,module_name,__LINE__,&
          'Volume move found an overlap in the old remove config')   
          classical_energy_test=classical_energy_original
@@ -1071,6 +1075,8 @@ CONTAINS
                   ENDIF
                ENDDO
             ENDIF
+            vol_dis=(new_cell_length(1)*new_cell_length(2)*new_cell_length(3))&
+               -old_cell_length(1)*old_cell_length(2)*old_cell_length(3)
          ELSE
 ! now for the not discrete volume move
 !!!!!!!!!!!!!!!! for E_V curves
@@ -1202,12 +1208,21 @@ CONTAINS
            
       IF (ionode) THEN
 ! accept or reject the move
-
-         w=exp(-BETA*((new_energy-old_energy)-&
-            REAL(nchain,dp)/BETA*3.0E0_dp*&
-            LOG(test_cell_length(1)/old_cell_length) &
-            + pressure*vol_dis))
-            
+! to prevent overflows
+	 energy_term=new_energy-old_energy
+         volume_term=-REAL(nchain,dp)/BETA*&
+            LOG(test_cell_length(1)*test_cell_length(2)*test_cell_length(3)/&
+            (old_cell_length(1)*old_cell_length(2)*old_cell_length(3)))
+         pressure_term=pressure*vol_dis
+         value=-BETA*(energy_term+volume_term+pressure_term)
+         IF(value .GT. 500.0d0) THEN
+            w=10.0d0
+         ELSEIF(value .LT. -500.0d0) THEN
+            w=0.0d0
+         ELSE
+            w=exp(value)
+         ENDIF
+ 
 !!!!!!!!!!!!!!!! for E_V curves
 !         w=1.0E0_dp
 !         w=0.0E0_dp
