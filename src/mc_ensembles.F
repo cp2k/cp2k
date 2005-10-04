@@ -531,7 +531,7 @@ CONTAINS
                            force_env(box_number)%force_env,&
                            bias_env(box_number)%force_env,&
                            moves(box_number)%moves,&
-                           move_updates(box_number)%moves,nnstep,imove,&
+                           move_updates(box_number)%moves,nnstep,&
                            mol,bias_energy(box_number),&
                            move_type,lreject,error=error)
                         IF(lreject) EXIT
@@ -546,7 +546,7 @@ CONTAINS
                         force_env(box_number)%force_env,&
                         bias_env(box_number)%force_env,&
                         moves(box_number)%moves,&
-                        move_updates(box_number)%moves,nnstep,imove,mol,&
+                        move_updates(box_number)%moves,nnstep,mol,&
                         bias_energy(box_number),lreject,error=error)
                      IF(lreject) EXIT
                   ELSE
@@ -559,7 +559,7 @@ CONTAINS
                         force_env(box_number)%force_env,&
                         bias_env(box_number)%force_env,&
                         moves(box_number)%moves,&
-                        move_updates(box_number)%moves,nnstep,imove,&
+                        move_updates(box_number)%moves,nnstep,&
                         mol,bias_energy(box_number),&
                         lreject,error=error)
                      IF(lreject) EXIT

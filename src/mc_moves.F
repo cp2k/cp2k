@@ -9,7 +9,7 @@
 !!
 !!   FUNCTION
 !!     the various moves in Monte Carlo (MC) simulations, including
-!!     translation of an atom, translation of a molecule, rotation
+!!     change of internal conformation, translation of a molecule, rotation
 !!     of a molecule, and changing the size of the simulation box
 !!
 !!   AUTHOR
@@ -97,16 +97,20 @@ CONTAINS
 !!   ARGUMENTS
 !!     - mc_par: the mc parameters for the force env
 !!     - force_env: the force environment used in the move
+!!     - bias_env: the force environment used to bias the move, if any (it may
+!!           be null if lbias=.false. in mc_par)
 !!     - moves: the structure that keeps track of how many moves have been
 !!              accepted/rejected
 !!     - move_updates: the structure that keeps track of how many moves have
 !!              been accepted/rejected since the last time the displacements
 !!              were updated
 !!     - nnstep: the total number of "outer moves" already performed
-!!     - counter: the total number of "inner moves" already performed
-!!     - mol: the number of the molecule's oxygen atom, assuming the hydrogens
-!!            are the following two
-!!                                 
+!!     - mol: the number of the molecule's first atom, assuming the rest of
+!!       the atoms follow sequentially
+!!     - bias_energy: the biased energy of the system before the move
+!!     - move_type: dictates what kind of conformational change we do
+!!     - lreject: set to .true. if there is an overlap
+!!     - error: the cp_error type                            
 !!
 !!   AUTHOR
 !!     MJM
@@ -114,7 +118,7 @@ CONTAINS
 !!*****************************************************************************
 
   SUBROUTINE mc_atom_translation ( mc_par,force_env,bias_env, moves,&
-                        move_updates,nnstep,counter,mol,bias_energy,&
+                        move_updates,nnstep,mol,bias_energy,&
                         move_type,lreject,error)
 
 !   ***************************************************************************
@@ -123,7 +127,7 @@ CONTAINS
       POINTER                                :: mc_par
     TYPE(force_env_type), POINTER            :: force_env,bias_env
     TYPE(mc_moves_type), POINTER             :: moves, move_updates
-    INTEGER, INTENT(IN)                      :: nnstep, counter, mol
+    INTEGER, INTENT(IN)                      :: nnstep, mol
     REAL(KIND=dp), INTENT(INOUT)             :: bias_energy
     TYPE(cp_error_type), INTENT(INOUT), &
       OPTIONAL                               :: error
@@ -353,15 +357,20 @@ CONTAINS
 !!   ARGUMENTS
 !!     - mc_par: the mc parameters for the force env
 !!     - force_env: the force environment used in the move
+!!     - bias_env: the force environment used to bias the move, if any (it may
+!!           be null if lbias=.false. in mc_par)
 !!     - moves: the structure that keeps track of how many moves have been
 !!              accepted/rejected
 !!     - move_updates: the structure that keeps track of how many moves have
 !!              been accepted/rejected since the last time the displacements
 !!              were updated
 !!     - nnstep: the total number of "outer moves" already performed
-!!     - counter: the total number of "inner moves" already performed
-!!     - mol: the number of the molecule's oxygen atom, assuming the hydrogens
-!!            are the following two
+!!     - mol: the number of the molecule's first atom, assuming the rest of
+!!       the atoms follow sequentially
+!!     - bias_energy: the biased energy of the system before the move
+!!     - lreject: set to .true. if there is an overlap
+!!     - error: the cp_error type                            
+!!
 !!                                 
 !!
 !!   AUTHOR
@@ -370,7 +379,7 @@ CONTAINS
 !!*****************************************************************************
 
  SUBROUTINE mc_molecule_translation(  mc_par,force_env, bias_env,moves,&
-                      move_updates,nnstep,counter,mol,bias_energy,&
+                      move_updates,nnstep,mol,bias_energy,&
                         lreject,error)
 
 !   ***************************************************************************
@@ -379,7 +388,7 @@ CONTAINS
       POINTER                                :: mc_par
     TYPE(force_env_type), POINTER            :: force_env,bias_env
     TYPE(mc_moves_type), POINTER             :: moves, move_updates
-    INTEGER, INTENT(IN)                      :: nnstep, counter, mol
+    INTEGER, INTENT(IN)                      :: nnstep, mol
     REAL(KIND=dp), INTENT(INOUT)             :: bias_energy
     TYPE(cp_error_type), INTENT(INOUT), &
       OPTIONAL                               :: error
@@ -436,10 +445,6 @@ CONTAINS
 ! save the energy
          bias_energy_old=bias_energy
 
-!         CALL mc_classical_energy(force_env,classical_energy_old,&
-!            nchain,imol,imol,cutoff,loverlap)
-!         IF(loverlap) CALL stop_program(routineN,module_name,__LINE__,&
-!            'Rotation found an overlap in the old config') 
       ELSE
 
 ! grab the coordinates
@@ -564,15 +569,19 @@ CONTAINS
 !!   ARGUMENTS
 !!     - mc_par: the mc parameters for the force env
 !!     - force_env: the force environment used in the move
+!!     - bias_env: the force environment used to bias the move, if any (it may
+!!           be null if lbias=.false. in mc_par)
 !!     - moves: the structure that keeps track of how many moves have been
 !!              accepted/rejected
 !!     - move_updates: the structure that keeps track of how many moves have
 !!              been accepted/rejected since the last time the displacements
 !!              were updated
 !!     - nnstep: the total number of "outer moves" already performed
-!!     - counter: the total number of "inner moves" already performed
-!!     - mol: the number of the molecule's oxygen atom, assuming the hydrogens
-!!            are the following two
+!!     - mol: the number of the molecule's first atom, assuming the rest of
+!!       the atoms follow sequentially
+!!     - bias_energy: the biased energy of the system before the move
+!!     - lreject: set to .true. if there is an overlap
+!!     - error: the cp_error type 
 !!                                 
 !!
 !!   AUTHOR
@@ -581,7 +590,7 @@ CONTAINS
 !!*****************************************************************************
 
  SUBROUTINE mc_molecule_rotation ( mc_par,force_env, bias_env,moves,&
-                      move_updates,nnstep,counter,mol,bias_energy,&
+                      move_updates,nnstep,mol,bias_energy,&
                         lreject,error)
 
 !   ***************************************************************************
@@ -590,7 +599,7 @@ CONTAINS
       POINTER                                :: mc_par
     TYPE(force_env_type), POINTER            :: force_env,bias_env
     TYPE(mc_moves_type), POINTER             :: moves, move_updates
-    INTEGER, INTENT(IN)                      :: nnstep, counter, mol
+    INTEGER, INTENT(IN)                      :: nnstep, mol
     REAL(KIND=dp), INTENT(INOUT)             :: bias_energy
     LOGICAL,INTENT(OUT)                      :: lreject
     TYPE(cp_error_type), INTENT(INOUT), &
@@ -654,10 +663,6 @@ CONTAINS
 ! save the energy
          bias_energy_old=bias_energy
 
-!         CALL mc_classical_energy(force_env,classical_energy_old,&
-!            nchain,imol,imol,cutoff,loverlap)
-!         IF(loverlap) CALL stop_program(routineN,module_name,__LINE__,&
-!            'Rotation found an overlap in the old config') 
       ELSE
 
 ! grab the coordinates
@@ -858,24 +863,25 @@ CONTAINS
 !!     performs a Monte Carlo move that alters the volume of the simulation box
 !!
 !!   ARGUMENTS
-!!     - globenv: the global simulation parameters
 !!     - mc_par: the mc parameters for the force env
-!!     - force_env: the force environment used in the move
+!!     - force_env: the force environment whose cell we're changing
 !!     - moves: the structure that keeps track of how many moves have been
 !!              accepted/rejected
 !!     - move_updates: the structure that keeps track of how many moves have
 !!              been accepted/rejected since the last time the displacements
 !!              were updated
 !!     - nnstep: the total number of "outer moves" already performed
-!!     - counter: the total number of "inner moves" already performed
-!!     - mol: the number of the molecule's oxygen atom, assuming the hydrogens
-!!            are the following two
+!!     - old_energy: the energy of the last accepted move involving an
+!!                   unbiased calculation
+!!     - globenv: the global simulation parameters
 !!     - energy_check: the running total of how much the energy has changed
 !!                     since the initial configuration
-!!     - r_old: the coordinates of the last accepted move involving a
-!!              Quickstep calculation
-!!     - old_energy: the energy of the last accepted move involving a
-!!                   Quickstep calculation
+!!     - r_old: the coordinates of the last accepted move involving an
+!!              unbiased calculation
+!!     - iw: the unit number that writes to the screen
+!!     - discrete_array: tells use which volumes we can do for the discrete 
+!!           case
+!!     - error: the cp error type
 !!                                 
 !!
 !!   AUTHOR
@@ -884,8 +890,7 @@ CONTAINS
 !!*****************************************************************************
 
   SUBROUTINE mc_volume_move ( mc_par,force_env, moves,move_updates,&
-                        nnstep,old_energy,&
-                        globenv,&
+                        nnstep,old_energy,globenv,&
                         energy_check,r_old,iw,discrete_array,error)
 
 !   ***************************************************************************
@@ -1342,11 +1347,11 @@ CONTAINS
 !!     the oxygen in the same position
 !!
 !!   ARGUMENTS
+!!     - r_old: the initial coordinates of all molecules in the system
+!!     - r_new: the new coordinates of all molecules in the system
 !!     - mc_par: the mc parameters for the force env
 !!     - mol: the number of the molecule's oxygen atom, assuming the hydrogens
 !!            are the following two
-!!     - r_old: the initial coordinates of all molecules in the system
-!!     - r_new: the new coordinates of all molecules in the system
 !!     - dis_length: the ratio of the new bond length to the old bond length,
 !!                   used in the acceptance rule
 !!              
@@ -1430,11 +1435,11 @@ CONTAINS
 !!     the angle bisector in the same position
 !!
 !!   ARGUMENTS
+!!     - r_old: the initial coordinates of all molecules in the system
+!!     - r_new: the new coordinates of all molecules in the system
 !!     - mc_par: the mc parameters for the force env
 !!     - mol: the number of the molecule's oxygen atom, assuming the hydrogens
 !!            are the following two
-!!     - r_old: the initial coordinates of all molecules in the system
-!!     - r_new: the new coordinates of all molecules in the system
 !!              
 !!
 !!   AUTHOR
