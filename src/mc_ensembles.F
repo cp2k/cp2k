@@ -75,7 +75,8 @@ MODULE mc_ensembles
   USE simulation_cell,                 ONLY: get_cell,&
                                              cell_p_type
   USE termination,                     ONLY: stop_memory,&
-                                             stop_program
+                                             stop_program,&
+                                             external_control
   USE timings,                         ONLY: timeset,&
                                              timestop
   USE input_constants,                 ONLY: dump_xmol
@@ -699,8 +700,7 @@ CONTAINS
             box_flag(:)=0
 
 ! check to see if EXIT file exists...if so, end the calculation
-            CALL external_control(&
-               should_stop,error=error)
+            CALL external_control(should_stop,"MC",error=error)
 
          ENDIF
 
@@ -870,51 +870,6 @@ CONTAINS
 
   END SUBROUTINE mc_run_ensemble
 !*********************************************************************
-
-!*********************************************************************
-  SUBROUTINE external_control(should_stop,error)
-
-!   Purpose: External manipulations during an MC run.  If a file
-!   called EXIT_MC is touched in the directory the code is running in, then
-!   the MC run will end after the current step is complete
-
-!   History: - Creation (16.09.2003,MK)
-
-!   ***************************************************************************
-
-    LOGICAL, INTENT(OUT)                     :: should_stop
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
-
-    CHARACTER(LEN=*), PARAMETER :: exit_file_name = "EXIT_MC", &
-      routine_name = "external_control", &
-      routineP = module_name//':'//routine_name
-
-    INTEGER                                  :: handle, unit_number
-    TYPE(cp_logger_type), POINTER            :: logger
-
-!   ---------------------------------------------------------------------------
-
-    CALL timeset(routine_name,"I","",handle)
-
-    logger => cp_error_get_logger(error)
-    should_stop = .FALSE.
-
-    IF (logger%para_env%source==logger%para_env%mepos) THEN
-       INQUIRE (FILE=exit_file_name,EXIST=should_stop)
-
-       IF (should_stop) THEN
-          CALL open_file(file_name=exit_file_name,unit_number=unit_number)
-          CALL close_file(unit_number=unit_number,file_status="DELETE")
-          WRITE (UNIT=cp_logger_get_default_unit_nr(logger),&
-             FMT="(/,T2,A,/)")&
-             "*** MC run terminated by external request ***"
-       END IF
-    END IF
-
-    CALL timestop(0.0_dp,handle)
-
-  END SUBROUTINE external_control
 
 END MODULE mc_ensembles
 
