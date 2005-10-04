@@ -29,6 +29,7 @@ MODULE harris_metropolis_mc
   USE atomic_kind_list_types,          ONLY: atomic_kind_list_type
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                              get_atomic_kind
+  USE atoms_input,                     ONLY: read_md_restart
   USE checkpoint_handler,              ONLY: write_checkpoint_information
   USE cp_error_handling,               ONLY: cp_a_l, &
                                              cp_assert, &
@@ -51,6 +52,7 @@ MODULE harris_metropolis_mc
   USE cp2k_units,                      ONLY: get_cp2k_units, &
                                              unit_convert_type
   USE distribution_1d_types,           ONLY: distribution_1d_type
+  USE dump,                            ONLY: dump_variables
   USE dynamical_coeff_types,           ONLY: dyn_coeff_set_p_type, &
                                              dyn_coeff_set_initialize
   USE extended_system_types,           ONLY: extended_system_type, &
@@ -71,7 +73,10 @@ MODULE harris_metropolis_mc
                                              initialize_npt_type
   USE input_constants,                 ONLY: langevin_ensemble, &
                                              do_qs, &
-                                             do_kg
+                                             do_kg, &
+                                             md_pos_restart, &
+                                             md_pos_vel_restart, &
+                                             md_all_restart
   USE kinds,                           ONLY: dp, &
                                              dp_size
   USE machine,                         ONLY: m_walltime
@@ -124,10 +129,6 @@ MODULE harris_metropolis_mc
   ! *** Public subroutines ***
   PUBLIC :: harris_mc_ld
 
-  !INTERFACE harris_mc_ld
-  !   MODULE PROCEDURE harris_mc_ld, harris_mc_ld
-  !END INTERFACE
-
 !***
 !****************************************************************************
 
@@ -177,7 +178,7 @@ CONTAINS
     CPPostconditionNoFail(stat==0,cp_failure_level,routineP,error)
     force_env_p(1)%force_env => force_env
     CALL harris_mc_md(force_env_p, globenv, total_energy=.TRUE., &
-                      external_temp=.TRUE., qs_accept=.FALSE., &
+                      external_temp=.TRUE., qs_accept=.TRUE., &
                       random_velocities=.TRUE., velocity_scaling=.FALSE., &
                       error=error)
 
@@ -258,7 +259,8 @@ CONTAINS
                                                 iw, &
                                                 max_scf_tmp, &
                                                 reject, &
-                                                accept
+                                                accept, &
+                                                in_use
     INTEGER, POINTER                         :: itimes
     LOGICAL                                  :: failure, &
                                                 accepted, &
@@ -405,7 +407,7 @@ CONTAINS
     DO ibead = 1,nbeads
 
       CALL force_env_get(force_env_p(ibead)%force_env, subsys=subsys, &
-                         dyn_coeff_set=dyn_coeff_set, &
+                         dyn_coeff_set=dyn_coeff_set, in_use=in_use, &
                          cell=cell, cell_ref = cell_ref, error=error )
 
 ! Define a reference cell for compatibility with MD restarts
@@ -442,6 +444,39 @@ CONTAINS
               particles%els, globenv)
       END DO
 
+      IF (simpar%ensemble /= langevin_ensemble) THEN
+        SELECT CASE(simpar%read_type)
+        CASE(md_pos_restart)
+!FM should be adapted to the existence of many fragments
+          CPPrecondition(SIZE(subsys)==1,cp_failure_level,routineP,error,failure)
+          isubsys=1
+          CALL cp_subsys_get(subsys(isubsys)%subsys, &
+               particles=particles, &
+               error=error)
+          nhc_part => extended_type%nhc_part(ibead)
+          nhc_baro => extended_type%nhc_baro(ibead)
+          CALL read_md_restart(in_use, simpar % read_type, globenv, &
+               particles%els, cell, cell_ref, &
+               nhc_part, nhc_baro, extended_type%npt_info)
+          CALL initialize_velocities(simpar, particles%els, globenv)
+        CASE(md_pos_vel_restart, md_all_restart)
+!FM should be adapted to the existence of many fragments
+          CPPrecondition(SIZE(subsys)==1, cp_failure_level, routineP, error, failure)
+          isubsys=1
+          CALL cp_subsys_get(subsys(isubsys)%subsys, &
+               particles=particles, &
+               error=error)
+          nhc_part => extended_type%nhc_part(ibead)
+          nhc_baro => extended_type%nhc_baro(ibead)
+          CALL read_md_restart(in_use, simpar % read_type, globenv, &
+                              particles%els, &
+                              cell, cell_ref, &
+                              nhc_part, &
+                              nhc_baro, &
+                              extended_type%npt_info)
+        END SELECT
+      END IF
+
       nhc_part => extended_type%nhc_part(ibead)
       nhc_baro => extended_type%nhc_baro(ibead)
       CALL initialize_nhc_forces (nhc_part=nhc_part, nhc_baro=nhc_baro)
@@ -475,50 +510,69 @@ CONTAINS
       CALL read_md_restart_file(md_env,error)
     END IF
 
-    !time_iter_start=m_walltime()
+    time_iter_start=m_walltime()
 
     CALL get_md_env(md_env, force_env_p=force_env_p, itimes=itimes, &
                     used_time = used_time)
 
     DO ibead = 1,nbeads
-      IF (qs_ener .AND. (globenv%prog_name_id == do_qs)) THEN
-        use_harris_tmp = force_env_p(1)%force_env%qs_env%use_harris
-        max_scf_tmp = force_env_p(1)%force_env%qs_env%scf_control%max_scf
-        force_env_p(1)%force_env%qs_env%use_harris = .FALSE.
-        force_env_p(1)%force_env%qs_env%scf_control%max_scf = 100
-        CALL force_env_calc_energy_force(force_env=force_env_p(1)%force_env, &
-                                         calc_force=.FALSE., error=error)
-        force_env_p(1)%force_env%qs_env%use_harris = use_harris_tmp
-        force_env_p(1)%force_env%qs_env%scf_control%max_scf = max_scf_tmp
-      ELSE
-        CALL force_env_calc_energy_force(force_env=force_env_p(1)%force_env, &
-                                         calc_force=.FALSE., error=error)
-      END IF
+      !IF (qs_ener .AND. (globenv%prog_name_id == do_qs)) THEN
+      !  use_harris_tmp = force_env_p(1)%force_env%qs_env%use_harris
+      !  max_scf_tmp = force_env_p(1)%force_env%qs_env%scf_control%max_scf
+      !  force_env_p(1)%force_env%qs_env%use_harris = .FALSE.
+      !  force_env_p(1)%force_env%qs_env%scf_control%max_scf = 100
+      !  CALL force_env_calc_energy_force(force_env=force_env_p(1)%force_env, &
+      !                                   calc_force=.FALSE., error=error)
+      !  force_env_p(1)%force_env%qs_env%use_harris = use_harris_tmp
+      !  force_env_p(1)%force_env%qs_env%scf_control%max_scf = max_scf_tmp
+      !ELSE
+      !  CALL force_env_calc_energy_force(force_env=force_env_p(1)%force_env, &
+      !                                   calc_force=.FALSE., error=error)
+      !END IF
 
-       !CALL force_env_calc_energy_force(force_env_p(ibead)%force_env, &
-       !                                 calc_force=.TRUE.)
+       CALL force_env_calc_energy_force(force_env_p(ibead)%force_env, &
+                                        calc_force=.TRUE.)
     END DO
-    IF (globenv%prog_name_id == do_kg) THEN
-      Epot = force_env_p(1)%force_env%kg_env%energy%total
-      CALL compute_conserved_quantity(md_env=md_env, cons=Econs, epot=Epot, ekin=Ekin)
-      IF (.NOT. tot_energy) THEN
-        prev_ldmc_energy = Epot
-      ELSE
-        prev_ldmc_energy = Econs
-      END IF
-    ELSE
-      Epot = force_env_p(1)%force_env%qs_env%energy%total
-      CALL compute_conserved_quantity(md_env=md_env, cons=Econs, epot=Epot, ekin=Ekin)
-      IF (.NOT. tot_energy) THEN
-        prev_ldmc_energy = Epot
-      ELSE
-        prev_ldmc_energy = Econs
-      END IF
-    END IF
+    !IF (globenv%prog_name_id == do_kg) THEN
+    !  Epot = force_env_p(1)%force_env%kg_env%energy%total
+    !  CALL compute_conserved_quantity(md_env=md_env, cons=Econs, epot=Epot, ekin=Ekin)
+    !  IF (.NOT. tot_energy) THEN
+    !    prev_ldmc_energy = Epot
+    !  ELSE
+    !    prev_ldmc_energy = Econs
+    !  END IF
+    !ELSE
+    !  Epot = force_env_p(1)%force_env%qs_env%energy%total
+    !  CALL compute_conserved_quantity(md_env=md_env, cons=Econs, epot=Epot, ekin=Ekin)
+    !  IF (.NOT. tot_energy) THEN
+    !    prev_ldmc_energy = Epot
+    !  ELSE
+    !    prev_ldmc_energy = Econs
+    !  END IF
+    !END IF
     CALL md_energy(md_env, globenv) ! inits the print env at itimes == 0
 
-    CALL cp_add_iter_level(logger%iter_info, "MD", n_rlevel_new=iter_level, &
+    CALL cp_add_iter_level(logger%iter_info, "HMC", n_rlevel_new=iter_level, &
                            error=error)
+
+!    itimes = itimes + 1
+!    CALL cp_iterate(logger%iter_info, last=(istep==simpar%nsteps), &
+!                    iter_nr=itimes,error=error)
+!    CALL velocity_verlet(md_env)
+!    DO ibead=1,nbeads
+!      CALL temperature_control(simpar, force_env_p(ibead)%force_env, error)
+!    END DO
+!    time_iter_stop = m_walltime()
+!    used_time = time_iter_stop - time_iter_start
+!    !time_iter_start = time_iter_stop
+!    CALL md_energy(md_env, globenv)
+!    !IF (MODULO(itimes,mdio%idump) == 0) THEN
+!      IF (simpar%ensemble == langevin_ensemble) THEN
+!        CALL write_md_restart_file(md_env, error=error)
+!      ELSE
+!        CALL dump_variables(md_env, mdio%dump_file_name, error)
+!      END IF
+!    !END IF
 
     DO isubsys = 1,SIZE(subsys)
       !CALL cp_subsys_get(subsys=subsys(isubsys)%subsys, &
@@ -537,16 +591,205 @@ CONTAINS
 
     istep = 1
     DO WHILE (istep < simpar%nsteps)
-      IF (.NOT. accepted) THEN
-        CALL read_md_restart_file(md_env,error)
+    !  IF (.NOT. accepted) THEN
+    !    IF (simpar%ensemble == langevin_ensemble) THEN
+    !      CALL read_md_restart_file(md_env,error)
+    !    ELSE
+    !      CPPrecondition(SIZE(subsys)==1,cp_failure_level,routineP,error,failure)
+    !      isubsys=1
+    !      CALL cp_subsys_get(subsys(isubsys)%subsys, &
+    !           particles=particles, error=error)
+    !      nhc_part => extended_type%nhc_part(ibead)
+    !      nhc_baro => extended_type%nhc_baro(ibead)
+    !      CALL read_md_restart(in_use, simpar%read_type, globenv, &
+    !                          particles%els, cell, cell_ref, &
+    !                          nhc_part, nhc_baro, extended_type%npt_info)
+    !    END IF
+    !  END IF
+
+      ! previous energy
+      IF (accepted) THEN
+        IF (qs_ener .AND. (globenv%prog_name_id == do_qs)) THEN
+          use_harris_tmp = force_env_p(1)%force_env%qs_env%use_harris
+          max_scf_tmp = force_env_p(1)%force_env%qs_env%scf_control%max_scf
+          force_env_p(1)%force_env%qs_env%use_harris = .FALSE.
+          force_env_p(1)%force_env%qs_env%scf_control%max_scf = 100
+          CALL force_env_calc_energy_force(force_env=force_env_p(1)%force_env, &
+                                           calc_force=.FALSE., error=error)
+          force_env_p(1)%force_env%qs_env%use_harris = use_harris_tmp
+          force_env_p(1)%force_env%qs_env%scf_control%max_scf = max_scf_tmp
+        ELSE
+          CALL force_env_calc_energy_force(force_env=force_env_p(1)%force_env, &
+                                           calc_force=.FALSE., error=error)
+        END IF
+
+        IF (globenv%prog_name_id == do_kg) THEN
+          Epot = force_env_p(1)%force_env%kg_env%energy%total
+            CALL compute_conserved_quantity(md_env=md_env, cons=Econs, epot=Epot, ekin=Ekin)
+          IF (.NOT. tot_energy) THEN
+            prev_ldmc_energy = Epot
+          ELSE
+            prev_ldmc_energy = Econs
+          END IF
+        ELSE
+          Epot = force_env_p(1)%force_env%qs_env%energy%total
+          CALL compute_conserved_quantity(md_env=md_env, cons=Econs, epot=Epot, ekin=Ekin)
+          IF (.NOT. tot_energy) THEN
+            prev_ldmc_energy = Epot
+          ELSE
+            prev_ldmc_energy = Econs
+          END IF
+        END IF
+
+        IF (globenv%ionode .AND. globenv%print_level >= 1) THEN
+          iw = globenv%scr
+          WRITE(iw, *) ""
+          WRITE(iw, *) "Kinetic Energy =", Ekin, " & Potential Energy = ", Epot
+          WRITE(iw, *) "prev_ldmc_energy =", prev_ldmc_energy
+          WRITE(iw, *) ""
+        END IF
+      END IF
+
+      ! MC MD-approach
+      CALL harris_mc_md_approach(md_env, globenv, simpar, logger, error)
+
+      ! Compare energies
+      IF (qs_ener .AND. (globenv%prog_name_id == do_qs)) THEN
+        use_harris_tmp = force_env_p(1)%force_env%qs_env%use_harris
+        max_scf_tmp = force_env_p(1)%force_env%qs_env%scf_control%max_scf
+        force_env_p(1)%force_env%qs_env%use_harris = .FALSE.
+        force_env_p(1)%force_env%qs_env%scf_control%max_scf = 100
+        CALL force_env_calc_energy_force(force_env=force_env_p(1)%force_env, &
+                                         calc_force=.FALSE., error=error)
+        force_env_p(1)%force_env%qs_env%use_harris = use_harris_tmp
+        force_env_p(1)%force_env%qs_env%scf_control%max_scf = max_scf_tmp
+      ELSE
+        CALL force_env_calc_energy_force(force_env=force_env_p(1)%force_env, &
+                                         calc_force=.FALSE., error=error)
+      END IF
+
+      IF (globenv%prog_name_id == do_kg) THEN
+        Epot = force_env_p(1)%force_env%kg_env%energy%total
+        CALL compute_conserved_quantity(md_env=md_env, cons=Econs, epot=Epot, ekin=Ekin)
+        IF (.NOT. tot_energy) THEN
+          new_ldmc_energy = Epot
+        ELSE
+          new_ldmc_energy = Econs
+        END IF
+      ELSE
+        Epot = force_env_p(1)%force_env%qs_env%energy%total
+        CALL compute_conserved_quantity(md_env=md_env, cons=Econs, epot=Epot, ekin=Ekin)
+        IF (.NOT. tot_energy) THEN
+          new_ldmc_energy = Epot
+        ELSE
+          new_ldmc_energy = Econs
+        END IF
+      END IF
+      ! Metropolis Monte Carlo acceptance criterion
+      ionode = globenv%ionode
+      iw = globenv%scr
+      IF (new_ldmc_energy < prev_ldmc_energy) THEN
+      !IF (new_ldmc_energy > prev_ldmc_energy) THEN
+        accepted = .TRUE.
+        accept = accept + 1
+        IF (ionode .AND. globenv%print_level >= 1) THEN
+          WRITE(iw, *) ""
+          WRITE(iw, *) "Kinetic Energy =", Ekin, " & Potential Energy = ", Epot
+          WRITE(iw, *) ""
+          WRITE(iw, *) "New Energy =", new_ldmc_energy, "<", prev_ldmc_energy, "= Previous Energy"
+          WRITE(iw, *) "Energy difference = ", new_ldmc_energy - prev_ldmc_energy
+          WRITE(iw, *) ""
+          WRITE(iw, *) "This HMC approach is directly accepted"
+          WRITE(iw, *) "Current acceptance ration =", (accept*100)/(accept+reject), "%"
+          WRITE(iw, *) "accepts =", accept, "  rejects =", reject
+          WRITE(iw, *) ""
+        END IF
+      ELSE
+        ! Random Number
+        random_number = next_random_number(rng_stream=rng_stream, error=error); 
+
+        IF (.NOT. ext_temp) THEN
+          ! *** Calculate the current temperature ***
+          DO isubsys=1,SIZE(subsys)
+
+            CALL cp_subsys_get(subsys(isubsys)%subsys,&
+                 local_particles=local_particles,&
+                 particles=particles, atomic_kinds=atomic_kinds,&
+                 error=error)
+
+            e_kinetic = 0.0_dp
+
+            DO ikind=1,SIZE(particles%els)
+              atomic_kind => atomic_kinds%els(ikind)
+              CALL get_atomic_kind(atomic_kind=atomic_kind,&
+                   mass=mass)
+              atom_list => local_particles%list(ikind)%array
+              v2 = 0.0_dp
+              DO iatom=1,SIZE(atom_list)
+                atom = atom_list(iatom)
+                v2 = v2 + particles%els(atom)%v(1)*particles%els(atom)%v(1) +&
+                     particles%els(atom)%v(2)*particles%els(atom)%v(2) +&
+                     particles%els(atom)%v(3)*particles%els(atom)%v(3)
+              END DO
+              e_kinetic = e_kinetic + 0.5_dp*mass*v2
+            END DO
+          END DO
+          CALL mp_sum(e_kinetic, globenv%para_env%group) !FM loop on all particles and avoid sum?
+
+          temperature = 2.0_dp*e_kinetic/REAL(simpar%nfree,dp)
+        END IF
+
+        !prob = EXP((-1)*(ABS(prev_ldmc_energy-new_ldmc_energy)/(boltzmann* &
+        !                 (simpar%temp_beta*(simpar%temp_ext)+simpar%temp_alpha))))
+        IF (.NOT. ext_temp) THEN
+          prob = EXP((-1)*(ABS(prev_ldmc_energy-new_ldmc_energy)/(simpar%temp_beta* &
+                               temperature+simpar%temp_alpha)))
+        ELSE
+          prob = EXP((-1)*(ABS(prev_ldmc_energy-new_ldmc_energy)/(simpar%temp_beta* &
+                               simpar%temp_ext+simpar%temp_alpha)))
+        END IF
+
+        IF (prob > random_number) THEN
+          accepted = .TRUE.
+          accept = accept + 1
+          IF (ionode .AND. globenv%print_level >= 1) THEN
+            WRITE(iw, *) ""
+
+            WRITE(iw, *) ""
+            WRITE(iw, *) "New Energy             =", new_ldmc_energy, ">", prev_ldmc_energy, "= Previous Energy"
+            WRITE(iw, *) "Energy difference = ", new_ldmc_energy - prev_ldmc_energy
+            WRITE(iw, *) "Transition probability =", prob, ">", random_number, "= Random Number"
+            WRITE(iw, *) ""
+            WRITE(iw, *) "This HMC approach is accepted"
+            WRITE(iw, *) "Current acceptance ratio =", (accept*100)/(accept+reject), "%"
+            WRITE(iw, *) "accepts =", accept, "  rejects =", reject
+            WRITE(iw, *) ""
+          END IF 
+        ELSE
+          accepted = .FALSE.
+          reject = reject + 1
+          IF (ionode .AND. globenv%print_level >= 1) THEN
+            WRITE(iw, *) ""
+
+            WRITE(iw, *) ""
+            WRITE(iw, *) "New Energy             =", new_ldmc_energy, ">", prev_ldmc_energy, "= Previous Energy"
+            WRITE(iw, *) "Energy difference = ", new_ldmc_energy - prev_ldmc_energy
+            WRITE(iw, *) "Transition probability =", prob, "<", random_number, "= Random Number"
+            WRITE(iw, *) ""
+            WRITE(iw, *) "This HMC approach is rejected"
+            WRITE(iw, *) "Current acceptance ratio =", (accept*100)/(accept+reject), "%"
+            WRITE(iw, *) "accepts =", accept, "  rejects =", reject
+            WRITE(iw, *) ""
+          END IF
+        END IF
       END IF
 
       IF (rand_vel) THEN
         IF (vel_scaling) THEN
           CALL initialize_velocities(simpar, particles%els, globenv)
         ELSE
-          iw = globenv % scr
-          IF (globenv % ionode) THEN
+          iw = globenv%scr
+          IF (globenv%ionode .AND. globenv%print_level >= 1) THEN
             WRITE ( iw, '( A, A, A )' ) ' **********************', &
                  ' begin of velocity initialization ', '***********************'
           END IF
@@ -600,7 +843,7 @@ CONTAINS
 #endif
 
           temp = 0.0_dp
-          IF (globenv % ionode) THEN
+          IF (globenv%ionode .AND. globenv%print_level >= 1) THEN
             IF (simpar % nfree == 0) THEN
               temp = 2.0_dp * akin / REAL(1, KIND=dp) ! Should always be zero...
             ELSE
@@ -619,139 +862,23 @@ CONTAINS
           END IF
         END IF
       END IF
- 
-      CALL harris_mc_md_approach(md_env, globenv, simpar, logger, error)
 
-      ! Compare energies
-      IF (qs_ener .AND. (globenv%prog_name_id == do_qs)) THEN
-        use_harris_tmp = force_env_p(1)%force_env%qs_env%use_harris
-        max_scf_tmp = force_env_p(1)%force_env%qs_env%scf_control%max_scf
-        force_env_p(1)%force_env%qs_env%use_harris = .FALSE.
-        force_env_p(1)%force_env%qs_env%scf_control%max_scf = 100
-        CALL force_env_calc_energy_force(force_env=force_env_p(1)%force_env, &
-                                         calc_force=.FALSE., error=error)
-        force_env_p(1)%force_env%qs_env%use_harris = use_harris_tmp
-        force_env_p(1)%force_env%qs_env%scf_control%max_scf = max_scf_tmp
-      ELSE
-        CALL force_env_calc_energy_force(force_env=force_env_p(1)%force_env, &
-                                         calc_force=.FALSE., error=error)
-      END IF
-
-      IF (globenv%prog_name_id == do_kg) THEN
-        Epot = force_env_p(1)%force_env%kg_env%energy%total
-        CALL compute_conserved_quantity(md_env=md_env, cons=Econs, epot=Epot, ekin=Ekin)
-        IF (.NOT. tot_energy) THEN
-          new_ldmc_energy = Epot
-        ELSE
-          new_ldmc_energy = Econs
-        END IF
-      ELSE
-        Epot = force_env_p(1)%force_env%qs_env%energy%total
-        CALL compute_conserved_quantity(md_env=md_env, cons=Econs, epot=Epot, ekin=Ekin)
-        IF (.NOT. tot_energy) THEN
-          new_ldmc_energy = Epot
-        ELSE
-          new_ldmc_energy = Econs
-        END IF
-      END IF
-      ! Metropolis Monte Carlo acceptance criterion
-      ionode = globenv % ionode
-      iw = globenv % scr
-      IF (new_ldmc_energy < prev_ldmc_energy) THEN
-      !IF (new_ldmc_energy > prev_ldmc_energy) THEN
-        accepted = .TRUE.
-        accept = accept + 1
-        IF (ionode) THEN
-          WRITE(iw, *) ""
-          WRITE(iw, *) "New Energy =", new_ldmc_energy, "<", prev_ldmc_energy, "= Previous Energy"
-          WRITE(iw, *) "Energy difference = ", new_ldmc_energy - prev_ldmc_energy
-          WRITE(iw, *) "This LD MD approach is directly accepted"
-          WRITE(iw, *) "Current acceptance ration =", (accept*100)/(accept+reject), "%"
-          WRITE(iw, *) "accepts =", accept, "  rejects =", reject
-        END IF
-      ELSE
-        ! Random Number
-        random_number = next_random_number(rng_stream=rng_stream, error=error); 
-
-        IF (.NOT. ext_temp) THEN
-          ! *** Calculate the current temperature ***
-          DO isubsys=1,SIZE(subsys)
-
-            CALL cp_subsys_get(subsys(isubsys)%subsys,&
-                 local_particles=local_particles,&
-                 particles=particles, atomic_kinds=atomic_kinds,&
-                 error=error)
-
-            e_kinetic = 0.0_dp
-
-            DO ikind=1,SIZE(particles%els)
-              atomic_kind => atomic_kinds%els(ikind)
-              CALL get_atomic_kind(atomic_kind=atomic_kind,&
-                   mass=mass)
-              atom_list => local_particles%list(ikind)%array
-              v2 = 0.0_dp
-              DO iatom=1,SIZE(atom_list)
-                atom = atom_list(iatom)
-                v2 = v2 + particles%els(atom)%v(1)*particles%els(atom)%v(1) +&
-                     particles%els(atom)%v(2)*particles%els(atom)%v(2) +&
-                     particles%els(atom)%v(3)*particles%els(atom)%v(3)
-              END DO
-              e_kinetic = e_kinetic + 0.5_dp*mass*v2
-            END DO
-          END DO
-          CALL mp_sum(e_kinetic, globenv%para_env%group) !FM loop on all particles and avoid sum?
-
-          temperature = 2.0_dp*e_kinetic/REAL(simpar%nfree,dp)
-        END IF
-
-        !prob = EXP((-1)*(ABS(prev_ldmc_energy-new_ldmc_energy)/(boltzmann* &
-        !                 (simpar%temp_beta*(simpar%temp_ext)+simpar%temp_alpha))))
-        IF (.NOT. ext_temp) THEN
-          prob = EXP((-1)*(ABS(prev_ldmc_energy-new_ldmc_energy)/(simpar%temp_beta* &
-                               temperature+simpar%temp_alpha)))
-        ELSE
-          prob = EXP((-1)*(ABS(prev_ldmc_energy-new_ldmc_energy)/(simpar%temp_beta* &
-                               simpar%temp_ext+simpar%temp_alpha)))
-        END IF
-
-        IF (prob > random_number) THEN
-          accepted = .TRUE.
-          accept = accept + 1
-          IF (ionode) THEN
-            WRITE(iw, *) ""
-            WRITE(iw, *) "New Energy             =", new_ldmc_energy, ">", prev_ldmc_energy, "= Previous Energy"
-            WRITE(iw, *) "Energy difference = ", new_ldmc_energy - prev_ldmc_energy
-            WRITE(iw, *) "Transition probability =", prob, ">", random_number, "= Random Number"
-            WRITE(iw, *) ""
-            WRITE(iw, *) "This LD MD approach is accepted"
-            WRITE(iw, *) "Current acceptance ratio =", (accept*100)/(accept+reject), "%"
-            WRITE(iw, *) "accepts =", accept, "  rejects =", reject
-          END IF 
-        ELSE
-          accepted = .FALSE.
-          reject = reject + 1
-          IF (ionode) THEN
-            WRITE(iw, *) ""
-            WRITE(iw, *) "New Energy             =", new_ldmc_energy, ">", prev_ldmc_energy, "= Previous Energy"
-            WRITE(iw, *) "Energy difference = ", new_ldmc_energy - prev_ldmc_energy
-            WRITE(iw, *) "Transition probability =", prob, ">", random_number, "= Random Number"
-            WRITE(iw, *) ""
-            WRITE(iw, *) "This LD MD approach is rejected"
-            WRITE(iw, *) "Current acceptance ratio =", (accept*100)/(accept+reject), "%"
-            WRITE(iw, *) "accepts =", accept, "  rejects =", reject
-          END IF
-        END IF
-      END IF
 
       IF (accepted) THEN
-        prev_ldmc_energy = new_ldmc_energy
+      !  prev_ldmc_energy = new_ldmc_energy
 
         !itimes = itimes + simpar%ld_steps
         istep = istep + simpar%ld_steps
         !CALL cp_iterate(logger%iter_info, last=(istep>=simpar%nsteps), &
         !                iter_nr=itimes, error=error)
 
-        CALL write_md_restart_file(md_env, error=error)
+        IF (MODULO(itimes, mdio%idump) == 0) THEN
+          IF (simpar%ensemble == langevin_ensemble) THEN
+            CALL write_md_restart_file(md_env, error=error)
+          ELSE
+            CALL dump_variables(md_env, mdio%dump_file_name, error)
+          END IF
+        END IF
       ELSE
         ! If not accepted, set back velocities and positions
          DO isubsys = 1,SIZE(subsys)
@@ -761,7 +888,13 @@ CONTAINS
            END DO
          END DO
 
-        CALL write_md_restart_file(md_env, error=error)
+        IF (MODULO(itimes,mdio%idump) == 0) THEN
+          IF (simpar%ensemble == langevin_ensemble) THEN
+            CALL write_md_restart_file(md_env, error=error)
+          ELSE
+            CALL dump_variables(md_env, mdio%dump_file_name, error)
+          END IF
+        END IF
 
         !itimes = istep
         itimes = itimes - simpar%ld_steps
@@ -786,7 +919,7 @@ CONTAINS
     used_time = time_iter_stop - time_iter_start
     CALL md_energy(md_env, globenv)
 
-    IF (ionode) THEN
+    IF (ionode .AND. globenv%print_level >= 1) THEN
       WRITE(iw, *) "Final acceptance ratio =", (accept*100)/(accept+reject), "%"
       WRITE(iw, *) "accepts =", accept, "  rejects =", reject
     END IF
