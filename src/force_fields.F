@@ -3321,7 +3321,29 @@ SUBROUTINE force_field_pack (particle_set,atomic_kind_set,&
             found = .TRUE.
             EXIT
           END IF
-       END DO
+        END DO
+        IF(.NOT.found) THEN
+          DO k=1,SIZE(chm_info%impr_a)
+            IF( ((TRIM(chm_info%impr_a(k))==TRIM(name_atm_a)) .AND. &
+                 (TRIM(chm_info%impr_b(k))==TRIM("X")) .AND. &
+                 (TRIM(chm_info%impr_c(k))==TRIM("X")) .AND. &
+                 (TRIM(chm_info%impr_d(k))==TRIM(name_atm_d))) .OR. &
+                ((TRIM(chm_info%impr_a(k))==TRIM(name_atm_d)) .AND. &
+                 (TRIM(chm_info%impr_b(k))==TRIM("X")) .AND. &
+                 (TRIM(chm_info%impr_c(k))==TRIM("X")) .AND. &
+                 (TRIM(chm_info%impr_d(k))==TRIM(name_atm_a))) ) THEN
+              impr_list(j)%impr_kind%name = "CHARMM"
+              impr_list(j)%impr_kind%k    = chm_info%impr_k(k)
+              impr_list(j)%impr_kind%phi0 = chm_info%impr_phi0(k)
+              IF(PM1) &
+                 WRITE(iw,'(A,4A10)') "     Wildcard Improper for: ",&
+                                      name_atm_a,name_atm_b,&
+                                      name_atm_c,name_atm_d
+              found = .TRUE.
+              EXIT
+            END IF
+          END DO
+        END IF
       END IF
 
       ! always have the input param last to overwrite all the other ones
