@@ -72,6 +72,11 @@ MODULE machine
        m_walltime, m_cputime, m_datum, m_flush, &
        m_hostnm, m_getcwd, m_getlog, m_getuid, m_getpid, m_getarg, &
        print_memory, m_iargc, m_abort, m_chdir, m_loc_r, m_loc_c
+#elif defined ( __SX )
+  USE machine_sx, ONLY    : &
+       m_walltime, m_cputime, m_datum, m_flush, &
+       m_hostnm, m_getcwd, m_getlog, m_getuid, m_getpid, m_getarg, &
+       print_memory, m_iargc, m_abort, m_chdir, m_loc_r, m_loc_c
 #endif
 
   IMPLICIT NONE
