@@ -87,7 +87,8 @@ MODULE scf_control_types
   INTEGER, PARAMETER, PRIVATE :: key_MAX_ITER_LUMO=19
   INTEGER, PARAMETER, PRIVATE :: key_WRITE_RESTART_EACH=20
   INTEGER, PARAMETER, PRIVATE :: key_ADDED_MOS=21
-  INTEGER, PARAMETER, PRIVATE :: Nkeywords=21 ! should updated if keywords are added
+  INTEGER, PARAMETER, PRIVATE :: key_MAX_SCF_ASPC=22
+  INTEGER, PARAMETER, PRIVATE :: Nkeywords=22 ! should updated if keywords are added
   TYPE(keyword_type), PRIVATE, DIMENSION(1:Nkeywords) :: keywords 
 
 !***
@@ -141,7 +142,7 @@ MODULE scf_control_types
                               work_syevx,eps_lumos, eps_diis,eps_jacobi,&
                               jacobi_threshold
      INTEGER               :: max_iter_lumos, max_diis
-     INTEGER               :: max_scf,nrow_block,&
+     INTEGER               :: max_scf,nrow_block,max_scf_aspc,&
                               ncol_block,maxl,nkind, write_restart_each
      LOGICAL               :: gradient_functional,gth_potential_present,&
                               use_cholesky,use_ot
@@ -241,6 +242,10 @@ SUBROUTINE init_keywords()
                                         "ADDED_MOS integer integer",&
                                         "number of additional MOS added for each spin",&
                                         "","","")
+  keywords(key_MAX_SCF_ASPC)=keyword_type("MAX_SCF_ASPC", &
+                                     "MAX_SCF_ASPC integer",&
+                                     "Maximum number of SCF iterations to be performed for ASPC",&
+                                     "","","")
 END SUBROUTINE
 
 ! *****************************************************************************
@@ -316,6 +321,7 @@ END SUBROUTINE
        scf_control%jacobi_threshold = 1.0E-7_dp
        scf_control%write_restart_each=10
        scf_control%added_mos=0
+       scf_control%max_scf_aspc = 1
     END IF
   END SUBROUTINE scf_c_create
 !***************************************************************************
@@ -528,6 +534,8 @@ END SUBROUTINE
              ! specify the number for each spin
              CALL read_object(scf_control%added_mos(1))
              CALL read_object(scf_control%added_mos(2))
+          CASE (key_MAX_SCF_ASPC)
+             CALL read_object(scf_control%max_scf_aspc)
           CASE DEFAULT
             CALL list_keywords(keywords,globenv%scr)
             CALL stop_parser(routine=routineN,message="INVALID_KEYWORD "&
@@ -603,11 +611,13 @@ END SUBROUTINE
        IF (globenv%print%scf) THEN
           output_unit = globenv%scr
           WRITE (UNIT=output_unit,&
-           FMT="(/,/,T2,A,T25,A,T71,A10,/,T25,56('-'),3(/,T25,A,T76,I5),&
-           &T25,56('-'),5(/,T25,A,T72,ES9.2),T25,56('-'),4(/,T25,A,T76,F5.2),1(/,T25,A,T71,2I5))")&
+           FMT="(/,/,T2,A,T25,A,T71,A10,/,T25,56('-'),4(/,T25,A,T76,I5),&
+                 &T25,56('-'),5(/,T25,A,T72,ES9.2),T25,56('-'),&
+                 &4(/,T25,A,T76,F5.2),1(/,T25,A,T71,2I5))")&
                "SCF PARAMETERS",&
                "Density guess:     ",ADJUSTR(TRIM(scf_control%density_guess)),&
                "max_scf:           ",scf_control%max_scf,&
+               "max_scf_aspc:      ",scf_control%max_scf_aspc,&
                "max_diis:          ",scf_control%max_diis,&
                "write_restart_each:",scf_control%write_restart_each,&
                "eps_scf:           ",scf_control%eps_scf,&

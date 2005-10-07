@@ -73,6 +73,7 @@ MODULE qs_wf_history_methods
   USE kg_gpw_pw_env_methods,           ONLY: kg_rho_update_rho_mol
   USE kg_gpw_pw_env_types,             ONLY: kg_sub_pw_env_type
   USE kinds,                           ONLY: dp
+  USE mathlib,                         ONLY: binomial
   USE pw_env_types,                    ONLY: pw_env_get,&
                                              pw_env_type
   USE pw_pool_types,                   ONLY: pw_pool_create_pw,&
@@ -108,7 +109,8 @@ MODULE qs_wf_history_methods
                                              wfi_use_prev_p_method_nr,&
                                              wfi_use_prev_rho_r_method_nr,&
                                              wfi_use_prev_wf_method_nr,&
-                                             wfi_frozen_method_nr
+                                             wfi_frozen_method_nr,&
+                                             wfi_aspc
   USE sparse_matrix_types,             ONLY: copy_matrix,&
                                              cp_sm_scale_and_add,&
                                              cp_sm_maxabsval,&
@@ -492,7 +494,11 @@ SUBROUTINE wfi_create(wf_history, interpolation_method_nr, extrapolation_order, 
      CASE(wfi_frozen_method_nr)
         wf_history%memory_depth=1
         wf_history%store_frozen_density=.TRUE.
-    CASE default
+     CASE (wfi_aspc)
+       wf_history%memory_depth = my_extrapolation_order + 2
+       wf_history%store_wf = .TRUE.
+       wf_history%store_overlap = .TRUE.
+     CASE default
         CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,&
              routineP,"Unknown interpolation method: "//&
              TRIM(ADJUSTL(cp_to_string(interpolation_method_nr)))//" in "//&
@@ -575,7 +581,9 @@ FUNCTION wfi_get_method_label(method_nr,error) RESULT(res)
         res="PS Nth order"
      CASE(wfi_frozen_method_nr)
         res="frozen density approximation"
-    CASE default
+     CASE(wfi_aspc)
+       res = "ASPC"
+     CASE default
         CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,&
              routineP,"Unknown interpolation method: "//&
              TRIM(ADJUSTL(cp_to_string(method_nr)))//&
@@ -652,8 +660,8 @@ SUBROUTINE wfi_extrapolate(globenv,wf_history, qs_env, dt, extrapolation_method_
                                                 , handle, i, ispin, k, n, &
                                                 nmo, nvec
     LOGICAL                                  :: failure, my_gapw, my_gapw_xc, my_kg_gpw,&
-                                                my_orthogonal_wf
-    REAL(KIND=dp)                            :: alpha, beta, t0, t1, t2
+                                                my_orthogonal_wf, ionode
+    REAL(KIND=dp)                            :: alpha, beta, omega, t0, t1, t2
     TYPE(cp_fm_pool_p_type), DIMENSION(:), &
       POINTER                                :: ao_mo_fm_pools
     TYPE(cp_fm_struct_type), POINTER         :: matrix_struct, &
@@ -712,6 +720,7 @@ SUBROUTINE wfi_extrapolate(globenv,wf_history, qs_env, dt, extrapolation_method_
      IF (PRESENT(extrapolation_method_nr)) &
           extrapolation_method_nr=actual_extrapolation_method_nr
      my_orthogonal_wf=.FALSE.
+     ionode = (qs_env%para_env%mepos == qs_env%para_env%source)
 
      SELECT CASE (actual_extrapolation_method_nr)
      CASE(wfi_frozen_method_nr)
@@ -968,7 +977,6 @@ SUBROUTINE wfi_extrapolate(globenv,wf_history, qs_env, dt, extrapolation_method_
               CALL qs_rho_update_rho(rho_xc,qs_env=qs_env, gapw=my_gapw_xc, error=error)
               CALL calculate_rho_atom_coeff(qs_env,rho%rho_ao)
            END IF
-
            CALL qs_ks_did_change(qs_env%ks_env,rho_changed=.TRUE., error=error)
            IF(my_kg_gpw) THEN
              ! ** Updates the molecular rho for each molecule independently ***
@@ -983,7 +991,6 @@ SUBROUTINE wfi_extrapolate(globenv,wf_history, qs_env, dt, extrapolation_method_
         my_orthogonal_wf=.TRUE.
         IF(my_kg_gpw) THEN
            CPPrecondition(PRESENT(kg_fm_mol_set),cp_failure_level,routineP,error,failure)
-
            ! first the most recent
            t1_state => wfi_get_snapshot(wf_history, index=1, error=error)
            beta = REAL(nvec,dp)
@@ -1021,14 +1028,11 @@ SUBROUTINE wfi_extrapolate(globenv,wf_history, qs_env, dt, extrapolation_method_
                                        nrow_global=k,ncol_global=k)
               CALL cp_fm_create(csc,matrix_struct_new)
               CALL cp_fm_struct_release(matrix_struct_new)
-
-
               ! first the most recent
               t1_state => wfi_get_snapshot(wf_history, index=1, error=error)
               CALL cp_fm_to_fm(t1_state%wf(ispin)%matrix,mo_coeff)
               alpha = nvec
               CALL cp_fm_scale(alpha,mo_coeff)
-             
               DO i=2,nvec 
                  t0_state => wfi_get_snapshot(wf_history, index=i, error=error)
                  CALL cp_sm_fm_multiply(t0_state%overlap,t1_state%wf(ispin)%matrix,fm_tmp, k)
@@ -1062,6 +1066,74 @@ SUBROUTINE wfi_extrapolate(globenv,wf_history, qs_env, dt, extrapolation_method_
            CALL get_qs_env(qs_env=qs_env, kg_sub_pw_env=kg_sub_pw_env)
            CALL kg_rho_update_rho_mol( kg_sub_pw_env, qs_env, kg_fm_mol_set, error=error)
         END IF
+    CASE (wfi_aspc)
+      ! figure out the actual number of vectors to use in the extrapolation:
+      nvec = MIN(wf_history%memory_depth,wf_history%snapshot_count)
+      CPPrecondition(nvec.GT.0,cp_failure_level,routineP,error,failure)
+      ! Stable relaxation parameter of the corrector (i.e. Hartree damping)
+      qs_env%scf_control%p_mix = REAL(nvec,KIND=dp)/REAL(2*nvec - 1,KIND=dp)
+      IF (nvec >= wf_history%memory_depth) THEN
+        qs_env%scf_control%max_scf = qs_env%scf_control%max_scf_aspc
+      END IF
+      my_orthogonal_wf = .TRUE.
+      CPPrecondition(.NOT.my_kg_gpw,cp_failure_level,routineP,error,failure)
+      DO ispin=1,SIZE(mos)
+        NULLIFY (mo_coeff,matrix_struct,matrix_struct_new,csc,fm_tmp)
+        CALL get_mo_set(mo_set=mos(ispin)%mo_set,mo_coeff=mo_coeff)
+        CALL cp_fm_get_info(mo_coeff,&
+                            nrow_global=n,&
+                            ncol_global=k,&
+                            matrix_struct=matrix_struct)
+        CALL cp_fm_create(fm_tmp,matrix_struct)
+        CALL cp_fm_struct_create(matrix_struct_new,&
+                                 template_fmstruct=matrix_struct,&
+                                 nrow_global=k,&
+                                 ncol_global=k)
+        CALL cp_fm_create(csc,matrix_struct_new)
+        CALL cp_fm_struct_release(matrix_struct_new)
+        ! first the most recent
+        t1_state => wfi_get_snapshot(wf_history,&
+                                     index=1,&
+                                     error=error)
+        CALL cp_fm_to_fm(t1_state%wf(ispin)%matrix,mo_coeff)
+        alpha = REAL(4*nvec - 2,KIND=dp)/REAL(nvec + 1,KIND=dp)
+        IF (ionode) PRINT*," B( 1 ) =",alpha
+        CALL cp_fm_scale(alpha,mo_coeff)
+        DO i=2,nvec
+          t0_state => wfi_get_snapshot(wf_history,index=i,error=error)
+          CALL cp_sm_fm_multiply(t0_state%overlap,t1_state%wf(ispin)%matrix,fm_tmp,k)
+          CALL cp_fm_gemm('T','N',k,k,n,1.0_dp,t0_state%wf(ispin)%matrix,fm_tmp,0.0_dp,csc)
+          CALL cp_fm_gemm('N','N',n,k,k,1.0_dp,t0_state%wf(ispin)%matrix,csc,0.0_dp,fm_tmp)
+          alpha = (-1.0_dp)**(i + 1)*REAL(i,KIND=dp)*&
+                  binomial(2*nvec,nvec - i)/binomial(2*nvec - 2,nvec -1)
+          IF (ionode) PRINT*," B(",i,") =",alpha
+          CALL cp_fm_scale_and_add(1.0_dp,mo_coeff,alpha,fm_tmp)
+        END DO
+        CALL cp_fm_release(csc)
+        CALL cp_fm_release(fm_tmp)
+        CALL qs_env_reorthogonalize_vectors(qs_env,&
+                                            v_matrix=mo_coeff,&
+                                            ispin=ispin,&
+                                            n_col=k,&
+                                            error=error)
+        CALL calculate_density_matrix(mo_set=mos(ispin)%mo_set,&
+                                      density_matrix=rho%rho_ao(ispin)%matrix,&
+                                      error=error)
+      END DO
+      CALL qs_rho_update_rho(rho,qs_env=qs_env,gapw=my_gapw,error=error)
+      IF (my_gapw) CALL calculate_rho_atom_coeff(qs_env,rho%rho_ao)
+      IF (my_gapw_xc) THEN
+        CALL qs_rho_update_rho(rho_xc,qs_env=qs_env, gapw=my_gapw_xc, error=error)
+        CALL calculate_rho_atom_coeff(qs_env,rho%rho_ao)
+      END IF
+      CALL qs_ks_did_change(qs_env%ks_env,rho_changed=.TRUE.,error=error)
+      !MK
+      ! IF (my_kg_gpw) THEN
+      !   ! Updates the molecular rho for each molecule independently
+      !   CALL get_qs_env(qs_env=qs_env, kg_sub_pw_env=kg_sub_pw_env)
+      !   CALL kg_rho_update_rho_mol( kg_sub_pw_env, qs_env, kg_fm_mol_set, error=error)
+      ! END IF
+      !MK
     CASE default
         CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,&
              routineP,"Unknown interpolation method: "//&

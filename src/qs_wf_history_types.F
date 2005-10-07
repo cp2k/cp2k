@@ -62,7 +62,7 @@ MODULE qs_wf_history_types
        wfi_use_prev_p_method_nr=1, wfi_use_prev_rho_r_method_nr=2,&
        wfi_linear_wf_method_nr=3, wfi_linear_p_method_nr=4,&
        wfi_linear_ps_method_nr=5, wfi_use_prev_wf_method_nr=6,&
-       wfi_ps_method_nr=7, wfi_frozen_method_nr=8
+       wfi_ps_method_nr=7, wfi_frozen_method_nr=8, wfi_aspc=9
 
   PUBLIC :: qs_wf_snapshot_type, qs_wf_snapshot_p_type, &
        qs_wf_history_type

@@ -136,7 +136,8 @@ MODULE cp_control_utils
                                              wfi_use_prev_p_method_nr,&
                                              wfi_use_prev_rho_r_method_nr,&
                                              wfi_use_prev_wf_method_nr, &
-                                             wfi_frozen_method_nr
+                                             wfi_frozen_method_nr, &
+                                             wfi_aspc
   USE termination,                     ONLY: stop_memory,&
                                              stop_program
   USE xas_control,                     ONLY: read_xas_control_new,&
@@ -340,7 +341,7 @@ CONTAINS
                                        " "," "," ")
      qs_keywords(qs_key_EXTRAPOLATION)=keyword_type("EXTRAPOLATION", &
                                        "EXTRAPOLATION {PS N|USE_GUESS|USE_PREV_P|USE_PREV_WF|"//&
-                                                 "USE_PREV_RHO_R|LINEAR_WF|LINEAR_P|LINEAR_PS|FROZEN}",&
+                                                 "USE_PREV_RHO_R|LINEAR_WF|LINEAR_P|LINEAR_PS|FROZEN|ASPC}",&
                                        "Extrapolation strategy for e.g. MD",&
                                        "INTERPOLATION","WF_INTERPOLATION"," ")
      qs_keywords(qs_key_METHOD)=keyword_type("METHOD", &
@@ -1534,6 +1535,9 @@ CONTAINS
             CASE ( 'FROZEN')
                qs_control % wf_interpolation_method_nr = &
                     wfi_frozen_method_nr
+            CASE ("ASPC")
+              qs_control%wf_interpolation_method_nr = wfi_aspc
+              CALL read_object(qs_control%wf_extrapolation_order)
             END SELECT
           CASE DEFAULT
             CALL list_keywords(qs_keywords,globenv%scr)
