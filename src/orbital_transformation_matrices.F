@@ -32,7 +32,7 @@ MODULE orbital_transformation_matrices
   USE mathconstants,                   ONLY: dfac,&
                                              fac,&
                                              pi
-  USE mathlib,                         ONLY: binomial_coefficient
+  USE mathlib,                         ONLY: binomial
   USE orbital_pointers,                ONLY: co,&
                                              nco,&
                                              nso
@@ -174,11 +174,9 @@ CONTAINS
                   ELSE
                     s = 0.0_dp
                   END IF
-                  s2 = s2 + binomial_coefficient(j,k)*&
-                            binomial_coefficient(ma,lx-2*k)*s
+                  s2 = s2 + binomial(j,k)*binomial(ma,lx-2*k)*s
                 END DO
-                s1 = s1 + binomial_coefficient(l,i)*&
-                          binomial_coefficient(i,j)*&
+                s1 = s1 + binomial(l,i)*binomial(i,j)*&
                           (-1.0_dp)**i*fac(2*l-2*i)/fac(l-ma-2*i)*s2
               END DO
               orbtramat(l)%c2s(is,ic) =&

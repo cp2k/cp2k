@@ -52,7 +52,7 @@ MODULE mathlib
 ! *** Public functions ***
 
   PUBLIC :: angle,&
-            binomial_coefficient,&
+            binomial,&
             det_3x3,&
             dihedral_angle,&
             gcd,&
@@ -108,7 +108,7 @@ CONTAINS
 
 ! *****************************************************************************
 
-  FUNCTION binomial_coefficient(n,k) RESULT(n_over_k)
+  FUNCTION binomial(n,k) RESULT(n_over_k)
 
 !   Purpose: The binomial coefficient n over k for 0 <= k <= n is calculated,
 !            otherwise zero is returned.
@@ -128,7 +128,7 @@ CONTAINS
       n_over_k = 0.0_dp
     END IF
 
-  END FUNCTION binomial_coefficient
+  END FUNCTION binomial
 
 ! *****************************************************************************
 
