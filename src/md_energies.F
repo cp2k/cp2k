@@ -386,7 +386,7 @@ CONTAINS
               .5_dp * ( pv_xx/unit%bar + simpar % p0 ) * &
               ( simpar % v0 - cell % deth )
      t = t_old + REAL(itimes-itimes_old,dp)*simpar%dt*femtoseconds
-     econs = ABS((cons-constant)/nat*kelvin)
+     econs = (cons-constant)/nat*kelvin
   END IF
 
 
