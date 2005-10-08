@@ -1,0 +1,27 @@
+################################################################################
+#
+# Potential data base file for CP2K (Quickstep)
+#
+# History: - Creation (12.12.1999, Matthias Krack)
+#          - Electronic configurations added (11.05.2000,MK)
+#          - GTH-PP for first-row transition metal added (18.03.2003,MK)
+#          - Automatic update (16.12.2003,MK)
+#
+################################################################################
+################################################################################
+#
+# PADE functional
+# ANTYMATTER -> inverts the sign of the core charge
+#
+################################################################################
+#
+NA GTH-P-NOEL
+    1
+     0.75000000    2    -4.18023680     0.72507482
+    0
+#
+CL GTH-M-NOEL
+    -1
+     0.75000000    2    -4.18023680     0.72507482
+    0
+#
