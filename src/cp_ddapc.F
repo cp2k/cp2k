@@ -828,6 +828,7 @@ CONTAINS
        poisson_section => section_vals_get_subs_vals(force_env_section,"DFT%POISSON_DFT", error=error)
        qmmm_periodic_section   => section_vals_get_subs_vals(force_env_section,"QMMM%PERIODIC", error=error)
        CALL section_vals_get(qmmm_periodic_section,explicit=qmmm_periodic, error=error)
+       qmmm_periodic = qmmm_periodic.AND.qs_env%qmmm
        IF (.NOT.qmmm_periodic) THEN
           CALL section_vals_val_get(poisson_section,"POISSON_SOLVER",i_val=my_val,error=error)
           SELECT CASE (my_val)
@@ -842,10 +843,12 @@ CONTAINS
        print_gen => section_vals_get_subs_vals(multipole_section,"PRINT%PROGRAM_RUN_INFO",error=error)
        ! First we evaluate the charges at the corresponding SCF STEP
        IF (need_f) THEN
-          CALL get_ddapc(qs_env, need_f, multipole_section, qout1=charges, out_radii=radii, out_AmI=AmI, dq_out=dq, error=error)
+          CALL get_ddapc(qs_env, need_f, multipole_section, qout1=charges, out_radii=radii, out_AmI=AmI,&
+               dq_out=dq, error=error)
           CALL reset_ch_pulay(qs_env, error=error)
        ELSE
-          CALL get_ddapc(qs_env, need_f, multipole_section, qout1=charges, out_radii=radii, out_AmI=AmI, error=error)
+          CALL get_ddapc(qs_env, need_f, multipole_section, qout1=charges, out_radii=radii, out_AmI=AmI,&
+               error=error)
        END IF
        ! Evaluate the Ewald contribution to the decoupling/coupling E2 and E3
        ALLOCATE(M(SIZE(charges),SIZE(charges)),stat=stat)
@@ -865,14 +868,15 @@ CONTAINS
             M, radii, need_f, dq, charges, error=error)
        IF (cp_should_output(logger%iter_info,print_gen,error=error).AND.&
             logger%para_env%mepos==logger%para_env%source) THEN
-          e_recpl = 0.5_dp*DOT_PRODUCT(charges,MATMUL(M,charges))-e_decpl
+          e_recpl = 0.5_dp*DOT_PRODUCT(charges,MATMUL(M,charges))
           IF (qmmm_periodic) THEN
              WRITE(iw,'(T3,A,F15.9)')" Recoupling Energy: ", e_recpl
           ELSE
              WRITE(iw,'(T3,A,F15.9)')" Decoupling Energy: ", e_recpl
           END IF
        END IF
-       CALL modify_hartree_pot(v_hartree_gspace, rho_tot_gspace, multipole_section, particle_set, M, AmI, radii, charges, error)
+       CALL modify_hartree_pot(v_hartree_gspace, rho_tot_gspace, multipole_section, particle_set, M, &
+            AmI, radii, charges, error)
        ! Re-evaluate Hartree Energy after the Hartree potential has been modified
        energy=0.5_dp * pw_integral_ab ( rho_tot_gspace % pw, v_hartree_gspace % pw )
        !
@@ -1081,7 +1085,7 @@ CONTAINS
                    IF (iparticle1/=iparticle2) THEN 
                       ra = pbc(rvec,cell)
                       r  = SQRT(DOT_PRODUCT(ra,ra))
-                      M(idim1,idim2) = sfact / r
+                      M(idim1,idim2) = M(idim1,idim2) + sfact / r
                       IF (need_f) THEN
                          t2    = - 1.0_dp /(r*r) * sfact
                          drvec = ra / r * q1 * q2 
@@ -1253,9 +1257,9 @@ CONTAINS
                 idim   = idim + 1
                 rc     = radii(igauss)
                 rc2    = rc*rc                
-                rvec  = particle_set(iparticle)%r
-                arg   = DOT_PRODUCT(gvec,rvec)
-                phase = CMPLX(COS(arg),-SIN(arg))
+                rvec   = particle_set(iparticle)%r
+                arg    = DOT_PRODUCT(gvec,rvec)
+                phase  = CMPLX(COS(arg),-SIN(arg))
                 gfunc  = EXP(-g2*rc2/4.0_dp)
                 g_corr = g_corr + gfunc * cv(idim) * phase 
              END DO

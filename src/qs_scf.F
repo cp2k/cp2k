@@ -2388,7 +2388,7 @@ CONTAINS
              END DO
           END IF
        END IF
-       IF (ionode) &
+       IF (ionode.AND.logger%print_keys%scf) &
        WRITE (UNIT=cp_logger_get_default_unit_nr(logger),FMT="(/,T3,A)")&
          "Extrapolation method: "//&
          TRIM(wfi_get_method_label(extrapolation_method_nr,error=error))

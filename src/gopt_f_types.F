@@ -59,7 +59,13 @@ MODULE gopt_f_types
   USE timings,                         ONLY: timeset,&
                                              timestop
   USE input_constants,                 ONLY: default_lbfgs_method_id,&
-                                             default_bfgs_method_id
+                                             default_bfgs_method_id,&
+                                             default_cg_method_id
+  USE input_cp2k,                      ONLY: parsed_cp2k_input
+  USE input_section_types,             ONLY: section_vals_get_subs_vals,&
+                                             section_vals_type,&
+                                             section_vals_get,&
+                                             section_vals_val_get
 
   IMPLICIT NONE
   PRIVATE
@@ -71,11 +77,11 @@ MODULE gopt_f_types
 
   PUBLIC :: gopt_f_type
   PUBLIC :: cp_eval_at, gopt_f_eval_at, gopt_f_create, gopt_f_retain,&
-       gopt_f_release, gopt_f_create_x0
+            gopt_f_release, gopt_f_create_x0
 
   PUBLIC :: gopt_param_type
   PUBLIC :: gopt_param_create, gopt_param_read, gopt_param_retain, &
-       gopt_param_release
+            gopt_param_release
 
   INTERFACE cp_eval_at
      MODULE PROCEDURE gopt_f_eval_at
@@ -141,10 +147,14 @@ MODULE gopt_f_types
 !!   SOURCE
   !***************************************************************************
   TYPE gopt_param_type
-     INTEGER :: id_nr,ref_count,method_id,max_h_rank, max_f_per_iter, max_iter
+     INTEGER         :: id_nr, ref_count, method_id, max_h_rank
+     INTEGER         :: max_f_per_iter, max_iter
      REAL(KIND = dp) :: wanted_proj_gradient, wanted_rel_f_error,&
                         max_dr,max_force,rms_dr,rms_force
-     LOGICAL :: hesrest
+     REAL(KIND = dp) :: brent_tol, brack_limit, restart_limit
+     INTEGER         :: brent_max_iter, max_steep_steps
+     LOGICAL         :: hesrest, Fletcher_Reeves_ON
+     LOGICAL         :: use_fit_line_search
   END TYPE gopt_param_type
 !!***
   !****************************************************************************
@@ -521,10 +531,17 @@ SUBROUTINE gopt_param_create(gopt_param,error)
      gopt_param%wanted_proj_gradient=1.0e-3_dp
      gopt_param%wanted_rel_f_error=1.0e5_dp
      gopt_param%hesrest=.FALSE.
+     gopt_param%Fletcher_Reeves_ON=.FALSE.
+     gopt_param%use_fit_line_search=.FALSE.
+     gopt_param%max_steep_steps=0
      gopt_param%max_dr = 0.0030_dp
      gopt_param%max_force = 0.00045_dp
      gopt_param%rms_dr = 0.0015_dp
      gopt_param%rms_force = 0.00030_dp
+     gopt_param%brent_tol = 1.0E-4_dp
+     gopt_param%brent_max_iter = 100
+     gopt_param%brack_limit = 100.0_dp
+     gopt_param%restart_limit = 0.1_dp
   END IF
 END SUBROUTINE gopt_param_create
 !***************************************************************************
@@ -565,75 +582,145 @@ SUBROUTINE gopt_param_read(gopt_param, globenv, error)
     CHARACTER(LEN=3)                         :: test_result
     CHARACTER(LEN=60)                        :: keyword, keyword2
     LOGICAL                                  :: failure, section_found
+    TYPE(section_vals_type), POINTER         :: gopt_section
 
-  failure=.FALSE.
-  
-  IF (.NOT.ASSOCIATED(gopt_param)) THEN
-     CALL gopt_param_create(gopt_param, error=error)
-  END IF
+    failure=.FALSE.
 
-  CALL start_parser(file_name=globenv%input_file_name,&
-       globenv=globenv,&
-       start_section_label="GEOOPT",&
-       section_found=section_found)
-  
-  IF (section_found) THEN
-     DO
-        test_result = test_object()
-        IF (test_result /= "EOL") THEN
-           CALL read_object(keyword)
-           CALL stop_parser(routine=routineP,message="INVALID_KEYWORD")
-        END IF
-        test_result = test_object(newline=.TRUE.)
-        IF (test_result == "EOS") THEN
-           EXIT
-        ELSE IF (test_result == "EOF") THEN
-           CALL stop_parser(routine=routineP,message="EOF")
-        ELSE
-           CALL read_object(keyword,lower_to_upper=.TRUE.,newline=.TRUE.)
-           SELECT CASE (TRIM(keyword))
-           CASE ('OPTIMIZER','MINIMIZER')
-              CALL read_object(keyword2)
-              SELECT CASE (TRIM(keyword2))
-              CASE ('BFGS')
-                 gopt_param%method_id=default_bfgs_method_id
-              CASE ('LBFGS')
-                 gopt_param%method_id=default_lbfgs_method_id
-              CASE DEFAULT
-                 CALL stop_parser(routine=routineP,message="INVALID OPTIMIZER TYPE")
-              END SELECT 
-           CASE ('MAX_ITER')
-              CALL read_object(gopt_param%max_iter)
-           CASE ('MAX_H_RANK')
-              CALL read_object(gopt_param%max_h_rank)
-           CASE ('MAX_F_PER_ITER')
-              CALL read_object(gopt_param%max_f_per_iter)
-           CASE ('WANTED_PROJ_GRADIENT')
-              CALL read_object(gopt_param%wanted_proj_gradient)
-           CASE ('WANTED_REL_F_ERROR')
-              CALL read_object(gopt_param%wanted_rel_f_error)
-           CASE ('RESTART')
-              gopt_param%hesrest = .TRUE.
-           CASE ("MAX_DR")
-              CALL read_object(gopt_param%max_dr)
-           CASE ("MAX_FORCE")
-              CALL read_object(gopt_param%max_force)
-           CASE ("RMS_DR")
-              CALL read_object(gopt_param%rms_dr)
-           CASE ("RMS_FORCE")
-              CALL read_object(gopt_param%rms_force)
-           CASE DEFAULT
-              CALL stop_parser(routine=routineP,message="INVALID_KEYWORD")
-           END SELECT
-        END IF
-     END DO
-  END IF
+    IF (.NOT.ASSOCIATED(gopt_param)) THEN
+       CALL gopt_param_create(gopt_param, error=error)
+    END IF
 
-  CALL finish_parser()
+    NULLIFY(gopt_section)
+    gopt_section =>  section_vals_get_subs_vals(globenv%input_file,&
+         "MOTION%GEOOPT",error=error)
 
-END SUBROUTINE gopt_param_read
+    IF (parsed_cp2k_input(gopt_section,check_this_section=.TRUE.,error=error)) THEN
+       CALL gopt_param_read_new(gopt_param, globenv, gopt_section, error)
+       RETURN
+    END IF
+    !
+    !TODEL_START_TL
+    !
+    CALL start_parser(file_name=globenv%input_file_name,&
+         globenv=globenv,&
+         start_section_label="GEOOPT",&
+         section_found=section_found)
+
+    IF (section_found) THEN
+       DO
+          test_result = test_object()
+          IF (test_result /= "EOL") THEN
+             CALL read_object(keyword)
+             CALL stop_parser(routine=routineP,message="INVALID_KEYWORD")
+          END IF
+          test_result = test_object(newline=.TRUE.)
+          IF (test_result == "EOS") THEN
+             EXIT
+          ELSE IF (test_result == "EOF") THEN
+             CALL stop_parser(routine=routineP,message="EOF")
+          ELSE
+             CALL read_object(keyword,lower_to_upper=.TRUE.,newline=.TRUE.)
+             SELECT CASE (TRIM(keyword))
+             CASE ('OPTIMIZER','MINIMIZER')
+                CALL read_object(keyword2)
+                SELECT CASE (TRIM(keyword2))
+                CASE ('BFGS')
+                   gopt_param%method_id=default_bfgs_method_id
+                CASE ('LBFGS')
+                   gopt_param%method_id=default_lbfgs_method_id
+                CASE ('CG')
+                   gopt_param%method_id=default_cg_method_id
+                CASE DEFAULT
+                   CALL stop_parser(routine=routineP,message="INVALID OPTIMIZER TYPE")
+                END SELECT
+             CASE ('MAX_ITER')
+                CALL read_object(gopt_param%max_iter)
+             CASE ('MAX_H_RANK')
+                CALL read_object(gopt_param%max_h_rank)
+             CASE ('MAX_F_PER_ITER')
+                CALL read_object(gopt_param%max_f_per_iter)
+             CASE ('WANTED_PROJ_GRADIENT')
+                CALL read_object(gopt_param%wanted_proj_gradient)
+             CASE ('WANTED_REL_F_ERROR')
+                CALL read_object(gopt_param%wanted_rel_f_error)
+             CASE ('RESTART')
+                gopt_param%hesrest = .TRUE.
+             CASE ('FLETCHER_REEVES')
+                gopt_param%Fletcher_Reeves_ON = .TRUE.
+             CASE ('USE_FIT_LINE_SEARCH')
+                gopt_param%use_fit_line_search = .TRUE.
+             CASE ('MAX_STEEP_STEPS')
+                CALL read_object(gopt_param%max_steep_steps)
+             CASE ("MAX_DR")
+                CALL read_object(gopt_param%max_dr)
+             CASE ("MAX_FORCE")
+                CALL read_object(gopt_param%max_force)
+             CASE ("RMS_DR")
+                CALL read_object(gopt_param%rms_dr)
+             CASE ("RMS_FORCE")
+                CALL read_object(gopt_param%rms_force)
+             CASE("BRENT_TOL")
+                CALL read_object(gopt_param%brent_tol)
+             CASE("BRENT_MAX_ITER")
+                CALL read_object(gopt_param%brent_max_iter)
+             CASE("BRACK_LIMIT")
+                CALL read_object(gopt_param%brack_limit)
+             CASE("CG_RESTART_LIMIT")
+                CALL read_object(gopt_param%restart_limit)
+             CASE DEFAULT
+                CALL stop_parser(routine=routineP,message="INVALID_KEYWORD")
+             END SELECT
+          END IF
+       END DO
+    END IF
+
+    CALL finish_parser()
+    !
+    ! TODEL_END_TL
+    !
+  END SUBROUTINE gopt_param_read
 !***************************************************************************
+  
+  SUBROUTINE gopt_param_read_new(gopt_param, globenv, gopt_section, error)
+    IMPLICIT NONE
+    ! Arguments
+    TYPE(gopt_param_type), POINTER           :: gopt_param
+    TYPE(global_environment_type), &
+      INTENT(inout), TARGET                  :: globenv
+    TYPE(section_vals_type), POINTER         :: gopt_section
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
+    ! Local Variables
+    CHARACTER(len=*), PARAMETER :: routineN = 'gopt_param_read', &
+      routineP = moduleN//':'//routineN
 
+    CHARACTER(LEN=3)                         :: test_result
+    CHARACTER(LEN=60)                        :: keyword, keyword2
+    LOGICAL                                  :: failure, section_found
+
+    failure=.FALSE.
+    IF (.NOT.failure) THEN
+       CALL section_vals_val_get(gopt_section,"OPTIMIZER",i_val=gopt_param%method_id,error=error)
+       CALL section_vals_val_get(gopt_section,"MAX_ITER",i_val=gopt_param%max_iter,error=error)
+       CALL section_vals_val_get(gopt_section,"MAX_H_RANK",i_val=gopt_param%max_h_rank,error=error)
+       CALL section_vals_val_get(gopt_section,"MAX_F_PER_ITER",i_val=gopt_param%max_f_per_iter,error=error)
+       CALL section_vals_val_get(gopt_section,"WANTED_PROJ_GRADIENT",r_val=gopt_param%wanted_proj_gradient,error=error)
+       CALL section_vals_val_get(gopt_section,"WANTED_REL_F_ERROR",r_val=gopt_param%wanted_rel_f_error,error=error)
+       CALL section_vals_val_get(gopt_section,"FLETCHER_REEVES",l_val=gopt_param%Fletcher_Reeves_ON,error=error)
+       CALL section_vals_val_get(gopt_section,"USE_FIT_LINE_SEARCH",l_val=gopt_param%use_fit_line_search,error=error)
+       CALL section_vals_val_get(gopt_section,"RESTART",l_val=gopt_param%hesrest,error=error)
+       CALL section_vals_val_get(gopt_section,"MAX_STEEP_STEPS",i_val=gopt_param%max_steep_steps,error=error)
+       CALL section_vals_val_get(gopt_section,"MAX_DR",r_val=gopt_param%max_dr,error=error)
+       CALL section_vals_val_get(gopt_section,"MAX_FORCE",r_val=gopt_param%max_force,error=error)
+       CALL section_vals_val_get(gopt_section,"RMS_DR",r_val=gopt_param%rms_dr,error=error)
+       CALL section_vals_val_get(gopt_section,"RMS_FORCE",r_val=gopt_param%rms_force,error=error)
+       CALL section_vals_val_get(gopt_section,"BRENT_TOL",r_val=gopt_param%brent_tol,error=error)
+       CALL section_vals_val_get(gopt_section,"BRENT_MAX_ITER",i_val=gopt_param%brent_max_iter,error=error)
+       CALL section_vals_val_get(gopt_section,"BRACK_LIMIT",r_val=gopt_param%brack_limit,error=error)
+       CALL section_vals_val_get(gopt_section,"CG_RESTART_LIMIT",r_val=gopt_param%restart_limit,error=error)
+    END IF
+
+  END SUBROUTINE gopt_param_read_new
 
 !!****f* gopt_f_types/gopt_param_retain [1.0] *
 !!

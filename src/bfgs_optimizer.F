@@ -66,7 +66,9 @@ MODULE bfgs_optimizer
 
   PRIVATE
 
-  PUBLIC :: geoopt_bfgs
+  PUBLIC :: geoopt_bfgs,&
+            write_cycle_infos,&
+            check_converg
 
   LOGICAL, PRIVATE, PARAMETER :: debug_this_module=.TRUE.
   CHARACTER(len=*), PRIVATE, PARAMETER :: moduleN='bfgs_optimizer'
@@ -190,7 +192,7 @@ CONTAINS
 
   IF(ionode)THEN
     WRITE(UNIT=output_unit,FMT="(/,T2,A)") REPEAT("*",79)
-    WRITE(UNIT=output_unit,FMT="(T2,A,T22,A,T78,A)")&
+    WRITE(UNIT=output_unit,FMT="(T2,A,T28,A,T78,A)")&
       "***","STARTING GEOMETRY OPTIMIZATION","***"
     WRITE(UNIT=output_unit,FMT="(T2,A)") REPEAT("*",79)
     WRITE(UNIT=output_unit,FMT="(/,(T2,A,I10))")&
@@ -404,7 +406,7 @@ CONTAINS
     ediff = etot - eold
 
     IF(ionode) CALL write_cycle_infos &
-               (output_unit,it,etot,ediff,pred,rat,step,rad,emin)
+               (output_unit,it,etot,ediff,pred,rat,step,rad,emin," BFGS")
 
     IF(etot < emin ) emin = etot 
 
@@ -782,26 +784,37 @@ CONTAINS
 
 ! ***********************************************************************************
 
- SUBROUTINE write_cycle_infos(output_unit,it,etot,ediff,pred,rat,step,rad,emin)
+ SUBROUTINE write_cycle_infos(output_unit,it,etot,ediff,pred,rat,step,rad,emin,wildcard)
 
     INTEGER, INTENT(IN)                      :: output_unit, it
-    REAL(KIND=dp), INTENT(IN)                :: etot, ediff, pred, rat, step, &
-                                                rad, emin
+    REAL(KIND=dp), INTENT(IN)                :: etot, ediff, emin
+    REAL(KIND=dp), INTENT(IN), OPTIONAL      :: pred, rat, step, rad
+    CHARACTER(LEN=5), OPTIONAL               :: wildcard
 
      WRITE(UNIT=output_unit,FMT="(/,T2,8('-'),A,I5,1X,12('-'))")&
      "  Informations at step = ",it
+     WRITE(UNIT=output_unit,FMT="(T2,A,T47,A)")&
+      " Optimization Method        = ",wildcard
      WRITE(UNIT=output_unit,FMT="(T2,A,F20.10)")&
       " Total Energy               = ",etot
      WRITE(UNIT=output_unit,FMT="(T2,A,F20.10)")&
       " Real energy change         = ",ediff
-     WRITE(UNIT=output_unit,FMT="(T2,A,F20.10)")&
-      " Predicted change in energy = ",pred
-     WRITE(UNIT=output_unit,FMT="(T2,A,F20.10)")&
-      " Scaling factor             = ",rat
-     WRITE(UNIT=output_unit,FMT="(T2,A,F20.10)")&
-      " Step size                  = ",step
-     WRITE(UNIT=output_unit,FMT="(T2,A,F20.10)")&
-      " Trust radius               = ",rad
+     IF (PRESENT(pred)) THEN
+        WRITE(UNIT=output_unit,FMT="(T2,A,F20.10)")&
+             " Predicted change in energy = ",pred
+     END IF
+     IF (PRESENT(rat)) THEN
+        WRITE(UNIT=output_unit,FMT="(T2,A,F20.10)")&
+             " Scaling factor             = ",rat
+     END IF
+     IF (PRESENT(step)) THEN
+        WRITE(UNIT=output_unit,FMT="(T2,A,F20.10)")&
+             " Step size                  = ",step
+     END IF
+     IF (PRESENT(rad)) THEN
+        WRITE(UNIT=output_unit,FMT="(T2,A,F20.10)")&
+             " Trust radius               = ",rad
+     END IF
      IF( etot < emin )THEN
       WRITE(UNIT=output_unit,FMT="(T2,2A)")&
        " Decrease in energy         =     ",&

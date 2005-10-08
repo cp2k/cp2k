@@ -115,7 +115,8 @@ CONTAINS
     TYPE(section_vals_type), POINTER                 :: print_pot
     LOGICAL :: failure, found
     TYPE(qmmm_gaussian_type), POINTER                :: pgf
-    REAL(KIND=dp) :: Rmax, Fac(3), Gmax, Prefactor, alpha, mymaxradius, vol, rc, vec(3), g, A, box(3)
+    REAL(KIND=dp) :: Rmax, Fac(3), Gmax, Prefactor, alpha
+    REAL(KIND=dp) :: g2, mymaxradius, vol, rc, vec(3), g, Gk, Ak, box(3), fs, rc2
     INTEGER       :: n_rep_real(3), n_rep_real_val, Kmax(3), ig_start, iz, iy, ix, stat, K, ig, I, iw
     INTEGER       :: Ndim, idim
     INTEGER,        DIMENSION(:), POINTER    :: mm_atom_index
@@ -129,14 +130,12 @@ CONTAINS
                 mm_cell%hmat(3,3)**2 ) 
     CALL section_vals_val_get(qmmm_periodic,"GMAX",r_val=Gmax,error=error)
     CALL section_vals_val_get(qmmm_periodic,"REPLICA",i_val=n_rep_real_val,error=error)
-    Fac(1)  = 2.0D0*Pi/mm_cell%hmat(1,1)
-    Fac(2)  = 2.0D0*Pi/mm_cell%hmat(2,2)
-    Fac(3)  = 2.0D0*Pi/mm_cell%hmat(3,3)
+    fac = 2.0D0*Pi/(/mm_cell%hmat(1,1),mm_cell%hmat(2,2),mm_cell%hmat(3,3)/)
     Kmax    = CEILING(Gmax/Fac)
     Vol     = mm_cell%hmat(1,1)*&
               mm_cell%hmat(2,2)*&
               mm_cell%hmat(3,3)
-    Ndim    = PRODUCT(Kmax+1)-1
+    Ndim    = (Kmax(1)+1)*(2*Kmax(2)+1)*(2*Kmax(3)+1)-1
     ig_start = 1
     n_rep_real = n_rep_real_val
     IF (compatibility) ig_start = 2
@@ -179,20 +178,23 @@ CONTAINS
 
           pgf => pgfs(K)%pgf
           idim = 0
-          DO iz = 0, kmax(3)
-             DO iy = 0, kmax(2)
-                DO ix = 0, kmax(1)
-                   IF ((iz ==0).AND.(iy==0).AND.(ix==0)) CYCLE 
+          DO ix = 0, kmax(1)
+             DO iy = -kmax(2), kmax(2)
+                DO iz = -kmax(3), kmax(3)
+                   IF (ix == 0.AND.iy == 0.AND.iz == 0) CYCLE
+                   fs = 2.0_dp; IF (ix==0) fs = 1.0_dp
                    idim = idim + 1
                    vec =  fac*(/REAL(ix,KIND=dp),REAL(iy,KIND=dp),REAL(iz,KIND=dp)/)
-                   g   =  SQRT(DOT_PRODUCT(vec,vec))
-                   LG (idim) = 4.0_dp*Pi/g**2.0_dp * EXP(-(g**2.0_dp*rc**2.0_dp)/4.0_dp)
+                   g2  =  DOT_PRODUCT(vec,vec)
+                   rc2 =  rc*rc
+                   g   =  SQRT(g2)
+                   LG (idim) = 4.0_dp*Pi/g2 * EXP(-(g2*rc2)/4.0_dp)
                    DO Ig = ig_start, pgf%number_of_gaussians
-                      G = pgf%Gk(Ig)
-                      A = pgf%Ak(Ig)*Pi**(3.0_dp/2.0_dp)*G**3.0_dp
-                      LG (idim) = LG (idim) - A * EXP(-(g*G)**2.0_dp/4.0_dp)
+                      Gk = pgf%Gk(Ig)
+                      Ak = pgf%Ak(Ig)*Pi**(3.0_dp/2.0_dp)*Gk**3.0_dp
+                      LG (idim) = LG (idim) - Ak * EXP(-(g*Gk)**2.0_dp/4.0_dp) 
                    END DO
-                   LG (idim) = 4*Pi/(Vol) *  LG (idim)
+                   LG (idim) = fs * LG (idim) * 1.0_dp/Vol
                    gx (idim) = fac(1)*REAL(ix,KIND=dp)
                    gy (idim) = fac(2)*REAL(iy,KIND=dp)
                    gz (idim) = fac(3)*REAL(iz,KIND=dp)
@@ -228,7 +230,6 @@ CONTAINS
           CYCLE Potential_Type
        END SELECT
 
-
        NULLIFY(mm_atom_index)
        ALLOCATE(mm_atom_index(SIZE(potentials(K)%pot%mm_atom_index)),stat=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,Failure)
@@ -247,7 +248,9 @@ CONTAINS
              WRITE (UNIT=iw,FMT="(/,T2,A)") REPEAT("-",79)
              WRITE (UNIT=iw,FMT="(T2,A,T20,A,T80,A)")"-","QMMM PERIODIC BOUNDARY CONDITION INFO","-"
              WRITE (UNIT=iw,FMT="(T2,A)") REPEAT("-",79)
-             WRITE (UNIT=iw,FMT="(T2,A,T10,A,F12.6,T50,A,3I5,T80,A)")"-","RADIUS =",rc,"REPLICA =",n_rep_real,"-"
+             WRITE (UNIT=iw,FMT="(T2,A,T10,A,F12.6,T50,A,3I5,T80,A)")"-","RADIUS  =",rc,"REPLICA =",n_rep_real,"-"
+             WRITE (UNIT=iw,FMT="(T2,A,T10,A,F12.6,T50,A,I15,T80,A)")"-","MINGVAL =",MINVAL(ABS(Lg)),&
+                  "GPOINTS =",ndim,"-"
              WRITE (UNIT=iw,FMT="(T2,A)") REPEAT("-",79)
           END IF
        END IF

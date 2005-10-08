@@ -1524,12 +1524,13 @@ CONTAINS
              IF (n_rep_val == 1) THEN
                 CALL section_vals_val_get(qmmm_link_section,"RADIUS",i_rep_section=ikind,r_val=my_radius,error=error)
                 WHERE ( mm_atom_index == mm_index ) mm_el_pot_radius = my_radius * qm_cell_small%unit_of_length
+                WHERE ( mm_atom_index == mm_index ) mm_el_pot_radius_corr = my_radius * qm_cell_small%unit_of_length
              END IF
              CALL section_vals_val_get(qmmm_link_section,"CORR_RADIUS",i_rep_section=ikind,n_rep_val=n_rep_val,error=error)
              IF (n_rep_val == 1) THEN
                 CALL section_vals_val_get(qmmm_link_section,"CORR_RADIUS",i_rep_section=ikind,r_val=my_radius,error=error)
+                WHERE ( mm_atom_index == mm_index ) mm_el_pot_radius_corr = my_radius * qm_cell_small%unit_of_length
              END IF
-             WHERE ( mm_atom_index == mm_index ) mm_el_pot_radius_corr = my_radius * qm_cell_small%unit_of_length
           END IF
        END DO
        !

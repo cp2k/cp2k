@@ -2936,9 +2936,9 @@ SUBROUTINE create_tddfpt_section(section,error)
        CALL keyword_create(keyword, name="OPTIMIZER",&
             variants=(/"MINIMIZER"/),&
             description="Specify which method to use to perform a geometry optimization.",&
-            usage="OPTIMIZER {BFGS|LBFGS}",&
-            enum_c_vals=s2a( "BFGS","LBFGS"),&
-            enum_i_vals=(/default_bfgs_method_id,default_lbfgs_method_id/),&
+            usage="OPTIMIZER {BFGS|LBFGS|CG}",&
+            enum_c_vals=s2a( "BFGS","LBFGS","CG"),&
+            enum_i_vals=(/default_bfgs_method_id,default_lbfgs_method_id,default_cg_method_id/),&
             default_i_val=default_bfgs_method_id,error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
@@ -3010,6 +3010,54 @@ SUBROUTINE create_tddfpt_section(section,error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
+       CALL keyword_create(keyword, name="BRENT_TOL",&
+            description="Tolerance requested during Brent line search in Conjugate Gradients Optimization.",&
+            usage="BRENT_TOL {real}",&
+            default_r_val=0.0001_dp,error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="BRACK_LIMIT",&
+            description="Limit in 1D bracketing during line search in Conjugate Gradients Optimization.",&
+            usage="BRACK_LIMIT {real}",&
+            default_r_val=100.0_dp,error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="BRENT_MAX_ITER",&
+            description="Maximum number of iterations in brent algorithm "// &
+            "(used for the line search in  Conjugated Gradients Optimization)",&
+            usage="BRENT_MAX_ITER {integer}",&
+            default_i_val=100,error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="MAX_STEEP_STEPS",&
+            description="Maximum number of steepest descent steps before starting the"//&
+            " conjugate gradients optimization.",&
+            usage="MAX_STEEP_STEPS {integer}",&
+            default_i_val=0,error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="CG_RESTART_LIMIT",&
+            description="Cosine of the angle between two consecutive searching directions."//&
+            " If the angle during a CG optimization is less than the one corresponding to "//&
+            " to the CG_RESTART_LIMIT the CG is reset and one step of steepest descent is "//&
+            " performed.",&
+            usage="CG_RESTART_LIMIT {real}",&
+            default_r_val=0.1_dp,error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="USE_FIT_LINE_SEARCH",&
+            description="Use instead of bracketing the minima and than applying the Brent"//&
+            " algorithm, a least mean square to interpolate the minima in the line search.",&
+            usage="USE_FIT_LINE_SEARCH",&
+            default_l_val=.FALSE.,lone_keyword_l_val=.TRUE.,error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)       
+
        CALL keyword_create(keyword, name="RESTART",&
             description="The guess starting HESSIAN is read from the RESTART.",&
             usage="RESTART",&
@@ -3017,10 +3065,9 @@ SUBROUTINE create_tddfpt_section(section,error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
-       CALL keyword_create(keyword, name="CONSTRAINTS",&
-            variants=(/"CONSTRAINT"/),&
-            description="Enables the use of constraints during the geometry optimization.",&
-            usage="CONSTRAINTS",&
+       CALL keyword_create(keyword, name="FLETCHER_REEVES",&
+            description="Uses FLETCHER-REEVES instead of POLAK-RIBIERE when using Conjugate Gradients",&
+            usage="FLETCHER-REEVES",&
             default_l_val=.FALSE.,lone_keyword_l_val=.TRUE.,error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)

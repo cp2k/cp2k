@@ -1090,12 +1090,12 @@ CONTAINS
                    ft3l = 0.0_dp
                    DO kg = 1, SIZE(Lg)
                       vec  = (/REAL(gx(kg)),REAL(gy(kg)),REAL(gz(kg))/)
-                      Term = - lg(kg)*SIN((2.0_dp*Pi)*(vec(1)*rv1+vec(2)*rv2+vec(3)*rv3))
+                      Term = - lg(kg)*SIN(vec(1)*rv1+vec(2)*rv2+vec(3)*rv3)
                       ft1l = ft1l + Term * vec(1)
                       ft2l = ft2l + Term * vec(2)
                       ft3l = ft3l + Term * vec(3)
                    END DO
-                   fac = grid%cr3d(i,j,k)*(2.0_dp*Pi)
+                   fac = grid%cr3d(i,j,k)
                    ft1 = ft1 + ft1l * fac
                    ft2 = ft2 + ft2l * fac
                    ft3 = ft3 + ft3l * fac                   
@@ -1201,7 +1201,8 @@ CONTAINS
     REAL(KIND=dp)                            :: dr1, dr2, dr3, dvol, dx, fac, &
                                                 ft1, ft2, ft3, qt, r, r2, &
                                                 rt1, rt2, rt3, rv1, rv2, rv3, &
-                                                rx, rx2, Term, xs1, xs2, xs3
+                                                rx, rx2, Term, xs1, xs2, xs3,&
+                                                rd1, rd2, rd3
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :)                        :: LForces
     REAL(KIND=dp), DIMENSION(3)              :: ra
@@ -1262,11 +1263,19 @@ CONTAINS
                          +pot0_2(2,ix  )*(1.0_dp-4.0_dp*rx+3.0_dp*rx2)     &
                          +pot0_2(1,ix+1)*(6.0_dp*(rx-rx2))                 &
                          +pot0_2(2,ix+1)*(-2.0_dp*rx+3.0_dp*rx2)
-
-                   fac = grid%cr3d(i,j,k) * Term / r 
-                   ft1 = ft1 + fac * rv1
-                   ft2 = ft2 + fac * rv2
-                   ft3 = ft3 + fac * rv3
+                   fac = grid%cr3d(i,j,k) * Term 
+                   IF ( r == 0.0_dp ) THEN
+                      rd1 = 1.0_dp
+                      rd2 = 1.0_dp
+                      rd3 = 1.0_dp
+                   ELSE
+                      rd1 = rv1 / r
+                      rd2 = rv2 / r
+                      rd3 = rv3 / r
+                   END IF
+                   ft1 = ft1 + fac * rd1
+                   ft2 = ft2 + fac * rd2
+                   ft3 = ft3 + fac * rd3
                    xs1 = xs1 + dr1
                 END DO
                 xs2 = xs2 + dr2

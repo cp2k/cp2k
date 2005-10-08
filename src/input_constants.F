@@ -317,7 +317,8 @@ MODULE input_constants
    kg_coeff_pos_vel_restart=3
 
   INTEGER, PUBLIC, PARAMETER :: default_lbfgs_method_id=1,&
-                                default_bfgs_method_id=2
+                                default_bfgs_method_id=2,&
+                                default_cg_method_id=3
 
 
   INTEGER, PARAMETER, PUBLIC :: silent_print_level=0, low_print_level=1,&

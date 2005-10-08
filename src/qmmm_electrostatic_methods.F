@@ -536,31 +536,6 @@ CONTAINS
                             error=error)
        END DO
        CALL timestop(0._dp,handle2)
-!FM       CALL timeset("PWInt","I","",handle2)
-!FM       CALL pw_pool_create_pw(pw_pools(auxbas_grid)%pool,tmp_grid,&
-!FM            in_space=RECIPROCALSPACE,use_data=COMPLEXDATA1D,error=error)
-!FM       CALL pw_zero(tmp_grid)
-!FM       DO igrid=auxbas_grid,coarser_grid
-!FM          CALL pw_pool_create_pw(pw_pools(igrid)%pool,tmp_grid2,&
-!FM               in_space=RECIPROCALSPACE,use_data=COMPLEXDATA1D,error=error)
-!FM          CALL pw_pool_create_pw(pw_pools(igrid)%pool,tmp_grid3,&
-!FM               in_space=REALSPACE,use_data=REALDATA3D,error=error)
-!FM          CALL pw_transfer(tmp_grid3,tmp_grid2)
-!FM          CALL pw_sumup(tmp_grid2,tmp_grid)
-!FM          CALL pw_pool_give_back_pw(pw_pools(igrid)%pool,tmp_grid2,&
-!FM               error=error)
-!FM          CALL pw_pool_give_back_pw(pw_pools(igrid)%pool,tmp_grid3,&
-!FM               error=error)
-!FM       END DO
-!FM       CALL pw_pool_create_pw(pw_pools(auxbas_grid)%pool,tmp_grid3,&
-!FM            in_space=REALSPACE,use_data=REALDATA3D,error=error)
-!FM       CALL pw_transfer(tmp_grid,tmp_grid3)
-!FM       CALL pw_pool_give_back_pw(pw_pools(auxbas_grid)%pool,tmp_grid,&
-!FM            error=error)
-!FM       CALL pw_pool_give_back_pw(pw_pools(auxbas_grid)%pool,tmp_grid3,&
-!FM            error=error)
-!FM       CALL timestop(0._dp,handle2)
-
     CASE DEFAULT
        CPPrecondition(.FALSE.,cp_failure_level,routineP,error,failure)
     END SELECT
@@ -824,6 +799,7 @@ CONTAINS
        gy => per_pot%gy
        gz => per_pot%gz
        Atoms: DO Imm = 1, SIZE(per_pot%mm_atom_index)
+          WRITE(*,*)"atom:: ",Imm
           LIndMM    =   per_pot%mm_atom_index(Imm)
           IndMM     =   mm_atom_index(LIndMM)
           ra(:)     =   pbc(mm_particles(IndMM)%r-dOmmOqm,mm_cell)+dOmmOqm
@@ -847,7 +823,7 @@ CONTAINS
                    Term = 0.0_dp
                    DO kg = 1, SIZE(Lg)
                       vec  = (/REAL(gx(kg)),REAL(gy(kg)),REAL(gz(kg))/)
-                      Term = Term + lg(kg)*COS((2.0_dp*Pi)*(vec(1)*rv1+vec(2)*rv2+vec(3)*rv3))
+                      Term = Term + lg(kg)*COS(vec(1)*rv1+vec(2)*rv2+vec(3)*rv3)
                    END DO
                    grid%cr3d(i,j,k) = grid%cr3d(i,j,k) - Term * qt 
                    xs1 = xs1 + dr1

@@ -22,6 +22,7 @@ OBJECTS_GENERIC =\
  bfgs_optimizer.o\
  bsse.o\
  cg_test.o\
+ cg_optimizer.o\
  checkpoint_handler.o\
  coefficient_lists.o\
  coefficient_types.o\
