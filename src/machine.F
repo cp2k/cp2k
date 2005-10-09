@@ -47,6 +47,11 @@ MODULE machine
        m_walltime, m_cputime, m_datum, m_flush, &
        m_hostnm, m_getcwd, m_getlog, m_getuid, m_getpid, m_getarg, &
        print_memory, m_iargc, m_abort, m_chdir, m_loc_r, m_loc_c
+#elif defined ( __XT3 )
+  USE machine_xt3, ONLY    : &
+       m_walltime, m_cputime, m_datum, m_flush, &
+       m_hostnm, m_getcwd, m_getlog, m_getuid, m_getpid, m_getarg, &
+       print_memory, m_iargc, m_abort, m_chdir, m_loc_r, m_loc_c
 #elif defined ( __T3E )
   USE machine_t3e, ONLY    : &
        m_walltime, m_cputime, m_datum, m_flush, &
