@@ -7,9 +7,9 @@ CPP      = cpp
 FC       = ftn -Mfree
 LD       = ftn
 AR       = ar -r
-DFLAGS   = -D__PGI -D__FFTSG
+DFLAGS   = -D__XT3 -D__FFTSG
 CPPFLAGS = -traditional -C $(DFLAGS) -P
-FCFLAGS  = -target=catamount -fast -Mscalarsse -g
+FCFLAGS  = -target=catamount -O2 -g
 LDFLAGS  = $(FCFLAGS)
 LIBS     = -lacml
 
