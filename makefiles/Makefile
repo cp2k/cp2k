@@ -3,9 +3,11 @@ SHELL = /bin/sh
 # the home dir is taken from the current directory: you must cd to the makefiles
 # directory before executing make
 CP2KHOME  := $(PWD)/..
+ifeq ($(ARCH),)
 ARCH      := $(shell $(CP2KHOME)/tools/get_arch_code)
+endif
 SMAKE     = $(MAKE) -r
-PMAKE     = $(SMAKE) -j 16
+PMAKE     = $(SMAKE) -j 1
 LIB1      = cp2k_base_lib
 LIBCP2K   = cp2k_lib
 export VERSION=sopt
