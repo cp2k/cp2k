@@ -1949,14 +1949,12 @@ SUBROUTINE topology_connectivity_pack(molecule_kind_set,molecule_set,&
     CALL get_molecule_kind(molecule_kind=molecule_kind,&
                            kind_number=i)
     IF(counter/=i) THEN
-      c_intra = 0      !number of extra connector intra-mol interactions
       counter = i
       ntheta = 0
       CALL get_molecule(molecule=molecule,first_atom=first,last_atom=last)
-      IF(ASSOCIATED(conn_info%bond_a)) nbond = SIZE(conn_info%bond_a)
       IF(ASSOCIATED(conn_info%theta_a)) ntheta = SIZE(conn_info%theta_a)
       ALLOCATE(checkme(ntheta),STAT=istat)
-      IF(istat/=0) CALL stop_memory('connectivity_pack','checkme',nbond)
+      IF(istat/=0) CALL stop_memory('connectivity_pack','checkme',ntheta)
       checkme(:)=0
       DO j=1,ntheta
         atm_a = conn_info%theta_a(j)
@@ -1975,7 +1973,11 @@ SUBROUTINE topology_connectivity_pack(molecule_kind_set,molecule_set,&
               IF( ( (atm_a==conn_info%theta_a(k)) .AND.&
                     (atm_b==conn_info%theta_b(k)) ) .OR.&
                   ( (atm_a==conn_info%theta_b(k)) .AND.&
-                    (atm_b==conn_info%theta_c(k)) ) ) THEN
+                    (atm_b==conn_info%theta_a(k)) ) .OR.&
+                  ( (atm_a==conn_info%theta_b(k)) .AND.&
+                    (atm_b==conn_info%theta_c(k)) ) .OR.&
+                  ( (atm_a==conn_info%theta_c(k)) .AND.&
+                    (atm_b==conn_info%theta_b(k)) ) ) THEN
                 checkme(k)=1
               END IF
             END DO
@@ -1984,8 +1986,8 @@ SUBROUTINE topology_connectivity_pack(molecule_kind_set,molecule_set,&
       END IF
 
       IF(PM2) WRITE(iw,*) "    Total number bends for molecule type ",&
-                          SUM(checkme)+c_intra
-      i = SUM(checkme) + c_intra
+                          SUM(checkme)
+      i = SUM(checkme)
       ALLOCATE(bend_list(i),STAT=istat)
       IF(istat/=0) CALL stop_memory('connectivity_pack','bend_list',i)
       i = 0
@@ -2030,11 +2032,9 @@ SUBROUTINE topology_connectivity_pack(molecule_kind_set,molecule_set,&
     CALL get_molecule_kind(molecule_kind=molecule_kind,&
                            kind_number=i)
     IF(counter/=i) THEN
-      c_intra = 0      !number of extra connector intra-mol interactions
       counter = i
       nub = 0
       CALL get_molecule(molecule=molecule,first_atom=first,last_atom=last)
-      IF(ASSOCIATED(conn_info%bond_a)) nbond = SIZE(conn_info%bond_a)
       IF(ASSOCIATED(conn_info%ub_a)) nub = SIZE(conn_info%ub_a)
       ALLOCATE(checkme(nub),STAT=istat)
       IF(istat/=0) CALL stop_memory('connectivity_pack','checkme',nub)
@@ -2056,7 +2056,11 @@ SUBROUTINE topology_connectivity_pack(molecule_kind_set,molecule_set,&
               IF( ( (atm_a==conn_info%ub_a(k)) .AND.&
                     (atm_b==conn_info%ub_b(k)) ) .OR.&
                   ( (atm_a==conn_info%ub_b(k)) .AND.&
-                    (atm_b==conn_info%ub_c(k)) ) ) THEN
+                    (atm_b==conn_info%ub_a(k)) ) .OR.&
+                  ( (atm_a==conn_info%ub_b(k)) .AND.&
+                    (atm_b==conn_info%ub_c(k)) ) .OR.&
+                  ( (atm_a==conn_info%ub_c(k)) .AND.&
+                    (atm_b==conn_info%ub_b(k)) ) ) THEN
                 checkme(k)=1
               END IF
             END DO
@@ -2065,8 +2069,8 @@ SUBROUTINE topology_connectivity_pack(molecule_kind_set,molecule_set,&
       END IF
 
       IF(PM2) WRITE(iw,*) "    Total number UB for molecule type ",&
-                          SUM(checkme)+c_intra
-      i = SUM(checkme) + c_intra
+                          SUM(checkme)
+      i = SUM(checkme)
       ALLOCATE(ub_list(i),STAT=istat)
       IF(istat/=0) CALL stop_memory('connectivity_pack','ub_list',i)
       i = 0
@@ -2111,14 +2115,12 @@ SUBROUTINE topology_connectivity_pack(molecule_kind_set,molecule_set,&
     CALL get_molecule_kind(molecule_kind=molecule_kind,&
                            kind_number=i)
     IF(counter/=i) THEN
-      c_intra = 0      !number of extra connector intra-mol interactions
       counter = i
       nphi = 0
       CALL get_molecule(molecule=molecule,first_atom=first,last_atom=last)
-      IF(ASSOCIATED(conn_info%bond_a)) nbond = SIZE(conn_info%bond_a)
       IF(ASSOCIATED(conn_info%phi_a)) nphi = SIZE(conn_info%phi_a)
       ALLOCATE(checkme(nphi),STAT=istat)
-      IF(istat/=0) CALL stop_memory('connectivity_pack','checkme',nbond)
+      IF(istat/=0) CALL stop_memory('connectivity_pack','checkme',nphi)
       checkme(:)=0
       DO j=1,nphi
         atm_a = conn_info%phi_a(j)
@@ -2141,7 +2143,13 @@ SUBROUTINE topology_connectivity_pack(molecule_kind_set,molecule_set,&
                   ( (atm_a==conn_info%phi_b(k)) .AND.&
                     (atm_b==conn_info%phi_c(k)) ) .OR.&
                   ( (atm_a==conn_info%phi_c(k)) .AND.&
-                    (atm_b==conn_info%phi_d(k)) ) ) THEN
+                    (atm_b==conn_info%phi_d(k)) ) .OR.&
+                  ( (atm_a==conn_info%phi_d(k)) .AND.&
+                    (atm_b==conn_info%phi_c(k)) ) .OR.&
+                  ( (atm_a==conn_info%phi_c(k)) .AND.&
+                    (atm_b==conn_info%phi_b(k)) ) .OR.&
+                  ( (atm_a==conn_info%phi_b(k)) .AND.&
+                    (atm_b==conn_info%phi_a(k)) ) ) THEN
                 checkme(k)=1
               END IF
             END DO
@@ -2150,8 +2158,8 @@ SUBROUTINE topology_connectivity_pack(molecule_kind_set,molecule_set,&
       END IF
 
       IF(PM2) WRITE(iw,*) "    Total number TOR for molecule type ",&
-                          SUM(checkme)+c_intra
-      i = SUM(checkme) + c_intra
+                          SUM(checkme)
+      i = SUM(checkme)
       ALLOCATE(torsion_list(i),STAT=istat)
       IF(istat/=0) CALL stop_memory('connectivity_pack','phi_list',i)
       i = 0
@@ -2199,11 +2207,9 @@ SUBROUTINE topology_connectivity_pack(molecule_kind_set,molecule_set,&
     CALL get_molecule_kind(molecule_kind=molecule_kind,&
                            kind_number=i)
     IF(counter/=i) THEN
-      c_intra = 0      !number of extra connector intra-mol interactions
       counter = i
       nimpr = 0
       CALL get_molecule(molecule=molecule,first_atom=first,last_atom=last)
-      IF(ASSOCIATED(conn_info%bond_a)) nbond = SIZE(conn_info%bond_a)
       IF(ASSOCIATED(conn_info%impr_a)) nimpr = SIZE(conn_info%impr_a)
       ALLOCATE(checkme(nimpr),STAT=istat)
       IF(istat/=0) CALL stop_memory('connectivity_pack','checkme',nimpr)
@@ -2244,8 +2250,8 @@ SUBROUTINE topology_connectivity_pack(molecule_kind_set,molecule_set,&
       END IF
 
       IF(PM2) WRITE(iw,*) "    Total number IMPR for molecule type ",&
-                          SUM(checkme)+c_intra
-      i = SUM(checkme) + c_intra
+                          SUM(checkme)
+      i = SUM(checkme)
       ALLOCATE(impr_list(i),STAT=istat)
       IF(istat/=0) CALL stop_memory('connectivity_pack','impr_list',i)
       i = 0
@@ -2293,11 +2299,9 @@ SUBROUTINE topology_connectivity_pack(molecule_kind_set,molecule_set,&
     CALL get_molecule_kind(molecule_kind=molecule_kind,&
                            kind_number=i)
     IF(counter/=i) THEN
-      c_intra = 0      !number of extra connector intra-mol interactions
       counter = i
       nonfo = 0
       CALL get_molecule(molecule=molecule,first_atom=first,last_atom=last)
-      IF(ASSOCIATED(conn_info%bond_a)) nbond = SIZE(conn_info%bond_a)
       IF(ASSOCIATED(conn_info%onfo_a)) nonfo = SIZE(conn_info%onfo_a)
       ALLOCATE(checkme(nonfo),STAT=istat)
       IF(istat/=0) CALL stop_memory('connectivity_pack','checkme',nonfo)
@@ -2319,7 +2323,13 @@ SUBROUTINE topology_connectivity_pack(molecule_kind_set,molecule_set,&
                   ( (atm_a==conn_info%phi_b(k)) .AND.&
                     (atm_b==conn_info%phi_c(k)) ) .OR.&
                   ( (atm_a==conn_info%phi_c(k)) .AND.&
-                    (atm_b==conn_info%phi_d(k)) ) ) THEN
+                    (atm_b==conn_info%phi_d(k)) ) .OR.&
+                  ( (atm_a==conn_info%phi_d(k)) .AND.&
+                    (atm_b==conn_info%phi_c(k)) ) .OR.&
+                  ( (atm_a==conn_info%phi_c(k)) .AND.&
+                    (atm_b==conn_info%phi_b(k)) ) .OR.&
+                  ( (atm_a==conn_info%phi_b(k)) .AND.&
+                    (atm_b==conn_info%phi_a(k)) ) ) THEN
                 checkme(k)=1
               END IF
             END DO
@@ -2328,8 +2338,8 @@ SUBROUTINE topology_connectivity_pack(molecule_kind_set,molecule_set,&
       END IF
 
       IF(PM2) WRITE(iw,*) "    Total number ONFO for molecule type ",&
-                          SUM(checkme)+c_intra
-      i = SUM(checkme) + c_intra
+                          SUM(checkme)
+      i = SUM(checkme)
       ALLOCATE(onfo_list(i),STAT=istat)
       IF(istat/=0) CALL stop_memory('connectivity_pack','onfo_list',i)
       i = 0
@@ -2339,7 +2349,6 @@ SUBROUTINE topology_connectivity_pack(molecule_kind_set,molecule_set,&
           onfo_list(i)%a=conn_info%onfo_a(j)-first+1
           onfo_list(i)%b=conn_info%onfo_b(j)-first+1
           onfo_list(i)%name="ONFO"
-          !point this to the right ONFO if using force field
           NULLIFY(onfo_list(i)%onfo_kind)
           IF(PM2) THEN
             WRITE(iw,'(7X,A,I3,1X,A,I4,I4,1X,A,I4,I4)') &
@@ -2516,7 +2525,7 @@ SUBROUTINE topology_coordinate_pack (particle_set,atomic_kind_set,&
          work(counter)   = atom_list(j)%name
          mass(counter)   = atom_info%atm_mass(first+j-1)
          charge(counter) = atom_info%atm_charge(first+j-1)
-        IF(PM1) WRITE(iw,'(7X,A,1X,A5,F10.5,F10.5)') &
+        IF(PM2) WRITE(iw,'(7X,A,1X,A5,F10.5,F10.5)') &
                 "NEW ATOMIC KIND",work(counter),mass(counter),charge(counter)
       ELSE
         found = .FALSE.
@@ -2532,7 +2541,7 @@ SUBROUTINE topology_coordinate_pack (particle_set,atomic_kind_set,&
           work(counter)   = atom_list(j)%name
           mass(counter)   = atom_info%atm_mass(first+j-1)
           charge(counter) = atom_info%atm_charge(first+j-1)
-          IF(PM1) WRITE(iw,'(7X,A,1X,A5,F10.5,F10.5)') &
+          IF(PM2) WRITE(iw,'(7X,A,1X,A5,F10.5,F10.5)') &
                   "NEW ATOMIC KIND",work(counter),mass(counter),charge(counter)
         END IF
       END IF
@@ -2617,7 +2626,7 @@ SUBROUTINE topology_coordinate_pack (particle_set,atomic_kind_set,&
         atomlist(counter)=j
       END IF
     END DO
-    IF(PM1) THEN 
+    IF(PM2) THEN 
       WRITE(iw,'(A,I6,A)') "      Atomic kind ",i," contains particles"
       DO J=1,SIZE(atomlist)  
          IF (MOD(J,5).EQ.0) THEN ! split long lines

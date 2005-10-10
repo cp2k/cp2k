@@ -2323,6 +2323,7 @@ SUBROUTINE force_field_pack (particle_set,atomic_kind_set,&
   REAL(KIND=dp)                                :: rmin,epsilon, default_rcutsq
   REAL(KIND=dp)                                :: rmin2_a,rmin2_b
   REAL(KIND=dp)                                :: epsilon_a,epsilon_b,scale_factor
+  REAL(KIND=dp)                                :: qi1,qi2,qi3,qi4
   INTEGER                                  :: ii, jj, imul, ilink
   LOGICAL :: only_qm, my_qmmm, is_link_atom, failure,use_qmmm_ff
   INTEGER, DIMENSION(:), POINTER :: my_atom_list
@@ -2811,31 +2812,33 @@ SUBROUTINE force_field_pack (particle_set,atomic_kind_set,&
         !atomic_kind => atom_list(atm_a)%atomic_kind
         atomic_kind => particle_set(atm_a+first-1)%atomic_kind
         CALL get_atomic_kind(atomic_kind=atomic_kind,&
-                             name=name_atm_a)
+                             name=name_atm_a,qeff=qi1)
         atm_b = onfo_list(j)%b
         !atomic_kind => atom_list(atm_b)%atomic_kind
         atomic_kind => particle_set(atm_b+first-1)%atomic_kind
         CALL get_atomic_kind(atomic_kind=atomic_kind,&
-                             name=name_atm_b)
+                             name=name_atm_b,qeff=qi2)
         found = .FALSE.
         DO k=1,j-1
           atm_a = onfo_list(k)%a
           !atomic_kind => atom_list(atm_a)%atomic_kind
           atomic_kind => particle_set(atm_a+first-1)%atomic_kind
           CALL get_atomic_kind(atomic_kind=atomic_kind,&
-                               name=name_atm_a2)
+                               name=name_atm_a2,qeff=qi3)
           atm_b = onfo_list(k)%b
           !atomic_kind => atom_list(atm_b)%atomic_kind
           atomic_kind => particle_set(atm_b+first-1)%atomic_kind
           CALL get_atomic_kind(atomic_kind=atomic_kind,&
-                               name=name_atm_b2)
+                               name=name_atm_b2,qeff=qi4)
           IF( ((TRIM(name_atm_a)==TRIM(name_atm_a2)) .AND. &
                (TRIM(name_atm_b)==TRIM(name_atm_b2))) .OR. &
               ((TRIM(name_atm_a)==TRIM(name_atm_b2)) .AND. &
                (TRIM(name_atm_b)==TRIM(name_atm_a2))) ) THEN
-            found = .TRUE.
-            map_onfo_kind(j) = map_onfo_kind(k)
-            EXIT
+            IF(((qi1==qi3).AND.(qi2==qi4)).OR.((qi1==qi4).AND.(qi2==qi3)))THEN
+              found = .TRUE.
+              map_onfo_kind(j) = map_onfo_kind(k)
+              EXIT
+            END IF 
           END IF
         END DO
         IF(.NOT.found) THEN
@@ -3176,7 +3179,7 @@ SUBROUTINE force_field_pack (particle_set,atomic_kind_set,&
             torsion_list(j)%torsion_kind%m(imul) = chm_info%torsion_m(k)
             torsion_list(j)%torsion_kind%cosphi0(imul) = chm_info%torsion_cosphi0(k)
             torsion_list(j)%torsion_kind%nmul = imul
-            IF(found .AND. PM1) &
+            IF(found .AND. PM2) &
                WRITE(iw,'(A,4A10)') "     Multiple Torsion for: ",&
                                     name_atm_a,name_atm_b,&
                                     name_atm_c,name_atm_d
@@ -3202,7 +3205,7 @@ SUBROUTINE force_field_pack (particle_set,atomic_kind_set,&
               torsion_list(j)%torsion_kind%m(imul) = chm_info%torsion_m(k)
               torsion_list(j)%torsion_kind%cosphi0(imul) = chm_info%torsion_cosphi0(k)
               torsion_list(j)%torsion_kind%nmul = imul
-              IF(PM1) &
+              IF(PM2) &
                  WRITE(iw,'(A,4A10)') "     Wildcard Torsion for: ",&
                                       name_atm_a,name_atm_b,&
                                       name_atm_c,name_atm_d
@@ -3226,7 +3229,7 @@ SUBROUTINE force_field_pack (particle_set,atomic_kind_set,&
             torsion_list(j)%torsion_kind%name    = "INPUT"
             torsion_list(j)%torsion_kind%k       = inp_info%torsion_k(k)
             torsion_list(j)%torsion_kind%cosphi0 = inp_info%torsion_cosphi0(k)
-            IF(found .AND. PM1) &
+            IF(found .AND. PM2) &
                WRITE(iw,*) "    Multiple Torsion declarations: overwriting"
             found = .TRUE.
             EXIT
@@ -3335,7 +3338,7 @@ SUBROUTINE force_field_pack (particle_set,atomic_kind_set,&
               impr_list(j)%impr_kind%name = "CHARMM"
               impr_list(j)%impr_kind%k    = chm_info%impr_k(k)
               impr_list(j)%impr_kind%phi0 = chm_info%impr_phi0(k)
-              IF(PM1) &
+              IF(PM2) &
                  WRITE(iw,'(A,4A10)') "     Wildcard Improper for: ",&
                                       name_atm_a,name_atm_b,&
                                       name_atm_c,name_atm_d
@@ -3471,7 +3474,6 @@ SUBROUTINE force_field_pack (particle_set,atomic_kind_set,&
             !Corresponds to an cutoff of 10A
             potparm_bond(i,j)%rcutsq     = default_rcutsq
          END IF
-         
          IF(found .AND. PM1) &
               WRITE(iw,*) "    Multiple LJ-POT declarations: overwriting"
          found = .TRUE.
