@@ -38,6 +38,7 @@ MODULE mc_run
                                              get_mc_env
   USE mc_types,                        ONLY: mc_simulation_parameters_type,&
                                              read_mc_section,&
+                                             determine_conf_prob,&
                                              get_mc_par,&
                                              set_mc_par,&
                                              find_mc_rcut
@@ -126,6 +127,7 @@ CONTAINS
     CHARACTER(LEN=40)                        :: dat_file,box2_file
     REAL(KIND=dp)                            :: rcut,pmswap,temp,pressure,&
       pmvolume,pmtraion,pmtrans,BETA
+    REAL(KIND=dp),DIMENSION(1:3)             :: conf_prob
 !------------------------------------------------------------------------------
 
       NULLIFY(mc_env,mc_par,mc_par_2,force_env_2)
@@ -149,7 +151,7 @@ CONTAINS
       IF(force_env%in_use .EQ. use_fist_force) THEN
          CALL find_mc_rcut(mc_par,force_env,lterminate)
          CALL get_mc_par(mc_par,rcut=rcut)
-         WRITE (iw,'( A,T71,F8.4 )') &
+         WRITE (iw,'( A,T73,F8.4 )') &
             ' MC| Interaction cutoff [angstroms]',rcut*angstrom
          IF(lterminate) THEN
             CALL stop_program('mc_run.F/do_mon_car',&
@@ -181,8 +183,22 @@ CONTAINS
             'action sites', nunits_tot
       ENDIF
 
+! figure out the percentages of internal conformation moves we're trying
+      CALL determine_conf_prob(mc_par,molecule_kind)
+
+! get some more data
       CALL get_mc_par(mc_par,lrestart=lrestart,dat_file=dat_file,&
-         ensemble=ensemble)
+         ensemble=ensemble,conf_prob=conf_prob)
+
+! write out move probabilities
+      IF (ionode .AND. print_level>=0) THEN
+         WRITE (iw,'( A,T75,F6.2 )') ' MC| Percent of bond moves tried', &
+            conf_prob(1)*100.0d0
+         WRITE (iw,'( A,T75,F6.2 )') ' MC| Percent of angle moves tried', &
+            conf_prob(2)*100.0d0
+         WRITE (iw,'( A,T75,F6.2 )') &
+            ' MC| Percent of dihedral moves tried',conf_prob(3)*100.0d0
+      ENDIF
 
 ! figure out how many boxes we have
       SELECT CASE(ensemble)
@@ -263,7 +279,7 @@ CONTAINS
          molecule_kinds_new=molecule_kinds_new_2, error=error)
          molecule_kind_2 => molecule_kinds_new_2%els(1)
          CALL get_molecule_kind(molecule_kind_2,nmolecule&
-         =nchain,natom=nunits)
+            =nchain,natom=nunits)
 
 ! find the total number of interaction sites in the system
          nunits_tot=nunits*nchain
@@ -279,6 +295,24 @@ CONTAINS
             WRITE(iw,'( A,A,T71,I10 )' ) ' MC| total number of inter',&
             'action sites', nunits_tot
          ENDIF
+
+! figure out the percentages of internal conformation moves we're trying
+      CALL determine_conf_prob(mc_par_2,molecule_kind_2)
+
+! get some more data
+      CALL get_mc_par(mc_par_2,conf_prob=conf_prob)
+
+! write out move probabilities
+         IF (ionode .AND. print_level>=0) THEN
+            WRITE (iw,'( A,T75,F6.2 )') &
+               ' MC| Percent of bond moves tried', &
+               conf_prob(1)*100.0d0
+            WRITE (iw,'( A,T75,F6.2 )') &
+               ' MC| Percent of angle moves tried', &
+               conf_prob(2)*100.0d0
+            WRITE (iw,'( A,T75,F6.2 )') &
+               ' MC| Percent of dihedral moves tried',conf_prob(3)*100.0d0
+      ENDIF
 
 ! make sure things are consistent between the two environments
          IF (ionode) THEN

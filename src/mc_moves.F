@@ -46,7 +46,8 @@ MODULE mc_moves
                                              dp_size
   USE mc_control,                      ONLY: mc_create_force_env
   USE mc_coordinates,                  ONLY: get_center_of_mass,&
-                                             mc_classical_energy,&
+!                                             mc_classical_energy,&
+                                             check_for_overlap,&
                                              mc_coordinate_fold,&
                                              create_discrete_array
   USE mc_misc,                         ONLY: mc_make_dat_file
@@ -59,6 +60,7 @@ MODULE mc_moves
   USE mol_kind_new_list_types,         ONLY: mol_kind_new_list_type
   USE molecule_kind_types,             ONLY: get_molecule_kind,&
                                              molecule_kind_type,&
+                                             bond_type,&
                                              atom_type
   USE particle_list_types,             ONLY: particle_list_type
   USE particle_types,                  ONLY: write_particle_coordinates
@@ -72,7 +74,7 @@ MODULE mc_moves
 
   IMPLICIT NONE
 
-  PRIVATE  :: change_bond_angle,change_bond_length
+  PRIVATE  :: change_bond_angle,change_bond_length,depth_first_search
 
 ! *** Global parameters ***
 
@@ -84,6 +86,60 @@ MODULE mc_moves
 ! *****************************************************************************
 
 CONTAINS
+
+! *****************************************************************************
+!!****s* mc_moves.F/depth_first_search
+!!
+!!   NAME
+!!     depth_first_search
+!!
+!!   FUNCTION
+!!     essentially performs a depth-first search of the molecule structure
+!!     to find all atoms connected to a specific atom excluding one branch...
+!!     for instance, if water is labelled 1-2-3 for O-H-H, calling this
+!!     routine with current_atom=1,avoid_atom=2 returns the array
+!!     atom=(0,0,1)
+!!
+!!   ARGUMENTS
+!!     - current_atom: the atom whose connections we're looking at
+!!     - avoid_atom: the atom whose direction the search is not supposed to go
+!!     - connectivity: an array telling us the neigbors of all atoms
+!!     - atom: the array that tells us if one can get to a given atom by
+!!       starting at current_atom and not going through avoid_atom...0 is no,
+!!       1 is yes
+!!              
+!!
+!!   AUTHOR
+!!     MJM
+!!
+!!*****************************************************************************
+
+  RECURSIVE SUBROUTINE depth_first_search ( current_atom,avoid_atom,&
+      connectivity,atom) 
+
+!     ***************************************************************************
+    INTEGER, INTENT(IN)                      :: current_atom,avoid_atom
+    INTEGER,DIMENSION(:,:),INTENT(IN)        :: connectivity
+    INTEGER,DIMENSION(:),INTENT(INOUT)        :: atom
+
+    INTEGER                                  :: iatom
+
+
+!   ---------------------------------------------------------------------------
+
+      DO iatom=1,6
+         IF(connectivity(iatom,current_atom) .NE. 0) THEN
+            IF(connectivity(iatom,current_atom) .NE. avoid_atom) THEN
+               atom(connectivity(iatom,current_atom))=1
+               CALL depth_first_search ( connectivity(iatom,current_atom),&
+                 current_atom,connectivity,atom)
+            ENDIF
+         ELSE
+            RETURN
+         ENDIF
+      ENDDO
+
+  END SUBROUTINE depth_first_search
 
 ! *****************************************************************************
 !!****s* mc_moves.F/mc_atom_translation
@@ -104,7 +160,6 @@ CONTAINS
 !!     - move_updates: the structure that keeps track of how many moves have
 !!              been accepted/rejected since the last time the displacements
 !!              were updated
-!!     - nnstep: the total number of "outer moves" already performed
 !!     - mol: the number of the molecule's first atom, assuming the rest of
 !!       the atoms follow sequentially
 !!     - bias_energy: the biased energy of the system before the move
@@ -118,7 +173,7 @@ CONTAINS
 !!*****************************************************************************
 
   SUBROUTINE mc_atom_translation ( mc_par,force_env,bias_env, moves,&
-                        move_updates,nnstep,mol,bias_energy,&
+                        move_updates,mol,bias_energy,&
                         move_type,lreject,error)
 
 !   ***************************************************************************
@@ -127,7 +182,7 @@ CONTAINS
       POINTER                                :: mc_par
     TYPE(force_env_type), POINTER            :: force_env,bias_env
     TYPE(mc_moves_type), POINTER             :: moves, move_updates
-    INTEGER, INTENT(IN)                      :: nnstep, mol
+    INTEGER, INTENT(IN)                      :: mol
     REAL(KIND=dp), INTENT(INOUT)             :: bias_energy
     TYPE(cp_error_type), INTENT(INOUT), &
       OPTIONAL                               :: error
@@ -144,17 +199,18 @@ CONTAINS
     REAL(KIND=dp)                            :: bias_energy_new, &
                                                 bias_energy_old, &
                                                 dis_length, rand, w, BETA,&
-                                                cutoff,rdum
+                                                cutoff
     TYPE(cp_subsystem_p_type), &
       DIMENSION(:), POINTER                  :: subsys
     REAL(KIND=dp), DIMENSION(:, :),&
       ALLOCATABLE                            :: r_old, r_new
     TYPE(particle_list_type), POINTER        :: particles
+    TYPE(mol_kind_new_list_type), POINTER    :: molecule_kinds_new
+    TYPE(molecule_kind_type), POINTER        :: molecule_kind
 
 !   ---------------------------------------------------------------------------
 
 ! begin the timing of the subroutine
-
       CALL timeset(routineN,'I','',handle)
       
 ! get a bunch of stuff from mc_par
@@ -163,7 +219,7 @@ CONTAINS
          nunits=nunits)
 
 ! nullify some pointers
-      NULLIFY(particles,subsys)
+      NULLIFY(particles,subsys,molecule_kinds_new,molecule_kind)
       bond_flag=.FALSE.
 
 ! do some allocation
@@ -180,7 +236,9 @@ CONTAINS
 ! grab the coordinates
          CALL force_env_get(bias_env,subsys=subsys,error=error)
          CALL cp_subsys_get(subsys(1)%subsys, &
-            particles=particles, error=error)
+            particles=particles, molecule_kinds_new=molecule_kinds_new,&
+            error=error)
+         molecule_kind => molecule_kinds_new%els(1)
 
 ! save the coordinates
          DO ipart=1,nunits_tot
@@ -195,7 +253,9 @@ CONTAINS
 ! grab the coordinates
          CALL force_env_get(force_env,subsys=subsys,error=error)
          CALL cp_subsys_get(subsys(1)%subsys, &
-            particles=particles, error=error)
+            particles=particles,  molecule_kinds_new=molecule_kinds_new,&
+            error=error)
+         molecule_kind => molecule_kinds_new%els(1)
 
 ! save the coordinates
          DO ipart=1,nunits_tot
@@ -225,8 +285,10 @@ CONTAINS
          ENDIF
 
 ! do the move
+!         CALL change_bond_length(r_old,r_new,&
+!            mc_par,mol,dis_length)
          CALL change_bond_length(r_old,r_new,&
-            mc_par,mol,dis_length)
+            mc_par,mol,molecule_kind,dis_length,particles)
 
       ELSE
 
@@ -260,11 +322,16 @@ CONTAINS
 ! check for overlap
       lreject=.FALSE.
       IF(lbias) THEN
-         CALL mc_classical_energy(bias_env,rdum,&
-            nchain,imol,imol,cutoff,loverlap)
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+!         CALL mc_classical_energy(bias_env,rdum,&
+!            nchain,imol,imol,cutoff,loverlap)
+         CALL check_for_overlap(bias_env,&
+            nchain,imol,imol,loverlap)
       ELSE
-         CALL mc_classical_energy(force_env,rdum,&
-            nchain,imol,imol,cutoff,loverlap)
+!         CALL mc_classical_energy(force_env,rdum,&
+!            nchain,imol,imol,cutoff,loverlap)
+         CALL check_for_overlap(force_env,&
+            nchain,imol,imol,loverlap)
          IF(loverlap) lreject=.TRUE.
       ENDIF
 
@@ -364,7 +431,6 @@ CONTAINS
 !!     - move_updates: the structure that keeps track of how many moves have
 !!              been accepted/rejected since the last time the displacements
 !!              were updated
-!!     - nnstep: the total number of "outer moves" already performed
 !!     - mol: the number of the molecule's first atom, assuming the rest of
 !!       the atoms follow sequentially
 !!     - bias_energy: the biased energy of the system before the move
@@ -379,7 +445,7 @@ CONTAINS
 !!*****************************************************************************
 
  SUBROUTINE mc_molecule_translation(  mc_par,force_env, bias_env,moves,&
-                      move_updates,nnstep,mol,bias_energy,&
+                      move_updates,mol,bias_energy,&
                         lreject,error)
 
 !   ***************************************************************************
@@ -388,7 +454,7 @@ CONTAINS
       POINTER                                :: mc_par
     TYPE(force_env_type), POINTER            :: force_env,bias_env
     TYPE(mc_moves_type), POINTER             :: moves, move_updates
-    INTEGER, INTENT(IN)                      :: nnstep, mol
+    INTEGER, INTENT(IN)                      :: mol
     REAL(KIND=dp), INTENT(INOUT)             :: bias_energy
     TYPE(cp_error_type), INTENT(INOUT), &
       OPTIONAL                               :: error
@@ -402,7 +468,7 @@ CONTAINS
     REAL(KIND=dp)                            :: bias_energy_new, &
                                                 bias_energy_old, &
                                                 dis_mol, rand, w, BETA,&
-                                          rdum,rmtrans,cutoff,energy_beta
+                                          rmtrans,cutoff
     TYPE(cp_subsystem_p_type), &
       DIMENSION(:), POINTER                  :: subsys
     REAL(KIND=dp), DIMENSION(:, :),&
@@ -487,11 +553,16 @@ CONTAINS
 
       lreject=.FALSE.
       IF(lbias) THEN
-         CALL mc_classical_energy(bias_env,rdum,&
-            nchain,imol,imol,cutoff,loverlap)
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+!         CALL mc_classical_energy(bias_env,rdum,&
+!            nchain,imol,imol,cutoff,loverlap)
+         CALL check_for_overlap(bias_env,&
+            nchain,imol,imol,loverlap)
       ELSE
-         CALL mc_classical_energy(force_env,rdum,&
-            nchain,imol,imol,cutoff,loverlap)
+!         CALL mc_classical_energy(force_env,rdum,&
+!            nchain,imol,imol,cutoff,loverlap)
+         CALL check_for_overlap(force_env,&
+            nchain,imol,imol,loverlap)
          IF(loverlap) lreject=.TRUE.
       ENDIF
 
@@ -576,7 +647,6 @@ CONTAINS
 !!     - move_updates: the structure that keeps track of how many moves have
 !!              been accepted/rejected since the last time the displacements
 !!              were updated
-!!     - nnstep: the total number of "outer moves" already performed
 !!     - mol: the number of the molecule's first atom, assuming the rest of
 !!       the atoms follow sequentially
 !!     - bias_energy: the biased energy of the system before the move
@@ -590,7 +660,7 @@ CONTAINS
 !!*****************************************************************************
 
  SUBROUTINE mc_molecule_rotation ( mc_par,force_env, bias_env,moves,&
-                      move_updates,nnstep,mol,bias_energy,&
+                      move_updates,mol,bias_energy,&
                         lreject,error)
 
 !   ***************************************************************************
@@ -599,7 +669,7 @@ CONTAINS
       POINTER                                :: mc_par
     TYPE(force_env_type), POINTER            :: force_env,bias_env
     TYPE(mc_moves_type), POINTER             :: moves, move_updates
-    INTEGER, INTENT(IN)                      :: nnstep, mol
+    INTEGER, INTENT(IN)                      :: mol
     REAL(KIND=dp), INTENT(INOUT)             :: bias_energy
     LOGICAL,INTENT(OUT)                      :: lreject
     TYPE(cp_error_type), INTENT(INOUT), &
@@ -614,7 +684,7 @@ CONTAINS
     LOGICAL                                  :: lx, ly,lbias,loverlap
     REAL(KIND=dp) :: bias_energy_new, bias_energy_old, cosdg, &
       dgamma, nxcm, nycm, nzcm, rand, rx, rxnew, ry, rynew, rz, rznew, sindg, &
-      w,BETA,rmrot,cutoff,rdum, masstot
+      w,BETA,rmrot,cutoff,masstot
     TYPE(cp_subsystem_p_type), &
       DIMENSION(:), POINTER                  :: subsys
     TYPE(mol_kind_new_list_type), POINTER    :: molecule_kinds_new
@@ -783,11 +853,16 @@ CONTAINS
       imol = (mol+nunits-1)/nunits
       lreject=.FALSE.
       IF(lbias) THEN
-         CALL mc_classical_energy(bias_env,rdum,&
-            nchain,imol,imol,cutoff,loverlap)
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+!         CALL mc_classical_energy(bias_env,rdum,&
+!            nchain,imol,imol,cutoff,loverlap)
+         CALL check_for_overlap(bias_env,&
+            nchain,imol,imol,loverlap)
       ELSE
-         CALL mc_classical_energy(force_env,rdum,&
-            nchain,imol,imol,cutoff,loverlap)
+!         CALL mc_classical_energy(force_env,rdum,&
+!            nchain,imol,imol,cutoff,loverlap)
+         CALL check_for_overlap(force_env,&
+            nchain,imol,imol,loverlap)
          IF(loverlap) lreject=.TRUE.
       ENDIF
 
@@ -916,15 +991,13 @@ CONTAINS
     REAL(KIND=dp), DIMENSION(:), ALLOCATABLE :: mass
 
     INTEGER                                  :: handle, i, iatom, &
-                                                ivolmove,istat,nchain,&
+                                                istat,nchain,&
                                                 source,group,nunits_tot,&
                                                 nvolmoves,nunits,cl,&
                                                 natoms,iunit,icurrent,&
                                                 iside,iside_change
-    REAL(KIND=dp) :: classical_energy_diff, classical_energy_new, &
-      classical_energy_original, classical_energy_test, &
-      new_energy, rand, vol_dis, w,discrete_step,energy_term,&
-      BETA,rmvolume,pressure,cutoff,inner_cutoff,rcut,rdum,value,&
+    REAL(KIND=dp) :: new_energy, rand, vol_dis, w,discrete_step,energy_term,&
+      BETA,rmvolume,pressure,cutoff,inner_cutoff,rcut,value,&
       pressure_term,volume_term
     REAL(KIND=dp), DIMENSION(1:3)            :: center_of_mass, &
                                                 center_of_mass_new, diff,&
@@ -940,7 +1013,7 @@ CONTAINS
     REAL(KIND=dp), DIMENSION(:, :),&
       ALLOCATABLE                            :: r,r_mol
     TYPE(particle_list_type), POINTER        :: particles_old, particles_test
-    LOGICAL                                  :: ldum,ionode,lbias,&
+    LOGICAL                                  :: ionode,&
       ltoo_small,ldiscrete,lincrease
     LOGICAL,DIMENSION(:),ALLOCATABLE         :: loverlap
     CHARACTER(LEN=40)                        :: dat_file
@@ -951,7 +1024,7 @@ CONTAINS
       CALL timeset(routineN,'I','',handle)
 
 ! get a bunch of stuff from mc_par
-      CALL get_mc_par(mc_par,ionode=ionode,lbias=lbias,&
+      CALL get_mc_par(mc_par,ionode=ionode,&
          nchain=nchain,BETA=BETA,source=source,group=group,&
          nunits_tot=nunits_tot,nvolmoves=nvolmoves,dat_file=dat_file,&
          rmvolume=rmvolume,nunits=nunits,pressure=pressure,cl=cl,&
@@ -1009,13 +1082,15 @@ CONTAINS
       test_cell_length(3)=abc(3)
       IF (ionode) THEN
 
-! find the old classical energy
-         CALL mc_classical_energy(force_env,&
-            classical_energy_original,nchain,1,nchain,&
-            cutoff,ldum,cell_length=old_cell_length(1))
-         IF(ldum) CALL stop_program(routineN,module_name,__LINE__,&
-         'Volume move found an overlap in the old remove config')   
-         classical_energy_test=classical_energy_original
+! check for overlap of the old config...don't need to
+!         CALL check_for_overlap(force_env,&
+!            nchain,1,nchain,loverlap,cell_length=old_cell_length)
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+!         CALL mc_classical_energy(force_env,&
+!            classical_energy_original,nchain,1,nchain,&
+!            cutoff,ldum,cell_length=old_cell_length(1))
+!         IF(loverlap) CALL stop_program(routineN,module_name,__LINE__,&
+!         'Volume move found an overlap in the old remove config')   
 
 ! save the old coordiantes
          DO iatom=1,nunits_tot
@@ -1023,8 +1098,8 @@ CONTAINS
          ENDDO
 
 ! fold the coordinates into the central box
-         CALL mc_coordinate_fold(r(:,:),nunits_tot,&
-             test_cell_length(1))
+         CALL mc_coordinate_fold(r(:,:),nunits_tot,mass,nunits,&
+             test_cell_length(1:3))
 
 ! make the new dat file
          CALL mc_make_dat_file(r(:,:),nunits_tot,&
@@ -1111,7 +1186,7 @@ CONTAINS
          DO iatom=1,nunits_tot,nunits
 
 ! now find the center of mass
-            CALL get_center_of_mass(r_mol(:,iatom:iatom+2),nunits,&
+            CALL get_center_of_mass(r_mol(:,iatom:iatom+nunits-1),nunits,&
             center_of_mass(:),mass(:))
             
 ! scale the center of mass and determine the vector that points from the
@@ -1133,9 +1208,11 @@ CONTAINS
          ENDDO
 
 ! check for overlap
-         CALL mc_classical_energy(test_env,rdum,&
-               nchain,1,nchain,inner_cutoff,loverlap(1),&
-               cell_length=new_cell_length(1))
+         CALL check_for_overlap(test_env,&
+            nchain,1,nchain,loverlap(1),cell_length=new_cell_length)
+!         CALL mc_classical_energy(test_env,rdum,&
+!               nchain,1,nchain,inner_cutoff,loverlap(1),&
+!               cell_length=new_cell_length(1))
 
          test_cell_length(1)=new_cell_length(1)
          test_cell_length(2)=new_cell_length(2)
@@ -1219,6 +1296,11 @@ CONTAINS
             LOG(test_cell_length(1)*test_cell_length(2)*test_cell_length(3)/&
             (old_cell_length(1)*old_cell_length(2)*old_cell_length(3)))
          pressure_term=pressure*vol_dis
+!         WRITE(6,*) 'eiroue ',old_cell_length(1:3)
+!         WRITE(6,*) 'eiroue ',new_cell_length(1:3)
+!         WRITE(6,*) 'iroue ',new_energy,old_energy
+!         WRITE(6,*) 'iroue ',pressure,vol_dis
+
          value=-BETA*(energy_term+volume_term+pressure_term)
          IF(value .GT. 500.0d0) THEN
             w=10.0d0
@@ -1267,10 +1349,6 @@ CONTAINS
 ! update energies
             energy_check=energy_check+(new_energy-old_energy)
             old_energy=new_energy
-
-! and classical energy
-            IF ( lbias) moves%bias_energy=&
-                  classical_energy_test
 
 ! and the coordiantes
             CALL force_env_get(test_env,subsys=testsys,error=error)
@@ -1343,17 +1421,19 @@ CONTAINS
 !!     change_bond_length
 !!
 !!   FUNCTION
-!!     alters the length of an OH bond for the given water molecule, keeping
-!!     the oxygen in the same position
+!!     alters the length of a random bond for the given molecule, using
+!!     a mass weighted scheme so the lightest atoms move the most
 !!
 !!   ARGUMENTS
 !!     - r_old: the initial coordinates of all molecules in the system
 !!     - r_new: the new coordinates of all molecules in the system
 !!     - mc_par: the mc parameters for the force env
-!!     - mol: the number of the molecule's oxygen atom, assuming the hydrogens
-!!            are the following two
+!!     - mol: the number of the first atom in the molecule, assuming the
+!!            next natom-1 atoms are the rest of the molecule
 !!     - dis_length: the ratio of the new bond length to the old bond length,
 !!                   used in the acceptance rule
+!!     - particles: the particle_list_type for all particles in the force_env...&
+!!            used to grab the mass of each atom
 !!              
 !!
 !!   AUTHOR
@@ -1361,7 +1441,8 @@ CONTAINS
 !!
 !!*****************************************************************************
 
-  SUBROUTINE change_bond_length ( r_old,r_new,mc_par,mol,dis_length)
+  SUBROUTINE change_bond_length ( r_old,r_new,mc_par,mol,molecule_kind,&
+      dis_length,particles)
 
 !   ***************************************************************************
 
@@ -1373,14 +1454,20 @@ CONTAINS
       INTENT(IN)                             :: r_old
     INTEGER, INTENT(IN)                      :: mol
     REAL(KIND=dp), INTENT(OUT)               :: dis_length
+    TYPE(molecule_kind_type),POINTER         :: molecule_kind
+    TYPE(particle_list_type), POINTER        :: particles
 
     CHARACTER(LEN=*), PARAMETER :: routineN = "change_bond_length"
 
-    INTEGER                                  :: handle, hydrogen, i, ipart,&
-      nunits_tot
-    REAL(KIND=dp)                            :: old_length, rand,rmbond
-    REAL(KIND=dp), DIMENSION(1:3)            :: OH
-
+    TYPE(bond_type),DIMENSION(:),POINTER     :: bond_list
+    INTEGER                                  :: handle, i, ipart,&
+      nunits_tot,nbond,bond_number,natom,istat,iatom,ibond
+    REAL(KIND=dp)                            :: old_length, rand,rmbond,&
+      mass_a,mass_b,atom_mass,new_length_a,new_length_b
+    REAL(KIND=dp), DIMENSION(1:3)            :: bond_a,bond_b
+    INTEGER,DIMENSION(:),ALLOCATABLE                     :: counter,&
+      atom_a,atom_b
+    INTEGER,DIMENSION(:,:),ALLOCATABLE       :: connection,connectivity
 !   ---------------------------------------------------------------------------
 ! begin the timing of the subroutine
 
@@ -1396,29 +1483,122 @@ CONTAINS
 
 ! pick which bond in the molecule at random
       CALL RANDOM_NUMBER(rand)
-      IF ( rand .LT. 0.50E0_dp) THEN
-         hydrogen=1
-      ELSE
-         hydrogen=2
-      ENDIF
+      CALL get_molecule_kind(molecule_kind,natom=natom,nbond=nbond,&
+         bond_list=bond_list)
+      bond_number=CEILING(rand*REAL(nbond,dp))
+
+      ALLOCATE(connection(1:natom,1:2),STAT=istat)
+      IF (istat /= 0) CALL stop_memory(routineN,module_name,__LINE__,&
+                       "connection",2*natom*dp_size)
+! assume at most six bonds per atom
+      ALLOCATE(connectivity(1:6,1:natom),STAT=istat)
+      IF (istat /= 0) CALL stop_memory(routineN,module_name,__LINE__,&
+                       "connectivity",6*natom*dp_size)
+      ALLOCATE(counter(1:natom),STAT=istat)
+      IF (istat /= 0) CALL stop_memory(routineN,module_name,__LINE__,&
+                       "counter",natom)
+      ALLOCATE(atom_a(1:natom),STAT=istat)
+      IF (istat /= 0) CALL stop_memory(routineN,module_name,__LINE__,&
+                       "atom_a",natom)
+      ALLOCATE(atom_b(1:natom),STAT=istat)
+      IF (istat /= 0) CALL stop_memory(routineN,module_name,__LINE__,&
+                       "atom_b",natom)
+      connection(:,:)=0.0d0
+      connectivity(:,:)=0.0d0
+      counter(:)=0
+      atom_a(:)=0
+      atom_b(:)=0
+
+! now we need to find a list of atoms that each atom in this bond is connected
+! to
+      DO iatom=1,natom
+         DO ibond=1,nbond
+            IF(bond_list(ibond)%a == iatom) THEN
+               counter(iatom)=counter(iatom)+1
+               connectivity(counter(iatom),iatom)=bond_list(ibond)%b
+            ELSEIF(bond_list(ibond)%b == iatom)THEN
+               counter(iatom)=counter(iatom)+1
+               connectivity(counter(iatom),iatom)=bond_list(ibond)%a
+            ENDIF
+         ENDDO
+      ENDDO
+
+! now I need to do a depth first search to figure out which atoms are on atom a's
+! side and which are on atom b's
+      atom_a(:)=0
+      atom_a(bond_list(bond_number)%a)=1
+      CALL depth_first_search(bond_list(bond_number)%a,bond_list(bond_number)%b,&
+           connectivity(:,:),atom_a(:))
+      atom_b(:)=0
+      atom_b(bond_list(bond_number)%b)=1
+      CALL depth_first_search(bond_list(bond_number)%b,bond_list(bond_number)%a,&
+           connectivity(:,:),atom_b(:))
+
+! now figure out the masses of the various sides, so we can weight how far we move each
+! group of atoms
+      mass_a=0.0d0
+      mass_b=0.0d0
+      DO iatom=1,natom
+         CALL get_atomic_kind(particles%els(iatom)%atomic_kind,&
+            mass=atom_mass)
+         IF(atom_a(iatom) == 1) THEN
+            mass_a=mass_a+atom_mass
+         ELSE
+            mass_b=mass_b+atom_mass
+         ENDIF
+      ENDDO
 
 ! choose a displacement
       CALL RANDOM_NUMBER(rand)
       dis_length=rmbond*2.0E0_dp*(rand-0.5E0_dp)
 
-! find the bond distance and change it
+! find the bond vector that atom a will be moving
       DO i=1,3
-         OH(i)=r_new(i,mol+hydrogen)-r_new(i,mol)
+         bond_a(i)=r_new(i,mol+bond_list(bond_number)%a-1)-r_new(i,mol+bond_list(bond_number)%b-1)
+         bond_b(i)=-bond_a(i)
       ENDDO
-      old_length=SQRT(DOT_PRODUCT(OH,OH))
+
+! notice we weight by the opposite masses...therefore lighter segments
+! will move further
+      old_length=SQRT(DOT_PRODUCT(bond_a,bond_a))
+      new_length_a=dis_length*mass_b/(mass_a+mass_b)
+      new_length_b=dis_length*mass_a/(mass_a+mass_b)
+
       DO i=1,3
-         r_new(i,mol+hydrogen)=r_new(i,mol)+&
-              OH(i)*(old_length+dis_length)/old_length
+         bond_a(i)=bond_a(i)/old_length*new_length_a
+         bond_b(i)=bond_b(i)/old_length*new_length_b
+      ENDDO
+      
+      DO iatom=1,natom
+         IF(atom_a(iatom) == 1) THEN
+            r_new(1,mol+iatom-1)=r_new(1,mol+iatom-1)+bond_a(1)
+            r_new(2,mol+iatom-1)=r_new(2,mol+iatom-1)+bond_a(2)
+            r_new(3,mol+iatom-1)=r_new(3,mol+iatom-1)+bond_a(3)
+         ELSE
+            r_new(1,mol+iatom-1)=r_new(1,mol+iatom-1)+bond_b(1)
+            r_new(2,mol+iatom-1)=r_new(2,mol+iatom-1)+bond_b(2)
+            r_new(3,mol+iatom-1)=r_new(3,mol+iatom-1)+bond_b(3)
+         ENDIF
       ENDDO
 
 ! correct the value of dis_length for the acceptance rule
       dis_length=(old_length+dis_length)/old_length
 
+      DEALLOCATE(connection,STAT=istat)
+      IF (istat /= 0) CALL stop_memory(routineN,module_name,__LINE__,&
+                       "connection")
+      DEALLOCATE(connectivity,STAT=istat)
+      IF (istat /= 0) CALL stop_memory(routineN,module_name,__LINE__,&
+                       "connectivity")
+      DEALLOCATE(counter,STAT=istat)
+      IF (istat /= 0) CALL stop_memory(routineN,module_name,__LINE__,&
+                       "counter")
+      DEALLOCATE(atom_a,STAT=istat)
+      IF (istat /= 0) CALL stop_memory(routineN,module_name,__LINE__,&
+                       "atom_a")
+      DEALLOCATE(atom_b,STAT=istat)
+      IF (istat /= 0) CALL stop_memory(routineN,module_name,__LINE__,&
+                       "atom_b")
 ! end the timing
       CALL timestop(0.0E0_dp,handle)
 

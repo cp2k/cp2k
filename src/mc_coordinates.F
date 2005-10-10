@@ -57,7 +57,8 @@ MODULE mc_coordinates
             generate_cbmc_swap_config,&
             get_center_of_mass,mc_coordinate_fold,&
             find_mc_test_molecule,&
-            create_discrete_array
+            create_discrete_array,&
+            check_for_overlap
 
   CHARACTER(LEN=*), PARAMETER :: module_name = "mc_coordinates"
 
@@ -240,7 +241,6 @@ SUBROUTINE mc_classical_energy ( force_env, classical_energy_new,&
 
       CALL timeset(routineN,'I','',handle)
 
-
 ! initialize some stuff
       loverlap=.FALSE.
       oo_min_cutoff=2.0E0_dp/angstrom
@@ -417,6 +417,153 @@ SUBROUTINE mc_classical_energy ( force_env, classical_energy_new,&
 
 
 END SUBROUTINE mc_classical_energy
+
+!******************************************************************************
+
+!******************************************************************************
+!!****s* mc_coordinates.F/check_for_overlap
+!!
+!!   NAME
+!!     check_for_overlap
+!!
+!!   FUNCTION
+!!     looks for overlaps (intermolecular distances less than rmin)
+!!
+!!   ARGUMENTS
+!!     - force_env: the force environment containing the coordinates
+!!     - nchain: the number of molecules in the box, probably could do
+!!               a SIZE(particles%els) for this, but I haven't yet
+!!     - rrcut: the intermolecular cutoff you want to use for the potential,
+!!             in atomic units...be careful with this, as the potential is
+!!             only zero at the cutoff for certain values
+!!     - nstart: the number of the molecule to start calculating for
+!!     - nend: the number of the molecule to end calculating for
+!!     --- if nstart is not equal to 1 and nend is not equal to the total
+!!         number of molecules, set them equal
+!!     - classical_energy_new: the classical energy returned by the routine
+!!     - cell_length: the length of the box...if none is specified,
+!!                    it uses the cell found in the force_env
+!!     - loptional: a flag that is used for debugging
+!!
+!!   AUTHOR
+!!     MJM
+!!
+!!*****************************************************************************
+SUBROUTINE check_for_overlap ( force_env, nchain, nstart, nend,loverlap,&
+                                 cell_length)
+
+    TYPE(force_env_type), POINTER            :: force_env
+    INTEGER, INTENT(IN)                      :: nstart, nend
+    INTEGER, INTENT(IN)                      :: nchain
+    REAL(KIND=dp), DIMENSION(1:3),INTENT(IN), OPTIONAL  :: cell_length
+    LOGICAL, INTENT(OUT)                     :: loverlap
+
+    CHARACTER(LEN=*), PARAMETER :: routineN = "check_for_overlap"
+
+    INTEGER                                  :: handle, imol, jmol, &
+                                                junit,iunit, jstart,istat,&
+                                                nunits
+    LOGICAL                                  :: lall
+    REAL(KIND=dp) :: dist, rmin
+    REAL(KIND=dp), DIMENSION(1:3)            :: RIJ,&
+                                                abc,box_length
+    TYPE(cp_subsystem_p_type), &
+      DIMENSION(:), POINTER                  :: oldsys
+    TYPE(cp_error_type)                      :: error
+    TYPE(cell_type), POINTER                 :: cell
+    REAL(KIND=dp), &
+      DIMENSION(:, :, :),ALLOCATABLE   :: r
+    TYPE(particle_list_type), POINTER        :: particles
+    TYPE(mol_kind_new_list_type), POINTER  &
+                                             :: molecule_kinds_new
+    TYPE(molecule_kind_type), POINTER        :: molecule_kind
+
+!------------------------------------------------------------------------------
+! begin the timing of the subroutine
+      
+      CALL timeset(routineN,'I','',handle)
+
+      NULLIFY(oldsys,particles,molecule_kinds_new,molecule_kind)
+
+! initialize some stuff
+      loverlap=.FALSE.
+      rmin=3.57106767_dp ! 1 angstrom squared
+
+! get the particle coordinates and the cell length
+      CALL force_env_get(force_env,cell=cell,subsys=oldsys,error=error)
+      CALL get_cell(cell,abc=abc)
+      CALL cp_subsys_get(oldsys(1)%subsys, &
+            molecule_kinds_new=molecule_kinds_new,&
+            particles=particles, error=error)
+      molecule_kind => molecule_kinds_new%els(1)
+      CALL get_molecule_kind(molecule_kind,natom=nunits)
+      ALLOCATE(r(1:3,1:nunits,1:nchain),STAT=istat)
+      IF (istat /= 0) CALL stop_memory(routineN,module_name,__LINE__,&
+                       "mass",3*nunits*nchain*dp_size)
+
+      IF( PRESENT(cell_length)) THEN
+         box_length(1:3)=cell_length(1:3)
+      ELSE
+         box_length(1:3)=abc(1:3)
+      ENDIF
+
+! put the coordinates into an easier matrix to manipulate
+      DO imol=1,nchain
+         DO iunit=1,nunits
+            junit=imol*nunits-nunits+iunit
+            r(1:3,iunit,imol)=particles%els(junit)%r(1:3)
+         ENDDO
+      ENDDO
+
+! now let's find the LJ energy between all the oxygens and
+! the charge interactions
+      lall=.FALSE.
+      jstart=1
+      IF( nstart == 1 .AND. nend == nchain) lall=.TRUE.
+      DO imol=nstart,nend
+         IF (lall) jstart=imol+1
+         DO jmol=jstart,nchain
+            IF(imol == jmol) CYCLE
+
+            DO iunit=1,nunits
+               DO junit=1,nunits
+! find the minimum image distance 
+                  RIJ(1)=r(1,iunit,imol)-r(1,junit,jmol)-&
+                     box_length(1)*ANINT(&
+                     (r(1,iunit,imol)-r(1,junit,jmol))/box_length(1))
+                  RIJ(2)=r(2,iunit,imol)-r(2,junit,jmol)-&
+                     box_length(2)*ANINT(&
+                     (r(2,iunit,imol)-r(2,junit,jmol))/box_length(2))
+                  RIJ(3)=r(3,iunit,imol)-r(3,junit,jmol)-&
+                     box_length(3)*ANINT(&
+                     (r(3,iunit,imol)-r(3,junit,jmol))/box_length(3))
+                  
+                  dist=RIJ(1)**2+RIJ(2)**2+RIJ(3)**2
+                  
+                  IF (dist < rmin ) THEN
+                     loverlap=.TRUE.
+                     DEALLOCATE(r,STAT=istat)
+                     IF (istat /= 0) CALL stop_memory(routineN,module_name,&
+                     __LINE__,"r")
+                     
+                     CALL timestop(0.0E0_dp,handle)
+                     RETURN
+                  ENDIF
+
+               ENDDO
+            ENDDO
+         ENDDO
+      ENDDO
+
+      DEALLOCATE(r,STAT=istat)
+      IF (istat /= 0) CALL stop_memory(routineN,module_name,&
+         __LINE__,"r")
+
+! end the timing
+      CALL timestop(0.0E0_dp,handle)
+
+
+END SUBROUTINE check_for_overlap
 
 !******************************************************************************
 !!****s* mc_coordinates.F/nonbonded_energy
@@ -679,41 +826,40 @@ END SUBROUTINE get_center_of_mass
 !!     MJM
 !!
 !!*****************************************************************************
-SUBROUTINE mc_coordinate_fold(coordinates,natoms,box_length)
+SUBROUTINE mc_coordinate_fold(coordinates,natoms_tot,mass,nunits,box_length)
 
     REAL(KIND=dp), DIMENSION(:, :), &
       INTENT(INOUT)                          :: coordinates
-    INTEGER, INTENT(IN)                      :: natoms
-    REAL(KIND=dp), INTENT(IN)                :: box_length
+    INTEGER, INTENT(IN)                      :: natoms_tot,nunits
+    REAL(KIND=dp), DIMENSION(1:3),INTENT(IN) :: box_length
+    REAL(KIND=dp), DIMENSION(:),INTENT(IN)   :: mass
 
     CHARACTER(LEN=*), PARAMETER :: routineN = "mc_coordinate_fold"
 
-    INTEGER                                  :: handle, i, iatom
-    REAL(KIND=dp), DIMENSION(1:3)            :: center_of_mass, mass
+    INTEGER                                  :: handle, iatom,jatom,&
+      iunit
+    REAL(KIND=dp), DIMENSION(1:3)            :: center_of_mass
 
 !------------------------------------------------------------------------------
 ! begin the timing of the subroutine
 
       CALL timeset(routineN,'I','',handle)
 
-      mass(1:3)=(/ 15.999E0_dp,1.0074E0_dp,1.0074E0_dp /)
-
 ! loop over all molecules
-      DO iatom=1,natoms,3
-         CALL get_center_of_mass(coordinates(:,iatom:iatom+2),3,&
-            center_of_mass(:),mass(:))
-         DO i=1,3
-            coordinates(i,iatom)=coordinates(i,iatom)-&
-               box_length*FLOOR(center_of_mass(i)/box_length)
-            coordinates(i,iatom+1)=coordinates(i,iatom+1)-&
-               box_length*FLOOR(center_of_mass(i)/box_length)
-            coordinates(i,iatom+2)=coordinates(i,iatom+2)-&
-               box_length*FLOOR(center_of_mass(i)/box_length)
+      DO iatom=1,natoms_tot,nunits
+         CALL get_center_of_mass(coordinates(:,iatom:iatom+nunits-1),&
+            nunits,center_of_mass(:),mass(:))
+         DO iunit=1,nunits
+            jatom=iatom+iunit-1
+            coordinates(1,jatom)=coordinates(1,jatom)-&
+               box_length(1)*FLOOR(center_of_mass(1)/box_length(1))
+            coordinates(2,jatom)=coordinates(2,jatom)-&
+               box_length(2)*FLOOR(center_of_mass(2)/box_length(2))
+            coordinates(3,jatom)=coordinates(3,jatom)-&
+               box_length(3)*FLOOR(center_of_mass(3)/box_length(2))
          ENDDO
 
       ENDDO
-
-
 
 ! end the timing
       CALL timestop(0.0E0_dp,handle)
@@ -770,7 +916,7 @@ SUBROUTINE generate_cbmc_swap_config( force_env, BETA, nswapmoves,&
     CHARACTER(LEN=*), PARAMETER &
       :: routineN = "generate_cbmc_swap_config"
 
-    INTEGER                                  :: natoms,handle,istat,&
+    INTEGER                                  :: natoms_tot,handle,istat,&
        iatom,imove,nmols,i,choosen,start_atom,end_atom,imolecule,natom
     LOGICAL,DIMENSION(:),ALLOCATABLE         :: loverlap_array
     LOGICAL                                  :: all_overlaps 
@@ -809,11 +955,11 @@ SUBROUTINE generate_cbmc_swap_config( force_env, BETA, nswapmoves,&
             error=error)
       molecule_kind => molecule_kinds_new%els(1)
       CALL get_molecule_kind(molecule_kind,natom=natom,nmolecule=nmols)  
-      natoms=natom*nmols
-      ALLOCATE(mass(1:natoms),STAT=istat)
+      natoms_tot=natom*nmols
+      ALLOCATE(mass(1:natoms_tot),STAT=istat)
       IF (istat /= 0) CALL stop_memory(routineN,module_name,__LINE__,&
-                       "mass",natoms*dp_size)
-      DO iatom=1,natoms
+                       "mass",natoms_tot*dp_size)
+      DO iatom=1,natoms_tot
          CALL get_atomic_kind(particles%els(iatom)%atomic_kind,&
             mass=mass(iatom))
       ENDDO
@@ -828,12 +974,12 @@ SUBROUTINE generate_cbmc_swap_config( force_env, BETA, nswapmoves,&
          end_atom=natom*imolecule
       ENDIF
 
-      ALLOCATE(r_old(1:3,1:natoms),STAT=istat)
+      ALLOCATE(r_old(1:3,1:natoms_tot),STAT=istat)
       IF (istat /= 0) CALL stop_memory(routineN,module_name,__LINE__,&
-         "r_old",3*natoms*dp_size)
-      ALLOCATE(r(1:3,1:natoms,1:nswapmoves),STAT=istat)
+         "r_old",3*natoms_tot*dp_size)
+      ALLOCATE(r(1:3,1:natoms_tot,1:nswapmoves),STAT=istat)
       IF (istat /= 0) CALL stop_memory(routineN,module_name,__LINE__,&
-         "r",3*natoms*nswapmoves*dp_size)
+         "r",3*natoms_tot*nswapmoves*dp_size)
       ALLOCATE(trial_energy(1:nswapmoves),STAT=istat)
       IF (istat /= 0) CALL stop_memory(routineN,module_name,__LINE__,&
          "trial_energy",nswapmoves*dp_size)
@@ -855,12 +1001,12 @@ SUBROUTINE generate_cbmc_swap_config( force_env, BETA, nswapmoves,&
 
 ! save the positions of the molecules
       DO imove=1,nswapmoves
-         DO iatom=1,natoms
+         DO iatom=1,natoms_tot
             r(1:3,iatom,imove)=particles%els(iatom)%r(1:3)
          ENDDO
       ENDDO
 
-      DO iatom=1,natoms
+      DO iatom=1,natoms_tot
          r_old(1:3,iatom)=particles%els(iatom)%r(1:3)
       ENDDO
 
@@ -869,8 +1015,8 @@ SUBROUTINE generate_cbmc_swap_config( force_env, BETA, nswapmoves,&
             nmols,1,nmols,cutoff,loverlap_array(1))
          
          IF(loverlap_array(1)) THEN
-            WRITE(6,*) start_atom,end_atom,natoms
-            DO iatom=1,natoms
+            WRITE(6,*) start_atom,end_atom,natoms_tot
+            DO iatom=1,natoms_tot
                WRITE(6,*) r(1:3,iatom,1)
             ENDDO
             CALL stop_program(routineN,module_name,__LINE__,&
@@ -902,10 +1048,10 @@ SUBROUTINE generate_cbmc_swap_config( force_env, BETA, nswapmoves,&
             ENDDO
             
 ! rotate the molecule
-            CALL rotate_water_molecule(r(:,start_atom:end_atom,imove))
+            CALL rotate_molecule(r(:,start_atom:end_atom,imove),mass,natom)
             
             IF(imove == 1 .AND. PRESENT(rem_molecule)) THEN
-               DO iatom=1,natoms
+               DO iatom=1,natoms_tot
                   r(1:3,iatom,1)=r_old(1:3,iatom)
                ENDDO
             ENDIF
@@ -972,7 +1118,7 @@ SUBROUTINE generate_cbmc_swap_config( force_env, BETA, nswapmoves,&
             WRITE(6,*) boltz_weights(1:nswapmoves)
             WRITE(6,*) start_atom,end_atom,rem_molecule
             WRITE(6,*) loverlap_array(1:nswapmoves)
-            DO iatom=1,natoms
+            DO iatom=1,natoms_tot
                WRITE(6,*) r(1:3,iatom,1)
             ENDDO
             CALL stop_program(routineN,module_name,__LINE__,&
@@ -1012,7 +1158,7 @@ SUBROUTINE generate_cbmc_swap_config( force_env, BETA, nswapmoves,&
       choosen_energy=trial_energy(choosen)
 
 ! copy the coordinates to the force environment
-      DO iatom=1,natoms
+      DO iatom=1,natoms_tot
          particles%els(iatom)%r(1:3)=r(1:3,iatom,choosen)
       ENDDO
 
@@ -1058,14 +1204,14 @@ END SUBROUTINE generate_cbmc_swap_config
 !!     MJM
 !!
 !!*****************************************************************************
-SUBROUTINE rotate_water_molecule(r)
+SUBROUTINE rotate_molecule(r,mass,natoms)
 
-    REAL(KIND=dp),DIMENSION(1:3,1:3),INTENT(INOUT)  :: r
+    INTEGER,INTENT(IN)                            :: natoms
+    REAL(KIND=dp),DIMENSION(1:3,1:natoms),INTENT(INOUT)  :: r
+    REAL(KIND=dp),DIMENSION(1:natoms),INTENT(IN):: mass 
 
     CHARACTER(LEN=*), PARAMETER &
-      :: routineN = "rotate_water_molecule"
-    REAL(KIND=dp),DIMENSION(1:3),PARAMETER   &
-      :: mass = (/ 15.999E0_dp,1.008E0_dp,1.008E0_dp /)
+      :: routineN = "rotate_molecule"
 
     INTEGER                                  :: iunit,handle
     REAL(KIND=dp)                            :: cosdg,sindg,ry,rz,rynew,&
@@ -1078,7 +1224,7 @@ SUBROUTINE rotate_water_molecule(r)
       CALL timeset(routineN,'I','',handle)
 
 ! find the center of mass of the molecule
-      CALL get_center_of_mass(r(:,:),3,center_of_mass(:),mass(:))
+      CALL get_center_of_mass(r(:,:),natoms,center_of_mass(:),mass(:))
 
 ! call a random number to figure out how far we're moving
       CALL RANDOM_NUMBER(rand)
@@ -1091,7 +1237,7 @@ SUBROUTINE rotate_water_molecule(r)
  
 ! ***    ROTATE UNITS OF I AROUND X-AXIS ***
  
-      DO  iunit = 1,3
+      DO  iunit = 1,natoms
          ry = r(2,iunit) - center_of_mass(2)
          rz = r(3,iunit) - center_of_mass(3)
          rynew = cosdg * ry + sindg * rz
@@ -1104,7 +1250,7 @@ SUBROUTINE rotate_water_molecule(r)
  
 ! ***    ROTATE UNITS OF I AROUND y-AXIS ***
  
-      DO  iunit = 1,3
+      DO  iunit = 1,natoms
          rx = r(1,iunit) - center_of_mass(1)
          rz = r(3,iunit) - center_of_mass(3)
          rxnew = cosdg * rx + sindg * rz
@@ -1117,7 +1263,7 @@ SUBROUTINE rotate_water_molecule(r)
       
 ! ***    ROTATE UNITS OF I AROUND z-AXIS ***
  
-      DO  iunit = 1,3
+      DO  iunit = 1,natoms
          rx = r(1,iunit) - center_of_mass(1)
          ry = r(2,iunit) - center_of_mass(2)
          rxnew = cosdg * rx + sindg * ry
@@ -1131,7 +1277,7 @@ SUBROUTINE rotate_water_molecule(r)
 ! end the timing
       CALL timestop(0.0E0_dp,handle)
 
-END SUBROUTINE rotate_water_molecule
+END SUBROUTINE rotate_molecule
 
 !******************************************************************************
 !!****s* mc_coordinates.F/find_mc_test_molecule

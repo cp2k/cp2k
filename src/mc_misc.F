@@ -206,15 +206,12 @@ END SUBROUTINE mc_averages_release
 !!     - mc_par: the mc parameters for the simulation
 !!     - moves: the structure that holds data on how many moves are
 !!              accepted/rejected
-!!     - move_updates: the structure that holds data on how many classical 
-!!              moves are accepted/rejected, used for updating maximum
-!!              displacements
-!!     - averages: the structure that holds computed average properites for
-!!              the simulation
+!!     - iw: the unit to write to
+!!     - energy_check: the sum of the energy changes of each move
 !!     - initial_energy: the initial energy of the system
 !!     - final_energy: the final energy of the system
-!!     - energy_check: the sum of the energy changes of each move
-!!     - iw: the unit to write to
+!!     - averages: the structure that holds computed average properites for
+!!              the simulation
 !!
 !!   AUTHOR
 !!     MJM
@@ -222,7 +219,7 @@ END SUBROUTINE mc_averages_release
 !!*****************************************************************************
 
 SUBROUTINE final_mc_write (mc_par,moves,iw,energy_check,initial_energy,&
-                           final_energy,averages,move_updates)
+                           final_energy,averages)
 
 
     TYPE(mc_simulation_parameters_type), &
@@ -232,7 +229,6 @@ SUBROUTINE final_mc_write (mc_par,moves,iw,energy_check,initial_energy,&
     REAL(KIND=dp), INTENT(IN)                :: energy_check, initial_energy, &
                                                 final_energy
     TYPE(mc_averages_type), POINTER          :: averages
-    TYPE(mc_moves_type), POINTER             :: move_updates
 
     CHARACTER(LEN=*), PARAMETER              :: &
       routineN = "final_mc_write"
@@ -256,20 +252,20 @@ SUBROUTINE final_mc_write (mc_par,moves,iw,energy_check,initial_energy,&
                    '***************************'
     WRITE(iw,'(A,T66,F15.8)') " Average Energy [Hartrees]:", &
                 averages%ave_energy
-    WRITE(iw,'(A,T66,F15.8)') " Average O-H distance 1 [angstroms]:",&
-                   averages%bond1*angstrom
-    WRITE(iw,'(A,T66,F15.8)') " Average O-H distance 2 [angstroms]:",&
-                   averages%bond2*angstrom
-    WRITE(iw,'(A,T66,F15.8)') " Average H-O-H angle [degrees]:",&
-                   averages%angle
+!    WRITE(iw,'(A,T66,F15.8)') " Average O-H distance 1 [angstroms]:",&
+!                   averages%bond1*angstrom
+!    WRITE(iw,'(A,T66,F15.8)') " Average O-H distance 2 [angstroms]:",&
+!                   averages%bond2*angstrom
+!    WRITE(iw,'(A,T66,F15.8)') " Average H-O-H angle [degrees]:",&
+!                   averages%angle
     IF (pmswap .GT. 0.0E0_dp) THEN
        WRITE(iw,'(A,T66,F15.8)') " Average number of molecules:",&
                    averages%molecules
     ENDIF
-    WRITE(iw,'(A,A,T68,F13.10)') " Average Density ",&
-               "[g/cm^3]:",1.0E0_dp/averages%ave_volume*&
-                      averages%molecules/&
-                      (angstrom)**3*(1.0e8_dp)**3/n_avogadro*18.0184E0_dp
+!    WRITE(iw,'(A,A,T68,F13.10)') " Average Density ",&
+!               "[g/cm^3]:",1.0E0_dp/averages%ave_volume*&
+!                      averages%molecules/&
+!                      (angstrom)**3*(1.0e8_dp)**3/n_avogadro*18.0184E0_dp
     WRITE(iw,'(A,A,T65,F16.6)') " Average Volume ",&
                "[angstroms**3]:",averages%ave_volume*angstrom**3
 
@@ -413,12 +409,6 @@ SUBROUTINE final_mc_write (mc_par,moves,iw,energy_check,initial_energy,&
 ! first, bond changes...record all the moves done since the last update,
 ! and print out the totals
        IF (moves%bond%attempts .GT. 0 ) THEN
-!          moves%cl_bond%attempts=&
-!             move_updates%classical_bond%attempts+&
-!             move_updates%bond%attempts
-!          move_updates%classical_bond%successes=&
-!             move_updates%classical_bond%successes+&
-!             move_updates%bond%successes
           WRITE(iw,'(A,T43,A)') " Bond Changes",&
             "Attempted       Accepted       Percent"
           WRITE(iw,'(T46,I6,9X,I6,7X,F7.3)') &
@@ -435,12 +425,6 @@ SUBROUTINE final_mc_write (mc_par,moves,iw,energy_check,initial_energy,&
 
 ! now angle changes
        IF (moves%angle%attempts .GT. 0 ) THEN
-!          move_updates%classical_angle%attempts=&
-!             move_updates%classical_angle%attempts+&
-!             move_updates%angle%attempts
-!          move_updates%classical_angle%successes=&
-!             move_updates%classical_angle%successes+&
-!             move_updates%angle%successes
           WRITE(iw,'(A,T43,A)') " Angle Changes",&
             "Attempted       Accepted       Percent"
           WRITE(iw,'(T46,I6,9X,I6,7X,F7.3)') &
@@ -457,12 +441,6 @@ SUBROUTINE final_mc_write (mc_par,moves,iw,energy_check,initial_energy,&
 
 ! now molecule translations
        IF (moves%trans%attempts .GT. 0 ) THEN
-!          move_updates%classical_trans%attempts=&
-!             move_updates%classical_trans%attempts+&
-!             move_updates%trans%attempts
-!          move_updates%classical_trans%successes=&
-!             move_updates%classical_trans%successes+&
-!             move_updates%trans%successes
           WRITE(iw,'(A,T43,A)') " Molecule Translations",&
             "Attempted       Accepted       Percent"
           WRITE(iw,'(T46,I6,9X,I6,7X,F7.3)') &
@@ -479,12 +457,6 @@ SUBROUTINE final_mc_write (mc_par,moves,iw,energy_check,initial_energy,&
 
 ! now molecule rotations
        IF (moves%rot%attempts .GT. 0 ) THEN
-!          move_updates%classical_rot%attempts=&
-!             move_updates%classical_rot%attempts+&
-!             move_updates%rot%attempts
-!          move_updates%classical_rot%successes=&
-!             move_updates%classical_rot%successes+&
-!             move_updates%rot%successes
           WRITE(iw,'(A,T43,A)') " Molecule Rotations",&
             "Attempted       Accepted       Percent"
           WRITE(iw,'(T46,I6,9X,I6,7X,F7.3)') &
@@ -498,27 +470,6 @@ SUBROUTINE final_mc_write (mc_par,moves,iw,energy_check,initial_energy,&
           WRITE(iw,*) '-------------------------------------------',&
                    '------------------------------------'
        ENDIF
-
-! now volume moves
-!       IF (moves%volume%attempts .GT. 0 .AND. nvolmoves .GT. 1)&
-!             THEN
-!          moves%classical_volume%attempts=&
-!             moves%classical_volume%attempts
-!          moves%classical_volume%successes=&
-!             moves%classical_volume%successes
-!          WRITE(iw,'(A,T43,A)') " Volume Changes",&
-!            "Attempted       Accepted       Percent"
-!          WRITE(iw,'(T46,I6,9X,I6,7X,F7.3)') &
-!            moves%classical_volume%attempts,&
-!            moves%classical_volume%successes,&
-!            REAL(moves%classical_volume%successes,dp)/ &
-!            REAL(moves%classical_volume%attempts,dp)*100.0E0_dp
-!          WRITE(iw,'(A,T71,F10.5)') &
-!           ' Maximum Volume displacement [angstroms^3] = ',&
-!                     rmvolume*(angstrom)**3
-!          WRITE(iw,*) '-------------------------------------------',&
-!                   '------------------------------------'
-!       ENDIF
 
     ENDIF
 
@@ -553,12 +504,13 @@ END SUBROUTINE final_mc_write
 !!     to change a force env (change molecules or cell length)
 !!
 !!   ARGUMENTS
-!!     - natoms: the total number of atoms
 !!     - coordinates: the coordiantes of the atoms in the force_env (a.u.)
+!!     - natoms_tot: the total number of atoms
 !!     - box_length: the length of all sides of the simulation box (angstrom)
 !!     - filename: the name of the file to write to
 !!     - force_env: the force environment that holds the parameters needed
 !!                  to write on the file
+!!     - fft_lib: the FFT library we're using (FFTW,FFTSG)
 !!
 !!   AUTHOR
 !!     MJM

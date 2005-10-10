@@ -27,9 +27,7 @@ MODULE mc_environment_types
   USE cp_para_env,                     ONLY: cp_para_env_release,&
                                              cp_para_env_retain
   USE cp_para_types,                   ONLY: cp_para_env_type
-  USE force_env_types,                 ONLY: force_env_release,&
-                                             force_env_retain,&
-                                             force_env_type
+  USE force_env_types,                 ONLY: force_env_type
   USE mc_types,                        ONLY: mc_simulation_parameters_type
 
   IMPLICIT NONE
@@ -149,9 +147,6 @@ CONTAINS
     IF ( PRESENT ( mc_par ) ) mc_env % mc_par => mc_par
     IF ( PRESENT ( para_env ) ) mc_env % para_env => para_env
     IF ( PRESENT ( force_env )) THEN
-!       CALL force_env_retain( force_env ) ! accept null pointers?
-!       IF (ASSOCIATED(mc_env % force_env ))  &
-!           CALL force_env_release( mc_env % force_env )
        mc_env % force_env => force_env
     END IF
     
@@ -283,7 +278,6 @@ SUBROUTINE mc_env_release(mc_env, error)
 !        CALL cp_para_env_release ( mc_env % para_env, error = error )
         NULLIFY ( mc_env % mc_par )
         NULLIFY ( mc_env % force_env)
-!        CALL force_env_release( mc_env % force_env) 
         mc_env%ref_count=0
         DEALLOCATE(mc_env,stat=stat)
         CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)

@@ -43,7 +43,8 @@ MODULE mc_ge_moves
   USE mc_control,                      ONLY: mc_create_force_env
   USE mc_coordinates,                  ONLY: generate_cbmc_swap_config,&
                                              get_center_of_mass,&
-                                             mc_classical_energy,&
+!                                             mc_classical_energy,&
+                                             check_for_overlap,&
                                              mc_coordinate_fold
   USE mc_misc,                         ONLY: mc_make_dat_file
   USE mc_move_control,                 ONLY: move_q_reinit,&
@@ -136,7 +137,7 @@ CONTAINS
 !    TYPE(cp_subsystem_p_type), &
 !      DIMENSION(:), POINTER                  :: subsys,subsys_old
     LOGICAL                                  :: lbias,ionode,&
-      ldum
+      loverlap
 
 !   *** Local Counters ***
 !   ---------------------------------------------------------------------------
@@ -240,9 +241,13 @@ CONTAINS
                DO ibox=1,nboxes
 ! look for overlap
                   IF(nchain(ibox) .NE. 0) THEN
-                     CALL mc_classical_energy(bias_env(ibox)%force_env,&
-                        rdum,nchain(ibox),1,nchain(ibox),inner_cutoff,ldum)
-                     IF(ldum) CALL stop_program(routineN,module_name,__LINE__,&
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+!                     CALL mc_classical_energy(bias_env(ibox)%force_env,&
+!                        rdum,nchain(ibox),1,nchain(ibox),inner_cutoff,ldum)
+                     CALL check_for_overlap(bias_env(ibox)%force_env,&
+                        nchain(ibox),1,nchain(ibox),loverlap)
+                     IF(loverlap) CALL stop_program(routineN,&
+                        module_name,__LINE__,&
                      'Quickstep move found an overlap in the old config') 
                   ENDIF
                   bias_energy_old(ibox)=moves(ibox)%moves%bias_energy
@@ -478,11 +483,11 @@ CONTAINS
       insert_box, istat, natom, rem_atoms, remove_box,nswapmoves,&
       group,source,ipart,natoms
     LOGICAL                                  :: loverlap,ionode,lbias,&
-      loverlap_ins,loverlap_rem,ldum
+      loverlap_ins,loverlap_rem
     REAL(KIND=dp)                            :: prefactor, rand, w,BETA,&
-                                del_quickstep_energy,&
-                                weight_old,weight_new,wratio,cutoff,&
-                                inner_cutoff,rdum
+                                del_quickstep_energy,rdum,&
+                                weight_old,weight_new,cutoff,&
+                                inner_cutoff
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :)                        :: r_cbmc
     REAL(KIND=dp), ALLOCATABLE, &
@@ -531,7 +536,8 @@ CONTAINS
       CALL get_mc_par(mc_par(1)%mc_par,ionode=ionode,BETA=BETA,&
          nswapmoves=nswapmoves,group=group,source=source,&
          lbias=lbias,nchain=nchain(1),nunits_tot=nunits_tot(1),&
-         dat_file=dat_file(1),nunits=natom,&
+         dat_file=dat_file(1),&
+!         dat_file=dat_file(1),nunits=natom,&
          cutoff=cutoff,inner_cutoff=inner_cutoff,fft_lib=fft_lib)
       CALL get_mc_par(mc_par(2)%mc_par,nchain=nchain(2),&
          nunits_tot=nunits_tot(2),dat_file=dat_file(2))
@@ -584,13 +590,18 @@ CONTAINS
             imolecule=CEILING(rand*nchain(remove_box))
 
 ! check for overlap
-            CALL mc_classical_energy(force_env(remove_box)%force_env,&
-            rdum,nchain(remove_box),1,nchain(remove_box),cutoff,ldum)
-            IF(ldum) CALL stop_program(routineN,module_name,__LINE__,&
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+!            CALL mc_classical_energy(force_env(remove_box)%force_env,&
+!            rdum,nchain(remove_box),1,nchain(remove_box),cutoff,ldum)
+            CALL check_for_overlap(force_env(remove_box)%force_env,&
+               nchain(remove_box),1,nchain(remove_box),loverlap)
+            IF(loverlap) CALL stop_program(routineN,module_name,__LINE__,&
             'CBMC swap move found an overlap in the old remove config')   
-            CALL mc_classical_energy(force_env(insert_box)%force_env,&
-            rdum,nchain(insert_box),1,nchain(insert_box),cutoff,ldum)
-            IF(ldum) CALL stop_program(routineN,module_name,__LINE__,&
+!            CALL mc_classical_energy(force_env(insert_box)%force_env,&
+!            rdum,nchain(insert_box),1,nchain(insert_box),cutoff,ldum)
+            CALL check_for_overlap(force_env(insert_box)%force_env,&
+               nchain(insert_box),1,nchain(insert_box),loverlap)
+            IF(loverlap) CALL stop_program(routineN,module_name,__LINE__,&
             'CBMC swap move found an overlap in the old insert config')   
          ENDIF
       ENDIF
@@ -699,8 +710,8 @@ CONTAINS
          ENDIF
       
 ! fold the coordinates into the box and check for overlaps
-         CALL mc_coordinate_fold(r_insert(:,:),ins_atoms,&
-            abc_insert(1))
+         CALL mc_coordinate_fold(r_insert(:,:),ins_atoms,mass,natoms,&
+            abc_insert(1:3))
       ENDIF
       
 ! allocate r_remove
@@ -735,11 +746,11 @@ CONTAINS
 !     make the .dat file
             IF (ionode) THEN
                IF(lbias) THEN
-                  CALL mc_make_dat_file(r_remove(:,:),3,&
+                  CALL mc_make_dat_file(r_remove(:,:),rem_atoms,&
                      abc_remove(1:3)*angstrom,dat_file(remove_box),&
                      bias_env(remove_box)%force_env,TRIM(fft_lib))
                ELSE
-                  CALL mc_make_dat_file(r_remove(:,:),3,&
+                  CALL mc_make_dat_file(r_remove(:,:),rem_atoms,&
                      abc_remove(1:3)*angstrom,dat_file(remove_box),&
                      force_env(remove_box)%force_env,TRIM(fft_lib))
                ENDIF
@@ -1224,14 +1235,15 @@ CONTAINS
 
     CHARACTER(LEN=*), PARAMETER              :: &
       routineN = "mc_ge_volume_move"
-    REAL(KIND=dp), DIMENSION(1:3), PARAMETER :: &
-      mass = (/ 15.999E0_dp,1.008E0_dp,1.008E0_dp /)
-    REAL(KIND=dp), PARAMETER                 :: mass_tot = 18.01E0_dp
+!    REAL(KIND=dp), DIMENSION(1:3), PARAMETER :: &
+!      mass = (/ 15.999E0_dp,1.008E0_dp,1.008E0_dp /)
+!    REAL(KIND=dp), PARAMETER                 :: mass_tot = 18.01E0_dp
+    REAL(KIND=dp), DIMENSION(:), ALLOCATABLE :: mass 
 
     INTEGER                                  :: handle, i, iatom, ibox,&
-                                                ivolmove,j,all_atoms,&
+                                                j,all_atoms,jatom,&
                                                 istat,source,group,&
-                                                nunits,cl,iside
+                                                nunits,cl,iside,natoms
     INTEGER,DIMENSION(1:2)                   :: nunits_tot,nchain
     REAL(KIND=dp),DIMENSION(1:2)             :: new_energy, &
       volume_new,volume_old
@@ -1241,6 +1253,9 @@ CONTAINS
                                                 center_of_mass_new, diff
     TYPE(force_env_p_type), DIMENSION(:),POINTER &
                                              :: test_env
+    TYPE(mol_kind_new_list_p_type), DIMENSION(:),POINTER  &
+                                             :: molecule_kinds_new
+    TYPE(molecule_kind_type), POINTER        :: molecule_kind
     TYPE(cp_subsystem_pp_type), &
       DIMENSION(:), POINTER                  :: oldsys, testsys
     TYPE(cell_p_type), DIMENSION(:),POINTER  &
@@ -1250,9 +1265,9 @@ CONTAINS
     TYPE(particle_list_p_type), &
       DIMENSION(:), POINTER                  :: particles_test, particles_old
     REAL(KIND=dp)                            :: rand,w,prefactor,vol_dis,&
-      rmvolume,BETA,cutoff,inner_cutoff,rdum
+      rmvolume,BETA,cutoff,inner_cutoff
     LOGICAL,DIMENSION(1:2)                   :: lempty
-    LOGICAL                                  :: ionode,ldum
+    LOGICAL                                  :: ionode
     LOGICAL,DIMENSION(:),ALLOCATABLE       :: loverlap
     CHARACTER(LEN=40),DIMENSION(1:2)         :: dat_file
     CHARACTER(LEN=200)                       :: fft_lib
@@ -1301,23 +1316,26 @@ CONTAINS
       ALLOCATE(loverlap(1:2),STAT=istat)
       IF (istat /= 0) CALL stop_memory(routineN,module_name,__LINE__,&
          "loverlap",2)      
+      ALLOCATE(molecule_kinds_new(2),STAT=istat)
+      IF (istat /= 0) CALL stop_memory(routineN,module_name,__LINE__,&
+         "molecule_kinds_new",2)
 
 ! check for empty boxes...need to be careful because we can't build
 ! a force_env with no particles
-      DO i=1,2
-         lempty(i)=.FALSE.
-         IF(nchain(i)==0) THEN
-            lempty(i)=.TRUE.
+      DO ibox=1,2
+         lempty(ibox)=.FALSE.
+         IF(nchain(ibox)==0) THEN
+            lempty(ibox)=.TRUE.
          ENDIF
       ENDDO
       
       IF (ionode) THEN
 ! record the attempt
-         DO i=1,2
-            moves(i)%moves%volume%attempts= &
-               moves(i)%moves%volume%attempts+1
-            move_updates(i)%moves%volume%attempts=&
-               move_updates(i)%moves%volume%attempts+1
+         DO ibox=1,2
+            moves(ibox)%moves%volume%attempts= &
+               moves(ibox)%moves%volume%attempts+1
+            move_updates(ibox)%moves%volume%attempts=&
+               move_updates(ibox)%moves%volume%attempts+1
          ENDDO
       ENDIF
 
@@ -1327,11 +1345,23 @@ CONTAINS
             subsys=oldsys(ibox)%subsys,cell=cell_old(ibox)%cell,error=error)
          CALL get_cell(cell_old(ibox)%cell,abc=abc(:,ibox))
          CALL cp_subsys_get(oldsys(ibox)%subsys(1)%subsys, &
+            molecule_kinds_new=molecule_kinds_new(ibox)%list,&
             particles=particles_old(ibox)%list, error=error)
 
 ! find the old cell length
          old_cell_length(1:3,ibox)=abc(1:3,ibox)
 
+      ENDDO
+
+! allocate a couple of arrays that depend on the box
+      molecule_kind => molecule_kinds_new(1)%list%els(1)
+      CALL get_molecule_kind(molecule_kind,natom=natoms)   
+      ALLOCATE(mass(1:natoms),STAT=istat)
+      IF (istat /= 0) CALL stop_memory(routineN,module_name,__LINE__,&
+                       "mass",natoms*dp_size)
+      DO iatom=1,natoms
+         CALL get_atomic_kind(particles_old(1)%list%els(iatom)%atomic_kind,&
+            mass=mass(iatom))
       ENDDO
 
       IF (ionode) THEN
@@ -1340,12 +1370,6 @@ CONTAINS
 
             IF(lempty(ibox)) THEN
 
-! don't have any old coordiantes, so let's make some up...these are in
-! atomic units
-!               r(1:3,1,i) = (/ 1.088738E0_dp, 1.8323472E0_dp,2.0179184E0_dp /)
-!               r(1:3,2,i) = (/ 0.337575E0_dp, 3.0485244E0_dp, 0.80660535E0_dp /)
-!               r(1:3,3,i) = (/ 0.8812212E0_dp, 2.615469E0_dp, 3.707380E0_dp /)
-
 ! make the new dat file
                CALL mc_make_dat_file(r(:,:,ibox),0,&
                   old_cell_length(1:3,ibox)*angstrom,dat_file(ibox),&
@@ -1353,12 +1377,17 @@ CONTAINS
 
             ELSE
 
-               CALL mc_classical_energy(force_env(ibox)%force_env,&
-                  rdum,nchain(ibox),&
-                  1,nchain(ibox),inner_cutoff,ldum,&
-                  cell_length=old_cell_length(1,ibox))
-               IF(ldum) CALL stop_program(routineN,module_name,__LINE__,&
-                  'GE volume move found an overlap in an old config')
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+!               CALL mc_classical_energy(force_env(ibox)%force_env,&
+!                  rdum,nchain(ibox),&
+!                  1,nchain(ibox),inner_cutoff,ldum,&
+!                  cell_length=old_cell_length(1,ibox))
+!               CALL check_for_overlap(force_env(ibox)%force_env,&
+!                  nchain(ibox),1,nchain(ibox),loverlap(ibox),&
+!                  cell_length=old_cell_length(:,ibox))
+!               IF(loverlap(ibox)) &
+!                  CALL stop_program(routineN,module_name,__LINE__,&
+!                  'GE volume move found an overlap in an old config')
 
 ! save the old coordiantes
                DO iatom=1,nunits_tot(ibox)
@@ -1367,7 +1396,8 @@ CONTAINS
 
 ! fold the coordinates into the central box
                CALL mc_coordinate_fold(r(:,:,ibox),&
-                  nunits_tot(ibox),old_cell_length(1,ibox))
+                  nunits_tot(ibox),mass,nunits,&
+                  old_cell_length(1:3,ibox))
 
 ! make the new dat file
                CALL mc_make_dat_file(r(:,:,ibox),nunits_tot(ibox),&
@@ -1379,17 +1409,17 @@ CONTAINS
          ENDDO
       ENDIF
 
-      DO i=1,2
+      DO ibox=1,2
 ! make a test environment that we can alter to calculate the energy
-         globenv%input_file_name=dat_file(i)
-         CALL mc_create_force_env(test_env(i)%force_env, globenv, .FALSE., &
-               force_env(i)%force_env%in_use,error=error)
+         globenv%input_file_name=dat_file(ibox)
+         CALL mc_create_force_env(test_env(ibox)%force_env, globenv, .FALSE., &
+               force_env(ibox)%force_env%in_use,error=error)
 
 ! grab the coords so we can change them
-         CALL force_env_get(test_env(i)%force_env,&
-            subsys=testsys(i)%subsys,error=error)
-         CALL cp_subsys_get(testsys(i)%subsys(1)%subsys, &
-            particles=particles_test(i)%list, error=error)
+         CALL force_env_get(test_env(ibox)%force_env,&
+            subsys=testsys(ibox)%subsys,error=error)
+         CALL cp_subsys_get(testsys(ibox)%subsys(1)%subsys, &
+            particles=particles_test(ibox)%list, error=error)
 
       ENDDO
 
@@ -1429,7 +1459,7 @@ CONTAINS
             DO iatom=1,nunits_tot(i),nunits
 
 ! now find the center of mass
-               CALL get_center_of_mass(r(:,iatom:iatom+2,i),&
+               CALL get_center_of_mass(r(:,iatom:iatom+nunits-1,i),&
                   nunits,center_of_mass(:),mass(:))
 
 ! scale the center of mass and determine the vector that points from the
@@ -1439,21 +1469,23 @@ CONTAINS
                DO j=1,3
                   diff(j)=center_of_mass_new(j)-center_of_mass(j)
 ! now change the particle positions
-                  particles_test(i)%list%els(iatom)%r(j)=&
-                    particles_test(i)%list%els(iatom)%r(j)+diff(j)
-                  particles_test(i)%list%els(iatom+1)%r(j)=&
-                    particles_test(i)%list%els(iatom+1)%r(j)+diff(j)
-                  particles_test(i)%list%els(iatom+2)%r(j)=&
-                    particles_test(i)%list%els(iatom+2)%r(j)+diff(j)
-               ENDDO
+                  DO jatom=iatom,iatom+nunits-1
+                     particles_test(i)%list%els(jatom)%r(j)=&
+                        particles_test(i)%list%els(jatom)%r(j)+diff(j)
+                  ENDDO
                
+               ENDDO
             ENDDO
         
-! find and store the classical energy
-            CALL mc_classical_energy(test_env(i)%force_env,&
-            rdum,nchain(i),1,&
-            nchain(i),inner_cutoff,loverlap(i),&
-            cell_length=new_cell_length(1,i))
+! check for any overlaps we might have
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+!            CALL mc_classical_energy(test_env(i)%force_env,&
+!            rdum,nchain(i),1,&
+!            nchain(i),inner_cutoff,loverlap(i),&
+!            cell_length=new_cell_length(1,i))
+            CALL check_for_overlap(test_env(i)%force_env,&
+            nchain(i),1,nchain(i),loverlap(i),&
+            cell_length=new_cell_length(:,i))
                
          ENDDO
 
@@ -1463,11 +1495,6 @@ CONTAINS
 
             IF(lempty(ibox)) THEN
                
-! don't have any old coordiantes, so let's make some up
-!               r(1:3,1,i) = (/ 1.088738E0_dp, 1.8323472E0_dp,2.0179184E0_dp /)
-!               r(1:3,2,i) = (/ 0.337575E0_dp, 3.0485244E0_dp, 0.80660535E0_dp /)
-!               r(1:3,3,i) = (/ 0.8812212E0_dp, 2.615469E0_dp, 3.707380E0_dp /)
-
 ! make the new dat file
                CALL mc_make_dat_file(r(:,:,ibox),0,&
                   new_cell_length(1:3,ibox)*angstrom,dat_file(ibox),&
@@ -1604,6 +1631,12 @@ CONTAINS
       ENDIF
 
 ! free up some memory
+      DEALLOCATE(mass,STAT=istat)
+      IF (istat /= 0) CALL stop_memory(routineN,module_name,&
+         __LINE__,"mass")
+      DEALLOCATE(molecule_kinds_new,STAT=istat)
+      IF (istat /= 0) CALL stop_memory(routineN,module_name,&
+         __LINE__,"molecule_kinds_new")
       DEALLOCATE(test_env,STAT=istat)
       IF (istat /= 0) CALL stop_memory(routineN,module_name,&
          __LINE__,"test_env")

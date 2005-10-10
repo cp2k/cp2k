@@ -24,10 +24,7 @@
 MODULE mc_ensembles
   USE checkpoint_handler,              ONLY: write_checkpoint_information
   USE cp_error_handling,               ONLY: cp_a_l,&
-                                             cp_error_get_logger,&
                                              cp_error_type
-  USE cp_log_handling,                 ONLY: cp_logger_get_default_unit_nr,& 
-                                             cp_logger_type
   USE cp_subsystem_types,              ONLY: cp_subsys_get,&
                                              cp_subsystem_pp_type
   USE force_env_methods,               ONLY: force_env_calc_energy_force
@@ -40,9 +37,10 @@ MODULE mc_ensembles
   USE machine,                         ONLY: m_flush
   USE mc_control,                      ONLY: write_mc_restart,&
                                              mc_create_bias_force_env
-  USE mc_coordinates,                  ONLY: get_water_data,&
-                                             mc_classical_energy,&
-                                             find_mc_test_molecule,&
+  USE mc_coordinates,                  ONLY: find_mc_test_molecule,&
+!                                             get_water_data,&
+!                                             mc_classical_energy,&
+                                             check_for_overlap,&
                                              create_discrete_array
   USE mc_environment_types,            ONLY: get_mc_env,&
                                              mc_environment_p_type,&
@@ -142,19 +140,20 @@ CONTAINS
                                                 com_ene,com_crd,com_mol
     LOGICAL                               :: PM0, PM1, PM2, PM3, PM4, &
                                               should_stop,ionode,&
-                                              lstop,ldum,&
+                                              lstop,&
                                               loverlap,lbias,lnew_bias_env,&
                                               lreject,ldiscrete
     REAL(KIND=dp), DIMENSION(1:3,1:nboxes)    :: abc
     REAL(KIND=dp)                    ::  rand,pmtraion,&
                                          pmvolume,test_energy,&
-                                         pmtrans,cutoff,rdum,inner_cutoff,&
+                                         pmtrans,cutoff,inner_cutoff,&
                                          pmswap,discrete_step
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :, :)                     :: particle_positions,r_old
     REAL(KIND=dp), DIMENSION(1:nboxes)       :: bias_energy,&
                                               energy_check,final_energy,&
                                               initial_energy,old_energy
+    REAL(dp),DIMENSION(1:3,1:2)              :: conf_prob
     TYPE(cell_p_type),POINTER,DIMENSION(:) &
                                              :: cell
     TYPE(cp_subsystem_pp_type), &
@@ -227,7 +226,8 @@ CONTAINS
          pmtraion=pmtraion,pmtrans=pmtrans,iuptrans=iuptrans,&
          iupvolume=iupvolume,cutoff=cutoff,ldiscrete=ldiscrete,&
          inner_cutoff=inner_cutoff,lbias=lbias,iprint=iprint,&
-         discrete_step=discrete_step,fft_lib=fft_lib)
+         discrete_step=discrete_step,fft_lib=fft_lib,&
+         conf_prob=conf_prob(:,1))
 
       IF(nboxes .GT. 1) THEN
          DO ibox=2,nboxes
@@ -237,7 +237,7 @@ CONTAINS
             cell_file=cell_file(ibox),coords_file=coords_file(ibox),&
             energy_file=energy_file(ibox),&
             displacement_file=displacement_file(ibox),&
-            molecules_file=molecules_file(ibox))
+            molecules_file=molecules_file(ibox),conf_prob=conf_prob(:,2))
          ENDDO
       ENDIF
 
@@ -314,9 +314,12 @@ CONTAINS
             bias_energy(ibox)=moves(ibox)%moves%bias_energy
          ENDIF
          lnew_bias_env=.FALSE.
-         CALL mc_classical_energy(force_env(ibox)%force_env,rdum,&
-         nchain(ibox),1,nchain(ibox),cutoff,ldum)
-         IF(ldum) CALL stop_program(routineN,module_name,__LINE__,&
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+!         CALL mc_classical_energy(force_env(ibox)%force_env,rdum,&
+!         nchain(ibox),1,nchain(ibox),cutoff,loverlap)
+         CALL check_for_overlap(force_env(ibox)%force_env,nchain(ibox),1,&
+            nchain(ibox),loverlap)
+         IF(loverlap) CALL stop_program(routineN,module_name,__LINE__,&
             "overlap in an initial configuration")
 
 ! get the subsystems and the cell information
@@ -521,17 +524,23 @@ CONTAINS
                         CALL RANDOM_NUMBER(rand)
 
 ! used for keeping track of counters for lbias=.false. simulations
-                        IF (rand .LT. 0.66666667E0_dp) THEN
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! debugging
+!                        IF (rand .LT. conf_prob(1,ibox)) THEN
+                        IF (rand .LT. 37.0d0) THEN
                            move_type='bond'
-                        ELSE
+                        ELSEIF(rand .LT. conf_prob(2,ibox)) THEN
                            move_type='angle'
+                        ELSE
+                           move_type='dihedral'
+                  CALL stop_program(routineN,module_name,__LINE__,&
+                  'dihedral move not in yet')
                         ENDIF
                         box_flag(box_number)=1
                         CALL mc_atom_translation(mc_par(box_number)%mc_par,&
                            force_env(box_number)%force_env,&
                            bias_env(box_number)%force_env,&
                            moves(box_number)%moves,&
-                           move_updates(box_number)%moves,nnstep,&
+                           move_updates(box_number)%moves,&
                            mol,bias_energy(box_number),&
                            move_type,lreject,error=error)
                         IF(lreject) EXIT
@@ -546,7 +555,7 @@ CONTAINS
                         force_env(box_number)%force_env,&
                         bias_env(box_number)%force_env,&
                         moves(box_number)%moves,&
-                        move_updates(box_number)%moves,nnstep,mol,&
+                        move_updates(box_number)%moves,mol,&
                         bias_energy(box_number),lreject,error=error)
                      IF(lreject) EXIT
                   ELSE
@@ -559,7 +568,7 @@ CONTAINS
                         force_env(box_number)%force_env,&
                         bias_env(box_number)%force_env,&
                         moves(box_number)%moves,&
-                        move_updates(box_number)%moves,nnstep,&
+                        move_updates(box_number)%moves,&
                         mol,bias_energy(box_number),&
                         lreject,error=error)
                      IF(lreject) EXIT
@@ -711,8 +720,11 @@ CONTAINS
 ! check to see if there are any overlaps in the boxe
          DO ibox=1,nboxes
             IF(nchain(ibox) .NE. 0) THEN
-               CALL mc_classical_energy(force_env(ibox)%force_env,&
-                  rdum,nchain(ibox),1,nchain(ibox),cutoff,loverlap)
+               CALL check_for_overlap(force_env(ibox)%force_env,&
+                  nchain(ibox),1,nchain(ibox),loverlap)
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+!               CALL mc_classical_energy(force_env(ibox)%force_env,&
+!                  rdum,nchain(ibox),1,nchain(ibox),cutoff,loverlap)
                IF(loverlap) THEN
                   IF(ionode) WRITE(iw,*) nnstep
                   CALL stop_program(routineN,module_name,__LINE__,&
@@ -800,8 +812,7 @@ CONTAINS
             CALL final_mc_write(mc_par(ibox)%mc_par,moves(ibox)%moves,&
                iw,energy_check(ibox),&
                initial_energy(ibox),final_energy(ibox),&
-               averages(ibox)%averages,&
-               move_updates(ibox)%moves)
+               averages(ibox)%averages)
             
 ! close any open files
             CALL close_file(unit_number=diff(ibox))

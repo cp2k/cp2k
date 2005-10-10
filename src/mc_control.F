@@ -18,7 +18,6 @@
 !!   SOURCE
 !******************************************************************************
 
-
 MODULE mc_control
   USE cp_files,                        ONLY: open_file,&
                                              close_file
@@ -33,9 +32,7 @@ MODULE mc_control
                                              force_env_release
   USE global_types,                    ONLY: global_environment_type
   USE kinds,                           ONLY: dp,&
-                                             dp_size,&
-                                             default_string_length
-  USE mathconstants,                   ONLY: pi
+                                             dp_size
   USE mc_misc,                         ONLY: mc_make_dat_file
   USE mc_types,                        ONLY: mc_simulation_parameters_type,&
                                              get_mc_par,&
@@ -45,16 +42,16 @@ MODULE mc_control
                                              molecule_kind_type,&
                                              atom_type
   USE particle_list_types,             ONLY: particle_list_type
-  USE physcon,                         ONLY: angstrom,&
-                                             boltzmann,&
-                                             joule
+  USE physcon,                         ONLY: angstrom
   USE qs_main,                         ONLY: quickstep_create_force_env
   USE simulation_cell,                 ONLY: cell_type,&
                                              get_cell
   USE termination,                     ONLY: stop_memory
   USE timings,                         ONLY: timeset,&
                                              timestop
+
 #include "cp_common_uses.h"
+
   IMPLICIT NONE
 
   PRIVATE 
@@ -197,7 +194,7 @@ SUBROUTINE read_mc_restart ( mc_par, force_env ,iw )
     INTEGER                                  :: handle, ipart, istat, &
                                                 nunits_tot, unit,mc_nunits,&
                                                 mc_nunits_tot,mc_nchain,&
-                                                nstart,i
+                                                nstart,i,iunit
     REAL(KIND=dp)                            :: temp,mc_temp,rand
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :)                        :: r
@@ -282,17 +279,17 @@ SUBROUTINE read_mc_restart ( mc_par, force_env ,iw )
 ! allocate the array holding the coordiantes, and read in the coordiantes,
 ! and write the dat file so we can make a new force_env
       IF(nunits_tot == 0) THEN
-         ALLOCATE (r(3,3),STAT=istat)
+         ALLOCATE (r(3,mc_nunits),STAT=istat)
          IF (istat /= 0) CALL stop_memory(routineN,module_name,__LINE__,&
-            "r",3*3*dp_size)
-         r(1:3,1) = (/ 1.088738E0_dp, 1.8323472E0_dp,2.0179184E0_dp /)
-         r(1:3,2) = (/ 0.337575E0_dp, 3.0485244E0_dp, 0.80660535E0_dp /)
-         r(1:3,3) = (/ 0.8812212E0_dp, 2.615469E0_dp, 3.707380E0_dp /)
+            "r",3*mc_nunits*dp_size)
+         DO iunit=1,mc_nunits
+            r(1:3,iunit) = (/ REAL(iunit,dp), REAL(iunit,dp),REAL(iunit,dp) /)
+         ENDDO
 
          CALL close_file(unit_number=unit)
 
          IF(ionode) &
-            CALL mc_make_dat_file(r(:,:),3,box_length(:),dat_file,&
+            CALL mc_make_dat_file(r(:,:),mc_nunits,box_length(:),dat_file,&
                force_env,TRIM(fft_lib))
 
       ELSE
@@ -336,7 +333,7 @@ END SUBROUTINE read_mc_restart
 !!
 !!   FUNCTION
 !!     creates a force environment for any of the different kinds of
-!!     simulation
+!!     MC simulations we can do (FIST, QS, KG)
 !!
 !!   ARGUMENTS
 !!     - force_env: the force environment to create
@@ -376,19 +373,22 @@ SUBROUTINE mc_create_force_env ( force_env, globenv, box_change, in_use, &
 END SUBROUTINE mc_create_force_env
 
 ! *****************************************************************************
-!!****s* mc_control.F/mc_create_force_env
+!!****s* mc_control.F/mc_create_bias_force_env
 !!
 !!   NAME
-!!     mc_create_force_env
+!!     mc_create_bias_force_env
 !!
 !!   FUNCTION
-!!     creates a force environment for any of the different kinds of
-!!     simulation
+!!     essentially copies the cell size and coordinates of one force env
+!!     to another that we will use to bias some moves with
 !!
 !!   ARGUMENTS
-!!     - force_env: the force environment to create
+!!     - bias_env: the force environment to create
+!!     - force_env: the force environment we're copying cell length
+!!           and coordinates from
 !!     - globenv: the global environment parameters
 !!     - box_change: is this a volume or swap move?
+!!     - fft_lib: the FFT library we're using (e.g. FFTW, FFTSG)
 !!     - error: the CP error structure
 !!   AUTHOR
 !!     MJM
@@ -413,7 +413,6 @@ SUBROUTINE mc_create_bias_force_env (bias_env,force_env,&
       CHARACTER(LEN=*), PARAMETER    &
          :: routineN = "mc_create_force_env",&
             routineP = module_name//':'//routineN
-      LOGICAL :: failure
       INTEGER                                  :: nunits_tot,iparticle,&
                 istat
       REAL(KIND=dp), DIMENSION(1:3)        :: abc
@@ -421,17 +420,19 @@ SUBROUTINE mc_create_bias_force_env (bias_env,force_env,&
 !-----------------------------------------------------------------------------
       NULLIFY(cell,subsys)
 
+! create the bias_env from the template file
       globenv%input_file_name='bias_template.inp'
-!!!!!!!!!!!!!!!!!!!!!! change to be all bias types
       CALL mc_create_force_env(bias_env, globenv, box_change, &
          use_fist_force,error=error)
 
+! grab the coordinates and cell parameters of the old environment
       CALL force_env_get(force_env,subsys=subsys,cell=cell,&
          error=error)
       CALL get_cell(cell,abc=abc)
       CALL cp_subsys_get(subsys(1)%subsys, &
          particles=particles, error=error)
 
+!  copy the data we need and make a new force_environment
       nunits_tot=SIZE(particles%els(:))
       ALLOCATE (r(3,nunits_tot),STAT=istat)
       IF (istat /= 0) CALL stop_memory(routineN,module_name,__LINE__,&

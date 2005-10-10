@@ -35,6 +35,8 @@ MODULE mc_types
                                              do_kg
   USE kinds,                           ONLY: dp
   USE mathconstants,                   ONLY: pi
+  USE molecule_kind_types,             ONLY: get_molecule_kind,&
+                                             molecule_kind_type
   USE pair_potential_types,            ONLY: pair_potential_type
   USE parser,                          ONLY: get_next,&
                                              p_error,&
@@ -66,7 +68,7 @@ MODULE mc_types
             mc_averages_type,mc_averages_p_type,&
             mc_moves_type, mc_moves_p_type,accattempt,&
             get_mc_par,set_mc_par,read_mc_section,&
-            find_mc_rcut
+            find_mc_rcut,determine_conf_prob
 
 
   TYPE mc_simulation_parameters_type
@@ -122,6 +124,7 @@ MODULE mc_types
       REAL ( dp ) :: rcut
       REAL ( dp ) :: cutoff
       REAL ( dp ) :: inner_cutoff
+      REAL ( dp ),DIMENSION(1:3) :: conf_prob
   END TYPE mc_simulation_parameters_type
 
   TYPE mc_simulation_parameters_p_type
@@ -177,7 +180,8 @@ CONTAINS
        rmrot,rmtrans,temp,pressure,BETA,pmswap,pmvolume,pmtraion,pmtrans,&
        ensemble,program,restart_file,molecules_file,moves_file,coords_file,&
        energy_file,displacement_file,cell_file,dat_file,data_file,box2_file,&
-       cutoff,inner_cutoff,fft_lib,iprint,rcut,ldiscrete,discrete_step)
+       cutoff,inner_cutoff,fft_lib,iprint,rcut,ldiscrete,discrete_step,&
+       conf_prob)
 
 ! *****************************************************************************
 !!****s* mc_types.F/get_mc_par
@@ -207,6 +211,8 @@ CONTAINS
     REAL(KIND=dp),INTENT(OUT),OPTIONAL   :: rmvolume,rmbond,rmangle,rmrot,&
       rmtrans,temp,pressure,BETA,pmswap,pmvolume,pmtraion,pmtrans,cutoff,&
       inner_cutoff,rcut,discrete_step
+
+    REAL(KIND=dp),DIMENSION(1:3),INTENT(OUT),OPTIONAL   :: conf_prob
 
     CHARACTER(LEN=*),INTENT(OUT),OPTIONAL :: ensemble,program,restart_file,&
        molecules_file,moves_file,coords_file,&
@@ -240,6 +246,8 @@ CONTAINS
     IF ( PRESENT ( lrestart ) ) lrestart = mc_par % lrestart
     IF ( PRESENT ( lstop ) ) lstop = mc_par % lstop
     IF ( PRESENT ( ldiscrete ) ) ldiscrete = mc_par % ldiscrete
+
+    IF ( PRESENT ( conf_prob ) ) conf_prob(:) = mc_par % conf_prob(:)
 
     IF ( PRESENT ( rcut ) ) rcut = mc_par % rcut
     IF ( PRESENT ( cutoff ) ) cutoff = mc_par % cutoff
@@ -277,7 +285,7 @@ CONTAINS
 
  SUBROUTINE set_mc_par ( mc_par, nchain,nunits,nunits_tot,rm,cl,&
       diff,nstart,rmvolume,rmbond,rmangle,rmrot,rmtrans,program,&
-      iupvolume,iuptrans,nmoves,nswapmoves,lstop,temp,pressure,&
+      nmoves,nswapmoves,lstop,temp,pressure,iuptrans,iupvolume,&
       pmswap,pmvolume,pmtraion,pmtrans,BETA,rcut,iprint,lbias,nstep,&
       lrestart,ldiscrete,discrete_step)
 
@@ -300,7 +308,7 @@ CONTAINS
 
     TYPE(mc_simulation_parameters_type), POINTER       :: mc_par
     INTEGER,INTENT(IN),OPTIONAL :: nchain,nunits,nmoves,nswapmoves,&
-      nunits_tot,rm,cl,diff,nstart,iuptrans,iupvolume,iprint,nstep
+      nunits_tot,rm,cl,diff,nstart,iprint,nstep,iuptrans,iupvolume
 
     REAL(KIND=dp),INTENT(IN),OPTIONAL   :: rmvolume,rmbond,&
       rmangle,rmrot,rmtrans,BETA,rcut,temp,pressure,pmswap,pmtrans,&
@@ -329,6 +337,8 @@ CONTAINS
     IF ( PRESENT ( nmoves ) ) mc_par % nmoves = nmoves
     IF ( PRESENT ( nswapmoves ) ) mc_par % nswapmoves = nswapmoves
     IF ( PRESENT ( iprint ) ) mc_par % iprint = iprint
+    IF ( PRESENT ( iuptrans ) ) mc_par % iuptrans = iuptrans
+    IF ( PRESENT ( iupvolume ) ) mc_par % iupvolume = iupvolume
 
     IF ( PRESENT ( ldiscrete ) ) mc_par % ldiscrete = ldiscrete
     IF ( PRESENT ( lstop ) ) mc_par % lstop = lstop
@@ -406,6 +416,9 @@ CONTAINS
 !!                                        potential
 !!I inner_cutoff:                         a smaller cutoff for the classical 
 !!                                        potential
+!!I conf_prob:                            holds the probabilities of doing a
+!!                                        bond langth change (1), 
+!!                                  angle change (2), or dihedral change(3)
 !!I pmswap:                               probability of doing a swap move
 !!I pmvolume:                             probability of doing a volume move
 !!I pmtraion:                             probability of doing a conformational
@@ -739,6 +752,8 @@ END SUBROUTINE read_mc_section
 !!     - mc_par: the structure that will store the parameters
 !!     - force_env: the force environment that we'll grab the rcut parameter
 !!                  out of
+!!     - lterminate: set to .TRUE. if one of the sides of the box is
+!!           less than twice the cutoff
 !!
 !!   AUTHOR
 !!     MJM
@@ -773,7 +788,7 @@ SUBROUTINE find_mc_rcut ( mc_par, force_env, lterminate )
       lterminate=.FALSE.
       CALL force_env_get(force_env,fist_env=fist_env)
       CALL get_fist_env(fist_env,cell=cell,&
-      fist_nonbond_env=fist_nonbond_env,error=error)
+         fist_nonbond_env=fist_nonbond_env,error=error)
       CALL fist_nonbond_env_get (fist_nonbond_env, potparm=potparm)
       CALL get_cell(cell,abc=abc)
       
@@ -796,6 +811,53 @@ SUBROUTINE find_mc_rcut ( mc_par, force_env, lterminate )
       ENDDO
 
 END SUBROUTINE find_mc_rcut
+
+!******************************************************************************
+!!****** mc/determine_conf_prob [1.0] *
+!!
+!!   NAME
+!!     determine_conf_prob
+!!
+!!   FUNCTION
+!!     determines the probabilities of doing interal conformational moves in the
+!!     system, based on how many of each type there are...the result is stored
+!!     in mc_par % conf_prob
+!!
+!!   ARGUMENTS
+!!     - mc_par: the structure that will store the parameters
+!!     - molecule_kind: the pointer to the molecule kind we're looking at
+!!
+!!   AUTHOR
+!!     MJM
+!!
+!!   NOTES
+!!*****************************************************************************
+
+SUBROUTINE determine_conf_prob ( mc_par, molecule_kind)
+
+
+    TYPE(mc_simulation_parameters_type), &
+      INTENT(INOUT)                            :: mc_par
+    TYPE(molecule_kind_type), POINTER        :: molecule_kind
+
+    CHARACTER(LEN=*), PARAMETER      &
+      :: routineN = "determine_conf_prob"
+
+    INTEGER :: nbond,nbend,ntorsion,total
+
+!------------------------------------------------------------------------------
+
+
+      CALL get_molecule_kind(molecule_kind,nbond=nbond,nbend=nbend,&
+         ntorsion=ntorsion)
+
+      total=nbond+nbend+ntorsion
+
+      mc_par % conf_prob(1)=REAL(nbond,dp)/REAL(total,dp)
+      mc_par % conf_prob(2)=REAL(nbend,dp)/REAL(total,dp)
+      mc_par % conf_prob(3)=REAL(ntorsion,dp)/REAL(total,dp)
+
+END SUBROUTINE determine_conf_prob
 
 END MODULE mc_types
 
