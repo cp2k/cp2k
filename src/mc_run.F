@@ -2,7 +2,6 @@
 !   CP2K: A general program to perform molecular dynamics simulations         !
 !   Copyright (C) 2000  CP2K developers group                                 !
 !-----------------------------------------------------------------------------!
-#include "cp_prep_globals.h"
 !!****** cp2k/mc_run [1.0] *
 !!
 !!   NAME
@@ -21,9 +20,6 @@
 
 MODULE mc_run
   USE cp2k_units,                      ONLY: init_cp2k_units
-  USE cp_error_handling,               ONLY: cp_a_l,&
-                                             cp_error_type
-  USE cp_log_handling,                 ONLY: cp_warning_level
   USE cp_subsystem_types,              ONLY: cp_subsys_get,&
                                              cp_subsystem_p_type
   USE force_env_types,                 ONLY: force_env_get,&
@@ -51,6 +47,7 @@ MODULE mc_run
   USE physcon,                         ONLY: angstrom
   USE termination,                     ONLY: stop_memory,&
                                              stop_program
+#include "cp_common_uses.h"
 
   IMPLICIT NONE
 
