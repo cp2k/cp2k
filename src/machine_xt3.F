@@ -2,10 +2,10 @@
 !   CP2K: A general program to perform molecular dynamics simulations         !
 !   Copyright (C) 2000  CP2K developers group                                 !
 !-----------------------------------------------------------------------------!
-!!****** cp2k/machine_pgi [1.0] *
+!!****** cp2k/machine_xt3 [1.0] *
 !!
 !!   NAME
-!!     machine_pgi
+!!     machine_xt3
 !!
 !!   FUNCTION
 !!
@@ -20,7 +20,7 @@
 !!*****
 !******************************************************************************
 
-MODULE machine_pgi
+MODULE machine_xt3
 
   USE kinds,                           ONLY: dp,&
                                              sp
@@ -73,15 +73,15 @@ END FUNCTION m_iargc
 !!  cpu time in seconds
 FUNCTION m_cputime() RESULT (ct)
   REAL(KIND=dp) :: ct
-  REAL(dp)      :: mpi_wtime
-  ct = mpi_wtime()
+  REAL(dp)      :: dclock
+  ct = dclock()
 END FUNCTION m_cputime
 !******************************************************************************
 !!  wall clock time in seconds
 FUNCTION m_walltime() RESULT (wt)
   REAL(KIND=dp) :: wt
-  REAL(KIND=dp) :: mpi_wtime
-  wt = mpi_wtime()
+  REAL(KIND=dp) :: dclock
+  wt = dclock()
 END FUNCTION m_walltime
 !******************************************************************************
 !!  time and date
@@ -195,4 +195,4 @@ SUBROUTINE m_getarg(i,arg)
   CALL getarg(i,arg)
 END SUBROUTINE m_getarg
 !******************************************************************************
-END MODULE machine_pgi
+END MODULE machine_xt3
