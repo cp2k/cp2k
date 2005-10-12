@@ -65,8 +65,9 @@ MODULE qs_wf_history_types
        wfi_ps_method_nr=7, wfi_frozen_method_nr=8, wfi_aspc=9
 
   PUBLIC :: qs_wf_snapshot_type, qs_wf_snapshot_p_type, &
-       qs_wf_history_type
-  PUBLIC :: wfs_retain, wfs_release, wfi_retain, wfi_release, wfi_get_snapshot
+            qs_wf_history_type
+  PUBLIC :: wfs_retain, wfs_release, wfi_retain, wfi_release, wfi_get_snapshot, &
+            wfi_clear_history
 !!***
 !****************************************************************************
 
@@ -295,6 +296,8 @@ SUBROUTINE wfs_release(snapshot,error)
         IF (ASSOCIATED(snapshot%wf_mol)) THEN
            CALL kg_fm_mol_set_release(snapshot%wf_mol,error)
         END IF
+        ! snapshot%rho_r & snapshot%rho_g is deallocated in wfs_update
+        ! of qs_wf_history_methods, in case you wonder about it.
         IF (ASSOCIATED(snapshot%rho_ao)) THEN
            CALL deallocate_matrix_set(snapshot%rho_ao)
         END IF

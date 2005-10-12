@@ -1074,8 +1074,8 @@ END SUBROUTINE pw_pool_init_coeff
 !!*** **********************************************************************
 SUBROUTINE pw_pool_give_back_coeff(pool,coeff,accept_non_compatible,error)
     TYPE(pw_pool_type), POINTER              :: pool
-    TYPE(coeff_type), INTENT(INOUT)  :: coeff
-    LOGICAL, INTENT(in), OPTIONAL :: accept_non_compatible
+    TYPE(coeff_type), INTENT(INOUT)          :: coeff
+    LOGICAL, INTENT(in), OPTIONAL            :: accept_non_compatible
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 

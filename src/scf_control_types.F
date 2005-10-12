@@ -107,7 +107,7 @@ MODULE scf_control_types
 !!
 !!   ATTRIBUTES
 !!     - density_guess: how to choose the initial density
-!!       (CORE,RANDOM,RESTART,ATOMIC)
+!!       (CORE,RANDOM,RESTART,ATOMIC,FROZEN)
 !!     - eps_eigval: wanted error on the eigenvalues
 !!     - eps_scf: whanted error on the whole scf
 !!     - level_shift: amount of level shift
@@ -223,7 +223,7 @@ SUBROUTINE init_keywords()
                                         "Fraction of new density matrix to be mixed in",&
                                         "DENSITY_MIXING","","")
   keywords(key_GUESS)=     keyword_type("GUESS", &
-                                        "GUESS {ATOMIC|RESTART|RANDOM}",&
+                                        "GUESS {ATOMIC|RESTART|RANDOM|FROZEN}",&
                                         "Change the initial guess for the wavefunction",&
                                         "SCF_GUESS","","DENSITY_GUESS")
   keywords(key_OT)=        keyword_type("OT", &

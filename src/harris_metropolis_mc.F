@@ -103,6 +103,10 @@ MODULE harris_metropolis_mc
                                              delete_rng_stream
   USE particle_list_types,             ONLY: particle_list_type
   USE physcon,                         ONLY: boltzmann
+  USE qs_wf_history_methods,           ONLY: wfi_duplicate_history, &
+                                             wfi_copy_history
+  USE qs_wf_history_types,             ONLY: qs_wf_history_type, &
+                                             wfi_release
   USE simulation_cell,                 ONLY: cell_type
   USE termination,                     ONLY: stop_memory, &
                                              external_control
@@ -180,7 +184,7 @@ CONTAINS
     CALL harris_mc_md(force_env_p, globenv, total_energy=.TRUE., &
                       external_temp=.TRUE., qs_accept=.TRUE., &
                       random_velocities=.TRUE., velocity_scaling=.FALSE., &
-                      error=error)
+                      qs_start = .TRUE., error=error)
 
   END SUBROUTINE harris_mc_ld
 !***************************************************************************
@@ -227,16 +231,18 @@ CONTAINS
 !!
 !!*** **********************************************************************
   SUBROUTINE harris_mc_md(force_env_p, globenv, total_energy, external_temp, &
-                          qs_accept, random_velocities, velocity_scaling, error)
+                          qs_accept, random_velocities, velocity_scaling, &
+                          qs_start, error)
 
     TYPE(force_env_p_type), DIMENSION(:), &
       POINTER                                :: force_env_p
     TYPE(global_environment_type), POINTER   :: globenv
-    LOGICAL, OPTIONAL                        :: total_energy, &
+    LOGICAL, INTENT(IN), OPTIONAL            :: total_energy, &
                                                 external_temp, &
                                                 qs_accept, &
                                                 random_velocities, &
-                                                velocity_scaling
+                                                velocity_scaling, &
+                                                qs_start
     TYPE(cp_error_type), INTENT(INOUT), &
       OPTIONAL                               :: error
 
@@ -270,7 +276,8 @@ CONTAINS
                                                 qs_ener, &
                                                 use_harris_tmp, &
                                                 rand_vel, &
-                                                vel_scaling
+                                                vel_scaling, &
+                                                start_qs
     REAL(KIND=dp)                            :: md_run_start_time, &
                                                 time_iter_start, &
                                                 time_iter_stop, &
@@ -318,6 +325,7 @@ CONTAINS
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
     INTEGER, DIMENSION(:), POINTER           :: atom_list
     TYPE(unit_convert_type), POINTER         :: unit
+    TYPE(qs_wf_history_type), POINTER        :: tmp_wf_history
 
 !   ------------------------------------------------------------------------
 
@@ -358,6 +366,12 @@ CONTAINS
       vel_scaling = .FALSE.
     END IF
 
+    IF (PRESENT(qs_start)) THEN
+      start_qs = qs_start
+    ELSE
+      start_qs = .TRUE.
+    END IF
+
     failure=.FALSE.
     accepted = .TRUE.
     accept = 0
@@ -366,7 +380,7 @@ CONTAINS
     NULLIFY(logger, simpar, mdio, subsys, dyn_coeff_set, md_env, nhc_baro, &
             nhc_part, molecule_kinds_new, molecules_new, local_molecules, &
             particles, itimes, used_time, rng_stream, local_particles, atomic_kind, &
-            atomic_kinds, atom_list)
+            atomic_kinds, atom_list, unit, tmp_wf_history)
     logger => cp_error_get_logger(error)
 
     CPPrecondition(ASSOCIATED(globenv), cp_failure_level, routineP, error, failure)
@@ -516,22 +530,22 @@ CONTAINS
                     used_time = used_time)
 
     DO ibead = 1,nbeads
-      !IF (qs_ener .AND. (globenv%prog_name_id == do_qs)) THEN
-      !  use_harris_tmp = force_env_p(1)%force_env%qs_env%use_harris
-      !  max_scf_tmp = force_env_p(1)%force_env%qs_env%scf_control%max_scf
-      !  force_env_p(1)%force_env%qs_env%use_harris = .FALSE.
-      !  force_env_p(1)%force_env%qs_env%scf_control%max_scf = 100
-      !  CALL force_env_calc_energy_force(force_env=force_env_p(1)%force_env, &
-      !                                   calc_force=.FALSE., error=error)
-      !  force_env_p(1)%force_env%qs_env%use_harris = use_harris_tmp
-      !  force_env_p(1)%force_env%qs_env%scf_control%max_scf = max_scf_tmp
-      !ELSE
-      !  CALL force_env_calc_energy_force(force_env=force_env_p(1)%force_env, &
-      !                                   calc_force=.FALSE., error=error)
-      !END IF
+      IF (start_qs .AND. (globenv%prog_name_id == do_qs)) THEN
+        use_harris_tmp = force_env_p(1)%force_env%qs_env%use_harris
+        max_scf_tmp = force_env_p(1)%force_env%qs_env%scf_control%max_scf
+        force_env_p(1)%force_env%qs_env%use_harris = .FALSE.
+        force_env_p(1)%force_env%qs_env%scf_control%max_scf = 100
+        CALL force_env_calc_energy_force(force_env=force_env_p(1)%force_env, &
+                                         calc_force=.FALSE., error=error)
+        force_env_p(1)%force_env%qs_env%use_harris = use_harris_tmp
+        force_env_p(1)%force_env%qs_env%scf_control%max_scf = max_scf_tmp
+      ELSE
+        CALL force_env_calc_energy_force(force_env=force_env_p(1)%force_env, &
+                                         calc_force=.FALSE., error=error)
+      END IF
 
-       CALL force_env_calc_energy_force(force_env_p(ibead)%force_env, &
-                                        calc_force=.TRUE.)
+      ! CALL force_env_calc_energy_force(force_env_p(ibead)%force_env, &
+      !                                  calc_force=.TRUE.)
     END DO
     !IF (globenv%prog_name_id == do_kg) THEN
     !  Epot = force_env_p(1)%force_env%kg_env%energy%total
@@ -573,6 +587,12 @@ CONTAINS
 !        CALL dump_variables(md_env, mdio%dump_file_name, error)
 !      END IF
 !    !END IF
+
+    ! Save the wavefunction history to be able to restore it in case the 
+    ! first MD approach is rejected
+    CALL wfi_duplicate_history(input_wf_history=force_env_p(1)%force_env%qs_env%wf_history, &
+                               output_wf_history=tmp_wf_history, &
+                               qs_env=force_env_p(1)%force_env%qs_env, error=error)
 
     DO isubsys = 1,SIZE(subsys)
       !CALL cp_subsys_get(subsys=subsys(isubsys)%subsys, &
@@ -872,14 +892,24 @@ CONTAINS
         !CALL cp_iterate(logger%iter_info, last=(istep>=simpar%nsteps), &
         !                iter_nr=itimes, error=error)
 
-        IF (MODULO(itimes, mdio%idump) == 0) THEN
+        CALL wfi_copy_history(input_wf_history=force_env_p(1)%force_env%qs_env%wf_history, &
+                              output_wf_history=tmp_wf_history, &
+                              qs_env=force_env_p(1)%force_env%qs_env, error=error)
+
+        !IF (MODULO(itimes, mdio%idump) == 0) THEN
           IF (simpar%ensemble == langevin_ensemble) THEN
             CALL write_md_restart_file(md_env, error=error)
           ELSE
             CALL dump_variables(md_env, mdio%dump_file_name, error)
           END IF
-        END IF
+        !END IF
       ELSE
+        ! Restore the state of the wavefunction history as it was before the unsuccessful MD approach
+        CALL wfi_copy_history(input_wf_history=tmp_wf_history, &
+                              output_wf_history=force_env_p(1)%force_env%qs_env%wf_history, &
+                              qs_env=force_env_p(1)%force_env%qs_env, error=error)
+
+
         ! If not accepted, set back velocities and positions
          DO isubsys = 1,SIZE(subsys)
            DO iparticles = 1, particles%n_els
@@ -888,18 +918,16 @@ CONTAINS
            END DO
          END DO
 
-        IF (MODULO(itimes,mdio%idump) == 0) THEN
-          IF (simpar%ensemble == langevin_ensemble) THEN
-            CALL write_md_restart_file(md_env, error=error)
-          ELSE
-            CALL dump_variables(md_env, mdio%dump_file_name, error)
-          END IF
-        END IF
+        !IF (MODULO(itimes,mdio%idump) == 0) THEN
+        !  IF (simpar%ensemble == langevin_ensemble) THEN
+        !    CALL write_md_restart_file(md_env, error=error)
+        !  ELSE
+        !    CALL dump_variables(md_env, mdio%dump_file_name, error)
+        !  END IF
+        !END IF
 
-        !itimes = istep
         itimes = itimes - simpar%ld_steps
-        !istep = istep - simpar%ld_steps
-
+        
         CALL cp_iterate(logger%iter_info, last=.FALSE., &
                         iter_nr=itimes, error=error)
       END IF
@@ -940,6 +968,8 @@ CONTAINS
     CPPostcondition(istat==0, cp_failure_level, routineP, error, failure)
 
     CALL delete_rng_stream(rng_stream=rng_stream, error=error)
+
+    CALL wfi_release(wf_history=tmp_wf_history, error=error)
     
     CALL timestop(0.0_dp, handle)
 
@@ -1026,6 +1056,14 @@ CONTAINS
       used_time = time_iter_stop - time_iter_start
       time_iter_start = time_iter_stop
       CALL md_energy(md_env, globenv, error)
+
+      !IF (MODULO(itimes, mdio%idump) == 0) THEN
+      !  IF (simpar%ensemble == langevin_ensemble) THEN
+      !    CALL write_md_restart_file(md_env, error=error)
+      !  ELSE
+      !    CALL dump_variables(md_env, mdio%dump_file_name, error)
+      !  END IF
+      !END IF
 
       CALL external_control(should_stop,"HMC",error=error)
       IF (should_stop) EXIT

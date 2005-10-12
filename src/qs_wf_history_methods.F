@@ -52,7 +52,8 @@ MODULE qs_wf_history_methods
                                              cp_fm_get_info,&
                                              cp_fm_release,&
                                              cp_fm_to_fm,&
-                                             cp_fm_type
+                                             cp_fm_type, &
+                                             cp_fm_to_fm
   USE cp_log_handling,                 ONLY: cp_failure_level,&
                                              cp_fatal_level,&
                                              cp_note_level,&
@@ -66,7 +67,8 @@ MODULE qs_wf_history_methods
   USE kg_gpw_fm_mol_types,             ONLY: kg_fm_mol_set_create,&
                                              kg_fm_mol_set_release,&
                                              kg_fm_mol_set_type,&
-                                             kg_gpw_fm_mol_to_fm_mol
+                                             kg_gpw_fm_mol_to_fm_mol, &
+                                             duplicate_kg_fm_p_type
   USE kg_gpw_wf_history,               ONLY: kg_gpw_fm_mol_linear,&
                                              kg_gpw_fm_mol_ps,&
                                              kg_gpw_prev_wf
@@ -93,9 +95,12 @@ MODULE qs_wf_history_methods
   USE qs_mo_types,                     ONLY: get_mo_set,&
                                              mo_set_p_type
   USE qs_rho_atom_methods,             ONLY: calculate_rho_atom_coeff
-  USE qs_rho_methods,                  ONLY: qs_rho_update_rho
+  USE qs_rho_methods,                  ONLY: qs_rho_update_rho, &
+                                             duplicate_rho_type, &
+                                             copy_rho_type
   USE qs_rho_types,                    ONLY: qs_rho_get,&
-                                             qs_rho_type
+                                             qs_rho_type, &
+                                             qs_rho_release
   USE qs_wf_history_types,             ONLY: qs_wf_history_type,&
                                              qs_wf_snapshot_type,&
                                              wfi_get_snapshot,&
@@ -108,13 +113,17 @@ MODULE qs_wf_history_methods
                                              wfi_use_prev_rho_r_method_nr,&
                                              wfi_use_prev_wf_method_nr,&
                                              wfi_frozen_method_nr,&
-                                             wfi_aspc
+                                             wfi_aspc, &
+                                             wfi_clear_history, &
+                                             wfs_release
   USE sparse_matrix_types,             ONLY: copy_matrix,&
                                              cp_sm_scale_and_add,&
                                              deallocate_matrix,&
                                              deallocate_matrix_set,&
                                              real_matrix_p_type,&
-                                             transfer_matrix
+                                             transfer_matrix, &
+                                             replicate_matrix, &
+                                             allocate_matrix_set
   USE timings,                         ONLY: timeset,&
                                              timestop
 
@@ -126,7 +135,9 @@ MODULE qs_wf_history_methods
   INTEGER, SAVE, PRIVATE :: last_wfs_id=0, last_wfi_id=0
 
   PUBLIC :: wfs_create, wfi_create, wfi_update, &
-       wfi_extrapolate, wfi_get_method_label
+            wfi_extrapolate, wfi_get_method_label, &
+            wfi_duplicate_history, wfi_copy_history, &
+            wfs_duplicate_snapshot, wfs_copy_snapshot
 
 !!***
 !****************************************************************************
@@ -187,6 +198,360 @@ SUBROUTINE wfs_create(snapshot, error)
      snapshot%ref_count=1
   END IF
 END SUBROUTINE wfs_create
+!***************************************************************************
+
+!!****f* qs_wf_history_methods/wfs_duplicate_snapshot [1.0] *
+!!
+!!   NAME
+!!     wfs_duplicate_snapshot
+!!
+!!
+!!   FUNCTION
+!!     duplicates a single qs_wf_snapshot_type
+!!
+!!   NOTES
+!!     -
+!!
+!!   ARGUMENTS
+!!     - input_snapshot: the snapshot to be duplicated
+!!     - output_snapshot: the out coming duplicate
+!!     - error: variable to control error logging, stopping,... 
+!!       see module cp_error_handling 
+!!
+!!   AUTHOR
+!!     Thomas D. Kuehne (tkuehne@phys.chem.ethz.ch)
+!!
+!!   MODIFICATION HISTORY
+!!     10.2005 created [TdK]
+!!
+!!*** **********************************************************************
+  SUBROUTINE wfs_duplicate_snapshot(input_snapshot, output_snapshot, qs_env, error)
+    TYPE(qs_wf_snapshot_type), POINTER       :: input_snapshot, &
+                                                output_snapshot
+    TYPE(qs_environment_type), POINTER       :: qs_env
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'wfs_duplicate_snapshot', &
+      routineP = moduleN//':'//routineN
+
+    LOGICAL                                  :: failure
+    INTEGER                                  :: handle, &
+                                                i, &
+                                                stat, &
+                                                nspins
+    TYPE(pw_pool_type), POINTER              :: auxbas_pw_pool
+    TYPE(pw_env_type), POINTER               :: pw_env
+    TYPE(dft_control_type), POINTER          :: dft_control
+
+!   ------------------------------------------------------------------------
+
+    CALL timeset(routineN, "I", "", handle)
+    failure = .FALSE.
+    
+    NULLIFY(auxbas_pw_pool, pw_env, dft_control)
+
+    CPPrecondition(ASSOCIATED(input_snapshot), cp_failure_level, routineP, error, failure)
+    CPPrecondition(input_snapshot%ref_count>0, cp_failure_level, routineP, error, failure)
+    CPPrecondition(ASSOCIATED(qs_env), cp_failure_level, routineP, error, failure)
+    CPPrecondition(qs_env%ref_count>0, cp_failure_level, routineP, error, failure)
+
+    IF (.NOT. failure) THEN
+      CALL get_qs_env(qs_env=qs_env, pw_env=pw_env, dft_control=dft_control, error=error)
+      CALL pw_env_get(pw_env=pw_env, auxbas_pw_pool=auxbas_pw_pool, error=error)
+
+      nspins = dft_control%nspins
+
+      IF (ASSOCIATED(output_snapshot)) THEN
+        CALL wfs_release(input_snapshot, error=error)
+      ELSE
+        CALL wfs_create(output_snapshot, error=error)
+      END IF
+
+      ! wf
+      IF (ASSOCIATED(input_snapshot%wf)) THEN
+        DO i = 1,SIZE(input_snapshot%wf)
+          CALL cp_fm_create(matrix=output_snapshot%wf(i)%matrix, &
+                            matrix_struct=input_snapshot%wf(i)%matrix%matrix_struct, &
+                            error=error)
+          CALL cp_fm_to_fm(source=input_snapshot%wf(i)%matrix, &
+                           destination=output_snapshot%wf(i)%matrix, &
+                           error=error)
+        END DO
+      END IF
+
+      ! wf_mol
+      IF (ASSOCIATED(input_snapshot%wf_mol)) THEN
+        CALL duplicate_kg_fm_p_type(input_kg_fm_p_type=input_snapshot%wf_mol, &
+                                    output_kg_fm_p_type=output_snapshot%wf_mol, &
+                                    error=error)
+      END IF
+
+      ! rho_r
+      IF (ASSOCIATED(input_snapshot%rho_r)) THEN
+        DO i = 1,SIZE(input_snapshot%rho_r)
+          ALLOCATE(output_snapshot%rho_r(nspins), stat=stat)
+          CPPostcondition(stat==0, cp_failure_level, routineP, error, failure)
+          IF (.NOT. failure) THEN
+            CALL pw_pool_create_pw(auxbas_pw_pool, output_snapshot%rho_r(i)%pw, &
+                                   use_data=REALDATA3D, in_space=REALSPACE, &
+                                   error=error)
+            output_snapshot%rho_r(i)%pw%cr3d(:,:,:) = input_snapshot%rho_r(i)%pw%cr3d(:,:,:)
+            IF (ASSOCIATED(input_snapshot%rho_r(i)%pw%mass_cr)) THEN
+              output_snapshot%rho_r(i)%pw%mass_cr(:) = input_snapshot%rho_r(i)%pw%mass_cr(:)
+            END IF
+          END IF
+        END DO
+      END IF
+
+      ! rho_g
+      IF (ASSOCIATED(input_snapshot%rho_g)) THEN
+        DO i = 1,SIZE(input_snapshot%rho_g)
+          ALLOCATE(output_snapshot%rho_g(nspins), stat=stat)
+          CPPostcondition(stat==0, cp_failure_level, routineP, error, failure)
+          IF (.NOT. failure) THEN
+            CALL pw_pool_create_pw(auxbas_pw_pool, output_snapshot%rho_g(i)%pw, &
+                                   use_data=COMPLEXDATA1D, in_space=RECIPROCALSPACE, &
+                                   error=error)
+            output_snapshot%rho_g(i)%pw%cc(:) = input_snapshot%rho_g(i)%pw%cc(:)
+            IF (ASSOCIATED(input_snapshot%rho_g(i)%pw%mass_cc)) THEN
+              output_snapshot%rho_g(i)%pw%mass_cc(:) = input_snapshot%rho_g(i)%pw%mass_cc(:)
+            END IF
+          END IF
+        END DO
+      END IF
+
+      ! rho_ao
+      IF (ASSOCIATED(input_snapshot%rho_ao)) THEN
+        CALL allocate_matrix_set(output_snapshot%rho_ao, SIZE(input_snapshot%rho_ao))
+        DO i = 1,SIZE(input_snapshot%rho_ao)
+          CALL replicate_matrix(source=input_snapshot%rho_ao(i)%matrix, &
+                                TARGET=output_snapshot%rho_ao(i)%matrix, &
+                                target_name="myDensityMatrix_for_Spin_"//&
+                                TRIM(ADJUSTL(cp_to_string(i))), &
+                                allocate_blocks=.TRUE.)
+        END DO
+      END IF
+
+      ! overlap
+      IF (ASSOCIATED(input_snapshot%overlap)) THEN
+        CALL replicate_matrix(source=input_snapshot%overlap, &
+                              TARGET=output_snapshot%overlap, &
+                              target_name="myOverlapMatrix", &
+                              allocate_blocks=.TRUE.)
+      END IF
+
+      ! rho_frozen
+      IF (ASSOCIATED(input_snapshot%rho_frozen)) THEN
+        CALL duplicate_rho_type(rho_input=input_snapshot%rho_frozen, &
+                                rho_output=output_snapshot%rho_frozen, &
+                                qs_env=qs_env, error=error)
+      END IF
+
+    END IF
+
+    CALL timestop(0.0_dp, handle)
+
+  END SUBROUTINE wfs_duplicate_snapshot
+!***************************************************************************
+
+!!****f* qs_wf_history_methods/wfs_copy_snapshot [1.0] *
+!!
+!!   NAME
+!!     wfs_copy_snapshot
+!!
+!!
+!!   FUNCTION
+!!     copies a single qs_wf_snapshot_type
+!!
+!!   NOTES
+!!     -
+!!
+!!   ARGUMENTS
+!!     - input_snapshot: the snapshot to be copied
+!!     - output_snapshot: the out coming copy
+!!     - error: variable to control error logging, stopping,... 
+!!       see module cp_error_handling 
+!!
+!!   AUTHOR
+!!     Thomas D. Kuehne (tkuehne@phys.chem.ethz.ch)
+!!
+!!   MODIFICATION HISTORY
+!!     10.2005 created [TdK]
+!!
+!!*** **********************************************************************
+  SUBROUTINE wfs_copy_snapshot(input_snapshot, output_snapshot, qs_env, error)
+    TYPE(qs_wf_snapshot_type), POINTER       :: input_snapshot, &
+                                                output_snapshot
+    TYPE(qs_environment_type), POINTER       :: qs_env
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'wfs_copy_snapshot', &
+      routineP = moduleN//':'//routineN
+
+    LOGICAL                                  :: failure
+    INTEGER                                  :: handle, &
+                                                i, &
+                                                stat, &
+                                                nspins, &
+                                                ispin
+    TYPE(pw_pool_type), POINTER              :: auxbas_pw_pool
+    TYPE(pw_env_type), POINTER               :: pw_env
+    TYPE(dft_control_type), POINTER          :: dft_control
+
+!   ------------------------------------------------------------------------
+
+    CALL timeset(routineN, "I", "", handle)
+    failure = .FALSE.
+    
+    NULLIFY(auxbas_pw_pool, pw_env, dft_control)
+
+    CPPrecondition(ASSOCIATED(input_snapshot), cp_failure_level, routineP, error, failure)
+    CPPrecondition(input_snapshot%ref_count>0, cp_failure_level, routineP, error, failure)
+    CPPrecondition(ASSOCIATED(qs_env), cp_failure_level, routineP, error, failure)
+    CPPrecondition(qs_env%ref_count>0, cp_failure_level, routineP, error, failure)
+
+    IF (.NOT. failure) THEN
+      CALL get_qs_env(qs_env=qs_env, pw_env=pw_env, dft_control=dft_control, error=error)
+      CALL pw_env_get(pw_env=pw_env, auxbas_pw_pool=auxbas_pw_pool, error=error)
+
+      nspins = dft_control%nspins
+
+      ! wf
+      IF (ASSOCIATED(input_snapshot%wf)) THEN
+        DO i = 1,SIZE(input_snapshot%wf)
+          CALL cp_fm_to_fm(source=input_snapshot%wf(i)%matrix, &
+                           destination=output_snapshot%wf(i)%matrix, &
+                           error=error)
+        END DO
+      ELSE
+        ! deallocate
+        IF (ASSOCIATED(output_snapshot%wf)) THEN
+          DO i = 1,SIZE(output_snapshot%wf)
+            CALL cp_fm_release(output_snapshot%wf(i)%matrix, error=error)
+          END DO
+          DEALLOCATE(output_snapshot%wf, stat=stat)
+          CPPostconditionNoFail(stat==0, cp_warning_level, routineP, error)
+        END IF
+        NULLIFY(output_snapshot%wf)
+      END IF
+
+      ! wf_mol
+      IF (ASSOCIATED(input_snapshot%wf_mol)) THEN
+        CALL duplicate_kg_fm_p_type(input_kg_fm_p_type=input_snapshot%wf_mol, &
+                                    output_kg_fm_p_type=output_snapshot%wf_mol, &
+                                    error=error)
+      ELSE
+        ! deallocate
+        IF (ASSOCIATED(output_snapshot%wf_mol)) THEN
+          CALL kg_fm_mol_set_release(output_snapshot%wf_mol, error)
+        END IF
+        NULLIFY(output_snapshot%wf_mol)
+      END IF
+
+      ! rho_r
+      IF (ASSOCIATED(input_snapshot%rho_r)) THEN
+        DO i = 1,SIZE(input_snapshot%rho_r)
+          IF (ASSOCIATED(input_snapshot%rho_r(i)%pw)) THEN
+            !CALL pw_pool_create_pw(auxbas_pw_pool, output_snapshot%rho_r(i)%pw, &
+            !                       use_data=REALDATA3D, in_space=REALSPACE, &
+            !                       error=error)
+            output_snapshot%rho_r(i)%pw%cr3d(:,:,:) = input_snapshot%rho_r(i)%pw%cr3d(:,:,:)
+            IF (ASSOCIATED(input_snapshot%rho_r(i)%pw%mass_cr)) THEN
+              output_snapshot%rho_r(i)%pw%mass_cr(:) = input_snapshot%rho_r(i)%pw%mass_cr(:)
+            END IF
+          END IF
+        END DO
+      ELSE
+        ! deallocate
+        IF (ASSOCIATED(output_snapshot%rho_r)) THEN
+          DO ispin=1,SIZE(output_snapshot%rho_r)
+            CALL pw_pool_give_back_pw(auxbas_pw_pool, output_snapshot%rho_r(ispin)%pw, &
+                                      error=error)
+          END DO
+          DEALLOCATE(output_snapshot%rho_r, stat=stat)
+          CPPostconditionNoFail(stat==0, cp_warning_level, routineP, error)
+        END IF
+        NULLIFY(output_snapshot%rho_r)
+      END IF
+
+      ! rho_g
+      IF (ASSOCIATED(input_snapshot%rho_g)) THEN
+        DO i = 1,SIZE(input_snapshot%rho_g)
+          IF (ASSOCIATED(input_snapshot%rho_g(i)%pw)) THEN
+            !CALL pw_pool_create_pw(auxbas_pw_pool, output_snapshot%rho_g(i)%pw, &
+            !                       use_data=COMPLEXDATA1D, in_space=RECIPROCALSPACE, &
+            !                       error=error)
+            output_snapshot%rho_g(i)%pw%cc(:) = input_snapshot%rho_g(i)%pw%cc(:)
+            IF (ASSOCIATED(input_snapshot%rho_g(i)%pw%mass_cc)) THEN
+              output_snapshot%rho_g(i)%pw%mass_cc(:) = input_snapshot%rho_g(i)%pw%mass_cc(:)
+            END IF
+          END IF
+        END DO
+      ELSE
+        ! deallocate
+        IF (ASSOCIATED(output_snapshot%rho_g)) THEN
+          DO ispin=1,SIZE(output_snapshot%rho_g)
+            CALL pw_pool_give_back_pw(auxbas_pw_pool, output_snapshot%rho_g(ispin)%pw, &
+                                      error=error)
+          END DO
+          DEALLOCATE(output_snapshot%rho_g, stat=stat)
+          CPPostconditionNoFail(stat==0, cp_warning_level, routineP, error)
+        END IF
+        NULLIFY(output_snapshot%rho_g)
+      END IF
+
+      ! rho_ao
+      IF (ASSOCIATED(input_snapshot%rho_ao)) THEN
+        !CALL allocate_matrix_set(output_snapshot%rho_ao, SIZE(input_snapshot%rho_ao))
+        DO i = 1,SIZE(input_snapshot%rho_ao)
+          CALL replicate_matrix(source=input_snapshot%rho_ao(i)%matrix, &
+                                TARGET=output_snapshot%rho_ao(i)%matrix, &
+                                target_name="myDensityMatrix_for_Spin_"//&
+                                TRIM(ADJUSTL(cp_to_string(i))), &
+                                allocate_blocks=.FALSE.)
+        END DO
+      ELSE
+        ! deallocate
+        IF (ASSOCIATED(output_snapshot%rho_ao)) THEN
+          CALL deallocate_matrix_set(output_snapshot%rho_ao)
+        END IF
+        NULLIFY(output_snapshot%rho_ao)
+      END IF
+
+      ! overlap
+      IF (ASSOCIATED(input_snapshot%overlap)) THEN
+        CALL replicate_matrix(source=input_snapshot%overlap, &
+                              TARGET=output_snapshot%overlap, &
+                              target_name="myOverlapMatrix", &
+                              allocate_blocks=.FALSE.)
+      ELSE
+        ! deallocate
+        IF (ASSOCIATED(output_snapshot%overlap)) THEN
+           CALL deallocate_matrix(output_snapshot%overlap)
+        END IF
+        NULLIFY(output_snapshot%overlap)
+      END IF
+
+      ! rho_frozen
+      IF (ASSOCIATED(input_snapshot%rho_frozen)) THEN
+        CALL copy_rho_type(rho_input=input_snapshot%rho_frozen, &
+                           rho_output=output_snapshot%rho_frozen, &
+                           qs_env=qs_env, error=error)
+      ELSE
+        ! deallocate
+        IF (ASSOCIATED(output_snapshot%rho_frozen)) THEN
+           CALL qs_rho_release(output_snapshot%rho_frozen)
+        END IF
+        NULLIFY(output_snapshot%rho_frozen)
+      END IF
+
+    END IF
+
+    CALL timestop(0.0_dp, handle)
+
+  END SUBROUTINE wfs_copy_snapshot
 !***************************************************************************
 
 !!****f* qs_wf_history_methods/wfs_update [1.0] *
@@ -1093,6 +1458,7 @@ SUBROUTINE wfi_extrapolate(globenv,wf_history, qs_env, dt, extrapolation_method_
         alpha = REAL(4*nvec - 2,KIND=dp)/REAL(nvec + 1,KIND=dp)
         IF (ionode) PRINT*," B( 1 ) =",alpha
         CALL cp_fm_scale(alpha,mo_coeff)
+
         DO i=2,nvec
           t0_state => wfi_get_snapshot(wf_history,index=i,error=error)
           CALL cp_sm_fm_multiply(t0_state%overlap,t1_state%wf(ispin)%matrix,fm_tmp,k)
@@ -1206,6 +1572,179 @@ SUBROUTINE wfi_update(wf_history, qs_env, dt, kg_fm_mol_set, error)
      END IF
   END IF
 END SUBROUTINE wfi_update
+!***************************************************************************
+
+!!****f* qs_wf_history_methods/wfi_duplicate_history [1.0] *
+!!
+!!   NAME
+!!     wfi_duplicate_history
+!!
+!!
+!!   FUNCTION
+!!     duplicates the whole qs_wf_history_type structure
+!!
+!!   NOTES
+!!     -
+!!
+!!   ARGUMENTS
+!!     - input_wf_history: the history buffer to be duplicated
+!!     - output_wf_history: the out coming duplicate
+!!     - error: variable to control error logging, stopping,... 
+!!       see module cp_error_handling 
+!!
+!!   AUTHOR
+!!     Thomas D. Kuehne (tkuehne@phys.chem.ethz.ch)
+!!
+!!   MODIFICATION HISTORY
+!!     10.2005 created [TdK]
+!!
+!!*** **********************************************************************
+  SUBROUTINE wfi_duplicate_history(input_wf_history, output_wf_history, qs_env, &
+                                   error)
+    TYPE(qs_wf_history_type), POINTER        :: input_wf_history, &
+                                                output_wf_history    
+    TYPE(qs_environment_type), POINTER       :: qs_env
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'wfi_duplicate_history', &
+      routineP = moduleN//':'//routineN
+
+    LOGICAL                                  :: failure
+    INTEGER                                  :: handle, &
+                                                i, &
+                                                stat
+
+!   ------------------------------------------------------------------------
+
+    CALL timeset(routineN, "I", "", handle)
+    failure = .FALSE.
+
+    CPPrecondition(ASSOCIATED(input_wf_history), cp_failure_level, routineP, error, failure)
+    CPPrecondition(input_wf_history%ref_count>0, cp_failure_level, routineP, error, failure)
+    CPPrecondition(ASSOCIATED(qs_env), cp_failure_level, routineP, error, failure)
+    CPPrecondition(qs_env%ref_count>0, cp_failure_level, routineP, error, failure)
+
+    IF (.NOT. failure) THEN
+      IF (ASSOCIATED(output_wf_history)) THEN
+        CALL wfi_clear_history(wf_history=input_wf_history, flush_buffer=.FALSE., &
+                               error=error)
+      ELSE
+        ALLOCATE(output_wf_history%past_states(input_wf_history%memory_depth), stat=stat)
+        CPPostcondition(stat==0, cp_failure_level, routineP, error, failure)
+        IF (.NOT. failure) THEN
+          DO i = 1,SIZE(input_wf_history%past_states)
+            NULLIFY(output_wf_history%past_states(i)%snapshot)
+          END DO
+        END IF
+      END IF
+
+      output_wf_history%memory_depth = input_wf_history%memory_depth
+      output_wf_history%last_state_index = input_wf_history%last_state_index
+      output_wf_history%interpolation_method_nr = input_wf_history%interpolation_method_nr
+      output_wf_history%snapshot_count = input_wf_history%snapshot_count
+
+      output_wf_history%store_wf = input_wf_history%store_wf
+      output_wf_history%store_rho_r = input_wf_history%store_rho_r
+      output_wf_history%store_rho_g = input_wf_history%store_rho_g
+      output_wf_history%store_rho_ao = input_wf_history%store_rho_ao
+      output_wf_history%store_overlap = input_wf_history%store_overlap
+      output_wf_history%store_frozen_density = input_wf_history%store_frozen_density
+
+      last_wfi_id=last_wfi_id+1
+      output_wf_history%id_nr = last_wfi_id 
+      output_wf_history%ref_count = 1
+
+      DO i = 1,SIZE(input_wf_history%past_states)
+        CALL wfs_duplicate_snapshot(input_snapshot=input_wf_history%past_states(i)%snapshot, &
+                                    output_snapshot=output_wf_history%past_states(i)%snapshot, &
+                                    qs_env=qs_env, error=error)
+      END DO
+    END IF
+
+    CALL timestop(0.0_dp, handle)
+
+  END SUBROUTINE wfi_duplicate_history
+!***************************************************************************
+
+!!****f* qs_wf_history_methods/wfi_copy_history [1.0] *
+!!
+!!   NAME
+!!     wfi_copy_history
+!!
+!!
+!!   FUNCTION
+!!     copies the whole qs_wf_history_type structure
+!!
+!!   NOTES
+!!     -
+!!
+!!   ARGUMENTS
+!!     - input_wf_history: the history buffer to be copied
+!!     - output_wf_history: the out coming copy
+!!     - error: variable to control error logging, stopping,... 
+!!       see module cp_error_handling 
+!!
+!!   AUTHOR
+!!     Thomas D. Kuehne (tkuehne@phys.chem.ethz.ch)
+!!
+!!   MODIFICATION HISTORY
+!!     10.2005 created [TdK]
+!!
+!!*** **********************************************************************
+  SUBROUTINE wfi_copy_history(input_wf_history, output_wf_history, qs_env, &
+                              error)
+    TYPE(qs_wf_history_type), POINTER        :: input_wf_history, &
+                                                output_wf_history    
+    TYPE(qs_environment_type), POINTER       :: qs_env
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'wfi_copy_history', &
+      routineP = moduleN//':'//routineN
+
+    LOGICAL                                  :: failure
+    INTEGER                                  :: handle, &
+                                                i, &
+                                                stat
+
+!   ------------------------------------------------------------------------
+
+    CALL timeset(routineN, "I", "", handle)
+    failure = .FALSE.
+
+    CPPrecondition(ASSOCIATED(input_wf_history), cp_failure_level, routineP, error, failure)
+    CPPrecondition(input_wf_history%ref_count>0, cp_failure_level, routineP, error, failure)
+    CPPrecondition(ASSOCIATED(qs_env), cp_failure_level, routineP, error, failure)
+    CPPrecondition(qs_env%ref_count>0, cp_failure_level, routineP, error, failure)
+
+    IF (.NOT. failure) THEN
+      output_wf_history%memory_depth = input_wf_history%memory_depth
+      output_wf_history%last_state_index = input_wf_history%last_state_index
+      output_wf_history%interpolation_method_nr = input_wf_history%interpolation_method_nr
+      output_wf_history%snapshot_count = input_wf_history%snapshot_count
+
+      output_wf_history%store_wf = input_wf_history%store_wf
+      output_wf_history%store_rho_r = input_wf_history%store_rho_r
+      output_wf_history%store_rho_g = input_wf_history%store_rho_g
+      output_wf_history%store_rho_ao = input_wf_history%store_rho_ao
+      output_wf_history%store_overlap = input_wf_history%store_overlap
+      output_wf_history%store_frozen_density = input_wf_history%store_frozen_density
+
+      last_wfi_id=last_wfi_id+1
+      output_wf_history%id_nr = last_wfi_id 
+      output_wf_history%ref_count = 1
+
+      DO i = 1,SIZE(input_wf_history%past_states)
+        CALL wfs_copy_snapshot(input_snapshot=input_wf_history%past_states(i)%snapshot, &
+                               output_snapshot=output_wf_history%past_states(i)%snapshot, &
+                               qs_env=qs_env, error=error)
+      END DO
+    END IF
+
+    CALL timestop(0.0_dp, handle)
+
+  END SUBROUTINE wfi_copy_history
 !***************************************************************************
 
 END MODULE qs_wf_history_methods

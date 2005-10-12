@@ -46,6 +46,8 @@ MODULE kg_gpw_fm_mol_types
   USE qs_mo_types,                     ONLY: set_mo_occupation
   USE termination,                     ONLY: stop_memory,&
                                              stop_program
+  USE timings,                         ONLY: timeset,&
+                                             timestop
 
   IMPLICIT NONE
 
@@ -244,7 +246,8 @@ MODULE kg_gpw_fm_mol_types
              get_mol_mo_set,init_mol_mo_set, &
              kg_fm_mol_set_create, kg_fm_mol_set_release, &
              kg_fm_mol_set_retain, kg_gpw_fm_mol_to_fm_mol, & 
-             set_kg_fm_mol_set, set_mol_mo_set
+             set_kg_fm_mol_set, set_mol_mo_set, &
+             duplicate_kg_fm_p_type
 
 ! *** Public data types ***
 
@@ -844,4 +847,72 @@ CONTAINS
 
 !***************************************************************************
 
+!!****f* kg_gpw_fm_mol_types/duplicate_kg_fm_p_type [1.0] *
+!!
+!!   NAME
+!!     duplicate_kg_fm_p_type
+!!
+!!
+!!   FUNCTION
+!!     duplicates the whole kg_fm_p_type structure
+!!
+!!   NOTES
+!!     -
+!!
+!!   ARGUMENTS
+!!     - input_kg_fm_p_type: the kg_fm_p_type to be duplicated
+!!     - output_kg_fm_p_type: the out coming duplicate
+!!     - error: variable to control error logging, stopping,... 
+!!       see module cp_error_handling 
+!!
+!!   AUTHOR
+!!     Thomas D. Kuehne (tkuehne@phys.chem.ethz.ch)
+!!
+!!   MODIFICATION HISTORY
+!!     10.2005 created [TdK]
+!!
+!!*** **********************************************************************
+  SUBROUTINE duplicate_kg_fm_p_type(input_kg_fm_p_type, output_kg_fm_p_type, &
+                                    error)
+    TYPE(kg_fm_p_type), POINTER              :: input_kg_fm_p_type, &
+                                                output_kg_fm_p_type
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'wfi_duplicate_history', &
+      routineP = module_name//':'//routineN
+
+    LOGICAL                                  :: failure
+    INTEGER                                  :: handle, i
+
+!   ------------------------------------------------------------------------
+
+    CALL timeset(routineN, "I", "", handle)
+    failure = .FALSE.
+
+    CPPrecondition(ASSOCIATED(input_kg_fm_p_type), cp_failure_level, routineP, error, failure)
+    CPPrecondition(input_kg_fm_p_type%ref_count>0, cp_failure_level, routineP, error, failure)
+
+    IF (.NOT. failure) THEN
+      IF (ASSOCIATED(input_kg_fm_p_type%kg_fm_mol_set)) THEN
+        DO i = 1,SIZE(input_kg_fm_p_type%kg_fm_mol_set)
+          CALL kg_gpw_fm_mol_to_fm_mol(fm_mol_set_a=input_kg_fm_p_type%kg_fm_mol_set, &
+                                       fm_mol_set_b=output_kg_fm_p_type%kg_fm_mol_set, &
+                                       error=error)
+        END DO
+      END IF
+
+      output_kg_fm_p_type%nao_global = input_kg_fm_p_type%nao_global
+      output_kg_fm_p_type%nelectron_global = input_kg_fm_p_type%nelectron_global
+      output_kg_fm_p_type%nmolecule_global = input_kg_fm_p_type%nmolecule_global
+      output_kg_fm_p_type%nao_max = input_kg_fm_p_type%nao_max
+      output_kg_fm_p_type%nmo_max = input_kg_fm_p_type%nmo_max
+      output_kg_fm_p_type%maxocc_global(1:2) = input_kg_fm_p_type%maxocc_global(1:2)
+      output_kg_fm_p_type%ref_count = 1
+    END IF
+
+    CALL timestop(0.0_dp, handle)
+
+  END SUBROUTINE duplicate_kg_fm_p_type
+!***************************************************************************
 END MODULE  kg_gpw_fm_mol_types

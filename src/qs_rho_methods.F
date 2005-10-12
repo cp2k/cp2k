@@ -1028,7 +1028,7 @@ END SUBROUTINE qs_rho_update_rho
       rho_output%tau_g_valid = rho_input%tau_g_valid
       rho_output%soft_valid  = rho_input%soft_valid
 
-      rho_output%ref_count    = rho_input%ref_count
+      rho_output%ref_count    = 1
       last_rho_id_nr          = last_rho_id_nr+1
       rho_output%id_nr        = last_rho_id_nr
       rho_output%rebuild_each = rho_input%rebuild_each
