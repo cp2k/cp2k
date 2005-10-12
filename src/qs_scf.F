@@ -184,7 +184,8 @@ MODULE qs_scf
   USE qs_wf_history_types,             ONLY: wfi_use_guess_method_nr, &
                                              wfi_frozen_method_nr
   USE scf_control_types,               ONLY: scf_control_type
-  USE sparse_matrix_types,             ONLY: cp_sm_scale_and_add,&
+  USE sparse_matrix_types,             ONLY: copy_matrix,&
+                                             cp_sm_scale_and_add,&
                                              deallocate_matrix_set,&
                                              first_block_node,&
                                              get_block_node,&
@@ -600,11 +601,6 @@ CONTAINS
             error=error,&
             calculate_forces=.FALSE.,just_energy=energy_only)
 
-!       IF (harris_flag) THEN
-!         CALL duplicate_rho_type(rho_input=rho, rho_output=harris_env%rho_in, &
-!                                 qs_env=qs_env, error=error)
-!       END IF
-
        ! Frozen density approximation
        IF (qs_env%wf_history%interpolation_method_nr==wfi_frozen_method_nr) THEN
          IF (.NOT. ASSOCIATED(qs_env%wf_history%past_states(1)%snapshot)) THEN
@@ -615,6 +611,15 @@ CONTAINS
            CALL duplicate_rho_type(rho_input=rho, &
                                    rho_output=qs_env%wf_history%past_states(1)%snapshot%rho_frozen, &
                                    qs_env=qs_env, error=error)
+
+           !CALL mpools_get(qs_env%mpools, S_sm_pools=S_sm_pools, error=error)
+           !CALL sm_pools_create_matrix_vect(S_sm_pools, qs_env%wf_history%past_states(1)%snapshot%rho_ao, &
+           !                                 error=error)
+           !DO ispin = 1,dft_control%nspins
+           !  CALL copy_matrix(rho%rho_ao(ispin)%matrix, &
+           !       qs_env%wf_history%past_states(1)%snapshot%rho_ao(ispin)%matrix)
+           !END DO
+
          END IF
        END IF
 
@@ -1681,7 +1686,7 @@ CONTAINS
 !     CALL blacs_block_jacobi_scaled(matrix_ks,work,mo_eigenvalues,&
 !                                    jacobi_threshold,homo+1)
 
-!     *** Klassisches Jacobi-Block-Verfrahren ***
+!     *** Klassisches Jacobi-Block-Verfahren ***
 !     *** Rotiere Elemente nur, wenn sie groesser als thresh sind ***
 
        CALL cp_fm_block_jacobi_classic(matrix_ks,mo_coeff,mo_eigenvalues,&

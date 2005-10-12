@@ -217,7 +217,8 @@ MODULE input_constants
        do_extrpl_linear_ps=5,&
        do_extrpl_use_prev_wf=6,&
        do_extrpl_ps=7,&
-       do_extrpl_frozen=8
+       do_extrpl_frozen=8,&
+       do_extrpl_aspc=9
   CHARACTER (LEN=default_string_length), PARAMETER, DIMENSION(10), PUBLIC :: elstr_method_name=&
       (/"GAPW    ", "GAPW_XC ","GPW     ",&
         "KG_POL  ", "KG_NOPOL", "KG_GPW  ", &

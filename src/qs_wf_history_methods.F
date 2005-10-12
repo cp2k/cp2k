@@ -93,9 +93,7 @@ MODULE qs_wf_history_methods
   USE qs_mo_types,                     ONLY: get_mo_set,&
                                              mo_set_p_type
   USE qs_rho_atom_methods,             ONLY: calculate_rho_atom_coeff
-  USE qs_rho_methods,                  ONLY: qs_rho_update_rho, &
-                                             diff_rho_type, &
-                                             copy_rho_type
+  USE qs_rho_methods,                  ONLY: qs_rho_update_rho
   USE qs_rho_types,                    ONLY: qs_rho_get,&
                                              qs_rho_type
   USE qs_wf_history_types,             ONLY: qs_wf_history_type,&
@@ -113,7 +111,6 @@ MODULE qs_wf_history_methods
                                              wfi_aspc
   USE sparse_matrix_types,             ONLY: copy_matrix,&
                                              cp_sm_scale_and_add,&
-                                             cp_sm_maxabsval,&
                                              deallocate_matrix,&
                                              deallocate_matrix_set,&
                                              real_matrix_p_type,&
@@ -661,7 +658,7 @@ SUBROUTINE wfi_extrapolate(globenv,wf_history, qs_env, dt, extrapolation_method_
                                                 nmo, nvec
     LOGICAL                                  :: failure, my_gapw, my_gapw_xc, my_kg_gpw,&
                                                 my_orthogonal_wf, ionode
-    REAL(KIND=dp)                            :: alpha, beta, omega, t0, t1, t2
+    REAL(KIND=dp)                            :: alpha, beta, t0, t1, t2
     TYPE(cp_fm_pool_p_type), DIMENSION(:), &
       POINTER                                :: ao_mo_fm_pools
     TYPE(cp_fm_struct_type), POINTER         :: matrix_struct, &
@@ -730,9 +727,6 @@ SUBROUTINE wfi_extrapolate(globenv,wf_history, qs_env, dt, extrapolation_method_
         !   CALL transfer_matrix(source_matrix=t0_state%rho_ao(ispin)%matrix,&
         !        target_matrix=rho%rho_ao(ispin)%matrix, error=error)
         !END DO
-        !rho%rho_g_valid=.TRUE.
-        
-        !CALL copy_rho_type(rho_input=t0_state%rho_frozen, rho_output=rho, qs_env=qs_env, error=error)
 
         DO ispin=1,SIZE(t0_state%rho_frozen%rho_ao)
            CALL transfer_matrix(source_matrix=t0_state%rho_frozen%rho_ao(ispin)%matrix,&
@@ -743,7 +737,7 @@ SUBROUTINE wfi_extrapolate(globenv,wf_history, qs_env, dt, extrapolation_method_
         CALL qs_rho_update_rho(rho, qs_env=qs_env, error=error)
         CALL qs_ks_did_change(qs_env%ks_env, rho_changed=.TRUE., error=error)
 
-        !my_orthogonal_wf=.TRUE.
+        my_orthogonal_wf=.TRUE.
      CASE(wfi_use_prev_rho_r_method_nr)
         t0_state => wfi_get_snapshot(wf_history, index=1, error=error)
         CPPrecondition(ASSOCIATED(t0_state%rho_ao),cp_failure_level,routineP,error,failure)
@@ -755,7 +749,7 @@ SUBROUTINE wfi_extrapolate(globenv,wf_history, qs_env, dt, extrapolation_method_
         IF(my_kg_gpw) THEN
            ! ** Updates the molecular rho for each molecule independently ***
            CALL get_qs_env(qs_env=qs_env, kg_sub_pw_env=kg_sub_pw_env)
-           CALL kg_rho_update_rho_mol( kg_sub_pw_env, qs_env, kg_fm_mol_set, error=error)
+           CALL kg_rho_update_rho_mol(kg_sub_pw_env, qs_env, kg_fm_mol_set, error=error)
         END IF
 
         ! does nothing

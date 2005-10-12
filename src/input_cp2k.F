@@ -1354,7 +1354,7 @@ SUBROUTINE create_qs_section(section,error)
           description="Extrapolation strategy for e.g. MD",&
           usage="EXTRAPOLATION PS",&     ! XXXXXXXXXXX how to add the order ? i.e. PS 3
           enum_c_vals=s2a("USE_GUESS","USE_PREV_P","USE_PREV_RHO_R","LINEAR_WF",&
-                          "LINEAR_P","LINEAR_PS","USE_PREV_WF","PS","FROZEN"),&
+                          "LINEAR_P","LINEAR_PS","USE_PREV_WF","PS","FROZEN","ASPC"),&
           enum_i_vals=(/ do_extrpl_use_guess,& 
                          do_extrpl_use_prev_p,&
                          do_extrpl_use_prev_rho_r,&
@@ -1363,7 +1363,8 @@ SUBROUTINE create_qs_section(section,error)
                          do_extrpl_linear_ps,&
                          do_extrpl_use_prev_wf,&
                          do_extrpl_ps,&
-                         do_extrpl_frozen /),&
+                         do_extrpl_frozen,&
+                         do_extrpl_aspc /),&
           default_i_val=do_extrpl_linear_p, error=error)
      CALL section_add_keyword(section,keyword,error=error)
      CALL keyword_release(keyword,error=error)
@@ -2125,6 +2126,12 @@ SUBROUTINE create_tddfpt_section(section,error)
             usage="MAX_SCF 200", default_i_val=50,error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="MAX_SCF_ASPC", &
+            description="Maximum number of SCF iterations to be performed for ASPC", &
+            usage="MAX_SCF_ASPC 1", required=.FALSE., default_i_val=1,error=error)
+       CALL section_add_keyword(section, keyword, error=error)
+       CALL keyword_release(keyword, error=error)
 
        CALL keyword_create(keyword, name="MAX_DIIS",&
             variants=(/"MAX_DIIS_BUFFER_SIZE"/),&

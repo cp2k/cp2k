@@ -489,14 +489,11 @@ CONTAINS
                                          + harris_force%f_gth_pp(iatom, 1:3) &
                                          + harris_force%f_overlap(iatom, 1:3) &
                                          + harris_force%f_V(iatom, 1:3) &
-                                         !+ 2*harris_force%f_hartree(iatom, 1:3) &
                                          + harris_force%f_hartree(iatom, 1:3) &
                                          + harris_force%f_integral_vxc(iatom, 1:3)
       END DO
 
-      DO iatom =1, natom
-        ikind = kind_of(iatom)
-        i = atom_of_kind(iatom)
+      DO iatom = 1,natom
         harris_force%f_kinetic(iatom, 1:3) = 0.0_dp
         harris_force%f_gth_pp(iatom, 1:3) = 0.0_dp
         harris_force%f_overlap(iatom, 1:3) = 0.0_dp
@@ -504,8 +501,8 @@ CONTAINS
         harris_force%f_integral_vxc(iatom, 1:3) = 0.0_dp
         harris_force%f_xc(iatom, 1:3) = 0.0_dp
         harris_force%f_delta_integral_vxc(iatom, 1:3) = 0.0_dp
-        harris_force%f_cross_integrate_v(iatom,1:3) = 0.0_dp
-        harris_force%f_cross_integrate_v_core(iatom,1:3) = 0.0_dp
+        harris_force%f_cross_integrate_v(iatom, 1:3) = 0.0_dp
+        harris_force%f_cross_integrate_v_core(iatom, 1:3) = 0.0_dp
       END DO
 
       !CALL zero_qs_force(force)
