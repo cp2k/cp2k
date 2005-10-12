@@ -34,6 +34,7 @@ MODULE topology
                                              timestop
   USE topology_input,                  ONLY: read_constraints_section,&
                                              read_topology_section
+  USE topology_xyz,                    ONLY: read_coordinate_xyz
   USE topology_pdb,                    ONLY: read_coordinate_pdb,&
                                              write_coordinate_pdb
   USE topology_psf,                    ONLY: read_topology_psf,&
@@ -440,16 +441,8 @@ SUBROUTINE coordinate_control(topology,globenv)
   SELECT CASE (topology%coord_type)
   CASE ("PDB")
     CALL read_coordinate_pdb (topology,globenv)
-  CASE ("CHM")
-    !CALL read_coordinate_chm (r,label_resname,label_atmname,&
-    !                          topology,globenv)
-    CALL stop_program ("coordinate_control",&
-                       "CHM coordinate not implemented yet...")
   CASE ("XYZ")
-    !CALL read_coordinate_xyz (r,label_resname,label_atmname,&
-    !                          topology,globenv)
-    CALL stop_program ("coordinate_control",&
-                       "XYZ coordinate not implemented yet...")
+    CALL read_coordinate_xyz (topology,globenv)
   CASE DEFAULT
     !CALL read_particle_set (particle_set,atomic_kind_set,molecule_set,&
     !                        molecule_kind_set,topology%cell,globenv)

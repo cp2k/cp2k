@@ -283,7 +283,7 @@ MODULE input_constants
                                 do_conn_generate=2,&
                                 do_conn_off=3,&
                                 do_coord_pdb=0,&
-                                do_coord_chm=1,&
+                                do_coord_xyz=1,&
                                 do_coord_off=2
 
   INTEGER, PARAMETER, PUBLIC :: do_mc_traditional=0,&

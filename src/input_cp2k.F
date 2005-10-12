@@ -5469,9 +5469,9 @@ SUBROUTINE create_tddfpt_section(section,error)
        CALL keyword_create(keyword, name="COORDINATE",&
             variants=s2a( "COORDINA", "COORD"),&
             description="Set up the way in which coordinates will be read.",&
-            usage="COORDINATE (PDB||CHM||OFF)", &
-            enum_c_vals=s2a( "PDB","CHM","OFF"),&
-            enum_i_vals=(/do_coord_pdb, do_coord_chm, do_coord_off/),&
+            usage="COORDINATE (PDB||XYZ||OFF)", &
+            enum_c_vals=s2a( "PDB","XYZ","OFF"),&
+            enum_i_vals=(/do_coord_pdb, do_coord_xyz, do_coord_off/),&
             default_i_val=do_coord_off,error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)

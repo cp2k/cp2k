@@ -184,9 +184,9 @@ SUBROUTINE read_topology_section ( topology, globenv )
            IF (str2 == "PDB") THEN
               topology%coordinate = .TRUE.
               topology%coord_type = "PDB"
-           ELSE IF (str2 == "CHM") THEN
+           ELSE IF (str2 == "XYZ") THEN
               topology%coordinate = .TRUE.
-              topology%coord_type = "CHM"
+              topology%coord_type = "XYZ"
            ELSE IF (str2 == "OFF") THEN
               topology%coordinate = .FALSE.
            ELSE

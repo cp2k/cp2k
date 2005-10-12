@@ -380,6 +380,7 @@ OBJECTS_GENERIC =\
  topology_psf.o\
  topology_types.o\
  topology_util.o\
+ topology_xyz.o\
  transformations.o\
  util.o\
  velocity_verlet_control.o\
