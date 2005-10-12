@@ -1,12 +1,12 @@
 &CP2K  
   PROGRAM   FIST
-  PROJECT   deca_ala2
+  PROJECT   deca_ala3
   IOLEVEL   1
   FFTLIB    FFTSG
   RUN_TYPE   md
 &END
 
-&PRINT LOW
+&PRINT HIGH
 &END
 
 &MD
@@ -22,9 +22,9 @@
 
 &TOPOLOGY
  CONNECTIVITY    PSF
- COORDINATE      PDB
+ COORDINATE      XYZ
  CONN_FILE       deca_ala2.psf
- COORD_FILE_NAME ../sample_pdb/deca_ala.pdb
+ COORD_FILE_NAME deca_ala2.xyz
  CHARGE_BETA
 &END
 
