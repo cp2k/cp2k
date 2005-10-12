@@ -1969,9 +1969,11 @@ CONTAINS
 
         END DO ! iatom => atom A
 
-        DEALLOCATE (ai_work,STAT=istat)
-        IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
-                                         "ai_work")
+        IF (ALLOCATED(ai_work)) THEN
+           DEALLOCATE (ai_work,STAT=istat)
+           IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+                                            "ai_work")
+        END IF
 
 !$OMP end parallel
 
