@@ -29,7 +29,7 @@ MODULE topology_xyz
        open_file
   USE string_utilities,                ONLY: uppercase
   USE termination,                     ONLY: stop_memory,&
-       stop_program
+                                             stop_program
   USE timings,                         ONLY: timeset,&
        timestop
   USE topology_types,                  ONLY: topology_parameters_type,&
@@ -79,7 +79,7 @@ CONTAINS
 
     CHARACTER(LEN=default_string_length)        :: line, record, root_mol_name
     INTEGER                                     :: handle, istat, iw, natom, i, j, k, m, inum_mol
-    INTEGER                                     :: file_unit
+    INTEGER                                     :: file_unit, frame
     LOGICAL                                     :: PM1, PM2, PM3, PM4
 
     PM1 = .FALSE.
@@ -113,12 +113,13 @@ CONTAINS
     DO i =  1, 10
        if (root_mol_name(i:i) == " ") root_mol_name(i:i) = "0" 
     END DO
-
+    frame = 0
     Frames: DO 
        ! Atom numbers
        READ(file_unit,*,IOSTAT=istat)natom
        topology%natoms = natom
-       IF(natom > SIZE(atom_info%label_atmname)) THEN
+       frame = frame + 1
+       IF (frame == 1) THEN
           CALL reallocate(atom_info%label_molname, 1,    natom)
           CALL reallocate(atom_info%label_resname, 1,    natom)
           CALL reallocate(atom_info%label_resid,   1,    natom)
@@ -129,6 +130,9 @@ CONTAINS
           CALL reallocate(atom_info%occup,         1,    natom)
           CALL reallocate(atom_info%beta,          1,    natom)
           CALL reallocate(atom_info%element,       1,    natom)
+       ELSE IF(natom > SIZE(atom_info%label_atmname)) THEN
+          CALL stop_program (routineP,&
+                       "Atom number differs in different frames!")
        END IF
        ! Dummy line
        line = ''; READ(file_unit,'(A80)',IOSTAT=istat) line 
