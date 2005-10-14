@@ -969,14 +969,9 @@ CONTAINS
         CALL scf_env_density_mixing(scf_env%p_mix_new,scf_env%mixing_method,&
                                     scf_env%p_mix,scf_env%iter_delta,&
                                     qs_env=qs_env,invert=.TRUE.,error=error)
-
        DO ispin=1,dft_control%nspins
-          CALL transfer_matrix(scf_env%p_mix_new(ispin)%matrix,&
-                                     rho%rho_ao(ispin)%matrix)
-       END DO
-       DO ispin=1,dft_control%nspins
-          CALL transfer_matrix(scf_env%p_mix_new(ispin)%matrix,&
-                               rho%rho_ao(ispin)%matrix)
+         CALL transfer_matrix(scf_env%p_mix_new(ispin)%matrix,&
+                              rho%rho_ao(ispin)%matrix)
        END DO
     ENDIF
 
