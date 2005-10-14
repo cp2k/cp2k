@@ -39,7 +39,8 @@ MODULE md
   USE cp2k_units,                      ONLY: get_cp2k_units,&
                                              unit_convert_type
   USE global_types,                    ONLY: global_environment_type
-  USE input_constants,                 ONLY: hmc_run
+  USE input_constants,                 ONLY: hmc_run, &
+                                             ldmc_run
   USE kinds,                           ONLY: dp
   USE message_passing,                 ONLY: mp_bcast
   USE parser,                          ONLY: get_next,&
@@ -727,9 +728,12 @@ CONTAINS
   IF (globenv%ionode.AND.(globenv%print_level >= 0)) THEN
       WRITE (iw, *)
   END IF
+  
+  IF (globenv%run_type_id == ldmc_run) THEN
+    simpar%ensemble = langevin_ensemble
+  END IF
 
-  IF (globenv%run_type_id == hmc_run) THEN
-     simpar%ensemble = langevin_ensemble
+  IF (globenv%run_type_id == hmc_run .OR. globenv%run_type_id == ldmc_run) THEN
      
      IF (globenv%ionode.AND.(globenv%print_level >= 0)) THEN
        WRITE ( iw, '( A,T71,I10 )' ) ' HMC| Number of Harris LD steps per MC cycle ', &

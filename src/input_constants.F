@@ -143,7 +143,8 @@ MODULE input_constants
                                 bsse_run=9,&
                                 linear_response_run=10,&
                                 ep_run=11,&
-                                hmc_run=12
+                                ldmc_run=12,&
+                                hmc_run=13
   
   CHARACTER (LEN=default_string_length), PARAMETER, DIMENSION(22), PUBLIC :: run_type_names=&
        (/"NONE                     ",&
@@ -176,7 +177,7 @@ MODULE input_constants
           mol_dyn_run,&
           geo_opt_run,&
           mon_car_run,&
-          hmc_run,&
+          ldmc_run,&
           hmc_run,&
           electronic_spectra_run,&
           qs_debug_run,&
@@ -188,7 +189,7 @@ MODULE input_constants
           mol_dyn_run,&
           geo_opt_run,&
           mon_car_run,&
-          hmc_run,&
+          ldmc_run,&
           hmc_run,&
           electronic_spectra_run,&
           linear_response_run /)

@@ -1,6 +1,6 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2002-2003  CP2K developers group                                 !
+!   Copyright (C) 2002-2003  CP2K developers group                            !
 !-----------------------------------------------------------------------------!
 
 #include "cp_prep_globals.h"
@@ -421,20 +421,12 @@ END SUBROUTINE wfs_create
       ! wf
       IF (ASSOCIATED(input_snapshot%wf)) THEN
         DO i = 1,SIZE(input_snapshot%wf)
-          CALL cp_fm_to_fm(source=input_snapshot%wf(i)%matrix, &
-                           destination=output_snapshot%wf(i)%matrix, &
-                           error=error)
+          IF (ASSOCIATED(input_snapshot%wf(i)%matrix)) THEN
+            CALL cp_fm_to_fm(source=input_snapshot%wf(i)%matrix, &
+                             destination=output_snapshot%wf(i)%matrix, &
+                             error=error)
+          END IF
         END DO
-      ELSE
-        ! deallocate
-        IF (ASSOCIATED(output_snapshot%wf)) THEN
-          DO i = 1,SIZE(output_snapshot%wf)
-            CALL cp_fm_release(output_snapshot%wf(i)%matrix, error=error)
-          END DO
-          DEALLOCATE(output_snapshot%wf, stat=stat)
-          CPPostconditionNoFail(stat==0, cp_warning_level, routineP, error)
-        END IF
-        NULLIFY(output_snapshot%wf)
       END IF
 
       ! wf_mol
@@ -442,12 +434,6 @@ END SUBROUTINE wfs_create
         CALL duplicate_kg_fm_p_type(input_kg_fm_p_type=input_snapshot%wf_mol, &
                                     output_kg_fm_p_type=output_snapshot%wf_mol, &
                                     error=error)
-      ELSE
-        ! deallocate
-        IF (ASSOCIATED(output_snapshot%wf_mol)) THEN
-          CALL kg_fm_mol_set_release(output_snapshot%wf_mol, error)
-        END IF
-        NULLIFY(output_snapshot%wf_mol)
       END IF
 
       ! rho_r
@@ -463,17 +449,6 @@ END SUBROUTINE wfs_create
             END IF
           END IF
         END DO
-      ELSE
-        ! deallocate
-        IF (ASSOCIATED(output_snapshot%rho_r)) THEN
-          DO ispin=1,SIZE(output_snapshot%rho_r)
-            CALL pw_pool_give_back_pw(auxbas_pw_pool, output_snapshot%rho_r(ispin)%pw, &
-                                      error=error)
-          END DO
-          DEALLOCATE(output_snapshot%rho_r, stat=stat)
-          CPPostconditionNoFail(stat==0, cp_warning_level, routineP, error)
-        END IF
-        NULLIFY(output_snapshot%rho_r)
       END IF
 
       ! rho_g
@@ -489,35 +464,20 @@ END SUBROUTINE wfs_create
             END IF
           END IF
         END DO
-      ELSE
-        ! deallocate
-        IF (ASSOCIATED(output_snapshot%rho_g)) THEN
-          DO ispin=1,SIZE(output_snapshot%rho_g)
-            CALL pw_pool_give_back_pw(auxbas_pw_pool, output_snapshot%rho_g(ispin)%pw, &
-                                      error=error)
-          END DO
-          DEALLOCATE(output_snapshot%rho_g, stat=stat)
-          CPPostconditionNoFail(stat==0, cp_warning_level, routineP, error)
-        END IF
-        NULLIFY(output_snapshot%rho_g)
       END IF
 
       ! rho_ao
       IF (ASSOCIATED(input_snapshot%rho_ao)) THEN
         !CALL allocate_matrix_set(output_snapshot%rho_ao, SIZE(input_snapshot%rho_ao))
         DO i = 1,SIZE(input_snapshot%rho_ao)
-          CALL replicate_matrix(source=input_snapshot%rho_ao(i)%matrix, &
-                                TARGET=output_snapshot%rho_ao(i)%matrix, &
-                                target_name="myDensityMatrix_for_Spin_"//&
-                                TRIM(ADJUSTL(cp_to_string(i))), &
-                                allocate_blocks=.FALSE.)
+          IF (ASSOCIATED(input_snapshot%rho_ao(i)%matrix)) THEN
+            CALL replicate_matrix(source=input_snapshot%rho_ao(i)%matrix, &
+                                  TARGET=output_snapshot%rho_ao(i)%matrix, &
+                                  target_name="myDensityMatrix_for_Spin_"//&
+                                  TRIM(ADJUSTL(cp_to_string(i))), &
+                                  allocate_blocks=.FALSE.)
+          END IF
         END DO
-      ELSE
-        ! deallocate
-        IF (ASSOCIATED(output_snapshot%rho_ao)) THEN
-          CALL deallocate_matrix_set(output_snapshot%rho_ao)
-        END IF
-        NULLIFY(output_snapshot%rho_ao)
       END IF
 
       ! overlap
@@ -526,12 +486,6 @@ END SUBROUTINE wfs_create
                               TARGET=output_snapshot%overlap, &
                               target_name="myOverlapMatrix", &
                               allocate_blocks=.FALSE.)
-      ELSE
-        ! deallocate
-        IF (ASSOCIATED(output_snapshot%overlap)) THEN
-           CALL deallocate_matrix(output_snapshot%overlap)
-        END IF
-        NULLIFY(output_snapshot%overlap)
       END IF
 
       ! rho_frozen
@@ -539,12 +493,6 @@ END SUBROUTINE wfs_create
         CALL copy_rho_type(rho_input=input_snapshot%rho_frozen, &
                            rho_output=output_snapshot%rho_frozen, &
                            qs_env=qs_env, error=error)
-      ELSE
-        ! deallocate
-        IF (ASSOCIATED(output_snapshot%rho_frozen)) THEN
-           CALL qs_rho_release(output_snapshot%rho_frozen)
-        END IF
-        NULLIFY(output_snapshot%rho_frozen)
       END IF
 
     END IF
@@ -1630,6 +1578,9 @@ END SUBROUTINE wfi_update
         CALL wfi_clear_history(wf_history=input_wf_history, flush_buffer=.FALSE., &
                                error=error)
       ELSE
+        ALLOCATE(output_wf_history, stat=stat)
+        CPPostcondition(stat==0, cp_failure_level, routineP, error, failure)
+
         ALLOCATE(output_wf_history%past_states(input_wf_history%memory_depth), stat=stat)
         CPPostcondition(stat==0, cp_failure_level, routineP, error, failure)
         IF (.NOT. failure) THEN
@@ -1656,9 +1607,11 @@ END SUBROUTINE wfi_update
       output_wf_history%ref_count = 1
 
       DO i = 1,SIZE(input_wf_history%past_states)
-        CALL wfs_duplicate_snapshot(input_snapshot=input_wf_history%past_states(i)%snapshot, &
-                                    output_snapshot=output_wf_history%past_states(i)%snapshot, &
-                                    qs_env=qs_env, error=error)
+        IF (ASSOCIATED(input_wf_history%past_states(i)%snapshot)) THEN
+          CALL wfs_duplicate_snapshot(input_snapshot=input_wf_history%past_states(i)%snapshot, &
+                                      output_snapshot=output_wf_history%past_states(i)%snapshot, &
+                                      qs_env=qs_env, error=error)
+        END IF
       END DO
     END IF
 
@@ -1736,9 +1689,11 @@ END SUBROUTINE wfi_update
       output_wf_history%ref_count = 1
 
       DO i = 1,SIZE(input_wf_history%past_states)
-        CALL wfs_copy_snapshot(input_snapshot=input_wf_history%past_states(i)%snapshot, &
-                               output_snapshot=output_wf_history%past_states(i)%snapshot, &
-                               qs_env=qs_env, error=error)
+        IF (ASSOCIATED(input_wf_history%past_states(i)%snapshot)) THEN
+          CALL wfs_copy_snapshot(input_snapshot=input_wf_history%past_states(i)%snapshot, &
+                                 output_snapshot=output_wf_history%past_states(i)%snapshot, &
+                                 qs_env=qs_env, error=error)
+        END IF
       END DO
     END IF
 

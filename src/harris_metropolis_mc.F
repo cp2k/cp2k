@@ -184,7 +184,7 @@ CONTAINS
     CALL harris_mc_md(force_env_p, globenv, total_energy=.TRUE., &
                       external_temp=.TRUE., qs_accept=.TRUE., &
                       random_velocities=.TRUE., velocity_scaling=.FALSE., &
-                      qs_start = .TRUE., error=error)
+                      qs_start=.TRUE., restore_wf_history=.TRUE., error=error)
 
   END SUBROUTINE harris_mc_ld
 !***************************************************************************
@@ -232,7 +232,7 @@ CONTAINS
 !!*** **********************************************************************
   SUBROUTINE harris_mc_md(force_env_p, globenv, total_energy, external_temp, &
                           qs_accept, random_velocities, velocity_scaling, &
-                          qs_start, error)
+                          qs_start, restore_wf_history, error)
 
     TYPE(force_env_p_type), DIMENSION(:), &
       POINTER                                :: force_env_p
@@ -242,7 +242,8 @@ CONTAINS
                                                 qs_accept, &
                                                 random_velocities, &
                                                 velocity_scaling, &
-                                                qs_start
+                                                qs_start, &
+                                                restore_wf_history
     TYPE(cp_error_type), INTENT(INOUT), &
       OPTIONAL                               :: error
 
@@ -277,7 +278,8 @@ CONTAINS
                                                 use_harris_tmp, &
                                                 rand_vel, &
                                                 vel_scaling, &
-                                                start_qs
+                                                start_qs, &
+                                                restore_wf_past
     REAL(KIND=dp)                            :: md_run_start_time, &
                                                 time_iter_start, &
                                                 time_iter_stop, &
@@ -370,6 +372,12 @@ CONTAINS
       start_qs = qs_start
     ELSE
       start_qs = .TRUE.
+    END IF
+
+    IF (PRESENT(restore_wf_history)) THEN
+      restore_wf_past = restore_wf_history
+    ELSE
+      restore_wf_past = .FALSE.
     END IF
 
     failure=.FALSE.
@@ -590,9 +598,11 @@ CONTAINS
 
     ! Save the wavefunction history to be able to restore it in case the 
     ! first MD approach is rejected
-    CALL wfi_duplicate_history(input_wf_history=force_env_p(1)%force_env%qs_env%wf_history, &
-                               output_wf_history=tmp_wf_history, &
-                               qs_env=force_env_p(1)%force_env%qs_env, error=error)
+    IF (restore_wf_past) THEN
+      CALL wfi_duplicate_history(input_wf_history=force_env_p(1)%force_env%qs_env%wf_history, &
+                                 output_wf_history=tmp_wf_history, &
+                                 qs_env=force_env_p(1)%force_env%qs_env, error=error)
+    END IF
 
     DO isubsys = 1,SIZE(subsys)
       !CALL cp_subsys_get(subsys=subsys(isubsys)%subsys, &
@@ -892,9 +902,15 @@ CONTAINS
         !CALL cp_iterate(logger%iter_info, last=(istep>=simpar%nsteps), &
         !                iter_nr=itimes, error=error)
 
-        CALL wfi_copy_history(input_wf_history=force_env_p(1)%force_env%qs_env%wf_history, &
-                              output_wf_history=tmp_wf_history, &
-                              qs_env=force_env_p(1)%force_env%qs_env, error=error)
+        IF (restore_wf_past) THEN
+          !CALL wfi_copy_history(input_wf_history=force_env_p(1)%force_env%qs_env%wf_history, &
+          !                      output_wf_history=tmp_wf_history, &
+          !                      qs_env=force_env_p(1)%force_env%qs_env, error=error)
+          CALL wfi_release(wf_history=tmp_wf_history, error=error)
+          CALL wfi_duplicate_history(input_wf_history=force_env_p(1)%force_env%qs_env%wf_history, &
+                                     output_wf_history=tmp_wf_history, &
+                                     qs_env=force_env_p(1)%force_env%qs_env, error=error)
+        END IF
 
         !IF (MODULO(itimes, mdio%idump) == 0) THEN
           IF (simpar%ensemble == langevin_ensemble) THEN
@@ -904,11 +920,16 @@ CONTAINS
           END IF
         !END IF
       ELSE
-        ! Restore the state of the wavefunction history as it was before the unsuccessful MD approach
-        CALL wfi_copy_history(input_wf_history=tmp_wf_history, &
-                              output_wf_history=force_env_p(1)%force_env%qs_env%wf_history, &
-                              qs_env=force_env_p(1)%force_env%qs_env, error=error)
-
+        IF (restore_wf_past) THEN
+          ! Restore the state of the wavefunction history as it was before the unsuccessful MD approach
+          !CALL wfi_copy_history(input_wf_history=tmp_wf_history, &
+          !                      output_wf_history=force_env_p(1)%force_env%qs_env%wf_history, &
+          !                      qs_env=force_env_p(1)%force_env%qs_env, error=error)
+          CALL wfi_release(wf_history=force_env_p(1)%force_env%qs_env%wf_history, error=error)
+          CALL wfi_duplicate_history(input_wf_history=tmp_wf_history, &
+                                     output_wf_history=force_env_p(1)%force_env%qs_env%wf_history, &
+                                     qs_env=force_env_p(1)%force_env%qs_env, error=error)
+        END IF
 
         ! If not accepted, set back velocities and positions
          DO isubsys = 1,SIZE(subsys)

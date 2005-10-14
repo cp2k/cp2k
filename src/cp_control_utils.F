@@ -92,6 +92,7 @@ MODULE cp_control_utils
                                              geo_opt_run,&
                                              mon_car_run,&
                                              hmc_run,&
+                                             ldmc_run,&
                                              mol_dyn_run,&
                                              qs_debug_run,&
                                              bsse_run
@@ -434,7 +435,7 @@ CONTAINS
     SELECT CASE (run_id)!FM to rm, ugly!!
     CASE (energy_run,mon_car_run,energy_force_run,electronic_spectra_run,bsse_run)
       dft_control%forces = .FALSE.
-    CASE (mol_dyn_run,hmc_run,geo_opt_run,qs_debug_run)
+    CASE (mol_dyn_run,hmc_run,ldmc_run,geo_opt_run,qs_debug_run)
       dft_control%forces = .TRUE.
     CASE DEFAULT
       CALL stop_program(routine,"unknown run type "//TRIM(run_type_names(globenv%run_type_id)))
@@ -579,7 +580,7 @@ CONTAINS
     SELECT CASE (globenv%run_type_id)
     CASE (energy_run,mon_car_run,energy_force_run,electronic_spectra_run,bsse_run)
       dft_control%forces = .FALSE.
-    CASE (mol_dyn_run,hmc_run,geo_opt_run,qs_debug_run)
+    CASE (mol_dyn_run,hmc_run,ldmc_run,geo_opt_run,qs_debug_run)
       dft_control%forces = .TRUE.
     CASE DEFAULT
       CALL stop_program(routine,"unknown run type "//TRIM(run_type_names(globenv%run_type_id)))
