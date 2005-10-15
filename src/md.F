@@ -283,7 +283,6 @@ CONTAINS
     INTEGER                                  :: ia, ie, ierror, ILEN, iw
     TYPE(section_vals_type), POINTER         :: md_section
     TYPE(unit_convert_type), POINTER         :: unit
-    LOGICAL                                  :: harris_hmc
 
     NULLIFY(unit, md_section)
     CALL set_md_defaults(simpar, globenv, mdio)

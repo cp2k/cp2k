@@ -64,6 +64,7 @@ MODULE cp2k_runs
                                              geo_opt_run,&
                                              mon_car_run,&
                                              hmc_run,&
+                                             ldmc_run,&
                                              electronic_spectra_run,&
                                              bsse_run,&
                                              linear_response_run,&
@@ -280,7 +281,7 @@ CONTAINS
           CALL qs_geo_opt(force_env,globenv,error=error)
        CASE (mon_car_run)
           CALL do_mon_car ( force_env, globenv, error=error )
-       CASE (hmc_run)
+       CASE (hmc_run, ldmc_run)
           CALL harris_mc_ld(force_env, globenv, error=error)
        CASE (electronic_spectra_run)
           IF(globenv%prog_name_id /= do_qs) &

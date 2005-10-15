@@ -31,6 +31,7 @@ MODULE harris_metropolis_mc
                                              get_atomic_kind
   USE atoms_input,                     ONLY: read_md_restart
   USE checkpoint_handler,              ONLY: write_checkpoint_information
+  USE cp_control_types,                ONLY: dft_control_type
   USE cp_error_handling,               ONLY: cp_a_l, &
                                              cp_assert, &
                                              cp_assertion_failed, &
@@ -64,7 +65,9 @@ MODULE harris_metropolis_mc
   USE force_env_methods,               ONLY: force_env_calc_energy_force
   USE force_env_types,                 ONLY: force_env_p_type, &
                                              force_env_type, &
-                                             force_env_get
+                                             force_env_get, &
+                                             use_qs_force, &
+                                             use_kg_force
   USE global_types,                    ONLY: global_environment_type
   USE initialize_extended_types,       ONLY: initialize_nhc_forces, &
                                              initialize_nhc_part, &
@@ -77,6 +80,7 @@ MODULE harris_metropolis_mc
                                              md_pos_restart, &
                                              md_pos_vel_restart, &
                                              md_all_restart
+  USE kg_environment_types,            ONLY: kg_environment_type
   USE kinds,                           ONLY: dp, &
                                              dp_size
   USE machine,                         ONLY: m_walltime
@@ -102,11 +106,17 @@ MODULE harris_metropolis_mc
                                              next_random_number, &
                                              delete_rng_stream
   USE particle_list_types,             ONLY: particle_list_type
+  USE particle_types,                  ONLY: particle_type
   USE physcon,                         ONLY: boltzmann
+  USE qs_environment_types,            ONLY: qs_environment_type, &
+                                             get_qs_env
+  USE qs_mo_types,                     ONLY: read_mo_set, &
+                                             write_mo_set
   USE qs_wf_history_methods,           ONLY: wfi_duplicate_history, &
                                              wfi_copy_history
   USE qs_wf_history_types,             ONLY: qs_wf_history_type, &
-                                             wfi_release
+                                             wfi_release, &
+                                             wfi_use_guess_method_nr
   USE simulation_cell,                 ONLY: cell_type
   USE termination,                     ONLY: stop_memory, &
                                              external_control
@@ -267,7 +277,8 @@ CONTAINS
                                                 max_scf_tmp, &
                                                 reject, &
                                                 accept, &
-                                                in_use
+                                                in_use, &
+                                                force_env_in_use
     INTEGER, POINTER                         :: itimes
     LOGICAL                                  :: failure, &
                                                 accepted, &
@@ -328,6 +339,13 @@ CONTAINS
     INTEGER, DIMENSION(:), POINTER           :: atom_list
     TYPE(unit_convert_type), POINTER         :: unit
     TYPE(qs_wf_history_type), POINTER        :: tmp_wf_history
+    TYPE(dft_control_type), POINTER          :: dft_control
+    TYPE(qs_environment_type), POINTER       :: qs_env
+    TYPE(kg_environment_type), POINTER       :: kg_env
+    TYPE(particle_type), DIMENSION(:), &
+      POINTER                                :: particle_set
+    TYPE(atomic_kind_type), DIMENSION(:), &
+      POINTER                                :: atomic_kind_set
 
 !   ------------------------------------------------------------------------
 
@@ -388,7 +406,8 @@ CONTAINS
     NULLIFY(logger, simpar, mdio, subsys, dyn_coeff_set, md_env, nhc_baro, &
             nhc_part, molecule_kinds_new, molecules_new, local_molecules, &
             particles, itimes, used_time, rng_stream, local_particles, atomic_kind, &
-            atomic_kinds, atom_list, unit, tmp_wf_history)
+            atomic_kinds, atom_list, unit, tmp_wf_history, dft_control, qs_env, kg_env, &
+            particle_set, atomic_kind_set)
     logger => cp_error_get_logger(error)
 
     CPPrecondition(ASSOCIATED(globenv), cp_failure_level, routineP, error, failure)
@@ -396,6 +415,18 @@ CONTAINS
 
     CALL create_rng_stream(rng_stream=rng_stream, name="MonteCarlo acceptance", &
                            extended_precision=.TRUE., error=error)
+
+    IF (globenv%prog_name_id == do_qs) THEN
+      CALL force_env_get(force_env=force_env_p(1)%force_env, in_use=force_env_in_use, qs_env=qs_env, &
+                         error=error)
+    ELSE IF (globenv%prog_name_id == do_kg) THEN
+      CALL force_env_get(force_env=force_env_p(1)%force_env, in_use=force_env_in_use, kg_env=kg_env, &
+                         error=error)
+    END IF
+    IF (force_env_in_use == use_qs_force) THEN
+      CALL get_qs_env(qs_env=qs_env, dft_control=dft_control, particle_set=particle_set, &
+                      atomic_kind_set=atomic_kind_set, error=error)
+    END IF
 
     nbeads = SIZE(force_env_p)
     DO i = 1, nbeads
@@ -539,14 +570,14 @@ CONTAINS
 
     DO ibead = 1,nbeads
       IF (start_qs .AND. (globenv%prog_name_id == do_qs)) THEN
-        use_harris_tmp = force_env_p(1)%force_env%qs_env%use_harris
-        max_scf_tmp = force_env_p(1)%force_env%qs_env%scf_control%max_scf
-        force_env_p(1)%force_env%qs_env%use_harris = .FALSE.
-        force_env_p(1)%force_env%qs_env%scf_control%max_scf = 100
+        use_harris_tmp = qs_env%use_harris
+        max_scf_tmp = qs_env%scf_control%max_scf
+        qs_env%use_harris = .FALSE.
+        qs_env%scf_control%max_scf = 100
         CALL force_env_calc_energy_force(force_env=force_env_p(1)%force_env, &
                                          calc_force=.FALSE., error=error)
-        force_env_p(1)%force_env%qs_env%use_harris = use_harris_tmp
-        force_env_p(1)%force_env%qs_env%scf_control%max_scf = max_scf_tmp
+        qs_env%use_harris = use_harris_tmp
+        qs_env%scf_control%max_scf = max_scf_tmp
       ELSE
         CALL force_env_calc_energy_force(force_env=force_env_p(1)%force_env, &
                                          calc_force=.FALSE., error=error)
@@ -599,9 +630,13 @@ CONTAINS
     ! Save the wavefunction history to be able to restore it in case the 
     ! first MD approach is rejected
     IF (restore_wf_past) THEN
-      CALL wfi_duplicate_history(input_wf_history=force_env_p(1)%force_env%qs_env%wf_history, &
+      CALL wfi_duplicate_history(input_wf_history=qs_env%wf_history, &
                                  output_wf_history=tmp_wf_history, &
-                                 qs_env=force_env_p(1)%force_env%qs_env, error=error)
+                                 qs_env=qs_env, error=error)
+    END IF
+    IF ((qs_env%scf_control%density_guess == 'RESTART') .AND. &
+        (dft_control%qs_control%wf_interpolation_method_nr == wfi_use_guess_method_nr)) THEN
+      CALL write_mo_set(qs_env%mos, atomic_kind_set, particle_set, globenv, id_nr=1)
     END IF
 
     DO isubsys = 1,SIZE(subsys)
@@ -638,16 +673,16 @@ CONTAINS
     !  END IF
 
       ! previous energy
-      IF (accepted) THEN
+      !IF (accepted) THEN
         IF (qs_ener .AND. (globenv%prog_name_id == do_qs)) THEN
-          use_harris_tmp = force_env_p(1)%force_env%qs_env%use_harris
-          max_scf_tmp = force_env_p(1)%force_env%qs_env%scf_control%max_scf
-          force_env_p(1)%force_env%qs_env%use_harris = .FALSE.
-          force_env_p(1)%force_env%qs_env%scf_control%max_scf = 100
+          use_harris_tmp = qs_env%use_harris
+          max_scf_tmp = qs_env%scf_control%max_scf
+          qs_env%use_harris = .FALSE.
+          qs_env%scf_control%max_scf = 100
           CALL force_env_calc_energy_force(force_env=force_env_p(1)%force_env, &
                                            calc_force=.FALSE., error=error)
-          force_env_p(1)%force_env%qs_env%use_harris = use_harris_tmp
-          force_env_p(1)%force_env%qs_env%scf_control%max_scf = max_scf_tmp
+          qs_env%use_harris = use_harris_tmp
+          qs_env%scf_control%max_scf = max_scf_tmp
         ELSE
           CALL force_env_calc_energy_force(force_env=force_env_p(1)%force_env, &
                                            calc_force=.FALSE., error=error)
@@ -678,21 +713,21 @@ CONTAINS
           WRITE(iw, *) "prev_ldmc_energy =", prev_ldmc_energy
           WRITE(iw, *) ""
         END IF
-      END IF
+      !END IF
 
       ! MC MD-approach
       CALL harris_mc_md_approach(md_env, globenv, simpar, logger, error)
 
       ! Compare energies
       IF (qs_ener .AND. (globenv%prog_name_id == do_qs)) THEN
-        use_harris_tmp = force_env_p(1)%force_env%qs_env%use_harris
-        max_scf_tmp = force_env_p(1)%force_env%qs_env%scf_control%max_scf
-        force_env_p(1)%force_env%qs_env%use_harris = .FALSE.
-        force_env_p(1)%force_env%qs_env%scf_control%max_scf = 100
+        use_harris_tmp = qs_env%use_harris
+        max_scf_tmp = qs_env%scf_control%max_scf
+        qs_env%use_harris = .FALSE.
+        qs_env%scf_control%max_scf = 100
         CALL force_env_calc_energy_force(force_env=force_env_p(1)%force_env, &
                                          calc_force=.FALSE., error=error)
-        force_env_p(1)%force_env%qs_env%use_harris = use_harris_tmp
-        force_env_p(1)%force_env%qs_env%scf_control%max_scf = max_scf_tmp
+        qs_env%use_harris = use_harris_tmp
+        qs_env%scf_control%max_scf = max_scf_tmp
       ELSE
         CALL force_env_calc_energy_force(force_env=force_env_p(1)%force_env, &
                                          calc_force=.FALSE., error=error)
@@ -907,9 +942,13 @@ CONTAINS
           !                      output_wf_history=tmp_wf_history, &
           !                      qs_env=force_env_p(1)%force_env%qs_env, error=error)
           CALL wfi_release(wf_history=tmp_wf_history, error=error)
-          CALL wfi_duplicate_history(input_wf_history=force_env_p(1)%force_env%qs_env%wf_history, &
+          CALL wfi_duplicate_history(input_wf_history=qs_env%wf_history, &
                                      output_wf_history=tmp_wf_history, &
-                                     qs_env=force_env_p(1)%force_env%qs_env, error=error)
+                                     qs_env=qs_env, error=error)
+        END IF
+        IF ((qs_env%scf_control%density_guess == 'RESTART') .AND. &
+            (dft_control%qs_control%wf_interpolation_method_nr == wfi_use_guess_method_nr)) THEN
+          CALL write_mo_set(qs_env%mos, atomic_kind_set, particle_set, globenv, id_nr=1)
         END IF
 
         !IF (MODULO(itimes, mdio%idump) == 0) THEN
@@ -925,10 +964,14 @@ CONTAINS
           !CALL wfi_copy_history(input_wf_history=tmp_wf_history, &
           !                      output_wf_history=force_env_p(1)%force_env%qs_env%wf_history, &
           !                      qs_env=force_env_p(1)%force_env%qs_env, error=error)
-          CALL wfi_release(wf_history=force_env_p(1)%force_env%qs_env%wf_history, error=error)
+          CALL wfi_release(wf_history=qs_env%wf_history, error=error)
           CALL wfi_duplicate_history(input_wf_history=tmp_wf_history, &
-                                     output_wf_history=force_env_p(1)%force_env%qs_env%wf_history, &
-                                     qs_env=force_env_p(1)%force_env%qs_env, error=error)
+                                     output_wf_history=qs_env%wf_history, &
+                                     qs_env=qs_env, error=error)
+        END IF
+        IF ((qs_env%scf_control%density_guess == 'RESTART') .AND. &
+            (dft_control%qs_control%wf_interpolation_method_nr == wfi_use_guess_method_nr)) THEN
+          CALL read_mo_set(qs_env%mos, atomic_kind_set, particle_set, globenv, id_nr=1)
         END IF
 
         ! If not accepted, set back velocities and positions
