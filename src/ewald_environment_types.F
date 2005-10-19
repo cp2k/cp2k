@@ -431,7 +431,7 @@ SUBROUTINE read_ewald_section ( ewald_env, globenv, error )
   NULLIFY(ewald_section, units)
   CALL get_cp2k_units ( units )
   ewald_section => section_vals_get_subs_vals(globenv%input_file,&
-       "FORCE_EVAL%MM%EWALD",error=error)
+       "FORCE_EVAL%MM%POISSON_MM%EWALD",error=error)
   IF (parsed_cp2k_input(ewald_section,check_this_section=.TRUE.,error=error)) THEN
      CALL read_ewald_new_section(ewald_env, ewald_section, error)
   ELSE

@@ -334,6 +334,8 @@ MODULE input_constants
        xc_deriv_fd=6, xc_deriv_nn50_smooth=7
   INTEGER, PARAMETER, PUBLIC :: xc_old_f_routine=0, xc_new_f_routine=1,&
        xc_test_lsd_f_routine=3, xc_debug_new_routine=4
+  INTEGER, PARAMETER, PUBLIC :: xc_funct_blyp=1, xc_funct_pade=2, xc_funct_pbe=3,&
+       xc_funct_tpss=4, xc_funct_hcth120=5, xc_funct_no_shortcut=0
   INTEGER, PARAMETER, PUBLIC :: sic_none=0, sic_mauri_us=1, sic_mauri_spz=2, sic_ad=3
   INTEGER, PARAMETER, PUBLIC :: tddfpt_singlet=0, tddfpt_triplet=1
   INTEGER, PARAMETER, PUBLIC :: tddfpt_lanczos=0, tddfpt_davidson=1
@@ -345,15 +347,16 @@ MODULE input_constants
        precond_spl3_aint2=3, precond_spl3_2=4, precond_spl3_3=5
 
   INTEGER, PARAMETER, PUBLIC :: PERIODIC3D = 1000, ANALYTIC2D = 1001,  &
+                        HOCKNEY2D = 1201, HOCKNEY1D = 1202, HOCKNEY0D = 1203,&
                         ANALYTIC1D = 1002, ANALYTIC0D = 1003,  &
                         MT2D = 1101, MT1D = 1102, MT0D = 1103,&
-                        HOCKNEY2D = 1201, HOCKNEY1D = 1202, HOCKNEY0D = 1203,&
                         MULTIPOLE2D = 1301, MULTIPOLE1D = 1302, MULTIPOLE0D = 1303
 
-  INTEGER, PARAMETER, PUBLIC :: use_periodic = 0,&
-                                use_analytic = 1,&
-                                use_mt=2,&
-                                use_hockney=3,&
+  INTEGER, PARAMETER, PUBLIC :: use_none=0,&
+                                use_periodic = 1,&
+                                use_analytic = 2,&
+                                use_mt=3,&
+                                use_hockney=5,&
                                 use_multipole=4
 
   INTEGER, PARAMETER, PUBLIC :: xgga_b88=101,xgga_b88x=102,&

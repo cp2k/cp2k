@@ -149,6 +149,11 @@ OBJECTS_GENERIC =\
  initialize_extended_types.o\
  input_constants.o\
  input_cp2k.o\
+ input_cp2k_dft.o\
+ input_cp2k_mm.o\
+ input_cp2k_motion.o\
+ input_cp2k_qmmm.o\
+ input_cp2k_subsys.o\
  input_enumeration_types.o\
  input_keyword_types.o\
  input_parsing.o\
