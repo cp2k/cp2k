@@ -1,2 +1,0 @@
-#!/bin/sh
-Xalan -i 1 -o cp2k_input.htm cp2k_input.xml cp2k_input.xsl
