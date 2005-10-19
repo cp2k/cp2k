@@ -16,6 +16,7 @@
 !!   MODIFICATION HISTORY
 !!     02.2004 made a stacked version (of stacks...) [Joost VandeVondele]
 !!     11.2004 storable timer_envs (for f77 interface) [fawzi]
+!!     10.2005 binary search to speed up lookup in timeset [fawzi]
 !!
 !!   SOURCE
 !******************************************************************************
@@ -67,6 +68,7 @@ MODULE timings
       INTEGER :: handle_stack (max_stack)
     ! subroutine timing and performance information
       CHARACTER ( LEN = 80 ) :: clock_name ( max_timer )
+      INTEGER :: sort_index ( max_timer )
       INTEGER :: routine_calls ( max_timer )
       INTEGER :: routine_stack_depth ( max_timer )
       INTEGER :: clock_status ( max_timer )
@@ -339,32 +341,42 @@ SUBROUTINE timeset_full ( name, ct, pu, handle )
   timer_env%stack_size = timer_env%stack_size + 1
   stack_size = timer_env%stack_size
   timer_env%routine_stack ( stack_size ) = name
+  timer_env%routine_name=name
 
 
-!..is this a new timer or has this routine been called before
-  handle = 0
-  timer_env%routine_name = name
-  DO i = 1,  timer_env%num_timer
-     IF ( timer_env%routine_name == &
-          timer_env%clock_name ( i ) ) handle = i
-  END DO
-
-  IF ( handle == 0 ) THEN
-!..new timer started
-     timer_env%num_timer = timer_env%num_timer + 1
-     handle = timer_env%num_timer
-     timer_env%clock_name ( handle ) = &
-        timer_env%routine_name
-     timer_env%perf_unit ( handle ) = pu
-     IF ( ct == 'I' ) timer_env%clock_type ( handle ) = 0
-     IF ( ct == 'E' ) timer_env%clock_type ( handle ) = 1
-     timer_env%clock_status ( handle ) = 0
-     timer_env%clock_accu ( handle ) = zero
-     timer_env%wallclock_accu ( handle ) = zero
-     timer_env%perf_count ( handle ) = zero
-     timer_env%routine_calls ( handle ) = 0
-     timer_env%routine_stack_depth ( handle ) = 0
+!..binary search of the timer
+  handle = timer_binsearch(name,timer_env%clock_name,timer_env%sort_index,&
+       1,timer_env%num_timer)
+  IF (handle>0) THEN
+     if (timer_env%clock_name(timer_env%sort_index(handle))==name) go to 33
   END IF
+!..it was a new timer
+
+  IF (timer_env%num_timer>=max_timer) THEN
+     PRINT*,'hit max_timer in timeset'
+     CALL mp_abort()
+  ENDIF
+
+  DO i=timer_env%num_timer,handle+1,-1
+     timer_env%sort_index(i+1)=timer_env%sort_index(i)
+  END DO
+  timer_env%sort_index(handle+1)=timer_env%num_timer+1
+  handle=handle+1
+
+  timer_env%num_timer = timer_env%num_timer + 1
+  timer_env%clock_name ( timer_env%num_timer ) = &
+       timer_env%routine_name
+  timer_env%perf_unit ( timer_env%num_timer ) = pu
+  IF ( ct == 'I' ) timer_env%clock_type ( timer_env%num_timer ) = 0
+  IF ( ct == 'E' ) timer_env%clock_type ( timer_env%num_timer ) = 1
+  timer_env%clock_status ( timer_env%num_timer ) = 0
+  timer_env%clock_accu ( timer_env%num_timer ) = zero
+  timer_env%wallclock_accu ( timer_env%num_timer ) = zero
+  timer_env%perf_count ( timer_env%num_timer ) = zero
+  timer_env%routine_calls ( timer_env%num_timer ) = 0
+  timer_env%routine_stack_depth ( timer_env%num_timer ) = 0
+
+33 handle=timer_env%sort_index(handle)
 
 #if defined(__HPM)
   IF (use_HPM) THEN
@@ -712,6 +724,62 @@ SUBROUTINE print_stack ( iw )
 END SUBROUTINE print_stack
 
 ! *****************************************************************************
+
+!!****f* timings/timer_binsearch *
+!!
+!!   NAME
+!!     timer_binsearch
+!!
+!!   FUNCTION
+!!     makes a binary search in an array of strings ordered with the index
+!!     diven in ord_idx and returns the index of arr_idx
+!!     where the element is (or the element after which it should be inserted)
+!!
+!!   NOTES
+!!     -
+!!
+!!   ARGUMENTS
+!!     - el: the element to search
+!!     - list: the list of strings
+!!     - ord_idx: indexes that make list ordered in growing order
+!!     - lb: lower bound for the search (defaults to 1)
+!!     - ub: upper bound for the search (defaults to size(list))
+!!
+!!   AUTHOR
+!!     fawzi
+!!
+!!*** **********************************************************************
+FUNCTION timer_binsearch(el,list,ord_idx,lb,ub)RESULT(res)
+  CHARACTER(len=*), intent(in) :: el
+  CHARACTER(len=80), DIMENSION(:), intent(in) :: list
+  INTEGER, DIMENSION(:), intent(in) :: ord_idx
+  INTEGER, INTENT(in) :: lb,ub
+  integer :: res
+  
+  logical :: failure
+  character(len=*), parameter :: routineN='timer_binsearch',&
+        routineP=moduleN//':'//routineN
+  INTEGER :: ui,li,mi
+
+  failure=.false.
+  li=lb
+  ui=ub
+  IF (ui>SIZE(list)) THEN
+     PRINT *, "error in timings:timer_binsearch, ui>size(list)",ui,size(list)
+     CALL mp_abort()
+  END IF
+  DO
+     IF (li>ui) EXIT
+     mi=(li+ui)/2
+     IF (el<list(ord_idx(mi))) THEN
+        ui=mi-1
+     ELSE
+        li=mi+1
+     END IF
+  END DO
+  res=ui
+END FUNCTION timer_binsearch
+!***************************************************************************
 
 END MODULE timings
 
