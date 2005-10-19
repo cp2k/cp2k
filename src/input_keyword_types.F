@@ -655,9 +655,10 @@ SUBROUTINE keyword_describe(keyword, unit_nr, level,error)
                  WRITE(unit_nr,"(i6,' reals are expected')") keyword%n_var
               END IF
               IF (ASSOCIATED(keyword%unit)) THEN
+                 c_string=cp_unit_desc(keyword%unit,accept_undefined=.TRUE.,&
+                      error=error)
                  WRITE(unit_nr,"('the default unit of measure is ',a)")&
-                      TRIM(cp_unit_desc(keyword%unit,accept_undefined=.TRUE.,&
-                      error=error))
+                      TRIM(c_string)
               END IF
            CASE (char_t)
               IF (keyword%n_var==-1) THEN
