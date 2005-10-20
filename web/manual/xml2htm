@@ -1,4 +1,5 @@
 #!/bin/sh
 # This Xalan call works with SuSE 9.2
-# Note: other distribution might have different flags
+# Note: other distribution might require different flags for
+#       Xalan or even different conversion tools
 Xalan -i 1 -o cp2k_input.htm cp2k_input.xml cp2k_input.xsl
