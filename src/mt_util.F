@@ -100,6 +100,7 @@ CONTAINS
     END IF       
     CALL pw_pool_create_pw(pw_pool, screen_function, use_data=COMPLEXDATA1D,&
          in_space=RECIPROCALSPACE,error=error)
+    CALL pw_zero( screen_function )
     SELECT CASE( method )
     CASE(MT0D)
        IF (ASSOCIATED(pw_pool_aux)) THEN
@@ -115,7 +116,6 @@ CONTAINS
        END IF
        CALL mt0din( Vloc, alpha)
        CALL pw_transfer ( Vloc,  Vlocg )
-       CALL pw_zero( screen_function )
        CALL pw_sumup(Vlocg, screen_function )
        IF (ASSOCIATED(pw_pool_aux)) THEN
           CALL pw_pool_give_back_pw(pw_pool_aux, Vloc,  error=error)
@@ -141,13 +141,13 @@ CONTAINS
        DO ig = screen_function % pw_grid % first_gne0, screen_function % pw_grid % ngpts_cut_local
           gz = screen_function % pw_grid % g ( iz, ig )
           g2 = screen_function % pw_grid % gsq ( ig )
-          gxy = SQRT ( ABS(g2 - gz * gz ) ) 
+          gxy = SQRT ( ABS( g2 - gz * gz  ) )
           g3d = fourpi / g2
           screen_function%cc(ig) = - g3d * COS( gz * zlength / 2.0_dp) * EXP(- gxy * zlength / 2.0_dp)
        END DO
        IF ( screen_function% pw_grid % have_g0 )  screen_function%cc ( 1 ) = pi * zlength*zlength / 2.0_dp
     CASE(MT1D)
-       CALL cp_unimplemented_error(routineP, "MT2D unimplemented", error, cp_failure_level)
+       CALL cp_unimplemented_error(routineP, "MT1D unimplemented", error, cp_failure_level)
     END SELECT
     CALL pw_pool_release ( pw_pool_aux, error=error )
     CALL timestop(0.0_dp,handle) 

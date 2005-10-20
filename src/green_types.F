@@ -284,7 +284,7 @@ CONTAINS
     TYPE(greens_function_type), POINTER  :: gftype
     ! Local Variables
     INTEGER                                  :: ig, iz, method, nz
-    REAL(KIND=dp)                            :: alpha, alpha2, g2, g3d, gg, &
+    REAL(KIND=dp)                            :: g2, g3d, gg, &
          gxy, j0g, j1g, k0g, k1g, rlength, zlength
     TYPE(pw_grid_type), POINTER              :: grid
     TYPE(pw_type), POINTER                   :: gf
@@ -359,8 +359,6 @@ CONTAINS
                gf % cc ( 1 ) = 0.5_dp * fourpi * rlength * rlength
           
        CASE ( MT2D, MT1D, MT0D )
-          alpha   = gftype % MT_alpha   ! alpha is the convergence tuning parameter
-          alpha2  = alpha * alpha
           DO ig = grid % first_gne0, grid % ngpts_cut_local
              g2 = grid % gsq ( ig ) 
              g3d = fourpi / g2
