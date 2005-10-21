@@ -64,7 +64,7 @@ MODULE timings
       INTEGER :: ref_count, id_nr
     ! subroutine calling stack
       INTEGER :: stack_size
-      CHARACTER ( LEN = 80 ) :: routine_stack ( max_stack ), routine_name
+      CHARACTER ( LEN = 80 ) :: routine_stack ( max_stack )
       INTEGER :: handle_stack (max_stack)
     ! subroutine timing and performance information
       CHARACTER ( LEN = 80 ) :: clock_name ( max_timer )
@@ -335,25 +335,28 @@ SUBROUTINE timeset_full ( name, ct, pu, handle )
       PRINT*,'no timer env available in timeset'
       CALL mp_abort()
    ENDIF
-
+   IF (LEN_TRIM(name)>LEN(timer_env%clock_name)) THEN
+      PRINT *,"timings:timeset, timer name too long: '",TRIM(name),"'"
+      call mp_abort()
+   END IF
    timer_env => timer_env_stack(stack_pointer)%timer_env
 !..add name to subroutine stack
   timer_env%stack_size = timer_env%stack_size + 1
   stack_size = timer_env%stack_size
   timer_env%routine_stack ( stack_size ) = name
-  timer_env%routine_name=name
 
 
 !..binary search of the timer
   handle = timer_binsearch(name,timer_env%clock_name,timer_env%sort_index,&
        1,timer_env%num_timer)
   IF (handle>0) THEN
-     if (timer_env%clock_name(timer_env%sort_index(handle))==name) go to 33
+     IF (timer_env%clock_name(timer_env%sort_index(handle))==name) go to 33
   END IF
 !..it was a new timer
-
   IF (timer_env%num_timer>=max_timer) THEN
-     PRINT*,'hit max_timer in timeset'
+     PRINT *,'ERROR hit max_timer in timeset'
+     print *,"name ",name,timer_env%num_timer
+     print *,timer_env%clock_name
      CALL mp_abort()
   ENDIF
 
@@ -365,7 +368,7 @@ SUBROUTINE timeset_full ( name, ct, pu, handle )
 
   timer_env%num_timer = timer_env%num_timer + 1
   timer_env%clock_name ( timer_env%num_timer ) = &
-       timer_env%routine_name
+       name
   timer_env%perf_unit ( timer_env%num_timer ) = pu
   IF ( ct == 'I' ) timer_env%clock_type ( timer_env%num_timer ) = 0
   IF ( ct == 'E' ) timer_env%clock_type ( timer_env%num_timer ) = 1
@@ -380,7 +383,7 @@ SUBROUTINE timeset_full ( name, ct, pu, handle )
 
 #if defined(__HPM)
   IF (use_HPM) THEN
-      mytag=TRIM(timer_env%routine_name)
+      mytag=TRIM(name)
       mytag(20:20)=CHAR(0)
       CALL f_hpmstart(handle,mytag)
   ENDIF
