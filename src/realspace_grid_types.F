@@ -515,14 +515,14 @@ CONTAINS
     INTEGER, INTENT(IN)                      :: dir
 
     INTEGER                                  :: handle, handle2, nn
-    CHARACTER(LEN=100)                       :: dirname
+    CHARACTER(LEN=5)                         :: dirname
 
 !-----------------------------------------------------------------------------!
 
     CALL timeset("rs_pw_transfer_all",'I',' ',handle2)
     IF (dir.EQ.rs2pw) dirname="RS2PW"
     IF (dir.EQ.pw2rs) dirname="PW2RS"
-    CALL timeset("rs_pw_transfer_"//dirname//"_"// &
+    CALL timeset("rs_pw_transfer_"//trim(dirname)//"_"// &
                  TRIM(ADJUSTL(cp_to_string(pw%pw_grid%identifier))),'I',' ',handle)
 
     IF ( rs % identifier /= pw % pw_grid % identifier ) &
