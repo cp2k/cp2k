@@ -396,7 +396,8 @@ CONTAINS
           !
           ! Convergence check
           !       
-          CALL write_cycle_infos(output_unit,its,opt_energy,opt_energy-eold,emin=emin,wildcard=wildcard)
+          IF (ionode) &
+               CALL write_cycle_infos(output_unit,its,opt_energy,opt_energy-eold,emin=emin,wildcard=wildcard)
           CALL check_converg(SIZE(xvec),xvec-xold,xi,ionode,output_unit,conv,gopt_param)
           wildcard = "   CG"
           IF (ionode) THEN
