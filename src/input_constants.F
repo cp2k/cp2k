@@ -403,5 +403,10 @@ MODULE input_constants
                                 lr_precond_single=1, &
                                 lr_precond_kinetic=2, &
                                 lr_precond_s_inverse=3
+  ! Hybrid MC
+  INTEGER, PARAMETER, PUBLIC :: FIST_MD_method=0, KG_MD_method=1, &
+                                QS_MD_method=2, Harris_MD_method=3, &
+                                KG_MC_method=5, QS_MC_method=6, &
+                                Harris_MC_method=7
 
 END MODULE input_constants

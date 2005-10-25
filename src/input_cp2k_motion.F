@@ -1724,31 +1724,119 @@ END SUBROUTINE create_nose_section
     CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
     IF (.NOT. failure) THEN
        CALL section_create(section,name="HMC",&
-            description="This section specifies the parameters for the Hybrid Metropolis Monte Carlo simulation",&
-            n_keywords=3, n_subsections=0, repeats=.FALSE., required=.FALSE.,&
+            description="This section specifies the parameters for the "//&
+                        "Hybrid Metropolis Monte Carlo simulation",&
+            n_keywords=13, n_subsections=0, repeats=.FALSE., required=.FALSE.,&
             error=error)
 
        NULLIFY(keyword)
+
+       CALL keyword_create(keyword, name="gamma",&
+            description="Gamma parameter for the Langevin dynamics",&
+            usage="gamma 0.001",&
+            default_r_val=0.0_dp, unit_str='fs^-1',error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
        
-       CALL keyword_create(keyword, name="ld_steps",&
-            description="Number of LD steps per MC cycle.",&
-            usage="nsteps 20", required=.FALSE.,&
+       CALL keyword_create(keyword, name="ld_steps", &
+            description="Number of LD steps per MC cycle.", &
+            usage="nsteps 20", required=.TRUE.,&
             default_i_val=10, lone_keyword_i_val=20,&
             error=error)
        CALL section_add_keyword(section, keyword, error=error)
        CALL keyword_release(keyword, error=error)
 
-       CALL keyword_create(keyword, name="temp_alpha",&
-            description="Additive temperature correction",&
-            usage="temp_alpha -10.0", required=.FALSE.,&
+       CALL keyword_create(keyword, name="temp_alpha", &
+            description="Additive temperature correction", &
+            usage="temp_alpha -10.0", required=.FALSE., &
             default_r_val=0.0_dp, error=error)
        CALL section_add_keyword(section, keyword, error=error)
        CALL keyword_release(keyword, error=error)
 
-       CALL keyword_create(keyword, name="temp_beta",&
-            description="Mutiplicative temperature correction",&
-            usage="temp_beta 0.75", required=.FALSE.,&
+       CALL keyword_create(keyword, name="temp_beta", &
+            description="Mutiplicative temperature correction", &
+            usage="temp_beta 0.75", required=.FALSE., &
             default_r_val=1.0_dp, error=error)
+       CALL section_add_keyword(section, keyword, error=error)
+       CALL keyword_release(keyword, error=error)
+
+       CALL keyword_create(keyword, name="tot_energy", &
+            description="Indicates if the total energy differences "//&
+            "or the potential energy differences are used", &
+            usage="tot_energy TRUE", required=.FALSE., &
+            default_l_val=.TRUE., lone_keyword_l_val=.TRUE., &
+            error=error)
+       CALL section_add_keyword(section, keyword, error=error)
+       CALL keyword_release(keyword, error=error)
+
+       CALL keyword_create(keyword, name="ext_temp", &
+            description="Indicates if the external or the computed "//&
+            "current temperature is used", &
+            usage="ext_temp TRUE", required=.FALSE., &
+            default_l_val=.TRUE., lone_keyword_l_val=.TRUE., &
+            error=error)
+       CALL section_add_keyword(section, keyword, error=error)
+       CALL keyword_release(keyword, error=error)
+
+       CALL keyword_create(keyword, name="qs_accept", &
+            description="Denotes if the QS or the in the force "//&
+            "environment specified energies are used", &
+            usage="qs_accept TRUE", required=.FALSE., &
+            default_l_val=.FALSE., lone_keyword_l_val=.TRUE., &
+            error=error)
+       CALL section_add_keyword(section, keyword, error=error)
+       CALL keyword_release(keyword, error=error)
+
+       CALL keyword_create(keyword, name="rnd_velocities", &
+            description="Activates random velocity initialization", &
+            usage="rnd_velocities TRUE", required=.FALSE., &
+            default_l_val=.TRUE., lone_keyword_l_val=.TRUE., &
+            error=error)
+       CALL section_add_keyword(section, keyword, error=error)
+       CALL keyword_release(keyword, error=error)
+
+       CALL keyword_create(keyword, name="vel_scaling", &
+            description="The velocities are scaled, such that the current"//&
+            "temperature is equivalent with the external temperature", &
+            usage="vel scaling TRUE", required=.FALSE., &
+            default_l_val=.FALSE., lone_keyword_l_val=.TRUE., &
+            error=error)
+       CALL section_add_keyword(section, keyword, error=error)
+       CALL keyword_release(keyword, error=error)
+
+       CALL keyword_create(keyword, name="qs_start", &
+            description="Denotes if a fully converged QS energy "//&
+            "evaluation is performed at the start-up or not", &
+            usage="qs_start TRUE", required=.FALSE., &
+            default_l_val=.TRUE., lone_keyword_l_val=.TRUE., &
+            error=error)
+       CALL section_add_keyword(section, keyword, error=error)
+       CALL keyword_release(keyword, error=error)
+
+       CALL keyword_create(keyword, name="restore_history", &
+            description="If activated the WF history is fully restored "//&
+            "in case a MD approach is rejected", &
+            usage="restore_history TRUE", required=.FALSE., &
+            default_l_val=.TRUE., lone_keyword_l_val=.TRUE., &
+            error=error)
+       CALL section_add_keyword(section, keyword, error=error)
+       CALL keyword_release(keyword, error=error)
+       
+       CALL keyword_create(keyword, name="MD_method", &
+            description="Indicates which method is used for the MD approach", &
+            enum_c_vals=s2a("FIST", "KG", "QS", "Harris", "HARRIS") , &
+            enum_i_vals=(/FIST_MD_method,KG_MD_method,QS_MD_method,Harris_MD_method,Harris_MD_method/),&
+            usage="MD_method KG", required=.FALSE., &
+            default_i_val=KG_MD_method, error=error)
+       CALL section_add_keyword(section, keyword, error=error)
+       CALL keyword_release(keyword, error=error)
+
+       CALL keyword_create(keyword, name="MC_method", &
+            description="Indicates according to which method the MC criterion is evaluated", &
+            enum_c_vals=s2a("KG", "QS", "Harris", "HARRIS") , &
+            enum_i_vals=(/KG_MC_method, QS_MC_method, Harris_MC_method, Harris_MC_method/),&
+            usage="MD_method Harris", required=.FALSE., &
+            default_i_val=Harris_MC_method, error=error)
        CALL section_add_keyword(section, keyword, error=error)
        CALL keyword_release(keyword, error=error)
 

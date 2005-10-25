@@ -39,27 +39,6 @@ MODULE md
   USE cp2k_units,                      ONLY: get_cp2k_units,&
                                              unit_convert_type
   USE global_types,                    ONLY: global_environment_type
-  USE input_constants,                 ONLY: hmc_run, &
-                                             ldmc_run
-  USE kinds,                           ONLY: dp
-  USE message_passing,                 ONLY: mp_bcast
-  USE parser,                          ONLY: get_next,&
-                                             p_error,&
-                                             parser_end,&
-                                             parser_init,&
-                                             read_line,&
-                                             search_label,&
-                                             stop_parser,&
-                                             test_next
-  USE particle_types,                  ONLY: particle_type
-  USE string_utilities,                ONLY: uppercase,&
-                                             xstring
-  USE util,                            ONLY: gasdev
-  USE input_section_types,             ONLY: section_vals_get_subs_vals,&
-                                             section_vals_type,&
-                                             section_vals_get,&
-                                             section_vals_val_get
-  USE input_cp2k,                      ONLY: parsed_cp2k_input
   USE input_constants,                 ONLY: nve_ensemble,&
                                              nvt_ensemble,&
                                              npt_i_ensemble,&
@@ -86,7 +65,36 @@ MODULE md
                                              dump_xmol,&
                                              dump_dcd,&
                                              output_name_types,&
-                                             output_name_index
+                                             output_name_index,&
+                                             hmc_run, &
+                                             ldmc_run, &
+                                             FIST_MD_method, &
+                                             KG_MD_method, &
+                                             QS_MD_method, &
+                                             Harris_MD_method, &
+                                             KG_MC_method, &
+                                             QS_MC_method, &
+                                             Harris_MC_method
+  USE input_cp2k,                      ONLY: parsed_cp2k_input
+  USE input_section_types,             ONLY: section_vals_get_subs_vals,&
+                                             section_vals_type,&
+                                             section_vals_get,&
+                                             section_vals_val_get
+  USE kinds,                           ONLY: dp
+  USE message_passing,                 ONLY: mp_bcast
+  USE parser,                          ONLY: get_next,&
+                                             p_error,&
+                                             parser_end,&
+                                             parser_init,&
+                                             read_line,&
+                                             search_label,&
+                                             stop_parser,&
+                                             test_next
+  USE particle_types,                  ONLY: particle_type
+  USE string_utilities,                ONLY: uppercase,&
+                                             xstring
+  USE util,                            ONLY: gasdev
+
 
   IMPLICIT NONE
 
@@ -162,10 +170,21 @@ MODULE md
      TYPE ( qs_md_parameters_type ) :: qs_md_param
      TYPE ( simpar_units_type ) :: units
      !MK Langevin
-     REAL (KIND=dp) :: gamma,var_w
+     REAL (KIND=dp) :: gamma
+     REAL (KIND=dp) :: var_w
      !TdK HMC
      INTEGER        :: ld_steps
-     REAL(KIND=dp)  :: temp_alpha, temp_beta
+     REAL(KIND=dp)  :: temp_alpha
+     REAL(KIND=dp)  :: temp_beta
+     LOGICAL        :: tot_energy
+     LOGICAL        :: ext_temp
+     LOGICAL        :: qs_accept
+     LOGICAL        :: rnd_velocities
+     LOGICAL        :: vel_scaling
+     LOGICAL        :: qs_start
+     LOGICAL        :: restore_history
+     INTEGER        :: md_method
+     INTEGER        :: mc_method
   END TYPE simulation_parameters_type
 
   TYPE mdio_parameters_type
@@ -318,12 +337,104 @@ CONTAINS
              CASE ("GAMMA")
                CALL get_next(simpar%gamma)
              !TdK HMC
-             CASE ('LD_STE')
-               CALL get_next(simpar%ld_steps)
-             CASE ('TEMP_A')
-               CALL get_next(simpar%temp_alpha)
-             CASE ('TEMP_B')
-               CALL get_next(simpar%temp_beta)
+             CASE ('HMC')
+               DO WHILE (test_next() == 'C')
+                   
+                 ILEN = 6
+                 CALL get_next(string, ILEN)
+                 CALL uppercase(string)
+                   
+                 SELECT CASE (string)
+                 CASE DEFAULT
+                   CALL p_error()
+                   CALL stop_parser('read_md_section%nose', &
+                                    'unknown suboption')
+                 CASE ("GAMMA")
+                   CALL get_next(simpar%gamma)
+                 CASE ('LD_STE') ! LD_STEPS
+                   CALL get_next(simpar%ld_steps)
+                 CASE ('TEMP_A') ! TEMP_ALPHA
+                   CALL get_next(simpar%temp_alpha)
+                 CASE ('TEMP_B') ! TEMP_BETA
+                   CALL get_next(simpar%temp_beta)
+                 CASE ('TOT_EN') ! TOT_ENERGY
+                   simpar%tot_energy = .TRUE.
+                   ILEN = 0
+                   CALL get_next(string, ILEN)
+                   CALL uppercase(string)
+                   IF (string(1:1)=='F') simpar%tot_energy = .FALSE.
+                 CASE ('EXT_TE') ! EXT_TEMP
+                   simpar%ext_temp = .TRUE.
+                   ILEN = 0
+                   CALL get_next(string, ILEN)
+                   CALL uppercase(string)
+                   IF (string(1:1)=='F') simpar%ext_temp = .FALSE.
+                 CASE ('QS_ACC') ! QS_ACCEPT
+                   simpar%qs_accept = .TRUE.
+                   ILEN = 0
+                   CALL get_next(string, ILEN)
+                   CALL uppercase(string)
+                   IF (string(1:1)=='F') simpar%qs_accept = .FALSE.
+                 CASE ('RND_VE') ! RND_VELOCITIES
+                   simpar%rnd_velocities = .TRUE.
+                   ILEN = 0
+                   CALL get_next(string, ILEN)
+                   CALL uppercase(string)
+                   IF (string(1:1)=='F') simpar%rnd_velocities = .FALSE.
+                 CASE ('VEL_SC') ! VEL_SCALING
+                   simpar%vel_scaling = .TRUE.
+                   ILEN = 0
+                   CALL get_next(string, ILEN)
+                   CALL uppercase(string)
+                   IF (string(1:1)=='F') simpar%vel_scaling = .FALSE.
+                 CASE ('QS_STA') ! QS_START
+                   simpar%qs_start = .TRUE.
+                   ILEN = 0
+                   CALL get_next(string, ILEN)
+                   CALL uppercase(string)
+                   IF (string(1:1)=='F') simpar%qs_start = .FALSE.
+                 CASE ('RESTOR') ! RESTORE_HISTORY
+                   simpar%restore_history = .TRUE.
+                   ILEN = 0
+                   CALL get_next(string, ILEN)
+                   CALL uppercase(string)
+                   IF (string(1:1)=='F') simpar%restore_history = .FALSE.
+                 CASE ('MD_MET')
+                   ILEN = 0
+                   CALL get_next(string, ILEN)
+                   CALL uppercase(string)
+                   SELECT CASE (string(1:ILEN))
+                     CASE ("FIST")
+                       simpar%md_method = FIST_MD_method
+                     CASE ("KG")
+                       simpar%md_method = KG_MD_method         
+                     CASE ("QS")
+                       simpar%md_method = QS_MD_method
+                     CASE ("Harris", "HARRIS")
+                       simpar%md_method = Harris_MD_method
+                     CASE DEFAULT
+                       CALL p_error()
+                       CALL stop_parser('MD_Method@HMC', &
+                                        'unknown suboption')
+                   END SELECT
+                 CASE ('MC_MET')
+                   ILEN = 0
+                   CALL get_next(string, ILEN)
+                   CALL uppercase(string)
+                   SELECT CASE (string(1:ILEN))
+                     CASE ("KG")
+                       simpar%mc_method = KG_MC_method
+                     CASE ("QS")
+                       simpar%mc_method = QS_MC_method
+                     CASE ("Harris", "HARRIS")
+                       simpar%mc_method = Harris_MC_method
+                     CASE DEFAULT
+                       CALL p_error()
+                       CALL stop_parser('MC_Method@HMC', &
+                                        'unknown suboption')
+                   END SELECT
+                 END SELECT
+               END DO
              CASE ( 'ANNEAL' )
                 simpar % annealing = .TRUE.
                 CALL get_next ( simpar % f_annealing )
@@ -736,11 +847,11 @@ CONTAINS
      
      IF (globenv%ionode.AND.(globenv%print_level >= 0)) THEN
        WRITE ( iw, '( A,T71,I10 )' ) ' HMC| Number of Harris LD steps per MC cycle ', &
-            simpar % ld_steps
+            simpar%ld_steps
        WRITE ( iw, '( A,T71,F10.2 )' ) ' HMC| Temperature correction value alpha ', &
-            simpar % temp_alpha
+            simpar%temp_alpha
        WRITE ( iw, '( A,T71,F10.2 )' ) ' HMC| Temperature correction value beta ', &
-            simpar % temp_beta
+            simpar%temp_beta
        WRITE (iw, *)
      END IF
   END IF
@@ -953,12 +1064,28 @@ SUBROUTINE read_md_new_section(simpar, globenv, md_section, error)
      tmp_section => section_vals_get_subs_vals(md_section, "HMC", error=error)
      CALL section_vals_get(tmp_section, explicit=explicit, error=error)
      IF (explicit) THEN
-       CALL section_vals_val_get(tmp_section, "LD_STEPS", i_val=simpar%ld_steps, &
-                                 error=error)
-       CALL section_vals_val_get(tmp_section, "TEMP_ALPHA", r_val=simpar%temp_alpha, &
-                                 error=error)
-       CALL section_vals_val_get(tmp_section, "TEMP_BETA", r_val=simpar%temp_beta, &
-                                 error=error)
+       CALL section_vals_val_get(tmp_section, "GAMMA", &
+                                 r_val=simpar%gamma, error=error)
+       CALL section_vals_val_get(tmp_section, "LD_STEPS", &
+                                 i_val=simpar%ld_steps, error=error)
+       CALL section_vals_val_get(tmp_section, "TEMP_ALPHA", &
+                                 r_val=simpar%temp_alpha, error=error)
+       CALL section_vals_val_get(tmp_section, "TEMP_BETA", &
+                                 r_val=simpar%temp_beta, error=error)
+       CALL section_vals_val_get(tmp_section, "TOT_ENERGY", &
+                                 l_val=simpar%tot_energy, error=error)
+       CALL section_vals_val_get(tmp_section, "EXT_TEMP", &
+                                 l_val=simpar%ext_temp, error=error)
+       CALL section_vals_val_get(tmp_section, "QS_ACCEPT", &
+                                 l_val=simpar%qs_accept, error=error)
+       CALL section_vals_val_get(tmp_section, "RND_VELOCITIES", &
+                                 l_val=simpar%rnd_velocities, error=error)
+       CALL section_vals_val_get(tmp_section, "VEL_SCALING", &
+                                 l_val=simpar%vel_scaling, error=error)
+       CALL section_vals_val_get(tmp_section, "QS_START", &
+                                 l_val=simpar%qs_start, error=error)
+       CALL section_vals_val_get(tmp_section, "RESTORE_HISTORY", &
+                                 l_val=simpar%restore_history, error=error)
      END IF
      
      tmp_section => section_vals_get_subs_vals(md_section,"QS_MD",error=error)
@@ -1033,6 +1160,18 @@ END SUBROUTINE read_md_new_section
     !MK Langevin
     simpar%gamma = 0.0_dp
     simpar%var_w = 0.0_dp
+    ! TdK HMC
+    simpar%ld_steps = 10
+    simpar%temp_alpha = 0.0_dp
+    simpar%temp_beta = 1.0_dp
+    simpar%tot_energy = .TRUE.
+    simpar%ext_temp = .TRUE.
+    simpar%qs_accept = .FALSE.
+    simpar%rnd_velocities = .TRUE.
+    simpar%vel_scaling = .FALSE.
+    simpar%qs_start = .TRUE.
+    simpar%restore_history = .TRUE.
+
     
     !..filenames
     CALL xstring ( globenv % project_name, ia, ie )

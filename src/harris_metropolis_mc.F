@@ -191,10 +191,11 @@ CONTAINS
     ALLOCATE(force_env_p(1), stat=stat)
     CPPostconditionNoFail(stat==0,cp_failure_level,routineP,error)
     force_env_p(1)%force_env => force_env
-    CALL harris_mc_md(force_env_p, globenv, total_energy=.TRUE., &
-                      external_temp=.TRUE., qs_accept=.TRUE., &
-                      random_velocities=.TRUE., velocity_scaling=.FALSE., &
-                      qs_start=.TRUE., restore_wf_history=.TRUE., error=error)
+    !CALL harris_mc_md(force_env_p, globenv, total_energy=.TRUE., &
+    !                  external_temp=.TRUE., qs_accept=.FALSE., &
+    !                  random_velocities=.TRUE., velocity_scaling=.FALSE., &
+    !                  qs_start=.TRUE., restore_wf_history=.TRUE., error=error)
+    CALL harris_mc_md(force_env_p=force_env_p, globenv=globenv, error=error)
 
   END SUBROUTINE harris_mc_ld
 !***************************************************************************
@@ -230,6 +231,12 @@ CONTAINS
 !!                  criterion, otherwise Harris or KG energies are used.
 !!     - random_velocities: Activates random velocities to perform hybrid MC 
 !!                          simulations.
+!!     - velocity_scaling: The velocities are scaled, such that the current 
+!!                         temperature is equivalent with the external temperature
+!!     - qs_start: Denotes if a fully converged QS energy evaluation is performed 
+!!                 at the start-up or not.
+!!     - restore_wf_history: If switched on the WF history is fully restored in
+!!                           case a MD approach is rejected.
 !!     - error: variable to control error logging, stopping,... 
 !!              see module cp_error_handling 
 !!
@@ -240,20 +247,21 @@ CONTAINS
 !!     09.2005 initial create [tdk]
 !!
 !!*** **********************************************************************
-  SUBROUTINE harris_mc_md(force_env_p, globenv, total_energy, external_temp, &
-                          qs_accept, random_velocities, velocity_scaling, &
-                          qs_start, restore_wf_history, error)
+  SUBROUTINE harris_mc_md(force_env_p, globenv, error)
+  !SUBROUTINE harris_mc_md(force_env_p, globenv, total_energy, external_temp, &
+  !                        qs_accept, random_velocities, velocity_scaling, &
+  !                        qs_start, restore_wf_history, error)
 
     TYPE(force_env_p_type), DIMENSION(:), &
       POINTER                                :: force_env_p
     TYPE(global_environment_type), POINTER   :: globenv
-    LOGICAL, INTENT(IN), OPTIONAL            :: total_energy, &
-                                                external_temp, &
-                                                qs_accept, &
-                                                random_velocities, &
-                                                velocity_scaling, &
-                                                qs_start, &
-                                                restore_wf_history
+    !LOGICAL, INTENT(IN), OPTIONAL            :: total_energy, &
+    !                                            external_temp, &
+    !                                            qs_accept, &
+    !                                            random_velocities, &
+    !                                            velocity_scaling, &
+    !                                            qs_start, &
+    !                                            restore_wf_history
     TYPE(cp_error_type), INTENT(INOUT), &
       OPTIONAL                               :: error
 
@@ -356,47 +364,47 @@ CONTAINS
     ! will be used to stop if a maximum walltime is given
     md_run_start_time=m_walltime()
 
-    IF (PRESENT(total_energy)) THEN
-      tot_energy = total_energy
-    ELSE
-      tot_energy = .TRUE.
-    END IF
+    !IF (PRESENT(total_energy)) THEN
+    !  tot_energy = total_energy
+    !ELSE
+    !  tot_energy = .TRUE.
+    !END IF
 
-    IF (PRESENT(external_temp)) THEN
-      ext_temp = external_temp
-    ELSE
-      ext_temp = .TRUE.
-    END IF
+    !IF (PRESENT(external_temp)) THEN
+    !  ext_temp = external_temp
+    !ELSE
+    !  ext_temp = .TRUE.
+    !END IF
 
-    IF (PRESENT(qs_accept)) THEN
-      qs_ener = qs_accept
-    ELSE
-      qs_ener = .TRUE.
-    END IF
+    !IF (PRESENT(qs_accept)) THEN
+    !  qs_ener = qs_accept
+    !ELSE
+    !  qs_ener = .TRUE.
+    !END IF
 
-    IF (PRESENT(random_velocities)) THEN
-      rand_vel = random_velocities
-    ELSE
-      rand_vel = .TRUE.
-    END IF
+    !IF (PRESENT(random_velocities)) THEN
+    !  rand_vel = random_velocities
+    !ELSE
+    !  rand_vel = .TRUE.
+    !END IF
 
-    IF (PRESENT(velocity_scaling) .AND. rand_vel) THEN
-      vel_scaling = velocity_scaling
-    ELSE
-      vel_scaling = .FALSE.
-    END IF
+    !IF (PRESENT(velocity_scaling) .AND. rand_vel) THEN
+    !  vel_scaling = velocity_scaling
+    !ELSE
+    !  vel_scaling = .FALSE.
+    !END IF
 
-    IF (PRESENT(qs_start)) THEN
-      start_qs = qs_start
-    ELSE
-      start_qs = .TRUE.
-    END IF
+    !IF (PRESENT(qs_start)) THEN
+    !  start_qs = qs_start
+    !ELSE
+    !  start_qs = .TRUE.
+    !END IF
 
-    IF (PRESENT(restore_wf_history)) THEN
-      restore_wf_past = restore_wf_history
-    ELSE
-      restore_wf_past = .FALSE.
-    END IF
+    !IF (PRESENT(restore_wf_history)) THEN
+    !  restore_wf_past = restore_wf_history
+    !ELSE
+    !  restore_wf_past = .FALSE.
+    !END IF
 
     failure=.FALSE.
     accepted = .TRUE.
@@ -442,6 +450,14 @@ CONTAINS
 
     CALL read_md_section(simpar, globenv, mdio, error)
     !CALL read_md_new_section(simpar, globenv, md_section, error)
+
+    tot_energy = simpar%tot_energy
+    ext_temp = simpar%ext_temp
+    qs_ener = simpar%qs_accept
+    rand_vel = simpar%rnd_velocities
+    vel_scaling = simpar%vel_scaling
+    start_qs = simpar%qs_start
+    restore_wf_past = simpar%restore_history
 
     CALL extended_type_init(extended_type)
     ALLOCATE(extended_type%nhc_part(nbeads), STAT=istat)
