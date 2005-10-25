@@ -82,10 +82,6 @@ MODULE qs_tddfpt_eigensolver
 
   IMPLICIT NONE
 
-!  TYPE cp_fm_struct_p_type
-!     TYPE(cp_fm_struct_type), POINTER :: struct
-!  END TYPE cp_fm_struct_p_type
-
   CHARACTER(len=*), PARAMETER :: moduleN = "qs_tddfpt_eigensolver"
 
   PRIVATE
@@ -104,8 +100,8 @@ CONTAINS
     TYPE(cp_error_type), &
          INTENT(INOUT), OPTIONAL             :: error
 
-    INTEGER                                  :: ispin, nspins, handle, stat
-    INTEGER                                  :: n_ev, i, restarts, out_unit
+    INTEGER                                  :: nspins, handle, stat
+    INTEGER                                  :: n_ev, restarts, out_unit
     LOGICAL                                  :: do_kernel_save, ionode, failure
     REAL(KIND=dp), DIMENSION(:), ALLOCATABLE :: ievals
     TYPE(cp_logger_type), POINTER            :: logger
@@ -134,20 +130,20 @@ CONTAINS
     do_kernel_save = qs_env%dft_control%tddfpt_control%do_kernel
     qs_env%dft_control%tddfpt_control%do_kernel = .FALSE.
     IF (ionode) THEN
-       WRITE (*,*) " Generating initial guess"
-       WRITE (*,*)
+       WRITE (out_unit,*) " Generating initial guess"
+       WRITE (out_unit,*)
     END IF
     IF (ASSOCIATED(qs_env%dft_control%tddfpt_control%lumos)) THEN
        CALL co_initial_guess(t_env%evecs, ievals, n_ev, qs_env, p_env)
     ELSE
-       IF (ionode) WRITE (*,*) "LUMOS are needed in TDDFPT!"
+       IF (ionode) WRITE (out_unit,*) "LUMOS are needed in TDDFPT!"
        CPPostcondition(.false.,cp_failure_level,routineP,error,failure)
     END IF
     DO restarts=1, qs_env%dft_control%tddfpt_control%n_restarts
        IF (iterative_solver(ievals, t_env, p_env, qs_env, ievals, error=error)) EXIT
        IF (ionode) THEN
-          WRITE (*,*) " Restarting"
-          WRITE (*,*)
+          WRITE (out_unit,*) " Restarting"
+          WRITE (out_unit,*)
        END IF
     END DO
     qs_env%dft_control%tddfpt_control%do_kernel = do_kernel_save
@@ -156,33 +152,18 @@ CONTAINS
     ! call the solver !
     !-----------------!
     IF (ionode) THEN
-       WRITE (*,*)
-       WRITE (*,*) " Doing TDDFPT calculation"
-       WRITE (*,*)
+       WRITE (out_unit,*)
+       WRITE (out_unit,*) " Doing TDDFPT calculation"
+       WRITE (out_unit,*)
     END IF
     DO restarts=1, qs_env%dft_control%tddfpt_control%n_restarts
           IF (iterative_solver(ievals, t_env, p_env, qs_env, t_env%evals, error=error)) EXIT
        IF (ionode) THEN
-          WRITE (*,*) " Restarting"
-          WRITE (*,*)
+          WRITE (out_unit,*) " Restarting"
+          WRITE (out_unit,*)
        END IF
     END DO
 
-    !-------------------!
-    ! Print the results !
-    !-------------------!
-!TC    IF (ionode) THEN
-!TC       WRITE (out_unit, *)
-!TC       WRITE (out_unit, *)
-!TC       WRITE (out_unit, '(1X,A,T19,A,T45,A)') &
-!TC            "Nr.", "Eigenvalue (hartree)", "Eigenvalue (eV)"
-!TC       DO i=1, n_ev
-!TC          WRITE (out_unit, '(1X,I3,T20,F19.10,2X,F19.10)') &
-!TC                 i, t_env%evals(i), t_env%evals(i)*evolt
-!TC       END DO
-!TC       WRITE (out_unit, *)
-!TC    END IF
-          
     !---------!
     ! cleanup !
     !---------!
@@ -195,23 +176,24 @@ CONTAINS
 
 ! *****************************************************************************
 
-  ! in_evals : intial guess eigenvalues  (ignored in lanczos)
-  ! iev      : which eigenvalue to converge to (ignored in lanczos)
-  !
-  ! t_env, p_env, qs_env : environments needed for calculation
-  !
-  ! out_evals : resulting eigenvalues
+  ! in_evals  : approximations to the eigenvalues for the preconditioner
+  ! t_env     : TD-DFT environment values
+  ! p_env     : perturbation environment values
+  ! qs_env    : general Quickstep environment values
+  ! out_evals : the resulting eigenvalues
+  ! error     : used for error handling
+  ! 
+  ! res       : the function will return wheter the eigenvalues are converged or not
 
   FUNCTION iterative_solver(in_evals, &
                             t_env, p_env, qs_env, &
                             out_evals, error) RESULT(res)
 
-    REAL(KIND=dp), DIMENSION(:), INTENT(IN)  :: in_evals
+    REAL(KIND=dp), DIMENSION(:)              :: in_evals
     TYPE(tddfpt_env_type), INTENT(INOUT)     :: t_env
     TYPE(qs_p_env_type), POINTER             :: p_env
     TYPE(qs_environment_type), POINTER       :: qs_env
-    REAL(kind=dp), DIMENSION(:), &
-         INTENT(OUT), OPTIONAL               :: out_evals
+    REAL(kind=dp), DIMENSION(:), OPTIONAL    :: out_evals
     TYPE(cp_error_type), &
          INTENT(INOUT), OPTIONAL             :: error
     LOGICAL                                  :: res
@@ -237,14 +219,12 @@ CONTAINS
     TYPE(cp_fm_struct_p_type), &
       DIMENSION(:), POINTER                  :: kv_fm_struct
     TYPE(cp_fm_p_type)                       :: Atilde, Us
-    TYPE(cp_fm_struct_type), POINTER         :: tilde_fm_struct, Us_fm_struct
+    TYPE(cp_fm_struct_type), POINTER         :: tilde_fm_struct
     TYPE(tddfpt_control_type), POINTER       :: tddfpt_control
 
     TYPE(cp_logger_type), POINTER            :: logger
     LOGICAL                                  :: ionode, failure
     INTEGER                                  :: out_unit
-
-    REAL(KIND=dp) :: dot
 
     failure   = .FALSE.
     res       = .FALSE.
@@ -276,7 +256,7 @@ CONTAINS
     if (max_krylovspace_dim <= max_kv) then
        max_kv = max_krylovspace_dim
        if (ionode) then
-          write (*,*) "  Setting the maximum number of krylov vectors to ", max_kv, "!!"
+          write (out_unit,*) "  Setting the maximum number of krylov vectors to ", max_kv, "!!"
        end if
     end if
 !    CPPostcondition(max_krylovspace_dim>=max_kv,cp_failure_level,routineP,error,failure)
@@ -334,8 +314,8 @@ CONTAINS
 
        DO i=1, n_kv
           k=k+1
-
-          IF (k <= SIZE(t_env%evecs,1)) THEN
+          
+          IF (k <= SIZE(t_env%evecs,1)) THEN ! the first iteration
 
              ! take the initial guess
              DO spin=1, nspins
@@ -404,12 +384,12 @@ CONTAINS
                 END DO
 
              ELSE
-                IF (ionode) WRITE (*,*) "unknown mode"
+                IF (ionode) WRITE (out_unit,*) "unknown mode"
                 CPPostcondition(.FALSE.,cp_failure_level,routineP,error,failure)
              END IF
 
           END IF
-          
+
           CALL p_preortho(p_env, qs_env, b(k,:))
           DO j=1, tddfpt_control%n_reortho
              CALL reorthogonalize(b(k,:), b, Sb, R, k-1) ! R is temp
@@ -478,11 +458,11 @@ CONTAINS
           evals_difference = ABS((evals(1:n_ev,iter-1)-evals(1:n_ev,iter))/evals(1:n_ev,iter-1))          
           ! For debugging
           IF (ionode) THEN
-             WRITE (*,*)
+             WRITE (out_unit,*)
              DO i=1, n_ev
                 WRITE (out_unit,'(2X,F10.7,T69,ES11.4)') evals(i,iter)*evolt, evals_difference(i)
              END DO
-             WRITE (*,*)
+             WRITE (out_unit,*)
           END IF
 
           convergence = MAXVAL(evals_difference)
@@ -656,7 +636,7 @@ CONTAINS
                                    routineP = moduleN//"/"//routineN
 
     CHARACTER(LEN=80)                        :: mat_name
-    INTEGER                                  :: i, index, spin
+    INTEGER                                  :: index, spin
 
     DO spin=1, nspins
        DO index=startv, startv + n_v - 1
