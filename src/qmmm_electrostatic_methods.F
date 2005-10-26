@@ -26,7 +26,9 @@ MODULE qmmm_electrostatic_methods
   USE coefficient_types,               ONLY: coeff_type,&
                                              coeff_zero
   USE mathconstants,                   ONLY: pi
-  USE cp_output_handling, ONLY: cp_should_output
+  USE cp_output_handling, ONLY: cp_should_output, cp_iter_string, cp_iterate,&
+       cp_add_iter_level, cp_rm_iter_level, cp_unitnr_for_output, &
+       cp_finished_output
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE cube_utils,                      ONLY: cube_info_type
   USE global_types,                    ONLY: global_environment_type
@@ -127,7 +129,7 @@ CONTAINS
       routineP = moduleN//':'//routineN    
 
     CHARACTER(LEN=80)                        :: FileName, Title
-    INTEGER                                  :: handle, iw
+    INTEGER                                  :: handle, iw, unit_nr
     LOGICAL                                  :: failure
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(pw_env_type), POINTER               :: pw_env
@@ -207,13 +209,14 @@ CONTAINS
           CPPrecondition(.FALSE.,cp_failure_level,routineP,error,failure)
        END SELECT
 
-       IF (cp_should_output(logger%iter_info,print_pot,error=error).AND.&
-            logger%para_env%mepos==logger%para_env%source) THEN
-          CALL section_vals_val_get(print_pot,"FILENAME",c_val=FileName,error=error)
+       IF (cp_should_output(logger%iter_info,print_pot,error=error)) THEN
+          unit_nr=cp_unitnr_for_output(logger=logger, print_key=print_pot,&
+               extension=".cube", local=.false., log_filename=.true., error=error)
           Title    = "QM/MM: MM ELECTROSTATIC POTENTIAL "
-          IF (globenv%ionode) OPEN(UNIT=21,FILE=FileName)
-          CALL rs_pw_to_cube(ks_qmmm_env_loc%v_qmmm_rspace%pw,21,globenv%ionode,Title)
-          IF (globenv%ionode) CLOSE(21)
+          CALL rs_pw_to_cube(ks_qmmm_env_loc%v_qmmm_rspace%pw,unit_nr,&
+               logger%para_env%source==logger%para_env%mepos,Title)
+          CALL cp_finished_output(unit_nr,logger=logger, print_key=print_pot,&
+               error=error)
        END IF
 
        CALL timestop(0.0_dp,handle)
