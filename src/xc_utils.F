@@ -40,7 +40,6 @@ MODULE xc_utils
                                              cp_note_level,&
                                              cp_to_string,&
                                              cp_warning_level
-  USE global_types,                    ONLY: global_environment_type
   USE input_constants,                 ONLY: cgga_lyp, c_pade, &
                                              cgga_hcth93, cgga_hcth120, &
                                              cgga_hcth147, cgga_hcth407,&
@@ -68,10 +67,7 @@ MODULE xc_utils
                                              section_vals_type,&
                                              section_vals_val_get
   USE kinds,                           ONLY: dp
-  USE termination,                     ONLY: stop_memory,&
-                                             stop_program
-  USE timings,                         ONLY: timeset,&
-                                             timestop
+  USE termination,                     ONLY: stop_program
   USE xc_cs1_new,                      ONLY: cs1_lda_eval,&
                                              cs1_lda_info,&
                                              cs1_lsd_eval,&
@@ -148,23 +144,23 @@ MODULE xc_utils
 
 CONTAINS
 
-  SUBROUTINE read_xc_control(xc_control,nspins,kenergy_den,globenv,error)
+  SUBROUTINE read_xc_control(xc_section,xc_control,nspins,kenergy_den,error)
 
+    TYPE(section_vals_type), POINTER         :: xc_section
     TYPE(xc_control_type)                    :: xc_control
     INTEGER, INTENT(IN)                      :: nspins
     LOGICAL, INTENT(INOUT)                   :: kenergy_den
-    TYPE(global_environment_type)            :: globenv
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
     CHARACTER(LEN=*), PARAMETER ::  routineN = "read_xc_control", &
-      routineP = moduleN//"/"//routineN
+                                    routineP = moduleN//"/"//routineN
 
-    INTEGER                                  :: i,i_param,istat
+    INTEGER                                  :: i,i_param
     LOGICAL                                  :: failure, was_present, xc_fun_set
-    TYPE(section_vals_type), POINTER         :: xc_section, &
-                                                func_section,&
+    TYPE(section_vals_type), POINTER         :: func_section,&
                                                 grid_section,&
+                                                potential_section,&
                                                 tmp_section
     LOGICAL, PARAMETER                       :: CROSS_TERM = .TRUE., &
                                                 GRADIENT_FUNCTIONAL = .TRUE.
@@ -172,17 +168,14 @@ CONTAINS
     failure=.FALSE.
     was_present = .FALSE.
 
-    NULLIFY(xc_section,func_section,grid_section)
-    xc_section => section_vals_get_subs_vals(globenv%input_file,&
-                 "FORCE_EVAL",error=error)
-    xc_section => section_vals_get_subs_vals(xc_section,"DFT",error=error)
-    xc_section => section_vals_get_subs_vals(xc_section,"XC",error=error)
+    NULLIFY(func_section,grid_section,potential_section)
 
-    
     func_section => section_vals_get_subs_vals(xc_section,&
                     "XC_FUNCTIONAL",error=error)
     grid_section => section_vals_get_subs_vals(xc_section,&
                     "XC_GRID",error=error)
+    potential_section => section_vals_get_subs_vals(xc_section,&
+                         "XC_POTENTIAL",error=error)
 
     xc_control%functionals = "NONE" 
     xc_control%functionals_new = 0
@@ -486,6 +479,9 @@ CONTAINS
      CALL section_vals_val_get(grid_section,"XC_DERIV",&
           i_val=xc_control%xc_deriv_method_id,error=error)
 
+     ! read the xc_potential parameters
+!     xc_potential set
+
   END SUBROUTINE read_xc_control
 
 !***************************************************************************
@@ -736,13 +732,10 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'xc_eval_yat', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle
     LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: density_cut, gradient_cut
 
- !     CALL timeset(routineP,"I"," ",handle)
-
-      failure=.FALSE.
+    failure=.FALSE.
 
     CALL xc_rho_set_get(rho_set,rho_cutoff=density_cut,&
           drho_cutoff=gradient_cut,error=error)

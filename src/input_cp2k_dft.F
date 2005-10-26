@@ -1466,6 +1466,89 @@ SUBROUTINE create_xc_fun_section(section,error)
   END IF
 END SUBROUTINE create_xc_fun_section
 
+!!****f* xc_derivatives/create_xc_potential_section [1.0] *
+!!   NAME
+!!     create_xc_potential_section
+!!
+!!   FUNCTION
+!!     creates the structure of the section needed to select an xc potential
+!!
+!!   NOTES
+!!     -
+!!
+!!   ARGUMENTS
+!!     - section: the section that will be created
+!!     - error: variable to control error logging, stopping,... 
+!!       see module cp_error_handling 
+!!
+!!   AUTHOR
+!!     thomas chassaing
+!!
+!!*** **********************************************************************
+SUBROUTINE create_xc_potential_section(section,error)
+    TYPE(section_type), POINTER              :: section
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'create_xc_potential_section', &
+                                   routineP = moduleN//':'//routineN
+
+    LOGICAL                                  :: failure
+    TYPE(keyword_type), POINTER              :: keyword
+    TYPE(section_type), POINTER              :: subsection
+
+  failure=.FALSE.
+  
+  CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
+  IF (.NOT. failure) THEN
+     CALL section_create(section,name="xc_potential",&
+         description="The xc potential to use (CAREFUL: xc potential here refers "//&
+         "to potentials that are not derived from an xc functional, but rather are "//&
+         "modelled directly. Therefore there is no consistent xc energy available. "//&
+         "To still get an energy expression, see ENERGY below",&
+         n_keywords=1, n_subsections=1, repeats=.FALSE., required=.FALSE.,&
+         error=error)
+     
+     NULLIFY(subsection,keyword)
+     CALL section_create(subsection,name="SAOP",&
+          description="Uses the SAOP potential",&
+          n_keywords=3, n_subsections=0, repeats=.TRUE., required=.TRUE.,&
+          error=error)
+     CALL keyword_create(keyword,name="ALPHA",&
+          description="Value of the alpha parameter (default = 1.19).",&
+          usage="ALPHA 1.19", default_r_val=1.19_dp,error=error)
+     CALL section_add_keyword(subsection,keyword,error=error)
+     CALL keyword_release(keyword,error=error)
+     CALL keyword_create(keyword,name="BETA",&
+          description="Value of the beta parameter (default = 0.01).",&
+          usage="BETA 0.01", default_r_val=0.01_dp,error=error)
+     CALL section_add_keyword(subsection,keyword,error=error)
+     CALL keyword_release(keyword,error=error)
+     CALL keyword_create(keyword,name="K_RHO",&
+          description="Value of the K_rho parameter (default = 0.42).",&
+          usage="ALPHA 0.42", default_r_val=0.42_dp,error=error)
+     CALL section_add_keyword(subsection,keyword,error=error)
+     CALL keyword_release(keyword,error=error)
+     CALL section_add_subsection(section,subsection,error=error)
+     CALL section_release(subsection,error=error)
+     
+     CALL keyword_create(keyword, name="ENERGY",&
+          description="How to determine the total energy.",&
+          usage="ENERGY [NONE,XC_FUNCTIONAL,SUM_EIGENVALUES",&
+          enum_c_vals=s2a("NONE","XC_FUNCTIONAL","FUNCTIONAL","SUM_EIGENVALUES",&
+                          "SOE"),&
+          enum_i_vals=(/ xc_pot_energy_none, &
+                         xc_pot_energy_xc_functional,&
+                         xc_pot_energy_xc_functional,&
+                         xc_pot_energy_sum_eigenvalues,&
+                         xc_pot_energy_sum_eigenvalues /),&
+          default_i_val=xc_pot_energy_none, error=error)
+     CALL section_add_keyword(section,keyword,error=error)
+     CALL keyword_release(keyword,error=error)
+
+  END IF
+END SUBROUTINE create_xc_potential_section
+
 !***************************************************************************
 !!****f* input_cp2k_dft/create_tddfpt_section [1.0] *
 !!
@@ -1742,6 +1825,10 @@ SUBROUTINE create_tddfpt_section(section,error)
        CALL section_release(subsection,error=error)
 
        CALL create_xc_fun_section(subsection,error)
+       CALL section_add_subsection(section,subsection,error=error)
+       CALL section_release(subsection,error=error)
+
+       CALL create_xc_potential_section(subsection,error)
        CALL section_add_subsection(section,subsection,error=error)
        CALL section_release(subsection,error=error)
 

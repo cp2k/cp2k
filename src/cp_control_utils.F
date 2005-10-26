@@ -459,8 +459,8 @@ CONTAINS
     xc_section => section_vals_get_subs_vals(globenv%input_file,&
                    "FORCE_EVAL%DFT%XC", error=error)
     IF (parsed_cp2k_input(xc_section,check_this_section=.TRUE.,error=error)) THEN
-       CALL read_xc_control(dft_control%xc_control, dft_control%nspins,&
-            dft_control%use_kinetic_energy_density, globenv, error=error)
+       CALL read_xc_control(xc_section, dft_control%xc_control, dft_control%nspins,&
+                            dft_control%use_kinetic_energy_density, error=error)
     END IF
 
     
@@ -765,8 +765,8 @@ CONTAINS
     xc_section => section_vals_get_subs_vals(globenv%input_file,&
                    "FORCE_EVAL%DFT%XC", error=error)
     IF (parsed_cp2k_input(xc_section,check_this_section=.TRUE.,error=error)) THEN
-       CALL read_xc_control(dft_control%xc_control, dft_control%nspins,&
-            dft_control%use_kinetic_energy_density, globenv, error=error)
+       CALL read_xc_control(xc_section, dft_control%xc_control, dft_control%nspins,&
+            dft_control%use_kinetic_energy_density, error=error)
     END IF
 
     xas_section => section_vals_get_subs_vals(globenv%input_file,&
@@ -1626,255 +1626,7 @@ CONTAINS
 
 ! *****************************************************************************
 
-!!>----------------------------------------------------------------------------
-!!  SECTION: &tddfpt ... &end                                                 !
-!!                                                                            !
-!!  nev                    : (integer) number of electrons                    !
-!!  nreortho               : (integer) number of reorthogonalization steps    !
-!!  kernel                 : (y/n) compute the kernel? (for debugging)        !
-!!  res_e_type             : (singlets/triplets) for restricted calculation   !
-!!  functional             : combined functional to use in kernel             !
-!!  exchange-functional    : exchange-functional to use in kernel             !
-!!  correlation-functional : correlation-functional to use in kernel          !
-!!  kinetic-energy-functional : kinetic-energy-functional to use in kernel    !
-!!                                                                            !
-!!<----------------------------------------------------------------------------
-
-!TODEL_START_MI
-  SUBROUTINE read_tddfpt_control(t_control, dft_control, globenv, error)
-
-
-    TYPE(tddfpt_control_type)                :: t_control
-    TYPE(dft_control_type)                   :: dft_control
-    TYPE(global_environment_type), &
-      INTENT(in)                             :: globenv
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
-
-    CHARACTER(len=*), PARAMETER :: routineN = "read_tddfpt_control", &
-      routineP = moduleN//"/"//routineN
-
-    CHARACTER(LEN=60)                        :: field, keyword
-    LOGICAL                                  :: section_found, xc_reset, was_present
-    TYPE(section_vals_type), POINTER         :: tddfpt_section
-
-    xc_reset = .FALSE.
-    was_present = .FALSE.
-    NULLIFY(tddfpt_section)
-
-    t_control%xc_control = dft_control%xc_control
-
-    tddfpt_section => &
-         section_vals_get_subs_vals(globenv%input_file,"FORCE_EVAL%DFT%TDDFPT",error=error)
-    call section_vals_get(tddfpt_section,explicit=was_present,error=error)
-    
-    IF (was_present .OR. parsed_cp2k_input(globenv%input_file,error=error)) THEN
-       CALL read_tddfpt_control_new(t_control,dft_control%nspins,globenv)
-       RETURN
-    END IF
-
-    write (*,*) "shouldn't be here"
-
-    section_found = .FALSE.
-    CALL start_parser(file_name=globenv%input_file_name,&
-                      globenv=globenv,&
-                      start_section_label="TDDFPT",&
-                      section_found=section_found)
-    
-    t_control%tolerance = 1.0E-5_dp
-    t_control%n_ev = 1
-    t_control%max_kv = 60
-    t_control%n_restarts = 5
-    t_control%n_reortho = 2
-    t_control%do_kernel = .TRUE.
-    t_control%lsd_singlets = .FALSE.
-    t_control%invert_S = .TRUE.
-    t_control%precond = .TRUE.
-    t_control%res_etype = tddfpt_singlet
-    t_control%diag_method = tddfpt_davidson
-    t_control%oe_corr = oe_none
-
-    DO WHILE (section_found.AND.(test_object(newline=.TRUE.) /= "EOS"))
-
-       CALL read_object(keyword,lower_to_upper=.TRUE.,newline=.TRUE.)
-
-       SELECT CASE (TRIM(keyword))
-
-       CASE ("TOL","TOLERANCE")
-          CALL read_object(t_control%tolerance)
-          IF (t_control%tolerance < 0.0_dp) &
-               CALL stop_parser(routineP, "tolerance must be positive")
-
-       CASE ("NEV", "N_EV", "EV")
-          CALL read_object(t_control%n_ev)
-          IF (t_control%n_ev < 1) &
-               CALL stop_parser(routineP, "number of eignvalues must be >= 1")
-
-       CASE ("MAX_KV")
-          CALL read_object(t_control%max_kv)
-          IF (t_control%max_kv < 1) &
-               CALL stop_parser(routineP, "maximal number of iterations must be >= 1")
-
-       CASE ("NRESTARTS", "RESTARTS", &
-             "N_RESTARTS")
-          CALL read_object(t_control%n_restarts)
-          IF (t_control%n_restarts < 1) &
-               CALL stop_parser(routineP, "number of restarts must be >= 1")
-
-       CASE ("NREORTHO", "REORTHO", "N_REORTHO", &
-             "REORTHOGONALIZATIONS")
-          CALL read_object(t_control%n_reortho)
-          IF (t_control%n_reortho < 1) &
-               CALL stop_parser(routineP, "no. of reortho. steps must  be >= 1")
-
-       CASE ("KERNEL")
-          CALL read_object(field, lower_to_upper=.TRUE.)
-          SELECT CASE (TRIM(field))
-          CASE ("Y", "YES") 
-             t_control%do_kernel = .TRUE.
-          CASE ("N", "NO")
-             t_control%do_kernel = .FALSE.
-          CASE DEFAULT
-               CALL stop_parser(routineP, "unknown option <"//TRIM(field)&
-                    &//"> for keyword KERNEL")
-          END SELECT
-
-       CASE ("LSD_SINGLETS")
-          CALL read_object(field, lower_to_upper=.TRUE.)
-          SELECT CASE (TRIM(field))
-          CASE ("Y", "YES") 
-             t_control%lsd_singlets = .TRUE.
-          CASE ("N", "NO")
-             t_control%lsd_singlets = .FALSE.
-          CASE DEFAULT
-               CALL stop_parser(routineP, "unknown option <"//TRIM(field)&
-                    &//"> for keyword LSD_SINGLETS")
-          END SELECT
-
-       CASE ("INVERT_S", "INV_S", "S-1")
-          CALL read_object(field, lower_to_upper=.TRUE.)
-          SELECT CASE (TRIM(field))
-          CASE ("Y", "YES") 
-             t_control%invert_S = .TRUE.
-          CASE ("N", "NO")
-             t_control%invert_S = .FALSE.
-          CASE DEFAULT
-               CALL stop_parser(routineP, "unknown option <"//TRIM(field)&
-                    &//"> for keyword INVERT_S")
-          END SELECT
-
-       CASE ("RES_ETYPE", &
-             "RESTRICTED_EXCITATIONS_TYPE")
-          CALL read_object(field, lower_to_upper=.TRUE.)
-          SELECT CASE (TRIM(field))
-          CASE ("SINGLET", "SINGLETS", "S")
-             t_control%res_etype = tddfpt_singlet
-          CASE ("TRIPLET", "TRIPLETS", "T")
-             t_control%res_etype = tddfpt_triplet
-          CASE DEFAULT
-               CALL stop_parser(routineP, "unknown option <"//TRIM(field)&
-                    &//"> for keyword RES_ETYPE")
-          END SELECT
-
-       CASE ("DIAG_METHOD","METHOD")
-          CALL read_object(field, lower_to_upper=.TRUE.)
-          SELECT CASE (TRIM(field))
-          CASE ("LANCZOS")
-             t_control%diag_method = tddfpt_lanczos
-          CASE ("DAVIDSON")
-             t_control%diag_method = tddfpt_davidson
-          CASE DEFAULT
-               CALL stop_parser(routineP, "unknown option <"//TRIM(field)&
-                    &//"> for keyword DIAG_METHOD")
-          END SELECT
-
-       CASE ("EXCHANGE-CORRELATION-FUNCTIONAL","XC-FUNCTIONAL","XC-FUN",&
-             "XCFUN","FUNCTIONAL","FUN")
-          IF (.NOT.xc_reset) THEN
-             t_control%xc_control%functionals = "NONE"
-             xc_reset = .TRUE.
-          END IF
-         CALL read_object(field, lower_to_upper=.TRUE.)
-         CALL xc_get_functional (0, field, t_control%xc_control%functionals, &
-                                 t_control%xc_control%gradient_functionals, &
-                                 t_control%xc_control%crossterms )
-       CASE ("EXCHANGE-FUNCTIONAL","X-FUNCTIONAL","X-FUN","XFUN")
-          IF (.NOT.xc_reset) THEN
-             t_control%xc_control%functionals = "NONE"
-             xc_reset = .TRUE.
-          END IF
-         CALL read_object(field, lower_to_upper=.TRUE.)
-         CALL xc_get_functional (1, field, t_control%xc_control%functionals, &
-                                 t_control%xc_control%gradient_functionals, &
-                                 t_control%xc_control%crossterms )
-       CASE ("CORRELATION-FUNCTIONAL","C-FUNCTIONAL","C-FUN","CFUN")
-          IF (.NOT.xc_reset) THEN
-             t_control%xc_control%functionals = "NONE"
-             xc_reset = .TRUE.
-          END IF
-         CALL read_object(field, lower_to_upper=.TRUE.)
-         CALL xc_get_functional (2, field, t_control%xc_control%functionals, &
-                                 t_control%xc_control%gradient_functionals, &
-                                 t_control%xc_control%crossterms )
-       CASE ("KINETIC-ENERGY-FUNCTIONAL","KE-FUNCTIONAL","KE-FUN","KEFUN")
-          IF (.NOT.xc_reset) THEN
-             t_control%xc_control%functionals = "NONE"
-             xc_reset = .TRUE.
-          END IF
-         CALL read_object(field, lower_to_upper=.TRUE.)
-         CALL xc_get_functional (3, field, t_control%xc_control%functionals, &
-                                 t_control%xc_control%gradient_functionals, &
-                                 t_control%xc_control%crossterms )
-       CASE ("OE_CORR", &
-             "ORBITAL_EIGENVALUE_CORRECTION")
-          CALL read_object(field, lower_to_upper=.TRUE.)
-          SELECT CASE (TRIM(field))
-          CASE ("NONE")
-             t_control%oe_corr = oe_none
-          CASE ("SAOP")
-             t_control%oe_corr = oe_saop
-          CASE ("SIC")
-             t_control%oe_corr = oe_sic
-          CASE DEFAULT
-               CALL stop_parser(routineP, "unknown option <"//TRIM(field)&
-                    &//"> for keyword OE_CORR")
-          END SELECT
-
-       CASE ("SIC")
-          CALL read_object(field,lower_to_upper=.TRUE.)
-          SELECT CASE (TRIM(field))
-          CASE ("NONE")
-             t_control%sic_method_id=sic_none
-          CASE ("MAURI_US")
-             t_control%sic_method_id=sic_mauri_us
-          CASE ("MAURI_SPZ")
-             t_control%sic_method_id=sic_mauri_spz
-          CASE ("AD")
-             t_control%sic_method_id=sic_ad
-          CASE DEFAULT
-               CALL stop_parser(routineP, "unknown option <"//TRIM(field)&
-                    &//"> for keyword SIC")
-          END SELECT
-       CASE ("SIC_SCALING_A")
-          CALL read_object(t_control%sic_scaling_a)
-       CASE ("SIC_SCALING_B")
-          CALL read_object(t_control%sic_scaling_b)
-
-       CASE DEFAULT
-          CALL stop_parser(routineP, "unrecognized option <"//TRIM(keyword)//">")
-
-      END SELECT
-
-   END DO
-   
-   CALL finish_parser()
-
-  END SUBROUTINE read_tddfpt_control
-!TODEL_END_MI
-
-!   ***************************************************************************
-
-  SUBROUTINE read_tddfpt_control_new(t_control,nspins,globenv, error)
+  SUBROUTINE read_tddfpt_control(t_control,nspins,globenv, error)
     TYPE(tddfpt_control_type)                :: t_control
     INTEGER, INTENT(IN)                      :: nspins
     TYPE(global_environment_type)            :: globenv
@@ -1882,7 +1634,7 @@ CONTAINS
       OPTIONAL                               :: error
 
     CHARACTER(LEN=*), PARAMETER :: &
-      routineN = "read_tddfpt_control_new", &
+      routineN = "read_tddfpt_control", &
       routineP = moduleN//"/"//routineN
 
     INTEGER                                  :: i
@@ -1938,40 +1690,8 @@ CONTAINS
     xc_section=>section_vals_get_subs_vals(t_section,"XC",error=error)
     call section_vals_get(xc_section,explicit=was_present,error=error)
     if (was_present) then
-      ! to be uncommented START_MI
-!      CALL read_xc_control(t_control%xc_control,nspins,kenergy_den,globenv,error)
-      ! to be uncommented START_MI
-
-      !ask Thomas to activate this
-!       CALL read_xc_control(t_control%xc_control, nspins,&
-!            t_control%use_kinetic_energy_density, globenv, error=error)
-
-!TODEL_START_MI
-       xc_grid=>section_vals_get_subs_vals(xc_section,"XC_GRID",error=error)
-
-       CALL section_vals_val_get(xc_grid,"XC_SMOOTH_RHO",&
-            i_val=t_control%xc_control%xc_rho_smooth_id,error=error)
-       CALL section_vals_val_get(xc_grid,"XC_DERIV",&
-            i_val=t_control%xc_control%xc_deriv_method_id, error=error)
-
-       xc_fun=>section_vals_get_subs_vals(xc_section,"XC_FUNCTIONAL",error=error)
-       t_control%xc_control%functionals = "NONE" 
-       DO i=1,SIZE(t_control%xc_control%functionals)
-          tmp_section => section_vals_get_subs_vals2(xc_fun,i,error=error)
-          IF (.NOT.ASSOCIATED(tmp_section)) EXIT
-          t_control%xc_control%functionals(i) = tmp_section%section%name
-       END DO
-       CALL section_vals_val_get(xc_section,"DENSITY_CUTOFF",&
-            r_val=t_control%xc_control%density_cut,error=error)
-       CALL section_vals_val_get(xc_section,"GRADIENT_CUTOFF",&
-            r_val=t_control%xc_control%gradient_cut,error=error)
-       t_control%xc_control%density_smooth_cut_range = 0.0_dp
-       CALL section_vals_val_get(xc_section,"TAU_CUTOFF",&
-            r_val=t_control%xc_control%tau_cut,error=error)
-       t_control%xc_control%gradient_functionals = .FALSE.
-       t_control%xc_control%crossterms = .FALSE.
-       t_control%xc_control%functional_routine = xc_new_f_routine
-!TODEL_END_MI
+       CALL read_xc_control(xc_section, t_control%xc_control, nspins,&
+                            t_control%use_kinetic_energy_density, error=error)
     end if
 
     sic_section=>section_vals_get_subs_vals(t_section,"SIC",error=error)
@@ -1982,7 +1702,7 @@ CONTAINS
     CALL section_vals_val_get(sic_section,"SIC_SCALING_B",&
          r_val=t_control%sic_scaling_b,error=error)
 
-  END SUBROUTINE read_tddfpt_control_new
+  END SUBROUTINE read_tddfpt_control
 
 !   ***************************************************************************
 

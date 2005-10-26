@@ -388,6 +388,10 @@ MODULE input_constants
                                 use_perd_yz=5,&
                                 use_perd_xyz=6,&
                                 use_perd_none=7
+
+  INTEGER, PARAMETER, PUBLIC :: xc_pot_energy_none=0, &
+                                xc_pot_energy_xc_functional=1, &
+                                xc_pot_energy_sum_eigenvalues=2
  
   ! X-Ray spectra Calculation
   INTEGER, PARAMETER, PUBLIC :: xas_none=0, xas_tp_hh=1, xas_tp_fh=2,  xas_tddft=3, xas_dscf=4 

@@ -46,6 +46,7 @@ MODULE qs_environment
                                              read_mgrid_section,&
                                              read_qs_control,&
                                              read_qs_section,&
+                                             read_tddfpt_control,&
                                              write_dft_control,&
                                              write_qs_control
   USE cp_error_handling,               ONLY: cp_error_type
@@ -393,6 +394,8 @@ CONTAINS
 !   *** Read the input section with the DFT control parameters ***
 
     CALL read_dft_control(dft_control,globenv)
+    ! ONLY WORKS WITH NEW INPUT
+    CALL read_tddfpt_control(dft_control%tddfpt_control,dft_control%nspins,globenv)
 
 !   *** Read the input section with the Quickstep control parameters ***
 

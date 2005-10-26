@@ -19,7 +19,6 @@
 
 MODULE qs_tddfpt_module
 
-  USE cp_control_utils,                ONLY: read_tddfpt_control
   USE cp_control_types,                ONLY: dft_control_type,&
                                              tddfpt_control_type,&
                                              xc_control_type
@@ -27,30 +26,19 @@ MODULE qs_tddfpt_module
                                              oe_lb,&
                                              oe_gllb,&
                                              oe_saop,&
-                                             oe_sic,&
-                                             sic_none,&
-                                             tddfpt_singlet,&
-                                             tddfpt_davidson,&
-                                             tddfpt_lanczos
+                                             oe_sic
   USE cp_error_handling,               ONLY: cp_a_l,&
-                                             cp_assert,&
                                              cp_error_get_logger,&
-                                             cp_error_message,&
                                              cp_error_type
   USE cp_log_handling,                 ONLY: cp_failure_level,&
-                                             cp_fatal_level,&
                                              cp_logger_get_default_unit_nr,&
-                                             cp_logger_type,&
-                                             cp_note_level,&
-                                             cp_to_string,&
-                                             cp_warning_level
+                                             cp_logger_type
   USE global_types,                    ONLY: global_environment_type
   USE kinds,                           ONLY: dp
   USE qs_environment_types,            ONLY: get_qs_env,&
                                              qs_environment_type
   USE qs_ks_methods,                   ONLY: qs_ks_build_kohn_sham_matrix
   USE qs_p_env_types,                  ONLY: qs_p_env_type
-  USE qs_scf,                          ONLY: scf_env_do_scf
   USE qs_scf_types,                    ONLY: qs_scf_env_type
   USE qs_tddfpt_eigensolver,           ONLY: eigensolver
   USE qs_tddfpt_types,                 ONLY: tddfpt_env_type
@@ -58,7 +46,6 @@ MODULE qs_tddfpt_module
                                              tddfpt_cleanup,&
                                              tddfpt_init,&
                                              tddfpt_write_banner
-  USE termination,                     ONLY: stop_program
   USE timings,                         ONLY: timeset,&
                                              timestop
   USE xc_pot_saop,                     ONLY: add_saop_pot
@@ -95,22 +82,17 @@ CONTAINS
                                    routineP = moduleN//'/'//routineN
  
     INTEGER                                  :: handle
+    TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(qs_p_env_type), POINTER             :: p_env
     TYPE(tddfpt_control_type), POINTER       :: tddfpt_control
     TYPE(tddfpt_env_type)                    :: t_env
 
-    IF (.NOT.qs_env%dft_control%do_tddfpt_calculation) RETURN
+    NULLIFY(dft_control, tddfpt_control)
+    CALL get_qs_env(qs_env, dft_control=dft_control, tddfpt_control=tddfpt_control)
+
+    IF (.NOT.dft_control%do_tddfpt_calculation) RETURN
 
     CALL timeset(routineN,"I","",handle)
-
-    NULLIFY(tddfpt_control)
-    CALL get_qs_env(qs_env, tddfpt_control=tddfpt_control)
-
-    !---------------------!
-    ! some default values !
-    !---------------------!
-
-    CALL read_tddfpt_control(tddfpt_control, qs_env%dft_control, glob_env)
 
     IF (tddfpt_control%oe_corr /= oe_none) THEN
        CALL orbital_eigenvalue_correction(qs_env, error)
@@ -155,7 +137,7 @@ CONTAINS
     TYPE(cp_error_type), &
          INTENT(INOUT), OPTIONAL             :: error
 
-    INTEGER                                  :: output_unit, i
+    INTEGER                                  :: output_unit
     LOGICAL                                  :: failure, ionode
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(qs_scf_env_type), POINTER           :: scf_env
