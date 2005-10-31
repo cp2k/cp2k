@@ -1726,17 +1726,17 @@ END SUBROUTINE create_nose_section
        CALL section_create(section,name="HMC",&
             description="This section specifies the parameters for the "//&
                         "Hybrid Metropolis Monte Carlo simulation",&
-            n_keywords=13, n_subsections=0, repeats=.FALSE., required=.FALSE.,&
+            n_keywords=14, n_subsections=0, repeats=.FALSE., required=.FALSE.,&
             error=error)
 
        NULLIFY(keyword)
 
-       CALL keyword_create(keyword, name="gamma",&
-            description="Gamma parameter for the Langevin dynamics",&
-            usage="gamma 0.001",&
-            default_r_val=0.0_dp, unit_str='fs^-1',error=error)
-       CALL section_add_keyword(section,keyword,error=error)
-       CALL keyword_release(keyword,error=error)
+       !CALL keyword_create(keyword, name="gamma",&
+       !     description="Gamma parameter for the Langevin dynamics",&
+       !     usage="gamma 0.001",&
+       !     default_r_val=0.0_dp, unit_str='fs^-1',error=error)
+       !CALL section_add_keyword(section,keyword,error=error)
+       !CALL keyword_release(keyword,error=error)
        
        CALL keyword_create(keyword, name="ld_steps", &
             description="Number of LD steps per MC cycle.", &
@@ -1821,11 +1821,29 @@ END SUBROUTINE create_nose_section
             error=error)
        CALL section_add_keyword(section, keyword, error=error)
        CALL keyword_release(keyword, error=error)
+
+       CALL keyword_create(keyword, name="recover_momenta", &
+            description="Causes that the momentas are recovered in "//&
+            "CASE a MD approach is rejected", &
+            usage="recover_momenta TRUE", required=.FALSE., &
+            default_l_val=.FALSE., lone_keyword_l_val=.TRUE., &
+            error=error)
+       CALL section_add_keyword(section, keyword, error=error)
+       CALL keyword_release(keyword, error=error)
+
+       CALL keyword_create(keyword, name="semi_hybrid", &
+            description="Results that the momenta are choosen at "//&
+            "random, only in case a MD approach is rejected.", &
+            usage="semi_hybrid TRUE", required=.FALSE., &
+            default_l_val=.FALSE., lone_keyword_l_val=.TRUE., &
+            error=error)
+       CALL section_add_keyword(section, keyword, error=error)
+       CALL keyword_release(keyword, error=error)
        
        CALL keyword_create(keyword, name="MD_method", &
             description="Indicates which method is used for the MD approach", &
-            enum_c_vals=s2a("FIST", "KG", "QS", "Harris", "HARRIS") , &
-            enum_i_vals=(/FIST_MD_method,KG_MD_method,QS_MD_method,Harris_MD_method,Harris_MD_method/),&
+            enum_c_vals=s2a("FIST", "KG", "QS", "HARRIS") , &
+            enum_i_vals=(/FIST_MD_method, KG_MD_method, QS_MD_method, Harris_MD_method/),&
             usage="MD_method KG", required=.FALSE., &
             default_i_val=KG_MD_method, error=error)
        CALL section_add_keyword(section, keyword, error=error)
@@ -1833,9 +1851,9 @@ END SUBROUTINE create_nose_section
 
        CALL keyword_create(keyword, name="MC_method", &
             description="Indicates according to which method the MC criterion is evaluated", &
-            enum_c_vals=s2a("KG", "QS", "Harris", "HARRIS") , &
-            enum_i_vals=(/KG_MC_method, QS_MC_method, Harris_MC_method, Harris_MC_method/),&
-            usage="MD_method Harris", required=.FALSE., &
+            enum_c_vals=s2a("KG", "QS", "HARRIS") , &
+            enum_i_vals=(/KG_MC_method, QS_MC_method, Harris_MC_method/),&
+            usage="MC_method Harris", required=.FALSE., &
             default_i_val=Harris_MC_method, error=error)
        CALL section_add_keyword(section, keyword, error=error)
        CALL keyword_release(keyword, error=error)

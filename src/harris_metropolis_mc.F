@@ -79,7 +79,14 @@ MODULE harris_metropolis_mc
                                              do_kg, &
                                              md_pos_restart, &
                                              md_pos_vel_restart, &
-                                             md_all_restart
+                                             md_all_restart, &
+                                             FIST_MD_method, &
+                                             KG_MD_method, &
+                                             QS_MD_method, &
+                                             Harris_MD_method, &
+                                             KG_MC_method, &
+                                             QS_MC_method, &
+                                             Harris_MC_method
   USE kg_environment_types,            ONLY: kg_environment_type
   USE kinds,                           ONLY: dp, &
                                              dp_size
@@ -237,6 +244,12 @@ CONTAINS
 !!                 at the start-up or not.
 !!     - restore_wf_history: If switched on the WF history is fully restored in
 !!                           case a MD approach is rejected.
+!!     - restore_velocitites: Causes that the momentas are recovered in case a MD
+!!                            approach is rejected.
+!!     - semi_hybrid: Results that the momenta are choosen at random, only in case 
+!!                    a MD approach is rejected.
+!!     - md_method: Indicates which method is used for the MD approach.
+!!     - mc_method: Indicates according to which method the MC criterion is evaluated.
 !!     - error: variable to control error logging, stopping,... 
 !!              see module cp_error_handling 
 !!
@@ -248,20 +261,10 @@ CONTAINS
 !!
 !!*** **********************************************************************
   SUBROUTINE harris_mc_md(force_env_p, globenv, error)
-  !SUBROUTINE harris_mc_md(force_env_p, globenv, total_energy, external_temp, &
-  !                        qs_accept, random_velocities, velocity_scaling, &
-  !                        qs_start, restore_wf_history, error)
 
     TYPE(force_env_p_type), DIMENSION(:), &
       POINTER                                :: force_env_p
     TYPE(global_environment_type), POINTER   :: globenv
-    !LOGICAL, INTENT(IN), OPTIONAL            :: total_energy, &
-    !                                            external_temp, &
-    !                                            qs_accept, &
-    !                                            random_velocities, &
-    !                                            velocity_scaling, &
-    !                                            qs_start, &
-    !                                            restore_wf_history
     TYPE(cp_error_type), INTENT(INOUT), &
       OPTIONAL                               :: error
 
@@ -286,7 +289,9 @@ CONTAINS
                                                 reject, &
                                                 accept, &
                                                 in_use, &
-                                                force_env_in_use
+                                                force_env_in_use, &
+                                                md_method, &
+                                                mc_method
     INTEGER, POINTER                         :: itimes
     LOGICAL                                  :: failure, &
                                                 accepted, &
@@ -298,7 +303,9 @@ CONTAINS
                                                 rand_vel, &
                                                 vel_scaling, &
                                                 start_qs, &
-                                                restore_wf_past
+                                                restore_wf_past, &
+                                                restore_velocities, &
+                                                semi_hybrid
     REAL(KIND=dp)                            :: md_run_start_time, &
                                                 time_iter_start, &
                                                 time_iter_stop, &
@@ -316,7 +323,9 @@ CONTAINS
                                                 akin, &
                                                 temp, &
                                                 denom, &
-                                                sigma
+                                                sigma, &
+                                                eps_default_tmp, &
+                                                eps_scf_tmp
     REAL(KIND=dp), DIMENSION(3)              :: vcom, &
                                                 vcom_new
     REAL(KIND=dp), POINTER                   :: used_time
@@ -364,48 +373,6 @@ CONTAINS
     ! will be used to stop if a maximum walltime is given
     md_run_start_time=m_walltime()
 
-    !IF (PRESENT(total_energy)) THEN
-    !  tot_energy = total_energy
-    !ELSE
-    !  tot_energy = .TRUE.
-    !END IF
-
-    !IF (PRESENT(external_temp)) THEN
-    !  ext_temp = external_temp
-    !ELSE
-    !  ext_temp = .TRUE.
-    !END IF
-
-    !IF (PRESENT(qs_accept)) THEN
-    !  qs_ener = qs_accept
-    !ELSE
-    !  qs_ener = .TRUE.
-    !END IF
-
-    !IF (PRESENT(random_velocities)) THEN
-    !  rand_vel = random_velocities
-    !ELSE
-    !  rand_vel = .TRUE.
-    !END IF
-
-    !IF (PRESENT(velocity_scaling) .AND. rand_vel) THEN
-    !  vel_scaling = velocity_scaling
-    !ELSE
-    !  vel_scaling = .FALSE.
-    !END IF
-
-    !IF (PRESENT(qs_start)) THEN
-    !  start_qs = qs_start
-    !ELSE
-    !  start_qs = .TRUE.
-    !END IF
-
-    !IF (PRESENT(restore_wf_history)) THEN
-    !  restore_wf_past = restore_wf_history
-    !ELSE
-    !  restore_wf_past = .FALSE.
-    !END IF
-
     failure=.FALSE.
     accepted = .TRUE.
     accept = 0
@@ -413,9 +380,9 @@ CONTAINS
 
     NULLIFY(logger, simpar, mdio, subsys, dyn_coeff_set, md_env, nhc_baro, &
             nhc_part, molecule_kinds_new, molecules_new, local_molecules, &
-            particles, itimes, used_time, rng_stream, local_particles, atomic_kind, &
-            atomic_kinds, atom_list, unit, tmp_wf_history, dft_control, qs_env, kg_env, &
-            particle_set, atomic_kind_set)
+            particles, itimes, used_time, rng_stream, tmp_particle_set, &
+            local_particles, atomic_kind, atomic_kinds, atom_list, unit, &
+            tmp_wf_history, dft_control, qs_env, kg_env, particle_set, atomic_kind_set)
     logger => cp_error_get_logger(error)
 
     CPPrecondition(ASSOCIATED(globenv), cp_failure_level, routineP, error, failure)
@@ -458,6 +425,10 @@ CONTAINS
     vel_scaling = simpar%vel_scaling
     start_qs = simpar%qs_start
     restore_wf_past = simpar%restore_history
+    restore_velocities = simpar%restore_momenta
+    semi_hybrid = simpar%semi_hybrid
+    md_method = simpar%md_method
+    mc_method = simpar%mc_method
 
     CALL extended_type_init(extended_type)
     ALLOCATE(extended_type%nhc_part(nbeads), STAT=istat)
@@ -588,12 +559,37 @@ CONTAINS
       IF (start_qs .AND. (globenv%prog_name_id == do_qs)) THEN
         use_harris_tmp = qs_env%use_harris
         max_scf_tmp = qs_env%scf_control%max_scf
+
+        eps_default_tmp = MAX(dft_control%qs_control%eps_rho_rspace, &
+                              dft_control%qs_control%eps_rho_gspace)
+        eps_scf_tmp = qs_env%scf_control%eps_scf
+
         qs_env%use_harris = .FALSE.
         qs_env%scf_control%max_scf = 100
+
+        qs_env%scf_control%eps_scf = 1.0e-8
+        dft_control%qs_control%eps_rho_rspace = 1.0e-16
+        dft_control%qs_control%eps_rho_gspace = 1.0e-16
+        dft_control%qs_control%eps_gvg_rspace = 1.0e-4
+        dft_control%qs_control%eps_core_charge = 1.0e-18
+        dft_control%qs_control%eps_pgf_orb = 1.0e-4
+        dft_control%qs_control%eps_pgf_aux = 1.0e-4
+        dft_control%qs_control%eps_ppl = 1.0e-18
+        dft_control%qs_control%eps_ppnl = 1.0e-18
         CALL force_env_calc_energy_force(force_env=force_env_p(1)%force_env, &
                                          calc_force=.FALSE., error=error)
         qs_env%use_harris = use_harris_tmp
         qs_env%scf_control%max_scf = max_scf_tmp
+
+        qs_env%scf_control%eps_scf = eps_scf_tmp
+        dft_control%qs_control%eps_rho_rspace = eps_default_tmp
+        dft_control%qs_control%eps_rho_gspace = eps_default_tmp
+        dft_control%qs_control%eps_gvg_rspace = SQRT(eps_default_tmp)
+        dft_control%qs_control%eps_core_charge = eps_default_tmp/100.0_dp
+        dft_control%qs_control%eps_pgf_orb = SQRT(eps_default_tmp)
+        dft_control%qs_control%eps_pgf_aux = SQRT(eps_default_tmp)
+        dft_control%qs_control%eps_ppl = eps_default_tmp/100.0_dp
+        dft_control%qs_control%eps_ppnl = eps_default_tmp/100.0_dp
       ELSE
         CALL force_env_calc_energy_force(force_env=force_env_p(1)%force_env, &
                                          calc_force=.FALSE., error=error)
@@ -650,10 +646,10 @@ CONTAINS
                                  output_wf_history=tmp_wf_history, &
                                  qs_env=qs_env, error=error)
     END IF
-    IF ((qs_env%scf_control%density_guess == 'RESTART') .AND. &
-        (dft_control%qs_control%wf_interpolation_method_nr == wfi_use_guess_method_nr)) THEN
+    !IF ((qs_env%scf_control%density_guess == 'RESTART') .AND. &
+    !    (dft_control%qs_control%wf_interpolation_method_nr == wfi_use_guess_method_nr)) THEN
       CALL write_mo_set(qs_env%mos, atomic_kind_set, particle_set, globenv, id_nr=1)
-    END IF
+    !END IF
 
     DO isubsys = 1,SIZE(subsys)
       !CALL cp_subsys_get(subsys=subsys(isubsys)%subsys, &
@@ -663,11 +659,17 @@ CONTAINS
       ALLOCATE(tmp_particle_set(particles%n_els), stat=istat)
       IF (istat /= 0) CALL stop_memory(routineN, moduleN, __LINE__, &
                                      "simpar", particles%n_els*dp_size*6)
-
-      DO iparticles = 1, particles%n_els
-        tmp_particle_set(iparticles)%r(1:3) = particles%els(iparticles)%r(1:3)
-        tmp_particle_set(iparticles)%v(1:3) = particles%els(iparticles)%v(1:3)
-      END DO
+      IF (restore_velocities) THEN
+        DO iparticles = 1, particles%n_els
+          tmp_particle_set(iparticles)%r(1:3) = particles%els(iparticles)%r(1:3)
+          tmp_particle_set(iparticles)%v(1:3) = particles%els(iparticles)%v(1:3)
+        END DO
+      ELSE
+        DO iparticles = 1, particles%n_els
+          tmp_particle_set(iparticles)%r(1:3) = particles%els(iparticles)%r(1:3)
+          tmp_particle_set(iparticles)%v(1:3) = 0.0_dp
+        END DO
+      END IF
     END DO
 
     istep = 1
@@ -865,7 +867,8 @@ CONTAINS
         END IF
       END IF
 
-      IF (rand_vel) THEN
+      IF (rand_vel .OR. (semi_hybrid .AND. (.NOT. accepted))) THEN
+!      IF (rand_vel) THEN
         IF (vel_scaling) THEN
           CALL initialize_velocities(simpar, particles%els, globenv)
         ELSE
@@ -942,7 +945,9 @@ CONTAINS
                  ' end of velocity initialization ', '************************'
           END IF
         END IF
-      END IF
+      ELSE
+        ! Restore old momenta if the velocities are not choosen at random.
+      END IF ! rand_vel
 
 
       IF (accepted) THEN
@@ -965,6 +970,22 @@ CONTAINS
         IF ((qs_env%scf_control%density_guess == 'RESTART') .AND. &
             (dft_control%qs_control%wf_interpolation_method_nr == wfi_use_guess_method_nr)) THEN
           CALL write_mo_set(qs_env%mos, atomic_kind_set, particle_set, globenv, id_nr=1)
+        END IF
+
+        ! If accepted, save velocities and positions
+        IF (restore_velocities) THEN
+          DO isubsys = 1,SIZE(subsys)
+            DO iparticles = 1,particles%n_els
+              tmp_particle_set(iparticles)%r(1:3) = particles%els(iparticles)%r(1:3)
+              tmp_particle_set(iparticles)%v(1:3) = particles%els(iparticles)%v(1:3)
+            END DO
+          END DO
+        ELSE
+          DO isubsys = 1,SIZE(subsys)
+            DO iparticles = 1,particles%n_els
+              tmp_particle_set(iparticles)%r(1:3) = particles%els(iparticles)%r(1:3)
+            END DO
+          END DO
         END IF
 
         !IF (MODULO(itimes, mdio%idump) == 0) THEN
@@ -991,12 +1012,20 @@ CONTAINS
         END IF
 
         ! If not accepted, set back velocities and positions
-         DO isubsys = 1,SIZE(subsys)
-           DO iparticles = 1, particles%n_els
-             particles%els(iparticles)%r(1:3) = tmp_particle_set(iparticles)%r(1:3)
-             particles%els(iparticles)%v(1:3) = tmp_particle_set(iparticles)%v(1:3)
-           END DO
-         END DO
+        IF (restore_velocities) THEN
+          DO isubsys = 1,SIZE(subsys)
+            DO iparticles = 1,particles%n_els
+              particles%els(iparticles)%r(1:3) = tmp_particle_set(iparticles)%r(1:3)
+              particles%els(iparticles)%v(1:3) = tmp_particle_set(iparticles)%v(1:3)
+            END DO
+          END DO
+        ELSE
+          DO isubsys = 1,SIZE(subsys)
+            DO iparticles = 1,particles%n_els
+              particles%els(iparticles)%r(1:3) = tmp_particle_set(iparticles)%r(1:3)
+            END DO
+          END DO
+        END IF
 
         !IF (MODULO(itimes,mdio%idump) == 0) THEN
         !  IF (simpar%ensemble == langevin_ensemble) THEN

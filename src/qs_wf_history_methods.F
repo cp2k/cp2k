@@ -271,6 +271,8 @@ END SUBROUTINE wfs_create
       ! wf
       IF (ASSOCIATED(input_snapshot%wf)) THEN
         DO i = 1,SIZE(input_snapshot%wf)
+          ALLOCATE(output_snapshot%wf(i), stat=stat)
+          CPPostcondition(stat==0, cp_failure_level, routineP, error, failure)
           CALL cp_fm_create(matrix=output_snapshot%wf(i)%matrix, &
                             matrix_struct=input_snapshot%wf(i)%matrix%matrix_struct, &
                             error=error)

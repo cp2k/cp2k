@@ -183,6 +183,8 @@ MODULE md
      LOGICAL        :: vel_scaling
      LOGICAL        :: qs_start
      LOGICAL        :: restore_history
+     LOGICAL        :: restore_momenta
+     LOGICAL        :: semi_hybrid
      INTEGER        :: md_method
      INTEGER        :: mc_method
   END TYPE simulation_parameters_type
@@ -236,6 +238,7 @@ CONTAINS
 !!I output_format[xmol,atomic...]        format for the output of pos,vel,    I
 !!I                                      forces, default is XMOL.             I
 !!I ensemble:    [nve,nvt,isokin]        ensemble type                        I
+!!I gamma:       [1/fs]                  Langevin dynamic friction parameter  I
 !!I steps:       n                       total number of steps                I
 !!I timestep:    dt                      time step [fs]                       I
 !!I temperature: T                       temperature [K]                      I
@@ -244,12 +247,12 @@ CONTAINS
 !!I restart:     [pos,posvel]            start type                           I
 !!I constraints: [on,off]                constraints                          I
 !!I pv_numerical: [true, false]          pv_numerical                         I
-!!I pv_availability [true, false]        pv_availability                      I
+!!I pv_availability: [true, false]       pv_availability                      I
 !!I shake:       eps                     convergence for Shake algorithm      I
 !!I verlet_skin  vs                      buffer size for Verlet lists         I
 !!I cells        x y z                   Number of cells in each direction    I
 !!I Uniaxial_shock        &              parameters for uniaxial shock        I
-!!I   v_shock: v_shock  &                 velocity of shock front           I
+!!I   v_shock  : v_shock  &                 velocity of shock front           I
 !!I   pressure : p0       &                 Initial pressure                  I
 !!I   energy   : e0       &                 Initial energy                    I
 !!I   volume   : v0       &                 Initial compression               I
@@ -258,10 +261,10 @@ CONTAINS
 !!I   Yoshida:   nyosh    &                 order of Yoshida integrator       I
 !!I   mts:       nc       &                 number of multiple time steps     I
 !!I   timecon:   tau_nhc                    NHC time constant                 I
-!!I Barostat_parameter                      parameter of barostat             I
+!!I Barostat_parameter    &                 parameter of barostat             I
 !!I   pressure: P         &                 pressure [bar]                    I
 !!I   timecon:  tau_cell  &                 barostat time constant            I
-!!I qs_md_parameter &                                                         I
+!!I qs_md_parameter       &                                                   I
 !!I   neighbor_lists_from_scratch: [true, false]                              I
 !!I FILES                           &                                         I
 !!I   filebody    "filename"        &                                         I
@@ -282,8 +285,21 @@ CONTAINS
 !!I   energies     iener            &                                         I
 !!I   temperature  itemp            &                                         I
 !!I   dump         idump                                                      I
-!!I                                                                           I
-!!I                                                                           I
+!!I HMC                             &                                         I
+!!I   ld_steps        {Integer}     &                                         I
+!!I   temp_alpha      {Real}        &                                         I
+!!I   temp_beta       {Real}        &                                         I
+!!I   tot_energy      {Logical}     &                                         I
+!!I   ext_temp        {Logical}     &                                         I
+!!I   qs_accept       {Logical}     &                                         I
+!!I   rnd_velocities  {Logical}     &                                         I
+!!I   vel_scaling     {Logical}     &                                         I
+!!I   qs_start        {Logical}     &                                         I
+!!I   restore_history {Logical}     &                                         I
+!!I   recover_momenta {Logical}     &                                         I
+!!I   semi_hybrid     {Logical}     &                                         I
+!!I   MD_method       {Integer}     &                                         I
+!!I   MC_method       {Integer}                                               I
 !!I---------------------------------------------------------------------------I
 !!*** ************************************************************************
 
@@ -349,8 +365,8 @@ CONTAINS
                    CALL p_error()
                    CALL stop_parser('read_md_section%nose', &
                                     'unknown suboption')
-                 CASE ("GAMMA")
-                   CALL get_next(simpar%gamma)
+                 !CASE ("GAMMA")
+                 !  CALL get_next(simpar%gamma)
                  CASE ('LD_STE') ! LD_STEPS
                    CALL get_next(simpar%ld_steps)
                  CASE ('TEMP_A') ! TEMP_ALPHA
@@ -399,6 +415,18 @@ CONTAINS
                    CALL get_next(string, ILEN)
                    CALL uppercase(string)
                    IF (string(1:1)=='F') simpar%restore_history = .FALSE.
+                 CASE ('RECOVE') ! RECOVER_MOMENTA
+                   simpar%restore_momenta = .TRUE.
+                   ILEN = 0
+                   CALL get_next(string, ILEN)
+                   CALL uppercase(string)
+                   IF (string(1:1)=='F') simpar%restore_momenta = .FALSE.
+                 CASE ('SEMI_H') ! SEMI_HYBRID
+                   simpar%semi_hybrid = .TRUE.
+                   ILEN = 0
+                   CALL get_next(string, ILEN)
+                   CALL uppercase(string)
+                   IF (string(1:1)=='F') simpar%semi_hybrid = .FALSE.
                  CASE ('MD_MET')
                    ILEN = 0
                    CALL get_next(string, ILEN)
@@ -841,6 +869,11 @@ CONTAINS
   
   IF (globenv%run_type_id == ldmc_run) THEN
     simpar%ensemble = langevin_ensemble
+    simpar%rnd_velocities = .FALSE.
+    simpar%vel_scaling = .FALSE.
+    simpar%restore_history = .TRUE.
+    simpar%restore_momenta = .FALSE.
+    simpar%semi_hybrid = .TRUE.
   END IF
 
   IF (globenv%run_type_id == hmc_run .OR. globenv%run_type_id == ldmc_run) THEN
@@ -1064,8 +1097,8 @@ SUBROUTINE read_md_new_section(simpar, globenv, md_section, error)
      tmp_section => section_vals_get_subs_vals(md_section, "HMC", error=error)
      CALL section_vals_get(tmp_section, explicit=explicit, error=error)
      IF (explicit) THEN
-       CALL section_vals_val_get(tmp_section, "GAMMA", &
-                                 r_val=simpar%gamma, error=error)
+       !CALL section_vals_val_get(tmp_section, "GAMMA", &
+       !                          r_val=simpar%gamma, error=error)
        CALL section_vals_val_get(tmp_section, "LD_STEPS", &
                                  i_val=simpar%ld_steps, error=error)
        CALL section_vals_val_get(tmp_section, "TEMP_ALPHA", &
@@ -1086,6 +1119,14 @@ SUBROUTINE read_md_new_section(simpar, globenv, md_section, error)
                                  l_val=simpar%qs_start, error=error)
        CALL section_vals_val_get(tmp_section, "RESTORE_HISTORY", &
                                  l_val=simpar%restore_history, error=error)
+       CALL section_vals_val_get(tmp_section, "RECOVER_MOMENTA", &
+                                 l_val=simpar%restore_momenta, error=error)
+       CALL section_vals_val_get(tmp_section, "SEMI_HYBRID", &
+                                 l_val=simpar%semi_hybrid, error=error)
+       CALL section_vals_val_get(tmp_section, "MD_METHOD", &
+                                 i_val=simpar%md_method, error=error)
+       CALL section_vals_val_get(tmp_section, "MC_METHOD", &
+                                 i_val=simpar%mc_method, error=error)
      END IF
      
      tmp_section => section_vals_get_subs_vals(md_section,"QS_MD",error=error)
@@ -1171,7 +1212,8 @@ END SUBROUTINE read_md_new_section
     simpar%vel_scaling = .FALSE.
     simpar%qs_start = .TRUE.
     simpar%restore_history = .TRUE.
-
+    simpar%restore_momenta = .FALSE.
+    simpar%semi_hybrid = .FALSE.
     
     !..filenames
     CALL xstring ( globenv % project_name, ia, ie )
