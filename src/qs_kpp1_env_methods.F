@@ -277,7 +277,6 @@ CONTAINS
     IF (.NOT.failure) THEN
        CPPrecondition(kpp1_env%ref_count>0,cp_failure_level,routineP,error,failure)
        CALL kpp1_check_i_alloc(kpp1_env,qs_env=qs_env,error=error)
-
        CALL get_qs_env(qs_env=qs_env,&
             dft_control=dft_control,&
             pw_env=pw_env,&
@@ -389,8 +388,6 @@ CONTAINS
                               drho_cutoff=xc_control%gradient_cut,tau_cutoff=xc_control%tau_cut,&
                               error=error)
 
-!TODEL_START_MI
-       ! assesses the argument needed by the functionals
        CALL xc_rho_cflags_setall(xc_control%needs,.FALSE.,error=error)
        DO i=1,SIZE(xc_control%functionals)
           CALL xc_functional_get_info(xc_control%functionals(i),lsd=lsd,&
@@ -412,8 +409,7 @@ CONTAINS
              xc_control%needs%drho=.TRUE.
           END IF
        END IF
-!TODEL_END_MI
-        
+
        ! calculate the agruments needed by the functionals
        CALL xc_rho_set_update(rho1_set, rho1_r_pw, rho1_g_pw, tau_pw, xc_control%needs,& 
                              xc_control%xc_deriv_method_id,xc_control%xc_rho_smooth_id ,&
