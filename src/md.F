@@ -66,6 +66,7 @@ MODULE md
                                              dump_dcd,&
                                              output_name_types,&
                                              output_name_index,&
+                                             method_name_types, &
                                              hmc_run, &
                                              ldmc_run, &
                                              FIST_MD_method, &
@@ -890,6 +891,34 @@ CONTAINS
             simpar%temp_alpha
        WRITE ( iw, '( A,T71,F10.2 )' ) ' HMC| Temperature correction value beta ', &
             simpar%temp_beta
+       WRITE ( iw, '( A,T75,L6,A )' ) ' HMC| TOT_ENERGY ', &
+            simpar%tot_energy
+       WRITE ( iw, '( A,T75,L6,A )' ) ' HMC| EXT_TEMP ', &
+            simpar%ext_temp
+       WRITE ( iw, '( A,T75,L6,A )' ) ' HMC| QS_ACCEPT ', &
+            simpar%qs_accept
+       WRITE ( iw, '( A,T75,L6,A )' ) ' HMC| RND_VELOCITIES ', &
+            simpar%rnd_velocities
+       WRITE ( iw, '( A,T75,L6,A )' ) ' HMC| VEL_SCALING ', &
+            simpar%vel_scaling
+       WRITE ( iw, '( A,T75,L6,A )' ) ' HMC| QS_START ', &
+            simpar%qs_start
+       WRITE ( iw, '( A,T75,L6,A )' ) ' HMC| RESTORE_HISTORY ', &
+            simpar%restore_history
+       WRITE ( iw, '( A,T75,L6,A )' ) ' HMC| RECOVER_MOMENTA ', &
+            simpar%restore_momenta
+       WRITE ( iw, '( A,T75,L6,A )' ) ' HMC| SEMI_HYBRID ', &
+            simpar%semi_hybrid
+
+       WRITE ( iw, '( A,T61,A )' ) ' HMC| MD Method ', &
+            ADJUSTR ( method_name_types(simpar % md_method)(1:20))
+       WRITE ( iw, '( A,T61,A )' ) ' HMC| MC Method ', &
+            ADJUSTR ( method_name_types(simpar % mc_method)(1:20))
+
+       WRITE ( iw, '( A,T20,A,T71,A )' ) ' HMC| File type', &
+            'Print frequency[steps]', 'File names'
+       WRITE ( iw, '( A,T25,i5,T31,A )' ) ' HMC| HMC Statistics', 1, &
+            ADJUSTR ( mdio % hmc_file_name ( 1:50 ) )
        WRITE (iw, *)
      END IF
   END IF
@@ -923,10 +952,6 @@ CONTAINS
       !WRITE ( iw, '( A,T65,ES16.8 )' ) ' LD| W ', &
       !      simpar % var_w
       WRITE ( iw, *)
-      !print*,"T=    ",simpar%temp_ext
-      !print*,"dt=   ",simpar%dt
-      !print*,"gamma=",simpar%gamma
-      !print*,"var_w=",simpar%var_w
     END IF
   
   END IF
@@ -1219,6 +1244,8 @@ END SUBROUTINE read_md_new_section
     simpar%restore_history = .TRUE.
     simpar%restore_momenta = .FALSE.
     simpar%semi_hybrid = .FALSE.
+    simpar%md_method = Harris_MD_method
+    simpar%mc_method = Harris_MC_method
     
     !..filenames
     CALL xstring ( globenv % project_name, ia, ie )

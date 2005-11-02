@@ -121,8 +121,8 @@ MODULE harris_metropolis_mc
   USE physcon,                         ONLY: boltzmann
   USE qs_environment_types,            ONLY: qs_environment_type, &
                                              get_qs_env
-  USE qs_mo_types,                     ONLY: read_mo_set, &
-                                             write_mo_set
+  USE qs_mo_types,                     ONLY: read_mo_set
+                                             !write_mo_set
   USE qs_wf_history_methods,           ONLY: wfi_duplicate_history, &
                                              wfi_copy_history
   USE qs_wf_history_types,             ONLY: qs_wf_history_type, &
@@ -613,50 +613,18 @@ CONTAINS
         CALL force_env_calc_energy_force(force_env=force_env_p(1)%force_env, &
                                          calc_force=.FALSE., error=error)
       END IF
-
-      ! CALL force_env_calc_energy_force(force_env_p(ibead)%force_env, &
-      !                                  calc_force=.TRUE.)
     END DO
-    !IF (globenv%prog_name_id == do_kg) THEN
-    !  Epot = force_env_p(1)%force_env%kg_env%energy%total
-    !  CALL compute_conserved_quantity(md_env=md_env, cons=Econs, epot=Epot, ekin=Ekin)
-    !  IF (.NOT. tot_energy) THEN
-    !    prev_ldmc_energy = Epot
-    !  ELSE
-    !    prev_ldmc_energy = Econs
-    !  END IF
-    !ELSE
-    !  Epot = force_env_p(1)%force_env%qs_env%energy%total
-    !  CALL compute_conserved_quantity(md_env=md_env, cons=Econs, epot=Epot, ekin=Ekin)
-    !  IF (.NOT. tot_energy) THEN
-    !    prev_ldmc_energy = Epot
-    !  ELSE
-    !    prev_ldmc_energy = Econs
-    !  END IF
-    !END IF
+
     CALL md_energy(md_env, globenv) ! inits the print env at itimes == 0
 
     CALL cp_add_iter_level(logger%iter_info, "HMC", n_rlevel_new=iter_level, &
                            error=error)
 
-!    itimes = itimes + 1
-!    CALL cp_iterate(logger%iter_info, last=(istep==simpar%nsteps), &
-!                    iter_nr=itimes,error=error)
-!    CALL velocity_verlet(md_env)
-!    DO ibead=1,nbeads
-!      CALL temperature_control(simpar, force_env_p(ibead)%force_env, error)
-!    END DO
-!    time_iter_stop = m_walltime()
-!    used_time = time_iter_stop - time_iter_start
-!    !time_iter_start = time_iter_stop
-!    CALL md_energy(md_env, globenv)
-!    !IF (MODULO(itimes,mdio%idump) == 0) THEN
-!      IF (simpar%ensemble == langevin_ensemble) THEN
-!        CALL write_md_restart_file(md_env, error=error)
-!      ELSE
-!        CALL dump_variables(md_env, mdio%dump_file_name, error)
-!      END IF
-!    !END IF
+    IF (simpar%ensemble == langevin_ensemble) THEN
+      CALL write_md_restart_file(md_env, error=error)
+    ELSE
+      CALL dump_variables(md_env, mdio%dump_file_name, error)
+    END IF
 
     ! Save the wavefunction history to be able to restore it in case the 
     ! first MD approach is rejected
@@ -667,7 +635,7 @@ CONTAINS
     END IF
     !IF ((qs_env%scf_control%density_guess == 'RESTART') .AND. &
     !    (dft_control%qs_control%wf_interpolation_method_nr == wfi_use_guess_method_nr)) THEN
-      CALL write_mo_set(qs_env%mos, atomic_kind_set, particle_set, globenv, id_nr=1)
+    !  CALL write_mo_set(qs_env%mos, atomic_kind_set, particle_set, globenv, id_nr=1)
     !END IF
 
     DO isubsys = 1,SIZE(subsys)
@@ -727,22 +695,6 @@ CONTAINS
 
     istep = 1
     DO WHILE (istep < simpar%nsteps)
-    !  IF (.NOT. accepted) THEN
-    !    IF (simpar%ensemble == langevin_ensemble) THEN
-    !      CALL read_md_restart_file(md_env,error)
-    !    ELSE
-    !      CPPrecondition(SIZE(subsys)==1,cp_failure_level,routineP,error,failure)
-    !      isubsys=1
-    !      CALL cp_subsys_get(subsys(isubsys)%subsys, &
-    !           particles=particles, error=error)
-    !      nhc_part => extended_type%nhc_part(ibead)
-    !      nhc_baro => extended_type%nhc_baro(ibead)
-    !      CALL read_md_restart(in_use, simpar%read_type, globenv, &
-    !                          particles%els, cell, cell_ref, &
-    !                          nhc_part, nhc_baro, extended_type%npt_info)
-    !    END IF
-    !  END IF
-
       ! previous energy
       !IF (accepted) THEN
         IF (qs_ener .AND. (globenv%prog_name_id == do_qs)) THEN
@@ -805,6 +757,7 @@ CONTAINS
                                          calc_force=.FALSE., error=error)
       END IF
 
+      ! new energy
       IF (globenv%prog_name_id == do_kg) THEN
         Epot_new = force_env_p(1)%force_env%kg_env%energy%total
         CALL compute_conserved_quantity(md_env=md_env, cons=Econs, epot=Epot_new, ekin=Ekin_new)
@@ -822,9 +775,11 @@ CONTAINS
           new_ldmc_energy = Econs
         END IF
       END IF
+
       ! Metropolis Monte Carlo acceptance criterion
       ionode = globenv%ionode
       iw = globenv%scr
+      !direct accept
       IF (new_ldmc_energy < prev_ldmc_energy) THEN
       !IF (new_ldmc_energy > prev_ldmc_energy) THEN
         accepted = .TRUE.
@@ -927,6 +882,7 @@ CONTAINS
         END IF
       END IF
 
+      ! New maxwell distributed momenta
       IF (rand_vel .OR. (semi_hybrid .AND. (.NOT. accepted))) THEN
 !      IF (rand_vel) THEN
         IF (vel_scaling) THEN
@@ -1019,7 +975,7 @@ CONTAINS
       END IF
 
       IF (accepted) THEN
-      !  prev_ldmc_energy = new_ldmc_energy
+      ! prev_ldmc_energy = new_ldmc_energy
 
         !itimes = itimes + simpar%ld_steps
         istep = istep + simpar%ld_steps
@@ -1035,10 +991,10 @@ CONTAINS
                                      output_wf_history=tmp_wf_history, &
                                      qs_env=qs_env, error=error)
         END IF
-        IF ((qs_env%scf_control%density_guess == 'RESTART') .AND. &
-            (dft_control%qs_control%wf_interpolation_method_nr == wfi_use_guess_method_nr)) THEN
-          CALL write_mo_set(qs_env%mos, atomic_kind_set, particle_set, globenv, id_nr=1)
-        END IF
+        !IF ((qs_env%scf_control%density_guess == 'RESTART') .AND. &
+        !    (dft_control%qs_control%wf_interpolation_method_nr == wfi_use_guess_method_nr)) THEN
+        !  CALL write_mo_set(qs_env%mos, atomic_kind_set, particle_set, globenv, id_nr=1)
+        !END IF
 
         ! If accepted, save velocities and positions
         IF (restore_velocities) THEN
@@ -1097,9 +1053,11 @@ CONTAINS
 
         !IF (MODULO(itimes,mdio%idump) == 0) THEN
         !  IF (simpar%ensemble == langevin_ensemble) THEN
-        !    CALL write_md_restart_file(md_env, error=error)
+        !    CALL read_md_restart_file(md_env,error)
         !  ELSE
-        !    CALL dump_variables(md_env, mdio%dump_file_name, error)
+        !    CALL read_md_restart(in_use, simpar%read_type, globenv, &
+        !                         particles%els, cell, cell_ref, &
+        !                         nhc_part, nhc_baro, extended_type%npt_info)
         !  END IF
         !END IF
 
@@ -1122,6 +1080,13 @@ CONTAINS
     time_iter_stop = m_walltime()
     used_time = time_iter_stop - time_iter_start
     CALL md_energy(md_env, globenv)
+
+    IF (simpar%ensemble == langevin_ensemble) THEN
+      CALL write_md_restart_file(md_env, error=error)
+    ELSE
+      CALL dump_variables(md_env, mdio%dump_file_name, error)
+    END IF
+    !CALL write_mo_set(qs_env%mos, atomic_kind_set, particle_set, globenv, id_nr=1)
 
     IF (ionode .AND. globenv%print_level >= 1) THEN
       accept = accept+1
