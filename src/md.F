@@ -199,6 +199,7 @@ MODULE md
      CHARACTER ( LEN = 50 ) :: temp_file_name
      CHARACTER ( LEN = 50 ) :: dump_file_name
      CHARACTER ( LEN = 50 ) :: coef_file_name
+     CHARACTER ( LEN = 50 ) :: hmc_file_name
   END TYPE mdio_parameters_type
 
 ! *** Global parameters ***
@@ -727,6 +728,7 @@ CONTAINS
                       mdio % temp_file_name = string(1:ILEN) // '.temp'
                       mdio % dump_file_name = string(1:ILEN) // '.restart'
                       mdio % coef_file_name = string(1:ILEN) // '.coef'
+                      mdio % hmc_file_name = string(1:ILEN) // '.hmc'
                    CASE ( 'COORDI' )
                       ILEN = 0
                       CALL get_next ( mdio % crd_file_name, ILEN )
@@ -751,6 +753,9 @@ CONTAINS
                    CASE ( 'COEF' )
                       ILEN = 0
                       CALL get_next ( mdio % coef_file_name, ILEN )
+                   CASE ('Hybrid') ! HybridMC
+                      ILEN = 0
+                      CALL get_next(mdio%hmc_file_name, ILEN)
                    END SELECT
                 END DO
                 
@@ -1225,6 +1230,7 @@ END SUBROUTINE read_md_new_section
     mdio % temp_file_name  = globenv % project_name(ia:ie) // '.temp'
     mdio % dump_file_name  = globenv % project_name(ia:ie) // '.restart'
     mdio % coef_file_name  = globenv % project_name(ia:ie) // '.coef'
+    mdio % hmc_file_name   = globenv % project_name(ia:ie) // '.hmc'
 
     !..print frequency
     mdio % icrd = 1

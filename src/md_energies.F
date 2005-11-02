@@ -91,7 +91,7 @@ MODULE md_energies
   END TYPE average_quantities_type
 
 
-  PUBLIC :: md_energy
+  PUBLIC :: md_energy, open_md_file
 
 !!***
 !******************************************************************************
@@ -130,7 +130,7 @@ CONTAINS
     CHARACTER (LEN=50)                       :: filename
     CHARACTER (LEN=50)                       :: crd_file_name, vel_file_name, ptens_file_name, &
                                                 ener_file_name, temp_file_name, dump_file_name
-    INTEGER, SAVE                             :: crd, vel, ene 
+    INTEGER, SAVE                            :: crd, vel, ene 
     INTEGER                                  :: handle, istat, isubsys, iw, delta_t, i
     INTEGER                                  :: group, source
     INTEGER                                  :: icrd, ivel, iptens, iener, itemp, idump, iscreen, nat

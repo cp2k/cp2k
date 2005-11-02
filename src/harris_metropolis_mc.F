@@ -80,6 +80,7 @@ MODULE harris_metropolis_mc
                                              md_pos_restart, &
                                              md_pos_vel_restart, &
                                              md_all_restart, &
+                                             md_init_start, &
                                              FIST_MD_method, &
                                              KG_MD_method, &
                                              QS_MD_method, &
@@ -90,7 +91,8 @@ MODULE harris_metropolis_mc
   USE kg_environment_types,            ONLY: kg_environment_type
   USE kinds,                           ONLY: dp, &
                                              dp_size
-  USE machine,                         ONLY: m_walltime
+  USE machine,                         ONLY: m_walltime, &
+                                             m_flush
   USE md,                              ONLY: mdio_parameters_type, &
                                              !read_md_new_section, &
                                              read_md_section, &
@@ -103,11 +105,13 @@ MODULE harris_metropolis_mc
                                              md_env_release, &
                                              get_md_env, &
                                              set_md_env
+  USE md_energies,                     ONLY: open_md_file
   USE md_run,                          ONLY: temperature_control
   USE message_passing,                 ONLY: mp_bcast, &
                                              mp_sum
   USE mol_kind_new_list_types,         ONLY: mol_kind_new_list_type
   USE mol_new_list_types,              ONLY: mol_new_list_type
+  USE output_utilities,                ONLY: print_warning
   USE parallel_rng_types,              ONLY: rng_stream_type, &
                                              create_rng_stream, &
                                              next_random_number, &
@@ -126,7 +130,8 @@ MODULE harris_metropolis_mc
                                              wfi_use_guess_method_nr
   USE simulation_cell,                 ONLY: cell_type
   USE termination,                     ONLY: stop_memory, &
-                                             external_control
+                                             external_control, &
+                                             stop_program
   USE timings,                         ONLY: timeset, &
                                              timestop
   USE util,                            ONLY: gasdev
@@ -291,7 +296,9 @@ CONTAINS
                                                 in_use, &
                                                 force_env_in_use, &
                                                 md_method, &
-                                                mc_method
+                                                mc_method, &
+                                                md_approach_nr, &
+                                                accepted_md
     INTEGER, POINTER                         :: itimes
     LOGICAL                                  :: failure, &
                                                 accepted, &
@@ -305,7 +312,8 @@ CONTAINS
                                                 start_qs, &
                                                 restore_wf_past, &
                                                 restore_velocities, &
-                                                semi_hybrid
+                                                semi_hybrid, &
+                                                file_exists
     REAL(KIND=dp)                            :: md_run_start_time, &
                                                 time_iter_start, &
                                                 time_iter_stop, &
@@ -317,15 +325,20 @@ CONTAINS
                                                 e_kinetic, &
                                                 v2, &
                                                 mass, &
-                                                Ekin, &
-                                                Epot, &
+                                                !Ekin, &
+                                                Ekin_prev, &
+                                                Ekin_new, &
+                                                !Epot, &
+                                                Epot_prev, &
+                                                Epot_new, &
                                                 Econs, &
                                                 akin, &
                                                 temp, &
                                                 denom, &
                                                 sigma, &
                                                 eps_default_tmp, &
-                                                eps_scf_tmp
+                                                eps_scf_tmp, &
+                                                acceptance_rate
     REAL(KIND=dp), DIMENSION(3)              :: vcom, &
                                                 vcom_new
     REAL(KIND=dp), POINTER                   :: used_time
@@ -363,6 +376,10 @@ CONTAINS
       POINTER                                :: particle_set
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
+    INTEGER, SAVE                            :: hmc, &
+                                                md_approach_old, &
+                                                accepted_md_old
+    CHARACTER(LEN=50)                        :: hmc_file_name
 
 !   ------------------------------------------------------------------------
 
@@ -417,6 +434,8 @@ CONTAINS
 
     CALL read_md_section(simpar, globenv, mdio, error)
     !CALL read_md_new_section(simpar, globenv, md_section, error)
+
+    hmc_file_name = mdio%hmc_file_name    
 
     tot_energy = simpar%tot_energy
     ext_temp = simpar%ext_temp
@@ -495,7 +514,7 @@ CONTAINS
                error=error)
           nhc_part => extended_type%nhc_part(ibead)
           nhc_baro => extended_type%nhc_baro(ibead)
-          CALL read_md_restart(in_use, simpar % read_type, globenv, &
+          CALL read_md_restart(in_use, simpar%read_type, globenv, &
                particles%els, cell, cell_ref, &
                nhc_part, nhc_baro, extended_type%npt_info)
           CALL initialize_velocities(simpar, particles%els, globenv)
@@ -508,7 +527,7 @@ CONTAINS
                error=error)
           nhc_part => extended_type%nhc_part(ibead)
           nhc_baro => extended_type%nhc_baro(ibead)
-          CALL read_md_restart(in_use, simpar % read_type, globenv, &
+          CALL read_md_restart(in_use, simpar%read_type, globenv, &
                               particles%els, &
                               cell, cell_ref, &
                               nhc_part, &
@@ -658,7 +677,8 @@ CONTAINS
 
       ALLOCATE(tmp_particle_set(particles%n_els), stat=istat)
       IF (istat /= 0) CALL stop_memory(routineN, moduleN, __LINE__, &
-                                     "simpar", particles%n_els*dp_size*6)
+                                     "tmp_particle_set", particles%n_els*dp_size*6)
+
       IF (restore_velocities) THEN
         DO iparticles = 1, particles%n_els
           tmp_particle_set(iparticles)%r(1:3) = particles%els(iparticles)%r(1:3)
@@ -671,6 +691,39 @@ CONTAINS
         END DO
       END IF
     END DO
+
+    IF (globenv%ionode) THEN
+      IF (simpar%read_type == md_init_start) THEN
+        CALL open_md_file(file_name=hmc_file_name, unit_number=hmc, replace_file=.TRUE.)
+        md_approach_old = 0
+        accepted_md_old = 0
+      ELSE
+        CALL open_md_file(file_name=hmc_file_name, unit_number=hmc, replace_file=.FALSE.)
+        INQUIRE (FILE=hmc_file_name, EXIST=file_exists)
+        IF (file_exists) THEN
+          BACKSPACE(UNIT=hmc, IOSTAT=istat)
+          IF (istat /= 0) THEN
+            CALL stop_program(routineN, moduleN, __LINE__, &
+                              "BACKSPACE command failed for file <"//&
+                              TRIM(hmc_file_name)//">")
+          END IF
+
+          READ (UNIT=hmc, FMT=*, IOSTAT=istat) md_approach_old, accepted_md_old
+          IF (istat /= 0) THEN
+            CALL print_warning(routineN, &
+                               "Could not read the last line of the file <"//&
+                               TRIM(hmc_file_name)//">. MD step number "//&
+                               "and time are set to zero.")
+            md_approach_old = 0
+            accepted_md_old = 0
+          END IF
+        END IF
+      END IF
+    END IF
+    CALL mp_bcast(md_approach_old, globenv%source, globenv%group)
+    CALL mp_bcast(accepted_md_old, globenv%source, globenv%group)
+    md_approach_nr = md_approach_old
+    accepted_md = accepted_md_old
 
     istep = 1
     DO WHILE (istep < simpar%nsteps)
@@ -707,18 +760,18 @@ CONTAINS
         END IF
 
         IF (globenv%prog_name_id == do_kg) THEN
-          Epot = force_env_p(1)%force_env%kg_env%energy%total
-            CALL compute_conserved_quantity(md_env=md_env, cons=Econs, epot=Epot, ekin=Ekin)
+          Epot_prev = force_env_p(1)%force_env%kg_env%energy%total
+            CALL compute_conserved_quantity(md_env=md_env, cons=Econs, epot=Epot_prev, ekin=Ekin_prev)
           IF (.NOT. tot_energy) THEN
-            prev_ldmc_energy = Epot
+            prev_ldmc_energy = Epot_prev
           ELSE
             prev_ldmc_energy = Econs
           END IF
         ELSE
-          Epot = force_env_p(1)%force_env%qs_env%energy%total
-          CALL compute_conserved_quantity(md_env=md_env, cons=Econs, epot=Epot, ekin=Ekin)
+          Epot_prev = force_env_p(1)%force_env%qs_env%energy%total
+          CALL compute_conserved_quantity(md_env=md_env, cons=Econs, epot=Epot_prev, ekin=Ekin_prev)
           IF (.NOT. tot_energy) THEN
-            prev_ldmc_energy = Epot
+            prev_ldmc_energy = Epot_prev
           ELSE
             prev_ldmc_energy = Econs
           END IF
@@ -727,13 +780,14 @@ CONTAINS
         IF (globenv%ionode .AND. globenv%print_level >= 1) THEN
           iw = globenv%scr
           WRITE(iw, *) ""
-          WRITE(iw, *) "Kinetic Energy =", Ekin, " & Potential Energy = ", Epot
+          WRITE(iw, *) "Kinetic Energy =", Ekin_prev, " & Potential Energy = ", Epot_prev
           WRITE(iw, *) "prev_ldmc_energy =", prev_ldmc_energy
           WRITE(iw, *) ""
         END IF
       !END IF
 
       ! MC MD-approach
+      md_approach_nr = md_approach_nr+1
       CALL harris_mc_md_approach(md_env, globenv, simpar, logger, error)
 
       ! Compare energies
@@ -752,18 +806,18 @@ CONTAINS
       END IF
 
       IF (globenv%prog_name_id == do_kg) THEN
-        Epot = force_env_p(1)%force_env%kg_env%energy%total
-        CALL compute_conserved_quantity(md_env=md_env, cons=Econs, epot=Epot, ekin=Ekin)
+        Epot_new = force_env_p(1)%force_env%kg_env%energy%total
+        CALL compute_conserved_quantity(md_env=md_env, cons=Econs, epot=Epot_new, ekin=Ekin_new)
         IF (.NOT. tot_energy) THEN
-          new_ldmc_energy = Epot
+          new_ldmc_energy = Epot_new
         ELSE
           new_ldmc_energy = Econs
         END IF
       ELSE
-        Epot = force_env_p(1)%force_env%qs_env%energy%total
-        CALL compute_conserved_quantity(md_env=md_env, cons=Econs, epot=Epot, ekin=Ekin)
+        Epot_new = force_env_p(1)%force_env%qs_env%energy%total
+        CALL compute_conserved_quantity(md_env=md_env, cons=Econs, epot=Epot_new, ekin=Ekin_new)
         IF (.NOT. tot_energy) THEN
-          new_ldmc_energy = Epot
+          new_ldmc_energy = Epot_new
         ELSE
           new_ldmc_energy = Econs
         END IF
@@ -774,16 +828,19 @@ CONTAINS
       IF (new_ldmc_energy < prev_ldmc_energy) THEN
       !IF (new_ldmc_energy > prev_ldmc_energy) THEN
         accepted = .TRUE.
+        accepted_md = accepted_md+1
         accept = accept + 1
+        acceptance_rate = 100*(DBLE(accept)/DBLE(accept+reject))
+        prob = 1.0_dp
         IF (ionode .AND. globenv%print_level >= 1) THEN
           WRITE(iw, *) ""
-          WRITE(iw, *) "Kinetic Energy =", Ekin, " & Potential Energy = ", Epot
+          WRITE(iw, *) "Kinetic Energy =", Ekin_new, " & Potential Energy = ", Epot_new
           WRITE(iw, *) ""
           WRITE(iw, *) "New Energy =", new_ldmc_energy, "<", prev_ldmc_energy, "= Previous Energy"
           WRITE(iw, *) "Energy difference = ", new_ldmc_energy - prev_ldmc_energy
           WRITE(iw, *) ""
           WRITE(iw, *) "This HMC approach is directly accepted"
-          WRITE(iw, *) "Current acceptance ration =", (accept*100)/(accept+reject), "%"
+          WRITE(iw, *) "Current acceptance ration =", acceptance_rate, "%"
           WRITE(iw, *) "accepts =", accept, "  rejects =", reject
           WRITE(iw, *) ""
         END IF
@@ -834,7 +891,9 @@ CONTAINS
 
         IF (prob > random_number) THEN
           accepted = .TRUE.
+          accepted_md = accepted_md+1
           accept = accept + 1
+          acceptance_rate = 100*(DBLE(accept)/DBLE(accept+reject))
           IF (ionode .AND. globenv%print_level >= 1) THEN
             WRITE(iw, *) ""
 
@@ -851,6 +910,7 @@ CONTAINS
         ELSE
           accepted = .FALSE.
           reject = reject + 1
+          acceptance_rate = 100*(DBLE(accept)/DBLE(accept+reject))
           IF (ionode .AND. globenv%print_level >= 1) THEN
             WRITE(iw, *) ""
 
@@ -860,7 +920,7 @@ CONTAINS
             WRITE(iw, *) "Transition probability =", prob, "<", random_number, "= Random Number"
             WRITE(iw, *) ""
             WRITE(iw, *) "This HMC approach is rejected"
-            WRITE(iw, *) "Current acceptance ratio =", (accept*100)/(accept+reject), "%"
+            WRITE(iw, *) "Current acceptance ratio =", acceptance_rate, "%"
             WRITE(iw, *) "accepts =", accept, "  rejects =", reject
             WRITE(iw, *) ""
           END IF
@@ -949,6 +1009,14 @@ CONTAINS
         ! Restore old momenta if the velocities are not choosen at random.
       END IF ! rand_vel
 
+      ! Write .hmc file
+      IF (ionode) THEN
+        WRITE(hmc,"(I6, I5, F18.9, F18.9, F18.9, F18.9, F18.9, F18.9, F18.9, F18.9, F18.9, I8, I8, F8.4)") &
+              md_approach_nr, accepted_md, prev_ldmc_energy, Epot_prev, Ekin_prev, new_ldmc_energy, &
+              Epot_new, Ekin_new, (new_ldmc_energy-prev_ldmc_energy), prob, random_number, accept, &
+              reject, acceptance_rate
+        CALL m_flush(hmc)
+      END IF
 
       IF (accepted) THEN
       !  prev_ldmc_energy = new_ldmc_energy
@@ -1036,7 +1104,6 @@ CONTAINS
         !END IF
 
         itimes = itimes - simpar%ld_steps
-        
         CALL cp_iterate(logger%iter_info, last=.FALSE., &
                         iter_nr=itimes, error=error)
       END IF
@@ -1057,7 +1124,9 @@ CONTAINS
     CALL md_energy(md_env, globenv)
 
     IF (ionode .AND. globenv%print_level >= 1) THEN
-      WRITE(iw, *) "Final acceptance ratio =", (accept*100)/(accept+reject), "%"
+      accept = accept+1
+      acceptance_rate = 100*(DBLE(accept)/DBLE(accept+reject))
+      WRITE(iw, *) "Final acceptance ratio =", acceptance_rate, "%"
       WRITE(iw, *) "accepts =", accept, "  rejects =", reject
     END IF
 
@@ -1073,7 +1142,10 @@ CONTAINS
     CALL lnhc_dealloc(extended_type%nhc_coef)
     CALL npt_dealloc(extended_type%npt_info)
     DEALLOCATE(simpar, STAT=istat)
+    CPPostcondition(istat==0, cp_failure_level, routineP, error, failure)
     DEALLOCATE(mdio, STAT=istat)
+    CPPostcondition(istat==0, cp_failure_level, routineP, error, failure)
+    DEALLOCATE(tmp_particle_set, STAT=istat)
     CPPostcondition(istat==0, cp_failure_level, routineP, error, failure)
 
     CALL delete_rng_stream(rng_stream=rng_stream, error=error)
