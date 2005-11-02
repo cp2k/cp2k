@@ -20,6 +20,11 @@ H2O-MD-harris.inp  1
 H2O-MD-harris.frozen.inp 1
 SiO2-Harris-CC.inp 1
 SiO2_aux_basis_set.inp 1
+#HMC
+H2O-OT-HMC-1.inp   1
+H2O-OT-HMC-2.inp   1
+H2O-OT-LDMC-3.inp  1
+#QS
 Ar-2.inp           1
 Ar-3.inp           1
 H2O_tddfpt.inp     0
