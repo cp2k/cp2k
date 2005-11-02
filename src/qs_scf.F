@@ -357,10 +357,11 @@ CONTAINS
 !!     02.2003 introduced scf_env, moved real work to scf_env_do_scf [fawzi]
 !!
 !!*** **********************************************************************
-  SUBROUTINE scf(qs_env,globenv,error)
+  SUBROUTINE scf(qs_env,globenv,calc_forces,error)
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(global_environment_type), &
       POINTER                                :: globenv
+    LOGICAL, OPTIONAL, INTENT(IN)            :: calc_forces
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
@@ -384,7 +385,13 @@ CONTAINS
           CALL scf_env_release(scf_env)
           CALL get_qs_env(qs_env,scf_env=scf_env,error=error)
        END IF
-       CALL scf_env_do_scf(scf_env,my_qs_env,globenv,error=error)
+       IF (PRESENT(calc_forces)) THEN
+         CALL scf_env_do_scf(scf_env=scf_env, qs_env=my_qs_env, globenv=globenv, &
+                             calc_forces=calc_forces, error=error)
+       ELSE
+         CALL scf_env_do_scf(scf_env=scf_env, qs_env=my_qs_env, &
+                             globenv=globenv, error=error)
+       END IF
     END IF
   END SUBROUTINE scf
 !***************************************************************************
@@ -423,12 +430,13 @@ CONTAINS
 !!     09.2005 Frozen density approximation [TdK]
 !!
 !!*** **********************************************************************
-  SUBROUTINE scf_env_do_scf(scf_env,qs_env,globenv,error)
+  SUBROUTINE scf_env_do_scf(scf_env,qs_env,globenv,calc_forces,error)
 
     TYPE(qs_scf_env_type), POINTER           :: scf_env
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(global_environment_type), &
       POINTER                                :: globenv
+    LOGICAL, INTENT(IN), OPTIONAL            :: calc_forces
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
@@ -524,9 +532,13 @@ CONTAINS
       CALL get_qs_env(qs_env=qs_env, harris_env=harris_env, error=error)
     END IF
 
-    CALL init_scf_run(scf_env=scf_env,qs_env=qs_env,&
-         globenv=globenv,&
-         error=error)
+    IF (PRESENT(calc_forces)) THEN
+      CALL init_scf_run(scf_env=scf_env, qs_env=qs_env, globenv=globenv, &
+                        calc_forces=calc_forces, error=error)
+    ELSE
+      CALL init_scf_run(scf_env=scf_env, qs_env=qs_env, &
+                        globenv=globenv, error=error)
+    END IF
 
     CALL get_qs_env(qs_env=qs_env,&
          matrix_h=matrix_h,&
@@ -1091,7 +1103,7 @@ CONTAINS
 
 ! *****************************************************************************
 
-  SUBROUTINE init_scf_run(scf_env,qs_env,globenv,error)
+  SUBROUTINE init_scf_run(scf_env,qs_env,globenv,calc_forces,error)
 
 !   Purpose: Initialise a SCF run.
 
@@ -1103,6 +1115,7 @@ CONTAINS
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(global_environment_type), &
       POINTER                                :: globenv
+    LOGICAL, INTENT(IN), OPTIONAL            :: calc_forces
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
@@ -1146,7 +1159,7 @@ CONTAINS
     CPPrecondition(scf_env%ref_count>0,cp_failure_level,routineP,error,failure)
     CPPrecondition(ASSOCIATED(qs_env),cp_failure_level,routineP,error,failure)
     CPPrecondition(qs_env%ref_count>0,cp_failure_level,routineP,error,failure)
-    
+
     CALL scf_env_check_i_alloc(scf_env=scf_env, qs_env=qs_env,&
          error=error)
 
@@ -1175,7 +1188,13 @@ CONTAINS
 ! update ecore
     IF (.NOT.dft_control%qs_control%semi_empirical) THEN
       CALL calculate_ecore_self(qs_env)
-      CALL calculate_ecore_overlap(qs_env,globenv,dft_control%forces)
+      IF (PRESENT(calc_forces)) THEN
+        CALL calculate_ecore_overlap(qs_env, globenv, &
+                                     calculate_forces=calc_forces)
+      ELSE
+        CALL calculate_ecore_overlap(qs_env, globenv, &
+                                     calculate_forces=dft_control%forces)
+      END IF
       IF (ionode.AND.logger%print_keys%scf_energies) THEN
          WRITE (UNIT=output_unit,FMT="(/,(T3,A,T60,F20.10))")&
               "Overlap energy of the core charge distribution:",&

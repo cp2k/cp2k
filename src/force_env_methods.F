@@ -187,7 +187,9 @@ RECURSIVE SUBROUTINE force_env_calc_energy_force ( force_env, &
                                  force_env%globenv, my_box_change, error=error)
      CASE ( use_qs_force )
         IF (.NOT.need_f) THEN
-           CALL qs_energies(force_env%qs_env,force_env%globenv, energy_consistency)
+           CALL qs_energies(qs_env=force_env%qs_env, globenv=force_env%globenv, &
+                            consistent_energies=energy_consistency, &
+                            calc_forces=calc_force)
         ELSE
            CALL qs_forces(force_env%qs_env,force_env%globenv)
         END IF

@@ -181,7 +181,7 @@ CONTAINS
     TYPE(global_environment_type), &
       INTENT(IN)                             :: globenv
     LOGICAL, INTENT(IN)                      :: calculate_forces
-    LOGICAL, INTENT(IN), OPTIONAL             :: molecular
+    LOGICAL, INTENT(IN), OPTIONAL            :: molecular
     REAL(KIND=dp), INTENT(OUT), OPTIONAL     :: E_overlap_core
 
     CHARACTER(LEN=*), PARAMETER :: routine_name = "calculate_ecore_overlap", &
@@ -625,9 +625,11 @@ CONTAINS
                               f = 1.0_dp
                             END IF
                           END IF
+
                           IF (include_ab) THEN
                             rab(:) = rb(:) - atom(ikind)%r_pbc(:,iatom)
                             rab2 = rab(1)*rab(1) + rab(2)*rab(2) + rab(3)*rab(3)
+
                             IF (rab2 < rab2_max) THEN
                               dab = SQRT(rab2)
                               eab = zab*erfc(rootaab*dab)/dab

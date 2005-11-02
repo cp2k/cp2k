@@ -53,7 +53,7 @@ CONTAINS
 
 ! *****************************************************************************
 
-  SUBROUTINE qs_energies (qs_env, globenv, consistent_energies)
+  SUBROUTINE qs_energies (qs_env, globenv, consistent_energies, calc_forces)
 
 !   Purpose: QUICKSTEP single point wavefunction optimization.
 
@@ -63,8 +63,9 @@ CONTAINS
 !   ***************************************************************************
 
     TYPE(qs_environment_type), POINTER       :: qs_env
-    TYPE(global_environment_type), POINTER   :: globenv
-    LOGICAL, INTENT(IN), OPTIONAL            :: consistent_energies
+    TYPE(global_environment_type), POINTER   :: globenv    
+    LOGICAL, INTENT(IN), OPTIONAL            :: consistent_energies, &
+                                                calc_forces
 
     CHARACTER(LEN=*), PARAMETER :: routine_name = "qs_energies", &
       routine = "SUBROUTINE "//routine_name//" (MODULE "//module_name//")"
@@ -97,7 +98,11 @@ CONTAINS
     CALL qs_env_update_s_mstruct(qs_env)
 
     ! *** Perform a SCF run ***
-    CALL scf(qs_env,globenv)
+    IF (PRESENT(calc_forces)) THEN
+      CALL scf(qs_env=qs_env, globenv=globenv, calc_forces=calc_forces)
+    ELSE
+      CALL scf(qs_env=qs_env, globenv=globenv)
+    END IF
 
     IF (PRESENT(consistent_energies)) THEN
       IF (consistent_energies) THEN

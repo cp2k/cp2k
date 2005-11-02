@@ -799,6 +799,7 @@ CONTAINS
           WRITE(iw, *) "accepts =", accept, "  rejects =", reject
           WRITE(iw, *) ""
         END IF
+        random_number = 0.0_dp
       ELSE
         ! Random Number
         random_number = next_random_number(rng_stream=rng_stream, error=error); 
