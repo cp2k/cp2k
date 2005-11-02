@@ -285,6 +285,7 @@ CONTAINS
 
   END SUBROUTINE linres_init
 
+
 ! *****************************************************************************
 END MODULE qs_linres_module
 

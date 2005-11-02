@@ -30,7 +30,8 @@ MODULE qs_p_env_types
                                              cp_error_get_logger,&
                                              cp_error_message,&
                                              cp_error_type
-  USE cp_fm_types,                     ONLY: cp_fm_p_type
+  USE cp_fm_types,                     ONLY: cp_fm_release,&
+                                             cp_fm_p_type
   USE cp_fm_vect,                      ONLY: cp_fm_vect_dealloc,&
                                              cp_fm_vect_write
   USE cp_log_handling,                 ONLY: cp_failure_level,&
@@ -120,7 +121,8 @@ MODULE qs_p_env_types
 
      TYPE(cp_fm_p_type), DIMENSION(:), POINTER  :: PS_psi0
      TYPE(cp_fm_p_type), DIMENSION(:), POINTER  :: d_psi1, g_psi1, g_psi1_old
-     TYPE(cp_fm_p_type), DIMENSION(:), POINTER  :: os_psi0 
+     TYPE(cp_fm_p_type), DIMENSION(:), POINTER  :: buf1, buf2, os_psi0 
+     TYPE(cp_fm_p_type), DIMENSION(:,:), POINTER  :: os_psi0_mult,PS_psi0_mult 
 
      ! preconditioner matrix should be symmetric and positive definite
      TYPE(preconditioner_type), POINTER :: preconditioner
@@ -129,6 +131,7 @@ MODULE qs_p_env_types
      !factors
      REAL(KIND = dp)  :: delta,gnorm,gnorm_old,etotal,gradient
      !line search
+     INTEGER :: ls_count
      REAL(KIND = dp)  :: ls_pos(53),ls_energy(53),ls_grad(53)
      LOGICAL :: only_energy, os_valid
 
@@ -254,7 +257,7 @@ END SUBROUTINE p_env_retain
     CHARACTER(len=*), PARAMETER :: routineN = 'p_env_release', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: stat
+    INTEGER                                  :: ip, ispin, stat
     LOGICAL                                  :: failure
 
     failure=.FALSE.
@@ -294,11 +297,27 @@ END SUBROUTINE p_env_retain
           IF(ASSOCIATED(p_env%d_psi1)) THEN
             CALL cp_fm_vect_dealloc(p_env%d_psi1, error=error)  
           END IF
+          IF(ASSOCIATED(p_env%buf1)) THEN
+            CALL cp_fm_vect_dealloc(p_env%buf1, error=error)
+          END IF
+          IF(ASSOCIATED(p_env%buf2)) THEN
+            CALL cp_fm_vect_dealloc(p_env%buf2, error=error)
+          END IF
           IF(ASSOCIATED(p_env%os_psi0)) THEN
             CALL cp_fm_vect_dealloc(p_env%os_psi0, error=error)
           END IF
           IF(ASSOCIATED(p_env%preconditioner)) THEN
             CALL destroy_preconditioner(p_env%preconditioner)
+          END IF
+          IF(ASSOCIATED(p_env%PS_psi0_mult))THEN
+            DO ispin = 1,SIZE(p_env%PS_psi0_mult,1)
+              DO ip = 1,SIZE(p_env%PS_psi0_mult,2)
+                 CALL cp_fm_release(p_env%PS_psi0_mult(ip,ispin)%matrix)
+                 CALL cp_fm_release(p_env%os_psi0_mult(ip,ispin)%matrix)
+              END DO
+            END DO
+            DEALLOCATE(p_env%PS_psi0_mult,p_env%os_psi0_mult,STAT=stat)
+            CPPostcondition((stat==0),cp_failure_level,routineP,error,failure)
           END IF
        END IF
        DEALLOCATE(p_env,stat=stat)
