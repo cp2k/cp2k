@@ -1,0 +1,74 @@
+&CP2K
+ PROGRAM      Quickstep
+ PROJECT      H2O
+ IOLEVEL      1
+ FFTLIB       FFTSG
+ RUN_TYPE     HMC
+&END
+
+
+&MD
+ ensemble:     langevin                (nve,nvt,npt_i,npt_f)
+ gamma:        0.001
+ steps:        5
+ timestep:     0.1 fs                  time step [fs]
+ temperature:  300.0                   temperature [K]
+ restart:      posvel                  start type (pos,posvel)
+ constraints:  off
+ HMC &
+  LD_STEPS        2 &
+  QS_ACCEPT       FALSE &
+  QS_START        FALSE &
+  RESTORE_HISTORY TRUE
+&END  
+
+&DFT
+ FUNCTIONAL   Pade
+&END
+
+&QS
+ CUTOFF       120
+ EPS_DEFAULT  1.0E-12
+ EXTRAPOLATION USE_PREV_P
+&END
+
+&SCF
+ GUESS        RESTART
+ EPS_SCF      1.0E-6
+ MAX_SCF      1
+ OT
+&END
+
+&PRINT LOW
+&END
+
+&KIND H
+ BASIS_SET    DZVP-GTH-PADE
+ POTENTIAL    GTH-PADE-q1
+&END
+
+&KIND O
+ BASIS_SET    DZVP-GTH-PADE
+ POTENTIAL    GTH-PADE-q6
+&END
+
+&CELL
+ UNIT         ANGSTROM
+ ABC          4.0  4.0  4.0
+&END
+
+&COORD
+ O   0.000000    0.000000   -0.065587
+ H   0.000000   -0.757136    0.520545
+ H   0.000000    0.757136    0.520545
+&END
+
+&FORCE_EVAL
+ &DFT
+  &QS
+   &HARRIS
+    ACTIVATE
+   &END
+  &END
+ &END
+&END
