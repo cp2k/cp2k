@@ -1838,8 +1838,13 @@ END SUBROUTINE pw_nn_compose_r
              coarse_bo(i,j)=FLOOR((fine_bo(i,j)-f_shift(j))/2.)
           END DO
        END DO
-       coarse_bo(1,1)=floor((fine_bo(1,1)-2-f_shift(1))/2.)
-       coarse_bo(2,1)=floor((fine_bo(2,1)+3-f_shift(1))/2.)
+       IF (fine_bo(1,1)<=fine_bo(2,1)) THEN
+          coarse_bo(1,1)=FLOOR((fine_bo(1,1)-2-f_shift(1))/2.)
+          coarse_bo(2,1)=FLOOR((fine_bo(2,1)+3-f_shift(1))/2.)
+       ELSE
+          coarse_bo(1,1)=coarse_gbo(2,1)
+          coarse_bo(2,1)=coarse_gbo(2,1)-1
+       END IF
        is_split= ANY(coarse_gbo(:,1) /= my_coarse_bo(:,1))
        IF (.NOT.is_split.OR..NOT.pbc) THEN
           coarse_bo(1,1)=MAX(coarse_gbo(1,1),coarse_bo(1,1))
@@ -2061,6 +2066,8 @@ END SUBROUTINE pw_nn_compose_r
              END DO
           END IF
 
+
+
           CPPostcondition(ALL(sent_size(:n_procs-2)==send_offset(1:)),cp_failure_level,routineP,error,failure)
           CPPostcondition(sent_size(n_procs-1)==send_tot_size,cp_failure_level,routineP,error,failure)
           ! test send/rcv sizes
@@ -2145,6 +2152,7 @@ END SUBROUTINE pw_nn_compose_r
           DEALLOCATE(send_buf,rcv_buf,real_rcv_size,stat=stat)
           CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
           CALL timestop(0._dp,handle2)
+
        END IF
        fine_values => fine_values_pw%cr3d
        w_0=(/ weights_1d(3),weights_1d(1),weights_1d(3) /)
@@ -2551,7 +2559,7 @@ END SUBROUTINE pw_nn_compose_r
              END DO
           END DO
        END DO
-
+              
        IF (is_split) THEN
           DEALLOCATE(coarse_coeffs,stat=stat)
           CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
@@ -2657,8 +2665,13 @@ END SUBROUTINE pw_nn_compose_r
        f_shift=fine_gbo(1,:)-2*coarse_gbo(1,:)
        is_split= ANY(coarse_gbo(:,1) /= my_coarse_bo(:,1))
        coarse_bo=my_coarse_bo
-       coarse_bo(1,1)=FLOOR(REAL(fine_bo(1,1)-f_shift(1),dp)/2._dp)-1
-       coarse_bo(2,1)=FLOOR(REAL(fine_bo(2,1)+1-f_shift(1),dp)/2._dp)+1
+       IF (fine_bo(1,1)<=fine_bo(2,1)) THEN
+          coarse_bo(1,1)=FLOOR(REAL(fine_bo(1,1)-f_shift(1),dp)/2._dp)-1
+          coarse_bo(2,1)=FLOOR(REAL(fine_bo(2,1)+1-f_shift(1),dp)/2._dp)+1
+       ELSE
+          coarse_bo(1,1)=coarse_gbo(2,1)
+          coarse_bo(2,1)=coarse_gbo(2,1)-1
+       END IF
        IF (.NOT.is_split.OR..NOT.pbc) THEN
           coarse_bo(1,1)=MAX(coarse_gbo(1,1),coarse_bo(1,1))
           coarse_bo(2,1)=MIN(coarse_gbo(2,1),coarse_bo(2,1))
@@ -3969,7 +3982,6 @@ END SUBROUTINE pw_nn_compose_r
        CALL pw_pool_create_pw(coarse_pool,coeffs, use_data=REALDATA3D,&
             in_space=REALSPACE,error=error)
        bo=pw_coarse_in%pw_grid%bounds_local
-
        CALL section_vals_val_get(param_section,"safe_computation", &
             l_val=safe_computation, error=error)
        CALL section_vals_val_get(param_section,"aint_precond", &
@@ -4092,7 +4104,9 @@ END SUBROUTINE pw_nn_compose_r
     REAL(kind=dp), DIMENSION(:, :), POINTER  :: l_boundary, tmp, u_boundary
     REAL(kind=dp), DIMENSION(:,:,:), POINTER :: in_val, out_val
     REAL(kind=dp), parameter :: w_border=0.0_dp
+    TYPE(cp_logger_type), pointer :: logger
 
+    logger => cp_error_get_logger(error)
     bo=pw_in%pw_grid%bounds_local
     gbo=pw_in%pw_grid%bounds
     in_val => pw_in%cr3d
@@ -4110,7 +4124,7 @@ END SUBROUTINE pw_nn_compose_r
     DO i=1,3
        s(i)=bo(2,i)-bo(1,i)+1
     END DO
-    IF (ANY(s<1)) RETURN
+    IF (ANY(s<1)) go to 666
     is_split= ANY(pw_in%pw_grid%bounds_local(:,1) /= &
          pw_in%pw_grid%bounds(:,1))
     has_l_boundary=(gbo(1,1)==bo(1,1))
@@ -4226,6 +4240,7 @@ END SUBROUTINE pw_nn_compose_r
                       END IF
                    END IF
                 END IF
+
                 IF (has_l_boundary) THEN
                    IF (my_transpose) THEN
                       IF (s(1)==1) THEN
@@ -4384,7 +4399,7 @@ END SUBROUTINE pw_nn_compose_r
 !FM                        out_val=out_val,&
 !FM                        first_val=first_index,last_val=last_index,&
 !FM                        myj=myj,myk=myk,j=j,k=k)
-                   IF (my_smooth_boundary.AND.(.NOT.my_transpose))then
+                   IF (my_smooth_boundary.AND.(.NOT.my_transpose))THEN
                       IF (gbo(2,1)-1>=bo(1,1).AND.&
                            gbo(2,1)-1<=bo(2,1).AND.gbo(2,1)-gbo(1,1)>2) THEN
                          IF (gbo(2,1)<=bo(2,1)) THEN
@@ -4398,6 +4413,7 @@ END SUBROUTINE pw_nn_compose_r
                          END IF
                       END IF
                    END IF
+
                 END IF
              END DO
           END DO
@@ -4408,7 +4424,7 @@ END SUBROUTINE pw_nn_compose_r
        DEALLOCATE(l_boundary,u_boundary,stat=stat)
        CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
     END IF
-
+666 continue
   END SUBROUTINE pw_nn_compose_r_no_pbc
   !***************************************************************************
 

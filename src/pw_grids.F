@@ -2335,7 +2335,8 @@ END SUBROUTINE pw_grid_release
        pw_grid_out % reference  = 0
 
        pw_grid_out%bounds_local=pw_grid_in%bounds_local
-       IF (pw_grid_in%bounds_local(2,1)==pw_grid_in%bounds(2,1)) THEN
+       IF (pw_grid_in%bounds_local(2,1)==pw_grid_in%bounds(2,1).AND.&
+            pw_grid_in%bounds_local(1,1)<=pw_grid_in%bounds(2,1)) THEN
           pw_grid_out%bounds_local(2,1)=pw_grid_out%bounds_local(2,1)+1
        END IF
        pw_grid_out%bounds_local(2,2)=pw_grid_out%bounds_local(2,2)+1
