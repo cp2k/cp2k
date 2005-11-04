@@ -3162,6 +3162,8 @@ END SUBROUTINE pw_nn_compose_r
 
           pos_of_x => fine_values_pw%pw_grid%para%pos_of_x
           p_old=pos_of_x(fine_gbo(1,1))
+          pp_lb=fine_gbo(2,1)
+          pp_ub=fine_gbo(2,1)-1
           pp_lb(p_old)=fine_gbo(1,1)
           DO x=fine_gbo(1,1),fine_gbo(2,1)
              p=pos_of_x(x)
@@ -3174,8 +3176,13 @@ END SUBROUTINE pw_nn_compose_r
           pp_ub(p_old)=fine_gbo(2,1)
           
           DO ip=0,n_procs-1
-             pp_lb(ip)=FLOOR(REAL(pp_lb(ip)-f_shift(1),dp)/2._dp)-1
-             pp_ub(ip)=FLOOR(REAL(pp_ub(ip)+1-f_shift(1),dp)/2._dp)+1
+             IF (pp_lb(ip)<=pp_ub(ip)) THEN
+                pp_lb(ip)=FLOOR(REAL(pp_lb(ip)-f_shift(1),dp)/2._dp)-1
+                pp_ub(ip)=FLOOR(REAL(pp_ub(ip)+1-f_shift(1),dp)/2._dp)+1
+             ELSE
+                pp_lb(ip)=coarse_gbo(2,1)
+                pp_ub(ip)=coarse_gbo(2,1)-1
+             END IF
              IF (.NOT.is_split.OR..NOT.pbc) THEN
                 pp_lb(ip)=MAX(pp_lb(ip),coarse_gbo(1,1))
                 pp_ub(ip)=MIN(pp_ub(ip),coarse_gbo(2,1))
@@ -3262,6 +3269,7 @@ END SUBROUTINE pw_nn_compose_r
           CPPostcondition(sent_size(n_procs-1)==send_tot_size,cp_failure_level,routineP,error,failure)
           ! test send/rcv sizes
           CALL mp_alltoall(send_size,real_rcv_size,1,coarse_coeffs_pw%pw_grid%para%group)
+
           CPAssert(ALL(real_rcv_size==rcv_size),cp_failure_level,routineP,error,failure)
           ! all2all
           call mp_alltoall( sb=send_buf, scount=send_size, sdispl=send_offset,&
