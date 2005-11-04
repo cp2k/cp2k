@@ -102,7 +102,7 @@ CONTAINS
 !!I coord_file       "filename"                                               I 
 !!I COORDINATE       [PDB,CHM,...]                                            I
 !!I topo_file        "filename"                                               I
-!!I TOPOLOGY         [PSF,GROMOS,GENERATE,OFF,...]                            I
+!!I TOPOLOGY         [PSF,GENERATE,OFF,...]                                   I
 !!I                                                                           I
 !!I---------------------------------------------------------------------------I
 !******************************************************************************
@@ -206,9 +206,6 @@ SUBROUTINE read_topology_section ( topology, globenv )
            IF (str2 == "PSF") THEN
               topology % connectivity = .TRUE.
               topology % conn_type = "PSF"
-           ELSE IF (str2 == "GROMOS") THEN
-              topology % connectivity = .TRUE.
-              topology % conn_type = "GROMOS"
            ELSE IF (str2 == "GENERATE") THEN
               topology % connectivity = .FALSE.
               topology % conn_type = "GENERATE"

@@ -441,12 +441,17 @@ SUBROUTINE topology_generate_molecule(topology,qmmm,qmmm_env,globenv,error)
   ntype = 1
   atom_info%map_mol_typ(1)=1
   DO iatom=2,natom
-    IF(atom_info%label_molname(iatom-1)==atom_info%label_molname(iatom)) THEN
-      atom_info%map_mol_typ(iatom)=ntype
-    ELSE
-      ntype=ntype+1
-      atom_info%map_mol_typ(iatom)=ntype
-    END IF
+     IF (topology%conn_type == "OFF") THEN
+        ntype=ntype+1
+        atom_info%map_mol_typ(iatom)=ntype        
+     ELSE
+        IF(atom_info%label_molname(iatom-1)==atom_info%label_molname(iatom)) THEN
+           atom_info%map_mol_typ(iatom)=ntype
+        ELSE
+           ntype=ntype+1
+           atom_info%map_mol_typ(iatom)=ntype
+        END IF
+     END IF
   END DO
 
   DO itype=1,ntype

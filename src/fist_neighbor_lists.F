@@ -808,7 +808,7 @@ CONTAINS
                   unit_of_length_name=unit_of_length_name)
 
     CALL mp_sync(group)
-    CALL m_flush(output_unit)
+    IF (ionode) CALL m_flush(output_unit)
     CALL mp_sync(group)
 
 !   *** Create the headline ***
@@ -929,7 +929,7 @@ CONTAINS
       END IF
 
       CALL mp_sync(group)
-      CALL m_flush(output_unit)
+      IF (ionode) CALL m_flush(output_unit)
       CALL mp_sync(group)
 
     END DO

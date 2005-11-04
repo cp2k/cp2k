@@ -618,8 +618,6 @@ END SUBROUTINE clone_particle
         CALL read_object(input_format,lower_to_upper=.TRUE.)
         CALL compress(input_format,full=.TRUE.)
         SELECT CASE (TRIM(input_format))
-        CASE ("GROMOS87","GRO")
-          input_format = gro_format
         CASE ("PDB")
           input_format = pdb_format
           pdb = .TRUE.

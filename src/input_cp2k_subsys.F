@@ -1230,9 +1230,9 @@ contains
             variants=(/ "CONNECTI"/),&
             description="Set up the way in which connectivities will be read. "// &
             "Default generates topology",&
-            usage="CONNECTIVITY (PSF||GROMOS||GENERATE||OFF)", &
-            enum_c_vals=s2a( "PSF","GROMOS","GENERATE","OFF"),&
-            enum_i_vals=(/do_conn_psf, do_conn_gromos, do_conn_generate,&
+            usage="CONNECTIVITY (PSF||GENERATE||OFF)", &
+            enum_c_vals=s2a( "PSF","GENERATE","OFF"),&
+            enum_i_vals=(/do_conn_psf, do_conn_generate,&
                           do_conn_off/),&
             default_i_val=do_conn_generate,error=error)
        CALL section_add_keyword(section,keyword,error=error)

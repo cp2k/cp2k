@@ -280,7 +280,6 @@ MODULE input_constants
                                 do_skip_vdw_13=1,&
                                 do_skip_vdw_14=2,&
                                 do_conn_psf=0,&
-                                do_conn_gromos=1,&
                                 do_conn_generate=2,&
                                 do_conn_off=3,&
                                 do_coord_pdb=0,&

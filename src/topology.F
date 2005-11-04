@@ -317,11 +317,6 @@ SUBROUTINE connectivity_control(topology,globenv,qmmm,qmmm_env,error)
     CALL topology_generate_molecule(topology,my_qmmm,qmmm_env,globenv,error)
     IF(topology%molecules_check) &
       CALL topology_molecules_check(topology,globenv)
-  CASE ("GROMOS")
-    !WRITE(iw,*) 'Using topology file ',topology%conn_file_name
-    !CALL read_topology_gromos(molecule_set,topology,globenv)
-    CALL stop_program ("connectivity_control",&
-                       "gromos not implemented yet...")
   CASE ("GENERATE")
     CALL topology_set_atm_mass(topology,globenv)
     CALL topology_generate_bond(topology,globenv)
