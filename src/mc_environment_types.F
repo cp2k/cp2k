@@ -76,6 +76,8 @@ CONTAINS
 !!     - para_env: the cp para environment type you want to associate with
 !!                 this mc_env
 !!
+!!   Suitable for parallel use.
+!!
 !!   AUTHOR
 !!     MJM
 !!
@@ -130,6 +132,8 @@ CONTAINS
 !!     - para_env: the cp para environment type you want to associate
 !!                 with this mc_env
 !!
+!!   Suitable for parallel.
+!!
 !!   AUTHOR
 !!     MJM
 !!
@@ -173,6 +177,8 @@ CONTAINS
 !!     - para_env: the cp para environment type you want to point to the
 !!               para environment associated with this mc_env
 !!
+!!   Suitable for parallel.
+!!
 !!   AUTHOR
 !!     MJM
 !!
@@ -213,6 +219,8 @@ CONTAINS
 !!     - error: variable to control error logging, stopping,... 
 !!       see module cp_error_handling 
 !!
+!!   Suitable for parallel.
+!!
 !!   AUTHOR
 !!     MJM
 !!
@@ -252,6 +260,8 @@ END SUBROUTINE mc_env_retain
 !!     - mc_env: the mc environment to release
 !!     - error: variable to control error logging, stopping,... 
 !!       see module cp_error_handling 
+!!
+!!   Suitable for parallel.
 !!
 !!   AUTHOR
 !!     MJM

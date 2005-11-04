@@ -109,6 +109,8 @@ CONTAINS
 !!   ARGUMENTS
 !!     - averages: the mc_averages strucutre you want to initialize
 !!
+!!   Suitable for parallel.
+!!
 !!   AUTHOR
 !!     MJM
 !!
@@ -149,7 +151,7 @@ SUBROUTINE mc_averages_create ( averages  )
 END SUBROUTINE mc_averages_create
 
 !******************************************************************************
-!!****** mc_misc.F/init_mc_averages*
+!!****** mc_misc.F/mc_averages_release
 !!
 !!   NAME
 !!     mc_averages_release
@@ -159,6 +161,8 @@ END SUBROUTINE mc_averages_create
 !!
 !!   ARGUMENTS
 !!     - averages: the mc_averages strucutre you want to release
+!!
+!!   Suitable for parallel.
 !!
 !!   AUTHOR
 !!     MJM
@@ -208,10 +212,12 @@ END SUBROUTINE mc_averages_release
 !!              accepted/rejected
 !!     - iw: the unit to write to
 !!     - energy_check: the sum of the energy changes of each move
-!!     - initial_energy: the initial energy of the system
-!!     - final_energy: the final energy of the system
+!!     - initial_energy: the initial unbiased energy of the system
+!!     - final_energy: the final unbiased energy of the system
 !!     - averages: the structure that holds computed average properites for
 !!              the simulation
+!!
+!!   Only use in serial.
 !!
 !!   AUTHOR
 !!     MJM
@@ -263,9 +269,8 @@ SUBROUTINE final_mc_write (mc_par,moves,iw,energy_check,initial_energy,&
                    averages%molecules
     ENDIF
 !    WRITE(iw,'(A,A,T68,F13.10)') " Average Density ",&
-!               "[g/cm^3]:",1.0E0_dp/averages%ave_volume*&
-!                      averages%molecules/&
-!                      (angstrom)**3*(1.0e8_dp)**3/n_avogadro*18.0184E0_dp
+!      "[g/cm^3]:",1.0E0_dp/averages%ave_volume*averages%molecules/&
+!      (angstrom)**3*(1.0e8_dp)**3/n_avogadro*18.0184E0_dp
     WRITE(iw,'(A,A,T65,F16.6)') " Average Volume ",&
                "[angstroms**3]:",averages%ave_volume*angstrom**3
 
@@ -275,6 +280,53 @@ SUBROUTINE final_mc_write (mc_par,moves,iw,energy_check,initial_energy,&
     WRITE(iw,*) "Move Data"
     WRITE(iw,*) '----------------------------------------------------',&
                    '---------------------------'
+! AVBMC moves
+    IF (moves%avbmc_inin%attempts .GT. 0) THEN
+       WRITE(iw,'(A,T43,A)') " AVBMC moves from in to in",&
+          "Attempted       Accepted       Percent"
+       WRITE(iw,'(T46,I6,9X,I6,7X,F7.3)') &
+             moves%avbmc_inin%attempts,&
+             moves%avbmc_inin%successes,&
+             REAL(moves%avbmc_inin%successes,dp)/ &
+             REAL(moves%avbmc_inin%attempts,dp)*100.0E0_dp
+       WRITE(iw,*) '-----------------------------------------------',&
+      '--------------------------------'
+    ENDIF
+    IF (moves%avbmc_inout%attempts .GT. 0) THEN
+       WRITE(iw,'(A,T43,A)') " AVBMC moves from in to out",&
+          "Attempted       Accepted       Percent"
+       WRITE(iw,'(T46,I6,9X,I6,7X,F7.3)') &
+             moves%avbmc_inout%attempts,&
+             moves%avbmc_inout%successes,&
+             REAL(moves%avbmc_inout%successes,dp)/ &
+             REAL(moves%avbmc_inout%attempts,dp)*100.0E0_dp
+       WRITE(iw,*) '-----------------------------------------------',&
+      '--------------------------------'
+    ENDIF
+    IF (moves%avbmc_outin%attempts .GT. 0) THEN
+       WRITE(iw,'(A,T43,A)') " AVBMC moves from out to in",&
+          "Attempted       Accepted       Percent"
+       WRITE(iw,'(T46,I6,9X,I6,7X,F7.3)') &
+             moves%avbmc_outin%attempts,&
+             moves%avbmc_outin%successes,&
+             REAL(moves%avbmc_outin%successes,dp)/ &
+             REAL(moves%avbmc_outin%attempts,dp)*100.0E0_dp
+       WRITE(iw,*) '-----------------------------------------------',&
+      '--------------------------------'
+    ENDIF
+    IF (moves%avbmc_outout%attempts .GT. 0) THEN
+       WRITE(iw,'(A,T43,A)') " AVBMC moves from out to out",&
+          "Attempted       Accepted       Percent"
+       WRITE(iw,'(T46,I6,9X,I6,7X,F7.3)') &
+             moves%avbmc_outout%attempts,&
+             moves%avbmc_outout%successes,&
+             REAL(moves%avbmc_outout%successes,dp)/ &
+             REAL(moves%avbmc_outout%attempts,dp)*100.0E0_dp
+       WRITE(iw,*) '-----------------------------------------------',&
+      '--------------------------------'
+    ENDIF
+
+! volume moves
     IF (moves%volume%attempts .GT. 0) THEN
        WRITE(iw,'(A,T43,A)') " Volume Moves",&
           "Attempted       Accepted       Percent"
@@ -511,6 +563,8 @@ END SUBROUTINE final_mc_write
 !!     - force_env: the force environment that holds the parameters needed
 !!                  to write on the file
 !!     - fft_lib: the FFT library we're using (FFTW,FFTSG)
+!!
+!!   Only use in serial.
 !!
 !!   AUTHOR
 !!     MJM

@@ -45,6 +45,10 @@ MODULE mc_run
   USE mol_kind_new_list_types,         ONLY: mol_kind_new_list_type
   USE molecule_kind_types,             ONLY: get_molecule_kind,&
                                              molecule_kind_type
+  USE parallel_rng_types,              ONLY: rng_stream_type,&
+                                             create_rng_stream,&
+                                             delete_rng_stream,&
+                                             next_random_number
   USE physcon,                         ONLY: angstrom
   USE termination,                     ONLY: stop_memory,&
                                              stop_program
@@ -88,6 +92,8 @@ CONTAINS
 !!                  ensemble we're running
 !!     - error: the error type
 !!
+!!     Designed for parallel.
+!!
 !!   AUTHOR
 !!     MJM
 !!
@@ -109,7 +115,7 @@ CONTAINS
 ! Local Variables
     TYPE(force_env_type), POINTER            :: force_env_2
     INTEGER                                  :: isos, iw,&
-      nchain,nunits_tot,nunits,print_level,ibox,nboxes,in_use,&
+      nchain,nunits_tot,nunits,ibox,nboxes,in_use,&
       nstep,iupvolume,iuptrans,nmoves,nswapmoves,iprint
     LOGICAL                                  :: lrestart,ionode,lterminate,&
       lbias,lstop
@@ -123,6 +129,7 @@ CONTAINS
     TYPE(mol_kind_new_list_type), POINTER    :: molecule_kinds_new_2
     TYPE(molecule_kind_type), POINTER        :: molecule_kind
     TYPE(molecule_kind_type), POINTER        :: molecule_kind_2
+    TYPE(rng_stream_type), POINTER           :: rng_stream
     CHARACTER(LEN=20)                        :: ensemble
     CHARACTER(LEN=40)                        :: dat_file,box2_file
     REAL(KIND=dp)                            :: rcut,pmswap,temp,pressure,&
@@ -130,19 +137,21 @@ CONTAINS
     REAL(KIND=dp),DIMENSION(1:3)             :: conf_prob
 !------------------------------------------------------------------------------
 
-      NULLIFY(mc_env,mc_par,mc_par_2,force_env_2)
+      NULLIFY(mc_env,mc_par,mc_par_2,force_env_2,rng_stream)
 
       CALL init_cp2k_units ()
       iw = globenv % scr
 
 ! set some values...will use get_globenv if that ever comes around
       ionode=globenv % ionode
-      print_level = globenv % print_level
 
 ! allocating or nullifying local pointers
       ALLOCATE ( mc_par, STAT = isos )
       IF ( isos /= 0 ) CALL stop_memory ( 'allocstruc', 'mc_par', 0 )
  
+! initialize the random numbers
+      CALL create_rng_stream(rng_stream,'first')
+
 ! read the input of the Monte Carlo section
       CALL read_mc_section ( mc_par, globenv )
 
@@ -151,7 +160,7 @@ CONTAINS
       IF(force_env%in_use .EQ. use_fist_force) THEN
          CALL find_mc_rcut(mc_par,force_env,lterminate)
          CALL get_mc_par(mc_par,rcut=rcut)
-         WRITE (iw,'( A,T73,F8.4 )') &
+         IF(ionode) WRITE (iw,'( A,T73,F8.4 )') &
             ' MC| Interaction cutoff [angstroms]',rcut*angstrom
          IF(lterminate) THEN
             CALL stop_program('mc_run.F/do_mon_car',&
@@ -174,7 +183,7 @@ CONTAINS
          nunits_tot=nunits_tot)
       
 ! write out the data
-      IF (ionode .AND. print_level>=0) THEN
+      IF (ionode) THEN
          WRITE (iw,'( A,T71,I10 )') ' MC| number of molecules', &
             nchain
          WRITE (iw,'( A,A,T71,I10 )') ' MC| number of interactions ',&
@@ -191,7 +200,7 @@ CONTAINS
          ensemble=ensemble,conf_prob=conf_prob)
 
 ! write out move probabilities
-      IF (ionode .AND. print_level>=0) THEN
+      IF (ionode) THEN
          WRITE (iw,'( A,T75,F6.2 )') ' MC| Percent of bond moves tried', &
             conf_prob(1)*100.0d0
          WRITE (iw,'( A,T75,F6.2 )') ' MC| Percent of angle moves tried', &
@@ -221,7 +230,7 @@ CONTAINS
 
 ! check for restart
       IF ( lrestart ) THEN
-         CALL read_mc_restart(mc_par,force_env,iw)
+         CALL read_mc_restart(mc_par,force_env,iw,rng_stream)
 ! release the old force env and make the new one
          in_use=force_env%in_use
          CALL force_env_release(force_env)
@@ -244,7 +253,7 @@ CONTAINS
 ! pull all the information together into one environment
          CALL set_mc_env( mc_env(1)%mc_env, &
             mc_par = mc_par, force_env=force_env)
-         CALL mc_run_ensemble(mc_env,globenv,nboxes,error)
+         CALL mc_run_ensemble(mc_env,globenv,nboxes,error,rng_stream)
 
       CASE("gemc")
 
@@ -261,7 +270,7 @@ CONTAINS
          CALL mc_create_force_env(force_env_2, globenv, .FALSE., &
             force_env%in_use,error=error)
 
-         IF (ionode .AND. print_level>=0) THEN
+         IF (ionode) THEN
             WRITE(iw,*)
             WRITE(iw,*)
             WRITE(iw,*) '******************************** Begin',&
@@ -287,7 +296,7 @@ CONTAINS
          CALL set_mc_par(mc_par_2,nchain=nchain,nunits=nunits,&
          nunits_tot=nunits_tot)
 ! write out the data
-         IF (ionode .AND. print_level>=0) THEN
+         IF (ionode) THEN
             WRITE(iw,'( A,T71,I10 )' ) ' MC| number of molecules', &
             nchain
             WRITE(iw,'( A,A,T71,I10 )') ' MC| number of interactions ',&
@@ -303,7 +312,7 @@ CONTAINS
       CALL get_mc_par(mc_par_2,conf_prob=conf_prob)
 
 ! write out move probabilities
-         IF (ionode .AND. print_level>=0) THEN
+         IF (ionode) THEN
             WRITE (iw,'( A,T75,F6.2 )') &
                ' MC| Percent of bond moves tried', &
                conf_prob(1)*100.0d0
@@ -312,10 +321,7 @@ CONTAINS
                conf_prob(2)*100.0d0
             WRITE (iw,'( A,T75,F6.2 )') &
                ' MC| Percent of dihedral moves tried',conf_prob(3)*100.0d0
-      ENDIF
-
 ! make sure things are consistent between the two environments
-         IF (ionode) THEN
             WRITE(iw,* ) 
             WRITE(iw,'( A,A )' ) 'Ignoring some input for box 2, and ',&
               'using the values for box 1 for the following variables:'
@@ -340,7 +346,7 @@ CONTAINS
 ! check for restart
          CALL get_mc_par(mc_par_2,lrestart=lrestart,dat_file=dat_file)
          IF ( lrestart ) THEN
-            CALL read_mc_restart(mc_par_2,force_env_2,iw)
+            CALL read_mc_restart(mc_par_2,force_env_2,iw,rng_stream)
             CALL force_env_release(force_env_2)
             globenv%input_file_name=dat_file
             CALL mc_create_force_env(force_env_2, globenv, .TRUE., &
@@ -354,7 +360,7 @@ CONTAINS
             force_env=force_env_2)
 
 ! do the calculation
-         CALL mc_run_ensemble(mc_env,globenv,nboxes,error)
+         CALL mc_run_ensemble(mc_env,globenv,nboxes,error,rng_stream)
 
 ! clean up after ourselves
          CALL get_mc_env( mc_env(2)%mc_env,mc_par=mc_par_2,&
@@ -368,7 +374,7 @@ CONTAINS
          CPPostconditionNoFail(isos==0,cp_warning_level,routineP,error)
 
       CASE DEFAULT
-         IF (ionode .AND. print_level>=0) THEN
+         IF (ionode) THEN
             WRITE(6,*) "Don't recognize the ensemble ",ensemble
          ENDIF
       END SELECT
@@ -380,6 +386,9 @@ CONTAINS
       CALL mc_env_release ( mc_env(1)%mc_env, error )
       DEALLOCATE ( mc_env, STAT = isos )
       CPPostconditionNoFail(isos==0,cp_warning_level,routineP,error)
+
+! delete the random numbers
+      CALL delete_rng_stream(rng_stream)
 
 END SUBROUTINE do_mon_car
 

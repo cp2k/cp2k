@@ -8,7 +8,7 @@
 !!     mc_move_control
 !!
 !!   FUNCTION
-!!     control the various moves in Monte Carlo (MC) simulations
+!!     control the handling of the move data in Monte Carlo (MC) simulations
 !!
 !!   AUTHOR
 !!     Matthew J. McGrath  (10.16.2003)
@@ -62,6 +62,8 @@ CONTAINS
 !!   ARGUMENTS
 !!     - moves: the move structure to update
 !!  
+!!   Suitable for parallel.
+!!
 !!   AUTHOR
 !!     MJM
 !!
@@ -111,6 +113,18 @@ CONTAINS
       ALLOCATE (moves%volume,stat=stat)
       IF (stat /= 0) CALL stop_memory(routineN,module_name,__LINE__,&
                                      "moves%volume",0)
+      ALLOCATE (moves%avbmc_inin,stat=stat)
+      IF (stat /= 0) CALL stop_memory(routineN,module_name,__LINE__,&
+                                     "moves%avbmc_inin",0)
+      ALLOCATE (moves%avbmc_inout,stat=stat)
+      IF (stat /= 0) CALL stop_memory(routineN,module_name,__LINE__,&
+                                     "moves%avbmc_inout",0)
+      ALLOCATE (moves%avbmc_outin,stat=stat)
+      IF (stat /= 0) CALL stop_memory(routineN,module_name,__LINE__,&
+                                     "moves%avbmc_outin",0)
+      ALLOCATE (moves%avbmc_outout,stat=stat)
+      IF (stat /= 0) CALL stop_memory(routineN,module_name,__LINE__,&
+                                     "moves%avbmc_outout",0)
       ALLOCATE (moves%swap,stat=stat)
       IF (stat /= 0) CALL stop_memory(routineN,module_name,__LINE__,&
                                      "moves%swap",0)
@@ -143,6 +157,18 @@ CONTAINS
       moves%rot%attempts=0
       moves%rot%successes=0
       moves%rot%qsuccesses=0
+      moves%avbmc_inin%attempts=0
+      moves%avbmc_inin%successes=0
+      moves%avbmc_inin%qsuccesses=0
+      moves%avbmc_inout%attempts=0
+      moves%avbmc_inout%successes=0
+      moves%avbmc_inout%qsuccesses=0
+      moves%avbmc_outin%attempts=0
+      moves%avbmc_outin%successes=0
+      moves%avbmc_outin%qsuccesses=0
+      moves%avbmc_outout%attempts=0
+      moves%avbmc_outout%successes=0
+      moves%avbmc_outout%qsuccesses=0
       moves%volume%attempts=0
       moves%volume%successes=0
       moves%volume%qsuccesses=0
@@ -157,6 +183,7 @@ CONTAINS
       moves%qtrans_dis=0.0E0_dp
       moves%empty=0
       moves%empty_conf=0
+      moves%empty_avbmc=0
       moves%grown=0
 !      moves%force_create=1
 
@@ -177,6 +204,8 @@ CONTAINS
 !!   ARGUMENTS
 !!     - moves: the move structure to release
 !!  
+!!   Suitable for parallel.
+!!
 !!   AUTHOR
 !!     MJM
 !!
@@ -223,6 +252,18 @@ CONTAINS
       DEALLOCATE (moves%volume,stat=stat)
       IF (stat /= 0) CALL stop_memory(routineN,module_name,__LINE__,&
                                      "moves%volume",0)
+      DEALLOCATE (moves%avbmc_inin,stat=stat)
+      IF (stat /= 0) CALL stop_memory(routineN,module_name,__LINE__,&
+                                     "moves%avbmc_inin",0)
+      DEALLOCATE (moves%avbmc_inout,stat=stat)
+      IF (stat /= 0) CALL stop_memory(routineN,module_name,__LINE__,&
+                                     "moves%avbmc_inout",0)
+      DEALLOCATE (moves%avbmc_outin,stat=stat)
+      IF (stat /= 0) CALL stop_memory(routineN,module_name,__LINE__,&
+                                     "moves%avbmc_outin",0)
+      DEALLOCATE (moves%avbmc_outout,stat=stat)
+      IF (stat /= 0) CALL stop_memory(routineN,module_name,__LINE__,&
+                                     "moves%avbmc_outout",0)
       DEALLOCATE (moves%swap,stat=stat)
       IF (stat /= 0) CALL stop_memory(routineN,module_name,__LINE__,&
                                      "moves%swap",0)
@@ -258,7 +299,11 @@ CONTAINS
 !!
 !!   ARGUMENTS
 !!     - moves: the move structure to update
-!!  
+!!     - lbias: are we biasing translations/rotations/conformational changes
+!!       with a different potential?
+!!
+!!   Suitable for parallel.
+!!
 !!   AUTHOR
 !!     MJM
 !!
@@ -311,7 +356,10 @@ SUBROUTINE move_q_reinit ( moves , lbias )
 !!
 !!   ARGUMENTS
 !!     - moves: the move structure to update
+!!     - lbias: are we biasing non-swap particle moves with a cheaper potential
 !!  
+!!   Suitable for parallel.
+!!
 !!   AUTHOR
 !!     MJM
 !!
@@ -353,6 +401,14 @@ SUBROUTINE q_move_accept(moves,lbias)
             +moves%rot%qsuccesses
          moves%volume%successes=moves%volume%successes&
             +moves%volume%qsuccesses
+         moves%avbmc_inin%successes=moves%avbmc_inin%successes&
+            +moves%avbmc_inin%qsuccesses
+         moves%avbmc_inout%successes=moves%avbmc_inout%successes&
+            +moves%avbmc_inout%qsuccesses
+         moves%avbmc_outin%successes=moves%avbmc_outin%successes&
+            +moves%avbmc_outin%qsuccesses
+         moves%avbmc_outout%successes=moves%avbmc_outout%successes&
+            +moves%avbmc_outout%qsuccesses
       
          moves%trans_dis=moves%trans_dis+moves%qtrans_dis
       ENDIF
@@ -374,18 +430,18 @@ SUBROUTINE q_move_accept(moves,lbias)
 !!
 !!   ARGUMENTS
 !!     - moves: the structure containing the move data
-!!     - move_updates: the structure containing the move data since
-!!          the last displacement update
 !!     - nnstep: what step we're on
 !!     - unit: the unit of the file we're writing to
 !!  
+!!   Use only in serial.
+!!
 !!   AUTHOR
 !!     MJM
 !!
 !!*****************************************************************************
-SUBROUTINE write_move_stats(moves,move_updates,nnstep,unit)
+SUBROUTINE write_move_stats(moves,nnstep,unit)
 
-    TYPE(mc_moves_type), POINTER             :: moves, move_updates
+    TYPE(mc_moves_type), POINTER             :: moves
     INTEGER, INTENT(IN)                      :: nnstep, unit
 
     CHARACTER(LEN=*), PARAMETER              :: &
@@ -425,6 +481,16 @@ SUBROUTINE write_move_stats(moves,move_updates,nnstep,unit)
       moves%empty_conf
     WRITE(unit,'(I6,2X,A,2X,I6,2X,I6)') nnstep,' volume    ',&
       moves%volume%successes,moves%volume%attempts
+    WRITE(unit,'(I6,2X,A,2X,I6,2X,I6)') nnstep,' avbmc_inin  ',&
+      moves%avbmc_inin%successes,moves%avbmc_inin%attempts
+    WRITE(unit,'(I6,2X,A,2X,I6,2X,I6)') nnstep,' avbmc_inout  ',&
+      moves%avbmc_inout%successes,moves%avbmc_inout%attempts
+    WRITE(unit,'(I6,2X,A,2X,I6,2X,I6)') nnstep,' avbmc_outin  ',&
+      moves%avbmc_outin%successes,moves%avbmc_outin%attempts
+    WRITE(unit,'(I6,2X,A,2X,I6,2X,I6)') nnstep,' avbmc_outout ',&
+      moves%avbmc_outout%successes,moves%avbmc_outout%attempts
+    WRITE(unit,'(I6,2X,A,2X,I6)') nnstep,' empty_avbmc     ',&
+      moves%empty_avbmc
     WRITE(unit,'(I6,2X,A,2X,I6,2X,I6)') nnstep,' Quickstep ',&
       moves%quickstep%successes,moves%quickstep%attempts
 
@@ -448,21 +514,25 @@ SUBROUTINE write_move_stats(moves,move_updates,nnstep,unit)
 !!     - mc_par: the mc parameters for the force env
 !!     - move_updates: holds the accepted/attempted moves since the last
 !!             update (or start of simulation)
-!!     - nnstep: how many steps the simulation has run
 !!     - flag: indicates which displacements to update..."volume" is for
 !!             volume moves and "trans" is for everything else
+!!     - nnstep: how many steps the simulation has run
+!!     - ionode: is this the main CPU running this job?
 !!  
+!!   Suitable for parallel.
+!!
 !!   AUTHOR
 !!     MJM
 !!
 !!*****************************************************************************
- SUBROUTINE mc_move_update ( mc_par,move_updates,flag,nnstep )
+ SUBROUTINE mc_move_update ( mc_par,move_updates,flag,nnstep,ionode )
 
     TYPE(mc_simulation_parameters_type), &
       POINTER                                :: mc_par
     TYPE(mc_moves_type), POINTER             :: move_updates
     CHARACTER(LEN=*), INTENT(IN)             :: flag
     INTEGER, INTENT(IN)                      :: nnstep
+    LOGICAL,INTENT(IN)                       :: ionode
 
     CHARACTER(LEN=*), PARAMETER              :: &
       routineN = "mc_move_update"
@@ -509,7 +579,7 @@ SUBROUTINE write_move_stats(moves,move_updates,nnstep,unit)
             move_updates%bias_bond%successes=0
 
 ! write the new displacement to a file
-            WRITE(rm,*) nnstep,' rmbond = ',&
+            IF(ionode) WRITE(rm,*) nnstep,' rmbond = ',&
                     rmbond*angstrom,' angstroms'
 
          ENDIF
@@ -532,15 +602,15 @@ SUBROUTINE write_move_stats(moves,move_updates,nnstep,unit)
                rmangle=rmangle*test_ratio
             ENDIF
 
-! more than pi rotation is meaningless
-               IF (rmangle .GT. pi) rmangle=pi
+! more than pi changes meaningless
+            IF (rmangle .GT. pi) rmangle=pi
 
 ! clear the counters
             move_updates%bias_angle%attempts=0
             move_updates%bias_angle%successes=0
 
 ! write the new displacement to a file
-            WRITE(rm,*) nnstep,' rmangle = ',&
+            IF(ionode) WRITE(rm,*) nnstep,' rmangle = ',&
                     rmangle/pi*180.0E0_dp,' degrees'
          ENDIF
 
@@ -570,7 +640,7 @@ SUBROUTINE write_move_stats(moves,move_updates,nnstep,unit)
             move_updates%bias_trans%successes=0
 
 ! write the new displacement to a file
-            WRITE(rm,*) nnstep,' rmtrans = ',&
+            IF(ionode) WRITE(rm,*) nnstep,' rmtrans = ',&
                     rmtrans*angstrom,' angstroms'
          ENDIF
 
@@ -585,7 +655,7 @@ SUBROUTINE write_move_stats(moves,move_updates,nnstep,unit)
 
             ELSEIF ( move_updates%bias_rot%successes == &
                      move_updates%bias_rot%attempts ) THEN
-                 rmrot=rmrot/2.0E0_dp
+               rmrot=rmrot/2.0E0_dp
 
 ! more than pi rotation is meaningless
                IF (rmrot .GT. pi) rmrot=pi
@@ -608,7 +678,7 @@ SUBROUTINE write_move_stats(moves,move_updates,nnstep,unit)
             move_updates%bias_rot%successes=0
 
 ! write the new displacement to a file
-            WRITE(rm,*) nnstep,' rmrot = ',&
+            IF(ionode) WRITE(rm,*) nnstep,' rmrot = ',&
                     rmrot/pi*180.0E0_dp,' degrees'
          ENDIF
             
@@ -639,18 +709,19 @@ SUBROUTINE write_move_stats(moves,move_updates,nnstep,unit)
             move_updates%volume%successes=0
 
 ! write the new displacement to a file
-            WRITE(rm,*) nnstep,' rmvolume = ',&
+            IF(ionode) WRITE(rm,*) nnstep,' rmvolume = ',&
                     rmvolume*angstrom**3,' angstroms^3'
 
          ENDIF
       END SELECT
 
+! set some of the MC parameters
+      CALL set_mc_par(mc_par,rmbond=rmbond,rmangle=rmangle,rmrot=rmrot,&
+         rmtrans=rmtrans,rmvolume=rmvolume)
+
 ! end the timing
       CALL timestop(0.0E0_dp,handle)
 
-! grab some stuff from mc_par
-      CALL set_mc_par(mc_par,rmbond=rmbond,rmangle=rmangle,rmrot=rmrot,&
-         rmtrans=rmtrans,rmvolume=rmvolume)
 
 
   END SUBROUTINE mc_move_update

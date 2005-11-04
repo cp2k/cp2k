@@ -46,7 +46,7 @@ MODULE mc_ensembles
                                              mc_environment_p_type,&
                                              set_mc_env
   USE mc_ge_moves,                     ONLY: mc_ge_swap_move,&
-                                             mc_quickstep_move_new,&
+                                             mc_quickstep_move,&
                                              mc_ge_volume_move
   USE mc_misc,                         ONLY: final_mc_write,&
                                              mc_averages_create,&
@@ -58,7 +58,8 @@ MODULE mc_ensembles
   USE mc_moves,                        ONLY: mc_atom_translation,&
                                              mc_molecule_rotation,&
                                              mc_molecule_translation,&
-                                             mc_volume_move
+                                             mc_volume_move,&
+                                             mc_avbmc_move
   USE mc_types,                        ONLY: get_mc_par,&
                                              mc_averages_p_type,&
                                              mc_moves_p_type,&
@@ -68,6 +69,8 @@ MODULE mc_ensembles
   USE particle_list_types,             ONLY: particle_list_p_type
   USE particle_types,                  ONLY: write_particle_coordinates
   USE physcon,                         ONLY: angstrom
+  USE parallel_rng_types,              ONLY: rng_stream_type,&
+                                             next_random_number
   USE cp_files,                        ONLY: close_file,&
                                              open_file
   USE simulation_cell,                 ONLY: get_cell,&
@@ -108,12 +111,15 @@ CONTAINS
 !!     - globenv: the global environment for the simulation
 !!     - nboxes: the number of simulation boxes 
 !!     - error: the error type
+!!     - rng_stream: the stream we pull random numbers from
+!!
+!!   Suitable for parallel.
 !!
 !!   AUTHOR
 !!     MJM
 !!
 !!**************************************************************************
-  SUBROUTINE mc_run_ensemble ( mc_env, globenv, nboxes, error )
+  SUBROUTINE mc_run_ensemble ( mc_env, globenv, nboxes, error,rng_stream )
 
 !   ***************************************************************************
 
@@ -123,6 +129,7 @@ CONTAINS
     INTEGER,INTENT(IN)                        :: nboxes
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
+    TYPE(rng_stream_type), POINTER           :: rng_stream
 
     CHARACTER(LEN=*), PARAMETER :: routineN = "mc_run_ensemble"
 
@@ -130,16 +137,15 @@ CONTAINS
                                                 move_unit,istep,nchain,&
                                                 nunits_tot,diff,cl,rm
     INTEGER,DIMENSION(1:3,1:2)               :: discrete_array
-    INTEGER                                  :: handle, imove, &
+    INTEGER                                  :: handle,imove,mol_target,&
                                                 iparticle, iw, nnstep,&
                                                 mol,istat,cell_unit,&
-                                                source,group,&
+                                                source,group,mol_swap,&
                                                 nstep,nstart,nmoves,&
                                                 iuptrans,iupvolume,iprint,&
                                                 box_number,ibox,&
                                                 com_ene,com_crd,com_mol
-    LOGICAL                               :: PM0, PM1, PM2, PM3, PM4, &
-                                              should_stop,ionode,&
+    LOGICAL                               :: should_stop,ionode,&
                                               lstop,&
                                               loverlap,lbias,lnew_bias_env,&
                                               lreject,ldiscrete
@@ -147,9 +153,10 @@ CONTAINS
     REAL(KIND=dp)                    ::  rand,pmtraion,&
                                          pmvolume,test_energy,&
                                          pmtrans,cutoff,inner_cutoff,&
-                                         pmswap,discrete_step
+                                         pmswap,discrete_step,pmavbmc,&
+                                         pbias
     REAL(KIND=dp), ALLOCATABLE, &
-      DIMENSION(:, :, :)                     :: particle_positions,r_old
+      DIMENSION(:, :, :)                     :: r_old
     REAL(KIND=dp), DIMENSION(1:nboxes)       :: bias_energy,&
                                               energy_check,final_energy,&
                                               initial_energy,old_energy
@@ -171,7 +178,8 @@ CONTAINS
     CHARACTER(LEN=40),DIMENSION(1:nboxes)    :: data_file,moves_file,&
       energy_file,coords_file,displacement_file,cell_file,molecules_file
 
-    CHARACTER(LEN=40)                        :: fft_lib,cbox,move_type
+    CHARACTER(LEN=40)                        :: fft_lib,cbox,move_type,&
+      move_type_avbmc
 !   ---------------------------------------------------------------------------
 ! begin the timing of the subroutine
 
@@ -227,7 +235,7 @@ CONTAINS
          iupvolume=iupvolume,cutoff=cutoff,ldiscrete=ldiscrete,&
          inner_cutoff=inner_cutoff,lbias=lbias,iprint=iprint,&
          discrete_step=discrete_step,fft_lib=fft_lib,&
-         conf_prob=conf_prob(:,1))
+         conf_prob=conf_prob(:,1),pmavbmc=pmavbmc,pbias=pbias)
 
       IF(nboxes .GT. 1) THEN
          DO ibox=2,nboxes
@@ -242,31 +250,15 @@ CONTAINS
       ENDIF
 
 ! allocate the particle positions array for broadcasting
-      ALLOCATE (particle_positions(3,SUM(nunits_tot),1:nboxes),STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routineN,module_name,__LINE__,&
-                       "particle_positions",3*SUM(nunits_tot)*dp_size*nboxes)
       ALLOCATE (r_old(3,SUM(nunits_tot),1:nboxes),STAT=istat)
       IF (istat /= 0) CALL stop_memory(routineN,module_name,__LINE__,&
                        "r_old",3*SUM(nunits_tot)*dp_size*nboxes)
 
 
-! deal with the different levels of print statements
-      PM0 = .FALSE.
-      PM1 = .FALSE.
-      PM2 = .FALSE.
-      PM3 = .FALSE.
-      PM4 = .FALSE.
-      CALL write_checkpoint_information("entering "//routineN,globenv)
+! figure out what the default write unit is
       iw = globenv%scr
 
-      IF((ionode).AND.(globenv%print%level .GE. 0)) PM0= .TRUE.
-      IF((ionode).AND.(globenv%print%level>0)) PM1= .TRUE.
-      IF((ionode).AND.(globenv%print%level>1)) PM2= .TRUE.
-      IF((ionode).AND.(globenv%print%level>2)) PM3= .TRUE.
-      IF((ionode).AND.(globenv%print%level>3)) PM4= .TRUE.
-      
-
-      IF (PM0) THEN
+      IF (ionode) THEN
          WRITE(iw,*)
          WRITE(iw,*)
          WRITE(iw,*) 'Beginning the Monte Carlo calculation.'
@@ -302,21 +294,19 @@ CONTAINS
          IF(lbias) THEN
             CALL mc_create_bias_force_env(bias_env(ibox)%force_env,&
                force_env(ibox)%force_env,&
-               globenv,.FALSE.,TRIM(fft_lib),error)
+               globenv,.FALSE.,TRIM(fft_lib),ionode,error)
             IF(nchain(ibox) .NE. 0) THEN
                CALL force_env_calc_energy_force(bias_env(ibox)%force_env,&
                   calc_force=.FALSE.)
                CALL force_env_get(bias_env(ibox)%force_env,&
                   potential_energy=moves(ibox)%moves%bias_energy,error=error)
+                  
             ELSE
                moves(ibox)%moves%bias_energy=0.0d0
             ENDIF
             bias_energy(ibox)=moves(ibox)%moves%bias_energy
          ENDIF
          lnew_bias_env=.FALSE.
-!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-!         CALL mc_classical_energy(force_env(ibox)%force_env,rdum,&
-!         nchain(ibox),1,nchain(ibox),cutoff,loverlap)
          CALL check_for_overlap(force_env(ibox)%force_env,nchain(ibox),1,&
             nchain(ibox),loverlap)
          IF(loverlap) CALL stop_program(routineN,module_name,__LINE__,&
@@ -385,13 +375,19 @@ CONTAINS
                unit_number=cl(ibox),&
                file_action='WRITE',file_status='REPLACE')
 
-! set all the units numbers that we just opened in the respective mc_par
-            CALL set_mc_par(mc_par(ibox)%mc_par,cl=cl(ibox),rm=rm(ibox),&
-               diff=diff(ibox))
          ENDDO
 
 ! back to parallel mode
       ENDIF
+
+      DO ibox=1,nboxes
+         CALL mp_bcast(cl(ibox),source,group)
+         CALL mp_bcast(rm(ibox),source,group)
+         CALL mp_bcast(diff(ibox),source,group)
+! set all the units numbers that we just opened in the respective mc_par
+         CALL set_mc_par(mc_par(ibox)%mc_par,cl=cl(ibox),rm=rm(ibox),&
+         diff=diff(ibox))
+      ENDDO
 
 ! if we're doing a discrete volume move, we need to set up the array
 ! that keeps track of which direction we can move in
@@ -418,7 +414,8 @@ CONTAINS
             WRITE(iw,*) "------- On Monte Carlo Step ",nnstep
          ENDIF
 
-         CALL RANDOM_NUMBER(rand)
+         IF (ionode) rand=next_random_number(rng_stream)
+!         CALL RANDOM_NUMBER(rand)
 ! broadcast the random number, to make sure we're on the same move
          CALL mp_bcast(rand,source,group)
 
@@ -435,12 +432,12 @@ CONTAINS
                   moves(1)%moves,move_updates(1)%moves,&
                   nnstep,old_energy(1),globenv,&
                   energy_check(1),r_old(:,:,1),iw,discrete_array(:,:),&
-                  error=error)
+                  rng_stream,error=error)
 
             ELSE
                CALL mc_ge_volume_move ( mc_par,force_env, moves,&
                   move_updates,nnstep,old_energy,globenv,energy_check,&
-                  r_old,error)
+                  r_old,rng_stream,error)
             ENDIF
 
 ! we need a new biasing environment now, if we're into that sort of thing
@@ -449,7 +446,7 @@ CONTAINS
                   CALL force_env_release(bias_env(ibox)%force_env,error=error)
                   CALL mc_create_bias_force_env(bias_env(ibox)%force_env,&
                      force_env(ibox)%force_env,&
-                     globenv,.FALSE.,TRIM(fft_lib),error)
+                     globenv,.FALSE.,TRIM(fft_lib),ionode,error)
                   IF(nchain(ibox) .NE. 0) THEN
                      CALL force_env_calc_energy_force(&
                         bias_env(ibox)%force_env,&
@@ -473,7 +470,7 @@ CONTAINS
 
             CALL mc_ge_swap_move(mc_par,force_env,bias_env,moves,&
                 energy_check(:),r_old(:,:,:),old_energy(:),&
-                nnstep,globenv,bias_energy(:),error)
+                nnstep,globenv,bias_energy(:),rng_stream,error)
 
 ! the number of molecules may have changed
             DO ibox=1,nboxes
@@ -481,132 +478,191 @@ CONTAINS
                   nunits_tot=nunits_tot(ibox),&
                   nchain=nchain(ibox))
             ENDDO
-        ELSE
+         ELSEIF ( rand .LT. pmavbmc) THEN
+! try an AVBMC move
+            IF(MOD(nnstep,iprint) == 0 .AND. ionode) THEN
+               WRITE(iw,*) "Attempting an AVBMC1 move"
+               WRITE(iw,*) 
+            ENDIF
+
+! first, pick a box to do it for
+            IF(ionode) rand=next_random_number(rng_stream)
+!            CALL RANDOM_NUMBER(rand)
+            CALL mp_bcast(rand,source,group)
+
+            IF(nboxes .EQ. 2) THEN
+               IF(rand .LT. 0.25E0_dp) THEN
+                  ibox=1
+               ELSE
+                  ibox=2
+               ENDIF
+            ELSE
+               ibox=1
+            ENDIF
+
+! now pick a molecule, automatically rejecting the move if the
+! box is empty or only has one molecule
+            IF(nchain(ibox) .LE. 1) THEN
+! indicate that we tried a move
+               moves(ibox)%moves%empty_avbmc=&
+                  moves(ibox)%moves%empty_avbmc+1
+            ELSE
+
+! pick a molecule to be swapped in the box
+               IF (ionode) THEN
+                  CALL find_mc_test_molecule(force_env,mol_swap,&
+                     box_number,nchain(:),rng_stream,box=ibox,error=error)
+
+! pick a molecule to act as the target in the box
+                  DO
+                     CALL find_mc_test_molecule(force_env,mol_target,&
+                     box_number,nchain(:),rng_stream,box=ibox,error=error)
+                     IF(mol_target .NE. mol_swap) EXIT
+                  ENDDO
+
+! choose if we're swapping into the bonded region of mol_target, or 
+! into the nonbonded region
+                  rand=next_random_number(rng_stream)
+!               CALL RANDOM_NUMBER(rand)
+
+               ENDIF
+               CALL mp_bcast(mol_swap,source,group)
+               CALL mp_bcast(box_number,source,group)
+               CALL mp_bcast(mol_target,source,group)
+               CALL mp_bcast(rand,source,group)
+
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! debug avbmc
+!               IF (.false.) THEN
+               IF (rand .LT. pbias) THEN
+                  move_type_avbmc='in'
+               ELSE
+                  move_type_avbmc='out'
+               ENDIF
+
+               CALL mc_avbmc_move(mc_par(box_number)%mc_par,&
+                  force_env(box_number)%force_env,&
+                  bias_env(box_number)%force_env,&
+                  moves(box_number)%moves,energy_check(box_number),&
+                  r_old(:,:,box_number),old_energy(box_number),&
+                  mol_swap,mol_target,bias_energy(box_number),&
+                  move_type_avbmc,rng_stream,error=error)
+
+            ENDIF
+
+!            STOP 'After AVBMC move'
+         ELSE
 
             IF(MOD(nnstep,iprint) == 0 .AND. ionode) THEN
                WRITE(iw,*) "Attempting a Quickstep move"
                WRITE(iw,*) 
             ENDIF
 
-            particle_positions(:,:,:)=0.0E0_dp
-! we want to do all this in serial
-            IF( ionode ) THEN
-
-               DO imove=1,nmoves
+            DO imove=1,nmoves
                   
-                  CALL RANDOM_NUMBER(rand)
-                  IF(rand .LT. pmtraion) THEN
+               IF(ionode) rand=next_random_number(rng_stream)
+!                  CALL RANDOM_NUMBER(rand)
+               CALL mp_bcast(rand,source,group)
+
+               IF(rand .LT. pmtraion) THEN
 ! change molecular conformation
 ! first, pick a box to do it for
-                     CALL RANDOM_NUMBER(rand)
-                     IF(nboxes .EQ. 2) THEN
-                        IF(rand .LT. 0.75E0_dp) THEN
-                           ibox=1
-                        ELSE
-                           ibox=2
-                        ENDIF
-                     ELSE
+                  IF(ionode) rand=next_random_number(rng_stream)
+!                     CALL RANDOM_NUMBER(rand)
+                  CALL mp_bcast(rand,source,group)
+                  IF(nboxes .EQ. 2) THEN
+                     IF(rand .LT. 0.75E0_dp) THEN
                         ibox=1
+                     ELSE
+                        ibox=2
                      ENDIF
+                  ELSE
+                     ibox=1
+                  ENDIF
 
 ! now pick a molecule, automatically rejecting the move if the
 ! box is empty
-                     IF(nchain(ibox) == 0) THEN
+                  IF(nchain(ibox) == 0) THEN
 ! indicate that we tried a move
-                        moves(ibox)%moves%empty_conf=&
-                           moves(ibox)%moves%empty_conf+1
-                     ELSE
+                     moves(ibox)%moves%empty_conf=&
+                        moves(ibox)%moves%empty_conf+1
+                  ELSE
 ! pick a molecule in the box
+                     IF(ionode) THEN
                         CALL find_mc_test_molecule(force_env,mol,&
-                           box_number,nchain(:),box=ibox,error=error)
-
+                           box_number,nchain(:),rng_stream,&
+                           box=ibox,error=error)
+                        
 ! choose if we're changing a bond length or an angle
-                        CALL RANDOM_NUMBER(rand)
+!                        CALL RANDOM_NUMBER(rand)
+                        rand=next_random_number(rng_stream)
+                     ENDIF
+                     CALL mp_bcast(rand,source,group)
+                     CALL mp_bcast(mol,source,group)
+                     CALL mp_bcast(box_number,source,group)
 
 ! used for keeping track of counters for lbias=.false. simulations
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! debugging
-!                        IF (rand .LT. conf_prob(1,ibox)) THEN
-                        IF (rand .LT. 37.0d0) THEN
-                           move_type='bond'
-                        ELSEIF(rand .LT. conf_prob(2,ibox)) THEN
-                           move_type='angle'
-                        ELSE
-                           move_type='dihedral'
-                  CALL stop_program(routineN,module_name,__LINE__,&
-                  'dihedral move not in yet')
-                        ENDIF
-                        box_flag(box_number)=1
-                        CALL mc_atom_translation(mc_par(box_number)%mc_par,&
-                           force_env(box_number)%force_env,&
-                           bias_env(box_number)%force_env,&
-                           moves(box_number)%moves,&
-                           move_updates(box_number)%moves,&
-                           mol,bias_energy(box_number),&
-                           move_type,lreject,error=error)
-                        IF(lreject) EXIT
+                     IF (rand .LT. conf_prob(1,ibox)) THEN
+!                        IF (rand .LT. 37.0d0) THEN
+                        move_type='bond'
+                     ELSEIF(rand .LT. conf_prob(2,ibox)) THEN
+                        move_type='angle'
+                     ELSE
+                        move_type='dihedral'
+                        CALL stop_program(routineN,module_name,__LINE__,&
+                           'dihedral move not in yet')
                      ENDIF
-                  ELSEIF(rand .LT. pmtrans) THEN
-! translate a whole molecule in the system
-                     move_type='trans'
-                     CALL find_mc_test_molecule(force_env,mol,box_number,&
-                        nchain(:),error=error)
                      box_flag(box_number)=1
-                     CALL mc_molecule_translation(mc_par(box_number)%mc_par,&
-                        force_env(box_number)%force_env,&
-                        bias_env(box_number)%force_env,&
-                        moves(box_number)%moves,&
-                        move_updates(box_number)%moves,mol,&
-                        bias_energy(box_number),lreject,error=error)
-                     IF(lreject) EXIT
-                  ELSE
-! rotate a whole molecule in the system
-                     move_type='rot'
-                     CALL find_mc_test_molecule(force_env,mol,box_number,&
-                        nchain(:),error=error)
-                     box_flag(box_number)=1
-                     CALL mc_molecule_rotation(mc_par(box_number)%mc_par,&
+                     CALL mc_atom_translation(mc_par(box_number)%mc_par,&
                         force_env(box_number)%force_env,&
                         bias_env(box_number)%force_env,&
                         moves(box_number)%moves,&
                         move_updates(box_number)%moves,&
                         mol,bias_energy(box_number),&
-                        lreject,error=error)
+                        move_type,lreject,rng_stream,error=error)
                      IF(lreject) EXIT
                   ENDIF
-
-               ENDDO
-
-! get the new coordinates and dump them into an array so we can broadcast it
-               DO ibox=1,nboxes
-                  DO iparticle=1,nunits_tot(ibox)
-                     particle_positions(1:3,iparticle,ibox)=&
-                        particles_old(ibox)%list%els(iparticle)%r(1:3)
-                  ENDDO
-               ENDDO
-
-
-! back to parallel
-            ENDIF
-
-! broadcast the reject flag
-            CALL mp_bcast(lreject,source,group)
-
-! broadcast all the positions, to make sure we're on the same page
-            CALL mp_bcast(particle_positions,source,group)
-
-            DO ibox=1,nboxes
-               DO iparticle=1,nunits_tot(ibox)
-                  particles_old(ibox)%list%els(iparticle)%r(1:3)= &
-                     particle_positions(1:3,iparticle,ibox)
-               ENDDO
+               ELSEIF(rand .LT. pmtrans) THEN
+! translate a whole molecule in the system
+                  IF(ionode) &
+                     CALL find_mc_test_molecule(force_env,mol,box_number,&
+                     nchain(:),rng_stream,error=error)
+                  CALL mp_bcast(mol,source,group)
+                  CALL mp_bcast(box_number,source,group)                     
+                  box_flag(box_number)=1
+                  CALL mc_molecule_translation(mc_par(box_number)%mc_par,&
+                     force_env(box_number)%force_env,&
+                     bias_env(box_number)%force_env,&
+                     moves(box_number)%moves,&
+                     move_updates(box_number)%moves,mol,&
+                     bias_energy(box_number),lreject,rng_stream,error=error)
+                  IF(lreject) EXIT
+               ELSE
+!     rotate a whole molecule in the system
+                  IF(ionode) &
+                     CALL find_mc_test_molecule(force_env,mol,box_number,&
+                     nchain(:),rng_stream,error=error)
+                  box_flag(box_number)=1
+                  CALL mp_bcast(mol,source,group)
+                  CALL mp_bcast(box_number,source,group)  
+                  CALL mc_molecule_rotation(mc_par(box_number)%mc_par,&
+                     force_env(box_number)%force_env,&
+                     bias_env(box_number)%force_env,&
+                     moves(box_number)%moves,&
+                     move_updates(box_number)%moves,&
+                     mol,bias_energy(box_number),&
+                     lreject,rng_stream,error=error)
+                  IF(lreject) EXIT
+               ENDIF
+               
             ENDDO
 
 ! now do a Quickstep calculation to see if we accept the sequence
-            CALL mc_Quickstep_move_new(mc_par,force_env,bias_env,&
+            CALL mc_Quickstep_move(mc_par,force_env,bias_env,&
                moves,lreject,move_updates,energy_check(:),r_old(:,:,:),&
                nnstep,old_energy(:),bias_energy(:),&
                nboxes,box_flag(:),oldsys,particles_old,cell,&
-               error=error)
+               rng_stream,error=error)
 
          ENDIF
 
@@ -631,7 +687,7 @@ CONTAINS
 
 ! write the move statistics to file
                   CALL write_move_stats(moves(ibox)%moves,&
-                     move_updates(ibox)%moves,nnstep,move_unit(ibox))
+                     nnstep,move_unit(ibox))
 
 ! write a restart file
                   CALL write_mc_restart(nnstep,mc_par(ibox)%mc_par,&
@@ -661,14 +717,14 @@ CONTAINS
 !               ENDIF
 
                ENDDO
-            ENDIF
+            ENDIF  ! end the things we only do every iprint moves
 
             DO ibox=1,nboxes
 ! compute some averages
                averages(ibox)%averages%ave_energy=&
                   averages(ibox)%averages%ave_energy*REAL(nnstep-&
                   nstart-1,dp)/REAL(nnstep-nstart,dp)+&
-                  old_energy(ibox)/REAL(nnstep,dp)
+                  old_energy(ibox)/REAL(nnstep-nstart,dp)
                averages(ibox)%averages%molecules=&
                   averages(ibox)%averages%molecules*REAL(nnstep-&
                   nstart-1,dp)/REAL(nnstep-nstart,dp)+&
@@ -679,17 +735,6 @@ CONTAINS
                   abc(1,ibox)*abc(2,ibox)*abc(3,ibox)/&
                   REAL(nnstep-nstart,dp)
 
-! update the move displacements, if necessary
-               IF (MOD(nnstep-nstart,iuptrans) == 0) THEN
-                  CALL mc_move_update(mc_par(ibox)%mc_par,&
-                     move_updates(ibox)%moves,"trans",nnstep)
-               ENDIF
-
-               IF (MOD(nnstep-nstart,iupvolume) == 0  ) THEN
-                  CALL mc_move_update(mc_par(ibox)%mc_par,&
-                     move_updates(ibox)%moves,"volume",nnstep)
-               ENDIF
-                  
 ! flush the buffers to the files
                CALL m_flush(data_unit(ibox))
                CALL m_flush(diff(ibox))
@@ -705,26 +750,35 @@ CONTAINS
             CALL m_flush(com_crd)
             CALL m_flush(com_mol)
 
-! reset the box flags
-            box_flag(:)=0
-
 ! check to see if EXIT file exists...if so, end the calculation
             CALL external_control(should_stop,"MC",error=error)
 
          ENDIF
 
+! reset the box flags
+         box_flag(:)=0
+
          CALL mp_bcast(should_stop,source,group)
 
          IF (should_stop) EXIT
+
+! update the move displacements, if necessary
+         IF (MOD(nnstep-nstart,iuptrans) == 0) THEN
+            CALL mc_move_update(mc_par(ibox)%mc_par,&
+               move_updates(ibox)%moves,"trans",nnstep,ionode)
+         ENDIF
+         
+         IF (MOD(nnstep-nstart,iupvolume) == 0  ) THEN
+            CALL mc_move_update(mc_par(ibox)%mc_par,&
+               move_updates(ibox)%moves,"volume",nnstep,ionode)
+         ENDIF
+                  
 
 ! check to see if there are any overlaps in the boxe
          DO ibox=1,nboxes
             IF(nchain(ibox) .NE. 0) THEN
                CALL check_for_overlap(force_env(ibox)%force_env,&
                   nchain(ibox),1,nchain(ibox),loverlap)
-!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-!               CALL mc_classical_energy(force_env(ibox)%force_env,&
-!                  rdum,nchain(ibox),1,nchain(ibox),cutoff,loverlap)
                IF(loverlap) THEN
                   IF(ionode) WRITE(iw,*) nnstep
                   CALL stop_program(routineN,module_name,__LINE__,&
@@ -734,7 +788,7 @@ CONTAINS
          ENDDO
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! debug make sure the energies line up
-         IF(.false.) THEN
+         IF(.true.) THEN
          DO ibox=1,nboxes
             IF(nchain(ibox) .NE. 0) THEN
                CALL force_env_calc_energy_force(force_env(ibox)%force_env,&
@@ -842,9 +896,6 @@ CONTAINS
          CALL mc_averages_release(averages(ibox)%averages)
       ENDDO
 
-      DEALLOCATE(particle_positions,STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routineN,module_name,__LINE__,&
-                       "particle_positions")
       DEALLOCATE(r_old,STAT=istat)
       IF (istat /= 0) CALL stop_memory(routineN,module_name,__LINE__,&
                        "r_old")

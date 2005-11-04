@@ -73,6 +73,7 @@ MODULE mc_types
 
   TYPE mc_simulation_parameters_type
       PRIVATE
+      INTEGER :: avbmc_atom
       INTEGER :: nstep
       INTEGER :: iupvolume
       INTEGER :: iuptrans
@@ -116,6 +117,8 @@ MODULE mc_types
       REAL ( dp ) :: rmtrans
       REAL ( dp ) :: temp
       REAL ( dp ) :: pressure
+      REAL ( dp ) :: pbias
+      REAL ( dp ) :: pmavbmc
       REAL ( dp ) :: pmswap
       REAL ( dp ) :: pmvolume
       REAL ( dp ) :: pmtraion
@@ -124,6 +127,8 @@ MODULE mc_types
       REAL ( dp ) :: rcut
       REAL ( dp ) :: cutoff
       REAL ( dp ) :: inner_cutoff
+      REAL ( dp ) :: avbmc_rmin
+      REAL ( dp ) :: avbmc_rmax
       REAL ( dp ),DIMENSION(1:3) :: conf_prob
   END TYPE mc_simulation_parameters_type
 
@@ -156,9 +161,13 @@ MODULE mc_types
       TYPE ( accattempt ), POINTER :: rot
       TYPE ( accattempt ), POINTER :: swap
       TYPE ( accattempt ), POINTER :: volume
+      TYPE ( accattempt ), POINTER :: avbmc_inin
+      TYPE ( accattempt ), POINTER :: avbmc_outin
+      TYPE ( accattempt ), POINTER :: avbmc_inout
+      TYPE ( accattempt ), POINTER :: avbmc_outout
       TYPE ( accattempt ), POINTER :: Quickstep
       REAL(KIND = dp) :: bias_energy,trans_dis,qtrans_dis
-      integer :: empty,grown,empty_conf
+      integer :: empty,grown,empty_conf,empty_avbmc
   END TYPE mc_moves_type
 
   TYPE accattempt
@@ -181,7 +190,7 @@ CONTAINS
        ensemble,program,restart_file,molecules_file,moves_file,coords_file,&
        energy_file,displacement_file,cell_file,dat_file,data_file,box2_file,&
        cutoff,inner_cutoff,fft_lib,iprint,rcut,ldiscrete,discrete_step,&
-       conf_prob)
+       conf_prob,pmavbmc,pbias,avbmc_atom,avbmc_rmin,avbmc_rmax)
 
 ! *****************************************************************************
 !!****s* mc_types.F/get_mc_par
@@ -195,6 +204,8 @@ CONTAINS
 !!   ARGUMENTS
 !!     - mc_par: the structure mc parameters you want 
 !!
+!!   Suitable for parallel.
+!!
 !!   AUTHOR
 !!     MJM
 !!
@@ -203,14 +214,14 @@ CONTAINS
     TYPE(mc_simulation_parameters_type), POINTER       :: mc_par
     INTEGER,INTENT(OUT),OPTIONAL :: nstep,iuptrans,iupvolume,nchain,nunits,&
       nunits_tot,nmoves,nvolmoves,nswapmoves,rm,cl,diff,nstart,source,&
-      group,iprint
+      group,iprint,avbmc_atom
 
     LOGICAL,INTENT(OUT),OPTIONAL     :: lbias,ionode,lrestart,lstop,&
       ldiscrete
 
     REAL(KIND=dp),INTENT(OUT),OPTIONAL   :: rmvolume,rmbond,rmangle,rmrot,&
       rmtrans,temp,pressure,BETA,pmswap,pmvolume,pmtraion,pmtrans,cutoff,&
-      inner_cutoff,rcut,discrete_step
+      inner_cutoff,rcut,discrete_step,pmavbmc,pbias,avbmc_rmin,avbmc_rmax
 
     REAL(KIND=dp),DIMENSION(1:3),INTENT(OUT),OPTIONAL   :: conf_prob
 
@@ -225,6 +236,7 @@ CONTAINS
 !   ---------------------------------------------------------------------------
 
     IF ( PRESENT ( nstep ) ) nstep = mc_par % nstep
+    IF ( PRESENT ( avbmc_atom ) ) avbmc_atom = mc_par % avbmc_atom
     IF ( PRESENT ( iuptrans ) ) iuptrans = mc_par % iuptrans
     IF ( PRESENT ( iupvolume ) ) iupvolume = mc_par % iupvolume
     IF ( PRESENT ( nchain ) ) nchain = mc_par % nchain
@@ -249,6 +261,8 @@ CONTAINS
 
     IF ( PRESENT ( conf_prob ) ) conf_prob(:) = mc_par % conf_prob(:)
 
+    IF ( PRESENT ( avbmc_rmin ) ) avbmc_rmin = mc_par % avbmc_rmin
+    IF ( PRESENT ( avbmc_rmax ) ) avbmc_rmax = mc_par % avbmc_rmax
     IF ( PRESENT ( rcut ) ) rcut = mc_par % rcut
     IF ( PRESENT ( cutoff ) ) cutoff = mc_par % cutoff
     IF ( PRESENT ( inner_cutoff ) ) inner_cutoff = mc_par % inner_cutoff
@@ -265,6 +279,8 @@ CONTAINS
     IF ( PRESENT ( pmvolume) ) pmvolume = mc_par % pmvolume
     IF ( PRESENT ( pmtraion ) ) pmtraion = mc_par % pmtraion
     IF ( PRESENT ( pmtrans ) ) pmtrans = mc_par % pmtrans
+    IF ( PRESENT ( pmavbmc) ) pmavbmc = mc_par % pmavbmc
+    IF ( PRESENT ( pbias) ) pbias = mc_par % pbias
 
     IF ( PRESENT ( ensemble ) ) ensemble = mc_par % ensemble
     IF ( PRESENT ( program ) ) program = mc_par % program
@@ -287,7 +303,7 @@ CONTAINS
       diff,nstart,rmvolume,rmbond,rmangle,rmrot,rmtrans,program,&
       nmoves,nswapmoves,lstop,temp,pressure,iuptrans,iupvolume,&
       pmswap,pmvolume,pmtraion,pmtrans,BETA,rcut,iprint,lbias,nstep,&
-      lrestart,ldiscrete,discrete_step)
+      lrestart,ldiscrete,discrete_step,pmavbmc)
 
 ! *****************************************************************************
 !!****s* mc_types.F/set_mc_par
@@ -301,6 +317,8 @@ CONTAINS
 !!   ARGUMENTS
 !!     - mc_par: the structure mc parameters you want 
 !!
+!!   Suitable for parallel.
+!!
 !!   AUTHOR
 !!     MJM
 !!
@@ -312,7 +330,7 @@ CONTAINS
 
     REAL(KIND=dp),INTENT(IN),OPTIONAL   :: rmvolume,rmbond,&
       rmangle,rmrot,rmtrans,BETA,rcut,temp,pressure,pmswap,pmtrans,&
-      pmvolume,pmtraion,discrete_step
+      pmvolume,pmtraion,discrete_step,pmavbmc
 
     LOGICAL,INTENT(IN),OPTIONAL   :: lstop,ldiscrete,lbias,lrestart
 
@@ -353,6 +371,7 @@ CONTAINS
     IF ( PRESENT ( pmswap ) ) mc_par % pmswap = pmswap
     IF ( PRESENT ( pmtrans ) ) mc_par % pmtrans = pmtrans
     IF ( PRESENT ( pmtraion ) ) mc_par % pmtraion = pmtraion
+    IF ( PRESENT ( pmavbmc ) ) mc_par % pmavbmc = pmavbmc
 
     IF ( PRESENT ( discrete_step ) ) mc_par % discrete_step = discrete_step
     IF ( PRESENT ( rmvolume ) ) mc_par % rmvolume = rmvolume
@@ -390,6 +409,10 @@ CONTAINS
 !!I lstop:       (yes,no)                 if no, peform nstep cycles
 !!I ldiscrete:   (yes,no)                 if yes, perform a discrete volume
 !!                                        move
+!!I avbmc_rmin:                           the minimum distance used in AVBMC
+!!I avbmc_rmax:                           the maximum distance used in AVBMC
+!!I avbmc_atom:                           the atom used to calculate distances
+!!                          between for the AVBMC swap move
 !!I lbias:  (yes,no)                      pre-bias moves..requires an 
 !!                                        additional file
 !!I nmoves:                               number of moves between Quickstep
@@ -421,7 +444,11 @@ CONTAINS
 !!                                  angle change (2), or dihedral change(3)
 !!I pmswap:                               probability of doing a swap move
 !!I pmvolume:                             probability of doing a volume move
+!!I pmavbmc:                              probability of doing an AVBMC1 move
 !!I pmtraion:                             probability of doing a conformational
+!!                                        move
+!!I pbias:                                probability of doing different types
+!!                                 of AVBMC moves (in-in,out-out,etc.)
 !!                                        move
 !!I pmtrans:                              probability of doing a translation
 !!I temp:                                 temperature (in Kelvin)
@@ -462,7 +489,13 @@ SUBROUTINE read_mc_section ( mc_par, globenv )
       mc_par % source = globenv % source
 
 !..defaults
+      mc_par % pbias = 0.5d0
+      mc_par % pmavbmc = 0.0d0
       mc_par % pmswap = 0.0d0
+      mc_par % pmvolume = 0.0d0
+      mc_par % avbmc_atom = 1
+      mc_par % avbmc_rmin = 2.0_dp
+      mc_par % avbmc_rmax = 4.0_dp
       mc_par % nstart = 0
       mc_par % nvolmoves = 1
       mc_par % nswapmoves = 1
@@ -526,6 +559,12 @@ SUBROUTINE read_mc_section ( mc_par, globenv )
                CALL p_error()
                CALL stop_parser ( 'read_mc_section', 'unknown option' )
 
+            CASE ( 'AVBMC_ATOM' )
+               CALL get_next ( mc_par % avbmc_atom )
+            CASE ( 'AVBMC_RMIN' )
+               CALL get_next ( mc_par % avbmc_rmin )
+            CASE ( 'AVBMC_RMAX' )
+               CALL get_next ( mc_par % avbmc_rmax )
             CASE ( 'NSTEP' )
                CALL get_next ( mc_par % nstep )
             CASE ( 'NMOVES' )
@@ -584,14 +623,18 @@ SUBROUTINE read_mc_section ( mc_par, globenv )
                CALL get_next ( mc_par % pressure )
             CASE ( 'TEMP' )
                CALL get_next ( mc_par % temp )
-            CASE ( 'PMSWAP' )
-               CALL get_next ( mc_par % pmswap )
             CASE ( 'PMVOLUME' )
                CALL get_next ( mc_par % pmvolume )
-            CASE ( 'PMTRAION' )
-               CALL get_next ( mc_par % pmtraion )
+            CASE ( 'PMSWAP' )
+               CALL get_next ( mc_par % pmswap )
+            CASE ( 'PMAVBMC' )
+               CALL get_next ( mc_par % pmavbmc )
+            CASE ( 'PBIAS' )
+               CALL get_next ( mc_par % pbias )
             CASE ( 'PMTRANS' )
                CALL get_next ( mc_par % pmtrans )
+            CASE ( 'PMTRAION' )
+               CALL get_next ( mc_par % pmtraion )
             CASE ( 'DISCRETE_STEP' )
                CALL get_next ( mc_par % discrete_step )
             CASE ( 'RMVOLUME' )
@@ -615,14 +658,18 @@ SUBROUTINE read_mc_section ( mc_par, globenv )
 ! problems
 
 !..write some information to output
-      IF (mc_par % ionode .AND. globenv % print_level>=0) THEN
+      IF (mc_par % ionode ) THEN
          WRITE ( iw, '( A )' ) ' MC| Monte Carlo Protocol '
          WRITE ( iw, '( A,T71,I10 )' ) ' MC| total number of steps ', &
             mc_par % nstep
-         WRITE ( iw, '( A,T71,F10.3 )' ) ' MC| pmswap ', &
-            mc_par % pmswap
          WRITE ( iw, '( A,T71,F10.3 )' ) ' MC| pmvolume ', &
             mc_par % pmvolume
+         WRITE ( iw, '( A,T71,F10.3 )' ) ' MC| pmswap ', &
+            mc_par % pmswap
+         WRITE ( iw, '( A,T71,F10.3 )' ) ' MC| pmavbmc ', &
+            mc_par % pmavbmc
+         WRITE ( iw, '( A,T71,F10.3 )' ) ' MC| pbias ', &
+            mc_par % pbias
          WRITE ( iw, '( A,T71,F10.3 )' ) ' MC| pmtraion ', &
             mc_par % pmtraion
          WRITE ( iw, '( A,T71,F10.3 )' ) ' MC| pmtrans ', &
@@ -679,6 +726,12 @@ SUBROUTINE read_mc_section ( mc_par, globenv )
             mc_par % temp
          WRITE ( iw, '( A,T71,F10.5 )' ) ' MC| Pressure [bar] ', &
             mc_par % pressure
+         WRITE ( iw, '( A,T71,I10 )' ) ' MC| AVBMC target atom ', &
+            mc_par % avbmc_atom
+         WRITE ( iw, '( A,T71,F10.5 )' ) ' MC| AVBMC inner cutoff [ang]', &
+            mc_par % avbmc_rmin
+         WRITE ( iw, '( A,T71,F10.5 )' ) ' MC| AVBMC outer cutoff [ang]', &
+            mc_par % avbmc_rmax
          IF ( mc_par % lrestart ) THEN
             WRITE ( iw, '(A,A)') ' MC| Initial data will be read from a',&
             ' restart file.'
@@ -717,20 +770,21 @@ SUBROUTINE read_mc_section ( mc_par, globenv )
       mc_par%rmrot = mc_par%rmrot/180.0e0_dp*pi
 ! convert from bar to a.u.
       CALL convert_to_cp2k_units(pressure=mc_par%pressure)
-! convert from angstrom to a.u.
-      CALL convert_to_cp2k_units(unit_char='ANGSTROM',&
-         length=mc_par%rmtrans)
 ! convert from degrees to radians
       mc_par%rmangle = mc_par%rmangle/180.0e0_dp*pi
 ! convert from angstrom to a.u.
       CALL convert_to_cp2k_units(unit_char='ANGSTROM',&
+         length=mc_par%rmtrans)
+      CALL convert_to_cp2k_units(unit_char='ANGSTROM',&
          length=mc_par%rmbond)
-! convert from angstrom to a.u.
       CALL convert_to_cp2k_units(unit_char='ANGSTROM',&
          length=mc_par%rmvolume,l_power=3)
-! convert from angstrom to a.u.
       CALL convert_to_cp2k_units(unit_char='ANGSTROM',&
          length=mc_par%discrete_step)
+      CALL convert_to_cp2k_units(unit_char='ANGSTROM',&
+         length=mc_par%avbmc_rmin)
+      CALL convert_to_cp2k_units(unit_char='ANGSTROM',&
+         length=mc_par%avbmc_rmax)
 
 ! end the timing
       CALL timestop(0.0e0_dp,handle)
@@ -754,6 +808,8 @@ END SUBROUTINE read_mc_section
 !!                  out of
 !!     - lterminate: set to .TRUE. if one of the sides of the box is
 !!           less than twice the cutoff
+!!
+!!   Suitable for parallel.
 !!
 !!   AUTHOR
 !!     MJM
@@ -819,13 +875,15 @@ END SUBROUTINE find_mc_rcut
 !!     determine_conf_prob
 !!
 !!   FUNCTION
-!!     determines the probabilities of doing interal conformational moves in the
-!!     system, based on how many of each type there are...the result is stored
-!!     in mc_par % conf_prob
+!!     determines the probabilities of doing interal conformational moves 
+!!     in the system, based on how many of each type there are...the 
+!!     result is stored in mc_par % conf_prob
 !!
 !!   ARGUMENTS
 !!     - mc_par: the structure that will store the parameters
 !!     - molecule_kind: the pointer to the molecule kind we're looking at
+!!
+!!   Suitable for parallel.
 !!
 !!   AUTHOR
 !!     MJM

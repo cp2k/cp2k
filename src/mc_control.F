@@ -8,6 +8,8 @@
 !!     mc_control
 !!
 !!   FUNCTION
+!!     contains some general routines for dealing with the restart
+!!     files and creating force_env for MC use
 !!
 !!   AUTHOR
 !!     MJM
@@ -37,16 +39,20 @@ MODULE mc_control
   USE mc_types,                        ONLY: mc_simulation_parameters_type,&
                                              get_mc_par,&
                                              set_mc_par
+  USE message_passing,                 ONLY: mp_bcast
   USE mol_kind_new_list_types,         ONLY: mol_kind_new_list_type
   USE molecule_kind_types,             ONLY: get_molecule_kind,&
                                              molecule_kind_type,&
                                              atom_type
+  USE parallel_rng_types,              ONLY: rng_stream_type,&
+                                             next_random_number
   USE particle_list_types,             ONLY: particle_list_type
   USE physcon,                         ONLY: angstrom
   USE qs_main,                         ONLY: quickstep_create_force_env
   USE simulation_cell,                 ONLY: cell_type,&
                                              get_cell
-  USE termination,                     ONLY: stop_memory
+  USE termination,                     ONLY: stop_memory,&
+                                             stop_program
   USE timings,                         ONLY: timeset,&
                                              timestop
 
@@ -81,6 +87,8 @@ CONTAINS
 !!     - mc_par: the mc parameters for the force env
 !!     - force_env: the force environment to write the coords from
 !!     - nnstep: how many steps the simulation has run
+!!
+!!   Only use in serial.
 !!
 !!   AUTHOR
 !!     MJM
@@ -172,17 +180,21 @@ END SUBROUTINE write_mc_restart
 !!     - force_env: the force environment to write the coords from
 !!     - iw: the unit to write an error message to, in case current
 !!           simulation parameters don't match what's in the restart file
+!!     - rng_stream: the stream we pull random numbers from
+!!
+!!     Used in parallel.
 !!
 !!   AUTHOR
 !!     MJM
 !!
 !!*****************************************************************************
-SUBROUTINE read_mc_restart ( mc_par, force_env ,iw )
+SUBROUTINE read_mc_restart ( mc_par, force_env, iw, rng_stream)
 
     TYPE(mc_simulation_parameters_type), &
       POINTER                                :: mc_par
     TYPE(force_env_type), POINTER            :: force_env
     INTEGER, INTENT(IN)                      :: iw
+    TYPE(rng_stream_type), POINTER           :: rng_stream
 
     CHARACTER(LEN=*), PARAMETER            &
       :: routineN = "read_mc_restart"
@@ -194,7 +206,7 @@ SUBROUTINE read_mc_restart ( mc_par, force_env ,iw )
     INTEGER                                  :: handle, ipart, istat, &
                                                 nunits_tot, unit,mc_nunits,&
                                                 mc_nunits_tot,mc_nchain,&
-                                                nstart,i,iunit
+                                                nstart,i,iunit,group,source
     REAL(KIND=dp)                            :: temp,mc_temp,rand
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :)                        :: r
@@ -213,16 +225,23 @@ SUBROUTINE read_mc_restart ( mc_par, force_env ,iw )
 
 ! get some stuff from the mc_par
       CALL get_mc_par(mc_par,restart_file=restart_file,temp=mc_temp,&
-      nunits_tot=mc_nunits_tot,ensemble=mc_ensemble,nunits=mc_nunits,&
-      ionode=ionode,dat_file=dat_file,nchain=mc_nchain,fft_lib=fft_lib)
+         nunits_tot=mc_nunits_tot,ensemble=mc_ensemble,nunits=mc_nunits,&
+         ionode=ionode,dat_file=dat_file,nchain=mc_nchain,fft_lib=fft_lib,&
+         group=group,source=source)
 
+      IF(ionode) THEN
 ! open the file and read some simulation parameters
-      CALL open_file(file_name=restart_file,unit_number=unit,&
-         file_action='READ',file_status='OLD')
+         CALL open_file(file_name=restart_file,unit_number=unit,&
+            file_action='READ',file_status='OLD')
 
-      READ(unit,*) nstart
-      READ(unit,*) temp,nunits_tot
-      READ(unit,*) ensemble
+         READ(unit,*) nstart
+         READ(unit,*) temp,nunits_tot
+         READ(unit,*) ensemble
+      ENDIF
+      CALL mp_bcast(nstart,source,group)
+      CALL mp_bcast(temp,source,group)
+      CALL mp_bcast(nunits_tot,source,group)
+      CALL mp_bcast(ensemble,source,group)
 
 ! do some checking
       IF(ABS(temp - mc_temp) .GT. 0.01E0_dp) THEN
@@ -232,7 +251,8 @@ SUBROUTINE read_mc_restart ( mc_par, force_env ,iw )
             WRITE(iw,*) 'Input file temp =',mc_temp
             WRITE(iw,*) 'Restart file temp =',temp
          ENDIF
-         STOP
+         CALL stop_program(routineN,module_name,__LINE__,&
+            "Temperature difference between restart and input")
       ENDIF
       IF(nunits_tot .NE. mc_nunits_tot) THEN
          IF(ionode) THEN
@@ -243,7 +263,6 @@ SUBROUTINE read_mc_restart ( mc_par, force_env ,iw )
          ENDIF
          mc_nunits_tot=nunits_tot
          mc_nchain=mc_nunits_tot/mc_nunits
-!     STOP
       ENDIF
       IF(ensemble .NE. mc_ensemble) THEN
          IF(ionode) THEN
@@ -252,7 +271,8 @@ SUBROUTINE read_mc_restart ( mc_par, force_env ,iw )
             WRITE(iw,*) 'Input file ensemble =',mc_ensemble
             WRITE(iw,*) 'Restart file ensemble =',ensemble
          ENDIF
-         STOP
+         CALL stop_program(routineN,module_name,__LINE__,&
+            "Ensembles different between restart and input")
       ENDIF
 
 ! get the cell length and coordinates
@@ -262,7 +282,11 @@ SUBROUTINE read_mc_restart ( mc_par, force_env ,iw )
       CALL cp_subsys_get(subsys(1)%subsys, &
          particles=particles, error=error)
 
-      READ(unit,*)  box_length(1:3)  ! in angstroms
+      IF(ionode) THEN
+         READ(unit,*)  box_length(1:3) ! in angstroms
+         READ(unit,*)
+      ENDIF
+      CALL mp_bcast(box_length,source,group)
       IF(ABS(box_length(1) - abc(1)*angstrom) .GT. 0.0001E0_dp .OR. &
          ABS(box_length(2) - abc(2)*angstrom) .GT. 0.0001E0_dp .OR. &
          ABS(box_length(3) - abc(3)*angstrom) .GT. 0.0001E0_dp) THEN
@@ -272,10 +296,8 @@ SUBROUTINE read_mc_restart ( mc_par, force_env ,iw )
             WRITE(iw,*) 'Input file cell length =',abc(1:3)*angstrom
             WRITE(iw,*) 'Restart file cell length =',box_length(1:3)
          ENDIF
-!     STOP
       ENDIF
       
-      READ(unit,*)
 ! allocate the array holding the coordiantes, and read in the coordiantes,
 ! and write the dat file so we can make a new force_env
       IF(nunits_tot == 0) THEN
@@ -286,36 +308,40 @@ SUBROUTINE read_mc_restart ( mc_par, force_env ,iw )
             r(1:3,iunit) = (/ REAL(iunit,dp), REAL(iunit,dp),REAL(iunit,dp) /)
          ENDDO
 
-         CALL close_file(unit_number=unit)
 
-         IF(ionode) &
+         IF(ionode) THEN
             CALL mc_make_dat_file(r(:,:),mc_nunits,box_length(:),dat_file,&
                force_env,TRIM(fft_lib))
-
+            CALL close_file(unit_number=unit)
+         ENDIF
       ELSE
          ALLOCATE (r(3,nunits_tot),STAT=istat)
          IF (istat /= 0) CALL stop_memory(routineN,module_name,__LINE__,&
             "r",3*nunits_tot*dp_size)
-         DO ipart=1,mc_nunits_tot
-            READ(unit,*) chardum,r(1:3,ipart)
-            r(1:3,ipart)=r(1:3,ipart)/angstrom
-         ENDDO
+         
+         IF(ionode) THEN
+            DO ipart=1,mc_nunits_tot
+               READ(unit,*) chardum,r(1:3,ipart)
+               r(1:3,ipart)=r(1:3,ipart)/angstrom
+            ENDDO
 
-         CALL close_file(unit_number=unit)
+            CALL close_file(unit_number=unit)
 
-         IF(ionode) &
             CALL mc_make_dat_file(r(:,:),mc_nunits_tot,&
-            box_length(:),dat_file,force_env,TRIM(fft_lib))
-
+               box_length(:),dat_file,force_env,TRIM(fft_lib))
+         ENDIF
       ENDIF
 
       CALL set_mc_par(mc_par,nunits_tot=mc_nunits_tot,nunits=mc_nunits,&
          nstart=nstart,nchain=mc_nchain)
       
 ! advance the random number sequence based on the restart step
-      DO i=1,nstart+1
-         CALL random_number(rand)
-      ENDDO
+      IF(ionode) THEN
+         DO i=1,nstart+1
+!         CALL random_number(rand)
+            rand=next_random_number(rng_stream)
+         ENDDO
+      ENDIF
 
 ! end the timing
       CALL timestop(0.0E0_dp,handle)
@@ -339,7 +365,11 @@ END SUBROUTINE read_mc_restart
 !!     - force_env: the force environment to create
 !!     - globenv: the global environment parameters
 !!     - box_change: is this a volume or swap move?
+!!     - in_use: an integer that tells what kind of environment it is
 !!     - error: the CP error structure
+!!
+!!   Suitable for parallel.
+!!
 !!   AUTHOR
 !!     MJM
 !!
@@ -358,7 +388,7 @@ SUBROUTINE mc_create_force_env ( force_env, globenv, box_change, in_use, &
          :: routineN = "mc_create_force_env",&
             routineP = module_name//':'//routineN
       LOGICAL :: failure
-      
+!***************************************************************************
       SELECT CASE ( in_use )
       CASE ( use_fist_force )
          CALL fist_create_force_env(force_env, globenv, error=error)
@@ -390,12 +420,15 @@ END SUBROUTINE mc_create_force_env
 !!     - box_change: is this a volume or swap move?
 !!     - fft_lib: the FFT library we're using (e.g. FFTW, FFTSG)
 !!     - error: the CP error structure
+!!
+!!   Suitable for parallel.
+!!
 !!   AUTHOR
 !!     MJM
 !!
 !!*****************************************************************************
 SUBROUTINE mc_create_bias_force_env (bias_env,force_env,&
-            globenv,box_change,fft_lib,error)
+            globenv,box_change,fft_lib,ionode,error)
 
       LOGICAL, INTENT(IN)                      :: box_change
       TYPE(force_env_type), POINTER            :: force_env
@@ -403,6 +436,7 @@ SUBROUTINE mc_create_bias_force_env (bias_env,force_env,&
       TYPE(global_environment_type), POINTER   :: globenv
       TYPE(cp_error_type), INTENT(INOUT)       :: error
       CHARACTER(LEN=*),INTENT(IN)              :: fft_lib
+      LOGICAL,INTENT(IN)                       :: ionode
       
       TYPE(cp_subsystem_p_type), &
          DIMENSION(:), POINTER                 :: subsys
@@ -442,7 +476,8 @@ SUBROUTINE mc_create_bias_force_env (bias_env,force_env,&
          r(1:3,iparticle)=particles%els(iparticle)%r(1:3)
       ENDDO
 
-      CALL mc_make_dat_file(r(:,:),nunits_tot,&
+      IF(ionode) &
+         CALL mc_make_dat_file(r(:,:),nunits_tot,&
          abc(1:3)*angstrom,&
          'bias_temp.inp',bias_env,TRIM(fft_lib))
 

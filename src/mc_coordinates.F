@@ -39,6 +39,8 @@ MODULE mc_coordinates
                                              atom_type
   USE molecule_types_new,              ONLY: get_molecule,&
                                              molecule_type
+  USE parallel_rng_types,              ONLY: rng_stream_type,&
+                                             next_random_number
   USE particle_list_types,             ONLY: particle_list_type
   USE physcon,                         ONLY: angstrom,&
                                              n_avogadro
@@ -51,7 +53,8 @@ MODULE mc_coordinates
 #include "cp_common_uses.h"
   IMPLICIT NONE
 
-  PRIVATE :: nonbonded_energy, nonbonded_energy_spce
+  PRIVATE :: nonbonded_energy, nonbonded_energy_spce,&
+      generate_avbmc_insertion
 
   PUBLIC :: get_water_data,mc_classical_energy,&
             generate_cbmc_swap_config,&
@@ -84,6 +87,8 @@ CONTAINS
 !!     - nchain: the number of molecules in this force_env
 !!     - data: the unit to write the data to
 !!
+!!   NOT CURRENTLY USED...SHOULD BE REWRITEN FOR GENERAL CASE
+!!
 !!   AUTHOR
 !!     MJM
 !!
@@ -91,7 +96,7 @@ CONTAINS
 !!     none
 !!
 !!   NOTES
-!!*** ************************************************************************
+!!***************************************************************************
 
 SUBROUTINE get_water_data ( force_env,averages,nnstep,nchain,DATA  )
 
@@ -200,6 +205,8 @@ END SUBROUTINE get_water_data
 !!     - cell_length: the length of the box...if none is specified,
 !!                    it uses the cell found in the force_env
 !!     - loptional: a flag that is used for debugging
+!!
+!!   NOT CURRENTLY USED...check_for_overlap and the FIST routines are used instead
 !!
 !!   AUTHOR
 !!     MJM
@@ -368,7 +375,6 @@ SUBROUTINE mc_classical_energy ( force_env, classical_energy_new,&
                   dist=SQRT(DOT_PRODUCT(RIJ,RIJ))
 
 ! LJ energy
-!                  WRITE(6,*) 'eiruowe',dist,rcut
                   IF ( dist < rcut ) THEN
 !                     ntij=(ipart-1)*10 + jpart
                      
@@ -410,7 +416,7 @@ SUBROUTINE mc_classical_energy ( force_env, classical_energy_new,&
 !      classical_energy_new=bend_energy+&
 !                stretch_energy+LJ_energy+charge_energy
 !    classical_energy_new=LJ_energy+charge_energy
-    classical_energy_new=0.0d0
+    classical_energy_new=0.0_dp
 
 ! end the timing
       CALL timestop(0.0E0_dp,handle)
@@ -433,17 +439,15 @@ END SUBROUTINE mc_classical_energy
 !!     - force_env: the force environment containing the coordinates
 !!     - nchain: the number of molecules in the box, probably could do
 !!               a SIZE(particles%els) for this, but I haven't yet
-!!     - rrcut: the intermolecular cutoff you want to use for the potential,
-!!             in atomic units...be careful with this, as the potential is
-!!             only zero at the cutoff for certain values
 !!     - nstart: the number of the molecule to start calculating for
 !!     - nend: the number of the molecule to end calculating for
 !!     --- if nstart is not equal to 1 and nend is not equal to the total
 !!         number of molecules, set them equal
-!!     - classical_energy_new: the classical energy returned by the routine
+!!     - loverlap: returns .TRUE. if atoms overlap
 !!     - cell_length: the length of the box...if none is specified,
 !!                    it uses the cell found in the force_env
-!!     - loptional: a flag that is used for debugging
+!!
+!!     Suitable for parallel use.
 !!
 !!   AUTHOR
 !!     MJM
@@ -584,6 +588,8 @@ END SUBROUTINE check_for_overlap
 !!             2,3,11,21: oxygen-hydrogen
 !!             12,13,22,23L hydrogen-hydrogen
 !!
+!!   NOT USED...FIST used instead
+!!
 !!   AUTHOR
 !!     MJM
 !!
@@ -710,6 +716,8 @@ END SUBROUTINE nonbonded_energy
 !!             2,3,11,21: oxygen-hydrogen
 !!             12,13,22,23L hydrogen-hydrogen
 !!
+!!   NOT USED...FIST used instead
+!!
 !!   AUTHOR
 !!     MJM
 !!
@@ -760,10 +768,12 @@ END SUBROUTINE nonbonded_energy_spce
 !!     calculates the center of mass of a given molecule
 !!
 !!   ARGUMENTS
-!!     - natom: the number of atoms in the molecule
 !!     - coordinates: the coordiantes of the atoms in the molecule
-!!     - mass: the mass of the atoms in the molecule
+!!     - natom: the number of atoms in the molecule
 !!     - center_of_mass: the coordinates of the center of mass
+!!     - mass: the mass of the atoms in the molecule
+!!
+!!   Designed for parallel use.
 !!
 !!   AUTHOR
 !!     MJM
@@ -818,9 +828,12 @@ END SUBROUTINE get_center_of_mass
 !!     a center of mass cutoff
 !!
 !!   ARGUMENTS
-!!     - natoms: the total number of atoms
 !!     - coordinates: the coordiantes of the atoms in the system
-!!     - box_length: the length of the simulation box
+!!     - natoms_tot: the total number of atoms in the box
+!!     - nunits: the total number of atoms in the molecule
+!!     - box_length: an array for the lengths of the simulation box sides
+!!
+!!     Designed for parallel use.
 !!
 !!   AUTHOR
 !!     MJM
@@ -883,35 +896,53 @@ END SUBROUTINE mc_coordinate_fold
 !!     - force_env: the force environment containing the coordinates
 !!     - BETA: the value of 1/kT for this simulations, in a.u.
 !!     - nswapmoves: the number of desired trial configurations
-!!     - loverlap: the flag that determines if all of the configs have an
-!!                 atomic overlap
 !!     - rosenbluth_weight: the Rosenbluth weight for this set of configs
+!!     - mol_move: the number of the molecule we're moving
+!!     - loverlap: the flag that indicates if all of the configs have an
+!!                 atomic overlap
+!!     - choosen_energy: the energy of the choosen config
+!!     - old_energy: the energy that we subtract from all of the trial
+!!       energies to prevent numerical overflows
+!!     - ionode: indicates if we're on the main CPU
+!!     - source: the MPI source value, for broadcasts
+!!     - group: the MPI group value, for broadcasts
+!!     - rng_stream: the random number stream that we draw from
 !!     - rem_molecule: if this is for the removal box, this is the molecule
 !!                     that has been removed...not needed for insertions
+!!     OPTIONAL AVBMC FLAGS
+!!     - avbmc_atom: the atom number that serves for the target atom in each
+!!       molecule (1 is the first atom in the molecule, etc.)
+!!     - rmin: the minimum AVBMC radius for the shell around the target
+!!     - rmax: the maximum AVBMC radius for the shell around the target
+!!     - move_type: generate configs in the "in" or "out" volume
+!!     - mol_target: the number of the first atom in the target molecule
+!!
+!!
+!!     Suitable for parallel.
 !!
 !!   AUTHOR
 !!     MJM
 !!
 !!*****************************************************************************
 SUBROUTINE generate_cbmc_swap_config( force_env, BETA, nswapmoves,&
-                                      rosenbluth_weight, &
-                                      loverlap, choosen_energy,&
-                                      old_energy,cutoff,ionode,source,group,&
-!                                      boltz_weights,rem_molecule)
-                                      rem_molecule)
+      rosenbluth_weight, mol_move,loverlap, choosen_energy,&
+      old_energy,ionode,source,group,rng_stream,rem_molecule,&
+      avbmc_atom,rmin,rmax,move_type,mol_target)
 
     TYPE(force_env_type), POINTER            :: force_env
     REAL(KIND=dp),INTENT(IN)                 :: BETA
     REAL(KIND=dp),INTENT(IN)                 :: old_energy
-    REAL(KIND=dp),INTENT(IN)                 :: cutoff
     REAL(KIND=dp),INTENT(OUT)                :: rosenbluth_weight
-    INTEGER, INTENT(IN)                      :: nswapmoves,source,group
-    INTEGER, INTENT(IN),OPTIONAL             :: rem_molecule
-!    REAL(KIND=dp),DIMENSION(1:nswapmoves),INTENT(OUT)    &
-!                                             :: boltz_weights
+    INTEGER, INTENT(IN)                      :: nswapmoves,source,group,&
+      mol_move
+    INTEGER, INTENT(IN),OPTIONAL             :: rem_molecule,avbmc_atom,&
+      mol_target
     LOGICAL, INTENT(OUT)                     :: loverlap
     LOGICAL, INTENT(IN)                      :: ionode
     REAL(KIND=dp),INTENT(OUT)                :: choosen_energy
+    TYPE(rng_stream_type), POINTER           :: rng_stream
+    REAL(KIND=dp),INTENT(IN),OPTIONAL        :: rmin,rmax
+    CHARACTER(LEN=*),INTENT(IN),OPTIONAL     :: move_type
 
     CHARACTER(LEN=*), PARAMETER &
       :: routineN = "generate_cbmc_swap_config"
@@ -932,7 +963,7 @@ SUBROUTINE generate_cbmc_swap_config( force_env, BETA, nswapmoves,&
       ALLOCATABLE                            :: boltz_weights,mass,&
       trial_energy
     REAL(KIND=dp), DIMENSION(1:3)            :: r_insert,center_of_mass,&
-                                                diff,abc
+                                                diff,abc,RIJ
     TYPE(cp_subsystem_p_type), &
       DIMENSION(:), POINTER                  :: oldsys
     TYPE(cp_error_type)                      :: error
@@ -945,7 +976,6 @@ SUBROUTINE generate_cbmc_swap_config( force_env, BETA, nswapmoves,&
 ! begin the timing of the subroutine
 
       CALL timeset(routineN,'I','',handle)
-
 
 ! get the particle coordinates and the cell length
       CALL force_env_get(force_env,cell=cell,subsys=oldsys,error=error)
@@ -964,12 +994,21 @@ SUBROUTINE generate_cbmc_swap_config( force_env, BETA, nswapmoves,&
             mass=mass(iatom))
       ENDDO
 
-      IF(PRESENT(rem_molecule) ) THEN
+! do some checking to make sure we have all the data we need
+      IF(PRESENT(avbmc_atom)) THEN
+         IF( .NOT. PRESENT(rmin) .OR. .NOT. PRESENT(rmax) .OR. &
+            .NOT. PRESENT(move_type) .OR. .NOT. PRESENT(mol_target)) THEN
+           CALL stop_program(routineN,module_name,__LINE__,&
+               'AVBMC swap move is missing information!')
+         ENDIF
+      ENDIF
+
+! figure out the numbers of the first and last atoms in the molecule
+      imolecule=mol_move  
+      start_atom=natom*imolecule-(natom-1)
+      end_atom=natom*imolecule
+      IF(PRESENT(rem_molecule) ) THEN ! old config?
          imolecule=rem_molecule ! this the the molecule we're removing
-         start_atom=natom*imolecule-(natom-1)
-         end_atom=natom*imolecule
-      ELSE
-         imolecule=nmols ! this is the new config, so it's the last molecule
          start_atom=natom*imolecule-(natom-1)
          end_atom=natom*imolecule
       ENDIF
@@ -996,8 +1035,8 @@ SUBROUTINE generate_cbmc_swap_config( force_env, BETA, nswapmoves,&
       boltz_weights(:) = 0.0E0_dp
       trial_energy(:) = 0.0E0_dp
       r(:,:,:)=0.0E0_dp
-      choosen_energy=0.0d0
-      rosenbluth_weight=0.0d0
+      choosen_energy=0.0_dp
+      rosenbluth_weight=0.0_dp
 
 ! save the positions of the molecules
       DO imove=1,nswapmoves
@@ -1011,14 +1050,18 @@ SUBROUTINE generate_cbmc_swap_config( force_env, BETA, nswapmoves,&
       ENDDO
 
       IF(PRESENT(rem_molecule)) THEN
-         CALL mc_classical_energy(force_env,rdum,&
-            nmols,1,nmols,cutoff,loverlap_array(1))
+         CALL check_for_overlap ( force_env, nmols, 1, nmols,&
+            loverlap_array(1))
          
+         CALL mp_bcast(loverlap_array(1),source,group)
+
          IF(loverlap_array(1)) THEN
-            WRITE(6,*) start_atom,end_atom,natoms_tot
-            DO iatom=1,natoms_tot
-               WRITE(6,*) r(1:3,iatom,1)
-            ENDDO
+            IF(ionode) THEN
+               WRITE(6,*) start_atom,end_atom,natoms_tot
+               DO iatom=1,natoms_tot
+                  WRITE(6,*) r(1:3,iatom,1)
+               ENDDO
+            ENDIF
             CALL stop_program(routineN,module_name,__LINE__,&
                'CBMC swap move found an overlap in the old config')
          ENDIF
@@ -1028,27 +1071,43 @@ SUBROUTINE generate_cbmc_swap_config( force_env, BETA, nswapmoves,&
          
 ! drop into serial
          IF(ionode) THEN
-! find a new insertion point
-            DO i=1,3
-               CALL random_number(rand)
-               r_insert(i)=rand*abc(i)
-            ENDDO
+
+            IF(PRESENT(avbmc_atom)) THEN
+! find an AVBMC insertion point
+               CALL generate_avbmc_insertion(rmin,rmax,&
+                  r_old(1:3,mol_target+avbmc_atom-1),&
+                  move_type,r_insert(:),abc(:),rng_stream)
+
+               DO i=1,3
+                  diff(i)=r_insert(i)-r_old(i,start_atom+avbmc_atom-1)
+               ENDDO
+
+            ELSE
+! find a new insertion point somewhere in the box
+               DO i=1,3
+                  rand=next_random_number(rng_stream)
+!                  CALL random_number(rand)
+                  r_insert(i)=rand*abc(i)
+               ENDDO
 
 ! find the center of mass of the insertion molecule
-            CALL get_center_of_mass(r(:,start_atom:end_atom,imove),natom,&
-            center_of_mass(:),mass(:))
+               CALL get_center_of_mass(r(:,start_atom:end_atom,imove),natom,&
+               center_of_mass(:),mass(:))
 
 ! move the molecule to the insertion point
-            DO i=1,3
-               diff(i)=r_insert(i)-center_of_mass(i)
-            ENDDO
+               DO i=1,3
+                  diff(i)=r_insert(i)-center_of_mass(i)
+               ENDDO
             
+            ENDIF
+
             DO iatom=start_atom,end_atom
                r(1:3,iatom,imove)=r(1:3,iatom,imove)+diff(1:3)
             ENDDO
             
-! rotate the molecule
-            CALL rotate_molecule(r(:,start_atom:end_atom,imove),mass,natom)
+! rotate the molecule...this routine is only made for serial use
+            CALL rotate_molecule(r(:,start_atom:end_atom,imove),mass,natom,&
+               rng_stream)
             
             IF(imove == 1 .AND. PRESENT(rem_molecule)) THEN
                DO iatom=1,natoms_tot
@@ -1058,34 +1117,53 @@ SUBROUTINE generate_cbmc_swap_config( force_env, BETA, nswapmoves,&
 
          ENDIF
 
+!         WRITE(6,*) 'start mol ',start_atom
+!         DO iatom=1,natoms_tot,3
+!            WRITE(6,*) ' O ',r(1:3,iatom,imove)*angstrom
+ !           WRITE(6,*) ' H ',r(1:3,iatom+1,imove)*angstrom
+!            WRITE(6,*) ' H ',r(1:3,iatom+2,imove)*angstrom
+!         ENDDO
+         
          CALL mp_bcast(r(:,:,imove),source,group)
 
 ! calculate the energy and boltzman weight of the config
          DO iatom=start_atom,end_atom
             particles%els(iatom)%r(1:3)=r(1:3,iatom,imove)
          ENDDO
-         CALL mc_classical_energy(force_env,rdum,&
-            nmols,imolecule,imolecule,cutoff,loverlap_array(imove))
+
+         CALL check_for_overlap ( force_env, nmols,imolecule,imolecule,&
+            loverlap_array(imove))
          IF(loverlap_array(imove)) THEN
-            boltz_weights(imove)=0.0d0
+            boltz_weights(imove)=0.0_dp
             CYCLE
          ENDIF
          CALL force_env_calc_energy_force(force_env,calc_force=.FALSE.)
          CALL force_env_get(force_env,&
             potential_energy=bias_energy,error=error)
+            
 
+!            RIJ(1)=particles%els(start_atom)%r(1)-particles%els(mol_target)%r(1)-abc(1)*&
+!               ANINT((particles%els(start_atom)%r(1)-particles%els(mol_target)%r(1))/abc(1))
+!            RIJ(2)=particles%els(start_atom)%r(2)-particles%els(mol_target)%r(2)-abc(2)*&
+!               ANINT((particles%els(start_atom)%r(2)-particles%els(mol_target)%r(2))/abc(2))
+!            RIJ(3)=particles%els(start_atom)%r(3)-particles%els(mol_target)%r(3)-abc(3)*&
+!               ANINT((particles%els(start_atom)%r(3)-particles%els(mol_target)%r(3))/abc(3))
+!         WRITE(6,*) 'distance kdjlf ',SQRT((RIJ(1)**2+RIJ(2)**2+RIJ(3)**2))*angstrom
+!         WRITE(6,*) RIJ(1:3)*angstrom
+!         WRITE(6,*) abc(1:3)*angstrom
 
          trial_energy(imove)=(bias_energy-old_energy)
+!         WRITE(6,*) 'ioenvcm,xnv ',bias_energy,old_energy,trial_energy(imove),imove
 
          exponent=-BETA*trial_energy(imove)
-         IF(exponent .GT. 500.0d0) THEN
+         IF(exponent .GT. 500.0_dp) THEN
             boltz_weights(imove)=1.4E217_dp
-         ELSEIF(exponent .LT. -500.0d0) THEN
-            boltz_weights(imove)=0.0d0
+         ELSEIF(exponent .LT. -500.0_dp) THEN
+            boltz_weights(imove)=0.0_dp
          ELSE
             boltz_weights(imove)=EXP(exponent)
          ENDIF
-
+!         WRITE(6,*) 'mncv,m ',boltz_weights(imove),imove
       ENDDO
 
 ! now we need to pick a configuration based on the Rosenbluth weight,
@@ -1095,7 +1173,8 @@ SUBROUTINE generate_cbmc_swap_config( force_env, BETA, nswapmoves,&
       total_running_weight=0.0E0_dp
       choosen=0
       IF(ionode)THEN
-         CALL random_number(rand)
+         rand=next_random_number(rng_stream)
+!         CALL random_number(rand)
       ENDIF
       CALL mp_bcast(rand,source,group)
       DO imove=1,nswapmoves
@@ -1115,12 +1194,14 @@ SUBROUTINE generate_cbmc_swap_config( force_env, BETA, nswapmoves,&
 ! if this is an old configuration, we always choose the first one...
 ! this should never be the case, but I'm testing something
          IF(PRESENT(rem_molecule)) THEN
-            WRITE(6,*) boltz_weights(1:nswapmoves)
-            WRITE(6,*) start_atom,end_atom,rem_molecule
-            WRITE(6,*) loverlap_array(1:nswapmoves)
-            DO iatom=1,natoms_tot
-               WRITE(6,*) r(1:3,iatom,1)
-            ENDDO
+            IF(ionode) THEN
+               WRITE(6,*) boltz_weights(1:nswapmoves)
+               WRITE(6,*) start_atom,end_atom,rem_molecule
+               WRITE(6,*) loverlap_array(1:nswapmoves)
+               DO iatom=1,natoms_tot
+                  WRITE(6,*) r(1:3,iatom,1)
+               ENDDO
+            ENDIF
             CALL stop_program(routineN,module_name,__LINE__,&
             'CBMC swap move found all overlaps for the remove config')
          ENDIF
@@ -1188,27 +1269,33 @@ SUBROUTINE generate_cbmc_swap_config( force_env, BETA, nswapmoves,&
 END SUBROUTINE generate_cbmc_swap_config
 
 !******************************************************************************
-!!****s* mc_coordinates.F/rotate_water_molecule
+!!****s* mc_coordinates.F/rotate_molecule
 !!
 !!   NAME
-!!     rotate_water_molecule
+!!     rotate_molecule
 !!
 !!   FUNCTION
-!!     rotates a water molecule randomly around the center of mass, 
+!!     rotates a molecule randomly around the center of mass, 
 !!     sequentially in x, y, and z directions
 !!
 !!   ARGUMENTS
-!!     - r: the coordinates of the water molecule to rotate
+!!     - r: the coordinates of the molecule to rotate
+!!     - mass: the mass of all the atoms in the molecule
+!!     - natoms: the number of atoms in the molecule
+!!     - rng_stream: the stream we pull random numbers from
+!!
+!!   Use only in serial.
 !!
 !!   AUTHOR
 !!     MJM
 !!
 !!*****************************************************************************
-SUBROUTINE rotate_molecule(r,mass,natoms)
+SUBROUTINE rotate_molecule(r,mass,natoms,rng_stream)
 
     INTEGER,INTENT(IN)                            :: natoms
     REAL(KIND=dp),DIMENSION(1:3,1:natoms),INTENT(INOUT)  :: r
     REAL(KIND=dp),DIMENSION(1:natoms),INTENT(IN):: mass 
+    TYPE(rng_stream_type), POINTER           :: rng_stream
 
     CHARACTER(LEN=*), PARAMETER &
       :: routineN = "rotate_molecule"
@@ -1227,7 +1314,8 @@ SUBROUTINE rotate_molecule(r,mass,natoms)
       CALL get_center_of_mass(r(:,:),natoms,center_of_mass(:),mass(:))
 
 ! call a random number to figure out how far we're moving
-      CALL RANDOM_NUMBER(rand)
+!      CALL RANDOM_NUMBER(rand)
+      rand=next_random_number(rng_stream)
       dgamma=pi*(rand-0.5E0_dp)*2.0E0_dp
 
 ! *** set up the rotation marix ***
@@ -1290,21 +1378,29 @@ END SUBROUTINE rotate_molecule
 !!     want to perform a Monte Carlo move on
 !!
 !!   ARGUMENTS
-!!     - natoms: the total number of atoms
-!!     - coordinates: the coordiantes of the atoms in the system
-!!     - box_length: the length of the simulation box
+!!     - force_env: the pointer to the group of force_env for the system
+!!     - mol_number: the number of the atom starting the molecule
+!!     - box_number: the number of the box (force_env) the molecule is in
+!!     - nchain: an array holding the number of molecules in each box
+!!     - rng_stream: the stream we pull random numbers from
+!!     - box: if present, tells the routine which box to grab a molecule from
+!!     - error: the optional cp_error_type
+!!
+!!   Designed only for serial use.
 !!
 !!   AUTHOR
 !!     MJM
 !!
 !!*****************************************************************************
-SUBROUTINE find_mc_test_molecule(force_env,mol_number,box_number,nchain,box,error)
+SUBROUTINE find_mc_test_molecule(force_env,mol_number,box_number,nchain,&
+      rng_stream,box,error)
 
     TYPE(force_env_p_type), DIMENSION(:), &
       POINTER                                :: force_env
     INTEGER, INTENT(OUT)                     :: mol_number
     INTEGER, INTENT(OUT)                     :: box_number
     INTEGER, INTENT(IN),DIMENSION(:)         :: nchain
+    TYPE(rng_stream_type), POINTER           :: rng_stream
     INTEGER, INTENT(IN),OPTIONAL             :: box
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
@@ -1338,6 +1434,7 @@ SUBROUTINE find_mc_test_molecule(force_env,mol_number,box_number,nchain,box,erro
          end_box=nboxes
       ENDIF
 
+! initialize the outgoing variables
       mol_number=0
       box_number=0
 
@@ -1346,7 +1443,7 @@ SUBROUTINE find_mc_test_molecule(force_env,mol_number,box_number,nchain,box,erro
       ALLOCATE(mol_kinds(1:nboxes), stat=stat)
       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
 
-! find out how many molecules we have total
+! grab the molecule information for all the environments
       DO ibox=start_box,end_box
          CALL force_env_get(force_env(ibox)%force_env,&
             subsys=subsys(ibox)%subsys,error=error)
@@ -1355,7 +1452,8 @@ SUBROUTINE find_mc_test_molecule(force_env,mol_number,box_number,nchain,box,erro
       ENDDO
 
 ! grab a random molecule
-      CALL random_number(rand)
+      rand=next_random_number(rng_stream)
+!      CALL random_number(rand)
       target_molecule=CEILING(rand*REAL(SUM(nchain(start_box:end_box))))
 
 ! find the starting atom and box number
@@ -1381,7 +1479,6 @@ SUBROUTINE find_mc_test_molecule(force_env,mol_number,box_number,nchain,box,erro
 ! deallocate some stuff
       DEALLOCATE(mol_kinds)
       DEALLOCATE(subsys)
-!      DEALLOCATE(nmolecules)
 
 ! make sure things are good
       CPPostcondition(mol_number/=0,cp_failure_level,routineP,error,failure)
@@ -1394,19 +1491,21 @@ SUBROUTINE find_mc_test_molecule(force_env,mol_number,box_number,nchain,box,erro
 END SUBROUTINE find_mc_test_molecule
 
 !******************************************************************************
-!!****s* mc_coordinates.F/find_mc_test_molecule
+!!****s* mc_coordinates.F/create_discrete_array
 !!
 !!   NAME
-!!     find_mc_test_molecule
+!!     create_discrete_array
 !!
 !!   FUNCTION
-!!     returns the number of the first atom in a molecule that we
-!!     want to perform a Monte Carlo move on
+!!     generates an array that tells us which sides of the simulation
+!!     cell we can increase or decrease using a discrete volume move
 !!
 !!   ARGUMENTS
-!!     - natoms: the total number of atoms
-!!     - coordinates: the coordiantes of the atoms in the system
-!!     - box_length: the length of the simulation box
+!!     - cell: the lengths of the sides of the cell
+!!     - discrete_array: the array that indicates which sides we can move
+!!     - step_size: the size of the discrete volume move
+!!
+!!   Suitable for parallel.
 !!
 !!   AUTHOR
 !!     MJM
@@ -1423,6 +1522,7 @@ SUBROUTINE create_discrete_array(cell,discrete_array,step_size)
 
       REAL(dp) :: length1,length2,high_value,low_value
       INTEGER :: iside
+!------------------------------------------------------------------------------
 
       discrete_array(:,:)=0
 
@@ -1430,15 +1530,15 @@ SUBROUTINE create_discrete_array(cell,discrete_array,step_size)
       length2=ABS(cell(2)-cell(3))
 
 ! now let's figure out all the different cases
-      IF(length1 .LT. 0.01d0*step_size .AND. &
-         length2 .LT. 0.01d0*step_size) THEN
+      IF(length1 .LT. 0.01_dp*step_size .AND. &
+         length2 .LT. 0.01_dp*step_size) THEN
 ! all sides are equal, so we can move up or down
          discrete_array(1:3,1)=1
          discrete_array(1:3,2)=1
       ELSE
 
 ! find the low value and the high value
-         high_value=-1.0d0
+         high_value=-1.0_dp
          low_value=cell(1)*cell(2)*cell(3)
          DO iside=1,3
             IF(cell(iside) .LT. low_value) low_value=cell(iside)
@@ -1447,7 +1547,7 @@ SUBROUTINE create_discrete_array(cell,discrete_array,step_size)
          DO iside=1,3
 ! now we see if the value is a high value or a low value...it can only be
 ! one of the two
-            IF(ABS(cell(iside)-low_value) .LT. 0.01d0*step_size) THEN
+            IF(ABS(cell(iside)-low_value) .LT. 0.01_dp*step_size) THEN
 ! low value, we can only increase the cell size
                discrete_array(iside,1)=1
                discrete_array(iside,2)=0
@@ -1461,6 +1561,99 @@ SUBROUTINE create_discrete_array(cell,discrete_array,step_size)
 
 END SUBROUTINE create_discrete_array
 
+!******************************************************************************
+!!****s* mc_coordinates.F/generate_avbmc_insertion
+!!
+!!   NAME
+!!     generate_avbmc_insertion
+!!
+!!   FUNCTION
+!!     generates an insertion point in either the "in" or the "out" volume
+!!     of a target atom, where the "in" volume is a shell with inner radius
+!      rmin and outer radius rmax
+!!
+!!   ARGUMENTS
+!!     - rmin: the minimum AVBMC radius for the shell around the target
+!!     - rmax: the maximum AVBMC radius for the shell around the target
+!!     - r_target: the coordinates of the target atom
+!!     - move_type: generate configs in the "in" or "out" volume
+!!     - r_insert: the output insertion site
+!!     - abc: the lengths of the sides of the simulation box
+!!     - rng_stream: the random number stream that we draw from
+!!
+!!     Use only in serial.
+!!
+!!   AUTHOR
+!!     MJM
+!!
+!!*****************************************************************************
+SUBROUTINE generate_avbmc_insertion( rmin,rmax,r_target,&
+      move_type,r_insert,abc,rng_stream)
+
+      REAL(KIND=dp),DIMENSION(1:3),INTENT(OUT) :: r_insert
+      REAL(KIND=dp),DIMENSION(1:3),INTENT(IN)  :: r_target,abc
+      REAL(KIND=dp),INTENT(IN)                 :: rmin,rmax
+      CHARACTER(LEN=*),INTENT(IN)              :: move_type
+      TYPE(rng_stream_type), POINTER           :: rng_stream
+
+      REAL(dp),DIMENSION(1:3)                  :: RIJ
+      REAL(dp)                                 :: dist,rand,eta_1,&
+         eta_2,eta_sq
+      INTEGER                                  :: i
+
+      r_insert(1:3)=0.0_dp
+
+      IF(move_type == 'in') THEN
+! generate a random unit vector, from Allen and Tildesley 
+         DO
+!            CALL random_number(eta_1)
+!            CALL random_number(eta_2)
+            eta_1=next_random_number(rng_stream)
+            eta_2=next_random_number(rng_stream)
+            eta_sq=eta_1**2+eta_2**2
+            IF(eta_sq .LT. 1.0_dp) THEN
+               r_insert(1)=2.0_dp*eta_1*SQRT(1.0_dp-eta_sq)
+               r_insert(2)=2.0_dp*eta_2*SQRT(1.0_dp-eta_sq)
+               r_insert(3)=1.0_dp-2.0_dp*eta_sq
+               EXIT
+            ENDIF
+         ENDDO
+            
+! now scale that vector to be within the "in" region
+         rand=next_random_number(rng_stream)
+!         CALL random_number(rand)
+         r_insert(1:3)=r_insert(1:3)*(rand*(rmax**3-rmin**3)+rmin**3)**&
+            (1.0_dp/3.0_dp)
+
+         r_insert(1:3)=r_target(1:3)+r_insert(1:3)
+      ELSE
+
+! find a new insertion point somewhere in the box
+         DO
+            DO i=1,3
+!               CALL random_number(rand)
+               rand=next_random_number(rng_stream)
+               r_insert(i)=rand*abc(i)
+            ENDDO
+         
+! make sure it's not in the "in" region
+            RIJ(1)=r_insert(1)-r_target(1)-abc(1)*&
+               ANINT((r_insert(1)-r_target(1))/abc(1))
+            RIJ(2)=r_insert(2)-r_target(2)-abc(2)*&
+               ANINT((r_insert(2)-r_target(2))/abc(2))
+            RIJ(3)=r_insert(3)-r_target(3)-abc(3)*&
+               ANINT((r_insert(3)-r_target(3))/abc(3))
+            
+            dist=RIJ(1)**2+RIJ(2)**2+RIJ(3)**2
+            
+            IF (dist .LT. rmin**2 .OR. dist .GT. rmax**2 ) THEN
+               EXIT
+            ENDIF
+
+         ENDDO
+      ENDIF
+
+END SUBROUTINE generate_avbmc_insertion
 
 END MODULE mc_coordinates
 

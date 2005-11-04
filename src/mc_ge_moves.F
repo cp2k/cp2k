@@ -60,6 +60,8 @@ MODULE mc_ge_moves
   USE molecule_kind_types,             ONLY: get_molecule_kind,&
                                              molecule_kind_type,&
                                              atom_type
+  USE parallel_rng_types,              ONLY: rng_stream_type,&
+                                             next_random_number
   USE particle_list_types,             ONLY: particle_list_p_type,&
                                              particle_list_type
   USE particle_types,                  ONLY: write_particle_coordinates
@@ -81,17 +83,59 @@ MODULE mc_ge_moves
   CHARACTER(LEN=*), PARAMETER :: module_name = "mc_ge_moves"
 
   PUBLIC :: mc_ge_volume_move,mc_ge_swap_move,&
-      mc_quickstep_move_new
+      mc_quickstep_move
  
 ! *****************************************************************************
 
 CONTAINS
 
-  SUBROUTINE mc_Quickstep_move_new (mc_par,force_env,bias_env,moves,&
+! *****************************************************************************
+!!****s* mc_ge_moves.F/mc_quickstep_move
+!!
+!!   NAME
+!!     mc_quickstep_move
+!!
+!!   FUNCTION
+!!     computes the acceptance of a series of biased or unbiased moves 
+!!     (translation, rotation, conformational changes)
+!!
+!!   ARGUMENTS
+!!     - mc_par: the mc parameters for the force envs of the boxes
+!!     - force_env: the force environments for the boxes
+!!     - bias_env: the force environments with the biasing potential for the boxes 
+!!     - moves: the structure that keeps track of how many moves have been
+!!              accepted/rejected for both boxes
+!!     - lreject: automatically rejects the move (used when an overlap occurs in
+!!               the sequence of moves)
+!!     - move_updates: the structure that keeps track of how many moves have
+!!              been accepted/rejected since the last time the displacements
+!!              were updated for both boxes
+!!     - energy_check: the running total of how much the energy has changed
+!!                     since the initial configuration
+!!     - r_old: the coordinates of the last accepted move before the sequence
+!!        whose acceptance is determined by this call
+!!     - nnstep: the Monte Carlo step we're on
+!!     - old_energy: the energy of the last accepted move involving the full potential
+!!     - bias_energy_new: the energy of the current configuration involving the bias potential
+!!     - nboxes: the number of boxes (force environments) in the system
+!!     - box_flag: indicates if a move has been tried in a given box..if not, we don't
+!!       recompute the energy
+!!     - subsys: the pointers for the particle subsystems of both boxes
+!!     - particles: the pointers for the particle sets
+!!     - cell: the pointers for the cells
+!!     - rng_stream: the stream we pull random numbers from
+!!     - error: the cp_error_type in case something goes wrong
+!!
+!!     Designed for parallel use.
+!!
+!!   AUTHOR
+!!     MJM
+!!
+!!*****************************************************************************
+  SUBROUTINE mc_Quickstep_move(mc_par,force_env,bias_env,moves,&
                         lreject,move_updates,energy_check,r_old,&
                         nnstep,old_energy,bias_energy_new,&
-!                        nnstep,old_energy,move_type,bias_energy_new,&
-                        nboxes,box_flag,subsys,particles,cell,error)
+                        nboxes,box_flag,subsys,particles,cell,rng_stream,error)
 
 !   ***************************************************************************
 
@@ -104,9 +148,9 @@ CONTAINS
     TYPE(cell_p_type),POINTER,DIMENSION(:) &
                                              :: cell
     TYPE(cp_subsystem_pp_type), &
-      DIMENSION(:), POINTER                  :: subsys
+      DIMENSION(:), POINTER                  :: subsys,subsys_bias
     TYPE(particle_list_p_type), DIMENSION(:),POINTER &
-                                             :: particles
+                                             :: particles,particles_bias
     REAL(KIND=dp), DIMENSION(:,:,:), &
       INTENT(INOUT)                          :: r_old
     INTEGER, INTENT(IN)                      :: nnstep,nboxes
@@ -117,39 +161,34 @@ CONTAINS
                                                 energy_check
     TYPE(cp_error_type), INTENT(INOUT), &
       OPTIONAL                               :: error
-!    CHARACTER(LEN=*), INTENT(IN)             :: move_type
     LOGICAL,INTENT(IN)                       :: lreject
+    TYPE(rng_stream_type), POINTER           :: rng_stream
 
     CHARACTER(LEN=*), PARAMETER              :: &
-      routineN = "mc_Quickstep_move_new"
+      routineN = "mc_Quickstep_move"
 
-    TYPE(cp_subsystem_pp_type), &
-      DIMENSION(:), POINTER                  :: oldsys
-    TYPE(particle_list_p_type), DIMENSION(:),POINTER &
-                                             :: particles_old
+!   *** Local Variables ***
     INTEGER,DIMENSION(1:nboxes)              :: diff,nchain,nunits_tot
     INTEGER                                  :: handle, iparticle,&
       source,group,iprint,ibox,istat
     REAL(KIND=dp)                            :: rand, w,&
-      BETA,cutoff,inner_cutoff,rdum
+      BETA,energies
     REAL(KIND=dp),DIMENSION(1:nboxes)        :: bias_energy_old,&
       new_energy
-!    TYPE(cp_subsystem_p_type), &
-!      DIMENSION(:), POINTER                  :: subsys,subsys_old
     LOGICAL                                  :: lbias,ionode,&
       loverlap
 
-!   *** Local Counters ***
 !   ---------------------------------------------------------------------------
 ! begin the timing of the subroutine
 
       CALL timeset(routineN,'I','',handle)
 
+      NULLIFY(subsys_bias,particles_bias)
+
 ! get a bunch of data from mc_par
       CALL get_mc_par(mc_par(1)%mc_par,ionode=ionode,lbias=lbias,&
          BETA=BETA,diff=diff(1),source=source,group=group,&
-         nunits_tot=nunits_tot(1),nchain=nchain(1),iprint=iprint,& 
-         inner_cutoff=inner_cutoff,cutoff=cutoff)
+         nunits_tot=nunits_tot(1),nchain=nchain(1),iprint=iprint)
 
       IF(nboxes .GT. 1) THEN
          DO ibox=2,nboxes
@@ -159,36 +198,46 @@ CONTAINS
       ENDIF
 
 ! allocate some stuff
-      ALLOCATE (particles_old(1:nboxes),STAT=istat)
+      ALLOCATE(subsys_bias(1:nboxes),STAT=istat)
       IF (istat /= 0) CALL stop_memory(routineN,module_name,__LINE__,&
-                       "particles_old",nboxes*dp_size)
-      ALLOCATE (oldsys(1:nboxes),STAT=istat)
+         "subsys_bias",nboxes)
+      ALLOCATE(particles_bias(1:nboxes),STAT=istat)
       IF (istat /= 0) CALL stop_memory(routineN,module_name,__LINE__,&
-                       "oldsys",nboxes*dp_size)
-      
-! in serial
-      IF (ionode) THEN
+         "particles_bias",nboxes)
 
 ! record the attempt
-         DO ibox=1,nboxes
-            moves(ibox)%moves%Quickstep%attempts=&
-               moves(ibox)%moves%Quickstep%attempts+1
-         ENDDO
+      DO ibox=1,nboxes
+         moves(ibox)%moves%Quickstep%attempts=&
+            moves(ibox)%moves%Quickstep%attempts+1
+      ENDDO
 
-! back to parallel
-      ENDIF
-
-! broadcast the box flags so all procs do the same calculations
-      CALL mp_bcast(box_flag,source,group)
+! grab the coordinates for the force_env
+      DO ibox=1,nboxes
+         CALL force_env_get(force_env(ibox)%force_env,&
+            subsys=subsys(ibox)%subsys,error=error)
+         CALL cp_subsys_get(subsys(ibox)%subsys(1)%subsys, &
+            particles=particles(ibox)%list, error=error)
+      ENDDO
 
 ! calculate the new energy of the system...if we're biasing, 
 ! force_env hasn't changed but bias_env has
       DO ibox=1,nboxes
          IF(box_flag(ibox) == 1) THEN
             IF(lbias) THEN
-               CALL force_env_calc_energy_force(bias_env(ibox)%force_env,&
-                  calc_force=.FALSE.)
+! grab the coords from bias_env and put them into force_env
                CALL force_env_get(bias_env(ibox)%force_env,&
+                  subsys=subsys_bias(ibox)%subsys,error=error)
+               CALL cp_subsys_get(subsys_bias(ibox)%subsys(1)%subsys, &
+                  particles=particles_bias(ibox)%list, error=error)
+               
+               DO iparticle=1,nunits_tot(ibox)
+                  particles(ibox)%list%els(iparticle)%r(1:3)=&
+                     particles_bias(ibox)%list%els(iparticle)%r(1:3)
+               ENDDO
+
+               CALL force_env_calc_energy_force(force_env(ibox)%force_env,&
+                  calc_force=.FALSE.)
+               CALL force_env_get(force_env(ibox)%force_env,&
                   potential_energy=new_energy(ibox),error=error)
             ELSE
                IF( .NOT. lreject) THEN
@@ -202,19 +251,6 @@ CONTAINS
             new_energy(ibox)=old_energy(ibox)
          ENDIF
 
-         IF(lbias) THEN
-            CALL force_env_get(bias_env(ibox)%force_env,&
-               subsys=subsys(ibox)%subsys,&
-               cell=cell(ibox)%cell,error=error)
-         ELSE
-            CALL force_env_get(force_env(ibox)%force_env,&
-               subsys=subsys(ibox)%subsys,&
-               cell=cell(ibox)%cell,error=error)
-         ENDIF
-
-! now grab the coords 
-         CALL cp_subsys_get(subsys(ibox)%subsys(1)%subsys, &
-            particles=particles(ibox)%list, error=error)
       ENDDO
 
 ! accept or reject the move based on Metropolis or the Iftimie rule
@@ -234,124 +270,108 @@ CONTAINS
                ENDIF
             ENDDO
          ENDIF
+      ENDIF
 
-         IF(.NOT. lreject) THEN
-            IF (lbias) THEN
+      IF(.NOT. lreject) THEN
+         IF (lbias) THEN
 
-               DO ibox=1,nboxes
+            DO ibox=1,nboxes
 ! look for overlap
-                  IF(nchain(ibox) .NE. 0) THEN
-!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-!                     CALL mc_classical_energy(bias_env(ibox)%force_env,&
-!                        rdum,nchain(ibox),1,nchain(ibox),inner_cutoff,ldum)
-                     CALL check_for_overlap(bias_env(ibox)%force_env,&
-                        nchain(ibox),1,nchain(ibox),loverlap)
-                     IF(loverlap) CALL stop_program(routineN,&
-                        module_name,__LINE__,&
+               IF(nchain(ibox) .NE. 0) THEN
+                  CALL check_for_overlap(bias_env(ibox)%force_env,&
+                     nchain(ibox),1,nchain(ibox),loverlap)
+                  IF(loverlap) CALL stop_program(routineN,&
+                     module_name,__LINE__,&
                      'Quickstep move found an overlap in the old config') 
-                  ENDIF
-                  bias_energy_old(ibox)=moves(ibox)%moves%bias_energy
-               ENDDO
+               ENDIF
+               bias_energy_old(ibox)=moves(ibox)%moves%bias_energy
+            ENDDO
 
-               w=exp(-BETA*((SUM(new_energy(:))-SUM(bias_energy_new(:)))&
-               -(SUM(old_energy(:))-SUM(bias_energy_old(:)))))
-               
+!            WRITE(6,*) 'eiru ',new_energy(:),old_energy(:)
+!            WRITE(6,*) 'eiru ',bias_energy_new(:),bias_energy_old(:)
+
+            energies=-BETA*((SUM(new_energy(:))-SUM(bias_energy_new(:)))&
+               -(SUM(old_energy(:))-SUM(bias_energy_old(:))))
+
+            
+! used to prevent over and underflows
+            IF(energies .GE. 0.0_dp) THEN
+               w=1.0_dp
+            ELSEIF(energies .LE. -500.0_dp) THEN
+               energies=0.0_dp
+            ELSE
+               w=exp(energies)
+            ENDIF
+            
+            IF(ionode) THEN
                DO ibox=1,nboxes
                   WRITE(diff(ibox),*) nnstep,new_energy(ibox)-&
                      old_energy(ibox),&
                      bias_energy_new(ibox)-bias_energy_old(ibox)
                ENDDO
-            ELSE
-               w=exp(-BETA*(SUM(new_energy(:))-SUM(old_energy(:))))
             ENDIF
          ELSE
-            w=0.0E0_dp
+            energies=-BETA*(SUM(new_energy(:))-SUM(old_energy(:)))
+!               WRITE(6,*) 'iouer ',energies,BETA
+!               WRITE(6,*) new_energy(:),old_energy(:)
+! used to prevent over and underflows
+            IF(energies .GE. 0.0_dp) THEN
+               w=1.0_dp
+            ELSEIF(energies .LE. -500.0_dp) THEN
+               energies=-500.0_dp
+            ELSE
+               w=exp(energies)
+            ENDIF
+!               WRITE(6,*) 'w = ',w
          ENDIF
-         IF ( w .GE. 1.0E0_dp ) THEN
-            w=1.0E0_dp
-            rand=0.0E0_dp
-         ELSE
-            CALL RANDOM_NUMBER(rand)
-         ENDIF
-
-! done with serial
+      ELSE
+         w=0.0E0_dp
       ENDIF
-
-! broadcast these numbers, to make sure we're on the same page
-      CALL mp_bcast(rand,source,group)      
-      CALL mp_bcast(w,source,group)      
+      IF ( w .GE. 1.0E0_dp ) THEN
+         w=1.0E0_dp
+         rand=0.0E0_dp
+      ELSE
+         IF(ionode) rand=next_random_number(rng_stream)
+!     CALL RANDOM_NUMBER(rand)
+         CALL mp_bcast(rand,source,group)      
+      ENDIF
 
       IF (rand .LT. w) THEN
 
-! go back to serial
-         IF(ionode) THEN
-
-            DO ibox=1,nboxes
+         DO ibox=1,nboxes
 ! accept the move
-               moves(ibox)%moves%Quickstep%successes=&
-                  moves(ibox)%moves%Quickstep%successes+1
+            moves(ibox)%moves%Quickstep%successes=&
+               moves(ibox)%moves%Quickstep%successes+1
 
 ! remember what kind of move we did for lbias=.false.
-               IF(.NOT. lbias) THEN
-                  CALL q_move_accept(moves(ibox)%moves,.TRUE.)
-                  CALL q_move_accept(move_updates(ibox)%moves,.TRUE.)
+            IF(.NOT. lbias) THEN
+               CALL q_move_accept(moves(ibox)%moves,.TRUE.)
+               CALL q_move_accept(move_updates(ibox)%moves,.TRUE.)
                   
 ! reset the counters
-                  CALL move_q_reinit(moves(ibox)%moves, .TRUE.)
-                  CALL move_q_reinit(move_updates(ibox)%moves, .TRUE.)
+               CALL move_q_reinit(moves(ibox)%moves, .TRUE.)
+               CALL move_q_reinit(move_updates(ibox)%moves, .TRUE.)
 
-               ENDIF
-!     
-!                  IF( move_type == 'trans') THEN
-!                     move_updates(ibox)%moves%trans%successes=&
-!                        move_updates(ibox)%moves%trans%successes+1
-!                     moves(ibox)%moves%trans%qsuccesses=&
-!                        moves(ibox)%moves%trans%qsuccesses+1
-!                  ELSEIF(move_type == 'rot') THEN
-!                     move_updates(ibox)%moves%rot%successes=&
-!                        move_updates(ibox)%moves%rot%successes+1
-!                  ELSEIF(move_type == 'bond') THEN
-!                     move_updates(ibox)%moves%bond%successes=&
-!                        move_updates(ibox)%moves%bond%successes+1
-!                  ELSEIF(move_type == 'angle') THEN
-!                     move_updates(ibox)%moves%angle%successes=&
-!                        move_updates(ibox)%moves%angle%successes+1
-!                  ELSE
-!                     STOP 'wrong movetype in Quickstep!'
-!                  ENDIF
-!                  
-!               ENDIF
+            ENDIF
 
 ! we need to record all accepted moves since last Quickstep calculation
-               CALL q_move_accept(moves(ibox)%moves,.FALSE.)
-               CALL q_move_accept(move_updates(ibox)%moves,.FALSE.)
+            CALL q_move_accept(moves(ibox)%moves,.FALSE.)
+            CALL q_move_accept(move_updates(ibox)%moves,.FALSE.)
 
 ! reset the counters
-               CALL move_q_reinit(moves(ibox)%moves, .FALSE.)
-               CALL move_q_reinit(move_updates(ibox)%moves, .FALSE.)
+            CALL move_q_reinit(moves(ibox)%moves, .FALSE.)
+            CALL move_q_reinit(move_updates(ibox)%moves, .FALSE.)
 
 ! update energies
-               energy_check(ibox)=energy_check(ibox)+&
-                  (new_energy(ibox)-old_energy(ibox))
-               old_energy(ibox)=new_energy(ibox)
+            energy_check(ibox)=energy_check(ibox)+&
+               (new_energy(ibox)-old_energy(ibox))
+            old_energy(ibox)=new_energy(ibox)
 
-            ENDDO
-! back to parallel
-         ENDIF
-
-! if we're biasing classically, then we update the classical energy and
-! the force_env coordinates, since bias_env has the new coords
-         IF ( .NOT. ionode) r_old(:,:,:) = 0.0E0_dp
-         CALL mp_bcast(r_old,source,group) 
+         ENDDO
 
          IF ( lbias) THEN
             DO ibox=1,nboxes
-               CALL mp_bcast(bias_energy_new(ibox),source,group) 
                moves(ibox)%moves%bias_energy=bias_energy_new(ibox)
-               CALL force_env_get(force_env(ibox)%force_env,&
-                  subsys=oldsys(ibox)%subsys,error=error)
-               CALL cp_subsys_get(oldsys(ibox)%subsys(1)%subsys, &
-                  particles=particles_old(ibox)%list, error=error)
             ENDDO
          ENDIF
 
@@ -360,31 +380,25 @@ CONTAINS
             IF(nunits_tot(ibox) .NE. 0) THEN
                DO iparticle=1,nunits_tot(ibox)
                   r_old(1:3,iparticle,ibox)=&
-                  particles(ibox)%list%els(iparticle)%r(1:3)
-                  IF(lbias) particles_old(ibox)%list%els(iparticle)%r(1:3)=&
-                  particles(ibox)%list%els(iparticle)%r(1:3)
+                     particles(ibox)%list%els(iparticle)%r(1:3)
                ENDDO
             ENDIF
          ENDDO
 
       ELSE
 
-! in serial
-         IF (ionode) THEN
  ! reject the move
-            DO ibox=1,nboxes
-               CALL move_q_reinit(moves(ibox)%moves,.FALSE.)
-               CALL move_q_reinit(move_updates(ibox)%moves,.FALSE.)
-               IF(.NOT. lbias) THEN
+         DO ibox=1,nboxes
+            CALL move_q_reinit(moves(ibox)%moves,.FALSE.)
+            CALL move_q_reinit(move_updates(ibox)%moves,.FALSE.)
+            IF(.NOT. lbias) THEN
 ! reset the counters
-                  CALL move_q_reinit(moves(ibox)%moves, .TRUE.)
-                  CALL move_q_reinit(move_updates(ibox)%moves, .TRUE.)
-               ENDIF
+               CALL move_q_reinit(moves(ibox)%moves, .TRUE.)
+               CALL move_q_reinit(move_updates(ibox)%moves, .TRUE.)
+            ENDIF
 
-            ENDDO
+         ENDDO
 
-! back to parallel
-         ENDIF
 
          IF ( .NOT. ionode) r_old(:,:,:) = 0.0E0_dp
 
@@ -396,6 +410,9 @@ CONTAINS
             DO iparticle=1,nunits_tot(ibox)
                particles(ibox)%list%els(iparticle)%r(1:3)=&
                   r_old(1:3,iparticle,ibox)
+               IF(lbias) &
+                  particles_bias(ibox)%list%els(iparticle)%r(1:3)=&
+                  r_old(1:3,iparticle,ibox)
             ENDDO
          ENDDO
       ENDIF
@@ -404,20 +421,23 @@ CONTAINS
       DO ibox=1,nboxes
          CALL cp_subsys_set(subsys(ibox)%subsys(1)%subsys,&
             particles=particles(ibox)%list)
+         IF(lbias) &
+            CALL cp_subsys_set(subsys_bias(ibox)%subsys(1)%subsys,&
+            particles=particles_bias(ibox)%list)
       ENDDO
 
-! allocate some stuff
-      DEALLOCATE (oldsys,STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routineN,module_name,__LINE__,&
-                       "oldsys")
-      DEALLOCATE (particles_old,STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routineN,module_name,__LINE__,&
-                       "particles_old")
+ ! deallocate some stuff
+      DEALLOCATE(subsys_bias,STAT=istat)
+      IF (istat /= 0) CALL stop_memory(routineN,module_name,&
+         __LINE__,"subsys_bias")
+      DEALLOCATE(particles_bias,STAT=istat)
+      IF (istat /= 0) CALL stop_memory(routineN,module_name,&
+         __LINE__,"particles_bias")
 
 ! end the timing
       CALL timestop(0.0E0_dp,handle)
 
-  END SUBROUTINE mc_Quickstep_move_new
+  END SUBROUTINE mc_Quickstep_move
 
 ! *****************************************************************************
 
@@ -433,20 +453,23 @@ CONTAINS
 !!   ARGUMENTS
 !!     - mc_par: the mc parameters for the force envs of the boxes
 !!     - force_env: the force environments for the boxes
+!!     - bias_env: the force environments used to bias moves for the boxes
 !!     - moves: the structure that keeps track of how many moves have been
 !!              accepted/rejected for both boxes
-!!     - move_updates: the structure that keeps track of how many moves have
-!!              been accepted/rejected since the last time the displacements
-!!              were updated for both boxes
 !!     - energy_check: the running total of how much the energy has changed
 !!                     since the initial configuration
 !!     - r_old: the coordinates of the last accepted move involving a
-!!              Quickstep calculation for both boxes
-!!     - nnstep: the Monte Carlo step we're on
+!!              full potential calculation for both boxes
 !!     - old_energy: the energy of the last accepted move involving a
-!!                   Quickstep calculation
-!!     - globenv: the global environment for the simulation
+!!                   a full potential calculation
+!!     - nnstep: the Monte Carlo step we're on
+!!     - globenv: the global environment for the whole simulation
+!!     - bias_energy_old: the energies of both boxes computed using the biasing
+!!       potential
+!!     - rng_stream: the stream we pull random numbers from
 !!     - error: the cp_error_type in case something goes wrong
+!!
+!!     Suitable for parallel.
 !!
 !!   AUTHOR
 !!     MJM
@@ -455,7 +478,7 @@ CONTAINS
 
   SUBROUTINE mc_ge_swap_move(mc_par,force_env,bias_env,moves,&
                 energy_check,r_old,old_energy,&
-                nnstep,globenv,bias_energy_old,error)
+                nnstep,globenv,bias_energy_old,rng_stream,error)
 
 !   ***************************************************************************
 
@@ -473,6 +496,7 @@ CONTAINS
       INTENT(INOUT)                          :: old_energy,bias_energy_old
     INTEGER, INTENT(IN)                      :: nnstep
     TYPE(global_environment_type), POINTER   :: globenv
+    TYPE(rng_stream_type), POINTER           :: rng_stream
     TYPE(cp_error_type), INTENT(INOUT), &
       OPTIONAL                               :: error
 
@@ -486,8 +510,7 @@ CONTAINS
       loverlap_ins,loverlap_rem
     REAL(KIND=dp)                            :: prefactor, rand, w,BETA,&
                                 del_quickstep_energy,rdum,&
-                                weight_old,weight_new,cutoff,&
-                                inner_cutoff
+                                weight_old,weight_new
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :)                        :: r_cbmc
     REAL(KIND=dp), ALLOCATABLE, &
@@ -536,9 +559,7 @@ CONTAINS
       CALL get_mc_par(mc_par(1)%mc_par,ionode=ionode,BETA=BETA,&
          nswapmoves=nswapmoves,group=group,source=source,&
          lbias=lbias,nchain=nchain(1),nunits_tot=nunits_tot(1),&
-         dat_file=dat_file(1),&
-!         dat_file=dat_file(1),nunits=natom,&
-         cutoff=cutoff,inner_cutoff=inner_cutoff,fft_lib=fft_lib)
+         dat_file=dat_file(1),fft_lib=fft_lib)
       CALL get_mc_par(mc_par(2)%mc_par,nchain=nchain(2),&
          nunits_tot=nunits_tot(2),dat_file=dat_file(2))
 
@@ -563,51 +584,46 @@ CONTAINS
             error=error)
       ENDDO
 
-      IF(ionode) THEN
 !     choose a direction to swap
-         CALL RANDOM_NUMBER(rand)
+      IF(ionode) rand=next_random_number(rng_stream)
+!         CALL RANDOM_NUMBER(rand)
+      CALL mp_bcast(rand,source,group)
 
-         IF ( rand .LE. 0.50E0_dp ) THEN
-            remove_box=1
-            insert_box=2
-         ELSE
-            remove_box=2
-            insert_box=1
-         ENDIF
+      IF ( rand .LE. 0.50E0_dp ) THEN
+         remove_box=1
+         insert_box=2
+      ELSE
+         remove_box=2
+         insert_box=1
+      ENDIF
 
 ! record the attempt for the box the particle is to be inserted into
-         moves(insert_box)%moves%swap%attempts=&
-            moves(insert_box)%moves%swap%attempts+1
+      moves(insert_box)%moves%swap%attempts=&
+         moves(insert_box)%moves%swap%attempts+1
          
 ! now choose a random molecule to remove from the removal box, checking
 ! to make sure the box isn't empty
-         IF(nchain(remove_box) == 0) THEN
-            loverlap=.TRUE.
-            moves(insert_box)%moves%empty=&
-               moves(insert_box)%moves%empty+1
-         ELSE
-            CALL RANDOM_NUMBER(rand)    
-            imolecule=CEILING(rand*nchain(remove_box))
+      IF(nchain(remove_box) == 0) THEN
+         loverlap=.TRUE.
+         moves(insert_box)%moves%empty=&
+            moves(insert_box)%moves%empty+1
+      ELSE
+
+         IF(ionode) rand=next_random_number(rng_stream)
+!            CALL RANDOM_NUMBER(rand)    
+         CALL mp_bcast(rand,source,group)
+         imolecule=CEILING(rand*nchain(remove_box))
 
 ! check for overlap
-!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-!            CALL mc_classical_energy(force_env(remove_box)%force_env,&
-!            rdum,nchain(remove_box),1,nchain(remove_box),cutoff,ldum)
-            CALL check_for_overlap(force_env(remove_box)%force_env,&
-               nchain(remove_box),1,nchain(remove_box),loverlap)
-            IF(loverlap) CALL stop_program(routineN,module_name,__LINE__,&
+         CALL check_for_overlap(force_env(remove_box)%force_env,&
+            nchain(remove_box),1,nchain(remove_box),loverlap)
+         IF(loverlap) CALL stop_program(routineN,module_name,__LINE__,&
             'CBMC swap move found an overlap in the old remove config')   
-!            CALL mc_classical_energy(force_env(insert_box)%force_env,&
-!            rdum,nchain(insert_box),1,nchain(insert_box),cutoff,ldum)
-            CALL check_for_overlap(force_env(insert_box)%force_env,&
-               nchain(insert_box),1,nchain(insert_box),loverlap)
-            IF(loverlap) CALL stop_program(routineN,module_name,__LINE__,&
+         CALL check_for_overlap(force_env(insert_box)%force_env,&
+            nchain(insert_box),1,nchain(insert_box),loverlap)
+         IF(loverlap) CALL stop_program(routineN,module_name,__LINE__,&
             'CBMC swap move found an overlap in the old insert config')   
-         ENDIF
       ENDIF
- 
-! exit if the box is empty
-      CALL mp_bcast(loverlap,source,group)
 
       IF(loverlap) THEN
          DEALLOCATE(molecule_kinds_new,STAT=istat)
@@ -623,9 +639,6 @@ CONTAINS
          RETURN
       ENDIF
 
-      CALL mp_bcast(insert_box,source,group)
-      CALL mp_bcast(remove_box,source,group)
-      
 ! allocate a couple of arrays that depend on the box
       molecule_kind => molecule_kinds_new(1)%list%els(1)
       CALL get_molecule_kind(molecule_kind,natom=natoms)   
@@ -656,14 +669,14 @@ CONTAINS
          
 
       IF(ionode) THEN
-         
-! prepare the insertion box
 ! choose an insertion point
          DO i=1,3
-            CALL RANDOM_NUMBER(rand)
+!            CALL RANDOM_NUMBER(rand)
+            rand=next_random_number(rng_stream)
             pos_insert(i)=rand*abc_insert(1)
          ENDDO
       ENDIF
+      CALL mp_bcast(pos_insert,source,group)
 
 ! allocate some arrays we'll be using
       ALLOCATE(r_insert_mol(1:3,1:natom),STAT=istat)
@@ -673,46 +686,44 @@ CONTAINS
       IF (istat /= 0) CALL stop_memory(routineN,module_name,__LINE__,&
          "r_insert",3*ins_atoms*dp_size)
 
-      IF(ionode) THEN
-         DO i=imolecule*natom-natom+1,imolecule*natom
-            ii=i-imolecule*natom+natom
-            r_insert_mol(1:3,ii)=&
-               particles_old(remove_box)%list%els(i)%r(1:3)
-         ENDDO
+      DO i=imolecule*natom-natom+1,imolecule*natom
+         ii=i-imolecule*natom+natom
+         r_insert_mol(1:3,ii)=&
+            particles_old(remove_box)%list%els(i)%r(1:3)
+      ENDDO
          
 !     find the center of mass of the molecule
-         CALL get_center_of_mass(r_insert_mol(:,:),natom,&
-            center_of_mass(:),mass(:))
+      CALL get_center_of_mass(r_insert_mol(:,:),natom,&
+      center_of_mass(:),mass(:))
          
 !     move the center of mass to the insertion point
-         displace_molecule(1:3)=pos_insert(1:3)-center_of_mass(1:3)
-         DO iatom=1,natom
-            r_insert_mol(1:3,iatom)=r_insert_mol(1:3,iatom)+&
-               displace_molecule(1:3)
-         ENDDO
+      displace_molecule(1:3)=pos_insert(1:3)-center_of_mass(1:3)
+      DO iatom=1,natom
+         r_insert_mol(1:3,iatom)=r_insert_mol(1:3,iatom)+&
+            displace_molecule(1:3)
+      ENDDO
          
 ! prepare the insertion coordinates to be written to the .dat file so
 ! we can create a new force environment...remember there is still a particle
 ! in the box even if nchain=0
-         IF (nchain(insert_box) == 0) THEN
-            DO iatom=1,natom
-               r_insert(1:3,iatom)=r_insert_mol(1:3,iatom)
-            ENDDO
-         ELSE
-            DO iatom=1,ins_atoms-natom
-               r_insert(1:3,iatom)=&
-                  particles_old(insert_box)%list%els(iatom)%r(1:3)
-            ENDDO
-            DO iatom=ins_atoms-natom+1,ins_atoms
-               ii=iatom-(ins_atoms-natom)
-               r_insert(1:3,iatom)=r_insert_mol(1:3,ii)
-            ENDDO
-         ENDIF
+      IF (nchain(insert_box) == 0) THEN
+         DO iatom=1,natom
+            r_insert(1:3,iatom)=r_insert_mol(1:3,iatom)
+         ENDDO
+      ELSE
+         DO iatom=1,ins_atoms-natom
+            r_insert(1:3,iatom)=&
+               particles_old(insert_box)%list%els(iatom)%r(1:3)
+         ENDDO
+         DO iatom=ins_atoms-natom+1,ins_atoms
+            ii=iatom-(ins_atoms-natom)
+            r_insert(1:3,iatom)=r_insert_mol(1:3,ii)
+         ENDDO
+      ENDIF
       
 ! fold the coordinates into the box and check for overlaps
-         CALL mc_coordinate_fold(r_insert(:,:),ins_atoms,mass,natoms,&
-            abc_insert(1:3))
-      ENDIF
+      CALL mc_coordinate_fold(r_insert(:,:),ins_atoms,mass,natoms,&
+         abc_insert(1:3))
       
 ! allocate r_remove
       IF (rem_atoms == 0) THEN
@@ -737,55 +748,53 @@ CONTAINS
                abc_insert(1:3)*angstrom,dat_file(insert_box),&
                force_env(insert_box)%force_env,TRIM(fft_lib))
          ENDIF
-
+      ENDIF
 ! now do the same for the removal box...be careful not to make an empty box
-         IF (rem_atoms == 0) THEN
-            DO iatom=1,natom
-               r_remove(1:3,iatom)=r_insert_mol(1:3,iatom)
-            ENDDO
+      IF (rem_atoms == 0) THEN
+         DO iatom=1,natom
+            r_remove(1:3,iatom)=r_insert_mol(1:3,iatom)
+         ENDDO
 !     make the .dat file
-            IF (ionode) THEN
-               IF(lbias) THEN
-                  CALL mc_make_dat_file(r_remove(:,:),rem_atoms,&
-                     abc_remove(1:3)*angstrom,dat_file(remove_box),&
-                     bias_env(remove_box)%force_env,TRIM(fft_lib))
-               ELSE
-                  CALL mc_make_dat_file(r_remove(:,:),rem_atoms,&
-                     abc_remove(1:3)*angstrom,dat_file(remove_box),&
-                     force_env(remove_box)%force_env,TRIM(fft_lib))
-               ENDIF
-            ENDIF
-
-         ELSE
-            IF(imolecule == 1) THEN
-               DO iatom=natom+1,rem_atoms+natom
-                  ii=iatom-natom
-                  r_remove(1:3,ii)=&
-                     particles_old(remove_box)%list%els(iatom)%r(1:3)
-               ENDDO               
+         IF(ionode) THEN
+            IF(lbias) THEN
+               CALL mc_make_dat_file(r_remove(:,:),rem_atoms,&
+                  abc_remove(1:3)*angstrom,dat_file(remove_box),&
+                  bias_env(remove_box)%force_env,TRIM(fft_lib))
             ELSE
-               DO iatom=1,imolecule*natom-natom
-                  r_remove(1:3,iatom)=&
-                     particles_old(remove_box)%list%els(iatom)%r(1:3)
-               ENDDO
-               DO iatom=imolecule*natom+1,rem_atoms+natom
-                  ii=iatom-natom
-                  r_remove(1:3,ii)=&
-                  particles_old(remove_box)%list%els(iatom)%r(1:3)
-               ENDDO
+               CALL mc_make_dat_file(r_remove(:,:),rem_atoms,&
+                  abc_remove(1:3)*angstrom,dat_file(remove_box),&
+                  force_env(remove_box)%force_env,TRIM(fft_lib))
             ENDIF
-
+         ENDIF
+      ELSE
+         IF(imolecule == 1) THEN
+            DO iatom=natom+1,rem_atoms+natom
+               ii=iatom-natom
+               r_remove(1:3,ii)=&
+                  particles_old(remove_box)%list%els(iatom)%r(1:3)
+            ENDDO               
+         ELSE
+            DO iatom=1,imolecule*natom-natom
+               r_remove(1:3,iatom)=&
+                  particles_old(remove_box)%list%els(iatom)%r(1:3)
+            ENDDO
+            DO iatom=imolecule*natom+1,rem_atoms+natom
+               ii=iatom-natom
+               r_remove(1:3,ii)=&
+                  particles_old(remove_box)%list%els(iatom)%r(1:3)
+            ENDDO
+         ENDIF
+         
 ! make the .dat file
-            IF (ionode) THEN
-               IF(lbias) THEN
-                  CALL mc_make_dat_file(r_remove(:,:),rem_atoms,&
-                     abc_remove(1:3)*angstrom,dat_file(remove_box),&
-                     bias_env(remove_box)%force_env,TRIM(fft_lib))
-               ELSE
-                  CALL mc_make_dat_file(r_remove(:,:),rem_atoms,&
-                     abc_remove(1:3)*angstrom,dat_file(remove_box),&
-                     force_env(remove_box)%force_env,TRIM(fft_lib))
-               ENDIF
+         IF (ionode) THEN
+            IF(lbias) THEN
+               CALL mc_make_dat_file(r_remove(:,:),rem_atoms,&
+                  abc_remove(1:3)*angstrom,dat_file(remove_box),&
+                  bias_env(remove_box)%force_env,TRIM(fft_lib))
+            ELSE
+               CALL mc_make_dat_file(r_remove(:,:),rem_atoms,&
+                  abc_remove(1:3)*angstrom,dat_file(remove_box),&
+                  force_env(remove_box)%force_env,TRIM(fft_lib))
             ENDIF
          ENDIF
       ENDIF
@@ -833,9 +842,9 @@ CONTAINS
 ! Rosenbluth weight
       IF(lbias) THEN
          CALL generate_cbmc_swap_config(insert_env,&
-            BETA,nswapmoves,weight_new,loverlap_ins,&
+            BETA,nswapmoves,weight_new,nchain(insert_box)+1,loverlap_ins,&
             bias_energy_new(insert_box),&
-            bias_energy_old(insert_box),inner_cutoff,ionode,source,group)
+            bias_energy_old(insert_box),ionode,source,group,rng_stream)
 
 ! the energy that comes out of the above routine is the difference...we want
 ! the real energy for the acceptance rule...we don't do this for the 
@@ -845,8 +854,10 @@ CONTAINS
                bias_energy_old(insert_box)
       ELSE
          CALL generate_cbmc_swap_config(insert_env,&
-            BETA,nswapmoves,weight_new,loverlap_ins,new_energy(insert_box),&
-            old_energy(insert_box),inner_cutoff,ionode,source,group)
+            BETA,nswapmoves,weight_new,nchain(insert_box)+1,&
+            loverlap_ins,new_energy(insert_box),&
+            old_energy(insert_box),ionode,source,group,&
+            rng_stream)
       ENDIF
          
       CALL force_env_get(insert_env,&
@@ -858,11 +869,8 @@ CONTAINS
          r_cbmc(1:3,iatom)=particles_insert%els(iatom)%r(1:3)
       ENDDO
          
-!      ENDIF
-         
 ! make sure there is no overlap
-!      CALL mp_bcast(loverlap_ins,source,group)
-!      CALL mp_bcast(loverlap_rem,source,group)
+
       IF(loverlap_ins .OR. loverlap_rem) THEN
 ! deallocate some stuff
          CALL force_env_release(insert_env)
@@ -893,7 +901,6 @@ CONTAINS
       ENDIF
 
 ! broadcast the choosen coordiantes to all processors
-!      CALL mp_bcast(r_cbmc(:,:),source,group)
 
       CALL force_env_get(insert_env,&
          subsys=insert_sys,error=error)
@@ -971,79 +978,58 @@ CONTAINS
 ! now we need to figure out the rosenbluth weight for the old configuration...
 ! we wait until now to do that because we need the energy of the box that
 ! has had a molecule removed
-      CALL mp_bcast(imolecule,source,group)
       IF(lbias) THEN
           CALL generate_cbmc_swap_config(bias_env(remove_box)%force_env,&
-            BETA,nswapmoves,weight_old,loverlap_rem,rdum,&
-            bias_energy_new(remove_box),inner_cutoff,&
-            ionode,source,group,rem_molecule=imolecule)
+            BETA,nswapmoves,weight_old,nchain(remove_box),loverlap_rem,rdum,&
+            bias_energy_new(remove_box),&
+            ionode,source,group,rng_stream,rem_molecule=imolecule)
       ELSE
          CALL generate_cbmc_swap_config(force_env(remove_box)%force_env,&
-            BETA,nswapmoves,weight_old,loverlap_rem,rdum,&
-            new_energy(remove_box),inner_cutoff,&
-            ionode,source,group,rem_molecule=imolecule)
+            BETA,nswapmoves,weight_old,nchain(remove_box),loverlap_rem,rdum,&
+            new_energy(remove_box),&
+            ionode,source,group,rng_stream,rem_molecule=imolecule)
       ENDIF
 
 ! figure out the prefactor to the boltzmann weight in the acceptance
 ! rule, based on numbers of particles and volumes
 
-      IF (ionode) THEN
-         prefactor=REAL(nchain(remove_box),dp)/&
-            REAL(nchain(insert_box)+1,dp)*&
-            abc_insert(1)**3/abc_remove(1)**3
-
-         IF(lbias) THEN
-
-            del_quickstep_energy=(-BETA)*(new_energy(insert_box)-&
-               old_energy(insert_box)+new_energy(remove_box)-&
-               old_energy(remove_box)-(bias_energy_new(insert_box)+&
-               bias_energy_new(remove_box)-bias_energy_old(insert_box)&
-               -bias_energy_old(remove_box)))
-
-            IF(del_quickstep_energy .GT. 500.0_dp) THEN
-               del_quickstep_energy=1.4E217_dp
-            ELSEIF(del_quickstep_energy .LT. -500.0_dp) THEN
-               del_quickstep_energy=0.0_dp
-            ELSE
-               del_quickstep_energy=EXP(del_quickstep_energy)
-            ENDIF
-
-            w=prefactor*del_quickstep_energy*weight_new/weight_old
-
-          ELSE
-
-!            wratio=(BETA)*(new_energy(remove_box)-old_energy(insert_box))
-            
-! all this stuff is to make sure our exponential doesn't get big enough to
-! crash the run
-!            IF(wratio .GT. 500.0_dp) THEN
-!               wratio=1.4E217_dp
-!            ELSEIF(wratio .LT. -500.0_dp) THEN
-!               wratio=0.0_dp
-!            ELSE
-!               wratio=EXP(wratio)
-!            ENDIF
-
-            w=prefactor*weight_new/weight_old
-!            w=prefactor*weight_new/weight_old
-
-!            WRITE(6,*) 'ieuroe ',weight_new,weight_old
-!            WRITE(6,*) wratio
-!            WRITE(6,*) new_energy(:)
-!            WRITE(6,*) old_energy(:)
-          ENDIF
-
-! check if the move is accepted
-         IF(w .GE. 1.0E0_dp) THEN
-            rand=0.0E0_dp
+      prefactor=REAL(nchain(remove_box),dp)/&
+      REAL(nchain(insert_box)+1,dp)*&
+      abc_insert(1)**3/abc_remove(1)**3
+      
+      IF(lbias) THEN
+         
+         del_quickstep_energy=(-BETA)*(new_energy(insert_box)-&
+         old_energy(insert_box)+new_energy(remove_box)-&
+         old_energy(remove_box)-(bias_energy_new(insert_box)+&
+         bias_energy_new(remove_box)-bias_energy_old(insert_box)&
+         -bias_energy_old(remove_box)))
+         
+         IF(del_quickstep_energy .GT. 500.0_dp) THEN
+            del_quickstep_energy=1.4E217_dp
+         ELSEIF(del_quickstep_energy .LT. -500.0_dp) THEN
+            del_quickstep_energy=0.0_dp
          ELSE
-            CALL RANDOM_NUMBER(rand)
+            del_quickstep_energy=EXP(del_quickstep_energy)
          ENDIF
          
+         w=prefactor*del_quickstep_energy*weight_new/weight_old
+         
+      ELSE
+
+         w=prefactor*weight_new/weight_old
+
       ENDIF
 
-      CALL mp_bcast(rand,source,group)
-      CALL mp_bcast(w,source,group)
+! check if the move is accepted
+      IF(w .GE. 1.0E0_dp) THEN
+         rand=0.0E0_dp
+      ELSE
+         IF(ionode) rand=next_random_number(rng_stream)
+!     CALL RANDOM_NUMBER(rand)
+         CALL mp_bcast(rand,source,group)
+      ENDIF
+         
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 !      w=0.0d0
@@ -1054,35 +1040,31 @@ CONTAINS
 !         WRITE(6,*) 'ACCEPTED'
 ! accept the move         
 
-         IF ( ionode) THEN
-
 !     accept the move
-            moves(insert_box)%moves%swap%successes=&
-                moves(insert_box)%moves%swap%successes+1
+         moves(insert_box)%moves%swap%successes=&
+         moves(insert_box)%moves%swap%successes+1
 
 ! we need to compensate for the fact that we take the difference in
 ! generate_cbmc_config to keep the exponetials small
-            IF(.NOT. lbias) THEN
-               new_energy(insert_box)=new_energy(insert_box)+&
-                  old_energy(insert_box)
+         IF(.NOT. lbias) THEN
+            new_energy(insert_box)=new_energy(insert_box)+&
+            old_energy(insert_box)
+         ENDIF
+
+         DO ibox=1,2
+! update energies 
+            energy_check(ibox)=energy_check(ibox)+(new_energy(ibox)-&
+            old_energy(ibox))
+            old_energy(ibox)=new_energy(ibox)
+! if we're biasing the update the biasing energy
+            IF (lbias) THEN
+               moves(ibox)%moves%bias_energy=&
+               bias_energy_new(ibox)
+               bias_energy_old(ibox)=bias_energy_new(ibox)
             ENDIF
 
-            DO ibox=1,2
-! update energies 
-               energy_check(ibox)=energy_check(ibox)+(new_energy(ibox)-&
-                  old_energy(ibox))
-               old_energy(ibox)=new_energy(ibox)
-! if we're biasing the update the biasing energy
-               IF (lbias) THEN
-                  moves(ibox)%moves%bias_energy=&
-                     bias_energy_new(ibox)
-                  bias_energy_old(ibox)=bias_energy_new(ibox)
-               ENDIF
+         ENDDO
 
-            ENDDO
-
-! back to parallel
-         ENDIF
 
 ! change particle numbers
 ! now change the total number of units and chains in the mc_par
@@ -1177,31 +1159,32 @@ CONTAINS
 !!****s* mc_ge_moves.F/mc_ge_volume_move
 !!
 !!   NAME
-!!     mc_volume_move
+!!     mc_ge_volume_move
 !!
 !!   FUNCTION
-!!     performs a Monte Carlo move that alters the volume of the simulation box
+!!     performs a Monte Carlo move that alters the volume of the simulation boxes,
+!!     keeping the total volume of the two boxes the same
 !!
 !!   ARGUMENTS
-!!     - globenv: the global simulation parameters
 !!     - mc_par: the mc parameters for the force env
-!!     - force_env: the force environment used in the move
+!!     - force_env: the force environments used in the move
 !!     - moves: the structure that keeps track of how many moves have been
 !!              accepted/rejected
 !!     - move_updates: the structure that keeps track of how many moves have
 !!              been accepted/rejected since the last time the displacements
 !!              were updated
-!!     - nnstep: the total number of "outer moves" already performed
-!!     - counter: the total number of "inner moves" already performed
-!!     - mol: the number of the molecule's oxygen atom, assuming the hydrogens
-!!            are the following two
+!!     - nnstep: the total number of Monte Carlo moves already performed
+!!     - old_energy: the energy of the last accepted move involving an
+!!                   unbiased potential calculation
+!!     - globenv: the global simulation parameters
 !!     - energy_check: the running total of how much the energy has changed
 !!                     since the initial configuration
 !!     - r_old: the coordinates of the last accepted move involving a
 !!              Quickstep calculation
-!!     - old_energy: the energy of the last accepted move involving a
-!!                   Quickstep calculation
+!!     - rng_stream: the stream we pull random numbers from
+!!     - error: the cp_error_type in case of problems
 !!                                 
+!!     Designed for parallel.
 !!
 !!   AUTHOR
 !!     MJM
@@ -1209,9 +1192,7 @@ CONTAINS
 !!*****************************************************************************
 
   SUBROUTINE mc_ge_volume_move ( mc_par,force_env, moves,move_updates,&
-                        nnstep,old_energy,&
-                        globenv,&
-                        energy_check,r_old,error)
+      nnstep,old_energy,globenv,energy_check,r_old,rng_stream,error)
 
 !   ***************************************************************************
 
@@ -1230,14 +1211,14 @@ CONTAINS
     REAL(KIND=dp), &
       DIMENSION(:, :,:), &
       INTENT(INOUT)                          :: r_old
+    TYPE(rng_stream_type), POINTER           :: rng_stream
     TYPE(cp_error_type), INTENT(INOUT), &
       OPTIONAL                               :: error
 
     CHARACTER(LEN=*), PARAMETER              :: &
       routineN = "mc_ge_volume_move"
-!    REAL(KIND=dp), DIMENSION(1:3), PARAMETER :: &
-!      mass = (/ 15.999E0_dp,1.008E0_dp,1.008E0_dp /)
-!    REAL(KIND=dp), PARAMETER                 :: mass_tot = 18.01E0_dp
+
+! local variables
     REAL(KIND=dp), DIMENSION(:), ALLOCATABLE :: mass 
 
     INTEGER                                  :: handle, i, iatom, ibox,&
@@ -1265,7 +1246,7 @@ CONTAINS
     TYPE(particle_list_p_type), &
       DIMENSION(:), POINTER                  :: particles_test, particles_old
     REAL(KIND=dp)                            :: rand,w,prefactor,vol_dis,&
-      rmvolume,BETA,cutoff,inner_cutoff
+      rmvolume,BETA
     LOGICAL,DIMENSION(1:2)                   :: lempty
     LOGICAL                                  :: ionode
     LOGICAL,DIMENSION(:),ALLOCATABLE       :: loverlap
@@ -1285,8 +1266,7 @@ CONTAINS
       CALL get_mc_par(mc_par(1)%mc_par,ionode=ionode,source=source,&
          group=group,nchain=nchain(1),nunits_tot=nunits_tot(1),&
          dat_file=dat_file(1),rmvolume=rmvolume,&
-         nunits=nunits,BETA=BETA,cl=cl,&
-         cutoff=cutoff,fft_lib=fft_lib,inner_cutoff=inner_cutoff)
+         nunits=nunits,BETA=BETA,cl=cl,fft_lib=fft_lib)
       CALL get_mc_par(mc_par(2)%mc_par,nchain=nchain(2),&
          nunits_tot=nunits_tot(2),dat_file=dat_file(2))
 
@@ -1329,15 +1309,13 @@ CONTAINS
          ENDIF
       ENDDO
       
-      IF (ionode) THEN
 ! record the attempt
-         DO ibox=1,2
-            moves(ibox)%moves%volume%attempts= &
-               moves(ibox)%moves%volume%attempts+1
-            move_updates(ibox)%moves%volume%attempts=&
-               move_updates(ibox)%moves%volume%attempts+1
-         ENDDO
-      ENDIF
+      DO ibox=1,2
+         moves(ibox)%moves%volume%attempts= &
+            moves(ibox)%moves%volume%attempts+1
+         move_updates(ibox)%moves%volume%attempts=&
+            move_updates(ibox)%moves%volume%attempts+1
+      ENDDO
 
 ! now let's grab the cell length and particle positions
       DO ibox=1,2
@@ -1358,56 +1336,41 @@ CONTAINS
       CALL get_molecule_kind(molecule_kind,natom=natoms)   
       ALLOCATE(mass(1:natoms),STAT=istat)
       IF (istat /= 0) CALL stop_memory(routineN,module_name,__LINE__,&
-                       "mass",natoms*dp_size)
+         "mass",natoms*dp_size)
       DO iatom=1,natoms
          CALL get_atomic_kind(particles_old(1)%list%els(iatom)%atomic_kind,&
             mass=mass(iatom))
       ENDDO
 
-      IF (ionode) THEN
-
-         DO ibox=1,2
-
-            IF(lempty(ibox)) THEN
+      DO ibox=1,2
+         
+         IF(lempty(ibox)) THEN
 
 ! make the new dat file
-               CALL mc_make_dat_file(r(:,:,ibox),0,&
-                  old_cell_length(1:3,ibox)*angstrom,dat_file(ibox),&
-                  force_env(ibox)%force_env,TRIM(fft_lib))
-
-            ELSE
-
-!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-!               CALL mc_classical_energy(force_env(ibox)%force_env,&
-!                  rdum,nchain(ibox),&
-!                  1,nchain(ibox),inner_cutoff,ldum,&
-!                  cell_length=old_cell_length(1,ibox))
-!               CALL check_for_overlap(force_env(ibox)%force_env,&
-!                  nchain(ibox),1,nchain(ibox),loverlap(ibox),&
-!                  cell_length=old_cell_length(:,ibox))
-!               IF(loverlap(ibox)) &
-!                  CALL stop_program(routineN,module_name,__LINE__,&
-!                  'GE volume move found an overlap in an old config')
-
+            IF (ionode) CALL mc_make_dat_file(r(:,:,ibox),0,&
+               old_cell_length(1:3,ibox)*angstrom,dat_file(ibox),&
+               force_env(ibox)%force_env,TRIM(fft_lib))
+            
+         ELSE
+            
 ! save the old coordiantes
-               DO iatom=1,nunits_tot(ibox)
-                  r(1:3,iatom,ibox)=particles_old(ibox)%list%els(iatom)%r(1:3)
-               ENDDO
+            DO iatom=1,nunits_tot(ibox)
+               r(1:3,iatom,ibox)=particles_old(ibox)%list%els(iatom)%r(1:3)
+            ENDDO
 
 ! fold the coordinates into the central box
-               CALL mc_coordinate_fold(r(:,:,ibox),&
-                  nunits_tot(ibox),mass,nunits,&
-                  old_cell_length(1:3,ibox))
+            CALL mc_coordinate_fold(r(:,:,ibox),&
+               nunits_tot(ibox),mass,nunits,&
+               old_cell_length(1:3,ibox))
 
 ! make the new dat file
-               CALL mc_make_dat_file(r(:,:,ibox),nunits_tot(ibox),&
-                  old_cell_length(1:3,ibox)*angstrom,dat_file(ibox),&
-                  force_env(ibox)%force_env,TRIM(fft_lib))
+            IF(ionode) CALL mc_make_dat_file(r(:,:,ibox),nunits_tot(ibox),&
+               old_cell_length(1:3,ibox)*angstrom,dat_file(ibox),&
+               force_env(ibox)%force_env,TRIM(fft_lib))
 
-            ENDIF
-
-         ENDDO
-      ENDIF
+         ENDIF
+         
+      ENDDO
 
       DO ibox=1,2
 ! make a test environment that we can alter to calculate the energy
@@ -1423,97 +1386,90 @@ CONTAINS
 
       ENDDO
 
-      IF (ionode) THEN
-
 ! call a random number to figure out how far we're moving
-         CALL RANDOM_NUMBER(rand)
-         vol_dis=rmvolume*(rand-0.5E0_dp)*2.0E0_dp
+!         CALL RANDOM_NUMBER(rand)
+      IF(ionode) rand=next_random_number(rng_stream)
+      CALL mp_bcast(rand,source,group)
+
+      vol_dis=rmvolume*(rand-0.5E0_dp)*2.0E0_dp
 
 ! add to one box, subtract from the other
-         IF(old_cell_length(1,1)*old_cell_length(2,1)*&
-            old_cell_length(3,1)+vol_dis .LE. (3.0E0_dp/angstrom)**3) &
+      IF(old_cell_length(1,1)*old_cell_length(2,1)*&
+         old_cell_length(3,1)+vol_dis .LE. (3.0E0_dp/angstrom)**3) &
          CALL stop_program(routineN,module_name,__LINE__,&
-            'GE_volume moves are trying to make box 1 smaller than 3')
-         IF(old_cell_length(1,2)*old_cell_length(2,2)*&
-            old_cell_length(3,2)+vol_dis .LE. (3.0E0_dp/angstrom)**3) &
+         'GE_volume moves are trying to make box 1 smaller than 3')
+      IF(old_cell_length(1,2)*old_cell_length(2,2)*&
+         old_cell_length(3,2)+vol_dis .LE. (3.0E0_dp/angstrom)**3) &
          CALL stop_program(routineN,module_name,__LINE__,&
          'GE_volume moves are trying to make box 2 smaller than 3')
-         
-         DO iside=1,3
-            new_cell_length(iside,1)=(old_cell_length(1,1)**3+&
-               vol_dis)**(1.0E0_dp/3.0E0_dp)
-            new_cell_length(iside,2)=(old_cell_length(1,2)**3-&
-               vol_dis)**(1.0E0_dp/3.0E0_dp)
-         ENDDO
-
-         DO i=1,2
+      
+      DO iside=1,3
+         new_cell_length(iside,1)=(old_cell_length(1,1)**3+&
+            vol_dis)**(1.0E0_dp/3.0E0_dp)
+         new_cell_length(iside,2)=(old_cell_length(1,2)**3-&
+            vol_dis)**(1.0E0_dp/3.0E0_dp)
+      ENDDO
+      
+      DO i=1,2
 
 ! save the coords
-            DO iatom=1,nunits_tot(i)
-               r(1:3,iatom,i)=&
-               particles_test(i)%list%els(iatom)%r(1:3)
-            ENDDO
+         DO iatom=1,nunits_tot(i)
+            r(1:3,iatom,i)=particles_test(i)%list%els(iatom)%r(1:3)
+         ENDDO
 
 ! now we need to scale the coordinates of all the molecules by the
 ! center of mass
-            DO iatom=1,nunits_tot(i),nunits
+         DO iatom=1,nunits_tot(i),nunits
 
 ! now find the center of mass
-               CALL get_center_of_mass(r(:,iatom:iatom+nunits-1,i),&
-                  nunits,center_of_mass(:),mass(:))
+            CALL get_center_of_mass(r(:,iatom:iatom+nunits-1,i),&
+               nunits,center_of_mass(:),mass(:))
 
 ! scale the center of mass and determine the vector that points from the
 !    old COM to the new one
-               center_of_mass_new(1:3)=center_of_mass(1:3)*&
+            center_of_mass_new(1:3)=center_of_mass(1:3)*&
                new_cell_length(1:3,i)/old_cell_length(1:3,i)
-               DO j=1,3
-                  diff(j)=center_of_mass_new(j)-center_of_mass(j)
+            DO j=1,3
+               diff(j)=center_of_mass_new(j)-center_of_mass(j)
 ! now change the particle positions
-                  DO jatom=iatom,iatom+nunits-1
-                     particles_test(i)%list%els(jatom)%r(j)=&
-                        particles_test(i)%list%els(jatom)%r(j)+diff(j)
-                  ENDDO
-               
+               DO jatom=iatom,iatom+nunits-1
+                  particles_test(i)%list%els(jatom)%r(j)=&
+                     particles_test(i)%list%els(jatom)%r(j)+diff(j)
                ENDDO
+               
             ENDDO
+         ENDDO
         
 ! check for any overlaps we might have
-!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-!            CALL mc_classical_energy(test_env(i)%force_env,&
-!            rdum,nchain(i),1,&
-!            nchain(i),inner_cutoff,loverlap(i),&
-!            cell_length=new_cell_length(1,i))
-            CALL check_for_overlap(test_env(i)%force_env,&
+         CALL check_for_overlap(test_env(i)%force_env,&
             nchain(i),1,nchain(i),loverlap(i),&
             cell_length=new_cell_length(:,i))
                
-         ENDDO
+      ENDDO
 
 ! determine the overall energy difference
 
-         DO ibox=1,2
+      DO ibox=1,2
 
-            IF(lempty(ibox)) THEN
+         IF(lempty(ibox)) THEN
                
 ! make the new dat file
-               CALL mc_make_dat_file(r(:,:,ibox),0,&
-                  new_cell_length(1:3,ibox)*angstrom,dat_file(ibox),&
-                  force_env(ibox)%force_env,TRIM(fft_lib))
+            IF(ionode) CALL mc_make_dat_file(r(:,:,ibox),0,&
+               new_cell_length(1:3,ibox)*angstrom,dat_file(ibox),&
+               force_env(ibox)%force_env,TRIM(fft_lib))
 
-            ELSE
+         ELSE
 
 ! make the new dat file
-               DO iatom=1,nunits_tot(ibox)
-                  r(1:3,iatom,ibox)=particles_test(ibox)%list%els(iatom)%r(1:3)
-               ENDDO
+            DO iatom=1,nunits_tot(ibox)
+               r(1:3,iatom,ibox)=particles_test(ibox)%list%els(iatom)%r(1:3)
+            ENDDO
                
-               CALL mc_make_dat_file(r(:,:,ibox),&
-                  nunits_tot(ibox),new_cell_length(1:3,ibox)*angstrom,&
-                  dat_file(ibox),force_env(ibox)%force_env,TRIM(fft_lib))
-            ENDIF
-         ENDDO
-! back to parallel
-      ENDIF
+            IF(ionode) CALL mc_make_dat_file(r(:,:,ibox),&
+               nunits_tot(ibox),new_cell_length(1:3,ibox)*angstrom,&
+               dat_file(ibox),force_env(ibox)%force_env,TRIM(fft_lib))
+         ENDIF
+      ENDDO
 
       DO ibox=1,2
 ! remake the force environment and calculate the energy
@@ -1536,34 +1492,30 @@ CONTAINS
          ENDIF
       ENDDO
 
-      IF (ionode) THEN
 ! accept or reject the move
-         DO ibox=1,2
-            volume_new(ibox)=new_cell_length(1,ibox)*&
-               new_cell_length(2,ibox)*new_cell_length(3,ibox)
-            volume_old(ibox)=old_cell_length(1,ibox)*&
-               old_cell_length(2,ibox)*old_cell_length(3,ibox)
-         ENDDO
-         prefactor=(volume_new(1)/volume_old(1))**nchain(1)*&
-            (volume_new(2)/volume_old(2))**nchain(2)
-         w=prefactor*exp(-BETA*&
-            (new_energy(1)+new_energy(2)-&
-            old_energy(1)-old_energy(2)))
-         
-         IF(loverlap(1) .OR. loverlap(2)) w=0.0E0_dp
+      DO ibox=1,2
+         volume_new(ibox)=new_cell_length(1,ibox)*&
+            new_cell_length(2,ibox)*new_cell_length(3,ibox)
+         volume_old(ibox)=old_cell_length(1,ibox)*&
+            old_cell_length(2,ibox)*old_cell_length(3,ibox)
+      ENDDO
+      prefactor=(volume_new(1)/volume_old(1))**nchain(1)*&
+         (volume_new(2)/volume_old(2))**nchain(2)
+      w=prefactor*exp(-BETA*&
+         (new_energy(1)+new_energy(2)-&
+         old_energy(1)-old_energy(2)))
+      
+      IF(loverlap(1) .OR. loverlap(2)) w=0.0E0_dp
          
 
-         IF ( w .GE. 1.0E0_dp ) THEN
-            w=1.0E0_dp
-            rand=0.0E0_dp
-         ELSE
-            CALL RANDOM_NUMBER(rand)
-         ENDIF
-
+      IF ( w .GE. 1.0E0_dp ) THEN
+         w=1.0E0_dp
+         rand=0.0E0_dp
+      ELSE
+         IF(ionode) rand=next_random_number(rng_stream)
+!            CALL RANDOM_NUMBER(rand)
+         CALL mp_bcast(rand,source,group)
       ENDIF
-
-      CALL mp_bcast(rand,source,group)
-      CALL mp_bcast(w,source,group)
 
       IF (rand .LT. w) THEN
 
@@ -1576,32 +1528,32 @@ CONTAINS
             WRITE(cl,*) nnstep,new_energy(1),&
                old_energy(1),new_energy(2),old_energy(2)
             WRITE(cl,*) prefactor,w
+         ENDIF
 
-            DO ibox=1,2
+         DO ibox=1,2
 ! accept the move
-               moves(ibox)%moves%volume%successes=&
-                  moves(ibox)%moves%volume%successes+1
-               move_updates(ibox)%moves%volume%successes=&
-                  move_updates(ibox)%moves%volume%successes+1
+            moves(ibox)%moves%volume%successes=&
+               moves(ibox)%moves%volume%successes+1
+            move_updates(ibox)%moves%volume%successes=&
+               move_updates(ibox)%moves%volume%successes+1
 
 ! update energies
-               energy_check(ibox)=energy_check(ibox)+(new_energy(ibox)-&
-                  old_energy(ibox))
-               old_energy(ibox)=new_energy(ibox)
+            energy_check(ibox)=energy_check(ibox)+(new_energy(ibox)-&
+               old_energy(ibox))
+            old_energy(ibox)=new_energy(ibox)
 
 ! and the coordiantes
-               CALL force_env_get(test_env(ibox)%force_env,subsys=&
-                  testsys(ibox)%subsys,error=error)
-               CALL cp_subsys_get(testsys(ibox)%subsys(1)%subsys, &
-                  particles=particles_test(ibox)%list, error=error)
-               
-               DO iatom=1,nunits_tot(ibox)
-                  r_old(1:3,iatom,ibox)=&
-                     particles_test(ibox)%list%els(iatom)%r(1:3)
-               ENDDO
-               
+            CALL force_env_get(test_env(ibox)%force_env,subsys=&
+               testsys(ibox)%subsys,error=error)
+            CALL cp_subsys_get(testsys(ibox)%subsys(1)%subsys, &
+               particles=particles_test(ibox)%list, error=error)
+            
+            DO iatom=1,nunits_tot(ibox)
+               r_old(1:3,iatom,ibox)=&
+                  particles_test(ibox)%list%els(iatom)%r(1:3)
             ENDDO
-         ENDIF
+            
+         ENDDO
 
 ! switch the force env to the new env
          DO ibox=1,2
