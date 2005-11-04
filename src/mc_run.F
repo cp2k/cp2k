@@ -8,14 +8,43 @@
 !!     mc_run
 !!
 !!   FUNCTION
-!!     preps the system for a Monte Carlo run (sets up some environments, calls the
-!!     routines to read in the MC parameters)...converted from qs_mc.F
+!!     preps the system for a Monte Carlo run (sets up some environments,
+!!     calls the routines to read in the MC parameters)...converted 
+!!     from qs_mc.F
 !!
 !!   AUTHOR
 !!     MJM-Oct-15-03
 !!
 !!   MODIFICATION HISTORY
 !!   SOURCE
+!!
+!!   REFERENCE LIST: a list of papers for the theory behind various MC moves
+!!   Books:
+!!      D. Frenkel, B. Smit: Understanding Molecular Simulation (1996)
+!!      M.P. Allen, D.J. Tildesley: Computer Simulations of Liquids (1987)
+!!
+!!   Aggregation volume bias Monte Carlo (AVBMC):
+!!      Chen, B.; Siepmann, J.I.  J. Phys. Chem. B 2000, 104, 8725.
+!!
+!!   Biasing with an inexpensive potential:
+!!      Iftimie et al.  J. Chem. Phys. 2000, 113, 4852.
+!!      Gelb, L. D.  J. Chem. Phys. 2003, 118, 7747.
+!!
+!!   Configurational bias Monte Carlo (CBMC):
+!!      Siepmann, J.I.; Frenkel, D.  Mol. Phys. 1992, 75, 59.
+!!      
+!!   Gibbs ensemble Monte Carlo (GEMC):
+!!      Panagiotopoulos, A.Z.  Mol. Phys. 1987, 61, 813.
+!!      Panagiotopoulos et al.  Mol. Phys. 1988, 63, 527.
+!!      Smit et al.  Mol. Phys. 1989, 68, 931.
+!!
+!!   Isobaric-isothermal ensemble:
+!!      McDonald, I.R.  Mol. Phys. 1972, 23, 41.
+!!
+!!   Original Monte Carlo paper:
+!!      Metropolis et al.  J. Chem. Phys. 1953, 21, 1087.
+!!   
+!!   
 !******************************************************************************
 
 MODULE mc_run
