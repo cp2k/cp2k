@@ -45,7 +45,15 @@ MODULE topology_util
                                              set_potential
   USE global_types,                    ONLY: global_environment_type
   USE input_constants,                 ONLY: do_qmmm_none,&
-                                             do_fist
+                                             do_fist,&
+                                             do_bondparm_covalent,&
+                                             do_bondparm_vdw,&
+                                             do_skip_vdw_12,&
+                                             do_skip_vdw_13,&
+                                             do_skip_vdw_14,&
+                                             do_skip_ei_12,&
+                                             do_skip_ei_13,&
+                                             do_skip_ei_14                                             
   USE kinds,                           ONLY: dp,&
                                              default_string_length
   USE memory_utilities,                ONLY: reallocate
@@ -98,7 +106,9 @@ MODULE topology_util
                                              connectivity_info_type,&
                                              constraint_info_type
   USE util,                            ONLY: find_boundary
-  
+  USE input_constants,                 ONLY: do_conn_psf,&
+                                             do_conn_generate,&
+                                             do_conn_off  
 
   IMPLICIT NONE
 
@@ -441,7 +451,7 @@ SUBROUTINE topology_generate_molecule(topology,qmmm,qmmm_env,globenv,error)
   ntype = 1
   atom_info%map_mol_typ(1)=1
   DO iatom=2,natom
-     IF (topology%conn_type == "OFF") THEN
+     IF (topology%conn_type == do_conn_off ) THEN
         ntype=ntype+1
         atom_info%map_mol_typ(iatom)=ntype        
      ELSE
@@ -836,9 +846,9 @@ SUBROUTINE topology_generate_bond(topology,globenv)
                         //atm_symbol(iatom)//" was not found in the periodic table"
     ENDIF
 
-    IF(topology%bondparm_type=="COVALENT") THEN
+    IF(topology%bondparm_type==do_bondparm_covalent) THEN
       radius(iatom) = ptable(ielem_found)%covalent_radius
-    ELSE IF(topology%bondparm_type=="VDW") THEN
+    ELSE IF(topology%bondparm_type==do_bondparm_vdw) THEN
       radius(iatom) = ptable(ielem_found)%vdw_radius
     ELSE
       CALL stop_program ("topology_generate_bond","illegal bondparm_type")
@@ -849,8 +859,8 @@ SUBROUTINE topology_generate_bond(topology,globenv)
     IF(PM3) WRITE(iw,'(7X,A,A5)') "iatom = ",ptable(ielem_found)%symbol
   END DO
 !------------------------------------------------------------------------------
-  IF( (topology%bondparm_type=="COVALENT").OR.&
-      (topology%bondparm_type=="VDW") ) THEN
+  IF( (topology%bondparm_type==do_bondparm_covalent).OR.&
+      (topology%bondparm_type==do_bondparm_vdw) ) THEN
     CALL generate_particle_distances(atom_info%r,topology%cell,radius,&
             topology%bondparm_factor,conn_info%bond_a,conn_info%bond_b,&
             topology%bondparm_type,globenv)
@@ -1545,11 +1555,11 @@ SUBROUTINE topology_connectivity_pack(molecule_kind_set,molecule_set,&
   TYPE(atom_info_type),POINTER     :: atom_info
   TYPE(connectivity_info_type),POINTER     :: conn_info
 
-    CHARACTER(LEN=default_string_length)     :: nhcopt,name
+    CHARACTER(LEN=default_string_length)     :: name
     INTEGER                                  :: atm_a, atm_b, atm_c, atm_d, &
                                                 counter, first, i, istat, iw, &
                                                 j, k,last, natom, nbond, nmol, &
-                                                nphi, ntheta, nub, nimpr, nonfo
+                                                nphi, ntheta, nub, nimpr, nonfo, nhcopt
     INTEGER, DIMENSION(:), POINTER           :: molecule_list
     INTEGER, DIMENSION(:), POINTER           :: checkme, first_list, last_list
     LOGICAL                                  :: PM1, PM2, PM3, PM4
@@ -2767,9 +2777,9 @@ SUBROUTINE topology_coordinate_pack (particle_set,atomic_kind_set,&
     atomlist(:) = 1 
     atomlist(iatom-offset+1) = 0    !exclude yourself???
 
-    IF(topology%exclude_vdw=="1-2" .OR. &
-       topology%exclude_vdw=="1-3" .OR. &
-       topology%exclude_vdw=="1-4") THEN
+    IF(topology%exclude_vdw==do_skip_vdw_12 .OR. &
+       topology%exclude_vdw==do_skip_vdw_13 .OR. &
+       topology%exclude_vdw==do_skip_vdw_14) THEN
       DO j=1,nbond
          IF (PM3) WRITE(iw,*)"bond_list ::",&
                              ex_bond_list(j)%a,&
@@ -2782,8 +2792,8 @@ SUBROUTINE topology_coordinate_pack (particle_set,atomic_kind_set,&
       END DO
     END IF
 
-    IF(topology%exclude_vdw=="1-3" .OR. &
-       topology%exclude_vdw=="1-4") THEN
+    IF(topology%exclude_vdw==do_skip_vdw_13 .OR. &
+       topology%exclude_vdw==do_skip_vdw_14) THEN
       DO j=1,nbend
          IF (PM3) WRITE(iw,*)"bend_list ::",&
                              ex_bend_list(j)%a,&
@@ -2797,7 +2807,7 @@ SUBROUTINE topology_coordinate_pack (particle_set,atomic_kind_set,&
       END DO
     END IF
 
-    IF(topology%exclude_vdw=="1-4") THEN
+    IF(topology%exclude_vdw==do_skip_vdw_14) THEN
       DO j=1,ntorsion
          IF (PM3) WRITE(iw,*)"tors_list ::",&
                              ex_torsion_list(j)%a,&
@@ -2985,9 +2995,9 @@ SUBROUTINE topology_coordinate_pack (particle_set,atomic_kind_set,&
       atomlist(:) = 1 
       atomlist(iatom-offset+1) = 0    !exclude yourself???
   
-      IF(topology%exclude_ei=="1-2" .OR. &
-         topology%exclude_ei=="1-3" .OR. &
-         topology%exclude_ei=="1-4") THEN
+      IF(topology%exclude_ei==do_skip_ei_12 .OR. &
+         topology%exclude_ei==do_skip_ei_13 .OR. &
+         topology%exclude_ei==do_skip_ei_14) THEN
         DO j=1,nbond
            IF (PM3) WRITE(iw,*)"bond_list ::",&
                                ex_bond_list(j)%a,&
@@ -3000,8 +3010,8 @@ SUBROUTINE topology_coordinate_pack (particle_set,atomic_kind_set,&
         END DO
       END IF
   
-      IF(topology%exclude_ei=="1-3" .OR. &
-         topology%exclude_ei=="1-4") THEN
+      IF(topology%exclude_ei==do_skip_ei_13 .OR. &
+         topology%exclude_ei==do_skip_ei_14) THEN
         DO j=1,nbend
            IF (PM3) WRITE(iw,*)"bend_list ::",&
                                ex_bend_list(j)%a,&
@@ -3015,7 +3025,7 @@ SUBROUTINE topology_coordinate_pack (particle_set,atomic_kind_set,&
         END DO
       END IF
   
-      IF(topology%exclude_ei=="1-4") THEN
+      IF(topology%exclude_ei==do_skip_ei_14) THEN
         DO j=1,ntorsion
            IF (PM3) WRITE(iw,*)"tors_list ::",&
                                ex_torsion_list(j)%a,&

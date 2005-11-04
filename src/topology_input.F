@@ -58,6 +58,24 @@ MODULE topology_input
        section_vals_get_subs_vals, section_vals_get, section_vals_val_get
   USE input_cp2k, ONLY: parsed_cp2k_input
   USE kinds, ONLY: dp
+  USE input_constants,                 ONLY: do_conn_psf,&
+                                             do_conn_generate,&
+                                             do_conn_off,&
+                                             do_coord_pdb,&
+                                             do_coord_xyz,&
+                                             do_coord_off,&
+                                             do_skip_vdw_12,&
+                                             do_skip_vdw_13,&
+                                             do_skip_vdw_14,&
+                                             do_skip_ei_12,&
+                                             do_skip_ei_13,&
+                                             do_skip_ei_14,&
+                                             do_bondparm_covalent,&
+                                             do_bondparm_vdw,&
+                                             do_nhcopt_global,&
+                                             do_nhcopt_molecule,&
+                                             do_nhcopt_massive,&
+                                             do_nhcopt_none
   IMPLICIT NONE
 
   CHARACTER(LEN=*), PARAMETER, PRIVATE :: moduleN = "topology_input"
@@ -106,12 +124,15 @@ CONTAINS
 !!I                                                                           I
 !!I---------------------------------------------------------------------------I
 !******************************************************************************
-SUBROUTINE read_topology_section ( topology, globenv )
-
-
+SUBROUTINE read_topology_section ( topology, topology_section, globenv, error )
+  IMPLICIT NONE
+  ! Arguments
   TYPE(topology_parameters_type)                       :: topology
   TYPE(global_environment_type), INTENT(IN),OPTIONAL   :: globenv
-
+  TYPE(section_vals_type), POINTER                     :: topology_section
+  TYPE(cp_error_type), INTENT(inout), &
+       OPTIONAL                               :: error
+  ! Local Variables
   CHARACTER(len=*), PARAMETER :: routineN = 'read_topology_section', &
       routineP = moduleN//':'//routineN
 
@@ -121,6 +142,13 @@ SUBROUTINE read_topology_section ( topology, globenv )
 
   LOGICAL                                              :: PM1,PM2,PM3,PM4
 
+  IF (parsed_cp2k_input(topology_section,check_this_section=.TRUE.,error=error)) THEN
+     CALL read_topology_section_new(topology, topology_section=topology_section,&
+          globenv=globenv, error=error)
+     RETURN
+  END IF
+!  
+!TODEL_START_TL
 !------------------------------------------------------------------------------
   PM1 = .FALSE.
   PM2 = .FALSE.
@@ -134,7 +162,6 @@ SUBROUTINE read_topology_section ( topology, globenv )
     IF((globenv%ionode).AND.(globenv%print%level>3)) PM4= .TRUE.
   END IF
 !------------------------------------------------------------------------------
-
  
   CALL write_checkpoint_information("entering "//routineN,globenv)
 
@@ -144,6 +171,7 @@ SUBROUTINE read_topology_section ( topology, globenv )
 
   topology % coord_file_name = globenv % project_name(ia:ie) // '.dat'
   topology % conn_file_name = globenv % project_name(ia:ie) // '.top'
+
 
   ! parse the input section
   label = '&TOPOL'
@@ -183,10 +211,10 @@ SUBROUTINE read_topology_section ( topology, globenv )
            CALL uppercase(str2)
            IF (str2 == "PDB") THEN
               topology%coordinate = .TRUE.
-              topology%coord_type = "PDB"
+              topology%coord_type = do_coord_pdb
            ELSE IF (str2 == "XYZ") THEN
               topology%coordinate = .TRUE.
-              topology%coord_type = "XYZ"
+              topology%coord_type = do_coord_xyz
            ELSE IF (str2 == "OFF") THEN
               topology%coordinate = .FALSE.
            ELSE
@@ -205,13 +233,13 @@ SUBROUTINE read_topology_section ( topology, globenv )
            CALL uppercase(str2)
            IF (str2 == "PSF") THEN
               topology % connectivity = .TRUE.
-              topology % conn_type = "PSF"
+              topology % conn_type = do_conn_psf
            ELSE IF (str2 == "GENERATE") THEN
               topology % connectivity = .FALSE.
-              topology % conn_type = "GENERATE"
+              topology % conn_type = do_conn_generate
            ELSE IF (str2 == "OFF") THEN
               topology % connectivity = .FALSE.
-              topology % conn_type = "OFF"
+              topology % conn_type = do_conn_off
            ELSE
               CALL p_error()
               CALL stop_parser( 'read_topology_section', &
@@ -221,23 +249,40 @@ SUBROUTINE read_topology_section ( topology, globenv )
            ilen = 40
            CALL get_next(str2,ilen)
            CALL uppercase(str2)
-           topology % exclude_vdw = str2
+           SELECT CASE(str2)
+           CASE("1-2")
+              topology % exclude_vdw = do_skip_vdw_12
+           CASE("1-3")
+              topology % exclude_vdw = do_skip_vdw_13
+           CASE("1-4")
+              topology % exclude_vdw = do_skip_vdw_14
+           END SELECT
+
         CASE ('EXCLUDE_EI')
            ilen = 40
            CALL get_next(str2,ilen)
            CALL uppercase(str2)
-           topology % exclude_ei = str2
+           SELECT CASE(str2)
+           CASE("1-2")
+              topology % exclude_ei = do_skip_ei_12
+           CASE("1-3")
+              topology % exclude_ei = do_skip_ei_13
+           CASE("1-4")
+              topology % exclude_ei = do_skip_ei_14
+           END SELECT
+
         CASE ('EXCLUDE_CH','EXCLUDE_CHECK')
            CALL get_next(topology%exclude_check)
            WRITE(*,*) "exclude_check ",topology%exclude_check
+
         CASE ('BONDPARM')
            ilen = 40
            CALL get_next(str2,ilen)
            CALL uppercase(str2)
            IF (str2 == "COVALENT") THEN
-              topology % bondparm_type = "COVALENT"
+              topology % bondparm_type = do_bondparm_covalent
            ELSE IF (str2 == "VDW") THEN
-              topology % bondparm_type = "VDW"
+              topology % bondparm_type = do_bondparm_vdw
            ELSE
               CALL p_error()
               CALL stop_parser( 'read_topology_section', &
@@ -249,13 +294,13 @@ SUBROUTINE read_topology_section ( topology, globenv )
            CALL get_next(str2,ilen)
            CALL uppercase(str2)
            IF (str2 == "GLOBAL") THEN
-              topology % nhcopt = "GLOBAL"
+              topology % nhcopt = do_nhcopt_global
            ELSE IF (str2 == "MOLECULE") THEN
-              topology % nhcopt = "MOLECULE"
+              topology % nhcopt = do_nhcopt_molecule
            ELSE IF (str2 == "MASSIVE") THEN
-              topology % nhcopt = "MASSIVE"
+              topology % nhcopt = do_nhcopt_massive
            ELSE IF (str2 == "NONE") THEN
-              topology % nhcopt = "NONE"
+              topology % nhcopt = do_nhcopt_none
            ELSE
               CALL p_error()
               CALL stop_parser( 'read_topology_section', &
@@ -273,10 +318,64 @@ SUBROUTINE read_topology_section ( topology, globenv )
 
   IF(PM1)  WRITE(iw,*) "  Exiting  read_topology_section"
   CALL write_checkpoint_information("exiting "//routineN,globenv)
+!
+!TODEL_END_TL
+!
 
 END SUBROUTINE read_topology_section
 
 
+SUBROUTINE read_topology_section_new ( topology, topology_section, globenv ,error)
+  IMPLICIT NONE
+  ! Arguments
+  TYPE(topology_parameters_type)                       :: topology
+  TYPE(global_environment_type), INTENT(IN),OPTIONAL   :: globenv
+  TYPE(section_vals_type), POINTER                     :: topology_section
+  TYPE(cp_error_type), INTENT(inout), &
+       OPTIONAL                               :: error
+  ! Local Variables
+  CHARACTER(len=*), PARAMETER :: routineN = 'read_topology_section_new', &
+      routineP = moduleN//':'//routineN
+  INTEGER :: ia, ie, n_rep
+  LOGICAL :: failure 
+
+  CALL write_checkpoint_information("entering "//routineN,globenv)
+  CALL xstring(globenv % project_name,ia,ie)
+  failure = .FALSE.
+  topology % coord_file_name = globenv % project_name(ia:ie) // '.dat'
+  topology % conn_file_name = globenv % project_name(ia:ie) // '.top'
+  
+  IF (.NOT. .FALSE.) THEN
+     ! Logical
+     CALL section_vals_val_get(topology_section,"CHARGE_OCCUP",l_val=topology % charge_occup,error=error)
+     CALL section_vals_val_get(topology_section,"CHARGE_BETA",l_val=topology % charge_beta,error=error)
+     CALL section_vals_val_get(topology_section,"PARA_RES",l_val=topology % para_res,error=error)
+     CALL section_vals_val_get(topology_section,"DUMP_TOP",l_val=topology % dump_topology,error=error)
+     CALL section_vals_val_get(topology_section,"DUMP_TOP",l_val=topology % dump_topology,error=error)
+     CALL section_vals_val_get(topology_section,"REORDER",l_val=topology % reorder_atom,error=error)
+     CALL section_vals_val_get(topology_section,"MOL_CHECK",l_val=topology % molecules_check,error=error)
+     ! Character
+     CALL section_vals_val_get(topology_section,"COORD_FILE",n_rep_val=n_rep, error=error)
+     IF (n_rep /=0) THEN
+        CALL section_vals_val_get(topology_section,"COORD_FILE",c_val=topology % coord_file_name,error=error)
+     END IF
+     CALL section_vals_val_get(topology_section,"CONN_FILE",n_rep_val=n_rep, error=error)
+     IF (n_rep /=0) THEN
+        CALL section_vals_val_get(topology_section,"CONN_FILE",c_val=topology % conn_file_name,error=error)
+     END IF
+     ! Enumeration
+     CALL section_vals_val_get(topology_section,"COORDINATE",i_val=topology % coord_type ,error=error)
+     IF (topology % coord_type /= do_coord_off) topology%coordinate = .TRUE.
+     CALL section_vals_val_get(topology_section,"CONNECTIVITY",i_val=topology % conn_type,error=error)
+     IF (topology % conn_type == do_conn_psf) topology % connectivity = .TRUE.
+     CALL section_vals_val_get(topology_section,"EXCLUDE_VDW",i_val=topology % exclude_vdw,error=error)
+     CALL section_vals_val_get(topology_section,"EXCLUDE_EI",i_val=topology % exclude_ei,error=error)
+     CALL section_vals_val_get(topology_section,"EXCLUDE_CHECK",i_val=topology % exclude_check,error=error)
+     CALL section_vals_val_get(topology_section,"BONDPARM",i_val=topology % bondparm_type,error=error)
+     CALL section_vals_val_get(topology_section,"NHCOPT",i_val=topology % nhcopt,error=error)
+
+  END IF
+END SUBROUTINE read_topology_section_new
 
 !!*****
 !******************************************************************************

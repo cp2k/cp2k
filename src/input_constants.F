@@ -271,7 +271,7 @@ MODULE input_constants
                                 do_nhcopt_molecule=1,&
                                 do_nhcopt_massive=2,&
                                 do_nhcopt_none=3,&
-                                do_bondparm_cov=0,&
+                                do_bondparm_covalent=0,&
                                 do_bondparm_vdw=1,&
                                 do_skip_ei_12=0,&
                                 do_skip_ei_13=1,&
@@ -280,8 +280,8 @@ MODULE input_constants
                                 do_skip_vdw_13=1,&
                                 do_skip_vdw_14=2,&
                                 do_conn_psf=0,&
-                                do_conn_generate=2,&
-                                do_conn_off=3,&
+                                do_conn_generate=1,&
+                                do_conn_off=2,&
                                 do_coord_pdb=0,&
                                 do_coord_xyz=1,&
                                 do_coord_off=2

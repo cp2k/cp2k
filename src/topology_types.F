@@ -43,7 +43,17 @@ MODULE topology_types
   USE simulation_cell,                 ONLY: cell_release,&
                                              cell_type
   USE termination,                     ONLY: stop_memory
-
+  USE input_constants,                 ONLY: do_conn_psf,&
+                                             do_conn_generate,&
+                                             do_conn_off,&
+                                             do_skip_vdw_12,&
+                                             do_skip_vdw_13,&
+                                             do_skip_vdw_14,&
+                                             do_skip_ei_12,&
+                                             do_skip_ei_13,&
+                                             do_skip_ei_14,&
+                                             do_bondparm_covalent,&
+                                             do_nhcopt_global
   IMPLICIT NONE
 
   TYPE atom_info_type
@@ -128,21 +138,22 @@ MODULE topology_types
     TYPE (connectivity_info_type),POINTER        :: conn_info
     TYPE (constraint_info_type),POINTER          :: cons_info
     TYPE ( cell_type ), POINTER                  :: cell, cell_ref
+    INTEGER                                   :: conn_type
+    INTEGER                                   :: coord_type, nhcopt
+    INTEGER                                   :: exclude_vdw
+    INTEGER                                   :: exclude_ei
+    INTEGER                                   :: bondparm_type
     !TRY TO REMOVE THIS FOUR VARIABLE IN THE FUTURE
     INTEGER                                   :: natoms, natom_type
     INTEGER                                   :: nmol, nmol_type, nmol_conn
     !TRY TO REMOVE THIS FOUR VARIABLE IN THE FUTURE
-    CHARACTER (LEN=default_string_length)     :: bondparm_type
     REAL(KIND=dp)                             :: bondparm_factor
     LOGICAL                                   :: reorder_atom
     LOGICAL                                   :: molecules_check
     LOGICAL                                   :: coordinate
     LOGICAL                                   :: connectivity
     LOGICAL                                   :: dump_topology
-    CHARACTER (LEN=default_string_length)     :: nhcopt
-    CHARACTER (LEN=default_string_length)     :: coord_type
     CHARACTER (LEN=default_string_length)     :: coord_file_name
-    CHARACTER (LEN=default_string_length)     :: conn_type
     CHARACTER (LEN=default_string_length)     :: conn_file_name
     LOGICAL                                   :: const_atom
     LOGICAL                                   :: const_hydr
@@ -151,8 +162,6 @@ MODULE topology_types
     LOGICAL                                   :: const_46
     LOGICAL                                   :: charge_occup
     LOGICAL                                   :: charge_beta
-    CHARACTER (LEN=default_string_length)     :: exclude_vdw
-    CHARACTER (LEN=default_string_length)     :: exclude_ei
     INTEGER                                   :: exclude_check
     LOGICAL                                   :: para_res
   END TYPE topology_parameters_type
@@ -219,17 +228,17 @@ SUBROUTINE init_topology (topology)
   topology%nmol=0
   topology%nmol_type=0
   topology%nmol_conn=0
-  topology%bondparm_type='COVALENT'
+  topology%bondparm_type=do_bondparm_covalent
   topology%bondparm_factor=1.1
   topology%reorder_atom=.FALSE.
   topology%molecules_check=.FALSE.
   topology%coordinate=.FALSE.
   topology%connectivity=.FALSE.
   topology%dump_topology=.FALSE.
-  topology%nhcopt='GLOBAL'
-  topology%coord_type=''
+  topology%nhcopt=do_nhcopt_global
+  topology%coord_type=-1
   topology%coord_file_name=''
-  topology%conn_type='GENERATE'
+  topology%conn_type=do_conn_generate
   topology%conn_file_name='OFF'
   topology%const_atom=.FALSE.
   topology%const_hydr=.FALSE.
@@ -238,8 +247,8 @@ SUBROUTINE init_topology (topology)
   topology%const_46=.FALSE.
   topology%charge_occup=.FALSE.
   topology%charge_beta=.FALSE.
-  topology%exclude_vdw="1-4"
-  topology%exclude_ei="1-4"
+  topology%exclude_vdw=do_skip_vdw_14
+  topology%exclude_ei=do_skip_ei_14
   topology%exclude_check=3
   topology%para_res=.FALSE.
 

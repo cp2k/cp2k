@@ -38,7 +38,11 @@ MODULE nhc
                                              nph_uniaxial_ensemble,&
                                              nph_uniaxial_damped_ensemble,&
                                              reftraj_ensemble,&
-                                             langevin_ensemble
+                                             langevin_ensemble,&
+                                             do_nhcopt_global,&
+                                             do_nhcopt_molecule,&
+                                             do_nhcopt_massive,&
+                                             do_nhcopt_none
   USE input_section_types,             ONLY: section_vals_get_subs_vals,&
                                              section_vals_type,&
                                              section_vals_val_get
@@ -271,7 +275,7 @@ SUBROUTINE nhc_particle_setup ( simpar, local_molecules, molecule_set, &
     TYPE(global_environment_type), &
       INTENT(IN)                             :: globenv
 
-    CHARACTER(LEN=default_string_length)     :: nhcopt
+    INTEGER                                  :: nhcopt
     INTEGER :: atm_offset, i, icount, ii, ikind, imol, isos, iw, j, &
       jj, kk, n3x3con, n4x6con, natom, natoms_local, ndcon, nkind, nmol_local, &
       nmol_per_kind, nmolecule, number, number_total, ll, imol_local, first_atom, &
@@ -327,7 +331,7 @@ SUBROUTINE nhc_particle_setup ( simpar, local_molecules, molecule_set, &
     DO i = 1, nkind
        molecule_kind => molecule_kind_set ( i )
        CALL get_molecule_kind ( molecule_kind, nhcopt=nhcopt )
-       IF ( ( nhcopt == "GLOBAL" ) ) THEN
+       IF ( ( nhcopt == do_nhcopt_global ) ) THEN
           have_global = .TRUE.
           nointer = .FALSE.
           sum_of_thermostats = 1
@@ -338,7 +342,7 @@ SUBROUTINE nhc_particle_setup ( simpar, local_molecules, molecule_set, &
     DO i = 1, nkind
        molecule_kind => molecule_kind_set ( i )
        CALL get_molecule_kind ( molecule_kind, nhcopt=nhcopt, nmolecule=nmolecule )
-       IF ( ( nhcopt == "MOLECULE" ) ) THEN
+       IF ( ( nhcopt == do_nhcopt_molecule ) ) THEN
           sum_of_thermostats = sum_of_thermostats + nmolecule
 ! If we have ONE kind and ONE molecule, then effectively we have a GLOBAL thermostat
 ! and the degrees of freedom will be computed correctly for this special case
@@ -351,7 +355,7 @@ SUBROUTINE nhc_particle_setup ( simpar, local_molecules, molecule_set, &
        molecule_kind => molecule_kind_set ( i )
        CALL get_molecule_kind ( molecule_kind, nhcopt=nhcopt, nmolecule=nmolecule, &
                                 natom=natom )
-       IF ( ( nhcopt == "MASSIVE" ) ) THEN
+       IF ( ( nhcopt == do_nhcopt_massive ) ) THEN
           sum_of_thermostats = sum_of_thermostats + 3 * natom * nmolecule
        END IF
     END DO
@@ -373,9 +377,9 @@ SUBROUTINE nhc_particle_setup ( simpar, local_molecules, molecule_set, &
            nmol_local = local_molecules % n_el ( ikind ) 
            molecule_kind => molecule_kind_set ( ikind )
            CALL get_molecule_kind ( molecule_kind, nhcopt=nhcopt, natom=natom )
-           IF (nhcopt=="MOLECULE") THEN
+           IF (nhcopt==do_nhcopt_molecule) THEN
              number = number + nmol_local
-           ELSE IF (nhcopt=="MASSIVE") THEN
+           ELSE IF (nhcopt==do_nhcopt_massive) THEN
              number = number + 3*nmol_local*natom
            ELSE
              CALL stop_program ( 'nhc_particle_setup', '' )
@@ -488,7 +492,7 @@ SUBROUTINE nhc_particle_setup ( simpar, local_molecules, molecule_set, &
         molecule_kind => molecule_kind_set ( ikind )
         CALL get_molecule_kind ( molecule_kind, nhcopt=nhcopt )
         DO imol_local = 1, nmol_local
-          IF ( nhcopt=="GLOBAL") THEN
+          IF ( nhcopt==do_nhcopt_global) THEN
              icount = icount + 1
              DO ii = 1, 3
                 DO jj = point ( 1, icount ), point ( 2, icount )
@@ -511,7 +515,7 @@ SUBROUTINE nhc_particle_setup ( simpar, local_molecules, molecule_set, &
         CALL get_molecule_kind ( molecule_kind, nhcopt=nhcopt )
         DO imol_local = 1, nmol_local
           imol = local_molecules % list ( ikind ) % array ( imol_local )
-          IF ( nhcopt=="MOLECULE") THEN
+          IF ( nhcopt==do_nhcopt_molecule) THEN
             icount = icount + 1
             number = number + 1
             nhc % index ( number ) = imol
@@ -542,7 +546,7 @@ SUBROUTINE nhc_particle_setup ( simpar, local_molecules, molecule_set, &
           molecule => molecule_set ( imol )
           CALL get_molecule ( molecule, first_atom = first_atom, &
                               last_atom = last_atom ) 
-          IF ( nhcopt=="MASSIVE") THEN
+          IF ( nhcopt==do_nhcopt_massive) THEN
             icount = icount + 1
             IF ( tot_const ( icount ) > 0 ) CALL stop_program ( 'nhc_particle_setup', &
                                  "Massive thermostats with constraints are impossible" )
@@ -594,7 +598,7 @@ SUBROUTINE nhc_particle_setup ( simpar, local_molecules, molecule_set, &
 ! doing global thermostat option
         molecule_kind => molecule_kind_set ( ikind )
         CALL get_molecule_kind ( molecule_kind, nhcopt = nhcopt )
-        IF ( nhcopt=="GLOBAL") THEN
+        IF ( nhcopt==do_nhcopt_global) THEN
 ! map the thermostat number to the molecule
            DO ii = 1, 3
               DO jj = point ( 1, ikind ), point ( 2, ikind )
@@ -615,7 +619,7 @@ SUBROUTINE nhc_particle_setup ( simpar, local_molecules, molecule_set, &
         molecule_kind => molecule_kind_set ( ikind )
         CALL get_molecule_kind ( molecule_kind, nhcopt = nhcopt, natom = natom )
 ! doing molecular thermostat option
-        IF ( nhcopt=="MOLECULE") THEN
+        IF ( nhcopt==do_nhcopt_molecule) THEN
 ! map the thermostat number to the molecule
           number = number + 1
           nhc % index ( number ) = number
@@ -641,7 +645,7 @@ SUBROUTINE nhc_particle_setup ( simpar, local_molecules, molecule_set, &
         molecule_kind => molecule_kind_set ( ikind )
         CALL get_molecule_kind ( molecule_kind, nhcopt = nhcopt )
 ! doing  massive thermostat option
-        IF ( nhcopt=="MASSIVE") THEN
+        IF ( nhcopt==do_nhcopt_massive) THEN
           IF ( tot_const ( ikind ) > 0 ) CALL stop_program ( 'nhc_particle_setup', &
                               "Massive thermostats with constraints are impossible" )
           DO ii = point ( 1, ikind ), point ( 2, ikind )
@@ -928,7 +932,7 @@ END SUBROUTINE nhc_particle_setup
   INTEGER :: num_massive_atm_local, ikind, nkind, nmol_per_kind, offset
   INTEGER :: i, j, k, imol, natom, num_massive_atm, first_atom, ncount, isos
   INTEGER :: iproc
-  CHARACTER ( len = default_string_length ) :: nhcopt
+  INTEGER :: nhcopt
   INTEGER, DIMENSION ( : ), POINTER :: local_atm_list, array_num_massive_atm, work
   TYPE ( molecule_type ), POINTER :: molecule
   TYPE ( molecule_kind_type ), POINTER :: molecule_kind
@@ -945,7 +949,7 @@ END SUBROUTINE nhc_particle_setup
       molecule => molecule_set ( i )
       molecule_kind => molecule % molecule_kind
       CALL get_molecule_kind(molecule_kind,natom=natom,nhcopt=nhcopt)
-      IF(nhcopt == "MASSIVE") THEN
+      IF(nhcopt == do_nhcopt_massive) THEN
         num_massive_atm_local = num_massive_atm_local + natom
         CALL reallocate(local_atm_list,1,num_massive_atm_local)
         CALL get_molecule (molecule,first_atom=first_atom)

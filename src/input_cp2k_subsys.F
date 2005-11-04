@@ -1263,8 +1263,8 @@ contains
                         "Can use covalent radii information or VDW radii information",&
             usage="BONDPARM (COVALENT||VDW)", &
             enum_c_vals=s2a( "COVALENT", "VDW"),&
-            enum_i_vals=(/do_bondparm_cov, do_bondparm_vdw/),&
-            default_i_val=do_bondparm_cov,error=error)
+            enum_i_vals=(/do_bondparm_covalent, do_bondparm_vdw/),&
+            default_i_val=do_bondparm_covalent,error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 

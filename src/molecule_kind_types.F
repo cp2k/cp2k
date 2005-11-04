@@ -142,8 +142,8 @@ MODULE molecule_kind_types
     TYPE(g3x3_constraint_type), DIMENSION(:), POINTER :: g3x3_list
     TYPE(g4x6_constraint_type), DIMENSION(:), POINTER :: g4x6_list
     TYPE(fixd_constraint_type), DIMENSION(:), POINTER :: fixd_list
-    CHARACTER(LEN=default_string_length)                    :: name,&
-                                                         nhcopt
+    CHARACTER(LEN=default_string_length)              :: name
+    INTEGER                                           :: nhcopt
     REAL(KIND = dp), DIMENSION(:), POINTER            :: charge,&
                                                          mass
     INTEGER                                           :: kind_number,&
@@ -246,7 +246,7 @@ CONTAINS
       NULLIFY (molecule_kind_set(imolecule_kind)%charge)
       NULLIFY (molecule_kind_set(imolecule_kind)%mass)
       molecule_kind_set(imolecule_kind)%name = ""
-      molecule_kind_set(imolecule_kind)%nhcopt = ""
+      molecule_kind_set(imolecule_kind)%nhcopt = -1
       molecule_kind_set(imolecule_kind)%kind_number = imolecule_kind
       molecule_kind_set(imolecule_kind)%natom = 0
       molecule_kind_set(imolecule_kind)%nbend = 0
@@ -481,7 +481,8 @@ CONTAINS
     TYPE(torsion_type), DIMENSION(:), &
       OPTIONAL, POINTER                      :: torsion_list
     CHARACTER(LEN=default_string_length), &
-      INTENT(OUT), OPTIONAL                  :: name, nhcopt
+      INTENT(OUT), OPTIONAL                  :: name
+    INTEGER, INTENT(OUT), OPTIONAL           :: nhcopt
     REAL(KIND=dp), DIMENSION(:), OPTIONAL, &
       POINTER                                :: mass, charge
     INTEGER, INTENT(OUT), OPTIONAL           :: kind_number, natom, nbend, &
@@ -979,7 +980,7 @@ CONTAINS
     INTEGER, DIMENSION(:), OPTIONAL, POINTER :: molecule_list
     TYPE(atom_type), DIMENSION(:), &
       OPTIONAL, POINTER                      :: atom_list
-    CHARACTER(LEN=*), INTENT(IN), OPTIONAL   :: nhcopt
+    INTEGER, INTENT(IN), OPTIONAL            :: nhcopt
     INTEGER, INTENT(IN), OPTIONAL            :: nbond
     TYPE(bond_kind_type), DIMENSION(:), OPTIONAL,POINTER :: bond_kind_set
     TYPE(bend_kind_type), DIMENSION(:), OPTIONAL,POINTER :: bend_kind_set

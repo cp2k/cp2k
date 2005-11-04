@@ -60,6 +60,11 @@ MODULE topology
   USE qmmm_types,                      only: qmmm_env_mm_type
   USE input_section_types,             ONLY: section_vals_get_subs_vals,&
                                              section_vals_type  
+  USE input_constants,                 ONLY: do_conn_psf,&
+                                             do_conn_generate,&
+                                             do_conn_off,&
+                                             do_coord_pdb,&
+                                             do_coord_xyz
 
   CHARACTER(LEN=*), PARAMETER, PRIVATE :: moduleN = "topology"
 
@@ -112,7 +117,8 @@ SUBROUTINE topology_control (atomic_kind_set,particle_set,&
   TYPE(topology_parameters_type)                   :: topology
   LOGICAL                                          :: my_qmmm
   TYPE(section_vals_type), POINTER                 :: cell_section,&
-                                                      constraint_section
+                                                      constraint_section,&
+                                                      topology_section
 
   NULLIFY(cell_section)
     
@@ -120,6 +126,8 @@ SUBROUTINE topology_control (atomic_kind_set,particle_set,&
        "FORCE_EVAL%SUBSYS%CELL",error=error)
   constraint_section =>  section_vals_get_subs_vals(globenv%input_file,&
        "FORCE_EVAL%SUBSYS%CONSTRAINT",error=error)
+  topology_section   =>  section_vals_get_subs_vals(globenv%input_file,&
+       "FORCE_EVAL%SUBSYS%TOPOLOGY",error=error)
   my_qmmm = .FALSE.
   IF (PRESENT(qmmm).AND.PRESENT(qmmm_env)) my_qmmm = qmmm
   iw = globenv%scr
@@ -148,7 +156,7 @@ SUBROUTINE topology_control (atomic_kind_set,particle_set,&
   !-----------------------------------------------------------------------------
   ! 3. Read in the topology section in the input file if any
   !-----------------------------------------------------------------------------
-  CALL read_topology_section(topology,globenv)
+  CALL read_topology_section(topology,topology_section,globenv,error)
 
   !-----------------------------------------------------------------------------
   !-----------------------------------------------------------------------------
@@ -312,12 +320,12 @@ SUBROUTINE connectivity_control(topology,globenv,qmmm,qmmm_env,error)
   ! 2. Read in or generate the connectivity information any way we can 
   !-----------------------------------------------------------------------------
   SELECT CASE (topology%conn_type)
-  CASE ("PSF")
+  CASE (do_conn_psf)
     CALL read_topology_psf(topology,globenv)
     CALL topology_generate_molecule(topology,my_qmmm,qmmm_env,globenv,error)
     IF(topology%molecules_check) &
       CALL topology_molecules_check(topology,globenv)
-  CASE ("GENERATE")
+  CASE (do_conn_generate)
     CALL topology_set_atm_mass(topology,globenv)
     CALL topology_generate_bond(topology,globenv)
     CALL topology_generate_bend(topology,globenv)
@@ -339,7 +347,7 @@ SUBROUTINE connectivity_control(topology,globenv,qmmm,qmmm_env,error)
       CALL topology_generate_onfo(topology,globenv)
       CALL topology_generate_molecule(topology,my_qmmm,qmmm_env,globenv,error)
     END IF
-  CASE ("OFF")
+  CASE (do_conn_off)
     CALL topology_set_atm_mass(topology,globenv)
     CALL topology_generate_bend(topology,globenv)
     CALL topology_generate_ub(topology,globenv)
@@ -434,9 +442,9 @@ SUBROUTINE coordinate_control(topology,globenv)
   ! 2. Read in the coordinates from the corresponding locations
   !-----------------------------------------------------------------------------
   SELECT CASE (topology%coord_type)
-  CASE ("PDB")
+  CASE (do_coord_pdb)
     CALL read_coordinate_pdb (topology,globenv)
-  CASE ("XYZ")
+  CASE (do_coord_xyz)
     CALL read_coordinate_xyz (topology,globenv)
   CASE DEFAULT
     !CALL read_particle_set (particle_set,atomic_kind_set,molecule_set,&

@@ -49,7 +49,9 @@ MODULE particle_types
                                              dump_xmol,&
                                              dump_atomic,&
                                              dump_crd,&
-                                             dump_dcd
+                                             dump_dcd,&
+                                             do_bondparm_covalent,&
+                                             do_bondparm_vdw
   USE global_types,                    ONLY: global_environment_type
   USE kinds,                           ONLY: dp,&
                                              sp,&
@@ -1602,7 +1604,7 @@ SUBROUTINE generate_particle_distances(r,cell,radius,bondparm_factor,&
     REAL(KIND=dp), POINTER                        :: radius(:)
     REAL(KIND=dp)                                 :: bondparm_factor
     INTEGER, POINTER                              :: bond_a(:),bond_b(:)
-    CHARACTER (LEN=default_string_length)         :: bondparm_type
+    INTEGER                                       :: bondparm_type
     TYPE(global_environment_type), &
       INTENT(IN)                                  :: globenv
     REAL(KIND=dp), POINTER                        :: tbond_a(:),tbond_b(:)
@@ -1638,9 +1640,9 @@ SUBROUTINE generate_particle_distances(r,cell,radius,bondparm_factor,&
                            "bond distance between atoms less then 0.1")
       END IF
 
-      IF(bondparm_type=="COVALENT") THEN
+      IF(bondparm_type==do_bondparm_covalent) THEN
         rbond = radius(iatom) + radius(jatom)
-      ELSE IF(bondparm_type=="VDW") THEN
+      ELSE IF(bondparm_type==do_bondparm_vdw) THEN
         rbond = MAX(radius(iatom),radius(jatom))
       END IF
 
