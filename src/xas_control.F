@@ -289,7 +289,6 @@ CONTAINS
         END DO  ! ir
       END IF
 !     write(*,*) 'ncubes ', ncubes
-     stop
 
       ! If the states are not given from input, don't print any
       IF(.NOT. ASSOCIATED(xas_control%list_cubes)) xas_control%cubes = .FALSE.
