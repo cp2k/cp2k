@@ -3262,7 +3262,7 @@ END SUBROUTINE create_ot_section
            variants=(/"CUBES_LU"/),&
            description="The lower and upper index of the states to be printed as cube files",&
            usage="CUBES_LU_BOUNDS integer integer",&
-           n_var=2,default_i_vals=(/0,0/), type_of_var=integer_t,error=error)
+           n_var=2,default_i_vals=(/-2,0/), type_of_var=integer_t,error=error)
       CALL section_add_keyword(section,keyword,error=error)
       CALL keyword_release(keyword,error=error)
 
