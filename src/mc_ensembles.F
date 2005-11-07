@@ -602,10 +602,11 @@ CONTAINS
 
 ! used for keeping track of counters for lbias=.false. simulations
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! debugging
-                     IF (rand .LT. conf_prob(1,ibox)) THEN
-!                        IF (rand .LT. 37.0d0) THEN
+!                     IF (rand .LT. conf_prob(1,ibox)) THEN
+                        IF (rand .LT. 0.0d0) THEN
                         move_type='bond'
-                     ELSEIF(rand .LT. conf_prob(2,ibox)) THEN
+!                     ELSEIF(rand .LT. conf_prob(2,ibox)) THEN
+                     ELSEIF(rand .LT. 2.0d0) THEN
                         move_type='angle'
                      ELSE
                         move_type='dihedral'
@@ -621,6 +622,7 @@ CONTAINS
                         mol,bias_energy(box_number),&
                         move_type,lreject,rng_stream,error=error)
                      IF(lreject) EXIT
+                     STOP 'End of conf move'
                   ENDIF
                ELSEIF(rand .LT. pmtrans) THEN
 ! translate a whole molecule in the system
@@ -763,16 +765,17 @@ CONTAINS
          IF (should_stop) EXIT
 
 ! update the move displacements, if necessary
-         IF (MOD(nnstep-nstart,iuptrans) == 0) THEN
-            CALL mc_move_update(mc_par(ibox)%mc_par,&
-               move_updates(ibox)%moves,"trans",nnstep,ionode)
-         ENDIF
-         
-         IF (MOD(nnstep-nstart,iupvolume) == 0  ) THEN
-            CALL mc_move_update(mc_par(ibox)%mc_par,&
-               move_updates(ibox)%moves,"volume",nnstep,ionode)
-         ENDIF
-                  
+         DO ibox=1,nboxes
+            IF (MOD(nnstep-nstart,iuptrans) == 0) THEN
+               CALL mc_move_update(mc_par(ibox)%mc_par,&
+                  move_updates(ibox)%moves,"trans",nnstep,ionode)
+            ENDIF
+               
+            IF (MOD(nnstep-nstart,iupvolume) == 0  ) THEN
+               CALL mc_move_update(mc_par(ibox)%mc_par,&
+                  move_updates(ibox)%moves,"volume",nnstep,ionode)
+            ENDIF
+         ENDDO
 
 ! check to see if there are any overlaps in the boxe
          DO ibox=1,nboxes
