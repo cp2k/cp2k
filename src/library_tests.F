@@ -164,7 +164,7 @@ SUBROUTINE lib_test ( globenv, error )
   IF ( runtest ( 9 ) /= 0 ) CALL rng_test ( globenv )
 !
   IF (runtest(10) /= 0) THEN
-    CALL eigensolver_test(runtest(10),globenv,error)
+    CALL eigensolver_test(runtest(10),runtest(11),globenv,error)
   END IF
 
 END SUBROUTINE lib_test
@@ -198,11 +198,12 @@ END SUBROUTINE lib_test
 !!I    RS_GRIDS n                                                             I
 !!I    MPI      n                                                             I
 !!I    RNG      n             -> Parallel random number generator             I
-!!I    EIGENSOLVER n          -> ABS(n) is the matrix dimension:              I
+!!I    EIGENSOLVER n m        -> ABS(n) is the matrix dimension:              I
 !!I                              n > 0: the matrix will be filled with random I
 !!I                                     numbers                               I
 !!I                              n < 0: the matrix is read from the formatted I
 !!I                                     file named MATRIX                     I
+!!I                              m > 0: eigenvalues will be calculated        I
 !!I---------------------------------------------------------------------------I
 !!
 !!*** *************************************************************************
@@ -262,6 +263,8 @@ SUBROUTINE test_input ( globenv )
            CALL get_next ( runtest ( 9 ) )
         CASE ( 'EIGENS' )
            CALL get_next ( runtest (10 ) )
+           CALL get_next ( runtest (11 ) )
+           runtest(11) = MIN(MAX(1,runtest(11)),runtest(10))
         END SELECT
         CALL read_line
      END DO
@@ -1564,11 +1567,11 @@ END SUBROUTINE simple_copy
 
   ! ***************************************************************************
 
-  SUBROUTINE eigensolver_test(nrow_global,globenv,error)
+  SUBROUTINE eigensolver_test(nrow_global,neig,globenv,error)
 
     ! Test eigensolver library routines.
 
-    INTEGER, INTENT(IN)                       :: nrow_global
+    INTEGER, INTENT(IN)                       :: nrow_global,neig
     TYPE(global_environment_type), INTENT(IN) :: globenv
     TYPE(cp_error_type), INTENT(INOUT)        :: error
 
@@ -1583,7 +1586,7 @@ END SUBROUTINE simple_copy
     REAL(KIND=dp), DIMENSION(:), ALLOCATABLE   :: eigenvalues
     REAL(KIND=dp), DIMENSION(:,:), ALLOCATABLE :: buffer
 
-    INTEGER :: group,i,istat,j,n,neig,output_unit,source,unit_number
+    INTEGER :: group,i,istat,j,n,output_unit,source,unit_number
     LOGICAL :: ionode
 
     ! -------------------------------------------------------------------------
@@ -1728,6 +1731,8 @@ END SUBROUTINE simple_copy
       END IF
     END IF
 
+    ! Divide-and-conquer driver
+
     CALL cp_fm_to_fm(source=matrix,&
                      destination=work,&
                      error=error)
@@ -1737,11 +1742,14 @@ END SUBROUTINE simple_copy
                      error=error)
     IF (ionode) THEN
       WRITE (UNIT=output_unit,FMT="(/,T3,A,/)") "Eigenvalues (SYEVD)"
-      WRITE (UNIT=output_unit,FMT="(T3,6X,F12.6)") eigenvalues(1:n)
-      WRITE (UNIT=output_unit,FMT="(T3,A4,F14.6)") "Sum:",SUM(eigenvalues(1:n))
+      DO i=1,neig
+        WRITE (UNIT=output_unit,FMT="(T3,I6,F14.6)") i,eigenvalues(i)
+      END DO
+      WRITE (UNIT=output_unit,FMT="(T3,A4,F16.6)") "Sum:",SUM(eigenvalues(1:neig))
     END IF
 
-    neig = INT(1.0_dp*n)
+    ! Expert driver
+
     eigenvalues = 0.0_dp
     CALL cp_fm_set_all(eigenvectors,0.0_dp)
     CALL cp_fm_to_fm(source=matrix,&
@@ -1755,8 +1763,10 @@ END SUBROUTINE simple_copy
                      error=error)
     IF (ionode) THEN
       WRITE (UNIT=output_unit,FMT="(/,T3,A,/)") "Eigenvalues (SYEVX)"
-      WRITE (UNIT=output_unit,FMT="(T3,6X,F12.6)") eigenvalues(1:neig)
-      WRITE (UNIT=output_unit,FMT="(T3,A4,F14.6)") "Sum:",SUM(eigenvalues(1:neig))
+      DO i=1,neig
+        WRITE (UNIT=output_unit,FMT="(T3,I6,F14.6)") i,eigenvalues(i)
+      END DO
+      WRITE (UNIT=output_unit,FMT="(T3,A4,F16.6)") "Sum:",SUM(eigenvalues(1:neig))
     END IF
 
     ! Clean up
