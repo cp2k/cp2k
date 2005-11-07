@@ -54,6 +54,9 @@ PROGRAM cp2k
   ! something reasonable from the cp_logger
   INTEGER, PARAMETER                   :: default_output_unit = 6 
 
+
+   just break build
+
   ! output goes to the screen by default
   output_unit=default_output_unit
 
