@@ -14,6 +14,13 @@
    RS_GRID        1
    MPI            6
    RNG            1
-   EIGENSOLVER    400 # generate a symmetric 400x400 matrix with random numbers
+   EIGENSOLVER    400 100
 &END
-   EIGENSOLVER   -400 # read a symmetric 400x400 matrix from formatted file MATRIX
+
+# generate a symmetric 400x400 matrix with random numbers and calculate
+# only the first 100 eigenvalues/eigenvectors:
+   EIGENSOLVER    400 100
+
+# read a symmetric 400x400 matrix from the formatted file MATRIX and
+# calculate the first 100 eigenvalues/eigenvectors:
+   EIGENSOLVER   -400 100
