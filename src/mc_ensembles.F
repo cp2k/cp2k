@@ -622,7 +622,7 @@ CONTAINS
                         mol,bias_energy(box_number),&
                         move_type,lreject,rng_stream,error=error)
                      IF(lreject) EXIT
-                     STOP 'End of conf move'
+!                     STOP 'End of conf move'
                   ENDIF
                ELSEIF(rand .LT. pmtrans) THEN
 ! translate a whole molecule in the system
