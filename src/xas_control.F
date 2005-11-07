@@ -211,7 +211,7 @@ CONTAINS
 !    write(*,*)'nex_at ',nex_at
  !dbg
     END IF
-  stop 'at'
+
 
     IF(.NOT. ASSOCIATED(xas_control%exc_atoms)) THEN
       xas_control%nexc_atoms = 1
@@ -288,9 +288,9 @@ CONTAINS
           END IF
         END DO  ! ir
       END IF
-     write(*,*) 'ncubes ', ncubes
+!     write(*,*) 'ncubes ', ncubes
      stop
-!  stop 'rep'
+
       ! If the states are not given from input, don't print any
       IF(.NOT. ASSOCIATED(xas_control%list_cubes)) xas_control%cubes = .FALSE.
     ELSE
