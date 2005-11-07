@@ -58,6 +58,7 @@ PROGRAM cp2k
   allocate(remove_me)
   allocate(remove_me)
   allocate(remove_me)
+  allocate(remove_me)
 
   ! output goes to the screen by default
   output_unit=default_output_unit
