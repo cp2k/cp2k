@@ -29,10 +29,10 @@ MODULE qs_tddfpt_module
                                              oe_sic
   USE cp_error_handling,               ONLY: cp_a_l,&
                                              cp_error_get_logger,&
-                                             cp_error_type
+                                             cp_error_type,cp_assert
   USE cp_log_handling,                 ONLY: cp_failure_level,&
                                              cp_logger_get_default_unit_nr,&
-                                             cp_logger_type
+                                             cp_logger_type,cp_to_string
   USE global_types,                    ONLY: global_environment_type
   USE kinds,                           ONLY: dp
   USE qs_environment_types,            ONLY: get_qs_env,&
@@ -51,6 +51,7 @@ MODULE qs_tddfpt_module
   USE xc_pot_saop,                     ONLY: add_saop_pot
 
   IMPLICIT NONE
+
 
   PRIVATE
   PUBLIC :: tddfpt_calculation
