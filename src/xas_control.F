@@ -126,7 +126,7 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER ::  routineN = "read_xas_control_new", &
       routineP = moduleN//"/"//routineN
 
-    INTEGER                                  :: i,istat,ncubes
+    INTEGER                                  :: i,ir,istat,ncubes,nex_at,n_rep
     INTEGER,DIMENSION(:) , POINTER           :: bounds,list
     LOGICAL                                  :: failure, was_present
     TYPE(section_vals_type), POINTER         :: xas_section, loc_section
@@ -180,18 +180,38 @@ CONTAINS
       END DO
     END IF
 
+! It should be further generalized
     IF(.NOT. ASSOCIATED(xas_control%exc_atoms)) THEN
       CALL section_vals_val_get(xas_section,"ATOMS_LIST",&
-           i_vals=list,error=error)
-      IF(ASSOCIATED(list)) THEN
-        xas_control%nexc_atoms = SIZE(list)
-        ALLOCATE(xas_control%exc_atoms(xas_control%nexc_atoms),STAT=istat)
-        CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
-        DO i = 1,xas_control%nexc_atoms
-          xas_control%exc_atoms(i) = list(i)
-        END DO
-      END IF
+          n_rep_val=n_rep, error=error)
+      !dbg 
+ !dbg
+!    write(*,*)'rep ',n_rep
+ !dbg
+      nex_at = 0
+      DO ir = 1,n_rep
+        NULLIFY(list)
+        CALL section_vals_val_get(xas_section,"ATOMS_LIST",&
+             i_rep_val=ir,i_vals=list,error=error)
+
+        IF(ASSOCIATED(list)) THEN
+          CALL reallocate(xas_control%exc_atoms,1,nex_at+SIZE(list))
+          DO i = 1,SIZE(list)
+            xas_control%exc_atoms(i+nex_at) = list(i)
+ !dbg
+!    write(*,*)'index xast ',i , i+nex_at,  list(i)
+ !dbg
+
+          END DO
+          xas_control%nexc_atoms =  nex_at + SIZE(list)
+          nex_at = nex_at + SIZE(list)
+        END IF
+      END DO ! ir
+ !dbg
+!    write(*,*)'nex_at ',nex_at
+ !dbg
     END IF
+  stop 'at'
 
     IF(.NOT. ASSOCIATED(xas_control%exc_atoms)) THEN
       xas_control%nexc_atoms = 1
@@ -222,6 +242,7 @@ CONTAINS
       CALL read_loc_section(xas_control%localized_wfn_control,loc_section,error=error)
     end if
 
+    NULLIFY(bounds,list)
     CALL section_vals_val_get(xas_section,"CUBES",&
          l_val=xas_control%cubes,error=error)
     IF(xas_control%cubes) THEN
@@ -237,18 +258,39 @@ CONTAINS
         END DO
       END IF
 
+! It should be further generalized
       IF(.NOT. ASSOCIATED(xas_control%list_cubes)) THEN
         CALL section_vals_val_get(xas_section,"CUBES_LIST",&
-             i_vals=list,error=error)
-        IF(ASSOCIATED(list)) THEN
-          ncubes = SIZE(list)
-          ALLOCATE(xas_control%list_cubes(ncubes),STAT=istat)
-          CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
-          DO i = 1,ncubes
-            xas_control%list_cubes(i) = list(i)
-          END DO
-        END IF
+             n_rep_val=n_rep,error=error)
+      !dbg 
+!  write(*,*) 'n_rep ', n_rep
+      !dbg 
+        ncubes = 0
+        DO ir = 1,n_rep
+          NULLIFY(list)
+          CALL section_vals_val_get(xas_section,"CUBES_LIST",&
+             i_rep_val=ir,i_vals=list,error=error)
+          IF(ASSOCIATED(list)) THEN
+ !dbg
+!    write(*,*)'ir ', ir, ncubes,SIZE(list) 
+ !dbg
+            CALL reallocate(xas_control%list_cubes,1,ncubes+ SIZE(list))
+ !dbg
+!    write(*,*)'xaslist ', SIZE(xas_control%list_cubes) 
+ !dbg
+            DO i = 1, SIZE(list)
+              xas_control%list_cubes(i+ncubes) = list(i)
+ !dbg
+!    write(*,*)'index xaslist ',i , i+ncubes,  list(i)
+ !dbg
+            END DO
+            ncubes = ncubes + SIZE(list)
+          END IF
+        END DO  ! ir
       END IF
+     write(*,*) 'ncubes ', ncubes
+     stop
+!  stop 'rep'
       ! If the states are not given from input, don't print any
       IF(.NOT. ASSOCIATED(xas_control%list_cubes)) xas_control%cubes = .FALSE.
     ELSE
