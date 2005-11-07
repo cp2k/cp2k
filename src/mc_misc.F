@@ -70,7 +70,7 @@ MODULE mc_misc
   USE molecule_kind_types,             ONLY: get_molecule_kind,&
                                              molecule_kind_type,&
                                              atom_type
-  USE pair_potential_types,            ONLY: pair_potential_type
+  USE pair_potential_types,            ONLY: pair_potential_pp_type
   USE particle_list_types,             ONLY: particle_list_type
   USE physcon,                         ONLY: angstrom,&
                                              n_avogadro,&
@@ -593,7 +593,7 @@ SUBROUTINE mc_make_dat_file(coordinates,natoms_tot,box_length,filename,&
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
     TYPE(gth_potential_type), POINTER      :: gth_potential
     TYPE(elp_potential_type), POINTER      :: elp_potential
-    TYPE(pair_potential_type), POINTER      :: potparm(:,:)
+    TYPE(pair_potential_pp_type), POINTER      :: potparm
     TYPE(fist_nonbond_env_type), POINTER      :: fist_nonbond_env
     TYPE(gto_basis_set_type), POINTER      :: orb_basis_set
     TYPE ( fist_environment_type ), &
@@ -740,16 +740,16 @@ SUBROUTINE mc_make_dat_file(coordinates,natoms_tot,box_length,filename,&
          WRITE(unit,10000) "  end"
 ! nonbonded...only works for LJ at the moment
          WRITE(unit,10000) "  nonbonded"
-         DO itype=1,SIZE(potparm,1)
-            DO jtype=itype,SIZE(potparm,2)
+         DO itype=1,SIZE(potparm%pot,1)
+            DO jtype=itype,SIZE(potparm%pot,2)
                WRITE(unit,60000) '   ',&
-               TRIM(ADJUSTL(potparm(itype,jtype)%type)),&
-               TRIM(ADJUSTL(potparm(itype,jtype)%at1)),&
-               TRIM(ADJUSTL(potparm(itype,jtype)%at2)),&
-               potparm(itype,jtype)%lj%epsilon*kelvin,&
-               potparm(itype,jtype)%lj%sigma6**(1.0_dp/6.0_dp)*&
+               TRIM(ADJUSTL(potparm%pot(itype,jtype)%pot%type)),&
+               TRIM(ADJUSTL(potparm%pot(itype,jtype)%pot%at1)),&
+               TRIM(ADJUSTL(potparm%pot(itype,jtype)%pot%at2)),&
+               potparm%pot(itype,jtype)%pot%lj%epsilon*kelvin,&
+               potparm%pot(itype,jtype)%pot%lj%sigma6**(1.0_dp/6.0_dp)*&
                angstrom,&
-               potparm(itype,jtype)%rcutsq**0.5_dp*angstrom
+               potparm%pot(itype,jtype)%pot%rcutsq**0.5_dp*angstrom
             ENDDO
          ENDDO
          WRITE(unit,10000) "  end"

@@ -52,7 +52,7 @@ MODULE fist_force_numer
   USE molecule_types_new,              ONLY: molecule_type, &
                                              get_molecule
   USE pair_potential,                 ONLY : potential_f, potential_s
-  USE pair_potential_types,           ONLY : pair_potential_type
+  USE pair_potential_types,           ONLY : pair_potential_pp_type
   USE particle_types,                 ONLY : particle_type
   USE pw_grids,                       ONLY : pw_grid_change
   USE pw_grid_types,                   ONLY: pw_grid_type, &
@@ -2750,7 +2750,7 @@ SUBROUTINE potential_nonbond ( fist_nonbond_env, particle_set, atomic_kind_set, 
 ! Locals
   TYPE ( atomic_kind_type ), POINTER :: atomic_kind 
   TYPE ( spline_data_type ), POINTER :: spline_data
-  TYPE ( pair_potential_type ), POINTER :: potparm ( :, : )
+  TYPE ( pair_potential_pp_type ), POINTER :: potparm 
     INTEGER                                  :: ab, atom_a, atom_b, &
                                                 cell_b( 3 ), handle, ikind, &
                                                 ilist, inode, jkind, nkinds, &
@@ -2778,7 +2778,7 @@ SUBROUTINE potential_nonbond ( fist_nonbond_env, particle_set, atomic_kind_set, 
 !
   vnb = 0.0_dp
 
-  nkinds = SIZE ( potparm, 1 )
+  nkinds = SIZE ( potparm%pot, 1 )
 
 !
 ! starting the force loop
@@ -2797,7 +2797,7 @@ SUBROUTINE potential_nonbond ( fist_nonbond_env, particle_set, atomic_kind_set, 
         atomic_kind => atomic_kind_set ( jkind )
         CALL get_atomic_kind ( atomic_kind, qeff = qj )
 
-        rab2_max = potparm ( ikind, jkind ) % rcutsq 
+        rab2_max = potparm %pot( ikind, jkind )%pot % rcutsq 
 
         CALL get_neighbor_list_set(neighbor_list_set=neighbor_list_set,&
                                    nlist=nlist)
@@ -2865,7 +2865,7 @@ END SUBROUTINE potential_nonbond
 !   ***************************************************************************
 
     TYPE ( ewald_environment_type ), POINTER :: ewald_env
-    TYPE ( pair_potential_type ), POINTER :: potparm ( :, : )
+    TYPE ( pair_potential_pp_type ), POINTER :: potparm 
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
     TYPE(particle_type), DIMENSION(:), &
@@ -3027,7 +3027,7 @@ END SUBROUTINE potential_nonbond
     TYPE ( ewald_environment_type ), POINTER         :: ewald_env
     TYPE(cell_type), POINTER                 :: cell
     TYPE ( particle_type ), DIMENSION ( : ), POINTER :: particle_set
-    TYPE ( pair_potential_type ), DIMENSION ( :, : ), POINTER :: potparm
+    TYPE ( pair_potential_pp_type ), POINTER :: potparm
     TYPE(local_atoms_type), DIMENSION(:), INTENT(IN) :: atom
     INTEGER, INTENT(IN)                              :: maxatom_local
     REAL (KIND=dp), INTENT ( OUT )                     :: energy_numer    
@@ -3083,7 +3083,7 @@ END SUBROUTINE potential_nonbond
 !       *** Calculate the square of the maximum interaction distance ***
 
 
-        rab2_max = potparm ( ikind, jkind ) % rcutsq 
+        rab2_max = potparm %pot( ikind, jkind )%pot % rcutsq 
         r(:) = SQRT ( rab2_max )
         sab_max(1) = r(1)/plane_distance(1,0,0,cell)
         sab_max(2) = r(2)/plane_distance(0,1,0,cell)
@@ -3159,7 +3159,7 @@ END SUBROUTINE potential_nonbond
                             END DO
                           END IF
                           IF (.NOT.exclude_flag ) THEN
-                            SELECT CASE ( TRIM ( potparm ( ikind, jkind ) % type ) )
+                            SELECT CASE ( TRIM ( potparm %pot( ikind, jkind )%pot % type ) )
                             CASE ( "EAM" )
                               CALL stop_program ( "force_nonbond_numer", &
                                 "DEBUG results for EAM are in regtest" )
@@ -3201,7 +3201,7 @@ SUBROUTINE finite_difference_evaluate ( ewald_env, potparm, rab,              &
 
 ! Arguments
   TYPE ( ewald_environment_type ), POINTER :: ewald_env
-  TYPE ( pair_potential_type ), POINTER :: potparm ( :, : )
+  TYPE ( pair_potential_pp_type ), POINTER :: potparm 
   INTEGER, INTENT ( IN ) :: ikind, jkind, atom_a, atom_b
   REAL (KIND=dp), DIMENSION(3), INTENT ( IN ) :: rab
   REAL (KIND=dp), INTENT ( IN ) :: numerical_shift, qi,qj
@@ -3214,44 +3214,38 @@ SUBROUTINE finite_difference_evaluate ( ewald_env, potparm, rab,              &
   REAL (KIND=dp) :: rij_minus_delta_sq, rij_plus_delta_sq, energy
   REAL (KIND=dp) :: energy_plus, energy_minus, rab2
   INTEGER :: id
-!------------------------------------------------------------------------------
 
   delta = 0.0_dp
-
-!
-! starting the force loop
-!
-                 delta = 0.0_dp
-                 rab2 = dot_product(rab,rab)
-                 DIM_LOOP: DO id = 1, 3
-                    delta(id) = numerical_shift
-                    rij_minus_delta_sq = dot_product(rab-delta,rab-delta)
-                    rij_plus_delta_sq = dot_product(rab+delta,rab+delta)
-                    IF (qi==0.AND.qj==0) THEN
-                      CALL potential_f(rij_minus_delta_sq,potparm,qi,qj, &
-                         ikind, jkind, energy_minus )
-                      CALL potential_f(rij_plus_delta_sq,potparm,qi,qj, &
-                         ikind, jkind, energy_plus )
-                    ELSE
-                      CALL potential_f(rij_minus_delta_sq,potparm,qi,qj, &
-                         ikind, jkind, energy_minus, ewald_env )
-                      CALL potential_f(rij_plus_delta_sq,potparm,qi,qj, &
-                         ikind, jkind, energy_plus, ewald_env )
-                    ENDIF
-                    f_numer(id,atom_a) = f_numer(id,atom_a) + (energy_plus-energy_minus)
-                    f_numer(id,atom_b) = f_numer(id,atom_b) - (energy_plus-energy_minus)
-                    delta = 0.0_dp
-                 END DO DIM_LOOP
-! compute energy
-                 IF (qi==0.AND.qj==0) THEN
-                   CALL potential_f ( rab2, potparm, qi, qj, &
-                      ikind, jkind, energy )
-                 ELSE
-                   CALL potential_f ( rab2, potparm, qi, qj, &
-                      ikind, jkind, energy, ewald_env )
-                 ENDIF
-                 energy_numer = energy_numer + energy
-
+  rab2 = DOT_PRODUCT(rab,rab)
+  DIM_LOOP: DO id = 1, 3
+     delta(id) = numerical_shift
+     rij_minus_delta_sq = DOT_PRODUCT(rab-delta,rab-delta)
+     rij_plus_delta_sq = DOT_PRODUCT(rab+delta,rab+delta)
+     IF (qi==0.AND.qj==0) THEN
+        CALL potential_f(rij_minus_delta_sq,potparm,qi,qj, &
+             ikind, jkind, energy_minus )
+        CALL potential_f(rij_plus_delta_sq,potparm,qi,qj, &
+             ikind, jkind, energy_plus )
+     ELSE
+        CALL potential_f(rij_minus_delta_sq,potparm,qi,qj, &
+             ikind, jkind, energy_minus, ewald_env )
+        CALL potential_f(rij_plus_delta_sq,potparm,qi,qj, &
+             ikind, jkind, energy_plus, ewald_env )
+     ENDIF
+     f_numer(id,atom_a) = f_numer(id,atom_a) + (energy_plus-energy_minus)
+     f_numer(id,atom_b) = f_numer(id,atom_b) - (energy_plus-energy_minus)
+     delta = 0.0_dp
+  END DO DIM_LOOP
+  ! compute energy
+  IF (qi==0.AND.qj==0) THEN
+     CALL potential_f ( rab2, potparm, qi, qj, &
+          ikind, jkind, energy )
+  ELSE
+     CALL potential_f ( rab2, potparm, qi, qj, &
+          ikind, jkind, energy, ewald_env )
+  ENDIF
+  energy_numer = energy_numer + energy
+  
 END SUBROUTINE finite_difference_evaluate
 
 !!*****

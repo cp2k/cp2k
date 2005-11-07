@@ -22,7 +22,8 @@ MODULE manybody_potential
 
   USE kinds,                           ONLY: dp, default_string_length
   USE mathconstants,                   ONLY: pi
-  USE pair_potential_types,            ONLY: pair_potential_type
+  USE pair_potential_types,            ONLY: pair_potential_single_type,&
+                                             pair_potential_pp_type
   USE splines,                         ONLY: init_spline,&
                                              init_splinexy,&
                                              spline_data_type,&
@@ -48,12 +49,9 @@ CONTAINS
 FUNCTION manybody_pot ( pot, r )
 
 
-    TYPE(pair_potential_type), INTENT(IN)        :: pot
-    REAL(KIND=dp), INTENT(IN)                    :: r
-    REAL(KIND=dp)                                :: manybody_pot
-
-
-!------------------------------------------------------------------------------
+    TYPE(pair_potential_single_type), INTENT(IN)        :: pot
+    REAL(KIND=dp), INTENT(IN)                           :: r
+    REAL(KIND=dp)                                       :: manybody_pot
 
   IF (pot%type=='EAM') THEN
 ! No splining necessary for EAM.  Zero splines
@@ -71,10 +69,8 @@ END FUNCTION manybody_pot
 
 SUBROUTINE spline_manybody_control ( spline_env, potparm )
                                   
-
-
     TYPE ( spline_environment_type ), POINTER  :: spline_env 
-    TYPE ( pair_potential_type ), POINTER               :: potparm ( :, : )
+    TYPE ( pair_potential_pp_type ), POINTER   :: potparm 
 
     INTEGER                                  :: i, isos, j, jx, n, ntype
     INTEGER                                  :: npoints
@@ -91,7 +87,7 @@ SUBROUTINE spline_manybody_control ( spline_env, potparm )
   cutmax = 0.0_dp
   n = 0
 
-  ntype = SIZE ( potparm, 1 )
+  ntype = SIZE ( potparm%pot, 1 )
 
   n = 0
   DO i = 1, ntype ! i:  first atom type
@@ -100,7 +96,7 @@ SUBROUTINE spline_manybody_control ( spline_env, potparm )
         spline_env % spltab(i,j) = n
         spline_env % spltab(j,i) = n
 ! Nullify spline_data not involved in interaction
-        SELECT CASE ( potparm ( i, j ) % type )
+        SELECT CASE ( potparm%pot ( i, j ) % pot%type )
         CASE ( "EAM", "STILLINGER-WEBER", "REBO" )
         CASE default
           CALL spline_data_release ( spline_env % spline_data_p ( n ) % spline_data )
@@ -110,12 +106,12 @@ SUBROUTINE spline_manybody_control ( spline_env, potparm )
 !ODER: n=j+(i-1)*n-(i-1)*i/2 mit j>=i
         CALL init_splinexy( spline_data, npoints+1 )
 
-        IF (potparm(i,j)%type=='EAM') THEN
+        IF (potparm%pot(i,j)%pot%type=='EAM') THEN
            locut =  0.944863_dp ! else put locut to 0.5 Angstrom
         ELSE
            locut = 0.944863_dp  ! else put locut to 0.5 Angstrom
         END IF
-        hicut = SQRT ( potparm ( i, j ) % rcutsq )
+        hicut = SQRT ( potparm%pot ( i, j )%pot % rcutsq )
         IF ( hicut > cutmax ) cutmax = hicut
         IF ( locut < cutmin ) cutmin = locut
 
@@ -123,7 +119,7 @@ SUBROUTINE spline_manybody_control ( spline_env, potparm )
         x2 = locut**2
         DO jx = 1, npoints + 1 ! jx: loop over distance**2
            x = SQRT ( x2 )
-           e = manybody_pot ( potparm ( i, j ), x ) 
+           e = manybody_pot ( potparm%pot ( i, j )%pot, x ) 
            spline_data % x(jx) = x2
            spline_data % y(jx) = e
            x2 = x2 + dx2
@@ -160,9 +156,8 @@ SUBROUTINE rho_f ( rijsq, potparm, iatom, jatom, energy )
 
 
     REAL(KIND=dp), INTENT(IN)                    :: rijsq
-    TYPE(pair_potential_type), &
-      DIMENSION(:, :), INTENT(IN)            :: potparm
-    INTEGER, INTENT(IN)                      :: iatom, jatom
+    TYPE(pair_potential_pp_type), POINTER        :: potparm
+    INTEGER, INTENT(IN)                          :: iatom, jatom
     REAL(KIND=dp), INTENT(OUT)                   :: energy
 
     REAL(KIND=dp)                                :: rij
@@ -172,7 +167,7 @@ SUBROUTINE rho_f ( rijsq, potparm, iatom, jatom, energy )
   rij = SQRT ( rijsq )
 
 ! non-bond energy
-  energy = manybody_pot ( potparm ( iatom, jatom ), rij )
+  energy = manybody_pot ( potparm %pot( iatom, jatom )%pot, rij )
 
 END SUBROUTINE rho_f
 

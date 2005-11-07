@@ -46,7 +46,8 @@ MODULE fist_nonbond_force
   USE message_passing,                 ONLY: mp_sum
   USE manybody_potential,              ONLY: rho_s
   USE pair_potential,                  ONLY: potential_s
-  USE pair_potential_types,            ONLY: pair_potential_type
+  USE pair_potential_types,            ONLY: pair_potential_pp_type,&
+                                             pair_potential_single_type
   USE particle_types,                  ONLY: particle_type
   USE simulation_cell,                 ONLY: cell_type,&
                                              real_to_scaled,&
@@ -98,7 +99,8 @@ SUBROUTINE force_nonbond ( fist_nonbond_env, particle_set, cell,  &
     TYPE(neighbor_list_set_type), POINTER    :: neighbor_list_set
     TYPE(neighbor_list_type), POINTER        :: neighbor_list
     TYPE(neighbor_node_type), POINTER        :: neighbor_node
-    TYPE(pair_potential_type), POINTER       :: potparm( :, : ), pot
+    TYPE(pair_potential_pp_type), POINTER       :: potparm
+    TYPE(pair_potential_single_type), POINTER   ::pot
     TYPE(spline_data_type), POINTER          :: spline_data
 
 !------------------------------------------------------------------------------
@@ -115,11 +117,11 @@ SUBROUTINE force_nonbond ( fist_nonbond_env, particle_set, cell,  &
 
 ! starting the force loop
 
-    nkinds = SIZE ( potparm, 1 )
+    nkinds = SIZE ( potparm%pot, 1 )
     DO ikind=1,nkinds
       DO jkind=1,nkinds
 
-        spline_data => potparm ( ikind, jkind ) % pair_spline_data
+        spline_data => potparm % pot( ikind, jkind ) %pot % pair_spline_data
         IF ( .NOT. ASSOCIATED ( spline_data ) ) CYCLE
 
         ab = ikind + nkinds*(jkind - 1)
@@ -128,7 +130,7 @@ SUBROUTINE force_nonbond ( fist_nonbond_env, particle_set, cell,  &
 
         IF (.NOT.ASSOCIATED(neighbor_list_set)) CYCLE
 
-        rab2_max = potparm(ikind,jkind)%rcutsq 
+        rab2_max = potparm%pot(ikind,jkind)%pot%rcutsq 
 
         CALL get_neighbor_list_set(neighbor_list_set=neighbor_list_set,&
                                    nlist=nlist)
@@ -169,9 +171,9 @@ SUBROUTINE force_nonbond ( fist_nonbond_env, particle_set, cell,  &
               fr(2) = fscalar*rab(2)
               fr(3) = fscalar*rab(3)
 
-              SELECT CASE ( potparm ( ikind, jkind ) % type )
+              SELECT CASE ( potparm %pot( ikind, jkind ) %pot % type )
                 CASE ( "EAM" )
-                  pot => potparm ( ikind, jkind )
+                  pot => potparm %pot( ikind, jkind )%pot
                   CALL get_force_eam ( rab2, pot, particle_set, atom_a, atom_b, & 
                                        f_eam ) 
                     fr(1) =  fr(1) - f_eam * rab ( 1 )
@@ -255,7 +257,8 @@ SUBROUTINE density_nonbond ( fist_nonbond_env, particle_set, cell, globenv )
     TYPE(neighbor_list_set_type), POINTER    :: neighbor_list_set
     TYPE(neighbor_list_type), POINTER        :: neighbor_list
     TYPE(neighbor_node_type), POINTER        :: neighbor_node
-    TYPE(pair_potential_type), POINTER       :: potparm( :, : ), pot
+    TYPE(pair_potential_pp_type), POINTER       :: potparm
+    TYPE(pair_potential_single_type), POINTER :: pot
     TYPE(spline_data_type), POINTER          :: spline_data
 
 !------------------------------------------------------------------------------
@@ -273,11 +276,11 @@ SUBROUTINE density_nonbond ( fist_nonbond_env, particle_set, cell, globenv )
   rho ( : ) = 0._dp
 ! starting the force loop
 
-    nkinds = SIZE ( potparm, 1 )
+    nkinds = SIZE ( potparm%pot, 1 )
     DO ikind=1,nkinds
       DO jkind=1,nkinds
 
-        spline_data => potparm ( ikind, jkind ) % rho_spline_data
+        spline_data => potparm%pot ( ikind, jkind )%pot % rho_spline_data
         IF ( .NOT. ASSOCIATED ( spline_data ) ) CYCLE
 
         ab = ikind + nkinds*(jkind - 1)
@@ -286,7 +289,7 @@ SUBROUTINE density_nonbond ( fist_nonbond_env, particle_set, cell, globenv )
 
         IF (.NOT.ASSOCIATED(neighbor_list_set)) CYCLE
 
-        rab2_max = potparm(ikind,jkind)%rcutsq 
+        rab2_max = potparm%pot(ikind,jkind)%pot%rcutsq 
 
         CALL get_neighbor_list_set(neighbor_list_set=neighbor_list_set,&
                                    nlist=nlist)
@@ -319,9 +322,9 @@ SUBROUTINE density_nonbond ( fist_nonbond_env, particle_set, cell, globenv )
 
             IF (rab2 <= rab2_max) THEN
 
-              SELECT CASE ( potparm  ( ikind, jkind ) % type )
+              SELECT CASE ( potparm%pot( ikind, jkind )%pot % type )
               CASE ( "EAM" )
-                pot => potparm ( ikind, jkind )
+                pot => potparm %pot( ikind, jkind )%pot
                 CALL get_rho_eam ( pot, rab2, atom_a, atom_b, rho  )
               END SELECT
             END IF
@@ -368,7 +371,8 @@ SUBROUTINE energy_manybody ( fist_nonbond_env, atomic_kind_set, &
   INTEGER :: handle, flops, ikind, istat
   REAL ( dp ) :: embed, qr
   REAL ( dp ), POINTER :: fembed ( : )
-  TYPE ( pair_potential_type ), POINTER :: pot, potparm ( :, : )
+  TYPE ( pair_potential_single_type ), POINTER :: pot
+  TYPE ( pair_potential_pp_type ), POINTER :: potparm
 
   flops = 0.0_dp
 
@@ -376,7 +380,7 @@ SUBROUTINE energy_manybody ( fist_nonbond_env, atomic_kind_set, &
 
   CALL fist_nonbond_env_get ( fist_nonbond_env, potparm = potparm )
   DO ikind = 1, SIZE ( atomic_kind_set )
-    pot => potparm ( ikind, ikind )
+    pot => potparm %pot ( ikind, ikind ) % pot
     SELECT CASE ( pot % type )
     CASE DEFAULT
       CYCLE
@@ -418,7 +422,7 @@ SUBROUTINE energy_manybody ( fist_nonbond_env, atomic_kind_set, &
 END SUBROUTINE energy_manybody
 !******************************************************************************
 SUBROUTINE get_rho_eam ( potparm, rab2, atom_a, atom_b, rho )
-    TYPE(pair_potential_type), POINTER       :: potparm
+    TYPE(pair_potential_single_type), POINTER       :: potparm
     REAL ( dp ), INTENT ( IN )               :: rab2
     INTEGER, INTENT ( IN )                   :: atom_a, atom_b
     REAL ( dp ), INTENT ( INOUT )            :: rho ( : )
@@ -446,7 +450,7 @@ END SUBROUTINE get_rho_eam
 !******************************************************************************
 SUBROUTINE get_force_eam ( rab2, potparm, particle_set, atom_a, atom_b, f_eam )
     REAL ( dp ), INTENT ( IN )               :: rab2
-    TYPE ( pair_potential_type ), POINTER    :: potparm
+    TYPE ( pair_potential_single_type ), POINTER    :: potparm
     TYPE ( particle_type ), INTENT ( IN ) :: particle_set ( : )
     INTEGER, INTENT ( IN )                   :: atom_a, atom_b
     REAL ( dp ), INTENT ( OUT )              :: f_eam

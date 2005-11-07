@@ -66,7 +66,7 @@ MODULE fist_debug
   USE message_passing,                          ONLY :  mp_sum
   USE molecule_kind_types,                      ONLY : molecule_kind_type
   USE molecule_types_new,                       ONLY : molecule_type
-  USE pair_potential_types,                     ONLY : pair_potential_type
+  USE pair_potential_types,                     ONLY : pair_potential_pp_type
   USE particle_types,                           ONLY : particle_type
   USE simulation_cell,                          ONLY : cell_type
   USE termination,                              ONLY : stop_memory, stop_program
@@ -119,7 +119,7 @@ SUBROUTINE  debug_control ( force_env, globenv, error)
   INTEGER, DIMENSION ( 2 ) :: dum
   INTEGER :: i, natoms, nnodes, isos, n, nlocal_particles
   INTEGER :: ewald_type
-  TYPE (pair_potential_type), POINTER, DIMENSION ( :, : ) :: potparm
+  TYPE (pair_potential_pp_type), POINTER :: potparm
   TYPE ( particle_type ), POINTER :: particle_set ( : )
   TYPE(distribution_1d_type), POINTER      :: local_molecules, &
                                               local_particles

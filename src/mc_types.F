@@ -37,7 +37,7 @@ MODULE mc_types
   USE mathconstants,                   ONLY: pi
   USE molecule_kind_types,             ONLY: get_molecule_kind,&
                                              molecule_kind_type
-  USE pair_potential_types,            ONLY: pair_potential_type
+  USE pair_potential_types,            ONLY: pair_potential_pp_type
   USE parser,                          ONLY: get_next,&
                                              p_error,&
                                              parser_end,&
@@ -830,8 +830,8 @@ SUBROUTINE find_mc_rcut ( mc_par, force_env, lterminate )
 
     TYPE(cp_error_type)                      :: error
     TYPE(cell_type),POINTER                  :: cell
-    TYPE(pair_potential_type), POINTER      :: potparm(:,:)
-    TYPE(fist_nonbond_env_type), POINTER      :: fist_nonbond_env
+    TYPE(pair_potential_pp_type), POINTER    :: potparm
+    TYPE(fist_nonbond_env_type), POINTER     :: fist_nonbond_env
     TYPE ( fist_environment_type ), &
       POINTER                                :: fist_env 
     INTEGER                                  :: itype,jtype
@@ -850,10 +850,10 @@ SUBROUTINE find_mc_rcut ( mc_par, force_env, lterminate )
       
 ! find the largest value of rcutsq
       rcutsq_max=0.0d0
-      DO itype=1,SIZE(potparm,1)
-         DO jtype=itype,SIZE(potparm,2)
-            IF(potparm(itype,jtype)%rcutsq .GT. rcutsq_max) &
-                rcutsq_max=potparm(itype,jtype)%rcutsq
+      DO itype=1,SIZE(potparm%pot,1)
+         DO jtype=itype,SIZE(potparm%pot,2)
+            IF(potparm%pot(itype,jtype)%pot%rcutsq .GT. rcutsq_max) &
+                rcutsq_max=potparm%pot(itype,jtype)%pot%rcutsq
          ENDDO
       ENDDO
 

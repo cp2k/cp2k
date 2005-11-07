@@ -28,7 +28,8 @@ MODULE pair_potential
                                              ewald_env_get
   USE kinds,                           ONLY: dp, default_string_length
   USE mathconstants,                   ONLY: pi
-  USE pair_potential_types,            ONLY: pair_potential_type
+  USE pair_potential_types,            ONLY: pair_potential_single_type,&
+                                             pair_potential_pp_type
   USE splines,                         ONLY: init_spline,&
                                              init_splinexy,&
                                              spline_data_type,&
@@ -54,18 +55,15 @@ CONTAINS
 !******************************************************************************
 
 FUNCTION ener_pot ( pot, qi, qj, r, vdw_scale14 )
-
-
-    TYPE(pair_potential_type), INTENT(IN)    :: pot
-    REAL(KIND=dp), INTENT(IN)                    :: qi, qj, r
-    REAL(KIND=dp)                                :: ener_pot
-
-! locals
-    REAL(KIND=dp)                                :: scale, pp, qq 
-    INTEGER                                      :: i, index
-    REAL(KIND=dp), OPTIONAL                      :: vdw_scale14
-
-!------------------------------------------------------------------------------
+  IMPLICIT NONE
+  ! Arguments
+  TYPE(pair_potential_single_type), POINTER    :: pot
+  REAL(KIND=dp), INTENT(IN)                    :: qi, qj, r
+  REAL(KIND=dp)                                :: ener_pot
+  ! Local Variables
+  REAL(KIND=dp)                                :: scale, pp, qq 
+  INTEGER                                      :: i, index
+  REAL(KIND=dp), OPTIONAL                      :: vdw_scale14
 
   IF (pot%type=='LENNARD-JONES') THEN
    IF(PRESENT(vdw_scale14)) THEN
@@ -108,6 +106,8 @@ FUNCTION ener_pot ( pot, qi, qj, r, vdw_scale14 )
      pp =  pot % eam % phi ( index ) + &
           qq * pot % eam % phip ( index )
      ener_pot = pp - pot % energy_cutoff
+  ELSE IF (pot%type=='NULL') THEN
+     ener_pot = 0.0_dp
   ELSE
      WRITE(*,*) "pot%type = ",pot%type
      CALL stop_program("pair_potential%ener_pot","Potential type unknown")
@@ -120,7 +120,7 @@ END FUNCTION ener_pot
 FUNCTION ener_coul ( pot, qi, qj, r, ewald_env, ei_scale14 )
 
 
-    TYPE(pair_potential_type), INTENT(IN)          :: pot
+    TYPE(pair_potential_single_type), POINTER          :: pot
     REAL(KIND=dp), INTENT(IN)                          :: qi, qj, r
     TYPE(ewald_environment_type), POINTER, OPTIONAL    :: ewald_env
     REAL(KIND=dp)                                :: ener_coul
@@ -156,8 +156,8 @@ SUBROUTINE spline_nonbond_control ( spline_env, potparm, atomic_kind_set, &
                                     ewald_env, ei_scale14, vdw_scale14 )
 
 
-    TYPE ( spline_environment_type ), POINTER  :: spline_env 
-    TYPE ( pair_potential_type ), POINTER               :: potparm ( :, : )
+    TYPE ( spline_environment_type ), POINTER           :: spline_env 
+    TYPE ( pair_potential_pp_type ), POINTER            :: potparm 
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                           :: atomic_kind_set
     TYPE(ewald_environment_type), POINTER, OPTIONAL     :: ewald_env
@@ -193,46 +193,46 @@ SUBROUTINE spline_nonbond_control ( spline_env, potparm, atomic_kind_set, &
 !ODER: n=j+(i-1)*n-(i-1)*i/2 mit j>=i
         CALL init_splinexy ( spline_env % spline_data_p ( n ) % spline_data, npoints+1)
 
-        IF (potparm(i,j)%type=='LENNARD-JONES') THEN
+        IF (potparm%pot(i,j)%pot%type=='LENNARD-JONES') THEN
            locut =  0.944863_dp ! else put locut to 0.5 Angstrom
-        ELSE IF (potparm(i,j)%type=='WILLIAMS') THEN
+        ELSE IF (potparm%pot(i,j)%pot%type=='WILLIAMS') THEN
            locut = 0.944863_dp  ! else put locut to 0.5 Angstrom
-        ELSE IF (potparm(i,j)%type=='IPBV') THEN
+        ELSE IF (potparm%pot(i,j)%pot%type=='IPBV') THEN
            locut = 0.948863_dp
         ELSE
            locut = 0.944863_dp  ! else put locut to 0.5 Angstrom
         END IF
-        hicut = SQRT ( potparm ( i, j ) % rcutsq )
+        hicut = SQRT ( potparm %pot ( i, j ) %pot % rcutsq )
         IF ( hicut > cutmax ) cutmax = hicut
         IF ( locut < cutmin ) cutmin = locut
-        potparm(i,j) %energy_cutoff = 0.0_dp
+        potparm%pot(i,j)%pot %energy_cutoff = 0.0_dp
         IF ( PRESENT ( vdw_scale14 ) ) THEN
-          potparm(i,j) %energy_cutoff = ener_pot(potparm(i,j),qi,qj,hicut,vdw_scale14)
+          potparm%pot(i,j)%pot %energy_cutoff = ener_pot(potparm%pot(i,j)%pot,qi,qj,hicut,vdw_scale14)
         ELSE
-          potparm(i,j) %energy_cutoff = ener_pot(potparm(i,j),qi,qj,hicut)
+          potparm%pot(i,j)%pot %energy_cutoff = ener_pot(potparm%pot(i,j)%pot,qi,qj,hicut)
         END IF
-        potparm(i,j) %e_cutoff_coul = 0.0_dp
+        potparm%pot(i,j)%pot %e_cutoff_coul = 0.0_dp
 
         IF ( PRESENT ( ei_scale14 ) ) THEN
-          potparm(i,j) %e_cutoff_coul &
-          = ener_coul ( potparm ( i, j ), qi, qj, hicut, ewald_env, ei_scale14 )
+          potparm%pot(i,j)%pot %e_cutoff_coul &
+          = ener_coul ( potparm%pot( i, j )%pot, qi, qj, hicut, ewald_env, ei_scale14 )
         ELSE
-          potparm(i,j) %e_cutoff_coul &
-          = ener_coul ( potparm ( i, j ), qi, qj, hicut, ewald_env )
+          potparm%pot(i,j)%pot %e_cutoff_coul &
+          = ener_coul ( potparm%pot ( i, j )%pot, qi, qj, hicut, ewald_env )
         ENDIF
-        potparm(j,i) %energy_cutoff = potparm(i,j) %energy_cutoff
-        potparm(j,i) %e_cutoff_coul = potparm(i,j) %e_cutoff_coul
+        potparm%pot(j,i)%pot %energy_cutoff = potparm%pot(i,j)%pot %energy_cutoff
+        potparm%pot(j,i)%pot %e_cutoff_coul = potparm%pot(i,j)%pot %e_cutoff_coul
 
         dx2 = (hicut**2-locut**2)/real(npoints)
         x2 = locut**2
         DO jx = 1, npoints + 1 ! jx: loop over distance**2
            x = SQRT ( x2 )
            IF ( PRESENT ( ei_scale14 ) .AND. PRESENT ( vdw_scale14 ) ) THEN
-             e = ener_pot ( potparm ( i, j ), qi, qj, x ,vdw_scale14 ) &
-               + ener_coul ( potparm ( i, j ), qi, qj, x, ewald_env, ei_scale14 )
+             e = ener_pot ( potparm%pot( i, j )%pot, qi, qj, x ,vdw_scale14 ) &
+               + ener_coul ( potparm%pot( i, j )%pot, qi, qj, x, ewald_env, ei_scale14 )
            ELSE
-             e = ener_pot ( potparm ( i, j ), qi, qj, x ) &
-               + ener_coul ( potparm ( i, j ), qi, qj, x, ewald_env )
+             e = ener_pot ( potparm%pot( i, j )%pot, qi, qj, x ) &
+               + ener_coul ( potparm%pot( i, j )%pot, qi, qj, x, ewald_env )
            ENDIF
            spline_env % spline_data_p ( n ) % spline_data % x(jx) = x2
            spline_env % spline_data_p ( n ) % spline_data % y(jx) = e
@@ -267,32 +267,28 @@ END SUBROUTINE potential_s
 
 !******************************************************************************
 
-SUBROUTINE potential_f ( rijsq, potparm, qi, qj, iatom, jatom, energy, &
-     ewald_env )
-
-
-    REAL(KIND=dp), INTENT(IN)                    :: rijsq
-    TYPE(pair_potential_type), &
-      DIMENSION(:, :), INTENT(IN)            :: potparm
-    REAL(KIND=dp), INTENT(IN)                    :: qi, qj
-    INTEGER, INTENT(IN)                      :: iatom, jatom
-    REAL(KIND=dp), INTENT(OUT)                   :: energy
-    TYPE(ewald_environment_type), &
-      POINTER, OPTIONAL                      :: ewald_env
-
-    REAL(KIND=dp)                                :: rij
-
-!------------------------------------------------------------------------------
+SUBROUTINE potential_f ( rijsq, potparm, qi, qj, iatom, jatom, energy, ewald_env )
+  IMPLICIT NONE
+  ! Arguments
+  REAL(KIND=dp), INTENT(IN)                    :: rijsq
+  TYPE(pair_potential_pp_type), POINTER        :: potparm
+  REAL(KIND=dp), INTENT(IN)                    :: qi, qj
+  INTEGER, INTENT(IN)                      :: iatom, jatom
+  REAL(KIND=dp), INTENT(OUT)                   :: energy
+  TYPE(ewald_environment_type), &
+       POINTER, OPTIONAL                      :: ewald_env
+  ! Local Variables
+  REAL(KIND=dp)                                :: rij
 
   rij = SQRT ( rijsq )
 
 ! non-bond energy
-  energy = ener_pot ( potparm ( iatom, jatom ), qi, qj, rij )
+  energy = ener_pot ( potparm%pot(iatom,jatom)%pot, qi, qj, rij )
 
 ! real-space ewald non-bond energy
   IF ( PRESENT ( ewald_env ) ) THEN
      energy = energy &
-          + ener_coul ( potparm ( iatom, jatom ), qi, qj, rij, ewald_env )
+          + ener_coul ( potparm%pot(iatom,jatom )%pot, qi, qj, rij, ewald_env )
   END IF
 
 END SUBROUTINE potential_f

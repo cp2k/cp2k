@@ -133,7 +133,7 @@ MODULE qmmm_init
                                              pw_green_release
   USE green_methods,                   ONLY: pw_green_setup  
   USE force_field_types,               ONLY: input_info_type
-  USE pair_potential_types,            ONLY: reallocate_potparm
+  USE pair_potential_types,            ONLY: pair_potential_reallocate
   USE cp_subsystem_methods,            ONLY: create_small_subsystem
   USE qs_main,                         ONLY: quickstep_create_force_env
   IMPLICIT NONE
@@ -1226,7 +1226,6 @@ CONTAINS
     TYPE(section_vals_type), POINTER                        :: lj_section,&
                                                                wl_section,&
                                                                gd_section
-
     !
     ! NONBONDED
     !
@@ -1234,13 +1233,23 @@ CONTAINS
     wl_section => section_vals_get_subs_vals(qmmm_ff_section,"NONBONDED%WILLIAMS",error=error)
     gd_section => section_vals_get_subs_vals(qmmm_ff_section,"NONBONDED%GOODWIN",error=error)
     CALL section_vals_get(lj_section,n_repetition=n_lj,error=error)
+    np = n_lj 
+    IF (n_lj /= 0) THEN 
+       CALL pair_potential_reallocate(inp_info%nonbonded,1,np,lj=.TRUE.,error=error)
+       CALL read_lj_section(inp_info%nonbonded,lj_section, start=0,      error=error)
+    END IF
     CALL section_vals_get(wl_section,n_repetition=n_wl,error=error)
+    np = n_lj + n_wl 
+    IF (n_wl /= 0) THEN 
+       CALL pair_potential_reallocate(inp_info%nonbonded,1,np,williams=.TRUE.,error=error)
+       CALL read_wl_section(inp_info%nonbonded,wl_section, start=n_lj, error=error)
+    END IF
     CALL section_vals_get(gd_section,n_repetition=n_gd,error=error)
     np = n_lj + n_wl + n_gd
-    CALL reallocate_potparm(inp_info%nonbonded,1,np)
-    IF (n_lj /= 0) CALL read_lj_section(inp_info%nonbonded,lj_section, start=0,      error=error)
-    IF (n_wl /= 0) CALL read_wl_section(inp_info%nonbonded,wl_section, start=n_lj, error=error)
-    IF (n_gd /= 0) CALL read_gd_section(inp_info%nonbonded,gd_section, start=n_lj+n_wl, error=error)
+    IF (n_gd /= 0) THEN 
+       CALL pair_potential_reallocate(inp_info%nonbonded,1,np,goodwin=.TRUE.,error=error)
+       CALL read_gd_section(inp_info%nonbonded,gd_section, start=n_lj+n_wl, error=error)
+    END IF
     !
     ! NONBONDED14
     !
@@ -1248,14 +1257,23 @@ CONTAINS
     wl_section => section_vals_get_subs_vals(qmmm_ff_section,"NONBONDED14%WILLIAMS",error=error)
     gd_section => section_vals_get_subs_vals(qmmm_ff_section,"NONBONDED14%GOODWIN",error=error)
     CALL section_vals_get(lj_section,n_repetition=n_lj,error=error)
+    np = n_lj
+    IF (n_lj /= 0) THEN 
+       CALL pair_potential_reallocate(inp_info%nonbonded14,1,np,lj=.TRUE.,error=error)
+       CALL read_lj_section(inp_info%nonbonded14,lj_section, start=0,      error=error)
+    END IF
     CALL section_vals_get(wl_section,n_repetition=n_wl,error=error)
+    np = n_lj + n_wl 
+    IF (n_wl /= 0) THEN 
+       CALL pair_potential_reallocate(inp_info%nonbonded14,1,np,williams=.TRUE.,error=error)
+       CALL read_wl_section(inp_info%nonbonded14,wl_section, start=n_lj, error=error)
+    END IF
     CALL section_vals_get(gd_section,n_repetition=n_gd,error=error)
     np = n_lj + n_wl + n_gd
-    CALL reallocate_potparm(inp_info%nonbonded14,1,np)
-    IF (n_lj /= 0) CALL read_lj_section(inp_info%nonbonded14,lj_section, start=0,      error=error)
-    IF (n_wl /= 0) CALL read_wl_section(inp_info%nonbonded14,wl_section, start=n_lj, error=error)
-    IF (n_gd /= 0) CALL read_gd_section(inp_info%nonbonded14,gd_section, start=n_lj+n_wl, error=error)
-
+    IF (n_gd /= 0) THEN 
+       CALL pair_potential_reallocate(inp_info%nonbonded14,1,np,goodwin=.TRUE.,error=error)
+       CALL read_gd_section(inp_info%nonbonded14,gd_section, start=n_lj+n_wl, error=error)
+    END IF
   END SUBROUTINE read_qmmm_ff_section
 
   !!****f* qmmm_init/setup_qm_atom_list [1.0] *

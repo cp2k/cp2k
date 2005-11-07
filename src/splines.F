@@ -46,7 +46,7 @@ MODULE splines
 
   PUBLIC :: spline_env_release, spline_env_retain, spline_environment_type
   PUBLIC :: spline_env_create, spline_data_p_type
-  PUBLIC :: spline_data_create
+  PUBLIC :: spline_data_create, spline_data_copy
   PUBLIC :: spline_data_retain, spline_data_release
   PUBLIC :: spline_data_type ! the data structure for spline table
   PUBLIC :: init_splinexy    ! allocates x and y vectors for splines
@@ -323,6 +323,64 @@ SUBROUTINE spline_env_create ( spline_env, ntype, error )
     spline_env % nspline_points = 2500
   END IF
 END SUBROUTINE spline_env_create
+!******************************************************************************
+!!****
+!!****s* splines/spline_data_copy [1.0] *
+!!
+!!   NAME
+!!     spline_data_copy
+!!
+!!   FUNCTION
+!!     Copy Data-structure that constains spline table
+!!
+!!   AUTHOR
+!!     teo 11.2005
+!!
+!!   MODIFICATION HISTORY
+!!
+!!   SOURCE
+!******************************************************************************
+SUBROUTINE spline_data_copy ( spline_data_source, spline_data_dest, error )
+  TYPE(spline_data_type), POINTER :: spline_data_source, spline_data_dest
+  TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
+  
+  LOGICAL :: failure
+  CHARACTER(len=*), PARAMETER :: routineN='spline_data_copy',&
+        routineP=moduleN//':'//routineN
+  INTEGER :: stat, ntab, isos
+
+  failure=.FALSE.
+  CPPostcondition(ASSOCIATED(spline_data_source),cp_failure_level,routineP,error,failure)
+  IF (.NOT. failure) THEN
+     IF (.NOT.ASSOCIATED(spline_data_dest)) CALL spline_data_create(spline_data_dest,error)
+     
+     spline_data_dest%ref_count = spline_data_source%ref_count
+     spline_data_dest%id_nr     = spline_data_source%id_nr
+     spline_data_dest%n         = spline_data_source%n
+     spline_data_dest%pos       = spline_data_source%pos
+     spline_data_dest%h         = spline_data_source%h   
+     spline_data_dest%invh      = spline_data_source%invh
+     spline_data_dest%h26       = spline_data_source%h26 
+     spline_data_dest%x1        = spline_data_source%x1  
+     spline_data_dest%xn        = spline_data_source%xn  
+
+     IF (ASSOCIATED(spline_data_source%x)) THEN
+        ALLOCATE(spline_data_dest%x(size(spline_data_source%x)), stat=stat)
+        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+        spline_data_dest%x = spline_data_source%x
+     END IF
+     IF (ASSOCIATED(spline_data_source%y)) THEN
+        ALLOCATE(spline_data_dest%y(size(spline_data_source%y)), stat=stat)
+        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+        spline_data_dest%y = spline_data_source%y
+     END IF
+     IF (ASSOCIATED(spline_data_source%y2)) THEN
+        ALLOCATE(spline_data_dest%y2(size(spline_data_source%y2)), stat=stat)
+        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+        spline_data_dest%y2 = spline_data_source%y2
+     END IF
+  END IF
+END SUBROUTINE spline_data_copy
 !******************************************************************************
 !!****
 !!****s* splines/spline_data_create [1.0] *

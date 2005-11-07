@@ -37,8 +37,8 @@ MODULE fist_nonbond_env_types
                                              deallocate_neighbor_list_set
   USE kinds,                           ONLY: dp, &
                                              default_string_length
-  USE pair_potential_types,            ONLY: pair_potential_type,&
-                                             pot_parameters_release
+  USE pair_potential_types,            ONLY: pair_potential_pp_type,&
+                                             pair_potential_pp_release
   USE termination,                     ONLY: stop_memory
 
   IMPLICIT NONE
@@ -55,7 +55,7 @@ MODULE fist_nonbond_env_types
     INTEGER :: ref_count, id_nr, natom_types
     CHARACTER ( len = default_string_length ) :: unit_type
     TYPE ( neighbor_list_set_p_type ), DIMENSION ( : ), POINTER :: nonbonded
-    TYPE ( pair_potential_type ), POINTER :: potparm ( :, : )
+    TYPE ( pair_potential_pp_type ), POINTER :: potparm
     INTEGER :: counter, last_update, num_update
     REAL (KIND=dp), DIMENSION ( :, : ), POINTER :: rlist_cutsq
     REAL (KIND=dp) :: verlet_skin
@@ -105,7 +105,7 @@ SUBROUTINE fist_nonbond_env_get (fist_nonbond_env, potparm, &
   TYPE(fist_nonbond_env_type), POINTER :: fist_nonbond_env
   TYPE ( neighbor_list_set_p_type ), POINTER, &
        DIMENSION ( : ), OPTIONAL               :: nonbonded
-  TYPE ( pair_potential_type ), OPTIONAL, POINTER     :: potparm ( :, : )
+  TYPE ( pair_potential_pp_type ), OPTIONAL, POINTER     :: potparm
   REAL (KIND=dp), DIMENSION ( :, : ), POINTER, OPTIONAL  :: rlist_cutsq
   REAL (KIND=dp), OPTIONAL                      :: verlet_skin
   REAL (KIND=dp), POINTER, OPTIONAL             :: r_last_update ( :, : )
@@ -165,7 +165,7 @@ SUBROUTINE fist_nonbond_env_set ( fist_nonbond_env,  potparm, &
                                   last_update, counter, natom_types, &
                                   long_range_correction, error )
   TYPE(fist_nonbond_env_type), POINTER :: fist_nonbond_env
-  TYPE ( pair_potential_type ), POINTER, OPTIONAL :: potparm ( :, : )
+  TYPE ( pair_potential_pp_type ), POINTER, OPTIONAL :: potparm
   TYPE ( neighbor_list_set_p_type ), POINTER, &
        DIMENSION ( : ), OPTIONAL               :: nonbonded
   REAL (KIND=dp), DIMENSION ( :, : ), POINTER, OPTIONAL  :: rlist_cutsq
@@ -226,7 +226,7 @@ END SUBROUTINE fist_nonbond_env_set
 !*** **********************************************************************
 SUBROUTINE fist_nonbond_env_create(fist_nonbond_env, potparm, error)
   TYPE(fist_nonbond_env_type), POINTER :: fist_nonbond_env
-  TYPE ( pair_potential_type ), POINTER :: potparm ( :, : )
+  TYPE ( pair_potential_pp_type ), POINTER :: potparm 
   TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
   
   LOGICAL :: failure
@@ -251,7 +251,7 @@ END SUBROUTINE fist_nonbond_env_create
 ! ***************************************************************************
 
     TYPE(fist_nonbond_env_type), POINTER          :: fist_nonbond_env
-    TYPE(pair_potential_type), POINTER            :: potparm ( :, : )
+    TYPE(pair_potential_pp_type), POINTER         :: potparm 
     TYPE(cp_error_type), INTENT(inout), OPTIONAL  :: error
 
 !   ---------------------------------------------------------------------------
@@ -279,12 +279,12 @@ END SUBROUTINE fist_nonbond_env_create
     fist_nonbond_env%id_nr=last_fist_nonbond_env_id_nr
     last_fist_nonbond_env_id_nr=last_fist_nonbond_env_id_nr+1
 
-    natom_types = SIZE ( potparm, 1 )
+    natom_types = SIZE ( potparm%pot, 1 )
     ALLOCATE ( fist_nonbond_env % rlist_cutsq ( natom_types, natom_types ), stat = stat )
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     DO idim = 1, natom_types
       DO jdim = 1, natom_types
-         rcut = SQRT ( potparm ( idim, jdim ) % rcutsq ) + &
+         rcut = SQRT ( potparm%pot ( idim, jdim )%pot % rcutsq ) + &
                 fist_nonbond_env % verlet_skin
          fist_nonbond_env % rlist_cutsq ( idim, jdim ) = rcut 
       END DO
@@ -392,7 +392,7 @@ SUBROUTINE fist_nonbond_env_release(fist_nonbond_env,error)
         END IF
         NULLIFY (fist_nonbond_env%nonbonded)
 ! release potparm
-        CALL pot_parameters_release ( fist_nonbond_env % potparm, error )
+        CALL pair_potential_pp_release ( fist_nonbond_env % potparm, error )
         IF (ASSOCIATED(fist_nonbond_env % r_last_update)) THEN
           DEALLOCATE (fist_nonbond_env % r_last_update,STAT=stat)
           CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)

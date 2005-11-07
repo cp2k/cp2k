@@ -21,6 +21,8 @@
 !!     JGH (26-01-2002) : force field parameters stored in tables, not in
 !!       matrices. Input changed to have parameters labeled by the position
 !!       and not atom pairs (triples etc)
+!!     Teo (11.2005) : Moved all information on force field  pair_potential to
+!!                     a much lighter memory structure
 !!
 !!   SOURCE
 !******************************************************************************
@@ -100,11 +102,16 @@ MODULE force_fields
                                              get_molecule
   USE pair_potential,                  ONLY: spline_nonbond_control
   USE pair_potential_types,            ONLY: pair_potential_type,&
+                                             pair_potential_p_type,&
+                                             pair_potential_pp_type,&
+                                             pair_potential_lj_create,&
+                                             pair_potential_single_type,&
+                                             pair_potential_single_copy,&
                                              eam_pot_type,       &
-                                             reallocate_potparm, &
-                                             pot_parameters_create, &
-                                             pot_parameters_release,&
-                                             clean_pot_parameter
+                                             pair_potential_reallocate, &
+                                             pair_potential_pp_create, &
+                                             pair_potential_pp_release,&
+                                             pair_potential_single_clean
   USE parser,                          ONLY: get_next,&
                                              p_error,&
                                              parser_end,&
@@ -134,10 +141,15 @@ MODULE force_fields
   USE input_constants,                 ONLY: do_qmmm_none
   USE physcon,                         ONLY: bohr
   USE input_cp2k,                      ONLY: parsed_cp2k_input
-  USE input_section_types, ONLY: section_type, section_create, &
-       section_add_keyword, section_add_subsection, section_release,&
-       section_vals_type,&
-       section_vals_get_subs_vals, section_vals_get, section_vals_val_get
+  USE input_section_types,             ONLY: section_type,&
+                                             section_create,&
+                                             section_add_keyword,&
+                                             section_add_subsection,&
+                                             section_release,&
+                                             section_vals_type,&
+                                             section_vals_get_subs_vals,&
+                                             section_vals_get,&
+                                             section_vals_val_get
 
   IMPLICIT NONE
 
@@ -155,157 +167,150 @@ MODULE force_fields
 !******************************************************************************
 
 CONTAINS
+  
+  !******************************************************************************
+  !!****** force_fields/force_field_control [1.0] *
+  !!
+  !!   NAME
+  !!     force_field_control
+  !!
+  !!   FUNCTION
+  !!     1. If reading in from external file, make sure its there first
+  !!     2. Read in the force_field from the corresponding locations
+  !!
+  !!   AUTHOR
+  !!
+  !!   MODIFICATION HISTORY
+  !!
+  !!   SOURCE
+  !******************************************************************************
+  SUBROUTINE force_field_control (atomic_kind_set,particle_set,&
+       molecule_kind_set,molecule_set,&
+       ewald_env,fist_nonbond_env,&
+       globenv, qmmm, qmmm_env, error)
+    IMPLICIT NONE
+    ! Arguments
+    TYPE(atomic_kind_type), DIMENSION(:), POINTER       :: atomic_kind_set
+    TYPE(particle_type), DIMENSION(:), POINTER          :: particle_set
+    TYPE(molecule_kind_type), DIMENSION(:), POINTER     :: molecule_kind_set
+    TYPE(molecule_type), DIMENSION(:), POINTER          :: molecule_set
+    TYPE ( ewald_environment_type ), POINTER :: ewald_env
+    TYPE ( fist_nonbond_env_type ), POINTER ::  fist_nonbond_env
+    TYPE(global_environment_type), INTENT(IN),OPTIONAL  :: globenv
+    LOGICAL, INTENT(IN), OPTIONAL :: qmmm
+    TYPE (qmmm_env_mm_type), POINTER, OPTIONAL :: qmmm_env
+    TYPE(cp_error_type), INTENT(inout), OPTIONAL   :: error
+    ! Local Variables
+    CHARACTER(len=*), PARAMETER :: routineN = 'force_field_control', &
+         routineP = moduleN//':'//routineN
+    INTEGER                                  :: handle, iw
+    LOGICAL                                  :: found
+    TYPE(force_field_type)                   :: ff_type
 
-!******************************************************************************
-!!****** force_fields/force_field_control [1.0] *
-!!
-!!   NAME
-!!     force_field_control
-!!
-!!   FUNCTION
-!!     1. If reading in from external file, make sure its there first
-!!     2. Read in the force_field from the corresponding locations
-!!
-!!   AUTHOR
-!!
-!!   MODIFICATION HISTORY
-!!
-!!   SOURCE
-!******************************************************************************
-SUBROUTINE force_field_control (atomic_kind_set,particle_set,&
-                                molecule_kind_set,molecule_set,&
-                                ewald_env,fist_nonbond_env,&
-                                globenv, qmmm, qmmm_env, error)
+    LOGICAL                                  :: PM1, PM2, PM3, PM4
 
-  TYPE(atomic_kind_type), DIMENSION(:), POINTER       :: atomic_kind_set
-  TYPE(particle_type), DIMENSION(:), POINTER          :: particle_set
-  TYPE(molecule_kind_type), DIMENSION(:), POINTER     :: molecule_kind_set
-  TYPE(molecule_type), DIMENSION(:), POINTER          :: molecule_set
-  TYPE ( ewald_environment_type ), POINTER :: ewald_env
-  TYPE ( fist_nonbond_env_type ), POINTER ::  fist_nonbond_env
-  TYPE(global_environment_type), INTENT(IN),OPTIONAL  :: globenv
-  LOGICAL, INTENT(IN), OPTIONAL :: qmmm
-  TYPE (qmmm_env_mm_type), POINTER, OPTIONAL :: qmmm_env
-  TYPE(cp_error_type), INTENT(inout), OPTIONAL   :: error
+    CALL write_checkpoint_information("entering "//routineN,globenv)
+    CALL timeset(routineN,'I','',handle)
 
-  CHARACTER(len=*), PARAMETER :: routineN = 'force_field_control', &
-      routineP = moduleN//':'//routineN
-
-  INTEGER                                  :: handle, iw
-  LOGICAL                                  :: found
-  TYPE(force_field_type)                   :: ff_type
-
-  LOGICAL                                  :: PM1, PM2, PM3, PM4
-
-!------------------------------------------------------------------------------
-
-  CALL write_checkpoint_information("entering "//routineN,globenv)
-  CALL timeset(routineN,'I','',handle)
-
-  PM1 = .FALSE.
-  PM2 = .FALSE.
-  PM3 = .FALSE.
-  PM4 = .FALSE.
-  IF(PRESENT(globenv)) THEN
-    iw = globenv%scr
-    IF((globenv%ionode).AND.(globenv%print%level>0)) PM1= .TRUE.
-    IF((globenv%ionode).AND.(globenv%print%level>1)) PM2= .TRUE.
-    IF((globenv%ionode).AND.(globenv%print%level>2)) PM3= .TRUE.
-    IF((globenv%ionode).AND.(globenv%print%level>3)) PM4= .TRUE.
-  END IF
-
-  IF(PM1) WRITE(iw,*) "Entering force_field_control"
-
-!-------------------------------------------------------------------------------
-!-------------------------------------------------------------------------------
-
-
-  !-----------------------------------------------------------------------------
-  !-----------------------------------------------------------------------------
-  ! 1. Initialize the ff_type structure type
-  !-----------------------------------------------------------------------------
-  CALL init_ff_type(ff_type)
-
-
-  !-----------------------------------------------------------------------------
-  !-----------------------------------------------------------------------------
-  ! 2. Read in the force field section in the input file if any
-  !-----------------------------------------------------------------------------
-  CALL read_force_field_section(ff_type,globenv,error)
-
-
-  !-----------------------------------------------------------------------------
-  !-----------------------------------------------------------------------------
-  ! 3. If reading in from external file, make sure its there first
-  !-----------------------------------------------------------------------------
-  IF(ff_type%ff_type/="OFF") THEN
-    !------------------------------------------------------
-    !Make sure the file really do exist before proceding
-    IF(globenv%ionode) THEN
-      INQUIRE(FILE=ff_type%ff_file_name,EXIST=found)
-      IF(found) THEN
-      ELSE
-        CALL stop_program ("force_field_control","force field file missing")
-      END IF
+    PM1 = .FALSE.
+    PM2 = .FALSE.
+    PM3 = .FALSE.
+    PM4 = .FALSE.
+    IF(PRESENT(globenv)) THEN
+       iw = globenv%scr
+       IF((globenv%ionode).AND.(globenv%print%level>0)) PM1= .TRUE.
+       IF((globenv%ionode).AND.(globenv%print%level>1)) PM2= .TRUE.
+       IF((globenv%ionode).AND.(globenv%print%level>2)) PM3= .TRUE.
+       IF((globenv%ionode).AND.(globenv%print%level>3)) PM4= .TRUE.
     END IF
-  END IF
+
+    IF(PM1) WRITE(iw,*) "Entering force_field_control"
+
+    !-----------------------------------------------------------------------------
+    !-----------------------------------------------------------------------------
+    ! 1. Initialize the ff_type structure type
+    !-----------------------------------------------------------------------------
+    CALL init_ff_type(ff_type,error)
 
 
-  !-----------------------------------------------------------------------------
-  !-----------------------------------------------------------------------------
-  ! 4. Read in the force field from the corresponding locations
-  !-----------------------------------------------------------------------------
-  IF(ff_type%ff_type/="OFF") THEN
-    SELECT CASE (ff_type%ff_type)
-    CASE ("CHM")
-      CALL read_force_field_charmm(ff_type,globenv)
-    CASE DEFAULT
-      CALL stop_program ("force_field_control",&
-                         "force field type not implemented")
-    END SELECT
-  END IF
+    !-----------------------------------------------------------------------------
+    !-----------------------------------------------------------------------------
+    ! 2. Read in the force field section in the input file if any
+    !-----------------------------------------------------------------------------
+    CALL read_force_field_section(ff_type,globenv,error)
 
 
-  !-----------------------------------------------------------------------------
-  !-----------------------------------------------------------------------------
-  ! 5. Pack all force field info into different structures
-  !-----------------------------------------------------------------------------
-  CALL force_field_pack (particle_set,atomic_kind_set,&
-                         molecule_kind_set,molecule_set,&
-                         ewald_env,fist_nonbond_env,&
-                         ff_type,globenv, qmmm, qmmm_env, error=error)
+    !-----------------------------------------------------------------------------
+    !-----------------------------------------------------------------------------
+    ! 3. If reading in from external file, make sure its there first
+    !-----------------------------------------------------------------------------
+    IF(ff_type%ff_type/="OFF") THEN
+       !------------------------------------------------------
+       !Make sure the file really do exist before proceding
+       IF(globenv%ionode) THEN
+          INQUIRE(FILE=ff_type%ff_file_name,EXIST=found)
+          IF(found) THEN
+          ELSE
+             CALL stop_program ("force_field_control","force field file missing")
+          END IF
+       END IF
+    END IF
 
 
-  !-----------------------------------------------------------------------------
-  !-----------------------------------------------------------------------------
-  ! 6. Output total system charge assigned to qeff
-  !-----------------------------------------------------------------------------
-  CALL force_field_qeff_output (particle_set,atomic_kind_set,&
-                                molecule_kind_set,molecule_set,&
-                                globenv)
+    !-----------------------------------------------------------------------------
+    !-----------------------------------------------------------------------------
+    ! 4. Read in the force field from the corresponding locations
+    !-----------------------------------------------------------------------------
+    IF(ff_type%ff_type/="OFF") THEN
+       SELECT CASE (ff_type%ff_type)
+       CASE ("CHM")
+          CALL read_force_field_charmm(ff_type,globenv)
+       CASE DEFAULT
+          CALL stop_program ("force_field_control","force field type not implemented")
+       END SELECT
+    END IF
 
 
-  !-----------------------------------------------------------------------------
-  !-----------------------------------------------------------------------------
-  ! 7. Clean up "UNSET" bond,bend,UB,TORSION,IMPR,ONFO kinds
-  !-----------------------------------------------------------------------------
-  CALL clean_intra_force_kind (molecule_kind_set,globenv)
+    !-----------------------------------------------------------------------------
+    !-----------------------------------------------------------------------------
+    ! 5. Pack all force field info into different structures
+    !-----------------------------------------------------------------------------
+    CALL force_field_pack (particle_set,atomic_kind_set,&
+         molecule_kind_set,molecule_set,&
+         ewald_env,fist_nonbond_env,&
+         ff_type,globenv, qmmm, qmmm_env, error=error)
 
 
-  !-----------------------------------------------------------------------------
-  !-----------------------------------------------------------------------------
-  ! 8. Cleanup the ff_type structure type
-  !-----------------------------------------------------------------------------
-  CALL deallocate_ff_type(ff_type)
+    !-----------------------------------------------------------------------------
+    !-----------------------------------------------------------------------------
+    ! 6. Output total system charge assigned to qeff
+    !-----------------------------------------------------------------------------
+    CALL force_field_qeff_output (particle_set,atomic_kind_set,&
+         molecule_kind_set,molecule_set,&
+         globenv)
 
 
-  IF(PM1) WRITE(iw,*) "Exiting  force_field_control"
+    !-----------------------------------------------------------------------------
+    !-----------------------------------------------------------------------------
+    ! 7. Clean up "UNSET" bond,bend,UB,TORSION,IMPR,ONFO kinds
+    !-----------------------------------------------------------------------------
+    CALL clean_intra_force_kind (molecule_kind_set,globenv,error)
 
-  CALL timestop(0.0_dp,handle)
-  CALL write_checkpoint_information("leaving "//routineN,globenv)
-!-------------------------------------------------------------------------------
-!-------------------------------------------------------------------------------
-END SUBROUTINE force_field_control
+
+    !-----------------------------------------------------------------------------
+    !-----------------------------------------------------------------------------
+    ! 8. Cleanup the ff_type structure type
+    !-----------------------------------------------------------------------------
+    CALL deallocate_ff_type(ff_type, error=error)
+
+
+    IF(PM1) WRITE(iw,*) "Exiting  force_field_control"
+
+    CALL timestop(0.0_dp,handle)
+    CALL write_checkpoint_information("leaving "//routineN,globenv)
+    !-------------------------------------------------------------------------------
+    !-------------------------------------------------------------------------------
+  END SUBROUTINE force_field_control
 
 !******************************************************************************
 !!****** force_fields/read_force_field_section [1.0] *
@@ -323,7 +328,6 @@ END SUBROUTINE force_field_control
 !!
 !!   SOURCE
 !******************************************************************************
-
 SUBROUTINE read_force_field_new_section ( ff_section, ff_type, globenv, error )
   IMPLICIT NONE
   ! Arguments
@@ -360,42 +364,42 @@ SUBROUTINE read_force_field_new_section ( ff_section, ff_type, globenv, error )
         CALL section_vals_get(tmp_section2,explicit=explicit,n_repetition=nlj,error=error)
         ntot = 0
         IF (explicit) THEN
-           CALL reallocate_potparm(inp_info%nonbonded,1,ntot+nlj)
+           CALL pair_potential_reallocate(inp_info%nonbonded,1,ntot+nlj,lj=.TRUE.,error=error)
            CALL read_lj_section(inp_info%nonbonded,tmp_section2,ntot,error)
         END IF
         tmp_section2 => section_vals_get_subs_vals(tmp_section,"WILLIAMS",error=error)
         CALL section_vals_get(tmp_section2,explicit=explicit,n_repetition=nwl,error=error)
         ntot=nlj
         IF (explicit) THEN
-           CALL reallocate_potparm(inp_info%nonbonded,1,ntot+nwl)
+           CALL pair_potential_reallocate(inp_info%nonbonded,1,ntot+nwl,williams=.TRUE.,error=error)
            CALL read_wl_section(inp_info%nonbonded,tmp_section2,ntot,error)
         END IF        
         tmp_section2 => section_vals_get_subs_vals(tmp_section,"EAM",error=error)
         CALL section_vals_get(tmp_section2,explicit=explicit,n_repetition=neam,error=error)
         ntot=nlj+nwl
         IF (explicit) THEN
-           CALL reallocate_potparm(inp_info%nonbonded,1,ntot+neam)
+           CALL pair_potential_reallocate(inp_info%nonbonded,1,ntot+neam,eam=.TRUE.,error=error)
            CALL read_eam_section(inp_info%nonbonded,tmp_section2,ntot,globenv,error)
         END IF
         tmp_section2 => section_vals_get_subs_vals(tmp_section,"GOODWIN",error=error)
         CALL section_vals_get(tmp_section2,explicit=explicit,n_repetition=ngd,error=error)
         ntot=nlj+nwl+neam
         IF (explicit) THEN
-           CALL reallocate_potparm(inp_info%nonbonded,1,ntot+ngd)
+           CALL pair_potential_reallocate(inp_info%nonbonded,1,ntot+ngd,goodwin=.TRUE.,error=error)
            CALL read_gd_section(inp_info%nonbonded,tmp_section2,ntot,error)
         END IF        
         tmp_section2 => section_vals_get_subs_vals(tmp_section,"IPBV",error=error)
         CALL section_vals_get(tmp_section2,explicit=explicit,n_repetition=nipbv,error=error)
         ntot=nlj+nwl+neam+ngd
         IF (explicit) THEN
-           CALL reallocate_potparm(inp_info%nonbonded,1,ntot+nipbv)
+           CALL pair_potential_reallocate(inp_info%nonbonded,1,ntot+nipbv,ipbv=.TRUE.,error=error)
            CALL read_ipbv_section(inp_info%nonbonded,tmp_section2,ntot,error)
         END IF
         tmp_section2 => section_vals_get_subs_vals(tmp_section,"BMHFT",error=error)
         CALL section_vals_get(tmp_section2,explicit=explicit,n_repetition=nbmhft,error=error)
         ntot=nlj+nwl+neam+ngd
         IF (explicit) THEN
-           CALL reallocate_potparm(inp_info%nonbonded,1,ntot+nbmhft)
+           CALL pair_potential_reallocate(inp_info%nonbonded,1,ntot+nbmhft,bmhft=.TRUE.,error=error)
            CALL read_bmhft_section(inp_info%nonbonded,tmp_section2,ntot,error)
         END IF
      END IF
@@ -406,21 +410,21 @@ SUBROUTINE read_force_field_new_section ( ff_section, ff_type, globenv, error )
         CALL section_vals_get(tmp_section2,explicit=explicit,n_repetition=nlj,error=error)
         ntot = 0
         IF (explicit) THEN
-           CALL reallocate_potparm(inp_info%nonbonded14,1,ntot+nlj)
+           CALL pair_potential_reallocate(inp_info%nonbonded14,1,ntot+nlj,lj=.TRUE.,error=error)
            CALL read_lj_section(inp_info%nonbonded14,tmp_section2,ntot,error)
         END IF
         tmp_section2 => section_vals_get_subs_vals(tmp_section,"WILLIAMS",error=error)
         CALL section_vals_get(tmp_section2,explicit=explicit,n_repetition=nwl,error=error)
         ntot=nlj
         IF (explicit) THEN
-           CALL reallocate_potparm(inp_info%nonbonded14,1,ntot+nwl)
+           CALL pair_potential_reallocate(inp_info%nonbonded14,1,ntot+nwl, williams=.TRUE.,error=error)
            CALL read_wl_section(inp_info%nonbonded14,tmp_section2,ntot,error)
         END IF        
         tmp_section2 => section_vals_get_subs_vals(tmp_section,"GOODWIN",error=error)
         CALL section_vals_get(tmp_section2,explicit=explicit,n_repetition=ngd,error=error)
         ntot=nlj+nwl
         IF (explicit) THEN
-           CALL reallocate_potparm(inp_info%nonbonded14,1,ntot+ngd)
+           CALL pair_potential_reallocate(inp_info%nonbonded14,1,ntot+ngd, goodwin=.TRUE.,error=error)
            CALL read_gd_section(inp_info%nonbonded14,tmp_section2,ntot,error)
         END IF        
      END IF
@@ -474,127 +478,172 @@ SUBROUTINE read_force_field_new_section ( ff_section, ff_type, globenv, error )
 
 END SUBROUTINE read_force_field_new_section
 
-
+!******************************************************************************
+!!****** force_fields/set_IPBV_ff [1.0] *
+!!
+!!   NAME
+!!     set_IPBV_ff
+!!
+!!   FUNCTION
+!!     Set up of the IPBV force fields
+!!
+!!   AUTHOR
+!!     teo
+!!
+!!   MODIFICATION HISTORY
+!!
+!!   SOURCE
+!******************************************************************************
 SUBROUTINE set_IPBV_ff(at1, at2, nonbonded )
   IMPLICIT NONE
   ! Arguments
-  CHARACTER (LEN=*), INTENT(IN) :: at1, at2
-  TYPE (pair_potential_type)            :: nonbonded
+  CHARACTER (LEN=*), INTENT(IN)         :: at1, at2
+  TYPE (pair_potential_single_type), POINTER     :: nonbonded
   ! Local Variables
 
   IF  ( ( at1(1:1) == 'O' ) .AND. ( at2 (1:1) == 'O' ) ) THEN
-     nonbonded %ipbv%rcore = 0.9_dp       ! a.u.
-     nonbonded %ipbv%m = 0.0_dp           ! Kelvin/a.u. 
-     nonbonded %ipbv%b = 1.0e23_dp        ! Hartree
+     nonbonded%ipbv%rcore = 0.9_dp       ! a.u.
+     nonbonded%ipbv%m = 0.0_dp           ! Kelvin/a.u. 
+     nonbonded%ipbv%b = 1.0e23_dp        ! Hartree
      ! Hartree*a.u.^2
-     nonbonded %ipbv% a ( 2 ) = 4.786380682394_dp 
-     nonbonded %ipbv% a ( 3 ) = -1543.407053545_dp
-     nonbonded %ipbv% a ( 4 ) = 88783.31188529_dp
-     nonbonded %ipbv% a ( 5 ) = -2361200.155376_dp
-     nonbonded %ipbv% a ( 6 ) = 35940504.84679_dp
-     nonbonded %ipbv% a ( 7 ) = -339762743.6358_dp
-     nonbonded %ipbv% a ( 8 ) = 2043874926.466_dp
-     nonbonded %ipbv% a ( 9 ) = -7654856796.383_dp
-     nonbonded %ipbv% a ( 10 ) = 16195251405.65_dp
-     nonbonded %ipbv% a ( 11 ) = -13140392992.18_dp
-     nonbonded %ipbv% a ( 12 ) = -9285572894.245_dp 
-     nonbonded %ipbv% a ( 13 ) = 8756947519.029_dp
-     nonbonded %ipbv% a ( 14 ) = 15793297761.67_dp
-     nonbonded %ipbv% a ( 15 ) = 12917180227.21_dp
+     nonbonded%ipbv% a ( 2 ) = 4.786380682394_dp 
+     nonbonded%ipbv% a ( 3 ) = -1543.407053545_dp
+     nonbonded%ipbv% a ( 4 ) = 88783.31188529_dp
+     nonbonded%ipbv% a ( 5 ) = -2361200.155376_dp
+     nonbonded%ipbv% a ( 6 ) = 35940504.84679_dp
+     nonbonded%ipbv% a ( 7 ) = -339762743.6358_dp
+     nonbonded%ipbv% a ( 8 ) = 2043874926.466_dp
+     nonbonded%ipbv% a ( 9 ) = -7654856796.383_dp
+     nonbonded%ipbv% a ( 10 ) = 16195251405.65_dp
+     nonbonded%ipbv% a ( 11 ) = -13140392992.18_dp
+     nonbonded%ipbv% a ( 12 ) = -9285572894.245_dp 
+     nonbonded%ipbv% a ( 13 ) = 8756947519.029_dp
+     nonbonded%ipbv% a ( 14 ) = 15793297761.67_dp
+     nonbonded%ipbv% a ( 15 ) = 12917180227.21_dp
   ELSEIF(((at1(1:1) == 'O').AND.(at2 (1:1) == 'H')).OR.&
          ((at1(1:1) == 'H').AND.(at2 (1:1) == 'O')))  THEN
-     nonbonded %ipbv%rcore = 2.95_dp       ! a.u.
-     nonbonded %ipbv%m =  -0.00437054E0_dp ! Hartree/a.u. 
-     nonbonded %ipbv%b =  0.0313652_dp     ! Hartree
+     nonbonded%ipbv%rcore = 2.95_dp       ! a.u.
+     nonbonded%ipbv%m =  -0.00437054E0_dp ! Hartree/a.u. 
+     nonbonded%ipbv%b =  0.0313652_dp     ! Hartree
      ! Hartree*a.u.^2
-     nonbonded %ipbv% a ( 2 ) = -195.7716013277_dp
-     nonbonded %ipbv% a ( 3 ) = 15343.78613395_dp
-     nonbonded %ipbv% a ( 4 ) = -530864.4586516_dp
-     nonbonded %ipbv% a ( 5 ) = 10707934.39058_dp
-     nonbonded %ipbv% a ( 6 ) = -140099704.7890_dp
-     nonbonded %ipbv% a ( 7 ) = 1250943273.785_dp
-     nonbonded %ipbv% a ( 8 ) = -7795458330.676_dp
-     nonbonded %ipbv% a ( 9 ) = 33955897217.31_dp
-     nonbonded %ipbv% a ( 10 ) = -101135640744.0_dp
-     nonbonded %ipbv% a ( 11 ) = 193107995718.7_dp
-     nonbonded %ipbv% a ( 12 ) = -193440560940.0_dp
-     nonbonded %ipbv% a ( 13 ) =-4224406093.918E0_dp
-     nonbonded %ipbv% a ( 14 ) = 217192386506.5E0_dp 
-     nonbonded %ipbv% a ( 15 ) = -157581228915.5_dp
+     nonbonded%ipbv% a ( 2 ) = -195.7716013277_dp
+     nonbonded%ipbv% a ( 3 ) = 15343.78613395_dp
+     nonbonded%ipbv% a ( 4 ) = -530864.4586516_dp
+     nonbonded%ipbv% a ( 5 ) = 10707934.39058_dp
+     nonbonded%ipbv% a ( 6 ) = -140099704.7890_dp
+     nonbonded%ipbv% a ( 7 ) = 1250943273.785_dp
+     nonbonded%ipbv% a ( 8 ) = -7795458330.676_dp
+     nonbonded%ipbv% a ( 9 ) = 33955897217.31_dp
+     nonbonded%ipbv% a ( 10 ) = -101135640744.0_dp
+     nonbonded%ipbv% a ( 11 ) = 193107995718.7_dp
+     nonbonded%ipbv% a ( 12 ) = -193440560940.0_dp
+     nonbonded%ipbv% a ( 13 ) =-4224406093.918E0_dp
+     nonbonded%ipbv% a ( 14 ) = 217192386506.5E0_dp 
+     nonbonded%ipbv% a ( 15 ) = -157581228915.5_dp
   ELSEIF ( ( at1(1:1) == 'H' ) .AND. ( at2 (1:1) == 'H' ) ) THEN
-     nonbonded %ipbv%rcore = 3.165_dp     ! a.u.
-     nonbonded %ipbv%m = 0.00377391E0_dp  ! Hartree/a.u. 
-     nonbonded %ipbv%b = -0.02062040_dp   ! Hartree
+     nonbonded%ipbv%rcore = 3.165_dp     ! a.u.
+     nonbonded%ipbv%m = 0.00377391E0_dp  ! Hartree/a.u. 
+     nonbonded%ipbv%b = -0.02062040_dp   ! Hartree
      ! Hartree*a.u.^2
-     nonbonded %ipbv% a ( 2 ) = -26.29456010782_dp
-     nonbonded %ipbv% a ( 3 ) =  2373.352548248_dp
-     nonbonded %ipbv% a ( 4 ) = -93880.43551360_dp
-     nonbonded %ipbv% a ( 5 ) =  2154624.884809_dp
-     nonbonded %ipbv% a ( 6 ) = -31965151.34955_dp
-     nonbonded %ipbv% a ( 7 ) = 322781785.3278_dp
-     nonbonded %ipbv% a ( 8 ) = -2271097368.668_dp
-     nonbonded %ipbv% a ( 9 ) = 11169163192.90_dp
-     nonbonded %ipbv% a ( 10 ) =-37684457778.47_dp
-     nonbonded %ipbv% a ( 11 ) = 82562104256.03_dp
-     nonbonded %ipbv% a ( 12 ) = -100510435213.4_dp
-     nonbonded %ipbv% a ( 13 ) = 24570342714.65E0_dp 
-     nonbonded %ipbv% a ( 14 ) = 88766181532.94E0_dp
-     nonbonded %ipbv% a ( 15 ) = -79705131323.98_dp
+     nonbonded%ipbv% a ( 2 ) = -26.29456010782_dp
+     nonbonded%ipbv% a ( 3 ) =  2373.352548248_dp
+     nonbonded%ipbv% a ( 4 ) = -93880.43551360_dp
+     nonbonded%ipbv% a ( 5 ) =  2154624.884809_dp
+     nonbonded%ipbv% a ( 6 ) = -31965151.34955_dp
+     nonbonded%ipbv% a ( 7 ) = 322781785.3278_dp
+     nonbonded%ipbv% a ( 8 ) = -2271097368.668_dp
+     nonbonded%ipbv% a ( 9 ) = 11169163192.90_dp
+     nonbonded%ipbv% a ( 10 ) =-37684457778.47_dp
+     nonbonded%ipbv% a ( 11 ) = 82562104256.03_dp
+     nonbonded%ipbv% a ( 12 ) = -100510435213.4_dp
+     nonbonded%ipbv% a ( 13 ) = 24570342714.65E0_dp 
+     nonbonded%ipbv% a ( 14 ) = 88766181532.94E0_dp
+     nonbonded%ipbv% a ( 15 ) = -79705131323.98_dp
   ELSE
      CALL stop_program ("input_nonbonded","IPBV only for WATER")
   ENDIF
-
 END SUBROUTINE set_IPBV_ff
 
+!******************************************************************************
+!!****** force_fields/set_BMHFT_ff [1.0] *
+!!
+!!   NAME
+!!     set_BMHFT_ff
+!!
+!!   FUNCTION
+!!     Set up of the BMHFT force fields
+!!
+!!   AUTHOR
+!!     teo
+!!
+!!   MODIFICATION HISTORY
+!!
+!!   SOURCE
+!******************************************************************************
 SUBROUTINE set_BMHFT_ff(at1, at2, nonbonded )
   IMPLICIT NONE
   ! Arguments
   CHARACTER (LEN=*), INTENT(IN) :: at1, at2
-  TYPE (pair_potential_type)            :: nonbonded
+  TYPE (pair_potential_single_type), POINTER :: nonbonded
   ! Local Variables
 
-  nonbonded %ft%b =  3.1545_dp     ! Ang^-1
-  CALL convert_to_cp2k_units ( "ANGSTROM", length =  nonbonded %ft%b , l_power = -1  )
+  nonbonded%ft%b =  3.1545_dp     ! Ang^-1
+  CALL convert_to_cp2k_units ( "ANGSTROM", length =  nonbonded%ft%b , l_power = -1  )
   IF  ( ( at1(1:2) == 'NA' ) .AND. ( at2 (1:2) == 'NA' ) ) THEN
-     nonbonded %ft%a = 424.097_dp  ! eV
-     CALL convert_to_cp2k_units ( "EV", energy = nonbonded %ft%a )
-     nonbonded %ft%c =    1.05_dp  ! eV * Ang^6
-     CALL convert_to_cp2k_units ( "EV", energy = nonbonded %ft%c )
-     CALL convert_to_cp2k_units ( "ANGSTROM", length =  nonbonded %ft%c , l_power = 6  )
-     nonbonded %ft%d =   0.499_dp  ! eV * Ang^8
-     CALL convert_to_cp2k_units ( "EV", energy = nonbonded %ft%d )
-     CALL convert_to_cp2k_units ( "ANGSTROM", length =  nonbonded %ft%d , l_power = 8  )
+     nonbonded%ft%a = 424.097_dp  ! eV
+     CALL convert_to_cp2k_units ( "EV", energy = nonbonded%ft%a )
+     nonbonded%ft%c =    1.05_dp  ! eV * Ang^6
+     CALL convert_to_cp2k_units ( "EV", energy = nonbonded%ft%c )
+     CALL convert_to_cp2k_units ( "ANGSTROM", length =  nonbonded%ft%c , l_power = 6  )
+     nonbonded%ft%d =   0.499_dp  ! eV * Ang^8
+     CALL convert_to_cp2k_units ( "EV", energy = nonbonded%ft%d )
+     CALL convert_to_cp2k_units ( "ANGSTROM", length =  nonbonded%ft%d , l_power = 8  )
   ELSEIF(((at1(1:2) == 'NA').AND.(at2(1:2) == 'CL')).OR.&
          ((at1(1:2) == 'CL').AND.(at2(1:2) == 'NA'))) THEN
-     nonbonded %ft%a = 1256.31_dp  ! eV        
-     CALL convert_to_cp2k_units ( "EV", energy = nonbonded %ft%a )
-     nonbonded %ft%c =    7.00_dp  ! eV * Ang^6
-     CALL convert_to_cp2k_units ( "EV", energy = nonbonded %ft%c )
-     CALL convert_to_cp2k_units ( "ANGSTROM", length =  nonbonded %ft%c , l_power = 6  )
-     nonbonded %ft%d =   8.676_dp  ! eV * Ang^8
-     CALL convert_to_cp2k_units ( "EV", energy = nonbonded %ft%d )
-     CALL convert_to_cp2k_units ( "ANGSTROM", length =  nonbonded %ft%d , l_power = 8  )
+     nonbonded%ft%a = 1256.31_dp  ! eV        
+     CALL convert_to_cp2k_units ( "EV", energy = nonbonded%ft%a )
+     nonbonded%ft%c =    7.00_dp  ! eV * Ang^6
+     CALL convert_to_cp2k_units ( "EV", energy = nonbonded%ft%c )
+     CALL convert_to_cp2k_units ( "ANGSTROM", length =  nonbonded%ft%c , l_power = 6  )
+     nonbonded%ft%d =   8.676_dp  ! eV * Ang^8
+     CALL convert_to_cp2k_units ( "EV", energy = nonbonded%ft%d )
+     CALL convert_to_cp2k_units ( "ANGSTROM", length =  nonbonded%ft%d , l_power = 8  )
   ELSEIF ( ( at1(1:2) == 'CL' ) .AND. ( at2 (1:2) == 'CL' ) ) THEN
-     nonbonded %ft%a = 3488.998_dp ! eV        
-     CALL convert_to_cp2k_units ( "EV", energy = nonbonded %ft%a )
-     nonbonded %ft%c =    72.50_dp ! eV * Ang^6
-     CALL convert_to_cp2k_units ( "EV", energy = nonbonded %ft%c )
-     CALL convert_to_cp2k_units ( "ANGSTROM", length =  nonbonded %ft%c , l_power = 6  )
-     nonbonded %ft%d =  145.427_dp ! eV * Ang^8
-     CALL convert_to_cp2k_units ( "EV", energy = nonbonded %ft%d )
-     CALL convert_to_cp2k_units ( "ANGSTROM", length =  nonbonded %ft%d , l_power = 8  )
+     nonbonded%ft%a = 3488.998_dp ! eV        
+     CALL convert_to_cp2k_units ( "EV", energy = nonbonded%ft%a )
+     nonbonded%ft%c =    72.50_dp ! eV * Ang^6
+     CALL convert_to_cp2k_units ( "EV", energy = nonbonded%ft%c )
+     CALL convert_to_cp2k_units ( "ANGSTROM", length =  nonbonded%ft%c , l_power = 6  )
+     nonbonded%ft%d =  145.427_dp ! eV * Ang^8
+     CALL convert_to_cp2k_units ( "EV", energy = nonbonded%ft%d )
+     CALL convert_to_cp2k_units ( "ANGSTROM", length =  nonbonded%ft%d , l_power = 8  )
   ELSE
      CALL stop_program ("input_nonbonded","BMHFT only for NaCl")
   ENDIF
   
 END SUBROUTINE set_BMHFT_ff
 
-
+!******************************************************************************
+!!****** force_fields/read_eam_section [1.0] *
+!!
+!!   NAME
+!!     read_eam_section
+!!
+!!   FUNCTION
+!!     Reads the EAM section
+!!
+!!   AUTHOR
+!!     teo
+!!
+!!   MODIFICATION HISTORY
+!!
+!!   SOURCE
+!******************************************************************************
 SUBROUTINE read_eam_section(nonbonded, section, start, globenv, error)
   IMPLICIT NONE
   ! Arguments
-  TYPE(section_vals_type), POINTER                  :: section
-  TYPE (pair_potential_type), POINTER, DIMENSION(:) :: nonbonded
+  TYPE (section_vals_type), POINTER                  :: section
+  TYPE (pair_potential_p_type), POINTER              :: nonbonded
   INTEGER, INTENT(IN) :: start
   TYPE(global_environment_type), &
        INTENT(IN),OPTIONAL                    :: globenv
@@ -610,22 +659,37 @@ SUBROUTINE read_eam_section(nonbonded, section, start, globenv, error)
   DO isec = 1, n_items
      CALL section_vals_val_get(section,"ATOM",i_rep_section=isec,c_vals=atm_names,error=error)
 
-     nonbonded(start+isec) %type = "EAM"
-     nonbonded(start+isec) %at1 = atm_names(1)
-     nonbonded(start+isec) %at2 = atm_names(2)
+     nonbonded%pot(start+isec)%pot %type = "EAM"
+     nonbonded%pot(start+isec)%pot %at1 = atm_names(1)
+     nonbonded%pot(start+isec)%pot %at2 = atm_names(2)
      CALL section_vals_val_get(section,"PARMFILE",i_rep_section=isec,&
-          c_val=nonbonded(start+isec)%eam%eam_file_name,error=error)
-     CALL read_eam_data ( nonbonded(start+isec)%eam, globenv )
-     nonbonded(start+isec) %rcutsq  = nonbonded(start+isec)%eam%acutal**2
+          c_val=nonbonded%pot(start+isec)%pot%eam%eam_file_name,error=error)
+     CALL read_eam_data ( nonbonded%pot(start+isec)%pot%eam, globenv, error)
+     nonbonded%pot(start+isec)%pot%rcutsq  = nonbonded%pot(start+isec)%pot%eam%acutal**2
   END DO
 END SUBROUTINE read_eam_section
 
-
+!******************************************************************************
+!!****** force_fields/read_lj_section [1.0] *
+!!
+!!   NAME
+!!     read_lj_section
+!!
+!!   FUNCTION
+!!     Reads the LJ section
+!!
+!!   AUTHOR
+!!     teo
+!!
+!!   MODIFICATION HISTORY
+!!
+!!   SOURCE
+!******************************************************************************
 SUBROUTINE read_lj_section(nonbonded, section, start, error)
   IMPLICIT NONE
   ! Arguments
   TYPE(section_vals_type), POINTER                  :: section
-  TYPE (pair_potential_type), POINTER, DIMENSION(:) :: nonbonded
+  TYPE (pair_potential_p_type), POINTER             :: nonbonded
   INTEGER, INTENT(IN) :: start
   TYPE(cp_error_type), INTENT(inout), &
        OPTIONAL                               :: error    
@@ -643,22 +707,37 @@ SUBROUTINE read_lj_section(nonbonded, section, start, error)
      CALL section_vals_val_get(section,"SIGMA",i_rep_section=isec,r_val=sigma,error=error)
      CALL section_vals_val_get(section,"RCUT",i_rep_section=isec,r_val=rcut,error=error)
 
-     nonbonded(start+isec) %type = "LENNARD-JONES"
-     nonbonded(start+isec) %at1 = atm_names(1)
-     nonbonded(start+isec) %at2 = atm_names(2)
-     nonbonded(start+isec) %lj%epsilon = epsilon
-     nonbonded(start+isec) %lj%sigma6  = sigma**6
-     nonbonded(start+isec) %lj%sigma12 = sigma**12
-     nonbonded(start+isec) %rcutsq = rcut*rcut
+     nonbonded%pot(start+isec)%pot %type = "LENNARD-JONES"
+     nonbonded%pot(start+isec)%pot %at1 = atm_names(1)
+     nonbonded%pot(start+isec)%pot %at2 = atm_names(2)
+     nonbonded%pot(start+isec)%pot %lj%epsilon = epsilon
+     nonbonded%pot(start+isec)%pot %lj%sigma6  = sigma**6
+     nonbonded%pot(start+isec)%pot %lj%sigma12 = sigma**12
+     nonbonded%pot(start+isec)%pot %rcutsq = rcut*rcut
   END DO
 END SUBROUTINE read_lj_section
 
-
+!******************************************************************************
+!!****** force_fields/read_wl_section [1.0] *
+!!
+!!   NAME
+!!     read_wl_section
+!!
+!!   FUNCTION
+!!     Reads the WILLIAMS section
+!!
+!!   AUTHOR
+!!     teo
+!!
+!!   MODIFICATION HISTORY
+!!
+!!   SOURCE
+!******************************************************************************
 SUBROUTINE read_wl_section(nonbonded, section, start, error)
   IMPLICIT NONE
   ! Arguments
-  TYPE(section_vals_type), POINTER                  :: section
-  TYPE (pair_potential_type), POINTER, DIMENSION(:) :: nonbonded
+  TYPE(section_vals_type), POINTER                    :: section
+  TYPE (pair_potential_p_type), POINTER               :: nonbonded
   INTEGER, INTENT(IN) :: start
   TYPE(cp_error_type), INTENT(inout), &
        OPTIONAL                               :: error    
@@ -677,22 +756,37 @@ SUBROUTINE read_wl_section(nonbonded, section, start, error)
      CALL section_vals_val_get(section,"C",i_rep_section=isec,r_val=c,error=error)
      CALL section_vals_val_get(section,"RCUT",i_rep_section=isec,r_val=rcut,error=error)
 
-     nonbonded(start+isec) %type = "WILLIAMS"
-     nonbonded(start+isec) %at1 = atm_names(1)
-     nonbonded(start+isec) %at2 = atm_names(2)
-     nonbonded(start+isec) %willis%a = a
-     nonbonded(start+isec) %willis%b = b
-     nonbonded(start+isec) %willis%c = c
-     nonbonded(start+isec) %rcutsq = rcut*rcut
+     nonbonded%pot(start+isec)%pot %type = "WILLIAMS"
+     nonbonded%pot(start+isec)%pot %at1 = atm_names(1)
+     nonbonded%pot(start+isec)%pot %at2 = atm_names(2)
+     nonbonded%pot(start+isec)%pot %willis%a = a
+     nonbonded%pot(start+isec)%pot %willis%b = b
+     nonbonded%pot(start+isec)%pot %willis%c = c
+     nonbonded%pot(start+isec)%pot %rcutsq = rcut*rcut
   END DO
 END SUBROUTINE read_wl_section
 
-
+!******************************************************************************
+!!****** force_fields/read_gd_section [1.0] *
+!!
+!!   NAME
+!!     read_gd_section
+!!
+!!   FUNCTION
+!!     Reads the GOODWIN section
+!!
+!!   AUTHOR
+!!     teo
+!!
+!!   MODIFICATION HISTORY
+!!
+!!   SOURCE
+!******************************************************************************
 SUBROUTINE read_gd_section(nonbonded, section, start, error)
   IMPLICIT NONE
   ! Arguments
-  TYPE(section_vals_type), POINTER                  :: section
-  TYPE (pair_potential_type), POINTER, DIMENSION(:) :: nonbonded
+  TYPE(section_vals_type), POINTER                   :: section
+  TYPE (pair_potential_p_type), POINTER              :: nonbonded
   INTEGER, INTENT(IN) :: start
   TYPE(cp_error_type), INTENT(inout), &
        OPTIONAL                               :: error    
@@ -714,24 +808,39 @@ SUBROUTINE read_gd_section(nonbonded, section, start, error)
      CALL section_vals_val_get(section,"MC",i_rep_section=isec,i_val=mc,error=error)
      CALL section_vals_val_get(section,"RCUT",i_rep_section=isec,r_val=rcut,error=error)
 
-     nonbonded(start+isec) %type = "GOODWIN"
-     nonbonded(start+isec) %at1 = atm_names(1)
-     nonbonded(start+isec) %at2 = atm_names(2)
-     nonbonded(start+isec) %goodwin%vr0 = vr0
-     nonbonded(start+isec) %goodwin%d = d
-     nonbonded(start+isec) %goodwin%dc = dc
-     nonbonded(start+isec) %goodwin%m = m
-     nonbonded(start+isec) %goodwin%mc = mc
-     nonbonded(start+isec) %rcutsq = rcut*rcut
+     nonbonded%pot(start+isec)%pot %type = "GOODWIN"
+     nonbonded%pot(start+isec)%pot %at1 = atm_names(1)
+     nonbonded%pot(start+isec)%pot %at2 = atm_names(2)
+     nonbonded%pot(start+isec)%pot %goodwin%vr0 = vr0
+     nonbonded%pot(start+isec)%pot %goodwin%d = d
+     nonbonded%pot(start+isec)%pot %goodwin%dc = dc
+     nonbonded%pot(start+isec)%pot %goodwin%m = m
+     nonbonded%pot(start+isec)%pot %goodwin%mc = mc
+     nonbonded%pot(start+isec)%pot %rcutsq = rcut*rcut
   END DO  
 END SUBROUTINE read_gd_section
 
-
+!******************************************************************************
+!!****** force_fields/read_ipbv_section [1.0] *
+!!
+!!   NAME
+!!     read_ipbv_section
+!!
+!!   FUNCTION
+!!     Reads the IPBV section
+!!
+!!   AUTHOR
+!!     teo
+!!
+!!   MODIFICATION HISTORY
+!!
+!!   SOURCE
+!******************************************************************************
 SUBROUTINE read_ipbv_section(nonbonded, section, start, error)
   IMPLICIT NONE
   ! Arguments
   TYPE(section_vals_type), POINTER                  :: section
-  TYPE (pair_potential_type), POINTER, DIMENSION(:) :: nonbonded
+  TYPE (pair_potential_p_type), POINTER             :: nonbonded
   INTEGER, INTENT(IN) :: start
   TYPE(cp_error_type), INTENT(inout), &
        OPTIONAL                               :: error    
@@ -745,20 +854,36 @@ SUBROUTINE read_ipbv_section(nonbonded, section, start, error)
   CALL section_vals_get(section,n_repetition=n_items,error=error)
   DO isec = 1, n_items         
      CALL section_vals_val_get(section,"ATOM",i_rep_section=isec,c_vals=atm_names,error=error)
-     nonbonded(start+isec) %type = "IPBV"
-     nonbonded(start+isec) %at1  = atm_names(1)
-     nonbonded(start+isec) %at2  = atm_names(2)
-     CALL set_IPBV_ff(nonbonded(start+isec) %at1, nonbonded(start+isec) %at2, nonbonded(start+isec) )
+     nonbonded%pot(start+isec)%pot %type = "IPBV"
+     nonbonded%pot(start+isec)%pot %at1  = atm_names(1)
+     nonbonded%pot(start+isec)%pot %at2  = atm_names(2)
+     CALL set_IPBV_ff(nonbonded%pot(start+isec)%pot %at1, nonbonded%pot(start+isec)%pot %at2, nonbonded%pot(start+isec)%pot )
      CALL section_vals_val_get(section,"RCUT",i_rep_section=isec,r_val=rcut,error=error)
-     nonbonded(start+isec)%rcutsq     = rcut**2
+     nonbonded%pot(start+isec)%pot%rcutsq     = rcut**2
   END DO
 END SUBROUTINE read_ipbv_section
 
+!******************************************************************************
+!!****** force_fields/read_bmhft_section [1.0] *
+!!
+!!   NAME
+!!     read_bmhft_section
+!!
+!!   FUNCTION
+!!     Reads the BMHFT section
+!!
+!!   AUTHOR
+!!     teo
+!!
+!!   MODIFICATION HISTORY
+!!
+!!   SOURCE
+!******************************************************************************
 SUBROUTINE read_bmhft_section(nonbonded, section, start, error)
   IMPLICIT NONE
   ! Arguments
-  TYPE(section_vals_type), POINTER                  :: section
-  TYPE (pair_potential_type), POINTER, DIMENSION(:) :: nonbonded
+  TYPE(section_vals_type), POINTER                    :: section
+  TYPE (pair_potential_p_type), POINTER               :: nonbonded
   INTEGER, INTENT(IN) :: start
   TYPE(cp_error_type), INTENT(inout), &
        OPTIONAL                               :: error    
@@ -772,15 +897,31 @@ SUBROUTINE read_bmhft_section(nonbonded, section, start, error)
   CALL section_vals_get(section,n_repetition=n_items,error=error)
   DO isec = 1, n_items         
      CALL section_vals_val_get(section,"ATOM",i_rep_section=isec,c_vals=atm_names,error=error)
-     nonbonded(start+isec) %type = "BMHFT"
-     nonbonded(start+isec) %at1  = atm_names(1)
-     nonbonded(start+isec) %at2  = atm_names(2)
-     CALL set_BMHFT_ff(nonbonded(start+isec) %at1, nonbonded(start+isec) %at2, nonbonded(start+isec) )
+     nonbonded%pot(start+isec)%pot %type = "BMHFT"
+     nonbonded%pot(start+isec)%pot %at1  = atm_names(1)
+     nonbonded%pot(start+isec)%pot %at2  = atm_names(2)
+     CALL set_BMHFT_ff(nonbonded%pot(start+isec)%pot %at1, nonbonded%pot(start+isec)%pot %at2, nonbonded%pot(start+isec)%pot )
      CALL section_vals_val_get(section,"RCUT",i_rep_section=isec,r_val=rcut,error=error)
-     nonbonded(start+isec)%rcutsq     = rcut**2
+     nonbonded%pot(start+isec)%pot%rcutsq     = rcut**2
   END DO
 END SUBROUTINE read_bmhft_section
 
+!******************************************************************************
+!!****** force_fields/read_chrg_section [1.0] *
+!!
+!!   NAME
+!!     read_chrg_section
+!!
+!!   FUNCTION
+!!     Reads the CHARGE section
+!!
+!!   AUTHOR
+!!     teo
+!!
+!!   MODIFICATION HISTORY
+!!
+!!   SOURCE
+!******************************************************************************
 SUBROUTINE read_chrg_section(charge_atm, charge, section, start, error)
   IMPLICIT NONE
   ! Arguments
@@ -804,6 +945,22 @@ SUBROUTINE read_chrg_section(charge_atm, charge, section, start, error)
   END DO
 END SUBROUTINE read_chrg_section
 
+!******************************************************************************
+!!****** force_fields/read_bonds_section [1.0] *
+!!
+!!   NAME
+!!     read_bonds_section
+!!
+!!   FUNCTION
+!!     Reads the BONDS section
+!!
+!!   AUTHOR
+!!     teo
+!!
+!!   MODIFICATION HISTORY
+!!
+!!   SOURCE
+!******************************************************************************
 SUBROUTINE read_bonds_section(bond_a, bond_b, bond_k, bond_r0, section, start, error)
   IMPLICIT NONE
   ! Arguments
@@ -840,6 +997,22 @@ SUBROUTINE read_bonds_section(bond_a, bond_b, bond_k, bond_r0, section, start, e
   END DO     
 END SUBROUTINE read_bonds_section
 
+!******************************************************************************
+!!****** force_fields/read_bends_section [1.0] *
+!!
+!!   NAME
+!!     read_bends_section
+!!
+!!   FUNCTION
+!!     Reads the BENDS section
+!!
+!!   AUTHOR
+!!     teo
+!!
+!!   MODIFICATION HISTORY
+!!
+!!   SOURCE
+!******************************************************************************
 SUBROUTINE read_bends_section(bend_a, bend_b, bend_c, bend_k, bend_theta0, section, start, error)
   IMPLICIT NONE
   ! Arguments
@@ -875,6 +1048,22 @@ SUBROUTINE read_bends_section(bend_a, bend_b, bend_c, bend_k, bend_theta0, secti
   END DO     
 END SUBROUTINE read_bends_section
 
+!******************************************************************************
+!!****** force_fields/read_torsions_section [1.0] *
+!!
+!!   NAME
+!!     read_torsions_section
+!!
+!!   FUNCTION
+!!     Reads the TORSIONS section
+!!
+!!   AUTHOR
+!!     teo
+!!
+!!   MODIFICATION HISTORY
+!!
+!!   SOURCE
+!******************************************************************************
 SUBROUTINE read_torsions_section( torsion_a, torsion_b, torsion_c, torsion_d, torsion_k,&
      torsion_cosphi0, torsion_m, section, start, error )
   IMPLICIT NONE
@@ -913,7 +1102,6 @@ SUBROUTINE read_torsions_section( torsion_a, torsion_b, torsion_c, torsion_d, to
   END DO       
 END SUBROUTINE read_torsions_section
 
-
 !******************************************************************************
 !!****** force_fields/read_force_field_section [1.0] *
 !!
@@ -932,7 +1120,6 @@ END SUBROUTINE read_torsions_section
 !!
 !!   SOURCE
 !******************************************************************************
-
 SUBROUTINE read_force_field_section ( ff_type , globenv, error )
   IMPLICIT NONE
   ! Arguments
@@ -1006,8 +1193,8 @@ SUBROUTINE read_force_field_section ( ff_type , globenv, error )
 
      CALL parser_init(globenv%input_file_name,globenv)
      !..read in non-bonded interaction information
-     CALL input_nonbonded(ff_type,globenv)
-     CALL input_nonbonded14(ff_type,globenv)
+     CALL input_nonbonded(ff_type,globenv,error=error)
+     CALL input_nonbonded14(ff_type,globenv,error=error)
 
      !..read the charges parameters
      CALL input_charges(ff_type,globenv)
@@ -1066,12 +1253,13 @@ END SUBROUTINE read_force_field_section
 !!   SOURCE
 !******************************************************************************
 
-SUBROUTINE input_nonbonded14(ff_type,globenv)
+SUBROUTINE input_nonbonded14(ff_type,globenv,error)
 
     TYPE(force_field_type), &
       INTENT(INOUT)                          :: ff_type
     TYPE(global_environment_type), &
       INTENT(IN),OPTIONAL                    :: globenv
+    TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
 
     TYPE(input_info_type),POINTER            :: inp_info
     CHARACTER(LEN=default_string_length)     :: at1, at2
@@ -1127,7 +1315,7 @@ SUBROUTINE input_nonbonded14(ff_type,globenv)
                  CALL stop_parser( 'input_nonbonded14','unknown option')
               CASE ( 'LENNARD-JONES')
                  np = np + 1
-                 CALL reallocate_potparm(inp_info%nonbonded14,1,np)
+                 CALL pair_potential_reallocate(inp_info%nonbonded14,1,np,lj=.TRUE.,error=error)
                  ilen = 0
                  CALL get_next(at1,ilen)
                  ilen = 0
@@ -1138,16 +1326,16 @@ SUBROUTINE input_nonbonded14(ff_type,globenv)
                  CALL convert_to_cp2k_units ( "KELVIN", energy = epsilon )
                  CALL convert_to_cp2k_units ( "ANGSTROM", length = sigma )
                  CALL convert_to_cp2k_units ( "ANGSTROM", length = rcut )
-                 inp_info%nonbonded14(np) %type = string2
-                 inp_info%nonbonded14(np) %at1 = at1
-                 inp_info%nonbonded14(np) %at2 = at2
-                 inp_info%nonbonded14(np) %lj%epsilon = epsilon
-                 inp_info%nonbonded14(np) %lj%sigma6 = sigma**6
-                 inp_info%nonbonded14(np) %lj%sigma12 = sigma**12
-                 inp_info%nonbonded14(np) %rcutsq = rcut*rcut
+                 inp_info%nonbonded14%pot(np)%pot %type = string2
+                 inp_info%nonbonded14%pot(np)%pot %at1 = at1
+                 inp_info%nonbonded14%pot(np)%pot %at2 = at2
+                 inp_info%nonbonded14%pot(np)%pot %lj%epsilon = epsilon
+                 inp_info%nonbonded14%pot(np)%pot %lj%sigma6 = sigma**6
+                 inp_info%nonbonded14%pot(np)%pot %lj%sigma12 = sigma**12
+                 inp_info%nonbonded14%pot(np)%pot %rcutsq = rcut*rcut
               CASE ( 'WILLIAMS')
                  np = np + 1
-                 CALL reallocate_potparm(inp_info%nonbonded14,1,np)
+                 CALL pair_potential_reallocate(inp_info%nonbonded14,1,np,williams=.TRUE.,error=error)
                  ilen = 0
                  CALL get_next(at1,ilen)
                  ilen = 0
@@ -1161,16 +1349,16 @@ SUBROUTINE input_nonbonded14(ff_type,globenv)
                  CALL convert_to_cp2k_units ( "ANGSTROM", length = c, l_power = 6  )
                  CALL convert_to_cp2k_units ( "KELVIN", energy = c )
                  CALL convert_to_cp2k_units ( "ANGSTROM", length = rcut )
-                 inp_info%nonbonded14(np) %type = string2
-                 inp_info%nonbonded14(np) %at1 = at1
-                 inp_info%nonbonded14(np) %at2 = at2
-                 inp_info%nonbonded14(np) %willis%a = a
-                 inp_info%nonbonded14(np) %willis%b = b
-                 inp_info%nonbonded14(np) %willis%c = c
-                 inp_info%nonbonded14(np) %rcutsq = rcut*rcut
+                 inp_info%nonbonded14%pot(np)%pot %type = string2
+                 inp_info%nonbonded14%pot(np)%pot %at1 = at1
+                 inp_info%nonbonded14%pot(np)%pot %at2 = at2
+                 inp_info%nonbonded14%pot(np)%pot %willis%a = a
+                 inp_info%nonbonded14%pot(np)%pot %willis%b = b
+                 inp_info%nonbonded14%pot(np)%pot %willis%c = c
+                 inp_info%nonbonded14%pot(np)%pot %rcutsq = rcut*rcut
               CASE ( 'GOODWIN')
                  np = np + 1
-                 CALL reallocate_potparm(inp_info%nonbonded14,1,np)
+                 CALL pair_potential_reallocate(inp_info%nonbonded14,1,np,goodwin=.TRUE.,error=error)
                  ilen = 0
                  CALL get_next(at1,ilen)
                  ilen = 0
@@ -1181,15 +1369,15 @@ SUBROUTINE input_nonbonded14(ff_type,globenv)
                  CALL get_next ( m )
                  CALL get_next ( mc )
                  CALL get_next ( rcut )
-                 inp_info%nonbonded14(np) %type = string2
-                 inp_info%nonbonded14(np) %at1 = at1
-                 inp_info%nonbonded14(np) %at2 = at2
-                 inp_info%nonbonded14(np) %goodwin%vr0 = vr0
-                 inp_info%nonbonded14(np) %goodwin%d = d
-                 inp_info%nonbonded14(np) %goodwin%dc = dc
-                 inp_info%nonbonded14(np) %goodwin%m = m
-                 inp_info%nonbonded14(np) %goodwin%mc = mc
-                 inp_info%nonbonded14(np) %rcutsq = rcut*rcut
+                 inp_info%nonbonded14%pot(np)%pot %type = string2
+                 inp_info%nonbonded14%pot(np)%pot %at1 = at1
+                 inp_info%nonbonded14%pot(np)%pot %at2 = at2
+                 inp_info%nonbonded14%pot(np)%pot %goodwin%vr0 = vr0
+                 inp_info%nonbonded14%pot(np)%pot %goodwin%d = d
+                 inp_info%nonbonded14%pot(np)%pot %goodwin%dc = dc
+                 inp_info%nonbonded14%pot(np)%pot %goodwin%m = m
+                 inp_info%nonbonded14%pot(np)%pot %goodwin%mc = mc
+                 inp_info%nonbonded14%pot(np)%pot %rcutsq = rcut*rcut
               CASE ( 'END')
                  ilen = 0
                  CALL get_next(string2,ilen)
@@ -1235,12 +1423,13 @@ END SUBROUTINE input_nonbonded14
 !!   SOURCE
 !******************************************************************************
 
-SUBROUTINE input_nonbonded(ff_type,globenv)
+SUBROUTINE input_nonbonded(ff_type,globenv,error)
 
     TYPE(force_field_type), &
       INTENT(INOUT)                          :: ff_type
     TYPE(global_environment_type), &
       INTENT(IN),OPTIONAL                    :: globenv
+    TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
 
     TYPE(input_info_type),POINTER            :: inp_info
     CHARACTER(LEN=default_string_length)     :: at1, at2
@@ -1296,7 +1485,7 @@ SUBROUTINE input_nonbonded(ff_type,globenv)
                  CALL stop_parser( 'input_nonbonded','unknown option')
               CASE ( 'LENNARD-JONES')
                  np = np + 1
-                 CALL reallocate_potparm(inp_info%nonbonded,1,np)
+                 CALL pair_potential_reallocate(inp_info%nonbonded,1,np,lj=.TRUE.,error=error)
                  ilen = 0
                  CALL get_next(at1,ilen)
                  ilen = 0
@@ -1307,16 +1496,16 @@ SUBROUTINE input_nonbonded(ff_type,globenv)
                  CALL convert_to_cp2k_units ( "KELVIN", energy = epsilon )
                  CALL convert_to_cp2k_units ( "ANGSTROM", length = sigma )
                  CALL convert_to_cp2k_units ( "ANGSTROM", length = rcut )
-                 inp_info%nonbonded(np) %type = string2
-                 inp_info%nonbonded(np) %at1 = at1
-                 inp_info%nonbonded(np) %at2 = at2
-                 inp_info%nonbonded(np) %lj%epsilon = epsilon
-                 inp_info%nonbonded(np) %lj%sigma6 = sigma**6
-                 inp_info%nonbonded(np) %lj%sigma12 = sigma**12
-                 inp_info%nonbonded(np) %rcutsq = rcut*rcut
+                 inp_info%nonbonded%pot(np)%pot %type = string2
+                 inp_info%nonbonded%pot(np)%pot %at1 = at1
+                 inp_info%nonbonded%pot(np)%pot %at2 = at2
+                 inp_info%nonbonded%pot(np)%pot %lj%epsilon = epsilon
+                 inp_info%nonbonded%pot(np)%pot %lj%sigma6 = sigma**6
+                 inp_info%nonbonded%pot(np)%pot %lj%sigma12 = sigma**12
+                 inp_info%nonbonded%pot(np)%pot %rcutsq = rcut*rcut
               CASE ( 'WILLIAMS')
                  np = np + 1
-                 CALL reallocate_potparm(inp_info%nonbonded,1,np)
+                 CALL pair_potential_reallocate(inp_info%nonbonded,1,np,williams=.TRUE.,error=error)
                  ilen = 0
                  CALL get_next(at1,ilen)
                  ilen = 0
@@ -1330,32 +1519,32 @@ SUBROUTINE input_nonbonded(ff_type,globenv)
                  CALL convert_to_cp2k_units ( "ANGSTROM", length = c, l_power = 6  )
                  CALL convert_to_cp2k_units ( "KELVIN", energy = c )
                  CALL convert_to_cp2k_units ( "ANGSTROM", length = rcut )
-                 inp_info%nonbonded(np) %type = string2
-                 inp_info%nonbonded(np) %at1 = at1
-                 inp_info%nonbonded(np) %at2 = at2
-                 inp_info%nonbonded(np) %willis%a = a
-                 inp_info%nonbonded(np) %willis%b = b
-                 inp_info%nonbonded(np) %willis%c = c
-                 inp_info%nonbonded(np) %rcutsq = rcut*rcut
+                 inp_info%nonbonded%pot(np)%pot %type = string2
+                 inp_info%nonbonded%pot(np)%pot %at1 = at1
+                 inp_info%nonbonded%pot(np)%pot %at2 = at2
+                 inp_info%nonbonded%pot(np)%pot %willis%a = a
+                 inp_info%nonbonded%pot(np)%pot %willis%b = b
+                 inp_info%nonbonded%pot(np)%pot %willis%c = c
+                 inp_info%nonbonded%pot(np)%pot %rcutsq = rcut*rcut
               CASE ( 'EAM')
                  np = np + 1
-                 CALL reallocate_potparm(inp_info%nonbonded,1,np)
+                 CALL pair_potential_reallocate(inp_info%nonbonded,1,np,eam=.TRUE.,error=error)
                  ilen = 0
                  CALL get_next(at1,ilen)
                  ilen = 0
                  CALL get_next(at2,ilen)
-                 inp_info%nonbonded(np) %type = string2
-                 inp_info%nonbonded(np) %at1 = at1
-                 inp_info%nonbonded(np) %at2 = at2
+                 inp_info%nonbonded%pot(np)%pot %type = string2
+                 inp_info%nonbonded%pot(np)%pot %at1 = at1
+                 inp_info%nonbonded%pot(np)%pot %at2 = at2
                  ilen = 80
                  CALL get_next(file_name,ilen)
-                 inp_info%nonbonded(np) %eam%eam_file_name = TRIM ( file_name )
-                 CALL read_eam_data ( inp_info%nonbonded(np)%eam, globenv )
-                 inp_info%nonbonded(np) %rcutsq = inp_info%nonbonded(np)%eam%acutal* & 
-                                                  inp_info%nonbonded(np)%eam%acutal
+                 inp_info%nonbonded%pot(np)%pot%eam%eam_file_name = TRIM ( file_name )
+                 CALL read_eam_data ( inp_info%nonbonded%pot(np)%pot%eam, globenv, error)
+                 inp_info%nonbonded%pot(np)%pot %rcutsq = inp_info%nonbonded%pot(np)%pot%eam%acutal* & 
+                                                          inp_info%nonbonded%pot(np)%pot%eam%acutal
               CASE ( 'IPBV')
                  np = np + 1
-                 CALL reallocate_potparm(inp_info%nonbonded,1,np)
+                 CALL pair_potential_reallocate(inp_info%nonbonded,1,np,ipbv=.TRUE.,error=error)
                  ilen = 0
                  CALL get_next(at1,ilen)
                  ilen = 0
@@ -1365,14 +1554,14 @@ SUBROUTINE input_nonbonded(ff_type,globenv)
                  WRITE ( *, * ) '****IPBV cut-off changed to 7.8 Angstroms****'
                  rcut = 7.8_dp
                  CALL convert_to_cp2k_units ( "ANGSTROM", length = rcut )
-                 inp_info%nonbonded(np) %type = string2
-                 inp_info%nonbonded(np) %at1 = at1
-                 inp_info%nonbonded(np) %at2 = at2
-                 CALL set_IPBV_ff(at1, at2,  inp_info%nonbonded(np) )
-                 inp_info%nonbonded(np) %rcutsq = rcut*rcut
+                 inp_info%nonbonded%pot(np)%pot %type = string2
+                 inp_info%nonbonded%pot(np)%pot %at1 = at1
+                 inp_info%nonbonded%pot(np)%pot %at2 = at2
+                 CALL set_IPBV_ff(at1, at2,  inp_info%nonbonded%pot(np)%pot )
+                 inp_info%nonbonded%pot(np)%pot %rcutsq = rcut*rcut
               CASE ( 'BMHFT')
                  np = np + 1
-                 CALL reallocate_potparm(inp_info%nonbonded,1,np)
+                 CALL pair_potential_reallocate(inp_info%nonbonded,1,np,bmhft=.TRUE.,error=error)
                  ilen = 0
                  CALL get_next(at1,ilen)
                  ilen = 0
@@ -1382,17 +1571,17 @@ SUBROUTINE input_nonbonded(ff_type,globenv)
                  WRITE ( *, * ) '**** BMHFT cut-off changed to 10.0 Angstroms****'
                  rcut = 10.0_dp
                  CALL convert_to_cp2k_units ( "ANGSTROM", length = rcut )
-                 inp_info%nonbonded(np) %type = string2
-                 inp_info%nonbonded(np) %at1 = at1
-                 inp_info%nonbonded(np) %at2 = at2
-                 inp_info%nonbonded(np) %rcutsq = rcut*rcut
+                 inp_info%nonbonded%pot(np)%pot %type = string2
+                 inp_info%nonbonded%pot(np)%pot %at1 = at1
+                 inp_info%nonbonded%pot(np)%pot %at2 = at2
+                 inp_info%nonbonded%pot(np)%pot %rcutsq = rcut*rcut
                  CALL uppercase(at1)
                  CALL uppercase(at2)
-                 CALL set_BMHFT_ff(at1, at2,  inp_info%nonbonded(np) )
-                 inp_info%nonbonded(np) %rcutsq = rcut*rcut
+                 CALL set_BMHFT_ff(at1, at2,  inp_info%nonbonded%pot(np)%pot )
+                 inp_info%nonbonded%pot(np)%pot %rcutsq = rcut*rcut
               CASE ( 'GOODWIN')
                  np = np + 1
-                 CALL reallocate_potparm(inp_info%nonbonded,1,np)
+                 CALL pair_potential_reallocate(inp_info%nonbonded,1,np,goodwin=.TRUE.,error=error)
                  ilen = 0
                  CALL get_next(at1,ilen)
                  ilen = 0
@@ -1406,15 +1595,15 @@ SUBROUTINE input_nonbonded(ff_type,globenv)
                  CALL convert_to_cp2k_units ( "KELVIN", energy = vr0 )
                  CALL convert_to_cp2k_units ( "ANGSTROM", length = d, l_power = 1  )
                  CALL convert_to_cp2k_units ( "ANGSTROM", length = dc, l_power = 1  )
-                 inp_info%nonbonded(np) %type = string2
-                 inp_info%nonbonded(np) %at1 = at1
-                 inp_info%nonbonded(np) %at2 = at2
-                 inp_info%nonbonded(np) %goodwin%vr0 = vr0
-                 inp_info%nonbonded(np) %goodwin%d = d
-                 inp_info%nonbonded(np) %goodwin%dc = dc
-                 inp_info%nonbonded(np) %goodwin%m = m
-                 inp_info%nonbonded(np) %goodwin%mc = mc
-                 inp_info%nonbonded(np) %rcutsq = rcut*rcut
+                 inp_info%nonbonded%pot(np)%pot %type = string2
+                 inp_info%nonbonded%pot(np)%pot %at1 = at1
+                 inp_info%nonbonded%pot(np)%pot %at2 = at2
+                 inp_info%nonbonded%pot(np)%pot %goodwin%vr0 = vr0
+                 inp_info%nonbonded%pot(np)%pot %goodwin%d = d
+                 inp_info%nonbonded%pot(np)%pot %goodwin%dc = dc
+                 inp_info%nonbonded%pot(np)%pot %goodwin%m = m
+                 inp_info%nonbonded%pot(np)%pot %goodwin%mc = mc
+                 inp_info%nonbonded%pot(np)%pot %rcutsq = rcut*rcut
               CASE ( 'END')
                  ilen = 0
                  CALL get_next(string2,ilen)
@@ -2267,8 +2456,8 @@ SUBROUTINE force_field_pack (particle_set,atomic_kind_set,&
   TYPE(molecule_type), DIMENSION(:), POINTER             :: molecule_set
   TYPE(force_field_type), INTENT(INOUT)                  :: ff_type
   TYPE(global_environment_type), INTENT(IN), OPTIONAL    :: globenv
-  TYPE(pair_potential_type), POINTER                     :: potparm_bond(:,:)
-  TYPE(pair_potential_type), POINTER                     :: potparm_nonbond(:,:)
+  TYPE(pair_potential_pp_type), POINTER                  :: potparm_bond
+  TYPE(pair_potential_pp_type), POINTER                  :: potparm_nonbond
   TYPE(cp_error_type), INTENT (INOUT), &
     OPTIONAL                                    :: error
   LOGICAL, INTENT(IN), OPTIONAL :: qmmm
@@ -2343,7 +2532,8 @@ SUBROUTINE force_field_pack (particle_set,atomic_kind_set,&
   NULLIFY(atomic_kind,molecule_kind,atom_list,bond_list,bend_list,&
        torsion_list,onfo_list,map_bond_kind,map_bend_kind,map_ub_kind,&
        map_torsion_kind,bond_kind_set,bend_kind_set,ub_kind_set,&
-       onfo_kind_set,impr_kind_set,torsion_kind_set,my_atom_list)
+       onfo_kind_set,impr_kind_set,torsion_kind_set,my_atom_list,&
+       potparm_bond, potparm_nonbond)
 
 !------------------------------------------------------------------------------
 !------------------------------------------------------------------------------
@@ -2427,7 +2617,7 @@ SUBROUTINE force_field_pack (particle_set,atomic_kind_set,&
         END IF
       END DO
       NULLIFY(bond_kind_set)
-      CALL allocate_bond_kind_set(bond_kind_set,counter)
+      CALL allocate_bond_kind_set(bond_kind_set,counter,error)
       DO j=1,nbond
         bond_list(j)%bond_kind => bond_kind_set(map_bond_kind(j))
       END DO
@@ -2504,7 +2694,7 @@ SUBROUTINE force_field_pack (particle_set,atomic_kind_set,&
           map_bend_kind(j) = counter
         END IF
       END DO
-      CALL allocate_bend_kind_set(bend_kind_set,counter)
+      CALL allocate_bend_kind_set(bend_kind_set,counter,error)
       DO j=1,nbend
         bend_list(j)%bend_kind => bend_kind_set(map_bend_kind(j))
       END DO
@@ -2581,7 +2771,7 @@ SUBROUTINE force_field_pack (particle_set,atomic_kind_set,&
           map_ub_kind(j) = counter
         END IF
       END DO
-      CALL allocate_ub_kind_set(ub_kind_set,counter)
+      CALL allocate_ub_kind_set(ub_kind_set,counter,error)
       DO j=1,nub
         ub_list(j)%ub_kind => ub_kind_set(map_ub_kind(j))
       END DO
@@ -2678,7 +2868,7 @@ SUBROUTINE force_field_pack (particle_set,atomic_kind_set,&
           map_torsion_kind(j) = counter
         END IF
       END DO
-      CALL allocate_torsion_kind_set(torsion_kind_set,counter)
+      CALL allocate_torsion_kind_set(torsion_kind_set,counter,error)
       DO j=1,ntorsion
         torsion_list(j)%torsion_kind => torsion_kind_set(map_torsion_kind(j))
       END DO
@@ -2775,7 +2965,7 @@ SUBROUTINE force_field_pack (particle_set,atomic_kind_set,&
           map_impr_kind(j) = counter
         END IF
       END DO
-      CALL allocate_impr_kind_set(impr_kind_set,counter)
+      CALL allocate_impr_kind_set(impr_kind_set,counter,error)
       DO j=1,nimpr
         impr_list(j)%impr_kind => impr_kind_set(map_impr_kind(j))
       END DO
@@ -2846,7 +3036,7 @@ SUBROUTINE force_field_pack (particle_set,atomic_kind_set,&
           map_onfo_kind(j) = counter
         END IF
       END DO
-      CALL allocate_onfo_kind_set(onfo_kind_set,counter)
+      CALL allocate_onfo_kind_set(onfo_kind_set,counter,error)
       DO j=1,nonfo
         onfo_list(j)%onfo_kind => onfo_kind_set(map_onfo_kind(j))
       END DO
@@ -3377,11 +3567,8 @@ SUBROUTINE force_field_pack (particle_set,atomic_kind_set,&
                             TRIM(name_atm_b)," ",&
                             TRIM(name_atm_c)," ",&
                             TRIM(name_atm_d)
-        !FIXME FIXME FIXME FIXME
         impr_list(j)%impr_kind%k      = 0.0_dp
         impr_list(j)%impr_kind%phi0   = 0.0_dp
-        !CALL stop_program("FF_pack","missing impr parm")
-
       END IF
      !
      ! QM/MM modifications
@@ -3401,104 +3588,101 @@ SUBROUTINE force_field_pack (particle_set,atomic_kind_set,&
   !-----------------------------------------------------------------------------
   ! 12. Set spline_bond_env, use for ONFO interaction
   !-----------------------------------------------------------------------------
-  CALL pot_parameters_create ( potparm_bond,  &
-                               SIZE ( atomic_kind_set ), &
-                               error )
+  CALL pair_potential_pp_create ( potparm_bond,  &
+                                  SIZE ( atomic_kind_set ), &
+                                  error )
   DO i=1,SIZE(atomic_kind_set)
-    atomic_kind => atomic_kind_set(i)
-    CALL get_atomic_kind(atomic_kind=atomic_kind,name=name_atm_a_local)
-    DO j=1,SIZE(atomic_kind_set)
-      atomic_kind => atomic_kind_set(j)
-      CALL get_atomic_kind(atomic_kind=atomic_kind,name=name_atm_b_local)
-      found = .FALSE.
-      found_a = .FALSE.
-      found_b = .FALSE.
-      name_atm_a = name_atm_a_local
-      name_atm_b = name_atm_b_local
-      only_qm = qmmm_ff_precond_only_qm(id1=name_atm_a, id2=name_atm_b)
-
-      ! loop over params from charmm
-      ii = 0 
-      jj = 0
-      IF(ASSOCIATED(chm_info%nonbond_a_14)) THEN
-        DO k=1,SIZE(chm_info%nonbond_a_14)
-          IF(TRIM(name_atm_a)==TRIM(chm_info%nonbond_a_14(k))) THEN
-            ii = k
-            rmin2_a = chm_info%nonbond_rmin2_14(k)
-            epsilon_a = chm_info%nonbond_eps_14(k)
-            found_a = .TRUE.
-          END IF
-        END DO
-        DO k=1,SIZE(chm_info%nonbond_a_14)
-          IF(TRIM(name_atm_b)==TRIM(chm_info%nonbond_a_14(k))) THEN
-            jj = k
-            rmin2_b = chm_info%nonbond_rmin2_14(k)
-            epsilon_b = chm_info%nonbond_eps_14(k)
-            found_b = .TRUE.
-          END IF
-        END DO
-      END IF
-      IF(ASSOCIATED(chm_info%nonbond_a)) THEN
-         IF(.NOT.found_a) THEN
-            DO k=1,SIZE(chm_info%nonbond_a)
-               IF(TRIM(name_atm_a)==TRIM(chm_info%nonbond_a(k))) THEN
-                  ii = k
-                  rmin2_a = chm_info%nonbond_rmin2(k)
-                  epsilon_a = chm_info%nonbond_eps(k)
-               END IF
-            END DO
-         END IF
-         IF(.NOT.found_b) THEN
-            DO k=1,SIZE(chm_info%nonbond_a)
-               IF(TRIM(name_atm_b)==TRIM(chm_info%nonbond_a(k))) THEN
-                  jj = k
-                  rmin2_b = chm_info%nonbond_rmin2(k)
-                  epsilon_b = chm_info%nonbond_eps(k)
-               END IF
-            END DO
-         END IF
-      END IF
-
-      IF(ii/=0 .AND. jj/=0) THEN
-         rmin = rmin2_a + rmin2_b
-         epsilon = SQRT(epsilon_a*epsilon_b)
-         potparm_bond(i,j)%type       = 'LENNARD-JONES'
-         potparm_bond(i,j)%at1        = name_atm_a
-         potparm_bond(i,j)%at2        = name_atm_b
-         potparm_bond(i,j)%lj%epsilon = epsilon
-         potparm_bond(i,j)%lj%sigma6  = 0.5_dp*rmin**6
-         potparm_bond(i,j)%lj%sigma12 = 0.25_dp*rmin**12
-         IF(ff_type%rcut_nb>0.0_dp) THEN
-            potparm_bond(i,j)%rcutsq     = ff_type%rcut_nb*ff_type%rcut_nb
-         ELSE
-            !Corresponds to an cutoff of 10A
-            potparm_bond(i,j)%rcutsq     = default_rcutsq
-         END IF
-         IF(found .AND. PM1) &
-              WRITE(iw,*) "    Multiple LJ-POT declarations: overwriting"
-         found = .TRUE.
-      END IF
+     atomic_kind => atomic_kind_set(i)
+     CALL get_atomic_kind(atomic_kind=atomic_kind,name=name_atm_a_local)
+     DO j=i,SIZE(atomic_kind_set)
+        atomic_kind => atomic_kind_set(j)
+        CALL get_atomic_kind(atomic_kind=atomic_kind,name=name_atm_b_local)
+        found = .FALSE.
+        found_a = .FALSE.
+        found_b = .FALSE.
+        name_atm_a = name_atm_a_local
+        name_atm_b = name_atm_b_local
+        only_qm = qmmm_ff_precond_only_qm(id1=name_atm_a, id2=name_atm_b)
+        
+        ! loop over params from charmm
+        ii = 0 
+        jj = 0
+        IF(ASSOCIATED(chm_info%nonbond_a_14)) THEN
+           DO k=1,SIZE(chm_info%nonbond_a_14)
+              IF(TRIM(name_atm_a)==TRIM(chm_info%nonbond_a_14(k))) THEN
+                 ii = k
+                 rmin2_a = chm_info%nonbond_rmin2_14(k)
+                 epsilon_a = chm_info%nonbond_eps_14(k)
+                 found_a = .TRUE.
+              END IF
+           END DO
+           DO k=1,SIZE(chm_info%nonbond_a_14)
+              IF(TRIM(name_atm_b)==TRIM(chm_info%nonbond_a_14(k))) THEN
+                 jj = k
+                 rmin2_b   = chm_info%nonbond_rmin2_14(k)
+                 epsilon_b = chm_info%nonbond_eps_14(k)
+                 found_b   = .TRUE.
+              END IF
+           END DO
+        END IF
+        IF(ASSOCIATED(chm_info%nonbond_a)) THEN
+           IF(.NOT.found_a) THEN
+              DO k=1,SIZE(chm_info%nonbond_a)
+                 IF(TRIM(name_atm_a)==TRIM(chm_info%nonbond_a(k))) THEN
+                    ii = k
+                    rmin2_a   = chm_info%nonbond_rmin2(k)
+                    epsilon_a = chm_info%nonbond_eps(k)
+                 END IF
+              END DO
+           END IF
+           IF(.NOT.found_b) THEN
+              DO k=1,SIZE(chm_info%nonbond_a)
+                 IF(TRIM(name_atm_b)==TRIM(chm_info%nonbond_a(k))) THEN
+                    jj = k
+                    rmin2_b   = chm_info%nonbond_rmin2(k)
+                    epsilon_b = chm_info%nonbond_eps(k)
+                 END IF
+              END DO
+           END IF
+        END IF
+        
+        IF(ii/=0 .AND. jj/=0) THEN
+           rmin = rmin2_a + rmin2_b
+           epsilon = SQRT(epsilon_a*epsilon_b)
+           CALL  pair_potential_lj_create(potparm_bond%pot(i,j)%pot, error)
+           potparm_bond%pot(i,j)%pot%type       = 'LENNARD-JONES'
+           potparm_bond%pot(i,j)%pot%at1        = name_atm_a
+           potparm_bond%pot(i,j)%pot%at2        = name_atm_b
+           potparm_bond%pot(i,j)%pot%lj%epsilon = epsilon
+           potparm_bond%pot(i,j)%pot%lj%sigma6  = 0.5_dp*rmin**6
+           potparm_bond%pot(i,j)%pot%lj%sigma12 = 0.25_dp*rmin**12
+           IF(ff_type%rcut_nb>0.0_dp) THEN
+              potparm_bond%pot(i,j)%pot%rcutsq     = ff_type%rcut_nb*ff_type%rcut_nb
+           ELSE
+              !Corresponds to an cutoff of 10A
+              potparm_bond%pot(i,j)%pot%rcutsq     = default_rcutsq
+           END IF
+           IF(found .AND. PM1) WRITE(iw,*) "    Multiple LJ-POT declarations: overwriting"
+           found = .TRUE.
+        END IF
       
-
-      ! always have the input param last to overwrite all the other ones
-      IF(ASSOCIATED(inp_info%nonbonded14)) THEN
-        DO k=1,SIZE(inp_info%nonbonded14)
-          IF(PM2) WRITE(iw,*) "    TESTING ",TRIM(name_atm_a),TRIM(name_atm_b),&
-              " with ",TRIM(inp_info%nonbonded14(k)%at1),&
-              TRIM(inp_info%nonbonded14(k)%at2)
-          IF(((TRIM(name_atm_a)==TRIM(inp_info%nonbonded14(k)%at1))  .AND. &
-              (TRIM(name_atm_b)==TRIM(inp_info%nonbonded14(k)%at2))) .OR.  &
-             ((TRIM(name_atm_b)==TRIM(inp_info%nonbonded14(k)%at1))  .AND. &
-              (TRIM(name_atm_a)==TRIM(inp_info%nonbonded14(k)%at2))) ) THEN
-            potparm_bond(i,j) = inp_info%nonbonded14(k)
-            IF(found .AND. PM1) &
-               WRITE(iw,*) "    Multiple LJ-POT declarations: overwriting"
-            IF(PM2) WRITE(iw,*) "    FOUND ",TRIM(name_atm_a),&
-                    " ",TRIM(name_atm_b)
-            found = .TRUE.
-            EXIT
-          END IF
-        END DO
+        ! always have the input param last to overwrite all the other ones
+        IF(ASSOCIATED(inp_info%nonbonded14)) THEN
+         DO k=1,SIZE(inp_info%nonbonded14%pot)
+            IF(PM2) WRITE(iw,*) "    TESTING ",TRIM(name_atm_a),TRIM(name_atm_b),&
+                 " with ",TRIM(inp_info%nonbonded14%pot(k)%pot%at1),TRIM(inp_info%nonbonded14%pot(k)%pot%at2)
+            IF(((TRIM(name_atm_a)==TRIM(inp_info%nonbonded14%pot(k)%pot%at1))  .AND. &
+                (TRIM(name_atm_b)==TRIM(inp_info%nonbonded14%pot(k)%pot%at2))) .OR.  &
+               ((TRIM(name_atm_b)==TRIM(inp_info%nonbonded14%pot(k)%pot%at1))  .AND. &
+                (TRIM(name_atm_a)==TRIM(inp_info%nonbonded14%pot(k)%pot%at2))) ) THEN
+               CALL pair_potential_single_copy(inp_info%nonbonded14%pot(k)%pot,potparm_bond%pot(i,j)%pot,error)
+               IF(found .AND. PM1) &
+                    WRITE(iw,*) "    Multiple LJ-POT declarations: overwriting"
+               IF(PM2) WRITE(iw,*) "    FOUND ",TRIM(name_atm_a)," ",TRIM(name_atm_b)
+               found = .TRUE.
+               EXIT
+            END IF
+         END DO
       END IF
 
       ! at the very end we offer the possibility to overwrite the parameters for QM/MM
@@ -3508,24 +3692,26 @@ SUBROUTINE force_field_pack (particle_set,atomic_kind_set,&
          IF (TRIM(name_atm_a) == TRIM(name_atm_a_local)) match_names = match_names + 1
          IF (TRIM(name_atm_b) == TRIM(name_atm_b_local)) match_names = match_names + 1
          IF (match_names == 1) THEN
-            DO k=1,SIZE(qmmm_env%inp_info%nonbonded14)
-               IF(PM2) WRITE(iw,*) "    TESTING ",TRIM(name_atm_a),TRIM(name_atm_b),&
-                    " with ",TRIM(qmmm_env%inp_info%nonbonded14(k)%at1),&
-                    TRIM(qmmm_env%inp_info%nonbonded14(k)%at2)
-               IF(( (TRIM(name_atm_a) ==TRIM(qmmm_env%inp_info%nonbonded14(k)%at1))  .AND. &
-                    (TRIM(name_atm_b) ==TRIM(qmmm_env%inp_info%nonbonded14(k)%at2))) .OR.  &
-                    ((TRIM(name_atm_b)==TRIM(qmmm_env%inp_info%nonbonded14(k)%at1))  .AND. &
-                    (TRIM(name_atm_a) ==TRIM(qmmm_env%inp_info%nonbonded14(k)%at2))) ) THEN
-                  potparm_bond(i,j) = qmmm_env%inp_info%nonbonded14(k)
-                  IF(found .AND. PM1) &
-                       WRITE(iw,*) "    Multiple LJ-POT declarations: overwriting with"//& 
-                       " QM/MM forcefield specifications"
-                  IF(PM2) WRITE(iw,*) "    FOUND ",TRIM(name_atm_a),&
-                       " ",TRIM(name_atm_b)
-                  found = .TRUE.
-                  EXIT
-               END IF
-            END DO            
+            IF (ASSOCIATED(qmmm_env%inp_info%nonbonded14)) THEN
+               DO k=1,SIZE(qmmm_env%inp_info%nonbonded14%pot)
+                  IF(PM2) WRITE(iw,*) "    TESTING ",TRIM(name_atm_a),TRIM(name_atm_b),&
+                       " with ",TRIM(qmmm_env%inp_info%nonbonded14%pot(k)%pot%at1),&
+                       TRIM(qmmm_env%inp_info%nonbonded14%pot(k)%pot%at2)
+                  IF(( (TRIM(name_atm_a) ==TRIM(qmmm_env%inp_info%nonbonded14%pot(k)%pot%at1))  .AND. &
+                       (TRIM(name_atm_b) ==TRIM(qmmm_env%inp_info%nonbonded14%pot(k)%pot%at2))) .OR.  &
+                       ((TRIM(name_atm_b)==TRIM(qmmm_env%inp_info%nonbonded14%pot(k)%pot%at1))  .AND. &
+                       (TRIM(name_atm_a) ==TRIM(qmmm_env%inp_info%nonbonded14%pot(k)%pot%at2))) ) THEN
+                     CALL pair_potential_single_copy(qmmm_env%inp_info%nonbonded14%pot(k)%pot,potparm_bond%pot(i,j)%pot,error)
+                     IF(found .AND. PM1) &
+                          WRITE(iw,*) "    Multiple LJ-POT declarations: overwriting with"//& 
+                          " QM/MM forcefield specifications"
+                     IF(PM2) WRITE(iw,*) "    FOUND ",TRIM(name_atm_a),&
+                          " ",TRIM(name_atm_b)
+                     found = .TRUE.
+                     EXIT
+                  END IF
+               END DO
+            END IF
          END IF
       END IF
       
@@ -3533,48 +3719,33 @@ SUBROUTINE force_field_pack (particle_set,atomic_kind_set,&
          IF(PM2) WRITE(iw,*) "    spline_bond_env ",j," : ",&
                   TRIM(name_atm_a)," ",&
                   TRIM(name_atm_b)
-         potparm_bond(i,j)%type       = 'UNSET'
-         !Temporary Fix until 1-4 clean up is done
-         potparm_bond(i,j)%type       = 'LENNARD-JONES'
-         potparm_bond(i,j)%at1        = ''
-         potparm_bond(i,j)%at2        = ''
-         potparm_bond(i,j)%lj%epsilon = 0.0_dp
-         potparm_bond(i,j)%lj%sigma6  = 0.0_dp
-         potparm_bond(i,j)%lj%sigma12 = 0.0_dp
-         potparm_bond(i,j)%rcutsq     = default_rcutsq
+         potparm_bond%pot(i,j)%pot%type       = 'UNSET'
       ELSE
          allocate_spline_bond_env = .TRUE.
       END IF
 
       IF (only_qm) THEN
-         CALL clean_pot_parameter( potparm_bond(i,j) )
-         potparm_bond(i,j)%type       = 'LENNARD-JONES'
-         potparm_bond(i,j)%rcutsq     = default_rcutsq
+         CALL pair_potential_single_clean( potparm_bond%pot(i,j)%pot )
+         potparm_bond%pot(i,j)%pot%rcutsq     = default_rcutsq
       END IF
 
     END DO
   END DO
   NULLIFY(spline_bond_env)
   IF (allocate_spline_bond_env) THEN
-     nkinds = SIZE ( potparm_bond, 1 )
+     nkinds = SIZE ( potparm_bond%pot, 1 )
      CALL spline_env_create ( spline_bond_env, nkinds, error )
      CALL spline_nonbond_control ( spline_bond_env, potparm_bond, &
           atomic_kind_set , ewald_env, ff_type%ei_scale14,ff_type%vdw_scale14)
      ! point potparm ( ikind, jkind ) % spline_data => spline_data_p ( n )
-     DO ikind = 1, SIZE ( potparm_bond, 1 )
-        DO jkind = ikind, SIZE ( potparm_bond, 2 )
+     DO ikind = 1, SIZE ( potparm_bond%pot, 1 )
+        DO jkind = ikind, SIZE ( potparm_bond%pot, 2 )
            n = spline_bond_env % spltab ( ikind, jkind )
            spline_data => spline_bond_env % spline_data_p ( n ) % spline_data
-           ! do i,j
+           !
            CALL spline_data_retain ( spline_data, error )
-           CALL spline_data_release (  &
-                potparm_bond ( ikind, jkind ) % pair_spline_data, error )
-           potparm_bond ( ikind, jkind ) % pair_spline_data => spline_data
-           ! do j,i
-           CALL spline_data_retain ( spline_data, error )
-           CALL spline_data_release (  &
-                potparm_bond ( jkind, ikind ) % pair_spline_data, error )
-           potparm_bond ( jkind, ikind ) % pair_spline_data => spline_data
+           CALL spline_data_release ( potparm_bond %pot( ikind, jkind )%pot % pair_spline_data, error )
+           potparm_bond %pot( ikind, jkind )%pot % pair_spline_data => spline_data
         END DO
      END DO
   END IF
@@ -3607,10 +3778,10 @@ SUBROUTINE force_field_pack (particle_set,atomic_kind_set,&
       only_qm = qmmm_ff_precond_only_qm(id1=name_atm_a, id2=name_atm_b)
       onfo_list(j)%onfo_kind%name   = "CHARMM"
 
-      CALL spline_data_retain (potparm_bond (ikind, jkind ) % pair_spline_data,error=error)
+      CALL spline_data_retain (potparm_bond%pot(ikind, jkind )%pot % pair_spline_data,error=error)
       CALL spline_data_release(onfo_list(j)%onfo_kind%spline_data, error=error)
       onfo_list(j)%onfo_kind%spline_data => &
-      potparm_bond ( ikind, jkind ) % pair_spline_data
+      potparm_bond %pot( ikind, jkind )%pot % pair_spline_data
       
       IF(PM2) WRITE(iw,*) "    ONE-FOUR ",j," : ",&
                           TRIM(name_atm_a)," ",&
@@ -3619,7 +3790,7 @@ SUBROUTINE force_field_pack (particle_set,atomic_kind_set,&
     CALL set_molecule_kind(molecule_kind=molecule_kind,&
                            onfo_list=onfo_list)
   END DO
-  CALL pot_parameters_release ( potparm_bond, error )
+  CALL pair_potential_pp_release ( potparm_bond, error )
 
 
   !-----------------------------------------------------------------------------
@@ -3705,13 +3876,13 @@ SUBROUTINE force_field_pack (particle_set,atomic_kind_set,&
   !-----------------------------------------------------------------------------
   ! 15. Set spline_nonbond_env
   !-----------------------------------------------------------------------------
-  CALL pot_parameters_create ( potparm_nonbond,  &
-                               SIZE ( atomic_kind_set ), &
-                               error )
+  CALL pair_potential_pp_create ( potparm_nonbond,  &
+                                  SIZE ( atomic_kind_set ), &
+                                  error )
   DO i=1,SIZE(atomic_kind_set)
     atomic_kind => atomic_kind_set(i)
     CALL get_atomic_kind(atomic_kind=atomic_kind,name=name_atm_a_local)
-    DO j=1,SIZE(atomic_kind_set)
+    DO j=i,SIZE(atomic_kind_set)
       atomic_kind => atomic_kind_set(j)
       CALL get_atomic_kind(atomic_kind=atomic_kind,name=name_atm_b_local)
       found = .FALSE.
@@ -3738,17 +3909,18 @@ SUBROUTINE force_field_pack (particle_set,atomic_kind_set,&
           rmin = chm_info%nonbond_rmin2(ii)+chm_info%nonbond_rmin2(jj)
           epsilon = sqrt(chm_info%nonbond_eps(ii)*&
                          chm_info%nonbond_eps(jj))
-          potparm_nonbond(i,j)%type       = 'LENNARD-JONES'
-          potparm_nonbond(i,j)%at1        = name_atm_a
-          potparm_nonbond(i,j)%at2        = name_atm_b
-          potparm_nonbond(i,j)%lj%epsilon = epsilon
-          potparm_nonbond(i,j)%lj%sigma6  = 0.5_dp*rmin**6
-          potparm_nonbond(i,j)%lj%sigma12 = 0.25_dp*rmin**12
+          CALL  pair_potential_lj_create(potparm_nonbond%pot(i,j)%pot, error)
+          potparm_nonbond%pot(i,j)%pot%type       = 'LENNARD-JONES'
+          potparm_nonbond%pot(i,j)%pot%at1        = name_atm_a
+          potparm_nonbond%pot(i,j)%pot%at2        = name_atm_b
+          potparm_nonbond%pot(i,j)%pot%lj%epsilon = epsilon
+          potparm_nonbond%pot(i,j)%pot%lj%sigma6  = 0.5_dp*rmin**6
+          potparm_nonbond%pot(i,j)%pot%lj%sigma12 = 0.25_dp*rmin**12
           IF(ff_type%rcut_nb>0.0_dp) THEN
-            potparm_nonbond(i,j)%rcutsq     = ff_type%rcut_nb*ff_type%rcut_nb
+            potparm_nonbond%pot(i,j)%pot%rcutsq     = ff_type%rcut_nb*ff_type%rcut_nb
           ELSE
             !Corresponds to an cutoff of 10A
-            potparm_nonbond(i,j)%rcutsq     = default_rcutsq
+            potparm_nonbond%pot(i,j)%pot%rcutsq     = default_rcutsq
           END IF
 
           IF(found .AND. PM1) &
@@ -3759,15 +3931,15 @@ SUBROUTINE force_field_pack (particle_set,atomic_kind_set,&
 
       ! always have the input param last to overwrite all the other ones
       IF(ASSOCIATED(inp_info%nonbonded)) THEN
-        DO k=1,SIZE(inp_info%nonbonded)
+        DO k=1,SIZE(inp_info%nonbonded%pot)
           IF(PM2) WRITE(iw,*) "    TESTING ",TRIM(name_atm_a),TRIM(name_atm_b),&
-              " with ",TRIM(inp_info%nonbonded(k)%at1),&
-              TRIM(inp_info%nonbonded(k)%at2)
-          IF(((TRIM(name_atm_a)==TRIM(inp_info%nonbonded(k)%at1))  .AND. &
-              (TRIM(name_atm_b)==TRIM(inp_info%nonbonded(k)%at2))) .OR.  &
-             ((TRIM(name_atm_b)==TRIM(inp_info%nonbonded(k)%at1))  .AND. &
-              (TRIM(name_atm_a)==TRIM(inp_info%nonbonded(k)%at2))) ) THEN
-            potparm_nonbond(i,j) = inp_info%nonbonded(k)
+              " with ",TRIM(inp_info%nonbonded%pot(k)%pot%at1),&
+              TRIM(inp_info%nonbonded%pot(k)%pot%at2)
+          IF(((TRIM(name_atm_a)==TRIM(inp_info%nonbonded%pot(k)%pot%at1))  .AND. &
+              (TRIM(name_atm_b)==TRIM(inp_info%nonbonded%pot(k)%pot%at2))) .OR.  &
+             ((TRIM(name_atm_b)==TRIM(inp_info%nonbonded%pot(k)%pot%at1))  .AND. &
+              (TRIM(name_atm_a)==TRIM(inp_info%nonbonded%pot(k)%pot%at2))) ) THEN
+             CALL pair_potential_single_copy(inp_info%nonbonded%pot(k)%pot,potparm_nonbond%pot(i,j)%pot,error)
             IF(found .AND. PM1) &
                WRITE(iw,*) "    Multiple LJ-POT declarations: overwriting"
             IF(PM2) WRITE(iw,*) "    FOUND ",TRIM(name_atm_a),&
@@ -3785,24 +3957,26 @@ SUBROUTINE force_field_pack (particle_set,atomic_kind_set,&
          IF (TRIM(name_atm_a) == TRIM(name_atm_a_local)) match_names = match_names + 1
          IF (TRIM(name_atm_b) == TRIM(name_atm_b_local)) match_names = match_names + 1
          IF (match_names == 1) THEN
-            DO k=1,SIZE(qmmm_env%inp_info%nonbonded)
-               IF(PM2) WRITE(iw,*) "    TESTING ",TRIM(name_atm_a),TRIM(name_atm_b),&
-                    " with ",TRIM(qmmm_env%inp_info%nonbonded(k)%at1),&
-                    TRIM(qmmm_env%inp_info%nonbonded(k)%at2)
-               IF(( (TRIM(name_atm_a) ==TRIM(qmmm_env%inp_info%nonbonded(k)%at1))  .AND. &
-                    (TRIM(name_atm_b) ==TRIM(qmmm_env%inp_info%nonbonded(k)%at2))) .OR.  &
-                    ((TRIM(name_atm_b)==TRIM(qmmm_env%inp_info%nonbonded(k)%at1))  .AND. &
-                    (TRIM(name_atm_a) ==TRIM(qmmm_env%inp_info%nonbonded(k)%at2))) ) THEN
-                  potparm_nonbond(i,j) = qmmm_env%inp_info%nonbonded(k)
-                  IF(found .AND. PM1) &
-                       WRITE(iw,*) "    Multiple LJ-POT declarations: overwriting with"//& 
-                       " QM/MM forcefield specifications"
-                  IF(PM2) WRITE(iw,*) "    FOUND ",TRIM(name_atm_a),&
-                       " ",TRIM(name_atm_b)
-                  found = .TRUE.
-                  EXIT
-               END IF
-            END DO            
+            IF (ASSOCIATED(qmmm_env%inp_info%nonbonded)) THEN
+               DO k=1,SIZE(qmmm_env%inp_info%nonbonded%pot)
+                  IF(PM2) WRITE(iw,*) "    TESTING ",TRIM(name_atm_a),TRIM(name_atm_b),&
+                       " with ",TRIM(qmmm_env%inp_info%nonbonded%pot(k)%pot%at1),&
+                       TRIM(qmmm_env%inp_info%nonbonded%pot(k)%pot%at2)
+                  IF(( (TRIM(name_atm_a) ==TRIM(qmmm_env%inp_info%nonbonded%pot(k)%pot%at1))  .AND. &
+                       (TRIM(name_atm_b) ==TRIM(qmmm_env%inp_info%nonbonded%pot(k)%pot%at2))) .OR.  &
+                       ((TRIM(name_atm_b)==TRIM(qmmm_env%inp_info%nonbonded%pot(k)%pot%at1))  .AND. &
+                       (TRIM(name_atm_a) ==TRIM(qmmm_env%inp_info%nonbonded%pot(k)%pot%at2))) ) THEN
+                     CALL pair_potential_single_copy(qmmm_env%inp_info%nonbonded%pot(k)%pot,potparm_nonbond%pot(i,j)%pot,error)
+                     IF(found .AND. PM1) &
+                          WRITE(iw,*) "    Multiple LJ-POT declarations: overwriting with"//& 
+                          " QM/MM forcefield specifications"
+                     IF(PM2) WRITE(iw,*) "    FOUND ",TRIM(name_atm_a),&
+                          " ",TRIM(name_atm_b)
+                     found = .TRUE.
+                     EXIT
+                  END IF
+               END DO
+            END IF
          END IF
       END IF
 
@@ -3814,13 +3988,12 @@ SUBROUTINE force_field_pack (particle_set,atomic_kind_set,&
       END IF
 
       IF (only_qm) THEN
-         CALL clean_pot_parameter( potparm_nonbond(i,j) )
-         potparm_nonbond(i,j)%type       = 'LENNARD-JONES'         
-         potparm_nonbond(i,j)%rcutsq     = default_rcutsq
+         CALL pair_potential_single_clean( potparm_nonbond%pot(i,j)%pot )
+         potparm_nonbond%pot(i,j)%pot%rcutsq     = default_rcutsq
       END IF
     END DO
   END DO
-  nkinds = SIZE ( potparm_nonbond, 1 )
+  nkinds = SIZE ( potparm_nonbond%pot, 1 )
 !---------------------------------------
 ! create the pair potential spline environment
 !---------------------------------------
@@ -3833,8 +4006,8 @@ SUBROUTINE force_field_pack (particle_set,atomic_kind_set,&
   CALL spline_env_create(spline_manybody_env, nkinds, error)
   CALL spline_manybody_control(spline_manybody_env, potparm_nonbond)
                               
-  DO ikind = 1, SIZE ( potparm_nonbond, 1 )
-    DO jkind = ikind, SIZE ( potparm_nonbond, 2)
+  DO ikind = 1, SIZE ( potparm_nonbond%pot, 1 )
+    DO jkind = ikind, SIZE ( potparm_nonbond%pot, 2)
 !---------------------------------------
 ! 1st: The pair-potential contribution
 !---------------------------------------
@@ -3843,13 +4016,9 @@ SUBROUTINE force_field_pack (particle_set,atomic_kind_set,&
 ! do i,j
       CALL spline_data_retain ( spline_data, error )
       CALL spline_data_release (  &
-         potparm_nonbond ( ikind, jkind ) % pair_spline_data, error )
-      potparm_nonbond ( ikind, jkind ) % pair_spline_data => spline_data
-! do j,i
-      CALL spline_data_retain ( spline_data, error )
-      CALL spline_data_release (  &
-         potparm_nonbond ( jkind, ikind ) % pair_spline_data, error )
-      potparm_nonbond ( jkind, ikind ) % pair_spline_data => spline_data
+         potparm_nonbond %pot( ikind, jkind )%pot % pair_spline_data, error )
+      potparm_nonbond%pot ( ikind, jkind )%pot % pair_spline_data => spline_data
+
 !---------------------------------------
 ! 2nd: The many-body contribution
 !---------------------------------------
@@ -3859,13 +4028,8 @@ SUBROUTINE force_field_pack (particle_set,atomic_kind_set,&
       IF ( ASSOCIATED ( spline_data ) ) THEN
         CALL spline_data_retain ( spline_data, error )
         CALL spline_data_release (  &
-           potparm_nonbond ( ikind, jkind ) % rho_spline_data, error )
-        potparm_nonbond ( ikind, jkind ) % rho_spline_data => spline_data
-! do j,i
-        CALL spline_data_retain ( spline_data, error )
-        CALL spline_data_release (  &
-           potparm_nonbond ( jkind, ikind ) % rho_spline_data, error )
-        potparm_nonbond ( jkind, ikind ) % rho_spline_data => spline_data
+           potparm_nonbond%pot ( ikind, jkind )%pot % rho_spline_data, error )
+        potparm_nonbond%pot ( ikind, jkind )%pot % rho_spline_data => spline_data
       ENDIF 
     END DO
   END DO
@@ -4015,10 +4179,11 @@ END SUBROUTINE force_field_qeff_output
 !!
 !!   INPUTS
 !!*****************************************************************************
-SUBROUTINE clean_intra_force_kind (molecule_kind_set,globenv)
+SUBROUTINE clean_intra_force_kind (molecule_kind_set,globenv,error)
 
   TYPE(molecule_kind_type), DIMENSION(:), POINTER        :: molecule_kind_set
   TYPE(global_environment_type), INTENT(IN), OPTIONAL    :: globenv
+  TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
 
   CHARACTER(len=*), PARAMETER :: routineN = 'clean_intra_force_kind', &
     routineP = moduleN//':'//routineN
@@ -4311,7 +4476,7 @@ SUBROUTINE clean_intra_force_kind (molecule_kind_set,globenv)
     END DO
     IF(SUM(bad1)/=0) THEN
       counter = SIZE(bond_kind_set)-SUM(bad1)
-      CALL allocate_bond_kind_set(new_bond_kind_set,counter)
+      CALL allocate_bond_kind_set(new_bond_kind_set,counter,error)
       counter=0
       DO ibond=1,SIZE(bond_kind_set)
         IF(bad1(ibond)==0) THEN
@@ -4353,7 +4518,7 @@ SUBROUTINE clean_intra_force_kind (molecule_kind_set,globenv)
       END IF
       DEALLOCATE(bad2,STAT=istat)
       IF(istat/=0) CALL stop_memory('clean_intra_force_kind','bad2')
-      CALL deallocate_bond_kind_set(bond_kind_set)
+      CALL deallocate_bond_kind_set(bond_kind_set,error)
       DEALLOCATE(bond_list,STAT=istat)
       IF(istat/=0) CALL stop_memory('clean_intra_force_kind','bond_list')
       IF(PM1) WRITE(iw,*) "    Mol(",ikind,") New BOND Count: ",&
@@ -4401,7 +4566,7 @@ SUBROUTINE clean_intra_force_kind (molecule_kind_set,globenv)
     END DO
     IF(SUM(bad1)/=0) THEN
       counter = SIZE(bend_kind_set)-SUM(bad1)
-      CALL allocate_bend_kind_set(new_bend_kind_set,counter)
+      CALL allocate_bend_kind_set(new_bend_kind_set,counter,error)
       counter=0
       DO ibend=1,SIZE(bend_kind_set)
         IF(bad1(ibend)==0) THEN
@@ -4443,7 +4608,7 @@ SUBROUTINE clean_intra_force_kind (molecule_kind_set,globenv)
       END IF
       DEALLOCATE(bad2,STAT=istat)
       IF(istat/=0) CALL stop_memory('clean_intra_force_kind','bad2')
-      CALL deallocate_bend_kind_set(bend_kind_set)
+      CALL deallocate_bend_kind_set(bend_kind_set,error)
       DEALLOCATE(bend_list,STAT=istat)
       IF(istat/=0) CALL stop_memory('clean_intra_force_kind','bend_list')
       IF(PM1) WRITE(iw,*) "    Mol(",ikind,") New BEND Count: ",&
@@ -4492,7 +4657,7 @@ SUBROUTINE clean_intra_force_kind (molecule_kind_set,globenv)
     END DO
     IF(SUM(bad1)/=0) THEN
       counter = SIZE(ub_kind_set)-SUM(bad1)
-      CALL allocate_ub_kind_set(new_ub_kind_set,counter)
+      CALL allocate_ub_kind_set(new_ub_kind_set,counter,error)
       counter=0
       DO iub=1,SIZE(ub_kind_set)
         IF(bad1(iub)==0) THEN
@@ -4583,7 +4748,7 @@ SUBROUTINE clean_intra_force_kind (molecule_kind_set,globenv)
     END DO
     IF(SUM(bad1)/=0) THEN
       counter = SIZE(torsion_kind_set)-SUM(bad1)
-      CALL allocate_torsion_kind_set(new_torsion_kind_set,counter)
+      CALL allocate_torsion_kind_set(new_torsion_kind_set,counter,error)
       counter=0
       DO itorsion=1,SIZE(torsion_kind_set)
         IF(bad1(itorsion)==0) THEN
@@ -4690,7 +4855,7 @@ SUBROUTINE clean_intra_force_kind (molecule_kind_set,globenv)
     END DO
     IF(SUM(bad1)/=0) THEN
       counter = SIZE(impr_kind_set)-SUM(bad1)
-      CALL allocate_impr_kind_set(new_impr_kind_set,counter)
+      CALL allocate_impr_kind_set(new_impr_kind_set,counter,error)
       counter=0
       DO iimpr=1,SIZE(impr_kind_set)
         IF(bad1(iimpr)==0) THEN
@@ -4773,171 +4938,150 @@ END SUBROUTINE clean_intra_force_kind
 !!
 !!   INPUTS
 !!*****************************************************************************
-SUBROUTINE read_eam_data ( eam, globenv )
-  TYPE ( eam_pot_type ), INTENT ( INOUT )                    :: eam
+SUBROUTINE read_eam_data ( eam, globenv , error)
+  IMPLICIT NONE
+  ! Arguments
+  TYPE ( eam_pot_type ), POINTER                             :: eam
   TYPE ( global_environment_type ), INTENT(IN), OPTIONAL     :: globenv
-!locals
-  INTEGER :: unit_number, scr, i, ntyp, isos
-  REAL ( dp ) :: rmass, rlatt
+  TYPE(cp_error_type), INTENT (INOUT), &
+    OPTIONAL                                    :: error
+  ! Local Variables
+  CHARACTER(len=*), PARAMETER :: routineN='read_eam_data',&
+       routineP=moduleN//':'//routineN
+  INTEGER :: unit_number, scr, i, ntyp, stat
+  REAL (KIND=dp) :: rmass, rlatt
   CHARACTER ( len = default_string_length ) :: title3
-  REAL ( dp ), POINTER, DIMENSION ( : ) :: rval, rhoval, phi, phip, frho, frhop, &
-                                           rho, rhop
-  REAL ( dp ) :: drar, drhoar, acutal
+  REAL (KINd=dp), POINTER, DIMENSION ( : ) :: rval, rhoval, phi, phip, frho, frhop, &
+                                              rho, rhop
+  REAL (KIND=dp) :: drar, drhoar, acutal
+  logical :: failure
 
+  failure =  .FALSE.
   NULLIFY ( rval, rhoval, phi, phip, frho, frhop, rho, rhop )
-  IF ( globenv % ionode ) THEN
-    ALLOCATE ( rho ( 5000 ), STAT = isos )
-    IF (isos/=0) CALL stop_program('read_eam_data', &
-    'failed to allocate rho' )
-    rho=0.0_dp
-    ALLOCATE ( rhop ( 5000 ), STAT = isos )
-    IF (isos/=0) CALL stop_program('read_eam_data', &
-    'failed to allocate rhop' )
-    rhop=0.0_dp
-    ALLOCATE ( rval ( 5000 ), STAT = isos )
-    IF (isos/=0) CALL stop_program('read_eam_data', &
-    'failed to allocate rval' )
-    rval=0.0_dp
-    ALLOCATE ( rhoval ( 5000 ), STAT = isos )
-    IF (isos/=0) CALL stop_program('read_eam_data', &
-    'failed to allocate rhoval' )
-    rhoval=0.0_dp
-    ALLOCATE ( phi ( 5000 ), STAT = isos )
-    IF (isos/=0) CALL stop_program('read_eam_data', &
-    'failed to allocate phi' )
-    phi=0.0_dp
-    ALLOCATE ( phip ( 5000 ), STAT = isos )
-    IF (isos/=0) CALL stop_program('read_eam_data', &
-    'failed to allocate phip' )
-    phip=0.0_dp
-    ALLOCATE ( frho ( 5000 ), STAT = isos )
-    IF (isos/=0) CALL stop_program('read_eam_data', &
-    'failed to allocate frho' )
-    frho=0.0_dp
-    ALLOCATE ( frhop ( 5000 ), STAT = isos )
-    IF (isos/=0) CALL stop_program('read_eam_data', &
-    'failed to allocate frhop' )
-    frhop=0.0_dp
+  IF (.NOT.failure) THEN
+     IF ( globenv % ionode ) THEN
+        ALLOCATE ( rho ( 5000 ), STAT = stat )
+        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+        rho=0.0_dp
+        ALLOCATE ( rhop ( 5000 ), STAT = stat )
+        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+        rhop=0.0_dp
+        ALLOCATE ( rval ( 5000 ), STAT = stat )
+        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+        rval=0.0_dp
+        ALLOCATE ( rhoval ( 5000 ), STAT = stat )
+        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+        rhoval=0.0_dp
+        ALLOCATE ( phi ( 5000 ), STAT = stat )
+        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+        phi=0.0_dp
+        ALLOCATE ( phip ( 5000 ), STAT = stat )
+        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+        phip=0.0_dp
+        ALLOCATE ( frho ( 5000 ), STAT = stat )
+        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+        frho=0.0_dp
+        ALLOCATE ( frhop ( 5000 ), STAT = stat )
+        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+        frhop=0.0_dp
 
-    IF ( PRESENT ( globenv ) ) scr = globenv % scr
-    CALL open_file(file_name=TRIM(eam % eam_file_name),&
-                 file_form="FORMATTED",&
-                 file_position="REWIND",&
-                 file_status="OLD",&
-                 unit_number=unit_number)
-    READ ( unit_number, '(A72)' ) title3
-    WRITE ( scr, * ) title3
+        IF ( PRESENT ( globenv ) ) scr = globenv % scr
+        CALL open_file(file_name=TRIM(eam % eam_file_name),&
+                       file_form="FORMATTED",&
+                       file_position="REWIND",&
+                       file_status="OLD",&
+                       unit_number=unit_number)
+        READ ( unit_number, '(A72)' ) title3
+        WRITE ( scr, * ) title3
 
-    READ ( unit_number, * ) ntyp,rmass,rlatt
+        READ ( unit_number, * ) ntyp,rmass,rlatt
 
-!  WRITE ( scr, '(1x,72('*'),//1x,'input data from the EAM functions',  &
-!         //1x,'title: ',a72,                                           &
-!         /1x,'-> Z =',i5,8x,'A =',f10.3,                               &
-!         /1x,'-> a =',f10.4)') title3,ntyp,rmass,rlatt
-
-    READ ( unit_number, * ) drar, drhoar, acutal
+        READ ( unit_number, * ) drar, drhoar, acutal
         CALL convert_to_cp2k_units ( "ANGSTROM", length = drar )
         CALL convert_to_cp2k_units ( "ANGSTROM", length = acutal )
 
-!  WRITE(scr,'('  dr, drho, rcut = ',3e12.4)') eam % drar, eam % drhoar, eam % acutal
-!
-    DO i = 1,5000
-      READ ( unit_number, * ) rho(i), rhop(i)
-      CALL convert_to_cp2k_units ( "ANGSTROM", length = rhop ( i ), l_power = -1 )
-      rval(i) = REAL ( i-1 ) * drar
-      rhoval(i) = REAL ( i-1 )* drhoar
-    END DO
-!
-    DO i = 1,5000
-       READ ( unit_number, * ) phi(i), phip(i)
-       CALL convert_to_cp2k_units ( "EV", energy = phi ( i ) )
-       CALL convert_to_cp2k_units ( "EV", energy = phip ( i ) )
-       CALL convert_to_cp2k_units ( "ANGSTROM", length = phip ( i ), l_power = -1 )
-    END DO
-!
-    DO i = 1,5000
-       READ ( unit_number, * ) frho(i), frhop(i)
-       CALL convert_to_cp2k_units ( "EV", energy = frho ( i ) )
-       CALL convert_to_cp2k_units ( "EV", energy = frhop ( i ) )
-    END DO
-!
-    WRITE ( scr, * ) 'Finished EAM data'
-    CLOSE ( unit_number )
-  ENDIF
-  CALL mp_bcast ( drar, globenv % source, globenv % group )
-  CALL mp_bcast ( drhoar, globenv % source, globenv % group )
-  CALL mp_bcast ( acutal, globenv % source, globenv % group )
-
-  eam % drar = drar
-  eam % drhoar = drhoar
-  eam % acutal = acutal
-  
-  CALL reallocate ( rho, 1, 5000 )
-  CALL mp_bcast ( rho, globenv % source, globenv % group )
-
-  CALL reallocate ( rhop, 1, 5000 )
-  CALL mp_bcast ( rhop, globenv % source, globenv % group )
-
-  CALL reallocate ( rval, 1, 5000 )
-  CALL mp_bcast ( rval, globenv % source, globenv % group )
-
-  CALL reallocate ( rhoval, 1, 5000 )
-  CALL mp_bcast ( rhoval, globenv % source, globenv % group )
-
-  CALL reallocate ( phi, 1, 5000 )
-  CALL mp_bcast ( phi, globenv % source, globenv % group )
-
-  CALL reallocate ( phip, 1, 5000 )
-  CALL mp_bcast ( phip, globenv % source, globenv % group )
-
-  CALL reallocate ( frho, 1, 5000 )
-  CALL mp_bcast ( frho, globenv % source, globenv % group )
-
-  CALL reallocate ( frhop, 1, 5000 )
-  CALL mp_bcast ( frhop, globenv % source, globenv % group )
-  
-  DO i = 1, 5000
-    eam % rho ( i ) = rho ( i )
-    eam % rhop ( i ) = rhop ( i )
-    eam % rval ( i ) = rval ( i )
-    eam % rhoval ( i ) = rhoval ( i )
-    eam % phi ( i ) = phi ( i )
-    eam % phip ( i ) = phip ( i )
-    eam % frho ( i ) = frho ( i )
-    eam % frhop ( i ) = frhop ( i )
-  END DO
-  DEALLOCATE ( rho, STAT = isos )
-  IF (isos/=0) CALL stop_program('read_eam_data', &
-  'failed to deallocate rho' )
-
-  DEALLOCATE ( rhop, STAT = isos )
-  IF (isos/=0) CALL stop_program('read_eam_data', &
-  'failed to deallocate rhop' )
-
-  DEALLOCATE ( rval, STAT = isos )
-  IF (isos/=0) CALL stop_program('read_eam_data', &
-  'failed to deallocate rval' )
-
-  DEALLOCATE ( rhoval, STAT = isos )
-  IF (isos/=0) CALL stop_program('read_eam_data', &
-  'failed to deallocate rhoval' )
-
-  DEALLOCATE ( phi, STAT = isos )
-  IF (isos/=0) CALL stop_program('read_eam_data', &
-  'failed to deallocate phi' )
-
-  DEALLOCATE ( phip, STAT = isos )
-  IF (isos/=0) CALL stop_program('read_eam_data', &
-  'failed to deallocate phip' )
-
-  DEALLOCATE ( frho, STAT = isos )
-  IF (isos/=0) CALL stop_program('read_eam_data', &
-  'failed to deallocate frho' )
-
-  DEALLOCATE ( frhop, STAT = isos )
-  IF (isos/=0) CALL stop_program('read_eam_data', &
-  'failed to deallocate frhop' )
-END SUBROUTINE read_eam_data 
+        DO i = 1,5000
+           READ ( unit_number, * ) rho(i), rhop(i)
+           CALL convert_to_cp2k_units ( "ANGSTROM", length = rhop ( i ), l_power = -1 )
+           rval(i) = REAL ( i-1 ) * drar
+           rhoval(i) = REAL ( i-1 )* drhoar
+        END DO
+        !
+        DO i = 1,5000
+           READ ( unit_number, * ) phi(i), phip(i)
+           CALL convert_to_cp2k_units ( "EV", energy = phi ( i ) )
+           CALL convert_to_cp2k_units ( "EV", energy = phip ( i ) )
+           CALL convert_to_cp2k_units ( "ANGSTROM", length = phip ( i ), l_power = -1 )
+        END DO
+        !
+        DO i = 1,5000
+           READ ( unit_number, * ) frho(i), frhop(i)
+           CALL convert_to_cp2k_units ( "EV", energy = frho ( i ) )
+           CALL convert_to_cp2k_units ( "EV", energy = frhop ( i ) )
+        END DO
+        !
+        WRITE ( scr, * ) 'Finished EAM data'
+        CLOSE ( unit_number )
+     ENDIF
+     CALL mp_bcast ( drar, globenv % source, globenv % group )
+     CALL mp_bcast ( drhoar, globenv % source, globenv % group )
+     CALL mp_bcast ( acutal, globenv % source, globenv % group )
+     
+     eam % drar = drar
+     eam % drhoar = drhoar
+     eam % acutal = acutal
+     
+     CALL reallocate ( rho, 1, 5000 )
+     CALL mp_bcast ( rho, globenv % source, globenv % group )
+     
+     CALL reallocate ( rhop, 1, 5000 )
+     CALL mp_bcast ( rhop, globenv % source, globenv % group )
+     
+     CALL reallocate ( rval, 1, 5000 )
+     CALL mp_bcast ( rval, globenv % source, globenv % group )
+     
+     CALL reallocate ( rhoval, 1, 5000 )
+     CALL mp_bcast ( rhoval, globenv % source, globenv % group )
+     
+     CALL reallocate ( phi, 1, 5000 )
+     CALL mp_bcast ( phi, globenv % source, globenv % group )
+     
+     CALL reallocate ( phip, 1, 5000 )
+     CALL mp_bcast ( phip, globenv % source, globenv % group )
+     
+     CALL reallocate ( frho, 1, 5000 )
+     CALL mp_bcast ( frho, globenv % source, globenv % group )
+     
+     CALL reallocate ( frhop, 1, 5000 )
+     CALL mp_bcast ( frhop, globenv % source, globenv % group )
+     
+     eam % rho    = rho 
+     eam % rhop   = rhop 
+     eam % rval   = rval 
+     eam % rhoval = rhoval 
+     eam % phi    = phi  
+     eam % phip   = phip 
+     eam % frho   = frho 
+     eam % frhop  = frhop 
+     
+     DEALLOCATE ( rho, STAT = stat )
+     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+     DEALLOCATE ( rhop, STAT = stat )
+     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+     DEALLOCATE ( rval, STAT = stat )
+     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+     DEALLOCATE ( rhoval, STAT = stat )
+     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+     DEALLOCATE ( phi, STAT = stat )
+     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+     DEALLOCATE ( phip, STAT = stat )
+     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+     DEALLOCATE ( frho, STAT = stat )
+     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+     DEALLOCATE ( frhop, STAT = stat )
+     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+  END IF
+END SUBROUTINE read_eam_data
 !******************************************************************************
 END MODULE force_fields
 !******************************************************************************
