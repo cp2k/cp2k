@@ -54,10 +54,6 @@ PROGRAM cp2k
   ! something reasonable from the cp_logger
   INTEGER, PARAMETER                   :: default_output_unit = 6 
 
-
-  INTEGER, POINTER :: remove_me
-  ALLOCATE(remove_me)
-
   ! output goes to the screen by default
   output_unit=default_output_unit
 
