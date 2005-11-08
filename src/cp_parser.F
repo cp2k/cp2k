@@ -59,7 +59,8 @@ MODULE cp_parser
   PUBLIC :: parser_release, parser_retain, parser_create
   PUBLIC :: parser_read_line, parser_next_token, parser_test_next_token
   PUBLIC :: parser_get_object, parser_get_real, parser_get_integer,&
-       parser_get_logical, parser_get_string, parser_location
+       parser_get_logical, parser_get_string, parser_location,&
+       parser_search_string
 
 ! *** Global parameters ***
 
@@ -1051,7 +1052,7 @@ END SUBROUTINE parser_next_token
 
 ! *****************************************************************************
 
-  SUBROUTINE search_object(parser,string,ignore_case,found,line,error)
+  SUBROUTINE parser_search_string(parser,string,ignore_case,found,line,error)
 
     !   Purpose: Search a string pattern in a file defined by its logical unit
     !            number "unit". A case sensitive search is performed, if
@@ -1069,7 +1070,7 @@ END SUBROUTINE parser_next_token
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
-    CHARACTER(LEN=*), PARAMETER :: routineN = "search_object", &
+    CHARACTER(LEN=*), PARAMETER :: routineN = "parser_search_string", &
       routineP = moduleN//':'//routineN
 
     CHARACTER(LEN=LEN(string))               :: pattern
@@ -1144,7 +1145,7 @@ END SUBROUTINE parser_next_token
           CALL parser_next_token(parser,error=error) !only if .not.cp_error_check?
        END IF
     END IF
-  END SUBROUTINE search_object
+  END SUBROUTINE parser_search_string
 
 ! *****************************************************************************
 
