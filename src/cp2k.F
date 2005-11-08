@@ -56,6 +56,7 @@ PROGRAM cp2k
 
   INTEGER, POINTER :: to_remove
   allocate(to_remove)
+  allocate(to_remove)
 
   ! output goes to the screen by default
   output_unit=default_output_unit
