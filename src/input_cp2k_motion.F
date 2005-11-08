@@ -526,7 +526,6 @@ contains
        CALL keyword_release(keyword,error=error)
 
        CALL keyword_create(keyword, name="FLETCHER_REEVES",&
-            variants=(/"CONSTRAINT"/),&
             description="Uses FLETCHER-REEVES instead of POLAK-RIBIERE when using Conjugate Gradients",&
             usage="FLETCHER-REEVES",&
             default_l_val=.FALSE.,lone_keyword_l_val=.TRUE.,error=error)
