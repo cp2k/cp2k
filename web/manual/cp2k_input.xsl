@@ -38,16 +38,19 @@
     they are currently expanded. In this way a toggling between the index and
     the detailed description is feasible.
    <h2>Index of all input sections and keywords</h2>
+    <h4>Last update: <xsl:value-of select="COMPILE_DATE"/></h4>
     <script type="text/javascript" language="javascript1.2">
-     var Path = new collapsibleList([17,21,'t.gif','l.gif','i.gif','e.gif'],[25,21,'f.gif','b.gif','p.gif','m.gif']);
+     var Path = new collapsibleList([17,21,'t.gif','l.gif','i.gif','e.gif'],[25,21,'f.gif','b.gif','p.gif','m.gif'],false);
      <xsl:call-template name="section_index">
       <xsl:with-param name="path" select="'Path'"/>
+      <xsl:with-param name="expand_list" select="'true'"/>
      </xsl:call-template>
      createList(Path);
     </script>
     Back to the <a href="http://cp2k.berlios.de">CP2K home page</a>
    <hr/>
    <h2>Detailed description of all sections and keywords</h2>
+    <h4>Last update: <xsl:value-of select="COMPILE_DATE"/></h4>
     <xsl:call-template name="describe_sections"/>
    <hr/>
    Back to the <a href="http://cp2k.berlios.de">CP2K home page</a>
@@ -57,15 +60,17 @@
 
 <xsl:template name="section_index">
  <xsl:param name="path"/>
+ <xsl:param name="expand_list"/>
  <xsl:for-each select="SECTION">
   <xsl:sort select="NAME"/>
   <xsl:variable name="local_path" select="concat($path,'.sub[',string(position()-1),']')"/>
-  <xsl:value-of select="$local_path"/> = new sub('<a href="#sec_des_{generate-id(NAME)}" id="sec_ind_{generate-id(NAME)}">&amp;<xsl:value-of select="NAME"/></a>');
+  <xsl:value-of select="$local_path"/> = new sub('<a href="#sec_des_{generate-id(NAME)}" id="sec_ind_{generate-id(NAME)}">&amp;<xsl:value-of select="NAME"/></a>',<xsl:value-of select="$expand_list"/>);
   <xsl:call-template name="keyword_index">
    <xsl:with-param name="path" select="$local_path"/>
   </xsl:call-template>
   <xsl:call-template name="section_index">
    <xsl:with-param name="path" select="$local_path"/>
+   <xsl:with-param name="expand_list" select="$expand_list"/>
   </xsl:call-template>
  </xsl:for-each>
 </xsl:template>
