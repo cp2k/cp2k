@@ -44,6 +44,7 @@
      <xsl:call-template name="section_index">
       <xsl:with-param name="path" select="'Path'"/>
       <xsl:with-param name="expand_list" select="'true'"/>
+      <xsl:with-param name="start" select="count(KEYWORD)"/>
      </xsl:call-template>
      createList(Path);
     </script>
@@ -61,9 +62,10 @@
 <xsl:template name="section_index">
  <xsl:param name="path"/>
  <xsl:param name="expand_list"/>
+ <xsl:param name="start"/>
  <xsl:for-each select="SECTION">
   <xsl:sort select="NAME"/>
-  <xsl:variable name="local_path" select="concat($path,'.sub[',string(position()-1),']')"/>
+  <xsl:variable name="local_path" select="concat($path,'.sub[',string($start+position()-1),']')"/>
   <xsl:value-of select="$local_path"/> = new sub('<a href="#sec_des_{generate-id(NAME)}" id="sec_ind_{generate-id(NAME)}">&amp;<xsl:value-of select="NAME"/></a>',<xsl:value-of select="$expand_list"/>);
   <xsl:call-template name="keyword_index">
    <xsl:with-param name="path" select="$local_path"/>
@@ -71,6 +73,7 @@
   <xsl:call-template name="section_index">
    <xsl:with-param name="path" select="$local_path"/>
    <xsl:with-param name="expand_list" select="$expand_list"/>
+   <xsl:with-param name="start" select="count(KEYWORD)"/>
   </xsl:call-template>
  </xsl:for-each>
 </xsl:template>
