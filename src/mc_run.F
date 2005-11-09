@@ -76,8 +76,7 @@ MODULE mc_run
                                              molecule_kind_type
   USE parallel_rng_types,              ONLY: rng_stream_type,&
                                              create_rng_stream,&
-                                             delete_rng_stream,&
-                                             next_random_number
+                                             delete_rng_stream
   USE physcon,                         ONLY: angstrom
   USE termination,                     ONLY: stop_memory,&
                                              stop_program

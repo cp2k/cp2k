@@ -287,9 +287,6 @@ CONTAINS
                bias_energy_old(ibox)=moves(ibox)%moves%bias_energy
             ENDDO
 
-!            WRITE(6,*) 'eiru ',new_energy(:),old_energy(:)
-!            WRITE(6,*) 'eiru ',bias_energy_new(:),bias_energy_old(:)
-
             energies=-BETA*((SUM(new_energy(:))-SUM(bias_energy_new(:)))&
                -(SUM(old_energy(:))-SUM(bias_energy_old(:))))
 
@@ -298,7 +295,7 @@ CONTAINS
             IF(energies .GE. 0.0_dp) THEN
                w=1.0_dp
             ELSEIF(energies .LE. -500.0_dp) THEN
-               energies=0.0_dp
+               w=0.0_dp
             ELSE
                w=exp(energies)
             ENDIF
@@ -312,13 +309,11 @@ CONTAINS
             ENDIF
          ELSE
             energies=-BETA*(SUM(new_energy(:))-SUM(old_energy(:)))
-!               WRITE(6,*) 'iouer ',energies,BETA
-!               WRITE(6,*) new_energy(:),old_energy(:)
 ! used to prevent over and underflows
             IF(energies .GE. 0.0_dp) THEN
                w=1.0_dp
             ELSEIF(energies .LE. -500.0_dp) THEN
-               energies=-500.0_dp
+               w=0.0_dp
             ELSE
                w=exp(energies)
             ENDIF
@@ -1037,7 +1032,6 @@ CONTAINS
 
       IF ( rand .LT. w ) THEN
 
-!         WRITE(6,*) 'ACCEPTED'
 ! accept the move         
 
 !     accept the move

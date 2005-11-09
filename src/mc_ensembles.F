@@ -22,7 +22,6 @@
 #include "cp_prep_globals.h"
 
 MODULE mc_ensembles
-  USE checkpoint_handler,              ONLY: write_checkpoint_information
   USE cp_error_handling,               ONLY: cp_a_l,&
                                              cp_error_type
   USE cp_subsystem_types,              ONLY: cp_subsys_get,&
@@ -602,11 +601,11 @@ CONTAINS
 
 ! used for keeping track of counters for lbias=.false. simulations
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! debugging
-!                     IF (rand .LT. conf_prob(1,ibox)) THEN
-                        IF (rand .LT. 0.0d0) THEN
+                     IF (rand .LT. conf_prob(1,ibox)) THEN
+!                        IF (rand .LT. 0.0d0) THEN
                         move_type='bond'
-!                     ELSEIF(rand .LT. conf_prob(2,ibox)) THEN
-                     ELSEIF(rand .LT. 2.0d0) THEN
+                     ELSEIF(rand .LT. conf_prob(2,ibox)) THEN
+!                     ELSEIF(rand .LT. 2.0d0) THEN
                         move_type='angle'
                      ELSE
                         move_type='dihedral'
@@ -791,7 +790,7 @@ CONTAINS
          ENDDO
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! debug make sure the energies line up
-         IF(.true.) THEN
+         IF(.false.) THEN
          DO ibox=1,nboxes
             IF(nchain(ibox) .NE. 0) THEN
                CALL force_env_calc_energy_force(force_env(ibox)%force_env,&

@@ -62,6 +62,7 @@ MODULE mc_moves
   USE molecule_kind_types,             ONLY: get_molecule_kind,&
                                              molecule_kind_type,&
                                              bond_type,&
+                                             bend_type,&
                                              atom_type
   USE parallel_rng_types,              ONLY: rng_stream_type,&
                                              next_random_number
@@ -311,7 +312,9 @@ CONTAINS
          ENDIF
 
 ! do the move
-         CALL change_bond_angle(r_old,r_new,mc_par,mol,rng_stream)
+         CALL change_bond_angle(r_old,r_new,&
+            mc_par,mol,molecule_kind,particles,rng_stream)
+!         CALL change_bond_angle(r_old,r_new,mc_par,mol,rng_stream)
          dis_length=1.0E0_dp
       ENDIF
 
@@ -1121,7 +1124,7 @@ CONTAINS
 
 ! find the test cell lenghts for the discrete volume move
       IF(ldiscrete) THEN
-         IF(rand .LT. 0.5d0) THEN
+         IF(rand .LT. 0.5_dp) THEN
             lincrease=.true.
          ELSE
             lincrease=.false.
@@ -1135,7 +1138,7 @@ CONTAINS
                IF(ionode) rand=next_random_number(rng_stream)
 !     CALL RANDOM_NUMBER(rand)
                CALL mp_bcast(rand,source,group)
-               iside_change=CEILING(3.0d0*rand)
+               iside_change=CEILING(3.0_dp*rand)
                IF(discrete_array(iside_change,1) .EQ. 1) THEN
                   new_cell_length(iside_change)=&
                   new_cell_length(iside_change)+discrete_step
@@ -1147,7 +1150,7 @@ CONTAINS
                IF(ionode) rand=next_random_number(rng_stream)
 !                  CALL RANDOM_NUMBER(rand)
                CALL mp_bcast(rand,source,group)
-               iside_change=CEILING(3.0d0*rand)
+               iside_change=CEILING(3.0_dp*rand)
                IF(discrete_array(iside_change,2) .EQ. 1) THEN
                   new_cell_length(iside_change)=&
                      new_cell_length(iside_change)-discrete_step
@@ -1281,10 +1284,10 @@ CONTAINS
       pressure_term=pressure*vol_dis
 
       value=-BETA*(energy_term+volume_term+pressure_term)
-      IF(value .GT. 500.0d0) THEN
-         w=10.0d0
-      ELSEIF(value .LT. -500.0d0) THEN
-         w=0.0d0
+      IF(value .GT. 500.0_dp) THEN
+         w=10.0_dp
+      ELSEIF(value .LT. -500.0_dp) THEN
+         w=0.0_dp
       ELSE
          w=exp(value)
       ENDIF
@@ -1393,9 +1396,10 @@ CONTAINS
 !!     - mc_par: the mc parameters for the force env
 !!     - mol: the number of the first atom in the molecule, assuming the
 !!            next natom-1 atoms are the rest of the molecule
+!!     - molecule_kind: the structure containing the molecule information
 !!     - dis_length: the ratio of the new bond length to the old bond length,
 !!                   used in the acceptance rule
-!!     - particles: the particle_list_type for all particles in the force_env...&
+!!     - particles: the particle_list_type for all particles in the force_env..
 !!            used to grab the mass of each atom
 !!     - rng_stream: the random number stream that we draw from
 !!             
@@ -1476,8 +1480,8 @@ CONTAINS
       ALLOCATE(atom_b(1:natom),STAT=istat)
       IF (istat /= 0) CALL stop_memory(routineN,module_name,__LINE__,&
                        "atom_b",natom)
-      connection(:,:)=0.0d0
-      connectivity(:,:)=0.0d0
+      connection(:,:)=0.0_dp
+      connectivity(:,:)=0.0_dp
       counter(:)=0
       atom_a(:)=0
       atom_b(:)=0
@@ -1509,8 +1513,8 @@ CONTAINS
 
 ! now figure out the masses of the various sides, so we can weight how far we move each
 ! group of atoms
-      mass_a=0.0d0
-      mass_b=0.0d0
+      mass_a=0.0_dp
+      mass_b=0.0_dp
       DO iatom=1,natom
          CALL get_atomic_kind(particles%els(iatom)%atomic_kind,&
             mass=atom_mass)
@@ -1530,7 +1534,8 @@ CONTAINS
 
 ! find the bond vector that atom a will be moving
       DO i=1,3
-         bond_a(i)=r_new(i,mol+bond_list(bond_number)%a-1)-r_new(i,mol+bond_list(bond_number)%b-1)
+         bond_a(i)=r_new(i,mol+bond_list(bond_number)%a-1)-&
+            r_new(i,mol+bond_list(bond_number)%b-1)
          bond_b(i)=-bond_a(i)
       ENDDO
 
@@ -1587,25 +1592,30 @@ CONTAINS
 !!     change_bond_angle
 !!
 !!   FUNCTION
-!!     alters the magnitude of the HOH angle for a water molecule, keeping
-!!     the angle bisector in the same position
+!!     Alters the magnitude of a random angle in a molecule centered on atom C 
+!!     (connected to atoms A and B).  Atoms A and B are moved amounts related 
+!!     to their masses (and masses of all connecting atoms), so that heavier
+!!     segments are moved less.
 !!
 !!   ARGUMENTS
 !!     - r_old: the initial coordinates of all molecules in the system
 !!     - r_new: the new coordinates of all molecules in the system
 !!     - mc_par: the mc parameters for the force env
-!!     - mol: the number of the molecule's oxygen atom, assuming the hydrogens
-!!            are the following two
+!!     - mol: the number of the first atom in the molecule, assuming the
+!!            next natom-1 atoms are the rest of the molecule
+!!     - molecule_kind: the structure containing the molecule information
+!!     - particles: the particle_list_type for all particles in the force_env...
+!!            used to grab the mass of each atom
 !!     - rng_stream: the random number stream that we draw from
-!!              
-!!    This subroutine is designed to run parallel.
+!!             
 !!
 !!   AUTHOR
 !!     MJM
 !!
 !!*****************************************************************************
 
-  SUBROUTINE change_bond_angle ( r_old,r_new,mc_par,mol,rng_stream)
+  SUBROUTINE change_bond_angle ( r_old,r_new,mc_par,mol,molecule_kind,&
+      particles,rng_stream)
 
 !   ***************************************************************************
 
@@ -1616,22 +1626,29 @@ CONTAINS
     REAL(KIND=dp), DIMENSION(:,:), &
       INTENT(IN)                             :: r_old
     INTEGER, INTENT(IN)                      :: mol
+    TYPE(molecule_kind_type),POINTER         :: molecule_kind
+    TYPE(particle_list_type), POINTER        :: particles
     TYPE(rng_stream_type), POINTER           :: rng_stream
 
     CHARACTER(LEN=*), PARAMETER              :: &
       routineN = "change_bond_angle"
 
+! local variables
+
+    TYPE(bend_type),DIMENSION(:),POINTER     :: bend_list
+    TYPE(bond_type),DIMENSION(:),POINTER     :: bond_list
     INTEGER                                  :: handle, i, ipart,nunits_tot,&
-      group,source
+      group,source,nbend,bend_number,natom,istat,iatom,ibond,nbond
     REAL(KIND=dp)                            :: bis_length, dis_angle, &
-                                                new_angle, old_angle, &
-                                                old_length1, old_length2,rand,&
-                                                rmangle
-    REAL(KIND=dp), DIMENSION(1:3)            :: bisector, bisector1, &
-                                                bisector2, OH1, OH2, &
-                                                OH_between, OH_between1, &
-                                                OH_between2
+      old_angle, mass_a,mass_c, rand,&
+      rmangle,atom_mass,old_length_a,old_length_c,temp_length,&
+      new_angle_a,new_angle_c,dis_angle_a,dis_angle_c
+    REAL(KIND=dp), DIMENSION(1:3)            :: bisector, &
+      bond_a,bond_c,between,cross_prod,cross_prod_plane,temp
     LOGICAL                                  :: ionode
+    INTEGER,DIMENSION(:),ALLOCATABLE                     :: counter,&
+      atom_a,atom_c
+    INTEGER,DIMENSION(:,:),ALLOCATABLE       :: connection,connectivity
 
 !   ---------------------------------------------------------------------------
 ! begin the timing of the subroutine
@@ -1639,12 +1656,80 @@ CONTAINS
       CALL timeset(routineN,'I','',handle)
 
 ! get some stuff from mc_par
-      CALL get_mc_par(mc_par,nunits_tot=nunits_tot,rmangle=rmangle,&
-         ionode=ionode,group=group,source=source)
+      CALL get_mc_par(mc_par,nunits_tot=nunits_tot,rmangle=rmangle,source=source,&
+         group=group,ionode=ionode)
 
 ! copy the incoming coordinates so we can change them
       DO ipart=1,nunits_tot
          r_new(1:3,ipart)=r_old(1:3,ipart)
+      ENDDO
+
+! pick which bond in the molecule at random
+      IF(ionode) THEN
+         rand=next_random_number(rng_stream)
+!      CALL RANDOM_NUMBER(rand)
+      ENDIF
+      CALL mp_bcast(rand,source,group)
+      CALL get_molecule_kind(molecule_kind,natom=natom,nbend=nbend,&
+         bend_list=bend_list,bond_list=bond_list,nbond=nbond)
+      bend_number=CEILING(rand*REAL(nbend,dp))
+
+      ALLOCATE(connection(1:natom,1:2),STAT=istat)
+      IF (istat /= 0) CALL stop_memory(routineN,module_name,__LINE__,&
+                       "connection",2*natom*dp_size)
+! assume at most six bonds per atom
+      ALLOCATE(connectivity(1:6,1:natom),STAT=istat)
+      IF (istat /= 0) CALL stop_memory(routineN,module_name,__LINE__,&
+                       "connectivity",6*natom*dp_size)
+      ALLOCATE(counter(1:natom),STAT=istat)
+      IF (istat /= 0) CALL stop_memory(routineN,module_name,__LINE__,&
+                       "counter",natom)
+      ALLOCATE(atom_a(1:natom),STAT=istat)
+      IF (istat /= 0) CALL stop_memory(routineN,module_name,__LINE__,&
+                       "atom_a",natom)
+      ALLOCATE(atom_c(1:natom),STAT=istat)
+      IF (istat /= 0) CALL stop_memory(routineN,module_name,__LINE__,&
+                       "atom_c",natom)
+      connection(:,:)=0.0_dp
+      connectivity(:,:)=0.0_dp
+      counter(:)=0
+      atom_a(:)=0
+      atom_c(:)=0
+
+! now we need to find a list of atoms that each atom in this bond is connected
+! to
+      DO iatom=1,natom
+         DO ibond=1,nbond
+            IF(bond_list(ibond)%a == iatom) THEN
+               counter(iatom)=counter(iatom)+1
+               connectivity(counter(iatom),iatom)=bond_list(ibond)%b
+            ELSEIF(bond_list(ibond)%b == iatom)THEN
+               counter(iatom)=counter(iatom)+1
+               connectivity(counter(iatom),iatom)=bond_list(ibond)%a
+            ENDIF
+         ENDDO
+      ENDDO
+
+! now I need to do a depth first search to figure out which atoms are on atom a's
+! side and which are on atom c's
+      atom_a(:)=0
+      atom_a(bend_list(bend_number)%a)=1
+      CALL depth_first_search(bend_list(bend_number)%a,bend_list(bend_number)%b,&
+           connectivity(:,:),atom_a(:))
+      atom_c(:)=0
+      atom_c(bend_list(bend_number)%c)=1
+      CALL depth_first_search(bend_list(bend_number)%c,bend_list(bend_number)%b,&
+           connectivity(:,:),atom_c(:))
+
+! now figure out the masses of the various sides, so we can weight how far we move each
+! group of atoms
+      mass_a=0.0_dp
+      mass_c=0.0_dp
+      DO iatom=1,natom
+         CALL get_atomic_kind(particles%els(iatom)%atomic_kind,&
+            mass=atom_mass)  
+         IF(atom_a(iatom) == 1) mass_a=mass_a+atom_mass
+         IF(atom_c(iatom) == 1) mass_c=mass_c+atom_mass
       ENDDO
 
 ! choose a displacement
@@ -1652,44 +1737,132 @@ CONTAINS
 !      CALL RANDOM_NUMBER(rand)
       CALL mp_bcast(rand,source,group)
       
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
       dis_angle=rmangle*2.0E0_dp*(rand-0.5E0_dp)
-!      dis_angle=0.017453E0_dp   ! always increase by one degree for testing
+!      dis_angle=-0.017453E0_dp*60.0_dp*(rand-0.5E0_dp)  ! always increase by one degree for testing
+
+! need to find the A-B-C bisector
+
+! this going to be tough...we need to find the plane of the A-B-C bond and only shift 
+! that component for all atoms connected to A and C...otherwise we change other 
+! internal degrees of freedom
 
 ! find the bond vectors
       DO i=1,3
-         OH1(i)=r_new(i,mol+1)-r_new(i,mol)
-         OH2(i)=r_new(i,mol+2)-r_new(i,mol)
+         bond_a(i)=r_new(i,mol-1+bend_list(bend_number)%a)-&
+            r_new(i,mol-1+bend_list(bend_number)%b)
+         bond_c(i)=r_new(i,mol-1+bend_list(bend_number)%c)-&
+            r_new(i,mol-1+bend_list(bend_number)%b)
       ENDDO
-      old_length1=SQRT(DOT_PRODUCT(OH1,OH1))
-      old_length2=SQRT(DOT_PRODUCT(OH2,OH2))
-      OH_between(1:3)=OH1(1:3)/old_length1-OH2(1:3)/old_length2
-      old_angle=ACOS(DOT_PRODUCT(OH1,OH2)/(old_length1*old_length2))
-      new_angle=old_angle+dis_angle
+      old_length_a=SQRT(DOT_PRODUCT(bond_a,bond_a))
+      old_length_c=SQRT(DOT_PRODUCT(bond_c,bond_c))
+      between(1:3)=bond_a(1:3)/old_length_a-bond_c(1:3)/old_length_c
+      old_angle=ACOS(DOT_PRODUCT(bond_a,bond_c)/(old_length_a*old_length_c))
 
       DO i=1,3
-         bisector(i)=OH1(i)/old_length1+& ! not yet normalized
-                 OH2(i)/old_length2
+         bisector(i)=bond_a(i)/old_length_a+& ! not yet normalized
+                 bond_c(i)/old_length_c
       ENDDO
       bis_length=SQRT(DOT_PRODUCT(bisector,bisector))
+      bisector(1:3)=bisector(1:3)/bis_length
 
-! now scale the bisector and the vector from H1 to H2
-      OH_between1(1:3) = OH_between(1:3)/SQRT(DOT_PRODUCT(OH_between,&
-             OH_between))*sin(new_angle/2.0E0_dp)*old_length1
-      OH_between2(1:3) = -OH_between(1:3)/SQRT(DOT_PRODUCT(OH_between,&
-             OH_between))*sin(new_angle/2.0E0_dp)*old_length2
-      bisector1(1:3)=bisector(1:3)/bis_length*&
-             cos(new_angle/2.0E0_dp)*old_length1
-      bisector2(1:3)=bisector(1:3)/bis_length*&
-             cos(new_angle/2.0E0_dp)*old_length2
+! now we need to find the cross product of the B-A and B-C vectors and normalize
+! it, so we have a vector that defines the bend plane
+      cross_prod(1)=bond_a(2)*bond_c(3)-bond_a(3)*bond_c(2)
+      cross_prod(2)=bond_a(3)*bond_c(1)-bond_a(1)*bond_c(3)
+      cross_prod(3)=bond_a(1)*bond_c(2)-bond_a(2)*bond_c(1)
+      cross_prod(1:3)=cross_prod(1:3)/SQRT(DOT_PRODUCT(cross_prod,cross_prod))
 
-      r_new(:,:)=r_old(:,:)
-      DO i=1,3
-         r_new(i,mol+1)=r_old(i,mol)+&
-              bisector1(i)+OH_between1(i)
-         r_new(i,mol+2)=r_old(i,mol)+&
-              bisector2(i)+OH_between2(i)
+! we have two axis of a coordinate system...let's get the third
+      cross_prod_plane(1)=cross_prod(2)*bisector(3)-cross_prod(3)*bisector(2)
+      cross_prod_plane(2)=cross_prod(3)*bisector(1)-cross_prod(1)*bisector(3)
+      cross_prod_plane(3)=cross_prod(1)*bisector(2)-cross_prod(2)*bisector(1)
+      cross_prod_plane(1:3)=cross_prod_plane(1:3)/&
+         SQRT(DOT_PRODUCT(cross_prod_plane,cross_prod_plane))
+
+! now bisector is x, cross_prod_plane is the y vector (pointing towards c), 
+! and cross_prod is z
+! shift the molecule so that atom b is at the origin
+      DO iatom=1,natom
+         r_new(1:3,mol-1+iatom)=r_new(1:3,mol-1+iatom)-&
+            r_old(1:3,mol-1+bend_list(bend_number)%b)
+      ENDDO
+
+! figure out how much we move each side, since we're mass-weighting, by the
+! opposite masses, so lighter moves farther..this angle is the angle between
+! the bond vector BA or BC and the bisector
+      dis_angle_a=dis_angle*mass_c/(mass_a+mass_c)
+      dis_angle_c=dis_angle*mass_a/(mass_a+mass_c)      
+
+! now loop through all the atoms, moving the ones that are connected to a or c
+      DO iatom=1,natom
+! subtract out the z component (perpendicular to the angle plane)
+         temp(1:3)=r_new(1:3,mol-1+iatom)-&
+            DOT_PRODUCT(cross_prod(1:3),r_new(1:3,mol-1+iatom))*&
+            cross_prod(1:3)
+         temp_length=SQRT(DOT_PRODUCT(temp,temp))
+
+! we can now compute all three components of the new bond vector along the
+! axis defined above
+         IF(atom_a(iatom) == 1) THEN
+
+! if the y-coordinate is less than zero, we need to switch the sign when we make the vector,
+! as the angle computed by the dot product can't distinguish between that
+            IF(DOT_PRODUCT(cross_prod_plane(1:3),r_new(1:3,mol-1+iatom)) &
+               .LT. 0.0_dp) THEN
+               
+! need to figure out the current iatom-B-bisector angle, so we know what the new angle is
+            new_angle_a=ACOS(DOT_PRODUCT(bisector,temp(1:3))/&
+               (temp_length))+dis_angle_a
+
+            r_new(1:3,mol-1+iatom)=cos(new_angle_a)*temp_length*bisector(1:3)-&
+               sin(new_angle_a)*temp_length*cross_prod_plane(1:3)+&
+               DOT_PRODUCT(cross_prod(1:3),r_new(1:3,mol-1+iatom))*&
+               cross_prod(1:3)
+            ELSE
+
+! need to figure out the current iatom-B-bisector angle, so we know what the new angle is
+            new_angle_a=ACOS(DOT_PRODUCT(bisector,temp(1:3))/&
+               (temp_length))-dis_angle_a
+
+            r_new(1:3,mol-1+iatom)=cos(new_angle_a)*temp_length*bisector(1:3)+&
+               sin(new_angle_a)*temp_length*cross_prod_plane(1:3)+&
+               DOT_PRODUCT(cross_prod(1:3),r_new(1:3,mol-1+iatom))*&
+               cross_prod(1:3)
+            ENDIF
+
+         ELSEIF(atom_c(iatom) == 1) THEN
+
+! if the y-coordinate is less than zero, we need to switch the sign when we make the vector,
+! as the angle computed by the dot product can't distinguish between that
+            IF(DOT_PRODUCT(cross_prod_plane(1:3),r_new(1:3,mol-1+iatom)) &
+               .LT. 0.0_dp) THEN
+! need to figure out the current iatom-B-bisector angle, so we know what the new angle is
+            new_angle_c=ACOS(DOT_PRODUCT(bisector(1:3),temp(1:3))/&
+               (temp_length))-dis_angle_c
+
+            r_new(1:3,mol-1+iatom)=cos(new_angle_c)*temp_length*bisector(1:3)-&
+               sin(new_angle_c)*temp_length*cross_prod_plane(1:3)+&
+               DOT_PRODUCT(cross_prod(1:3),r_new(1:3,mol-1+iatom))*&
+               cross_prod(1:3)
+            ELSE
+            new_angle_c=ACOS(DOT_PRODUCT(bisector(1:3),temp(1:3))/&
+               (temp_length))+dis_angle_c
+
+            r_new(1:3,mol-1+iatom)=cos(new_angle_c)*temp_length*bisector(1:3)+&
+               sin(new_angle_c)*temp_length*cross_prod_plane(1:3)+&
+               DOT_PRODUCT(cross_prod(1:3),r_new(1:3,mol-1+iatom))*&
+               cross_prod(1:3)
+            ENDIF
+         ENDIF
+
       ENDDO
       
+      DO iatom=1,natom
+         r_new(1:3,mol-1+iatom)=r_new(1:3,mol-1+iatom)+&
+            r_old(1:3,mol-1+bend_list(bend_number)%b)
+      ENDDO
+
 ! end the timing
       CALL timestop(0.0E0_dp,handle)
 
@@ -1753,16 +1926,16 @@ CONTAINS
 
     CHARACTER(LEN=*), PARAMETER :: routineN = "mc_avbmc_move"
 
-    INTEGER                                  :: handle, imol, ipart,&
+    INTEGER                                  :: handle, ipart,&
                                                 istat,nchain,nunits_tot,&
                                                 avbmc_atom,nswapmoves,&
                                                 source,group,imolecule,&
                                                 natom
-    LOGICAL                                  :: bond_flag,lbias,&
+    LOGICAL                                  :: lbias,&
       loverlap,ionode,ldum,lin
     REAL(KIND=dp),DIMENSION(1:3)             :: abc,RIJ
     REAL(KIND=dp)                            :: bias_energy_new, &
-      bias_energy_old, rand, w, BETA,rosenbluth_weight,choosen_energy,&
+      bias_energy_old, rand, w, BETA,&
       avbmc_rmin,avbmc_rmax,rdum,new_energy,weight_new,weight_old,&
       volume_in,volume_out,del_quickstep_energy,prefactor,distance,pbias
     TYPE(cp_subsystem_p_type), &
@@ -1776,7 +1949,7 @@ CONTAINS
 
 !   ---------------------------------------------------------------------------
 
-      rdum=1.0d0
+      rdum=1.0_dp
 
 ! begin the timing of the subroutine
       CALL timeset(routineN,'I','',handle)
@@ -1991,7 +2164,7 @@ CONTAINS
       IF(lin .AND. move_type == 'in' .OR. &
          .NOT. lin .AND. move_type == 'out') THEN
 ! standard Metropolis rule
-         prefactor=1.0d0
+         prefactor=1.0_dp
       ELSEIF(.NOT. lin .AND. move_type == 'in') THEN
          prefactor=(1.0_dp-pbias)*volume_in/(pbias*volume_out)
       ELSE
@@ -2038,7 +2211,7 @@ CONTAINS
       ENDIF
       
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! debug
-!      w=1.0d0
+!      w=1.0_dp
 
       IF ( rand .LT. w ) THEN
 
