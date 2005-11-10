@@ -1,3 +1,4 @@
+
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
 !   Copyright (C) 2000  CP2K developers group                                 !
@@ -770,7 +771,7 @@ MODULE qs_rho_atom_methods
     CHARACTER(LEN=*), PARAMETER              :: routine_name = "init_rho_atom"
 
     INTEGER :: i, ia, iat, iatom, ikind, il, iso, iso1, iso2, istat, j, &
-      l1, l1l2, l2, lc1, lc2, ll, llmax, lmax_sphere, lp, m1, m2, &
+      l1, l1l2, l2, lc1, lc2, lcleb, ll, llmax, lmax_sphere, lp, m1, m2, &
       max_iso_not0, max_s_harm, max_s_set,maxco, maxlgto, maxso, mm, mp, &
       na, nat, natom, ncotot, nkind, nr, nset, &
       nsotot, nspins, quadrature
@@ -813,11 +814,12 @@ MODULE qs_rho_atom_methods
     max_s_harm = nsoset(llmax)
     max_s_set = nsoset(maxlgto)
 
+    lcleb = MAX(llmax,2*maxlgto)
 !   *** allocate calculate the CG coefficients up to the maxl *** 
-    CALL clebsch_gordon_init ( llmax )
+    CALL clebsch_gordon_init ( lcleb )
     CALL reallocate(my_CG,1,max_s_set,1,max_s_set,1,max_s_harm)
 
-    ALLOCATE(rga(llmax,2),STAT=istat)
+    ALLOCATE(rga(lcleb,2),STAT=istat)
     DO lc1 = 0,maxlgto
       DO  iso1=nsoset(lc1-1)+1,nsoset(lc1)
         l1 = indso(1,iso1)
