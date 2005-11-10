@@ -1113,6 +1113,7 @@ END SUBROUTINE xc_vxc_pw_create_debug
           END DO
 
        END IF  ! ANY
+
     END IF
 
     CALL timestop(0.0_dp,handle)
@@ -1426,7 +1427,7 @@ SUBROUTINE xc_vxc_pw_create(vxc_rho,vxc_tau,exc,rho_r,rho_g,tau,dft_control,&
         CPPrecondition(nspins==2,cp_failure_level,routineP,error,failure)
      END IF
   END IF
-  xc_control = dft_control%xc_control
+
 
   CALL cp_assert(dft_control%integration_grid%pw_default,&
        cp_failure_level,cp_unimplemented_error_nr,routineP,&
@@ -1441,12 +1442,13 @@ SUBROUTINE xc_vxc_pw_create(vxc_rho,vxc_tau,exc,rho_r,rho_g,tau,dft_control,&
      ! calculate the potential derivatives
      CALL xc_rho_set_and_dset_create(rho_set=rho_set,deriv_set=deriv_set,&
           deriv_order=1, rho_r=rho_r, rho_g=rho_g, tau=tau,&
-          dft_control=dft_control, xc_control=xc_control,&
+          dft_control=dft_control, xc_control=dft_control%xc_control,&
           cell=cell, pw_pool=pw_pool,&
           gradient_f=gradient_f,  needs_basic_components=.TRUE.,&
           error=error)
 
   END IF
+  xc_control = dft_control%xc_control
 
   IF (.NOT.failure) THEN
      has_tau=.FALSE.
@@ -2105,6 +2107,7 @@ FUNCTION xc_exc_calc(rho_r,rho_g,tau,dft_control, cell,pw_pool,&
        cell=cell,pw_pool=pw_pool,&
        needs_basic_components=.FALSE.,error=error)
   deriv => xc_dset_get_derivative(deriv_set,"",error=error)
+
   IF (ASSOCIATED(deriv)) THEN
      CALL xc_derivative_get(deriv, deriv_data=e_0, error=error)
      

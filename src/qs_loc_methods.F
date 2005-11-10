@@ -832,7 +832,8 @@ CONTAINS
 !!
 !!*** **********************************************************************
 
-  SUBROUTINE qs_print_cubes(qs_env,mo_coeff,nstates,state_list,centers,iter,ispin,ionode,root,error)
+  SUBROUTINE qs_print_cubes(qs_env,mo_coeff,nstates,state_list,centers,&
+             iter,ispin,ionode,root,state0,error)
 
     TYPE(qs_environment_type), POINTER           :: qs_env
     TYPE(cp_fm_type),  POINTER                   :: mo_coeff
@@ -841,6 +842,7 @@ CONTAINS
     REAL(dp), DIMENSION(:,:), POINTER            :: centers
     LOGICAL, INTENT(IN)                          :: ionode
     CHARACTER(LEN=*)                             :: root
+    INTEGER, OPTIONAL                            :: state0
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                                   :: error
 
@@ -849,7 +851,7 @@ CONTAINS
 
     CHARACTER(LEN=80)  :: filename
     CHARACTER(LEN=80)  :: title
-    INTEGER :: ia, ie, istat, istate, ivector
+    INTEGER :: ia, ie, istat, istate, ivector, my_state0
     LOGICAL                                      :: failure
     TYPE(coeff_type)                             :: wf_g, wf_r
     TYPE(pw_env_type), POINTER                   :: pw_env
@@ -857,39 +859,37 @@ CONTAINS
 
     failure = .FALSE.
     NULLIFY(auxbas_pw_pool, pw_env)
-       CALL get_qs_env(qs_env=qs_env,pw_env=pw_env)
-         CALL pw_env_get(pw_env, auxbas_pw_pool=auxbas_pw_pool)
-         CALL pw_pool_init_coeff(auxbas_pw_pool,wf_r,&
-              use_data = REALDATA3D,&
-              in_space = REALSPACE, error=error)
-         CALL pw_pool_init_coeff(auxbas_pw_pool,wf_g,&
-              use_data = COMPLEXDATA1D,&
-              in_space = RECIPROCALSPACE, error=error)
+    CALL get_qs_env(qs_env=qs_env,pw_env=pw_env)
+    CALL pw_env_get(pw_env, auxbas_pw_pool=auxbas_pw_pool)
+    CALL pw_pool_init_coeff(auxbas_pw_pool,wf_r,&
+         use_data = REALDATA3D,&
+         in_space = REALSPACE, error=error)
+    CALL pw_pool_init_coeff(auxbas_pw_pool,wf_g,&
+         use_data = COMPLEXDATA1D,&
+         in_space = RECIPROCALSPACE, error=error)
 
-         DO istate = 1,nstates
-           ivector = state_list(istate)
+    my_state0 = 0
+    IF(PRESENT(state0)) my_state0 = state0
+    DO istate = 1,nstates
+      ivector = state_list(istate) - my_state0
 
-           CALL calculate_wavefunction(mo_coeff, ivector,&
+      CALL calculate_wavefunction(mo_coeff, ivector,&
                 wf_r, wf_g, qs_env, error=error)
 
-           CALL xstring (root,ia,ie)
-           filename=root(ia:ie)//"_w_"//TRIM(ADJUSTL(cp_to_string(ivector)))//&
-                   "_s"//TRIM(ADJUSTL(cp_to_string(ispin)))//"_i"//TRIM(ADJUSTL(cp_to_string(iter)))//&
+      ivector = state_list(istate)
+      CALL xstring (root,ia,ie)
+      filename=root(ia:ie)//"_w_"//TRIM(ADJUSTL(cp_to_string(ivector)))//&
+               "_s"//TRIM(ADJUSTL(cp_to_string(ispin)))//"_i"//TRIM(ADJUSTL(cp_to_string(iter)))//&
                    ".cube"
-           IF (ionode) OPEN(UNIT=21,FILE=filename)
-           WRITE(title,'(A7,I5.5,A1,I1.1,A1,6G10.4)') "WFN ",ivector,"_s",ispin," ",&
-                 centers(1:3,istate)*angstrom, &
-                 centers(4:6,istate)*angstrom
-           CALL rs_pw_to_cube(wf_r%pw,21,ionode,title)
-           IF (ionode) CLOSE(21)
+      IF (ionode) OPEN(UNIT=21,FILE=filename)
+      WRITE(title,'(A7,I5.5,A1,I1.1,A1,6G10.4)') "WFN ",ivector,"_s",ispin," ",&
+            centers(1:3,istate)*angstrom, centers(4:6,istate)*angstrom
+      CALL rs_pw_to_cube(wf_r%pw,21,ionode,title)
+      IF (ionode) CLOSE(21)
+    END DO 
 
-         END DO 
-
-         CALL pw_pool_give_back_coeff(auxbas_pw_pool,wf_r,&
-               error=error)
-         CALL pw_pool_give_back_coeff(auxbas_pw_pool,wf_g,&
-               error=error)
-
+    CALL pw_pool_give_back_coeff(auxbas_pw_pool,wf_r, error=error)
+    CALL pw_pool_give_back_coeff(auxbas_pw_pool,wf_g, error=error)
 
   END SUBROUTINE qs_print_cubes
 

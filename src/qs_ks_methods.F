@@ -368,7 +368,7 @@ CONTAINS
          cell=cell,&
          green=green,&
          para_env=para_env)
-
+  
     nspins=dft_control%nspins
     CPPrecondition(ASSOCIATED(matrix_h),cp_failure_level,routineP,error,failure)
     CPPrecondition(ASSOCIATED(matrix_s),cp_failure_level,routineP,error,failure)
@@ -516,12 +516,13 @@ CONTAINS
 
        ! *** calculate the xc potential on the pw density ***       
        ! *** associates v_rspace_new if the xc potential needs to be computed.
+
        CALL qs_vxc_create(qs_env=qs_env,&
             vxc_rho=v_rspace_new, vxc_tau=v_tau_rspace, exc=energy%exc, &
             just_energy=just_energy, gapw_xc=gapw_xc, error=error)
 
        IF (gapw .or. gapw_xc) THEN
-          CALL calculate_vxc_atom(qs_env,error)
+          CALL calculate_vxc_atom(qs_env,just_energy,error)
        END IF
 
 
@@ -640,7 +641,7 @@ CONTAINS
               CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
           ENDIF
        END IF  ! .NOT. just energy
-
+  
        IF(my_kg_gpw) THEN
          CPPostcondition(kg_fm_set%ref_count>=1,cp_failure_level,routineP,error,failure)
          CPPostcondition(kg_sub_pw_env%ref_count>=1,cp_failure_level,routineP,error,failure)
@@ -683,6 +684,7 @@ CONTAINS
        ENDIF
 
 !      
+  
        energy%mulliken = 0.0_dp
        IF (dft_control%qs_control%mulliken_restraint) THEN
            IF (just_energy) THEN
@@ -1298,10 +1300,12 @@ SUBROUTINE qs_vxc_create(vxc_rho,vxc_tau, exc, qs_env,&
      ! we get back the right my_vxc_rho and my_vxc_tau as required
      !
      IF (my_just_energy) THEN
+
         exc=xc_exc_calc(rho_r=rho_r,tau=tau,&
              rho_g=rho_g, dft_control=dft_control,&
              cell=cell, pw_pool=auxbas_pw_pool,&
              error=error)
+
      ELSE
         CALL xc_vxc_pw_create1(vxc_rho=my_vxc_rho,vxc_tau=my_vxc_tau, rho_r=rho_r,&
              rho_g=rho_g,tau=tau,exc=exc,&

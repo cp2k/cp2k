@@ -398,6 +398,7 @@ MODULE input_constants
                                 xas_3s_type=4, xas_3p_type=5, xas_3d_type=6,&
                                 xas_4s_type=7, xas_4p_type=8, xas_4d_type=9, xas_4f_type=10
   INTEGER, PARAMETER, PUBLIC :: xas_dip_len=1, xas_dip_vel=2
+  INTEGER, PARAMETER, PUBLIC :: xas_scf_default=0,xas_scf_general=1, xas_scf_ot=2
 
   ! Linear Response for properties
   INTEGER, PARAMETER, PUBLIC :: lr_none=0, lr_chemshift=1

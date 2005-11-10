@@ -40,6 +40,7 @@ MODULE xas_tp_scf
                                              cp_fm_get_info,&
                                              cp_fm_maxabsval,&
                                              cp_fm_p_type,&
+                                             cp_fm_init_random,&
                                              cp_fm_set_submatrix,&
                                              cp_fm_type,cp_fm_to_fm
   USE cp_sm_fm_interactions,           ONLY: copy_sm_to_fm,&
@@ -53,7 +54,8 @@ MODULE xas_tp_scf
                                              cp_warning_level
   USE global_types,                    ONLY: global_environment_type
   USE input_constants,                 ONLY: xas_tp_hh, xas_tp_fh,&
-                                             xas_dscf, do_loc_none 
+                                             xas_dscf, do_loc_none ,&
+                                             xas_scf_general,xas_scf_ot
   USE kinds,                           ONLY: dp
   USE machine,                         ONLY: m_flush,&
                                              m_walltime
@@ -70,10 +72,12 @@ MODULE xas_tp_scf
   USE qs_loc_types,                    ONLY: get_qs_loc_env,& 
                                              qs_loc_env_new_type
   USE qs_loc_control,                  ONLY: localized_wfn_control_type
-  USE qs_mo_methods,                   ONLY: calculate_density_matrix
+  USE qs_mo_methods,                   ONLY: calculate_density_matrix,&
+                                             calculate_subspace_eigenvalues
   USE qs_mo_types,                     ONLY: get_mo_set,set_mo_set,&
                                              mo_set_p_type,mo_set_type,&
                                              write_mo_set
+  USE qs_ot_eigensolver,                ONLY: ot_eigensolver
   USE qs_rho_atom_methods,             ONLY: calculate_rho_atom_coeff
   USE qs_rho_methods,                  ONLY: qs_rho_update_rho
   USE qs_rho_types,                    ONLY: qs_rho_type
@@ -155,13 +159,17 @@ CONTAINS
       routineP = module_name//':'//routineN
 
     INTEGER                                  :: handle, handle2,  homo, ic_max, ir_max,ispin, &
-                                                istat, iter_count, nao, nmo,output_unit,i,istate
+                                                istat, iter_count, nao, nmo,nvirtual2, &
+                                                nvirtual1,output_unit,i,istate,uno_iter
     LOGICAL :: diis_step, do_level_shift, energy_only, failure,& 
                gapw, ionode, should_stop, uniform_occupation, use_cholesky, use_jacobi, id_equal
-    REAL(KIND=dp)                            :: a_max,b_max, diis_error, IP_energy, orthonormality, &
+    REAL(KIND=dp)                            :: a_max,b_max, diis_error, IP_energy, &
+                                                orthonormality, uno_eps, &
                                                 ra(3), rac(3), rc(3), t1, t2, tot1_h, tot1_s
-    REAL(dp), DIMENSION(6)                       :: weights
+    REAL(dp), DIMENSION(6)                   :: weights
     REAL(KIND=dp), DIMENSION(:), POINTER     :: occupation_numbers, eigenvalues
+    REAL(KIND=dp), DIMENSION(:), POINTER     :: all_evals
+    REAL(KIND=dp), DIMENSION(:), POINTER     :: uno_evals
     REAL(dp), DIMENSION(:,:), POINTER        :: centers_wfn
     REAL(KIND=dp), DIMENSION(:,:), POINTER   :: vecbuffer,vecbuffer2
     TYPE(atomic_kind_type), DIMENSION(:), &
@@ -169,10 +177,12 @@ CONTAINS
     TYPE(cell_type), POINTER                     :: cell
     TYPE(cp_fm_p_type), DIMENSION(:), &
       POINTER                                :: scf_work1
+    TYPE(cp_fm_type), POINTER                :: all_vectors
     TYPE(cp_fm_type), POINTER                :: excvec_coeff
     TYPE(cp_fm_type), POINTER                :: excvec_overlap
     TYPE(cp_fm_type), POINTER                :: ortho, scf_work2,fm_work
     TYPE(cp_fm_type), POINTER                :: mo_coeff
+    TYPE(cp_fm_type), POINTER                :: uno_orbs
     TYPE(cp_fm_p_type), DIMENSION(:,:), POINTER  :: op_fm_set
     TYPE(cp_fm_p_type), DIMENSION(:), POINTER    :: moloc_coeff
     TYPE(cp_logger_type), POINTER            :: logger
@@ -274,7 +284,7 @@ CONTAINS
     ! end sparsity check
 
     ! Some elements from the xas_env
-     CALL get_xas_env(xas_env=xas_env,excvec_coeff=excvec_coeff,&
+     CALL get_xas_env(xas_env=xas_env,excvec_coeff=excvec_coeff,nvirtual2=nvirtual2,&
           excvec_overlap=excvec_overlap,fm_work=fm_work,centers_wfn=centers_wfn)
      CPPrecondition(ASSOCIATED(excvec_overlap),cp_failure_level,routineP,error,failure)
 
@@ -307,17 +317,17 @@ CONTAINS
             calculate_forces=.FALSE.,just_energy=energy_only)
 
 
-       scf_env%p_mix = scf_control%p_mix
+       scf_env%p_mix = xas_env%p_mix
        scf_env%iter_param = 0.0_dp
        IF (scf_env%mixing_method==ao_mixing_nr) scf_env%iter_param = scf_env%p_mix
 
-       SELECT CASE (scf_env%method)
+       SELECT CASE (xas_env%scf_method)
          CASE DEFAULT
             CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,&
                  routineP,"unknown scf method method:"//&
-                 cp_to_string(scf_env%method),error,failure)
+                 cp_to_string(xas_env%scf_method),error,failure)
 
-         CASE(general_diag_method_nr) ! diagonalisation (default)
+         CASE(xas_scf_general) ! diagonalisation (default)
 
             DO ispin=1,dft_control%nspins 
              CALL copy_sm_to_fm(matrix_ks(ispin)%matrix,scf_work1(ispin)%matrix)
@@ -326,7 +336,7 @@ CONTAINS
             IF (iter_count > 1) THEN
                CALL qs_diis_b_step(scf_env%scf_diis_buffer,mos,scf_work1,&
                     scf_work2,scf_env%iter_delta,diis_error,diis_step,&
-                    scf_control%eps_diis,s_matrix=matrix_s,error=error)
+                    xas_env%eps_diis,s_matrix=matrix_s,error=error)
             END IF
 
             do_level_shift = ((scf_control%level_shift /= 0.0_dp).AND.&
@@ -374,27 +384,27 @@ CONTAINS
                       eigenvalues=eigenvalues,homo=homo)
 !TEST : Calculate the centers of the wavefunctions to check the localization
                  IF(.FALSE.) THEN
-                 CALL get_xas_env(xas_env=xas_env, qs_loc_env=qs_loc_env)
-                 CALL get_qs_loc_env(qs_loc_env=qs_loc_env,&
+                   CALL get_xas_env(xas_env=xas_env, qs_loc_env=qs_loc_env)
+                   CALL get_qs_loc_env(qs_loc_env=qs_loc_env,&
                         localized_wfn_control=localized_wfn_control,&
                         moloc_coeff=moloc_coeff,&
                         op_sm_set=op_sm_set,op_fm_set=op_fm_set,&
                         cell=cell, weights=weights)
  
-                 CALL cp_fm_to_fm(mo_coeff,moloc_coeff(1)%matrix,xas_control%nexc_search,1,1 )
-                 CALL optimize_loc_berry(do_loc_none, localized_wfn_control, &
-                      moloc_coeff(1)%matrix, op_sm_set, &
-                      op_fm_set, cell, weights, 1, ionode, error=error)
+                   CALL cp_fm_to_fm(mo_coeff,moloc_coeff(1)%matrix,xas_control%nexc_search,1,1 )
+                   CALL optimize_loc_berry(do_loc_none, localized_wfn_control, &
+                        moloc_coeff(1)%matrix, op_sm_set, &
+                        op_fm_set, cell, weights, 1, ionode, error=error)
 
-                 ra(1:3) = particle_set(iatom)%r(1:3)
-                 DO istate = 1,xas_control%nexc_search
-                    centers_wfn(1,istate) = localized_wfn_control%centers_set(1)%array(1,istate)
-                    centers_wfn(2,istate) = localized_wfn_control%centers_set(1)%array(2,istate)
-                    centers_wfn(3,istate) = localized_wfn_control%centers_set(1)%array(3,istate)
-                    rc(1:3) = centers_wfn(1:3,istate)
-                    rac = pbc(ra,rc,cell)
-                    IF(ionode) WRITE(*,'(I4,4f12.6 )' ) istate, rac, eigenvalues(istate)
-                 END DO 
+                   ra(1:3) = particle_set(iatom)%r(1:3)
+                   DO istate = 1,xas_control%nexc_search
+                      centers_wfn(1,istate) = localized_wfn_control%centers_set(1)%array(1,istate)
+                      centers_wfn(2,istate) = localized_wfn_control%centers_set(1)%array(2,istate)
+                      centers_wfn(3,istate) = localized_wfn_control%centers_set(1)%array(3,istate)
+                      rc(1:3) = centers_wfn(1:3,istate)
+                      rac = pbc(ra,rc,cell)
+                      IF(ionode) WRITE(*,'(I4,4f12.6 )' ) istate, rac, eigenvalues(istate)
+                   END DO 
                  END IF
 !TEST
 
@@ -464,7 +474,7 @@ CONTAINS
 
             ENDDO
 
-         CASE(ot_method_nr) ! orbital transforms
+         CASE(xas_scf_ot) ! orbital transforms
 ! in case of LSD the first spin qs_ot_env will drive the minimization
 ! in the case of a restricted calculation, it will make sure the spin orbitals are equal
             orthogonality_metric=>matrix_s(1)%matrix
@@ -622,6 +632,75 @@ CONTAINS
 
     DEALLOCATE(vecbuffer,vecbuffer2,STAT=istat)
     CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+
+    !Still not sure if this is really possible
+!dbg
+!     write(*,*) xas_env%scf_method, xas_scf_general
+!dbg
+    IF(.NOT.xas_env%scf_method==xas_scf_general) THEN
+    ! Rotate the wfn to get the eugenstate of the KS hamiltonian
+    ! Only ispin=1 should be needed
+      DO ispin=1,dft_control%nspins
+        CALL get_mo_set(mos(ispin)%mo_set, mo_coeff=mo_coeff,nao=nao,nmo=nmo,&
+             eigenvalues=eigenvalues,homo=homo)
+        CALL calculate_subspace_eigenvalues(mo_coeff,&
+             matrix_ks(ispin)%matrix,eigenvalues, &
+             para_env=qs_env%para_env, &
+             do_rotation=.TRUE.)
+      END DO  ! ispin
+    END IF
+
+    !Calculate the virtual states from the KS matrix matrix_ks(1)
+!dbg
+!     write(*,*) 'nv2 ', nvirtual2
+!dbg
+    IF(nvirtual2 .GT. 0) THEN
+      NULLIFY(mo_coeff,uno_orbs,uno_evals)
+      CALL get_mo_set(mos(1)%mo_set, mo_coeff=mo_coeff,nao=nao,nmo=nmo)
+      CALL get_xas_env(xas_env=xas_env,unoccupied_orbs=uno_orbs,&
+           unoccupied_evals=uno_evals,unoccupied_eps=uno_eps,unoccupied_max_iter=uno_iter)
+      CALL cp_fm_init_random(uno_orbs,nvirtual2)
+      CALL ot_eigensolver(matrix_h=matrix_ks(1)%matrix,matrix_s=matrix_s(1)%matrix, &
+           matrix_c=uno_orbs,matrix_orthogonal_space=mo_coeff,eps_gradient=uno_eps,&
+           iter_max=uno_iter,globenv=globenv,size_ortho_space=nmo)
+      CALL calculate_subspace_eigenvalues(uno_orbs,matrix_ks(1)%matrix,&
+           uno_evals,para_env=qs_env%para_env,do_rotation=.TRUE.)
+    END IF
+
+    ! Prapare arrays for the calculation of the spectrum
+    IF(.NOT. xas_control%xas_method == xas_dscf) THEN
+      ! Copy the final vectors in the array
+      NULLIFY(all_vectors,all_evals)
+      CALL get_xas_env(xas_env=xas_env,all_vectors=all_vectors,&
+           all_evals=all_evals,nvirtual1=nvirtual1)
+      CALL get_mo_set(mos(1)%mo_set, eigenvalues=eigenvalues,mo_coeff=mo_coeff,&
+           nao=nao,nmo=nmo,homo=homo)
+
+      IF(xas_control%emission) THEN
+        CALL cp_fm_to_fm(mo_coeff,all_vectors,ncol=nvirtual1,&
+             source_start=1,target_start=1)
+      ELSE
+        CALL cp_fm_to_fm(mo_coeff,all_vectors,ncol=nvirtual1,&
+             source_start=homo+1,target_start=1)
+      END IF
+      IF(nvirtual2 .GT. 0) THEN
+        CALL cp_fm_to_fm(uno_orbs,all_vectors,ncol=nvirtual2,&
+             source_start=1,target_start=1+nvirtual1)
+      END IF
+
+      IF(xas_control%emission) THEN
+        DO istate = 1,nvirtual1
+          all_evals(istate) = eigenvalues(istate)
+        ENDDO
+      ELSE
+        DO istate = 1,nvirtual1
+          all_evals(istate) = eigenvalues(homo+istate)
+        ENDDO
+      END IF
+      DO istate = 1,nvirtual2
+        all_evals(istate+nvirtual1) = uno_evals(istate)
+      END DO 
+    END IF
 
     CALL timestop(0.0_dp,handle)
 

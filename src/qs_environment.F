@@ -436,9 +436,13 @@ CONTAINS
                              maxlgto=maxlgto,&
                              maxlppl=maxlppl,&
                              maxlppnl=maxlppnl)
-    
+
     lmax_sphere = dft_control%qs_control%gapw_control%lmax_sphere
-    maxl = MAX(maxlgto,maxlppl,maxlppnl,lmax_sphere)
+    IF(lmax_sphere .LT.0) THEN
+       lmax_sphere = 2*maxlgto
+       dft_control%qs_control%gapw_control%lmax_sphere= lmax_sphere
+    END IF
+    maxl = MAX(2*maxlgto,maxlppl,maxlppnl,lmax_sphere)
 
     IF (dft_control%forces) maxl = maxl + 1
 
@@ -707,13 +711,14 @@ CONTAINS
      n_mo(2) = nelectron_spin(2)
 
    END IF
-
+!MI to be deleted begin
 !   *** if additional mos need to be taken along, we do it here ***
-    IF(xas_calculation) THEN
-      scf_control%added_mos(1) = MAX(scf_control%added_mos(1),&
-                                 dft_control%xas_control%added_mos)
-      IF(scf_control%added_mos(1) == 0) scf_control%added_mos(1) = n_ao-n_mo(1)
-    END IF
+!    IF(xas_calculation) THEN
+!      scf_control%added_mos(1) = MAX(scf_control%added_mos(1),&
+!                                 dft_control%xas_control%added_mos)
+!      IF(scf_control%added_mos(1) == 0) scf_control%added_mos(1) = n_ao-n_mo(1)
+!    END IF
+!MI to be deleted end
     scf_control%added_mos(1) = MIN(scf_control%added_mos(1),n_ao-n_mo(1))
 
     n_mo(1) = n_mo(1) + scf_control%added_mos(1)

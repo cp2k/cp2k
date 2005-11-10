@@ -104,12 +104,17 @@ MODULE xas_env_types
     INTEGER :: ref_count
     INTEGER :: iter_count
     INTEGER :: nao,exc_state
-    INTEGER :: nvirtual
+    INTEGER :: nvirtual,nvirtual1,nvirtual2
+    INTEGER :: scf_method
+    INTEGER :: unoccupied_max_iter
     INTEGER, DIMENSION(:), POINTER :: state_of_atom
     INTEGER, DIMENSION(:), POINTER :: atom_of_state
     INTEGER, DIMENSION(:), POINTER :: type_of_state
     INTEGER, DIMENSION(:), POINTER :: mykind_of_atom 
     INTEGER, DIMENSION(:), POINTER :: mykind_of_kind
+    REAL(dp) :: eps_diis, p_mix, unoccupied_eps
+    REAL(dp), DIMENSION(:), POINTER :: all_evals 
+    REAL(dp), DIMENSION(:), POINTER :: unoccupied_evals 
     REAL(dp), DIMENSION(:,:), POINTER :: spectrum
     REAL(dp), DIMENSION(:,:), POINTER :: centers_wfn
     TYPE(cp_2d_r_p_type), DIMENSION(:), POINTER :: stogto_overlap
@@ -120,6 +125,8 @@ MODULE xas_env_types
        POINTER                                   :: ao_mo_fm_pools
     TYPE( cp_fm_type ), POINTER :: excvec_coeff
     TYPE( cp_fm_type ), POINTER :: excvec_overlap
+    TYPE( cp_fm_type ), POINTER :: unoccupied_orbs
+    TYPE( cp_fm_type ), POINTER :: all_vectors
     TYPE( cp_fm_type ), POINTER :: fm_work
     TYPE( real_matrix_p_type ), DIMENSION(:,:), POINTER :: ostrength_sm
     TYPE( qs_loc_env_new_type ), POINTER :: qs_loc_env
@@ -144,21 +151,30 @@ CONTAINS
 !!   MODIFICATION HISTORY
 !!
 !!*** **********************************************************************
-  SUBROUTINE get_xas_env(xas_env,iter_count,exc_state,nao,nvirtual,&
+  SUBROUTINE get_xas_env(xas_env,iter_count,exc_state,nao,nvirtual,nvirtual1,nvirtual2,&
              centers_wfn,atom_of_state,type_of_state,mykind_of_atom,mykind_of_kind,&
              state_of_atom,spectrum,groundstate_coeff,ostrength_sm,&
              dip_fm_set,excvec_coeff,excvec_overlap,fm_work,&
-             my_gto_basis,qs_loc_env,stogto_overlap,error)
+             unoccupied_orbs, unoccupied_evals,unoccupied_max_iter,unoccupied_eps,&
+             all_vectors,all_evals,eps_diis,p_mix, my_gto_basis,qs_loc_env,&
+             stogto_overlap,error)
 
     TYPE(xas_environment_type), POINTER         :: xas_env
     INTEGER, INTENT(OUT), OPTIONAL              :: iter_count
     INTEGER, INTENT(OUT), OPTIONAL              :: nao,exc_state
     INTEGER, INTENT(OUT), OPTIONAL              :: nvirtual
+    INTEGER, INTENT(OUT), OPTIONAL              :: nvirtual1
+    INTEGER, INTENT(OUT), OPTIONAL              :: nvirtual2
+    INTEGER, INTENT(OUT), OPTIONAL              :: unoccupied_max_iter
     INTEGER, DIMENSION(:), POINTER, OPTIONAL    :: state_of_atom
     INTEGER, DIMENSION(:), POINTER, OPTIONAL    :: atom_of_state
     INTEGER, DIMENSION(:), POINTER, OPTIONAL    :: type_of_state
     INTEGER, DIMENSION(:), POINTER, OPTIONAL    :: mykind_of_atom
     INTEGER, DIMENSION(:), POINTER, OPTIONAL    :: mykind_of_kind
+    REAL(dp), OPTIONAL                          :: eps_diis, p_mix
+    REAL(dp), OPTIONAL                          :: unoccupied_eps
+    REAL(dp), DIMENSION(:), POINTER, OPTIONAL   :: unoccupied_evals
+    REAL(dp), DIMENSION(:), POINTER, OPTIONAL   :: all_evals
     REAL(dp), DIMENSION(:,:), POINTER, OPTIONAL :: spectrum
     REAL(dp), DIMENSION(:,:), POINTER, OPTIONAL :: centers_wfn
     TYPE(cp_2d_r_p_type), DIMENSION(:), &
@@ -169,6 +185,8 @@ CONTAINS
       POINTER, OPTIONAL                         :: dip_fm_set
     TYPE( cp_fm_type ), POINTER, OPTIONAL       :: excvec_coeff
     TYPE( cp_fm_type ), POINTER, OPTIONAL       :: excvec_overlap
+    TYPE( cp_fm_type ), POINTER, OPTIONAL       :: unoccupied_orbs
+    TYPE( cp_fm_type ), POINTER, OPTIONAL       :: all_vectors
     TYPE( cp_fm_type ), POINTER, OPTIONAL       :: fm_work
     TYPE(gto_basis_set_p_type), DIMENSION(:),&
       POINTER, OPTIONAL                         :: my_gto_basis
@@ -194,17 +212,27 @@ CONTAINS
        IF(PRESENT(exc_state)) exc_state=xas_env%exc_state
        IF(PRESENT(nao)) nao=xas_env%nao
        IF(PRESENT(nvirtual)) nvirtual=xas_env%nvirtual
+       IF(PRESENT(nvirtual1)) nvirtual1=xas_env%nvirtual1
+       IF(PRESENT(nvirtual2)) nvirtual2=xas_env%nvirtual2
+       IF(PRESENT(eps_diis))  eps_diis=xas_env%eps_diis
+       IF(PRESENT(p_mix))  p_mix=xas_env%p_mix
+       IF(PRESENT(unoccupied_eps))  unoccupied_eps=xas_env%unoccupied_eps
+       IF(PRESENT(unoccupied_max_iter)) unoccupied_max_iter=xas_env%unoccupied_max_iter
        IF(PRESENT(centers_wfn)) centers_wfn=>xas_env%centers_wfn
        IF(PRESENT(atom_of_state)) atom_of_state=>xas_env%atom_of_state
        IF(PRESENT(type_of_state)) type_of_state=>xas_env%type_of_state
        IF(PRESENT(state_of_atom)) state_of_atom=>xas_env%state_of_atom
        IF(PRESENT(mykind_of_atom)) mykind_of_atom=>xas_env%mykind_of_atom
        IF(PRESENT(mykind_of_kind)) mykind_of_kind=>xas_env%mykind_of_kind
+       IF(PRESENT(unoccupied_evals)) unoccupied_evals=>xas_env%unoccupied_evals
+       IF(PRESENT(all_evals)) all_evals=>xas_env%all_evals
        IF(PRESENT(spectrum)) spectrum=>xas_env%spectrum
        IF(PRESENT(groundstate_coeff)) groundstate_coeff=>xas_env%groundstate_coeff
        IF(PRESENT(ostrength_sm)) ostrength_sm=>xas_env%ostrength_sm
        IF(PRESENT(excvec_overlap)) excvec_overlap=>xas_env%excvec_overlap
+       IF(PRESENT(unoccupied_orbs)) unoccupied_orbs=>xas_env%unoccupied_orbs
        IF(PRESENT(fm_work)) fm_work=>xas_env%fm_work
+       IF(PRESENT(all_vectors)) all_vectors=>xas_env%all_vectors
        IF(PRESENT(dip_fm_set)) dip_fm_set=>xas_env%dip_fm_set
        IF(PRESENT(qs_loc_env)) qs_loc_env=>xas_env%qs_loc_env
        IF(PRESENT(excvec_coeff)) excvec_coeff=>xas_env%excvec_coeff
@@ -285,6 +313,9 @@ CONTAINS
 
       xas_env%ref_count=1
       xas_env%iter_count=0
+      xas_env%nvirtual=0
+      xas_env%nvirtual1=0
+      xas_env%nvirtual2=0
 
       NULLIFY(xas_env%ao_mo_fm_pools)
       NULLIFY(xas_env%my_gto_basis)
@@ -294,6 +325,8 @@ CONTAINS
       NULLIFY(xas_env%type_of_state,xas_env%mykind_of_kind)
       NULLIFY(xas_env%fm_work,xas_env%groundstate_coeff,xas_env%dip_fm_set)
       NULLIFY(xas_env%ostrength_sm,xas_env%qs_loc_env,xas_env%spectrum)
+      NULLIFY(xas_env%all_evals,xas_env%all_vectors)
+      NULLIFY(xas_env%unoccupied_evals,xas_env%unoccupied_orbs)
       NULLIFY(xas_env%stogto_overlap)
 
     END IF
@@ -330,6 +363,14 @@ CONTAINS
          CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
          DEALLOCATE(xas_env%spectrum,xas_env%centers_wfn,STAT=istat)
          CPPostcondition(istat==0,cp_warning_level,routineP,error,failure)
+         IF(ASSOCIATED(xas_env%all_evals)) THEN
+           DEALLOCATE(xas_env%all_evals,STAT=istat)
+           CPPostcondition(istat==0,cp_warning_level,routineP,error,failure)
+         END IF
+         IF(ASSOCIATED(xas_env%unoccupied_evals)) THEN
+           DEALLOCATE(xas_env%unoccupied_evals,STAT=istat)
+           CPPostcondition(istat==0,cp_warning_level,routineP,error,failure)
+         END IF
          IF(ASSOCIATED(xas_env%groundstate_coeff)) THEN
            DO i = 1,SIZE(xas_env%groundstate_coeff)
              CALL fm_pool_give_back_fm(xas_env%ao_mo_fm_pools(i)%pool,&
@@ -350,11 +391,21 @@ CONTAINS
          IF(ASSOCIATED(xas_env%excvec_overlap)) THEN
            CALL cp_fm_release(xas_env%excvec_overlap,error=error)
          END IF
+         IF(ASSOCIATED(xas_env%unoccupied_orbs)) THEN
+           CALL cp_fm_release(xas_env%unoccupied_orbs,error=error)
+         END IF
          IF(ASSOCIATED(xas_env%fm_work)) THEN
-           CALL fm_pool_give_back_fm(xas_env%ao_mo_fm_pools(1)%pool,&
-                  xas_env%fm_work,error=error)
+!           CALL fm_pool_give_back_fm(xas_env%ao_mo_fm_pools(1)%pool,&
+!                  xas_env%fm_work,error=error)
+           CALL cp_fm_release(xas_env%fm_work,error=error)
          END IF
          NULLIFY(xas_env%ao_mo_fm_pools)
+         IF(ASSOCIATED(xas_env%all_vectors).AND.xas_env%nvirtual .GT. 0) THEN
+           CALL cp_fm_release(xas_env%all_vectors,error=error)
+         ELSE
+           NULLIFY(xas_env%all_vectors)
+         END IF
+
          IF(ASSOCIATED(xas_env%ostrength_sm)) THEN
            DO i = 1, SIZE(xas_env%ostrength_sm,2)
               DO j = 1,SIZE(xas_env%ostrength_sm,1)

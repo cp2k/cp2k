@@ -85,7 +85,7 @@ CONTAINS
 !******************************************************************************
 
   SUBROUTINE vxc_of_r_new(xc_control,rho_set,deriv_set,deriv_order,needs,w,&
-                          lsd,na,nr,exc,vxc,vxg,error)
+                          lsd,na,nr,exc,vxc,vxg,energy_only,error)
 
 ! This routine updates rho_set by giving to it the rho and drho that are needed.
 ! Since for the local densities rho1_h and rho1_s local grids are used it is not possible
@@ -108,6 +108,7 @@ CONTAINS
     REAL(dp)                                      :: exc
     REAL(dp), DIMENSION(:,:,:), POINTER           :: vxc
     REAL(dp), DIMENSION(:,:,:,:), POINTER         :: vxg
+    LOGICAL, INTENT(IN), OPTIONAL                 :: energy_only
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                                    :: error
 
@@ -118,16 +119,18 @@ CONTAINS
     REAL(KIND=dp)                                 :: drho_cutoff
     REAL(dp), DIMENSION(:,:,:), POINTER           :: deriv_data
     INTEGER                                       :: handle, i, ia, ir, idir
-    LOGICAL                                       :: failure, gradient_f
+    LOGICAL                                       :: failure, gradient_f, my_only_energy
 
 !   ***************************************************************************
 
     CALL timeset(routine_name,"I"," ",handle)
     failure = .FALSE.
+    my_only_energy = .FALSE.
+    IF(PRESENT(energy_only)) my_only_energy=energy_only
     
     gradient_f=(needs%drho_spin.OR.needs%norm_drho_spin.OR.&
                 needs%drhoa_drhob.OR.needs%drho.OR.needs%norm_drho)
-    
+
 !  Calculate the derivatives
     IF( ANY(xc_control%functionals_new /= 0) ) THEN
        DO i=1,SIZE(xc_control%functionals)
@@ -165,6 +168,8 @@ CONTAINS
       END DO
       NULLIFY (deriv_data)
    END IF
+   ! Calculate the potential only if needed
+   IF(.NOT.my_only_energy) THEN
 !  Derivative with respect to the density
    IF(lsd) THEN
      deriv_att => xc_dset_get_derivative(deriv_set, "(rhoa)")
@@ -193,7 +198,7 @@ CONTAINS
        vxc(:,:,1) = deriv_data(:,:,1)*w(:,:)
        NULLIFY (deriv_data)
      END IF
-   END IF
+   END IF  ! lsd
 
 
 !  Derivatives with respect to the gradient
@@ -270,7 +275,8 @@ CONTAINS
          END DO
          NULLIFY (deriv_data)
       END IF
-   END IF
+   END IF  ! lsd
+   END IF  ! only_energy
 
    CALL timestop(0.0_dp,handle)
 

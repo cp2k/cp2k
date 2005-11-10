@@ -79,6 +79,7 @@ MODULE xas_control
     CHARACTER(LEN=50)                   :: xas_rootfname
     INTEGER                             :: each_step
     INTEGER                             :: max_scf
+    INTEGER                             :: scf_method
     INTEGER                             :: nexc_atoms
     INTEGER                             :: nexc_search
     INTEGER                             :: state_type
@@ -86,6 +87,7 @@ MODULE xas_control
     INTEGER                             :: dipole_form
     INTEGER                             :: lb_atom, ub_atom
     INTEGER                             :: added_mos
+    INTEGER                             :: max_iter_added
     INTEGER                             :: ngauss
     INTEGER, DIMENSION(:), POINTER      :: exc_atoms 
     LOGICAL                             :: emission
@@ -93,6 +95,9 @@ MODULE xas_control
     LOGICAL                             :: cubes, do_centers
     INTEGER, DIMENSION(:), POINTER      :: list_cubes
     REAL(dp)                            :: eps_scf
+    REAL(dp)                            :: eps_diis
+    REAL(dp)                            :: p_mix
+    REAL(dp)                            :: eps_added
     TYPE(localized_wfn_control_type), &
       POINTER                           :: localized_wfn_control
   END TYPE xas_control_type
@@ -145,6 +150,12 @@ CONTAINS
     CALL section_vals_val_get(xas_section,"CONVERGENCE", &
          r_val=xas_control%eps_scf,error=error)
 
+    CALL section_vals_val_get(xas_section,"EPS_DIIS", &
+         r_val=xas_control%eps_diis,error=error)
+
+    CALL section_vals_val_get(xas_section,"MIXING", &
+         r_val=xas_control%p_mix,error=error)
+
     CALL section_vals_val_get(xas_section,"METHOD",&
          i_val=xas_control%xas_method,error=error)
 
@@ -153,6 +164,9 @@ CONTAINS
 
     CALL section_vals_val_get(xas_section,"MAXSTEP",&
          i_val=xas_control%max_scf,error=error)
+
+    CALL section_vals_val_get(xas_section,"SCF_METHOD",&
+         i_val=xas_control%scf_method,error=error)
 
     CALL section_vals_val_get(xas_section,"EACH_STEP",&
          i_val=xas_control%each_step,error=error)
@@ -184,10 +198,7 @@ CONTAINS
     IF(.NOT. ASSOCIATED(xas_control%exc_atoms)) THEN
       CALL section_vals_val_get(xas_section,"ATOMS_LIST",&
           n_rep_val=n_rep, error=error)
-      !dbg 
- !dbg
-!    write(*,*)'rep ',n_rep
- !dbg
+      
       nex_at = 0
       DO ir = 1,n_rep
         NULLIFY(list)
@@ -198,18 +209,12 @@ CONTAINS
           CALL reallocate(xas_control%exc_atoms,1,nex_at+SIZE(list))
           DO i = 1,SIZE(list)
             xas_control%exc_atoms(i+nex_at) = list(i)
- !dbg
-!    write(*,*)'index xast ',i , i+nex_at,  list(i)
- !dbg
 
           END DO
           xas_control%nexc_atoms =  nex_at + SIZE(list)
           nex_at = nex_at + SIZE(list)
         END IF
       END DO ! ir
- !dbg
-!    write(*,*)'nex_at ',nex_at
- !dbg
     END IF
 
 
@@ -226,6 +231,12 @@ CONTAINS
 
     CALL section_vals_val_get(xas_section,"ADDED_MOS",&
          i_val=xas_control%added_mos,error=error)
+
+    CALL section_vals_val_get(xas_section,"MAX_ITER_ADDED",&
+         i_val=xas_control%max_iter_added,error=error)
+
+    CALL section_vals_val_get(xas_section,"EPS_ADDED", &
+         r_val=xas_control%eps_added,error=error)
 
     CALL section_vals_val_get(xas_section,"NGAUSS",&
          i_val=xas_control%ngauss,error=error)
@@ -262,33 +273,20 @@ CONTAINS
       IF(.NOT. ASSOCIATED(xas_control%list_cubes)) THEN
         CALL section_vals_val_get(xas_section,"CUBES_LIST",&
              n_rep_val=n_rep,error=error)
-      !dbg 
-!  write(*,*) 'n_rep ', n_rep
-      !dbg 
         ncubes = 0
         DO ir = 1,n_rep
           NULLIFY(list)
           CALL section_vals_val_get(xas_section,"CUBES_LIST",&
              i_rep_val=ir,i_vals=list,error=error)
           IF(ASSOCIATED(list)) THEN
- !dbg
-!    write(*,*)'ir ', ir, ncubes,SIZE(list) 
- !dbg
             CALL reallocate(xas_control%list_cubes,1,ncubes+ SIZE(list))
- !dbg
-!    write(*,*)'xaslist ', SIZE(xas_control%list_cubes) 
- !dbg
             DO i = 1, SIZE(list)
               xas_control%list_cubes(i+ncubes) = list(i)
- !dbg
-!    write(*,*)'index xaslist ',i , i+ncubes,  list(i)
- !dbg
             END DO
             ncubes = ncubes + SIZE(list)
           END IF
         END DO  ! ir
       END IF
-!     write(*,*) 'ncubes ', ncubes
 
       ! If the states are not given from input, don't print any
       IF(.NOT. ASSOCIATED(xas_control%list_cubes)) xas_control%cubes = .FALSE.

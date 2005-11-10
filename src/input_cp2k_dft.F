@@ -995,7 +995,7 @@ SUBROUTINE create_qs_section(section,error)
           variants=(/"LMAXRHO1"/),&
           description="GAPW : max L number for espansion of the atomic densities in spherical gaussians",&
           usage="LMAXN1 integer",&
-          default_i_val=6,error=error)
+          default_i_val=-1,error=error)
      CALL section_add_keyword(section,keyword,error=error)
      CALL keyword_release(keyword,error=error)
 
@@ -3152,8 +3152,20 @@ END SUBROUTINE create_ot_section
            enum_desc=s2a("Length form <i|e r |j>","Velocity form <i|d/dr|j>"),&
            enum_i_vals=(/xas_dip_len,xas_dip_vel/),error=error)
       CALL section_add_keyword(section,keyword,error=error)
+
       CALL keyword_release(keyword,error=error)
-        
+            CALL keyword_create(keyword, name="SCF_METHOD",&
+           description="Optimization algorithm: diagonalization or OT",&
+           usage="SCF_METHOD GENERAL",&
+           default_i_val=xas_scf_default,&
+           enum_c_vals=s2a( "DEFAULT", "GENERAL", "OT"),&
+           enum_desc=s2a("same as in std SCF", "diagonalization",&
+           "adapted orbital transformation"),&
+           enum_i_vals=(/xas_scf_default,xas_scf_general,xas_scf_ot/),&
+           error=error)
+      CALL section_add_keyword(section,keyword,error=error)
+      CALL keyword_release(keyword,error=error)
+  
       CALL keyword_create(keyword, name="MAXSTEP",&
            description="Max # of steps in the xas-scf for one excitation",&
            usage="MAXSTEP 150",&
@@ -3166,6 +3178,24 @@ END SUBROUTINE create_ot_section
            description="Convergence criterion for the xas-scf",&
            usage="CONVERGENCE 0.00005",&
            default_r_val=0.5D-6,error=error)
+      CALL section_add_keyword(section,keyword,error=error)
+      CALL keyword_release(keyword,error=error)
+ 
+      CALL keyword_create(keyword, name="EPS_DIIS",&
+           description="treshold on the convergence to start"//&
+           " using DIAG/DIIS for the xas-scf"//&
+           "if default, the scf_control value is used",&
+           usage="EPS_DIIS 0.5",&
+           default_r_val=-1._dp,error=error)
+      CALL section_add_keyword(section,keyword,error=error)
+      CALL keyword_release(keyword,error=error)
+ 
+      CALL keyword_create(keyword, name="MIXING",&
+           description="fraction of new density to be mixed in"//&
+           " the xas-scf,"//&
+           "if default, the scf_control value is used",&
+           usage="MIXING 0.5",&
+           default_r_val=-1._dp,error=error)
       CALL section_add_keyword(section,keyword,error=error)
       CALL keyword_release(keyword,error=error)
  
@@ -3225,6 +3255,19 @@ END SUBROUTINE create_ot_section
             usage="ADDED_MOS {integer}", default_i_val=-1,error=error)
       CALL section_add_keyword(section,keyword,error=error)
       CALL keyword_release(keyword,error=error)
+
+      CALL keyword_create(keyword, name="MAX_ITER_ADDED",&
+            description="maximum number of iteration in calculation of added orbitals",&
+            usage="MAX_ITER_ADDED 100", default_i_val=2999,error=error)
+      CALL section_add_keyword(section,keyword,error=error)
+      CALL keyword_release(keyword,error=error)
+
+      CALL keyword_create(keyword, name="EPS_ADDED",&
+            description="target accuracy incalculation of the added orbitals",&
+            usage="EPS_ADDED 1.e-6", default_r_val=1.0e-5_dp,error=error)
+      CALL section_add_keyword(section,keyword,error=error)
+      CALL keyword_release(keyword,error=error)
+
 
       CALL keyword_create(keyword, name="NGAUSS",&
             description="Number of gto's for the expansion of the sto"//&

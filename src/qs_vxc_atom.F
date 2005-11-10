@@ -88,13 +88,14 @@ CONTAINS
 
 !******************************************************************************
 
- SUBROUTINE calculate_vxc_atom(qs_env,error)
+ SUBROUTINE calculate_vxc_atom(qs_env,energy_only,error)
 
 !   ***************************************************************************
 
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                          :: error
     TYPE(qs_environment_type), POINTER  :: qs_env
+    LOGICAL, INTENT(IN)                 :: energy_only
 
     CHARACTER(LEN=*), PARAMETER         :: routine_name = "calculate_vxc_atom",&
                 routineP = module_name//':'//routine_name
@@ -212,20 +213,20 @@ CONTAINS
 
   ! this should be done when the functional is defined
 
-     ! assesses the argument needed by the functionals
-     CALL xc_rho_cflags_setall(xc_control%needs,.FALSE.,error=error)
-     DO ifunc=1,SIZE(xc_control%functionals)
-        CALL xc_functional_get_info(xc_control%functionals(ifunc),lsd=lsd,&
-             needs=xc_control%needs, error=error)
-     END DO
-     IF (xc_control%needs%drho .OR. xc_control%needs%drho_spin .OR. &
-         xc_control%needs%norm_drho .OR. xc_control%needs%norm_drho_spin) THEN
-        IF (lsd) THEN
-           xc_control%needs%drho_spin=.TRUE.
-        ELSE
-           xc_control%needs%drho=.TRUE.
-        END IF
-     END IF
+          ! assesses the argument needed by the functionals
+           CALL xc_rho_cflags_setall(xc_control%needs,.FALSE.,error=error)
+           DO ifunc=1,SIZE(xc_control%functionals)
+             CALL xc_functional_get_info(xc_control%functionals(ifunc),lsd=lsd,&
+                      needs=xc_control%needs, error=error)
+           END DO
+           IF (xc_control%needs%drho .OR. xc_control%needs%drho_spin .OR. &
+               xc_control%needs%norm_drho .OR. xc_control%needs%norm_drho_spin) THEN
+             IF (lsd) THEN
+                xc_control%needs%drho_spin=.TRUE.
+             ELSE
+                xc_control%needs%drho=.TRUE.
+             END IF
+           END IF
      END IF
 !TODEL_END_MI
 
@@ -288,7 +289,7 @@ CONTAINS
       !-------------------!
       CALL xc_dset_zero_all(deriv_set, error)
       CALL vxc_of_r_new(xc_control, rho_set_h, deriv_set, 1, xc_control%needs, weight, &
-                        lsd, na, nr, exc_h, vxc_h, vxg_h, error=error)
+                        lsd, na, nr, exc_h, vxc_h, vxg_h,energy_only=energy_only, error=error)
       rho_atom%exc_h = rho_atom%exc_h + exc_h
 
       !-------------------!
@@ -296,7 +297,7 @@ CONTAINS
       !-------------------!
       CALL xc_dset_zero_all(deriv_set, error)
       CALL vxc_of_r_new(xc_control, rho_set_s, deriv_set, 1, xc_control%needs, weight, &
-                        lsd, na, nr, exc_s, vxc_s, vxg_s, error=error)
+                        lsd, na, nr, exc_s, vxc_s, vxg_s, energy_only=energy_only, error=error)
       rho_atom%exc_s = rho_atom%exc_s + exc_s
 
 
@@ -307,6 +308,7 @@ CONTAINS
 !      *** here the products with the primitives is done: gaVxcgb ***
 !      *** internal transformation to get the integral in cartesian Gaussians ***
 
+       IF(.NOT.energy_only) THEN
        atom_kind => atomic_kind_set(ikind)
        IF(gradient_f) THEN
          CALL gaVxcgb_GC(vxc_h,vxc_s,vxg_h,vxg_s,atom_kind,&
@@ -314,7 +316,7 @@ CONTAINS
        ELSE
          CALL gaVxcgb_noGC(vxc_h,vxc_s,atom_kind,rho_atom,nspins)
        ENDIF
-
+       END IF  ! energy_only
        NULLIFY(r_h,r_s,dr_h,dr_s)
      END DO ! iat
 

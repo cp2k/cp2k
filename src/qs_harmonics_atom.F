@@ -19,19 +19,16 @@ MODULE qs_harmonics_atom
 
   USE basis_set_types,                 ONLY: get_gto_basis_set, &
                                              gto_basis_set_type
-  USE kinds,                           ONLY: default_string_length,&
-                                             dp,&
-                                             int_size
+  USE kinds,                           ONLY: dp
   USE lebedev,                         ONLY: lebedev_grid
 
-  USE mathconstants,                   ONLY: degree, pi,twopi,fourpi,fac,dfac
   USE memory_utilities,                ONLY: reallocate
   USE orbital_pointers,                ONLY: indso,&
                                              nsoset,nso,&
                                              soset,& 
                                              ncoset,nco,indco
   USE orbital_transformation_matrices, ONLY: orbtramat
-  USE spherical_harmonics,             ONLY: y_lm,dPof1,legendre
+  USE spherical_harmonics,             ONLY: y_lm
   USE termination,                     ONLY: stop_memory,&
                                              stop_program
 
@@ -257,11 +254,11 @@ MODULE qs_harmonics_atom
     INTEGER, DIMENSION(:), ALLOCATABLE   :: ind_cg_a,ind_cg_b
     INTEGER, DIMENSION(:), ALLOCATABLE   :: ind_cg_a_d,ind_cg_b_d
 
-    INTEGER   :: i, ia, ia_bar, incg, incg_d, is1, is2, iso, iso_mm, &
-                 iso_mm1, iso_mp1, iso1, iso2, ja, l, l1, l2, &
+    INTEGER   :: i, ia, incg, incg_d, is1, is2, iso, iso_mm, &
+                 iso_mm1, iso_mp1, iso1, iso2, l, l1, l2, &
                  m, mm, maxcg, maxcg_d, maxl, maxs, nset,max_iso_not0,&
                  lx, ly, lz, n, ic, is
-    REAL(dp)  :: abs_m, azi_bar, cosmp1, drx, dry, drz, int, int1, &
+    REAL(dp)  :: abs_m, cosmp1, drx, dry, drz, int1, &
                  int2, int3, l_r, m_r, rx, ry, rz, sinmp1 
     REAL(dp), DIMENSION(:,:,:),ALLOCATABLE :: ss
 
@@ -296,7 +293,7 @@ MODULE qs_harmonics_atom
       CALL reallocate(harmonics%a,1,3,1,na)
       call reallocate(y,1,na)
       CALL reallocate(dy,1,3,1,na)
-      CALL reallocate(dc,1,nco(6),1,3)
+      CALL reallocate(dc,1,nco(llmax),1,3)
       CALL reallocate(harmonics%slm_int,1,max_s_harm)
 
       slm => harmonics%slm
