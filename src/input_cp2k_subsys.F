@@ -361,7 +361,8 @@ contains
        NULLIFY(keyword)
        CALL keyword_create(keyword, name="_DEFAULT_KEYWORD_",&
             description="The atoms coordinates in xyz format.",&
-            usage="H 0.7 0.3 0.3", type_of_var=char_t, n_var=-2, error=error)
+            usage="H 0.7 0.3 0.3", type_of_var=char_t, n_var=-2, &
+            repeats=.TRUE., error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
