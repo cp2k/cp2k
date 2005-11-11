@@ -164,6 +164,7 @@ CONTAINS
                                                 tmp_section
     LOGICAL, PARAMETER                       :: CROSS_TERM = .TRUE., &
                                                 GRADIENT_FUNCTIONAL = .TRUE.
+    CHARACTER(3) :: char
 
     failure=.FALSE.
     was_present = .FALSE.
@@ -229,10 +230,16 @@ CONTAINS
       IF(was_present)THEN
          CALL section_vals_val_get(tmp_section,"PARAMETER_SET",i_val=i_param,error=error) 
          xc_control%functionals(1)=tmp_section%section%name//"X"
-         xc_control%functionals(2)=tmp_section%section%name//TRIM(ADJUSTL(cp_to_string(i_param)))
+ !        xc_control%functionals(2)=tmp_section%section%name//TRIM(ADJUSTL(cp_to_string(i_param)))
+        xc_control%functionals(2)=tmp_section%section%name
          xc_control%gradient_functionals ( 2 ) = GRADIENT_FUNCTIONAL
          xc_control%crossterms ( 2 ) = CROSS_TERM
          xc_control%functionals_new(1)=0 !xgga_hcth
+       !dbg
+        char=TRIM(ADJUSTL(cp_to_string(i_param)))
+          xc_control%functionals(2)= "HCTH"//char
+!        WRITE(*,*)  xc_control%functionals(2),i_param,char
+!        stop
          SELECT CASE (i_param)
          CASE(93)
             xc_control%functionals_new(2) = cgga_hcth93
