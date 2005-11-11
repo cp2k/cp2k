@@ -232,7 +232,7 @@ CONTAINS
          xc_control%functionals(2)=tmp_section%section%name//TRIM(ADJUSTL(cp_to_string(i_param)))
          xc_control%gradient_functionals ( 2 ) = GRADIENT_FUNCTIONAL
          xc_control%crossterms ( 2 ) = CROSS_TERM
-         xc_control%functionals_new(1)=xgga_hcth
+         xc_control%functionals_new(1)=0 !xgga_hcth
          SELECT CASE (i_param)
          CASE(93)
             xc_control%functionals_new(2) = cgga_hcth93
