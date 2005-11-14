@@ -113,6 +113,7 @@ MODULE mc_types
       REAL ( dp ) :: rmvolume
       REAL ( dp ) :: rmbond
       REAL ( dp ) :: rmangle
+      REAL ( dp ) :: rmdihedral
       REAL ( dp ) :: rmrot
       REAL ( dp ) :: rmtrans
       REAL ( dp ) :: temp
@@ -153,10 +154,12 @@ MODULE mc_types
   TYPE mc_moves_type
       TYPE ( accattempt ), POINTER :: bias_bond
       TYPE ( accattempt ), POINTER :: bias_angle
+      TYPE ( accattempt ), POINTER :: bias_dihedral
       TYPE ( accattempt ), POINTER :: bias_trans
       TYPE ( accattempt ), POINTER :: bias_rot
       TYPE ( accattempt ), POINTER :: bond
       TYPE ( accattempt ), POINTER :: angle
+      TYPE ( accattempt ), POINTER :: dihedral
       TYPE ( accattempt ), POINTER :: trans
       TYPE ( accattempt ), POINTER :: rot
       TYPE ( accattempt ), POINTER :: swap
@@ -190,7 +193,7 @@ CONTAINS
        ensemble,program,restart_file,molecules_file,moves_file,coords_file,&
        energy_file,displacement_file,cell_file,dat_file,data_file,box2_file,&
        cutoff,inner_cutoff,fft_lib,iprint,rcut,ldiscrete,discrete_step,&
-       conf_prob,pmavbmc,pbias,avbmc_atom,avbmc_rmin,avbmc_rmax)
+       conf_prob,pmavbmc,pbias,avbmc_atom,avbmc_rmin,avbmc_rmax,rmdihedral)
 
 ! *****************************************************************************
 !!****s* mc_types.F/get_mc_par
@@ -221,7 +224,8 @@ CONTAINS
 
     REAL(KIND=dp),INTENT(OUT),OPTIONAL   :: rmvolume,rmbond,rmangle,rmrot,&
       rmtrans,temp,pressure,BETA,pmswap,pmvolume,pmtraion,pmtrans,cutoff,&
-      inner_cutoff,rcut,discrete_step,pmavbmc,pbias,avbmc_rmin,avbmc_rmax
+      inner_cutoff,rcut,discrete_step,pmavbmc,pbias,avbmc_rmin,avbmc_rmax,&
+      rmdihedral
 
     REAL(KIND=dp),DIMENSION(1:3),INTENT(OUT),OPTIONAL   :: conf_prob
 
@@ -270,6 +274,7 @@ CONTAINS
     IF ( PRESENT ( rmvolume ) ) rmvolume = mc_par % rmvolume
     IF ( PRESENT ( rmbond ) ) rmbond = mc_par % rmbond
     IF ( PRESENT ( rmangle ) ) rmangle = mc_par % rmangle
+    IF ( PRESENT ( rmdihedral ) ) rmdihedral = mc_par % rmdihedral
     IF ( PRESENT ( rmrot ) ) rmrot = mc_par % rmrot
     IF ( PRESENT ( rmtrans ) ) rmtrans = mc_par % rmtrans
     IF ( PRESENT ( temp ) ) temp = mc_par % temp
@@ -300,7 +305,7 @@ CONTAINS
   END SUBROUTINE get_mc_par
 
  SUBROUTINE set_mc_par ( mc_par, nchain,nunits,nunits_tot,rm,cl,&
-      diff,nstart,rmvolume,rmbond,rmangle,rmrot,rmtrans,program,&
+      diff,nstart,rmvolume,rmbond,rmangle,rmdihedral,rmrot,rmtrans,program,&
       nmoves,nswapmoves,lstop,temp,pressure,iuptrans,iupvolume,&
       pmswap,pmvolume,pmtraion,pmtrans,BETA,rcut,iprint,lbias,nstep,&
       lrestart,ldiscrete,discrete_step,pmavbmc)
@@ -330,7 +335,7 @@ CONTAINS
 
     REAL(KIND=dp),INTENT(IN),OPTIONAL   :: rmvolume,rmbond,&
       rmangle,rmrot,rmtrans,BETA,rcut,temp,pressure,pmswap,pmtrans,&
-      pmvolume,pmtraion,discrete_step,pmavbmc
+      pmvolume,pmtraion,discrete_step,pmavbmc,rmdihedral
 
     LOGICAL,INTENT(IN),OPTIONAL   :: lstop,ldiscrete,lbias,lrestart
 
@@ -377,6 +382,7 @@ CONTAINS
     IF ( PRESENT ( rmvolume ) ) mc_par % rmvolume = rmvolume
     IF ( PRESENT ( rmbond ) ) mc_par % rmbond = rmbond
     IF ( PRESENT ( rmangle ) ) mc_par % rmangle = rmangle
+    IF ( PRESENT ( rmdihedral ) ) mc_par % rmdihedral = rmdihedral
     IF ( PRESENT ( rmrot ) ) mc_par % rmrot = rmrot
     IF ( PRESENT ( rmtrans ) ) mc_par % rmtrans = rmtrans
 
@@ -423,6 +429,8 @@ CONTAINS
 !!I rmbond:                               maximum displacement for bond
 !!                                        changes (in angstroms)
 !!I rmangle:                              maximum displacement for angle
+!!                                        changes (in degrees)
+!!I rmdihedral:                           maximum displacement for dihedral
 !!                                        changes (in degrees)
 !!I rmtrans:                              maximum displacement for molecule
 !!                                        translations (in angstroms)
@@ -489,6 +497,9 @@ SUBROUTINE read_mc_section ( mc_par, globenv )
       mc_par % source = globenv % source
 
 !..defaults
+      mc_par % rmbond = 0.1d0
+      mc_par % rmangle = 5.0d0
+      mc_par % rmdihedral = 5.0d0
       mc_par % pbias = 0.5d0
       mc_par % pmavbmc = 0.0d0
       mc_par % pmswap = 0.0d0
@@ -643,6 +654,8 @@ SUBROUTINE read_mc_section ( mc_par, globenv )
                CALL get_next ( mc_par % rmbond )
             CASE ( 'RMANGLE' )
                CALL get_next ( mc_par % rmangle )
+            CASE ( 'RMDIHEDRAL' )
+               CALL get_next ( mc_par % rmdihedral )
             CASE ( 'RMROT' )
                CALL get_next ( mc_par % rmrot )
             CASE ( 'RMTRANS' )
@@ -718,6 +731,8 @@ SUBROUTINE read_mc_section ( mc_par, globenv )
             mc_par % rmbond
          WRITE ( iw, '( A,T71,F10.3 )' ) ' MC| rmangle [degrees]', &
             mc_par % rmangle
+         WRITE ( iw, '( A,T71,F10.3 )' ) ' MC| rmdihedral [degrees]', &
+            mc_par % rmdihedral
          WRITE ( iw, '( A,T71,F10.3 )' ) ' MC| rmtrans [angstroms]', &
             mc_par % rmtrans
          WRITE ( iw, '( A,T71,F10.3 )' ) ' MC| rmrot [degrees]', &
@@ -768,10 +783,10 @@ SUBROUTINE read_mc_section ( mc_par, globenv )
 
 ! convert from degrees to radians
       mc_par%rmrot = mc_par%rmrot/180.0e0_dp*pi
+      mc_par%rmangle = mc_par%rmangle/180.0e0_dp*pi
+      mc_par%rmdihedral = mc_par%rmdihedral/180.0e0_dp*pi
 ! convert from bar to a.u.
       CALL convert_to_cp2k_units(pressure=mc_par%pressure)
-! convert from degrees to radians
-      mc_par%rmangle = mc_par%rmangle/180.0e0_dp*pi
 ! convert from angstrom to a.u.
       CALL convert_to_cp2k_units(unit_char='ANGSTROM',&
          length=mc_par%rmtrans)

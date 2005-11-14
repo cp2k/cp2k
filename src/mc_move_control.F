@@ -92,6 +92,9 @@ CONTAINS
       ALLOCATE (moves%angle,stat=stat)
       IF (stat /= 0) CALL stop_memory(routineN,module_name,__LINE__,&
                                      "moves%angle",0)
+      ALLOCATE (moves%dihedral,stat=stat)
+      IF (stat /= 0) CALL stop_memory(routineN,module_name,__LINE__,&
+                                     "moves%dihedral",0)
       ALLOCATE (moves%trans,stat=stat)
       IF (stat /= 0) CALL stop_memory(routineN,module_name,__LINE__,&
                                      "moves%trans",0)
@@ -104,6 +107,9 @@ CONTAINS
       ALLOCATE (moves%bias_angle,stat=stat)
       IF (stat /= 0) CALL stop_memory(routineN,module_name,__LINE__,&
                                      "moves%bias_angle",0)
+      ALLOCATE (moves%bias_dihedral,stat=stat)
+      IF (stat /= 0) CALL stop_memory(routineN,module_name,__LINE__,&
+                                     "moves%bias_dihedral",0)
       ALLOCATE (moves%bias_trans,stat=stat)
       IF (stat /= 0) CALL stop_memory(routineN,module_name,__LINE__,&
                                      "moves%bias_trans",0)
@@ -138,6 +144,9 @@ CONTAINS
       moves%bias_angle%attempts=0
       moves%bias_angle%successes=0
       moves%bias_angle%qsuccesses=0
+      moves%bias_dihedral%attempts=0
+      moves%bias_dihedral%successes=0
+      moves%bias_dihedral%qsuccesses=0
       moves%bias_trans%attempts=0
       moves%bias_trans%successes=0
       moves%bias_trans%qsuccesses=0
@@ -151,6 +160,9 @@ CONTAINS
       moves%angle%attempts=0
       moves%angle%successes=0
       moves%angle%qsuccesses=0
+      moves%dihedral%attempts=0
+      moves%dihedral%successes=0
+      moves%dihedral%qsuccesses=0
       moves%trans%attempts=0
       moves%trans%successes=0
       moves%trans%qsuccesses=0
@@ -231,6 +243,9 @@ CONTAINS
       DEALLOCATE (moves%angle,stat=stat)
       IF (stat /= 0) CALL stop_memory(routineN,module_name,__LINE__,&
                                      "moves%angle",0)
+      DEALLOCATE (moves%dihedral,stat=stat)
+      IF (stat /= 0) CALL stop_memory(routineN,module_name,__LINE__,&
+                                     "moves%dihedral",0)
       DEALLOCATE (moves%trans,stat=stat)
       IF (stat /= 0) CALL stop_memory(routineN,module_name,__LINE__,&
                                      "moves%trans",0)
@@ -243,6 +258,9 @@ CONTAINS
       DEALLOCATE (moves%bias_angle,stat=stat)
       IF (stat /= 0) CALL stop_memory(routineN,module_name,__LINE__,&
                                      "moves%bias_angle",0)
+      DEALLOCATE (moves%bias_dihedral,stat=stat)
+      IF (stat /= 0) CALL stop_memory(routineN,module_name,__LINE__,&
+                                     "moves%bias_dihedral",0)
       DEALLOCATE (moves%bias_trans,stat=stat)
       IF (stat /= 0) CALL stop_memory(routineN,module_name,__LINE__,&
                                      "moves%bias_trans",0)
@@ -326,11 +344,13 @@ SUBROUTINE move_q_reinit ( moves , lbias )
       IF(lbias) THEN
          moves%bias_bond%qsuccesses=0
          moves%bias_angle%qsuccesses=0
+         moves%bias_dihedral%qsuccesses=0
          moves%bias_trans%qsuccesses=0
          moves%bias_rot%qsuccesses=0
       ELSE
          moves%bond%qsuccesses=0
          moves%angle%qsuccesses=0
+         moves%dihedral%qsuccesses=0
          moves%trans%qsuccesses=0
          moves%rot%qsuccesses=0
          moves%volume%qsuccesses=0
@@ -385,6 +405,8 @@ SUBROUTINE q_move_accept(moves,lbias)
             +moves%bias_bond%qsuccesses
          moves%bias_angle%successes=moves%bias_angle%successes&
             +moves%bias_angle%qsuccesses
+         moves%bias_dihedral%successes=moves%bias_dihedral%successes&
+            +moves%bias_dihedral%qsuccesses
          moves%bias_trans%successes=moves%bias_trans%successes&
             +moves%bias_trans%qsuccesses
          moves%bias_rot%successes=moves%bias_rot%successes&
@@ -395,6 +417,8 @@ SUBROUTINE q_move_accept(moves,lbias)
             +moves%bond%qsuccesses
          moves%angle%successes=moves%angle%successes&
             +moves%angle%qsuccesses
+         moves%dihedral%successes=moves%dihedral%successes&
+            +moves%dihedral%qsuccesses
          moves%trans%successes=moves%trans%successes&
             +moves%trans%qsuccesses
          moves%rot%successes=moves%rot%successes&
@@ -458,6 +482,8 @@ SUBROUTINE write_move_stats(moves,nnstep,unit)
       moves%bias_bond%successes,moves%bias_bond%attempts
     WRITE(unit,'(I6,2X,A,2X,I6,2X,I6)') nnstep,' bias_angle      ',&
       moves%bias_angle%successes,moves%bias_angle%attempts
+    WRITE(unit,'(I6,2X,A,2X,I6,2X,I6)') nnstep,' bias_dihedral      ',&
+      moves%bias_dihedral%successes,moves%bias_dihedral%attempts
     WRITE(unit,'(I6,2X,A,2X,I6,2X,I6)') nnstep,' bias_trans      ',&
       moves%bias_trans%successes,moves%bias_trans%attempts
     WRITE(unit,'(I6,2X,A,2X,I6,2X,I6)') nnstep,' bias_rot      ',&
@@ -467,6 +493,8 @@ SUBROUTINE write_move_stats(moves,nnstep,unit)
       moves%bond%successes,moves%bond%attempts
     WRITE(unit,'(I6,2X,A,2X,I6,2X,I6)') nnstep,' angle     ',&
       moves%angle%successes,moves%angle%attempts
+    WRITE(unit,'(I6,2X,A,2X,I6,2X,I6)') nnstep,' dihedral     ',&
+      moves%dihedral%successes,moves%dihedral%attempts
     WRITE(unit,'(I6,2X,A,2X,I6,2X,I6)') nnstep,' trans     ',&
       moves%trans%successes,moves%trans%attempts
     WRITE(unit,'(I6,2X,A,2X,I6,2X,I6)') nnstep,' rot       ',&
@@ -539,7 +567,7 @@ SUBROUTINE write_move_stats(moves,nnstep,unit)
 
     INTEGER                                  :: handle,rm
     REAL(KIND=dp)                            :: test_ratio,rmbond,rmangle,&
-      rmtrans,rmrot,rmvolume
+      rmtrans,rmrot,rmvolume,rmdihedral
      
 !   ---------------------------------------------------------------------------
 ! begin the timing of the subroutine
@@ -548,7 +576,7 @@ SUBROUTINE write_move_stats(moves,nnstep,unit)
 
 ! grab some stuff from mc_par
       CALL get_mc_par(mc_par,rmbond=rmbond,rmangle=rmangle,rmrot=rmrot,&
-         rmtrans=rmtrans,rmvolume=rmvolume,rm=rm)
+         rmtrans=rmtrans,rmvolume=rmvolume,rm=rm,rmdihedral=rmdihedral)
 
       SELECT CASE (flag)
       CASE DEFAULT
@@ -584,7 +612,7 @@ SUBROUTINE write_move_stats(moves,nnstep,unit)
 
          ENDIF
 
-! update the maximum displacement for bond length change
+! update the maximum displacement for bond angle change
          IF( move_updates%bias_angle%attempts .GT. 0 ) THEN
 
 ! first account for the extreme cases
@@ -612,6 +640,36 @@ SUBROUTINE write_move_stats(moves,nnstep,unit)
 ! write the new displacement to a file
             IF(ionode) WRITE(rm,*) nnstep,' rmangle = ',&
                     rmangle/pi*180.0E0_dp,' degrees'
+         ENDIF
+
+! update the maximum displacement for a dihedral change
+         IF( move_updates%bias_dihedral%attempts .GT. 0 ) THEN
+
+! first account for the extreme cases
+            IF ( move_updates%bias_dihedral%successes == 0 ) THEN
+               rmdihedral=rmdihedral/2.0E0_dp
+            ELSEIF ( move_updates%bias_dihedral%successes == &
+               move_updates%bias_dihedral%attempts ) THEN
+               rmdihedral=rmdihedral*2.0E0_dp
+            ELSE
+! now for the middle case
+               test_ratio=REAL(move_updates%bias_dihedral%successes,dp)&
+                  /REAL(move_updates%bias_dihedral%attempts,dp)/0.5E0_dp
+               IF (test_ratio .GT. 2.0E0_dp) test_ratio=2.0E0_dp
+               IF (test_ratio .LT. 0.5E0_dp) test_ratio=0.5E0_dp
+               rmdihedral=rmdihedral*test_ratio
+            ENDIF
+
+! more than pi changes meaningless
+            IF (rmdihedral .GT. pi) rmdihedral=pi
+
+! clear the counters
+            move_updates%bias_dihedral%attempts=0
+            move_updates%bias_dihedral%successes=0
+
+! write the new displacement to a file
+            IF(ionode) WRITE(rm,*) nnstep,' rmdihedral = ',&
+                    rmdihedral/pi*180.0E0_dp,' degrees'
          ENDIF
 
 ! update the maximum displacement for molecule translation
@@ -717,7 +775,7 @@ SUBROUTINE write_move_stats(moves,nnstep,unit)
 
 ! set some of the MC parameters
       CALL set_mc_par(mc_par,rmbond=rmbond,rmangle=rmangle,rmrot=rmrot,&
-         rmtrans=rmtrans,rmvolume=rmvolume)
+         rmtrans=rmtrans,rmvolume=rmvolume,rmdihedral=rmdihedral)
 
 ! end the timing
       CALL timestop(0.0E0_dp,handle)

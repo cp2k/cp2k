@@ -599,18 +599,17 @@ CONTAINS
                      CALL mp_bcast(mol,source,group)
                      CALL mp_bcast(box_number,source,group)
 
-! used for keeping track of counters for lbias=.false. simulations
+! figure out what kind of move we're doing
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! debugging
                      IF (rand .LT. conf_prob(1,ibox)) THEN
 !                        IF (rand .LT. 0.0d0) THEN
                         move_type='bond'
-                     ELSEIF(rand .LT. conf_prob(2,ibox)) THEN
-!                     ELSEIF(rand .LT. 2.0d0) THEN
+                     ELSEIF(rand .LT. (conf_prob(1,ibox)+&
+                        conf_prob(2,ibox))) THEN
+!                     ELSEIF(rand .LT. 0.0d0) THEN
                         move_type='angle'
                      ELSE
                         move_type='dihedral'
-                        CALL stop_program(routineN,module_name,__LINE__,&
-                           'dihedral move not in yet')
                      ENDIF
                      box_flag(box_number)=1
                      CALL mc_atom_translation(mc_par(box_number)%mc_par,&

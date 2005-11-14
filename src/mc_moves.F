@@ -63,6 +63,7 @@ MODULE mc_moves
                                              molecule_kind_type,&
                                              bond_type,&
                                              bend_type,&
+                                             torsion_type,&
                                              atom_type
   USE parallel_rng_types,              ONLY: rng_stream_type,&
                                              next_random_number
@@ -78,7 +79,8 @@ MODULE mc_moves
 
   IMPLICIT NONE
 
-  PRIVATE  :: change_bond_angle,change_bond_length,depth_first_search
+  PRIVATE  :: change_bond_angle,change_bond_length,depth_first_search,&
+      change_dihedral
 
 ! *** Global parameters ***
 
@@ -202,7 +204,7 @@ CONTAINS
     INTEGER                                  :: handle, imol, ipart,&
                                                 istat,nchain,nunits_tot,&
                                                 nunits,group,source
-    LOGICAL                                  :: bond_flag,lbias,&
+    LOGICAL                                  :: lbias,&
       loverlap,ionode
     REAL(KIND=dp)                            :: bias_energy_new, &
                                                 bias_energy_old, &
@@ -227,7 +229,6 @@ CONTAINS
 
 ! nullify some pointers
       NULLIFY(particles,subsys,molecule_kinds_new,molecule_kind)
-      bond_flag=.FALSE.
 
 ! do some allocation
       ALLOCATE (r_old(1:3,1:nunits_tot),STAT=istat)
@@ -274,9 +275,6 @@ CONTAINS
 ! do the move
       IF (move_type == 'bond') THEN
 
-! change a bond length
-         bond_flag=.TRUE.
-
 ! record the attempt
          moves%bond%attempts=moves%bond%attempts+1
          move_updates%bond%attempts=move_updates%bond%attempts+1
@@ -295,7 +293,7 @@ CONTAINS
          CALL change_bond_length(r_old,r_new,&
             mc_par,mol,molecule_kind,dis_length,particles,rng_stream)
 
-      ELSE
+      ELSEIF( move_type == 'angle') THEN
 
 ! record the attempt
          moves%angle%attempts=moves%angle%attempts+1
@@ -316,6 +314,26 @@ CONTAINS
             mc_par,mol,molecule_kind,particles,rng_stream)
 !         CALL change_bond_angle(r_old,r_new,mc_par,mol,rng_stream)
          dis_length=1.0E0_dp
+      ELSE
+! record the attempt
+         moves%dihedral%attempts=moves%dihedral%attempts+1
+         move_updates%dihedral%attempts=move_updates%dihedral%attempts+1
+         moves%bias_dihedral%attempts=moves%bias_dihedral%attempts+1
+         move_updates%bias_dihedral%attempts=move_updates%bias_dihedral%attempts+1
+         IF ( .NOT. lbias ) THEN
+            moves%dihedral%qsuccesses=moves%dihedral%qsuccesses+1
+            move_updates%dihedral%qsuccesses=&
+                 move_updates%dihedral%qsuccesses+1
+            moves%bias_dihedral%qsuccesses=moves%bias_dihedral%qsuccesses+1
+            move_updates%bias_dihedral%qsuccesses=&
+                 move_updates%bias_dihedral%qsuccesses+1
+         ENDIF
+
+! do the move
+         CALL change_dihedral(r_old,r_new,&
+            mc_par,mol,molecule_kind,particles,rng_stream)
+         dis_length=1.0E0_dp
+
       ENDIF
 
 ! set the coordinates
@@ -369,20 +387,27 @@ CONTAINS
          IF (rand .LT. w) THEN
 
 ! accept the move
-            IF (bond_flag) THEN
+            IF (move_type == 'bond') THEN
                moves%bond%qsuccesses=moves%bond%qsuccesses+1
                move_updates%bond%successes=&
                   move_updates%bond%successes+1
                moves%bias_bond%successes=moves%bias_bond%successes+1
                move_updates%bias_bond%successes=&
                   move_updates%bias_bond%successes+1
-            ELSE
+            ELSEIF(move_type == 'angle') THEN
                moves%angle%qsuccesses=moves%angle%qsuccesses+1
                move_updates%angle%successes=&
                   move_updates%angle%successes+1
                moves%bias_angle%successes=moves%bias_angle%successes+1
                move_updates%bias_angle%successes=&
                   move_updates%bias_angle%successes+1
+            ELSE
+               moves%dihedral%qsuccesses=moves%dihedral%qsuccesses+1
+               move_updates%dihedral%successes=&
+                  move_updates%dihedral%successes+1
+               moves%bias_dihedral%successes=moves%bias_dihedral%successes+1
+               move_updates%bias_dihedral%successes=&
+                  move_updates%bias_dihedral%successes+1
             ENDIF
 
             bias_energy=bias_energy+bias_energy_new-&
@@ -1644,7 +1669,7 @@ CONTAINS
       rmangle,atom_mass,old_length_a,old_length_c,temp_length,&
       new_angle_a,new_angle_c,dis_angle_a,dis_angle_c
     REAL(KIND=dp), DIMENSION(1:3)            :: bisector, &
-      bond_a,bond_c,between,cross_prod,cross_prod_plane,temp
+      bond_a,bond_c,cross_prod,cross_prod_plane,temp
     LOGICAL                                  :: ionode
     INTEGER,DIMENSION(:),ALLOCATABLE                     :: counter,&
       atom_a,atom_c
@@ -1756,7 +1781,6 @@ CONTAINS
       ENDDO
       old_length_a=SQRT(DOT_PRODUCT(bond_a,bond_a))
       old_length_c=SQRT(DOT_PRODUCT(bond_c,bond_c))
-      between(1:3)=bond_a(1:3)/old_length_a-bond_c(1:3)/old_length_c
       old_angle=ACOS(DOT_PRODUCT(bond_a,bond_c)/(old_length_a*old_length_c))
 
       DO i=1,3
@@ -1863,11 +1887,276 @@ CONTAINS
             r_old(1:3,mol-1+bend_list(bend_number)%b)
       ENDDO
 
+! deallocate some stuff
+      DEALLOCATE(connection,STAT=istat)
+      IF (istat /= 0) CALL stop_memory(routineN,module_name,__LINE__,&
+                       "connection")
+      DEALLOCATE(connectivity,STAT=istat)
+      IF (istat /= 0) CALL stop_memory(routineN,module_name,__LINE__,&
+                       "connectivity")
+      DEALLOCATE(counter,STAT=istat)
+      IF (istat /= 0) CALL stop_memory(routineN,module_name,__LINE__,&
+                       "counter")
+      DEALLOCATE(atom_a,STAT=istat)
+      IF (istat /= 0) CALL stop_memory(routineN,module_name,__LINE__,&
+                       "atom_a")
+      DEALLOCATE(atom_c,STAT=istat)
+      IF (istat /= 0) CALL stop_memory(routineN,module_name,__LINE__,&
+                       "atom_c")
+
 ! end the timing
       CALL timestop(0.0E0_dp,handle)
 
   END SUBROUTINE change_bond_angle
 
+! *****************************************************************************
+!!****s* mc_moves.F/change_dihedral
+!!
+!!   NAME
+!!     change_dihedral
+!!
+!!   FUNCTION
+!!     Alters a dihedral (A-B-C-D) in the molecule so that all other internal
+!!     degrees of freedom remain the same.  If other dihedrals are centered
+!!     on B-C, they rotate as well to keep the relationship between the
+!!     dihedrals the same.  Atoms A and D are moved amounts related to their
+!!     masses (and masses of all connecting atoms), so that heavier segments
+!!     are moved less.  All atoms except B and C are rotated around the 
+!!     B-C bond vector (B and C are not moved).
+!!
+!!   ARGUMENTS
+!!     - r_old: the initial coordinates of all molecules in the system
+!!     - r_new: the new coordinates of all molecules in the system
+!!     - mc_par: the mc parameters for the force env
+!!     - mol: the number of the first atom in the molecule, assuming the
+!!            next natom-1 atoms are the rest of the molecule
+!!     - molecule_kind: the structure containing the molecule information
+!!     - particles: the particle_list_type for all particles in the force_env..
+!!            used to grab the mass of each atom
+!!     - rng_stream: the random number stream that we draw from
+!!             
+!!
+!!   AUTHOR
+!!     MJM
+!!
+!!*****************************************************************************
+
+  SUBROUTINE change_dihedral ( r_old,r_new,mc_par,mol,molecule_kind,&
+      particles,rng_stream)
+
+!   ***************************************************************************
+
+    TYPE(mc_simulation_parameters_type), &
+      POINTER                                :: mc_par
+    REAL(KIND=dp), DIMENSION(:, :), &
+      INTENT(OUT)                            :: r_new
+    REAL(KIND=dp), DIMENSION(:,:), &
+      INTENT(IN)                             :: r_old
+    INTEGER, INTENT(IN)                      :: mol
+    TYPE(molecule_kind_type),POINTER         :: molecule_kind
+    TYPE(particle_list_type), POINTER        :: particles
+    TYPE(rng_stream_type), POINTER           :: rng_stream
+
+    CHARACTER(LEN=*), PARAMETER              :: &
+      routineN = "change_dihedral"
+
+! local variables
+
+    TYPE(bond_type),DIMENSION(:),POINTER     :: bond_list
+    TYPE(torsion_type),DIMENSION(:),POINTER     :: torsion_list
+    INTEGER                                  :: handle, i, ipart,nunits_tot,&
+      group,source,natom,istat,iatom,ibond,nbond,&
+      ntorsion,torsion_number
+    REAL(KIND=dp)                            :: dis_angle, &
+      mass_a,mass_d, rand,rmdihedral,x,y,z,u,v,w,&
+      atom_mass,old_length_a,&
+      dis_angle_a,dis_angle_d
+    REAL(KIND=dp), DIMENSION(1:3)            :: bond_a,temp
+    LOGICAL                                  :: ionode
+    INTEGER,DIMENSION(:),ALLOCATABLE                     :: counter,&
+      atom_a,atom_d
+    INTEGER,DIMENSION(:,:),ALLOCATABLE       :: connection,connectivity
+
+!   ---------------------------------------------------------------------------
+! begin the timing of the subroutine
+
+      CALL timeset(routineN,'I','',handle)
+
+! get some stuff from mc_par
+      CALL get_mc_par(mc_par,nunits_tot=nunits_tot,rmdihedral=rmdihedral,&
+         source=source,group=group,ionode=ionode)
+
+! copy the incoming coordinates so we can change them
+      DO ipart=1,nunits_tot
+         r_new(1:3,ipart)=r_old(1:3,ipart)
+      ENDDO
+
+! pick which bond in the molecule at random
+      IF(ionode) THEN
+         rand=next_random_number(rng_stream)
+!      CALL RANDOM_NUMBER(rand)
+      ENDIF
+      CALL mp_bcast(rand,source,group)
+      CALL get_molecule_kind(molecule_kind,natom=natom,&
+         bond_list=bond_list,nbond=nbond,&
+         ntorsion=ntorsion,torsion_list=torsion_list)
+      torsion_number=CEILING(rand*REAL(ntorsion,dp))
+
+      ALLOCATE(connection(1:natom,1:2),STAT=istat)
+      IF (istat /= 0) CALL stop_memory(routineN,module_name,__LINE__,&
+                       "connection",2*natom*dp_size)
+! assume at most six bonds per atom
+      ALLOCATE(connectivity(1:6,1:natom),STAT=istat)
+      IF (istat /= 0) CALL stop_memory(routineN,module_name,__LINE__,&
+                       "connectivity",6*natom*dp_size)
+      ALLOCATE(counter(1:natom),STAT=istat)
+      IF (istat /= 0) CALL stop_memory(routineN,module_name,__LINE__,&
+                       "counter",natom)
+      ALLOCATE(atom_a(1:natom),STAT=istat)
+      IF (istat /= 0) CALL stop_memory(routineN,module_name,__LINE__,&
+                       "atom_a",natom)
+      ALLOCATE(atom_d(1:natom),STAT=istat)
+      IF (istat /= 0) CALL stop_memory(routineN,module_name,__LINE__,&
+                       "atom_d",natom)
+      connection(:,:)=0.0_dp
+      connectivity(:,:)=0.0_dp
+      counter(:)=0
+      atom_a(:)=0
+      atom_d(:)=0
+
+! now we need to find a list of atoms that each atom in this bond is connected
+! to
+      DO iatom=1,natom
+         DO ibond=1,nbond
+            IF(bond_list(ibond)%a == iatom) THEN
+               counter(iatom)=counter(iatom)+1
+               connectivity(counter(iatom),iatom)=bond_list(ibond)%b
+            ELSEIF(bond_list(ibond)%b == iatom)THEN
+               counter(iatom)=counter(iatom)+1
+               connectivity(counter(iatom),iatom)=bond_list(ibond)%a
+            ENDIF
+         ENDDO
+      ENDDO
+
+! now I need to do a depth first search to figure out which atoms are on atom
+! a's side and which are on atom d's, but remember we're moving all atoms on a's
+! side of b, including atoms not in a's branch
+      atom_a(:)=0
+      atom_a(torsion_list(torsion_number)%a)=1
+      CALL depth_first_search(torsion_list(torsion_number)%b,&
+         torsion_list(torsion_number)%c,connectivity(:,:),atom_a(:))
+      atom_d(:)=0
+      atom_d(torsion_list(torsion_number)%d)=1
+      CALL depth_first_search(torsion_list(torsion_number)%c,&
+         torsion_list(torsion_number)%b,connectivity(:,:),atom_d(:))
+
+! now figure out the masses of the various sides, so we can weight how far we
+! move each group of atoms
+      mass_a=0.0_dp
+      mass_d=0.0_dp
+      DO iatom=1,natom
+         CALL get_atomic_kind(particles%els(iatom)%atomic_kind,&
+            mass=atom_mass)  
+         IF(atom_a(iatom) == 1) mass_a=mass_a+atom_mass
+         IF(atom_d(iatom) == 1) mass_d=mass_d+atom_mass
+      ENDDO
+
+! choose a displacement
+      IF(ionode) rand=next_random_number(rng_stream)
+!      CALL RANDOM_NUMBER(rand)
+      CALL mp_bcast(rand,source,group)
+      
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+      dis_angle=rmdihedral*2.0E0_dp*(rand-0.5E0_dp)
+!      dis_angle=-0.017453E0_dp*60.0_dp*(rand-0.5E0_dp)  ! always increase by one degree for testing
+
+! find the bond vectors, B-C, so we know what to rotate around
+      DO i=1,3
+         bond_a(i)=r_new(i,mol-1+torsion_list(torsion_number)%c)-&
+            r_new(i,mol-1+torsion_list(torsion_number)%b)
+      ENDDO
+      old_length_a=SQRT(DOT_PRODUCT(bond_a,bond_a))
+      bond_a(1:3)=bond_a(1:3)/old_length_a
+
+! figure out how much we move each side, since we're mass-weighting, by the
+! opposite masses, so lighter moves farther...we take the opposite sign of d
+! so we're not rotating both angles in the same direction
+      dis_angle_a=dis_angle*mass_d/(mass_a+mass_d)
+      dis_angle_d=-dis_angle*mass_a/(mass_a+mass_d)   
+
+      DO iatom=1,natom
+             
+         IF(atom_a(iatom) == 1) THEN
+! shift the coords so b is at the origin
+            r_new(1:3,mol-1+iatom)=r_new(1:3,mol-1+iatom)-&
+               r_new(1:3,mol-1+torsion_list(torsion_number)%b)
+               
+
+! multiply by the rotation matrix
+               u=bond_a(1)
+               v=bond_a(2)
+               w=bond_a(3)
+               x=r_new(1,mol-1+iatom)
+               y=r_new(2,mol-1+iatom)
+               z=r_new(3,mol-1+iatom)
+               temp(1)=(u*(u*x+v*y+w*z)+(x*(v**2+w**2)-u*(v*y+w*z))*cos(dis_angle_a)+&
+                  SQRT(u**2+v**2+w**2)*(v*z-w*y)*sin(dis_angle_a))/(u**2+v**2+w**2)
+               temp(2)=(v*(u*x+v*y+w*z)+(y*(u**2+w**2)-v*(u*x+w*z))*cos(dis_angle_a)+&
+                  SQRT(u**2+v**2+w**2)*(w*x-u*z)*sin(dis_angle_a))/(u**2+v**2+w**2)
+               temp(3)=(w*(u*x+v*y+w*z)+(z*(v**2+u**2)-w*(u*x+v*y))*cos(dis_angle_a)+&
+                  SQRT(u**2+v**2+w**2)*(u*y-v*x)*sin(dis_angle_a))/(u**2+v**2+w**2)
+
+! shift back to the original position
+            temp(1:3)=temp(1:3)+r_new(1:3,mol-1+torsion_list(torsion_number)%b)
+            r_new(1:3,mol-1+iatom)=temp(1:3)
+
+         ELSEIF(atom_d(iatom) == 1) THEN
+
+! shift the coords so c is at the origin
+            r_new(1:3,mol-1+iatom)=r_new(1:3,mol-1+iatom)-&
+               r_new(1:3,mol-1+torsion_list(torsion_number)%c)
+               
+! multiply by the rotation matrix
+               u=bond_a(1)
+               v=bond_a(2)
+               w=bond_a(3)
+               x=r_new(1,mol-1+iatom)
+               y=r_new(2,mol-1+iatom)
+               z=r_new(3,mol-1+iatom)
+               temp(1)=(u*(u*x+v*y+w*z)+(x*(v**2+w**2)-u*(v*y+w*z))*cos(dis_angle_d)+&
+                  SQRT(u**2+v**2+w**2)*(v*z-w*y)*sin(dis_angle_d))/(u**2+v**2+w**2)
+               temp(2)=(v*(u*x+v*y+w*z)+(y*(u**2+w**2)-v*(u*x+w*z))*cos(dis_angle_d)+&
+                  SQRT(u**2+v**2+w**2)*(w*x-u*z)*sin(dis_angle_d))/(u**2+v**2+w**2)
+               temp(3)=(w*(u*x+v*y+w*z)+(z*(v**2+u**2)-w*(u*x+v*y))*cos(dis_angle_d)+&
+                  SQRT(u**2+v**2+w**2)*(u*y-v*x)*sin(dis_angle_d))/(u**2+v**2+w**2)
+
+! shift back to the original position
+            temp(1:3)=temp(1:3)+r_new(1:3,mol-1+torsion_list(torsion_number)%c)
+            r_new(1:3,mol-1+iatom)=temp(1:3)
+         ENDIF
+      ENDDO
+
+! deallocate some stuff
+      DEALLOCATE(connection,STAT=istat)
+      IF (istat /= 0) CALL stop_memory(routineN,module_name,__LINE__,&
+                       "connection")
+      DEALLOCATE(connectivity,STAT=istat)
+      IF (istat /= 0) CALL stop_memory(routineN,module_name,__LINE__,&
+                       "connectivity")
+      DEALLOCATE(counter,STAT=istat)
+      IF (istat /= 0) CALL stop_memory(routineN,module_name,__LINE__,&
+                       "counter")
+      DEALLOCATE(atom_a,STAT=istat)
+      IF (istat /= 0) CALL stop_memory(routineN,module_name,__LINE__,&
+                       "atom_a")
+      DEALLOCATE(atom_d,STAT=istat)
+      IF (istat /= 0) CALL stop_memory(routineN,module_name,__LINE__,&
+                       "atom_d")
+
+! end the timing
+      CALL timestop(0.0E0_dp,handle)
+
+  END SUBROUTINE change_dihedral
 !*********************************************************************
 
 ! *****************************************************************************

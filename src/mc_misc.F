@@ -242,14 +242,14 @@ SUBROUTINE final_mc_write (mc_par,moves,iw,energy_check,initial_energy,&
     LOGICAL                                  :: lbias
     INTEGER                                  :: handle,nvolmoves
     REAL(KIND=dp)                            :: pmswap,rmvolume,rmbond,&
-      rmangle,rmtrans,rmrot
+      rmangle,rmdihedral,rmtrans,rmrot
 !------------------------------------------------------------------------------
 ! begin the timing of the subroutine
 
     CALL timeset(routineN,'I','',handle)
 
     CALL get_mc_par(mc_par,pmswap=pmswap,rmvolume=rmvolume,&
-      lbias=lbias,rmbond=rmbond,rmangle=rmangle,&
+      lbias=lbias,rmbond=rmbond,rmangle=rmangle,rmdihedral=rmdihedral,&
       rmtrans=rmtrans,rmrot=rmrot,nvolmoves=nvolmoves)
 
 ! write out some data averaged over the whole simulation
@@ -343,14 +343,14 @@ SUBROUTINE final_mc_write (mc_par,moves,iw,energy_check,initial_energy,&
     ENDIF
 
     IF (moves%angle%attempts .GT. 0 .OR. &
-                            moves%bond%attempts .GT. 0) THEN
+      moves%bond%attempts .GT. 0 .OR. moves%dihedral%attempts .GT. 0 ) THEN
        WRITE(iw,'(A,T43,A)') " Conformational Moves",&
           "Attempted       Accepted       Percent"
        WRITE(iw,'(T46,I6,9X,I6,7X,F7.3)') &
-          moves%bond%attempts+moves%angle%attempts,&
-          moves%bond%successes+moves%angle%successes,&
-          REAL(moves%bond%successes+moves%angle%successes,dp)/ &
-          REAL(moves%bond%attempts+moves%angle%attempts,dp)*100.0E0_dp
+          moves%bond%attempts+moves%angle%attempts+moves%dihedral%attempts,&
+          moves%bond%successes+moves%angle%successes+moves%dihedral%successes,&
+          REAL(moves%bond%successes+moves%angle%successes+moves%dihedral%successes,dp)/ &
+          REAL(moves%bond%attempts+moves%angle%attempts+moves%dihedral%attempts,dp)*100.0E0_dp
        IF (moves%bond%attempts .GT. 0 ) THEN
           WRITE(iw,'(A,T43,A)') " Bond Changes",&
             "Attempted       Accepted       Percent"
@@ -374,6 +374,18 @@ SUBROUTINE final_mc_write (mc_par,moves,iw,energy_check,initial_energy,&
           IF( .NOT. lbias) WRITE(iw,'(A,T71,F10.5)') &
             ' Maximum angle displacement [degrees]= ',&
             rmangle/pi*180.0E0_dp
+       ENDIF
+       IF (moves%dihedral%attempts .GT. 0 ) THEN
+          WRITE(iw,'(A,T43,A)') " Dihedral Changes",&
+            "Attempted       Accepted       Percent"
+          WRITE(iw,'(T46,I6,9X,I6,7X,F7.3)') &
+            moves%dihedral%attempts,&
+            moves%dihedral%successes,&
+            REAL(moves%dihedral%successes,dp)/ &
+            REAL(moves%dihedral%attempts,dp)*100.0E0_dp
+          IF( .NOT. lbias) WRITE(iw,'(A,T71,F10.5)') &
+            ' Maximum dihedral displacement [degrees]= ',&
+            rmdihedral/pi*180.0E0_dp
        ENDIF
        WRITE(iw,'(A,A,I5)') " Conformational Moves Rejected Because",&
           "Box Was Empty: ",moves%empty_conf
@@ -487,6 +499,22 @@ SUBROUTINE final_mc_write (mc_par,moves,iw,energy_check,initial_energy,&
           WRITE(iw,'(A,T71,F10.5)') &
             ' Maximum angle displacement [degrees]= ',&
             rmangle/pi*180.0E0_dp
+          WRITE(iw,*) '-------------------------------------------',&
+                   '------------------------------------'
+       ENDIF
+
+! now dihedral changes
+       IF (moves%dihedral%attempts .GT. 0 ) THEN
+          WRITE(iw,'(A,T43,A)') " Dihedral Changes",&
+            "Attempted       Accepted       Percent"
+          WRITE(iw,'(T46,I6,9X,I6,7X,F7.3)') &
+            moves%bias_dihedral%attempts,&
+            moves%bias_dihedral%successes,&
+            REAL(moves%bias_dihedral%successes,dp)/ &
+            REAL(moves%bias_dihedral%attempts,dp)*100.0E0_dp
+          WRITE(iw,'(A,T71,F10.5)') &
+            ' Maximum dihedral displacement [degrees]= ',&
+            rmdihedral/pi*180.0E0_dp
           WRITE(iw,*) '-------------------------------------------',&
                    '------------------------------------'
        ENDIF
