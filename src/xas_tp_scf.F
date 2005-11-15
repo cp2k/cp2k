@@ -53,7 +53,8 @@ MODULE xas_tp_scf
                                              cp_to_string,&
                                              cp_warning_level
   USE global_types,                    ONLY: global_environment_type
-  USE input_constants,                 ONLY: xas_tp_hh, xas_tp_fh,&
+  USE input_constants,                 ONLY: ot_precond_full_kinetic,&
+                                             xas_tp_hh, xas_tp_fh,&
                                              xas_dscf, do_loc_none ,&
                                              xas_scf_general,xas_scf_ot
   USE kinds,                           ONLY: dp
@@ -61,6 +62,10 @@ MODULE xas_tp_scf
                                              m_walltime
   USE qs_ot_scf,                       ONLY: ot_scf_mini
   USE particle_types,                  ONLY: particle_type
+  USE preconditioner,                  ONLY: destroy_preconditioner,&
+                                             init_preconditioner,&
+                                             make_preconditioner,&
+                                             preconditioner_type
   USE qs_diis,                         ONLY: qs_diis_b_step
   USE qs_energy_types,                 ONLY: qs_energy_type
   USE qs_environment_types,            ONLY: get_qs_env,&
@@ -192,6 +197,7 @@ CONTAINS
       POINTER                                :: mos
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
+    TYPE(preconditioner_type), POINTER       :: preconditioner
     TYPE(qs_energy_type), POINTER            :: energy
     TYPE(qs_ks_env_type), POINTER            :: ks_env
     TYPE( qs_loc_env_new_type ), POINTER     :: qs_loc_env
@@ -655,16 +661,30 @@ CONTAINS
 !     write(*,*) 'nv2 ', nvirtual2
 !dbg
     IF(nvirtual2 .GT. 0) THEN
-      NULLIFY(mo_coeff,uno_orbs,uno_evals)
+      NULLIFY(mo_coeff,uno_orbs,uno_evals,preconditioner)
+      ALLOCATE(preconditioner,STAT=istat)
+      CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+      CALL init_preconditioner(preconditioner,para_env=qs_env%para_env,&
+           blacs_env=qs_env%blacs_env)
       CALL get_mo_set(mos(1)%mo_set, mo_coeff=mo_coeff,nao=nao,nmo=nmo)
+      CALL make_preconditioner(preconditioner, &
+                  precon_type=ot_precond_full_kinetic, &
+                  matrix_h=matrix_ks(1)%matrix,matrix_s=matrix_s(1)%matrix,&
+                  matrix_t=qs_env%kinetic(1)%matrix, &
+                  mo_coeff=mo_coeff,energy_gap=0.2_dp)
+
       CALL get_xas_env(xas_env=xas_env,unoccupied_orbs=uno_orbs,&
            unoccupied_evals=uno_evals,unoccupied_eps=uno_eps,unoccupied_max_iter=uno_iter)
       CALL cp_fm_init_random(uno_orbs,nvirtual2)
       CALL ot_eigensolver(matrix_h=matrix_ks(1)%matrix,matrix_s=matrix_s(1)%matrix, &
-           matrix_c=uno_orbs,matrix_orthogonal_space=mo_coeff,eps_gradient=uno_eps,&
+           matrix_c=uno_orbs,matrix_orthogonal_space=mo_coeff,&
+           preconditioner=preconditioner,eps_gradient=uno_eps,&
            iter_max=uno_iter,globenv=globenv,size_ortho_space=nmo)
       CALL calculate_subspace_eigenvalues(uno_orbs,matrix_ks(1)%matrix,&
            uno_evals,para_env=qs_env%para_env,do_rotation=.TRUE.)
+      CALL destroy_preconditioner(preconditioner)
+      DEALLOCATE(preconditioner,STAT=istat)
+      CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
     END IF
 
     ! Prapare arrays for the calculation of the spectrum

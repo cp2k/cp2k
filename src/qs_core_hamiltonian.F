@@ -249,7 +249,7 @@ CONTAINS
     CHARACTER(LEN=80)  :: name
     CHARACTER(LEN=200) :: file_name
     REAL(KIND = dp)    :: dab,dac,dbc,f,f0,rab2,rac2,rbc2
-    INTEGER            :: atom_a,atom_b,atom_c,first_col,handle,i,iab,&
+    INTEGER            :: added_mos,atom_a,atom_b,atom_c,first_col,handle,i,iab,&
                           iac,iat,iatom,ibc,icell,ico,icol,idx,ikind,ilist,&
                           inode,ipgf,irow,iset,istat,j,jatom,jcell,jco,&
                           jkind,jset,katom,kcell,kkind,kneighbor,knode,&
@@ -262,7 +262,7 @@ CONTAINS
                           build_kinetic_energy_matrix,gth_potential_present,&
                           new_atom_b,ppl_present,ppnl_present,&
                           return_s_derivatives,return_t_derivatives,&
-                          oce_present, rho0_present, harris_flag
+                          oce_present, rho0_present, harris_flag, xas_calculation
 
     REAL(KIND = dp), DIMENSION(1) :: rprjc,zetc
     REAL(KIND = dp), DIMENSION(3) :: force_a,force_b,rab,rac,rbc
@@ -320,7 +320,7 @@ CONTAINS
     INTEGER :: neighbor_list_id
 
     TYPE(harris_env_type), POINTER              :: harris_env
-    TYPE(section_vals_type), POINTER            :: lr_section
+    TYPE(section_vals_type), POINTER            :: lr_section, xas_section
 
 
 #if defined(__AIX) && defined(__INIT_WITH_NANS)
@@ -528,12 +528,18 @@ CONTAINS
       lr_section = section_vals_get_subs_vals(globenv%input_file,"FORCE_EVAL%PROPERTIES%LINRES")
       CALL section_vals_val_get(lr_section,"PRECONDITIONER",i_val=lr_precond)
     END IF
+    ! The transition potential method may need the kinetic matrix
+    xas_section =>  section_vals_get_subs_vals(globenv%input_file, &
+                                                 "FORCE_EVAL%DFT%XAS")
+!    call section_vals_get(xas_section,explicit=xas_calculation)
+    call section_vals_val_get(xas_section,"ADDED_MOS",i_val=added_mos)
+    xas_calculation = (added_mos>0)
     
     build_kinetic_energy_matrix = (scf_control%use_ot.OR.&
                                    globenv%print%kinetic_energy_matrix.OR.&
                                    globenv%print%potential_energy_matrix.OR.&
                                    globenv%run_type_id==ep_run .OR. &
-                                   lr_precond == lr_precond_kinetic)
+                                   lr_precond == lr_precond_kinetic .OR. xas_calculation)
     ! assume false by default
     return_t_derivatives = .FALSE.
 
