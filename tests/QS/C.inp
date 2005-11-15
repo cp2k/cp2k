@@ -22,6 +22,7 @@
  MAX_SCF      30
  MIXING       0.4
  SMEAR        0.02
+ ADDED_MOS    4 0
 &END
 
 &CELL
