@@ -153,6 +153,7 @@ MODULE md
      REAL (KIND=dp) :: v_shock
      REAL (KIND=dp) :: p0
      REAL (KIND=dp) :: f_annealing
+     REAL (KIND=dp) :: gamma_nph
      INTEGER        :: ensemble
      INTEGER        :: read_type
      INTEGER        :: output_format
@@ -258,6 +259,7 @@ CONTAINS
 !!I   pressure : p0       &                 Initial pressure                  I
 !!I   energy   : e0       &                 Initial energy                    I
 !!I   volume   : v0       &                 Initial compression               I
+!!I   damping  : gamma    &                 Damping parameter                 I
 !!I Nose_parameter        &              parameter of Nose-Hoover-chains      I
 !!I   length:    nhclen   &                 length of thermostat              I
 !!I   Yoshida:   nyosh    &                 order of Yoshida integrator       I
@@ -506,7 +508,7 @@ CONTAINS
                    simpar % ensemble = nph_ensemble
                 CASE ("NPH_UNIAXIAL")
                    simpar % ensemble = nph_uniaxial_ensemble            
-                CASE ("NPH_UNIAXIAL_DUMPED")
+                CASE ("NPH_UNIAXIAL_DAMPED")
                    simpar % ensemble = nph_uniaxial_damped_ensemble
                 CASE ("ISOKIN")
                    simpar % ensemble = isokin_ensemble
@@ -607,9 +609,6 @@ CONTAINS
                       CALL get_next ( simpar % e0 )
                    CASE ( 'VOLUME' )
                       CALL get_next ( simpar % v0 )
-                   CASE ( 'TEMP_B' )
-                      CALL get_next ( simpar % temp_baro )
-                      simpar % ensemble = nph_uniaxial_damped_ensemble
                    CASE ( 'TIMECO' )
                       CALL get_next ( simpar % tau_cell )
                       IF ( test_next () == 'C' ) THEN
@@ -630,6 +629,9 @@ CONTAINS
 !!! input in m/sec
                       simpar % v_shock = simpar % v_shock * 1.e10_dp
                       simpar % v_shock = simpar % v_shock * 1.e-15_dp
+                   CASE ( 'GAMMA' )
+                      CALL get_next ( simpar % gamma_nph )
+                      simpar % ensemble = nph_uniaxial_damped_ensemble
                    END SELECT
                 END DO
              CASE ( 'NOSE_P' )
@@ -863,6 +865,7 @@ CONTAINS
        CALL convert_to_cp2k_units ( simpar % units % press, pressure = simpar % p0 ) 
        CALL convert_to_cp2k_units ( "ANGSTROM", length = simpar % v_shock ) 
        CALL convert_to_cp2k_units ( "FS", time = simpar % v_shock, t_power = -1 ) 
+       CALL convert_to_cp2k_units ( "FS", time = simpar % gamma_nph, t_power = -1 ) 
     END IF    
 !
 !TODEL_END_TL
@@ -998,7 +1001,7 @@ CONTAINS
                ' MD| Pressure [','Bar','] ', simpar % p_ext/unit%bar
           WRITE ( iw, '( A,A4,A, T71, F10.4 )' ) &
                ' MD| Barostat time constant [','fs','] ', &
-               simpar % tau_cell/unit%fs
+               simpar % tau_cell*unit%fs
        END IF
        IF (  simpar % ensemble == isokin_ensemble ) THEN
           WRITE ( iw, '( A )' ) ' MD| Simulation in the isokinetic ensemble'
@@ -1028,6 +1031,21 @@ CONTAINS
        WRITE ( iw, '( A,T25,i5,T31,A )' ) ' MD| Dump', mdio % idump, &
             ADJUSTR ( mdio % dump_file_name ( 1:50 ) )
        WRITE (iw,*)
+       IF ( simpar % ensemble == nph_uniaxial_ensemble .OR.  &
+            simpar % ensemble == nph_uniaxial_damped_ensemble ) THEN
+          WRITE ( iw, '( A )' ) ' SHOCK| Uniaxial Shock Parameters: '
+          WRITE ( iw, '( A,A4,A,T71,F10.4 )' ) &
+               ' SHOCK| Shock Velocity [', 'm/s' ,'] ',&
+               simpar % v_shock * 1.e-10_dp * 1.e15_dp / unit % angstrom * unit%fs
+          WRITE ( iw, '( A,A4,A,T71,F10.4 )' ) &
+               ' SHOCK| Damping Coefficient [', '1/fs' ,'] ',&
+               simpar % gamma_nph*unit%fs
+          WRITE ( iw, '( A,A3,A, T71, F10.2 )' ) &
+               ' SHOCK| Pressure [','Bar','] ', simpar % p0*unit%bar
+          WRITE ( iw, '( A,A4,A, T71, F10.4 )' ) &
+               ' SHOCK| Barostat time constant [', 'fs', '] ', &
+               simpar % tau_cell/unit%fs
+       END IF
     END IF
 
 END SUBROUTINE read_md_section
@@ -1099,10 +1117,7 @@ SUBROUTINE read_md_new_section(simpar, globenv, md_section, error)
         CALL section_vals_val_get(tmp_section,"ENERGY",r_val=simpar%e0,error=error)
         CALL section_vals_val_get(tmp_section,"VOLUME",r_val=simpar%v0,error=error)
         IF (simpar%ensemble == nph_uniaxial_damped_ensemble) THEN
-           CALL section_vals_val_get(tmp_section,"TEMP_B",r_val=simpar%temp_baro,n_rep_val=n_rep,error=error)
-           IF (n_rep == 0) THEN
-              CPPostcondition(.FALSE.,cp_failure_level,routineP,error,failure)
-           ENDIF
+          CALL section_vals_val_get(tmp_section,"GAMMA",r_val=simpar%gamma_nph,error=error)
         END IF
         CALL section_vals_val_get(tmp_section,"TIMECO",r_val=simpar%tau_cell,error=error)
         CALL section_vals_val_get(tmp_section,"VSHOC",r_val=simpar%v_shock,error=error)
@@ -1228,6 +1243,7 @@ END SUBROUTINE read_md_new_section
     simpar % v0 = 0._dp
     simpar % e0 = 0._dp
     simpar % v_shock = 0.0_dp
+    simpar % gamma_nph = 0.0_dp
     !MK Langevin
     simpar%gamma = 0.0_dp
     simpar%var_w = 0.0_dp

@@ -97,7 +97,7 @@ SUBROUTINE velocity_verlet ( md_env )
   CALL get_md_env ( md_env, force_env_p=force_env_p, simpar=simpar )
 ! get in_use
   CALL force_env_get ( force_env=force_env_p ( 1 ) % force_env, in_use=in_use )
-
+  
   SELECT CASE ( in_use )
   CASE ( use_fist_force )
      SELECT CASE ( simpar % ensemble  )

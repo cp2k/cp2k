@@ -368,7 +368,12 @@ CONTAINS
              simpar % ensemble == nph_uniaxial_ensemble .OR.&
              simpar % ensemble == nph_uniaxial_damped_ensemble)&
         WRITE ( iw, '( A,A,T40,A,T60,1(1X,E20.12) )' ) ' INITIAL HUGONIOT CONSTRAINT', &
-           adjustl( unit % e_label), '= ', hugoniot
+           adjustl( unit % temp_label), '= ', hugoniot
+        IF ( simpar % ensemble == nph_ensemble .OR.&
+             simpar % ensemble == nph_uniaxial_ensemble .OR.&
+             simpar % ensemble == nph_uniaxial_damped_ensemble)&
+        WRITE ( iw, '( A,A,T40,A,T60,1(1X,E20.12) )' ) ' INITIAL E0', &
+           adjustl( unit % e_label), '= ', simpar % e0
         WRITE ( iw, '( A,A,T40,A,T60,1(1X,E20.12) )' ) ' INITIAL VOLUME', &
            adjustl( unit % vol_label), '= ', cell%deth
         WRITE ( iw, '( A,A,T29,A,T33,3(1X,E15.7) )' ) ' INITIAL CELL LNTHS', &
@@ -488,7 +493,8 @@ CONTAINS
             WRITE ( iw, '( A,A,T31,A,T39,2(1X,E20.12) )' ) ' P_XX', &
                adjustl(unit % pres_label), '= ', pv_xx, averages%avepxx
             WRITE ( iw, '( A,A,T31,A,T39,2(1X,E20.12) )' ) ' HUGONIOT', &
-               adjustl(unit % e_label), '= ', hugoniot, averages%avehugoniot
+               adjustl(unit % temp_label), '= ', hugoniot/3._dp/nat*kelvin,&
+                                     averages%avehugoniot/3._dp/nat*kelvin
           END IF
         IF ( simpar % ensemble == nph_ensemble .OR.&
              simpar % ensemble == nph_uniaxial_ensemble .OR.&

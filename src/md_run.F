@@ -60,11 +60,11 @@ MODULE md_run
                                              force_env_p_type,&
                                              force_env_type
   USE global_types,                    ONLY: global_environment_type
-  USE initialize_extended_types,       ONLY: initialize_nhc_baro,&
+  USE initialize_extended_system_types,ONLY: initialize_nhc_baro,&
                                              initialize_nhc_coef,&
-                                             initialize_nhc_forces,&
                                              initialize_nhc_part,&
-                                             initialize_npt_type
+                                             initialize_npt
+  USE init_extended_system_variables,  ONLY: init_nhc_forces
   USE kinds,                           ONLY: dp
   USE machine,                         ONLY: m_walltime
   USE md,                              ONLY: initialize_velocities,&
@@ -199,7 +199,7 @@ CONTAINS
 
     failure=.FALSE.
     NULLIFY ( particles, local_molecules, cell, cell_ref, dyn_coeff_set,&
-              mdio, simpar,itimes,used_time,subsys,nhc_part,nhc_baro)
+              mdio, simpar,itimes,used_time,subsys,nhc_part,nhc_baro )
     NULLIFY (md_env,molecule_kinds_new, molecules_new)
     logger => cp_error_get_logger(error)
 
@@ -264,11 +264,11 @@ CONTAINS
             CALL initialize_nhc_coef(dyn_coeff_set(isubsys)%dyn_coeff_set,&
                                    globenv,extended_type%nhc_coef(ibead))
             CALL dyn_coeff_set_initialize(dyn_coeff_set(isubsys)%dyn_coeff_set,globenv) 
-            CALL initialize_nhc_forces (nhc_coef=extended_type% nhc_coef(ibead))
+            CALL init_nhc_forces (nhc_coef=extended_type% nhc_coef(ibead))
           END IF
 
       END DO
-      CALL initialize_npt_type(simpar,globenv,extended_type%npt_info,cell)
+      CALL initialize_npt (simpar,globenv,extended_type%npt_info,cell)
 
 ! Always initialize velocities (to be overwritten if needed)
       DO isubsys=1,SIZE(subsys)
@@ -314,7 +314,7 @@ CONTAINS
 
        nhc_part => extended_type%nhc_part(ibead)
        nhc_baro => extended_type%nhc_baro(ibead)
-       CALL initialize_nhc_forces ( nhc_part=nhc_part, nhc_baro=nhc_baro )
+       CALL init_nhc_forces ( nhc_part=nhc_part, nhc_baro=nhc_baro )
 
        DO isubsys=1,SIZE(subsys)
           CALL cp_subsys_get(subsys(isubsys)%subsys,&

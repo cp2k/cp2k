@@ -98,7 +98,6 @@ OBJECTS_GENERIC =\
  ewald_pw_types.o\
  ewalds.o\
  extended_system_dynamics.o\
- extended_system_initialize.o\
  extended_system_types.o\
  external_potential_types.o\
  farming_methods.o\
@@ -146,7 +145,8 @@ OBJECTS_GENERIC =\
  hartree_local_methods.o\
  hartree_local_types.o\
  header.o\
- initialize_extended_types.o\
+ init_extended_system_variables.o\
+ initialize_extended_system_types.o\
  input_constants.o\
  input_cp2k.o\
  input_cp2k_dft.o\
@@ -232,7 +232,7 @@ OBJECTS_GENERIC =\
  mt_util.o\
  mulliken.o\
  nddo_methods.o\
- nhc.o\
+ nhc_mapping.o\
  orbital_pointers.o\
  orbital_symbols.o\
  orbital_transformation_matrices.o\

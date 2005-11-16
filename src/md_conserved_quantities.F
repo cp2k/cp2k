@@ -171,7 +171,7 @@ SUBROUTINE compute_conserved_quantity (md_env, epot, cons, cons_rel, ekin,&
   CASE (  nph_uniaxial_ensemble )
     CALL get_econs_nph_uniaxial (md_env, md_ener, cons, int_grp)
   CASE ( nph_uniaxial_damped_ensemble )
-    CALL get_econs_nph_damped (md_env, md_ener, cons, int_grp)
+    CALL get_econs_nph_uniaxial (md_env, md_ener, cons, int_grp)
   CASE ( langevin_ensemble )
     cons = md_ener%ekin + md_ener%epot
   END SELECT
@@ -411,54 +411,6 @@ SUBROUTINE get_econs_nph_uniaxial ( md_env, md_ener, cons, int_grp)
 
 
 END SUBROUTINE get_econs_nph_uniaxial
-!******************************************************************************
-!!******
-!!
-!!   NAME
-!!     get_econs_nph_damped
-!!
-!!   FUNCTION
-!!     calculates conserved quantity for nph_uniaxial_damped
-!!
-!!   AUTHOR
-!!     cjm
-!!
-!!   MODIFICATION HISTORY
-!!     none
-!!
-!!*****************************************************************************
-
-SUBROUTINE get_econs_nph_damped ( md_env, md_ener, cons, int_grp)
-
-
-    TYPE(md_environment_type), POINTER       :: md_env
-    TYPE(md_ener_type), INTENT(inout)        :: md_ener
-    REAL(KIND=dp), INTENT(OUT)                   :: cons
-    INTEGER, INTENT(IN)                      :: int_grp
-
-    REAL(KIND=dp)                                :: baro_kin, baro_pot, &
-                                                    nhc_baro_kin, nhc_baro_pot
-    TYPE(cell_type), POINTER                 :: box
-    TYPE(lnhc_parameters_type), POINTER      :: nhc_baro( : )
-    TYPE(npt_info_type), POINTER             :: npt( :, : )
-    TYPE(simulation_parameters_type), &
-      POINTER                                :: simpar
-
-!----------------------------------------------------------------------------
-
-  CALL get_md_env ( md_env, simpar = simpar, npt = npt, nhc_baro = nhc_baro, &
-                    cell = box )
-
-  CALL get_nhc_energies ( nhc_baro ( 1 ), nhc_baro_pot, nhc_baro_kin, int_grp )
-
-  CALL get_baro_energies ( box, simpar, npt, baro_kin, baro_pot, int_grp )
-
-  md_ener % temp_baro = 2.0_dp * baro_kin 
-
-  cons = md_ener%ekin + md_ener%epot + baro_kin + baro_pot + nhc_baro_kin + nhc_baro_pot
-
-
-END SUBROUTINE get_econs_nph_damped
 !******************************************************************************
 !!****** md_conserved_quantity/get_baro_energies [1.0] *
 !!

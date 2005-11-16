@@ -1400,7 +1400,7 @@ SUBROUTINE create_uniaxial_section(section, error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)            
 
-        CALL keyword_create(keyword, name="ENERGY",&
+       CALL keyword_create(keyword, name="ENERGY",&
             description="Initial energy",&
             usage="ENERGY real",&
             type_of_var=real_t, n_var=1, unit_str='hartree',error=error)
@@ -1411,13 +1411,6 @@ SUBROUTINE create_uniaxial_section(section, error)
             description="Initial compression",&
             usage="VOLUME real",&
             type_of_var=real_t, n_var=1, unit_str='angstrom^3',error=error)
-       CALL section_add_keyword(section,keyword,error=error)
-       CALL keyword_release(keyword,error=error)             
-
-       CALL keyword_create(keyword, name="TEMP_B",&
-            description="Temperature of the barostat.",&
-            usage="TEMP_B real",&
-            type_of_var=real_t, n_var=1,unit_str='K',error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)             
 
@@ -1432,6 +1425,14 @@ SUBROUTINE create_uniaxial_section(section, error)
             description="Velocity of shock front",&
             usage="VSHOCK real",&
             type_of_var=real_t, n_var=1,unit_str='m/s',error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)             
+
+       CALL keyword_create(keyword, name="GAMMA",&
+            description="Damping coefficient for barostat and particles",&
+            usage="GAMMA real",&
+            type_of_var=real_t, n_var=1,unit_str='fs^-1', &
+            default_r_val=0.1_dp, error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)             
 

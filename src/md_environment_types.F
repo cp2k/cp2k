@@ -94,8 +94,8 @@ CONTAINS
 ! *****************************************************************************
 
   SUBROUTINE get_md_env ( md_env, itimes, constant, used_time, cell,  &
-                          simpar, mdio, nhc_part, nhc_coef, nhc_baro, npt, &
-                          force_env_p, para_env, reftraj_info )
+                          simpar, mdio, nhc_part, nhc_coef, nhc_baro, &
+                          npt, force_env_p, para_env, reftraj_info )
 
 !   Purpose: Get the integrator environment
 
@@ -310,8 +310,8 @@ END SUBROUTINE md_env_release
 
 ! *****************************************************************************
   SUBROUTINE set_md_env ( md_env, itimes, constant, cell, simpar, &
-                          mdio, nhc_part, nhc_coef, nhc_baro, npt, &
-                          force_env_p, para_env )
+                          mdio, nhc_part, nhc_coef, nhc_baro, &
+                          npt, force_env_p, para_env )
 
 !   Purpose: Set the integrator environment to the correct program.
 
