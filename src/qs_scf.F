@@ -1676,7 +1676,7 @@ CONTAINS
           use_cholesky = .FALSE.
           CALL cp_fm_cholesky_restore(work,nmo,ortho,mo_coeff,"SOLVE")
           CALL cp_fm_to_fm(mo_coeff,ortho)
-       ELSE IF (smear /= 0.0_dp) THEN
+       ELSE IF (nmo==nao) THEN
           CALL cp_fm_syevd(matrix_ks,work,mo_eigenvalues)
           CALL cp_fm_cholesky_restore(work,nmo,ortho,mo_coeff,"SOLVE")
        ELSE

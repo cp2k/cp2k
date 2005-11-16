@@ -3232,6 +3232,22 @@ END SUBROUTINE create_ot_section
       CALL section_add_keyword(section,keyword,error=error)
       CALL keyword_release(keyword,error=error)
 
+      CALL keyword_create(keyword, name="SMEAR",&
+           description="smearing coefficient",&
+           usage="SMEAR 0.5",&
+           default_r_val=0._dp,error=error)
+      CALL section_add_keyword(section,keyword,error=error)
+      CALL keyword_release(keyword,error=error)
+
+      CALL keyword_create(keyword, name="FERMI",&
+           description="Fermi distributionfor the occupation numbers",&
+           usage="FERMI",&
+           default_l_val=.FALSE.,lone_keyword_l_val=.TRUE.,error=error)
+      CALL section_add_keyword(section,keyword,error=error)
+      CALL keyword_release(keyword,error=error) 
+
+
+
       CALL keyword_create(keyword,name="ATOMS_LU_BOUNDS",&
            variants=(/"AT_LU"/),&
            description="The lower and upper index of the atoms to be excited",&

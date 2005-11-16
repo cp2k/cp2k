@@ -204,7 +204,7 @@ CONTAINS
 
     INTEGER :: handle, homo, i, iat, iatom, ikind, iset, &
                isgf, ispin, istat, istate, iter, &
-               j, la,  my_kind, nao, natom, nmo,  &
+               j, la,  my_homo(2),my_kind, nao, natom, nelectron, nmo,  &
                nspins, nexc_search, nvirtual2, output_unit,& 
                state_to_be_excited, xas_iter_count
     INTEGER, ALLOCATABLE, DIMENSION(:)          :: first_sgf
@@ -214,7 +214,7 @@ CONTAINS
     INTEGER, DIMENSION(:), POINTER              :: state_of_mytype
     INTEGER, DIMENSION(:), POINTER              :: mykind_of_kind
 
-    LOGICAL :: failure, ionode, transition_potential
+    LOGICAL :: failure, ionode, my_uocc(2), transition_potential, uocc
     REAL(dp) :: component, dist, distmin,  maxocc, &
                 ra(3), rac(3), rc(3)
     REAL(dp), DIMENSION(:), POINTER             :: occupation_numbers
@@ -302,6 +302,17 @@ CONTAINS
              do_rotation=.TRUE.)
       END DO
     END IF
+    DO ispin = 1,dft_control%nspins
+        CALL get_mo_set(mos(ispin)%mo_set,nelectron=nelectron,maxocc=maxocc,&
+             homo=my_homo(ispin),uniform_occupation=my_uocc(ispin))
+        my_homo(ispin) = homo
+        my_uocc(ispin) = uocc
+      IF(scf_control%smear /= 0.0_dp) THEN
+        homo = NINT(nelectron/maxocc)
+        uocc = .TRUE.
+        CALL set_mo_set(mos(ispin)%mo_set, homo=homo,uniform_occupation=uocc)
+      END IF
+    END DO
 
     nexc_search = xas_control%nexc_search
     nspins = dft_control%nspins
@@ -464,10 +475,10 @@ CONTAINS
 !IF (ionode ) WRITE(*,*) 'estate ',  dft_control % xas_estate
       ! Take the state_to_be_excited vector from the full set and copy into excvec_coeff
        CALL get_mo_set(mos(1)%mo_set, mo_coeff=mo_coeff,&
-            occupation_numbers=occupation_numbers,homo=homo,nmo=nmo)
+            occupation_numbers=occupation_numbers,homo=homo,nmo=nmo,nelectron=nelectron)
        IF(xas_control%xas_method == xas_dscf) THEN
           CPPrecondition(.NOT.(nmo==homo),cp_failure_level,routineP,error,failure)
-          homo = homo + 1
+          homo = nelectron + 1
           CALL set_mo_set(mos(1)%mo_set, homo = homo)
        END IF
        occupation_numbers(1:homo)  = 1.0_dp
@@ -526,8 +537,8 @@ CONTAINS
 
     ! append the spectrum of this iteration to the right output file
       IF( xas_control%xas_method == xas_dscf) THEN
-         homo = homo - 1
-         CALL set_mo_set(mos(1)%mo_set, homo = homo)
+!         homo = homo - 1
+!         CALL set_mo_set(mos(1)%mo_set, homo = homo)
       ELSE
         CALL xas_write(xas_control,spectrum, dft_control%xas_estate, &
              homo, iatom, iter, ionode, error=error)
@@ -543,6 +554,11 @@ CONTAINS
        CALL cp_fm_to_fm(groundstate_coeff(ispin)%matrix,mo_coeff,nmo,1,1)
       END DO
 
+    END DO
+
+    DO ispin = 1,dft_control%nspins
+       CALL set_mo_set(mos(ispin)%mo_set, homo=my_homo(ispin),&
+            uniform_occupation=my_uocc(ispin))
     END DO
 
   ! Release what has to be released 
@@ -1441,6 +1457,6 @@ CONTAINS
 
   END SUBROUTINE calc_stogto_overlap
 
-!***************************************************************************
+
 
 END MODULE xas_methods

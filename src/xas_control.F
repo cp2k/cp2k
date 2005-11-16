@@ -93,11 +93,13 @@ MODULE xas_control
     LOGICAL                             :: emission
     LOGICAL                             :: localized_wfn
     LOGICAL                             :: cubes, do_centers
+    LOGICAL                             :: fermidist
     INTEGER, DIMENSION(:), POINTER      :: list_cubes
     REAL(dp)                            :: eps_scf
     REAL(dp)                            :: eps_diis
     REAL(dp)                            :: p_mix
     REAL(dp)                            :: eps_added
+    REAL(dp)                            :: smear
     TYPE(localized_wfn_control_type), &
       POINTER                           :: localized_wfn_control
   END TYPE xas_control_type
@@ -179,6 +181,12 @@ CONTAINS
 
     CALL section_vals_val_get(xas_section,"FNAME",&
          c_val=xas_control%xas_rootfname,error=error)
+
+    CALL section_vals_val_get(xas_section,"SMEAR", &
+         r_val=xas_control%smear,error=error)
+
+    CALL section_vals_val_get(xas_section,"FERMI", &
+         l_val=xas_control%fermidist,error=error)
 
     CALL section_vals_val_get(xas_section,"ATOMS_LU_BOUNDS",&
          i_vals=bounds,error=error) 

@@ -677,10 +677,10 @@ CONTAINS
       CALL stop_program(routine_name,module_name,__LINE__,&
                    "Use the LSD option for XAS with transition potential.")
     END IF
-    IF(xas_calculation .AND.  (scf_control%smear /= 0.0_dp)) THEN
-      CALL stop_program(routine_name,module_name,__LINE__,&
-          "transition potential XAS and smearing not implemented.")
-    END IF
+!    IF(xas_calculation .AND.  (scf_control%smear /= 0.0_dp)) THEN
+!      CALL stop_program(routine_name,module_name,__LINE__,&
+!          "transition potential XAS and smearing not implemented.")
+!    END IF
 
 !   assigning the number of states per spin initial version, not yet very
 !   general. Should work for an even number of electrons and a single
@@ -728,10 +728,15 @@ CONTAINS
     n_mo(1) = n_mo(1) + scf_control%added_mos(1)
     IF (n_mo(2) /= 0) n_mo(2) = n_mo(2) + scf_control%added_mos(2)
 
+    IF(scf_control%smear /= 0.0_dp .AND. scf_control%added_mos(1) == 0) THEN
+      CALL stop_program(routine_name,module_name,__LINE__,&
+                         "More states are needed to apply smeraing.")
+    END IF
+
 !   *** Some options require that all MOs are computed ... ***
-    IF (globenv%print%mo_eigenvalues.OR.&
+    IF (globenv%print%mo_cartesian.OR.&
         (scf_control%level_shift /= 0.0_dp).OR.&
-        (scf_control%smear /= 0.0_dp).OR.&
+!        (scf_control%smear /= 0.0_dp).OR.&
         (scf_control%eps_jacobi /= 0.0_dp)) THEN
        n_mo(1) = n_ao
        IF (n_mo(2) /= 0) n_mo(2) = n_ao

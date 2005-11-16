@@ -381,7 +381,7 @@ CONTAINS
                     work_syevx=scf_control%work_syevx,&
                     use_jacobi=use_jacobi,&
                     jacobi_threshold=scf_control%jacobi_threshold,&
-                    smear=scf_control%smear, &
+                    smear=0.0_dp, &
                     error=error)
 
                IF(ispin == 1) THEN
@@ -423,10 +423,7 @@ CONTAINS
 !        CALL cp_fm_get_info ( matrix=fm_work, nrow_global = m, ncol_global = n )
                  CALL cp_fm_get_submatrix(excvec_overlap,vecbuffer2,1,1,&
                       1,xas_control%nexc_search,transpose=.FALSE.,error=error)
-!dbg
-! if(ionode)  WRITE(*,*) globenv%para_env%mepos, vecbuffer2(1,1:SIZE(vecbuffer2,2))
-! if(ionode) WRITE(*,*) MAXLOC(ABS(vecbuffer2(1,:))), MAXVAL(ABS(vecbuffer2(1,:)))
-!dbg
+
                  uniform_occupation = .FALSE.
                  CALL get_mo_set(mos(1)%mo_set,&
                         occupation_numbers=occupation_numbers)
@@ -457,6 +454,7 @@ CONTAINS
                    END IF
 
                  END IF
+
                  ! IOnization Potential
                  IP_energy = eigenvalues(dft_control% xas_estate)
 !dbg
@@ -470,6 +468,10 @@ CONTAINS
                  CALL cp_fm_set_submatrix(excvec_coeff,vecbuffer,1,1,&
                       nao,1,transpose=.TRUE.,error=error)
                END IF 
+
+               IF(xas_control%smear/=0.0_dp) THEN
+                  CALL xas_smearing(mos(ispin)%mo_set,xas_control,dft_control%xas_estate,error=error)
+               END IF
 
                IF (logger%print_keys%each_scf_step) THEN
                   CALL write_mo_set(mos(ispin)%mo_set,atomic_kind_set,particle_set,4,6,globenv)
@@ -728,5 +730,86 @@ CONTAINS
 
 
   END SUBROUTINE xas_do_tp_scf
+
+!!*** **********************************************************************
+
+  SUBROUTINE xas_smearing(mo_set,xas_control,estate,error)
+
+    TYPE(mo_set_type), POINTER               :: mo_set
+    TYPE(xas_control_type)                   :: xas_control
+    INTEGER,INTENT(IN) :: estate
+    
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
+
+    INTEGER ::  homo, imin, imo, lfomo, nelectron, nmo, nomo
+    REAL(dp) :: e1, e2, edelta, edist, nelec, smear
+    REAL(dp), DIMENSION(:), POINTER :: eigenvalues, occupation
+
+    CALL get_mo_set(mo_set,eigenvalues=eigenvalues,&
+         occupation_numbers=occupation,nelectron=nelectron,nmo=nmo)
+
+    nomo = nelectron
+    occupation(1:nomo) = 1.0_dp
+
+    imin = estate+1
+    smear = xas_control%smear
+
+    IF(xas_control%fermidist) THEN
+       ! not implemented yet
+    ELSE
+      e1 = eigenvalues(nomo) - 0.5_dp*smear
+      e2 = eigenvalues(nomo) + 0.5_dp*smear
+
+      DO imo=imin,nomo
+        IF (eigenvalues(imo) > e1) THEN
+          lfomo = imo
+          EXIT
+        END IF
+      END DO
+
+      IF(e2 > eigenvalues(nmo)) THEN
+        WRITE(6,*) "WARNING might be too few states for the smearing !"
+      END IF
+      DO imo=nmo,nomo,-1
+        IF (eigenvalues(imo) < e2) THEN
+          homo = imo
+          EXIT
+        END IF
+      END DO
+
+!     *** Get the number of electrons to be smeared ***
+
+      edist = 0.0_dp
+      nelec = 0.0_dp
+
+      DO imo=lfomo,homo
+        nelec = nelec + occupation(imo)
+        edist = edist + ABS(e2 - eigenvalues(imo))
+      END DO
+
+!     *** Smear electrons inside the window ***
+
+      DO imo=lfomo,homo
+        edelta = ABS(e2 - eigenvalues(imo))
+        occupation(imo) = MIN(1.0_dp,nelec*edelta/edist)
+        nelec = nelec - occupation(imo)
+        edist = edist - edelta
+      END DO
+
+!     *** Check, if the smearing involves more than one MO ***
+
+      IF (lfomo == homo) THEN
+        homo = nomo
+        lfomo = nomo + 1
+      END IF
+
+    END IF
+  
+    CALL set_mo_set(mo_set,homo=homo,lfomo=lfomo,&
+                      uniform_occupation=.FALSE.)
+    
+  END SUBROUTINE xas_smearing
+!***************************************************************************
 
 END MODULE xas_tp_scf

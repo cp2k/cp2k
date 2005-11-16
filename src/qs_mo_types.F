@@ -448,7 +448,7 @@ CONTAINS
 ! *****************************************************************************
 
   SUBROUTINE set_mo_occupation(occupation,eigenvalues,homo,lfomo,maxocc,nelectron,&
-                               uocc,halfhole,fullhole,smear)
+                               uocc,smear)
 
 !   Purpose: Smearing of the MO occupation due to the given smear value.
 
@@ -462,24 +462,17 @@ CONTAINS
     INTEGER, INTENT(OUT)                     :: homo,lfomo
     REAL(KIND=dp), INTENT(IN)                :: maxocc
     LOGICAL, INTENT(INOUT)                   :: uocc
-    INTEGER, INTENT(IN), OPTIONAL            :: halfhole
-    INTEGER, INTENT(IN), OPTIONAL            :: fullhole
     REAL(KIND=dp), INTENT(IN), OPTIONAL      :: smear
 
     CHARACTER(LEN=*), PARAMETER :: routine_name = "set_mo_occupation", &
       routine = "SUBROUTINE "//routine_name//" (MODULE "//module_name//")"
 
     INTEGER                                  :: imo, nmo, nomo
-    INTEGER                                  :: my_halfhole,my_fullhole
     REAL(KIND=dp)                            :: e1, e2, edelta, edist, nelec
     REAL(KIND=dp)                            :: my_smear
 
 !   ---------------------------------------------------------------------------
 
-    my_halfhole = -1
-    IF(PRESENT(halfhole)) my_halfhole = halfhole
-    my_fullhole = -1
-    IF(PRESENT(fullhole)) my_fullhole = fullhole
     my_smear = 0.0_dp
     IF(PRESENT(smear)) my_smear = smear
 
@@ -509,7 +502,9 @@ CONTAINS
       END DO
 
 !     *** Find the highest fractional occupied (non-zero) MO which will be the HOMO ***
-
+      IF(e2 > eigenvalues(nmo)) THEN
+        WRITE(6,*) "WARNING might be too few states for the smearing !"
+      END IF
       DO imo=nmo,nomo,-1
         IF (eigenvalues(imo) < e2) THEN
           homo = imo
@@ -545,13 +540,6 @@ CONTAINS
       uocc = .FALSE.
     END IF perform_smear
 
-    IF(my_halfhole > 0 ) THEN
-      uocc = .FALSE.
-      occupation(my_halfhole) = 0.5_dp
-    ELSE IF (my_fullhole > 0 ) THEN
-      uocc = .FALSE.
-      occupation(my_fullhole) = 0.0_dp
-    END IF
 
   END SUBROUTINE set_mo_occupation
 
@@ -1178,10 +1166,12 @@ CONTAINS
 
     ! Print MO information
 
-    DO icol=1,nsgf,ncol
+!    DO icol=1,nsgf,ncol
+    DO icol=1,mo_set%nmo,ncol
 
       from = icol
-      to = MIN((from+ncol-1),nsgf)
+!      to = MIN((from+ncol-1),nsgf)
+      to = MIN((from+ncol-1),mo_set%nmo)
 
       WRITE (UNIT=output_unit,FMT=fmtstr1)&
         (jcol,jcol=from,to)
