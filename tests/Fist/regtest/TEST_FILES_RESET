@@ -1,10 +1,4 @@
 #
 # just add file names for which the reference needs to be reset below, with some comment
 # RATTLE_ROLL reprogrammed to be correct in parallel
-H2O-32_NPT_res_1.inp
-H2O-32_NPT_res_2.inp
-H2O-32_NPT_res_3.inp
-H2O-32_NPT_res_4.inp
-water_IPBV.inp
-nh3_4x6_npt.inp
-nh3_dist_npt.inp
+argon_nph_plastic.inp
