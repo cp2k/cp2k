@@ -33,3 +33,5 @@ C4H10-qmmm-gauss-3.inp
 C4H10-qmmm-gauss-5.inp
 C4H10-qmmm-gauss-7.inp
 sio2-qmmm-gauss-1.inp
+# Reset due to change diagonalizer from cp_fm_syevx to cp_fm_syevd 
+Ar-qmmm.inp
