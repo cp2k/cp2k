@@ -311,17 +311,18 @@ SUBROUTINE initialize_nhc_coef ( dyn_coeff_set, globenv, nhc )
       routineP = moduleN//':'//routineN
     REAL(KIND=dp)                            :: kg_coeff_target_temp, &
                                                 tau_nhc, dt 
-    TYPE(section_vals_type), POINTER         :: coeff_section, nose_section
-    type(section_vals_type), pointer         :: kg_coeff_section
+    TYPE(section_vals_type), POINTER         :: coeff_section, nose_section, &
+                                                md_new_section
     INTEGER                                  :: isos
 
 !------------------------------------------------------------------------------
   NULLIFY(coeff_section,nose_section) 
-  coeff_section => section_vals_get_subs_vals(globenv%input_file,"MOTION%MD_NEW%KG_COEFF")
+  md_new_section => section_vals_get_subs_vals(globenv%input_file,"MOTION%MD_NEW")
+  coeff_section => section_vals_get_subs_vals(md_new_section,"KG_COEFF")
   nose_section => section_vals_get_subs_vals(coeff_section,"nose")
   call section_vals_val_get(nose_section,"timecon",r_val=tau_nhc)
   call section_vals_val_get(coeff_section,"temperature",r_val=kg_coeff_target_temp)
-  call section_vals_val_get(kg_coeff_section,"timestep",r_val=dt)
+  call section_vals_val_get(md_new_section,"timestep",r_val=dt)
 
 ! fire up the thermostats
   CALL nhc_to_coef_mapping ( dyn_coeff_set, nhc, globenv )
