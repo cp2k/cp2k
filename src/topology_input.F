@@ -742,10 +742,10 @@ SUBROUTINE read_constraints_section_new(topology, constraint_section, error)
               IF (explicit) THEN
                  DO j = 1, icons
                     isize = isize + 1
-                    CALL section_vals_val_get(fix_atom_section,"MOLECULE", i_val=cons_info%const_dist_mol(isize),&
-                         error=error)
-                    CALL section_vals_val_get(fix_atom_section,"ATOMS", i_vals=tmplist, error=error)
-                    CALL section_vals_val_get(fix_atom_section,"DISTANCE",&
+!                    CALL section_vals_val_get(dist_section,"MOLECULE", i_val=cons_info%const_dist_mol(isize),&
+!                         error=error)
+                    CALL section_vals_val_get(dist_section,"ATOMS", i_vals=tmplist, error=error)
+                    CALL section_vals_val_get(dist_section,"DISTANCE",&
                          r_val=cons_info%const_dist_dab(isize), error=error)
                     cons_info%const_dist_a(isize) = tmplist(1)
                     cons_info%const_dist_b(isize) = tmplist(2)
