@@ -743,13 +743,14 @@ CONTAINS
       OPTIONAL                               :: error
 
     INTEGER ::  homo, imin, imo, lfomo, nelectron, nmo, nomo
-    REAL(dp) :: e1, e2, edelta, edist, nelec, smear
+    REAL(dp) :: e1, e2, edelta, edist, nelec, occ_estate, smear
     REAL(dp), DIMENSION(:), POINTER :: eigenvalues, occupation
 
     CALL get_mo_set(mo_set,eigenvalues=eigenvalues,&
          occupation_numbers=occupation,nelectron=nelectron,nmo=nmo)
 
     nomo = nelectron
+    occ_estate = occupation(estate)
     occupation(1:nomo) = 1.0_dp
 
     imin = estate+1
@@ -806,6 +807,8 @@ CONTAINS
 
     END IF
   
+    occupation(estate) = occ_estate
+
     CALL set_mo_set(mo_set,homo=homo,lfomo=lfomo,&
                       uniform_occupation=.FALSE.)
     
