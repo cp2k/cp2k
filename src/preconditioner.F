@@ -81,11 +81,9 @@ MODULE preconditioner
   PUBLIC  :: destroy_preconditioner
   PUBLIC  :: make_preconditioner
   PUBLIC  :: apply_preconditioner
-  PUBLIC  :: apply_multiprec_full
-  PUBLIC  :: get_info_preconditioner
 
   INTERFACE make_preconditioner
-    MODULE PROCEDURE make_preconditioner_single, make_preconditioner_multiple
+    MODULE PROCEDURE make_preconditioner_single
   END INTERFACE
 
   PRIVATE :: make_sparse_diag, make_full_single, make_local_block
@@ -94,11 +92,9 @@ MODULE preconditioner
     PRIVATE
        TYPE(real_matrix_type),    POINTER :: sparse_matrix
        TYPE(cp_fm_type), POINTER :: fm
-       TYPE(cp_fm_p_type), DIMENSION(:), POINTER :: mult_fm
        TYPE(cp_para_env_type),  POINTER   :: para_env
        TYPE(cp_blacs_env_type), POINTER   :: ctxt
        INTEGER :: in_use
-       INTEGER, DIMENSION(:), POINTER     :: first_col, last_col
        REAL(KIND = dp), DIMENSION(:), POINTER :: occ_evals,full_evals
        REAL(KIND = dp) :: energy_gap
   END TYPE preconditioner_type
@@ -124,11 +120,8 @@ SUBROUTINE init_preconditioner(preconditioner_env,para_env,blacs_env)
 
    NULLIFY(preconditioner_env%sparse_matrix)
    NULLIFY(preconditioner_env%fm)
-   NULLIFY(preconditioner_env%mult_fm)
    NULLIFY(preconditioner_env%occ_evals)
    NULLIFY(preconditioner_env%full_evals)
-   NULLIFY(preconditioner_env%last_col)
-   NULLIFY(preconditioner_env%first_col)
    preconditioner_env%in_use=0
    preconditioner_env%para_env => para_env
    preconditioner_env%ctxt     => blacs_env
@@ -149,16 +142,6 @@ SUBROUTINE destroy_preconditioner(preconditioner_env)
 
    IF (ASSOCIATED(preconditioner_env%fm)) THEN
       CALL cp_fm_release(preconditioner_env%fm)
-   ENDIF
-   IF (ASSOCIATED(preconditioner_env%mult_fm)) THEN
-      DO ip = 1,SIZE(preconditioner_env%mult_fm)
-        CALL cp_fm_release(preconditioner_env%mult_fm(ip)%matrix)
-      END DO
-      DEALLOCATE(preconditioner_env%mult_fm)
-   ENDIF
-   IF (ASSOCIATED(preconditioner_env%first_col)) THEN
-      DEALLOCATE(preconditioner_env%first_col)
-      DEALLOCATE(preconditioner_env%last_col)
    ENDIF
    IF (ASSOCIATED(preconditioner_env%occ_evals)) THEN
       DEALLOCATE(preconditioner_env%occ_evals)
@@ -250,116 +233,6 @@ SUBROUTINE make_preconditioner_single(preconditioner_env, precon_type, matrix_h,
 END SUBROUTINE make_preconditioner_single
 
 
-SUBROUTINE make_preconditioner_multiple(preconditioner_env, precon_type, matrix_h, matrix_s, &
-                                         matrix_t,mo_coeff, energy_gap, nprec)
-
-    TYPE(preconditioner_type)                :: preconditioner_env
-    INTEGER                                  :: precon_type
-    TYPE(real_matrix_type), POINTER          :: matrix_h, matrix_s, matrix_t
-    TYPE(cp_fm_type), POINTER                :: mo_coeff
-    REAL(KIND=dp)                            :: energy_gap
-    INTEGER, INTENT(IN)                      :: nprec
-
-    INTEGER                                  :: handle, ilast, ip, istate, k
-    REAL(KIND=dp)                            :: energy_high
-    REAL(KIND=dp)                            :: deltaE, emin, emax
-    REAL(KIND=dp), DIMENSION(:), POINTER     :: eigenvalues_ot
-
-!----
-
-  CALL timeset("make_preconditioner","I","",handle)
-
-  CALL cp_fm_get_info(mo_coeff,ncol_global=k) 
-  ALLOCATE(eigenvalues_ot(k))
-  ! XXXXXXXXXXXXXXXX do not touch the initial MOs, as needed in the case of non-equivalent MOs
-  CALL calculate_subspace_eigenvalues(mo_coeff,matrix_h,&
-          eigenvalues_ot,para_env=preconditioner_env%para_env, &
-                         do_rotation = .FALSE. ) 
-  deltaE = (energy_gap - eigenvalues_ot(1))/REAL(nprec,dp)
-  
-  IF (ASSOCIATED(preconditioner_env%mult_fm)) THEN
-     DO ip = 1,SIZE(preconditioner_env%mult_fm)
-       CALL cp_fm_release(preconditioner_env%mult_fm(ip)%matrix)
-     END DO
-     DEALLOCATE(preconditioner_env%mult_fm)
-  ENDIF
-  IF (ASSOCIATED(preconditioner_env%first_col)) THEN
-     DEALLOCATE(preconditioner_env%first_col)
-     DEALLOCATE(preconditioner_env%last_col)
-  END IF
-
-  ALLOCATE(preconditioner_env%mult_fm(nprec))
-  ALLOCATE(preconditioner_env%first_col(k),preconditioner_env%last_col(k)) 
-  ilast = 0
-  DO ip = 1,nprec
-    NULLIFY(preconditioner_env%mult_fm(ip)%matrix)
-    emin = eigenvalues_ot(1)+REAL(ip-1,dp)*deltaE
-    emax = emin + deltaE
-    preconditioner_env%first_col(ip) = ilast+1
-    DO istate = ilast+2, k
-       IF(eigenvalues_ot(istate) > emax ) THEN
-         preconditioner_env%last_col(ip) = istate - 1
-         ilast = istate -1
-         EXIT
-       END IF
-    END DO 
-  END DO 
-  preconditioner_env%last_col(nprec) = k
-
-
-  DO ip = 1,nprec
-    energy_high=eigenvalues_ot(preconditioner_env%last_col(ip))
-
-    SELECT CASE (precon_type)
-    CASE (ot_precond_sparse_diag)
-      preconditioner_env%in_use=1
-!      CALL make_sparse_diag(preconditioner_env, matrix_h, matrix_s, &
-!                              energy_homo, energy_gap )
-      CALL stop_program("make preconditioner","Type not implemented")
-    CASE (ot_precond_full_single)
-      preconditioner_env%in_use=2
-      CALL make_full_single(preconditioner_env, preconditioner_env%mult_fm(ip)%matrix,&
-                            matrix_h, matrix_s, energy_high, energy_gap )
-    CASE (ot_precond_s_inverse)
-      preconditioner_env%in_use=3
-!      CALL make_full_s_inverse(preconditioner_env, matrix_h, matrix_s, &
-!                                             energy_high, energy_gap )
-      CALL stop_program("make preconditioner","Type not implemented")
-    CASE (ot_precond_sparse_firstorder)
-      preconditioner_env%in_use=4
-!      CALL make_sparse_first_order(preconditioner_env, matrix_h, matrix_s, &
-!                                                 energy_homo, energy_gap )
-      CALL stop_program("make preconditioner","Type not implemented")
-    CASE (ot_precond_full_kinetic)
-      preconditioner_env%in_use=6
-
-      CALL make_full_kinetic(preconditioner_env,preconditioner_env%mult_fm(ip)%matrix,&
-                             matrix_t, matrix_s, energy_high, energy_gap )
-
-    CASE DEFAULT
-      CALL stop_program("make preconditioner","Type not implemented")
-    END SELECT
-
-  END DO  ! ip
-  DEALLOCATE(eigenvalues_ot)
-  CALL timestop(0.0_dp,handle)
-
-END SUBROUTINE make_preconditioner_multiple
-
-SUBROUTINE get_info_preconditioner(preconditioner_env,ip,fcol,lcol,first_col,last_col)
-    TYPE(preconditioner_type)                :: preconditioner_env
-    INTEGER, INTENT(IN), OPTIONAL            :: ip
-    INTEGER, INTENT(OUT), OPTIONAL           :: fcol
-    INTEGER, INTENT(OUT), OPTIONAL           :: lcol
-    INTEGER, DIMENSION(:), POINTER, OPTIONAL :: first_col, last_col
-
-   IF(PRESENT(fcol) .AND. PRESENT(ip)) fcol = preconditioner_env%first_col(ip)
-   IF(PRESENT(lcol) .AND. PRESENT(ip)) lcol = preconditioner_env%last_col(ip)
-   IF(PRESENT(first_col)) first_col =>  preconditioner_env%first_col
-   IF(PRESENT(last_col))  last_col =>  preconditioner_env%last_col
-
-END SUBROUTINE get_info_preconditioner
-
 !*******************************************************************************
 ! applies a previously created preconditioner to a full matrix
 !*******************************************************************************
@@ -380,11 +253,7 @@ SUBROUTINE apply_preconditioner(preconditioner_env, matrix_in, matrix_out)
   CASE (1,4) ! can share the apply since they are both sparse matrices
     CALL apply_sparse_diag(preconditioner_env, matrix_in, matrix_out)
   CASE (2,3,6)
-    IF(ASSOCIATED(preconditioner_env%mult_fm)) THEN
-      CALL apply_full_multiple(preconditioner_env, matrix_in, matrix_out)
-    ELSE
       CALL apply_full_single(preconditioner_env, matrix_in, matrix_out)
-    ENDIF
   ! CASE (3,6)  ! this would be without the symmetrised form, is about 50 percent slower in parallel
   !   CALL apply_full_s_inverse(preconditioner_env, matrix_in, matrix_out)
   CASE (19)
@@ -396,21 +265,6 @@ SUBROUTINE apply_preconditioner(preconditioner_env, matrix_in, matrix_out)
   CALL timestop(0.0_dp,handle)
 
 END SUBROUTINE apply_preconditioner
-
-SUBROUTINE apply_multiprec_full(preconditioner_env, ip, matrix_in, matrix_out )
-    TYPE(preconditioner_type)                :: preconditioner_env
-    INTEGER, INTENT(IN)                      :: ip
-    TYPE(cp_fm_type), POINTER                :: matrix_in, matrix_out
-
-    INTEGER :: k, n
-!----
-
-  CALL cp_fm_get_info(matrix_in,nrow_global=n,ncol_global=k)
-  CALL cp_fm_gemm('N','N',n,k,n,1.0_dp,preconditioner_env%mult_fm(ip)%matrix, &
-                  matrix_in,0.0_dp,matrix_out)
-
-
-END SUBROUTINE apply_multiprec_full
 
 !***************************************************************************
 ! different types of preconditioner come here
@@ -754,25 +608,6 @@ SUBROUTINE apply_full_single(preconditioner_env, matrix_in, matrix_out)
   CALL cp_fm_gemm('N','N',n,k,n,1.0_dp,preconditioner_env%fm, &
                   matrix_in,0.0_dp,matrix_out)
 END SUBROUTINE apply_full_single
-
-SUBROUTINE apply_full_multiple(preconditioner_env, matrix_in, matrix_out)
-
-    TYPE(preconditioner_type)                :: preconditioner_env
-    TYPE(cp_fm_type), POINTER                :: matrix_in, matrix_out
-
-    INTEGER                                  :: fcol, k, ip, n, ncol, nprec
-
-!----
-  nprec = SIZE(preconditioner_env%mult_fm)
-  CALL cp_fm_get_info(matrix_in,nrow_global=n,ncol_global=k)
-
-  DO ip = 1,nprec
-    fcol = preconditioner_env%first_col(ip)
-    ncol = preconditioner_env%last_col(ip)- fcol + 1
-    CALL cp_fm_gemm('N','N',n,ncol,n,1.0_dp,preconditioner_env%mult_fm(ip)%matrix, &
-                    matrix_in,0.0_dp,matrix_out,b_first_col=fcol,c_first_col=fcol)
-  END DO 
-END SUBROUTINE apply_full_multiple
 
 !
 ! generates a preconditioner for each eigenstate i by keeping the factorized form

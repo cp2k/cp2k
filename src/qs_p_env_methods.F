@@ -222,8 +222,6 @@ CONTAINS
             p_env%buf1,&
             p_env%buf2,&
             p_env%os_psi0,&
-            p_env%PS_psi0_mult,&
-            p_env%os_psi0_mult,&
             p_env%preconditioner)
 
        p_env%ref_count=1
@@ -357,11 +355,9 @@ CONTAINS
               name="p_env"//TRIM(ADJUSTL(cp_to_string(p_env%id_nr)))//"%buf2",&
               error=error)
 
-         IF(linres_control%nprec==1) THEN
-           CALL fm_pools_create_fm_vect(mo_mo_fm_pools,elements=p_env%os_psi0,&
+         CALL fm_pools_create_fm_vect(mo_mo_fm_pools,elements=p_env%os_psi0,&
                 name="p_env"//TRIM(ADJUSTL(cp_to_string(p_env%id_nr)))//"%os_psi0",&
                 error=error)
-         END IF
 
          IF(linres_control%preconditioner_type/= lr_precond_none) THEN
          ! Initialize the preconditioner matrix
@@ -371,22 +367,9 @@ CONTAINS
              CALL init_preconditioner(p_env%preconditioner,para_env=qs_env%para_env,blacs_env=qs_env%blacs_env)
              p_env%os_valid = .FALSE.
 
-             IF(linres_control%nprec==1) THEN
-               CALL fm_pools_create_fm_vect(ao_mo_fm_pools,elements=p_env%PS_psi0,&
+             CALL fm_pools_create_fm_vect(ao_mo_fm_pools,elements=p_env%PS_psi0,&
                   name="p_env"//TRIM(ADJUSTL(cp_to_string(p_env%id_nr)))//"%PS_psi0",&
                   error=error)
-             ELSEIF(linres_control%nprec>1) THEN
-                ALLOCATE(p_env%PS_psi0_mult(linres_control%nprec,n_spins),STAT=stat)
-                CPPostcondition((stat==0),cp_failure_level,routineP,error,failure)
-                ALLOCATE(p_env%os_psi0_mult(linres_control%nprec,n_spins),STAT=stat)
-                CPPostcondition((stat==0),cp_failure_level,routineP,error,failure)
-                DO ispin = 1, n_spins
-                  DO ip = 1, linres_control%nprec
-                    CALL cp_fm_create(p_env%PS_psi0_mult(ip,ispin)%matrix,p_env%S_psi0(ispin)%matrix%matrix_struct,"PS_psi0_mult")
-                    CALL cp_fm_create(p_env%os_psi0_mult(ip,ispin)%matrix,p_env%buf1(ispin)%matrix%matrix_struct,"os_psi0_mult")
-                  END DO
-                END DO
-             END IF
            END IF
          END IF
          IF(linres_control%ls_method /= lr_ls_none) THEN

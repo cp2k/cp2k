@@ -131,7 +131,7 @@ CONTAINS
     ENDIF
 
     ! allocate
-    CALL qs_ot_allocate(qs_ot_env(1),matrix_c%matrix_struct,qs_ot_env(1)%settings%nprec,ortho_k)
+    CALL qs_ot_allocate(qs_ot_env(1),matrix_c%matrix_struct,ortho_k)
 
     IF (ortho) THEN
         ! construct an initial guess that is orthogonal to matrix_orthogonal_space
@@ -208,7 +208,7 @@ CONTAINS
     IF (PRESENT(preconditioner) ) THEN
        IF (ASSOCIATED(preconditioner)) THEN
          IF (preconditioner_in_use(preconditioner)) THEN
-             CALL qs_ot_new_preconditioner(qs_ot_env(1),preconditioner,qs_ot_env(1)%settings%nprec) 
+             CALL qs_ot_new_preconditioner(qs_ot_env(1),preconditioner)
          ELSE
              ! we should presumably make one
          END IF

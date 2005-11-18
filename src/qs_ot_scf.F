@@ -150,7 +150,6 @@ SUBROUTINE ot_scf_read_input(qs_ot_env,globenv)
        CASE DEFAULT
          CALL stop_program("READ OTSCF PRECONDITIONER","VALUE UNKNOWN")
        END SELECT
-       CALL section_vals_val_get(ot_section,"MULT_PRECONDITIONER",i_val=qs_ot_env(1)%settings%nprec)
        CALL section_vals_val_get(ot_section,"STEPSIZE",r_val=qs_ot_env(1)%settings%ds_min)
        CALL section_vals_val_get(ot_section,"ENERGY_GAP",r_val=qs_ot_env(1)%settings%energy_gap)
        CALL section_vals_val_get(ot_section,"EPS_TAYLOR",r_val=qs_ot_env(1)%settings%eps_taylor)
@@ -238,8 +237,6 @@ SUBROUTINE ot_scf_read_input(qs_ot_env,globenv)
                        IF (globenv%ionode) WRITE(globenv%scr,*) value
                        CALL stop_program("READ OTSCF PRECONDITIONER","VALUE UNKNOWN")
                   END SELECT
-             CASE ("MULT_PRECONDITIONER")
-                 CALL read_object(qs_ot_env(1)%settings%nprec)
              CASE ("STEPSIZE")
                   CALL read_object(qs_ot_env(1)%settings%ds_min)
              CASE ("ENERGY_GAP")
@@ -304,11 +301,6 @@ SUBROUTINE ot_scf_read_input(qs_ot_env,globenv)
     CASE DEFAULT 
          WRITE(globenv%scr,'(3A)') "  preconditioner : ",qs_ot_env(1)%settings%preconditioner_name," : UNKNOWN"
     END SELECT
-    IF((qs_ot_env(1)%settings%preconditioner_type /= ot_precond_none).AND. (qs_ot_env(1)%settings%nprec /= 1)) THEN
-        WRITE(globenv%scr,'(A,I5,A)')  &
-        " preconditioner constituted by ", qs_ot_env(1)%settings%nprec,&
-        " matricies, used in different regions of the KS spectrum " 
-    END IF
     IF (qs_ot_env(1)%settings%OT_METHOD .EQ."SD".OR.qs_ot_env(1)%settings%OT_METHOD.EQ."CG") THEN
        SELECT CASE (qs_ot_env(1)%settings%line_search_method)
          CASE ("2PNT")
@@ -439,7 +431,7 @@ SUBROUTINE ot_scf_init(mo_array,matrix_s,qs_ot_env)
        CALL cp_fm_get_info(mo_coeff, nrow_global=n, ncol_global=k)
    
        ! allocate
-       CALL qs_ot_allocate(qs_ot_env(ispin),mo_coeff%matrix_struct,qs_ot_env(1)%settings%nprec)
+       CALL qs_ot_allocate(qs_ot_env(ispin),mo_coeff%matrix_struct)
    
        ! set c0,sc0
        CALL cp_fm_to_fm(mo_coeff,qs_ot_env(ispin)%matrix_c0)

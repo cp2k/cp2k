@@ -3052,13 +3052,6 @@ SUBROUTINE create_ot_section(section,error)
      CALL section_add_keyword(section,keyword,error=error)
      CALL keyword_release(keyword,error=error)
 
-     CALL keyword_create(keyword, name="MULT_PRECONDITIONER",&
-          description="Number of matrices constituting the preconditioner,"//&
-          " to take into account large differences in the eigenvalues",&
-          usage="MULT_PRECONDITIONER 2",default_i_val=1,error=error)
-     CALL section_add_keyword(section,keyword,error=error)
-     CALL keyword_release(keyword,error=error)
-
      CALL keyword_create(keyword, name="ENERGY_GAP",&
           description="Energy gap estimate [a.u.] for preconditioning",&
           usage="EPS_TAYLOR 0.1",&
@@ -3450,13 +3443,6 @@ END SUBROUTINE create_ot_section
                          lr_precond_none/), error=error)
      CALL section_add_keyword(section,keyword,error=error)
      CALL keyword_release(keyword,error=error)
-
-      CALL keyword_create(keyword, name="MULT_PRECONDITIONER",&
-           description="Number of matrices constituting the preconditioner,"//&
-           " to take into account large differences in the eigenvalues",&
-           usage="MULT_PRECONDITIONER 2",default_i_val=1,error=error)
-      CALL section_add_keyword(section,keyword,error=error)
-      CALL keyword_release(keyword,error=error)
 
       CALL keyword_create(keyword, name="ENERGY_GAP",&
            description="Energy gap estimate [a.u.] for preconditioning",&

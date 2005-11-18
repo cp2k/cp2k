@@ -1329,20 +1329,11 @@ CONTAINS
                             do_rotation = .TRUE., co_rotate=qs_env%mo_derivs(1)%matrix)
              ENDIF
 
-             IF(scf_env%qs_ot_env(1)%settings%nprec ==1 ) THEN
-               CALL make_preconditioner(scf_env%ot_preconditioner, &
+             CALL make_preconditioner(scf_env%ot_preconditioner, &
                   scf_env%qs_ot_env(1)%settings%preconditioner_type, &
                   matrix_ks(1)%matrix,matrix_s(1)%matrix,&
                   qs_env%kinetic(1)%matrix, &
                   mo_coeff,scf_env%qs_ot_env(1)%settings%energy_gap) 
-             ELSE
-               CALL make_preconditioner(scf_env%ot_preconditioner, &
-                  scf_env%qs_ot_env(1)%settings%preconditioner_type, &
-                  matrix_ks(1)%matrix,matrix_s(1)%matrix,&
-                  qs_env%kinetic(1)%matrix, &
-                  mo_coeff,scf_env%qs_ot_env(1)%settings%energy_gap,&
-                  scf_env%qs_ot_env(1)%settings%nprec)
-             END IF
 
           ENDIF
 
@@ -1357,7 +1348,7 @@ CONTAINS
           IF (scf_env%qs_ot_env(1)%settings%preconditioner_type /= ot_precond_none) THEN
              DO ispin=1,SIZE(scf_env%qs_ot_env)
                 CALL qs_ot_new_preconditioner(scf_env%qs_ot_env(ispin),&
-                     scf_env%ot_preconditioner,scf_env%qs_ot_env(1)%settings%nprec) 
+                     scf_env%ot_preconditioner)
              ENDDO
           ENDIF
 

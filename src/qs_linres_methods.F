@@ -70,9 +70,7 @@ MODULE qs_linres_methods
                                              op_loc_berry, lr_diis, lr_cg,&
                                              lr_sd,lr_precond_none,&
                                              lr_ls_none, lr_ls_2pnt, lr_ls_3pnt, lr_ls_gold
-  USE preconditioner,                  ONLY: apply_multiprec_full,&
-                                             apply_preconditioner, &
-                                             get_info_preconditioner, &
+  USE preconditioner,                  ONLY: apply_preconditioner, &
                                              make_preconditioner
   USE qs_environment_types,            ONLY: get_qs_env,&
                                              qs_environment_type
@@ -473,7 +471,7 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'linres_scf_mini', &
                                    routineP = moduleN//'/'//routineN
 
-    INTEGER :: ip, ispin, istat, k, nao, nmo,nprec
+    INTEGER :: ip, ispin, istat, k, nao, nmo
     LOGICAL :: failure
     REAL(dp) :: tmp
     TYPE(cp_fm_p_type), DIMENSION(2)            :: PS_psi0
@@ -497,26 +495,18 @@ CONTAINS
          mos=mos,&
          error=error)
 
-    nprec = linres_control%nprec
     IF(linres_control%preconditioner_type /= lr_precond_none) THEN
 
       IF(p_env%new_preconditioner) THEN
         p_env%os_valid = .FALSE.
         CALL get_mo_set(mo_set=mos(1)%mo_set, mo_coeff=mo_coeff)
-        IF(nprec == 1) THEN
-          CALL make_preconditioner(p_env%preconditioner,linres_control%preconditioner_type,&
+        CALL make_preconditioner(p_env%preconditioner,linres_control%preconditioner_type,&
                matrix_ks(1)%matrix,matrix_s(1)%matrix,matrix_t(1)%matrix,&
                mo_coeff,linres_control%energy_gap)
 
-          DO ispin = 1,nspins
-             PS_psi0(ispin)%matrix => p_env%PS_psi0(ispin)%matrix
-          END DO
-        ELSE
-          CALL make_preconditioner(p_env%preconditioner,linres_control%preconditioner_type,&
-               matrix_ks(1)%matrix,matrix_s(1)%matrix,matrix_t(1)%matrix,&
-               mo_coeff,linres_control%energy_gap,nprec)
-          
-        END IF   
+        DO ispin = 1,nspins
+           PS_psi0(ispin)%matrix => p_env%PS_psi0(ispin)%matrix
+        END DO
         p_env%new_preconditioner = .FALSE.
       ENDIF
     ELSE
@@ -528,7 +518,6 @@ CONTAINS
 
     IF(.NOT.p_env%os_valid) THEN
       DO ispin = 1,nspins
-        IF(nprec==1) THEN 
           IF(ASSOCIATED(p_env%preconditioner)) THEN
              CALL apply_preconditioner(p_env%preconditioner,p_env%S_psi0(ispin)%matrix,&
                    p_env%PS_psi0(ispin)%matrix)
@@ -538,25 +527,13 @@ CONTAINS
                PS_psi0(ispin)%matrix,0.0_dp,p_env%os_psi0(ispin)%matrix) 
           CALL cp_fm_cholesky_decompose(p_env%os_psi0(ispin)%matrix,error=error)
           CALL cp_fm_cholesky_invert(p_env%os_psi0(ispin)%matrix,error=error)
-        ELSEIF(nprec>1) THEN
-
-          DO ip = 1,nprec
-             CALL apply_multiprec_full(p_env%preconditioner,ip,p_env%S_psi0(ispin)%matrix,&
-                p_env%PS_psi0_mult(ip,ispin)%matrix)  
-             CALL cp_fm_get_info(p_env%S_psi0(ispin)%matrix,nrow_global=nao,ncol_global=nmo)
-             CALL cp_fm_gemm('T','N',nmo,nmo,nao,1.0_dp,p_env%S_psi0(ispin)%matrix,&
-                 p_env%PS_psi0_mult(ip,ispin)%matrix,0.0_dp,p_env%os_psi0_mult(ip,ispin)%matrix)
-             CALL cp_fm_cholesky_decompose(p_env%os_psi0_mult(ip,ispin)%matrix,error=error)
-             CALL cp_fm_cholesky_invert(p_env%os_psi0_mult(ip,ispin)%matrix,error=error)
-          END DO
-        END IF
       END DO
 
       p_env%os_valid = .TRUE.
     END IF
 
     IF(p_env%ls_count==0) THEN
-      CALL linres_derivative(Ab,PS_psi0,p_env,nspins,nprec,error=error)
+      CALL linres_derivative(Ab,PS_psi0,p_env,nspins,error=error)
     END IF
     
     SELECT CASE  (linres_control%opt_method)
@@ -599,13 +576,13 @@ CONTAINS
 
 
 ! *****************************************************************************
-  SUBROUTINE linres_derivative(Ab,PS_psi0,p_env,nspins,nprec,error)
+  SUBROUTINE linres_derivative(Ab,PS_psi0,p_env,nspins,error)
 
     TYPE(cp_fm_p_type), DIMENSION(:), &
       POINTER                                   :: Ab
     TYPE(cp_fm_p_type), DIMENSION(2)            :: PS_psi0
     TYPE(qs_p_env_type), POINTER                :: p_env
-    INTEGER :: nspins, nprec
+    INTEGER :: nspins
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                                  :: error
 
@@ -616,37 +593,17 @@ CONTAINS
     LOGICAL :: failure
 
     failure = .FALSE.
-    IF(nprec==1) THEN
-      DO ispin = 1,nspins
-        n_mo = p_env%n_mo(ispin)
-        n_ao = p_env%n_ao(ispin)
-        CALL cp_fm_to_fm(Ab(ispin)%matrix,p_env%g_psi1(ispin)%matrix,error=error) 
-        CALL cp_fm_gemm('T','N',n_mo,n_mo,n_ao,1.0_dp,PS_psi0(ispin)%matrix,&
-             Ab(ispin)%matrix,0.0_dp,p_env%buf1(ispin)%matrix) 
-        CALL cp_fm_symm('L','U',n_mo,n_mo,1.0_dp,p_env%os_psi0(ispin)%matrix,&
-             p_env%buf1(ispin)%matrix,0.0_dp,p_env%buf2(ispin)%matrix)
-        CALL cp_fm_gemm('N','N',n_ao,n_mo,n_mo,-1.0_dp,p_env%S_psi0(ispin)%matrix,&
-             p_env%buf2(ispin)%matrix,1.0_dp,p_env%g_psi1(ispin)%matrix)
-      END DO ! ispin
-    ELSEIF(nprec > 1) THEN
-      CPPrecondition(ASSOCIATED(p_env%preconditioner),cp_failure_level,routineP,error,failure)
-      DO ispin = 1,nspins
-        n_mo = p_env%n_mo(ispin)
-        n_ao = p_env%n_ao(ispin)
-        CALL cp_fm_to_fm(Ab(ispin)%matrix,p_env%g_psi1(ispin)%matrix,error=error) 
-        DO ip = 1,nprec
-          CALL get_info_preconditioner(p_env%preconditioner,ip,fcol=fcol,lcol=lcol)
-          n_range = lcol - fcol + 1
-          CALL cp_fm_gemm('T','N',n_mo,n_range,n_ao,1.0_dp,p_env%PS_psi0_mult(ip,ispin)%matrix,&
-               Ab(ispin)%matrix,0.0_dp,p_env%buf1(ispin)%matrix,b_first_col=fcol)
-          CALL cp_fm_symm('L','U',n_mo,n_range,1.0_dp,p_env%os_psi0_mult(ip,ispin)%matrix,&
-               p_env%buf1(ispin)%matrix,0.0_dp,p_env%buf2(ispin)%matrix)
-          CALL cp_fm_gemm('N','N',n_ao,n_range,n_mo,-1.0_dp,p_env%S_psi0(ispin)%matrix,&
-               p_env%buf2(ispin)%matrix,1.0_dp,p_env%g_psi1(ispin)%matrix,c_first_col=fcol)
-           
-        END DO
-      END DO
-    END IF 
+    DO ispin = 1,nspins
+       n_mo = p_env%n_mo(ispin)
+       n_ao = p_env%n_ao(ispin)
+       CALL cp_fm_to_fm(Ab(ispin)%matrix,p_env%g_psi1(ispin)%matrix,error=error) 
+       CALL cp_fm_gemm('T','N',n_mo,n_mo,n_ao,1.0_dp,PS_psi0(ispin)%matrix,&
+            Ab(ispin)%matrix,0.0_dp,p_env%buf1(ispin)%matrix) 
+       CALL cp_fm_symm('L','U',n_mo,n_mo,1.0_dp,p_env%os_psi0(ispin)%matrix,&
+            p_env%buf1(ispin)%matrix,0.0_dp,p_env%buf2(ispin)%matrix)
+       CALL cp_fm_gemm('N','N',n_ao,n_mo,n_mo,-1.0_dp,p_env%S_psi0(ispin)%matrix,&
+            p_env%buf2(ispin)%matrix,1.0_dp,p_env%g_psi1(ispin)%matrix)
+    END DO ! ispin
 
   END SUBROUTINE linres_derivative
 

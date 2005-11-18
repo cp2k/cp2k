@@ -271,7 +271,6 @@ CONTAINS
        CALL section_vals_val_get(lr_section,"STEPSIZE",r_val=linres_control%ds_min)
 
        CALL section_vals_val_get(lr_section,"PRECONDITIONER",i_val=linres_control%preconditioner_type)
-       CALL section_vals_val_get(lr_section,"MULT_PRECONDITIONER",i_val=linres_control%nprec)
        CALL section_vals_val_get(lr_section,"ENERGY_GAP",r_val=linres_control%energy_gap)
        
       !------------------!

@@ -77,7 +77,6 @@ MODULE qs_linres_types
      INTEGER                                   :: property
      INTEGER                                   :: preconditioner_type
      REAL(dp)                                  :: energy_gap
-     INTEGER                                   :: nprec
      INTEGER                                   :: opt_method
      INTEGER                                   :: ls_method
      REAL(dp)                                  :: ds_min

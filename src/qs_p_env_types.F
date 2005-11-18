@@ -122,7 +122,6 @@ MODULE qs_p_env_types
      TYPE(cp_fm_p_type), DIMENSION(:), POINTER  :: PS_psi0
      TYPE(cp_fm_p_type), DIMENSION(:), POINTER  :: d_psi1, g_psi1, g_psi1_old
      TYPE(cp_fm_p_type), DIMENSION(:), POINTER  :: buf1, buf2, os_psi0 
-     TYPE(cp_fm_p_type), DIMENSION(:,:), POINTER  :: os_psi0_mult,PS_psi0_mult 
 
      ! preconditioner matrix should be symmetric and positive definite
      TYPE(preconditioner_type), POINTER :: preconditioner
@@ -308,16 +307,6 @@ END SUBROUTINE p_env_retain
           END IF
           IF(ASSOCIATED(p_env%preconditioner)) THEN
             CALL destroy_preconditioner(p_env%preconditioner)
-          END IF
-          IF(ASSOCIATED(p_env%PS_psi0_mult))THEN
-            DO ispin = 1,SIZE(p_env%PS_psi0_mult,1)
-              DO ip = 1,SIZE(p_env%PS_psi0_mult,2)
-                 CALL cp_fm_release(p_env%PS_psi0_mult(ip,ispin)%matrix)
-                 CALL cp_fm_release(p_env%os_psi0_mult(ip,ispin)%matrix)
-              END DO
-            END DO
-            DEALLOCATE(p_env%PS_psi0_mult,p_env%os_psi0_mult,STAT=stat)
-            CPPostcondition((stat==0),cp_failure_level,routineP,error,failure)
           END IF
        END IF
        DEALLOCATE(p_env,stat=stat)
