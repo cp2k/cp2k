@@ -110,6 +110,7 @@ MODULE qs_scf
                                              dp_size,&
                                              int_size
   USE input_constants,                 ONLY: ot_precond_none,&
+                                             ot_precond_full_all,&
                                              xas_tp_hh, &
                                              xas_tp_fh, &
                                              xas_dscf
@@ -147,7 +148,8 @@ MODULE qs_scf
   USE qs_matrix_pools,                 ONLY: mpools_get
   USE qs_mo_methods,                   ONLY: calculate_density_matrix,&
                                              calculate_orthonormality,&
-                                             make_basis
+                                             make_basis,&
+                                             calculate_subspace_eigenvalues
   USE qs_mo_types,                     ONLY: correct_mo_eigenvalues,&
                                              get_mo_set,& 
                                              init_mo_set,&
@@ -1132,7 +1134,8 @@ CONTAINS
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
     TYPE(cp_fm_type), POINTER                :: mo_coeff, ortho, &
-                                                scf_work2
+                                                scf_work2, e_vectors
+    TYPE(cp_fm_struct_type), POINTER         :: fm_struct_tmp
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(mo_set_p_type), DIMENSION(:), &
@@ -1140,7 +1143,7 @@ CONTAINS
     TYPE(real_matrix_p_type), DIMENSION(:), &
       POINTER                                :: matrix_h, matrix_ks, matrix_s
     TYPE(scf_control_type), POINTER          :: scf_control
-    LOGICAL                                  :: has_unit_metric
+    LOGICAL                                  :: has_unit_metric,do_rotation
     TYPE(real_matrix_type), POINTER          :: orthogonality_metric
 
 !dbg 
@@ -1313,6 +1316,18 @@ CONTAINS
              ! this might or might not be reasonable. Presumably it is.
              CALL get_mo_set(mo_set=mos(1)%mo_set,&
                   mo_coeff=mo_coeff)
+
+             IF (scf_env%qs_ot_env(1)%settings%preconditioner_type == ot_precond_full_all) THEN
+                ! this will rotate the MOs to be eigen states, which is not compatible with rotation
+                do_rotation=scf_env%qs_ot_env(1)%settings%do_rotation
+                CPPrecondition(.NOT.do_rotation,cp_failure_level,routineP,error,failure)
+                ! this still needs to be fixed, LSD, requires two separate preconditioners 
+                CPPrecondition(dft_control%nspins==1,cp_failure_level,routineP,error,failure)
+                ! here we also rotate the derivate, not only the c0
+                CALL calculate_subspace_eigenvalues(mo_coeff,matrix_ks(1)%matrix,&
+                            para_env=mo_coeff%matrix_struct%para_env, &
+                            do_rotation = .TRUE., co_rotate=qs_env%mo_derivs(1)%matrix)
+             ENDIF
 
              IF(scf_env%qs_ot_env(1)%settings%nprec ==1 ) THEN
                CALL make_preconditioner(scf_env%ot_preconditioner, &

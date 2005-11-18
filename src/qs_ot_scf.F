@@ -37,6 +37,7 @@ MODULE qs_ot_scf
                                              ot_mini_sd,&
                                              ot_precond_full_kinetic,&
                                              ot_precond_full_single,&
+                                             ot_precond_full_all,&
                                              ot_precond_none,&
                                              ot_precond_s_inverse,&
                                              ot_precond_sparse_diag
@@ -138,6 +139,8 @@ SUBROUTINE ot_scf_read_input(qs_ot_env,globenv)
            qs_ot_env(1)%settings%preconditioner_name="NONE"
        CASE(ot_precond_full_single)
            qs_ot_env(1)%settings%preconditioner_name="FULL_SINGLE"
+       CASE(ot_precond_full_all)
+           qs_ot_env(1)%settings%preconditioner_name="FULL_ALL"
        CASE(ot_precond_full_kinetic)
            qs_ot_env(1)%settings%preconditioner_name="FULL_KINETIC"
        CASE(ot_precond_s_inverse)
@@ -213,6 +216,9 @@ SUBROUTINE ot_scf_read_input(qs_ot_env,globenv)
              CASE ("PRECONDITIONER")
                   CALL read_object(value,lower_to_upper=.TRUE.)
                   SELECT CASE (TRIM(value)) ! somehow in order of efficiency
+                  CASE ("FULL_ALL")
+                       qs_ot_env(1)%settings%preconditioner_type=ot_precond_full_all
+                       qs_ot_env(1)%settings%preconditioner_name="FULL_ALL"
                   CASE ("FULL_SINGLE")
                        qs_ot_env(1)%settings%preconditioner_type=ot_precond_full_single
                        qs_ot_env(1)%settings%preconditioner_name="FULL_SINGLE"
@@ -284,6 +290,8 @@ SUBROUTINE ot_scf_read_input(qs_ot_env,globenv)
     SELECT CASE (qs_ot_env(1)%settings%preconditioner_name)
     CASE ("FULL_SINGLE")
          WRITE(globenv%scr,'(A)') "  preconditioner : FULL_SINGLE    : diagonalization based "
+    CASE ("FULL_ALL")
+         WRITE(globenv%scr,'(A)') "  preconditioner : FULL_ALL       : diagonalization, state selective "
     CASE ("FULL_KINETIC")
          WRITE(globenv%scr,'(A)') "  preconditioner : FULL_KINETIC   : cholesky inversion of T + eS"
     CASE ("FULL_S_INVERSE")

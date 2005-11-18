@@ -14,6 +14,8 @@ H2O-OT-2.inp       1
 H2O-OT-3.inp       1
 #restart
 H2O-OT-4.inp       1
+# restart, state selective
+H2O-OT-5.inp       1
 #Harris funcional 
 H2O-harris.inp     1
 H2O-MD-harris.inp  1

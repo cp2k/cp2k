@@ -385,7 +385,7 @@ CONTAINS
 !!*** **********************************************************************
 ! *****************************************************************************
 
-  SUBROUTINE subspace_eigenvalues_ks(orbitals,ks_matrix,evals_arg,para_env,ionode,scr,do_rotation)
+  SUBROUTINE subspace_eigenvalues_ks(orbitals,ks_matrix,evals_arg,para_env,ionode,scr,do_rotation,co_rotate)
 
 !   Purpose: Calculates the eigenvalues (ritz values) for a set of orbitals
 !            and rotates them to make them eigenvectors
@@ -402,6 +402,7 @@ CONTAINS
     LOGICAL, OPTIONAL, INTENT(IN)            :: ionode
     INTEGER, OPTIONAL, INTENT(IN)            :: scr
     LOGICAL, OPTIONAL, INTENT(IN)            :: do_rotation
+    TYPE(cp_fm_type), POINTER, OPTIONAL      :: co_rotate
 
     INTEGER                                  :: handle, i, j, &
                                                 ncol_global,  &
@@ -450,6 +451,11 @@ CONTAINS
             CALL cp_fm_gemm('N','N',nrow_global,ncol_global,ncol_global,1.0_dp, &
                         orbitals,e_vectors,0.0_dp,weighted_vectors)
             CALL cp_fm_to_fm(weighted_vectors,orbitals)
+            IF (PRESENT(co_rotate)) THEN
+                CALL cp_fm_gemm('N','N',nrow_global,ncol_global,ncol_global,1.0_dp, &
+                        co_rotate,e_vectors,0.0_dp,weighted_vectors)
+                CALL cp_fm_to_fm(weighted_vectors,co_rotate)
+            ENDIF
         ENDIF
 
         ! give output
