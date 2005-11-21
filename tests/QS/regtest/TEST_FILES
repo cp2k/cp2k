@@ -150,3 +150,4 @@ H2O-langevin-2.inp 1
 He2-all.inp        1
 # keep special case alive
 H-gapw-all.inp     1
+He2-all-md.inp     1

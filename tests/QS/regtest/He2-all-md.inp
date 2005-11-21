@@ -1,0 +1,82 @@
+&GLOBAL
+ PROGRAM      Quickstep
+ PROJECT      gapw_all_pade
+ FFTLIB       FFTSG
+ RUN_TYPE     MD
+&END
+
+&MD
+ ensemble:     nvt                     (nve,nvt,npt_i,npt_f)
+ steps:        3
+ timestep:     0.2 fs                  time step [fs]
+ temperature:  300.0                   temperature [K]
+ restart:      init                    start type (pos,posvel)
+&END
+
+
+&SCF
+ GUESS        RESTART
+ EPS_SCF      1.0E-6
+ OT
+ MAX_SCF      10
+&END
+
+&OTSCF
+ PRECONDITIONER FULL_ALL
+&END
+
+&FORCE_EVAL
+  &DFT
+    BASIS_SET_FILE_NAME BASIS_SET
+    POTENTIAL_FILE_NAME POTENTIAL
+    LSD
+    CHARGE +1
+    &XC
+      &XC_FUNCTIONAL
+        &PADE
+        &END
+      &END
+    &END SECTION XC
+    &QS
+       METHOD       GAPW
+       EPS_GVG      1.0E-6
+       EPS_PGF_ORB  1.0E-6
+       QUADRATURE   GC_LOG
+       EPSFIT       1.E-4
+       EPSISO       1.0E-12
+       EPSRHO0      1.E-8
+       LMAXN0       2
+       LMAXN1       6
+       ALPHA0_HARD     10
+       ALPHA0_SOFT     10
+       EXTRAPOLATION PS 
+       EXTRAPOLATION_ORDER 3
+    &END SECTION QS
+    &MGRID
+       CUTOFF       150
+    &END SECTION MGRID
+  &END SECTION DFT
+  &SUBSYS
+    &CELL
+       UNIT   ANGSTROM
+       ABC          5.0  5.0  5.0
+    &END CELL
+  &END SUBSYS
+&END FORCE_EVAL
+
+
+&PRINT LOW
+&END
+
+&KIND He
+ BASIS_SET    DZVP-ALL-PADE
+ POTENTIAL    ALL
+ LEBEDEV_GRID 50
+ RADIAL_GRID  150
+&END
+
+&COORD
+ He 0.0 0.0 0.0
+ He 2.0 0.0 0.0
+&END
+
