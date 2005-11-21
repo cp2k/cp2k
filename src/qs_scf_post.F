@@ -71,6 +71,7 @@ MODULE qs_scf_post
                                              cp_subsystem_type
   USE global_types,                    ONLY: WANNIER_NONE,&
                                              global_environment_type
+  USE input_constants,                 ONLY: ot_precond_full_all
   USE input_section_types,             ONLY: section_vals_get_subs_vals,&
                                              section_vals_type,&
                                              section_vals_get
@@ -85,6 +86,7 @@ MODULE qs_scf_post
   USE particle_list_types,             ONLY: particle_list_type
   USE particle_types,                  ONLY: particle_type
   USE physcon,                         ONLY: angstrom
+  USE preconditioner,                  ONLY: preconditioner_type
   USE pw_env_types,                    ONLY: pw_env_get,&
                                              pw_env_type
   USE pw_pool_types,                   ONLY: pw_pool_create_pw,&
@@ -240,6 +242,7 @@ CONTAINS
     TYPE(section_vals_type), POINTER :: print_key, input
     TYPE(cp_rs_pool_type), POINTER           :: auxbas_rs_pool
     TYPE(realspace_grid_type), POINTER       :: rs
+    TYPE(preconditioner_type), POINTER       :: preconditioner
  
     CALL timeset(routineN,"I",'',handle)
 
@@ -461,11 +464,20 @@ CONTAINS
              CALL cp_fm_struct_release(fm_struct_tmp)
              CALL cp_fm_init_random(unoccupied_orbs(ispin)%matrix,nlumos)
 
+             ! the full_all preconditioner makes not much sense for lumos search
+             NULLIFY(preconditioner)
+             IF (ASSOCIATED(scf_env%ot_preconditioner)) THEN
+                preconditioner=>scf_env%ot_preconditioner(1)%preconditioner
+                IF (scf_env%qs_ot_env(1)%settings%preconditioner_type == ot_precond_full_all) THEN
+                    NULLIFY(preconditioner)
+                ENDIF
+             ENDIF 
+
              CALL ot_eigensolver(matrix_h=ks_rmpv(ispin)%matrix,matrix_s=matrix_s(1)%matrix, &
                   matrix_c=unoccupied_orbs(ispin)%matrix, &
                   matrix_orthogonal_space=mo_coeff, &
                   eps_gradient=scf_control%eps_lumos, &
-                  preconditioner=scf_env%ot_preconditioner, &
+                  preconditioner=preconditioner, &
                   iter_max=scf_control%max_iter_lumos,globenv=globenv,&
                   size_ortho_space=homo)
 

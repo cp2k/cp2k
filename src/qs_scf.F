@@ -1273,13 +1273,6 @@ CONTAINS
        END IF
        CALL qs_diis_b_clear(scf_env%scf_diis_buffer,error=error)
     CASE (ot_method_nr)
-       IF (.NOT.ASSOCIATED(scf_env%ot_preconditioner)) THEN
-          ALLOCATE(scf_env%ot_preconditioner, stat=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-          CALL init_preconditioner(scf_env%ot_preconditioner,&
-               para_env=qs_env%para_env,&
-               blacs_env=qs_env%blacs_env)
-       END IF
        IF (.NOT.ASSOCIATED(scf_env%qs_ot_env)) THEN
 
           ! restricted calculations require just on set of OT orbitals
@@ -1301,10 +1294,24 @@ CONTAINS
               scf_env%qs_ot_env(:)%restricted=.FALSE.
           ENDIF
 
-
           ! might need the KS matrix to init properly
           CALL qs_ks_update_qs_env(qs_env%ks_env,qs_env=qs_env,&
                error=error, calculate_forces=.FALSE.,just_energy=.FALSE.)
+
+          IF (.NOT.ASSOCIATED(scf_env%ot_preconditioner)) THEN
+               IF (scf_env%qs_ot_env(1)%settings%preconditioner_type == ot_precond_full_all) THEN
+                  ALLOCATE(scf_env%ot_preconditioner(dft_control%nspins), stat=stat)
+               ELSE
+                  ALLOCATE(scf_env%ot_preconditioner(1), stat=stat)
+               ENDIF
+               CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+               DO i=1,SIZE(scf_env%ot_preconditioner)
+                  ALLOCATE(scf_env%ot_preconditioner(i)%preconditioner)
+                  CALL init_preconditioner(scf_env%ot_preconditioner(i)%preconditioner,&
+                                           para_env=qs_env%para_env,&
+                                           blacs_env=qs_env%blacs_env)
+               ENDDO
+          END IF
 
           IF (scf_env%qs_ot_env(1)%settings%preconditioner_type /= ot_precond_none) THEN 
              !
@@ -1314,26 +1321,33 @@ CONTAINS
              CPPrecondition(.NOT. has_unit_metric,cp_failure_level,routineP,error,failure) 
              ! constuct the preconditioner based on the first spin set. 
              ! this might or might not be reasonable. Presumably it is.
-             CALL get_mo_set(mo_set=mos(1)%mo_set,&
-                  mo_coeff=mo_coeff)
 
              IF (scf_env%qs_ot_env(1)%settings%preconditioner_type == ot_precond_full_all) THEN
                 ! this will rotate the MOs to be eigen states, which is not compatible with rotation
                 do_rotation=scf_env%qs_ot_env(1)%settings%do_rotation
-                CPPrecondition(.NOT.do_rotation,cp_failure_level,routineP,error,failure)
-                ! this still needs to be fixed, LSD, requires two separate preconditioners 
-                CPPrecondition(dft_control%nspins==1,cp_failure_level,routineP,error,failure)
-                ! here we also rotate the derivate, not only the c0
-                CALL calculate_subspace_eigenvalues(mo_coeff,matrix_ks(1)%matrix,&
-                            para_env=mo_coeff%matrix_struct%para_env, &
-                            do_rotation = .TRUE., co_rotate=qs_env%mo_derivs(1)%matrix)
-             ENDIF
 
-             CALL make_preconditioner(scf_env%ot_preconditioner, &
-                  scf_env%qs_ot_env(1)%settings%preconditioner_type, &
-                  matrix_ks(1)%matrix,matrix_s(1)%matrix,&
-                  qs_env%kinetic(1)%matrix, &
-                  mo_coeff,scf_env%qs_ot_env(1)%settings%energy_gap) 
+               DO ispin=1,dft_control%nspins
+                  CALL get_mo_set(mo_set=mos(ispin)%mo_set, mo_coeff=mo_coeff)
+                  CALL calculate_subspace_eigenvalues(mo_coeff,matrix_ks(ispin)%matrix,&
+                            para_env=mo_coeff%matrix_struct%para_env, &
+                            do_rotation = .TRUE., co_rotate=qs_env%mo_derivs(ispin)%matrix)
+                  CALL make_preconditioner(scf_env%ot_preconditioner(ispin)%preconditioner, &
+                         scf_env%qs_ot_env(1)%settings%preconditioner_type, &
+                         matrix_ks(1)%matrix,matrix_s(1)%matrix,&
+                         qs_env%kinetic(1)%matrix, &
+                         mo_coeff,scf_env%qs_ot_env(1)%settings%energy_gap) 
+               ENDDO
+
+             ELSE
+
+               CALL get_mo_set(mo_set=mos(1)%mo_set, mo_coeff=mo_coeff)
+               CALL make_preconditioner(scf_env%ot_preconditioner(1)%preconditioner, &
+                       scf_env%qs_ot_env(1)%settings%preconditioner_type, &
+                       matrix_ks(1)%matrix,matrix_s(1)%matrix,&
+                       qs_env%kinetic(1)%matrix, &
+                       mo_coeff,scf_env%qs_ot_env(1)%settings%energy_gap) 
+
+             ENDIF
 
           ENDIF
 
@@ -1346,12 +1360,18 @@ CONTAINS
           CALL ot_scf_init(mos,orthogonality_metric,scf_env%qs_ot_env)
           
           IF (scf_env%qs_ot_env(1)%settings%preconditioner_type /= ot_precond_none) THEN
-             DO ispin=1,SIZE(scf_env%qs_ot_env)
-                CALL qs_ot_new_preconditioner(scf_env%qs_ot_env(ispin),&
-                     scf_env%ot_preconditioner)
-             ENDDO
+             IF (scf_env%qs_ot_env(1)%settings%preconditioner_type == ot_precond_full_all) THEN
+                DO ispin=1,SIZE(scf_env%qs_ot_env)
+                    CALL qs_ot_new_preconditioner(scf_env%qs_ot_env(ispin),&
+                                                  scf_env%ot_preconditioner(ispin)%preconditioner)
+                ENDDO
+          ELSE
+                DO ispin=1,SIZE(scf_env%qs_ot_env)
+                    CALL qs_ot_new_preconditioner(scf_env%qs_ot_env(ispin),&
+                                                 scf_env%ot_preconditioner(1)%preconditioner)
+                ENDDO
+             ENDIF
           ENDIF
-
        ENDIF
     END SELECT
 
@@ -2507,7 +2527,10 @@ CONTAINS
 ! *** method dependent cleanup
        SELECT CASE(scf_env%method)
        CASE(ot_method_nr)
-          CALL destroy_preconditioner(scf_env%ot_preconditioner)
+          DO ispin=1,SIZE(scf_env%ot_preconditioner)
+             CALL destroy_preconditioner(scf_env%ot_preconditioner(ispin)%preconditioner) 
+             DEALLOCATE(scf_env%ot_preconditioner(ispin)%preconditioner)
+          ENDDO
           DEALLOCATE(scf_env%ot_preconditioner,stat=stat)
           CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
           DO ispin=1,SIZE(scf_env%qs_ot_env)

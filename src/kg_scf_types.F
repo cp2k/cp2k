@@ -36,7 +36,8 @@ MODULE kg_scf_types
                                              cp_warning_level
   USE kinds,                           ONLY: dp
   USE preconditioner,                  ONLY: destroy_preconditioner,&
-                                             preconditioner_type
+                                             preconditioner_type,&
+                                             preconditioner_p_type
   USE kg_diis_types,                   ONLY: kg_diis_b_release,&
                                              kg_diis_buffer_type
   USE qs_ot,                           ONLY: qs_ot_destroy,&
@@ -92,7 +93,7 @@ TYPE kg_scf_env_type
    REAL(KIND = dp) :: p_mix
    CHARACTER (len=15) :: iter_method
    TYPE(real_matrix_p_type), DIMENSION(:), POINTER :: p_mix_new
-   TYPE(preconditioner_type), POINTER :: ot_preconditioner
+   TYPE(preconditioner_p_type), DIMENSION(:), POINTER :: ot_preconditioner
    TYPE(qs_ot_type), POINTER, DIMENSION(:)  :: qs_ot_env
    TYPE(kg_diis_buffer_type), POINTER :: scf_diis_buffer
 END TYPE kg_scf_env_type
@@ -192,7 +193,10 @@ SUBROUTINE kg_scf_env_release(scf_env,error)
            CALL deallocate_matrix_set(scf_env%p_mix_new)
         ENDIF
         IF (ASSOCIATED(scf_env%ot_preconditioner)) THEN
-           CALL destroy_preconditioner(scf_env%ot_preconditioner)
+           DO i=1,SIZE(scf_env%ot_preconditioner)
+                CALL destroy_preconditioner(scf_env%ot_preconditioner(i)%preconditioner)
+                DEALLOCATE(scf_env%ot_preconditioner(i)%preconditioner)
+           ENDDO
            DEALLOCATE(scf_env%ot_preconditioner,stat=stat)
            CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
         END IF

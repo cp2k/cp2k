@@ -41,7 +41,8 @@ MODULE qs_scf_types
                                              cp_warning_level
   USE kinds,                           ONLY: dp
   USE preconditioner,                  ONLY: destroy_preconditioner,&
-                                             preconditioner_type
+                                             preconditioner_type,&
+                                             preconditioner_p_type
   USE qs_diis_types,                   ONLY: qs_diis_b_release,&
                                              qs_diis_buffer_type
   USE qs_ot,                           ONLY: qs_ot_destroy,&
@@ -101,7 +102,7 @@ TYPE qs_scf_env_type
    TYPE(cp_fm_type), POINTER  :: scf_work2, ortho
    ! p_mix_new should only be needed for mixing methods (ao_mixing_nr)
    TYPE(real_matrix_p_type), DIMENSION(:), POINTER :: p_mix_new 
-   TYPE(preconditioner_type), POINTER :: ot_preconditioner
+   TYPE(preconditioner_p_type), DIMENSION(:), POINTER :: ot_preconditioner
    TYPE(qs_ot_type), POINTER, DIMENSION(:)  :: qs_ot_env
    TYPE(qs_diis_buffer_type), POINTER :: scf_diis_buffer
 END TYPE qs_scf_env_type
@@ -241,7 +242,10 @@ SUBROUTINE scf_env_release(scf_env,error)
            CALL deallocate_matrix_set(scf_env%p_mix_new) 
         ENDIF
         IF (ASSOCIATED(scf_env%ot_preconditioner)) THEN
-           CALL destroy_preconditioner(scf_env%ot_preconditioner)
+           DO i=1,SIZE(scf_env%ot_preconditioner)
+              CALL destroy_preconditioner(scf_env%ot_preconditioner(i)%preconditioner)
+              DEALLOCATE(scf_env%ot_preconditioner(i)%preconditioner)
+           ENDDO
            DEALLOCATE(scf_env%ot_preconditioner,stat=stat)
            CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
         END IF

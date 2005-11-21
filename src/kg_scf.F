@@ -1672,7 +1672,10 @@ CONTAINS
 ! *** method dependent cleanup
        SELECT CASE(scf_env%method)
        CASE(ot_method_nr)
-          CALL destroy_preconditioner(scf_env%ot_preconditioner)
+          DO ispin=1,SIZE(scf_env%ot_preconditioner)
+             CALL destroy_preconditioner(scf_env%ot_preconditioner(ispin)%preconditioner)
+             DEALLOCATE(scf_env%ot_preconditioner(ispin)%preconditioner)
+          ENDDO
           DEALLOCATE(scf_env%ot_preconditioner,stat=stat)
           CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
           DO ispin=1,SIZE(scf_env%qs_ot_env)
