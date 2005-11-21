@@ -352,7 +352,7 @@ CONTAINS
            adjustl( unit % e_label), '= ', epot
         WRITE ( iw, '( A,A,T40,A,T60,1(1X,E20.12) )' ) ' INITIAL KINETIC ENERGY', &
            adjustl( unit % e_label), '= ', ekin
-        WRITE ( iw, '( A,A,T40,A,T60,1(1X,E20.12) )' ) ' INITIAL TEMPERATURE', &
+        WRITE ( iw, '( A,A,T40,A,T60,1(1X,F20.3) )' ) ' INITIAL TEMPERATURE', &
            adjustl( unit % temp_label ), '= ', temp
         IF ( simpar % ensemble == nph_ensemble .OR.&
              simpar % ensemble == nph_uniaxial_ensemble .OR.&
@@ -482,7 +482,7 @@ CONTAINS
                adjustl(unit % e_label), '= ', epot, averages%avepot
           WRITE ( iw, '( A,A,T31,A,T39,2(1X,E20.12) )' ) ' KINETIC ENERGY', &
                adjustl(unit % e_label), '= ', ekin, averages%avekin
-          WRITE ( iw, '( A,A,T31,A,T39,2(1X,E20.12) )' ) ' TEMPERATURE', &
+          WRITE ( iw, '( A,A,T31,A,T39,2(1X,F20.3) )' ) ' TEMPERATURE', &
                adjustl(unit % temp_label), '= ', temp, averages%avetemp
           IF ( virial % pv_availability ) &
           WRITE ( iw, '( A,A,T31,A,T39,2(1X,E20.12) )' ) ' PRESSURE', &
