@@ -146,3 +146,7 @@ rsgrid-dist-1.inp  1
 # Langevin dynamics
 H2O-langevin-1.inp 1
 H2O-langevin-2.inp 1
+# test the full_all with LSD and GAPW
+He2-all.inp        1
+# keep special case alive
+H-gapw-all.inp     1
