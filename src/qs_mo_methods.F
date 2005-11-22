@@ -471,13 +471,13 @@ CONTAINS
                 j=MIN(3,ncol_global-i)
                 SELECT CASE (j)
                 CASE(3)
-                 WRITE(scr,'(1X,4F12.8)') evals(i:i+j)
+                 WRITE(scr,'(1X,4F16.8)') evals(i:i+j)
                 CASE(2)
-                 WRITE(scr,'(1X,3F12.8)') evals(i:i+j)
+                 WRITE(scr,'(1X,3F16.8)') evals(i:i+j)
                 CASE(1)
-                 WRITE(scr,'(1X,2F12.8)') evals(i:i+j)
+                 WRITE(scr,'(1X,2F16.8)') evals(i:i+j)
                 CASE(0)
-                 WRITE(scr,'(1X,1F12.8)') evals(i:i+j)
+                 WRITE(scr,'(1X,1F16.8)') evals(i:i+j)
                 END SELECT
              ENDDO
           ENDIF
