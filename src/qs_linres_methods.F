@@ -654,22 +654,25 @@ CONTAINS
 
     INTEGER :: count, ispin
     REAL(dp) :: a, b, c, ds, pos, val, x0, x1
+    REAL(DP), DIMENSION(:), POINTER             :: ls_pos 
 
     
+    NULLIFY(ls_pos)
     p_env%ls_count = p_env%ls_count + 1
     count = p_env%ls_count 
     p_env%only_energy = .TRUE.
     p_env%ls_energy(count) = p_env%etotal
+    ls_pos=>p_env%ls_pos
     SELECT CASE (count)
 
       CASE(1)
-         p_env%ls_pos(count)   = 0.0_dp
+         ls_pos(count)   = 0.0_dp
          p_env%ls_grad(count)  = p_env%gnorm
          p_env%ls_pos(count+1) = ds_min
       CASE(2)
 
          x0 = 0.0_dp
-         x1 = p_env%ls_pos(2)
+         x1 = ls_pos(2)
          c = p_env%ls_energy(1)
          b = p_env%ls_grad(1)
          a = (p_env%ls_energy(2)-b*x1)/(x1*x1)
@@ -677,10 +680,10 @@ CONTAINS
          pos = -b/(2.0_dp*a)
          val = a*pos*pos+b*pos+c 
          IF(val .LT. c .AND. val .LE. p_env%ls_energy(2)) THEN
-           p_env%ls_pos(count+1) = MAX(MAXVAL(p_env%ls_pos(1:2))*0.01_dp,&
-              MIN(pos,MAXVAL(p_env%ls_pos(1:2))*4.0_dp)) 
+           ls_pos(count+1) = MAX(MAXVAL(ls_pos(1:2))*0.01_dp,&
+              MIN(pos,MAXVAL(ls_pos(1:2))*4.0_dp)) 
          ELSE
-           p_env%ls_pos(count+1) = MAXVAL(p_env%ls_pos(1:2))*2.0_dp
+           ls_pos(count+1) = MAXVAL(ls_pos(1:2))*2.0_dp
          END IF
          p_env%only_energy = .FALSE.
          p_env%ls_count = 0 
@@ -689,8 +692,8 @@ CONTAINS
           CALL stop_program("lr_ls_2pnt","too many steps counted")
     END SELECT
 
-    ds = p_env%ls_pos(count+1) - p_env%ls_pos(count)
-    ds_min = p_env%ls_pos(count+1)
+    ds = ls_pos(count+1) - ls_pos(count)
+    ds_min = ls_pos(count+1)
     DO ispin = 1,nspins
        CALL cp_fm_scale_and_add(1.0_dp,vectors(ispin)%matrix,ds,&
             p_env%d_psi1(ispin)%matrix,error=error)
@@ -712,8 +715,10 @@ CONTAINS
 
     INTEGER :: count, ispin
     REAL(dp) :: a, b, c, den, ds, f1, f2, f3, nom, pos, val, x1, x2, x3
+    REAL(DP), DIMENSION(:), POINTER             :: ls_pos 
 
 
+    nullify(ls_pos)  
     p_env%ls_count = p_env%ls_count + 1
     count = p_env%ls_count 
     p_env%only_energy = .TRUE.
@@ -721,20 +726,20 @@ CONTAINS
 
     SELECT CASE (count)
       CASE(1) 
-        p_env%ls_pos(count) = 0.0_dp
-        p_env%ls_pos(count+1) = ds_min*0.8_dp
+        ls_pos(count) = 0.0_dp
+        ls_pos(count+1) = ds_min*0.8_dp
       CASE(2) 
         IF(p_env%ls_energy(count) .GT. p_env%ls_energy(count-1)) THEN
-          p_env%ls_pos(count+1) = ds_min*0.5_dp
+          ls_pos(count+1) = ds_min*0.5_dp
         ELSE
-          p_env%ls_pos(count+1) = ds_min*1.4_dp
+          ls_pos(count+1) = ds_min*1.4_dp
         END IF
       CASE(3) 
-         x1 = p_env%ls_pos(1)
+         x1 = ls_pos(1)
          f1 = p_env%ls_energy(1)
-         x2 = p_env%ls_pos(2)
+         x2 = ls_pos(2)
          f2 = p_env%ls_energy(2)
-         x3 = p_env%ls_pos(3)
+         x3 = ls_pos(3)
          f3 = p_env%ls_energy(3)
          nom =  (x2-x1)**2*(f2-f3)-(x2-x3)**2*(f2-f1) 
          den =  (x2-x1)*(f2-f3)-(x2-x1)*(f2-f1)
@@ -747,10 +752,10 @@ CONTAINS
                (pos-x2)*(pos-x3)*f1/((x1-x2)*(x1-x3))+ &
                (pos-x3)*(pos-x1)*f2/((x2-x3)*(x2-x1))
          IF(val .LT. f1 .AND. val .LE. f2 .AND. val .LE. f3) THEN
-             p_env%ls_pos(count+1) = MAX(MAXVAL(p_env%ls_pos(1:3))*0.01_dp,&
-                   MIN(pos,MAXVAL(p_env%ls_pos(1:3))*4.0_dp))
+             ls_pos(count+1) = MAX(MAXVAL(ls_pos(1:3))*0.01_dp,&
+                   MIN(pos,MAXVAL(ls_pos(1:3))*4.0_dp))
          ELSE
-             p_env%ls_pos(count+1) = MAXVAL(p_env%ls_pos(1:3))*2.0_dp
+             ls_pos(count+1) = MAXVAL(ls_pos(1:3))*2.0_dp
          END IF
 
          p_env%only_energy = .FALSE.
@@ -759,8 +764,8 @@ CONTAINS
          CALL stop_program("lr_ls_2pnt","too many steps counted")
     END SELECT
 
-    ds = p_env%ls_pos(count+1) - p_env%ls_pos(count)
-    ds_min = p_env%ls_pos(count+1)
+    ds = ls_pos(count+1) - ls_pos(count)
+    ds_min = ls_pos(count+1)
     DO ispin = 1,nspins
        CALL cp_fm_scale_and_add(1.0_dp,vectors(ispin)%matrix,ds,&
             p_env%d_psi1(ispin)%matrix,error=error)

@@ -494,7 +494,7 @@ CONTAINS
 
     ! Prepare the operators
     NULLIFY(tmp_fm_struct,mo_coeff)
-    nmosub = MAXVAL(localized_wfn_control%nloc_states(:))
+    nmosub = MAXVAL(localized_wfn_control%nloc_states)
     CALL get_mo_set(mos(1)%mo_set, mo_coeff=mo_coeff)
     CALL cp_fm_struct_create(tmp_fm_struct,nrow_global=nmosub,&
          ncol_global=nmosub,para_env=para_env,context=mo_coeff%matrix_struct%context)
