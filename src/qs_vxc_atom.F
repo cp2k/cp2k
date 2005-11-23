@@ -757,7 +757,7 @@ CONTAINS
 
 ! *****************************************************************************
 
- SUBROUTINE  gaVxcgb_noGC(vxc_h,vxc_s,atom_kind,rho_atom,nspins)
+ SUBROUTINE  gaVxcgb_noGC(vxc_h,vxc_s,atom_kind,rho_atom,nspins,error)
 
 
     TYPE(atomic_kind_type), POINTER       :: atom_kind
@@ -765,6 +765,8 @@ CONTAINS
 
     REAL(dp), DIMENSION(:,:,:),POINTER    :: vxc_h,vxc_s
     INTEGER, INTENT(IN)                   :: nspins
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                                  :: error
 
     CHARACTER(LEN=*), PARAMETER           :: routine_name = "gaVxcgb_noGC"
 
@@ -791,10 +793,12 @@ CONTAINS
                                              ispin,istat,l,ld,&
                                              lmin12,lmax12,maxso, maxl, m1,&
                                              m2,n1,n2,na, ngau1,ngau2,nngau1,nr, nset,&
-                                             size1
+                                             size1, max_iso_not0, lmax_expansion
+    LOGICAL :: failure
 
 ! -----------------------------------------------------------------------------
 
+    failure = .FALSE.
     NULLIFY(lmin,lmax,npgf,zet,my_CG,harmonics,grid_atom) 
 
     CALL get_atomic_kind(atomic_kind=atom_kind, orb_basis_set=orb_basis,&
@@ -808,6 +812,9 @@ CONTAINS
     nr = grid_atom%nr
     na = grid_atom%ng_sphere 
     my_CG => harmonics%my_CG
+    max_iso_not0 = harmonics%max_iso_not0
+    lmax_expansion = indso(1,max_iso_not0)
+
 
     ALLOCATE(g1(nr),g2(nr),gg(nr,0:2*maxl),STAT=istat)
     IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
@@ -852,12 +859,20 @@ CONTAINS
             lmin12 = lmin(iset1)+lmin(iset2)
             lmax12 = lmax(iset1)+lmax(iset2)
 
+!test reduce expansion local densities
+       IF(lmin12 .le. lmax_expansion) THEN
+
             gg = 0.0_dp
             IF (lmin12 == 0) THEN
               gg(1:nr,lmin12) = g1(1:nr)*g2(1:nr)
             ELSE
               gg(1:nr,lmin12) = grid_atom%rad2l(1:nr,lmin12)*g1(1:nr)*g2(1:nr)
             END IF
+
+!test reduce expansion local densities
+            IF(lmax12 .gt. lmax_expansion) lmax12 = lmax_expansion
+
+
             DO l=lmin12+1,lmax12
               gg(1:nr,l) = grid_atom%rad(1:nr)*gg(:,l-1)
             END DO
@@ -882,6 +897,11 @@ CONTAINS
                   iso1 = harmonics%ind_cg_a(icg,iso,iset1,iset2)
                   iso2 = harmonics%ind_cg_b(icg,iso,iset1,iset2)
                   l = indso(1,iso1) + indso(1,iso2)
+
+!test reduce expansion local densities
+                    CPPrecondition(l<=lmax_expansion,cp_failure_level,routine_name,error,failure)
+               IF(.NOT. failure) THEN
+
                   DO ia = 1,na
                     matso_h(iso1,iso2) = matso_h(iso1,iso2) + & 
                             gVg_h(ia,l)*&
@@ -892,6 +912,8 @@ CONTAINS
                             my_CG(iso1,iso2,iso)*&
                             harmonics%slm(ia,iso)
                   END DO
+!test reduce expansion local densities
+                END IF  ! failure
                 END DO
               END DO
 
@@ -906,6 +928,9 @@ CONTAINS
                END DO
 
             END DO ! ispin
+
+!test reduce expansion local densities
+     END IF ! lmax_expansion
 
           END DO ! ipfg2
         END DO ! ipfg1
@@ -922,7 +947,7 @@ CONTAINS
 ! *****************************************************************************
 
  SUBROUTINE  gaVxcgb_GC(vxc_h,vxc_s,vxg_h,vxg_s,atom_kind,rho_atom,drho_h,&
-                        drho_s,nspins)
+                        drho_s,nspins,error)
 
 
     TYPE(atomic_kind_type), POINTER       :: atom_kind
@@ -933,6 +958,8 @@ CONTAINS
     REAL(dp), DIMENSION(:,:,:,:), &
                                 POINTER   :: drho_h,drho_s
     INTEGER, INTENT(IN)                   :: nspins
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                                  :: error
 
     CHARACTER(LEN=*), PARAMETER           :: routine_name = "gaVxcgb_GC"
 
@@ -962,10 +989,12 @@ CONTAINS
                                              ispin,istat,l,&
                                              lmin12,lmax12,maxso, maxl, m1,&
                                              m2,n1,n2,na, ngau1, ngau2, nngau1, nr, nset,&
-                                             size1
+                                             size1,max_iso_not0,lmax_expansion
+    LOGICAL :: failure
 
 ! -----------------------------------------------------------------------------
 
+    failure = .FALSE.
     NULLIFY(lmin,lmax,npgf,zet,my_CG,my_CG_dxyz,harmonics,grid_atom) 
 
     CALL get_atomic_kind(atomic_kind=atom_kind, orb_basis_set=orb_basis,&
@@ -980,6 +1009,8 @@ CONTAINS
     na = grid_atom%ng_sphere 
     my_CG => harmonics%my_CG
     my_CG_dxyz => harmonics%my_CG_dxyz
+    max_iso_not0 = harmonics%max_iso_not0
+    lmax_expansion = indso(1,max_iso_not0)
 
     ALLOCATE(g1(nr),g2(nr),gg(nr,0:2*maxl),dgg(nr,0:2*maxl),STAT=istat)
     IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
@@ -1026,14 +1057,22 @@ CONTAINS
             lmin12 = lmin(iset1)+lmin(iset2)
             lmax12 = lmax(iset1)+lmax(iset2)
 
+!test reduce expansion local densities
+       IF(lmin12 .le. lmax_expansion) THEN
+
             gg = 0.0_dp
             dgg = 0.0_dp
+
 
             IF (lmin12 == 0) THEN
               gg(1:nr,lmin12) = g1(1:nr)*g2(1:nr)
             ELSE
               gg(1:nr,lmin12) = grid_atom%rad2l(1:nr,lmin12)*g1(1:nr)*g2(1:nr)
             END IF
+
+!test reduce expansion local densities
+            IF(lmax12 .gt. lmax_expansion) lmax12 = lmax_expansion
+
             DO l=lmin12+1,lmax12
               gg(1:nr,l) = grid_atom%rad(1:nr)*gg(:,l-1)
               dgg(1:nr,l-1) = dgg(1:nr,l-1) -2.0_dp*(zet(ipgf1,iset1)+ &
@@ -1105,6 +1144,11 @@ CONTAINS
                   iso1 = harmonics%ind_cg_a(icg,iso,iset1,iset2)
                   iso2 = harmonics%ind_cg_b(icg,iso,iset1,iset2)
                   l = indso(1,iso1) + indso(1,iso2)
+
+!test reduce expansion local densities
+                    CPPrecondition(l<=lmax_expansion,cp_failure_level,routine_name,error,failure)
+               IF(.NOT. failure) THEN
+
                   DO ia = 1,na
                     matso_h(iso1,iso2) = matso_h(iso1,iso2) + & 
                                          gVXCg_h(ia,l)*&
@@ -1114,12 +1158,20 @@ CONTAINS
                                          gVXCg_s(ia,l)*&
                                          harmonics%slm(ia,iso)*&
                                          my_CG(iso1,iso2,iso)
-                  END DO
+                  END DO ! ia
+
+!test reduce expansion local densities
+               END IF ! failure
+
                 END DO
                 DO icg = 1,harmonics%ncg_dxyz(iso,iset1,iset2)
                   iso1 = harmonics%ind_cg_a_dxyz(icg,iso,iset1,iset2)
                   iso2 = harmonics%ind_cg_b_dxyz(icg,iso,iset1,iset2)
                   l = indso(1,iso1) + indso(1,iso2)
+!test reduce expansion local densities
+                    CPPrecondition(l<=lmax_expansion,cp_failure_level,routine_name,error,failure)
+               IF(.NOT. failure) THEN
+
                   DO ia = 1,na
                     matso_h(iso1,iso2) = matso_h(iso1,iso2) + &
                             (gVXGg_h(1,ia,l)*my_CG_dxyz(1,iso1,iso2,iso)+&
@@ -1133,9 +1185,16 @@ CONTAINS
                              gVXGg_s(3,ia,l)*my_CG_dxyz(3,iso1,iso2,iso))*&
                              harmonics%slm(ia,iso)
 
-                  END DO
-                END DO
-              END DO
+                  END DO ! ia
+
+!test reduce expansion local densities
+               END IF ! failure
+
+                END DO ! icg
+              END DO ! iso
+
+!test reduce expansion local densities
+            END IF ! lmax_expansion
 
 !             Write in the global matrix
               DO ic = nsoset(lmin(iset2)-1)+1,nsoset(lmax(iset2))

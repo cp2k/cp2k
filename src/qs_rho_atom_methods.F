@@ -15,7 +15,7 @@
 !!
 !!   SOURCE
 !******************************************************************************
-
+#include "cp_prep_globals.h"
 MODULE qs_rho_atom_methods
 
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
@@ -25,6 +25,13 @@ MODULE qs_rho_atom_methods
                                              gto_basis_set_type
   USE cp_control_types,                ONLY: dft_control_type,&
                                              gapw_control_type
+  USE cp_error_handling,               ONLY: cp_a_l,&
+                                             cp_assert,&
+                                             cp_error_type
+  USE cp_log_handling,                 ONLY: cp_failure_level,&
+                                             cp_fatal_level,&
+                                             cp_to_string,&
+                                             cp_warning_level
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE erf_fn,                          ONLY: erf
   USE kinds,                           ONLY: dp, dp_size, int_size
@@ -94,7 +101,7 @@ MODULE qs_rho_atom_methods
 
 ! *****************************************************************************
   SUBROUTINE calculate_rho_atom(para_env,rho_atom_set,atom_kind,atom_list,&
-                                grid_atom,natom,nspins,tot_rho1_h,tot_rho1_s)
+                                grid_atom,natom,nspins,tot_rho1_h,tot_rho1_s,error)
 
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(rho_atom_type), DIMENSION(:), &
@@ -105,6 +112,8 @@ MODULE qs_rho_atom_methods
     INTEGER, INTENT(IN)                      :: natom, nspins
     REAL(dp), DIMENSION(:), INTENT(INOUT)    :: tot_rho1_h,&
                                                 tot_rho1_s
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                                  :: error
 
     CHARACTER(len=*), PARAMETER :: routine_name = 'calculate_rho_atom', &
       routineP = module_name//':'//routine_name
@@ -112,11 +121,12 @@ MODULE qs_rho_atom_methods
     INTEGER :: handle, i, i1, i2, ia, iat, iatom, icg, &
       ipgf1, ipgf2, ir, iset1, iset2, iso, iso1, &
       iso1_first, iso1_last, iso2, iso2_first, iso2_last, istat, &
-      j, l, l_iso, l_sub, l_sum, lmax12, &
+      j, l, l_iso, l_sub, l_sum, lmax12, lmax_expansion, &
       lmin12, m1s, m2s, max_iso_not0, maxcg, maxco, maxl, maxso, &
       mepos, n1s, n2s, nr, nset, num_pe, size1, size2
     INTEGER, DIMENSION(2)                    :: bo
     INTEGER, DIMENSION(:), POINTER           :: lmax, lmin, npgf
+    LOGICAL :: failure
     REAL(dp)                                 :: c1, c2, rho_h, rho_s, &
                                                 rho1h_iat, rho1s_iat, &
                                                 root_zet12, zet12
@@ -138,6 +148,7 @@ MODULE qs_rho_atom_methods
 
     CALL timeset("calculate_rho_atom","I"," ",handle)
 
+    failure = .FALSE.
     NULLIFY(orb_basis)
     NULLIFY(harmonics)
     NULLIFY(lmin,lmax,npgf,zet,my_CG,my_CG_dxyz,coeff)
@@ -152,6 +163,7 @@ MODULE qs_rho_atom_methods
     max_iso_not0 = harmonics%max_iso_not0
     maxcg        = harmonics%maxcg
     nr           = grid_atom%nr
+    lmax_expansion = indso(1,max_iso_not0)
 !   Distribute the atoms of this kind
     num_pe = para_env%num_pe
     mepos  = para_env%mepos
@@ -214,6 +226,8 @@ MODULE qs_rho_atom_methods
             dgg = 0.0_dp
             vgg = 0.0_dp
             done_vgg = .FALSE.
+!test reduce expansion local densities
+       IF(lmin12 .le. lmax_expansion) THEN
             IF (lmin12 == 0) THEN
               gg(1:nr,lmin12) = g1(1:nr)*g2(1:nr)
               gg0(1:nr) = gg(1:nr,lmin12)
@@ -221,6 +235,9 @@ MODULE qs_rho_atom_methods
               gg0(1:nr) = g1(1:nr)*g2(1:nr)
               gg(1:nr,lmin12) = grid_atom%rad2l(1:nr,lmin12)*g1(1:nr)*g2(1:nr)
             END IF
+           
+!test reduce expansion local densities
+            IF(lmax12 .gt. lmax_expansion) lmax12 = lmax_expansion
 
             DO l=lmin12+1,lmax12
               gg(1:nr,l) = grid_atom%rad(1:nr)*gg(1:nr,l-1)
@@ -242,6 +259,10 @@ MODULE qs_rho_atom_methods
                  iso2 = harmonics%ind_cg_b(icg,iso,iset1,iset2)
 
                  l = indso(1,iso1) + indso(1,iso2)
+!test reduce expansion local densities
+                    CPPrecondition(l<=lmax_expansion,cp_failure_level,routineP,error,failure)
+               IF(.NOT. failure) THEN
+
                  IF(done_vgg(l,l_iso)) CYCLE
                  L_sum = l + l_iso
                  L_sub = l - l_iso
@@ -259,8 +280,13 @@ MODULE qs_rho_atom_methods
                    END DO
                  END IF 
                  done_vgg(l,l_iso) = .TRUE.
+!test reduce expansion local densities
+               END IF ! failure
+
                END DO
             END DO
+!test reduce expansion local densities
+     END IF ! lmax_expansion
 
             DO iat = bo(1),bo(2)
               iatom = atom_list(iat)
@@ -277,12 +303,14 @@ MODULE qs_rho_atom_methods
 
                 DO iso = 1,max_iso_not0
                   l_iso = indso(1,iso)
-                  DO icg = 1,harmonics%ncg(iso,iset1,iset2)
+                   DO icg = 1,harmonics%ncg(iso,iset1,iset2)
                     iso1 = harmonics%ind_cg_a(icg,iso,iset1,iset2)
                     iso2 = harmonics%ind_cg_b(icg,iso,iset1,iset2)
 
                     l = indso(1,iso1) + indso(1,iso2)
-
+!test reduce expansion local densities
+                    CPPrecondition(l<=lmax_expansion,cp_failure_level,routineP,error,failure)
+                    IF(.NOT. failure) THEN
                     rho_atom_set(iatom)%rho_rad_h(i)%r_coef(1:nr,iso) =&
                       rho_atom_set(iatom)%rho_rad_h(i)%r_coef(1:nr,iso) +&
                       gg(1:nr,l)*CPCH_sphere(iso1,iso2)*my_CG(iso1,iso2,iso)
@@ -307,6 +335,8 @@ MODULE qs_rho_atom_methods
                     rho_atom_set(iatom)%vrho_rad_s(i)%r_coef(1:nr,iso) =&
                       rho_atom_set(iatom)%vrho_rad_s(i)%r_coef(1:nr,iso) +&
                       vgg(1:nr,l,l_iso)*CPCS_sphere(iso1,iso2)*my_CG(iso1,iso2,iso)
+!test reduce expansion local densities
+                    END IF !failure
 
                   ENDDO  ! icg
                   DO icg = 1,harmonics%ncg_dxyz(iso,iset1,iset2)
@@ -314,6 +344,9 @@ MODULE qs_rho_atom_methods
                     iso2 = harmonics%ind_cg_b_dxyz(icg,iso,iset1,iset2)
 
                     l = indso(1,iso1) + indso(1,iso2)
+!test reduce expansion local densities
+                    CPPrecondition(l<=lmax_expansion,cp_failure_level,routineP,error,failure)
+                    IF(.NOT. failure) THEN
                     DO j = 1,3
                       rho_atom_set(iatom)%rho_rad_h_d(j,i)%r_coef(1:nr,iso) =&
                          rho_atom_set(iatom)%rho_rad_h_d(j,i)%r_coef(1:nr,iso) +&
@@ -323,6 +356,8 @@ MODULE qs_rho_atom_methods
                          rho_atom_set(iatom)%rho_rad_s_d(j,i)%r_coef(1:nr,iso) +&
                          gg(1:nr,l)*CPCS_sphere(iso1,iso2)*my_CG_dxyz(j,iso1,iso2,iso)
                     END DO
+!test reduce expansion local densities
+                    END IF !failure
                   END DO  ! icg
 
                 ENDDO  ! iso 
