@@ -22,7 +22,7 @@
 !!     Thomas D. Kuehne (tkuehne@phys.chem.ethz.ch)
 !!
 !!   MODIFICATION HISTORY
-!!     0.2005 initial create [tdk]
+!!     07.2005 initial create [tdk]
 !!
 !!   SOURCE
 !******************************************************************************
@@ -49,6 +49,8 @@ MODULE harris_env_types
                                              !harris_force_create
   USE qs_rho_types,                    ONLY: qs_rho_type, &
                                              qs_rho_release
+  USE sparse_matrix_types,             ONLY: deallocate_matrix_set,&
+                                             real_matrix_p_type
 
   IMPLICIT NONE
   PRIVATE
@@ -88,6 +90,9 @@ MODULE harris_env_types
 !!     - harris_force: The harris force type
 !!     - rho: The rho data structure in which diverse representations of 
 !!            the density are stored
+!!     - rho_diff: rho_out - rho_in
+!!     - matrix_h: The Hamiltonian Matrix
+!!     - matrix_ks: The KS matrix
 !!     - natom: The number of involved atoms
 !!     - nspins: The number of spins
 !!
@@ -104,7 +109,10 @@ MODULE harris_env_types
                                                         ref_count
     TYPE(harris_energy_type), POINTER                :: harris_energy
     TYPE(harris_force_type), POINTER                 :: harris_force
-    TYPE(qs_rho_type), POINTER                       :: rho
+    TYPE(qs_rho_type), POINTER                       :: rho, &
+                                                        rho_diff
+    TYPE(real_matrix_p_type), DIMENSION(:), POINTER  :: matrix_h,&
+                                                        matrix_ks
     INTEGER                                          :: natom, &
                                                         nspins
 
@@ -250,6 +258,15 @@ CONTAINS
         IF (ASSOCIATED(harris_env%rho)) THEN
           CALL qs_rho_release(harris_env%rho, error=error)
         END IF
+        IF (ASSOCIATED(harris_env%rho_diff)) THEN
+          CALL qs_rho_release(harris_env%rho_diff, error=error)
+        END IF
+        IF (ASSOCIATED(harris_env%matrix_h)) THEN
+          CALL deallocate_matrix_set(harris_env%matrix_h)
+        END IF
+        IF (ASSOCIATED(harris_env%matrix_ks)) THEN
+          CALL deallocate_matrix_set(harris_env%matrix_ks)
+        END IF
         DEALLOCATE(harris_env, stat=stat)
         CPPostconditionNoFail(stat==0, cp_warning_level, routineP, error)
       END IF
@@ -277,6 +294,9 @@ CONTAINS
 !!       see module cp_error_handling
 !!     - rho: The rho data structure in which diverse representations of 
 !!            the density are stored
+!!     - rho_diff: rho_out - rho_in
+!!     - matrix_h: The Hamiltonian Matrix
+!!     - matrix_ks: The KS matrix
 !!     - error: variable to control error logging, stopping,... 
 !!
 !!     For possible missing arguments see the attributes of harris_env_type
@@ -289,13 +309,17 @@ CONTAINS
 !!
 !!*** **********************************************************************
   SUBROUTINE harris_env_get(harris_env, id_nr, harris_energy, harris_force, &
-                            rho, error)
+                            rho, rho_diff, matrix_h, matrix_ks, error)
 
     TYPE(harris_env_type), POINTER               :: harris_env
     TYPE(harris_energy_type), POINTER, OPTIONAL  :: harris_energy
     TYPE(harris_force_type), POINTER, OPTIONAL   :: harris_force
     INTEGER, INTENT(OUT), OPTIONAL               :: id_nr
-    TYPE(qs_rho_type), POINTER, OPTIONAL         :: rho
+    TYPE(qs_rho_type), POINTER, OPTIONAL         :: rho, &
+                                                    rho_diff
+    TYPE(real_matrix_p_type), DIMENSION(:), &
+         POINTER, OPTIONAL                       :: matrix_h, &
+                                                    matrix_ks
     TYPE(cp_error_type), INTENT(INOUT), &
          OPTIONAL                                :: error
 
@@ -316,6 +340,9 @@ CONTAINS
       IF (PRESENT(harris_energy)) harris_energy => harris_env%harris_energy
       IF (PRESENT(harris_force)) harris_force => harris_env%harris_force
       IF (PRESENT(rho)) rho => harris_env%rho
+      IF (PRESENT(rho_diff)) rho_diff => harris_env%rho_diff
+      IF (PRESENT(matrix_h)) matrix_h => harris_env%matrix_h
+      IF (PRESENT(matrix_ks)) matrix_ks => harris_env%matrix_ks
     END IF
 
   END SUBROUTINE harris_env_get
@@ -337,10 +364,13 @@ CONTAINS
 !!     - id_nr: unique identifier
 !!     - harris_energy: The harris energy type
 !!     - harris_force: The harris force type
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling
 !!     - rho: The rho data structure in which diverse representations of 
 !!            the density are stored
+!!     - rho_diff: rho_out - rho_in
+!!     - matrix_h: The Hamiltonian Matrix
+!!     - matrix_ks: The KS matrix
+!!     - error: variable to control error logging, stopping,... 
+!!       see module cp_error_handling
 !!
 !!     For possible missing arguments see the attributes of harris_env_type
 !!
@@ -352,13 +382,17 @@ CONTAINS
 !!
 !!*** **********************************************************************
   SUBROUTINE harris_env_set(harris_env, id_nr, harris_energy, harris_force, &
-                            rho, error)
+                            rho, rho_diff, matrix_h, matrix_ks, error)
 
     TYPE(harris_env_type), POINTER              :: harris_env
     TYPE(harris_energy_type), POINTER, OPTIONAl :: harris_energy
     TYPE(harris_force_type), POINTER, OPTIONAL  :: harris_force
     INTEGER, INTENT(OUT), OPTIONAL              :: id_nr
-    TYPE(qs_rho_type), POINTER, OPTIONAL        :: rho
+    TYPE(qs_rho_type), POINTER, OPTIONAL        :: rho, &
+                                                   rho_diff
+    TYPE(real_matrix_p_type), DIMENSION(:), &
+         POINTER, OPTIONAL                      :: matrix_h, &
+                                                   matrix_ks
     TYPE(cp_error_type), INTENT(INOUT), &
          OPTIONAL                               :: error
 
@@ -379,6 +413,9 @@ CONTAINS
       IF (PRESENT(harris_energy)) harris_env%harris_energy => harris_energy
       IF (PRESENT(harris_force)) harris_env%harris_force => harris_force
       IF (PRESENT(rho)) harris_env%rho => rho
+      IF (PRESENT(rho_diff)) harris_env%rho_diff => rho_diff
+      IF (PRESENT(matrix_h)) harris_env%matrix_h => matrix_h
+      IF (PRESENT(matrix_ks)) harris_env%matrix_ks => matrix_ks
     END IF
   END SUBROUTINE harris_env_set
 !***************************************************************************
@@ -438,7 +475,18 @@ CONTAINS
 
       !CALL coeff_zero(harris_env%rho_core)
       
-      NULLIFY(harris_env%rho)
+      IF (ASSOCIATED(harris_env%rho)) THEN
+        CALL qs_rho_release(harris_env%rho, error=error)
+      END IF
+      IF (ASSOCIATED(harris_env%rho_diff)) THEN
+        CALL qs_rho_release(harris_env%rho_diff, error=error)
+      END IF
+      IF (ASSOCIATED(harris_env%matrix_h)) THEN
+        CALL deallocate_matrix_set(harris_env%matrix_h)
+      END IF
+      IF (ASSOCIATED(harris_env%matrix_ks)) THEN
+        CALL deallocate_matrix_set(harris_env%matrix_ks)
+      END IF
     ELSE
       CALL harris_env_create(harris_env, natom, nspins, error=error)
     END IF
@@ -477,6 +525,7 @@ CONTAINS
     TYPE(harris_env_type), POINTER           :: harris_env
     INTEGER, INTENT(IN)                      :: natom, &
                                                 nspins
+    INTEGER                                  :: ispin
     TYPE(cp_error_type), INTENT(INOUT), &
       OPTIONAL                               :: error
 
@@ -514,8 +563,17 @@ CONTAINS
       harris_env%id_nr = last_harris_id
       !CALL harris_env_clear(harris_env, natom=natom, nspins=nspins, error=error)
       NULLIFY(harris_env%rho)
+      NULLIFY(harris_env%rho_diff)
       harris_env%natom = natom
       harris_env%nspins = nspins
+
+      ALLOCATE(harris_env%matrix_h(nspins), stat=stat)
+      CPPostcondition(stat == 0, cp_failure_level, routineP, error, failure)
+      ALLOCATE(harris_env%matrix_ks(nspins), stat=stat)
+      CPPostcondition(stat == 0, cp_failure_level, routineP, error, failure)
+      DO ispin = 1,nspins
+        NULLIFY(harris_env%matrix_h(ispin)%matrix, harris_env%matrix_ks(ispin)%matrix)
+      END DO
     END IF
   END SUBROUTINE harris_env_create
 !***************************************************************************

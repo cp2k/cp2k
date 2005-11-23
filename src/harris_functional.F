@@ -74,7 +74,7 @@ MODULE harris_functional
                                              qs_rho_get
   USE qs_scf_types,                    ONLY: qs_scf_env_type
   USE sparse_matrix_types,             ONLY: real_matrix_p_type, &
-                                             !replicate_matrix, &
+                                             replicate_matrix, &
                                              cp_sm_sm_trace
   USE timings,                         ONLY: timeset, &
                                              timestop
@@ -192,12 +192,13 @@ CONTAINS
       CALL duplicate_rho_type(rho_input=rho, rho_output=harris_env%rho, &
                               qs_env=qs_env, error=error)
 
-      !CALL replicate_matrix(source=qs_env%matrix_h(1)%matrix, &
-      !                      TARGET=harris_env%matrix_h(1)%matrix, &
-      !                      target_name="myH-Matrix", allocate_blocks=.TRUE.)
-      !CALL replicate_matrix(source=qs_env%matrix_ks(1)%matrix, &
-      !                      TARGET=harris_env%matrix_ks(1)%matrix, &
-      !                      target_name="myKS-Matrix", allocate_blocks=.TRUE.)
+      CALL replicate_matrix(source=qs_env%matrix_h(1)%matrix, &
+                            TARGET=harris_env%matrix_h(1)%matrix, &
+                            target_name="myH-Matrix", allocate_blocks=.TRUE.)
+
+      CALL replicate_matrix(source=qs_env%matrix_ks(1)%matrix, &
+                            TARGET=harris_env%matrix_ks(1)%matrix, &
+                            target_name="myKS-Matrix", allocate_blocks=.TRUE.)
 
       CALL pw_env_get(pw_env, auxbas_pw_pool=auxbas_pw_pool, error=error)
       CALL pw_pool_init_coeff(auxbas_pw_pool, v_hartree_gspace, &
@@ -234,22 +235,6 @@ CONTAINS
                          just_energy=.FALSE., error=error)
       !CALL qs_vxc_create(qs_env=qs_env, vxc_rho=v_rspace_new, vxc_tau=v_tau_rspace, &
       !                   exc=harris_energy%Exc, just_energy=.TRUE., error=error)
-
-      ! ** Evaluate integral_vxc ** !
-      !sum=0.0_dp
-      !DO ispin = 1, qs_env%dft_control%nspins
-      !bo=v_rspace_new(ispin)%pw%pw_grid%bounds_local
-      !DO k=bo(1,3),bo(2,3)
-      !   DO j=bo(1,2),bo(2,2)
-      !      DO i=bo(1,1),bo(2,1)
-      !        sum = sum + (v_rspace_new(ispin)%pw%cr3d(i,j,k) * &
-      !                     rho%rho_r(ispin)%pw%cr3d(i,j,k))
-      !      END DO
-      !   END DO
-      !END DO
-      !END DO
-      !CALL mp_sum(sum)
-      !harris_energy%integral_vxc = sum * v_rspace_new(1)%pw%pw_grid%dvol
 
       harris_energy%integral_vxc = pw_integral_ab(v_rspace_new(1)%pw, &
                                                   rho%rho_r(1)%pw)

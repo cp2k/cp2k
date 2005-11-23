@@ -92,6 +92,7 @@ MODULE harris_force_types
 !!     - f_kinetic: The forces due to the kinetic energy
 !!     - f_gth_pp: The forces of the GTH pseudopotential
 !!     - f_overlap: The forces due to the overlap
+!!     - f_nsc: The non_self_consistent forces
 !!
 !!   AUTHOR
 !!     Thomas D. Kuehne (tkuehne@phys.chem.ethz.ch)
@@ -119,7 +120,8 @@ MODULE harris_force_types
                                                         f_cross_integrate_v_core, &
                                                         f_kinetic, &
                                                         f_gth_pp, &
-                                                        f_overlap
+                                                        f_overlap, &
+                                                        f_nsc
     REAL(KIND=dp), DIMENSION(:), POINTER             :: f_total
 
   END TYPE harris_force_type
@@ -330,6 +332,10 @@ CONTAINS
           DEALLOCATE(harris_force%f_overlap, stat=stat)
           CPPostconditionNoFail(stat==0, cp_warning_level, routineP, error)
         END IF
+        IF (ASSOCIATED(harris_force%f_nsc)) THEN
+          DEALLOCATE(harris_force%f_nsc, stat=stat)
+          CPPostconditionNoFail(stat==0, cp_warning_level, routineP, error)
+        END IF
         DEALLOCATE(harris_force, stat=stat)
         CPPostconditionNoFail(stat==0, cp_warning_level, routineP, error)
       END IF
@@ -396,6 +402,7 @@ CONTAINS
 !!     - f_kinetic: The forces due to the kinetic energy
 !!     - f_gth_pp: The forces of the GTH pseudopotential
 !!     - f_overlap: The forces due to the overlap
+!!     - f_nsc: The non-self-consistent forces
 !!
 !!     For possible missing arguments see the attributes of harris_force_type
 !!
@@ -410,7 +417,8 @@ CONTAINS
                               f_integral_vxc, f_delta_integral_vxc, f_xc, &
                               f_ovrl, f_self, f_rho_core, f_EII, f_harris, &
                               f_cross_integrate_v, f_cross_integrate_v_core, &
-                              f_kinetic, f_gth_pp, f_overlap, f_total, error)
+                              f_kinetic, f_gth_pp, f_overlap, f_nsc, f_total, &
+                              error)
 
     TYPE(harris_force_type), POINTER                 :: harris_force
     INTEGER, INTENT(OUT), OPTIONAL                   :: id_nr
@@ -429,7 +437,8 @@ CONTAINS
                                                         f_cross_integrate_v_core, &
                                                         f_kinetic, &
                                                         f_gth_pp, &
-                                                        f_overlap
+                                                        f_overlap, &
+                                                        f_nsc
     REAL(KIND=dp), DIMENSION(:), POINTER, OPTIONAL   :: f_total
     TYPE(cp_error_type), INTENT(INOUT), &
       OPTIONAL                                       :: error
@@ -470,6 +479,7 @@ CONTAINS
       IF (PRESENT(f_kinetic)) f_kinetic = harris_force%f_kinetic
       IF (PRESENT(f_gth_pp)) f_gth_pp = harris_force%f_gth_pp
       IF (PRESENT(f_overlap)) f_overlap = harris_force%f_overlap
+      IF (PRESENT(f_nsc)) f_nsc = harris_force%f_nsc
     END IF
   END SUBROUTINE harris_force_get
 !***************************************************************************
@@ -531,6 +541,7 @@ CONTAINS
 !!     - f_kinetic: The forces due to the kinetic energy
 !!     - f_gth_pp: The forces of the GTH pseudopotential
 !!     - f_overlap: The forces due to the overlap
+!!     - f_nsc: The non-self-consistent forces
 !!
 !!     For possible missing arguments see the attributes of harris_force_type
 !!
@@ -545,7 +556,8 @@ CONTAINS
                               f_integral_vxc, f_delta_integral_vxc, f_xc, &
                               f_ovrl, f_self, f_rho_core, f_EII, f_harris, &
                               f_cross_integrate_v, f_cross_integrate_v_core, &
-                              f_kinetic, f_gth_pp, f_overlap, f_total, error)
+                              f_kinetic, f_gth_pp, f_overlap, f_nsc, f_total, &
+                              error)
 
     TYPE(harris_force_type), POINTER                 :: harris_force
     INTEGER, INTENT(OUT), OPTIONAL                   :: id_nr
@@ -564,7 +576,8 @@ CONTAINS
                                                         f_cross_integrate_v_core, &
                                                         f_kinetic, &
                                                         f_gth_pp, &
-                                                        f_overlap
+                                                        f_overlap, &
+                                                        f_nsc
     REAL(KIND=dp), DIMENSION(:), POINTER, OPTIONAL   :: f_total
     TYPE(cp_error_type), INTENT(INOUT), &
       OPTIONAL                                       :: error
@@ -605,6 +618,7 @@ CONTAINS
       IF (PRESENT(f_kinetic)) harris_force%f_kinetic = f_kinetic
       IF (PRESENT(f_gth_pp)) harris_force%f_gth_pp = f_gth_pp
       IF (PRESENT(f_overlap)) harris_force%f_overlap = f_overlap
+      IF (PRESENT(f_nsc)) harris_force%f_nsc = f_nsc
     END IF
   END SUBROUTINE harris_force_set
 !***************************************************************************
@@ -680,6 +694,7 @@ CONTAINS
           harris_force%f_kinetic(i,j)                = 0.0_dp
           harris_force%f_gth_pp(i,j)                 = 0.0_dp
           harris_force%f_overlap(i,j)                = 0.0_dp
+          harris_force%f_nsc(i,j)                    = 0.0_dp
         END DO
       END DO
       harris_force%f_total(:) = 0.0_dp
@@ -774,6 +789,8 @@ CONTAINS
     ALLOCATE(harris_force%f_gth_pp(natom,3), stat=stat)
     CPPostcondition(stat == 0, cp_failure_level, routineP, error, failure)
     ALLOCATE(harris_force%f_overlap(natom,3), stat=stat)
+    CPPostcondition(stat == 0, cp_failure_level, routineP, error, failure)
+    ALLOCATE(harris_force%f_nsc(natom,3), stat=stat)
     CPPostcondition(stat == 0, cp_failure_level, routineP, error, failure)
 
     IF (.NOT. failure) THEN

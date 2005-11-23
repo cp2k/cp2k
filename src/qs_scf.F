@@ -625,15 +625,6 @@ CONTAINS
            CALL duplicate_rho_type(rho_input=rho, &
                                    rho_output=qs_env%wf_history%past_states(1)%snapshot%rho_frozen, &
                                    qs_env=qs_env, error=error)
-
-           !CALL mpools_get(qs_env%mpools, S_sm_pools=S_sm_pools, error=error)
-           !CALL sm_pools_create_matrix_vect(S_sm_pools, qs_env%wf_history%past_states(1)%snapshot%rho_ao, &
-           !                                 error=error)
-           !DO ispin = 1,dft_control%nspins
-           !  CALL copy_matrix(rho%rho_ao(ispin)%matrix, &
-           !       qs_env%wf_history%past_states(1)%snapshot%rho_ao(ispin)%matrix)
-           !END DO
-
          END IF
        END IF
 

@@ -1149,6 +1149,8 @@ END SUBROUTINE qs_ks_did_change
 !!     - just_energy: if true calculates just the energy, and does not 
 !!       allocate v_*_rspace
 !!     - harris: If true uses the rho structure of the Harris environment
+!!     - nsc_force: Uses rho_diff in case the non-self-consistent force should be
+!!                  calculated. Works only in combination with the Harris functional!
 !!     - error: variable to control error logging, stopping,... 
 !!       see module cp_error_handling 
 !!
@@ -1166,12 +1168,14 @@ END SUBROUTINE qs_ks_did_change
 !!
 !!*** *********************************************************************
 SUBROUTINE qs_vxc_create(vxc_rho,vxc_tau, exc, qs_env,&
-      just_energy, harris, gapw_xc, error)
+      just_energy, harris, nsc_force, gapw_xc, error)
     TYPE(coeff_type), DIMENSION(:), POINTER  :: vxc_rho, vxc_tau
     TYPE(qs_environment_type), POINTER       :: qs_env
     REAL(KIND=dp)                            :: exc
     LOGICAL, INTENT(in), OPTIONAL            :: just_energy, &
-                                                harris, gapw_xc
+                                                harris, &
+                                                nsc_force, &
+                                                gapw_xc
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
@@ -1194,7 +1198,9 @@ SUBROUTINE qs_vxc_create(vxc_rho,vxc_tau, exc, qs_env,&
     TYPE(mo_set_p_type), DIMENSION(:), &
          POINTER                                :: mo_array
     LOGICAL                                  :: sic_scaling_b_zero, &
-                                                harris_flag, my_gapw_xc
+                                                harris_flag, &
+                                                nsc_flag, &
+                                                my_gapw_xc
     TYPE(harris_env_type), POINTER           :: harris_env
 
 !   ---------------------------------------------------------------------------
@@ -1206,6 +1212,7 @@ SUBROUTINE qs_vxc_create(vxc_rho,vxc_tau, exc, qs_env,&
   CPPrecondition(.NOT.ASSOCIATED(vxc_tau),cp_failure_level,routineP,error,failure)
   NULLIFY(dft_control,rho_struct,pw_env,auxbas_pw_pool,harris_env,cell, my_vxc_rho, &
           my_vxc_tau, rho_g, rho_r, tau, rho_m_rspace,rho_m_gspace)
+
   my_just_energy=.FALSE.
   IF (PRESENT(just_energy)) my_just_energy=just_energy
   my_gapw_xc=.FALSE.
@@ -1215,12 +1222,21 @@ SUBROUTINE qs_vxc_create(vxc_rho,vxc_tau, exc, qs_env,&
   ELSE
     harris_flag = .FALSE.
   END IF
+  IF (PRESENT(nsc_force)) THEN
+    nsc_flag = nsc_force
+  ELSE
+    nsc_flag = .FALSE.
+  END IF
 
   ! would be better to pass these as arguments
   IF (harris_flag) THEN
     CALL get_qs_env(qs_env=qs_env, dft_control=dft_control, harris_env=harris_env, &
                     pw_env=pw_env, cell=cell, error=error)
-    rho_struct => harris_env%rho
+    IF (nsc_flag) THEN
+      rho_struct => harris_env%rho_diff
+    ELSE
+      rho_struct => harris_env%rho
+    END IF
   ELSEIF(my_gapw_xc) THEN
     CALL get_qs_env(qs_env=qs_env, dft_control=dft_control, rho_xc=rho_struct, &
                     pw_env=pw_env, cell=cell, error=error)
