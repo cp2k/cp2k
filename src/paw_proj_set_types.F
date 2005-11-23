@@ -313,7 +313,7 @@ CONTAINS
 
     CHARACTER(LEN=default_string_length)   :: bsname
     INTEGER  :: icgf, icgfmin, icgfmax, ico, icomin, icomax, il, ip, ipgf, iprj, &
-      iprjfirst, isgf, isgfmax, isgfmin, iset, ishell, istat, jp, kp, &
+      iprjfirst, ipp, isgf, isgfmax, isgfmin, iset, ishell, istat, jp, kp, &
       iso, lshell, lx, ly, lz, m, maxco, maxl,&
       maxnprj, maxpgf, maxso,  &
       n, ncgauprj, ncgf, nisop, np, npgfg, ns, nset, nsgf, output_unit
@@ -431,6 +431,15 @@ CONTAINS
 
       nisop = 0
       DO ip = 1, np
+! Check for equal exponents
+        DO ipp =1,ip-1
+          IF(zet(ip)==zet(ipp)) THEN
+            CALL stop_program(routine,module_name,__LINE__,&
+              "Linear dependency in the construction of the GAPW projectors:"//&
+              " different sets of the BASIS SET contain identical exponents")
+          END IF
+        END DO 
+
         IF(zet(ip) >= paw_proj%zisomin(lshell)) THEN
           isoprj(ip) = .TRUE.
           nisop = nisop + 1
