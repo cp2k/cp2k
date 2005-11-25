@@ -14,12 +14,13 @@
   restart:      init                start type (init,pos,posvel)
   constraints:   off
   Uniaxial_shock:    &
-    timecon: 550 fs   &
+    cmass: 6876495.93450422771  &
     v_shock: 2800.     &            
     pressure: -1030.  
   print  files        2000
   print  screen       1
 &END
+    timecon: 550 fs   &
 
 &TOPOLOGY
  CONNECTIVITY  OFF
