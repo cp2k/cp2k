@@ -132,7 +132,7 @@ SUBROUTINE initialize_npt ( simpar, globenv, npt_info, box )
   IF ( simpar % read_type /= md_all_restart ) &
   CALL init_barostat_variables ( npt_info, simpar % tau_cell, temp,  &
                                  box % deth, simpar % nfree, simpar % ensemble, &
-                                 globenv )
+                                 simpar % cmass, globenv )
 
 END SUBROUTINE initialize_npt
 

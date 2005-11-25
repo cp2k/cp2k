@@ -148,6 +148,7 @@ MODULE md
      REAL (KIND=dp) :: temp_baro
      REAL (KIND=dp) :: temp_tol
      REAL (KIND=dp) :: p_ext
+     REAL (KIND=dp) :: cmass
      REAL (KIND=dp) :: v0
      REAL (KIND=dp) :: e0
      REAL (KIND=dp) :: v_shock
@@ -260,6 +261,7 @@ CONTAINS
 !!I   energy   : e0       &                 Initial energy                    I
 !!I   volume   : v0       &                 Initial compression               I
 !!I   damping  : gamma    &                 Damping parameter                 I
+!!I   cmass    : cmass    &                 Cell mass in AU                   I
 !!I Nose_parameter        &              parameter of Nose-Hoover-chains      I
 !!I   length:    nhclen   &                 length of thermostat              I
 !!I   Yoshida:   nyosh    &                 order of Yoshida integrator       I
@@ -609,21 +611,8 @@ CONTAINS
                       CALL get_next ( simpar % e0 )
                    CASE ( 'VOLUME' )
                       CALL get_next ( simpar % v0 )
-                   CASE ( 'TIMECO' )
-                      CALL get_next ( simpar % tau_cell )
-                      IF ( test_next () == 'C' ) THEN
-                         CALL get_next ( string, ILEN )
-                         CALL uppercase ( string )
-                         SELECT CASE ( string )
-                         CASE DEFAULT
-                            simpar % units % tau_cell = '1/CM'
-                         CASE ('FS','AU')
-                            simpar % units % tau_cell = string
-                         END SELECT
-                      ELSE
-                         simpar % units % tau_cell = '1/CM'
-                      ENDIF
-                      CALL uppercase ( simpar % units % tau_cell )
+                   CASE ( 'CMASS' )
+                      CALL get_next ( simpar % cmass )
                    CASE ( 'V_SHOC' )
                       CALL get_next ( simpar % v_shock )
 !!! input in m/sec
@@ -1042,9 +1031,9 @@ CONTAINS
                simpar % gamma_nph*unit%fs
           WRITE ( iw, '( A,A3,A, T71, F10.2 )' ) &
                ' SHOCK| Pressure [','Bar','] ', simpar % p0*unit%bar
-          WRITE ( iw, '( A,A4,A, T71, F10.4 )' ) &
-               ' SHOCK| Barostat time constant [', 'fs', '] ', &
-               simpar % tau_cell/unit%fs
+          WRITE ( iw, '( A,A4,A, T71, E10.4 )' ) &
+               ' SHOCK| Barostat Mass [', 'au', '] ', &
+               simpar % cmass
        END IF
     END IF
 
@@ -1119,7 +1108,7 @@ SUBROUTINE read_md_new_section(simpar, globenv, md_section, error)
         IF (simpar%ensemble == nph_uniaxial_damped_ensemble) THEN
           CALL section_vals_val_get(tmp_section,"GAMMA",r_val=simpar%gamma_nph,error=error)
         END IF
-        CALL section_vals_val_get(tmp_section,"TIMECO",r_val=simpar%tau_cell,error=error)
+        CALL section_vals_val_get(tmp_section,"CMASS",r_val=simpar%cmass,error=error)
         CALL section_vals_val_get(tmp_section,"VSHOC",r_val=simpar%v_shock,error=error)
      END IF
 
@@ -1244,6 +1233,7 @@ END SUBROUTINE read_md_new_section
     simpar % e0 = 0._dp
     simpar % v_shock = 0.0_dp
     simpar % gamma_nph = 0.0_dp
+    simpar % cmass = 0.0_dp
     !MK Langevin
     simpar%gamma = 0.0_dp
     simpar%var_w = 0.0_dp

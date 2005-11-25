@@ -1414,10 +1414,10 @@ SUBROUTINE create_uniaxial_section(section, error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)             
 
-       CALL keyword_create(keyword, name="TIMECO",&
-            description="Barostat time constant",&
-            usage="TIMECO real",&
-            type_of_var=real_t, n_var=1,unit_str='wavenumber_t',error=error)
+       CALL keyword_create(keyword, name="CMASS",&
+            description="Barostat mass",&
+            usage="CMASS real",&
+            type_of_var=real_t, n_var=1,unit_str='au_m',error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)             
 

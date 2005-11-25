@@ -236,12 +236,12 @@ END SUBROUTINE init_nhc_variables
 !******************************************************************************
 
 SUBROUTINE init_barostat_variables ( npt, tau_cell, temp_ext, deth, nfree, ensemble, &
-                                     globenv )
+                                     cmass, globenv )
 
 
     TYPE(npt_info_type), DIMENSION(:, :), &
       INTENT(INOUT)                          :: npt
-    REAL(KIND=dp), INTENT(IN)                :: tau_cell, temp_ext, deth
+    REAL(KIND=dp), INTENT(IN)                :: tau_cell, temp_ext, deth, cmass
     INTEGER, INTENT(IN)                      :: nfree
     INTEGER, INTENT(IN)                      :: ensemble
     TYPE(global_environment_type), &
@@ -261,8 +261,10 @@ SUBROUTINE init_barostat_variables ( npt, tau_cell, temp_ext, deth, nfree, ensem
      npt ( :, : ) % mass = REAL ( nfree + 3,KIND=dp) &
           * temp_ext * tau_cell ** 2 / 3.0_dp
   CASE ( nph_uniaxial_ensemble,nph_uniaxial_damped_ensemble )
-     npt ( :, : ) % mass = REAL ( nfree + 3,KIND=dp) &
-          * temp_ext * tau_cell ** 2
+     npt ( :, : ) % mass = cmass
+          
+!     npt ( :, : ) % mass = REAL ( nfree + 3,KIND=dp) &
+!          * temp_ext * tau_cell ** 2
   END SELECT
 
   IF ( globenv % ionode ) THEN
