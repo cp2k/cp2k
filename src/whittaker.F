@@ -5,8 +5,7 @@
 !!     whittaker
 !!
 !!   FUNCTION
-!!     Calculates integral
-!!     Int(
+!!     Calculates special integrals
 !!
 !!   AUTHOR
 !!     JGH 10-08-2004
@@ -19,7 +18,7 @@
 !------------------------------------------------------------------------------!
 
   USE kinds,                           ONLY: dp
-  USE mathconstants,                   ONLY: rootpi
+  USE mathconstants,                   ONLY: rootpi, fac, dfac
   USE termination,                     ONLY: stop_program
   USE timings,                         ONLY: timeset,&
                                              timestop
@@ -64,7 +63,7 @@ CONTAINS
                    t46,t47,t48,t49,t50,t51,t52,t53,t54,t55,t56,t57,t58,t59,&
                    t60,t61
     REAL ( dp ) :: x
-    INTEGER     :: handle, i
+    INTEGER     :: handle, i, k
 
 ! -----------------------------------------------------------------------------
 
@@ -79,8 +78,16 @@ CONTAINS
 
       CASE DEFAULT
 
-        CALL stop_program(module_name,routine_name,__LINE__,&
-             "Angular momentum out of range 0-14")
+        t1 = sqrt(alpha)
+        DO i = 1, n
+          x  = r(i)
+          wc(i) = -rootpi*erfa(i)*alpha*dfac(l+1)
+          DO k = 0, l/2
+            wc(i) = wc(i) + expa(i)*x**(2*k+1)*t1**(2*k+3)*&
+                    dfac(l+1)/dfac(2*k+1)*2**(k+1)
+          END DO
+          wc(i) = -wc(i)/2._dp**(l/2+2)/t1**(l+5)
+        END DO
 
       CASE (0)
 
@@ -286,7 +293,7 @@ CONTAINS
                    t18,t19,t20,t21,t22,t23,t24,t25,t26,t27,t28,t29,t30,t31,&
                    t32,t33
     REAL ( dp ) :: x
-    INTEGER     :: handle, i
+    INTEGER     :: handle, i ,k
 
 ! -----------------------------------------------------------------------------
 
@@ -301,8 +308,14 @@ CONTAINS
 
       CASE DEFAULT
 
-        CALL stop_program(module_name,routine_name,__LINE__,&
-             "Angular momentum out of range 0-14")
+        DO i = 1, n
+          x  = r(i)
+          wc(i) = 0._dp
+          DO k = 0, l/2
+            wc(i) = wc(i) + alpha**k*x**(2*k)*fac(l/2)/fac(k)
+          END DO
+          wc(i) = 0.5_dp*wc(i)/alpha**(l/2+1)*expa(i)
+        END DO
 
       CASE (0)
 
